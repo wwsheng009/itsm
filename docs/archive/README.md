@@ -39,6 +39,7 @@
 | `docs/test-plan/itst-test-report-p0/p1/p2-v1.md` | `archive/testing-reports/` | #1 #3 | 2026-08 |
 | `docs/test-plan/itst-test-summary-v1.md` | `archive/testing-reports/` | #3 | 2026-08 |
 | `docs/review/servicenow-benchmark-2026-06-18.md` | `archive/reviews/` | #4 #5 | 2026-08 |
+| `USER_CREATE_400_ANALYSIS.md`（仓库外 `E:\projects\itsm\`） | `archive/bug-reports/user-create-400-password-policy-2026-09-20.md` | #6（一次性排障/修复记录；无文档引用） | 2026-09 |
 
 ## 使用原则
 

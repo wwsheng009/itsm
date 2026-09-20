@@ -134,6 +134,10 @@ output/
 !itsm-backend/migrations/passwordresettoken*.go
 # Exception: docs-gate security check script (not a secret)
 !scripts/docs-gate/check-hardcoded-passwords.sh
+# Exception: archived troubleshooting record for the user-create 400 password-policy
+# fix (contains only test-fixture passwords, no production secrets; docs-gate C.1
+# does not scan docs/archive/).
+!docs/archive/bug-reports/user-create-400-password-policy-2026-09-20.md
 !itsm-backend/ent/passwordresettoken/
 !itsm-backend/ent/passwordresettoken/**
 !itsm-backend/ent/passwordresettoken*.go
