@@ -17,6 +17,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - 修复生产环境数据库迁移失败问题：部分迁移脚本内嵌事务控制语句导致整批迁移中止
 - 修复生产部署登录失败：docker-compose 默认 RLS 模式从 `enforce` 改为 `off`，避免未携带租户上下文的公共路由（登录/注册）返回 401
+- 修复新建用户返回 400：后端补齐创建路径的密码策略校验与错误信息映射，前端表单同步密码策略提示（排查记录见 `docs/archive/bug-reports/user-create-400-password-policy-2026-09-20.md`）
 
 ### Changed
 
