@@ -19,6 +19,9 @@ import (
 type UserService struct {
 	client *ent.Client
 	logger *zap.SugaredLogger
+	// config 用于读取租户生效的密码策略（system_configs 驱动）。
+	// 未注入时回退 DefaultPasswordPolicy，保证既有调用方行为不变。
+	config *SystemConfigService
 }
 
 func NewUserService(client *ent.Client, logger *zap.SugaredLogger) *UserService {
@@ -26,6 +29,19 @@ func NewUserService(client *ent.Client, logger *zap.SugaredLogger) *UserService 
 		client: client,
 		logger: logger,
 	}
+}
+
+// SetSystemConfigService 注入系统配置服务，使密码策略可由 /admin/system-config 调整。
+func (s *UserService) SetSystemConfigService(config *SystemConfigService) {
+	s.config = config
+}
+
+// PasswordPolicy 返回租户当前生效的密码策略；未注入配置服务时返回默认策略。
+func (s *UserService) PasswordPolicy(ctx context.Context, tenantID int) PasswordPolicy {
+	if s == nil || s.config == nil {
+		return DefaultPasswordPolicy()
+	}
+	return s.config.GetPasswordPolicy(ctx, tenantID)
 }
 
 // CreateUser 创建用户
@@ -59,7 +75,7 @@ func (s *UserService) CreateUser(ctx context.Context, req *dto.CreateUserRequest
 	if password == "" {
 		password = fmt.Sprintf("P@ssw0rd%08d", time.Now().UnixNano()%100000000)
 	}
-	if err := validatePassword(password); err != nil {
+	if err := s.PasswordPolicy(ctx, tenantID).Validate(password); err != nil {
 		return nil, err
 	}
 	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
@@ -476,7 +492,7 @@ func (s *UserService) ResetPassword(ctx context.Context, id int, newPassword str
 	if err != nil {
 		return err
 	}
-	if err := validatePassword(newPassword); err != nil {
+	if err := s.PasswordPolicy(ctx, tenantID).Validate(newPassword); err != nil {
 		return err
 	}
 
@@ -602,27 +618,10 @@ func (s *UserService) BatchUpdateUsers(ctx context.Context, req *dto.BatchUpdate
 	return nil
 }
 
+// validatePassword 保留包内默认策略入口（等价于 DefaultPasswordPolicy().Validate），
+// 供不持有租户上下文的调用方使用；业务路径请优先走 (*UserService).PasswordPolicy。
 func validatePassword(password string) error {
-	if len(password) < 12 || len(password) > 128 {
-		return fmt.Errorf("密码长度必须为12到128位")
-	}
-	var upper, lower, digit, special bool
-	for _, r := range password {
-		switch {
-		case r >= 'A' && r <= 'Z':
-			upper = true
-		case r >= 'a' && r <= 'z':
-			lower = true
-		case r >= '0' && r <= '9':
-			digit = true
-		default:
-			special = true
-		}
-	}
-	if !upper || !lower || !digit || !special {
-		return fmt.Errorf("密码必须同时包含大写字母、小写字母、数字和特殊字符")
-	}
-	return nil
+	return DefaultPasswordPolicy().Validate(password)
 }
 
 // SearchUsers 搜索用户

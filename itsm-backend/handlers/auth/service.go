@@ -5,6 +5,7 @@ import (
 	"crypto/rand"
 	"encoding/hex"
 	"fmt"
+	"strings"
 	"time"
 
 	"itsm-backend/dto"
@@ -28,6 +29,8 @@ type Service struct {
 	tokenBlacklist *service.TokenBlacklistService
 	emailService   *service.EmailService
 	baseURL        string
+	// configService 提供租户生效的密码策略（system_configs 驱动）。
+	configService *service.SystemConfigService
 }
 
 func NewService(client *ent.Client, jwtSecret string, logger *zap.SugaredLogger, tokenBlacklist *service.TokenBlacklistService) *Service {
@@ -36,6 +39,53 @@ func NewService(client *ent.Client, jwtSecret string, logger *zap.SugaredLogger,
 
 func (s *Service) SetEmailService(emailService *service.EmailService) { s.emailService = emailService }
 func (s *Service) SetBaseURL(baseURL string)                          { s.baseURL = baseURL }
+
+// SetSystemConfigService 注入系统配置服务，使注册/找回密码也遵循配置页的密码策略。
+func (s *Service) SetSystemConfigService(configService *service.SystemConfigService) {
+	s.configService = configService
+}
+
+// passwordPolicy 返回租户当前生效的密码策略；未注入配置服务时回退默认策略。
+func (s *Service) passwordPolicy(ctx context.Context, tenantID int) service.PasswordPolicy {
+	if s == nil || s.configService == nil {
+		return service.DefaultPasswordPolicy()
+	}
+	return s.configService.GetPasswordPolicy(ctx, tenantID)
+}
+
+// PasswordPolicy 解析并返回租户当前生效的密码策略（公开端点用，无需登录）。
+// 未指定 tenantCode 时与注册一致：仅当系统只有一个启用租户时才按其策略解析，
+// 多租户场景返回默认策略，避免把任意租户的配置暴露给未指定租户的调用方。
+func (s *Service) PasswordPolicy(ctx context.Context, tenantCode string) (*dto.PasswordPolicyResponse, error) {
+	tenantID := 0
+	if code := strings.TrimSpace(tenantCode); code != "" {
+		tenantEntity, err := s.client.Tenant.Query().Where(tenant.CodeEQ(code)).First(ctx)
+		if err != nil {
+			return nil, fmt.Errorf("租户不存在")
+		}
+		tenantID = tenantEntity.ID
+	} else {
+		tenants, err := s.client.Tenant.Query().
+			Where(tenant.StatusEQ("active")).
+			Order(ent.Asc(tenant.FieldID)).
+			Limit(2).
+			All(ctx)
+		if err == nil && len(tenants) == 1 {
+			tenantID = tenants[0].ID
+		}
+	}
+
+	policy := s.passwordPolicy(ctx, tenantID)
+	return &dto.PasswordPolicyResponse{
+		MinLength:           policy.MinLength,
+		MaxLength:           policy.MaxLength,
+		RequireUppercase:    policy.RequireUppercase,
+		RequireLowercase:    policy.RequireLowercase,
+		RequireNumbers:      policy.RequireNumbers,
+		RequireSpecialChars: policy.RequireSpecialChars,
+		Description:         policy.Description(),
+	}, nil
+}
 
 func (s *Service) permissions(userEntity *ent.User) []string {
 	if userEntity.Role == user.RoleSuperAdmin {
@@ -141,6 +191,10 @@ func (s *Service) Register(ctx context.Context, req *dto.RegisterRequest) (*dto.
 		}
 		tenantID = tenants[0].ID
 	}
+	// 注册同样受配置页的密码策略约束（历史上这里只做 min=8 的绑定校验，会绕过策略）。
+	if err := s.passwordPolicy(ctx, tenantID).Validate(req.Password); err != nil {
+		return nil, err
+	}
 	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(req.Password), bcrypt.DefaultCost)
 	if err != nil {
 		return nil, fmt.Errorf("密码加密失败")
@@ -188,6 +242,20 @@ func (s *Service) ForgotPassword(ctx context.Context, req *dto.ForgotPasswordReq
 func (s *Service) ResetPassword(ctx context.Context, req *dto.PasswordResetRequest) (*dto.PasswordResetResponse, error) {
 	if req.Password != req.PasswordConfirm {
 		return nil, fmt.Errorf("两次输入的密码不一致")
+	}
+	// 先按令牌所属租户的策略校验新密码：避免用不合格密码消耗一次性重置令牌。
+	tokenOwner, err := s.client.PasswordResetToken.Query().
+		Where(passwordresettoken.TokenEQ(req.Token), passwordresettoken.EmailEQ(req.Email), passwordresettoken.Used(false), passwordresettoken.ExpiresAtGT(time.Now())).
+		Only(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("令牌无效或已使用")
+	}
+	tokenUser, err := s.client.User.Get(ctx, tokenOwner.UserID)
+	if err != nil {
+		return nil, fmt.Errorf("令牌无效或已使用")
+	}
+	if err := s.passwordPolicy(ctx, tokenUser.TenantID).Validate(req.Password); err != nil {
+		return nil, err
 	}
 	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(req.Password), bcrypt.DefaultCost)
 	if err != nil {

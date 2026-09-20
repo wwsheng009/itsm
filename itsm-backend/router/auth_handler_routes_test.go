@@ -43,7 +43,7 @@ func TestSetupRoutes_AuthHandlerProductionRoutes(t *testing.T) {
 	SetupRoutes(router, &RouterConfig{JWTSecret: jwtSecret, Logger: logger, Client: client, AuthHandler: handler, CommonHandler: commonHandler})
 
 	t.Run("register retains request and response contract", func(t *testing.T) {
-		body := []byte(`{"username":"newuser","email":"new@example.com","password":"password123","fullName":"New User","tenantCode":"TENANT-A"}`)
+		body := []byte(`{"username":"newuser","email":"new@example.com","password":"SecurePass1!","fullName":"New User","tenantCode":"TENANT-A"}`)
 		request := httptest.NewRequest(http.MethodPost, "/api/v1/auth/register", bytes.NewReader(body))
 		request.Header.Set("Content-Type", "application/json")
 		response := httptest.NewRecorder()

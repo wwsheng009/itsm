@@ -87,7 +87,8 @@ type UserTenantsResponse struct {
 type RegisterRequest struct {
 	Username    string `json:"username" binding:"required,min=3,max=20,alphanum"`
 	Email       string `json:"email" binding:"required,email"`
-	Password    string `json:"password" binding:"required,min=8"`
+	// 长度下限只做兜底；真实强度由 service 层按租户密码策略校验（见 dto.PasswordPolicyResponse）。
+	Password    string `json:"password" binding:"required,min=6,max=128"`
 	DisplayName string `json:"displayName" binding:"omitempty"`
 	FullName    string `json:"fullName" binding:"omitempty"`
 	Phone       string `json:"phone" binding:"omitempty"`
@@ -130,8 +131,20 @@ type ForgotPasswordResponse struct {
 type PasswordResetRequest struct {
 	Token           string `json:"token" binding:"required"`
 	Email           string `json:"email" binding:"required,email"`
-	Password        string `json:"password" binding:"required,min=12,max=128"`
+	Password        string `json:"password" binding:"required,min=6,max=128"`
 	PasswordConfirm string `json:"passwordConfirm" binding:"required"`
+}
+
+// PasswordPolicyResponse 描述租户当前生效的密码策略，
+// 供注册/登录/找回密码等页面动态渲染规则与提示（公开端点 /auth/password-policy）。
+type PasswordPolicyResponse struct {
+	MinLength           int    `json:"minLength"`
+	MaxLength           int    `json:"maxLength"`
+	RequireUppercase    bool   `json:"requireUppercase"`
+	RequireLowercase    bool   `json:"requireLowercase"`
+	RequireNumbers      bool   `json:"requireNumbers"`
+	RequireSpecialChars bool   `json:"requireSpecialChars"`
+	Description         string `json:"description"`
 }
 
 // PasswordResetResponse 密码重置响应

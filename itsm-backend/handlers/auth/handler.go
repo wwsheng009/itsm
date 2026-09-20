@@ -32,6 +32,21 @@ func (h *Handler) Register(c *gin.Context) {
 	common.Success(c, response)
 }
 
+// PasswordPolicy 返回当前租户生效的密码策略，供注册/找回密码等未登录页面渲染规则。
+// 公开端点：密码策略属于展示型配置，不含敏感信息。
+func (h *Handler) PasswordPolicy(c *gin.Context) {
+	tenantCode := c.Query("tenantCode")
+	if tenantCode == "" {
+		tenantCode = c.GetHeader("X-Tenant-Code")
+	}
+	policy, err := h.service.PasswordPolicy(c.Request.Context(), tenantCode)
+	if err != nil {
+		common.ParamError(c, err.Error())
+		return
+	}
+	common.Success(c, policy)
+}
+
 func (h *Handler) ForgotPassword(c *gin.Context) {
 	var req dto.ForgotPasswordRequest
 	if err := c.ShouldBindJSON(&req); err != nil {

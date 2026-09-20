@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"fmt"
+	"sync"
 	"time"
 
 	"itsm-backend/dto"
@@ -15,6 +16,11 @@ import (
 type SystemConfigService struct {
 	client *ent.Client
 	logger *zap.SugaredLogger
+
+	// 密码策略缓存：system_configs 是热路径读（每次设密都要校验），
+	// 配置写入路径会主动失效，TTL 仅作兜底。
+	policyMu    sync.RWMutex
+	policyCache map[int]passwordPolicyCacheEntry
 }
 
 func NewSystemConfigService(client *ent.Client, logger *zap.SugaredLogger) *SystemConfigService {
@@ -54,6 +60,7 @@ func (s *SystemConfigService) CreateSystemConfig(ctx context.Context, req *dto.S
 		return nil, fmt.Errorf("创建系统配置失败: %w", err)
 	}
 
+	s.InvalidatePasswordPolicy(tenantID)
 	return config, nil
 }
 
@@ -167,6 +174,7 @@ func (s *SystemConfigService) UpdateSystemConfig(ctx context.Context, id int, re
 		return nil, fmt.Errorf("更新系统配置失败: %w", err)
 	}
 
+	s.InvalidatePasswordPolicy(tenantID)
 	return updated, nil
 }
 
@@ -214,6 +222,8 @@ func (s *SystemConfigService) BatchUpdateSystemConfigs(ctx context.Context, conf
 		}
 	}
 
+	// 批量保存（含安全设置页的密码策略）后立即失效缓存，保证保存即生效。
+	s.InvalidatePasswordPolicy(tenantID)
 	return results, nil
 }
 
@@ -240,6 +250,7 @@ func (s *SystemConfigService) DeleteSystemConfig(ctx context.Context, id int, te
 		return fmt.Errorf("删除系统配置失败: %w", err)
 	}
 
+	s.InvalidatePasswordPolicy(tenantID)
 	return nil
 }
 
@@ -311,5 +322,6 @@ func (s *SystemConfigService) InitDefaultConfigs(ctx context.Context, tenantID i
 		}
 	}
 
+	s.InvalidatePasswordPolicy(tenantID)
 	return nil
 }

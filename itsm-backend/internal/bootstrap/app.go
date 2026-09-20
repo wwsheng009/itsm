@@ -1032,6 +1032,10 @@ func NewApplication() *Application {
 	// System Config Handler（2026-09-02 迁移至 handlers/systemconfig）
 	systemConfigService := service.NewSystemConfigService(client, sugar)
 	systemConfigHandler := systemconfig.NewHandler(systemConfigService, sugar)
+	// 密码策略由 system_configs 驱动：注入所有设密入口（建用户/管理员重置/注册/找回密码），
+	// 使 /admin/system-config 保存的 passwordMinLength 等配置立即生效。
+	userService.SetSystemConfigService(systemConfigService)
+	authService.SetSystemConfigService(systemConfigService)
 
 	// Vendor Controller
 

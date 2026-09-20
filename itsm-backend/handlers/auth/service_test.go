@@ -136,7 +136,7 @@ func TestService_Register(t *testing.T) {
 		req := &dto.RegisterRequest{
 			Username:    "bob",
 			Email:       "bob@example.com",
-			Password:    "securePass1",
+			Password:    "SecurePass1!",
 			DisplayName: "Bob Builder",
 			Phone:       "13900000000",
 			Company:     "Acme",
@@ -157,7 +157,7 @@ func TestService_Register(t *testing.T) {
 		req := &dto.RegisterRequest{
 			Username:    "bob",
 			Email:       "bob@example.com",
-			Password:    "securePass1",
+			Password:    "SecurePass1!",
 			DisplayName: "Bob Builder",
 			Phone:       "13900000000",
 			Company:     "Acme",
@@ -185,7 +185,7 @@ func TestService_Register(t *testing.T) {
 		req := &dto.RegisterRequest{
 			Username:    "alice", // 已存在
 			Email:       "new@example.com",
-			Password:    "securePass1",
+			Password:    "SecurePass1!",
 			DisplayName: "Imposter",
 		}
 		_, err := fx.service.Register(fx.ctx, req)
@@ -197,7 +197,7 @@ func TestService_Register(t *testing.T) {
 		req := &dto.RegisterRequest{
 			Username:    "charlie",
 			Email:       "alice@example.com", // 已存在
-			Password:    "securePass1",
+			Password:    "SecurePass1!",
 			DisplayName: "Charlie",
 		}
 		_, err := fx.service.Register(fx.ctx, req)
@@ -209,7 +209,7 @@ func TestService_Register(t *testing.T) {
 		req := &dto.RegisterRequest{
 			Username:    "diana",
 			Email:       "diana@example.com",
-			Password:    "securePass1",
+			Password:    "SecurePass1!",
 			DisplayName: "Diana",
 			TenantCode:  "tenant2",
 		}
@@ -226,7 +226,7 @@ func TestService_Register(t *testing.T) {
 		req := &dto.RegisterRequest{
 			Username:    "eve",
 			Email:       "eve@example.com",
-			Password:    "securePass1",
+			Password:    "SecurePass1!",
 			DisplayName: "Eve",
 			TenantCode:  "ghost-tenant",
 		}
@@ -418,8 +418,9 @@ func TestService_ResetPassword(t *testing.T) {
 		req := &dto.PasswordResetRequest{
 			Token:           tok.Token,
 			Email:           fx.user.Email,
-			Password:        "brand-new-pass",
-			PasswordConfirm: "brand-new-pass",
+			// 需满足默认密码策略（12 位 + 大写/小写/数字/特殊字符）
+			Password:        "Brand-New-Pass1",
+			PasswordConfirm: "Brand-New-Pass1",
 		}
 		resp, err := fx.service.ResetPassword(fx.ctx, req)
 		require.NoError(t, err)
@@ -429,7 +430,7 @@ func TestService_ResetPassword(t *testing.T) {
 		updated, err := fx.client.User.Get(fx.ctx, fx.user.ID)
 		require.NoError(t, err)
 		bcryptErr := bcrypt.CompareHashAndPassword(
-			[]byte(updated.PasswordHash), []byte("brand-new-pass"),
+			[]byte(updated.PasswordHash), []byte("Brand-New-Pass1"),
 		)
 		assert.NoError(t, bcryptErr, "新密码应可验证")
 

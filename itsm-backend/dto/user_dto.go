@@ -11,7 +11,9 @@ type CreateUserRequest struct {
 	Name       string `json:"name" binding:"required,min=1,max=100"`
 	Department string `json:"department"`
 	Phone      string `json:"phone"`
-	Password   string `json:"password" binding:"required,min=12,max=128"`
+	// 长度下限只做兜底；真实强度由 service 层按租户 system_configs 的密码策略校验，
+	// 使 /admin/system-config 的 passwordMinLength 等配置真正生效。
+	Password   string `json:"password" binding:"required,min=6,max=128"`
 	TenantID   int    `json:"tenantId"`
 	// 角色，可选；不提供时使用后端默认值（end_user）
 	// 词表单一源=domain/role（security 为存量 legacy 值，user 为前端别名归一为 end_user）
@@ -87,7 +89,7 @@ type ChangeUserStatusRequest struct {
 
 // ResetPasswordRequest 重置密码请求
 type ResetPasswordRequest struct {
-	NewPassword string `json:"newPassword" binding:"required,min=12,max=128"`
+	NewPassword string `json:"newPassword" binding:"required,min=6,max=128"`
 }
 
 // UserStatsResponse 用户统计响应

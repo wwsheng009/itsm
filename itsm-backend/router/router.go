@@ -309,6 +309,9 @@ func SetupRoutes(r *gin.Engine, config *RouterConfig) {
 			public.POST("/auth/forgot-password", middleware.LoginRateLimiter(), config.AuthHandler.ForgotPassword)
 			public.POST("/auth/reset-password", middleware.LoginRateLimiter(), config.AuthHandler.ResetPassword)
 			public.POST("/auth/validate-reset-token", middleware.LoginRateLimiter(), config.AuthHandler.ValidateResetToken)
+			// 密码策略公开只读端点：注册/登录/找回密码等未登录页面据此渲染规则，
+			// 与 /admin/system-config 保存的策略同源。
+			public.GET("/auth/password-policy", config.AuthHandler.PasswordPolicy)
 		}
 
 		// CSRF token 获取端点（无需认证）

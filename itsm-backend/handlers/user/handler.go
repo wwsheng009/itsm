@@ -86,6 +86,12 @@ func (h *UserHandler) CreateUser(c *gin.Context) {
 			common.ParamErrorWithErr(c, err, "请求参数错误")
 			return
 		}
+		// 密码策略校验失败属于客户端输入错误，应返回 400 并透出具体规则
+		// （validatePassword 的提示信息不含敏感数据，可直接展示给用户）
+		if strings.HasPrefix(err.Error(), "密码") {
+			common.ParamError(c, err.Error())
+			return
+		}
 		common.FailWithErr(c, err, "操作失败")
 		return
 	}
@@ -377,6 +383,11 @@ func (h *UserHandler) ResetPassword(c *gin.Context) {
 		h.logger.Errorf("重置密码失败: %v", err)
 		if strings.Contains(err.Error(), "用户不存在") {
 			common.NotFound(c, "用户不存在")
+			return
+		}
+		// 密码策略校验失败属于客户端输入错误，应返回 400 并透出具体规则
+		if strings.HasPrefix(err.Error(), "密码") {
+			common.ParamError(c, err.Error())
 			return
 		}
 		common.FailWithErr(c, err, "操作失败")
