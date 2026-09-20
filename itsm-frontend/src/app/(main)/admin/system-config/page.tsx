@@ -44,6 +44,7 @@ const { Password } = Input;
 
 // 引入系统配置API
 import { SystemConfigAPI } from '@/lib/api/system-config-api';
+import { clearPasswordPolicyCache } from '@/lib/api/password-policy-api';
 import { UsageGuideCard } from '@/components/common/UsageGuideCard';
 
 const BOOLEAN_CONFIG_KEYS = new Set([
@@ -59,6 +60,7 @@ const NUMBER_CONFIG_KEYS = new Set([
   'sessionTimeout',
   'maxFileSize',
   'passwordMinLength',
+  'passwordMaxLength',
   'loginMaxAttempts',
   'accountLockoutDuration',
   'smtpPort',
@@ -112,6 +114,11 @@ export default function SystemConfiguration() {
       response.items.forEach((item: { key: string; value: unknown }) => {
         configMap[item.key] = normalizeConfigValue(item.key, item.value);
       });
+
+      // 密码最大长度缺省时补默认值（后端默认 128），避免保存时空值覆盖
+      if (configMap.passwordMaxLength === undefined) {
+        configMap.passwordMaxLength = 128;
+      }
 
       setConfig(configMap);
       setInitialConfig(configMap);
@@ -191,6 +198,9 @@ export default function SystemConfiguration() {
       }));
 
       await SystemConfigAPI.updateConfigs(updateRequests);
+
+      // 密码策略等配置已变更，清掉前端策略缓存，让各表单立即按新策略校验
+      clearPasswordPolicyCache();
 
       message.success('配置保存成功');
       setHasChanges(false);
@@ -329,6 +339,15 @@ export default function SystemConfiguration() {
               rules={[{ required: true, message: '请输入密码最小长度' }]}
             >
               <InputNumber min={6} max={32} style={{ width: '100%' }} />
+            </Form.Item>
+          </Col>
+          <Col span={12}>
+            <Form.Item
+              label="密码最大长度"
+              name="passwordMaxLength"
+              rules={[{ required: true, message: '请输入密码最大长度' }]}
+            >
+              <InputNumber min={8} max={128} style={{ width: '100%' }} />
             </Form.Item>
           </Col>
         </Row>

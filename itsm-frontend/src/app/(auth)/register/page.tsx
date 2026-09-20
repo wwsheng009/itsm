@@ -32,6 +32,7 @@ import {
 import { antdTheme } from '@/lib/antd-theme';
 import { AuthService } from '@/lib/services/auth-service';
 import { logger } from '@/lib/env';
+import { usePasswordPolicy } from '@/lib/hooks/usePasswordPolicy';
 
 const { Text, Title } = Typography;
 
@@ -42,6 +43,7 @@ export default function RegisterPage() {
   const router = useRouter();
   const [form] = Form.useForm();
   const { t } = useI18n();
+  const { policy: passwordPolicy, hint: passwordHint, buildRules: buildPasswordRules } = usePasswordPolicy();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [step, setStep] = useState(1);
@@ -86,7 +88,7 @@ export default function RegisterPage() {
 
   const getPasswordStrength = (password: string) => {
     let strength = 0;
-    if (password.length >= 8) strength++;
+    if (password.length >= passwordPolicy.minLength) strength++;
     if (/[A-Z]/.test(password)) strength++;
     if (/[a-z]/.test(password)) strength++;
     if (/[0-9]/.test(password)) strength++;
@@ -157,10 +159,9 @@ export default function RegisterPage() {
                   <Form.Item
                     name="password"
                     label={t('auth.register.passwordLabel')}
-                    rules={[
-                      { required: true, message: t('auth.register.passwordRequired') },
-                      { min: 8, message: t('auth.register.passwordMinLength') },
-                    ]}
+                    // 校验规则来自「系统配置 - 密码策略」（GET /api/v1/auth/password-policy）
+                    rules={buildPasswordRules(t('auth.register.passwordRequired'))}
+                    extra={passwordHint}
                   >
                     <Input.Password
                       prefix={<Lock size={14} className="text-gray-400" />}

@@ -50,6 +50,7 @@ import { TicketApi } from '@/lib/api/ticket-api';
 import { NotificationPreferenceApi } from '@/lib/api/notification-preference-api';
 import { useI18n } from '@/lib/i18n';
 import { useAuthStore, useAuthStoreHydration } from '@/lib/store/auth-store';
+import { usePasswordPolicy } from '@/lib/hooks/usePasswordPolicy';
 
 const { Title, Text } = Typography;
 
@@ -118,6 +119,7 @@ interface ActivityItem {
 
 export default function ProfilePage() {
   const { t } = useI18n();
+  const { hint: passwordHint, buildRules: buildPasswordRules } = usePasswordPolicy();
   const { user } = useAuthStore();
   useAuthStoreHydration();
 
@@ -898,10 +900,9 @@ export default function ProfilePage() {
           <Form.Item
             name="newPassword"
             label="新密码"
-            rules={[
-              { required: true, message: '请输入新密码' },
-              { min: 6, message: '密码长度至少6位' },
-            ]}
+            // 校验规则来自「系统配置 - 密码策略」（GET /api/v1/auth/password-policy）
+            rules={buildPasswordRules('请输入新密码')}
+            extra={passwordHint}
           >
             <Input.Password placeholder="请输入新密码" />
           </Form.Item>

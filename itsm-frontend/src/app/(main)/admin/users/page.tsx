@@ -38,6 +38,7 @@ import { RoleAPI } from '@/lib/api/role-api';
 import type { Role } from '@/lib/api/api-config';
 import { useAuthStore, useAuthStoreHydration } from '@/lib/store/auth-store';
 import { useI18n } from '@/lib/i18n/useI18n';
+import { usePasswordPolicy } from '@/lib/hooks/usePasswordPolicy';
 
 const { Title, Text } = Typography;
 const { Search: AntSearch } = Input;
@@ -46,6 +47,7 @@ const UserManagement: React.FC = () => {
   const { token } = theme.useToken();
   const { message } = App.useApp();
   const { t } = useI18n();
+  const { hint: passwordHint, buildRules: buildPasswordRules } = usePasswordPolicy();
   const { currentTenant } = useAuthStore();
   useAuthStoreHydration();
 
@@ -582,10 +584,10 @@ const UserManagement: React.FC = () => {
               <Form.Item
                 name="password"
                 label={t('users.form.password')}
-                rules={[
-                  { required: true, message: t('users.form.requiredPassword') },
-                  { min: 6, message: t('users.form.minPassword') },
-                ]}
+                // 校验规则来自「系统配置 - 密码策略」（GET /api/v1/auth/password-policy），
+                // 与后端 service.PasswordPolicy.Validate 保持一致，避免前后端不一致导致 400
+                rules={buildPasswordRules(t('users.form.requiredPassword'))}
+                extra={passwordHint}
               >
                 <Input.Password placeholder={t('users.form.passwordPlaceholder')} />
               </Form.Item>
@@ -732,10 +734,9 @@ const UserManagement: React.FC = () => {
           <Form.Item
             name="newPassword"
             label={t('users.form.newPassword')}
-            rules={[
-              { required: true, message: t('users.form.requiredNewPassword') },
-              { min: 6, message: '密码至少6个字符' },
-            ]}
+            // 管理员重置密码同样受当前租户密码策略约束（与后端 ResetPassword 一致）
+            rules={buildPasswordRules(t('users.form.requiredNewPassword'))}
+            extra={passwordHint}
           >
             <Input.Password placeholder={t('users.form.newPasswordPlaceholder')} />
           </Form.Item>
