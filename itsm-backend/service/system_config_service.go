@@ -25,8 +25,9 @@ type SystemConfigService struct {
 
 func NewSystemConfigService(client *ent.Client, logger *zap.SugaredLogger) *SystemConfigService {
 	return &SystemConfigService{
-		client: client,
-		logger: logger,
+		client:      client,
+		logger:      logger,
+		policyCache: make(map[int]passwordPolicyCacheEntry),
 	}
 }
 
