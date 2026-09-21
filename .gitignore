@@ -279,6 +279,8 @@ itsm-backend/migration-lint
 
 # 本地临时验证产物（截图/脚本，勿提交）
 .tmp/
+# AI tooling 诊断输出（根目录临时 .txt）— 勿提交
+/.*.txt
 
 # aicli 本地会话数据（勿提交）
 .aicli/
