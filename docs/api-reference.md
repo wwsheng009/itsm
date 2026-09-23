@@ -328,18 +328,18 @@ Content-Type: application/json
 
 ### 评论附件（先上传后绑定）
 
-评论附件先经 `POST /attachments` 上传（`bizType=ticket`、`bizId` 为工单 ID、`usage=comment_attachment`），成功后再把返回的附件 ID 放进评论请求的 `attachments` 数组完成绑定：
+评论附件先上传、再把返回的附件 ID 放进评论请求的 `attachments` 数组完成绑定。**工单域推荐走域内端点**（静态权限沿用 `ticket:create`）：
 
 ```http
-POST /attachments
+POST /tickets/1001/attachments
 Authorization: Bearer <accessToken>
 Content-Type: multipart/form-data
 
 file=<文件>
-bizType=ticket
-bizId=1001
 usage=comment_attachment
 ```
+
+> 通用端点 `POST /attachments`（`bizType=ticket`、`bizId=1001`、`usage=comment_attachment`）语义等价，但其静态兜底码是 `attachment:write`（仅 `admin` / `sysadmin` 持有），普通用户调用会被 403。域内端点由后端把 `usage` 透传到通用附件表（BE-10），两条路径落到同一张表；前端统一走域内端点。
 
 约束：
 
@@ -347,6 +347,30 @@ usage=comment_attachment
 - 单条评论最多 10 个附件，重复 ID 自动去重并保持顺序。
 - 更新接口的 `attachments` 为三态语义：**不传**（`null` / 省略）= 不修改引用；传 `[]` = 清空引用；传非空数组 = 全量替换。创建接口不传即为无附件。
 - 被评论引用的附件不可删除（`DELETE /attachments/{id}` 返回 `409` / `6105`）；引用移除（评论删除或更新替换）后附件转为无主，由保留期清理任务回收。
+
+评论响应中除 `attachments`（附件 ID 数组，契约冻结）外，另携带 `attachmentRefs` 展示元数据，供不持有 `attachment:read` 兜底码的普通用户直接渲染文件名 / 大小与下载地址：
+
+```json
+{
+  "id": 88,
+  "content": "这是一条评论",
+  "attachments": [12, 13],
+  "attachmentRefs": [
+    {
+      "id": 12,
+      "fileName": "截图.png",
+      "fileSize": 204800,
+      "mimeType": "image/png",
+      "downloadUrl": "/api/v1/tickets/1001/attachments/12",
+      "previewUrl": "/api/v1/tickets/1001/attachments/12/preview"
+    }
+  ]
+}
+```
+
+- `attachmentRefs` 只含「同租户 + 同工单 + `usage=comment_attachment` + 未删除」的记录，顺序与 `attachments` 绑定顺序一致；跨工单 / 其它用途 / 已软删的 ID 不出现（`attachments` 仍保留该 ID，前端据此渲染「已失效」占位）。
+- `previewUrl` 仅 `image/*` 下发（`omitempty`）；`downloadUrl` 恒为域内端点 `GET /tickets/{id}/attachments/{ref}`。
+- 该字段为 best-effort：元数据查询失败时整体省略，评论正文与 `attachments` 不受影响。
 
 ### 获取工单附件
 
@@ -363,7 +387,14 @@ Authorization: Bearer <accessToken>
 Content-Type: multipart/form-data
 
 file: [binary data]
+usage: attachment            # 可选：attachment（缺省）/ inline_image / comment_attachment
 ```
+
+约束：
+
+- `usage` 缺省为 `attachment`；`inline_image` 用于正文内嵌图片、`comment_attachment` 用于评论附件。非法取值返回参数错误（`400`）。
+- 非 `attachment` 用途由域内端点透传到通用附件表（`usage` 落库，前端据此区分展示）；`attachment` 用途在写开关关闭时仍写历史工单附件表。
+- 下载 / 预览地址：`GET /tickets/{id}/attachments/{ref}`（`Content-Disposition: attachment`，支持 Range）与 `GET /tickets/{id}/attachments/{ref}/preview`（仅安全位图内联，`ref` 兼容数字 ID 与历史存储文件名）。
 
 ## 事件管理接口
 
