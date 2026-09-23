@@ -569,6 +569,41 @@ func TestDeleteEndpointInUseReturns409ThenIdempotent(t *testing.T) {
 	assert.Equal(t, http.StatusNotFound, w.Code, w.Body.String())
 }
 
+// TestDeleteEndpointCommentReferenceReturns409 评论引用（usage='comment_attachment' 且
+// ticket_comments.attachments 含该 ID）与宿主正文引用共用同一保护闸门（BE-9）：
+// 未解除引用前 409/6105 且状态不变；评论清空引用后放行（物理文件由 BE-8 保留期任务回收）。
+func TestDeleteEndpointCommentReferenceReturns409(t *testing.T) {
+	env := newAttachmentTestEnv(t)
+	ref := env.uploadPNG(map[string]string{
+		"bizType": "ticket",
+		"bizId":   strconv.Itoa(env.ticket.ID),
+		"usage":   service.AttachmentUsageCommentAttachment,
+	})
+	target := fmt.Sprintf("/api/v1/attachments/%d", ref.ID)
+
+	comment, err := env.client.TicketComment.Create().
+		SetTicketID(env.ticket.ID).
+		SetUserID(env.user.ID).
+		SetContent("带附件评论").
+		SetTenantID(env.tenant.ID).
+		SetAttachments([]int{ref.ID}).
+		Save(context.Background())
+	require.NoError(t, err)
+
+	w := env.do(http.MethodDelete, target, "", nil, nil)
+	assert.Equal(t, http.StatusConflict, w.Code, w.Body.String())
+	assert.Equal(t, common.AttachmentInUseCode, decodeEnvelope(t, w).Code)
+
+	att, err := env.client.Attachment.Get(context.Background(), ref.ID)
+	require.NoError(t, err)
+	assert.Equal(t, service.AttachmentStatusActive, att.Status)
+
+	_, err = comment.Update().SetAttachments([]int{}).Save(context.Background())
+	require.NoError(t, err)
+	w = env.do(http.MethodDelete, target, "", nil, nil)
+	require.Equal(t, http.StatusOK, w.Code, w.Body.String())
+}
+
 // ---------------------------------------------------------------------------
 // A6 批量回填
 // ---------------------------------------------------------------------------

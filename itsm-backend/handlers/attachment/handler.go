@@ -284,7 +284,9 @@ func (h *Handler) deleteAttachment(c *gin.Context, scope *hostScope) {
 	if !ok {
 		return
 	}
-	view, err := h.service.Get(c.Request.Context(), tenantID, id)
+	// 注意：这里用「任意状态」查询而非 A3 Get —— A3 已收紧为软删即未命中，
+	// 复用会让「重复删除幂等」（第二次仍 200）退化为 404；宿主鉴权仍需照常执行。
+	view, err := h.service.LookupForAuthorization(c.Request.Context(), tenantID, id)
 	if err != nil {
 		h.respondError(c, err, "附件不存在或无法访问")
 		return

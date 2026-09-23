@@ -7,8 +7,8 @@ import (
 
 	"itsm-backend/dto"
 	"itsm-backend/ent"
+	"itsm-backend/ent/attachment"
 	"itsm-backend/ent/ticket"
-	"itsm-backend/ent/ticketattachment"
 	"itsm-backend/ent/ticketcomment"
 	"itsm-backend/ent/user"
 
@@ -74,7 +74,7 @@ func (s *TicketCommentService) CreateTicketComment(ctx context.Context, ticketID
 		SetIsInternal(req.IsInternal).
 		SetTenantID(tenantID).
 		SetMentions(req.Mentions).
-		SetAttachments(req.Attachments).
+		SetAttachments(normalizeCommentAttachmentIDs(req.Attachments)).
 		Save(ctx)
 	if err != nil {
 		s.logger.Errorw("Failed to create ticket comment", "error", err)
@@ -238,6 +238,17 @@ func (s *TicketCommentService) UpdateTicketComment(ctx context.Context, ticketID
 		}
 		update = update.SetMentions(req.Mentions)
 	}
+	// BE-9 更新路径补齐附件增删：nil=不修改，[]=清空引用（附件转无主），非空=全量替换。
+	if req.Attachments != nil {
+		if err := s.validateCommentAttachments(ctx, ticketID, tenantID, *req.Attachments); err != nil {
+			return nil, err
+		}
+		normalized := normalizeCommentAttachmentIDs(*req.Attachments)
+		if normalized == nil {
+			normalized = []int{}
+		}
+		update = update.SetAttachments(normalized)
+	}
 
 	updatedComment, err := update.Save(ctx)
 	if err != nil {
@@ -283,10 +294,68 @@ func (s *TicketCommentService) validateCommentReferences(ctx context.Context, ti
 			return fmt.Errorf("mentioned user %d not found or inactive", id)
 		}
 	}
-	for _, id := range attachments {
-		exists, err := s.client.TicketAttachment.Query().Where(ticketattachment.ID(id), ticketattachment.TicketID(ticketID), ticketattachment.TenantID(tenantID)).Exist(ctx)
-		if err != nil || !exists {
-			return fmt.Errorf("attachment %d does not belong to this ticket", id)
+	return s.validateCommentAttachments(ctx, ticketID, tenantID, attachments)
+}
+
+// maxCommentAttachmentsPerComment 单评论附件上限（方案 §3.4 边界值：评论附件单评论 ≤10 个）。
+const maxCommentAttachmentsPerComment = 10
+
+// normalizeCommentAttachmentIDs 去重并保序；空输入返回 nil（与既有「无附件 = NULL」口径一致）。
+func normalizeCommentAttachmentIDs(ids []int) []int {
+	if len(ids) == 0 {
+		return nil
+	}
+	seen := make(map[int]struct{}, len(ids))
+	normalized := make([]int, 0, len(ids))
+	for _, id := range ids {
+		if _, duplicate := seen[id]; duplicate {
+			continue
+		}
+		seen[id] = struct{}{}
+		normalized = append(normalized, id)
+	}
+	return normalized
+}
+
+// validateCommentAttachments 校验评论附件引用（BE-9「先上传后绑定」）。
+//
+// 只接受经 A1 通用上传、以 biz_type='ticket' + biz_id=ticketID + usage='comment_attachment'
+// 落库且仍存活（status='active'）的通用附件；旧 ticket_attachments 表 ID 不再接受
+// （前端从未真正接入过该参数，收紧不破坏既有链路）。单次批量 IN 查询，避免 N+1。
+func (s *TicketCommentService) validateCommentAttachments(ctx context.Context, ticketID, tenantID int, ids []int) error {
+	if len(ids) > maxCommentAttachmentsPerComment {
+		return fmt.Errorf("too many comment attachments: %d (max %d)", len(ids), maxCommentAttachmentsPerComment)
+	}
+	normalized := normalizeCommentAttachmentIDs(ids)
+	if len(normalized) == 0 {
+		return nil
+	}
+	for _, id := range normalized {
+		if id <= 0 {
+			return fmt.Errorf("invalid attachment id")
+		}
+	}
+	rows, err := s.client.Attachment.Query().
+		Where(
+			attachment.TenantID(tenantID),
+			attachment.IDIn(normalized...),
+			attachment.BizType(AttachmentBizTypeTicket),
+			attachment.BizID(ticketID),
+			attachment.Usage(AttachmentUsageCommentAttachment),
+			attachment.Status(AttachmentStatusActive),
+		).
+		All(ctx)
+	if err != nil {
+		s.logger.Errorw("Failed to validate comment attachments", "error", err, "ticket_id", ticketID)
+		return fmt.Errorf("failed to validate comment attachments: %w", err)
+	}
+	found := make(map[int]struct{}, len(rows))
+	for _, row := range rows {
+		found[row.ID] = struct{}{}
+	}
+	for _, id := range normalized {
+		if _, ok := found[id]; !ok {
+			return fmt.Errorf("attachment %d is not an active comment attachment of this ticket", id)
 		}
 	}
 	return nil

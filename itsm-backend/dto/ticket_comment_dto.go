@@ -8,10 +8,13 @@ import (
 
 // CreateTicketCommentRequest 创建工单评论请求
 type CreateTicketCommentRequest struct {
-	Content     string `json:"content" binding:"required,min=1,max=5000"`
-	IsInternal  bool   `json:"isInternal"`  // 是否内部备注
-	Mentions    []int  `json:"mentions"`    // @的用户ID列表
-	Attachments []int  `json:"attachments"` // 附件ID列表（后续实现）
+	Content    string `json:"content" binding:"required,min=1,max=5000"`
+	IsInternal bool   `json:"isInternal"` // 是否内部备注
+	Mentions   []int  `json:"mentions"`   // @的用户ID列表
+	// Attachments 通用附件 ID 列表（BE-9「先上传后绑定」）：附件须以
+	// biz_type='ticket' + biz_id=工单ID + usage='comment_attachment' 经 A1 上传，
+	// 单评论上限 10 个；服务端逐条核验租户/宿主/用途/存活后落库。
+	Attachments []int `json:"attachments" binding:"omitempty,max=10"`
 }
 
 // UpdateTicketCommentRequest 更新工单评论请求
@@ -19,6 +22,9 @@ type UpdateTicketCommentRequest struct {
 	Content    string `json:"content" binding:"omitempty,min=1,max=5000"`
 	IsInternal *bool  `json:"isInternal"` // 是否内部备注
 	Mentions   []int  `json:"mentions"`   // @的用户ID列表
+	// Attachments 为 nil 表示不修改；`[]` 表示清空引用（附件转为无主，由 BE-8
+	// 清理任务在保留期后回收）；非空数组表示全量替换（单评论上限 10 个）。
+	Attachments *[]int `json:"attachments" binding:"omitempty,max=10"`
 }
 
 // TicketCommentResponse 工单评论响应

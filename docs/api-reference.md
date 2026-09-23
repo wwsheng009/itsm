@@ -307,9 +307,46 @@ Content-Type: application/json
 
 {
   "content": "这是一条评论",
-  "isInternal": false
+  "isInternal": false,
+  "attachments": [12, 13]
 }
 ```
+
+### 更新工单评论
+
+```http
+PUT /tickets/{id}/comments/{commentId}
+Authorization: Bearer <accessToken>
+Content-Type: application/json
+
+{
+  "content": "更新后的评论",
+  "isInternal": false,
+  "attachments": [12, 13]
+}
+```
+
+### 评论附件（先上传后绑定）
+
+评论附件先经 `POST /attachments` 上传（`bizType=ticket`、`bizId` 为工单 ID、`usage=comment_attachment`），成功后再把返回的附件 ID 放进评论请求的 `attachments` 数组完成绑定：
+
+```http
+POST /attachments
+Authorization: Bearer <accessToken>
+Content-Type: multipart/form-data
+
+file=<文件>
+bizType=ticket
+bizId=1001
+usage=comment_attachment
+```
+
+约束：
+
+- 仅接受「同租户 + 同工单（`bizId`）+ `usage=comment_attachment` + 未删除」的附件；任一 ID 不合法则整个请求被拒绝，**不会部分写入**。旧工单附件表（`/tickets/{id}/attachments` 上传的历史记录）的 ID 不在接受范围内。
+- 单条评论最多 10 个附件，重复 ID 自动去重并保持顺序。
+- 更新接口的 `attachments` 为三态语义：**不传**（`null` / 省略）= 不修改引用；传 `[]` = 清空引用；传非空数组 = 全量替换。创建接口不传即为无附件。
+- 被评论引用的附件不可删除（`DELETE /attachments/{id}` 返回 `409` / `6105`）；引用移除（评论删除或更新替换）后附件转为无主，由保留期清理任务回收。
 
 ### 获取工单附件
 

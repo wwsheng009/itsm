@@ -17,6 +17,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **旧工单附件端点接入通用后端（灰度切换）** — `/api/v1/tickets/:id/attachments` 系列端点（列表 / 上传 / 下载 / 预览 / 删除）在 `attachment.generic_read_enabled` / `attachment.generic_write_enabled` 打开后改走通用附件服务（部署级 `config.AttachmentConfig` + 租户级 `system_config` 覆盖，默认 `false`，关闭即回退旧表且 URL 不变）。响应 JSON 字段、状态码与错误文案与改造前**逐字段一致**（含 `uploader` 嵌套字段、`fileUrl` 的 `.../attachments/{id}/preview` 形态与历史「存储文件名」引用）；灰度期未回填的历史记录按未命中回退旧表，历史富文本 URL 不失效。契约测试 `handlers/ticket_attachment/handler_contract_test.go`（实现与验收见 `docs/plan/generic-attachment-richtext-control-plan.md` §7 BE-6）
 - **内嵌图片引用完整性（写入期归属校验）** — 正文富文本里的 `<img data-attachment-id>` 在写入工单描述（新建 / 更新）与知识库文章时逐条校验宿主归属：A4 规范地址（`/api/v1/attachments/{id}/...`）必须命中「同租户 + 同宿主 + 存活」且与 `data-attachment-id` 一致；旧工单域内地址在工单 ID 不匹配时剥离；其它地址只在能解析到通用记录且宿主不符 / 已软删时剥离（`查不到` 不误伤，保障灰度期旧表引用）。违规引用整标签剥离并以 `Warnw` 逐条告警（`attachment_id` / `reason` / `src`），校验查询失败不阻塞写入（`service/attachment_refs.go`，实现与验收见 `docs/plan/generic-attachment-richtext-control-plan.md` §7 BE-7）
 - **附件生命周期清理与宿主删除级联（BE-8）** — 附件删除保持「仅软删」，新增后台清理任务按租户回收「软删且超过保留期」的附件：先删物理文件、后删元数据行，单条失败下轮重试；仍被宿主正文 / 评论引用的记录一律跳过（不误删）。配置 `attachment.cleanup_enabled`（默认 false，关闭即任务不注册）、`cleanup_purge_enabled`（默认 false = 演练 dry-run，只统计不落删）、`retention_days`（30 天）、`cleanup_interval_minutes`（360）、`cleanup_batch_size`（200，硬上限 1000），仅部署级生效。工单删除与知识库文章删除后按策略级联软删其附件（`SetAttachmentLifecycle` 注入，未注入时零行为变化）；被引用项保持 active，引用解除并过保留期后才进入回收序列（`service/attachment_cleanup.go`，实现与验收见 `docs/plan/generic-attachment-richtext-control-plan.md` §7 BE-8，演练记录见 `docs/testing/attachment-cleanup-drill-2026-09-22.md`）
+- **评论附件后端（先上传后绑定，BE-9）** — 工单评论支持携带 `attachments: number[]`：附件先经通用上传 A1 以 `biz_type='ticket'` + `usage='comment_attachment'` 落库（宿主权限沿用 `ticket:create`），评论创建 / 更新时按 ID 绑定。服务端只接受「同租户 + 同宿主（`biz_id` = 工单 ID）+ `usage='comment_attachment'` + `status='active'`」的通用附件，非法项整体拒绝且不产生部分写入；单评论上限 10 个、自动去重保序。更新路径补齐附件增删：`nil` = 不修改、`[]` = 清空引用、非空 = 全量替换。被评论引用的附件删除返回 409/6105，评论删除或更新移除引用后附件转无主，由 BE-8 保留期任务回收（`service/ticket_comment_service.go`、`dto/ticket_comment_dto.go`，实现与验收见 `docs/plan/generic-attachment-richtext-control-plan.md` §7 BE-9）
 
 ### Security
 
@@ -26,6 +27,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- 修复 A5 重复删除退化为 404：`DELETE /api/v1/attachments/:id` 删除前复用 A3 `Get` 做宿主鉴权，而 BE-8 已把 A3 收紧为「软删即未命中」，导致 A5 契约「重复删除幂等（第二次仍 200）」失效；现新增任意状态查询 `LookupForAuthorization` 供删除路径完成宿主鉴权与幂等判定（A3/A4 仍保持软删 404），回归用例 `TestDeleteEndpointInUseReturns409ThenIdempotent`（BE-9 期间发现的 BE-8 回归）
 - 修复 A3 元数据端点可读取软删记录：`GET /api/v1/attachments/:id` 此前未过滤 `status='active'`，附件软删后元数据仍可读取（内容侧 `GetFile`/`List`/`BatchGet` 早已过滤，读口径不一致）；现与 A4/A2/A6 对齐，软删记录一律 404（BE-8 收口 BE-6 遗留观察，回归用例 `TestAttachmentGetHidesSoftDeletedMetadata`）
 - 修复知识库引用复核未排除已删除文章：`KnowledgeArticle` 未纳入全局软删拦截器，文章删除后其正文中的内嵌图片仍被判定为「被引用」，导致这些附件永远无法进入回收序列；现引用复核显式要求文章 `deleted_at IS NULL`（BE-8）
 - 修复知识库正文内的附件回链（`data-attachment-id`）与图片对齐（`data-align`）在落库时被静默抹掉：知识库正文走 `common.SanitizeHTML`，bluemonday 的 UGCPolicy 默认剥离全部 `data-*` 属性，导致富文本图片与附件的关联、以及删除时的引用保护双双失效；现显式放行并按取值约束（附件 ID 仅数字、对齐仅 left/center/right），`on*` / `script` 等既有防护不变（`common/sanitizer.go`）
@@ -42,6 +44,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- 评论附件引用校验收紧（BE-9）：`ticket_comments.attachments` 的合法取值从「同工单的旧 `ticket_attachments` ID」收紧为「同工单、`usage='comment_attachment'` 的存活通用附件 ID」。前端此前从未上传 / 展示过该字段，属未接线能力的口径对齐；只影响写入校验，不改变既有数据读取，历史引用如需继续更新须改用通用附件 ID
 - 生产部署配置：`RLS_MODE` 默认值调整为 `off`（与后端安全默认对齐）。已配置 `.env.prod` 的部署不受影响
 - 前端 dev 启动可选预热：新增 `npm run dev:warmup`（`scripts/dev-with-warmup.mjs`，起 `next dev` 后自动预热高频路由，避免首次点击菜单等待冷编译）与 `npm run dev:warm`（`scripts/dev-warmup.mjs`，对已运行的 dev server 手动预热），支持 `--port/--host/--concurrency/--cookie/--dry-run`；`next.config.ts` 顶部补充 dev 性能实测备忘（Turbopack 15.5 无持久化缓存、webpack 冷编译更慢但有磁盘缓存、`optimizePackageImports` 在 Turbopack 下被忽略、`<Link>` 仅 hover 预取、热请求 SSR 开销），未改动任何运行时配置
 

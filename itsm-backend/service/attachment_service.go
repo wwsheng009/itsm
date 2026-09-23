@@ -707,6 +707,30 @@ func (s *AttachmentService) Get(ctx context.Context, tenantID, id int) (*Attachm
 	return toAttachmentView(att), nil
 }
 
+// LookupForAuthorization A5 辅助：按租户取任意状态（含已软删）的元数据，仅供 handler
+// 做宿主归属鉴权与幂等判定，不对外暴露为读取接口（A3 Get 仍按 soft-deleted → 404）。
+//
+// 存在原因：A5 契约要求「重复删除幂等」（第二次仍 200），但删除前必须完成宿主鉴权，
+// 而 BE-8 已把 Get 收紧为「软删即未命中」——若复用 Get，第二次删除会退化成 404。
+func (s *AttachmentService) LookupForAuthorization(ctx context.Context, tenantID, id int) (*AttachmentView, error) {
+	if tenantID <= 0 || id <= 0 {
+		return nil, fmt.Errorf("%w: id=%d", ErrAttachmentNotFound, id)
+	}
+	att, err := s.client.Attachment.Query().
+		Where(
+			attachment.ID(id),
+			attachment.TenantID(tenantID),
+		).
+		Only(ctx)
+	if err != nil {
+		if ent.IsNotFound(err) {
+			return nil, fmt.Errorf("%w: id=%d", ErrAttachmentNotFound, id)
+		}
+		return nil, fmt.Errorf("failed to get attachment: %w", err)
+	}
+	return toAttachmentView(att), nil
+}
+
 // GetFile A4：下载/预览流（软删记录不可读取）；调用方负责关闭 Reader。
 func (s *AttachmentService) GetFile(ctx context.Context, tenantID, id int) (*AttachmentStream, error) {
 	return s.getFile(ctx, tenantID, id, "", 0)
