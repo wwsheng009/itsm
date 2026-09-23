@@ -45,6 +45,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- 前端附件 / 富文本控件目录下沉（FE-2）：`components/business/RichTextEditor.tsx`、`RichTextEditorImageMenu.tsx`、`RichTextEditorResizableImage.ts`、`RichTextImageViewer.tsx` 迁至 `components/common/rich-text/`，`components/business/AttachmentField.tsx` 迁至 `components/common/attachment/`（`git mv` 保留 blame，3 个行为用例随实现迁移）。旧路径保留 re-export 兼容层（文件头 `@deprecated`，只转发默认导出与全部具名 / 类型导出，一个发布周期后删除），既有调用点（`TicketDetail.tsx`、创建页、`DynamicFieldRenderer.tsx` 的相对导入、`lib/upload` 用例）零改动；新增 `business/__tests__/legacy-reexports.test.ts` 守卫（新旧模块默认导出 `toBe` 同一实现 + 4 组类型双向可赋值编译期探针）。纯结构调整，无行为变化
 - 附件单文件上限前端默认值对齐后端：`AttachmentField`（含 `validateAttachmentFile` 缺省值）与工单创建页的显式传参由 50MB 改为 10MB（引用 `DEFAULT_ATTACHMENT_MAX_SIZE_MB`），消除「前端允许选择 50MB、上传后被后端 413 拒绝」的错配（FE-1，v1.0 限额决策）
 - 评论附件引用校验收紧（BE-9）：`ticket_comments.attachments` 的合法取值从「同工单的旧 `ticket_attachments` ID」收紧为「同工单、`usage='comment_attachment'` 的存活通用附件 ID」。前端此前从未上传 / 展示过该字段，属未接线能力的口径对齐；只影响写入校验，不改变既有数据读取，历史引用如需继续更新须改用通用附件 ID
 - 生产部署配置：`RLS_MODE` 默认值调整为 `off`（与后端安全默认对齐）。已配置 `.env.prod` 的部署不受影响
