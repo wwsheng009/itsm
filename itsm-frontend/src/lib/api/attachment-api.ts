@@ -4,10 +4,15 @@
  * 依据：`docs/plan/generic-attachment-richtext-control-plan.md` §2.1/§2.2/§3.1/§7 FE-4。
  *
  * 端点解析（§2.1「`http-client → /api/v1/attachments*`（或域内别名路由）」）：
- *  - `ticket` + 默认用途 → 旧域内端点 `/api/v1/tickets/:id/attachments`：URL 形态不变（D5 永不破坏），
- *    静态权限沿用 `ticket:read/create/delete`，BE-6 薄适配在写开关打开时转发通用服务；
+ *  - `ticket` → 旧域内端点 `/api/v1/tickets/:id/attachments`：URL 形态不变（D5 永不破坏），
+ *    静态权限沿用 `ticket:read/create/delete`，BE-6 薄适配按开关转发通用服务、
+ *    BE-10 起支持可选 `usage` 表单字段（内嵌图片 / 评论附件）；
  *  - `knowledge_article` / `service_request` → BE-5 域内别名路由（静态权限复用宿主资源码）；
- *  - 其余宿主、以及需要在工单域表达 `usage`（`comment_attachment` / `inline_image`）时 → 通用 A1-A6。
+ *  - 其余宿主（无域内端点）→ 通用 A1-A6，静态权限为兜底码 `attachment:*`。
+ *
+ * **BE-10 修订（2026-09-23）**：通用 A1-A6 的静态码是兜底码（§4.3 仅绑定 admin/sysadmin），
+ * 普通用户经通用路由必被 403；因此工单域不再按 usage 分流到通用路由，一律走域内端点，
+ * 用途由后端透传到通用表。通用路由仅服务「没有域内端点」的宿主。
  *
  * 契约护栏：上传前经 `normalizeAttachmentHost` 归一化，响应经 `isAttachmentRef` 守卫；旧域内响应
  * （`TicketAttachment`：无 bizType/bizId/usage）在 `toAttachmentRef` 内补齐，调用方只看到统一契约。
@@ -36,6 +41,80 @@ const DOMAIN_LIST_PATHS: Record<string, (bizId: number) => string> = {
   knowledge_article: (bizId) => `/api/v1/knowledge/articles/${bizId}/attachments`,
   service_request: (bizId) => `/api/v1/service-requests/${bizId}/attachments`,
 };
+
+/** 工单域内容地址（旧端点形态，D5 永不失效；静态权限 `ticket:read`） */
+export function ticketAttachmentContentUrl(ticketId: number, id: number): string {
+  return `/api/v1/tickets/${ticketId}/attachments/${id}`;
+}
+
+/** 工单域预览地址（旧端点形态；服务端按 preview 语义内联，供 `<img src>` 使用） */
+export function ticketAttachmentPreviewUrl(ticketId: number, id: number): string {
+  return `/api/v1/tickets/${ticketId}/attachments/${id}/preview`;
+}
+
+/** 知识库域内容地址（BE-5 别名路由，静态权限 `knowledge:read`） */
+export function knowledgeAttachmentContentUrl(articleId: number, id: number): string {
+  return `/api/v1/knowledge/articles/${articleId}/attachments/${id}`;
+}
+
+/** 知识库域预览地址（BE-5 别名路由；服务端按 preview 语义内联，供 `<img src>` 使用） */
+export function knowledgeAttachmentPreviewUrl(articleId: number, id: number): string {
+  return `/api/v1/knowledge/articles/${articleId}/attachments/${id}/preview`;
+}
+
+/** 服务请求域内容地址（BE-5 别名路由，静态权限 `service_request:read`） */
+export function serviceRequestAttachmentContentUrl(requestId: number, id: number): string {
+  return `/api/v1/service-requests/${requestId}/attachments/${id}`;
+}
+
+/** 服务请求域预览地址（BE-5 别名路由） */
+export function serviceRequestAttachmentPreviewUrl(requestId: number, id: number): string {
+  return `/api/v1/service-requests/${requestId}/attachments/${id}/preview`;
+}
+
+/**
+ * 域内地址构造表（与 `DOMAIN_LIST_PATHS` 同源）。
+ *
+ * 用途有二：①旧域内响应的兜底地址；②把域内端点透出的**通用 A4 地址**改写回域内地址——
+ * 通用 A4 的静态码是兜底码 `attachment:read`（§4.3 仅 admin/sysadmin 持有），普通用户
+ * 直接渲染 `<img src="/api/v1/attachments/:id/content?...">` 会 403（与 BE-10 同类的权限回归）。
+ */
+const DOMAIN_CONTENT_URLS: Record<string, (bizId: number, id: number) => string> = {
+  ticket: ticketAttachmentContentUrl,
+  knowledge_article: knowledgeAttachmentContentUrl,
+  service_request: serviceRequestAttachmentContentUrl,
+};
+
+const DOMAIN_PREVIEW_URLS: Record<string, (bizId: number, id: number) => string> = {
+  ticket: ticketAttachmentPreviewUrl,
+  knowledge_article: knowledgeAttachmentPreviewUrl,
+  service_request: serviceRequestAttachmentPreviewUrl,
+};
+
+/** 是否通用 A4 地址（`/api/v1/attachments/...`） */
+function isGenericAttachmentUrl(url?: string): boolean {
+  return typeof url === 'string' && url.startsWith(`${GENERIC_ATTACHMENTS_PATH}/`);
+}
+
+function isImageMime(mimeType?: string): boolean {
+  return (mimeType ?? '').toLowerCase().startsWith('image/');
+}
+
+/**
+ * 域内端点响应归一化：把通用 A4 地址改写为域内地址（内容 / 预览），其余字段原样保留。
+ * 已是域内地址（旧响应）时不做任何改写，避免破坏既有 URL 形态（D5）。
+ */
+function withDomainUrls(ref: AttachmentRef, host: Required<AttachmentHostContext>): AttachmentRef {
+  const content = DOMAIN_CONTENT_URLS[host.bizType];
+  const preview = DOMAIN_PREVIEW_URLS[host.bizType];
+  if (!content || !preview) return ref;
+  if (!isGenericAttachmentUrl(ref.fileUrl) && !isGenericAttachmentUrl(ref.previewUrl)) return ref;
+  const next: AttachmentRef = { ...ref, fileUrl: content(host.bizId, ref.id) };
+  if (ref.previewUrl || isImageMime(ref.mimeType)) {
+    next.previewUrl = preview(host.bizId, ref.id);
+  }
+  return next;
+}
 
 export interface AttachmentUploadOptions {
   /** 上传进度（0-100） */
@@ -68,13 +147,14 @@ export function attachmentPreviewUrl(id: number): string {
 }
 
 /**
- * 解析域内端点（命中则返回该宿主的旧 URL 前缀，否则 null = 走通用 A1）。
- * 工单域只有默认用途能在旧端点上表达：`usage != attachment` 时必须走通用端点，
- * 否则会静默丢失用途语义（旧 handler 固定写入 `usage=attachment`）。
+ * 解析域内端点（命中则返回该宿主的 URL 前缀，否则 null = 走通用 A1-A6）。
+ *
+ * 工单域不再按 `usage` 分流：域内端点自 BE-10 起接受可选 `usage` 表单字段并透传通用表，
+ * 静态权限仍是 `ticket:*`；若改走通用路由，普通用户会被兜底码 `attachment:*` 挡下（403）。
  */
 function resolveDomainPath(host: Required<AttachmentHostContext>): string | null {
   if (host.bizType === 'ticket') {
-    return host.usage === 'attachment' ? `/api/v1/tickets/${host.bizId}/attachments` : null;
+    return `/api/v1/tickets/${host.bizId}/attachments`;
   }
   const factory = DOMAIN_LIST_PATHS[host.bizType];
   return factory ? factory(host.bizId) : null;
@@ -89,14 +169,19 @@ interface LegacyTicketAttachment {
   fileSize?: number;
   mimeType?: string;
   uploadedBy?: number;
+  uploader?: { id: number; name?: string; username?: string };
   createdAt?: string;
 }
 
 /** 旧域内响应 → 统一契约（补齐 bizType/bizId/usage；预览地址沿用旧形态，D5） */
 function toAttachmentRef(raw: LegacyTicketAttachment, host: Required<AttachmentHostContext>): AttachmentRef {
-  // BE-6 写开关打开时旧端点可能直接透出通用契约字段；此时原样采信，避免二次加工。
-  if (isAttachmentRef(raw)) return raw;
-  const legacyPreview = `/api/v1/tickets/${host.bizId}/attachments/${raw.id}/preview`;
+  // BE-6 写开关打开时旧端点可能直接透出通用契约字段；此时不再补字段，但仍需把
+  // 通用 A4 地址改写为域内地址（否则普通用户渲染 `<img src>` 会 403）。
+  if (isAttachmentRef(raw)) return withDomainUrls(raw, host);
+  const buildContent = DOMAIN_CONTENT_URLS[host.bizType];
+  const buildPreview = DOMAIN_PREVIEW_URLS[host.bizType];
+  const fallbackContent = buildContent ? buildContent(host.bizId, raw.id) : attachmentContentUrl(raw.id);
+  const fallbackPreview = buildPreview ? buildPreview(host.bizId, raw.id) : attachmentPreviewUrl(raw.id);
   return {
     id: raw.id,
     bizType: host.bizType,
@@ -105,9 +190,11 @@ function toAttachmentRef(raw: LegacyTicketAttachment, host: Required<AttachmentH
     fileName: raw.fileName ?? '',
     fileSize: raw.fileSize ?? 0,
     mimeType: raw.mimeType ?? '',
-    fileUrl: raw.fileUrl || legacyPreview,
-    previewUrl: raw.fileUrl || legacyPreview,
-    uploadedBy: raw.uploadedBy,
+    // D5：旧响应自带 fileUrl 时原样保留（旧 URL 形态不得变更）；缺失时用域内内容地址兜底。
+    fileUrl: raw.fileUrl || fallbackContent,
+    previewUrl: raw.fileUrl || fallbackPreview,
+    uploadedBy: raw.uploadedBy ?? raw.uploader?.id,
+    uploader: raw.uploader,
     createdAt: raw.createdAt,
   };
 }
@@ -134,14 +221,13 @@ export class AttachmentApi {
 
     const domainPath = resolveDomainPath(normalized);
     if (domainPath) {
-      // 域内别名（knowledge_article / service_request）复用 A1 主体，支持 usage 表单字段；
-      // 旧工单端点固定写入 usage=attachment（service/ticket_attachment_service.go），因此
-      // 工单 + 非默认用途已在 resolveDomainPath 改走通用端点，这里只需透传显式用途。
+      // 域内端点均接受可选 `usage` 表单字段：工单旧端点由 BE-10 透传到通用表（非默认用途
+      // 不受写开关约束），BE-5 别名路由本就直接调用通用服务。
       if (normalized.usage !== 'attachment') formData.append('usage', normalized.usage);
       const raw = await httpClient.post<LegacyTicketAttachment>(domainPath, formData, {
         onUploadProgress: options.onProgress,
       });
-      return assertRef(toAttachmentRef(raw ?? {}, normalized), '上传');
+      return assertRef(withDomainUrls(toAttachmentRef(raw ?? {}, normalized), normalized), '上传');
     }
 
     formData.append('bizType', normalized.bizType);
@@ -166,7 +252,9 @@ export class AttachmentApi {
     const domainPath = resolveDomainPath(normalized);
     if (domainPath) {
       const raw = await httpClient.get<{ attachments?: LegacyTicketAttachment[]; total?: number }>(domainPath);
-      const attachments = (raw?.attachments ?? []).map((item) => toAttachmentRef(item, normalized));
+      const attachments = (raw?.attachments ?? []).map((item) =>
+        withDomainUrls(toAttachmentRef(item, normalized), normalized)
+      );
       return { attachments, total: raw?.total ?? attachments.length };
     }
 

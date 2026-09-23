@@ -15,7 +15,13 @@ import {
   Alert,
 } from 'antd';
 import { UserSelect } from '@/components/common/UserSelect';
+import {
+  CommentAttachmentField,
+  CommentAttachmentList,
+} from '@/components/common/attachment/CommentAttachmentField';
+import type { AttachmentFieldItem } from '@/components/common/attachment/AttachmentField';
 import { useI18n } from '@/lib/i18n/useI18n';
+import type { CommentAttachment } from '@/types/comment';
 import type {
   CommentAdapter,
   CommentItem,
@@ -24,6 +30,28 @@ import type {
 
 const { Text, Paragraph } = Typography;
 const { TextArea } = Input;
+
+/** BE-11 展示元数据 → 附件字段条目（编辑态回填：已是完成态，无需再上传） */
+const refsToFieldItems = (refs?: CommentAttachment[]): AttachmentFieldItem[] =>
+  (refs ?? []).map((ref) => ({
+    uid: `comment-att-${ref.id}`,
+    name: ref.fileName,
+    size: ref.fileSize,
+    type: ref.mimeType,
+    attachmentId: ref.id,
+    url: ref.downloadUrl,
+    status: 'done' as const,
+    progress: 100,
+  }));
+
+const collectAttachmentIds = (items: AttachmentFieldItem[]): number[] =>
+  items
+    .map((item) => item.attachmentId)
+    .filter((id): id is number => typeof id === 'number');
+
+/** 仍有上传中 / 待上传 / 失败的条目时不允许提交，避免把半成品绑到评论上 */
+const hasUnsettledAttachments = (items: AttachmentFieldItem[]): boolean =>
+  items.some((item) => item.status !== 'done');
 
 export interface CommentPanelProps {
   targetType: TargetType;
@@ -54,9 +82,15 @@ export const CommentPanel: React.FC<CommentPanelProps> = ({
   const [editingCommentId, setEditingCommentId] = useState<number | null>(null);
   const [editingCommentContent, setEditingCommentContent] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  const [newAttachments, setNewAttachments] = useState<AttachmentFieldItem[]>([]);
+  const [editingAttachments, setEditingAttachments] = useState<AttachmentFieldItem[]>([]);
+  // 编辑态三态语义（BE-9）：未触碰附件 → 省略 `attachments`（保持原引用）；触碰过 → 全量替换
+  const [editingAttachmentsTouched, setEditingAttachmentsTouched] = useState(false);
 
   const canEditByAdapter = typeof adapter.update === 'function';
   const canEditByUser = (c: CommentItem) => (currentUserId ? c.userId === currentUserId : true);
+  /** 只有适配器提供评论附件上传（usage=comment_attachment）时才展示附件入口 */
+  const canAttachComments = typeof adapter.uploadAttachment === 'function';
 
   const defaultFormat = useCallback(
     (s: string) => (s ? new Date(s).toLocaleString(language === 'en-US' ? 'en-US' : 'zh-CN') : ''),
@@ -87,16 +121,23 @@ export const CommentPanel: React.FC<CommentPanelProps> = ({
       message.warning(t('detailTabs.commentRequired'));
       return;
     }
+    if (hasUnsettledAttachments(newAttachments)) {
+      message.warning(t('attachments.pendingTip'));
+      return;
+    }
     setSubmitting(true);
     try {
       await adapter.create(targetId, {
         content: newComment,
         isInternal: showInternalToggle ? isInternal : undefined,
         mentions: showMentions ? mentionedUsers : undefined,
+        attachments:
+          newAttachments.length > 0 ? collectAttachmentIds(newAttachments) : undefined,
       });
       setNewComment('');
       setMentionedUsers([]);
       setIsInternal(false);
+      setNewAttachments([]);
       await fetchComments();
       message.success(t('detailTabs.commentSuccess'));
     } catch (e) {
@@ -112,13 +153,22 @@ export const CommentPanel: React.FC<CommentPanelProps> = ({
       message.warning(t('detailTabs.commentRequired'));
       return;
     }
+    if (hasUnsettledAttachments(editingAttachments)) {
+      message.warning(t('attachments.pendingTip'));
+      return;
+    }
     setSubmitting(true);
     try {
       await adapter.update(targetId, commentId, {
         content: editingCommentContent,
+        ...(canAttachComments && editingAttachmentsTouched
+          ? { attachments: collectAttachmentIds(editingAttachments) }
+          : {}),
       });
       setEditingCommentId(null);
       setEditingCommentContent('');
+      setEditingAttachments([]);
+      setEditingAttachmentsTouched(false);
       await fetchComments();
       message.success(t('detailTabs.commentSuccess'));
     } catch (e) {
@@ -143,11 +193,15 @@ export const CommentPanel: React.FC<CommentPanelProps> = ({
   const startEditComment = (comment: CommentItem) => {
     setEditingCommentId(comment.id);
     setEditingCommentContent(comment.content);
+    setEditingAttachments(refsToFieldItems(comment.attachmentRefs));
+    setEditingAttachmentsTouched(false);
   };
 
   const cancelEdit = () => {
     setEditingCommentId(null);
     setEditingCommentContent('');
+    setEditingAttachments([]);
+    setEditingAttachmentsTouched(false);
   };
 
   if (loading && comments.length === 0) {
@@ -226,6 +280,21 @@ export const CommentPanel: React.FC<CommentPanelProps> = ({
               placeholder={t('detailTabs.commentPlaceholder')}
               rows={4}
             />
+            {canAttachComments && (
+              <CommentAttachmentField
+                value={newAttachments}
+                onChange={setNewAttachments}
+                upload={(file, onProgress) =>
+                  adapter.uploadAttachment!(targetId, file, onProgress)
+                }
+                remove={
+                  adapter.removeAttachment
+                    ? (attachmentId) => adapter.removeAttachment!(targetId, attachmentId)
+                    : undefined
+                }
+                disabled={submitting}
+              />
+            )}
             <div className="flex justify-end">
               <Button
                 type="primary"
@@ -261,6 +330,21 @@ export const CommentPanel: React.FC<CommentPanelProps> = ({
                   rows={3}
                   placeholder={t('detailTabs.commentPlaceholder')}
                 />
+                {canAttachComments && (
+                  <CommentAttachmentField
+                    value={editingAttachments}
+                    onChange={(items) => {
+                      setEditingAttachments(items);
+                      setEditingAttachmentsTouched(true);
+                    }}
+                    upload={(file, onProgress) =>
+                      adapter.uploadAttachment!(targetId, file, onProgress)
+                    }
+                    // 编辑态不做服务端删除：此时附件仍被本条评论引用（后端 409/6105），
+                    // 移除仅改本地列表，保存时经 `attachments` 全量替换真正解除绑定。
+                    disabled={submitting}
+                  />
+                )}
                 <div className="flex justify-end space-x-2">
                   <Button onClick={cancelEdit}>{t('common.cancel')}</Button>
                   <Button
@@ -301,6 +385,10 @@ export const CommentPanel: React.FC<CommentPanelProps> = ({
                   <Paragraph className="mb-2 whitespace-pre-wrap">
                     {comment.content}
                   </Paragraph>
+                  <CommentAttachmentList
+                    refs={comment.attachmentRefs}
+                    totalCount={comment.attachments?.length}
+                  />
                   <div className="flex items-center space-x-2">
                     {canEditByAdapter && canEditByUser(comment) && (
                       <Button

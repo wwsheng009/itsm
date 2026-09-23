@@ -19,19 +19,43 @@ import {
 } from 'antd';
 import { Trash2, Download, File, Eye, Image, FileText, FileType, Sheet, Presentation, FileArchive } from 'lucide-react';
 import type { UploadFile, UploadProps } from 'antd/es/upload/interface';
-import type { TicketAttachment } from '@/lib/api/ticket-attachment-api';
-import { TicketAttachmentApi } from '@/lib/api/ticket-attachment-api';
+import {
+  AttachmentApi,
+  ticketAttachmentContentUrl,
+  ticketAttachmentPreviewUrl,
+} from '@/lib/api/attachment-api';
+import { formatAttachmentSize } from '@/components/common/attachment/AttachmentField';
+import type { AttachmentRef } from '@/lib/upload/types';
 import { useAuthStore } from '@/lib/store/auth-store';
 import { App } from 'antd';
 import { useI18n } from '@/lib/i18n';
 
 const { Text } = Typography;
 
+/** 工单宿主上下文（普通附件：usage 缺省 attachment） */
+const ticketHost = (ticketId: number) => ({ bizType: 'ticket', bizId: ticketId });
+
+/** 唯一上传实现（FE-1 工厂 + FE-4 传输层）：工单 + 缺省用途仍走域内端点，权限不变 */
+const uploadTicketAttachment = AttachmentApi.uploader();
+
+/** 附件图标分类（UI 层本地映射，替代兼容层的 getFileIconType） */
+function getFileIconType(mimeType: string): string {
+  if (mimeType.startsWith('image/')) return 'image';
+  if (mimeType.startsWith('video/')) return 'video';
+  if (mimeType.startsWith('audio/')) return 'audio';
+  if (mimeType.includes('pdf')) return 'pdf';
+  if (mimeType.includes('word') || mimeType.includes('document')) return 'word';
+  if (mimeType.includes('excel') || mimeType.includes('spreadsheet')) return 'excel';
+  if (mimeType.includes('powerpoint') || mimeType.includes('presentation')) return 'powerpoint';
+  if (mimeType.includes('zip') || mimeType.includes('rar')) return 'archive';
+  return 'file';
+}
+
 interface TicketAttachmentSectionProps {
   ticketId: number;
   canUpload?: boolean;
-  canDelete?: (attachment: TicketAttachment) => boolean;
-  onAttachmentUploaded?: (attachment: TicketAttachment) => void;
+  canDelete?: (attachment: AttachmentRef) => boolean;
+  onAttachmentUploaded?: (attachment: AttachmentRef) => void;
   onAttachmentDeleted?: (attachmentId: number) => void;
 }
 
@@ -47,19 +71,19 @@ export const TicketAttachmentSection: React.FC<TicketAttachmentSectionProps> = (
 }) => {
   const { t } = useI18n();
   const { message: antMessage } = App.useApp();
-  const [attachments, setAttachments] = useState<TicketAttachment[]>([]);
+  const [attachments, setAttachments] = useState<AttachmentRef[]>([]);
   const [loading, setLoading] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState<Record<string, number>>({});
   const [previewVisible, setPreviewVisible] = useState(false);
-  const [previewAttachment, setPreviewAttachment] = useState<TicketAttachment | null>(null);
+  const [previewAttachment, setPreviewAttachment] = useState<AttachmentRef | null>(null);
   const [fileList, setFileList] = useState<UploadFile[]>([]);
 
   // 加载附件列表
   const loadAttachments = async () => {
     setLoading(true);
     try {
-      const response = await TicketAttachmentApi.listAttachments(ticketId);
+      const response = await AttachmentApi.list(ticketHost(ticketId));
       setAttachments(response.attachments || []);
     } catch (error) {
       antMessage.error('加载附件列表失败');
@@ -85,9 +109,9 @@ export const TicketAttachmentSection: React.FC<TicketAttachmentSectionProps> = (
     setUploading(true);
 
     try {
-      const attachment = await TicketAttachmentApi.uploadAttachment(
-        ticketId,
+      const attachment = await uploadTicketAttachment(
         uploadFile,
+        ticketHost(ticketId),
         progress => {
           if (onProgress) {
             onProgress({ percent: progress });
@@ -118,9 +142,9 @@ export const TicketAttachmentSection: React.FC<TicketAttachmentSectionProps> = (
   };
 
   // 删除附件
-  const handleDelete = async (attachment: TicketAttachment) => {
+  const handleDelete = async (attachment: AttachmentRef) => {
     try {
-      await TicketAttachmentApi.deleteAttachment(ticketId, attachment.id);
+      await AttachmentApi.removeById(attachment.id, ticketHost(ticketId));
       antMessage.success('附件删除成功');
       await loadAttachments();
       onAttachmentDeleted?.(attachment.id);
@@ -130,21 +154,23 @@ export const TicketAttachmentSection: React.FC<TicketAttachmentSectionProps> = (
   };
 
   // 预览附件
-  const handlePreview = (attachment: TicketAttachment) => {
+  const handlePreview = (attachment: AttachmentRef) => {
     // 判断是否为图片
     if (attachment.mimeType?.startsWith('image/')) {
       setPreviewAttachment(attachment);
       setPreviewVisible(true);
     } else {
       // 非图片文件，打开新窗口预览
-      const previewUrl = TicketAttachmentApi.getPreviewUrl(ticketId, attachment.id);
+      const previewUrl = attachment.previewUrl || ticketAttachmentPreviewUrl(ticketId, attachment.id);
       window.open(previewUrl, '_blank');
     }
   };
 
   // 下载附件
-  const handleDownload = (attachment: TicketAttachment) => {
-    const downloadUrl = TicketAttachmentApi.getDownloadUrl(ticketId, attachment.id);
+  const handleDownload = (attachment: AttachmentRef) => {
+    // 下载必须走域内下载端点：旧域内响应的 fileUrl 实为 preview（inline）形态，
+    // 直接沿用会变成「浏览器内打开」而非下载（BE-10 / FE-3 修订）。
+    const downloadUrl = ticketAttachmentContentUrl(ticketId, attachment.id);
     const link = document.createElement('a');
     link.href = downloadUrl;
     link.download = attachment.fileName;
@@ -155,7 +181,7 @@ export const TicketAttachmentSection: React.FC<TicketAttachmentSectionProps> = (
 
   // 获取文件图标
   const getFileIcon = (mimeType: string) => {
-    const iconType = TicketAttachmentApi.getFileIconType(mimeType);
+    const iconType = getFileIconType(mimeType);
     switch (iconType) {
       case 'image':
         return <Image style={{ fontSize: 24, color: '#52c41a' }} />;
@@ -268,19 +294,21 @@ export const TicketAttachmentSection: React.FC<TicketAttachmentSectionProps> = (
                 ].filter(Boolean)}
               >
                 <List.Item.Meta
-                  avatar={getFileIcon(attachment.mimeType || attachment.fileType)}
+                  avatar={getFileIcon(attachment.mimeType)}
                   title={
                     <Space>
                       <Text strong>{attachment.fileName}</Text>
                       <Tag color="blue">
-                        {TicketAttachmentApi.formatFileSize(attachment.fileSize)}
+                        {formatAttachmentSize(attachment.fileSize)}
                       </Tag>
                     </Space>
                   }
                   description={
                     <Space split={<span>•</span>}>
                       <Text type="secondary" className="text-xs">
-                        {attachment.uploader?.name || '未知用户'}
+                        {attachment.uploader?.name ||
+                          attachment.uploader?.username ||
+                          (attachment.uploadedBy ? `用户 #${attachment.uploadedBy}` : '未知用户')}
                       </Text>
                       <Text type="secondary" className="text-xs">
                         {attachment.createdAt ? new Date(attachment.createdAt).toLocaleString('zh-CN') : '-'}
@@ -308,7 +336,7 @@ export const TicketAttachmentSection: React.FC<TicketAttachmentSectionProps> = (
               {previewAttachment.fileName}
             </Text>
             <AntImage
-              src={TicketAttachmentApi.getPreviewUrl(ticketId, previewAttachment.id)}
+              src={previewAttachment.previewUrl || ticketAttachmentPreviewUrl(ticketId, previewAttachment.id)}
               alt={previewAttachment.fileName}
               style={{ width: '100%' }}
             />

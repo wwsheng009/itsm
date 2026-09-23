@@ -35,9 +35,6 @@ export interface Comment {
   deletedAt?: Date;
   deletedBy?: number;
 
-  // 附件
-  attachments?: CommentAttachment[];
-
   // @提及
   mentions?: Mention[];
 
@@ -56,18 +53,6 @@ export interface Comment {
   metadata?: Record<string, any>;
 }
 
-/**
- * 评论附件
- */
-export interface CommentAttachment {
-  id: string;
-  fileName: string;
-  fileSize: number;
-  fileType: string;
-  fileUrl: string;
-  thumbnailUrl?: string;
-  uploadedAt: Date;
-}
 
 /**
  * 评论统计

@@ -2,8 +2,8 @@
  * FE-4 验收：通用附件客户端 `AttachmentApi` 的端点解析与契约护栏。
  *
  * 覆盖计划 §2.1（唯一 http-client 入口）、§3.2（A1-A6 路由）、§7 FE-4：
- *  - 工单 + 默认用途 → 旧域内端点（D5 不破坏、权限沿用 ticket:create）；
- *  - 工单 + 非默认用途 → 通用 A1（旧 handler 固定写 usage=attachment，否则语义丢失）；
+ *  - 工单 → 一律域内端点（D5 不破坏、权限沿用宿主资源码）；非默认用途由 BE-10 透传通用表，
+ *    不能走通用 A1：通用兜底码 attachment:write 仅 admin/sysadmin 持有，普通用户必 403；
  *  - knowledge_article / service_request → BE-5 域内别名路由；
  *  - 其它宿主 → 通用 A1-A6；
  *  - 旧响应 → 统一契约补齐；非法响应必须抛错而不是静默通过。
@@ -71,8 +71,13 @@ describe('AttachmentApi 端点解析', () => {
       });
     });
 
-    it('工单非默认用途改走通用 A1，显式携带 usage', async () => {
-      mockPost.mockResolvedValue(refPayload({ usage: 'comment_attachment' }));
+    it('工单非默认用途同样走域内端点（BE-10），显式携带 usage', async () => {
+      mockPost.mockResolvedValue({
+        id: 7,
+        ticketId: 10,
+        fileName: 'a.png',
+        usage: 'comment_attachment',
+      });
 
       await AttachmentApi.upload(file(), {
         bizType: 'ticket',
@@ -81,10 +86,11 @@ describe('AttachmentApi 端点解析', () => {
       });
 
       const [url, body] = mockPost.mock.calls[0];
-      expect(url).toBe('/api/v1/attachments');
-      expect((body as FormData).get('bizType')).toBe('ticket');
-      expect((body as FormData).get('bizId')).toBe('10');
+      expect(url).toBe('/api/v1/tickets/10/attachments');
       expect((body as FormData).get('usage')).toBe('comment_attachment');
+      // 域内端点由路径携带宿主，不得再冗余提交 bizType/bizId
+      expect((body as FormData).get('bizType')).toBeNull();
+      expect((body as FormData).get('bizId')).toBeNull();
     });
 
     it('knowledge_article 走 BE-5 域内别名路由并保留 usage 语义', async () => {

@@ -3,6 +3,8 @@
  * 供 CommentPanel / AttachmentPanel / HistoryTimeline / ApprovalTimeline 五模块共用
  */
 
+import type { CommentAttachment } from '@/types/comment';
+
 // ==================== Comment ====================
 
 export interface CommentUser {
@@ -21,6 +23,11 @@ export interface CommentItem {
   isInternal?: boolean;
   mentions?: number[];
   attachments?: number[];
+  /**
+   * 评论附件展示元数据（BE-11）：服务端按「同租户 + 同工单 + usage=comment_attachment
+   * + 存活」过滤后随评论下发，`attachments` 中拿不到元数据的 ID 由渲染侧记为失效占位。
+   */
+  attachmentRefs?: CommentAttachment[];
   createdAt: string;
   updatedAt?: string;
 }
@@ -36,6 +43,14 @@ export interface UpdateCommentInput {
   content?: string;
   isInternal?: boolean;
   mentions?: number[];
+  /** 三态语义：省略 = 不修改；`[]` = 清空引用；非空 = 全量替换（BE-9） */
+  attachments?: number[];
+}
+
+/** 评论附件上传结果（先上传后绑定，仅需 ID 与展示地址） */
+export interface CommentAttachmentUploadResult {
+  id: number;
+  url?: string;
 }
 
 export interface CommentAdapter {
@@ -47,6 +62,17 @@ export interface CommentAdapter {
     data: UpdateCommentInput
   ): Promise<CommentItem>;
   remove(targetId: number | string, commentId: number): Promise<void>;
+  /**
+   * 上传评论附件（先上传后绑定）：宿主与 `usage='comment_attachment'` 由适配器固定，
+   * 组件层不直连 HTTP。未实现该方法的域（如事件评论）不展示附件入口。
+   */
+  uploadAttachment?: (
+    targetId: number | string,
+    file: File,
+    onProgress?: (percent: number) => void
+  ) => Promise<CommentAttachmentUploadResult>;
+  /** 解绑尚未被评论引用的附件（引用存续时后端 409/6105，由调用方提示） */
+  removeAttachment?: (targetId: number | string, attachmentId: number) => Promise<void>;
 }
 
 export type TargetType = 'ticket' | 'incident' | 'problem' | 'change' | 'release';

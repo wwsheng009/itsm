@@ -294,14 +294,6 @@ describe('CollaborationApi', () => {
     });
   });
 
-  describe('deleteAttachment', () => {
-    it('should delete attachment', async () => {
-      mockDelete.mockResolvedValue(undefined);
-      await CollaborationApi.deleteAttachment('a1');
-      expect(mockDelete).toHaveBeenCalledWith('/api/v1/attachments/a1');
-    });
-  });
-
   describe('batchDeleteComments', () => {
     it('should batch delete comments', async () => {
       mockRequest.mockResolvedValue({ deleted: 2, failed: 0 });

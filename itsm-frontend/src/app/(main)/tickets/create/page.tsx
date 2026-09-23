@@ -22,7 +22,11 @@ import AppSelect from '@/components/ui/AppSelect';
 import { ArrowLeft, Pencil, Paperclip, Sparkles } from 'lucide-react';
 import { TicketApi } from '@/lib/api/ticket-api';
 import { TicketCategoryApi } from '@/lib/api/ticket-category-api';
-import { TicketAttachmentApi } from '@/lib/api/ticket-attachment-api';
+import {
+  AttachmentApi,
+  ticketAttachmentContentUrl,
+  ticketAttachmentPreviewUrl,
+} from '@/lib/api/attachment-api';
 import { useI18n } from '@/lib/i18n';
 import { httpClient } from '@/lib/api/http-client';
 import { TicketTypeApi } from '@/lib/api/ticketTypeApi';
@@ -37,12 +41,12 @@ import {
 } from '@/lib/rich-text/staged-images';
 import { DEFAULT_ATTACHMENT_MAX_SIZE_MB } from '@/lib/upload/types';
 
-import type { UploadedImage } from '@/components/business/RichTextEditor';
+import type { UploadedImage } from '@/components/common/rich-text/RichTextEditor';
 import AttachmentField, {
   uploadAttachmentItems,
   type AttachmentFieldItem,
   type AttachmentUploader,
-} from '@/components/business/AttachmentField';
+} from '@/components/common/attachment/AttachmentField';
 import TicketTypePickerModal, { type TicketTypePickerItem } from '@/components/business/TicketTypePickerModal';
 import TicketTypeIcon from '@/components/business/TicketTypeIcon';
 import DynamicFieldRenderer, { type ReferenceSelectOptions } from '@/components/business/DynamicFieldRenderer';
@@ -52,7 +56,7 @@ const { TextArea } = Input;
 
 // 富文本编辑器按需加载（ssr: false）：NEXT_PUBLIC_RICH_TEXT=off 时该分支不渲染，
 // 也就不会请求编辑器 chunk（方案 §NF-2 / AC-9）。
-const RichTextEditor = dynamic(() => import('@/components/business/RichTextEditor'), {
+const RichTextEditor = dynamic(() => import('@/components/common/rich-text/RichTextEditor'), {
   ssr: false,
   loading: () => (
     <div className="rich-text-editor" style={{ minHeight: 220 }}>
@@ -250,11 +254,14 @@ export default function CreateTicketPage() {
   }, []);
 
   const makeAttachmentUploader = useCallback((ticketId: number): AttachmentUploader => {
+    // 经 AttachmentApi.uploader() 注入唯一上传实现（FE-1 工厂 + FE-4 传输层）；
+    // 工单 + 缺省 usage 仍解析为 `/api/v1/tickets/:id/attachments`，URL 与权限不变。
+    const upload = AttachmentApi.uploader();
     return async (file, onProgress) => {
-      const uploaded = await TicketAttachmentApi.uploadAttachment(ticketId, file, onProgress);
+      const uploaded = await upload(file, { bizType: 'ticket', bizId: ticketId }, onProgress);
       return {
         id: uploaded.id,
-        url: uploaded.fileUrl || TicketAttachmentApi.getDownloadUrl(ticketId, uploaded.id),
+        url: uploaded.fileUrl || ticketAttachmentContentUrl(ticketId, uploaded.id),
       };
     };
   }, []);
@@ -269,7 +276,10 @@ export default function CreateTicketPage() {
     () => (createdTicketId
       ? async (item: AttachmentFieldItem) => {
         if (item.attachmentId) {
-          await TicketAttachmentApi.deleteAttachment(createdTicketId, item.attachmentId);
+          await AttachmentApi.removeById(item.attachmentId, {
+            bizType: 'ticket',
+            bizId: createdTicketId,
+          });
         }
       }
       : undefined),
@@ -439,12 +449,18 @@ export default function CreateTicketPage() {
           const file = stagedImagesRef.current.get(stagedId);
           if (!file) continue;
           try {
-            const uploaded = await TicketAttachmentApi.uploadAttachment(createdId, file);
+            // 正文内嵌图片：usage=inline_image，经域内端点透传（BE-10；通用 A1 的兜底码
+            // attachment:write 仅 admin/sysadmin 持有，普通用户走通用路由会 403）
+            const uploaded = await AttachmentApi.upload(file, {
+              bizType: 'ticket',
+              bizId: createdId,
+              usage: 'inline_image',
+            });
             replacements[stagedId] = {
               id: uploaded.id,
               // 内嵌图片优先走 preview（inline）；fileUrl 仅作兜底，避免落到
               // 带 Content-Disposition: attachment 的下载地址导致 <img> 不显示。
-              url: TicketAttachmentApi.getPreviewUrl(createdId, uploaded.id) || uploaded.fileUrl,
+              url: uploaded.previewUrl || ticketAttachmentPreviewUrl(createdId, uploaded.id),
               name: uploaded.fileName || file.name,
             };
             stagedImagesRef.current.delete(stagedId);

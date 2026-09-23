@@ -346,42 +346,6 @@ export class CollaborationApi {
     return httpClient.get<TypingIndicator[]>(`/api/v1/tickets/${ticketId}/typing`);
   }
 
-  // ==================== 附件管理 ====================
-
-  /**
-   * 上传评论附件
-   */
-  static async uploadAttachment(data: {
-    file: File;
-    commentId?: string;
-    ticketId: number;
-  }): Promise<{
-    id: string;
-    fileName: string;
-    fileUrl: string;
-    fileSize: number;
-    fileType: string;
-  }> {
-    const formData = new FormData();
-    formData.append('file', data.file);
-    if (data.commentId) {
-      formData.append('commentId', data.commentId);
-    }
-
-    return httpClient.post(`/api/v1/tickets/${data.ticketId}/attachments`, formData, {
-      headers: {
-        'Content-Type': 'multipart/form-data',
-      },
-    });
-  }
-
-  /**
-   * 删除附件
-   */
-  static async deleteAttachment(attachmentId: string): Promise<void> {
-    return httpClient.delete(`/api/v1/attachments/${attachmentId}`);
-  }
-
   // ==================== 批量操作 ====================
 
   /**

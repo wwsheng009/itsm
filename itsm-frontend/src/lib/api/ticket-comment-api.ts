@@ -4,6 +4,7 @@
  */
 
 import { httpClient } from './http-client';
+import type { CommentAttachment } from '@/types/comment';
 
 export interface TicketComment {
   id: number;
@@ -13,6 +14,11 @@ export interface TicketComment {
   isInternal: boolean;
   mentions: number[];
   attachments: number[];
+  /**
+   * 评论附件展示元数据（BE-11）：服务端按「同租户 + 同工单 + usage=comment_attachment
+   * + 存活」过滤后下发（顺序与 `attachments` 一致），普通用户无需再经通用 A3/A6 反查。
+   */
+  attachmentRefs?: CommentAttachment[];
   user?: {
     id: number;
     username: string;
@@ -37,6 +43,8 @@ export interface UpdateTicketCommentRequest {
   content?: string;
   isInternal?: boolean;
   mentions?: number[];
+  /** 三态语义：省略 = 不修改；`[]` = 清空引用；非空 = 全量替换 */
+  attachments?: number[];
 }
 
 export interface ListTicketCommentsResponse {

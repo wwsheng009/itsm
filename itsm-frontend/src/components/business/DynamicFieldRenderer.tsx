@@ -31,7 +31,10 @@ import {
 } from 'antd';
 import type { Dayjs } from 'dayjs';
 import RichTextEditor, { type UploadedImage } from './RichTextEditor';
-import AttachmentField, { type AttachmentFieldProps } from './AttachmentField';
+// FE-3：附件字段直接消费下沉后的公共控件（`business/AttachmentField` 仅剩一个发布周期的 re-export 兜底）
+import AttachmentField, {
+  type AttachmentFieldProps,
+} from '@/components/common/attachment/AttachmentField';
 
 const { TextArea } = Input;
 

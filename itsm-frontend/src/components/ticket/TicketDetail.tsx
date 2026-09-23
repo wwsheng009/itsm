@@ -11,7 +11,7 @@ import dynamic from 'next/dynamic';
 import { useParams } from 'next/navigation';
 import { TicketApi, type TicketConfigurationItem } from '@/lib/api/ticket-api';
 import { TicketApprovalApi } from '@/lib/api/ticket-approval-api';
-import { TicketAttachmentApi } from '@/lib/api/ticket-attachment-api';
+import { AttachmentApi, ticketAttachmentPreviewUrl } from '@/lib/api/attachment-api';
 import type { Ticket } from '@/lib/api/api-config';
 import type { User } from '@/lib/api/user-api';
 import { useUserListQuery } from '@/lib/hooks/useUserListQuery';
@@ -76,7 +76,7 @@ import {
   fetchAuditLogHistory,
 } from '@/components/business/detail-tabs';
 import { RelationPanel } from '@/components/ticket-relations/RelationPanel';
-import RichTextImageViewer from '@/components/business/RichTextImageViewer';
+import RichTextImageViewer from '@/components/common/rich-text/RichTextImageViewer';
 import {
   MessageSquare,
   Paperclip,
@@ -92,7 +92,7 @@ const { TextArea } = Input;
 
 // 编辑页富文本方案：§4.7 复用同一套 RichTextEditor
 //  - 动态导入（ssr: false），仅在编辑弹层打开后才拉取编辑器 chunk（§NF-2 / 风险表）
-const RichTextEditor = dynamic(() => import('@/components/business/RichTextEditor'), {
+const RichTextEditor = dynamic(() => import('@/components/common/rich-text/RichTextEditor'), {
   ssr: false,
   loading: () => <Skeleton.Input active block style={{ height: 180 }} />,
 });
@@ -521,13 +521,18 @@ const TicketDetail: React.FC<{ id?: string }> = ({ id: propId }) => {
   const handleEditImageUpload = useCallback(
     async (file: File) => {
       if (!resolvedTicketId) throw new Error('工单尚未加载完成');
-      const attachment = await TicketAttachmentApi.uploadAttachment(resolvedTicketId, file);
+      // usage=inline_image：正文内嵌图片与普通附件分途（§3.1 / §3.3），经域内端点透传
+      // （BE-10；通用 A1 的兜底码 attachment:write 仅 admin/sysadmin 持有，普通用户会 403）。
+      // 宿主上下文显式传工单，权限仍按 §4.2 映射到 ticket:create。
+      const attachment = await AttachmentApi.upload(file, {
+        bizType: 'ticket',
+        bizId: resolvedTicketId,
+        usage: 'inline_image',
+      });
       return {
         // 内嵌图片必须走 preview 端点（inline）；/download 带 Content-Disposition: attachment，
-        // 不适合作为 <img src>，仅作兜底。
-        url:
-          TicketAttachmentApi.getPreviewUrl(resolvedTicketId, attachment.id) ||
-          attachment.fileUrl,
+        // 不适合作为 <img src>，故后端给出 previewUrl 时优先采信，其次用域内预览地址兜底。
+        url: attachment.previewUrl || ticketAttachmentPreviewUrl(resolvedTicketId, attachment.id),
         id: attachment.id,
         name: attachment.fileName,
       };
@@ -599,7 +604,11 @@ const TicketDetail: React.FC<{ id?: string }> = ({ id: propId }) => {
         if (removedImageIds.length > 0) {
           await Promise.allSettled(
             removedImageIds.map((imageId) =>
-              TicketAttachmentApi.deleteAttachment(resolvedTicketId, imageId)
+              AttachmentApi.removeById(imageId, {
+                bizType: 'ticket',
+                bizId: resolvedTicketId,
+                usage: 'inline_image',
+              })
             )
           );
         }

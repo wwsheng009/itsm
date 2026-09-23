@@ -90,15 +90,19 @@ export interface CommentStats {
 }
 
 /**
- * 评论附件
+ * 评论附件展示元数据（BE-11 响应契约）
+ *
+ * 与后端 `dto.TicketCommentAttachmentRef` 同名同义：只有「同租户 + 同工单
+ * + usage=comment_attachment + 未删除」的记录会出现在 `attachmentRefs` 中；
+ * 下载 / 预览地址均为工单域内端点（静态权限沿用 `ticket:read`）。
  */
 export interface CommentAttachment {
   id: number;
-  commentId: number;
   fileName: string;
-  filePath: string;
-  fileUrl: string;
   fileSize: number;
   mimeType: string;
-  createdAt: string;
+  /** 域内下载地址：/api/v1/tickets/:id/attachments/:ref */
+  downloadUrl: string;
+  /** 仅 image/* 下发（inline 预览） */
+  previewUrl?: string;
 }
