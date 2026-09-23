@@ -196,14 +196,42 @@ func (s *TicketAttachmentService) genericListAll(ctx context.Context, tenantID, 
 	return views, total, nil
 }
 
+// normalizeTicketAttachmentUsage 归一化域内端点收到的 `usage` 表单字段（BE-10）。
+//
+// 缺省（空串）按 attachment 处理，保证老客户端与历史 URL 字节级兼容；
+// 仅接受 §3.1 登记的三档用途，其余一律拒绝，避免用途语义被静默改写。
+func normalizeTicketAttachmentUsage(raw string) (string, error) {
+	switch strings.TrimSpace(raw) {
+	case "", AttachmentUsageAttachment:
+		return AttachmentUsageAttachment, nil
+	case AttachmentUsageInlineImage:
+		return AttachmentUsageInlineImage, nil
+	case AttachmentUsageCommentAttachment:
+		return AttachmentUsageCommentAttachment, nil
+	default:
+		return "", fmt.Errorf("%w: %q", ErrAttachmentUsageInvalid, raw)
+	}
+}
+
 // UploadAttachment 上传附件
+//
+// BE-10：新增 rawUsage 形参（域内端点 `usage` 表单字段，缺省 attachment），使工单域
+// 能在**不改权限语义**的前提下表达内嵌图片 / 评论附件用途：通用路由 A1 的静态码是兜底码
+// `attachment:write`（§4.3 仅绑定 admin/sysadmin），普通用户只能经域内端点上传，
+// 而非默认用途又必须落通用表（旧 `ticket_attachments` 无 usage 列）。
 func (s *TicketAttachmentService) UploadAttachment(
 	ctx context.Context,
 	ticketID int,
 	fileHeader *FileHeader,
+	rawUsage string,
 	userID, tenantID int,
 ) (*dto.TicketAttachmentResponse, error) {
-	s.logger.Infow("Uploading attachment", "ticket_id", ticketID, "file_name", fileHeader.Filename, "user_id", userID)
+	usage, err := normalizeTicketAttachmentUsage(rawUsage)
+	if err != nil {
+		return nil, err
+	}
+
+	s.logger.Infow("Uploading attachment", "ticket_id", ticketID, "file_name", fileHeader.Filename, "usage", usage, "user_id", userID)
 
 	// 验证文件大小：纯入参校验，先于数据库查询执行（同时保证该分支可单测）
 	if fileHeader.Size > s.maxFileSize {
@@ -215,14 +243,20 @@ func (s *TicketAttachmentService) UploadAttachment(
 		return nil, fmt.Errorf("%w: size=%d bytes", ErrAttachmentEmpty, fileHeader.Size)
 	}
 
-	// BE-6 薄适配：写开关打开时转发通用服务（biz_type=ticket）。
+	// BE-6 薄适配 + BE-10 用途透传：写开关打开（默认用途的灰度转发）或用途非默认
+	// （旧表无 usage 列，必须落通用表）时转发通用服务（biz_type=ticket）。
+	// 非默认用途不受 `attachment.generic_write_enabled` 约束：旧链路没有等价能力，
+	// 该开关只用于「默认用途写入」的回退，不能把内嵌图片 / 评论附件一并关回旧表。
 	// 校验错误哨兵与旧链路同源（ErrAttachmentEmpty/TooLarge/TypeRejected），
 	// handler 的可读文案与状态码映射完全不变；宿主不存在沿用旧口径（→ 5001）。
-	if s.genericWriteEnabled(tenantID) {
+	if usage != AttachmentUsageAttachment || s.genericWriteEnabled(tenantID) {
+		if s.generic == nil {
+			return nil, fmt.Errorf("%w: usage=%s", ErrAttachmentUsageBackendMissing, usage)
+		}
 		view, gerr := s.generic.Upload(ctx, tenantID, userID, AttachmentUploadInput{
 			BizType: AttachmentBizTypeTicket,
 			BizID:   ticketID,
-			Usage:   AttachmentUsageAttachment,
+			Usage:   usage,
 			File:    fileHeader,
 		})
 		if gerr != nil {
@@ -441,9 +475,11 @@ func (s *TicketAttachmentService) GetAttachment(ctx context.Context, ticketID, a
 func (s *TicketAttachmentService) DeleteAttachment(ctx context.Context, ticketID, attachmentID, tenantID, userID int) error {
 	s.logger.Infow("Deleting attachment", "ticket_id", ticketID, "attachment_id", attachmentID, "user_id", userID)
 
-	// BE-6 薄适配：写开关打开时走通用服务（软删 + 引用保护）。
-	// 通用表无该记录（尚未回填的历史遗留）时回退旧表硬删，保证灰度期可无损回滚。
-	if s.genericWriteEnabled(tenantID) {
+	// BE-6 薄适配 + BE-10：先尝试通用删除（软删 + 引用保护），未命中通用表再回退旧表硬删。
+	// 与 BE-6 的差别是不再以写开关短路：非默认用途（inline_image / comment_attachment）
+	// 的记录只可能在通用表，若按开关短路会出现「用户删不掉刚插进正文的图片 / 评论附件」；
+	// 旧表记录在通用表必然未命中（含跨宿主、已软删），仍走原硬删路径，回滚口径不变。
+	if s.generic != nil {
 		gerr := s.deleteViaGeneric(ctx, ticketID, attachmentID, tenantID, userID)
 		if gerr == nil {
 			return nil
@@ -451,8 +487,10 @@ func (s *TicketAttachmentService) DeleteAttachment(ctx context.Context, ticketID
 		if !errors.Is(gerr, ErrAttachmentNotFound) {
 			return gerr
 		}
-		s.logger.Warnw("Attachment not found in generic backend, falling back to legacy delete",
-			"ticket_id", ticketID, "attachment_id", attachmentID)
+		if s.genericWriteEnabled(tenantID) {
+			s.logger.Warnw("Attachment not found in generic backend, falling back to legacy delete",
+				"ticket_id", ticketID, "attachment_id", attachmentID)
+		}
 	}
 
 	// 查询附件
@@ -746,6 +784,11 @@ var (
 	ErrAttachmentTooLarge = errors.New("attachment exceeds max size")
 	// ErrAttachmentTypeRejected 真实内容/扩展名不在允许范围内。
 	ErrAttachmentTypeRejected = errors.New("attachment type not allowed")
+	// ErrAttachmentUsageInvalid 上传请求携带了未登记的附件用途（BE-10）。
+	// 仅接受 attachment / inline_image / comment_attachment，缺省（空）按 attachment 处理。
+	ErrAttachmentUsageInvalid = errors.New("attachment usage not allowed")
+	// ErrAttachmentUsageBackendMissing 需要通用后端才能承载的用途未注入通用服务（部署未接线）。
+	ErrAttachmentUsageBackendMissing = errors.New("attachment usage requires generic backend")
 )
 
 // allowedAttachmentMIMEs 附件 MIME 白名单：内容嗅探命中即放行。

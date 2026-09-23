@@ -39,6 +39,26 @@ type TicketCommentResponse struct {
 	User        *UserInfo `json:"user,omitempty"` // 评论人信息
 	CreatedAt   time.Time `json:"createdAt"`
 	UpdatedAt   time.Time `json:"updatedAt"`
+	// AttachmentRefs 评论附件的展示元数据（BE-11）。`attachments` 仍是 BE-9 冻结的
+	// ID 绑定契约；元数据独立下发，供普通用户（不持有兜底码 attachment:read，
+	// 无法经通用 A3/A6 反查）在评论列表直接渲染文件名 / 大小 / 下载地址。
+	AttachmentRefs []TicketCommentAttachmentRef `json:"attachmentRefs,omitempty"`
+}
+
+// TicketCommentAttachmentRef 评论附件展示元数据（BE-11）。
+//
+// 服务端只对「同租户 + 宿主 = 本工单 + usage = comment_attachment + 存活」的记录下发，
+// 与 BE-9 的绑定校验同口径；已软删 / 跨宿主 / 其它用途的 ID 一律不出现在响应中。
+// 下载地址为域内端点，权限由评论接口的 `ticket:read` 静态闸门把守。
+type TicketCommentAttachmentRef struct {
+	ID       int    `json:"id"`
+	FileName string `json:"fileName"`
+	FileSize int    `json:"fileSize"`
+	MimeType string `json:"mimeType"`
+	// DownloadURL 域内下载地址：/api/v1/tickets/:id/attachments/:ref
+	DownloadURL string `json:"downloadUrl"`
+	// PreviewURL 仅图片附件下发（inline 预览），其余为空串并被省略。
+	PreviewURL string `json:"previewUrl,omitempty"`
 }
 
 // ListTicketCommentsResponse 工单评论列表响应
@@ -55,6 +75,11 @@ func (r *UpdateTicketCommentRequest) Normalize() {
 
 // ToTicketCommentResponse 将 Ent 实体转换为 DTO
 func ToTicketCommentResponse(comment *ent.TicketComment, user *ent.User) *TicketCommentResponse {
+	return ToTicketCommentResponseWithAttachments(comment, user, nil)
+}
+
+// ToTicketCommentResponseWithAttachments 在基础响应上追加附件展示元数据（BE-11）。
+func ToTicketCommentResponseWithAttachments(comment *ent.TicketComment, user *ent.User, refs []TicketCommentAttachmentRef) *TicketCommentResponse {
 	resp := &TicketCommentResponse{
 		ID:         comment.ID,
 		TicketID:   comment.TicketID,
@@ -73,6 +98,11 @@ func ToTicketCommentResponse(comment *ent.TicketComment, user *ent.User) *Ticket
 	// 设置 attachments
 	if comment.Attachments != nil {
 		resp.Attachments = comment.Attachments
+	}
+
+	// 设置附件展示元数据（顺序与 attachments 一致；调用方保证已按宿主口径过滤）
+	if len(refs) > 0 {
+		resp.AttachmentRefs = refs
 	}
 
 	// 设置用户信息

@@ -101,7 +101,7 @@ func TestAllowedAttachmentMIMEsCoverExtensionTable(t *testing.T) {
 
 func TestUploadAttachmentRejectsEmptyFile(t *testing.T) {
 	svc := newAttachmentServiceForTest()
-	_, err := svc.UploadAttachment(context.Background(), 1, &FileHeader{Filename: "key.txt", Size: 0}, 1, 1)
+	_, err := svc.UploadAttachment(context.Background(), 1, &FileHeader{Filename: "key.txt", Size: 0}, "", 1, 1)
 	if !errors.Is(err, ErrAttachmentEmpty) {
 		t.Fatalf("0 字节附件应返回 ErrAttachmentEmpty，实际: %v", err)
 	}
@@ -109,7 +109,7 @@ func TestUploadAttachmentRejectsEmptyFile(t *testing.T) {
 
 func TestUploadAttachmentRejectsOversizeFile(t *testing.T) {
 	svc := newAttachmentServiceForTest()
-	_, err := svc.UploadAttachment(context.Background(), 1, &FileHeader{Filename: "big.pdf", Size: 11 * 1024 * 1024}, 1, 1)
+	_, err := svc.UploadAttachment(context.Background(), 1, &FileHeader{Filename: "big.pdf", Size: 11 * 1024 * 1024}, "", 1, 1)
 	if !errors.Is(err, ErrAttachmentTooLarge) {
 		t.Fatalf("超限附件应返回 ErrAttachmentTooLarge，实际: %v", err)
 	}
@@ -150,5 +150,62 @@ func TestParseAttachmentRef(t *testing.T) {
 				t.Fatalf("parseAttachmentRef(%q) = (%d, %q)，期望 (%d, %q)", tc.ref, id, name, tc.wantID, tc.wantName)
 			}
 		})
+	}
+}
+
+// BE-10：域内端点 usage 表单字段的归一化口径。
+//
+// 缺省（空串 / 纯空白）必须回落 attachment——老客户端与历史 URL 不带该字段，
+// 归一化一旦收紧就会把存量上传打成参数错误。
+func TestNormalizeTicketAttachmentUsage(t *testing.T) {
+	cases := []struct {
+		name    string
+		in      string
+		want    string
+		wantErr bool
+	}{
+		{"缺省", "", AttachmentUsageAttachment, false},
+		{"空白", "   ", AttachmentUsageAttachment, false},
+		{"显式默认", " attachment ", AttachmentUsageAttachment, false},
+		{"内嵌图片", "inline_image", AttachmentUsageInlineImage, false},
+		{"评论附件", "comment_attachment", AttachmentUsageCommentAttachment, false},
+		{"未登记用途", "avatar", "", true},
+		{"大小写不符", "Inline_Image", "", true},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			got, err := normalizeTicketAttachmentUsage(tc.in)
+			if tc.wantErr {
+				if !errors.Is(err, ErrAttachmentUsageInvalid) {
+					t.Fatalf("normalizeTicketAttachmentUsage(%q) 期望 ErrAttachmentUsageInvalid，实际: %v", tc.in, err)
+				}
+				return
+			}
+			if err != nil {
+				t.Fatalf("normalizeTicketAttachmentUsage(%q) 返回错误: %v", tc.in, err)
+			}
+			if got != tc.want {
+				t.Fatalf("normalizeTicketAttachmentUsage(%q) = %q，期望 %q", tc.in, got, tc.want)
+			}
+		})
+	}
+}
+
+// BE-10：非法用途在落盘前即被拒绝（不产生孤儿文件、不落任何表）。
+func TestUploadAttachmentRejectsUnknownUsage(t *testing.T) {
+	svc := newAttachmentServiceForTest()
+	_, err := svc.UploadAttachment(context.Background(), 1, &FileHeader{Filename: "key.txt", Size: 1}, "avatar", 1, 1)
+	if !errors.Is(err, ErrAttachmentUsageInvalid) {
+		t.Fatalf("非法用途应返回 ErrAttachmentUsageInvalid，实际: %v", err)
+	}
+}
+
+// BE-10：需要通用后端的用途在未接线（generic == nil）时必须显式失败，
+// 不能静默退化成默认用途——否则内嵌图片会以普通附件身份落库，用途语义丢失。
+func TestUploadAttachmentUsageRequiresGenericBackend(t *testing.T) {
+	svc := newAttachmentServiceForTest()
+	_, err := svc.UploadAttachment(context.Background(), 1, &FileHeader{Filename: "key.txt", Size: 1}, AttachmentUsageInlineImage, 1, 1)
+	if !errors.Is(err, ErrAttachmentUsageBackendMissing) {
+		t.Fatalf("未接线通用后端时应返回 ErrAttachmentUsageBackendMissing，实际: %v", err)
 	}
 }

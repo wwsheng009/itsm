@@ -105,3 +105,22 @@ redis:
   port: ${REDIS_PORT:6379}
   password: "${REDIS_PASSWORD:}"
   db: ${REDIS_DB:0}
+
+# 附件域开关（方案 docs/plan/generic-attachment-richtext-control-plan.md §6.1）
+# 2026-09-24 开发环境收口：通用读写与富文本内嵌图片直开（不做灰度分流），
+# 旧表 ticket_attachments 已完成保 ID 回填（20260923_attachments_backfill），
+# 历史 data-attachment-id / /tickets/:id/attachments/:ref URL 继续有效。
+# 回退：把下面四个开关改回 false（或用 ATTACHMENT_* 环境变量覆盖）即回旧链路。
+attachment:
+  generic_read_enabled: ${ATTACHMENT_GENERIC_READ_ENABLED:true}
+  generic_write_enabled: ${ATTACHMENT_GENERIC_WRITE_ENABLED:true}
+  # dual_write_enabled 目前无运行时消费者（后端仅接线 read/write 两个开关），
+  # 开发环境保持 false；如后续补齐双写（DO-2）再切换。
+  dual_write_enabled: ${ATTACHMENT_DUAL_WRITE_ENABLED:false}
+  inline_image_enabled: ${ATTACHMENT_INLINE_IMAGE_ENABLED:true}
+  # 生命周期清理（BE-8）：开发环境不启动后台回收任务，避免误删演练数据。
+  cleanup_enabled: ${ATTACHMENT_CLEANUP_ENABLED:false}
+  cleanup_purge_enabled: ${ATTACHMENT_CLEANUP_PURGE_ENABLED:false}
+  retention_days: ${ATTACHMENT_RETENTION_DAYS:30}
+  cleanup_interval_minutes: ${ATTACHMENT_CLEANUP_INTERVAL_MINUTES:360}
+  cleanup_batch_size: ${ATTACHMENT_CLEANUP_BATCH_SIZE:200}

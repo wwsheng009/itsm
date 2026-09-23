@@ -292,3 +292,76 @@ func TestCommentAttachmentDeleteCommentReleasesReference(t *testing.T) {
 	require.NoError(t, env.commentSvc.DeleteTicketComment(ctx, env.ticket.ID, resp.ID, env.user.ID, env.tenant.ID))
 	require.NoError(t, env.attachmentSvc.Delete(ctx, env.tenant.ID, env.user.ID, att.ID))
 }
+
+// TestCommentAttachmentMetadataRefs BE-11：评论创建 / 列表路径下发附件展示元数据，
+// 且只下发「同租户 + 同宿主 + usage=comment_attachment + 存活」的记录；`attachments`
+// 的 ID 契约不受元数据过滤影响（软删记录仍保留绑定，由 BE-8 保留期任务回收）。
+func TestCommentAttachmentMetadataRefs(t *testing.T) {
+	env := newCommentAttachmentEnv(t)
+	ctx := context.Background()
+
+	image := seedCommentAttachment(t, env.client, env.tenant.ID, env.ticket.ID, env.user.ID,
+		AttachmentUsageCommentAttachment, AttachmentStatusActive)
+
+	created, err := env.createComment([]int{image.ID})
+	require.NoError(t, err)
+	require.Len(t, created.AttachmentRefs, 1)
+	ref := created.AttachmentRefs[0]
+	assert.Equal(t, image.ID, ref.ID)
+	assert.Equal(t, image.FileName, ref.FileName)
+	assert.Equal(t, image.FileSize, ref.FileSize)
+	assert.Equal(t, image.MimeType, ref.MimeType)
+	assert.Equal(t, fmt.Sprintf("/api/v1/tickets/%d/attachments/%d", env.ticket.ID, image.ID), ref.DownloadURL)
+	assert.Equal(t, fmt.Sprintf("/api/v1/tickets/%d/attachments/%d/preview", env.ticket.ID, image.ID), ref.PreviewURL)
+
+	// 非图片附件：下载地址照常下发，inline 预览地址为空。
+	doc := seedCommentAttachment(t, env.client, env.tenant.ID, env.ticket.ID, env.user.ID,
+		AttachmentUsageCommentAttachment, AttachmentStatusActive)
+	_, err = env.client.Attachment.UpdateOneID(doc.ID).
+		SetFileName("说明.txt").SetMimeType("text/plain").SetFileType("text/plain").Save(ctx)
+	require.NoError(t, err)
+	second, err := env.createComment([]int{doc.ID})
+	require.NoError(t, err)
+	require.Len(t, second.AttachmentRefs, 1)
+	assert.Empty(t, second.AttachmentRefs[0].PreviewURL)
+	assert.Equal(t, fmt.Sprintf("/api/v1/tickets/%d/attachments/%d", env.ticket.ID, doc.ID), second.AttachmentRefs[0].DownloadURL)
+
+	// 列表路径：顺序与绑定顺序一致；直改引用模拟脏数据（跨宿主 / 其它用途），不得泄漏元数据。
+	crossHost := seedCommentAttachment(t, env.client, env.tenant.ID, env.otherTicket.ID, env.user.ID,
+		AttachmentUsageCommentAttachment, AttachmentStatusActive)
+	inline := seedCommentAttachment(t, env.client, env.tenant.ID, env.ticket.ID, env.user.ID,
+		AttachmentUsageInlineImage, AttachmentStatusActive)
+	_, err = env.client.TicketComment.UpdateOneID(created.ID).
+		SetAttachments([]int{doc.ID, image.ID, crossHost.ID, inline.ID}).Save(ctx)
+	require.NoError(t, err)
+
+	items, err := env.commentSvc.ListTicketComments(ctx, env.ticket.ID, env.tenant.ID, env.user.ID)
+	require.NoError(t, err)
+	require.Len(t, items, 2)
+
+	var createdResp *dto.TicketCommentResponse
+	for _, item := range items {
+		if item.ID == created.ID {
+			createdResp = item
+		}
+	}
+	require.NotNil(t, createdResp)
+	assert.Equal(t, []int{doc.ID, image.ID, crossHost.ID, inline.ID}, createdResp.Attachments)
+	require.Len(t, createdResp.AttachmentRefs, 2, "跨宿主 / 其它用途的 ID 不得下发元数据")
+	assert.Equal(t, []int{doc.ID, image.ID},
+		[]int{createdResp.AttachmentRefs[0].ID, createdResp.AttachmentRefs[1].ID})
+
+	// 附件软删后元数据不再下发，ID 绑定列表保持既有契约（前端据此展示「已失效」占位）。
+	_, err = env.client.Attachment.UpdateOneID(image.ID).SetStatus(AttachmentStatusDeleted).Save(ctx)
+	require.NoError(t, err)
+	items, err = env.commentSvc.ListTicketComments(ctx, env.ticket.ID, env.tenant.ID, env.user.ID)
+	require.NoError(t, err)
+	for _, item := range items {
+		if item.ID != created.ID {
+			continue
+		}
+		require.Len(t, item.AttachmentRefs, 1)
+		assert.Equal(t, doc.ID, item.AttachmentRefs[0].ID)
+		assert.Equal(t, []int{doc.ID, image.ID, crossHost.ID, inline.ID}, item.Attachments)
+	}
+}

@@ -97,7 +97,8 @@ func (s *TicketCommentService) CreateTicketComment(ctx context.Context, ticketID
 		}
 	}
 
-	return dto.ToTicketCommentResponse(comment, user), nil
+	refs := s.commentAttachmentRefs(ctx, ticketID, tenantID, []*ent.TicketComment{comment})
+	return dto.ToTicketCommentResponseWithAttachments(comment, user, refs[comment.ID]), nil
 }
 
 // ListTicketComments 获取工单评论列表
@@ -153,7 +154,8 @@ func (s *TicketCommentService) ListTicketComments(ctx context.Context, ticketID,
 	}
 	canViewInternal := privileged || (currentUserID == ticketInfo.AssigneeID && ticketInfo.AssigneeID > 0)
 
-	// 转换为 DTO
+	// 转换为 DTO（BE-11：附带宿主域内的附件展示元数据）
+	attachmentRefs := s.commentAttachmentRefs(ctx, ticketID, tenantID, comments)
 	responses := make([]*dto.TicketCommentResponse, 0, len(comments))
 	for _, comment := range comments {
 		// 如果是内部备注，检查权限
@@ -169,7 +171,7 @@ func (s *TicketCommentService) ListTicketComments(ctx context.Context, ticketID,
 			userEntity, _ = s.client.User.Get(ctx, comment.UserID)
 		}
 
-		responses = append(responses, dto.ToTicketCommentResponse(comment, userEntity))
+		responses = append(responses, dto.ToTicketCommentResponseWithAttachments(comment, userEntity, attachmentRefs[comment.ID]))
 	}
 
 	return responses, nil
@@ -264,7 +266,8 @@ func (s *TicketCommentService) UpdateTicketComment(ctx context.Context, ticketID
 		userEntity, _ = s.client.User.Get(ctx, updatedComment.UserID)
 	}
 
-	return dto.ToTicketCommentResponse(updatedComment, userEntity), nil
+	refs := s.commentAttachmentRefs(ctx, ticketID, tenantID, []*ent.TicketComment{updatedComment})
+	return dto.ToTicketCommentResponseWithAttachments(updatedComment, userEntity, refs[updatedComment.ID]), nil
 }
 
 func (s *TicketCommentService) canManageInternalComments(ctx context.Context, userID, tenantID int) (bool, error) {
@@ -277,6 +280,73 @@ func (s *TicketCommentService) canManageInternalComments(ctx context.Context, us
 		return true, nil
 	}
 	return false, nil
+}
+
+// commentAttachmentRefs 为评论批量补齐附件展示元数据（BE-11，best-effort）。
+//
+// 口径与 BE-9 的绑定校验一致：只认「同租户 + 宿主 = 本工单 + usage = comment_attachment
+// + 存活」的记录；已软删 / 跨宿主 / 其它用途的 ID 一律不下发，避免评论接口成为越权读
+// 附件的旁路。顺序按评论内 `attachments` 的绑定顺序。查询失败仅告警并返回 nil：
+// 展示元数据缺失不应导致评论列表整体失败（正文与 ID 列表仍然可用）。
+func (s *TicketCommentService) commentAttachmentRefs(ctx context.Context, ticketID, tenantID int, comments []*ent.TicketComment) map[int][]dto.TicketCommentAttachmentRef {
+	ids := make([]int, 0, len(comments))
+	seen := make(map[int]struct{}, len(comments))
+	for _, comment := range comments {
+		for _, id := range comment.Attachments {
+			if id <= 0 {
+				continue
+			}
+			if _, duplicate := seen[id]; duplicate {
+				continue
+			}
+			seen[id] = struct{}{}
+			ids = append(ids, id)
+		}
+	}
+	if len(ids) == 0 {
+		return nil
+	}
+
+	rows, err := s.client.Attachment.Query().
+		Where(
+			attachment.IDIn(ids...),
+			attachment.TenantIDEQ(tenantID),
+			attachment.BizTypeEQ(AttachmentBizTypeTicket),
+			attachment.BizIDEQ(ticketID),
+			attachment.UsageEQ(AttachmentUsageCommentAttachment),
+			attachment.StatusEQ(AttachmentStatusActive),
+		).
+		All(ctx)
+	if err != nil {
+		s.logger.Warnw("Failed to load comment attachment metadata",
+			"error", err, "ticket_id", ticketID, "tenant_id", tenantID)
+		return nil
+	}
+
+	byID := make(map[int]dto.TicketCommentAttachmentRef, len(rows))
+	for _, row := range rows {
+		ref := dto.TicketCommentAttachmentRef{
+			ID:          row.ID,
+			FileName:    row.FileName,
+			FileSize:    row.FileSize,
+			MimeType:    row.MimeType,
+			DownloadURL: fmt.Sprintf("/api/v1/tickets/%d/attachments/%d", ticketID, row.ID),
+		}
+		if strings.HasPrefix(row.MimeType, "image/") {
+			ref.PreviewURL = fmt.Sprintf("/api/v1/tickets/%d/attachments/%d/preview", ticketID, row.ID)
+		}
+		byID[row.ID] = ref
+	}
+
+	refs := make(map[int][]dto.TicketCommentAttachmentRef, len(comments))
+	for _, comment := range comments {
+		for _, id := range comment.Attachments {
+			if ref, ok := byID[id]; ok {
+				refs[comment.ID] = append(refs[comment.ID], ref)
+			}
+		}
+	}
+	return refs
 }
 
 func (s *TicketCommentService) validateCommentReferences(ctx context.Context, ticketID, tenantID int, mentions, attachments []int) error {

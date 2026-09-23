@@ -140,7 +140,11 @@ func (h *Handler) UploadAttachment(c *gin.Context) {
 		return
 	}
 
-	attachment, err := h.attachmentService.UploadAttachment(c.Request.Context(), ticketID, fileHeader, userID, tenantID)
+	// BE-10：`usage` 为可选表单字段（缺省 attachment），供工单域内表达内嵌图片 / 评论附件。
+	// 通用路由 A1 的静态码是兜底码（仅 admin/sysadmin），普通用户的用途表达只能走域内端点。
+	usage := c.PostForm("usage")
+
+	attachment, err := h.attachmentService.UploadAttachment(c.Request.Context(), ticketID, fileHeader, usage, userID, tenantID)
 	if err != nil {
 		h.logger.Errorw("Failed to upload attachment", "error", err, "ticket_id", ticketID, "tenant_id", tenantID)
 		// 按可判定错误分派可读原因，替代此前“一句话概括”的模糊提示
@@ -151,6 +155,10 @@ func (h *Handler) UploadAttachment(c *gin.Context) {
 			common.Fail(c, common.ParamErrorCode, fmt.Sprintf("附件超过单文件大小上限（%dMB）", h.attachmentService.MaxFileSizeMB()))
 		case errors.Is(err, service.ErrAttachmentTypeRejected):
 			common.Fail(c, common.ParamErrorCode, "附件类型不在允许范围内（文档/表格/图片/压缩包）")
+		case errors.Is(err, service.ErrAttachmentUsageInvalid):
+			common.Fail(c, common.ParamErrorCode, "附件用途不受支持（仅 attachment / inline_image / comment_attachment）")
+		case errors.Is(err, service.ErrAttachmentUsageBackendMissing):
+			common.Fail(c, common.InternalErrorCode, "附件用途暂不可用，请稍后重试")
 		default:
 			common.Fail(c, common.ParamErrorCode, "附件上传失败，请稍后重试")
 		}
