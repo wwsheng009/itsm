@@ -35,6 +35,7 @@ import {
   stripStagedImages,
   type StagedImageReplacement,
 } from '@/lib/rich-text/staged-images';
+import { DEFAULT_ATTACHMENT_MAX_SIZE_MB } from '@/lib/upload/types';
 
 import type { UploadedImage } from '@/components/business/RichTextEditor';
 import AttachmentField, {
@@ -745,7 +746,7 @@ export default function CreateTicketPage() {
                     value={stagedAttachments}
                     onChange={setStagedAttachments}
                     maxCount={10}
-                    maxSizeMB={50}
+                    maxSizeMB={DEFAULT_ATTACHMENT_MAX_SIZE_MB}
                     uploader={boundUploader}
                     onDeleteUploaded={boundDeleter}
                     showTitle={false}

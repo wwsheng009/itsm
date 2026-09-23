@@ -18,6 +18,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **内嵌图片引用完整性（写入期归属校验）** — 正文富文本里的 `<img data-attachment-id>` 在写入工单描述（新建 / 更新）与知识库文章时逐条校验宿主归属：A4 规范地址（`/api/v1/attachments/{id}/...`）必须命中「同租户 + 同宿主 + 存活」且与 `data-attachment-id` 一致；旧工单域内地址在工单 ID 不匹配时剥离；其它地址只在能解析到通用记录且宿主不符 / 已软删时剥离（`查不到` 不误伤，保障灰度期旧表引用）。违规引用整标签剥离并以 `Warnw` 逐条告警（`attachment_id` / `reason` / `src`），校验查询失败不阻塞写入（`service/attachment_refs.go`，实现与验收见 `docs/plan/generic-attachment-richtext-control-plan.md` §7 BE-7）
 - **附件生命周期清理与宿主删除级联（BE-8）** — 附件删除保持「仅软删」，新增后台清理任务按租户回收「软删且超过保留期」的附件：先删物理文件、后删元数据行，单条失败下轮重试；仍被宿主正文 / 评论引用的记录一律跳过（不误删）。配置 `attachment.cleanup_enabled`（默认 false，关闭即任务不注册）、`cleanup_purge_enabled`（默认 false = 演练 dry-run，只统计不落删）、`retention_days`（30 天）、`cleanup_interval_minutes`（360）、`cleanup_batch_size`（200，硬上限 1000），仅部署级生效。工单删除与知识库文章删除后按策略级联软删其附件（`SetAttachmentLifecycle` 注入，未注入时零行为变化）；被引用项保持 active，引用解除并过保留期后才进入回收序列（`service/attachment_cleanup.go`，实现与验收见 `docs/plan/generic-attachment-richtext-control-plan.md` §7 BE-8，演练记录见 `docs/testing/attachment-cleanup-drill-2026-09-22.md`）
 - **评论附件后端（先上传后绑定，BE-9）** — 工单评论支持携带 `attachments: number[]`：附件先经通用上传 A1 以 `biz_type='ticket'` + `usage='comment_attachment'` 落库（宿主权限沿用 `ticket:create`），评论创建 / 更新时按 ID 绑定。服务端只接受「同租户 + 同宿主（`biz_id` = 工单 ID）+ `usage='comment_attachment'` + `status='active'`」的通用附件，非法项整体拒绝且不产生部分写入；单评论上限 10 个、自动去重保序。更新路径补齐附件增删：`nil` = 不修改、`[]` = 清空引用、非空 = 全量替换。被评论引用的附件删除返回 409/6105，评论删除或更新移除引用后附件转无主，由 BE-8 保留期任务回收（`service/ticket_comment_service.go`、`dto/ticket_comment_dto.go`，实现与验收见 `docs/plan/generic-attachment-richtext-control-plan.md` §7 BE-9）
+- **前端附件公共契约与单一上传入口（FE-1）** — 新增 `src/lib/upload/types.ts`（`AttachmentUsage` / `AttachmentHostContext` / `AttachmentRef` / `AttachmentUploader` / `AttachmentDeleter` 与 10MB 上限常量，全站唯一契约来源，字段与后端通用附件响应同名同义）与 `src/lib/upload/attachment-uploader.ts`（`AttachmentUploader` 默认实现工厂 + `isAttachmentUsage` / `isAttachmentHostContext` / `isAttachmentRef` 类型守卫；零业务 API 直连，HTTP 与端点选择由 FE-4 的 `lib/api/attachment-api.ts` 注入）。后续工单 / 知识库 / 评论附件统一注入该实现，不再各自直连上传（实现与验收见 `docs/plan/generic-attachment-richtext-control-plan.md` §7 FE-1）
 
 ### Security
 
@@ -44,6 +45,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- 附件单文件上限前端默认值对齐后端：`AttachmentField`（含 `validateAttachmentFile` 缺省值）与工单创建页的显式传参由 50MB 改为 10MB（引用 `DEFAULT_ATTACHMENT_MAX_SIZE_MB`），消除「前端允许选择 50MB、上传后被后端 413 拒绝」的错配（FE-1，v1.0 限额决策）
 - 评论附件引用校验收紧（BE-9）：`ticket_comments.attachments` 的合法取值从「同工单的旧 `ticket_attachments` ID」收紧为「同工单、`usage='comment_attachment'` 的存活通用附件 ID」。前端此前从未上传 / 展示过该字段，属未接线能力的口径对齐；只影响写入校验，不改变既有数据读取，历史引用如需继续更新须改用通用附件 ID
 - 生产部署配置：`RLS_MODE` 默认值调整为 `off`（与后端安全默认对齐）。已配置 `.env.prod` 的部署不受影响
 - 前端 dev 启动可选预热：新增 `npm run dev:warmup`（`scripts/dev-with-warmup.mjs`，起 `next dev` 后自动预热高频路由，避免首次点击菜单等待冷编译）与 `npm run dev:warm`（`scripts/dev-warmup.mjs`，对已运行的 dev server 手动预热），支持 `--port/--host/--concurrency/--cookie/--dry-run`；`next.config.ts` 顶部补充 dev 性能实测备忘（Turbopack 15.5 无持久化缓存、webpack 冷编译更慢但有磁盘缓存、`optimizePackageImports` 在 Turbopack 下被忽略、`<Link>` 仅 hover 预取、热请求 SSR 开销），未改动任何运行时配置

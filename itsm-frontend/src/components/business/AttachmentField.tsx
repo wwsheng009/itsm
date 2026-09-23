@@ -25,6 +25,7 @@ import {
   Trash2,
   UploadCloud,
 } from 'lucide-react';
+import { DEFAULT_ATTACHMENT_MAX_SIZE_MB } from '@/lib/upload/types';
 
 const { Text } = Typography;
 
@@ -66,7 +67,7 @@ export interface AttachmentFieldProps {
   disabled?: boolean;
   /** 最大文件数，默认 10 */
   maxCount?: number;
-  /** 单文件最大体积（MB），默认 50 */
+  /** 单文件最大体积（MB），默认 10（v1.0 统一上限，见 lib/upload/types.ts） */
   maxSizeMB?: number;
   /** 白名单 accept 字符串 */
   accept?: string;
@@ -98,7 +99,7 @@ export function validateAttachmentFile(
   file: File,
   options: { maxSizeMB?: number } = {}
 ): { ok: true } | { ok: false; reason: string } {
-  const maxSizeMB = options.maxSizeMB ?? 50;
+  const maxSizeMB = options.maxSizeMB ?? DEFAULT_ATTACHMENT_MAX_SIZE_MB;
   if (file.size > maxSizeMB * 1024 * 1024) {
     return { ok: false, reason: `「${file.name}」超过 ${maxSizeMB}MB 上限` };
   }
@@ -215,7 +216,7 @@ const AttachmentField: React.FC<AttachmentFieldProps> = ({
   onChange,
   disabled = false,
   maxCount = 10,
-  maxSizeMB = 50,
+  maxSizeMB = DEFAULT_ATTACHMENT_MAX_SIZE_MB,
   accept = ACCEPT_ATTACHMENT_STRING,
   uploader,
   onDeleteUploaded,
