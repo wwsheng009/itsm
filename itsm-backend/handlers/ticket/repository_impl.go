@@ -32,6 +32,8 @@ func (r *EntRepository) toDomain(t *ticket.Ticket) *Ticket {
 		TicketNumber:          t.TicketNumber,
 		Title:                 t.Title,
 		Description:           t.Description,
+		DescriptionHTML:       t.DescriptionHTML,
+		DescriptionFormat:     t.DescriptionFormat,
 		Status:                string(t.Status),
 		Priority:              string(t.Priority),
 		Type:                  string(t.Type),
@@ -74,20 +76,22 @@ func toRepoCreateParams(p *CreateParams) *ticket.CreateParams {
 		return nil
 	}
 	return &ticket.CreateParams{
-		Title:          p.Title,
-		Description:    p.Description,
-		Type:           ticket.Type(p.Type),
-		Priority:       ticket.Priority(p.Priority),
-		RequesterID:    p.RequesterID,
-		AssigneeID:     p.AssigneeID,
-		TicketTypeID:   p.TicketTypeID,
-		TicketTypeCode: p.TicketTypeCode,
-		TicketTypeName: p.TicketTypeName,
-		CategoryID:     p.CategoryID,
-		TemplateID:     p.TemplateID,
-		ParentTicketID: p.ParentTicketID,
-		FormFields:     p.FormFields,
-		TagIDs:         p.TagIDs,
+		Title:             p.Title,
+		Description:       p.Description,
+		DescriptionHTML:   p.DescriptionHTML,
+		DescriptionFormat: p.DescriptionFormat,
+		Type:              ticket.Type(p.Type),
+		Priority:          ticket.Priority(p.Priority),
+		RequesterID:       p.RequesterID,
+		AssigneeID:        p.AssigneeID,
+		TicketTypeID:      p.TicketTypeID,
+		TicketTypeCode:    p.TicketTypeCode,
+		TicketTypeName:    p.TicketTypeName,
+		CategoryID:        p.CategoryID,
+		TemplateID:        p.TemplateID,
+		ParentTicketID:    p.ParentTicketID,
+		FormFields:        p.FormFields,
+		TagIDs:            p.TagIDs,
 	}
 }
 
@@ -97,15 +101,17 @@ func toRepoUpdateParams(p *UpdateParams) *ticket.UpdateParams {
 		return nil
 	}
 	rp := &ticket.UpdateParams{
-		Title:       p.Title,
-		Description: p.Description,
-		AssigneeID:  p.AssigneeID,
-		CategoryID:  p.CategoryID,
-		Resolution:  p.Resolution,
-		FormFields:  p.FormFields,
-		Version:     p.Version,
-		ReplaceTags: p.ReplaceTags,
-		TagIDs:      p.TagIDs,
+		Title:             p.Title,
+		Description:       p.Description,
+		DescriptionHTML:   p.DescriptionHTML,
+		DescriptionFormat: p.DescriptionFormat,
+		AssigneeID:        p.AssigneeID,
+		CategoryID:        p.CategoryID,
+		Resolution:        p.Resolution,
+		FormFields:        p.FormFields,
+		Version:           p.Version,
+		ReplaceTags:       p.ReplaceTags,
+		TagIDs:            p.TagIDs,
 	}
 	if p.Status != nil {
 		s := ticket.Status(*p.Status)

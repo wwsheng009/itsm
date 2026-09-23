@@ -17,6 +17,7 @@ type UserBasicInfo struct {
 type CreateTicketRequest struct {
 	Title                 string                 `json:"title" binding:"required,min=2,max=200"`
 	Description           string                 `json:"description" binding:"omitempty,max=5000"`
+	DescriptionHTML       string                 `json:"descriptionHtml" binding:"omitempty,max=524288"`
 	Priority              string                 `json:"priority" binding:"required,oneof=low medium high critical urgent"`
 	Type                  string                 `json:"type" binding:"omitempty,oneof=incident service_request change ticket problem improvement"` // 工单类型
 	TicketTypeID          *int                   `json:"ticketTypeId,omitempty"`
@@ -36,21 +37,22 @@ type CreateTicketRequest struct {
 
 // UpdateTicketRequest 更新工单请求
 type UpdateTicketRequest struct {
-	Title       string                 `json:"title" binding:"omitempty,min=2,max=200"`
-	Description string                 `json:"description" binding:"omitempty,min=10,max=5000"`
-	Priority    string                 `json:"priority" binding:"omitempty,oneof=low medium high critical"`
-	Status      string                 `json:"status" binding:"omitempty,oneof=new open assigned in_progress pending resolved closed cancelled approved rejected"`
-	Type        string                 `json:"type" binding:"omitempty,oneof=incident service_request change ticket problem improvement"`
-	Category    string                 `json:"category" binding:"omitempty"`
-	CategoryID  *int                   `json:"categoryId,omitempty"`
-	AssigneeID  int                    `json:"assigneeId"`
-	RequesterID int                    `json:"requesterId"` // 创建人ID
-	Tags        []string               `json:"tags"`
-	Resolution  string                 `json:"resolution" binding:"omitempty"`
-	FormFields  map[string]interface{} `json:"formFields,omitempty"`
-	UserID      int                    `json:"userId" binding:"omitempty"` // 操作用户ID (后端自动填充)
-	Version     int                    `json:"version"`                    // 版本号（乐观锁）
-	Force       bool                   `json:"-"`                          // 仅限内部受信调用，禁止客户端绕过乐观锁
+	Title           string                 `json:"title" binding:"omitempty,min=2,max=200"`
+	Description     string                 `json:"description" binding:"omitempty,min=10,max=5000"`
+	DescriptionHTML string                 `json:"descriptionHtml" binding:"omitempty,max=524288"`
+	Priority        string                 `json:"priority" binding:"omitempty,oneof=low medium high critical"`
+	Status          string                 `json:"status" binding:"omitempty,oneof=new open assigned in_progress pending resolved closed cancelled approved rejected"`
+	Type            string                 `json:"type" binding:"omitempty,oneof=incident service_request change ticket problem improvement"`
+	Category        string                 `json:"category" binding:"omitempty"`
+	CategoryID      *int                   `json:"categoryId,omitempty"`
+	AssigneeID      int                    `json:"assigneeId"`
+	RequesterID     int                    `json:"requesterId"` // 创建人ID
+	Tags            []string               `json:"tags"`
+	Resolution      string                 `json:"resolution" binding:"omitempty"`
+	FormFields      map[string]interface{} `json:"formFields,omitempty"`
+	UserID          int                    `json:"userId" binding:"omitempty"` // 操作用户ID (后端自动填充)
+	Version         int                    `json:"version"`                    // 版本号（乐观锁）
+	Force           bool                   `json:"-"`                          // 仅限内部受信调用，禁止客户端绕过乐观锁
 }
 
 // ListTicketsRequest 获取工单列表请求
@@ -79,6 +81,8 @@ type TicketResponse struct {
 	ID                    int                    `json:"id"`
 	Title                 string                 `json:"title"`
 	Description           string                 `json:"description"`
+	DescriptionHTML       string                 `json:"descriptionHtml,omitempty"`
+	DescriptionFormat     string                 `json:"descriptionFormat,omitempty"`
 	Status                string                 `json:"status"`
 	Priority              string                 `json:"priority"`
 	Type                  string                 `json:"type"`

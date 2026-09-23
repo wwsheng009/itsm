@@ -55,6 +55,34 @@ func (_c *TicketCreate) SetNillableDescription(v *string) *TicketCreate {
 	return _c
 }
 
+// SetDescriptionHTML sets the "description_html" field.
+func (_c *TicketCreate) SetDescriptionHTML(v string) *TicketCreate {
+	_c.mutation.SetDescriptionHTML(v)
+	return _c
+}
+
+// SetNillableDescriptionHTML sets the "description_html" field if the given value is not nil.
+func (_c *TicketCreate) SetNillableDescriptionHTML(v *string) *TicketCreate {
+	if v != nil {
+		_c.SetDescriptionHTML(*v)
+	}
+	return _c
+}
+
+// SetDescriptionFormat sets the "description_format" field.
+func (_c *TicketCreate) SetDescriptionFormat(v string) *TicketCreate {
+	_c.mutation.SetDescriptionFormat(v)
+	return _c
+}
+
+// SetNillableDescriptionFormat sets the "description_format" field if the given value is not nil.
+func (_c *TicketCreate) SetNillableDescriptionFormat(v *string) *TicketCreate {
+	if v != nil {
+		_c.SetDescriptionFormat(*v)
+	}
+	return _c
+}
+
 // SetStatus sets the "status" field.
 func (_c *TicketCreate) SetStatus(v string) *TicketCreate {
 	_c.mutation.SetStatus(v)
@@ -829,6 +857,10 @@ func (_c *TicketCreate) ExecX(ctx context.Context) {
 
 // defaults sets the default values of the builder before save.
 func (_c *TicketCreate) defaults() {
+	if _, ok := _c.mutation.DescriptionFormat(); !ok {
+		v := ticket.DefaultDescriptionFormat
+		_c.mutation.SetDescriptionFormat(v)
+	}
 	if _, ok := _c.mutation.Status(); !ok {
 		v := ticket.DefaultStatus
 		_c.mutation.SetStatus(v)
@@ -875,6 +907,14 @@ func (_c *TicketCreate) check() error {
 	if v, ok := _c.mutation.Title(); ok {
 		if err := ticket.TitleValidator(v); err != nil {
 			return &ValidationError{Name: "title", err: fmt.Errorf(`ent: validator failed for field "Ticket.title": %w`, err)}
+		}
+	}
+	if _, ok := _c.mutation.DescriptionFormat(); !ok {
+		return &ValidationError{Name: "description_format", err: errors.New(`ent: missing required field "Ticket.description_format"`)}
+	}
+	if v, ok := _c.mutation.DescriptionFormat(); ok {
+		if err := ticket.DescriptionFormatValidator(v); err != nil {
+			return &ValidationError{Name: "description_format", err: fmt.Errorf(`ent: validator failed for field "Ticket.description_format": %w`, err)}
 		}
 	}
 	if _, ok := _c.mutation.Status(); !ok {
@@ -984,6 +1024,14 @@ func (_c *TicketCreate) createSpec() (*Ticket, *sqlgraph.CreateSpec) {
 	if value, ok := _c.mutation.Description(); ok {
 		_spec.SetField(ticket.FieldDescription, field.TypeString, value)
 		_node.Description = value
+	}
+	if value, ok := _c.mutation.DescriptionHTML(); ok {
+		_spec.SetField(ticket.FieldDescriptionHTML, field.TypeString, value)
+		_node.DescriptionHTML = value
+	}
+	if value, ok := _c.mutation.DescriptionFormat(); ok {
+		_spec.SetField(ticket.FieldDescriptionFormat, field.TypeString, value)
+		_node.DescriptionFormat = value
 	}
 	if value, ok := _c.mutation.Status(); ok {
 		_spec.SetField(ticket.FieldStatus, field.TypeString, value)

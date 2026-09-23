@@ -118,6 +118,7 @@ exclude_docs: |
   tests/
   scripts/
   prd/
+  plan/
   backups/
   testing/test-cases/
   archive/

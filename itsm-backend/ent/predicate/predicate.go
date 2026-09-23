@@ -30,6 +30,9 @@ type Asset func(*sql.Selector)
 // AssetLicense is the predicate function for assetlicense builders.
 type AssetLicense func(*sql.Selector)
 
+// Attachment is the predicate function for attachment builders.
+type Attachment func(*sql.Selector)
+
 // AuditLog is the predicate function for auditlog builders.
 type AuditLog func(*sql.Selector)
 

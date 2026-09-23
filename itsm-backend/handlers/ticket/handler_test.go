@@ -18,6 +18,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"go.uber.org/zap"
 )
 
@@ -45,6 +46,8 @@ func (m *mockRepository) Create(ctx context.Context, params *CreateParams, tenan
 		TicketNumber: "TKT-" + time.Now().Format("20060102") + "-001",
 		Title:        params.Title,
 		Description:  params.Description,
+		DescriptionHTML:   params.DescriptionHTML,
+		DescriptionFormat: params.DescriptionFormat,
 		Status:       "new",
 		Priority:     params.Priority,
 		Type:         params.Type,
@@ -95,6 +98,12 @@ func (m *mockRepository) Update(ctx context.Context, id int, params *UpdateParam
 	}
 	if params.Priority != nil {
 		t.Priority = *params.Priority
+	}
+	if params.DescriptionHTML != nil {
+		t.DescriptionHTML = *params.DescriptionHTML
+	}
+	if params.DescriptionFormat != nil {
+		t.DescriptionFormat = *params.DescriptionFormat
 	}
 	t.Version++
 	t.UpdatedAt = time.Now()
@@ -666,4 +675,64 @@ func TestHandler_SearchTickets_EmptyKeyword(t *testing.T) {
 		map[string]string{"X-Test-TenantID": "1", "X-Test-UserID": "7"},
 	)
 	assert.Equal(t, 400, w.Code)
+}
+
+// P2 富文本：handler 层创建/更新链路需服务端清洗并双写，空 HTML 更新不得覆盖已有值。
+func TestService_RichTextSanitizeAndDoubleWrite(t *testing.T) {
+	repo := newMockRepository()
+	svc := NewService(repo, nil, zap.NewNop().Sugar())
+	ctx := context.Background()
+
+	created, err := svc.Create(ctx, 1, &CreateParams{
+		Title:           "富文本工单",
+		Description:     "纯文本描述",
+		DescriptionHTML: `<p>正文</p><script>alert(1)</script><img src="data:image/png;base64,AAAA">`,
+		Priority:        "medium",
+		Type:            "incident",
+		RequesterID:     7,
+	})
+	require.NoError(t, err)
+	assert.Equal(t, "纯文本描述", created.Description)
+	assert.Equal(t, "html", created.DescriptionFormat)
+	assert.Contains(t, created.DescriptionHTML, "<p>正文</p>")
+	assert.NotContains(t, created.DescriptionHTML, "<script")
+	assert.NotContains(t, created.DescriptionHTML, "data:image")
+
+	// 落库经 Repository 参数映射：HTML 字段确实写入（而非只在返回值上）。
+	stored := repo.tickets[created.ID]
+	require.NotNil(t, stored)
+	assert.Equal(t, created.DescriptionHTML, stored.DescriptionHTML)
+	assert.Equal(t, "html", stored.DescriptionFormat)
+
+	// 更新未携带 descriptionHtml：保留已有 HTML（部分更新语义）。
+	title := "改名"
+	updated, err := svc.Update(ctx, 1, created.ID, &UpdateParams{
+		Title:   &title,
+		Version: created.Version,
+	}, created.RequesterID, "end_user")
+	require.NoError(t, err)
+	assert.Equal(t, created.DescriptionHTML, updated.DescriptionHTML)
+	assert.Equal(t, "html", updated.DescriptionFormat)
+
+	// 更新携带 descriptionHtml：重新清洗并覆盖。
+	newHTML := `<p>新正文</p><img src="data:image/png;base64,BBBB">`
+	updated2, err := svc.Update(ctx, 1, created.ID, &UpdateParams{
+		DescriptionHTML: &newHTML,
+		Version:         updated.Version,
+	}, created.RequesterID, "end_user")
+	require.NoError(t, err)
+	assert.Contains(t, updated2.DescriptionHTML, "新正文")
+	assert.NotContains(t, updated2.DescriptionHTML, "data:image")
+
+	// 未携带富文本的旧行为：保持 plain 语义（不写 HTML）。
+	plain, err := svc.Create(ctx, 1, &CreateParams{
+		Title:       "纯文本工单",
+		Description: "只有纯文本",
+		Priority:    "medium",
+		Type:        "incident",
+		RequesterID: 7,
+	})
+	require.NoError(t, err)
+	assert.Empty(t, plain.DescriptionHTML)
+	assert.Empty(t, plain.DescriptionFormat)
 }

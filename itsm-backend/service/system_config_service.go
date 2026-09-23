@@ -258,6 +258,7 @@ func (s *SystemConfigService) DeleteSystemConfig(ctx context.Context, id int, te
 // InitDefaultConfigs 初始化默认配置。
 // 覆盖前端 /admin/system-config 表单的 24 个键，避免首次进入页面看到空表单。
 // 新增配置键必须同时在本表与前端 SystemConfiguration 表单中声明。
+// 例外：attachment.* 分组为运维灰度开关（方案 §6.1），只在本表登记、不进前端表单。
 func (s *SystemConfigService) InitDefaultConfigs(ctx context.Context, tenantID int) error {
 	defaultConfigs := []dto.SystemConfigRequest{
 		// —— 通用设置 ——
@@ -272,6 +273,11 @@ func (s *SystemConfigService) InitDefaultConfigs(ctx context.Context, tenantID i
 		// —— 上传设置 ——
 		{Key: "maxFileSize", Value: "10", ValueType: "number", Category: "upload", Description: "最大文件大小(MB)"},
 		{Key: "allowedFileTypes", Value: ".pdf,.doc,.docx,.xls,.xlsx,.jpg,.png,.gif", ValueType: "string", Category: "upload", Description: "允许的文件类型"},
+		// —— 附件域灰度开关（方案 §6.1；按租户覆盖部署级默认值，键名与 config.yaml 的 attachment 块一致） ——
+		{Key: "attachment.generic_read_enabled", Value: "false", ValueType: "boolean", Category: "attachment", Description: "通用附件读路径灰度（按租户）"},
+		{Key: "attachment.generic_write_enabled", Value: "false", ValueType: "boolean", Category: "attachment", Description: "通用附件写路径灰度（按租户）"},
+		{Key: "attachment.dual_write_enabled", Value: "false", ValueType: "boolean", Category: "attachment", Description: "附件双写对账（P2）"},
+		{Key: "attachment.inline_image_enabled", Value: "false", ValueType: "boolean", Category: "attachment", Description: "富文本内嵌图片走通用链路"},
 		// —— 安全设置：密码策略 ——
 		{Key: "passwordMinLength", Value: "8", ValueType: "number", Category: "security", Description: "密码最小长度"},
 		{Key: "passwordRequireUppercase", Value: "true", ValueType: "boolean", Category: "security", Description: "需要大写字母"},

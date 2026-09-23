@@ -237,7 +237,44 @@
 - 脏数据保护：`isDirty` 时路由离开弹 `Modal.confirm`；保存成功后重置基线快照。
 - 保存语义：仅提交变更字段（`diff`），沿用现有更新接口，避免全量覆盖并发覆盖。
 
+落地位置（前端现状，2026-09 核对）：
+
+- 编辑入口是 `itsm-frontend/src/components/ticket/TicketDetail.tsx` 内的编辑弹层（`app/(main)/tickets/[ticketId]/page.tsx` 只是薄壳），详情描述也在同一组件渲染；
+- 详情回显与写入共用 `sanitizeRichTextHtml` 白名单（`src/lib/rich-text/sanitize.ts`），渲染容器类名 `ticket-rich-text`，样式见 `src/app/globals.css`（Tailwind preflight 会清空标题/列表样式，需显式补回）；
+- 编辑器为 `next/dynamic`（`ssr: false`）按需加载，`NEXT_PUBLIC_RICH_TEXT=off` 时创建页与编辑弹层都回退 `Input.TextArea`，且不请求编辑器 chunk；
+- 编辑器内删除图片：保存成功后对比编辑前后的 `data-attachment-id`，对被移除的图片调用附件解绑接口（§5.2 第 4 条）；
+- 差异项：未新增前端权限判断（编辑按钮仅在终态禁用），写权限仍由后端 RBAC 与乐观锁（`version`）兜底。
+
+### 4.8 创建页两段式上传：暂存图协议与三项必守约束
+
+创建页在提交前拿不到 `ticketId`，粘贴/拖拽的图片只能先以 `blob:` 占位并携带暂存标记 `data-attachment-id="staged-<时间戳>-<序号>"`；提交成功后置步骤再上传附件、把 `src` 回填为 `/api/v1/tickets/:id/attachments/:attachmentId/preview`、`data-attachment-id` 回填为真实附件 ID（`itsm-frontend/src/lib/rich-text/staged-images.ts` 的 `extractStagedImageIds` / `replaceStagedImages`）。以下三项任一缺失，现象都是**「创建页插图保存后图片消失，而编辑页插图正常」**：
+
+1. **Tiptap 节点属性必须声明 `data-attachment-id`**（`RichTextEditorResizableImage.addAttributes()`）。编辑器插入图片走 `editor.commands.insertContent(html)`，未在 schema 声明的属性会被静默剔除 → `getHTML()` 丢标记 → 提交层 `extractStagedImageIds` 找不到暂存图 → 既不发生附件上传，也不发生地址回填。
+2. **前端 DOMPurify 必须放行同源 `blob:`**（`sanitize.ts` 的 `RICH_TEXT_ALLOWED_URI_REGEXP` + `isAllowedImageSrc` 同源校验）。DOMPurify 默认 URI 策略不含 `blob`，会把占位图整元素移除；同源判定按 WHATWG 规范取 `new URL(value.slice(5)).origin`。
+3. **提交后置步骤必须执行「识别 → 上传 → 回填」**（`create/page.tsx` 提交成功后：`extractStagedImageIds` → `POST /tickets/:id/attachments` → `replaceStagedImages`，回填时保留 `width/height/data-align/title`）。`stripStagedImages` 只是兜底：仅在回填失败时用于清掉残余占位图，不能替代回填流程。
+
+**为何编辑页不受影响**：编辑页图片走「先上传、后插入」，插入的已是真实预览地址 + 真实附件 ID，链路上不存在 `blob:` 与 `staged-` 前缀，因此同样代码在编辑页表现正常。定位此类缺陷时，以「暂存标记能否到达提交层」为判据：先看 `getHTML()` 是否含 `data-attachment-id="staged-*"`，再看净化后是否仍在，最后看提交后是否发出附件上传请求。
+
+**回归要点**：创建页粘贴图片 → 提交 → 详情页 `.ticket-rich-text` 内图片可渲染（`naturalWidth > 0`）；网络层应依次观察到 `POST /api/v1/tickets`（此时占位图被剥离，属预期）、`POST /api/v1/tickets/:id/attachments`、携带 `data-attachment-id="<真实ID>"` 的 `PUT /api/v1/tickets/:id`。
+
+### 4.9 详情页图片查看器（放大 / 缩放 / 旋转 / 翻转 / 平移）
+
+诉求：详情页 `/tickets/:id` 的描述是只读回显（`.ticket-rich-text`），图片被 `max-width: 100%` 压到正文宽度，截图、长图、拓扑图看不清。需要「放大、缩放、旋转」这类通用图片操作。
+
+方案：**不改动回显与清洗链路**，新增 `RichTextImageViewer`（`itsm-frontend/src/components/business/RichTextImageViewer.tsx`），在详情页描述容器上做事件委托后弹出全屏查看器。
+
+- **接管方式**：`TicketDetail` 给 `div.ticket-rich-text` 挂 `ref` 并传给查看器；查看器监听容器上的 `click` / `keydown`（Enter、Space），用 `MutationObserver` 给新渲染的 `img` 补 `tabindex` / `role` / `aria-label` / `title`；弹层用 `createPortal` 挂到 `document.body`，不进入 `dangerouslySetInnerHTML` 的渲染树，也不影响既有净化链路（净化仍由 `sanitizeRichTextHtml` 负责）。
+- **变换数学独立成纯函数**：`itsm-frontend/src/lib/rich-text/image-viewer.ts`（`clampImageScale` / `nextImageScale` / `rotateImage` / `isQuarterTurn` / `computeFitScale` / `formatScalePercent` / `clampImageOffset`），与 DOM 解耦、便于单测。缩放范围 10%~800%、步进 1.25，旋转步进 90°。
+- **交互**：放大 / 缩小（按钮、滚轮、`+` / `-`）、原始尺寸 1:1（`1`）、适应窗口（`f`，默认，且默认不把小图放大）、双击在适应窗口与 1:1 间切换、左 / 右旋转（`r` / `Shift+R`）、水平 / 垂直翻转、放大超出视口后指针拖拽平移（`clampImageOffset` 保证拖不出视野）、重置（`0`）、多图上一张 / 下一张（← / →）、下载原图、Esc / 点击遮罩 / 关闭按钮退出、Tab 焦点圈定、`body` 滚动锁、关闭后焦点还给触发图片。
+- **样式**：`.rte-image-viewer*`（`globals.css`）固定定位 `z-index: 1100`（高于 antd Modal 1000 与 Tooltip 1070）；`.ticket-rich-text img` 补 `cursor: zoom-in` 与 `:focus-visible` 焦点环；`prefers-reduced-motion: reduce` 下关闭动画。
+- **降级**：`NEXT_PUBLIC_RICH_TEXT=off`（纯文本回退）时 `enabled=false`，不接管任何点击；查看器只在 `descriptionHtml` 分支挂载。
+
+**回归要点**：`/tickets/:id` 点击描述内图片 → 全屏查看器打开且缩放显示 `100%`（已知 `naturalWidth` 时按画布适应比例）；点「放大」→ `125%`；「向右旋转」→ 视觉旋转 90° 且宽高互换后仍居中；「重置」回到初始状态；Esc 关闭后焦点回到原图片。
+
+**单测**：`src/lib/rich-text/__tests__/image-viewer.test.ts`（边界值：`NaN` / 0 尺寸 / 上下限 / 平移夹取）、`src/components/business/__tests__/RichTextImageViewer.test.tsx`（点击与键盘打开、缩放步进、旋转翻转、多图切换、Esc / 遮罩 / 关闭、滚动锁恢复、`enabled=false` 不接管）。
+
 ---
+
 ## 5. 后端与数据模型配合
 
 ### 5.1 存储字段
@@ -272,8 +309,9 @@
 
 前端 DOMPurify 只做体验层防护，**服务端必须二次清洗**（不可信任客户端）：
 
-- Go 侧使用白名单清洗（如 `bluemonday` 的 UGC/自定义策略），仅允许 `p, br, strong, em, u, s, code, pre, blockquote, ul, ol, li, h1-h6, a[href], img[src|alt|data-attachment-id], table` 等。
+- Go 侧使用白名单清洗（如 `bluemonday` 的 UGC/自定义策略），仅允许 `p, br, strong, em, u, s, code, pre, blockquote, ul, ol, li, h1-h6, a[href], img[src|alt|title|width|height|data-attachment-id|data-align], table` 等。
 - `a` 的 `href` 仅允许 `http/https/mailto`；`img` 的 `src` 仅允许本站附件域，禁止外链与 `data:`（`data:` 可保留但需限制体积，默认拒绝）。
+- 图片尺寸与对齐走 **HTML 属性**而非 `style`（两侧清洗都会剥离 `style`）：`width` / `height` 承载缩放尺寸，`data-align` 承载 `left|center|right` 对齐；前后端白名单同步放行（`src/lib/rich-text/sanitize.ts` 与 `itsm-backend/internal/sanitize/richtext.go`），`data-align` 仅接受 `left|center|right` 三个值。
 - 清洗后若结果为空，回退为纯文本段落。
 - 在工单历史/评论/通知的**所有渲染出口**统一走同一清洗策略，避免遗漏（渲染层再加一层前端 DOMPurify 双保险）。
 
@@ -314,6 +352,14 @@
 | `itsm-frontend/src/components/business/TicketAttachmentSection.tsx` | 修改或降级为包装 | 保持既有唯一引用点不破，内部改为委托 `AttachmentField` |
 | `itsm-frontend/package.json` | 修改 | 新增 `@tiptap/react`、`@tiptap/starter-kit`、所需扩展 |
 | 后端迁移 + 工单 DTO | 修改 | 新增 `description_html`；请求/响应双写兼容 |
+| `itsm-frontend/src/components/business/RichTextEditorResizableImage.ts` | 新增 | 可缩放图片节点：`width` / `height` / `data-align` / `data-attachment-id` 属性 + DOM NodeView（四角手柄、方向键 10px / Shift 50px 步进、拖拽结束一次性提交事务保证 undo 一步；替换裸 `@tiptap/extension-image`）。`data-attachment-id` 必须在 schema 中声明，否则创建页暂存图标记会被 `insertContent` 静默剔除（见 §4.8） |
+| `itsm-frontend/src/components/business/RichTextEditorImageMenu.tsx` | 新增 | 选中图片后浮动工具条：尺寸预设（25/50/75/100%）、自定义 px、左/中/右对齐、还原原始尺寸、删除 |
+| `itsm-frontend/src/lib/rich-text/image-size.ts` | 新增 | 图片尺寸/对齐纯函数（解析、夹取、拖拽换算、暂存替换时的属性保留），供 NodeView 与工具条复用 |
+| `itsm-backend/internal/sanitize/richtext.go` | 新增 | 服务端 bluemonday 白名单清洗（`img[src\|alt\|title\|width\|height\|data-attachment-id\|data-align]`），与前端 `sanitize.ts` 对齐 |
+| `itsm-frontend/src/lib/rich-text/sanitize.ts` | 新增 | 前端 DOMPurify 清洗；`ALLOWED_URI_REGEXP` 在默认策略外放行同源 `blob:`（创建页占位图），`isAllowedImageSrc` 仍拒绝外链与 `data:` |
+| `itsm-frontend/src/lib/rich-text/staged-images.ts` | 新增 | 创建页暂存图协议：`getStagedImageId` / `extractStagedImageIds` / `stripStagedImages` / `replaceStagedImages`（回填时保留 `width/height/data-align/title`） |
+| `itsm-frontend/src/lib/rich-text/__tests__/sanitize.test.ts`、`src/components/business/__tests__/RichTextEditorResizableImage.test.ts` | 新增/修改 | 同源 `blob` 保留、跨源移除；「HTML 往返保留 `data-attachment-id`」回归用例（防创建页插图丢失复现） |
+| 缺陷修复记录（2026-09-22） | 修复 | 创建页「插图保存后图片消失、编辑页正常」：补 Tiptap schema 属性声明 + DOMPurify 放行同源 `blob:`，详见 §4.8 |
 
 ### 6.3 提交拆分建议
 
@@ -417,3 +463,39 @@
 | D-2 | 编辑态是否允许删除既有附件 | 允许删除，走解绑接口（幂等）；写工单历史，记录操作人与时间 | 权限模型、审计留痕、解绑接口 | 后端负责人 | P1 编辑页复用前 |
 | D-3 | 历史工单详情页是否同步切 HTML 渲染 | 同步切换（「有 HTML 用 HTML，否则纯文本」）；历史数据无 HTML 时行为不变 | 详情页渲染分支、灰度开关、回退路径 | 前端负责人 | P2 详情页接入前 |
 | D-4 | 附件「先传后提交」（草稿上传 + 提交时绑定） | 本期不做，采用两段式（先建单再上传）。若产品要求，需新增 `POST /api/v1/tickets/attachments/draft` 与 `.../bind`（见 §5.2），并评估后端排期与孤儿附件清理 | 后端接口、附件生命周期、清理任务 | 产品 + 后端负责人 | P2 结束前评审 |
+
+---
+
+## 11. 实施与验收记录
+
+### 11.1 暗色主题适配（编辑器与富文本回显）
+
+**问题**：`globals.css` 基础层以元素选择器写死亮色文本色（`p { color: #404040 }`、`h1..h6 { color: #171717 }`）。元素选择器优先级高于继承，因此 `.dark` 主题下 TipTap 编辑区与详情页富文本回显的正文/标题仍是深色，暗色背景下对比度不足。
+
+**修复**（`itsm-frontend/src/app/globals.css`）：在既有 `.dark .rich-text-editor, .dark .ticket-rich-text` 规则之后，补充对 `p / h1 / h2 / h3` 的显式浅色覆盖；选择器限定在富文本作用域内，不改变全局排版语义。
+
+**实测证据（浏览器 computed style）**：
+
+| 场景 | 容器背景 | 正文 | 标题 | 列表 / 引用 |
+| --- | --- | --- | --- | --- |
+| `/tickets/create`（dark） | shell `rgb(20,20,20)`，toolbar `rgb(31,31,31)` | `rgb(249,250,251)` | h2 `rgb(249,250,251)` | li `list-style: disc`、`rgb(249,250,251)`；blockquote bg `rgb(29,29,29)` / border `rgb(67,67,67)` |
+| `/tickets/2` 编辑弹层（dark） | shell `rgb(20,20,20)`，body `rgb(20,20,20)` | `rgb(249,250,251)` | h2 17px / 600 `rgb(249,250,251)` | li `rgb(249,250,251)` |
+| `/tickets/create`（light 回归） | shell `#fff`，toolbar `rgb(250,250,250)` | `rgb(64,64,64)` | — | 与基线一致，未回归 |
+
+### 11.2 端到端复测发现并修复：`descriptionHtml` 在 handler 层丢参
+
+**现象**：编辑页保存 `PUT /api/v1/tickets/2` 返回 200，请求体含 `descriptionHtml` 与 `descriptionFormat: "html"`，但响应 `descriptionFormat` 仍为 `plain`、`descriptionHtml` 缺失，详情页回退纯文本渲染（`description` 纯文本本身写入正常）。
+
+**根因（双层丢参）**：服务层已具备 P2 逻辑——`handlers/ticket/service.go` 的 `Create` / `Update` 均对 `params.DescriptionHTML` 执行 `sanitize.SanitizeRichTextHTML` 清洗，并在清洗结果非空时置 `DescriptionFormat = "html"`；但 `handlers/ticket/handler.go` 由 DTO 构造参数时**从未透传 `req.DescriptionHTML`**：`CreateTicket`、`UpdateTicket`、`CreateSubtask` 三处全部遗漏（`CreateParams` / `UpdateParams` 结构体本身已含该字段）。
+
+**修复**：`handlers/ticket/handler.go` 三处补齐透传；更新路径保持部分更新语义（仅非空下发，空值不覆盖既有 HTML）。清洗仍统一在服务层执行，handler 不改变信任边界。
+
+### 11.3 验收状态
+
+- 暗色适配：已实测通过（证据见 11.1）。
+- 富文本保存 / 回显链路（修复后复测，2026-09-22）：
+  - **更新路径**（真实 UI：`/tickets/2` 编辑弹层 → 粘贴富文本 → 保存）：响应 `version: 6`、`descriptionFormat: "html"`、`descriptionHtml` 含 `<h2>验证结论</h2><ul><li>…`；详情页 `.ticket-rich-text` 渲染与落库 HTML 一致。
+  - **创建路径**（真实 UI：`/tickets/create` → 粘贴富文本 → 提交）：新单 `#3` 落库 `descriptionFormat: "html"`，`descriptionHtml` 与编辑器内容逐字一致，`description` 纯文本双写正常（换行保留）。
+  - 暗色下真实富文本回显：h2 / li / p computed color 均为 `rgb(249, 250, 251)`，li `list-style: disc`。
+  - 结论：AC-1（提交与回显一致）、AC-6（加载既有富文本并按变更提交）在真实链路通过；**AC-7（恶意 payload 清洗直连验证）与 AC-9（开关降级路径）本轮未复测**。
+- 本轮代码变更：`itsm-frontend/src/app/globals.css`（暗色覆盖）、`itsm-backend/handlers/ticket/handler.go`（`descriptionHtml` 透传：创建 + 更新两处）。

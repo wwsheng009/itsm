@@ -28,6 +28,8 @@ type Tx struct {
 	Asset *AssetClient
 	// AssetLicense is the client for interacting with the AssetLicense builders.
 	AssetLicense *AssetLicenseClient
+	// Attachment is the client for interacting with the Attachment builders.
+	Attachment *AttachmentClient
 	// AuditLog is the client for interacting with the AuditLog builders.
 	AuditLog *AuditLogClient
 	// BPMNPermission is the client for interacting with the BPMNPermission builders.
@@ -423,6 +425,7 @@ func (tx *Tx) init() {
 	tx.ApprovalWorkflow = NewApprovalWorkflowClient(tx.config)
 	tx.Asset = NewAssetClient(tx.config)
 	tx.AssetLicense = NewAssetLicenseClient(tx.config)
+	tx.Attachment = NewAttachmentClient(tx.config)
 	tx.AuditLog = NewAuditLogClient(tx.config)
 	tx.BPMNPermission = NewBPMNPermissionClient(tx.config)
 	tx.BootstrapToken = NewBootstrapTokenClient(tx.config)

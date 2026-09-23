@@ -104,6 +104,18 @@ func (f AssetLicenseFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value
 	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.AssetLicenseMutation", m)
 }
 
+// The AttachmentFunc type is an adapter to allow the use of ordinary
+// function as Attachment mutator.
+type AttachmentFunc func(context.Context, *ent.AttachmentMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f AttachmentFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.AttachmentMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.AttachmentMutation", m)
+}
+
 // The AuditLogFunc type is an adapter to allow the use of ordinary
 // function as AuditLog mutator.
 type AuditLogFunc func(context.Context, *ent.AuditLogMutation) (ent.Value, error)

@@ -266,6 +266,8 @@ func BuiltinRolePermissionCodes() map[string][]string {
 			"license:read", "license:write", "license:delete",
 			"report:read",
 			"msp:read",
+			// 附件兜底码（v1.0 §4.3 P0-3 / AC-18）：无宿主/系统级附件
+			"attachment:read", "attachment:write", "attachment:delete",
 		},
 		// 二线技术员（users.role=technician 对齐；与 middleware.RolePermissions["technician"] 16 对全等，2026-09-17 P0 补齐）
 		"technician": {
@@ -434,6 +436,8 @@ func allPermissionCodes() []string {
 		"msp_ticket:read", "msp_ticket:write",
 		"msp_allocation:read", "msp_allocation:write",
 		"msp_report:read", "msp_report:write",
+		// 附件兜底码（v1.0 §4.3 P0-3 / AC-18）：系统管理员全量持有（allExcept 角色随之继承）
+		"attachment:read", "attachment:write", "attachment:delete",
 	}
 }
 

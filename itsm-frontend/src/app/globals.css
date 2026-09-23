@@ -1501,6 +1501,16 @@
     animation: scaleIn var(--duration-fast) var(--easing-ease-out);
   }
 
+  /* 表单提交失败时抖动卡片：比单纯出现一条错误文字更容易被注意到 */
+  .animate-shake {
+    animation: shake 400ms var(--easing-ease-in-out);
+  }
+
+  /* 登录成功后的跳转遮罩：延迟 200ms 出现，导航很快时不会闪一下 */
+  .animate-fade-in-late {
+    animation: fadeIn 240ms var(--easing-ease-out) 200ms both;
+  }
+
   /* 交互状态 */
   .interactive {
     transition: all 200ms;
@@ -1571,6 +1581,29 @@
   to {
     opacity: 1;
     transform: scale(1);
+  }
+}
+
+@keyframes shake {
+  0%,
+  100% {
+    transform: translateX(0);
+  }
+
+  20% {
+    transform: translateX(-8px);
+  }
+
+  40% {
+    transform: translateX(8px);
+  }
+
+  60% {
+    transform: translateX(-5px);
+  }
+
+  80% {
+    transform: translateX(5px);
   }
 }
 
@@ -2237,4 +2270,421 @@ html:not(.dark) .ant-btn-default:focus {
   flex: 1;
   min-width: 0;
   display: block;
+}
+
+/* ============================================================
+   工单富文本样式（编辑态 + 详情回显）
+   方案：docs/architecture/ticket-create-page-rich-input-optimization.md §4.3
+   Tailwind preflight 会清空标题/列表默认样式，导致「编辑器所见」
+   与「详情页回显」都丢失层级；这里按白名单标签显式补回，保证两侧一致。
+   ============================================================ */
+.ticket-rich-text,
+.ticket-rich-editor .ProseMirror {
+  font-size: 14px;
+  line-height: 1.7;
+  word-break: break-word;
+  overflow-wrap: anywhere;
+}
+
+.ticket-rich-text > :first-child,
+.ticket-rich-editor .ProseMirror > :first-child {
+  margin-top: 0;
+}
+
+.ticket-rich-text > :last-child,
+.ticket-rich-editor .ProseMirror > :last-child {
+  margin-bottom: 0;
+}
+
+.ticket-rich-text p,
+.ticket-rich-editor .ProseMirror p {
+  margin: 0 0 8px;
+}
+
+.ticket-rich-text h1,
+.ticket-rich-editor .ProseMirror h1 {
+  font-size: 20px;
+  font-weight: 600;
+  line-height: 1.4;
+  margin: 16px 0 8px;
+}
+
+.ticket-rich-text h2,
+.ticket-rich-editor .ProseMirror h2 {
+  font-size: 17px;
+  font-weight: 600;
+  line-height: 1.4;
+  margin: 14px 0 8px;
+}
+
+.ticket-rich-text h3,
+.ticket-rich-editor .ProseMirror h3 {
+  font-size: 15px;
+  font-weight: 600;
+  line-height: 1.4;
+  margin: 12px 0 6px;
+}
+
+.ticket-rich-text ul,
+.ticket-rich-text ol,
+.ticket-rich-editor .ProseMirror ul,
+.ticket-rich-editor .ProseMirror ol {
+  margin: 0 0 8px;
+  padding-left: 22px;
+}
+
+.ticket-rich-text ul,
+.ticket-rich-editor .ProseMirror ul {
+  list-style: disc;
+}
+
+.ticket-rich-text ol,
+.ticket-rich-editor .ProseMirror ol {
+  list-style: decimal;
+}
+
+.ticket-rich-text li,
+.ticket-rich-editor .ProseMirror li {
+  margin: 2px 0;
+}
+
+.ticket-rich-text blockquote,
+.ticket-rich-editor .ProseMirror blockquote {
+  margin: 8px 0;
+  padding: 4px 12px;
+  border-left: 3px solid var(--rte-quote-border);
+  color: var(--rte-quote-text);
+  background: var(--rte-quote-bg);
+}
+
+.ticket-rich-text code,
+.ticket-rich-editor .ProseMirror code {
+  padding: 1px 4px;
+  border-radius: 4px;
+  background: var(--rte-code-bg);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 13px;
+}
+
+.ticket-rich-text pre,
+.ticket-rich-editor .ProseMirror pre {
+  margin: 8px 0;
+  padding: 10px 12px;
+  border-radius: 6px;
+  background: var(--rte-pre-bg);
+  overflow-x: auto;
+}
+
+.ticket-rich-text pre code,
+.ticket-rich-editor .ProseMirror pre code {
+  background: transparent;
+  padding: 0;
+}
+
+.ticket-rich-text a,
+.ticket-rich-editor .ProseMirror a {
+  color: var(--rte-link);
+  text-decoration: underline;
+}
+
+.ticket-rich-text img,
+.ticket-rich-editor .ProseMirror img {
+  max-width: 100%;
+  height: auto;
+  border-radius: 6px;
+  margin: 6px 0;
+}
+
+/* 详情回显的图片可点击进入查看器（§4.9）：放大镜光标 + 键盘焦点环 */
+.ticket-rich-text img {
+  cursor: zoom-in;
+}
+
+.ticket-rich-text img:focus-visible {
+  outline: 2px solid var(--rte-link);
+  outline-offset: 2px;
+}
+
+/* 图片对齐（data-align 由富文本编辑器写入，白名单见 lib/rich-text/sanitize.ts）：
+   编辑器内对齐在 NodeView 包裹层上生效，详情页回显则是 img 自身，两处写法保持一致。 */
+.ticket-rich-text img[data-align='center'],
+.ticket-rich-editor .ProseMirror img[data-align='center'] {
+  display: block;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.ticket-rich-text img[data-align='right'],
+.ticket-rich-editor .ProseMirror img[data-align='right'] {
+  display: block;
+  margin-left: auto;
+  margin-right: 0;
+}
+
+.ticket-rich-text hr,
+.ticket-rich-editor .ProseMirror hr {
+  margin: 12px 0;
+  border: none;
+  border-top: 1px solid var(--rte-rule);
+}
+
+.ticket-rich-text table,
+.ticket-rich-editor .ProseMirror table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 8px 0;
+}
+
+.ticket-rich-text th,
+.ticket-rich-text td,
+.ticket-rich-editor .ProseMirror th,
+.ticket-rich-editor .ProseMirror td {
+  border: 1px solid var(--rte-rule);
+  padding: 6px 10px;
+  text-align: left;
+}
+
+/* ============================================================
+   富文本「黑主题」适配（编辑态 + 详情回显）
+   方案：docs/architecture/ticket-create-page-rich-input-optimization.md
+   实现方式：亮/暗两套色板统一收敛到 --rte-* 变量，
+   编辑态（.rich-text-editor / .ticket-rich-editor）与回显态
+   （.ticket-rich-text）共用同一套变量，避免两处样式漂移。
+   ============================================================ */
+:root {
+  --rte-border: #d9d9d9;
+  --rte-toolbar-bg: #fafafa;
+  --rte-toolbar-border: #f0f0f0;
+  --rte-body-bg: #ffffff;
+  --rte-body-bg-disabled: #f5f5f5;
+  --rte-placeholder: #bfbfbf;
+  --rte-quote-border: #d9d9d9;
+  --rte-quote-bg: #fafafa;
+  --rte-quote-text: #595959;
+  --rte-code-bg: rgba(0, 0, 0, 0.06);
+  --rte-pre-bg: #f5f5f5;
+  --rte-rule: #e5e7eb;
+  --rte-link: #1677ff;
+}
+
+.dark {
+  --rte-border: #303030;
+  --rte-toolbar-bg: #1f1f1f;
+  --rte-toolbar-border: #303030;
+  --rte-body-bg: #141414;
+  --rte-body-bg-disabled: #1a1a1a;
+  --rte-placeholder: #6b6b6b;
+  --rte-quote-border: #434343;
+  --rte-quote-bg: #1d1d1d;
+  --rte-quote-text: #a6a6a6;
+  --rte-code-bg: rgba(255, 255, 255, 0.12);
+  --rte-pre-bg: #1f1f1f;
+  --rte-rule: #303030;
+  --rte-link: #4096ff;
+}
+
+/* 编辑器外壳：颜色全部走变量，组件不再内联写死亮色 */
+.rich-text-editor {
+  border: 1px solid var(--rte-border);
+  border-radius: 6px;
+  overflow: hidden;
+  background: var(--rte-body-bg);
+}
+
+.rich-text-editor__toolbar {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  flex-wrap: wrap;
+  padding: 4px 8px;
+  border-bottom: 1px solid var(--rte-toolbar-border);
+  background: var(--rte-toolbar-bg);
+}
+
+.ticket-rich-editor {
+  position: relative;
+  background: var(--rte-body-bg);
+}
+
+.ticket-rich-editor--disabled {
+  background: var(--rte-body-bg-disabled);
+}
+
+.ticket-rich-editor__placeholder {
+  position: absolute;
+  top: 10px;
+  left: 14px;
+  color: var(--rte-placeholder);
+  pointer-events: none;
+  font-size: 14px;
+}
+
+/* 暗色下正文/标题显式指定浅色：
+   globals 基础层对 p / h1-h6 写死了亮色（#404040 / #171717），
+   元素选择器优先于继承，因此必须在富文本范围内覆盖回来。 */
+.dark .rich-text-editor,
+.dark .ticket-rich-text {
+  color: var(--color-text-primary, #f8fafc);
+}
+
+.dark .rich-text-editor .rte-content p,
+.dark .rich-text-editor .rte-content h1,
+.dark .rich-text-editor .rte-content h2,
+.dark .rich-text-editor .rte-content h3,
+.dark .ticket-rich-text p,
+.dark .ticket-rich-text h1,
+.dark .ticket-rich-text h2,
+.dark .ticket-rich-text h3 {
+  color: var(--color-text-primary, #f8fafc);
+}
+
+
+/* ============================================================
+   图片查看器（详情页富文本图片：放大 / 缩小 / 旋转 / 翻转 / 拖动平移）
+   方案：docs/architecture/ticket-create-page-rich-input-optimization.md §4.9
+   组件：src/components/business/RichTextImageViewer.tsx
+   ============================================================ */
+.rte-image-viewer {
+  position: fixed;
+  inset: 0;
+  /* 高于 antd Modal(1000) 与 Tooltip(1070)，确保放大查看时不被遮挡 */
+  z-index: 1100;
+  display: flex;
+  flex-direction: column;
+  background: rgba(0, 0, 0, 0.86);
+  animation: rte-image-viewer-fade-in 120ms ease-out;
+}
+
+.rte-image-viewer__toolbar {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 10px 14px;
+  background: linear-gradient(rgba(0, 0, 0, 0.65), rgba(0, 0, 0, 0));
+}
+
+.rte-image-viewer__btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  border: none;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.12);
+  color: #f1f5f9;
+  font-size: 16px;
+  line-height: 1;
+  cursor: pointer;
+  transition: background 120ms ease-out, color 120ms ease-out;
+}
+
+.rte-image-viewer__btn:hover {
+  background: rgba(255, 255, 255, 0.24);
+}
+
+.rte-image-viewer__btn:focus-visible {
+  outline: 2px solid #4096ff;
+  outline-offset: 1px;
+}
+
+.rte-image-viewer__btn--active {
+  background: rgba(22, 119, 255, 0.5);
+  color: #ffffff;
+}
+
+.rte-image-viewer__scale {
+  min-width: 60px;
+  height: 36px;
+  padding: 0 10px;
+  border: none;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.08);
+  color: #e5e7eb;
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+  cursor: pointer;
+}
+
+.rte-image-viewer__scale:hover {
+  background: rgba(255, 255, 255, 0.2);
+}
+
+.rte-image-viewer__scale:focus-visible {
+  outline: 2px solid #4096ff;
+  outline-offset: 1px;
+}
+
+.rte-image-viewer__counter {
+  min-width: 46px;
+  color: #e5e7eb;
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+  text-align: center;
+}
+
+.rte-image-viewer__divider {
+  width: 1px;
+  height: 20px;
+  margin: 0 4px;
+  background: rgba(255, 255, 255, 0.24);
+}
+
+.rte-image-viewer__stage {
+  position: relative;
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  /* 让指针拖动平移不触发浏览器手势/文本选择 */
+  touch-action: none;
+  user-select: none;
+}
+
+.rte-image-viewer__image {
+  display: block;
+  transform-origin: center center;
+  will-change: transform;
+  border-radius: 4px;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.5);
+  -webkit-user-drag: none;
+}
+
+.rte-image-viewer__hint {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 14px;
+  margin: 0;
+  text-align: center;
+  color: rgba(255, 255, 255, 0.62);
+  font-size: 12px;
+  pointer-events: none;
+}
+
+@keyframes rte-image-viewer-fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .rte-image-viewer,
+  .rte-image-viewer__btn,
+  .rte-image-viewer__scale {
+    animation: none;
+    transition: none;
+  }
 }

@@ -10,6 +10,8 @@ type Ticket struct {
 	TicketNumber          string
 	Title                 string
 	Description           string
+	DescriptionHTML       string
+	DescriptionFormat     string
 	Status                string
 	Priority              string
 	Type                  string

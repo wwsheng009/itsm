@@ -37,6 +37,21 @@ const (
 	ToolPermissionDeniedCode = 2004 // 工具权限不足
 	UnknownToolCode          = 2005 // 未知工具
 
+	// TooManyRequestsCode 通用限流码（HTTP 429）。
+	// 2026-09-22 通用附件批次：此前 router.go / security.go 直接传 http.StatusTooManyRequests(429)
+	// 当业务码，而双 switch 未登记该值 → 实际回落到 HTTP 200（"未登记码静默 200"路径）。
+	// 登记后全局限流恢复真实 429；附件专属限流另用 6107。
+	TooManyRequestsCode = 429
+
+	// 通用附件错误码（61xx 段，§3.4 权威表；Fail/FailWithData 双 switch 必须同步登记）。
+	AttachmentHostNotFoundCode    = 6101 // 宿主不存在/跨租户 → 404
+	AttachmentInvalidFilenameCode = 6102 // 文件名非法（路径穿越/超长/清洗后为空）→ 400
+	AttachmentTooLargeCode        = 6103 // 单文件超限 → 413
+	AttachmentTypeNotAllowedCode  = 6104 // MIME/扩展名不允许（含病毒扫描拒绝）→ 415
+	AttachmentInUseCode           = 6105 // 被宿主正文/评论引用仍要删 → 409
+	AttachmentQuotaExceededCode   = 6106 // 配额超限 → 422
+	AttachmentRateLimitedCode     = 6107 // 附件专属频率超限 → 429
+
 	// Aliases for compatibility
 	NotFoundErrorCode  = NotFoundCode
 	AuthErrorCode      = AuthFailedCode
@@ -75,6 +90,20 @@ func Fail(c *gin.Context, code int, message string) {
 		statusCode = http.StatusInternalServerError
 	case ServiceUnavailableCode:
 		statusCode = http.StatusServiceUnavailable
+	case TooManyRequestsCode, AttachmentRateLimitedCode:
+		statusCode = http.StatusTooManyRequests
+	case AttachmentInvalidFilenameCode:
+		statusCode = http.StatusBadRequest
+	case AttachmentTooLargeCode:
+		statusCode = http.StatusRequestEntityTooLarge
+	case AttachmentTypeNotAllowedCode:
+		statusCode = http.StatusUnsupportedMediaType
+	case AttachmentHostNotFoundCode:
+		statusCode = http.StatusNotFound
+	case AttachmentInUseCode:
+		statusCode = http.StatusConflict
+	case AttachmentQuotaExceededCode:
+		statusCode = http.StatusUnprocessableEntity
 	}
 
 	c.JSON(statusCode, Response{
@@ -104,6 +133,20 @@ func FailWithData(c *gin.Context, code int, message string, data interface{}) {
 		statusCode = http.StatusInternalServerError
 	case ServiceUnavailableCode:
 		statusCode = http.StatusServiceUnavailable
+	case TooManyRequestsCode, AttachmentRateLimitedCode:
+		statusCode = http.StatusTooManyRequests
+	case AttachmentInvalidFilenameCode:
+		statusCode = http.StatusBadRequest
+	case AttachmentTooLargeCode:
+		statusCode = http.StatusRequestEntityTooLarge
+	case AttachmentTypeNotAllowedCode:
+		statusCode = http.StatusUnsupportedMediaType
+	case AttachmentHostNotFoundCode:
+		statusCode = http.StatusNotFound
+	case AttachmentInUseCode:
+		statusCode = http.StatusConflict
+	case AttachmentQuotaExceededCode:
+		statusCode = http.StatusUnprocessableEntity
 	}
 
 	c.JSON(statusCode, Response{

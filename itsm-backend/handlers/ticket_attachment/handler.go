@@ -4,9 +4,12 @@
 package ticket_attachment
 
 import (
+	"errors"
+	"fmt"
 	"io"
 	"mime"
 	"strconv"
+	"strings"
 
 	"itsm-backend/common"
 	"itsm-backend/dto"
@@ -54,6 +57,25 @@ func pathIDs(c *gin.Context) (ticketID, attachmentID int, ok bool) {
 		return 0, 0, false
 	}
 	return ticketID, attachmentID, true
+}
+
+// attachmentRef 提取路径参数中的 ticketID 与「附件引用」。
+//
+// 附件引用既可能是数字 ID（前端 API 使用），也可能是上传时生成的存储文件名：
+// 历史版本的 fileUrl 形如 /api/v1/tickets/{id}/attachments/{ticketID}_{nano}_{name}/download，
+// 已被写入富文本 descriptionHtml 落库，因此下载/预览必须同时兼容两种形式。
+func attachmentRef(c *gin.Context) (ticketID int, ref string, ok bool) {
+	ticketID, err := strconv.Atoi(c.Param("id"))
+	if err != nil {
+		common.Fail(c, common.ParamErrorCode, "无效的工单ID")
+		return 0, "", false
+	}
+	ref = strings.TrimSpace(c.Param("attachment_id"))
+	if ref == "" {
+		common.Fail(c, common.ParamErrorCode, "无效的附件ID")
+		return 0, "", false
+	}
+	return ticketID, ref, true
 }
 
 // ListTicketAttachments 获取工单附件列表
@@ -121,7 +143,17 @@ func (h *Handler) UploadAttachment(c *gin.Context) {
 	attachment, err := h.attachmentService.UploadAttachment(c.Request.Context(), ticketID, fileHeader, userID, tenantID)
 	if err != nil {
 		h.logger.Errorw("Failed to upload attachment", "error", err, "ticket_id", ticketID, "tenant_id", tenantID)
-		common.Fail(c, common.ParamErrorCode, "附件上传失败，请检查文件类型和大小")
+		// 按可判定错误分派可读原因，替代此前“一句话概括”的模糊提示
+		switch {
+		case errors.Is(err, service.ErrAttachmentEmpty):
+			common.Fail(c, common.ParamErrorCode, "文件内容为空（0 字节），无法上传")
+		case errors.Is(err, service.ErrAttachmentTooLarge):
+			common.Fail(c, common.ParamErrorCode, fmt.Sprintf("附件超过单文件大小上限（%dMB）", h.attachmentService.MaxFileSizeMB()))
+		case errors.Is(err, service.ErrAttachmentTypeRejected):
+			common.Fail(c, common.ParamErrorCode, "附件类型不在允许范围内（文档/表格/图片/压缩包）")
+		default:
+			common.Fail(c, common.ParamErrorCode, "附件上传失败，请稍后重试")
+		}
 		return
 	}
 
@@ -130,7 +162,7 @@ func (h *Handler) UploadAttachment(c *gin.Context) {
 
 // DownloadAttachment 下载附件
 func (h *Handler) DownloadAttachment(c *gin.Context) {
-	ticketID, attachmentID, ok := pathIDs(c)
+	ticketID, ref, ok := attachmentRef(c)
 	if !ok {
 		return
 	}
@@ -140,10 +172,10 @@ func (h *Handler) DownloadAttachment(c *gin.Context) {
 		return
 	}
 
-	attachmentFile, err := h.attachmentService.GetAttachmentFile(c.Request.Context(), ticketID, attachmentID, tenantID, userID)
+	attachmentFile, err := h.attachmentService.GetAttachmentFile(c.Request.Context(), ticketID, ref, tenantID, userID)
 	if err != nil {
-		h.logger.Errorw("Failed to get attachment file", "error", err, "ticket_id", ticketID, "attachment_id", attachmentID, "tenant_id", tenantID)
-		common.Fail(c, common.InternalErrorCode, "附件不存在或无法访问")
+		h.logger.Errorw("Failed to get attachment file", "error", err, "ticket_id", ticketID, "attachment_ref", ref, "tenant_id", tenantID)
+		common.Fail(c, common.NotFoundCode, "附件不存在或无法访问")
 		return
 	}
 	defer attachmentFile.File.Close()
@@ -164,7 +196,7 @@ func (h *Handler) DownloadAttachment(c *gin.Context) {
 
 // PreviewAttachment 预览附件
 func (h *Handler) PreviewAttachment(c *gin.Context) {
-	ticketID, attachmentID, ok := pathIDs(c)
+	ticketID, ref, ok := attachmentRef(c)
 	if !ok {
 		return
 	}
@@ -174,10 +206,10 @@ func (h *Handler) PreviewAttachment(c *gin.Context) {
 		return
 	}
 
-	attachmentFile, err := h.attachmentService.GetAttachmentFile(c.Request.Context(), ticketID, attachmentID, tenantID, userID)
+	attachmentFile, err := h.attachmentService.GetAttachmentFile(c.Request.Context(), ticketID, ref, tenantID, userID)
 	if err != nil {
-		h.logger.Errorw("Failed to get attachment file", "error", err, "ticket_id", ticketID, "attachment_id", attachmentID, "tenant_id", tenantID)
-		common.Fail(c, common.InternalErrorCode, "附件不存在或无法访问")
+		h.logger.Errorw("Failed to get attachment file", "error", err, "ticket_id", ticketID, "attachment_ref", ref, "tenant_id", tenantID)
+		common.Fail(c, common.NotFoundCode, "附件不存在或无法访问")
 		return
 	}
 	defer attachmentFile.File.Close()
@@ -187,7 +219,12 @@ func (h *Handler) PreviewAttachment(c *gin.Context) {
 		mimeType = *attachmentFile.MimeType
 	}
 	c.Header("Content-Type", mimeType)
-	c.Header("Content-Disposition", mime.FormatMediaType("inline", map[string]string{"filename": attachmentFile.FileName}))
+	// SVG/HTML 等可携带脚本的类型不允许内联渲染，否则会形成存储型 XSS；统一降级为下载
+	disposition := "inline"
+	if !inlineSafeMIME(mimeType) {
+		disposition = "attachment"
+	}
+	c.Header("Content-Disposition", mime.FormatMediaType(disposition, map[string]string{"filename": attachmentFile.FileName}))
 	c.Header("Content-Length", strconv.FormatInt(attachmentFile.Size, 10))
 
 	_, err = io.Copy(c.Writer, attachmentFile.File)
@@ -218,4 +255,19 @@ func (h *Handler) DeleteAttachment(c *gin.Context) {
 	}
 
 	common.Success(c, nil)
+}
+
+// inlineSafeMIME 仅对确定不会执行脚本的位图允许内联预览，其余（含 image/svg+xml）强制下载，
+// 避免以附件为载体的存储型 XSS。
+func inlineSafeMIME(mimeType string) bool {
+	mediaType := strings.ToLower(strings.TrimSpace(mimeType))
+	if idx := strings.IndexByte(mediaType, ';'); idx >= 0 {
+		mediaType = strings.TrimSpace(mediaType[:idx])
+	}
+	switch mediaType {
+	case "image/png", "image/jpeg", "image/gif", "image/webp", "image/bmp":
+		return true
+	default:
+		return false
+	}
 }

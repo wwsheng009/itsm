@@ -4,7 +4,10 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"fmt"
 	"time"
+
+	"github.com/lib/pq"
 
 	"itsm-backend/database"
 )
@@ -196,4 +199,406 @@ func (r *dashboardRepository) PreviousSLAScopeCount(
 		return 0, 0, err
 	}
 	return totalSLATickets, metSLATickets, nil
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// 仪表盘批量聚合（2026-09-22 性能优化）
+//
+// 背景：/api/v1/dashboard/overview 原先在 service 层用 Ent 逐项 Count()/All()，
+// 单次请求产生约 145 次数据库事务（7 天趋势 = 7×5 次 COUNT、事件分布 = 5 次、
+// 团队负载逐人查用户 N+1、KPI 8 次 COUNT + 概览 4 次 COUNT…）。当数据库跨
+// SSH 隧道访问（单次往返 4~6ms）时，往返次数被直接放大成 620ms~2s 的接口延迟。
+//
+// 以下方法把同一业务语义压缩为单条聚合 SQL（FILTER / GROUP BY / LEFT JOIN），
+// 使 overview 的数据库往返从约 78 次降到约 10 次。每条 SQL 的口径都与被替换的
+// Ent 查询逐字段对齐（含 deleted_at、时间窗口、状态集合、排序与截断规则），
+// 调用方在 raw DB 不可用或聚合失败时回退到原 Ent 实现。
+// ─────────────────────────────────────────────────────────────────────────────
+
+// TicketTrendRow 单日工单趋势聚合结果，按 ord 与调用方传入的 dayStarts 一一对应。
+type TicketTrendRow struct {
+	Open       int
+	InProgress int
+	Resolved   int
+	Closed     int
+	NewTickets int
+}
+
+// TicketTrendDaily 一次查询返回多日工单趋势（原实现为每天 5 次 Count）。
+//
+// 口径与 Ent 版逐日统计完全一致：
+//   - Open:       status ∈ pendingStatuses   且 created_at ∈ [dayStart, dayEnd]
+//   - InProgress: status = inProgressStatus  且 created_at ∈ 窗口
+//   - Resolved:   status ∈ completedStatuses 且 updated_at ∈ 窗口
+//   - Closed:     status = closedStatus      且 updated_at ∈ 窗口
+//   - NewTickets: created_at ∈ 窗口（不限状态，也不过滤 deleted_at，与 Ent 版一致）
+//
+// 每日边界由调用方用 time.Local 计算后传入，避免把日期分桶交给数据库 session 时区。
+func (r *dashboardRepository) TicketTrendDaily(
+	ctx context.Context,
+	tenantID int,
+	dayStarts []time.Time,
+	pendingStatuses, completedStatuses []string,
+	inProgressStatus, closedStatus string,
+) ([]TicketTrendRow, error) {
+	if err := r.requireDB(); err != nil {
+		return nil, err
+	}
+	if tenantID <= 0 {
+		return nil, errors.New("dashboard repository: tenantID 必须为正整数")
+	}
+	if len(dayStarts) == 0 {
+		return nil, errors.New("dashboard repository: 趋势窗口不能为空")
+	}
+
+	const query = `
+		WITH days AS (
+			SELECT u.ord, u.ts AS day_start, u.ts + interval '24 hours' - interval '1 second' AS day_end
+			FROM unnest($2::timestamptz[]) WITH ORDINALITY AS u(ts, ord)
+		),
+		created_agg AS (
+			SELECT d.ord,
+			       COUNT(*) FILTER (WHERE t.status = ANY($3::text[])) AS open_cnt,
+			       COUNT(*) FILTER (WHERE t.status = $4)              AS in_progress_cnt,
+			       COUNT(*)                                           AS new_cnt
+			FROM days d
+			JOIN tickets t ON t.tenant_id = $1
+			  AND t.created_at >= d.day_start AND t.created_at <= d.day_end
+			GROUP BY d.ord
+		),
+		updated_agg AS (
+			SELECT d.ord,
+			       COUNT(*) FILTER (WHERE t.status = ANY($5::text[])) AS resolved_cnt,
+			       COUNT(*) FILTER (WHERE t.status = $6)              AS closed_cnt
+			FROM days d
+			JOIN tickets t ON t.tenant_id = $1
+			  AND t.updated_at >= d.day_start AND t.updated_at <= d.day_end
+			GROUP BY d.ord
+		)
+		SELECT d.ord,
+		       COALESCE(c.open_cnt, 0), COALESCE(c.in_progress_cnt, 0),
+		       COALESCE(u.resolved_cnt, 0), COALESCE(u.closed_cnt, 0),
+		       COALESCE(c.new_cnt, 0)
+		FROM days d
+		LEFT JOIN created_agg c ON c.ord = d.ord
+		LEFT JOIN updated_agg u ON u.ord = d.ord
+		ORDER BY d.ord
+	`
+
+	rows := make([]TicketTrendRow, 0, len(dayStarts))
+	if _, err := database.WithTenantSQL(ctx, r.db, tenantID, func(q database.SQLExecutor) (struct{}, error) {
+		rs, qerr := q.QueryContext(ctx, query,
+			tenantID,
+			pq.Array(dayStarts),
+			pq.Array(pendingStatuses),
+			inProgressStatus,
+			pq.Array(completedStatuses),
+			closedStatus,
+		)
+		if qerr != nil {
+			return struct{}{}, qerr
+		}
+		defer func() { _ = rs.Close() }()
+		for rs.Next() {
+			var ord int
+			var row TicketTrendRow
+			if serr := rs.Scan(&ord, &row.Open, &row.InProgress, &row.Resolved, &row.Closed, &row.NewTickets); serr != nil {
+				return struct{}{}, serr
+			}
+			rows = append(rows, row)
+		}
+		return struct{}{}, rs.Err()
+	}); err != nil {
+		return nil, err
+	}
+	if len(rows) != len(dayStarts) {
+		return nil, fmt.Errorf("dashboard repository: 趋势返回 %d 行，与窗口 %d 天不一致", len(rows), len(dayStarts))
+	}
+	return rows, nil
+}
+
+// IncidentCountsByCategory 一次查询返回租户下按 category 分组的计数（原实现为每个分类 1 次 Count）。
+// 未出现在结果中的分类由调用方补 0；结果中未在展示白名单内的分类由调用方忽略，与原逻辑一致。
+func (r *dashboardRepository) IncidentCountsByCategory(ctx context.Context, tenantID int) (map[string]int, error) {
+	if err := r.requireDB(); err != nil {
+		return nil, err
+	}
+	if tenantID <= 0 {
+		return nil, errors.New("dashboard repository: tenantID 必须为正整数")
+	}
+
+	const query = `
+		SELECT category, COUNT(*)
+		FROM incidents
+		WHERE tenant_id = $1
+		GROUP BY category
+	`
+	counts := make(map[string]int)
+	if _, err := database.WithTenantSQL(ctx, r.db, tenantID, func(q database.SQLExecutor) (struct{}, error) {
+		rs, qerr := q.QueryContext(ctx, query, tenantID)
+		if qerr != nil {
+			return struct{}{}, qerr
+		}
+		defer func() { _ = rs.Close() }()
+		for rs.Next() {
+			var category sql.NullString
+			var count int
+			if serr := rs.Scan(&category, &count); serr != nil {
+				return struct{}{}, serr
+			}
+			counts[category.String] = count
+		}
+		return struct{}{}, rs.Err()
+	}); err != nil {
+		return nil, err
+	}
+	return counts, nil
+}
+
+// ResponseTimeBuckets 一次查询返回首次响应时长的分桶统计（原实现为全表加载后在内存分桶）。
+//
+// 返回字段与 getResponseTimeDistribution 的中间状态一一对应：
+// Counts/Sums 下标 0..3 分别对应 0-1h / 1-4h / 4-8h / >8h；Total 为参与统计的工单总数
+// （= 有 first_response_at 的工单数，与原实现 totalTickets 同口径）；Negative 为
+// first_response_at < created_at 的异常记录数——原实现中这类记录计入分母但不落入任何桶，
+// 因此这里单独返回以保持百分比口径不变。
+type ResponseTimeBuckets struct {
+	Total    int
+	Negative int
+	Counts   [4]int
+	Sums     [4]float64
+}
+
+// ResponseTimeBuckets 见结构体注释。
+func (r *dashboardRepository) ResponseTimeBuckets(ctx context.Context, tenantID int) (*ResponseTimeBuckets, error) {
+	if err := r.requireDB(); err != nil {
+		return nil, err
+	}
+	if tenantID <= 0 {
+		return nil, errors.New("dashboard repository: tenantID 必须为正整数")
+	}
+
+	const query = `
+		SELECT
+			COUNT(*)                                                                   AS total,
+			COUNT(*) FILTER (WHERE diff < 0)                                           AS negative,
+			COUNT(*) FILTER (WHERE diff >= 0 AND diff < 1)                             AS b0_1,
+			COUNT(*) FILTER (WHERE diff >= 1 AND diff < 4)                             AS b1_4,
+			COUNT(*) FILTER (WHERE diff >= 4 AND diff < 8)                             AS b4_8,
+			COUNT(*) FILTER (WHERE diff >= 8)                                          AS b8p,
+			COALESCE(SUM(diff) FILTER (WHERE diff >= 0 AND diff < 1), 0)               AS s0_1,
+			COALESCE(SUM(diff) FILTER (WHERE diff >= 1 AND diff < 4), 0)               AS s1_4,
+			COALESCE(SUM(diff) FILTER (WHERE diff >= 4 AND diff < 8), 0)               AS s4_8,
+			COALESCE(SUM(diff) FILTER (WHERE diff >= 8), 0)                            AS s8p
+		FROM (
+			SELECT EXTRACT(EPOCH FROM (first_response_at - created_at)) / 3600.0 AS diff
+			FROM tickets
+			WHERE tenant_id = $1 AND first_response_at IS NOT NULL
+		) x
+	`
+	out := &ResponseTimeBuckets{}
+	if _, err := database.WithTenantSQL(ctx, r.db, tenantID, func(q database.SQLExecutor) (struct{}, error) {
+		return struct{}{}, q.QueryRowContext(ctx, query, tenantID).Scan(
+			&out.Total, &out.Negative,
+			&out.Counts[0], &out.Counts[1], &out.Counts[2], &out.Counts[3],
+			&out.Sums[0], &out.Sums[1], &out.Sums[2], &out.Sums[3],
+		)
+	}); err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+// TeamWorkloadRow 团队负载单行聚合结果。
+type TeamWorkloadRow struct {
+	AssigneeID      int
+	AssigneeName    string
+	TicketCount     int
+	CompletedCount  int
+	ActiveCount     int
+	AvgResponseTime float64
+}
+
+// TeamWorkloadTopN 一次查询返回团队负载 TopN（原实现为全量加载 + 每个处理人一次 User.Get 的 N+1）。
+//
+// 语义对齐：
+//   - 只统计 assignee_id IS NOT NULL 且 <> 0 的工单（原实现过滤 NotNil 后在循环内跳过 0）；
+//   - 处理人姓名优先级 name → username → "用户{id}"（原实现 User.Get 失败时同样回退占位名）；
+//   - completedCount: status ∈ completedStatuses；activeCount: status = inProgress 或 ∈ pending；
+//   - avgResponseTime: 仅统计 first_response_at 非空的记录（小时）；
+//   - 按 ticketCount 降序截断 limit 条（原实现先全量分组再排序取前 10，此处下推到 SQL）。
+func (r *dashboardRepository) TeamWorkloadTopN(
+	ctx context.Context,
+	tenantID int,
+	limit int,
+	pendingStatuses, completedStatuses []string,
+	inProgressStatus string,
+) ([]TeamWorkloadRow, error) {
+	if err := r.requireDB(); err != nil {
+		return nil, err
+	}
+	if tenantID <= 0 {
+		return nil, errors.New("dashboard repository: tenantID 必须为正整数")
+	}
+	if limit <= 0 {
+		return []TeamWorkloadRow{}, nil
+	}
+
+	const query = `
+		SELECT
+			t.assignee_id,
+			COALESCE(NULLIF(u.name, ''), NULLIF(u.username, ''), '用户' || t.assignee_id::text) AS assignee_name,
+			COUNT(*)                                                        AS ticket_count,
+			COUNT(*) FILTER (WHERE t.status = ANY($3::text[]))              AS completed_count,
+			COUNT(*) FILTER (WHERE t.status = $4 OR t.status = ANY($5::text[])) AS active_count,
+			COALESCE(AVG(EXTRACT(EPOCH FROM (t.first_response_at - t.created_at)) / 3600.0)
+			         FILTER (WHERE t.first_response_at IS NOT NULL), 0)     AS avg_response_hours
+		FROM tickets t
+		LEFT JOIN users u ON u.id = t.assignee_id
+		WHERE t.tenant_id = $1 AND t.assignee_id IS NOT NULL AND t.assignee_id <> 0
+		GROUP BY t.assignee_id, u.name, u.username
+		ORDER BY ticket_count DESC, t.assignee_id ASC
+		LIMIT $2
+	`
+	out := make([]TeamWorkloadRow, 0, limit)
+	if _, err := database.WithTenantSQL(ctx, r.db, tenantID, func(q database.SQLExecutor) (struct{}, error) {
+		rs, qerr := q.QueryContext(ctx, query, tenantID, limit, pq.Array(completedStatuses), inProgressStatus, pq.Array(pendingStatuses))
+		if qerr != nil {
+			return struct{}{}, qerr
+		}
+		defer func() { _ = rs.Close() }()
+		for rs.Next() {
+			var row TeamWorkloadRow
+			if serr := rs.Scan(&row.AssigneeID, &row.AssigneeName, &row.TicketCount, &row.CompletedCount, &row.ActiveCount, &row.AvgResponseTime); serr != nil {
+				return struct{}{}, serr
+			}
+			out = append(out, row)
+		}
+		return struct{}{}, rs.Err()
+	}); err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+// OverviewStatsAgg 一次查询返回 /dashboard/overview 顶部扁平统计
+// （原先为 4 次 Count + 1 次 AvgResponseAndResolutionHours）。
+//
+// 口径与 Ent 版逐项查询一致：均要求 deleted_at IS NULL；ResolvedToday 取
+// updated_at >= todayStart 且状态属于 completedStatuses。
+type OverviewStatsAgg struct {
+	TotalTickets      int
+	PendingTickets    int
+	InProgressTickets int
+	ResolvedToday     int
+	AvgResponseHours  float64
+	AvgResolveHours   float64
+}
+
+// OverviewStatsAgg 见结构体注释。
+func (r *dashboardRepository) OverviewStatsAgg(
+	ctx context.Context,
+	tenantID int,
+	todayStart time.Time,
+	pendingStatuses, completedStatuses []string,
+	inProgressStatus string,
+) (*OverviewStatsAgg, error) {
+	if err := r.requireDB(); err != nil {
+		return nil, err
+	}
+	if tenantID <= 0 {
+		return nil, errors.New("dashboard repository: tenantID 必须为正整数")
+	}
+	if todayStart.IsZero() {
+		return nil, errors.New("dashboard repository: todayStart 不能为零值")
+	}
+
+	const query = `
+		SELECT
+			COUNT(*) FILTER (WHERE deleted_at IS NULL),
+			COUNT(*) FILTER (WHERE deleted_at IS NULL AND status = ANY($2::text[])),
+			COUNT(*) FILTER (WHERE deleted_at IS NULL AND status = $3),
+			COUNT(*) FILTER (WHERE deleted_at IS NULL AND status = ANY($4::text[]) AND updated_at >= $5),
+			COALESCE(AVG(EXTRACT(EPOCH FROM (first_response_at - created_at)) / 3600.0)
+			         FILTER (WHERE deleted_at IS NULL AND first_response_at IS NOT NULL), 0),
+			COALESCE(AVG(EXTRACT(EPOCH FROM (resolved_at - created_at)) / 3600.0)
+			         FILTER (WHERE deleted_at IS NULL AND resolved_at IS NOT NULL), 0)
+		FROM tickets
+		WHERE tenant_id = $1
+	`
+	out := &OverviewStatsAgg{}
+	if _, err := database.WithTenantSQL(ctx, r.db, tenantID, func(q database.SQLExecutor) (struct{}, error) {
+		return struct{}{}, q.QueryRowContext(ctx, query,
+			tenantID, pq.Array(pendingStatuses), inProgressStatus, pq.Array(completedStatuses), todayStart,
+		).Scan(
+			&out.TotalTickets, &out.PendingTickets, &out.InProgressTickets, &out.ResolvedToday,
+			&out.AvgResponseHours, &out.AvgResolveHours,
+		)
+	}); err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+// KPITicketCounts 一次查询返回 KPI 卡片所需的 8 个工单计数
+// （原先为 8 次独立 Count）。口径与 Ent 版逐项查询严格一致：
+//   - Total:            全部未删除工单（原实现未加时间窗口，保持原样）；
+//   - LastMonthTotal/Pending/InProgress/Completed: created_at ∈ [lastMonthStart, lastMonthEnd] 且未删除；
+//   - Pending/InProgress: 当前状态集合计数，未删除；
+//   - ThisMonthCompleted: status ∈ completed 且 created_at >= thisMonthStart，未删除。
+type KPITicketCounts struct {
+	Total               int
+	LastMonthTotal      int
+	Pending             int
+	LastMonthPending    int
+	InProgress          int
+	LastMonthInProgress int
+	CompletedThisMonth  int
+	CompletedLastMonth  int
+}
+
+// KPITicketCounts 见结构体注释。
+func (r *dashboardRepository) KPITicketCounts(
+	ctx context.Context,
+	tenantID int,
+	thisMonthStart, lastMonthStart, lastMonthEnd time.Time,
+	pendingStatuses, completedStatuses []string,
+	inProgressStatus string,
+) (*KPITicketCounts, error) {
+	if err := r.requireDB(); err != nil {
+		return nil, err
+	}
+	if tenantID <= 0 {
+		return nil, errors.New("dashboard repository: tenantID 必须为正整数")
+	}
+	if thisMonthStart.IsZero() || lastMonthStart.IsZero() || lastMonthEnd.IsZero() {
+		return nil, errors.New("dashboard repository: 时间窗口不能为零值")
+	}
+
+	const query = `
+		SELECT
+			COUNT(*) FILTER (WHERE deleted_at IS NULL),
+			COUNT(*) FILTER (WHERE deleted_at IS NULL AND created_at >= $2 AND created_at <= $3),
+			COUNT(*) FILTER (WHERE deleted_at IS NULL AND status = ANY($4::text[])),
+			COUNT(*) FILTER (WHERE deleted_at IS NULL AND status = ANY($4::text[]) AND created_at >= $2 AND created_at <= $3),
+			COUNT(*) FILTER (WHERE deleted_at IS NULL AND status = $5),
+			COUNT(*) FILTER (WHERE deleted_at IS NULL AND status = $5 AND created_at >= $2 AND created_at <= $3),
+			COUNT(*) FILTER (WHERE deleted_at IS NULL AND status = ANY($6::text[]) AND created_at >= $7),
+			COUNT(*) FILTER (WHERE deleted_at IS NULL AND status = ANY($6::text[]) AND created_at >= $2 AND created_at <= $3)
+		FROM tickets
+		WHERE tenant_id = $1
+	`
+	out := &KPITicketCounts{}
+	if _, err := database.WithTenantSQL(ctx, r.db, tenantID, func(q database.SQLExecutor) (struct{}, error) {
+		return struct{}{}, q.QueryRowContext(ctx, query,
+			tenantID, lastMonthStart, lastMonthEnd,
+			pq.Array(pendingStatuses), inProgressStatus, pq.Array(completedStatuses), thisMonthStart,
+		).Scan(
+			&out.Total, &out.LastMonthTotal, &out.Pending, &out.LastMonthPending,
+			&out.InProgress, &out.LastMonthInProgress, &out.CompletedThisMonth, &out.CompletedLastMonth,
+		)
+	}); err != nil {
+		return nil, err
+	}
+	return out, nil
 }

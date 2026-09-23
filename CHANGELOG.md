@@ -9,19 +9,41 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **工单详情页图片查看器** — `/tickets/:id` 描述内的富文本图片可点击（或回车 / 空格）放大查看：放大 / 缩小（按钮、滚轮、`+` / `-`）、原始尺寸 1:1、适应窗口（默认，且不把小图放大）、左 / 右旋转 90°、水平 / 垂直翻转、放大后拖动平移、重置、多图左右切换、下载原图，Esc / 点击遮罩退出并把焦点还给原图片（`src/components/business/RichTextImageViewer.tsx` + `src/lib/rich-text/image-viewer.ts`，设计见 `docs/architecture/ticket-create-page-rich-input-optimization.md` §4.9）
+- **通用附件 API（A1-A6）** — 新增与宿主解耦的附件端点：`POST/GET /api/v1/attachments`（上传 / 列表）、`POST /api/v1/attachments/batch-query`（批量元数据回填）、`GET /api/v1/attachments/:id`、`GET /api/v1/attachments/:id/content`（下载 / 预览，支持 Range）、`DELETE /api/v1/attachments/:id`（软删，被宿主正文 / 评论引用时返回 409/6105）。权限码 `attachment:read/write/delete`（系统管理员 / 租户管理员默认绑定），宿主维度（工单 / 知识库等）按 `§4.2` 权威表二次校验，跨租户与不存在的宿主一律 404/6101；新增 6101-6107 错误码段（宿主不存在 / 文件名非法 / 超限 / 类型不允许 / 被引用 / 配额 / 频率），全部在 `Fail`/`FailWithData` 双 switch 登记（实现与验收见 `docs/plan/generic-attachment-richtext-control-plan.md` §7 BE-4）
+- **附件域内别名路由（知识库 / 服务请求）** — 知识库文章与服务请求接入通用附件 A1/A2/A4/A5：`GET|POST /api/v1/knowledge/articles/:id/attachments`、`GET|DELETE /api/v1/knowledge/articles/:id/attachments/:ref`（含 `/download`、`/preview`），以及 `/api/v1/service-requests/:id/attachments` 同形路径；静态权限复用宿主码（`knowledge:read/write/delete`、`service_request:read/write/delete`，零新增权限码）。附件必须归属路径宿主：跨宿主读取 / 删除按 404 处理，非法宿主 ID 与非法附件引用同样 404（不泄露资源存在性，且先于文件流输出检查）；服务请求宿主以 `reason` 正文参与删除引用保护（实现与验收见 `docs/plan/generic-attachment-richtext-control-plan.md` §7 BE-5）
+- **旧工单附件端点接入通用后端（灰度切换）** — `/api/v1/tickets/:id/attachments` 系列端点（列表 / 上传 / 下载 / 预览 / 删除）在 `attachment.generic_read_enabled` / `attachment.generic_write_enabled` 打开后改走通用附件服务（部署级 `config.AttachmentConfig` + 租户级 `system_config` 覆盖，默认 `false`，关闭即回退旧表且 URL 不变）。响应 JSON 字段、状态码与错误文案与改造前**逐字段一致**（含 `uploader` 嵌套字段、`fileUrl` 的 `.../attachments/{id}/preview` 形态与历史「存储文件名」引用）；灰度期未回填的历史记录按未命中回退旧表，历史富文本 URL 不失效。契约测试 `handlers/ticket_attachment/handler_contract_test.go`（实现与验收见 `docs/plan/generic-attachment-richtext-control-plan.md` §7 BE-6）
+- **内嵌图片引用完整性（写入期归属校验）** — 正文富文本里的 `<img data-attachment-id>` 在写入工单描述（新建 / 更新）与知识库文章时逐条校验宿主归属：A4 规范地址（`/api/v1/attachments/{id}/...`）必须命中「同租户 + 同宿主 + 存活」且与 `data-attachment-id` 一致；旧工单域内地址在工单 ID 不匹配时剥离；其它地址只在能解析到通用记录且宿主不符 / 已软删时剥离（`查不到` 不误伤，保障灰度期旧表引用）。违规引用整标签剥离并以 `Warnw` 逐条告警（`attachment_id` / `reason` / `src`），校验查询失败不阻塞写入（`service/attachment_refs.go`，实现与验收见 `docs/plan/generic-attachment-richtext-control-plan.md` §7 BE-7）
+- **附件生命周期清理与宿主删除级联（BE-8）** — 附件删除保持「仅软删」，新增后台清理任务按租户回收「软删且超过保留期」的附件：先删物理文件、后删元数据行，单条失败下轮重试；仍被宿主正文 / 评论引用的记录一律跳过（不误删）。配置 `attachment.cleanup_enabled`（默认 false，关闭即任务不注册）、`cleanup_purge_enabled`（默认 false = 演练 dry-run，只统计不落删）、`retention_days`（30 天）、`cleanup_interval_minutes`（360）、`cleanup_batch_size`（200，硬上限 1000），仅部署级生效。工单删除与知识库文章删除后按策略级联软删其附件（`SetAttachmentLifecycle` 注入，未注入时零行为变化）；被引用项保持 active，引用解除并过保留期后才进入回收序列（`service/attachment_cleanup.go`，实现与验收见 `docs/plan/generic-attachment-richtext-control-plan.md` §7 BE-8，演练记录见 `docs/testing/attachment-cleanup-drill-2026-09-22.md`）
+
 ### Security
 
 - **登录/刷新响应令牌收敛** — access token 和 refresh token 不再通过 JSON 响应返回，改为仅通过 HttpOnly cookie 下发，防止 XSS 窃取
+- **通用附件读路径宿主归属校验** — 旧工单端点灰度走通用附件服务时，下载 / 预览此前只按「附件 ID + 租户」取流；灰度期 `attachments` 与 `ticket_attachments` 主键序列独立、同号是常态，持有工单 A 路径的用户可读到工单 B（乃至其它 `biz_type`）的同号附件内容。现新增宿主定向读取 `AttachmentService.GetFileForHost`（`biz_type + biz_id + tenant_id` 三元一致，归属不符 / 已软删一律按未命中处理并回退旧表），并补回归用例（已做负向验证：去掉宿主过滤该用例立即红灯）
+- **内嵌图片跨宿主引用剥离** — 富文本正文里的 `data-attachment-id` 此前只做属性白名单，不校验引用是否属于当前宿主，可把别处（其它工单 / 其它域）的附件写进自己的正文并留下跨宿主引用；现于工单与知识库写入路径做归属校验并剥离，详见上方 Added 条目
 
 ### Fixed
 
+- 修复 A3 元数据端点可读取软删记录：`GET /api/v1/attachments/:id` 此前未过滤 `status='active'`，附件软删后元数据仍可读取（内容侧 `GetFile`/`List`/`BatchGet` 早已过滤，读口径不一致）；现与 A4/A2/A6 对齐，软删记录一律 404（BE-8 收口 BE-6 遗留观察，回归用例 `TestAttachmentGetHidesSoftDeletedMetadata`）
+- 修复知识库引用复核未排除已删除文章：`KnowledgeArticle` 未纳入全局软删拦截器，文章删除后其正文中的内嵌图片仍被判定为「被引用」，导致这些附件永远无法进入回收序列；现引用复核显式要求文章 `deleted_at IS NULL`（BE-8）
+- 修复知识库正文内的附件回链（`data-attachment-id`）与图片对齐（`data-align`）在落库时被静默抹掉：知识库正文走 `common.SanitizeHTML`，bluemonday 的 UGCPolicy 默认剥离全部 `data-*` 属性，导致富文本图片与附件的关联、以及删除时的引用保护双双失效；现显式放行并按取值约束（附件 ID 仅数字、对齐仅 left/center/right），`on*` / `script` 等既有防护不变（`common/sanitizer.go`）
+- 修复同一请求被打印两条 `[GIN]` 访问日志（两条耗时通常相差不到 1ms，易被误判为前端重复请求）：HTTP 引擎改用 `gin.New()`，不再与 `router.SetupRoutes` 中注册的 `gin.Logger()` / `gin.Recovery()` 叠加（回归测试 `internal/bootstrap/http_engine_test.go`）
+- 修复侧边栏菜单「点一次、请求两次」：`MenuItems.tsx` 同时挂了 label 层与 `items[].onClick`（互为兜底），点击时事件冒泡导致 `router.push` 连续执行两次，浏览器发出两条完全相同的 `_rsc` 请求、服务端重复渲染。`Sidebar.tsx` 的 `handleMenuClick` 增加同路径 400ms 去重，保留两层兜底不变；实测同一次点击 `_rsc` 由 2 条降为 1 条，单条耗时由 3.5~4.8s 降至 0.46s
+- 修复点击「待我审批」崩溃成 `Application error: a client-side exception has occurred`：目标 `/approvals/pending` 是 `redirect('/approvals')` 的兼容页，客户端导航进入该重定向路由时抛 React `Rendered more hooks than during the previous render`。侧边栏路径规范化表新增 `/approvals/pending` → `/approvals`（与 `/admin/index` 同款处理），同时省去一次整页 RSC 渲染
 - 修复生产环境数据库迁移失败问题：部分迁移脚本内嵌事务控制语句导致整批迁移中止
 - 修复生产部署登录失败：docker-compose 默认 RLS 模式从 `enforce` 改为 `off`，避免未携带租户上下文的公共路由（登录/注册）返回 401
 - 修复新建用户返回 400：后端补齐创建路径的密码策略校验与错误信息映射，前端表单同步密码策略提示（排查记录见 `docs/archive/bug-reports/user-create-400-password-policy-2026-09-20.md`）
+- 修复富文本编辑器插入的图片不显示：附件下载/预览路由（`GET /api/v1/tickets/:id/attachments/:attachment_id[/download|/preview]`）此前未注册导致全部 404；现补注册并同时兼容「数字附件 ID」与旧版 `fileUrl` 的存储文件名，新上传统一返回 `.../attachments/{id}/preview`（内联渲染，规避 `Content-Disposition: attachment`）
+- 修复创建工单页插入的图片保存后消失（同一编辑器在编辑页却正常）：两处客户端缺陷导致「暂存图」链路断在提交层——Tiptap 图片节点未声明 `data-attachment-id` 属性（`insertContent` 时被 schema 静默剔除，`getHTML()` 丢标记，提交后既不触发附件上传也不回填正式地址），以及前端 DOMPurify 默认 URI 策略剥掉同源 `blob:` 占位图；现补属性声明并放行同源 `blob:`，创建页插图经「上传附件 → 回填 `/attachments/{id}/preview`」后正常落库与回显（排查与约束见 `docs/architecture/ticket-create-page-rich-input-optimization.md` §4.8）
+- 修复全局限流响应实际回落为 HTTP 200：`middleware/security.go` 直接把 `http.StatusTooManyRequests`（429）当业务码传给统一包装，而该值未在错误码 switch 中登记，命中「未登记码静默 200」路径；现登记通用 `TooManyRequestsCode=429`，限流恢复真实 429 响应
+- 修复 ACL 清单（`docs/acl-manifest.yaml`）长期少报路由：生成脚本 `scripts/generate-acl-manifest.js` 的路由路径正则要求至少 1 个字符，导致全部 `group.GET("", h)` 形式的分组根路径（如 `POST /api/v1/tickets`、`GET /api/v1/users` 等列表 / 创建端点）被静默丢弃；同时子路由文件（`*gin.RouterGroup` 入参）无法自证挂载前缀，新增的 `attachment_routes.go` 丢失 `/api/v1` 前缀与首两条路由。修复后重新生成：599 → 696 路由、权限覆盖 99.86%，`attachment:*` 与各域根路径端点全部在册（详见 `docs/plan/generic-attachment-richtext-control-plan.md` §4.3-7）
 
 ### Changed
 
 - 生产部署配置：`RLS_MODE` 默认值调整为 `off`（与后端安全默认对齐）。已配置 `.env.prod` 的部署不受影响
+- 前端 dev 启动可选预热：新增 `npm run dev:warmup`（`scripts/dev-with-warmup.mjs`，起 `next dev` 后自动预热高频路由，避免首次点击菜单等待冷编译）与 `npm run dev:warm`（`scripts/dev-warmup.mjs`，对已运行的 dev server 手动预热），支持 `--port/--host/--concurrency/--cookie/--dry-run`；`next.config.ts` 顶部补充 dev 性能实测备忘（Turbopack 15.5 无持久化缓存、webpack 冷编译更慢但有磁盘缓存、`optimizePackageImports` 在 Turbopack 下被忽略、`<Link>` 仅 hover 预取、热请求 SSR 开销），未改动任何运行时配置
 
 ---
 

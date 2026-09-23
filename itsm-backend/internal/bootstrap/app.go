@@ -45,6 +45,7 @@ import (
 	approvalChainHandler "itsm-backend/handlers/approval_chain"
 	assetHandler "itsm-backend/handlers/asset"
 	assignmentSmartHandler "itsm-backend/handlers/assignment_smart"
+	attachmentHandler "itsm-backend/handlers/attachment"
 	auditlogHandler "itsm-backend/handlers/auditlog"
 	authHandler "itsm-backend/handlers/auth"
 	automationRuleHandler "itsm-backend/handlers/automation_rule"
@@ -131,6 +132,9 @@ type Application struct {
 
 	// ServiceRequestRepo 服务请求仓储（供后台审批链自愈任务使用；路由侧另有独立构造）。
 	ServiceRequestRepo service_request.Repository
+
+	// AttachmentService 通用附件服务（BE-8 后台清理任务使用；与 HTTP 路由共用同一实例）。
+	AttachmentService *service.AttachmentService
 
 	// backgroundWG 跟踪由 startBackgroundTasks 启动的所有后台 goroutine。
 	// 在 Stop() 中等待它们退出，避免应用关闭时强制杀死进行中的任务。
@@ -368,6 +372,14 @@ func NewApplication() *Application {
 	ticketDependencyService := service.NewTicketDependencyService(client, sugar)
 	ticketCommentService := service.NewTicketCommentService(client, sugar)
 	ticketAttachmentService := service.NewTicketAttachmentService(client, sugar)
+	attachmentService := service.NewAttachmentService(client, sugar, nil)
+	// BE-6 薄适配接线：把通用附件服务与部署级灰度开关注入旧工单附件服务。
+	// 开关默认全关（configs/config.yaml.example 亦为 false），旧链路行为不变；
+	// 只改环境变量即可灰度/回滚（ATTACHMENT_GENERIC_READ_ENABLED / _WRITE_ENABLED）。
+	ticketAttachmentService.SetGenericBackend(attachmentService, service.StaticTicketAttachmentFlags{
+		Read:  cfg.Attachment.GenericReadEnabled,
+		Write: cfg.Attachment.GenericWriteEnabled,
+	})
 	ticketNotificationService := service.NewTicketNotificationService(client, sugar)
 	ticketRatingService := service.NewTicketRatingService(client, sugar)
 	ticketViewService := service.NewTicketViewService(client, sugar)
@@ -538,6 +550,10 @@ func NewApplication() *Application {
 		ConnectorManager:      connectorManager,
 	})
 	ticketService.EnableWorkflowOutbox()
+	// BE-8：附件清理任务开启时，工单删除级联软删其通用附件（关闭时保持旧行为）。
+	if cfg.Attachment.CleanupEnabled {
+		ticketService.SetAttachmentLifecycle(attachmentService)
+	}
 	ticketRepo := ticket.NewEntRepository(ticketRepoImpl)
 	ticketHandlerService := ticket.NewService(ticketRepo, ticketService, sugar)
 	ticketHandler := ticket.NewHandler(ticketHandlerService)
@@ -918,6 +934,10 @@ func NewApplication() *Application {
 	knowledgeGuard := knowledgeaccess.NewGuard(client, sugar)
 	knowledgeServiceDomain.SetEntClient(client)
 	knowledgeServiceDomain.SetKnowledgeGuard(knowledgeGuard)
+	// BE-8：附件清理任务开启时，文章删除级联软删其通用附件（关闭时保持旧行为）。
+	if cfg.Attachment.CleanupEnabled {
+		knowledgeServiceDomain.SetAttachmentLifecycle(attachmentService)
+	}
 	ragService.SetKnowledgeGuard(knowledgeGuard)
 	knowledgeHandler := knowledge.NewHandler(knowledgeServiceDomain)
 
@@ -1087,7 +1107,7 @@ func NewApplication() *Application {
 			}
 		}
 	}
-	r := gin.Default()
+	r := newHTTPEngine()
 	if err := r.SetTrustedProxies(defaultTrustedProxies); err != nil {
 		sugar.Warnw("failed to set trusted proxies, falling back to default", "error", err)
 	}
@@ -1128,6 +1148,7 @@ func NewApplication() *Application {
 		TicketDependencyHandler:      ticketDependencyHandler.NewHandler(ticketDependencyService, sugar),
 		TicketCommentHandler:         ticketCommentHandler.NewHandler(ticketCommentService, sugar),
 		TicketAttachmentHandler:      ticketAttachmentHandler.NewHandler(ticketAttachmentService, sugar),
+		AttachmentHandler:            attachmentHandler.NewHandler(attachmentService, sugar),
 		TicketNotificationHandler:    ticketNotificationHandler.NewHandler(ticketNotificationService, sugar),
 		NotificationHandler:          notificationHTTPHandler,
 		TicketRatingHandler:          ticketRatingHandler.NewHandler(ticketRatingService, sugar),
@@ -1242,7 +1263,21 @@ func NewApplication() *Application {
 
 		// 存量 pending 请求审批链自愈任务的数据源（P1-A 修复配套）
 		ServiceRequestRepo: srRepo,
+
+		// 附件生命周期清理任务的数据源（BE-8）
+		AttachmentService: attachmentService,
 	}
+}
+
+// newHTTPEngine 创建 HTTP 引擎。
+//
+// 必须使用 gin.New()，不要改回 gin.Default()：gin.Default() 已经安装了 Logger 与
+// Recovery，而 router.SetupRoutes 会再注册一次 gin.Logger()/gin.Recovery()
+// （见 router/router.go 的全局中间件段）。两者叠加会让同一个请求被打印两条
+// [GIN] 日志（耗时相差不到 1ms），极易被误判为前端发起了重复请求。
+// 日志与 panic 恢复统一由 router.SetupRoutes 注册，保持「一个请求一条日志」。
+func newHTTPEngine() *gin.Engine {
+	return gin.New()
 }
 
 func configurePermissionMode(environment string) {
@@ -1609,6 +1644,63 @@ func (app *Application) startBackgroundTasks(ctx context.Context) {
 				}
 				if repaired > 0 {
 					app.Logger.Infow("service-request approval repair completed", "tenant_id", t.ID, "repaired", repaired)
+				}
+			}
+		})
+	}
+
+	// 附件生命周期清理（BE-8）：默认关闭（attachment.cleanup_enabled=false）。
+	// 开启后按租户循环回收「已软删 + 超过保留期」的附件物理文件；cleanup_purge_enabled=false
+	// 时仅演练（dry-run，只输出清单与统计，不删文件也不删记录）。
+	if app.AttachmentService != nil && app.Cfg.Attachment.CleanupEnabled {
+		safeGo("attachment-cleanup", func() {
+			retention := time.Duration(app.Cfg.Attachment.RetentionDays) * 24 * time.Hour
+			batchSize := app.Cfg.Attachment.CleanupBatchSize
+			dryRun := !app.Cfg.Attachment.CleanupPurgeEnabled
+			interval := time.Duration(app.Cfg.Attachment.CleanupIntervalMinutes) * time.Minute
+			if interval <= 0 {
+				interval = 6 * time.Hour
+			}
+
+			runOnce := func() {
+				tenants, err := app.DBClient.Tenant.Query().All(ctx)
+				if err != nil {
+					app.Logger.Warnw("attachment cleanup: query tenants failed", "error", err)
+					return
+				}
+				for _, t := range tenants {
+					res, err := app.AttachmentService.CleanupExpired(ctx, service.AttachmentCleanupOptions{
+						TenantID:  t.ID,
+						Retention: retention,
+						BatchSize: batchSize,
+						DryRun:    dryRun,
+					})
+					if err != nil {
+						app.Logger.Warnw("attachment cleanup failed", "tenant_id", t.ID, "error", err)
+						continue
+					}
+					if res.Scanned == 0 && !dryRun {
+						continue
+					}
+					app.Logger.Infow("attachment cleanup completed",
+						"tenant_id", t.ID, "dry_run", dryRun, "summary", res.Summary())
+				}
+			}
+
+			app.Logger.Infow("attachment cleanup task started",
+				"retention_days", app.Cfg.Attachment.RetentionDays,
+				"interval_minutes", app.Cfg.Attachment.CleanupIntervalMinutes,
+				"batch_size", batchSize,
+				"purge_enabled", !dryRun)
+			runOnce()
+			ticker := time.NewTicker(interval)
+			defer ticker.Stop()
+			for {
+				select {
+				case <-ctx.Done():
+					return
+				case <-ticker.C:
+					runOnce()
 				}
 			}
 		})

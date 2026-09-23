@@ -24,6 +24,10 @@ type Ticket struct {
 	Title string `json:"title,omitempty"`
 	// 工单描述
 	Description string `json:"description,omitempty"`
+	// 工单描述富文本 HTML（服务端净化后）
+	DescriptionHTML string `json:"description_html,omitempty"`
+	// 描述格式：plain/html，用于灰度与兼容旧数据
+	DescriptionFormat string `json:"description_format,omitempty"`
 	// 状态
 	Status string `json:"status,omitempty"`
 	// 工单类型
@@ -324,7 +328,7 @@ func (*Ticket) scanValues(columns []string) ([]any, error) {
 			values[i] = new(sql.NullBool)
 		case ticket.FieldID, ticket.FieldTicketTypeID, ticket.FieldRequesterID, ticket.FieldAssigneeID, ticket.FieldTenantID, ticket.FieldTemplateID, ticket.FieldCategoryID, ticket.FieldDepartmentID, ticket.FieldParentTicketID, ticket.FieldSLADefinitionID, ticket.FieldRating, ticket.FieldRatedBy, ticket.FieldVersion, ticket.FieldMspProviderID, ticket.FieldManagedByUserID:
 			values[i] = new(sql.NullInt64)
-		case ticket.FieldTitle, ticket.FieldDescription, ticket.FieldStatus, ticket.FieldType, ticket.FieldTicketTypeCodeSnapshot, ticket.FieldTicketTypeNameSnapshot, ticket.FieldPriority, ticket.FieldTicketNumber, ticket.FieldSLAStatus, ticket.FieldSLAPauseReason, ticket.FieldResolution, ticket.FieldResolutionCategory, ticket.FieldRatingComment, ticket.FieldMspTicketID:
+		case ticket.FieldTitle, ticket.FieldDescription, ticket.FieldDescriptionHTML, ticket.FieldDescriptionFormat, ticket.FieldStatus, ticket.FieldType, ticket.FieldTicketTypeCodeSnapshot, ticket.FieldTicketTypeNameSnapshot, ticket.FieldPriority, ticket.FieldTicketNumber, ticket.FieldSLAStatus, ticket.FieldSLAPauseReason, ticket.FieldResolution, ticket.FieldResolutionCategory, ticket.FieldRatingComment, ticket.FieldMspTicketID:
 			values[i] = new(sql.NullString)
 		case ticket.FieldSLAResponseDeadline, ticket.FieldSLAResolutionDeadline, ticket.FieldSLAPausedAt, ticket.FieldFirstResponseAt, ticket.FieldResolvedAt, ticket.FieldClosedAt, ticket.FieldRatedAt, ticket.FieldCreatedAt, ticket.FieldUpdatedAt, ticket.FieldDeletedAt:
 			values[i] = new(sql.NullTime)
@@ -374,6 +378,18 @@ func (_m *Ticket) assignValues(columns []string, values []any) error {
 				return fmt.Errorf("unexpected type %T for field description", values[i])
 			} else if value.Valid {
 				_m.Description = value.String
+			}
+		case ticket.FieldDescriptionHTML:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field description_html", values[i])
+			} else if value.Valid {
+				_m.DescriptionHTML = value.String
+			}
+		case ticket.FieldDescriptionFormat:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field description_format", values[i])
+			} else if value.Valid {
+				_m.DescriptionFormat = value.String
 			}
 		case ticket.FieldStatus:
 			if value, ok := values[i].(*sql.NullString); !ok {
@@ -782,6 +798,12 @@ func (_m *Ticket) String() string {
 	builder.WriteString(", ")
 	builder.WriteString("description=")
 	builder.WriteString(_m.Description)
+	builder.WriteString(", ")
+	builder.WriteString("description_html=")
+	builder.WriteString(_m.DescriptionHTML)
+	builder.WriteString(", ")
+	builder.WriteString("description_format=")
+	builder.WriteString(_m.DescriptionFormat)
 	builder.WriteString(", ")
 	builder.WriteString("status=")
 	builder.WriteString(_m.Status)

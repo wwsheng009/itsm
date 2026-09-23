@@ -103,6 +103,10 @@ export interface Ticket extends BaseTicket {
   tenantId?: number;
   templateId?: number;
   tenant?: Tenant;
+  /** 富文本 HTML（服务端已二次清洗）；为空时按纯文本 description 渲染 */
+  descriptionHtml?: string;
+  /** 描述格式：plain / html，用于灰度回退与兼容旧数据 */
+  descriptionFormat?: string;
   // 扩展字段
   subcategory?: string;
   impact?: string;
@@ -206,6 +210,10 @@ export interface TicketListResponse {
 export interface CreateTicketRequest {
   title: string;
   description: string;
+  /** 富文本 HTML（提交前前端已净化，服务端再次白名单清洗） */
+  descriptionHtml?: string;
+  /** 描述格式：plain / html，默认 plain */
+  descriptionFormat?: 'plain' | 'html';
   priority: string;
   type?: 'incident' | 'service_request' | 'change' | 'problem' | string;
 	/** Tenant-scoped configured TicketType code. `type` remains the ITIL lifecycle domain. */

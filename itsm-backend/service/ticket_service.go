@@ -29,6 +29,7 @@ import (
 	"itsm-backend/ent/tickettype"
 	"itsm-backend/ent/user"
 	"itsm-backend/internal/commandbus"
+	"itsm-backend/internal/sanitize"
 	"itsm-backend/repository/base"
 	"itsm-backend/repository/ticket"
 
@@ -53,6 +54,10 @@ type TicketService struct {
 	processResolver         *ProcessResolver
 	workflowOutboxEnabled   bool
 	sideEffectOutboxEnabled bool
+
+	// attachmentLifecycle BE-8：宿主删除级联（通用附件软删）。
+	// 由 bootstrap 在 attachment.cleanup_enabled 打开时注入；nil 时删除路径与改造前一致。
+	attachmentLifecycle AttachmentLifecycleCascader
 }
 
 // TicketServiceConfig 工单服务配置
@@ -128,6 +133,12 @@ func (s *TicketService) SetProcessTriggerService(p ProcessTriggerServiceInterfac
 // SetSLAService 注入 SLA 服务（运行时依赖注入）
 func (s *TicketService) SetSLAService(svc *TicketSLAService) {
 	s.slaSvc = svc
+}
+
+// SetAttachmentLifecycle 注入附件生命周期级联器（BE-8，运行时依赖注入）。
+// 传 nil 表示关闭级联，删除工单时不动通用附件（灰度默认）。
+func (s *TicketService) SetAttachmentLifecycle(c AttachmentLifecycleCascader) {
+	s.attachmentLifecycle = c
 }
 
 // SetProcessResolver 注入流程解析器（运行时依赖注入）
@@ -327,6 +338,20 @@ func (s *TicketService) CreateTicket(ctx context.Context, req *dto.CreateTicketR
 		TemplateID:     req.TemplateID,
 		ParentTicketID: req.ParentTicketID,
 		TagIDs:         uniqueIDs(req.TagIDs),
+	}
+	// P2 富文本：仅当请求携带且服务端清洗后非空时写入 HTML 列与格式标记；
+	// 纯文本 description 保持双写不变，未携带时 description_format 走 DB 默认 plain。
+	if clean := sanitize.SanitizeRichTextHTML(req.DescriptionHTML); clean != "" {
+		// BE-7：内嵌图片引用必须归属本工单。新建时工单尚不存在（bizID=0），
+		// 任何能解析到通用附件记录的引用都属于「他人的附件」，一律剥离并告警。
+		if validated, violations, verr := ValidateRichTextInlineRefs(ctx, s.client, tenantID, AttachmentBizTypeTicket, 0, clean); verr != nil {
+			s.logger.Warnw("内嵌图片引用校验失败，按清洗结果落库", "error", verr, "tenant_id", tenantID)
+		} else {
+			clean = validated
+			logInlineRefViolations(s.logger, tenantID, AttachmentBizTypeTicket, 0, violations)
+		}
+		params.DescriptionHTML = clean
+		params.DescriptionFormat = "html"
 	}
 	if configuredType != nil {
 		params.TicketTypeID = &configuredType.ID
@@ -1086,6 +1111,19 @@ func (s *TicketService) UpdateTicket(ctx context.Context, id int, req *dto.Updat
 	if req.Description != "" {
 		params.Description = &req.Description
 	}
+	// P2 富文本：仅非空时更新，避免空值覆盖已有 HTML（部分更新语义）。
+	if clean := sanitize.SanitizeRichTextHTML(req.DescriptionHTML); clean != "" {
+		// BE-7：剥离不属于本工单的内嵌图片引用（跨宿主 / 已软删 / A4 地址指向不存在记录）。
+		if validated, violations, verr := ValidateRichTextInlineRefs(ctx, s.client, tenantID, AttachmentBizTypeTicket, id, clean); verr != nil {
+			s.logger.Warnw("内嵌图片引用校验失败，按清洗结果落库", "error", verr, "tenant_id", tenantID, "ticket_id", id)
+		} else {
+			clean = validated
+			logInlineRefViolations(s.logger, tenantID, AttachmentBizTypeTicket, id, violations)
+		}
+		params.DescriptionHTML = &clean
+		format := "html"
+		params.DescriptionFormat = &format
+	}
 	if req.Status != "" {
 		status := ticket.Status(req.Status)
 		params.Status = &status
@@ -1194,12 +1232,28 @@ func (s *TicketService) UpdateTicket(ctx context.Context, id int, req *dto.Updat
 	return updated, nil
 }
 
-// DeleteTicket 删除工单
+// DeleteTicket 删除工单（软删）。
+//
+// BE-8：删除成功后按级联策略软删该工单的通用附件（保留物理文件，待保留期回收）；
+// 级联器未注入时行为与改造前完全一致；级联失败只告警，不影响工单删除结果。
 func (s *TicketService) DeleteTicket(ctx context.Context, id int, tenantID int, currentUserID int, currentRole string) error {
 	if err := s.enforceTicketRowScope(ctx, id, tenantID, currentUserID, currentRole); err != nil {
 		return err
 	}
-	return s.repo.Delete(ctx, id, tenantID)
+	if err := s.repo.Delete(ctx, id, tenantID); err != nil {
+		return err
+	}
+	if s.attachmentLifecycle != nil {
+		n, err := s.attachmentLifecycle.CascadeHostDeletion(ctx, tenantID, AttachmentBizTypeTicket, id)
+		if err != nil {
+			s.logger.Warnw("ticket attachment cascade failed",
+				"ticket_id", id, "tenant_id", tenantID, "error", err)
+		} else if n > 0 {
+			s.logger.Infow("ticket attachments cascaded",
+				"ticket_id", id, "tenant_id", tenantID, "cascaded", n)
+		}
+	}
+	return nil
 }
 
 // ListTickets 列表查询工单。
@@ -1446,21 +1500,23 @@ func (s *TicketService) GetTicketStats(ctx context.Context, tenantID int) (*dto.
 // toTicketResponse 转换为 DTO 响应
 func (s *TicketService) toTicketResponse(t *ticket.Ticket) *dto.TicketResponse {
 	resp := &dto.TicketResponse{
-		ID:             t.ID,
-		TicketNumber:   t.TicketNumber,
-		Title:          t.Title,
-		Description:    t.Description,
-		Status:         string(t.Status),
-		Priority:       string(t.Priority),
-		Type:           string(t.Type),
-		TicketTypeCode: t.TicketTypeCode,
-		TicketTypeName: t.TicketTypeName,
-		FormFields:     t.FormFields,
-		RequesterID:    t.RequesterID,
-		TenantID:       t.TenantID,
-		Version:        t.Version,
-		CreatedAt:      t.CreatedAt,
-		UpdatedAt:      t.UpdatedAt,
+		ID:                t.ID,
+		TicketNumber:      t.TicketNumber,
+		Title:             t.Title,
+		Description:       t.Description,
+		DescriptionHTML:   t.DescriptionHTML,
+		DescriptionFormat: t.DescriptionFormat,
+		Status:            string(t.Status),
+		Priority:          string(t.Priority),
+		Type:              string(t.Type),
+		TicketTypeCode:    t.TicketTypeCode,
+		TicketTypeName:    t.TicketTypeName,
+		FormFields:        t.FormFields,
+		RequesterID:       t.RequesterID,
+		TenantID:          t.TenantID,
+		Version:           t.Version,
+		CreatedAt:         t.CreatedAt,
+		UpdatedAt:         t.UpdatedAt,
 	}
 
 	if t.AssigneeID != nil {
@@ -1500,6 +1556,8 @@ func (s *TicketService) toEntTicket(t *ticket.Ticket) *ent.Ticket {
 		TicketNumber:           t.TicketNumber,
 		Title:                  t.Title,
 		Description:            t.Description,
+		DescriptionHTML:        t.DescriptionHTML,
+		DescriptionFormat:      t.DescriptionFormat,
 		Status:                 string(t.Status),
 		Type:                   string(t.Type),
 		TicketTypeCodeSnapshot: t.TicketTypeCode,

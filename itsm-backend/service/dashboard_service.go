@@ -51,6 +51,10 @@ var (
 		common.TicketStatusResolved,
 		common.TicketStatusClosed,
 	}
+
+	// 事件分布展示白名单（类别 + 配色）：Ent 版与 raw SQL 聚合版共用，避免两处漂移。
+	incidentDistributionCategories = []string{"网络故障", "系统故障", "应用问题", "硬件故障", "其他"}
+	incidentDistributionColors     = []string{"#ef4444", "#f59e0b", "#3b82f6", "#10b981", "#6b7280"}
 )
 
 // DashboardOverviewStats Dashboard概览统计（扁平结构）
@@ -92,6 +96,14 @@ func NewDashboardServiceWithDB(client *ent.Client, db *sql.DB, logger *zap.Sugar
 		repo:   newDashboardRepository(db),
 		logger: logger,
 	}
+}
+
+// hasRawDB 判断当前实例是否具备 raw SQL 聚合能力。
+//
+// 返回 false 的场景：单元测试（sqlite + 未初始化的全局 rawDB）或进程尚未注入
+// *sql.DB。此时所有仪表盘聚合都会走 Ent 实现，保证行为不退化。
+func (s *DashboardService) hasRawDB() bool {
+	return s != nil && s.repo != nil && s.repo.db != nil
 }
 
 // GetSLAComplianceData 获取SLA合规数据（基于真实违规记录计算）
@@ -179,6 +191,15 @@ func (s *DashboardService) GetSLAComplianceData(ctx context.Context, tenantID in
 
 // GetDashboardOverviewStats 获取Dashboard概览统计
 func (s *DashboardService) GetDashboardOverviewStats(ctx context.Context, tenantID int) (*DashboardOverviewStats, error) {
+	// 快路径：4 次 COUNT + 1 次 AVG 聚合为单条 SQL（跨隧道部署下省 4 次往返）。
+	if s.hasRawDB() {
+		if stats, err := s.getDashboardOverviewStatsSQL(ctx, tenantID); err == nil {
+			return stats, nil
+		} else {
+			s.logger.Warnw("overview 统计 raw SQL 聚合失败，回退 Ent 逐项查询", "error", err, "tenant_id", tenantID)
+		}
+	}
+
 	// total: TenantID + DeletedAtIsNil
 	totalTickets, err := s.client.Ticket.Query().
 		Where(
@@ -242,6 +263,29 @@ func (s *DashboardService) GetDashboardOverviewStats(ctx context.Context, tenant
 		ResolvedToday:     resolvedToday,
 		AvgResponseTime:   math.Round(avgRespHours*100) / 100,
 		AvgResolutionTime: math.Round(avgResHours*100) / 100,
+	}, nil
+}
+
+// getDashboardOverviewStatsSQL 单条聚合查询实现 GetDashboardOverviewStats。
+// 口径与上方 Ent 逐项查询一致（均要求 deleted_at IS NULL）。
+func (s *DashboardService) getDashboardOverviewStatsSQL(ctx context.Context, tenantID int) (*DashboardOverviewStats, error) {
+	today := time.Now()
+	todayStart := time.Date(today.Year(), today.Month(), today.Day(), 0, 0, 0, 0, time.Local)
+
+	agg, err := s.repo.OverviewStatsAgg(
+		ctx, tenantID, todayStart,
+		ticketPendingStatuses, ticketCompletedStatuses, common.TicketStatusInProgress,
+	)
+	if err != nil {
+		return nil, err
+	}
+	return &DashboardOverviewStats{
+		TotalTickets:      agg.TotalTickets,
+		PendingTickets:    agg.PendingTickets,
+		InProgressTickets: agg.InProgressTickets,
+		ResolvedToday:     agg.ResolvedToday,
+		AvgResponseTime:   math.Round(agg.AvgResponseHours*100) / 100,
+		AvgResolutionTime: math.Round(agg.AvgResolveHours*100) / 100,
 	}, nil
 }
 
@@ -687,109 +731,21 @@ func (s *DashboardService) getKPIMetrics(ctx context.Context, tenantID int) ([]K
 	lastMonthStart := time.Date(lastMonth.Year(), lastMonth.Month(), 1, 0, 0, 0, 0, time.Local)
 	lastMonthEnd := time.Date(now.Year(), now.Month(), 1, 0, 0, 0, 0, time.Local).Add(-time.Second)
 
-	// 总工单数（本月）
-	totalTickets, err := s.client.Ticket.Query().
-		Where(
-			ticket.TenantID(tenantID),
-			ticket.DeletedAtIsNil(),
-		).
-		Count(ctx)
-	if err != nil {
-		return nil, err
-	}
-
-	// 上月总工单数
-	lastMonthTotal, err := s.client.Ticket.Query().
-		Where(
-			ticket.TenantID(tenantID),
-			ticket.CreatedAtGTE(lastMonthStart),
-			ticket.CreatedAtLTE(lastMonthEnd),
-			ticket.DeletedAtIsNil(),
-		).
-		Count(ctx)
-	if err != nil {
-		lastMonthTotal = 0
-	}
-
-	// 待处理工单（统一口径）
-	pendingTickets, err := s.client.Ticket.Query().
-		Where(
-			ticket.TenantID(tenantID),
-			ticket.StatusIn(ticketPendingStatuses...),
-			ticket.DeletedAtIsNil(),
-		).
-		Count(ctx)
-	if err != nil {
-		return nil, err
-	}
-
-	// 上月待处理工单
-	lastMonthPending, err := s.client.Ticket.Query().
-		Where(
-			ticket.TenantID(tenantID),
-			ticket.StatusIn(ticketPendingStatuses...),
-			ticket.CreatedAtGTE(lastMonthStart),
-			ticket.CreatedAtLTE(lastMonthEnd),
-			ticket.DeletedAtIsNil(),
-		).
-		Count(ctx)
-	if err != nil {
-		lastMonthPending = 0
-	}
-
-	// 处理中工单
-	inProgressTickets, err := s.client.Ticket.Query().
-		Where(
-			ticket.TenantID(tenantID),
-			ticket.StatusEQ(common.TicketStatusInProgress),
-			ticket.DeletedAtIsNil(),
-		).
-		Count(ctx)
-	if err != nil {
-		return nil, err
-	}
-
-	// 上月处理中工单
-	lastMonthInProgress, err := s.client.Ticket.Query().
-		Where(
-			ticket.TenantID(tenantID),
-			ticket.StatusEQ(common.TicketStatusInProgress),
-			ticket.CreatedAtGTE(lastMonthStart),
-			ticket.CreatedAtLTE(lastMonthEnd),
-			ticket.DeletedAtIsNil(),
-		).
-		Count(ctx)
-	if err != nil {
-		lastMonthInProgress = 0
-	}
-
-	// 已完成工单（本月）
+	// 工单计数（总量 / 上月 / 待处理 / 处理中 / 已完成）：原 8 次独立 COUNT 合并为
+	// 1 条 FILTER 聚合 SQL；无 raw DB（测试或未注入）时回退等价的 Ent 逐项查询。
 	thisMonthStart := time.Date(now.Year(), now.Month(), 1, 0, 0, 0, 0, time.Local)
-	completedTickets, err := s.client.Ticket.Query().
-		Where(
-			ticket.TenantID(tenantID),
-			ticket.StatusIn(ticketCompletedStatuses...),
-			ticket.CreatedAtGTE(thisMonthStart),
-			ticket.DeletedAtIsNil(),
-		).
-		Count(ctx)
+	kpiCounts, err := s.kpiTicketCounts(ctx, tenantID, thisMonthStart, lastMonthStart, lastMonthEnd)
 	if err != nil {
 		return nil, err
 	}
-
-	// 上月已完成工单
-	lastMonthCompleted, err := s.client.Ticket.Query().
-		Where(
-			ticket.TenantID(tenantID),
-			ticket.StatusIn(ticketCompletedStatuses...),
-			ticket.CreatedAtGTE(lastMonthStart),
-			ticket.CreatedAtLTE(lastMonthEnd),
-			ticket.DeletedAtIsNil(),
-		).
-		Count(ctx)
-	if err != nil {
-		lastMonthCompleted = 0
-	}
+	totalTickets := kpiCounts.Total
+	lastMonthTotal := kpiCounts.LastMonthTotal
+	pendingTickets := kpiCounts.Pending
+	lastMonthPending := kpiCounts.LastMonthPending
+	inProgressTickets := kpiCounts.InProgress
+	lastMonthInProgress := kpiCounts.LastMonthInProgress
+	completedTickets := kpiCounts.CompletedThisMonth
+	lastMonthCompleted := kpiCounts.CompletedLastMonth
 
 	// 计算变化百分比
 	var totalChange, pendingChange, inProgressChange, completedChange float64
@@ -998,6 +954,142 @@ func (s *DashboardService) getKPIMetrics(ctx context.Context, tenantID int) ([]K
 	}, nil
 }
 
+// kpiTicketCounts 返回 KPI 卡片所需的工单计数。
+//
+// 优先走单条聚合 SQL（原实现为 8 次独立 COUNT，跨隧道部署下每次往返 4~6ms）；
+// raw DB 不可用或聚合失败时回退到等价的 Ent 逐项查询，保证测试与降级场景行为不变。
+func (s *DashboardService) kpiTicketCounts(
+	ctx context.Context,
+	tenantID int,
+	thisMonthStart, lastMonthStart, lastMonthEnd time.Time,
+) (*KPITicketCounts, error) {
+	if s.hasRawDB() {
+		if counts, err := s.repo.KPITicketCounts(
+			ctx, tenantID, thisMonthStart, lastMonthStart, lastMonthEnd,
+			ticketPendingStatuses, ticketCompletedStatuses, common.TicketStatusInProgress,
+		); err == nil {
+			return counts, nil
+		} else {
+			s.logger.Warnw("KPI 计数 raw SQL 聚合失败，回退 Ent 逐项查询", "error", err, "tenant_id", tenantID)
+		}
+	}
+
+	counts := &KPITicketCounts{}
+
+	// 总工单数（未删除；原实现未加时间窗口，保持原样）
+	totalTickets, err := s.client.Ticket.Query().
+		Where(
+			ticket.TenantID(tenantID),
+			ticket.DeletedAtIsNil(),
+		).
+		Count(ctx)
+	if err != nil {
+		return nil, err
+	}
+	counts.Total = totalTickets
+
+	// 上月总工单数
+	lastMonthTotal, err := s.client.Ticket.Query().
+		Where(
+			ticket.TenantID(tenantID),
+			ticket.CreatedAtGTE(lastMonthStart),
+			ticket.CreatedAtLTE(lastMonthEnd),
+			ticket.DeletedAtIsNil(),
+		).
+		Count(ctx)
+	if err != nil {
+		lastMonthTotal = 0
+	}
+	counts.LastMonthTotal = lastMonthTotal
+
+	// 待处理工单（统一口径）
+	pendingTickets, err := s.client.Ticket.Query().
+		Where(
+			ticket.TenantID(tenantID),
+			ticket.StatusIn(ticketPendingStatuses...),
+			ticket.DeletedAtIsNil(),
+		).
+		Count(ctx)
+	if err != nil {
+		return nil, err
+	}
+	counts.Pending = pendingTickets
+
+	// 上月待处理工单
+	lastMonthPending, err := s.client.Ticket.Query().
+		Where(
+			ticket.TenantID(tenantID),
+			ticket.StatusIn(ticketPendingStatuses...),
+			ticket.CreatedAtGTE(lastMonthStart),
+			ticket.CreatedAtLTE(lastMonthEnd),
+			ticket.DeletedAtIsNil(),
+		).
+		Count(ctx)
+	if err != nil {
+		lastMonthPending = 0
+	}
+	counts.LastMonthPending = lastMonthPending
+
+	// 处理中工单
+	inProgressTickets, err := s.client.Ticket.Query().
+		Where(
+			ticket.TenantID(tenantID),
+			ticket.StatusEQ(common.TicketStatusInProgress),
+			ticket.DeletedAtIsNil(),
+		).
+		Count(ctx)
+	if err != nil {
+		return nil, err
+	}
+	counts.InProgress = inProgressTickets
+
+	// 上月处理中工单
+	lastMonthInProgress, err := s.client.Ticket.Query().
+		Where(
+			ticket.TenantID(tenantID),
+			ticket.StatusEQ(common.TicketStatusInProgress),
+			ticket.CreatedAtGTE(lastMonthStart),
+			ticket.CreatedAtLTE(lastMonthEnd),
+			ticket.DeletedAtIsNil(),
+		).
+		Count(ctx)
+	if err != nil {
+		lastMonthInProgress = 0
+	}
+	counts.LastMonthInProgress = lastMonthInProgress
+
+	// 已完成工单（本月）
+	completedTickets, err := s.client.Ticket.Query().
+		Where(
+			ticket.TenantID(tenantID),
+			ticket.StatusIn(ticketCompletedStatuses...),
+			ticket.CreatedAtGTE(thisMonthStart),
+			ticket.DeletedAtIsNil(),
+		).
+		Count(ctx)
+	if err != nil {
+		return nil, err
+	}
+	counts.CompletedThisMonth = completedTickets
+
+	// 上月已完成工单
+	lastMonthCompleted, err := s.client.Ticket.Query().
+		Where(
+			ticket.TenantID(tenantID),
+			ticket.StatusIn(ticketCompletedStatuses...),
+			ticket.CreatedAtGTE(lastMonthStart),
+			ticket.CreatedAtLTE(lastMonthEnd),
+			ticket.DeletedAtIsNil(),
+		).
+		Count(ctx)
+	if err != nil {
+		lastMonthCompleted = 0
+	}
+	counts.CompletedLastMonth = lastMonthCompleted
+
+	return counts, nil
+}
+
 // GetTicketTrend 获取工单趋势数据（公开方法，支持自定义天数）
 func (s *DashboardService) GetTicketTrend(ctx context.Context, tenantID int, days int) ([]TicketTrendData, error) {
 	return s.getTicketTrend(ctx, tenantID, days)
@@ -1005,6 +1097,15 @@ func (s *DashboardService) GetTicketTrend(ctx context.Context, tenantID int, day
 
 // getTicketTrend 获取工单趋势数据（内部方法）
 func (s *DashboardService) getTicketTrend(ctx context.Context, tenantID int, days int) ([]TicketTrendData, error) {
+	// 快路径：原实现为「每天 5 次 COUNT」，7 天 = 35 次查询；改为单条聚合 SQL。
+	if s.hasRawDB() {
+		if trend, err := s.getTicketTrendSQL(ctx, tenantID, days); err == nil {
+			return trend, nil
+		} else {
+			s.logger.Warnw("工单趋势 raw SQL 聚合失败，回退 Ent 逐日查询", "error", err, "tenant_id", tenantID, "days", days)
+		}
+	}
+
 	now := time.Now()
 	trend := []TicketTrendData{}
 
@@ -1076,11 +1177,54 @@ func (s *DashboardService) getTicketTrend(ctx context.Context, tenantID int, day
 	return trend, nil
 }
 
+// getTicketTrendSQL 单条聚合查询实现 getTicketTrend（口径与原逐日 Ent 查询一致）。
+func (s *DashboardService) getTicketTrendSQL(ctx context.Context, tenantID int, days int) ([]TicketTrendData, error) {
+	now := time.Now()
+	dayStarts := make([]time.Time, 0, days)
+	for i := days - 1; i >= 0; i-- {
+		date := now.AddDate(0, 0, -i)
+		dayStarts = append(dayStarts, time.Date(date.Year(), date.Month(), date.Day(), 0, 0, 0, 0, time.Local))
+	}
+
+	rows, err := s.repo.TicketTrendDaily(
+		ctx, tenantID, dayStarts,
+		ticketPendingStatuses, ticketCompletedStatuses,
+		common.TicketStatusInProgress, common.TicketStatusClosed,
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	trend := make([]TicketTrendData, 0, len(rows))
+	for i, row := range rows {
+		trend = append(trend, TicketTrendData{
+			Date:             dayStarts[i].Format("01-02"),
+			Open:             row.Open,
+			InProgress:       row.InProgress,
+			Resolved:         row.Resolved,
+			Closed:           row.Closed,
+			NewTickets:       row.NewTickets,
+			CompletedTickets: row.Resolved,
+			PendingTickets:   row.Open + row.InProgress,
+		})
+	}
+	return trend, nil
+}
+
 // getIncidentDistribution 获取事件分布数据
 func (s *DashboardService) getIncidentDistribution(ctx context.Context, tenantID int) ([]IncidentDistributionData, error) {
+	// 快路径：原实现为每个分类 1 次 COUNT（5 次）；改为单条 GROUP BY 聚合。
+	if s.hasRawDB() {
+		if distribution, err := s.getIncidentDistributionSQL(ctx, tenantID); err == nil {
+			return distribution, nil
+		} else {
+			s.logger.Warnw("事件分布 raw SQL 聚合失败，回退 Ent 逐分类查询", "error", err, "tenant_id", tenantID)
+		}
+	}
+
 	// 按分类统计事件
-	categories := []string{"网络故障", "系统故障", "应用问题", "硬件故障", "其他"}
-	colors := []string{"#ef4444", "#f59e0b", "#3b82f6", "#10b981", "#6b7280"}
+	categories := incidentDistributionCategories
+	colors := incidentDistributionColors
 	distribution := []IncidentDistributionData{}
 
 	for i, category := range categories {
@@ -1105,6 +1249,24 @@ func (s *DashboardService) getIncidentDistribution(ctx context.Context, tenantID
 	return distribution, nil
 }
 
+// getIncidentDistributionSQL 单条聚合查询实现 getIncidentDistribution。
+// 白名单外的分类忽略、缺失分类补 0，与原实现一致。
+func (s *DashboardService) getIncidentDistributionSQL(ctx context.Context, tenantID int) ([]IncidentDistributionData, error) {
+	counts, err := s.repo.IncidentCountsByCategory(ctx, tenantID)
+	if err != nil {
+		return nil, err
+	}
+	distribution := make([]IncidentDistributionData, 0, len(incidentDistributionCategories))
+	for i, category := range incidentDistributionCategories {
+		distribution = append(distribution, IncidentDistributionData{
+			Category: category,
+			Count:    counts[category],
+			Color:    incidentDistributionColors[i],
+		})
+	}
+	return distribution, nil
+}
+
 // _getSLADataForDashboard 获取SLA数据
 //
 //lint:ignore U1000 reserved for SLA dashboard integration
@@ -1118,19 +1280,23 @@ func (s *DashboardService) _getSLADataForDashboard(ctx context.Context, tenantID
 	}
 
 	var slaData []SLAData
-	for _, sla := range slaDefinitions {
-		// 计算实际性能（这里可以根据实际指标计算）
-		actualPerformance, err := s._calculateActualSLAPerformance(ctx, sla.ID, tenantID)
+	// P0-性能优化：_calculateActualSLAPerformance 仅按 tenantID + 近 30 天窗口计算，
+	// 与入参 slaID 无关（该参数实际未被使用），因此循环内每个 SLA 得到的是同一个达成率。
+	// 原实现把该计算放在循环里 → 每个 SLA 2 次 COUNT（典型 N+1，且是完全重复的查询）。
+	// 这里提到循环外只算一次：结果与逐条计算逐位相同，失败时同样兜底为 0.0。
+	if len(slaDefinitions) > 0 {
+		actualPerformance, err := s._calculateActualSLAPerformance(ctx, 0, tenantID)
 		if err != nil {
-			s.logger.Warnf("Failed to calculate performance for SLA %d: %v", sla.ID, err)
+			s.logger.Warnf("Failed to calculate SLA performance for tenant %d: %v", tenantID, err)
 			actualPerformance = 0.0 // 使用默认值
 		}
-
-		slaData = append(slaData, SLAData{
-			Service: sla.Name, // 使用 SLA 名称作为展示
-			Target:  99.0,     // 未定义目标字段时使用固定目标
-			Actual:  actualPerformance,
-		})
+		for _, sla := range slaDefinitions {
+			slaData = append(slaData, SLAData{
+				Service: sla.Name, // 使用 SLA 名称作为展示
+				Target:  99.0,     // 未定义目标字段时使用固定目标
+				Actual:  actualPerformance,
+			})
+		}
 	}
 
 	return slaData, nil
@@ -1319,6 +1485,15 @@ func (s *DashboardService) getRecentActivitiesForDashboard(ctx context.Context, 
 
 // getResponseTimeDistribution 获取响应时间分布数据
 func (s *DashboardService) getResponseTimeDistribution(ctx context.Context, tenantID int) ([]ResponseTimeDistributionData, error) {
+	// 快路径：原实现加载全部有首次响应的工单后在内存分桶；改为单条聚合 SQL。
+	if s.hasRawDB() {
+		if distribution, err := s.getResponseTimeDistributionSQL(ctx, tenantID); err == nil {
+			return distribution, nil
+		} else {
+			s.logger.Warnw("响应时长分布 raw SQL 聚合失败，回退 Ent 加载分桶", "error", err, "tenant_id", tenantID)
+		}
+	}
+
 	// 获取所有有首次响应时间的工单
 	tickets, err := s.client.Ticket.Query().
 		Where(
@@ -1387,8 +1562,48 @@ func (s *DashboardService) getResponseTimeDistribution(ctx context.Context, tena
 	return result, nil
 }
 
+// getResponseTimeDistributionSQL 单条聚合查询实现 getResponseTimeDistribution。
+// 分桶边界、百分比分母（含 first_response_at < created_at 的异常记录）与原实现一致。
+func (s *DashboardService) getResponseTimeDistributionSQL(ctx context.Context, tenantID int) ([]ResponseTimeDistributionData, error) {
+	buckets, err := s.repo.ResponseTimeBuckets(ctx, tenantID)
+	if err != nil {
+		return nil, err
+	}
+
+	labels := []string{"0-1h", "1-4h", "4-8h", ">8h"}
+	result := make([]ResponseTimeDistributionData, 0, len(labels))
+	for i, label := range labels {
+		count := buckets.Counts[i]
+		percentage := 0.0
+		avgTime := 0.0
+		if buckets.Total > 0 {
+			percentage = float64(count) / float64(buckets.Total) * 100
+		}
+		if count > 0 {
+			avgTime = buckets.Sums[i] / float64(count)
+		}
+		result = append(result, ResponseTimeDistributionData{
+			TimeRange:  label,
+			Count:      count,
+			Percentage: percentage,
+			AvgTime:    avgTime,
+		})
+	}
+	return result, nil
+}
+
 // getTeamWorkload 获取团队工作负载数据
 func (s *DashboardService) getTeamWorkload(ctx context.Context, tenantID int) ([]TeamWorkloadData, error) {
+	// 快路径：原实现 1 次全量加载 + 每个处理人 1 次 User.Get（N+1）；改为单条聚合 SQL
+	// （姓名通过 LEFT JOIN users 一次取回），排序与 Top10 截断下推到数据库。
+	if s.hasRawDB() {
+		if workload, err := s.getTeamWorkloadSQL(ctx, tenantID); err == nil {
+			return workload, nil
+		} else {
+			s.logger.Warnw("团队负载 raw SQL 聚合失败，回退 Ent 分组查询", "error", err, "tenant_id", tenantID)
+		}
+	}
+
 	// 获取所有有处理人的工单
 	tickets, err := s.client.Ticket.Query().
 		Where(
@@ -1495,6 +1710,33 @@ func (s *DashboardService) getTeamWorkload(ctx context.Context, tenantID int) ([
 		result = result[:10]
 	}
 
+	return result, nil
+}
+
+// getTeamWorkloadSQL 单条聚合查询实现 getTeamWorkload（Top10）。
+func (s *DashboardService) getTeamWorkloadSQL(ctx context.Context, tenantID int) ([]TeamWorkloadData, error) {
+	rows, err := s.repo.TeamWorkloadTopN(
+		ctx, tenantID, 10,
+		ticketPendingStatuses, ticketCompletedStatuses, common.TicketStatusInProgress,
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	result := make([]TeamWorkloadData, 0, len(rows))
+	for _, row := range rows {
+		completionRate := 0.0
+		if row.TicketCount > 0 {
+			completionRate = float64(row.CompletedCount) / float64(row.TicketCount) * 100
+		}
+		result = append(result, TeamWorkloadData{
+			Assignee:        row.AssigneeName,
+			TicketCount:     row.TicketCount,
+			AvgResponseTime: row.AvgResponseTime,
+			CompletionRate:  completionRate,
+			ActiveTickets:   row.ActiveCount,
+		})
+	}
 	return result, nil
 }
 

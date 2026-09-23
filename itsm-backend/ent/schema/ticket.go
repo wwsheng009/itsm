@@ -23,6 +23,13 @@ func (Ticket) Fields() []ent.Field {
 		field.Text("description").
 			Comment("工单描述").
 			Optional(),
+		field.Text("description_html").
+			Comment("工单描述富文本 HTML（服务端净化后）").
+			Optional(),
+		field.String("description_format").
+			Comment("描述格式：plain/html，用于灰度与兼容旧数据").
+			Default("plain").
+			MaxLen(16),
 		field.String("status").
 			Comment("状态").
 			Default("open"),

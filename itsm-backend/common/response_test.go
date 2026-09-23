@@ -10,6 +10,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func init() {
@@ -565,4 +566,66 @@ func TestRespondError_FallbackOnInternal(t *testing.T) {
 	assert.Equal(t, InternalErrorCode, resp.Code)
 	assert.Equal(t, "操作失败", resp.Message)
 	assert.NotContains(t, w.Body.String(), "connection refused")
+}
+
+// ==================== 附件 61xx 错误码 HTTP 映射（BE-4） ====================
+
+// TestAttachmentErrorCodesAreRegistered 锁定 61xx 常量取值（§3.4 权威表），
+// 防止有人只改单侧常量造成前后端错位。
+func TestAttachmentErrorCodesAreRegistered(t *testing.T) {
+	assert.Equal(t, 6101, AttachmentHostNotFoundCode)
+	assert.Equal(t, 6102, AttachmentInvalidFilenameCode)
+	assert.Equal(t, 6103, AttachmentTooLargeCode)
+	assert.Equal(t, 6104, AttachmentTypeNotAllowedCode)
+	assert.Equal(t, 6105, AttachmentInUseCode)
+	assert.Equal(t, 6106, AttachmentQuotaExceededCode)
+	assert.Equal(t, 6107, AttachmentRateLimitedCode)
+	assert.Equal(t, 429, TooManyRequestsCode)
+}
+
+// TestFail_AttachmentErrorCodeHTTPMapping 覆盖 §3.4 全部 61xx（含通用 429）在
+// Fail / FailWithData 两个 switch 中的登记：任一分支漏登记都会"未登记码静默 200"。
+func TestFail_AttachmentErrorCodeHTTPMapping(t *testing.T) {
+	cases := []struct {
+		name string
+		code int
+		want int
+	}{
+		{"6101 宿主不存在", AttachmentHostNotFoundCode, http.StatusNotFound},
+		{"6102 文件名非法", AttachmentInvalidFilenameCode, http.StatusBadRequest},
+		{"6103 文件超限", AttachmentTooLargeCode, http.StatusRequestEntityTooLarge},
+		{"6104 类型不允许", AttachmentTypeNotAllowedCode, http.StatusUnsupportedMediaType},
+		{"6105 附件被引用", AttachmentInUseCode, http.StatusConflict},
+		{"6106 配额超限", AttachmentQuotaExceededCode, http.StatusUnprocessableEntity},
+		{"6107 附件限流", AttachmentRateLimitedCode, http.StatusTooManyRequests},
+		{"429 通用限流", TooManyRequestsCode, http.StatusTooManyRequests},
+	}
+
+	for _, tc := range cases {
+		tc := tc
+		t.Run(tc.name+"/Fail", func(t *testing.T) {
+			w := httptest.NewRecorder()
+			c, _ := gin.CreateTestContext(w)
+
+			Fail(c, tc.code, "附件错误")
+
+			assert.Equal(t, tc.want, w.Code)
+			var resp Response
+			require.NoError(t, json.Unmarshal(w.Body.Bytes(), &resp))
+			assert.Equal(t, tc.code, resp.Code)
+		})
+
+		t.Run(tc.name+"/FailWithData", func(t *testing.T) {
+			w := httptest.NewRecorder()
+			c, _ := gin.CreateTestContext(w)
+
+			FailWithData(c, tc.code, "附件错误", map[string]string{"hint": "attachment"})
+
+			assert.Equal(t, tc.want, w.Code)
+			var resp Response
+			require.NoError(t, json.Unmarshal(w.Body.Bytes(), &resp))
+			assert.Equal(t, tc.code, resp.Code)
+			assert.NotNil(t, resp.Data)
+		})
+	}
 }

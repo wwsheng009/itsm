@@ -4,6 +4,7 @@
 
 ## 当前入口
 
+- [附件生命周期清理演练记录（BE-8，2026-09-22）](./attachment-cleanup-drill-2026-09-22.md)
 - [角色视角产品测试方案](./role-based-product-test-plan.md)
 - [完整产品冒烟测试报告](./full-product-smoke-2026-06-06.md)
 - [系统测试报告](./system-test-report-2026-05-17.md)

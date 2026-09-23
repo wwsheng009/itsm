@@ -14,6 +14,7 @@ import (
 	"itsm-backend/ent/approvalworkflow"
 	"itsm-backend/ent/asset"
 	"itsm-backend/ent/assetlicense"
+	"itsm-backend/ent/attachment"
 	"itsm-backend/ent/auditlog"
 	"itsm-backend/ent/bootstraptoken"
 	"itsm-backend/ent/bpmnpermission"
@@ -216,6 +217,7 @@ func checkColumn(t, c string) error {
 			approvalworkflow.Table:            approvalworkflow.ValidColumn,
 			asset.Table:                       asset.ValidColumn,
 			assetlicense.Table:                assetlicense.ValidColumn,
+			attachment.Table:                  attachment.ValidColumn,
 			auditlog.Table:                    auditlog.ValidColumn,
 			bpmnpermission.Table:              bpmnpermission.ValidColumn,
 			bootstraptoken.Table:              bootstraptoken.ValidColumn,

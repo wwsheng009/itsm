@@ -284,3 +284,18 @@ itsm-backend/migration-lint
 
 # aicli 本地会话数据（勿提交）
 .aicli/
+
+# Development connection docs and local helper scripts (may contain production credentials)
+.dev/
+start_tunnel.bat
+check_containers.py
+check_docker.py
+check_port_bindings.py
+check_postgres.py
+check_ssh_config.py
+setup_tunnel.py
+ssh_tunnel.py
+test_connectivity.py
+test_db_connection.py
+test_db_from_remote.py
+test_tunnels.py

@@ -30,6 +30,9 @@ type Service struct {
 	// freshness 时效性判定器（L1 正确性边界）。
 	// 与 RAG 服务内的判定器共用同一套策略，此处用于 RAG 未装配时的检索兜底路径。
 	freshness *knowledgeaccess.FreshnessJudger
+	// attachmentLifecycle BE-8：文章软删后级联软删其通用附件（保留物理文件待保留期回收）。
+	// 由 bootstrap 在 attachment.cleanup_enabled 打开时注入；nil 时行为与改造前一致。
+	attachmentLifecycle service.AttachmentLifecycleCascader
 }
 
 func NewService(repo Repository, logger *zap.SugaredLogger) *Service {
@@ -49,6 +52,11 @@ func (s *Service) SetKnowledgeGuard(g *knowledgeaccess.Guard) { s.knowledgeGuard
 
 // SetFreshnessJudger 注入时效性判定器（L1）。传 nil 表示关闭时效过滤。
 func (s *Service) SetFreshnessJudger(j *knowledgeaccess.FreshnessJudger) { s.freshness = j }
+
+// SetAttachmentLifecycle 注入附件生命周期级联器（BE-8）。传 nil 表示关闭级联。
+func (s *Service) SetAttachmentLifecycle(c service.AttachmentLifecycleCascader) {
+	s.attachmentLifecycle = c
+}
 
 // MarkArticleReviewed 记录一次内容复核。
 //
@@ -130,6 +138,7 @@ func (s *Service) CreateArticle(ctx context.Context, a *Article) (*Article, erro
 	// XSS 消毒：Title 走 strict（纯文本），Content 走 UGC（保留富文本白名单，剥离 script/on*/javascript:）
 	a.Title = common.SanitizeText(a.Title)
 	a.Content = common.SanitizeHTML(a.Content)
+	s.validateInlineImageRefs(ctx, a)
 	s.logger.Infow("Creating Knowledge Article", "title", a.Title, "category", a.Category)
 	if s.vectorOutboxEnabled() {
 		return s.createWithVectorOutbox(ctx, a)
@@ -153,6 +162,7 @@ func (s *Service) UpdateArticle(ctx context.Context, a *Article) (*Article, erro
 	// XSS 消毒
 	a.Title = common.SanitizeText(a.Title)
 	a.Content = common.SanitizeHTML(a.Content)
+	s.validateInlineImageRefs(ctx, a)
 	s.logger.Infow("Updating Knowledge Article", "id", a.ID, "title", a.Title)
 	if s.vectorOutboxEnabled() {
 		return s.updateWithVectorOutbox(ctx, a)
@@ -164,15 +174,64 @@ func (s *Service) UpdateArticle(ctx context.Context, a *Article) (*Article, erro
 	return updated, nil
 }
 
+// validateInlineImageRefs BE-7：知识库正文的内嵌图片引用必须归属当前文章
+// （新建时 a.ID=0，任何能解析到通用附件记录的引用都属于他人附件）；
+// ent 客户端未注入或查询失败时保持原内容，不阻塞写入。
+func (s *Service) validateInlineImageRefs(ctx context.Context, a *Article) {
+	if s.client == nil || a == nil {
+		return
+	}
+	validated, violations, err := service.ValidateRichTextInlineRefs(
+		ctx, s.client, a.TenantID, service.AttachmentBizTypeKnowledgeArticle, a.ID, a.Content)
+	if err != nil {
+		s.logger.Warnw("内嵌图片引用校验失败，按清洗结果落库",
+			"error", err, "tenant_id", a.TenantID, "article_id", a.ID)
+		return
+	}
+	a.Content = validated
+	for _, v := range violations {
+		s.logger.Warnw("剥离越权内嵌图片引用",
+			"tenant_id", a.TenantID,
+			"biz_type", service.AttachmentBizTypeKnowledgeArticle,
+			"biz_id", a.ID,
+			"attachment_id", v.AttachmentID,
+			"reason", v.Reason,
+			"src", v.Src,
+		)
+	}
+}
+
 func (s *Service) DeleteArticle(ctx context.Context, id int, tenantID int) error {
 	s.logger.Infow("Deleting Knowledge Article", "id", id)
+	var err error
 	if s.vectorOutboxEnabled() {
-		return s.deleteWithVectorOutbox(ctx, id, tenantID)
+		err = s.deleteWithVectorOutbox(ctx, id, tenantID)
+	} else {
+		err = s.repo.Delete(ctx, id, tenantID)
 	}
-	if err := s.repo.Delete(ctx, id, tenantID); err != nil {
+	if err != nil {
 		return err
 	}
+	s.cascadeAttachments(ctx, id, tenantID)
 	return nil
+}
+
+// cascadeAttachments BE-8：文章软删成功后级联软删其通用附件。
+// 级联器未注入（灰度关闭）时跳过；级联失败只告警，不影响文章删除结果。
+func (s *Service) cascadeAttachments(ctx context.Context, id, tenantID int) {
+	if s.attachmentLifecycle == nil {
+		return
+	}
+	n, err := s.attachmentLifecycle.CascadeHostDeletion(ctx, tenantID, service.AttachmentBizTypeKnowledgeArticle, id)
+	if err != nil {
+		s.logger.Warnw("knowledge attachment cascade failed",
+			"article_id", id, "tenant_id", tenantID, "error", err)
+		return
+	}
+	if n > 0 {
+		s.logger.Infow("knowledge attachments cascaded",
+			"article_id", id, "tenant_id", tenantID, "cascaded", n)
+	}
 }
 
 func (s *Service) GetCategories(ctx context.Context, tenantID int) ([]string, error) {

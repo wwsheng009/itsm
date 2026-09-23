@@ -119,7 +119,7 @@ export class AuthService {
     });
 
     if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`);
+      throw await this.errorFromFailedResponse(response);
     }
 
     const responseData = (await response.json()) as {
@@ -141,6 +141,61 @@ export class AuthService {
     }
 
     return responseData.data as T;
+  }
+
+  /**
+   * 把非 2xx 响应转成带可展示原因的 Error。
+   *
+   * 后端的失败响应体同样是标准 {code, message, data}（见 common/response.go 的 Fail），
+   * 只是 HTTP 状态码非 2xx；fetch 不会自动解析，若直接抛
+   * "HTTP error! status: 401"，登录页就会把这条内部串当成失败原因展示给用户。
+   *
+   * 同时把登录限流响应里的 data.retryAfterSeconds 一并带出：
+   * 限流走 ForbiddenCode → HTTP 403（middleware/rate_limiter.go），
+   * 只解析 2xx 分支会永远拿不到它，按钮倒计时形同虚设。
+   */
+  private static async errorFromFailedResponse(response: Response): Promise<Error> {
+    let message = '';
+    let retryAfterSeconds: number | undefined;
+
+    try {
+      const body = (await response.json()) as {
+        message?: unknown;
+        data?: { retryAfterSeconds?: unknown } | null;
+      };
+      if (typeof body?.message === 'string') {
+        message = body.message.trim();
+      }
+      const retryAfter = body?.data?.retryAfterSeconds;
+      if (typeof retryAfter === 'number' && retryAfter > 0) {
+        retryAfterSeconds = retryAfter;
+      }
+    } catch {
+      // 响应体不是 JSON（网关/代理错误页等），退回下面的状态码描述
+    }
+
+    const err = new Error(message || `HTTP error! status: ${response.status}`);
+    if (retryAfterSeconds !== undefined) {
+      (err as Error & { retryAfterSeconds?: number }).retryAfterSeconds = retryAfterSeconds;
+    }
+    return err;
+  }
+
+  /**
+   * 以服务端为准确认会话已生效。
+   *
+   * 登录接口 200 只代表服务端下发了 Set-Cookie；真正决定能否进入受保护路由的是
+   * middleware 对 httpOnly access_token cookie 的校验（前端 JS 读不到它）。
+   * 因此先用一次真实请求确认会话可用，避免出现
+   * 「接口成功、store 已登录，但 router.push 被 middleware 静默 307 回 /login」的分裂状态。
+   */
+  private static async confirmSession(): Promise<boolean> {
+    try {
+      await this.makeRequest<unknown>('/api/v1/auth/me', { method: 'GET' });
+      return true;
+    } catch {
+      return false;
+    }
   }
 
   // 刷新token
@@ -207,7 +262,19 @@ export class AuthService {
 
       // Token 仅通过 httpOnly cookie 管理（由后端设置）
       // 前端仅设置 auth-token cookie 供 middleware 路由守卫使用
-      if (typeof window !== 'undefined' && data.user) {
+      // 先确认服务端确实接受了这次会话，再写入前端登录态。
+      // 否则一旦 cookie 未被浏览器保存，router.push 会被 middleware 静默 307 回 /login，
+      // 用户看到的就是「接口已成功响应，但页面没有更新」。
+      if (!(await this.confirmSession())) {
+        const fatal = new Error('登录成功但会话未生效（浏览器可能未保存 Cookie），请重试');
+        (fatal as Error & { fatal?: boolean }).fatal = true;
+        throw fatal;
+      }
+
+      // 标记位与 store 都是前端登录态信号，必须一起写入；
+      // 不再以 data.user 是否存在为条件（后端只保证返回 user 字段，
+      // 一旦缺失，标记位漏写会让 AuthGuard 误判为未登录）。
+      if (typeof window !== 'undefined') {
         const cookieMaxAge = rememberMe ? `; max-age=${7 * 24 * 60 * 60}` : '';
         const secure = location.protocol === 'https:' ? '; Secure' : '';
         // 仅写入 auth-token 标记位供 middleware 路由守卫使用，不写真值 token
@@ -252,7 +319,12 @@ export class AuthService {
       // P0-2（2026-09-06 UAT 修复）：限流响应 data.retryAfterSeconds 由 makeRequest
       // 附加到 Error 上，LoginForm 据此展示按钮倒计时。仅对限流错误 rethrow，
       // 其他登录失败（凭证错误、网络错误）按调用方契约返回 false。
-      const e = error as Error & { retryAfterSeconds?: number };
+      const e = error as Error & { retryAfterSeconds?: number; fatal?: boolean };
+      // 会话确认失败是致命错误：必须把原因抛给登录页展示，
+      // 而不是静默返回 false（静默会让页面停在原地、没有任何反馈）。
+      if (e.fatal) {
+        throw e;
+      }
       if (typeof e.retryAfterSeconds === 'number' && e.retryAfterSeconds > 0) {
         throw e;
       }

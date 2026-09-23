@@ -11,6 +11,7 @@ import (
 	"itsm-backend/ent/approvalworkflow"
 	"itsm-backend/ent/asset"
 	"itsm-backend/ent/assetlicense"
+	"itsm-backend/ent/attachment"
 	"itsm-backend/ent/auditlog"
 	"itsm-backend/ent/bootstraptoken"
 	"itsm-backend/ent/bpmnpermission"
@@ -494,6 +495,156 @@ func init() {
 	assetlicense.DefaultUpdatedAt = assetlicenseDescUpdatedAt.Default.(func() time.Time)
 	// assetlicense.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
 	assetlicense.UpdateDefaultUpdatedAt = assetlicenseDescUpdatedAt.UpdateDefault.(func() time.Time)
+	attachmentFields := schema.Attachment{}.Fields()
+	_ = attachmentFields
+	// attachmentDescTenantID is the schema descriptor for tenant_id field.
+	attachmentDescTenantID := attachmentFields[0].Descriptor()
+	// attachment.TenantIDValidator is a validator for the "tenant_id" field. It is called by the builders before save.
+	attachment.TenantIDValidator = attachmentDescTenantID.Validators[0].(func(int) error)
+	// attachmentDescBizType is the schema descriptor for biz_type field.
+	attachmentDescBizType := attachmentFields[1].Descriptor()
+	// attachment.BizTypeValidator is a validator for the "biz_type" field. It is called by the builders before save.
+	attachment.BizTypeValidator = func() func(string) error {
+		validators := attachmentDescBizType.Validators
+		fns := [...]func(string) error{
+			validators[0].(func(string) error),
+			validators[1].(func(string) error),
+		}
+		return func(biz_type string) error {
+			for _, fn := range fns {
+				if err := fn(biz_type); err != nil {
+					return err
+				}
+			}
+			return nil
+		}
+	}()
+	// attachmentDescBizID is the schema descriptor for biz_id field.
+	attachmentDescBizID := attachmentFields[2].Descriptor()
+	// attachment.BizIDValidator is a validator for the "biz_id" field. It is called by the builders before save.
+	attachment.BizIDValidator = attachmentDescBizID.Validators[0].(func(int) error)
+	// attachmentDescUsage is the schema descriptor for usage field.
+	attachmentDescUsage := attachmentFields[3].Descriptor()
+	// attachment.DefaultUsage holds the default value on creation for the usage field.
+	attachment.DefaultUsage = attachmentDescUsage.Default.(string)
+	// attachment.UsageValidator is a validator for the "usage" field. It is called by the builders before save.
+	attachment.UsageValidator = func() func(string) error {
+		validators := attachmentDescUsage.Validators
+		fns := [...]func(string) error{
+			validators[0].(func(string) error),
+			validators[1].(func(string) error),
+		}
+		return func(usage string) error {
+			for _, fn := range fns {
+				if err := fn(usage); err != nil {
+					return err
+				}
+			}
+			return nil
+		}
+	}()
+	// attachmentDescFileName is the schema descriptor for file_name field.
+	attachmentDescFileName := attachmentFields[4].Descriptor()
+	// attachment.FileNameValidator is a validator for the "file_name" field. It is called by the builders before save.
+	attachment.FileNameValidator = func() func(string) error {
+		validators := attachmentDescFileName.Validators
+		fns := [...]func(string) error{
+			validators[0].(func(string) error),
+			validators[1].(func(string) error),
+		}
+		return func(file_name string) error {
+			for _, fn := range fns {
+				if err := fn(file_name); err != nil {
+					return err
+				}
+			}
+			return nil
+		}
+	}()
+	// attachmentDescFilePath is the schema descriptor for file_path field.
+	attachmentDescFilePath := attachmentFields[5].Descriptor()
+	// attachment.FilePathValidator is a validator for the "file_path" field. It is called by the builders before save.
+	attachment.FilePathValidator = func() func(string) error {
+		validators := attachmentDescFilePath.Validators
+		fns := [...]func(string) error{
+			validators[0].(func(string) error),
+			validators[1].(func(string) error),
+		}
+		return func(file_path string) error {
+			for _, fn := range fns {
+				if err := fn(file_path); err != nil {
+					return err
+				}
+			}
+			return nil
+		}
+	}()
+	// attachmentDescFileURL is the schema descriptor for file_url field.
+	attachmentDescFileURL := attachmentFields[6].Descriptor()
+	// attachment.FileURLValidator is a validator for the "file_url" field. It is called by the builders before save.
+	attachment.FileURLValidator = attachmentDescFileURL.Validators[0].(func(string) error)
+	// attachmentDescFileSize is the schema descriptor for file_size field.
+	attachmentDescFileSize := attachmentFields[7].Descriptor()
+	// attachment.FileSizeValidator is a validator for the "file_size" field. It is called by the builders before save.
+	attachment.FileSizeValidator = attachmentDescFileSize.Validators[0].(func(int) error)
+	// attachmentDescFileType is the schema descriptor for file_type field.
+	attachmentDescFileType := attachmentFields[8].Descriptor()
+	// attachment.FileTypeValidator is a validator for the "file_type" field. It is called by the builders before save.
+	attachment.FileTypeValidator = func() func(string) error {
+		validators := attachmentDescFileType.Validators
+		fns := [...]func(string) error{
+			validators[0].(func(string) error),
+			validators[1].(func(string) error),
+		}
+		return func(file_type string) error {
+			for _, fn := range fns {
+				if err := fn(file_type); err != nil {
+					return err
+				}
+			}
+			return nil
+		}
+	}()
+	// attachmentDescMimeType is the schema descriptor for mime_type field.
+	attachmentDescMimeType := attachmentFields[9].Descriptor()
+	// attachment.MimeTypeValidator is a validator for the "mime_type" field. It is called by the builders before save.
+	attachment.MimeTypeValidator = attachmentDescMimeType.Validators[0].(func(string) error)
+	// attachmentDescSha256 is the schema descriptor for sha256 field.
+	attachmentDescSha256 := attachmentFields[10].Descriptor()
+	// attachment.Sha256Validator is a validator for the "sha256" field. It is called by the builders before save.
+	attachment.Sha256Validator = attachmentDescSha256.Validators[0].(func(string) error)
+	// attachmentDescClientToken is the schema descriptor for client_token field.
+	attachmentDescClientToken := attachmentFields[11].Descriptor()
+	// attachment.ClientTokenValidator is a validator for the "client_token" field. It is called by the builders before save.
+	attachment.ClientTokenValidator = attachmentDescClientToken.Validators[0].(func(string) error)
+	// attachmentDescUploadedBy is the schema descriptor for uploaded_by field.
+	attachmentDescUploadedBy := attachmentFields[12].Descriptor()
+	// attachment.UploadedByValidator is a validator for the "uploaded_by" field. It is called by the builders before save.
+	attachment.UploadedByValidator = attachmentDescUploadedBy.Validators[0].(func(int) error)
+	// attachmentDescStatus is the schema descriptor for status field.
+	attachmentDescStatus := attachmentFields[13].Descriptor()
+	// attachment.DefaultStatus holds the default value on creation for the status field.
+	attachment.DefaultStatus = attachmentDescStatus.Default.(string)
+	// attachment.StatusValidator is a validator for the "status" field. It is called by the builders before save.
+	attachment.StatusValidator = func() func(string) error {
+		validators := attachmentDescStatus.Validators
+		fns := [...]func(string) error{
+			validators[0].(func(string) error),
+			validators[1].(func(string) error),
+		}
+		return func(status string) error {
+			for _, fn := range fns {
+				if err := fn(status); err != nil {
+					return err
+				}
+			}
+			return nil
+		}
+	}()
+	// attachmentDescCreatedAt is the schema descriptor for created_at field.
+	attachmentDescCreatedAt := attachmentFields[14].Descriptor()
+	// attachment.DefaultCreatedAt holds the default value on creation for the created_at field.
+	attachment.DefaultCreatedAt = attachmentDescCreatedAt.Default.(func() time.Time)
 	auditlogFields := schema.AuditLog{}.Fields()
 	_ = auditlogFields
 	// auditlogDescCreatedAt is the schema descriptor for created_at field.
@@ -4726,68 +4877,74 @@ func init() {
 	ticketDescTitle := ticketFields[0].Descriptor()
 	// ticket.TitleValidator is a validator for the "title" field. It is called by the builders before save.
 	ticket.TitleValidator = ticketDescTitle.Validators[0].(func(string) error)
+	// ticketDescDescriptionFormat is the schema descriptor for description_format field.
+	ticketDescDescriptionFormat := ticketFields[3].Descriptor()
+	// ticket.DefaultDescriptionFormat holds the default value on creation for the description_format field.
+	ticket.DefaultDescriptionFormat = ticketDescDescriptionFormat.Default.(string)
+	// ticket.DescriptionFormatValidator is a validator for the "description_format" field. It is called by the builders before save.
+	ticket.DescriptionFormatValidator = ticketDescDescriptionFormat.Validators[0].(func(string) error)
 	// ticketDescStatus is the schema descriptor for status field.
-	ticketDescStatus := ticketFields[2].Descriptor()
+	ticketDescStatus := ticketFields[4].Descriptor()
 	// ticket.DefaultStatus holds the default value on creation for the status field.
 	ticket.DefaultStatus = ticketDescStatus.Default.(string)
 	// ticketDescType is the schema descriptor for type field.
-	ticketDescType := ticketFields[3].Descriptor()
+	ticketDescType := ticketFields[5].Descriptor()
 	// ticket.DefaultType holds the default value on creation for the type field.
 	ticket.DefaultType = ticketDescType.Default.(string)
 	// ticketDescTicketTypeCodeSnapshot is the schema descriptor for ticket_type_code_snapshot field.
-	ticketDescTicketTypeCodeSnapshot := ticketFields[5].Descriptor()
+	ticketDescTicketTypeCodeSnapshot := ticketFields[7].Descriptor()
 	// ticket.TicketTypeCodeSnapshotValidator is a validator for the "ticket_type_code_snapshot" field. It is called by the builders before save.
 	ticket.TicketTypeCodeSnapshotValidator = ticketDescTicketTypeCodeSnapshot.Validators[0].(func(string) error)
 	// ticketDescTicketTypeNameSnapshot is the schema descriptor for ticket_type_name_snapshot field.
-	ticketDescTicketTypeNameSnapshot := ticketFields[6].Descriptor()
+	ticketDescTicketTypeNameSnapshot := ticketFields[8].Descriptor()
 	// ticket.TicketTypeNameSnapshotValidator is a validator for the "ticket_type_name_snapshot" field. It is called by the builders before save.
 	ticket.TicketTypeNameSnapshotValidator = ticketDescTicketTypeNameSnapshot.Validators[0].(func(string) error)
 	// ticketDescFormFields is the schema descriptor for form_fields field.
-	ticketDescFormFields := ticketFields[7].Descriptor()
+	ticketDescFormFields := ticketFields[9].Descriptor()
 	// ticket.DefaultFormFields holds the default value on creation for the form_fields field.
 	ticket.DefaultFormFields = ticketDescFormFields.Default.(map[string]interface{})
 	// ticketDescPriority is the schema descriptor for priority field.
-	ticketDescPriority := ticketFields[8].Descriptor()
+	ticketDescPriority := ticketFields[10].Descriptor()
 	// ticket.DefaultPriority holds the default value on creation for the priority field.
 	ticket.DefaultPriority = ticketDescPriority.Default.(string)
 	// ticketDescTicketNumber is the schema descriptor for ticket_number field.
-	ticketDescTicketNumber := ticketFields[9].Descriptor()
+	ticketDescTicketNumber := ticketFields[11].Descriptor()
 	// ticket.TicketNumberValidator is a validator for the "ticket_number" field. It is called by the builders before save.
 	ticket.TicketNumberValidator = ticketDescTicketNumber.Validators[0].(func(string) error)
 	// ticketDescRequesterID is the schema descriptor for requester_id field.
-	ticketDescRequesterID := ticketFields[10].Descriptor()
+	ticketDescRequesterID := ticketFields[12].Descriptor()
 	// ticket.RequesterIDValidator is a validator for the "requester_id" field. It is called by the builders before save.
 	ticket.RequesterIDValidator = ticketDescRequesterID.Validators[0].(func(int) error)
 	// ticketDescTenantID is the schema descriptor for tenant_id field.
-	ticketDescTenantID := ticketFields[12].Descriptor()
+	ticketDescTenantID := ticketFields[14].Descriptor()
 	// ticket.TenantIDValidator is a validator for the "tenant_id" field. It is called by the builders before save.
 	ticket.TenantIDValidator = ticketDescTenantID.Validators[0].(func(int) error)
 	// ticketDescSLAStatus is the schema descriptor for sla_status field.
-	ticketDescSLAStatus := ticketFields[20].Descriptor()
+	ticketDescSLAStatus := ticketFields[22].Descriptor()
 	// ticket.DefaultSLAStatus holds the default value on creation for the sla_status field.
 	ticket.DefaultSLAStatus = ticketDescSLAStatus.Default.(string)
 	// ticketDescRating is the schema descriptor for rating field.
-	ticketDescRating := ticketFields[28].Descriptor()
+	ticketDescRating := ticketFields[30].Descriptor()
 	// ticket.RatingValidator is a validator for the "rating" field. It is called by the builders before save.
 	ticket.RatingValidator = ticketDescRating.Validators[0].(func(int) error)
 	// ticketDescVersion is the schema descriptor for version field.
-	ticketDescVersion := ticketFields[32].Descriptor()
+	ticketDescVersion := ticketFields[34].Descriptor()
 	// ticket.DefaultVersion holds the default value on creation for the version field.
 	ticket.DefaultVersion = ticketDescVersion.Default.(int)
 	// ticket.VersionValidator is a validator for the "version" field. It is called by the builders before save.
 	ticket.VersionValidator = ticketDescVersion.Validators[0].(func(int) error)
 	// ticketDescCreatedAt is the schema descriptor for created_at field.
-	ticketDescCreatedAt := ticketFields[33].Descriptor()
+	ticketDescCreatedAt := ticketFields[35].Descriptor()
 	// ticket.DefaultCreatedAt holds the default value on creation for the created_at field.
 	ticket.DefaultCreatedAt = ticketDescCreatedAt.Default.(func() time.Time)
 	// ticketDescUpdatedAt is the schema descriptor for updated_at field.
-	ticketDescUpdatedAt := ticketFields[34].Descriptor()
+	ticketDescUpdatedAt := ticketFields[36].Descriptor()
 	// ticket.DefaultUpdatedAt holds the default value on creation for the updated_at field.
 	ticket.DefaultUpdatedAt = ticketDescUpdatedAt.Default.(func() time.Time)
 	// ticket.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
 	ticket.UpdateDefaultUpdatedAt = ticketDescUpdatedAt.UpdateDefault.(func() time.Time)
 	// ticketDescIsManagedByMsp is the schema descriptor for is_managed_by_msp field.
-	ticketDescIsManagedByMsp := ticketFields[35].Descriptor()
+	ticketDescIsManagedByMsp := ticketFields[37].Descriptor()
 	// ticket.DefaultIsManagedByMsp holds the default value on creation for the is_managed_by_msp field.
 	ticket.DefaultIsManagedByMsp = ticketDescIsManagedByMsp.Default.(bool)
 	ticketapprovalFields := schema.TicketApproval{}.Fields()

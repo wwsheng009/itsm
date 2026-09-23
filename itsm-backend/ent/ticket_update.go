@@ -77,6 +77,40 @@ func (_u *TicketUpdate) ClearDescription() *TicketUpdate {
 	return _u
 }
 
+// SetDescriptionHTML sets the "description_html" field.
+func (_u *TicketUpdate) SetDescriptionHTML(v string) *TicketUpdate {
+	_u.mutation.SetDescriptionHTML(v)
+	return _u
+}
+
+// SetNillableDescriptionHTML sets the "description_html" field if the given value is not nil.
+func (_u *TicketUpdate) SetNillableDescriptionHTML(v *string) *TicketUpdate {
+	if v != nil {
+		_u.SetDescriptionHTML(*v)
+	}
+	return _u
+}
+
+// ClearDescriptionHTML clears the value of the "description_html" field.
+func (_u *TicketUpdate) ClearDescriptionHTML() *TicketUpdate {
+	_u.mutation.ClearDescriptionHTML()
+	return _u
+}
+
+// SetDescriptionFormat sets the "description_format" field.
+func (_u *TicketUpdate) SetDescriptionFormat(v string) *TicketUpdate {
+	_u.mutation.SetDescriptionFormat(v)
+	return _u
+}
+
+// SetNillableDescriptionFormat sets the "description_format" field if the given value is not nil.
+func (_u *TicketUpdate) SetNillableDescriptionFormat(v *string) *TicketUpdate {
+	if v != nil {
+		_u.SetDescriptionFormat(*v)
+	}
+	return _u
+}
+
 // SetStatus sets the "status" field.
 func (_u *TicketUpdate) SetStatus(v string) *TicketUpdate {
 	_u.mutation.SetStatus(v)
@@ -1425,6 +1459,11 @@ func (_u *TicketUpdate) check() error {
 			return &ValidationError{Name: "title", err: fmt.Errorf(`ent: validator failed for field "Ticket.title": %w`, err)}
 		}
 	}
+	if v, ok := _u.mutation.DescriptionFormat(); ok {
+		if err := ticket.DescriptionFormatValidator(v); err != nil {
+			return &ValidationError{Name: "description_format", err: fmt.Errorf(`ent: validator failed for field "Ticket.description_format": %w`, err)}
+		}
+	}
 	if v, ok := _u.mutation.TicketTypeCodeSnapshot(); ok {
 		if err := ticket.TicketTypeCodeSnapshotValidator(v); err != nil {
 			return &ValidationError{Name: "ticket_type_code_snapshot", err: fmt.Errorf(`ent: validator failed for field "Ticket.ticket_type_code_snapshot": %w`, err)}
@@ -1486,6 +1525,15 @@ func (_u *TicketUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 	}
 	if _u.mutation.DescriptionCleared() {
 		_spec.ClearField(ticket.FieldDescription, field.TypeString)
+	}
+	if value, ok := _u.mutation.DescriptionHTML(); ok {
+		_spec.SetField(ticket.FieldDescriptionHTML, field.TypeString, value)
+	}
+	if _u.mutation.DescriptionHTMLCleared() {
+		_spec.ClearField(ticket.FieldDescriptionHTML, field.TypeString)
+	}
+	if value, ok := _u.mutation.DescriptionFormat(); ok {
+		_spec.SetField(ticket.FieldDescriptionFormat, field.TypeString, value)
 	}
 	if value, ok := _u.mutation.Status(); ok {
 		_spec.SetField(ticket.FieldStatus, field.TypeString, value)
@@ -2465,6 +2513,40 @@ func (_u *TicketUpdateOne) SetNillableDescription(v *string) *TicketUpdateOne {
 // ClearDescription clears the value of the "description" field.
 func (_u *TicketUpdateOne) ClearDescription() *TicketUpdateOne {
 	_u.mutation.ClearDescription()
+	return _u
+}
+
+// SetDescriptionHTML sets the "description_html" field.
+func (_u *TicketUpdateOne) SetDescriptionHTML(v string) *TicketUpdateOne {
+	_u.mutation.SetDescriptionHTML(v)
+	return _u
+}
+
+// SetNillableDescriptionHTML sets the "description_html" field if the given value is not nil.
+func (_u *TicketUpdateOne) SetNillableDescriptionHTML(v *string) *TicketUpdateOne {
+	if v != nil {
+		_u.SetDescriptionHTML(*v)
+	}
+	return _u
+}
+
+// ClearDescriptionHTML clears the value of the "description_html" field.
+func (_u *TicketUpdateOne) ClearDescriptionHTML() *TicketUpdateOne {
+	_u.mutation.ClearDescriptionHTML()
+	return _u
+}
+
+// SetDescriptionFormat sets the "description_format" field.
+func (_u *TicketUpdateOne) SetDescriptionFormat(v string) *TicketUpdateOne {
+	_u.mutation.SetDescriptionFormat(v)
+	return _u
+}
+
+// SetNillableDescriptionFormat sets the "description_format" field if the given value is not nil.
+func (_u *TicketUpdateOne) SetNillableDescriptionFormat(v *string) *TicketUpdateOne {
+	if v != nil {
+		_u.SetDescriptionFormat(*v)
+	}
 	return _u
 }
 
@@ -3829,6 +3911,11 @@ func (_u *TicketUpdateOne) check() error {
 			return &ValidationError{Name: "title", err: fmt.Errorf(`ent: validator failed for field "Ticket.title": %w`, err)}
 		}
 	}
+	if v, ok := _u.mutation.DescriptionFormat(); ok {
+		if err := ticket.DescriptionFormatValidator(v); err != nil {
+			return &ValidationError{Name: "description_format", err: fmt.Errorf(`ent: validator failed for field "Ticket.description_format": %w`, err)}
+		}
+	}
 	if v, ok := _u.mutation.TicketTypeCodeSnapshot(); ok {
 		if err := ticket.TicketTypeCodeSnapshotValidator(v); err != nil {
 			return &ValidationError{Name: "ticket_type_code_snapshot", err: fmt.Errorf(`ent: validator failed for field "Ticket.ticket_type_code_snapshot": %w`, err)}
@@ -3907,6 +3994,15 @@ func (_u *TicketUpdateOne) sqlSave(ctx context.Context) (_node *Ticket, err erro
 	}
 	if _u.mutation.DescriptionCleared() {
 		_spec.ClearField(ticket.FieldDescription, field.TypeString)
+	}
+	if value, ok := _u.mutation.DescriptionHTML(); ok {
+		_spec.SetField(ticket.FieldDescriptionHTML, field.TypeString, value)
+	}
+	if _u.mutation.DescriptionHTMLCleared() {
+		_spec.ClearField(ticket.FieldDescriptionHTML, field.TypeString)
+	}
+	if value, ok := _u.mutation.DescriptionFormat(); ok {
+		_spec.SetField(ticket.FieldDescriptionFormat, field.TypeString, value)
 	}
 	if value, ok := _u.mutation.Status(); ok {
 		_spec.SetField(ticket.FieldStatus, field.TypeString, value)

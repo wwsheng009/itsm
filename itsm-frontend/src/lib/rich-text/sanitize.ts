@@ -12,6 +12,8 @@
  */
 import DOMPurify from 'dompurify';
 
+import { IMAGE_ALIGN_ATTR } from './image-size';
+
 /** 纯文本摘要最大长度（后端 description/summary 字段） */
 export const PLAIN_TEXT_MAX_LENGTH = 500;
 
@@ -45,7 +47,7 @@ export const RICH_TEXT_ALLOWED_TAGS = [
   'td',
 ];
 
-/** 富文本白名单属性（data-attachment-id 用于回链附件） */
+/** 富文本白名单属性（data-attachment-id 用于回链附件；data-align 用于图片对齐） */
 export const RICH_TEXT_ALLOWED_ATTR = [
   'href',
   'target',
@@ -56,6 +58,7 @@ export const RICH_TEXT_ALLOWED_ATTR = [
   'width',
   'height',
   'data-attachment-id',
+  IMAGE_ALIGN_ATTR,
 ];
 
 /** 允许的内联图片主机（逗号分隔，来自环境变量；相对路径始终允许） */
@@ -120,9 +123,38 @@ export function isRichTextEmpty(html: string | null | undefined): boolean {
   return htmlToPlainText(html, Number.MAX_SAFE_INTEGER).length === 0;
 }
 
+/**
+ * 提取富文本中的附件图片 ID（`<img data-attachment-id="123">`）。
+ *
+ * 用途：编辑态保存后对「被移除的图片」调用附件解绑接口（方案 §5.2 第 4 条），
+ * 以及创建页两段式上传后的回填校验。
+ */
+export function extractAttachmentImageIds(html: string | null | undefined): number[] {
+  if (!html || typeof DOMParser === 'undefined') return [];
+  const doc = new DOMParser().parseFromString(`<div>${html}</div>`, 'text/html');
+  const ids = Array.from(doc.querySelectorAll('img[data-attachment-id]'))
+    .map((img) => Number(img.getAttribute('data-attachment-id')))
+    .filter((id) => Number.isFinite(id) && id > 0);
+  return Array.from(new Set(ids));
+}
+
 function isAllowedImageSrc(src: string): boolean {
   const value = src.trim();
   if (!value) return false;
+
+  // 创建页「先占位、后上传」的暂存图片是 blob: 本地预览地址（见 staged-images.ts）。
+  // blob: 的 origin 由其内层 URL 决定（WHATWG URL 规范），这里显式解析，避免被当作外链移除，
+  // 导致保存后图片凭空消失。只放行同源 blob，跨源 blob 仍移除；blob 地址不会落库
+  // （提交时 stripStagedImages 移除占位图，后端 imgSrc 白名单也不接受 blob:）。
+  if (value.startsWith('blob:')) {
+    if (typeof window === 'undefined') return false;
+    try {
+      return new URL(value.slice('blob:'.length)).origin === window.location.origin;
+    } catch {
+      return false;
+    }
+  }
+
   // 相对路径（附件代理 /api/... 或站内静态资源）
   if (value.startsWith('/')) return true;
   // 站内绝对路径（同源 http(s)）
@@ -134,6 +166,17 @@ function isAllowedImageSrc(src: string): boolean {
     return false;
   }
 }
+
+/**
+ * URI 协议白名单：与 DOMPurify 默认策略一致，额外放行 `blob:`。
+ *
+ * 必要性：DOMPurify 默认策略会在 rich-text 富文本里剥掉 `src="blob:..."`，而创建页
+ * 粘贴/拖拽的图片在工单创建成功前只能是 blob: 占位地址；一旦 src 被剥掉，暂存图片
+ * 就无法在提交后被替换成正式附件地址（表现为「保存后图片消失」）。
+ * 真正的放行判定仍由 hardenCleanHtml 的同源校验（图片）与后端白名单（落库）负责。
+ */
+export const RICH_TEXT_ALLOWED_URI_REGEXP =
+  /^(?:(?:(?:f|ht)tps?|mailto|tel|callto|sms|cid|xmpp|blob):|[^a-z]|[a-z+.\-]+(?:[^a-z+.\-:]|$))/i;
 
 /**
  * 白名单净化后二次加固：
@@ -170,6 +213,7 @@ export function sanitizeRichTextHtml(html: string): string {
   const clean = DOMPurify.sanitize(html, {
     ALLOWED_TAGS: RICH_TEXT_ALLOWED_TAGS,
     ALLOWED_ATTR: RICH_TEXT_ALLOWED_ATTR,
+    ALLOWED_URI_REGEXP: RICH_TEXT_ALLOWED_URI_REGEXP,
     ALLOW_DATA_ATTR: false,
     FORBID_TAGS: ['script', 'iframe', 'object', 'embed', 'style', 'form', 'input'],
     FORBID_ATTR: ['style', 'onerror', 'onload', 'onclick'],

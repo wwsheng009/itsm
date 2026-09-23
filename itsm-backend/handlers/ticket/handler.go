@@ -28,22 +28,24 @@ func ticketToResponse(t *Ticket) *dto.TicketResponse {
 		return nil
 	}
 	resp := &dto.TicketResponse{
-		ID:             t.ID,
-		TicketNumber:   t.TicketNumber,
-		Title:          t.Title,
-		Description:    t.Description,
-		Status:         t.Status,
-		Priority:       t.Priority,
-		Type:           t.Type,
-		TicketTypeID:   0,
-		TicketTypeCode: t.TicketTypeCode,
-		TicketTypeName: t.TicketTypeName,
-		FormFields:     t.FormFields,
-		RequesterID:    t.RequesterID,
-		TenantID:       t.TenantID,
-		Version:        t.Version,
-		CreatedAt:      t.CreatedAt,
-		UpdatedAt:      t.UpdatedAt,
+		ID:                t.ID,
+		TicketNumber:      t.TicketNumber,
+		Title:             t.Title,
+		Description:       t.Description,
+		DescriptionHTML:   t.DescriptionHTML,
+		DescriptionFormat: t.DescriptionFormat,
+		Status:            t.Status,
+		Priority:          t.Priority,
+		Type:              t.Type,
+		TicketTypeID:      0,
+		TicketTypeCode:    t.TicketTypeCode,
+		TicketTypeName:    t.TicketTypeName,
+		FormFields:        t.FormFields,
+		RequesterID:       t.RequesterID,
+		TenantID:          t.TenantID,
+		Version:           t.Version,
+		CreatedAt:         t.CreatedAt,
+		UpdatedAt:         t.UpdatedAt,
 	}
 	if t.AssigneeID != nil {
 		resp.AssigneeID = *t.AssigneeID
@@ -117,6 +119,9 @@ func (h *Handler) CreateTicket(c *gin.Context) {
 		FormFields:  req.FormFields,
 
 		WorkflowDefinitionKey: req.WorkflowDefinitionKey,
+		// P2 富文本：透传原始 HTML，由服务层 sanitize 后决定写入与 format=html 标记。
+		// 修复：此前该字段在 handler→service 链路被丢弃，导致富文本永远落库为 plain。
+		DescriptionHTML: req.DescriptionHTML,
 	}
 	if req.AssigneeID > 0 {
 		params.AssigneeID = &req.AssigneeID
@@ -250,6 +255,12 @@ func (h *Handler) UpdateTicket(c *gin.Context) {
 	}
 	if req.Description != "" {
 		params.Description = &req.Description
+	}
+	// P2 富文本：修复此前 handler 层未透传 descriptionHtml —— 服务层
+	// （handlers/ticket/service.go Update）已有 sanitize + DescriptionFormat=html 逻辑，
+	// 仅非空时下发以保持部分更新语义（空值不覆盖已有 HTML）。
+	if req.DescriptionHTML != "" {
+		params.DescriptionHTML = &req.DescriptionHTML
 	}
 	if req.Status != "" {
 		params.Status = &req.Status

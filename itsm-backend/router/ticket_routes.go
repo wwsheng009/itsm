@@ -171,6 +171,11 @@ func SetupTicketRoutes(tenant *gin.RouterGroup, config *RouterConfig) {
 		if config.TicketAttachmentHandler != nil {
 			tickets.GET("/:id/attachments", middleware.RequirePermission("ticket", "read"), config.TicketAttachmentHandler.ListTicketAttachments)
 			tickets.POST("/:id/attachments", middleware.RequirePermission("ticket", "create"), config.TicketAttachmentHandler.UploadAttachment)
+			// 下载/预览：附件列表下载走 /:attachment_id，富文本编辑器内嵌图片走 /:attachment_id/preview（inline）。
+			// 两个端点都兼容「数字 ID」与历史上写入富文本的存储文件名（见 handler.attachmentRef）。
+			tickets.GET("/:id/attachments/:attachment_id", middleware.RequirePermission("ticket", "read"), config.TicketAttachmentHandler.DownloadAttachment)
+			tickets.GET("/:id/attachments/:attachment_id/download", middleware.RequirePermission("ticket", "read"), config.TicketAttachmentHandler.DownloadAttachment)
+			tickets.GET("/:id/attachments/:attachment_id/preview", middleware.RequirePermission("ticket", "read"), config.TicketAttachmentHandler.PreviewAttachment)
 			tickets.DELETE("/:id/attachments/:attachment_id", middleware.RequirePermission("ticket", "delete"), config.TicketAttachmentHandler.DeleteAttachment)
 		}
 

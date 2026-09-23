@@ -6,13 +6,16 @@
  * 设计文档 §4.5：富输入优化
  *  - 工具栏：加粗 / 斜体 / 下划线 / 删除线 / 标题 / 有序列表 / 无序列表 / 引用 / 代码块 / 链接 / 图片 / 撤销 / 重做
  *  - 粘贴、拖拽图片自动上传，上传成功后插入 <img src data-attachment-id>
+ *  - 图片可编辑：选中后四角可拖拽缩放、浮动工具条可设尺寸/对齐/还原/删除
+ *    （width/height/data-align 属性落库，详见 RichTextEditorResizableImage）
  *  - 输出统一经过 sanitizeRichTextHtml 白名单净化，避免 XSS
  *
- * 上传函数通过 onUploadImage 注入（默认实现见 defaultUploadImage），
+ * 上传函数通过 onUploadImage 注入；未注入时**不回落到任何内置端点**（fail-fast）：
+ * 图片按钮禁用、粘贴/拖拽图片被拦截并告警，避免请求未注册接口产生静默 404。
  * 组件本身不直接依赖具体业务 API，便于在工单创建页、回复框等场景复用。
  */
 
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { App, Button, Divider, Space, Spin, Tooltip, Typography } from 'antd';
 import {
   BoldOutlined,
@@ -32,11 +35,11 @@ import { useEditor, EditorContent, type Editor } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
 import Underline from '@tiptap/extension-underline';
 import Link from '@tiptap/extension-link';
-import Image from '@tiptap/extension-image';
 import Placeholder from '@tiptap/extension-placeholder';
 
 import { sanitizeRichTextHtml, isRichTextEmpty } from '@/lib/rich-text/sanitize';
-import { httpClient } from '@/lib/api/http-client';
+import RichTextEditorResizableImage from './RichTextEditorResizableImage';
+import RichTextEditorImageMenu from './RichTextEditorImageMenu';
 
 const { Text } = Typography;
 
@@ -64,7 +67,8 @@ export interface RichTextEditorProps {
   /** 上传中状态变化（父级可用于提交前拦截） */
   onUploadingChange?: (uploading: boolean) => void;
   /**
-   * 自定义上传实现。不传则使用 defaultUploadImage（POST /api/v1/attachments/upload，字段名 file）。
+   * 自定义上传实现。**未传时图片能力整体禁用**（fail-fast，方案 D6/AC-8）：
+   * 图片按钮禁用、粘贴/拖拽图片被拦截并告警，不发起任何上传请求。
    */
   onUploadImage?: (file: File) => Promise<UploadedImage>;
   /** 允许粘贴/拖拽上传的最大单文件体积（MB），默认 10 */
@@ -73,64 +77,9 @@ export interface RichTextEditorProps {
   maxImageCount?: number;
   /** 无工具栏（只读展示等） */
   hideToolbar?: boolean;
+  /** 编辑区 data-testid（透传到 contenteditable，便于 E2E 直接 fill/type） */
+  dataTestId?: string;
 }
-
-/** 默认上传实现：不依赖 BaseApi.upload（protected），直接走 httpClient + FormData */
-const defaultUploadImage = async (file: File): Promise<UploadedImage> => {
-  const formData = new FormData();
-  formData.append('file', file);
-
-  // httpClient 的 FormData 方法在不同版本命名略有差异，做一次安全取值 + fetch 兜底，
-  // 避免因方法可见性/命名差异导致编译或运行期失败。
-  const client = httpClient as unknown as {
-    postFormDataWithProgress?: (
-      url: string,
-      fd: FormData,
-      onProgress?: (percent: number) => void
-    ) => Promise<unknown>;
-    postFormData?: (url: string, fd: FormData) => Promise<unknown>;
-    uploadFile?: (url: string, fd: FormData) => Promise<unknown>;
-  };
-
-  const endpoint = '/attachments/upload';
-  let raw: unknown;
-
-  if (typeof client.postFormDataWithProgress === 'function') {
-    raw = await client.postFormDataWithProgress(endpoint, formData);
-  } else if (typeof client.postFormData === 'function') {
-    raw = await client.postFormData(endpoint, formData);
-  } else if (typeof client.uploadFile === 'function') {
-    raw = await client.uploadFile(endpoint, formData);
-  } else {
-    const res = await fetch(`/api/v1${endpoint}`, { method: 'POST', body: formData });
-    if (!res.ok) throw new Error(`上传失败（HTTP ${res.status}）`);
-    raw = await res.json();
-  }
-
-  type AttachmentLike = {
-    id?: number | string;
-    url?: string;
-    fileUrl?: string;
-    file_url?: string;
-    downloadUrl?: string;
-    download_url?: string;
-    name?: string;
-    fileName?: string;
-    file_name?: string;
-    data?: AttachmentLike;
-  };
-  const payload = raw as { data?: AttachmentLike } & AttachmentLike;
-  const node: AttachmentLike = payload?.data ?? payload ?? {};
-
-  const url = node.url || node.fileUrl || node.file_url || node.downloadUrl || node.download_url;
-  if (!url) throw new Error('上传成功但未返回图片地址');
-
-  return {
-    url,
-    id: node.id,
-    name: node.name || node.fileName || node.file_name || file.name,
-  };
-};
 
 const buildImageHtml = (img: UploadedImage): string => {
   const alt = (img.name || '图片').replace(/"/g, '&quot;');
@@ -142,7 +91,7 @@ export const RichTextEditor: React.FC<RichTextEditorProps> = ({
   value = '',
   onChange,
   onBlur,
-  placeholder = '请输入内容，支持粘贴或拖拽图片',
+  placeholder,
   disabled = false,
   minHeight = 220,
   onUploadingChange,
@@ -150,14 +99,26 @@ export const RichTextEditor: React.FC<RichTextEditorProps> = ({
   maxImageSizeMB = 10,
   maxImageCount = 9,
   hideToolbar = false,
+  dataTestId,
 }) => {
   const { message } = App.useApp();
   const [pending, setPending] = useState(0);
   const lastEmitted = useRef<string>(value || '');
-  const uploadImpl = useMemo(() => onUploadImage ?? defaultUploadImage, [onUploadImage]);
+  // fail-fast：未注入上传实现时不回落到任何内置端点（方案 D6）。
+  const canUploadImages = typeof onUploadImage === 'function';
+  const uploadImpl = canUploadImages ? onUploadImage : undefined;
+  const effectivePlaceholder =
+    placeholder ?? (canUploadImages ? '请输入内容，支持粘贴或拖拽图片' : '请输入内容');
+  const warnNoUploadCapacity = useCallback(() => {
+    message.warning('当前场景未配置图片上传能力，已忽略图片（不会发起上传请求）');
+  }, [message]);
 
   const uploadFiles = useCallback(
     async (files: File[], editor: Editor) => {
+      if (!uploadImpl) {
+        warnNoUploadCapacity();
+        return;
+      }
       const images = files.filter((f) => f.type.startsWith('image/'));
       if (images.length === 0) return;
 
@@ -181,12 +142,7 @@ export const RichTextEditor: React.FC<RichTextEditorProps> = ({
       for (const file of valid) {
         try {
           const uploaded = await uploadImpl(file);
-          const chain = editor.chain().focus();
-          if (editor.isEmpty) {
-            chain.insertContent(buildImageHtml(uploaded)).run();
-          } else {
-            chain.insertContent(buildImageHtml(uploaded)).run();
-          }
+          editor.chain().focus().insertContent(buildImageHtml(uploaded)).run();
           okCount += 1;
         } catch (err) {
           const msg = err instanceof Error ? err.message : '未知错误';
@@ -204,7 +160,7 @@ export const RichTextEditor: React.FC<RichTextEditorProps> = ({
         message.success(`已上传 ${okCount} 张图片`);
       }
     },
-    [maxImageCount, maxImageSizeMB, message, onUploadingChange, uploadImpl]
+    [maxImageCount, maxImageSizeMB, message, onUploadingChange, uploadImpl, warnNoUploadCapacity]
   );
 
   const editor = useEditor({
@@ -221,14 +177,15 @@ export const RichTextEditor: React.FC<RichTextEditorProps> = ({
         protocols: ['http', 'https', 'mailto'],
         HTMLAttributes: { rel: 'noopener noreferrer nofollow', target: '_blank' },
       }),
-      Image.configure({ inline: false, allowBase64: false }),
-      Placeholder.configure({ placeholder }),
+      RichTextEditorResizableImage.configure({ inline: false, allowBase64: false }),
+      Placeholder.configure({ placeholder: effectivePlaceholder }),
     ],
     content: value || '',
     editorProps: {
       attributes: {
         class: 'rte-content',
         style: `min-height:${minHeight}px;outline:none;`,
+        ...(dataTestId ? { 'data-testid': dataTestId } : {}),
       },
       handlePaste(view, event) {
         const items = Array.from(event.clipboardData?.items || []);
@@ -240,7 +197,8 @@ export const RichTextEditor: React.FC<RichTextEditorProps> = ({
         event.preventDefault();
         const instance = view?.state ? (undefined as unknown as Editor) : (undefined as unknown as Editor);
         void instance;
-        return true;
+        // 未注入上传能力时同样吞掉图片粘贴，交由外层容器告警处理，避免浏览器默认行为插入 base64。
+        return canUploadImages;
       },
       handleDrop(view, event, _slice, moved) {
         if (moved) return false;
@@ -248,7 +206,7 @@ export const RichTextEditor: React.FC<RichTextEditorProps> = ({
         const files = Array.from(dt?.files || []).filter((f) => f.type.startsWith('image/'));
         if (files.length === 0) return false;
         event.preventDefault();
-        return true;
+        return canUploadImages;
       },
     },
     onUpdate({ editor: ed }) {
@@ -268,7 +226,9 @@ export const RichTextEditor: React.FC<RichTextEditorProps> = ({
     if (incoming === lastEmitted.current) return;
     if (incoming === editor.getHTML()) return;
     lastEmitted.current = incoming;
-    editor.commands.setContent(incoming, { emitUpdate: false });
+    // TipTap 2 的 setContent 第二参为 boolean（是否 emit update）：
+    // 传 false 避免外部 value 同步触发 onUpdate，导致脏标记/回写风暴。
+    editor.commands.setContent(incoming, false);
   }, [editor, value]);
 
   // 可编辑态同步
@@ -303,6 +263,10 @@ export const RichTextEditor: React.FC<RichTextEditorProps> = ({
 
   const insertImageByPick = useCallback(() => {
     if (!editor) return;
+    if (!uploadImpl) {
+      warnNoUploadCapacity();
+      return;
+    }
     const input = document.createElement('input');
     input.type = 'file';
     input.accept = 'image/*';
@@ -312,7 +276,7 @@ export const RichTextEditor: React.FC<RichTextEditorProps> = ({
       if (files.length > 0) void uploadFiles(files, editor);
     };
     input.click();
-  }, [editor, uploadFiles]);
+  }, [editor, uploadFiles, uploadImpl, warnNoUploadCapacity]);
 
   const btn = (
     key: string,
@@ -338,21 +302,10 @@ export const RichTextEditor: React.FC<RichTextEditorProps> = ({
   return (
     <div
       className="rich-text-editor"
-      style={{ border: '1px solid #d9d9d9', borderRadius: 6, overflow: 'hidden' }}
       data-testid="rich-text-editor"
     >
       {!hideToolbar && (
-        <div
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: 2,
-            flexWrap: 'wrap',
-            padding: '4px 8px',
-            borderBottom: '1px solid #f0f0f0',
-            background: '#fafafa',
-          }}
-        >
+        <div className="rich-text-editor__toolbar">
           {btn('bold', <BoldOutlined />, '加粗', !!editor?.isActive('bold'), () => editor?.chain().focus().toggleBold().run())}
           {btn('italic', <ItalicOutlined />, '斜体', !!editor?.isActive('italic'), () => editor?.chain().focus().toggleItalic().run())}
           {btn('underline', <UnderlineOutlined />, '下划线', !!editor?.isActive('underline'), () => editor?.chain().focus().toggleUnderline().run())}
@@ -370,7 +323,16 @@ export const RichTextEditor: React.FC<RichTextEditorProps> = ({
           {btn('quote', <CodeOutlined />, '引用', !!editor?.isActive('blockquote'), () => editor?.chain().focus().toggleBlockquote().run())}
           <Divider type="vertical" />
           {btn('link', <LinkOutlined />, '插入链接', !!editor?.isActive('link'), setLink)}
-          {btn('image', <PictureOutlined />, '插入图片', false, insertImageByPick)}
+          {btn(
+            'image',
+            <PictureOutlined />,
+            canUploadImages
+              ? '插入图片（支持拖拽调整大小）'
+              : '当前场景未配置图片上传能力，插入图片已禁用',
+            false,
+            insertImageByPick,
+            !canUploadImages
+          )}
           <Divider type="vertical" />
           {btn('undo', <UndoOutlined />, '撤销', false, () => editor?.chain().focus().undo().run(), !editor?.can().undo())}
           {btn('redo', <RedoOutlined />, '重做', false, () => editor?.chain().focus().redo().run(), !editor?.can().redo())}
@@ -386,38 +348,36 @@ export const RichTextEditor: React.FC<RichTextEditorProps> = ({
         </div>
       )}
 
+      {!hideToolbar && editor && !disabled && <RichTextEditorImageMenu editor={editor} />}
+
       <div
-        style={{ position: 'relative', background: disabled ? '#f5f5f5' : '#fff' }}
+        className={`ticket-rich-editor${disabled ? ' ticket-rich-editor--disabled' : ''}`}
         onPaste={(e) => {
           const files = Array.from(e.clipboardData?.files || []).filter((f) => f.type.startsWith('image/'));
-          if (files.length > 0) {
-            e.preventDefault();
-            handlePasteRef.current(files);
+          if (files.length === 0) return;
+          e.preventDefault();
+          if (!canUploadImages) {
+            warnNoUploadCapacity();
+            return;
           }
+          handlePasteRef.current(files);
         }}
         onDrop={(e) => {
           const files = Array.from(e.dataTransfer?.files || []).filter((f) => f.type.startsWith('image/'));
-          if (files.length > 0) {
-            e.preventDefault();
-            handleDropRef.current(files);
+          if (files.length === 0) return;
+          e.preventDefault();
+          if (!canUploadImages) {
+            warnNoUploadCapacity();
+            return;
           }
+          handleDropRef.current(files);
         }}
         onDragOver={(e) => e.preventDefault()}
       >
         <EditorContent editor={editor} style={{ padding: '8px 12px' }} />
         {editor && isRichTextEmpty(editor.getHTML()) && (
-          <div
-            aria-hidden
-            style={{
-              position: 'absolute',
-              top: 10,
-              left: 14,
-              color: '#bfbfbf',
-              pointerEvents: 'none',
-              fontSize: 14,
-            }}
-          >
-            {placeholder}
+          <div aria-hidden className="ticket-rich-editor__placeholder">
+            {effectivePlaceholder}
           </div>
         )}
       </div>
@@ -434,14 +394,91 @@ export const RichTextEditor: React.FC<RichTextEditorProps> = ({
           max-width: 100%;
           height: auto;
         }
+        /* ---- 可缩放图片（NodeView）：选中描边 + 四角拖拽手柄 ---- */
+        .rich-text-editor .rte-image-node {
+          position: relative;
+          display: block;
+          width: fit-content;
+          max-width: 100%;
+          line-height: 0;
+        }
+        .rich-text-editor .rte-image-node[data-align='center'] {
+          margin-left: auto;
+          margin-right: auto;
+        }
+        .rich-text-editor .rte-image-node[data-align='right'] {
+          margin-left: auto;
+        }
+        .rich-text-editor .rte-image-node--selected {
+          outline: 2px solid var(--rte-image-outline, #1677ff);
+          outline-offset: 2px;
+        }
+        .rich-text-editor .rte-image-node__img {
+          display: block;
+          max-width: 100%;
+          height: auto;
+        }
+        .rich-text-editor .rte-image-node__handle {
+          position: absolute;
+          display: none;
+          width: 10px;
+          height: 10px;
+          background: #fff;
+          border: 1.5px solid var(--rte-image-outline, #1677ff);
+          border-radius: 2px;
+          touch-action: none;
+        }
+        .rich-text-editor .rte-image-node--selected .rte-image-node__handle,
+        .rich-text-editor .rte-image-node:focus-within .rte-image-node__handle {
+          display: block;
+        }
+        .rich-text-editor .rte-image-node__handle:focus-visible {
+          outline: 2px solid var(--rte-image-outline, #1677ff);
+          outline-offset: 2px;
+        }
+        .rich-text-editor .rte-image-node__handle--nw {
+          top: -5px;
+          left: -5px;
+          cursor: nwse-resize;
+        }
+        .rich-text-editor .rte-image-node__handle--ne {
+          top: -5px;
+          right: -5px;
+          cursor: nesw-resize;
+        }
+        .rich-text-editor .rte-image-node__handle--sw {
+          bottom: -5px;
+          left: -5px;
+          cursor: nesw-resize;
+        }
+        .rich-text-editor .rte-image-node__handle--se {
+          bottom: -5px;
+          right: -5px;
+          cursor: nwse-resize;
+        }
+        /* ---- 图片浮动工具条（BubbleMenu 渲染到 body，需独立类名定样式） ---- */
+        .rich-text-editor__image-menu .rich-text-editor__image-menu-inner {
+          display: flex;
+          align-items: center;
+          gap: 2px;
+          padding: 4px 6px;
+          border: 1px solid var(--rte-menu-border, rgba(0, 0, 0, 0.12));
+          border-radius: 8px;
+          background: var(--rte-menu-bg, #fff);
+          box-shadow: 0 6px 16px rgba(0, 0, 0, 0.16);
+        }
+        .dark .rich-text-editor__image-menu .rich-text-editor__image-menu-inner {
+          border-color: rgba(255, 255, 255, 0.18);
+          background: #1f1f1f;
+        }
         .rich-text-editor .rte-content blockquote {
-          border-left: 3px solid #d9d9d9;
+          border-left: 3px solid var(--rte-quote-border, #d9d9d9);
           margin: 8px 0;
           padding-left: 12px;
-          color: #595959;
+          color: var(--rte-quote-text, #595959);
         }
         .rich-text-editor .rte-content pre {
-          background: #f5f5f5;
+          background: var(--rte-pre-bg, #f5f5f5);
           border-radius: 4px;
           padding: 8px 12px;
           overflow: auto;
@@ -451,7 +488,7 @@ export const RichTextEditor: React.FC<RichTextEditorProps> = ({
         }
         .rich-text-editor .rte-content th,
         .rich-text-editor .rte-content td {
-          border: 1px solid #d9d9d9;
+          border: 1px solid var(--rte-border, #d9d9d9);
           padding: 4px 8px;
         }
       `}</style>

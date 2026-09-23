@@ -62,6 +62,8 @@ func ToTicketResponse(ticket *ent.Ticket) *TicketResponse {
 		ID:                 ticket.ID,
 		Title:              ticket.Title,
 		Description:        ticket.Description,
+		DescriptionHTML:    ticket.DescriptionHTML,
+		DescriptionFormat:  ticket.DescriptionFormat,
 		Status:             ticket.Status,
 		Priority:           ticket.Priority,
 		Type:               ticket.Type,

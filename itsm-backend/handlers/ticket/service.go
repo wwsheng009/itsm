@@ -8,6 +8,7 @@ import (
 	"itsm-backend/common"
 	"itsm-backend/dto"
 	"itsm-backend/handlers/common/datascope"
+	"itsm-backend/internal/sanitize"
 	"itsm-backend/service"
 
 	"go.uber.org/zap"
@@ -41,11 +42,20 @@ func (s *Service) Create(ctx context.Context, tenantID int, params *CreateParams
 	if params.Type == "" {
 		params.Type = "incident"
 	}
+	// P2 富文本：服务端净化后非空才双写 HTML 列；未携带/清洗为空时保持 plain 行为。
+	if clean := sanitize.SanitizeRichTextHTML(params.DescriptionHTML); clean != "" {
+		params.DescriptionHTML = clean
+		params.DescriptionFormat = "html"
+	} else {
+		params.DescriptionHTML = ""
+		params.DescriptionFormat = ""
+	}
 
 	// Build the DTO for the production service which owns workflow/SLA/outbox logic.
 	req := &dto.CreateTicketRequest{
 		Title:                 params.Title,
 		Description:           params.Description,
+		DescriptionHTML:       params.DescriptionHTML,
 		Type:                  params.Type,
 		Priority:              params.Priority,
 		RequesterID:           params.RequesterID,
@@ -82,22 +92,24 @@ func (s *Service) Create(ctx context.Context, tenantID int, params *CreateParams
 
 	// Convert domain ticket back to handler-layer ticket for response mapping.
 	return &Ticket{
-		ID:             created.ID,
-		TicketNumber:   created.TicketNumber,
-		Title:          created.Title,
-		Description:    created.Description,
-		Status:         string(created.Status),
-		Priority:       string(created.Priority),
-		Type:           string(created.Type),
-		TicketTypeCode: created.TicketTypeCode,
-		TicketTypeName: created.TicketTypeName,
-		FormFields:     created.FormFields,
-		RequesterID:    created.RequesterID,
-		AssigneeID:     created.AssigneeID,
-		TenantID:       created.TenantID,
-		Version:        created.Version,
-		CreatedAt:      created.CreatedAt,
-		UpdatedAt:      created.UpdatedAt,
+		ID:                created.ID,
+		TicketNumber:      created.TicketNumber,
+		Title:             created.Title,
+		Description:       created.Description,
+		DescriptionHTML:   created.DescriptionHTML,
+		DescriptionFormat: created.DescriptionFormat,
+		Status:            string(created.Status),
+		Priority:          string(created.Priority),
+		Type:              string(created.Type),
+		TicketTypeCode:    created.TicketTypeCode,
+		TicketTypeName:    created.TicketTypeName,
+		FormFields:        created.FormFields,
+		RequesterID:       created.RequesterID,
+		AssigneeID:        created.AssigneeID,
+		TenantID:          created.TenantID,
+		Version:           created.Version,
+		CreatedAt:         created.CreatedAt,
+		UpdatedAt:         created.UpdatedAt,
 	}, nil
 }
 
@@ -136,12 +148,52 @@ func (s *Service) Update(ctx context.Context, tenantID int, id int, params *Upda
 	if params.Version == 0 {
 		params.Version = current.Version
 	}
+	// P2 富文本：更新为部分更新语义，仅清洗后非空时下发，避免空值覆盖已有 HTML。
+	htmlInput := ""
+	if params.DescriptionHTML != nil {
+		htmlInput = *params.DescriptionHTML
+	}
+	if clean := sanitize.SanitizeRichTextHTML(htmlInput); clean != "" {
+		clean = s.validateInlineImageRefs(ctx, tenantID, id, clean)
+		params.DescriptionHTML = &clean
+		format := "html"
+		params.DescriptionFormat = &format
+	} else {
+		params.DescriptionHTML = nil
+		params.DescriptionFormat = nil
+	}
 
 	updated, err := s.repo.Update(ctx, id, params, tenantID)
 	if err != nil {
 		return nil, fmt.Errorf("update ticket: %w", err)
 	}
 	return updated, nil
+}
+
+// validateInlineImageRefs BE-7：经生产服务校验正文内嵌图片引用的宿主归属，
+// 剥离不属于本工单的引用并逐条告警；校验器缺失或查询失败时不阻塞写入。
+func (s *Service) validateInlineImageRefs(ctx context.Context, tenantID, ticketID int, html string) string {
+	if s.productionSvc == nil {
+		return html
+	}
+	validated, violations, err := s.productionSvc.ValidateRichTextInlineRefs(
+		ctx, tenantID, service.AttachmentBizTypeTicket, ticketID, html)
+	if err != nil {
+		s.logger.Warnw("内嵌图片引用校验失败，按清洗结果落库",
+			"error", err, "tenant_id", tenantID, "ticket_id", ticketID)
+		return html
+	}
+	for _, v := range violations {
+		s.logger.Warnw("剥离越权内嵌图片引用",
+			"tenant_id", tenantID,
+			"biz_type", service.AttachmentBizTypeTicket,
+			"biz_id", ticketID,
+			"attachment_id", v.AttachmentID,
+			"reason", v.Reason,
+			"src", v.Src,
+		)
+	}
+	return validated
 }
 
 // Delete soft-deletes a ticket.

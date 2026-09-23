@@ -19,11 +19,13 @@ import {
   Col,
   Flex,
   Tooltip,
+  Spin,
 } from 'antd';
 import { antdTheme } from '@/lib/antd-theme';
 import { AuthService } from '@/lib/services/auth-service';
 import { logger } from '@/lib/env';
 import { useAuthStoreHydration } from '@/lib/store/auth-store';
+import { notify } from '@/lib/notify';
 
 const { Text, Title } = Typography;
 
@@ -41,11 +43,19 @@ function LoginForm() {
   useAuthStoreHydration();
 
   // 状态管理
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(false); // 提交中（含限流倒计时）
+  const [succeeded, setSucceeded] = useState(false); // 会话已被服务端确认，正在跳转
+  const [slowRedirect, setSlowRedirect] = useState(false); // 客户端跳转过慢，已改用整页跳转
   const [error, setError] = useState('');
+  const [shake, setShake] = useState(false); // 失败时抖动卡片，避免"点了没反应"的观感
   const [countdown, setCountdown] = useState(0); // P0-2：限流倒计时（秒）
   const countdownTimer = useRef<ReturnType<typeof setInterval> | null>(null);
+  // 倒计时期间按钮必须保持 loading，finally 不得解除（见 handleLogin）
+  const countdownActive = useRef(false);
   const [rememberMe, setRememberMe] = useState(false);
+
+  // 按钮/输入框忙碌态：提交中或已确认成功但尚未离开登录页
+  const busy = loading || succeeded;
 
   // 清理倒计时定时器
   useEffect(() => {
@@ -61,6 +71,7 @@ function LoginForm() {
     if (countdownTimer.current) {
       clearInterval(countdownTimer.current);
     }
+    countdownActive.current = true;
     setCountdown(seconds);
     setLoading(true);
     countdownTimer.current = setInterval(() => {
@@ -70,6 +81,7 @@ function LoginForm() {
             clearInterval(countdownTimer.current);
             countdownTimer.current = null;
           }
+          countdownActive.current = false;
           setLoading(false);
           return 0;
         }
@@ -82,11 +94,67 @@ function LoginForm() {
   const isExpired = searchParams.get('expired') === 'true';
   const redirectPath = searchParams.get('redirect') || '/dashboard';
 
+  /**
+   * 统一的失败反馈出口。
+   *
+   * 同时做三件事，缺一件用户就容易以为"点了没反应"：
+   * 1. 内联 Alert —— 持久可见，可回看具体原因；
+   * 2. toast —— 即时打断视线，表单被键盘/滚动遮挡时也能看到；
+   * 3. 卡片抖动 —— 不依赖阅读文字的即时反馈。
+   */
+  const reportFailure = (text: string) => {
+    setError(text);
+    setShake(true);
+    // 不传 context：notify 会自动拼成「<context>失败：...」，
+    // 而这里抓到的已经是完整可读的一句话，避免出现"登录失败失败"。
+    notify.error(new Error(text), { fallback: text });
+  };
+
+  /**
+   * 把异常翻译成用户可读的一句话。
+   *
+   * 后端在凭证错误时直接回内部英文串（handlers/common/service.go 的
+   * "invalid credentials"），网络层则可能是 "Failed to fetch"，
+   * 两者原样展示对用户都没有意义，这里统一收敛成本地化文案。
+   */
+  const describeError = (err: unknown): string => {
+    // fetch 在网络不通/被拦截时抛 TypeError
+    if (err instanceof TypeError) return t('auth.login.networkError');
+    const text = (err instanceof Error ? err.message : '').trim();
+    if (!text) return t('auth.login.loginFailed');
+
+    const lower = text.toLowerCase();
+    if (lower.includes('invalid credentials')) return t('auth.login.invalidCredentials');
+    if (lower.includes('user account is inactive')) return t('auth.login.accountInactive');
+    return text;
+  };
+
+  // 跳转兜底：router.push 是客户端导航，必须等目标路由的 RSC 负载返回才切页；
+  // 慢环境（首次编译、后端慢）下这一步可能远超预期。此时有两条硬性要求：
+  // 1. 绝不能提示"登录失败"——会话已经确认成功，报失败是自相矛盾的假警报；
+  // 2. 不能只是干等或弹提示，要真的把用户送进去：改用整页跳转
+  //    window.location.assign，绕开客户端路由，由浏览器自己显示加载进度。
+  useEffect(() => {
+    if (!succeeded) return;
+    const timer = setTimeout(() => {
+      logger.warn('客户端跳转超时，改用整页跳转:', redirectPath);
+      setSlowRedirect(true);
+      window.location.assign(redirectPath);
+    }, 10000);
+    return () => clearTimeout(timer);
+  }, [succeeded, redirectPath]);
+
   // 处理登录提交
   const handleLogin = async (values: { username: string; password: string }) => {
     logger.info('开始登录:', values);
     setLoading(true);
     setError('');
+    setSucceeded(false);
+    setSlowRedirect(false);
+
+    // 成功跳转中不解锁按钮：置为 true 后只允许"离开本页"，
+    // 不允许界面回到可点击的静止态（那正是"没有过渡"的来源）。
+    let authenticated = false;
 
     try {
       const success = await AuthService.login(
@@ -96,32 +164,49 @@ function LoginForm() {
         rememberMe
       );
 
-      if (success) {
-        logger.info('认证信息已存储，准备跳转');
-        router.push(redirectPath);
-        logger.info('已执行跳转命令');
-      } else {
-        setError(t('auth.login.loginFailed'));
+      if (!success) {
+        reportFailure(t('auth.login.loginFailed'));
+        return;
       }
+
+      authenticated = true;
+      logger.info('认证信息已存储，准备跳转');
+
+      // 成功提示必须先于跳转出现：router.push 是异步导航，目标页的 RSC 负载
+      // 通常还要几百毫秒；这段空窗期若不给任何反馈，用户看到的就是
+      // "点了登录，页面没动静"。
+      setSucceeded(true);
+      notify.success(t('auth.login.loginSuccess'));
+
+      router.push(redirectPath);
+      logger.info('已执行跳转命令');
     } catch (err) {
       logger.error('登录错误:', err);
       const e = err as Error & { retryAfterSeconds?: number };
       // P0-2：限流响应携带 retryAfterSeconds，启动倒计时让按钮显示剩余秒数。
       if (typeof e.retryAfterSeconds === 'number' && e.retryAfterSeconds > 0) {
-        setError(`${e.message}（${e.retryAfterSeconds} 秒后自动恢复）`);
+        reportFailure(`${e.message}（${e.retryAfterSeconds} 秒后自动恢复）`);
         startCountdown(e.retryAfterSeconds);
         return;
       }
-      setError(e instanceof Error ? e.message : t('auth.login.loginFailed'));
+      reportFailure(describeError(err));
     } finally {
-      if (countdown === 0) {
+      // 倒计时与跳转各自管理 loading，这里只负责普通失败后解锁按钮
+      if (!authenticated && !countdownActive.current) {
         setLoading(false);
       }
     }
   };
 
   return (
-    <Card className='rounded-xl shadow-xl border-none' styles={{ body: { padding: '40px' } }}>
+    <Card
+      className={`relative rounded-xl shadow-xl border-none ${shake ? 'animate-shake' : ''}`}
+      onAnimationEnd={e => {
+        // 只响应抖动本身：子元素的 animationend 会冒泡到这里
+        if (e.animationName === 'shake') setShake(false);
+      }}
+      styles={{ body: { padding: '40px' } }}
+    >
       <div className='text-center mb-6'>
         <Title level={2} className='!mb-2 !text-gray-900 !text-2xl'>
           {t('auth.login.title')}
@@ -159,13 +244,26 @@ function LoginForm() {
         />
       )}
 
-      {error && (
+      {/* 成功反馈：跳转前的明确确认，同时说明"接下来会发生什么" */}
+      {succeeded && (
+        <Alert
+          title={t('auth.login.loginSuccess')}
+          description={t('auth.login.loginSuccessDetail')}
+          type='success'
+          className='mb-5 animate-slide-down'
+          showIcon
+        />
+      )}
+
+      {error && !succeeded && (
         <Alert
           title={t('auth.login.loginFailed')}
           description={error}
           type='error'
-          className='mb-5'
+          className='mb-5 animate-slide-down'
           showIcon
+          closable
+          onClose={() => setError('')}
         />
       )}
 
@@ -175,7 +273,7 @@ function LoginForm() {
         onFinishFailed={({ values, errorFields }) => {
           logger.warn('表单验证失败:', errorFields);
           if (errorFields.length > 0) {
-            setError(errorFields[0].errors[0] || t('auth.login.loginFailed'));
+            reportFailure(errorFields[0].errors[0] || t('auth.login.loginFailed'));
           }
         }}
         layout='vertical'
@@ -192,7 +290,7 @@ function LoginForm() {
           <Input
             prefix={<User size={14} className='text-gray-400' />}
             placeholder={t('auth.login.usernamePlaceholder')}
-            disabled={loading}
+            disabled={busy}
           />
         </Form.Item>
 
@@ -207,7 +305,7 @@ function LoginForm() {
           <Input.Password
             prefix={<Lock size={14} className='text-gray-400' />}
             placeholder={t('auth.login.passwordPlaceholder')}
-            disabled={loading}
+            disabled={busy}
           />
         </Form.Item>
 
@@ -216,13 +314,13 @@ function LoginForm() {
             <Checkbox
               checked={rememberMe}
               onChange={e => setRememberMe(e.target.checked)}
-              disabled={loading}
+              disabled={busy}
             >
               {t('auth.login.rememberMe')}
             </Checkbox>
-            <Tooltip title={loading ? '登录中...' : ''}>
+            <Tooltip title={busy ? t('auth.login.loggingIn') : ''}>
               <Link href='/forgot-password'>
-                <Button type='link' className='p-0 h-auto text-xs' disabled={loading}>
+                <Button type='link' className='p-0 h-auto text-xs' disabled={busy}>
                   {t('auth.login.forgotPassword')}
                 </Button>
               </Link>
@@ -234,7 +332,7 @@ function LoginForm() {
           <Button
             type='primary'
             htmlType='submit'
-            loading={loading}
+            loading={busy}
             disabled={countdown > 0}
             size='large'
             className='w-full h-10 rounded-md text-sm font-semibold'
@@ -242,9 +340,11 @@ function LoginForm() {
           >
             {countdown > 0
               ? `请等待 ${countdown} 秒`
-              : loading
-                ? t('auth.login.loggingIn')
-                : t('auth.login.loginButton')}
+              : succeeded
+                ? t('auth.login.redirecting')
+                : loading
+                  ? t('auth.login.loggingIn')
+                  : t('auth.login.loginButton')}
           </Button>
         </Form.Item>
       </Form>
@@ -259,6 +359,23 @@ function LoginForm() {
           </Link>
         </Text>
       </div>
+
+      {/* 跳转过渡：从"确认会话成功"到目标页渲染完成之间的视觉衔接。
+          延迟 200ms 出现，导航很快时不会闪一下。 */}
+      {succeeded && (
+        <div
+          className='animate-fade-in-late absolute inset-0 z-10 flex flex-col items-center justify-center gap-3 rounded-xl bg-white/90'
+          role='status'
+          aria-live='polite'
+        >
+          <Spin size='large' />
+          {/* 超时后不报失败，只说"换一种方式进入"，避免与成功提示自相矛盾。
+              遮罩不用 backdrop-blur：模糊整块卡片在慢机器上很贵，而它恰好在跳转时显示。 */}
+          <Text className='!text-gray-600 !text-sm'>
+            {slowRedirect ? t('auth.login.slowRedirect') : t('auth.login.loginSuccessDetail')}
+          </Text>
+        </div>
+      )}
     </Card>
   );
 }
@@ -316,7 +433,7 @@ export default function LoginPage() {
             </Col>
 
             {/* 右侧登录表单 — 使用 Suspense 包裹 useSearchParams */}
-            <Col xs={24} lg={14}>
+            <Col xs={24} lg={14} className='animate-scale-in'>
               <Suspense
                 fallback={
                   <Card

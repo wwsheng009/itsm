@@ -18,6 +18,10 @@ const (
 	FieldTitle = "title"
 	// FieldDescription holds the string denoting the description field in the database.
 	FieldDescription = "description"
+	// FieldDescriptionHTML holds the string denoting the description_html field in the database.
+	FieldDescriptionHTML = "description_html"
+	// FieldDescriptionFormat holds the string denoting the description_format field in the database.
+	FieldDescriptionFormat = "description_format"
 	// FieldStatus holds the string denoting the status field in the database.
 	FieldStatus = "status"
 	// FieldType holds the string denoting the type field in the database.
@@ -249,6 +253,8 @@ var Columns = []string{
 	FieldID,
 	FieldTitle,
 	FieldDescription,
+	FieldDescriptionHTML,
+	FieldDescriptionFormat,
 	FieldStatus,
 	FieldType,
 	FieldTicketTypeID,
@@ -328,6 +334,10 @@ func ValidColumn(column string) bool {
 var (
 	// TitleValidator is a validator for the "title" field. It is called by the builders before save.
 	TitleValidator func(string) error
+	// DefaultDescriptionFormat holds the default value on creation for the "description_format" field.
+	DefaultDescriptionFormat string
+	// DescriptionFormatValidator is a validator for the "description_format" field. It is called by the builders before save.
+	DescriptionFormatValidator func(string) error
 	// DefaultStatus holds the default value on creation for the "status" field.
 	DefaultStatus string
 	// DefaultType holds the default value on creation for the "type" field.
@@ -380,6 +390,16 @@ func ByTitle(opts ...sql.OrderTermOption) OrderOption {
 // ByDescription orders the results by the description field.
 func ByDescription(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldDescription, opts...).ToFunc()
+}
+
+// ByDescriptionHTML orders the results by the description_html field.
+func ByDescriptionHTML(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldDescriptionHTML, opts...).ToFunc()
+}
+
+// ByDescriptionFormat orders the results by the description_format field.
+func ByDescriptionFormat(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldDescriptionFormat, opts...).ToFunc()
 }
 
 // ByStatus orders the results by the status field.

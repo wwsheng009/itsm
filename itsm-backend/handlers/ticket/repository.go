@@ -53,20 +53,22 @@ type Repository interface {
 
 // CreateParams holds parameters for creating a ticket
 type CreateParams struct {
-	Title          string
-	Description    string
-	Type           string
-	Priority       string
-	RequesterID    int
-	AssigneeID     *int
-	TicketTypeID   *int
-	TicketTypeCode string
-	TicketTypeName string
-	CategoryID     *int
-	TemplateID     *int
-	ParentTicketID *int
-	FormFields     map[string]interface{}
-	TagIDs         []int
+	Title             string
+	Description       string
+	DescriptionHTML   string
+	DescriptionFormat string
+	Type              string
+	Priority          string
+	RequesterID       int
+	AssigneeID        *int
+	TicketTypeID      *int
+	TicketTypeCode    string
+	TicketTypeName    string
+	CategoryID        *int
+	TemplateID        *int
+	ParentTicketID    *int
+	FormFields        map[string]interface{}
+	TagIDs            []int
 	// WorkflowDefinitionKey 调用方显式指定的 BPMN 流程 Key（可选）。
 	// 2026-09-07 修复：此前 handler→service 链路双层丢参，导致该参数
 	// 永远无法到达 workflow_start 命令（payload 恒空串）。
@@ -75,16 +77,18 @@ type CreateParams struct {
 
 // UpdateParams holds parameters for updating a ticket
 type UpdateParams struct {
-	Title       *string
-	Description *string
-	Status      *string
-	Priority    *string
-	Type        *string
-	AssigneeID  *int
-	CategoryID  *int
-	Resolution  *string
-	FormFields  *map[string]interface{}
-	Version     int
-	ReplaceTags bool
-	TagIDs      []int
+	Title             *string
+	Description       *string
+	DescriptionHTML   *string
+	DescriptionFormat *string
+	Status            *string
+	Priority          *string
+	Type              *string
+	AssigneeID        *int
+	CategoryID        *int
+	Resolution        *string
+	FormFields        *map[string]interface{}
+	Version           int
+	ReplaceTags       bool
+	TagIDs            []int
 }

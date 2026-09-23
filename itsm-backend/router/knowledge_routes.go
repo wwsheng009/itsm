@@ -1,15 +1,18 @@
 package router
 
 import (
+	attachmentHandler "itsm-backend/handlers/attachment"
 	knowledgeHandler "itsm-backend/handlers/knowledge"
 	"itsm-backend/middleware"
+	"itsm-backend/service"
 
 	"github.com/gin-gonic/gin"
 )
 
 // SetupKnowledgeRoutes 注册知识库相关路由。
 // 从 router.go 的集中注册块抽取而来，路由路径/方法/中间件与抽取前逐行一致。
-func SetupKnowledgeRoutes(tenant *gin.RouterGroup, h *knowledgeHandler.Handler) {
+// attachmentHandler 非空时挂载附件域内别名（BE-5，§3.2），权限复用 knowledge 宿主码。
+func SetupKnowledgeRoutes(tenant *gin.RouterGroup, h *knowledgeHandler.Handler, attachmentHandler *attachmentHandler.Handler) {
 	// New route structure: /api/v1/knowledge/articles
 	knowledgeGrp := tenant.Group("/knowledge")
 	{
@@ -29,6 +32,16 @@ func SetupKnowledgeRoutes(tenant *gin.RouterGroup, h *knowledgeHandler.Handler) 
 			// Comments
 			articles.GET("/:id/comments", middleware.RequirePermission("knowledge", "read"), h.GetArticleComments)
 			articles.POST("/:id/comments", middleware.RequirePermission("knowledge", "write"), h.AddArticleComment)
+
+			// 附件域内别名（BE-5，§3.2）：静态声明宿主权限码，处理体复用通用附件 A1/A2/A4/A5。
+			if attachmentHandler != nil {
+				articles.GET("/:id/attachments", middleware.RequirePermission("knowledge", "read"), attachmentHandler.AliasList(service.AttachmentBizTypeKnowledgeArticle))
+				articles.POST("/:id/attachments", middleware.RequirePermission("knowledge", "write"), attachmentHandler.AliasUpload(service.AttachmentBizTypeKnowledgeArticle))
+				articles.GET("/:id/attachments/:ref", middleware.RequirePermission("knowledge", "read"), attachmentHandler.AliasDownload(service.AttachmentBizTypeKnowledgeArticle, false))
+				articles.GET("/:id/attachments/:ref/download", middleware.RequirePermission("knowledge", "read"), attachmentHandler.AliasDownload(service.AttachmentBizTypeKnowledgeArticle, false))
+				articles.GET("/:id/attachments/:ref/preview", middleware.RequirePermission("knowledge", "read"), attachmentHandler.AliasDownload(service.AttachmentBizTypeKnowledgeArticle, true))
+				articles.DELETE("/:id/attachments/:ref", middleware.RequirePermission("knowledge", "delete"), attachmentHandler.AliasDelete(service.AttachmentBizTypeKnowledgeArticle))
+			}
 		}
 
 		// Categories

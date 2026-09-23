@@ -22,6 +22,7 @@ import (
 	approvalChainHandler "itsm-backend/handlers/approval_chain"
 	assetHandler "itsm-backend/handlers/asset"
 	assignmentSmartHandler "itsm-backend/handlers/assignment_smart"
+	attachmentHandler "itsm-backend/handlers/attachment"
 	auditlogHandler "itsm-backend/handlers/auditlog"
 	authHandler "itsm-backend/handlers/auth"
 	automationRuleHandler "itsm-backend/handlers/automation_rule"
@@ -142,6 +143,7 @@ type RouterConfig struct {
 	TicketDependencyHandler      *ticketDependencyHandler.Handler
 	TicketCommentHandler         *ticketCommentHandler.Handler
 	TicketAttachmentHandler      *ticketAttachmentHandler.Handler
+	AttachmentHandler            *attachmentHandler.Handler
 	TicketNotificationHandler    *ticketNotificationHandler.Handler
 	TicketRatingHandler          *ticketRatingHandler.Handler
 	TicketAssignmentSmartHandler *assignmentSmartHandler.Handler
@@ -268,7 +270,7 @@ func SetupRoutes(r *gin.Engine, config *RouterConfig) {
 					allowed = fallbackLimiter.Allow(clientIP)
 				}
 				if !allowed {
-					common.Fail(c, 429, "请求过于频繁，请稍后再试")
+					common.Fail(c, common.TooManyRequestsCode, "请求过于频繁，请稍后再试")
 					c.Abort()
 					return
 				}
@@ -467,6 +469,11 @@ func SetupRoutes(r *gin.Engine, config *RouterConfig) {
 		// ==================== Tickets ====================
 		SetupTicketRoutes(tenant.(*gin.RouterGroup), config)
 
+		// ==================== Generic Attachments (A1-A6) ====================
+		if config.AttachmentHandler != nil {
+			SetupAttachmentRoutes(tenant.(*gin.RouterGroup), config.AttachmentHandler)
+		}
+
 		// ==================== System Configs ====================
 		if config.SystemConfigHandler != nil {
 			SetupSystemConfigRoutes(tenant.(*gin.RouterGroup), config.SystemConfigHandler, config.TenantHandler, config.VectorStoreHandler, config.AppStartTime)
@@ -491,7 +498,8 @@ func SetupRoutes(r *gin.Engine, config *RouterConfig) {
 		}
 
 		if config.ServiceRequestHandler != nil {
-			SetupServiceRequestRoutes(tenant.(*gin.RouterGroup), config.ServiceRequestHandler, config.ProvisioningHandler)
+			// BE-5：附件域内别名与 service-requests 同组注册，宿主权限码在子路由文件内声明。
+			SetupServiceRequestRoutes(tenant.(*gin.RouterGroup), config.ServiceRequestHandler, config.ProvisioningHandler, config.AttachmentHandler)
 		}
 
 		// ==================== Problems (DDD) ====================
@@ -540,7 +548,8 @@ func SetupRoutes(r *gin.Engine, config *RouterConfig) {
 
 		// ==================== Knowledge Base (DDD) ====================
 		if config.KnowledgeHandler != nil {
-			SetupKnowledgeRoutes(tenant.(*gin.RouterGroup), config.KnowledgeHandler)
+			// BE-5：附件域内别名与 knowledge 同组注册，宿主权限码在子路由文件内声明。
+			SetupKnowledgeRoutes(tenant.(*gin.RouterGroup), config.KnowledgeHandler, config.AttachmentHandler)
 		}
 
 		if config.SLAHandler != nil {

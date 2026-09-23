@@ -25,7 +25,71 @@ type Config struct {
 	Security       SecurityConfig       `mapstructure:"security"`
 	Deployment     DeploymentConfig     `mapstructure:"deployment"`
 	RLS            RLSConfig            `mapstructure:"rls"`
+	Attachment     AttachmentConfig     `mapstructure:"attachment"`
 	CloudDiscovery CloudDiscoveryConfig `mapstructure:"cloud_discovery"`
+}
+
+// AttachmentConfig 是附件域的灰度开关（方案 §6.1 开关与回滚矩阵）。
+//
+// 默认全为 false，即保留现网旧链路、零行为变化。灰度与回退只改本块（部署级）
+// 或租户级 system_config 的 attachment 分组（键名与本块一致，见
+// docs/install.md「3.1 附件域灰度开关」）。
+type AttachmentConfig struct {
+	// GenericReadEnabled: attachment.generic_read_enabled
+	// 通用读路径（A2/A3/A4/A6）；关闭后回退旧表读取，URL 不变。
+	GenericReadEnabled bool `mapstructure:"generic_read_enabled"`
+	// GenericWriteEnabled: attachment.generic_write_enabled
+	// 通用写入（A1/A5）；关闭后回退旧工单写入路径。
+	GenericWriteEnabled bool `mapstructure:"generic_write_enabled"`
+	// DualWriteEnabled: attachment.dual_write_enabled
+	// 双写对账（P2）；关闭即停止双写，旧表为事实源。
+	DualWriteEnabled bool `mapstructure:"dual_write_enabled"`
+	// InlineImageEnabled: attachment.inline_image_enabled
+	// 富文本内嵌图片走通用链路；关闭即编辑器图片入口禁用（fail-fast，AC-8）。
+	InlineImageEnabled bool `mapstructure:"inline_image_enabled"`
+
+	// CleanupEnabled: attachment.cleanup_enabled
+	// BE-8 生命周期清理任务；默认 false（后台任务不启动，软删记录与物理文件都不动）。
+	CleanupEnabled bool `mapstructure:"cleanup_enabled"`
+	// CleanupPurgeEnabled: attachment.cleanup_purge_enabled
+	// 允许清理任务真实删除物理文件与元数据；默认 false = 仅演练（dry-run，只统计不落删）。
+	// 上线顺序固定为「先开任务观察一轮 → 核对演练清单 → 再开落删」。
+	CleanupPurgeEnabled bool `mapstructure:"cleanup_purge_enabled"`
+	// RetentionDays: attachment.retention_days
+	// 软删保留期（天），默认 30；deleted_at 早于 now-retention 的记录进入回收候选。
+	// 仅影响软删记录的物理回收，不影响在线读取与人工恢复窗口。
+	RetentionDays int `mapstructure:"retention_days"`
+	// CleanupIntervalMinutes: attachment.cleanup_interval_minutes
+	// 清理任务轮询间隔（分钟），默认 360（6 小时）。
+	CleanupIntervalMinutes int `mapstructure:"cleanup_interval_minutes"`
+	// CleanupBatchSize: attachment.cleanup_batch_size
+	// 单轮单租户最多处理的候选记录数，默认 200（上限 1000，超限按上限截断）。
+	CleanupBatchSize int `mapstructure:"cleanup_batch_size"`
+}
+
+// 附件域清理默认值（BE-8）。与 service.AttachmentDefault* 保持同值：
+// config 不反向依赖 service 包，故此处独立声明，两侧都有单测钉住。
+const (
+	attachmentDefaultRetentionDays          = 30
+	attachmentDefaultCleanupIntervalMinutes = 360
+	attachmentDefaultCleanupBatchSize       = 200
+)
+
+// applyAttachmentDefaults 补齐附件域清理配置的零值默认（未写配置块时同样生效）。
+// 注意：所有布尔开关保持「零值 = 关闭」，不在此处反转，避免「没配置就等于打开」的隐式行为。
+func applyAttachmentDefaults(cfg *AttachmentConfig) {
+	if cfg == nil {
+		return
+	}
+	if cfg.RetentionDays <= 0 {
+		cfg.RetentionDays = attachmentDefaultRetentionDays
+	}
+	if cfg.CleanupIntervalMinutes <= 0 {
+		cfg.CleanupIntervalMinutes = attachmentDefaultCleanupIntervalMinutes
+	}
+	if cfg.CleanupBatchSize <= 0 {
+		cfg.CleanupBatchSize = attachmentDefaultCleanupBatchSize
+	}
 }
 
 // CloudDiscoveryConfig contains deployment-owned credential material used to
@@ -257,6 +321,7 @@ func LoadConfig() (*Config, error) {
 	viper.Set("security", rawConfig["security"])
 	viper.Set("admin", rawConfig["admin"])
 	viper.Set("deployment", rawConfig["deployment"])
+	viper.Set("attachment", rawConfig["attachment"])
 	viper.Set("cloud_discovery", rawConfig["cloud_discovery"])
 
 	// 重新绑定到 Config 结构
@@ -283,6 +348,10 @@ func LoadConfig() (*Config, error) {
 	config.Deployment.Mode = getEnvWithDefault("DEPLOYMENT_MODE", config.Deployment.Mode)
 	config.Deployment.AutoMigrate = getEnvBoolWithDefault("ITSM_AUTO_MIGRATE", config.Deployment.AutoMigrate)
 	config.Deployment.AutoSeed = getEnvBoolWithDefault("ITSM_AUTO_SEED", config.Deployment.AutoSeed)
+
+	// 附件域清理默认值（BE-8）：保留期 30 天 / 轮询 360 分钟 / 单批 200 条；
+	// cleanup_enabled 与 cleanup_purge_enabled 保持零值 false（未配置即关闭）。
+	applyAttachmentDefaults(&config.Attachment)
 
 	// RLS 三档开关，默认 off（零风险）。
 	config.RLS.Mode = getEnvWithDefault("RLS_MODE", config.RLS.Mode)

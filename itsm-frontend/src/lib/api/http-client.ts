@@ -227,8 +227,29 @@ class HttpClient {
     return merged;
   }
 
+  // refresh_token 是单次使用的：后端每次刷新都会轮换并吊销旧的 jti
+  // （实测：同一 refresh_token 第二次使用直接返回 401 "refresh token has been revoked"）。
+  // 因此并发 401 必须共享同一个刷新请求；否则后到的刷新会被判定为已吊销，
+  // 客户端会 clearToken 并 window.location.href 跳回 /login，表现为
+  // 「登录接口已成功返回，但页面被弹回登录页 / 用户态没有更新」。
+  private refreshInFlight: Promise<boolean> | null = null;
+
   // Independent token refresh method to avoid circular dependencies
   private async refreshTokenInternal(): Promise<boolean> {
+    if (this.refreshInFlight) {
+      return this.refreshInFlight;
+    }
+    const inFlight = this.performRefreshToken().finally(() => {
+      // 仅当自己仍是当前航班时清理，避免误清后来者的 promise
+      if (this.refreshInFlight === inFlight) {
+        this.refreshInFlight = null;
+      }
+    });
+    this.refreshInFlight = inFlight;
+    return inFlight;
+  }
+
+  private async performRefreshToken(): Promise<boolean> {
     try {
       const response = await fetch(`${this.baseURL}/api/v1/refresh-token`, {
         method: 'POST',

@@ -153,6 +153,13 @@ describe('AuthService', () => {
             }),
         });
 
+        // 登录成功后 AuthService 会再确认一次会话（GET /api/v1/auth/me），
+        // 以确保 middleware 真正认可这次登录，而不是静默跳回 /login。
+        mockFetch.mockResolvedValueOnce({
+          ok: true,
+          json: () => Promise.resolve({ code: 0, message: 'success', data: { id: 1 } }),
+        });
+
         const result = await AuthService.login('testuser', 'password123', 'test', true);
 
         expect(result).toBe(true);
@@ -175,6 +182,28 @@ describe('AuthService', () => {
         const result = await AuthService.login('wronguser', 'wrongpass');
 
         expect(result).toBe(false);
+      });
+
+      // 回归：登录限流返回的是 HTTP 403 + {message, data.retryAfterSeconds}
+      // （middleware/rate_limiter.go → common.FailWithData(ForbiddenCode)）。
+      // 早先只解析 2xx 响应体，导致限流时前端既拿不到原因、也拿不到倒计时秒数，
+      // 用户看到的是内部串 "HTTP error! status: 403"。
+      it('should surface backend message and retryAfterSeconds from a non-2xx rate-limit response', async () => {
+        mockFetch.mockResolvedValueOnce({
+          ok: false,
+          status: 403,
+          json: () =>
+            Promise.resolve({
+              code: 2003,
+              message: '登录请求过于频繁，请稍后再试',
+              data: { retryAfterSeconds: 42 },
+            }),
+        });
+
+        await expect(AuthService.login('admin', 'wrongpass')).rejects.toMatchObject({
+          message: '登录请求过于频繁，请稍后再试',
+          retryAfterSeconds: 42,
+        });
       });
 
       it('should handle network errors gracefully', async () => {

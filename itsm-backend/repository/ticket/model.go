@@ -48,6 +48,8 @@ type Ticket struct {
 	TicketNumber          string
 	Title                 string
 	Description           string
+	DescriptionHTML       string
+	DescriptionFormat     string
 	Status                Status
 	Type                  Type
 	TicketTypeID          *int
@@ -196,35 +198,39 @@ type FilterParams struct {
 
 // CreateParams 工单创建参数
 type CreateParams struct {
-	Title          string
-	Description    string
-	Type           Type
-	TicketTypeID   *int
-	TicketTypeCode string
-	TicketTypeName string
-	FormFields     map[string]interface{}
-	Priority       Priority
-	RequesterID    int
-	AssigneeID     *int
-	CategoryID     *int
-	TemplateID     *int
-	ParentTicketID *int
-	TagIDs         []int
-	Tags           []string
+	Title             string
+	Description       string
+	DescriptionHTML   string
+	DescriptionFormat string
+	Type              Type
+	TicketTypeID      *int
+	TicketTypeCode    string
+	TicketTypeName    string
+	FormFields        map[string]interface{}
+	Priority          Priority
+	RequesterID       int
+	AssigneeID        *int
+	CategoryID        *int
+	TemplateID        *int
+	ParentTicketID    *int
+	TagIDs            []int
+	Tags              []string
 }
 
 // UpdateParams 工单更新参数
 type UpdateParams struct {
-	Title       *string
-	Description *string
-	Status      *Status
-	Type        *Type
-	Priority    *Priority
-	AssigneeID  *int
-	CategoryID  *int
-	ReplaceTags bool
-	TagIDs      []int
-	Resolution  *string
-	FormFields  *map[string]interface{}
-	Version     int // 乐观锁版本号
+	Title             *string
+	Description       *string
+	DescriptionHTML   *string
+	DescriptionFormat *string
+	Status            *Status
+	Type              *Type
+	Priority          *Priority
+	AssigneeID        *int
+	CategoryID        *int
+	ReplaceTags       bool
+	TagIDs            []int
+	Resolution        *string
+	FormFields        *map[string]interface{}
+	Version           int // 乐观锁版本号
 }

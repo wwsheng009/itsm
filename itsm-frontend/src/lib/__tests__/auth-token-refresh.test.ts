@@ -229,6 +229,42 @@ describe('Auth Token Refresh Mechanism', () => {
   // HttpClient.refreshTokenInternal()
   // ==========================================
   describe('HttpClient.refreshTokenInternal()', () => {
+    it('should share a single refresh request across concurrent 401s (single-flight)', async () => {
+      // 后端 refresh_token 单次使用：同一 token 第二次使用会被判定为已吊销
+      // （实测 401 "refresh token has been revoked"）。若并发 401 各自发起刷新，
+      // 后到者必然失败 → clearToken + window.location.href 跳回 /login，
+      // 表现为「登录接口已成功返回，但用户态被重置 / 被弹回登录页」。
+      document.cookie = 'refresh_token=single-flight-token';
+
+      let resolveFetch: (value: unknown) => void = () => {};
+      (fetch as jest.Mock).mockImplementationOnce(
+        () =>
+          new Promise(resolve => {
+            resolveFetch = resolve;
+          })
+      );
+
+      const inflight = [
+        // @ts-ignore - 直接验证私有方法的单飞语义
+        httpClient.refreshTokenInternal(),
+        // @ts-ignore
+        httpClient.refreshTokenInternal(),
+        // @ts-ignore
+        httpClient.refreshTokenInternal(),
+      ];
+
+      resolveFetch({
+        ok: true,
+        status: 200,
+        json: async () => ({ code: 0, message: 'success', data: {} }),
+      });
+
+      const results = await Promise.all(inflight);
+
+      expect(results).toEqual([true, true, true]);
+      expect(fetch).toHaveBeenCalledTimes(1);
+    });
+
     it('should return false when no refresh token exists', async () => {
       // @ts-ignore - Testing private method for internal behavior
       const result = await httpClient.refreshTokenInternal();
@@ -352,6 +388,13 @@ describe('Auth Token Refresh Mechanism', () => {
             user: { id: 1, username: 'admin' },
           },
         }),
+      });
+
+      // 登录成功后 AuthService 会再确认一次会话（GET /api/v1/auth/me）
+      (fetch as jest.Mock).mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        json: async () => ({ code: 0, message: 'success', data: { id: 1 } }),
       });
 
       const loginResult = await AuthService.login('admin', 'admin123');

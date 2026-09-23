@@ -93,3 +93,18 @@ security:
 rls:
   mode: "${RLS_MODE:off}"              # off, shadow, enforce
   tenant_var_name: "${RLS_TENANT_VAR_NAME:app.current_tenant}"
+
+# 附件域灰度开关（方案 docs/plan/generic-attachment-richtext-control-plan.md §6.1）
+# 全部默认 false = 保留现网旧链路、零行为变化；灰度/回退改本块（部署级）或租户级
+# system_config 的 attachment 分组（键名相同，见 docs/install.md「3.1 附件域灰度开关」）。
+attachment:
+  generic_read_enabled: ${ATTACHMENT_GENERIC_READ_ENABLED:false}    # 通用读路径（A2/A3/A4/A6）；关闭回退旧表，URL 不变
+  generic_write_enabled: ${ATTACHMENT_GENERIC_WRITE_ENABLED:false}  # 通用写入（A1/A5）；关闭回退旧工单写入路径
+  dual_write_enabled: ${ATTACHMENT_DUAL_WRITE_ENABLED:false}        # 双写对账（P2）；关闭即停止双写，旧表为事实源
+  inline_image_enabled: ${ATTACHMENT_INLINE_IMAGE_ENABLED:false}    # 富文本内嵌图片走通用链路；关闭即编辑器图片入口禁用
+  # —— BE-8 生命周期清理（部署级，无租户级覆盖）——
+  cleanup_enabled: ${ATTACHMENT_CLEANUP_ENABLED:false}              # 清理任务；关闭=不启动，软删记录与物理文件都不动
+  cleanup_purge_enabled: ${ATTACHMENT_CLEANUP_PURGE_ENABLED:false}  # 落删开关；false=仅演练（dry-run 只统计不删除）
+  retention_days: ${ATTACHMENT_RETENTION_DAYS:30}                   # 软删保留期（天），到期后回收物理文件
+  cleanup_interval_minutes: ${ATTACHMENT_CLEANUP_INTERVAL_MINUTES:360}  # 轮询间隔（分钟）
+  cleanup_batch_size: ${ATTACHMENT_CLEANUP_BATCH_SIZE:200}          # 单轮单租户处理上限（条，硬上限 1000）

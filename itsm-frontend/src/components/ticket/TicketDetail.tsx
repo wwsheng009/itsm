@@ -6,10 +6,12 @@
  * 包含：基本信息、SLA、审批/拒绝/分配/编辑/抄送/删除操作、详情 Tabs（评论/附件/审批链/历史/关联）
  */
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import dynamic from 'next/dynamic';
 import { useParams } from 'next/navigation';
 import { TicketApi, type TicketConfigurationItem } from '@/lib/api/ticket-api';
 import { TicketApprovalApi } from '@/lib/api/ticket-approval-api';
+import { TicketAttachmentApi } from '@/lib/api/ticket-attachment-api';
 import type { Ticket } from '@/lib/api/api-config';
 import type { User } from '@/lib/api/user-api';
 import { useUserListQuery } from '@/lib/hooks/useUserListQuery';
@@ -50,6 +52,13 @@ import { useAuthStore } from '@/lib/store/auth-store';
 import { useErrorHandler } from '@/lib/hooks/useErrorHandler';
 import { formatDateTime } from '@/lib/formatters';
 import { SafeTextBlock } from '@/components/common/SafeContent';
+import {
+  extractAttachmentImageIds,
+  htmlToPlainText,
+  isRichTextEmpty,
+  isRichTextEnabled,
+  sanitizeRichTextHtml,
+} from '@/lib/rich-text/sanitize';
 import { AISuggestionPanel } from '@/components/business/AISuggestionPanel';
 import { WorkflowProgressCard } from '@/components/business/WorkflowProgressCard';
 import {
@@ -67,6 +76,7 @@ import {
   fetchAuditLogHistory,
 } from '@/components/business/detail-tabs';
 import { RelationPanel } from '@/components/ticket-relations/RelationPanel';
+import RichTextImageViewer from '@/components/business/RichTextImageViewer';
 import {
   MessageSquare,
   Paperclip,
@@ -79,6 +89,29 @@ import { useI18n } from '@/lib/i18n/useI18n';
 
 const { Title, Text } = Typography;
 const { TextArea } = Input;
+
+// 编辑页富文本方案：§4.7 复用同一套 RichTextEditor
+//  - 动态导入（ssr: false），仅在编辑弹层打开后才拉取编辑器 chunk（§NF-2 / 风险表）
+const RichTextEditor = dynamic(() => import('@/components/business/RichTextEditor'), {
+  ssr: false,
+  loading: () => <Skeleton.Input active block style={{ height: 180 }} />,
+});
+
+/** 描述纯文本上限（沿用编辑弹层既有 maxLength 规则，超限由纯文本长度判定） */
+const EDIT_DESCRIPTION_MAX = 2000;
+
+/** 纯文本 → 富文本段落（编辑态回退回填，转义 HTML 特殊字符） */
+const plainTextToRichHtml = (text: string): string => {
+  if (!text) return '';
+  const escaped = text
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;');
+  return escaped
+    .split(/\n{2,}/)
+    .map((block) => `<p>${block.replace(/\n/g, '<br>')}</p>`)
+    .join('');
+};
 
 // 状态映射配置接口
 interface StatusConfig {
@@ -154,7 +187,7 @@ const renderFormFieldValue = (value: unknown): React.ReactNode => {
 
 const TicketDetail: React.FC<{ id?: string }> = ({ id: propId }) => {
   const params = useParams();
-  const { message: antMessage } = App.useApp();
+  const { message: antMessage, modal: antModal } = App.useApp();
   const { t } = useI18n();
   const { user: currentUser } = useAuthStore();
   const { handleError } = useErrorHandler();
@@ -201,6 +234,15 @@ const TicketDetail: React.FC<{ id?: string }> = ({ id: propId }) => {
   const [ccForm] = Form.useForm();
   const [approvalForm] = Form.useForm();
 
+  // 编辑页富文本：开关 / 脏数据基线（方案 §4.7 / AC-9）
+  const richTextEnabled = useMemo(() => isRichTextEnabled(), []);
+  const [editDirty, setEditDirty] = useState(false);
+  const editBaselineRef = useRef<string>('');
+  // 打开编辑弹层时描述内的附件图片快照，保存后用于解绑被移除的图片（§5.2）
+  const editInitialImageIdsRef = useRef<number[]>([]);
+  // 描述富文本容器：图片查看器（§4.9）在此容器上做事件委托
+  const descriptionRichRef = useRef<HTMLDivElement | null>(null);
+
   // 支持通过 props 传入 id，或通过 useParams 获取
   // 既支持数字 ID，也支持业务工单号(例:TKT-202609-000010)。
   // 后端事实（审核核实）：仅 GET /tickets/:id 支持单号 fallback（GetByNumber），
@@ -224,6 +266,12 @@ const TicketDetail: React.FC<{ id?: string }> = ({ id: propId }) => {
   // 所有下游操作（写操作/子组件/关联面板）统一使用数字 ID。
   // 单号路由下 ticket 加载完成后即有值；加载前子组件隐藏或禁用。
   const resolvedTicketId: number | undefined = numericId ?? (ticket as { id?: number } | null)?.id;
+
+  // 富文本回显：渲染态与写入共用 sanitizeRichTextHtml 白名单二次清洗（§4.3）
+  const descriptionRichHtml = useMemo(
+    () => (richTextEnabled && ticket?.descriptionHtml ? sanitizeRichTextHtml(ticket.descriptionHtml) : ''),
+    [richTextEnabled, ticket?.descriptionHtml]
+  );
 
   // Get ticket details
   const fetchTicket = useCallback(async () => {
@@ -408,21 +456,87 @@ const TicketDetail: React.FC<{ id?: string }> = ({ id: propId }) => {
     }
   };
 
+  /** 编辑基线快照：脏检查与 diff 提交共用同一序列化口径（方案 §4.7） */
+  const buildEditComparable = (values: {
+    title?: string;
+    description?: string;
+    priority?: string;
+    status?: string;
+  }): string =>
+    JSON.stringify({
+      title: values.title ?? '',
+      description: typeof values.description === 'string' ? values.description : '',
+      priority: values.priority ?? '',
+      status: values.status ?? '',
+    });
+
   // Handle edit
   const handleUpdate = () => {
     if (ticket) {
-      editForm.setFieldsValue({
+      // 初始化：优先从 descriptionHtml 反序列化，缺失时把纯文本 description 转成段落（§4.7）
+      const initialDescription = richTextEnabled
+        ? ticket.descriptionHtml || plainTextToRichHtml(ticket.description || '')
+        : ticket.description || '';
+      const initialValues = {
         title: ticket.title,
-        description: ticket.description,
+        description: initialDescription,
         priority: ticket.priority,
         status: ticket.status,
-      });
+      };
+      editForm.setFieldsValue(initialValues);
+      editBaselineRef.current = buildEditComparable(initialValues);
+      editInitialImageIdsRef.current = richTextEnabled
+        ? extractAttachmentImageIds(initialDescription)
+        : [];
+      setEditDirty(false);
       setEditModalVisible(true);
     }
   };
 
+  // 关闭编辑弹层：保存成功后重置基线快照（§4.7）
+  const closeEditModal = useCallback(() => {
+    setEditModalVisible(false);
+    setEditDirty(false);
+    editBaselineRef.current = '';
+    editInitialImageIdsRef.current = [];
+    editForm.resetFields();
+  }, [editForm]);
+
+  // 脏数据保护：isDirty 时关闭需二次确认（§4.7）
+  const handleEditCancel = useCallback(() => {
+    if (!editDirty) {
+      closeEditModal();
+      return;
+    }
+    antModal.confirm({
+      title: t('ticketDetail.unsavedChangesTitle') || '存在未保存的修改',
+      content: t('ticketDetail.unsavedChangesContent') || '关闭后修改将丢失，确认放弃？',
+      okText: t('ticketDetail.discardChanges') || '放弃修改',
+      cancelText: t('common.cancel') || '取消',
+      onOk: closeEditModal,
+    });
+  }, [antModal, closeEditModal, editDirty, t]);
+
+  // 编辑态粘贴/拖拽图片：工单已存在，直接上传为附件并插入正式地址（§4.7 / §5.2）
+  const handleEditImageUpload = useCallback(
+    async (file: File) => {
+      if (!resolvedTicketId) throw new Error('工单尚未加载完成');
+      const attachment = await TicketAttachmentApi.uploadAttachment(resolvedTicketId, file);
+      return {
+        // 内嵌图片必须走 preview 端点（inline）；/download 带 Content-Disposition: attachment，
+        // 不适合作为 <img src>，仅作兜底。
+        url:
+          TicketAttachmentApi.getPreviewUrl(resolvedTicketId, attachment.id) ||
+          attachment.fileUrl,
+        id: attachment.id,
+        name: attachment.fileName,
+      };
+    },
+    [resolvedTicketId]
+  );
+
   // Handle edit submit
-  const handleEditSubmit = async (values: Partial<Ticket>) => {
+  const handleEditSubmit = async (values: Partial<Ticket> & { description?: string }) => {
     try {
       // 状态转换验证
       if (values.status && ticket?.status && values.status !== ticket.status) {
@@ -434,15 +548,65 @@ const TicketDetail: React.FC<{ id?: string }> = ({ id: propId }) => {
         }
       }
 
-      // 添加版本号用于乐观锁
-      const updatePayload = {
-        ...values,
-        version: ticket?.version,
-      };
+      const rawDescription = typeof values.description === 'string' ? values.description : '';
+      const descriptionHtml = richTextEnabled ? sanitizeRichTextHtml(rawDescription) : '';
+      const descriptionPlain = richTextEnabled
+        ? htmlToPlainText(descriptionHtml, EDIT_DESCRIPTION_MAX)
+        : rawDescription.trim();
 
-      await TicketApi.updateTicket(resolvedTicketId!, updatePayload);
+      // 保存语义：仅提交变更字段（diff），避免全量覆盖引发并发覆盖（§4.7 / AC-6）
+      const changed: Partial<Ticket> & {
+        descriptionHtml?: string;
+        descriptionFormat?: 'plain' | 'html';
+      } = {};
+      if (values.title !== ticket?.title) changed.title = values.title;
+      if (values.priority !== ticket?.priority) changed.priority = values.priority;
+      if (values.status !== ticket?.status) changed.status = values.status;
+
+      const currentHtml = ticket?.descriptionHtml || '';
+      if (richTextEnabled) {
+        // 注意：旧数据（无 descriptionHtml）在编辑弹层里会被回填为段落 HTML，
+        // 首次保存即会把 description/descriptionHtml 一起写回，属有意的升级路径；
+        // 之后的保存因 currentHtml 已存在，未改动描述时不会再提交这两个字段。
+        if (descriptionHtml !== currentHtml || descriptionPlain !== (ticket?.description || '')) {
+          changed.description = descriptionPlain;
+          changed.descriptionHtml = descriptionHtml || undefined;
+          changed.descriptionFormat = descriptionHtml ? 'html' : 'plain';
+        }
+      } else if (descriptionPlain !== (ticket?.description || '')) {
+        changed.description = descriptionPlain;
+        changed.descriptionFormat = 'plain';
+      }
+
+      if (Object.keys(changed).length === 0) {
+        antMessage.info(t('ticketDetail.noChanges') || '未检测到修改');
+        closeEditModal();
+        return;
+      }
+
+      // 添加版本号用于乐观锁
+      await TicketApi.updateTicket(resolvedTicketId!, {
+        ...changed,
+        version: ticket?.version,
+      });
+
+      // 编辑器内被删除的图片：调用附件解绑接口（幂等，失败不阻断保存结果）（§5.2）
+      if (richTextEnabled && resolvedTicketId) {
+        const nextImageIds = extractAttachmentImageIds(descriptionHtml);
+        const removedImageIds = editInitialImageIdsRef.current.filter(
+          (imageId) => !nextImageIds.includes(imageId)
+        );
+        if (removedImageIds.length > 0) {
+          await Promise.allSettled(
+            removedImageIds.map((imageId) =>
+              TicketAttachmentApi.deleteAttachment(resolvedTicketId, imageId)
+            )
+          );
+        }
+      }
+
       antMessage.success(t('ticketDetail.editSuccess'));
-      setEditModalVisible(false);
+      closeEditModal();
       fetchTicket();
     } catch (error) {
       handleError(error, 'updateTicket', t('ticketDetail.editFailed'));
@@ -690,7 +854,19 @@ const TicketDetail: React.FC<{ id?: string }> = ({ id: propId }) => {
             <Descriptions.Item label={t('ticketDetail.labelCreatedAt')}>{formatDateTime(ticket.createdAt)}</Descriptions.Item>
             <Descriptions.Item label={t('ticketDetail.labelUpdatedAt')}>{formatDateTime(ticket.updatedAt)}</Descriptions.Item>
             <Descriptions.Item label={t('ticketDetail.labelDescription')} span={2}>
-              <SafeTextBlock content={ticket.description} fallback={t('ticketDetail.labelNoDescription')} />
+              {descriptionRichHtml ? (
+                <>
+                  <div
+                    ref={descriptionRichRef}
+                    className="ticket-rich-text"
+                    dangerouslySetInnerHTML={{ __html: descriptionRichHtml }}
+                  />
+                  {/* 图片查看器：点击正文图片可放大 / 缩放 / 旋转 / 翻转 / 平移（§4.9） */}
+                  <RichTextImageViewer containerRef={descriptionRichRef} enabled={richTextEnabled} />
+                </>
+              ) : (
+                <SafeTextBlock content={ticket.description} fallback={t('ticketDetail.labelNoDescription')} />
+              )}
             </Descriptions.Item>
           </Descriptions>
 
@@ -903,14 +1079,18 @@ const TicketDetail: React.FC<{ id?: string }> = ({ id: propId }) => {
             </Space>
           }
           open={editModalVisible}
-          onCancel={() => {
-            setEditModalVisible(false);
-            editForm.resetFields();
-          }}
+          onCancel={handleEditCancel}
           footer={null}
-          width={600}
+          width={richTextEnabled ? 760 : 600}
         >
-          <Form form={editForm} layout="vertical" onFinish={handleEditSubmit}>
+          <Form
+            form={editForm}
+            layout="vertical"
+            onFinish={handleEditSubmit}
+            onValuesChange={(_changedValues, allValues) => {
+              setEditDirty(buildEditComparable(allValues) !== editBaselineRef.current);
+            }}
+          >
             <Form.Item
               label={t('ticketDetail.ticketTitle')}
               name="title"
@@ -924,12 +1104,51 @@ const TicketDetail: React.FC<{ id?: string }> = ({ id: propId }) => {
             <Form.Item
               label={t('ticketDetail.ticketDescription')}
               name="description"
-              rules={[
-                { required: true, message: t('ticketDetail.ticketDescriptionRequired') },
-                { max: 2000, message: t('ticketDetail.ticketDescriptionMaxLength') },
-              ]}
+              rules={
+                richTextEnabled
+                  ? [
+                      {
+                        validator: (_rule, value: string) => {
+                          if (isRichTextEmpty(value)) {
+                            return Promise.reject(
+                              new Error(t('ticketDetail.ticketDescriptionRequired'))
+                            );
+                          }
+                          const plain = htmlToPlainText(value, EDIT_DESCRIPTION_MAX + 1);
+                          if (plain.length > EDIT_DESCRIPTION_MAX) {
+                            return Promise.reject(
+                              new Error(t('ticketDetail.ticketDescriptionMaxLength'))
+                            );
+                          }
+                          return Promise.resolve();
+                        },
+                      },
+                    ]
+                  : [
+                      { required: true, message: t('ticketDetail.ticketDescriptionRequired') },
+                      { max: EDIT_DESCRIPTION_MAX, message: t('ticketDetail.ticketDescriptionMaxLength') },
+                    ]
+              }
+              extra={
+                richTextEnabled
+                  ? '支持加粗、列表、代码块等排版；可直接粘贴或拖拽图片（保存后自动上传到本工单附件）'
+                  : undefined
+              }
             >
-              <TextArea rows={6} placeholder={t('ticketDetail.ticketDescriptionPlaceholder')} showCount maxLength={2000} />
+              {richTextEnabled ? (
+                <RichTextEditor
+                  placeholder={t('ticketDetail.ticketDescriptionPlaceholder')}
+                  minHeight={200}
+                  onUploadImage={handleEditImageUpload}
+                />
+              ) : (
+                <TextArea
+                  rows={6}
+                  placeholder={t('ticketDetail.ticketDescriptionPlaceholder')}
+                  showCount
+                  maxLength={EDIT_DESCRIPTION_MAX}
+                />
+              )}
             </Form.Item>
             <div className="grid grid-cols-2 gap-4">
               <Form.Item
@@ -986,10 +1205,7 @@ const TicketDetail: React.FC<{ id?: string }> = ({ id: propId }) => {
               <Space className="w-full justify-end">
                 <Button
                   icon={<X />}
-                  onClick={() => {
-                    setEditModalVisible(false);
-                    editForm.resetFields();
-                  }}
+                  onClick={handleEditCancel}
                 >
                   {t('common.cancel')}
                 </Button>

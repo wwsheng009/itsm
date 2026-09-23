@@ -33,7 +33,8 @@ function extractPermission(arg) {
 
 function extractRouteCall(l) {
   // Matches:  tickets.GET("/path", ...)  or  GET("/path", ...)  (chain call)
-  const m = l.match(/^\s*(?:(\w+)\s*\.)?(GET|POST|PUT|PATCH|DELETE|HEAD|OPTIONS)\s*\(\s*["']([^"']+)["']/);
+  // 路径允许空串（gin：group.GET("", h) 表示该分组根路径，如 POST /api/v1/tickets）。
+  const m = l.match(/^\s*(?:(\w+)\s*\.)?(GET|POST|PUT|PATCH|DELETE|HEAD|OPTIONS)\s*\(\s*["']([^"']*)["']/);
   if (!m) return null;
   return { method: m[2], routePath: m[3], groupVar: m[1] || null };
 }
@@ -113,16 +114,86 @@ function inferDescription(method, p) {
 // ---------------------------------------------------------------------------
 
 const routes = [];
+// Setup*Routes 调用点 → 该子路由文件的挂载前缀。
+// 子路由文件的入参是 *gin.RouterGroup（文件内无法自证挂载点），
+// 必须在 router.go 的调用点解析，否则路径会丢失 /api/v1 前缀。
+const setupMountPrefix = {};
 let currentFile = "";
+
+// 基础分组变量约定（与 router.go SetupRoutes 的实际挂载点一致）
+const BASE_GROUP_PREFIX = { r: "", auth: "/api/v1", tenant: "/api/v1", public: "/api/v1" };
+
+// 顶层（括号深度 0）逗号切分：用于拆函数调用实参与函数签名形参。
+function splitTopLevel(text) {
+  const parts = [];
+  let depth = 0;
+  let cur = "";
+  for (const ch of text) {
+    if (ch === "(" || ch === "[" || ch === "{") depth++;
+    else if (ch === ")" || ch === "]" || ch === "}") depth--;
+    if (ch === "," && depth === 0) {
+      parts.push(cur);
+      cur = "";
+      continue;
+    }
+    cur += ch;
+  }
+  parts.push(cur);
+  return parts;
+}
+
+function matchingParen(text, openIdx) {
+  let depth = 0;
+  for (let i = openIdx; i < text.length; i++) {
+    if (text[i] === "(") depth++;
+    else if (text[i] === ")") {
+      depth--;
+      if (depth === 0) return i;
+    }
+  }
+  return text.length - 1;
+}
+
+// 收集调用文本：从起始行累积到括号闭合，避免多行调用被截断。
+function collectCallText(lines, startLine) {
+  let call = lines[startLine];
+  let depth = (lines[startLine].match(/\(/g) || []).length - (lines[startLine].match(/\)/g) || []).length;
+  for (let k = startLine + 1; depth > 0 && k < lines.length; k++) {
+    call += `\n${lines[k]}`;
+    depth += (lines[k].match(/\(/g) || []).length - (lines[k].match(/\)/g) || []).length;
+  }
+  return call;
+}
+
+function collectSetupMounts(files, contents) {
+  for (const f of files) {
+    const lines = contents.get(f).split("\n");
+    for (let i = 0; i < lines.length; i++) {
+      const m = lines[i].match(/^\s*(?:(?:\w+)\s*\.\s*)?(Setup\w+Routes)\s*\(/);
+      if (!m) continue;
+      const fn = m[1];
+      if (setupMountPrefix[fn] !== undefined) continue;
+      // 实参逐个解析（按位置对齐形参）：*gin.RouterGroup 实参 → 其挂载前缀。
+      const call = collectCallText(lines, i);
+      const open = call.indexOf("(");
+      const argsText = call.slice(open + 1, matchingParen(call, open));
+      setupMountPrefix[fn] = splitTopLevel(argsText).map((arg) => {
+        const am = arg.trim().match(/^(\w+)(?:\.\(\*gin\.RouterGroup\))?$/);
+        if (!am) return null;
+        return BASE_GROUP_PREFIX[am[1]] !== undefined ? BASE_GROUP_PREFIX[am[1]] : "/api/v1";
+      });
+    }
+  }
+}
 
 // ---------------------------------------------------------------------------
 // File parser
 // ---------------------------------------------------------------------------
 
-function parseFile(filePath) {
+function parseFile(filePath, text) {
   currentFile = path.basename(filePath);
 
-  const lines = fs.readFileSync(filePath, "utf8").split("\n");
+  const lines = text.split("\n");
 
   // 已知分组变量 → 完整路径前缀。
   // 基础变量约定（router.go 与各 Setup* 函数参数的实际挂载点）：
@@ -150,12 +221,30 @@ function parseFile(filePath) {
     if (!l || l.startsWith("//") || l.startsWith("/*")) continue;
 
     // -----------------------------------------------------------------------
+    // Setup*Routes 函数签名：*gin.RouterGroup 形参按位置取调用点实参的前缀。
+    // -----------------------------------------------------------------------
+    const fnDecl = l.match(/^func\s+(Setup\w+Routes)\s*\(/);
+    if (fnDecl) {
+      const sig = collectCallText(lines, lineNum);
+      const sigOpen = sig.indexOf("(");
+      const mounts = setupMountPrefix[fnDecl[1]] || [];
+      splitTopLevel(sig.slice(sigOpen + 1, matchingParen(sig, sigOpen))).forEach((param, idx) => {
+        const pm = param.trim().match(/^(\w+)\s+\*gin\.RouterGroup$/);
+        if (!pm) return;
+        namedGroups[pm[1]] = mounts[idx] !== undefined && mounts[idx] !== null ? mounts[idx] : "/api/v1";
+      });
+      continue;
+    }
+
+    // -----------------------------------------------------------------------
     // 分组声明：name := parent.Group("/x") 或 name := parent.(*gin.RouterGroup).Group("/x")
     // -----------------------------------------------------------------------
     const groupDecl = l.match(/^(\w+)\s*:=\s*(\w+)(?:\.\(\*gin\.RouterGroup\))?\s*\.\s*Group\s*\(\s*"([^"]*)"\s*\)/);
     if (groupDecl) {
       const [, name, parent, prefix] = groupDecl;
-      const base = parent === "r" ? "" : resolveVar(parent);
+      // 父分组前缀一律走 resolveVar：router.go 的 r=engine 根（""），
+      // 子路由文件里名为 r 的 *gin.RouterGroup 形参则由调用点解析为 /api/v1。
+      const base = resolveVar(parent);
       namedGroups[name] = (base + (prefix ? "/" + prefix : "")).replace(/\/+/g, "/") || "/";
       // 继承父分组的分组级权限
       if (groupPermissions[parent]) groupPermissions[name] = groupPermissions[parent];
@@ -244,6 +333,9 @@ const KNOWN_PUBLIC = new Set([
   // 注册与密码重置：无需登录
   "/api/v1/auth/register",
   "/api/v1/auth/forgot-password",
+  // 密码策略公开只读端点：注册/登录/找回密码等未登录页面据此渲染规则；
+  // 与 /api/v1/auth/* 自助端点同组（router.go 的 public 组），无 RBAC 资源可绑定。
+  "/api/v1/auth/password-policy",
   "/api/v1/auth/reset-password",
   "/api/v1/auth/validate-reset-token",
   // 外部系统回调：由独立签名/事件校验保护，无法要求登录态 RBAC
@@ -295,9 +387,11 @@ const outIdx = args.indexOf("--output");
 const outFile = outIdx !== -1 ? args[outIdx + 1] : OUTPUT_FILE;
 
 console.log("Parsing router files...");
-for (const f of discoverRouterFiles(ROUTER_DIR)) {
-  parseFile(f);
-}
+const routerFiles = discoverRouterFiles(ROUTER_DIR);
+const fileContents = new Map();
+for (const f of routerFiles) fileContents.set(f, fs.readFileSync(f, "utf8"));
+collectSetupMounts(routerFiles, fileContents);
+for (const f of routerFiles) parseFile(f, fileContents.get(f));
 
 let covered = 0;
 let unprotected = [];

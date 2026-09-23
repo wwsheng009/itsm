@@ -136,6 +136,8 @@ jest.mock('antd', () => {
     },
     Space: (props: Record<string, unknown>) =>
       React.createElement('div', { 'data-testid': 'space', ...props }, props.children),
+    Spin: (props: Record<string, unknown>) =>
+      React.createElement('div', { 'data-testid': 'spin', ...props }),
     ConfigProvider: (props: Record<string, unknown>) =>
       React.createElement('div', {}, props.children),
     Alert: (props: Record<string, unknown>) =>

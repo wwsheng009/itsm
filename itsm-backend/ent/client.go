@@ -19,6 +19,7 @@ import (
 	"itsm-backend/ent/approvalworkflow"
 	"itsm-backend/ent/asset"
 	"itsm-backend/ent/assetlicense"
+	"itsm-backend/ent/attachment"
 	"itsm-backend/ent/auditlog"
 	"itsm-backend/ent/bootstraptoken"
 	"itsm-backend/ent/bpmnpermission"
@@ -175,6 +176,8 @@ type Client struct {
 	Asset *AssetClient
 	// AssetLicense is the client for interacting with the AssetLicense builders.
 	AssetLicense *AssetLicenseClient
+	// Attachment is the client for interacting with the Attachment builders.
+	Attachment *AttachmentClient
 	// AuditLog is the client for interacting with the AuditLog builders.
 	AuditLog *AuditLogClient
 	// BPMNPermission is the client for interacting with the BPMNPermission builders.
@@ -450,6 +453,7 @@ func (c *Client) init() {
 	c.ApprovalWorkflow = NewApprovalWorkflowClient(c.config)
 	c.Asset = NewAssetClient(c.config)
 	c.AssetLicense = NewAssetLicenseClient(c.config)
+	c.Attachment = NewAttachmentClient(c.config)
 	c.AuditLog = NewAuditLogClient(c.config)
 	c.BPMNPermission = NewBPMNPermissionClient(c.config)
 	c.BootstrapToken = NewBootstrapTokenClient(c.config)
@@ -678,6 +682,7 @@ func (c *Client) Tx(ctx context.Context) (*Tx, error) {
 		ApprovalWorkflow:            NewApprovalWorkflowClient(cfg),
 		Asset:                       NewAssetClient(cfg),
 		AssetLicense:                NewAssetLicenseClient(cfg),
+		Attachment:                  NewAttachmentClient(cfg),
 		AuditLog:                    NewAuditLogClient(cfg),
 		BPMNPermission:              NewBPMNPermissionClient(cfg),
 		BootstrapToken:              NewBootstrapTokenClient(cfg),
@@ -833,6 +838,7 @@ func (c *Client) BeginTx(ctx context.Context, opts *sql.TxOptions) (*Tx, error) 
 		ApprovalWorkflow:            NewApprovalWorkflowClient(cfg),
 		Asset:                       NewAssetClient(cfg),
 		AssetLicense:                NewAssetLicenseClient(cfg),
+		Attachment:                  NewAttachmentClient(cfg),
 		AuditLog:                    NewAuditLogClient(cfg),
 		BPMNPermission:              NewBPMNPermissionClient(cfg),
 		BootstrapToken:              NewBootstrapTokenClient(cfg),
@@ -991,14 +997,14 @@ func (c *Client) Close() error {
 func (c *Client) Use(hooks ...Hook) {
 	for _, n := range []interface{ Use(...Hook) }{
 		c.AIAnalysisResult, c.Alert, c.Application, c.ApprovalChain, c.ApprovalRecord,
-		c.ApprovalWorkflow, c.Asset, c.AssetLicense, c.AuditLog, c.BPMNPermission,
-		c.BootstrapToken, c.CABMember, c.CIAttributeDefinition, c.CIRelationship,
-		c.CITag, c.CIType, c.CMDBExportTask, c.CMDBImportTask, c.CMDBSavedView,
-		c.Change, c.ChangePIR, c.CloudAccount, c.CloudResource, c.CloudService,
-		c.ConfigurationItem, c.ConfigurationItemHistory, c.ConnectorConfig,
-		c.ConnectorInboundDedup, c.Contract, c.Conversation, c.CustomerBranch,
-		c.Department, c.DiscoveryJob, c.DiscoveryResult, c.DiscoverySource,
-		c.DomainConfig, c.EmailConversation, c.EmailIntakeAnalysis,
+		c.ApprovalWorkflow, c.Asset, c.AssetLicense, c.Attachment, c.AuditLog,
+		c.BPMNPermission, c.BootstrapToken, c.CABMember, c.CIAttributeDefinition,
+		c.CIRelationship, c.CITag, c.CIType, c.CMDBExportTask, c.CMDBImportTask,
+		c.CMDBSavedView, c.Change, c.ChangePIR, c.CloudAccount, c.CloudResource,
+		c.CloudService, c.ConfigurationItem, c.ConfigurationItemHistory,
+		c.ConnectorConfig, c.ConnectorInboundDedup, c.Contract, c.Conversation,
+		c.CustomerBranch, c.Department, c.DiscoveryJob, c.DiscoveryResult,
+		c.DiscoverySource, c.DomainConfig, c.EmailConversation, c.EmailIntakeAnalysis,
 		c.EmailOutboundMessage, c.EndpointACL, c.EngineerSkill,
 		c.ExternalContractReference, c.FeishuTicketSync, c.Group,
 		c.InboundEmailMessage, c.Incident, c.IncidentAlert, c.IncidentEscalationRule,
@@ -1035,14 +1041,14 @@ func (c *Client) Use(hooks ...Hook) {
 func (c *Client) Intercept(interceptors ...Interceptor) {
 	for _, n := range []interface{ Intercept(...Interceptor) }{
 		c.AIAnalysisResult, c.Alert, c.Application, c.ApprovalChain, c.ApprovalRecord,
-		c.ApprovalWorkflow, c.Asset, c.AssetLicense, c.AuditLog, c.BPMNPermission,
-		c.BootstrapToken, c.CABMember, c.CIAttributeDefinition, c.CIRelationship,
-		c.CITag, c.CIType, c.CMDBExportTask, c.CMDBImportTask, c.CMDBSavedView,
-		c.Change, c.ChangePIR, c.CloudAccount, c.CloudResource, c.CloudService,
-		c.ConfigurationItem, c.ConfigurationItemHistory, c.ConnectorConfig,
-		c.ConnectorInboundDedup, c.Contract, c.Conversation, c.CustomerBranch,
-		c.Department, c.DiscoveryJob, c.DiscoveryResult, c.DiscoverySource,
-		c.DomainConfig, c.EmailConversation, c.EmailIntakeAnalysis,
+		c.ApprovalWorkflow, c.Asset, c.AssetLicense, c.Attachment, c.AuditLog,
+		c.BPMNPermission, c.BootstrapToken, c.CABMember, c.CIAttributeDefinition,
+		c.CIRelationship, c.CITag, c.CIType, c.CMDBExportTask, c.CMDBImportTask,
+		c.CMDBSavedView, c.Change, c.ChangePIR, c.CloudAccount, c.CloudResource,
+		c.CloudService, c.ConfigurationItem, c.ConfigurationItemHistory,
+		c.ConnectorConfig, c.ConnectorInboundDedup, c.Contract, c.Conversation,
+		c.CustomerBranch, c.Department, c.DiscoveryJob, c.DiscoveryResult,
+		c.DiscoverySource, c.DomainConfig, c.EmailConversation, c.EmailIntakeAnalysis,
 		c.EmailOutboundMessage, c.EndpointACL, c.EngineerSkill,
 		c.ExternalContractReference, c.FeishuTicketSync, c.Group,
 		c.InboundEmailMessage, c.Incident, c.IncidentAlert, c.IncidentEscalationRule,
@@ -1093,6 +1099,8 @@ func (c *Client) Mutate(ctx context.Context, m Mutation) (Value, error) {
 		return c.Asset.mutate(ctx, m)
 	case *AssetLicenseMutation:
 		return c.AssetLicense.mutate(ctx, m)
+	case *AttachmentMutation:
+		return c.Attachment.mutate(ctx, m)
 	case *AuditLogMutation:
 		return c.AuditLog.mutate(ctx, m)
 	case *BPMNPermissionMutation:
@@ -2543,6 +2551,139 @@ func (c *AssetLicenseClient) mutate(ctx context.Context, m *AssetLicenseMutation
 		return (&AssetLicenseDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
 	default:
 		return nil, fmt.Errorf("ent: unknown AssetLicense mutation op: %q", m.Op())
+	}
+}
+
+// AttachmentClient is a client for the Attachment schema.
+type AttachmentClient struct {
+	config
+}
+
+// NewAttachmentClient returns a client for the Attachment from the given config.
+func NewAttachmentClient(c config) *AttachmentClient {
+	return &AttachmentClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `attachment.Hooks(f(g(h())))`.
+func (c *AttachmentClient) Use(hooks ...Hook) {
+	c.hooks.Attachment = append(c.hooks.Attachment, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `attachment.Intercept(f(g(h())))`.
+func (c *AttachmentClient) Intercept(interceptors ...Interceptor) {
+	c.inters.Attachment = append(c.inters.Attachment, interceptors...)
+}
+
+// Create returns a builder for creating a Attachment entity.
+func (c *AttachmentClient) Create() *AttachmentCreate {
+	mutation := newAttachmentMutation(c.config, OpCreate)
+	return &AttachmentCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of Attachment entities.
+func (c *AttachmentClient) CreateBulk(builders ...*AttachmentCreate) *AttachmentCreateBulk {
+	return &AttachmentCreateBulk{config: c.config, builders: builders}
+}
+
+// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
+// a builder and applies setFunc on it.
+func (c *AttachmentClient) MapCreateBulk(slice any, setFunc func(*AttachmentCreate, int)) *AttachmentCreateBulk {
+	rv := reflect.ValueOf(slice)
+	if rv.Kind() != reflect.Slice {
+		return &AttachmentCreateBulk{err: fmt.Errorf("calling to AttachmentClient.MapCreateBulk with wrong type %T, need slice", slice)}
+	}
+	builders := make([]*AttachmentCreate, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		builders[i] = c.Create()
+		setFunc(builders[i], i)
+	}
+	return &AttachmentCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for Attachment.
+func (c *AttachmentClient) Update() *AttachmentUpdate {
+	mutation := newAttachmentMutation(c.config, OpUpdate)
+	return &AttachmentUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *AttachmentClient) UpdateOne(_m *Attachment) *AttachmentUpdateOne {
+	mutation := newAttachmentMutation(c.config, OpUpdateOne, withAttachment(_m))
+	return &AttachmentUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *AttachmentClient) UpdateOneID(id int) *AttachmentUpdateOne {
+	mutation := newAttachmentMutation(c.config, OpUpdateOne, withAttachmentID(id))
+	return &AttachmentUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for Attachment.
+func (c *AttachmentClient) Delete() *AttachmentDelete {
+	mutation := newAttachmentMutation(c.config, OpDelete)
+	return &AttachmentDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *AttachmentClient) DeleteOne(_m *Attachment) *AttachmentDeleteOne {
+	return c.DeleteOneID(_m.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *AttachmentClient) DeleteOneID(id int) *AttachmentDeleteOne {
+	builder := c.Delete().Where(attachment.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &AttachmentDeleteOne{builder}
+}
+
+// Query returns a query builder for Attachment.
+func (c *AttachmentClient) Query() *AttachmentQuery {
+	return &AttachmentQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypeAttachment},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a Attachment entity by its id.
+func (c *AttachmentClient) Get(ctx context.Context, id int) (*Attachment, error) {
+	return c.Query().Where(attachment.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *AttachmentClient) GetX(ctx context.Context, id int) *Attachment {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// Hooks returns the client hooks.
+func (c *AttachmentClient) Hooks() []Hook {
+	return c.hooks.Attachment
+}
+
+// Interceptors returns the client interceptors.
+func (c *AttachmentClient) Interceptors() []Interceptor {
+	return c.inters.Attachment
+}
+
+func (c *AttachmentClient) mutate(ctx context.Context, m *AttachmentMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&AttachmentCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&AttachmentUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&AttachmentUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&AttachmentDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("ent: unknown Attachment mutation op: %q", m.Op())
 	}
 }
 
@@ -23382,7 +23523,7 @@ func (c *WorkflowVersionClient) mutate(ctx context.Context, m *WorkflowVersionMu
 type (
 	hooks struct {
 		AIAnalysisResult, Alert, Application, ApprovalChain, ApprovalRecord,
-		ApprovalWorkflow, Asset, AssetLicense, AuditLog, BPMNPermission,
+		ApprovalWorkflow, Asset, AssetLicense, Attachment, AuditLog, BPMNPermission,
 		BootstrapToken, CABMember, CIAttributeDefinition, CIRelationship, CITag,
 		CIType, CMDBExportTask, CMDBImportTask, CMDBSavedView, Change, ChangePIR,
 		CloudAccount, CloudResource, CloudService, ConfigurationItem,
@@ -23414,7 +23555,7 @@ type (
 	}
 	inters struct {
 		AIAnalysisResult, Alert, Application, ApprovalChain, ApprovalRecord,
-		ApprovalWorkflow, Asset, AssetLicense, AuditLog, BPMNPermission,
+		ApprovalWorkflow, Asset, AssetLicense, Attachment, AuditLog, BPMNPermission,
 		BootstrapToken, CABMember, CIAttributeDefinition, CIRelationship, CITag,
 		CIType, CMDBExportTask, CMDBImportTask, CMDBSavedView, Change, ChangePIR,
 		CloudAccount, CloudResource, CloudService, ConfigurationItem,

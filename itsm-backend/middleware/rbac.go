@@ -61,6 +61,41 @@ func SetPermissionCacheTTL(ttl time.Duration) {
 	permissionCacheLock.Unlock()
 }
 
+// dbOnlyMemoKey 请求级 RBAC 记忆化在 context 中的键。
+type dbOnlyMemoKey struct{}
+
+// dbOnlyMemoEntry 单个「角色_租户」在本次请求内的权限加载结果。
+type dbOnlyMemoEntry struct {
+	state permissionDBOnlyState
+	perms []Permission
+}
+
+// dbOnlyMemo 请求级记忆化容器。
+//
+// 背景：同一请求内 RBAC 判定会被触发多次（分组 .Use(RequirePermission) 与
+// 路由级 RequirePermission 叠加），而 loadPermissionsFromDBDBOnlyState 的
+// 「角色行是否存在」校验是每次判定一次独立查库、且不走 5 分钟 permissionCache。
+// 挂在请求 ctx 上可把 N 次查库收敛为 1 次，同时天然不存在跨请求脏数据：
+// 请求结束即失效，无需任何失效广播，也不影响 SetPermissionCacheTTL 语义。
+type dbOnlyMemo struct {
+	mu      sync.Mutex
+	entries map[string]dbOnlyMemoEntry
+}
+
+// withDBOnlyMemo 在请求上下文上挂载请求级 RBAC 记忆化容器（幂等）。
+func withDBOnlyMemo(c *gin.Context) {
+	if c == nil || c.Request == nil {
+		return
+	}
+	ctx := c.Request.Context()
+	if ctx.Value(dbOnlyMemoKey{}) != nil {
+		return
+	}
+	c.Request = c.Request.WithContext(context.WithValue(ctx, dbOnlyMemoKey{}, &dbOnlyMemo{
+		entries: make(map[string]dbOnlyMemoEntry, 2),
+	}))
+}
+
 // RolePermissions 角色权限映射
 var RolePermissions = map[string][]Permission{
 	"super_admin": {
@@ -647,7 +682,7 @@ func loadPermissionsFromDB(ctx context.Context, client *ent.Client, roleName str
 //   - permissionDBOnlyConfigured    : DB 角色行存在，perms 以 DB 为准（空集=显式撤销，fail-closed）
 //
 // P0-4：ctx 由调用方传入（请求链路为请求 ctx），不再使用 context.Background()。
-func loadPermissionsFromDBDBOnlyState(ctx context.Context, client *ent.Client, roleName string, tenantID int) (permissionDBOnlyState, []Permission) {
+func loadPermissionsFromDBDBOnlyStateUncached(ctx context.Context, client *ent.Client, roleName string, tenantID int) (permissionDBOnlyState, []Permission) {
 	if client == nil {
 		// DB 不可用，fail-closed（保留 baseline 测试
 		// TestSmartCheckPermission_DBOnlyFailClosed / TestDBOnlyPermissionModeDoesNotUseHardcodedFallback）
@@ -668,6 +703,35 @@ func loadPermissionsFromDBDBOnlyState(ctx context.Context, client *ent.Client, r
 	// 角色行存在：以 DB 实际权限集合为准（空集=显式撤销，仍 fail-closed）
 	perms := loadPermissionsFromDB(ctx, client, roleName, tenantID)
 	return permissionDBOnlyConfigured, perms
+}
+
+// loadPermissionsFromDBDBOnlyState 带请求级记忆化的入口，返回语义与
+// loadPermissionsFromDBDBOnlyStateUncached 完全一致。
+//
+// 仅当请求 ctx 上挂有 withDBOnlyMemo（由 RBACMiddleware 安装）时，才会在
+// 同一请求内复用「角色行是否存在 + 权限集合」的加载结果；没有挂载时
+// （例如测试直接传 context.Background()、或路由未经过 RBACMiddleware）
+// 原样走 Uncached，行为与本次优化前逐位一致。
+func loadPermissionsFromDBDBOnlyState(ctx context.Context, client *ent.Client, roleName string, tenantID int) (permissionDBOnlyState, []Permission) {
+	if ctx != nil {
+		if memo, _ := ctx.Value(dbOnlyMemoKey{}).(*dbOnlyMemo); memo != nil {
+			key := roleName + "_" + strconv.Itoa(tenantID)
+			memo.mu.Lock()
+			entry, ok := memo.entries[key]
+			memo.mu.Unlock()
+			if ok {
+				return entry.state, entry.perms
+			}
+
+			state, perms := loadPermissionsFromDBDBOnlyStateUncached(ctx, client, roleName, tenantID)
+
+			memo.mu.Lock()
+			memo.entries[key] = dbOnlyMemoEntry{state: state, perms: perms}
+			memo.mu.Unlock()
+			return state, perms
+		}
+	}
+	return loadPermissionsFromDBDBOnlyStateUncached(ctx, client, roleName, tenantID)
 }
 
 // permissionDBOnlyState 三态枚举，供 loadPermissionsByMode DBOnly 分支分流。
@@ -708,6 +772,11 @@ func buildResourceActionMap() map[string]map[string]Permission {
 // RBACMiddleware RBAC权限控制中间件
 func RBACMiddleware(client *ent.Client) gin.HandlerFunc {
 	return func(c *gin.Context) {
+		// 请求级 RBAC 记忆化：同一次请求里 RBAC 判定会被触发多次
+		//（分组级与路由级 RequirePermission 叠加），挂载后「角色行是否存在 +
+		// 权限集合」在同一请求内只加载一次，请求结束即失效。
+		withDBOnlyMemo(c)
+
 		// 调试日志
 		zap.S().Infow(
 			"RBACMiddleware: received request",

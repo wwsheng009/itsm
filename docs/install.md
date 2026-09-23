@@ -49,6 +49,41 @@ LOG_LEVEL=info  # debug | info | warn | error
 
 完整配置项说明见 `.env.example` 注释。
 
+### 3.1 附件域灰度开关（可选，默认全关）
+
+附件域通用链路（方案见 `docs/plan/generic-attachment-richtext-control-plan.md` §6.1）默认全部关闭，即保留现网旧链路、零行为变化。灰度与回退开关分两级，**部署级默认值**写在 `itsm-backend/config.yaml` 的 `attachment` 块（样例见 `itsm-backend/config.yaml.example`；容器部署样例见 `itsm-backend/deploy/config.yaml`）：
+
+| 配置键 | 默认 | 作用 | 关闭后行为 |
+|:---|:---|:---|:---|
+| `attachment.generic_read_enabled` | false | 通用读路径（A2/A3/A4/A6） | 回退旧表读取，URL 不变 |
+| `attachment.generic_write_enabled` | false | 通用写入（A1/A5） | 回退旧工单写入路径 |
+| `attachment.dual_write_enabled` | false | 双写对账（P2） | 停止双写，旧表为事实源 |
+| `attachment.inline_image_enabled` | false | 富文本内嵌图片走通用链路 | 编辑器图片入口禁用（fail-fast） |
+
+也可用环境变量覆盖同名配置：`ATTACHMENT_GENERIC_READ_ENABLED` / `ATTACHMENT_GENERIC_WRITE_ENABLED` / `ATTACHMENT_DUAL_WRITE_ENABLED` / `ATTACHMENT_INLINE_IMAGE_ENABLED`（取值 `true` / `false`）。
+
+**按租户生效**：租户级覆盖走既有系统配置接口（`system_config`，`category=attachment`），键名与上表一致——例如只把灰度租户的 `attachment.generic_read_enabled` 置为 `true`。默认值由租户初始化写入（`service/system_config_service.go` 的 `InitDefaultConfigs`）。
+
+**回退**：把对应开关改回 `false`（或删除租户覆盖项）即可，无需数据变更；新表可保留（见方案 §6.1「关闭后行为」列）。
+
+**生命周期清理（BE-8，默认关闭，仅部署级）**：删除附件只做软删（`status=deleted`），物理文件保留；开启清理任务后，超过保留期的软删记录才会被回收（物理文件 + 元数据行），且**仍被宿主正文 / 评论引用**的记录一律跳过。上线顺序固定为「先开任务演练 → 核对清单 → 再开落删」：
+
+| 配置键 | 默认 | 作用 | 关闭 / 为 false 时行为 |
+|:---|:---|:---|:---|
+| `attachment.cleanup_enabled` | false | 启动后台清理任务（按租户循环，启动即跑一轮） | 任务不注册，软删记录与物理文件都不动 |
+| `attachment.cleanup_purge_enabled` | false | 真实落删（先删物理文件、后删元数据行） | **演练模式（dry-run）**：只统计并输出清单，不删任何数据 |
+| `attachment.retention_days` | 30 | 软删保留期（天） | `deleted_at` 晚于 `now - retention` 的记录不进入候选 |
+| `attachment.cleanup_interval_minutes` | 360 | 轮询间隔（分钟，6 小时） | 首轮仍在任务启动时立即执行 |
+| `attachment.cleanup_batch_size` | 200 | 单轮单租户处理上限（条，硬上限 1000，超出按 1000 截断） | 候选多于上限时留待下一轮 |
+
+环境变量覆盖：`ATTACHMENT_CLEANUP_ENABLED` / `ATTACHMENT_CLEANUP_PURGE_ENABLED` / `ATTACHMENT_RETENTION_DAYS` / `ATTACHMENT_CLEANUP_INTERVAL_MINUTES` / `ATTACHMENT_CLEANUP_BATCH_SIZE`。
+
+清理任务**不读取租户级 `system_config` 覆盖**（属运维动作，避免单个租户改配置影响全局回收策略），只取部署级 `config.yaml` / 环境变量。
+
+**演练**：先只开 `cleanup_enabled`（保持 `cleanup_purge_enabled=false`），观察日志 `attachment cleanup task started` 与 `attachment cleanup completed`（`summary=scanned=… purged=… skipped_referenced=… failed=… dry_run=true`），并关注 `attachment cleanup: skipped, still referenced` 告警；清单核对无误后再开落删。完整演练步骤、SQL 核对口径与回滚见 `docs/testing/attachment-cleanup-drill-2026-09-22.md`。
+
+**回滚**：把 `cleanup_enabled` 改回 `false` 并重启即可停止任务；已软删记录在保留期内仍可人工恢复（清理任务只回收 `deleted_at` 已过期的记录，先删文件后删行，失败自动留待下轮重试）。
+
 ## 4. 启动服务（开发模式）
 
 ```bash

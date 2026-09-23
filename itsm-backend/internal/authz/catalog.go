@@ -235,6 +235,11 @@ func Definitions() []PermissionDef {
 		// 收敛进 system/system_config 会丢失租户边界，故新增；授予 admin/sysadmin。
 		{"tenant:read", "查看租户", "tenant", "read", "查看租户列表与详情"},
 		{"tenant:write", "管理租户", "tenant", "write", "创建、更新、停用租户"},
+		// 附件权限（通用附件兜底面 v1.0 §4.3 P0-3 / AC-18）：
+		// 仅用于无宿主域或系统级附件；有宿主附件仍走宿主权限码（§4.2 映射表）。
+		{"attachment:read", "查看附件", "attachment", "read", "查看、下载无宿主或系统级附件"},
+		{"attachment:write", "管理附件", "attachment", "write", "上传、绑定无宿主或系统级附件"},
+		{"attachment:delete", "删除附件", "attachment", "delete", "删除、解绑无宿主或系统级附件"},
 	}
 }
 

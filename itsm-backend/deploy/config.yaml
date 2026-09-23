@@ -29,3 +29,17 @@ llm:
 
 log:
   level: info
+
+# 附件域灰度开关（方案 §6.1）：全部默认 false = 旧链路；灰度只改这里（部署级）
+attachment:
+  generic_read_enabled: false
+  generic_write_enabled: false
+  dual_write_enabled: false
+  inline_image_enabled: false
+  # BE-8 生命周期清理（部署级）：cleanup_enabled 开启后先以 dry-run 演练，
+  # 核对清单后再开 cleanup_purge_enabled 落删。
+  cleanup_enabled: false
+  cleanup_purge_enabled: false
+  retention_days: 30
+  cleanup_interval_minutes: 360
+  cleanup_batch_size: 200

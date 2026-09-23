@@ -65,6 +65,16 @@ func Description(v string) predicate.Ticket {
 	return predicate.Ticket(sql.FieldEQ(FieldDescription, v))
 }
 
+// DescriptionHTML applies equality check predicate on the "description_html" field. It's identical to DescriptionHTMLEQ.
+func DescriptionHTML(v string) predicate.Ticket {
+	return predicate.Ticket(sql.FieldEQ(FieldDescriptionHTML, v))
+}
+
+// DescriptionFormat applies equality check predicate on the "description_format" field. It's identical to DescriptionFormatEQ.
+func DescriptionFormat(v string) predicate.Ticket {
+	return predicate.Ticket(sql.FieldEQ(FieldDescriptionFormat, v))
+}
+
 // Status applies equality check predicate on the "status" field. It's identical to StatusEQ.
 func Status(v string) predicate.Ticket {
 	return predicate.Ticket(sql.FieldEQ(FieldStatus, v))
@@ -388,6 +398,146 @@ func DescriptionEqualFold(v string) predicate.Ticket {
 // DescriptionContainsFold applies the ContainsFold predicate on the "description" field.
 func DescriptionContainsFold(v string) predicate.Ticket {
 	return predicate.Ticket(sql.FieldContainsFold(FieldDescription, v))
+}
+
+// DescriptionHTMLEQ applies the EQ predicate on the "description_html" field.
+func DescriptionHTMLEQ(v string) predicate.Ticket {
+	return predicate.Ticket(sql.FieldEQ(FieldDescriptionHTML, v))
+}
+
+// DescriptionHTMLNEQ applies the NEQ predicate on the "description_html" field.
+func DescriptionHTMLNEQ(v string) predicate.Ticket {
+	return predicate.Ticket(sql.FieldNEQ(FieldDescriptionHTML, v))
+}
+
+// DescriptionHTMLIn applies the In predicate on the "description_html" field.
+func DescriptionHTMLIn(vs ...string) predicate.Ticket {
+	return predicate.Ticket(sql.FieldIn(FieldDescriptionHTML, vs...))
+}
+
+// DescriptionHTMLNotIn applies the NotIn predicate on the "description_html" field.
+func DescriptionHTMLNotIn(vs ...string) predicate.Ticket {
+	return predicate.Ticket(sql.FieldNotIn(FieldDescriptionHTML, vs...))
+}
+
+// DescriptionHTMLGT applies the GT predicate on the "description_html" field.
+func DescriptionHTMLGT(v string) predicate.Ticket {
+	return predicate.Ticket(sql.FieldGT(FieldDescriptionHTML, v))
+}
+
+// DescriptionHTMLGTE applies the GTE predicate on the "description_html" field.
+func DescriptionHTMLGTE(v string) predicate.Ticket {
+	return predicate.Ticket(sql.FieldGTE(FieldDescriptionHTML, v))
+}
+
+// DescriptionHTMLLT applies the LT predicate on the "description_html" field.
+func DescriptionHTMLLT(v string) predicate.Ticket {
+	return predicate.Ticket(sql.FieldLT(FieldDescriptionHTML, v))
+}
+
+// DescriptionHTMLLTE applies the LTE predicate on the "description_html" field.
+func DescriptionHTMLLTE(v string) predicate.Ticket {
+	return predicate.Ticket(sql.FieldLTE(FieldDescriptionHTML, v))
+}
+
+// DescriptionHTMLContains applies the Contains predicate on the "description_html" field.
+func DescriptionHTMLContains(v string) predicate.Ticket {
+	return predicate.Ticket(sql.FieldContains(FieldDescriptionHTML, v))
+}
+
+// DescriptionHTMLHasPrefix applies the HasPrefix predicate on the "description_html" field.
+func DescriptionHTMLHasPrefix(v string) predicate.Ticket {
+	return predicate.Ticket(sql.FieldHasPrefix(FieldDescriptionHTML, v))
+}
+
+// DescriptionHTMLHasSuffix applies the HasSuffix predicate on the "description_html" field.
+func DescriptionHTMLHasSuffix(v string) predicate.Ticket {
+	return predicate.Ticket(sql.FieldHasSuffix(FieldDescriptionHTML, v))
+}
+
+// DescriptionHTMLIsNil applies the IsNil predicate on the "description_html" field.
+func DescriptionHTMLIsNil() predicate.Ticket {
+	return predicate.Ticket(sql.FieldIsNull(FieldDescriptionHTML))
+}
+
+// DescriptionHTMLNotNil applies the NotNil predicate on the "description_html" field.
+func DescriptionHTMLNotNil() predicate.Ticket {
+	return predicate.Ticket(sql.FieldNotNull(FieldDescriptionHTML))
+}
+
+// DescriptionHTMLEqualFold applies the EqualFold predicate on the "description_html" field.
+func DescriptionHTMLEqualFold(v string) predicate.Ticket {
+	return predicate.Ticket(sql.FieldEqualFold(FieldDescriptionHTML, v))
+}
+
+// DescriptionHTMLContainsFold applies the ContainsFold predicate on the "description_html" field.
+func DescriptionHTMLContainsFold(v string) predicate.Ticket {
+	return predicate.Ticket(sql.FieldContainsFold(FieldDescriptionHTML, v))
+}
+
+// DescriptionFormatEQ applies the EQ predicate on the "description_format" field.
+func DescriptionFormatEQ(v string) predicate.Ticket {
+	return predicate.Ticket(sql.FieldEQ(FieldDescriptionFormat, v))
+}
+
+// DescriptionFormatNEQ applies the NEQ predicate on the "description_format" field.
+func DescriptionFormatNEQ(v string) predicate.Ticket {
+	return predicate.Ticket(sql.FieldNEQ(FieldDescriptionFormat, v))
+}
+
+// DescriptionFormatIn applies the In predicate on the "description_format" field.
+func DescriptionFormatIn(vs ...string) predicate.Ticket {
+	return predicate.Ticket(sql.FieldIn(FieldDescriptionFormat, vs...))
+}
+
+// DescriptionFormatNotIn applies the NotIn predicate on the "description_format" field.
+func DescriptionFormatNotIn(vs ...string) predicate.Ticket {
+	return predicate.Ticket(sql.FieldNotIn(FieldDescriptionFormat, vs...))
+}
+
+// DescriptionFormatGT applies the GT predicate on the "description_format" field.
+func DescriptionFormatGT(v string) predicate.Ticket {
+	return predicate.Ticket(sql.FieldGT(FieldDescriptionFormat, v))
+}
+
+// DescriptionFormatGTE applies the GTE predicate on the "description_format" field.
+func DescriptionFormatGTE(v string) predicate.Ticket {
+	return predicate.Ticket(sql.FieldGTE(FieldDescriptionFormat, v))
+}
+
+// DescriptionFormatLT applies the LT predicate on the "description_format" field.
+func DescriptionFormatLT(v string) predicate.Ticket {
+	return predicate.Ticket(sql.FieldLT(FieldDescriptionFormat, v))
+}
+
+// DescriptionFormatLTE applies the LTE predicate on the "description_format" field.
+func DescriptionFormatLTE(v string) predicate.Ticket {
+	return predicate.Ticket(sql.FieldLTE(FieldDescriptionFormat, v))
+}
+
+// DescriptionFormatContains applies the Contains predicate on the "description_format" field.
+func DescriptionFormatContains(v string) predicate.Ticket {
+	return predicate.Ticket(sql.FieldContains(FieldDescriptionFormat, v))
+}
+
+// DescriptionFormatHasPrefix applies the HasPrefix predicate on the "description_format" field.
+func DescriptionFormatHasPrefix(v string) predicate.Ticket {
+	return predicate.Ticket(sql.FieldHasPrefix(FieldDescriptionFormat, v))
+}
+
+// DescriptionFormatHasSuffix applies the HasSuffix predicate on the "description_format" field.
+func DescriptionFormatHasSuffix(v string) predicate.Ticket {
+	return predicate.Ticket(sql.FieldHasSuffix(FieldDescriptionFormat, v))
+}
+
+// DescriptionFormatEqualFold applies the EqualFold predicate on the "description_format" field.
+func DescriptionFormatEqualFold(v string) predicate.Ticket {
+	return predicate.Ticket(sql.FieldEqualFold(FieldDescriptionFormat, v))
+}
+
+// DescriptionFormatContainsFold applies the ContainsFold predicate on the "description_format" field.
+func DescriptionFormatContainsFold(v string) predicate.Ticket {
+	return predicate.Ticket(sql.FieldContainsFold(FieldDescriptionFormat, v))
 }
 
 // StatusEQ applies the EQ predicate on the "status" field.

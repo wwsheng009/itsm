@@ -5,7 +5,7 @@
  * 负责展示主导航菜单
  */
 
-import React, { useEffect } from 'react';
+import React, { useEffect, useRef } from 'react';
 import { App, Layout, theme } from 'antd';
 import { useRouter, usePathname } from 'next/navigation';
 import { useAuthStore, useAuthStoreHydration } from '@/lib/store/auth-store';
@@ -94,6 +94,11 @@ const MENU_PATH_NORMALIZATIONS: Record<string, string> = {
   '/email-intake/conversations': '/email-intake',
   '/knowledge/articles': '/knowledge',
   '/workflow/monitoring': '/workflow/dashboard',
+  // 历史「待审批」入口 /approvals/pending 是 server redirect 到 /approvals 的兼容页。
+  // 客户端导航进入该重定向路由时实测会抛 React「Rendered more hooks than during the
+  // previous render」并崩成错误页（且要多付一次整页 RSC 渲染）。直接指向 /approvals，
+  // 与 /admin/index 同样处理，避免两跳。
+  '/approvals/pending': '/approvals',
 };
 
 function normalizeMenuPath(raw: string): string {
@@ -117,6 +122,9 @@ export const Sidebar: React.FC<SidebarProps> = ({ collapsed, onCollapse, mobile 
   const pathname = usePathname();
   const { user } = useAuthStore();
   const { capabilities, isLoading: capabilitiesLoading } = useCapabilities();
+
+  // 菜单跳转去重（见 handleMenuClick）
+  const lastMenuNavRef = useRef<{ path: string; at: number }>({ path: '', at: 0 });
 
   // 触发 auth store 的 hydration
   useAuthStoreHydration();
@@ -149,6 +157,16 @@ export const Sidebar: React.FC<SidebarProps> = ({ collapsed, onCollapse, mobile 
     if (normalizedPath !== key) {
       console.debug('[Sidebar] 菜单路径已规范化', { from: key, to: normalizedPath });
     }
+    // 同一菜单项在 MenuItems 中同时挂了 label 级与 items[] 级 onClick（互为兜底），
+    // 点击时事件冒泡会让本函数被连续调用两次，从而触发两次 router.push
+    // （浏览器表现为两条完全相同的 _rsc 请求 + 服务端重复渲染）。此处对同一路径做
+    // 短窗口去重，保留两层兜底的同时只跳转一次。
+    const now = Date.now();
+    const last = lastMenuNavRef.current;
+    if (last.path === normalizedPath && now - last.at < 400) {
+      return;
+    }
+    lastMenuNavRef.current = { path: normalizedPath, at: now };
     try {
       router.push(normalizedPath);
     } catch (error) {

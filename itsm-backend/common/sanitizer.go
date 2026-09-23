@@ -1,6 +1,7 @@
 package common
 
 import (
+	"regexp"
 	"strings"
 	"sync"
 
@@ -14,6 +15,11 @@ var (
 	ugcPolicy        *bluemonday.Policy
 	strictPolicyOnce sync.Once
 	strictPolicy     *bluemonday.Policy
+
+	// BE-7 净化对齐：内嵌图片的附件回链与展示属性取值受限（与
+	// internal/sanitize 的富文本白名单保持一致）。
+	attachmentIDAttrPattern = regexp.MustCompile(`^\d+$`)
+	imageAlignAttrPattern   = regexp.MustCompile(`(?i)^(left|center|right)$`)
 )
 
 func UGCPolicy() *bluemonday.Policy {
@@ -21,6 +27,11 @@ func UGCPolicy() *bluemonday.Policy {
 		p := bluemonday.UGCPolicy()
 		// 允许 code 高亮常用 class 属性
 		p.AllowAttrs("class").Matching(bluemonday.SpaceSeparatedTokens).OnElements("code", "pre", "span", "div")
+		// BE-7：`data-attachment-id` 是富文本图片回链附件（删除引用保护 / 宿主归属校验）
+		// 的唯一锚点，`data-align` 承载编辑器对齐；UGCPolicy 默认剥离 data-*，
+		// 若不显式放行，知识库正文里的引用会在落库时被静默抹掉。
+		p.AllowAttrs("data-attachment-id").Matching(attachmentIDAttrPattern).OnElements("img")
+		p.AllowAttrs("data-align").Matching(imageAlignAttrPattern).OnElements("img")
 		ugcPolicy = p
 	})
 	return ugcPolicy
