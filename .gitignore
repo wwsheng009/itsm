@@ -299,3 +299,12 @@ test_connectivity.py
 test_db_connection.py
 test_db_from_remote.py
 test_tunnels.py
+
+# 后端本地备份二进制 main.exe.bak-<时间戳>（既有的 *.exe / *.bak 规则未覆盖该命名）
+itsm-backend/main.exe.bak-*
+
+# 前端性能构建检查产物（本地生成，体积大）
+/.perf-build-check/
+
+# 附件域运行时上传数据（保留磁盘文件、不提交；目录内历史 fixture 仍受跟踪）
+itsm-backend/uploads/tickets/*
