@@ -37,7 +37,12 @@ describe('FE-1 公共契约', () => {
     expect(DEFAULT_ATTACHMENT_MAX_SIZE_MB).toBe(10);
 
     const elevenMB = fileOfSize('big.pdf', 11 * 1024 * 1024);
-    expect(validateAttachmentFile(elevenMB)).toEqual({ ok: false, reason: '「big.pdf」超过 10MB 上限' });
+    // FE-7：校验结论新增 `code`（i18n key 由 code 决定），中文 reason 仍为无 i18n 上下文的兜底
+    expect(validateAttachmentFile(elevenMB)).toEqual({
+      ok: false,
+      code: 'tooLarge',
+      reason: '「big.pdf」超过 10MB 上限',
+    });
 
     const exactlyTenMB = fileOfSize('ok.pdf', 10 * 1024 * 1024);
     expect(validateAttachmentFile(exactlyTenMB)).toEqual({ ok: true });

@@ -255,12 +255,20 @@ describe('httpClient', () => {
       expect(fetchMock.mock.calls[1][1].headers['X-CSRF-Token']).toBe('mock-csrf-token');
     });
 
-    it('does not retry permission-related 403 responses', async () => {
+    it('does not retry permission-related 403 responses (surfaces backend code + message)', async () => {
       fetchMock.mockResolvedValueOnce(
         jsonResponse({ code: 2003, message: 'Forbidden' }, { status: 403, ok: false })
       );
 
-      await expect(httpClient.delete('/api/v1/changes/1')).rejects.toThrow('status: 403');
+      // FE-7：403 响应体（code/message）必须透出，附件/权限文案才能按 code 映射
+      const error = (await httpClient.delete('/api/v1/changes/1').catch((e) => e)) as Error & {
+        code?: number;
+        httpStatus?: number;
+      };
+      expect(error).toBeInstanceOf(Error);
+      expect(error.message).toContain('Forbidden');
+      expect(error.code).toBe(2003);
+      expect(error.httpStatus).toBe(403);
       expect(fetchMock).toHaveBeenCalledTimes(1);
     });
 

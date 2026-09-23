@@ -50,6 +50,53 @@ interface ApiResponse<T> {
   data: T;
 }
 
+/**
+ * HTTP / 业务错误的统一载体。
+ *
+ * 为什么需要：错误文案按业务码映射（附件 61xx，见
+ * `docs/plan/generic-attachment-richtext-control-plan.md` §3.4 / FE-7）时，
+ * 调用方必须能读到后端 `code`；而 `http-client` 只做**通用解包**，
+ * 不引入任何附件特判，保持向后兼容（只读 `error.message` 的旧调用方行为不变）。
+ */
+export interface HttpClientError extends Error {
+  /** 后端包络内的业务码（如 6103）；HTTP 层错误时可能缺失 */
+  code?: number;
+  /** 真实 HTTP 状态码（后端 Fail() 会把 61xx 映射为 4xx） */
+  httpStatus?: number;
+  /** 响应头 `X-Request-Id`，便于日志排查 */
+  requestId?: string;
+}
+
+const createHttpClientError = (
+  message: string,
+  meta: { code?: number | null; httpStatus?: number | null; requestId?: string | null } = {}
+): HttpClientError => {
+  const error = new Error(message) as HttpClientError;
+  if (typeof meta.code === 'number' && Number.isFinite(meta.code)) error.code = meta.code;
+  if (typeof meta.httpStatus === 'number' && Number.isFinite(meta.httpStatus)) {
+    error.httpStatus = meta.httpStatus;
+  }
+  if (meta.requestId) error.requestId = meta.requestId;
+  return error;
+};
+
+const readErrorEnvelope = async (
+  response: Response | undefined
+): Promise<{ code?: number; message?: string } | null> => {
+  if (!response) return null;
+  try {
+    const payload = (await response.json()) as { code?: unknown; message?: unknown } | null;
+    if (!payload || typeof payload !== 'object') return null;
+    const code = typeof payload.code === 'number' ? payload.code : undefined;
+    const message = typeof payload.message === 'string' && payload.message ? payload.message : undefined;
+    if (code === undefined && message === undefined) return null;
+    return { code, message };
+  } catch {
+    // 非 JSON 响应体（网关 HTML / 空体）→ 回落到通用 HTTP 错误文案
+    return null;
+  }
+};
+
 class HttpClient {
   private baseURL: string;
   private token: string | null = null;
@@ -377,7 +424,15 @@ class HttpClient {
           if (!retryResponse.ok) {
             const rid = retryResponse.headers.get('X-Request-Id') || '';
             const suffix = rid ? ` [RID: ${rid}]` : '';
-            throw new Error(`HTTP error! status: ${retryResponse?.status}${suffix}`);
+            const envelope = await readErrorEnvelope(retryResponse);
+            throw createHttpClientError(
+              (envelope?.message || `HTTP error! status: ${retryResponse?.status}`) + suffix,
+              {
+                code: envelope?.code ?? null,
+                httpStatus: retryResponse.status,
+                requestId: rid,
+              }
+            );
           }
 
           if (responseType === 'blob') {
@@ -391,7 +446,11 @@ class HttpClient {
           if (retryData.code !== undefined && retryData.code !== null && retryData.code !== 0) {
             const rid = retryResponse.headers.get('X-Request-Id') || '';
             const suffix = rid ? ` [RID: ${rid}]` : '';
-            throw new Error((retryData.message || 'Request failed') + suffix);
+            throw createHttpClientError((retryData.message || 'Request failed') + suffix, {
+              code: retryData.code,
+              httpStatus: retryResponse.status,
+              requestId: rid,
+            });
           }
 
           return toCamelCase(retryData.data) as T;
@@ -411,16 +470,16 @@ class HttpClient {
       if (!response?.ok) {
         const rid = response?.headers?.get('X-Request-Id') || '';
         const suffix = rid ? ` [RID: ${rid}]` : '';
-        // 尝试从响应中获取更详细的错误信息
-        try {
-          const errorData = await response.json();
-          if (errorData && errorData.message) {
-            throw new Error(errorData.message + suffix);
+        // 优先透出后端包络（code + message）：后端 Fail() 会把 61xx 映射为真实 4xx
+        const envelope = await readErrorEnvelope(response);
+        throw createHttpClientError(
+          (envelope?.message || `HTTP error! status: ${response?.status}`) + suffix,
+          {
+            code: envelope?.code ?? null,
+            httpStatus: response?.status ?? null,
+            requestId: rid,
           }
-        } catch {
-          // Ignore JSON parse errors, use default message
-        }
-        throw new Error(`HTTP error! status: ${response?.status}${suffix}`);
+        );
       }
 
       // Blob 响应：直接返回二进制，跳过 JSON 解析与 code 校验
@@ -441,7 +500,11 @@ class HttpClient {
       ) {
         const rid = (response.headers && response.headers.get('X-Request-Id')) || '';
         const suffix = rid ? ` [RID: ${rid}]` : '';
-        throw new Error((responseData.message || 'Request failed') + suffix);
+        throw createHttpClientError((responseData.message || 'Request failed') + suffix, {
+          code: responseData.code,
+          httpStatus: response.status,
+          requestId: rid,
+        });
       }
 
       // 自动转换响应数据 key 为 camelCase
@@ -577,7 +640,7 @@ class HttpClient {
             }
 
             if (xhr.status < 200 || xhr.status >= 300) {
-              reject(new Error(`HTTP error! status: ${xhr.status}`));
+              reject(createHttpClientError(`HTTP error! status: ${xhr.status}`, { httpStatus: xhr.status }));
               return;
             }
 
@@ -591,7 +654,12 @@ class HttpClient {
 
             // 容忍后端没有返回 code 字段的情况
             if (response.code !== undefined && response.code !== null && response.code !== 0) {
-              reject(new Error(response.message || 'Request failed'));
+              reject(
+                createHttpClientError(response.message || 'Request failed', {
+                  code: response.code,
+                  httpStatus: xhr.status,
+                })
+              );
               return;
             }
 

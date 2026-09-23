@@ -26,6 +26,16 @@ import {
   UploadCloud,
 } from 'lucide-react';
 import { DEFAULT_ATTACHMENT_MAX_SIZE_MB } from '@/lib/upload/types';
+import {
+  ATTACHMENT_ERROR_KEYS,
+  ATTACHMENT_FIELD_I18N_KEYS as FIELD_KEYS,
+  ATTACHMENT_REASON_I18N_KEYS as REASON_KEYS,
+  formatAttachmentError,
+  translateOrFallback,
+  type AttachmentTranslateFn,
+  type AttachmentValidationCode,
+} from '@/lib/upload/error-messages';
+import { useI18n } from '@/lib/i18n/useI18n';
 
 const { Text } = Typography;
 
@@ -94,22 +104,49 @@ export const ACCEPT_ATTACHMENT_STRING = ACCEPTED_ATTACHMENT_EXTENSIONS.map((ext)
 
 /**
  * 附件体积 / 扩展名校验（不依赖 MIME，浏览器对 zip 等类型 MIME 常为空）。
+ *
+ * 纯函数契约保持不变：不传 `t` 时 `reason` 仍为中文兜底文案（供旧调用方与单测使用）；
+ * 传入 `t` 时（组件层）全部改由 `lib/i18n/translations.ts` 出文案，禁止硬编码（FE-7）。
  */
 export function validateAttachmentFile(
   file: File,
-  options: { maxSizeMB?: number } = {}
-): { ok: true } | { ok: false; reason: string } {
+  options: { maxSizeMB?: number; t?: AttachmentTranslateFn } = {}
+): { ok: true } | { ok: false; code: AttachmentValidationCode; reason: string } {
   const maxSizeMB = options.maxSizeMB ?? DEFAULT_ATTACHMENT_MAX_SIZE_MB;
+  const localize = (
+    code: AttachmentValidationCode,
+    fallback: string,
+    params: Record<string, string | number>
+  ) => translateOrFallback(options.t, REASON_KEYS[code], fallback, params);
   if (file.size > maxSizeMB * 1024 * 1024) {
-    return { ok: false, reason: `「${file.name}」超过 ${maxSizeMB}MB 上限` };
+    return {
+      ok: false,
+      code: 'tooLarge',
+      reason: localize('tooLarge', `「${file.name}」超过 ${maxSizeMB}MB 上限`, {
+        name: file.name,
+        maxSizeMB,
+      }),
+    };
   }
   if (file.size === 0) {
     // 后端拒绝 0 字节附件（ent 的 file_size 校验），提前给出可读原因，避免上传后才失败
-    return { ok: false, reason: `「${file.name}」是空文件（0 字节），无法上传` };
+    return {
+      ok: false,
+      code: 'emptyFile',
+      reason: localize('emptyFile', `「${file.name}」是空文件（0 字节），无法上传`, {
+        name: file.name,
+      }),
+    };
   }
   const ext = file.name.includes('.') ? file.name.split('.').pop()!.toLowerCase() : '';
   if (!ext || !ACCEPTED_ATTACHMENT_EXTENSIONS.includes(ext)) {
-    return { ok: false, reason: `「${file.name}」类型不在允许范围内` };
+    return {
+      ok: false,
+      code: 'typeNotAllowed',
+      reason: localize('typeNotAllowed', `「${file.name}」类型不在允许范围内`, {
+        name: file.name,
+      }),
+    };
   }
   return { ok: true };
 }
@@ -140,7 +177,8 @@ export function createAttachmentItems(files: File[]): AttachmentFieldItem[] {
 export async function uploadAttachmentItems(
   items: AttachmentFieldItem[],
   uploader: AttachmentUploader,
-  onItemUpdate?: (uid: string, patch: Partial<AttachmentFieldItem>) => void
+  onItemUpdate?: (uid: string, patch: Partial<AttachmentFieldItem>) => void,
+  options: { t?: AttachmentTranslateFn } = {}
 ): Promise<AttachmentFieldItem[]> {
   const result = items.map((item) => ({ ...item }));
 
@@ -166,7 +204,8 @@ export async function uploadAttachmentItems(
       result[i] = { ...result[i], ...donePatch };
       onItemUpdate?.(item.uid, donePatch);
     } catch (e) {
-      const reason = e instanceof Error ? e.message : '上传失败';
+      // 无 i18n 上下文时回落中文（组件层已全量 i18n，见 FE-7）
+      const reason = formatAttachmentError(e, options.t, { fallbackText: '上传失败' });
       result[i] = { ...result[i], status: 'error', error: reason };
       onItemUpdate?.(item.uid, { status: 'error', error: reason });
     }
@@ -196,16 +235,16 @@ const renderFileIcon = (item: AttachmentFieldItem) => {
   return <FileText className={`${cls} text-gray-500`} />;
 };
 
-const statusTag = (item: AttachmentFieldItem) => {
+const statusTag = (item: AttachmentFieldItem, t: AttachmentTranslateFn) => {
   switch (item.status) {
     case 'pending':
-      return <Tag style={{ marginInlineEnd: 0 }}>待上传</Tag>;
+      return <Tag style={{ marginInlineEnd: 0 }}>{t(FIELD_KEYS.statusPending)}</Tag>;
     case 'uploading':
-      return <Tag color="processing" style={{ marginInlineEnd: 0 }}>上传中</Tag>;
+      return <Tag color="processing" style={{ marginInlineEnd: 0 }}>{t(FIELD_KEYS.statusUploading)}</Tag>;
     case 'done':
-      return <Tag color="success" style={{ marginInlineEnd: 0 }}>已上传</Tag>;
+      return <Tag color="success" style={{ marginInlineEnd: 0 }}>{t(FIELD_KEYS.statusDone)}</Tag>;
     case 'error':
-      return <Tag color="error" style={{ marginInlineEnd: 0 }}>上传失败</Tag>;
+      return <Tag color="error" style={{ marginInlineEnd: 0 }}>{t(FIELD_KEYS.statusError)}</Tag>;
     default:
       return null;
   }
@@ -220,12 +259,14 @@ const AttachmentField: React.FC<AttachmentFieldProps> = ({
   accept = ACCEPT_ATTACHMENT_STRING,
   uploader,
   onDeleteUploaded,
-  title = '附件',
+  title,
   showTitle = true,
   hint,
   dataTestId = 'attachment-field',
 }) => {
   const { message } = App.useApp();
+  const { t } = useI18n();
+  const fieldTitle = title ?? t(FIELD_KEYS.title);
   const controlled = value !== undefined;
   const [innerList, setInnerList] = useState<AttachmentFieldItem[]>([]);
   const list = controlled ? value || [] : innerList;
@@ -267,12 +308,15 @@ const AttachmentField: React.FC<AttachmentFieldProps> = ({
           error: undefined,
         });
       } catch (e) {
-        const reason = e instanceof Error ? e.message : '上传失败';
+        const reason = formatAttachmentError(e, t, {
+          maxSizeMB,
+          fallbackText: t(FIELD_KEYS.statusError),
+        });
         patchItem(target.uid, { status: 'error', error: reason });
-        message.error(`「${target.name}」上传失败：${reason}`);
+        message.error(t(FIELD_KEYS.uploadFailedItem, { name: target.name, reason }));
       }
     },
-    [message, patchItem, uploader]
+    [maxSizeMB, message, patchItem, t, uploader]
   );
 
   const handleFiles = useCallback(
@@ -281,13 +325,13 @@ const AttachmentField: React.FC<AttachmentFieldProps> = ({
 
       const currentCount = listRef.current.length;
       if (currentCount + incoming.length > maxCount) {
-        message.warning(`最多上传 ${maxCount} 个附件，当前已有 ${currentCount} 个`);
+        message.warning(t(FIELD_KEYS.maxCountExceeded, { maxCount, currentCount }));
         return;
       }
 
       const accepted: File[] = [];
       incoming.forEach((file) => {
-        const verdict = validateAttachmentFile(file, { maxSizeMB });
+        const verdict = validateAttachmentFile(file, { maxSizeMB, t });
         if (!verdict.ok) {
           message.warning(verdict.reason);
           return;
@@ -305,7 +349,7 @@ const AttachmentField: React.FC<AttachmentFieldProps> = ({
         });
       }
     },
-    [emit, maxCount, maxSizeMB, message, runUpload, uploader]
+    [emit, maxCount, maxSizeMB, message, runUpload, t, uploader]
   );
 
   const handleRemove = useCallback(
@@ -314,14 +358,17 @@ const AttachmentField: React.FC<AttachmentFieldProps> = ({
         try {
           await onDeleteUploaded(item);
         } catch (e) {
-          const reason = e instanceof Error ? e.message : '删除失败';
-          message.error(`「${item.name}」删除失败：${reason}`);
+          const reason = formatAttachmentError(e, t, {
+            fallbackKey: ATTACHMENT_ERROR_KEYS.deleteFailed,
+            fallbackText: t(ATTACHMENT_ERROR_KEYS.deleteFailed),
+          });
+          message.error(t(FIELD_KEYS.deleteFailedItem, { name: item.name, reason }));
           return;
         }
       }
       emit((prev) => prev.filter((entry) => entry.uid !== item.uid));
     },
-    [emit, message, onDeleteUploaded]
+    [emit, message, onDeleteUploaded, t]
   );
 
   const pendingCount = list.filter((item) => item.status === 'pending').length;
@@ -334,7 +381,7 @@ const AttachmentField: React.FC<AttachmentFieldProps> = ({
         <div className="mb-2 flex items-center justify-between">
           <Space size={6}>
             <Paperclip className="w-4 h-4 text-gray-500" aria-hidden="true" />
-            <Text strong>{title}</Text>
+            <Text strong>{fieldTitle}</Text>
             {list.length > 0 && (
               <Text type="secondary" style={{ fontSize: 12 }}>
                 {list.length}/{maxCount}
@@ -343,7 +390,7 @@ const AttachmentField: React.FC<AttachmentFieldProps> = ({
           </Space>
           {uploadingCount > 0 && (
             <Text type="secondary" style={{ fontSize: 12 }}>
-              正在上传 {uploadingCount} 个…
+              {t(FIELD_KEYS.uploadingCount, { count: uploadingCount })}
             </Text>
           )}
         </div>
@@ -359,17 +406,17 @@ const AttachmentField: React.FC<AttachmentFieldProps> = ({
           handleFiles([file as unknown as File]);
           return false;
         }}
-        aria-label="选择或拖拽附件上传"
+        aria-label={t(FIELD_KEYS.draggerAria)}
         data-testid={`${dataTestId}-dragger`}
       >
         <p className="ant-upload-drag-icon" style={{ marginBottom: 4 }}>
           <UploadCloud className="w-6 h-6 mx-auto text-gray-400" aria-hidden="true" />
         </p>
         <p className="ant-upload-text" style={{ fontSize: 13 }}>
-          点击或拖拽文件到此处
+          {t(FIELD_KEYS.dropText)}
         </p>
         <p className="ant-upload-hint" style={{ fontSize: 12 }}>
-          {hint ?? `支持文档 / 表格 / 图片 / 压缩包，单文件不超过 ${maxSizeMB}MB，最多 ${maxCount} 个`}
+          {hint ?? t(FIELD_KEYS.hintDefault, { maxSizeMB, maxCount })}
         </p>
       </Upload.Dragger>
 
@@ -393,7 +440,7 @@ const AttachmentField: React.FC<AttachmentFieldProps> = ({
                   <Text type="secondary" style={{ fontSize: 12 }}>
                     {formatAttachmentSize(item.size)}
                   </Text>
-                  {statusTag(item)}
+                  {statusTag(item, t)}
                 </div>
                 {item.status === 'uploading' && (
                   <Progress
@@ -411,18 +458,24 @@ const AttachmentField: React.FC<AttachmentFieldProps> = ({
               </div>
 
               {item.status === 'error' && uploader && (
-                <Tooltip title="重试">
+                <Tooltip title={t(FIELD_KEYS.retry)}>
                   <Button
                     type="text"
                     size="small"
                     icon={<RotateCcw className="w-4 h-4" />}
                     onClick={() => void runUpload(item)}
-                    aria-label={`重试上传 ${item.name}`}
+                    aria-label={t(FIELD_KEYS.retryAria, { name: item.name })}
                   />
                 </Tooltip>
               )}
 
-              <Tooltip title={item.status === 'done' && item.attachmentId ? '删除（同时解绑后端附件）' : '移除'}>
+              <Tooltip
+                title={
+                  item.status === 'done' && item.attachmentId
+                    ? t(FIELD_KEYS.removeUploaded)
+                    : t(FIELD_KEYS.remove)
+                }
+              >
                 <Button
                   type="text"
                   size="small"
@@ -430,7 +483,7 @@ const AttachmentField: React.FC<AttachmentFieldProps> = ({
                   disabled={disabled || item.status === 'uploading'}
                   icon={<Trash2 className="w-4 h-4" />}
                   onClick={() => void handleRemove(item)}
-                  aria-label={`移除附件 ${item.name}`}
+                  aria-label={t(FIELD_KEYS.removeAria, { name: item.name })}
                 />
               </Tooltip>
             </li>
@@ -440,12 +493,12 @@ const AttachmentField: React.FC<AttachmentFieldProps> = ({
 
       {errorCount > 0 && (
         <Text type="warning" style={{ fontSize: 12, display: 'block', marginTop: 8 }}>
-          {errorCount} 个附件上传失败，可点击重试；提交工单不会因此中断。
+          {t(FIELD_KEYS.errorSummary, { count: errorCount })}
         </Text>
       )}
       {pendingCount > 0 && !uploader && (
         <Text type="secondary" style={{ fontSize: 12, display: 'block', marginTop: 8 }}>
-          {pendingCount} 个附件将在工单创建成功后自动上传。
+          {t(FIELD_KEYS.pendingSummary, { count: pendingCount })}
         </Text>
       )}
     </div>
