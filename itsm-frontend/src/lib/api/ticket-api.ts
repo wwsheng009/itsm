@@ -1,5 +1,6 @@
 import { httpClient } from './http-client';
 import { handleApiRequest } from './base-api-handler';
+import { TicketAttachmentApi } from './ticket-attachment-api';
 import type { Ticket, TicketListResponse, CreateTicketRequest, GetTicketsParams } from './api-config';
 
 // AI-Native：工单关联的配置项（受影响配置项区块使用）
@@ -345,7 +346,8 @@ export class TicketApi {
     }>;
     total: number;
   }> {
-    return httpClient.get(`/api/v1/tickets/${id}/attachments`);
+    // FE-4：附件 HTTP 实现统一收敛到 AttachmentApi（工单默认用途仍解析为同一旧 URL）。
+    return TicketAttachmentApi.listAttachments(id);
   }
 
   // Upload ticket attachment
@@ -371,12 +373,8 @@ export class TicketApi {
     };
     createdAt: string;
   }> {
-    const formData = new FormData();
-    formData.append('file', file);
-
-    return httpClient.post(`/api/v1/tickets/${id}/attachments`, formData, {
-      onUploadProgress: onProgress,
-    });
+    // FE-4：不再自建 FormData / 直连 httpClient，统一委托兼容层（内部走 AttachmentApi）。
+    return TicketAttachmentApi.uploadAttachment(id, file, onProgress);
   }
 
   // Download ticket attachment
@@ -391,7 +389,7 @@ export class TicketApi {
 
   // Delete ticket attachment
   static async deleteTicketAttachment(ticketId: number, attachmentId: number): Promise<void> {
-    return httpClient.delete(`/api/v1/tickets/${ticketId}/attachments/${attachmentId}`);
+    return TicketAttachmentApi.deleteAttachment(ticketId, attachmentId);
   }
 
   // Get ticket workflow state - 使用后端实际的 workflow/state 端点
