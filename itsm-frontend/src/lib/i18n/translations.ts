@@ -2575,6 +2575,7 @@ export const translations = {
       deleteSuccess: '删除成功',
       deleteFailed: '删除失败',
       previewNotSupported: '该附件不支持预览',
+      previewFailed: '预览加载失败，请下载后查看',
     },
     smartAssignment: {
       title: '智能分配工单',
@@ -7251,6 +7252,7 @@ export const translations = {
       deleteSuccess: 'Deleted successfully',
       deleteFailed: 'Delete failed',
       previewNotSupported: 'Preview is not supported for this attachment',
+      previewFailed: 'Failed to load preview. Please download the file to view it.',
     },
     smartAssignment: {
       title: 'Smart Assign Ticket',
