@@ -7,6 +7,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [1.7.0] - 2026-09-24
+
+### Changed
+
+- **前端框架迁移：Next.js 15 App Router → Vite 7 + React Router 7 静态 SPA** — 168 条路由全量改为 `React.lazy` + `Suspense` 代码分割；`next/navigation` / `next/link` / `next/dynamic` 全部替换为 React Router 等价实现；`middleware.ts` 守卫与历史菜单重定向迁移为 `src/routes/guards.tsx` 与 `src/routes/legacy-redirects.tsx`；删除 `src/app/**` BFF（`/api/**`、`/health`、`/uploads` 处理）——dev 由 Vite 代理承接、生产由容器内 nginx 承接（`docs/plan/vite-migration-plan.md`）
+- **构建与部署产物** — `itsm-frontend/Dockerfile` 改为 deps/builder/production/runner 四阶段：生产镜像为 `nginx:alpine + dist/`（无 Node 运行时，容器仍监听 3000），`nginx/default.conf` 提供 SPA `try_files`、`/api/` 反代、`/health` 探活与 `/uploads/` 静态别名；compose 构建参数由 `NEXT_PUBLIC_*` 切换为 `VITE_*`（构建期烘入，运行期不可变）
+- **测试基建** — Jest 由 `next/jest` 切到 `babel-jest`（保留 `@/` 别名与 `import.meta.env` 桥接）；Playwright `webServer` 改指 Vite dev server；新增 168 条路由可达性冒烟用例 `tests/e2e/route-reachability.spec.ts`
+
+### Added
+
+- **服务请求新建页** — 新增 `/service-requests/new` 独立路由（选择服务目录项后跳转申请表单）；`/service-requests/:id` 对非法 ID 给出「未找到服务请求」兜底页与新建入口，不再以 `id="new"` 请求详情接口
+
+### Removed
+
+- **Next.js 依赖与残留** — 移除 `next`、`@ant-design/nextjs-registry` 与未使用的 `swr`；锁文件清理 Next 时代 webpack 依赖树；仓库内不再有可执行的 Next.js 引用（仅保留解释性注释）
+
+### Fixed
+
+- **E2E 兼容回退清理** — Playwright 用例移除 `NEXT_PUBLIC_API_URL` 兼容分支（统一 `VITE_API_URL`）
+
 ## [Unreleased]
 
 ### Added
