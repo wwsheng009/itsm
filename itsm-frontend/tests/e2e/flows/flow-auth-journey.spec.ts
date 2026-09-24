@@ -24,7 +24,7 @@ type Journey = {
   forbiddenApi?: string;
 };
 
-const API_URL = process.env.VITE_API_URL || process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8090';
+const API_URL = process.env.VITE_API_URL || 'http://localhost:8090';
 
 const journeys: Journey[] = [
   {

@@ -30,7 +30,7 @@ export const test = base.extend<TestFixtures>({
     await use(async (role: TestRole) => {
       const account = TEST_ACCOUNTS[role];
       const baseURL = process.env.PLAYWRIGHT_BASE_URL || 'http://localhost:3000';
-      const apiURL = process.env.VITE_API_URL || process.env.NEXT_PUBLIC_API_URL || 'http://localhost';
+      const apiURL = process.env.VITE_API_URL || 'http://localhost';
 
       // 确保密码满足后端最小长度要求
       const password =
@@ -114,7 +114,7 @@ export const test = base.extend<TestFixtures>({
 
   apiGet: async ({ request }, use) => {
     await use(async (token: string, path: string) => {
-      const apiURL = process.env.VITE_API_URL || process.env.NEXT_PUBLIC_API_URL || 'http://localhost';
+      const apiURL = process.env.VITE_API_URL || 'http://localhost';
       const response = await request.get(`${apiURL}${path}`, {
         headers: {
           Authorization: `Bearer ${token}`,
@@ -129,7 +129,7 @@ export const test = base.extend<TestFixtures>({
 
   apiPost: async ({ request }, use) => {
     await use(async (token: string, path: string, body?: any) => {
-      const apiURL = process.env.VITE_API_URL || process.env.NEXT_PUBLIC_API_URL || 'http://localhost';
+      const apiURL = process.env.VITE_API_URL || 'http://localhost';
       const response = await request.post(`${apiURL}${path}`, {
         headers: {
           Authorization: `Bearer ${token}`,

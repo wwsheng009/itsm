@@ -129,7 +129,7 @@ test.describe('SLA 监控完整测试', () => {
 
   test.describe('SLA API 接口测试', () => {
     test('GET /api/v1/sla SLA 列表接口', async ({ request }) => {
-      const apiUrl = process.env.VITE_API_URL || process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8090';
+      const apiUrl = process.env.VITE_API_URL || 'http://localhost:8090';
 
       // 登录
       const loginResponse = await request.post(`${apiUrl}/api/v1/auth/login`, {
@@ -158,7 +158,7 @@ test.describe('SLA 监控完整测试', () => {
     });
 
     test('GET /api/v1/sla/monitor 监控数据接口', async ({ request }) => {
-      const apiUrl = process.env.VITE_API_URL || process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8090';
+      const apiUrl = process.env.VITE_API_URL || 'http://localhost:8090';
 
       // 登录
       const loginResponse = await request.post(`${apiUrl}/api/v1/auth/login`, {
@@ -185,7 +185,7 @@ test.describe('SLA 监控完整测试', () => {
     });
 
     test('GET /api/v1/sla/breaches 告警接口', async ({ request }) => {
-      const apiUrl = process.env.VITE_API_URL || process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8090';
+      const apiUrl = process.env.VITE_API_URL || 'http://localhost:8090';
 
       // 登录
       const loginResponse = await request.post(`${apiUrl}/api/v1/auth/login`, {
@@ -289,7 +289,7 @@ test.describe('SLA 监控完整测试', () => {
  */
 test.describe('SLA 监控 API 集成测试', () => {
   test('完整的 SLA 监控流程 API', async ({ request }) => {
-    const apiUrl = process.env.VITE_API_URL || process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8090';
+    const apiUrl = process.env.VITE_API_URL || 'http://localhost:8090';
 
     // 1. 登录
     const loginResponse = await request.post(`${apiUrl}/api/v1/auth/login`, {
@@ -337,7 +337,7 @@ test.describe('SLA 监控 API 集成测试', () => {
   });
 
   test('SLA 权限验证', async ({ request }) => {
-    const apiUrl = process.env.VITE_API_URL || process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8090';
+    const apiUrl = process.env.VITE_API_URL || 'http://localhost:8090';
 
     // 以普通用户登录
     const loginResponse = await request.post(`${apiUrl}/api/v1/auth/login`, {

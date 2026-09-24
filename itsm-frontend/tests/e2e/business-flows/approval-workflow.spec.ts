@@ -210,7 +210,7 @@ test.describe('审批工作流完整生命周期测试', () => {
 
   test.describe('API 审批接口测试', () => {
     test('GET /api/v1/approval-workflows 列表接口', async ({ request }) => {
-      const apiUrl = process.env.VITE_API_URL || process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8090';
+      const apiUrl = process.env.VITE_API_URL || 'http://localhost:8090';
 
       // 先登录获取 token
       const loginResponse = await request.post(`${apiUrl}/api/v1/auth/login`, {
@@ -242,7 +242,7 @@ test.describe('审批工作流完整生命周期测试', () => {
     });
 
     test('GET /api/v1/tickets/approval/records 审批记录接口', async ({ request }) => {
-      const apiUrl = process.env.VITE_API_URL || process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8090';
+      const apiUrl = process.env.VITE_API_URL || 'http://localhost:8090';
 
       // 先登录
       const loginResponse = await request.post(`${apiUrl}/api/v1/auth/login`, {
@@ -273,7 +273,7 @@ test.describe('审批工作流完整生命周期测试', () => {
     });
 
     test('POST /api/v1/approval-workflows 创建工作流接口', async ({ request }) => {
-      const apiUrl = process.env.VITE_API_URL || process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8090';
+      const apiUrl = process.env.VITE_API_URL || 'http://localhost:8090';
 
       // 先登录
       const loginResponse = await request.post(`${apiUrl}/api/v1/auth/login`, {
@@ -330,7 +330,7 @@ test.describe('审批工作流完整生命周期测试', () => {
  */
 test.describe('审批流程 API 集成测试', () => {
   test('完整的审批流程 API 调用', async ({ request }) => {
-    const apiUrl = process.env.VITE_API_URL || process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8090';
+    const apiUrl = process.env.VITE_API_URL || 'http://localhost:8090';
 
     // 1. 登录
     const loginResponse = await request.post(`${apiUrl}/api/v1/auth/login`, {
@@ -372,7 +372,7 @@ test.describe('审批流程 API 集成测试', () => {
   });
 
   test('审批权限验证', async ({ request }) => {
-    const apiUrl = process.env.VITE_API_URL || process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8090';
+    const apiUrl = process.env.VITE_API_URL || 'http://localhost:8090';
 
     // 以普通用户登录
     const loginResponse = await request.post(`${apiUrl}/api/v1/auth/login`, {
