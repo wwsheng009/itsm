@@ -5,7 +5,7 @@
 
 // 全局测试 API（describe/it/expect/jest）由 @types/jest 提供。
 // 这里不再 import '@jest/globals'：该包未安装（jest 29 + @types/jest 方案），
-// 缺失的模块会让 `next build` 的类型检查整包失败。
+// 缺失的模块会让 `npm run type-check`（`tsc --noEmit`）整包失败。
 import { act } from '@testing-library/react';
 
 // Mock 依赖

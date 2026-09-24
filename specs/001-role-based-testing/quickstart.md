@@ -85,8 +85,8 @@ echo "exit=$?"
 
 ```bash
 cd itsm-frontend
-NEXT_PUBLIC_API_URL=http://localhost:8090 \
-npx next dev -p 3000 &
+# Vite dev server 固定监听 3000；/api 由 vite proxy 转发到 ITSM_BACKEND_URL（默认 http://localhost:8090）
+npm run dev &
 echo $! > /tmp/itsm-frontend.pid
 
 # 等待启动
