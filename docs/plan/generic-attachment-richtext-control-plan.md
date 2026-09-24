@@ -340,11 +340,12 @@ export interface AttachmentFieldProps {
 | `ticket` | `ticket` | `ticket:read` | `ticket:read` | `ticket:create` | `ticket:delete` | **完全一致**（`router/ticket_routes.go:170-180`） |
 | `knowledge_article` | `knowledge` | `knowledge:read` | `knowledge:read` | `knowledge:write` | `knowledge:delete` | 新增路由引用，权限码已存在且已绑定角色（`roles.go:362,419`）；删除动作与 ticket/service_request 行保持一致 |
 | `service_request` | `service_request` | `service_request:read` | `service_request:read` | `service_request:write` | `service_request:delete` | 新增路由引用，权限码已存在 |
-| `incident` | `incident` | `incident:read` | `incident:read` | `incident:write` | `incident:delete` | 预留（按需开通） |
-| `problem` | `problem` | `problem:read` | `problem:read` | `problem:write` | `problem:delete` | 预留 |
-| `change` | `change` | `change:read` | `change:read` | `change:write` | `change:delete` | 预留 |
-| `release` | `release` | `release:read` | `release:read` | `release:write` | `release:delete` | 预留 |
-| `cmdb_ci` | `cmdb` | `cmdb:read` | `cmdb:read` | `cmdb:write` | `cmdb:delete` | 预留 |
+| `incident` | `incident` | `incident:read` | `incident:read` | `incident:write` | `incident:delete` | 已接线（第二波，`1a85e8d8`） |
+| `problem` | `problem` | `problem:read` | `problem:read` | `problem:write` | `problem:delete` | 已接线（第二波，`1a85e8d8`） |
+| `known_error` | `problem` | `problem:read` | `problem:read` | `problem:write` | `problem:delete` | 新增行（第三波）：KEDB 属问题管理域，沿用 `handlers/known_error/handler.go` 既有约定复用 `problem:*` 词表，不引入新权限码 |
+| `change` | `change` | `change:read` | `change:read` | `change:write` | `change:delete` | 已接线（第二波，`1a85e8d8`） |
+| `release` | `release` | `release:read` | `release:read` | `release:write` | `release:delete` | 已接线（第三波，`0b453306`；别名路由 6 条在 `router/release_routes.go`） |
+| `cmdb_ci` | `cmdb` | `cmdb:read` | `cmdb:read` | `cmdb:write` | `cmdb:delete` | 已接线（第三波，`0b453306`；别名路由挂 `/cmdb` 组而非 `cis` 子组，规避读门禁叠加，见 `router/cmdb_routes.go`） |
 | `(无宿主/系统级)` | `attachment` | `attachment:read` | `attachment:read` | `attachment:write` | `attachment:delete` | **v1.0 启用登记**（随 §4.3 执行，P0-3） |
 
 > 说明：`ticket` 行的"上传"沿用 `ticket:create` 是**刻意保持现网行为**，避免一次改造同时改变鉴权语义；后续如需收紧为 `ticket:write`，单独走权限变更评审。

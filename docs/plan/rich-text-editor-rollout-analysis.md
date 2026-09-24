@@ -137,7 +137,7 @@
 |:---|:---|:---|
 | **第一波**：服务请求 `reason` | ✅ 已完成并提交 | commit `320d4bb5`（9 files, +273/-12）；`npx tsc --noEmit` exit 0、`jest src/components/common/rich-text` 4 suites/23 tests 全通过、`go build ./...` exit 0；后端 `reason` 校验放宽至 `max=20000` |
 | **第二波**：变更 `description`/`implementationPlan`/`rollbackPlan` + 事件/问题正文 | ✅ 已完成并提交（`1a85e8d8`） | 后端：`change`/`incident`/`problem` 宿主注册（含 `ReferencesFunc`，`service/attachment_service.go`）+ 三域别名路由（各 6 条，权限复用 `<domain>:read/write/delete`）+ DTO 放宽（incident/problem `description` → `max=20000`；change 三字段原本无 `max=`）+ 新增覆盖守卫测试 `service/attachment_hosts_wave2_test.go`；前端：`attachment-api.ts` 域内 URL 映射补齐三域，变更三字段与事件/问题 `description` 接入富文本（新建两段式 / 编辑即时上传）+ 详情 `RichTextContent` 双读 + 列表 `htmlToPlainText(…, 160)` 截断 + 附件路由单测补 1 例。验证：`go build ./...` exit 0、`go test ./handlers/attachment/... ./router/... ./service/...` 各包 ok、`npx tsc --noEmit` exit 0、`jest src/lib/api/__tests__/attachment-api.test.ts src/components/common/rich-text` 5 suites/43 tests 全通过。**本轮事件/问题范围仅 `description`**，`root_cause`/`workaround`/`resolution` 留待第三波 |
-| **第三波**：发布 / CMDB CI `description` / 已知错误 | ⏳ 未开始 | — |
+| **第三波**：发布（`description`/`releaseNotes`/`rollbackProcedure`/`validationCriteria`）/ CMDB CI `description` / 已知错误（`workaround`+`resolution`） | ✅ 已完成并提交（`0b453306`，21 files, +1008/-92） | 后端：`release`/`cmdb_ci`/`known_error` 三宿主注册（`ReferencesFunc` 覆盖本轮 HTML 字段）+ 三域别名路由（各 6 条，路由文件内静态声明宿主权限码）+ 三 DTO 放宽至 `max=20000` + 新增 `service/attachment_hosts_wave3_test.go`（三宿主 Exists/References 语义 + 「非富文本字段不参与引用保护」边界）；**同批修复存量缺陷** `service/configuration_item_service.go`：CI 创建/更新此前完全丢弃 `description`（写入路径缺 `SetDescription`，仅 `ToCIResponse` 回读映射），已补齐（空串=不修改语义）。前端：发布表单四字段 + 发布详情 `RichTextContent` 双读；CMDB CI 描述（创建态 blob 两段式回写 / 编辑态即时上传，纯文本口径 20000 双端校验）+ CI 详情；已知错误 `workaround`/`resolution`（创建态两段式 + 详情渲染）；`attachment-api.ts` 三域映射与 6 个 URL helper。验证：`go build ./...` exit 0；`go test ./handlers/cmdb/... ./router/...` 与 `go test ./service/ -run AttachmentHosts -v`（Wave3 三子用例 + 边界用例）全通过；`npx tsc --noEmit` exit 0；`jest src/lib/api/__tests__/attachment-api.test.ts src/components/common/rich-text` 5 suites / 45 tests 全通过（退出码 1 仅因子集运行触发全局覆盖率阈值）。开工时冻结的共享契约与路由前缀：`release` → `/api/v1/releases/:id/attachments`（`release:*`）；`cmdb_ci` → `/api/v1/cmdb/cis/:id/attachments`（`cmdb:*`，挂在 `/cmdb` 组以避开 `cis` 子组 `cmdb:read` 门禁叠加）；`known_error` → `/api/v1/known-errors/:id/attachments`（复用 `problem:*`）。**不切**：发布 `deploymentSteps`/`affectedSystems`/`affectedComponents`、CI `extensionAttributes`/`attribute_schema`、已知错误 `description`/`symptoms`/`rootCause` |
 
 ---
 
@@ -165,6 +165,8 @@
 7. **change 三字段无长度上限**：`dto/change_dto.go` 的 `description` / `implementationPlan` / `rollbackPlan` 本无 `max=` 约束，仅靠前端把门；后续补约束时对齐 20000 口径。
 8. **标准变更模板弹窗未切富文本**：`standard-changes` 页内模板弹窗的同类字段仍为 `TextArea`，属模板实体另一 surface，未纳入第二波。
 9. **编辑态移除图片不解除附件绑定**：两波均未接 `extractAttachmentImageIds` + `AttachmentApi.remove`（`TicketDetail.tsx` 有现成用法），可作为统一收敛项。
+10. **`known_error` 宿主权限复用 `problem:*`**（第三波新增）：KEDB 属问题管理域且无独立权限码，附件动作沿用 `problem:*`；已在 `docs/plan/generic-attachment-richtext-control-plan.md` §4.2 权威表补行说明，若后续 KEDB 独立成域需重评。
+11. **CMDB 关系（relationship）说明字段的归属**：`components/cmdb/CIRelationshipManager.tsx:399-400` 处的 description 若属"关系"实体而非 CI 本体，则后端无对应宿主，本波不接入；待确认实体归属后再排期。
 
 ---
 
@@ -185,6 +187,8 @@
 
 | 版本 | 日期 | 说明 |
 |:---|:---|:---|
+| v1.4 | 2026-09-22 | 第三波实施完成并提交（`0b453306`，21 files, +1008/-92）：后端三宿主（`release`/`cmdb_ci`/`known_error`）+ 三域别名路由 + DTO 放宽 + 守卫测试；前端发布四字段 / CMDB CI 描述 / 已知错误 `workaround`+`resolution`；同批修复 CI 写入丢 `description` 的存量缺陷；§5.1 第三波行与 §4.2 权威表（`release`/`cmdb_ci`）同步为「已接线」 |
+| v1.3 | 2026-09-22 | 第三波开工：范围锁定（发布四字段 / CMDB CI `description` / 已知错误 `workaround`+`resolution`）；共享契约冻结（`attachment-api.ts` 三域映射）；三工作流并行（后端 / 发布+CMDB 前端 / 已知错误前端）；§4.2 权威表补 `known_error` 行并标注各域接线状态；补 §7 遗留项 10-11 |
 | v1.2 | 2026-09-22 | 第二波实施完成并提交（`1a85e8d8`，27 files, +1181/-115）：后端三域宿主/别名路由/DTO 放宽 + 覆盖守卫测试，前端三域表单与渲染改造；补 §7 遗留项 6-9 |
 | v1.1 | 2026-09-22 | 补 §5.1 实施进度：第一波已提交（`320d4bb5`）；第二波开工（后端三域宿主 + 别名路由 + DTO 放宽，前端域内 URL 映射与变更/事件/问题正文接入） |
 | v1.0 | 2026-09-22 | 首次编制：三前置条件标尺、A/B/C/D 分档、统一改造模式、三波次排期与风险清单 |
