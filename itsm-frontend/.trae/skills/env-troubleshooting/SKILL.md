@@ -27,7 +27,7 @@ resolution until the cause is confirmed.
 ## Common boundaries
 
 - Frontend defaults to `3000`; backend defaults to `8090`.
-- Browser API configuration uses `NEXT_PUBLIC_API_URL` or the project's same-origin proxy.
+- Browser API configuration uses `VITE_API_URL` (baked at build time) or the project's same-origin proxy.
 - Production Compose must receive an explicit `--env-file`.
 - Development and production containers may use different Docker networks.
 - A listener on port 3000 may be an older Docker image rather than the checked-out frontend.

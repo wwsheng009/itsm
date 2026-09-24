@@ -58,7 +58,7 @@
 
 ```
 ┌────────────────────────────────────────────────────────────┐
-│ Frontend:  Next.js 15 + React 19 + TypeScript 5.7 + Antd 6 │
+│ Frontend:  Vite 7 + React 19 + React Router 7 + Antd 6     │
 │            + Zustand + Tailwind + Playwright                │
 ├────────────────────────────────────────────────────────────┤
 │ Backend:   Go 1.25 + Gin + Ent ORM + PostgreSQL + Redis     │

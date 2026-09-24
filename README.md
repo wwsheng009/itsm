@@ -5,7 +5,8 @@
 一个面向国内企业的开源 IT 服务管理系统，覆盖 ITIL 核心流程，支持 BPMN 工作流编排、CMDB、SLA、知识库和多租户。
 
 [![Go](https://img.shields.io/badge/Go-1.25.13-00ADD8?logo=go&logoColor=white)](https://go.dev/)
-[![Next.js](https://img.shields.io/badge/Next.js-15.5-black?logo=next.js)](https://nextjs.org/)
+[![Vite](https://img.shields.io/badge/Vite-7.3-646CFF?logo=vite&logoColor=white)](https://vite.dev/)
+[![React Router](https://img.shields.io/badge/React_Router-7-CA4245?logo=reactrouter&logoColor=white)](https://reactrouter.com/)
 [![TypeScript](https://img.shields.io/badge/TypeScript-6.0-3178C6?logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
 [![License](https://img.shields.io/badge/License-Apache--2.0-green)](./LICENSE)
 [![Backend CI](https://github.com/heidsoft/itsm/actions/workflows/backend-ci.yml/badge.svg)](https://github.com/heidsoft/itsm/actions/workflows/backend-ci.yml)
@@ -64,7 +65,7 @@
 - 运维治理：事件、CI、SLA、问题、变更闭环管理
 - 流程自动化：通过 BPMN 配置审批和跨系统流程
 - 多组织服务：私有化、SaaS 或 MSP 模式下的多租户管理
-- 二次开发：基于 Go + Next.js 和开放 API 定制
+- 二次开发：基于 Go + React（Vite SPA）和开放 API 定制
 
 ## 能力与成熟度
 
@@ -169,7 +170,7 @@ make dev-clean
 
 ### 本机热更新开发
 
-Docker 提供 PostgreSQL、Redis 和 MinIO，本机运行 Go 与 Next.js：
+Docker 提供 PostgreSQL、Redis 和 MinIO，本机运行 Go 与 Vite（前端 dev server）：
 
 ```bash
 make dev-start-local
@@ -321,7 +322,7 @@ flowchart LR
 
 ```mermaid
 flowchart TB
-    UI[Next.js Web / Open API] --> API[Go / Gin API]
+    UI[React SPA / Open API] --> API[Go / Gin API]
     API --> DOMAIN[ITIL 领域服务]
     DOMAIN --> TX[(业务数据 + Operational Command)]
     TX --> WORKER[Lease + Heartbeat Worker]
@@ -384,7 +385,7 @@ export VECTOR_STORE_CONFIG=etc/vector-store/config.yaml
 | 层 | 技术 |
 |:---|:---|
 | 后端 | Go 1.25.13、Gin、Ent、PostgreSQL、Redis |
-| 前端 | Next.js 15.5、React 19、TypeScript 6、Ant Design 6、Tailwind CSS |
+| 前端 | Vite 7、React 19、React Router 7、TypeScript 6、Ant Design 6、Tailwind CSS |
 | 工作流 | BPMN 2.0、流程定义/实例/任务/变量/历史 |
 | AI/RAG | LLM Gateway、pgvector、OpenAI/兼容接口、Ollama 可选 |
 | 交付 | Docker Compose、GHCR、GitHub Actions、Prometheus/Grafana 可选 |
@@ -392,7 +393,7 @@ export VECTOR_STORE_CONFIG=etc/vector-store/config.yaml
 ```text
 itsm/
 ├── itsm-backend/     # Go API、领域服务、Ent Schema、Worker
-├── itsm-frontend/    # Next.js 管理端、服务台与用户门户
+├── itsm-frontend/    # Vite + React 管理端、服务台与用户门户
 ├── itsm-ai-service/  # AI/RAG 辅助服务
 ├── itsm-agent/       # Agent 扩展
 ├── itsm-skill/       # Skill 扩展

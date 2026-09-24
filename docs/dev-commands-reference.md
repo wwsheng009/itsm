@@ -53,20 +53,20 @@ make dev-init
 | 模式 | 说明 | 适用场景 |
 |------|------|----------|
 | `--docker` | 全 Docker Compose（前后端+基础设施均容器化） | 快速验证、CI、不想装 Go/Node |
-| `--local` | 本地 Go/Next.js 进程 + Docker 基础设施（PG/Redis/MinIO） | 日常开发（热重载、断点调试） |
+| `--local` | 本地 Go/Vite 进程 + Docker 基础设施（PG/Redis/MinIO） | 日常开发（热重载、断点调试） |
 
 ```bash
 # ===== 启动 =====
 make dev-start            # 自动检测模式（有 Docker 则用 docker，否则 local）
 make dev-start-docker     # 强制 Docker 模式（全容器化）
-make dev-start-local      # 强制本地模式（Go/Next.js 直接跑，推荐日常开发用）
+make dev-start-local      # 强制本地模式（Go/Vite 直接跑，推荐日常开发用）
 
 # 快速重启（不重新构建镜像）
 make dev-start-docker --no-build    # 或：./scripts/deploy-dev.sh up --docker --no-build
 
 # ===== 停止 =====
 make dev-stop              # 停止所有服务
-make dev-stop-local        # 仅停止本地 Go/Next.js 进程（保留 PG/Redis 容器）
+make dev-stop-local        # 仅停止本地 Go/Vite 进程（保留 PG/Redis 容器）
 make dev-stop-docker      # 仅停止 Docker Compose 环境
 
 # ===== 重启 =====

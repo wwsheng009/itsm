@@ -20,7 +20,7 @@
 
 | 层级 | 技术选型 |
 |------|----------|
-| 前端 | Next.js 15 + React 19 + TypeScript + Ant Design 6 + Tailwind CSS 4 |
+| 前端 | Vite 7 + React 19 + React Router 7 + TypeScript + Ant Design 6 + Tailwind CSS 4 |
 | 后端 | Go 1.21 + Gin + Ent ORM + Zap |
 | 数据库 | PostgreSQL 17 (pgvector) + Redis 7 + MinIO |
 | AI 服务 | Python FastAPI + OpenAI/Ollama + ChromaDB + RAG |
@@ -37,7 +37,7 @@
 ```
 ┌─────────────────────────────────────────────────────────────┐
 │                     客户端层                                 │
-│   Web (Next.js) | CLI (Ink) | Webhook | 飞书/钉钉 | Agent   │
+│   Web (React SPA) | CLI (Ink) | Webhook | 飞书/钉钉 | Agent │
 ├─────────────────────────────────────────────────────────────┤
 │                     网关层                                    │
 │              Nginx 反向代理 + 安全头 + WebSocket              │
@@ -63,7 +63,7 @@
 ### 3.1 前端 (itsm-frontend)
 
 **技术架构**：
-- Next.js 15 App Router + React 19
+- Vite 7 + React 19 + React Router 7（静态 SPA，路由级 `React.lazy` + `Suspense`）
 - 状态管理：Zustand (客户端) + TanStack React Query (服务端)
 - UI 框架：Ant Design 6 + Tailwind CSS 4
 - HTTP 客户端：自封装 fetch (非 Axios)
@@ -71,10 +71,11 @@
 **目录结构**：
 ```
 itsm-frontend/src/
-├── app/                    # App Router 页面
+├── routes/                 # React Router 路由表 + 守卫 + 历史重定向
+├── layouts/                # MainLayout / TicketsLayout（嵌套路由）
+├── pages/                  # 页面组件（按业务域分层）
 │   ├── (auth)/            # 认证路由 (login, register)
-│   ├── (main)/            # 主应用路由 (90+ 页面)
-│   └── api/               # API 代理
+│   └── (main)/            # 主应用路由 (90+ 页面)
 ├── components/            # 36 个业务域组件
 │   ├── ticket/            # 工单
 │   ├── incident/         # 事件

@@ -26,7 +26,7 @@ ITSM（IT Service Management）是一个企业级 IT 服务管理系统，遵循
 
 | 层级 | 技术选型 | 说明 |
 |------|---------|------|
-| **前端** | Next.js + React + TypeScript | SSR 框架，类型安全 |
+| **前端** | Vite + React + React Router + TypeScript | 静态 SPA，类型安全 |
 | **UI 组件** | Ant Design | 企业级 UI 组件库 |
 | **状态管理** | Zustand | 轻量级状态管理 |
 | **后端** | Go + Gin | 高性能 Web 框架 |

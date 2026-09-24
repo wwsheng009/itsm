@@ -11,7 +11,7 @@
 | 服务 | 语言/栈 | 镜像来源 | 说明 |
 |------|---------|----------|------|
 | `itsm-backend` | Go 1.25 / Gin + Ent | `itsm-backend/Dockerfile`、`Dockerfile.prod` | 主后端，含 init（迁移/种子）与 backend 两个容器 |
-| `itsm-frontend` | Next.js 15 / Node 22 | `itsm-frontend/Dockerfile` | 4 阶段：deps / builder / production / runner |
+| `itsm-frontend` | Vite 7（Node 24 构建 / nginx:alpine 运行） | `itsm-frontend/Dockerfile` | 4 阶段：deps / builder / production（静态产物 + nginx）/ runner（dev server） |
 | `itsm-ai-service` | Python 3.12 / FastAPI | `itsm-ai-service/Dockerfile` | 独立 AI 微服务，依赖 torch + transformers |
 | `guidance_sidecar` | Python 3.11 / FastAPI | `itsm-backend/guidance_sidecar/Dockerfile` | 引导/分类 sidecar |
 | postgres / redis / minio / nginx | 官方镜像 | docker-compose 引用 | 基础设施 |
@@ -92,6 +92,8 @@
 | guidance_sidecar | ~400–600 MB | ~300–450 MB | 多阶段 venv + 非 root |
 
 > 说明：数值为基于依赖构成的工程估算，实际以 `docker images` 为准。AI 服务是最大的优化点。
+>
+> 前端已迁移为 Vite 静态 SPA（见 `docs/plan/vite-migration-plan.md`）：运行镜像为 `nginx:alpine + dist/`，Node 只出现在构建阶段，故上表 `itsm-frontend` 一行（Next.js/Node 运行时估算）已失效，需按新镜像重新实测。
 
 ---
 
