@@ -35,7 +35,10 @@ import (
 
 	"itsm-backend/ent"
 	"itsm-backend/ent/attachment"
+	changeent "itsm-backend/ent/change"
+	incidentent "itsm-backend/ent/incident"
 	"itsm-backend/ent/knowledgearticle"
+	probent "itsm-backend/ent/problem"
 	"itsm-backend/ent/servicerequest"
 	"itsm-backend/ent/ticket"
 	"itsm-backend/ent/ticketcomment"
@@ -50,6 +53,9 @@ const (
 	AttachmentBizTypeTicketComment    = "ticket_comment"
 	AttachmentBizTypeKnowledgeArticle = "knowledge_article"
 	AttachmentBizTypeServiceRequest   = "service_request"
+	AttachmentBizTypeChange           = "change"
+	AttachmentBizTypeIncident         = "incident"
+	AttachmentBizTypeProblem          = "problem"
 
 	// 用途（写入 attachments.usage，长度上限 32）。
 	AttachmentUsageAttachment        = "attachment"
@@ -919,7 +925,8 @@ func htmlReferencesAttachment(html string, attachmentID int) bool {
 }
 
 // defaultAttachmentHosts 内置宿主适配（BE-5 的知识库/服务请求别名路由复用
-// knowledge_article 与 service_request 两项）。
+// knowledge_article 与 service_request 两项；富文本第二波新增 change / incident /
+// problem 三项，路由见 router/change_routes.go 等域内别名块）。
 func defaultAttachmentHosts() map[string]AttachmentHost {
 	return map[string]AttachmentHost{
 		AttachmentBizTypeTicket: AttachmentHostFunc{
@@ -996,6 +1003,57 @@ func defaultAttachmentHosts() map[string]AttachmentHost {
 					return false, err
 				}
 				return htmlReferencesAttachment(sr.Reason, attachmentID), nil
+			},
+		},
+		AttachmentBizTypeChange: AttachmentHostFunc{
+			ExistsFunc: func(ctx context.Context, client *ent.Client, tenantID, bizID int) (bool, error) {
+				return client.Change.Query().Where(changeent.ID(bizID), changeent.TenantID(tenantID)).Exist(ctx)
+			},
+			// 变更单富文本正文可能落在 description / implementation_plan / rollback_plan；
+			// 本轮仅这些字段可能承载 HTML（后续波次扩字段时同步更新），任一字段命中引用即保护。
+			ReferencesFunc: func(ctx context.Context, client *ent.Client, tenantID, bizID, attachmentID int) (bool, error) {
+				ch, err := client.Change.Query().Where(changeent.ID(bizID), changeent.TenantID(tenantID)).Only(ctx)
+				if err != nil {
+					if ent.IsNotFound(err) {
+						return false, nil
+					}
+					return false, err
+				}
+				return htmlReferencesAttachment(ch.Description, attachmentID) ||
+					htmlReferencesAttachment(ch.ImplementationPlan, attachmentID) ||
+					htmlReferencesAttachment(ch.RollbackPlan, attachmentID), nil
+			},
+		},
+		AttachmentBizTypeIncident: AttachmentHostFunc{
+			ExistsFunc: func(ctx context.Context, client *ent.Client, tenantID, bizID int) (bool, error) {
+				return client.Incident.Query().Where(incidentent.ID(bizID), incidentent.TenantID(tenantID)).Exist(ctx)
+			},
+			// 事件富文本正文落在 description；本轮仅该字段可能承载 HTML（后续波次扩字段时同步更新）。
+			ReferencesFunc: func(ctx context.Context, client *ent.Client, tenantID, bizID, attachmentID int) (bool, error) {
+				inc, err := client.Incident.Query().Where(incidentent.ID(bizID), incidentent.TenantID(tenantID)).Only(ctx)
+				if err != nil {
+					if ent.IsNotFound(err) {
+						return false, nil
+					}
+					return false, err
+				}
+				return htmlReferencesAttachment(inc.Description, attachmentID), nil
+			},
+		},
+		AttachmentBizTypeProblem: AttachmentHostFunc{
+			ExistsFunc: func(ctx context.Context, client *ent.Client, tenantID, bizID int) (bool, error) {
+				return client.Problem.Query().Where(probent.ID(bizID), probent.TenantID(tenantID)).Exist(ctx)
+			},
+			// 问题富文本正文落在 description；本轮仅该字段可能承载 HTML（后续波次扩字段时同步更新）。
+			ReferencesFunc: func(ctx context.Context, client *ent.Client, tenantID, bizID, attachmentID int) (bool, error) {
+				pb, err := client.Problem.Query().Where(probent.ID(bizID), probent.TenantID(tenantID)).Only(ctx)
+				if err != nil {
+					if ent.IsNotFound(err) {
+						return false, nil
+					}
+					return false, err
+				}
+				return htmlReferencesAttachment(pb.Description, attachmentID), nil
 			},
 		},
 	}

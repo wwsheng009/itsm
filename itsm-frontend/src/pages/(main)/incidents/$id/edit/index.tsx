@@ -1,14 +1,27 @@
 import { useNavigate, useParams } from 'react-router';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback, lazy, Suspense } from 'react';
 import { Button, Card, Form, Input, Select, message, Row, Col, Space, Divider } from 'antd';
 import { ArrowLeft, Save } from 'lucide-react';
 import { IncidentAPI } from '@/lib/api/incident-api';
 import type { Incident, UpdateIncidentRequest } from '@/lib/api/incident-api';
 import { IncidentCategoryOptions } from '@/constants/taxonomy';
 import { useI18n } from '@/lib/i18n';
+import { htmlToPlainText, isRichTextEnabled } from '@/lib/rich-text/sanitize';
+import { AttachmentApi, incidentAttachmentPreviewUrl } from '@/lib/api/attachment-api';
+import type { UploadedImage } from '@/components/common/rich-text/RichTextEditor';
 
 const { TextArea } = Input;
+
+// 富文本编辑器按需加载：VITE_RICH_TEXT=off 时该分支不渲染，
+// 也就不会请求编辑器 chunk（对齐服务请求表单 §4.3 / §NF-2）。
+const RichTextEditorLazy = lazy(() => import('@/components/common/rich-text/RichTextEditor'));
+
+const RichTextEditor: React.FC<React.ComponentProps<typeof RichTextEditorLazy>> = props => (
+  <Suspense fallback={<div className="rich-text-editor" style={{ minHeight: 220 }} />}>
+    <RichTextEditorLazy {...props} />
+  </Suspense>
+);
 
 interface IncidentFormValues {
   title: string;
@@ -30,6 +43,29 @@ export default function IncidentEditPage() {
   const [loading, setLoading] = useState(false);
   const [fetching, setFetching] = useState(false);
   const [incidentData, setIncidentData] = useState<Incident | null>(null);
+  const richTextEnabled = isRichTextEnabled();
+  const [editorUploading, setEditorUploading] = useState(false);
+
+  /** 编辑态事件 ID 已存在：图片即时上传，直接返回可渲染的域内预览地址 */
+  const handleUploadImage = useCallback(
+    async (file: File): Promise<UploadedImage> => {
+      const incidentId = Number(id);
+      if (!Number.isFinite(incidentId) || incidentId <= 0) {
+        throw new Error('事件 ID 非法，无法上传图片');
+      }
+      const uploaded = await AttachmentApi.upload(file, {
+        bizType: 'incident',
+        bizId: incidentId,
+        usage: 'inline_image',
+      });
+      return {
+        id: uploaded.id,
+        url: uploaded.previewUrl || incidentAttachmentPreviewUrl(incidentId, uploaded.id),
+        name: uploaded.fileName || file.name,
+      };
+    },
+    [id]
+  );
 
   // Fetch incident data
   useEffect(() => {
@@ -72,6 +108,22 @@ export default function IncidentEditPage() {
 
   const handleSubmit = async (values: IncidentFormValues) => {
     if (!id) return;
+
+    // 图片仍在上传时提交会丢掉刚插入的图片，先阻断并提示。
+    if (editorUploading) {
+      message.warning('正文图片正在上传，请稍候再保存');
+      return;
+    }
+    if (richTextEnabled) {
+      const plainLength = htmlToPlainText(
+        typeof values.description === 'string' ? values.description : '',
+        Number.MAX_SAFE_INTEGER
+      ).length;
+      if (plainLength > 20000) {
+        message.warning('事件描述最多 20000 字，请精简后再提交');
+        return;
+      }
+    }
 
     setLoading(true);
     try {
@@ -220,8 +272,40 @@ export default function IncidentEditPage() {
 
           <Row gutter={24}>
             <Col span={24}>
-              <Form.Item name="description" label="事件描述">
-                <TextArea rows={6} placeholder="请详细描述事件情况" />
+              <Form.Item
+                name="description"
+                label="事件描述"
+                rules={[
+                  {
+                    validator: (_rule, value) => {
+                      if (!richTextEnabled) return Promise.resolve();
+                      const plainLength = htmlToPlainText(
+                        typeof value === 'string' ? value : '',
+                        Number.MAX_SAFE_INTEGER
+                      ).length;
+                      return plainLength > 20000
+                        ? Promise.reject(new Error('事件描述最多 20000 字'))
+                        : Promise.resolve();
+                    },
+                  },
+                ]}
+                extra={
+                  richTextEnabled
+                    ? '支持加粗、列表、代码块等排版；可直接粘贴或拖拽图片（上传后立即生效）。'
+                    : undefined
+                }
+              >
+                {richTextEnabled ? (
+                  <RichTextEditor
+                    placeholder="请详细描述事件情况"
+                    minHeight={220}
+                    onUploadImage={handleUploadImage}
+                    onUploadingChange={setEditorUploading}
+                    dataTestId="incident-description-input"
+                  />
+                ) : (
+                  <TextArea rows={6} maxLength={20000} placeholder="请详细描述事件情况" />
+                )}
               </Form.Item>
             </Col>
           </Row>
@@ -230,7 +314,13 @@ export default function IncidentEditPage() {
 
           <Form.Item>
             <Space>
-              <Button type="primary" htmlType="submit" icon={<Save />} loading={loading}>
+              <Button
+                type="primary"
+                htmlType="submit"
+                icon={<Save />}
+                loading={loading}
+                disabled={editorUploading}
+              >
                 保存
               </Button>
               <Button onClick={handleCancel}>取消</Button>

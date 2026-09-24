@@ -486,7 +486,8 @@ func SetupRoutes(r *gin.Engine, config *RouterConfig) {
 
 		// ==================== Incidents ====================
 		if config.IncidentHandler != nil {
-			SetupIncidentRoutes(tenant.(*gin.RouterGroup), config.IncidentHandler)
+			// 富文本第二波：附件域内别名与 /incidents 同组注册，宿主权限码在子路由文件内声明。
+			SetupIncidentRoutes(tenant.(*gin.RouterGroup), config.IncidentHandler, config.AttachmentHandler)
 		}
 		if config.CMDBHandler != nil {
 			tenant.GET("/incidents/configuration-items", middleware.RequirePermission("cmdb", "read"), config.CMDBHandler.ListCIs)
@@ -504,7 +505,8 @@ func SetupRoutes(r *gin.Engine, config *RouterConfig) {
 
 		// ==================== Problems (DDD) ====================
 		if config.ProblemHandler != nil {
-			SetupProblemRoutes(tenant.(*gin.RouterGroup), config.ProblemHandler)
+			// 富文本第二波：附件域内别名与 /problems 同组注册，宿主权限码在子路由文件内声明。
+			SetupProblemRoutes(tenant.(*gin.RouterGroup), config.ProblemHandler, config.AttachmentHandler)
 			// 问题调查关联列表（前端契约：GET /api/v1/problems/:id/relationships）
 			if config.ProblemInvestigationHandler != nil {
 				tenant.(*gin.RouterGroup).GET("/problems/:id/relationships", middleware.RequirePermission("problem", "read"), config.ProblemInvestigationHandler.GetProblemRelationships)
@@ -513,7 +515,8 @@ func SetupRoutes(r *gin.Engine, config *RouterConfig) {
 
 		// ==================== Changes (DDD) ====================
 		if config.ChangeHandler != nil {
-			SetupChangeRoutes(tenant.(*gin.RouterGroup), config.ChangeHandler)
+			// 富文本第二波：附件域内别名与 /changes 同组注册，宿主权限码在子路由文件内声明。
+			SetupChangeRoutes(tenant.(*gin.RouterGroup), config.ChangeHandler, config.AttachmentHandler)
 		}
 
 		// ==================== CAB (Change Advisory Board) ====================

@@ -3,6 +3,7 @@ import React from 'react';
 import { Card, Descriptions, Divider, Typography } from 'antd';
 import dayjs from 'dayjs';
 import { useI18n } from '@/lib/i18n/useI18n';
+import RichTextContent from '@/components/common/rich-text/RichTextContent';
 
 const { Title, Paragraph } = Typography;
 
@@ -54,7 +55,6 @@ const BasicInfoCard: React.FC<BasicInfoCardProps> = ({ data }) => {
   const impact = data.impact ?? noDescriptionText;
   const priority = (data.priority ?? data.severity ?? '') as string;
   const category = data.category ?? '-';
-  const description = data.description ?? '-';
   const status = (data.status ?? '') as string;
 
   const formatDate = (dateStr: string | number | undefined): string => {
@@ -126,7 +126,8 @@ const BasicInfoCard: React.FC<BasicInfoCardProps> = ({ data }) => {
       <Divider />
 
       <Title level={5}>{t('problem.description')}</Title>
-      <Paragraph style={{ whiteSpace: 'pre-wrap' }}>{description}</Paragraph>
+      {/* 单字段范式：新数据 HTML / 历史数据纯文本由 RichTextContent 双读 */}
+      <RichTextContent content={data.description} emptyText={noDescriptionText} />
 
       <Divider />
 

@@ -1,15 +1,18 @@
 package router
 
 import (
+	attachmentHandler "itsm-backend/handlers/attachment"
 	changeHandler "itsm-backend/handlers/change"
 	"itsm-backend/middleware"
+	"itsm-backend/service"
 
 	"github.com/gin-gonic/gin"
 )
 
 // SetupChangeRoutes 注册变更管理相关路由。
 // 从 router.go 的集中注册块抽取而来，路由路径/方法/中间件与抽取前逐行一致。
-func SetupChangeRoutes(tenant *gin.RouterGroup, h *changeHandler.Handler) {
+// attachmentHandler 非空时挂载附件域内别名（富文本第二波，§3.2），权限复用 change 宿主码。
+func SetupChangeRoutes(tenant *gin.RouterGroup, h *changeHandler.Handler, attachmentHandler *attachmentHandler.Handler) {
 	changes := tenant.Group("/changes")
 	{
 		changes.GET("", middleware.RequirePermission("change", "read"), h.ListChanges)
@@ -46,5 +49,15 @@ func SetupChangeRoutes(tenant *gin.RouterGroup, h *changeHandler.Handler) {
 		changes.POST("/:id/pir", middleware.RequirePermission("change", "write"), h.CreatePIR)
 		changes.PUT("/pir/:id", middleware.RequirePermission("change", "write"), h.UpdatePIR)
 		changes.DELETE("/pir/:id", middleware.RequirePermission("change", "delete"), h.DeletePIR)
+
+		// 附件域内别名（富文本第二波，BE-5 §3.2）：静态声明宿主权限码，处理体复用通用附件 A1/A2/A4/A5。
+		if attachmentHandler != nil {
+			changes.GET("/:id/attachments", middleware.RequirePermission("change", "read"), attachmentHandler.AliasList(service.AttachmentBizTypeChange))
+			changes.POST("/:id/attachments", middleware.RequirePermission("change", "write"), attachmentHandler.AliasUpload(service.AttachmentBizTypeChange))
+			changes.GET("/:id/attachments/:ref", middleware.RequirePermission("change", "read"), attachmentHandler.AliasDownload(service.AttachmentBizTypeChange, false))
+			changes.GET("/:id/attachments/:ref/download", middleware.RequirePermission("change", "read"), attachmentHandler.AliasDownload(service.AttachmentBizTypeChange, false))
+			changes.GET("/:id/attachments/:ref/preview", middleware.RequirePermission("change", "read"), attachmentHandler.AliasDownload(service.AttachmentBizTypeChange, true))
+			changes.DELETE("/:id/attachments/:ref", middleware.RequirePermission("change", "delete"), attachmentHandler.AliasDelete(service.AttachmentBizTypeChange))
+		}
 	}
 }

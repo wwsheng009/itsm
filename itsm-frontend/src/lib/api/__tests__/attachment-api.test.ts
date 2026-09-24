@@ -115,6 +115,22 @@ describe('AttachmentApi 端点解析', () => {
       expect(mockPost.mock.calls[0][0]).toBe('/api/v1/service-requests/3/attachments');
     });
 
+    it('第二波三域（change / incident / problem）同样走 BE-5 域内别名路由', async () => {
+      const cases: Array<[string, string]> = [
+        ['change', '/api/v1/changes/8/attachments'],
+        ['incident', '/api/v1/incidents/8/attachments'],
+        ['problem', '/api/v1/problems/8/attachments'],
+      ];
+      for (const [bizType, expected] of cases) {
+        mockPost.mockClear();
+        mockPost.mockResolvedValue(refPayload({ bizType, bizId: 8 }));
+
+        await AttachmentApi.upload(file(), { bizType, bizId: 8 });
+
+        expect(mockPost.mock.calls[0][0]).toBe(expected);
+      }
+    });
+
     it('未知宿主走通用 A1，支持 clientToken 幂等回放', async () => {
       mockPost.mockResolvedValue(refPayload({ bizType: 'other_host', bizId: 1 }));
 

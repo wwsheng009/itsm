@@ -57,6 +57,9 @@ const (
 )
 
 // CreateChangeRequest 创建变更请求
+//
+// 富文本口径（第二波）：description / implementationPlan / rollbackPlan 当前均无 max 约束，
+// 天然容纳 HTML，无需放宽；若后续补 max，需对齐第一波 service_request.reason 的 20000。
 type CreateChangeRequest struct {
 	Title              string     `json:"title" binding:"required"` // 变更标题
 	Description        string     `json:"description"`              // 变更描述
@@ -74,6 +77,7 @@ type CreateChangeRequest struct {
 }
 
 // UpdateChangeRequest 更新变更请求
+// 富文本口径（第二波）：description / implementationPlan / rollbackPlan 均无 max 约束（同 CreateChangeRequest）。
 type UpdateChangeRequest struct {
 	Title              *string         `json:"title"`              // 变更标题
 	Description        *string         `json:"description"`        // 变更描述

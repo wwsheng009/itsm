@@ -40,6 +40,9 @@ export const GENERIC_ATTACHMENTS_PATH = '/api/v1/attachments';
 const DOMAIN_LIST_PATHS: Record<string, (bizId: number) => string> = {
   knowledge_article: (bizId) => `/api/v1/knowledge/articles/${bizId}/attachments`,
   service_request: (bizId) => `/api/v1/service-requests/${bizId}/attachments`,
+  change: (bizId) => `/api/v1/changes/${bizId}/attachments`,
+  incident: (bizId) => `/api/v1/incidents/${bizId}/attachments`,
+  problem: (bizId) => `/api/v1/problems/${bizId}/attachments`,
 };
 
 /** 工单域内容地址（旧端点形态，D5 永不失效；静态权限 `ticket:read`） */
@@ -72,6 +75,36 @@ export function serviceRequestAttachmentPreviewUrl(requestId: number, id: number
   return `/api/v1/service-requests/${requestId}/attachments/${id}/preview`;
 }
 
+/** 变更域内容地址（BE-5 别名路由，静态权限 `change:read`） */
+export function changeAttachmentContentUrl(changeId: number, id: number): string {
+  return `/api/v1/changes/${changeId}/attachments/${id}`;
+}
+
+/** 变更域预览地址（BE-5 别名路由） */
+export function changeAttachmentPreviewUrl(changeId: number, id: number): string {
+  return `/api/v1/changes/${changeId}/attachments/${id}/preview`;
+}
+
+/** 事件域内容地址（BE-5 别名路由，静态权限 `incident:read`） */
+export function incidentAttachmentContentUrl(incidentId: number, id: number): string {
+  return `/api/v1/incidents/${incidentId}/attachments/${id}`;
+}
+
+/** 事件域预览地址（BE-5 别名路由） */
+export function incidentAttachmentPreviewUrl(incidentId: number, id: number): string {
+  return `/api/v1/incidents/${incidentId}/attachments/${id}/preview`;
+}
+
+/** 问题域内容地址（BE-5 别名路由，静态权限 `problem:read`） */
+export function problemAttachmentContentUrl(problemId: number, id: number): string {
+  return `/api/v1/problems/${problemId}/attachments/${id}`;
+}
+
+/** 问题域预览地址（BE-5 别名路由） */
+export function problemAttachmentPreviewUrl(problemId: number, id: number): string {
+  return `/api/v1/problems/${problemId}/attachments/${id}/preview`;
+}
+
 /**
  * 域内地址构造表（与 `DOMAIN_LIST_PATHS` 同源）。
  *
@@ -83,12 +116,18 @@ const DOMAIN_CONTENT_URLS: Record<string, (bizId: number, id: number) => string>
   ticket: ticketAttachmentContentUrl,
   knowledge_article: knowledgeAttachmentContentUrl,
   service_request: serviceRequestAttachmentContentUrl,
+  change: changeAttachmentContentUrl,
+  incident: incidentAttachmentContentUrl,
+  problem: problemAttachmentContentUrl,
 };
 
 const DOMAIN_PREVIEW_URLS: Record<string, (bizId: number, id: number) => string> = {
   ticket: ticketAttachmentPreviewUrl,
   knowledge_article: knowledgeAttachmentPreviewUrl,
   service_request: serviceRequestAttachmentPreviewUrl,
+  change: changeAttachmentPreviewUrl,
+  incident: incidentAttachmentPreviewUrl,
+  problem: problemAttachmentPreviewUrl,
 };
 
 /** 是否通用 A4 地址（`/api/v1/attachments/...`） */

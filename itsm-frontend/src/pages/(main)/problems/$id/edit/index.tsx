@@ -1,6 +1,6 @@
 import { useNavigate, useParams } from 'react-router';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback, lazy, Suspense } from 'react';
 import { Button, Card, Form, Input, Select, App, Row, Col, Space, Divider } from 'antd';
 import { ArrowLeft, Save } from 'lucide-react';
 import { ProblemApi } from '@/lib/api/problem-api';
@@ -9,8 +9,22 @@ import {
   isKnownProblemCategory,
 } from '@/constants/problem';
 import { useI18n } from '@/lib/i18n';
+import { htmlToPlainText, isRichTextEnabled } from '@/lib/rich-text/sanitize';
+import { AttachmentApi, problemAttachmentPreviewUrl } from '@/lib/api/attachment-api';
+import type { UploadedImage } from '@/components/common/rich-text/RichTextEditor';
 
 const { TextArea } = Input;
+
+// 富文本编辑器按需加载：VITE_RICH_TEXT=off 时该分支不渲染，
+// 也就不会请求编辑器 chunk（对齐服务请求表单 / 事件表单范式 §4.3 / §NF-2）。
+const RichTextEditorLazy = lazy(() => import('@/components/common/rich-text/RichTextEditor'));
+
+const RichTextEditor: React.FC<React.ComponentProps<typeof RichTextEditorLazy>> = props => (
+  <Suspense fallback={<div className="rich-text-editor" style={{ minHeight: 160 }} />}>
+    <RichTextEditorLazy {...props} />
+  </Suspense>
+);
+
 export default function ProblemEditPage() {
   const navigate = useNavigate();
   const params = useParams();
@@ -21,6 +35,29 @@ export default function ProblemEditPage() {
   const [loading, setLoading] = useState(false);
   const [fetching, setFetching] = useState(false);
   const [problemData, setProblemData] = useState<any>(null);
+  const richTextEnabled = isRichTextEnabled();
+  const [editorUploading, setEditorUploading] = useState(false);
+
+  /** 编辑态问题 ID 已存在：图片即时上传，直接返回可渲染的域内预览地址 */
+  const handleUploadImage = useCallback(
+    async (file: File): Promise<UploadedImage> => {
+      const problemId = Number(id);
+      if (!Number.isFinite(problemId) || problemId <= 0) {
+        throw new Error('问题 ID 非法，无法上传图片');
+      }
+      const uploaded = await AttachmentApi.upload(file, {
+        bizType: 'problem',
+        bizId: problemId,
+        usage: 'inline_image',
+      });
+      return {
+        id: uploaded.id,
+        url: uploaded.previewUrl || problemAttachmentPreviewUrl(problemId, uploaded.id),
+        name: uploaded.fileName || file.name,
+      };
+    },
+    [id]
+  );
 
   // Fetch problem data
   useEffect(() => {
@@ -61,6 +98,22 @@ export default function ProblemEditPage() {
 
   const handleSubmit = async (values: any) => {
     if (!id) return;
+
+    // 图片仍在上传时提交会丢掉刚插入的图片，先阻断并提示。
+    if (editorUploading) {
+      message.warning('正文图片正在上传，请稍候再保存');
+      return;
+    }
+    if (richTextEnabled) {
+      const plainLength = htmlToPlainText(
+        typeof values.description === 'string' ? values.description : '',
+        Number.MAX_SAFE_INTEGER
+      ).length;
+      if (plainLength > 20000) {
+        message.warning('问题描述最多 20000 字，请精简后再提交');
+        return;
+      }
+    }
 
     setLoading(true);
     try {
@@ -167,8 +220,40 @@ export default function ProblemEditPage() {
 
           <Row gutter={24}>
             <Col span={24}>
-              <Form.Item name="description" label="问题描述">
-                <TextArea rows={4} placeholder="请详细描述问题情况" />
+              <Form.Item
+                name="description"
+                label="问题描述"
+                rules={[
+                  {
+                    validator: (_rule, value) => {
+                      if (!richTextEnabled) return Promise.resolve();
+                      const plainLength = htmlToPlainText(
+                        typeof value === 'string' ? value : '',
+                        Number.MAX_SAFE_INTEGER
+                      ).length;
+                      return plainLength > 20000
+                        ? Promise.reject(new Error('问题描述最多 20000 字'))
+                        : Promise.resolve();
+                    },
+                  },
+                ]}
+                extra={
+                  richTextEnabled
+                    ? '支持加粗、列表、代码块等排版；可直接粘贴或拖拽图片（上传后立即生效）。'
+                    : undefined
+                }
+              >
+                {richTextEnabled ? (
+                  <RichTextEditor
+                    placeholder="请详细描述问题情况"
+                    minHeight={160}
+                    onUploadImage={handleUploadImage}
+                    onUploadingChange={setEditorUploading}
+                    dataTestId="problem-description-input"
+                  />
+                ) : (
+                  <TextArea rows={4} maxLength={20000} placeholder="请详细描述问题情况" />
+                )}
               </Form.Item>
             </Col>
           </Row>
@@ -193,7 +278,13 @@ export default function ProblemEditPage() {
 
           <Form.Item>
             <Space>
-              <Button type="primary" htmlType="submit" icon={<Save />} loading={loading}>
+              <Button
+                type="primary"
+                htmlType="submit"
+                icon={<Save />}
+                loading={loading}
+                disabled={editorUploading}
+              >
                 保存
               </Button>
               <Button onClick={handleCancel}>取消</Button>

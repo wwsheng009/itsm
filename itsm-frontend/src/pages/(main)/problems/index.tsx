@@ -18,6 +18,7 @@ import {
 import ProblemList from '@/components/problem/ProblemList';
 import { ProblemApi, type Problem } from '@/lib/api/problem-api';
 import { useI18n } from '@/lib/i18n/useI18n';
+import { htmlToPlainText } from '@/lib/rich-text/sanitize';
 import {
   UnifiedKanbanBoard,
   type KanbanColumnConfig,
@@ -272,7 +273,9 @@ export default function ProblemListPage() {
         const data = problem as unknown as Record<string, unknown>;
         return (data.problemNumber as string) || `P-${problem.id}`;
       }}
-      getItemDescription={(problem: Problem) => problem.description || ''}
+      getItemDescription={(problem: Problem) =>
+        htmlToPlainText(problem.description || '', 160)
+      }
       getItemPriority={(problem: Problem) => problem.priority || problem.severity || 'medium'}
       getItemAssignee={(problem: Problem) => {
         const assigneeId = problem.assigneeId;

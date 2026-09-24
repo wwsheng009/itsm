@@ -41,6 +41,7 @@ import {
   type SolutionType,
 } from '@/lib/api/problem-investigation';
 import { useI18n } from '@/lib/i18n/useI18n';
+import { htmlToPlainText } from '@/lib/rich-text/sanitize';
 
 const { Title, Paragraph } = Typography;
 const { TextArea } = Input;
@@ -1041,7 +1042,11 @@ const ProblemInvestigationTab: React.FC<ProblemInvestigationTabProps> = ({
               placeholder={t('problemInvestigation.modals.articleContentPlaceholder')}
               defaultValue={`
 ${t('problemInvestigation.modals.articleTemplate', {
-  description: problemDescription || t('problemInvestigation.modals.articleTemplateProblemDesc'),
+  // 问题描述已落 HTML（单字段范式）：知识库模板是纯文本载体，先转纯文本再拼接，
+  // 避免标签混入文章正文。
+  description:
+    htmlToPlainText(problemDescription, 20000) ||
+    t('problemInvestigation.modals.articleTemplateProblemDesc'),
   rootCause:
     summary?.rootCauseAnalysis?.rootCauseDescription ||
     t('problemInvestigation.modals.articleTemplateRootCause'),

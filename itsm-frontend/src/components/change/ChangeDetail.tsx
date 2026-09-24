@@ -43,6 +43,7 @@ import ChangeCMDBImpactPanel from './ChangeCMDBImpactPanel';
 import ChangeImpactAnalysis from './ChangeImpactAnalysis';
 import ChangeRollbackPlan from './ChangeRollbackPlan';
 import { SafeTextBlock } from '@/components/common/SafeContent';
+import RichTextContent from '@/components/common/rich-text/RichTextContent';
 import { formatDateTime } from '@/lib/formatters';
 
 const { Title, Text, Paragraph } = Typography;
@@ -498,22 +499,20 @@ const ChangeDetail: React.FC = () => {
                   <SafeTextBlock content={change.justification} fallback={t('changeDetail.none')} />
 
                   <Title level={5}>{t('changeDetail.descriptionTitle')}</Title>
-                  <SafeTextBlock content={change.description} fallback={t('changeDetail.none')} />
+                  <RichTextContent content={change.description} emptyText={t('changeDetail.none')} />
 
                   <Divider />
 
                   <Title level={5}>{t('changeDetail.implementationPlanTitle')}</Title>
-                  <SafeTextBlock
+                  <RichTextContent
                     content={change.implementationPlan}
-                    fallback={t('changeDetail.noImplementationPlan')}
-                    preserveNewlines
+                    emptyText={t('changeDetail.noImplementationPlan')}
                   />
 
                   <Title level={5}>{t('changeDetail.rollbackPlan')}</Title>
-                  <SafeTextBlock
+                  <RichTextContent
                     content={change.rollbackPlan}
-                    fallback={t('changeDetail.noRollbackPlan')}
-                    preserveNewlines
+                    emptyText={t('changeDetail.noRollbackPlan')}
                   />
                 </>
               ),

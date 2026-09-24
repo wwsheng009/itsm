@@ -688,9 +688,9 @@ func TestAttachmentHostPoliciesMatchContract(t *testing.T) {
 		service.AttachmentBizTypeTicket:           {resource: "ticket", read: "read", write: "create", remove: "delete"},
 		service.AttachmentBizTypeKnowledgeArticle: {resource: "knowledge", read: "read", write: "write", remove: "delete"},
 		service.AttachmentBizTypeServiceRequest:   {resource: "service_request", read: "read", write: "write", remove: "delete"},
-		"incident":                                {resource: "incident", read: "read", write: "write", remove: "delete"},
-		"problem":                                 {resource: "problem", read: "read", write: "write", remove: "delete"},
-		"change":                                  {resource: "change", read: "read", write: "write", remove: "delete"},
+		service.AttachmentBizTypeIncident:         {resource: "incident", read: "read", write: "write", remove: "delete"},
+		service.AttachmentBizTypeProblem:          {resource: "problem", read: "read", write: "write", remove: "delete"},
+		service.AttachmentBizTypeChange:           {resource: "change", read: "read", write: "write", remove: "delete"},
 		"release":                                 {resource: "release", read: "read", write: "write", remove: "delete"},
 		"cmdb_ci":                                 {resource: "cmdb", read: "read", write: "write", remove: "delete"},
 	}

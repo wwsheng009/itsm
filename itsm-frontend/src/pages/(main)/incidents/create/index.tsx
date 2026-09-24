@@ -1,6 +1,6 @@
 import { useNavigate } from 'react-router';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback, useRef, lazy, Suspense } from 'react';
 import { Button, Card, Form, Input, Select, Upload, Space, Row, Col, message, Tabs, Typography, Divider, Tag, Spin } from 'antd';
 import { ArrowLeft, Search, X, Sparkles } from 'lucide-react';
 import { IncidentAPI } from '@/lib/api/incident-api';
@@ -12,9 +12,29 @@ import { UserApi } from '@/lib/api/user-api';
 import { useErrorHandler } from '@/lib/hooks/useErrorHandler';
 import { AIApi, type TriageResult, type RagAnswer } from '@/lib/api/ai-api';
 import { notify } from '@/lib/notify';
+import { htmlToPlainText, isRichTextEmpty, isRichTextEnabled } from '@/lib/rich-text/sanitize';
+import {
+  STAGED_ID_PREFIX,
+  extractStagedImageIds,
+  replaceStagedImages,
+  stripStagedImages,
+  type StagedImageReplacement,
+} from '@/lib/rich-text/staged-images';
+import { AttachmentApi, incidentAttachmentPreviewUrl } from '@/lib/api/attachment-api';
+import type { UploadedImage } from '@/components/common/rich-text/RichTextEditor';
 
 const { Title, Text } = Typography;
 const { TextArea } = Input;
+
+// 富文本编辑器按需加载：VITE_RICH_TEXT=off 时该分支不渲染，
+// 也就不会请求编辑器 chunk（对齐服务请求表单 §4.3 / §NF-2）。
+const RichTextEditorLazy = lazy(() => import('@/components/common/rich-text/RichTextEditor'));
+
+const RichTextEditor: React.FC<React.ComponentProps<typeof RichTextEditorLazy>> = props => (
+  <Suspense fallback={<div className="rich-text-editor" style={{ minHeight: 140 }} />}>
+    <RichTextEditorLazy {...props} />
+  </Suspense>
+);
 
 // AI 建议回填白名单：只接受与表单选项一致的取值，避免写入无效枚举
 const PRIORITY_VALUES = ['critical', 'high', 'medium', 'low'];
@@ -61,6 +81,21 @@ export default function CreateIncidentPage() {
   const [aiLoading, setAiLoading] = useState(false);
   const [aiSuggestion, setAiSuggestion] = useState<TriageResult | null>(null);
   const [similarIncidents, setSimilarIncidents] = useState<RagAnswer[]>([]);
+
+  const richTextEnabled = isRichTextEnabled();
+  const uploadKey = 'incident-description-images';
+
+  // 富文本图片「先占位、后上传」：事件创建成功前拿不到 incidentId，
+  // 故先在编辑器内以 blob: 占位，提交后统一上传并回写正式地址。
+  const stagedImagesRef = useRef<Map<string, File>>(new Map());
+  const stagedImageSeqRef = useRef(0);
+
+  const handleEditorImageUpload = useCallback(async (file: File): Promise<UploadedImage> => {
+    stagedImageSeqRef.current += 1;
+    const id = `${STAGED_ID_PREFIX}${Date.now().toString(36)}-${stagedImageSeqRef.current}`;
+    stagedImagesRef.current.set(id, file);
+    return { url: URL.createObjectURL(file), id, name: file.name };
+  }, []);
 
   // 加载用户列表
   useEffect(() => {
@@ -125,7 +160,9 @@ export default function CreateIncidentPage() {
    */
   const handleAIAnalyze = async () => {
     const title: string = form.getFieldValue('title') || '';
-    const description: string = form.getFieldValue('description') || '';
+    const rawDescription: string = form.getFieldValue('description') || '';
+    // 描述落库为 HTML：送 AI 前先转纯文本，避免标签污染提示词与相似检索。
+    const description = richTextEnabled ? htmlToPlainText(rawDescription, 20000) : rawDescription;
 
     if (!title.trim() && !description.trim()) {
       notify.warning('请先填写事件标题或描述，AI 才能据此给出建议');
@@ -190,9 +227,26 @@ export default function CreateIncidentPage() {
   const handleSubmit = async (values: IncidentFormValues) => {
     setLoading(true);
     try {
-      await IncidentAPI.createIncident({
+      // 富文本路径：description 落库 HTML（单字段范式），长度按纯文本口径校验。
+      const rawDescription = typeof values.description === 'string' ? values.description : '';
+      const plainDescription = richTextEnabled
+        ? htmlToPlainText(rawDescription, Number.MAX_SAFE_INTEGER)
+        : String(values.description || '').trim();
+
+      if (plainDescription.length > 20000) {
+        message.warning('事件描述最多 20000 字，请精简后再提交');
+        return;
+      }
+
+      // 编辑器内粘贴/拖拽的图片此刻只有 blob: 占位，不能落库：
+      // 先剔除占位，待创建拿到 incidentId 后上传并用正式地址回写。
+      const stagedImageIds = richTextEnabled ? extractStagedImageIds(rawDescription) : [];
+      const descriptionForCreate =
+        stagedImageIds.length > 0 ? stripStagedImages(rawDescription) : rawDescription;
+
+      const created = await IncidentAPI.createIncident({
         title: values.title,
-        description: values.description,
+        description: descriptionForCreate,
         priority: values.priority,
         source: values.source || 'manual',
         type: values.type || 'incident',
@@ -202,9 +256,54 @@ export default function CreateIncidentPage() {
         assigneeId: values.assignedTo,
         configurationItemIds: selectedCIs.map(ci => ci.id),
       });
+
+      // 正文图片两段式：上传 → 用正式地址替换暂存占位 → 回写 description。
+      // 单项失败不阻断事件创建（未被替换的占位图会被丢弃，不会把 blob: 写进库）。
+      const createdId = Number(created?.id ?? 0);
+      if (stagedImageIds.length > 0 && createdId > 0) {
+        message.open({ key: uploadKey, type: 'loading', content: '正在上传正文图片…', duration: 0 });
+        const replacements: Record<string, StagedImageReplacement> = {};
+        let imageFailures = 0;
+
+        for (const stagedId of stagedImageIds) {
+          const file = stagedImagesRef.current.get(stagedId);
+          if (!file) continue;
+          try {
+            const uploaded = await AttachmentApi.upload(file, {
+              bizType: 'incident',
+              bizId: createdId,
+              usage: 'inline_image',
+            });
+            replacements[stagedId] = {
+              id: uploaded.id,
+              url: uploaded.previewUrl || incidentAttachmentPreviewUrl(createdId, uploaded.id),
+              name: uploaded.fileName || file.name,
+            };
+            stagedImagesRef.current.delete(stagedId);
+          } catch {
+            imageFailures += 1;
+          }
+        }
+
+        try {
+          await IncidentAPI.updateIncident(createdId, {
+            description: replaceStagedImages(rawDescription, replacements),
+            version: created?.version,
+          });
+        } catch (e) {
+          console.error('回写事件正文图片失败', e);
+          imageFailures += 1;
+        }
+        message.destroy(uploadKey);
+        if (imageFailures > 0) {
+          message.warning(`${imageFailures} 张正文图片上传失败，可在详情页编辑补充。`);
+        }
+      }
+
       message.success('事件创建成功');
       navigate('/incidents');
     } catch (error) {
+      message.destroy(uploadKey);
       handleError(error, 'createIncident', '创建失败，请重试');
     } finally {
       setLoading(false);
@@ -268,13 +367,49 @@ export default function CreateIncidentPage() {
                         <Form.Item
                           name="description"
                           label="详细描述"
-                          rules={[{ required: true, message: '请输入事件描述' }]}
+                          rules={[
+                            {
+                              required: true,
+                              validator: (_rule, value) => {
+                                const richValue = typeof value === 'string' ? value : '';
+                                const filled = richTextEnabled
+                                  ? !isRichTextEmpty(richValue)
+                                  : String(value || '').trim().length > 0;
+                                if (!filled) {
+                                  return Promise.reject(new Error('请输入事件描述'));
+                                }
+                                // 长度按纯文本口径（不含标签/图片属性），上限与后端对齐 20000。
+                                const plainLength = richTextEnabled
+                                  ? htmlToPlainText(richValue, Number.MAX_SAFE_INTEGER).length
+                                  : String(value || '').trim().length;
+                                if (plainLength > 20000) {
+                                  return Promise.reject(new Error('事件描述最多 20000 字'));
+                                }
+                                return Promise.resolve();
+                              },
+                            },
+                          ]}
+                          extra={
+                            richTextEnabled
+                              ? '支持加粗、列表、代码块等排版；可直接粘贴或拖拽图片（创建后自动上传）。'
+                              : undefined
+                          }
                         >
-                          <TextArea
-                            rows={6}
-                            placeholder="详细描述事件的发生情况、影响范围、错误信息等"
-                            data-testid="incident-description-input"
-                          />
+                          {richTextEnabled ? (
+                            <RichTextEditor
+                              placeholder="详细描述事件的发生情况、影响范围、错误信息等"
+                              minHeight={140}
+                              onUploadImage={handleEditorImageUpload}
+                              dataTestId="incident-description-input"
+                            />
+                          ) : (
+                            <TextArea
+                              rows={6}
+                              maxLength={20000}
+                              placeholder="详细描述事件的发生情况、影响范围、错误信息等"
+                              data-testid="incident-description-input"
+                            />
+                          )}
                         </Form.Item>
 
                         {/* AI 智能辅助：分类建议 + 相似历史事件 */}

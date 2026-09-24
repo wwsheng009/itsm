@@ -41,6 +41,7 @@ import {
 import type { Incident } from '@/types/biz/incident';
 import { useErrorHandler } from '@/lib/hooks/useErrorHandler';
 import { SafeContent, SafeTextBlock } from '@/components/common/SafeContent';
+import RichTextContent from '@/components/common/rich-text/RichTextContent';
 import { isValidIncidentTransition } from '@/lib/utils/workflow-state-machine';
 
 // 事件分类弹窗表单值：incidentId 由当前事件决定，置信度与自动分类标记由前端固定填充。
@@ -635,7 +636,7 @@ const IncidentDetail: React.FC<{ id?: string }> = ({ id: propId }) => {
           <Divider />
           <Descriptions title="详细描述" column={1}>
             <Descriptions.Item label="描述">
-              <SafeTextBlock content={data.description} fallback="暂无描述" />
+              <RichTextContent content={data.description} emptyText="暂无描述" />
             </Descriptions.Item>
           </Descriptions>
 

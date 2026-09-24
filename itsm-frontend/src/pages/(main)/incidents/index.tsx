@@ -15,6 +15,7 @@ import type { PageStats } from '@/components/layout/BusinessPageTemplate';
 import type { Incident } from '@/lib/api/types';
 import { IncidentAPI } from '@/lib/api/incident-api';
 import { useI18n } from '@/lib/i18n/useI18n';
+import { htmlToPlainText } from '@/lib/rich-text/sanitize';
 
 import { IncidentList } from './components/IncidentList';
 import { IncidentFilters } from './components/IncidentFilters';
@@ -175,7 +176,9 @@ export default function IncidentsPage() {
         incident.title || t('incidents.itemTitleFallback', { id: incident.id })
       }
       getItemNumber={(incident: Incident) => incident.incidentNumber || String(incident.id)}
-      getItemDescription={(incident: Incident) => incident.description || ''}
+      getItemDescription={(incident: Incident) =>
+        htmlToPlainText(incident.description || '', 160)
+      }
       getItemPriority={(incident: Incident) => incident.priority || incident.severity || 'medium'}
       getItemAssignee={(incident: Incident) =>
         incident.assignee

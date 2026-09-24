@@ -4,8 +4,10 @@ import "time"
 
 // CreateProblemRequest 创建问题请求
 type CreateProblemRequest struct {
-	Title       string `json:"title" binding:"required,min=2,max=200"`
-	Description string `json:"description" binding:"required,min=10,max=5000"`
+	Title string `json:"title" binding:"required,min=2,max=200"`
+	// description 自富文本改造起落库 HTML，标签与内嵌图片属性会额外占用长度，
+	// 故放宽到 20000（对齐第一波 service_request.reason），纯文本口径由前端校验把关。
+	Description string `json:"description" binding:"required,min=10,max=20000"`
 	Priority    string `json:"priority" binding:"required"`
 	Category    string `json:"category"`
 	RootCause   string `json:"rootCause"`
@@ -15,8 +17,9 @@ type CreateProblemRequest struct {
 
 // UpdateProblemRequest 更新问题请求
 type UpdateProblemRequest struct {
-	Title       *string `json:"title" binding:"omitempty,min=2,max=200"`
-	Description *string `json:"description" binding:"omitempty,min=10,max=5000"`
+	Title *string `json:"title" binding:"omitempty,min=2,max=200"`
+	// description 富文本 HTML 长度口径同 CreateProblemRequest。
+	Description *string `json:"description" binding:"omitempty,min=10,max=20000"`
 	Priority    *string `json:"priority" binding:"omitempty"`
 	Status      *string `json:"status" binding:"omitempty"`
 	Category    *string `json:"category" binding:"omitempty"`

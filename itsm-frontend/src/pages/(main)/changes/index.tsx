@@ -22,6 +22,7 @@ import {
 } from '@/components/layout/BusinessPageTemplate';
 import ChangeList from '@/components/change/ChangeList';
 import { ChangeApi, type Change, type ChangeCalendarItem } from '@/lib/api/change-api';
+import { htmlToPlainText } from '@/lib/rich-text/sanitize';
 import { useI18n } from '@/lib/i18n/useI18n';
 import {
   UnifiedKanbanBoard,
@@ -324,7 +325,8 @@ export default function ChangesPage() {
         const data = change as unknown as Record<string, unknown>;
         return (data.changeNumber as string) || `C-${change.id}`;
       }}
-      getItemDescription={(change: Change) => change.description || ''}
+      // 描述已富文本化：看板卡片按净化后纯文本截断，避免块级标签破坏卡片版式
+      getItemDescription={(change: Change) => htmlToPlainText(change.description || '', 160)}
       getItemPriority={(change: Change) => change.priority || 'medium'}
       getItemAssignee={(change: Change) => {
         const assigneeId = change.assigneeId;

@@ -36,6 +36,7 @@ import {
 import type { StandardChange } from '@/lib/api/standard-change-api';
 import { StandardChangeApi } from '@/lib/api/standard-change-api';
 import { useI18n } from '@/lib/i18n';
+import { htmlToPlainText } from '@/lib/rich-text/sanitize';
 import { ChangeRiskLabels, ChangeImpactLabels } from '@/constants/change';
 
 const { Title, Text } = Typography;
@@ -201,9 +202,10 @@ export default function StandardChangesPage() {
       render: (text: string, record: StandardChange) => (
         <div>
           <Text strong>{text}</Text>
+          {/* 描述已富文本化：摘要按净化后纯文本截断，不渲染 HTML */}
           {record.description && (
             <Text type='secondary' style={{ display: 'block', fontSize: 12 }}>
-              {record.description.slice(0, 50)}...
+              {htmlToPlainText(record.description, 160)}...
             </Text>
           )}
         </div>

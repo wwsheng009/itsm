@@ -1,15 +1,18 @@
 package router
 
 import (
+	attachmentHandler "itsm-backend/handlers/attachment"
 	incidentHandler "itsm-backend/handlers/incident"
 	"itsm-backend/middleware"
+	"itsm-backend/service"
 
 	"github.com/gin-gonic/gin"
 )
 
 // SetupIncidentRoutes 注册事件管理相关路由。
 // 从 router.go 的集中注册块抽取而来，路由路径/方法/中间件与抽取前逐行一致。
-func SetupIncidentRoutes(tenant *gin.RouterGroup, h *incidentHandler.IncidentHandler) {
+// attachmentHandler 非空时挂载附件域内别名（富文本第二波，§3.2），权限复用 incident 宿主码。
+func SetupIncidentRoutes(tenant *gin.RouterGroup, h *incidentHandler.IncidentHandler, attachmentHandler *attachmentHandler.Handler) {
 	inc := tenant.Group("/incidents")
 	{
 		// 核心 CRUD
@@ -70,5 +73,15 @@ func SetupIncidentRoutes(tenant *gin.RouterGroup, h *incidentHandler.IncidentHan
 		inc.GET("/alerts/statistics", middleware.RequirePermission("incident", "read"), h.GetAlertStatistics)
 		inc.POST("/alerts/:id/acknowledge", middleware.RequirePermission("incident", "write"), h.AcknowledgeAlert)
 		inc.POST("/alerts/:id/resolve", middleware.RequirePermission("incident", "write"), h.ResolveAlert)
+
+		// 附件域内别名（富文本第二波，BE-5 §3.2）：静态声明宿主权限码，处理体复用通用附件 A1/A2/A4/A5。
+		if attachmentHandler != nil {
+			inc.GET("/:id/attachments", middleware.RequirePermission("incident", "read"), attachmentHandler.AliasList(service.AttachmentBizTypeIncident))
+			inc.POST("/:id/attachments", middleware.RequirePermission("incident", "write"), attachmentHandler.AliasUpload(service.AttachmentBizTypeIncident))
+			inc.GET("/:id/attachments/:ref", middleware.RequirePermission("incident", "read"), attachmentHandler.AliasDownload(service.AttachmentBizTypeIncident, false))
+			inc.GET("/:id/attachments/:ref/download", middleware.RequirePermission("incident", "read"), attachmentHandler.AliasDownload(service.AttachmentBizTypeIncident, false))
+			inc.GET("/:id/attachments/:ref/preview", middleware.RequirePermission("incident", "read"), attachmentHandler.AliasDownload(service.AttachmentBizTypeIncident, true))
+			inc.DELETE("/:id/attachments/:ref", middleware.RequirePermission("incident", "delete"), attachmentHandler.AliasDelete(service.AttachmentBizTypeIncident))
+		}
 	}
 }

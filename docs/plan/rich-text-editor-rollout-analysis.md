@@ -131,6 +131,14 @@
 | **第三波** | 发布、CMDB CI `description`、已知错误 `workaround/resolution` | 同上（逐域） | 同上（逐域） | 按业务诉求排优先级，短字段不切 |
 | **每一波** | 回归项 | 长度校验口径、附件引用保护、权限与 403 冒烟、存量数据双读 | 同左 | 防止"能编辑但显示/搜索异常" |
 
+### 5.1 实施进度（滚动更新）
+
+| 波次 | 状态 | 证据 / 说明 |
+|:---|:---|:---|
+| **第一波**：服务请求 `reason` | ✅ 已完成并提交 | commit `320d4bb5`（9 files, +273/-12）；`npx tsc --noEmit` exit 0、`jest src/components/common/rich-text` 4 suites/23 tests 全通过、`go build ./...` exit 0；后端 `reason` 校验放宽至 `max=20000` |
+| **第二波**：变更 `description`/`implementationPlan`/`rollbackPlan` + 事件/问题正文 | ✅ 已完成并提交（`81714c5c`） | 后端：`change`/`incident`/`problem` 宿主注册（含 `ReferencesFunc`，`service/attachment_service.go`）+ 三域别名路由（各 6 条，权限复用 `<domain>:read/write/delete`）+ DTO 放宽（incident/problem `description` → `max=20000`；change 三字段原本无 `max=`）+ 新增覆盖守卫测试 `service/attachment_hosts_wave2_test.go`；前端：`attachment-api.ts` 域内 URL 映射补齐三域，变更三字段与事件/问题 `description` 接入富文本（新建两段式 / 编辑即时上传）+ 详情 `RichTextContent` 双读 + 列表 `htmlToPlainText(…, 160)` 截断 + 附件路由单测补 1 例。验证：`go build ./...` exit 0、`go test ./handlers/attachment/... ./router/... ./service/...` 各包 ok、`npx tsc --noEmit` exit 0、`jest src/lib/api/__tests__/attachment-api.test.ts src/components/common/rich-text` 5 suites/43 tests 全通过。**本轮事件/问题范围仅 `description`**，`root_cause`/`workaround`/`resolution` 留待第三波 |
+| **第三波**：发布 / CMDB CI `description` / 已知错误 | ⏳ 未开始 | — |
+
 ---
 
 ## 6. 风险与前置约束
@@ -148,11 +156,15 @@
 
 ## 7. 待确认事项
 
-1. **服务请求线是否已有并行改动**：工作区存在 `service-requests/new` 与 `ServiceRequestDetail` 的未提交改动，切换 `reason` 前需与在改内容对齐，避免冲突。
+1. ~~服务请求线是否已有并行改动~~（**已闭环**）：第一波已随 commit `320d4bb5` 提交，`service-requests/new` 与 `ServiceRequestDetail` 的改动已纳入，无遗留冲突。
 2. **事件 `rootCause` 的后端落列**：`ent/schema/incident.go` 未见 `root_cause` 字段，需确认前端提交后的持久化路径。
 3. **改进 improvement 的归属**：是否为独立单据（决定是否需要新增后端实体与宿主）。
 4. **非 ticket 域的上线策略**：当前只有开发环境，需明确是否允许直接上线、是否需要开关分级。
 5. **预览能力范围**：域内 preview 路由是否对所有新域都要求实现，还是允许"先只支持 content"。
+6. **HTML 落库后的检索口径（第二波新暴露）**：变更 / 事件 / 问题的关键字检索仍走后端列级 LIKE，HTML 落库后可能命中标签与属性文本（前端看板内过滤已按纯文本）；建议后端检索时剥离标签，或增派生纯文本列。
+7. **change 三字段无长度上限**：`dto/change_dto.go` 的 `description` / `implementationPlan` / `rollbackPlan` 本无 `max=` 约束，仅靠前端把门；后续补约束时对齐 20000 口径。
+8. **标准变更模板弹窗未切富文本**：`standard-changes` 页内模板弹窗的同类字段仍为 `TextArea`，属模板实体另一 surface，未纳入第二波。
+9. **编辑态移除图片不解除附件绑定**：两波均未接 `extractAttachmentImageIds` + `AttachmentApi.remove`（`TicketDetail.tsx` 有现成用法），可作为统一收敛项。
 
 ---
 
@@ -164,7 +176,7 @@
 | 附件宿主注册 | `itsm-backend/service/attachment_service.go:49-53,923-1001` |
 | 服务请求以 `reason` 为引用源 | `itsm-backend/service/attachment_service.go:989-998` |
 | 预留宿主与权限码方案表 | `docs/plan/generic-attachment-richtext-control-plan.md:341-347` |
-| 前端域内 URL 映射 | `itsm-frontend/src/lib/api/attachment-api.ts:41-43,65-73,82-92` |
+| 前端域内 URL 映射（含 `change`/`incident`/`problem`） | `itsm-frontend/src/lib/api/attachment-api.ts`（`DOMAIN_LIST_PATHS` / `DOMAIN_CONTENT_URLS` / `DOMAIN_PREVIEW_URLS`） |
 | 双字段范式（工单） | `itsm-backend/ent/schema/ticket.go:23-29` |
 | 单字段 HTML 范式 | `itsm-backend/ent/schema/knowledgearticle.go:16`、`itsm-backend/ent/schema/servicerequest.go:22` |
 | 前端内容格式双读判定 | `itsm-frontend/src/lib/rich-text/content-format.ts:16-26` |
@@ -173,4 +185,6 @@
 
 | 版本 | 日期 | 说明 |
 |:---|:---|:---|
+| v1.2 | 2026-09-22 | 第二波实施完成并提交（`81714c5c`，27 files, +1181/-115）：后端三域宿主/别名路由/DTO 放宽 + 覆盖守卫测试，前端三域表单与渲染改造；补 §7 遗留项 6-9 |
+| v1.1 | 2026-09-22 | 补 §5.1 实施进度：第一波已提交（`320d4bb5`）；第二波开工（后端三域宿主 + 别名路由 + DTO 放宽，前端域内 URL 映射与变更/事件/问题正文接入） |
 | v1.0 | 2026-09-22 | 首次编制：三前置条件标尺、A/B/C/D 分档、统一改造模式、三波次排期与风险清单 |

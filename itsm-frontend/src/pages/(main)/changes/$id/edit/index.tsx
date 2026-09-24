@@ -1,6 +1,6 @@
 import { useNavigate, useParams } from 'react-router';
 
-import React, { useState, useEffect } from 'react';
+import React, { lazy, Suspense, useCallback, useEffect, useState } from 'react';
 import {
   Alert,
   App,
@@ -18,10 +18,43 @@ import { ArrowLeft, Lock, Save } from 'lucide-react';
 import dayjs, { type Dayjs } from 'dayjs';
 import { AppDateRangePicker } from '@/components/ui/AppDatePicker';
 import { ChangeApi, type ChangeRequest } from '@/lib/api/change-api';
+import { AttachmentApi, changeAttachmentPreviewUrl } from '@/lib/api/attachment-api';
+import { htmlToPlainText, isRichTextEmpty, isRichTextEnabled } from '@/lib/rich-text/sanitize';
+import type { UploadedImage } from '@/components/common/rich-text/RichTextEditor';
 import { useI18n } from '@/lib/i18n';
 
 const { Title, Text } = Typography;
 const { TextArea } = Input;
+
+// 富文本编辑器按需加载：VITE_RICH_TEXT=off 时该分支不渲染，
+// 也就不会请求编辑器 chunk（对齐服务请求 reason 范式）。
+const RichTextEditorLazy = lazy(() => import('@/components/common/rich-text/RichTextEditor'));
+
+const RichTextEditor: React.FC<React.ComponentProps<typeof RichTextEditorLazy>> = props => (
+  <Suspense fallback={<div className="rich-text-editor" style={{ minHeight: 140 }} />}>
+    <RichTextEditorLazy {...props} />
+  </Suspense>
+);
+
+/** 富文本三字段纯文本长度上限（后端本轮放宽至 20000，标签不占额度） */
+const RICH_TEXT_MAX_LENGTH = 20000;
+
+/**
+ * 必填 + 纯文本长度校验：HTML 只计纯文本（htmlToPlainText，不截断），标签不占额度；
+ * 开关关闭时沿用原 TextArea 语义。提示文案与改造前保持一致。
+ */
+const validateRichTextValue = (value: unknown, requiredMessage: string, label: string) => {
+  const raw = typeof value === 'string' ? value : '';
+  const filled = isRichTextEnabled() ? !isRichTextEmpty(raw) : String(raw).trim().length > 0;
+  if (!filled) return Promise.reject(new Error(requiredMessage));
+  const plainLength = isRichTextEnabled()
+    ? htmlToPlainText(raw, Number.MAX_SAFE_INTEGER).length
+    : String(raw).trim().length;
+  if (plainLength > RICH_TEXT_MAX_LENGTH) {
+    return Promise.reject(new Error(`${label}最多 ${RICH_TEXT_MAX_LENGTH} 字，请精简后提交`));
+  }
+  return Promise.resolve();
+};
 
 interface ChangeFormValues {
   title: string;
@@ -76,6 +109,28 @@ const EditChangePage: React.FC = () => {
   const [fetching, setFetching] = useState(false);
   const [changeData, setChangeData] = useState<any>(null);
   const [isReadonly, setIsReadonly] = useState(false);
+  const richTextEnabled = isRichTextEnabled();
+
+  /** 编辑态变更 ID 已知：图片即时上传，直接返回可渲染的域内预览地址（bizId 已知，无需两段式） */
+  const handleUploadImage = useCallback(
+    async (file: File): Promise<UploadedImage> => {
+      const changeId = Number(id);
+      if (!Number.isFinite(changeId) || changeId <= 0) {
+        throw new Error('变更 ID 非法，无法上传图片');
+      }
+      const uploaded = await AttachmentApi.upload(file, {
+        bizType: 'change',
+        bizId: changeId,
+        usage: 'inline_image',
+      });
+      return {
+        id: uploaded.id,
+        url: uploaded.previewUrl || changeAttachmentPreviewUrl(changeId, uploaded.id),
+        name: uploaded.fileName || file.name,
+      };
+    },
+    [id]
+  );
 
   // Fetch change data
   useEffect(() => {
@@ -233,14 +288,33 @@ const EditChangePage: React.FC = () => {
           <Form.Item
             label="详细描述"
             name="description"
-            rules={[{ required: true, message: '请填写详细描述' }]}
+            rules={[
+              { required: true, message: '请填写详细描述' },
+              {
+                validator: (_rule, value) =>
+                  validateRichTextValue(value, '请填写详细描述', '详细描述'),
+              },
+            ]}
+            extra={
+              richTextEnabled
+                ? '支持加粗、列表、代码块等排版；可直接粘贴或拖拽图片（自动上传到本变更附件）。'
+                : undefined
+            }
           >
-            <TextArea
-              rows={4}
-              placeholder="请详细说明变更的目的、范围和内容..."
-              showCount
-              maxLength={2000}
-            />
+            {richTextEnabled ? (
+              <RichTextEditor
+                placeholder="请详细说明变更的目的、范围和内容..."
+                minHeight={140}
+                onUploadImage={handleUploadImage}
+              />
+            ) : (
+              <TextArea
+                rows={4}
+                placeholder="请详细说明变更的目的、范围和内容..."
+                showCount
+                maxLength={2000}
+              />
+            )}
           </Form.Item>
 
           <Form.Item
@@ -337,28 +411,66 @@ const EditChangePage: React.FC = () => {
           <Form.Item
             label="实施计划"
             name="implementationPlan"
-            rules={[{ required: true, message: '请填写实施计划' }]}
+            rules={[
+              { required: true, message: '请填写实施计划' },
+              {
+                validator: (_rule, value) =>
+                  validateRichTextValue(value, '请填写实施计划', '实施计划'),
+              },
+            ]}
+            extra={
+              richTextEnabled
+                ? '建议按步骤分条说明；可直接粘贴或拖拽图片（自动上传到本变更附件）。'
+                : undefined
+            }
           >
-            <TextArea
-              rows={5}
-              placeholder="详细描述变更的实施步骤..."
-              showCount
-              maxLength={3000}
-            />
+            {richTextEnabled ? (
+              <RichTextEditor
+                placeholder="详细描述变更的实施步骤..."
+                minHeight={160}
+                onUploadImage={handleUploadImage}
+              />
+            ) : (
+              <TextArea
+                rows={5}
+                placeholder="详细描述变更的实施步骤..."
+                showCount
+                maxLength={3000}
+              />
+            )}
           </Form.Item>
 
           <Form.Item
             label="回滚计划"
             name="rollbackPlan"
             tooltip="变更失败时如何回退"
-            rules={[{ required: true, message: '请填写回滚计划' }]}
+            rules={[
+              { required: true, message: '请填写回滚计划' },
+              {
+                validator: (_rule, value) =>
+                  validateRichTextValue(value, '请填写回滚计划', '回滚计划'),
+              },
+            ]}
+            extra={
+              richTextEnabled
+                ? '建议按步骤分条说明回退动作；可直接粘贴或拖拽图片（自动上传到本变更附件）。'
+                : undefined
+            }
           >
-            <TextArea
-              rows={5}
-              placeholder="详细描述如果变更失败如何回滚..."
-              showCount
-              maxLength={3000}
-            />
+            {richTextEnabled ? (
+              <RichTextEditor
+                placeholder="详细描述如果变更失败如何回滚..."
+                minHeight={160}
+                onUploadImage={handleUploadImage}
+              />
+            ) : (
+              <TextArea
+                rows={5}
+                placeholder="详细描述如果变更失败如何回滚..."
+                showCount
+                maxLength={3000}
+              />
+            )}
           </Form.Item>
 
           <Form.Item className="!mb-0 mt-4">
