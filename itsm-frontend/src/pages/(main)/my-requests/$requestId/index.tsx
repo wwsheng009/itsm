@@ -18,6 +18,7 @@ import { ArrowLeft, RotateCcw, PlayCircle } from 'lucide-react';
 import { ServiceCatalogApi } from '@/lib/api/service-catalog-api';
 import type { ProvisioningTask } from '@/lib/api/service-request-api';
 import { serviceRequestAPI } from '@/lib/api/service-request-api';
+import RichTextContent from '@/components/common/rich-text/RichTextContent';
 
 const { Title, Text } = Typography;
 
@@ -232,7 +233,7 @@ export default function MyRequestDetailPage() {
               {detail?.title || detail?.catalog?.name || '-'}
             </Descriptions.Item>
             <Descriptions.Item label="原因" span={2}>
-              {detail?.reason || '-'}
+              {detail?.reason ? <RichTextContent content={detail.reason} /> : '-'}
             </Descriptions.Item>
             <Descriptions.Item label="数据分级">
               {detail?.dataClassification || '-'}

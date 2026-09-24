@@ -348,6 +348,18 @@ export class ServiceCatalogApi {
   }
 
   /**
+   * 更新服务请求。
+   * 富文本正文（request.reason）的图片需要 requestId 才能上传，创建成功后再用
+   * 正式附件地址替换暂存占位并回写，因此单独暴露最小更新入口。
+   */
+  static async updateServiceRequest(
+    id: number,
+    patch: { reason?: string; formData?: Record<string, unknown> },
+  ): Promise<any> {
+    return httpClient.put(`/api/v1/service-requests/${id}`, patch);
+  }
+
+  /**
    * 取消服务请求
    */
   static async cancelServiceRequest(id: number, reason?: string): Promise<void> {

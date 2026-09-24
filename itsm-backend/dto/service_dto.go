@@ -21,7 +21,9 @@ type UserResponse struct {
 type CreateServiceRequestRequest struct {
 	CatalogID int            `json:"catalogId" binding:"omitempty,min=1"`
 	Title     string         `json:"title" binding:"omitempty,max=255"`
-	Reason    string         `json:"reason" binding:"omitempty,max=500"`
+	// reason 自富文本改造起落库 HTML（单字段范式），标签与内嵌图片属性会额外占用长度，
+	// 故上限按「纯文本 4000 字 + 标记开销」放宽；纯文本口径由前端校验把关。
+	Reason    string         `json:"reason" binding:"omitempty,max=20000"`
 	FormData  map[string]any `json:"formData" binding:"omitempty"`
 
 	CostCenter         string     `json:"costCenter" binding:"omitempty,max=100"`
@@ -40,7 +42,7 @@ type UpdateServiceRequestStatusRequest struct {
 // UpdateServiceRequestRequest 更新服务请求请求
 type UpdateServiceRequestRequest struct {
 	Title    string         `json:"title" binding:"omitempty,max=255"`
-	Reason   string         `json:"reason" binding:"omitempty,max=500"`
+	Reason   string         `json:"reason" binding:"omitempty,max=20000"`
 	FormData map[string]any `json:"formData" binding:"omitempty"`
 
 	CostCenter         string     `json:"costCenter" binding:"omitempty,max=100"`

@@ -27,6 +27,7 @@ import { ServiceRequestApi } from '@/lib/api/';
 import { ServiceRequestStatus, ApprovalStatus, ApprovalAction } from '@/constants/service-request';
 import type { ServiceRequest, ServiceRequestApproval } from '@/types/biz/service-request';
 import { useI18n } from '@/lib/i18n/useI18n';
+import RichTextContent from '@/components/common/rich-text/RichTextContent';
 
 const { Title, Text } = Typography;
 const { TextArea } = Input;
@@ -233,7 +234,7 @@ const ServiceRequestDetail: React.FC = () => {
             <Card title="请求详情">
               <Descriptions column={1} bordered>
                 <Descriptions.Item label="服务名称">{request.catalog?.name}</Descriptions.Item>
-                <Descriptions.Item label="申请原因">{request.reason}</Descriptions.Item>
+                <Descriptions.Item label="申请原因"><RichTextContent content={request.reason} /></Descriptions.Item>
                 <Descriptions.Item label="成本中心">{request.costCenter || '-'}</Descriptions.Item>
                 <Descriptions.Item label="数据分类">
                   {request.dataClassification || 'Public'}

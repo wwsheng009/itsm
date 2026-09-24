@@ -15,6 +15,8 @@ import {
   Filter,
 } from 'lucide-react';
 
+import { htmlToPlainText } from '@/lib/rich-text/sanitize';
+
 // API 接口类型定义
 interface ServiceRequest {
   id: number;
@@ -103,7 +105,7 @@ const RequestCard = ({ request }: { request: ServiceRequest }) => {
             {request.catalog?.name || '未知服务'}
           </h3>
           <p className="text-sm text-gray-600 mb-3">
-            {request.catalog?.description || request.reason}
+            {request.catalog?.description || htmlToPlainText(request.reason || '', 160)}
           </p>
         </div>
       </div>
@@ -176,7 +178,7 @@ const MyRequestsPage = () => {
     const matchesSearch =
       !searchTerm ||
       request.catalog?.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      request.reason.toLowerCase().includes(searchTerm.toLowerCase());
+      htmlToPlainText(request.reason || '', 4000).toLowerCase().includes(searchTerm.toLowerCase());
     return matchesSearch;
   });
 

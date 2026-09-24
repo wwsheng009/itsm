@@ -4,6 +4,7 @@ import { Table, Tag, Button, Card, App, Space, Modal, Input } from 'antd';
 import { ServiceCatalogApi } from '@/lib/api/service-catalog-api';
 import { useI18n } from '@/lib/i18n';
 import { ServiceRequestStatus } from '@/types/service-catalog';
+import { htmlToPlainText } from '@/lib/rich-text/sanitize';
 
 interface ServiceRequestRecord {
   id: number;
@@ -150,7 +151,7 @@ export default function ServiceApprovalsPage() {
               <strong>{t('service.requester')}:</strong> {selectedRequest.requesterName}
             </p>
             <p>
-              <strong>{t('service.reason')}:</strong> {selectedRequest.reason}
+              <strong>{t('service.reason')}:</strong> {htmlToPlainText(selectedRequest.reason || '', 400)}
             </p>
           </div>
         )}
