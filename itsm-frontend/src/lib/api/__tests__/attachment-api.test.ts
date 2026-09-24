@@ -131,6 +131,47 @@ describe('AttachmentApi 端点解析', () => {
       }
     });
 
+    it('第三波三域（release / cmdb_ci / known_error）同样走 BE-5 域内别名路由', async () => {
+      const cases: Array<[string, string]> = [
+        ['release', '/api/v1/releases/8/attachments'],
+        ['cmdb_ci', '/api/v1/cmdb/cis/8/attachments'],
+        ['known_error', '/api/v1/known-errors/8/attachments'],
+      ];
+      for (const [bizType, expected] of cases) {
+        mockPost.mockClear();
+        mockPost.mockResolvedValue(refPayload({ bizType, bizId: 8, usage: 'inline_image' }));
+
+        await AttachmentApi.upload(file(), { bizType, bizId: 8, usage: 'inline_image' });
+
+        const [url, body] = mockPost.mock.calls[0];
+        expect(url).toBe(expected);
+        expect((body as FormData).get('usage')).toBe('inline_image');
+      }
+    });
+
+    it('第三波三域：域内端点透出的通用 A4 地址被改写回域内地址（否则普通用户 <img> 403）', async () => {
+      const cases: Array<[string, string, string]> = [
+        ['release', '/api/v1/releases/8/attachments/7', '/api/v1/releases/8/attachments/7/preview'],
+        ['cmdb_ci', '/api/v1/cmdb/cis/8/attachments/7', '/api/v1/cmdb/cis/8/attachments/7/preview'],
+        [
+          'known_error',
+          '/api/v1/known-errors/8/attachments/7',
+          '/api/v1/known-errors/8/attachments/7/preview',
+        ],
+      ];
+      for (const [bizType, contentUrl, previewUrl] of cases) {
+        mockPost.mockClear();
+        mockPost.mockResolvedValue(
+          refPayload({ bizType, bizId: 8, usage: 'inline_image' })
+        );
+
+        const result = await AttachmentApi.upload(file(), { bizType, bizId: 8, usage: 'inline_image' });
+
+        expect(result.fileUrl).toBe(contentUrl);
+        expect(result.previewUrl).toBe(previewUrl);
+      }
+    });
+
     it('未知宿主走通用 A1，支持 clientToken 幂等回放', async () => {
       mockPost.mockResolvedValue(refPayload({ bizType: 'other_host', bizId: 1 }));
 

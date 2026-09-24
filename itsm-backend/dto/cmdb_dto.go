@@ -86,7 +86,9 @@ type ConfigurationItemStatsResponse struct {
 type CreateCIRequest struct {
 	Name               string                 `json:"name" binding:"required,max=255"`
 	CITypeID           int                    `json:"ciTypeId"`
-	Description        string                 `json:"description"`
+	// description 自富文本第三波起落库 HTML（CIEditorForm），标签与内嵌图片属性会额外
+	// 占用长度，故放宽到 20000（对齐 service_request.reason 口径），纯文本口径由前端校验把关。
+	Description        string                 `json:"description" binding:"omitempty,max=20000"`
 	Status             string                 `json:"status" binding:"required"`
 	Environment        string                 `json:"environment,omitempty"`
 	Criticality        string                 `json:"criticality,omitempty"`
@@ -194,7 +196,8 @@ type ListCIsResponse struct {
 type UpdateCIRequest struct {
 	CITypeID           int                    `json:"ciTypeId,omitempty"`
 	Name               string                 `json:"name,omitempty"`
-	Description        string                 `json:"description,omitempty"`
+	// description 富文本 HTML 长度口径同 CreateCIRequest（20000）。
+	Description        string                 `json:"description,omitempty" binding:"omitempty,max=20000"`
 	Status             string                 `json:"status,omitempty"`
 	Environment        string                 `json:"environment,omitempty"`
 	Criticality        string                 `json:"criticality,omitempty"`

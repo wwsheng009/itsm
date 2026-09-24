@@ -26,6 +26,7 @@ import dayjs from 'dayjs';
 
 import type { Release } from '@/lib/api/release-api';
 import { ReleaseApi } from '@/lib/api/release-api';
+import RichTextContent from '@/components/common/rich-text/RichTextContent';
 
 const { Title, Text } = Typography;
 
@@ -246,15 +247,13 @@ const ReleaseDetail: React.FC = () => {
 
       {release.description && (
         <Card title="描述">
-          <Text>{release.description}</Text>
+          <RichTextContent content={release.description} />
         </Card>
       )}
 
       {release.releaseNotes && (
         <Card title="发布说明">
-          <pre style={{ whiteSpace: 'pre-wrap', fontFamily: 'inherit' }}>
-            {release.releaseNotes}
-          </pre>
+          <RichTextContent content={release.releaseNotes} />
         </Card>
       )}
 
@@ -290,17 +289,13 @@ const ReleaseDetail: React.FC = () => {
 
       {release.rollbackProcedure && (
         <Card title="回滚程序">
-          <pre style={{ whiteSpace: 'pre-wrap', fontFamily: 'inherit' }}>
-            {release.rollbackProcedure}
-          </pre>
+          <RichTextContent content={release.rollbackProcedure} />
         </Card>
       )}
 
       {release.validationCriteria && (
         <Card title="验证标准">
-          <pre style={{ whiteSpace: 'pre-wrap', fontFamily: 'inherit' }}>
-            {release.validationCriteria}
-          </pre>
+          <RichTextContent content={release.validationCriteria} />
         </Card>
       )}
 

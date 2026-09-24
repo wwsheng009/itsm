@@ -43,6 +43,9 @@ const DOMAIN_LIST_PATHS: Record<string, (bizId: number) => string> = {
   change: (bizId) => `/api/v1/changes/${bizId}/attachments`,
   incident: (bizId) => `/api/v1/incidents/${bizId}/attachments`,
   problem: (bizId) => `/api/v1/problems/${bizId}/attachments`,
+  release: (bizId) => `/api/v1/releases/${bizId}/attachments`,
+  cmdb_ci: (bizId) => `/api/v1/cmdb/cis/${bizId}/attachments`,
+  known_error: (bizId) => `/api/v1/known-errors/${bizId}/attachments`,
 };
 
 /** 工单域内容地址（旧端点形态，D5 永不失效；静态权限 `ticket:read`） */
@@ -105,6 +108,36 @@ export function problemAttachmentPreviewUrl(problemId: number, id: number): stri
   return `/api/v1/problems/${problemId}/attachments/${id}/preview`;
 }
 
+/** 发布域内容地址（BE-5 别名路由，静态权限 `release:read`） */
+export function releaseAttachmentContentUrl(releaseId: number, id: number): string {
+  return `/api/v1/releases/${releaseId}/attachments/${id}`;
+}
+
+/** 发布域预览地址（BE-5 别名路由） */
+export function releaseAttachmentPreviewUrl(releaseId: number, id: number): string {
+  return `/api/v1/releases/${releaseId}/attachments/${id}/preview`;
+}
+
+/** CMDB CI 域内容地址（BE-5 别名路由，静态权限 `cmdb:read`） */
+export function cmdbCiAttachmentContentUrl(ciId: number, id: number): string {
+  return `/api/v1/cmdb/cis/${ciId}/attachments/${id}`;
+}
+
+/** CMDB CI 域预览地址（BE-5 别名路由） */
+export function cmdbCiAttachmentPreviewUrl(ciId: number, id: number): string {
+  return `/api/v1/cmdb/cis/${ciId}/attachments/${id}/preview`;
+}
+
+/** 已知错误域内容地址（BE-5 别名路由，静态权限 `problem:read`：KEDB 复用 problem:* 词表） */
+export function knownErrorAttachmentContentUrl(knownErrorId: number, id: number): string {
+  return `/api/v1/known-errors/${knownErrorId}/attachments/${id}`;
+}
+
+/** 已知错误域预览地址（BE-5 别名路由） */
+export function knownErrorAttachmentPreviewUrl(knownErrorId: number, id: number): string {
+  return `/api/v1/known-errors/${knownErrorId}/attachments/${id}/preview`;
+}
+
 /**
  * 域内地址构造表（与 `DOMAIN_LIST_PATHS` 同源）。
  *
@@ -119,6 +152,9 @@ const DOMAIN_CONTENT_URLS: Record<string, (bizId: number, id: number) => string>
   change: changeAttachmentContentUrl,
   incident: incidentAttachmentContentUrl,
   problem: problemAttachmentContentUrl,
+  release: releaseAttachmentContentUrl,
+  cmdb_ci: cmdbCiAttachmentContentUrl,
+  known_error: knownErrorAttachmentContentUrl,
 };
 
 const DOMAIN_PREVIEW_URLS: Record<string, (bizId: number, id: number) => string> = {
@@ -128,6 +164,9 @@ const DOMAIN_PREVIEW_URLS: Record<string, (bizId: number, id: number) => string>
   change: changeAttachmentPreviewUrl,
   incident: incidentAttachmentPreviewUrl,
   problem: problemAttachmentPreviewUrl,
+  release: releaseAttachmentPreviewUrl,
+  cmdb_ci: cmdbCiAttachmentPreviewUrl,
+  known_error: knownErrorAttachmentPreviewUrl,
 };
 
 /** 是否通用 A4 地址（`/api/v1/attachments/...`） */

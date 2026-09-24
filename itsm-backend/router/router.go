@@ -528,7 +528,8 @@ func SetupRoutes(r *gin.Engine, config *RouterConfig) {
 
 		// ==================== Releases ====================
 		if config.ReleaseHandler != nil {
-			SetupReleaseRoutes(tenant.(*gin.RouterGroup), config.ReleaseHandler)
+			// 富文本第三波：附件域内别名与 /releases 同组注册，宿主权限码在子路由文件内声明。
+			SetupReleaseRoutes(tenant.(*gin.RouterGroup), config.ReleaseHandler, config.AttachmentHandler)
 		}
 
 		// ==================== Assets ====================
@@ -619,7 +620,8 @@ func SetupRoutes(r *gin.Engine, config *RouterConfig) {
 
 		// Known Error Handler (KEDB)
 		if config.KnownErrorHandler != nil {
-			config.KnownErrorHandler.RegisterRoutes(tenant.(*gin.RouterGroup))
+			// 富文本第三波：附件域内别名与 /known-errors 同组注册，权限复用 problem:* 词表。
+			config.KnownErrorHandler.RegisterRoutes(tenant.(*gin.RouterGroup), config.AttachmentHandler)
 		}
 
 		if config.MarketplaceHandler != nil {

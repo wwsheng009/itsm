@@ -5,6 +5,7 @@
 import React from 'react';
 import { Descriptions } from 'antd';
 import dayjs from 'dayjs';
+import RichTextContent from '@/components/common/rich-text/RichTextContent';
 import type { ConfigurationItem, CIType } from '@/types/biz/cmdb';
 import { normalizeSchemaFields } from '../../ci-editor-shared';
 import { STATUS_COLORS } from '../constants';
@@ -62,7 +63,7 @@ export const CIBasicInfo: React.FC<CIBasicInfoProps> = ({ ci, typeInfo }) => {
         {dayjs(ci.updatedAt).format('YYYY-MM-DD HH:mm:ss')}
       </Descriptions.Item>
       <Descriptions.Item label='描述' span={2}>
-        {ci.description || '无'}
+        <RichTextContent content={ci.description} emptyText='-' />
       </Descriptions.Item>
       {dynamicAttributes.map(([key, value]) => (
         <Descriptions.Item key={key} label={schemaLabels.get(key) || key}>

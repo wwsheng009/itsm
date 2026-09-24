@@ -30,6 +30,10 @@ func TestDefaultAttachmentHostsCoverDeclaredBizTypes(t *testing.T) {
 		AttachmentBizTypeChange,
 		AttachmentBizTypeIncident,
 		AttachmentBizTypeProblem,
+		// 富文本第三波（release / cmdb_ci / known_error）。
+		AttachmentBizTypeRelease,
+		AttachmentBizTypeCMDBci,
+		AttachmentBizTypeKnownError,
 	} {
 		assert.Contains(t, hosts, bizType, "biz_type %q 缺少宿主登记", bizType)
 	}

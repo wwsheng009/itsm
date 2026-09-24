@@ -82,6 +82,11 @@ func (s *ConfigurationItemService) CreateCI(ctx context.Context, req *dto.Create
 		SetTenantID(tenantID).
 		SetVersion(1)
 
+	// description 自富文本第三波起落库 HTML（与 dto.ToCIResponse 的回读对称）。
+	if req.Description != "" {
+		create.SetDescription(req.Description)
+	}
+
 	if req.Environment != "" {
 		create.SetEnvironment(req.Environment)
 	}
@@ -461,6 +466,11 @@ func (s *ConfigurationItemService) UpdateCI(ctx context.Context, id, tenantID in
 			configurationitem.VersionEQ(oldCI.Version),
 		).
 		SetVersion(oldCI.Version + 1)
+
+	// description 与既有字段同语义：空串表示「不修改」，避免静默清空富文本正文。
+	if req.Description != "" {
+		update.SetDescription(req.Description)
+	}
 
 	if req.Name != "" {
 		update.SetName(req.Name)

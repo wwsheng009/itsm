@@ -16,8 +16,10 @@ type CreateKnownErrorRequest struct {
 	Description      string   `json:"description"`
 	Symptoms         string   `json:"symptoms"`
 	RootCause        string   `json:"rootCause"`
-	Workaround       string   `json:"workaround"`
-	Resolution       string   `json:"resolution"`
+	// workaround / resolution 自富文本第三波起落库 HTML，标签与内嵌图片属性会额外占用
+	// 长度，故放宽到 20000（对齐 service_request.reason 口径），纯文本口径由前端校验把关。
+	Workaround       string   `json:"workaround" binding:"omitempty,max=20000"`
+	Resolution       string   `json:"resolution" binding:"omitempty,max=20000"`
 	Status           string   `json:"status" binding:"omitempty,oneof=draft active resolved deprecated"`
 	Category         string   `json:"category"`
 	Severity         string   `json:"severity" binding:"omitempty,oneof=critical high medium low"`
@@ -60,8 +62,9 @@ type KEDBUpdateRequest struct {
 	Description      *string  `json:"description"`
 	Symptoms         *string  `json:"symptoms"`
 	RootCause        *string  `json:"rootCause"`
-	Workaround       *string  `json:"workaround"`
-	Resolution       *string  `json:"resolution"`
+	// workaround / resolution 富文本 HTML 长度口径同 CreateKnownErrorRequest（20000）。
+	Workaround       *string  `json:"workaround" binding:"omitempty,max=20000"`
+	Resolution       *string  `json:"resolution" binding:"omitempty,max=20000"`
 	Category         *string  `json:"category"`
 	Severity         *string  `json:"severity"`
 	Status           *string  `json:"status"`

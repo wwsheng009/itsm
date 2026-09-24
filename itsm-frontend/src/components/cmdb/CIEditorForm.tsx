@@ -1,8 +1,10 @@
 
-import React from 'react';
+import React, { lazy, Suspense } from 'react';
 import { Button, Collapse, Form, Input, InputNumber, Select, Space, Switch } from 'antd';
 import type { FormInstance } from 'antd/es/form';
 
+import type { UploadedImage } from '@/components/common/rich-text/RichTextEditor';
+import { htmlToPlainText, isRichTextEnabled } from '@/lib/rich-text/sanitize';
 import type { CIType, CloudResource, CloudService } from '@/types/biz/cmdb';
 
 import type { CIFormValues, SchemaField, TranslationFn } from './ci-editor-shared';
@@ -18,6 +20,19 @@ import {
 import { useI18n } from '@/lib/i18n/useI18n';
 
 const { TextArea } = Input;
+
+// 富文本编辑器按需加载：VITE_RICH_TEXT=off 时该分支不渲染，
+// 也就不会请求编辑器 chunk（对齐工单表单 §4.3 / §NF-2）。
+const RichTextEditorLazy = lazy(() => import('@/components/common/rich-text/RichTextEditor'));
+
+const RichTextEditor: React.FC<React.ComponentProps<typeof RichTextEditorLazy>> = props => (
+  <Suspense fallback={<div className='rich-text-editor' style={{ minHeight: 140 }} />}>
+    <RichTextEditorLazy {...props} />
+  </Suspense>
+);
+
+/** 描述纯文本长度上限（与后端 dto.CreateCIRequest/UpdateCIRequest 的 max=20000 对齐） */
+const DESCRIPTION_MAX_LENGTH = 20000;
 
 interface CIEditorFormProps {
   form: FormInstance<CIFormValues>;
@@ -36,7 +51,28 @@ interface CIEditorFormProps {
   onCloudResourceChange: (value?: number) => void;
   /** 表单值变化回调（用于脏数据离开守卫） */
   onValuesChange?: () => void;
+  /**
+   * 描述富文本的图片上传实现（由页面注入）：
+   * - 编辑态：直传附件并返回正式地址；
+   * - 创建态：返回 blob: 占位地址，待 CI 创建成功后由页面统一上传并回写。
+   */
+  onDescriptionImageUpload?: (file: File) => Promise<UploadedImage>;
 }
+
+/** 描述长度校验：富文本按纯文本口径计算，超限时红字提示 */
+const descriptionValidator = (richTextEnabled: boolean, t: TranslationFn) => (
+  _: unknown,
+  value: unknown
+) => {
+  const raw = typeof value === 'string' ? value : '';
+  const plainLength = richTextEnabled
+    ? htmlToPlainText(raw, Number.MAX_SAFE_INTEGER).length
+    : raw.trim().length;
+  if (plainLength > DESCRIPTION_MAX_LENGTH) {
+    return Promise.reject(new Error(t('ciEditor.descriptionTooLong')));
+  }
+  return Promise.resolve();
+};
 
 /** 扩展属性 JSON 实时校验：错误时红字提示，不阻塞输入 */
 const jsonValidator = (t: TranslationFn) => (_: unknown, value: unknown) => {
@@ -97,11 +133,17 @@ export function CIEditorForm({
   onCITypeChange,
   onCloudResourceChange,
   onValuesChange,
+  onDescriptionImageUpload,
 }: CIEditorFormProps) {
   const { t } = useI18n();
+  const richTextEnabled = isRichTextEnabled();
   const cloudServiceMap = React.useMemo(
     () => new Map(cloudServices.map(service => [service.id, service])),
     [cloudServices]
+  );
+  const descriptionRules = React.useMemo(
+    () => [{ validator: descriptionValidator(richTextEnabled, t) }],
+    [richTextEnabled, t]
   );
 
   const renderSchemaFieldInput = React.useCallback(
@@ -203,8 +245,21 @@ export function CIEditorForm({
         </Form.Item>
       </div>
 
-      <Form.Item label={t('ciEditor.description')} name='description'>
-        <TextArea rows={3} placeholder={t('ciEditor.placeholderOptionalInput', { label: t('ciEditor.description') })} />
+      <Form.Item label={t('ciEditor.description')} name='description' rules={descriptionRules}>
+        {richTextEnabled ? (
+          <RichTextEditor
+            placeholder={t('ciEditor.placeholderOptionalInput', { label: t('ciEditor.description') })}
+            minHeight={140}
+            onUploadImage={onDescriptionImageUpload}
+            dataTestId='ci-description-input'
+          />
+        ) : (
+          <TextArea
+            rows={3}
+            placeholder={t('ciEditor.placeholderOptionalInput', { label: t('ciEditor.description') })}
+            data-testid='ci-description-input'
+          />
+        )}
       </Form.Item>
     </>
   );

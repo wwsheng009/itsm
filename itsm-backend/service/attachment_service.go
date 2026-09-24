@@ -36,9 +36,12 @@ import (
 	"itsm-backend/ent"
 	"itsm-backend/ent/attachment"
 	changeent "itsm-backend/ent/change"
+	configitem "itsm-backend/ent/configurationitem"
 	incidentent "itsm-backend/ent/incident"
 	"itsm-backend/ent/knowledgearticle"
+	knownerrent "itsm-backend/ent/knownerror"
 	probent "itsm-backend/ent/problem"
+	releaseent "itsm-backend/ent/release"
 	"itsm-backend/ent/servicerequest"
 	"itsm-backend/ent/ticket"
 	"itsm-backend/ent/ticketcomment"
@@ -56,6 +59,9 @@ const (
 	AttachmentBizTypeChange           = "change"
 	AttachmentBizTypeIncident         = "incident"
 	AttachmentBizTypeProblem          = "problem"
+	AttachmentBizTypeRelease          = "release"
+	AttachmentBizTypeCMDBci           = "cmdb_ci"
+	AttachmentBizTypeKnownError       = "known_error"
 
 	// 用途（写入 attachments.usage，长度上限 32）。
 	AttachmentUsageAttachment        = "attachment"
@@ -926,7 +932,9 @@ func htmlReferencesAttachment(html string, attachmentID int) bool {
 
 // defaultAttachmentHosts 内置宿主适配（BE-5 的知识库/服务请求别名路由复用
 // knowledge_article 与 service_request 两项；富文本第二波新增 change / incident /
-// problem 三项，路由见 router/change_routes.go 等域内别名块）。
+// problem 三项，第三波新增 release / cmdb_ci / known_error 三项，路由见
+// router/release_routes.go、router/cmdb_routes.go、handlers/known_error/handler.go
+// 的域内别名块）。
 func defaultAttachmentHosts() map[string]AttachmentHost {
 	return map[string]AttachmentHost{
 		AttachmentBizTypeTicket: AttachmentHostFunc{
@@ -1054,6 +1062,62 @@ func defaultAttachmentHosts() map[string]AttachmentHost {
 					return false, err
 				}
 				return htmlReferencesAttachment(pb.Description, attachmentID), nil
+			},
+		},
+		AttachmentBizTypeRelease: AttachmentHostFunc{
+			ExistsFunc: func(ctx context.Context, client *ent.Client, tenantID, bizID int) (bool, error) {
+				return client.Release.Query().Where(releaseent.ID(bizID), releaseent.TenantID(tenantID)).Exist(ctx)
+			},
+			// 发布单富文本正文可能落在 description / release_notes / rollback_procedure /
+			// validation_criteria（第三波锁定范围），任一字段命中引用即保护。
+			// deployment_steps / affected_systems / affected_components 是清单语义，保持纯文本，不纳入。
+			ReferencesFunc: func(ctx context.Context, client *ent.Client, tenantID, bizID, attachmentID int) (bool, error) {
+				rel, err := client.Release.Query().Where(releaseent.ID(bizID), releaseent.TenantID(tenantID)).Only(ctx)
+				if err != nil {
+					if ent.IsNotFound(err) {
+						return false, nil
+					}
+					return false, err
+				}
+				return htmlReferencesAttachment(rel.Description, attachmentID) ||
+					htmlReferencesAttachment(rel.ReleaseNotes, attachmentID) ||
+					htmlReferencesAttachment(rel.RollbackProcedure, attachmentID) ||
+					htmlReferencesAttachment(rel.ValidationCriteria, attachmentID), nil
+			},
+		},
+		AttachmentBizTypeCMDBci: AttachmentHostFunc{
+			ExistsFunc: func(ctx context.Context, client *ent.Client, tenantID, bizID int) (bool, error) {
+				return client.ConfigurationItem.Query().Where(configitem.ID(bizID), configitem.TenantID(tenantID)).Exist(ctx)
+			},
+			// CI 富文本正文落在 description；extension_attributes / attribute_schema 为 JSON，
+			// 保持纯文本，不纳入引用保护。
+			ReferencesFunc: func(ctx context.Context, client *ent.Client, tenantID, bizID, attachmentID int) (bool, error) {
+				ci, err := client.ConfigurationItem.Query().Where(configitem.ID(bizID), configitem.TenantID(tenantID)).Only(ctx)
+				if err != nil {
+					if ent.IsNotFound(err) {
+						return false, nil
+					}
+					return false, err
+				}
+				return htmlReferencesAttachment(ci.Description, attachmentID), nil
+			},
+		},
+		AttachmentBizTypeKnownError: AttachmentHostFunc{
+			ExistsFunc: func(ctx context.Context, client *ent.Client, tenantID, bizID int) (bool, error) {
+				return client.KnownError.Query().Where(knownerrent.ID(bizID), knownerrent.TenantID(tenantID)).Exist(ctx)
+			},
+			// 已知错误第三波仅 workaround / resolution 承载 HTML；description / symptoms /
+			// root_cause 保持纯文本（表单为短输入），不纳入引用保护。
+			ReferencesFunc: func(ctx context.Context, client *ent.Client, tenantID, bizID, attachmentID int) (bool, error) {
+				ke, err := client.KnownError.Query().Where(knownerrent.ID(bizID), knownerrent.TenantID(tenantID)).Only(ctx)
+				if err != nil {
+					if ent.IsNotFound(err) {
+						return false, nil
+					}
+					return false, err
+				}
+				return htmlReferencesAttachment(ke.Workaround, attachmentID) ||
+					htmlReferencesAttachment(ke.Resolution, attachmentID), nil
 			},
 		},
 	}

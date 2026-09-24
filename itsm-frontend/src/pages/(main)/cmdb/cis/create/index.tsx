@@ -1,8 +1,9 @@
 import { useNavigate, useSearchParams } from 'react-router';
 
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { App, Card, Form, Spin } from 'antd';
 
+import type { UploadedImage } from '@/components/common/rich-text/RichTextEditor';
 import { CIEditorForm } from '@/components/cmdb/CIEditorForm';
 import { useUnsavedChangesGuard } from '@/components/cmdb/useUnsavedChangesGuard';
 import type { CIFormValues, SchemaField } from '@/components/cmdb/ci-editor-shared';
@@ -21,6 +22,19 @@ import {
 } from '@/lib/hooks/useCMDB';
 import type { CIType, CloudResource, CloudService } from '@/types/biz/cmdb';
 import { useI18n } from '@/lib/i18n';
+import { AttachmentApi, cmdbCiAttachmentPreviewUrl } from '@/lib/api/attachment-api';
+import { CMDBApi } from '@/lib/api/cmdb-api';
+import { htmlToPlainText, isRichTextEnabled } from '@/lib/rich-text/sanitize';
+import {
+  STAGED_ID_PREFIX,
+  extractStagedImageIds,
+  replaceStagedImages,
+  stripStagedImages,
+  type StagedImageReplacement,
+} from '@/lib/rich-text/staged-images';
+
+const DESCRIPTION_MAX_LENGTH = 20000;
+const DESCRIPTION_UPLOAD_KEY = 'cmdb-ci-description-images';
 
 const CreateCIPage: React.FC = () => {
   const { t } = useI18n();
@@ -116,7 +130,30 @@ const CreateCIPage: React.FC = () => {
   // React Query mutation：自动 invalidate + 错误提示
   const createMutation = useCreateCIMutation();
 
+  const richTextEnabled = isRichTextEnabled();
+  // 创建态拿不到 ciId：图片先在编辑器内 blob: 占位，CI 创建成功后再上传并回写描述。
+  const stagedImagesRef = useRef<Map<string, File>>(new Map());
+  const stagedImageSeqRef = useRef(0);
+
+  const handleEditorImageUpload = useCallback(async (file: File): Promise<UploadedImage> => {
+    stagedImageSeqRef.current += 1;
+    const stagedId = `${STAGED_ID_PREFIX}${Date.now().toString(36)}-${stagedImageSeqRef.current}`;
+    stagedImagesRef.current.set(stagedId, file);
+    // 仅本地预览地址；提交时会先剥离，绝不会落库
+    return { url: URL.createObjectURL(file), id: stagedId, name: file.name };
+  }, []);
+
   const handleSubmit = async (values: CIFormValues) => {
+    const rawDescription = typeof values.description === 'string' ? values.description : '';
+    // 富文本按纯文本口径校验长度，与后端 DTO 上限 20000 对齐
+    if (
+      richTextEnabled &&
+      htmlToPlainText(rawDescription, Number.MAX_SAFE_INTEGER).length > DESCRIPTION_MAX_LENGTH
+    ) {
+      message.warning(t('ciEditor.descriptionTooLong'));
+      return;
+    }
+
     let attributes: Record<string, unknown> | undefined;
     if (values.attributes) {
       try {
@@ -140,12 +177,17 @@ const CreateCIPage: React.FC = () => {
       attributes = undefined;
     }
 
+    // 提交前剥离 blob: 占位图（占位地址绝不落库），创建成功后再上传并回写正式地址
+    const stagedImageIds = richTextEnabled ? extractStagedImageIds(rawDescription) : [];
+    const descriptionForCreate =
+      stagedImageIds.length > 0 ? stripStagedImages(rawDescription) : rawDescription;
+
     try {
       const created = await createMutation.mutateAsync({
         name: values.name,
         ciTypeId: Number(values.ciTypeId),
         status: values.status,
-        description: values.description,
+        description: descriptionForCreate,
         attributes,
         serialNumber: values.serialNumber,
         model: values.model,
@@ -172,6 +214,49 @@ const CreateCIPage: React.FC = () => {
       void message; // keep tree-shaking happy
       clearDirty();
       const id = (created as { id?: number })?.id;
+      if (id && stagedImageIds.length > 0) {
+        message.open({
+          key: DESCRIPTION_UPLOAD_KEY,
+          type: 'loading',
+          content: '正在上传描述图片…',
+          duration: 0,
+        });
+        const replacements: Record<string, StagedImageReplacement> = {};
+        let imageFailures = 0;
+        for (const stagedId of stagedImageIds) {
+          const file = stagedImagesRef.current.get(stagedId);
+          if (!file) continue;
+          try {
+            const uploaded = await AttachmentApi.upload(file, {
+              bizType: 'cmdb_ci',
+              bizId: id,
+              usage: 'inline_image',
+            });
+            replacements[stagedId] = {
+              id: uploaded.id,
+              url: uploaded.previewUrl || cmdbCiAttachmentPreviewUrl(id, uploaded.id),
+              name: uploaded.fileName || file.name,
+            };
+            stagedImagesRef.current.delete(stagedId);
+          } catch {
+            imageFailures += 1;
+          }
+        }
+        if (Object.keys(replacements).length > 0) {
+          try {
+            await CMDBApi.updateCI(id, {
+              description: replaceStagedImages(rawDescription, replacements),
+            });
+          } catch (writeBackError) {
+            console.error('回写配置项描述图片失败', writeBackError);
+            imageFailures += 1;
+          }
+        }
+        message.destroy(DESCRIPTION_UPLOAD_KEY);
+        if (imageFailures > 0) {
+          message.warning(`${imageFailures} 张描述图片上传失败，可进入编辑页重新插入。`);
+        }
+      }
       if (id) {
         navigate(`/cmdb/cis/${id}`);
       } else {
@@ -233,6 +318,7 @@ const CreateCIPage: React.FC = () => {
             onCancel={handleCancel}
             onCITypeChange={handleCITypeChange}
             onCloudResourceChange={handleCloudResourceChange}
+            onDescriptionImageUpload={handleEditorImageUpload}
             onValuesChange={() => {
               markDirty();
             }}

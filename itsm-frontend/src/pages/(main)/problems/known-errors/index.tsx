@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback, useRef, lazy, Suspense } from 'react';
 import {
   Table,
   Card,
@@ -22,11 +22,35 @@ import {
 } from 'antd';
 import { Search, Plus, Pencil, Trash2, Eye, RotateCcw, AlertCircle, CheckCircle, XCircle } from 'lucide-react';
 import type { ColumnsType } from 'antd/es/table';
-import type { KEDBResponse, KEDBStatsResponse } from '@/lib/api/kedb-api';
+import type { KEDBCreateRequest, KEDBResponse, KEDBStatsResponse, KEDBUpdateRequest } from '@/lib/api/kedb-api';
 import { KEDBApi } from '@/lib/api/kedb-api';
+import type { UploadedImage } from '@/components/common/rich-text/RichTextEditor';
+import RichTextContent from '@/components/common/rich-text/RichTextContent';
+import { AttachmentApi, knownErrorAttachmentPreviewUrl } from '@/lib/api/attachment-api';
+import { htmlToPlainText, isRichTextEnabled } from '@/lib/rich-text/sanitize';
+import {
+  STAGED_ID_PREFIX,
+  extractStagedImageIds,
+  replaceStagedImages,
+  stripStagedImages,
+  type StagedImageReplacement,
+} from '@/lib/rich-text/staged-images';
 
 const { TextArea } = Input;
 const { Text } = Typography;
+
+// 富文本编辑器按需加载：VITE_RICH_TEXT=off 时该分支不渲染，不会请求编辑器 chunk
+const RichTextEditorLazy = lazy(() => import('@/components/common/rich-text/RichTextEditor'));
+
+const RichTextEditor: React.FC<React.ComponentProps<typeof RichTextEditorLazy>> = props => (
+  <Suspense fallback={<div className="rich-text-editor" style={{ minHeight: 140 }} />}>
+    <RichTextEditorLazy {...props} />
+  </Suspense>
+);
+
+/** 解决方案纯文本长度上限（与后端 DTO 的 20000 上限对齐） */
+const SOLUTION_MAX_LENGTH = 20000;
+const SOLUTION_UPLOAD_KEY = 'known-error-solution-images';
 
 // 状态配置
 const statusConfig: Record<string, { color: string; text: string }> = {
@@ -61,6 +85,38 @@ export default function KnownErrorsPage() {
   const [viewRecord, setViewRecord] = useState<KEDBResponse | null>(null);
   const [form] = Form.useForm();
   const [categories, setCategories] = useState<string[]>([]);
+
+  const richTextEnabled = isRichTextEnabled();
+  // 编辑器宿主 ID：编辑态已有 knownErrorId（图片即时上传）；创建态为 null（blob 占位）
+  const knownErrorIdRef = useRef<number | null>(null);
+  const stagedImagesRef = useRef<Map<string, File>>(new Map());
+  const stagedImageSeqRef = useRef(0);
+
+  const resetEditorImages = () => {
+    stagedImagesRef.current.clear();
+    stagedImageSeqRef.current = 0;
+  };
+
+  const handleEditorImageUpload = useCallback(async (file: File): Promise<UploadedImage> => {
+    const hostId = knownErrorIdRef.current;
+    if (hostId) {
+      const uploaded = await AttachmentApi.upload(file, {
+        bizType: 'known_error',
+        bizId: hostId,
+        usage: 'inline_image',
+      });
+      return {
+        url: uploaded.previewUrl || knownErrorAttachmentPreviewUrl(hostId, uploaded.id),
+        id: uploaded.id,
+        name: uploaded.fileName || file.name,
+      };
+    }
+    stagedImageSeqRef.current += 1;
+    const stagedId = `${STAGED_ID_PREFIX}${Date.now().toString(36)}-${stagedImageSeqRef.current}`;
+    stagedImagesRef.current.set(stagedId, file);
+    // 仅本地预览地址；提交时先剥离，创建成功拿到 knownErrorId 后再上传回写
+    return { url: URL.createObjectURL(file), id: stagedId, name: file.name };
+  }, []);
 
   useEffect(() => {
     fetchData();
@@ -128,12 +184,16 @@ export default function KnownErrorsPage() {
 
   const handleAdd = () => {
     setEditingRecord(null);
+    knownErrorIdRef.current = null;
+    resetEditorImages();
     form.resetFields();
     setIsModalOpen(true);
   };
 
   const handleEdit = (record: KEDBResponse) => {
     setEditingRecord(record);
+    knownErrorIdRef.current = record.id;
+    resetEditorImages();
     form.setFieldsValue({
       title: record.title,
       description: record.description,
@@ -179,19 +239,106 @@ export default function KnownErrorsPage() {
   };
 
   const handleSubmit = async () => {
+    let values: KEDBCreateRequest & KEDBUpdateRequest;
     try {
-      const values = await form.validateFields();
+      values = await form.validateFields();
+    } catch {
+      return;
+    }
+
+    const rawWorkaround = typeof values.workaround === 'string' ? values.workaround : '';
+    const rawResolution = typeof values.resolution === 'string' ? values.resolution : '';
+    // 富文本按纯文本口径校验长度（临时/永久解决方案各自上限 20000）
+    if (richTextEnabled) {
+      const workaroundLength = htmlToPlainText(rawWorkaround, Number.MAX_SAFE_INTEGER).length;
+      const resolutionLength = htmlToPlainText(rawResolution, Number.MAX_SAFE_INTEGER).length;
+      if (workaroundLength > SOLUTION_MAX_LENGTH || resolutionLength > SOLUTION_MAX_LENGTH) {
+        message.warning('临时/永久解决方案各最多 20000 字，请精简后再提交');
+        return;
+      }
+    }
+
+    // 创建态：先剥离 blob: 占位图（绝不落库），创建成功后再上传并回写两个字段
+    const stagedImageIds = richTextEnabled
+      ? Array.from(
+          new Set([
+            ...extractStagedImageIds(rawWorkaround),
+            ...extractStagedImageIds(rawResolution),
+          ])
+        )
+      : [];
+    const payload = {
+      ...values,
+      workaround:
+        stagedImageIds.length > 0 ? stripStagedImages(rawWorkaround) : rawWorkaround,
+      resolution:
+        stagedImageIds.length > 0 ? stripStagedImages(rawResolution) : rawResolution,
+    };
+
+    try {
+      let hostId = editingRecord?.id ?? 0;
       if (editingRecord) {
-        await KEDBApi.updateKnownError(editingRecord.id, values);
+        await KEDBApi.updateKnownError(editingRecord.id, payload);
         message.success('更新成功');
       } else {
-        await KEDBApi.createKnownError(values);
+        const created = await KEDBApi.createKnownError(payload);
+        hostId = Number(created?.id ?? 0);
+        knownErrorIdRef.current = hostId || null;
         message.success('创建成功');
       }
+
+      if (hostId > 0 && stagedImageIds.length > 0) {
+        message.open({
+          key: SOLUTION_UPLOAD_KEY,
+          type: 'loading',
+          content: '正在上传解决方案图片…',
+          duration: 0,
+        });
+        const replacements: Record<string, StagedImageReplacement> = {};
+        let imageFailures = 0;
+        for (const stagedId of stagedImageIds) {
+          const file = stagedImagesRef.current.get(stagedId);
+          if (!file) continue;
+          try {
+            const uploaded = await AttachmentApi.upload(file, {
+              bizType: 'known_error',
+              bizId: hostId,
+              usage: 'inline_image',
+            });
+            replacements[stagedId] = {
+              id: uploaded.id,
+              url: uploaded.previewUrl || knownErrorAttachmentPreviewUrl(hostId, uploaded.id),
+              name: uploaded.fileName || file.name,
+            };
+            stagedImagesRef.current.delete(stagedId);
+          } catch {
+            imageFailures += 1;
+          }
+        }
+        if (Object.keys(replacements).length > 0) {
+          try {
+            await KEDBApi.updateKnownError(hostId, {
+              workaround: replaceStagedImages(rawWorkaround, replacements),
+              resolution: replaceStagedImages(rawResolution, replacements),
+            });
+          } catch (writeBackError) {
+            console.error('回写解决方案图片失败', writeBackError);
+            imageFailures += 1;
+          }
+        }
+        message.destroy(SOLUTION_UPLOAD_KEY);
+        if (imageFailures > 0) {
+          message.warning(`${imageFailures} 张解决方案图片上传失败，可编辑后再补充。`);
+        }
+      }
+
       setIsModalOpen(false);
+      resetEditorImages();
+      knownErrorIdRef.current = null;
       fetchData();
       fetchStats();
     } catch (error) {
+      message.destroy(SOLUTION_UPLOAD_KEY);
       message.error('操作失败');
     }
   };
@@ -465,10 +612,36 @@ export default function KnownErrorsPage() {
             <TextArea rows={2} placeholder="请输入根本原因" />
           </Form.Item>
           <Form.Item name="workaround" label="临时解决方案">
-            <TextArea rows={2} placeholder="请输入临时解决方案" />
+            {richTextEnabled ? (
+              <RichTextEditor
+                placeholder="请输入临时解决方案"
+                minHeight={140}
+                onUploadImage={handleEditorImageUpload}
+                dataTestId="known-error-workaround-input"
+              />
+            ) : (
+              <TextArea
+                rows={2}
+                placeholder="请输入临时解决方案"
+                data-testid="known-error-workaround-input"
+              />
+            )}
           </Form.Item>
           <Form.Item name="resolution" label="永久解决方案">
-            <TextArea rows={2} placeholder="请输入永久解决方案" />
+            {richTextEnabled ? (
+              <RichTextEditor
+                placeholder="请输入永久解决方案"
+                minHeight={140}
+                onUploadImage={handleEditorImageUpload}
+                dataTestId="known-error-resolution-input"
+              />
+            ) : (
+              <TextArea
+                rows={2}
+                placeholder="请输入永久解决方案"
+                data-testid="known-error-resolution-input"
+              />
+            )}
           </Form.Item>
           <Row gutter={16}>
             <Col span={8}>
@@ -554,10 +727,10 @@ export default function KnownErrorsPage() {
               {viewRecord.rootCause || '-'}
             </Descriptions.Item>
             <Descriptions.Item label="临时解决方案" span={2}>
-              {viewRecord.workaround || '-'}
+              <RichTextContent content={viewRecord.workaround} emptyText="-" />
             </Descriptions.Item>
             <Descriptions.Item label="永久解决方案" span={2}>
-              {viewRecord.resolution || '-'}
+              <RichTextContent content={viewRecord.resolution} emptyText="-" />
             </Descriptions.Item>
             <Descriptions.Item label="分类">{viewRecord.category}</Descriptions.Item>
             <Descriptions.Item label="严重程度">

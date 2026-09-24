@@ -6,7 +6,9 @@ import (
 	"itsm-backend/common"
 	"itsm-backend/dto"
 	"itsm-backend/ent"
+	attachmentHandler "itsm-backend/handlers/attachment"
 	"itsm-backend/middleware"
+	"itsm-backend/service"
 
 	"github.com/gin-gonic/gin"
 	"go.uber.org/zap"
@@ -326,7 +328,9 @@ func (h *Handler) PromoteToKnownError(c *gin.Context) {
 	common.Success(c, h.toResponse(updated))
 }
 
-func (h *Handler) RegisterRoutes(r *gin.RouterGroup) {
+// RegisterRoutes 注册 KEDB 路由；attachmentHandler 非空时挂载附件域内别名
+// （富文本第三波，BE-5 §3.2），权限沿用 problem:* 词表（KEDB 属问题管理域）。
+func (h *Handler) RegisterRoutes(r *gin.RouterGroup, attachmentHandler *attachmentHandler.Handler) {
 	// 已知错误库属问题管理域（2026-09-17 P0「越权写收口」）：复用 problem:* 词表
 	errors := r.Group("/known-errors")
 	{
@@ -339,6 +343,16 @@ func (h *Handler) RegisterRoutes(r *gin.RouterGroup) {
 		errors.PUT("/:id", middleware.RequirePermission("problem", "write"), h.UpdateKnownError)
 		errors.DELETE("/:id", middleware.RequirePermission("problem", "delete"), h.DeleteKnownError)
 		errors.POST("/:id/promote", middleware.RequirePermission("problem", "write"), h.PromoteToKnownError)
+
+		// 附件域内别名（富文本第三波，BE-5 §3.2）：静态声明宿主权限码，处理体复用通用附件 A1/A2/A4/A5。
+		if attachmentHandler != nil {
+			errors.GET("/:id/attachments", middleware.RequirePermission("problem", "read"), attachmentHandler.AliasList(service.AttachmentBizTypeKnownError))
+			errors.POST("/:id/attachments", middleware.RequirePermission("problem", "write"), attachmentHandler.AliasUpload(service.AttachmentBizTypeKnownError))
+			errors.GET("/:id/attachments/:ref", middleware.RequirePermission("problem", "read"), attachmentHandler.AliasDownload(service.AttachmentBizTypeKnownError, false))
+			errors.GET("/:id/attachments/:ref/download", middleware.RequirePermission("problem", "read"), attachmentHandler.AliasDownload(service.AttachmentBizTypeKnownError, false))
+			errors.GET("/:id/attachments/:ref/preview", middleware.RequirePermission("problem", "read"), attachmentHandler.AliasDownload(service.AttachmentBizTypeKnownError, true))
+			errors.DELETE("/:id/attachments/:ref", middleware.RequirePermission("problem", "delete"), attachmentHandler.AliasDelete(service.AttachmentBizTypeKnownError))
+		}
 	}
 }
 

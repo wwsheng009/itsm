@@ -2,6 +2,7 @@ package router
 
 import (
 	"itsm-backend/middleware"
+	"itsm-backend/service"
 
 	"github.com/gin-gonic/gin"
 )
@@ -185,6 +186,17 @@ func SetupCMDBRoutes(
 		}
 
 		// ------------------------------ CI关系相关路由 ------------------------------
+		// 附件域内别名（富文本第三波，BE-5 §3.2）：登记在 /cmdb 组下，刻意绕开 cis 子组
+		// 级 cmdb:read 中间件叠加（否则写操作会被读门禁二次拦截），每条路由显式声明宿主权限码。
+		if config.AttachmentHandler != nil {
+			cmdb.GET("/cis/:id/attachments", middleware.RequirePermission("cmdb", "read"), config.AttachmentHandler.AliasList(service.AttachmentBizTypeCMDBci))
+			cmdb.POST("/cis/:id/attachments", middleware.RequirePermission("cmdb", "write"), config.AttachmentHandler.AliasUpload(service.AttachmentBizTypeCMDBci))
+			cmdb.GET("/cis/:id/attachments/:ref", middleware.RequirePermission("cmdb", "read"), config.AttachmentHandler.AliasDownload(service.AttachmentBizTypeCMDBci, false))
+			cmdb.GET("/cis/:id/attachments/:ref/download", middleware.RequirePermission("cmdb", "read"), config.AttachmentHandler.AliasDownload(service.AttachmentBizTypeCMDBci, false))
+			cmdb.GET("/cis/:id/attachments/:ref/preview", middleware.RequirePermission("cmdb", "read"), config.AttachmentHandler.AliasDownload(service.AttachmentBizTypeCMDBci, true))
+			cmdb.DELETE("/cis/:id/attachments/:ref", middleware.RequirePermission("cmdb", "delete"), config.AttachmentHandler.AliasDelete(service.AttachmentBizTypeCMDBci))
+		}
+
 		relationships := cmdb.Group("/relationships")
 		relationships.Use(middleware.RequirePermission("cmdb", "read"))
 		{

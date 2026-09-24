@@ -1,8 +1,9 @@
 import { useNavigate, useParams } from 'react-router';
 
-import React, { useEffect, useMemo, useRef } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef } from 'react';
 import { App, Card, Form } from 'antd';
 
+import type { UploadedImage } from '@/components/common/rich-text/RichTextEditor';
 import { CIEditorForm } from '@/components/cmdb/CIEditorForm';
 import { useUnsavedChangesGuard } from '@/components/cmdb/useUnsavedChangesGuard';
 import type { CIFormValues, SchemaField } from '@/components/cmdb/ci-editor-shared';
@@ -21,6 +22,10 @@ import {
   useUpdateCIMutation,
 } from '@/lib/hooks/useCMDB';
 import type { CIType, CloudResource, CloudService, ConfigurationItem } from '@/types/biz/cmdb';
+import { AttachmentApi, cmdbCiAttachmentPreviewUrl } from '@/lib/api/attachment-api';
+import { htmlToPlainText, isRichTextEnabled } from '@/lib/rich-text/sanitize';
+
+const DESCRIPTION_MAX_LENGTH = 20000;
 
 const EditCIPage: React.FC = () => {
   const navigate = useNavigate();
@@ -66,6 +71,29 @@ const EditCIPage: React.FC = () => {
   typeSchemaFieldsStateRef.current = typeSchemaFields;
 
   const { markDirty, clearDirty, handleCancel } = useUnsavedChangesGuard(navigate);
+
+  const richTextEnabled = isRichTextEnabled();
+  const ciId = Number(id);
+
+  // 编辑态已持有 ciId：图片直接上传附件，编辑器内回填的就是正式地址
+  const handleEditorImageUpload = useCallback(
+    async (file: File): Promise<UploadedImage> => {
+      if (!Number.isFinite(ciId) || ciId <= 0) {
+        throw new Error('配置项 ID 无效，无法上传图片');
+      }
+      const uploaded = await AttachmentApi.upload(file, {
+        bizType: 'cmdb_ci',
+        bizId: ciId,
+        usage: 'inline_image',
+      });
+      return {
+        url: uploaded.previewUrl || cmdbCiAttachmentPreviewUrl(ciId, uploaded.id),
+        id: uploaded.id,
+        name: uploaded.fileName || file.name,
+      };
+    },
+    [ciId]
+  );
 
   const cloudServiceMap = useMemo(
     () => new Map(cloudServices.map(service => [service.id, service])),
@@ -165,6 +193,16 @@ const EditCIPage: React.FC = () => {
   const updateMutation = useUpdateCIMutation();
 
   const handleSubmit = async (values: CIFormValues) => {
+    const rawDescription = typeof values.description === 'string' ? values.description : '';
+    // 富文本按纯文本口径校验长度，与后端 DTO 上限 20000 对齐
+    if (
+      richTextEnabled &&
+      htmlToPlainText(rawDescription, Number.MAX_SAFE_INTEGER).length > DESCRIPTION_MAX_LENGTH
+    ) {
+      message.warning('配置项描述最多 20000 字，请精简后再提交');
+      return;
+    }
+
     let attributes: Record<string, unknown> | undefined;
     if (values.attributes) {
       try {
@@ -259,6 +297,7 @@ const EditCIPage: React.FC = () => {
           onCancel={handleCancel}
           onCITypeChange={handleCITypeChange}
           onCloudResourceChange={handleCloudResourceChange}
+          onDescriptionImageUpload={handleEditorImageUpload}
           onValuesChange={() => {
             if (initializedRef.current) markDirty();
           }}
