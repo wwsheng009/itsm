@@ -20,6 +20,7 @@ import { AppDateRangePicker } from '@/components/ui/AppDatePicker';
 import { ChangeApi, type ChangeRequest } from '@/lib/api/change-api';
 import { AttachmentApi, changeAttachmentPreviewUrl } from '@/lib/api/attachment-api';
 import { htmlToPlainText, isRichTextEmpty, isRichTextEnabled } from '@/lib/rich-text/sanitize';
+import { useInlineImageUnbind } from '@/lib/rich-text/useInlineImageUnbind';
 import type { UploadedImage } from '@/components/common/rich-text/RichTextEditor';
 import { useI18n } from '@/lib/i18n';
 
@@ -110,6 +111,8 @@ const EditChangePage: React.FC = () => {
   const [changeData, setChangeData] = useState<any>(null);
   const [isReadonly, setIsReadonly] = useState(false);
   const richTextEnabled = isRichTextEnabled();
+  // 编辑态正文内嵌图片解绑：加载时记基线，保存成功后 diff 出被移除的图片（失败仅告警）
+  const { captureInlineImageBaseline, unbindRemovedInlineImages } = useInlineImageUnbind();
 
   /** 编辑态变更 ID 已知：图片即时上传，直接返回可渲染的域内预览地址（bizId 已知，无需两段式） */
   const handleUploadImage = useCallback(
@@ -174,6 +177,7 @@ const EditChangePage: React.FC = () => {
           implementationPlan: data.implementationPlan,
           rollbackPlan: data.rollbackPlan,
         });
+        captureInlineImageBaseline(data.description);
       } catch (error) {
         message.error(t('changes.getFailed') || '加载变更详情失败');
         navigate('/changes');
@@ -183,7 +187,7 @@ const EditChangePage: React.FC = () => {
     };
 
     fetchChange();
-  }, [id, form, navigate, message, t]);
+  }, [id, form, navigate, message, t, captureInlineImageBaseline]);
 
   const handleSubmit = async (values: ChangeFormValues) => {
     if (!id) return;
@@ -214,6 +218,16 @@ const EditChangePage: React.FC = () => {
       };
 
       await ChangeApi.updateChange(Number(id), payload);
+
+      // 编辑器内被删除的图片：调用附件解绑接口（域内别名路由沿用 change:delete，
+      // 幂等、失败不阻断保存结果）。
+      if (richTextEnabled) {
+        await unbindRemovedInlineImages(
+          { bizType: 'change', bizId: Number(id) },
+          values.description
+        );
+      }
+
       message.success(t('common.operationSuccess') || '变更更新成功');
       navigate(`/changes/${id}`);
     } catch (err) {

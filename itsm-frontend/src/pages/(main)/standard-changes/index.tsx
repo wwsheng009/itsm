@@ -1,6 +1,6 @@
 import { useNavigate } from 'react-router';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, lazy, Suspense } from 'react';
 import {
   Table,
   Button,
@@ -36,10 +36,52 @@ import {
 import type { StandardChange } from '@/lib/api/standard-change-api';
 import { StandardChangeApi } from '@/lib/api/standard-change-api';
 import { useI18n } from '@/lib/i18n';
-import { htmlToPlainText } from '@/lib/rich-text/sanitize';
+import { htmlToPlainText, isRichTextEmpty, isRichTextEnabled } from '@/lib/rich-text/sanitize';
 import { ChangeRiskLabels, ChangeImpactLabels } from '@/constants/change';
 
 const { Title, Text } = Typography;
+
+// 富文本编辑器按需加载：VITE_RICH_TEXT=off 时该分支不渲染，
+// 也就不会请求编辑器 chunk（对齐 CIEditorForm / 变更表单范式）。
+const RichTextEditorLazy = lazy(() => import('@/components/common/rich-text/RichTextEditor'));
+
+const RichTextEditor: React.FC<React.ComponentProps<typeof RichTextEditorLazy>> = props => (
+  <Suspense fallback={<div className='rich-text-editor' style={{ minHeight: 140 }} />}>
+    <RichTextEditorLazy {...props} />
+  </Suspense>
+);
+
+/** 富文本字段纯文本长度上限（HTML 标签不占额度，与其它富文本表单口径一致） */
+const RICH_TEXT_MAX_LENGTH = 20000;
+
+/**
+ * 富文本必填 + 纯文本长度校验：HTML 只计纯文本（htmlToPlainText，不截断）。
+ * - 传 requiredMessage 时，空内容（空白文本且无图片）被拦截，提示沿用改造前文案；
+ * - C 档不注入 onUploadImage，编辑器内不会产生 <img>，isRichTextEmpty 与纯文本空值等价。
+ */
+const validateRichTextValue = (value: unknown, label: string, requiredMessage?: string) => {
+  const raw = typeof value === 'string' ? value : '';
+  if (isRichTextEmpty(raw)) {
+    return requiredMessage ? Promise.reject(new Error(requiredMessage)) : Promise.resolve();
+  }
+  const plainLength = htmlToPlainText(raw, Number.MAX_SAFE_INTEGER).length;
+  if (plainLength > RICH_TEXT_MAX_LENGTH) {
+    return Promise.reject(new Error(`${label}最多 ${RICH_TEXT_MAX_LENGTH} 字，请精简后提交`));
+  }
+  return Promise.resolve();
+};
+
+/** 模板描述：非必填，仅做纯文本长度上限校验 */
+const descriptionValidator = (_: unknown, value: unknown) =>
+  validateRichTextValue(value, '模板描述');
+
+/** 实施计划步骤：必填，空内容拦截 */
+const implementationPlanValidator = (_: unknown, value: unknown) =>
+  validateRichTextValue(value, '实施计划步骤', '请输入实施计划步骤');
+
+/** 回滚计划：必填，空内容拦截 */
+const rollbackPlanValidator = (_: unknown, value: unknown) =>
+  validateRichTextValue(value, '回滚计划', '请输入回滚计划');
 
 const RISK_COLORS: Record<string, string> = {
   low: 'green',
@@ -59,6 +101,7 @@ const CATEGORY_COLORS: Record<string, string> = {
 export default function StandardChangesPage() {
   const navigate = useNavigate();
   const { t } = useI18n();
+  const richTextEnabled = isRichTextEnabled();
   const [loading, setLoading] = useState(false);
   const [templates, setTemplates] = useState<StandardChange[]>([]);
   const [categories, setCategories] = useState<string[]>([]);
@@ -403,8 +446,20 @@ export default function StandardChangesPage() {
             <Input placeholder='例如：服务器重启流程' />
           </Form.Item>
 
-          <Form.Item name='description' label='模板描述'>
-            <Input.TextArea rows={2} placeholder='简要描述此模板的用途...' />
+          <Form.Item
+            name='description'
+            label='模板描述'
+            rules={richTextEnabled ? [{ validator: descriptionValidator }] : undefined}
+          >
+            {richTextEnabled ? (
+              <RichTextEditor
+                placeholder='简要描述此模板的用途...'
+                minHeight={120}
+                dataTestId='standard-change-description-input'
+              />
+            ) : (
+              <Input.TextArea rows={2} placeholder='简要描述此模板的用途...' />
+            )}
           </Form.Item>
 
           <Row gutter={16}>
@@ -451,17 +506,47 @@ export default function StandardChangesPage() {
           <Form.Item
             name='implementationPlan'
             label='实施计划步骤'
-            rules={[{ required: true, message: '请输入实施计划步骤' }]}
+            rules={
+              richTextEnabled
+                ? [
+                    { required: true, message: '请输入实施计划步骤' },
+                    { validator: implementationPlanValidator },
+                  ]
+                : [{ required: true, message: '请输入实施计划步骤' }]
+            }
           >
-            <Input.TextArea rows={4} placeholder='详细描述实施步骤...' />
+            {richTextEnabled ? (
+              <RichTextEditor
+                placeholder='详细描述实施步骤...'
+                minHeight={160}
+                dataTestId='standard-change-implementation-input'
+              />
+            ) : (
+              <Input.TextArea rows={4} placeholder='详细描述实施步骤...' />
+            )}
           </Form.Item>
 
           <Form.Item
             name='rollbackPlan'
             label='回滚计划'
-            rules={[{ required: true, message: '请输入回滚计划' }]}
+            rules={
+              richTextEnabled
+                ? [
+                    { required: true, message: '请输入回滚计划' },
+                    { validator: rollbackPlanValidator },
+                  ]
+                : [{ required: true, message: '请输入回滚计划' }]
+            }
           >
-            <Input.TextArea rows={3} placeholder='详细描述回滚步骤...' />
+            {richTextEnabled ? (
+              <RichTextEditor
+                placeholder='详细描述回滚步骤...'
+                minHeight={140}
+                dataTestId='standard-change-rollback-input'
+              />
+            ) : (
+              <Input.TextArea rows={3} placeholder='详细描述回滚步骤...' />
+            )}
           </Form.Item>
 
           <Form.Item

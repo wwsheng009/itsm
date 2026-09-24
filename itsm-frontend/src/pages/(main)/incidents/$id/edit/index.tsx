@@ -8,6 +8,7 @@ import type { Incident, UpdateIncidentRequest } from '@/lib/api/incident-api';
 import { IncidentCategoryOptions } from '@/constants/taxonomy';
 import { useI18n } from '@/lib/i18n';
 import { htmlToPlainText, isRichTextEnabled } from '@/lib/rich-text/sanitize';
+import { useInlineImageUnbind } from '@/lib/rich-text/useInlineImageUnbind';
 import { AttachmentApi, incidentAttachmentPreviewUrl } from '@/lib/api/attachment-api';
 import type { UploadedImage } from '@/components/common/rich-text/RichTextEditor';
 
@@ -45,6 +46,8 @@ export default function IncidentEditPage() {
   const [incidentData, setIncidentData] = useState<Incident | null>(null);
   const richTextEnabled = isRichTextEnabled();
   const [editorUploading, setEditorUploading] = useState(false);
+  // 编辑态正文内嵌图片解绑：加载时记基线，保存成功后 diff 出被移除的图片（失败仅告警）
+  const { captureInlineImageBaseline, unbindRemovedInlineImages } = useInlineImageUnbind();
 
   /** 编辑态事件 ID 已存在：图片即时上传，直接返回可渲染的域内预览地址 */
   const handleUploadImage = useCallback(
@@ -88,6 +91,7 @@ export default function IncidentEditPage() {
           subcategory: data.subcategory,
           status: data.status,
         });
+        captureInlineImageBaseline(data.description);
       } catch (error) {
         if (isMounted) {
           message.error(t('common.getFailed'));
@@ -104,7 +108,7 @@ export default function IncidentEditPage() {
     return () => {
       isMounted = false;
     };
-  }, [id, form, navigate]);
+  }, [id, form, navigate, captureInlineImageBaseline]);
 
   const handleSubmit = async (values: IncidentFormValues) => {
     if (!id) return;
@@ -140,6 +144,16 @@ export default function IncidentEditPage() {
         version: incidentData?.version,
       };
       await IncidentAPI.updateIncident(Number(id), payload);
+
+      // 编辑器内被删除的图片：调用附件解绑接口（域内别名路由沿用 incident:delete，
+      // 幂等、失败不阻断保存结果）。
+      if (richTextEnabled) {
+        await unbindRemovedInlineImages(
+          { bizType: 'incident', bizId: Number(id) },
+          values.description
+        );
+      }
+
       message.success(t('incidents.updateSuccess'));
       navigate(`/incidents/${id}`);
     } catch (error) {

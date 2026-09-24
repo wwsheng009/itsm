@@ -10,6 +10,7 @@ import {
 } from '@/constants/problem';
 import { useI18n } from '@/lib/i18n';
 import { htmlToPlainText, isRichTextEnabled } from '@/lib/rich-text/sanitize';
+import { useInlineImageUnbind } from '@/lib/rich-text/useInlineImageUnbind';
 import { AttachmentApi, problemAttachmentPreviewUrl } from '@/lib/api/attachment-api';
 import type { UploadedImage } from '@/components/common/rich-text/RichTextEditor';
 
@@ -37,6 +38,8 @@ export default function ProblemEditPage() {
   const [problemData, setProblemData] = useState<any>(null);
   const richTextEnabled = isRichTextEnabled();
   const [editorUploading, setEditorUploading] = useState(false);
+  // 编辑态正文内嵌图片解绑：加载时记基线，保存成功后 diff 出被移除的图片（失败仅告警）
+  const { captureInlineImageBaseline, unbindRemovedInlineImages } = useInlineImageUnbind();
 
   /** 编辑态问题 ID 已存在：图片即时上传，直接返回可渲染的域内预览地址 */
   const handleUploadImage = useCallback(
@@ -82,6 +85,7 @@ export default function ProblemEditPage() {
           rootCause: data.rootCause,
           impact: data.impact,
         });
+        captureInlineImageBaseline(data.description);
         if (rawCategory && !safeCategory) {
           message.warning(`原分类 “${rawCategory}” 不在当前枚举内，请重新选择`);
         }
@@ -94,7 +98,7 @@ export default function ProblemEditPage() {
     };
 
     fetchProblem();
-  }, [id, form, navigate]);
+  }, [id, form, navigate, captureInlineImageBaseline]);
 
   const handleSubmit = async (values: any) => {
     if (!id) return;
@@ -118,6 +122,16 @@ export default function ProblemEditPage() {
     setLoading(true);
     try {
       await ProblemApi.updateProblem(Number(id), values);
+
+      // 编辑器内被删除的图片：调用附件解绑接口（域内别名路由沿用 problem:delete，
+      // 幂等、失败不阻断保存结果）。
+      if (richTextEnabled) {
+        await unbindRemovedInlineImages(
+          { bizType: 'problem', bizId: Number(id) },
+          typeof values.description === 'string' ? values.description : ''
+        );
+      }
+
       message.success(t('problems.updateSuccess'));
       navigate(`/problems/${id}`);
     } catch (error) {

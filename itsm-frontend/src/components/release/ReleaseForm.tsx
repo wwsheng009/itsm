@@ -26,6 +26,7 @@ import type { Release, ReleaseRequest } from '@/lib/api/release-api';
 import { ReleaseApi } from '@/lib/api/release-api';
 import type { Dayjs } from 'dayjs';
 import { htmlToPlainText, isRichTextEnabled } from '@/lib/rich-text/sanitize';
+import { useInlineImageUnbind } from '@/lib/rich-text/useInlineImageUnbind';
 import {
   STAGED_ID_PREFIX,
   extractStagedImageIds,
@@ -97,6 +98,9 @@ const ReleaseForm: React.FC = () => {
   const richTextEnabled = isRichTextEnabled();
   const releaseId = isEdit ? Number(id) : 0;
   const uploadKey = 'release-content-images';
+  // 编辑态正文内嵌图片解绑：加载时记基线，保存成功后 diff 出被移除的图片（失败仅告警）。
+  // 创建态图片先以 blob: 占位（见下方 stagedImagesRef），不适用解绑。
+  const { captureInlineImageBaseline, unbindRemovedInlineImages } = useInlineImageUnbind();
 
   // 正文图片：编辑态即时上传；创建态先以 blob: 占位，创建成功后统一上传并回写（两段式）。
   const stagedImagesRef = useRef<Map<string, File>>(new Map());
@@ -155,6 +159,7 @@ const ReleaseForm: React.FC = () => {
         affectedSystems: data.affectedSystems?.join('\n'),
         affectedComponents: data.affectedComponents?.join('\n'),
       });
+      captureInlineImageBaseline(RICH_FIELDS.map(key => data[key] ?? ''));
     } catch (error) {
       message.error('加载发布详情失败');
     } finally {
@@ -210,6 +215,16 @@ const ReleaseForm: React.FC = () => {
 
       if (isEdit) {
         await ReleaseApi.updateRelease(releaseId, data);
+
+        // 编辑器内被删除的图片：调用附件解绑接口（域内别名路由沿用 release 资源码，
+        // 幂等、失败不阻断保存结果）。
+        if (richTextEnabled) {
+          await unbindRemovedInlineImages(
+            { bizType: 'release', bizId: releaseId },
+            RICH_FIELDS.map(key => values[key] ?? '')
+          );
+        }
+
         message.success('更新成功');
         navigate('/releases');
         return;

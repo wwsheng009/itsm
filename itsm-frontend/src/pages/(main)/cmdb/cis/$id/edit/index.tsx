@@ -24,6 +24,7 @@ import {
 import type { CIType, CloudResource, CloudService, ConfigurationItem } from '@/types/biz/cmdb';
 import { AttachmentApi, cmdbCiAttachmentPreviewUrl } from '@/lib/api/attachment-api';
 import { htmlToPlainText, isRichTextEnabled } from '@/lib/rich-text/sanitize';
+import { useInlineImageUnbind } from '@/lib/rich-text/useInlineImageUnbind';
 
 const DESCRIPTION_MAX_LENGTH = 20000;
 
@@ -74,6 +75,8 @@ const EditCIPage: React.FC = () => {
 
   const richTextEnabled = isRichTextEnabled();
   const ciId = Number(id);
+  // 编辑态正文内嵌图片解绑：加载时记基线，保存成功后 diff 出被移除的图片（失败仅告警）
+  const { captureInlineImageBaseline, unbindRemovedInlineImages } = useInlineImageUnbind();
 
   // 编辑态已持有 ciId：图片直接上传附件，编辑器内回填的就是正式地址
   const handleEditorImageUpload = useCallback(
@@ -154,9 +157,10 @@ const EditCIPage: React.FC = () => {
     }
     form.setFieldsValue(initialValues);
     setTypeSchemaFields(initialTypeSchemaFields);
+    captureInlineImageBaseline(ci.description);
 
     initializedRef.current = true;
-  }, [ci, form, types, typesLoading]);
+  }, [ci, form, types, typesLoading, captureInlineImageBaseline]);
 
   useEffect(() => {
     const cloudResourceRefId = ci?.cloudResourceRefId ?? ci?.cloudResourceRefId;
@@ -257,6 +261,11 @@ const EditCIPage: React.FC = () => {
         },
       });
       // mutation onSuccess 已展示 '配置项已更新'
+      // 编辑器内被删除的图片：调用附件解绑接口（域内别名路由沿用 ci:delete，
+      // 幂等、失败不阻断保存结果）。
+      if (richTextEnabled) {
+        await unbindRemovedInlineImages({ bizType: 'cmdb_ci', bizId: ciId }, rawDescription);
+      }
       clearDirty();
       navigate(`/cmdb/cis/${id}`);
     } catch (error) {

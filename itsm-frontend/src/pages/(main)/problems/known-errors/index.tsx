@@ -28,6 +28,7 @@ import type { UploadedImage } from '@/components/common/rich-text/RichTextEditor
 import RichTextContent from '@/components/common/rich-text/RichTextContent';
 import { AttachmentApi, knownErrorAttachmentPreviewUrl } from '@/lib/api/attachment-api';
 import { htmlToPlainText, isRichTextEnabled } from '@/lib/rich-text/sanitize';
+import { useInlineImageUnbind } from '@/lib/rich-text/useInlineImageUnbind';
 import {
   STAGED_ID_PREFIX,
   extractStagedImageIds,
@@ -89,6 +90,9 @@ export default function KnownErrorsPage() {
   const richTextEnabled = isRichTextEnabled();
   // 编辑器宿主 ID：编辑态已有 knownErrorId（图片即时上传）；创建态为 null（blob 占位）
   const knownErrorIdRef = useRef<number | null>(null);
+  // 编辑态正文内嵌图片解绑：进入编辑时记基线，更新成功后 diff 出被移除的图片（失败仅告警）
+  const { captureInlineImageBaseline, resetInlineImageBaseline, unbindRemovedInlineImages } =
+    useInlineImageUnbind();
   const stagedImagesRef = useRef<Map<string, File>>(new Map());
   const stagedImageSeqRef = useRef(0);
 
@@ -185,6 +189,7 @@ export default function KnownErrorsPage() {
   const handleAdd = () => {
     setEditingRecord(null);
     knownErrorIdRef.current = null;
+    resetInlineImageBaseline();
     resetEditorImages();
     form.resetFields();
     setIsModalOpen(true);
@@ -193,6 +198,7 @@ export default function KnownErrorsPage() {
   const handleEdit = (record: KEDBResponse) => {
     setEditingRecord(record);
     knownErrorIdRef.current = record.id;
+    captureInlineImageBaseline([record.workaround, record.resolution]);
     resetEditorImages();
     form.setFieldsValue({
       title: record.title,
@@ -279,6 +285,16 @@ export default function KnownErrorsPage() {
       let hostId = editingRecord?.id ?? 0;
       if (editingRecord) {
         await KEDBApi.updateKnownError(editingRecord.id, payload);
+
+        // 编辑器内被删除的图片：调用附件解绑接口（域内别名路由沿用 known_error 资源码，
+        // 幂等、失败不阻断保存结果）。创建态不适用（图片为 blob: 占位）。
+        if (richTextEnabled) {
+          await unbindRemovedInlineImages(
+            { bizType: 'known_error', bizId: editingRecord.id },
+            [rawWorkaround, rawResolution]
+          );
+        }
+
         message.success('更新成功');
       } else {
         const created = await KEDBApi.createKnownError(payload);
