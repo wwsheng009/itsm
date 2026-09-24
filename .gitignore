@@ -141,6 +141,19 @@ output/
 !itsm-backend/ent/passwordresettoken/
 !itsm-backend/ent/passwordresettoken/**
 !itsm-backend/ent/passwordresettoken*.go
+# Exception: frontend application source whose *path* merely contains
+# "password" (auth pages + password-policy API/hook) is code, not a secret.
+# The blanket *password* rule above silently excluded these from commits; on a
+# case-insensitive Windows dev box they still existed on disk, so `tsc -b`
+# passed locally while the Linux Docker/CI build failed with TS2307
+# (module '@/pages/(auth)/reset-password/index' not found). Re-include the
+# directories (a re-include needs the parent dir first) plus the two lib files.
+!itsm-frontend/src/pages/(auth)/reset-password/
+!itsm-frontend/src/pages/(auth)/reset-password/**
+!itsm-frontend/src/pages/(auth)/forgot-password/
+!itsm-frontend/src/pages/(auth)/forgot-password/**
+!itsm-frontend/src/lib/api/password-policy-api.ts
+!itsm-frontend/src/lib/hooks/usePasswordPolicy.ts
 *.key
 credentials*
 
