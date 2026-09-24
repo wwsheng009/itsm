@@ -149,6 +149,7 @@ const ServiceCatalogEditId = lazy(() => import('@/pages/(main)/service-catalog/e
 const ServiceCatalogRequestId = lazy(() => import('@/pages/(main)/service-catalog/request/$id/index'));
 const ServiceRequests = lazy(() => import('@/pages/(main)/service-requests/index'));
 const ServiceRequestsId = lazy(() => import('@/pages/(main)/service-requests/$id/index'));
+const ServiceRequestsNew = lazy(() => import('@/pages/(main)/service-requests/new/index'));
 const SettingsApprovals = lazy(() => import('@/pages/(main)/settings/approvals/index'));
 const Sla = lazy(() => import('@/pages/(main)/sla/index'));
 const SlaMonitor = lazy(() => import('@/pages/(main)/sla-monitor/index'));
@@ -337,6 +338,7 @@ export const routes: RouteObject[] = [
           { path: 'service-catalog/edit/:id', element: lazyElement(ServiceCatalogEditId) },
           { path: 'service-catalog/request/:id', element: lazyElement(ServiceCatalogRequestId) },
           { path: 'service-requests', element: lazyElement(ServiceRequests) },
+          { path: 'service-requests/new', element: lazyElement(ServiceRequestsNew) },
           { path: 'service-requests/:id', element: lazyElement(ServiceRequestsId) },
           { path: 'settings/approvals', element: lazyElement(SettingsApprovals) },
           { path: 'sla', element: lazyElement(Sla) },

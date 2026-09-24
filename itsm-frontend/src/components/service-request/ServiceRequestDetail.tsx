@@ -16,10 +16,11 @@ import {
   Modal,
   Input,
   message,
+  Result,
   Spin,
   Divider,
 } from 'antd';
-import { User, CheckCircle, XCircle, Timer } from 'lucide-react';
+import { User, CheckCircle, XCircle, Timer, Plus } from 'lucide-react';
 import dayjs from 'dayjs';
 
 import { ServiceRequestApi } from '@/lib/api/';
@@ -46,6 +47,8 @@ const approvalStatusLabelKeys: Record<string, string> = {
 
 const ServiceRequestDetail: React.FC = () => {
   const { id } = useParams() as { id: string };
+  const requestId = Number(id);
+  const hasValidId = Number.isInteger(requestId) && requestId > 0;
   const navigate = useNavigate();
   const { t } = useI18n();
   const [loading, setLoading] = useState(false);
@@ -60,10 +63,15 @@ const ServiceRequestDetail: React.FC = () => {
 
   // 加载详情
   const loadDetail = async () => {
-    if (!id) return;
+    if (!hasValidId) {
+      setRequest(null);
+      setApprovals([]);
+      setLoading(false);
+      return;
+    }
     setLoading(true);
     try {
-      const data = await ServiceRequestApi.getServiceRequest(Number(id));
+      const data = await ServiceRequestApi.getServiceRequest(requestId);
       setRequest(data as unknown as ServiceRequest);
       // 处理 API 响应中的 approvals 字段（可能是 snake_case）
       const extData = data as unknown as ServiceRequest & { approvals?: ServiceRequestApproval[] };
@@ -83,7 +91,7 @@ const ServiceRequestDetail: React.FC = () => {
 
   // 提交审批
   const handleSubmitApproval = async () => {
-    if (!id || !currentAction) return;
+    if (!hasValidId || !currentAction) return;
 
     if (currentAction === ApprovalAction.REJECT && !comment.trim()) {
       message.error('拒绝操作必须填写原因');
@@ -93,7 +101,7 @@ const ServiceRequestDetail: React.FC = () => {
     setSubmitting(true);
     try {
       await ServiceRequestApi.applyApproval(
-        Number(id),
+        requestId,
         currentAction === ApprovalAction.APPROVE ? 'approve' : 'reject',
         comment
       );
@@ -168,7 +176,30 @@ const ServiceRequestDetail: React.FC = () => {
   );
 
   if (loading) return <Spin size="large" style={{ display: 'block', margin: '50px auto' }} />;
-  if (!request) return <div>未找到请求</div>;
+  if (!hasValidId || !request) {
+    return (
+      <div style={{ padding: '48px 24px' }}>
+        <Result
+          status="warning"
+          title="未找到服务请求"
+          subTitle="请求的地址无效或该服务请求不存在。新建服务请求请先从服务目录中选择服务。"
+          extra={[
+            <Button
+              key="new"
+              type="primary"
+              icon={<Plus />}
+              onClick={() => navigate('/service-requests/new')}
+            >
+              新建服务请求
+            </Button>,
+            <Button key="back" onClick={() => navigate('/service-requests')}>
+              返回服务请求列表
+            </Button>,
+          ]}
+        />
+      </div>
+    );
+  }
 
   return (
     <div style={{ padding: '24px' }}>
