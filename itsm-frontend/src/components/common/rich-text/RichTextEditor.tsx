@@ -1,4 +1,3 @@
-'use client';
 
 /**
  * RichTextEditor —— 富文本编辑器（TipTap v2）
@@ -382,7 +381,7 @@ export const RichTextEditor: React.FC<RichTextEditorProps> = ({
         )}
       </div>
 
-      <style jsx global>{`
+      <style>{`
         .rich-text-editor .rte-content p {
           margin: 0 0 8px;
         }

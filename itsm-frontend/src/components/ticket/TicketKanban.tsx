@@ -1,4 +1,4 @@
-'use client';
+import { useNavigate } from 'react-router';
 
 import React, { useState, useCallback, useMemo } from 'react';
 import {
@@ -25,7 +25,6 @@ import dayjs from 'dayjs';
 import relativeTime from 'dayjs/plugin/relativeTime';
 import 'dayjs/locale/zh-cn';
 
-import { useRouter } from 'next/navigation';
 import type { Ticket } from '@/lib/api/types';
 import { useTickets } from '@/lib/hooks/useTickets';
 import { useDebounce } from '@/lib/component-utils';
@@ -60,7 +59,7 @@ const PRIORITY_CONFIG = {
 };
 
 const TicketKanban: React.FC<TicketKanbanProps> = ({ onTicketSelect }) => {
-  const router = useRouter();
+  const navigate = useNavigate();
   const { tickets, loading, fetchTickets, updateTicket, deleteTicket } = useTickets();
   const { message, modal } = App.useApp();
 
@@ -144,7 +143,7 @@ const TicketKanban: React.FC<TicketKanbanProps> = ({ onTicketSelect }) => {
         if (onTicketSelect) {
           onTicketSelect(ticket);
         } else {
-          router.push(`/tickets/${ticket.id}`);
+          navigate(`/tickets/${ticket.id}`);
         }
       },
     },
@@ -152,7 +151,7 @@ const TicketKanban: React.FC<TicketKanbanProps> = ({ onTicketSelect }) => {
       key: 'edit',
       icon: <Pencil />,
       label: '编辑',
-      onClick: () => router.push(`/tickets/${ticket.id}`),
+      onClick: () => navigate(`/tickets/${ticket.id}`),
     },
     {
       type: 'divider',
@@ -364,7 +363,7 @@ const TicketKanban: React.FC<TicketKanbanProps> = ({ onTicketSelect }) => {
               <Button
                 type="primary"
                 icon={<Plus />}
-                onClick={() => router.push('/tickets/create')}
+                onClick={() => navigate('/tickets/create')}
               >
                 新建工单
               </Button>
@@ -440,7 +439,7 @@ const TicketKanban: React.FC<TicketKanbanProps> = ({ onTicketSelect }) => {
             type="primary"
             onClick={() => {
               if (selectedTicket) {
-                router.push(`/tickets/${selectedTicket.id}`);
+                navigate(`/tickets/${selectedTicket.id}`);
                 setViewModalVisible(false);
               }
             }}

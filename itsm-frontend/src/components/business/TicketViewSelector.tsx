@@ -3,8 +3,6 @@
  * 提供视图切换、保存、管理功能
  */
 
-'use client';
-
 import React, { useState, useEffect } from 'react';
 import {
   Select,

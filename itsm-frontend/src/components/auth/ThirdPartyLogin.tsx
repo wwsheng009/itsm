@@ -1,4 +1,3 @@
-'use client';
 
 import React from 'react';
 import { Button, Divider, message } from 'antd';
@@ -13,9 +12,9 @@ export const ThirdPartyLogin: React.FC<ThirdPartyLoginProps> = ({ className }) =
     // 跳转到对应的第三方登录授权页面
     const redirectUri = encodeURIComponent(`${window.location.origin}/auth/callback/${provider}`);
     const authUrls: Record<string, string> = {
-      feishu: `https://open.feishu.cn/open-apis/authen/v1/index?app_id=${process.env.NEXT_PUBLIC_FEISHU_APP_ID}&redirect_uri=${redirectUri}&state=${Date.now()}`,
-      wecom: `https://open.work.weixin.qq.com/wwopen/sso/qrConnect?appid=${process.env.NEXT_PUBLIC_WECOM_APP_ID}&agentid=${process.env.NEXT_PUBLIC_WECOM_AGENT_ID}&redirect_uri=${redirectUri}&state=${Date.now()}`,
-      dingtalk: `https://oapi.dingtalk.com/connect/oauth2/sns_authorize?appid=${process.env.NEXT_PUBLIC_DINGTALK_APP_ID}&response_type=code&scope=snsapi_login&redirect_uri=${redirectUri}&state=${Date.now()}`,
+      feishu: `https://open.feishu.cn/open-apis/authen/v1/index?app_id=${import.meta.env.VITE_FEISHU_APP_ID}&redirect_uri=${redirectUri}&state=${Date.now()}`,
+      wecom: `https://open.work.weixin.qq.com/wwopen/sso/qrConnect?appid=${import.meta.env.VITE_WECOM_APP_ID}&agentid=${import.meta.env.VITE_WECOM_AGENT_ID}&redirect_uri=${redirectUri}&state=${Date.now()}`,
+      dingtalk: `https://oapi.dingtalk.com/connect/oauth2/sns_authorize?appid=${import.meta.env.VITE_DINGTALK_APP_ID}&response_type=code&scope=snsapi_login&redirect_uri=${redirectUri}&state=${Date.now()}`,
     };
 
     const authUrl = authUrls[provider];

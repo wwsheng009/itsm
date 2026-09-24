@@ -1,4 +1,3 @@
-'use client';
 
 /**
  * AttachmentField —— 可嵌入表单的附件字段壳层（受控值 + 两段式上传）

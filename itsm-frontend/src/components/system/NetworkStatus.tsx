@@ -1,4 +1,3 @@
-'use client';
 
 /**
  * NetworkStatus · 全局网络状态提示

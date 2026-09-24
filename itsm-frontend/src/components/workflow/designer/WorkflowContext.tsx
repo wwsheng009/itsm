@@ -1,8 +1,6 @@
 // 工作流设计器上下文
 // Workflow Designer Context - 状态管理
 
-'use client';
-
 import type { ReactNode} from 'react';
 import React, { createContext, useContext, useReducer, useCallback } from 'react';
 import type {

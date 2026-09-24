@@ -1,11 +1,9 @@
+import { useNavigate, useSearchParams } from 'react-router';
 // 工作流设计器主组件
 // Workflow Designer Main Component
 
-'use client';
-
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { Layout, Tabs, Form, Modal, Tag, Button, Space, Typography, Switch, App } from 'antd';
-import { useRouter, useSearchParams } from 'next/navigation';
 import { History, AlertTriangle, CheckCircle, XCircle, Bug, GitCompare } from 'lucide-react';
 import { WorkflowAPI } from '@/lib/api/workflow-api';
 import { UserApi } from '@/lib/api/user-api';
@@ -97,8 +95,8 @@ const getDefaultBPMNXML = () => {
 
 // 内部组件
 function WorkflowDesignerInner({ workflowId }: { workflowId?: string }) {
-  const router = useRouter();
-  const searchParams = useSearchParams();
+  const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const { message } = App.useApp();
   const { t } = useI18n();
 
@@ -261,7 +259,7 @@ function WorkflowDesignerInner({ workflowId }: { workflowId?: string }) {
 
       if (!response || (!response.key && !response.id && !response.name)) {
         message.error(t('workflow.designer.loadWorkflowNotFound'));
-        router.push('/workflow');
+        navigate('/workflow');
         return;
       }
 
@@ -989,7 +987,7 @@ function WorkflowDesignerInner({ workflowId }: { workflowId?: string }) {
           onClose={() => {
             setShowNewWorkflowModal(false);
             if (!workflow) {
-              router.push('/workflow');
+              navigate('/workflow');
             }
           }}
           onSelectTemplate={templateWorkflow => {

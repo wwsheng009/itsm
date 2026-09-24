@@ -15,7 +15,7 @@ async function rawDelete(
   token: string,
   path: string,
 ): Promise<{ status: number; data: unknown }> {
-  const apiURL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8090';
+  const apiURL = process.env.VITE_API_URL || process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8090';
   const resp = await request.delete(`${apiURL}${path}`, {
     headers: { Authorization: `Bearer ${token}` },
   });
@@ -28,7 +28,7 @@ async function rawPut(
   path: string,
   body?: unknown,
 ): Promise<{ status: number; data: unknown }> {
-  const apiURL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8090';
+  const apiURL = process.env.VITE_API_URL || process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8090';
   const resp = await request.put(`${apiURL}${path}`, {
     headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
     data: body,

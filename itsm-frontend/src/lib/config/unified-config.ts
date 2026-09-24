@@ -5,24 +5,23 @@
 
 // 基础环境配置
 export const ENV_CONFIG = {
-  NODE_ENV: process.env.NODE_ENV || 'development',
-  NEXT_PUBLIC_API_URL: process.env.NEXT_PUBLIC_API_URL || '',
-  ITSM_BACKEND_URL: process.env.ITSM_BACKEND_URL || '',
-  NEXT_PUBLIC_API_VERSION: process.env.NEXT_PUBLIC_API_VERSION || 'v1',
-  NEXT_PUBLIC_APP_NAME: process.env.NEXT_PUBLIC_APP_NAME || 'ITSM System',
-  NEXT_PUBLIC_APP_VERSION: process.env.NEXT_PUBLIC_APP_VERSION || '1.0.0',
-  NEXT_PUBLIC_ENABLE_ANALYTICS: process.env.NEXT_PUBLIC_ENABLE_ANALYTICS === 'true',
-  NEXT_PUBLIC_ENABLE_DEBUG: process.env.NEXT_PUBLIC_ENABLE_DEBUG === 'true',
-  NEXT_PUBLIC_ENABLE_MOCK: process.env.NEXT_PUBLIC_ENABLE_MOCK === 'true',
-  NEXT_PUBLIC_SENTRY_DSN: process.env.NEXT_PUBLIC_SENTRY_DSN || '',
+  NODE_ENV: import.meta.env.MODE || 'development',
+  VITE_API_URL: import.meta.env.VITE_API_URL || '',
+  // 迁移前为服务端渲染保留；SPA 无服务端，仅保留键位（其值恒为空串）。
+  ITSM_BACKEND_URL: '',
+  VITE_API_VERSION: import.meta.env.VITE_API_VERSION || 'v1',
+  VITE_APP_NAME: import.meta.env.VITE_APP_NAME || 'ITSM System',
+  VITE_APP_VERSION: import.meta.env.VITE_APP_VERSION || '1.0.0',
+  VITE_ENABLE_ANALYTICS: import.meta.env.VITE_ENABLE_ANALYTICS === 'true',
+  VITE_ENABLE_DEBUG: import.meta.env.VITE_ENABLE_DEBUG === 'true',
+  VITE_ENABLE_MOCK: import.meta.env.VITE_ENABLE_MOCK === 'true',
+  VITE_SENTRY_DSN: import.meta.env.VITE_SENTRY_DSN || '',
 } as const;
 
 // API配置
 export const API_CONFIG = {
-  BASE_URL:
-    ENV_CONFIG.NEXT_PUBLIC_API_URL ||
-    (typeof window === 'undefined' ? ENV_CONFIG.ITSM_BACKEND_URL || 'http://localhost:8090' : ''),
-  VERSION: ENV_CONFIG.NEXT_PUBLIC_API_VERSION,
+  BASE_URL: ENV_CONFIG.VITE_API_URL || '',
+  VERSION: ENV_CONFIG.VITE_API_VERSION,
   TIMEOUT: 30000,
   RETRY_ATTEMPTS: 3,
   RETRY_DELAY: 1000,
@@ -38,8 +37,8 @@ export const API_CONFIG = {
 
 // 应用配置
 export const APP_CONFIG = {
-  NAME: ENV_CONFIG.NEXT_PUBLIC_APP_NAME,
-  VERSION: ENV_CONFIG.NEXT_PUBLIC_APP_VERSION,
+  NAME: ENV_CONFIG.VITE_APP_NAME,
+  VERSION: ENV_CONFIG.VITE_APP_VERSION,
   DESCRIPTION: 'IT Service Management System',
   AUTHOR: 'ITSM Team',
   HOMEPAGE: '/',
@@ -155,10 +154,10 @@ export const APP_CONFIG = {
 
 // 开发配置
 export const DEV_CONFIG = {
-  ENABLE_MOCK_API: ENV_CONFIG.NEXT_PUBLIC_ENABLE_MOCK,
-  ENABLE_DEBUG_LOGS: ENV_CONFIG.NEXT_PUBLIC_ENABLE_DEBUG,
+  ENABLE_MOCK_API: ENV_CONFIG.VITE_ENABLE_MOCK,
+  ENABLE_DEBUG_LOGS: ENV_CONFIG.VITE_ENABLE_DEBUG,
   ENABLE_PERFORMANCE_MONITORING: ENV_CONFIG.NODE_ENV === 'development',
-  LOG_LEVEL: ENV_CONFIG.NEXT_PUBLIC_ENABLE_DEBUG ? 'debug' : 'info',
+  LOG_LEVEL: ENV_CONFIG.VITE_ENABLE_DEBUG ? 'debug' : 'info',
 
   // 调试工具
   DEBUG_TOOLS: {
@@ -180,8 +179,8 @@ export const DEV_CONFIG = {
 
 // 生产配置
 export const PROD_CONFIG = {
-  ENABLE_ANALYTICS: ENV_CONFIG.NEXT_PUBLIC_ENABLE_ANALYTICS,
-  SENTRY_DSN: ENV_CONFIG.NEXT_PUBLIC_SENTRY_DSN,
+  ENABLE_ANALYTICS: ENV_CONFIG.VITE_ENABLE_ANALYTICS,
+  SENTRY_DSN: ENV_CONFIG.VITE_SENTRY_DSN,
   LOG_LEVEL: 'error',
 
   // 性能优化
@@ -319,7 +318,7 @@ export const I18N_CONFIG = {
 
 // 日志配置
 export const LOG_CONFIG = {
-  LEVEL: ENV_CONFIG.NEXT_PUBLIC_ENABLE_DEBUG ? 'debug' : 'info',
+  LEVEL: ENV_CONFIG.VITE_ENABLE_DEBUG ? 'debug' : 'info',
 
   // 日志级别映射
   LEVEL_MAP: {
@@ -362,7 +361,7 @@ export const validateConfig = () => {
 
   // 验证必需的环境变量
   if (
-    !ENV_CONFIG.NEXT_PUBLIC_API_URL &&
+    !ENV_CONFIG.VITE_API_URL &&
     !ENV_CONFIG.ITSM_BACKEND_URL &&
     typeof window === 'undefined'
   ) {
@@ -433,7 +432,7 @@ export const initConfig = () => {
     }
   }
 
-  if (ENV_CONFIG.NEXT_PUBLIC_ENABLE_DEBUG) {
+  if (ENV_CONFIG.VITE_ENABLE_DEBUG) {
     console.group('🔧 Configuration Debug');
     console.groupEnd();
   }

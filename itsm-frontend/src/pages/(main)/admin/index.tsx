@@ -1,0 +1,62 @@
+
+import React from 'react';
+import { Col, Row, Skeleton, Space, theme } from 'antd';
+import { AdminHeader } from './components/AdminHeader';
+import { SystemOverview } from './components/SystemOverview';
+import { SystemHealth } from './components/SystemHealth';
+import { RecentActivity } from './components/RecentActivity';
+import { QuickActions } from './components/QuickActions';
+import { SystemInfo } from './components/SystemInfo';
+import { AdminSetupGuide } from './components/AdminSetupGuide';
+import { useAdminData } from './hooks/useAdminData';
+import { useI18n } from '@/lib/i18n';
+
+const AdminDashboardSkeleton: React.FC = () => {
+  return (
+    <div className="space-y-6">
+      <Skeleton.Input className="w-full h-32" active />
+      <Skeleton active paragraph={{ rows: 4 }} />
+      <Row gutter={[24, 24]}>
+        <Col xs={24} lg={12}>
+          <Skeleton active paragraph={{ rows: 6 }} />
+        </Col>
+        <Col xs={24} lg={12}>
+          <Skeleton active paragraph={{ rows: 8 }} />
+        </Col>
+      </Row>
+    </div>
+  );
+};
+
+const AdminDashboard = () => {
+  const { loading, stats } = useAdminData();
+  const { t } = useI18n();
+
+  if (loading) {
+    return <AdminDashboardSkeleton />;
+  }
+
+  return (
+    <div className="space-y-6">
+      <AdminHeader />
+      <div>
+        <SystemOverview stats={stats} loading={loading} />
+      </div>
+      <AdminSetupGuide />
+      <Row gutter={[24, 24]}>
+        <Col xs={24} lg={12}>
+          <SystemHealth />
+        </Col>
+        <Col xs={24} lg={12}>
+          <RecentActivity />
+        </Col>
+      </Row>
+      <div>
+        <QuickActions />
+      </div>
+      <SystemInfo />
+    </div>
+  );
+};
+
+export default AdminDashboard;

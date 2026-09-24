@@ -1,4 +1,4 @@
-'use client';
+import { useNavigate, useParams } from 'react-router';
 
 /**
  * 事件详情组件
@@ -26,7 +26,6 @@ import {
   Alert,
 } from 'antd';
 import { ArrowUp, Plus, Save, Pencil, FileText, Clock, AlertCircle, CheckCircle, Plug, AreaChart, UserCheck, Siren, Play } from 'lucide-react';
-import { useRouter, useParams } from 'next/navigation';
 import dayjs from 'dayjs';
 
 import { IncidentAPI } from '@/lib/api/';
@@ -91,7 +90,7 @@ interface IncidentClassificationData {
 
 const IncidentDetail: React.FC<{ id?: string }> = ({ id: propId }) => {
   const params = useParams();
-  const router = useRouter();
+  const navigate = useNavigate();
   // 支持通过props传入id，或通过useParams获取
   const id = propId || (params?.id as string);
   const { handleError } = useErrorHandler();
@@ -560,7 +559,7 @@ const IncidentDetail: React.FC<{ id?: string }> = ({ id: propId }) => {
             <Space wrap>
               <Button
                 icon={<Pencil />}
-                onClick={() => router.push(`/incidents/${data.id}/edit`)}
+                onClick={() => navigate(`/incidents/${data.id}/edit`)}
               >
                 编辑
               </Button>
@@ -627,7 +626,7 @@ const IncidentDetail: React.FC<{ id?: string }> = ({ id: propId }) => {
             <Descriptions.Item label="来源">{data.source}</Descriptions.Item>
             {data.problemId && (
               <Descriptions.Item label="关联问题">
-                <Button type="link" className="h-auto p-0" onClick={() => router.push(`/problems/${data.problemId}`)}>
+                <Button type="link" className="h-auto p-0" onClick={() => navigate(`/problems/${data.problemId}`)}>
                   查看问题 #{data.problemId}
                 </Button>
               </Descriptions.Item>

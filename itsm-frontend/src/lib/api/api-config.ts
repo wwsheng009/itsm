@@ -1,9 +1,9 @@
 // Browser requests default to same-origin so production traffic goes through the
 // reverse proxy. Server-side requests are redirected to ITSM_BACKEND_URL by
 // HttpClient without exposing the container hostname to the browser bundle.
-export const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || '';
-export const API_VERSION = process.env.NEXT_PUBLIC_API_VERSION || 'v1';
-export const API_TIMEOUT = parseInt(process.env.NEXT_PUBLIC_API_TIMEOUT || '30000');
+export const API_BASE_URL = import.meta.env.VITE_API_URL || '';
+export const API_VERSION = import.meta.env.VITE_API_VERSION || 'v1';
+export const API_TIMEOUT = parseInt(import.meta.env.VITE_API_TIMEOUT || '30000');
 
 // 通用 API 响应接口
 export interface ApiResponse<T> {

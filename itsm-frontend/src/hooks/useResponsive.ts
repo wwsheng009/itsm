@@ -3,8 +3,6 @@
  * Responsive Design Hook
  */
 
-'use client';
-
 import { useState, useEffect } from 'react';
 
 // 断点定义

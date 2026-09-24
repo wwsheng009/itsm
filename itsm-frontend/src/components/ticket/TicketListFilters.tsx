@@ -1,4 +1,3 @@
-'use client';
 
 import type { Dayjs } from 'dayjs';
 import { Button, Col, DatePicker, Row, Select, Tag } from 'antd';

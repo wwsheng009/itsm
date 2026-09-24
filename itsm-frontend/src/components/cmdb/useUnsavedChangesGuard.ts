@@ -1,9 +1,10 @@
-'use client';
 
 import { useCallback, useEffect, useRef } from 'react';
 import { Modal } from 'antd';
+import type { NavigateFunction } from 'react-router';
 
-export function useUnsavedChangesGuard(router: { push: (href: string) => void; back: () => void }) {
+/** 拦截未保存表单的离开行为；接受 react-router 的 navigate（迁移自 Next useRouter）。 */
+export function useUnsavedChangesGuard(navigate: NavigateFunction) {
   const dirtyRef = useRef(false);
   const confirmingRef = useRef(false);
 
@@ -45,7 +46,7 @@ export function useUnsavedChangesGuard(router: { push: (href: string) => void; b
       if (target.origin !== window.location.origin || target.href === window.location.href) return;
       event.preventDefault();
       event.stopPropagation();
-      confirmLeave(() => router.push(`${target.pathname}${target.search}${target.hash}`));
+      confirmLeave(() => navigate(`${target.pathname}${target.search}${target.hash}`));
     };
     const handlePopState = () => {
       if (!dirtyRef.current || confirmingRef.current) return;
@@ -61,7 +62,7 @@ export function useUnsavedChangesGuard(router: { push: (href: string) => void; b
       window.removeEventListener('popstate', handlePopState);
       document.removeEventListener('click', handleDocumentClick, true);
     };
-  }, [confirmLeave, router]);
+  }, [confirmLeave, navigate]);
 
   return {
     markDirty: () => {
@@ -70,6 +71,6 @@ export function useUnsavedChangesGuard(router: { push: (href: string) => void; b
     clearDirty: () => {
       dirtyRef.current = false;
     },
-    handleCancel: () => confirmLeave(() => router.back()),
+    handleCancel: () => confirmLeave(() => navigate(-1)),
   };
 }

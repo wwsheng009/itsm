@@ -767,7 +767,7 @@ export class IncidentAPI {
 
   // 模拟阿里云告警事件（仅开发环境可用，避免生产环境写入伪造事件）
   static async simulateAlibabaCloudAlert(): Promise<Incident> {
-    if (process.env.NODE_ENV === 'production') {
+    if (import.meta.env.PROD) {
       throw new Error('simulate 方法仅允许在开发环境调用，禁止在生产环境创建伪造事件');
     }
     const mockAlert: AlibabaCloudAlertRequest = {
@@ -797,7 +797,7 @@ export class IncidentAPI {
 
   // 模拟安全事件（仅开发环境可用）
   static async simulateSecurityEvent(): Promise<Incident> {
-    if (process.env.NODE_ENV === 'production') {
+    if (import.meta.env.PROD) {
       throw new Error('simulate 方法仅允许在开发环境调用，禁止在生产环境创建伪造事件');
     }
     const mockSecurityEvent: SecurityEventRequest = {
@@ -823,7 +823,7 @@ export class IncidentAPI {
 
   // 模拟云产品事件（仅开发环境可用）
   static async simulateCloudProductEvent(): Promise<Incident> {
-    if (process.env.NODE_ENV === 'production') {
+    if (import.meta.env.PROD) {
       throw new Error('simulate 方法仅允许在开发环境调用，禁止在生产环境创建伪造事件');
     }
     const mockCloudEvent: CloudProductEventRequest = {

@@ -1,4 +1,4 @@
-'use client';
+import { useNavigate, useParams } from 'react-router';
 
 /**
  * 变更详情组件
@@ -23,7 +23,6 @@ import {
   message,
 } from 'antd';
 import { ArrowLeft, CheckCircle, XCircle } from 'lucide-react';
-import { useParams, useRouter } from 'next/navigation';
 import dayjs from 'dayjs';
 import { Modal, Input } from 'antd';
 
@@ -60,7 +59,7 @@ const statusColors: Record<string, string> = {
 
 const ChangeDetail: React.FC = () => {
   const { id } = useParams() as { id: string };
-  const router = useRouter();
+  const navigate = useNavigate();
   const { t } = useI18n();
   const [loading, setLoading] = useState(true);
   const [change, setChange] = useState<Change | null>(null);
@@ -370,7 +369,7 @@ const ChangeDetail: React.FC = () => {
           title="404"
           subTitle={t('changeDetail.notFoundDesc')}
           extra={
-            <Button type="primary" onClick={() => router.push('/changes')}>
+            <Button type="primary" onClick={() => navigate('/changes')}>
               {t('changeDetail.back')}
             </Button>
           }
@@ -385,7 +384,7 @@ const ChangeDetail: React.FC = () => {
         <div style={{ marginBottom: 24 }}>
           <Button
             icon={<ArrowLeft />}
-            onClick={() => router.push('/changes')}
+            onClick={() => navigate('/changes')}
             style={{ marginBottom: 16 }}
           >
             {t('changeDetail.back')}
@@ -612,7 +611,7 @@ const ChangeDetail: React.FC = () => {
               children: (
                 <div className="py-4">
                   <p className="text-gray-500 mb-4">{t('changeDetail.pirDescription')}</p>
-                  <Button type="primary" onClick={() => router.push(`/changes/${id}/pir`)}>
+                  <Button type="primary" onClick={() => navigate(`/changes/${id}/pir`)}>
                     {change.status === 'completed' ? t('changeDetail.fillPir') : t('changeDetail.viewPir')}
                   </Button>
                 </div>

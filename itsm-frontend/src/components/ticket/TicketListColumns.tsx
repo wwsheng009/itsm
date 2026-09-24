@@ -1,4 +1,3 @@
-'use client';
 
 import type { ColumnsType } from 'antd/es/table';
 import { Button, Space, Tag, Tooltip } from 'antd';

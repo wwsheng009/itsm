@@ -1,15 +1,14 @@
-'use client';
+import { useLocation } from 'react-router';
 
 import React from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
-import { usePathname } from 'next/navigation';
 
 interface PageTransitionProps {
   children: React.ReactNode;
 }
 
 export default function PageTransition({ children }: PageTransitionProps) {
-  const pathname = usePathname();
+  const pathname = useLocation().pathname;
 
   return (
     <AnimatePresence mode="wait">

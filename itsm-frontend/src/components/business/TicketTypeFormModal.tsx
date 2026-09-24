@@ -1,7 +1,6 @@
-'use client';
+import { useNavigate } from 'react-router';
 
 import React, { useEffect, useState } from 'react';
-import { useRouter } from 'next/navigation';
 import {
   Alert,
   App,
@@ -119,7 +118,7 @@ export const TicketTypeFormModal: React.FC<TicketTypeFormModalProps> = ({
 }) => {
   const { t } = useI18n();
   const { message } = App.useApp();
-  const router = useRouter();
+  const navigate = useNavigate();
   const [form] = Form.useForm();
   const workflowDefinitionKey = Form.useWatch('workflowDefinitionKey', form);
   const slaEnabled = Form.useWatch('slaEnabled', form);
@@ -773,7 +772,7 @@ export const TicketTypeFormModal: React.FC<TicketTypeFormModalProps> = ({
                       <Button
                         type="link"
                         className="!px-0"
-                        onClick={() => router.push(`/workflow/designer?id=${boundWorkflow.id}`)}
+                        onClick={() => navigate(`/workflow/designer?id=${boundWorkflow.id}`)}
                       >
                         {t('ticketTypeForm.openDesigner')}
                       </Button>

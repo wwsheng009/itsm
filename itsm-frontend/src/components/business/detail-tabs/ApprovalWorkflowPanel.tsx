@@ -1,4 +1,3 @@
-'use client';
 
 /**
  * Ticket multi-level approval chain panel with workflow awareness.

@@ -1,4 +1,3 @@
-'use client';
 
 /**
  * 问题关联管理 Tab

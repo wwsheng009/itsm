@@ -1,4 +1,4 @@
-'use client';
+import { useNavigate } from 'react-router';
 
 /**
  * 知识库文章列表组件
@@ -23,7 +23,6 @@ import {
   Skeleton,
 } from 'antd';
 import { Search, Plus, Pencil, Trash2, Eye, RotateCcw } from 'lucide-react';
-import { useRouter } from 'next/navigation';
 import dayjs from 'dayjs';
 
 import { KnowledgeBaseApi } from '@/lib/api/knowledge-base-api';
@@ -38,7 +37,7 @@ interface ArticleListProps {
 }
 
 const ArticleList: React.FC<ArticleListProps> = ({ showHeader = true }) => {
-  const router = useRouter();
+  const navigate = useNavigate();
   const { message } = App.useApp();
   const [loading, setLoading] = useState(false);
   const [data, setData] = useState<KnowledgeArticle[]>([]);
@@ -135,7 +134,7 @@ const ArticleList: React.FC<ArticleListProps> = ({ showHeader = true }) => {
       dataIndex: 'title',
       ellipsis: true,
       render: (text: string, record: KnowledgeArticle) => (
-        <a onClick={() => router.push(`/knowledge/articles/${record.id}`)}>{text}</a>
+        <a onClick={() => navigate(`/knowledge/articles/${record.id}`)}>{text}</a>
       ),
     },
     {
@@ -175,7 +174,7 @@ const ArticleList: React.FC<ArticleListProps> = ({ showHeader = true }) => {
             <Button
               size="small"
               icon={<Pencil />}
-              onClick={() => router.push(`/knowledge/articles/${record.id}/edit`)}
+              onClick={() => navigate(`/knowledge/articles/${record.id}/edit`)}
               style={{ backgroundColor: '#3b82f6', color: '#fff', border: 'none' }}
             />
           </Tooltip>
@@ -203,7 +202,7 @@ const ArticleList: React.FC<ArticleListProps> = ({ showHeader = true }) => {
           <Button
             type="primary"
             icon={<Plus />}
-            onClick={() => router.push('/knowledge/articles/new')}
+            onClick={() => navigate('/knowledge/articles/new')}
             size="large"
           >
             新建文章
@@ -262,7 +261,7 @@ const ArticleList: React.FC<ArticleListProps> = ({ showHeader = true }) => {
           <Skeleton active paragraph={{ rows: 8 }} />
         ) : data.length === 0 ? (
           <Empty description="暂无知识库文章" image={Empty.PRESENTED_IMAGE_SIMPLE}>
-            <Button type="primary" onClick={() => router.push('/knowledge/articles/new')}>
+            <Button type="primary" onClick={() => navigate('/knowledge/articles/new')}>
               创建第一篇文章
             </Button>
           </Empty>

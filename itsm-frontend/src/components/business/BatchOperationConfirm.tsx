@@ -1,4 +1,3 @@
-'use client';
 
 import React from 'react';
 import { Modal, Typography, List, Tag, Space, Divider } from 'antd';

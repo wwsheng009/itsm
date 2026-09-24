@@ -1,4 +1,4 @@
-'use client';
+import { useNavigate } from 'react-router';
 
 /**
  * SLA 定义列表组件
@@ -18,7 +18,6 @@ import {
   Switch,
 } from 'antd';
 import { Plus, Pencil, Trash2, RotateCcw, Bell } from 'lucide-react';
-import { useRouter } from 'next/navigation';
 import dayjs from 'dayjs';
 import LoadingEmptyError from '@/components/ui/LoadingEmptyError';
 
@@ -27,7 +26,7 @@ import type { SLADefinition } from '@/lib/api/sla-api';
 import { SLAPriorityLabels, SLAPriorityColors } from '@/constants/sla';
 
 const SLAList: React.FC = () => {
-  const router = useRouter();
+  const navigate = useNavigate();
   const { message } = App.useApp();
   const [loading, setLoading] = useState(false);
   const [data, setData] = useState<SLADefinition[]>([]);
@@ -84,7 +83,7 @@ const SLAList: React.FC = () => {
       dataIndex: 'name',
       key: 'name',
       render: (text: string, record: SLADefinition) => (
-        <a onClick={() => router.push(`/sla/definitions/${record.id}`)}>{text}</a>
+        <a onClick={() => navigate(`/sla/definitions/${record.id}`)}>{text}</a>
       ),
     },
     {
@@ -134,14 +133,14 @@ const SLAList: React.FC = () => {
             <Button
               type="text"
               icon={<Pencil />}
-              onClick={() => router.push(`/sla/definitions/${record.id}/edit`)}
+              onClick={() => navigate(`/sla/definitions/${record.id}/edit`)}
             />
           </Tooltip>
           <Tooltip title="预警规则">
             <Button
               type="text"
               icon={<Bell />}
-              onClick={() => router.push(`/sla/definitions/${record.id}/alerts`)}
+              onClick={() => navigate(`/sla/definitions/${record.id}/alerts`)}
             />
           </Tooltip>
           <Tooltip title="删除">
@@ -170,7 +169,7 @@ const SLAList: React.FC = () => {
           <Button
             type="primary"
             icon={<Plus />}
-            onClick={() => router.push('/sla/definitions/new')}
+            onClick={() => navigate('/sla/definitions/new')}
           >
             新建 SLA
           </Button>
@@ -192,7 +191,7 @@ const SLAList: React.FC = () => {
                 title: '暂无 SLA 定义',
                 description: '当前没有 SLA 策略，点击下方按钮创建第一个 SLA 定义',
                 actionText: '新建 SLA',
-                onAction: () => router.push('/sla/definitions/new'),
+                onAction: () => navigate('/sla/definitions/new'),
                 showAction: true,
                 icon: <Bell size={48} />,
               }}

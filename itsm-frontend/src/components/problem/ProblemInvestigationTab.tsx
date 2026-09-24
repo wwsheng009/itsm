@@ -1,4 +1,4 @@
-'use client';
+import { useParams } from 'react-router';
 
 /**
  * 问题调查 Tab 组件
@@ -26,7 +26,6 @@ import {
 } from 'antd';
 import { Plus, FileText, ClipboardCheck, FlaskConical, CheckCircle, BookOpen, Link } from 'lucide-react';
 import dayjs from 'dayjs';
-import { useParams } from 'next/navigation';
 
 import {
   ProblemInvestigationAPI,

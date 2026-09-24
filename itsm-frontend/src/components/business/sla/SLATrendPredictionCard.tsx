@@ -1,4 +1,3 @@
-'use client';
 
 /**
  * SLA 趋势预测卡片

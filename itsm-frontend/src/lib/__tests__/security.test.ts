@@ -417,6 +417,9 @@ describe('csrfProtection', () => {
 });
 
 describe('securityLogger', () => {
+  // 注意：jest 的 `process.env` 是 Proxy，只实现了 get/set/deleteProperty，
+  // `Object.defineProperty(process.env, 'NODE_ENV', ...)` 会静默落到代理 target 上，
+  // 后续读取仍返回旧值（jest-util#createProcessEnv）。必须用赋值来切换环境。
   beforeEach(() => {
     jest.spyOn(console, 'warn').mockImplementation(() => {});
   });
@@ -427,34 +430,34 @@ describe('securityLogger', () => {
 
   it('logSecurityEvent logs to console in development', () => {
     const originalEnv = process.env.NODE_ENV;
-    Object.defineProperty(process.env, 'NODE_ENV', { value: 'development', configurable: true });
+    process.env.NODE_ENV = 'development';
     securityLogger.logSecurityEvent('test_event', { key: 'value' });
     expect(console.warn).toHaveBeenCalled();
-    Object.defineProperty(process.env, 'NODE_ENV', { value: originalEnv, configurable: true });
+    process.env.NODE_ENV = originalEnv ?? 'test';
   });
 
   it('logLoginAttempt logs with masked username', () => {
     const originalEnv = process.env.NODE_ENV;
-    Object.defineProperty(process.env, 'NODE_ENV', { value: 'development', configurable: true });
+    process.env.NODE_ENV = 'development';
     securityLogger.logLoginAttempt(true, 'admin');
     expect(console.warn).toHaveBeenCalled();
-    Object.defineProperty(process.env, 'NODE_ENV', { value: originalEnv, configurable: true });
+    process.env.NODE_ENV = originalEnv ?? 'test';
   });
 
   it('logLoginAttempt handles no username', () => {
     const originalEnv = process.env.NODE_ENV;
-    Object.defineProperty(process.env, 'NODE_ENV', { value: 'development', configurable: true });
+    process.env.NODE_ENV = 'development';
     securityLogger.logLoginAttempt(false);
     expect(console.warn).toHaveBeenCalled();
-    Object.defineProperty(process.env, 'NODE_ENV', { value: originalEnv, configurable: true });
+    process.env.NODE_ENV = originalEnv ?? 'test';
   });
 
   it('logSuspiciousActivity logs activity', () => {
     const originalEnv = process.env.NODE_ENV;
-    Object.defineProperty(process.env, 'NODE_ENV', { value: 'development', configurable: true });
+    process.env.NODE_ENV = 'development';
     securityLogger.logSuspiciousActivity('brute_force', { attempts: 10 });
     expect(console.warn).toHaveBeenCalled();
-    Object.defineProperty(process.env, 'NODE_ENV', { value: originalEnv, configurable: true });
+    process.env.NODE_ENV = originalEnv ?? 'test';
   });
 });
 

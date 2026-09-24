@@ -1,0 +1,484 @@
+import { useSearchParams } from 'react-router';
+
+import React, { Suspense, useEffect, useMemo, useState } from 'react';
+import { App, Button, Card, Form, Input, Modal, Select, Space, Table, Tag } from 'antd';
+import { Eye, PauseCircle, PlayCircle, RefreshCw, StopCircle, Rocket } from 'lucide-react';
+
+import { FilterToolbarCard } from '@/components/ui/FilterToolbarCard';
+import { LoadingEmptyError } from '@/components/ui/LoadingEmptyError';
+import { ManagementNotice, ManagementPageHeader } from '@/components/ui/ManagementPageHeader';
+import { StatsOverview } from '@/components/ui/StatsOverview';
+import { WorkflowApi } from '@/lib/api/workflow-api';
+import { WorkflowInstanceDetail } from '@/components/workflow/WorkflowInstanceDetail';
+import type { WorkflowDefinition } from '@/types/workflow';
+
+type InstanceRow = {
+  id: string;
+  businessKey: string;
+  processDefinitionKey: string;
+  status: string;
+  startTime?: string;
+  endTime?: string;
+};
+
+const statusColorMap: Record<string, string> = {
+  running: 'green',
+  completed: 'blue',
+  suspended: 'orange',
+  terminated: 'red',
+  failed: 'red',
+};
+
+// 工作流实例状态文本映射
+const statusTextMap: Record<string, string> = {
+  running: '运行中',
+  completed: '已完成',
+  suspended: '已暂停',
+  terminated: '已终止',
+  failed: '失败',
+};
+
+const formatDateTime = (value?: string | Date): string => {
+  if (!value) return '-';
+  const date = typeof value === 'string' ? new Date(value) : value;
+  if (Number.isNaN(date.getTime()) || date.getTime() < 0) {
+    return '-';
+  }
+  return date.toLocaleString('zh-CN');
+};
+
+export default function WorkflowInstancesPage() {
+  return (
+    <Suspense fallback={<div className="p-6 text-center text-gray-500">加载中…</div>}>
+      <WorkflowInstancesContent />
+    </Suspense>
+  );
+}
+
+function WorkflowInstancesContent() {
+  const { message, modal } = App.useApp();
+  const [searchParams] = useSearchParams();
+  const urlWorkflowId = searchParams.get('workflowId') || searchParams.get('processDefinitionKey') || '';
+  const [loading, setLoading] = useState(false);
+  const [instances, setInstances] = useState<InstanceRow[]>([]);
+  const [stats, setStats] = useState({
+    total: 0,
+    running: 0,
+    completed: 0,
+    suspended: 0,
+    terminated: 0,
+  });
+  const [keyword, setKeyword] = useState(urlWorkflowId);
+  const [status, setStatus] = useState<string | undefined>();
+
+  // URL 参数变化时（例如从流程设计器跳转过来）同步 keyword 并重新查询
+  useEffect(() => {
+    if (urlWorkflowId && urlWorkflowId !== keyword) {
+      setKeyword(urlWorkflowId);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [urlWorkflowId]);
+
+  // 详情弹窗状态
+  const [detailModalVisible, setDetailModalVisible] = useState(false);
+  const [selectedInstanceId, setSelectedInstanceId] = useState<string | null>(null);
+  const [selectedInstanceSummary, setSelectedInstanceSummary] = useState<InstanceRow | null>(null);
+
+  // 发起流程弹窗状态
+  const [startModalVisible, setStartModalVisible] = useState(false);
+  const [startSubmitting, setStartSubmitting] = useState(false);
+  const [definitions, setDefinitions] = useState<WorkflowDefinition[]>([]);
+  const [definitionsLoading, setDefinitionsLoading] = useState(false);
+  const [startForm] = Form.useForm();
+
+  const loadData = async () => {
+    try {
+      setLoading(true);
+      const [instanceResponse, statsResponse] = await Promise.all([
+        WorkflowApi.getInstances({
+          workflowId: keyword || undefined,
+          status,
+          page: 1,
+          pageSize: 50,
+        }),
+        WorkflowApi.getInstanceStats({
+          processDefinitionKey: keyword || undefined,
+          status,
+        }),
+      ]);
+
+      const rows = (instanceResponse.instances || []).map(instance => ({
+        id: instance.id,
+        businessKey:
+          (instance as unknown as Record<string, string>).businessKey ||
+          instance.workflowId ||
+          '-',
+        processDefinitionKey: instance.workflowId || '-',
+        status: String(instance.status),
+        startTime: instance.startTime?.toISOString(),
+        endTime: instance.endTime?.toISOString(),
+      }));
+
+      setInstances(rows);
+      setStats(statsResponse);
+    } catch (error) {
+      console.error('Failed to load workflow instances:', error);
+      message.error('加载工作流实例失败');
+      setInstances([]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleViewDetail = (record: InstanceRow) => {
+    setSelectedInstanceId(record.id);
+    setSelectedInstanceSummary(record);
+    setDetailModalVisible(true);
+  };
+
+  // 打开发起流程弹窗：加载已激活的流程定义供选择
+  const openStartModal = async () => {
+    setStartModalVisible(true);
+    setDefinitionsLoading(true);
+    try {
+      const { workflows } = await WorkflowApi.getWorkflows({ page: 1, pageSize: 100 });
+      setDefinitions(workflows.filter(w => String(w.status) === 'active'));
+    } catch {
+      message.error('加载流程定义失败');
+      setDefinitions([]);
+    } finally {
+      setDefinitionsLoading(false);
+    }
+  };
+
+  // 发起流程实例：选择已激活的流程定义，填写业务键与变量后调用 startWorkflow
+  const handleStartSubmit = async () => {
+    try {
+      const values = await startForm.validateFields();
+      let variables: Record<string, unknown> | undefined;
+      if (values.variables) {
+        try {
+          variables = JSON.parse(values.variables);
+        } catch {
+          message.error('流程变量必须是合法的 JSON 对象');
+          return;
+        }
+      }
+      setStartSubmitting(true);
+      const instance = await WorkflowApi.startWorkflow({
+        workflowId: values.processDefinitionKey,
+        businessKey: values.businessKey || undefined,
+        variables: variables as Record<string, unknown> | undefined,
+      });
+      message.success(`流程实例已启动：${instance.id}`);
+      setStartModalVisible(false);
+      startForm.resetFields();
+      loadData();
+    } catch (error) {
+      // validateFields 失败时不提示；API 失败提示错误
+      if (error instanceof Error) {
+        message.error(`启动流程失败：${error.message}`);
+      }
+    } finally {
+      setStartSubmitting(false);
+    }
+  };
+
+  useEffect(() => {
+    loadData();
+  }, [keyword, status]);
+
+  const columns = useMemo(
+    () => [
+      {
+        title: '实例 ID',
+        dataIndex: 'id',
+        key: 'id',
+        render: (value: string) => <span className="font-mono text-xs">{value}</span>,
+        width: 180,
+      },
+      {
+        title: '流程 Key',
+        dataIndex: 'processDefinitionKey',
+        key: 'processDefinitionKey',
+        width: 150,
+      },
+      {
+        title: '业务键',
+        dataIndex: 'businessKey',
+        key: 'businessKey',
+        width: 150,
+      },
+      {
+        title: '状态',
+        dataIndex: 'status',
+        key: 'status',
+        width: 100,
+        render: (value: string) => <Tag color={statusColorMap[value] || 'default'}>{statusTextMap[value] || value}</Tag>,
+      },
+      {
+        title: '启动时间',
+        dataIndex: 'startTime',
+        key: 'startTime',
+        width: 180,
+        render: (value: string) => formatDateTime(value),
+      },
+      {
+        title: '结束时间',
+        dataIndex: 'endTime',
+        key: 'endTime',
+        width: 180,
+        render: (value: string) => formatDateTime(value),
+      },
+      {
+        title: '操作',
+        key: 'actions',
+        width: 200,
+        render: (_: unknown, record: InstanceRow) => (
+          <Space size="small">
+            <Button
+              type="text"
+              icon={<Eye className="h-4 w-4" />}
+              onClick={() => handleViewDetail(record)}
+              size="small"
+            >
+              详情
+            </Button>
+            {record.status === 'running' && (
+              <>
+                <Button
+                  type="text"
+                  icon={<PauseCircle className="h-4 w-4" />}
+                  onClick={() => {
+                    modal.confirm({
+                      title: '暂停流程实例',
+                      content: `确定要暂停实例 ${record.id} 吗？暂停后待办任务将不可处理，可随时恢复。`,
+                      okText: '暂停',
+                      cancelText: '取消',
+                      onOk: async () => {
+                        try {
+                          await WorkflowApi.suspendWorkflow(record.id);
+                          message.success('实例已暂停');
+                          loadData();
+                        } catch {
+                          message.error('暂停实例失败');
+                        }
+                      },
+                    });
+                  }}
+                  size="small"
+                >
+                  暂停
+                </Button>
+                <Button
+                  type="text"
+                  danger
+                  icon={<StopCircle className="h-4 w-4" />}
+                  onClick={() => {
+                    modal.confirm({
+                      title: '终止流程实例',
+                      content: `确定要终止实例 ${record.id} 吗？终止后流程不可恢复，未完成的审批链将被中断。`,
+                      okText: '终止',
+                      okType: 'danger',
+                      cancelText: '取消',
+                      onOk: async () => {
+                        try {
+                          await WorkflowApi.terminateWorkflow(record.id, '前端终止');
+                          message.success('实例已终止');
+                          loadData();
+                        } catch {
+                          message.error('终止实例失败');
+                        }
+                      },
+                    });
+                  }}
+                  size="small"
+                >
+                  终止
+                </Button>
+              </>
+            )}
+            {record.status === 'suspended' && (
+              <Button
+                type="text"
+                icon={<PlayCircle className="h-4 w-4" />}
+                onClick={() => {
+                  modal.confirm({
+                    title: '恢复流程实例',
+                    content: `确定要恢复实例 ${record.id} 吗？恢复后流程将继续执行。`,
+                    okText: '恢复',
+                    cancelText: '取消',
+                    onOk: async () => {
+                      try {
+                        await WorkflowApi.resumeWorkflow(record.id);
+                        message.success('实例已恢复');
+                        loadData();
+                      } catch {
+                        message.error('恢复实例失败');
+                      }
+                    },
+                  });
+                }}
+                size="small"
+              >
+                恢复
+              </Button>
+            )}
+          </Space>
+        ),
+      },
+    ],
+    [message, modal]
+  );
+
+  return (
+    <div className="space-y-6">
+      <ManagementPageHeader
+        title="工作流实例"
+        description="查看流程实例的运行状态、起止时间和持续时长，支持按状态和流程筛选。"
+        notice={
+          <ManagementNotice
+            message="本版本"
+            description="支持实例列表、状态操作（暂停/恢复/终止）和详情查看。任务列表与会签视图将在后续版本补充。"
+          />
+        }
+      />
+
+      <StatsOverview
+        items={[
+          { key: 'total', title: '总实例', value: stats.total, accentColor: '#1677ff' },
+          { key: 'running', title: '运行中', value: stats.running, accentColor: '#52c41a' },
+          { key: 'completed', title: '已完成', value: stats.completed, accentColor: '#1677ff' },
+          { key: 'suspended', title: '已暂停', value: stats.suspended, accentColor: '#faad14' },
+        ]}
+      />
+
+      <FilterToolbarCard
+        filters={
+          <>
+            <Input
+              placeholder="按流程 Key 搜索"
+              value={keyword}
+              allowClear
+              onChange={event => setKeyword(event.target.value)}
+              style={{ width: 250 }}
+            />
+            <Select
+              placeholder="状态筛选"
+              allowClear
+              value={status}
+              onChange={setStatus}
+              style={{ width: 180 }}
+              options={[
+                { label: '运行中', value: 'running' },
+                { label: '已完成', value: 'completed' },
+                { label: '已暂停', value: 'suspended' },
+                { label: '已终止', value: 'terminated' },
+                { label: '失败', value: 'failed' },
+              ]}
+            />
+          </>
+        }
+        actions={
+          <Space>
+            <Button type="primary" icon={<Rocket className="h-4 w-4" />} onClick={openStartModal}>
+              发起流程
+            </Button>
+            <Button icon={<RefreshCw className="h-4 w-4" />} onClick={loadData}>
+              刷新
+            </Button>
+          </Space>
+        }
+      />
+
+      <Card className="rounded-xl shadow-sm">
+        <LoadingEmptyError
+          state={loading ? 'loading' : instances.length === 0 ? 'empty' : 'success'}
+          loadingText="正在加载工作流实例..."
+          empty={{
+            title: '暂无工作流实例',
+            description: '当前筛选条件下没有实例数据。',
+            actionText: '重新加载',
+            onAction: loadData,
+          }}
+        >
+          <Table
+            columns={columns}
+            dataSource={instances}
+            rowKey="id"
+            pagination={{ pageSize: 10 }}
+            scroll={{ x: 1140 }}
+          />
+        </LoadingEmptyError>
+      </Card>
+
+      <Modal
+        title="发起流程实例"
+        open={startModalVisible}
+        onCancel={() => {
+          setStartModalVisible(false);
+          startForm.resetFields();
+        }}
+        onOk={handleStartSubmit}
+        confirmLoading={startSubmitting}
+        okText="启动"
+        cancelText="取消"
+        destroyOnHidden
+      >
+        <Form form={startForm} layout="vertical">
+          <Form.Item
+            name="processDefinitionKey"
+            label="流程定义"
+            rules={[{ required: true, message: '请选择要发起的流程定义' }]}
+          >
+            <Select
+              placeholder="选择已激活的流程定义"
+              showSearch
+              optionFilterProp="label"
+              loading={definitionsLoading}
+              options={definitions.map(w => ({ label: `${w.name} (${w.code})`, value: w.code }))}
+              notFoundContent="没有已激活的流程定义，请先部署/激活"
+            />
+          </Form.Item>
+          <Form.Item
+            name="businessKey"
+            label="业务键（可选）"
+            tooltip="关联的业务单据标识，如工单号、变更号；留空将自动生成"
+          >
+            <Input placeholder="例如 TICKET-2026-0001" />
+          </Form.Item>
+          <Form.Item
+            name="variables"
+            label="流程变量（可选，JSON）"
+            tooltip='以 JSON 对象形式传入启动变量，例如 {"priority": "high"}'
+          >
+            <Input.TextArea rows={4} placeholder='{"priority": "high"}' />
+          </Form.Item>
+        </Form>
+      </Modal>
+
+      <Modal
+        title={selectedInstanceSummary ? `实例详情 · ${selectedInstanceSummary.id}` : '实例详情'}
+        open={detailModalVisible}
+        onCancel={() => setDetailModalVisible(false)}
+        footer={null}
+        destroyOnHidden
+        width={900}
+      >
+        {selectedInstanceId && (
+          <WorkflowInstanceDetail
+            instanceId={selectedInstanceId}
+            initialInstance={selectedInstanceSummary ? {
+              id: selectedInstanceSummary.id,
+              processDefinitionKey: selectedInstanceSummary.processDefinitionKey,
+              businessKey: selectedInstanceSummary.businessKey,
+              status: selectedInstanceSummary.status,
+              startTime: selectedInstanceSummary.startTime,
+              endTime: selectedInstanceSummary.endTime,
+            } : undefined}
+          />
+        )}
+      </Modal>
+    </div>
+  );
+}

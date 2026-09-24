@@ -1,13 +1,11 @@
+import { Link } from 'react-router';
 // 工作流设计器工具栏
 // Workflow Designer Toolbar Component
-
-'use client';
 
 import React from 'react';
 import type { MenuProps } from 'antd';
 import { Button, Space, Tag, Breadcrumb, Typography, Dropdown, Tooltip } from 'antd';
 import { Save, Download, Settings, History, Bug, Rocket, PlayCircle, CloudUpload, Bot } from 'lucide-react';
-import Link from 'next/link';
 import { useI18n } from '@/lib/i18n/useI18n';
 import type { WorkflowDefinition } from './WorkflowTypes';
 
@@ -127,7 +125,7 @@ export default function WorkflowToolbar({
         <Breadcrumb
           items={[
             {
-              title: <Link href="/workflow">{t('workflow.designer.toolbarBreadcrumb')}</Link>,
+              title: <Link to="/workflow">{t('workflow.designer.toolbarBreadcrumb')}</Link>,
             },
             {
               title: workflow?.name || t('workflow.designer.toolbarNewWorkflow'),

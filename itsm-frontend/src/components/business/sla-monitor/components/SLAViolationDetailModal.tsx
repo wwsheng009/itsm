@@ -2,8 +2,6 @@
  * SLA 违规详情模态框（简化版）
  */
 
-'use client';
-
 import React from 'react';
 import { Modal, Descriptions, Tag, Space, Button } from 'antd';
 import type { SLAViolation } from '../types';

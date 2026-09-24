@@ -1,4 +1,4 @@
-'use client';
+import { useNavigate, useParams } from 'react-router';
 
 /**
  * 许可证创建/编辑表单组件
@@ -17,7 +17,6 @@ import {
   InputNumber,
   DatePicker,
 } from 'antd';
-import { useRouter, useParams } from 'next/navigation';
 import { ArrowLeft, Save } from 'lucide-react';
 
 import type { License, LicenseRequest} from '@/lib/api/asset-api';
@@ -27,7 +26,7 @@ import type { Dayjs } from 'dayjs';
 const { TextArea } = Input;
 
 const LicenseForm: React.FC = () => {
-  const router = useRouter();
+  const navigate = useNavigate();
   const { id } = useParams() as { id: string };
   const [form] = Form.useForm();
   const [loading, setLoading] = useState(false);
@@ -97,7 +96,7 @@ const LicenseForm: React.FC = () => {
         await AssetApi.createLicense(data);
         message.success('创建成功');
       }
-      router.push('/licenses');
+      navigate('/licenses');
     } catch (error) {
       message.error(isEdit ? '更新失败' : '创建失败');
     } finally {
@@ -117,7 +116,7 @@ const LicenseForm: React.FC = () => {
         }}
       >
         <div style={{ marginBottom: 16 }}>
-          <Button icon={<ArrowLeft />} onClick={() => router.push('/licenses')}>
+          <Button icon={<ArrowLeft />} onClick={() => navigate('/licenses')}>
             返回列表
           </Button>
         </div>
@@ -203,7 +202,7 @@ const LicenseForm: React.FC = () => {
             <Button type="primary" htmlType="submit" icon={<Save />} loading={loading}>
               {isEdit ? '保存' : '创建'}
             </Button>
-            <Button onClick={() => router.push('/licenses')}>取消</Button>
+            <Button onClick={() => navigate('/licenses')}>取消</Button>
           </Space>
         </Form.Item>
       </Form>

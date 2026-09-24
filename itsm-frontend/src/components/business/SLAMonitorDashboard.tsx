@@ -1,4 +1,3 @@
-'use client';
 
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
@@ -888,7 +887,7 @@ export const SLAMonitorDashboard: React.FC<SLAMonitorDashboardProps> = ({
       </Card>
 
       {/* 全屏样式 */}
-      <style jsx global>{`
+      <style>{`
         .sla-monitor-dashboard.fullscreen {
           color: #fff;
         }

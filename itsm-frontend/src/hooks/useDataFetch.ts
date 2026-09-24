@@ -3,8 +3,6 @@
  * Data Fetching Hook with enhanced features
  */
 
-'use client';
-
 import { useState, useEffect, useCallback, useRef } from 'react';
 
 export interface UseFetchOptions<T> {

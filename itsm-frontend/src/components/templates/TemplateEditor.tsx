@@ -3,8 +3,6 @@
  * 提供完整的模板创建和编辑功能，包括基础信息、字段设计、权限配置等
  */
 
-'use client';
-
 import React, { useState, useCallback, useEffect } from 'react';
 import {
   Card,

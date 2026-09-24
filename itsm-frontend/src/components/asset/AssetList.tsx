@@ -1,4 +1,4 @@
-'use client';
+import { useNavigate } from 'react-router';
 
 /**
  * 资产列表组件
@@ -18,7 +18,6 @@ import {
   App,
 } from 'antd';
 import { Search, Plus, Pencil, Eye, Monitor } from 'lucide-react';
-import { useRouter } from 'next/navigation';
 import dayjs from 'dayjs';
 import LoadingEmptyError from '@/components/ui/LoadingEmptyError';
 
@@ -46,7 +45,7 @@ interface AssetListProps {
 }
 
 const AssetList: React.FC<AssetListProps> = ({ showActions = true }) => {
-  const router = useRouter();
+  const navigate = useNavigate();
   const { message } = App.useApp();
   const [loading, setLoading] = useState(false);
   const [loadError, setLoadError] = useState(false);
@@ -216,7 +215,7 @@ const AssetList: React.FC<AssetListProps> = ({ showActions = true }) => {
             <Button
               type="text"
               icon={<Eye />}
-              onClick={() => router.push(`/assets/${record.id}`)}
+              onClick={() => navigate(`/assets/${record.id}`)}
               aria-label={`查看资产 ${record.name || record.assetNumber}`}
             />
           </Tooltip>
@@ -224,7 +223,7 @@ const AssetList: React.FC<AssetListProps> = ({ showActions = true }) => {
             <Button
               type="text"
               icon={<Pencil />}
-              onClick={() => router.push(`/assets/${record.id}/edit`)}
+              onClick={() => navigate(`/assets/${record.id}/edit`)}
               aria-label={`编辑资产 ${record.name || record.assetNumber}`}
             />
           </Tooltip>
@@ -279,7 +278,7 @@ const AssetList: React.FC<AssetListProps> = ({ showActions = true }) => {
                 <Button
                   type="primary"
                   icon={<Plus />}
-                  onClick={() => router.push('/assets/new')}
+                  onClick={() => navigate('/assets/new')}
                 >
                   创建资产
                 </Button>
@@ -302,7 +301,7 @@ const AssetList: React.FC<AssetListProps> = ({ showActions = true }) => {
                   title: '暂无资产数据',
                   description: '当前没有资产记录，点击下方按钮创建第一个资产',
                   actionText: '新增资产',
-                  onAction: () => router.push('/assets/new'),
+                  onAction: () => navigate('/assets/new'),
                   showAction: true,
                   icon: <Monitor size={48} />,
                 }}

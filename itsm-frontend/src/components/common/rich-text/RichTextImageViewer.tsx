@@ -1,4 +1,3 @@
-'use client';
 
 /**
  * 工单详情页：富文本图片查看器（方案见 docs/architecture/ticket-create-page-rich-input-optimization.md §4.9）
@@ -50,7 +49,7 @@ import type { ImageOffset, ImageSize } from '@/lib/rich-text/image-viewer';
 export interface RichTextImageViewerProps {
   /** 富文本容器（详情页 `.ticket-rich-text` 的 ref）；为 null 时不接管 */
   containerRef: RefObject<HTMLElement | null>;
-  /** 关闭（如 NEXT_PUBLIC_RICH_TEXT=off 的纯文本回退）时不接管点击 */
+  /** 关闭（如 VITE_RICH_TEXT=off 的纯文本回退）时不接管点击 */
   enabled?: boolean;
 }
 

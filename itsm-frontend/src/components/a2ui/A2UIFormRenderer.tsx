@@ -1,4 +1,3 @@
-'use client';
 
 import React, { useState, useCallback } from 'react';
 import { Form, Input, Select, Button, Card, Space, Spin, App } from 'antd';
@@ -487,7 +486,7 @@ export function A2UIFormRenderer() {
       )}
 
       {/* 调试信息 */}
-      {process.env.NODE_ENV === 'development' && components.length > 0 && (
+      {import.meta.env.DEV && components.length > 0 && (
         <details className="mt-4 text-xs text-gray-400">
           <summary>A2UI 调试信息</summary>
           <pre className="mt-2 p-2 bg-gray-100 rounded overflow-auto max-h-40">

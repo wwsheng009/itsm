@@ -39,14 +39,14 @@ describe('Unified Config', () => {
     });
 
     it('should have API URL fields', () => {
-      expect(ENV_CONFIG).toHaveProperty('NEXT_PUBLIC_API_URL');
+      expect(ENV_CONFIG).toHaveProperty('VITE_API_URL');
       expect(ENV_CONFIG).toHaveProperty('ITSM_BACKEND_URL');
     });
 
     it('should have boolean flags', () => {
-      expect(typeof ENV_CONFIG.NEXT_PUBLIC_ENABLE_ANALYTICS).toBe('boolean');
-      expect(typeof ENV_CONFIG.NEXT_PUBLIC_ENABLE_DEBUG).toBe('boolean');
-      expect(typeof ENV_CONFIG.NEXT_PUBLIC_ENABLE_MOCK).toBe('boolean');
+      expect(typeof ENV_CONFIG.VITE_ENABLE_ANALYTICS).toBe('boolean');
+      expect(typeof ENV_CONFIG.VITE_ENABLE_DEBUG).toBe('boolean');
+      expect(typeof ENV_CONFIG.VITE_ENABLE_MOCK).toBe('boolean');
     });
   });
 

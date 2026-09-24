@@ -1,4 +1,3 @@
-'use client';
 
 import React, { useEffect, useCallback, useRef } from 'react';
 import { message } from 'antd';

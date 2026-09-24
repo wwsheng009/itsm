@@ -87,7 +87,7 @@ class NotificationWSService {
     }
 
     // 2. 使用票据建立 WebSocket 连接
-    const wsUrl = process.env.NEXT_PUBLIC_WS_URL || `ws://${window.location.host}/api/v1/ws/notifications`;
+    const wsUrl = import.meta.env.VITE_WS_URL || `ws://${window.location.host}/api/v1/ws/notifications`;
     const url = `${wsUrl}?ticket=${encodeURIComponent(ticket)}`;
 
     this.cleanup();

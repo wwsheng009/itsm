@@ -1,4 +1,3 @@
-'use client';
 
 import React, { useEffect, useState, useCallback } from 'react';
 import { Send, Edit, Trash2, MessageSquare, AtSign, User } from 'lucide-react';

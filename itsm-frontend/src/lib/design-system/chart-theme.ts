@@ -1,4 +1,3 @@
-'use client';
 
 import { useTheme } from '@/lib/design-system/theme';
 

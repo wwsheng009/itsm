@@ -1,4 +1,4 @@
-'use client';
+import { useNavigate, useParams } from 'react-router';
 
 /**
  * 服务请求详情组件
@@ -20,7 +20,6 @@ import {
   Divider,
 } from 'antd';
 import { User, CheckCircle, XCircle, Timer } from 'lucide-react';
-import { useParams, useRouter } from 'next/navigation';
 import dayjs from 'dayjs';
 
 import { ServiceRequestApi } from '@/lib/api/';
@@ -47,7 +46,7 @@ const approvalStatusLabelKeys: Record<string, string> = {
 
 const ServiceRequestDetail: React.FC = () => {
   const { id } = useParams() as { id: string };
-  const router = useRouter();
+  const navigate = useNavigate();
   const { t } = useI18n();
   const [loading, setLoading] = useState(false);
   const [request, setRequest] = useState<ServiceRequest | null>(null);

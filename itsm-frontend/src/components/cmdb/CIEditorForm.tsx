@@ -1,4 +1,3 @@
-'use client';
 
 import React from 'react';
 import { Button, Collapse, Form, Input, InputNumber, Select, Space, Switch } from 'antd';

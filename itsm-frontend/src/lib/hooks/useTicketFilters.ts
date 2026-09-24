@@ -1,4 +1,3 @@
-'use client';
 
 import { useState, useCallback, useMemo } from 'react';
 import type { TicketType } from '@/lib/services/ticket-service';

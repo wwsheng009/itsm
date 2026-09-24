@@ -1,7 +1,6 @@
-'use client';
+import { useNavigate } from 'react-router';
 
 import React from 'react';
-import { useRouter } from 'next/navigation';
 import { App, Button, Card, Col, Row, Space, Tag, Typography } from 'antd';
 import { Database, GitBranch, Plus, RefreshCw, Server, ShieldCheck } from 'lucide-react';
 
@@ -46,7 +45,7 @@ const maturityBadge = (maturity: string | undefined, t: (key: string) => string)
 };
 
 export function CSDMHub() {
-  const router = useRouter();
+  const navigate = useNavigate();
   const { message } = App.useApp();
   const { t } = useI18n();
   const { capabilities, allows } = useCapabilities();
@@ -123,7 +122,7 @@ export function CSDMHub() {
             <Button icon={<RefreshCw className="h-4 w-4" />} loading={overview.loading} onClick={load}>
               {t('cmdb.refresh')}
             </Button>
-            <Button type="primary" icon={<Plus className="h-4 w-4" />} onClick={() => router.push('/cmdb/cis/create')}>
+            <Button type="primary" icon={<Plus className="h-4 w-4" />} onClick={() => navigate('/cmdb/cis/create')}>
               {t('cmdb.newCI')}
             </Button>
           </Space>
@@ -153,7 +152,7 @@ export function CSDMHub() {
                 <Paragraph type="secondary" className="!mb-4 !mt-3 min-h-11">
                   {capability.description}
                 </Paragraph>
-                <Button type="link" className="!px-0" onClick={() => router.push(capability.href)}>
+                <Button type="link" className="!px-0" onClick={() => navigate(capability.href)}>
                   {t('cmdb.hub.enterButton')}
                 </Button>
               </Card>
@@ -165,16 +164,16 @@ export function CSDMHub() {
 
       <Card title={t('cmdb.hub.recommendedActions')}>
         <Space wrap size="middle">
-          <Button type="primary" icon={<Server className="h-4 w-4" />} onClick={() => router.push('/cmdb/cis')}>
+          <Button type="primary" icon={<Server className="h-4 w-4" />} onClick={() => navigate('/cmdb/cis')}>
             {t('cmdb.hub.ciWorkbench')}
           </Button>
-          <Button icon={<Database className="h-4 w-4" />} onClick={() => router.push('/admin/cmdb-types')}>
+          <Button icon={<Database className="h-4 w-4" />} onClick={() => navigate('/admin/cmdb-types')}>
             {t('cmdb.hub.maintainTypeTemplates')}
           </Button>
-          <Button icon={<GitBranch className="h-4 w-4" />} onClick={() => router.push('/cmdb/relationships')}>
+          <Button icon={<GitBranch className="h-4 w-4" />} onClick={() => navigate('/cmdb/relationships')}>
             {t('cmdb.hub.maintainRelationships')}
           </Button>
-          <Button icon={<GitBranch className="h-4 w-4" />} onClick={() => router.push('/cmdb/topology')}>
+          <Button icon={<GitBranch className="h-4 w-4" />} onClick={() => navigate('/cmdb/topology')}>
             {t('cmdb.hub.viewTopology')}
           </Button>
         </Space>

@@ -1,6 +1,8 @@
 .git
 .github
 .next
+# NOTE: dist/ is intentionally NOT ignored — Dockerfile.quick copies a locally
+# built Vite dist/ into the image (production Dockerfile rebuilds it anyway).
 *.tsbuildinfo
 node_modules
 coverage

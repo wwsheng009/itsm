@@ -74,7 +74,7 @@
 - 待完成：统一认证 token 策略，收敛后端 `access_token` 与前端 `auth-token` 兼容分支。
 - DTO 收敛：优先治理 Asset、Release、Role、Service、Attachment、Comment 等仍可能返回 Ent/内部模型的 controller。
 - 已开始：根目录 `.next/trace*` 构建痕迹移出版本控制，并补充根目录 `.next/` ignore。
-- 待完成：清理开源仓库构建产物；`node_modules`、`.next`、coverage、standalone deploy 等不得进入版本控制。
+- 待完成：清理开源仓库构建产物；`node_modules`、`dist`、coverage 等不得进入版本控制。
 - 待评估：`itsm-cli/dist` 当前被 `bin/itsm.js` 引用，不能直接删除；需要先补 CLI 开发/发布入口策略。
 
 **验收**:

@@ -5,8 +5,6 @@
  * Allows user to accept or dismiss suggestions.
  */
 
-'use client';
-
 import React, { useState, useEffect } from 'react';
 import { Card, Typography, Tag, Button, Space, Spin, Progress, Alert } from 'antd';
 import { Sparkles, Check, X, RefreshCw, AlertCircle } from 'lucide-react';

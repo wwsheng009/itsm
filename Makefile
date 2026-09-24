@@ -169,9 +169,9 @@ dev-health: ## 开发环境健康检查
 
 dev-stop-docker: dev-stop ## 停止 Docker 开发环境（dev-stop 别名）
 dev-clean: dev-reset ## 清理开发数据卷（dev-reset 别名：删除本地数据库与对象存储数据）
-dev-start-local: dev-backend-local ## 本机热更新开发（DB/Redis/MinIO 走容器，Go/Next 本地运行）
+dev-start-local: dev-backend-local ## 本机热更新开发（DB/Redis/MinIO 走容器，Go/Vite 本地运行）
 dev-stop-local: ## 停止本地开发进程说明
-	@echo "本地 Go/Next 进程为前台运行：在对应终端按 Ctrl-C 停止；停容器请执行 make dev-stop"
+	@echo "本地 Go/Vite 进程为前台运行：在对应终端按 Ctrl-C 停止；停容器请执行 make dev-stop"
 
 health: ## 健康检查
 	@echo "$(BLUE)检查服务状态...$(NC)"
@@ -185,7 +185,7 @@ health: ## 健康检查
 dev-start-docker: ## 启动优化后的Docker开发环境（启用BuildKit + 前端持久化缓存）
 	@echo "$(BLUE)启动Docker开发环境（优化模式）...$(NC)"
 	@DOCKER_BUILDKIT=1 docker compose -f docker-compose.dev.yml up -d
-	@echo "$(GREEN)优化：BuildKit缓存 + .next持久化已启用$(NC)"
+	@echo "$(GREEN)优化：BuildKit缓存 + 前端 node_modules（含 Vite 缓存）持久化已启用$(NC)"
 	@echo "$(GREEN)提示：前端代码变更会自动热重载，但建议重启时执行 dev-rebuild 清理缓存$(NC)"
 
 dev-rebuild: ## 重建开发环境镜像（启用BuildKit缓存）
@@ -218,7 +218,7 @@ dev-reset: ## 重置开发环境（清除所有数据）
 	@echo "$(RED)警告：将删除所有开发数据！$(NC)"
 	@read -p "确认? (y/N) " -n 1 -r; echo; if [[ ! $$REPLY =~ ^[Yy]$$ ]]; then exit 1; fi
 	docker compose -f docker-compose.dev.yml down -v
-	rm -rf itsm-frontend/.next
+	rm -rf itsm-frontend/dist itsm-frontend/node_modules/.vite
 	@echo "$(GREEN)重置完成，执行 make dev-start-docker 重新启动$(NC)"
 
 dev-frontend-only: ## 仅启动前端开发服务器（需要后端已运行）

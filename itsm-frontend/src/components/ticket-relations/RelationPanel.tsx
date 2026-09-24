@@ -3,8 +3,6 @@
  * 提供工单关联的查看、创建、管理功能
  */
 
-'use client';
-
 import React, { useState } from 'react';
 import {
   Card,

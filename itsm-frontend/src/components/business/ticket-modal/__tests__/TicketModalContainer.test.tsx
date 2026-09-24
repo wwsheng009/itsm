@@ -15,25 +15,30 @@ jest.mock('@/lib/services/ticket-service', () => {
   };
 });
 
-jest.mock('../TicketModal', () => ({
-  TicketModal: ({ onSubmit, loading }: { onSubmit: (values: unknown) => Promise<void>; loading: boolean }) => (
-    <button
-      type="button"
-      disabled={loading}
-      onClick={() =>
-        void onSubmit({
-          title: '网络故障',
-          description: '办公网络无法连接',
-          type: TicketType.INCIDENT,
-          category: 'Network',
-          priority: TicketPriority.HIGH,
-        }).catch(() => undefined)
-      }
-    >
-      保存
-    </button>
-  ),
-}));
+// 注意：babel-plugin-jest-hoist 禁止 factory 引用外部作用域变量，
+// 枚举需在 factory 内部 require（next/jest 的 SWC 转译不做该校验）。
+jest.mock('../TicketModal', () => {
+  const { TicketType, TicketPriority } = jest.requireActual('@/lib/services/ticket-service');
+  return {
+    TicketModal: ({ onSubmit, loading }: { onSubmit: (values: unknown) => Promise<void>; loading: boolean }) => (
+      <button
+        type="button"
+        disabled={loading}
+        onClick={() =>
+          void onSubmit({
+            title: '网络故障',
+            description: '办公网络无法连接',
+            type: TicketType.INCIDENT,
+            category: 'Network',
+            priority: TicketPriority.HIGH,
+          }).catch(() => undefined)
+        }
+      >
+        保存
+      </button>
+    ),
+  };
+});
 
 describe('TicketModalContainer', () => {
   beforeEach(() => jest.clearAllMocks());

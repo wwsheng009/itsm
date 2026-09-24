@@ -1,4 +1,3 @@
-'use client';
 
 import { Button, Card, Col, Input, Row, Space } from 'antd';
 import { Download, Filter, Plus, RotateCcw, Trash2 } from 'lucide-react';

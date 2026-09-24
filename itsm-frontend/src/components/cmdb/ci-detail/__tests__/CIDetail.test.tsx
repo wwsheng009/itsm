@@ -14,12 +14,10 @@ jest.mock('@/lib/i18n', () => ({
   }),
 }));
 
-jest.mock('next/navigation', () => ({
+jest.mock('react-router', () => ({
+  ...jest.requireActual('react-router'),
   useParams: () => ({ id: 'ci-001' }),
-  useRouter: () => ({
-    push: jest.fn(),
-    back: jest.fn(),
-  }),
+  useNavigate: () => jest.fn(),
 }));
 
 jest.mock('../hooks/useCIDetail', () => ({

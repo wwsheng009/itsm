@@ -1,10 +1,9 @@
-'use client';
+import { useNavigate } from 'react-router';
 
 import React from 'react';
 import { Dropdown, Avatar, Tag, Button } from 'antd';
 import type { MenuProps } from 'antd';
 import { User, Settings, LogOut } from 'lucide-react';
-import { useRouter } from 'next/navigation';
 import { useAuthStore } from '@/lib/store/auth-store';
 import { DESIGN } from '@/design-system/tokens';
 import styles from './Header.module.css';
@@ -20,7 +19,7 @@ export const UserMenuDropdown: React.FC<UserMenuDropdownProps> = ({
   onOpenChange,
   onLogout,
 }) => {
-  const router = useRouter();
+  const navigate = useNavigate();
   const { user } = useAuthStore();
 
   if (!user) {
@@ -28,7 +27,7 @@ export const UserMenuDropdown: React.FC<UserMenuDropdownProps> = ({
       <Button
         type="primary"
         icon={<User size={16} />}
-        onClick={() => router.push('/login')}
+        onClick={() => navigate('/login')}
         style={{
           borderRadius: DESIGN.radius.md,
           height: 36,
@@ -51,7 +50,7 @@ export const UserMenuDropdown: React.FC<UserMenuDropdownProps> = ({
     if (key === 'logout') {
       onLogout();
     } else if (key === 'profile' || key === 'settings') {
-      router.push('/profile');
+      navigate('/profile');
     }
   };
 

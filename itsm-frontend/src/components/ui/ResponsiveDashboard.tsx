@@ -1,4 +1,3 @@
-'use client';
 
 import React, { useState, useMemo, useEffect } from 'react';
 import { Row, Col, Typography, Space, Button, Dropdown, Skeleton, Card } from 'antd';
@@ -410,7 +409,7 @@ export const ResponsiveDashboard: React.FC<ResponsiveDashboardProps> = ({
 
       <AnimatePresence mode="wait">{renderLayout()}</AnimatePresence>
 
-      <style jsx global>{`
+      <style>{`
         .responsive-dashboard-grid {
           position: relative;
           transition: all 0.3s ease;

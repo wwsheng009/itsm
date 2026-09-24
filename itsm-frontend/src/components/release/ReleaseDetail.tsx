@@ -1,4 +1,4 @@
-'use client';
+import { useNavigate, useParams } from 'react-router';
 
 /**
  * 发布详情组件
@@ -22,7 +22,6 @@ import {
   Input,
 } from 'antd';
 import { ArrowLeft, Clock, CheckCircle, XCircle, Rocket, RotateCcw } from 'lucide-react';
-import { useParams, useRouter } from 'next/navigation';
 import dayjs from 'dayjs';
 
 import type { Release } from '@/lib/api/release-api';
@@ -61,7 +60,7 @@ const statusLabels: Record<string, string> = {
 
 const ReleaseDetail: React.FC = () => {
   const { id } = useParams() as { id: string };
-  const router = useRouter();
+  const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
   const [release, setRelease] = useState<Release | null>(null);
 
@@ -133,7 +132,7 @@ const ReleaseDetail: React.FC = () => {
           title="404"
           subTitle="抱歉，您访问的发布不存在"
           extra={
-            <Button type="primary" onClick={() => router.push('/releases')}>
+            <Button type="primary" onClick={() => navigate('/releases')}>
               返回列表
             </Button>
           }
@@ -150,7 +149,7 @@ const ReleaseDetail: React.FC = () => {
         <div style={{ marginBottom: 24 }}>
           <Button
             icon={<ArrowLeft />}
-            onClick={() => router.push('/releases')}
+            onClick={() => navigate('/releases')}
             style={{ marginBottom: 16 }}
           >
             返回列表
@@ -307,7 +306,7 @@ const ReleaseDetail: React.FC = () => {
 
       <Card>
         <Space>
-          <Button type="primary" onClick={() => router.push(`/releases/${release.id}`)}>
+          <Button type="primary" onClick={() => navigate(`/releases/${release.id}`)}>
             编辑
           </Button>
           {release.status === 'draft' && (

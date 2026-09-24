@@ -1,0 +1,1014 @@
+{
+  "generatedAt": "see docs/plan/vite-migration-plan.md",
+  "count": 168,
+  "routes": [
+    {
+      "path": "/forgot-password",
+      "sample": "/forgot-password",
+      "redirect": "",
+      "protected": null
+    },
+    {
+      "path": "/login",
+      "sample": "/login",
+      "redirect": "",
+      "protected": null
+    },
+    {
+      "path": "/register",
+      "sample": "/register",
+      "redirect": "",
+      "protected": null
+    },
+    {
+      "path": "/reset-password",
+      "sample": "/reset-password",
+      "redirect": "",
+      "protected": null
+    },
+    {
+      "path": "/sso/callback",
+      "sample": "/sso/callback",
+      "redirect": "",
+      "protected": null
+    },
+    {
+      "path": "/admin/approval-chains",
+      "sample": "/admin/approval-chains",
+      "redirect": "",
+      "protected": null
+    },
+    {
+      "path": "/admin/approvals",
+      "sample": "/admin/approvals",
+      "redirect": "",
+      "protected": null
+    },
+    {
+      "path": "/admin/cab",
+      "sample": "/admin/cab",
+      "redirect": "",
+      "protected": null
+    },
+    {
+      "path": "/admin/cmdb-types",
+      "sample": "/admin/cmdb-types",
+      "redirect": "",
+      "protected": null
+    },
+    {
+      "path": "/admin/config-inheritance",
+      "sample": "/admin/config-inheritance",
+      "redirect": "",
+      "protected": null
+    },
+    {
+      "path": "/admin/connectors",
+      "sample": "/admin/connectors",
+      "redirect": "",
+      "protected": null
+    },
+    {
+      "path": "/admin/department-processes",
+      "sample": "/admin/department-processes",
+      "redirect": "",
+      "protected": null
+    },
+    {
+      "path": "/admin/departments",
+      "sample": "/admin/departments",
+      "redirect": "",
+      "protected": null
+    },
+    {
+      "path": "/admin/escalation-matrices",
+      "sample": "/admin/escalation-matrices",
+      "redirect": "",
+      "protected": null
+    },
+    {
+      "path": "/admin/escalation-rules",
+      "sample": "/admin/escalation-rules",
+      "redirect": "",
+      "protected": null
+    },
+    {
+      "path": "/admin/groups",
+      "sample": "/admin/groups",
+      "redirect": "",
+      "protected": null
+    },
+    {
+      "path": "/admin/menus",
+      "sample": "/admin/menus",
+      "redirect": "",
+      "protected": null
+    },
+    {
+      "path": "/admin/overview",
+      "sample": "/admin/overview",
+      "redirect": "/admin",
+      "protected": null
+    },
+    {
+      "path": "/admin",
+      "sample": "/admin",
+      "redirect": "",
+      "protected": null
+    },
+    {
+      "path": "/admin/permissions",
+      "sample": "/admin/permissions",
+      "redirect": "",
+      "protected": null
+    },
+    {
+      "path": "/admin/process-routing",
+      "sample": "/admin/process-routing",
+      "redirect": "",
+      "protected": null
+    },
+    {
+      "path": "/admin/roles",
+      "sample": "/admin/roles",
+      "redirect": "",
+      "protected": null
+    },
+    {
+      "path": "/admin/service-catalogs",
+      "sample": "/admin/service-catalogs",
+      "redirect": "",
+      "protected": null
+    },
+    {
+      "path": "/admin/sla-definitions",
+      "sample": "/admin/sla-definitions",
+      "redirect": "",
+      "protected": null
+    },
+    {
+      "path": "/admin/sla-templates",
+      "sample": "/admin/sla-templates",
+      "redirect": "",
+      "protected": null
+    },
+    {
+      "path": "/admin/system-config",
+      "sample": "/admin/system-config",
+      "redirect": "",
+      "protected": null
+    },
+    {
+      "path": "/admin/teams",
+      "sample": "/admin/teams",
+      "redirect": "",
+      "protected": null
+    },
+    {
+      "path": "/admin/tenants",
+      "sample": "/admin/tenants",
+      "redirect": "",
+      "protected": null
+    },
+    {
+      "path": "/admin/ticket-categories",
+      "sample": "/admin/ticket-categories",
+      "redirect": "",
+      "protected": null
+    },
+    {
+      "path": "/admin/tickets/assignment-rules",
+      "sample": "/admin/tickets/assignment-rules",
+      "redirect": "",
+      "protected": null
+    },
+    {
+      "path": "/admin/tickets/automation-rules",
+      "sample": "/admin/tickets/automation-rules",
+      "redirect": "",
+      "protected": null
+    },
+    {
+      "path": "/admin/users",
+      "sample": "/admin/users",
+      "redirect": "",
+      "protected": null
+    },
+    {
+      "path": "/admin/vector-store",
+      "sample": "/admin/vector-store",
+      "redirect": "",
+      "protected": null
+    },
+    {
+      "path": "/admin/workflows",
+      "sample": "/admin/workflows",
+      "redirect": "",
+      "protected": null
+    },
+    {
+      "path": "/ai/approval",
+      "sample": "/ai/approval",
+      "redirect": "",
+      "protected": null
+    },
+    {
+      "path": "/ai/audit",
+      "sample": "/ai/audit",
+      "redirect": "",
+      "protected": null
+    },
+    {
+      "path": "/ai/chat",
+      "sample": "/ai/chat",
+      "redirect": "",
+      "protected": null
+    },
+    {
+      "path": "/applications",
+      "sample": "/applications",
+      "redirect": "",
+      "protected": null
+    },
+    {
+      "path": "/approvals",
+      "sample": "/approvals",
+      "redirect": "",
+      "protected": null
+    },
+    {
+      "path": "/approvals/pending",
+      "sample": "/approvals/pending",
+      "redirect": "/approvals",
+      "protected": null
+    },
+    {
+      "path": "/assets/:id/edit",
+      "sample": "/assets/1/edit",
+      "redirect": "",
+      "protected": null
+    },
+    {
+      "path": "/assets/:id",
+      "sample": "/assets/1",
+      "redirect": "",
+      "protected": null
+    },
+    {
+      "path": "/assets/new",
+      "sample": "/assets/new",
+      "redirect": "",
+      "protected": null
+    },
+    {
+      "path": "/assets",
+      "sample": "/assets",
+      "redirect": "",
+      "protected": null
+    },
+    {
+      "path": "/audit-logs",
+      "sample": "/audit-logs",
+      "redirect": "",
+      "protected": null
+    },
+    {
+      "path": "/changes/:id/edit",
+      "sample": "/changes/1/edit",
+      "redirect": "",
+      "protected": null
+    },
+    {
+      "path": "/changes/:id",
+      "sample": "/changes/1",
+      "redirect": "",
+      "protected": null
+    },
+    {
+      "path": "/changes/:id/pir",
+      "sample": "/changes/1/pir",
+      "redirect": "",
+      "protected": null
+    },
+    {
+      "path": "/changes/new",
+      "sample": "/changes/new",
+      "redirect": "",
+      "protected": null
+    },
+    {
+      "path": "/changes",
+      "sample": "/changes",
+      "redirect": "",
+      "protected": null
+    },
+    {
+      "path": "/changes/pirs",
+      "sample": "/changes/pirs",
+      "redirect": "",
+      "protected": null
+    },
+    {
+      "path": "/cmdb/ci",
+      "sample": "/cmdb/ci",
+      "redirect": "/cmdb/cis",
+      "protected": null
+    },
+    {
+      "path": "/cmdb/ci-types",
+      "sample": "/cmdb/ci-types",
+      "redirect": "/admin/cmdb-types",
+      "protected": null
+    },
+    {
+      "path": "/cmdb/cis/:id/edit",
+      "sample": "/cmdb/cis/1/edit",
+      "redirect": "",
+      "protected": null
+    },
+    {
+      "path": "/cmdb/cis/:id",
+      "sample": "/cmdb/cis/1",
+      "redirect": "",
+      "protected": null
+    },
+    {
+      "path": "/cmdb/cis/create",
+      "sample": "/cmdb/cis/create",
+      "redirect": "",
+      "protected": null
+    },
+    {
+      "path": "/cmdb/cis",
+      "sample": "/cmdb/cis",
+      "redirect": "",
+      "protected": null
+    },
+    {
+      "path": "/cmdb/cloud-accounts",
+      "sample": "/cmdb/cloud-accounts",
+      "redirect": "",
+      "protected": null
+    },
+    {
+      "path": "/cmdb/cloud-resources",
+      "sample": "/cmdb/cloud-resources",
+      "redirect": "",
+      "protected": null
+    },
+    {
+      "path": "/cmdb/cloud-services",
+      "sample": "/cmdb/cloud-services",
+      "redirect": "",
+      "protected": null
+    },
+    {
+      "path": "/cmdb",
+      "sample": "/cmdb",
+      "redirect": "",
+      "protected": null
+    },
+    {
+      "path": "/cmdb/reconciliation",
+      "sample": "/cmdb/reconciliation",
+      "redirect": "",
+      "protected": null
+    },
+    {
+      "path": "/cmdb/registry",
+      "sample": "/cmdb/registry",
+      "redirect": "",
+      "protected": null
+    },
+    {
+      "path": "/cmdb/relationships",
+      "sample": "/cmdb/relationships",
+      "redirect": "",
+      "protected": null
+    },
+    {
+      "path": "/cmdb/topology",
+      "sample": "/cmdb/topology",
+      "redirect": "",
+      "protected": null
+    },
+    {
+      "path": "/dashboard",
+      "sample": "/dashboard",
+      "redirect": "",
+      "protected": null
+    },
+    {
+      "path": "/email-intake/contracts",
+      "sample": "/email-intake/contracts",
+      "redirect": "",
+      "protected": null
+    },
+    {
+      "path": "/email-intake/customers",
+      "sample": "/email-intake/customers",
+      "redirect": "",
+      "protected": null
+    },
+    {
+      "path": "/email-intake/on-call",
+      "sample": "/email-intake/on-call",
+      "redirect": "",
+      "protected": null
+    },
+    {
+      "path": "/email-intake",
+      "sample": "/email-intake",
+      "redirect": "",
+      "protected": null
+    },
+    {
+      "path": "/email-intake/sources",
+      "sample": "/email-intake/sources",
+      "redirect": "",
+      "protected": null
+    },
+    {
+      "path": "/enterprise/departments",
+      "sample": "/enterprise/departments",
+      "redirect": "",
+      "protected": null
+    },
+    {
+      "path": "/enterprise/teams",
+      "sample": "/enterprise/teams",
+      "redirect": "",
+      "protected": null
+    },
+    {
+      "path": "/improvements/:id",
+      "sample": "/improvements/1",
+      "redirect": "",
+      "protected": null
+    },
+    {
+      "path": "/improvements/new",
+      "sample": "/improvements/new",
+      "redirect": "",
+      "protected": null
+    },
+    {
+      "path": "/improvements",
+      "sample": "/improvements",
+      "redirect": "",
+      "protected": null
+    },
+    {
+      "path": "/incidents/:id/edit",
+      "sample": "/incidents/1/edit",
+      "redirect": "",
+      "protected": null
+    },
+    {
+      "path": "/incidents/:id",
+      "sample": "/incidents/1",
+      "redirect": "",
+      "protected": null
+    },
+    {
+      "path": "/incidents/create",
+      "sample": "/incidents/create",
+      "redirect": "",
+      "protected": null
+    },
+    {
+      "path": "/incidents",
+      "sample": "/incidents",
+      "redirect": "",
+      "protected": null
+    },
+    {
+      "path": "/installations",
+      "sample": "/installations",
+      "redirect": "",
+      "protected": null
+    },
+    {
+      "path": "/knowledge/:id",
+      "sample": "/knowledge/1",
+      "redirect": "",
+      "protected": null
+    },
+    {
+      "path": "/knowledge/articles/:id/edit",
+      "sample": "/knowledge/articles/1/edit",
+      "redirect": "",
+      "protected": null
+    },
+    {
+      "path": "/knowledge/articles/:id",
+      "sample": "/knowledge/articles/1",
+      "redirect": "",
+      "protected": null
+    },
+    {
+      "path": "/knowledge/articles/new",
+      "sample": "/knowledge/articles/new",
+      "redirect": "",
+      "protected": null
+    },
+    {
+      "path": "/knowledge",
+      "sample": "/knowledge",
+      "redirect": "",
+      "protected": null
+    },
+    {
+      "path": "/knowledge/reviews",
+      "sample": "/knowledge/reviews",
+      "redirect": "",
+      "protected": null
+    },
+    {
+      "path": "/licenses/:id/edit",
+      "sample": "/licenses/1/edit",
+      "redirect": "",
+      "protected": null
+    },
+    {
+      "path": "/licenses/:id",
+      "sample": "/licenses/1",
+      "redirect": "",
+      "protected": null
+    },
+    {
+      "path": "/licenses/new",
+      "sample": "/licenses/new",
+      "redirect": "",
+      "protected": null
+    },
+    {
+      "path": "/licenses",
+      "sample": "/licenses",
+      "redirect": "",
+      "protected": null
+    },
+    {
+      "path": "/marketplace/:id",
+      "sample": "/marketplace/1",
+      "redirect": "",
+      "protected": null
+    },
+    {
+      "path": "/marketplace",
+      "sample": "/marketplace",
+      "redirect": "",
+      "protected": null
+    },
+    {
+      "path": "/msp/management",
+      "sample": "/msp/management",
+      "redirect": "",
+      "protected": null
+    },
+    {
+      "path": "/msp",
+      "sample": "/msp",
+      "redirect": "",
+      "protected": null
+    },
+    {
+      "path": "/my-requests/:requestId",
+      "sample": "/my-requests/1",
+      "redirect": "",
+      "protected": null
+    },
+    {
+      "path": "/my-requests",
+      "sample": "/my-requests",
+      "redirect": "",
+      "protected": null
+    },
+    {
+      "path": "/noc",
+      "sample": "/noc",
+      "redirect": "",
+      "protected": null
+    },
+    {
+      "path": "/notifications",
+      "sample": "/notifications",
+      "redirect": "",
+      "protected": null
+    },
+    {
+      "path": "/problems/:id/edit",
+      "sample": "/problems/1/edit",
+      "redirect": "",
+      "protected": null
+    },
+    {
+      "path": "/problems/:id",
+      "sample": "/problems/1",
+      "redirect": "",
+      "protected": null
+    },
+    {
+      "path": "/problems/known-errors",
+      "sample": "/problems/known-errors",
+      "redirect": "",
+      "protected": null
+    },
+    {
+      "path": "/problems/new",
+      "sample": "/problems/new",
+      "redirect": "",
+      "protected": null
+    },
+    {
+      "path": "/problems",
+      "sample": "/problems",
+      "redirect": "",
+      "protected": null
+    },
+    {
+      "path": "/problems/trends",
+      "sample": "/problems/trends",
+      "redirect": "",
+      "protected": null
+    },
+    {
+      "path": "/profile",
+      "sample": "/profile",
+      "redirect": "",
+      "protected": null
+    },
+    {
+      "path": "/projects",
+      "sample": "/projects",
+      "redirect": "",
+      "protected": null
+    },
+    {
+      "path": "/releases/:id/edit",
+      "sample": "/releases/1/edit",
+      "redirect": "",
+      "protected": null
+    },
+    {
+      "path": "/releases/:id",
+      "sample": "/releases/1",
+      "redirect": "",
+      "protected": null
+    },
+    {
+      "path": "/releases/new",
+      "sample": "/releases/new",
+      "redirect": "",
+      "protected": null
+    },
+    {
+      "path": "/releases",
+      "sample": "/releases",
+      "redirect": "",
+      "protected": null
+    },
+    {
+      "path": "/reports/catalog-usage",
+      "sample": "/reports/catalog-usage",
+      "redirect": "/reports/service-catalog-usage",
+      "protected": null
+    },
+    {
+      "path": "/reports/change-success",
+      "sample": "/reports/change-success",
+      "redirect": "",
+      "protected": null
+    },
+    {
+      "path": "/reports/changes",
+      "sample": "/reports/changes",
+      "redirect": "/reports/change-success",
+      "protected": null
+    },
+    {
+      "path": "/reports/cmdb-quality",
+      "sample": "/reports/cmdb-quality",
+      "redirect": "",
+      "protected": null
+    },
+    {
+      "path": "/reports/incident-trends",
+      "sample": "/reports/incident-trends",
+      "redirect": "",
+      "protected": null
+    },
+    {
+      "path": "/reports/incidents",
+      "sample": "/reports/incidents",
+      "redirect": "/reports/incident-trends",
+      "protected": null
+    },
+    {
+      "path": "/reports",
+      "sample": "/reports",
+      "redirect": "",
+      "protected": null
+    },
+    {
+      "path": "/reports/problem-efficiency",
+      "sample": "/reports/problem-efficiency",
+      "redirect": "",
+      "protected": null
+    },
+    {
+      "path": "/reports/problems",
+      "sample": "/reports/problems",
+      "redirect": "/reports/problem-efficiency",
+      "protected": null
+    },
+    {
+      "path": "/reports/service-catalog-usage",
+      "sample": "/reports/service-catalog-usage",
+      "redirect": "",
+      "protected": null
+    },
+    {
+      "path": "/reports/sla",
+      "sample": "/reports/sla",
+      "redirect": "/reports/sla-performance",
+      "protected": null
+    },
+    {
+      "path": "/reports/sla-performance",
+      "sample": "/reports/sla-performance",
+      "redirect": "",
+      "protected": null
+    },
+    {
+      "path": "/reports/tickets",
+      "sample": "/reports/tickets",
+      "redirect": "",
+      "protected": null
+    },
+    {
+      "path": "/service-catalog/approvals",
+      "sample": "/service-catalog/approvals",
+      "redirect": "",
+      "protected": null
+    },
+    {
+      "path": "/service-catalog/detail/:id",
+      "sample": "/service-catalog/detail/1",
+      "redirect": "",
+      "protected": null
+    },
+    {
+      "path": "/service-catalog/edit/:id",
+      "sample": "/service-catalog/edit/1",
+      "redirect": "",
+      "protected": null
+    },
+    {
+      "path": "/service-catalog",
+      "sample": "/service-catalog",
+      "redirect": "",
+      "protected": null
+    },
+    {
+      "path": "/service-catalog/request/:id",
+      "sample": "/service-catalog/request/1",
+      "redirect": "",
+      "protected": null
+    },
+    {
+      "path": "/service-requests/:id",
+      "sample": "/service-requests/1",
+      "redirect": "",
+      "protected": null
+    },
+    {
+      "path": "/service-requests",
+      "sample": "/service-requests",
+      "redirect": "",
+      "protected": null
+    },
+    {
+      "path": "/settings/approvals",
+      "sample": "/settings/approvals",
+      "redirect": "",
+      "protected": null
+    },
+    {
+      "path": "/sla/definitions/:id",
+      "sample": "/sla/definitions/1",
+      "redirect": "",
+      "protected": null
+    },
+    {
+      "path": "/sla",
+      "sample": "/sla",
+      "redirect": "",
+      "protected": null
+    },
+    {
+      "path": "/sla-dashboard",
+      "sample": "/sla-dashboard",
+      "redirect": "/sla",
+      "protected": null
+    },
+    {
+      "path": "/sla-monitor",
+      "sample": "/sla-monitor",
+      "redirect": "",
+      "protected": null
+    },
+    {
+      "path": "/standard-changes",
+      "sample": "/standard-changes",
+      "redirect": "",
+      "protected": null
+    },
+    {
+      "path": "/system/organization",
+      "sample": "/system/organization",
+      "redirect": "",
+      "protected": null
+    },
+    {
+      "path": "/system/users",
+      "sample": "/system/users",
+      "redirect": "",
+      "protected": null
+    },
+    {
+      "path": "/tags",
+      "sample": "/tags",
+      "redirect": "",
+      "protected": null
+    },
+    {
+      "path": "/teams",
+      "sample": "/teams",
+      "redirect": "",
+      "protected": null
+    },
+    {
+      "path": "/templates",
+      "sample": "/templates",
+      "redirect": "/tickets/templates",
+      "protected": null
+    },
+    {
+      "path": "/tickets/:ticketId",
+      "sample": "/tickets/1",
+      "redirect": "",
+      "protected": null
+    },
+    {
+      "path": "/tickets/ai-create",
+      "sample": "/tickets/ai-create",
+      "redirect": "",
+      "protected": null
+    },
+    {
+      "path": "/tickets/analytics",
+      "sample": "/tickets/analytics",
+      "redirect": "",
+      "protected": null
+    },
+    {
+      "path": "/tickets/cc",
+      "sample": "/tickets/cc",
+      "redirect": "",
+      "protected": null
+    },
+    {
+      "path": "/tickets/create",
+      "sample": "/tickets/create",
+      "redirect": "",
+      "protected": null
+    },
+    {
+      "path": "/tickets/dashboard",
+      "sample": "/tickets/dashboard",
+      "redirect": "",
+      "protected": null
+    },
+    {
+      "path": "/tickets",
+      "sample": "/tickets",
+      "redirect": "",
+      "protected": null
+    },
+    {
+      "path": "/tickets/templates/:id",
+      "sample": "/tickets/templates/1",
+      "redirect": "",
+      "protected": null
+    },
+    {
+      "path": "/tickets/templates",
+      "sample": "/tickets/templates",
+      "redirect": "",
+      "protected": null
+    },
+    {
+      "path": "/tickets/types",
+      "sample": "/tickets/types",
+      "redirect": "",
+      "protected": null
+    },
+    {
+      "path": "/workflow/audit",
+      "sample": "/workflow/audit",
+      "redirect": "",
+      "protected": null
+    },
+    {
+      "path": "/workflow/automation",
+      "sample": "/workflow/automation",
+      "redirect": "",
+      "protected": null
+    },
+    {
+      "path": "/workflow/bottlenecks",
+      "sample": "/workflow/bottlenecks",
+      "redirect": "",
+      "protected": null
+    },
+    {
+      "path": "/workflow/dashboard",
+      "sample": "/workflow/dashboard",
+      "redirect": "",
+      "protected": null
+    },
+    {
+      "path": "/workflow/designer",
+      "sample": "/workflow/designer",
+      "redirect": "",
+      "protected": null
+    },
+    {
+      "path": "/workflow/instances/:id",
+      "sample": "/workflow/instances/1",
+      "redirect": "",
+      "protected": null
+    },
+    {
+      "path": "/workflow/instances",
+      "sample": "/workflow/instances",
+      "redirect": "",
+      "protected": null
+    },
+    {
+      "path": "/workflow",
+      "sample": "/workflow",
+      "redirect": "",
+      "protected": null
+    },
+    {
+      "path": "/workflow/sla",
+      "sample": "/workflow/sla",
+      "redirect": "",
+      "protected": null
+    },
+    {
+      "path": "/workflow/ticket-approval",
+      "sample": "/workflow/ticket-approval",
+      "redirect": "/approvals",
+      "protected": null
+    },
+    {
+      "path": "/workflow/versions",
+      "sample": "/workflow/versions",
+      "redirect": "",
+      "protected": null
+    },
+    {
+      "path": "/workflows",
+      "sample": "/workflows",
+      "redirect": "/workflow",
+      "protected": null
+    },
+    {
+      "path": "/agent-ops-demo",
+      "sample": "/agent-ops-demo",
+      "redirect": "",
+      "protected": null
+    },
+    {
+      "path": "/auth/callback/:provider",
+      "sample": "/auth/callback/sso",
+      "redirect": "",
+      "protected": null
+    },
+    {
+      "path": "/onboarding/wizard",
+      "sample": "/onboarding/wizard",
+      "redirect": "",
+      "protected": null
+    },
+    {
+      "path": "/",
+      "sample": "/",
+      "redirect": "",
+      "protected": null
+    }
+  ]
+}

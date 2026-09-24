@@ -84,7 +84,7 @@ Scope:
 - fix type errors and route regressions
 - standardize API contract handling
 - restore skipped tests for critical screens
-- validate standalone production build behavior
+- validate the static production build (Vite `dist/`) served by Nginx
 
 Deliverables:
 

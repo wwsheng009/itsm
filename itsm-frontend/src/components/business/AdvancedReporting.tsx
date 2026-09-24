@@ -1,11 +1,10 @@
-'use client';
+import { useNavigate } from 'react-router';
 
-import { useRouter } from 'next/navigation';
 import { AdvancedReportingView } from './advanced-reporting/AdvancedReportingView';
 import { useReportSummaries } from './advanced-reporting/hooks/useReportSummaries';
 
 export default function AdvancedReporting() {
-  const router = useRouter();
+  const navigate = useNavigate();
   const state = useReportSummaries();
 
   return (
@@ -14,7 +13,7 @@ export default function AdvancedReporting() {
       loading={state.loading}
       error={state.error}
       onReload={state.reload}
-      onOpenReport={report => router.push(report.path)}
+      onOpenReport={report => navigate(report.path)}
     />
   );
 }

@@ -7,10 +7,10 @@ export type Environment = 'development' | 'production' | 'test';
 export const getEnvironment = (): Environment => {
   if (typeof window !== 'undefined') {
     // 客户端环境
-    return (process.env.NODE_ENV as Environment) || 'development';
+    return (import.meta.env.MODE as Environment) || 'development';
   }
   // 服务端环境
-  return (process.env.NODE_ENV as Environment) || 'development';
+  return (import.meta.env.MODE as Environment) || 'development';
 };
 
 // 环境配置
@@ -27,22 +27,18 @@ export const env = {
     consoleLogs: getEnvironment() === 'development',
   },
 
-  // API配置
+  // API配置：SPA 下始终同源（dev 由 Vite proxy 转发，生产由 nginx 反代）
   api: {
-    baseUrl:
-      process.env.NEXT_PUBLIC_API_BASE_URL ||
-      (typeof window === 'undefined'
-        ? process.env.ITSM_BACKEND_URL || process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8090'
-        : ''),
-    timeout: parseInt(process.env.NEXT_PUBLIC_API_TIMEOUT || '10000'),
-    retryCount: parseInt(process.env.NEXT_PUBLIC_API_RETRY_COUNT || '3'),
+    baseUrl: import.meta.env.VITE_API_BASE_URL || '',
+    timeout: parseInt(import.meta.env.VITE_API_TIMEOUT || '10000'),
+    retryCount: parseInt(import.meta.env.VITE_API_RETRY_COUNT || '3'),
   },
 
   // 应用配置
   app: {
     name: 'AI-Native ITSM',
-    version: process.env.NEXT_PUBLIC_APP_VERSION || '1.0.0',
-    buildTime: process.env.NEXT_PUBLIC_BUILD_TIME || '',
+    version: import.meta.env.VITE_APP_VERSION || '1.0.0',
+    buildTime: import.meta.env.VITE_BUILD_TIME || '',
   },
 };
 

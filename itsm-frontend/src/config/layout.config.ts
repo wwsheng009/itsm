@@ -171,7 +171,7 @@ export const validateSiderWidth = (width: number): boolean => {
   return (width - 200) % 8 === 0 && width >= 200;
 };
 
-if (process.env.NODE_ENV === 'development') {
+if (import.meta.env.DEV) {
   console.assert(
     validateHeaderHeight(LAYOUT_CONFIG.header.height),
     `❌ Header高度 ${LAYOUT_CONFIG.header.height}px 不符合 Ant Design 公式 (48+8n)`

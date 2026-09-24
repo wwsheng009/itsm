@@ -1,4 +1,4 @@
-'use client';
+import { useNavigate, useParams } from 'react-router';
 
 /**
  * SLA 详情组件
@@ -18,7 +18,6 @@ import {
   Divider,
 } from 'antd';
 import { ArrowLeft, Pencil } from 'lucide-react';
-import { useParams, useRouter } from 'next/navigation';
 
 import { SLAApi } from '@/lib/api/';
 import { SLAPriorityLabels, SLAPriorityColors } from '@/constants/sla';
@@ -26,7 +25,7 @@ import type { SLADefinition } from '@/types/biz/sla';
 
 const SLADetail: React.FC = () => {
   const { id } = useParams() as { id: string };
-  const router = useRouter();
+  const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
   const [data, setData] = useState<SLADefinition | null>(null);
 
@@ -65,7 +64,7 @@ const SLADetail: React.FC = () => {
           title="404"
           subTitle="抱歉，您访问的 SLA 定义不存在"
           extra={
-            <Button type="primary" onClick={() => router.push('/sla')}>
+            <Button type="primary" onClick={() => navigate('/sla')}>
               返回列表
             </Button>
           }
@@ -79,7 +78,7 @@ const SLADetail: React.FC = () => {
       <Breadcrumb className="mb-4">
         <Breadcrumb.Item>首页</Breadcrumb.Item>
         <Breadcrumb.Item>服务级别管理</Breadcrumb.Item>
-        <Breadcrumb.Item onClick={() => router.push('/sla')} className="cursor-pointer">
+        <Breadcrumb.Item onClick={() => navigate('/sla')} className="cursor-pointer">
           SLA 定义
         </Breadcrumb.Item>
         <Breadcrumb.Item>详情</Breadcrumb.Item>
@@ -93,7 +92,7 @@ const SLADetail: React.FC = () => {
           <Button
             type="primary"
             icon={<Pencil />}
-            onClick={() => router.push(`/sla/definitions/${data.id}/edit`)}
+            onClick={() => navigate(`/sla/definitions/${data.id}/edit`)}
           >
             编辑
           </Button>
@@ -128,7 +127,7 @@ const SLADetail: React.FC = () => {
         </pre>
 
         <div className="mt-6">
-          <Button icon={<ArrowLeft />} onClick={() => router.push('/sla')}>
+          <Button icon={<ArrowLeft />} onClick={() => navigate('/sla')}>
             返回列表
           </Button>
         </div>

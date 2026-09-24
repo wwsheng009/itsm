@@ -1,4 +1,3 @@
-'use client';
 
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { BarChart3, TrendingUp, Clock, Star, MessageSquare } from 'lucide-react';

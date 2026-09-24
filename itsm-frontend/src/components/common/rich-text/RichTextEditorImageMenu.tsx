@@ -1,4 +1,3 @@
-'use client';
 
 /**
  * RichTextEditorImageMenu —— 图片浮动编辑工具条。

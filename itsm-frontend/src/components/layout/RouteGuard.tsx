@@ -1,7 +1,6 @@
-'use client';
+import { useLocation, useNavigate } from 'react-router';
 
 import React, { useEffect, useState } from 'react';
-import { useRouter, usePathname } from 'next/navigation';
 import { Spin, Result, Button } from 'antd';
 import { AlertTriangle } from 'lucide-react';
 import {
@@ -43,7 +42,7 @@ export const useAuth = () => {
     isLoading: true,
   });
 
-  const router = useRouter();
+  const navigate = useNavigate();
 
   useEffect(() => {
     const initAuth = async () => {
@@ -115,7 +114,7 @@ const PermissionGuard: React.FC<{
   route: RouteConfig;
   user: User;
 }> = ({ children, route, user }) => {
-  const router = useRouter();
+  const navigate = useNavigate();
   const hasPermission = RoutePermissionChecker.hasRoutePermission(
     route,
     user.permissions,
@@ -131,7 +130,7 @@ const PermissionGuard: React.FC<{
           subTitle="抱歉，您没有权限访问此页面"
           icon={<AlertTriangle size={64} className="text-red-500" />}
           extra={
-            <Button type="primary" onClick={() => router.back()}>
+            <Button type="primary" onClick={() => navigate(-1)}>
               返回上一页
             </Button>
           }
@@ -146,8 +145,8 @@ const PermissionGuard: React.FC<{
 // 主路由守卫组件
 export const RouteGuard: React.FC<RouteGuardProps> = ({ children, route, fallback }) => {
   const { user, isAuthenticated, isLoading } = useAuth();
-  const pathname = usePathname();
-  const router = useRouter();
+  const pathname = useLocation().pathname;
+  const navigate = useNavigate();
 
   // 公共路由，不需要认证
   const publicRoutes = ['/login', '/register', '/forgot-password'];
@@ -166,7 +165,7 @@ export const RouteGuard: React.FC<RouteGuardProps> = ({ children, route, fallbac
 
   // 未认证且不是公共路由
   if (!isAuthenticated && !isPublicRoute) {
-    router.push(`/login?redirect=${encodeURIComponent(pathname || '/')}`);
+    navigate(`/login?redirect=${encodeURIComponent(pathname || '/')}`);
     return null;
   }
 

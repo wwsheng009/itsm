@@ -18,6 +18,8 @@
 # Environment overrides:
 #   GOPROXY        Go module proxy   (default: https://goproxy.cn,direct)
 #   NPM_REGISTRY   npm registry      (default: https://registry.npmjs.org)
+#   VITE_ENABLE_AI frontend build-time AI flag, baked into the SPA bundle
+#                  (default: true)
 #   TORCH_INDEX    torch wheel index (default: CPU wheels)
 #   REGISTRY       image registry prefix (e.g. ghcr.io/heidsoft/)
 #   BUILDPLATFORM  optional target platform (e.g. linux/amd64); native by default
@@ -49,7 +51,7 @@ fi
 # service -> "context|dockerfile|target|build-args..."
 ALL_SERVICES=(
   "backend|itsm-backend|Dockerfile.prod||--build-arg GOPROXY=${GOPROXY:-https://goproxy.cn,direct}"
-  "frontend|itsm-frontend|Dockerfile|production|--build-arg NPM_REGISTRY=${NPM_REGISTRY:-https://registry.npmjs.org} --build-arg NEXT_PUBLIC_ENABLE_AI=${NEXT_PUBLIC_ENABLE_AI:-true}"
+  "frontend|itsm-frontend|Dockerfile|production|--build-arg NPM_REGISTRY=${NPM_REGISTRY:-https://registry.npmjs.org} --build-arg VITE_ENABLE_AI=${VITE_ENABLE_AI:-true}"
   "ai-service|itsm-ai-service|Dockerfile||--build-arg TORCH_INDEX=${TORCH_INDEX:-https://download.pytorch.org/whl/cpu}"
   "guidance_sidecar|itsm-backend/guidance_sidecar|Dockerfile||--build-arg TORCH_INDEX=${TORCH_INDEX:-https://download.pytorch.org/whl/cpu}"
 )

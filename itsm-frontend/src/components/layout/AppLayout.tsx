@@ -1,12 +1,11 @@
+import { useNavigate } from 'react-router';
 /**
  * @deprecated 请使用 BusinessPageTemplate 替代，此组件为历史遗留实现
  */
-'use client';
 
 import React, { useState, useEffect } from 'react';
 import { Layout, Button, Drawer } from 'antd';
 import { ArrowLeft, Menu } from 'lucide-react';
-import { useRouter } from 'next/navigation';
 import { Sidebar } from './Sidebar';
 import { Header } from './Header';
 import { LAYOUT_CONFIG } from '@/config/layout.config';
@@ -36,7 +35,7 @@ export function AppLayout({
   description,
   showPageHeader = true, // 默认显示页面头部
 }: AppLayoutProps) {
-  const router = useRouter();
+  const navigate = useNavigate();
   const { isMobile, isTablet } = useResponsive();
   const { collapsed, setCollapsed } = useLayoutStore();
   const [mobileDrawerVisible, setMobileDrawerVisible] = useState(false);
@@ -135,7 +134,7 @@ export function AppLayout({
           {/* 返回按钮 */}
           {showBackButton && (
             <div style={{ marginBottom: LAYOUT_CONFIG.spacing.md }}>
-              <Button icon={<ArrowLeft size={16} />} onClick={() => router.back()} size="small">
+              <Button icon={<ArrowLeft size={16} />} onClick={() => navigate(-1)} size="small">
                 返回
               </Button>
             </div>

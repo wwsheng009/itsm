@@ -2,8 +2,6 @@
  * 标准列表页面模板
  */
 
-'use client';
-
 import { useState } from 'react';
 import { Table, Button, Space, message, Card } from 'antd';
 import { Plus, RotateCcw } from 'lucide-react';

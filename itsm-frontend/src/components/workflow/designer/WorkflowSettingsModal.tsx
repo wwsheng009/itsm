@@ -1,8 +1,6 @@
 // 流程设置模态框
 // Workflow Settings Modal
 
-'use client';
-
 import React from 'react';
 import { Modal, Form, Tabs, Select, Input, Checkbox, Row, Col } from 'antd';
 import type { FormInstance } from 'antd';

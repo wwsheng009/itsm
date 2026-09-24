@@ -6,10 +6,6 @@ jest.mock('@/lib/api/http-client', () => ({
   httpClient: { get: jest.fn(), post: jest.fn(), put: jest.fn(), delete: jest.fn(), patch: jest.fn() },
 }));
 
-jest.mock('@ant-design/nextjs-registry', () => ({
-  AntdRegistry: ({ children }: { children: React.ReactNode }) => <>{children}</>,
-}));
-
 jest.mock('antd', () => ({
   ConfigProvider: ({ children }: { children: React.ReactNode }) => <>{children}</>,
   App: ({ children }: { children: React.ReactNode }) => <>{children}</>,

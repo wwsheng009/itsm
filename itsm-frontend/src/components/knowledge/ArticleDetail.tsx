@@ -1,4 +1,4 @@
-'use client';
+import { useNavigate, useParams } from 'react-router';
 
 /**
  * 知识库文章详情组件
@@ -22,7 +22,6 @@ import {
   Input,
 } from 'antd';
 import { ArrowLeft, Pencil, User, Folder, Calendar, CheckCircle, Archive, ThumbsUp, ThumbsDown } from 'lucide-react';
-import { useParams, useRouter } from 'next/navigation';
 import dayjs from 'dayjs';
 
 import { KnowledgeBaseApi } from '@/lib/api/knowledge-base-api';
@@ -47,7 +46,7 @@ const { Title, Paragraph, Text } = Typography;
 
 const ArticleDetail: React.FC = () => {
   const { id } = useParams() as { id: string };
-  const router = useRouter();
+  const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
   const [article, setArticle] = useState<KnowledgeArticle | null>(null);
   const [actionLoading, setActionLoading] = useState<'publish' | 'unpublish' | 'archive' | null>(null);
@@ -167,7 +166,7 @@ const ArticleDetail: React.FC = () => {
           title="404"
           subTitle="抱歉，您访问的文章不存在"
           extra={
-            <Button type="primary" onClick={() => router.push('/knowledge')}>
+            <Button type="primary" onClick={() => navigate('/knowledge')}>
               返回列表
             </Button>
           }
@@ -186,7 +185,7 @@ const ArticleDetail: React.FC = () => {
       <Breadcrumb style={{ marginBottom: 16 }}>
         <Breadcrumb.Item>首页</Breadcrumb.Item>
         <Breadcrumb.Item>知识库</Breadcrumb.Item>
-        <Breadcrumb.Item onClick={() => router.push('/knowledge')}>文章列表</Breadcrumb.Item>
+        <Breadcrumb.Item onClick={() => navigate('/knowledge')}>文章列表</Breadcrumb.Item>
         <Breadcrumb.Item>文章详情</Breadcrumb.Item>
       </Breadcrumb>
 
@@ -200,7 +199,7 @@ const ArticleDetail: React.FC = () => {
               marginBottom: 16,
             }}
           >
-            <Button icon={<ArrowLeft />} onClick={() => router.push('/knowledge')}>
+            <Button icon={<ArrowLeft />} onClick={() => navigate('/knowledge')}>
               返回列表
             </Button>
             <Space>
@@ -233,7 +232,7 @@ const ArticleDetail: React.FC = () => {
               <Button
                 type="primary"
                 icon={<Pencil />}
-                onClick={() => router.push(`/knowledge/articles/${article.id}/edit`)}
+                onClick={() => navigate(`/knowledge/articles/${article.id}/edit`)}
               >
                 编辑文章
               </Button>

@@ -1,4 +1,3 @@
-'use client';
 
 /**
  * 用户下拉数据 React Query 缓存

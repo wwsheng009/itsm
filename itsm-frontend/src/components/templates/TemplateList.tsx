@@ -3,8 +3,6 @@
  * 提供模板的列表展示、搜索、筛选、排序和批量操作功能
  */
 
-'use client';
-
 import React, { useState, useMemo, useCallback } from 'react';
 import {
   Card,

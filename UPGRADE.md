@@ -245,7 +245,7 @@ curl -c cookies.txt -X POST http://localhost/api/v1/login \
   -d '{"username":"admin","password":"<你的ADMIN_PASSWORD>"}'
 
 # 3. 网关/前端资源
-curl -fI http://localhost/                    # 返回 200，且引用 /_next/ 资源
+curl -fI http://localhost/                    # 返回 200，且引用 /assets/ 静态资源（Vite 产物）
 
 # 4. Grafana 密码生效
 # 用 .env.prod 中的 GRAFANA_ADMIN_PASSWORD 登录 http://localhost:3000

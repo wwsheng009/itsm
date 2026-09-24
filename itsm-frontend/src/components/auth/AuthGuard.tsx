@@ -1,7 +1,6 @@
-'use client';
+import { useNavigate } from 'react-router';
 
 import { useEffect, useState } from 'react';
-import { useRouter } from 'next/navigation';
 import { useAuthStore, ROLES } from '@/lib/store/auth-store';
 import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
 import { isAuthenticated as checkCookieAuth } from '@/lib/auth/token-storage';
@@ -28,7 +27,7 @@ export const AuthGuard: React.FC<AuthGuardProps> = ({
   fallback,
   redirectTo = '/login',
 }) => {
-  const router = useRouter();
+  const navigate = useNavigate();
   const { isAuthenticated: storeIsAuth, user, isLoading, hasPermission, hasRole } = useAuthStore();
   const [isInitializing, setIsInitializing] = useState(true);
 
@@ -120,9 +119,9 @@ export const AuthGuard: React.FC<AuthGuardProps> = ({
   // 处理未认证重定向
   useEffect(() => {
     if (requireAuth && !storeIsAuth && !fallback) {
-      router.push(redirectTo);
+      navigate(redirectTo);
     }
-  }, [requireAuth, storeIsAuth, fallback, router, redirectTo]);
+  }, [requireAuth, storeIsAuth, fallback, navigate, redirectTo]);
 
   // 正在初始化或加载中
   if (isInitializing || isLoading) {
@@ -161,7 +160,7 @@ export const AuthGuard: React.FC<AuthGuardProps> = ({
           <button
             onClick={e => {
               e.preventDefault();
-              setTimeout(() => router.back(), 0);
+              setTimeout(() => navigate(-1), 0);
             }}
             className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
           >
@@ -185,7 +184,7 @@ export const AuthGuard: React.FC<AuthGuardProps> = ({
             <button
               onClick={e => {
                 e.preventDefault();
-                setTimeout(() => router.back(), 0);
+                setTimeout(() => navigate(-1), 0);
               }}
               className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
             >

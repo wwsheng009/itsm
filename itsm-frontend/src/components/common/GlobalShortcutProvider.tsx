@@ -1,9 +1,8 @@
-'use client';
+import { useNavigate } from 'react-router';
 
 import React, { useState, useCallback } from 'react';
 import { useHotkeys } from 'react-hotkeys-hook';
 import { Modal, List, Tag, Typography } from 'antd';
-import { useRouter } from 'next/navigation';
 import { useLayoutStore } from '@/lib/store/layout-store';
 
 const { Title, Text } = Typography;
@@ -45,7 +44,7 @@ interface GlobalShortcutProviderProps {
 export default function GlobalShortcutProvider({ children }: GlobalShortcutProviderProps) {
   const [helpVisible, setHelpVisible] = useState(false);
   const [searchVisible, setSearchVisible] = useState(false);
-  const router = useRouter();
+  const navigate = useNavigate();
   const { collapsed, setCollapsed } = useLayoutStore();
 
   // 打开帮助
@@ -65,12 +64,12 @@ export default function GlobalShortcutProvider({ children }: GlobalShortcutProvi
   }, [collapsed, setCollapsed]);
 
   // 注册快捷键
-  useHotkeys('g d', () => router.push('/dashboard'), { preventDefault: true });
-  useHotkeys('g t', () => router.push('/tickets'), { preventDefault: true });
-  useHotkeys('g c', () => router.push('/cmdb'), { preventDefault: true });
-  useHotkeys('g k', () => router.push('/knowledge'), { preventDefault: true });
-  useHotkeys('g w', () => router.push('/workflows'), { preventDefault: true });
-  useHotkeys('ctrl+n, cmd+n', () => router.push('/tickets/new'), { preventDefault: true });
+  useHotkeys('g d', () => navigate('/dashboard'), { preventDefault: true });
+  useHotkeys('g t', () => navigate('/tickets'), { preventDefault: true });
+  useHotkeys('g c', () => navigate('/cmdb'), { preventDefault: true });
+  useHotkeys('g k', () => navigate('/knowledge'), { preventDefault: true });
+  useHotkeys('g w', () => navigate('/workflows'), { preventDefault: true });
+  useHotkeys('ctrl+n, cmd+n', () => navigate('/tickets/new'), { preventDefault: true });
   useHotkeys('ctrl+k, cmd+k', openSearch, { preventDefault: true });
   useHotkeys('ctrl+b, cmd+b', toggleSidebar, { preventDefault: true });
   useHotkeys('ctrl+/, cmd+/, ?', openHelp, { preventDefault: true });

@@ -1,4 +1,4 @@
-'use client';
+import { useNavigate } from 'react-router';
 
 /**
  * AI 智能助手 — 流式回答 + 引用来源 + 会话历史
@@ -11,7 +11,6 @@
  */
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { useRouter } from 'next/navigation';
 import {
   Avatar,
   Button,
@@ -69,7 +68,7 @@ interface ChatMessage {
 const nextId = () => `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 
 const AIChat: React.FC = () => {
-  const router = useRouter();
+  const navigate = useNavigate();
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [query, setQuery] = useState('');
   const [messages, setMessages] = useState<ChatMessage[]>([]);
@@ -543,7 +542,7 @@ const AIChat: React.FC = () => {
                               type="link"
                               icon={<FileText size={12} />}
                               style={{ padding: 0, height: 'auto' }}
-                              onClick={() => router.push('/knowledge/articles/create')}
+                              onClick={() => navigate('/knowledge/articles/create')}
                             >
                               补充为知识文章
                             </Button>

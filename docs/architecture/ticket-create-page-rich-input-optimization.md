@@ -178,7 +178,7 @@
 
 **纯文本派生**：提交时同时计算 `descriptionText`（`html.replace(/<[^>]+>/g,'')` 折叠空白，截断 500 字）写入工单 `description`/摘要字段，保证列表页、搜索、通知不需要改渲染逻辑。
 
-**降级开关**：`NEXT_PUBLIC_RICH_TEXT=off` 时回退为现有 `Input.TextArea`，便于灰度与快速回滚。
+**降级开关**：`VITE_RICH_TEXT=off` 时回退为现有 `Input.TextArea`，便于灰度与快速回滚。
 
 ---
 ### 4.4 粘贴图片 / 拖拽图片
@@ -241,7 +241,7 @@
 
 - 编辑入口是 `itsm-frontend/src/components/ticket/TicketDetail.tsx` 内的编辑弹层（`app/(main)/tickets/[ticketId]/page.tsx` 只是薄壳），详情描述也在同一组件渲染；
 - 详情回显与写入共用 `sanitizeRichTextHtml` 白名单（`src/lib/rich-text/sanitize.ts`），渲染容器类名 `ticket-rich-text`，样式见 `src/app/globals.css`（Tailwind preflight 会清空标题/列表样式，需显式补回）；
-- 编辑器为 `next/dynamic`（`ssr: false`）按需加载，`NEXT_PUBLIC_RICH_TEXT=off` 时创建页与编辑弹层都回退 `Input.TextArea`，且不请求编辑器 chunk；
+- 编辑器为 `next/dynamic`（`ssr: false`）按需加载，`VITE_RICH_TEXT=off` 时创建页与编辑弹层都回退 `Input.TextArea`，且不请求编辑器 chunk；
 - 编辑器内删除图片：保存成功后对比编辑前后的 `data-attachment-id`，对被移除的图片调用附件解绑接口（§5.2 第 4 条）；
 - 差异项：未新增前端权限判断（编辑按钮仅在终态禁用），写权限仍由后端 RBAC 与乐观锁（`version`）兜底。
 
@@ -267,7 +267,7 @@
 - **变换数学独立成纯函数**：`itsm-frontend/src/lib/rich-text/image-viewer.ts`（`clampImageScale` / `nextImageScale` / `rotateImage` / `isQuarterTurn` / `computeFitScale` / `formatScalePercent` / `clampImageOffset`），与 DOM 解耦、便于单测。缩放范围 10%~800%、步进 1.25，旋转步进 90°。
 - **交互**：放大 / 缩小（按钮、滚轮、`+` / `-`）、原始尺寸 1:1（`1`）、适应窗口（`f`，默认，且默认不把小图放大）、双击在适应窗口与 1:1 间切换、左 / 右旋转（`r` / `Shift+R`）、水平 / 垂直翻转、放大超出视口后指针拖拽平移（`clampImageOffset` 保证拖不出视野）、重置（`0`）、多图上一张 / 下一张（← / →）、下载原图、Esc / 点击遮罩 / 关闭按钮退出、Tab 焦点圈定、`body` 滚动锁、关闭后焦点还给触发图片。
 - **样式**：`.rte-image-viewer*`（`globals.css`）固定定位 `z-index: 1100`（高于 antd Modal 1000 与 Tooltip 1070）；`.ticket-rich-text img` 补 `cursor: zoom-in` 与 `:focus-visible` 焦点环；`prefers-reduced-motion: reduce` 下关闭动画。
-- **降级**：`NEXT_PUBLIC_RICH_TEXT=off`（纯文本回退）时 `enabled=false`，不接管任何点击；查看器只在 `descriptionHtml` 分支挂载。
+- **降级**：`VITE_RICH_TEXT=off`（纯文本回退）时 `enabled=false`，不接管任何点击；查看器只在 `descriptionHtml` 分支挂载。
 
 **回归要点**：`/tickets/:id` 点击描述内图片 → 全屏查看器打开且缩放显示 `100%`（已知 `naturalWidth` 时按画布适应比例）；点「放大」→ `125%`；「向右旋转」→ 视觉旋转 90° 且宽高互换后仍居中；「重置」回到初始状态；Esc 关闭后焦点回到原图片。
 

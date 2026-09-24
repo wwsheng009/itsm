@@ -1,7 +1,6 @@
-'use client';
+import { useLocation } from 'react-router';
 
 import { useEffect } from 'react';
-import { usePathname } from 'next/navigation';
 import { useRecentVisitStore } from '@/lib/store/recent-visit-store';
 
 // 路径到标题和图标映射
@@ -20,7 +19,7 @@ const pathMeta: Record<string, { title: string; icon?: string }> = {
 };
 
 export const RecentVisitTracker: React.FC = () => {
-  const pathname = usePathname();
+  const pathname = useLocation().pathname;
   const addVisit = useRecentVisitStore(state => state.addVisit);
 
   useEffect(() => {

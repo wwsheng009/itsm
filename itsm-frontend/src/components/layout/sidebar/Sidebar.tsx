@@ -1,4 +1,4 @@
-'use client';
+import { useLocation, useNavigate } from 'react-router';
 
 /**
  * 侧边栏组件
@@ -7,7 +7,6 @@
 
 import React, { useEffect, useRef } from 'react';
 import { App, Layout, theme } from 'antd';
-import { useRouter, usePathname } from 'next/navigation';
 import { useAuthStore, useAuthStoreHydration } from '@/lib/store/auth-store';
 import { LAYOUT_CONFIG } from '@/config/layout.config';
 import styles from './Sidebar.module.css';
@@ -118,8 +117,8 @@ function normalizeMenuPath(raw: string): string {
 export const Sidebar: React.FC<SidebarProps> = ({ collapsed, onCollapse, mobile = false }) => {
   const { token } = theme.useToken();
   const { message } = App.useApp();
-  const router = useRouter();
-  const pathname = usePathname();
+  const navigate = useNavigate();
+  const pathname = useLocation().pathname;
   const { user } = useAuthStore();
   const { capabilities, isLoading: capabilitiesLoading } = useCapabilities();
 
@@ -158,7 +157,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ collapsed, onCollapse, mobile 
       console.debug('[Sidebar] 菜单路径已规范化', { from: key, to: normalizedPath });
     }
     // 同一菜单项在 MenuItems 中同时挂了 label 级与 items[] 级 onClick（互为兜底），
-    // 点击时事件冒泡会让本函数被连续调用两次，从而触发两次 router.push
+    // 点击时事件冒泡会让本函数被连续调用两次，从而触发两次 navigate.push
     // （浏览器表现为两条完全相同的 _rsc 请求 + 服务端重复渲染）。此处对同一路径做
     // 短窗口去重，保留两层兜底的同时只跳转一次。
     const now = Date.now();
@@ -168,7 +167,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ collapsed, onCollapse, mobile 
     }
     lastMenuNavRef.current = { path: normalizedPath, at: now };
     try {
-      router.push(normalizedPath);
+      navigate(normalizedPath);
     } catch (error) {
       console.error('Menu navigation error:', error);
       message.error('导航失败，请稍后重试');

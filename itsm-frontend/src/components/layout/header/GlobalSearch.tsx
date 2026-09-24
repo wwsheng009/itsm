@@ -1,10 +1,9 @@
-'use client';
+import { useNavigate } from 'react-router';
 
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { Input, Modal, List, Spin } from 'antd';
 import type { InputRef } from 'antd';
 import { Search, Ticket } from 'lucide-react';
-import { useRouter } from 'next/navigation';
 import {
   globalSearch,
   type GlobalSearchResponse,
@@ -26,7 +25,7 @@ export const GlobalSearch: React.FC<GlobalSearchProps> = ({
   initialKeyword = '',
   initialResults = null,
 }) => {
-  const router = useRouter();
+  const navigate = useNavigate();
   const searchInputRef = useRef<InputRef>(null);
   const [searchValue, setSearchValue] = useState('');
   const [searchResults, setSearchResults] = useState<GlobalSearchResponse | null>(initialResults);
@@ -96,7 +95,7 @@ export const GlobalSearch: React.FC<GlobalSearchProps> = ({
       knowledge: 'knowledge',
     };
     const basePath = pathMap[item.type] || item.type;
-    router.push(`/${basePath}/${item.id}`);
+    navigate(`/${basePath}/${item.id}`);
     onClose();
   };
 

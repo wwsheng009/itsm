@@ -1,4 +1,4 @@
-'use client';
+import { useNavigate, useParams } from 'react-router';
 
 /**
  * 问题详情组件
@@ -7,7 +7,6 @@
 import React, { useState, useEffect } from 'react';
 import { Card, Tag, Button, Space, Skeleton, message, Typography, Tabs, Modal, Form, Input } from 'antd';
 import { ArrowLeft, Search, Pencil, FlaskConical, ShieldAlert } from 'lucide-react';
-import { useRouter, useParams } from 'next/navigation';
 
 import { ProblemApi } from '@/lib/api/';
 import { useI18n } from '@/lib/i18n/useI18n';
@@ -22,7 +21,7 @@ const { TextArea } = Input;
 
 const ProblemDetail: React.FC<{ id?: string }> = ({ id: propId }) => {
   const params = useParams();
-  const router = useRouter();
+  const navigate = useNavigate();
   const { t } = useI18n();
   // 支持通过props传入id，或通过useParams获取
   const id = propId || (params?.id as string);
@@ -110,7 +109,7 @@ const ProblemDetail: React.FC<{ id?: string }> = ({ id: propId }) => {
       message.success(t('problemDetail.toKnownErrorSuccess'));
       setKnownErrorModalOpen(false);
       knownErrorForm.resetFields();
-      router.push('/problems/known-errors');
+      navigate('/problems/known-errors');
     } catch (error) {
       message.error(t('problemDetail.toKnownErrorFailed'));
     } finally {
@@ -161,7 +160,7 @@ const ProblemDetail: React.FC<{ id?: string }> = ({ id: propId }) => {
       <Card styles={{ body: { padding: '16px 24px' } }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <Space>
-            <Button icon={<ArrowLeft />} onClick={() => router.push('/problems')}>
+            <Button icon={<ArrowLeft />} onClick={() => navigate('/problems')}>
               {t('problemDetail.back')}
             </Button>
             <Title level={4} style={{ margin: 0 }}>
@@ -174,7 +173,7 @@ const ProblemDetail: React.FC<{ id?: string }> = ({ id: propId }) => {
           <Space>
             <Button
               icon={<Pencil />}
-              onClick={() => router.push(`/problems/${data.id}/edit`)}
+              onClick={() => navigate(`/problems/${data.id}/edit`)}
             >
               {t('problemDetail.edit')}
             </Button>

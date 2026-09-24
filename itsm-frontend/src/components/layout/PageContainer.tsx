@@ -1,10 +1,9 @@
+import { useNavigate } from 'react-router';
 /**
  * @deprecated 请使用 BusinessPageTemplate 替代，此组件为历史遗留实现
  */
-'use client';
 
 import React from 'react';
-import { useRouter } from 'next/navigation';
 import { Card, Row, Col, Button, Breadcrumb } from 'antd';
 import { ArrowLeft } from 'lucide-react';
 
@@ -45,7 +44,7 @@ export const PageContainer: React.FC<EnterprisePageTemplateProps> = ({
   content,
   className = '',
 }) => {
-  const router = useRouter();
+  const navigate = useNavigate();
   // 默认的工具栏
   const defaultToolbar = (
     <Card className="enterprise-toolbar">
@@ -92,7 +91,7 @@ export const PageContainer: React.FC<EnterprisePageTemplateProps> = ({
                 type="text"
                 icon={<ArrowLeft />}
                 className="mr-2"
-                onClick={() => router.back()}
+                onClick={() => navigate(-1)}
               >
                 返回
               </Button>

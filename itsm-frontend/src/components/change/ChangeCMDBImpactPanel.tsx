@@ -1,4 +1,3 @@
-'use client';
 
 import React, { useEffect, useState } from 'react';
 import { Card, Descriptions, Empty, Spin, Tag, Typography, Alert, List, Space } from 'antd';

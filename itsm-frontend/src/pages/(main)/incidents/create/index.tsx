@@ -1,0 +1,668 @@
+import { useNavigate } from 'react-router';
+
+import React, { useState, useEffect } from 'react';
+import { Button, Card, Form, Input, Select, Upload, Space, Row, Col, message, Tabs, Typography, Divider, Tag, Spin } from 'antd';
+import { ArrowLeft, Search, X, Sparkles } from 'lucide-react';
+import { IncidentAPI } from '@/lib/api/incident-api';
+import { IncidentCategoryOptions } from '@/constants/taxonomy';
+import type { ConfigurationItem } from '@/types/biz/cmdb';
+import { CMDBApi } from '@/lib/api/cmdb-api';
+import type { User } from '@/lib/api/user-api';
+import { UserApi } from '@/lib/api/user-api';
+import { useErrorHandler } from '@/lib/hooks/useErrorHandler';
+import { AIApi, type TriageResult, type RagAnswer } from '@/lib/api/ai-api';
+import { notify } from '@/lib/notify';
+
+const { Title, Text } = Typography;
+const { TextArea } = Input;
+
+// AI 建议回填白名单：只接受与表单选项一致的取值，避免写入无效枚举
+const PRIORITY_VALUES = ['critical', 'high', 'medium', 'low'];
+const CATEGORY_VALUES = IncidentCategoryOptions.map(option => option.value);
+
+// CI状态中文映射
+const ciStatusNameMap: Record<string, string> = {
+  active: '活跃',
+  inactive: '未激活',
+  maintenance: '维护中',
+  retired: '已下线',
+};
+
+// 表单值类型定义
+interface IncidentFormValues {
+  title: string;
+  description: string;
+  priority: 'critical' | 'high' | 'medium' | 'low';
+  source: 'manual' | 'monitoring' | 'system' | 'user';
+  type: 'incident' | 'service_request' | 'security_event' | 'alert';
+  category?: string;
+  impact?: 'critical' | 'high' | 'medium' | 'low';
+  urgency?: 'critical' | 'high' | 'medium' | 'low';
+  assignedTo?: number;
+  affectedSystems?: string[];
+  rootCause?: string;
+}
+
+export default function CreateIncidentPage() {
+  const navigate = useNavigate();
+  const [form] = Form.useForm();
+  const [loading, setLoading] = useState(false);
+  const [activeTab, setActiveTab] = useState('basic');
+  const [selectedCIs, setSelectedCIs] = useState<ConfigurationItem[]>([]);
+  const [ciSearchTerm, setCISearchTerm] = useState('');
+  const [ciSearchResults, setCISearchResults] = useState<ConfigurationItem[]>([]);
+  const [ciSearching, setCISearching] = useState(false);
+  const [users, setUsers] = useState<User[]>([]);
+  const [usersLoading, setUsersLoading] = useState(false);
+  const { handleError } = useErrorHandler();
+
+  // AI 智能辅助：分类建议 + 相似历史事件
+  // 说明：AI 建议一律「显式采纳」，不自动回填表单，避免用户不知情被改写输入
+  const [aiLoading, setAiLoading] = useState(false);
+  const [aiSuggestion, setAiSuggestion] = useState<TriageResult | null>(null);
+  const [similarIncidents, setSimilarIncidents] = useState<RagAnswer[]>([]);
+
+  // 加载用户列表
+  useEffect(() => {
+    const fetchUsers = async () => {
+      setUsersLoading(true);
+      try {
+        const response = await UserApi.getUsers({ page: 1, pageSize: 100 });
+        setUsers(response.users || []);
+      } catch (error) {
+        // 用户列表加载失败不阻塞页面，使用空列表
+        setUsers([]);
+      } finally {
+        setUsersLoading(false);
+      }
+    };
+    fetchUsers();
+  }, []);
+
+  // CI配置项搜索
+  // Bug 修复：原先依赖列表里包含 handleError，由于该 hook 每次 render
+  // 都会返回新的函数引用（即使内部逻辑不变），导致 effect 反复触发
+  // setCISearchResults → 重渲染 → 新 handleError → 再次触发 effect 的
+  // 死循环（Maximum update depth exceeded）。现在仅依赖搜索词，
+  // handleError 在内部使用即可；useErrorHandler 也已使用 useCallback 稳定引用。
+  useEffect(() => {
+    if (ciSearchTerm.trim()) {
+      const fetchCIs = async () => {
+        setCISearching(true);
+        try {
+          const results = await CMDBApi.searchCIs({ keyword: ciSearchTerm });
+          setCISearchResults(results.items || []);
+        } catch (error) {
+          handleError(error, 'searchCIs', '搜索配置项失败');
+          setCISearchResults([]);
+        } finally {
+          setCISearching(false);
+        }
+      };
+
+      const timeoutId = setTimeout(fetchCIs, 300);
+      return () => clearTimeout(timeoutId);
+    } else {
+      setCISearchResults([]);
+    }
+  }, [ciSearchTerm]);
+
+  const handleAddCI = (ci: ConfigurationItem) => {
+    if (!selectedCIs.find(item => item.id === ci.id)) {
+      setSelectedCIs([...selectedCIs, ci]);
+    }
+    setCISearchTerm('');
+    setCISearchResults([]);
+  };
+
+  const handleRemoveCI = (ciId: number) => {
+    setSelectedCIs(selectedCIs.filter(ci => ci.id !== ciId));
+  };
+
+  /**
+   * AI 智能分析：并行请求分类建议与相似历史事件。
+   * 两项独立降级——任一失败不影响另一项，避免用户产生「AI 整体不可用」的错觉。
+   */
+  const handleAIAnalyze = async () => {
+    const title: string = form.getFieldValue('title') || '';
+    const description: string = form.getFieldValue('description') || '';
+
+    if (!title.trim() && !description.trim()) {
+      notify.warning('请先填写事件标题或描述，AI 才能据此给出建议');
+      return;
+    }
+
+    setAiLoading(true);
+    setAiSuggestion(null);
+    setSimilarIncidents([]);
+
+    const [triageRes, similarRes] = await Promise.allSettled([
+      AIApi.triage(title, description),
+      AIApi.similarIncidents(`${title} ${description}`.trim(), 3),
+    ]);
+
+    let hasResult = false;
+    if (triageRes.status === 'fulfilled' && triageRes.value) {
+      setAiSuggestion(triageRes.value);
+      hasResult = true;
+    }
+    if (similarRes.status === 'fulfilled' && similarRes.value?.incidents?.length) {
+      setSimilarIncidents(similarRes.value.incidents);
+      hasResult = true;
+    }
+
+    setAiLoading(false);
+
+    if (!hasResult) {
+      notify.aiUnavailable('AI 智能分析');
+    }
+  };
+
+  /** 采纳 AI 建议：仅回填白名单内且有值的字段，并明确告知采纳了哪些 */
+  const handleApplySuggestion = () => {
+    if (!aiSuggestion) return;
+
+    const patch: Record<string, unknown> = {};
+    const applied: string[] = [];
+
+    if (aiSuggestion.priority && PRIORITY_VALUES.includes(aiSuggestion.priority)) {
+      patch.priority = aiSuggestion.priority;
+      applied.push('优先级');
+    }
+    if (aiSuggestion.urgency && PRIORITY_VALUES.includes(aiSuggestion.urgency)) {
+      patch.urgency = aiSuggestion.urgency;
+      applied.push('紧急度');
+    }
+    if (aiSuggestion.category && CATEGORY_VALUES.includes(aiSuggestion.category)) {
+      patch.category = aiSuggestion.category;
+      applied.push('分类');
+    }
+
+    if (applied.length === 0) {
+      notify.warning('AI 建议的字段与当前表单选项不匹配，请手动选择');
+      return;
+    }
+
+    form.setFieldsValue(patch);
+    notify.success(`已采纳 ${applied.join('、')}，你仍可手动调整`);
+  };
+
+  const handleSubmit = async (values: IncidentFormValues) => {
+    setLoading(true);
+    try {
+      await IncidentAPI.createIncident({
+        title: values.title,
+        description: values.description,
+        priority: values.priority,
+        source: values.source || 'manual',
+        type: values.type || 'incident',
+        category: values.category,
+        impact: values.impact,
+        urgency: values.urgency,
+        assigneeId: values.assignedTo,
+        configurationItemIds: selectedCIs.map(ci => ci.id),
+      });
+      message.success('事件创建成功');
+      navigate('/incidents');
+    } catch (error) {
+      handleError(error, 'createIncident', '创建失败，请重试');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="p-6 min-h-screen bg-gray-50">
+      {/* 返回按钮 */}
+      <div className="mb-6">
+        <Button
+          type="link"
+          icon={<ArrowLeft />}
+          onClick={() => navigate(-1)}
+          style={{ paddingLeft: 0 }}
+        >
+          返回列表
+        </Button>
+      </div>
+
+      {/* 页面标题 */}
+      <div className="mb-6">
+        <Title level={2} style={{ marginBottom: 4 }}>创建事件</Title>
+        <Text type="secondary">填写事件信息以创建新的事件记录</Text>
+      </div>
+
+      <Row gutter={24}>
+        {/* 左侧表单 */}
+        <Col xs={24} lg={16}>
+          <Card>
+            <Form
+              form={form}
+              data-testid="incident-create-form"
+              layout="vertical"
+              onFinish={handleSubmit}
+              initialValues={{
+                priority: 'medium',
+                impact: 'medium',
+                urgency: 'medium',
+                source: 'manual',
+                type: 'incident',
+              }}
+            >
+              <Tabs
+                activeKey={activeTab}
+                onChange={setActiveTab}
+                items={[
+                  {
+                    key: 'basic',
+                    label: '基本信息',
+                    children: (
+                      <>
+                        <Form.Item
+                          name="title"
+                          label="事件标题"
+                          rules={[{ required: true, message: '请输入事件标题' }]}
+                        >
+                          <Input placeholder="简要描述事件" maxLength={200} showCount data-testid="incident-title-input" />
+                        </Form.Item>
+
+                        <Form.Item
+                          name="description"
+                          label="详细描述"
+                          rules={[{ required: true, message: '请输入事件描述' }]}
+                        >
+                          <TextArea
+                            rows={6}
+                            placeholder="详细描述事件的发生情况、影响范围、错误信息等"
+                            data-testid="incident-description-input"
+                          />
+                        </Form.Item>
+
+                        {/* AI 智能辅助：分类建议 + 相似历史事件 */}
+                        <div className="mb-4">
+                          <Button
+                            icon={<Sparkles />}
+                            onClick={handleAIAnalyze}
+                            loading={aiLoading}
+                            data-testid="incident-ai-analyze-btn"
+                          >
+                            {aiLoading ? 'AI 分析中…' : 'AI 智能分析'}
+                          </Button>
+                          <Text type="secondary" className="ml-2" style={{ fontSize: 12 }}>
+                            根据标题与描述推荐优先级/分类，并检索相似历史事件作为参考
+                          </Text>
+                        </div>
+
+                        {aiSuggestion && (
+                          <Card
+                            size="small"
+                            className="mb-4"
+                            title={
+                              <Space>
+                                <Sparkles size={14} />
+                                <span>AI 分类建议</span>
+                                <Tag color="blue">
+                                  置信度{' '}
+                                  {Math.round(
+                                    aiSuggestion.confidence > 1
+                                      ? aiSuggestion.confidence
+                                      : aiSuggestion.confidence * 100
+                                  )}
+                                  %
+                                </Tag>
+                              </Space>
+                            }
+                            extra={
+                              <Button
+                                type="link"
+                                size="small"
+                                onClick={handleApplySuggestion}
+                                data-testid="incident-ai-apply-btn"
+                              >
+                                采纳建议
+                              </Button>
+                            }
+                          >
+                            <Space orientation="vertical" size={4} style={{ width: '100%' }}>
+                              <Space wrap size={4}>
+                                {aiSuggestion.priority && (
+                                  <Tag color="red">优先级：{aiSuggestion.priority}</Tag>
+                                )}
+                                {aiSuggestion.urgency && (
+                                  <Tag color="orange">紧急度：{aiSuggestion.urgency}</Tag>
+                                )}
+                                {aiSuggestion.category && (
+                                  <Tag color="purple">分类：{aiSuggestion.category}</Tag>
+                                )}
+                              </Space>
+                              {aiSuggestion.explanation && (
+                                <Text type="secondary" style={{ fontSize: 12 }}>
+                                  依据：{aiSuggestion.explanation}
+                                </Text>
+                              )}
+                              <Text type="secondary" style={{ fontSize: 12 }}>
+                                建议仅供参考，需你点击「采纳建议」后才会写入表单。
+                              </Text>
+                            </Space>
+                          </Card>
+                        )}
+
+                        {similarIncidents.length > 0 && (
+                          <Card size="small" className="mb-4" title="相似历史事件">
+                            <Space orientation="vertical" size={8} style={{ width: '100%' }}>
+                              {similarIncidents.map(item => (
+                                <div
+                                  key={`${item.objectType}-${item.id}`}
+                                  style={{
+                                    borderLeft: '3px solid #d9d9d9',
+                                    paddingLeft: 8,
+                                  }}
+                                >
+                                  <Space size={6} wrap>
+                                    <a
+                                      href={`/incidents/${item.id}`}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                      style={{ fontWeight: 500 }}
+                                    >
+                                      {item.title || `事件 #${item.id}`}
+                                    </a>
+                                    {typeof item.score === 'number' && (
+                                      <Tag>匹配度 {Math.round(item.score * 100)}%</Tag>
+                                    )}
+                                    {item.authorityLevel !== undefined && (
+                                      <Tag color={item.authorityLevel >= 20 ? 'green' : 'default'}>
+                                        {item.authorityLevel >= 30
+                                          ? '唯一真相源'
+                                          : item.authorityLevel >= 20
+                                            ? '官方标准'
+                                            : item.authorityLevel >= 10
+                                              ? '部门推荐'
+                                              : '普通'}
+                                      </Tag>
+                                    )}
+                                  </Space>
+                                  {item.snippet && (
+                                    <div
+                                      style={{
+                                        color: 'rgba(0,0,0,0.45)',
+                                        fontSize: 12,
+                                        marginTop: 2,
+                                      }}
+                                    >
+                                      {item.snippet}
+                                    </div>
+                                  )}
+                                </div>
+                              ))}
+                            </Space>
+                          </Card>
+                        )}
+
+                        <Row gutter={16}>
+                          <Col span={8}>
+                            <Form.Item
+                              name="priority"
+                              label="优先级"
+                              rules={[{ required: true }]}
+                            >
+                              <Select options={[
+                                { value: 'critical', label: '紧急' },
+                                { value: 'high', label: '高' },
+                                { value: 'medium', label: '中' },
+                                { value: 'low', label: '低' },
+                              ]} />
+                            </Form.Item>
+                          </Col>
+                          <Col span={8}>
+                            <Form.Item
+                              name="source"
+                              label="来源"
+                              rules={[{ required: true }]}
+                            >
+                              <Select options={[
+                                { value: 'manual', label: '手动创建' },
+                                { value: 'monitoring', label: '监控告警' },
+                                { value: 'system', label: '系统' },
+                                { value: 'user', label: '用户' },
+                              ]} />
+                            </Form.Item>
+                          </Col>
+                          <Col span={8}>
+                            <Form.Item
+                              name="type"
+                              label="类型"
+                              rules={[{ required: true }]}
+                            >
+                              <Select options={[
+                                { value: 'incident', label: '事件' },
+                                { value: 'service_request', label: '服务请求' },
+                                { value: 'security_event', label: '安全事件' },
+                                { value: 'alert', label: '告警' },
+                              ]} />
+                            </Form.Item>
+                          </Col>
+                        </Row>
+                        <Row gutter={16}>
+                          <Col span={12}>
+                            <Form.Item
+                              name="category"
+                              label="事件分类"
+                            >
+                              <Select placeholder="选择分类" options={IncidentCategoryOptions} />
+                            </Form.Item>
+                          </Col>
+                          <Col span={12}>
+                            <Form.Item
+                              name="assignedTo"
+                              label="指派给"
+                            >
+                              <Select
+                                placeholder="选择负责人"
+                                allowClear
+                                loading={usersLoading}
+                                showSearch
+                                optionFilterProp="children"
+                                options={users.map(user => ({
+                                  value: user.id,
+                                  label: user.name || user.username,
+                                }))}
+                              />
+                            </Form.Item>
+                          </Col>
+                        </Row>
+
+                        {/* CI配置项关联 */}
+                        <Form.Item label="关联配置项">
+                          <div className="space-y-3">
+                            {/* 已选择的CI列表 */}
+                            {selectedCIs.length > 0 && (
+                              <div className="flex flex-wrap gap-2">
+                                {selectedCIs.map(ci => (
+                                  <Tag
+                                    key={ci.id}
+                                    closable
+                                    onClose={() => handleRemoveCI(ci.id)}
+                                    color="blue"
+                                  >
+									{ci.name} ({ci.type || 'CI'})
+                                  </Tag>
+                                ))}
+                              </div>
+                            )}
+
+                            {/* CI搜索框 */}
+                            <div className="relative">
+                              <Input
+                                placeholder="搜索配置项名称或编号"
+                                prefix={<Search />}
+                                value={ciSearchTerm}
+                                onChange={e => setCISearchTerm(e.target.value)}
+                                suffix={ciSearching ? <Spin size="small" /> : null}
+                              />
+
+                              {/* 搜索结果下拉 */}
+                              {ciSearchResults.length > 0 && (
+                                <div className="absolute z-10 w-full mt-1 bg-white border rounded-md shadow-lg max-h-60 overflow-auto">
+                                  {ciSearchResults.map(ci => (
+                                    <div
+                                      key={ci.id}
+                                      className="px-3 py-2 hover:bg-gray-50 cursor-pointer flex justify-between items-center"
+                                      onClick={() => handleAddCI(ci)}
+                                    >
+                                      <div>
+                                        <div className="font-medium">{ci.name}</div>
+										<div className="text-xs text-gray-500">{ci.type || 'CI'} - {ciStatusNameMap[ci.status] || ci.status}</div>
+                                      </div>
+                                      {selectedCIs.find(item => item.id === ci.id) && (
+                                        <Tag color="green">已选择</Tag>
+                                      )}
+                                    </div>
+                                  ))}
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        </Form.Item>
+                      </>
+                    ),
+                  },
+                  {
+                    key: 'impact',
+                    label: '影响分析',
+                    children: (
+                      <>
+                        <Row gutter={16}>
+                          <Col span={12}>
+                            <Form.Item
+                              name="impact"
+                              label="影响范围"
+                              rules={[{ required: true }]}
+                            >
+                              <Select options={[
+                                { value: 'critical', label: '全局' },
+                                { value: 'high', label: '部门级' },
+                                { value: 'medium', label: '团队级' },
+                                { value: 'low', label: '个人' },
+                              ]} />
+                            </Form.Item>
+                          </Col>
+                          <Col span={12}>
+                            <Form.Item
+                              name="urgency"
+                              label="紧急程度"
+                              rules={[{ required: true }]}
+                            >
+                              <Select options={[
+                                { value: 'critical', label: '紧急' },
+                                { value: 'high', label: '高' },
+                                { value: 'medium', label: '中' },
+                                { value: 'low', label: '低' },
+                              ]} />
+                            </Form.Item>
+                          </Col>
+                        </Row>
+
+                        <Form.Item
+                          name="affectedSystems"
+                          label="受影响系统"
+                        >
+                          <Select
+                            mode="multiple"
+                            placeholder="选择受影响的系统"
+                            allowClear
+                            options={[
+                              { value: 'web', label: 'Web网站' },
+                              { value: 'api', label: 'API服务' },
+                              { value: 'database', label: '数据库' },
+                              { value: 'network', label: '网络' },
+                              { value: 'storage', label: '存储' },
+                            ]}
+                          />
+                        </Form.Item>
+
+                        <Form.Item
+                          name="rootCause"
+                          label="初步原因分析"
+                        >
+                          <TextArea
+                            rows={4}
+                            placeholder="初步分析可能的原因"
+                          />
+                        </Form.Item>
+                      </>
+                    ),
+                  },
+                  {
+                    key: 'attachment',
+                    label: '附件',
+                    children: (
+                      <>
+                        <Form.Item
+                          name="attachments"
+                          label="上传附件"
+                          valuePropName="fileList"
+                          getValueFromEvent={(e) => {
+                            if (Array.isArray(e)) return e;
+                            return e?.fileList;
+                          }}
+                        >
+                          <Upload name="logo" action="/upload.do" listType="text">
+                            <Button icon={<Upload />}>上传附件</Button>
+                          </Upload>
+                        </Form.Item>
+                        <Text type="secondary">
+                          支持上传图片、文档等附件，单个文件不超过10MB
+                        </Text>
+                      </>
+                    ),
+                  },
+                ]}
+              />
+
+              <Divider />
+
+              <Form.Item className="!mb-0">
+                <Space>
+                  <Button
+                    type="primary"
+                    htmlType="submit"
+                    loading={loading}
+                    data-testid="incident-submit-button"
+                  >
+                    提交
+                  </Button>
+                  <Button onClick={() => navigate(-1)}>取消</Button>
+                </Space>
+              </Form.Item>
+            </Form>
+          </Card>
+        </Col>
+
+        {/* 右侧信息 */}
+        <Col xs={24} lg={8}>
+          <Card title="创建提示" className="mb-4">
+            <Space orientation="vertical" className="w-full">
+              <div>
+                <Text strong>优先级说明</Text>
+                <ul className="mt-2 text-sm text-gray-600">
+                  <li>🔴 紧急：系统完全不可用</li>
+                  <li>🟠 高：核心功能受影响</li>
+                  <li>🔵 中：非核心功能受影响</li>
+                  <li>🟢 低：轻微问题</li>
+                </ul>
+              </div>
+              <Divider className="!my-2" />
+              <div>
+                <Text strong>紧急联系方式</Text>
+                <ul className="mt-2 text-sm text-gray-600">
+                  <li>电话：400-XXX-XXXX</li>
+                  <li>邮箱：support@example.com</li>
+                </ul>
+              </div>
+            </Space>
+          </Card>
+        </Col>
+      </Row>
+    </div>
+  );
+}

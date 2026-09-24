@@ -62,17 +62,17 @@ export const RICH_TEXT_ALLOWED_ATTR = [
 ];
 
 /** 允许的内联图片主机（逗号分隔，来自环境变量；相对路径始终允许） */
-const ENV_IMAGE_HOSTS = (process.env.NEXT_PUBLIC_RICH_TEXT_IMAGE_HOSTS || '')
+const ENV_IMAGE_HOSTS = (import.meta.env.VITE_RICH_TEXT_IMAGE_HOSTS || '')
   .split(',')
   .map((h) => h.trim().toLowerCase())
   .filter(Boolean);
 
 /**
  * 富文本功能开关。
- * NEXT_PUBLIC_RICH_TEXT=off 时回退到原有 Input.TextArea。
+ * VITE_RICH_TEXT=off 时回退到原有 Input.TextArea。
  */
 export function isRichTextEnabled(): boolean {
-  return (process.env.NEXT_PUBLIC_RICH_TEXT || 'on').toLowerCase() !== 'off';
+  return (import.meta.env.VITE_RICH_TEXT || 'on').toLowerCase() !== 'off';
 }
 
 const MAX_PLAIN_LENGTH = PLAIN_TEXT_MAX_LENGTH;

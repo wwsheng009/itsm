@@ -1,4 +1,4 @@
-'use client';
+import { useNavigate, useParams } from 'react-router';
 
 /**
  * 资产详情组件
@@ -21,7 +21,6 @@ import {
   Typography,
 } from 'antd';
 import { ArrowLeft, User as UserIcon, Monitor, MapPin } from 'lucide-react';
-import { useParams, useRouter } from 'next/navigation';
 import dayjs from 'dayjs';
 
 import type { Asset } from '@/lib/api/asset-api';
@@ -57,7 +56,7 @@ const typeLabels: Record<string, string> = {
 
 const AssetDetail: React.FC = () => {
   const { id } = useParams() as { id: string };
-  const router = useRouter();
+  const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
   const [asset, setAsset] = useState<Asset | null>(null);
   const [assignModalVisible, setAssignModalVisible] = useState(false);
@@ -140,7 +139,7 @@ const AssetDetail: React.FC = () => {
           title="404"
           subTitle="抱歉，您访问的资产不存在"
           extra={
-            <Button type="primary" onClick={() => router.push('/assets')}>
+            <Button type="primary" onClick={() => navigate('/assets')}>
               返回列表
             </Button>
           }
@@ -155,7 +154,7 @@ const AssetDetail: React.FC = () => {
         <div style={{ marginBottom: 24 }}>
           <Button
             icon={<ArrowLeft />}
-            onClick={() => router.push('/assets')}
+            onClick={() => navigate('/assets')}
             style={{ marginBottom: 16 }}
           >
             返回列表
@@ -241,7 +240,7 @@ const AssetDetail: React.FC = () => {
 
       <Card>
         <Space>
-          <Button type="primary" onClick={() => router.push(`/assets/${asset.id}/edit`)}>
+          <Button type="primary" onClick={() => navigate(`/assets/${asset.id}/edit`)}>
             编辑
           </Button>
           {asset.status === 'available' && (

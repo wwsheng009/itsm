@@ -1,4 +1,3 @@
-'use client';
 
 /**
  * CommentAttachmentField / CommentAttachmentList —— 评论附件的选择与展示（FE-9）。

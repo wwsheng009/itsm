@@ -1,4 +1,4 @@
-'use client';
+import { useNavigate } from 'react-router';
 
 /**
  * 发布列表组件
@@ -24,7 +24,6 @@ import {
   Grid,
 } from 'antd';
 import { Search, Plus, Pencil, Eye, Rocket } from 'lucide-react';
-import { useRouter } from 'next/navigation';
 import dayjs from 'dayjs';
 
 import {
@@ -58,7 +57,7 @@ const typeColors: Record<string, string> = {
 };
 
 const ReleaseList: React.FC = () => {
-  const router = useRouter();
+  const navigate = useNavigate();
   const { message } = App.useApp();
   const [loading, setLoading] = useState(false);
   const [data, setData] = useState<Release[]>([]);
@@ -254,7 +253,7 @@ const ReleaseList: React.FC = () => {
           <Button
             type="primary"
             icon={<Plus />}
-            onClick={() => router.push('/releases/new')}
+            onClick={() => navigate('/releases/new')}
           >
             创建发布
           </Button>
@@ -353,7 +352,7 @@ const ReleaseList: React.FC = () => {
           locale={{
             emptyText: (
               <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="暂无发布数据">
-                <Button type="primary" onClick={() => router.push('/releases/new')}>
+                <Button type="primary" onClick={() => navigate('/releases/new')}>
                   创建第一个发布
                 </Button>
               </Empty>

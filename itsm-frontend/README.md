@@ -1,4 +1,4 @@
-# ITSM Frontend (Next.js)
+# ITSM Frontend (Vite + React)
 
 ## Quick Start
 
@@ -13,7 +13,7 @@ npm install
 
 ```
 cp .env.example .env.local
-# Local direct-backend development may set NEXT_PUBLIC_API_URL=http://localhost:8090.
+# Local direct-backend development may set VITE_API_URL=http://localhost:8090.
 # Production should leave it empty so /api/v1/* stays same-origin behind Nginx.
 ```
 
@@ -41,8 +41,11 @@ npm run lint:check
 
 ```bash
 npm run build
-test -f .next/standalone/server.js
+test -f dist/index.html
 ```
 
+`npm run preview` serves the built `dist/` locally; production serves the same
+static assets through Nginx (SPA fallback to `index.html`).
+
 The browser-facing API base is empty by default. Requests already include
-`/api/v1`, while server-side proxying uses `ITSM_BACKEND_URL`.
+`/api/v1`, while the Vite dev server proxy uses `ITSM_BACKEND_URL`.

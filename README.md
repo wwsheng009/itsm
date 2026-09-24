@@ -151,7 +151,7 @@ make dev-status
 make dev-health
 
 curl http://localhost:8090/api/v1/health
-curl http://localhost:3000/api/health
+curl http://localhost:3000/health
 ```
 
 查看日志和停止环境：

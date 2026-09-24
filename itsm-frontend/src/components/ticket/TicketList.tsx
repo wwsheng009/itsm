@@ -1,4 +1,4 @@
-'use client';
+import { useNavigate } from 'react-router';
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { Dayjs } from 'dayjs';
@@ -6,7 +6,6 @@ import { App, Card, Divider, Table } from 'antd';
 import type { FilterValue, TablePaginationConfig, SorterResult, TableCurrentDataSource } from 'antd/es/table/interface';
 import type { TableProps } from 'antd/es/table';
 import dayjs from 'dayjs';
-import { useRouter } from 'next/navigation';
 
 import { TicketApi } from '@/lib/api/ticket-api';
 import type { Ticket } from '@/lib/api/types';
@@ -55,7 +54,7 @@ const TicketList: React.FC<TicketListProps> = ({
   onTicketSelect,
   advancedFilters,
 }) => {
-  const router = useRouter();
+  const navigate = useNavigate();
   const { message, modal } = App.useApp();
   const {
     tickets,
@@ -105,15 +104,15 @@ const TicketList: React.FC<TicketListProps> = ({
       if (onTicketSelect) {
         onTicketSelect(ticket);
       } else {
-        router.push(`/tickets/${ticket.id}`);
+        navigate(`/tickets/${ticket.id}`);
       }
     },
-    [onTicketSelect, router]
+    [onTicketSelect, navigate]
   );
 
   const editTicket = useCallback(
-    (ticket: Ticket) => router.push(`/tickets/${ticket.id}?mode=edit`),
-    [router]
+    (ticket: Ticket) => navigate(`/tickets/${ticket.id}?mode=edit`),
+    [navigate]
   );
 
   // `filters` is read through a ref inside Modal callbacks so a confirmation
@@ -309,7 +308,7 @@ const TicketList: React.FC<TicketListProps> = ({
             onRefresh={handleRefresh}
             onBatchDelete={handleBatchDelete}
             onExport={handleExport}
-            onCreate={() => router.push('/tickets/create')}
+            onCreate={() => navigate('/tickets/create')}
           />
           {showFilters && (
             <Card className='rounded-lg shadow-sm'>

@@ -1,4 +1,3 @@
-'use client';
 
 import React from 'react';
 import { usePermissions } from '@/lib/hooks/use-permissions';

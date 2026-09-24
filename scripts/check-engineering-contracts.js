@@ -11,14 +11,15 @@ const CONTRACTS = [
   {
     id: 'browser-api-same-origin',
     file: 'itsm-frontend/src/lib/api/api-config.ts',
-    require: [/API_BASE_URL\s*=\s*process\.env\.NEXT_PUBLIC_API_URL\s*\|\|\s*''/],
+    // Vite 迁移后：构建期注入 import.meta.env.VITE_*（见 docs/plan/vite-migration-plan.md §5.7）
+    require: [/API_BASE_URL\s*=\s*import\.meta\.env\.VITE_API_URL\s*\|\|\s*''/],
     forbid: [/localhost:8090/, /process\.env\.ITSM_BACKEND_URL/],
   },
   {
     id: 'production-env-api-base',
     file: '.env.prod.example',
-    require: [/^NEXT_PUBLIC_API_URL=\s*$/m, /^ITSM_BACKEND_URL=http:\/\/itsm-backend:8090\s*$/m],
-    forbid: [/^NEXT_PUBLIC_API_URL=\/api\s*$/m, /^NEXT_PUBLIC_API_URL=https?:\/\//m],
+    require: [/^VITE_API_URL=\s*$/m, /^ITSM_BACKEND_URL=http:\/\/itsm-backend:8090\s*$/m],
+    forbid: [/^VITE_API_URL=\/api\s*$/m, /^VITE_API_URL=https?:\/\//m],
   },
   {
     id: 'frontend-docker-env-isolation',
@@ -52,14 +53,14 @@ const CONTRACTS = [
   {
     id: 'frontend-ci-same-origin',
     file: '.github/workflows/frontend-ci.yml',
-    require: [/NEXT_PUBLIC_API_URL:\s*''/],
-    forbid: [/NEXT_PUBLIC_API_URL:\s*https?:\/\//],
+    require: [/VITE_API_URL:\s*''/],
+    forbid: [/VITE_API_URL:\s*https?:\/\//],
   },
   {
     id: 'release-same-origin',
     file: '.github/workflows/release.yml',
-    require: [/NEXT_PUBLIC_API_URL:\s*''/],
-    forbid: [/NEXT_PUBLIC_API_URL:\s*https?:\/\//],
+    require: [/VITE_API_URL:\s*''/],
+    forbid: [/VITE_API_URL:\s*https?:\/\//],
   },
   {
     id: 'reproducible-docs',

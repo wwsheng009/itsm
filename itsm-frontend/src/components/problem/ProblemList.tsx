@@ -1,4 +1,4 @@
-'use client';
+import { useNavigate } from 'react-router';
 
 /**
  * 问题列表组件
@@ -21,7 +21,6 @@ import {
 } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
 import { Search, Plus, Pencil, Trash2, Eye, RefreshCw } from 'lucide-react';
-import { useRouter } from 'next/navigation';
 import dayjs from 'dayjs';
 
 import { ProblemApi } from '@/lib/api/';
@@ -66,7 +65,7 @@ const ProblemList: React.FC<ProblemListProps> = ({
   status,
   priority,
 }) => {
-  const router = useRouter();
+  const navigate = useNavigate();
   const { message } = App.useApp();
   const [loading, setLoading] = useState(false);
   const [data, setData] = useState<Problem[]>([]);
@@ -193,14 +192,14 @@ const ProblemList: React.FC<ProblemListProps> = ({
             <Button
               type="text"
               icon={<Eye />}
-              onClick={() => router.push(`/problems/${record.id}`)}
+              onClick={() => navigate(`/problems/${record.id}`)}
             />
           </Tooltip>
           <Tooltip title="编辑">
             <Button
               type="text"
               icon={<Pencil />}
-              onClick={() => router.push(`/problems/${record.id}/edit`)}
+              onClick={() => navigate(`/problems/${record.id}/edit`)}
             />
           </Tooltip>
           <Tooltip title="删除">
@@ -243,7 +242,7 @@ const ProblemList: React.FC<ProblemListProps> = ({
         <Button
           type="primary"
           icon={<Plus />}
-          onClick={() => router.push('/problems/new')}
+          onClick={() => navigate('/problems/new')}
           size="large"
         >
           新建问题
@@ -294,7 +293,7 @@ const ProblemList: React.FC<ProblemListProps> = ({
 
         {data.length === 0 && !loading ? (
           <Empty description="暂无问题记录" image={Empty.PRESENTED_IMAGE_SIMPLE}>
-            <Button type="primary" onClick={() => router.push('/problems/new')}>
+            <Button type="primary" onClick={() => navigate('/problems/new')}>
               创建第一个问题
             </Button>
           </Empty>

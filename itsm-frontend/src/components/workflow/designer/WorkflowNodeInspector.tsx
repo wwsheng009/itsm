@@ -1,8 +1,6 @@
 // 工作流节点属性检查器
 // Workflow Node Inspector - 监听 BPMN 画布选中节点并编辑其属性
 
-'use client';
-
 import React, { useEffect, useState, useRef, useCallback } from 'react';
 import { Card, Empty, Select, Input, Tag, Typography, Space, Divider, Alert, Button, Switch, Tooltip, Collapse, Badge } from 'antd';
 import {

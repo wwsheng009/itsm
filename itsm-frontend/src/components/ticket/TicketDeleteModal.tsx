@@ -1,4 +1,3 @@
-'use client';
 
 import { Modal } from 'antd';
 import { AlertCircle } from 'lucide-react';

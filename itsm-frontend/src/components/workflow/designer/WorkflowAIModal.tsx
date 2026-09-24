@@ -1,8 +1,6 @@
 // AI辅助设计模态框
 // Workflow AI Assistant Modal Component
 
-'use client';
-
 import React, { useState } from 'react';
 import {
   Alert,

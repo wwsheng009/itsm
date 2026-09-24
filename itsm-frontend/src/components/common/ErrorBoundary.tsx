@@ -1,4 +1,3 @@
-'use client';
 
 import type { ErrorInfo, ReactNode } from 'react';
 import React, { Component } from 'react';

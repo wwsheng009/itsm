@@ -1,0 +1,294 @@
+
+import React, { useEffect, useMemo, useState } from 'react';
+import {
+  Alert,
+  Button,
+  Card,
+  Col,
+  Form,
+  Input,
+  InputNumber,
+  Modal,
+  Row,
+  Select,
+  Space,
+  Steps,
+  Table,
+  Tag,
+  Typography,
+  App,
+} from 'antd';
+import type { ColumnsType } from 'antd/es/table';
+import { GitBranch, Plus, RefreshCw, Search } from 'lucide-react';
+import type { DomainConfig, EffectiveConfig } from '@/lib/api/domain-config-api';
+import { DomainConfigApi } from '@/lib/api/domain-config-api';
+
+const { Title, Text } = Typography;
+
+export default function ConfigInheritancePage() {
+  const { message } = App.useApp();
+  const [configs, setConfigs] = useState<DomainConfig[]>([]);
+  const [effectiveConfig, setEffectiveConfig] = useState<EffectiveConfig | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [previewLoading, setPreviewLoading] = useState(false);
+  const [previewed, setPreviewed] = useState(false);
+  const [modalOpen, setModalOpen] = useState(false);
+  const [form] = Form.useForm();
+  const [previewForm] = Form.useForm();
+
+  const loadConfigs = async () => {
+    setLoading(true);
+    try {
+      const data = await DomainConfigApi.list();
+      setConfigs(data);
+    } catch (error) {
+      console.error(error);
+      message.error('加载配置失败');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadConfigs();
+  }, []);
+
+  const handleSave = async () => {
+    try {
+      const values = await form.validateFields();
+      await DomainConfigApi.save({
+        ...values,
+        configValue: parseJSONObject(values.configValue),
+      });
+      message.success('配置已保存');
+      setModalOpen(false);
+      form.resetFields();
+      loadConfigs();
+    } catch (error) {
+      console.error(error);
+      message.error(error instanceof Error ? error.message : '保存配置失败');
+    }
+  };
+
+  const handlePreview = async () => {
+    try {
+      const values = await previewForm.validateFields();
+      setPreviewLoading(true);
+      const data = await DomainConfigApi.getEffective({
+        configType: values.configType,
+        configKey: values.configKey,
+        departmentId: values.departmentId,
+        teamId: values.teamId,
+      });
+      setEffectiveConfig(data);
+      setPreviewed(true);
+    } catch (error) {
+      console.error(error);
+      message.error(error instanceof Error ? error.message : '解析有效配置失败');
+    } finally {
+      setPreviewLoading(false);
+    }
+  };
+
+  const columns: ColumnsType<DomainConfig> = [
+    {
+      title: '配置类型',
+      dataIndex:'configType',
+      key:'configType',
+      render: value => <Tag color="blue">{value}</Tag>,
+    },
+    {
+      title: '配置键',
+      dataIndex:'configKey',
+      key:'configKey',
+    },
+    {
+      title: '作用域',
+      key: 'scope',
+      render: (_, record) => {
+        if (record.teamId > 0) return <Tag color="purple">团队 #{record.teamId}</Tag>;
+        if (record.departmentId > 0) return <Tag color="geekblue">部门 #{record.departmentId}</Tag>;
+        if (record.tenantId > 0) return <Tag color="green">租户</Tag>;
+        return <Tag>全局</Tag>;
+      },
+    },
+    {
+      title: '继承模式',
+      dataIndex:'inheritMode',
+      key:'inheritMode',
+      render: value => {
+        const color = value === 'override' ? 'red' : value === 'extend' ? 'gold' : 'default';
+        return <Tag color={color}>{value}</Tag>;
+      },
+    },
+    {
+      title: '版本',
+      dataIndex: 'version',
+      key: 'version',
+      width: 90,
+    },
+    {
+      title: '描述',
+      dataIndex: 'description',
+      key: 'description',
+      ellipsis: true,
+    },
+  ];
+
+  const chainItems = useMemo(
+    () => [
+      { title: '全局', description: '对所有租户生效' },
+      { title: '租户', description: '当前租户' },
+      { title: '部门', description: '部门祖先链' },
+      { title: '团队', description: '团队覆盖' },
+    ],
+    []
+  );
+
+  return (
+    <div className="space-y-6">
+      <div>
+        <Title level={2} className="!mb-2">
+          <GitBranch className="mr-2" />
+          配置继承
+        </Title>
+        <Text type="secondary">查看全局 → 租户 → 部门 → 团队 的配置继承与最终生效结果</Text>
+      </div>
+
+      <Row gutter={[16, 16]}>
+        <Col xs={24} lg={16}>
+          <Card
+            title="配置列表"
+            extra={
+              <Space>
+                <Button icon={<RefreshCw size={16} />} onClick={loadConfigs} loading={loading}>
+                  刷新
+                </Button>
+                <Button type="primary" icon={<Plus size={16} />} onClick={() => setModalOpen(true)}>
+                  新增配置
+                </Button>
+              </Space>
+            }
+          >
+            <Table columns={columns} dataSource={configs} rowKey="id" loading={loading} />
+          </Card>
+        </Col>
+
+        <Col xs={24} lg={8}>
+          <Card title="继承链" style={{ marginBottom: 16 }}>
+            <Steps orientation="vertical" size="small" current={3} items={chainItems} />
+          </Card>
+
+          <Card title="有效配置预览">
+            <Form form={previewForm} layout="vertical">
+              <Form.Item name="configType" label="配置类型" rules={[{ required: true }]}>
+                <Input placeholder="process_binding / approval_workflow / sla_rule" />
+              </Form.Item>
+              <Form.Item name="configKey" label="配置键" rules={[{ required: true }]}>
+                <Input placeholder="default_sla" />
+              </Form.Item>
+              <Row gutter={12}>
+                <Col span={12}>
+                  <Form.Item name="departmentId" label="部门ID">
+                    <InputNumber min={0} style={{ width: '100%' }} />
+                  </Form.Item>
+                </Col>
+                <Col span={12}>
+                  <Form.Item name="teamId" label="团队ID">
+                    <InputNumber min={0} style={{ width: '100%' }} />
+                  </Form.Item>
+                </Col>
+              </Row>
+              <Button block type="primary" icon={<Search size={16} />} loading={previewLoading} onClick={handlePreview}>
+                解析有效配置
+              </Button>
+            </Form>
+
+            {effectiveConfig && (
+              <Alert
+                style={{ marginTop: 16 }}
+                type="success"
+                message={`来源：${effectiveConfig.source} / 模式：${effectiveConfig.inheritMode} / 版本：${effectiveConfig.version}`}
+                description={<pre style={{ margin: 0 }}>{JSON.stringify(effectiveConfig.value, null, 2)}</pre>}
+              />
+            )}
+            {previewed && !effectiveConfig && !previewLoading && (
+              <Alert
+                style={{ marginTop: 16 }}
+                type="info"
+                showIcon
+                message="全链路未命中配置"
+                description="全局 → 租户 → 部门 → 团队 各层级均未定义该配置，运行时使用代码默认值。"
+              />
+            )}
+          </Card>
+        </Col>
+      </Row>
+
+      <Modal
+        title="新增/更新配置"
+        open={modalOpen}
+        onCancel={() => setModalOpen(false)}
+        onOk={handleSave}
+        width={720}
+      >
+        <Form form={form} layout="vertical">
+          <Row gutter={16}>
+            <Col span={12}>
+              <Form.Item name="configType" label="配置类型" rules={[{ required: true }]}>
+                <Input />
+              </Form.Item>
+            </Col>
+            <Col span={12}>
+              <Form.Item name="configKey" label="配置键" rules={[{ required: true }]}>
+                <Input />
+              </Form.Item>
+            </Col>
+          </Row>
+          <Row gutter={16}>
+            <Col span={8}>
+              <Form.Item name="departmentId" label="部门ID" initialValue={0}>
+                <InputNumber min={0} style={{ width: '100%' }} />
+              </Form.Item>
+            </Col>
+            <Col span={8}>
+              <Form.Item name="teamId" label="团队ID" initialValue={0}>
+                <InputNumber min={0} style={{ width: '100%' }} />
+              </Form.Item>
+            </Col>
+            <Col span={8}>
+              <Form.Item name="inheritMode" label="继承模式" initialValue="inherit">
+                <Select
+                  options={[
+                    { value: 'inherit', label: 'inherit' },
+                    { value: 'override', label: 'override' },
+                    { value: 'extend', label: 'extend' },
+                  ]}
+                />
+              </Form.Item>
+            </Col>
+          </Row>
+          <Form.Item name="description" label="描述">
+            <Input />
+          </Form.Item>
+          <Form.Item
+            name="configValue"
+            label="配置值 JSON"
+            rules={[{ required: true, message: '请输入 JSON 配置' }]}
+            initialValue="{}"
+          >
+            <Input.TextArea rows={8} />
+          </Form.Item>
+        </Form>
+      </Modal>
+    </div>
+  );
+}
+
+function parseJSONObject(value: string): Record<string, unknown> {
+  const parsed = JSON.parse(value || '{}');
+  if (!parsed || Array.isArray(parsed) || typeof parsed !== 'object') {
+    throw new Error('配置值必须是 JSON 对象');
+  }
+  return parsed as Record<string, unknown>;
+}

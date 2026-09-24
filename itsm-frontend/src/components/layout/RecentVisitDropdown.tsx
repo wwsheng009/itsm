@@ -1,13 +1,12 @@
-'use client';
+import { useNavigate } from 'react-router';
 
 import React from 'react';
 import { Dropdown, Button, List, Empty, Tooltip } from 'antd';
 import { Clock, X } from 'lucide-react';
 import { useRecentVisitStore } from '@/lib/store/recent-visit-store';
-import { useRouter } from 'next/navigation';
 
 export const RecentVisitDropdown: React.FC = () => {
-  const router = useRouter();
+  const navigate = useNavigate();
   const { visits, removeVisit, clearVisits } = useRecentVisitStore();
 
   const items = [
@@ -49,7 +48,7 @@ export const RecentVisitDropdown: React.FC = () => {
                 className="flex-1 truncate py-1"
                 onClick={(e) => {
                   e.stopPropagation();
-                  router.push(visit.path);
+                  navigate(visit.path);
                 }}
                 style={{ cursor: 'pointer' }}
               >

@@ -7,12 +7,13 @@ import React from 'react';
 import { render, screen, waitFor, fireEvent, within } from '@/lib/test-utils';
 import userEvent from '@testing-library/user-event';
 
-// Mock next/navigation first
+// Mock react-router（迁移自 next/navigation）：navigate(...) 直接落到 mockPush
 const mockPush = jest.fn();
-jest.mock('next/navigation', () => ({
-  useRouter: () => ({ push: mockPush }),
-  usePathname: () => '/changes',
-  useSearchParams: () => new URLSearchParams(),
+jest.mock('react-router', () => ({
+  ...jest.requireActual('react-router'),
+  useNavigate: () => mockPush,
+  useLocation: () => ({ pathname: '/changes', search: '', hash: '', state: null, key: 'test' }),
+  useSearchParams: () => [new URLSearchParams(), jest.fn()],
 }));
 
 // Mock ChangeApi

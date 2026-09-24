@@ -432,13 +432,13 @@ export const securityLogger = {
     };
 
     // 在开发环境下输出到控制台
-    if (process.env.NODE_ENV === 'development') {
+    if (import.meta.env.DEV) {
       console.warn('[Security Event]', logEntry);
     }
 
     // 在生产环境下可以发送到安全监控服务
     // 注意：安全监控服务集成需要在后端配置安全日志收集
-    if (process.env.NODE_ENV === 'production') {
+    if (import.meta.env.PROD) {
       // 未来可通过 sendToSecurityService(logEntry) 发送到安全监控服务
     }
   },

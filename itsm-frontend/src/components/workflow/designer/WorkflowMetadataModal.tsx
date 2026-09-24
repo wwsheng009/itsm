@@ -1,8 +1,6 @@
 // 工作流元数据编辑模态框
 // Workflow Metadata Modal
 
-'use client';
-
 import React from 'react';
 import { Modal, Form, Input, Select } from 'antd';
 import type { FormInstance } from 'antd';

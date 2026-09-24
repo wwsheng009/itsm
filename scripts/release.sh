@@ -163,19 +163,14 @@ if [[ ! -d "node_modules" ]]; then
     npm ci --legacy-peer-deps
 fi
 
-# Build
-NEXT_PUBLIC_API_URL=http://localhost:8090 \
-NEXT_PUBLIC_ENABLE_AI=true \
+# Build (Vite → static dist/; VITE_* are baked into the bundle at build time)
+VITE_API_URL=http://localhost:8090 \
+VITE_ENABLE_AI=true \
 npm run build
 
-# Prepare standalone build
+# Copy the static SPA build output (dist/ already contains the public/ assets)
 mkdir -p "$RELEASE_VERSION_DIR/frontend"
-cp -r .next/standalone/* "$RELEASE_VERSION_DIR/frontend/" 2>/dev/null || {
-    # Fallback if standalone export not configured
-    log_warn "Standalone export not found, using standard .next build"
-    cp -r .next "$RELEASE_VERSION_DIR/frontend/.next"
-    cp -r public "$RELEASE_VERSION_DIR/frontend/public"
-}
+cp -r dist/. "$RELEASE_VERSION_DIR/frontend/"
 
 # Copy package.json for reference
 cp package.json "$RELEASE_VERSION_DIR/frontend/"
@@ -207,10 +202,10 @@ docker build -t "${REGISTRY}itsm-backend:${VERSION}" \
     --build-arg BUILDKIT_INLINE_CACHE=1 \
     -f Dockerfile.prod ../itsm-backend
 
-# Build frontend
+# Build frontend (static SPA: Vite build + nginx runtime image)
 echo "Building frontend..."
 docker build -t "${REGISTRY}itsm-frontend:${VERSION}" \
-    --build-arg NODE_ENV=production \
+    --build-arg VITE_ENABLE_AI=true \
     -f Dockerfile ../itsm-frontend
 
 echo "Done! Images created:"

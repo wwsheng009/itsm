@@ -1,4 +1,3 @@
-'use client';
 
 import React, { useState, useEffect, useMemo } from 'react';
 import { Select, Avatar, Spin, message } from 'antd';

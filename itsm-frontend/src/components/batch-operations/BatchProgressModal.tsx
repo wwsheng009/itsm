@@ -3,8 +3,6 @@
  * 实时显示批量操作进度和结果
  */
 
-'use client';
-
 import React from 'react';
 import { Modal, Progress, Space, Button, Alert, Statistic, Row, Col, Spin } from 'antd';
 import { CheckCircle, XCircle, PlayCircle, PauseCircle, Square } from 'lucide-react';

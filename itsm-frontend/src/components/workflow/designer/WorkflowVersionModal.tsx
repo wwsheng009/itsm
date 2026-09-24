@@ -1,8 +1,6 @@
 // 版本管理模态框
 // Workflow Version Modal
 
-'use client';
-
 import React from 'react';
 import { Modal, Alert, Typography, Tag } from 'antd';
 import type { WorkflowDefinition } from './WorkflowTypes';

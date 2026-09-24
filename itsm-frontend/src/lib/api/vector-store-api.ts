@@ -1,4 +1,3 @@
-'use client';
 
 import { httpClient } from './http-client';
 

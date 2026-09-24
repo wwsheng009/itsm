@@ -1,4 +1,3 @@
-'use client';
 
 import React, { useCallback, useEffect, useState } from 'react';
 import { Card, Row, Col, DatePicker, Space, Typography, Spin, App, Empty, Button, Alert } from 'antd';

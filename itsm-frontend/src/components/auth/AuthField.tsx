@@ -1,4 +1,3 @@
-'use client';
 
 import React, { forwardRef } from 'react';
 import { Input } from 'antd'; // 直接从antd导入

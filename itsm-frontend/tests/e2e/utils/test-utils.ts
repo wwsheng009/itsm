@@ -109,7 +109,7 @@ export async function createTicketViaApi(
     category?: string;
   }
 ): Promise<{ id: number }> {
-  const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost';
+  const apiUrl = process.env.VITE_API_URL || process.env.NEXT_PUBLIC_API_URL || 'http://localhost';
 
   // Get current auth token
   const token = await page.evaluate(() => localStorage.getItem('access_token'));

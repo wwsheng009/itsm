@@ -49,8 +49,8 @@ export interface WebAuthnChallengeResponse {
 }
 
 // API配置
-const API_BASE_URL =
-  typeof window === 'undefined' ? process.env.ITSM_BACKEND_URL || 'http://localhost:8090' : '';
+// API 配置：SPA 一律同源相对路径（dev 走 Vite proxy，生产走 nginx 反代）。
+const API_BASE_URL = '';
 const API_TIMEOUT = 30000; // 30秒超时
 
 // 统一 token 存储工具

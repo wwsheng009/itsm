@@ -1,4 +1,3 @@
-'use client';
 
 import { Alert, Button, Card, Empty, Skeleton, Space, Typography } from 'antd';
 import { BarChart3, RefreshCw } from 'lucide-react';

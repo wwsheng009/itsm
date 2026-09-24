@@ -1,8 +1,6 @@
 // 工作流属性面板组件
 // Workflow Properties Component - 版本管理/流程配置 Tab
 
-'use client';
-
 import React from 'react';
 import {
   Card,

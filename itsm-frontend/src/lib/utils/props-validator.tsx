@@ -19,7 +19,7 @@ export function validateRequiredProps<T extends object>(
   if (missingProps.length > 0) {
     console.error(`[${componentName}] Missing required props: ${missingProps.join(', ')}`);
 
-    if (process.env.NODE_ENV === 'development') {
+    if (import.meta.env.DEV) {
       throw new Error(`${componentName}: Required props are missing - ${missingProps.join(', ')}`);
     }
 
@@ -183,7 +183,7 @@ export function usePropsWithDefaults<T extends object>(
     const merged = withDefaults(props, defaults);
 
     // 在开发环境中验证props
-    if (process.env.NODE_ENV === 'development' && componentName) {
+    if (import.meta.env.DEV && componentName) {
       for (const key in merged) {
         if (merged[key] === undefined) {
           console.warn(
@@ -216,7 +216,7 @@ export function withPropsValidation<P extends object>(
         return <>{fallback}</>;
       }
 
-      if (process.env.NODE_ENV === 'development') {
+      if (import.meta.env.DEV) {
         return (
           <div style={{ padding: 20, background: '#fff3cd', border: '1px solid #ffc107' }}>
             <strong>Props Validation Error</strong>

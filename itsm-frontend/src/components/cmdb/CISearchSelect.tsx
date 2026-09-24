@@ -1,4 +1,3 @@
-'use client';
 
 /**
  * 服务端搜索的配置项选择器 (P1-2 React Query)

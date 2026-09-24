@@ -8,7 +8,7 @@
 import type { APIResponse, Page } from '@playwright/test';
 import { test, expect } from '../fixtures/auth';
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8090';
+const API_URL = process.env.VITE_API_URL || process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8090';
 
 type ApiEnvelope<T> = {
   code: number;

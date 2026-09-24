@@ -1,9 +1,8 @@
-'use client';
 
 import React from 'react';
 import { Card, List, Avatar, Typography } from 'antd';
 import { Clock, Activity } from 'lucide-react';
-import type { RecentActivity } from '@/app/(main)/dashboard/types/dashboard.types';
+import type { RecentActivity } from '@/pages/(main)/dashboard/types/dashboard.types';
 
 const { Text } = Typography;
 

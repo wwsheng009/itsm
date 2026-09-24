@@ -1,0 +1,341 @@
+
+import React, { useState, useEffect } from 'react';
+import { Table, Button, Tag, Space, Modal, Form, Input, Select, Tabs, message } from 'antd';
+import { Plus, Pencil, Trash2, LayoutGrid, RefreshCw, Plug } from 'lucide-react';
+import { PageContainer } from '@/components/common/PageContainer';
+import type { Application, Microservice } from '@/lib/services/application-service';
+import { applicationService } from '@/lib/services/application-service';
+import { projectService } from '@/lib/services/project-service';
+import { useI18n } from '@/lib/i18n';
+
+
+export default function ApplicationsPage() {
+  const { t } = useI18n();
+  const [activeTab, setActiveTab] = useState('applications');
+  const [isModalVisible, setIsModalVisible] = useState(false);
+  const [modalType, setModalType] = useState<'application' | 'microservice'>('application');
+  const [editingRecord, setEditingRecord] = useState<ApplicationRecord | MicroserviceRecord | null>(null);
+  const [form] = Form.useForm();
+  const [loading, setLoading] = useState(false);
+  const [applications, setApplications] = useState<Application[]>([]);
+  const [microservices, setMicroservices] = useState<Microservice[]>([]);
+  const [fetching, setFetching] = useState(false);
+  const [projectOptions, setProjectOptions] = useState<{ label: string; value: number }[]>([]);
+
+  const fetchData = async () => {
+    setFetching(true);
+    try {
+      const apps = await applicationService.listApplications();
+      setApplications(apps);
+
+      // Flatten microservices from all apps
+      const allMicroservices: Microservice[] = [];
+      apps.forEach(app => {
+        if (app.edges?.microservices) {
+          allMicroservices.push(...app.edges.microservices);
+        }
+      });
+      setMicroservices(allMicroservices);
+    } catch (error) {
+      console.error('Failed to fetch applications:', error);
+      message.error(t('common.getFailed'));
+    } finally {
+      setFetching(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchData();
+    projectService
+      .listProjects()
+      .then(data => setProjectOptions(data.map(p => ({ label: p.name, value: p.id }))))
+      .catch(error => console.error('Failed to fetch projects:', error));
+  }, []);
+
+  const appColumns = [
+    {
+      title: '应用名称',
+      dataIndex: 'name',
+      key: 'name',
+      render: (text: string) => (
+        <Space>
+          <LayoutGrid />
+          <span className="font-medium">{text}</span>
+        </Space>
+      ),
+    },
+    { title: '应用代码', dataIndex: 'code', key: 'code' },
+    {
+      title: '所属项目',
+      dataIndex:'projectId',
+      key: 'project',
+      render: (id: number) => <span>ID: {id}</span>,
+    },
+    // { title: "负责人", dataIndex: "owner", key: "owner" }, // Not in schema currently
+    {
+      title: '类型',
+      dataIndex: 'type',
+      key: 'type',
+      render: (type: string) => <Tag color="blue">{(type || 'UNKNOWN').toUpperCase()}</Tag>,
+    },
+    {
+      title: '微服务数',
+      key: 'microservices',
+      render: (_: unknown, record: Application) => (
+        <Tag color="purple">{record.edges?.microservices?.length || 0}</Tag>
+      ),
+    },
+    {
+      title: '操作',
+      key: 'action',
+      render: (_: unknown, record: Application & { id: number }) => (
+        <Space size="middle">
+          <Button
+            type="text"
+            icon={<Pencil />}
+            onClick={() => handleEdit(record as ApplicationRecord, 'application')}
+          />
+          <Button
+            type="text"
+            danger
+            icon={<Trash2 />}
+            onClick={() => handleDelete(record as ApplicationRecord)}
+          />
+        </Space>
+      ),
+    },
+  ];
+
+  const msColumns = [
+    {
+      title: '微服务名称',
+      dataIndex: 'name',
+      key: 'name',
+      render: (text: string) => (
+        <Space>
+          <Plug />
+          <span className="font-medium">{text}</span>
+        </Space>
+      ),
+    },
+    { title: '服务代码', dataIndex: 'code', key: 'code' },
+    {
+      title: '所属应用',
+      dataIndex:'applicationId',
+      key: 'application',
+      render: (id: number) => <span>App ID: {id}</span>,
+    },
+    {
+      title: '技术栈',
+      key: 'tech',
+      render: (_: unknown, record: Microservice) => (
+        <Space>
+          <Tag>{record.language || '-'}</Tag>
+          <Tag>{record.framework || '-'}</Tag>
+        </Space>
+      ),
+    },
+    {
+      title: '操作',
+      key: 'action',
+      render: (_: unknown, record: Microservice & { id: number }) => (
+        <Space size="middle">
+          <Button
+            type="text"
+            icon={<Pencil />}
+            onClick={() => handleEdit(record as MicroserviceRecord, 'microservice')}
+          />
+          <Button
+            type="text"
+            danger
+            icon={<Trash2 />}
+            onClick={() => handleDelete(record as MicroserviceRecord)}
+          />
+        </Space>
+      ),
+    },
+  ];
+
+  const handleCreate = () => {
+    setModalType(activeTab === 'applications' ? 'application' : 'microservice');
+    setEditingRecord(null);
+    form.resetFields();
+    setIsModalVisible(true);
+  };
+
+interface ApplicationRecord extends Application {
+  key: string;
+}
+
+interface MicroserviceRecord extends Microservice {
+  key: string;
+}
+
+type RecordData = ApplicationRecord | MicroserviceRecord;
+
+const handleEdit = (record: RecordData, type: 'application' | 'microservice') => {
+  setModalType(type);
+  setEditingRecord(record);
+  form.setFieldsValue(record);
+  setIsModalVisible(true);
+};
+
+const handleDelete = (record: RecordData) => {
+  Modal.confirm({
+    title: '确认删除',
+    content: `确定要删除 "${record.name}" 吗？`,
+    onOk: async () => {
+      try {
+        if (modalType === 'application' || activeTab === 'applications') {
+          await applicationService.deleteApplication(record.id);
+        } else {
+          await applicationService.deleteMicroservice(record.id);
+        }
+        message.success(t('common.deleteSuccess'));
+        fetchData();
+      } catch (error) {
+        message.error(t('common.deleteFailed'));
+      }
+    },
+  });
+  };
+
+  const handleOk = async () => {
+    try {
+      const values = await form.validateFields();
+      setLoading(true);
+
+      // 根据是否存在 editingRecord 决定走新增还是更新；避免“修改却走 create”导致数据污染
+      if (modalType === 'application') {
+        if (editingRecord) {
+          await applicationService.updateApplication(editingRecord.id, values);
+        } else {
+          await applicationService.createApplication(values);
+        }
+      } else {
+        if (editingRecord) {
+          await applicationService.updateMicroservice(editingRecord.id, values);
+        } else {
+          await applicationService.createMicroservice(values);
+        }
+      }
+
+      message.success(t('common.saveSuccess'));
+      setIsModalVisible(false);
+      setEditingRecord(null);
+      form.resetFields();
+      fetchData();
+    } catch (error) {
+      console.error('Operation Failed:', error);
+      message.error(t('common.operationFailed'));
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <PageContainer
+      header={{
+        title: '应用与服务管理',
+        breadcrumb: { items: [{ title: '首页' }, { title: '应用管理' }] },
+      }}
+      extra={[
+        <Button key="refresh" icon={<RefreshCw />} onClick={fetchData} loading={fetching}>
+          刷新
+        </Button>,
+        <Button key="create" type="primary" icon={<Plus />} onClick={handleCreate}>
+          新建{activeTab === 'applications' ? '应用' : '微服务'}
+        </Button>,
+      ]}
+    >
+      <Tabs
+        activeKey={activeTab}
+        onChange={setActiveTab}
+        type="card"
+        items={[
+          {
+            key: 'applications',
+            label: '应用系统',
+            children: <Table columns={appColumns} dataSource={applications} rowKey="id" loading={fetching} />,
+          },
+          {
+            key: 'microservices',
+            label: '微服务',
+            children: <Table columns={msColumns} dataSource={microservices} rowKey="id" loading={fetching} />,
+          },
+        ]}
+      />
+
+      <Modal
+        title={modalType === 'application' ? (editingRecord ? '编辑应用' : '新建应用') : (editingRecord ? '编辑微服务' : '新建微服务')}
+        open={isModalVisible}
+        onOk={handleOk}
+        onCancel={() => {
+          setIsModalVisible(false);
+          setEditingRecord(null);
+        }}
+        confirmLoading={loading}
+        width={600}
+      >
+        <Form form={form} layout="vertical">
+          <Form.Item name="name" label="名称" rules={[{ required: true, message: '请输入名称' }]}>
+            <Input placeholder="请输入名称" />
+          </Form.Item>
+          <Form.Item name="code" label="代码" rules={[{ required: true, message: '请输入代码' }]}>
+            <Input placeholder="请输入代码" />
+          </Form.Item>
+
+          {modalType === 'application' ? (
+            <>
+              <Form.Item name="projectId" label="所属项目">
+                <Select placeholder="请选择项目" options={projectOptions} />
+              </Form.Item>
+              <Form.Item name="type" label="应用类型">
+                <Select
+                  placeholder="请选择类型"
+                  options={[
+                    { label: 'Web应用', value: 'web' },
+                    { label: '移动应用', value: 'mobile' },
+                    { label: '后端服务', value: 'backend' },
+                  ]}
+                />
+              </Form.Item>
+            </>
+          ) : (
+            <>
+              <Form.Item
+                name="applicationId"
+                label="所属应用"
+                rules={[{ required: true, message: '请选择所属应用' }]}
+              >
+                <Select
+                  placeholder="请选择应用"
+                  options={applications.map(app => ({
+                    label: app.name,
+                    value: app.id,
+                  }))}
+                />
+              </Form.Item>
+              <div className="grid grid-cols-2 gap-4">
+                <Form.Item name="language" label="开发语言">
+                  <Select
+                    placeholder="请选择语言"
+                    options={[
+                      { label: 'Go', value: 'go' },
+                      { label: 'Java', value: 'java' },
+                      { label: 'Python', value: 'python' },
+                      { label: 'Node.js', value: 'nodejs' },
+                    ]}
+                  />
+                </Form.Item>
+                <Form.Item name="framework" label="框架">
+                  <Input placeholder="如: Gin, Spring Boot" />
+                </Form.Item>
+              </div>
+            </>
+          )}
+        </Form>
+      </Modal>
+    </PageContainer>
+  );
+}

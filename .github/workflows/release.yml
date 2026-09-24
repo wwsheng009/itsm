@@ -6,7 +6,7 @@ name: Build & Release
 #   Push a tag like v1.0.2. Manual dispatch is intentionally not enabled
 #   because releases must map to immutable git tags.
 # Outputs:
-#   - GitHub Release zip archives for backend binaries and frontend standalone
+#   - GitHub Release zip archives for backend binaries and the frontend static build (dist/)
 #   - GHCR images ghcr.io/heidsoft/itsm-backend and ghcr.io/heidsoft/itsm-frontend
 
 on:
@@ -84,31 +84,24 @@ jobs:
         run: npm run build
         env:
           # Public artifacts must not embed a developer-machine backend URL.
-          NEXT_PUBLIC_API_URL: ''
+          # VITE_* values are baked into the bundle at build time.
+          VITE_API_URL: ''
           NODE_OPTIONS: --max-old-space-size=4096
 
-      - name: Verify standalone output
+      - name: Verify build output
         working-directory: ./itsm-frontend
         run: |
-          if [ ! -d ".next/standalone" ]; then
-            echo "::error::Standalone build output not found at .next/standalone"
+          if [ ! -f "dist/index.html" ]; then
+            echo "::error::Vite build output not found at dist/index.html"
             exit 1
           fi
-          echo "Standalone build verified"
-
-      - name: Prepare frontend build
-        working-directory: ./itsm-frontend
-        run: |
-          mkdir -p frontend-standalone
-          cp -r .next/standalone/. frontend-standalone/ 2>/dev/null || true
-          cp -r .next/static frontend-standalone/.next/ 2>/dev/null || true
-          cp -r public frontend-standalone/public 2>/dev/null || true
+          echo "Static build verified"
 
       - name: Upload artifact
         uses: actions/upload-artifact@v7
         with:
           name: itsm-frontend-build
-          path: itsm-frontend/frontend-standalone
+          path: itsm-frontend/dist
           retention-days: 30
 
   release:

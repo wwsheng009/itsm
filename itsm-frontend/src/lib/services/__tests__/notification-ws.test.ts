@@ -147,8 +147,8 @@ describe('NotificationWSService', () => {
   });
 
   describe('connect', () => {
-    it('builds the URL from NEXT_PUBLIC_WS_URL and includes the short-lived ticket', async () => {
-      process.env.NEXT_PUBLIC_WS_URL = 'ws://backend.local/api/v1/ws/notifications';
+    it('builds the URL from VITE_WS_URL and includes the short-lived ticket', async () => {
+      import.meta.env.VITE_WS_URL = 'ws://backend.local/api/v1/ws/notifications';
       const service = new NotificationWSService();
 
       const promise = service.connect(42, 'tok-abc');
@@ -165,8 +165,8 @@ describe('NotificationWSService', () => {
       service.disconnect();
     });
 
-    it('falls back to localhost:8090 when NEXT_PUBLIC_WS_URL is not set', async () => {
-      delete process.env.NEXT_PUBLIC_WS_URL;
+    it('falls back to localhost:8090 when VITE_WS_URL is not set', async () => {
+      delete import.meta.env.VITE_WS_URL;
       const service = new NotificationWSService();
 
       const promise = service.connect(7, 'tok');

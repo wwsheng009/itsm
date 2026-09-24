@@ -1,4 +1,3 @@
-'use client';
 
 import React, { useMemo } from 'react';
 import { Input, Select, Button, Space, Card, Row, Col } from 'antd';

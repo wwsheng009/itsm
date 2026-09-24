@@ -1,4 +1,4 @@
-'use client';
+import { useNavigate } from 'react-router';
 
 /**
  * 服务请求列表组件
@@ -8,7 +8,6 @@
 import React, { useState, useEffect } from 'react';
 import { Table, Tag, Button, Tabs, Card, Space, Tooltip, message } from 'antd';
 import { Eye, RefreshCw, CheckCircle } from 'lucide-react';
-import { useRouter } from 'next/navigation';
 import dayjs from 'dayjs';
 import LoadingEmptyError from '@/components/ui/LoadingEmptyError';
 
@@ -30,7 +29,7 @@ const statusColors: Record<string, string> = {
 };
 
 const ServiceRequestList: React.FC = () => {
-  const router = useRouter();
+  const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState('my-requests');
   const [loading, setLoading] = useState(false);
   const [data, setData] = useState<ServiceRequest[]>([]);
@@ -134,7 +133,7 @@ const ServiceRequestList: React.FC = () => {
               type="text"
               icon={<Eye />}
               className="text-blue-600 hover:text-blue-800 hover:bg-blue-50"
-              onClick={() => router.push(`/service-requests/${record.id}`)}
+              onClick={() => navigate(`/service-requests/${record.id}`)}
             />
           </Tooltip>
           {activeTab === 'approvals' && (
@@ -143,7 +142,7 @@ const ServiceRequestList: React.FC = () => {
                 type="text"
                 icon={<CheckCircle />}
                 className="text-green-600 hover:text-green-800 hover:bg-green-50"
-                onClick={() => router.push(`/service-requests/${record.id}`)}
+                onClick={() => navigate(`/service-requests/${record.id}`)}
               />
             </Tooltip>
           )}
@@ -184,7 +183,7 @@ const ServiceRequestList: React.FC = () => {
                 title: '暂无服务请求数据',
                 description: '当前没有服务请求记录，点击下方按钮创建第一个服务请求',
                 actionText: '新建服务请求',
-                onAction: () => router.push('/service-requests/new'),
+                onAction: () => navigate('/service-requests/new'),
                 showAction: true,
                 icon: <CheckCircle size={48} />,
               }}

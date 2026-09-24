@@ -3,8 +3,6 @@
  * 用于安全地渲染用户输入的内容，防止 XSS 攻击
  */
 
-'use client';
-
 import React from 'react';
 import { xssProtection, contentSecurity } from '@/lib/security';
 

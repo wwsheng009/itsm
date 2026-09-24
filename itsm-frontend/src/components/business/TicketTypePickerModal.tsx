@@ -1,4 +1,3 @@
-'use client';
 
 /**
  * TicketTypePickerModal —— 工单类型选择弹层

@@ -1,4 +1,4 @@
-'use client';
+import { useNavigate } from 'react-router';
 
 import React, { useState, useCallback } from 'react';
 import {
@@ -28,7 +28,6 @@ import {
   Bell,
   Settings,
 } from 'lucide-react';
-import { useRouter } from 'next/navigation';
 import { useDebounce } from '@/lib/component-utils';
 
 const { Title, Text } = Typography;
@@ -237,7 +236,7 @@ export const BusinessPageTemplate: React.FC<BusinessPageTemplateProps> = ({
   // 自定义
   className = '',
 }) => {
-  const router = useRouter();
+  const navigate = useNavigate();
   const screens = Grid.useBreakpoint();
   const [localSearchValue, setLocalSearchValue] = useState(searchValue || '');
 

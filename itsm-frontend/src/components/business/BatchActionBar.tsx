@@ -1,4 +1,3 @@
-'use client';
 
 import React from 'react';
 import { Alert, Button, Dropdown, Popconfirm, Space, Tooltip } from 'antd';

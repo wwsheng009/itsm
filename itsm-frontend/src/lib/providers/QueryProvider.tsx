@@ -1,4 +1,3 @@
-'use client';
 
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import type { ReactNode} from 'react';
@@ -7,7 +6,7 @@ import { useState, lazy, Suspense, useEffect } from 'react';
 // 动态导入ReactQueryDevtools，只在开发环境中使用
 // 使用 disableHydrationWarning 防止 SSR 水合错误
 const ReactQueryDevtools =
-  typeof window !== 'undefined' && process.env.NODE_ENV === 'development'
+  typeof window !== 'undefined' && import.meta.env.DEV
     ? lazy(() =>
         import('@tanstack/react-query-devtools').then(module => ({
           default: module.ReactQueryDevtools,

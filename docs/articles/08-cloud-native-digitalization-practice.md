@@ -297,7 +297,7 @@ RUN pnpm build
 
 # 第二阶段：生产镜像
 FROM nginx:alpine
-COPY --from=builder /app/.next/static ./static
+COPY --from=builder /app/dist ./html
 COPY nginx.conf /etc/nginx/nginx.conf
 EXPOSE 80
 CMD ["nginx", "-g", "daemon off;"]

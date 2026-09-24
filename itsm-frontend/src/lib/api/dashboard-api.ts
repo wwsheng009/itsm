@@ -20,7 +20,7 @@ import type {
   SatisfactionData,
   QuickAction,
   RecentActivity,
-} from '@/app/(main)/dashboard/types/dashboard.types';
+} from '@/pages/(main)/dashboard/types/dashboard.types';
 
 /**
  * 仪表盘API客户端

@@ -1,10 +1,9 @@
 /**
  * 优化的图片组件
- * 封装 Next.js Image 组件，提供更好的性能和用户体验
+ * 基于原生 img 封装，提供懒加载、占位与错误回退体验
  */
 
 import React from 'react';
-import Image from 'next/image';
 import { Skeleton } from 'antd';
 
 export interface OptimizedImageProps {
@@ -13,9 +12,13 @@ export interface OptimizedImageProps {
   width?: number;
   height?: number;
   fill?: boolean;
+  /** 兼容保留：原生 img 不再区分优先级，仅影响 loading 取值 */
   priority?: boolean;
+  /** 兼容保留：原生 img 不做质量压缩 */
   quality?: number;
+  /** 兼容保留：原生 img 不支持模糊占位 */
   placeholder?: 'blur' | 'empty';
+  /** 兼容保留：原生 img 不支持 blurDataURL */
   blurDataURL?: string;
   className?: string;
   objectFit?: 'contain' | 'cover' | 'fill' | 'none' | 'scale-down';
@@ -55,10 +58,6 @@ export const OptimizedImage: React.FC<OptimizedImageProps> = ({
   width,
   height,
   fill = false,
-  priority = false,
-  quality = 75,
-  placeholder = 'empty',
-  blurDataURL,
   className = '',
   objectFit = 'cover',
   objectPosition = 'center',
@@ -91,17 +90,6 @@ export const OptimizedImage: React.FC<OptimizedImageProps> = ({
     onError?.();
   };
 
-  // 如果使用 fill，不需要 width 和 height
-  const imageProps = fill
-    ? {
-        fill: true,
-        sizes: sizes || '100vw',
-      }
-    : {
-        width: width || 100,
-        height: height || 100,
-      };
-
   return (
     <div className={`relative ${className}`} style={{ width, height }}>
       {showSkeleton && isLoading && (
@@ -116,18 +104,19 @@ export const OptimizedImage: React.FC<OptimizedImageProps> = ({
         </div>
       )}
 
-      <Image
-        {...imageProps}
+      <img
         src={imageSrc}
         alt={alt}
-        quality={quality}
-        priority={priority}
-        placeholder={placeholder}
-        blurDataURL={blurDataURL}
+        width={fill ? undefined : width || 100}
+        height={fill ? undefined : height || 100}
+        sizes={sizes || (fill ? '100vw' : undefined)}
         loading={loading}
         style={{
           objectFit,
           objectPosition,
+          ...(fill
+            ? { position: 'absolute', inset: 0, width: '100%', height: '100%' }
+            : undefined),
         }}
         onLoad={handleLoad}
         onError={handleError}
@@ -204,12 +193,11 @@ export const AvatarImage: React.FC<AvatarImageProps> = ({
       `}
       style={{ width: size, height: size }}
     >
-      <Image
+      <img
         src={src}
         alt={name}
         width={size}
         height={size}
-        quality={75}
         loading="lazy"
         style={{
           objectFit: 'cover',
@@ -290,14 +278,16 @@ export const BackgroundImage: React.FC<BackgroundImageProps> = ({
 }) => {
   return (
     <div className={`relative w-full h-full ${className}`}>
-      <Image
+      <img
         src={src}
         alt={alt}
-        fill
-        priority={priority}
-        quality={75}
+        loading={priority ? 'eager' : 'lazy'}
         sizes="100vw"
         style={{
+          position: 'absolute',
+          inset: 0,
+          width: '100%',
+          height: '100%',
           objectFit: 'cover',
         }}
       />

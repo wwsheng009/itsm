@@ -3,8 +3,6 @@
  * 显示已选择的工单数量和批量操作按钮
  */
 
-'use client';
-
 import React, { useState } from 'react';
 import { Space, Button, Dropdown, Badge, Tooltip, type MenuProps } from 'antd';
 import { X, Check, Pencil, Trash2, Download, UserPlus, XCircle, Tags, MoreHorizontal } from 'lucide-react';

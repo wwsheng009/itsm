@@ -1,13 +1,12 @@
-'use client';
+import { useLocation, useNavigate } from 'react-router';
 
 import { Button, Result } from 'antd';
-import { usePathname, useRouter } from 'next/navigation';
 import { usePermissions } from '@/lib/hooks/use-permissions';
 
 export function AdminRouteGuard({ children }: { children: React.ReactNode }) {
-  const pathname = usePathname();
+  const pathname = useLocation().pathname;
   const { isAdmin } = usePermissions();
-  const router = useRouter();
+  const navigate = useNavigate();
 
   if (pathname.startsWith('/admin') && !isAdmin()) {
     return (
@@ -16,7 +15,7 @@ export function AdminRouteGuard({ children }: { children: React.ReactNode }) {
         title="403"
         subTitle="抱歉，您没有权限访问此页面。"
         extra={
-          <Button type="primary" onClick={() => router.push('/')}>
+          <Button type="primary" onClick={() => navigate('/')}>
             返回首页
           </Button>
         }

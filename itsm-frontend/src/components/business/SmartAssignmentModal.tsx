@@ -3,8 +3,6 @@
  * 显示分配推荐列表，支持自动分配和手动选择
  */
 
-'use client';
-
 import React, { useState, useEffect } from 'react';
 import {
   Modal,

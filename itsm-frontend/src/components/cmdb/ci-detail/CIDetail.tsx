@@ -1,3 +1,4 @@
+import { useNavigate, useParams } from 'react-router';
 /**
  * 重构后的 CIDetail 组件
  * 简化版：使用拆分的子组件和自定义 hooks
@@ -6,7 +7,6 @@
 import React, { useCallback, useRef } from 'react';
 import { Card, Tabs, Breadcrumb, Button, Space, Tag, Typography, Result, Skeleton } from 'antd';
 import { ArrowLeft, History, Link, Network } from 'lucide-react';
-import { useParams, useRouter } from 'next/navigation';
 
 import { useCIDetail } from './hooks/useCIDetail';
 import { STATUS_COLORS } from './constants';
@@ -21,7 +21,7 @@ import type { ConfigurationItem, CIType } from '@/types/biz/cmdb';
 const { Title, Text } = Typography;
 
 export const CIDetail: React.FC = () => {
-  const router = useRouter();
+  const navigate = useNavigate();
   const {
     ci,
     loading,
@@ -62,7 +62,7 @@ export const CIDetail: React.FC = () => {
           title='404'
           subTitle='抱歉，您访问的配置项不存在'
           extra={
-            <Button type='primary' onClick={() => router.push('/cmdb/cis')}>
+            <Button type='primary' onClick={() => navigate('/cmdb/cis')}>
               返回列表
             </Button>
           }
@@ -142,7 +142,7 @@ export const CIDetail: React.FC = () => {
         items={[
           { title: '首页' },
           { title: '配置管理' },
-          { title: <a onClick={() => router.push('/cmdb/cis')}>配置项列表</a> },
+          { title: <a onClick={() => navigate('/cmdb/cis')}>配置项列表</a> },
           { title: '资产详情' },
         ]}
       />
@@ -151,7 +151,7 @@ export const CIDetail: React.FC = () => {
         <div style={{ marginBottom: 24 }}>
           <Button
             icon={<ArrowLeft />}
-            onClick={() => router.push('/cmdb/cis')}
+            onClick={() => navigate('/cmdb/cis')}
             style={{ marginBottom: 16 }}
           >
             返回列表

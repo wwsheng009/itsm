@@ -1,4 +1,3 @@
-'use client';
 
 /**
  * 问题SLA信息卡片

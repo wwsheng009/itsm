@@ -1,4 +1,4 @@
-'use client';
+import { useNavigate, useParams } from 'react-router';
 
 /**
  * 增强版问题详情组件
@@ -36,7 +36,6 @@ import {
   Result,
 } from 'antd';
 import { ArrowLeft, Search, Plus, Pencil, FileText, Clock, History, Link, AlertTriangle, CheckCircle, XCircle, BookOpen, ClipboardCheck } from 'lucide-react';
-import { useRouter, useParams } from 'next/navigation';
 import dayjs from 'dayjs';
 
 import { ProblemApi } from '@/lib/api/';
@@ -112,7 +111,7 @@ interface EnhancedProblemDetailProps {
 
 const EnhancedProblemDetail: React.FC<EnhancedProblemDetailProps> = ({ id: propId }) => {
   const params = useParams();
-  const router = useRouter();
+  const navigate = useNavigate();
   const id = propId || (params?.id as string);
 
   const [loading, setLoading] = useState(false);
@@ -262,7 +261,7 @@ const EnhancedProblemDetail: React.FC<EnhancedProblemDetailProps> = ({ id: propI
           title="404"
           subTitle="抱歉，您访问的问题不存在"
           extra={
-            <Button type="primary" onClick={() => router.push('/problems')}>
+            <Button type="primary" onClick={() => navigate('/problems')}>
               返回列表
             </Button>
           }
@@ -430,7 +429,7 @@ const EnhancedProblemDetail: React.FC<EnhancedProblemDetailProps> = ({ id: propI
                     <Button
                       type="link"
                       key="view"
-                      onClick={() => router.push(`/incidents/${incident.id}`)}
+                      onClick={() => navigate(`/incidents/${incident.id}`)}
                     >
                       查看
                     </Button>,
@@ -496,7 +495,7 @@ const EnhancedProblemDetail: React.FC<EnhancedProblemDetailProps> = ({ id: propI
               renderItem={cr => (
                 <List.Item
                   actions={[
-                    <Button type="link" key="view" onClick={() => router.push(`/changes/${cr.id}`)}>
+                    <Button type="link" key="view" onClick={() => navigate(`/changes/${cr.id}`)}>
                       查看
                     </Button>,
                   ]}
@@ -587,7 +586,7 @@ const EnhancedProblemDetail: React.FC<EnhancedProblemDetailProps> = ({ id: propI
       <Card styles={{ body: { padding: '16px 24px' } }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <Space>
-            <Button icon={<ArrowLeft />} onClick={() => router.push('/problems')}>
+            <Button icon={<ArrowLeft />} onClick={() => navigate('/problems')}>
               返回列表
             </Button>
             <Title level={4} style={{ margin: 0 }}>
@@ -598,7 +597,7 @@ const EnhancedProblemDetail: React.FC<EnhancedProblemDetailProps> = ({ id: propI
             </Tag>
           </Space>
           <Space>
-            <Button icon={<Pencil />} onClick={() => router.push(`/problems/${data.id}/edit`)}>
+            <Button icon={<Pencil />} onClick={() => navigate(`/problems/${data.id}/edit`)}>
               编辑
             </Button>
             {data.status === ProblemStatus.OPEN && (

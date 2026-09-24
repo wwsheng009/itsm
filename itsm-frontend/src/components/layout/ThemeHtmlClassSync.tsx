@@ -1,4 +1,3 @@
-'use client';
 
 import { useEffect } from 'react';
 import { useTheme } from '@/lib/design-system/theme';

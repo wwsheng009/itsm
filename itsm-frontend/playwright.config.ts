@@ -23,7 +23,11 @@ export default defineConfig({
   },
   reporter: [['list'], ['html', { open: 'never' }]],
   webServer: {
-    command: 'npm run dev',
+    // Vite dev server (was `next dev`, which defaulted to port 3000).
+    // Pin the port explicitly so E2E stays on 3000 even if `npm run dev`
+    // does not pass --port itself; --strictPort fails fast instead of
+    // silently moving to 5173 and timing out.
+    command: 'npm run dev -- --port 3000 --strictPort',
     port: 3000,
     reuseExistingServer: true,
     timeout: 60_000, // 减少启动超时

@@ -14,8 +14,10 @@ import {
 describe('validateRequiredProps', () => {
   const origEnv = process.env.NODE_ENV;
 
+  // 注意：jest 的 `process.env` 是 Proxy，未实现 defineProperty trap，
+  // `Object.defineProperty(process.env, 'NODE_ENV', ...)` 不会生效，必须用赋值。
   afterEach(() => {
-    Object.defineProperty(process.env, 'NODE_ENV', { value: origEnv, writable: true });
+    process.env.NODE_ENV = origEnv ?? 'test';
   });
 
   it('returns true when all required props present', () => {
@@ -25,7 +27,7 @@ describe('validateRequiredProps', () => {
   });
 
   it('returns false and logs when props missing (production)', () => {
-    Object.defineProperty(process.env, 'NODE_ENV', { value: 'production', writable: true });
+    process.env.NODE_ENV = 'production';
     const spy = jest.spyOn(console, 'error').mockImplementation(() => {});
     expect(validateRequiredProps({ a: null, b: 'x' } as any, ['a'], 'Comp')).toBe(false);
     expect(spy).toHaveBeenCalled();
@@ -33,7 +35,7 @@ describe('validateRequiredProps', () => {
   });
 
   it('throws in development mode when props missing', () => {
-    Object.defineProperty(process.env, 'NODE_ENV', { value: 'development', writable: true });
+    process.env.NODE_ENV = 'development';
     const spy = jest.spyOn(console, 'error').mockImplementation(() => {});
     expect(() => validateRequiredProps({ a: undefined } as any, ['a'], 'X')).toThrow();
     spy.mockRestore();

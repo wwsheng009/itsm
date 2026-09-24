@@ -1,4 +1,3 @@
-'use client';
 
 import type { ErrorInfo, ReactNode } from 'react';
 import React, { Component } from 'react';
@@ -132,7 +131,7 @@ class ErrorBoundary extends Component<Props, State> {
                 }}
               >
                 <Text type="secondary">{this.state.error?.message}</Text>
-                {process.env.NODE_ENV === 'development' && (
+                {import.meta.env.DEV && (
                   <details style={{ marginTop: '12px' }}>
                     <summary style={{ cursor: 'pointer', color: '#1890ff' }}>堆栈跟踪</summary>
                     <div style={{ marginTop: '8px' }}>

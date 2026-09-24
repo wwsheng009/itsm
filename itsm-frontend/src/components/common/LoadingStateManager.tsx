@@ -1,4 +1,3 @@
-'use client';
 
 import React, { useMemo, useCallback } from 'react';
 import { Spin, Empty, Alert, Button, Card, Space, Typography } from 'antd';

@@ -1,7 +1,6 @@
-'use client';
+import { useNavigate } from 'react-router';
 
 import React, { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
 import {
   Card,
   Button,
@@ -104,7 +103,7 @@ const KnowledgeIntegration: React.FC<KnowledgeIntegrationProps> = ({
   ticketDescription,
   ticketCategory,
 }) => {
-  const router = useRouter();
+  const navigate = useNavigate();
 
   // 状态管理
   const [recommendations, setRecommendations] = useState<SolutionRecommendation[]>([]);
@@ -273,7 +272,7 @@ const KnowledgeIntegration: React.FC<KnowledgeIntegrationProps> = ({
                     key="view"
                     type="link"
                     icon={<Eye />}
-                    onClick={() => router.push(`/knowledge/articles/${item.id}`)}
+                    onClick={() => navigate(`/knowledge/articles/${item.id}`)}
                   >
                     查看
                   </Button>,
@@ -388,7 +387,7 @@ const KnowledgeIntegration: React.FC<KnowledgeIntegrationProps> = ({
                     key="view"
                     type="link"
                     icon={<Eye />}
-                    onClick={() => router.push(`/knowledge/articles/${item.articleId}`)}
+                    onClick={() => navigate(`/knowledge/articles/${item.articleId}`)}
                   >
                     查看
                   </Button>,
@@ -466,7 +465,7 @@ const KnowledgeIntegration: React.FC<KnowledgeIntegrationProps> = ({
                     key="view"
                     type="link"
                     icon={<Eye />}
-                    onClick={() => router.push(`/knowledge/articles/${item.id}`)}
+                    onClick={() => navigate(`/knowledge/articles/${item.id}`)}
                   >
                     查看
                   </Button>,
@@ -549,7 +548,7 @@ const KnowledgeIntegration: React.FC<KnowledgeIntegrationProps> = ({
                         key="view"
                         type="link"
                         icon={<Eye />}
-                        onClick={() => router.push(`/knowledge/articles/${item.id}`)}
+                        onClick={() => navigate(`/knowledge/articles/${item.id}`)}
                       >
                         查看
                       </Button>,

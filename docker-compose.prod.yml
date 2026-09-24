@@ -361,7 +361,13 @@ services:
     stop_grace_period: 35s
     restart: always
 
-  # ITSM 前端服务（生产环境）
+  # ITSM 前端服务（生产环境，静态 SPA）
+  #
+  # 方案 i（docs/plan/vite-migration-plan.md §5.9）：镜像 = nginx:alpine + Vite
+  # 构建产物 dist/；容器内仍监听 3000（沿用 Next.js standalone 的端口），因此
+  # nginx 服务的 "location /" 上游 http://itsm-frontend:3000 不需要改动。
+  # 已无 Node 运行时与 BFF：ITSM_BACKEND_URL / no_proxy / NODE_ENV 等运行时
+  # 变量不再需要；VITE_* 只在构建期烘入产物（与旧 NEXT_PUBLIC_* 同约束）。
   itsm-frontend:
     image: itsm-frontend:${VERSION:?VERSION must be set}
     build:
@@ -369,22 +375,15 @@ services:
       dockerfile: Dockerfile
       target: production
       args:
-        - NODE_ENV=production
-        - ITSM_BACKEND_URL=http://itsm-backend:8090
-        - NEXT_PUBLIC_ENABLE_AI=${NEXT_PUBLIC_ENABLE_AI:-true}
-        # NEXT_PUBLIC_* are baked at build time. Leave empty so the bundle
+        - VITE_ENABLE_AI=${VITE_ENABLE_AI:-true}
+        # VITE_* are baked at build time. Leave the API URL empty so the bundle
         # routes API traffic through nginx (browser → nginx:80 → backend:8090)
         # instead of calling the backend container directly. See Fix #5.
-        - NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL:-}
-        - NEXT_PUBLIC_API_VERSION=${NEXT_PUBLIC_API_VERSION:-v1}
-        - NEXT_PUBLIC_API_TIMEOUT=${NEXT_PUBLIC_API_TIMEOUT:-30000}
+        - VITE_API_URL=${VITE_API_URL:-}
+        - VITE_API_VERSION=${VITE_API_VERSION:-v1}
+        - VITE_API_TIMEOUT=${VITE_API_TIMEOUT:-30000}
     container_name: itsm-frontend-prod
     hostname: frontend
-    environment:
-      - NODE_ENV=production
-      - ITSM_BACKEND_URL=http://itsm-backend:8090
-      - no_proxy=localhost,127.0.0.1
-      - NO_PROXY=localhost,127.0.0.1
     # NOTE: port 3000 is intentionally NOT published to the host in production.
     # All browser traffic MUST go through nginx on 80/443 so that X-Real-IP /
     # X-Forwarded-For are populated and audit logs (Fix #5) record the real
@@ -394,14 +393,18 @@ services:
     expose:
       - "3000"
     volumes:
-      - ./uploads:/app/public/uploads:ro
+      # Attachment previews: same host directory as the backend, served by the
+      # static nginx container at /uploads/ (alias /usr/share/nginx/uploads/).
+      - ./uploads:/usr/share/nginx/uploads:ro
     networks:
       - itsm-prod-network
     depends_on:
       itsm-backend:
         condition: service_healthy
     healthcheck:
-      test: ["CMD", "sh", "-c", "http_proxy= https_proxy= HTTP_PROXY= HTTPS_PROXY= wget --no-verbose --tries=1 --spider http://127.0.0.1:3000"]
+      # Served by the container's own nginx (itsm-frontend/nginx/default.conf);
+      # no Node runtime involved.
+      test: ["CMD", "sh", "-c", "http_proxy= https_proxy= HTTP_PROXY= HTTPS_PROXY= wget --no-verbose --tries=1 --spider http://127.0.0.1:3000/health"]
       interval: 30s
       timeout: 5s
       retries: 3

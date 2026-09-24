@@ -1,4 +1,4 @@
-'use client';
+import { useNavigate, useParams } from 'react-router';
 
 /**
  * 资产创建/编辑表单组件
@@ -18,7 +18,6 @@ import {
   DatePicker,
   Tooltip,
 } from 'antd';
-import { useRouter, useParams } from 'next/navigation';
 import { ArrowLeft, Save } from 'lucide-react';
 
 import type { Asset, AssetRequest } from '@/lib/api/asset-api';
@@ -72,7 +71,7 @@ const fieldHelps = {
 };
 
 const AssetForm: React.FC = () => {
-  const router = useRouter();
+  const navigate = useNavigate();
   const { id } = useParams() as { id: string };
   const [form] = Form.useForm();
   const [loading, setLoading] = useState(false);
@@ -148,7 +147,7 @@ const AssetForm: React.FC = () => {
         await AssetApi.createAsset(data);
         message.success('创建成功');
       }
-      router.push('/assets');
+      navigate('/assets');
     } catch (error) {
       message.error(isEdit ? '更新失败' : '创建失败');
     } finally {
@@ -168,7 +167,7 @@ const AssetForm: React.FC = () => {
         }}
       >
         <div style={{ marginBottom: 16 }}>
-          <Button icon={<ArrowLeft />} onClick={() => router.push('/assets')}>
+          <Button icon={<ArrowLeft />} onClick={() => navigate('/assets')}>
             返回列表
           </Button>
         </div>
@@ -367,7 +366,7 @@ const AssetForm: React.FC = () => {
             <Button type="primary" htmlType="submit" icon={<Save />} loading={loading}>
               {isEdit ? '保存' : '创建'}
             </Button>
-            <Button onClick={() => router.push('/assets')}>取消</Button>
+            <Button onClick={() => navigate('/assets')}>取消</Button>
           </Space>
         </Form.Item>
       </Form>

@@ -318,7 +318,7 @@ All APIs return `{ code: number, message: string, data: any }`:
 
 ## Configuration
 
-- Frontend: `NEXT_PUBLIC_API_URL` env var (default: <http://localhost:8090>)
+- Frontend: `VITE_API_URL` env var (default: empty → same-origin `/api/v1`; the dev proxy target is `ITSM_BACKEND_URL`, default <http://localhost:8090>)
 - Backend: `config.yaml` or environment variables
 - Backend runs on port 8090, frontend on 3000
 

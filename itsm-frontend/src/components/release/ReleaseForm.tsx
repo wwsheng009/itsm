@@ -1,4 +1,4 @@
-'use client';
+import { useNavigate, useParams } from 'react-router';
 
 /**
  * 发布创建/编辑表单组件
@@ -19,7 +19,6 @@ import {
   message,
   InputNumber,
 } from 'antd';
-import { useRouter, useParams } from 'next/navigation';
 import dayjs from 'dayjs';
 import { ArrowLeft, Lock, Save } from 'lucide-react';
 
@@ -64,7 +63,7 @@ const splitLines = (value?: string): string[] | undefined => {
 const READONLY_STATUSES = ['released', 'deployed', 'completed', 'cancelled'];
 
 const ReleaseForm: React.FC = () => {
-  const router = useRouter();
+  const navigate = useNavigate();
   const { id } = useParams() as { id: string };
   const [form] = Form.useForm();
   const [loading, setLoading] = useState(false);
@@ -143,7 +142,7 @@ const ReleaseForm: React.FC = () => {
         await ReleaseApi.createRelease(data);
         message.success('创建成功');
       }
-      router.push('/releases');
+      navigate('/releases');
     } catch (error) {
       message.error(isEdit ? '更新失败' : '创建失败');
     } finally {
@@ -163,7 +162,7 @@ const ReleaseForm: React.FC = () => {
           description="已发布、已部署或已完成的发布不允许修改。"
           className="mb-4"
           action={
-            <Button size="small" onClick={() => router.push(`/releases/${id}`)}>
+            <Button size="small" onClick={() => navigate(`/releases/${id}`)}>
               返回详情
             </Button>
           }
@@ -185,7 +184,7 @@ const ReleaseForm: React.FC = () => {
         }}
       >
         <div style={{ marginBottom: 16 }}>
-          <Button icon={<ArrowLeft />} onClick={() => router.push('/releases')}>
+          <Button icon={<ArrowLeft />} onClick={() => navigate('/releases')}>
             返回列表
           </Button>
         </div>
@@ -304,7 +303,7 @@ const ReleaseForm: React.FC = () => {
             >
               {isEdit ? '保存' : '创建'}
             </Button>
-            <Button onClick={() => router.push('/releases')}>取消</Button>
+            <Button onClick={() => navigate('/releases')}>取消</Button>
           </Space>
         </Form.Item>
       </Form>

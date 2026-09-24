@@ -1,12 +1,11 @@
+import { useNavigate } from 'react-router';
 /**
  * @deprecated 请使用 BusinessPageTemplate 替代，此组件为历史遗留实现
  */
-'use client';
 
 import React from 'react';
 import { Button } from 'antd';
 import { ArrowLeft } from 'lucide-react';
-import { useRouter } from 'next/navigation';
 
 interface PageHeaderProps {
   title?: string;
@@ -21,7 +20,7 @@ interface PageHeaderProps {
  * 不包含布局元素（Header/Sidebar），仅作为内容装饰
  */
 export function PageHeader({ title, description, extra, showBackButton = false }: PageHeaderProps) {
-  const router = useRouter();
+  const navigate = useNavigate();
 
   if (!title && !description && !extra && !showBackButton) {
     return null;
@@ -38,7 +37,7 @@ export function PageHeader({ title, description, extra, showBackButton = false }
       {/* 返回按钮 */}
       {showBackButton && (
         <div style={{ marginBottom: 16 }}>
-          <Button icon={<ArrowLeft size={16} />} onClick={() => router.back()} size="small">
+          <Button icon={<ArrowLeft size={16} />} onClick={() => navigate(-1)} size="small">
             返回
           </Button>
         </div>

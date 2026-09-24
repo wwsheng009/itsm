@@ -1,4 +1,3 @@
-'use client';
 
 import React from 'react';
 import { Tabs as AntTabs } from 'antd';

@@ -1,4 +1,4 @@
-'use client';
+import { useNavigate } from 'react-router';
 
 /**
  * 许可证列表组件
@@ -23,7 +23,6 @@ import {
   Empty,
 } from 'antd';
 import { Search, Plus, Pencil, Eye, Key } from 'lucide-react';
-import { useRouter } from 'next/navigation';
 import dayjs from 'dayjs';
 
 import { AssetApi, LicenseStatus, LicenseType } from '@/lib/api/asset-api';
@@ -46,7 +45,7 @@ const typeColors: Record<string, string> = {
 };
 
 const LicenseList: React.FC = () => {
-  const router = useRouter();
+  const navigate = useNavigate();
   const { message } = App.useApp();
   const [loading, setLoading] = useState(false);
   const [data, setData] = useState<any[]>([]);
@@ -221,7 +220,7 @@ const LicenseList: React.FC = () => {
             <Button
               type="text"
               icon={<Eye />}
-              onClick={() => router.push(`/licenses/${record.id}`)}
+              onClick={() => navigate(`/licenses/${record.id}`)}
               aria-label={`查看许可证 ${record.name || '详情'}`}
             />
           </Tooltip>
@@ -229,7 +228,7 @@ const LicenseList: React.FC = () => {
             <Button
               type="text"
               icon={<Pencil />}
-              onClick={() => router.push(`/licenses/${record.id}/edit`)}
+              onClick={() => navigate(`/licenses/${record.id}/edit`)}
               aria-label={`编辑许可证 ${record.name || '详情'}`}
             />
           </Tooltip>
@@ -327,7 +326,7 @@ const LicenseList: React.FC = () => {
               <Button
                 type="primary"
                 icon={<Plus />}
-                onClick={() => router.push('/licenses/new')}
+                onClick={() => navigate('/licenses/new')}
               >
                 创建许可证
               </Button>
@@ -344,7 +343,7 @@ const LicenseList: React.FC = () => {
           locale={{
             emptyText: (
               <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="暂无许可证数据">
-                <Button type="primary" onClick={() => router.push('/licenses/new')}>
+                <Button type="primary" onClick={() => navigate('/licenses/new')}>
                   创建第一个许可证
                 </Button>
               </Empty>

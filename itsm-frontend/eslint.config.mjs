@@ -2,11 +2,14 @@ import tsParser from '@typescript-eslint/parser';
 import tsPlugin from '@typescript-eslint/eslint-plugin';
 import reactHooksPlugin from 'eslint-plugin-react-hooks';
 import reactPlugin from 'eslint-plugin-react';
+// 迁移说明：`eslint-config-next` 已随 Next.js 移除（见 docs/plan/vite-migration-plan.md §5.1）。
+// react-refresh 规则在迁移期显式关闭，避免 450+ 存量组件文件产生噪声（计划 §5.1 原文建议）。
+import reactRefreshPlugin from 'eslint-plugin-react-refresh';
 
 export default [
   {
     ignores: [
-      '.next/**',
+      'dist/**',
       'coverage/**',
       'node_modules/**',
       'playwright-report/**',
@@ -19,7 +22,7 @@ export default [
       '*.config.js',
       '*.setup.js',
       'screenshot.js',
-      'next-env.d.ts',
+      'vite.config.ts',
     ],
   },
   {
@@ -62,6 +65,7 @@ export default [
       '@typescript-eslint': tsPlugin,
       'react-hooks': reactHooksPlugin,
       react: reactPlugin,
+      'react-refresh': reactRefreshPlugin,
     },
     settings: {
       react: {
@@ -71,6 +75,7 @@ export default [
     rules: {
       'react-hooks/rules-of-hooks': 'error',
       'react-hooks/exhaustive-deps': 'off', // 渐进式改进，逐步开启
+      'react-refresh/only-export-components': 'off', // 迁移期关闭，后续单独立项评估
       'react/jsx-uses-react': 'off',
       'react/react-in-jsx-scope': 'off',
       'react/prop-types': 'off',
@@ -100,11 +105,12 @@ export default [
     },
   },
   // 禁止在业务层直接 fetch()，统一走 src/lib/api/httpClient
-  // 例外：src/lib/api/**（httpClient 自身实现）、src/app/api/**（Next.js route handler, Node 侧）
+  // 例外：src/lib/services/**（httpClient 自身实现与其下层 service）
   //       pwa.ts(SW 注册)、security.ts(CSRF token 获取先于 httpClient)、NetworkStatus.tsx(健康探测)
+  // 迁移说明：原规则覆盖 `src/app/**`（Next App Router 页面），迁移后页面落在 `src/pages/**`；
+  //           Next route handler（`src/app/api/**`）已删除，dev 走 Vite server.proxy，生产走 nginx。
   {
-    files: ['src/app/**/*.tsx', 'src/lib/services/**/*.ts', 'src/components/**/*.tsx'],
-    ignores: ['src/app/api/**'],
+    files: ['src/pages/**/*.tsx', 'src/lib/services/**/*.ts', 'src/components/**/*.tsx'],
     rules: {
       'no-restricted-syntax': [
         'error',

@@ -79,44 +79,6 @@ test('image builder validates tags and normalizes the registry separator', () =>
   assert.match(fs.readFileSync(valid.log, 'utf8'), /registry\.example\.com\/team\/itsm-frontend:v2/);
 });
 
-test('standalone start fails with an actionable message when build output is absent', () => {
-  const empty = fs.mkdtempSync(path.join(os.tmpdir(), 'itsm-standalone-start-'));
-  const result = spawnSync(
-    process.execPath,
-    [path.join(root, 'itsm-frontend', 'scripts', 'start-standalone.mjs')],
-    { cwd: empty, encoding: 'utf8' }
-  );
-
-  assert.notEqual(result.status, 0);
-  assert.match(result.stderr, /Run "npm run build"/);
-});
-
-test('standalone preparation copies static and public assets into the runtime bundle', () => {
-  const fixture = fs.mkdtempSync(path.join(os.tmpdir(), 'itsm-standalone-prepare-'));
-  fs.mkdirSync(path.join(fixture, '.next', 'standalone'), { recursive: true });
-  fs.mkdirSync(path.join(fixture, '.next', 'static'), { recursive: true });
-  fs.mkdirSync(path.join(fixture, 'public'), { recursive: true });
-  fs.writeFileSync(path.join(fixture, '.next', 'standalone', 'server.js'), '');
-  fs.writeFileSync(path.join(fixture, '.next', 'static', 'asset.js'), 'static');
-  fs.writeFileSync(path.join(fixture, 'public', 'health.txt'), 'public');
-
-  const result = spawnSync(
-    process.execPath,
-    [path.join(root, 'itsm-frontend', 'scripts', 'prepare-standalone.mjs')],
-    { cwd: fixture, encoding: 'utf8' }
-  );
-
-  assert.equal(result.status, 0, result.stderr);
-  assert.equal(
-    fs.readFileSync(path.join(fixture, '.next', 'standalone', '.next', 'static', 'asset.js'), 'utf8'),
-    'static'
-  );
-  assert.equal(
-    fs.readFileSync(path.join(fixture, '.next', 'standalone', 'public', 'health.txt'), 'utf8'),
-    'public'
-  );
-});
-
 test('production dry-run exits before runtime verification and success reporting', () => {
   const script = fs.readFileSync(path.join(root, 'scripts', 'deploy-prod.sh'), 'utf8');
   const dryRunExit = script.indexOf('print_banner "Production Dry Run Complete"');

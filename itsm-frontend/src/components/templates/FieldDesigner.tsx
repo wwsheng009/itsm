@@ -3,8 +3,6 @@
  * 提供拖拽式字段配置、实时预览、条件逻辑设置等功能
  */
 
-'use client';
-
 import React, { useState, useCallback, useMemo } from 'react';
 import {
   Card,

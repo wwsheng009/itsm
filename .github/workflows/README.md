@@ -7,7 +7,7 @@
 | Workflow | 触发时机 | 职责 |
 |---|---|---|
 | [`backend-ci.yml`](./backend-ci.yml) | 后端 push / PR | Go 格式、静态检查、构建、测试和依赖校验 |
-| [`frontend-ci.yml`](./frontend-ci.yml) | 前端 push / PR | 单次安装后执行 ESLint、类型检查、Jest 和生产构建 |
+| [`frontend-ci.yml`](./frontend-ci.yml) | 前端 push / PR | 单次安装后执行 ESLint、类型检查、Jest 和 Vite 生产构建（`dist/`） |
 | [`api-contract-check.yml`](./api-contract-check.yml) | API/路由变更 | 前后端路径与字段契约静态检查 |
 | [`test-coverage-guard.yml`](./test-coverage-guard.yml) | 源代码变更 | 强制「源码 X 改动 ⇒ 测试 X 必动」规则 |
 | [`ga-gate.yml`](./ga-gate.yml) | 核心应用 push / PR | 启动核心 Compose 栈并执行健康检查和 API 烟测 |
@@ -50,17 +50,17 @@ make check-contracts
 
 ## 前端 API 构建约定
 
-- CI、Release 和标准 Nginx 部署保持 `NEXT_PUBLIC_API_URL` 为空。
+- CI、Release 和标准 Nginx 部署保持 `VITE_API_URL` 为空。
 - API client 路径已包含 `/api/v1/*`，浏览器通过同源 Nginx 转发。
-- Next.js 服务端访问后端使用 `ITSM_BACKEND_URL`，不将容器主机名或开发机地址嵌入浏览器产物。
-- 仅在不经反向代理的本机开发中，才设置 `NEXT_PUBLIC_API_URL=http://localhost:8090`。
+- `VITE_*` 变量在构建期烘入产物；`ITSM_BACKEND_URL` 仅供 vite dev 代理读取，不进入浏览器产物。
+- 仅在不经反向代理的本机开发中，才设置 `VITE_API_URL=http://localhost:8090`。
 
 ## 可执行工程约束
 
 `scripts/check-engineering-contracts.js` 是跨文件约定的单一检查入口，当前覆盖：
 
 - 浏览器 API 默认同源，CI 和 Release 不得嵌入开发机后端地址。
-- `.env.prod.example` 与 Next.js server-side 后端地址保持分层。
+- `.env.prod.example` 与 vite dev 代理使用的后端地址保持分层。
 - 前端 Docker 构建不得携带 `.env.local` 等本机环境文件。
 - Compose 使用后端真实读取的 CORS 变量和 IPv4 健康检查。
 - MkDocs 依赖必须通过 `requirements-docs.txt` 可复现安装。

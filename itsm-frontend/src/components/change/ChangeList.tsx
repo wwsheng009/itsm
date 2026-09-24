@@ -1,4 +1,4 @@
-'use client';
+import { useNavigate } from 'react-router';
 
 /**
  * 变更列表组件
@@ -20,7 +20,6 @@ import {
 } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
 import { Search, Plus, Pencil, Trash2, Eye, RefreshCw } from 'lucide-react';
-import { useRouter } from 'next/navigation';
 import dayjs from 'dayjs';
 
 import { ChangeApi } from '@/lib/api/';
@@ -61,7 +60,7 @@ interface ChangeListProps {
 }
 
 const ChangeList: React.FC<ChangeListProps> = ({ showHeader = true, search, status, risk }) => {
-  const router = useRouter();
+  const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
   const [data, setData] = useState<Change[]>([]);
   const [total, setTotal] = useState(0);
@@ -199,7 +198,7 @@ const ChangeList: React.FC<ChangeListProps> = ({ showHeader = true, search, stat
             <Button
               type="text"
               icon={<Eye />}
-              onClick={() => router.push(`/changes/${record.id}`)}
+              onClick={() => navigate(`/changes/${record.id}`)}
               aria-label={`查看变更 ${record.title}`}
             />
           </Tooltip>
@@ -207,7 +206,7 @@ const ChangeList: React.FC<ChangeListProps> = ({ showHeader = true, search, stat
             <Button
               type="text"
               icon={<Pencil />}
-              onClick={() => router.push(`/changes/${record.id}/edit`)}
+              onClick={() => navigate(`/changes/${record.id}/edit`)}
               aria-label={`编辑变更 ${record.title}`}
             />
           </Tooltip>
@@ -250,7 +249,7 @@ const ChangeList: React.FC<ChangeListProps> = ({ showHeader = true, search, stat
         <Button
           type="primary"
           icon={<Plus />}
-          onClick={() => router.push('/changes/new')}
+          onClick={() => navigate('/changes/new')}
           size="large"
         >
           新建变更
@@ -291,7 +290,7 @@ const ChangeList: React.FC<ChangeListProps> = ({ showHeader = true, search, stat
 
         {data.length === 0 && !loading ? (
           <Empty description="暂无变更记录" image={Empty.PRESENTED_IMAGE_SIMPLE}>
-            <Button type="primary" onClick={() => router.push('/changes/new')}>
+            <Button type="primary" onClick={() => navigate('/changes/new')}>
               创建第一个变更
             </Button>
           </Empty>

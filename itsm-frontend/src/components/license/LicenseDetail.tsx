@@ -1,4 +1,4 @@
-'use client';
+import { useNavigate, useParams } from 'react-router';
 
 /**
  * 许可证详情组件
@@ -20,7 +20,6 @@ import {
   Typography,
 } from 'antd';
 import { ArrowLeft, User as UserIcon, Key } from 'lucide-react';
-import { useParams, useRouter } from 'next/navigation';
 import dayjs from 'dayjs';
 
 import type { License } from '@/lib/api/asset-api';
@@ -55,7 +54,7 @@ const typeLabels: Record<string, string> = {
 
 const LicenseDetail: React.FC = () => {
   const { id } = useParams() as { id: string };
-  const router = useRouter();
+  const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
   const [license, setLicense] = useState<License | null>(null);
   const [assignModalVisible, setAssignModalVisible] = useState(false);
@@ -125,7 +124,7 @@ const LicenseDetail: React.FC = () => {
           title="404"
           subTitle="抱歉，您访问的许可证不存在"
           extra={
-            <Button type="primary" onClick={() => router.push('/licenses')}>
+            <Button type="primary" onClick={() => navigate('/licenses')}>
               返回列表
             </Button>
           }
@@ -143,7 +142,7 @@ const LicenseDetail: React.FC = () => {
         <div style={{ marginBottom: 24 }}>
           <Button
             icon={<ArrowLeft />}
-            onClick={() => router.push('/licenses')}
+            onClick={() => navigate('/licenses')}
             style={{ marginBottom: 16 }}
           >
             返回列表
@@ -269,7 +268,7 @@ const LicenseDetail: React.FC = () => {
 
       <Card>
         <Space>
-          <Button type="primary" onClick={() => router.push(`/licenses/${license.id}/edit`)}>
+          <Button type="primary" onClick={() => navigate(`/licenses/${license.id}/edit`)}>
             编辑
           </Button>
           {license.status === 'active' && license.availableQuantity > 0 && (

@@ -1,4 +1,3 @@
-'use client';
 
 import React from 'react';
 import { Server, BarChart3, Shield, Zap, Sparkles } from 'lucide-react';

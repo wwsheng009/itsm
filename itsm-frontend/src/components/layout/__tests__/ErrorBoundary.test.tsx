@@ -274,10 +274,9 @@ describe('Layout ErrorBoundary', () => {
 
     it('开发环境显示堆栈跟踪详情', () => {
       const originalEnv = process.env.NODE_ENV;
-      Object.defineProperty(process.env, 'NODE_ENV', {
-        value: 'development',
-        writable: true,
-      });
+      // 注意：jest 的 `process.env` 是 Proxy，未实现 defineProperty trap，
+      // `Object.defineProperty(process.env, ...)` 不会生效，必须用赋值。
+      process.env.NODE_ENV = 'development';
 
       render(
         <ErrorBoundary>
@@ -288,18 +287,12 @@ describe('Layout ErrorBoundary', () => {
       // 开发环境应该显示堆栈跟踪摘要
       expect(screen.getByText('堆栈跟踪')).toBeInTheDocument();
 
-      Object.defineProperty(process.env, 'NODE_ENV', {
-        value: originalEnv,
-        writable: true,
-      });
+      process.env.NODE_ENV = originalEnv ?? 'test';
     });
 
     it('生产环境不显示堆栈跟踪详情', () => {
       const originalEnv = process.env.NODE_ENV;
-      Object.defineProperty(process.env, 'NODE_ENV', {
-        value: 'production',
-        writable: true,
-      });
+      process.env.NODE_ENV = 'production';
 
       render(
         <ErrorBoundary>
@@ -310,10 +303,7 @@ describe('Layout ErrorBoundary', () => {
       // 生产环境不应该显示 Stack Trace 摘要
       expect(screen.queryByText(/Stack Trace/i)).not.toBeInTheDocument();
 
-      Object.defineProperty(process.env, 'NODE_ENV', {
-        value: originalEnv,
-        writable: true,
-      });
+      process.env.NODE_ENV = originalEnv ?? 'test';
     });
   });
 

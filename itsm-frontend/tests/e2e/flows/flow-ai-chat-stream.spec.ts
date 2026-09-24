@@ -8,7 +8,7 @@
 import { expect, test, type APIRequestContext, type Page } from '@playwright/test';
 import { loginAs } from '../utils/test-utils';
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8090';
+const API_URL = process.env.VITE_API_URL || process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8090';
 
 type StreamResult = {
   status: number;

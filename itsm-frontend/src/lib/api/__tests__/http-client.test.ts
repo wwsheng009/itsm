@@ -82,7 +82,7 @@ describe('httpClient', () => {
 
   describe('base configuration', () => {
     it('defaults to same-origin when no public API URL is configured', () => {
-      expect(httpClient.getBaseURL()).toBe(process.env.NEXT_PUBLIC_API_URL || '');
+      expect(httpClient.getBaseURL()).toBe(import.meta.env.VITE_API_URL || '');
     });
 
     it('returns null token when no cookie is set', () => {

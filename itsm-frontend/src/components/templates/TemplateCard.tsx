@@ -3,8 +3,6 @@
  * 展示单个模板的信息，支持快速操作
  */
 
-'use client';
-
 import React from 'react';
 import {
   Card,

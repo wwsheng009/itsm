@@ -1,4 +1,3 @@
-'use client';
 
 import { useEffect, useRef, useState } from 'react';
 
@@ -33,8 +32,8 @@ export const usePerformance = (componentName: string) => {
 
     // 开发环境下输出性能指标
     if (
-      process.env.NODE_ENV === 'development' &&
-      process.env.NEXT_PUBLIC_ENABLE_PERFORMANCE_MONITORING === 'true'
+      import.meta.env.DEV &&
+      import.meta.env.VITE_ENABLE_PERFORMANCE_MONITORING === 'true'
     ) {
     }
   }, [componentName]);
@@ -65,7 +64,7 @@ export const usePerformance = (componentName: string) => {
 
   // 性能警告
   useEffect(() => {
-    if (process.env.NODE_ENV === 'development') {
+    if (import.meta.env.DEV) {
       if (metrics.rerenderCount > 10) {
         console.warn(
           `[Performance Warning] ${componentName} has re-rendered ${metrics.rerenderCount} times`

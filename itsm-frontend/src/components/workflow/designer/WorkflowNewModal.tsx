@@ -1,8 +1,6 @@
 // 新建工作流模态框
 // Workflow New Modal - 模板选择
 
-'use client';
-
 import React from 'react';
 import { Modal, Input, Form, Button } from 'antd';
 import { FileText } from 'lucide-react';

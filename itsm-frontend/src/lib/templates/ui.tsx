@@ -2,8 +2,6 @@
  * UI 组件模板 - 常用 UI 组件封装
  */
 
-'use client';
-
 import React, { useState, useCallback } from 'react';
 import {
   Card,

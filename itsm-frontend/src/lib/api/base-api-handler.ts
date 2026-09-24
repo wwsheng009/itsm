@@ -110,7 +110,7 @@ export class ApiHandler {
       }
 
       // 记录错误到控制台（开发环境）
-      if (process.env.NODE_ENV === 'development') {
+      if (import.meta.env.DEV) {
         console.error('API Error:', {
           message: friendlyMessage,
           error,

@@ -1,22 +1,24 @@
 // 工作流画布组件
 // Workflow Canvas Component - BPMN 设计器画布
 
-'use client';
-
-import React, { forwardRef } from 'react';
-import dynamic from 'next/dynamic';
+import React, { forwardRef, lazy, Suspense } from 'react';
 import { Spin } from 'antd';
 import type { BpmnDesignerApi, BpmnNodeSelection } from '../BPMNDesigner';
 
 // 动态导入 BPMN 设计器 - bpmn-js 库较大，按需加载
-const BPMNDesigner = dynamic(() => import('../BPMNDesigner'), {
-  ssr: false,
-  loading: () => (
+const BPMNDesignerLazy = lazy(() => import('../BPMNDesigner'));
+
+const BPMNDesigner: React.FC<React.ComponentProps<typeof BPMNDesignerLazy>> = props => (
+  <Suspense
+    fallback={
     <div className="flex items-center justify-center h-full">
       <Spin size="large" description="加载流程设计器..." />
     </div>
-  ),
-});
+    }
+  >
+    <BPMNDesignerLazy {...props} />
+  </Suspense>
+);
 
 interface WorkflowCanvasProps {
   currentXML: string;
@@ -27,8 +29,8 @@ interface WorkflowCanvasProps {
 }
 
 /**
- * 用模块级 ref 桥接 dynamic 组件与 BPMNDesigner 的命令式 API。
- * 因为 dynamic 组件无法直接转发 ref，使用 module-scope ref 通信。
+ * 用模块级 ref 桥接动态加载的 BPMNDesigner 与命令式 API。
+ * 因为 lazy 组件无法直接转发 ref，使用 module-scope ref 通信。
  */
 const _apiRef: { current: BpmnDesignerApi | null } = { current: null };
 

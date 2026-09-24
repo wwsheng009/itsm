@@ -51,7 +51,7 @@
 | Workflow | 作用 | 触发 |
 |:---|:---|:---|
 | [backend-ci](../.github/workflows/backend-ci.yml) | 后端格式、静态分析、构建、测试、Go module 校验 | 后端代码或 workflow 变化 |
-| [frontend-ci](../.github/workflows/frontend-ci.yml) | 前端 lint、类型检查、单测、Next.js standalone 构建 | 前端代码或 workflow 变化 |
+| [frontend-ci](../.github/workflows/frontend-ci.yml) | 前端 lint、类型检查、单测、Vite 生产构建（`dist/`） | 前端代码或 workflow 变化 |
 | [api-contract-check](../.github/workflows/api-contract-check.yml) | 前后端 API 路径与字段命名静态校验 | API client、router 或 workflow 变化 |
 | [test-coverage-guard](../.github/workflows/test-coverage-guard.yml) | 校验受管源码变更有对应测试 | 受管前后端源码变化 |
 | [GA Gate](../.github/workflows/ga-gate.yml) | 启动核心 Compose 栈并执行健康检查与 API 烟测 | 核心应用或编排变化 |

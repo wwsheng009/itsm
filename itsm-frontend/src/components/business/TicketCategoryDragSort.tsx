@@ -1,4 +1,3 @@
-'use client';
 
 import React, { useState, useEffect, useCallback } from 'react';
 import { Tree, Button, message, Modal, Spin, Alert, Space, Typography, Card, Tooltip } from 'antd';

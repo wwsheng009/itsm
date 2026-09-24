@@ -1,10 +1,9 @@
-'use client';
+import { useLocation, useNavigate } from 'react-router';
 
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { Layout, Button, Tooltip, Badge, Dropdown, message, Breadcrumb } from 'antd';
 import { PanelLeftClose, PanelLeftOpen, Bell, Bot, Globe, Home, Moon, Sun } from 'lucide-react';
 import { useTheme } from '@/lib/design-system/theme';
-import { useRouter, usePathname } from 'next/navigation';
 import { useAuthStore, useAuthStoreHydration } from '@/lib/store/auth-store';
 import { AuthService } from '@/lib/services/auth-service';
 import { DESIGN } from '@/design-system/tokens';
@@ -45,8 +44,8 @@ export const Header: React.FC<HeaderProps> = ({
   breadcrumb,
   showBreadcrumb = false,
 }) => {
-  const router = useRouter();
-  const pathname = usePathname();
+  const navigate = useNavigate();
+  const pathname = useLocation().pathname;
   const { user, token, hasPermission, isAdmin } = useAuthStore();
   const { isDark, toggleTheme } = useTheme();
   const { language, changeLanguage } = useI18n();
@@ -270,7 +269,7 @@ export const Header: React.FC<HeaderProps> = ({
               <Button
                 type="text"
                 className={styles.actionButton}
-                onClick={() => router.push('/ai/chat')}
+                onClick={() => navigate('/ai/chat')}
                 aria-label="AI助手"
                 title="AI助手"
               >
@@ -342,7 +341,7 @@ export const Header: React.FC<HeaderProps> = ({
         onMarkAllAsRead={markAllAsRead}
         onViewAll={() => {
           setNotificationsOpen(false);
-          router.push('/notifications');
+          navigate('/notifications');
         }}
         loading={notificationsLoading}
       />

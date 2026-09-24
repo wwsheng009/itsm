@@ -411,7 +411,7 @@ start_frontend_local() {
     log_step "Starting frontend service"
 
     if wait_for_http "$FRONTEND_URL" "frontend" 2; then
-        if managed_pid_running "$PID_DIR/frontend.pid" "next dev --port 3000"; then
+        if managed_pid_running "$PID_DIR/frontend.pid" "vite dev --port 3000"; then
             log_info "Managed frontend already running on port 3000"
             return 0
         fi
@@ -432,15 +432,15 @@ start_frontend_local() {
         npm ci --ignore-scripts
     fi
 
-    # Keep browser traffic same-origin; server-side proxying reaches the local backend.
-    export NEXT_PUBLIC_API_URL="${NEXT_PUBLIC_API_URL:-}"
+    # Keep browser traffic same-origin; the Vite dev proxy reaches the local backend.
+    export VITE_API_URL="${VITE_API_URL:-}"
     export ITSM_BACKEND_URL="${ITSM_BACKEND_URL:-http://localhost:8090}"
     export NODE_ENV="${NODE_ENV:-development}"
 
     local start; start=$(timer_start)
-    log_info "Starting Next.js dev server..."
+    log_info "Starting Vite dev server..."
     # Use the installed binary directly to avoid package-manager wrapper overhead.
-    nohup ./node_modules/.bin/next dev --port 3000 > "$LOG_DIR/frontend.log" 2>&1 &
+    nohup ./node_modules/.bin/vite dev --port 3000 > "$LOG_DIR/frontend.log" 2>&1 &
     local pid=$!
     echo "$pid" > "$PID_DIR/frontend.pid"
     log_info "Frontend PID: $pid"
@@ -666,7 +666,7 @@ cmd_doctor() {
     if wait_for_http "$FRONTEND_URL" "frontend" 3; then
         log_success "Frontend: healthy"
         if ! container_running "itsm-frontend-dev" \
-            && ! managed_pid_running "$PID_DIR/frontend.pid" "next dev --port 3000"; then
+            && ! managed_pid_running "$PID_DIR/frontend.pid" "vite dev --port 3000"; then
             log_warn "Frontend is healthy but belongs to another runtime (possibly an older image)"
             issues=$((issues + 1))
         fi

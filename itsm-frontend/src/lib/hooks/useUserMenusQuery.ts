@@ -1,4 +1,3 @@
-'use client';
 
 /**
  * 当前用户可见菜单的 React Query 缓存

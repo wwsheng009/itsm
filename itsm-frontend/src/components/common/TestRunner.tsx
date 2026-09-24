@@ -1,4 +1,3 @@
-'use client';
 
 import React, { useState, useCallback, useEffect } from 'react';
 import { Card, Button, Progress, Tag, Collapse, Alert, Statistic, Row, Col } from 'antd';

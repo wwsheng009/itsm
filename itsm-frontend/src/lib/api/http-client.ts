@@ -103,9 +103,8 @@ class HttpClient {
   private readonly timeout: number;
 
   constructor(baseURL: string = API_BASE_URL) {
-    this.baseURL =
-      typeof window === 'undefined' ? process.env.ITSM_BACKEND_URL || baseURL : baseURL;
-    this.timeout = parseInt(process.env.NEXT_PUBLIC_API_TIMEOUT || '30000');
+    this.baseURL = baseURL;
+    this.timeout = parseInt(import.meta.env.VITE_API_TIMEOUT || '30000');
 	// Browser authentication uses HttpOnly cookies. JavaScript deliberately never
 	// reads the token value; non-browser callers may still set this field.
   }
@@ -365,7 +364,7 @@ class HttpClient {
     });
 
     // 在开发模式下，如果后端服务不可用，使用模拟数据
-    if (process.env.NODE_ENV === 'development' && this.baseURL.includes('localhost')) {
+    if (import.meta.env.DEV && this.baseURL.includes('localhost')) {
       logger.warn('开发模式：正在连接到后端服务，如果后端服务未运行，将显示错误');
     }
 

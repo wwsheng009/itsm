@@ -14,11 +14,34 @@ import TicketDetail from '../TicketDetail';
 const mockAssignTicket = jest.fn();
 const mockGetTicket = jest.fn();
 
-jest.mock('next/navigation', () => ({ useParams: () => ({ ticketId: '17' }) }));
+// 覆盖全局 react-router mock（jest.setup.js）时，必须同时替换 Link/NavLink/Navigate，
+// 否则真实 Link 会在没有 <Router> 上下文的渲染中抛
+// `Cannot destructure property 'basename' of 'React.useContext(...)' as it is null`。
+jest.mock('react-router', () => {
+  const actual = jest.requireActual('react-router');
+  const React = require('react');
+  const anchor = ({ to, children, ...rest }: { to?: unknown; children?: unknown }) =>
+    React.createElement(
+      'a',
+      { href: typeof to === 'string' ? to : '#', ...rest },
+      typeof children === 'function'
+        ? children({ isActive: false, isPending: false, isTransitioning: false })
+        : children
+    );
 
-jest.mock('next/link', () => {
-  const Link = ({ children }: { children: React.ReactNode }) => <a>{children}</a>;
-  return { __esModule: true, default: Link };
+  return {
+    ...actual,
+    useParams: () => ({ ticketId: '17' }),
+    useNavigate: () => jest.fn(),
+    useLocation: () => ({ pathname: '/tickets/17', search: '', hash: '', state: null, key: 'test' }),
+    useSearchParams: () => [new URLSearchParams(), jest.fn()],
+    useRouteError: () => undefined,
+    useNavigation: () => ({ state: 'idle' }),
+    Link: anchor,
+    NavLink: anchor,
+    Navigate: () => null,
+    Outlet: () => null,
+  };
 });
 
 jest.mock('@/lib/api/ticket-api', () => ({

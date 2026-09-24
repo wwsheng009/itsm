@@ -1,8 +1,8 @@
 import React from 'react';
-import Image from 'next/image';
-import type { ImageProps } from 'next/image';
 
-interface AppImageProps extends Omit<ImageProps, 'alt'> {
+interface AppImageProps
+  extends Omit<React.ImgHTMLAttributes<HTMLImageElement>, 'src' | 'alt' | 'loading'> {
+  src: string;
   alt: string;
   /** 是否启用懒加载，默认 true */
   lazy?: boolean;
@@ -14,25 +14,22 @@ export default function AppImage({
   alt,
   lazy = true,
   fallbackSrc = '/images/placeholder.png',
-  quality = 80,
-  priority = false,
   ...props
 }: AppImageProps) {
-  const [imgSrc, setImgSrc] = React.useState(props.src);
+  const [imgSrc, setImgSrc] = React.useState<string>(props.src);
 
-  const handleError = () => {
+  const handleError = (event: React.SyntheticEvent<HTMLImageElement, Event>) => {
     setImgSrc(fallbackSrc);
+    props.onError?.(event);
   };
 
   return (
-    <Image
-      alt={alt}
-      quality={quality}
-      priority={priority}
-      loading={lazy && !priority ? 'lazy' : 'eager'}
-      onError={handleError}
+    <img
       {...props}
+      alt={alt}
+      loading={lazy ? 'lazy' : 'eager'}
       src={imgSrc}
+      onError={handleError}
     />
   );
 }

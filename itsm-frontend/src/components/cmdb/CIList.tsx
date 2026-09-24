@@ -1,4 +1,4 @@
-'use client';
+import { useNavigate } from 'react-router';
 
 /**
  * 配置项 (CI) 列表组件
@@ -24,7 +24,6 @@ import {
 } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
 import { Search, Plus, Pencil, Trash2, Download, Eye, RotateCcw, Database } from 'lucide-react';
-import { useRouter } from 'next/navigation';
 import dayjs from 'dayjs';
 import LoadingEmptyError from '@/components/ui/LoadingEmptyError';
 
@@ -43,7 +42,7 @@ const statusColors: Record<string, string> = {
 };
 
 const CIList: React.FC = () => {
-  const router = useRouter();
+  const navigate = useNavigate();
   const { message } = App.useApp();
   const [filters, setFilters] = useState<{
     search: string;
@@ -198,7 +197,7 @@ const CIList: React.FC = () => {
       render: (text: string, record: ConfigurationItem) => (
         <Button
           type="link"
-          onClick={() => router.push(`/cmdb/cis/${record.id}`)}
+          onClick={() => navigate(`/cmdb/cis/${record.id}`)}
           style={{ padding: 0, height: 'auto' }}
         >
           {text}
@@ -253,7 +252,7 @@ const CIList: React.FC = () => {
               type="text"
               icon={<Pencil />}
               aria-label="编辑"
-              onClick={() => router.push(`/cmdb/cis/${record.id}/edit`)}
+              onClick={() => navigate(`/cmdb/cis/${record.id}/edit`)}
             />
           </Tooltip>
           <Tooltip title="删除">
@@ -312,7 +311,7 @@ const CIList: React.FC = () => {
             type="primary"
             icon={<Plus />}
             className="ml-auto"
-            onClick={() => router.push('/cmdb/cis/create')}
+            onClick={() => navigate('/cmdb/cis/create')}
           >
             录入资产
           </Button>
@@ -368,7 +367,7 @@ const CIList: React.FC = () => {
                     description: '当前没有配置项数据',
                     icon: <Database size={48} />,
                     actionText: '创建第一个配置项',
-                    onAction: () => router.push('/cmdb/cis/create'),
+                    onAction: () => navigate('/cmdb/cis/create'),
                   }}
                 />
               ),

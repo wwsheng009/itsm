@@ -1,4 +1,3 @@
-'use client';
 
 import React, { forwardRef } from 'react';
 import { Button, type ButtonProps as AntButtonProps } from 'antd';

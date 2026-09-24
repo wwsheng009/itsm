@@ -1,4 +1,4 @@
-'use client';
+import { Link, useParams } from 'react-router';
 
 /**
  * 工单详情组件
@@ -6,9 +6,7 @@
  * 包含：基本信息、SLA、审批/拒绝/分配/编辑/抄送/删除操作、详情 Tabs（评论/附件/审批链/历史/关联）
  */
 
-import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
-import dynamic from 'next/dynamic';
-import { useParams } from 'next/navigation';
+import React, { useState, useEffect, useCallback, useMemo, useRef, lazy, Suspense } from 'react';
 import { TicketApi, type TicketConfigurationItem } from '@/lib/api/ticket-api';
 import { TicketApprovalApi } from '@/lib/api/ticket-approval-api';
 import { AttachmentApi, ticketAttachmentPreviewUrl } from '@/lib/api/attachment-api';
@@ -29,7 +27,6 @@ import {
   XIcon,
   Users,
 } from 'lucide-react';
-import Link from 'next/link';
 import {
   Button,
   Card,
@@ -91,11 +88,14 @@ const { Title, Text } = Typography;
 const { TextArea } = Input;
 
 // 编辑页富文本方案：§4.7 复用同一套 RichTextEditor
-//  - 动态导入（ssr: false），仅在编辑弹层打开后才拉取编辑器 chunk（§NF-2 / 风险表）
-const RichTextEditor = dynamic(() => import('@/components/common/rich-text/RichTextEditor'), {
-  ssr: false,
-  loading: () => <Skeleton.Input active block style={{ height: 180 }} />,
-});
+//  - 动态导入，仅在编辑弹层打开后才拉取编辑器 chunk（§NF-2 / 风险表）
+const RichTextEditorLazy = lazy(() => import('@/components/common/rich-text/RichTextEditor'));
+
+const RichTextEditor: React.FC<React.ComponentProps<typeof RichTextEditorLazy>> = props => (
+  <Suspense fallback={<Skeleton.Input active block style={{ height: 180 }} />}>
+    <RichTextEditorLazy {...props} />
+  </Suspense>
+);
 
 /** 描述纯文本上限（沿用编辑弹层既有 maxLength 规则，超限由纯文本长度判定） */
 const EDIT_DESCRIPTION_MAX = 2000;
@@ -718,7 +718,7 @@ const TicketDetail: React.FC<{ id?: string }> = ({ id: propId }) => {
             </Title>
             <Text type="secondary">{t('ticketDetail.notFoundDesc')}</Text>
             <div className="mt-4">
-              <Link href="/tickets">
+              <Link to="/tickets">
                 <Button type="primary">{t('ticketDetail.backToList')}</Button>
               </Link>
             </div>
@@ -734,7 +734,7 @@ const TicketDetail: React.FC<{ id?: string }> = ({ id: propId }) => {
       <div className="mb-6">
         <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between mb-4">
           <div className="flex min-w-0 items-start sm:items-center space-x-2 sm:space-x-4">
-            <Link href="/tickets">
+            <Link to="/tickets">
               <Button icon={<ArrowLeft />} type="text">
                 {t('common.back')}
               </Button>
@@ -827,7 +827,7 @@ const TicketDetail: React.FC<{ id?: string }> = ({ id: propId }) => {
             renderItem={(ci) => (
               <List.Item
                 actions={[
-                  <Link key="open" href={`/cmdb/cis/${ci.id}`}>
+                  <Link key="open" to={`/cmdb/cis/${ci.id}`}>
                     查看
                   </Link>,
                 ]}
@@ -835,7 +835,7 @@ const TicketDetail: React.FC<{ id?: string }> = ({ id: propId }) => {
                 <List.Item.Meta
                   title={
                     <Space>
-                      <Link href={`/cmdb/cis/${ci.id}`}>{ci.name}</Link>
+                      <Link to={`/cmdb/cis/${ci.id}`}>{ci.name}</Link>
                       <Tag color="blue">{ci.ciType}</Tag>
                     </Space>
                   }

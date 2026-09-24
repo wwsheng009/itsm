@@ -32,10 +32,6 @@ jest.mock('@/lib/api/bpmn-dashboard-api', () => ({
   },
 }));
 
-jest.mock('next/navigation', () => ({
-  useRouter: jest.fn(),
-}));
-
 const mockGetInstance = WorkflowApi.getInstance as jest.MockedFunction<typeof WorkflowApi.getInstance>;
 const mockGetNodeInstances = WorkflowApi.getNodeInstances as jest.MockedFunction<typeof WorkflowApi.getNodeInstances>;
 const mockGetProcessTimeline = BPMNDashboardApi.getProcessTimeline as jest.MockedFunction<

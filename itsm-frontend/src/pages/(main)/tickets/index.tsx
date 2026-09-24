@@ -1,0 +1,348 @@
+import { Link, useNavigate, useSearchParams } from 'react-router';
+
+import React, { Suspense, useState, useEffect, useCallback } from 'react';
+import { Card, Typography, Space, Button, Tabs, Badge, Skeleton } from 'antd';
+import { Search, Plus, LayoutGrid, Bell, Table } from 'lucide-react';
+import TicketList from '@/components/ticket/TicketList';
+import TicketKanban from '@/components/ticket/TicketKanban';
+import TicketAdvancedSearch, {
+  type AdvancedSearchFilters,
+} from '@/components/ticket/TicketAdvancedSearch';
+import type { TicketQueryFilters } from '@/lib/hooks/useTickets';
+import {
+  saveFilters,
+  restoreFilters,
+  clearFilters,
+  getDefaultFilters,
+} from '@/lib/utils/filter-persistence';
+import { useI18n } from '@/lib/i18n/useI18n';
+
+const { Title, Text } = Typography;
+
+// 内容组件，使用 useSearchParams
+function TicketsPageContent() {
+  const { t } = useI18n();
+  const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const [activeTab, setActiveTab] = useState('list');
+  const [showAdvancedSearch, setShowAdvancedSearch] = useState(false);
+
+  // 从 localStorage 恢复筛选条件
+  const [advancedFilters, setAdvancedFilters] = useState<Partial<TicketQueryFilters>>(() => {
+    const defaults = getDefaultFilters('tickets') as Partial<TicketQueryFilters>;
+    return restoreFilters('tickets', defaults);
+  });
+
+  const [ticketStats, setTicketStats] = useState({
+    total: 0,
+    open: 0,
+    overdue: 0,
+    today: 0,
+  });
+
+  // 保存筛选条件到 localStorage
+  useEffect(() => {
+    saveFilters('tickets', advancedFilters);
+  }, [advancedFilters]);
+
+  // 从 URL 参数获取当前标签页和高级搜索状态
+  useEffect(() => {
+    const tab = searchParams.get('tab');
+    // 分析视图是独立页面 /tickets/analytics，本页无对应内容区，
+    // 直接渲染会空白，统一重导航
+    if (tab === 'analytics') {
+      navigate('/tickets/analytics', { replace: true });
+      return;
+    }
+    if (tab && ['list', 'kanban', 'search'].includes(tab)) {
+      setActiveTab(tab);
+    }
+    // 从 URL 恢复高级搜索面板状态
+    const search = searchParams.get('search');
+    if (search === 'advanced') {
+      setShowAdvancedSearch(true);
+    }
+    if (searchParams.get('overdue') === 'true') {
+      setAdvancedFilters({ isOverdue: true });
+      setActiveTab('list');
+    }
+  }, [searchParams, navigate]);
+
+  // 获取工单统计数据
+  const fetchTicketStats = useCallback(async () => {
+    try {
+      const { ticketService } = await import('@/lib/services/ticket-service');
+      const stats = await ticketService.getTicketStats();
+      setTicketStats({
+        total: stats.total,
+        open: stats.open,
+        overdue: stats.overdue || 0,
+        today: 0, // 暂时没有今日新增的 API
+      });
+    } catch (error) {
+      console.error('Failed to fetch ticket stats:', error);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchTicketStats();
+  }, [fetchTicketStats]);
+
+  // 处理标签页切换
+  const handleTabChange = (tab: string) => {
+    // 分析页是独立路由（带完整图表/导出），本页 tab 无内容区，点 analytics 直接导航
+    if (tab === 'analytics') {
+      navigate('/tickets/analytics');
+      return;
+    }
+    setActiveTab(tab);
+    const newParams = new URLSearchParams(searchParams.toString());
+    newParams.set('tab', tab);
+    navigate(`/tickets?${newParams.toString()}`, { preventScrollReset: true });
+  };
+
+  const mapAdvancedToQueryFilters = useCallback(
+    (filters: AdvancedSearchFilters): Partial<TicketQueryFilters> => {
+      const result: Partial<TicketQueryFilters> = {};
+
+      if (filters.keyword) {
+        result.keyword = filters.keyword;
+      } else if (filters.ticketNumber) {
+        result.keyword = filters.ticketNumber;
+      } else if (filters.title) {
+        result.keyword = filters.title;
+      } else if (filters.description) {
+        result.keyword = filters.description;
+      }
+
+      if (filters.status && filters.status.length > 0) {
+        result.status = filters.status[0] as TicketQueryFilters['status'];
+      }
+
+      if (filters.priority && filters.priority.length > 0) {
+        result.priority = filters.priority[0] as TicketQueryFilters['priority'];
+      }
+
+      if (filters.type && filters.type.length > 0) {
+        result.type = filters.type[0] as TicketQueryFilters['type'];
+      }
+
+      if (filters.category && filters.category.length > 0) {
+        result.category = filters.category[0];
+      }
+
+      if (typeof filters.assigneeId === 'number') {
+        result.assigneeId = filters.assigneeId;
+      }
+
+      if (filters.createdAfter && filters.createdBefore) {
+        result.dateRange = [filters.createdAfter, filters.createdBefore];
+      }
+
+      return result;
+    },
+    []
+  );
+
+  const handleAdvancedSearch = (filters: AdvancedSearchFilters) => {
+    const mapped = mapAdvancedToQueryFilters(filters);
+    setAdvancedFilters(mapped);
+    setActiveTab('list');
+  };
+
+  const handleSearchReset = () => {
+    clearFilters('tickets');
+    setAdvancedFilters({});
+  };
+
+  return (
+    <div className="min-h-screen bg-[var(--color-background-primary)]">
+      {/* 页面头部 */}
+      <div className="bg-[var(--color-surface-primary)] border-b border-[var(--color-border-primary)]">
+        <div className="w-full px-6 py-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <Title level={2} style={{ marginBottom: 0 }}>
+                {t('tickets.title')}
+              </Title>
+              <Text type="secondary">
+                {t('tickets.description')}
+              </Text>
+            </div>
+            <Space>
+              <Button
+                icon={<Search />}
+                onClick={() => {
+                  const newShow = !showAdvancedSearch;
+                  setShowAdvancedSearch(newShow);
+                  const newParams = new URLSearchParams(searchParams.toString());
+                  if (newShow) {
+                    newParams.set('search', 'advanced');
+                  } else {
+                    newParams.delete('search');
+                  }
+                  navigate(`/tickets?${newParams.toString()}`, { preventScrollReset: true });
+                }}
+              >
+                {t('tickets.advancedSearch')}
+              </Button>
+              <Badge count={ticketStats.overdue} size="small">
+                <Button
+                  icon={<Bell />}
+                  onClick={() => {
+                    setActiveTab('list');
+                    navigate('/tickets?tab=list&overdue=true', { preventScrollReset: true });
+                  }}
+                >
+                  {t('tickets.slaWarning')}
+                </Button>
+              </Badge>
+              <Link to="/tickets/create">
+                <Button type="primary" icon={<Plus />}>
+                  {t('tickets.create')}
+                </Button>
+              </Link>
+            </Space>
+          </div>
+
+          {/* 统计数据栏 */}
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mt-4">
+            <Card size="small" className="rounded-lg shadow-sm">
+              <div className="flex items-center justify-between">
+                <div>
+                  <Text type="secondary">{t('tickets.stats.total')}</Text>
+                  <div className="text-2xl font-bold">{ticketStats.total}</div>
+                </div>
+                <Table className="text-2xl text-blue-500" />
+              </div>
+            </Card>
+            <Card size="small" className="rounded-lg shadow-sm">
+              <div className="flex items-center justify-between">
+                <div>
+                  <Text type="secondary">{t('tickets.stats.open')}</Text>
+                  <div className="text-2xl font-bold text-orange-500">{ticketStats.open}</div>
+                </div>
+                <Bell className="text-2xl text-orange-500" />
+              </div>
+            </Card>
+            <Card size="small" className="rounded-lg shadow-sm">
+              <div className="flex items-center justify-between">
+                <div>
+                  <Text type="secondary">{t('tickets.stats.overdue')}</Text>
+                  <div className="text-2xl font-bold text-red-500">{ticketStats.overdue}</div>
+                </div>
+                <Bell className="text-2xl text-red-500" />
+              </div>
+            </Card>
+            <Card size="small" className="rounded-lg shadow-sm">
+              <div className="flex items-center justify-between">
+                <div>
+                  <Text type="secondary">{t('tickets.stats.today')}</Text>
+                  <div className="text-2xl font-bold text-green-500">{ticketStats.today}</div>
+                </div>
+                <Plus className="text-2xl text-green-500" />
+              </div>
+            </Card>
+          </div>
+        </div>
+      </div>
+
+      {/* 高级搜索面板 */}
+      {showAdvancedSearch && (
+        <div className="bg-gray-50 border-b border-gray-200">
+          <div className="w-full px-6 py-4 bg-[var(--color-background-tertiary)] border-b border-[var(--color-border-primary)]">
+            <TicketAdvancedSearch onSearch={handleAdvancedSearch} onReset={handleSearchReset} />
+          </div>
+        </div>
+      )}
+
+      {/* 主内容区域 */}
+      <div className="w-full px-6 py-6">
+        {/* 标签页导航 */}
+        <Tabs
+          activeKey={activeTab}
+          onChange={handleTabChange}
+          size="large"
+          className="mb-6"
+          items={[
+            {
+              key: 'list',
+              label: (
+                <span className="flex items-center gap-2">
+                  <Table />
+                  {t('tickets.tabs.list')} ({ticketStats.total})
+                </span>
+              ),
+            },
+            {
+              key: 'kanban',
+              label: (
+                <span className="flex items-center gap-2">
+                  <LayoutGrid />
+                  {t('tickets.tabs.kanban')}
+                </span>
+              ),
+            },
+            {
+              key: 'analytics',
+              label: t('tickets.tabs.analytics'),
+            },
+          ]}
+        />
+
+        {/* 标签页内容 */}
+        {activeTab === 'list' && (
+          <TicketList showHeader={false} pageSize={20} advancedFilters={advancedFilters} />
+        )}
+
+        {activeTab === 'kanban' && (
+          <TicketKanban onTicketSelect={ticket => navigate(`/tickets/${ticket.id}`)} />
+        )}
+      </div>
+
+      {/* 快捷操作浮动按钮 */}
+      <div className="fixed bottom-6 right-6 z-50">
+        <Space orientation="vertical" size="middle">
+          <Button
+            type="primary"
+            shape="circle"
+            size="large"
+            icon={<Plus />}
+            onClick={() => navigate('/tickets/create')}
+            className="shadow-lg hover:scale-110 transition-transform"
+          />
+        </Space>
+      </div>
+    </div>
+  );
+}
+
+// Loading fallback 组件
+function TicketsPageSkeleton() {
+  return (
+    <div className="min-h-screen bg-gray-50 p-6">
+      <Card className="mb-6">
+        <Skeleton active paragraph={{ rows: 2 }} />
+      </Card>
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+        {[1, 2, 3, 4].map(i => (
+          <Card key={i} size="small">
+            <Skeleton active paragraph={{ rows: 1 }} />
+          </Card>
+        ))}
+      </div>
+      <Card>
+        <Skeleton active paragraph={{ rows: 10 }} />
+      </Card>
+    </div>
+  );
+}
+
+// 主页面组件，用 Suspense 包裹
+export default function TicketsPage() {
+  return (
+    <Suspense fallback={<TicketsPageSkeleton />}>
+      <TicketsPageContent />
+    </Suspense>
+  );
+}

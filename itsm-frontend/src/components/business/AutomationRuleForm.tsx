@@ -3,8 +3,6 @@
  * 提供规则条件、动作的配置界面
  */
 
-'use client';
-
 import React, { useState, useEffect } from 'react';
 import {
   Form,

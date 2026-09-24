@@ -141,25 +141,69 @@ if (typeof globalThis.MessageChannel === 'undefined') {
   };
 }
 
-// Mock Next.js router
-jest.mock('next/navigation', () => ({
-  useRouter() {
-    return {
-      push: jest.fn(),
-      replace: jest.fn(),
-      prefetch: jest.fn(),
-      back: jest.fn(),
-      forward: jest.fn(),
-      refresh: jest.fn(),
-    };
-  },
-  useSearchParams() {
-    return new URLSearchParams();
-  },
-  usePathname() {
-    return '/';
-  },
-}));
+// jsdom（jest-environment-jsdom 29 内置的 jsdom）不提供 Web Encoding/Streams 全局对象，
+// 而 react-router v7 的 development 构建在「模块初始化时」就读取 TextEncoder：
+//   const encoder = new TextEncoder();
+// 一旦缺失，任何 `require('react-router')`（含 `jest.requireActual('react-router')`）
+// 都会抛 `ReferenceError: TextEncoder is not defined`。这里在任何 react-router 引用之前补齐，
+// 与浏览器环境对齐（Node 18+ 有原生实现，直接复用）。
+if (typeof globalThis.TextEncoder === 'undefined' || typeof globalThis.TextDecoder === 'undefined') {
+  const { TextDecoder: NodeTextDecoder, TextEncoder: NodeTextEncoder } = require('node:util');
+  globalThis.TextEncoder = NodeTextEncoder;
+  globalThis.TextDecoder = NodeTextDecoder;
+}
+
+if (
+  typeof globalThis.ReadableStream === 'undefined' ||
+  typeof globalThis.TransformStream === 'undefined'
+) {
+  const webStreams = require('node:stream/web');
+  globalThis.ReadableStream = webStreams.ReadableStream;
+  globalThis.WritableStream = webStreams.WritableStream;
+  globalThis.TransformStream = webStreams.TransformStream;
+  globalThis.ByteLengthQueuingStrategy = webStreams.ByteLengthQueuingStrategy;
+  globalThis.CountQueuingStrategy = webStreams.CountQueuingStrategy;
+}
+
+// Mock react-router（迁移自 next/navigation mock，见 docs/plan/vite-migration-plan.md §5.2）
+//
+// 单元测试默认不挂载真实 <Router>，而 SPA 组件普遍使用
+// useNavigate / useLocation / useParams / useSearchParams / Link，
+// 这些 API 在没有 Router 上下文时会抛错。这里用最小实现替换，
+// 其余导出（HashRouter/Routes 等）保持真实实现。
+//
+// 需要断言导航行为的测试，可在自身文件中
+// `jest.mock('react-router', () => ({ ...jest.requireActual('react-router'), ... }))` 覆盖。
+jest.mock('react-router', () => {
+  const actual = jest.requireActual('react-router');
+  const React = require('react');
+  const anchor =
+    (displayName) =>
+    ({ to, children, ...rest }) =>
+      React.createElement(
+        'a',
+        { href: typeof to === 'string' ? to : '#', ...rest },
+        typeof children === 'function'
+          ? children({ isActive: false, isPending: false, isTransitioning: false })
+          : children
+      );
+  const Link = anchor('Link');
+  const NavLink = anchor('NavLink');
+
+  return {
+    ...actual,
+    useNavigate: () => jest.fn(),
+    useLocation: () => ({ pathname: '/', search: '', hash: '', state: null, key: 'test' }),
+    useParams: () => ({}),
+    useSearchParams: () => [new URLSearchParams(), jest.fn()],
+    useRouteError: () => undefined,
+    useNavigation: () => ({ state: 'idle' }),
+    Link,
+    NavLink,
+    Navigate: () => null,
+    Outlet: () => null,
+  };
+});
 
 // Mock window.matchMedia
 Object.defineProperty(window, 'matchMedia', {

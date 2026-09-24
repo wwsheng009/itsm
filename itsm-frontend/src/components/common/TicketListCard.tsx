@@ -1,4 +1,3 @@
-'use client';
 
 import React from 'react';
 import { Card, List, Tag, Button, Badge, Dropdown, Menu, Avatar, Space, Tooltip } from 'antd';
