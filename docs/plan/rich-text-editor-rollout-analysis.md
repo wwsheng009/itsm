@@ -102,6 +102,8 @@
 | 短留痕文本 | 升级原因 | `components/incident/IncidentDetail.tsx:857-861` | 同上 |
 | 短留痕文本 | 拒绝/回滚原因 | `components/release/ReleaseDetail.tsx:91-94` | 同上 |
 | 后台配置表单 | `admin/**`、规则/菜单/角色/字典/系统配置 | `pages/(main)/admin/**` | 非单据正文，属系统配置 |
+| 短元数据 | SLA 定义描述 | `pages/(main)/admin/sla-definitions/index.tsx:597-600` | 同时参与列表直出与前端搜索（`:134`），HTML 会污染匹配与摘要（§7-12） |
+| 短元数据 | CMDB 关系描述 | `components/cmdb/CIRelationshipManager.tsx:399-401` | 关系实体字段（`field.String`，无附件宿主），与 `strength`/`impactLevel` 同层（§7-11） |
 
 > **待确认归属**：`improvements/new` 前端存在 `description` TextArea，但其 API 落在 `lib/api/change-api.ts`，后端未见独立的 improvement 服务/实体。若"改进"不是独立单据，应随变更域一并处理；若是独立单据，需先补后端实体再评估。
 
@@ -129,6 +131,7 @@
 | **第一波** | 服务请求 `reason` | 无 | 表单换控件 + 详情渲染 + 列表截断（含工作区在改的 `service-requests/new`、`ServiceRequestDetail`） | 基础设施全通，投入产出比最高 |
 | **第二波** | 变更（`description` / `implementationPlan` / `rollbackPlan`）+ 事件/问题正文 | 注册宿主 + 别名路由 | 表单 + 渲染 + 域内 URL 映射 | 权限码已就位，富文本价值最直观 |
 | **第三波** | 发布、CMDB CI `description`、已知错误 `workaround/resolution` | 同上（逐域） | 同上（逐域） | 按业务诉求排优先级，短字段不切 |
+| **第四波** | 收敛与补齐：标准变更模板弹窗三字段切 C 档富文本、编辑态移除内嵌图片即自动解绑附件（6 个编辑面统一收敛） | 无（复用既有宿主与别名路由） | 标准变更模板弹窗接入；新增共享 hook `useInlineImageUnbind.ts` + 6 面接线 | 纯前端收敛，补齐第二/三波遗留的能力洞 |
 | **每一波** | 回归项 | 长度校验口径、附件引用保护、权限与 403 冒烟、存量数据双读 | 同左 | 防止"能编辑但显示/搜索异常" |
 
 ### 5.1 实施进度（滚动更新）
@@ -138,6 +141,7 @@
 | **第一波**：服务请求 `reason` | ✅ 已完成并提交 | commit `320d4bb5`（9 files, +273/-12）；`npx tsc --noEmit` exit 0、`jest src/components/common/rich-text` 4 suites/23 tests 全通过、`go build ./...` exit 0；后端 `reason` 校验放宽至 `max=20000` |
 | **第二波**：变更 `description`/`implementationPlan`/`rollbackPlan` + 事件/问题正文 | ✅ 已完成并提交（`1a85e8d8`） | 后端：`change`/`incident`/`problem` 宿主注册（含 `ReferencesFunc`，`service/attachment_service.go`）+ 三域别名路由（各 6 条，权限复用 `<domain>:read/write/delete`）+ DTO 放宽（incident/problem `description` → `max=20000`；change 三字段原本无 `max=`）+ 新增覆盖守卫测试 `service/attachment_hosts_wave2_test.go`；前端：`attachment-api.ts` 域内 URL 映射补齐三域，变更三字段与事件/问题 `description` 接入富文本（新建两段式 / 编辑即时上传）+ 详情 `RichTextContent` 双读 + 列表 `htmlToPlainText(…, 160)` 截断 + 附件路由单测补 1 例。验证：`go build ./...` exit 0、`go test ./handlers/attachment/... ./router/... ./service/...` 各包 ok、`npx tsc --noEmit` exit 0、`jest src/lib/api/__tests__/attachment-api.test.ts src/components/common/rich-text` 5 suites/43 tests 全通过。**本轮事件/问题范围仅 `description`**，`root_cause`/`workaround`/`resolution` 留待第三波 |
 | **第三波**：发布（`description`/`releaseNotes`/`rollbackProcedure`/`validationCriteria`）/ CMDB CI `description` / 已知错误（`workaround`+`resolution`） | ✅ 已完成并提交（`0b453306`，21 files, +1008/-92） | 后端：`release`/`cmdb_ci`/`known_error` 三宿主注册（`ReferencesFunc` 覆盖本轮 HTML 字段）+ 三域别名路由（各 6 条，路由文件内静态声明宿主权限码）+ 三 DTO 放宽至 `max=20000` + 新增 `service/attachment_hosts_wave3_test.go`（三宿主 Exists/References 语义 + 「非富文本字段不参与引用保护」边界）；**同批修复存量缺陷** `service/configuration_item_service.go`：CI 创建/更新此前完全丢弃 `description`（写入路径缺 `SetDescription`，仅 `ToCIResponse` 回读映射），已补齐（空串=不修改语义）。前端：发布表单四字段 + 发布详情 `RichTextContent` 双读；CMDB CI 描述（创建态 blob 两段式回写 / 编辑态即时上传，纯文本口径 20000 双端校验）+ CI 详情；已知错误 `workaround`/`resolution`（创建态两段式 + 详情渲染）；`attachment-api.ts` 三域映射与 6 个 URL helper。验证：`go build ./...` exit 0；`go test ./handlers/cmdb/... ./router/...` 与 `go test ./service/ -run AttachmentHosts -v`（Wave3 三子用例 + 边界用例）全通过；`npx tsc --noEmit` exit 0；`jest src/lib/api/__tests__/attachment-api.test.ts src/components/common/rich-text` 5 suites / 45 tests 全通过（退出码 1 仅因子集运行触发全局覆盖率阈值）。开工时冻结的共享契约与路由前缀：`release` → `/api/v1/releases/:id/attachments`（`release:*`）；`cmdb_ci` → `/api/v1/cmdb/cis/:id/attachments`（`cmdb:*`，挂在 `/cmdb` 组以避开 `cis` 子组 `cmdb:read` 门禁叠加）；`known_error` → `/api/v1/known-errors/:id/attachments`（复用 `problem:*`）。**不切**：发布 `deploymentSteps`/`affectedSystems`/`affectedComponents`、CI `extensionAttributes`/`attribute_schema`、已知错误 `description`/`symptoms`/`rootCause` |
+| **第四波**：标准变更模板弹窗三字段（`description`/`implementationPlan`/`rollbackPlan`，C 档）+ 编辑态内嵌图片解绑（6 面收敛） | ✅ 已完成并提交（`10ac4613`，8 files, +300/-12） | **任务 2**（§7-8）：`standard-changes/index.tsx` 模板弹窗三字段切 `RichTextEditor`（lazy + `Suspense` 加载，不注入 `onUploadImage`＝图片按钮禁用、粘贴/拖拽图片拦截告警），`isRichTextEnabled()` 双分支保证开关回退与原 `Input.TextArea` 逐字一致，校验统一按**净化后纯文本长度**（`htmlToPlainText(raw, MAX_SAFE_INTEGER).length`，阈值 20000，标签不占额度）。**任务 1**（§7-9）：新增 `lib/rich-text/useInlineImageUnbind.ts`（`captureInlineImageBaseline` / `unbindRemovedInlineImages` / `resetInlineImageBaseline`）：保存成功后对「基线 − 当前正文图片」差集逐个 `AttachmentApi.removeById(id, { bizType, bizId, usage: 'inline_image' })`，随后基线前移；多富文本字段宿主（已知错误 / 发布）传字段数组按**并集**求差（字段间移动图片不误删）；`Promise.allSettled` 聚合、宿主上下文非法直接短路、**从不抛出**，失败仅 `console.warn` + `message.warning` 提示手动清理。接线点：`changes/$id/edit`、`incidents/$id/edit`、`problems/$id/edit`、`cmdb/cis/$id/edit`、`problems/known-errors`（仅编辑态，新增态 `resetInlineImageBaseline()`）、`components/release/ReleaseForm.tsx`（仅 `isEdit` 分支）。**任务 3 评估**：SLA / 合同 / CMDB 关系三域判定「不切」，已落 §3.4 表与 §7-11/12。验证：`npx tsc --noEmit` exit 0；`jest attachment-api + standard-change-api + src/lib/rich-text` 7 suites / 103 tests 全通过（exit 0）。**边界**：不提供「仅解绑」降级——附件仍被引用时 `remove` 返回 409（`6105`），须先移除正文/评论引用 |
 
 ---
 
@@ -163,10 +167,13 @@
 5. **预览能力范围**：域内 preview 路由是否对所有新域都要求实现，还是允许"先只支持 content"。
 6. **HTML 落库后的检索口径（第二波新暴露）**：变更 / 事件 / 问题的关键字检索仍走后端列级 LIKE，HTML 落库后可能命中标签与属性文本（前端看板内过滤已按纯文本）；建议后端检索时剥离标签，或增派生纯文本列。
 7. **change 三字段无长度上限**：`dto/change_dto.go` 的 `description` / `implementationPlan` / `rollbackPlan` 本无 `max=` 约束，仅靠前端把门；后续补约束时对齐 20000 口径。
-8. **标准变更模板弹窗未切富文本**：`standard-changes` 页内模板弹窗的同类字段仍为 `TextArea`，属模板实体另一 surface，未纳入第二波。
-9. **编辑态移除图片不解除附件绑定**：两波均未接 `extractAttachmentImageIds` + `AttachmentApi.remove`（`TicketDetail.tsx` 有现成用法），可作为统一收敛项。
+8. ~~标准变更模板弹窗未切富文本~~（**第四波已闭环**）：`standard-changes` 页内模板弹窗的 `description` / `implementationPlan` / `rollbackPlan` 已切 C 档富文本（不接图片），随 commit `10ac4613` 提交；开关关闭时回退至原 `Input.TextArea`。模板实体无附件宿主，故刻意不注入 `onUploadImage`。
+9. ~~编辑态移除图片不解除附件绑定~~（**第四波已闭环**）：已抽为共享 hook `lib/rich-text/useInlineImageUnbind.ts`，6 个编辑面统一接入，随 commit `10ac4613` 提交。**残留语义（第四波确认）**：① 只做「软删 + 引用检查」，附件仍被其它正文/评论引用时返回 409 `6105`，不提供「仅解绑」降级，失败仅告警、由用户后续在附件列表手动清理；② 已知错误与发布为多富文本字段宿主，按字段并集求差，避免字段间移动图片被误删；③ 差集基于「编辑器保存值」而非服务端最终落库值，若后续出现服务端二次清洗需同步复核。
 10. **`known_error` 宿主权限复用 `problem:*`**（第三波新增）：KEDB 属问题管理域且无独立权限码，附件动作沿用 `problem:*`；已在 `docs/plan/generic-attachment-richtext-control-plan.md` §4.2 权威表补行说明，若后续 KEDB 独立成域需重评。
-11. **CMDB 关系（relationship）说明字段的归属**：`components/cmdb/CIRelationshipManager.tsx:399-400` 处的 description 若属"关系"实体而非 CI 本体，则后端无对应宿主，本波不接入；待确认实体归属后再排期。
+11. **CMDB 关系（relationship）说明字段的归属（第四波已判定：不切）**：`ent/schema/ci_relationship.go:169-171` 的 `description` 属**关系实体自身字段**（`field.String`，非 CI 本体、非 `field.Text`、无 `MaxLen`），前端入口 `components/cmdb/CIRelationshipManager.tsx:399-401`，与同表 `strength` / `impactLevel` 同层，属"关系短元数据"；关系实体也没有附件宿主（`defaultAttachmentHosts()` 无对应 `biz_type`），若切富文本需同时做「`field.String`→`field.Text` + 迁移 + 注册宿主 + 别名路由 + 前端 URL 映射」的全套 B 档接线。结论：**保持纯文本，不纳入富文本接入范围**；未来若需承载长说明，按 B 档另立任务。
+12. **SLA / 合同等短字段域评估（第四波已判定：均不切）**：
+    - **SLA**：全域唯一多行输入是 `admin/sla-definitions/index.tsx:597-600` 的 `description`（`Input.TextArea rows=3`）；后端 `ent/schema/sladefinition.go:16`、`sla_policy.go:23` 虽为 `field.Text`，但 `sla_policy` 无前端编辑面。**不切依据**：① 该字段参与表格列直出（`index.tsx:267`）、详情展示（`:687`）与前端搜索（`:134` 的 `toLowerCase().includes`），落 HTML 会同时污染搜索与摘要（§6「HTML 污染下游」）；② 语义为 SLA 口径短说明，非正文；③ 归 §3.4 D 档「后台配置表单」。若产品确需排版，走 C 档（无图片）并同批改搜索口径。
+    - **合同**：`ent/schema/support_contract.go` 无描述/多行字段；`ent/schema/contract.go:24` 的 `field.String("description")` 目前**无前端 API/UI**（全仓检索无 `ContractApi` / `/contracts` 调用），`email-intake/contracts` 表单不含描述字段。结论：**无需改造**；未来 contract 域落 UI 时建议直接以 `field.Text` 起步，避免二次迁移。
 
 ---
 
@@ -175,6 +182,7 @@
 | 主题 | 坐标 |
 |:---|:---|
 | 公共富文本编辑器 | `itsm-frontend/src/components/common/rich-text/RichTextEditor.tsx:55-81` |
+| 编辑态内嵌图片解绑 hook | `itsm-frontend/src/lib/rich-text/useInlineImageUnbind.ts` |
 | 附件宿主注册 | `itsm-backend/service/attachment_service.go:49-53,923-1001` |
 | 服务请求以 `reason` 为引用源 | `itsm-backend/service/attachment_service.go:989-998` |
 | 预留宿主与权限码方案表 | `docs/plan/generic-attachment-richtext-control-plan.md:341-347` |
@@ -187,6 +195,7 @@
 
 | 版本 | 日期 | 说明 |
 |:---|:---|:---|
+| v1.5 | 2026-09-22 | 第四波实施完成并提交（`10ac4613`，8 files, +300/-12）：标准变更模板弹窗三字段切 C 档富文本（§7-8 闭环）+ 编辑态内嵌图片解绑收敛为共享 hook 并接入 6 面（§7-9 闭环）；同批落 SLA / 合同 / CMDB 关系三域「不切」判定（§3.4、§7-11/12）；§5 补第四波 WBS 行、§5.1 补第四波进度与验证证据 |
 | v1.4 | 2026-09-22 | 第三波实施完成并提交（`0b453306`，21 files, +1008/-92）：后端三宿主（`release`/`cmdb_ci`/`known_error`）+ 三域别名路由 + DTO 放宽 + 守卫测试；前端发布四字段 / CMDB CI 描述 / 已知错误 `workaround`+`resolution`；同批修复 CI 写入丢 `description` 的存量缺陷；§5.1 第三波行与 §4.2 权威表（`release`/`cmdb_ci`）同步为「已接线」 |
 | v1.3 | 2026-09-22 | 第三波开工：范围锁定（发布四字段 / CMDB CI `description` / 已知错误 `workaround`+`resolution`）；共享契约冻结（`attachment-api.ts` 三域映射）；三工作流并行（后端 / 发布+CMDB 前端 / 已知错误前端）；§4.2 权威表补 `known_error` 行并标注各域接线状态；补 §7 遗留项 10-11 |
 | v1.2 | 2026-09-22 | 第二波实施完成并提交（`1a85e8d8`，27 files, +1181/-115）：后端三域宿主/别名路由/DTO 放宽 + 覆盖守卫测试，前端三域表单与渲染改造；补 §7 遗留项 6-9 |
