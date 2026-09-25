@@ -39,6 +39,31 @@ POST /api/v1/bpmn/ai/templates/{key}/archive
 
 创建模板会生成新的草稿版本（例如 `1.0.0`、`1.1.0`），编辑只允许作用于草稿；发布成功后状态为 `published`，停用只将最新已发布版本标记为 `archived`，不会删除历史版本。
 
+## AI 供应商管理（多 LLM Provider）
+
+系统管理员（`system:write`）可在「系统管理 → 系统配置 → LLM 模型」页维护多个 LLM provider 实例（密钥加密落库、接口只回掩码）。全部端点受灰度开关 `LLM_MULTI_PROVIDER_ENABLED`（config `llm.multi_provider_enabled`）控制：默认关闭，关闭时路由不注册、行为与静态单 provider 完全一致；普通用户访问一律 403。
+
+```http
+GET    /api/v1/ai/providers                     # 管理列表（掩码密钥、状态、是否默认、来源）
+POST   /api/v1/ai/providers                     # 新建（protocol/variant/adapter_options/endpoint 校验）
+PUT    /api/v1/ai/providers/:id                 # 更新（apiKey 缺省=不变、空串=清空）
+DELETE /api/v1/ai/providers/:id                 # 软删（默认实例需先切换默认，否则 409）
+POST   /api/v1/ai/providers/:id/test            # 连通性测试（15s 超时，写 status/last_error/last_tested_at）
+POST   /api/v1/ai/providers/:id/default         # 设租户默认（事务先清后置，DB 部分唯一索引兜底）
+POST   /api/v1/ai/providers/import-static       # 导入静态配置（幂等：命中同实例返回 200 {updated:true}）
+GET    /api/v1/ai/providers/available           # 选择器数据（能力位 implemented/supportsStream/...，无密钥）
+GET    /api/v1/ai/user-preference               # 我的默认（providerKey 可空 + effectiveProviderKey）
+PUT    /api/v1/ai/user-preference               # 设置/清除我的默认（校验租户归属与 enabled）
+```
+
+`/api/v1/ai/chat` 与 `/api/v1/ai/chat/stream` 仍为 `ai:read`，但请求体支持可选 `provider` 覆盖参数（仅 `system:write` 可用，否则 403 `AI_PROVIDER_FORBIDDEN`；解析失败显式报错、不静默回退）。SSE `done` 事件回带生效实例与来源：
+
+```jsonc
+{ "type": "done", "conversationId": 42, "provider": "deepseek-prod", "providerSource": "request" }
+```
+
+解析优先级：显式 `provider` → 个人默认 → 租户默认 → `config.yaml` 静态配置（`providerSource` 依次为 `request` / `user` / `tenant` / `static`）。错误码：`AI_PROVIDER_FORBIDDEN`(403)、`AI_PROVIDER_NOT_FOUND`(404)、`AI_PROVIDER_DISABLED`(409)、`AI_PROVIDER_KEY_MISSING`(422)、`AI_PROVIDER_UNAVAILABLE`(503)、`AI_PROVIDER_IS_DEFAULT`(409)、`AI_PROTOCOL_NOT_IMPLEMENTED`(422，`openai_responses` / `google_gemini` 预留)。协议按 4 种 API 形态建模，P0 可用 `openai_chat_completions`（含 `azure` / `ollama` 变体）与 `anthropic_messages`（`minimax` 变体）。
+
 ## 通用响应格式
 
 所有 API 响应遵循以下格式：
