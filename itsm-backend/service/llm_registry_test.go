@@ -191,9 +191,8 @@ func TestNewProviderFromConfigSwitchOnFallsBackForUnaadaptedProviders(t *testing
 		provider string
 		want     any
 	}{
-		{"azure", &AzureProvider{}},     // azure 变体 P0 未适配
-		{"local", &LocalProvider{}},     // ollama 变体 P0 未适配
-		{"minimax", &MiniMaxProvider{}}, // anthropic_messages 变体 P0 未适配
+		{"azure", &AzureProvider{}}, // azure 变体尚未适配
+		{"local", &LocalProvider{}}, // ollama 变体尚未适配
 		{"unknown-vendor", &OpenAIProvider{}},
 	}
 	for _, tc := range cases {
@@ -399,7 +398,51 @@ func TestResolveProtocolURL(t *testing.T) {
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			assert.Equal(t, tc.want, resolveProtocolURL(tc.endpoint, apiPath))
+			assert.Equal(t, tc.want, resolveProtocolURL(tc.endpoint, apiPath, ""))
+		})
+	}
+}
+
+// TestResolveProtocolURLEndpointFallback 锁定变体级默认地址回退（PA-1）：
+// anthropic 官方与 minimax 兼容端点在 endpoint 缺省时使用协议包登记地址，
+// 其余协议维持 BE-9 的 OpenAI 兼容默认地址（零破坏）。
+func TestResolveProtocolURLEndpointFallback(t *testing.T) {
+	cases := []struct {
+		name     string
+		endpoint string
+		apiPath  string
+		fallback string
+		want     string
+	}{
+		{
+			name:     "minimax 缺省 endpoint：与旧 MiniMaxProvider baseURL 同址",
+			apiPath:  "/v1/messages",
+			fallback: protocol.DefaultEndpoint(protocol.ProtocolAnthropicMessages, protocol.VariantMiniMax),
+			want:     "https://api.minimaxi.com/anthropic/v1/messages",
+		},
+		{
+			name:     "anthropic 官方缺省 endpoint",
+			apiPath:  "/v1/messages",
+			fallback: protocol.DefaultEndpoint(protocol.ProtocolAnthropicMessages, protocol.VariantDefault),
+			want:     "https://api.anthropic.com/v1/messages",
+		},
+		{
+			name:     "minimax 显式 endpoint 已带 /v1：只补资源段",
+			endpoint: "https://api.minimaxi.com/anthropic/v1",
+			apiPath:  "/v1/messages",
+			fallback: protocol.DefaultEndpoint(protocol.ProtocolAnthropicMessages, protocol.VariantMiniMax),
+			want:     "https://api.minimaxi.com/anthropic/v1/messages",
+		},
+		{
+			name:     "未登记协议回退 OpenAI 兼容默认地址",
+			apiPath:  "/v1/chat/completions",
+			fallback: protocol.DefaultEndpoint(protocol.ProtocolOpenAIResponses, protocol.VariantDefault),
+			want:     "https://api.openai.com/v1/chat/completions",
+		},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			assert.Equal(t, tc.want, resolveProtocolURL(tc.endpoint, tc.apiPath, tc.fallback))
 		})
 	}
 }
@@ -1003,14 +1046,17 @@ func TestLLMProviderRegistryProtocolVariantMapping(t *testing.T) {
 	registry := NewLLMProviderRegistry(client, encrypter, ProviderConfig{}, zap.New(core).Sugar())
 
 	cases := []struct {
-		key     string
-		want    LLMProvider
-		wantErr error
+		key       string
+		want      LLMProvider
+		wantTools bool
+		wantErr   error
 	}{
 		{key: "azure-instance", want: &AzureProvider{}},
 		{key: "ollama-instance", want: &LocalProvider{}},
-		{key: "minimax-instance", want: &MiniMaxProvider{}},
-		{key: "anthropic-default", want: &MiniMaxProvider{}},
+		// PA-1 承载切换：anthropic_messages 两变体由协议适配器承载（不再映射旧 MiniMaxProvider 分支），
+		// 能力位按真实实现探测（适配器实现 ToolCallingStreamProvider，属登记的能力增益）。
+		{key: "minimax-instance", want: &protocolProvider{}, wantTools: true},
+		{key: "anthropic-default", want: &protocolProvider{}, wantTools: true},
 		{key: "responses-instance", wantErr: ErrProviderUnavailable},
 		{key: "gemini-instance", wantErr: ErrProviderUnavailable},
 		{key: "bogus-variant", wantErr: ErrProviderUnavailable},
@@ -1027,7 +1073,7 @@ func TestLLMProviderRegistryProtocolVariantMapping(t *testing.T) {
 			require.NoError(t, err)
 			assert.Equal(t, ProviderSourceRequest, source)
 			assert.IsType(t, testCase.want, slot.Provider)
-			assert.False(t, slot.SupportsTools, "P0 旧分支只有非流式 Chat，能力位应如实为 false")
+			assert.Equal(t, testCase.wantTools, slot.SupportsTools, "能力位按真实实现探测（azure / ollama 旧分支仍为 false）")
 		})
 	}
 

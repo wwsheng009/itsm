@@ -47,6 +47,10 @@ const (
 	protocolProviderDefaultMaxTokens   = 4096
 	protocolProviderDefaultTemperature = 0.3
 
+	// protocolMiniMaxDefaultTemperature 旧 MiniMaxProvider 的线上取值（硬编码 temperature 1.0）：
+	// anthropic_messages/minimax 变体由适配器承载后必须保持逐字段一致（方案 v1.0 PA-1）。
+	protocolMiniMaxDefaultTemperature = 1.0
+
 	// protocolOpenAICompatibleDefaultEndpoint 与 go-openai 客户端默认 BaseURL 同源。
 	protocolOpenAICompatibleDefaultEndpoint = "https://api.openai.com"
 )
@@ -130,7 +134,7 @@ func NewProtocolProvider(opts ProtocolProviderOptions) (LLMProvider, error) {
 	}
 	temperature := opts.Temperature
 	if temperature == 0 {
-		temperature = protocolProviderDefaultTemperature
+		temperature = protocolProviderVariantTemperature(opts.Protocol, opts.Variant)
 	}
 	client := opts.HTTPClient
 	if client == nil {
@@ -138,6 +142,7 @@ func NewProtocolProvider(opts ProtocolProviderOptions) (LLMProvider, error) {
 	}
 	return &protocolProvider{
 		adapter:     adapter,
+		variant:     opts.Variant,
 		client:      client,
 		apiKey:      opts.APIKey,
 		endpoint:    opts.Endpoint,
@@ -146,6 +151,16 @@ func NewProtocolProvider(opts ProtocolProviderOptions) (LLMProvider, error) {
 		temperature: temperature,
 		headers:     opts.Headers,
 	}, nil
+}
+
+// protocolProviderVariantTemperature 返回 (协议, 变体) 的默认 temperature（调用方未显式给出时）。
+// minimax 变体沿用旧 MiniMaxProvider 的 1.0，其余沿用 BE-9 的 0.3（零破坏口径）。
+func protocolProviderVariantTemperature(protocolName, variant string) float64 {
+	if strings.EqualFold(strings.TrimSpace(protocolName), protocol.ProtocolAnthropicMessages) &&
+		strings.EqualFold(strings.TrimSpace(variant), protocol.VariantMiniMax) {
+		return protocolMiniMaxDefaultTemperature
+	}
+	return protocolProviderDefaultTemperature
 }
 
 // newProtocolProviderFromConfig 尝试按静态配置走适配器路径。
@@ -186,6 +201,7 @@ func newProtocolProviderFromConfig(cfg ProviderConfig, apiKey string) LLMProvide
 //  2. 推理模型（gpt-5*/o1/o3/o4/o5/codex）不下发 temperature（参考实现口径）。
 type protocolProvider struct {
 	adapter     protocol.ProtocolAdapter
+	variant     string
 	client      *http.Client
 	apiKey      string
 	endpoint    string
@@ -265,7 +281,7 @@ func (p *protocolProvider) call(
 		return protocol.ProcessResult{}, fmt.Errorf("%s: encode request: %w", p.adapter.Name(), err)
 	}
 
-	request, err := http.NewRequestWithContext(ctx, http.MethodPost, resolveProtocolURL(p.endpoint, p.adapter.GetAPIPath()), bytes.NewReader(requestBody))
+	request, err := http.NewRequestWithContext(ctx, http.MethodPost, resolveProtocolURL(p.endpoint, p.adapter.GetAPIPath(), p.defaultEndpoint()), bytes.NewReader(requestBody))
 	if err != nil {
 		return protocol.ProcessResult{}, fmt.Errorf("%s: create request: %w", p.adapter.Name(), err)
 	}
@@ -331,13 +347,25 @@ func (e *protocolProviderError) Unwrap() []error {
 	return []error{e.apiError, e.protocolError}
 }
 
+// defaultEndpoint 返回该 (协议, 变体) 的默认地址：协议包登记值优先（anthropic 官方 / minimax
+// 兼容端点），未登记回退 BE-9 的 OpenAI 兼容默认地址（保持既有行为）。
+func (p *protocolProvider) defaultEndpoint() string {
+	if endpoint := protocol.DefaultEndpoint(p.adapter.Name(), p.variant); endpoint != "" {
+		return endpoint
+	}
+	return protocolOpenAICompatibleDefaultEndpoint
+}
+
 // resolveProtocolURL 拼接 endpoint 与适配器路径。
 //
 // 口径（与既有 config.yaml 写法对齐）：endpoint 为空回退默认地址；endpoint 已带版本段
 // （如 https://api.deepseek.com/v1）时只补路径余部，保证与既有 go-openai 客户端
 // （BaseURL + /chat/completions）逐字节一致；endpoint 已含完整协议路径时原样使用。
-func resolveProtocolURL(endpoint, apiPath string) string {
+func resolveProtocolURL(endpoint, apiPath, fallbackEndpoint string) string {
 	base := strings.TrimRight(strings.TrimSpace(endpoint), "/")
+	if base == "" {
+		base = fallbackEndpoint
+	}
 	if base == "" {
 		base = protocolOpenAICompatibleDefaultEndpoint
 	}
@@ -850,9 +878,10 @@ func (r *LLMProviderRegistry) buildProvider(record *ent.LLMProviderConfig, apiKe
 	protocolName := NormalizeLLMProtocol(record.Protocol)
 	variant := NormalizeLLMVariant(record.Variant)
 
-	// openai_chat_completions + 空 variant：BE-9 协议适配器承载（P0 唯一适配器）。
-	// 适配器未注册时回退下方既有分支（"适配器优先、旧分支回退"，与 BE-9 静态路径同口径）。
-	if protocolName == protocol.ProtocolOpenAIChatCompletions && variant == protocol.VariantDefault {
+	// 适配器优先：`(协议, 变体)` 已在协议包注册（BE-9 openai 默认变体 + PA-1 anthropic 官方 / minimax）
+	// 即按适配器承载；未注册组合（azure / ollama / local / 其余协议）回退下方既有分支
+	// （"适配器优先、旧分支回退"，与 BE-9 静态路径同口径）。
+	if _, err := protocolAdapters.Get(protocolName, variant); err == nil {
 		provider, err := NewProtocolProvider(ProtocolProviderOptions{
 			Protocol:    protocolName,
 			Variant:     variant,
@@ -866,7 +895,7 @@ func (r *LLMProviderRegistry) buildProvider(record *ent.LLMProviderConfig, apiKe
 			return provider, nil
 		}
 		safeLog(r.logger, "llm registry: protocol adapter unavailable, falling back to legacy provider",
-			"provider", record.Name, "protocol", protocolName, "variant", variant, "reason", "adapter_unregistered")
+			"provider", record.Name, "protocol", protocolName, "variant", variant, "reason", "adapter_build_failed")
 	}
 
 	// azure / ollama / minimax 等：归一为 ProviderConfig 后复用 NewProviderFromConfig（现状实现分支）。
