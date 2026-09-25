@@ -186,6 +186,19 @@ describe('usePermissions', () => {
     expect(result.current.hasPermission('ticket', 'read')).toBe(false);
   });
 
+  it('should gate LLM provider tab by system:write (FE-3)', () => {
+    // 系统管理员：后端下发 system:write → 「LLM 模型」页签与会话选择器可见
+    mockStore({ ...mockUser, permissions: [...adminPermissions, 'system:write'] });
+    let rendered = renderHook(() => usePermissions());
+    expect(rendered.result.current.hasPermission('system', 'write')).toBe(true);
+
+    // 非系统管理员：只有 system:read/manage，没有 write → 页签不渲染、探测零请求
+    mockStore(mockUser);
+    rendered = renderHook(() => usePermissions());
+    expect(rendered.result.current.hasPermission('system', 'read')).toBe(true);
+    expect(rendered.result.current.hasPermission('system', 'write')).toBe(false);
+  });
+
   it('should handle superadmin role alias (permissions still required)', () => {
     mockStore({ ...mockUser, role: 'superadmin' });
     const { result } = renderHook(() => usePermissions());

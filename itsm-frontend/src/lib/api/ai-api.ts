@@ -489,17 +489,23 @@ export async function aiIntelligentSearch(
 
 // ==================== SSE Streaming Chat ====================
 
+/** SSE `done` 事件回带的生效实例信息（BE-7；开关关闭时两端都缺省 → 与现状一致）。 */
+export interface AIChatDoneInfo {
+  provider?: string;
+  providerSource?: string;
+}
+
 /** Server-Sent Event payload types emitted by /ai/chat/stream. */
 export type AIChatStreamEvent =
   | { type: 'sources'; sources: RagAnswer[] }
   | { type: 'delta'; content: string }
-  | { type: 'done'; conversationId: number }
+  | { type: 'done'; conversationId: number; provider?: string; providerSource?: string }
   | { type: 'error'; message: string };
 
 export interface AIChatStreamCallbacks {
   onSources?: (sources: RagAnswer[]) => void;
   onDelta?: (delta: string) => void;
-  onDone?: (conversationId: number) => void;
+  onDone?: (conversationId: number, info?: AIChatDoneInfo) => void;
   onError?: (message: string) => void;
 }
 
@@ -507,6 +513,8 @@ export interface AIChatStreamRequest {
   query: string;
   conversationId?: number;
   limit?: number;
+  /** 多 Provider 灰度（BE-7）：显式覆盖实例 key；缺省 = 与现状完全一致（不落该字段）。 */
+  provider?: string;
   signal?: AbortSignal;
 }
 
@@ -566,6 +574,8 @@ export async function aiChatStream(
     query: req.query,
     limit: req.limit,
     conversationId: req.conversationId,
+    // 未显式选择时不写 provider：请求体与现状逐字节一致（QA-3 门禁）。
+    ...(req.provider ? { provider: req.provider } : {}),
   });
 
   let lastError: Error | null = null;
@@ -632,9 +642,24 @@ export async function aiChatStream(
             break;
           }
           case 'done': {
-            const payload = data as { conversationId?: number };
+            const payload = data as {
+              conversationId?: number;
+              provider?: string;
+              providerSource?: string;
+            };
             finalConversationId = payload?.conversationId ?? finalConversationId;
-            callbacks.onDone?.(finalConversationId);
+            // 开关关闭/静态回退时 done 不含 provider 字段 → 第二参数缺省，
+            // 调用方与既有行为完全一致（QA-3 回归门禁）。
+            const info =
+              payload?.provider || payload?.providerSource
+                ? { provider: payload?.provider, providerSource: payload?.providerSource }
+                : undefined;
+            if (info) {
+              callbacks.onDone?.(finalConversationId, info);
+            } else {
+              // 单参数调用，保持与改动前的回调签名逐字一致（既有调用方零感知）。
+              callbacks.onDone?.(finalConversationId);
+            }
             break;
           }
           case 'error': {
@@ -769,11 +794,13 @@ export class AIApi {
     query: string;
     conversationId?: number;
     limit?: number;
+    provider?: string;
   }): Promise<any> {
     return httpClient.post(`/api/v1/ai/chat`, {
       query: params.query,
       limit: params.limit,
       conversationId: params.conversationId,
+      ...(params.provider ? { provider: params.provider } : {}),
     });
   }
 

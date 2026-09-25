@@ -413,4 +413,115 @@ describe('AI API', () => {
       expect(result).toBe(99);
     });
   });
+
+  describe('LLM provider passthrough (FE-4)', () => {
+    let originalFetch: typeof global.fetch;
+    const encode = (str: string) => Buffer.from(str);
+
+    const mockStream = (chunks: Buffer[]) => {
+      let chunkIndex = 0;
+      const mockReader = {
+        read: jest.fn().mockImplementation(() => {
+          if (chunkIndex < chunks.length) {
+            return Promise.resolve({ value: chunks[chunkIndex++], done: false });
+          }
+          return Promise.resolve({ value: undefined, done: true });
+        }),
+      };
+      const fetchMock = jest.fn().mockResolvedValue({
+        ok: true,
+        status: 200,
+        body: { getReader: () => mockReader },
+      });
+      global.fetch = fetchMock as unknown as typeof global.fetch;
+      return fetchMock;
+    };
+
+    // 首个 fetch 可能是 CSRF 预取（GET、无 body）；取真正带 JSON body 的流式请求。
+    const streamCallBody = (fetchMock: jest.Mock): string => {
+      const call = fetchMock.mock.calls.find(
+        c => c[1] && typeof (c[1] as { body?: unknown }).body === 'string'
+      );
+      expect(call).toBeDefined();
+      return (call![1] as { body: string }).body;
+    };
+
+    beforeEach(() => {
+      originalFetch = global.fetch;
+      if (typeof TextDecoder === 'undefined') {
+        (global as any).TextDecoder = class {
+          decode(buf: any) {
+            return Buffer.from(buf).toString('utf-8');
+          }
+        };
+      }
+    });
+    afterEach(() => {
+      global.fetch = originalFetch;
+    });
+
+    it('omits provider from the SSE body when not selected (QA-3 byte-identity)', async () => {
+      const { aiChatStream } = require('../ai-api');
+      const fetchMock = mockStream([encode('event:done\ndata:{"conversationId":7}\n\n')]);
+
+      await aiChatStream({ query: 'test', conversationId: 3, limit: 5 }, {});
+
+      const rawBody = streamCallBody(fetchMock);
+      // 与改动前构造顺序一致：query → limit → conversationId；未选实例时不落 provider。
+      expect(rawBody).toBe(
+        JSON.stringify({ query: 'test', limit: 5, conversationId: 3, provider: undefined })
+      );
+      expect(Object.prototype.hasOwnProperty.call(JSON.parse(rawBody), 'provider')).toBe(false);
+    });
+
+    it('passes provider through and surfaces the effective instance on done', async () => {
+      const { aiChatStream } = require('../ai-api');
+      const fetchMock = mockStream([
+        encode('event:done\ndata:{"conversationId":42,"provider":"db-7","providerSource":"request"}\n\n'),
+      ]);
+      const onDone = jest.fn();
+
+      const result = await aiChatStream(
+        { query: 'test', conversationId: 3, limit: 5, provider: 'db-7' },
+        { onDone }
+      );
+
+      expect(JSON.parse(streamCallBody(fetchMock))).toEqual({
+        query: 'test',
+        limit: 5,
+        conversationId: 3,
+        provider: 'db-7',
+      });
+      expect(onDone).toHaveBeenCalledWith(42, { provider: 'db-7', providerSource: 'request' });
+      expect(result).toBe(42);
+    });
+
+    it('keeps done callback backward compatible when the switch is off (no provider fields)', async () => {
+      const { aiChatStream } = require('../ai-api');
+      mockStream([encode('event:done\ndata:{"conversationId":9}\n\n')]);
+      const onDone = jest.fn();
+
+      await aiChatStream({ query: 'test' }, { onDone });
+
+      expect(onDone).toHaveBeenCalledWith(9);
+    });
+
+    it('omits provider in one-shot fallback body unless selected, and forwards it otherwise', async () => {
+      mockPost.mockResolvedValue({});
+      await AIApi.chat({ query: 'q', conversationId: 3, limit: 5 });
+      const legacyBody = mockPost.mock.calls[0][1];
+      expect(legacyBody).toEqual({ query: 'q', limit: 5, conversationId: 3 });
+      expect(Object.prototype.hasOwnProperty.call(legacyBody, 'provider')).toBe(false);
+
+      mockPost.mockClear();
+      mockPost.mockResolvedValue({});
+      await AIApi.chat({ query: 'q', conversationId: 3, limit: 5, provider: 'db-7' });
+      expect(mockPost).toHaveBeenCalledWith('/api/v1/ai/chat', {
+        query: 'q',
+        limit: 5,
+        conversationId: 3,
+        provider: 'db-7',
+      });
+    });
+  });
 });

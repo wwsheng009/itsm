@@ -45,6 +45,9 @@ const { Password } = Input;
 import { SystemConfigAPI } from '@/lib/api/system-config-api';
 import { clearPasswordPolicyCache } from '@/lib/api/password-policy-api';
 import { UsageGuideCard } from '@/components/common/UsageGuideCard';
+import { useLLMProviderFeature } from '@/lib/hooks/use-llm-provider-feature';
+
+import { LLMProviderSettings } from './llm-provider-settings';
 
 const BOOLEAN_CONFIG_KEYS = new Set([
   'passwordRequireUppercase',
@@ -92,6 +95,9 @@ const serializeConfigValue = (value: unknown): string => {
 export default function SystemConfiguration() {
   const { message } = App.useApp();
   const [form] = Form.useForm();
+  // 多 LLM Provider（FE-2/FE-3）：仅系统管理员且灰度开关开启（available 端点可达）时渲染页签。
+  // 关闭开关：探测 404 → enabled=false → 页签不渲染，UI 与现状完全一致。
+  const { enabled: llmProvidersEnabled } = useLLMProviderFeature();
   const [activeTab, setActiveTab] = useState('general');
   const [config, setConfig] = useState<Record<string, unknown>>({});
   const [hasChanges, setHasChanges] = useState(false);
@@ -510,6 +516,16 @@ export default function SystemConfiguration() {
       children: <EmailSettings />,
       icon: <Mail className="w-4 h-4" />,
     },
+    ...(llmProvidersEnabled
+      ? [
+          {
+            key: 'llm-providers',
+            label: 'LLM 模型',
+            children: <LLMProviderSettings />,
+            icon: <Cpu className="w-4 h-4" />,
+          },
+        ]
+      : []),
   ];
 
   return (

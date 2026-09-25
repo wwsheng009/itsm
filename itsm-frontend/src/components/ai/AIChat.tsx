@@ -12,6 +12,7 @@ import { useNavigate } from 'react-router';
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
+  Alert,
   Avatar,
   Button,
   Card,
@@ -21,9 +22,11 @@ import {
   Input,
   List,
   Popconfirm,
+  Select,
   Space,
   Spin,
   Tag,
+  Tooltip,
   Typography,
   message as antdMessage,
 } from 'antd';
@@ -38,6 +41,7 @@ import {
   MoreHorizontal,
   Plus,
   Send,
+  Star,
   StopCircle,
   Trash2,
   User,
@@ -52,8 +56,22 @@ import {
   type ConversationSummary,
   type RagAnswer,
 } from '@/lib/api/ai-api';
+import {
+  LLM_PROVIDER_DISABLED,
+  describeLLMProviderError,
+  llmProviderErrorCode,
+} from '@/lib/api/llm-provider-api';
+import { useLLMProviderFeature } from '@/lib/hooks/use-llm-provider-feature';
 
 const { Text, Paragraph } = Typography;
+
+/** done 事件 providerSource → 可读来源（BE-7）。 */
+const PROVIDER_SOURCE_LABELS: Record<string, string> = {
+  request: '会话指定',
+  user: '个人默认',
+  tenant: '租户默认',
+  static: '静态配置',
+};
 
 interface ChatMessage {
   id: string;
@@ -62,6 +80,8 @@ interface ChatMessage {
   createdAt: string;
   streaming?: boolean;
   sources?: RagAnswer[];
+  /** 生效实例（done 事件回带；开关关闭时缺省）。 */
+  providerInfo?: { provider?: string; providerSource?: string };
   error?: string;
 }
 
@@ -78,6 +98,46 @@ const AIChat: React.FC = () => {
   const [loadingConvs, setLoadingConvs] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
   const abortRef = useRef<AbortController | null>(null);
+
+  // 多 Provider 会话选择器（FE-4）：仅系统管理员 + 开关开启 + ≥2 个可用实例时渲染。
+  const feature = useLLMProviderFeature();
+  const { refresh: refreshFeature } = feature;
+  const canSwitchProvider = feature.enabled && feature.providers.length > 1;
+  const [selectedProvider, setSelectedProvider] = useState<string | undefined>(undefined);
+  const [providerNotice, setProviderNotice] = useState<string | null>(null);
+
+  const providerLabel = useCallback(
+    (key?: string) => feature.providers.find(p => p.key === key)?.displayName || key || '',
+    [feature.providers]
+  );
+
+  // 所选实例在可用列表中消失（被禁用/删除）→ 清除选择并提示，回退默认（§6.2 场景 5）。
+  useEffect(() => {
+    if (!selectedProvider || !feature.ready || !feature.enabled) return;
+    if (!feature.providers.some(p => p.key === selectedProvider)) {
+      setSelectedProvider(undefined);
+      setProviderNotice('所选 Provider 已不可用，已回退到默认实例');
+    }
+  }, [feature.enabled, feature.providers, feature.ready, selectedProvider]);
+
+  const handleSetPersonalDefault = useCallback(async () => {
+    if (!selectedProvider) return;
+    try {
+      await feature.setPreference(selectedProvider);
+      antdMessage.success(`已将「${providerLabel(selectedProvider)}」设为我的默认`);
+    } catch (err) {
+      antdMessage.error(describeLLMProviderError(err, '设置个人默认失败'));
+    }
+  }, [feature, providerLabel, selectedProvider]);
+
+  const handleClearPersonalDefault = useCallback(async () => {
+    try {
+      await feature.setPreference(null);
+      antdMessage.success('已清除个人默认，跟随租户默认');
+    } catch (err) {
+      antdMessage.error(describeLLMProviderError(err, '清除个人默认失败'));
+    }
+  }, [feature]);
 
   // 加载会话列表
   const loadConversations = useCallback(async () => {
@@ -193,6 +253,7 @@ const AIChat: React.FC = () => {
             query: userMsg.content,
             conversationId: convId,
             limit: 5,
+            provider: selectedProvider,
             signal: controller.signal,
           },
           {
@@ -202,12 +263,12 @@ const AIChat: React.FC = () => {
             onDelta: delta => {
               appendAssistantContent(assistantId, delta);
             },
-            onDone: newConvId => {
+            onDone: (newConvId, info) => {
               if (newConvId) {
                 setConvId(newConvId);
                 void loadConversations(); // 刷新侧边栏
               }
-              updateAssistant(assistantId, { streaming: false });
+              updateAssistant(assistantId, { streaming: false, providerInfo: info });
             },
             onError: msg => {
               updateAssistant(assistantId, { streaming: false, error: msg });
@@ -229,6 +290,7 @@ const AIChat: React.FC = () => {
             query: userMsg.content,
             conversationId: convId,
             limit: 5,
+            provider: selectedProvider,
           });
           const answers: unknown[] = Array.isArray(res?.answers) ? res.answers : [];
           const fallbackText = answers
@@ -244,17 +306,22 @@ const AIChat: React.FC = () => {
             void loadConversations();
           }
         } catch (fallbackErr) {
-          const fallbackMsg =
-            fallbackErr instanceof Error ? fallbackErr.message : '流式请求与降级请求均失败';
+          const fallbackMsg = describeLLMProviderError(fallbackErr, '流式请求与降级请求均失败');
           updateAssistant(assistantId, { streaming: false, error: fallbackMsg });
-          antdMessage.error('AI 回答失败，请稍后重试');
+          if (llmProviderErrorCode(fallbackErr) === LLM_PROVIDER_DISABLED) {
+            // 实例被禁用：清掉会话选择，回退租户默认，并刷新可用列表。
+            setSelectedProvider(undefined);
+            setProviderNotice('所选 Provider 已禁用，已回退到默认实例，请重新发送');
+            void refreshFeature();
+          }
+          antdMessage.error(fallbackMsg);
         }
       } finally {
         abortRef.current = null;
         setStreaming(false);
       }
     },
-    [appendAssistantContent, convId, loadConversations, updateAssistant]
+    [appendAssistantContent, convId, loadConversations, refreshFeature, selectedProvider, updateAssistant]
   );
 
   const handleSend = useCallback(() => {
@@ -429,6 +496,49 @@ const AIChat: React.FC = () => {
                 <Text style={{ fontSize: 11 }} ellipsis>{currentConvTitle}</Text>
               </Tag>
             ) : null}
+            {canSwitchProvider ? (
+              <>
+                <Select
+                  size="small"
+                  style={{ minWidth: 170, maxWidth: 260 }}
+                  value={selectedProvider}
+                  allowClear
+                  placeholder={
+                    feature.preference?.effectiveProviderKey
+                      ? `跟随默认 · ${providerLabel(feature.preference.effectiveProviderKey)}`
+                      : '跟随默认实例'
+                  }
+                  options={feature.providers.map(p => ({
+                    value: p.key,
+                    label: p.implemented ? p.displayName : `${p.displayName}（未接入）`,
+                    disabled: !p.implemented,
+                  }))}
+                  onChange={value => {
+                    setSelectedProvider(value);
+                    setProviderNotice(null);
+                  }}
+                />
+                {selectedProvider && feature.preference?.providerKey !== selectedProvider ? (
+                  <Tooltip title="设为我的默认（仅影响你自己的新会话）">
+                    <Button
+                      size="small"
+                      type="text"
+                      icon={<Star size={13} />}
+                      onClick={handleSetPersonalDefault}
+                    />
+                  </Tooltip>
+                ) : null}
+                {feature.preference?.providerKey ? (
+                  <Tooltip
+                    title={`清除我的默认（当前：${providerLabel(feature.preference.providerKey)}）`}
+                  >
+                    <Button size="small" type="text" onClick={handleClearPersonalDefault}>
+                      清除默认
+                    </Button>
+                  </Tooltip>
+                ) : null}
+              </>
+            ) : null}
             {streaming ? (
               <Tag color="processing" icon={<LoaderCircle size={12} className="animate-spin" />}>
                 生成中
@@ -485,6 +595,19 @@ const AIChat: React.FC = () => {
                         <Text strong>{item.role === 'user' ? '你' : 'AI 助手'}</Text>
                         {item.streaming ? <Tag color="processing">流式</Tag> : null}
                         {item.error ? <Tag color="error">失败</Tag> : null}
+                        {item.providerInfo?.provider ? (
+                          <Tooltip
+                            title={`生效来源：${
+                              PROVIDER_SOURCE_LABELS[item.providerInfo.providerSource ?? ''] ||
+                              item.providerInfo.providerSource ||
+                              '未知'
+                            }`}
+                          >
+                            <Tag color="geekblue">
+                              由 {providerLabel(item.providerInfo.provider)} 回答
+                            </Tag>
+                          </Tooltip>
+                        ) : null}
                       </Space>
                     }
                     description={
@@ -556,6 +679,17 @@ const AIChat: React.FC = () => {
             />
           )}
         </div>
+
+        {providerNotice ? (
+          <Alert
+            type="warning"
+            showIcon
+            closable
+            message={providerNotice}
+            onClose={() => setProviderNotice(null)}
+            style={{ margin: '0 16px 8px' }}
+          />
+        ) : null}
 
         <Divider style={{ margin: 0 }} />
 

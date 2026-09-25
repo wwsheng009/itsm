@@ -46,6 +46,8 @@ export interface AxiosLikeRequestConfig {
 // API response interface
 interface ApiResponse<T> {
   code: number;
+  /** 字符串错误码（新契约端点使用，如 AI_PROVIDER_IS_DEFAULT）；旧端点可能缺失 */
+  errorCode?: string;
   message: string;
   data: T;
 }
@@ -61,6 +63,8 @@ interface ApiResponse<T> {
 export interface HttpClientError extends Error {
   /** 后端包络内的业务码（如 6103）；HTTP 层错误时可能缺失 */
   code?: number;
+  /** 后端包络内的字符串错误码（如 AI_PROVIDER_IS_DEFAULT）；旧端点可能缺失 */
+  errorCode?: string;
   /** 真实 HTTP 状态码（后端 Fail() 会把 61xx 映射为 4xx） */
   httpStatus?: number;
   /** 响应头 `X-Request-Id`，便于日志排查 */
@@ -69,10 +73,16 @@ export interface HttpClientError extends Error {
 
 const createHttpClientError = (
   message: string,
-  meta: { code?: number | null; httpStatus?: number | null; requestId?: string | null } = {}
+  meta: {
+    code?: number | null;
+    errorCode?: string | null;
+    httpStatus?: number | null;
+    requestId?: string | null;
+  } = {}
 ): HttpClientError => {
   const error = new Error(message) as HttpClientError;
   if (typeof meta.code === 'number' && Number.isFinite(meta.code)) error.code = meta.code;
+  if (typeof meta.errorCode === 'string' && meta.errorCode) error.errorCode = meta.errorCode;
   if (typeof meta.httpStatus === 'number' && Number.isFinite(meta.httpStatus)) {
     error.httpStatus = meta.httpStatus;
   }
@@ -82,15 +92,21 @@ const createHttpClientError = (
 
 const readErrorEnvelope = async (
   response: Response | undefined
-): Promise<{ code?: number; message?: string } | null> => {
+): Promise<{ code?: number; errorCode?: string; message?: string } | null> => {
   if (!response) return null;
   try {
-    const payload = (await response.json()) as { code?: unknown; message?: unknown } | null;
+    const payload = (await response.json()) as {
+      code?: unknown;
+      errorCode?: unknown;
+      message?: unknown;
+    } | null;
     if (!payload || typeof payload !== 'object') return null;
     const code = typeof payload.code === 'number' ? payload.code : undefined;
+    const errorCode =
+      typeof payload.errorCode === 'string' && payload.errorCode ? payload.errorCode : undefined;
     const message = typeof payload.message === 'string' && payload.message ? payload.message : undefined;
-    if (code === undefined && message === undefined) return null;
-    return { code, message };
+    if (code === undefined && errorCode === undefined && message === undefined) return null;
+    return { code, errorCode, message };
   } catch {
     // 非 JSON 响应体（网关 HTML / 空体）→ 回落到通用 HTTP 错误文案
     return null;
@@ -428,6 +444,7 @@ class HttpClient {
               (envelope?.message || `HTTP error! status: ${retryResponse?.status}`) + suffix,
               {
                 code: envelope?.code ?? null,
+                errorCode: envelope?.errorCode ?? null,
                 httpStatus: retryResponse.status,
                 requestId: rid,
               }
@@ -447,6 +464,7 @@ class HttpClient {
             const suffix = rid ? ` [RID: ${rid}]` : '';
             throw createHttpClientError((retryData.message || 'Request failed') + suffix, {
               code: retryData.code,
+              errorCode: retryData.errorCode ?? null,
               httpStatus: retryResponse.status,
               requestId: rid,
             });
@@ -475,6 +493,7 @@ class HttpClient {
           (envelope?.message || `HTTP error! status: ${response?.status}`) + suffix,
           {
             code: envelope?.code ?? null,
+            errorCode: envelope?.errorCode ?? null,
             httpStatus: response?.status ?? null,
             requestId: rid,
           }
