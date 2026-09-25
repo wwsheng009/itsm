@@ -34,7 +34,8 @@ import (
 //     变体差异体现在 endpoint（azure 见 normalizeVariantEndpoint）与调用参数上；
 //   - anthropic_messages：官方 / minimax 两个变体共用同一适配器（minimax 的
 //     camelCase 字段口径在构造期固化）；
-//   - openai_responses / google_gemini 未注册 → 静态路径回退既有分支、
+//   - openai_responses：标准形态共用同一适配器（PA-3）
+//   - google_gemini 未注册 → 静态路径回退既有分支、
 //     DB 实例路径映射 422 AI_PROTOCOL_NOT_IMPLEMENTED；
 //   - 开关关闭（默认）时静态构建路径完全不经过本文件，旧路径零变化（QA-3 回归门禁）。
 //
@@ -171,8 +172,8 @@ func protocolProviderVariantTemperature(protocolName, variant string) float64 {
 // newProtocolProviderFromConfig 尝试按静态配置走适配器路径。
 //
 // 返回 nil 表示回退既有分支（开关关闭、provider 未识别或该协议未注册，
-// 例如 openai_responses / google_gemini）——静态路径不引入新的失败面。
-// 注意：静态配置无协议/变体字段，未实现协议（openai_responses / google_gemini）
+// 例如 google_gemini）——静态路径不引入新的失败面。
+// 注意：静态配置无协议/变体字段，未实现协议（google_gemini）
 // 只会出现在 DB 实例路径（BE-4/BE-8），由那里映射 422。
 func newProtocolProviderFromConfig(cfg ProviderConfig, apiKey string) LLMProvider {
 	if !cfg.ProtocolAdapterEnabled {
@@ -885,7 +886,7 @@ func (r *LLMProviderRegistry) buildEntry(record *ent.LLMProviderConfig) *llmRegi
 		return entry
 	}
 
-	// 1) 协议/变体槽位：openai_responses / google_gemini 等未实现协议（BE-8 已在写入侧 422 拦截）
+	// 1) 协议/变体槽位：google_gemini 等未实现协议（BE-8 已在写入侧 422 拦截）
 	//    若出现在 DB，按"该 slot 不可用"处理，不 panic（§3.2 第 4 条 / 主计划 §3.1.4）。
 	if _, err := MapProtocolToLegacyProvider(entry.protocol, entry.variant); err != nil {
 		entry.buildErr = fmt.Errorf("%w: provider %q protocol=%s variant=%s 未实现", ErrProviderUnavailable, entry.key, entry.protocol, entry.variant)
@@ -924,8 +925,8 @@ func (r *LLMProviderRegistry) buildProvider(record *ent.LLMProviderConfig, apiKe
 
 	// 适配器优先：协议已在协议包注册（一协议一实现）即按适配器承载——openai_chat_completions
 	// 覆盖默认 / azure / ollama 三个变体（变体只影响 endpoint 与调用参数），anthropic_messages
-	// 覆盖官方 / minimax 两个变体；未注册协议（openai_responses / google_gemini）回退既有分支
-	// （"适配器优先、旧分支回退"，与 BE-9 静态路径同口径）。
+	// 覆盖官方 / minimax 两个变体，openai_responses 覆盖标准形态；未注册协议（google_gemini）
+	// 回退既有分支（"适配器优先、旧分支回退"，与 BE-9 静态路径同口径）。
 	if protocolAdapters.Supports(protocolName, variant) {
 		provider, err := NewProtocolProvider(ProtocolProviderOptions{
 			Protocol:    protocolName,
@@ -948,6 +949,13 @@ func (r *LLMProviderRegistry) buildProvider(record *ent.LLMProviderConfig, apiKe
 	legacyProvider, err := MapProtocolToLegacyProvider(protocolName, variant)
 	if err != nil {
 		return nil, err
+	}
+	if legacyProvider == "" {
+		// PA-3：openai_responses 无旧分支可回退（空映射值）。走到这里说明适配器未注册或
+		// 构建失败，必须显式不可用，不得静默落到 NewProviderFromConfig 的 OpenAI 默认分支
+		// （那会以 Chat Completions 形态调用 Responses 实例）。
+		return nil, fmt.Errorf("%w: 协议 %s 无法构建（适配器不可用且无旧分支回退）",
+			ErrProviderUnavailable, protocolName)
 	}
 	built := NewProviderFromConfig(ProviderConfig{
 		Provider:   legacyProvider,

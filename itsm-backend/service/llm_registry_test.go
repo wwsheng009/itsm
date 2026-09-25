@@ -368,7 +368,13 @@ func TestProtocolProviderErrorMappingMatchesGatewayRetrySemantics(t *testing.T) 
 // ---- 未实现协议（422 哨兵）与 URL 拼接 ----
 
 func TestNewProtocolProviderUnregisteredReturnsSentinel(t *testing.T) {
-	_, err := NewProtocolProvider(ProtocolProviderOptions{Protocol: protocol.ProtocolOpenAIResponses})
+	// PA-3 收敛后 openai_responses 已由 Responses 适配器承载（不再是 422）：标准形态直接命中。
+	provider, err := NewProtocolProvider(ProtocolProviderOptions{Protocol: protocol.ProtocolOpenAIResponses})
+	require.NoError(t, err)
+	require.IsType(t, &protocolProvider{}, provider)
+
+	// 未注册协议（google_gemini，PA-4 落地）仍落到 422 哨兵。
+	_, err = NewProtocolProvider(ProtocolProviderOptions{Protocol: protocol.ProtocolGoogleGemini})
 	require.Error(t, err)
 	assert.ErrorIs(t, err, ErrProtocolNotImplemented)
 	assert.ErrorIs(t, err, protocol.ErrAdapterNotFound)
@@ -438,8 +444,15 @@ func TestResolveProtocolURLEndpointFallback(t *testing.T) {
 		{
 			name:     "未登记协议回退 OpenAI 兼容默认地址",
 			apiPath:  "/v1/chat/completions",
-			fallback: protocol.DefaultEndpoint(protocol.ProtocolOpenAIResponses, protocol.VariantDefault),
+			fallback: protocol.DefaultEndpoint(protocol.ProtocolGoogleGemini, protocol.VariantDefault),
 			want:     "https://api.openai.com/v1/chat/completions",
+		},
+		{
+			// PA-3：responses 不登记默认 endpoint（与标准 chat 形态同址），资源段由适配器给出。
+			name:     "openai_responses 不登记默认地址：回退 OpenAI 兼容默认地址 + /v1/responses",
+			apiPath:  "/v1/responses",
+			fallback: protocol.DefaultEndpoint(protocol.ProtocolOpenAIResponses, protocol.VariantDefault),
+			want:     "https://api.openai.com/v1/responses",
 		},
 	}
 	for _, tc := range cases {
@@ -1067,7 +1080,8 @@ func TestLLMProviderRegistryProtocolVariantMapping(t *testing.T) {
 		// 能力位按真实实现探测（适配器实现 ToolCallingStreamProvider，属登记的能力增益）。
 		{key: "minimax-instance", want: &protocolProvider{}, wantTools: true},
 		{key: "anthropic-default", want: &protocolProvider{}, wantTools: true},
-		{key: "responses-instance", wantErr: ErrProviderUnavailable},
+		// PA-3 承载切换：openai_responses 标准形态由 Responses 适配器承载（唯一分支，无旧分支回退）。
+		{key: "responses-instance", want: &protocolProvider{}, wantTools: true},
 		{key: "gemini-instance", wantErr: ErrProviderUnavailable},
 		{key: "bogus-variant", wantErr: ErrProviderUnavailable},
 	}
@@ -1103,8 +1117,14 @@ func TestLLMProviderRegistryProtocolVariantMapping(t *testing.T) {
 
 	text := llmRegistryLogText(logs)
 	assert.Contains(t, text, "protocol_unimplemented")
-	assert.Contains(t, text, "responses-instance")
+	assert.Contains(t, text, "gemini-instance")
 	assert.Contains(t, text, "bogus-variant")
+	// PA-3 后 responses 实例可构建（构建成功日志会带 provider 名），不得再有 unavailable 告警。
+	for _, line := range strings.Split(text, "\n") {
+		if strings.Contains(line, "unavailable") {
+			assert.NotContains(t, line, "responses-instance", "PA-3 后 responses 实例可构建，不再告警")
+		}
+	}
 }
 
 // ---- 并发安全（-race 友好）：并发 Resolve + Invalidate ----

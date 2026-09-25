@@ -191,7 +191,11 @@ func TestLLMProviderAdminCreateValidationTable(t *testing.T) {
 		{"name 非法", func(r *dto.LLMCreateProviderRequest) { r.Name = "Bad Name" }, 422, "AI_PROVIDER_NAME_INVALID"},
 		{"name 超长", func(r *dto.LLMCreateProviderRequest) { r.Name = strings.Repeat("a", 65) }, 422, "AI_PROVIDER_NAME_INVALID"},
 		{"displayName 超长", func(r *dto.LLMCreateProviderRequest) { r.DisplayName = strings.Repeat("x", 101) }, 422, "AI_PROVIDER_VALIDATION_ERROR"},
-		{"协议槽位未实现", func(r *dto.LLMCreateProviderRequest) { r.Protocol = service.LLMProtocolOpenAIResponses }, 422, "AI_PROTOCOL_NOT_IMPLEMENTED"},
+		{"协议槽位未实现", func(r *dto.LLMCreateProviderRequest) { r.Protocol = service.LLMProtocolGoogleGemini }, 422, "AI_PROTOCOL_NOT_IMPLEMENTED"},
+		{"openai_responses 已实现且变体白名单只含标准项", func(r *dto.LLMCreateProviderRequest) {
+			r.Protocol = service.LLMProtocolOpenAIResponses
+			r.Variant = service.LLMVariantAzure
+		}, 422, "AI_PROTOCOL_VARIANT_INVALID"},
 		{"协议枚举非法", func(r *dto.LLMCreateProviderRequest) { r.Protocol = "chat_completions" }, 422, "AI_PROTOCOL_INVALID"},
 		{"变体非法", func(r *dto.LLMCreateProviderRequest) { r.Variant = "vertex" }, 422, "AI_PROTOCOL_VARIANT_INVALID"},
 		{"azure 缺 endpoint", func(r *dto.LLMCreateProviderRequest) { r.Variant = service.LLMVariantAzure }, 422, "AI_PROVIDER_ENDPOINT_REQUIRED"},
@@ -283,8 +287,12 @@ func TestLLMProviderAdminCreatePersistsEncryptedKeyAndMaskedDTO(t *testing.T) {
 	require.Len(t, list.ProtocolOptions, 4)
 	assert.Equal(t, service.LLMProtocolOpenAIChatCompletions, list.ProtocolOptions[0].Protocol)
 	assert.True(t, list.ProtocolOptions[0].Implemented)
+	// PA-3：openai_responses 落地后只有 google_gemini 是槽位（implemented=false）。
+	assert.Equal(t, service.LLMProtocolOpenAIResponses, list.ProtocolOptions[2].Protocol)
+	assert.True(t, list.ProtocolOptions[2].Implemented)
+	assert.Equal(t, []string{""}, list.ProtocolOptions[2].Variants)
 	for _, option := range list.ProtocolOptions {
-		if option.Protocol == service.LLMProtocolOpenAIResponses || option.Protocol == service.LLMProtocolGoogleGemini {
+		if option.Protocol == service.LLMProtocolGoogleGemini {
 			assert.False(t, option.Implemented, "槽位协议必须 implemented=false")
 		}
 	}

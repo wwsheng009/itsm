@@ -17,12 +17,15 @@ import (
 // 口径（§3.1.4 / §11.2）：
 //   - 4 值协议枚举：openai_chat_completions / openai_responses / anthropic_messages / google_gemini；
 //   - 已适配：openai_chat_completions（含 azure / ollama 变体）、anthropic_messages（含 minimax 变体），
-//     均由协议包同一适配器承载（一协议一实现，变体只是构造期选项）；
-//     未实现（槽位）：openai_responses / google_gemini —— 枚举合法但创建/更新一律
+//     openai_responses（PA-3，标准形态）均由协议包同一适配器承载（一协议一实现，
+//     变体只是构造期选项）；
+//     未实现（槽位）：google_gemini —— 枚举合法但创建/更新一律
 //     ErrProtocolNotImplemented → AI_PROTOCOL_NOT_IMPLEMENTED(422)，前端选项置灰；
 //   - variant 白名单：openai_chat_completions = {"", azure, ollama}；anthropic_messages = {"", minimax}；
+//     openai_responses = {""}；
 //   - adapter_options：JSON 对象、原始串 ≤4KB、键名黑名单（密钥只允许走 encrypted_api_key）；
-//   - 能力位（supportsStream / supportsTools / supportsReasoning / implemented）按 P0 现有实现真实填写。
+//   - 能力位（supportsStream / supportsTools / supportsReasoning / implemented）按承载实现真实填写
+//     （口径见 LLMCapabilities 注释；开关感知的收敛在 PA-5）。
 //
 // 边界（§11.3 启动门禁）：本文件只提供纯函数，不修改 NewProviderFromConfig 与既有 4 个实现分支；
 // "适配器优先、旧分支回退"的构建分派在 service/llm_registry.go（BE-9），这里只给出回退侧的映射表。
@@ -59,8 +62,12 @@ var (
 )
 
 // LLMCapabilities 实例能力位（主计划 §3.4 `available` 响应 / §11.2 槽位 4）。
-// 取值按 P0 现有实现真实填写：只有 OpenAIProvider（openai_chat_completions 默认变体）
-// 同时具备流式与工具调用；azure / local / minimax 分支当前只有非流式 Chat。
+// 取值按现有实现真实填写（PA-5 收敛为「开关感知」的真实值，本任务先按各 (协议,变体)
+// 当前承载实现填写）：
+//   - openai_chat_completions / "" ：OpenAIProvider 同时具备流式与工具调用；
+//   - openai_chat_completions / azure / ollama 与 anthropic_messages 两变体：
+//     旧分支当前只有非流式 Chat（PA-1/PA-2 的适配器能力位在 PA-5 统一收敛）；
+//   - openai_responses / ""：PA-3 适配器为唯一承载（无旧分支），流式/工具/推理全支持。
 type LLMCapabilities struct {
 	SupportsStream    bool `json:"supportsStream"`
 	SupportsTools     bool `json:"supportsTools"`
@@ -127,8 +134,26 @@ var llmProtocolSlots = []llmProtocolSlot{
 			{variant: LLMVariantMiniMax, legacyProvider: "minimax", capabilities: LLMCapabilities{Implemented: true}},
 		},
 	},
-	// openai_responses / google_gemini：枚举合法但 P0 无实现（槽位，§11.2）。
-	{protocol: LLMProtocolOpenAIResponses},
+	{
+		protocol:    LLMProtocolOpenAIResponses,
+		implemented: true,
+		variants: []llmProtocolVariantSlot{
+			{
+				variant: LLMVariantDefault,
+				// 空 legacyProvider = 无旧分支可回退（PA-3 载体决策：官方 Responses API）。
+				// 适配器不可用时该组合直接不可用，不得静默回退到 openai_chat_completions；
+				// 由 service/llm_registry.go 的 buildProvider 显式拦下。
+				legacyProvider: "",
+				capabilities: LLMCapabilities{
+					SupportsStream:    true,
+					SupportsTools:     true,
+					SupportsReasoning: true,
+					Implemented:       true,
+				},
+			},
+		},
+	},
+	// google_gemini：枚举合法但当前无实现（槽位，§11.2，PA-4 落地）。
 	{protocol: LLMProtocolGoogleGemini},
 }
 

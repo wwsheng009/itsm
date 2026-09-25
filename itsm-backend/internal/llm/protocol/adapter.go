@@ -11,8 +11,9 @@
 // 设计约束：
 //   - 本包不 import service 包：Message/Tool/ToolCall 是 service.LLMMessage 的最小镜像，
 //     避免后续 service 接线（Registry 构建路径分派）产生循环依赖；接线层负责类型转换。
-//   - P0 只交付 openai_chat_completions 一种形态；其余 3 协议由独立计划
-//     docs/plan/llm-protocol-adapter-plan.md 补齐（主计划 §11）。
+//   - 一协议一实现：适配器与 4 值协议枚举一一对应，variant 只是构造期选项（不进注册表键）。
+//     已交付 openai_chat_completions（P0）/ anthropic_messages（PA-1）/ openai_responses（PA-3）；
+//     其余协议由独立计划 docs/plan/llm-protocol-adapter-plan.md 补齐（主计划 §11）。
 package protocol
 
 import "io"
@@ -136,3 +137,9 @@ type ProtocolAdapter interface {
 
 // P0 首适配器必须满足接口（BE-9）。
 var _ ProtocolAdapter = (*OpenAIChatAdapter)(nil)
+
+// PA-1/PA-2/PA-3 适配器必须满足接口（一协议一实现）。
+var (
+	_ ProtocolAdapter = (*AnthropicMessagesAdapter)(nil)
+	_ ProtocolAdapter = (*OpenAIResponsesAdapter)(nil)
+)

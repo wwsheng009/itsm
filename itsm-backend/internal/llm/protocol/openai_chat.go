@@ -27,6 +27,12 @@ func (a *OpenAIChatAdapter) GetAPIPath() string { return "/v1/chat/completions" 
 
 // IsReasoningModel 判断推理模型（参考实现口径）：codex 与 gpt-5/o1-o5 前缀。
 func (a *OpenAIChatAdapter) IsReasoningModel(model string) bool {
+	return isOpenAIReasoningModel(model)
+}
+
+// isOpenAIReasoningModel 是 openai_chat_completions 与 openai_responses 共用的推理模型口径
+// （参考实现：codex 与 gpt-5/o1-o5 前缀，容忍 models/ 前缀）。
+func isOpenAIReasoningModel(model string) bool {
 	modelID := strings.ToLower(strings.TrimSpace(model))
 	modelID = strings.TrimPrefix(modelID, "models/")
 	if strings.Contains(modelID, "codex") {

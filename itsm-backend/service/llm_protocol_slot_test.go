@@ -49,9 +49,9 @@ func TestLLMProtocolSlotMapping(t *testing.T) {
 			wantProvider: "minimax",
 		},
 		{
-			name:     "openai_responses 是槽位，返回 AI_PROTOCOL_NOT_IMPLEMENTED",
+			name:     "openai_responses 标准形态无旧分支可回退（空映射值）",
 			protocol: LLMProtocolOpenAIResponses,
-			wantErr:  ErrProtocolNotImplemented,
+			variant:  LLMVariantDefault,
 		},
 		{
 			name:     "google_gemini 是槽位，返回 AI_PROTOCOL_NOT_IMPLEMENTED",
@@ -117,10 +117,10 @@ func TestLLMProtocolSlotValidation(t *testing.T) {
 			wantErr:  ErrProtocolVariantInvalid,
 		},
 		{
-			name:     "openai_responses 即使变体为空也是槽位",
+			name:     "openai_responses 不接受 azure 变体",
 			protocol: LLMProtocolOpenAIResponses,
-			variant:  LLMVariantDefault,
-			wantErr:  ErrProtocolNotImplemented,
+			variant:  LLMVariantAzure,
+			wantErr:  ErrProtocolVariantInvalid,
 		},
 		{
 			name:     "google_gemini 即使变体非空也是槽位",
@@ -137,6 +137,11 @@ func TestLLMProtocolSlotValidation(t *testing.T) {
 			name:     "minimax 变体合法",
 			protocol: LLMProtocolAnthropicMessages,
 			variant:  LLMVariantMiniMax,
+		},
+		{
+			name:     "openai_responses 标准变体合法",
+			protocol: LLMProtocolOpenAIResponses,
+			variant:  LLMVariantDefault,
 		},
 	}
 
@@ -187,6 +192,14 @@ func TestLLMProtocolSlotCapabilities(t *testing.T) {
 			variant:  LLMVariantMiniMax,
 			want:     LLMCapabilities{Implemented: true},
 		},
+		{
+			name:     "openai_responses 标准形态：适配器为唯一承载，流式 + 工具 + 推理",
+			protocol: LLMProtocolOpenAIResponses,
+			variant:  LLMVariantDefault,
+			want: LLMCapabilities{
+				SupportsStream: true, SupportsTools: true, SupportsReasoning: true, Implemented: true,
+			},
+		},
 	}
 
 	for _, testCase := range cases {
@@ -198,7 +211,7 @@ func TestLLMProtocolSlotCapabilities(t *testing.T) {
 	}
 
 	// 槽位：能力位零值且返回 422 哨兵。
-	got, err := LLMProtocolCapabilities(LLMProtocolOpenAIResponses, "")
+	got, err := LLMProtocolCapabilities(LLMProtocolGoogleGemini, "")
 	require.Error(t, err)
 	assert.ErrorIs(t, err, ErrProtocolNotImplemented)
 	assert.Equal(t, LLMCapabilities{}, got)
@@ -228,9 +241,11 @@ func TestLLMProtocolOptions(t *testing.T) {
 	assert.Equal(t, []string{"", "minimax"}, options[1].Variants)
 
 	assert.Equal(t, LLMProtocolOpenAIResponses, options[2].Protocol)
-	assert.False(t, options[2].Implemented)
-	assert.Empty(t, options[2].Variants)
-	assert.Equal(t, LLMCapabilities{}, options[2].Capabilities)
+	assert.True(t, options[2].Implemented)
+	assert.Equal(t, []string{""}, options[2].Variants)
+	assert.True(t, options[2].Capabilities.SupportsStream)
+	assert.True(t, options[2].Capabilities.SupportsTools)
+	assert.True(t, options[2].Capabilities.SupportsReasoning)
 
 	assert.Equal(t, LLMProtocolGoogleGemini, options[3].Protocol)
 	assert.False(t, options[3].Implemented)
@@ -238,11 +253,12 @@ func TestLLMProtocolOptions(t *testing.T) {
 
 	assert.True(t, IsImplementedLLMProtocol(LLMProtocolOpenAIChatCompletions))
 	assert.True(t, IsImplementedLLMProtocol(LLMProtocolAnthropicMessages))
-	assert.False(t, IsImplementedLLMProtocol(LLMProtocolOpenAIResponses))
+	assert.True(t, IsImplementedLLMProtocol(LLMProtocolOpenAIResponses))
 	assert.False(t, IsImplementedLLMProtocol(LLMProtocolGoogleGemini))
 	assert.False(t, IsImplementedLLMProtocol("unknown"))
 
-	assert.Empty(t, SupportedLLMVariants(LLMProtocolOpenAIResponses))
+	assert.Equal(t, []string{""}, SupportedLLMVariants(LLMProtocolOpenAIResponses))
+	assert.Empty(t, SupportedLLMVariants(LLMProtocolGoogleGemini))
 	assert.Empty(t, SupportedLLMVariants("unknown"))
 }
 

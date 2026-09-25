@@ -84,8 +84,10 @@ func (r *Registry) NewAdapter(protocolName, variant string) (ProtocolAdapter, er
 //     厂商/部署差异由 endpoint 与调用参数表达，不新增适配器）；
 //   - anthropic_messages：官方形态 + minimax 兼容端点（camelCase 字段口径，
 //     同一适配器构造期固化）;
-//   - openai_responses / google_gemini：尚未注册，由独立计划的后续任务落地
-//     （PA-3 / PA-4），NewAdapter 返回 ErrAdapterNotFound 触发旧分支回退或 422。
+//   - openai_responses：官方 Responses API 形态（PA-3，同一适配器；只有一个标准
+//     变体，不登记默认 endpoint 以保持既有 api.openai.com 回退口径）；
+//   - google_gemini：尚未注册，由独立计划的后续任务落地（PA-4），
+//     NewAdapter 返回 ErrAdapterNotFound 触发旧分支回退或 422。
 func NewDefaultRegistry() *Registry {
 	registry := NewRegistry()
 	registry.Register(ProtocolOpenAIChatCompletions, AdapterSpec{
@@ -95,6 +97,10 @@ func NewDefaultRegistry() *Registry {
 	registry.Register(ProtocolAnthropicMessages, AdapterSpec{
 		Variants: []string{VariantDefault, VariantMiniMax},
 		New:      func(variant string) ProtocolAdapter { return NewAnthropicMessagesAdapter(variant) },
+	})
+	registry.Register(ProtocolOpenAIResponses, AdapterSpec{
+		Variants: []string{VariantDefault},
+		New:      func(string) ProtocolAdapter { return NewOpenAIResponsesAdapter() },
 	})
 	return registry
 }
@@ -109,6 +115,8 @@ func NewDefaultRegistry() *Registry {
 //   - anthropic_messages / ""：官方 https://api.anthropic.com，路径 /v1/messages；
 //   - anthropic_messages / minimax：与旧 service.MiniMaxProvider.baseURL 同值
 //     （https://api.minimaxi.com/anthropic/v1）。
+//   - openai_responses / ""：不登记（与 openai_chat_completions 标准形态同址回退
+//     api.openai.com，路径 /v1/responses 由适配器给出）。
 func DefaultEndpoint(protocolName, variant string) string {
 	key := normalizeProtocolName(protocolName)
 	switch key {
