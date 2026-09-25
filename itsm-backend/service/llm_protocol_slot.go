@@ -24,8 +24,8 @@ import (
 //   - variant 白名单：openai_chat_completions = {"", azure, ollama}；anthropic_messages = {"", minimax}；
 //     openai_responses = {""}；google_gemini = {""}；
 //   - adapter_options：JSON 对象、原始串 ≤4KB、键名黑名单（密钥只允许走 encrypted_api_key）；
-//   - 能力位（supportsStream / supportsTools / supportsReasoning / implemented）按承载实现真实填写
-//     （口径见 LLMCapabilities 注释；开关感知的收敛在 PA-5）。
+//   - 能力位（supportsStream / supportsTools / supportsReasoning / implemented）按「承载实现 + 部署开关」
+//     计算（PA-5 口径见 LLMCapabilities 注释）；Implemented 是枚举级事实，不随开关变化。
 //
 // 边界（§11.3 启动门禁）：本文件只提供纯函数，不修改 NewProviderFromConfig 与既有 4 个实现分支；
 // "适配器优先、旧分支回退"的构建分派在 service/llm_registry.go（BE-9），这里只给出回退侧的映射表。
@@ -62,13 +62,20 @@ var (
 )
 
 // LLMCapabilities 实例能力位（主计划 §3.4 `available` 响应 / §11.2 槽位 4）。
-// 取值按现有实现真实填写（PA-5 收敛为「开关感知」的真实值，本任务先按各 (协议,变体)
-// 当前承载实现填写）：
-//   - openai_chat_completions / "" ：OpenAIProvider 同时具备流式与工具调用；
-//   - openai_chat_completions / azure / ollama 与 anthropic_messages 两变体：
-//     旧分支当前只有非流式 Chat（PA-1/PA-2 的适配器能力位在 PA-5 统一收敛）；
-//   - openai_responses / ""：PA-3 适配器为唯一承载（无旧分支），流式/工具/推理全支持；
-//   - google_gemini / ""：PA-4 适配器为唯一承载（无旧分支），流式/工具/推理全支持。
+//
+// PA-5 收敛口径：能力位按「承载实现 + 部署开关」计算，由 LLMProtocolCapabilities /
+// LLMProtocolOptions 在调用期解析（不再静态固化）：
+//   - 部署开关 LLM_PROTOCOL_ADAPTER_ENABLED 关闭（默认）：保持旧分支事实值
+//     （legacyCapabilities），与「开关关闭时构建路径不经过协议包」的零破坏口径一致，
+//     管理 API 与前端不提前放量（独立计划 §4.5 / R-3）；
+//   - 开关开启且该 (协议, 变体) 已由协议包适配器承载：返回适配器事实值
+//     （PA-1..PA-4 四协议适配器均实现流式 / 工具 / 推理链，三项全真）。
+//
+// 旧分支事实值（开关关闭时）：openai_chat_completions 默认变体 = 流式 + 工具 + 推理；
+// azure / ollama / anthropic_messages 两变体 = 仅非流式 Chat（三项均 false）；
+// openai_responses / google_gemini = 适配器唯一承载（无旧分支），维持三项全真。
+//
+// Implemented 是枚举级事实（协议是否已实现、前端是否置灰），不随部署开关变化。
 type LLMCapabilities struct {
 	SupportsStream    bool `json:"supportsStream"`
 	SupportsTools     bool `json:"supportsTools"`
@@ -89,7 +96,9 @@ type LLMProtocolOption struct {
 type llmProtocolVariantSlot struct {
 	variant        string
 	legacyProvider string
-	capabilities   LLMCapabilities
+	// legacyCapabilities 旧分支（部署开关关闭）的事实值；开关开启且适配器承载时由
+	// effectiveCapabilities 在读取期替换为适配器事实值（PA-5）。
+	legacyCapabilities LLMCapabilities
 }
 
 // llmProtocolSlot 是一个协议槽位（含变体白名单与映射）。
@@ -108,7 +117,7 @@ var llmProtocolSlots = []llmProtocolSlot{
 			{
 				variant:        LLMVariantDefault,
 				legacyProvider: "openai",
-				capabilities: LLMCapabilities{
+				legacyCapabilities: LLMCapabilities{
 					SupportsStream:    true,
 					SupportsTools:     true,
 					SupportsReasoning: true,
@@ -116,14 +125,14 @@ var llmProtocolSlots = []llmProtocolSlot{
 				},
 			},
 			{
-				variant:        LLMVariantAzure,
-				legacyProvider: "azure",
-				capabilities:   LLMCapabilities{Implemented: true},
+				variant:            LLMVariantAzure,
+				legacyProvider:     "azure",
+				legacyCapabilities: LLMCapabilities{Implemented: true},
 			},
 			{
-				variant:        LLMVariantOllama,
-				legacyProvider: "local",
-				capabilities:   LLMCapabilities{Implemented: true},
+				variant:            LLMVariantOllama,
+				legacyProvider:     "local",
+				legacyCapabilities: LLMCapabilities{Implemented: true},
 			},
 		},
 	},
@@ -131,8 +140,8 @@ var llmProtocolSlots = []llmProtocolSlot{
 		protocol:    LLMProtocolAnthropicMessages,
 		implemented: true,
 		variants: []llmProtocolVariantSlot{
-			{variant: LLMVariantDefault, legacyProvider: "minimax", capabilities: LLMCapabilities{Implemented: true}},
-			{variant: LLMVariantMiniMax, legacyProvider: "minimax", capabilities: LLMCapabilities{Implemented: true}},
+			{variant: LLMVariantDefault, legacyProvider: "minimax", legacyCapabilities: LLMCapabilities{Implemented: true}},
+			{variant: LLMVariantMiniMax, legacyProvider: "minimax", legacyCapabilities: LLMCapabilities{Implemented: true}},
 		},
 	},
 	{
@@ -145,7 +154,7 @@ var llmProtocolSlots = []llmProtocolSlot{
 				// 适配器不可用时该组合直接不可用，不得静默回退到 openai_chat_completions；
 				// 由 service/llm_registry.go 的 buildProvider 显式拦下。
 				legacyProvider: "",
-				capabilities: LLMCapabilities{
+				legacyCapabilities: LLMCapabilities{
 					SupportsStream:    true,
 					SupportsTools:     true,
 					SupportsReasoning: true,
@@ -162,7 +171,7 @@ var llmProtocolSlots = []llmProtocolSlot{
 				variant: LLMVariantDefault,
 				// 空 legacyProvider = 无旧分支可回退（PA-4：Gemini v1beta 适配器为唯一承载）。
 				legacyProvider: "",
-				capabilities: LLMCapabilities{
+				legacyCapabilities: LLMCapabilities{
 					SupportsStream:    true,
 					SupportsTools:     true,
 					SupportsReasoning: true,
@@ -171,6 +180,16 @@ var llmProtocolSlots = []llmProtocolSlot{
 			},
 		},
 	},
+}
+
+// llmAdapterCapabilities 适配器承载的能力事实值（PA-5）：PA-1..PA-4 四协议适配器
+// 均实现流式回调（ChatStream）、工具调用回调（ChatStreamWithTools）与推理链解析
+// （reasoning_content / thinking_delta / reasoning_summary_text / thought parts），三项全真。
+var llmAdapterCapabilities = LLMCapabilities{
+	SupportsStream:    true,
+	SupportsTools:     true,
+	SupportsReasoning: true,
+	Implemented:       true,
 }
 
 // NormalizeLLMProtocol 归一化协议枚举（去空白 + 小写），用于比较与落库前校验。
@@ -259,14 +278,15 @@ func MapProtocolToLegacyProvider(protocolName, variant string) (string, error) {
 	return item.legacyProvider, nil
 }
 
-// LLMProtocolCapabilities 返回 (协议, 变体) 的能力位；协议/变体非法时返回与校验一致的错误。
+// LLMProtocolCapabilities 返回 (协议, 变体) 的能力位（PA-5：承载实现 + 部署开关，
+// 取值口径见 LLMCapabilities）；协议/变体非法时返回与校验一致的错误。
 func LLMProtocolCapabilities(protocolName, variant string) (LLMCapabilities, error) {
 	if err := ValidateLLMProtocolVariant(protocolName, variant); err != nil {
 		return LLMCapabilities{}, err
 	}
 	slot, _ := findLLMProtocolSlot(protocolName)
 	item, _ := slot.variantSlot(variant)
-	return item.capabilities, nil
+	return item.effectiveCapabilities(slot.protocol), nil
 }
 
 // ValidateAdapterOptions 校验 adapter_options 原始 JSON：
@@ -365,10 +385,20 @@ func (s llmProtocolSlot) variantNames() []string {
 	return names
 }
 
-// defaultCapabilities 返回协议默认变体（空变体）的能力位；槽位返回零值（Implemented=false）。
+// effectiveCapabilities 计算 (协议, 变体) 的对外能力位（PA-5：承载实现 + 部署开关）：
+// 部署开关开启且协议包注册表覆盖该 (协议, 变体) 时返回适配器事实值，否则返回旧分支事实值。
+func (s llmProtocolVariantSlot) effectiveCapabilities(protocolName string) LLMCapabilities {
+	if protocolAdapterEnabled() && protocolAdapters.Supports(protocolName, s.variant) {
+		return llmAdapterCapabilities
+	}
+	return s.legacyCapabilities
+}
+
+// defaultCapabilities 返回协议默认变体（空变体）的能力位（PA-5 口径，读取期解析部署开关）；
+// 槽位返回零值（Implemented=false）。
 func (s llmProtocolSlot) defaultCapabilities() LLMCapabilities {
 	if item, ok := s.variantSlot(LLMVariantDefault); ok {
-		return item.capabilities
+		return item.effectiveCapabilities(s.protocol)
 	}
 	return LLMCapabilities{}
 }

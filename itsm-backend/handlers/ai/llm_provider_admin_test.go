@@ -590,6 +590,39 @@ func TestLLMProviderAdminListAvailableFilter(t *testing.T) {
 	assert.True(t, items[0].IsDefault)
 }
 
+// TestLLMProviderAdminCapabilitiesAdapterEnabled 锁定 PA-5 管理 API 口径：
+// 部署开关开启后能力位收敛为适配器事实值——旧分支仅非流式的
+// anthropic_messages/minimax 实例在 available 与 protocolOptions 两处均报三项全真。
+func TestLLMProviderAdminCapabilitiesAdapterEnabled(t *testing.T) {
+	env := newLLMAdminTestEnv(t)
+	ctx := context.Background()
+	t.Setenv(service.LLMProtocolAdapterEnabledEnv, "true")
+
+	req := validCreateRequest("avail-anthropic")
+	req.Protocol = service.LLMProtocolAnthropicMessages
+	req.Variant = service.LLMVariantMiniMax
+	mustCreateProvider(t, env, req)
+
+	items, err := env.svc.ListAvailable(ctx, llmAdminTenantID)
+	require.NoError(t, err)
+	require.Len(t, items, 1)
+	assert.Equal(t, service.LLMProtocolAnthropicMessages, items[0].Protocol)
+	assert.Equal(t, service.LLMVariantMiniMax, items[0].Variant)
+	assert.True(t, items[0].Implemented)
+	assert.True(t, items[0].SupportsStream)
+	assert.True(t, items[0].SupportsTools)
+	assert.True(t, items[0].SupportsReasoning)
+
+	list, err := env.svc.ListProviders(ctx, llmAdminTenantID)
+	require.NoError(t, err)
+	require.Len(t, list.ProtocolOptions, 4)
+	anthropicOption := list.ProtocolOptions[1]
+	assert.Equal(t, service.LLMProtocolAnthropicMessages, anthropicOption.Protocol)
+	assert.True(t, anthropicOption.Capabilities.SupportsStream)
+	assert.True(t, anthropicOption.Capabilities.SupportsTools)
+	assert.True(t, anthropicOption.Capabilities.SupportsReasoning)
+}
+
 // ---------- §3.4 连通性测试（桩服务 + 脱敏） ----------
 
 func TestLLMProviderAdminTestProviderConnectivity(t *testing.T) {

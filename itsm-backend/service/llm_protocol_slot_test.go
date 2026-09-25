@@ -163,8 +163,11 @@ func TestLLMProtocolSlotValidation(t *testing.T) {
 	}
 }
 
-// TestLLMProtocolSlotCapabilities 能力位按 P0 现有实现填写（§3.4 available / §11.2 槽位 4）。
+// TestLLMProtocolSlotCapabilities 能力位开关关闭侧（默认）：保持旧分支事实值
+// （§3.4 available / §11.2 槽位 4；PA-5 口径见 TestLLMProtocolSlotCapabilitiesAdapterEnabled）。
 func TestLLMProtocolSlotCapabilities(t *testing.T) {
+	t.Setenv(LLMProtocolAdapterEnabledEnv, "false")
+
 	cases := []struct {
 		name     string
 		protocol string
@@ -234,10 +237,54 @@ func TestLLMProtocolSlotCapabilities(t *testing.T) {
 	assert.ErrorIs(t, err, ErrProtocolInvalid)
 }
 
+// TestLLMProtocolSlotCapabilitiesAdapterEnabled 锁定 PA-5 开关开启侧：
+// 协议包 4/4 适配器均实现流式 / 工具 / 推理链，旧分支仅非流式的 azure / ollama /
+// anthropic_messages 两变体随之收敛为适配器事实值（三项全真，R-3 放量解除）。
+func TestLLMProtocolSlotCapabilitiesAdapterEnabled(t *testing.T) {
+	t.Setenv(LLMProtocolAdapterEnabledEnv, "true")
+
+	adapterFacts := LLMCapabilities{
+		SupportsStream:    true,
+		SupportsTools:     true,
+		SupportsReasoning: true,
+		Implemented:       true,
+	}
+	cases := []struct {
+		name     string
+		protocol string
+		variant  string
+	}{
+		{"openai_chat_completions 默认变体", LLMProtocolOpenAIChatCompletions, LLMVariantDefault},
+		{"openai_chat_completions azure 变体", LLMProtocolOpenAIChatCompletions, LLMVariantAzure},
+		{"openai_chat_completions ollama 变体", LLMProtocolOpenAIChatCompletions, LLMVariantOllama},
+		{"anthropic_messages 默认变体", LLMProtocolAnthropicMessages, LLMVariantDefault},
+		{"anthropic_messages minimax 变体", LLMProtocolAnthropicMessages, LLMVariantMiniMax},
+		{"openai_responses 标准形态", LLMProtocolOpenAIResponses, LLMVariantDefault},
+		{"google_gemini 标准形态", LLMProtocolGoogleGemini, LLMVariantDefault},
+	}
+	for _, testCase := range cases {
+		t.Run(testCase.name, func(t *testing.T) {
+			got, err := LLMProtocolCapabilities(testCase.protocol, testCase.variant)
+			require.NoError(t, err)
+			assert.Equal(t, adapterFacts, got)
+		})
+	}
+
+	// 校验语义不随开关变化：枚举外协议 / 白名单外变体仍报错。
+	_, err := LLMProtocolCapabilities("openai_completions", "")
+	require.Error(t, err)
+	assert.ErrorIs(t, err, ErrProtocolInvalid)
+	_, err = LLMProtocolCapabilities(LLMProtocolAnthropicMessages, "unknown-variant")
+	require.Error(t, err)
+	assert.ErrorIs(t, err, ErrProtocolVariantInvalid)
+}
+
 // TestLLMProtocolOptions 锁定枚举顺序 / implemented 标记 / 变体白名单（DTO 与前端下拉的数据源）。
 // 顺序口径 = 主计划 §3.1.4 映射表行序：openai_chat_completions → anthropic_messages →
 // openai_responses → google_gemini（与 llmProtocolSlots 声明顺序一致）。
 func TestLLMProtocolOptions(t *testing.T) {
+	t.Setenv(LLMProtocolAdapterEnabledEnv, "false")
+
 	assert.Equal(t, []string{
 		LLMProtocolOpenAIChatCompletions,
 		LLMProtocolAnthropicMessages,
@@ -280,6 +327,22 @@ func TestLLMProtocolOptions(t *testing.T) {
 	assert.Equal(t, []string{""}, SupportedLLMVariants(LLMProtocolOpenAIResponses))
 	assert.Equal(t, []string{""}, SupportedLLMVariants(LLMProtocolGoogleGemini))
 	assert.Empty(t, SupportedLLMVariants("unknown"))
+}
+
+// TestLLMProtocolOptionsAdapterEnabled 锁定开关开启时协议下拉的能力位（PA-5）：
+// 4 协议默认变体均适配器承载，Capabilities 三项全真（anthropic 默认变体由旧分支的
+// 「仅非流式」放量）。
+func TestLLMProtocolOptionsAdapterEnabled(t *testing.T) {
+	t.Setenv(LLMProtocolAdapterEnabledEnv, "true")
+
+	options := LLMProtocolOptions()
+	require.Len(t, options, 4)
+	for _, option := range options {
+		assert.True(t, option.Implemented, option.Protocol)
+		assert.True(t, option.Capabilities.SupportsStream, option.Protocol)
+		assert.True(t, option.Capabilities.SupportsTools, option.Protocol)
+		assert.True(t, option.Capabilities.SupportsReasoning, option.Protocol)
+	}
 }
 
 // TestValidateAdapterOptions 覆盖 §3.5 adapter_options 约束：JSON 对象、非敏感键、4KB 上限。
