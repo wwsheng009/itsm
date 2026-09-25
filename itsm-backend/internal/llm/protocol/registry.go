@@ -86,8 +86,8 @@ func (r *Registry) NewAdapter(protocolName, variant string) (ProtocolAdapter, er
 //     同一适配器构造期固化）;
 //   - openai_responses：官方 Responses API 形态（PA-3，同一适配器；只有一个标准
 //     变体，不登记默认 endpoint 以保持既有 api.openai.com 回退口径）；
-//   - google_gemini：尚未注册，由独立计划的后续任务落地（PA-4），
-//     NewAdapter 返回 ErrAdapterNotFound 触发旧分支回退或 422。
+//   - google_gemini：Gemini API v1beta 形态（PA-4，同一适配器；标准变体，
+//     资源路径含模型名由 ModelPathAdapter 在请求期给出，默认 endpoint 为官方地址）。
 func NewDefaultRegistry() *Registry {
 	registry := NewRegistry()
 	registry.Register(ProtocolOpenAIChatCompletions, AdapterSpec{
@@ -101,6 +101,10 @@ func NewDefaultRegistry() *Registry {
 	registry.Register(ProtocolOpenAIResponses, AdapterSpec{
 		Variants: []string{VariantDefault},
 		New:      func(string) ProtocolAdapter { return NewOpenAIResponsesAdapter() },
+	})
+	registry.Register(ProtocolGoogleGemini, AdapterSpec{
+		Variants: []string{VariantDefault},
+		New:      func(variant string) ProtocolAdapter { return NewGoogleGeminiAdapter(variant) },
 	})
 	return registry
 }
@@ -117,6 +121,8 @@ func NewDefaultRegistry() *Registry {
 //     （https://api.minimaxi.com/anthropic/v1）。
 //   - openai_responses / ""：不登记（与 openai_chat_completions 标准形态同址回退
 //     api.openai.com，路径 /v1/responses 由适配器给出）。
+//   - google_gemini / ""：官方 https://generativelanguage.googleapis.com，
+//     资源路径 /v1beta/models/{model}:generateContent 由适配器给出。
 func DefaultEndpoint(protocolName, variant string) string {
 	key := normalizeProtocolName(protocolName)
 	switch key {
@@ -130,6 +136,8 @@ func DefaultEndpoint(protocolName, variant string) string {
 			return anthropicMiniMaxDefaultEndpoint
 		}
 		return anthropicDefaultEndpoint
+	case ProtocolGoogleGemini:
+		return geminiDefaultEndpoint
 	default:
 		return ""
 	}

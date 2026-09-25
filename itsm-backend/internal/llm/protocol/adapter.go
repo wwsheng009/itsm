@@ -135,11 +135,26 @@ type ProtocolAdapter interface {
 	GetAPIPath() string
 }
 
+// ModelPathAdapter 可选接口：API 路径依赖具体模型（或请求形态）的协议适配器实现它。
+//
+// 4 值协议里只有 google_gemini 的资源路径含模型名与操作
+// （/v1beta/models/{model}:generateContent 与 :streamGenerateContent?alt=sse），
+// 与其余协议"一协议一静态路径"不同；接线层命中本接口时优先取 APIPathFor，
+// 未命中则使用 GetAPIPath（零破坏）。
+type ModelPathAdapter interface {
+	// APIPathFor 返回本次调用的资源路径（stream 表示流式形态）。
+	APIPathFor(model string, stream bool) string
+}
+
 // P0 首适配器必须满足接口（BE-9）。
 var _ ProtocolAdapter = (*OpenAIChatAdapter)(nil)
 
-// PA-1/PA-2/PA-3 适配器必须满足接口（一协议一实现）。
+// PA-1/PA-2/PA-3/PA-4 适配器必须满足接口（一协议一实现）。
 var (
 	_ ProtocolAdapter = (*AnthropicMessagesAdapter)(nil)
 	_ ProtocolAdapter = (*OpenAIResponsesAdapter)(nil)
+	_ ProtocolAdapter = (*GoogleGeminiAdapter)(nil)
 )
+
+// PA-4：Gemini 的资源路径随模型与流式形态变化（ModelPathAdapter）。
+var _ ModelPathAdapter = (*GoogleGeminiAdapter)(nil)

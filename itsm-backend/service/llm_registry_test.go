@@ -373,8 +373,13 @@ func TestNewProtocolProviderUnregisteredReturnsSentinel(t *testing.T) {
 	require.NoError(t, err)
 	require.IsType(t, &protocolProvider{}, provider)
 
-	// 未注册协议（google_gemini，PA-4 落地）仍落到 422 哨兵。
-	_, err = NewProtocolProvider(ProtocolProviderOptions{Protocol: protocol.ProtocolGoogleGemini})
+	// PA-4 收敛后 google_gemini 已由 Gemini 适配器承载（不再是 422）：标准形态直接命中。
+	provider, err = NewProtocolProvider(ProtocolProviderOptions{Protocol: protocol.ProtocolGoogleGemini})
+	require.NoError(t, err)
+	require.IsType(t, &protocolProvider{}, provider)
+
+	// 枚举外协议（未注册）仍落到 422 哨兵。
+	_, err = NewProtocolProvider(ProtocolProviderOptions{Protocol: "openai_completions"})
 	require.Error(t, err)
 	assert.ErrorIs(t, err, ErrProtocolNotImplemented)
 	assert.ErrorIs(t, err, protocol.ErrAdapterNotFound)
@@ -444,8 +449,22 @@ func TestResolveProtocolURLEndpointFallback(t *testing.T) {
 		{
 			name:     "未登记协议回退 OpenAI 兼容默认地址",
 			apiPath:  "/v1/chat/completions",
-			fallback: protocol.DefaultEndpoint(protocol.ProtocolGoogleGemini, protocol.VariantDefault),
+			fallback: protocol.DefaultEndpoint("openai_completions", protocol.VariantDefault),
 			want:     "https://api.openai.com/v1/chat/completions",
+		},
+		{
+			// PA-4：gemini 登记官方默认地址；资源段含模型名与操作（由 ModelPathAdapter 给出）。
+			name:     "google_gemini 缺省 endpoint：官方地址 + 模型资源路径",
+			apiPath:  "/v1beta/models/gemini-2.0-flash:generateContent",
+			fallback: protocol.DefaultEndpoint(protocol.ProtocolGoogleGemini, protocol.VariantDefault),
+			want:     "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent",
+		},
+		{
+			name:     "google_gemini endpoint 已带 /v1beta：只补资源段",
+			endpoint: "https://gemini-proxy.example.com/v1beta",
+			apiPath:  "/v1beta/models/gemini-2.0-flash:streamGenerateContent?alt=sse",
+			fallback: protocol.DefaultEndpoint(protocol.ProtocolGoogleGemini, protocol.VariantDefault),
+			want:     "https://gemini-proxy.example.com/v1beta/models/gemini-2.0-flash:streamGenerateContent?alt=sse",
 		},
 		{
 			// PA-3：responses 不登记默认 endpoint（与标准 chat 形态同址），资源段由适配器给出。
@@ -1082,7 +1101,9 @@ func TestLLMProviderRegistryProtocolVariantMapping(t *testing.T) {
 		{key: "anthropic-default", want: &protocolProvider{}, wantTools: true},
 		// PA-3 承载切换：openai_responses 标准形态由 Responses 适配器承载（唯一分支，无旧分支回退）。
 		{key: "responses-instance", want: &protocolProvider{}, wantTools: true},
-		{key: "gemini-instance", wantErr: ErrProviderUnavailable},
+		// PA-4 承载切换：google_gemini 由 Gemini 适配器承载（4/4 协议适配器化收官）。
+		{key: "gemini-instance", want: &protocolProvider{}, wantTools: true},
+		// 非法变体仍按 UNAVAILABLE 处理（不 panic）。
 		{key: "bogus-variant", wantErr: ErrProviderUnavailable},
 	}
 	for _, testCase := range cases {

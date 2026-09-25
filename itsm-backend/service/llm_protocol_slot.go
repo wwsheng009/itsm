@@ -16,13 +16,13 @@ import (
 //
 // 口径（§3.1.4 / §11.2）：
 //   - 4 值协议枚举：openai_chat_completions / openai_responses / anthropic_messages / google_gemini；
-//   - 已适配：openai_chat_completions（含 azure / ollama 变体）、anthropic_messages（含 minimax 变体），
-//     openai_responses（PA-3，标准形态）均由协议包同一适配器承载（一协议一实现，
-//     变体只是构造期选项）；
-//     未实现（槽位）：google_gemini —— 枚举合法但创建/更新一律
-//     ErrProtocolNotImplemented → AI_PROTOCOL_NOT_IMPLEMENTED(422)，前端选项置灰；
+//   - 已适配：openai_chat_completions（含 azure / ollama 变体）、anthropic_messages（含 minimax 变体）、
+//     openai_responses（PA-3）与 google_gemini（PA-4）均由协议包同一适配器承载
+//     （一协议一实现，变体只是构造期选项）；4 值枚举在 PA-4 收官后全部 implemented=true，
+//     槽位分支（ErrProtocolNotImplemented → AI_PROTOCOL_NOT_IMPLEMENTED(422)）保留给后续协议扩展，
+//     当前仅"未知协议/不在白名单的变体"可达；
 //   - variant 白名单：openai_chat_completions = {"", azure, ollama}；anthropic_messages = {"", minimax}；
-//     openai_responses = {""}；
+//     openai_responses = {""}；google_gemini = {""}；
 //   - adapter_options：JSON 对象、原始串 ≤4KB、键名黑名单（密钥只允许走 encrypted_api_key）；
 //   - 能力位（supportsStream / supportsTools / supportsReasoning / implemented）按承载实现真实填写
 //     （口径见 LLMCapabilities 注释；开关感知的收敛在 PA-5）。
@@ -67,7 +67,8 @@ var (
 //   - openai_chat_completions / "" ：OpenAIProvider 同时具备流式与工具调用；
 //   - openai_chat_completions / azure / ollama 与 anthropic_messages 两变体：
 //     旧分支当前只有非流式 Chat（PA-1/PA-2 的适配器能力位在 PA-5 统一收敛）；
-//   - openai_responses / ""：PA-3 适配器为唯一承载（无旧分支），流式/工具/推理全支持。
+//   - openai_responses / ""：PA-3 适配器为唯一承载（无旧分支），流式/工具/推理全支持；
+//   - google_gemini / ""：PA-4 适配器为唯一承载（无旧分支），流式/工具/推理全支持。
 type LLMCapabilities struct {
 	SupportsStream    bool `json:"supportsStream"`
 	SupportsTools     bool `json:"supportsTools"`
@@ -153,8 +154,23 @@ var llmProtocolSlots = []llmProtocolSlot{
 			},
 		},
 	},
-	// google_gemini：枚举合法但当前无实现（槽位，§11.2，PA-4 落地）。
-	{protocol: LLMProtocolGoogleGemini},
+	{
+		protocol:    LLMProtocolGoogleGemini,
+		implemented: true,
+		variants: []llmProtocolVariantSlot{
+			{
+				variant: LLMVariantDefault,
+				// 空 legacyProvider = 无旧分支可回退（PA-4：Gemini v1beta 适配器为唯一承载）。
+				legacyProvider: "",
+				capabilities: LLMCapabilities{
+					SupportsStream:    true,
+					SupportsTools:     true,
+					SupportsReasoning: true,
+					Implemented:       true,
+				},
+			},
+		},
+	},
 }
 
 // NormalizeLLMProtocol 归一化协议枚举（去空白 + 小写），用于比较与落库前校验。

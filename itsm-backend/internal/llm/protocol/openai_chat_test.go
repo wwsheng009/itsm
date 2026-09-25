@@ -243,15 +243,23 @@ func TestDefaultRegistryScope(t *testing.T) {
 	_, err = registry.NewAdapter(protocol.ProtocolOpenAIResponses, protocol.VariantAzure)
 	assert.ErrorIs(t, err, protocol.ErrAdapterNotFound, "openai_responses 只有标准变体")
 
-	// 变体不在该协议的支持范围（anthropic 不接受 azure）与未适配协议（gemini）未命中，
+	// google_gemini 单变体（PA-4）：标准形态命中，非白名单变体未命中。
+	adapterGemini, err := registry.NewAdapter(protocol.ProtocolGoogleGemini, protocol.VariantDefault)
+	require.NoError(t, err, "google_gemini 标准形态应由 Gemini 适配器承载")
+	assert.Equal(t, protocol.ProtocolGoogleGemini, adapterGemini.Name())
+	assert.True(t, registry.Supports(protocol.ProtocolGoogleGemini, protocol.VariantDefault))
+	_, err = registry.NewAdapter(protocol.ProtocolGoogleGemini, protocol.VariantAzure)
+	assert.ErrorIs(t, err, protocol.ErrAdapterNotFound, "google_gemini 只有标准变体")
+
+	// 变体不在该协议的支持范围（anthropic 不接受 azure）与注册表外协议未命中，
 	// service 层据此回退旧分支或映射 AI_PROTOCOL_NOT_IMPLEMENTED(422)。
 	_, err = registry.NewAdapter(protocol.ProtocolAnthropicMessages, protocol.VariantAzure)
 	assert.ErrorIs(t, err, protocol.ErrAdapterNotFound)
 	_, err = registry.NewAdapter(protocol.ProtocolOpenAIChatCompletions, "bogus")
 	assert.ErrorIs(t, err, protocol.ErrAdapterNotFound)
-	_, err = registry.NewAdapter(protocol.ProtocolGoogleGemini, protocol.VariantDefault)
+	_, err = registry.NewAdapter("openai_completions", protocol.VariantDefault)
 	assert.ErrorIs(t, err, protocol.ErrAdapterNotFound)
-	assert.False(t, registry.Supports(protocol.ProtocolGoogleGemini, protocol.VariantDefault))
+	assert.False(t, registry.Supports("openai_completions", protocol.VariantDefault))
 
 	// 显式注册新协议后精确命中，且大小写/空白不敏感。
 	registry.Register("  My_Protocol  ", protocol.AdapterSpec{

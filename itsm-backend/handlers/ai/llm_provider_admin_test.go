@@ -191,7 +191,10 @@ func TestLLMProviderAdminCreateValidationTable(t *testing.T) {
 		{"name 非法", func(r *dto.LLMCreateProviderRequest) { r.Name = "Bad Name" }, 422, "AI_PROVIDER_NAME_INVALID"},
 		{"name 超长", func(r *dto.LLMCreateProviderRequest) { r.Name = strings.Repeat("a", 65) }, 422, "AI_PROVIDER_NAME_INVALID"},
 		{"displayName 超长", func(r *dto.LLMCreateProviderRequest) { r.DisplayName = strings.Repeat("x", 101) }, 422, "AI_PROVIDER_VALIDATION_ERROR"},
-		{"协议槽位未实现", func(r *dto.LLMCreateProviderRequest) { r.Protocol = service.LLMProtocolGoogleGemini }, 422, "AI_PROTOCOL_NOT_IMPLEMENTED"},
+		{"google_gemini 变体非法（仅标准形态）", func(r *dto.LLMCreateProviderRequest) {
+			r.Protocol = service.LLMProtocolGoogleGemini
+			r.Variant = service.LLMVariantAzure
+		}, 422, "AI_PROTOCOL_VARIANT_INVALID"},
 		{"openai_responses 已实现且变体白名单只含标准项", func(r *dto.LLMCreateProviderRequest) {
 			r.Protocol = service.LLMProtocolOpenAIResponses
 			r.Variant = service.LLMVariantAzure
@@ -287,14 +290,15 @@ func TestLLMProviderAdminCreatePersistsEncryptedKeyAndMaskedDTO(t *testing.T) {
 	require.Len(t, list.ProtocolOptions, 4)
 	assert.Equal(t, service.LLMProtocolOpenAIChatCompletions, list.ProtocolOptions[0].Protocol)
 	assert.True(t, list.ProtocolOptions[0].Implemented)
-	// PA-3：openai_responses 落地后只有 google_gemini 是槽位（implemented=false）。
+	// PA-4：4 值枚举全部落地（implemented=true），gemini 只开放标准形态。
 	assert.Equal(t, service.LLMProtocolOpenAIResponses, list.ProtocolOptions[2].Protocol)
 	assert.True(t, list.ProtocolOptions[2].Implemented)
 	assert.Equal(t, []string{""}, list.ProtocolOptions[2].Variants)
+	assert.Equal(t, service.LLMProtocolGoogleGemini, list.ProtocolOptions[3].Protocol)
+	assert.True(t, list.ProtocolOptions[3].Implemented)
+	assert.Equal(t, []string{""}, list.ProtocolOptions[3].Variants)
 	for _, option := range list.ProtocolOptions {
-		if option.Protocol == service.LLMProtocolGoogleGemini {
-			assert.False(t, option.Implemented, "槽位协议必须 implemented=false")
-		}
+		assert.True(t, option.Implemented, "PA-4 收官：%s 必须 implemented=true", option.Protocol)
 	}
 	for _, item := range list.Items {
 		assert.NotContains(t, item.MaskedAPIKey, llmAdminPlainKey)
@@ -392,11 +396,19 @@ func TestLLMProviderAdminUpdatePaths(t *testing.T) {
 	require.NoError(t, err)
 	assert.Empty(t, clearedOptions.AdapterOptions)
 
-	// 协议切换到槽位/非法 → 422，且原值不变。
-	_, err = env.svc.UpdateProvider(ctx, llmAdminTenantID, llmAdminUserID, created.ID, dto.LLMUpdateProviderRequest{
+	// PA-4：协议切换到 google_gemini（适配器承载）→ 成功，变体归一为标准形态。
+	switchedProtocol, err := env.svc.UpdateProvider(ctx, llmAdminTenantID, llmAdminUserID, created.ID, dto.LLMUpdateProviderRequest{
 		Protocol: llmAdminStringPtr(service.LLMProtocolGoogleGemini),
 	})
-	requireLLMAdminError(t, err, 422, "AI_PROTOCOL_NOT_IMPLEMENTED")
+	require.NoError(t, err)
+	assert.Equal(t, service.LLMProtocolGoogleGemini, switchedProtocol.Protocol)
+	assert.Equal(t, service.LLMVariantDefault, switchedProtocol.Variant)
+
+	// 协议枚举非法 → 422，且原值不变。
+	_, err = env.svc.UpdateProvider(ctx, llmAdminTenantID, llmAdminUserID, created.ID, dto.LLMUpdateProviderRequest{
+		Protocol: llmAdminStringPtr("openai_completions"),
+	})
+	requireLLMAdminError(t, err, 422, "AI_PROTOCOL_INVALID")
 
 	// displayName 超长 → 422。
 	_, err = env.svc.UpdateProvider(ctx, llmAdminTenantID, llmAdminUserID, created.ID, dto.LLMUpdateProviderRequest{

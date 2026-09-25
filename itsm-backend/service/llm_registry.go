@@ -34,9 +34,11 @@ import (
 //     变体差异体现在 endpoint（azure 见 normalizeVariantEndpoint）与调用参数上；
 //   - anthropic_messages：官方 / minimax 两个变体共用同一适配器（minimax 的
 //     camelCase 字段口径在构造期固化）；
-//   - openai_responses：标准形态共用同一适配器（PA-3）
-//   - google_gemini 未注册 → 静态路径回退既有分支、
-//     DB 实例路径映射 422 AI_PROTOCOL_NOT_IMPLEMENTED；
+//   - openai_responses：标准形态共用同一适配器（PA-3）；
+//   - google_gemini：标准形态共用同一适配器（PA-4，资源路径含模型名，
+//     endpoint 缺省回退官方地址 https://generativelanguage.googleapis.com）；
+//     4 值枚举在 PA-4 收官后均有适配器承载：动态路径经 protocol.ModelPathAdapter 在请求期
+//     解析；AI_PROTOCOL_NOT_IMPLEMENTED(422) 仅剩"协议未注册或变体不在白名单"两种来源；
 //   - 开关关闭（默认）时静态构建路径完全不经过本文件，旧路径零变化（QA-3 回归门禁）。
 //
 // BE-2/BE-4 落地 DB 实例后，协议与变体由记录直接给出，调用 NewProtocolProvider 即可；
@@ -171,10 +173,9 @@ func protocolProviderVariantTemperature(protocolName, variant string) float64 {
 
 // newProtocolProviderFromConfig 尝试按静态配置走适配器路径。
 //
-// 返回 nil 表示回退既有分支（开关关闭、provider 未识别或该协议未注册，
-// 例如 google_gemini）——静态路径不引入新的失败面。
-// 注意：静态配置无协议/变体字段，未实现协议（google_gemini）
-// 只会出现在 DB 实例路径（BE-4/BE-8），由那里映射 422。
+// 返回 nil 表示回退既有分支（开关关闭、provider 未识别）——静态路径不引入新的失败面。
+// 静态配置无协议/变体字段，其 provider 映射见 staticProviderProtocolSpec；
+// DB 实例路径（BE-4/BE-8）才可能出现协议/变体组合，由那里映射 422。
 func newProtocolProviderFromConfig(cfg ProviderConfig, apiKey string) LLMProvider {
 	if !cfg.ProtocolAdapterEnabled {
 		return nil
@@ -287,7 +288,13 @@ func (p *protocolProvider) call(
 		return protocol.ProcessResult{}, fmt.Errorf("%s: encode request: %w", p.adapter.Name(), err)
 	}
 
-	request, err := http.NewRequestWithContext(ctx, http.MethodPost, resolveProtocolURL(p.endpoint, p.adapter.GetAPIPath(), p.defaultEndpoint()), bytes.NewReader(requestBody))
+	// PA-4：google_gemini 的资源路径含模型名与操作（流式带 ?alt=sse），
+	// 由 ModelPathAdapter 在请求期解析；其余协议维持静态 GetAPIPath。
+	apiPath := p.adapter.GetAPIPath()
+	if modelPathAdapter, ok := p.adapter.(protocol.ModelPathAdapter); ok {
+		apiPath = modelPathAdapter.APIPathFor(resolvedModel, stream)
+	}
+	request, err := http.NewRequestWithContext(ctx, http.MethodPost, resolveProtocolURL(p.endpoint, apiPath, p.defaultEndpoint()), bytes.NewReader(requestBody))
 	if err != nil {
 		return protocol.ProcessResult{}, fmt.Errorf("%s: create request: %w", p.adapter.Name(), err)
 	}
@@ -886,7 +893,7 @@ func (r *LLMProviderRegistry) buildEntry(record *ent.LLMProviderConfig) *llmRegi
 		return entry
 	}
 
-	// 1) 协议/变体槽位：google_gemini 等未实现协议（BE-8 已在写入侧 422 拦截）
+	// 1) 协议/变体槽位：未知协议或不在白名单的变体（BE-8 已在写入侧 422 拦截）
 	//    若出现在 DB，按"该 slot 不可用"处理，不 panic（§3.2 第 4 条 / 主计划 §3.1.4）。
 	if _, err := MapProtocolToLegacyProvider(entry.protocol, entry.variant); err != nil {
 		entry.buildErr = fmt.Errorf("%w: provider %q protocol=%s variant=%s 未实现", ErrProviderUnavailable, entry.key, entry.protocol, entry.variant)
@@ -925,8 +932,9 @@ func (r *LLMProviderRegistry) buildProvider(record *ent.LLMProviderConfig, apiKe
 
 	// 适配器优先：协议已在协议包注册（一协议一实现）即按适配器承载——openai_chat_completions
 	// 覆盖默认 / azure / ollama 三个变体（变体只影响 endpoint 与调用参数），anthropic_messages
-	// 覆盖官方 / minimax 两个变体，openai_responses 覆盖标准形态；未注册协议（google_gemini）
-	// 回退既有分支（"适配器优先、旧分支回退"，与 BE-9 静态路径同口径）。
+	// 覆盖官方 / minimax 两个变体，openai_responses / google_gemini 覆盖标准形态（PA-3/PA-4，
+	// 4 值枚举已全部适配器化）；未注册协议/变体回退既有分支
+	// （"适配器优先、旧分支回退"，与 BE-9 静态路径同口径）。
 	if protocolAdapters.Supports(protocolName, variant) {
 		provider, err := NewProtocolProvider(ProtocolProviderOptions{
 			Protocol:    protocolName,

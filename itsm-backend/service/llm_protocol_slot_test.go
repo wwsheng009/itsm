@@ -54,9 +54,9 @@ func TestLLMProtocolSlotMapping(t *testing.T) {
 			variant:  LLMVariantDefault,
 		},
 		{
-			name:     "google_gemini 是槽位，返回 AI_PROTOCOL_NOT_IMPLEMENTED",
+			name:     "google_gemini 标准形态无旧分支可回退（空映射值）",
 			protocol: LLMProtocolGoogleGemini,
-			wantErr:  ErrProtocolNotImplemented,
+			variant:  LLMVariantDefault,
 		},
 	}
 
@@ -123,10 +123,10 @@ func TestLLMProtocolSlotValidation(t *testing.T) {
 			wantErr:  ErrProtocolVariantInvalid,
 		},
 		{
-			name:     "google_gemini 即使变体非空也是槽位",
+			name:     "google_gemini 不接受 azure 变体",
 			protocol: LLMProtocolGoogleGemini,
 			variant:  LLMVariantAzure,
-			wantErr:  ErrProtocolNotImplemented,
+			wantErr:  ErrProtocolVariantInvalid,
 		},
 		{
 			name:     "azure 变体合法",
@@ -141,6 +141,11 @@ func TestLLMProtocolSlotValidation(t *testing.T) {
 		{
 			name:     "openai_responses 标准变体合法",
 			protocol: LLMProtocolOpenAIResponses,
+			variant:  LLMVariantDefault,
+		},
+		{
+			name:     "google_gemini 标准变体合法",
+			protocol: LLMProtocolGoogleGemini,
 			variant:  LLMVariantDefault,
 		},
 	}
@@ -200,6 +205,14 @@ func TestLLMProtocolSlotCapabilities(t *testing.T) {
 				SupportsStream: true, SupportsTools: true, SupportsReasoning: true, Implemented: true,
 			},
 		},
+		{
+			name:     "google_gemini 标准形态：适配器为唯一承载，流式 + 工具 + 推理",
+			protocol: LLMProtocolGoogleGemini,
+			variant:  LLMVariantDefault,
+			want: LLMCapabilities{
+				SupportsStream: true, SupportsTools: true, SupportsReasoning: true, Implemented: true,
+			},
+		},
 	}
 
 	for _, testCase := range cases {
@@ -210,11 +223,15 @@ func TestLLMProtocolSlotCapabilities(t *testing.T) {
 		})
 	}
 
-	// 槽位：能力位零值且返回 422 哨兵。
+	// PA-4 收官：4 值枚举全部 implemented，槽位分支仅"未知协议/白名单外变体"可达。
 	got, err := LLMProtocolCapabilities(LLMProtocolGoogleGemini, "")
+	require.NoError(t, err)
+	assert.Equal(t, LLMCapabilities{
+		SupportsStream: true, SupportsTools: true, SupportsReasoning: true, Implemented: true,
+	}, got)
+	_, err = LLMProtocolCapabilities("openai_completions", "")
 	require.Error(t, err)
-	assert.ErrorIs(t, err, ErrProtocolNotImplemented)
-	assert.Equal(t, LLMCapabilities{}, got)
+	assert.ErrorIs(t, err, ErrProtocolInvalid)
 }
 
 // TestLLMProtocolOptions 锁定枚举顺序 / implemented 标记 / 变体白名单（DTO 与前端下拉的数据源）。
@@ -248,17 +265,20 @@ func TestLLMProtocolOptions(t *testing.T) {
 	assert.True(t, options[2].Capabilities.SupportsReasoning)
 
 	assert.Equal(t, LLMProtocolGoogleGemini, options[3].Protocol)
-	assert.False(t, options[3].Implemented)
-	assert.Empty(t, options[3].Variants)
+	assert.True(t, options[3].Implemented)
+	assert.Equal(t, []string{""}, options[3].Variants)
+	assert.True(t, options[3].Capabilities.SupportsStream)
+	assert.True(t, options[3].Capabilities.SupportsTools)
+	assert.True(t, options[3].Capabilities.SupportsReasoning)
 
 	assert.True(t, IsImplementedLLMProtocol(LLMProtocolOpenAIChatCompletions))
 	assert.True(t, IsImplementedLLMProtocol(LLMProtocolAnthropicMessages))
 	assert.True(t, IsImplementedLLMProtocol(LLMProtocolOpenAIResponses))
-	assert.False(t, IsImplementedLLMProtocol(LLMProtocolGoogleGemini))
+	assert.True(t, IsImplementedLLMProtocol(LLMProtocolGoogleGemini), "PA-4 收官：4 值枚举全部 implemented")
 	assert.False(t, IsImplementedLLMProtocol("unknown"))
 
 	assert.Equal(t, []string{""}, SupportedLLMVariants(LLMProtocolOpenAIResponses))
-	assert.Empty(t, SupportedLLMVariants(LLMProtocolGoogleGemini))
+	assert.Equal(t, []string{""}, SupportedLLMVariants(LLMProtocolGoogleGemini))
 	assert.Empty(t, SupportedLLMVariants("unknown"))
 }
 

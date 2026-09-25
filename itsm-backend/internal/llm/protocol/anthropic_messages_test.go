@@ -249,7 +249,9 @@ func TestAnthropicIsReasoningModelAndEndpoint(t *testing.T) {
 	assert.Equal(t, "/v1/messages", adapter.GetAPIPath())
 	assert.Equal(t, "https://api.anthropic.com", protocol.DefaultEndpoint(protocol.ProtocolAnthropicMessages, protocol.VariantDefault))
 	assert.Equal(t, "https://api.minimaxi.com/anthropic/v1", protocol.DefaultEndpoint(protocol.ProtocolAnthropicMessages, " MiniMax "))
-	assert.Empty(t, protocol.DefaultEndpoint(protocol.ProtocolGoogleGemini, protocol.VariantDefault))
+	assert.Equal(t, "https://generativelanguage.googleapis.com",
+		protocol.DefaultEndpoint(protocol.ProtocolGoogleGemini, protocol.VariantDefault), "PA-4 起 gemini 登记官方默认地址")
+	assert.Empty(t, protocol.DefaultEndpoint("openai_completions", protocol.VariantDefault))
 }
 
 // anthropicStreamBody 复刻官方事件序列（thinking → text → tool_use → message_delta）。
