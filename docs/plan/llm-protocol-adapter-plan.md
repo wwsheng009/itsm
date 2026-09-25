@@ -43,8 +43,8 @@
 | 1 | 协议枚举 4 值 | D3、§3.1.1、§3.1.4 | 用真实适配器替换"映射到既有分支"（**一协议一实现**） | ✅ 全覆盖：`openai_chat_completions`（BE-9；含 `azure` / `ollama` 变体，PA-2 收敛）、`anthropic_messages`（PA-1，含 `minimax` 变体）、`openai_responses`（PA-3）、`google_gemini`（PA-4） |
 | 2 | `variant` + `adapter_options` | §3.1.1、§3.5 | 落地语义：Azure endpoint 归一 + model 回退 deployment、Ollama 归一到 OpenAI 兼容形态、Anthropic 兼容端点（minimax camelCase） | minimax ✅ PA-1；azure/ollama ✅ PA-2（同一适配器的构造期选项，不新增变体适配器） |
 | 3 | 协议层：接口 + 注册表 + 首适配器 | §3.2、§11.2 | 复用 BE-9 基线，新增其余适配器 | 4/4 协议已适配（`openai_chat_completions` ✅ BE-9/PA-2、`anthropic_messages` ✅ PA-1、`openai_responses` ✅ PA-3、`google_gemini` ✅ PA-4）；另新增可选接口 `protocol.ModelPathAdapter`（路径依赖模型的协议在请求期给出资源路径） |
-| 4 | 能力位 | §3.4 `available`、§3.7 | `supportsStream` / `supportsTools` / `supportsReasoning` 的真实值收敛 | 待 PA-5 |
-| 5 | 错误码 `AI_PROTOCOL_NOT_IMPLEMENTED` | §3.4 | 随适配器逐个就绪而收敛（枚举值从"置灰"变为"可用"） | PA-4 收官：4 值枚举全部 `implemented=true`、变体白名单就位（422 仅剩"枚举外协议 / 白名单外变体"）；`supportsStream/supportsTools/supportsReasoning` 的**开关感知**收敛仍随 PA-5 |
+| 4 | 能力位 | §3.4 `available`、§3.7 | `supportsStream` / `supportsTools` / `supportsReasoning` 的真实值收敛 | ✅ PA-5：**开关感知**——关闭（默认）保持旧分支事实值、开启且由协议包承载取适配器事实值（三项全真）；`Implemented` 为枚举级事实不随开关变化（§4.5） |
+| 5 | 错误码 `AI_PROTOCOL_NOT_IMPLEMENTED` | §3.4 | 随适配器逐个就绪而收敛（枚举值从"置灰"变为"可用"） | PA-4 收官：4 值枚举全部 `implemented=true`、变体白名单就位（422 仅剩"枚举外协议 / 白名单外变体"）；`supportsStream/supportsTools/supportsReasoning` 的**开关感知**收敛已随 PA-5 落地 |
 
 ## 3. 参考实现要点（`E:\projects\ai-agent-runtime`，只读）
 
@@ -89,7 +89,7 @@
 | # | 差异 | 性质 | 处置 |
 |:---|:---|:---|:---|
 | 1 | 请求体 JSON 键序不同（适配器用 `map` 序列化，Go 按字典序；旧分支用 struct 序列化） | 无线上影响（HTTP 报文语义不含键序） | 对照测试按**字段集合与取值**逐项锁定 |
-| 2 | 支持流式 + 工具调用（旧 `MiniMaxProvider` 只有非流式 `Chat`） | 能力增益 | PA-5 收敛能力位；前端置灰项随之打开 |
+| 2 | 支持流式 + 工具调用（旧 `MiniMaxProvider` 只有非流式 `Chat`） | 能力增益 | ✅ PA-5：开关开启侧能力位三项全真（关闭侧保持旧分支事实值）；前端选项由 `implemented` / `variants` 数据驱动、零改动 |
 | 3 | 非流式正文：拼接全部 `text` 块；无 `text` 块返回空串（旧分支取首个 `text` 块，无文本时返回错误 `MiniMax: no text content in response`） | 行为差异（超集） | 已登记；`tool_use`-only 响应是合法形态，返回空串由上层决定展示 |
 | 4 | 客户端超时由调用方 ctx 控制（旧分支 `http.Client{Timeout: 120s}`） | 有意差异（与 BE-9 openai 路径同口径，避免长流被客户端级超时截断） | 部署侧如需超时可经 `HTTPClient` 注入 |
 | 5 | `model` 覆盖只对本次调用生效（不写回实例） | 并发安全修正（旧分支 `p.model = model` 写共享字段） | 已登记（BE-9 同口径） |
@@ -104,7 +104,7 @@
 | 3 | azure：鉴权保持 `Authorization: Bearer`；旧分支 `apiVersion` 字段从未参与请求（无 `api-version` 查询参数） | 等价（不新增语义） | 不引入 `api-version`；`adapter_options.api_version` 仍只存储/回显（BE-8 边界） |
 | 4 | ollama：线上形态由 Ollama 原生 `/api/chat`（请求 `options` / 响应 `response`）归一为 OpenAI 兼容 `/v1/chat/completions`（Ollama 官方支持） | **有意差异（协议归一）** | 以「一协议一实现」为准，不复刻原生形态；开关关闭时仍走旧 `LocalProvider`，可回退 |
 | 5 | ollama：请求体下发 `max_tokens` 4096 / `temperature` 0.3（旧分支下发 `options` 零值、无 `max_tokens`） | 有意差异（沿用 BE-9 默认值表） | 如需原生采样参数，后续经 `adapter_options` 扩展并登记 |
-| 6 | azure / ollama：支持流式与工具调用（旧 `AzureProvider` / `LocalProvider` 只有非流式 `Chat`） | 能力增益 | PA-5 收敛能力位；前端置灰项随之打开 |
+| 6 | azure / ollama：支持流式与工具调用（旧 `AzureProvider` / `LocalProvider` 只有非流式 `Chat`） | 能力增益 | ✅ PA-5：开关开启侧能力位三项全真（关闭侧保持旧分支事实值）；前端选项由 `implemented` / `variants` 数据驱动、零改动 |
 
 **PA-3（`openai_responses`；itsm 侧无旧分支对照——此前为 422 预留槽位，故下表是「载体决策 + 与参考实现 `codex.go` 的口径对照」逐条登记）**：
 
@@ -133,19 +133,34 @@
 | 7 | 流式：`:streamGenerateContent?alt=sse` 逐帧解析；`finishReason` 原生值透传（`STOP` / `MAX_TOKENS` / `SAFETY`…）；`error` 帧与 `promptFeedback.blockReason` → `*ProtocolError{StatusCode:0}`（**带内错误，一律不重试**）；`[DONE]` 与 keep-alive 注释行忽略 | 事件驱动 SSE（与 chat 的 `choices[].delta` 形态不同） | 单测覆盖增量顺序、工具调用与带内失败；HTTP 层 4xx/5xx 仍走 `NewHTTPError`（重试口径不变） |
 | 8 | 响应：`candidates[0].content.parts[].text` 按序拼接正文（`thought=true` → 推理链）；多候选/未知字段忽略；非流式与流式共用同一 parts 归一 | 容错口径（对齐参考实现"忽略未知"） | 单测覆盖边缘项；不引入内置工具（如 google_search）语义 |
 
+**PA-5（能力位收敛；无协议形态差异，登记「取值矩阵」与管理 API / 前端口径）**：
+
+| # | 决策 | 性质 | 处置 |
+|:---|:---|:---|:---|
+| 1 | 能力位 = **f(承载实现, 部署开关)**：`LLM_PROTOCOL_ADAPTER_ENABLED` 开启且 `(协议, 变体)` 命中协议包注册表 → 适配器事实值（PA-1..PA-4 四协议适配器均具备流式 / 工具 / 推理链，三项全真）；关闭（默认）→ 旧分支事实值 | 开关感知（R-3 缓解：不提前放量） | `service/llm_protocol_slot.go`：槽位字面量改名 `legacyCapabilities`，新增包级 `llmAdapterCapabilities` + `effectiveCapabilities(协议)`；`LLMProtocolCapabilities` / `LLMProtocolOptions` / `defaultCapabilities` 读取期解析开关与注册表 |
+| 2 | `Implemented` 为**枚举级事实**，不随开关变化（4 值协议恒 `true`）；422 仍只由「枚举外协议 / 变体白名单外」触发 | 口径固化 | `implemented` 不进开关分支；管理 API 与前端「（未接入）」置灰只随枚举 / 白名单变化 |
+| 3 | 开关关闭侧与「构建路径不经过协议包」同口径（旧分支事实值）；开启侧差异面仅三项能力位，字段与形状不变 | 非破坏（取值收敛） | 开关两侧取值矩阵逐值单测锁定；`docs/api-reference.md` 更新取值说明 |
+| 4 | 前端（FE-2/FE-4）**零代码改动**：协议 / 变体选项由 `available` / `protocolOptions` 的 `implemented` + `variants` 白名单数据驱动置灰（`llm-provider-settings.tsx`），三项能力位无消费方（仅 `llm-provider-api.ts` 类型声明与测试夹具） | 证据事实（前端源码核验） | 开关开启侧的能力放量（azure / ollama / anthropic 两变体增加流式 / 工具 / 推理）纯属后端 `available` 取值变化，前端无需发版；`implemented` 驱动的「待接入」置灰已在 PA-3/PA-4 随枚举放量自动打开 |
+
 ### 4.4 参数默认值解析（service 层职责）
 
 - **默认参数表**：`maxTokens` 4096（本批次全部变体同值）；`temperature` = 1.0（`anthropic_messages`/`minimax`）/ 0.3（其余，BE-9 口径）。调用方（`ProtocolProviderOptions.Temperature/MaxTokens`）显式值优先，未给时按 `(protocol, variant)` 查表。
 - **为什么不放在适配器**：适配器只对"线上格式"负责；部署默认值（超时、温度、端点）属接线层，DB 实例（BE-8）与静态配置两条路径共享同一张表，避免双份默认值漂移。
-- **推理模型口径**：`anthropic_messages` 的 `IsReasoningModel` 仅命中模型名含 `thinking` / `reasoning` 标记者（命中时不下发 `temperature`，符合 thinking 与 temperature 互斥）；普通 `claude-*` / `MiniMax-*` 不抑制，保证与旧分支逐字段一致。扩展思考参数（`thinking.budget_tokens`）属 PA-5 能力位范围。
+- **推理模型口径**：`anthropic_messages` 的 `IsReasoningModel` 仅命中模型名含 `thinking` / `reasoning` 标记者（命中时不下发 `temperature`，符合 thinking 与 temperature 互斥）；普通 `claude-*` / `MiniMax-*` 不抑制，保证与旧分支逐字段一致。扩展思考参数（`thinking.budget_tokens`）不在本轮范围（PA-5 仅收敛能力位取值，见 §4.5）。
 
-### 4.5 能力位与置灰收敛（PA-5）
+### 4.5 能力位与置灰收敛（PA-5，2026-09-25 落地）
 
-`service/llm_protocol_slot.go` 按"承载实现事实"声明能力（PA-4 收官后：4 值协议全部 `Implemented=true`、变体白名单就位；`openai_responses` 与 `google_gemini` 唯一承载为适配器，能力位三项全真；`azure` / `ollama` / anthropic 两变体的 `supportsStream/supportsTools/supportsReasoning` 仍按旧分支事实留空，待 PA-5 收敛）。PA-1..PA-4 落地后适配路径已具备流式/工具/推理能力，PA-5 需：
+**口径（读取期解析，不再静态固化）**：能力位 = **f(承载实现, 部署开关)**——`protocolAdapterEnabled()`（`LLM_PROTOCOL_ADAPTER_ENABLED`）开启且 `(协议, 变体)` 由协议包注册表承载（`protocolAdapters.Supports`）时，返回**适配器事实值**（PA-1..PA-4 四协议适配器均实现流式回调 / 工具调用 / 推理链解析，三项全真）；开关关闭（默认）时保持**旧分支事实值**。`Implemented` 属枚举级事实，两侧恒按协议枚举填写（4 值协议均 `true`）。
 
-1. 能力位改为按"承载实现 + 部署开关"计算（开关关闭时保持旧分支事实值，避免管理 API 与前端提前放量）；
-2. 前端（FE-2/FE-4 已交付）把对应协议/变体的置灰项打开；
-3. `docs/api-reference.md` 中能力位字段的**取值**随实现更新（字段与形状不变，非破坏性）。
+| 协议 / 变体 | 开关关闭（旧分支事实值） | 开关开启（适配器事实值） |
+|:---|:---|:---|
+| `openai_chat_completions` / 默认变体 | 流式 ✓ / 工具 ✓ / 推理 ✓ | 三项全真（不变） |
+| `openai_chat_completions` / `azure`、`ollama` | 三项 ✗（仅非流式 `Chat`，`implemented=true`） | 三项全真（R-3 放量解除） |
+| `anthropic_messages` / 默认、`minimax` | 三项 ✗（同上） | 三项全真（R-3 放量解除） |
+| `openai_responses` / 默认 | 三项 ✓（适配器为唯一承载，无旧分支） | 三项全真（不变） |
+| `google_gemini` / 默认 | 三项 ✓（同上） | 三项全真（不变） |
+
+**前端口径**：协议 / 变体选项由 `implemented`（置灰「（未接入）」）与 `variants` 白名单数据驱动；三项能力位在 FE-2/FE-4 中**无消费方**，故 PA-5 前端**零代码改动**——开关开启侧的能力放量仅体现为后端 `available` / `protocolOptions` 取值变化。
 
 ## 5. 任务拆解与排期
 
@@ -155,10 +170,10 @@
 | **PA-2** | `openai_chat_completions` 变体承载（v1.1 收敛：`azure` / `ollama` 归入同一适配器，不新增变体适配器） | `internal/llm/protocol/registry.go`（`AdapterSpec{Variants, New}` 一协议一实现 + ollama 默认端点登记）、`service/llm_registry.go`（`normalizeVariantEndpoint` + `llmProviderModelForVariant`）、`internal/llm/protocol/openai_chat_test.go`、`service/llm_openai_variant_equivalence_test.go`、`service/llm_registry_test.go` | BE-9 / PA-1 | ① 单测全绿；② azure 与旧 `AzureProvider` 对照测试等价（请求路径 / 鉴权头 / 请求体字段 / 返回文本）；③ ollama 归一差异逐条登记（§4.3，有意差异、开关关闭可回退） | ✅ 2026-09-25 |
 | **PA-3** | `openai_responses` 适配器（含 Q1 载体决策：官方 Responses API） | `internal/llm/protocol/openai_responses.go` + `openai_responses_test.go`；`registry.go`（注册 `ProtocolOpenAIResponses`，变体白名单 `[""]`）；`service/llm_protocol_slot.go`（`implemented=true`、白名单 `[""]`，422 仅剩 `google_gemini`）；受影响断言同步（`internal/llm/protocol/openai_chat_test.go`、`service/llm_protocol_slot_test.go`、`service/llm_registry_test.go`、`handlers/ai/llm_provider_admin_test.go`） | PA-1（注册表与承载切换） | ① 单测全绿；② 事件序列（`response.output_text.delta` / `reasoning_summary_text.delta` / `function_call_arguments.delta` / `response.completed` / `incomplete` / `done`）与工具调用累积归一；③ 带内失败（`response.failed` / `error` 事件）映射 `*ProtocolError` 且不重试；④ 未登记协议 422 断言改用 `google_gemini` | ✅ 2026-09-25 |
 | **PA-4** | `google_gemini` 适配器（v1beta `generateContent` / `streamGenerateContent`） | `internal/llm/protocol/google_gemini.go` + `google_gemini_test.go`；`registry.go`（注册 `ProtocolGoogleGemini`、变体白名单 `[""]`、`DefaultEndpoint` 官方地址）；`adapter.go`（可选接口 `ModelPathAdapter`）；`service/llm_registry.go`（请求期动态路径 `APIPathFor`）；`service/llm_protocol_slot.go`（`implemented=true`、白名单 `[""]`）；受影响断言同步（`service/llm_registry_test.go` 等） | PA-3 | ① 单测全绿；② `parts` / `functionCall` / `finishReason` 归一与流式 SSE 增量；③ 鉴权 `x-goog-api-key`（决策：不复刻 `?key=`，§4.3 PA-4 第 1 条）；④ 带内失败（`error` 帧 / `promptFeedback.blockReason`）映射 `*ProtocolError` 且不重试 | ✅ 2026-09-25 |
-| PA-5 | 能力位真实值收敛 + 前端置灰打开 + `available` 口径 | `service/llm_protocol_slot.go` + 单测；前端选项映射 | PA-1..PA-4（均已交付） | 能力位与承载实现一致；管理 API 与前端展示同步 | 待排期 |
+| **PA-5** | 能力位开关感知收敛（旧分支事实值 / 适配器事实值）+ `available` 口径 | `service/llm_protocol_slot.go`（槽位 `legacyCapabilities` + 包级 `llmAdapterCapabilities` + `effectiveCapabilities`）、`service/llm_protocol_slot_test.go`、`handlers/ai/llm_provider_admin_test.go`、`docs/api-reference.md`（取值说明） | PA-1..PA-4（均已交付） | ① 单测全绿：开关两侧取值矩阵（关闭侧逐值锁定旧事实值、开启侧 7 组合三项全真）+ 管理 API `available` / `protocolOptions` 同口径；② 前端零改动（`implemented` + `variants` 数据驱动，能力位无消费方） | ✅ 2026-09-25 |
 | PA-6 | 每协议 parser 规格文档 + 文档同步 | `docs/plan/protocol-specs/*.md`、`CHANGELOG.md`、`docs/api-reference.md`（如涉及）、主计划回填 | 各适配器 | `make docs-gate` 通过（5 gates / 0 failed） | 随批次 |
 
-**排期建议**：PA-1..PA-4 已完成（协议包 **4/4** 适配，任务表中已无阻塞项）；PA-5 可即刻启动——4 协议承载实现均已具备流式/工具/推理能力，仅剩能力位取值与前端展示收敛；PA-6（parser 规格文档 + 主计划/CHANGELOG 回填）随批次执行。
+**排期建议**：PA-1..PA-5 已完成（协议包 **4/4** 适配 + 能力位收敛，任务表中仅剩 PA-6）；PA-6（每协议 parser 规格文档 + `CHANGELOG.md` / `docs/api-reference.md` / 主计划回填）随批次执行。
 
 ## 6. 验收与证据
 
@@ -168,7 +183,8 @@
 | 等价性对照 | `go test ./service/ -run "Anthropic|Azure|Ollama" -count=1` | anthropic/minimax 与旧 `MiniMaxProvider`、azure 与旧 `AzureProvider` 的请求路径/字段/返回文本一致；ollama 归一差异按 §4.3 登记 |
 | `openai_responses` 事件序列 | `go test ./internal/llm/protocol/ -run Responses -count=1` | 文本 / 推理 / 工具参数增量与 `completed` / `incomplete` / `done` / `failed` / `error` 全绿；无旧分支对照，口径证据为 §4.3 PA-3 表 |
 | `google_gemini` 归一 | `go test ./internal/llm/protocol/ -run Gemini -count=1` / `go test ./service/ -run "Gemini|Registry" -count=1` | `parts` / `functionCall` / `finishReason` 归一与流式增量全绿；鉴权取 `x-goog-api-key`（口径证据为 §4.3 PA-4 表）；DB 实例经 Gemini 适配器承载 |
-| 协议槽位与 422 收敛 | `go test ./service/ -run "ProtocolSlot|Registry|ResolveProtocolURL" -count=1` / `go test ./handlers/ai/ -run Provider -count=1` | 4 值协议全部 `implemented=true`、白名单就位（422 仅剩枚举外协议 / 白名单外变体，如 `openai_completions` / `unknown-variant`）；能力位真实值随 PA-5 |
+| 协议槽位与 422 收敛 | `go test ./service/ -run "ProtocolSlot|Registry|ResolveProtocolURL" -count=1` / `go test ./handlers/ai/ -run Provider -count=1` | 4 值协议全部 `implemented=true`、白名单就位（422 仅剩枚举外协议 / 白名单外变体，如 `openai_completions` / `unknown-variant`）；能力位随开关收敛（PA-5 已落地） |
+| 能力位开关感知（PA-5） | `go test ./service/ -run "ProtocolSlot|ProtocolOptions" -count=1` / `go test ./handlers/ai/ -run Provider -count=1` | 开关关闭 → 旧分支事实值（逐值锁定）；开关开启 → 适配器事实值（三项全真）；`Implemented` 两侧恒真；管理 API `available` 与 `protocolOptions` 同口径 |
 | 构建与静态检查 | `go build ./...`、`go vet ./...`、`gofmt -l` | 无输出 / exit 0 |
 | 零破坏回归 | QA-3 报告 `docs/testing/multi-llm-provider-qa3-regression-2026-09-24.md`；开关关闭路径不经过协议包 | 开关关闭时行为逐字节一致 |
 | 文档门禁 | `bash scripts/docs-gate/run-all.sh`（Git Bash） | 5 gates / 0 failed |
@@ -180,7 +196,7 @@
 |:---|:---|:---|
 | R-1 | 适配路径与旧分支产生线上行为漂移（变体字段名、默认温度、端点） | 差异清单（§4.3）+ 同桩服务对照测试；开关默认关，可随时回退 |
 | R-2 | 双线冲突（主计划与独立计划同时改 `NewProviderFromConfig` / 协议包） | 启动门禁已明确解冻时点；PA 任务串行提交、单文件聚焦 |
-| R-3 | 能力位提前放量导致前端暴露未适配组合 | PA-5 单列，且必须在其后于 PA-2..PA-4 完成 |
+| R-3 | 能力位提前放量导致前端暴露未适配组合 | ✅ 已落地（PA-5）：能力位在读取期按部署开关解析，关闭（默认）保持旧分支事实值；开启侧仅当协议包注册表承载时取适配器事实值（PA-1..PA-4 全部就绪后收敛） |
 | R-4 | MiniMax 兼容端点的 camelCase 口径与官方文档不一致 | 以**既有线上实现**（`MiniMaxProvider`）为准绳，对照测试锁定 |
 
 **回滚**：关闭 `LLM_PROTOCOL_ADAPTER_ENABLED` 即回到既有 4 分支（零迁移、零数据变更）；协议包与接线层新增代码在开关关闭时不被执行。
@@ -192,7 +208,7 @@
 | Q1 | `openai_responses` 的载体与鉴权（官方 `api.openai.com/v1/responses` vs ChatGPT backend 形态） | **已定（PA-3）：官方 Responses API**——`POST /v1/responses` + `Authorization: Bearer`；缺省 endpoint 不单独登记，与 `openai_chat_completions` 标准形态同址回退 `https://api.openai.com`（资源路径由适配器给出）。ChatGPT backend 形态**不复刻**（依赖 OAuth/session 凭证与专有头部，不适配 itsm「endpoint + api_key」实例模型）；如后续需要，按新 `variant` 构造期选项引入、不改协议枚举（§4.3 PA-3 第 1 条） |
 | Q2 | Ollama 原生 `/api/chat` 是否归一到 `openai_chat_completions` | **已定（PA-2 收敛）：归一**——不新增 Ollama 原生适配器，`ollama` 变体由 `openai_chat_completions` 适配器以 OpenAI 兼容 `/v1/chat/completions` 承载；旧原生分支保留给开关关闭与回退（差异见 §4.3） |
 | Q3 | 适配层与 `NewProviderFromConfig` 的收敛策略（替换 / 并存） | **已定：并存过渡**——4/4 协议均由适配器承载（`openai_chat_completions` 含 azure / ollama、`anthropic_messages` 含 minimax、`openai_responses`、`google_gemini`，PA-1..PA-4）；旧分支（`OpenAIProvider` / `AzureProvider` / `LocalProvider` / `MiniMaxProvider`）保留给开关关闭的静态配置路径与回退；`openai_responses` / `google_gemini` 无等价旧分支，注册表未命中时显式失败（422 / UNAVAILABLE），不静默退化 |
-| Q4 | 能力探测：静态声明 + 运行时记忆缓存 | P1 先静态声明（PA-5），后续按调用结果记忆（按 `(protocol, variant, model)` 维度） |
+| Q4 | 能力探测：静态声明 + 运行时记忆缓存 | **P1 已落地（PA-5）：开关感知的静态声明**（承载实现 + 部署开关，读取期解析）；后续按调用结果记忆（按 `(protocol, variant, model)` 维度）为 P2 备选 |
 
 ## 9. 修订记录
 
@@ -209,3 +225,4 @@
 | v1.1 | 2026-09-25 | **适配器维度收敛「一协议一实现」+ PA-2 交付**：① 口径收敛（用户决策，§0/§2/§4.3）：适配器 = 协议本身（与 4 值协议枚举一一对应），`variant` 降为构造期选项、不进注册表键；原 PA-2「azure / ollama 变体适配器化」随之收敛为「同一适配器承载」，不新增 `openai_chat_variants.go` 等变体文件；② 协议包：`internal/llm/protocol/registry.go` 注册表键由 `(protocol, variant)` 改为每协议一个 `AdapterSpec{Variants, New}`（`Supports` / `NewAdapter` 按「协议 spec + 变体白名单」判定，构造期固化变体），默认注册表登记 `openai_chat_completions{"", azure, ollama}` 与 `anthropic_messages{"", minimax}`，`DefaultEndpoint` 增补 ollama 缺省地址 `http://localhost:11434`（与旧 `LocalProvider` 同值）；③ 接线层：`service/llm_registry.go` 新增 `normalizeVariantEndpoint`（azure 仅主机名 endpoint 补 `/openai`，与旧 `AzureProvider` 同址）与 `llmProviderModelForVariant`（azure `model` 缺省回退 `deployment`），静态配置与 DB 实例两条路径共用；④ §4.3 新增 PA-2 差异清单 6 条（azure 等价四项；ollama 协议归一等有意差异两项）；⑤ 测试：`internal/llm/protocol/openai_chat_test.go`（注册表 / `Supports` / 名称归一化 / ollama 端点）、`service/llm_openai_variant_equivalence_test.go`（azure 对照旧 `AzureProvider` 等价 / model 回退 / endpoint 归一 / ollama OpenAI 兼容端点）、`service/llm_registry_test.go`（未登记变体 422 用例由 azure 改为 `unknown-variant`）；⑥ 零破坏：开关默认关；ollama 归一差异登记在案，关闭开关即回退旧分支（Q2 结论化「归一」） |
 | v1.2 | 2026-09-25 | **PA-3 交付：`openai_responses` 适配器 + 槽位放量**：① 协议包新增 `internal/llm/protocol/openai_responses.go`（官方 Responses API 载体：`/v1/responses` + `Authorization: Bearer`；前导 system/developer 合并为顶层 `instructions`、`input` 项数组（message / function_call / function_call_output）、`store:false` 恒下发、`max_output_tokens` 与推理模型抑制 `temperature`、tools 扁平结构与 `tool_choice` 归一；事件驱动 SSE 覆盖文本 / `reasoning_summary_text` / 工具参数增量与 `completed` / `incomplete` / `done`；`response.failed` 与 `error` 事件映射 `*ProtocolError` 不重试）；② `registry.go` 登记 `openai_responses{"", }`；`service/llm_protocol_slot.go` 槽位 `implemented=true`、变体白名单 `[""]`（422 仅剩 `google_gemini`）；`service/llm_registry.go` 构建路径经注册表承载（endpoint 为空 → 回退 OpenAI 兼容默认地址 + `/v1/responses`）；③ §4.3 新增 PA-3 差异/决策 9 条（无旧分支对照：载体决策 / 无状态口径 / instructions 归一 / 工具项形态 / 扁平 tools / 采样参数 / 事件序列 / 失败语义 / 未知项容错）；§8 Q1 结论化；④ 测试：新增 `internal/llm/protocol/openai_responses_test.go`（请求构建 / 工具与 `tool_choice` / 推理模型 / 非流式 / 流式事件与快照恢复 / 失败与坏帧 / 边缘项），同步受影响断言（`openai_chat_test.go`、`service/llm_protocol_slot_test.go`、`service/llm_registry_test.go`、`handlers/ai/llm_provider_admin_test.go`——未实现协议 422 断言改用 `google_gemini`）；⑤ 零破坏：无 DB / API 契约改动；`LLM_PROTOCOL_ADAPTER_ENABLED` 默认关，关闭时构建路径仍不经过协议包；⑥ 证据：`go test ./internal/llm/protocol/... -count=1`、service / handlers 定向集全绿，`go build ./...` / `go vet` exit 0，改动文件 `gofmt -l` 无输出，文档门禁 `bash scripts/docs-gate/run-all.sh` → 5 gates / 0 failed |
 | v1.3 | 2026-09-25 | **PA-4 交付：`google_gemini` 适配器 + 4/4 协议适配器化收官**：① 协议包新增 `internal/llm/protocol/google_gemini.go`（Gemini API v1beta 载体：`/v1beta/models/{model}:generateContent` 与 `:streamGenerateContent?alt=sse`；`x-goog-api-key` 鉴权、**不复刻** `?key=`；前导 system → 顶层 `systemInstruction`、`contents[]` 仅 `user`/`model`、工具 `functionDeclarations` / `functionResponse`（函数名按历史反查、无 id → `call_N`）、`generationConfig.maxOutputTokens`（>0 才发）与 `temperature`（`IsReasoningModel` 恒 false）、`thought=true` parts → 推理链、`finishReason` 原生值透传、帧内 `error` / `promptFeedback.blockReason` → `*ProtocolError` 不重试）；② 新增可选接口 `protocol.ModelPathAdapter`（`APIPathFor(model, stream)`），接线层 `service.protocolProvider` 请求期优先取动态路径、回退静态 `GetAPIPath()`；`registry.go` 登记 `google_gemini{"", }` + `DefaultEndpoint` 官方地址 `https://generativelanguage.googleapis.com`；`service/llm_protocol_slot.go` 槽位 `implemented=true`、白名单 `[""]`（4 值协议全部实现，422 仅剩枚举外协议 / 白名单外变体）；③ §4.3 新增 PA-4 差异/决策 8 条（无旧分支对照：载体与鉴权选择 / 动态资源路径 / 官方缺省端点 / 会话与工具形态归一 / 采样口径 / 事件驱动 SSE / 容错）；④ 测试：新增 `internal/llm/protocol/google_gemini_test.go`（元数据 / 请求构建 / 边缘 / 工具配置 / 非流式 / 流式 / 带内错误 7 用例），同步 `service/llm_registry_test.go` gemini 期望（UNAVAILABLE → 适配器承载）；⑤ 证据：`go test ./internal/llm/protocol/... -count=1` ok、service 定向集与 `handlers/ai` 全绿、`go build ./...` / `go vet` exit 0、改动文件 `gofmt -l` 无输出、文档门禁 `bash scripts/docs-gate/run-all.sh` → 5 gates / 0 failed |
+| v1.4 | 2026-09-25 | **PA-5 交付：能力位开关感知收敛**：① 口径（§4.3 PA-5 表 / §4.5）：能力位 = **f(承载实现, 部署开关)**——`LLM_PROTOCOL_ADAPTER_ENABLED` 开启且 `(协议, 变体)` 命中协议包注册表 → 适配器事实值（PA-1..PA-4 四协议适配器均具备流式 / 工具 / 推理链，三项全真）；关闭（默认）→ 旧分支事实值（`azure` / `ollama` / `anthropic_messages` 两变体仅「已实现、非流式」），管理 API 与前端不提前放量（R-3 落地）；`Implemented` 为枚举级事实、不随开关变化；② 实现：`service/llm_protocol_slot.go` 槽位能力位改名 `legacyCapabilities`，新增包级 `llmAdapterCapabilities` 与 `effectiveCapabilities(协议)`，`LLMProtocolCapabilities` / `LLMProtocolOptions` / `defaultCapabilities` 读取期解析开关与注册表；③ 前端零改动（证据）：协议 / 变体选项由 `implemented` + `variants` 白名单数据驱动（`llm-provider-settings.tsx`），三项能力位无消费方（仅类型声明与测试夹具）；④ `docs/api-reference.md` 更新能力位取值说明（字段 / 形状不变、非破坏）；⑤ 测试：开关两侧取值矩阵（`TestLLMProtocolSlotCapabilitiesAdapterEnabled` / `TestLLMProtocolOptionsAdapterEnabled`：关闭侧逐值锁定旧事实值、开启侧 7 组合三项全真、校验语义不随开关变化）+ 管理 API 端到端（`handlers/ai` `TestLLMProviderAdminCapabilitiesAdapterEnabled`：`available` 与 `protocolOptions` 同口径）；⑥ 证据：service 定向集（ProtocolSlot / ProtocolOptions）与 `handlers/ai -run Provider` 全绿、改动文件 `gofmt -l` 无输出、文档门禁 `bash scripts/docs-gate/run-all.sh` → 5 gates / 0 failed（日志 `.dev/docs-gate-rerun.log`） |

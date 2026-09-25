@@ -51,7 +51,7 @@ DELETE /api/v1/ai/providers/:id                 # 软删（默认实例需先切
 POST   /api/v1/ai/providers/:id/test            # 连通性测试（15s 超时，写 status/last_error/last_tested_at）
 POST   /api/v1/ai/providers/:id/default         # 设租户默认（事务先清后置，DB 部分唯一索引兜底）
 POST   /api/v1/ai/providers/import-static       # 导入静态配置（幂等：命中同实例返回 200 {updated:true}）
-GET    /api/v1/ai/providers/available           # 选择器数据（能力位 implemented/supportsStream/...，无密钥）
+GET    /api/v1/ai/providers/available           # 选择器数据（能力位 implemented/supportsStream/...，无密钥；三项能力位为开关感知取值）
 GET    /api/v1/ai/user-preference               # 我的默认（providerKey 可空 + effectiveProviderKey）
 PUT    /api/v1/ai/user-preference               # 设置/清除我的默认（校验租户归属与 enabled）
 ```
@@ -62,7 +62,7 @@ PUT    /api/v1/ai/user-preference               # 设置/清除我的默认（�
 { "type": "done", "conversationId": 42, "provider": "deepseek-prod", "providerSource": "request" }
 ```
 
-解析优先级：显式 `provider` → 个人默认 → 租户默认 → `config.yaml` 静态配置（`providerSource` 依次为 `request` / `user` / `tenant` / `static`）。错误码：`AI_PROVIDER_FORBIDDEN`(403)、`AI_PROVIDER_NOT_FOUND`(404)、`AI_PROVIDER_DISABLED`(409)、`AI_PROVIDER_KEY_MISSING`(422)、`AI_PROVIDER_UNAVAILABLE`(503)、`AI_PROVIDER_IS_DEFAULT`(409)、`AI_PROTOCOL_NOT_IMPLEMENTED`(422，当前仅剩协议枚举外 / 变体白名单外组合)。协议按 4 种 API 形态建模：`openai_chat_completions`（含 `azure` / `ollama` 变体）、`anthropic_messages`（含 `minimax` 变体）、`openai_responses`、`google_gemini` 均已适配器化（PA-1..PA-4）。
+解析优先级：显式 `provider` → 个人默认 → 租户默认 → `config.yaml` 静态配置（`providerSource` 依次为 `request` / `user` / `tenant` / `static`）。错误码：`AI_PROVIDER_FORBIDDEN`(403)、`AI_PROVIDER_NOT_FOUND`(404)、`AI_PROVIDER_DISABLED`(409)、`AI_PROVIDER_KEY_MISSING`(422)、`AI_PROVIDER_UNAVAILABLE`(503)、`AI_PROVIDER_IS_DEFAULT`(409)、`AI_PROTOCOL_NOT_IMPLEMENTED`(422，当前仅剩协议枚举外 / 变体白名单外组合)。协议按 4 种 API 形态建模：`openai_chat_completions`（含 `azure` / `ollama` 变体）、`anthropic_messages`（含 `minimax` 变体）、`openai_responses`、`google_gemini` 均已适配器化（PA-1..PA-4）；能力位 `supportsStream` / `supportsTools` / `supportsReasoning` 为**开关感知**取值（`LLM_PROTOCOL_ADAPTER_ENABLED` 开启且协议由适配器承载时为三项全真，关闭（默认）时保持旧分支事实值；`implemented` 为枚举级事实、不随开关变化），字段与形状不变。
 
 ## 通用响应格式
 
