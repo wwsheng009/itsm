@@ -6,85 +6,119 @@ import (
 	"sync"
 )
 
-// ErrAdapterNotFound 表示该 (protocol, variant) 未注册适配器。
-// service 层据此回退旧分支或映射既有错误码 AI_PROTOCOL_NOT_IMPLEMENTED(422)。
+// openAIOllamaDefaultEndpoint 与旧 service.LocalProvider 的默认 baseURL 同值
+// （Ollama 的 OpenAI 兼容资源路径 /v1/chat/completions 由 service 拼接）。
+const openAIOllamaDefaultEndpoint = "http://localhost:11434"
+
+// ErrAdapterNotFound 表示该协议没有可用的适配器实现（协议未注册，或该变体不在其支持范围）。
+// service 层据此回退既有分支或映射既有错误码 AI_PROTOCOL_NOT_IMPLEMENTED(422)。
 var ErrAdapterNotFound = errors.New("protocol adapter not implemented")
 
-// Registry 按 (protocol, variant) 索引协议适配器（BE-9：Registry 构建路径分派）。
-// 启动期注册、运行期并发读取，读写均加锁。
-type Registry struct {
-	mu       sync.RWMutex
-	adapters map[registryKey]ProtocolAdapter
+// AdapterSpec 描述**一个协议**的适配器实现：支持哪些变体、如何按变体构造实例。
+//
+// 适配器与协议一一对应（协议枚举 4 值 = 至多 4 个实现）；variant 只是同一实现的构造期
+// 选项（如 anthropic_messages 的 minimax camelCase 口径、openai_chat_completions 的
+// azure / ollama 部署形态），不构成独立适配器身份，也不进注册表键。
+type AdapterSpec struct {
+	// Variants 该协议适配器支持的变体集合（至少 1 项；VariantDefault 表示标准形态）。
+	Variants []string
+	// New 按变体构造适配器实例（变体差异在构造期固化，请求期不查表、不分支）。
+	New func(variant string) ProtocolAdapter
 }
 
-type registryKey struct {
-	protocol string
-	variant  string
+// Registry 按协议索引适配器实现（每协议一个 spec）。
+// 启动期注册、运行期并发读取，读写均加锁。
+type Registry struct {
+	mu    sync.RWMutex
+	specs map[string]AdapterSpec
 }
 
 // NewRegistry 创建空注册表。
 func NewRegistry() *Registry {
-	return &Registry{adapters: make(map[registryKey]ProtocolAdapter)}
+	return &Registry{specs: make(map[string]AdapterSpec)}
 }
 
-// Register 注册适配器：protocol 必填，variant 为空表示该协议的默认形态。
-func (r *Registry) Register(protocol, variant string, adapter ProtocolAdapter) {
-	if adapter == nil {
-		panic("protocol: nil adapter")
-	}
-	key := newRegistryKey(protocol, variant)
-	if key.protocol == "" {
+// Register 注册协议适配器实现（启动期一次；重复注册以最后一次为准）。
+//
+// protocol 为空、Variants 为空或 New 为 nil 一律 panic：注册错误应在启动期暴露，
+// 而不是运行期静默退化到旧分支。
+func (r *Registry) Register(protocolName string, spec AdapterSpec) {
+	key := normalizeProtocolName(protocolName)
+	if key == "" {
 		panic("protocol: empty protocol name")
+	}
+	if len(spec.Variants) == 0 {
+		panic("protocol: adapter spec requires at least one variant: " + key)
+	}
+	if spec.New == nil {
+		panic("protocol: nil adapter factory: " + key)
+	}
+	variants := make([]string, 0, len(spec.Variants))
+	for _, variant := range spec.Variants {
+		variants = append(variants, normalizeProtocolName(variant))
 	}
 	r.mu.Lock()
 	defer r.mu.Unlock()
-	r.adapters[key] = adapter
+	r.specs[key] = AdapterSpec{Variants: variants, New: spec.New}
 }
 
-// Get 查询适配器：精确匹配 (protocol, variant)，未注册返回 ErrAdapterNotFound。
-//
-// 刻意不做"回退默认变体"：P0 只有 openai_chat_completions 默认变体是适配器承载，
-// azure/ollama 等变体仍走既有分支（主计划 v1.4），若此处静默回退会错误地把
-// 变体请求路由到适配器；是否回退由 service 层的构建分派决定。
-func (r *Registry) Get(protocol, variant string) (ProtocolAdapter, error) {
-	key := newRegistryKey(protocol, variant)
-	r.mu.RLock()
-	defer r.mu.RUnlock()
-	if adapter, ok := r.adapters[key]; ok {
-		return adapter, nil
+// Supports 报告 (protocol, variant) 是否由协议适配器承载（不构造实例）。
+func (r *Registry) Supports(protocolName, variant string) bool {
+	_, ok := r.lookup(protocolName, variant)
+	return ok
+}
+
+// NewAdapter 构造 (protocol, variant) 的适配器实例。
+// 协议未注册或变体不在该协议的支持范围内，一律返回 ErrAdapterNotFound。
+func (r *Registry) NewAdapter(protocolName, variant string) (ProtocolAdapter, error) {
+	spec, ok := r.lookup(protocolName, variant)
+	if !ok {
+		return nil, ErrAdapterNotFound
 	}
-	return nil, ErrAdapterNotFound
+	return spec.New(normalizeProtocolName(variant)), nil
 }
 
-// NewDefaultRegistry 构建默认注册表。
+// NewDefaultRegistry 构建默认注册表（一协议一实现；未注册协议即"未适配"）：
 //
-// 已注册（BE-9 + 独立计划 v1.0 PA-1）：
-//   - openai_chat_completions 默认变体；
-//   - anthropic_messages 默认变体与 minimax 变体（MiniMax 兼容端点 camelCase 口径）。
-//
-// azure/ollama 变体与 openai_responses / google_gemini 仍走既有分支或置灰（422），
-// 由独立计划 docs/plan/llm-protocol-adapter-plan.md 的后续任务逐个适配器化；
-// Get 对未注册组合返回 ErrAdapterNotFound 以触发回退路径。
+//   - openai_chat_completions：默认形态 + azure / ollama 部署变体（同一适配器，
+//     厂商/部署差异由 endpoint 与调用参数表达，不新增适配器）；
+//   - anthropic_messages：官方形态 + minimax 兼容端点（camelCase 字段口径，
+//     同一适配器构造期固化）;
+//   - openai_responses / google_gemini：尚未注册，由独立计划的后续任务落地
+//     （PA-3 / PA-4），NewAdapter 返回 ErrAdapterNotFound 触发旧分支回退或 422。
 func NewDefaultRegistry() *Registry {
 	registry := NewRegistry()
-	registry.Register(ProtocolOpenAIChatCompletions, VariantDefault, NewOpenAIChatAdapter())
-	registry.Register(ProtocolAnthropicMessages, VariantDefault, NewAnthropicMessagesAdapter(VariantDefault))
-	registry.Register(ProtocolAnthropicMessages, VariantMiniMax, NewAnthropicMessagesAdapter(VariantMiniMax))
+	registry.Register(ProtocolOpenAIChatCompletions, AdapterSpec{
+		Variants: []string{VariantDefault, VariantAzure, VariantOllama},
+		New:      func(string) ProtocolAdapter { return NewOpenAIChatAdapter() },
+	})
+	registry.Register(ProtocolAnthropicMessages, AdapterSpec{
+		Variants: []string{VariantDefault, VariantMiniMax},
+		New:      func(variant string) ProtocolAdapter { return NewAnthropicMessagesAdapter(variant) },
+	})
 	return registry
 }
 
 // DefaultEndpoint 返回 (协议, 变体) 在调用方未配置 endpoint 时的默认地址；
 // 未登记组合返回空串，由 service 层回退其既有默认（OpenAI 兼容地址）。
 //
-// 取值口径（主计划 §3.1.1 变体表 + §3.1.4 映射表）：
+// 取值口径（主计划 §3.1.1 变体表 + §3.1.4 映射表，与旧分支逐字节一致）：
+//   - openai_chat_completions / ollama：与旧 service.LocalProvider 的默认 baseURL 同值；
+//   - openai_chat_completions 默认与 azure：不登记（旧分支分别回退 api.openai.com 与
+//     go-openai 默认 BaseURL，两者地址一致）；
 //   - anthropic_messages / ""：官方 https://api.anthropic.com，路径 /v1/messages；
 //   - anthropic_messages / minimax：与旧 service.MiniMaxProvider.baseURL 同值
-//     （https://api.minimaxi.com/anthropic/v1），保证开关开启时 endpoint 缺省的线上地址一致。
+//     （https://api.minimaxi.com/anthropic/v1）。
 func DefaultEndpoint(protocolName, variant string) string {
-	key := newRegistryKey(protocolName, variant)
-	switch key.protocol {
+	key := normalizeProtocolName(protocolName)
+	switch key {
+	case ProtocolOpenAIChatCompletions:
+		if normalizeProtocolName(variant) == VariantOllama {
+			return openAIOllamaDefaultEndpoint
+		}
+		return ""
 	case ProtocolAnthropicMessages:
-		if key.variant == VariantMiniMax {
+		if normalizeProtocolName(variant) == VariantMiniMax {
 			return anthropicMiniMaxDefaultEndpoint
 		}
 		return anthropicDefaultEndpoint
@@ -93,9 +127,25 @@ func DefaultEndpoint(protocolName, variant string) string {
 	}
 }
 
-func newRegistryKey(protocol, variant string) registryKey {
-	return registryKey{
-		protocol: strings.ToLower(strings.TrimSpace(protocol)),
-		variant:  strings.ToLower(strings.TrimSpace(variant)),
+// lookup 精确匹配协议与变体（大小写/空白不敏感），返回注册的 spec。
+func (r *Registry) lookup(protocolName, variant string) (AdapterSpec, bool) {
+	key := normalizeProtocolName(protocolName)
+	variantKey := normalizeProtocolName(variant)
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+	spec, ok := r.specs[key]
+	if !ok {
+		return AdapterSpec{}, false
 	}
+	for _, supported := range spec.Variants {
+		if supported == variantKey {
+			return spec, true
+		}
+	}
+	return AdapterSpec{}, false
+}
+
+// normalizeProtocolName 归一协议名/变体名：去空白、转小写（枚举值本身即小写）。
+func normalizeProtocolName(name string) string {
+	return strings.ToLower(strings.TrimSpace(name))
 }

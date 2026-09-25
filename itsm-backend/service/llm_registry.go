@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/url"
 	"os"
 	"strconv"
 	"strings"
@@ -28,10 +29,14 @@ import (
 // 本文件是主计划《多 LLM Provider 支持与可切换方案》v1.4 BE-9 的接线层：
 // Registry 构建路径分派（适配器优先、旧分支回退，开关控制，默认关）。
 //
-// P0 范围（与主计划 §3.1.4 一致）：
-//   - 仅 openai_chat_completions 的默认变体由适配器承载（静态 provider = openai / 空）；
-//   - azure / ollama 变体与其余 3 协议未注册 → 一律回退既有分支，行为与接线前逐字节一致；
-//   - 开关关闭（默认）时构建路径完全不经过本文件，旧路径零变化（QA-3 回归门禁）。
+// 承载范围（一协议一实现，见 internal/llm/protocol/registry.go）：
+//   - openai_chat_completions：默认 / azure / ollama 三个变体共用同一适配器，
+//     变体差异体现在 endpoint（azure 见 normalizeVariantEndpoint）与调用参数上；
+//   - anthropic_messages：官方 / minimax 两个变体共用同一适配器（minimax 的
+//     camelCase 字段口径在构造期固化）；
+//   - openai_responses / google_gemini 未注册 → 静态路径回退既有分支、
+//     DB 实例路径映射 422 AI_PROTOCOL_NOT_IMPLEMENTED；
+//   - 开关关闭（默认）时静态构建路径完全不经过本文件，旧路径零变化（QA-3 回归门禁）。
 //
 // BE-2/BE-4 落地 DB 实例后，协议与变体由记录直接给出，调用 NewProtocolProvider 即可；
 // 未注册时按 ErrProtocolNotImplemented 映射 422 AI_PROTOCOL_NOT_IMPLEMENTED。
@@ -124,7 +129,7 @@ func NewProtocolProvider(opts ProtocolProviderOptions) (LLMProvider, error) {
 	if registry == nil {
 		registry = protocolAdapters
 	}
-	adapter, err := registry.Get(opts.Protocol, opts.Variant)
+	adapter, err := registry.NewAdapter(opts.Protocol, opts.Variant)
 	if err != nil {
 		return nil, fmt.Errorf("%w: protocol=%s variant=%s: %w", ErrProtocolNotImplemented, opts.Protocol, opts.Variant, err)
 	}
@@ -145,7 +150,7 @@ func NewProtocolProvider(opts ProtocolProviderOptions) (LLMProvider, error) {
 		variant:     opts.Variant,
 		client:      client,
 		apiKey:      opts.APIKey,
-		endpoint:    opts.Endpoint,
+		endpoint:    normalizeVariantEndpoint(opts.Endpoint, opts.Protocol, opts.Variant),
 		model:       opts.Model,
 		maxTokens:   maxTokens,
 		temperature: temperature,
@@ -165,8 +170,8 @@ func protocolProviderVariantTemperature(protocolName, variant string) float64 {
 
 // newProtocolProviderFromConfig 尝试按静态配置走适配器路径。
 //
-// 返回 nil 表示回退既有分支（开关关闭、provider 未识别或 (协议, 变体) 未注册，
-// 例如 azure / local / minimax 变体）——静态路径不引入新的失败面。
+// 返回 nil 表示回退既有分支（开关关闭、provider 未识别或该协议未注册，
+// 例如 openai_responses / google_gemini）——静态路径不引入新的失败面。
 // 注意：静态配置无协议/变体字段，未实现协议（openai_responses / google_gemini）
 // 只会出现在 DB 实例路径（BE-4/BE-8），由那里映射 422。
 func newProtocolProviderFromConfig(cfg ProviderConfig, apiKey string) LLMProvider {
@@ -182,7 +187,7 @@ func newProtocolProviderFromConfig(cfg ProviderConfig, apiKey string) LLMProvide
 		Variant:   variant,
 		APIKey:    apiKey,
 		Endpoint:  cfg.Endpoint,
-		Model:     cfg.Model,
+		Model:     llmProviderModelForVariant(protocolName, variant, cfg.Model, cfg.Deployment),
 		MaxTokens: protocolProviderDefaultMaxTokens,
 	})
 	if err != nil {
@@ -348,7 +353,7 @@ func (e *protocolProviderError) Unwrap() []error {
 }
 
 // defaultEndpoint 返回该 (协议, 变体) 的默认地址：协议包登记值优先（anthropic 官方 / minimax
-// 兼容端点），未登记回退 BE-9 的 OpenAI 兼容默认地址（保持既有行为）。
+// 兼容端点、ollama 本机地址），未登记回退 BE-9 的 OpenAI 兼容默认地址（保持既有行为）。
 func (p *protocolProvider) defaultEndpoint() string {
 	if endpoint := protocol.DefaultEndpoint(p.adapter.Name(), p.variant); endpoint != "" {
 		return endpoint
@@ -384,6 +389,45 @@ func resolveProtocolURL(endpoint, apiPath, fallbackEndpoint string) string {
 		}
 	}
 	return base + apiPath
+}
+
+// normalizeVariantEndpoint 归一部署变体的 endpoint 口径（与旧分支逐字节一致）：
+//
+//   - azure：旧 AzureProvider 固定以 `{endpoint}/openai/v1` 为 BaseURL（go-openai 再补
+//     `/chat/completions`）。因此 endpoint 只给主机名（无路径）时补 `/openai`，再交给
+//     `resolveProtocolURL` 的版本段规则拼出 `/openai/v1/chat/completions`，与旧分支同址；
+//     endpoint 已带路径（如 `/openai`、`/openai/v1`）或为空（旧分支回退 go-openai 默认
+//     BaseURL）时原样透传；
+//   - 其余协议/变体：原样透传（ollama 的 `/v1/chat/completions` 由同一拼接规则得到）。
+func normalizeVariantEndpoint(endpoint, protocolName, variant string) string {
+	if !strings.EqualFold(strings.TrimSpace(protocolName), protocol.ProtocolOpenAIChatCompletions) ||
+		!strings.EqualFold(strings.TrimSpace(variant), protocol.VariantAzure) {
+		return endpoint
+	}
+	trimmed := strings.TrimSpace(endpoint)
+	if trimmed == "" {
+		return endpoint
+	}
+	parsed, err := url.Parse(trimmed)
+	if err != nil || parsed.Host == "" {
+		return endpoint
+	}
+	if strings.Trim(parsed.Path, "/") != "" {
+		return endpoint
+	}
+	parsed.Path = "/openai"
+	return strings.TrimRight(parsed.String(), "/")
+}
+
+// llmProviderModelForVariant 解析实例的默认模型：azure 变体在 model 缺省时回退
+// deployment（旧 AzureProvider 的 `actualModel := deploymentID` 口径），其余变体直接用 model。
+func llmProviderModelForVariant(protocolName, variant, model, deployment string) string {
+	if strings.EqualFold(strings.TrimSpace(protocolName), protocol.ProtocolOpenAIChatCompletions) &&
+		strings.EqualFold(strings.TrimSpace(variant), protocol.VariantAzure) &&
+		strings.TrimSpace(model) == "" {
+		return strings.TrimSpace(deployment)
+	}
+	return model
 }
 
 // toProtocolMessages 把 service.LLMMessage 转换为协议层消息（字段一一对应）。
@@ -873,21 +917,22 @@ func (r *LLMProviderRegistry) buildEntry(record *ent.LLMProviderConfig) *llmRegi
 	return entry
 }
 
-// buildProvider 按 (协议, 变体) 分派构建（§3.2 第 3 条 / §3.1.4 映射表）。
+// buildProvider 按协议分派构建（§3.2 第 3 条 / §3.1.4 映射表；变体只影响构造参数）。
 func (r *LLMProviderRegistry) buildProvider(record *ent.LLMProviderConfig, apiKey string) (LLMProvider, error) {
 	protocolName := NormalizeLLMProtocol(record.Protocol)
 	variant := NormalizeLLMVariant(record.Variant)
 
-	// 适配器优先：`(协议, 变体)` 已在协议包注册（BE-9 openai 默认变体 + PA-1 anthropic 官方 / minimax）
-	// 即按适配器承载；未注册组合（azure / ollama / local / 其余协议）回退下方既有分支
+	// 适配器优先：协议已在协议包注册（一协议一实现）即按适配器承载——openai_chat_completions
+	// 覆盖默认 / azure / ollama 三个变体（变体只影响 endpoint 与调用参数），anthropic_messages
+	// 覆盖官方 / minimax 两个变体；未注册协议（openai_responses / google_gemini）回退既有分支
 	// （"适配器优先、旧分支回退"，与 BE-9 静态路径同口径）。
-	if _, err := protocolAdapters.Get(protocolName, variant); err == nil {
+	if protocolAdapters.Supports(protocolName, variant) {
 		provider, err := NewProtocolProvider(ProtocolProviderOptions{
 			Protocol:    protocolName,
 			Variant:     variant,
 			APIKey:      apiKey,
 			Endpoint:    record.Endpoint,
-			Model:       record.Model,
+			Model:       llmProviderModelForVariant(protocolName, variant, record.Model, record.Deployment),
 			MaxTokens:   adapterOptionInt(record.AdapterOptions, "max_tokens"),
 			Temperature: adapterOptionFloat(record.AdapterOptions, "temperature"),
 		})
@@ -898,7 +943,8 @@ func (r *LLMProviderRegistry) buildProvider(record *ent.LLMProviderConfig, apiKe
 			"provider", record.Name, "protocol", protocolName, "variant", variant, "reason", "adapter_build_failed")
 	}
 
-	// azure / ollama / minimax 等：归一为 ProviderConfig 后复用 NewProviderFromConfig（现状实现分支）。
+	// 未注册协议或适配器构建失败：归一为 ProviderConfig 后复用 NewProviderFromConfig
+	// （旧分支兜底，静态路径与 DB 路径同口径）。
 	legacyProvider, err := MapProtocolToLegacyProvider(protocolName, variant)
 	if err != nil {
 		return nil, err

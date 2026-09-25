@@ -14,9 +14,10 @@ import (
 // 本文件是主计划《多 LLM Provider 支持与可切换方案》v1.6 BE-8 的交付物：
 // 协议槽位（4 值枚举常量 + (protocol, variant) → 既有实现映射 + 校验 + 能力位 + adapter_options 约束）。
 //
-// P0 口径（§3.1.4 / §11.2，P0 不改协议语义）：
+// 口径（§3.1.4 / §11.2）：
 //   - 4 值协议枚举：openai_chat_completions / openai_responses / anthropic_messages / google_gemini；
-//   - 已实现：openai_chat_completions（BE-9 适配器 + 旧分支回退）、anthropic_messages（MiniMaxProvider 承载）；
+//   - 已适配：openai_chat_completions（含 azure / ollama 变体）、anthropic_messages（含 minimax 变体），
+//     均由协议包同一适配器承载（一协议一实现，变体只是构造期选项）；
 //     未实现（槽位）：openai_responses / google_gemini —— 枚举合法但创建/更新一律
 //     ErrProtocolNotImplemented → AI_PROTOCOL_NOT_IMPLEMENTED(422)，前端选项置灰；
 //   - variant 白名单：openai_chat_completions = {"", azure, ollama}；anthropic_messages = {"", minimax}；

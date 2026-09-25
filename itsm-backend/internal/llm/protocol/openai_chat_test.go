@@ -220,33 +220,53 @@ func TestNewHTTPError(t *testing.T) {
 func TestDefaultRegistryScope(t *testing.T) {
 	registry := protocol.NewDefaultRegistry()
 
-	adapter, err := registry.Get(protocol.ProtocolOpenAIChatCompletions, protocol.VariantDefault)
+	// 一协议一实现：openai_chat_completions 一个适配器覆盖默认 / azure / ollama 三个变体。
+	for _, variant := range []string{protocol.VariantDefault, protocol.VariantAzure, protocol.VariantOllama} {
+		adapter, err := registry.NewAdapter(protocol.ProtocolOpenAIChatCompletions, variant)
+		require.NoError(t, err, "openai_chat_completions/%q 应由同一协议适配器承载", variant)
+		assert.Equal(t, protocol.ProtocolOpenAIChatCompletions, adapter.Name())
+		assert.True(t, registry.Supports(protocol.ProtocolOpenAIChatCompletions, variant))
+	}
+
+	// anthropic_messages 一个适配器覆盖官方 / minimax 两个变体（minimax 口径构造期固化）。
+	for _, variant := range []string{protocol.VariantDefault, protocol.VariantMiniMax} {
+		adapter, err := registry.NewAdapter(protocol.ProtocolAnthropicMessages, variant)
+		require.NoError(t, err, "anthropic_messages/%q 应由同一协议适配器承载", variant)
+		assert.Equal(t, protocol.ProtocolAnthropicMessages, adapter.Name())
+	}
+
+	// 变体不在该协议的支持范围（anthropic 不接受 azure）与未适配协议（responses / gemini）未命中，
+	// service 层据此回退旧分支或映射 AI_PROTOCOL_NOT_IMPLEMENTED(422)。
+	_, err := registry.NewAdapter(protocol.ProtocolAnthropicMessages, protocol.VariantAzure)
+	assert.ErrorIs(t, err, protocol.ErrAdapterNotFound)
+	_, err = registry.NewAdapter(protocol.ProtocolOpenAIChatCompletions, "bogus")
+	assert.ErrorIs(t, err, protocol.ErrAdapterNotFound)
+	_, err = registry.NewAdapter(protocol.ProtocolOpenAIResponses, protocol.VariantDefault)
+	assert.ErrorIs(t, err, protocol.ErrAdapterNotFound)
+	_, err = registry.NewAdapter(protocol.ProtocolGoogleGemini, protocol.VariantDefault)
+	assert.ErrorIs(t, err, protocol.ErrAdapterNotFound)
+	assert.False(t, registry.Supports(protocol.ProtocolOpenAIResponses, protocol.VariantDefault))
+
+	// 显式注册新协议后精确命中，且大小写/空白不敏感。
+	registry.Register("  My_Protocol  ", protocol.AdapterSpec{
+		Variants: []string{protocol.VariantDefault, protocol.VariantAzure},
+		New:      func(string) protocol.ProtocolAdapter { return protocol.NewOpenAIChatAdapter() },
+	})
+	adapter, err := registry.NewAdapter(" my_protocol ", " Azure ")
 	require.NoError(t, err)
 	assert.Equal(t, protocol.ProtocolOpenAIChatCompletions, adapter.Name())
+	assert.True(t, registry.Supports("MY_PROTOCOL", protocol.VariantDefault))
+	assert.False(t, registry.Supports("my_protocol", protocol.VariantOllama))
+}
 
-	// BE-9 + PA-1 已适配：openai 默认变体、anthropic 默认/minimax 变体；
-	// azure/ollama 变体与 openai_responses / google_gemini 未命中，
-	// service 层据此回退旧分支或映射 AI_PROTOCOL_NOT_IMPLEMENTED(422)。
-	anthropic, err := registry.Get(protocol.ProtocolAnthropicMessages, protocol.VariantDefault)
-	require.NoError(t, err)
-	assert.Equal(t, protocol.ProtocolAnthropicMessages, anthropic.Name())
-	miniMax, err := registry.Get(protocol.ProtocolAnthropicMessages, protocol.VariantMiniMax)
-	require.NoError(t, err)
-	assert.Equal(t, protocol.ProtocolAnthropicMessages, miniMax.Name())
-
-	_, err = registry.Get(protocol.ProtocolOpenAIChatCompletions, protocol.VariantAzure)
-	assert.ErrorIs(t, err, protocol.ErrAdapterNotFound)
-	_, err = registry.Get(protocol.ProtocolOpenAIChatCompletions, protocol.VariantOllama)
-	assert.ErrorIs(t, err, protocol.ErrAdapterNotFound)
-	_, err = registry.Get(protocol.ProtocolOpenAIResponses, protocol.VariantDefault)
-	assert.ErrorIs(t, err, protocol.ErrAdapterNotFound)
-	_, err = registry.Get(protocol.ProtocolGoogleGemini, protocol.VariantDefault)
-	assert.ErrorIs(t, err, protocol.ErrAdapterNotFound)
-
-	// 显式注册后精确命中，且大小写/空白不敏感
-	registry.Register(protocol.ProtocolOpenAIChatCompletions, protocol.VariantAzure, adapter)
-	_, err = registry.Get(" OpenAI_Chat_Completions ", " Azure ")
-	require.NoError(t, err)
+// TestOpenAIChatDefaultEndpointByVariant 锁定 openai_chat_completions 的变体默认地址：
+// ollama 登记本机地址（旧 LocalProvider 同值）；默认 / azure 不登记，由 service 回退
+// OpenAI 兼容默认地址（旧 AzureProvider 未配置 endpoint 时同样是 go-openai 默认地址）。
+func TestOpenAIChatDefaultEndpointByVariant(t *testing.T) {
+	assert.Equal(t, "http://localhost:11434",
+		protocol.DefaultEndpoint(protocol.ProtocolOpenAIChatCompletions, protocol.VariantOllama))
+	assert.Empty(t, protocol.DefaultEndpoint(protocol.ProtocolOpenAIChatCompletions, protocol.VariantDefault))
+	assert.Empty(t, protocol.DefaultEndpoint(protocol.ProtocolOpenAIChatCompletions, protocol.VariantAzure))
 }
 
 func headerValue(headers map[string]string, key string) string {

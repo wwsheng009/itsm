@@ -185,15 +185,15 @@ func TestNewProviderFromConfigSwitchOffKeepsLegacyProviders(t *testing.T) {
 	}
 }
 
-func TestNewProviderFromConfigSwitchOnFallsBackForUnaadaptedProviders(t *testing.T) {
+func TestNewProviderFromConfigSwitchOnUsesAdapterForOpenAIVariants(t *testing.T) {
 	stub := newProtocolStub(t)
 	cases := []struct {
 		provider string
 		want     any
 	}{
-		{"azure", &AzureProvider{}}, // azure 变体尚未适配
-		{"local", &LocalProvider{}}, // ollama 变体尚未适配
-		{"unknown-vendor", &OpenAIProvider{}},
+		{"azure", &protocolProvider{}},        // openai_chat_completions/azure：与默认变体同一适配器
+		{"local", &protocolProvider{}},        // openai_chat_completions/ollama：同上（OpenAI 兼容端点）
+		{"unknown-vendor", &OpenAIProvider{}}, // 未识别 provider 保持既有兜底
 	}
 	for _, tc := range cases {
 		t.Run("on/"+tc.provider, func(t *testing.T) {
@@ -204,7 +204,7 @@ func TestNewProviderFromConfigSwitchOnFallsBackForUnaadaptedProviders(t *testing
 				Endpoint:               stub.server.URL + "/v1",
 				ProtocolAdapterEnabled: true,
 			})
-			assert.IsType(t, tc.want, got, "未注册变体回退既有分支")
+			assert.IsType(t, tc.want, got, "一协议一实现：已注册协议走适配器，未识别 provider 回退既有兜底")
 		})
 	}
 }
@@ -373,13 +373,15 @@ func TestNewProtocolProviderUnregisteredReturnsSentinel(t *testing.T) {
 	assert.ErrorIs(t, err, ErrProtocolNotImplemented)
 	assert.ErrorIs(t, err, protocol.ErrAdapterNotFound)
 
-	// P0 边界：azure 变体尚未适配，同样落到 422 哨兵（DB 实例路径由 BE-4/BE-8 映射）。
+	// PA-2 收敛后 azure / ollama 已由 openai_chat_completions 适配器承载（不再是 422）；
+	// 不在适配器支持范围内的变体仍落到 422 哨兵（DB 实例路径由 BE-4/BE-8 映射）。
 	_, err = NewProtocolProvider(ProtocolProviderOptions{
 		Protocol: protocol.ProtocolOpenAIChatCompletions,
-		Variant:  protocol.VariantAzure,
+		Variant:  "unknown-variant",
 	})
 	require.Error(t, err)
 	assert.ErrorIs(t, err, ErrProtocolNotImplemented)
+	assert.ErrorIs(t, err, protocol.ErrAdapterNotFound)
 }
 
 func TestResolveProtocolURL(t *testing.T) {
@@ -1017,6 +1019,11 @@ func TestLLMProviderRegistryProtocolVariantMapping(t *testing.T) {
 		Deployment: "gpt4o-deploy", APIKey: "sk-azure-abcdefgh-1234", Enabled: true,
 	})
 	createLLMRegistryTestInstance(t, client, encrypter, llmRegistryTestInstance{
+		TenantID: tenantID, Name: "azure-deployment-fallback", Protocol: protocol.ProtocolOpenAIChatCompletions,
+		Variant: protocol.VariantAzure, Endpoint: "https://example.openai.azure.com/",
+		Deployment: "gpt4o-deploy", APIKey: "sk-azure-abcdefgh-1234", Enabled: true,
+	})
+	createLLMRegistryTestInstance(t, client, encrypter, llmRegistryTestInstance{
 		TenantID: tenantID, Name: "ollama-instance", Protocol: protocol.ProtocolOpenAIChatCompletions,
 		Variant: protocol.VariantOllama, Model: "llama3.1", Endpoint: "http://127.0.0.1:11434",
 		APIKey: "ollama-local-placeholder", Enabled: true,
@@ -1051,8 +1058,11 @@ func TestLLMProviderRegistryProtocolVariantMapping(t *testing.T) {
 		wantTools bool
 		wantErr   error
 	}{
-		{key: "azure-instance", want: &AzureProvider{}},
-		{key: "ollama-instance", want: &LocalProvider{}},
+		// 一协议一实现（PA-2 收敛）：openai_chat_completions 的 azure / ollama 变体与默认变体
+		// 共用同一适配器（变体差异在 endpoint / model 归一上），能力位按真实实现探测。
+		{key: "azure-instance", want: &protocolProvider{}, wantTools: true},
+		{key: "azure-deployment-fallback", want: &protocolProvider{}, wantTools: true},
+		{key: "ollama-instance", want: &protocolProvider{}, wantTools: true},
 		// PA-1 承载切换：anthropic_messages 两变体由协议适配器承载（不再映射旧 MiniMaxProvider 分支），
 		// 能力位按真实实现探测（适配器实现 ToolCallingStreamProvider，属登记的能力增益）。
 		{key: "minimax-instance", want: &protocolProvider{}, wantTools: true},
@@ -1073,9 +1083,14 @@ func TestLLMProviderRegistryProtocolVariantMapping(t *testing.T) {
 			require.NoError(t, err)
 			assert.Equal(t, ProviderSourceRequest, source)
 			assert.IsType(t, testCase.want, slot.Provider)
-			assert.Equal(t, testCase.wantTools, slot.SupportsTools, "能力位按真实实现探测（azure / ollama 旧分支仍为 false）")
+			assert.Equal(t, testCase.wantTools, slot.SupportsTools, "能力位按真实实现探测（聚合 provider 的实现能力）")
 		})
 	}
+
+	// azure 变体 model 缺省时回退 deployment（旧 AzureProvider `actualModel := deploymentID` 口径）。
+	azureSlot, _, err := registry.Resolve(ctx, tenantID, "azure-deployment-fallback")
+	require.NoError(t, err)
+	assert.Equal(t, "gpt4o-deploy", azureSlot.Provider.(*protocolProvider).model)
 
 	// 协议名归一化：库中大写/带空白也能命中同一槽位并落库为小写枚举。
 	createLLMRegistryTestInstance(t, client, encrypter, llmRegistryTestInstance{
