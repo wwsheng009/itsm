@@ -62,7 +62,7 @@ PUT    /api/v1/ai/user-preference               # 设置/清除我的默认（�
 { "type": "done", "conversationId": 42, "provider": "deepseek-prod", "providerSource": "request" }
 ```
 
-解析优先级：显式 `provider` → 个人默认 → 租户默认 → `config.yaml` 静态配置（`providerSource` 依次为 `request` / `user` / `tenant` / `static`）。错误码：`AI_PROVIDER_FORBIDDEN`(403)、`AI_PROVIDER_NOT_FOUND`(404)、`AI_PROVIDER_DISABLED`(409)、`AI_PROVIDER_KEY_MISSING`(422)、`AI_PROVIDER_UNAVAILABLE`(503)、`AI_PROVIDER_IS_DEFAULT`(409)、`AI_PROTOCOL_NOT_IMPLEMENTED`(422，`openai_responses` / `google_gemini` 预留)。协议按 4 种 API 形态建模，P0 可用 `openai_chat_completions`（含 `azure` / `ollama` 变体）与 `anthropic_messages`（`minimax` 变体）。
+解析优先级：显式 `provider` → 个人默认 → 租户默认 → `config.yaml` 静态配置（`providerSource` 依次为 `request` / `user` / `tenant` / `static`）。错误码：`AI_PROVIDER_FORBIDDEN`(403)、`AI_PROVIDER_NOT_FOUND`(404)、`AI_PROVIDER_DISABLED`(409)、`AI_PROVIDER_KEY_MISSING`(422)、`AI_PROVIDER_UNAVAILABLE`(503)、`AI_PROVIDER_IS_DEFAULT`(409)、`AI_PROTOCOL_NOT_IMPLEMENTED`(422，当前仅剩协议枚举外 / 变体白名单外组合)。协议按 4 种 API 形态建模：`openai_chat_completions`（含 `azure` / `ollama` 变体）、`anthropic_messages`（含 `minimax` 变体）、`openai_responses`、`google_gemini` 均已适配器化（PA-1..PA-4）。
 
 ## 通用响应格式
 
