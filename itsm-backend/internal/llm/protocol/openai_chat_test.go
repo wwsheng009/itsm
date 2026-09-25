@@ -217,22 +217,28 @@ func TestNewHTTPError(t *testing.T) {
 	assert.Equal(t, http.StatusUnauthorized, unauthorized.StatusCode)
 }
 
-func TestDefaultRegistryP0Scope(t *testing.T) {
+func TestDefaultRegistryScope(t *testing.T) {
 	registry := protocol.NewDefaultRegistry()
 
 	adapter, err := registry.Get(protocol.ProtocolOpenAIChatCompletions, protocol.VariantDefault)
 	require.NoError(t, err)
 	assert.Equal(t, protocol.ProtocolOpenAIChatCompletions, adapter.Name())
 
-	// P0 只有默认变体由适配器承载：azure/ollama 变体与其余 3 协议未命中，
+	// BE-9 + PA-1 已适配：openai 默认变体、anthropic 默认/minimax 变体；
+	// azure/ollama 变体与 openai_responses / google_gemini 未命中，
 	// service 层据此回退旧分支或映射 AI_PROTOCOL_NOT_IMPLEMENTED(422)。
+	anthropic, err := registry.Get(protocol.ProtocolAnthropicMessages, protocol.VariantDefault)
+	require.NoError(t, err)
+	assert.Equal(t, protocol.ProtocolAnthropicMessages, anthropic.Name())
+	miniMax, err := registry.Get(protocol.ProtocolAnthropicMessages, protocol.VariantMiniMax)
+	require.NoError(t, err)
+	assert.Equal(t, protocol.ProtocolAnthropicMessages, miniMax.Name())
+
 	_, err = registry.Get(protocol.ProtocolOpenAIChatCompletions, protocol.VariantAzure)
 	assert.ErrorIs(t, err, protocol.ErrAdapterNotFound)
 	_, err = registry.Get(protocol.ProtocolOpenAIChatCompletions, protocol.VariantOllama)
 	assert.ErrorIs(t, err, protocol.ErrAdapterNotFound)
 	_, err = registry.Get(protocol.ProtocolOpenAIResponses, protocol.VariantDefault)
-	assert.ErrorIs(t, err, protocol.ErrAdapterNotFound)
-	_, err = registry.Get(protocol.ProtocolAnthropicMessages, protocol.VariantMiniMax)
 	assert.ErrorIs(t, err, protocol.ErrAdapterNotFound)
 	_, err = registry.Get(protocol.ProtocolGoogleGemini, protocol.VariantDefault)
 	assert.ErrorIs(t, err, protocol.ErrAdapterNotFound)
