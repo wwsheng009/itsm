@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"time"
 
 	"go.uber.org/zap"
 )
@@ -34,6 +35,21 @@ func (r *aiTelemetryRepository) ObserveLLMCall(ctx context.Context, provider, mo
 	`
 	if _, err := r.db.ExecContext(ctx, query, provider, model, tokens, latencyMs, success); err != nil {
 		return fmt.Errorf("observe llm call: %w", err)
+	}
+	return nil
+}
+
+// ObserveLLMCallWithProviderKey 同 ObserveLLMCall，并写入生效的 DB 实例 key
+// （BE-6，§3.7）：providerKey 为空串时写 NULL（静态回退/旧路径语义不变）。
+//
+// 单条 SQL 保持一条记录一次插入，与既有计数/延迟口径一一对应。
+func (r *aiTelemetryRepository) ObserveLLMCallWithProviderKey(ctx context.Context, providerKey, provider, model string, tokens int, latencyMs int64, success bool) error {
+	const query = `
+		INSERT INTO ai_llm_calls (provider, model, tokens, latency_ms, success, provider_key)
+		VALUES ($1, $2, $3, $4, $5, NULLIF($6, ''))
+	`
+	if _, err := r.db.ExecContext(ctx, query, provider, model, tokens, latencyMs, success, providerKey); err != nil {
+		return fmt.Errorf("observe llm call with provider key: %w", err)
 	}
 	return nil
 }
@@ -131,6 +147,66 @@ func (r *aiTelemetryRepository) AggregateLLMLatency(ctx context.Context, lookbac
 		return nil, fmt.Errorf("aggregate llm latency: %w", err)
 	}
 	return agg, nil
+}
+
+// LLMProviderStat 是按生效实例（provider_key）聚合的 LLM 调用统计（BE-6 §3.6）。
+//
+// provider_key IS NULL（静态回退与开关关闭期的历史数据）归入空 key 桶并置
+// StaticFallback=true——不伪造 key，便于前端/运营区分「静态回退」与「某个实例」。
+//
+// JSON tag 全 camelCase：与 AIMetrics 既有契约（P1-4 UAT 修复）一致，前端 TS 类型直接对齐。
+type LLMProviderStat struct {
+	ProviderKey       string  `json:"providerKey"`
+	Provider          string  `json:"provider"`
+	StaticFallback    bool    `json:"staticFallback"`
+	CallCount         int     `json:"callCount"`
+	SuccessCount      int     `json:"successCount"`
+	SuccessRate       float64 `json:"successRate"`
+	AvgLatencySeconds float64 `json:"avgLatencySeconds"`
+	TotalTokens       int64   `json:"totalTokens"`
+}
+
+// AggregateLLMByProvider 按 provider_key 分组聚合调用数/成功数/平均延迟/令牌数（BE-6 §3.6）。
+//
+// 时间边界由 Go 计算后以参数传入（与 ai_evaluator.go 同策略：SQL 不依赖 NOW()/INTERVAL，
+// 保证 sqlite 单测可用），窗口口径与 AggregateLLMLatency 的 lookbackDays 一一对应。
+func (r *aiTelemetryRepository) AggregateLLMByProvider(ctx context.Context, lookbackDays int) ([]LLMProviderStat, error) {
+	since := time.Now().AddDate(0, 0, -lookbackDays)
+	const query = `
+		SELECT COALESCE(provider_key, ''), COALESCE(MIN(provider), ''), COUNT(*),
+		       COUNT(CASE WHEN success THEN 1 END),
+		       COALESCE(AVG(latency_ms * 1.0) / 1000.0, 0),
+		       COALESCE(SUM(tokens), 0)
+		FROM ai_llm_calls
+		WHERE created_at >= $1
+		GROUP BY 1
+		ORDER BY COUNT(*) DESC, 1
+	`
+	rows, err := r.db.QueryContext(ctx, query, since)
+	if err != nil {
+		return nil, fmt.Errorf("aggregate llm by provider: %w", err)
+	}
+	defer rows.Close()
+
+	stats := make([]LLMProviderStat, 0, 4)
+	for rows.Next() {
+		var stat LLMProviderStat
+		if scanErr := rows.Scan(
+			&stat.ProviderKey, &stat.Provider, &stat.CallCount, &stat.SuccessCount,
+			&stat.AvgLatencySeconds, &stat.TotalTokens,
+		); scanErr != nil {
+			return nil, fmt.Errorf("scan llm by provider: %w", scanErr)
+		}
+		stat.StaticFallback = stat.ProviderKey == ""
+		if stat.CallCount > 0 {
+			stat.SuccessRate = float64(stat.SuccessCount) / float64(stat.CallCount)
+		}
+		stats = append(stats, stat)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterate llm by provider: %w", err)
+	}
+	return stats, nil
 }
 
 func nullableInt(p *int) interface{} {

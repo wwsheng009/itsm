@@ -71,9 +71,20 @@ func NewLLMObserver(db *sql.DB, logger *zap.SugaredLogger) *LLMObserver {
 }
 
 func (o *LLMObserver) Observe(provider string, model string, tokens int, latency time.Duration, err error) {
+	o.ObserveWithProviderKey("", provider, model, tokens, latency, err)
+}
+
+// ObserveWithProviderKey 实现 service.ProviderKeyObserver（BE-6，主计划 §3.7）：
+// 除既有字段外把生效的 DB 实例 key 写入 ai_llm_calls.provider_key；
+// 静态回退/旧路径传空串 → 落 NULL（历史口径不变，QA-3 回归门禁）。
+//
+// 该方法为增量扩展：Observer 接口本身未改签名，未实现本方法的既有实现（NoopObserver/
+// MockObserver/第三方桩）继续走 Observe，零破坏。
+func (o *LLMObserver) ObserveWithProviderKey(providerKey, provider, model string, tokens int, latency time.Duration, err error) {
 	success := err == nil
-	if obsErr := o.repo.ObserveLLMCall(context.Background(), provider, model, tokens, latency.Milliseconds(), success); obsErr != nil {
-		safeLog(o.logger, "failed to record LLM call metric", "error", obsErr, "provider", provider)
+	if obsErr := o.repo.ObserveLLMCallWithProviderKey(context.Background(), providerKey, provider, model, tokens, latency.Milliseconds(), success); obsErr != nil {
+		safeLog(o.logger, "failed to record LLM call metric",
+			"error", obsErr, "provider", provider, "providerKey", providerKey)
 	}
 }
 
@@ -96,6 +107,9 @@ type AIMetrics struct {
 	AvgResponseTimeSeconds float64                `json:"avgResponseTimeSeconds"`
 	LLMCallCount           int                    `json:"llmCallCount"`
 	ResponseTimeAvailable  bool                   `json:"responseTimeAvailable"`
+	// ByProvider 按生效实例聚合的 LLM 调用统计（BE-6 §3.6）。灰度开关关闭时为 nil，
+	// omitempty 保证响应与开关引入前逐字节一致（QA-3 回归门禁）。
+	ByProvider []LLMProviderStat `json:"byProvider,omitempty"`
 }
 
 // GetMetrics retrieves AI usage metrics for a tenant.
@@ -139,6 +153,16 @@ func (s *AITelemetryService) GetMetrics(ctx context.Context, tenantID int, lookb
 	out.AvgResponseTimeSeconds = latencyAgg.AvgLatencySeconds
 	out.LLMCallCount = latencyAgg.CallCount
 	out.ResponseTimeAvailable = latencyAgg.CallCount > 0
+
+	// BE-6 §3.6：多 Provider 开启时才聚合 byProvider 维度；开关关闭时零查询、零字段，
+	// 既有指标响应保持不变。开启路径下聚合失败按错误返回（可见地失败，不静默丢维度）。
+	if MultiProviderEnabled() {
+		byProvider, byProviderErr := s.repo.AggregateLLMByProvider(ctx, lookbackDays)
+		if byProviderErr != nil {
+			return nil, byProviderErr
+		}
+		out.ByProvider = byProvider
+	}
 
 	return out, nil
 }

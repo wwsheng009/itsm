@@ -569,17 +569,21 @@ type ProviderConfig struct {
 	Endpoint   string
 	Deployment string
 	TokenCap   int
+	// ProtocolAdapterEnabled 部署级开关（默认 false）：开启后 openai 走协议适配器路径，
+	// 其余 provider / 未注册变体仍回退既有分支（BE-9，见 llm_registry.go）。
+	ProtocolAdapterEnabled bool
 }
 
 // LoadLLMConfig loads LLM configuration from viper
 func LoadLLMConfig() ProviderConfig {
 	return ProviderConfig{
-		Provider:   viper.GetString("llm.provider"),
-		Model:      viper.GetString("llm.model"),
-		APIKey:     viper.GetString("llm.api_key"),
-		Endpoint:   viper.GetString("llm.endpoint"),
-		Deployment: viper.GetString("llm.deployment"),
-		TokenCap:   viper.GetInt("llm.token_cap"),
+		Provider:               viper.GetString("llm.provider"),
+		Model:                  viper.GetString("llm.model"),
+		APIKey:                 viper.GetString("llm.api_key"),
+		Endpoint:               viper.GetString("llm.endpoint"),
+		Deployment:             viper.GetString("llm.deployment"),
+		TokenCap:               viper.GetInt("llm.token_cap"),
+		ProtocolAdapterEnabled: protocolAdapterEnabled(),
 	}
 }
 
@@ -595,6 +599,12 @@ func NewProviderFromConfig(cfg ProviderConfig) LLMProvider {
 	}
 	if envKey := os.Getenv("MINIMAX_API_KEY"); envKey != "" && apiKey == "" {
 		apiKey = envKey
+	}
+
+	// BE-9 接线：开关开启且 (协议, 变体) 已注册时优先走协议适配器；
+	// 否则（默认关 / 变体未适配）继续下面的既有分支，行为零变化。
+	if adapterProvider := newProtocolProviderFromConfig(cfg, apiKey); adapterProvider != nil {
+		return adapterProvider
 	}
 
 	switch cfg.Provider {

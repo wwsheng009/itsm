@@ -9,6 +9,8 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"itsm-backend/common/tenantctx"
 )
 
 // ==================== Mock 实现 ====================
@@ -67,22 +69,30 @@ type MockObserver struct {
 }
 
 type Observation struct {
-	Provider string
-	Model    string
-	Tokens   int
-	Latency  time.Duration
-	Err      error
+	ProviderKey string
+	Provider    string
+	Model       string
+	Tokens      int
+	Latency     time.Duration
+	Err         error
 }
 
 func (m *MockObserver) Observe(provider string, model string, tokens int, latency time.Duration, err error) {
+	m.ObserveWithProviderKey("", provider, model, tokens, latency, err)
+}
+
+// ObserveWithProviderKey 实现 ProviderKeyObserver（BE-6 主计划 §3.7）：记录生效的 DB 实例 key。
+// 旧签名 Observe 等价于 providerKey="" —— 静态回退/旧路径落 NULL 的同一口径。
+func (m *MockObserver) ObserveWithProviderKey(providerKey, provider, model string, tokens int, latency time.Duration, err error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	m.Records = append(m.Records, Observation{
-		Provider: provider,
-		Model:    model,
-		Tokens:   tokens,
-		Latency:  latency,
-		Err:      err,
+		ProviderKey: providerKey,
+		Provider:    provider,
+		Model:       model,
+		Tokens:      tokens,
+		Latency:     latency,
+		Err:         err,
 	})
 }
 
@@ -670,5 +680,426 @@ func TestLLMGateway_ChatStreamWithTools_GateAndObserve(t *testing.T) {
 		require.NoError(t, err)
 		require.Len(t, observer.Records, 1, "工具调用路径必须进 ai_llm_calls 观测")
 		assert.Equal(t, "openai", observer.Records[0].Provider)
+	})
+}
+
+// ==================== BE-3 多 Provider 覆盖解析（主计划 §3.2 / §3.3）====================
+
+// stubProviderResolver 实现 ProviderResolver + UserDefaultResolver，记录调用参数供断言。
+type stubProviderResolver struct {
+	mu sync.Mutex
+
+	slot   ProviderSlot
+	source string
+	err    error
+
+	calls        int
+	lastTenantID int
+	lastOverride string
+
+	userSlot   ProviderSlot
+	userSource string
+	userErr    error
+
+	userCalls      int
+	lastUserTenant int
+	lastUserID     int
+}
+
+func (s *stubProviderResolver) Resolve(_ context.Context, tenantID int, override string) (ProviderSlot, string, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.calls++
+	s.lastTenantID = tenantID
+	s.lastOverride = override
+	if s.err != nil {
+		return ProviderSlot{}, "", s.err
+	}
+	return s.slot, s.source, nil
+}
+
+func (s *stubProviderResolver) ResolveUserDefault(_ context.Context, tenantID, userID int) (ProviderSlot, string, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.userCalls++
+	s.lastUserTenant = tenantID
+	s.lastUserID = userID
+	if s.userErr != nil {
+		return ProviderSlot{}, "", s.userErr
+	}
+	if s.userSlot.Provider == nil {
+		return ProviderSlot{}, "", ErrProviderNotFound
+	}
+	return s.userSlot, s.userSource, nil
+}
+
+func (s *stubProviderResolver) resolveCalls() int {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.calls
+}
+
+func (s *stubProviderResolver) resolveTenantID() int {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.lastTenantID
+}
+
+func (s *stubProviderResolver) resolveOverride() string {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.lastOverride
+}
+
+func (s *stubProviderResolver) userResolveCalls() int {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.userCalls
+}
+
+func (s *stubProviderResolver) userResolveTenantID() int {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.lastUserTenant
+}
+
+func (s *stubProviderResolver) userResolveUserID() int {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.lastUserID
+}
+
+// streamingMockProvider 实现 Chat + ChatStream（OpenAI/协议适配器类 provider 的最小替身）。
+type streamingMockProvider struct {
+	MockLLMProvider
+	chunks []string
+}
+
+func (p *streamingMockProvider) ChatStream(_ context.Context, _ string, _ []LLMMessage, callback func(string)) error {
+	for _, chunk := range p.chunks {
+		callback(chunk)
+	}
+	return nil
+}
+
+func TestLLMGateway_ChatWithProvider_ExplicitSelectionUsesResolvedProvider(t *testing.T) {
+	static := &MockLLMProvider{Response: "static-answer"}
+	resolved := &MockLLMProvider{Response: "resolved-answer"}
+	resolver := &stubProviderResolver{
+		slot:   ProviderSlot{Key: "deepseek-prod", Provider: resolved},
+		source: ProviderSourceRequest,
+	}
+	observer := &MockObserver{}
+	gateway := NewLLMGateway(static, &MockTokenLimiter{ShouldAllow: true}, observer, "openai").WithResolver(resolver)
+
+	out, resolution, err := gateway.ChatWithProviderInfo(
+		tenantctx.WithTenantID(context.Background(), 42), "deepseek-prod", "m",
+		[]LLMMessage{{Role: "user", Content: "hi"}})
+	require.NoError(t, err)
+	assert.Equal(t, "resolved-answer", out)
+	assert.Equal(t, "deepseek-prod", resolution.Key)
+	assert.Equal(t, ProviderSourceRequest, resolution.Source)
+	assert.Equal(t, 0, static.Calls(), "显式选择命中时不得触碰静态 provider")
+	assert.Equal(t, 1, resolved.Calls())
+	assert.Equal(t, 1, resolver.resolveCalls())
+	assert.Equal(t, 42, resolver.resolveTenantID(), "租户维度必须来自 ctx（tenantctx）")
+	assert.Equal(t, "deepseek-prod", resolver.resolveOverride())
+	require.Len(t, observer.Records, 1)
+	assert.Equal(t, "deepseek-prod", observer.Records[0].ProviderKey, "观测必须记录生效 provider key")
+}
+
+func TestLLMGateway_ChatWithProvider_ExplicitSelectionNeverFallsBack(t *testing.T) {
+	cases := []struct {
+		name string
+		err  error
+	}{
+		{"not found", ErrProviderNotFound},
+		{"disabled", ErrProviderDisabled},
+		{"key missing", ErrProviderKeyMissing},
+		{"unavailable", ErrProviderUnavailable},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			static := &MockLLMProvider{Response: "static-answer"}
+			resolver := &stubProviderResolver{err: tc.err}
+			gateway := NewLLMGateway(static, &MockTokenLimiter{ShouldAllow: true}, &MockObserver{}, "openai").WithResolver(resolver)
+
+			out, resolution, err := gateway.ChatWithProviderInfo(
+				context.Background(), "missing-key", "m", []LLMMessage{{Role: "user", Content: "hi"}})
+			require.ErrorIs(t, err, tc.err)
+			assert.Empty(t, out)
+			assert.Equal(t, ProviderSourceRequest, resolution.Source)
+			assert.Equal(t, "missing-key", resolution.Key)
+			assert.Equal(t, 0, static.Calls(), "显式选择失败必须可见地失败，不得回退静态配置")
+		})
+	}
+}
+
+func TestLLMGateway_ChatWithProvider_NoResolverFailsClosedForExplicitKey(t *testing.T) {
+	static := &MockLLMProvider{Response: "static-answer"}
+	gateway := NewLLMGateway(static, nil, nil, "openai")
+
+	_, resolution, err := gateway.ChatWithProviderInfo(
+		context.Background(), "deepseek-prod", "m", []LLMMessage{{Role: "user", Content: "hi"}})
+	require.ErrorIs(t, err, ErrProviderUnavailable)
+	assert.Equal(t, 0, static.Calls(), "未启用多 Provider 的部署不得静默忽略显式选择")
+	assert.Equal(t, ProviderSourceRequest, resolution.Source)
+	assert.Equal(t, "deepseek-prod", resolution.Key)
+}
+
+func TestLLMGateway_ChatWithProvider_EmptyOverrideChain(t *testing.T) {
+	t.Run("tenant default wins over static", func(t *testing.T) {
+		static := &MockLLMProvider{Response: "static-answer"}
+		tenantProvider := &MockLLMProvider{Response: "tenant-answer"}
+		resolver := &stubProviderResolver{
+			slot:   ProviderSlot{Key: "tenant-default", Provider: tenantProvider},
+			source: ProviderSourceTenant,
+		}
+		gateway := NewLLMGateway(static, nil, nil, "openai").WithResolver(resolver)
+
+		out, resolution, err := gateway.ChatWithProviderInfo(
+			context.Background(), "", "m", []LLMMessage{{Role: "user", Content: "hi"}})
+		require.NoError(t, err)
+		assert.Equal(t, "tenant-answer", out)
+		assert.Equal(t, ProviderSourceTenant, resolution.Source)
+		assert.Equal(t, "tenant-default", resolution.Key)
+		assert.Equal(t, 0, static.Calls())
+		assert.Equal(t, "", resolver.resolveOverride())
+	})
+
+	t.Run("resolution miss falls back to static provider", func(t *testing.T) {
+		static := &MockLLMProvider{Response: "static-answer"}
+		resolver := &stubProviderResolver{err: ErrProviderNotFound}
+		gateway := NewLLMGateway(static, nil, nil, "minimax").WithResolver(resolver)
+
+		out, resolution, err := gateway.ChatWithProviderInfo(
+			context.Background(), "", "m", []LLMMessage{{Role: "user", Content: "hi"}})
+		require.NoError(t, err)
+		assert.Equal(t, "static-answer", out)
+		assert.Equal(t, ProviderSourceStatic, resolution.Source)
+		assert.Equal(t, "minimax", resolution.Key)
+		assert.Equal(t, 1, static.Calls())
+	})
+
+	t.Run("no resolver keeps legacy behaviour", func(t *testing.T) {
+		static := &MockLLMProvider{Response: "static-answer"}
+		gateway := NewLLMGateway(static, nil, nil, "openai")
+
+		out, err := gateway.ChatWithProvider(context.Background(), "", "m", []LLMMessage{{Role: "user", Content: "hi"}})
+		require.NoError(t, err)
+		assert.Equal(t, "static-answer", out)
+		assert.Equal(t, 1, static.Calls())
+
+		legacy, err := gateway.Chat(context.Background(), "m", []LLMMessage{{Role: "user", Content: "hi"}})
+		require.NoError(t, err)
+		assert.Equal(t, legacy, out, "无解析器时新路径必须与旧 Chat 等价")
+	})
+}
+
+func TestLLMGateway_ChatWithProvider_UserDefaultChain(t *testing.T) {
+	t.Run("user default wins and is labelled user", func(t *testing.T) {
+		static := &MockLLMProvider{Response: "static-answer"}
+		userProvider := &MockLLMProvider{Response: "user-answer"}
+		tenantProvider := &MockLLMProvider{Response: "tenant-answer"}
+		resolver := &stubProviderResolver{
+			slot:       ProviderSlot{Key: "tenant-default", Provider: tenantProvider},
+			source:     ProviderSourceTenant,
+			userSlot:   ProviderSlot{Key: "user-pick", Provider: userProvider},
+			userSource: ProviderSourceUser,
+		}
+		gateway := NewLLMGateway(static, nil, nil, "openai").WithResolver(resolver)
+
+		out, resolution, err := gateway.ChatWithRequest(
+			tenantctx.WithTenantID(context.Background(), 9),
+			ProviderRequest{UserID: 77}, "m", []LLMMessage{{Role: "user", Content: "hi"}})
+		require.NoError(t, err)
+		assert.Equal(t, "user-answer", out)
+		assert.Equal(t, ProviderSourceUser, resolution.Source)
+		assert.Equal(t, "user-pick", resolution.Key)
+		assert.Equal(t, 0, resolver.resolveCalls(), "个人默认命中时无需再查租户默认")
+		assert.Equal(t, 1, resolver.userResolveCalls())
+		assert.Equal(t, 77, resolver.userResolveUserID())
+		assert.Equal(t, 9, resolver.userResolveTenantID())
+		assert.Equal(t, 0, static.Calls())
+	})
+
+	t.Run("stale user default degrades to tenant default", func(t *testing.T) {
+		tenantProvider := &MockLLMProvider{Response: "tenant-answer"}
+		resolver := &stubProviderResolver{
+			slot:    ProviderSlot{Key: "tenant-default", Provider: tenantProvider},
+			source:  ProviderSourceTenant,
+			userErr: ErrProviderNotFound,
+		}
+		gateway := NewLLMGateway(&MockLLMProvider{Response: "static"}, nil, nil, "openai").WithResolver(resolver)
+
+		out, resolution, err := gateway.ChatWithRequest(
+			context.Background(), ProviderRequest{UserID: 5}, "m", []LLMMessage{{Role: "user", Content: "hi"}})
+		require.NoError(t, err)
+		assert.Equal(t, "tenant-answer", out)
+		assert.Equal(t, ProviderSourceTenant, resolution.Source, "降级必须标注 providerSource=tenant")
+		assert.Equal(t, 1, resolver.userResolveCalls())
+		assert.Equal(t, 1, resolver.resolveCalls())
+	})
+
+	t.Run("hard failure of user default is surfaced", func(t *testing.T) {
+		static := &MockLLMProvider{Response: "static"}
+		resolver := &stubProviderResolver{userErr: ErrProviderKeyMissing}
+		gateway := NewLLMGateway(static, nil, nil, "openai").WithResolver(resolver)
+
+		_, _, err := gateway.ChatWithRequest(
+			context.Background(), ProviderRequest{UserID: 5}, "m", []LLMMessage{{Role: "user", Content: "hi"}})
+		require.ErrorIs(t, err, ErrProviderKeyMissing)
+		assert.Equal(t, 0, resolver.resolveCalls())
+		assert.Equal(t, 0, static.Calls())
+	})
+
+	t.Run("userID<=0 skips user default lookup", func(t *testing.T) {
+		resolver := &stubProviderResolver{
+			slot:       ProviderSlot{Key: "tenant-default", Provider: &MockLLMProvider{Response: "tenant-answer"}},
+			source:     ProviderSourceTenant,
+			userSlot:   ProviderSlot{Key: "user-pick", Provider: &MockLLMProvider{Response: "user-answer"}},
+			userSource: ProviderSourceUser,
+		}
+		gateway := NewLLMGateway(&MockLLMProvider{Response: "static"}, nil, nil, "openai").WithResolver(resolver)
+
+		_, resolution, err := gateway.ChatWithRequest(
+			context.Background(), ProviderRequest{}, "m", []LLMMessage{{Role: "user", Content: "hi"}})
+		require.NoError(t, err)
+		assert.Equal(t, ProviderSourceTenant, resolution.Source)
+		assert.Equal(t, 0, resolver.userResolveCalls(), "工具路径/后台任务（userID=0）不得读个人默认")
+	})
+
+	t.Run("explicit tenant id wins over ctx", func(t *testing.T) {
+		resolver := &stubProviderResolver{
+			slot:   ProviderSlot{Key: "tenant-default", Provider: &MockLLMProvider{Response: "tenant-answer"}},
+			source: ProviderSourceTenant,
+		}
+		gateway := NewLLMGateway(&MockLLMProvider{Response: "static"}, nil, nil, "openai").WithResolver(resolver)
+
+		_, _, err := gateway.ChatWithRequest(
+			tenantctx.WithTenantID(context.Background(), 9),
+			ProviderRequest{TenantID: 123}, "m", []LLMMessage{{Role: "user", Content: "hi"}})
+		require.NoError(t, err)
+		assert.Equal(t, 123, resolver.resolveTenantID())
+	})
+}
+
+func TestLLMGateway_ChatWithProvider_RetriesWithinResolvedProvider(t *testing.T) {
+	static := &MockLLMProvider{Response: "static-answer"}
+	resolved := &flakyProvider{
+		failures:        1,
+		errToReturn:     errors.New("upstream status 503"),
+		MockLLMProvider: MockLLMProvider{Response: "ok after retry"},
+	}
+	resolver := &stubProviderResolver{
+		slot:   ProviderSlot{Key: "deepseek", Provider: resolved},
+		source: ProviderSourceRequest,
+	}
+	observer := &MockObserver{}
+	gateway := NewLLMGateway(static, nil, observer, "openai").WithResolver(resolver)
+
+	out, _, err := gateway.ChatWithProviderInfo(
+		context.Background(), "deepseek", "m", []LLMMessage{{Role: "user", Content: "hi"}})
+	require.NoError(t, err)
+	assert.Equal(t, "ok after retry", out)
+	assert.Equal(t, 2, resolved.calls(), "同 provider 内重试、不跨 provider")
+	assert.Equal(t, 0, static.Calls())
+	require.Len(t, observer.Records, 1, "重试中间态不 Observe")
+	assert.Equal(t, "deepseek", observer.Records[0].ProviderKey)
+}
+
+func TestLLMGateway_ChatStreamWithProvider_UsesResolvedProvider(t *testing.T) {
+	t.Run("streaming provider streams deltas", func(t *testing.T) {
+		static := &MockLLMProvider{Response: "static"}
+		streamer := &streamingMockProvider{chunks: []string{"he", "llo"}}
+		streamer.Response = "hello"
+		resolver := &stubProviderResolver{
+			slot:   ProviderSlot{Key: "deepseek", Provider: streamer},
+			source: ProviderSourceRequest,
+		}
+		observer := &MockObserver{}
+		gateway := NewLLMGateway(static, &MockTokenLimiter{ShouldAllow: true}, observer, "openai").WithResolver(resolver)
+
+		var got string
+		err := gateway.ChatStreamWithProvider(context.Background(), "deepseek", "m",
+			[]LLMMessage{{Role: "user", Content: "hi"}}, func(chunk string) { got += chunk })
+		require.NoError(t, err)
+		assert.Equal(t, "hello", got)
+		assert.Equal(t, 0, static.Calls())
+		require.Len(t, observer.Records, 1)
+		assert.Equal(t, "deepseek", observer.Records[0].ProviderKey)
+	})
+
+	t.Run("non-streaming provider degrades to single chunk", func(t *testing.T) {
+		plain := &MockLLMProvider{Response: "full answer"}
+		resolver := &stubProviderResolver{
+			slot:   ProviderSlot{Key: "plain", Provider: plain},
+			source: ProviderSourceTenant,
+		}
+		gateway := NewLLMGateway(&MockLLMProvider{Response: "static"}, nil, nil, "openai").WithResolver(resolver)
+
+		var chunks []string
+		resolution, err := gateway.ChatStreamWithProviderInfo(context.Background(), "", "m",
+			[]LLMMessage{{Role: "user", Content: "hi"}}, func(chunk string) { chunks = append(chunks, chunk) })
+		require.NoError(t, err)
+		assert.Equal(t, []string{"full answer"}, chunks, "与旧 ChatStream 相同的单块回退语义")
+		assert.Equal(t, ProviderSourceTenant, resolution.Source)
+	})
+
+	t.Run("rate limit blocks before touching provider", func(t *testing.T) {
+		streamer := &streamingMockProvider{chunks: []string{"never"}}
+		resolver := &stubProviderResolver{
+			slot:   ProviderSlot{Key: "deepseek", Provider: streamer},
+			source: ProviderSourceRequest,
+		}
+		observer := &MockObserver{}
+		gateway := NewLLMGateway(&MockLLMProvider{Response: "static"}, &MockTokenLimiter{ShouldAllow: false}, observer, "openai").WithResolver(resolver)
+
+		err := gateway.ChatStreamWithProvider(context.Background(), "deepseek", "m",
+			[]LLMMessage{{Role: "user", Content: "hi"}}, func(string) {})
+		require.ErrorIs(t, err, ErrRateLimited)
+		require.Len(t, observer.Records, 1)
+		assert.ErrorIs(t, observer.Records[0].Err, ErrRateLimited)
+		assert.Equal(t, "deepseek", observer.Records[0].ProviderKey)
+	})
+}
+
+func TestLLMGateway_SupportsToolCallingFor(t *testing.T) {
+	toolProvider := &toolCapableProvider{}
+	toolProvider.Response = "ok"
+
+	t.Run("resolved tool-capable provider", func(t *testing.T) {
+		resolver := &stubProviderResolver{
+			slot:   ProviderSlot{Key: "k", Provider: toolProvider},
+			source: ProviderSourceRequest,
+		}
+		gateway := NewLLMGateway(&MockLLMProvider{}, nil, nil, "openai").WithResolver(resolver)
+		assert.True(t, gateway.SupportsToolCallingFor(context.Background(), "k"))
+	})
+
+	t.Run("resolved plain provider returns false", func(t *testing.T) {
+		resolver := &stubProviderResolver{
+			slot:   ProviderSlot{Key: "k", Provider: &MockLLMProvider{}},
+			source: ProviderSourceRequest,
+		}
+		gateway := NewLLMGateway(&toolCapableProvider{}, nil, nil, "openai").WithResolver(resolver)
+		assert.False(t, gateway.SupportsToolCallingFor(context.Background(), "k"),
+			"必须按生效 provider 的真实实现探测，而非静态 provider")
+	})
+
+	t.Run("resolution failure returns false without panic", func(t *testing.T) {
+		resolver := &stubProviderResolver{err: ErrProviderNotFound}
+		gateway := NewLLMGateway(&toolCapableProvider{}, nil, nil, "openai").WithResolver(resolver)
+		assert.False(t, gateway.SupportsToolCallingFor(context.Background(), "missing"))
+	})
+
+	t.Run("no resolver falls back to bound provider capability", func(t *testing.T) {
+		gateway := NewLLMGateway(&toolCapableProvider{}, nil, nil, "openai")
+		assert.True(t, gateway.SupportsToolCallingFor(context.Background(), ""))
+	})
+
+	t.Run("nil gateway is safe", func(t *testing.T) {
+		var nilGateway *LLMGateway
+		assert.False(t, nilGateway.SupportsToolCallingFor(context.Background(), "k"))
 	})
 }

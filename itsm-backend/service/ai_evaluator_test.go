@@ -38,12 +38,16 @@ func newTelemetryTestDB(t *testing.T) (*sql.DB, *AITelemetryService) {
 		);
 		CREATE TABLE IF NOT EXISTS ai_llm_calls (
 			id INTEGER PRIMARY KEY AUTOINCREMENT,
-			created_at TIMESTAMP,
+			-- 与 PG DDL（migration/migrations.go: ai_llm_calls）一致：created_at 默认 NOW()，
+			-- 写入路径（LLMObserver）不显式赋值，依赖列默认值。
+			created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
 			provider TEXT,
 			model TEXT,
 			tokens INT,
 			latency_ms INT,
-			success BOOLEAN
+			success BOOLEAN,
+			-- BE-6 §3.7：生效实例 key（静态回退/旧路径写 NULL）
+			provider_key TEXT
 		);
 	`)
 	require.NoError(t, err)
