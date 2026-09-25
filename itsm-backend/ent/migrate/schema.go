@@ -2540,6 +2540,69 @@ var (
 		Columns:    KnownErrorsColumns,
 		PrimaryKey: []*schema.Column{KnownErrorsColumns[0]},
 	}
+	// LlmProviderConfigsColumns holds the columns for the "llm_provider_configs" table.
+	LlmProviderConfigsColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeInt, Increment: true},
+		{Name: "tenant_id", Type: field.TypeInt},
+		{Name: "name", Type: field.TypeString, Size: 64},
+		{Name: "display_name", Type: field.TypeString, Size: 100},
+		{Name: "protocol", Type: field.TypeString, Size: 32},
+		{Name: "variant", Type: field.TypeString, Nullable: true, Size: 32},
+		{Name: "adapter_options", Type: field.TypeJSON, Nullable: true},
+		{Name: "model", Type: field.TypeString, Nullable: true, Size: 100},
+		{Name: "endpoint", Type: field.TypeString, Nullable: true, Size: 500},
+		{Name: "deployment", Type: field.TypeString, Nullable: true, Size: 100},
+		{Name: "encrypted_api_key", Type: field.TypeString, Nullable: true, Size: 2147483647},
+		{Name: "enabled", Type: field.TypeBool, Default: true},
+		{Name: "is_default", Type: field.TypeBool, Default: false},
+		{Name: "source", Type: field.TypeString, Size: 20, Default: "manual"},
+		{Name: "status", Type: field.TypeString, Size: 20, Default: "configured"},
+		{Name: "last_error", Type: field.TypeString, Nullable: true, Size: 2000},
+		{Name: "last_tested_at", Type: field.TypeTime, Nullable: true},
+		{Name: "created_at", Type: field.TypeTime},
+		{Name: "updated_at", Type: field.TypeTime},
+		{Name: "deleted_at", Type: field.TypeTime, Nullable: true},
+	}
+	// LlmProviderConfigsTable holds the schema information for the "llm_provider_configs" table.
+	LlmProviderConfigsTable = &schema.Table{
+		Name:       "llm_provider_configs",
+		Columns:    LlmProviderConfigsColumns,
+		PrimaryKey: []*schema.Column{LlmProviderConfigsColumns[0]},
+		Indexes: []*schema.Index{
+			{
+				Name:    "llmproviderconfig_tenant_id_name",
+				Unique:  true,
+				Columns: []*schema.Column{LlmProviderConfigsColumns[1], LlmProviderConfigsColumns[2]},
+			},
+			{
+				Name:    "llmproviderconfig_tenant_id_enabled",
+				Unique:  false,
+				Columns: []*schema.Column{LlmProviderConfigsColumns[1], LlmProviderConfigsColumns[11]},
+			},
+		},
+	}
+	// LlmUserPreferencesColumns holds the columns for the "llm_user_preferences" table.
+	LlmUserPreferencesColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeInt, Increment: true},
+		{Name: "user_id", Type: field.TypeInt},
+		{Name: "tenant_id", Type: field.TypeInt},
+		{Name: "provider_key", Type: field.TypeString, Nullable: true, Size: 64},
+		{Name: "created_at", Type: field.TypeTime},
+		{Name: "updated_at", Type: field.TypeTime},
+	}
+	// LlmUserPreferencesTable holds the schema information for the "llm_user_preferences" table.
+	LlmUserPreferencesTable = &schema.Table{
+		Name:       "llm_user_preferences",
+		Columns:    LlmUserPreferencesColumns,
+		PrimaryKey: []*schema.Column{LlmUserPreferencesColumns[0]},
+		Indexes: []*schema.Index{
+			{
+				Name:    "llmuserpreference_user_id",
+				Unique:  true,
+				Columns: []*schema.Column{LlmUserPreferencesColumns[1]},
+			},
+		},
+	}
 	// MspAllocationsColumns holds the columns for the "msp_allocations" table.
 	MspAllocationsColumns = []*schema.Column{
 		{Name: "id", Type: field.TypeInt, Increment: true},
@@ -6218,6 +6281,8 @@ var (
 		KnowledgeArticleSessionsTable,
 		KnowledgeArticleVersionsTable,
 		KnownErrorsTable,
+		LlmProviderConfigsTable,
+		LlmUserPreferencesTable,
 		MspAllocationsTable,
 		MarketplaceItemsTable,
 		MenusTable,

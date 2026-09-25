@@ -66,6 +66,8 @@ import (
 	"itsm-backend/ent/knowledgearticlesession"
 	"itsm-backend/ent/knowledgearticleversion"
 	"itsm-backend/ent/knownerror"
+	"itsm-backend/ent/llmproviderconfig"
+	"itsm-backend/ent/llmuserpreference"
 	"itsm-backend/ent/marketplaceitem"
 	"itsm-backend/ent/menu"
 	"itsm-backend/ent/message"
@@ -269,6 +271,8 @@ func checkColumn(t, c string) error {
 			knowledgearticlesession.Table:     knowledgearticlesession.ValidColumn,
 			knowledgearticleversion.Table:     knowledgearticleversion.ValidColumn,
 			knownerror.Table:                  knownerror.ValidColumn,
+			llmproviderconfig.Table:           llmproviderconfig.ValidColumn,
+			llmuserpreference.Table:           llmuserpreference.ValidColumn,
 			mspallocation.Table:               mspallocation.ValidColumn,
 			marketplaceitem.Table:             marketplaceitem.ValidColumn,
 			menu.Table:                        menu.ValidColumn,

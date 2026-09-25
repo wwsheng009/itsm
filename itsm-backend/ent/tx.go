@@ -132,6 +132,10 @@ type Tx struct {
 	KnowledgeArticleVersion *KnowledgeArticleVersionClient
 	// KnownError is the client for interacting with the KnownError builders.
 	KnownError *KnownErrorClient
+	// LLMProviderConfig is the client for interacting with the LLMProviderConfig builders.
+	LLMProviderConfig *LLMProviderConfigClient
+	// LLMUserPreference is the client for interacting with the LLMUserPreference builders.
+	LLMUserPreference *LLMUserPreferenceClient
 	// MSPAllocation is the client for interacting with the MSPAllocation builders.
 	MSPAllocation *MSPAllocationClient
 	// MarketplaceItem is the client for interacting with the MarketplaceItem builders.
@@ -477,6 +481,8 @@ func (tx *Tx) init() {
 	tx.KnowledgeArticleSession = NewKnowledgeArticleSessionClient(tx.config)
 	tx.KnowledgeArticleVersion = NewKnowledgeArticleVersionClient(tx.config)
 	tx.KnownError = NewKnownErrorClient(tx.config)
+	tx.LLMProviderConfig = NewLLMProviderConfigClient(tx.config)
+	tx.LLMUserPreference = NewLLMUserPreferenceClient(tx.config)
 	tx.MSPAllocation = NewMSPAllocationClient(tx.config)
 	tx.MarketplaceItem = NewMarketplaceItemClient(tx.config)
 	tx.Menu = NewMenuClient(tx.config)

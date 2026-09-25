@@ -66,6 +66,8 @@ import (
 	"itsm-backend/ent/knowledgearticlesession"
 	"itsm-backend/ent/knowledgearticleversion"
 	"itsm-backend/ent/knownerror"
+	"itsm-backend/ent/llmproviderconfig"
+	"itsm-backend/ent/llmuserpreference"
 	"itsm-backend/ent/marketplaceitem"
 	"itsm-backend/ent/menu"
 	"itsm-backend/ent/message"
@@ -221,6 +223,8 @@ const (
 	TypeKnowledgeArticleSession     = "KnowledgeArticleSession"
 	TypeKnowledgeArticleVersion     = "KnowledgeArticleVersion"
 	TypeKnownError                  = "KnownError"
+	TypeLLMProviderConfig           = "LLMProviderConfig"
+	TypeLLMUserPreference           = "LLMUserPreference"
 	TypeMSPAllocation               = "MSPAllocation"
 	TypeMarketplaceItem             = "MarketplaceItem"
 	TypeMenu                        = "Menu"
@@ -84850,6 +84854,2147 @@ func (m *KnownErrorMutation) ResetEdge(name string) error {
 		return nil
 	}
 	return fmt.Errorf("unknown KnownError edge %s", name)
+}
+
+// LLMProviderConfigMutation represents an operation that mutates the LLMProviderConfig nodes in the graph.
+type LLMProviderConfigMutation struct {
+	config
+	op                Op
+	typ               string
+	id                *int
+	tenant_id         *int
+	addtenant_id      *int
+	name              *string
+	display_name      *string
+	protocol          *string
+	variant           *string
+	adapter_options   *map[string]interface{}
+	model             *string
+	endpoint          *string
+	deployment        *string
+	encrypted_api_key *string
+	enabled           *bool
+	is_default        *bool
+	source            *string
+	status            *string
+	last_error        *string
+	last_tested_at    *time.Time
+	created_at        *time.Time
+	updated_at        *time.Time
+	deleted_at        *time.Time
+	clearedFields     map[string]struct{}
+	done              bool
+	oldValue          func(context.Context) (*LLMProviderConfig, error)
+	predicates        []predicate.LLMProviderConfig
+}
+
+var _ ent.Mutation = (*LLMProviderConfigMutation)(nil)
+
+// llmproviderconfigOption allows management of the mutation configuration using functional options.
+type llmproviderconfigOption func(*LLMProviderConfigMutation)
+
+// newLLMProviderConfigMutation creates new mutation for the LLMProviderConfig entity.
+func newLLMProviderConfigMutation(c config, op Op, opts ...llmproviderconfigOption) *LLMProviderConfigMutation {
+	m := &LLMProviderConfigMutation{
+		config:        c,
+		op:            op,
+		typ:           TypeLLMProviderConfig,
+		clearedFields: make(map[string]struct{}),
+	}
+	for _, opt := range opts {
+		opt(m)
+	}
+	return m
+}
+
+// withLLMProviderConfigID sets the ID field of the mutation.
+func withLLMProviderConfigID(id int) llmproviderconfigOption {
+	return func(m *LLMProviderConfigMutation) {
+		var (
+			err   error
+			once  sync.Once
+			value *LLMProviderConfig
+		)
+		m.oldValue = func(ctx context.Context) (*LLMProviderConfig, error) {
+			once.Do(func() {
+				if m.done {
+					err = errors.New("querying old values post mutation is not allowed")
+				} else {
+					value, err = m.Client().LLMProviderConfig.Get(ctx, id)
+				}
+			})
+			return value, err
+		}
+		m.id = &id
+	}
+}
+
+// withLLMProviderConfig sets the old LLMProviderConfig of the mutation.
+func withLLMProviderConfig(node *LLMProviderConfig) llmproviderconfigOption {
+	return func(m *LLMProviderConfigMutation) {
+		m.oldValue = func(context.Context) (*LLMProviderConfig, error) {
+			return node, nil
+		}
+		m.id = &node.ID
+	}
+}
+
+// Client returns a new `ent.Client` from the mutation. If the mutation was
+// executed in a transaction (ent.Tx), a transactional client is returned.
+func (m LLMProviderConfigMutation) Client() *Client {
+	client := &Client{config: m.config}
+	client.init()
+	return client
+}
+
+// Tx returns an `ent.Tx` for mutations that were executed in transactions;
+// it returns an error otherwise.
+func (m LLMProviderConfigMutation) Tx() (*Tx, error) {
+	if _, ok := m.driver.(*txDriver); !ok {
+		return nil, errors.New("ent: mutation is not running in a transaction")
+	}
+	tx := &Tx{config: m.config}
+	tx.init()
+	return tx, nil
+}
+
+// ID returns the ID value in the mutation. Note that the ID is only available
+// if it was provided to the builder or after it was returned from the database.
+func (m *LLMProviderConfigMutation) ID() (id int, exists bool) {
+	if m.id == nil {
+		return
+	}
+	return *m.id, true
+}
+
+// IDs queries the database and returns the entity ids that match the mutation's predicate.
+// That means, if the mutation is applied within a transaction with an isolation level such
+// as sql.LevelSerializable, the returned ids match the ids of the rows that will be updated
+// or updated by the mutation.
+func (m *LLMProviderConfigMutation) IDs(ctx context.Context) ([]int, error) {
+	switch {
+	case m.op.Is(OpUpdateOne | OpDeleteOne):
+		id, exists := m.ID()
+		if exists {
+			return []int{id}, nil
+		}
+		fallthrough
+	case m.op.Is(OpUpdate | OpDelete):
+		return m.Client().LLMProviderConfig.Query().Where(m.predicates...).IDs(ctx)
+	default:
+		return nil, fmt.Errorf("IDs is not allowed on %s operations", m.op)
+	}
+}
+
+// SetTenantID sets the "tenant_id" field.
+func (m *LLMProviderConfigMutation) SetTenantID(i int) {
+	m.tenant_id = &i
+	m.addtenant_id = nil
+}
+
+// TenantID returns the value of the "tenant_id" field in the mutation.
+func (m *LLMProviderConfigMutation) TenantID() (r int, exists bool) {
+	v := m.tenant_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldTenantID returns the old "tenant_id" field's value of the LLMProviderConfig entity.
+// If the LLMProviderConfig object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *LLMProviderConfigMutation) OldTenantID(ctx context.Context) (v int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldTenantID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldTenantID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldTenantID: %w", err)
+	}
+	return oldValue.TenantID, nil
+}
+
+// AddTenantID adds i to the "tenant_id" field.
+func (m *LLMProviderConfigMutation) AddTenantID(i int) {
+	if m.addtenant_id != nil {
+		*m.addtenant_id += i
+	} else {
+		m.addtenant_id = &i
+	}
+}
+
+// AddedTenantID returns the value that was added to the "tenant_id" field in this mutation.
+func (m *LLMProviderConfigMutation) AddedTenantID() (r int, exists bool) {
+	v := m.addtenant_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetTenantID resets all changes to the "tenant_id" field.
+func (m *LLMProviderConfigMutation) ResetTenantID() {
+	m.tenant_id = nil
+	m.addtenant_id = nil
+}
+
+// SetName sets the "name" field.
+func (m *LLMProviderConfigMutation) SetName(s string) {
+	m.name = &s
+}
+
+// Name returns the value of the "name" field in the mutation.
+func (m *LLMProviderConfigMutation) Name() (r string, exists bool) {
+	v := m.name
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldName returns the old "name" field's value of the LLMProviderConfig entity.
+// If the LLMProviderConfig object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *LLMProviderConfigMutation) OldName(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldName is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldName requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldName: %w", err)
+	}
+	return oldValue.Name, nil
+}
+
+// ResetName resets all changes to the "name" field.
+func (m *LLMProviderConfigMutation) ResetName() {
+	m.name = nil
+}
+
+// SetDisplayName sets the "display_name" field.
+func (m *LLMProviderConfigMutation) SetDisplayName(s string) {
+	m.display_name = &s
+}
+
+// DisplayName returns the value of the "display_name" field in the mutation.
+func (m *LLMProviderConfigMutation) DisplayName() (r string, exists bool) {
+	v := m.display_name
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldDisplayName returns the old "display_name" field's value of the LLMProviderConfig entity.
+// If the LLMProviderConfig object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *LLMProviderConfigMutation) OldDisplayName(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldDisplayName is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldDisplayName requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldDisplayName: %w", err)
+	}
+	return oldValue.DisplayName, nil
+}
+
+// ResetDisplayName resets all changes to the "display_name" field.
+func (m *LLMProviderConfigMutation) ResetDisplayName() {
+	m.display_name = nil
+}
+
+// SetProtocol sets the "protocol" field.
+func (m *LLMProviderConfigMutation) SetProtocol(s string) {
+	m.protocol = &s
+}
+
+// Protocol returns the value of the "protocol" field in the mutation.
+func (m *LLMProviderConfigMutation) Protocol() (r string, exists bool) {
+	v := m.protocol
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldProtocol returns the old "protocol" field's value of the LLMProviderConfig entity.
+// If the LLMProviderConfig object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *LLMProviderConfigMutation) OldProtocol(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldProtocol is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldProtocol requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldProtocol: %w", err)
+	}
+	return oldValue.Protocol, nil
+}
+
+// ResetProtocol resets all changes to the "protocol" field.
+func (m *LLMProviderConfigMutation) ResetProtocol() {
+	m.protocol = nil
+}
+
+// SetVariant sets the "variant" field.
+func (m *LLMProviderConfigMutation) SetVariant(s string) {
+	m.variant = &s
+}
+
+// Variant returns the value of the "variant" field in the mutation.
+func (m *LLMProviderConfigMutation) Variant() (r string, exists bool) {
+	v := m.variant
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldVariant returns the old "variant" field's value of the LLMProviderConfig entity.
+// If the LLMProviderConfig object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *LLMProviderConfigMutation) OldVariant(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldVariant is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldVariant requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldVariant: %w", err)
+	}
+	return oldValue.Variant, nil
+}
+
+// ClearVariant clears the value of the "variant" field.
+func (m *LLMProviderConfigMutation) ClearVariant() {
+	m.variant = nil
+	m.clearedFields[llmproviderconfig.FieldVariant] = struct{}{}
+}
+
+// VariantCleared returns if the "variant" field was cleared in this mutation.
+func (m *LLMProviderConfigMutation) VariantCleared() bool {
+	_, ok := m.clearedFields[llmproviderconfig.FieldVariant]
+	return ok
+}
+
+// ResetVariant resets all changes to the "variant" field.
+func (m *LLMProviderConfigMutation) ResetVariant() {
+	m.variant = nil
+	delete(m.clearedFields, llmproviderconfig.FieldVariant)
+}
+
+// SetAdapterOptions sets the "adapter_options" field.
+func (m *LLMProviderConfigMutation) SetAdapterOptions(value map[string]interface{}) {
+	m.adapter_options = &value
+}
+
+// AdapterOptions returns the value of the "adapter_options" field in the mutation.
+func (m *LLMProviderConfigMutation) AdapterOptions() (r map[string]interface{}, exists bool) {
+	v := m.adapter_options
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldAdapterOptions returns the old "adapter_options" field's value of the LLMProviderConfig entity.
+// If the LLMProviderConfig object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *LLMProviderConfigMutation) OldAdapterOptions(ctx context.Context) (v map[string]interface{}, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldAdapterOptions is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldAdapterOptions requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldAdapterOptions: %w", err)
+	}
+	return oldValue.AdapterOptions, nil
+}
+
+// ClearAdapterOptions clears the value of the "adapter_options" field.
+func (m *LLMProviderConfigMutation) ClearAdapterOptions() {
+	m.adapter_options = nil
+	m.clearedFields[llmproviderconfig.FieldAdapterOptions] = struct{}{}
+}
+
+// AdapterOptionsCleared returns if the "adapter_options" field was cleared in this mutation.
+func (m *LLMProviderConfigMutation) AdapterOptionsCleared() bool {
+	_, ok := m.clearedFields[llmproviderconfig.FieldAdapterOptions]
+	return ok
+}
+
+// ResetAdapterOptions resets all changes to the "adapter_options" field.
+func (m *LLMProviderConfigMutation) ResetAdapterOptions() {
+	m.adapter_options = nil
+	delete(m.clearedFields, llmproviderconfig.FieldAdapterOptions)
+}
+
+// SetModel sets the "model" field.
+func (m *LLMProviderConfigMutation) SetModel(s string) {
+	m.model = &s
+}
+
+// Model returns the value of the "model" field in the mutation.
+func (m *LLMProviderConfigMutation) Model() (r string, exists bool) {
+	v := m.model
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldModel returns the old "model" field's value of the LLMProviderConfig entity.
+// If the LLMProviderConfig object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *LLMProviderConfigMutation) OldModel(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldModel is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldModel requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldModel: %w", err)
+	}
+	return oldValue.Model, nil
+}
+
+// ClearModel clears the value of the "model" field.
+func (m *LLMProviderConfigMutation) ClearModel() {
+	m.model = nil
+	m.clearedFields[llmproviderconfig.FieldModel] = struct{}{}
+}
+
+// ModelCleared returns if the "model" field was cleared in this mutation.
+func (m *LLMProviderConfigMutation) ModelCleared() bool {
+	_, ok := m.clearedFields[llmproviderconfig.FieldModel]
+	return ok
+}
+
+// ResetModel resets all changes to the "model" field.
+func (m *LLMProviderConfigMutation) ResetModel() {
+	m.model = nil
+	delete(m.clearedFields, llmproviderconfig.FieldModel)
+}
+
+// SetEndpoint sets the "endpoint" field.
+func (m *LLMProviderConfigMutation) SetEndpoint(s string) {
+	m.endpoint = &s
+}
+
+// Endpoint returns the value of the "endpoint" field in the mutation.
+func (m *LLMProviderConfigMutation) Endpoint() (r string, exists bool) {
+	v := m.endpoint
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldEndpoint returns the old "endpoint" field's value of the LLMProviderConfig entity.
+// If the LLMProviderConfig object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *LLMProviderConfigMutation) OldEndpoint(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldEndpoint is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldEndpoint requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldEndpoint: %w", err)
+	}
+	return oldValue.Endpoint, nil
+}
+
+// ClearEndpoint clears the value of the "endpoint" field.
+func (m *LLMProviderConfigMutation) ClearEndpoint() {
+	m.endpoint = nil
+	m.clearedFields[llmproviderconfig.FieldEndpoint] = struct{}{}
+}
+
+// EndpointCleared returns if the "endpoint" field was cleared in this mutation.
+func (m *LLMProviderConfigMutation) EndpointCleared() bool {
+	_, ok := m.clearedFields[llmproviderconfig.FieldEndpoint]
+	return ok
+}
+
+// ResetEndpoint resets all changes to the "endpoint" field.
+func (m *LLMProviderConfigMutation) ResetEndpoint() {
+	m.endpoint = nil
+	delete(m.clearedFields, llmproviderconfig.FieldEndpoint)
+}
+
+// SetDeployment sets the "deployment" field.
+func (m *LLMProviderConfigMutation) SetDeployment(s string) {
+	m.deployment = &s
+}
+
+// Deployment returns the value of the "deployment" field in the mutation.
+func (m *LLMProviderConfigMutation) Deployment() (r string, exists bool) {
+	v := m.deployment
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldDeployment returns the old "deployment" field's value of the LLMProviderConfig entity.
+// If the LLMProviderConfig object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *LLMProviderConfigMutation) OldDeployment(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldDeployment is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldDeployment requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldDeployment: %w", err)
+	}
+	return oldValue.Deployment, nil
+}
+
+// ClearDeployment clears the value of the "deployment" field.
+func (m *LLMProviderConfigMutation) ClearDeployment() {
+	m.deployment = nil
+	m.clearedFields[llmproviderconfig.FieldDeployment] = struct{}{}
+}
+
+// DeploymentCleared returns if the "deployment" field was cleared in this mutation.
+func (m *LLMProviderConfigMutation) DeploymentCleared() bool {
+	_, ok := m.clearedFields[llmproviderconfig.FieldDeployment]
+	return ok
+}
+
+// ResetDeployment resets all changes to the "deployment" field.
+func (m *LLMProviderConfigMutation) ResetDeployment() {
+	m.deployment = nil
+	delete(m.clearedFields, llmproviderconfig.FieldDeployment)
+}
+
+// SetEncryptedAPIKey sets the "encrypted_api_key" field.
+func (m *LLMProviderConfigMutation) SetEncryptedAPIKey(s string) {
+	m.encrypted_api_key = &s
+}
+
+// EncryptedAPIKey returns the value of the "encrypted_api_key" field in the mutation.
+func (m *LLMProviderConfigMutation) EncryptedAPIKey() (r string, exists bool) {
+	v := m.encrypted_api_key
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldEncryptedAPIKey returns the old "encrypted_api_key" field's value of the LLMProviderConfig entity.
+// If the LLMProviderConfig object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *LLMProviderConfigMutation) OldEncryptedAPIKey(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldEncryptedAPIKey is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldEncryptedAPIKey requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldEncryptedAPIKey: %w", err)
+	}
+	return oldValue.EncryptedAPIKey, nil
+}
+
+// ClearEncryptedAPIKey clears the value of the "encrypted_api_key" field.
+func (m *LLMProviderConfigMutation) ClearEncryptedAPIKey() {
+	m.encrypted_api_key = nil
+	m.clearedFields[llmproviderconfig.FieldEncryptedAPIKey] = struct{}{}
+}
+
+// EncryptedAPIKeyCleared returns if the "encrypted_api_key" field was cleared in this mutation.
+func (m *LLMProviderConfigMutation) EncryptedAPIKeyCleared() bool {
+	_, ok := m.clearedFields[llmproviderconfig.FieldEncryptedAPIKey]
+	return ok
+}
+
+// ResetEncryptedAPIKey resets all changes to the "encrypted_api_key" field.
+func (m *LLMProviderConfigMutation) ResetEncryptedAPIKey() {
+	m.encrypted_api_key = nil
+	delete(m.clearedFields, llmproviderconfig.FieldEncryptedAPIKey)
+}
+
+// SetEnabled sets the "enabled" field.
+func (m *LLMProviderConfigMutation) SetEnabled(b bool) {
+	m.enabled = &b
+}
+
+// Enabled returns the value of the "enabled" field in the mutation.
+func (m *LLMProviderConfigMutation) Enabled() (r bool, exists bool) {
+	v := m.enabled
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldEnabled returns the old "enabled" field's value of the LLMProviderConfig entity.
+// If the LLMProviderConfig object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *LLMProviderConfigMutation) OldEnabled(ctx context.Context) (v bool, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldEnabled is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldEnabled requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldEnabled: %w", err)
+	}
+	return oldValue.Enabled, nil
+}
+
+// ResetEnabled resets all changes to the "enabled" field.
+func (m *LLMProviderConfigMutation) ResetEnabled() {
+	m.enabled = nil
+}
+
+// SetIsDefault sets the "is_default" field.
+func (m *LLMProviderConfigMutation) SetIsDefault(b bool) {
+	m.is_default = &b
+}
+
+// IsDefault returns the value of the "is_default" field in the mutation.
+func (m *LLMProviderConfigMutation) IsDefault() (r bool, exists bool) {
+	v := m.is_default
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldIsDefault returns the old "is_default" field's value of the LLMProviderConfig entity.
+// If the LLMProviderConfig object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *LLMProviderConfigMutation) OldIsDefault(ctx context.Context) (v bool, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldIsDefault is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldIsDefault requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldIsDefault: %w", err)
+	}
+	return oldValue.IsDefault, nil
+}
+
+// ResetIsDefault resets all changes to the "is_default" field.
+func (m *LLMProviderConfigMutation) ResetIsDefault() {
+	m.is_default = nil
+}
+
+// SetSource sets the "source" field.
+func (m *LLMProviderConfigMutation) SetSource(s string) {
+	m.source = &s
+}
+
+// Source returns the value of the "source" field in the mutation.
+func (m *LLMProviderConfigMutation) Source() (r string, exists bool) {
+	v := m.source
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldSource returns the old "source" field's value of the LLMProviderConfig entity.
+// If the LLMProviderConfig object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *LLMProviderConfigMutation) OldSource(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldSource is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldSource requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldSource: %w", err)
+	}
+	return oldValue.Source, nil
+}
+
+// ResetSource resets all changes to the "source" field.
+func (m *LLMProviderConfigMutation) ResetSource() {
+	m.source = nil
+}
+
+// SetStatus sets the "status" field.
+func (m *LLMProviderConfigMutation) SetStatus(s string) {
+	m.status = &s
+}
+
+// Status returns the value of the "status" field in the mutation.
+func (m *LLMProviderConfigMutation) Status() (r string, exists bool) {
+	v := m.status
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldStatus returns the old "status" field's value of the LLMProviderConfig entity.
+// If the LLMProviderConfig object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *LLMProviderConfigMutation) OldStatus(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldStatus is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldStatus requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldStatus: %w", err)
+	}
+	return oldValue.Status, nil
+}
+
+// ResetStatus resets all changes to the "status" field.
+func (m *LLMProviderConfigMutation) ResetStatus() {
+	m.status = nil
+}
+
+// SetLastError sets the "last_error" field.
+func (m *LLMProviderConfigMutation) SetLastError(s string) {
+	m.last_error = &s
+}
+
+// LastError returns the value of the "last_error" field in the mutation.
+func (m *LLMProviderConfigMutation) LastError() (r string, exists bool) {
+	v := m.last_error
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldLastError returns the old "last_error" field's value of the LLMProviderConfig entity.
+// If the LLMProviderConfig object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *LLMProviderConfigMutation) OldLastError(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldLastError is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldLastError requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldLastError: %w", err)
+	}
+	return oldValue.LastError, nil
+}
+
+// ClearLastError clears the value of the "last_error" field.
+func (m *LLMProviderConfigMutation) ClearLastError() {
+	m.last_error = nil
+	m.clearedFields[llmproviderconfig.FieldLastError] = struct{}{}
+}
+
+// LastErrorCleared returns if the "last_error" field was cleared in this mutation.
+func (m *LLMProviderConfigMutation) LastErrorCleared() bool {
+	_, ok := m.clearedFields[llmproviderconfig.FieldLastError]
+	return ok
+}
+
+// ResetLastError resets all changes to the "last_error" field.
+func (m *LLMProviderConfigMutation) ResetLastError() {
+	m.last_error = nil
+	delete(m.clearedFields, llmproviderconfig.FieldLastError)
+}
+
+// SetLastTestedAt sets the "last_tested_at" field.
+func (m *LLMProviderConfigMutation) SetLastTestedAt(t time.Time) {
+	m.last_tested_at = &t
+}
+
+// LastTestedAt returns the value of the "last_tested_at" field in the mutation.
+func (m *LLMProviderConfigMutation) LastTestedAt() (r time.Time, exists bool) {
+	v := m.last_tested_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldLastTestedAt returns the old "last_tested_at" field's value of the LLMProviderConfig entity.
+// If the LLMProviderConfig object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *LLMProviderConfigMutation) OldLastTestedAt(ctx context.Context) (v *time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldLastTestedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldLastTestedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldLastTestedAt: %w", err)
+	}
+	return oldValue.LastTestedAt, nil
+}
+
+// ClearLastTestedAt clears the value of the "last_tested_at" field.
+func (m *LLMProviderConfigMutation) ClearLastTestedAt() {
+	m.last_tested_at = nil
+	m.clearedFields[llmproviderconfig.FieldLastTestedAt] = struct{}{}
+}
+
+// LastTestedAtCleared returns if the "last_tested_at" field was cleared in this mutation.
+func (m *LLMProviderConfigMutation) LastTestedAtCleared() bool {
+	_, ok := m.clearedFields[llmproviderconfig.FieldLastTestedAt]
+	return ok
+}
+
+// ResetLastTestedAt resets all changes to the "last_tested_at" field.
+func (m *LLMProviderConfigMutation) ResetLastTestedAt() {
+	m.last_tested_at = nil
+	delete(m.clearedFields, llmproviderconfig.FieldLastTestedAt)
+}
+
+// SetCreatedAt sets the "created_at" field.
+func (m *LLMProviderConfigMutation) SetCreatedAt(t time.Time) {
+	m.created_at = &t
+}
+
+// CreatedAt returns the value of the "created_at" field in the mutation.
+func (m *LLMProviderConfigMutation) CreatedAt() (r time.Time, exists bool) {
+	v := m.created_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldCreatedAt returns the old "created_at" field's value of the LLMProviderConfig entity.
+// If the LLMProviderConfig object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *LLMProviderConfigMutation) OldCreatedAt(ctx context.Context) (v time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldCreatedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldCreatedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldCreatedAt: %w", err)
+	}
+	return oldValue.CreatedAt, nil
+}
+
+// ResetCreatedAt resets all changes to the "created_at" field.
+func (m *LLMProviderConfigMutation) ResetCreatedAt() {
+	m.created_at = nil
+}
+
+// SetUpdatedAt sets the "updated_at" field.
+func (m *LLMProviderConfigMutation) SetUpdatedAt(t time.Time) {
+	m.updated_at = &t
+}
+
+// UpdatedAt returns the value of the "updated_at" field in the mutation.
+func (m *LLMProviderConfigMutation) UpdatedAt() (r time.Time, exists bool) {
+	v := m.updated_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldUpdatedAt returns the old "updated_at" field's value of the LLMProviderConfig entity.
+// If the LLMProviderConfig object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *LLMProviderConfigMutation) OldUpdatedAt(ctx context.Context) (v time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldUpdatedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldUpdatedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldUpdatedAt: %w", err)
+	}
+	return oldValue.UpdatedAt, nil
+}
+
+// ResetUpdatedAt resets all changes to the "updated_at" field.
+func (m *LLMProviderConfigMutation) ResetUpdatedAt() {
+	m.updated_at = nil
+}
+
+// SetDeletedAt sets the "deleted_at" field.
+func (m *LLMProviderConfigMutation) SetDeletedAt(t time.Time) {
+	m.deleted_at = &t
+}
+
+// DeletedAt returns the value of the "deleted_at" field in the mutation.
+func (m *LLMProviderConfigMutation) DeletedAt() (r time.Time, exists bool) {
+	v := m.deleted_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldDeletedAt returns the old "deleted_at" field's value of the LLMProviderConfig entity.
+// If the LLMProviderConfig object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *LLMProviderConfigMutation) OldDeletedAt(ctx context.Context) (v *time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldDeletedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldDeletedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldDeletedAt: %w", err)
+	}
+	return oldValue.DeletedAt, nil
+}
+
+// ClearDeletedAt clears the value of the "deleted_at" field.
+func (m *LLMProviderConfigMutation) ClearDeletedAt() {
+	m.deleted_at = nil
+	m.clearedFields[llmproviderconfig.FieldDeletedAt] = struct{}{}
+}
+
+// DeletedAtCleared returns if the "deleted_at" field was cleared in this mutation.
+func (m *LLMProviderConfigMutation) DeletedAtCleared() bool {
+	_, ok := m.clearedFields[llmproviderconfig.FieldDeletedAt]
+	return ok
+}
+
+// ResetDeletedAt resets all changes to the "deleted_at" field.
+func (m *LLMProviderConfigMutation) ResetDeletedAt() {
+	m.deleted_at = nil
+	delete(m.clearedFields, llmproviderconfig.FieldDeletedAt)
+}
+
+// Where appends a list predicates to the LLMProviderConfigMutation builder.
+func (m *LLMProviderConfigMutation) Where(ps ...predicate.LLMProviderConfig) {
+	m.predicates = append(m.predicates, ps...)
+}
+
+// WhereP appends storage-level predicates to the LLMProviderConfigMutation builder. Using this method,
+// users can use type-assertion to append predicates that do not depend on any generated package.
+func (m *LLMProviderConfigMutation) WhereP(ps ...func(*sql.Selector)) {
+	p := make([]predicate.LLMProviderConfig, len(ps))
+	for i := range ps {
+		p[i] = ps[i]
+	}
+	m.Where(p...)
+}
+
+// Op returns the operation name.
+func (m *LLMProviderConfigMutation) Op() Op {
+	return m.op
+}
+
+// SetOp allows setting the mutation operation.
+func (m *LLMProviderConfigMutation) SetOp(op Op) {
+	m.op = op
+}
+
+// Type returns the node type of this mutation (LLMProviderConfig).
+func (m *LLMProviderConfigMutation) Type() string {
+	return m.typ
+}
+
+// Fields returns all fields that were changed during this mutation. Note that in
+// order to get all numeric fields that were incremented/decremented, call
+// AddedFields().
+func (m *LLMProviderConfigMutation) Fields() []string {
+	fields := make([]string, 0, 19)
+	if m.tenant_id != nil {
+		fields = append(fields, llmproviderconfig.FieldTenantID)
+	}
+	if m.name != nil {
+		fields = append(fields, llmproviderconfig.FieldName)
+	}
+	if m.display_name != nil {
+		fields = append(fields, llmproviderconfig.FieldDisplayName)
+	}
+	if m.protocol != nil {
+		fields = append(fields, llmproviderconfig.FieldProtocol)
+	}
+	if m.variant != nil {
+		fields = append(fields, llmproviderconfig.FieldVariant)
+	}
+	if m.adapter_options != nil {
+		fields = append(fields, llmproviderconfig.FieldAdapterOptions)
+	}
+	if m.model != nil {
+		fields = append(fields, llmproviderconfig.FieldModel)
+	}
+	if m.endpoint != nil {
+		fields = append(fields, llmproviderconfig.FieldEndpoint)
+	}
+	if m.deployment != nil {
+		fields = append(fields, llmproviderconfig.FieldDeployment)
+	}
+	if m.encrypted_api_key != nil {
+		fields = append(fields, llmproviderconfig.FieldEncryptedAPIKey)
+	}
+	if m.enabled != nil {
+		fields = append(fields, llmproviderconfig.FieldEnabled)
+	}
+	if m.is_default != nil {
+		fields = append(fields, llmproviderconfig.FieldIsDefault)
+	}
+	if m.source != nil {
+		fields = append(fields, llmproviderconfig.FieldSource)
+	}
+	if m.status != nil {
+		fields = append(fields, llmproviderconfig.FieldStatus)
+	}
+	if m.last_error != nil {
+		fields = append(fields, llmproviderconfig.FieldLastError)
+	}
+	if m.last_tested_at != nil {
+		fields = append(fields, llmproviderconfig.FieldLastTestedAt)
+	}
+	if m.created_at != nil {
+		fields = append(fields, llmproviderconfig.FieldCreatedAt)
+	}
+	if m.updated_at != nil {
+		fields = append(fields, llmproviderconfig.FieldUpdatedAt)
+	}
+	if m.deleted_at != nil {
+		fields = append(fields, llmproviderconfig.FieldDeletedAt)
+	}
+	return fields
+}
+
+// Field returns the value of a field with the given name. The second boolean
+// return value indicates that this field was not set, or was not defined in the
+// schema.
+func (m *LLMProviderConfigMutation) Field(name string) (ent.Value, bool) {
+	switch name {
+	case llmproviderconfig.FieldTenantID:
+		return m.TenantID()
+	case llmproviderconfig.FieldName:
+		return m.Name()
+	case llmproviderconfig.FieldDisplayName:
+		return m.DisplayName()
+	case llmproviderconfig.FieldProtocol:
+		return m.Protocol()
+	case llmproviderconfig.FieldVariant:
+		return m.Variant()
+	case llmproviderconfig.FieldAdapterOptions:
+		return m.AdapterOptions()
+	case llmproviderconfig.FieldModel:
+		return m.Model()
+	case llmproviderconfig.FieldEndpoint:
+		return m.Endpoint()
+	case llmproviderconfig.FieldDeployment:
+		return m.Deployment()
+	case llmproviderconfig.FieldEncryptedAPIKey:
+		return m.EncryptedAPIKey()
+	case llmproviderconfig.FieldEnabled:
+		return m.Enabled()
+	case llmproviderconfig.FieldIsDefault:
+		return m.IsDefault()
+	case llmproviderconfig.FieldSource:
+		return m.Source()
+	case llmproviderconfig.FieldStatus:
+		return m.Status()
+	case llmproviderconfig.FieldLastError:
+		return m.LastError()
+	case llmproviderconfig.FieldLastTestedAt:
+		return m.LastTestedAt()
+	case llmproviderconfig.FieldCreatedAt:
+		return m.CreatedAt()
+	case llmproviderconfig.FieldUpdatedAt:
+		return m.UpdatedAt()
+	case llmproviderconfig.FieldDeletedAt:
+		return m.DeletedAt()
+	}
+	return nil, false
+}
+
+// OldField returns the old value of the field from the database. An error is
+// returned if the mutation operation is not UpdateOne, or the query to the
+// database failed.
+func (m *LLMProviderConfigMutation) OldField(ctx context.Context, name string) (ent.Value, error) {
+	switch name {
+	case llmproviderconfig.FieldTenantID:
+		return m.OldTenantID(ctx)
+	case llmproviderconfig.FieldName:
+		return m.OldName(ctx)
+	case llmproviderconfig.FieldDisplayName:
+		return m.OldDisplayName(ctx)
+	case llmproviderconfig.FieldProtocol:
+		return m.OldProtocol(ctx)
+	case llmproviderconfig.FieldVariant:
+		return m.OldVariant(ctx)
+	case llmproviderconfig.FieldAdapterOptions:
+		return m.OldAdapterOptions(ctx)
+	case llmproviderconfig.FieldModel:
+		return m.OldModel(ctx)
+	case llmproviderconfig.FieldEndpoint:
+		return m.OldEndpoint(ctx)
+	case llmproviderconfig.FieldDeployment:
+		return m.OldDeployment(ctx)
+	case llmproviderconfig.FieldEncryptedAPIKey:
+		return m.OldEncryptedAPIKey(ctx)
+	case llmproviderconfig.FieldEnabled:
+		return m.OldEnabled(ctx)
+	case llmproviderconfig.FieldIsDefault:
+		return m.OldIsDefault(ctx)
+	case llmproviderconfig.FieldSource:
+		return m.OldSource(ctx)
+	case llmproviderconfig.FieldStatus:
+		return m.OldStatus(ctx)
+	case llmproviderconfig.FieldLastError:
+		return m.OldLastError(ctx)
+	case llmproviderconfig.FieldLastTestedAt:
+		return m.OldLastTestedAt(ctx)
+	case llmproviderconfig.FieldCreatedAt:
+		return m.OldCreatedAt(ctx)
+	case llmproviderconfig.FieldUpdatedAt:
+		return m.OldUpdatedAt(ctx)
+	case llmproviderconfig.FieldDeletedAt:
+		return m.OldDeletedAt(ctx)
+	}
+	return nil, fmt.Errorf("unknown LLMProviderConfig field %s", name)
+}
+
+// SetField sets the value of a field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *LLMProviderConfigMutation) SetField(name string, value ent.Value) error {
+	switch name {
+	case llmproviderconfig.FieldTenantID:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetTenantID(v)
+		return nil
+	case llmproviderconfig.FieldName:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetName(v)
+		return nil
+	case llmproviderconfig.FieldDisplayName:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetDisplayName(v)
+		return nil
+	case llmproviderconfig.FieldProtocol:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetProtocol(v)
+		return nil
+	case llmproviderconfig.FieldVariant:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetVariant(v)
+		return nil
+	case llmproviderconfig.FieldAdapterOptions:
+		v, ok := value.(map[string]interface{})
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetAdapterOptions(v)
+		return nil
+	case llmproviderconfig.FieldModel:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetModel(v)
+		return nil
+	case llmproviderconfig.FieldEndpoint:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetEndpoint(v)
+		return nil
+	case llmproviderconfig.FieldDeployment:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetDeployment(v)
+		return nil
+	case llmproviderconfig.FieldEncryptedAPIKey:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetEncryptedAPIKey(v)
+		return nil
+	case llmproviderconfig.FieldEnabled:
+		v, ok := value.(bool)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetEnabled(v)
+		return nil
+	case llmproviderconfig.FieldIsDefault:
+		v, ok := value.(bool)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetIsDefault(v)
+		return nil
+	case llmproviderconfig.FieldSource:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetSource(v)
+		return nil
+	case llmproviderconfig.FieldStatus:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetStatus(v)
+		return nil
+	case llmproviderconfig.FieldLastError:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetLastError(v)
+		return nil
+	case llmproviderconfig.FieldLastTestedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetLastTestedAt(v)
+		return nil
+	case llmproviderconfig.FieldCreatedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetCreatedAt(v)
+		return nil
+	case llmproviderconfig.FieldUpdatedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetUpdatedAt(v)
+		return nil
+	case llmproviderconfig.FieldDeletedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetDeletedAt(v)
+		return nil
+	}
+	return fmt.Errorf("unknown LLMProviderConfig field %s", name)
+}
+
+// AddedFields returns all numeric fields that were incremented/decremented during
+// this mutation.
+func (m *LLMProviderConfigMutation) AddedFields() []string {
+	var fields []string
+	if m.addtenant_id != nil {
+		fields = append(fields, llmproviderconfig.FieldTenantID)
+	}
+	return fields
+}
+
+// AddedField returns the numeric value that was incremented/decremented on a field
+// with the given name. The second boolean return value indicates that this field
+// was not set, or was not defined in the schema.
+func (m *LLMProviderConfigMutation) AddedField(name string) (ent.Value, bool) {
+	switch name {
+	case llmproviderconfig.FieldTenantID:
+		return m.AddedTenantID()
+	}
+	return nil, false
+}
+
+// AddField adds the value to the field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *LLMProviderConfigMutation) AddField(name string, value ent.Value) error {
+	switch name {
+	case llmproviderconfig.FieldTenantID:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddTenantID(v)
+		return nil
+	}
+	return fmt.Errorf("unknown LLMProviderConfig numeric field %s", name)
+}
+
+// ClearedFields returns all nullable fields that were cleared during this
+// mutation.
+func (m *LLMProviderConfigMutation) ClearedFields() []string {
+	var fields []string
+	if m.FieldCleared(llmproviderconfig.FieldVariant) {
+		fields = append(fields, llmproviderconfig.FieldVariant)
+	}
+	if m.FieldCleared(llmproviderconfig.FieldAdapterOptions) {
+		fields = append(fields, llmproviderconfig.FieldAdapterOptions)
+	}
+	if m.FieldCleared(llmproviderconfig.FieldModel) {
+		fields = append(fields, llmproviderconfig.FieldModel)
+	}
+	if m.FieldCleared(llmproviderconfig.FieldEndpoint) {
+		fields = append(fields, llmproviderconfig.FieldEndpoint)
+	}
+	if m.FieldCleared(llmproviderconfig.FieldDeployment) {
+		fields = append(fields, llmproviderconfig.FieldDeployment)
+	}
+	if m.FieldCleared(llmproviderconfig.FieldEncryptedAPIKey) {
+		fields = append(fields, llmproviderconfig.FieldEncryptedAPIKey)
+	}
+	if m.FieldCleared(llmproviderconfig.FieldLastError) {
+		fields = append(fields, llmproviderconfig.FieldLastError)
+	}
+	if m.FieldCleared(llmproviderconfig.FieldLastTestedAt) {
+		fields = append(fields, llmproviderconfig.FieldLastTestedAt)
+	}
+	if m.FieldCleared(llmproviderconfig.FieldDeletedAt) {
+		fields = append(fields, llmproviderconfig.FieldDeletedAt)
+	}
+	return fields
+}
+
+// FieldCleared returns a boolean indicating if a field with the given name was
+// cleared in this mutation.
+func (m *LLMProviderConfigMutation) FieldCleared(name string) bool {
+	_, ok := m.clearedFields[name]
+	return ok
+}
+
+// ClearField clears the value of the field with the given name. It returns an
+// error if the field is not defined in the schema.
+func (m *LLMProviderConfigMutation) ClearField(name string) error {
+	switch name {
+	case llmproviderconfig.FieldVariant:
+		m.ClearVariant()
+		return nil
+	case llmproviderconfig.FieldAdapterOptions:
+		m.ClearAdapterOptions()
+		return nil
+	case llmproviderconfig.FieldModel:
+		m.ClearModel()
+		return nil
+	case llmproviderconfig.FieldEndpoint:
+		m.ClearEndpoint()
+		return nil
+	case llmproviderconfig.FieldDeployment:
+		m.ClearDeployment()
+		return nil
+	case llmproviderconfig.FieldEncryptedAPIKey:
+		m.ClearEncryptedAPIKey()
+		return nil
+	case llmproviderconfig.FieldLastError:
+		m.ClearLastError()
+		return nil
+	case llmproviderconfig.FieldLastTestedAt:
+		m.ClearLastTestedAt()
+		return nil
+	case llmproviderconfig.FieldDeletedAt:
+		m.ClearDeletedAt()
+		return nil
+	}
+	return fmt.Errorf("unknown LLMProviderConfig nullable field %s", name)
+}
+
+// ResetField resets all changes in the mutation for the field with the given name.
+// It returns an error if the field is not defined in the schema.
+func (m *LLMProviderConfigMutation) ResetField(name string) error {
+	switch name {
+	case llmproviderconfig.FieldTenantID:
+		m.ResetTenantID()
+		return nil
+	case llmproviderconfig.FieldName:
+		m.ResetName()
+		return nil
+	case llmproviderconfig.FieldDisplayName:
+		m.ResetDisplayName()
+		return nil
+	case llmproviderconfig.FieldProtocol:
+		m.ResetProtocol()
+		return nil
+	case llmproviderconfig.FieldVariant:
+		m.ResetVariant()
+		return nil
+	case llmproviderconfig.FieldAdapterOptions:
+		m.ResetAdapterOptions()
+		return nil
+	case llmproviderconfig.FieldModel:
+		m.ResetModel()
+		return nil
+	case llmproviderconfig.FieldEndpoint:
+		m.ResetEndpoint()
+		return nil
+	case llmproviderconfig.FieldDeployment:
+		m.ResetDeployment()
+		return nil
+	case llmproviderconfig.FieldEncryptedAPIKey:
+		m.ResetEncryptedAPIKey()
+		return nil
+	case llmproviderconfig.FieldEnabled:
+		m.ResetEnabled()
+		return nil
+	case llmproviderconfig.FieldIsDefault:
+		m.ResetIsDefault()
+		return nil
+	case llmproviderconfig.FieldSource:
+		m.ResetSource()
+		return nil
+	case llmproviderconfig.FieldStatus:
+		m.ResetStatus()
+		return nil
+	case llmproviderconfig.FieldLastError:
+		m.ResetLastError()
+		return nil
+	case llmproviderconfig.FieldLastTestedAt:
+		m.ResetLastTestedAt()
+		return nil
+	case llmproviderconfig.FieldCreatedAt:
+		m.ResetCreatedAt()
+		return nil
+	case llmproviderconfig.FieldUpdatedAt:
+		m.ResetUpdatedAt()
+		return nil
+	case llmproviderconfig.FieldDeletedAt:
+		m.ResetDeletedAt()
+		return nil
+	}
+	return fmt.Errorf("unknown LLMProviderConfig field %s", name)
+}
+
+// AddedEdges returns all edge names that were set/added in this mutation.
+func (m *LLMProviderConfigMutation) AddedEdges() []string {
+	edges := make([]string, 0, 0)
+	return edges
+}
+
+// AddedIDs returns all IDs (to other nodes) that were added for the given edge
+// name in this mutation.
+func (m *LLMProviderConfigMutation) AddedIDs(name string) []ent.Value {
+	return nil
+}
+
+// RemovedEdges returns all edge names that were removed in this mutation.
+func (m *LLMProviderConfigMutation) RemovedEdges() []string {
+	edges := make([]string, 0, 0)
+	return edges
+}
+
+// RemovedIDs returns all IDs (to other nodes) that were removed for the edge with
+// the given name in this mutation.
+func (m *LLMProviderConfigMutation) RemovedIDs(name string) []ent.Value {
+	return nil
+}
+
+// ClearedEdges returns all edge names that were cleared in this mutation.
+func (m *LLMProviderConfigMutation) ClearedEdges() []string {
+	edges := make([]string, 0, 0)
+	return edges
+}
+
+// EdgeCleared returns a boolean which indicates if the edge with the given name
+// was cleared in this mutation.
+func (m *LLMProviderConfigMutation) EdgeCleared(name string) bool {
+	return false
+}
+
+// ClearEdge clears the value of the edge with the given name. It returns an error
+// if that edge is not defined in the schema.
+func (m *LLMProviderConfigMutation) ClearEdge(name string) error {
+	return fmt.Errorf("unknown LLMProviderConfig unique edge %s", name)
+}
+
+// ResetEdge resets all changes to the edge with the given name in this mutation.
+// It returns an error if the edge is not defined in the schema.
+func (m *LLMProviderConfigMutation) ResetEdge(name string) error {
+	return fmt.Errorf("unknown LLMProviderConfig edge %s", name)
+}
+
+// LLMUserPreferenceMutation represents an operation that mutates the LLMUserPreference nodes in the graph.
+type LLMUserPreferenceMutation struct {
+	config
+	op            Op
+	typ           string
+	id            *int
+	user_id       *int
+	adduser_id    *int
+	tenant_id     *int
+	addtenant_id  *int
+	provider_key  *string
+	created_at    *time.Time
+	updated_at    *time.Time
+	clearedFields map[string]struct{}
+	done          bool
+	oldValue      func(context.Context) (*LLMUserPreference, error)
+	predicates    []predicate.LLMUserPreference
+}
+
+var _ ent.Mutation = (*LLMUserPreferenceMutation)(nil)
+
+// llmuserpreferenceOption allows management of the mutation configuration using functional options.
+type llmuserpreferenceOption func(*LLMUserPreferenceMutation)
+
+// newLLMUserPreferenceMutation creates new mutation for the LLMUserPreference entity.
+func newLLMUserPreferenceMutation(c config, op Op, opts ...llmuserpreferenceOption) *LLMUserPreferenceMutation {
+	m := &LLMUserPreferenceMutation{
+		config:        c,
+		op:            op,
+		typ:           TypeLLMUserPreference,
+		clearedFields: make(map[string]struct{}),
+	}
+	for _, opt := range opts {
+		opt(m)
+	}
+	return m
+}
+
+// withLLMUserPreferenceID sets the ID field of the mutation.
+func withLLMUserPreferenceID(id int) llmuserpreferenceOption {
+	return func(m *LLMUserPreferenceMutation) {
+		var (
+			err   error
+			once  sync.Once
+			value *LLMUserPreference
+		)
+		m.oldValue = func(ctx context.Context) (*LLMUserPreference, error) {
+			once.Do(func() {
+				if m.done {
+					err = errors.New("querying old values post mutation is not allowed")
+				} else {
+					value, err = m.Client().LLMUserPreference.Get(ctx, id)
+				}
+			})
+			return value, err
+		}
+		m.id = &id
+	}
+}
+
+// withLLMUserPreference sets the old LLMUserPreference of the mutation.
+func withLLMUserPreference(node *LLMUserPreference) llmuserpreferenceOption {
+	return func(m *LLMUserPreferenceMutation) {
+		m.oldValue = func(context.Context) (*LLMUserPreference, error) {
+			return node, nil
+		}
+		m.id = &node.ID
+	}
+}
+
+// Client returns a new `ent.Client` from the mutation. If the mutation was
+// executed in a transaction (ent.Tx), a transactional client is returned.
+func (m LLMUserPreferenceMutation) Client() *Client {
+	client := &Client{config: m.config}
+	client.init()
+	return client
+}
+
+// Tx returns an `ent.Tx` for mutations that were executed in transactions;
+// it returns an error otherwise.
+func (m LLMUserPreferenceMutation) Tx() (*Tx, error) {
+	if _, ok := m.driver.(*txDriver); !ok {
+		return nil, errors.New("ent: mutation is not running in a transaction")
+	}
+	tx := &Tx{config: m.config}
+	tx.init()
+	return tx, nil
+}
+
+// ID returns the ID value in the mutation. Note that the ID is only available
+// if it was provided to the builder or after it was returned from the database.
+func (m *LLMUserPreferenceMutation) ID() (id int, exists bool) {
+	if m.id == nil {
+		return
+	}
+	return *m.id, true
+}
+
+// IDs queries the database and returns the entity ids that match the mutation's predicate.
+// That means, if the mutation is applied within a transaction with an isolation level such
+// as sql.LevelSerializable, the returned ids match the ids of the rows that will be updated
+// or updated by the mutation.
+func (m *LLMUserPreferenceMutation) IDs(ctx context.Context) ([]int, error) {
+	switch {
+	case m.op.Is(OpUpdateOne | OpDeleteOne):
+		id, exists := m.ID()
+		if exists {
+			return []int{id}, nil
+		}
+		fallthrough
+	case m.op.Is(OpUpdate | OpDelete):
+		return m.Client().LLMUserPreference.Query().Where(m.predicates...).IDs(ctx)
+	default:
+		return nil, fmt.Errorf("IDs is not allowed on %s operations", m.op)
+	}
+}
+
+// SetUserID sets the "user_id" field.
+func (m *LLMUserPreferenceMutation) SetUserID(i int) {
+	m.user_id = &i
+	m.adduser_id = nil
+}
+
+// UserID returns the value of the "user_id" field in the mutation.
+func (m *LLMUserPreferenceMutation) UserID() (r int, exists bool) {
+	v := m.user_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldUserID returns the old "user_id" field's value of the LLMUserPreference entity.
+// If the LLMUserPreference object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *LLMUserPreferenceMutation) OldUserID(ctx context.Context) (v int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldUserID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldUserID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldUserID: %w", err)
+	}
+	return oldValue.UserID, nil
+}
+
+// AddUserID adds i to the "user_id" field.
+func (m *LLMUserPreferenceMutation) AddUserID(i int) {
+	if m.adduser_id != nil {
+		*m.adduser_id += i
+	} else {
+		m.adduser_id = &i
+	}
+}
+
+// AddedUserID returns the value that was added to the "user_id" field in this mutation.
+func (m *LLMUserPreferenceMutation) AddedUserID() (r int, exists bool) {
+	v := m.adduser_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetUserID resets all changes to the "user_id" field.
+func (m *LLMUserPreferenceMutation) ResetUserID() {
+	m.user_id = nil
+	m.adduser_id = nil
+}
+
+// SetTenantID sets the "tenant_id" field.
+func (m *LLMUserPreferenceMutation) SetTenantID(i int) {
+	m.tenant_id = &i
+	m.addtenant_id = nil
+}
+
+// TenantID returns the value of the "tenant_id" field in the mutation.
+func (m *LLMUserPreferenceMutation) TenantID() (r int, exists bool) {
+	v := m.tenant_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldTenantID returns the old "tenant_id" field's value of the LLMUserPreference entity.
+// If the LLMUserPreference object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *LLMUserPreferenceMutation) OldTenantID(ctx context.Context) (v int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldTenantID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldTenantID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldTenantID: %w", err)
+	}
+	return oldValue.TenantID, nil
+}
+
+// AddTenantID adds i to the "tenant_id" field.
+func (m *LLMUserPreferenceMutation) AddTenantID(i int) {
+	if m.addtenant_id != nil {
+		*m.addtenant_id += i
+	} else {
+		m.addtenant_id = &i
+	}
+}
+
+// AddedTenantID returns the value that was added to the "tenant_id" field in this mutation.
+func (m *LLMUserPreferenceMutation) AddedTenantID() (r int, exists bool) {
+	v := m.addtenant_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetTenantID resets all changes to the "tenant_id" field.
+func (m *LLMUserPreferenceMutation) ResetTenantID() {
+	m.tenant_id = nil
+	m.addtenant_id = nil
+}
+
+// SetProviderKey sets the "provider_key" field.
+func (m *LLMUserPreferenceMutation) SetProviderKey(s string) {
+	m.provider_key = &s
+}
+
+// ProviderKey returns the value of the "provider_key" field in the mutation.
+func (m *LLMUserPreferenceMutation) ProviderKey() (r string, exists bool) {
+	v := m.provider_key
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldProviderKey returns the old "provider_key" field's value of the LLMUserPreference entity.
+// If the LLMUserPreference object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *LLMUserPreferenceMutation) OldProviderKey(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldProviderKey is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldProviderKey requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldProviderKey: %w", err)
+	}
+	return oldValue.ProviderKey, nil
+}
+
+// ClearProviderKey clears the value of the "provider_key" field.
+func (m *LLMUserPreferenceMutation) ClearProviderKey() {
+	m.provider_key = nil
+	m.clearedFields[llmuserpreference.FieldProviderKey] = struct{}{}
+}
+
+// ProviderKeyCleared returns if the "provider_key" field was cleared in this mutation.
+func (m *LLMUserPreferenceMutation) ProviderKeyCleared() bool {
+	_, ok := m.clearedFields[llmuserpreference.FieldProviderKey]
+	return ok
+}
+
+// ResetProviderKey resets all changes to the "provider_key" field.
+func (m *LLMUserPreferenceMutation) ResetProviderKey() {
+	m.provider_key = nil
+	delete(m.clearedFields, llmuserpreference.FieldProviderKey)
+}
+
+// SetCreatedAt sets the "created_at" field.
+func (m *LLMUserPreferenceMutation) SetCreatedAt(t time.Time) {
+	m.created_at = &t
+}
+
+// CreatedAt returns the value of the "created_at" field in the mutation.
+func (m *LLMUserPreferenceMutation) CreatedAt() (r time.Time, exists bool) {
+	v := m.created_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldCreatedAt returns the old "created_at" field's value of the LLMUserPreference entity.
+// If the LLMUserPreference object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *LLMUserPreferenceMutation) OldCreatedAt(ctx context.Context) (v time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldCreatedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldCreatedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldCreatedAt: %w", err)
+	}
+	return oldValue.CreatedAt, nil
+}
+
+// ResetCreatedAt resets all changes to the "created_at" field.
+func (m *LLMUserPreferenceMutation) ResetCreatedAt() {
+	m.created_at = nil
+}
+
+// SetUpdatedAt sets the "updated_at" field.
+func (m *LLMUserPreferenceMutation) SetUpdatedAt(t time.Time) {
+	m.updated_at = &t
+}
+
+// UpdatedAt returns the value of the "updated_at" field in the mutation.
+func (m *LLMUserPreferenceMutation) UpdatedAt() (r time.Time, exists bool) {
+	v := m.updated_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldUpdatedAt returns the old "updated_at" field's value of the LLMUserPreference entity.
+// If the LLMUserPreference object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *LLMUserPreferenceMutation) OldUpdatedAt(ctx context.Context) (v time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldUpdatedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldUpdatedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldUpdatedAt: %w", err)
+	}
+	return oldValue.UpdatedAt, nil
+}
+
+// ResetUpdatedAt resets all changes to the "updated_at" field.
+func (m *LLMUserPreferenceMutation) ResetUpdatedAt() {
+	m.updated_at = nil
+}
+
+// Where appends a list predicates to the LLMUserPreferenceMutation builder.
+func (m *LLMUserPreferenceMutation) Where(ps ...predicate.LLMUserPreference) {
+	m.predicates = append(m.predicates, ps...)
+}
+
+// WhereP appends storage-level predicates to the LLMUserPreferenceMutation builder. Using this method,
+// users can use type-assertion to append predicates that do not depend on any generated package.
+func (m *LLMUserPreferenceMutation) WhereP(ps ...func(*sql.Selector)) {
+	p := make([]predicate.LLMUserPreference, len(ps))
+	for i := range ps {
+		p[i] = ps[i]
+	}
+	m.Where(p...)
+}
+
+// Op returns the operation name.
+func (m *LLMUserPreferenceMutation) Op() Op {
+	return m.op
+}
+
+// SetOp allows setting the mutation operation.
+func (m *LLMUserPreferenceMutation) SetOp(op Op) {
+	m.op = op
+}
+
+// Type returns the node type of this mutation (LLMUserPreference).
+func (m *LLMUserPreferenceMutation) Type() string {
+	return m.typ
+}
+
+// Fields returns all fields that were changed during this mutation. Note that in
+// order to get all numeric fields that were incremented/decremented, call
+// AddedFields().
+func (m *LLMUserPreferenceMutation) Fields() []string {
+	fields := make([]string, 0, 5)
+	if m.user_id != nil {
+		fields = append(fields, llmuserpreference.FieldUserID)
+	}
+	if m.tenant_id != nil {
+		fields = append(fields, llmuserpreference.FieldTenantID)
+	}
+	if m.provider_key != nil {
+		fields = append(fields, llmuserpreference.FieldProviderKey)
+	}
+	if m.created_at != nil {
+		fields = append(fields, llmuserpreference.FieldCreatedAt)
+	}
+	if m.updated_at != nil {
+		fields = append(fields, llmuserpreference.FieldUpdatedAt)
+	}
+	return fields
+}
+
+// Field returns the value of a field with the given name. The second boolean
+// return value indicates that this field was not set, or was not defined in the
+// schema.
+func (m *LLMUserPreferenceMutation) Field(name string) (ent.Value, bool) {
+	switch name {
+	case llmuserpreference.FieldUserID:
+		return m.UserID()
+	case llmuserpreference.FieldTenantID:
+		return m.TenantID()
+	case llmuserpreference.FieldProviderKey:
+		return m.ProviderKey()
+	case llmuserpreference.FieldCreatedAt:
+		return m.CreatedAt()
+	case llmuserpreference.FieldUpdatedAt:
+		return m.UpdatedAt()
+	}
+	return nil, false
+}
+
+// OldField returns the old value of the field from the database. An error is
+// returned if the mutation operation is not UpdateOne, or the query to the
+// database failed.
+func (m *LLMUserPreferenceMutation) OldField(ctx context.Context, name string) (ent.Value, error) {
+	switch name {
+	case llmuserpreference.FieldUserID:
+		return m.OldUserID(ctx)
+	case llmuserpreference.FieldTenantID:
+		return m.OldTenantID(ctx)
+	case llmuserpreference.FieldProviderKey:
+		return m.OldProviderKey(ctx)
+	case llmuserpreference.FieldCreatedAt:
+		return m.OldCreatedAt(ctx)
+	case llmuserpreference.FieldUpdatedAt:
+		return m.OldUpdatedAt(ctx)
+	}
+	return nil, fmt.Errorf("unknown LLMUserPreference field %s", name)
+}
+
+// SetField sets the value of a field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *LLMUserPreferenceMutation) SetField(name string, value ent.Value) error {
+	switch name {
+	case llmuserpreference.FieldUserID:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetUserID(v)
+		return nil
+	case llmuserpreference.FieldTenantID:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetTenantID(v)
+		return nil
+	case llmuserpreference.FieldProviderKey:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetProviderKey(v)
+		return nil
+	case llmuserpreference.FieldCreatedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetCreatedAt(v)
+		return nil
+	case llmuserpreference.FieldUpdatedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetUpdatedAt(v)
+		return nil
+	}
+	return fmt.Errorf("unknown LLMUserPreference field %s", name)
+}
+
+// AddedFields returns all numeric fields that were incremented/decremented during
+// this mutation.
+func (m *LLMUserPreferenceMutation) AddedFields() []string {
+	var fields []string
+	if m.adduser_id != nil {
+		fields = append(fields, llmuserpreference.FieldUserID)
+	}
+	if m.addtenant_id != nil {
+		fields = append(fields, llmuserpreference.FieldTenantID)
+	}
+	return fields
+}
+
+// AddedField returns the numeric value that was incremented/decremented on a field
+// with the given name. The second boolean return value indicates that this field
+// was not set, or was not defined in the schema.
+func (m *LLMUserPreferenceMutation) AddedField(name string) (ent.Value, bool) {
+	switch name {
+	case llmuserpreference.FieldUserID:
+		return m.AddedUserID()
+	case llmuserpreference.FieldTenantID:
+		return m.AddedTenantID()
+	}
+	return nil, false
+}
+
+// AddField adds the value to the field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *LLMUserPreferenceMutation) AddField(name string, value ent.Value) error {
+	switch name {
+	case llmuserpreference.FieldUserID:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddUserID(v)
+		return nil
+	case llmuserpreference.FieldTenantID:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddTenantID(v)
+		return nil
+	}
+	return fmt.Errorf("unknown LLMUserPreference numeric field %s", name)
+}
+
+// ClearedFields returns all nullable fields that were cleared during this
+// mutation.
+func (m *LLMUserPreferenceMutation) ClearedFields() []string {
+	var fields []string
+	if m.FieldCleared(llmuserpreference.FieldProviderKey) {
+		fields = append(fields, llmuserpreference.FieldProviderKey)
+	}
+	return fields
+}
+
+// FieldCleared returns a boolean indicating if a field with the given name was
+// cleared in this mutation.
+func (m *LLMUserPreferenceMutation) FieldCleared(name string) bool {
+	_, ok := m.clearedFields[name]
+	return ok
+}
+
+// ClearField clears the value of the field with the given name. It returns an
+// error if the field is not defined in the schema.
+func (m *LLMUserPreferenceMutation) ClearField(name string) error {
+	switch name {
+	case llmuserpreference.FieldProviderKey:
+		m.ClearProviderKey()
+		return nil
+	}
+	return fmt.Errorf("unknown LLMUserPreference nullable field %s", name)
+}
+
+// ResetField resets all changes in the mutation for the field with the given name.
+// It returns an error if the field is not defined in the schema.
+func (m *LLMUserPreferenceMutation) ResetField(name string) error {
+	switch name {
+	case llmuserpreference.FieldUserID:
+		m.ResetUserID()
+		return nil
+	case llmuserpreference.FieldTenantID:
+		m.ResetTenantID()
+		return nil
+	case llmuserpreference.FieldProviderKey:
+		m.ResetProviderKey()
+		return nil
+	case llmuserpreference.FieldCreatedAt:
+		m.ResetCreatedAt()
+		return nil
+	case llmuserpreference.FieldUpdatedAt:
+		m.ResetUpdatedAt()
+		return nil
+	}
+	return fmt.Errorf("unknown LLMUserPreference field %s", name)
+}
+
+// AddedEdges returns all edge names that were set/added in this mutation.
+func (m *LLMUserPreferenceMutation) AddedEdges() []string {
+	edges := make([]string, 0, 0)
+	return edges
+}
+
+// AddedIDs returns all IDs (to other nodes) that were added for the given edge
+// name in this mutation.
+func (m *LLMUserPreferenceMutation) AddedIDs(name string) []ent.Value {
+	return nil
+}
+
+// RemovedEdges returns all edge names that were removed in this mutation.
+func (m *LLMUserPreferenceMutation) RemovedEdges() []string {
+	edges := make([]string, 0, 0)
+	return edges
+}
+
+// RemovedIDs returns all IDs (to other nodes) that were removed for the edge with
+// the given name in this mutation.
+func (m *LLMUserPreferenceMutation) RemovedIDs(name string) []ent.Value {
+	return nil
+}
+
+// ClearedEdges returns all edge names that were cleared in this mutation.
+func (m *LLMUserPreferenceMutation) ClearedEdges() []string {
+	edges := make([]string, 0, 0)
+	return edges
+}
+
+// EdgeCleared returns a boolean which indicates if the edge with the given name
+// was cleared in this mutation.
+func (m *LLMUserPreferenceMutation) EdgeCleared(name string) bool {
+	return false
+}
+
+// ClearEdge clears the value of the edge with the given name. It returns an error
+// if that edge is not defined in the schema.
+func (m *LLMUserPreferenceMutation) ClearEdge(name string) error {
+	return fmt.Errorf("unknown LLMUserPreference unique edge %s", name)
+}
+
+// ResetEdge resets all changes to the edge with the given name in this mutation.
+// It returns an error if the edge is not defined in the schema.
+func (m *LLMUserPreferenceMutation) ResetEdge(name string) error {
+	return fmt.Errorf("unknown LLMUserPreference edge %s", name)
 }
 
 // MSPAllocationMutation represents an operation that mutates the MSPAllocation nodes in the graph.

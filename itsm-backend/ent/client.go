@@ -71,6 +71,8 @@ import (
 	"itsm-backend/ent/knowledgearticlesession"
 	"itsm-backend/ent/knowledgearticleversion"
 	"itsm-backend/ent/knownerror"
+	"itsm-backend/ent/llmproviderconfig"
+	"itsm-backend/ent/llmuserpreference"
 	"itsm-backend/ent/marketplaceitem"
 	"itsm-backend/ent/menu"
 	"itsm-backend/ent/message"
@@ -280,6 +282,10 @@ type Client struct {
 	KnowledgeArticleVersion *KnowledgeArticleVersionClient
 	// KnownError is the client for interacting with the KnownError builders.
 	KnownError *KnownErrorClient
+	// LLMProviderConfig is the client for interacting with the LLMProviderConfig builders.
+	LLMProviderConfig *LLMProviderConfigClient
+	// LLMUserPreference is the client for interacting with the LLMUserPreference builders.
+	LLMUserPreference *LLMUserPreferenceClient
 	// MSPAllocation is the client for interacting with the MSPAllocation builders.
 	MSPAllocation *MSPAllocationClient
 	// MarketplaceItem is the client for interacting with the MarketplaceItem builders.
@@ -505,6 +511,8 @@ func (c *Client) init() {
 	c.KnowledgeArticleSession = NewKnowledgeArticleSessionClient(c.config)
 	c.KnowledgeArticleVersion = NewKnowledgeArticleVersionClient(c.config)
 	c.KnownError = NewKnownErrorClient(c.config)
+	c.LLMProviderConfig = NewLLMProviderConfigClient(c.config)
+	c.LLMUserPreference = NewLLMUserPreferenceClient(c.config)
 	c.MSPAllocation = NewMSPAllocationClient(c.config)
 	c.MarketplaceItem = NewMarketplaceItemClient(c.config)
 	c.Menu = NewMenuClient(c.config)
@@ -734,6 +742,8 @@ func (c *Client) Tx(ctx context.Context) (*Tx, error) {
 		KnowledgeArticleSession:     NewKnowledgeArticleSessionClient(cfg),
 		KnowledgeArticleVersion:     NewKnowledgeArticleVersionClient(cfg),
 		KnownError:                  NewKnownErrorClient(cfg),
+		LLMProviderConfig:           NewLLMProviderConfigClient(cfg),
+		LLMUserPreference:           NewLLMUserPreferenceClient(cfg),
 		MSPAllocation:               NewMSPAllocationClient(cfg),
 		MarketplaceItem:             NewMarketplaceItemClient(cfg),
 		Menu:                        NewMenuClient(cfg),
@@ -890,6 +900,8 @@ func (c *Client) BeginTx(ctx context.Context, opts *sql.TxOptions) (*Tx, error) 
 		KnowledgeArticleSession:     NewKnowledgeArticleSessionClient(cfg),
 		KnowledgeArticleVersion:     NewKnowledgeArticleVersionClient(cfg),
 		KnownError:                  NewKnownErrorClient(cfg),
+		LLMProviderConfig:           NewLLMProviderConfigClient(cfg),
+		LLMUserPreference:           NewLLMUserPreferenceClient(cfg),
 		MSPAllocation:               NewMSPAllocationClient(cfg),
 		MarketplaceItem:             NewMarketplaceItemClient(cfg),
 		Menu:                        NewMenuClient(cfg),
@@ -1011,8 +1023,9 @@ func (c *Client) Use(hooks ...Hook) {
 		c.IncidentEvent, c.IncidentMetric, c.IncidentRule, c.IncidentRuleExecution,
 		c.ItemVersion, c.KnowledgeArticle, c.KnowledgeArticleLike,
 		c.KnowledgeArticleParticipant, c.KnowledgeArticleSession,
-		c.KnowledgeArticleVersion, c.KnownError, c.MSPAllocation, c.MarketplaceItem,
-		c.Menu, c.Message, c.Microservice, c.Notification, c.NotificationDelivery,
+		c.KnowledgeArticleVersion, c.KnownError, c.LLMProviderConfig,
+		c.LLMUserPreference, c.MSPAllocation, c.MarketplaceItem, c.Menu, c.Message,
+		c.Microservice, c.Notification, c.NotificationDelivery,
 		c.NotificationPreference, c.OnCallSchedule, c.OnCallShift,
 		c.OperationalCommand, c.PasswordResetToken, c.Permission,
 		c.PermissionDefinition, c.Problem, c.ProcessApprovalDecision,
@@ -1055,8 +1068,9 @@ func (c *Client) Intercept(interceptors ...Interceptor) {
 		c.IncidentEvent, c.IncidentMetric, c.IncidentRule, c.IncidentRuleExecution,
 		c.ItemVersion, c.KnowledgeArticle, c.KnowledgeArticleLike,
 		c.KnowledgeArticleParticipant, c.KnowledgeArticleSession,
-		c.KnowledgeArticleVersion, c.KnownError, c.MSPAllocation, c.MarketplaceItem,
-		c.Menu, c.Message, c.Microservice, c.Notification, c.NotificationDelivery,
+		c.KnowledgeArticleVersion, c.KnownError, c.LLMProviderConfig,
+		c.LLMUserPreference, c.MSPAllocation, c.MarketplaceItem, c.Menu, c.Message,
+		c.Microservice, c.Notification, c.NotificationDelivery,
 		c.NotificationPreference, c.OnCallSchedule, c.OnCallShift,
 		c.OperationalCommand, c.PasswordResetToken, c.Permission,
 		c.PermissionDefinition, c.Problem, c.ProcessApprovalDecision,
@@ -1203,6 +1217,10 @@ func (c *Client) Mutate(ctx context.Context, m Mutation) (Value, error) {
 		return c.KnowledgeArticleVersion.mutate(ctx, m)
 	case *KnownErrorMutation:
 		return c.KnownError.mutate(ctx, m)
+	case *LLMProviderConfigMutation:
+		return c.LLMProviderConfig.mutate(ctx, m)
+	case *LLMUserPreferenceMutation:
+		return c.LLMUserPreference.mutate(ctx, m)
 	case *MSPAllocationMutation:
 		return c.MSPAllocation.mutate(ctx, m)
 	case *MarketplaceItemMutation:
@@ -10971,6 +10989,272 @@ func (c *KnownErrorClient) mutate(ctx context.Context, m *KnownErrorMutation) (V
 		return (&KnownErrorDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
 	default:
 		return nil, fmt.Errorf("ent: unknown KnownError mutation op: %q", m.Op())
+	}
+}
+
+// LLMProviderConfigClient is a client for the LLMProviderConfig schema.
+type LLMProviderConfigClient struct {
+	config
+}
+
+// NewLLMProviderConfigClient returns a client for the LLMProviderConfig from the given config.
+func NewLLMProviderConfigClient(c config) *LLMProviderConfigClient {
+	return &LLMProviderConfigClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `llmproviderconfig.Hooks(f(g(h())))`.
+func (c *LLMProviderConfigClient) Use(hooks ...Hook) {
+	c.hooks.LLMProviderConfig = append(c.hooks.LLMProviderConfig, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `llmproviderconfig.Intercept(f(g(h())))`.
+func (c *LLMProviderConfigClient) Intercept(interceptors ...Interceptor) {
+	c.inters.LLMProviderConfig = append(c.inters.LLMProviderConfig, interceptors...)
+}
+
+// Create returns a builder for creating a LLMProviderConfig entity.
+func (c *LLMProviderConfigClient) Create() *LLMProviderConfigCreate {
+	mutation := newLLMProviderConfigMutation(c.config, OpCreate)
+	return &LLMProviderConfigCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of LLMProviderConfig entities.
+func (c *LLMProviderConfigClient) CreateBulk(builders ...*LLMProviderConfigCreate) *LLMProviderConfigCreateBulk {
+	return &LLMProviderConfigCreateBulk{config: c.config, builders: builders}
+}
+
+// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
+// a builder and applies setFunc on it.
+func (c *LLMProviderConfigClient) MapCreateBulk(slice any, setFunc func(*LLMProviderConfigCreate, int)) *LLMProviderConfigCreateBulk {
+	rv := reflect.ValueOf(slice)
+	if rv.Kind() != reflect.Slice {
+		return &LLMProviderConfigCreateBulk{err: fmt.Errorf("calling to LLMProviderConfigClient.MapCreateBulk with wrong type %T, need slice", slice)}
+	}
+	builders := make([]*LLMProviderConfigCreate, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		builders[i] = c.Create()
+		setFunc(builders[i], i)
+	}
+	return &LLMProviderConfigCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for LLMProviderConfig.
+func (c *LLMProviderConfigClient) Update() *LLMProviderConfigUpdate {
+	mutation := newLLMProviderConfigMutation(c.config, OpUpdate)
+	return &LLMProviderConfigUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *LLMProviderConfigClient) UpdateOne(_m *LLMProviderConfig) *LLMProviderConfigUpdateOne {
+	mutation := newLLMProviderConfigMutation(c.config, OpUpdateOne, withLLMProviderConfig(_m))
+	return &LLMProviderConfigUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *LLMProviderConfigClient) UpdateOneID(id int) *LLMProviderConfigUpdateOne {
+	mutation := newLLMProviderConfigMutation(c.config, OpUpdateOne, withLLMProviderConfigID(id))
+	return &LLMProviderConfigUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for LLMProviderConfig.
+func (c *LLMProviderConfigClient) Delete() *LLMProviderConfigDelete {
+	mutation := newLLMProviderConfigMutation(c.config, OpDelete)
+	return &LLMProviderConfigDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *LLMProviderConfigClient) DeleteOne(_m *LLMProviderConfig) *LLMProviderConfigDeleteOne {
+	return c.DeleteOneID(_m.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *LLMProviderConfigClient) DeleteOneID(id int) *LLMProviderConfigDeleteOne {
+	builder := c.Delete().Where(llmproviderconfig.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &LLMProviderConfigDeleteOne{builder}
+}
+
+// Query returns a query builder for LLMProviderConfig.
+func (c *LLMProviderConfigClient) Query() *LLMProviderConfigQuery {
+	return &LLMProviderConfigQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypeLLMProviderConfig},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a LLMProviderConfig entity by its id.
+func (c *LLMProviderConfigClient) Get(ctx context.Context, id int) (*LLMProviderConfig, error) {
+	return c.Query().Where(llmproviderconfig.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *LLMProviderConfigClient) GetX(ctx context.Context, id int) *LLMProviderConfig {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// Hooks returns the client hooks.
+func (c *LLMProviderConfigClient) Hooks() []Hook {
+	return c.hooks.LLMProviderConfig
+}
+
+// Interceptors returns the client interceptors.
+func (c *LLMProviderConfigClient) Interceptors() []Interceptor {
+	return c.inters.LLMProviderConfig
+}
+
+func (c *LLMProviderConfigClient) mutate(ctx context.Context, m *LLMProviderConfigMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&LLMProviderConfigCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&LLMProviderConfigUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&LLMProviderConfigUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&LLMProviderConfigDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("ent: unknown LLMProviderConfig mutation op: %q", m.Op())
+	}
+}
+
+// LLMUserPreferenceClient is a client for the LLMUserPreference schema.
+type LLMUserPreferenceClient struct {
+	config
+}
+
+// NewLLMUserPreferenceClient returns a client for the LLMUserPreference from the given config.
+func NewLLMUserPreferenceClient(c config) *LLMUserPreferenceClient {
+	return &LLMUserPreferenceClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `llmuserpreference.Hooks(f(g(h())))`.
+func (c *LLMUserPreferenceClient) Use(hooks ...Hook) {
+	c.hooks.LLMUserPreference = append(c.hooks.LLMUserPreference, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `llmuserpreference.Intercept(f(g(h())))`.
+func (c *LLMUserPreferenceClient) Intercept(interceptors ...Interceptor) {
+	c.inters.LLMUserPreference = append(c.inters.LLMUserPreference, interceptors...)
+}
+
+// Create returns a builder for creating a LLMUserPreference entity.
+func (c *LLMUserPreferenceClient) Create() *LLMUserPreferenceCreate {
+	mutation := newLLMUserPreferenceMutation(c.config, OpCreate)
+	return &LLMUserPreferenceCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of LLMUserPreference entities.
+func (c *LLMUserPreferenceClient) CreateBulk(builders ...*LLMUserPreferenceCreate) *LLMUserPreferenceCreateBulk {
+	return &LLMUserPreferenceCreateBulk{config: c.config, builders: builders}
+}
+
+// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
+// a builder and applies setFunc on it.
+func (c *LLMUserPreferenceClient) MapCreateBulk(slice any, setFunc func(*LLMUserPreferenceCreate, int)) *LLMUserPreferenceCreateBulk {
+	rv := reflect.ValueOf(slice)
+	if rv.Kind() != reflect.Slice {
+		return &LLMUserPreferenceCreateBulk{err: fmt.Errorf("calling to LLMUserPreferenceClient.MapCreateBulk with wrong type %T, need slice", slice)}
+	}
+	builders := make([]*LLMUserPreferenceCreate, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		builders[i] = c.Create()
+		setFunc(builders[i], i)
+	}
+	return &LLMUserPreferenceCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for LLMUserPreference.
+func (c *LLMUserPreferenceClient) Update() *LLMUserPreferenceUpdate {
+	mutation := newLLMUserPreferenceMutation(c.config, OpUpdate)
+	return &LLMUserPreferenceUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *LLMUserPreferenceClient) UpdateOne(_m *LLMUserPreference) *LLMUserPreferenceUpdateOne {
+	mutation := newLLMUserPreferenceMutation(c.config, OpUpdateOne, withLLMUserPreference(_m))
+	return &LLMUserPreferenceUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *LLMUserPreferenceClient) UpdateOneID(id int) *LLMUserPreferenceUpdateOne {
+	mutation := newLLMUserPreferenceMutation(c.config, OpUpdateOne, withLLMUserPreferenceID(id))
+	return &LLMUserPreferenceUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for LLMUserPreference.
+func (c *LLMUserPreferenceClient) Delete() *LLMUserPreferenceDelete {
+	mutation := newLLMUserPreferenceMutation(c.config, OpDelete)
+	return &LLMUserPreferenceDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *LLMUserPreferenceClient) DeleteOne(_m *LLMUserPreference) *LLMUserPreferenceDeleteOne {
+	return c.DeleteOneID(_m.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *LLMUserPreferenceClient) DeleteOneID(id int) *LLMUserPreferenceDeleteOne {
+	builder := c.Delete().Where(llmuserpreference.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &LLMUserPreferenceDeleteOne{builder}
+}
+
+// Query returns a query builder for LLMUserPreference.
+func (c *LLMUserPreferenceClient) Query() *LLMUserPreferenceQuery {
+	return &LLMUserPreferenceQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypeLLMUserPreference},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a LLMUserPreference entity by its id.
+func (c *LLMUserPreferenceClient) Get(ctx context.Context, id int) (*LLMUserPreference, error) {
+	return c.Query().Where(llmuserpreference.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *LLMUserPreferenceClient) GetX(ctx context.Context, id int) *LLMUserPreference {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// Hooks returns the client hooks.
+func (c *LLMUserPreferenceClient) Hooks() []Hook {
+	return c.hooks.LLMUserPreference
+}
+
+// Interceptors returns the client interceptors.
+func (c *LLMUserPreferenceClient) Interceptors() []Interceptor {
+	return c.inters.LLMUserPreference
+}
+
+func (c *LLMUserPreferenceClient) mutate(ctx context.Context, m *LLMUserPreferenceMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&LLMUserPreferenceCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&LLMUserPreferenceUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&LLMUserPreferenceUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&LLMUserPreferenceDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("ent: unknown LLMUserPreference mutation op: %q", m.Op())
 	}
 }
 
@@ -23535,23 +23819,24 @@ type (
 		IncidentEscalationRule, IncidentEvent, IncidentMetric, IncidentRule,
 		IncidentRuleExecution, ItemVersion, KnowledgeArticle, KnowledgeArticleLike,
 		KnowledgeArticleParticipant, KnowledgeArticleSession, KnowledgeArticleVersion,
-		KnownError, MSPAllocation, MarketplaceItem, Menu, Message, Microservice,
-		Notification, NotificationDelivery, NotificationPreference, OnCallSchedule,
-		OnCallShift, OperationalCommand, PasswordResetToken, Permission,
-		PermissionDefinition, Problem, ProcessApprovalDecision, ProcessAuditLog,
-		ProcessBinding, ProcessDefinition, ProcessDeployment, ProcessExecutionHistory,
-		ProcessInstance, ProcessTask, ProcessTimer, ProcessVariable,
-		ProcessVersionChangelog, Project, PromptTemplate, ProvisioningTask,
-		RelationshipType, Release, Role, RolePermission, RootCauseAnalysis,
-		SLAAlertHistory, SLAAlertRule, SLADefinition, SLAMetric, SLAPolicy,
-		SLAViolation, ServiceCatalog, ServiceCatalogItem, ServiceCustomer,
-		ServiceRequest, ServiceRequestApproval, SourceOrganization, StandardChange,
-		SupportContract, Survey, SurveyResponse, SystemConfig, Tag, Team, Tenant,
-		TenantInstallation, Ticket, TicketApproval, TicketAssignmentRule,
-		TicketAttachment, TicketAutomationRule, TicketCC, TicketCategory,
-		TicketComment, TicketNotification, TicketTag, TicketTemplate, TicketType,
-		TicketView, TicketWorkflowRecord, ToolInvocation, User, Vendor, Workflow,
-		WorkflowInstance, WorkflowTask, WorkflowTemplate, WorkflowVersion []ent.Hook
+		KnownError, LLMProviderConfig, LLMUserPreference, MSPAllocation,
+		MarketplaceItem, Menu, Message, Microservice, Notification,
+		NotificationDelivery, NotificationPreference, OnCallSchedule, OnCallShift,
+		OperationalCommand, PasswordResetToken, Permission, PermissionDefinition,
+		Problem, ProcessApprovalDecision, ProcessAuditLog, ProcessBinding,
+		ProcessDefinition, ProcessDeployment, ProcessExecutionHistory, ProcessInstance,
+		ProcessTask, ProcessTimer, ProcessVariable, ProcessVersionChangelog, Project,
+		PromptTemplate, ProvisioningTask, RelationshipType, Release, Role,
+		RolePermission, RootCauseAnalysis, SLAAlertHistory, SLAAlertRule,
+		SLADefinition, SLAMetric, SLAPolicy, SLAViolation, ServiceCatalog,
+		ServiceCatalogItem, ServiceCustomer, ServiceRequest, ServiceRequestApproval,
+		SourceOrganization, StandardChange, SupportContract, Survey, SurveyResponse,
+		SystemConfig, Tag, Team, Tenant, TenantInstallation, Ticket, TicketApproval,
+		TicketAssignmentRule, TicketAttachment, TicketAutomationRule, TicketCC,
+		TicketCategory, TicketComment, TicketNotification, TicketTag, TicketTemplate,
+		TicketType, TicketView, TicketWorkflowRecord, ToolInvocation, User, Vendor,
+		Workflow, WorkflowInstance, WorkflowTask, WorkflowTemplate,
+		WorkflowVersion []ent.Hook
 	}
 	inters struct {
 		AIAnalysisResult, Alert, Application, ApprovalChain, ApprovalRecord,
@@ -23567,23 +23852,23 @@ type (
 		IncidentEscalationRule, IncidentEvent, IncidentMetric, IncidentRule,
 		IncidentRuleExecution, ItemVersion, KnowledgeArticle, KnowledgeArticleLike,
 		KnowledgeArticleParticipant, KnowledgeArticleSession, KnowledgeArticleVersion,
-		KnownError, MSPAllocation, MarketplaceItem, Menu, Message, Microservice,
-		Notification, NotificationDelivery, NotificationPreference, OnCallSchedule,
-		OnCallShift, OperationalCommand, PasswordResetToken, Permission,
-		PermissionDefinition, Problem, ProcessApprovalDecision, ProcessAuditLog,
-		ProcessBinding, ProcessDefinition, ProcessDeployment, ProcessExecutionHistory,
-		ProcessInstance, ProcessTask, ProcessTimer, ProcessVariable,
-		ProcessVersionChangelog, Project, PromptTemplate, ProvisioningTask,
-		RelationshipType, Release, Role, RolePermission, RootCauseAnalysis,
-		SLAAlertHistory, SLAAlertRule, SLADefinition, SLAMetric, SLAPolicy,
-		SLAViolation, ServiceCatalog, ServiceCatalogItem, ServiceCustomer,
-		ServiceRequest, ServiceRequestApproval, SourceOrganization, StandardChange,
-		SupportContract, Survey, SurveyResponse, SystemConfig, Tag, Team, Tenant,
-		TenantInstallation, Ticket, TicketApproval, TicketAssignmentRule,
-		TicketAttachment, TicketAutomationRule, TicketCC, TicketCategory,
-		TicketComment, TicketNotification, TicketTag, TicketTemplate, TicketType,
-		TicketView, TicketWorkflowRecord, ToolInvocation, User, Vendor, Workflow,
-		WorkflowInstance, WorkflowTask, WorkflowTemplate,
+		KnownError, LLMProviderConfig, LLMUserPreference, MSPAllocation,
+		MarketplaceItem, Menu, Message, Microservice, Notification,
+		NotificationDelivery, NotificationPreference, OnCallSchedule, OnCallShift,
+		OperationalCommand, PasswordResetToken, Permission, PermissionDefinition,
+		Problem, ProcessApprovalDecision, ProcessAuditLog, ProcessBinding,
+		ProcessDefinition, ProcessDeployment, ProcessExecutionHistory, ProcessInstance,
+		ProcessTask, ProcessTimer, ProcessVariable, ProcessVersionChangelog, Project,
+		PromptTemplate, ProvisioningTask, RelationshipType, Release, Role,
+		RolePermission, RootCauseAnalysis, SLAAlertHistory, SLAAlertRule,
+		SLADefinition, SLAMetric, SLAPolicy, SLAViolation, ServiceCatalog,
+		ServiceCatalogItem, ServiceCustomer, ServiceRequest, ServiceRequestApproval,
+		SourceOrganization, StandardChange, SupportContract, Survey, SurveyResponse,
+		SystemConfig, Tag, Team, Tenant, TenantInstallation, Ticket, TicketApproval,
+		TicketAssignmentRule, TicketAttachment, TicketAutomationRule, TicketCC,
+		TicketCategory, TicketComment, TicketNotification, TicketTag, TicketTemplate,
+		TicketType, TicketView, TicketWorkflowRecord, ToolInvocation, User, Vendor,
+		Workflow, WorkflowInstance, WorkflowTask, WorkflowTemplate,
 		WorkflowVersion []ent.Interceptor
 	}
 )

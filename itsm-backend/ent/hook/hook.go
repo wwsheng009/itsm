@@ -728,6 +728,30 @@ func (f KnownErrorFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, 
 	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.KnownErrorMutation", m)
 }
 
+// The LLMProviderConfigFunc type is an adapter to allow the use of ordinary
+// function as LLMProviderConfig mutator.
+type LLMProviderConfigFunc func(context.Context, *ent.LLMProviderConfigMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f LLMProviderConfigFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.LLMProviderConfigMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.LLMProviderConfigMutation", m)
+}
+
+// The LLMUserPreferenceFunc type is an adapter to allow the use of ordinary
+// function as LLMUserPreference mutator.
+type LLMUserPreferenceFunc func(context.Context, *ent.LLMUserPreferenceMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f LLMUserPreferenceFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.LLMUserPreferenceMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.LLMUserPreferenceMutation", m)
+}
+
 // The MSPAllocationFunc type is an adapter to allow the use of ordinary
 // function as MSPAllocation mutator.
 type MSPAllocationFunc func(context.Context, *ent.MSPAllocationMutation) (ent.Value, error)

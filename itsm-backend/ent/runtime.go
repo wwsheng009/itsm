@@ -63,6 +63,8 @@ import (
 	"itsm-backend/ent/knowledgearticlesession"
 	"itsm-backend/ent/knowledgearticleversion"
 	"itsm-backend/ent/knownerror"
+	"itsm-backend/ent/llmproviderconfig"
+	"itsm-backend/ent/llmuserpreference"
 	"itsm-backend/ent/marketplaceitem"
 	"itsm-backend/ent/menu"
 	"itsm-backend/ent/message"
@@ -2721,6 +2723,140 @@ func init() {
 	knownerror.DefaultUpdatedAt = knownerrorDescUpdatedAt.Default.(func() time.Time)
 	// knownerror.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
 	knownerror.UpdateDefaultUpdatedAt = knownerrorDescUpdatedAt.UpdateDefault.(func() time.Time)
+	llmproviderconfigFields := schema.LLMProviderConfig{}.Fields()
+	_ = llmproviderconfigFields
+	// llmproviderconfigDescTenantID is the schema descriptor for tenant_id field.
+	llmproviderconfigDescTenantID := llmproviderconfigFields[0].Descriptor()
+	// llmproviderconfig.TenantIDValidator is a validator for the "tenant_id" field. It is called by the builders before save.
+	llmproviderconfig.TenantIDValidator = llmproviderconfigDescTenantID.Validators[0].(func(int) error)
+	// llmproviderconfigDescName is the schema descriptor for name field.
+	llmproviderconfigDescName := llmproviderconfigFields[1].Descriptor()
+	// llmproviderconfig.NameValidator is a validator for the "name" field. It is called by the builders before save.
+	llmproviderconfig.NameValidator = func() func(string) error {
+		validators := llmproviderconfigDescName.Validators
+		fns := [...]func(string) error{
+			validators[0].(func(string) error),
+			validators[1].(func(string) error),
+		}
+		return func(name string) error {
+			for _, fn := range fns {
+				if err := fn(name); err != nil {
+					return err
+				}
+			}
+			return nil
+		}
+	}()
+	// llmproviderconfigDescDisplayName is the schema descriptor for display_name field.
+	llmproviderconfigDescDisplayName := llmproviderconfigFields[2].Descriptor()
+	// llmproviderconfig.DisplayNameValidator is a validator for the "display_name" field. It is called by the builders before save.
+	llmproviderconfig.DisplayNameValidator = func() func(string) error {
+		validators := llmproviderconfigDescDisplayName.Validators
+		fns := [...]func(string) error{
+			validators[0].(func(string) error),
+			validators[1].(func(string) error),
+		}
+		return func(display_name string) error {
+			for _, fn := range fns {
+				if err := fn(display_name); err != nil {
+					return err
+				}
+			}
+			return nil
+		}
+	}()
+	// llmproviderconfigDescProtocol is the schema descriptor for protocol field.
+	llmproviderconfigDescProtocol := llmproviderconfigFields[3].Descriptor()
+	// llmproviderconfig.ProtocolValidator is a validator for the "protocol" field. It is called by the builders before save.
+	llmproviderconfig.ProtocolValidator = func() func(string) error {
+		validators := llmproviderconfigDescProtocol.Validators
+		fns := [...]func(string) error{
+			validators[0].(func(string) error),
+			validators[1].(func(string) error),
+		}
+		return func(protocol string) error {
+			for _, fn := range fns {
+				if err := fn(protocol); err != nil {
+					return err
+				}
+			}
+			return nil
+		}
+	}()
+	// llmproviderconfigDescVariant is the schema descriptor for variant field.
+	llmproviderconfigDescVariant := llmproviderconfigFields[4].Descriptor()
+	// llmproviderconfig.VariantValidator is a validator for the "variant" field. It is called by the builders before save.
+	llmproviderconfig.VariantValidator = llmproviderconfigDescVariant.Validators[0].(func(string) error)
+	// llmproviderconfigDescModel is the schema descriptor for model field.
+	llmproviderconfigDescModel := llmproviderconfigFields[6].Descriptor()
+	// llmproviderconfig.ModelValidator is a validator for the "model" field. It is called by the builders before save.
+	llmproviderconfig.ModelValidator = llmproviderconfigDescModel.Validators[0].(func(string) error)
+	// llmproviderconfigDescEndpoint is the schema descriptor for endpoint field.
+	llmproviderconfigDescEndpoint := llmproviderconfigFields[7].Descriptor()
+	// llmproviderconfig.EndpointValidator is a validator for the "endpoint" field. It is called by the builders before save.
+	llmproviderconfig.EndpointValidator = llmproviderconfigDescEndpoint.Validators[0].(func(string) error)
+	// llmproviderconfigDescDeployment is the schema descriptor for deployment field.
+	llmproviderconfigDescDeployment := llmproviderconfigFields[8].Descriptor()
+	// llmproviderconfig.DeploymentValidator is a validator for the "deployment" field. It is called by the builders before save.
+	llmproviderconfig.DeploymentValidator = llmproviderconfigDescDeployment.Validators[0].(func(string) error)
+	// llmproviderconfigDescEnabled is the schema descriptor for enabled field.
+	llmproviderconfigDescEnabled := llmproviderconfigFields[10].Descriptor()
+	// llmproviderconfig.DefaultEnabled holds the default value on creation for the enabled field.
+	llmproviderconfig.DefaultEnabled = llmproviderconfigDescEnabled.Default.(bool)
+	// llmproviderconfigDescIsDefault is the schema descriptor for is_default field.
+	llmproviderconfigDescIsDefault := llmproviderconfigFields[11].Descriptor()
+	// llmproviderconfig.DefaultIsDefault holds the default value on creation for the is_default field.
+	llmproviderconfig.DefaultIsDefault = llmproviderconfigDescIsDefault.Default.(bool)
+	// llmproviderconfigDescSource is the schema descriptor for source field.
+	llmproviderconfigDescSource := llmproviderconfigFields[12].Descriptor()
+	// llmproviderconfig.DefaultSource holds the default value on creation for the source field.
+	llmproviderconfig.DefaultSource = llmproviderconfigDescSource.Default.(string)
+	// llmproviderconfig.SourceValidator is a validator for the "source" field. It is called by the builders before save.
+	llmproviderconfig.SourceValidator = llmproviderconfigDescSource.Validators[0].(func(string) error)
+	// llmproviderconfigDescStatus is the schema descriptor for status field.
+	llmproviderconfigDescStatus := llmproviderconfigFields[13].Descriptor()
+	// llmproviderconfig.DefaultStatus holds the default value on creation for the status field.
+	llmproviderconfig.DefaultStatus = llmproviderconfigDescStatus.Default.(string)
+	// llmproviderconfig.StatusValidator is a validator for the "status" field. It is called by the builders before save.
+	llmproviderconfig.StatusValidator = llmproviderconfigDescStatus.Validators[0].(func(string) error)
+	// llmproviderconfigDescLastError is the schema descriptor for last_error field.
+	llmproviderconfigDescLastError := llmproviderconfigFields[14].Descriptor()
+	// llmproviderconfig.LastErrorValidator is a validator for the "last_error" field. It is called by the builders before save.
+	llmproviderconfig.LastErrorValidator = llmproviderconfigDescLastError.Validators[0].(func(string) error)
+	// llmproviderconfigDescCreatedAt is the schema descriptor for created_at field.
+	llmproviderconfigDescCreatedAt := llmproviderconfigFields[16].Descriptor()
+	// llmproviderconfig.DefaultCreatedAt holds the default value on creation for the created_at field.
+	llmproviderconfig.DefaultCreatedAt = llmproviderconfigDescCreatedAt.Default.(func() time.Time)
+	// llmproviderconfigDescUpdatedAt is the schema descriptor for updated_at field.
+	llmproviderconfigDescUpdatedAt := llmproviderconfigFields[17].Descriptor()
+	// llmproviderconfig.DefaultUpdatedAt holds the default value on creation for the updated_at field.
+	llmproviderconfig.DefaultUpdatedAt = llmproviderconfigDescUpdatedAt.Default.(func() time.Time)
+	// llmproviderconfig.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
+	llmproviderconfig.UpdateDefaultUpdatedAt = llmproviderconfigDescUpdatedAt.UpdateDefault.(func() time.Time)
+	llmuserpreferenceFields := schema.LLMUserPreference{}.Fields()
+	_ = llmuserpreferenceFields
+	// llmuserpreferenceDescUserID is the schema descriptor for user_id field.
+	llmuserpreferenceDescUserID := llmuserpreferenceFields[0].Descriptor()
+	// llmuserpreference.UserIDValidator is a validator for the "user_id" field. It is called by the builders before save.
+	llmuserpreference.UserIDValidator = llmuserpreferenceDescUserID.Validators[0].(func(int) error)
+	// llmuserpreferenceDescTenantID is the schema descriptor for tenant_id field.
+	llmuserpreferenceDescTenantID := llmuserpreferenceFields[1].Descriptor()
+	// llmuserpreference.TenantIDValidator is a validator for the "tenant_id" field. It is called by the builders before save.
+	llmuserpreference.TenantIDValidator = llmuserpreferenceDescTenantID.Validators[0].(func(int) error)
+	// llmuserpreferenceDescProviderKey is the schema descriptor for provider_key field.
+	llmuserpreferenceDescProviderKey := llmuserpreferenceFields[2].Descriptor()
+	// llmuserpreference.ProviderKeyValidator is a validator for the "provider_key" field. It is called by the builders before save.
+	llmuserpreference.ProviderKeyValidator = llmuserpreferenceDescProviderKey.Validators[0].(func(string) error)
+	// llmuserpreferenceDescCreatedAt is the schema descriptor for created_at field.
+	llmuserpreferenceDescCreatedAt := llmuserpreferenceFields[3].Descriptor()
+	// llmuserpreference.DefaultCreatedAt holds the default value on creation for the created_at field.
+	llmuserpreference.DefaultCreatedAt = llmuserpreferenceDescCreatedAt.Default.(func() time.Time)
+	// llmuserpreferenceDescUpdatedAt is the schema descriptor for updated_at field.
+	llmuserpreferenceDescUpdatedAt := llmuserpreferenceFields[4].Descriptor()
+	// llmuserpreference.DefaultUpdatedAt holds the default value on creation for the updated_at field.
+	llmuserpreference.DefaultUpdatedAt = llmuserpreferenceDescUpdatedAt.Default.(func() time.Time)
+	// llmuserpreference.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
+	llmuserpreference.UpdateDefaultUpdatedAt = llmuserpreferenceDescUpdatedAt.UpdateDefault.(func() time.Time)
 	mspallocationFields := schema.MSPAllocation{}.Fields()
 	_ = mspallocationFields
 	// mspallocationDescRole is the schema descriptor for role field.

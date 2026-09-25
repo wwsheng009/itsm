@@ -186,6 +186,12 @@ type KnowledgeArticleVersion func(*sql.Selector)
 // KnownError is the predicate function for knownerror builders.
 type KnownError func(*sql.Selector)
 
+// LLMProviderConfig is the predicate function for llmproviderconfig builders.
+type LLMProviderConfig func(*sql.Selector)
+
+// LLMUserPreference is the predicate function for llmuserpreference builders.
+type LLMUserPreference func(*sql.Selector)
+
 // MSPAllocation is the predicate function for mspallocation builders.
 type MSPAllocation func(*sql.Selector)
 
