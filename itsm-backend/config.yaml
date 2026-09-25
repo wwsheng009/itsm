@@ -49,6 +49,7 @@ llm:
   endpoint: "${LLM_ENDPOINT:}"              # For Azure/Custom endpoints
   deployment: "${LLM_DEPLOYMENT:}"          # Azure deployment ID
   token_cap: 8000         # Rate limit
+  protocol_adapter_enabled: "${LLM_PROTOCOL_ADAPTER_ENABLED:false}"  # BE-9 协议适配器开关（默认关；开启后 provider=openai 走协议适配器，其余回退旧分支）
 
 # Embedding configuration for RAG
 embedding:

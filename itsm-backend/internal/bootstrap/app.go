@@ -610,22 +610,45 @@ func NewApplication() *Application {
 
 	// Create LLM Gateway for AI services
 	llmConfig := service.LoadLLMConfig()
-	// 阻断1 修复：启动期检测 LLM API Key 配置状态。
-	// - 占位符/空值：在开发环境 Warn，在生产环境终止启动（生产硬约束见 memory）。
-	// - 真实密钥：仅输出 MaskSecret 脱敏值，便于诊断配置是否生效，绝不输出明文。
-	if common.IsPlaceholderSecret(llmConfig.APIKey) {
-		if os.Getenv("ENV") == "production" || os.Getenv("GIN_MODE") == "release" {
-			sugar.Errorw("LLM API Key 未配置或为占位符，生产环境禁止以此状态启动",
-				"provider", llmConfig.Provider, "api_key", common.MaskSecret(llmConfig.APIKey))
-			// NewApplication 返回 *Application（无 error），生产硬约束用 log.Fatalf 终止。
-			log.Fatalf("LLM API Key 未配置：生产环境必须设置真实的 LLM_API_KEY (provider=%s, api_key=%s)",
-				llmConfig.Provider, common.MaskSecret(llmConfig.APIKey))
+	// 阻断1 修复 + BE-5 §4.1 启动硬约束矩阵（D11）：
+	// - 真实密钥：Info（仅 MaskSecret 脱敏值，绝不输出明文），正常启动；
+	// - 占位符/空值 + 生产 + 无可用 DB 实例：Fatal 终止启动（生产硬约束保持）；
+	// - 占位符/空值 + 生产 + 有可用 DB 实例（且多 Provider 开关开启）：Warn，以 DB 实例为准；
+	// - 占位符/空值 + 非生产：Warn，AI 功能按现状降级/禁用。
+	// 五行走法收敛在 service.EvaluateLLMKeyStartup（纯函数，单测逐行锁定）；
+	// 开关关闭时 DB 实例不参与解析链（D9），探针不启用 → 保持现状 Fatal（QA-3 门禁）。
+	llmKeyProduction := os.Getenv("ENV") == "production" || os.Getenv("GIN_MODE") == "release"
+	usableDBInstances := 0
+	if llmKeyProduction && common.IsPlaceholderSecret(llmConfig.APIKey) && service.MultiProviderEnabled() {
+		probeKey, _ := service.ResolveLLMProviderEncryptionKey(cfg.JWT.Secret)
+		probed, probeErr := service.CountUsableLLMProviderInstances(
+			context.Background(), client, middleware.NewEncryptionService(probeKey))
+		if probeErr != nil {
+			// 探针失败按"无 DB 实例"处理：宁可维持静态密钥硬约束，也不放行无兜底启动。
+			sugar.Warnw("LLM provider 启动探针失败，按无 DB 实例处理", "error", probeErr)
+		} else {
+			usableDBInstances = probed
 		}
-		sugar.Warnw("LLM API Key 未配置或为占位符，AI 功能将降级为禁用",
-			"provider", llmConfig.Provider, "api_key", common.MaskSecret(llmConfig.APIKey))
-	} else {
+	}
+	switch service.EvaluateLLMKeyStartup(llmConfig.APIKey, llmKeyProduction, usableDBInstances) {
+	case service.LLMKeyStartupInfo:
 		sugar.Infow("LLM API Key 已配置",
 			"provider", llmConfig.Provider, "api_key_masked", common.MaskSecret(llmConfig.APIKey))
+	case service.LLMKeyStartupFatal:
+		sugar.Errorw("LLM API Key 未配置或为占位符，生产环境且无可用 DB 实例，禁止以此状态启动",
+			"provider", llmConfig.Provider, "api_key", common.MaskSecret(llmConfig.APIKey))
+		// NewApplication 返回 *Application（无 error），生产硬约束用 log.Fatalf 终止。
+		log.Fatalf("LLM API Key 未配置：生产环境必须设置真实的 LLM_API_KEY 或至少一个启用的 DB Provider 实例 (provider=%s, api_key=%s)",
+			llmConfig.Provider, common.MaskSecret(llmConfig.APIKey))
+	case service.LLMKeyStartupWarn:
+		if usableDBInstances > 0 {
+			sugar.Warnw("LLM API Key 为占位符/空值，生产环境以 DB Provider 实例为准启动",
+				"provider", llmConfig.Provider, "api_key", common.MaskSecret(llmConfig.APIKey),
+				"usable_db_instances", usableDBInstances)
+		} else {
+			sugar.Warnw("LLM API Key 未配置或为占位符，AI 功能将降级为禁用",
+				"provider", llmConfig.Provider, "api_key", common.MaskSecret(llmConfig.APIKey))
+		}
 	}
 	llmProvider := service.NewProviderFromConfig(llmConfig)
 	// Token limiter guards against runaway prompt cost. Default 4000 rune-tokens/request
@@ -961,6 +984,33 @@ func NewApplication() *Application {
 	aiServiceDomain.SetEntClient(client)
 	aiHandler := ai.NewHandler(aiServiceDomain)
 
+	// 多 LLM Provider（主计划 §3.2/§3.4 BE-4/BE-5）：灰度开关关闭时零装配、零路由，
+	// 旧行为逐字节不变（QA-3 回归门禁）；开启时注入 §3.3 解析链并注册管理 API。
+	var llmProviderAdminHandler *ai.LLMProviderAdminHandler
+	if service.MultiProviderEnabled() {
+		// 开发回退：与 connector 配置加密同策略（派生自 JWT secret），仅用于非生产
+		// 未显式配置的环境；生产必须显式设置 LLM_PROVIDER_ENCRYPTION_KEY。
+		providerKey, derivedProviderKey := service.ResolveLLMProviderEncryptionKey(cfg.JWT.Secret)
+		if derivedProviderKey {
+			sugar.Warn("LLM_PROVIDER_ENCRYPTION_KEY is not set; derived key from JWT secret (dev fallback)")
+		}
+		providerEncrypter := middleware.NewEncryptionService(providerKey)
+		providerRegistry := service.NewLLMProviderRegistry(client, providerEncrypter, llmConfig, sugar)
+		// 解析链：请求级覆盖 → 个人默认 → 租户默认 → 静态回退（§3.3）。
+		llmGateway.WithResolver(providerRegistry)
+		llmProviderAdminHandler = ai.NewLLMProviderAdminHandler(ai.NewLLMProviderAdminService(ai.LLMProviderAdminDeps{
+			Client:      client,
+			Encrypter:   providerEncrypter,
+			Invalidator: providerRegistry,
+			Logger:      sugar,
+			Audit:       aiServiceDomain,
+		}))
+		sugar.Infow("LLM multi-provider enabled",
+			"resolution_chain", "request→user→tenant→static",
+			"admin_routes", "/api/v1/ai/providers*",
+		)
+	}
+
 	// Sprint C — Skill Registry v1：在 ai.Service 装配完成后注入内置 Skill。
 	// 注册失败按"启动期 fail-fast"原则处理：以 service.SkillRegistry 注入到 ai package 中，
 	// 供后续 handlers/skill 管理 API 调用。
@@ -1202,6 +1252,7 @@ func NewApplication() *Application {
 		SLATemplateHandler:          slaTemplateHandler.NewHandler(slaTemplateService),
 		VectorStoreHandler:          vectorStoreHandler.NewHandler(service.NewVectorStore(database.GetRawDB()), sugar),
 		AIHandler:                   aiHandler, // Added AI domain handler
+		LLMProviderAdminHandler:     llmProviderAdminHandler,
 		EmailIntakeHandler:          emailIntakeHandler,
 		CommonHandler:               commonHandler,
 		AuthHandler:                 authHTTPHandler,

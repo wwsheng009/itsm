@@ -206,7 +206,10 @@ type RouterConfig struct {
 	SLAHandler         *sla.Handler
 	SLATemplateHandler *slaTemplateHandler.Handler
 	AIHandler          *ai.Handler
-	EmailIntakeHandler *email_intake.Handler
+	// LLMProviderAdminHandler 多 Provider 管理 API（BE-4 §3.4）：仅在灰度开关开启时
+	// 由 bootstrap 注入；为 nil 时整组路由不注册（开关关闭 = 端点不可达，§3.5 回滚语义）。
+	LLMProviderAdminHandler *ai.LLMProviderAdminHandler
+	EmailIntakeHandler      *email_intake.Handler
 	// VectorStoreController 提供向量存储（RAG 检索底座）状态查看与连通性测试，
 	// 注册 /api/v1/system/vector-store*；为 nil 时路由不注册。
 	VectorStoreHandler *vectorStoreHandler.Handler
@@ -567,6 +570,10 @@ func SetupRoutes(r *gin.Engine, config *RouterConfig) {
 		// ==================== AI & Analytics (DDD) ====================
 		if config.AIHandler != nil {
 			SetupAIRoutes(tenant.(*gin.RouterGroup), config.AIHandler)
+		}
+		// ==================== 多 LLM Provider 管理 API（BE-4） ====================
+		if config.LLMProviderAdminHandler != nil {
+			SetupLLMProviderAdminRoutes(tenant.(*gin.RouterGroup), config.LLMProviderAdminHandler)
 		}
 
 		// ==================== Skill Registry v1 ====================

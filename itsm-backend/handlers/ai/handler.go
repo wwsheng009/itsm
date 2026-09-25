@@ -1,11 +1,13 @@
 package ai
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
 	"strconv"
+	"strings"
 	"time"
 
 	"itsm-backend/common"
@@ -133,6 +135,8 @@ func (h *Handler) Chat(c *gin.Context) {
 		Query          string `json:"query" binding:"required"`
 		Limit          int    `json:"limit"`
 		ConversationID int    `json:"conversationId"`
+		// Provider 单次覆盖（BE-7，§3.4）：仅系统管理员可用；空 = 默认链。
+		Provider string `json:"provider"`
 	}
 	if err := c.ShouldBindJSON(&req); err != nil {
 		common.ParamErrorWithErr(c, err, "请求参数错误")
@@ -147,13 +151,52 @@ func (h *Handler) Chat(c *gin.Context) {
 		return
 	}
 
+	provider := strings.TrimSpace(req.Provider)
+	// §3.4：provider 覆盖参数仅系统管理员可用；越权显式失败（403），绝不静默忽略——
+	// 静默忽略会让调用方以为指定实例已生效。
+	if provider != "" && !h.canUseProviderOverride(c.Request.Context(), tenantID, role) {
+		respondLLMAdminError(c, &LLMAdminError{
+			Status:  http.StatusForbidden,
+			Code:    "AI_PROVIDER_FORBIDDEN",
+			Message: "provider 覆盖参数仅系统管理员可用",
+		})
+		return
+	}
+
 	// 注入知识访问者身份：RAG 检索据此做分类级可见性过滤（L0 权限边界）。
 	// 不注入则按匿名处理，已纳管的受限分类一律不可见（fail-closed）。
 	chatCtx := knowledgeaccess.WithViewer(c.Request.Context(), knowledgeaccess.Viewer{UserID: userID, Role: role})
 
-	answers, convID, err := h.svc.Chat(chatCtx, tenantID, userID, req.Query, req.Limit, req.ConversationID)
+	if provider == "" && !service.MultiProviderEnabled() {
+		// 开关关闭且未显式覆盖：保持既有调用与响应形状（QA-3 零破坏门禁）。
+		answers, convID, err := h.svc.Chat(chatCtx, tenantID, userID, req.Query, req.Limit, req.ConversationID)
+		if err != nil {
+			// RAG 失败时降级处理：返回空结果而非 500 错误，避免前端崩溃
+			h.svc.logger.Warnw("AI Chat RAG 检索失败，返回降级响应", "error", err, "tenantID", tenantID)
+			common.Success(c, gin.H{
+				"answers":        []interface{}{},
+				"conversationId": 0,
+				"degraded":       true,
+				"message":        "AI 服务暂时不可用，请稍后重试",
+			})
+			return
+		}
+
+		common.Success(c, gin.H{
+			"answers":        answers,
+			"conversationId": convID,
+		})
+		return
+	}
+
+	// 多 Provider 开启或显式覆盖：解析 provider 并回带 provider/providerSource（BE-7）。
+	answers, resolution, convID, err := h.svc.ChatWithProviderInfo(chatCtx, tenantID, userID, req.Query, req.Limit, req.ConversationID, provider)
 	if err != nil {
-		// RAG 失败时降级处理：返回空结果而非 500 错误，避免前端崩溃
+		if isProviderResolutionError(err) {
+			// 显式覆盖的解析失败按 §3.4 契约可见地失败（404/409/422/503）。
+			respondLLMAdminError(c, mapProviderResolutionError(err, provider))
+			return
+		}
 		h.svc.logger.Warnw("AI Chat RAG 检索失败，返回降级响应", "error", err, "tenantID", tenantID)
 		common.Success(c, gin.H{
 			"answers":        []interface{}{},
@@ -164,23 +207,30 @@ func (h *Handler) Chat(c *gin.Context) {
 		return
 	}
 
-	common.Success(c, gin.H{
+	payload := gin.H{
 		"answers":        answers,
 		"conversationId": convID,
-	})
+	}
+	if resolution.Key != "" || resolution.Source != "" {
+		payload["provider"] = resolution.Key
+		payload["providerSource"] = resolution.Source
+	}
+	common.Success(c, payload)
 }
 
 // ChatStream handles POST /api/v1/ai/chat/stream and emits Server-Sent Events.
 // Events:
 //   - event: sources        data: [{objectType,id,title,snippet,score,...}]
 //   - event: delta          data: {"content": "..."}
-//   - event: done           data: {"conversationId": <id>}
-//   - event: error          data: {"message": "..."}
+//   - event: done           data: {"conversationId": <id>}（多 Provider 开启/显式覆盖时附加 provider/providerSource）
+//   - event: error          data: {"message": "..."}（provider 解析失败时附加 errorCode，§3.4 契约）
 func (h *Handler) ChatStream(c *gin.Context) {
 	var req struct {
 		Query          string `json:"query" binding:"required"`
 		Limit          int    `json:"limit"`
 		ConversationID int    `json:"conversationId"`
+		// Provider 单次覆盖（BE-7，§3.4）：仅系统管理员可用；空 = 默认链。
+		Provider string `json:"provider"`
 	}
 	if err := c.ShouldBindJSON(&req); err != nil {
 		common.ParamErrorWithErr(c, err, "请求参数错误")
@@ -195,6 +245,17 @@ func (h *Handler) ChatStream(c *gin.Context) {
 		return
 	}
 
+	provider := strings.TrimSpace(req.Provider)
+	if provider != "" && !h.canUseProviderOverride(c.Request.Context(), tenantID, role) {
+		respondLLMAdminError(c, &LLMAdminError{
+			Status:  http.StatusForbidden,
+			Code:    "AI_PROVIDER_FORBIDDEN",
+			Message: "provider 覆盖参数仅系统管理员可用",
+		})
+		return
+	}
+	useProviderInfo := provider != "" || service.MultiProviderEnabled()
+
 	// SSE headers. Nginx-friendly: X-Accel-Buffering:no disables proxy buffering.
 	c.Writer.Header().Set("Content-Type", "text/event-stream")
 	c.Writer.Header().Set("Cache-Control", "no-cache")
@@ -206,14 +267,31 @@ func (h *Handler) ChatStream(c *gin.Context) {
 	if !ok {
 		// Streaming not supported: fall back to a normal chat response so the
 		// client still gets an answer.
-		answers, convID, err := h.svc.Chat(
-			knowledgeaccess.WithViewer(c.Request.Context(), knowledgeaccess.Viewer{UserID: userID, Role: role}),
-			tenantID, userID, req.Query, req.Limit, req.ConversationID)
+		fallbackCtx := knowledgeaccess.WithViewer(c.Request.Context(), knowledgeaccess.Viewer{UserID: userID, Role: role})
+		if !useProviderInfo {
+			answers, convID, err := h.svc.Chat(fallbackCtx, tenantID, userID, req.Query, req.Limit, req.ConversationID)
+			if err != nil {
+				common.FailWithErr(c, err, "操作失败")
+				return
+			}
+			common.Success(c, gin.H{"answers": answers, "conversationId": convID})
+			return
+		}
+		answers, resolution, convID, err := h.svc.ChatWithProviderInfo(fallbackCtx, tenantID, userID, req.Query, req.Limit, req.ConversationID, provider)
 		if err != nil {
+			if isProviderResolutionError(err) {
+				respondLLMAdminError(c, mapProviderResolutionError(err, provider))
+				return
+			}
 			common.FailWithErr(c, err, "操作失败")
 			return
 		}
-		common.Success(c, gin.H{"answers": answers, "conversationId": convID})
+		payload := gin.H{"answers": answers, "conversationId": convID}
+		if resolution.Key != "" || resolution.Source != "" {
+			payload["provider"] = resolution.Key
+			payload["providerSource"] = resolution.Source
+		}
+		common.Success(c, payload)
 		return
 	}
 
@@ -236,15 +314,79 @@ func (h *Handler) ChatStream(c *gin.Context) {
 	}
 
 	// 注入访问者身份：AI 助手主链路，RAG 据此做知识分类可见性过滤（L0 权限边界）
-	convID, _, err := h.svc.ChatStream(
-		knowledgeaccess.WithViewer(c.Request.Context(), knowledgeaccess.Viewer{UserID: userID, Role: role}),
-		tenantID, userID, role, req.Query, req.Limit, req.ConversationID, onSources, onDelta)
+	chatCtx := knowledgeaccess.WithViewer(c.Request.Context(), knowledgeaccess.Viewer{UserID: userID, Role: role})
+	if !useProviderInfo {
+		convID, _, err := h.svc.ChatStream(chatCtx, tenantID, userID, role, req.Query, req.Limit, req.ConversationID, onSources, onDelta)
+		if err != nil {
+			h.svc.logger.Warnw("AI ChatStream 失败", "error", err, "tenantID", tenantID)
+			writeEvent("error", map[string]string{"message": err.Error()})
+			return
+		}
+		writeEvent("done", map[string]int{"conversationId": convID})
+		return
+	}
+
+	// BE-7：多 Provider 开启或显式覆盖——解析 provider 并把生效标注写进 done 事件；
+	// 显式覆盖的解析失败在 SSE error 事件内可见地失败（带 errorCode），不回退默认 provider。
+	resolution, convID, err := h.svc.ChatStreamWithProviderInfo(chatCtx, tenantID, userID, role, req.Query, req.Limit, req.ConversationID, provider, onSources, onDelta)
 	if err != nil {
-		h.svc.logger.Warnw("AI ChatStream 失败", "error", err, "tenantID", tenantID)
+		h.svc.logger.Warnw("AI ChatStream 失败", "error", err, "tenantID", tenantID, "provider", provider)
+		if isProviderResolutionError(err) {
+			_, code, message := providerErrorContract(err, provider)
+			writeEvent("error", map[string]string{"message": message, "errorCode": code})
+			return
+		}
 		writeEvent("error", map[string]string{"message": err.Error()})
 		return
 	}
-	writeEvent("done", map[string]int{"conversationId": convID})
+	done := map[string]any{"conversationId": convID}
+	if resolution.Key != "" || resolution.Source != "" {
+		done["provider"] = resolution.Key
+		done["providerSource"] = resolution.Source
+	}
+	writeEvent("done", done)
+}
+
+// canUseProviderOverride 判定当前请求能否使用 provider 单次覆盖参数（BE-7 §3.4）：
+// 与端点鉴权同源（路由挂 RequirePermission("system","write")），避免出现「端点看 A 权限、
+// 覆盖参数看 B 权限」的口径漂移；client 为 nil 时 fail-closed（super_admin 仍直通）。
+func (h *Handler) canUseProviderOverride(ctx context.Context, tenantID int, role string) bool {
+	if h == nil || h.svc == nil {
+		return false
+	}
+	return middleware.HasSystemWritePermission(ctx, h.svc.entClient, role, tenantID)
+}
+
+// isProviderResolutionError 判断错误是否来自 §3.3 解析链（§3.4 契约错误）。
+func isProviderResolutionError(err error) bool {
+	return errors.Is(err, service.ErrProviderNotFound) ||
+		errors.Is(err, service.ErrProviderDisabled) ||
+		errors.Is(err, service.ErrProviderKeyMissing) ||
+		errors.Is(err, service.ErrProviderUnavailable)
+}
+
+// providerErrorContract 把解析链哨兵错误映射为 §3.4 契约（HTTP 状态 + 字符串码 + 消息）。
+func providerErrorContract(err error, provider string) (int, string, string) {
+	name := strings.TrimSpace(provider)
+	if name == "" {
+		name = "默认"
+	}
+	switch {
+	case errors.Is(err, service.ErrProviderNotFound):
+		return http.StatusNotFound, "AI_PROVIDER_NOT_FOUND", fmt.Sprintf("provider %q 不存在或对本租户不可见", name)
+	case errors.Is(err, service.ErrProviderDisabled):
+		return http.StatusConflict, "AI_PROVIDER_DISABLED", fmt.Sprintf("provider %q 已禁用", name)
+	case errors.Is(err, service.ErrProviderKeyMissing):
+		return http.StatusUnprocessableEntity, "AI_PROVIDER_KEY_MISSING", fmt.Sprintf("provider %q 密钥缺失或解密失败", name)
+	default:
+		return http.StatusServiceUnavailable, "AI_PROVIDER_UNAVAILABLE", fmt.Sprintf("provider %q 不可用", name)
+	}
+}
+
+// mapProviderResolutionError 将解析链错误包装为统一契约错误（复用管理 API 的响应封装）。
+func mapProviderResolutionError(err error, provider string) error {
+	status, code, message := providerErrorContract(err, provider)
+	return &LLMAdminError{Status: status, Code: code, Message: message, Err: err}
 }
 
 // ListConversations handles GET /api/v1/ai/conversations

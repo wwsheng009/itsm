@@ -324,6 +324,64 @@ func (s *Service) Chat(ctx context.Context, tenantID, userID int, query string, 
 	return items, convID, nil
 }
 
+// ResolveChatProvider 只解析、不调用模型：供 /ai/chat（纯 RAG 检索，无 LLM 调用）
+// 与 /ai/chat/stream 回带 provider/providerSource，以及请求级校验（BE-7，§3.3/§3.4）。
+//
+// 语义刻意分叉：
+//   - provider 非空（系统管理员显式覆盖）：任何解析失败都透出（404/409/422/503），
+//     绝不静默回退——静默回退会让调用方误以为指定实例已生效；
+//   - provider 为空（个人默认 → 租户默认 → 静态 默认链）：解析失败仅告警并返回零标注，
+//     调用方按现状继续（开关关闭/未配置实例时保持零破坏语义）。
+func (s *Service) ResolveChatProvider(ctx context.Context, tenantID, userID int, provider string) (service.ProviderResolution, error) {
+	explicit := strings.TrimSpace(provider)
+	if s.llmGateway == nil {
+		if explicit == "" {
+			return service.ProviderResolution{}, nil
+		}
+		return service.ProviderResolution{Key: explicit, Source: service.ProviderSourceRequest},
+			fmt.Errorf("%w: LLM 网关未初始化，无法解析 provider=%q", service.ErrProviderUnavailable, explicit)
+	}
+	req := service.ProviderRequest{Key: explicit, TenantID: tenantID, UserID: userID}
+	resolution, err := s.llmGateway.ResolveRequest(ctx, req)
+	if err != nil {
+		if explicit != "" {
+			return resolution, err
+		}
+		s.logger.Warnw("AI chat provider 默认链解析失败，保留现状语义继续",
+			"error", err, "tenantID", tenantID, "userID", userID)
+		return service.ProviderResolution{}, nil
+	}
+	return resolution, nil
+}
+
+// ChatWithProviderInfo 与 Chat 相同，并回带解析出的 provider 标注（BE-7）：
+// 解析失败时按 §3.4 契约返回（由 handler 映射 404/409/422/503），不做降级应答。
+func (s *Service) ChatWithProviderInfo(ctx context.Context, tenantID, userID int, query string, limit, convID int, provider string) (interface{}, service.ProviderResolution, int, error) {
+	resolution, err := s.ResolveChatProvider(ctx, tenantID, userID, provider)
+	if err != nil {
+		return nil, resolution, 0, err
+	}
+	answers, convIDOut, err := s.Chat(ctx, tenantID, userID, query, limit, convID)
+	if err != nil {
+		return nil, resolution, convIDOut, err
+	}
+	return answers, resolution, convIDOut, nil
+}
+
+// chatGateway 返回本次聊天应使用的网关及其绑定输入（BE-7）：
+//   - 开关关闭且无显式覆盖：原样返回既有网关、nil 绑定（旧路径逐字节不变，QA-3）；
+//   - 否则：返回绑定了解析输入的浅拷贝，Chat/ChatStream/SupportsToolCalling 按 §3.3 路由。
+func (s *Service) chatGateway(tenantID, userID int, provider string) (*service.LLMGateway, *service.ProviderRequest) {
+	if s.llmGateway == nil {
+		return nil, nil
+	}
+	if strings.TrimSpace(provider) == "" && !service.MultiProviderEnabled() {
+		return s.llmGateway, nil
+	}
+	req := service.ProviderRequest{Key: strings.TrimSpace(provider), TenantID: tenantID, UserID: userID}
+	return s.llmGateway.WithProviderRequest(req), &req
+}
+
 // chatWritableTools 是允许注入聊天路径的写工具白名单。
 // 这些工具经由 ExecuteTool 的审批流（创建 pending invocation + 入队等待人工审批），
 // 绝不在聊天链路内直接落库，因此可安全暴露给 LLM 自主决策调用。
@@ -356,6 +414,48 @@ func (s *Service) ChatStream(
 	onSources func([]map[string]any),
 	onDelta func(string),
 ) (int, string, error) {
+	gateway, providerReq := s.chatGateway(tenantID, userID, "")
+	return s.chatStream(ctx, tenantID, userID, role, query, limit, convID, gateway, providerReq, onSources, onDelta)
+}
+
+// ChatStreamWithProviderInfo 同 ChatStream，但按 §3.3 解析 provider（BE-7）：
+// 显式覆盖的解析失败可见地失败（404/409/422/503），默认链失败保留现状语义；
+// 返回值额外回带生效 provider 标注，供 SSE done 事件消费。
+func (s *Service) ChatStreamWithProviderInfo(
+	ctx context.Context,
+	tenantID, userID int,
+	role string,
+	query string,
+	limit int,
+	convID int,
+	provider string,
+	onSources func([]map[string]any),
+	onDelta func(string),
+) (service.ProviderResolution, int, error) {
+	resolution, err := s.ResolveChatProvider(ctx, tenantID, userID, provider)
+	if err != nil {
+		return resolution, 0, err
+	}
+	gateway, providerReq := s.chatGateway(tenantID, userID, provider)
+	convIDOut, _, err := s.chatStream(ctx, tenantID, userID, role, query, limit, convID, gateway, providerReq, onSources, onDelta)
+	return resolution, convIDOut, err
+}
+
+// chatStream 是流式聊天主链路的内部实现。gateway/providerReq 决定本次调用实际
+// 路由到的 provider：providerReq 为 nil = 未绑定（开关关闭且无覆盖），能力探测与
+// 模型调用都保持既有静态口径；非 nil = 绑定副本，按 §3.3 解析链路由。
+func (s *Service) chatStream(
+	ctx context.Context,
+	tenantID, userID int,
+	role string,
+	query string,
+	limit int,
+	convID int,
+	gateway *service.LLMGateway,
+	providerReq *service.ProviderRequest,
+	onSources func([]map[string]any),
+	onDelta func(string),
+) (int, string, error) {
 	s.logger.Infow("AI ChatStream", "query", query, "tenantID", tenantID, "convID", convID, "role", role)
 
 	if s.rag == nil {
@@ -371,7 +471,17 @@ func (s *Service) ChatStream(
 	// (“正在调用 list_tickets 工具...”) 但永远拿不到结果。修复：检测 provider
 	// 能力，不支持时不注入 tools，让 RAG 层退化为纯知识库问答（合规）。
 	var tools []service.LLMTool
-	providerSupportsTools := s.llmGateway != nil && s.llmGateway.SupportsToolCalling()
+	// BE-7：绑定路径（多 Provider 开启或显式覆盖）按解析出的 provider 探测工具能力——
+	// 无 ctx 的 SupportsToolCalling 只看静态 provider，会把「租户默认不支持工具」误判为
+	// 支持，导致模型在文本里假装调用工具却永远拿不到结果。未绑定时维持既有静态口径。
+	providerSupportsTools := false
+	if gateway != nil {
+		if providerReq != nil {
+			providerSupportsTools = gateway.SupportsToolCallingRequest(ctx, *providerReq)
+		} else {
+			providerSupportsTools = gateway.SupportsToolCalling()
+		}
+	}
 	if s.tools != nil && providerSupportsTools {
 		// 按租户动态化工具参数（list_cis 的 ci_type 枚举来自租户 CIType 表）
 		for _, td := range s.tools.ListToolsForTenant(ctx, tenantID) {
@@ -437,7 +547,7 @@ func (s *Service) ChatStream(
 		}
 	}
 
-	if err := s.rag.AskWithLLMStreamWithTools(ctx, tenantID, query, s.llmGateway, limit, tools, wrappedSources, wrappedDelta, execTool); err != nil {
+	if err := s.rag.AskWithLLMStreamWithTools(ctx, tenantID, query, gateway, limit, tools, wrappedSources, wrappedDelta, execTool); err != nil {
 		return 0, "", err
 	}
 

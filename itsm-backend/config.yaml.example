@@ -51,6 +51,7 @@ llm:
   api_key: "${LLM_API_KEY:}"
   endpoint: "${LLM_ENDPOINT:}"          # for azure or local providers
   token_cap: ${LLM_TOKEN_CAP:8000}     # per-request soft cap (~chars/4)
+  protocol_adapter_enabled: ${LLM_PROTOCOL_ADAPTER_ENABLED:false}  # BE-9 protocol adapter switch (default off)
 
 sms:
   provider: "${SMS_PROVIDER:}"          # aliyun, tencent, empty=disabled
