@@ -8,7 +8,10 @@ import (
 // 创建知识库文章请求
 type CreateKnowledgeArticleRequest struct {
 	Title    string   `json:"title" binding:"required"`
-	Content  string   `json:"content" binding:"required,min=1,max=10000"`
+	// max=200000：新建页既承接人工写作，也承接「AI 会话 → 整段整理成文章」的预填
+	// （多轮会话可达数万字，见前端 ARTICLE_CONTENT_MAX_LENGTH；更新路径本就不设上限，
+	// 这里放宽到同一量级，避免长会话保存被 400 拦下）。全局请求体上限 10MB 仍是硬边界。
+	Content  string   `json:"content" binding:"required,min=1,max=200000"`
 	Category string   `json:"category" binding:"required,max=50"`
 	Tags     []string `json:"tags"`
 
@@ -134,18 +137,22 @@ type CategoryStats struct {
 	Count int    `json:"count"` // 文章数量
 }
 
-// KnowledgeArticleVersionResponse 文章版本历史响应
+// KnowledgeArticleVersionResponse 文章版本历史响应。
+//
+// 字段名与前端 ArticleVersion 契约保持一致（changeLog / createdByName / contentType），
+// 避免前端版本列表把「变更说明」「创建者」渲染成空值。
 type KnowledgeArticleVersionResponse struct {
 	ID            int       `json:"id"`
 	ArticleID     int       `json:"articleId"`
 	Version       int       `json:"version"`
 	Title         string    `json:"title"`
 	Content       string    `json:"content"`
+	ContentType   string    `json:"contentType,omitempty"`
 	Category      string    `json:"category"`
 	Tags          []string  `json:"tags"`
-	AuthorID      int       `json:"authorId"`
-	AuthorName    string    `json:"authorName"`
-	ChangeSummary string    `json:"changeSummary"`
+	AuthorID      int       `json:"createdBy"`
+	CreatedByName string    `json:"createdByName"`
+	ChangeLog     string    `json:"changeLog"`
 	CreatedAt     time.Time `json:"createdAt"`
 }
 
@@ -161,6 +168,20 @@ type KnowledgeArticleVersionListResponse struct {
 	Total    int                               `json:"total"`
 	Page     int                               `json:"page"`
 	PageSize int                               `json:"pageSize"`
+}
+
+// KnowledgeArticleVersionChange 单个版本差异项
+type KnowledgeArticleVersionChange struct {
+	Type    string `json:"type"` // added / removed
+	Content string `json:"content"`
+}
+
+// KnowledgeArticleVersionCompareResponse 版本比较响应
+type KnowledgeArticleVersionCompareResponse struct {
+	FromVersion int                             `json:"fromVersion"`
+	ToVersion   int                             `json:"toVersion"`
+	Diff        string                          `json:"diff"`
+	Changes     []KnowledgeArticleVersionChange `json:"changes"`
 }
 
 // RestoreArticleVersionRequest 恢复版本请求

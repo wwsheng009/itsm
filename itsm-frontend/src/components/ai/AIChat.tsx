@@ -12,6 +12,8 @@ import { useNavigate } from 'react-router';
  *    仍要求 system:write（PUT /ai/user-preference 未放开）。
  *  - 助手的「补充为知识文章」把回答 Markdown 原文经路由 state 带入新建页，
  *    不再只做一次不带数据的裸跳转（契约见 lib/knowledge/ai-article-prefill）。
+ *  - 标题栏「保存成文章」把**整段会话**整理成文章：state 只带会话 ID，正文由新建页
+ *    经接口拉取后组装（会话动辄上万字，不塞 history.state；组装逻辑见 lib/knowledge/conversation-article）。
  *
  * 渲染层：主区 = 顶部工具条 + 消息滚动区（消息列 max-width 820 居中）+ 底部输入坞。
  *        整页高度由 lockChatPageLayout 锁到视口内（只滚动消息区，外层无滚动条）。
@@ -65,7 +67,10 @@ import {
 } from '@/lib/api/llm-provider-api';
 import { useLLMProviderFeature } from '@/lib/hooks/use-llm-provider-feature';
 import { usePermissions } from '@/lib/hooks/use-permissions';
-import { buildArticlePrefillState } from '@/lib/knowledge/ai-article-prefill';
+import {
+  buildArticlePrefillState,
+  buildConversationArticlePrefillState,
+} from '@/lib/knowledge/ai-article-prefill';
 import MarkdownMessage from './MarkdownMessage';
 
 const { Text } = Typography;
@@ -468,6 +473,16 @@ const AIChat: React.FC = () => {
     },
     [navigate]
   );
+
+  // 标题栏「保存成文章」：整段会话。state 只带会话 ID —— 会话正文动辄上万字，
+  // 塞进 history.state 会拖慢导航且逼近浏览器体积上限；拉取与组装都推迟到新建页
+  // （GET /ai/conversations/:id → Markdown，见 lib/knowledge/conversation-article）。
+  const handleSaveConversationAsArticle = useCallback(() => {
+    if (!convId || streaming || messages.length === 0) return;
+    navigate('/knowledge/articles/new', {
+      state: buildConversationArticlePrefillState(convId),
+    });
+  }, [convId, messages.length, navigate, streaming]);
 
   // 所选实例在可用列表中消失（被禁用/删除）→ 清除选择并提示，回退默认（§6.2 场景 5）。
   useEffect(() => {
@@ -991,6 +1006,22 @@ const AIChat: React.FC = () => {
                 停止生成
               </Button>
             ) : null}
+            <Tooltip
+              title={
+                convId
+                  ? '把整段会话整理成一篇知识文章草稿'
+                  : '完成一轮问答后可将整段会话保存为文章'
+              }
+            >
+              <Button
+                size="small"
+                icon={<FileText size={14} />}
+                onClick={handleSaveConversationAsArticle}
+                disabled={!convId || streaming || isEmpty}
+              >
+                保存成文章
+              </Button>
+            </Tooltip>
             <Tooltip title="清空当前对话">
               <Button size="small" icon={<Eraser size={14} />} onClick={handleClear} disabled={streaming}>
                 清空对话

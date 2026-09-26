@@ -8,7 +8,9 @@ import {
   ARTICLE_PREFILL_FALLBACK_TITLE,
   ARTICLE_PREFILL_SOURCE,
   buildArticlePrefillState,
+  buildConversationArticlePrefillState,
   deriveArticleTitle,
+  readArticlePrefillRequest,
   readArticlePrefillState,
 } from '../ai-article-prefill';
 
@@ -84,5 +86,38 @@ describe('buildArticlePrefillState / readArticlePrefillState', () => {
         content,
       });
     }
+  });
+});
+
+describe('会话级 state（标题栏「保存成文章」）', () => {
+  it('buildConversationArticlePrefillState 只携带会话 ID，不内联会话正文', () => {
+    const state = buildConversationArticlePrefillState(3);
+    expect(state).toEqual({ source: ARTICLE_PREFILL_SOURCE, conversation: { id: 3 } });
+    expect(JSON.stringify(state)).not.toContain('content');
+  });
+
+  it('readArticlePrefillRequest 区分内联回答与会话两种形态', () => {
+    const markdown = '# 处理步骤\n正文';
+    expect(readArticlePrefillRequest(buildArticlePrefillState(markdown))).toEqual({
+      kind: 'answer',
+      prefill: { title: '处理步骤', content: markdown },
+    });
+    // history.state 的结构化克隆（等价 JSON 化）后仍要能读回
+    expect(
+      readArticlePrefillRequest(JSON.parse(JSON.stringify(buildConversationArticlePrefillState(12))))
+    ).toEqual({ kind: 'conversation', conversationId: 12 });
+  });
+
+  it('会话 ID 非法（0 / 负数 / 小数 / 非数字）→ 视为无预填', () => {
+    for (const id of [0, -1, 1.5, Number.NaN, Number.POSITIVE_INFINITY, '3', null]) {
+      expect(
+        readArticlePrefillRequest({ source: ARTICLE_PREFILL_SOURCE, conversation: { id } })
+      ).toBeNull();
+    }
+    expect(readArticlePrefillRequest({ source: ARTICLE_PREFILL_SOURCE, conversation: 3 })).toBeNull();
+  });
+
+  it('兼容读取器在会话态返回 null（新页面一律走 readArticlePrefillRequest）', () => {
+    expect(readArticlePrefillState(buildConversationArticlePrefillState(3))).toBeNull();
   });
 });

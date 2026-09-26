@@ -20,6 +20,7 @@ import { useLocation, useNavigate } from 'react-router';
 
 import React, { useCallback, useEffect, useMemo, useRef, useState, lazy, Suspense } from 'react';
 import {
+  Alert,
   Card,
   Form,
   Input,
@@ -36,7 +37,12 @@ import {
 import { ArrowLeft, Save } from 'lucide-react';
 import { KnowledgeBaseApi } from '@/lib/api/knowledge-base-api';
 import { AttachmentApi, knowledgeAttachmentPreviewUrl } from '@/lib/api/attachment-api';
-import { readArticlePrefillState } from '@/lib/knowledge/ai-article-prefill';
+import {
+  ARTICLE_CONTENT_MAX_LENGTH,
+  readArticlePrefillRequest,
+  type ArticlePrefill,
+} from '@/lib/knowledge/ai-article-prefill';
+import { fetchConversationArticle } from '@/lib/knowledge/conversation-article';
 import {
   ARTICLE_CONTENT_TYPE_HINTS,
   ARTICLE_CONTENT_TYPE_LABELS,
@@ -85,13 +91,25 @@ export default function NewKnowledgeArticlePage() {
   // 暂存图片：staged id → 本地 File；提交拿不到文章 ID 前不落任何远端数据
   const stagedImagesRef = useRef<Map<string, File>>(new Map());
   const richTextEnabled = isRichTextEnabled();
-  // AI 会话页带入的预填（Markdown 原文）；无预填 / 结构不符时为 null。
-  const prefill = useMemo(() => readArticlePrefillState(location.state), [location.state]);
+  // AI 会话页带入的预填请求：单条回答（正文内联在 state）或整段会话（只带会话 ID）。
+  const prefillRequest = useMemo(() => readArticlePrefillRequest(location.state), [location.state]);
+  // 内联回答立即可用；会话态先异步拉取，落地前不渲染任何正文。
+  const [prefill, setPrefill] = useState<ArticlePrefill | null>(
+    prefillRequest?.kind === 'answer' ? prefillRequest.prefill : null
+  );
+  const [prefillLoading, setPrefillLoading] = useState(prefillRequest?.kind === 'conversation');
+  const [prefillError, setPrefillError] = useState<string | null>(null);
+  const prefillFromConversation = prefillRequest?.kind === 'conversation';
+  // 会话 ID 单独提出来做副作用依赖：`location.state` 的对象身份会随路由状态更新而变，
+  // 依赖整个请求对象会让「拉取会话」在每次重渲染后重跑一遍（重复请求 + 结果被取消，
+  // 表现为加载态长时间不落地）。原始 ID 是稳定标量，重渲染不会再触发拉取。
+  const conversationId =
+    prefillRequest?.kind === 'conversation' ? prefillRequest.conversationId : null;
   // 正文类型显式落库，详情页按它分发渲染，不再靠内容启发式猜测。
-  // 默认：富文本链路可用且非 AI 预填时用富文本；预填是整篇 Markdown，固定按 Markdown 存
+  // 默认：富文本链路可用且无 AI 预填时用富文本；预填是整篇 Markdown，固定按 Markdown 存
   // （整篇 Markdown 进 TipTap 会被解析成纯段落，标题 / 表格语义尽失）。
   const [contentType, setContentType] = useState<ArticleContentType>(
-    richTextEnabled && !prefill ? 'rich_text' : 'markdown'
+    richTextEnabled && !prefillRequest ? 'rich_text' : 'markdown'
   );
   const editorKind = editorKindForContentType(contentType);
   const useRichEditor = editorKind === 'rich';
@@ -116,6 +134,31 @@ export default function NewKnowledgeArticlePage() {
     }
     setContentType(next);
   };
+
+  // 会话态预填：挂载后按会话 ID 拉取全量消息并组装 Markdown——整段会话动辄上万字，
+  // 不适合塞进 history.state，故把取数推迟到目标页（契约见 ai-article-prefill 头注释）。
+  // 卸载 / state 变化即放弃落地，避免把过期会话写进表单。
+  useEffect(() => {
+    if (conversationId == null) return;
+    let cancelled = false;
+    setPrefillLoading(true);
+    setPrefillError(null);
+    fetchConversationArticle(conversationId)
+      .then(article => {
+        if (!cancelled) setPrefill(article);
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setPrefillError('会话内容加载失败，请返回 AI 助手重新发起「保存成文章」');
+        }
+      })
+      .finally(() => {
+        if (!cancelled) setPrefillLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [conversationId]);
 
   // 预填只应用一次：用户改动表单后，父级重渲染不得把内容冲回初值。
   const prefillAppliedRef = useRef(false);
@@ -200,6 +243,8 @@ export default function NewKnowledgeArticlePage() {
   }, []);
 
   const onFinish = async (values: any) => {
+    // 会话态预填尚未落地时不允许提交：此时正文为空，提交只会创建一篇空文章。
+    if (prefillLoading) return;
     setLoading(true);
     const rawContent: string = values.content || '';
     // 创建请求不能携带 `blob:` 占位图：对服务端无意义，且归属校验会剥离全部内嵌引用。
@@ -259,6 +304,27 @@ export default function NewKnowledgeArticlePage() {
             新建知识库文章
           </Title>
         </Space>
+        {prefillLoading ? (
+          <Alert
+            type="info"
+            showIcon
+            title="正在拉取 AI 会话内容…"
+            description="会话较长时整理需要一点时间，完成后自动填入下方标题与正文。"
+            style={{ marginBottom: 16 }}
+          />
+        ) : null}
+        {prefillError ? (
+          <Alert type="error" showIcon title={prefillError} style={{ marginBottom: 16 }} />
+        ) : null}
+        {prefill && prefill.content.length > ARTICLE_CONTENT_MAX_LENGTH ? (
+          <Alert
+            type="warning"
+            showIcon
+            title="内容超出单篇上限"
+            description={`当前正文约 ${prefill.content.length} 字，超过单篇上限 ${ARTICLE_CONTENT_MAX_LENGTH} 字，保存会被服务端拒绝；建议在会话中分段保存，或先精简后再保存。`}
+            style={{ marginBottom: 16 }}
+          />
+        ) : null}
         <Form
           form={form}
           layout="vertical"
@@ -313,7 +379,9 @@ export default function NewKnowledgeArticlePage() {
             }
             extra={
               prefill && contentType === 'markdown'
-                ? '正文来自 AI 助手回答（Markdown 原文），保存后由详情页按 Markdown 渲染；如需富文本排版与图片，可另建文章。'
+                ? prefillFromConversation
+                  ? '正文来自 AI 助手会话（整段整理为 Markdown），保存后由详情页按 Markdown 渲染；如需富文本排版与图片，可另建文章。'
+                  : '正文来自 AI 助手回答（Markdown 原文），保存后由详情页按 Markdown 渲染；如需富文本排版与图片，可另建文章。'
                 : ARTICLE_CONTENT_TYPE_HINTS[contentType]
             }
             rules={[
@@ -338,7 +406,13 @@ export default function NewKnowledgeArticlePage() {
 
           <Form.Item>
             <Space>
-              <Button type="primary" htmlType="submit" icon={<Save />} loading={loading}>
+              <Button
+                type="primary"
+                htmlType="submit"
+                icon={<Save />}
+                loading={loading || prefillLoading}
+                disabled={prefillLoading}
+              >
                 保存草稿
               </Button>
               <Button onClick={() => navigate('/knowledge')}>取消</Button>

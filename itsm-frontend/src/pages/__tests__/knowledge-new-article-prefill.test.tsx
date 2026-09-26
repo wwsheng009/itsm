@@ -10,7 +10,11 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { render, screen, waitFor } from '@testing-library/react';
 
-import { buildArticlePrefillState } from '@/lib/knowledge/ai-article-prefill';
+import {
+  buildArticlePrefillState,
+  buildConversationArticlePrefillState,
+} from '@/lib/knowledge/ai-article-prefill';
+import { fetchConversationArticle } from '@/lib/knowledge/conversation-article';
 import NewKnowledgeArticlePage from '@/pages/(main)/knowledge/articles/new';
 
 const mockNavigate = jest.fn();
@@ -28,6 +32,13 @@ jest.mock('@/lib/api/knowledge-base-api', () => ({
     updateArticle: jest.fn(),
   },
 }));
+
+// 会话态预填经接口拉取正文：单测里替身掉取数，只验证页面接线与落地时机。
+jest.mock('@/lib/knowledge/conversation-article', () => ({
+  fetchConversationArticle: jest.fn(),
+}));
+
+const mockFetchConversationArticle = jest.mocked(fetchConversationArticle);
 
 const MARKDOWN = '# VPN 拨号失败排查\n\n1. 检查账号状态\n2. 检查网络连通性\n';
 const TITLE_PLACEHOLDER = '例如：VPN 拨号失败排查指南';
@@ -49,6 +60,7 @@ describe('新建文章页：承接 AI 助手预填', () => {
   beforeEach(() => {
     mockLocation.state = undefined;
     mockNavigate.mockReset();
+    mockFetchConversationArticle.mockReset();
   });
 
   it('预填标题与正文写入表单，且正文固定 Markdown 模式', async () => {
@@ -89,6 +101,37 @@ describe('新建文章页：承接 AI 助手预填', () => {
       restore();
     }
   });
+
+  it('会话态：经接口拉取整段会话后填入表单（正文不经路由 state 传输）', async () => {
+    mockLocation.state = buildConversationArticlePrefillState(3);
+    mockFetchConversationArticle.mockResolvedValue({
+      title: '会话整理',
+      content: '# 会话整理\n\n问答内容',
+    });
+
+    render(<NewKnowledgeArticlePage />);
+
+    // 正文由新建页经接口拉取，而不是随路由 state 携带
+    expect(mockFetchConversationArticle).toHaveBeenCalledWith(3);
+
+    await waitFor(() =>
+      expect(screen.getByPlaceholderText(TITLE_PLACEHOLDER)).toHaveValue('会话整理')
+    );
+    expect(screen.getByPlaceholderText(MARKDOWN_PLACEHOLDER)).toHaveValue('# 会话整理\n\n问答内容');
+    expect(screen.getByText(/正文来自 AI 助手会话/)).toBeInTheDocument();
+    expect(screen.queryByText('正在拉取 AI 会话内容…')).toBeNull();
+  }, 30000);
+
+  it('会话态拉取失败：给出错误提示且保持空白表单（不产生半成品文章）', async () => {
+    mockLocation.state = buildConversationArticlePrefillState(4);
+    mockFetchConversationArticle.mockRejectedValue(new Error('boom'));
+
+    render(<NewKnowledgeArticlePage />);
+
+    expect(await screen.findByText(/会话内容加载失败/)).toBeInTheDocument();
+    await waitFor(() => expect(screen.getByPlaceholderText(TITLE_PLACEHOLDER)).toHaveValue(''));
+    expect(screen.getByPlaceholderText(MARKDOWN_PLACEHOLDER)).toHaveValue('');
+  });
 });
 
 describe('写侧接线（源码契约，防回退到裸跳转）', () => {
@@ -106,5 +149,21 @@ describe('写侧接线（源码契约，防回退到裸跳转）', () => {
   it('不再跳转会丢 state 的历史别名，且回调拿到消息本体', () => {
     expect(chatSource).not.toMatch(/navigate\(\s*['"`]\/knowledge\/articles\/create/);
     expect(chatSource).toContain('onClick={() => onCreateArticle(message)}');
+  });
+
+  it('标题栏「保存成文章」只传会话 ID，正文留给新建页经接口拉取', () => {
+    expect(chatSource).toMatch(/state:\s*buildConversationArticlePrefillState\(convId\)/);
+    expect(chatSource).toContain('保存成文章');
+    // 性能约束：不把整段会话（messages / content）内联进 history.state
+    expect(chatSource).not.toMatch(/buildConversationArticlePrefillState\(\s*messages/);
+  });
+
+  it('会话态拉取期间禁止提交（避免落库一篇空文章）', () => {
+    const pageSource = fs.readFileSync(
+      path.join(process.cwd(), 'src/pages/(main)/knowledge/articles/new/index.tsx'),
+      'utf8'
+    );
+    expect(pageSource).toContain('if (prefillLoading) return;');
+    expect(pageSource).toMatch(/disabled=\{prefillLoading\}/);
   });
 });
