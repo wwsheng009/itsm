@@ -21,7 +21,7 @@ export default function PageTransition({ children }: PageTransitionProps) {
           duration: 0.25,
           ease: 'easeInOut',
         }}
-        className="min-h-[calc(100vh-64px)]"
+        className="page-transition min-h-[calc(100vh-64px)]"
       >
         {children}
       </motion.div>

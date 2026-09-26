@@ -12,9 +12,10 @@ import { useNavigate } from 'react-router';
  *    仍要求 system:write（PUT /ai/user-preference 未放开）。
  *
  * 渲染层：主区 = 顶部工具条 + 消息滚动区（消息列 max-width 820 居中）+ 底部输入坞。
+ *        整页高度由 lockChatPageLayout 锁到视口内（只滚动消息区，外层无滚动条）。
  */
 
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import {
   Alert,
   Avatar,
@@ -113,7 +114,80 @@ const buildChatCss = (token: AntdToken): string => `
 .ai-chat-item:hover .ai-chat-actions, .ai-chat-actions:focus-within { opacity: 1; }
 .ai-chat-suggest { text-align: left; height: auto; white-space: normal; padding: 12px 14px; }
 .ai-chat-suggest:hover { border-color: ${token.colorPrimary}; color: ${token.colorPrimary}; }
+
+/* 全屏锁生效期间（见 lockChatPageLayout）：内容区不留底部内边距、隐藏全局页脚。
+   两者合计 64px，会让聊天卡片与视口下边缘之间残留一条空白带。
+   这里用作用域 CSS 而不是内联样式：MainLayout 会在断点切换时重写 .main-content 的
+   padding 简写，内联覆盖会被 React 的重渲染清掉；CSS 规则不会。 */
+html[data-ai-chat] #main-content > .main-content { padding-bottom: 0 !important; }
+html[data-ai-chat] #main-content ~ footer { display: none !important; }
 `;
+
+/**
+ * 聊天页整页布局锁：把 Header / Content 外壳临时改造成 100vh 纵向 flex 链，
+ * 使聊天卡片精确占满剩余高度、输入坞贴底，消息溢出只滚动消息区，页面本身不再出现滚动条。
+ *
+ * 同时在 <html> 上打 data-ai-chat 标记，启用 buildChatCss 中「隐藏全局页脚 + 去掉内容区
+ * 底部内边距」的作用域规则，让聊天卡片直接铺到视口下边缘。
+ *
+ * 祖先链刻意用内联样式逐层覆盖，而不是写作用域 CSS（如 html.xxx #main-content .page-transition）：
+ * 跨层后代选择器在挂载瞬间命中不稳定，会让外壳先按旧高度渲染一帧再跳变；内联样式配合
+ * transition:none 可保证首帧即为最终布局（实测首帧卡片高度已等于视口减去 Header 与顶部内边距）。
+ * 返回的还原函数在组件卸载时把祖先链恢复原样，因此不会影响其它页面。
+ */
+const lockChatPageLayout = (): (() => void) => {
+  const restores: Array<() => void> = [];
+  const patch = (el: Element | null, styles: Record<string, string>) => {
+    if (!(el instanceof HTMLElement)) return;
+    const saved = Object.keys(styles).map(
+      prop => [prop, el.style.getPropertyValue(prop)] as const
+    );
+    for (const [prop, value] of Object.entries(styles)) el.style.setProperty(prop, value);
+    restores.push(() => {
+      for (const [prop, prev] of saved) {
+        if (prev) el.style.setProperty(prop, prev);
+        else el.style.removeProperty(prop);
+      }
+    });
+  };
+
+  const sider = document.querySelector('#root .ant-layout-has-sider');
+  const main = document.getElementById('main-content');
+  const fillHeight = { height: '100%', 'min-height': '0' };
+  const column = { display: 'flex', 'flex-direction': 'column' };
+  // 外壳自身带 transition（ant-layout-content 200ms / 降级动画 0.01ms），会让尺寸变化延迟一帧才生效。
+  const instant = { transition: 'none' };
+
+  // 外壳锁成 100vh：文档本身不滚动，滚动条只出现在消息区。
+  patch(document.documentElement, { height: '100vh', overflow: 'hidden' });
+  patch(document.body, { height: '100%', overflow: 'hidden' });
+  for (const el of document.querySelectorAll('#root, #root .ant-app, #root .app-root')) {
+    patch(el, { height: '100%' });
+  }
+  patch(sider, fillHeight);
+  patch(sider?.querySelector(':scope > .ant-layout') ?? null, fillHeight);
+
+  // Content 与路由过渡层改成纵向 flex 容器，卡片用 flex:1 吃掉 Header 之外的全部高度。
+  patch(main, { ...column, ...instant, 'min-height': '0', overflow: 'hidden' });
+  patch(main?.querySelector(':scope > .main-content') ?? null, {
+    ...column,
+    ...instant,
+    ...fillHeight,
+    flex: '1 1 auto',
+  });
+  for (const el of main?.querySelectorAll('.page-transition') ?? []) {
+    patch(el, { ...column, ...instant, ...fillHeight, flex: '1 1 auto' });
+  }
+
+  // 底部留白（16px 内边距 + 48px 页脚）交给作用域 CSS：内联写法会被 MainLayout 在断点
+  // 切换时的重渲染清掉，而这里的两处目标都受 React 管理（.main-content 的 padding 简写）。
+  document.documentElement.setAttribute('data-ai-chat', '');
+  restores.push(() => document.documentElement.removeAttribute('data-ai-chat'));
+
+  return () => {
+    for (const restore of restores.reverse()) restore();
+  };
+};
 
 /** 助手的「补充为知识文章」入口依赖的裁剪条件（与迁移前一致）。 */
 const canPromoteToArticle = (m: ChatMessage): boolean =>
@@ -371,6 +445,11 @@ const AIChat: React.FC = () => {
   const [providerNotice, setProviderNotice] = useState<string | null>(null);
 
   const chatCss = useMemo(() => buildChatCss(token), [token]);
+
+  // 整页锁定：挂载时把外壳改造成 100vh 纵向 flex 链，卸载时原样还原（布局提交前同步执行，无跳变）。
+  useLayoutEffect(() => {
+    return lockChatPageLayout();
+  }, []);
 
   const providerLabel = useCallback(
     (key?: string) => feature.providers.find(p => p.key === key)?.displayName || key || '',
@@ -674,7 +753,7 @@ const AIChat: React.FC = () => {
   };
 
   return (
-    <div style={{ display: 'flex', gap: 12, height: 'calc(100vh - 150px)', minHeight: 480 }}>
+    <div data-ai-chat-page style={{ display: 'flex', gap: 12, flex: '1 1 auto', minHeight: 0 }}>
       {/* 局部 hover 反馈（不新增全局样式文件） */}
       <style>{chatCss}</style>
 
