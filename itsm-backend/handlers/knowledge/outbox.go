@@ -35,11 +35,8 @@ func (s *Service) createWithVectorOutbox(ctx context.Context, article *Article) 
 	if err != nil {
 		return nil, err
 	}
-	if created.IsPublished {
-		if err := enqueueVectorSyncTx(ctx, tx, created, vectorIndexSync); err != nil {
-			return nil, err
-		}
-	}
+	// 创建一律为草稿（Service 已强制），无需同步向量：
+	// 向量索引只应承载「已发布」内容，草稿不进检索。
 	if err := tx.Commit(); err != nil {
 		return nil, err
 	}
@@ -91,6 +88,58 @@ func (s *Service) deleteWithVectorOutbox(ctx context.Context, id, tenantID int) 
 		return err
 	}
 	return tx.Commit()
+}
+
+// publishWithVectorOutbox 发布文章 + 同事务写入向量同步命令。
+// 未单独判断 createRelease：无论是否新增版本，发布态变化都需要让向量索引对齐。
+func (s *Service) publishWithVectorOutbox(ctx context.Context, id, tenantID, publisherID int, changeSummary string, createRelease bool) (*Article, error) {
+	if _, err := s.entRepository(); err != nil {
+		return nil, err
+	}
+	tx, err := s.client.Tx(ctx)
+	if err != nil {
+		return nil, err
+	}
+	defer tx.Rollback()
+	published, err := publishArticleTx(ctx, tx, id, tenantID, publisherID, changeSummary, createRelease)
+	if err != nil {
+		return nil, err
+	}
+	if err := enqueueVectorSyncTx(ctx, tx, published, vectorIndexSync); err != nil {
+		return nil, err
+	}
+	if err := tx.Commit(); err != nil {
+		return nil, err
+	}
+	return published, nil
+}
+
+// setPublishedWithVectorOutbox 仅切换发布可见性 + 同事务写入向量同步/移除命令。
+// 只写 is_published 字段，不会用调用方持有的文章快照覆盖正文。
+func (s *Service) setPublishedWithVectorOutbox(ctx context.Context, id, tenantID int, published bool) (*Article, error) {
+	if _, err := s.entRepository(); err != nil {
+		return nil, err
+	}
+	tx, err := s.client.Tx(ctx)
+	if err != nil {
+		return nil, err
+	}
+	defer tx.Rollback()
+	updated, err := (&EntRepository{client: tx.Client()}).SetPublished(ctx, id, tenantID, published)
+	if err != nil {
+		return nil, err
+	}
+	action := vectorIndexDelete
+	if published {
+		action = vectorIndexSync
+	}
+	if err := enqueueVectorSyncTx(ctx, tx, updated, action); err != nil {
+		return nil, err
+	}
+	if err := tx.Commit(); err != nil {
+		return nil, err
+	}
+	return updated, nil
 }
 
 // VectorIndexCommandHandler re-loads authoritative state inside the worker;

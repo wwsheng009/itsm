@@ -48,6 +48,8 @@ export interface KnowledgeArticle {
   // 分类和标签
   categoryId?: string;
   categoryName?: string;
+  /** 分类名：后端响应当前以该字段表示所属分类（categoryName/categoryId 为旧字段兼容） */
+  category?: string;
   tags: string[];
   keywords?: string[]; // 搜索关键词
 
@@ -506,7 +508,11 @@ export type UpdateArticleRequest = Partial<CreateArticleRequest> & {
  * 发布文章请求
  */
 export interface PublishArticleRequest {
-  scheduleAt?: Date; // 定时发布
+  /**
+   * 本次发布说明，写入版本历史（changeLog）。
+   * 留空由服务端生成（首次发布 / 发布更新）。
+   */
+  changeLog?: string;
 }
 
 /**

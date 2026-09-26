@@ -9,6 +9,7 @@ import {
   Card,
   Tag,
   Button,
+  Alert,
   Skeleton,
   Result,
   Typography,
@@ -79,7 +80,8 @@ const ArticleDetail: React.FC = () => {
     if (!article) return;
     Modal.confirm({
       title: '确认发布该文章？',
-      content: '发布后将对所有有权限的用户可见。',
+      content:
+        '发布后将对有权限的用户与 AI 检索可见；内容相对上一发布版本有变化时会生成新版本，内容未变则只恢复发布态。',
       okText: '发布',
       cancelText: '取消',
       onOk: async () => {
@@ -263,6 +265,16 @@ const ArticleDetail: React.FC = () => {
             <Tag key={tag}>{tag}</Tag>
           ))}
         </div>
+
+        {status === KnowledgeStatus.DRAFT && (
+          <Alert
+            type="warning"
+            showIcon
+            style={{ marginBottom: 16 }}
+            title="当前为草稿"
+            description="草稿不会被知识检索与 AI 引用；发布后才会对外生效。若文章此前已发布，编辑保存会将它下架，需重新发布才会形成新版本。"
+          />
+        )}
 
         <Divider />
 

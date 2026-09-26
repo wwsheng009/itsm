@@ -2,7 +2,6 @@ package knowledge
 
 import (
 	"context"
-	"fmt"
 	"sort"
 	"strings"
 	"time"
@@ -478,90 +477,107 @@ func (r *EntRepository) GetVersion(ctx context.Context, articleID int, version i
 	return out, nil
 }
 
-func (r *EntRepository) CreateVersion(ctx context.Context, articleID int, tenantID int, changeSummary string) (*ArticleVersion, error) {
-	article, err := r.client.KnowledgeArticle.Query().
+// GetLatestVersion 返回文章最近一次发布产生的版本；从未发布过时返回 (nil, nil)。
+// 调用方需要区分「文章不存在」（ent.NotFoundError）与「没有版本」（nil, nil）两种情况。
+func (r *EntRepository) GetLatestVersion(ctx context.Context, articleID int, tenantID int) (*ArticleVersion, error) {
+	if _, err := r.client.KnowledgeArticle.Query().
 		Where(knowledgearticle.ID(articleID), knowledgearticle.TenantID(tenantID), knowledgearticle.DeletedAtIsNil()).
-		Only(ctx)
-	if err != nil {
+		Only(ctx); err != nil {
 		return nil, err
 	}
 
-	next, err := nextVersionNumber(ctx, r.client.KnowledgeArticleVersion.Query().
-		Where(knowledgearticleversion.ArticleID(articleID)))
+	e, err := r.client.KnowledgeArticleVersion.Query().
+		Where(knowledgearticleversion.ArticleID(articleID)).
+		Order(ent.Desc(knowledgearticleversion.FieldVersion)).
+		First(ctx)
 	if err != nil {
+		if ent.IsNotFound(err) {
+			return nil, nil
+		}
 		return nil, err
 	}
-
-	e, err := r.client.KnowledgeArticleVersion.Create().
-		SetArticleID(article.ID).
-		SetVersion(next).
-		SetTitle(article.Title).
-		SetContent(article.Content).
-		SetCategory(article.Category).
-		SetTags(article.Tags).
-		SetAuthorID(article.AuthorID).
-		SetChangeSummary(changeSummary).
-		Save(ctx)
-	if err != nil {
-		return nil, err
-	}
-	return toVersionDomain(e), nil
+	out := toVersionDomain(e)
+	r.fillAuthorNames(ctx, []*ArticleVersion{out})
+	return out, nil
 }
 
-func (r *EntRepository) RestoreVersion(ctx context.Context, articleID int, version int, tenantID int) (*Article, error) {
+// Publish 发布文章：置 is_published = true；createRelease 为 true 时在同一事务内
+// 追加一条版本快照（版本号 = 当前最大版本号 + 1）。
+//
+// 版本只在发布动作中产生（版本历史 = 发布历史），保存草稿不写版本；
+// 发布态与发布记录同事务落库，因此不会出现「已发布但查不到对应版本」的中间态。
+func (r *EntRepository) Publish(ctx context.Context, id int, tenantID int, publisherID int, changeSummary string, createRelease bool) (*Article, error) {
 	tx, err := r.client.Tx(ctx)
 	if err != nil {
 		return nil, err
 	}
 	defer func() { _ = tx.Rollback() }()
 
+	updated, err := publishArticleTx(ctx, tx, id, tenantID, publisherID, changeSummary, createRelease)
+	if err != nil {
+		return nil, err
+	}
+	if err := tx.Commit(); err != nil {
+		return nil, err
+	}
+	return updated, nil
+}
+
+// publishArticleTx 在给定事务内完成发布：置 is_published = true，
+// createRelease 时追加版本快照。供仓储的 Publish 与 outbox 写入路径共用，
+// 保证「发布态 + 版本记录 + 向量同步命令」可以落在同一个事务里。
+func publishArticleTx(ctx context.Context, tx *ent.Tx, id int, tenantID int, publisherID int, changeSummary string, createRelease bool) (*Article, error) {
 	// 文章归属校验：租户不匹配 / 已软删时返回 ent.NotFoundError。
 	if _, err := tx.KnowledgeArticle.Query().
-		Where(knowledgearticle.ID(articleID), knowledgearticle.TenantID(tenantID), knowledgearticle.DeletedAtIsNil()).
+		Where(knowledgearticle.ID(id), knowledgearticle.TenantID(tenantID), knowledgearticle.DeletedAtIsNil()).
 		Only(ctx); err != nil {
 		return nil, err
 	}
 
-	target, err := tx.KnowledgeArticleVersion.Query().
-		Where(knowledgearticleversion.ArticleID(articleID), knowledgearticleversion.Version(version)).
-		Only(ctx)
-	if err != nil {
-		return nil, err
-	}
-
-	// 仅回写版本快照覆盖的字段；content_type / 时效等元数据保持当前值。
-	updated, err := tx.KnowledgeArticle.UpdateOneID(articleID).
+	updated, err := tx.KnowledgeArticle.UpdateOneID(id).
 		Where(knowledgearticle.TenantID(tenantID), knowledgearticle.DeletedAtIsNil()).
-		SetTitle(target.Title).
-		SetContent(target.Content).
-		SetCategory(target.Category).
-		SetTags(target.Tags).
+		SetIsPublished(true).
 		Save(ctx)
 	if err != nil {
 		return nil, err
 	}
 
-	// 恢复结果本身记为一条新版本：保证「最新版本 = 当前正文」，且恢复动作可追溯。
-	next, err := nextVersionNumber(ctx, tx.KnowledgeArticleVersion.Query().
-		Where(knowledgearticleversion.ArticleID(articleID)))
+	if createRelease {
+		next, err := nextVersionNumber(ctx, tx.KnowledgeArticleVersion.Query().
+			Where(knowledgearticleversion.ArticleID(id)))
+		if err != nil {
+			return nil, err
+		}
+		// 发布者：优先记录本次操作人；缺失时退回文章作者，保证版本作者字段非空。
+		authorID := publisherID
+		if authorID <= 0 {
+			authorID = updated.AuthorID
+		}
+		if _, err := tx.KnowledgeArticleVersion.Create().
+			SetArticleID(updated.ID).
+			SetVersion(next).
+			SetTitle(updated.Title).
+			SetContent(updated.Content).
+			SetCategory(updated.Category).
+			SetTags(updated.Tags).
+			SetAuthorID(authorID).
+			SetChangeSummary(changeSummary).
+			Save(ctx); err != nil {
+			return nil, err
+		}
+	}
+	return toDomain(updated), nil
+}
+
+// SetPublished 仅切换发布可见性：下架 / 重新上架都不产生版本记录。
+// 只写 is_published 一个字段，避免把调用方持有的整份文章快照回写覆盖并发修改。
+func (r *EntRepository) SetPublished(ctx context.Context, id int, tenantID int, published bool) (*Article, error) {
+	e, err := r.client.KnowledgeArticle.UpdateOneID(id).
+		Where(knowledgearticle.TenantID(tenantID), knowledgearticle.DeletedAtIsNil()).
+		SetIsPublished(published).
+		Save(ctx)
 	if err != nil {
 		return nil, err
 	}
-	if _, err := tx.KnowledgeArticleVersion.Create().
-		SetArticleID(updated.ID).
-		SetVersion(next).
-		SetTitle(updated.Title).
-		SetContent(updated.Content).
-		SetCategory(updated.Category).
-		SetTags(updated.Tags).
-		SetAuthorID(updated.AuthorID).
-		SetChangeSummary(fmt.Sprintf("恢复到 v%d", version)).
-		Save(ctx); err != nil {
-		return nil, err
-	}
-
-	if err := tx.Commit(); err != nil {
-		return nil, err
-	}
-	return toDomain(updated), nil
+	return toDomain(e), nil
 }

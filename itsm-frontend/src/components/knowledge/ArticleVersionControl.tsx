@@ -41,7 +41,7 @@ const { Title, Text, Paragraph } = Typography;
 
 interface ArticleVersionControlProps {
   articleId: string;
-  /** 列表为空时的兜底当前版本号；正常由版本列表的最大版本号推导 */
+  /** 列表为空时的兜底版本号；正常由版本列表的最大版本号推导 */
   currentVersion?: number;
   onVersionChange?: (version: number) => void;
 }
@@ -62,7 +62,8 @@ const ArticleVersionControl: React.FC<ArticleVersionControlProps> = ({
   // 切换文章后的旧请求）直接丢弃，避免重复 setState 与重复报错。
   const loadSeqRef = useRef(0);
 
-  // 版本快照在每次写入后生成，版本号最大的那一行即「当前正文」。
+  // 版本 = 发布历史：只有在「发布」动作中才会产生快照。
+  // 版本号最大的那一行 = 最近一次发布出去的内容（不一定等于当前草稿）。
   // 父组件传入的 currentVersion 只作为列表为空时的兜底，避免列表与统计口径不一致。
   const latestVersion =
     versions.length > 0 ? Math.max(...versions.map(v => v.version)) : currentVersion;
@@ -97,11 +98,14 @@ const ArticleVersionControl: React.FC<ArticleVersionControlProps> = ({
   const handleRestoreVersion = (version: number) => {
     Modal.confirm({
       title: '确认恢复版本',
-      content: `确定要恢复到版本 ${version} 吗？这将创建一个新的版本。`,
+      content: `确定要恢复到版本 v${version} 吗？恢复后文章将回到草稿状态，需重新发布才会对外生效并生成新版本。`,
       onOk: async () => {
         try {
           await KnowledgeBaseApi.restoreVersion(articleId, version);
-          message.success({ key: 'kb-article-version-restore', content: '版本恢复成功' });
+          message.success({
+            key: 'kb-article-version-restore',
+            content: `已恢复到 v${version}（草稿），请重新发布`,
+          });
           loadVersions();
           onVersionChange?.(version);
         } catch (error) {

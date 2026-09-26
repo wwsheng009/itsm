@@ -10,6 +10,10 @@ import { useNavigate, useParams } from 'react-router';
  *   保存时把被删除的图片调用附件解绑（幂等，失败不阻断保存，§5.2）；
  * - markdown / text / html：保持纯文本输入域，不把整篇 Markdown / HTML 塞进富文本编辑器丢语义。
  * 类型随文章落库，详情页据此分发渲染；历史文章缺失类型时按内容形态兜底判定。
+ *
+ * 保存动作两种（版本 = 发布历史，见后端 publish 语义）：
+ * - 「保存并重新发布」：写回内容后立即发布，内容相对上一发布版本有变化才产生新版本；
+ * - 「保存为草稿」：只写回内容并回到草稿（已发布文章会因此下架），需在详情页重新发布。
  */
 
 import React, { useCallback, useEffect, useMemo, useRef, useState, lazy, Suspense } from 'react';
@@ -17,6 +21,7 @@ import {
   Card,
   Form,
   Input,
+  Alert,
   Select,
   Tag,
   Segmented,
@@ -27,7 +32,7 @@ import {
   Breadcrumb,
   Skeleton,
 } from 'antd';
-import { ArrowLeft, Save } from 'lucide-react';
+import { ArrowLeft, Save, Send } from 'lucide-react';
 import { KnowledgeBaseApi } from '@/lib/api/knowledge-base-api';
 import { AttachmentApi, knowledgeAttachmentPreviewUrl } from '@/lib/api/attachment-api';
 import {
@@ -69,13 +74,16 @@ export default function EditKnowledgeArticlePage() {
   const navigate = useNavigate();
   const { id } = useParams() as { id: string };
   const [form] = Form.useForm();
-  const [loading, setLoading] = useState(false);
+  // 保存动作：'save' = 仅保存（回落草稿），'publish' = 保存并重新发布
+  const [savingMode, setSavingMode] = useState<'save' | 'publish' | null>(null);
   const [fetching, setFetching] = useState(true);
   const [notFound, setNotFound] = useState(false);
-  const [categories, setCategories] = useState<{ id: number; name: string }[]>([]);
+  const [categories, setCategories] = useState<{ id: string; name: string }[]>([]);
   // 生效正文类型：null = 尚未加载完成
   const [contentType, setContentType] = useState<ArticleContentType | null>(null);
   const [editorUploading, setEditorUploading] = useState(false);
+  // 打开编辑时文章是否处于发布态：发布态文章一旦保存即回到草稿，需要明确告知用户。
+  const [wasPublished, setWasPublished] = useState(false);
   // 打开编辑时的图片集合：保存后据此解绑被删除的附件
   const initialImageIdsRef = useRef<number[]>([]);
   const editorKind = contentType ? editorKindForContentType(contentType) : null;
@@ -93,14 +101,18 @@ export default function EditKnowledgeArticlePage() {
     KnowledgeBaseApi.getCategories()
       .then((data: any) => {
         const list = Array.isArray(data) ? data : data?.categories || [];
-        setCategories(list.map((c: any) => ({ id: c.id, name: c.name })));
+        setCategories(
+          list.map((c: any) =>
+            typeof c === 'string' ? { id: c, name: c } : { id: String(c.id), name: String(c.name) }
+          )
+        );
       })
       .catch(() => {
-        // fallback 默认分类
+        // fallback 默认分类（分类名即标识，与后端字符串分类口径一致）
         setCategories([
-          { id: 1, name: '故障处理' },
-          { id: 2, name: '操作指南' },
-          { id: 3, name: '常见问题' },
+          { id: '故障处理', name: '故障处理' },
+          { id: '操作指南', name: '操作指南' },
+          { id: '常见问题', name: '常见问题' },
         ]);
       });
   }, []);
@@ -110,8 +122,12 @@ export default function EditKnowledgeArticlePage() {
     setFetching(true);
     KnowledgeBaseApi.getArticle(id)
       .then(article => {
+        // 文章响应用 category 表示所属分类（categoryName/categoryId 是旧字段兼容）；
+        // 匹配不上时必须原样保留文章当前分类，不能兜底写死默认分类——否则用户只改
+        // 正文，保存却把分类改写成 "1"，还会让下一次发布凭空多出一个版本。
+        const ownCategory = (article.categoryName ?? article.category ?? '').trim();
         const matched = categories.find(
-          c => c.name === article.categoryName || String(c.id) === String(article.categoryId),
+          c => c.name === ownCategory || String(c.id) === String(article.categoryId),
         );
         // 显式类型优先；历史文章缺失类型时按内容形态兜底（与详情页同一口径）。
         const resolvedType = resolveArticleContentType({
@@ -121,10 +137,11 @@ export default function EditKnowledgeArticlePage() {
         form.setFieldsValue({
           title: article.title,
           content: article.content,
-          categoryId: matched?.id ?? 1,
+          categoryId: matched?.id ?? (ownCategory || categories[0]?.id),
           tags: article.tags || [],
         });
         setContentType(resolvedType);
+        setWasPublished(article.status === 'published');
         initialImageIdsRef.current =
           editorKindForContentType(resolvedType) === 'rich'
             ? extractAttachmentImageIds(article.content)
@@ -158,46 +175,85 @@ export default function EditKnowledgeArticlePage() {
     [id]
   );
 
-  const onFinish = async (values: any) => {
-    setLoading(true);
+  /** 写回文章内容，并解绑富文本中已删除的图片；失败向上抛出由调用方提示。 */
+  const persistArticle = async (values: any) => {
     const content: string = values.content || '';
-    try {
-      await KnowledgeBaseApi.updateArticle(id, {
-        title: values.title,
-        content,
-        contentType: contentType ?? undefined,
-        category:
-          categories.find(c => c.id === values.categoryId)?.name || String(values.categoryId),
-        tags: values.tags || [],
-      });
+    await KnowledgeBaseApi.updateArticle(id, {
+      title: values.title,
+      content,
+      contentType: contentType ?? undefined,
+      category:
+        categories.find(c => c.id === values.categoryId)?.name || String(values.categoryId),
+      tags: values.tags || [],
+    });
 
-      // 编辑器内被删除的图片：调用附件解绑（幂等，失败不阻断保存结果）（§5.2）
-      if (editorKind === 'rich') {
-        const articleId = Number(id);
-        const nextImageIds = extractAttachmentImageIds(content);
-        const removedImageIds = initialImageIdsRef.current.filter(
-          imageId => !nextImageIds.includes(imageId)
+    // 编辑器内被删除的图片：调用附件解绑（幂等，失败不阻断保存结果）（§5.2）
+    if (editorKind === 'rich') {
+      const articleId = Number(id);
+      const nextImageIds = extractAttachmentImageIds(content);
+      const removedImageIds = initialImageIdsRef.current.filter(
+        imageId => !nextImageIds.includes(imageId)
+      );
+      if (Number.isFinite(articleId) && articleId > 0 && removedImageIds.length > 0) {
+        await Promise.allSettled(
+          removedImageIds.map(imageId =>
+            AttachmentApi.removeById(imageId, {
+              bizType: 'knowledge_article',
+              bizId: articleId,
+              usage: 'inline_image',
+            })
+          )
         );
-        if (Number.isFinite(articleId) && articleId > 0 && removedImageIds.length > 0) {
-          await Promise.allSettled(
-            removedImageIds.map(imageId =>
-              AttachmentApi.removeById(imageId, {
-                bizType: 'knowledge_article',
-                bizId: articleId,
-                usage: 'inline_image',
-              })
-            )
-          );
-        }
-        initialImageIdsRef.current = nextImageIds;
       }
+      initialImageIdsRef.current = nextImageIds;
+    }
+  };
 
-      message.success('文章更新成功');
+  /** 仅保存：写回内容并回到草稿态（已发布文章会因此下架）。 */
+  const onFinish = async (values: any) => {
+    setSavingMode('save');
+    try {
+      await persistArticle(values);
+      if (wasPublished) {
+        // 保存=编辑：已发布文章会因此下架回到草稿，必须显式提示，否则用户会以为改动已生效。
+        message.warning('已保存为草稿并下架，需重新发布后才会对外生效并生成新版本');
+      } else {
+        message.success('文章更新成功');
+      }
       navigate(`/knowledge/articles/${id}`);
     } catch (e: any) {
       message.error('更新失败：' + (e?.message || '未知错误'));
     } finally {
-      setLoading(false);
+      setSavingMode(null);
+    }
+  };
+
+  /** 保存并重新发布：一步完成「写回草稿 + 发布」；发布是产生新版本的唯一入口。 */
+  const onSaveAndPublish = async () => {
+    let values: any;
+    try {
+      values = await form.validateFields();
+    } catch {
+      // 校验未通过：AntD 已在表单内联提示，这里不再弹全局错误。
+      return;
+    }
+    setSavingMode('publish');
+    try {
+      await persistArticle(values);
+    } catch (e: any) {
+      message.error('更新失败：' + (e?.message || '未知错误'));
+      setSavingMode(null);
+      return;
+    }
+    try {
+      await KnowledgeBaseApi.publishArticle(id);
+      message.success('已保存并重新发布');
+    } catch (e: any) {
+      // 内容已落库为草稿，发布失败不丢数据：回详情页可再次发布。
+      message.error('已保存为草稿，但重新发布失败：' + (e?.message || '未知错误'));
+    } finally {
+      setSavingMode(null);
+      navigate(`/knowledge/articles/${id}`);
     }
   };
 
@@ -243,6 +299,15 @@ export default function EditKnowledgeArticlePage() {
             编辑知识库文章
           </Title>
         </Space>
+        {!fetching && wasPublished && (
+          <Alert
+            type="warning"
+            showIcon
+            className="mb-4"
+            title="该文章当前已发布"
+            description="「保存为草稿」会先下架文章，线上检索立即不可见，需重新发布后才对外生效并生成新版本；「保存并重新发布」则改动立即生效，内容与上一发布版本一致时不会产生新版本。"
+          />
+        )}
         {fetching ? (
           <Skeleton active paragraph={{ rows: 10 }} />
         ) : (
@@ -327,14 +392,25 @@ export default function EditKnowledgeArticlePage() {
 
             <Form.Item>
               <Space>
+                {wasPublished && (
+                  <Button
+                    type="primary"
+                    icon={<Send />}
+                    loading={savingMode === 'publish'}
+                    disabled={editorUploading || savingMode !== null}
+                    onClick={onSaveAndPublish}
+                  >
+                    保存并重新发布
+                  </Button>
+                )}
                 <Button
-                  type="primary"
+                  type={wasPublished ? 'default' : 'primary'}
                   htmlType="submit"
                   icon={<Save />}
-                  loading={loading}
-                  disabled={editorUploading}
+                  loading={savingMode === 'save'}
+                  disabled={editorUploading || savingMode !== null}
                 >
-                  保存修改
+                  {wasPublished ? '保存为草稿' : '保存修改'}
                 </Button>
                 <Button onClick={() => navigate(`/knowledge/articles/${id}`)}>取消</Button>
               </Space>

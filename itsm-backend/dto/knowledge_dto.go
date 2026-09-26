@@ -33,6 +33,9 @@ type UpdateKnowledgeArticleRequest struct {
 	Title    *string  `json:"title"`
 	Content  *string  `json:"content"`
 	Category *string  `json:"category"`
+	// Status 已废弃：更新接口刻意忽略该字段。发布态不是编辑字段，
+	// 只能由 POST /knowledge/articles/{id}/publish|unpublish 两个动作变更，
+	// 否则一次保存即可绕过版本记录把文章发布出去。
 	Status   *string  `json:"status"`
 	Tags     []string `json:"tags"`
 
@@ -92,6 +95,15 @@ type KnowledgeArticleResponse struct {
 
 	// 知识可引用性 L2：权威性
 	AuthorityLevel int `json:"authorityLevel"`
+}
+
+// PublishKnowledgeArticleRequest 发布文章请求。
+//
+// 请求体可整体省略：changeLog 为本次发布说明，缺省时由服务端生成
+// （首次发布 / 发布更新）。发布动作本身不携带正文——正文以当前草稿为准，
+// 避免「用旧快照发布」覆盖他人并发修改。
+type PublishKnowledgeArticleRequest struct {
+	ChangeLog string `json:"changeLog" binding:"omitempty,max=200"`
 }
 
 // 知识库文章列表请求

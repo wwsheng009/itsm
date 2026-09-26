@@ -120,7 +120,16 @@ export class KnowledgeBaseApi {
   // ==================== 分类和标签 ====================
 
   static async getCategories(): Promise<KnowledgeCategory[]> {
-    return httpClient.get(`${KNOWLEDGE_PREFIX}/categories`);
+    const data: any = await httpClient.get(`${KNOWLEDGE_PREFIX}/categories`);
+    const list: any[] = Array.isArray(data) ? data : data?.categories || [];
+    // 后端 GET /knowledge/categories 返回的是分类名字符串数组，而调用方
+    // （编辑页 / 新建页 / 列表筛选）需要 `{id, name}` 才能正确回填与回写。
+    // 在出口处统一归一化：字符串按“名字即标识”处理，已是对象的原样透传，
+    // 避免各页面各自兜底——兜错的后果是把文章分类回写成 "1"，并让下一次
+    // 发布凭空多出一处内容差异与一个版本。
+    return list.map(item =>
+      typeof item === 'string' ? ({ id: item, name: item } as KnowledgeCategory) : item
+    );
   }
 
   static async createCategory(

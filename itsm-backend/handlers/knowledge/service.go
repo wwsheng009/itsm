@@ -143,21 +143,14 @@ func (s *Service) CreateArticle(ctx context.Context, a *Article) (*Article, erro
 		return nil, err
 	}
 	s.validateInlineImageRefs(ctx, a)
+	// 新建即草稿：即使请求携带 is_published，也不在这里发布。
+	// 版本号从 v1 开始且只属于「发布」动作，创建时写版本会让版本历史混入未发布内容。
+	a.IsPublished = false
 	s.logger.Infow("Creating Knowledge Article", "title", a.Title, "category", a.Category)
 	if s.vectorOutboxEnabled() {
-		created, err := s.createWithVectorOutbox(ctx, a)
-		if err != nil {
-			return nil, err
-		}
-		s.snapshotVersion(ctx, created, "初始版本")
-		return created, nil
+		return s.createWithVectorOutbox(ctx, a)
 	}
-	created, err := s.repo.Create(ctx, a)
-	if err != nil {
-		return nil, err
-	}
-	s.snapshotVersion(ctx, created, "初始版本")
-	return created, nil
+	return s.repo.Create(ctx, a)
 }
 
 func (s *Service) GetArticle(ctx context.Context, id int, tenantID int) (*Article, error) {
@@ -176,35 +169,18 @@ func (s *Service) UpdateArticle(ctx context.Context, a *Article) (*Article, erro
 		return nil, err
 	}
 	s.validateInlineImageRefs(ctx, a)
+	// 保存 = 一次编辑，不是发布：写回的内容一律回到草稿态。
+	// 已发布文章的线上内容与未发布修改不能共存于同一行，因此编辑已发布文章
+	// 会让它下架，必须重新发布才对外生效并产生新版本（发布逻辑见 PublishArticle）。
+	// 发布/下架按钮不走本方法，走 PublishArticle / UnpublishArticle。
+	a.IsPublished = false
 	s.logger.Infow("Updating Knowledge Article", "id", a.ID, "title", a.Title)
 
-	// 版本历史写入侧：更新成功后把「新正文」记一条版本，保证最新版本 = 当前正文。
-	// 快照失败不阻断更新，只告警（正文一致性优先）。
 	if s.vectorOutboxEnabled() {
-		updated, err := s.updateWithVectorOutbox(ctx, a)
-		if err != nil {
-			return nil, err
-		}
-		s.snapshotVersion(ctx, updated, "文章更新")
-		return updated, nil
+		// 草稿态变更在 outbox 分支下按「移除向量」处理，线上检索不会引用未发布内容。
+		return s.updateWithVectorOutbox(ctx, a)
 	}
-	updated, err := s.repo.Update(ctx, a)
-	if err != nil {
-		return nil, err
-	}
-	s.snapshotVersion(ctx, updated, "文章更新")
-	return updated, nil
-}
-
-// snapshotVersion 记录一次版本快照（在文章写入成功后调用，快照内容即当时正文）；
-// 版本历史属辅助能力，失败只告警、不阻断主流程。
-func (s *Service) snapshotVersion(ctx context.Context, a *Article, summary string) {
-	if a == nil || a.ID <= 0 || a.TenantID <= 0 {
-		return
-	}
-	if _, err := s.repo.CreateVersion(ctx, a.ID, a.TenantID, summary); err != nil {
-		s.logger.Warnw("保存文章版本快照失败", "error", err, "id", a.ID, "tenant_id", a.TenantID)
-	}
+	return s.repo.Update(ctx, a)
 }
 
 // ListArticleVersions 返回文章的全部历史版本（按版本号倒序）。
@@ -212,13 +188,121 @@ func (s *Service) ListArticleVersions(ctx context.Context, articleID, tenantID i
 	return s.repo.ListVersions(ctx, articleID, tenantID)
 }
 
-// RestoreArticleVersion 将文章恢复到指定历史版本（恢复动作本身也会留一份快照）。
-func (s *Service) RestoreArticleVersion(ctx context.Context, articleID, version, tenantID int) (*Article, error) {
-	restored, err := s.repo.RestoreVersion(ctx, articleID, version, tenantID)
+// PublishArticle 发布文章：发布是版本产生的唯一入口。
+//
+// 版本口径：
+//   - 首次发布 → v1；
+//   - 内容相对最近一个发布版本有变化 → 追加一个版本；
+//   - 已发布文章重复发布 / 下架后原样重新上架 → 只恢复发布态，不产生新版本（幂等）。
+//
+// changeLog 为本次发布说明，缺省时由服务端生成（首次发布 / 发布更新）。
+func (s *Service) PublishArticle(ctx context.Context, id int, tenantID int, publisherID int, changeLog string) (*Article, error) {
+	a, err := s.repo.Get(ctx, id, tenantID)
 	if err != nil {
 		return nil, err
 	}
-	s.logger.Infow("知识文章已恢复到历史版本", "article_id", articleID, "version", version, "tenant_id", tenantID)
+	if a.IsPublished {
+		// 幂等：已发布且无内容变化，不重复产生版本记录。
+		return a, nil
+	}
+
+	latest, err := s.repo.GetLatestVersion(ctx, id, tenantID)
+	if err != nil {
+		return nil, err
+	}
+
+	createRelease := latest == nil || !sameReleaseContent(a, latest)
+	summary := strings.TrimSpace(changeLog)
+	if createRelease && summary == "" {
+		if latest == nil {
+			summary = "首次发布"
+		} else {
+			summary = "发布更新"
+		}
+	}
+
+	var published *Article
+	if s.vectorOutboxEnabled() {
+		published, err = s.publishWithVectorOutbox(ctx, id, tenantID, publisherID, summary, createRelease)
+	} else {
+		published, err = s.repo.Publish(ctx, id, tenantID, publisherID, summary, createRelease)
+	}
+	if err != nil {
+		return nil, err
+	}
+	s.logger.Infow("知识文章已发布",
+		"article_id", id, "tenant_id", tenantID, "publisher_id", publisherID, "new_version", createRelease)
+	return published, nil
+}
+
+// UnpublishArticle 下架文章：只切换发布可见性，不产生版本记录。
+// 重复下架按幂等处理，直接返回当前状态。
+func (s *Service) UnpublishArticle(ctx context.Context, id int, tenantID int) (*Article, error) {
+	a, err := s.repo.Get(ctx, id, tenantID)
+	if err != nil {
+		return nil, err
+	}
+	if !a.IsPublished {
+		return a, nil
+	}
+
+	var updated *Article
+	if s.vectorOutboxEnabled() {
+		updated, err = s.setPublishedWithVectorOutbox(ctx, id, tenantID, false)
+	} else {
+		updated, err = s.repo.SetPublished(ctx, id, tenantID, false)
+	}
+	if err != nil {
+		return nil, err
+	}
+	s.logger.Infow("知识文章已下架", "article_id", id, "tenant_id", tenantID)
+	return updated, nil
+}
+
+// sameReleaseContent 判断当前正文是否与某个发布版本完全一致。
+// 用于发布幂等：内容没变（例如下架后原样重新上架）就不该占用一个版本号。
+func sameReleaseContent(a *Article, v *ArticleVersion) bool {
+	if a == nil || v == nil {
+		return false
+	}
+	if a.Title != v.Title || a.Content != v.Content || a.Category != v.Category {
+		return false
+	}
+	if len(a.Tags) != len(v.Tags) {
+		return false
+	}
+	for i := range a.Tags {
+		if a.Tags[i] != v.Tags[i] {
+			return false
+		}
+	}
+	return true
+}
+
+// RestoreArticleVersion 把文章内容回滚到指定历史版本。
+//
+// 恢复是一次「编辑」而不是「发布」：内容写入后文章回到草稿（已发布文章会因此下架），
+// 需要在界面上重新发布才会对外生效并生成新版本。返回值即恢复后的草稿。
+func (s *Service) RestoreArticleVersion(ctx context.Context, articleID, version, tenantID int) (*Article, error) {
+	target, err := s.repo.GetVersion(ctx, articleID, version, tenantID)
+	if err != nil {
+		return nil, err
+	}
+	a, err := s.repo.Get(ctx, articleID, tenantID)
+	if err != nil {
+		return nil, err
+	}
+	a.Title = target.Title
+	a.Content = target.Content
+	a.Category = target.Category
+	a.Tags = target.Tags
+
+	restored, err := s.UpdateArticle(ctx, a)
+	if err != nil {
+		return nil, err
+	}
+	s.logger.Infow("知识文章已恢复到历史版本（待重新发布）",
+		"article_id", articleID, "version", version, "tenant_id", tenantID)
 	return restored, nil
 }
 

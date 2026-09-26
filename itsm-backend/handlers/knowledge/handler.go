@@ -1,6 +1,8 @@
 package knowledge
 
 import (
+	"errors"
+	"io"
 	"strconv"
 
 	"itsm-backend/handlers/common/knowledgeaccess"
@@ -274,9 +276,8 @@ func (h *Handler) UpdateArticle(c *gin.Context) {
 	if req.Tags != nil {
 		existing.Tags = req.Tags
 	}
-	if req.Status != nil {
-		existing.IsPublished = *req.Status == "published"
-	}
+	// 刻意忽略 req.Status：发布态不是「编辑字段」，只能由 publish / unpublish
+	// 两个动作改变。否则一次保存就能把文章偷偷发布出去，绕过版本记录与发布说明。
 	if req.ContentType != nil {
 		contentType, err := knowledgecontent.Parse(*req.ContentType)
 		if err != nil {
@@ -355,47 +356,67 @@ func (h *Handler) MarkArticleReviewed(c *gin.Context) {
 }
 
 // PublishArticle handles POST /api/v1/knowledge/articles/:id/publish
+//
+// 发布是版本产生的唯一入口：内容相对最近发布版本有变化时生成新版本，
+// 请求体可省略（changeLog 为本次发布说明）。重复发布同一内容不产生版本。
 func (h *Handler) PublishArticle(c *gin.Context) {
-	h.setArticlePublished(c, true)
-}
-
-// UnpublishArticle handles POST /api/v1/knowledge/articles/:id/unpublish
-func (h *Handler) UnpublishArticle(c *gin.Context) {
-	h.setArticlePublished(c, false)
-}
-
-func (h *Handler) setArticlePublished(c *gin.Context, published bool) {
 	id, ok := common.ParsePositiveID(c, "id")
 	if !ok {
 		return
 	}
-
-	tenantIDVal, ok := c.Get("tenant_id")
+	tenantID, ok := tenantIDFromContext(c)
 	if !ok {
-		// 租户上下文缺失属认证问题，统一为 401。
-		common.Fail(c, common.AuthFailedCode, "Tenant ID not found")
 		return
 	}
-	tenantID, ok := tenantIDVal.(int)
-	if !ok {
-		// 租户上下文类型错误本质是认证/上下文问题，统一为 401。
-		common.Fail(c, common.AuthFailedCode, "Invalid tenant ID")
+	userIDVal, exists := c.Get("user_id")
+	userID := 0
+	if exists {
+		if v, ok := userIDVal.(int); ok {
+			userID = v
+		}
+	}
+
+	// 发布可以不携带请求体；仅当 body 非空且不是合法 JSON 时才报参数错误。
+	var req dto.PublishKnowledgeArticleRequest
+	if err := c.ShouldBindJSON(&req); err != nil && !errors.Is(err, io.EOF) {
+		common.ParamError(c, "Invalid request body")
 		return
 	}
 
-	article, err := h.svc.GetArticle(c.Request.Context(), id, tenantID)
+	res, err := h.svc.PublishArticle(c.Request.Context(), id, tenantID, userID, req.ChangeLog)
 	if err != nil {
-		common.NotFound(c, "Article not found")
-		return
-	}
-
-	article.IsPublished = published
-	res, err := h.svc.UpdateArticle(c.Request.Context(), article)
-	if err != nil {
+		if ent.IsNotFound(err) {
+			common.NotFound(c, "Article not found")
+			return
+		}
 		common.FailWithErr(c, err, "操作失败")
 		return
 	}
+	common.Success(c, h.toArticleDTO(res))
+}
 
+// UnpublishArticle handles POST /api/v1/knowledge/articles/:id/unpublish
+//
+// 下架只切换可见性：不产生版本，重复下架保持幂等。
+func (h *Handler) UnpublishArticle(c *gin.Context) {
+	id, ok := common.ParsePositiveID(c, "id")
+	if !ok {
+		return
+	}
+	tenantID, ok := tenantIDFromContext(c)
+	if !ok {
+		return
+	}
+
+	res, err := h.svc.UnpublishArticle(c.Request.Context(), id, tenantID)
+	if err != nil {
+		if ent.IsNotFound(err) {
+			common.NotFound(c, "Article not found")
+			return
+		}
+		common.FailWithErr(c, err, "操作失败")
+		return
+	}
 	common.Success(c, h.toArticleDTO(res))
 }
 

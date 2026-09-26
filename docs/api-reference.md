@@ -744,9 +744,11 @@ Content-Type: application/json
   "content": "详细的密码重置步骤...",
   "categoryId": 1,
   "tags": ["密码", "账户"],
-  "isPublished": true
+  "contentType": "markdown"
 }
 ```
+
+> 创建的文章一律为**草稿**：请求体不接收发布态字段（传了也会被忽略）。首次发布由下方「发布知识文章」完成，并产生 v1 版本。
 
 ### 更新知识文章
 
@@ -762,6 +764,31 @@ Content-Type: application/json
 }
 ```
 
+> 保存 = 编辑，不是发布：本接口**不产生版本记录**，并把文章置回**草稿**——已发布文章会在保存后自动下架，需要重新发布才对外生效并生成新版本。`status` 字段会被忽略，发布态只能由 publish / unpublish 动作变更。
+
+### 发布知识文章
+
+```http
+POST /knowledge/articles/{id}/publish
+Authorization: Bearer <accessToken>
+Content-Type: application/json
+
+{
+  "changeLog": "补充 VPN 排查步骤"
+}
+```
+
+需要 `knowledge:write` 权限；请求体可整体省略（`changeLog` 可选，缺省由服务端生成「首次发布」/「发布更新」）。发布是**产生版本的唯一入口**：首次发布为 v1；内容相对最近一个发布版本有变化时追加新版本；内容未变（重复发布 / 下架后原样重新上架）只恢复发布态、不占用新版本号（幂等）。版本作者记为当前发布人。
+
+### 下架知识文章
+
+```http
+POST /knowledge/articles/{id}/unpublish
+Authorization: Bearer <accessToken>
+```
+
+需要 `knowledge:write` 权限。只切换发布可见性（`is_published=false`），**不产生版本记录**，重复下架幂等；下架后文章不再出现在知识检索 / AI 引用中。
+
 ### 删除知识文章
 
 ```http
@@ -776,7 +803,7 @@ GET /knowledge/articles/{id}/versions
 Authorization: Bearer <accessToken>
 ```
 
-需要 `knowledge:read` 权限。返回该文章的版本数组（按版本号倒序，`data` 直接为数组、不做分页包络）：`version`、`title`、`content`、`contentType`、`category`、`tags`、`createdBy`、`createdByName`、`changeLog`、`createdAt`。创建时写入 v1「初始版本」，每次更新 / 恢复都会追加新版本，历史版本不可变；跨租户访问按 404 处理。
+需要 `knowledge:read` 权限。返回该文章的版本数组（按版本号倒序，`data` 直接为数组、不做分页包络）：`version`、`title`、`content`、`contentType`、`category`、`tags`、`createdBy`、`createdByName`、`changeLog`、`createdAt`。**版本历史 = 发布历史**：创建与保存草稿都不产生版本，首次发布写入 v1，此后每次「内容有变化」的发布追加新版本；内容未变的重复发布、下架 / 原样重上架、恢复历史版本都不会追加版本。从未发布过的文章返回空数组。历史版本不可变；跨租户访问按 404 处理。
 
 ### 比较知识文章版本
 
@@ -794,7 +821,7 @@ POST /knowledge/articles/{id}/versions/{version}/restore
 Authorization: Bearer <accessToken>
 ```
 
-需要 `knowledge:write` 权限。把文章标题 / 正文回写为指定版本内容，并追加一条「恢复到 v{n}」的版本记录；返回更新后的文章详情。
+需要 `knowledge:write` 权限。把文章标题 / 正文回写为指定版本内容；恢复是一次「编辑」而不是发布：文章回到草稿（原已发布则下架），**不追加版本记录**，需重新发布后才会对外生效并生成新版本。返回恢复后的文章详情（草稿态）。
 
 ### 知识库搜索
 

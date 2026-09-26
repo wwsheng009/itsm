@@ -77,6 +77,15 @@ describe('KnowledgeBaseApi', () => {
       expect(mockGet).toHaveBeenCalledWith('/api/v1/knowledge/categories');
       expect(result).toHaveLength(1);
     });
+
+    it('后端返回字符串分类时归一化为 {id,name}（编辑页分类回填依赖该形状）', async () => {
+      mockGet.mockResolvedValue(['变更发布', '常见问题']);
+      const result = await KnowledgeBaseApi.getCategories();
+      expect(result).toEqual([
+        { id: '变更发布', name: '变更发布' },
+        { id: '常见问题', name: '常见问题' },
+      ]);
+    });
   });
 
   describe('getTags', () => {
