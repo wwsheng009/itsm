@@ -252,6 +252,11 @@ services:
       - LLM_MODEL=${LLM_MODEL:-llama2}
       - LLM_API_KEY=${LLM_API_KEY:-}
       - LLM_ENDPOINT=${LLM_ENDPOINT:-http://host.docker.internal:11434}
+      # 多 LLM Provider 开关 / 实例密钥主密钥 / AI 能力就绪标记：与 prod 默认一致。
+      # 灰度回退：在 .env 显式设 LLM_MULTI_PROVIDER_ENABLED=false、ITSM_AI_READY=0。
+      - LLM_MULTI_PROVIDER_ENABLED=${LLM_MULTI_PROVIDER_ENABLED:-true}
+      - LLM_PROVIDER_ENCRYPTION_KEY=${LLM_PROVIDER_ENCRYPTION_KEY:-}
+      - ITSM_AI_READY=${ITSM_AI_READY:-1}
       # 或者使用本地运行的 Ollama 容器:
       # - OLLAMA_BASE_URL=http://ollama:11434
 

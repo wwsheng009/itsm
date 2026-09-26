@@ -3,7 +3,7 @@
 > 文档类型：技术方案 + 实施计划（Proposed / v1.6 评审定稿候选）
 > 适用范围：`itsm-backend`（Go）、`itsm-frontend`
 > 编制日期：2026-09-24
-> 版本：v1.24（v1.4/v1.5 决策全部保留；本轮注记 **P1「全员可切换」权限放开**与 **AI 助手 UI 现代化**（Markdown 渲染 + ChatGPT/DeepSeek 风格布局）已实施，见 §5 落地状态 ⑳、§10 v1.24；BE/FE/QA/DOC 全序列与协议适配层 PA-1..PA-6 收口情况见 §5 与 §10）
+> 版本：v1.25（v1.24 决策全部保留；本轮注记 **部署层默认值翻转**：`LLM_MULTI_PROVIDER_ENABLED` / `ITSM_AI_READY` 在 compose 透传与示例 env 中默认开启（新部署免手工改 env），**代码层默认与 D9 灰度契约不变**，见 §4.3 ⑤、§10 v1.25）
 > 目标读者：后端、前端、测试、SRE
 > 关联文档：`docs/plan/llm-protocol-adapter-plan.md`（协议适配层独立计划，槽位预留）、`docs/plan/generic-attachment-richtext-control-plan.md`（文档格式参照）、`docs/documentation-governance.md`、`docs/plan/_data/vite-route-map.csv`（路由唯一真相源）
 > 外部参考实现（只读参考，不引入依赖）：`E:\projects\ai-agent-runtime\backend\internal\llm\adapter\`（`ProtocolAdapter` 接口 + 4 协议适配器：`openai.go` / `codex.go`=Responses / `anthropic.go` / `gemini.go`）
@@ -377,6 +377,7 @@ router/ai_routes.go         # 改：注册 §3.4 路由（受开关控制；统�
 2. **灰度开启**：`LLM_MULTI_PROVIDER_ENABLED=true`（或 config.yaml）→ 注册路由 + 页签可见（仅系统管理员）；建议先在测试租户验证。
 3. **回滚**：关开关（秒级，无需重启即无 API 影响；进程重启后连页面入口一并消失）→ 如确认不再启用，执行 down 迁移。
 4. **数据保留**：软删 provider 不物理删数据；用户偏好引用失效时读取路径自动降级（§3.1.2）。
+5. **部署层默认值（2026-09-26）**：`docker-compose.prod.yml` / `docker-compose.dev.yml` 的透传默认值与 `.env.prod.example` 改为**默认开启**（`LLM_MULTI_PROVIDER_ENABLED=true`、`ITSM_AI_READY=1`），新部署无需人工检查/修改即可见页签、选择器与 AI 菜单；**代码层默认保持关闭**（config / `MultiProviderEnabled()`，非法值按关），第 1-4 条灰度与回滚语义、QA-3 门禁不受影响。回退：在 `.env.prod` 显式设 `false` / `0`（无需改 compose）。注意：部署脚本含 `git checkout -f`，该默认值必须随分支提交生效，不能只改服务器工作区。
 
 ### 4.4 数据库迁移实测与上线前置（2026-09-24，真实 DB `172.18.3.238`）
 
@@ -699,6 +700,7 @@ go test ./internal/llm/protocol/... -count=1
 
 | v1.23 | 2026-09-25 | **PA-6 交付：4 份协议 parser 规格文档 + 文档同步（独立计划升 v1.5，全序列收口）**：① 新增 `docs/plan/protocol-specs/`——`openai_chat_completions.md` / `openai_responses.md` / `anthropic_messages.md` / `google_gemini.md`，每份 8 节（元数据 / 请求构建 / 非流式解析 / 流式事件序列 / 错误语义 / 边缘项与容错 / §4.3 决策索引 / 测试用例索引），逐字段 / 逐帧对标本仓库源码（含 azure / ollama 构造期差异、Responses 事件驱动 SSE 快照补齐、Anthropic 官方 vs minimax 字段名差异、Gemini 动态资源路径与函数名反查）；② 文末「存疑 / 待澄清」共 19 条（chat 3 / responses 5 / anthropic 5 / gemini 6）登记为后续修缮输入（不涉代码改动）；③ 文档同步：独立计划 §0/§3/§5/§6/§9 + 头部版本块升 v1.5，`CHANGELOG.md [Unreleased]` 新增 PA-6 条目，本方案 §5 落地状态 ⑲ / §11.3；④ 证据：`bash scripts/docs-gate/run-all.sh` → 5 gates / 0 failed（日志 `.dev/docs-gate-rerun.log`）；⑤ PA-1..PA-6 全序列收口，本方案 §11 槽位说明的历史使命完成（后续维护按独立计划升版） |
 | v1.24 | 2026-09-26 | **P1「全员可切换」权限放开 + AI 助手 UI 现代化**：① 权限——`GET /ai/providers/available` / `GET /ai/user-preference` 降为 `ai:read`（`router/llm_provider_routes.go` 拆读/写权限组），`/ai/chat*` 覆盖参数门禁同源降为 `ai:read`（新增 `middleware.HasAIReadPermission`，403 文案同步），`PUT /user-preference` 与「LLM 模型」页签仍 `system:write`；`middleware/rbac_precheck_gen.go` 由 `cmd/authz-gen` 重生成（两行预检 `system:write → ai:read`）；网关与数据模型零改动；② 前端——选择器对全员渲染（hook 去权限早退、写按钮保留管理员门控），新增 `MarkdownMessage.tsx`（GFM + 代码块复制 + HTML 消毒 + 流式光标），`AIChat.tsx` 按 ChatGPT / DeepSeek 风格重做布局（268px 会话侧栏 / 工具条 / 居中消息列 / 底部输入坞 / 空态建议卡片）；③ 证据——后端定向测试 + 预检守卫全绿、`gofmt -l` 无输出；前端 `tsc --noEmit` exit 0、3 套件 53 用例全绿、浏览器实测读端点 200 + Markdown 流式渲染 + 布局量测（无横向溢出）；详见 §5 落地状态 ⑳ |
+| v1.25 | 2026-09-26 | **部署层默认值翻转：LLM 多 Provider 与 AI 能力默认开启（新部署免手工改 env）**：① 变更——`docker-compose.prod.yml` / `docker-compose.dev.yml` 透传默认 `LLM_MULTI_PROVIDER_ENABLED=true`、`ITSM_AI_READY=1`（`.env.prod.example` 同步并注明回退：在 `.env.prod` 显式设 `false` / `0`）；② 边界——**代码层默认不变**（config / `MultiProviderEnabled()` 默认关、非法值按关；D9 回滚路径、QA-3 门禁、非 compose 部署均不受影响）；③ 安全核对——启动硬约束矩阵中开关开启只会放宽（占位符 + 生产：有可用 DB 实例 Fatal→Warn），不新增失败模式（`service/llm_provider_startup.go:60-68`、`internal/bootstrap/app.go:620-642`）；④ 证据——服务器 `docker compose config` 渲染 + 容器 env 实测 + `/api/v1/capabilities`（`ai.deploymentReady=true`）/ `/api/v1/ai/providers/available`（200，2 实例）回归 + 本地产物 `config --quiet` exit 0；⑤ 未采纳——改 Go / config 默认值（破坏灰度契约与 QA-3 门禁，且影响非 compose 部署） |
 
 ---
 

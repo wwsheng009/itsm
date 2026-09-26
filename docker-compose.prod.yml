@@ -218,8 +218,17 @@ services:
       - OPENAI_API_KEY=${OPENAI_API_KEY:-}
       - OPENAI_BASE_URL=${OPENAI_BASE_URL:-}
 
-      # AI 能力就绪标记（/api/v1/capabilities 中 ai 的 deploymentReady）
-      - ITSM_AI_READY=${ITSM_AI_READY:-}
+      # 多 LLM Provider 开关：默认开启（2026-09-26 起，新部署免手工改 env）；true 时注册
+      # /api/v1/ai/providers* 路由，前端「系统配置 → LLM 模型」页签与 AI Provider 选择器按端点可达性渲染。
+      # 灰度回退：在 .env.prod 显式设 LLM_MULTI_PROVIDER_ENABLED=false（无需改本文件）。
+      - LLM_MULTI_PROVIDER_ENABLED=${LLM_MULTI_PROVIDER_ENABLED:-true}
+      # 实例密钥（encrypted_api_key）加密主密钥：留空 = 派生自 JWT secret 的开发回退；
+      # 显式配置后不可随意变更，否则存量密文将无法解密。
+      - LLM_PROVIDER_ENCRYPTION_KEY=${LLM_PROVIDER_ENCRYPTION_KEY:-}
+
+      # AI 能力就绪标记（/api/v1/capabilities 中 ai 的 deploymentReady，决定前端 AI 菜单可见性）。
+      # 默认 1（就绪）；未配置任何 LLM 凭据的环境可在 .env.prod 显式设 ITSM_AI_READY=0 隐藏 AI 入口。
+      - ITSM_AI_READY=${ITSM_AI_READY:-1}
 
       # Guidance sidecar 地址：指向 itsm-ai-service 的受限分诊端点 /triage
       # （默认 localhost:8091；生产由该服务接管，triage 走受限生成路径）
