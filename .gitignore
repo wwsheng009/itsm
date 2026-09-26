@@ -292,6 +292,8 @@ itsm-backend/migration-lint
 
 # 本地临时验证产物（截图/脚本，勿提交）
 .tmp/
+# 根目录临时目录（本地工具/脚本产生；仓库内无任何代码引用 configs/，仅 config/ 是服务端配置目录）
+/configs/
 # AI tooling 诊断输出（根目录临时 .txt）— 勿提交
 /.*.txt
 
