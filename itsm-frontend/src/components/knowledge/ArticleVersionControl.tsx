@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   Card,
   Table,
@@ -12,7 +12,6 @@ import {
   Timeline,
   Alert,
   Tooltip,
-  Popconfirm,
   Row,
   Col,
   Descriptions,
@@ -42,13 +41,14 @@ const { Title, Text, Paragraph } = Typography;
 
 interface ArticleVersionControlProps {
   articleId: string;
-  currentVersion: number;
+  /** 列表为空时的兜底当前版本号；正常由版本列表的最大版本号推导 */
+  currentVersion?: number;
   onVersionChange?: (version: number) => void;
 }
 
 const ArticleVersionControl: React.FC<ArticleVersionControlProps> = ({
   articleId,
-  currentVersion,
+  currentVersion = 1,
   onVersionChange,
 }) => {
   const [versions, setVersions] = useState<ArticleVersion[]>([]);
@@ -58,40 +58,59 @@ const ArticleVersionControl: React.FC<ArticleVersionControlProps> = ({
   const [compareResult, setCompareResult] = useState<any>(null);
   const [previewVersion, setPreviewVersion] = useState<ArticleVersion | null>(null);
   const [previewModalVisible, setPreviewModalVisible] = useState(false);
+  // 加载请求序号：只接受最新一次请求的结果，过期响应（StrictMode 双挂载、
+  // 切换文章后的旧请求）直接丢弃，避免重复 setState 与重复报错。
+  const loadSeqRef = useRef(0);
+
+  // 版本快照在每次写入后生成，版本号最大的那一行即「当前正文」。
+  // 父组件传入的 currentVersion 只作为列表为空时的兜底，避免列表与统计口径不一致。
+  const latestVersion =
+    versions.length > 0 ? Math.max(...versions.map(v => v.version)) : currentVersion;
 
   // 加载版本历史
   useEffect(() => {
     loadVersions();
+    return () => {
+      // 卸载/切换文章时让在途请求失效
+      loadSeqRef.current += 1;
+    };
   }, [articleId]);
 
   const loadVersions = async () => {
+    const seq = ++loadSeqRef.current;
     try {
       setLoading(true);
       const versionHistory = await KnowledgeBaseApi.getArticleVersions(articleId);
-      setVersions(versionHistory.sort((a, b) => b.version - a.version));
+      if (seq !== loadSeqRef.current) return;
+      const list = Array.isArray(versionHistory) ? versionHistory : [];
+      setVersions([...list].sort((a, b) => b.version - a.version));
     } catch (error) {
-      message.error('加载版本历史失败');
+      if (seq !== loadSeqRef.current) return;
+      // 固定 key：并发请求/重试产生的同一条错误只保留一个 toast，不再叠加
+      message.error({ key: 'kb-article-versions-load', content: '加载版本历史失败' });
     } finally {
-      setLoading(false);
+      if (seq === loadSeqRef.current) setLoading(false);
     }
   };
 
-  // 恢复到指定版本
-  const handleRestoreVersion = async (version: number) => {
-    try {
-      Modal.confirm({
-        title: '确认恢复版本',
-        content: `确定要恢复到版本 ${version} 吗？这将创建一个新的版本。`,
-        onOk: async () => {
+  // 恢复到指定版本（表格按钮与预览弹窗共用同一次确认）
+  const handleRestoreVersion = (version: number) => {
+    Modal.confirm({
+      title: '确认恢复版本',
+      content: `确定要恢复到版本 ${version} 吗？这将创建一个新的版本。`,
+      onOk: async () => {
+        try {
           await KnowledgeBaseApi.restoreVersion(articleId, version);
-          message.success('版本恢复成功');
+          message.success({ key: 'kb-article-version-restore', content: '版本恢复成功' });
           loadVersions();
           onVersionChange?.(version);
-        },
-      });
-    } catch (error) {
-      message.error('恢复版本失败');
-    }
+        } catch (error) {
+          // 在 onOk 内消化异常：Modal 不会把 rejection 抛成未处理错误；
+          // 固定 key 保证重复点击/重试只保留一条提示。
+          message.error({ key: 'kb-article-version-restore', content: '恢复版本失败' });
+        }
+      },
+    });
   };
 
   // 比较版本
@@ -111,7 +130,7 @@ const ArticleVersionControl: React.FC<ArticleVersionControlProps> = ({
       setCompareResult(result);
       setCompareModalVisible(true);
     } catch (error) {
-      message.error('比较版本失败');
+      message.error({ key: 'kb-article-version-compare', content: '比较版本失败' });
     } finally {
       setLoading(false);
     }
@@ -133,9 +152,9 @@ const ArticleVersionControl: React.FC<ArticleVersionControlProps> = ({
       render: (version: number, record: ArticleVersion) => (
         <Space>
           <GitCommit className="w-4 h-4 text-blue-500" />
-          <Tag color={version === currentVersion ? 'green' : 'default'}>
+          <Tag color={version === latestVersion ? 'green' : 'default'}>
             v{version}
-            {version === currentVersion && ' (当前)'}
+            {version === latestVersion && ' (当前)'}
           </Tag>
         </Space>
       ),
@@ -186,15 +205,13 @@ const ArticleVersionControl: React.FC<ArticleVersionControlProps> = ({
             />
           </Tooltip>
 
-          {record.version !== currentVersion && (
+          {record.version !== latestVersion && (
             <Tooltip title="恢复到此版本">
-              <Popconfirm
-                title="确认恢复版本"
-                description={`确定要恢复到版本 ${record.version} 吗？`}
-                onConfirm={() => handleRestoreVersion(record.version)}
-              >
-                <Button type="text" icon={<RotateCcw className="w-4 h-4 text-orange-500" />} />
-              </Popconfirm>
+              <Button
+                type="text"
+                icon={<RotateCcw className="w-4 h-4 text-orange-500" />}
+                onClick={() => handleRestoreVersion(record.version)}
+              />
             </Tooltip>
           )}
         </Space>
@@ -209,7 +226,7 @@ const ArticleVersionControl: React.FC<ArticleVersionControlProps> = ({
     return (
       <div className="space-y-4">
         <Alert
-          message="版本差异"
+          title="版本差异"
           description={`比较版本 ${selectedVersions?.[0]} 和版本 ${selectedVersions?.[1]}`}
           type="info"
           showIcon
@@ -305,7 +322,7 @@ const ArticleVersionControl: React.FC<ArticleVersionControlProps> = ({
         <Col span={6}>
           <Card size="small">
             <div className="text-center">
-              <div className="text-2xl font-bold text-green-600">{currentVersion}</div>
+              <div className="text-2xl font-bold text-green-600">{latestVersion}</div>
               <Text type="secondary">当前版本</Text>
             </div>
           </Card>
@@ -324,7 +341,7 @@ const ArticleVersionControl: React.FC<ArticleVersionControlProps> = ({
           <Card size="small">
             <div className="text-center">
               <div className="text-2xl font-bold text-purple-600">
-                {versions.filter(v => v.version > currentVersion).length}
+                {versions.filter(v => v.version !== latestVersion).length}
               </div>
               <Text type="secondary">可恢复版本</Text>
             </div>
@@ -414,7 +431,7 @@ const ArticleVersionControl: React.FC<ArticleVersionControlProps> = ({
           <Button key="close" onClick={() => setPreviewModalVisible(false)}>
             关闭
           </Button>,
-          previewVersion && previewVersion.version !== currentVersion && (
+          previewVersion && previewVersion.version !== latestVersion && (
             <Button
               key="restore"
               type="primary"

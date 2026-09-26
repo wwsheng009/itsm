@@ -769,6 +769,33 @@ DELETE /knowledge/articles/{id}
 Authorization: Bearer <accessToken>
 ```
 
+### 获取知识文章版本历史
+
+```http
+GET /knowledge/articles/{id}/versions
+Authorization: Bearer <accessToken>
+```
+
+需要 `knowledge:read` 权限。返回该文章的版本数组（按版本号倒序，`data` 直接为数组、不做分页包络）：`version`、`title`、`content`、`contentType`、`category`、`tags`、`createdBy`、`createdByName`、`changeLog`、`createdAt`。创建时写入 v1「初始版本」，每次更新 / 恢复都会追加新版本，历史版本不可变；跨租户访问按 404 处理。
+
+### 比较知识文章版本
+
+```http
+GET /knowledge/articles/{id}/versions/compare?from={version}&to={version}
+Authorization: Bearer <accessToken>
+```
+
+需要 `knowledge:read` 权限；`from` 与 `to` 必须为不同版本号，否则返回参数错误。响应包含 `fromVersion`、`toVersion`、`diff`（`---` / `+++` 逐行差异文本）与 `changes[]`（`type`：`added` / `removed`，`content`：行内容）。
+
+### 恢复知识文章版本
+
+```http
+POST /knowledge/articles/{id}/versions/{version}/restore
+Authorization: Bearer <accessToken>
+```
+
+需要 `knowledge:write` 权限。把文章标题 / 正文回写为指定版本内容，并追加一条「恢复到 v{n}」的版本记录；返回更新后的文章详情。
+
 ### 知识库搜索
 
 ```http

@@ -145,12 +145,18 @@ func (s *Service) CreateArticle(ctx context.Context, a *Article) (*Article, erro
 	s.validateInlineImageRefs(ctx, a)
 	s.logger.Infow("Creating Knowledge Article", "title", a.Title, "category", a.Category)
 	if s.vectorOutboxEnabled() {
-		return s.createWithVectorOutbox(ctx, a)
+		created, err := s.createWithVectorOutbox(ctx, a)
+		if err != nil {
+			return nil, err
+		}
+		s.snapshotVersion(ctx, created, "初始版本")
+		return created, nil
 	}
 	created, err := s.repo.Create(ctx, a)
 	if err != nil {
 		return nil, err
 	}
+	s.snapshotVersion(ctx, created, "初始版本")
 	return created, nil
 }
 
@@ -171,14 +177,128 @@ func (s *Service) UpdateArticle(ctx context.Context, a *Article) (*Article, erro
 	}
 	s.validateInlineImageRefs(ctx, a)
 	s.logger.Infow("Updating Knowledge Article", "id", a.ID, "title", a.Title)
+
+	// 版本历史写入侧：更新成功后把「新正文」记一条版本，保证最新版本 = 当前正文。
+	// 快照失败不阻断更新，只告警（正文一致性优先）。
 	if s.vectorOutboxEnabled() {
-		return s.updateWithVectorOutbox(ctx, a)
+		updated, err := s.updateWithVectorOutbox(ctx, a)
+		if err != nil {
+			return nil, err
+		}
+		s.snapshotVersion(ctx, updated, "文章更新")
+		return updated, nil
 	}
 	updated, err := s.repo.Update(ctx, a)
 	if err != nil {
 		return nil, err
 	}
+	s.snapshotVersion(ctx, updated, "文章更新")
 	return updated, nil
+}
+
+// snapshotVersion 记录一次版本快照（在文章写入成功后调用，快照内容即当时正文）；
+// 版本历史属辅助能力，失败只告警、不阻断主流程。
+func (s *Service) snapshotVersion(ctx context.Context, a *Article, summary string) {
+	if a == nil || a.ID <= 0 || a.TenantID <= 0 {
+		return
+	}
+	if _, err := s.repo.CreateVersion(ctx, a.ID, a.TenantID, summary); err != nil {
+		s.logger.Warnw("保存文章版本快照失败", "error", err, "id", a.ID, "tenant_id", a.TenantID)
+	}
+}
+
+// ListArticleVersions 返回文章的全部历史版本（按版本号倒序）。
+func (s *Service) ListArticleVersions(ctx context.Context, articleID, tenantID int) ([]*ArticleVersion, error) {
+	return s.repo.ListVersions(ctx, articleID, tenantID)
+}
+
+// RestoreArticleVersion 将文章恢复到指定历史版本（恢复动作本身也会留一份快照）。
+func (s *Service) RestoreArticleVersion(ctx context.Context, articleID, version, tenantID int) (*Article, error) {
+	restored, err := s.repo.RestoreVersion(ctx, articleID, version, tenantID)
+	if err != nil {
+		return nil, err
+	}
+	s.logger.Infow("知识文章已恢复到历史版本", "article_id", articleID, "version", version, "tenant_id", tenantID)
+	return restored, nil
+}
+
+// CompareArticleVersions 比较两个历史版本的正文差异。
+//
+// 差异口径为「按行的多重集合差」：目标版本多出的行即新增，源版本独有行即删除。
+// 不做行对齐/相似度匹配（不产出 modified），对版本审阅而言信息足够且无额外依赖。
+func (s *Service) CompareArticleVersions(ctx context.Context, articleID, fromVersion, toVersion, tenantID int) (*dto.KnowledgeArticleVersionCompareResponse, error) {
+	from, err := s.repo.GetVersion(ctx, articleID, fromVersion, tenantID)
+	if err != nil {
+		return nil, err
+	}
+	to, err := s.repo.GetVersion(ctx, articleID, toVersion, tenantID)
+	if err != nil {
+		return nil, err
+	}
+
+	removed, added := diffLines(from.Content, to.Content)
+
+	result := &dto.KnowledgeArticleVersionCompareResponse{
+		FromVersion: fromVersion,
+		ToVersion:   toVersion,
+		Changes:     make([]dto.KnowledgeArticleVersionChange, 0, len(removed)+len(added)),
+	}
+	var b strings.Builder
+	fmt.Fprintf(&b, "--- v%d\n+++ v%d\n", fromVersion, toVersion)
+	for _, line := range removed {
+		result.Changes = append(result.Changes, dto.KnowledgeArticleVersionChange{Type: "removed", Content: line})
+		b.WriteString("- ")
+		b.WriteString(line)
+		b.WriteString("\n")
+	}
+	for _, line := range added {
+		result.Changes = append(result.Changes, dto.KnowledgeArticleVersionChange{Type: "added", Content: line})
+		b.WriteString("+ ")
+		b.WriteString(line)
+		b.WriteString("\n")
+	}
+	result.Diff = b.String()
+	return result, nil
+}
+
+// diffLines 计算两个文本按行比较的新增/删除行，保持各自原始行序。
+func diffLines(from, to string) (removed []string, added []string) {
+	fromLines := splitContentLines(from)
+	toLines := splitContentLines(to)
+
+	// 统计源文本行出现次数，用于抵消目标文本中的重复行。
+	remaining := make(map[string]int, len(fromLines))
+	for _, line := range fromLines {
+		remaining[line]++
+	}
+	for _, line := range toLines {
+		if remaining[line] > 0 {
+			remaining[line]--
+			continue
+		}
+		added = append(added, line)
+	}
+
+	// 反向抵消，得到源文本中独有的行（删除）。
+	matched := make(map[string]int, len(toLines))
+	for _, line := range toLines {
+		matched[line]++
+	}
+	for _, line := range fromLines {
+		if matched[line] > 0 {
+			matched[line]--
+			continue
+		}
+		removed = append(removed, line)
+	}
+	return removed, added
+}
+
+func splitContentLines(content string) []string {
+	if content == "" {
+		return nil
+	}
+	return strings.Split(strings.ReplaceAll(content, "\r\n", "\n"), "\n")
 }
 
 // normalizeArticleContentType 校验显式传入的正文类型并落到最终生效值。

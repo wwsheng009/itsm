@@ -2,12 +2,15 @@ package knowledge
 
 import (
 	"context"
+	"fmt"
 	"sort"
 	"strings"
 	"time"
 
 	"itsm-backend/ent"
 	"itsm-backend/ent/knowledgearticle"
+	"itsm-backend/ent/knowledgearticleversion"
+	"itsm-backend/ent/user"
 )
 
 // defaultCategories provides baseline knowledge-base categories so the category
@@ -359,4 +362,206 @@ func (r *EntRepository) GetByIDs(ctx context.Context, tenantID int, ids []int) (
 		}
 	}
 	return result, nil
+}
+
+// ==================== 版本历史 ====================
+
+// toVersionDomain maps ent KnowledgeArticleVersion to domain ArticleVersion.
+func toVersionDomain(e *ent.KnowledgeArticleVersion) *ArticleVersion {
+	if e == nil {
+		return nil
+	}
+	tags := []string{}
+	if e.Tags != "" {
+		tags = strings.Split(e.Tags, ",")
+	}
+	return &ArticleVersion{
+		ID:            e.ID,
+		ArticleID:     e.ArticleID,
+		Version:       e.Version,
+		Title:         e.Title,
+		Content:       e.Content,
+		Category:      e.Category,
+		Tags:          tags,
+		AuthorID:      e.AuthorID,
+		ChangeSummary: e.ChangeSummary,
+		CreatedAt:     e.CreatedAt,
+	}
+}
+
+// nextVersionNumber 返回文章下一个可用的版本号（无历史时为 1）。
+// 同时适用于 ent.Client 与 ent.Tx 上的查询。
+func nextVersionNumber(ctx context.Context, q *ent.KnowledgeArticleVersionQuery) (int, error) {
+	latest, err := q.Order(ent.Desc(knowledgearticleversion.FieldVersion)).First(ctx)
+	if err != nil {
+		if ent.IsNotFound(err) {
+			return 1, nil
+		}
+		return 0, err
+	}
+	return latest.Version + 1, nil
+}
+
+// fillAuthorNames 批量回填版本创建者姓名。仅用于展示：
+// 用户查询失败时保持姓名为空，不影响版本列表本身可用。
+func (r *EntRepository) fillAuthorNames(ctx context.Context, versions []*ArticleVersion) {
+	ids := make([]int, 0, len(versions))
+	seen := make(map[int]struct{}, len(versions))
+	for _, v := range versions {
+		if v.AuthorID <= 0 {
+			continue
+		}
+		if _, ok := seen[v.AuthorID]; ok {
+			continue
+		}
+		seen[v.AuthorID] = struct{}{}
+		ids = append(ids, v.AuthorID)
+	}
+	if len(ids) == 0 {
+		return
+	}
+
+	users, err := r.client.User.Query().Where(user.IDIn(ids...)).All(ctx)
+	if err != nil {
+		return
+	}
+	names := make(map[int]string, len(users))
+	for _, u := range users {
+		names[u.ID] = u.Name
+	}
+	for _, v := range versions {
+		if name, ok := names[v.AuthorID]; ok {
+			v.AuthorName = name
+		}
+	}
+}
+
+func (r *EntRepository) ListVersions(ctx context.Context, articleID int, tenantID int) ([]*ArticleVersion, error) {
+	// 先校验文章归属：避免跨租户通过文章 ID 探测版本历史。
+	if _, err := r.client.KnowledgeArticle.Query().
+		Where(knowledgearticle.ID(articleID), knowledgearticle.TenantID(tenantID), knowledgearticle.DeletedAtIsNil()).
+		Only(ctx); err != nil {
+		return nil, err
+	}
+
+	es, err := r.client.KnowledgeArticleVersion.Query().
+		Where(knowledgearticleversion.ArticleID(articleID)).
+		Order(ent.Desc(knowledgearticleversion.FieldVersion)).
+		All(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	versions := make([]*ArticleVersion, 0, len(es))
+	for _, e := range es {
+		versions = append(versions, toVersionDomain(e))
+	}
+	r.fillAuthorNames(ctx, versions)
+	return versions, nil
+}
+
+func (r *EntRepository) GetVersion(ctx context.Context, articleID int, version int, tenantID int) (*ArticleVersion, error) {
+	if _, err := r.client.KnowledgeArticle.Query().
+		Where(knowledgearticle.ID(articleID), knowledgearticle.TenantID(tenantID), knowledgearticle.DeletedAtIsNil()).
+		Only(ctx); err != nil {
+		return nil, err
+	}
+
+	e, err := r.client.KnowledgeArticleVersion.Query().
+		Where(knowledgearticleversion.ArticleID(articleID), knowledgearticleversion.Version(version)).
+		Only(ctx)
+	if err != nil {
+		return nil, err
+	}
+	out := toVersionDomain(e)
+	r.fillAuthorNames(ctx, []*ArticleVersion{out})
+	return out, nil
+}
+
+func (r *EntRepository) CreateVersion(ctx context.Context, articleID int, tenantID int, changeSummary string) (*ArticleVersion, error) {
+	article, err := r.client.KnowledgeArticle.Query().
+		Where(knowledgearticle.ID(articleID), knowledgearticle.TenantID(tenantID), knowledgearticle.DeletedAtIsNil()).
+		Only(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	next, err := nextVersionNumber(ctx, r.client.KnowledgeArticleVersion.Query().
+		Where(knowledgearticleversion.ArticleID(articleID)))
+	if err != nil {
+		return nil, err
+	}
+
+	e, err := r.client.KnowledgeArticleVersion.Create().
+		SetArticleID(article.ID).
+		SetVersion(next).
+		SetTitle(article.Title).
+		SetContent(article.Content).
+		SetCategory(article.Category).
+		SetTags(article.Tags).
+		SetAuthorID(article.AuthorID).
+		SetChangeSummary(changeSummary).
+		Save(ctx)
+	if err != nil {
+		return nil, err
+	}
+	return toVersionDomain(e), nil
+}
+
+func (r *EntRepository) RestoreVersion(ctx context.Context, articleID int, version int, tenantID int) (*Article, error) {
+	tx, err := r.client.Tx(ctx)
+	if err != nil {
+		return nil, err
+	}
+	defer func() { _ = tx.Rollback() }()
+
+	// 文章归属校验：租户不匹配 / 已软删时返回 ent.NotFoundError。
+	if _, err := tx.KnowledgeArticle.Query().
+		Where(knowledgearticle.ID(articleID), knowledgearticle.TenantID(tenantID), knowledgearticle.DeletedAtIsNil()).
+		Only(ctx); err != nil {
+		return nil, err
+	}
+
+	target, err := tx.KnowledgeArticleVersion.Query().
+		Where(knowledgearticleversion.ArticleID(articleID), knowledgearticleversion.Version(version)).
+		Only(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	// 仅回写版本快照覆盖的字段；content_type / 时效等元数据保持当前值。
+	updated, err := tx.KnowledgeArticle.UpdateOneID(articleID).
+		Where(knowledgearticle.TenantID(tenantID), knowledgearticle.DeletedAtIsNil()).
+		SetTitle(target.Title).
+		SetContent(target.Content).
+		SetCategory(target.Category).
+		SetTags(target.Tags).
+		Save(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	// 恢复结果本身记为一条新版本：保证「最新版本 = 当前正文」，且恢复动作可追溯。
+	next, err := nextVersionNumber(ctx, tx.KnowledgeArticleVersion.Query().
+		Where(knowledgearticleversion.ArticleID(articleID)))
+	if err != nil {
+		return nil, err
+	}
+	if _, err := tx.KnowledgeArticleVersion.Create().
+		SetArticleID(updated.ID).
+		SetVersion(next).
+		SetTitle(updated.Title).
+		SetContent(updated.Content).
+		SetCategory(updated.Category).
+		SetTags(updated.Tags).
+		SetAuthorID(updated.AuthorID).
+		SetChangeSummary(fmt.Sprintf("恢复到 v%d", version)).
+		Save(ctx); err != nil {
+		return nil, err
+	}
+
+	if err := tx.Commit(); err != nil {
+		return nil, err
+	}
+	return toDomain(updated), nil
 }

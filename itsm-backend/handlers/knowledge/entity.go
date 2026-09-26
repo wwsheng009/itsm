@@ -6,9 +6,9 @@ import (
 
 // Article representing a knowledge base article
 type Article struct {
-	ID          int       `json:"id"`
-	Title       string    `json:"title"`
-	Content     string    `json:"content"`
+	ID      int    `json:"id"`
+	Title   string `json:"title"`
+	Content string `json:"content"`
 	// ContentType 正文类型：text / markdown / html / rich_text。
 	// 空串 = 历史数据，由 knowledgecontent.Resolve 在读写两端按内容兜底判定。
 	ContentType string    `json:"contentType"`
@@ -36,6 +36,25 @@ type Article struct {
 	// Freshness 为派生字段，仅在检索/详情响应中填充，用于前端提示「该内容已逾期未复核」。
 	// 不参与写入，写入请以 ValidUntil / LastReviewedAt 等原始字段为准。
 	Freshness string `json:"freshness,omitempty"`
+}
+
+// ArticleVersion 文章历史版本快照。
+//
+// 快照在文章写入成功后生成：v1 为创建时的「初始版本」，此后每次更新把
+// 写入后的正文追加为新版本（恢复同样只追加新版本），因此列表倒序第一条
+// 始终等于文章当前正文；历史版本只增不改，回放即各时点的历史状态。
+type ArticleVersion struct {
+	ID            int
+	ArticleID     int
+	Version       int
+	Title         string
+	Content       string
+	Category      string
+	Tags          []string
+	AuthorID      int
+	AuthorName    string
+	ChangeSummary string
+	CreatedAt     time.Time
 }
 
 // Category represents a knowledge category

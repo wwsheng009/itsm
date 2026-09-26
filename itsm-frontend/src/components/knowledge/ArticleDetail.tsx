@@ -319,7 +319,6 @@ const ArticleDetail: React.FC = () => {
               children: (
                 <ArticleVersionControl
                   articleId={article.id.toString()}
-                  currentVersion={1}
                   onVersionChange={version => {
                     message.info(`切换到版本 ${version}`);
                   }}

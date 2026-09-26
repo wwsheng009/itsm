@@ -29,6 +29,11 @@ func SetupKnowledgeRoutes(tenant *gin.RouterGroup, h *knowledgeHandler.Handler, 
 			// 内容复核（L1 时效闭环）：确认内容仍然适用，解除「逾期未复核」过滤
 			articles.POST("/:id/review", middleware.RequirePermission("knowledge", "write"), h.MarkArticleReviewed)
 
+			// 版本历史（前端契约：/api/v1/knowledge/articles/:id/versions）
+			articles.GET("/:id/versions", middleware.RequirePermission("knowledge", "read"), h.ListArticleVersions)
+			articles.GET("/:id/versions/compare", middleware.RequirePermission("knowledge", "read"), h.CompareArticleVersions)
+			articles.POST("/:id/versions/:version/restore", middleware.RequirePermission("knowledge", "write"), h.RestoreArticleVersion)
+
 			// Comments
 			articles.GET("/:id/comments", middleware.RequirePermission("knowledge", "read"), h.GetArticleComments)
 			articles.POST("/:id/comments", middleware.RequirePermission("knowledge", "write"), h.AddArticleComment)

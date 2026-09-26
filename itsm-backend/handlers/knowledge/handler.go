@@ -8,6 +8,7 @@ import (
 	"itsm-backend/common"
 	"itsm-backend/common/knowledgecontent"
 	"itsm-backend/dto"
+	"itsm-backend/ent"
 
 	"github.com/gin-gonic/gin"
 )
@@ -43,18 +44,18 @@ func (h *Handler) toArticleDTO(a *Article) *dto.KnowledgeArticleResponse {
 		status = "published"
 	}
 	return &dto.KnowledgeArticleResponse{
-		ID:        a.ID,
-		Title:     a.Title,
-		Content:   a.Content,
+		ID:      a.ID,
+		Title:   a.Title,
+		Content: a.Content,
 		// 响应必须给出「解析后的生效类型」，前端据此选择渲染器；
 		// 空串（历史数据）由内容形态兜底，避免前端再各写一套启发式。
 		ContentType: knowledgecontent.Resolve(a.ContentType, a.Content),
-		Category:  a.Category,
-		Tags:      a.Tags,
-		Status:    status,
-		TenantID:  a.TenantID,
-		CreatedAt: a.CreatedAt,
-		UpdatedAt: a.UpdatedAt,
+		Category:    a.Category,
+		Tags:        a.Tags,
+		Status:      status,
+		TenantID:    a.TenantID,
+		CreatedAt:   a.CreatedAt,
+		UpdatedAt:   a.UpdatedAt,
 
 		ValidFrom:          a.ValidFrom,
 		ValidUntil:         a.ValidUntil,
@@ -424,6 +425,142 @@ func (h *Handler) DeleteArticle(c *gin.Context) {
 	}
 
 	common.Success(c, nil)
+}
+
+// ==================== 版本历史 ====================
+
+// tenantIDFromContext 提取租户上下文；缺失或类型错误统一按认证失败返回。
+func tenantIDFromContext(c *gin.Context) (int, bool) {
+	tenantIDVal, ok := c.Get("tenant_id")
+	if !ok {
+		common.Fail(c, common.AuthFailedCode, "Tenant ID not found")
+		return 0, false
+	}
+	tenantID, ok := tenantIDVal.(int)
+	if !ok {
+		common.Fail(c, common.AuthFailedCode, "Invalid tenant ID")
+		return 0, false
+	}
+	return tenantID, true
+}
+
+func parsePositiveQueryInt(c *gin.Context, key string) (int, bool) {
+	v, err := strconv.Atoi(c.Query(key))
+	if err != nil || v <= 0 {
+		common.ParamError(c, "Invalid "+key)
+		return 0, false
+	}
+	return v, true
+}
+
+// toVersionDTO 映射为前端契约字段（createdBy / createdByName / changeLog）。
+func (h *Handler) toVersionDTO(v *ArticleVersion) dto.KnowledgeArticleVersionResponse {
+	return dto.KnowledgeArticleVersionResponse{
+		ID:        v.ID,
+		ArticleID: v.ArticleID,
+		Version:   v.Version,
+		Title:     v.Title,
+		Content:   v.Content,
+		// 版本表没有 content_type 列，按正文形态解析，保证与详情页同一渲染口径。
+		ContentType:   knowledgecontent.Resolve("", v.Content),
+		Category:      v.Category,
+		Tags:          v.Tags,
+		AuthorID:      v.AuthorID,
+		CreatedByName: v.AuthorName,
+		ChangeLog:     v.ChangeSummary,
+		CreatedAt:     v.CreatedAt,
+	}
+}
+
+// ListArticleVersions handles GET /api/v1/knowledge/articles/:id/versions
+func (h *Handler) ListArticleVersions(c *gin.Context) {
+	id, ok := common.ParsePositiveID(c, "id")
+	if !ok {
+		return
+	}
+	tenantID, ok := tenantIDFromContext(c)
+	if !ok {
+		return
+	}
+
+	versions, err := h.svc.ListArticleVersions(c.Request.Context(), id, tenantID)
+	if err != nil {
+		if ent.IsNotFound(err) {
+			common.NotFound(c, "Article not found")
+			return
+		}
+		common.FailWithErr(c, err, "获取版本历史失败")
+		return
+	}
+
+	// 前端契约：data 直接是版本数组（组件内直接 sort），不做分页包络。
+	items := make([]dto.KnowledgeArticleVersionResponse, 0, len(versions))
+	for _, v := range versions {
+		items = append(items, h.toVersionDTO(v))
+	}
+	common.Success(c, items)
+}
+
+// RestoreArticleVersion handles POST /api/v1/knowledge/articles/:id/versions/:version/restore
+func (h *Handler) RestoreArticleVersion(c *gin.Context) {
+	id, ok := common.ParsePositiveID(c, "id")
+	if !ok {
+		return
+	}
+	version, ok := common.ParsePositiveID(c, "version")
+	if !ok {
+		return
+	}
+	tenantID, ok := tenantIDFromContext(c)
+	if !ok {
+		return
+	}
+
+	article, err := h.svc.RestoreArticleVersion(c.Request.Context(), id, version, tenantID)
+	if err != nil {
+		if ent.IsNotFound(err) {
+			common.NotFound(c, "Article or version not found")
+			return
+		}
+		common.FailWithErr(c, err, "恢复版本失败")
+		return
+	}
+	common.Success(c, h.toArticleDTO(article))
+}
+
+// CompareArticleVersions handles GET /api/v1/knowledge/articles/:id/versions/compare?from=&to=
+func (h *Handler) CompareArticleVersions(c *gin.Context) {
+	id, ok := common.ParsePositiveID(c, "id")
+	if !ok {
+		return
+	}
+	from, ok := parsePositiveQueryInt(c, "from")
+	if !ok {
+		return
+	}
+	to, ok := parsePositiveQueryInt(c, "to")
+	if !ok {
+		return
+	}
+	if from == to {
+		common.ParamError(c, "from and to must be different versions")
+		return
+	}
+	tenantID, ok := tenantIDFromContext(c)
+	if !ok {
+		return
+	}
+
+	result, err := h.svc.CompareArticleVersions(c.Request.Context(), id, from, to, tenantID)
+	if err != nil {
+		if ent.IsNotFound(err) {
+			common.NotFound(c, "Article or version not found")
+			return
+		}
+		common.FailWithErr(c, err, "比较版本失败")
+		return
+	}
+	common.Success(c, result)
 }
 
 // GetArticleComments handles GET /api/v1/knowledge/articles/:id/comments
