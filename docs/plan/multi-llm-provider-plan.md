@@ -3,7 +3,7 @@
 > 文档类型：技术方案 + 实施计划（Proposed / v1.6 评审定稿候选）
 > 适用范围：`itsm-backend`（Go）、`itsm-frontend`
 > 编制日期：2026-09-24
-> 版本：v1.6（v1.4/v1.5 决策全部保留；v1.6 注记 BE-9 **接线完成**：协议包（接口 + 注册表 + `openai_chat_completions` 适配器）之外，`service/llm_registry.go` 的构建路径分派、`LLM_PROTOCOL_ADAPTER_ENABLED` 开关（默认关、环境变量优先）与对照测试已落地工作树；DB 实例路径（BE-1..BE-5）仍未开工，其余 3 协议由独立计划推进）
+> 版本：v1.24（v1.4/v1.5 决策全部保留；本轮注记 **P1「全员可切换」权限放开**与 **AI 助手 UI 现代化**（Markdown 渲染 + ChatGPT/DeepSeek 风格布局）已实施，见 §5 落地状态 ⑳、§10 v1.24；BE/FE/QA/DOC 全序列与协议适配层 PA-1..PA-6 收口情况见 §5 与 §10）
 > 目标读者：后端、前端、测试、SRE
 > 关联文档：`docs/plan/llm-protocol-adapter-plan.md`（协议适配层独立计划，槽位预留）、`docs/plan/generic-attachment-richtext-control-plan.md`（文档格式参照）、`docs/documentation-governance.md`、`docs/plan/_data/vite-route-map.csv`（路由唯一真相源）
 > 外部参考实现（只读参考，不引入依赖）：`E:\projects\ai-agent-runtime\backend\internal\llm\adapter\`（`ProtocolAdapter` 接口 + 4 协议适配器：`openai.go` / `codex.go`=Responses / `anthropic.go` / `gemini.go`）
@@ -18,15 +18,15 @@
 **本方案要交付的三件事**：
 
 1. **后端支持多 provider 并存**：新增租户级 `llm_provider_configs` 表，系统管理员可在「系统管理 → 系统配置 → LLM 模型」页维护 N 个 provider 实例（密钥加密落库），网关具备运行期按 key 解析 provider 的能力。**协议按 4 种 API 形态建模**并按最新设计落地：P0 **实现 `openai_chat_completions` 协议适配器**（`internal/llm/protocol/`：`ProtocolAdapter` 接口 + 注册表 + 该适配器；语义与既有 `OpenAIProvider` 等价、可开关回退），`anthropic_messages` 由既有分支承载（可用、未适配器化），`openai_responses` / `google_gemini` **预留槽位**（枚举/字段/错误码到位、暂不提供实现）；**其余 3 协议的适配器化与语义归一化**由独立计划 `docs/plan/llm-protocol-adapter-plan.md` 推进并已全部交付（参考 `E:\projects\ai-agent-runtime`；截至 2026-09-25：4 值协议均已适配器化——`anthropic_messages` 随 PA-1、`openai_chat_completions` 变体承载随 PA-2、`openai_responses` 随 PA-3、`google_gemini` 随 PA-4）。
-2. **系统管理员可切换 provider**：AI 对话（`/ai/chat`、`/ai/chat/stream`）请求可携带 `provider` 覆盖参数；会话页切换选择器**仅对系统管理员**（`system:write`）渲染，普通用户行为与现状完全一致。
-3. **可以选默认 provider**：租户级默认（系统管理员设置，DB 内唯一）+ 个人默认（系统管理员的个人偏好，服务端存储、可选跟随租户默认）；解析优先级链见 §3.3。
+2. **可切换 provider（P1 起全员，2026-09-26）**：AI 对话（`/ai/chat`、`/ai/chat/stream`）请求可携带 `provider` 覆盖参数；会话页切换选择器对**全部 `ai:read` 使用者**渲染（原 v1.1 定稿为仅系统管理员；P1 把两个选择器读端点与覆盖参数门禁降为 `ai:read`，网关与数据模型零改动）。
+3. **可以选默认 provider**：租户级默认（系统管理员设置，DB 内唯一）+ 个人默认（服务端存储、可选跟随租户默认；**读取** P1 起对全员开放，**写入**仍限系统管理员 `system:write`）；解析优先级链见 §3.3。
 
 **核心约束（必须保持）**：密钥绝不明文回显/落日志；生产环境不允许以"无任何可用真实密钥"的状态启动（现硬约束的语义扩展，不放松）；DB 无配置时行为与现状 100% 兼容（回退 `config.yaml` 静态单 provider）。
 
 **范围**
 
 - 后端：数据模型（ent schema + 迁移）、Provider Registry/Resolver、`LLMGateway` 运行期解析改造、管理 API、审计与可观测、启动硬约束矩阵化。
-- 前端：在既有「系统管理 → 系统配置」页新增「LLM 模型」页签（CRUD/测试连通/启用禁用/设默认，**不新增路由与菜单**）、AI 会话页 provider 选择器与请求透传（仅系统管理员可见）。
+- 前端：在既有「系统管理 → 系统配置」页新增「LLM 模型」页签（CRUD/测试连通/启用禁用/设默认，**不新增路由与菜单**）、AI 会话页 provider 选择器与请求透传（P1 起全员可见；页签仍仅系统管理员）；会话页 UI 现代化（Markdown 渲染 + ChatGPT/DeepSeek 风格布局，2026-09-26）。
 - 兼容：灰度开关 `LLM_MULTI_PROVIDER_ENABLED`（默认关闭）、迁移与回滚脚本、测试与验收清单。
 
 **非目标（本期不做）**
@@ -150,7 +150,7 @@
 | D9 | 灰度与回滚 | 配置开关 `llm.multi_provider_enabled`（env `LLM_MULTI_PROVIDER_ENABLED`，默认 `false`）；关闭时管理 API 不注册、网关走单 provider 快速路径、前端不渲染页签与选择器 | 回滚 = 关开关（可选回退迁移 down），无需回滚代码 |
 | D10 | 静态配置定位 | DB 记录优先；DB 无启用记录时回退静态 `config.yaml` 单 provider（现状行为）；「LLM 模型」页签提供"从静态配置导入"按钮显式落库 | 避免启动期自动把 env 明文密钥写入 DB；双源真相通过 UI 展示与导入动作收敛 |
 | D11 | 生产硬约束 | 语义扩展为矩阵：仅当"静态密钥为占位符 **且** DB 无任何可解析密钥的启用实例"才 `log.Fatalf`；否则 Warn/Info | 保持 `app.go:613-629` 的防护意图；占位符判定与 `MaskSecret` 脱敏继续复用 |
-| D12 | 权限模型（评审定稿：系统管理员） | 管理与切换面统一要求 `system:write`：路由级 `middleware.RequirePermission("system","write")`（全部 §3.4 端点，含读）；`/ai/chat*` 的可选 `provider` 参数在 handler 内二次校验（无权限 → 403，不静默忽略）；前端以 `hasPermission('system','write')` 控制页签与选择器渲染 | 权限范围 = 系统管理员：内置角色中仅 `sysadmin` 持有 `system:write`（`it_director/ops_director` 显式排除，`internal/authz/roles.go:24-28`），`super_admin` 走既有超管旁路；不新增权限码；与 `router/router.go:387`、`handlers/vector_store/handler.go:224` 的系统管理端点先例一致 |
+| D12 | 权限模型（评审定稿：系统管理员；**P1 演进 2026-09-26**） | 管理与切换面统一要求 `system:write`：路由级 `middleware.RequirePermission("system","write")`（全部 §3.4 端点，含读）；`/ai/chat*` 的可选 `provider` 参数在 handler 内二次校验（无权限 → 403，不静默忽略）；前端以 `hasPermission('system','write')` 控制页签渲染（**P1 起**：两个选择器读端点 `GET /providers/available` 与 `GET /user-preference` 降为 `ai:read`，覆盖参数门禁同源降为 `ai:read`，选择器对全员渲染；`PUT /user-preference` 与「LLM 模型」页签仍 `system:write`） | 权限范围 = 系统管理员：内置角色中仅 `sysadmin` 持有 `system:write`（`it_director/ops_director` 显式排除，`internal/authz/roles.go:24-28`），`super_admin` 走既有超管旁路；不新增权限码；与 `router/router.go:387`、`handlers/vector_store/handler.go:224` 的系统管理端点先例一致 |
 | D13 | 协议槽位 + 首适配器（v1.4 更新，自 v1.2 槽位决策演进） | 5 类槽位：① 枚举 4 值；② 存储字段 `variant` + `adapter_options`（JSON，禁放密钥，§3.5）；③ 协议层（`ProtocolAdapter` 接口 + 注册表，形状对齐参考实现：BuildRequest/BuildHeaders/HandleResponse/ProcessResponse/IsReasoningModel/GetAPIPath）——**P0 实现并接线 `openai_chat_completions` 适配器**（语义等价既有 `OpenAIProvider`，开关可回退），其余 3 协议不接线；④ 能力位 `supportsStream` / `supportsTools` / `supportsReasoning`；⑤ 错误码 `AI_PROTOCOL_NOT_IMPLEMENTED`(422)。其余 3 协议的适配器化与语义归一化（请求/响应/流式/工具/推理链）由 `docs/plan/llm-protocol-adapter-plan.md` 推进 | 按最新协议设计演进主链路：首个适配器覆盖使用面最广的 API 形态（兼容网关/DeepSeek/Qwen/vLLM/Ollama `/v1` 等），先用对照测试锁定"与既有实现等价"再扩面；其余协议差异大（Responses/Gemini 事件模型、Anthropic thinking 等），留在独立计划避免拖慢主线；槽位先行保证数据模型/API/前端一次成型，后续接入零破坏（DB 无迁移、API 无破坏性变更） |
 
 ---
@@ -286,11 +286,11 @@ router/ai_routes.go         # 改：注册 §3.4 路由（受开关控制；统�
 | POST | `/ai/providers/:id/test` | `system:write` | 连通性测试：构造最小 `Chat` 请求（超时 15s），写 `status/last_error/last_tested_at` | 200（结果字段 ok/error） |
 | POST | `/ai/providers/:id/default` | `system:write` | 设租户默认（事务：先清后置，DB 部分唯一索引兜底） | 404/409 |
 | POST | `/ai/providers/import-static` | `system:write` | 把当前静态配置导入为一条记录（`source=imported`，加密落库）；**幂等**：按 `(protocol, variant, endpoint, model, deployment)` 命中则更新并返回 `200 {updated:true}`；仅 `name` 冲突返回 409 | 409/422 |
-| GET | `/ai/providers/available` | `system:write` | 选择器数据：`[{key, displayName, protocol, variant, model, supportsStream, supportsTools, supportsReasoning, implemented, isDefault}]`（无密钥）；仅系统管理员可读 | 200/403 |
-| GET | `/ai/user-preference` | `system:write` | 我的默认（`providerKey` 可空 + 生效值 effectiveProviderKey），仅系统管理员 | 200/403 |
-| PUT | `/ai/user-preference` | `system:write` | 设置/清除我的默认（校验租户归属与 enabled），仅系统管理员 | 400/404/422 |
+| GET | `/ai/providers/available` | `ai:read`（P1 起；原 `system:write`） | 选择器数据：`[{key, displayName, protocol, variant, model, supportsStream, supportsTools, supportsReasoning, implemented, isDefault}]`（无密钥）；全部 AI 使用者可读 | 200/403 |
+| GET | `/ai/user-preference` | `ai:read`（P1 起；原 `system:write`） | 我的默认（`providerKey` 可空 + 生效值 effectiveProviderKey）；全部 AI 使用者可读 | 200/403 |
+| PUT | `/ai/user-preference` | `system:write`（P1 不变） | 设置/清除我的默认（校验租户归属与 enabled），仍仅系统管理员 | 400/404/422 |
 
-**`provider` 覆盖参数（`/ai/chat`、`/ai/chat/stream`）**：路由仍为 `ai:read`；请求体携带非空 `provider` 时，handler 内校验调用者具备 `system:write`，否则 403 `AI_PROVIDER_FORBIDDEN`（显式失败，不静默忽略）。校验复用 RBAC 的权限解析（`middleware/rbac.go` 的角色→权限查询），实现时抽为一个 `middleware` 级小工具函数并加单测。
+**`provider` 覆盖参数（`/ai/chat`、`/ai/chat/stream`）**：路由仍为 `ai:read`；请求体携带非空 `provider` 时，handler 内校验调用者具备与选择器读端点同源的 `ai:read`（**P1 演进 2026-09-26**，原为 `system:write`），否则 403 `AI_PROVIDER_FORBIDDEN`（显式失败，不静默忽略）。校验复用 RBAC 的权限解析（`middleware/rbac.go` 的角色→权限查询），已抽为 `middleware.HasAIReadPermission` 并配单测（`middleware/llm_provider_permission_test.go`）。
 
 **请求/响应示例**：
 
@@ -301,7 +301,7 @@ router/ai_routes.go         # 改：注册 §3.4 路由（受开关控制；统�
 { "type": "done", "conversationId": 42, "provider": "deepseek-prod", "providerSource": "request" }
 ```
 
-**错误码统一**（`common` 既有错误响应结构）：`AI_PROVIDER_FORBIDDEN`(403，无 `system:write` 使用覆盖参数)、`AI_PROVIDER_NOT_FOUND`(404)、`AI_PROVIDER_DISABLED`(409)、`AI_PROVIDER_KEY_MISSING`(422)、`AI_PROVIDER_UNAVAILABLE`(503)、`AI_PROVIDER_IS_DEFAULT`(409)、`AI_PROTOCOL_NOT_IMPLEMENTED`(422，协议枚举合法但 P0 无实现，如 `openai_responses` / `google_gemini`)。
+**错误码统一**（`common` 既有错误响应结构）：`AI_PROVIDER_FORBIDDEN`(403，无 `ai:read` 使用覆盖参数；P1 前为无 `system:write`)、`AI_PROVIDER_NOT_FOUND`(404)、`AI_PROVIDER_DISABLED`(409)、`AI_PROVIDER_KEY_MISSING`(422)、`AI_PROVIDER_UNAVAILABLE`(503)、`AI_PROVIDER_IS_DEFAULT`(409)、`AI_PROTOCOL_NOT_IMPLEMENTED`(422，协议枚举合法但 P0 无实现，如 `openai_responses` / `google_gemini`)。
 
 ### 3.5 安全与权限
 
@@ -310,7 +310,7 @@ router/ai_routes.go         # 改：注册 §3.4 路由（受开关控制；统�
 - **AAD**：`tenant_id:name` 参与认证，防密文搬运；更新 name 时需重新加密（服务层显式处理，事务内完成）。
 - **`adapter_options` 非敏感约束**：仅允许非敏感键（JSON ≤4KB；键名黑名单命中 `api_key` / `token` / `secret` / `authorization` / `password` 等 → 422），密钥只允许走 `encrypted_api_key`；回显与日志沿用掩码规则。
 - **审计**：创建/更新/删除/设默认/切换测试写一条审计事件（复用现有 AI 审计通道 `POST /ai/audit` 的服务端写入点或 `ai_audit` 既有机制；实施时以 `service/ai_audit*` 现有封装为准，不新增旁路）。请求级切换（系统管理员）记录在 `ai_llm_calls.provider_key`（调用级证据）+ 结构化日志（`tenant/user/provider/source`），不记录 prompt 全文（现状不变）。
-- **权限（评审定稿：系统管理员）**：全部管理端点（含读）统一 `middleware.RequirePermission("system","write")`；`system:write` 在内置角色中仅 `sysadmin` 持有（`super_admin` 走既有超管旁路）。理由：配置面暴露端点/模型等基础设施信息，按"系统管理"最小面收敛；普通用户不渲染入口、不发放选择器数据，会话与现状一致。演进（P1，非本期）：若需"全员可切换"，仅把 `available`/`user-preference` 两个读端点降为 `ai:read` 并放开前端渲染条件，网关与数据模型零改动。
+- **权限（评审定稿：系统管理员）**：全部管理端点（含读）统一 `middleware.RequirePermission("system","write")`；`system:write` 在内置角色中仅 `sysadmin` 持有（`super_admin` 走既有超管旁路）。理由：配置面暴露端点/模型等基础设施信息，按"系统管理"最小面收敛；普通用户不渲染入口、不发放选择器数据，会话与现状一致。演进（P1）：若需"全员可切换"，仅把 `available`/`user-preference` 两个读端点降为 `ai:read` 并放开前端渲染条件，网关与数据模型零改动。**P1 已实施（2026-09-26）**：两个读端点降为 `ai:read`（`router/llm_provider_routes.go` 拆分读/写权限组），`/ai/chat*` 覆盖参数门禁同源降为 `ai:read`（新增 `middleware.HasAIReadPermission`），前端选择器对全员渲染；`PUT /user-preference` 与「LLM 模型」页签仍 `system:write`；网关与数据模型零改动。
 - **租户隔离**：`internal/schema/tenant_guard.go` 守卫测试必须覆盖新表（存在 `tenant_id` 字段即通过）；跨租户 provider 引用（用户偏好/请求参数）一律 404，不泄漏存在性。
 
 ### 3.6 前端设计
@@ -327,9 +327,9 @@ router/ai_routes.go         # 改：注册 §3.4 路由（受开关控制；统�
 
 **AI 会话页选择器（`components/ai/AIChat.tsx`）**：
 
-- 可见性：开关开启 **且** `hasPermission('system','write')` **且** `available.length > 1` 时才渲染；不满足时 UI 与现状完全一致（普通用户零变化）。
+- 可见性（P1 起）：开关开启 **且** `available.length > 1` 时渲染（原口径叠加 `hasPermission('system','write')`，2026-09-26 随 P1 放开）；「设为 / 清除我的默认」写操作仍按 `hasPermission('system','write')` 条件渲染（`PUT /user-preference` 未放开）。
 - 头部 `Select`：数据源 `GET /ai/providers/available`；默认选中 `userPreference.effectiveProviderKey`；选项副标题展示协议（+variant）与模型；能力徽标（不支持流式的实例标注"非流式"）。
-- 透传：`ai-api.ts` 的 `AIChatStreamRequest` 与 `AIApi.chat` 增加 `provider?: string`；`done` 事件解析 `provider/providerSource` 并在助手消息 meta 行展示（如"回答由 deepseek-prod 生成"，同样仅系统管理员可见）。
+- 透传：`ai-api.ts` 的 `AIChatStreamRequest` 与 `AIApi.chat` 增加 `provider?: string`；`done` 事件解析 `provider/providerSource` 并在助手消息 meta 行展示（如"回答由 deepseek-prod 生成"；P1 起对全部使用者可见）。
 - 个人默认：选择器内"设为我的默认"操作 → `PUT /ai/user-preference`；失败 toast 不阻断会话。
 - 降级：请求返回 `AI_PROVIDER_DISABLED/NOT_FOUND` 时自动刷新列表 + 提示 + 回落到生效默认重试一次（仅这一种自动重试，且仅限非流式失败重发）。
 
@@ -464,6 +464,8 @@ STATUS ERROR (read-only): migration checksum mismatch for 20260501_rbac_endpoint
 
 > ⑲ **PA-6 交付：4 份协议 parser 规格文档 + 文档同步（独立计划升 v1.5，全序列收口）**：① 新增 `docs/plan/protocol-specs/` 4 份规格——`openai_chat_completions.md`（三变体差异落点：azure endpoint 归一 + model 回退 deployment、ollama OpenAI 兼容归一）、`openai_responses.md`（顶层 `instructions`、`input` 项数组、`store:false`、事件驱动 SSE 全表与快照补齐）、`anthropic_messages.md`（官方 / minimax 字段名与端点差异、`tool_use` / `tool_result` 配对、`input_json_delta` 累积）、`google_gemini.md`（`ModelPathAdapter` 动态路径、`x-goog-api-key`、`functionResponse` 函数名反查与占位、`finishReason` 原生透传）；每份含元数据 / 请求构建 / 非流式解析 / 流式事件序列 / 错误语义 / 边缘项 / §4.3 决策索引 / 测试用例索引 8 节，字段名 / 帧名 / 函数名 / 用例名逐条核对源码；文末「存疑 / 待澄清」共 19 条（chat 3 / responses 5 / anthropic 5 / gemini 6）登记为后续修缮输入（如 responses 流式 `[DONE]` 解析不对称、anthropic 字符串 `tool_choice` 直传、gemini `variant` 字段存而未用等），不涉代码改动。② 文档同步：独立计划升 v1.5（头部版本块 / §0 / §3 规格坐标 / §5 PA-6 行 ✅ / §6 证据行 / §9 修订记录）、`CHANGELOG.md [Unreleased]` 新增 PA-6 条目、本方案 §10 v1.23 与 §11.3 门禁行。③ 证据：`bash scripts/docs-gate/run-all.sh` → 5 gates / 0 failed（日志 `.dev/docs-gate-rerun.log`）。PA-1..PA-6 全序列收口。
 
+> ⑳ **P1「全员可切换」权限放开 + AI 助手 UI 现代化（2026-09-26）**：① 权限——`GET /ai/providers/available` 与 `GET /ai/user-preference` 由 `system:write` 降为 `ai:read`（`router/llm_provider_routes.go` 拆读/写两个权限组；`POST/PUT/DELETE /ai/providers*` 与 `PUT /ai/user-preference` 仍在 `system:write` 组），`/ai/chat*` 的 `provider` 覆盖参数门禁由 `HasSystemWritePermission` 改为新增 `HasAIReadPermission`（`middleware/llm_provider_permission.go`，与读端点同源，杜绝口径漂移），403 文案改为「无 AI 使用权限，不能指定 provider 实例」；`go run ./cmd/authz-gen` 重生成 `middleware/rbac_precheck_gen.go`（两行预检 `system:write → ai:read`，`TestPrecheckMapIsFresh` / `TestRoutePrecheckAlignment` 守卫）；网关与数据模型零改动。② 前端权限——`use-llm-provider-feature.ts` 去掉 `hasPermission('system','write')` 早退（全员探测、失败仍 fail-closed），`AIChat.tsx` 选择器渲染条件改为「开关开启 + ≥2 可用实例」，「设为 / 清除我的默认」写操作保留管理员条件渲染；「LLM 模型」页签仍仅系统管理员。③ UI 现代化——新增 `src/components/ai/MarkdownMessage.tsx`（`react-markdown` + `remark-gfm` + `rehype-sanitize`：GFM 表格 / 任务列表 / 代码块语言标签与复制按钮 / 外链 `noopener noreferrer` / 流式光标；样式作用域 `.ai-md`、取色 `theme.useToken()`），`AIChat.tsx` 重写为 ChatGPT / DeepSeek 风格布局（左侧 268px 会话历史栏 + 主区 48px 工具条 + 居中消息列 `maxWidth 820` + 底部输入坞；用户消息右对齐气泡、助手消息头像 + Markdown；空态建议卡片；`Enter` 发送 / `Shift+Enter` 换行 / `isComposing` 挡中文 IME）。④ 证据——后端：`go build ./...` exit 0、`go test ./middleware/ ./router/ ./handlers/ai/ -count=1` 与预检新鲜度 / 对齐守卫全绿、改动文件 `gofmt -l` 无输出；前端：`npm run type-check` exit 0、3 套件（`ai-api` / `use-llm-provider-feature` / `MarkdownMessage`）53 用例全绿；浏览器（`:3000` 经 Vite 代理）实测：两个读端点 200、选择器全员渲染、流式回答 Markdown 端到端（表格 / 标题 / 代码块 + 复制按钮 / 流式光标）与布局量测（消息列居中、无横向溢出）；直连 `:8090` 无令牌三端点均 401（进入鉴权链，非旁路）。
+
 ### 5.1 后端（BE）
 
 | # | 任务 | 依赖 | 交付物 | 验收 |
@@ -543,7 +545,7 @@ STATUS ERROR (read-only): migration checksum mismatch for 20260501_rbac_endpoint
 5. 系统管理员禁用 B → 该管理员下次请求降级为租户默认 A（`providerSource=tenant`），会话页出现失效提示；直接 `provider=B` 请求返回 409 `AI_PROVIDER_DISABLED`。
 6. 删除全部 DB 实例并关闭开关 → 行为回到静态配置单 provider（现状），重启进程后与当前线上版本一致。
 7. 安全断言：`GET /ai/providers` 响应仅含掩码；后端日志全文检索无明文密钥；生产占位符 + DB 可用实例场景启动成功（矩阵 §4.1）。
-8. 权限边界（非系统管理员）：系统配置页看不到「LLM 模型」页签；`GET /ai/providers`、`GET /ai/providers/available`、`GET /ai/user-preference` 均 403；`POST /ai/chat` 携带 `provider` 返回 403 `AI_PROVIDER_FORBIDDEN`；不带 `provider` 的会话与现状一致（命中租户默认/静态）。
+8. 权限边界（**P1 版，2026-09-26**）：无 `ai:read` 的调用者——`GET /ai/providers/available` / `GET /ai/user-preference` 403、`POST /ai/chat` 携带 `provider` 403 `AI_PROVIDER_FORBIDDEN`；具备 `ai:read` 的普通用户（如 `agent`）——两个读端点 200、会话选择器可见、携带 `provider` 的会话按解析链生效（`providerSource=request`），但其系统配置页看不到「LLM 模型」页签、`GET /ai/providers` 与 `PUT /ai/user-preference` 均 403；不带 `provider` 的会话与现状一致（命中租户默认/静态）。
 9. 幂等导入：对同一静态配置连续执行两次 `import-static` → 第一次 200 创建、第二次 200 `{updated:true}`，记录数不增。
 10. 协议槽位与映射：① 创建 `anthropic_messages` + `variant=minimax`（endpoint 留空回退内置地址）→ 走 `minimax` 分支，测试连通成功；② 创建 `protocol=openai_responses` 或 `google_gemini` → 422 `AI_PROTOCOL_NOT_IMPLEMENTED`，前端对应选项置灰；③ `variant` 非法值、`adapter_options` 携带 `api_key`/`authorization` 等敏感键 → 422。
 11. 协议适配器等价性：同一 chat completions 桩服务下，同一实例分别以「适配器路径（开关开）」与「旧分支路径（开关关）」调用 → 流式 chunk 序列、工具调用降级行为、错误映射逐项一致（对照测试 + 人工抽查）。
@@ -569,7 +571,7 @@ STATUS ERROR (read-only): migration checksum mismatch for 20260501_rbac_endpoint
 | R-7 | RAG embedding 仍绑定静态配置，用户误以为切换 provider 后 RAG 也切换 | 低 | 页面文案明确"Embedding/知识库检索仍使用部署级配置"；非目标已声明 |
 | R-8 | `ai_llm_calls` 列变更影响既有统计 SQL | 低 | 仅新增可空列；`ai_telemetry_repository.go`/`ai_evaluator.go` 的既有查询不动；回归测试覆盖 |
 | R-9 | 未知/未实现协议被误用（现状"静默退化 openai"缺陷的变体） | 低 | API 层枚举校验 + 未实现协议 422 `AI_PROTOCOL_NOT_IMPLEMENTED`（D3/BE-8）+ 表单下拉置灰，三重阻断 |
-| R-10 | 产品口径"用户可切换"与权限定稿"系统管理员"存在认知差 | 低 | 本文档 §0/§8-Q1 已明确口径；`CHANGELOG`/README 能力描述统一写"系统管理员可切换 provider"；若后续产品要求全员切换，按 Q1 的 P1 路径单点放开（仅权限码与前端渲染条件，网关与数据模型零改动） |
+| R-10 | 产品口径"用户可切换"与权限定稿"系统管理员"存在认知差 | 低 | 本文档 §0/§8-Q1 已明确口径；`CHANGELOG`/README 能力描述统一写"系统管理员可切换 provider"；若后续产品要求全员切换，按 Q1 的 P1 路径单点放开（仅权限码与前端渲染条件，网关与数据模型零改动）——**P1 已于 2026-09-26 实施**（读端点与覆盖参数门禁降为 `ai:read`、选择器全员渲染；`PUT /user-preference` 与「LLM 模型」页签仍 `system:write`） |
 | R-11 | 用户误以为 4 种协议全部可用（P0 仅 2 种有实现） | 低 | 前端选项置灰并标注「待接入 · 独立计划」；`available` 返回能力位 + `implemented` 标志；文档口径统一（§0、§3.1.4、§11） |
 | R-12 | `ai_llm_calls.provider` 新旧值并存（历史行为旧实现名） | 低 | 不做历史回填（仅新增语义）；实例粒度由 `provider_key` 提供；统计如需归类在查询层处理（非 P0），`ai_evaluator` 既有测试不回归 |
 | R-13 | 首适配器与既有实现行为漂移（流式/工具调用/错误语义） | 中 | 对照测试（同桩服务逐 chunk/逐字段比对，BE-9）+ 开关关闭即回退旧分支（D9）+ B5 出口门禁强制等价证据；R-4 的能力位与非流式降级路径继续兜底 |
@@ -583,7 +585,7 @@ STATUS ERROR (read-only): migration checksum mismatch for 20260501_rbac_endpoint
 
 | # | 问题 | 定稿结论（已确认） | 落实位置 |
 |:---|:---|:---|:---|
-| Q1 | 可切换 provider 的范围 | **系统管理员**（`system:write` 持有者，内置即 `sysadmin`；`super_admin` 走既有超管旁路）。普通用户不渲染选择器、不可设置个人默认；请求带 `provider` 但无权限 → 403 `AI_PROVIDER_FORBIDDEN`。放宽路径（P1）：仅把 `available`/`user-preference` 读端点降为 `ai:read` 并放开前端渲染条件，网关与数据模型零改动 | §2.2 D12、§3.4、§3.5、§3.6 |
+| Q1 | 可切换 provider 的范围 | **系统管理员**（`system:write` 持有者，内置即 `sysadmin`；`super_admin` 走既有超管旁路）。普通用户不渲染选择器、不可设置个人默认；请求带 `provider` 但无权限 → 403 `AI_PROVIDER_FORBIDDEN`。放宽路径（P1）：仅把 `available`/`user-preference` 读端点降为 `ai:read` 并放开前端渲染条件，网关与数据模型零改动（**P1 已实施，2026-09-26**：读端点与覆盖参数门禁 `system:write → ai:read`、选择器全员渲染；`PUT /user-preference` 与「LLM 模型」页签仍 `system:write`） | §2.2 D12、§3.4、§3.5、§3.6 |
 | Q2 | 个人默认的管理员可见性 | P0 仅本人可见可改；P1 在「LLM 模型」页签内加只读"个人偏好"列表（排障/交接用），不阻塞 P0 | §3.6 |
 | Q3 | 同协议多实例并存 | **允许**：`name` 唯一即可，`(protocol, model, endpoint)` 不设唯一约束；多环境（生产网关/备用网关/局域网模型）按实例并存 | §3.1.1 |
 | Q4 | `anthropic_messages`（`variant=minimax`）端点是否可配（原表述：`minimax` 端点） | **开放为可选字段**：`endpoint` 留空时回退现有内置地址，向后兼容；避免私有化/代理部署为换网关改代码（与其它协议字段一致） | §3.1.1、§3.1.4、§5.1 BE-1 |
@@ -696,6 +698,7 @@ go test ./internal/llm/protocol/... -count=1
 | v1.22 | 2026-09-25 | **PA-5 交付：能力位开关感知收敛（独立计划升 v1.4）**：① 口径：能力位 = f(承载实现, 部署开关)——`LLM_PROTOCOL_ADAPTER_ENABLED` 开启且 `(协议, 变体)` 命中注册表 → 适配器事实值（`supportsStream` / `supportsTools` / `supportsReasoning` 三项全真）；关闭（默认）→ 旧分支事实值（`azure` / `ollama` / `anthropic_messages` 两变体仅「已实现、非流式」），管理 API 与前端不提前放量（R-3）；`Implemented` 为枚举级事实、不随开关变化；② 实现：`service/llm_protocol_slot.go` 槽位字段改名 `legacyCapabilities` + 包级 `llmAdapterCapabilities` / `effectiveCapabilities(协议)`，`LLMProtocolCapabilities` / `LLMProtocolOptions` / `defaultCapabilities` 读取期解析；③ 前端零改动（`implemented` + `variants` 数据驱动，三项能力位无消费方），`docs/api-reference.md` 更新取值说明（字段 / 形状不变）；④ 测试：开关两侧取值矩阵（`service/llm_protocol_slot_test.go`）+ 管理 API 同口径端到端（`handlers/ai/llm_provider_admin_test.go`）全绿；⑤ 零破坏：无迁移、无 API 契约改动、`LLM_PROTOCOL_ADAPTER_ENABLED` 默认关；⑥ 证据：service 定向集（ProtocolSlot / ProtocolOptions）与 `handlers/ai -run Provider` 全绿、`gofmt -l` 无输出、文档门禁 5 gates / 0 failed；⑦ 独立计划 §4.3 新增 PA-5 决策 4 条、§4.5 落地口径、§5 PA-5 行转 ✅、§6 证据行 / §7 R-3 / §8 Q4 同步，独立计划升 v1.4 |
 
 | v1.23 | 2026-09-25 | **PA-6 交付：4 份协议 parser 规格文档 + 文档同步（独立计划升 v1.5，全序列收口）**：① 新增 `docs/plan/protocol-specs/`——`openai_chat_completions.md` / `openai_responses.md` / `anthropic_messages.md` / `google_gemini.md`，每份 8 节（元数据 / 请求构建 / 非流式解析 / 流式事件序列 / 错误语义 / 边缘项与容错 / §4.3 决策索引 / 测试用例索引），逐字段 / 逐帧对标本仓库源码（含 azure / ollama 构造期差异、Responses 事件驱动 SSE 快照补齐、Anthropic 官方 vs minimax 字段名差异、Gemini 动态资源路径与函数名反查）；② 文末「存疑 / 待澄清」共 19 条（chat 3 / responses 5 / anthropic 5 / gemini 6）登记为后续修缮输入（不涉代码改动）；③ 文档同步：独立计划 §0/§3/§5/§6/§9 + 头部版本块升 v1.5，`CHANGELOG.md [Unreleased]` 新增 PA-6 条目，本方案 §5 落地状态 ⑲ / §11.3；④ 证据：`bash scripts/docs-gate/run-all.sh` → 5 gates / 0 failed（日志 `.dev/docs-gate-rerun.log`）；⑤ PA-1..PA-6 全序列收口，本方案 §11 槽位说明的历史使命完成（后续维护按独立计划升版） |
+| v1.24 | 2026-09-26 | **P1「全员可切换」权限放开 + AI 助手 UI 现代化**：① 权限——`GET /ai/providers/available` / `GET /ai/user-preference` 降为 `ai:read`（`router/llm_provider_routes.go` 拆读/写权限组），`/ai/chat*` 覆盖参数门禁同源降为 `ai:read`（新增 `middleware.HasAIReadPermission`，403 文案同步），`PUT /user-preference` 与「LLM 模型」页签仍 `system:write`；`middleware/rbac_precheck_gen.go` 由 `cmd/authz-gen` 重生成（两行预检 `system:write → ai:read`）；网关与数据模型零改动；② 前端——选择器对全员渲染（hook 去权限早退、写按钮保留管理员门控），新增 `MarkdownMessage.tsx`（GFM + 代码块复制 + HTML 消毒 + 流式光标），`AIChat.tsx` 按 ChatGPT / DeepSeek 风格重做布局（268px 会话侧栏 / 工具条 / 居中消息列 / 底部输入坞 / 空态建议卡片）；③ 证据——后端定向测试 + 预检守卫全绿、`gofmt -l` 无输出；前端 `tsc --noEmit` exit 0、3 套件 53 用例全绿、浏览器实测读端点 200 + Markdown 流式渲染 + 布局量测（无横向溢出）；详见 §5 落地状态 ⑳ |
 
 ---
 

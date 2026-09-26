@@ -41,7 +41,7 @@ POST /api/v1/bpmn/ai/templates/{key}/archive
 
 ## AI 供应商管理（多 LLM Provider）
 
-系统管理员（`system:write`）可在「系统管理 → 系统配置 → LLM 模型」页维护多个 LLM provider 实例（密钥加密落库、接口只回掩码）。全部端点受灰度开关 `LLM_MULTI_PROVIDER_ENABLED`（config `llm.multi_provider_enabled`）控制：默认关闭，关闭时路由不注册、行为与静态单 provider 完全一致；普通用户访问一律 403。
+系统管理员（`system:write`）可在「系统管理 → 系统配置 → LLM 模型」页维护多个 LLM provider 实例（密钥加密落库、接口只回掩码）。全部端点受灰度开关 `LLM_MULTI_PROVIDER_ENABLED`（config `llm.multi_provider_enabled`）控制：默认关闭，关闭时路由不注册、行为与静态单 provider 完全一致。权限（P1 起，2026-09-26）：管理端点（含 `PUT /ai/user-preference`）与「LLM 模型」页签仍要求 `system:write`；两个选择器读端点 `GET /ai/providers/available`、`GET /ai/user-preference` 降为 `ai:read`，全部 AI 使用者可读，支撑会话页全员切换。
 
 ```http
 GET    /api/v1/ai/providers                     # 管理列表（掩码密钥、状态、是否默认、来源）
@@ -51,12 +51,12 @@ DELETE /api/v1/ai/providers/:id                 # 软删（默认实例需先切
 POST   /api/v1/ai/providers/:id/test            # 连通性测试（15s 超时，写 status/last_error/last_tested_at）
 POST   /api/v1/ai/providers/:id/default         # 设租户默认（事务先清后置，DB 部分唯一索引兜底）
 POST   /api/v1/ai/providers/import-static       # 导入静态配置（幂等：命中同实例返回 200 {updated:true}）
-GET    /api/v1/ai/providers/available           # 选择器数据（能力位 implemented/supportsStream/...，无密钥；三项能力位为开关感知取值）
-GET    /api/v1/ai/user-preference               # 我的默认（providerKey 可空 + effectiveProviderKey）
-PUT    /api/v1/ai/user-preference               # 设置/清除我的默认（校验租户归属与 enabled）
+GET    /api/v1/ai/providers/available           # 选择器数据（能力位 implemented/supportsStream/...，无密钥；三项能力位为开关感知取值）；P1 起 ai:read 全员可读
+GET    /api/v1/ai/user-preference               # 我的默认（providerKey 可空 + effectiveProviderKey）；P1 起 ai:read 全员可读
+PUT    /api/v1/ai/user-preference               # 设置/清除我的默认（校验租户归属与 enabled）；仍限 system:write
 ```
 
-`/api/v1/ai/chat` 与 `/api/v1/ai/chat/stream` 仍为 `ai:read`，但请求体支持可选 `provider` 覆盖参数（仅 `system:write` 可用，否则 403 `AI_PROVIDER_FORBIDDEN`；解析失败显式报错、不静默回退）。SSE `done` 事件回带生效实例与来源：
+`/api/v1/ai/chat` 与 `/api/v1/ai/chat/stream` 仍为 `ai:read`，但请求体支持可选 `provider` 覆盖参数（P1 起与选择器读端点同源：具备 `ai:read` 即可用，否则 403 `AI_PROVIDER_FORBIDDEN`；解析失败显式报错、不静默回退）。SSE `done` 事件回带生效实例与来源：
 
 ```jsonc
 { "type": "done", "conversationId": 42, "provider": "deepseek-prod", "providerSource": "request" }
