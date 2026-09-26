@@ -77862,6 +77862,7 @@ type KnowledgeArticleMutation struct {
 	id                      *int
 	title                   *string
 	content                 *string
+	content_type            *string
 	category                *string
 	tags                    *string
 	author_id               *int
@@ -78079,6 +78080,42 @@ func (m *KnowledgeArticleMutation) ContentCleared() bool {
 func (m *KnowledgeArticleMutation) ResetContent() {
 	m.content = nil
 	delete(m.clearedFields, knowledgearticle.FieldContent)
+}
+
+// SetContentType sets the "content_type" field.
+func (m *KnowledgeArticleMutation) SetContentType(s string) {
+	m.content_type = &s
+}
+
+// ContentType returns the value of the "content_type" field in the mutation.
+func (m *KnowledgeArticleMutation) ContentType() (r string, exists bool) {
+	v := m.content_type
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldContentType returns the old "content_type" field's value of the KnowledgeArticle entity.
+// If the KnowledgeArticle object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *KnowledgeArticleMutation) OldContentType(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldContentType is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldContentType requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldContentType: %w", err)
+	}
+	return oldValue.ContentType, nil
+}
+
+// ResetContentType resets all changes to the "content_type" field.
+func (m *KnowledgeArticleMutation) ResetContentType() {
+	m.content_type = nil
 }
 
 // SetCategory sets the "category" field.
@@ -79015,12 +79052,15 @@ func (m *KnowledgeArticleMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *KnowledgeArticleMutation) Fields() []string {
-	fields := make([]string, 0, 17)
+	fields := make([]string, 0, 18)
 	if m.title != nil {
 		fields = append(fields, knowledgearticle.FieldTitle)
 	}
 	if m.content != nil {
 		fields = append(fields, knowledgearticle.FieldContent)
+	}
+	if m.content_type != nil {
+		fields = append(fields, knowledgearticle.FieldContentType)
 	}
 	if m.category != nil {
 		fields = append(fields, knowledgearticle.FieldCategory)
@@ -79079,6 +79119,8 @@ func (m *KnowledgeArticleMutation) Field(name string) (ent.Value, bool) {
 		return m.Title()
 	case knowledgearticle.FieldContent:
 		return m.Content()
+	case knowledgearticle.FieldContentType:
+		return m.ContentType()
 	case knowledgearticle.FieldCategory:
 		return m.Category()
 	case knowledgearticle.FieldTags:
@@ -79122,6 +79164,8 @@ func (m *KnowledgeArticleMutation) OldField(ctx context.Context, name string) (e
 		return m.OldTitle(ctx)
 	case knowledgearticle.FieldContent:
 		return m.OldContent(ctx)
+	case knowledgearticle.FieldContentType:
+		return m.OldContentType(ctx)
 	case knowledgearticle.FieldCategory:
 		return m.OldCategory(ctx)
 	case knowledgearticle.FieldTags:
@@ -79174,6 +79218,13 @@ func (m *KnowledgeArticleMutation) SetField(name string, value ent.Value) error 
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.SetContent(v)
+		return nil
+	case knowledgearticle.FieldContentType:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetContentType(v)
 		return nil
 	case knowledgearticle.FieldCategory:
 		v, ok := value.(string)
@@ -79454,6 +79505,9 @@ func (m *KnowledgeArticleMutation) ResetField(name string) error {
 		return nil
 	case knowledgearticle.FieldContent:
 		m.ResetContent()
+		return nil
+	case knowledgearticle.FieldContentType:
+		m.ResetContentType()
 		return nil
 	case knowledgearticle.FieldCategory:
 		m.ResetCategory()

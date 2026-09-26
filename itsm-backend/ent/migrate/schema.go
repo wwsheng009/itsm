@@ -2350,6 +2350,7 @@ var (
 		{Name: "id", Type: field.TypeInt, Increment: true},
 		{Name: "title", Type: field.TypeString},
 		{Name: "content", Type: field.TypeString, Nullable: true, Size: 2147483647},
+		{Name: "content_type", Type: field.TypeString, Default: ""},
 		{Name: "category", Type: field.TypeString, Nullable: true},
 		{Name: "tags", Type: field.TypeString, Nullable: true},
 		{Name: "author_id", Type: field.TypeInt},
@@ -2375,7 +2376,7 @@ var (
 		ForeignKeys: []*schema.ForeignKey{
 			{
 				Symbol:     "knowledge_articles_known_errors_knowledge_articles",
-				Columns:    []*schema.Column{KnowledgeArticlesColumns[18]},
+				Columns:    []*schema.Column{KnowledgeArticlesColumns[19]},
 				RefColumns: []*schema.Column{KnownErrorsColumns[0]},
 				OnDelete:   schema.SetNull,
 			},

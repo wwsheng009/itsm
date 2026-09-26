@@ -13,6 +13,8 @@ import rehypeSanitize from 'rehype-sanitize';
  *    `react-markdown@9` + `remark-gfm@4`（表格/任务列表/删除线）+ `rehype-sanitize@6`（防 XSS）。
  *  - 块级代码：`<pre>` 容器 + 右上角「复制」按钮 + 语言标签（从 `language-xx` 类名解析）。
  *  - 行内 code：胶囊样式（浅底 + 圆角 + 等宽字体），由作用域内 CSS 的 `:not(pre) > code` 命中。
+ *  - 列表：Tailwind preflight 会把 `ol / ul` 的 `list-style` 清成 none，必须在此显式补回
+ *    （与 `styles/globals.css` 的 `.ticket-rich-text` 同口径），否则列表退化成「缩进的段落」。
  *  - 主题：取色一律走 antd `theme.useToken()`，不新增全局 CSS 文件；作用域样式以
  *    `<style>` 片段挂在 `.ai-md` 作用域下，随组件实例卸载自动移除。
  *  - 流式：`streaming` 为 true 时在内容末尾渲染自建 CSS 动画光标（`.ai-md-caret`）。
@@ -50,6 +52,9 @@ const buildScopedCss = (token: AntdToken): string => `
 .${SCOPE} h4 { font-size: 14px; }
 .${SCOPE} h5, .${SCOPE} h6 { font-size: 13px; }
 .${SCOPE} ul, .${SCOPE} ol { margin: 0 0 8px; padding-left: 22px; }
+/* preflight 清零了 ol/ul 的 list-style：不补回则无项目符号 / 编号。 */
+.${SCOPE} ul { list-style: disc; }
+.${SCOPE} ol { list-style: decimal; }
 .${SCOPE} li { margin: 2px 0; }
 .${SCOPE} li > p { margin: 0 0 4px; }
 .${SCOPE} strong { font-weight: 600; color: ${token.colorTextHeading}; }

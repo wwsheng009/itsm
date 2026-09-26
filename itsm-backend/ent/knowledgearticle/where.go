@@ -65,6 +65,11 @@ func Content(v string) predicate.KnowledgeArticle {
 	return predicate.KnowledgeArticle(sql.FieldEQ(FieldContent, v))
 }
 
+// ContentType applies equality check predicate on the "content_type" field. It's identical to ContentTypeEQ.
+func ContentType(v string) predicate.KnowledgeArticle {
+	return predicate.KnowledgeArticle(sql.FieldEQ(FieldContentType, v))
+}
+
 // Category applies equality check predicate on the "category" field. It's identical to CategoryEQ.
 func Category(v string) predicate.KnowledgeArticle {
 	return predicate.KnowledgeArticle(sql.FieldEQ(FieldCategory, v))
@@ -278,6 +283,71 @@ func ContentEqualFold(v string) predicate.KnowledgeArticle {
 // ContentContainsFold applies the ContainsFold predicate on the "content" field.
 func ContentContainsFold(v string) predicate.KnowledgeArticle {
 	return predicate.KnowledgeArticle(sql.FieldContainsFold(FieldContent, v))
+}
+
+// ContentTypeEQ applies the EQ predicate on the "content_type" field.
+func ContentTypeEQ(v string) predicate.KnowledgeArticle {
+	return predicate.KnowledgeArticle(sql.FieldEQ(FieldContentType, v))
+}
+
+// ContentTypeNEQ applies the NEQ predicate on the "content_type" field.
+func ContentTypeNEQ(v string) predicate.KnowledgeArticle {
+	return predicate.KnowledgeArticle(sql.FieldNEQ(FieldContentType, v))
+}
+
+// ContentTypeIn applies the In predicate on the "content_type" field.
+func ContentTypeIn(vs ...string) predicate.KnowledgeArticle {
+	return predicate.KnowledgeArticle(sql.FieldIn(FieldContentType, vs...))
+}
+
+// ContentTypeNotIn applies the NotIn predicate on the "content_type" field.
+func ContentTypeNotIn(vs ...string) predicate.KnowledgeArticle {
+	return predicate.KnowledgeArticle(sql.FieldNotIn(FieldContentType, vs...))
+}
+
+// ContentTypeGT applies the GT predicate on the "content_type" field.
+func ContentTypeGT(v string) predicate.KnowledgeArticle {
+	return predicate.KnowledgeArticle(sql.FieldGT(FieldContentType, v))
+}
+
+// ContentTypeGTE applies the GTE predicate on the "content_type" field.
+func ContentTypeGTE(v string) predicate.KnowledgeArticle {
+	return predicate.KnowledgeArticle(sql.FieldGTE(FieldContentType, v))
+}
+
+// ContentTypeLT applies the LT predicate on the "content_type" field.
+func ContentTypeLT(v string) predicate.KnowledgeArticle {
+	return predicate.KnowledgeArticle(sql.FieldLT(FieldContentType, v))
+}
+
+// ContentTypeLTE applies the LTE predicate on the "content_type" field.
+func ContentTypeLTE(v string) predicate.KnowledgeArticle {
+	return predicate.KnowledgeArticle(sql.FieldLTE(FieldContentType, v))
+}
+
+// ContentTypeContains applies the Contains predicate on the "content_type" field.
+func ContentTypeContains(v string) predicate.KnowledgeArticle {
+	return predicate.KnowledgeArticle(sql.FieldContains(FieldContentType, v))
+}
+
+// ContentTypeHasPrefix applies the HasPrefix predicate on the "content_type" field.
+func ContentTypeHasPrefix(v string) predicate.KnowledgeArticle {
+	return predicate.KnowledgeArticle(sql.FieldHasPrefix(FieldContentType, v))
+}
+
+// ContentTypeHasSuffix applies the HasSuffix predicate on the "content_type" field.
+func ContentTypeHasSuffix(v string) predicate.KnowledgeArticle {
+	return predicate.KnowledgeArticle(sql.FieldHasSuffix(FieldContentType, v))
+}
+
+// ContentTypeEqualFold applies the EqualFold predicate on the "content_type" field.
+func ContentTypeEqualFold(v string) predicate.KnowledgeArticle {
+	return predicate.KnowledgeArticle(sql.FieldEqualFold(FieldContentType, v))
+}
+
+// ContentTypeContainsFold applies the ContainsFold predicate on the "content_type" field.
+func ContentTypeContainsFold(v string) predicate.KnowledgeArticle {
+	return predicate.KnowledgeArticle(sql.FieldContainsFold(FieldContentType, v))
 }
 
 // CategoryEQ applies the EQ predicate on the "category" field.

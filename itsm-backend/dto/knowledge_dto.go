@@ -12,6 +12,10 @@ type CreateKnowledgeArticleRequest struct {
 	Category string   `json:"category" binding:"required,max=50"`
 	Tags     []string `json:"tags"`
 
+	// ContentType 正文类型：text / markdown / html / rich_text。
+	// 留空表示由服务端按内容形态自动判定（历史客户端兼容）。
+	ContentType string `json:"contentType"`
+
 	// 知识可引用性 L1：时效性。均为可选，留空表示「长期有效、不设复核」。
 	ValidFrom          *time.Time `json:"validFrom"`
 	ValidUntil         *time.Time `json:"validUntil"`
@@ -28,6 +32,10 @@ type UpdateKnowledgeArticleRequest struct {
 	Category *string  `json:"category"`
 	Status   *string  `json:"status"`
 	Tags     []string `json:"tags"`
+
+	// ContentType 正文类型：text / markdown / html / rich_text。
+	// 传 nil 表示「不显式指定」——服务端会保留已存类型，缺失时按内容判定。
+	ContentType *string `json:"contentType"`
 
 	// 知识可引用性 L1：时效性。指针语义即「不传=保持不变」。
 	// 传 nil 指针本身在部分更新里就是「不改」，要解除时效需显式传空字符串等哨兵，
@@ -60,6 +68,9 @@ type KnowledgeArticleResponse struct {
 	ID        int       `json:"id"`
 	Title     string    `json:"title"`
 	Content   string    `json:"content"`
+	// ContentType 是解析后的生效类型（历史数据由内容形态兜底判定），
+	// 前端据此选择渲染器：text / markdown / html / rich_text。
+	ContentType string   `json:"contentType"`
 	Category  string    `json:"category"`
 	Status    string    `json:"status"`
 	Author    string    `json:"author"`

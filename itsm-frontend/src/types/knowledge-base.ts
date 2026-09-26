@@ -3,6 +3,8 @@
  * 支持富文本编辑、版本控制、协作和搜索
  */
 
+import type { ArticleContentType } from '@/lib/knowledge/article-content-type';
+
 // ==================== 知识库基础类型 ====================
 
 /**
@@ -34,7 +36,12 @@ export interface KnowledgeArticle {
   slug: string; // URL友好的标识
 
   // 内容
-  content: string; // 富文本HTML内容
+  content: string; // 正文原文（Markdown / 富文本 HTML / 纯文本，由 contentType 区分）
+  /**
+   * 正文类型：text / markdown / html / rich_text。
+   * 后端响应给出解析后的生效值；历史数据可能缺省，渲染请用 resolveArticleContentType 兜底。
+   */
+  contentType?: ArticleContentType | string;
   plainText?: string; // 纯文本（用于搜索）
   summary?: string; // 摘要
 
@@ -117,6 +124,8 @@ export interface ArticleAttachment {
 export interface ArticleVersion {
   version: number;
   content: string;
+  /** 版本正文类型；缺省时按内容形态兜底判定 */
+  contentType?: ArticleContentType | string;
   summary?: string;
   changeLog?: string;
   createdBy: number;
@@ -475,6 +484,8 @@ export interface ArticleAnalytics {
 export interface CreateArticleRequest {
   title: string;
   content: string;
+  /** 正文类型：text / markdown / html / rich_text；留空由服务端按内容判定 */
+  contentType?: ArticleContentType;
   summary?: string;
   category?: string;
   tags?: string[];

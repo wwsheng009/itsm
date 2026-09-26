@@ -21,6 +21,8 @@ type KnowledgeArticle struct {
 	Title string `json:"title,omitempty"`
 	// 文章内容
 	Content string `json:"content,omitempty"`
+	// 正文类型：text/markdown/html/rich_text；空=历史数据按内容自动判定
+	ContentType string `json:"content_type,omitempty"`
 	// 分类
 	Category string `json:"category,omitempty"`
 	// 标签
@@ -107,7 +109,7 @@ func (*KnowledgeArticle) scanValues(columns []string) ([]any, error) {
 			values[i] = new(sql.NullBool)
 		case knowledgearticle.FieldID, knowledgearticle.FieldAuthorID, knowledgearticle.FieldTenantID, knowledgearticle.FieldViewCount, knowledgearticle.FieldLikeCount, knowledgearticle.FieldReviewIntervalDays, knowledgearticle.FieldAuthorityLevel:
 			values[i] = new(sql.NullInt64)
-		case knowledgearticle.FieldTitle, knowledgearticle.FieldContent, knowledgearticle.FieldCategory, knowledgearticle.FieldTags:
+		case knowledgearticle.FieldTitle, knowledgearticle.FieldContent, knowledgearticle.FieldContentType, knowledgearticle.FieldCategory, knowledgearticle.FieldTags:
 			values[i] = new(sql.NullString)
 		case knowledgearticle.FieldValidFrom, knowledgearticle.FieldValidUntil, knowledgearticle.FieldLastReviewedAt, knowledgearticle.FieldCreatedAt, knowledgearticle.FieldUpdatedAt, knowledgearticle.FieldDeletedAt:
 			values[i] = new(sql.NullTime)
@@ -145,6 +147,12 @@ func (_m *KnowledgeArticle) assignValues(columns []string, values []any) error {
 				return fmt.Errorf("unexpected type %T for field content", values[i])
 			} else if value.Valid {
 				_m.Content = value.String
+			}
+		case knowledgearticle.FieldContentType:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field content_type", values[i])
+			} else if value.Valid {
+				_m.ContentType = value.String
 			}
 		case knowledgearticle.FieldCategory:
 			if value, ok := values[i].(*sql.NullString); !ok {
@@ -303,6 +311,9 @@ func (_m *KnowledgeArticle) String() string {
 	builder.WriteString(", ")
 	builder.WriteString("content=")
 	builder.WriteString(_m.Content)
+	builder.WriteString(", ")
+	builder.WriteString("content_type=")
+	builder.WriteString(_m.ContentType)
 	builder.WriteString(", ")
 	builder.WriteString("category=")
 	builder.WriteString(_m.Category)

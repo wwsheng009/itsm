@@ -14,6 +14,12 @@ func (KnowledgeArticle) Fields() []ent.Field {
 	return []ent.Field{
 		field.String("title").Comment("文章标题").NotEmpty(),
 		field.Text("content").Comment("文章内容").Optional(),
+		// 正文类型：text / markdown / html / rich_text。
+		// 空串 = 历史数据（引入该字段前落库的文章），渲染端按内容形态兜底判定，
+		// 避免把存量 Markdown 误判成 HTML 后整段暴露原文。
+		field.String("content_type").
+			Comment("正文类型：text/markdown/html/rich_text；空=历史数据按内容自动判定").
+			Default(""),
 		field.String("category").Comment("分类").Optional(),
 		field.String("tags").Comment("标签").Optional(),
 		field.Int("author_id").Comment("作者ID").Positive(),

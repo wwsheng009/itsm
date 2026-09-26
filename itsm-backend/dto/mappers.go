@@ -5,6 +5,7 @@ import (
 	"strings"
 	"time"
 
+	"itsm-backend/common/knowledgecontent"
 	"itsm-backend/ent"
 	"itsm-backend/ent/schema"
 )
@@ -350,6 +351,8 @@ func ToKnowledgeArticleResponse(article *ent.KnowledgeArticle) *KnowledgeArticle
 		ID:        article.ID,
 		Title:     article.Title,
 		Content:   article.Content,
+		// 与 handlers/knowledge 的响应口径一致：历史空类型按内容形态兜底。
+		ContentType: knowledgecontent.Resolve(article.ContentType, article.Content),
 		Category:  article.Category,
 		Status:    status,
 		Author:    "", // Default, could be populated from authorID if needed

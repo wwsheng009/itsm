@@ -43,6 +43,20 @@ func (_c *KnowledgeArticleCreate) SetNillableContent(v *string) *KnowledgeArticl
 	return _c
 }
 
+// SetContentType sets the "content_type" field.
+func (_c *KnowledgeArticleCreate) SetContentType(v string) *KnowledgeArticleCreate {
+	_c.mutation.SetContentType(v)
+	return _c
+}
+
+// SetNillableContentType sets the "content_type" field if the given value is not nil.
+func (_c *KnowledgeArticleCreate) SetNillableContentType(v *string) *KnowledgeArticleCreate {
+	if v != nil {
+		_c.SetContentType(*v)
+	}
+	return _c
+}
+
 // SetCategory sets the "category" field.
 func (_c *KnowledgeArticleCreate) SetCategory(v string) *KnowledgeArticleCreate {
 	_c.mutation.SetCategory(v)
@@ -317,6 +331,10 @@ func (_c *KnowledgeArticleCreate) ExecX(ctx context.Context) {
 
 // defaults sets the default values of the builder before save.
 func (_c *KnowledgeArticleCreate) defaults() {
+	if _, ok := _c.mutation.ContentType(); !ok {
+		v := knowledgearticle.DefaultContentType
+		_c.mutation.SetContentType(v)
+	}
 	if _, ok := _c.mutation.IsPublished(); !ok {
 		v := knowledgearticle.DefaultIsPublished
 		_c.mutation.SetIsPublished(v)
@@ -356,6 +374,9 @@ func (_c *KnowledgeArticleCreate) check() error {
 		if err := knowledgearticle.TitleValidator(v); err != nil {
 			return &ValidationError{Name: "title", err: fmt.Errorf(`ent: validator failed for field "KnowledgeArticle.title": %w`, err)}
 		}
+	}
+	if _, ok := _c.mutation.ContentType(); !ok {
+		return &ValidationError{Name: "content_type", err: errors.New(`ent: missing required field "KnowledgeArticle.content_type"`)}
 	}
 	if _, ok := _c.mutation.AuthorID(); !ok {
 		return &ValidationError{Name: "author_id", err: errors.New(`ent: missing required field "KnowledgeArticle.author_id"`)}
@@ -427,6 +448,10 @@ func (_c *KnowledgeArticleCreate) createSpec() (*KnowledgeArticle, *sqlgraph.Cre
 	if value, ok := _c.mutation.Content(); ok {
 		_spec.SetField(knowledgearticle.FieldContent, field.TypeString, value)
 		_node.Content = value
+	}
+	if value, ok := _c.mutation.ContentType(); ok {
+		_spec.SetField(knowledgearticle.FieldContentType, field.TypeString, value)
+		_node.ContentType = value
 	}
 	if value, ok := _c.mutation.Category(); ok {
 		_spec.SetField(knowledgearticle.FieldCategory, field.TypeString, value)

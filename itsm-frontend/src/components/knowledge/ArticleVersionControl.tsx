@@ -35,7 +35,8 @@ import {
 import { KnowledgeBaseApi } from '@/lib/api/knowledge-base-api';
 import type { ArticleVersion } from '@/types/knowledge-base';
 import { format } from 'date-fns';
-import DOMPurify from 'dompurify';
+import ArticleContentRenderer from './ArticleContentRenderer';
+import { resolveArticleContentType } from '@/lib/knowledge/article-content-type';
 
 const { Title, Text, Paragraph } = Typography;
 
@@ -450,9 +451,17 @@ const ArticleVersionControl: React.FC<ArticleVersionControlProps> = ({
             <div>
               <Title level={5}>内容预览</Title>
               <Card size="small">
-                <div
-                  className="prose max-w-none"
-                  dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(previewVersion.content) }}
+                {/*
+                  版本正文按「内容类型」分发渲染（与详情页同一组件、同一兜底口径）：
+                  历史版本没有类型标记时，由 resolveArticleContentType 按内容形态判定，
+                  Markdown 版本不再被 DOMPurify 当 HTML 整段吞掉。
+                */}
+                <ArticleContentRenderer
+                  content={previewVersion.content}
+                  contentType={resolveArticleContentType({
+                    contentType: previewVersion.contentType,
+                    content: previewVersion.content,
+                  })}
                 />
               </Card>
             </div>

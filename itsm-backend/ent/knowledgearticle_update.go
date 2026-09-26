@@ -65,6 +65,20 @@ func (_u *KnowledgeArticleUpdate) ClearContent() *KnowledgeArticleUpdate {
 	return _u
 }
 
+// SetContentType sets the "content_type" field.
+func (_u *KnowledgeArticleUpdate) SetContentType(v string) *KnowledgeArticleUpdate {
+	_u.mutation.SetContentType(v)
+	return _u
+}
+
+// SetNillableContentType sets the "content_type" field if the given value is not nil.
+func (_u *KnowledgeArticleUpdate) SetNillableContentType(v *string) *KnowledgeArticleUpdate {
+	if v != nil {
+		_u.SetContentType(*v)
+	}
+	return _u
+}
+
 // SetCategory sets the "category" field.
 func (_u *KnowledgeArticleUpdate) SetCategory(v string) *KnowledgeArticleUpdate {
 	_u.mutation.SetCategory(v)
@@ -535,6 +549,9 @@ func (_u *KnowledgeArticleUpdate) sqlSave(ctx context.Context) (_node int, err e
 	if _u.mutation.ContentCleared() {
 		_spec.ClearField(knowledgearticle.FieldContent, field.TypeString)
 	}
+	if value, ok := _u.mutation.ContentType(); ok {
+		_spec.SetField(knowledgearticle.FieldContentType, field.TypeString, value)
+	}
 	if value, ok := _u.mutation.Category(); ok {
 		_spec.SetField(knowledgearticle.FieldCategory, field.TypeString, value)
 	}
@@ -802,6 +819,20 @@ func (_u *KnowledgeArticleUpdateOne) SetNillableContent(v *string) *KnowledgeArt
 // ClearContent clears the value of the "content" field.
 func (_u *KnowledgeArticleUpdateOne) ClearContent() *KnowledgeArticleUpdateOne {
 	_u.mutation.ClearContent()
+	return _u
+}
+
+// SetContentType sets the "content_type" field.
+func (_u *KnowledgeArticleUpdateOne) SetContentType(v string) *KnowledgeArticleUpdateOne {
+	_u.mutation.SetContentType(v)
+	return _u
+}
+
+// SetNillableContentType sets the "content_type" field if the given value is not nil.
+func (_u *KnowledgeArticleUpdateOne) SetNillableContentType(v *string) *KnowledgeArticleUpdateOne {
+	if v != nil {
+		_u.SetContentType(*v)
+	}
 	return _u
 }
 
@@ -1304,6 +1335,9 @@ func (_u *KnowledgeArticleUpdateOne) sqlSave(ctx context.Context) (_node *Knowle
 	}
 	if _u.mutation.ContentCleared() {
 		_spec.ClearField(knowledgearticle.FieldContent, field.TypeString)
+	}
+	if value, ok := _u.mutation.ContentType(); ok {
+		_spec.SetField(knowledgearticle.FieldContentType, field.TypeString, value)
 	}
 	if value, ok := _u.mutation.Category(); ok {
 		_spec.SetField(knowledgearticle.FieldCategory, field.TypeString, value)

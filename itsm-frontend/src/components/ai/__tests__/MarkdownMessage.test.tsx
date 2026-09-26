@@ -33,6 +33,12 @@ describe('MarkdownMessage', () => {
     expect(container.querySelector('h1')?.textContent).toBe('处置结论');
     expect(container.querySelector('strong')?.textContent).toBe('已恢复');
     expect(container.querySelectorAll('li')).toHaveLength(2);
+
+    // 回归点：Tailwind preflight 会把 ol/ul 的 list-style 清成 none，
+    // 作用域样式必须显式补回，否则列表在页面上呈现为「缩进的段落」。
+    const css = container.querySelector('style')?.textContent || '';
+    expect(css).toContain('list-style: disc');
+    expect(css).toContain('list-style: decimal');
   });
 
   it('渲染 GFM 表格，并包在可横向滚动的容器内', () => {

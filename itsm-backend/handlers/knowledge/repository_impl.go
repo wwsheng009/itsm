@@ -46,6 +46,7 @@ func toDomain(e *ent.KnowledgeArticle) *Article {
 		ID:          e.ID,
 		Title:       e.Title,
 		Content:     e.Content,
+		ContentType: e.ContentType,
 		Category:    e.Category,
 		Tags:        tags,
 		AuthorID:    e.AuthorID,
@@ -67,6 +68,7 @@ func (r *EntRepository) Create(ctx context.Context, a *Article) (*Article, error
 	e, err := r.client.KnowledgeArticle.Create().
 		SetTitle(a.Title).
 		SetContent(a.Content).
+		SetContentType(a.ContentType).
 		SetCategory(a.Category).
 		SetTags(tagsStr).
 		SetAuthorID(a.AuthorID).
@@ -141,6 +143,7 @@ func (r *EntRepository) Update(ctx context.Context, a *Article) (*Article, error
 		Where(knowledgearticle.TenantID(a.TenantID), knowledgearticle.DeletedAtIsNil()).
 		SetTitle(a.Title).
 		SetContent(a.Content).
+		SetContentType(a.ContentType).
 		SetCategory(a.Category).
 		SetTags(tagsStr).
 		SetIsPublished(a.IsPublished).

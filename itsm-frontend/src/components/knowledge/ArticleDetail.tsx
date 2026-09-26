@@ -4,7 +4,7 @@ import { useNavigate, useParams } from 'react-router';
  * 知识库文章详情组件
  */
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Card,
   Tag,
@@ -32,15 +32,13 @@ import {
 } from '@/constants/knowledge';
 import type { KnowledgeArticle } from '@/types/biz/knowledge';
 import ArticleVersionControl from './ArticleVersionControl';
-import RichTextImageViewer from '@/components/common/rich-text/RichTextImageViewer';
-import { isHtmlContent } from '@/lib/rich-text/content-format';
-import { sanitizeRichTextHtml } from '@/lib/rich-text/sanitize';
-// 使用 react-markdown 渲染文章内容，并走 rehype-sanitize 防 XSS。
-// 详见 https://github.com/remarkjs/react-markdown ；与上方 split('\n') + <br/>
-// 相比可以保留 # 标题、**加粗**、`代码`、- 列表、表格等完整 Markdown 语义。
-import ReactMarkdown from 'react-markdown';
-import remarkGfm from 'remark-gfm';
-import rehypeSanitize from 'rehype-sanitize';
+import ArticleContentRenderer from './ArticleContentRenderer';
+// 正文按「内容类型」分发渲染（text / markdown / html / rich_text），
+// 类型由后端解析后随响应返回；历史数据缺失时按内容形态兜底，口径见该模块注释。
+import {
+  ARTICLE_CONTENT_TYPE_LABELS,
+  resolveArticleContentType,
+} from '@/lib/knowledge/article-content-type';
 
 const { Title, Paragraph, Text } = Typography;
 
@@ -53,8 +51,6 @@ const ArticleDetail: React.FC = () => {
   const [helpful, setHelpful] = useState<boolean | null>(null);
   const [feedbackSubmitted, setFeedbackSubmitted] = useState(false);
   const [feedbackComment, setFeedbackComment] = useState('');
-  const richContentRef = useRef<HTMLDivElement>(null);
-
   useEffect(() => {
     if (id) {
       loadDetail();
@@ -180,6 +176,9 @@ const ArticleDetail: React.FC = () => {
       ? KnowledgeStatus.PUBLISHED
       : KnowledgeStatus.DRAFT;
 
+  // 正文渲染类型：显式字段优先，历史数据兜底判定（旧响应无 contentType 时不会渲染回归）。
+  const contentType = resolveArticleContentType(article);
+
   return (
     <div style={{ padding: '0 0 24px' }}>
       <Breadcrumb style={{ marginBottom: 16 }}>
@@ -254,6 +253,7 @@ const ArticleDetail: React.FC = () => {
               <Folder />
               <Text type="secondary">{article.category || '未分类'}</Text>
             </Space>
+            <Tag>{ARTICLE_CONTENT_TYPE_LABELS[contentType]}</Tag>
             <Tag color={KnowledgeStatusColors[status]}>{KnowledgeStatusLabels[status]}</Tag>
           </Space>
         </div>
@@ -275,33 +275,12 @@ const ArticleDetail: React.FC = () => {
               children: (
                 <div className="article-content" style={{ minHeight: 400 }}>
                   {/*
-                    正文双读（FE-5）：
-                    - 富文本 HTML（新链路，编辑器落库）：走 sanitizeRichTextHtml（DOMPurify 白名单 +
-                      站内图片加固）后渲染，并挂图片查看器支持点击放大；`data-attachment-id` 保留，
-                      与后端 BE-7 的引用保护同锚点。
-                    - 历史 Markdown：保持 react-markdown + remark-gfm（表格/任务列表/删除线）
-                      + rehype-sanitize（默认白名单剥离 <script>/<iframe>/onerror 等危险元素与属性）。
+                    正文渲染统一收敛到 ArticleContentRenderer：
+                    Markdown 走 react-markdown + remark-gfm + rehype-sanitize；
+                    HTML / 富文本走 sanitizeRichTextHtml（白名单 + 站内图片加固）并挂图片查看器；
+                    纯文本保留换行、不解析标记。
                   */}
-                  {article.content ? (
-                    isHtmlContent(article.content) ? (
-                      <>
-                        <div
-                          ref={richContentRef}
-                          className="ticket-rich-text prose max-w-none"
-                          dangerouslySetInnerHTML={{ __html: sanitizeRichTextHtml(article.content) }}
-                        />
-                        <RichTextImageViewer containerRef={richContentRef} enabled />
-                      </>
-                    ) : (
-                      <div className="prose max-w-none">
-                        <ReactMarkdown remarkPlugins={[remarkGfm]} rehypePlugins={[rehypeSanitize]}>
-                          {article.content}
-                        </ReactMarkdown>
-                      </div>
-                    )
-                  ) : (
-                    <Paragraph type="secondary">本文暂无内容。</Paragraph>
-                  )}
+                  <ArticleContentRenderer content={article.content} contentType={contentType} />
                   {/* Helpfulness Feedback */}
                   <Divider />
                   <div style={{ padding: '16px 0', background: '#f9f9f9', borderRadius: 8, textAlign: 'center' }}>

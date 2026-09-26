@@ -9,6 +9,9 @@ type Article struct {
 	ID          int       `json:"id"`
 	Title       string    `json:"title"`
 	Content     string    `json:"content"`
+	// ContentType 正文类型：text / markdown / html / rich_text。
+	// 空串 = 历史数据，由 knowledgecontent.Resolve 在读写两端按内容兜底判定。
+	ContentType string    `json:"contentType"`
 	Category    string    `json:"category"`
 	Tags        []string  `json:"tags"`
 	AuthorID    int       `json:"authorId"`

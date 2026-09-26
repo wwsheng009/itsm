@@ -18,8 +18,9 @@ import {
 } from 'antd';
 import { Pencil, Eye, Clock, MessageSquare, AlertCircle, CheckCircle, XCircle } from 'lucide-react';
 import { PageContainer } from '@/components/layout/PageContainer';
-import { SafeContent } from '@/components/common/SafeContent';
+import ArticleContentRenderer from '@/components/knowledge/ArticleContentRenderer';
 import { KnowledgeBaseApi } from '@/lib/api/knowledge-base-api';
+import { resolveArticleContentType } from '@/lib/knowledge/article-content-type';
 import { ArticleStatus } from '@/types/knowledge-base';
 import type { ReviewArticleRequest } from '@/types/knowledge-base';
 
@@ -38,6 +39,8 @@ interface ArticleItem {
   submittedAt?: string;
   createdAt?: string;
   updatedAt?: string;
+  /** 后端随响应返回的解析后正文类型；历史响应可能缺省，渲染时按内容兜底 */
+  contentType?: string;
 }
 import { useI18n } from '@/lib/i18n/useI18n';
 import dayjs from 'dayjs';
@@ -361,13 +364,15 @@ export default function KnowledgeReviewListPage() {
             {selectedArticle.content && (
               <>
                 <Divider>内容预览</Divider>
-                <SafeContent
-                  className="prose max-w-none"
-                  sanitizeHtml
+                {/* 预览与详情页共用同一渲染分发：Markdown 走 react-markdown，
+                    HTML / 富文本净化后渲染；此前这里用 SafeContent + Tailwind `prose`，
+                    Markdown 正文会被当纯文本原样暴露（`##`、`| 表格 |` 直接可见）。 */}
+                <ArticleContentRenderer
                   content={
                     selectedArticle.content.substring(0, 500) +
                     (selectedArticle.content.length > 500 ? '...' : '')
                   }
+                  contentType={resolveArticleContentType(selectedArticle)}
                 />
               </>
             )}

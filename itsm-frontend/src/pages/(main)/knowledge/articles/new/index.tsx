@@ -25,6 +25,7 @@ import {
   Input,
   Select,
   Tag,
+  Segmented,
   Button,
   Space,
   message,
@@ -36,6 +37,13 @@ import { ArrowLeft, Save } from 'lucide-react';
 import { KnowledgeBaseApi } from '@/lib/api/knowledge-base-api';
 import { AttachmentApi, knowledgeAttachmentPreviewUrl } from '@/lib/api/attachment-api';
 import { readArticlePrefillState } from '@/lib/knowledge/ai-article-prefill';
+import {
+  ARTICLE_CONTENT_TYPE_HINTS,
+  ARTICLE_CONTENT_TYPE_LABELS,
+  ARTICLE_CONTENT_TYPE_OPTIONS,
+  editorKindForContentType,
+  type ArticleContentType,
+} from '@/lib/knowledge/article-content-type';
 import { isRichTextEmpty, isRichTextEnabled } from '@/lib/rich-text/sanitize';
 import {
   STAGED_ID_PREFIX,
@@ -49,6 +57,14 @@ import type { UploadedImage } from '@/components/common/rich-text/RichTextEditor
 
 const { Title } = Typography;
 const { TextArea } = Input;
+
+/** 各类型的正文输入提示（富文本走编辑器自带 placeholder）。 */
+const CONTENT_PLACEHOLDERS: Record<ArticleContentType, string> = {
+  rich_text: '',
+  markdown: '# 问题描述\n\n请输入内容...',
+  text: '请输入纯文本内容（换行会原样保留）',
+  html: '<p>请输入 HTML 内容</p>',
+};
 
 // 富文本编辑器按需加载：VITE_RICH_TEXT=off 时该分支不渲染，
 // 也就不会请求编辑器 chunk（方案 §NF-2 / AC-9）。
@@ -71,9 +87,35 @@ export default function NewKnowledgeArticlePage() {
   const richTextEnabled = isRichTextEnabled();
   // AI 会话页带入的预填（Markdown 原文）；无预填 / 结构不符时为 null。
   const prefill = useMemo(() => readArticlePrefillState(location.state), [location.state]);
-  // 有预填时固定走 Markdown 正文：整篇 Markdown 进 TipTap 会被解析成纯段落，标题 / 表格语义尽失
-  // （与 edit 页「HTML / Markdown 双读」策略一致）。
-  const useRichEditor = richTextEnabled && !prefill;
+  // 正文类型显式落库，详情页按它分发渲染，不再靠内容启发式猜测。
+  // 默认：富文本链路可用且非 AI 预填时用富文本；预填是整篇 Markdown，固定按 Markdown 存
+  // （整篇 Markdown 进 TipTap 会被解析成纯段落，标题 / 表格语义尽失）。
+  const [contentType, setContentType] = useState<ArticleContentType>(
+    richTextEnabled && !prefill ? 'rich_text' : 'markdown'
+  );
+  const editorKind = editorKindForContentType(contentType);
+  const useRichEditor = editorKind === 'rich';
+  // 类型可选项：VITE_RICH_TEXT=off 时不暴露富文本入口。
+  const contentTypeOptions = useMemo(
+    () =>
+      ARTICLE_CONTENT_TYPE_OPTIONS.filter(
+        option => option.value !== 'rich_text' || richTextEnabled
+      ),
+    [richTextEnabled]
+  );
+
+  /** 切换正文类型：跨编辑形态时提示，内容原样保留、是否匹配由用户确认。 */
+  const handleContentTypeChange = (value: string | number) => {
+    const next = value as ArticleContentType;
+    if (editorKindForContentType(next) !== editorKind) {
+      message.info(
+        next === 'rich_text'
+          ? '已切换到富文本：正文将按富文本编辑，原 Markdown 标记会作为普通文本处理'
+          : `已切换到${ARTICLE_CONTENT_TYPE_LABELS[next]}：正文将按该类型渲染，请确认内容与类型匹配`
+      );
+    }
+    setContentType(next);
+  };
 
   // 预填只应用一次：用户改动表单后，父级重渲染不得把内容冲回初值。
   const prefillAppliedRef = useRef(false);
@@ -159,22 +201,27 @@ export default function NewKnowledgeArticlePage() {
 
   const onFinish = async (values: any) => {
     setLoading(true);
-    const rawHtml: string = values.content || '';
+    const rawContent: string = values.content || '';
     // 创建请求不能携带 `blob:` 占位图：对服务端无意义，且归属校验会剥离全部内嵌引用。
-    const createContent = useRichEditor ? stripStagedImages(rawHtml) : rawHtml;
+    const createContent = useRichEditor ? stripStagedImages(rawContent) : rawContent;
     try {
       const created = await KnowledgeBaseApi.createArticle({
         title: values.title,
-        content: createContent || '<p></p>',
+        // 富文本空内容以空段落占位（编辑器语义）；其余类型由表单校验保证非空。
+        content: useRichEditor ? createContent || '<p></p>' : createContent,
+        contentType,
         category:
           categories.find(c => c.id === values.categoryId)?.name || String(values.categoryId),
         tags: values.tags || [],
       });
 
-      if (useRichEditor && hasStagedImages(rawHtml)) {
+      if (useRichEditor && hasStagedImages(rawContent)) {
         const articleId = Number(created.id);
         if (Number.isFinite(articleId) && articleId > 0) {
-          const { html: finalHtml, uploaded, failed } = await uploadStagedImages(articleId, rawHtml);
+          const { html: finalHtml, uploaded, failed } = await uploadStagedImages(
+            articleId,
+            rawContent
+          );
           if (uploaded > 0 && finalHtml !== createContent) {
             try {
               await KnowledgeBaseApi.updateArticle(created.id, { content: finalHtml });
@@ -249,13 +296,25 @@ export default function NewKnowledgeArticlePage() {
             />
           </Form.Item>
 
+          <Form.Item label="正文类型" extra={ARTICLE_CONTENT_TYPE_HINTS[contentType]}>
+            <Segmented
+              value={contentType}
+              onChange={handleContentTypeChange}
+              options={contentTypeOptions}
+            />
+          </Form.Item>
+
           <Form.Item
             name="content"
-            label={useRichEditor ? '内容（支持排版与图片）' : '内容（支持 Markdown）'}
+            label={
+              useRichEditor
+                ? '内容（支持排版与图片）'
+                : `内容（${ARTICLE_CONTENT_TYPE_LABELS[contentType]}）`
+            }
             extra={
-              prefill
+              prefill && contentType === 'markdown'
                 ? '正文来自 AI 助手回答（Markdown 原文），保存后由详情页按 Markdown 渲染；如需富文本排版与图片，可另建文章。'
-                : undefined
+                : ARTICLE_CONTENT_TYPE_HINTS[contentType]
             }
             rules={[
               {
@@ -273,7 +332,7 @@ export default function NewKnowledgeArticlePage() {
                 onUploadImage={handleUploadImage}
               />
             ) : (
-              <TextArea rows={15} placeholder="# 问题描述&#10;&#10;请输入内容..." />
+              <TextArea rows={15} placeholder={CONTENT_PLACEHOLDERS[contentType]} />
             )}
           </Form.Item>
 

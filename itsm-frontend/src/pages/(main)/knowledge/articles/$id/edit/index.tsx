@@ -4,20 +4,22 @@ import { useNavigate, useParams } from 'react-router';
  * 知识库文章编辑页面
  * 修复：列表/详情页“编辑”按钮指向 /knowledge/articles/[id]/edit，但路由缺失导致 404。
  *
- * FE-5：正文按格式双读——
- * - 富文本 HTML（新链路）：`RichTextEditor` 编辑，粘贴 / 拖拽图片即时上传到
+ * 正文按「内容类型」编辑与保存（text / markdown / html / rich_text）：
+ * - rich_text：`RichTextEditor` 编辑，粘贴 / 拖拽图片即时上传到
  *   `POST /api/v1/knowledge/articles/:id/attachments`（域内别名，静态权限 `knowledge:write`），
  *   保存时把被删除的图片调用附件解绑（幂等，失败不阻断保存，§5.2）；
- * - 历史 Markdown：保持原 `Input.TextArea`，不把整篇 Markdown 塞进富文本编辑器丢语义。
+ * - markdown / text / html：保持纯文本输入域，不把整篇 Markdown / HTML 塞进富文本编辑器丢语义。
+ * 类型随文章落库，详情页据此分发渲染；历史文章缺失类型时按内容形态兜底判定。
  */
 
-import React, { useCallback, useEffect, useRef, useState, lazy, Suspense } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState, lazy, Suspense } from 'react';
 import {
   Card,
   Form,
   Input,
   Select,
   Tag,
+  Segmented,
   Button,
   Space,
   message,
@@ -28,8 +30,19 @@ import {
 import { ArrowLeft, Save } from 'lucide-react';
 import { KnowledgeBaseApi } from '@/lib/api/knowledge-base-api';
 import { AttachmentApi, knowledgeAttachmentPreviewUrl } from '@/lib/api/attachment-api';
-import { isHtmlContent } from '@/lib/rich-text/content-format';
-import { extractAttachmentImageIds, isRichTextEmpty } from '@/lib/rich-text/sanitize';
+import {
+  extractAttachmentImageIds,
+  isRichTextEmpty,
+  isRichTextEnabled,
+} from '@/lib/rich-text/sanitize';
+import {
+  ARTICLE_CONTENT_TYPE_HINTS,
+  ARTICLE_CONTENT_TYPE_LABELS,
+  ARTICLE_CONTENT_TYPE_OPTIONS,
+  editorKindForContentType,
+  resolveArticleContentType,
+  type ArticleContentType,
+} from '@/lib/knowledge/article-content-type';
 import type { UploadedImage } from '@/components/common/rich-text/RichTextEditor';
 
 const { Title } = Typography;
@@ -44,8 +57,13 @@ const RichTextEditor: React.FC<React.ComponentProps<typeof RichTextEditorLazy>> 
   </Suspense>
 );
 
-/** 正文形态：null = 尚未加载完成 */
-type ContentMode = 'html' | 'markdown';
+/** 各类型的正文输入提示（富文本走编辑器自带 placeholder）。 */
+const CONTENT_PLACEHOLDERS: Record<ArticleContentType, string> = {
+  rich_text: '',
+  markdown: '# 问题描述\n\n请输入内容...',
+  text: '请输入纯文本内容（换行会原样保留）',
+  html: '<p>请输入 HTML 内容</p>',
+};
 
 export default function EditKnowledgeArticlePage() {
   const navigate = useNavigate();
@@ -55,10 +73,21 @@ export default function EditKnowledgeArticlePage() {
   const [fetching, setFetching] = useState(true);
   const [notFound, setNotFound] = useState(false);
   const [categories, setCategories] = useState<{ id: number; name: string }[]>([]);
-  const [contentMode, setContentMode] = useState<ContentMode | null>(null);
+  // 生效正文类型：null = 尚未加载完成
+  const [contentType, setContentType] = useState<ArticleContentType | null>(null);
   const [editorUploading, setEditorUploading] = useState(false);
   // 打开编辑时的图片集合：保存后据此解绑被删除的附件
   const initialImageIdsRef = useRef<number[]>([]);
+  const editorKind = contentType ? editorKindForContentType(contentType) : null;
+  const richTextEnabled = isRichTextEnabled();
+  // 类型可选项：VITE_RICH_TEXT=off 时不暴露富文本入口。
+  const contentTypeOptions = useMemo(
+    () =>
+      ARTICLE_CONTENT_TYPE_OPTIONS.filter(
+        option => option.value !== 'rich_text' || richTextEnabled
+      ),
+    [richTextEnabled]
+  );
 
   useEffect(() => {
     KnowledgeBaseApi.getCategories()
@@ -84,15 +113,22 @@ export default function EditKnowledgeArticlePage() {
         const matched = categories.find(
           c => c.name === article.categoryName || String(c.id) === String(article.categoryId),
         );
-        const mode: ContentMode = isHtmlContent(article.content) ? 'html' : 'markdown';
+        // 显式类型优先；历史文章缺失类型时按内容形态兜底（与详情页同一口径）。
+        const resolvedType = resolveArticleContentType({
+          contentType: article.contentType,
+          content: article.content,
+        });
         form.setFieldsValue({
           title: article.title,
           content: article.content,
           categoryId: matched?.id ?? 1,
           tags: article.tags || [],
         });
-        setContentMode(mode);
-        initialImageIdsRef.current = mode === 'html' ? extractAttachmentImageIds(article.content) : [];
+        setContentType(resolvedType);
+        initialImageIdsRef.current =
+          editorKindForContentType(resolvedType) === 'rich'
+            ? extractAttachmentImageIds(article.content)
+            : [];
       })
       .catch(() => {
         setNotFound(true);
@@ -124,20 +160,21 @@ export default function EditKnowledgeArticlePage() {
 
   const onFinish = async (values: any) => {
     setLoading(true);
-    const html: string = values.content || '';
+    const content: string = values.content || '';
     try {
       await KnowledgeBaseApi.updateArticle(id, {
         title: values.title,
-        content: html,
+        content,
+        contentType: contentType ?? undefined,
         category:
           categories.find(c => c.id === values.categoryId)?.name || String(values.categoryId),
         tags: values.tags || [],
       });
 
       // 编辑器内被删除的图片：调用附件解绑（幂等，失败不阻断保存结果）（§5.2）
-      if (contentMode === 'html') {
+      if (editorKind === 'rich') {
         const articleId = Number(id);
-        const nextImageIds = extractAttachmentImageIds(html);
+        const nextImageIds = extractAttachmentImageIds(content);
         const removedImageIds = initialImageIdsRef.current.filter(
           imageId => !nextImageIds.includes(imageId)
         );
@@ -162,6 +199,19 @@ export default function EditKnowledgeArticlePage() {
     } finally {
       setLoading(false);
     }
+  };
+
+  /** 切换正文类型：跨编辑形态时提示，内容原样保留、是否匹配由用户确认。 */
+  const handleContentTypeChange = (value: string | number) => {
+    const next = value as ArticleContentType;
+    if (editorKind && editorKindForContentType(next) !== editorKind) {
+      message.info(
+        next === 'rich_text'
+          ? '已切换到富文本：正文将按富文本编辑，原 Markdown 标记会作为普通文本处理'
+          : `已切换到${ARTICLE_CONTENT_TYPE_LABELS[next]}：正文将按该类型渲染，请确认内容与类型匹配`
+      );
+    }
+    setContentType(next);
   };
 
   if (notFound) {
@@ -233,23 +283,37 @@ export default function EditKnowledgeArticlePage() {
             </Form.Item>
 
             <Form.Item
+              label="正文类型"
+              extra={contentType ? `${ARTICLE_CONTENT_TYPE_HINTS[contentType]}；切换类型不会转换正文内容。` : undefined}
+            >
+              <Segmented
+                value={contentType ?? undefined}
+                onChange={handleContentTypeChange}
+                options={contentTypeOptions}
+              />
+            </Form.Item>
+
+            <Form.Item
               name="content"
-              label={contentMode === 'html' ? '内容（支持排版与图片）' : '内容（支持 Markdown）'}
-              extra={
-                contentMode === 'markdown'
-                  ? '本文为历史 Markdown 内容，沿用原编辑方式；如需富文本与图片，可新建文章后迁移。'
-                  : undefined
+              label={
+                editorKind === 'rich'
+                  ? '内容（支持排版与图片）'
+                  : `内容（${contentType ? ARTICLE_CONTENT_TYPE_LABELS[contentType] : ''}）`
               }
+              extra={contentType ? ARTICLE_CONTENT_TYPE_HINTS[contentType] : undefined}
               rules={[
                 {
-                  validator: (_rule, value: string) =>
-                    isRichTextEmpty(value)
-                      ? Promise.reject(new Error('请输入内容'))
-                      : Promise.resolve(),
+                  validator: (_rule, value: string) => {
+                    const empty =
+                      editorKind === 'rich'
+                        ? isRichTextEmpty(value)
+                        : String(value ?? '').trim().length === 0;
+                    return empty ? Promise.reject(new Error('请输入内容')) : Promise.resolve();
+                  },
                 },
               ]}
             >
-              {contentMode === 'html' ? (
+              {editorKind === 'rich' ? (
                 <RichTextEditor
                   minHeight={320}
                   placeholder="请输入正文，可直接粘贴或拖拽图片（保存后自动上传到本文章附件）"
@@ -257,7 +321,7 @@ export default function EditKnowledgeArticlePage() {
                   onUploadingChange={setEditorUploading}
                 />
               ) : (
-                <TextArea rows={15} placeholder="# 问题描述&#10;&#10;请输入内容..." />
+                <TextArea rows={15} placeholder={CONTENT_PLACEHOLDERS[contentType ?? 'markdown']} />
               )}
             </Form.Item>
 

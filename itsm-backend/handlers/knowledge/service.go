@@ -8,6 +8,7 @@ import (
 
 	"go.uber.org/zap"
 	"itsm-backend/common"
+	"itsm-backend/common/knowledgecontent"
 	"itsm-backend/dto"
 	"itsm-backend/ent"
 	"itsm-backend/ent/permission"
@@ -138,6 +139,9 @@ func (s *Service) CreateArticle(ctx context.Context, a *Article) (*Article, erro
 	// XSS 消毒：Title 走 strict（纯文本），Content 走 UGC（保留富文本白名单，剥离 script/on*/javascript:）
 	a.Title = common.SanitizeText(a.Title)
 	a.Content = common.SanitizeHTML(a.Content)
+	if err := normalizeArticleContentType(a); err != nil {
+		return nil, err
+	}
 	s.validateInlineImageRefs(ctx, a)
 	s.logger.Infow("Creating Knowledge Article", "title", a.Title, "category", a.Category)
 	if s.vectorOutboxEnabled() {
@@ -162,6 +166,9 @@ func (s *Service) UpdateArticle(ctx context.Context, a *Article) (*Article, erro
 	// XSS 消毒
 	a.Title = common.SanitizeText(a.Title)
 	a.Content = common.SanitizeHTML(a.Content)
+	if err := normalizeArticleContentType(a); err != nil {
+		return nil, err
+	}
 	s.validateInlineImageRefs(ctx, a)
 	s.logger.Infow("Updating Knowledge Article", "id", a.ID, "title", a.Title)
 	if s.vectorOutboxEnabled() {
@@ -172,6 +179,23 @@ func (s *Service) UpdateArticle(ctx context.Context, a *Article) (*Article, erro
 		return nil, err
 	}
 	return updated, nil
+}
+
+// normalizeArticleContentType 校验显式传入的正文类型并落到最终生效值。
+//
+// 规则：
+//   - 显式值非法 → 报错（避免脏值落库后在渲染端变成未知分支）；
+//   - 显式值合法 → 直接采用（用户明确声明优先，哪怕与内容形态不符）；
+//   - 留空     → 按内容形态兜底判定，并把结果写回，使存量文章在编辑后逐步带上类型。
+//
+// 判定口径与前端 lib/knowledge/article-content-type.ts 保持一致。
+func normalizeArticleContentType(a *Article) error {
+	explicit, err := knowledgecontent.Parse(a.ContentType)
+	if err != nil {
+		return err
+	}
+	a.ContentType = knowledgecontent.Resolve(explicit, a.Content)
+	return nil
 }
 
 // validateInlineImageRefs BE-7：知识库正文的内嵌图片引用必须归属当前文章

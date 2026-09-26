@@ -18,6 +18,8 @@ const (
 	FieldTitle = "title"
 	// FieldContent holds the string denoting the content field in the database.
 	FieldContent = "content"
+	// FieldContentType holds the string denoting the content_type field in the database.
+	FieldContentType = "content_type"
 	// FieldCategory holds the string denoting the category field in the database.
 	FieldCategory = "category"
 	// FieldTags holds the string denoting the tags field in the database.
@@ -84,6 +86,7 @@ var Columns = []string{
 	FieldID,
 	FieldTitle,
 	FieldContent,
+	FieldContentType,
 	FieldCategory,
 	FieldTags,
 	FieldAuthorID,
@@ -125,6 +128,8 @@ func ValidColumn(column string) bool {
 var (
 	// TitleValidator is a validator for the "title" field. It is called by the builders before save.
 	TitleValidator func(string) error
+	// DefaultContentType holds the default value on creation for the "content_type" field.
+	DefaultContentType string
 	// AuthorIDValidator is a validator for the "author_id" field. It is called by the builders before save.
 	AuthorIDValidator func(int) error
 	// TenantIDValidator is a validator for the "tenant_id" field. It is called by the builders before save.
@@ -163,6 +168,11 @@ func ByTitle(opts ...sql.OrderTermOption) OrderOption {
 // ByContent orders the results by the content field.
 func ByContent(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldContent, opts...).ToFunc()
+}
+
+// ByContentType orders the results by the content_type field.
+func ByContentType(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldContentType, opts...).ToFunc()
 }
 
 // ByCategory orders the results by the category field.

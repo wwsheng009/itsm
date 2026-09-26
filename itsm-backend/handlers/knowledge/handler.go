@@ -6,6 +6,7 @@ import (
 	"itsm-backend/handlers/common/knowledgeaccess"
 
 	"itsm-backend/common"
+	"itsm-backend/common/knowledgecontent"
 	"itsm-backend/dto"
 
 	"github.com/gin-gonic/gin"
@@ -45,6 +46,9 @@ func (h *Handler) toArticleDTO(a *Article) *dto.KnowledgeArticleResponse {
 		ID:        a.ID,
 		Title:     a.Title,
 		Content:   a.Content,
+		// 响应必须给出「解析后的生效类型」，前端据此选择渲染器；
+		// 空串（历史数据）由内容形态兜底，避免前端再各写一套启发式。
+		ContentType: knowledgecontent.Resolve(a.ContentType, a.Content),
 		Category:  a.Category,
 		Tags:      a.Tags,
 		Status:    status,
@@ -132,6 +136,9 @@ func (h *Handler) CreateArticle(c *gin.Context) {
 		Tags:     req.Tags,
 		AuthorID: userID,
 		TenantID: tenantID,
+
+		// 正文类型：留空表示由服务端按内容形态判定；显式传入必须合法。
+		ContentType: req.ContentType,
 
 		// 时效性与权威性均可选：留空表示「长期有效、不设复核、普通权威度」。
 		ValidFrom:  req.ValidFrom,
@@ -268,6 +275,15 @@ func (h *Handler) UpdateArticle(c *gin.Context) {
 	}
 	if req.Status != nil {
 		existing.IsPublished = *req.Status == "published"
+	}
+	if req.ContentType != nil {
+		contentType, err := knowledgecontent.Parse(*req.ContentType)
+		if err != nil {
+			common.ParamError(c, err.Error())
+			return
+		}
+		// 空串表示「恢复自动判定」，Service 会按当前内容重新落类型。
+		existing.ContentType = contentType
 	}
 
 	// 时效性与权威性：部分更新语义，不传即保持原值。

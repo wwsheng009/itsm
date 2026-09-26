@@ -2,10 +2,17 @@
  * 知识库类型定义
  */
 
+import type { ArticleContentType } from '@/lib/knowledge/article-content-type';
+
 export interface KnowledgeArticle {
   id: number | string;
   title: string;
   content: string;
+  /**
+   * 正文类型（后端解析后的生效值）：text / markdown / html / rich_text。
+   * 历史响应可能缺省，渲染前请用 `resolveArticleContentType` 兜底。
+   */
+  contentType?: ArticleContentType | string;
   summary?: string;
   category: string;
   categoryId?: number;
