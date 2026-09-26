@@ -3,8 +3,10 @@ import { httpClient, type HttpClientError } from './http-client';
 /**
  * 多 LLM Provider 管理 API 客户端（主计划《多 LLM Provider 支持与可切换方案》§3.4 / FE-1）。
  *
- * 契约来源：`itsm-backend/dto/llm_provider_dto.go`，共 10 个端点，全部要求 `system:write`
- *（D12：仅系统管理员，读端点在列）。本文件只做「类型 + 解包 + 错误码映射」，不含 UI 逻辑。
+ * 契约来源：`itsm-backend/dto/llm_provider_dto.go`，共 10 个端点：8 个管理端点要求
+ * `system:write`（D12：仅系统管理员），2 个选择器读端点（GET /providers/available、
+ * GET /user-preference）自 P1 演进起降为 `ai:read`（全员可切换，2026-09-26）；
+ * PUT /user-preference 仍为 `system:write`。本文件只做「类型 + 解包 + 错误码映射」，不含 UI 逻辑。
  *
  * 错误：后端错误响应形状为 `{ code:int, errorCode:string, message:string }`；字符串
  * `errorCode` 由 `http-client` 的 `HttpClientError.errorCode` 透出，使用 `describeLLMProviderError`

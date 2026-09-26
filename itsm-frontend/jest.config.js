@@ -28,7 +28,13 @@ const customJestConfig = {
     '\\.(woff|woff2|eot|ttf|otf)$': '<rootDir>/tools/jest-style-mock.cjs',
   },
   transformIgnorePatterns: [
-    'node_modules/(?!(lodash-es)/)',
+    // 放行纯 ESM 包（默认 node_modules 不转译 → "Cannot use import statement outside a module"）。
+    // 白名单随实际引入的依赖扩展：
+    //  - lodash-es：既有例外；
+    //  - react-markdown / remark-gfm / rehype-sanitize：AI 回答 Markdown 渲染链（AIChat）。
+    // 链路上的 transitive 依赖（hast-util-* / mdast-util-* / micromark* / unified / vfile* 等）
+    // 同样是 `"type": "module"`，需一并放行，否则报 "Unexpected token 'export'"。
+    'node_modules/(?!(lodash-es|react-markdown|remark-.+|rehype-.+|hast-util-.+|mdast-util-.+|micromark.*|unified|vfile.*|unist-util-.+|.+entities|property-information|space-separated-tokens|comma-separated-tokens|devlop|bail|trough|is-plain-obj|zwitch|ccount|trim-lines|html-url-attributes|escape-string-regexp|character-reference-invalid|is-decimal|is-hexadecimal|is-alphanumerical|is-alphabetical|decode-named-character-reference|longest-streak|markdown-table|parse-entities|estree-util-.+|style-to-object|style-to-js|@ungap))',
   ],
   testMatch: [
     '<rootDir>/src/**/__tests__/**/*.{js,jsx,ts,tsx}',

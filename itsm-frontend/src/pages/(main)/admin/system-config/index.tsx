@@ -46,6 +46,7 @@ import { SystemConfigAPI } from '@/lib/api/system-config-api';
 import { clearPasswordPolicyCache } from '@/lib/api/password-policy-api';
 import { UsageGuideCard } from '@/components/common/UsageGuideCard';
 import { useLLMProviderFeature } from '@/lib/hooks/use-llm-provider-feature';
+import { usePermissions } from '@/lib/hooks/use-permissions';
 
 import { LLMProviderSettings } from './llm-provider-settings';
 
@@ -97,7 +98,11 @@ export default function SystemConfiguration() {
   const [form] = Form.useForm();
   // 多 LLM Provider（FE-2/FE-3）：仅系统管理员且灰度开关开启（available 端点可达）时渲染页签。
   // 关闭开关：探测 404 → enabled=false → 页签不渲染，UI 与现状完全一致。
-  const { enabled: llmProvidersEnabled } = useLLMProviderFeature();
+  // P1 起 useLLMProviderFeature 对全员探测（读端点降为 ai:read），管理员门控在此显式加回。
+  const { hasPermission } = usePermissions();
+  const { enabled: llmProvidersFeatureEnabled } = useLLMProviderFeature();
+  const llmProvidersEnabled =
+    llmProvidersFeatureEnabled && hasPermission('system', 'write');
   const [activeTab, setActiveTab] = useState('general');
   const [config, setConfig] = useState<Record<string, unknown>>({});
   const [hasChanges, setHasChanges] = useState(false);

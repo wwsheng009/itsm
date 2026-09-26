@@ -48,6 +48,7 @@ func TestSetupRoutes_LLMProviderAdminRoutesAbsentWhenHandlerNil(t *testing.T) {
 
 // 反向断言：开关开启（handler 被注入）时同一路径必须已注册——未带令牌时不是 404，
 // 而是进入鉴权链（401/403），确保上面的"404"确实由门禁导致而非路径拼写错误。
+// 同时固化 P1 演进（2026-09-26）的两个选择器读端点（ai:read 组）不得在拆分权限组时漏挂。
 func TestSetupRoutes_LLMProviderAdminRoutesRegisteredWhenHandlerPresent(t *testing.T) {
 	client := enttest.Open(t, "sqlite3", "file:router_llmprov_on?mode=memory&cache=shared&_fk=1")
 	defer client.Close()
@@ -68,4 +69,16 @@ func TestSetupRoutes_LLMProviderAdminRoutesRegisteredWhenHandlerPresent(t *testi
 	r.ServeHTTP(w, httptest.NewRequest(http.MethodGet, "/api/v1/ai/providers", nil))
 	require.NotEqual(t, http.StatusNotFound, w.Code,
 		"开关开启时应已注册 /ai/providers（未带令牌应被鉴权链拦截而非 404）")
+
+	// P1 演进（2026-09-26）：两个选择器读端点降为 ai:read，仍必须注册（供全员读取）。
+	registered := make(map[string]bool, len(r.Routes()))
+	for _, route := range r.Routes() {
+		registered[route.Method+" "+route.Path] = true
+	}
+	assert.True(t, registered[http.MethodGet+" /api/v1/ai/providers/available"],
+		"P1 读端点 GET /ai/providers/available 必须注册")
+	assert.True(t, registered[http.MethodGet+" /api/v1/ai/user-preference"],
+		"P1 读端点 GET /ai/user-preference 必须注册")
+	assert.True(t, registered[http.MethodPut+" /api/v1/ai/user-preference"],
+		"写端点 PUT /ai/user-preference 仍须注册（system:write 组）")
 }

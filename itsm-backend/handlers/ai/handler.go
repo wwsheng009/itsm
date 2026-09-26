@@ -135,7 +135,7 @@ func (h *Handler) Chat(c *gin.Context) {
 		Query          string `json:"query" binding:"required"`
 		Limit          int    `json:"limit"`
 		ConversationID int    `json:"conversationId"`
-		// Provider 单次覆盖（BE-7，§3.4）：仅系统管理员可用；空 = 默认链。
+		// Provider 单次覆盖（BE-7，§3.4；P1 起面向全部 ai:read 使用者）：空 = 默认链。
 		Provider string `json:"provider"`
 	}
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -152,13 +152,13 @@ func (h *Handler) Chat(c *gin.Context) {
 	}
 
 	provider := strings.TrimSpace(req.Provider)
-	// §3.4：provider 覆盖参数仅系统管理员可用；越权显式失败（403），绝不静默忽略——
-	// 静默忽略会让调用方以为指定实例已生效。
+	// §3.4（P1 演进）：provider 覆盖参数面向全部具备 ai:read 的使用者；越权显式失败（403），
+	// 绝不静默忽略——静默忽略会让调用方以为指定实例已生效。
 	if provider != "" && !h.canUseProviderOverride(c.Request.Context(), tenantID, role) {
 		respondLLMAdminError(c, &LLMAdminError{
 			Status:  http.StatusForbidden,
 			Code:    "AI_PROVIDER_FORBIDDEN",
-			Message: "provider 覆盖参数仅系统管理员可用",
+			Message: "无 AI 使用权限，不能指定 provider 实例",
 		})
 		return
 	}
@@ -229,7 +229,7 @@ func (h *Handler) ChatStream(c *gin.Context) {
 		Query          string `json:"query" binding:"required"`
 		Limit          int    `json:"limit"`
 		ConversationID int    `json:"conversationId"`
-		// Provider 单次覆盖（BE-7，§3.4）：仅系统管理员可用；空 = 默认链。
+		// Provider 单次覆盖（BE-7，§3.4；P1 起面向全部 ai:read 使用者）：空 = 默认链。
 		Provider string `json:"provider"`
 	}
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -250,7 +250,7 @@ func (h *Handler) ChatStream(c *gin.Context) {
 		respondLLMAdminError(c, &LLMAdminError{
 			Status:  http.StatusForbidden,
 			Code:    "AI_PROVIDER_FORBIDDEN",
-			Message: "provider 覆盖参数仅系统管理员可用",
+			Message: "无 AI 使用权限，不能指定 provider 实例",
 		})
 		return
 	}
@@ -347,14 +347,14 @@ func (h *Handler) ChatStream(c *gin.Context) {
 	writeEvent("done", done)
 }
 
-// canUseProviderOverride 判定当前请求能否使用 provider 单次覆盖参数（BE-7 §3.4）：
-// 与端点鉴权同源（路由挂 RequirePermission("system","write")），避免出现「端点看 A 权限、
-// 覆盖参数看 B 权限」的口径漂移；client 为 nil 时 fail-closed（super_admin 仍直通）。
+// canUseProviderOverride 判定当前请求能否使用 provider 单次覆盖参数（BE-7 §3.4；P1 演进）：
+// 与选择器读端点同权限面（ai:read），避免出现「端点看 A 权限、覆盖参数看 B 权限」的口径漂移；
+// client 为 nil 时 fail-closed（super_admin 仍直通）。
 func (h *Handler) canUseProviderOverride(ctx context.Context, tenantID int, role string) bool {
 	if h == nil || h.svc == nil {
 		return false
 	}
-	return middleware.HasSystemWritePermission(ctx, h.svc.entClient, role, tenantID)
+	return middleware.HasAIReadPermission(ctx, h.svc.entClient, role, tenantID)
 }
 
 // isProviderResolutionError 判断错误是否来自 §3.3 解析链（§3.4 契约错误）。

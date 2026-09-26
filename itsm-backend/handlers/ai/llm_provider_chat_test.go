@@ -19,8 +19,9 @@ import (
 	"itsm-backend/service"
 )
 
-// 本文件覆盖主计划《多 LLM Provider 支持与可切换方案》v1.6 BE-7 §3.4 的 chat 路径契约：
-//  1. provider 覆盖参数仅系统管理员可用，越权 403 AI_PROVIDER_FORBIDDEN（不静默忽略）；
+// 本文件覆盖主计划《多 LLM Provider 支持与可切换方案》BE-7 §3.4 的 chat 路径契约
+// （P1 演进，2026-09-26：覆盖参数门禁由 system:write 降为 ai:read）：
+//  1. 权限源不可得时非 super_admin 一律 403 AI_PROVIDER_FORBIDDEN（不静默忽略）；
 //  2. 显式覆盖的解析失败可见地失败：404/409/422 + 契约字符串码；
 //  3. 默认链解析失败保留现状语义（不新增失败面）。
 //
@@ -90,16 +91,27 @@ func decodeErrorEnvelope(t *testing.T, w *httptest.ResponseRecorder) map[string]
 	return body
 }
 
-// 非系统管理员携带 provider 覆盖参数 → 403（显式失败，绝不静默忽略）。
-func TestChatProviderOverrideForbiddenForNonSystemAdmin(t *testing.T) {
+// P1 演进（2026-09-26）：provider 覆盖参数与 /ai/chat 端点同权限面（ai:read）。
+// 权限源不可得（handler 未注入 ent client）时，非 super_admin 一律 fail-closed → 403
+// （显式失败，绝不静默忽略）；super_admin 直通后由后续解析链给出可见失败。
+func TestChatProviderOverrideFailClosedWithoutPermissionSource(t *testing.T) {
 	h := ai.NewHandler(newProviderChatService(nil))
 
-	for _, stream := range []bool{false, true} {
-		w := postProviderChat(t, h, "sysadmin", `{"query":"hello","provider":"deepseek-prod"}`, stream)
-		require.Equal(t, http.StatusForbidden, w.Code, "stream=%v body=%s", stream, w.Body.String())
-		body := decodeErrorEnvelope(t, w)
-		assert.Equal(t, "AI_PROVIDER_FORBIDDEN", body["errorCode"])
+	for _, role := range []string{"sysadmin", "agent"} {
+		for _, stream := range []bool{false, true} {
+			w := postProviderChat(t, h, role, `{"query":"hello","provider":"deepseek-prod"}`, stream)
+			require.Equal(t, http.StatusForbidden, w.Code,
+				"role=%s stream=%v body=%s", role, stream, w.Body.String())
+			body := decodeErrorEnvelope(t, w)
+			assert.Equal(t, "AI_PROVIDER_FORBIDDEN", body["errorCode"])
+		}
 	}
+
+	// super_admin 不受该门禁拦截：无网关时以 503 AI_PROVIDER_UNAVAILABLE 可见失败，
+	// 证明请求已越过 403 权限门（与 TestChatProviderOverrideWithoutGatewayIsUnavailable 呼应）。
+	w := postProviderChat(t, h, "super_admin", `{"query":"hello","provider":"deepseek-prod"}`, false)
+	require.Equal(t, http.StatusServiceUnavailable, w.Code, "body=%s", w.Body.String())
+	assert.Equal(t, "AI_PROVIDER_UNAVAILABLE", decodeErrorEnvelope(t, w)["errorCode"])
 }
 
 // 系统管理员 + 显式覆盖 + 实例不存在 → 404 AI_PROVIDER_NOT_FOUND（可见地失败）。
