@@ -1,4 +1,4 @@
-import { useNavigate } from 'react-router';
+import { useLocation, useNavigate } from 'react-router';
 
 /**
  * 知识库新建文章页面
@@ -13,9 +13,12 @@ import { useNavigate } from 'react-router';
  *   1. 粘贴 / 拖拽先插入 `blob:` 占位图，并以 `data-attachment-id="staged-xxx"` 标记待上传；
  *   2. 创建成功后逐张上传到该文章，替换为域内预览地址，再回写一次正文。
  * 图片单张失败只移除对应占位图并提示，不影响文章创建（正文仍在）。
+ *
+ * 预填：来自 AI 会话页「补充为知识文章」的路由 state（契约见 lib/knowledge/ai-article-prefill），
+ *       内容为回答的 Markdown 原文；此时正文固定走 Markdown 模式，不塞进富文本编辑器（会丢语义）。
  */
 
-import React, { useCallback, useEffect, useRef, useState, lazy, Suspense } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState, lazy, Suspense } from 'react';
 import {
   Card,
   Form,
@@ -32,6 +35,7 @@ import {
 import { ArrowLeft, Save } from 'lucide-react';
 import { KnowledgeBaseApi } from '@/lib/api/knowledge-base-api';
 import { AttachmentApi, knowledgeAttachmentPreviewUrl } from '@/lib/api/attachment-api';
+import { readArticlePrefillState } from '@/lib/knowledge/ai-article-prefill';
 import { isRichTextEmpty, isRichTextEnabled } from '@/lib/rich-text/sanitize';
 import {
   STAGED_ID_PREFIX,
@@ -57,6 +61,7 @@ const RichTextEditor: React.FC<React.ComponentProps<typeof RichTextEditorLazy>> 
 );
 
 export default function NewKnowledgeArticlePage() {
+  const location = useLocation();
   const navigate = useNavigate();
   const [form] = Form.useForm();
   const [loading, setLoading] = useState(false);
@@ -64,6 +69,23 @@ export default function NewKnowledgeArticlePage() {
   // 暂存图片：staged id → 本地 File；提交拿不到文章 ID 前不落任何远端数据
   const stagedImagesRef = useRef<Map<string, File>>(new Map());
   const richTextEnabled = isRichTextEnabled();
+  // AI 会话页带入的预填（Markdown 原文）；无预填 / 结构不符时为 null。
+  const prefill = useMemo(() => readArticlePrefillState(location.state), [location.state]);
+  // 有预填时固定走 Markdown 正文：整篇 Markdown 进 TipTap 会被解析成纯段落，标题 / 表格语义尽失
+  // （与 edit 页「HTML / Markdown 双读」策略一致）。
+  const useRichEditor = richTextEnabled && !prefill;
+
+  // 预填只应用一次：用户改动表单后，父级重渲染不得把内容冲回初值。
+  const prefillAppliedRef = useRef(false);
+  useEffect(() => {
+    if (!prefill || prefillAppliedRef.current) return;
+    prefillAppliedRef.current = true;
+    form.setFieldsValue({ title: prefill.title, content: prefill.content });
+  }, [form, prefill]);
+
+  /** 正文判空：富文本与 Markdown/纯文本口径不同（后者按去空白后的长度）。 */
+  const isContentEmpty = (value?: string) =>
+    useRichEditor ? isRichTextEmpty(value) : String(value ?? '').trim().length === 0;
 
   useEffect(() => {
     KnowledgeBaseApi.getCategories()
@@ -139,7 +161,7 @@ export default function NewKnowledgeArticlePage() {
     setLoading(true);
     const rawHtml: string = values.content || '';
     // 创建请求不能携带 `blob:` 占位图：对服务端无意义，且归属校验会剥离全部内嵌引用。
-    const createContent = richTextEnabled ? stripStagedImages(rawHtml) : rawHtml;
+    const createContent = useRichEditor ? stripStagedImages(rawHtml) : rawHtml;
     try {
       const created = await KnowledgeBaseApi.createArticle({
         title: values.title,
@@ -149,7 +171,7 @@ export default function NewKnowledgeArticlePage() {
         tags: values.tags || [],
       });
 
-      if (richTextEnabled && hasStagedImages(rawHtml)) {
+      if (useRichEditor && hasStagedImages(rawHtml)) {
         const articleId = Number(created.id);
         if (Number.isFinite(articleId) && articleId > 0) {
           const { html: finalHtml, uploaded, failed } = await uploadStagedImages(articleId, rawHtml);
@@ -229,17 +251,22 @@ export default function NewKnowledgeArticlePage() {
 
           <Form.Item
             name="content"
-            label={richTextEnabled ? '内容（支持排版与图片）' : '内容（支持 Markdown）'}
+            label={useRichEditor ? '内容（支持排版与图片）' : '内容（支持 Markdown）'}
+            extra={
+              prefill
+                ? '正文来自 AI 助手回答（Markdown 原文），保存后由详情页按 Markdown 渲染；如需富文本排版与图片，可另建文章。'
+                : undefined
+            }
             rules={[
               {
                 validator: (_rule, value: string) =>
-                  isRichTextEmpty(value)
+                  isContentEmpty(value)
                     ? Promise.reject(new Error('请输入内容'))
                     : Promise.resolve(),
               },
             ]}
           >
-            {richTextEnabled ? (
+            {useRichEditor ? (
               <RichTextEditor
                 minHeight={320}
                 placeholder="请输入正文，可直接粘贴或拖拽图片（保存后自动上传到本文章附件）"

@@ -10,6 +10,8 @@ import { useNavigate } from 'react-router';
  *  - 流失败时自动降级为一次性 chat 调用，保证有可读回答。
  *  - Provider 切换器（P1 读端点已降为 ai:read，全员可见）；「设为我的默认 / 清除默认」写按钮
  *    仍要求 system:write（PUT /ai/user-preference 未放开）。
+ *  - 助手的「补充为知识文章」把回答 Markdown 原文经路由 state 带入新建页，
+ *    不再只做一次不带数据的裸跳转（契约见 lib/knowledge/ai-article-prefill）。
  *
  * 渲染层：主区 = 顶部工具条 + 消息滚动区（消息列 max-width 820 居中）+ 底部输入坞。
  *        整页高度由 lockChatPageLayout 锁到视口内（只滚动消息区，外层无滚动条）。
@@ -63,6 +65,7 @@ import {
 } from '@/lib/api/llm-provider-api';
 import { useLLMProviderFeature } from '@/lib/hooks/use-llm-provider-feature';
 import { usePermissions } from '@/lib/hooks/use-permissions';
+import { buildArticlePrefillState } from '@/lib/knowledge/ai-article-prefill';
 import MarkdownMessage from './MarkdownMessage';
 
 const { Text } = Typography;
@@ -200,7 +203,7 @@ const canPromoteToArticle = (m: ChatMessage): boolean =>
 interface ChatMessageItemProps {
   message: ChatMessage;
   providerLabel: (key?: string) => string;
-  onCreateArticle: () => void;
+  onCreateArticle: (message: ChatMessage) => void;
 }
 
 /** 单条消息：用户 = 右对齐气泡；助手 = 头像 + Markdown 正文 + 操作区。 */
@@ -332,7 +335,7 @@ const ChatMessageItem: React.FC<ChatMessageItemProps> = ({
                   type="text"
                   size="small"
                   icon={<FileText size={12} />}
-                  onClick={onCreateArticle}
+                  onClick={() => onCreateArticle(message)}
                   style={{ height: 'auto', padding: 0, fontSize: 12, color: token.colorTextSecondary }}
                 >
                   补充为知识文章
@@ -454,6 +457,16 @@ const AIChat: React.FC = () => {
   const providerLabel = useCallback(
     (key?: string) => feature.providers.find(p => p.key === key)?.displayName || key || '',
     [feature.providers]
+  );
+
+  // 「补充为知识文章」：把回答 Markdown 原文（含标题推导）带进新建页。
+  // 走 /knowledge/articles/new 而不是历史别名 /knowledge/articles/create —— 后者的重定向
+  // 只保留 query、会丢弃 location.state（routes/legacy-redirects.tsx）。
+  const handlePromoteToArticle = useCallback(
+    (target: ChatMessage) => {
+      navigate('/knowledge/articles/new', { state: buildArticlePrefillState(target.content) });
+    },
+    [navigate]
   );
 
   // 所选实例在可用列表中消失（被禁用/删除）→ 清除选择并提示，回退默认（§6.2 场景 5）。
@@ -1049,7 +1062,7 @@ const AIChat: React.FC = () => {
                   key={item.id}
                   message={item}
                   providerLabel={providerLabel}
-                  onCreateArticle={() => navigate('/knowledge/articles/create')}
+                  onCreateArticle={handlePromoteToArticle}
                 />
               ))}
             </div>
