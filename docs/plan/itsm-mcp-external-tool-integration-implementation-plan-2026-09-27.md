@@ -271,6 +271,7 @@ MCP：         ▼                    ▼                     ▼
 - **要点**：AES-GCM 加密；读接口返回掩码、编辑回传空值表示"不修改"；日志/审计/事件永不含明文；密钥环境变量命名与生产强校验对齐 connector 的 fail-fast 模式（生产缺失即拒绝启动）；`rotate-credential` 先落库再异步重连（M0-07）。
 - **测试与证据**：加密落库断言（DB 中无明文）、掩码 API 断言、轮换后旧凭据失效、生产模式缺密钥启动失败。
 - **DoD**：`unit_verified`。
+- **状态**：`unit_verified`（2026-09-27；证据 `docs/plan/evidence/mcp-m0/M0-06-unit-evidence.md`）。实现：`mcp/admin/credential.go` 复用 `middleware.EncryptionService`（AES-GCM）与 connector 语义（≥16 字符密钥、空值不修改、空凭据不覆盖）；DB 无明文（enttest 落库 + 原生 SQL 断言）、掩码投影、轮换与防误打印（`String`/`GoString`）均有用例；启动装配（`ResolveEncryptionKey` → 生产 Fatal）与双栏 CRUD 语义在 M0-08 接线。
 
 #### M0-07 连接生命周期管理（manager）
 
@@ -849,3 +850,4 @@ M2-06 交付《MCP 运维手册》（建议 `docs/ops/mcp-runbook.md`），至�
 | 2026-09-27 | AI 辅助执行 | M0-03 交付并回写状态：`mcp_servers` / `mcp_server_tools` 实体 + `tool_invocations` 联合扩展（含 B0-02 字段一次加列、命名统一 `args_redacted`）；ent 生成刷新、迁移/约束/默认值测试与全量构建通过（证据 `docs/plan/evidence/mcp-m0/M0-03-migration-evidence.md`）；M0-03 = 迁移完成（`unit_verified`，`integration_verified` 待 CI 双驱动） |
 | 2026-09-27 | AI 辅助执行 | M0-04 交付并回写状态：transport（Kind/Config/Guard/HeaderProvider/分层错误 + 禁重定向 + 401 拦截）与 client（连接/会话/内容投影/生命周期事件）落地；Streamable/SSE 双传输与五类错误路径集成测试全绿（`client 1.977s`、`transport 0.223s`），`go vet` 干净、`go build ./...` 通过（证据 `docs/plan/evidence/mcp-m0/M0-04-unit-evidence.md`）；M0-04 = `unit_verified` |
 | 2026-09-27 | AI 辅助执行 | M0-05 交付并回写状态：SSRF 校验器（SSL/私网段/allowlist/rebinding 钉住/审计钩子）与表驱动负向用例（24 例含云元数据、IPv4-mapped、rebinding、重定向禁跟随、审计不泄露）；`go test ./mcp/...` 全绿、`go vet` 干净、`go build ./...` 通过（证据 `docs/plan/evidence/mcp-m0/M0-05-unit-evidence.md`）；M0-05 = `unit_verified`（M0-08 联调前置门槛达成） |
+| 2026-09-27 | AI 辅助执行 | M0-06 交付并回写状态：凭据加密与掩码（`SecretValues`/`CredentialService`/`ResolveEncryptionKey`/`MaskSecret`）落地，复用 AES-GCM 与 connector 语义；11 个用例全过（含 DB 无明文断言、掩码、轮换失效、生产缺密钥拒绝）；`go test ./mcp/...` 全绿、`go vet` 干净、`go build ./...` 通过（证据 `docs/plan/evidence/mcp-m0/M0-06-unit-evidence.md`）；M0-06 = `unit_verified` |
