@@ -109,3 +109,12 @@ attachment:
   retention_days: ${ATTACHMENT_RETENTION_DAYS:30}                   # 软删保留期（天），到期后回收物理文件
   cleanup_interval_minutes: ${ATTACHMENT_CLEANUP_INTERVAL_MINUTES:360}  # 轮询间隔（分钟）
   cleanup_batch_size: ${ATTACHMENT_CLEANUP_BATCH_SIZE:200}          # 单轮单租户处理上限（条，硬上限 1000）
+
+# MCP 外部工具接入（方案 docs/plan/itsm-mcp-external-tool-integration-implementation-plan-2026-09-27.md M0-01）
+# 默认关闭：不建连、不装配、工具面不含 MCP，对现有系统零行为变化。
+mcp:
+  enabled: ${MCP_ENABLED:false}                                 # 全局开关；关闭时零行为变化
+  connect_timeout_seconds: ${MCP_CONNECT_TIMEOUT_SECONDS:10}    # 建立连接超时（秒）
+  call_timeout_seconds: ${MCP_CALL_TIMEOUT_SECONDS:30}          # 单次 tools/call 超时（秒）
+  test_timeout_seconds: ${MCP_TEST_TIMEOUT_SECONDS:10}          # 管理面「测试连接」同步超时（秒，上限 10）
+  max_servers_per_tenant: ${MCP_MAX_SERVERS_PER_TENANT:20}      # 单租户服务器数量上限

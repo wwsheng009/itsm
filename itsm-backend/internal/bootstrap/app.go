@@ -984,6 +984,18 @@ func NewApplication() *Application {
 	aiServiceDomain.SetEntClient(client)
 	aiHandler := ai.NewHandler(aiServiceDomain)
 
+	// MCP 外部工具接入（M0-01：预留装配点）——mcp.enabled=false（默认）时不初始化任何
+	// 组件、不产生任何后台行为；开启后 M0-02/M0-04/M0-07 的组件将在此按依赖顺序装配。
+	// 方案：docs/plan/itsm-mcp-external-tool-integration-implementation-plan-2026-09-27.md §4.1。
+	if cfg.MCP.Enabled {
+		sugar.Infow("MCP integration enabled; runtime assembly point reserved (M0-01)",
+			"module", "mcp",
+			"connect_timeout_seconds", cfg.MCP.ConnectTimeoutSeconds,
+			"call_timeout_seconds", cfg.MCP.CallTimeoutSeconds,
+			"test_timeout_seconds", cfg.MCP.TestTimeoutSeconds,
+			"max_servers_per_tenant", cfg.MCP.MaxServersPerTenant)
+	}
+
 	// 多 LLM Provider（主计划 §3.2/§3.4 BE-4/BE-5）：灰度开关关闭时零装配、零路由，
 	// 旧行为逐字节不变（QA-3 回归门禁）；开启时注入 §3.3 解析链并注册管理 API。
 	var llmProviderAdminHandler *ai.LLMProviderAdminHandler

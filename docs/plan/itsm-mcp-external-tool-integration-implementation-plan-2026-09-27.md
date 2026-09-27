@@ -211,6 +211,7 @@ MCP：         ▼                    ▼                     ▼
 - **要点**：包依赖方向固定为 `transport ← client ← manager ← admin/provider`，`registry` 为纯逻辑包（无 IO）；禁止包级可变全局状态；`mcp.enabled=false` 时管理 API 返回 404/禁用态（按 Q3 决定）、工具面不含 MCP、后台不建连。
 - **测试与证据**：`go build ./...`、`go test ./...`（存量全绿）；启动日志断言开关关闭时无 MCP 初始化输出；`mcp/README.md` 评审通过。
 - **DoD**：`unit_verified`。
+- **状态**：`unit_verified`（2026-09-27，分支 `feat/bot-mcp-integration`；证据 `docs/plan/evidence/mcp-m0/M0-01-unit-evidence.md`；全量 `go test ./...` 回归待 CI 门禁接入时补齐，不阻塞本任务 DoD）。
 
 #### M0-02 命名投影与解析（registry，最高优先级）
 
@@ -839,3 +840,4 @@ M2-06 交付《MCP 运维手册》（建议 `docs/ops/mcp-runbook.md`），至�
 | --- | --- | --- |
 | 2026-09-27 | AI 辅助编制 | 初稿：基于《ITSM 外部工具（MCP）接入与业务闭环审查》（69,627 字节）与《ITSM Bot 能力落地分析》，产出 M0–M2 共 31 个任务卡、32 条验收项（A0×14 / A1×10 / A2×8）、9 组测试用例执行清单、四级开关回滚预案与风险/决策登记；基线 HEAD `7442fad5`，未改动代码 |
 | 2026-09-27 | AI 辅助编制 | 开工准备：Q1–Q8 按建议拍板登记（§10）；P1 工作树处置完成（独立提交 `d3471221`）；创建实施分支 `feat/bot-mcp-integration` 并入库 4 份文档（`3172c12c`） |
+| 2026-09-27 | AI 辅助执行 | M0-01 交付并回写状态：`mcp/` 六包骨架、`go-sdk v1.4.0` 锁版、`mcp.enabled` 开关与连接默认值、bootstrap 预留装配点、SDK 握手回归与配置单测；`go build ./...` 与 `go test ./mcp/... ./config/...` 全绿（证据 `docs/plan/evidence/mcp-m0/M0-01-unit-evidence.md`）；M0-01 = `unit_verified` |

@@ -27,6 +27,7 @@ type Config struct {
 	RLS            RLSConfig            `mapstructure:"rls"`
 	Attachment     AttachmentConfig     `mapstructure:"attachment"`
 	CloudDiscovery CloudDiscoveryConfig `mapstructure:"cloud_discovery"`
+	MCP            MCPConfig            `mapstructure:"mcp"`
 }
 
 // AttachmentConfig 是附件域的灰度开关（方案 §6.1 开关与回滚矩阵）。
@@ -89,6 +90,54 @@ func applyAttachmentDefaults(cfg *AttachmentConfig) {
 	}
 	if cfg.CleanupBatchSize <= 0 {
 		cfg.CleanupBatchSize = attachmentDefaultCleanupBatchSize
+	}
+}
+
+// MCPConfig MCP 外部工具接入配置（M0-01 开关与连接默认值）。
+//
+// 方案：docs/plan/itsm-mcp-external-tool-integration-implementation-plan-2026-09-27.md §4.1。
+// 默认保守：Enabled=false 时对现有系统零行为变化（不建连、不装配组件、工具面不含 MCP）。
+type MCPConfig struct {
+	// Enabled: mcp.enabled 全局开关；默认 false。
+	Enabled bool `mapstructure:"enabled"`
+	// ConnectTimeoutSeconds: mcp.connect_timeout_seconds 建立连接超时（秒），默认 10。
+	ConnectTimeoutSeconds int `mapstructure:"connect_timeout_seconds"`
+	// CallTimeoutSeconds: mcp.call_timeout_seconds 单次 tools/call 超时（秒），默认 30。
+	CallTimeoutSeconds int `mapstructure:"call_timeout_seconds"`
+	// TestTimeoutSeconds: mcp.test_timeout_seconds 管理面「测试连接」同步短超时（秒）；
+	// 默认 10，且强制上限 10（D8：test 保持同步短超时，避免管理请求长时间挂起）。
+	TestTimeoutSeconds int `mapstructure:"test_timeout_seconds"`
+	// MaxServersPerTenant: mcp.max_servers_per_tenant 单租户服务器数量上限，默认 20。
+	MaxServersPerTenant int `mapstructure:"max_servers_per_tenant"`
+}
+
+// MCP 连接与治理默认值（须与 config.yaml.example 的 mcp 块保持同值，两侧都有测试钉住）。
+const (
+	mcpDefaultConnectTimeoutSeconds = 10
+	mcpDefaultCallTimeoutSeconds    = 30
+	mcpDefaultTestTimeoutSeconds    = 10
+	mcpDefaultMaxServersPerTenant   = 20
+)
+
+// applyMCPDefaults 补齐 MCP 配置的零值默认；Enabled 保持零值 false（未配置即关闭）。
+func applyMCPDefaults(cfg *MCPConfig) {
+	if cfg == nil {
+		return
+	}
+	if cfg.ConnectTimeoutSeconds <= 0 {
+		cfg.ConnectTimeoutSeconds = mcpDefaultConnectTimeoutSeconds
+	}
+	if cfg.CallTimeoutSeconds <= 0 {
+		cfg.CallTimeoutSeconds = mcpDefaultCallTimeoutSeconds
+	}
+	if cfg.TestTimeoutSeconds <= 0 {
+		cfg.TestTimeoutSeconds = mcpDefaultTestTimeoutSeconds
+	}
+	if cfg.TestTimeoutSeconds > mcpDefaultTestTimeoutSeconds {
+		cfg.TestTimeoutSeconds = mcpDefaultTestTimeoutSeconds
+	}
+	if cfg.MaxServersPerTenant <= 0 {
+		cfg.MaxServersPerTenant = mcpDefaultMaxServersPerTenant
 	}
 }
 
@@ -323,6 +372,7 @@ func LoadConfig() (*Config, error) {
 	viper.Set("deployment", rawConfig["deployment"])
 	viper.Set("attachment", rawConfig["attachment"])
 	viper.Set("cloud_discovery", rawConfig["cloud_discovery"])
+	viper.Set("mcp", rawConfig["mcp"])
 
 	// 重新绑定到 Config 结构
 	var config Config
@@ -352,6 +402,11 @@ func LoadConfig() (*Config, error) {
 	// 附件域清理默认值（BE-8）：保留期 30 天 / 轮询 360 分钟 / 单批 200 条；
 	// cleanup_enabled 与 cleanup_purge_enabled 保持零值 false（未配置即关闭）。
 	applyAttachmentDefaults(&config.Attachment)
+
+	// MCP 外部工具接入（M0-01）：开关默认关闭；连接/超时默认值见 applyMCPDefaults。
+	// 环境变量兜底 MCP_ENABLED；其余项由 config.yaml 的 ${MCP_*:默认} 语法解析。
+	config.MCP.Enabled = getEnvBoolWithDefault("MCP_ENABLED", config.MCP.Enabled)
+	applyMCPDefaults(&config.MCP)
 
 	// RLS 三档开关，默认 off（零风险）。
 	config.RLS.Mode = getEnvWithDefault("RLS_MODE", config.RLS.Mode)
