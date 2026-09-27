@@ -287,6 +287,7 @@ MCP：         ▼                    ▼                     ▼
   6. 降级：MCP 故障只影响其自身工具从工具面移除；`chatStream`、内置工具、审批管线不受影响。
 - **测试与证据**：断连-恢复集成（mock 注入断开/恢复）；工具 diff 与 schema 隔离用例；并发上限与退避节奏（可注入时钟）；降级断言（MCP 全挂时对话与内置工具正常）。
 - **DoD**：`integration_verified`。
+- **状态**：`unit_verified` + 进程内真实装配集成证据（2026-09-27；证据 `docs/plan/evidence/mcp-m0/M0-07-unit-evidence.md`）。实现：`manager/{manager,pool,health,discovery,events}.go`（状态机/异步启停/退避/Ping 健康循环/差分与 schema 隔离/并发信号量/超时/降级面）；测试覆盖差分 6 例 + 状态机 10 例 + 真实 transport/client 断开-恢复集成 1 例。**偏差说明**：按 §1.3「integration_verified 需含真实 ent/DB」口径，正式提升待 M0-08 提供 `StatusWriter`/`ToolCache` 的 ent 实现后由 M0-14 判定；`-race` 与 `MaxRetry` 接线待 M0-08 后续补。
 
 #### M0-08 管理服务与管理 API（后端）
 
@@ -851,3 +852,4 @@ M2-06 交付《MCP 运维手册》（建议 `docs/ops/mcp-runbook.md`），至�
 | 2026-09-27 | AI 辅助执行 | M0-04 交付并回写状态：transport（Kind/Config/Guard/HeaderProvider/分层错误 + 禁重定向 + 401 拦截）与 client（连接/会话/内容投影/生命周期事件）落地；Streamable/SSE 双传输与五类错误路径集成测试全绿（`client 1.977s`、`transport 0.223s`），`go vet` 干净、`go build ./...` 通过（证据 `docs/plan/evidence/mcp-m0/M0-04-unit-evidence.md`）；M0-04 = `unit_verified` |
 | 2026-09-27 | AI 辅助执行 | M0-05 交付并回写状态：SSRF 校验器（SSL/私网段/allowlist/rebinding 钉住/审计钩子）与表驱动负向用例（24 例含云元数据、IPv4-mapped、rebinding、重定向禁跟随、审计不泄露）；`go test ./mcp/...` 全绿、`go vet` 干净、`go build ./...` 通过（证据 `docs/plan/evidence/mcp-m0/M0-05-unit-evidence.md`）；M0-05 = `unit_verified`（M0-08 联调前置门槛达成） |
 | 2026-09-27 | AI 辅助执行 | M0-06 交付并回写状态：凭据加密与掩码（`SecretValues`/`CredentialService`/`ResolveEncryptionKey`/`MaskSecret`）落地，复用 AES-GCM 与 connector 语义；11 个用例全过（含 DB 无明文断言、掩码、轮换失效、生产缺密钥拒绝）；`go test ./mcp/...` 全绿、`go vet` 干净、`go build ./...` 通过（证据 `docs/plan/evidence/mcp-m0/M0-06-unit-evidence.md`）；M0-06 = `unit_verified` |
+| 2026-09-27 | AI 辅助执行 | M0-07 交付并回写状态：manager 生命周期（异步 enable/reload、Ping 健康循环 + 指数退避、发现差分与 schema_hash 隔离、并发信号量与超时、7 类事件、降级面）落地；17 个用例（含真实 mock 服务器断开-恢复集成）+ `-count=3` 稳定；`go test ./mcp/...` 全绿、`go vet` 干净、`go build ./...` 通过（证据 `docs/plan/evidence/mcp-m0/M0-07-unit-evidence.md`）；M0-07 = `unit_verified` + 进程内集成证据（正式 `integration_verified` 待 M0-08 ent 实现后由 M0-14 判定） |
