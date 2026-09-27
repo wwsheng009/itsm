@@ -59,6 +59,7 @@ import {
   listConversations,
   type ConversationSummary,
   type RagAnswer,
+  type AIToolStreamEvent,
 } from '@/lib/api/ai-api';
 import {
   LLM_PROVIDER_DISABLED,
@@ -72,6 +73,7 @@ import {
   buildConversationArticlePrefillState,
 } from '@/lib/knowledge/ai-article-prefill';
 import MarkdownMessage from './MarkdownMessage';
+import ToolCallTimeline from './tool-call-timeline';
 
 const { Text } = Typography;
 
@@ -106,6 +108,11 @@ interface ChatMessage {
   createdAt: string;
   streaming?: boolean;
   sources?: RagAnswer[];
+  /**
+   * 工具调用过程事件（M1-04）：仅来自 SSE（M1-03），不额外轮询、不读审计表。
+   * 事件缺失（旧后端/事件丢失）时组件不渲染时间线，内容仍由 `content` 承载。
+   */
+  toolEvents?: AIToolStreamEvent[];
   /** 生效实例（done 事件回带；开关关闭时缺省）。 */
   providerInfo?: { provider?: string; providerSource?: string };
   error?: string;
@@ -308,6 +315,9 @@ const ChatMessageItem: React.FC<ChatMessageItemProps> = ({
             style={{ marginTop: message.content ? 8 : 0 }}
           />
         ) : null}
+
+        {/* 工具调用时间线（M1-04）：仅 SSE 事件驱动；无事件时不渲染（旧后端/事件丢失降级）。 */}
+        <ToolCallTimeline events={message.toolEvents} />
 
         {message.sources && message.sources.length > 0 ? (
           <SourceList sources={message.sources} />
@@ -626,6 +636,21 @@ const AIChat: React.FC = () => {
     );
   }, []);
 
+  /**
+   * 追加工具事件（M1-04）：按到达顺序保存，由 ToolCallTimeline 做 started/终态配对。
+   * 上限 50 条仅用于兜底内存（超长会话/异常服务端），超出丢弃最早的事件——
+   * 时间线是过程视图，丢失早期条目不改变最终回答。
+   */
+  const appendToolEvent = useCallback((assistantId: string, event: AIToolStreamEvent) => {
+    setMessages(prev =>
+      prev.map(m => {
+        if (m.id !== assistantId) return m;
+        const toolEvents = [...(m.toolEvents ?? []), event];
+        return { ...m, toolEvents: toolEvents.slice(-50) };
+      })
+    );
+  }, []);
+
   const runStreaming = useCallback(
     async (userMsg: ChatMessage, assistantId: string) => {
       const controller = new AbortController();
@@ -647,6 +672,9 @@ const AIChat: React.FC = () => {
             },
             onDelta: delta => {
               appendAssistantContent(assistantId, delta);
+            },
+            onToolEvent: event => {
+              appendToolEvent(assistantId, event);
             },
             onDone: (newConvId, info) => {
               if (newConvId) {
