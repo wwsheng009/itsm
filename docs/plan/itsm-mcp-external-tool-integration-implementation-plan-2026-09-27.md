@@ -251,6 +251,7 @@ MCP：         ▼                    ▼                     ▼
 - **要点**：SDK 封装只暴露 ITSM 内部接口（便于未来换传输）；凭据/Header 通过注入器提供（对接 M0-06）；连接超时 10s、单次调用默认 30s；协议版本不匹配 → 连接置 `error` 并记录原因，**不降级**；`tools/list` 的 `inputSchema` 原样保存；错误分层枚举（`connect_timeout`/`tls_error`/`protocol_mismatch`/`auth_required`/`invalid_transport`…）供 API 层映射；为 manager 提供生命周期观察钩子（connected/disconnected/error）。
 - **测试与证据**：先用 `httptest` 起最小 MCP 服务做握手与 `tools/list`、`tools/call` 集成；错误路径注入（超时、401、TLS 失败、协议版本错）；M0-13 完成后替换为共享 mock 服务器重跑。
 - **DoD**：`unit_verified`（集成级由 M0-14 提升）。
+- **状态**：`unit_verified`（2026-09-27；证据 `docs/plan/evidence/mcp-m0/M0-04-unit-evidence.md`）。实现说明：SSE/Streamable 均以 `httptest` 最小服务集成；Guard 为接口形态（M0-05 提供实现）；重试策略在 M0-07、共享 mock 在 M0-13 替换；两处 SDK 适配缺陷（会话 ctx 生命周期、错误链丢失）已修复并加回归守卫。
 
 #### M0-05 SSRF 与出站安全（上线硬门槛）
 
@@ -845,3 +846,4 @@ M2-06 交付《MCP 运维手册》（建议 `docs/ops/mcp-runbook.md`），至�
 | 2026-09-27 | AI 辅助执行 | M0-01 交付并回写状态：`mcp/` 六包骨架、`go-sdk v1.4.0` 锁版、`mcp.enabled` 开关与连接默认值、bootstrap 预留装配点、SDK 握手回归与配置单测；`go build ./...` 与 `go test ./mcp/... ./config/...` 全绿（证据 `docs/plan/evidence/mcp-m0/M0-01-unit-evidence.md`）；M0-01 = `unit_verified` |
 | 2026-09-27 | AI 辅助执行 | M0-02 交付并回写状态：registry 投影/解析/隔离实现与三组契约测试（投影五类 + 解析四类 + 隔离与解除），与参考实现规则逐字对齐；`go vet ./mcp/...` 干净、`go test ./mcp/...` 全绿（证据 `docs/plan/evidence/mcp-m0/M0-02-unit-evidence.md`）；M0-02 = `unit_verified` |
 | 2026-09-27 | AI 辅助执行 | M0-03 交付并回写状态：`mcp_servers` / `mcp_server_tools` 实体 + `tool_invocations` 联合扩展（含 B0-02 字段一次加列、命名统一 `args_redacted`）；ent 生成刷新、迁移/约束/默认值测试与全量构建通过（证据 `docs/plan/evidence/mcp-m0/M0-03-migration-evidence.md`）；M0-03 = 迁移完成（`unit_verified`，`integration_verified` 待 CI 双驱动） |
+| 2026-09-27 | AI 辅助执行 | M0-04 交付并回写状态：transport（Kind/Config/Guard/HeaderProvider/分层错误 + 禁重定向 + 401 拦截）与 client（连接/会话/内容投影/生命周期事件）落地；Streamable/SSE 双传输与五类错误路径集成测试全绿（`client 1.977s`、`transport 0.223s`），`go vet` 干净、`go build ./...` 通过（证据 `docs/plan/evidence/mcp-m0/M0-04-unit-evidence.md`）；M0-04 = `unit_verified` |
