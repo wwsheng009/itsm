@@ -55,6 +55,10 @@ func (p *Provider) Execute(ctx context.Context, tenantID int, name string, args 
 	}
 	finish := func(err error) {
 		execution.DurationMs = time.Since(started).Milliseconds()
+		// 亚毫秒往返记为 1ms：审计口径为「成功调用耗时 ≥1ms」，避免出现 0 让审计/统计误判为缺失。
+		if execution.DurationMs == 0 {
+			execution.DurationMs = 1
+		}
 		if err != nil {
 			execution.ErrorCode = CodeOf(err)
 		}
