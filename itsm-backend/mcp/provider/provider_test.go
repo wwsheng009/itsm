@@ -201,8 +201,17 @@ func TestProvider_Execute(t *testing.T) {
 	provider := New(client, source, Options{Enabled: true})
 
 	// 成功：结果规范化 + 路由到 (serverID, rawName)。
-	out, err := provider.Execute(ctx, 1, "mcp__github__list_issues", map[string]interface{}{"q": "bug"})
+	execution, err := provider.Execute(ctx, 1, "mcp__github__list_issues", map[string]interface{}{"q": "bug"})
 	require.NoError(t, err)
+	require.NotNil(t, execution)
+	// M0-11：审计元数据（三元组 + 耗时 + 摘要）必须随成功路径一并返回。
+	require.Equal(t, ProviderName, execution.Provider)
+	require.Equal(t, "github", execution.ServerName)
+	require.Equal(t, "list_issues", execution.RawToolName)
+	require.Equal(t, "mcp__github__list_issues", execution.CallableName)
+	require.Empty(t, execution.ErrorCode)
+	require.NotEmpty(t, execution.OutputSummary)
+	out := execution.Value
 	require.Len(t, source.calls, 1)
 	require.Equal(t, githubID, source.calls[0].serverID)
 	require.Equal(t, "list_issues", source.calls[0].rawName)
@@ -244,9 +253,9 @@ func TestProvider_Execute(t *testing.T) {
 	// 工具自身报错（IsError）→ 作为结果回填给模型，而不是 Go error。
 	source.err = nil
 	source.result = &mcpclient.CallResult{IsError: true, Content: []mcpclient.Content{{Type: "text", Text: "tool exploded"}}}
-	out, err = provider.Execute(ctx, 1, "mcp__github__list_issues", map[string]interface{}{"q": "x"})
+	execution, err = provider.Execute(ctx, 1, "mcp__github__list_issues", map[string]interface{}{"q": "x"})
 	require.NoError(t, err)
-	normalized = out.(Output)
+	normalized = execution.Value.(Output)
 	require.True(t, normalized.IsError)
 	require.Equal(t, "tool exploded", normalized.Content[0].Text)
 }
@@ -265,16 +274,16 @@ func TestProvider_ResultNormalization(t *testing.T) {
 		{Type: "text", Text: "line1\nline2\tok\x00\x07end"},
 		{Type: "image", MIME: "image/png", Raw: json.RawMessage(`{"base64":"AAAA"}`)},
 	}}
-	out, err := provider.Execute(ctx, 1, "mcp__github__list_issues", nil)
+	execution, err := provider.Execute(ctx, 1, "mcp__github__list_issues", nil)
 	require.NoError(t, err)
-	normalized := out.(Output)
+	normalized := execution.Value.(Output)
 	require.Equal(t, "line1\nline2\tokend", normalized.Content[0].Text)
 
 	// 超限截断：置 Truncated 且不超过上限。
 	source.result = &mcpclient.CallResult{Content: []mcpclient.Content{{Type: "text", Text: strings.Repeat("x", 4096)}}}
-	out, err = provider.Execute(ctx, 1, "mcp__github__list_issues", nil)
+	execution, err = provider.Execute(ctx, 1, "mcp__github__list_issues", nil)
 	require.NoError(t, err)
-	normalized = out.(Output)
+	normalized = execution.Value.(Output)
 	require.True(t, normalized.Truncated)
 	require.LessOrEqual(t, normalized.Bytes, 512)
 	require.LessOrEqual(t, len(normalized.Content), 1)
@@ -282,9 +291,9 @@ func TestProvider_ResultNormalization(t *testing.T) {
 
 	// StructuredContent 保留为结构化条目。
 	source.result = &mcpclient.CallResult{StructuredContent: json.RawMessage(`{"total":3}`)}
-	out, err = provider.Execute(ctx, 1, "mcp__github__list_issues", nil)
+	execution, err = provider.Execute(ctx, 1, "mcp__github__list_issues", nil)
 	require.NoError(t, err)
-	normalized = out.(Output)
+	normalized = execution.Value.(Output)
 	require.Equal(t, "structured", normalized.Content[0].Type)
 	require.Contains(t, string(normalized.Content[0].Data), "total")
 }

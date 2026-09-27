@@ -32,9 +32,16 @@ func (f *fakeToolProvider) Resolve(_ context.Context, _ int, name string) (*Tool
 	return nil, false
 }
 
-func (f *fakeToolProvider) Execute(_ context.Context, _ int, name string, _ map[string]interface{}) (interface{}, error) {
+func (f *fakeToolProvider) Execute(_ context.Context, _ int, name string, _ map[string]interface{}) (*ToolExecution, error) {
 	f.executed = append(f.executed, name)
-	return f.execResult, f.execErr
+	return &ToolExecution{
+		Value:        f.execResult,
+		Provider:     f.name,
+		ServerName:   "github",
+		RawToolName:  "list_issues",
+		CallableName: name,
+		DurationMs:   7,
+	}, f.execErr
 }
 
 func fakeMCPTool(name string, readOnly bool) ToolDefinition {

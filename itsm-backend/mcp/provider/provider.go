@@ -98,11 +98,12 @@ func (p *Provider) Resolve(ctx context.Context, tenantID int, name string) (*ser
 
 // faceTool 是工具面中的一个条目：展示定义 + 执行路由所需的 (serverID, rawName)。
 type faceTool struct {
-	def      service.ToolDefinition
-	serverID int
-	rawName  string
-	callable string
-	schema   *jsonschema.Resolved // 参数校验器；nil = 无 schema（不做参数校验）
+	def        service.ToolDefinition
+	serverID   int
+	serverName string // M0-11：审计三元组用（tool_invocations.mcp_server_name）
+	rawName    string
+	callable   string
+	schema     *jsonschema.Resolved // 参数校验器；nil = 无 schema（不做参数校验）
 }
 
 // toolFace 是一次租户快照的产物。
@@ -179,11 +180,12 @@ func (p *Provider) snapshot(ctx context.Context, tenantID int) *toolFace {
 		}
 		face.byCanonical[definition.Name] = len(face.tools)
 		face.tools = append(face.tools, faceTool{
-			def:      definition,
-			serverID: record.ServerID,
-			rawName:  record.RawName,
-			callable: callable.CallableName,
-			schema:   resolved,
+			def:        definition,
+			serverID:   record.ServerID,
+			serverName: serverName,
+			rawName:    record.RawName,
+			callable:   callable.CallableName,
+			schema:     resolved,
 		})
 	}
 	// 稳定排序：canonical 升序（工具面顺序稳定，利于提示缓存与断言）。

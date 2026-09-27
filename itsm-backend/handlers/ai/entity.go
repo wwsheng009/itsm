@@ -45,6 +45,15 @@ type ToolInvocation struct {
 	PermissionCheck  string `json:"permissionCheck"`  // passed|denied|skipped
 	PermissionReason string `json:"permissionReason"` // 校验/拒绝原因
 	RoleSnapshot     string `json:"roleSnapshot"`     // 调用时角色快照
+	// M0-11 外部工具审计字段（MCP 三元组 + 脱敏入参 + 摘要 + 耗时 + 稳定错误码）
+	Provider        string `json:"provider"`        // builtin|mcp
+	McpServerName   string `json:"mcpServerName"`   // provider=mcp 时：服务器名
+	McpRawToolName  string `json:"mcpRawToolName"`  // provider=mcp 时：原始工具名
+	McpCallableName string `json:"mcpCallableName"` // provider=mcp 时：投影名 mcp__<server>__<tool>
+	ArgsRedacted    string `json:"argsRedacted"`    // 脱敏入参快照（展示/审计唯一来源）
+	OutputSummary   string `json:"outputSummary"`   // 结果摘要（脱敏截断；不落原始 Value）
+	DurationMs      int64  `json:"durationMs"`      // 执行耗时（毫秒）
+	ErrorCode       string `json:"errorCode"`       // 稳定错误码（与前端展示对齐）
 }
 
 // RootCauseAnalysis represents an RCA record for a ticket

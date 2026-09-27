@@ -443,10 +443,22 @@ func (t *ToolRegistry) ListTools() []ToolDefinition {
 }
 
 // Execute 执行工具：内置优先；内置未命中时委派外部 provider（M0-09：MCP 只读工具）。
-// 注意：Gate2/Gate3 由 handles/ai.Service 编排，本方法不做权限与审批判定。
+// 兼容入口：仅取结果值（不需要审计元数据的老调用方）；新调用方应使用 ExecuteWithMeta。
+// 注意：Gate2/Gate3 由 handlers/ai.Service 编排，本方法不做权限与审批判定。
 func (t *ToolRegistry) Execute(ctx context.Context, tenantID int, name string, args map[string]interface{}) (interface{}, error) {
+	execution, err := t.ExecuteWithMeta(ctx, tenantID, name, args)
+	if execution == nil {
+		return nil, err
+	}
+	return execution.Value, err
+}
+
+// ExecuteWithMeta 执行工具并返回审计元数据（M0-11）：
+// 内置工具包装为 provider=builtin（无 MCP 三元组）；外部 provider 由其自身返回元数据。
+func (t *ToolRegistry) ExecuteWithMeta(ctx context.Context, tenantID int, name string, args map[string]interface{}) (*ToolExecution, error) {
 	if td := t.GetTool(name); td != nil {
-		return t.executeBuiltin(ctx, tenantID, name, args)
+		value, err := t.executeBuiltin(ctx, tenantID, name, args)
+		return &ToolExecution{Value: value, Provider: ProviderNameBuiltin, CallableName: name}, err
 	}
 	for _, provider := range t.providers {
 		def, ok := provider.Resolve(ctx, tenantID, name)

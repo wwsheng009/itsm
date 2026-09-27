@@ -153,11 +153,19 @@ func toToolInvocationDomain(e *ent.ToolInvocation) *ToolInvocation {
 		PermissionCheck:  e.PermissionCheck,
 		PermissionReason: e.PermissionReason,
 		RoleSnapshot:     e.RoleSnapshot,
+		Provider:         e.Provider,
+		McpServerName:    e.McpServerName,
+		McpRawToolName:   e.McpRawToolName,
+		McpCallableName:  e.McpCallableName,
+		ArgsRedacted:     e.ArgsRedacted,
+		OutputSummary:    e.OutputSummary,
+		DurationMs:       int64(e.DurationMs),
+		ErrorCode:        e.ErrorCode,
 	}
 }
 
 func (r *EntRepository) CreateToolInvocation(ctx context.Context, i *ToolInvocation) (*ToolInvocation, error) {
-	e, err := r.client.ToolInvocation.Create().
+	create := r.client.ToolInvocation.Create().
 		SetTenantID(i.TenantID).
 		SetToolName(i.ToolName).
 		SetArguments(i.Arguments).
@@ -168,8 +176,33 @@ func (r *EntRepository) CreateToolInvocation(ctx context.Context, i *ToolInvocat
 		SetUserID(i.UserID).
 		SetPermissionCheck(i.PermissionCheck).
 		SetPermissionReason(i.PermissionReason).
-		SetRoleSnapshot(i.RoleSnapshot).
-		Save(ctx)
+		SetRoleSnapshot(i.RoleSnapshot)
+	// M0-11：MCP/外部工具审计字段（空值不写，保持内置工具行为与列默认值不变）。
+	if i.Provider != "" {
+		create.SetProvider(i.Provider)
+	}
+	if i.McpServerName != "" {
+		create.SetMcpServerName(i.McpServerName)
+	}
+	if i.McpRawToolName != "" {
+		create.SetMcpRawToolName(i.McpRawToolName)
+	}
+	if i.McpCallableName != "" {
+		create.SetMcpCallableName(i.McpCallableName)
+	}
+	if i.ArgsRedacted != "" {
+		create.SetArgsRedacted(i.ArgsRedacted)
+	}
+	if i.OutputSummary != "" {
+		create.SetOutputSummary(i.OutputSummary)
+	}
+	if i.DurationMs > 0 {
+		create.SetDurationMs(int(i.DurationMs))
+	}
+	if i.ErrorCode != "" {
+		create.SetErrorCode(i.ErrorCode)
+	}
+	e, err := create.Save(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -221,6 +254,19 @@ func (r *EntRepository) UpdateToolInvocation(ctx context.Context, i *ToolInvocat
 	}
 	if i.Error != nil {
 		update.SetError(*i.Error)
+	}
+	// M0-11：终态审计字段（仅非零值回写，避免覆盖既有列）。
+	if i.ArgsRedacted != "" {
+		update.SetArgsRedacted(i.ArgsRedacted)
+	}
+	if i.OutputSummary != "" {
+		update.SetOutputSummary(i.OutputSummary)
+	}
+	if i.DurationMs > 0 {
+		update.SetDurationMs(int(i.DurationMs))
+	}
+	if i.ErrorCode != "" {
+		update.SetErrorCode(i.ErrorCode)
 	}
 	if i.ApprovedAt != nil {
 		update.SetApprovedAt(*i.ApprovedAt)

@@ -3,10 +3,12 @@ package service
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"time"
 
 	"itsm-backend/dto"
 	"itsm-backend/ent"
+	"itsm-backend/pkg/redact"
 	ticketrepo "itsm-backend/repository/ticket"
 
 	"go.uber.org/zap"
@@ -52,6 +54,7 @@ func (q *ToolQueue) Enqueue(job ToolJob) {
 func (q *ToolQueue) worker() {
 	for job := range q.jobs {
 		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+		startedAt := time.Now()
 		inv, err := q.client.ToolInvocation.Get(ctx, job.InvocationID)
 		if err != nil {
 			cancel()
@@ -65,8 +68,13 @@ func (q *ToolQueue) worker() {
 		// （历史上这里的 create_ticket 就漏了 category/type/ticket_type_id/ci_id）。
 		// 仅当注册表未装配对应领域服务时，才回落到下面的内联实现。
 		if q.tools != nil && q.tools.canExecuteWriteTool(inv.ToolName) {
-			res, err = q.tools.Execute(ctx, job.TenantID, inv.ToolName, q.withInvocationUser(args, inv.UserID))
-			q.finalize(ctx, inv.ID, res, err)
+			// M0-11：写路径同样带审计元数据（MCP 写工具在 M1-02 接入后自动获得三元组）。
+			execution, execErr := q.tools.ExecuteWithMeta(ctx, job.TenantID, inv.ToolName, q.withInvocationUser(args, inv.UserID))
+			err = execErr
+			if execution != nil {
+				res = execution.Value
+			}
+			q.finalize(ctx, inv.ID, res, err, startedAt)
 			cancel()
 			continue
 		}
@@ -144,21 +152,33 @@ func (q *ToolQueue) worker() {
 		default:
 			res, err = q.tools.Execute(ctx, job.TenantID, inv.ToolName, args)
 		}
-		q.finalize(ctx, inv.ID, res, err)
+		q.finalize(ctx, inv.ID, res, err, startedAt)
 		cancel()
 	}
 }
 
 // finalize 把工具执行结果写回 ToolInvocation（成功/失败两态）。
-func (q *ToolQueue) finalize(ctx context.Context, invocationID int, res interface{}, err error) {
+// M0-11：补耗时与稳定错误码；成功时补 output_summary（脱敏截断，不落原始大结果）。
+func (q *ToolQueue) finalize(ctx context.Context, invocationID int, res interface{}, err error, startedAt time.Time) {
+	durationMs := time.Since(startedAt).Milliseconds()
 	if err != nil {
-		if _, updateErr := q.client.ToolInvocation.UpdateOneID(invocationID).SetStatus("failed").SetError(err.Error()).Save(ctx); updateErr != nil {
+		if _, updateErr := q.client.ToolInvocation.UpdateOneID(invocationID).
+			SetStatus("failed").
+			SetError(redact.Summary(err.Error(), 512)).
+			SetDurationMs(int(durationMs)).
+			SetErrorCode(errorCodeOf(err)).
+			Save(ctx); updateErr != nil {
 			q.logger.Errorw("Failed to update tool invocation status to failed", "invocation_id", invocationID, "error", updateErr)
 		}
 		return
 	}
 	out, _ := json.Marshal(res)
-	if _, updateErr := q.client.ToolInvocation.UpdateOneID(invocationID).SetStatus("done").SetResult(string(out)).Save(ctx); updateErr != nil {
+	if _, updateErr := q.client.ToolInvocation.UpdateOneID(invocationID).
+		SetStatus("done").
+		SetResult(string(out)).
+		SetDurationMs(int(durationMs)).
+		SetOutputSummary(redact.ValueSummary(res, 512)).
+		Save(ctx); updateErr != nil {
 		q.logger.Errorw("Failed to update tool invocation status to done", "invocation_id", invocationID, "error", updateErr)
 	}
 }
@@ -177,4 +197,21 @@ func (q *ToolQueue) withInvocationUser(args map[string]interface{}, userID int) 
 		merged["user_id"] = float64(userID)
 	}
 	return merged
+}
+
+// errorCoder 由外部 provider 的稳定错误实现（避免 service → mcp/provider 的反向依赖）。
+type errorCoder interface{ ErrorCode() string }
+
+// errorCodeOf 提取稳定错误码；未知错误返回 "internal_error"（与前端展示口径对齐）。
+func errorCodeOf(err error) string {
+	if err == nil {
+		return ""
+	}
+	var coded errorCoder
+	if errors.As(err, &coded) {
+		if code := coded.ErrorCode(); code != "" {
+			return code
+		}
+	}
+	return "internal_error"
 }

@@ -2,6 +2,28 @@ package service
 
 import "context"
 
+// ToolExecution 是一次工具执行的**审计元数据 + 结果**（M0-11）。
+//
+// 内置工具与外部 provider 都返回本类型：Provider 字段区分来源（builtin|mcp），
+// MCP 来源额外携带三元组（ServerName/RawToolName/CallableName）供 tool_invocations 落库；
+// DurationMs/ErrorCode 用于审计与前端错误展示对齐；OutputSummary 是落库用的脱敏截断摘要。
+//
+// 注意：Value 仍按**不可信数据**处理，Summary 由 provider/registry 侧做脱敏与截断，
+// 调用方不得把 Value 直接写入审计（审计只能写 OutputSummary）。
+type ToolExecution struct {
+	Value         interface{}
+	Provider      string // builtin|mcp
+	ServerName    string // provider=mcp 时：MCP 服务器名
+	RawToolName   string // provider=mcp 时：原始工具名
+	CallableName  string // provider=mcp 时：投影名 mcp__<server>__<tool>
+	DurationMs    int64
+	ErrorCode     string
+	OutputSummary string
+}
+
+// ProviderNameBuiltin 内置工具的审计 provider 标识（与 tool_invocations.provider 默认值一致）。
+const ProviderNameBuiltin = "builtin"
+
 // ToolProvider 是内置工具之外的工具来源（D5：与内置工具**同源**接入 Gate1/Gate2/Gate3、
 // ToolQueue 与审计链路；不扩展 Connector 语义）。
 //
@@ -22,6 +44,6 @@ type ToolProvider interface {
 	ListTools(ctx context.Context, tenantID int) []ToolDefinition
 	// Resolve 解析工具名（含 canonical 与唯一短名）：返回定义与是否可解析。
 	Resolve(ctx context.Context, tenantID int, name string) (*ToolDefinition, bool)
-	// Execute 执行工具（前置 Gate1/Gate2 由调用方完成）。
-	Execute(ctx context.Context, tenantID int, name string, args map[string]interface{}) (interface{}, error)
+	// Execute 执行工具（前置 Gate1/Gate2 由调用方完成）；返回值携带审计元数据。
+	Execute(ctx context.Context, tenantID int, name string, args map[string]interface{}) (*ToolExecution, error)
 }

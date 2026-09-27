@@ -12,6 +12,7 @@ import (
 	"itsm-backend/ent"
 	"itsm-backend/metrics"
 	"itsm-backend/middleware"
+	"itsm-backend/pkg/redact"
 	"itsm-backend/service"
 
 	"go.uber.org/zap"
@@ -132,7 +133,7 @@ func (s *Service) ExecuteTool(ctx context.Context, userID, tenantID int, role, n
 	toolDef := s.tools.GetToolForTenant(ctx, tenantID, name)
 	if toolDef == nil {
 		// 未知工具：记录 denied 审计，返回错误
-		s.recordToolAudit(ctx, tenantID, userID, role, name, args, "denied", "unknown tool", "", nil, false)
+		s.recordToolAudit(ctx, tenantID, userID, role, name, args, "denied", "unknown tool", "", nil, false, nil)
 		return nil, 0, ErrUnknownTool
 	}
 
@@ -152,7 +153,7 @@ func (s *Service) ExecuteTool(ctx context.Context, userID, tenantID int, role, n
 
 	// Authorization is mandatory; feature flags must never bypass it.
 	if !allowed {
-		s.recordToolAudit(ctx, tenantID, userID, role, name, args, permCheck, permReason, "", nil, false)
+		s.recordToolAudit(ctx, tenantID, userID, role, name, args, permCheck, permReason, "", nil, false, nil)
 		return nil, 0, fmt.Errorf("%w: %s", ErrToolPermissionDenied, permReason)
 	}
 
@@ -160,11 +161,19 @@ func (s *Service) ExecuteTool(ctx context.Context, userID, tenantID int, role, n
 	needsApproval := !toolDef.ReadOnly
 
 	if !needsApproval {
-		res, err := s.tools.Execute(ctx, tenantID, name, args)
+		// M0-11：带审计元数据执行（provider/三元组/耗时/错误码/输出摘要）。
+		execution, err := s.tools.ExecuteWithMeta(ctx, tenantID, name, args)
+		var res interface{}
+		if execution != nil {
+			res = execution.Value
+		}
 		// 只读工具执行也记录审计（AGENTS.md: AI tool invocation must produce audit logs）
 		// P2-6: 同步写入 RBAC 校验结果字段
 		if err == nil {
-			s.recordToolAudit(ctx, tenantID, userID, role, name, args, permCheck, permReason, "executed", nil, false)
+			s.recordToolAudit(ctx, tenantID, userID, role, name, args, permCheck, permReason, "executed", nil, false, execution)
+		} else {
+			// 失败同样留痕（稳定错误码 + 三元组），便于事后定位外部工具故障。
+			s.recordToolAudit(ctx, tenantID, userID, role, name, args, permCheck, permReason, "failed", nil, false, execution)
 		}
 		return res, 0, err
 	}
@@ -175,6 +184,7 @@ func (s *Service) ExecuteTool(ctx context.Context, userID, tenantID int, role, n
 		TenantID:         tenantID,
 		ToolName:         name,
 		Arguments:        string(argsStr),
+		ArgsRedacted:     redact.ArgsJSON(args, 0),
 		Status:           "pending",
 		NeedsApproval:    true,
 		ApprovalState:    "pending",
@@ -195,9 +205,9 @@ func (s *Service) ExecuteTool(ctx context.Context, userID, tenantID int, role, n
 // L8 修复（2026-09-08）：审计写入失败不再用 _, _ = 吞掉，改用结构化错误日志 +
 // itsm_ai_persist_errors_total{operation="create_tool_invocation"} 计数器埋点，
 // 保证 DB 抖动时审计丢失可观测、可告警。
-func (s *Service) recordToolAudit(ctx context.Context, tenantID, userID int, role, toolName string, args map[string]interface{}, permCheck, permReason, status string, result *string, needsApproval bool) {
+func (s *Service) recordToolAudit(ctx context.Context, tenantID, userID int, role, toolName string, args map[string]interface{}, permCheck, permReason, status string, result *string, needsApproval bool, execution *service.ToolExecution) {
 	argsStr, _ := json.Marshal(args)
-	if _, err := s.repo.CreateToolInvocation(ctx, &ToolInvocation{
+	audit := &ToolInvocation{
 		TenantID:         tenantID,
 		ToolName:         toolName,
 		Arguments:        string(argsStr),
@@ -208,7 +218,19 @@ func (s *Service) recordToolAudit(ctx context.Context, tenantID, userID int, rol
 		PermissionCheck:  permCheck,
 		PermissionReason: permReason,
 		RoleSnapshot:     role,
-	}); err != nil {
+		// M0-11：脱敏入参快照——审计/展示唯一来源（Arguments 仍是执行真源，审批重放依赖它）。
+		ArgsRedacted: redact.ArgsJSON(args, 0),
+	}
+	if execution != nil {
+		audit.Provider = execution.Provider
+		audit.McpServerName = execution.ServerName
+		audit.McpRawToolName = execution.RawToolName
+		audit.McpCallableName = execution.CallableName
+		audit.DurationMs = execution.DurationMs
+		audit.ErrorCode = execution.ErrorCode
+		audit.OutputSummary = execution.OutputSummary
+	}
+	if _, err := s.repo.CreateToolInvocation(ctx, audit); err != nil {
 		s.logger.Errorw("AI tool audit persistence failed",
 			"operation", "create_tool_invocation",
 			"tenant_id", tenantID,

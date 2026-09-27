@@ -39,7 +39,6 @@ import (
 	"itsm-backend/ent/user"
 	a2uiHandler "itsm-backend/handlers/a2ui"
 	"itsm-backend/handlers/ai"
-	mcpHandler "itsm-backend/handlers/mcp"
 	analyticsHandler "itsm-backend/handlers/analytics"
 	applicationHandler "itsm-backend/handlers/application"
 	"itsm-backend/handlers/approval"
@@ -66,6 +65,7 @@ import (
 	"itsm-backend/handlers/incident"
 	"itsm-backend/handlers/knowledge"
 	"itsm-backend/handlers/known_error"
+	mcpHandler "itsm-backend/handlers/mcp"
 	mspHandler "itsm-backend/handlers/msp"
 	notificationHandler "itsm-backend/handlers/notification"
 	predictionHandler "itsm-backend/handlers/prediction"
@@ -1035,7 +1035,7 @@ func NewApplication() *Application {
 					Manager:     mcpManager,
 					Guard:       mcpGuard,
 					Store:       mcpStore,
-					Audit:       mcpadmin.NewMemoryAuditSink(), // M0-11 换 DB 审计
+					Audit:       mcpadmin.NewEntAuditSink(client), // M0-11：管理操作审计落 audit_logs（resource=mcp）
 					Events:      mcpEvents,
 				})
 				if serviceErr != nil {
