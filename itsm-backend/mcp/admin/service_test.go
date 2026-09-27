@@ -84,6 +84,7 @@ type harness struct {
 	events   *EventBuffer
 	session  *stubSession
 	guard    transport.Guard
+	dial     manager.DialFunc
 	dialErr  error
 	dialLock sync.Mutex
 }
@@ -112,17 +113,19 @@ func newHarness(t *testing.T, guard transport.Guard) *harness {
 	h := &harness{t: t, client: client, db: db, audit: audit, events: events, session: session, guard: guard}
 	store, err := NewEntStore(client)
 	require.NoError(t, err)
+	dial := func(context.Context, manager.ServerConfig) (manager.ToolSession, error) {
+		h.dialLock.Lock()
+		err := h.dialErr
+		h.dialLock.Unlock()
+		if err != nil {
+			return nil, err
+		}
+		return session, nil
+	}
+	h.dial = dial
 	managerInstance := manager.New(manager.Options{
-		Guard: guard,
-		Dial: func(context.Context, manager.ServerConfig) (manager.ToolSession, error) {
-			h.dialLock.Lock()
-			err := h.dialErr
-			h.dialLock.Unlock()
-			if err != nil {
-				return nil, err
-			}
-			return session, nil
-		},
+		Guard:          guard,
+		Dial:           dial,
 		Events:         events,
 		StatusWriter:   store,
 		ToolCache:      store,
@@ -546,6 +549,53 @@ func TestService_ListServersSummaryAndTenantIsolation(t *testing.T) {
 	require.NoError(t, h.service.DeleteServer(context.Background(), h.actor(), second.ID))
 	_, err = h.service.GetServer(context.Background(), h.actor(), second.ID)
 	require.Error(t, err)
+}
+
+func TestService_StartupLoadsEnabledServers(t *testing.T) {
+	h := newHarness(t, nil)
+	created := h.createServer(t, "github")
+	// 模拟上一次进程遗留的启用位（治理数据落在 DB，运行态需在启动期重建）。
+	require.NoError(t, h.client.MCPServer.UpdateOneID(created.ID).
+		SetEnabled(true).Exec(context.Background()))
+
+	// 新进程：同一 DB + 全新 manager/service（运行态为空）。
+	store := h.service.Store()
+	freshManager := manager.New(manager.Options{
+		Guard:          h.guard,
+		Dial:           h.dial,
+		StatusWriter:   store,
+		ToolCache:      store,
+		Events:         h.events,
+		HealthInterval: time.Hour,
+	})
+	freshService, err := NewService(Config{
+		Client:      h.client,
+		Credentials: mustCredentials(t),
+		Manager:     freshManager,
+		Guard:       h.guard,
+		Store:       store,
+		Audit:       h.audit,
+		Events:      h.events,
+	})
+	require.NoError(t, err)
+
+	// Startup 拉起：装配运行态 + 异步建连 + 发现落库。
+	require.NoError(t, freshService.Startup(context.Background()))
+	require.Eventually(t, func() bool {
+		snapshot, statusErr := freshManager.Status(created.ID)
+		return statusErr == nil && snapshot.Status == manager.StatusHealthy
+	}, 3*time.Second, 10*time.Millisecond, "启动期拉起连接")
+
+	require.Eventually(t, func() bool {
+		tools, listErr := freshService.ListTools(context.Background(), h.actor(), created.ID)
+		return listErr == nil && len(tools) == 2
+	}, 3*time.Second, 10*time.Millisecond, "启动期发现结果落库")
+
+	// 幂等：重复 Startup 不产生错误、不改变治理位。
+	require.NoError(t, freshService.Startup(context.Background()))
+	entity, err := h.client.MCPServer.Get(context.Background(), created.ID)
+	require.NoError(t, err)
+	require.True(t, entity.Enabled)
 }
 
 func stringPtr(value string) *string { return &value }

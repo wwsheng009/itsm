@@ -100,6 +100,10 @@ import (
 	"itsm-backend/internal/commandbus"
 	"itsm-backend/internal/initialization"
 	"itsm-backend/internal/schema"
+	mcpadmin "itsm-backend/mcp/admin"
+	"itsm-backend/mcp/manager"
+	mcpprovider "itsm-backend/mcp/provider"
+	"itsm-backend/mcp/transport"
 	"itsm-backend/middleware"
 	"itsm-backend/migration"
 	"itsm-backend/pkg/seeder"
@@ -984,16 +988,74 @@ func NewApplication() *Application {
 	aiServiceDomain.SetEntClient(client)
 	aiHandler := ai.NewHandler(aiServiceDomain)
 
-	// MCP 外部工具接入（M0-01：预留装配点）——mcp.enabled=false（默认）时不初始化任何
-	// 组件、不产生任何后台行为；开启后 M0-02/M0-04/M0-07 的组件将在此按依赖顺序装配。
+	// MCP 外部工具接入（M0-09：provider 装配与运行时拉起）。
+	// mcp.enabled=false（默认）时不初始化任何组件、不产生任何后台行为（零行为变化）；
+	// 开启后按 M0-02/04/06/07/08 依赖顺序装配：凭据 → ent store → manager → 管理服务 → provider。
 	// 方案：docs/plan/itsm-mcp-external-tool-integration-implementation-plan-2026-09-27.md §4.1。
 	if cfg.MCP.Enabled {
-		sugar.Infow("MCP integration enabled; runtime assembly point reserved (M0-01)",
-			"module", "mcp",
-			"connect_timeout_seconds", cfg.MCP.ConnectTimeoutSeconds,
-			"call_timeout_seconds", cfg.MCP.CallTimeoutSeconds,
-			"test_timeout_seconds", cfg.MCP.TestTimeoutSeconds,
-			"max_servers_per_tenant", cfg.MCP.MaxServersPerTenant)
+		mcpProduction := os.Getenv("ENV") == "production" || os.Getenv("GIN_MODE") == "release"
+		key, derivedKey, keyErr := mcpadmin.ResolveEncryptionKey(cfg.JWT.Secret, mcpProduction)
+		switch {
+		case keyErr != nil:
+			sugar.Errorw("MCP 已启用但凭据加密密钥缺失，MCP 组件不装配（拒绝明文降级）",
+				"module", "mcp", "error", keyErr.Error())
+		default:
+			if derivedKey {
+				sugar.Warn("MCP_ENCRYPTION_KEY 未配置，MCP 凭据密钥由 JWT secret 派生（仅限非生产）")
+			}
+			mcpCredentials, credErr := mcpadmin.NewCredentialService(key)
+			mcpStore, storeErr := mcpadmin.NewEntStore(client)
+			if credErr != nil || storeErr != nil {
+				credText, storeText := "", ""
+				if credErr != nil {
+					credText = credErr.Error()
+				}
+				if storeErr != nil {
+					storeText = storeErr.Error()
+				}
+				sugar.Errorw("MCP 组件装配失败，MCP 工具面保持关闭",
+					"module", "mcp", "credentials_error", credText, "store_error", storeText)
+			} else {
+				// 出站安全：默认仅 https + 公网（D7 默认拒绝）；私有化部署放行私网需后续评审加配置项。
+				mcpGuard := transport.NewSSRFGuard(transport.SSRFConfig{})
+				mcpEvents := mcpadmin.NewEventBuffer(0)
+				mcpManager := manager.New(manager.Options{
+					Guard:          mcpGuard,
+					StatusWriter:   mcpStore,
+					ToolCache:      mcpStore,
+					Events:         mcpEvents,
+					ConnectTimeout: time.Duration(cfg.MCP.ConnectTimeoutSeconds) * time.Second,
+					CallTimeout:    time.Duration(cfg.MCP.CallTimeoutSeconds) * time.Second,
+				})
+				mcpAdminService, serviceErr := mcpadmin.NewService(mcpadmin.Config{
+					Client:      client,
+					Credentials: mcpCredentials,
+					Manager:     mcpManager,
+					Guard:       mcpGuard,
+					Store:       mcpStore,
+					Audit:       mcpadmin.NewMemoryAuditSink(), // M0-11 换 DB 审计
+					Events:      mcpEvents,
+				})
+				if serviceErr != nil {
+					sugar.Errorw("MCP 管理服务装配失败，MCP 工具面保持关闭",
+						"module", "mcp", "error", serviceErr.Error())
+				} else {
+					mcpManager.Start(context.Background())
+					if startupErr := mcpAdminService.Startup(context.Background()); startupErr != nil {
+						sugar.Errorw("MCP 已启用服务器拉起失败（管理面可用，运行态待重连）",
+							"module", "mcp", "error", startupErr.Error())
+					}
+					// 工具面接入：与内置工具同源（Gate1/Gate2/Gate3 由 ai.Service 编排）。
+					toolRegistry.RegisterProvider(mcpprovider.New(client, mcpManager, mcpprovider.Options{Enabled: true}))
+					sugar.Infow("MCP 外部工具接入已启用",
+						"module", "mcp",
+						"connect_timeout_seconds", cfg.MCP.ConnectTimeoutSeconds,
+						"call_timeout_seconds", cfg.MCP.CallTimeoutSeconds,
+						"test_timeout_seconds", cfg.MCP.TestTimeoutSeconds,
+						"max_servers_per_tenant", cfg.MCP.MaxServersPerTenant)
+				}
+			}
+		}
 	}
 
 	// 多 LLM Provider（主计划 §3.2/§3.4 BE-4/BE-5）：灰度开关关闭时零装配、零路由，

@@ -77,7 +77,8 @@ func (h *Handler) ExecuteTool(c *gin.Context) {
 		common.Fail(c, common.ServiceUnavailableCode, "AI 工具注册表未就绪")
 		return
 	}
-	toolDef := h.svc.tools.GetTool(req.Name)
+	// M0-09：解析含外部 provider（MCP）——与聊天路径同一解析入口。
+	toolDef := h.svc.tools.GetToolForTenant(c.Request.Context(), tenantID, req.Name)
 	if toolDef == nil {
 		common.Fail(c, common.UnknownToolCode, "unknown tool: "+req.Name)
 		return

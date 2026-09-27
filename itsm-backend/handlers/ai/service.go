@@ -128,7 +128,8 @@ func (s *Service) ExecuteTool(ctx context.Context, userID, tenantID int, role, n
 	permReason := ""
 	allowed := true
 
-	toolDef := s.tools.GetTool(name)
+	// M0-09：解析含外部 provider（MCP）——同一投影/解析函数，内置优先。
+	toolDef := s.tools.GetToolForTenant(ctx, tenantID, name)
 	if toolDef == nil {
 		// 未知工具：记录 denied 审计，返回错误
 		s.recordToolAudit(ctx, tenantID, userID, role, name, args, "denied", "unknown tool", "", nil, false)

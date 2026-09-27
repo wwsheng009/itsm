@@ -30,6 +30,8 @@ type ToolRegistry struct {
 	ticket         *TicketService
 	ticketType     *TicketTypeService
 	impactExplain  *ImpactExplanationService
+	// providers 是内置工具之外的工具来源（M0-09：MCP），按注册顺序作为解析兜底。
+	providers []ToolProvider
 }
 
 func NewToolRegistry(rag *RAGService, incident *IncidentService, cmdb *ConfigurationItemService, client *ent.Client) *ToolRegistry {
@@ -47,6 +49,36 @@ func (t *ToolRegistry) SetCIRelationshipService(s *CIRelationshipService) {
 
 // SetImpactExplainer P1-4：影响分析 AI 解释服务（可选注入，未注入时不报错）
 func (t *ToolRegistry) SetImpactExplainer(s *ImpactExplanationService) { t.impactExplain = s }
+
+// RegisterProvider 注册外部工具来源（M0-09：MCP provider；nil 忽略）。
+// 解析顺序 = 内置优先 → provider 注册顺序。
+func (t *ToolRegistry) RegisterProvider(p ToolProvider) {
+	if p == nil {
+		return
+	}
+	t.providers = append(t.providers, p)
+}
+
+// Providers 返回已注册的外部工具来源（只读用途，如健康/诊断）。
+func (t *ToolRegistry) Providers() []ToolProvider {
+	out := make([]ToolProvider, len(t.providers))
+	copy(out, t.providers)
+	return out
+}
+
+// GetToolForTenant 解析工具定义：内置优先 → 外部 provider（M0-09：MCP）。
+// 同一名字的判定口径与 ListToolsForTenant 一致（provider 内部用同一投影/解析函数）。
+func (t *ToolRegistry) GetToolForTenant(ctx context.Context, tenantID int, name string) *ToolDefinition {
+	if td := t.GetTool(name); td != nil {
+		return td
+	}
+	for _, provider := range t.providers {
+		if td, ok := provider.Resolve(ctx, tenantID, name); ok && td != nil {
+			return td
+		}
+	}
+	return nil
+}
 
 // GetTool 按名称查找工具定义，找不到返回 nil
 // P2-6: AI 工具 RBAC 校验入口需要查询 ToolDefinition.Resource/Action
@@ -87,6 +119,29 @@ func (t *ToolRegistry) canExecuteWriteTool(name string) bool {
 // 而是从该租户的 CIType 表实时读取——租户自定义类型（如 serverless）对 Agent 可见。
 // 查询失败或无类型时静默回落到静态清单（fail-open 仅影响参数提示，不影响执行校验）。
 func (t *ToolRegistry) ListToolsForTenant(ctx context.Context, tenantID int) []ToolDefinition {
+	tools := t.listBuiltinToolsForTenant(ctx, tenantID)
+	if len(t.providers) == 0 {
+		return tools
+	}
+	// 合并外部 provider 工具面（M0-09：MCP）：内置优先，重名以内置为准（防 provider 遮蔽）。
+	seen := make(map[string]struct{}, len(tools))
+	for _, td := range tools {
+		seen[td.Name] = struct{}{}
+	}
+	for _, provider := range t.providers {
+		for _, td := range provider.ListTools(ctx, tenantID) {
+			if _, exists := seen[td.Name]; exists {
+				continue
+			}
+			seen[td.Name] = struct{}{}
+			tools = append(tools, td)
+		}
+	}
+	return tools
+}
+
+// listBuiltinToolsForTenant 是内置工具清单（含 list_cis 的租户枚举动态化）。
+func (t *ToolRegistry) listBuiltinToolsForTenant(ctx context.Context, tenantID int) []ToolDefinition {
 	tools := t.ListTools()
 	if t.client == nil {
 		return tools
@@ -387,7 +442,27 @@ func (t *ToolRegistry) ListTools() []ToolDefinition {
 	}
 }
 
+// Execute 执行工具：内置优先；内置未命中时委派外部 provider（M0-09：MCP 只读工具）。
+// 注意：Gate2/Gate3 由 handles/ai.Service 编排，本方法不做权限与审批判定。
 func (t *ToolRegistry) Execute(ctx context.Context, tenantID int, name string, args map[string]interface{}) (interface{}, error) {
+	if td := t.GetTool(name); td != nil {
+		return t.executeBuiltin(ctx, tenantID, name, args)
+	}
+	for _, provider := range t.providers {
+		def, ok := provider.Resolve(ctx, tenantID, name)
+		if !ok || def == nil {
+			continue
+		}
+		if !def.ReadOnly {
+			// 写工具必须走审批（Gate3）后再由 ToolQueue 执行；M1-02 接入 provider 写路径。
+			return nil, fmt.Errorf("tool %s requires approval before execution", name)
+		}
+		return provider.Execute(ctx, tenantID, name, args)
+	}
+	return nil, fmt.Errorf("unknown tool: %s", name)
+}
+
+func (t *ToolRegistry) executeBuiltin(ctx context.Context, tenantID int, name string, args map[string]interface{}) (interface{}, error) {
 	switch name {
 	case "get_incident_stats":
 		// 使用ListIncidents来获取统计信息

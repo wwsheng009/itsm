@@ -103,6 +103,27 @@ func (s *Service) Store() *EntStore { return s.store }
 // Events 返回事件缓冲（供 bootstrap 装配 manager.Options.Events）。
 func (s *Service) Events() *EventBuffer { return s.events }
 
+// Manager 返回连接管理器（bootstrap 用于注册 provider 与生命周期控制）。
+func (s *Service) Manager() *manager.Manager { return s.manager }
+
+// Startup 在进程启动时拉起已启用服务器（幂等；不修改治理位）：
+// 逐条装配运行态配置（含解密后的请求头，仅存在于内存）并异步建连 + 工具发现。
+// 单条失败只记录并继续（运行态由 manager 退避与状态回写自愈），不阻断启动。
+func (s *Service) Startup(ctx context.Context) error {
+	servers, err := s.client.MCPServer.Query().Where(mcpserver.EnabledEQ(true)).All(ctx)
+	if err != nil {
+		return WrapAdminError(http.StatusInternalServerError, CodeInternal, "加载已启用 MCP 服务器失败", err)
+	}
+	for _, entity := range servers {
+		s.upsertManager(entity)
+		if enableErr := s.manager.Enable(ctx, entity.ID); enableErr != nil {
+			s.recordAudit(ctx, Actor{TenantID: entity.TenantID, IP: "startup"}, "startup_enable_failed",
+				"mcp_server", entity.Name, nil, map[string]any{"error": shortError(enableErr)}, enableErr)
+		}
+	}
+	return nil
+}
+
 // —— DTO ——
 
 // ServerView 是管理面服务器视图（凭据字段恒为掩码）。
@@ -987,6 +1008,18 @@ func sameSecretValues(left, right SecretValues) bool {
 		}
 	}
 	return true
+}
+
+// shortError 截断错误文本（审计/日志用，≤200 字符；不用于对外响应）。
+func shortError(err error) string {
+	if err == nil {
+		return ""
+	}
+	text := strings.TrimSpace(err.Error())
+	if len(text) > 200 {
+		text = text[:200]
+	}
+	return text
 }
 
 // serverAuditSnapshot 生成审计快照（不含明文；凭据只保留掩码）。
