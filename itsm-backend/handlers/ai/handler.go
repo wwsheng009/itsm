@@ -944,10 +944,21 @@ func (h *Handler) ListToolInvocations(c *gin.Context) {
 
 	items := make([]gin.H, 0, len(invs))
 	for _, inv := range invs {
+		// M1-02：审批详情必须让审批人看到「来源（内置/MCP）+ 服务器 + 原始工具名 + 投影名 + 风险」，
+		// 否则在信息缺失下决策。三元组来自 pending 落库快照；risk 由工具面实时解析
+		// （标注变更会立刻反映，且服务器不可达时退化为空值，不影响排障与审计）。
+		risk := ""
+		if h.svc.tools != nil {
+			if def := h.svc.tools.GetToolForTenant(c.Request.Context(), tenantID, inv.ToolName); def != nil {
+				risk = def.Risk
+			}
+		}
 		items = append(items, gin.H{
-			"id":               inv.ID,
-			"toolName":         inv.ToolName,
-			"arguments":        inv.Arguments,
+			"id":       inv.ID,
+			"toolName": inv.ToolName,
+			// M1-02 安全修正：列表**不再回显原始参数**（`arguments` 仅作为执行真源留在库里），
+			// 展示一律用脱敏快照 `argsRedacted`——避免 MCP 写工具的口令/token 出现在审批页面与浏览器网络面板。
+			"argsRedacted":     inv.ArgsRedacted,
 			"status":           inv.Status,
 			"needsApproval":    inv.NeedsApproval,
 			"approvalState":    inv.ApprovalState,
@@ -957,6 +968,19 @@ func (h *Handler) ListToolInvocations(c *gin.Context) {
 			"createdAt":        inv.CreatedAt,
 			"conversationId":   inv.ConversationID,
 			"userId":           inv.UserID,
+			// 来源与风险（M1-02）
+			"provider":      inv.Provider,
+			"serverName":    inv.McpServerName,
+			"rawToolName":   inv.McpRawToolName,
+			"callableName":  inv.McpCallableName,
+			"risk":          risk,
+			"roleSnapshot":  inv.RoleSnapshot,
+			"approvedBy":    inv.ApprovedBy,
+			"approvedAt":    inv.ApprovedAt,
+			"durationMs":    inv.DurationMs,
+			"errorCode":     inv.ErrorCode,
+			"result":        inv.Result,
+			"outputSummary": inv.OutputSummary,
 		})
 	}
 	common.Success(c, gin.H{"items": items, "state": state})
@@ -988,7 +1012,15 @@ func (h *Handler) ApproveTool(c *gin.Context) {
 
 	state, err := h.svc.ApproveTool(c.Request.Context(), id, tenantID, userID, req.Approve, req.Reason)
 	if err != nil {
-		common.Fail(c, common.NotFoundCode, "invocation not found or operation failed")
+		// M1-02：错误语义分层，便于调用方区分「重试有用」与「重试无意义」。
+		switch {
+		case errors.Is(err, ErrInvocationNotPending):
+			common.Fail(c, common.ConflictCode, "该审批已处理（仅 pending 记录可审批）")
+		case errors.Is(err, ErrToolQueueUnavailable):
+			common.Fail(c, common.ServiceUnavailableCode, "执行队列暂不可用，已保持待审批，请稍后重试")
+		default:
+			common.Fail(c, common.NotFoundCode, "invocation not found or operation failed")
+		}
 		return
 	}
 	common.Success(c, gin.H{"invocationId": id, "approvalState": state})

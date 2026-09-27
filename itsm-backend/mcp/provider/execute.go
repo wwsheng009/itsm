@@ -48,6 +48,20 @@ func CodeOf(err error) string {
 // 并发与单次超时由 manager 治理（每服务器并发默认 4、超时取服务器 TimeoutMS），此处不重复叠加。
 // M0-11：所有返回路径都填充审计元数据（三元组 + 耗时 + 稳定错误码 + 脱敏输出摘要）。
 func (p *Provider) Execute(ctx context.Context, tenantID int, name string, args map[string]interface{}) (*service.ToolExecution, error) {
+	return p.execute(ctx, tenantID, name, args, false)
+}
+
+// ExecuteApprovedWrite 实现 service.WriteCapableProvider：**仅由 ToolQueue 在 Gate3 审批通过后调用**。
+//
+// 与 Execute 的唯一差别是允许执行写工具（read_only=false）。安全边界：
+//   - 直接执行入口（ToolRegistry.ExecuteWithMeta / provider.Execute）对写工具保持拒绝，审批链路外的调用拿不到写路径；
+//   - 写调用**单次执行、不自动重试**：传输层/管理器不存在自动重试（失败即失败，避免重复副作用）；
+//   - 解析/租户/治理/健康/隔离/schema 校验与只读路径完全同源。
+func (p *Provider) ExecuteApprovedWrite(ctx context.Context, tenantID int, name string, args map[string]interface{}) (*service.ToolExecution, error) {
+	return p.execute(ctx, tenantID, name, args, true)
+}
+
+func (p *Provider) execute(ctx context.Context, tenantID int, name string, args map[string]interface{}, allowWrite bool) (*service.ToolExecution, error) {
 	started := time.Now()
 	execution := &service.ToolExecution{
 		Provider:     ProviderName,
@@ -74,8 +88,8 @@ func (p *Provider) Execute(ctx context.Context, tenantID int, name string, args 
 	execution.RawToolName = tool.rawName
 	execution.CallableName = tool.callable
 
-	if !tool.def.ReadOnly {
-		// M0-09 一期只暴露只读工具；写工具的 Gate3 编排在 M1-02 接入。
+	if !tool.def.ReadOnly && !allowWrite {
+		// 写工具必须经 Gate3 审批后由 ToolQueue 调用 ExecuteApprovedWrite；此处保持 fail-closed。
 		err := &ExecuteError{Code: CodeToolNotFound, Message: "写工具需经审批链路，当前不可直接执行"}
 		finish(err)
 		return execution, err

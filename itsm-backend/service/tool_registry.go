@@ -19,6 +19,16 @@ type ToolDefinition struct {
 	Action       string                 `json:"action"`
 	ArgsSchema   map[string]interface{} `json:"argsSchema"`
 	ResultSchema map[string]interface{} `json:"resultSchema"`
+	// —— 来源与风险（M1-02：审批详情/审计三元组在**创建 pending 时**即可落库，不再依赖执行期推断）——
+
+	// Provider: 工具来源（builtin|mcp；内置工具由注册表统一填 builtin）。
+	Provider string `json:"provider,omitempty"`
+	// ServerName: provider=mcp 时的 MCP 服务器标识（投影名主体）。
+	ServerName string `json:"serverName,omitempty"`
+	// RawToolName: provider=mcp 时的原始工具名（服务器侧名字，用于排障与审计）。
+	RawToolName string `json:"rawToolName,omitempty"`
+	// Risk: 治理标注的风险级别（read|plan|act_low|act_medium|act_high）；内置工具为空。
+	Risk string `json:"risk,omitempty"`
 }
 
 type ToolRegistry struct {
@@ -70,14 +80,59 @@ func (t *ToolRegistry) Providers() []ToolProvider {
 // 同一名字的判定口径与 ListToolsForTenant 一致（provider 内部用同一投影/解析函数）。
 func (t *ToolRegistry) GetToolForTenant(ctx context.Context, tenantID int, name string) *ToolDefinition {
 	if td := t.GetTool(name); td != nil {
+		if td.Provider == "" {
+			td.Provider = ProviderNameBuiltin
+		}
 		return td
 	}
 	for _, provider := range t.providers {
 		if td, ok := provider.Resolve(ctx, tenantID, name); ok && td != nil {
+			if td.Provider == "" {
+				td.Provider = provider.ProviderName()
+			}
 			return td
 		}
 	}
 	return nil
+}
+
+// HasProviderTool 判定名字是否由**外部 provider**（MCP）提供（内置优先，与解析同源）。
+// ToolQueue 用它把「审批后的外部写工具执行」与内置写工具的内联实现分流。
+func (t *ToolRegistry) HasProviderTool(ctx context.Context, tenantID int, name string) bool {
+	if t.GetTool(name) != nil {
+		return false
+	}
+	for _, provider := range t.providers {
+		if _, ok := provider.Resolve(ctx, tenantID, name); ok {
+			return true
+		}
+	}
+	return false
+}
+
+// ExecuteApprovedWrite 执行**已获审批**的外部工具（M1-02，Gate3 已满足）。
+//
+// 语义：
+//   - 只读工具与内置工具不受影响（内置仍由 ToolQueue 的既有分支处理；本方法只服务 provider 工具）；
+//   - 写工具要求 provider 实现 WriteCapableProvider，否则 fail-closed（不静默降级为直执行）；
+//   - 直接执行入口 ExecuteWithMeta 对写工具的拒绝**保持不变**，本方法是唯一写执行入口，
+//     只允许 ToolQueue 在消费已批准记录时调用。
+func (t *ToolRegistry) ExecuteApprovedWrite(ctx context.Context, tenantID int, name string, args map[string]interface{}) (*ToolExecution, error) {
+	for _, provider := range t.providers {
+		def, ok := provider.Resolve(ctx, tenantID, name)
+		if !ok || def == nil {
+			continue
+		}
+		if def.ReadOnly {
+			return provider.Execute(ctx, tenantID, name, args)
+		}
+		writer, ok := provider.(WriteCapableProvider)
+		if !ok {
+			return nil, fmt.Errorf("provider %s 不支持审批后写执行：%s", provider.ProviderName(), name)
+		}
+		return writer.ExecuteApprovedWrite(ctx, tenantID, name, args)
+	}
+	return nil, fmt.Errorf("unknown tool: %s", name)
 }
 
 // GetTool 按名称查找工具定义，找不到返回 nil

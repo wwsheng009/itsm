@@ -1048,7 +1048,12 @@ func NewApplication() *Application {
 							"module", "mcp", "error", startupErr.Error())
 					}
 					// 工具面接入：与内置工具同源（Gate1/Gate2/Gate3 由 ai.Service 编排）。
-					toolRegistry.RegisterProvider(mcpprovider.New(client, mcpManager, mcpprovider.Options{Enabled: true}))
+					// 写工具面由 mcp.write_enabled 控制（L1.5 回滚开关）：默认 false = 写工具不可见；
+					// 开启后每次写调用仍需 mcp:write（Gate2）+ 人工审批（Gate3）。
+					toolRegistry.RegisterProvider(mcpprovider.New(client, mcpManager, mcpprovider.Options{
+						Enabled:           true,
+						IncludeWriteTools: cfg.MCP.WriteEnabled,
+					}))
 					// 管理 API（M0-10 接线）：handler 注入 RouterConfig 后整组注册（mcp:read / mcp:admin）。
 					mcpAdminHandler = mcpHandler.NewHandler(mcpAdminService)
 					sugar.Infow("MCP 外部工具接入已启用",
@@ -1056,7 +1061,8 @@ func NewApplication() *Application {
 						"connect_timeout_seconds", cfg.MCP.ConnectTimeoutSeconds,
 						"call_timeout_seconds", cfg.MCP.CallTimeoutSeconds,
 						"test_timeout_seconds", cfg.MCP.TestTimeoutSeconds,
-						"max_servers_per_tenant", cfg.MCP.MaxServersPerTenant)
+						"max_servers_per_tenant", cfg.MCP.MaxServersPerTenant,
+						"write_enabled", cfg.MCP.WriteEnabled)
 				}
 			}
 		}

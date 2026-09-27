@@ -29,6 +29,9 @@ type ToolQueue struct {
 	logger      *zap.SugaredLogger
 }
 
+// ErrToolQueueFull 队列已满（fail-closed：调用方必须把审批留在 pending 可重试，不得静默丢弃）。
+var ErrToolQueueFull = errors.New("tool queue is full")
+
 func NewToolQueue(client *ent.Client, tools *ToolRegistry, capacity int, logger *zap.SugaredLogger) *ToolQueue {
 	if capacity <= 0 {
 		capacity = 100
@@ -44,10 +47,16 @@ func NewToolQueue(client *ent.Client, tools *ToolRegistry, capacity int, logger 
 // SetTicketTypeService 注入工单类型服务，供 create_ticket_type 审批通过后执行。
 func (q *ToolQueue) SetTicketTypeService(s *TicketTypeService) { q.ticketTypes = s }
 
-func (q *ToolQueue) Enqueue(job ToolJob) {
+// Enqueue 非阻塞入队；队列满时返回 ErrToolQueueFull（fail-closed）。
+//
+// 历史行为是「满则静默丢弃」，会让已批准的写工具永久停在 approved 且永不执行——
+// 审批人以为已放行、审计里却没有执行结果，故 M1-02 改为显式失败由调用方回滚/提示重试。
+func (q *ToolQueue) Enqueue(job ToolJob) error {
 	select {
 	case q.jobs <- job:
+		return nil
 	default:
+		return ErrToolQueueFull
 	}
 }
 
@@ -63,6 +72,18 @@ func (q *ToolQueue) worker() {
 		var args map[string]interface{}
 		_ = json.Unmarshal([]byte(inv.Arguments), &args)
 		var res interface{}
+		// M1-02：外部 provider（MCP）工具——无论读写，审批通过后走专用入口
+		// （写工具只有这条路可达；只读工具正常不会进入队列）。
+		if q.tools != nil && q.tools.HasProviderTool(ctx, job.TenantID, inv.ToolName) {
+			// 单次执行、不重试：失败即终态（避免重复副作用），错误码与耗时由 finalize 落库。
+			execution, execErr := q.tools.ExecuteApprovedWrite(ctx, job.TenantID, inv.ToolName, args)
+			if execution != nil {
+				res = execution.Value
+			}
+			q.finalize(ctx, inv.ID, res, execErr, startedAt, execution)
+			cancel()
+			continue
+		}
 		// 优先委派给 ToolRegistry：写工具的参数解析/租户校验/CMDB 本体绑定
 		// 只在 ToolRegistry.Execute 里维护一份，避免此处内联实现与之漂移
 		// （历史上这里的 create_ticket 就漏了 category/type/ticket_type_id/ci_id）。
@@ -74,7 +95,7 @@ func (q *ToolQueue) worker() {
 			if execution != nil {
 				res = execution.Value
 			}
-			q.finalize(ctx, inv.ID, res, err, startedAt)
+			q.finalize(ctx, inv.ID, res, err, startedAt, execution)
 			cancel()
 			continue
 		}
@@ -152,32 +173,54 @@ func (q *ToolQueue) worker() {
 		default:
 			res, err = q.tools.Execute(ctx, job.TenantID, inv.ToolName, args)
 		}
-		q.finalize(ctx, inv.ID, res, err, startedAt)
+		q.finalize(ctx, inv.ID, res, err, startedAt, nil)
 		cancel()
 	}
 }
 
 // finalize 把工具执行结果写回 ToolInvocation（成功/失败两态）。
 // M0-11：补耗时与稳定错误码；成功时补 output_summary（脱敏截断，不落原始大结果）。
-func (q *ToolQueue) finalize(ctx context.Context, invocationID int, res interface{}, err error, startedAt time.Time) {
+// M1-02：当执行元数据携带来源三元组时一并回填（pending 创建时已写入，此处兜底纠偏）。
+func (q *ToolQueue) finalize(ctx context.Context, invocationID int, res interface{}, err error, startedAt time.Time, execution *ToolExecution) {
 	durationMs := time.Since(startedAt).Milliseconds()
+	if durationMs == 0 {
+		durationMs = 1 // 与 provider 口径一致：成功/失败耗时不出现 0
+	}
+	applySource := func(update *ent.ToolInvocationUpdateOne) *ent.ToolInvocationUpdateOne {
+		if execution == nil {
+			return update
+		}
+		if execution.Provider != "" {
+			update = update.SetProvider(execution.Provider)
+		}
+		if execution.ServerName != "" {
+			update = update.SetMcpServerName(execution.ServerName)
+		}
+		if execution.RawToolName != "" {
+			update = update.SetMcpRawToolName(execution.RawToolName)
+		}
+		if execution.CallableName != "" {
+			update = update.SetMcpCallableName(execution.CallableName)
+		}
+		return update
+	}
 	if err != nil {
-		if _, updateErr := q.client.ToolInvocation.UpdateOneID(invocationID).
+		if _, updateErr := applySource(q.client.ToolInvocation.UpdateOneID(invocationID).
 			SetStatus("failed").
 			SetError(redact.Summary(err.Error(), 512)).
 			SetDurationMs(int(durationMs)).
-			SetErrorCode(errorCodeOf(err)).
+			SetErrorCode(errorCodeOf(err))).
 			Save(ctx); updateErr != nil {
 			q.logger.Errorw("Failed to update tool invocation status to failed", "invocation_id", invocationID, "error", updateErr)
 		}
 		return
 	}
 	out, _ := json.Marshal(res)
-	if _, updateErr := q.client.ToolInvocation.UpdateOneID(invocationID).
+	if _, updateErr := applySource(q.client.ToolInvocation.UpdateOneID(invocationID).
 		SetStatus("done").
 		SetResult(string(out)).
 		SetDurationMs(int(durationMs)).
-		SetOutputSummary(redact.ValueSummary(res, 512)).
+		SetOutputSummary(redact.ValueSummary(res, 512))).
 		Save(ctx); updateErr != nil {
 		q.logger.Errorw("Failed to update tool invocation status to done", "invocation_id", invocationID, "error", updateErr)
 	}

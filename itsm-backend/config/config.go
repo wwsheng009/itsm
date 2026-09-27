@@ -109,6 +109,12 @@ type MCPConfig struct {
 	TestTimeoutSeconds int `mapstructure:"test_timeout_seconds"`
 	// MaxServersPerTenant: mcp.max_servers_per_tenant 单租户服务器数量上限，默认 20。
 	MaxServersPerTenant int `mapstructure:"max_servers_per_tenant"`
+	// WriteEnabled: mcp.write_enabled 写工具面开关（回滚四级开关的 L1.5，M1-02 新增）。
+	//
+	// 默认 false：外部写工具**不进工具面**（模型看不到、无法提交审批）；置 true 后写工具进入工具面，
+	// 且每次调用仍必须经 Gate2（mcp:write）+ Gate3（人工审批）才能执行。
+	// 与 Enabled 的关系：Enabled=false 时本开关无意义（MCP 整体关闭）。
+	WriteEnabled bool `mapstructure:"write_enabled"`
 }
 
 // MCP 连接与治理默认值（须与 config.yaml.example 的 mcp 块保持同值，两侧都有测试钉住）。

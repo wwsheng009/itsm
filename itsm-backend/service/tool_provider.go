@@ -21,6 +21,15 @@ type ToolExecution struct {
 	OutputSummary string
 }
 
+// WriteCapableProvider 由支持「审批通过后执行写工具」的 provider 实现（M1-02）。
+//
+// 调用方承诺：仅在 Gate3 审批通过（ToolQueue 消费已批准的 tool_invocations）后调用。
+// provider 自身不感知审批状态，也**不得**在其它路径暴露写执行入口；写调用一律单次执行
+// （不自动重试，避免重复副作用——失败即失败，由审批链路的审计留痕）。
+type WriteCapableProvider interface {
+	ExecuteApprovedWrite(ctx context.Context, tenantID int, name string, args map[string]interface{}) (*ToolExecution, error)
+}
+
 // ProviderNameBuiltin 内置工具的审计 provider 标识（与 tool_invocations.provider 默认值一致）。
 const ProviderNameBuiltin = "builtin"
 

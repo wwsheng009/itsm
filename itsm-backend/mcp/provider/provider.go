@@ -177,6 +177,11 @@ func (p *Provider) snapshot(ctx context.Context, tenantID int) *toolFace {
 			Action:       actionFor(readOnly),
 			ArgsSchema:   argsSchema,
 			ResultSchema: nil,
+			// M1-02：来源与风险随定义一并投影——审批创建时即可落库三元组与 risk，无需执行期推断。
+			Provider:    ProviderName,
+			ServerName:  serverName,
+			RawToolName: record.RawName,
+			Risk:        record.Risk,
 		}
 		face.byCanonical[definition.Name] = len(face.tools)
 		face.tools = append(face.tools, faceTool{

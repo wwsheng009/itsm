@@ -126,8 +126,8 @@ const AIApprovalQueue: React.FC = () => {
     },
     {
       title: '参数',
-      dataIndex: 'arguments',
-      key: 'arguments',
+      dataIndex: 'argsRedacted',
+      key: 'argsRedacted',
       ellipsis: true,
       render: (v: string) => (
         <Text type="secondary" style={{ fontSize: 12 }}>
@@ -219,7 +219,7 @@ const AIApprovalQueue: React.FC = () => {
           expandable={{
             expandedRowRender: (r) => (
               <pre style={{ margin: 0, whiteSpace: 'pre-wrap', wordBreak: 'break-all', fontSize: 12 }}>
-                {prettyArgs(r.arguments)}
+                {prettyArgs(r.argsRedacted)}
               </pre>
             ),
           }}

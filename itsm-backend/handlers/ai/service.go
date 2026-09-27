@@ -108,6 +108,14 @@ var ErrUnknownTool = fmt.Errorf("unknown tool")
 
 var ErrToolUnavailable = fmt.Errorf("tool authorization dependencies unavailable")
 
+// M1-02 审批链路错误（fail-closed：调用方可据此决定是否重试，绝不静默丢弃）。
+var (
+	// ErrInvocationNotPending：审批状态机保护——只有 pending 记录可被审批（防重复执行写工具）。
+	ErrInvocationNotPending = fmt.Errorf("tool invocation is not pending approval")
+	// ErrToolQueueUnavailable：执行队列不可用/已满；审批不落 approved，保持 pending 可重试。
+	ErrToolQueueUnavailable = fmt.Errorf("tool queue unavailable")
+)
+
 // ExecuteTool 执行 AI 工具
 // P2-6: 新增 userID 和 role 参数用于 Gate 2 RBAC 校验
 //
@@ -180,6 +188,16 @@ func (s *Service) ExecuteTool(ctx context.Context, userID, tenantID int, role, n
 
 	// 写工具：创建 pending invocation，等待审批
 	argsStr, _ := json.Marshal(args)
+	// M1-02：来源三元组与风险随 pending **一次落库**——审批人在信息完整（服务器/原始名/投影名/风险）下决策；
+	// 风险展示走审批详情实时解析（见 handler），此处落三元组保证即使服务器后续不可达也可追溯来源。
+	sourceProvider := toolDef.Provider
+	if sourceProvider == "" {
+		sourceProvider = service.ProviderNameBuiltin
+	}
+	callableName := ""
+	if sourceProvider != service.ProviderNameBuiltin {
+		callableName = toolDef.Name
+	}
 	inv, err := s.repo.CreateToolInvocation(ctx, &ToolInvocation{
 		TenantID:         tenantID,
 		ToolName:         name,
@@ -192,6 +210,10 @@ func (s *Service) ExecuteTool(ctx context.Context, userID, tenantID int, role, n
 		PermissionCheck:  permCheck,
 		PermissionReason: permReason,
 		RoleSnapshot:     role,
+		Provider:         sourceProvider,
+		McpServerName:    toolDef.ServerName,
+		McpRawToolName:   toolDef.RawToolName,
+		McpCallableName:  callableName,
 	})
 	if err != nil {
 		return nil, 0, err
@@ -247,33 +269,65 @@ func (s *Service) recordToolAudit(ctx context.Context, tenantID, userID int, rol
 	}
 }
 
+// ApproveTool 审批写工具执行请求（M1-02 加固）。
+//
+// 语义与 fail-closed 保证：
+//   - 状态机：仅 `approval_state=pending` 的记录可被审批；重复审批/已执行记录一律拒绝
+//     （防止同一写工具被执行两次）；
+//   - 拒绝：approval_state=rejected + status=rejected + reason（决策人/时间落 approved_by/approved_at），
+//     进入队列的路径不触发；
+//   - 通过：先确认队列可用（未装配或已满则**不改状态**直接失败，调用方可稍后重试），
+//     再落 approved 并入队；入队失败时回滚为 pending，绝不留下「已批准但永不执行」的悬空记录；
+//   - 执行以**落库参数**（`tool_invocations.arguments`）为唯一真源，审批接口不接受任何参数覆盖
+//     （参数冻结：审批后篡改无效）。
 func (s *Service) ApproveTool(ctx context.Context, id int, tenantID, userID int, approve bool, reason string) (string, error) {
 	inv, err := s.repo.GetToolInvocation(ctx, id, tenantID)
 	if err != nil {
 		return "", err
 	}
+	if inv.ApprovalState != "pending" {
+		return "", ErrInvocationNotPending
+	}
 
+	now := time.Now()
 	if !approve {
 		inv.ApprovalState = "rejected"
+		inv.Status = "rejected"
 		inv.ApprovalReason = reason
+		inv.ApprovedBy = userID
+		inv.ApprovedAt = &now
 		_, err = s.repo.UpdateToolInvocation(ctx, inv)
 		return "rejected", err
 	}
 
+	// 队列可用性前置检查：不在「无法执行」时把记录置为 approved。
+	if s.queue == nil {
+		return "", ErrToolQueueUnavailable
+	}
+
 	inv.ApprovalState = "approved"
 	inv.ApprovedBy = userID
-	now := time.Now()
 	inv.ApprovedAt = &now
 	_, err = s.repo.UpdateToolInvocation(ctx, inv)
 	if err != nil {
 		return "", err
 	}
 
-	if s.queue != nil {
-		s.queue.Enqueue(service.ToolJob{
-			InvocationID: inv.ID,
-			TenantID:     tenantID,
-		})
+	if err := s.queue.Enqueue(service.ToolJob{
+		InvocationID: inv.ID,
+		TenantID:     tenantID,
+	}); err != nil {
+		// 回滚为 pending：审批人可稍后重试，避免出现「已批准但无执行、无结果」的悬空记录。
+		inv.ApprovalState = "pending"
+		inv.ApprovedBy = 0
+		inv.ApprovedAt = nil
+		if _, rollbackErr := s.repo.UpdateToolInvocation(ctx, inv); rollbackErr != nil {
+			s.logger.Errorw("审批入队失败且回滚 pending 失败（需人工介入）",
+				"invocation_id", inv.ID, "tenant_id", tenantID, "error", rollbackErr)
+		}
+		s.logger.Warnw("审批入队失败（队列满），已回滚为 pending",
+			"invocation_id", inv.ID, "tenant_id", tenantID, "error", err)
+		return "", fmt.Errorf("%w: %v", ErrToolQueueUnavailable, err)
 	}
 
 	return "approved", nil

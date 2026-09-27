@@ -296,7 +296,13 @@ export async function aiPredict(req: TrendPredictionRequest): Promise<TrendPredi
 export interface ToolApproval {
   id: number;
   toolName: string;
-  arguments: string; // JSON 字符串
+  /**
+   * 脱敏参数（JSON 字符串）。
+   *
+   * M1-02 起列表接口**不再返回原始 `arguments`**（原始参数只作为执行真源留在后端），
+   * 展示与审批一律以本字段为准，避免口令/token 出现在页面与浏览器网络面板。
+   */
+  argsRedacted: string;
   status: string;
   needsApproval: boolean;
   approvalState: string; // pending | approved | rejected | auto

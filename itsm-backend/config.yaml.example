@@ -118,3 +118,4 @@ mcp:
   call_timeout_seconds: ${MCP_CALL_TIMEOUT_SECONDS:30}          # 单次 tools/call 超时（秒）
   test_timeout_seconds: ${MCP_TEST_TIMEOUT_SECONDS:10}          # 管理面「测试连接」同步超时（秒，上限 10）
   max_servers_per_tenant: ${MCP_MAX_SERVERS_PER_TENANT:20}      # 单租户服务器数量上限
+  write_enabled: ${MCP_WRITE_ENABLED:false}                     # 写工具面（L1.5 回滚开关，M1-02）：开启后写工具可见，仍需 mcp:write + 人工审批

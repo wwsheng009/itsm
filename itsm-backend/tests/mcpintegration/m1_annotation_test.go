@@ -48,11 +48,17 @@ func (h *harness) provisionMockServer(t *testing.T) (int, []admin.ToolView) {
 	require.NoError(t, err)
 
 	deadline := time.Now().Add(20 * time.Second)
+	var tools []admin.ToolView
 	for {
 		view, getErr := h.adminSvc.GetServer(ctx, actor, created.ID)
 		require.NoError(t, getErr)
+		// 注意：`healthy` 表示连接可用，工具发现落库可能在其后毫秒级完成
+		// （M0-07 的状态机先置 healthy 再写 ToolCache），故这里以「工具面非空」为完成条件。
 		if view.RunningStatus == "healthy" {
-			break
+			if listed, listErr := h.adminSvc.ListTools(ctx, actor, created.ID); listErr == nil && len(listed) > 0 {
+				tools = listed
+				break
+			}
 		}
 		if time.Now().After(deadline) {
 			t.Fatalf("服务器未在 20s 内进入 healthy：status=%s running=%s last_error=%s events=%+v",
@@ -61,8 +67,6 @@ func (h *harness) provisionMockServer(t *testing.T) (int, []admin.ToolView) {
 		time.Sleep(200 * time.Millisecond)
 	}
 
-	tools, err := h.adminSvc.ListTools(ctx, actor, created.ID)
-	require.NoError(t, err)
 	require.NotEmpty(t, tools, "健康服务器必须完成工具发现")
 	return created.ID, tools
 }
