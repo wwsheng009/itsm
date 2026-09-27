@@ -227,6 +227,7 @@ MCP：         ▼                    ▼                     ▼
   6. 执行归一化：解析成功后强制以 `(server, raw_name)` 路由，杜绝串服务。
 - **测试与证据**：移植参考实现用例思路（分析报告 §10.4 第 1–3 组，即本方案 T-01/T-02/T-03；参考 `docs/mcp/mcp-tool-llm-integration.md:178-184`）：唯一/重名/非法字符/超长/遮蔽五类投影断言 + 解析四类 + quarantine 与解除路径。测试输出归档。
 - **DoD**：`unit_verified`（契约测试全绿；此任务不得被任何执行链路上线绕过）。
+- **状态**：`unit_verified`（2026-09-27，分支 `feat/bot-mcp-integration`；证据 `docs/plan/evidence/mcp-m0/M0-02-unit-evidence.md`）。
 
 #### M0-03 ent 数据模型与迁移（含 G1/G7 合并）
 
@@ -841,3 +842,4 @@ M2-06 交付《MCP 运维手册》（建议 `docs/ops/mcp-runbook.md`），至�
 | 2026-09-27 | AI 辅助编制 | 初稿：基于《ITSM 外部工具（MCP）接入与业务闭环审查》（69,627 字节）与《ITSM Bot 能力落地分析》，产出 M0–M2 共 31 个任务卡、32 条验收项（A0×14 / A1×10 / A2×8）、9 组测试用例执行清单、四级开关回滚预案与风险/决策登记；基线 HEAD `7442fad5`，未改动代码 |
 | 2026-09-27 | AI 辅助编制 | 开工准备：Q1–Q8 按建议拍板登记（§10）；P1 工作树处置完成（独立提交 `d3471221`）；创建实施分支 `feat/bot-mcp-integration` 并入库 4 份文档（`3172c12c`） |
 | 2026-09-27 | AI 辅助执行 | M0-01 交付并回写状态：`mcp/` 六包骨架、`go-sdk v1.4.0` 锁版、`mcp.enabled` 开关与连接默认值、bootstrap 预留装配点、SDK 握手回归与配置单测；`go build ./...` 与 `go test ./mcp/... ./config/...` 全绿（证据 `docs/plan/evidence/mcp-m0/M0-01-unit-evidence.md`）；M0-01 = `unit_verified` |
+| 2026-09-27 | AI 辅助执行 | M0-02 交付并回写状态：registry 投影/解析/隔离实现与三组契约测试（投影五类 + 解析四类 + 隔离与解除），与参考实现规则逐字对齐；`go vet ./mcp/...` 干净、`go test ./mcp/...` 全绿（证据 `docs/plan/evidence/mcp-m0/M0-02-unit-evidence.md`）；M0-02 = `unit_verified` |
