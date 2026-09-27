@@ -490,9 +490,10 @@ func (s *Service) ChatStream(
 	convID int,
 	onSources func([]map[string]any),
 	onDelta func(string),
+	onTool func(ToolStreamEvent),
 ) (int, string, error) {
 	gateway, providerReq := s.chatGateway(tenantID, userID, "")
-	return s.chatStream(ctx, tenantID, userID, role, query, limit, convID, gateway, providerReq, onSources, onDelta)
+	return s.chatStream(ctx, tenantID, userID, role, query, limit, convID, gateway, providerReq, onSources, onDelta, onTool)
 }
 
 // ChatStreamWithProviderInfo 同 ChatStream，但按 §3.3 解析 provider（BE-7）：
@@ -508,13 +509,14 @@ func (s *Service) ChatStreamWithProviderInfo(
 	provider string,
 	onSources func([]map[string]any),
 	onDelta func(string),
+	onTool func(ToolStreamEvent),
 ) (service.ProviderResolution, int, error) {
 	resolution, err := s.ResolveChatProvider(ctx, tenantID, userID, provider)
 	if err != nil {
 		return resolution, 0, err
 	}
 	gateway, providerReq := s.chatGateway(tenantID, userID, provider)
-	convIDOut, _, err := s.chatStream(ctx, tenantID, userID, role, query, limit, convID, gateway, providerReq, onSources, onDelta)
+	convIDOut, _, err := s.chatStream(ctx, tenantID, userID, role, query, limit, convID, gateway, providerReq, onSources, onDelta, onTool)
 	return resolution, convIDOut, err
 }
 
@@ -532,6 +534,7 @@ func (s *Service) chatStream(
 	providerReq *service.ProviderRequest,
 	onSources func([]map[string]any),
 	onDelta func(string),
+	onTool func(ToolStreamEvent),
 ) (int, string, error) {
 	s.logger.Infow("AI ChatStream", "query", query, "tenantID", tenantID, "convID", convID, "role", role)
 
@@ -583,6 +586,9 @@ func (s *Service) chatStream(
 	// 工具执行回调：复用 ExecuteTool 的 RBAC Gate 2 + 审计，与 agent 执行路径一致。
 	// 写工具经审批流会返回 (res=nil, invID!=0, err=nil)，这里将其转译为结构化
 	// approval_pending 提示，让 LLM 明确告知用户"操作已提交、待人工审批"。
+	//
+	// M1-03：回调内按「开始 → 成功/失败/待审批」发出工具事件（脱敏 + 截断），
+	// 事件只作过程可见；无论事件是否下发，最终答案仍由 delta/done 承载。
 	execTool := func(name string, args map[string]any) (any, error) {
 		// 注入操作者身份，便于工单归属与审计（审批队列回放时据此归因）
 		if _, ok := args["user_id"]; !ok {
@@ -591,11 +597,56 @@ func (s *Service) chatStream(
 		if _, ok := args["requester_id"]; !ok {
 			args["requester_id"] = float64(userID)
 		}
+
+		// 事件元数据取自同一解析入口（含 MCP 来源与读写性质）；解析不到（未知工具）
+		// 时仍发事件，让「失败」在界面上可见，而不是静默消失。
+		event := ToolStreamEvent{Tool: name, Provider: service.ProviderNameBuiltin, Phase: "read"}
+		if s.tools != nil {
+			if def := s.tools.GetToolForTenant(ctx, tenantID, name); def != nil {
+				event.Provider = def.Provider
+				if event.Provider == "" {
+					event.Provider = service.ProviderNameBuiltin
+				}
+				event.Server = def.ServerName
+				if !def.ReadOnly {
+					event.Phase = "write"
+				}
+			}
+		}
+		emit := func(ev ToolStreamEvent) {
+			if onTool != nil {
+				onTool(ev)
+			}
+		}
+
+		started := time.Now()
+		event.Status = ToolEventStatusStarted
+		emit(event)
+
+		finish := func(status, summary, errCode string, invID int) {
+			out := event
+			out.Status = status
+			out.Summary = summary
+			out.ErrorCode = errCode
+			out.ID = invID
+			if status == ToolEventStatusDone || status == ToolEventStatusFailed {
+				// 耗时口径与审计一致：亚毫秒记 1ms，避免前端出现「0ms」的歧义。
+				out.DurationMs = time.Since(started).Milliseconds()
+				if out.DurationMs < 1 {
+					out.DurationMs = 1
+				}
+			}
+			emit(out)
+		}
+
 		res, invID, err := s.ExecuteTool(ctx, userID, tenantID, role, name, args)
 		if err != nil {
+			finish(ToolEventStatusFailed, "", toolEventErrorCode(err), 0)
 			return nil, err
 		}
 		if res == nil && invID != 0 {
+			// 写路径：本次流内只到「已提交待审批」，执行发生在审批之后。
+			finish(ToolEventStatusPending, "", "", invID)
 			return map[string]any{
 				"status":       "approval_pending",
 				"tool":         name,
@@ -603,6 +654,7 @@ func (s *Service) chatStream(
 				"message":      fmt.Sprintf("操作已提交，等待人工审批后执行（invocationId=%d）", invID),
 			}, nil
 		}
+		finish(ToolEventStatusDone, toolEventSummary(res, ToolEventSummaryLimit), "", invID)
 		return res, nil
 	}
 

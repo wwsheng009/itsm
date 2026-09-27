@@ -223,8 +223,14 @@ func (h *Handler) Chat(c *gin.Context) {
 // Events:
 //   - event: sources        data: [{objectType,id,title,snippet,score,...}]
 //   - event: delta          data: {"content": "..."}
+//   - event: tool_call_started  data: {id?,tool,provider,server?,phase,status:"started"}
+//   - event: tool_call_finished data: {...,status:"done",summary,durationMs}
+//   - event: tool_call_failed   data: {...,status:"failed",errorCode}
+//   - event: approval_pending   data: {id,tool,provider,server?,phase:"write",status:"pending"}
 //   - event: done           data: {"conversationId": <id>}（多 Provider 开启/显式覆盖时附加 provider/providerSource）
 //   - event: error          data: {"message": "..."}（provider 解析失败时附加 errorCode，§3.4 契约）
+//
+// M1-03：工具事件为**叠加**语义——最终答案仍由 delta/done 承载；事件丢失时前端按最终消息降级渲染。
 func (h *Handler) ChatStream(c *gin.Context) {
 	var req struct {
 		Query          string `json:"query" binding:"required"`
@@ -313,11 +319,16 @@ func (h *Handler) ChatStream(c *gin.Context) {
 	onDelta := func(delta string) {
 		writeEvent("delta", map[string]string{"content": delta})
 	}
+	// M1-03：工具事件（过程可见）。未知状态一律按 started 下发，保证事件不丢；
+	// 旧客户端遇到未知事件名必须忽略（前端解析 default 分支），故叠加事件是向后兼容的。
+	onTool := func(ev ToolStreamEvent) {
+		writeToolEvent(writeEvent, ev)
+	}
 
 	// 注入访问者身份：AI 助手主链路，RAG 据此做知识分类可见性过滤（L0 权限边界）
 	chatCtx := knowledgeaccess.WithViewer(c.Request.Context(), knowledgeaccess.Viewer{UserID: userID, Role: role})
 	if !useProviderInfo {
-		convID, _, err := h.svc.ChatStream(chatCtx, tenantID, userID, role, req.Query, req.Limit, req.ConversationID, onSources, onDelta)
+		convID, _, err := h.svc.ChatStream(chatCtx, tenantID, userID, role, req.Query, req.Limit, req.ConversationID, onSources, onDelta, onTool)
 		if err != nil {
 			h.svc.logger.Warnw("AI ChatStream 失败", "error", err, "tenantID", tenantID)
 			writeEvent("error", map[string]string{"message": err.Error()})
@@ -329,7 +340,7 @@ func (h *Handler) ChatStream(c *gin.Context) {
 
 	// BE-7：多 Provider 开启或显式覆盖——解析 provider 并把生效标注写进 done 事件；
 	// 显式覆盖的解析失败在 SSE error 事件内可见地失败（带 errorCode），不回退默认 provider。
-	resolution, convID, err := h.svc.ChatStreamWithProviderInfo(chatCtx, tenantID, userID, role, req.Query, req.Limit, req.ConversationID, provider, onSources, onDelta)
+	resolution, convID, err := h.svc.ChatStreamWithProviderInfo(chatCtx, tenantID, userID, role, req.Query, req.Limit, req.ConversationID, provider, onSources, onDelta, onTool)
 	if err != nil {
 		h.svc.logger.Warnw("AI ChatStream 失败", "error", err, "tenantID", tenantID, "provider", provider)
 		if isProviderResolutionError(err) {

@@ -505,12 +505,50 @@ export interface AIChatDoneInfo {
 export type AIChatStreamEvent =
   | { type: 'sources'; sources: RagAnswer[] }
   | { type: 'delta'; content: string }
+  | { type: 'tool_call_started'; event: AIToolStreamEvent }
+  | { type: 'tool_call_finished'; event: AIToolStreamEvent }
+  | { type: 'tool_call_failed'; event: AIToolStreamEvent }
+  | { type: 'approval_pending'; event: AIToolStreamEvent }
   | { type: 'done'; conversationId: number; provider?: string; providerSource?: string }
   | { type: 'error'; message: string };
+
+/**
+ * 对话内工具事件（M1-03 后端契约）。
+ *
+ * 语义：**过程可见**，不是消息本身——最终答案仍由 `delta/done` 承载；
+ * 事件缺失时调用方按最终消息降级渲染，不应出现空白块。
+ */
+export interface AIToolStreamEvent {
+  /** tool_invocation 主键（仅写路径/已提交审批时有值）。 */
+  id?: number;
+  /** 投影后的可调用名（MCP 为 mcp__<server>__<tool>）。 */
+  tool: string;
+  /** 来源：builtin | mcp（未知来源按 builtin 兜底渲染）。 */
+  provider: string;
+  /** MCP 服务器标识（内置工具缺省）。 */
+  server?: string;
+  /** 调用性质：read | write。 */
+  phase: string;
+  /** 状态：started | done | failed | pending。 */
+  status: string;
+  /** 脱敏 + 截断的结果摘要（不含原始参数）。 */
+  summary?: string;
+  /** 读路径执行耗时（毫秒；写路径提交阶段缺省）。 */
+  durationMs?: number;
+  /** 失败时的稳定错误码（tool_permission_denied / unknown_tool / ...）。 */
+  errorCode?: string;
+}
+
+/** 工具事件回调（四种事件共用；status 区分阶段）。 */
+export type AIToolStreamCallback = (event: AIToolStreamEvent) => void;
 
 export interface AIChatStreamCallbacks {
   onSources?: (sources: RagAnswer[]) => void;
   onDelta?: (delta: string) => void;
+  /**
+   * 工具调用过程事件（M1-03）。旧调用方不传即可——新增事件对既有渲染零影响。
+   */
+  onToolEvent?: AIToolStreamCallback;
   onDone?: (conversationId: number, info?: AIChatDoneInfo) => void;
   onError?: (message: string) => void;
 }
@@ -673,7 +711,33 @@ export async function aiChatStream(
             callbacks.onError?.(payload?.message ?? 'unknown stream error');
             break;
           }
+          // M1-03 工具事件：四种事件共用同一回调，status 已由后端给出；
+          // 缺 status 时按事件名补偿，字段缺失（旧后端/半截载荷）不触发回调。
+          case 'tool_call_started':
+          case 'tool_call_finished':
+          case 'tool_call_failed':
+          case 'approval_pending': {
+            const payload = data as Partial<AIToolStreamEvent> | null;
+            if (!payload || typeof payload.tool !== 'string' || payload.tool.length === 0) {
+              break;
+            }
+            const fallbackStatus: Record<string, string> = {
+              tool_call_started: 'started',
+              tool_call_finished: 'done',
+              tool_call_failed: 'failed',
+              approval_pending: 'pending',
+            };
+            callbacks.onToolEvent?.({
+              ...payload,
+              tool: payload.tool,
+              provider: typeof payload.provider === 'string' ? payload.provider : 'builtin',
+              phase: typeof payload.phase === 'string' ? payload.phase : 'read',
+              status: typeof payload.status === 'string' ? payload.status : fallbackStatus[event],
+            });
+            break;
+          }
           default:
+            // 未知事件一律忽略：新后端叠加的事件不会破坏旧前端的渲染（M1-03 兼容口径）。
             break;
         }
       };

@@ -352,6 +352,88 @@ describe('AI API', () => {
       expect(onError).toHaveBeenCalled();
     });
 
+    // M1-03：工具事件解析（四种事件名 → 同一回调；未知事件忽略；半截载荷不炸）。
+    const streamFrames = (frames: string[]) => {
+      const chunks = frames.map((f) => encode(f));
+      let chunkIndex = 0;
+      const mockReader = {
+        read: jest.fn().mockImplementation(() => {
+          if (chunkIndex < chunks.length) {
+            return Promise.resolve({ value: chunks[chunkIndex++], done: false });
+          }
+          return Promise.resolve({ value: undefined, done: true });
+        }),
+      };
+      global.fetch = jest.fn().mockResolvedValue({
+        ok: true,
+        status: 200,
+        body: { getReader: () => mockReader },
+      });
+    };
+
+    it('should surface tool_call events through onToolEvent', async () => {
+      const { aiChatStream } = require('../ai-api');
+      streamFrames([
+        'event:tool_call_started\ndata:{"tool":"mcp__mock__list_issues","provider":"mcp","server":"mock","phase":"read","status":"started"}\n\n',
+        'event:tool_call_finished\ndata:{"tool":"mcp__mock__list_issues","provider":"mcp","server":"mock","phase":"read","status":"done","summary":"{\\"issues\\":[]}","durationMs":12}\n\n',
+        'event:tool_call_failed\ndata:{"tool":"delete_ci","provider":"builtin","phase":"write","status":"failed","errorCode":"tool_permission_denied"}\n\n',
+        'event:approval_pending\ndata:{"id":9,"tool":"create_ticket","provider":"builtin","phase":"write","status":"pending"}\n\n',
+        'event:done\ndata:{"conversationId":5}\n\n',
+      ]);
+
+      const onToolEvent = jest.fn();
+      const result = await aiChatStream({ query: 'test' }, { onToolEvent });
+
+      expect(onToolEvent).toHaveBeenCalledTimes(4);
+      expect(onToolEvent.mock.calls.map((c: any[]) => c[0].status)).toEqual([
+        'started',
+        'done',
+        'failed',
+        'pending',
+      ]);
+      expect(onToolEvent.mock.calls[0][0]).toEqual(
+        expect.objectContaining({ tool: 'mcp__mock__list_issues', provider: 'mcp', server: 'mock', phase: 'read' }),
+      );
+      expect(onToolEvent.mock.calls[1][0]).toEqual(expect.objectContaining({ summary: '{"issues":[]}', durationMs: 12 }));
+      expect(onToolEvent.mock.calls[2][0]).toEqual(expect.objectContaining({ errorCode: 'tool_permission_denied' }));
+      expect(onToolEvent.mock.calls[3][0]).toEqual(expect.objectContaining({ id: 9, phase: 'write' }));
+      expect(result).toBe(5);
+    });
+
+    it('should ignore unknown SSE events and keep streaming afterwards', async () => {
+      const { aiChatStream } = require('../ai-api');
+      streamFrames([
+        'event:tool_call_future_thing\ndata:{"tool":"x","unexpected":true}\n\n',
+        'event:delta\ndata:{"content":"Hello"}\n\n',
+        'event:done\ndata:{"conversationId":11}\n\n',
+      ]);
+
+      const onToolEvent = jest.fn();
+      const onDelta = jest.fn();
+      const result = await aiChatStream({ query: 'test' }, { onToolEvent, onDelta });
+
+      expect(onToolEvent).not.toHaveBeenCalled();
+      expect(onDelta).toHaveBeenCalledWith('Hello');
+      expect(result).toBe(11);
+    });
+
+    it('should drop malformed tool events instead of throwing', async () => {
+      const { aiChatStream } = require('../ai-api');
+      streamFrames([
+        // 缺 tool 字段（半截载荷）
+        'event:tool_call_started\ndata:{"provider":"mcp"}\n\n',
+        // 非对象载荷
+        'event:approval_pending\ndata:[1,2,3]\n\n',
+        'event:done\ndata:{"conversationId":3}\n\n',
+      ]);
+
+      const onToolEvent = jest.fn();
+      const result = await aiChatStream({ query: 'test' }, { onToolEvent });
+
+      expect(onToolEvent).not.toHaveBeenCalled();
+      expect(result).toBe(3);
+    });
+
     it('should handle error event in stream', async () => {
       const { aiChatStream } = require('../ai-api');
       const chunks = [
