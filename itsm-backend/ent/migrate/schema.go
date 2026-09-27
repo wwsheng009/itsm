@@ -2604,6 +2604,105 @@ var (
 			},
 		},
 	}
+	// McpServersColumns holds the columns for the "mcp_servers" table.
+	McpServersColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeInt, Increment: true},
+		{Name: "tenant_id", Type: field.TypeInt},
+		{Name: "name", Type: field.TypeString, Size: 32},
+		{Name: "display_name", Type: field.TypeString, Size: 100, Default: ""},
+		{Name: "transport", Type: field.TypeString, Size: 20, Default: "streamable"},
+		{Name: "url", Type: field.TypeString, Nullable: true, Size: 2048},
+		{Name: "command", Type: field.TypeString, Nullable: true, Size: 2147483647},
+		{Name: "args", Type: field.TypeJSON, Nullable: true},
+		{Name: "env", Type: field.TypeJSON, Nullable: true},
+		{Name: "working_dir", Type: field.TypeString, Nullable: true, Size: 1024},
+		{Name: "headers_encrypted", Type: field.TypeString, Nullable: true, Size: 2147483647},
+		{Name: "credential_type", Type: field.TypeString, Size: 32, Default: "none"},
+		{Name: "credential_encrypted", Type: field.TypeString, Nullable: true, Size: 2147483647},
+		{Name: "trust_level", Type: field.TypeString, Size: 16, Default: "untrusted"},
+		{Name: "enabled", Type: field.TypeBool, Default: false},
+		{Name: "status", Type: field.TypeString, Size: 32, Default: "configured"},
+		{Name: "last_error", Type: field.TypeString, Size: 2000, Default: ""},
+		{Name: "last_connected_at", Type: field.TypeTime, Nullable: true},
+		{Name: "protocol_version", Type: field.TypeString, Size: 32, Default: ""},
+		{Name: "server_info", Type: field.TypeString, Nullable: true, Size: 2147483647},
+		{Name: "timeout_ms", Type: field.TypeInt, Default: 30000},
+		{Name: "max_parallel_calls", Type: field.TypeInt, Default: 4},
+		{Name: "max_retry", Type: field.TypeInt, Default: 1},
+		{Name: "version", Type: field.TypeInt, Default: 1},
+		{Name: "created_at", Type: field.TypeTime},
+		{Name: "updated_at", Type: field.TypeTime},
+	}
+	// McpServersTable holds the schema information for the "mcp_servers" table.
+	McpServersTable = &schema.Table{
+		Name:       "mcp_servers",
+		Columns:    McpServersColumns,
+		PrimaryKey: []*schema.Column{McpServersColumns[0]},
+		Indexes: []*schema.Index{
+			{
+				Name:    "mcpserver_tenant_id_name",
+				Unique:  true,
+				Columns: []*schema.Column{McpServersColumns[1], McpServersColumns[2]},
+			},
+			{
+				Name:    "mcpserver_tenant_id_enabled",
+				Unique:  false,
+				Columns: []*schema.Column{McpServersColumns[1], McpServersColumns[14]},
+			},
+		},
+	}
+	// McpServerToolsColumns holds the columns for the "mcp_server_tools" table.
+	McpServerToolsColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeInt, Increment: true},
+		{Name: "tenant_id", Type: field.TypeInt},
+		{Name: "raw_name", Type: field.TypeString, Size: 256},
+		{Name: "callable_name", Type: field.TypeString, Size: 64},
+		{Name: "description", Type: field.TypeString, Size: 2147483647, Default: ""},
+		{Name: "input_schema", Type: field.TypeString, Nullable: true, Size: 2147483647},
+		{Name: "schema_hash", Type: field.TypeString, Size: 64, Default: ""},
+		{Name: "read_only", Type: field.TypeBool, Default: false},
+		{Name: "risk", Type: field.TypeString, Size: 16, Default: "high"},
+		{Name: "category", Type: field.TypeString, Size: 32, Default: ""},
+		{Name: "enabled", Type: field.TypeBool, Default: false},
+		{Name: "healthy", Type: field.TypeBool, Default: false},
+		{Name: "quarantined", Type: field.TypeBool, Default: false},
+		{Name: "quarantine_reason", Type: field.TypeString, Size: 500, Default: ""},
+		{Name: "last_error", Type: field.TypeString, Size: 2000, Default: ""},
+		{Name: "discovered_at", Type: field.TypeTime},
+		{Name: "updated_at", Type: field.TypeTime},
+		{Name: "server_id", Type: field.TypeInt},
+	}
+	// McpServerToolsTable holds the schema information for the "mcp_server_tools" table.
+	McpServerToolsTable = &schema.Table{
+		Name:       "mcp_server_tools",
+		Columns:    McpServerToolsColumns,
+		PrimaryKey: []*schema.Column{McpServerToolsColumns[0]},
+		ForeignKeys: []*schema.ForeignKey{
+			{
+				Symbol:     "mcp_server_tools_mcp_servers_tools",
+				Columns:    []*schema.Column{McpServerToolsColumns[17]},
+				RefColumns: []*schema.Column{McpServersColumns[0]},
+				OnDelete:   schema.NoAction,
+			},
+		},
+		Indexes: []*schema.Index{
+			{
+				Name:    "mcpservertool_tenant_id_server_id_raw_name",
+				Unique:  true,
+				Columns: []*schema.Column{McpServerToolsColumns[1], McpServerToolsColumns[17], McpServerToolsColumns[2]},
+			},
+			{
+				Name:    "mcpservertool_tenant_id_callable_name",
+				Unique:  true,
+				Columns: []*schema.Column{McpServerToolsColumns[1], McpServerToolsColumns[3]},
+			},
+			{
+				Name:    "mcpservertool_tenant_id_enabled",
+				Unique:  false,
+				Columns: []*schema.Column{McpServerToolsColumns[1], McpServerToolsColumns[10]},
+			},
+		},
+	}
 	// MspAllocationsColumns holds the columns for the "msp_allocations" table.
 	MspAllocationsColumns = []*schema.Column{
 		{Name: "id", Type: field.TypeInt, Increment: true},
@@ -5547,6 +5646,27 @@ var (
 		{Name: "permission_check", Type: field.TypeString, Default: "skipped"},
 		{Name: "permission_reason", Type: field.TypeString, Default: ""},
 		{Name: "role_snapshot", Type: field.TypeString, Default: ""},
+		{Name: "provider", Type: field.TypeString, Default: "builtin"},
+		{Name: "mcp_server_name", Type: field.TypeString, Default: ""},
+		{Name: "mcp_raw_tool_name", Type: field.TypeString, Default: ""},
+		{Name: "mcp_callable_name", Type: field.TypeString, Default: ""},
+		{Name: "args_redacted", Type: field.TypeString, Nullable: true, Size: 2147483647},
+		{Name: "output_summary", Type: field.TypeString, Nullable: true, Size: 2147483647},
+		{Name: "duration_ms", Type: field.TypeInt, Default: 0},
+		{Name: "error_code", Type: field.TypeString, Default: ""},
+		{Name: "run_id", Type: field.TypeInt, Nullable: true},
+		{Name: "step_id", Type: field.TypeInt, Nullable: true},
+		{Name: "risk", Type: field.TypeString, Default: ""},
+		{Name: "category", Type: field.TypeString, Default: ""},
+		{Name: "target_type", Type: field.TypeString, Default: ""},
+		{Name: "target_id", Type: field.TypeString, Default: ""},
+		{Name: "support_ref", Type: field.TypeString, Default: ""},
+		{Name: "idempotency_key_hash", Type: field.TypeString, Nullable: true},
+		{Name: "expires_at", Type: field.TypeTime, Nullable: true},
+		{Name: "verify_state", Type: field.TypeString, Default: ""},
+		{Name: "verify_note", Type: field.TypeString, Default: ""},
+		{Name: "attempt_count", Type: field.TypeInt, Default: 0},
+		{Name: "last_error_code", Type: field.TypeString, Default: ""},
 		{Name: "conversation_id", Type: field.TypeInt, Nullable: true},
 		{Name: "user_id", Type: field.TypeInt, Nullable: true},
 	}
@@ -5558,15 +5678,27 @@ var (
 		ForeignKeys: []*schema.ForeignKey{
 			{
 				Symbol:     "tool_invocations_conversations_tool_invocations",
-				Columns:    []*schema.Column{ToolInvocationsColumns[18]},
+				Columns:    []*schema.Column{ToolInvocationsColumns[39]},
 				RefColumns: []*schema.Column{ConversationsColumns[0]},
 				OnDelete:   schema.SetNull,
 			},
 			{
 				Symbol:     "tool_invocations_users_tool_invocations",
-				Columns:    []*schema.Column{ToolInvocationsColumns[19]},
+				Columns:    []*schema.Column{ToolInvocationsColumns[40]},
 				RefColumns: []*schema.Column{UsersColumns[0]},
 				OnDelete:   schema.SetNull,
+			},
+		},
+		Indexes: []*schema.Index{
+			{
+				Name:    "toolinvocation_tenant_id_idempotency_key_hash",
+				Unique:  true,
+				Columns: []*schema.Column{ToolInvocationsColumns[2], ToolInvocationsColumns[33]},
+			},
+			{
+				Name:    "toolinvocation_tenant_id_conversation_id",
+				Unique:  false,
+				Columns: []*schema.Column{ToolInvocationsColumns[2], ToolInvocationsColumns[39]},
 			},
 		},
 	}
@@ -6284,6 +6416,8 @@ var (
 		KnownErrorsTable,
 		LlmProviderConfigsTable,
 		LlmUserPreferencesTable,
+		McpServersTable,
+		McpServerToolsTable,
 		MspAllocationsTable,
 		MarketplaceItemsTable,
 		MenusTable,
@@ -6428,6 +6562,7 @@ func init() {
 	KnowledgeArticleLikesTable.ForeignKeys[0].RefTable = KnowledgeArticlesTable
 	KnowledgeArticleSessionsTable.ForeignKeys[0].RefTable = KnowledgeArticlesTable
 	KnowledgeArticleVersionsTable.ForeignKeys[0].RefTable = KnowledgeArticlesTable
+	McpServerToolsTable.ForeignKeys[0].RefTable = McpServersTable
 	MspAllocationsTable.ForeignKeys[0].RefTable = TenantsTable
 	MspAllocationsTable.ForeignKeys[1].RefTable = UsersTable
 	MenusTable.ForeignKeys[0].RefTable = MenusTable

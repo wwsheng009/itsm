@@ -150,6 +150,111 @@ func RoleSnapshot(v string) predicate.ToolInvocation {
 	return predicate.ToolInvocation(sql.FieldEQ(FieldRoleSnapshot, v))
 }
 
+// Provider applies equality check predicate on the "provider" field. It's identical to ProviderEQ.
+func Provider(v string) predicate.ToolInvocation {
+	return predicate.ToolInvocation(sql.FieldEQ(FieldProvider, v))
+}
+
+// McpServerName applies equality check predicate on the "mcp_server_name" field. It's identical to McpServerNameEQ.
+func McpServerName(v string) predicate.ToolInvocation {
+	return predicate.ToolInvocation(sql.FieldEQ(FieldMcpServerName, v))
+}
+
+// McpRawToolName applies equality check predicate on the "mcp_raw_tool_name" field. It's identical to McpRawToolNameEQ.
+func McpRawToolName(v string) predicate.ToolInvocation {
+	return predicate.ToolInvocation(sql.FieldEQ(FieldMcpRawToolName, v))
+}
+
+// McpCallableName applies equality check predicate on the "mcp_callable_name" field. It's identical to McpCallableNameEQ.
+func McpCallableName(v string) predicate.ToolInvocation {
+	return predicate.ToolInvocation(sql.FieldEQ(FieldMcpCallableName, v))
+}
+
+// ArgsRedacted applies equality check predicate on the "args_redacted" field. It's identical to ArgsRedactedEQ.
+func ArgsRedacted(v string) predicate.ToolInvocation {
+	return predicate.ToolInvocation(sql.FieldEQ(FieldArgsRedacted, v))
+}
+
+// OutputSummary applies equality check predicate on the "output_summary" field. It's identical to OutputSummaryEQ.
+func OutputSummary(v string) predicate.ToolInvocation {
+	return predicate.ToolInvocation(sql.FieldEQ(FieldOutputSummary, v))
+}
+
+// DurationMs applies equality check predicate on the "duration_ms" field. It's identical to DurationMsEQ.
+func DurationMs(v int) predicate.ToolInvocation {
+	return predicate.ToolInvocation(sql.FieldEQ(FieldDurationMs, v))
+}
+
+// ErrorCode applies equality check predicate on the "error_code" field. It's identical to ErrorCodeEQ.
+func ErrorCode(v string) predicate.ToolInvocation {
+	return predicate.ToolInvocation(sql.FieldEQ(FieldErrorCode, v))
+}
+
+// RunID applies equality check predicate on the "run_id" field. It's identical to RunIDEQ.
+func RunID(v int) predicate.ToolInvocation {
+	return predicate.ToolInvocation(sql.FieldEQ(FieldRunID, v))
+}
+
+// StepID applies equality check predicate on the "step_id" field. It's identical to StepIDEQ.
+func StepID(v int) predicate.ToolInvocation {
+	return predicate.ToolInvocation(sql.FieldEQ(FieldStepID, v))
+}
+
+// Risk applies equality check predicate on the "risk" field. It's identical to RiskEQ.
+func Risk(v string) predicate.ToolInvocation {
+	return predicate.ToolInvocation(sql.FieldEQ(FieldRisk, v))
+}
+
+// Category applies equality check predicate on the "category" field. It's identical to CategoryEQ.
+func Category(v string) predicate.ToolInvocation {
+	return predicate.ToolInvocation(sql.FieldEQ(FieldCategory, v))
+}
+
+// TargetType applies equality check predicate on the "target_type" field. It's identical to TargetTypeEQ.
+func TargetType(v string) predicate.ToolInvocation {
+	return predicate.ToolInvocation(sql.FieldEQ(FieldTargetType, v))
+}
+
+// TargetID applies equality check predicate on the "target_id" field. It's identical to TargetIDEQ.
+func TargetID(v string) predicate.ToolInvocation {
+	return predicate.ToolInvocation(sql.FieldEQ(FieldTargetID, v))
+}
+
+// SupportRef applies equality check predicate on the "support_ref" field. It's identical to SupportRefEQ.
+func SupportRef(v string) predicate.ToolInvocation {
+	return predicate.ToolInvocation(sql.FieldEQ(FieldSupportRef, v))
+}
+
+// IdempotencyKeyHash applies equality check predicate on the "idempotency_key_hash" field. It's identical to IdempotencyKeyHashEQ.
+func IdempotencyKeyHash(v string) predicate.ToolInvocation {
+	return predicate.ToolInvocation(sql.FieldEQ(FieldIdempotencyKeyHash, v))
+}
+
+// ExpiresAt applies equality check predicate on the "expires_at" field. It's identical to ExpiresAtEQ.
+func ExpiresAt(v time.Time) predicate.ToolInvocation {
+	return predicate.ToolInvocation(sql.FieldEQ(FieldExpiresAt, v))
+}
+
+// VerifyState applies equality check predicate on the "verify_state" field. It's identical to VerifyStateEQ.
+func VerifyState(v string) predicate.ToolInvocation {
+	return predicate.ToolInvocation(sql.FieldEQ(FieldVerifyState, v))
+}
+
+// VerifyNote applies equality check predicate on the "verify_note" field. It's identical to VerifyNoteEQ.
+func VerifyNote(v string) predicate.ToolInvocation {
+	return predicate.ToolInvocation(sql.FieldEQ(FieldVerifyNote, v))
+}
+
+// AttemptCount applies equality check predicate on the "attempt_count" field. It's identical to AttemptCountEQ.
+func AttemptCount(v int) predicate.ToolInvocation {
+	return predicate.ToolInvocation(sql.FieldEQ(FieldAttemptCount, v))
+}
+
+// LastErrorCode applies equality check predicate on the "last_error_code" field. It's identical to LastErrorCodeEQ.
+func LastErrorCode(v string) predicate.ToolInvocation {
+	return predicate.ToolInvocation(sql.FieldEQ(FieldLastErrorCode, v))
+}
+
 // CreatedAtEQ applies the EQ predicate on the "created_at" field.
 func CreatedAtEQ(v time.Time) predicate.ToolInvocation {
 	return predicate.ToolInvocation(sql.FieldEQ(FieldCreatedAt, v))
@@ -1153,6 +1258,1306 @@ func RoleSnapshotEqualFold(v string) predicate.ToolInvocation {
 // RoleSnapshotContainsFold applies the ContainsFold predicate on the "role_snapshot" field.
 func RoleSnapshotContainsFold(v string) predicate.ToolInvocation {
 	return predicate.ToolInvocation(sql.FieldContainsFold(FieldRoleSnapshot, v))
+}
+
+// ProviderEQ applies the EQ predicate on the "provider" field.
+func ProviderEQ(v string) predicate.ToolInvocation {
+	return predicate.ToolInvocation(sql.FieldEQ(FieldProvider, v))
+}
+
+// ProviderNEQ applies the NEQ predicate on the "provider" field.
+func ProviderNEQ(v string) predicate.ToolInvocation {
+	return predicate.ToolInvocation(sql.FieldNEQ(FieldProvider, v))
+}
+
+// ProviderIn applies the In predicate on the "provider" field.
+func ProviderIn(vs ...string) predicate.ToolInvocation {
+	return predicate.ToolInvocation(sql.FieldIn(FieldProvider, vs...))
+}
+
+// ProviderNotIn applies the NotIn predicate on the "provider" field.
+func ProviderNotIn(vs ...string) predicate.ToolInvocation {
+	return predicate.ToolInvocation(sql.FieldNotIn(FieldProvider, vs...))
+}
+
+// ProviderGT applies the GT predicate on the "provider" field.
+func ProviderGT(v string) predicate.ToolInvocation {
+	return predicate.ToolInvocation(sql.FieldGT(FieldProvider, v))
+}
+
+// ProviderGTE applies the GTE predicate on the "provider" field.
+func ProviderGTE(v string) predicate.ToolInvocation {
+	return predicate.ToolInvocation(sql.FieldGTE(FieldProvider, v))
+}
+
+// ProviderLT applies the LT predicate on the "provider" field.
+func ProviderLT(v string) predicate.ToolInvocation {
+	return predicate.ToolInvocation(sql.FieldLT(FieldProvider, v))
+}
+
+// ProviderLTE applies the LTE predicate on the "provider" field.
+func ProviderLTE(v string) predicate.ToolInvocation {
+	return predicate.ToolInvocation(sql.FieldLTE(FieldProvider, v))
+}
+
+// ProviderContains applies the Contains predicate on the "provider" field.
+func ProviderContains(v string) predicate.ToolInvocation {
+	return predicate.ToolInvocation(sql.FieldContains(FieldProvider, v))
+}
+
+// ProviderHasPrefix applies the HasPrefix predicate on the "provider" field.
+func ProviderHasPrefix(v string) predicate.ToolInvocation {
+	return predicate.ToolInvocation(sql.FieldHasPrefix(FieldProvider, v))
+}
+
+// ProviderHasSuffix applies the HasSuffix predicate on the "provider" field.
+func ProviderHasSuffix(v string) predicate.ToolInvocation {
+	return predicate.ToolInvocation(sql.FieldHasSuffix(FieldProvider, v))
+}
+
+// ProviderEqualFold applies the EqualFold predicate on the "provider" field.
+func ProviderEqualFold(v string) predicate.ToolInvocation {
+	return predicate.ToolInvocation(sql.FieldEqualFold(FieldProvider, v))
+}
+
+// ProviderContainsFold applies the ContainsFold predicate on the "provider" field.
+func ProviderContainsFold(v string) predicate.ToolInvocation {
+	return predicate.ToolInvocation(sql.FieldContainsFold(FieldProvider, v))
+}
+
+// McpServerNameEQ applies the EQ predicate on the "mcp_server_name" field.
+func McpServerNameEQ(v string) predicate.ToolInvocation {
+	return predicate.ToolInvocation(sql.FieldEQ(FieldMcpServerName, v))
+}
+
+// McpServerNameNEQ applies the NEQ predicate on the "mcp_server_name" field.
+func McpServerNameNEQ(v string) predicate.ToolInvocation {
+	return predicate.ToolInvocation(sql.FieldNEQ(FieldMcpServerName, v))
+}
+
+// McpServerNameIn applies the In predicate on the "mcp_server_name" field.
+func McpServerNameIn(vs ...string) predicate.ToolInvocation {
+	return predicate.ToolInvocation(sql.FieldIn(FieldMcpServerName, vs...))
+}
+
+// McpServerNameNotIn applies the NotIn predicate on the "mcp_server_name" field.
+func McpServerNameNotIn(vs ...string) predicate.ToolInvocation {
+	return predicate.ToolInvocation(sql.FieldNotIn(FieldMcpServerName, vs...))
+}
+
+// McpServerNameGT applies the GT predicate on the "mcp_server_name" field.
+func McpServerNameGT(v string) predicate.ToolInvocation {
+	return predicate.ToolInvocation(sql.FieldGT(FieldMcpServerName, v))
+}
+
+// McpServerNameGTE applies the GTE predicate on the "mcp_server_name" field.
+func McpServerNameGTE(v string) predicate.ToolInvocation {
+	return predicate.ToolInvocation(sql.FieldGTE(FieldMcpServerName, v))
+}
+
+// McpServerNameLT applies the LT predicate on the "mcp_server_name" field.
+func McpServerNameLT(v string) predicate.ToolInvocation {
+	return predicate.ToolInvocation(sql.FieldLT(FieldMcpServerName, v))
+}
+
+// McpServerNameLTE applies the LTE predicate on the "mcp_server_name" field.
+func McpServerNameLTE(v string) predicate.ToolInvocation {
+	return predicate.ToolInvocation(sql.FieldLTE(FieldMcpServerName, v))
+}
+
+// McpServerNameContains applies the Contains predicate on the "mcp_server_name" field.
+func McpServerNameContains(v string) predicate.ToolInvocation {
+	return predicate.ToolInvocation(sql.FieldContains(FieldMcpServerName, v))
+}
+
+// McpServerNameHasPrefix applies the HasPrefix predicate on the "mcp_server_name" field.
+func McpServerNameHasPrefix(v string) predicate.ToolInvocation {
+	return predicate.ToolInvocation(sql.FieldHasPrefix(FieldMcpServerName, v))
+}
+
+// McpServerNameHasSuffix applies the HasSuffix predicate on the "mcp_server_name" field.
+func McpServerNameHasSuffix(v string) predicate.ToolInvocation {
+	return predicate.ToolInvocation(sql.FieldHasSuffix(FieldMcpServerName, v))
+}
+
+// McpServerNameEqualFold applies the EqualFold predicate on the "mcp_server_name" field.
+func McpServerNameEqualFold(v string) predicate.ToolInvocation {
+	return predicate.ToolInvocation(sql.FieldEqualFold(FieldMcpServerName, v))
+}
+
+// McpServerNameContainsFold applies the ContainsFold predicate on the "mcp_server_name" field.
+func McpServerNameContainsFold(v string) predicate.ToolInvocation {
+	return predicate.ToolInvocation(sql.FieldContainsFold(FieldMcpServerName, v))
+}
+
+// McpRawToolNameEQ applies the EQ predicate on the "mcp_raw_tool_name" field.
+func McpRawToolNameEQ(v string) predicate.ToolInvocation {
+	return predicate.ToolInvocation(sql.FieldEQ(FieldMcpRawToolName, v))
+}
+
+// McpRawToolNameNEQ applies the NEQ predicate on the "mcp_raw_tool_name" field.
+func McpRawToolNameNEQ(v string) predicate.ToolInvocation {
+	return predicate.ToolInvocation(sql.FieldNEQ(FieldMcpRawToolName, v))
+}
+
+// McpRawToolNameIn applies the In predicate on the "mcp_raw_tool_name" field.
+func McpRawToolNameIn(vs ...string) predicate.ToolInvocation {
+	return predicate.ToolInvocation(sql.FieldIn(FieldMcpRawToolName, vs...))
+}
+
+// McpRawToolNameNotIn applies the NotIn predicate on the "mcp_raw_tool_name" field.
+func McpRawToolNameNotIn(vs ...string) predicate.ToolInvocation {
+	return predicate.ToolInvocation(sql.FieldNotIn(FieldMcpRawToolName, vs...))
+}
+
+// McpRawToolNameGT applies the GT predicate on the "mcp_raw_tool_name" field.
+func McpRawToolNameGT(v string) predicate.ToolInvocation {
+	return predicate.ToolInvocation(sql.FieldGT(FieldMcpRawToolName, v))
+}
+
+// McpRawToolNameGTE applies the GTE predicate on the "mcp_raw_tool_name" field.
+func McpRawToolNameGTE(v string) predicate.ToolInvocation {
+	return predicate.ToolInvocation(sql.FieldGTE(FieldMcpRawToolName, v))
+}
+
+// McpRawToolNameLT applies the LT predicate on the "mcp_raw_tool_name" field.
+func McpRawToolNameLT(v string) predicate.ToolInvocation {
+	return predicate.ToolInvocation(sql.FieldLT(FieldMcpRawToolName, v))
+}
+
+// McpRawToolNameLTE applies the LTE predicate on the "mcp_raw_tool_name" field.
+func McpRawToolNameLTE(v string) predicate.ToolInvocation {
+	return predicate.ToolInvocation(sql.FieldLTE(FieldMcpRawToolName, v))
+}
+
+// McpRawToolNameContains applies the Contains predicate on the "mcp_raw_tool_name" field.
+func McpRawToolNameContains(v string) predicate.ToolInvocation {
+	return predicate.ToolInvocation(sql.FieldContains(FieldMcpRawToolName, v))
+}
+
+// McpRawToolNameHasPrefix applies the HasPrefix predicate on the "mcp_raw_tool_name" field.
+func McpRawToolNameHasPrefix(v string) predicate.ToolInvocation {
+	return predicate.ToolInvocation(sql.FieldHasPrefix(FieldMcpRawToolName, v))
+}
+
+// McpRawToolNameHasSuffix applies the HasSuffix predicate on the "mcp_raw_tool_name" field.
+func McpRawToolNameHasSuffix(v string) predicate.ToolInvocation {
+	return predicate.ToolInvocation(sql.FieldHasSuffix(FieldMcpRawToolName, v))
+}
+
+// McpRawToolNameEqualFold applies the EqualFold predicate on the "mcp_raw_tool_name" field.
+func McpRawToolNameEqualFold(v string) predicate.ToolInvocation {
+	return predicate.ToolInvocation(sql.FieldEqualFold(FieldMcpRawToolName, v))
+}
+
+// McpRawToolNameContainsFold applies the ContainsFold predicate on the "mcp_raw_tool_name" field.
+func McpRawToolNameContainsFold(v string) predicate.ToolInvocation {
+	return predicate.ToolInvocation(sql.FieldContainsFold(FieldMcpRawToolName, v))
+}
+
+// McpCallableNameEQ applies the EQ predicate on the "mcp_callable_name" field.
+func McpCallableNameEQ(v string) predicate.ToolInvocation {
+	return predicate.ToolInvocation(sql.FieldEQ(FieldMcpCallableName, v))
+}
+
+// McpCallableNameNEQ applies the NEQ predicate on the "mcp_callable_name" field.
+func McpCallableNameNEQ(v string) predicate.ToolInvocation {
+	return predicate.ToolInvocation(sql.FieldNEQ(FieldMcpCallableName, v))
+}
+
+// McpCallableNameIn applies the In predicate on the "mcp_callable_name" field.
+func McpCallableNameIn(vs ...string) predicate.ToolInvocation {
+	return predicate.ToolInvocation(sql.FieldIn(FieldMcpCallableName, vs...))
+}
+
+// McpCallableNameNotIn applies the NotIn predicate on the "mcp_callable_name" field.
+func McpCallableNameNotIn(vs ...string) predicate.ToolInvocation {
+	return predicate.ToolInvocation(sql.FieldNotIn(FieldMcpCallableName, vs...))
+}
+
+// McpCallableNameGT applies the GT predicate on the "mcp_callable_name" field.
+func McpCallableNameGT(v string) predicate.ToolInvocation {
+	return predicate.ToolInvocation(sql.FieldGT(FieldMcpCallableName, v))
+}
+
+// McpCallableNameGTE applies the GTE predicate on the "mcp_callable_name" field.
+func McpCallableNameGTE(v string) predicate.ToolInvocation {
+	return predicate.ToolInvocation(sql.FieldGTE(FieldMcpCallableName, v))
+}
+
+// McpCallableNameLT applies the LT predicate on the "mcp_callable_name" field.
+func McpCallableNameLT(v string) predicate.ToolInvocation {
+	return predicate.ToolInvocation(sql.FieldLT(FieldMcpCallableName, v))
+}
+
+// McpCallableNameLTE applies the LTE predicate on the "mcp_callable_name" field.
+func McpCallableNameLTE(v string) predicate.ToolInvocation {
+	return predicate.ToolInvocation(sql.FieldLTE(FieldMcpCallableName, v))
+}
+
+// McpCallableNameContains applies the Contains predicate on the "mcp_callable_name" field.
+func McpCallableNameContains(v string) predicate.ToolInvocation {
+	return predicate.ToolInvocation(sql.FieldContains(FieldMcpCallableName, v))
+}
+
+// McpCallableNameHasPrefix applies the HasPrefix predicate on the "mcp_callable_name" field.
+func McpCallableNameHasPrefix(v string) predicate.ToolInvocation {
+	return predicate.ToolInvocation(sql.FieldHasPrefix(FieldMcpCallableName, v))
+}
+
+// McpCallableNameHasSuffix applies the HasSuffix predicate on the "mcp_callable_name" field.
+func McpCallableNameHasSuffix(v string) predicate.ToolInvocation {
+	return predicate.ToolInvocation(sql.FieldHasSuffix(FieldMcpCallableName, v))
+}
+
+// McpCallableNameEqualFold applies the EqualFold predicate on the "mcp_callable_name" field.
+func McpCallableNameEqualFold(v string) predicate.ToolInvocation {
+	return predicate.ToolInvocation(sql.FieldEqualFold(FieldMcpCallableName, v))
+}
+
+// McpCallableNameContainsFold applies the ContainsFold predicate on the "mcp_callable_name" field.
+func McpCallableNameContainsFold(v string) predicate.ToolInvocation {
+	return predicate.ToolInvocation(sql.FieldContainsFold(FieldMcpCallableName, v))
+}
+
+// ArgsRedactedEQ applies the EQ predicate on the "args_redacted" field.
+func ArgsRedactedEQ(v string) predicate.ToolInvocation {
+	return predicate.ToolInvocation(sql.FieldEQ(FieldArgsRedacted, v))
+}
+
+// ArgsRedactedNEQ applies the NEQ predicate on the "args_redacted" field.
+func ArgsRedactedNEQ(v string) predicate.ToolInvocation {
+	return predicate.ToolInvocation(sql.FieldNEQ(FieldArgsRedacted, v))
+}
+
+// ArgsRedactedIn applies the In predicate on the "args_redacted" field.
+func ArgsRedactedIn(vs ...string) predicate.ToolInvocation {
+	return predicate.ToolInvocation(sql.FieldIn(FieldArgsRedacted, vs...))
+}
+
+// ArgsRedactedNotIn applies the NotIn predicate on the "args_redacted" field.
+func ArgsRedactedNotIn(vs ...string) predicate.ToolInvocation {
+	return predicate.ToolInvocation(sql.FieldNotIn(FieldArgsRedacted, vs...))
+}
+
+// ArgsRedactedGT applies the GT predicate on the "args_redacted" field.
+func ArgsRedactedGT(v string) predicate.ToolInvocation {
+	return predicate.ToolInvocation(sql.FieldGT(FieldArgsRedacted, v))
+}
+
+// ArgsRedactedGTE applies the GTE predicate on the "args_redacted" field.
+func ArgsRedactedGTE(v string) predicate.ToolInvocation {
+	return predicate.ToolInvocation(sql.FieldGTE(FieldArgsRedacted, v))
+}
+
+// ArgsRedactedLT applies the LT predicate on the "args_redacted" field.
+func ArgsRedactedLT(v string) predicate.ToolInvocation {
+	return predicate.ToolInvocation(sql.FieldLT(FieldArgsRedacted, v))
+}
+
+// ArgsRedactedLTE applies the LTE predicate on the "args_redacted" field.
+func ArgsRedactedLTE(v string) predicate.ToolInvocation {
+	return predicate.ToolInvocation(sql.FieldLTE(FieldArgsRedacted, v))
+}
+
+// ArgsRedactedContains applies the Contains predicate on the "args_redacted" field.
+func ArgsRedactedContains(v string) predicate.ToolInvocation {
+	return predicate.ToolInvocation(sql.FieldContains(FieldArgsRedacted, v))
+}
+
+// ArgsRedactedHasPrefix applies the HasPrefix predicate on the "args_redacted" field.
+func ArgsRedactedHasPrefix(v string) predicate.ToolInvocation {
+	return predicate.ToolInvocation(sql.FieldHasPrefix(FieldArgsRedacted, v))
+}
+
+// ArgsRedactedHasSuffix applies the HasSuffix predicate on the "args_redacted" field.
+func ArgsRedactedHasSuffix(v string) predicate.ToolInvocation {
+	return predicate.ToolInvocation(sql.FieldHasSuffix(FieldArgsRedacted, v))
+}
+
+// ArgsRedactedIsNil applies the IsNil predicate on the "args_redacted" field.
+func ArgsRedactedIsNil() predicate.ToolInvocation {
+	return predicate.ToolInvocation(sql.FieldIsNull(FieldArgsRedacted))
+}
+
+// ArgsRedactedNotNil applies the NotNil predicate on the "args_redacted" field.
+func ArgsRedactedNotNil() predicate.ToolInvocation {
+	return predicate.ToolInvocation(sql.FieldNotNull(FieldArgsRedacted))
+}
+
+// ArgsRedactedEqualFold applies the EqualFold predicate on the "args_redacted" field.
+func ArgsRedactedEqualFold(v string) predicate.ToolInvocation {
+	return predicate.ToolInvocation(sql.FieldEqualFold(FieldArgsRedacted, v))
+}
+
+// ArgsRedactedContainsFold applies the ContainsFold predicate on the "args_redacted" field.
+func ArgsRedactedContainsFold(v string) predicate.ToolInvocation {
+	return predicate.ToolInvocation(sql.FieldContainsFold(FieldArgsRedacted, v))
+}
+
+// OutputSummaryEQ applies the EQ predicate on the "output_summary" field.
+func OutputSummaryEQ(v string) predicate.ToolInvocation {
+	return predicate.ToolInvocation(sql.FieldEQ(FieldOutputSummary, v))
+}
+
+// OutputSummaryNEQ applies the NEQ predicate on the "output_summary" field.
+func OutputSummaryNEQ(v string) predicate.ToolInvocation {
+	return predicate.ToolInvocation(sql.FieldNEQ(FieldOutputSummary, v))
+}
+
+// OutputSummaryIn applies the In predicate on the "output_summary" field.
+func OutputSummaryIn(vs ...string) predicate.ToolInvocation {
+	return predicate.ToolInvocation(sql.FieldIn(FieldOutputSummary, vs...))
+}
+
+// OutputSummaryNotIn applies the NotIn predicate on the "output_summary" field.
+func OutputSummaryNotIn(vs ...string) predicate.ToolInvocation {
+	return predicate.ToolInvocation(sql.FieldNotIn(FieldOutputSummary, vs...))
+}
+
+// OutputSummaryGT applies the GT predicate on the "output_summary" field.
+func OutputSummaryGT(v string) predicate.ToolInvocation {
+	return predicate.ToolInvocation(sql.FieldGT(FieldOutputSummary, v))
+}
+
+// OutputSummaryGTE applies the GTE predicate on the "output_summary" field.
+func OutputSummaryGTE(v string) predicate.ToolInvocation {
+	return predicate.ToolInvocation(sql.FieldGTE(FieldOutputSummary, v))
+}
+
+// OutputSummaryLT applies the LT predicate on the "output_summary" field.
+func OutputSummaryLT(v string) predicate.ToolInvocation {
+	return predicate.ToolInvocation(sql.FieldLT(FieldOutputSummary, v))
+}
+
+// OutputSummaryLTE applies the LTE predicate on the "output_summary" field.
+func OutputSummaryLTE(v string) predicate.ToolInvocation {
+	return predicate.ToolInvocation(sql.FieldLTE(FieldOutputSummary, v))
+}
+
+// OutputSummaryContains applies the Contains predicate on the "output_summary" field.
+func OutputSummaryContains(v string) predicate.ToolInvocation {
+	return predicate.ToolInvocation(sql.FieldContains(FieldOutputSummary, v))
+}
+
+// OutputSummaryHasPrefix applies the HasPrefix predicate on the "output_summary" field.
+func OutputSummaryHasPrefix(v string) predicate.ToolInvocation {
+	return predicate.ToolInvocation(sql.FieldHasPrefix(FieldOutputSummary, v))
+}
+
+// OutputSummaryHasSuffix applies the HasSuffix predicate on the "output_summary" field.
+func OutputSummaryHasSuffix(v string) predicate.ToolInvocation {
+	return predicate.ToolInvocation(sql.FieldHasSuffix(FieldOutputSummary, v))
+}
+
+// OutputSummaryIsNil applies the IsNil predicate on the "output_summary" field.
+func OutputSummaryIsNil() predicate.ToolInvocation {
+	return predicate.ToolInvocation(sql.FieldIsNull(FieldOutputSummary))
+}
+
+// OutputSummaryNotNil applies the NotNil predicate on the "output_summary" field.
+func OutputSummaryNotNil() predicate.ToolInvocation {
+	return predicate.ToolInvocation(sql.FieldNotNull(FieldOutputSummary))
+}
+
+// OutputSummaryEqualFold applies the EqualFold predicate on the "output_summary" field.
+func OutputSummaryEqualFold(v string) predicate.ToolInvocation {
+	return predicate.ToolInvocation(sql.FieldEqualFold(FieldOutputSummary, v))
+}
+
+// OutputSummaryContainsFold applies the ContainsFold predicate on the "output_summary" field.
+func OutputSummaryContainsFold(v string) predicate.ToolInvocation {
+	return predicate.ToolInvocation(sql.FieldContainsFold(FieldOutputSummary, v))
+}
+
+// DurationMsEQ applies the EQ predicate on the "duration_ms" field.
+func DurationMsEQ(v int) predicate.ToolInvocation {
+	return predicate.ToolInvocation(sql.FieldEQ(FieldDurationMs, v))
+}
+
+// DurationMsNEQ applies the NEQ predicate on the "duration_ms" field.
+func DurationMsNEQ(v int) predicate.ToolInvocation {
+	return predicate.ToolInvocation(sql.FieldNEQ(FieldDurationMs, v))
+}
+
+// DurationMsIn applies the In predicate on the "duration_ms" field.
+func DurationMsIn(vs ...int) predicate.ToolInvocation {
+	return predicate.ToolInvocation(sql.FieldIn(FieldDurationMs, vs...))
+}
+
+// DurationMsNotIn applies the NotIn predicate on the "duration_ms" field.
+func DurationMsNotIn(vs ...int) predicate.ToolInvocation {
+	return predicate.ToolInvocation(sql.FieldNotIn(FieldDurationMs, vs...))
+}
+
+// DurationMsGT applies the GT predicate on the "duration_ms" field.
+func DurationMsGT(v int) predicate.ToolInvocation {
+	return predicate.ToolInvocation(sql.FieldGT(FieldDurationMs, v))
+}
+
+// DurationMsGTE applies the GTE predicate on the "duration_ms" field.
+func DurationMsGTE(v int) predicate.ToolInvocation {
+	return predicate.ToolInvocation(sql.FieldGTE(FieldDurationMs, v))
+}
+
+// DurationMsLT applies the LT predicate on the "duration_ms" field.
+func DurationMsLT(v int) predicate.ToolInvocation {
+	return predicate.ToolInvocation(sql.FieldLT(FieldDurationMs, v))
+}
+
+// DurationMsLTE applies the LTE predicate on the "duration_ms" field.
+func DurationMsLTE(v int) predicate.ToolInvocation {
+	return predicate.ToolInvocation(sql.FieldLTE(FieldDurationMs, v))
+}
+
+// ErrorCodeEQ applies the EQ predicate on the "error_code" field.
+func ErrorCodeEQ(v string) predicate.ToolInvocation {
+	return predicate.ToolInvocation(sql.FieldEQ(FieldErrorCode, v))
+}
+
+// ErrorCodeNEQ applies the NEQ predicate on the "error_code" field.
+func ErrorCodeNEQ(v string) predicate.ToolInvocation {
+	return predicate.ToolInvocation(sql.FieldNEQ(FieldErrorCode, v))
+}
+
+// ErrorCodeIn applies the In predicate on the "error_code" field.
+func ErrorCodeIn(vs ...string) predicate.ToolInvocation {
+	return predicate.ToolInvocation(sql.FieldIn(FieldErrorCode, vs...))
+}
+
+// ErrorCodeNotIn applies the NotIn predicate on the "error_code" field.
+func ErrorCodeNotIn(vs ...string) predicate.ToolInvocation {
+	return predicate.ToolInvocation(sql.FieldNotIn(FieldErrorCode, vs...))
+}
+
+// ErrorCodeGT applies the GT predicate on the "error_code" field.
+func ErrorCodeGT(v string) predicate.ToolInvocation {
+	return predicate.ToolInvocation(sql.FieldGT(FieldErrorCode, v))
+}
+
+// ErrorCodeGTE applies the GTE predicate on the "error_code" field.
+func ErrorCodeGTE(v string) predicate.ToolInvocation {
+	return predicate.ToolInvocation(sql.FieldGTE(FieldErrorCode, v))
+}
+
+// ErrorCodeLT applies the LT predicate on the "error_code" field.
+func ErrorCodeLT(v string) predicate.ToolInvocation {
+	return predicate.ToolInvocation(sql.FieldLT(FieldErrorCode, v))
+}
+
+// ErrorCodeLTE applies the LTE predicate on the "error_code" field.
+func ErrorCodeLTE(v string) predicate.ToolInvocation {
+	return predicate.ToolInvocation(sql.FieldLTE(FieldErrorCode, v))
+}
+
+// ErrorCodeContains applies the Contains predicate on the "error_code" field.
+func ErrorCodeContains(v string) predicate.ToolInvocation {
+	return predicate.ToolInvocation(sql.FieldContains(FieldErrorCode, v))
+}
+
+// ErrorCodeHasPrefix applies the HasPrefix predicate on the "error_code" field.
+func ErrorCodeHasPrefix(v string) predicate.ToolInvocation {
+	return predicate.ToolInvocation(sql.FieldHasPrefix(FieldErrorCode, v))
+}
+
+// ErrorCodeHasSuffix applies the HasSuffix predicate on the "error_code" field.
+func ErrorCodeHasSuffix(v string) predicate.ToolInvocation {
+	return predicate.ToolInvocation(sql.FieldHasSuffix(FieldErrorCode, v))
+}
+
+// ErrorCodeEqualFold applies the EqualFold predicate on the "error_code" field.
+func ErrorCodeEqualFold(v string) predicate.ToolInvocation {
+	return predicate.ToolInvocation(sql.FieldEqualFold(FieldErrorCode, v))
+}
+
+// ErrorCodeContainsFold applies the ContainsFold predicate on the "error_code" field.
+func ErrorCodeContainsFold(v string) predicate.ToolInvocation {
+	return predicate.ToolInvocation(sql.FieldContainsFold(FieldErrorCode, v))
+}
+
+// RunIDEQ applies the EQ predicate on the "run_id" field.
+func RunIDEQ(v int) predicate.ToolInvocation {
+	return predicate.ToolInvocation(sql.FieldEQ(FieldRunID, v))
+}
+
+// RunIDNEQ applies the NEQ predicate on the "run_id" field.
+func RunIDNEQ(v int) predicate.ToolInvocation {
+	return predicate.ToolInvocation(sql.FieldNEQ(FieldRunID, v))
+}
+
+// RunIDIn applies the In predicate on the "run_id" field.
+func RunIDIn(vs ...int) predicate.ToolInvocation {
+	return predicate.ToolInvocation(sql.FieldIn(FieldRunID, vs...))
+}
+
+// RunIDNotIn applies the NotIn predicate on the "run_id" field.
+func RunIDNotIn(vs ...int) predicate.ToolInvocation {
+	return predicate.ToolInvocation(sql.FieldNotIn(FieldRunID, vs...))
+}
+
+// RunIDGT applies the GT predicate on the "run_id" field.
+func RunIDGT(v int) predicate.ToolInvocation {
+	return predicate.ToolInvocation(sql.FieldGT(FieldRunID, v))
+}
+
+// RunIDGTE applies the GTE predicate on the "run_id" field.
+func RunIDGTE(v int) predicate.ToolInvocation {
+	return predicate.ToolInvocation(sql.FieldGTE(FieldRunID, v))
+}
+
+// RunIDLT applies the LT predicate on the "run_id" field.
+func RunIDLT(v int) predicate.ToolInvocation {
+	return predicate.ToolInvocation(sql.FieldLT(FieldRunID, v))
+}
+
+// RunIDLTE applies the LTE predicate on the "run_id" field.
+func RunIDLTE(v int) predicate.ToolInvocation {
+	return predicate.ToolInvocation(sql.FieldLTE(FieldRunID, v))
+}
+
+// RunIDIsNil applies the IsNil predicate on the "run_id" field.
+func RunIDIsNil() predicate.ToolInvocation {
+	return predicate.ToolInvocation(sql.FieldIsNull(FieldRunID))
+}
+
+// RunIDNotNil applies the NotNil predicate on the "run_id" field.
+func RunIDNotNil() predicate.ToolInvocation {
+	return predicate.ToolInvocation(sql.FieldNotNull(FieldRunID))
+}
+
+// StepIDEQ applies the EQ predicate on the "step_id" field.
+func StepIDEQ(v int) predicate.ToolInvocation {
+	return predicate.ToolInvocation(sql.FieldEQ(FieldStepID, v))
+}
+
+// StepIDNEQ applies the NEQ predicate on the "step_id" field.
+func StepIDNEQ(v int) predicate.ToolInvocation {
+	return predicate.ToolInvocation(sql.FieldNEQ(FieldStepID, v))
+}
+
+// StepIDIn applies the In predicate on the "step_id" field.
+func StepIDIn(vs ...int) predicate.ToolInvocation {
+	return predicate.ToolInvocation(sql.FieldIn(FieldStepID, vs...))
+}
+
+// StepIDNotIn applies the NotIn predicate on the "step_id" field.
+func StepIDNotIn(vs ...int) predicate.ToolInvocation {
+	return predicate.ToolInvocation(sql.FieldNotIn(FieldStepID, vs...))
+}
+
+// StepIDGT applies the GT predicate on the "step_id" field.
+func StepIDGT(v int) predicate.ToolInvocation {
+	return predicate.ToolInvocation(sql.FieldGT(FieldStepID, v))
+}
+
+// StepIDGTE applies the GTE predicate on the "step_id" field.
+func StepIDGTE(v int) predicate.ToolInvocation {
+	return predicate.ToolInvocation(sql.FieldGTE(FieldStepID, v))
+}
+
+// StepIDLT applies the LT predicate on the "step_id" field.
+func StepIDLT(v int) predicate.ToolInvocation {
+	return predicate.ToolInvocation(sql.FieldLT(FieldStepID, v))
+}
+
+// StepIDLTE applies the LTE predicate on the "step_id" field.
+func StepIDLTE(v int) predicate.ToolInvocation {
+	return predicate.ToolInvocation(sql.FieldLTE(FieldStepID, v))
+}
+
+// StepIDIsNil applies the IsNil predicate on the "step_id" field.
+func StepIDIsNil() predicate.ToolInvocation {
+	return predicate.ToolInvocation(sql.FieldIsNull(FieldStepID))
+}
+
+// StepIDNotNil applies the NotNil predicate on the "step_id" field.
+func StepIDNotNil() predicate.ToolInvocation {
+	return predicate.ToolInvocation(sql.FieldNotNull(FieldStepID))
+}
+
+// RiskEQ applies the EQ predicate on the "risk" field.
+func RiskEQ(v string) predicate.ToolInvocation {
+	return predicate.ToolInvocation(sql.FieldEQ(FieldRisk, v))
+}
+
+// RiskNEQ applies the NEQ predicate on the "risk" field.
+func RiskNEQ(v string) predicate.ToolInvocation {
+	return predicate.ToolInvocation(sql.FieldNEQ(FieldRisk, v))
+}
+
+// RiskIn applies the In predicate on the "risk" field.
+func RiskIn(vs ...string) predicate.ToolInvocation {
+	return predicate.ToolInvocation(sql.FieldIn(FieldRisk, vs...))
+}
+
+// RiskNotIn applies the NotIn predicate on the "risk" field.
+func RiskNotIn(vs ...string) predicate.ToolInvocation {
+	return predicate.ToolInvocation(sql.FieldNotIn(FieldRisk, vs...))
+}
+
+// RiskGT applies the GT predicate on the "risk" field.
+func RiskGT(v string) predicate.ToolInvocation {
+	return predicate.ToolInvocation(sql.FieldGT(FieldRisk, v))
+}
+
+// RiskGTE applies the GTE predicate on the "risk" field.
+func RiskGTE(v string) predicate.ToolInvocation {
+	return predicate.ToolInvocation(sql.FieldGTE(FieldRisk, v))
+}
+
+// RiskLT applies the LT predicate on the "risk" field.
+func RiskLT(v string) predicate.ToolInvocation {
+	return predicate.ToolInvocation(sql.FieldLT(FieldRisk, v))
+}
+
+// RiskLTE applies the LTE predicate on the "risk" field.
+func RiskLTE(v string) predicate.ToolInvocation {
+	return predicate.ToolInvocation(sql.FieldLTE(FieldRisk, v))
+}
+
+// RiskContains applies the Contains predicate on the "risk" field.
+func RiskContains(v string) predicate.ToolInvocation {
+	return predicate.ToolInvocation(sql.FieldContains(FieldRisk, v))
+}
+
+// RiskHasPrefix applies the HasPrefix predicate on the "risk" field.
+func RiskHasPrefix(v string) predicate.ToolInvocation {
+	return predicate.ToolInvocation(sql.FieldHasPrefix(FieldRisk, v))
+}
+
+// RiskHasSuffix applies the HasSuffix predicate on the "risk" field.
+func RiskHasSuffix(v string) predicate.ToolInvocation {
+	return predicate.ToolInvocation(sql.FieldHasSuffix(FieldRisk, v))
+}
+
+// RiskEqualFold applies the EqualFold predicate on the "risk" field.
+func RiskEqualFold(v string) predicate.ToolInvocation {
+	return predicate.ToolInvocation(sql.FieldEqualFold(FieldRisk, v))
+}
+
+// RiskContainsFold applies the ContainsFold predicate on the "risk" field.
+func RiskContainsFold(v string) predicate.ToolInvocation {
+	return predicate.ToolInvocation(sql.FieldContainsFold(FieldRisk, v))
+}
+
+// CategoryEQ applies the EQ predicate on the "category" field.
+func CategoryEQ(v string) predicate.ToolInvocation {
+	return predicate.ToolInvocation(sql.FieldEQ(FieldCategory, v))
+}
+
+// CategoryNEQ applies the NEQ predicate on the "category" field.
+func CategoryNEQ(v string) predicate.ToolInvocation {
+	return predicate.ToolInvocation(sql.FieldNEQ(FieldCategory, v))
+}
+
+// CategoryIn applies the In predicate on the "category" field.
+func CategoryIn(vs ...string) predicate.ToolInvocation {
+	return predicate.ToolInvocation(sql.FieldIn(FieldCategory, vs...))
+}
+
+// CategoryNotIn applies the NotIn predicate on the "category" field.
+func CategoryNotIn(vs ...string) predicate.ToolInvocation {
+	return predicate.ToolInvocation(sql.FieldNotIn(FieldCategory, vs...))
+}
+
+// CategoryGT applies the GT predicate on the "category" field.
+func CategoryGT(v string) predicate.ToolInvocation {
+	return predicate.ToolInvocation(sql.FieldGT(FieldCategory, v))
+}
+
+// CategoryGTE applies the GTE predicate on the "category" field.
+func CategoryGTE(v string) predicate.ToolInvocation {
+	return predicate.ToolInvocation(sql.FieldGTE(FieldCategory, v))
+}
+
+// CategoryLT applies the LT predicate on the "category" field.
+func CategoryLT(v string) predicate.ToolInvocation {
+	return predicate.ToolInvocation(sql.FieldLT(FieldCategory, v))
+}
+
+// CategoryLTE applies the LTE predicate on the "category" field.
+func CategoryLTE(v string) predicate.ToolInvocation {
+	return predicate.ToolInvocation(sql.FieldLTE(FieldCategory, v))
+}
+
+// CategoryContains applies the Contains predicate on the "category" field.
+func CategoryContains(v string) predicate.ToolInvocation {
+	return predicate.ToolInvocation(sql.FieldContains(FieldCategory, v))
+}
+
+// CategoryHasPrefix applies the HasPrefix predicate on the "category" field.
+func CategoryHasPrefix(v string) predicate.ToolInvocation {
+	return predicate.ToolInvocation(sql.FieldHasPrefix(FieldCategory, v))
+}
+
+// CategoryHasSuffix applies the HasSuffix predicate on the "category" field.
+func CategoryHasSuffix(v string) predicate.ToolInvocation {
+	return predicate.ToolInvocation(sql.FieldHasSuffix(FieldCategory, v))
+}
+
+// CategoryEqualFold applies the EqualFold predicate on the "category" field.
+func CategoryEqualFold(v string) predicate.ToolInvocation {
+	return predicate.ToolInvocation(sql.FieldEqualFold(FieldCategory, v))
+}
+
+// CategoryContainsFold applies the ContainsFold predicate on the "category" field.
+func CategoryContainsFold(v string) predicate.ToolInvocation {
+	return predicate.ToolInvocation(sql.FieldContainsFold(FieldCategory, v))
+}
+
+// TargetTypeEQ applies the EQ predicate on the "target_type" field.
+func TargetTypeEQ(v string) predicate.ToolInvocation {
+	return predicate.ToolInvocation(sql.FieldEQ(FieldTargetType, v))
+}
+
+// TargetTypeNEQ applies the NEQ predicate on the "target_type" field.
+func TargetTypeNEQ(v string) predicate.ToolInvocation {
+	return predicate.ToolInvocation(sql.FieldNEQ(FieldTargetType, v))
+}
+
+// TargetTypeIn applies the In predicate on the "target_type" field.
+func TargetTypeIn(vs ...string) predicate.ToolInvocation {
+	return predicate.ToolInvocation(sql.FieldIn(FieldTargetType, vs...))
+}
+
+// TargetTypeNotIn applies the NotIn predicate on the "target_type" field.
+func TargetTypeNotIn(vs ...string) predicate.ToolInvocation {
+	return predicate.ToolInvocation(sql.FieldNotIn(FieldTargetType, vs...))
+}
+
+// TargetTypeGT applies the GT predicate on the "target_type" field.
+func TargetTypeGT(v string) predicate.ToolInvocation {
+	return predicate.ToolInvocation(sql.FieldGT(FieldTargetType, v))
+}
+
+// TargetTypeGTE applies the GTE predicate on the "target_type" field.
+func TargetTypeGTE(v string) predicate.ToolInvocation {
+	return predicate.ToolInvocation(sql.FieldGTE(FieldTargetType, v))
+}
+
+// TargetTypeLT applies the LT predicate on the "target_type" field.
+func TargetTypeLT(v string) predicate.ToolInvocation {
+	return predicate.ToolInvocation(sql.FieldLT(FieldTargetType, v))
+}
+
+// TargetTypeLTE applies the LTE predicate on the "target_type" field.
+func TargetTypeLTE(v string) predicate.ToolInvocation {
+	return predicate.ToolInvocation(sql.FieldLTE(FieldTargetType, v))
+}
+
+// TargetTypeContains applies the Contains predicate on the "target_type" field.
+func TargetTypeContains(v string) predicate.ToolInvocation {
+	return predicate.ToolInvocation(sql.FieldContains(FieldTargetType, v))
+}
+
+// TargetTypeHasPrefix applies the HasPrefix predicate on the "target_type" field.
+func TargetTypeHasPrefix(v string) predicate.ToolInvocation {
+	return predicate.ToolInvocation(sql.FieldHasPrefix(FieldTargetType, v))
+}
+
+// TargetTypeHasSuffix applies the HasSuffix predicate on the "target_type" field.
+func TargetTypeHasSuffix(v string) predicate.ToolInvocation {
+	return predicate.ToolInvocation(sql.FieldHasSuffix(FieldTargetType, v))
+}
+
+// TargetTypeEqualFold applies the EqualFold predicate on the "target_type" field.
+func TargetTypeEqualFold(v string) predicate.ToolInvocation {
+	return predicate.ToolInvocation(sql.FieldEqualFold(FieldTargetType, v))
+}
+
+// TargetTypeContainsFold applies the ContainsFold predicate on the "target_type" field.
+func TargetTypeContainsFold(v string) predicate.ToolInvocation {
+	return predicate.ToolInvocation(sql.FieldContainsFold(FieldTargetType, v))
+}
+
+// TargetIDEQ applies the EQ predicate on the "target_id" field.
+func TargetIDEQ(v string) predicate.ToolInvocation {
+	return predicate.ToolInvocation(sql.FieldEQ(FieldTargetID, v))
+}
+
+// TargetIDNEQ applies the NEQ predicate on the "target_id" field.
+func TargetIDNEQ(v string) predicate.ToolInvocation {
+	return predicate.ToolInvocation(sql.FieldNEQ(FieldTargetID, v))
+}
+
+// TargetIDIn applies the In predicate on the "target_id" field.
+func TargetIDIn(vs ...string) predicate.ToolInvocation {
+	return predicate.ToolInvocation(sql.FieldIn(FieldTargetID, vs...))
+}
+
+// TargetIDNotIn applies the NotIn predicate on the "target_id" field.
+func TargetIDNotIn(vs ...string) predicate.ToolInvocation {
+	return predicate.ToolInvocation(sql.FieldNotIn(FieldTargetID, vs...))
+}
+
+// TargetIDGT applies the GT predicate on the "target_id" field.
+func TargetIDGT(v string) predicate.ToolInvocation {
+	return predicate.ToolInvocation(sql.FieldGT(FieldTargetID, v))
+}
+
+// TargetIDGTE applies the GTE predicate on the "target_id" field.
+func TargetIDGTE(v string) predicate.ToolInvocation {
+	return predicate.ToolInvocation(sql.FieldGTE(FieldTargetID, v))
+}
+
+// TargetIDLT applies the LT predicate on the "target_id" field.
+func TargetIDLT(v string) predicate.ToolInvocation {
+	return predicate.ToolInvocation(sql.FieldLT(FieldTargetID, v))
+}
+
+// TargetIDLTE applies the LTE predicate on the "target_id" field.
+func TargetIDLTE(v string) predicate.ToolInvocation {
+	return predicate.ToolInvocation(sql.FieldLTE(FieldTargetID, v))
+}
+
+// TargetIDContains applies the Contains predicate on the "target_id" field.
+func TargetIDContains(v string) predicate.ToolInvocation {
+	return predicate.ToolInvocation(sql.FieldContains(FieldTargetID, v))
+}
+
+// TargetIDHasPrefix applies the HasPrefix predicate on the "target_id" field.
+func TargetIDHasPrefix(v string) predicate.ToolInvocation {
+	return predicate.ToolInvocation(sql.FieldHasPrefix(FieldTargetID, v))
+}
+
+// TargetIDHasSuffix applies the HasSuffix predicate on the "target_id" field.
+func TargetIDHasSuffix(v string) predicate.ToolInvocation {
+	return predicate.ToolInvocation(sql.FieldHasSuffix(FieldTargetID, v))
+}
+
+// TargetIDEqualFold applies the EqualFold predicate on the "target_id" field.
+func TargetIDEqualFold(v string) predicate.ToolInvocation {
+	return predicate.ToolInvocation(sql.FieldEqualFold(FieldTargetID, v))
+}
+
+// TargetIDContainsFold applies the ContainsFold predicate on the "target_id" field.
+func TargetIDContainsFold(v string) predicate.ToolInvocation {
+	return predicate.ToolInvocation(sql.FieldContainsFold(FieldTargetID, v))
+}
+
+// SupportRefEQ applies the EQ predicate on the "support_ref" field.
+func SupportRefEQ(v string) predicate.ToolInvocation {
+	return predicate.ToolInvocation(sql.FieldEQ(FieldSupportRef, v))
+}
+
+// SupportRefNEQ applies the NEQ predicate on the "support_ref" field.
+func SupportRefNEQ(v string) predicate.ToolInvocation {
+	return predicate.ToolInvocation(sql.FieldNEQ(FieldSupportRef, v))
+}
+
+// SupportRefIn applies the In predicate on the "support_ref" field.
+func SupportRefIn(vs ...string) predicate.ToolInvocation {
+	return predicate.ToolInvocation(sql.FieldIn(FieldSupportRef, vs...))
+}
+
+// SupportRefNotIn applies the NotIn predicate on the "support_ref" field.
+func SupportRefNotIn(vs ...string) predicate.ToolInvocation {
+	return predicate.ToolInvocation(sql.FieldNotIn(FieldSupportRef, vs...))
+}
+
+// SupportRefGT applies the GT predicate on the "support_ref" field.
+func SupportRefGT(v string) predicate.ToolInvocation {
+	return predicate.ToolInvocation(sql.FieldGT(FieldSupportRef, v))
+}
+
+// SupportRefGTE applies the GTE predicate on the "support_ref" field.
+func SupportRefGTE(v string) predicate.ToolInvocation {
+	return predicate.ToolInvocation(sql.FieldGTE(FieldSupportRef, v))
+}
+
+// SupportRefLT applies the LT predicate on the "support_ref" field.
+func SupportRefLT(v string) predicate.ToolInvocation {
+	return predicate.ToolInvocation(sql.FieldLT(FieldSupportRef, v))
+}
+
+// SupportRefLTE applies the LTE predicate on the "support_ref" field.
+func SupportRefLTE(v string) predicate.ToolInvocation {
+	return predicate.ToolInvocation(sql.FieldLTE(FieldSupportRef, v))
+}
+
+// SupportRefContains applies the Contains predicate on the "support_ref" field.
+func SupportRefContains(v string) predicate.ToolInvocation {
+	return predicate.ToolInvocation(sql.FieldContains(FieldSupportRef, v))
+}
+
+// SupportRefHasPrefix applies the HasPrefix predicate on the "support_ref" field.
+func SupportRefHasPrefix(v string) predicate.ToolInvocation {
+	return predicate.ToolInvocation(sql.FieldHasPrefix(FieldSupportRef, v))
+}
+
+// SupportRefHasSuffix applies the HasSuffix predicate on the "support_ref" field.
+func SupportRefHasSuffix(v string) predicate.ToolInvocation {
+	return predicate.ToolInvocation(sql.FieldHasSuffix(FieldSupportRef, v))
+}
+
+// SupportRefEqualFold applies the EqualFold predicate on the "support_ref" field.
+func SupportRefEqualFold(v string) predicate.ToolInvocation {
+	return predicate.ToolInvocation(sql.FieldEqualFold(FieldSupportRef, v))
+}
+
+// SupportRefContainsFold applies the ContainsFold predicate on the "support_ref" field.
+func SupportRefContainsFold(v string) predicate.ToolInvocation {
+	return predicate.ToolInvocation(sql.FieldContainsFold(FieldSupportRef, v))
+}
+
+// IdempotencyKeyHashEQ applies the EQ predicate on the "idempotency_key_hash" field.
+func IdempotencyKeyHashEQ(v string) predicate.ToolInvocation {
+	return predicate.ToolInvocation(sql.FieldEQ(FieldIdempotencyKeyHash, v))
+}
+
+// IdempotencyKeyHashNEQ applies the NEQ predicate on the "idempotency_key_hash" field.
+func IdempotencyKeyHashNEQ(v string) predicate.ToolInvocation {
+	return predicate.ToolInvocation(sql.FieldNEQ(FieldIdempotencyKeyHash, v))
+}
+
+// IdempotencyKeyHashIn applies the In predicate on the "idempotency_key_hash" field.
+func IdempotencyKeyHashIn(vs ...string) predicate.ToolInvocation {
+	return predicate.ToolInvocation(sql.FieldIn(FieldIdempotencyKeyHash, vs...))
+}
+
+// IdempotencyKeyHashNotIn applies the NotIn predicate on the "idempotency_key_hash" field.
+func IdempotencyKeyHashNotIn(vs ...string) predicate.ToolInvocation {
+	return predicate.ToolInvocation(sql.FieldNotIn(FieldIdempotencyKeyHash, vs...))
+}
+
+// IdempotencyKeyHashGT applies the GT predicate on the "idempotency_key_hash" field.
+func IdempotencyKeyHashGT(v string) predicate.ToolInvocation {
+	return predicate.ToolInvocation(sql.FieldGT(FieldIdempotencyKeyHash, v))
+}
+
+// IdempotencyKeyHashGTE applies the GTE predicate on the "idempotency_key_hash" field.
+func IdempotencyKeyHashGTE(v string) predicate.ToolInvocation {
+	return predicate.ToolInvocation(sql.FieldGTE(FieldIdempotencyKeyHash, v))
+}
+
+// IdempotencyKeyHashLT applies the LT predicate on the "idempotency_key_hash" field.
+func IdempotencyKeyHashLT(v string) predicate.ToolInvocation {
+	return predicate.ToolInvocation(sql.FieldLT(FieldIdempotencyKeyHash, v))
+}
+
+// IdempotencyKeyHashLTE applies the LTE predicate on the "idempotency_key_hash" field.
+func IdempotencyKeyHashLTE(v string) predicate.ToolInvocation {
+	return predicate.ToolInvocation(sql.FieldLTE(FieldIdempotencyKeyHash, v))
+}
+
+// IdempotencyKeyHashContains applies the Contains predicate on the "idempotency_key_hash" field.
+func IdempotencyKeyHashContains(v string) predicate.ToolInvocation {
+	return predicate.ToolInvocation(sql.FieldContains(FieldIdempotencyKeyHash, v))
+}
+
+// IdempotencyKeyHashHasPrefix applies the HasPrefix predicate on the "idempotency_key_hash" field.
+func IdempotencyKeyHashHasPrefix(v string) predicate.ToolInvocation {
+	return predicate.ToolInvocation(sql.FieldHasPrefix(FieldIdempotencyKeyHash, v))
+}
+
+// IdempotencyKeyHashHasSuffix applies the HasSuffix predicate on the "idempotency_key_hash" field.
+func IdempotencyKeyHashHasSuffix(v string) predicate.ToolInvocation {
+	return predicate.ToolInvocation(sql.FieldHasSuffix(FieldIdempotencyKeyHash, v))
+}
+
+// IdempotencyKeyHashIsNil applies the IsNil predicate on the "idempotency_key_hash" field.
+func IdempotencyKeyHashIsNil() predicate.ToolInvocation {
+	return predicate.ToolInvocation(sql.FieldIsNull(FieldIdempotencyKeyHash))
+}
+
+// IdempotencyKeyHashNotNil applies the NotNil predicate on the "idempotency_key_hash" field.
+func IdempotencyKeyHashNotNil() predicate.ToolInvocation {
+	return predicate.ToolInvocation(sql.FieldNotNull(FieldIdempotencyKeyHash))
+}
+
+// IdempotencyKeyHashEqualFold applies the EqualFold predicate on the "idempotency_key_hash" field.
+func IdempotencyKeyHashEqualFold(v string) predicate.ToolInvocation {
+	return predicate.ToolInvocation(sql.FieldEqualFold(FieldIdempotencyKeyHash, v))
+}
+
+// IdempotencyKeyHashContainsFold applies the ContainsFold predicate on the "idempotency_key_hash" field.
+func IdempotencyKeyHashContainsFold(v string) predicate.ToolInvocation {
+	return predicate.ToolInvocation(sql.FieldContainsFold(FieldIdempotencyKeyHash, v))
+}
+
+// ExpiresAtEQ applies the EQ predicate on the "expires_at" field.
+func ExpiresAtEQ(v time.Time) predicate.ToolInvocation {
+	return predicate.ToolInvocation(sql.FieldEQ(FieldExpiresAt, v))
+}
+
+// ExpiresAtNEQ applies the NEQ predicate on the "expires_at" field.
+func ExpiresAtNEQ(v time.Time) predicate.ToolInvocation {
+	return predicate.ToolInvocation(sql.FieldNEQ(FieldExpiresAt, v))
+}
+
+// ExpiresAtIn applies the In predicate on the "expires_at" field.
+func ExpiresAtIn(vs ...time.Time) predicate.ToolInvocation {
+	return predicate.ToolInvocation(sql.FieldIn(FieldExpiresAt, vs...))
+}
+
+// ExpiresAtNotIn applies the NotIn predicate on the "expires_at" field.
+func ExpiresAtNotIn(vs ...time.Time) predicate.ToolInvocation {
+	return predicate.ToolInvocation(sql.FieldNotIn(FieldExpiresAt, vs...))
+}
+
+// ExpiresAtGT applies the GT predicate on the "expires_at" field.
+func ExpiresAtGT(v time.Time) predicate.ToolInvocation {
+	return predicate.ToolInvocation(sql.FieldGT(FieldExpiresAt, v))
+}
+
+// ExpiresAtGTE applies the GTE predicate on the "expires_at" field.
+func ExpiresAtGTE(v time.Time) predicate.ToolInvocation {
+	return predicate.ToolInvocation(sql.FieldGTE(FieldExpiresAt, v))
+}
+
+// ExpiresAtLT applies the LT predicate on the "expires_at" field.
+func ExpiresAtLT(v time.Time) predicate.ToolInvocation {
+	return predicate.ToolInvocation(sql.FieldLT(FieldExpiresAt, v))
+}
+
+// ExpiresAtLTE applies the LTE predicate on the "expires_at" field.
+func ExpiresAtLTE(v time.Time) predicate.ToolInvocation {
+	return predicate.ToolInvocation(sql.FieldLTE(FieldExpiresAt, v))
+}
+
+// ExpiresAtIsNil applies the IsNil predicate on the "expires_at" field.
+func ExpiresAtIsNil() predicate.ToolInvocation {
+	return predicate.ToolInvocation(sql.FieldIsNull(FieldExpiresAt))
+}
+
+// ExpiresAtNotNil applies the NotNil predicate on the "expires_at" field.
+func ExpiresAtNotNil() predicate.ToolInvocation {
+	return predicate.ToolInvocation(sql.FieldNotNull(FieldExpiresAt))
+}
+
+// VerifyStateEQ applies the EQ predicate on the "verify_state" field.
+func VerifyStateEQ(v string) predicate.ToolInvocation {
+	return predicate.ToolInvocation(sql.FieldEQ(FieldVerifyState, v))
+}
+
+// VerifyStateNEQ applies the NEQ predicate on the "verify_state" field.
+func VerifyStateNEQ(v string) predicate.ToolInvocation {
+	return predicate.ToolInvocation(sql.FieldNEQ(FieldVerifyState, v))
+}
+
+// VerifyStateIn applies the In predicate on the "verify_state" field.
+func VerifyStateIn(vs ...string) predicate.ToolInvocation {
+	return predicate.ToolInvocation(sql.FieldIn(FieldVerifyState, vs...))
+}
+
+// VerifyStateNotIn applies the NotIn predicate on the "verify_state" field.
+func VerifyStateNotIn(vs ...string) predicate.ToolInvocation {
+	return predicate.ToolInvocation(sql.FieldNotIn(FieldVerifyState, vs...))
+}
+
+// VerifyStateGT applies the GT predicate on the "verify_state" field.
+func VerifyStateGT(v string) predicate.ToolInvocation {
+	return predicate.ToolInvocation(sql.FieldGT(FieldVerifyState, v))
+}
+
+// VerifyStateGTE applies the GTE predicate on the "verify_state" field.
+func VerifyStateGTE(v string) predicate.ToolInvocation {
+	return predicate.ToolInvocation(sql.FieldGTE(FieldVerifyState, v))
+}
+
+// VerifyStateLT applies the LT predicate on the "verify_state" field.
+func VerifyStateLT(v string) predicate.ToolInvocation {
+	return predicate.ToolInvocation(sql.FieldLT(FieldVerifyState, v))
+}
+
+// VerifyStateLTE applies the LTE predicate on the "verify_state" field.
+func VerifyStateLTE(v string) predicate.ToolInvocation {
+	return predicate.ToolInvocation(sql.FieldLTE(FieldVerifyState, v))
+}
+
+// VerifyStateContains applies the Contains predicate on the "verify_state" field.
+func VerifyStateContains(v string) predicate.ToolInvocation {
+	return predicate.ToolInvocation(sql.FieldContains(FieldVerifyState, v))
+}
+
+// VerifyStateHasPrefix applies the HasPrefix predicate on the "verify_state" field.
+func VerifyStateHasPrefix(v string) predicate.ToolInvocation {
+	return predicate.ToolInvocation(sql.FieldHasPrefix(FieldVerifyState, v))
+}
+
+// VerifyStateHasSuffix applies the HasSuffix predicate on the "verify_state" field.
+func VerifyStateHasSuffix(v string) predicate.ToolInvocation {
+	return predicate.ToolInvocation(sql.FieldHasSuffix(FieldVerifyState, v))
+}
+
+// VerifyStateEqualFold applies the EqualFold predicate on the "verify_state" field.
+func VerifyStateEqualFold(v string) predicate.ToolInvocation {
+	return predicate.ToolInvocation(sql.FieldEqualFold(FieldVerifyState, v))
+}
+
+// VerifyStateContainsFold applies the ContainsFold predicate on the "verify_state" field.
+func VerifyStateContainsFold(v string) predicate.ToolInvocation {
+	return predicate.ToolInvocation(sql.FieldContainsFold(FieldVerifyState, v))
+}
+
+// VerifyNoteEQ applies the EQ predicate on the "verify_note" field.
+func VerifyNoteEQ(v string) predicate.ToolInvocation {
+	return predicate.ToolInvocation(sql.FieldEQ(FieldVerifyNote, v))
+}
+
+// VerifyNoteNEQ applies the NEQ predicate on the "verify_note" field.
+func VerifyNoteNEQ(v string) predicate.ToolInvocation {
+	return predicate.ToolInvocation(sql.FieldNEQ(FieldVerifyNote, v))
+}
+
+// VerifyNoteIn applies the In predicate on the "verify_note" field.
+func VerifyNoteIn(vs ...string) predicate.ToolInvocation {
+	return predicate.ToolInvocation(sql.FieldIn(FieldVerifyNote, vs...))
+}
+
+// VerifyNoteNotIn applies the NotIn predicate on the "verify_note" field.
+func VerifyNoteNotIn(vs ...string) predicate.ToolInvocation {
+	return predicate.ToolInvocation(sql.FieldNotIn(FieldVerifyNote, vs...))
+}
+
+// VerifyNoteGT applies the GT predicate on the "verify_note" field.
+func VerifyNoteGT(v string) predicate.ToolInvocation {
+	return predicate.ToolInvocation(sql.FieldGT(FieldVerifyNote, v))
+}
+
+// VerifyNoteGTE applies the GTE predicate on the "verify_note" field.
+func VerifyNoteGTE(v string) predicate.ToolInvocation {
+	return predicate.ToolInvocation(sql.FieldGTE(FieldVerifyNote, v))
+}
+
+// VerifyNoteLT applies the LT predicate on the "verify_note" field.
+func VerifyNoteLT(v string) predicate.ToolInvocation {
+	return predicate.ToolInvocation(sql.FieldLT(FieldVerifyNote, v))
+}
+
+// VerifyNoteLTE applies the LTE predicate on the "verify_note" field.
+func VerifyNoteLTE(v string) predicate.ToolInvocation {
+	return predicate.ToolInvocation(sql.FieldLTE(FieldVerifyNote, v))
+}
+
+// VerifyNoteContains applies the Contains predicate on the "verify_note" field.
+func VerifyNoteContains(v string) predicate.ToolInvocation {
+	return predicate.ToolInvocation(sql.FieldContains(FieldVerifyNote, v))
+}
+
+// VerifyNoteHasPrefix applies the HasPrefix predicate on the "verify_note" field.
+func VerifyNoteHasPrefix(v string) predicate.ToolInvocation {
+	return predicate.ToolInvocation(sql.FieldHasPrefix(FieldVerifyNote, v))
+}
+
+// VerifyNoteHasSuffix applies the HasSuffix predicate on the "verify_note" field.
+func VerifyNoteHasSuffix(v string) predicate.ToolInvocation {
+	return predicate.ToolInvocation(sql.FieldHasSuffix(FieldVerifyNote, v))
+}
+
+// VerifyNoteEqualFold applies the EqualFold predicate on the "verify_note" field.
+func VerifyNoteEqualFold(v string) predicate.ToolInvocation {
+	return predicate.ToolInvocation(sql.FieldEqualFold(FieldVerifyNote, v))
+}
+
+// VerifyNoteContainsFold applies the ContainsFold predicate on the "verify_note" field.
+func VerifyNoteContainsFold(v string) predicate.ToolInvocation {
+	return predicate.ToolInvocation(sql.FieldContainsFold(FieldVerifyNote, v))
+}
+
+// AttemptCountEQ applies the EQ predicate on the "attempt_count" field.
+func AttemptCountEQ(v int) predicate.ToolInvocation {
+	return predicate.ToolInvocation(sql.FieldEQ(FieldAttemptCount, v))
+}
+
+// AttemptCountNEQ applies the NEQ predicate on the "attempt_count" field.
+func AttemptCountNEQ(v int) predicate.ToolInvocation {
+	return predicate.ToolInvocation(sql.FieldNEQ(FieldAttemptCount, v))
+}
+
+// AttemptCountIn applies the In predicate on the "attempt_count" field.
+func AttemptCountIn(vs ...int) predicate.ToolInvocation {
+	return predicate.ToolInvocation(sql.FieldIn(FieldAttemptCount, vs...))
+}
+
+// AttemptCountNotIn applies the NotIn predicate on the "attempt_count" field.
+func AttemptCountNotIn(vs ...int) predicate.ToolInvocation {
+	return predicate.ToolInvocation(sql.FieldNotIn(FieldAttemptCount, vs...))
+}
+
+// AttemptCountGT applies the GT predicate on the "attempt_count" field.
+func AttemptCountGT(v int) predicate.ToolInvocation {
+	return predicate.ToolInvocation(sql.FieldGT(FieldAttemptCount, v))
+}
+
+// AttemptCountGTE applies the GTE predicate on the "attempt_count" field.
+func AttemptCountGTE(v int) predicate.ToolInvocation {
+	return predicate.ToolInvocation(sql.FieldGTE(FieldAttemptCount, v))
+}
+
+// AttemptCountLT applies the LT predicate on the "attempt_count" field.
+func AttemptCountLT(v int) predicate.ToolInvocation {
+	return predicate.ToolInvocation(sql.FieldLT(FieldAttemptCount, v))
+}
+
+// AttemptCountLTE applies the LTE predicate on the "attempt_count" field.
+func AttemptCountLTE(v int) predicate.ToolInvocation {
+	return predicate.ToolInvocation(sql.FieldLTE(FieldAttemptCount, v))
+}
+
+// LastErrorCodeEQ applies the EQ predicate on the "last_error_code" field.
+func LastErrorCodeEQ(v string) predicate.ToolInvocation {
+	return predicate.ToolInvocation(sql.FieldEQ(FieldLastErrorCode, v))
+}
+
+// LastErrorCodeNEQ applies the NEQ predicate on the "last_error_code" field.
+func LastErrorCodeNEQ(v string) predicate.ToolInvocation {
+	return predicate.ToolInvocation(sql.FieldNEQ(FieldLastErrorCode, v))
+}
+
+// LastErrorCodeIn applies the In predicate on the "last_error_code" field.
+func LastErrorCodeIn(vs ...string) predicate.ToolInvocation {
+	return predicate.ToolInvocation(sql.FieldIn(FieldLastErrorCode, vs...))
+}
+
+// LastErrorCodeNotIn applies the NotIn predicate on the "last_error_code" field.
+func LastErrorCodeNotIn(vs ...string) predicate.ToolInvocation {
+	return predicate.ToolInvocation(sql.FieldNotIn(FieldLastErrorCode, vs...))
+}
+
+// LastErrorCodeGT applies the GT predicate on the "last_error_code" field.
+func LastErrorCodeGT(v string) predicate.ToolInvocation {
+	return predicate.ToolInvocation(sql.FieldGT(FieldLastErrorCode, v))
+}
+
+// LastErrorCodeGTE applies the GTE predicate on the "last_error_code" field.
+func LastErrorCodeGTE(v string) predicate.ToolInvocation {
+	return predicate.ToolInvocation(sql.FieldGTE(FieldLastErrorCode, v))
+}
+
+// LastErrorCodeLT applies the LT predicate on the "last_error_code" field.
+func LastErrorCodeLT(v string) predicate.ToolInvocation {
+	return predicate.ToolInvocation(sql.FieldLT(FieldLastErrorCode, v))
+}
+
+// LastErrorCodeLTE applies the LTE predicate on the "last_error_code" field.
+func LastErrorCodeLTE(v string) predicate.ToolInvocation {
+	return predicate.ToolInvocation(sql.FieldLTE(FieldLastErrorCode, v))
+}
+
+// LastErrorCodeContains applies the Contains predicate on the "last_error_code" field.
+func LastErrorCodeContains(v string) predicate.ToolInvocation {
+	return predicate.ToolInvocation(sql.FieldContains(FieldLastErrorCode, v))
+}
+
+// LastErrorCodeHasPrefix applies the HasPrefix predicate on the "last_error_code" field.
+func LastErrorCodeHasPrefix(v string) predicate.ToolInvocation {
+	return predicate.ToolInvocation(sql.FieldHasPrefix(FieldLastErrorCode, v))
+}
+
+// LastErrorCodeHasSuffix applies the HasSuffix predicate on the "last_error_code" field.
+func LastErrorCodeHasSuffix(v string) predicate.ToolInvocation {
+	return predicate.ToolInvocation(sql.FieldHasSuffix(FieldLastErrorCode, v))
+}
+
+// LastErrorCodeEqualFold applies the EqualFold predicate on the "last_error_code" field.
+func LastErrorCodeEqualFold(v string) predicate.ToolInvocation {
+	return predicate.ToolInvocation(sql.FieldEqualFold(FieldLastErrorCode, v))
+}
+
+// LastErrorCodeContainsFold applies the ContainsFold predicate on the "last_error_code" field.
+func LastErrorCodeContainsFold(v string) predicate.ToolInvocation {
+	return predicate.ToolInvocation(sql.FieldContainsFold(FieldLastErrorCode, v))
 }
 
 // HasConversation applies the HasEdge predicate on the "conversation" edge.

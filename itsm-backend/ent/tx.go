@@ -136,6 +136,10 @@ type Tx struct {
 	LLMProviderConfig *LLMProviderConfigClient
 	// LLMUserPreference is the client for interacting with the LLMUserPreference builders.
 	LLMUserPreference *LLMUserPreferenceClient
+	// MCPServer is the client for interacting with the MCPServer builders.
+	MCPServer *MCPServerClient
+	// MCPServerTool is the client for interacting with the MCPServerTool builders.
+	MCPServerTool *MCPServerToolClient
 	// MSPAllocation is the client for interacting with the MSPAllocation builders.
 	MSPAllocation *MSPAllocationClient
 	// MarketplaceItem is the client for interacting with the MarketplaceItem builders.
@@ -483,6 +487,8 @@ func (tx *Tx) init() {
 	tx.KnownError = NewKnownErrorClient(tx.config)
 	tx.LLMProviderConfig = NewLLMProviderConfigClient(tx.config)
 	tx.LLMUserPreference = NewLLMUserPreferenceClient(tx.config)
+	tx.MCPServer = NewMCPServerClient(tx.config)
+	tx.MCPServerTool = NewMCPServerToolClient(tx.config)
 	tx.MSPAllocation = NewMSPAllocationClient(tx.config)
 	tx.MarketplaceItem = NewMarketplaceItemClient(tx.config)
 	tx.Menu = NewMenuClient(tx.config)

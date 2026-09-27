@@ -241,6 +241,7 @@ MCP：         ▼                    ▼                     ▼
 - **要点**：唯一键 `(tenant_id, name)` 与 `(server_id, raw_name)`；`callable_name` 服务内唯一；`version` 乐观锁；所有新字段带默认值/nullable（参照 `ent/schema/tool_invocation.go:31` 的兼容做法）；索引首列必须含 `tenant_id`；迁移统一由 `client.Schema.Create`（`internal/bootstrap/app.go:1392`）执行，存量回填若需要则按 `app.go:1380-1391` 的前置步骤模式处理。
 - **测试与证据**：空库建表 + 旧库升级两条迁移路径；SQLite 与 Postgres 双驱动冒烟【两驱动迁移差异未核实，必须在 CI 覆盖】；ent 读写断言（三元组、默认值、乐观锁冲突）。
 - **DoD**：`integration_verified`。
+- **状态**：迁移实现完成（2026-09-27）；证据等级 `unit_verified`（sqlite 建表/列清单/默认值/唯一约束/旧行兼容/幂等重跑 + 全量构建，证据 `docs/plan/evidence/mcp-m0/M0-03-migration-evidence.md`）；`integration_verified` 待 Postgres 双驱动与真实旧库 ALTER 路径在 CI 覆盖（M0-14 前）。**联合迁移已执行**：B0-02 字段随本任务一次加列，`args_redacted` 为统一命名（替代 B0-02 的 `input_redacted`）。
 
 #### M0-04 传输层：Streamable HTTP / SSE（后端）
 
@@ -843,3 +844,4 @@ M2-06 交付《MCP 运维手册》（建议 `docs/ops/mcp-runbook.md`），至�
 | 2026-09-27 | AI 辅助编制 | 开工准备：Q1–Q8 按建议拍板登记（§10）；P1 工作树处置完成（独立提交 `d3471221`）；创建实施分支 `feat/bot-mcp-integration` 并入库 4 份文档（`3172c12c`） |
 | 2026-09-27 | AI 辅助执行 | M0-01 交付并回写状态：`mcp/` 六包骨架、`go-sdk v1.4.0` 锁版、`mcp.enabled` 开关与连接默认值、bootstrap 预留装配点、SDK 握手回归与配置单测；`go build ./...` 与 `go test ./mcp/... ./config/...` 全绿（证据 `docs/plan/evidence/mcp-m0/M0-01-unit-evidence.md`）；M0-01 = `unit_verified` |
 | 2026-09-27 | AI 辅助执行 | M0-02 交付并回写状态：registry 投影/解析/隔离实现与三组契约测试（投影五类 + 解析四类 + 隔离与解除），与参考实现规则逐字对齐；`go vet ./mcp/...` 干净、`go test ./mcp/...` 全绿（证据 `docs/plan/evidence/mcp-m0/M0-02-unit-evidence.md`）；M0-02 = `unit_verified` |
+| 2026-09-27 | AI 辅助执行 | M0-03 交付并回写状态：`mcp_servers` / `mcp_server_tools` 实体 + `tool_invocations` 联合扩展（含 B0-02 字段一次加列、命名统一 `args_redacted`）；ent 生成刷新、迁移/约束/默认值测试与全量构建通过（证据 `docs/plan/evidence/mcp-m0/M0-03-migration-evidence.md`）；M0-03 = 迁移完成（`unit_verified`，`integration_verified` 待 CI 双驱动） |

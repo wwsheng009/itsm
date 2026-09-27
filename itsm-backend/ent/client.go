@@ -74,6 +74,8 @@ import (
 	"itsm-backend/ent/llmproviderconfig"
 	"itsm-backend/ent/llmuserpreference"
 	"itsm-backend/ent/marketplaceitem"
+	"itsm-backend/ent/mcpserver"
+	"itsm-backend/ent/mcpservertool"
 	"itsm-backend/ent/menu"
 	"itsm-backend/ent/message"
 	"itsm-backend/ent/microservice"
@@ -286,6 +288,10 @@ type Client struct {
 	LLMProviderConfig *LLMProviderConfigClient
 	// LLMUserPreference is the client for interacting with the LLMUserPreference builders.
 	LLMUserPreference *LLMUserPreferenceClient
+	// MCPServer is the client for interacting with the MCPServer builders.
+	MCPServer *MCPServerClient
+	// MCPServerTool is the client for interacting with the MCPServerTool builders.
+	MCPServerTool *MCPServerToolClient
 	// MSPAllocation is the client for interacting with the MSPAllocation builders.
 	MSPAllocation *MSPAllocationClient
 	// MarketplaceItem is the client for interacting with the MarketplaceItem builders.
@@ -513,6 +519,8 @@ func (c *Client) init() {
 	c.KnownError = NewKnownErrorClient(c.config)
 	c.LLMProviderConfig = NewLLMProviderConfigClient(c.config)
 	c.LLMUserPreference = NewLLMUserPreferenceClient(c.config)
+	c.MCPServer = NewMCPServerClient(c.config)
+	c.MCPServerTool = NewMCPServerToolClient(c.config)
 	c.MSPAllocation = NewMSPAllocationClient(c.config)
 	c.MarketplaceItem = NewMarketplaceItemClient(c.config)
 	c.Menu = NewMenuClient(c.config)
@@ -744,6 +752,8 @@ func (c *Client) Tx(ctx context.Context) (*Tx, error) {
 		KnownError:                  NewKnownErrorClient(cfg),
 		LLMProviderConfig:           NewLLMProviderConfigClient(cfg),
 		LLMUserPreference:           NewLLMUserPreferenceClient(cfg),
+		MCPServer:                   NewMCPServerClient(cfg),
+		MCPServerTool:               NewMCPServerToolClient(cfg),
 		MSPAllocation:               NewMSPAllocationClient(cfg),
 		MarketplaceItem:             NewMarketplaceItemClient(cfg),
 		Menu:                        NewMenuClient(cfg),
@@ -902,6 +912,8 @@ func (c *Client) BeginTx(ctx context.Context, opts *sql.TxOptions) (*Tx, error) 
 		KnownError:                  NewKnownErrorClient(cfg),
 		LLMProviderConfig:           NewLLMProviderConfigClient(cfg),
 		LLMUserPreference:           NewLLMUserPreferenceClient(cfg),
+		MCPServer:                   NewMCPServerClient(cfg),
+		MCPServerTool:               NewMCPServerToolClient(cfg),
 		MSPAllocation:               NewMSPAllocationClient(cfg),
 		MarketplaceItem:             NewMarketplaceItemClient(cfg),
 		Menu:                        NewMenuClient(cfg),
@@ -1024,10 +1036,10 @@ func (c *Client) Use(hooks ...Hook) {
 		c.ItemVersion, c.KnowledgeArticle, c.KnowledgeArticleLike,
 		c.KnowledgeArticleParticipant, c.KnowledgeArticleSession,
 		c.KnowledgeArticleVersion, c.KnownError, c.LLMProviderConfig,
-		c.LLMUserPreference, c.MSPAllocation, c.MarketplaceItem, c.Menu, c.Message,
-		c.Microservice, c.Notification, c.NotificationDelivery,
-		c.NotificationPreference, c.OnCallSchedule, c.OnCallShift,
-		c.OperationalCommand, c.PasswordResetToken, c.Permission,
+		c.LLMUserPreference, c.MCPServer, c.MCPServerTool, c.MSPAllocation,
+		c.MarketplaceItem, c.Menu, c.Message, c.Microservice, c.Notification,
+		c.NotificationDelivery, c.NotificationPreference, c.OnCallSchedule,
+		c.OnCallShift, c.OperationalCommand, c.PasswordResetToken, c.Permission,
 		c.PermissionDefinition, c.Problem, c.ProcessApprovalDecision,
 		c.ProcessAuditLog, c.ProcessBinding, c.ProcessDefinition, c.ProcessDeployment,
 		c.ProcessExecutionHistory, c.ProcessInstance, c.ProcessTask, c.ProcessTimer,
@@ -1069,10 +1081,10 @@ func (c *Client) Intercept(interceptors ...Interceptor) {
 		c.ItemVersion, c.KnowledgeArticle, c.KnowledgeArticleLike,
 		c.KnowledgeArticleParticipant, c.KnowledgeArticleSession,
 		c.KnowledgeArticleVersion, c.KnownError, c.LLMProviderConfig,
-		c.LLMUserPreference, c.MSPAllocation, c.MarketplaceItem, c.Menu, c.Message,
-		c.Microservice, c.Notification, c.NotificationDelivery,
-		c.NotificationPreference, c.OnCallSchedule, c.OnCallShift,
-		c.OperationalCommand, c.PasswordResetToken, c.Permission,
+		c.LLMUserPreference, c.MCPServer, c.MCPServerTool, c.MSPAllocation,
+		c.MarketplaceItem, c.Menu, c.Message, c.Microservice, c.Notification,
+		c.NotificationDelivery, c.NotificationPreference, c.OnCallSchedule,
+		c.OnCallShift, c.OperationalCommand, c.PasswordResetToken, c.Permission,
 		c.PermissionDefinition, c.Problem, c.ProcessApprovalDecision,
 		c.ProcessAuditLog, c.ProcessBinding, c.ProcessDefinition, c.ProcessDeployment,
 		c.ProcessExecutionHistory, c.ProcessInstance, c.ProcessTask, c.ProcessTimer,
@@ -1221,6 +1233,10 @@ func (c *Client) Mutate(ctx context.Context, m Mutation) (Value, error) {
 		return c.LLMProviderConfig.mutate(ctx, m)
 	case *LLMUserPreferenceMutation:
 		return c.LLMUserPreference.mutate(ctx, m)
+	case *MCPServerMutation:
+		return c.MCPServer.mutate(ctx, m)
+	case *MCPServerToolMutation:
+		return c.MCPServerTool.mutate(ctx, m)
 	case *MSPAllocationMutation:
 		return c.MSPAllocation.mutate(ctx, m)
 	case *MarketplaceItemMutation:
@@ -11255,6 +11271,304 @@ func (c *LLMUserPreferenceClient) mutate(ctx context.Context, m *LLMUserPreferen
 		return (&LLMUserPreferenceDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
 	default:
 		return nil, fmt.Errorf("ent: unknown LLMUserPreference mutation op: %q", m.Op())
+	}
+}
+
+// MCPServerClient is a client for the MCPServer schema.
+type MCPServerClient struct {
+	config
+}
+
+// NewMCPServerClient returns a client for the MCPServer from the given config.
+func NewMCPServerClient(c config) *MCPServerClient {
+	return &MCPServerClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `mcpserver.Hooks(f(g(h())))`.
+func (c *MCPServerClient) Use(hooks ...Hook) {
+	c.hooks.MCPServer = append(c.hooks.MCPServer, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `mcpserver.Intercept(f(g(h())))`.
+func (c *MCPServerClient) Intercept(interceptors ...Interceptor) {
+	c.inters.MCPServer = append(c.inters.MCPServer, interceptors...)
+}
+
+// Create returns a builder for creating a MCPServer entity.
+func (c *MCPServerClient) Create() *MCPServerCreate {
+	mutation := newMCPServerMutation(c.config, OpCreate)
+	return &MCPServerCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of MCPServer entities.
+func (c *MCPServerClient) CreateBulk(builders ...*MCPServerCreate) *MCPServerCreateBulk {
+	return &MCPServerCreateBulk{config: c.config, builders: builders}
+}
+
+// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
+// a builder and applies setFunc on it.
+func (c *MCPServerClient) MapCreateBulk(slice any, setFunc func(*MCPServerCreate, int)) *MCPServerCreateBulk {
+	rv := reflect.ValueOf(slice)
+	if rv.Kind() != reflect.Slice {
+		return &MCPServerCreateBulk{err: fmt.Errorf("calling to MCPServerClient.MapCreateBulk with wrong type %T, need slice", slice)}
+	}
+	builders := make([]*MCPServerCreate, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		builders[i] = c.Create()
+		setFunc(builders[i], i)
+	}
+	return &MCPServerCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for MCPServer.
+func (c *MCPServerClient) Update() *MCPServerUpdate {
+	mutation := newMCPServerMutation(c.config, OpUpdate)
+	return &MCPServerUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *MCPServerClient) UpdateOne(_m *MCPServer) *MCPServerUpdateOne {
+	mutation := newMCPServerMutation(c.config, OpUpdateOne, withMCPServer(_m))
+	return &MCPServerUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *MCPServerClient) UpdateOneID(id int) *MCPServerUpdateOne {
+	mutation := newMCPServerMutation(c.config, OpUpdateOne, withMCPServerID(id))
+	return &MCPServerUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for MCPServer.
+func (c *MCPServerClient) Delete() *MCPServerDelete {
+	mutation := newMCPServerMutation(c.config, OpDelete)
+	return &MCPServerDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *MCPServerClient) DeleteOne(_m *MCPServer) *MCPServerDeleteOne {
+	return c.DeleteOneID(_m.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *MCPServerClient) DeleteOneID(id int) *MCPServerDeleteOne {
+	builder := c.Delete().Where(mcpserver.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &MCPServerDeleteOne{builder}
+}
+
+// Query returns a query builder for MCPServer.
+func (c *MCPServerClient) Query() *MCPServerQuery {
+	return &MCPServerQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypeMCPServer},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a MCPServer entity by its id.
+func (c *MCPServerClient) Get(ctx context.Context, id int) (*MCPServer, error) {
+	return c.Query().Where(mcpserver.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *MCPServerClient) GetX(ctx context.Context, id int) *MCPServer {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// QueryTools queries the tools edge of a MCPServer.
+func (c *MCPServerClient) QueryTools(_m *MCPServer) *MCPServerToolQuery {
+	query := (&MCPServerToolClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(mcpserver.Table, mcpserver.FieldID, id),
+			sqlgraph.To(mcpservertool.Table, mcpservertool.FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, mcpserver.ToolsTable, mcpserver.ToolsColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
+// Hooks returns the client hooks.
+func (c *MCPServerClient) Hooks() []Hook {
+	return c.hooks.MCPServer
+}
+
+// Interceptors returns the client interceptors.
+func (c *MCPServerClient) Interceptors() []Interceptor {
+	return c.inters.MCPServer
+}
+
+func (c *MCPServerClient) mutate(ctx context.Context, m *MCPServerMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&MCPServerCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&MCPServerUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&MCPServerUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&MCPServerDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("ent: unknown MCPServer mutation op: %q", m.Op())
+	}
+}
+
+// MCPServerToolClient is a client for the MCPServerTool schema.
+type MCPServerToolClient struct {
+	config
+}
+
+// NewMCPServerToolClient returns a client for the MCPServerTool from the given config.
+func NewMCPServerToolClient(c config) *MCPServerToolClient {
+	return &MCPServerToolClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `mcpservertool.Hooks(f(g(h())))`.
+func (c *MCPServerToolClient) Use(hooks ...Hook) {
+	c.hooks.MCPServerTool = append(c.hooks.MCPServerTool, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `mcpservertool.Intercept(f(g(h())))`.
+func (c *MCPServerToolClient) Intercept(interceptors ...Interceptor) {
+	c.inters.MCPServerTool = append(c.inters.MCPServerTool, interceptors...)
+}
+
+// Create returns a builder for creating a MCPServerTool entity.
+func (c *MCPServerToolClient) Create() *MCPServerToolCreate {
+	mutation := newMCPServerToolMutation(c.config, OpCreate)
+	return &MCPServerToolCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of MCPServerTool entities.
+func (c *MCPServerToolClient) CreateBulk(builders ...*MCPServerToolCreate) *MCPServerToolCreateBulk {
+	return &MCPServerToolCreateBulk{config: c.config, builders: builders}
+}
+
+// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
+// a builder and applies setFunc on it.
+func (c *MCPServerToolClient) MapCreateBulk(slice any, setFunc func(*MCPServerToolCreate, int)) *MCPServerToolCreateBulk {
+	rv := reflect.ValueOf(slice)
+	if rv.Kind() != reflect.Slice {
+		return &MCPServerToolCreateBulk{err: fmt.Errorf("calling to MCPServerToolClient.MapCreateBulk with wrong type %T, need slice", slice)}
+	}
+	builders := make([]*MCPServerToolCreate, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		builders[i] = c.Create()
+		setFunc(builders[i], i)
+	}
+	return &MCPServerToolCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for MCPServerTool.
+func (c *MCPServerToolClient) Update() *MCPServerToolUpdate {
+	mutation := newMCPServerToolMutation(c.config, OpUpdate)
+	return &MCPServerToolUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *MCPServerToolClient) UpdateOne(_m *MCPServerTool) *MCPServerToolUpdateOne {
+	mutation := newMCPServerToolMutation(c.config, OpUpdateOne, withMCPServerTool(_m))
+	return &MCPServerToolUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *MCPServerToolClient) UpdateOneID(id int) *MCPServerToolUpdateOne {
+	mutation := newMCPServerToolMutation(c.config, OpUpdateOne, withMCPServerToolID(id))
+	return &MCPServerToolUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for MCPServerTool.
+func (c *MCPServerToolClient) Delete() *MCPServerToolDelete {
+	mutation := newMCPServerToolMutation(c.config, OpDelete)
+	return &MCPServerToolDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *MCPServerToolClient) DeleteOne(_m *MCPServerTool) *MCPServerToolDeleteOne {
+	return c.DeleteOneID(_m.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *MCPServerToolClient) DeleteOneID(id int) *MCPServerToolDeleteOne {
+	builder := c.Delete().Where(mcpservertool.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &MCPServerToolDeleteOne{builder}
+}
+
+// Query returns a query builder for MCPServerTool.
+func (c *MCPServerToolClient) Query() *MCPServerToolQuery {
+	return &MCPServerToolQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypeMCPServerTool},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a MCPServerTool entity by its id.
+func (c *MCPServerToolClient) Get(ctx context.Context, id int) (*MCPServerTool, error) {
+	return c.Query().Where(mcpservertool.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *MCPServerToolClient) GetX(ctx context.Context, id int) *MCPServerTool {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// QueryServer queries the server edge of a MCPServerTool.
+func (c *MCPServerToolClient) QueryServer(_m *MCPServerTool) *MCPServerQuery {
+	query := (&MCPServerClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(mcpservertool.Table, mcpservertool.FieldID, id),
+			sqlgraph.To(mcpserver.Table, mcpserver.FieldID),
+			sqlgraph.Edge(sqlgraph.M2O, true, mcpservertool.ServerTable, mcpservertool.ServerColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
+// Hooks returns the client hooks.
+func (c *MCPServerToolClient) Hooks() []Hook {
+	return c.hooks.MCPServerTool
+}
+
+// Interceptors returns the client interceptors.
+func (c *MCPServerToolClient) Interceptors() []Interceptor {
+	return c.inters.MCPServerTool
+}
+
+func (c *MCPServerToolClient) mutate(ctx context.Context, m *MCPServerToolMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&MCPServerToolCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&MCPServerToolUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&MCPServerToolUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&MCPServerToolDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("ent: unknown MCPServerTool mutation op: %q", m.Op())
 	}
 }
 
@@ -23819,8 +24133,8 @@ type (
 		IncidentEscalationRule, IncidentEvent, IncidentMetric, IncidentRule,
 		IncidentRuleExecution, ItemVersion, KnowledgeArticle, KnowledgeArticleLike,
 		KnowledgeArticleParticipant, KnowledgeArticleSession, KnowledgeArticleVersion,
-		KnownError, LLMProviderConfig, LLMUserPreference, MSPAllocation,
-		MarketplaceItem, Menu, Message, Microservice, Notification,
+		KnownError, LLMProviderConfig, LLMUserPreference, MCPServer, MCPServerTool,
+		MSPAllocation, MarketplaceItem, Menu, Message, Microservice, Notification,
 		NotificationDelivery, NotificationPreference, OnCallSchedule, OnCallShift,
 		OperationalCommand, PasswordResetToken, Permission, PermissionDefinition,
 		Problem, ProcessApprovalDecision, ProcessAuditLog, ProcessBinding,
@@ -23852,8 +24166,8 @@ type (
 		IncidentEscalationRule, IncidentEvent, IncidentMetric, IncidentRule,
 		IncidentRuleExecution, ItemVersion, KnowledgeArticle, KnowledgeArticleLike,
 		KnowledgeArticleParticipant, KnowledgeArticleSession, KnowledgeArticleVersion,
-		KnownError, LLMProviderConfig, LLMUserPreference, MSPAllocation,
-		MarketplaceItem, Menu, Message, Microservice, Notification,
+		KnownError, LLMProviderConfig, LLMUserPreference, MCPServer, MCPServerTool,
+		MSPAllocation, MarketplaceItem, Menu, Message, Microservice, Notification,
 		NotificationDelivery, NotificationPreference, OnCallSchedule, OnCallShift,
 		OperationalCommand, PasswordResetToken, Permission, PermissionDefinition,
 		Problem, ProcessApprovalDecision, ProcessAuditLog, ProcessBinding,

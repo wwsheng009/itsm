@@ -66,6 +66,8 @@ import (
 	"itsm-backend/ent/llmproviderconfig"
 	"itsm-backend/ent/llmuserpreference"
 	"itsm-backend/ent/marketplaceitem"
+	"itsm-backend/ent/mcpserver"
+	"itsm-backend/ent/mcpservertool"
 	"itsm-backend/ent/menu"
 	"itsm-backend/ent/message"
 	"itsm-backend/ent/microservice"
@@ -2861,6 +2863,218 @@ func init() {
 	llmuserpreference.DefaultUpdatedAt = llmuserpreferenceDescUpdatedAt.Default.(func() time.Time)
 	// llmuserpreference.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
 	llmuserpreference.UpdateDefaultUpdatedAt = llmuserpreferenceDescUpdatedAt.UpdateDefault.(func() time.Time)
+	mcpserverFields := schema.MCPServer{}.Fields()
+	_ = mcpserverFields
+	// mcpserverDescTenantID is the schema descriptor for tenant_id field.
+	mcpserverDescTenantID := mcpserverFields[0].Descriptor()
+	// mcpserver.TenantIDValidator is a validator for the "tenant_id" field. It is called by the builders before save.
+	mcpserver.TenantIDValidator = mcpserverDescTenantID.Validators[0].(func(int) error)
+	// mcpserverDescName is the schema descriptor for name field.
+	mcpserverDescName := mcpserverFields[1].Descriptor()
+	// mcpserver.NameValidator is a validator for the "name" field. It is called by the builders before save.
+	mcpserver.NameValidator = func() func(string) error {
+		validators := mcpserverDescName.Validators
+		fns := [...]func(string) error{
+			validators[0].(func(string) error),
+			validators[1].(func(string) error),
+		}
+		return func(name string) error {
+			for _, fn := range fns {
+				if err := fn(name); err != nil {
+					return err
+				}
+			}
+			return nil
+		}
+	}()
+	// mcpserverDescDisplayName is the schema descriptor for display_name field.
+	mcpserverDescDisplayName := mcpserverFields[2].Descriptor()
+	// mcpserver.DefaultDisplayName holds the default value on creation for the display_name field.
+	mcpserver.DefaultDisplayName = mcpserverDescDisplayName.Default.(string)
+	// mcpserver.DisplayNameValidator is a validator for the "display_name" field. It is called by the builders before save.
+	mcpserver.DisplayNameValidator = mcpserverDescDisplayName.Validators[0].(func(string) error)
+	// mcpserverDescTransport is the schema descriptor for transport field.
+	mcpserverDescTransport := mcpserverFields[3].Descriptor()
+	// mcpserver.DefaultTransport holds the default value on creation for the transport field.
+	mcpserver.DefaultTransport = mcpserverDescTransport.Default.(string)
+	// mcpserver.TransportValidator is a validator for the "transport" field. It is called by the builders before save.
+	mcpserver.TransportValidator = mcpserverDescTransport.Validators[0].(func(string) error)
+	// mcpserverDescURL is the schema descriptor for url field.
+	mcpserverDescURL := mcpserverFields[4].Descriptor()
+	// mcpserver.URLValidator is a validator for the "url" field. It is called by the builders before save.
+	mcpserver.URLValidator = mcpserverDescURL.Validators[0].(func(string) error)
+	// mcpserverDescWorkingDir is the schema descriptor for working_dir field.
+	mcpserverDescWorkingDir := mcpserverFields[8].Descriptor()
+	// mcpserver.WorkingDirValidator is a validator for the "working_dir" field. It is called by the builders before save.
+	mcpserver.WorkingDirValidator = mcpserverDescWorkingDir.Validators[0].(func(string) error)
+	// mcpserverDescCredentialType is the schema descriptor for credential_type field.
+	mcpserverDescCredentialType := mcpserverFields[10].Descriptor()
+	// mcpserver.DefaultCredentialType holds the default value on creation for the credential_type field.
+	mcpserver.DefaultCredentialType = mcpserverDescCredentialType.Default.(string)
+	// mcpserver.CredentialTypeValidator is a validator for the "credential_type" field. It is called by the builders before save.
+	mcpserver.CredentialTypeValidator = mcpserverDescCredentialType.Validators[0].(func(string) error)
+	// mcpserverDescTrustLevel is the schema descriptor for trust_level field.
+	mcpserverDescTrustLevel := mcpserverFields[12].Descriptor()
+	// mcpserver.DefaultTrustLevel holds the default value on creation for the trust_level field.
+	mcpserver.DefaultTrustLevel = mcpserverDescTrustLevel.Default.(string)
+	// mcpserver.TrustLevelValidator is a validator for the "trust_level" field. It is called by the builders before save.
+	mcpserver.TrustLevelValidator = mcpserverDescTrustLevel.Validators[0].(func(string) error)
+	// mcpserverDescEnabled is the schema descriptor for enabled field.
+	mcpserverDescEnabled := mcpserverFields[13].Descriptor()
+	// mcpserver.DefaultEnabled holds the default value on creation for the enabled field.
+	mcpserver.DefaultEnabled = mcpserverDescEnabled.Default.(bool)
+	// mcpserverDescStatus is the schema descriptor for status field.
+	mcpserverDescStatus := mcpserverFields[14].Descriptor()
+	// mcpserver.DefaultStatus holds the default value on creation for the status field.
+	mcpserver.DefaultStatus = mcpserverDescStatus.Default.(string)
+	// mcpserver.StatusValidator is a validator for the "status" field. It is called by the builders before save.
+	mcpserver.StatusValidator = mcpserverDescStatus.Validators[0].(func(string) error)
+	// mcpserverDescLastError is the schema descriptor for last_error field.
+	mcpserverDescLastError := mcpserverFields[15].Descriptor()
+	// mcpserver.DefaultLastError holds the default value on creation for the last_error field.
+	mcpserver.DefaultLastError = mcpserverDescLastError.Default.(string)
+	// mcpserver.LastErrorValidator is a validator for the "last_error" field. It is called by the builders before save.
+	mcpserver.LastErrorValidator = mcpserverDescLastError.Validators[0].(func(string) error)
+	// mcpserverDescProtocolVersion is the schema descriptor for protocol_version field.
+	mcpserverDescProtocolVersion := mcpserverFields[17].Descriptor()
+	// mcpserver.DefaultProtocolVersion holds the default value on creation for the protocol_version field.
+	mcpserver.DefaultProtocolVersion = mcpserverDescProtocolVersion.Default.(string)
+	// mcpserver.ProtocolVersionValidator is a validator for the "protocol_version" field. It is called by the builders before save.
+	mcpserver.ProtocolVersionValidator = mcpserverDescProtocolVersion.Validators[0].(func(string) error)
+	// mcpserverDescTimeoutMs is the schema descriptor for timeout_ms field.
+	mcpserverDescTimeoutMs := mcpserverFields[19].Descriptor()
+	// mcpserver.DefaultTimeoutMs holds the default value on creation for the timeout_ms field.
+	mcpserver.DefaultTimeoutMs = mcpserverDescTimeoutMs.Default.(int)
+	// mcpserver.TimeoutMsValidator is a validator for the "timeout_ms" field. It is called by the builders before save.
+	mcpserver.TimeoutMsValidator = mcpserverDescTimeoutMs.Validators[0].(func(int) error)
+	// mcpserverDescMaxParallelCalls is the schema descriptor for max_parallel_calls field.
+	mcpserverDescMaxParallelCalls := mcpserverFields[20].Descriptor()
+	// mcpserver.DefaultMaxParallelCalls holds the default value on creation for the max_parallel_calls field.
+	mcpserver.DefaultMaxParallelCalls = mcpserverDescMaxParallelCalls.Default.(int)
+	// mcpserver.MaxParallelCallsValidator is a validator for the "max_parallel_calls" field. It is called by the builders before save.
+	mcpserver.MaxParallelCallsValidator = mcpserverDescMaxParallelCalls.Validators[0].(func(int) error)
+	// mcpserverDescMaxRetry is the schema descriptor for max_retry field.
+	mcpserverDescMaxRetry := mcpserverFields[21].Descriptor()
+	// mcpserver.DefaultMaxRetry holds the default value on creation for the max_retry field.
+	mcpserver.DefaultMaxRetry = mcpserverDescMaxRetry.Default.(int)
+	// mcpserver.MaxRetryValidator is a validator for the "max_retry" field. It is called by the builders before save.
+	mcpserver.MaxRetryValidator = mcpserverDescMaxRetry.Validators[0].(func(int) error)
+	// mcpserverDescVersion is the schema descriptor for version field.
+	mcpserverDescVersion := mcpserverFields[22].Descriptor()
+	// mcpserver.DefaultVersion holds the default value on creation for the version field.
+	mcpserver.DefaultVersion = mcpserverDescVersion.Default.(int)
+	// mcpserverDescCreatedAt is the schema descriptor for created_at field.
+	mcpserverDescCreatedAt := mcpserverFields[23].Descriptor()
+	// mcpserver.DefaultCreatedAt holds the default value on creation for the created_at field.
+	mcpserver.DefaultCreatedAt = mcpserverDescCreatedAt.Default.(func() time.Time)
+	// mcpserverDescUpdatedAt is the schema descriptor for updated_at field.
+	mcpserverDescUpdatedAt := mcpserverFields[24].Descriptor()
+	// mcpserver.DefaultUpdatedAt holds the default value on creation for the updated_at field.
+	mcpserver.DefaultUpdatedAt = mcpserverDescUpdatedAt.Default.(func() time.Time)
+	// mcpserver.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
+	mcpserver.UpdateDefaultUpdatedAt = mcpserverDescUpdatedAt.UpdateDefault.(func() time.Time)
+	mcpservertoolFields := schema.MCPServerTool{}.Fields()
+	_ = mcpservertoolFields
+	// mcpservertoolDescTenantID is the schema descriptor for tenant_id field.
+	mcpservertoolDescTenantID := mcpservertoolFields[0].Descriptor()
+	// mcpservertool.TenantIDValidator is a validator for the "tenant_id" field. It is called by the builders before save.
+	mcpservertool.TenantIDValidator = mcpservertoolDescTenantID.Validators[0].(func(int) error)
+	// mcpservertoolDescRawName is the schema descriptor for raw_name field.
+	mcpservertoolDescRawName := mcpservertoolFields[2].Descriptor()
+	// mcpservertool.RawNameValidator is a validator for the "raw_name" field. It is called by the builders before save.
+	mcpservertool.RawNameValidator = func() func(string) error {
+		validators := mcpservertoolDescRawName.Validators
+		fns := [...]func(string) error{
+			validators[0].(func(string) error),
+			validators[1].(func(string) error),
+		}
+		return func(raw_name string) error {
+			for _, fn := range fns {
+				if err := fn(raw_name); err != nil {
+					return err
+				}
+			}
+			return nil
+		}
+	}()
+	// mcpservertoolDescCallableName is the schema descriptor for callable_name field.
+	mcpservertoolDescCallableName := mcpservertoolFields[3].Descriptor()
+	// mcpservertool.CallableNameValidator is a validator for the "callable_name" field. It is called by the builders before save.
+	mcpservertool.CallableNameValidator = func() func(string) error {
+		validators := mcpservertoolDescCallableName.Validators
+		fns := [...]func(string) error{
+			validators[0].(func(string) error),
+			validators[1].(func(string) error),
+		}
+		return func(callable_name string) error {
+			for _, fn := range fns {
+				if err := fn(callable_name); err != nil {
+					return err
+				}
+			}
+			return nil
+		}
+	}()
+	// mcpservertoolDescDescription is the schema descriptor for description field.
+	mcpservertoolDescDescription := mcpservertoolFields[4].Descriptor()
+	// mcpservertool.DefaultDescription holds the default value on creation for the description field.
+	mcpservertool.DefaultDescription = mcpservertoolDescDescription.Default.(string)
+	// mcpservertoolDescSchemaHash is the schema descriptor for schema_hash field.
+	mcpservertoolDescSchemaHash := mcpservertoolFields[6].Descriptor()
+	// mcpservertool.DefaultSchemaHash holds the default value on creation for the schema_hash field.
+	mcpservertool.DefaultSchemaHash = mcpservertoolDescSchemaHash.Default.(string)
+	// mcpservertool.SchemaHashValidator is a validator for the "schema_hash" field. It is called by the builders before save.
+	mcpservertool.SchemaHashValidator = mcpservertoolDescSchemaHash.Validators[0].(func(string) error)
+	// mcpservertoolDescReadOnly is the schema descriptor for read_only field.
+	mcpservertoolDescReadOnly := mcpservertoolFields[7].Descriptor()
+	// mcpservertool.DefaultReadOnly holds the default value on creation for the read_only field.
+	mcpservertool.DefaultReadOnly = mcpservertoolDescReadOnly.Default.(bool)
+	// mcpservertoolDescRisk is the schema descriptor for risk field.
+	mcpservertoolDescRisk := mcpservertoolFields[8].Descriptor()
+	// mcpservertool.DefaultRisk holds the default value on creation for the risk field.
+	mcpservertool.DefaultRisk = mcpservertoolDescRisk.Default.(string)
+	// mcpservertool.RiskValidator is a validator for the "risk" field. It is called by the builders before save.
+	mcpservertool.RiskValidator = mcpservertoolDescRisk.Validators[0].(func(string) error)
+	// mcpservertoolDescCategory is the schema descriptor for category field.
+	mcpservertoolDescCategory := mcpservertoolFields[9].Descriptor()
+	// mcpservertool.DefaultCategory holds the default value on creation for the category field.
+	mcpservertool.DefaultCategory = mcpservertoolDescCategory.Default.(string)
+	// mcpservertool.CategoryValidator is a validator for the "category" field. It is called by the builders before save.
+	mcpservertool.CategoryValidator = mcpservertoolDescCategory.Validators[0].(func(string) error)
+	// mcpservertoolDescEnabled is the schema descriptor for enabled field.
+	mcpservertoolDescEnabled := mcpservertoolFields[10].Descriptor()
+	// mcpservertool.DefaultEnabled holds the default value on creation for the enabled field.
+	mcpservertool.DefaultEnabled = mcpservertoolDescEnabled.Default.(bool)
+	// mcpservertoolDescHealthy is the schema descriptor for healthy field.
+	mcpservertoolDescHealthy := mcpservertoolFields[11].Descriptor()
+	// mcpservertool.DefaultHealthy holds the default value on creation for the healthy field.
+	mcpservertool.DefaultHealthy = mcpservertoolDescHealthy.Default.(bool)
+	// mcpservertoolDescQuarantined is the schema descriptor for quarantined field.
+	mcpservertoolDescQuarantined := mcpservertoolFields[12].Descriptor()
+	// mcpservertool.DefaultQuarantined holds the default value on creation for the quarantined field.
+	mcpservertool.DefaultQuarantined = mcpservertoolDescQuarantined.Default.(bool)
+	// mcpservertoolDescQuarantineReason is the schema descriptor for quarantine_reason field.
+	mcpservertoolDescQuarantineReason := mcpservertoolFields[13].Descriptor()
+	// mcpservertool.DefaultQuarantineReason holds the default value on creation for the quarantine_reason field.
+	mcpservertool.DefaultQuarantineReason = mcpservertoolDescQuarantineReason.Default.(string)
+	// mcpservertool.QuarantineReasonValidator is a validator for the "quarantine_reason" field. It is called by the builders before save.
+	mcpservertool.QuarantineReasonValidator = mcpservertoolDescQuarantineReason.Validators[0].(func(string) error)
+	// mcpservertoolDescLastError is the schema descriptor for last_error field.
+	mcpservertoolDescLastError := mcpservertoolFields[14].Descriptor()
+	// mcpservertool.DefaultLastError holds the default value on creation for the last_error field.
+	mcpservertool.DefaultLastError = mcpservertoolDescLastError.Default.(string)
+	// mcpservertool.LastErrorValidator is a validator for the "last_error" field. It is called by the builders before save.
+	mcpservertool.LastErrorValidator = mcpservertoolDescLastError.Validators[0].(func(string) error)
+	// mcpservertoolDescDiscoveredAt is the schema descriptor for discovered_at field.
+	mcpservertoolDescDiscoveredAt := mcpservertoolFields[15].Descriptor()
+	// mcpservertool.DefaultDiscoveredAt holds the default value on creation for the discovered_at field.
+	mcpservertool.DefaultDiscoveredAt = mcpservertoolDescDiscoveredAt.Default.(func() time.Time)
+	// mcpservertoolDescUpdatedAt is the schema descriptor for updated_at field.
+	mcpservertoolDescUpdatedAt := mcpservertoolFields[16].Descriptor()
+	// mcpservertool.DefaultUpdatedAt holds the default value on creation for the updated_at field.
+	mcpservertool.DefaultUpdatedAt = mcpservertoolDescUpdatedAt.Default.(func() time.Time)
+	// mcpservertool.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
+	mcpservertool.UpdateDefaultUpdatedAt = mcpservertoolDescUpdatedAt.UpdateDefault.(func() time.Time)
 	mspallocationFields := schema.MSPAllocation{}.Fields()
 	_ = mspallocationFields
 	// mspallocationDescRole is the schema descriptor for role field.
@@ -5533,6 +5747,66 @@ func init() {
 	toolinvocationDescRoleSnapshot := toolinvocationFields[18].Descriptor()
 	// toolinvocation.DefaultRoleSnapshot holds the default value on creation for the role_snapshot field.
 	toolinvocation.DefaultRoleSnapshot = toolinvocationDescRoleSnapshot.Default.(string)
+	// toolinvocationDescProvider is the schema descriptor for provider field.
+	toolinvocationDescProvider := toolinvocationFields[19].Descriptor()
+	// toolinvocation.DefaultProvider holds the default value on creation for the provider field.
+	toolinvocation.DefaultProvider = toolinvocationDescProvider.Default.(string)
+	// toolinvocationDescMcpServerName is the schema descriptor for mcp_server_name field.
+	toolinvocationDescMcpServerName := toolinvocationFields[20].Descriptor()
+	// toolinvocation.DefaultMcpServerName holds the default value on creation for the mcp_server_name field.
+	toolinvocation.DefaultMcpServerName = toolinvocationDescMcpServerName.Default.(string)
+	// toolinvocationDescMcpRawToolName is the schema descriptor for mcp_raw_tool_name field.
+	toolinvocationDescMcpRawToolName := toolinvocationFields[21].Descriptor()
+	// toolinvocation.DefaultMcpRawToolName holds the default value on creation for the mcp_raw_tool_name field.
+	toolinvocation.DefaultMcpRawToolName = toolinvocationDescMcpRawToolName.Default.(string)
+	// toolinvocationDescMcpCallableName is the schema descriptor for mcp_callable_name field.
+	toolinvocationDescMcpCallableName := toolinvocationFields[22].Descriptor()
+	// toolinvocation.DefaultMcpCallableName holds the default value on creation for the mcp_callable_name field.
+	toolinvocation.DefaultMcpCallableName = toolinvocationDescMcpCallableName.Default.(string)
+	// toolinvocationDescDurationMs is the schema descriptor for duration_ms field.
+	toolinvocationDescDurationMs := toolinvocationFields[25].Descriptor()
+	// toolinvocation.DefaultDurationMs holds the default value on creation for the duration_ms field.
+	toolinvocation.DefaultDurationMs = toolinvocationDescDurationMs.Default.(int)
+	// toolinvocationDescErrorCode is the schema descriptor for error_code field.
+	toolinvocationDescErrorCode := toolinvocationFields[26].Descriptor()
+	// toolinvocation.DefaultErrorCode holds the default value on creation for the error_code field.
+	toolinvocation.DefaultErrorCode = toolinvocationDescErrorCode.Default.(string)
+	// toolinvocationDescRisk is the schema descriptor for risk field.
+	toolinvocationDescRisk := toolinvocationFields[29].Descriptor()
+	// toolinvocation.DefaultRisk holds the default value on creation for the risk field.
+	toolinvocation.DefaultRisk = toolinvocationDescRisk.Default.(string)
+	// toolinvocationDescCategory is the schema descriptor for category field.
+	toolinvocationDescCategory := toolinvocationFields[30].Descriptor()
+	// toolinvocation.DefaultCategory holds the default value on creation for the category field.
+	toolinvocation.DefaultCategory = toolinvocationDescCategory.Default.(string)
+	// toolinvocationDescTargetType is the schema descriptor for target_type field.
+	toolinvocationDescTargetType := toolinvocationFields[31].Descriptor()
+	// toolinvocation.DefaultTargetType holds the default value on creation for the target_type field.
+	toolinvocation.DefaultTargetType = toolinvocationDescTargetType.Default.(string)
+	// toolinvocationDescTargetID is the schema descriptor for target_id field.
+	toolinvocationDescTargetID := toolinvocationFields[32].Descriptor()
+	// toolinvocation.DefaultTargetID holds the default value on creation for the target_id field.
+	toolinvocation.DefaultTargetID = toolinvocationDescTargetID.Default.(string)
+	// toolinvocationDescSupportRef is the schema descriptor for support_ref field.
+	toolinvocationDescSupportRef := toolinvocationFields[33].Descriptor()
+	// toolinvocation.DefaultSupportRef holds the default value on creation for the support_ref field.
+	toolinvocation.DefaultSupportRef = toolinvocationDescSupportRef.Default.(string)
+	// toolinvocationDescVerifyState is the schema descriptor for verify_state field.
+	toolinvocationDescVerifyState := toolinvocationFields[36].Descriptor()
+	// toolinvocation.DefaultVerifyState holds the default value on creation for the verify_state field.
+	toolinvocation.DefaultVerifyState = toolinvocationDescVerifyState.Default.(string)
+	// toolinvocationDescVerifyNote is the schema descriptor for verify_note field.
+	toolinvocationDescVerifyNote := toolinvocationFields[37].Descriptor()
+	// toolinvocation.DefaultVerifyNote holds the default value on creation for the verify_note field.
+	toolinvocation.DefaultVerifyNote = toolinvocationDescVerifyNote.Default.(string)
+	// toolinvocationDescAttemptCount is the schema descriptor for attempt_count field.
+	toolinvocationDescAttemptCount := toolinvocationFields[38].Descriptor()
+	// toolinvocation.DefaultAttemptCount holds the default value on creation for the attempt_count field.
+	toolinvocation.DefaultAttemptCount = toolinvocationDescAttemptCount.Default.(int)
+	// toolinvocationDescLastErrorCode is the schema descriptor for last_error_code field.
+	toolinvocationDescLastErrorCode := toolinvocationFields[39].Descriptor()
+	// toolinvocation.DefaultLastErrorCode holds the default value on creation for the last_error_code field.
+	toolinvocation.DefaultLastErrorCode = toolinvocationDescLastErrorCode.Default.(string)
 	userFields := schema.User{}.Fields()
 	_ = userFields
 	// userDescUsername is the schema descriptor for username field.

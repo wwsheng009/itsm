@@ -352,6 +352,364 @@ func (_u *ToolInvocationUpdate) SetNillableRoleSnapshot(v *string) *ToolInvocati
 	return _u
 }
 
+// SetProvider sets the "provider" field.
+func (_u *ToolInvocationUpdate) SetProvider(v string) *ToolInvocationUpdate {
+	_u.mutation.SetProvider(v)
+	return _u
+}
+
+// SetNillableProvider sets the "provider" field if the given value is not nil.
+func (_u *ToolInvocationUpdate) SetNillableProvider(v *string) *ToolInvocationUpdate {
+	if v != nil {
+		_u.SetProvider(*v)
+	}
+	return _u
+}
+
+// SetMcpServerName sets the "mcp_server_name" field.
+func (_u *ToolInvocationUpdate) SetMcpServerName(v string) *ToolInvocationUpdate {
+	_u.mutation.SetMcpServerName(v)
+	return _u
+}
+
+// SetNillableMcpServerName sets the "mcp_server_name" field if the given value is not nil.
+func (_u *ToolInvocationUpdate) SetNillableMcpServerName(v *string) *ToolInvocationUpdate {
+	if v != nil {
+		_u.SetMcpServerName(*v)
+	}
+	return _u
+}
+
+// SetMcpRawToolName sets the "mcp_raw_tool_name" field.
+func (_u *ToolInvocationUpdate) SetMcpRawToolName(v string) *ToolInvocationUpdate {
+	_u.mutation.SetMcpRawToolName(v)
+	return _u
+}
+
+// SetNillableMcpRawToolName sets the "mcp_raw_tool_name" field if the given value is not nil.
+func (_u *ToolInvocationUpdate) SetNillableMcpRawToolName(v *string) *ToolInvocationUpdate {
+	if v != nil {
+		_u.SetMcpRawToolName(*v)
+	}
+	return _u
+}
+
+// SetMcpCallableName sets the "mcp_callable_name" field.
+func (_u *ToolInvocationUpdate) SetMcpCallableName(v string) *ToolInvocationUpdate {
+	_u.mutation.SetMcpCallableName(v)
+	return _u
+}
+
+// SetNillableMcpCallableName sets the "mcp_callable_name" field if the given value is not nil.
+func (_u *ToolInvocationUpdate) SetNillableMcpCallableName(v *string) *ToolInvocationUpdate {
+	if v != nil {
+		_u.SetMcpCallableName(*v)
+	}
+	return _u
+}
+
+// SetArgsRedacted sets the "args_redacted" field.
+func (_u *ToolInvocationUpdate) SetArgsRedacted(v string) *ToolInvocationUpdate {
+	_u.mutation.SetArgsRedacted(v)
+	return _u
+}
+
+// SetNillableArgsRedacted sets the "args_redacted" field if the given value is not nil.
+func (_u *ToolInvocationUpdate) SetNillableArgsRedacted(v *string) *ToolInvocationUpdate {
+	if v != nil {
+		_u.SetArgsRedacted(*v)
+	}
+	return _u
+}
+
+// ClearArgsRedacted clears the value of the "args_redacted" field.
+func (_u *ToolInvocationUpdate) ClearArgsRedacted() *ToolInvocationUpdate {
+	_u.mutation.ClearArgsRedacted()
+	return _u
+}
+
+// SetOutputSummary sets the "output_summary" field.
+func (_u *ToolInvocationUpdate) SetOutputSummary(v string) *ToolInvocationUpdate {
+	_u.mutation.SetOutputSummary(v)
+	return _u
+}
+
+// SetNillableOutputSummary sets the "output_summary" field if the given value is not nil.
+func (_u *ToolInvocationUpdate) SetNillableOutputSummary(v *string) *ToolInvocationUpdate {
+	if v != nil {
+		_u.SetOutputSummary(*v)
+	}
+	return _u
+}
+
+// ClearOutputSummary clears the value of the "output_summary" field.
+func (_u *ToolInvocationUpdate) ClearOutputSummary() *ToolInvocationUpdate {
+	_u.mutation.ClearOutputSummary()
+	return _u
+}
+
+// SetDurationMs sets the "duration_ms" field.
+func (_u *ToolInvocationUpdate) SetDurationMs(v int) *ToolInvocationUpdate {
+	_u.mutation.ResetDurationMs()
+	_u.mutation.SetDurationMs(v)
+	return _u
+}
+
+// SetNillableDurationMs sets the "duration_ms" field if the given value is not nil.
+func (_u *ToolInvocationUpdate) SetNillableDurationMs(v *int) *ToolInvocationUpdate {
+	if v != nil {
+		_u.SetDurationMs(*v)
+	}
+	return _u
+}
+
+// AddDurationMs adds value to the "duration_ms" field.
+func (_u *ToolInvocationUpdate) AddDurationMs(v int) *ToolInvocationUpdate {
+	_u.mutation.AddDurationMs(v)
+	return _u
+}
+
+// SetErrorCode sets the "error_code" field.
+func (_u *ToolInvocationUpdate) SetErrorCode(v string) *ToolInvocationUpdate {
+	_u.mutation.SetErrorCode(v)
+	return _u
+}
+
+// SetNillableErrorCode sets the "error_code" field if the given value is not nil.
+func (_u *ToolInvocationUpdate) SetNillableErrorCode(v *string) *ToolInvocationUpdate {
+	if v != nil {
+		_u.SetErrorCode(*v)
+	}
+	return _u
+}
+
+// SetRunID sets the "run_id" field.
+func (_u *ToolInvocationUpdate) SetRunID(v int) *ToolInvocationUpdate {
+	_u.mutation.ResetRunID()
+	_u.mutation.SetRunID(v)
+	return _u
+}
+
+// SetNillableRunID sets the "run_id" field if the given value is not nil.
+func (_u *ToolInvocationUpdate) SetNillableRunID(v *int) *ToolInvocationUpdate {
+	if v != nil {
+		_u.SetRunID(*v)
+	}
+	return _u
+}
+
+// AddRunID adds value to the "run_id" field.
+func (_u *ToolInvocationUpdate) AddRunID(v int) *ToolInvocationUpdate {
+	_u.mutation.AddRunID(v)
+	return _u
+}
+
+// ClearRunID clears the value of the "run_id" field.
+func (_u *ToolInvocationUpdate) ClearRunID() *ToolInvocationUpdate {
+	_u.mutation.ClearRunID()
+	return _u
+}
+
+// SetStepID sets the "step_id" field.
+func (_u *ToolInvocationUpdate) SetStepID(v int) *ToolInvocationUpdate {
+	_u.mutation.ResetStepID()
+	_u.mutation.SetStepID(v)
+	return _u
+}
+
+// SetNillableStepID sets the "step_id" field if the given value is not nil.
+func (_u *ToolInvocationUpdate) SetNillableStepID(v *int) *ToolInvocationUpdate {
+	if v != nil {
+		_u.SetStepID(*v)
+	}
+	return _u
+}
+
+// AddStepID adds value to the "step_id" field.
+func (_u *ToolInvocationUpdate) AddStepID(v int) *ToolInvocationUpdate {
+	_u.mutation.AddStepID(v)
+	return _u
+}
+
+// ClearStepID clears the value of the "step_id" field.
+func (_u *ToolInvocationUpdate) ClearStepID() *ToolInvocationUpdate {
+	_u.mutation.ClearStepID()
+	return _u
+}
+
+// SetRisk sets the "risk" field.
+func (_u *ToolInvocationUpdate) SetRisk(v string) *ToolInvocationUpdate {
+	_u.mutation.SetRisk(v)
+	return _u
+}
+
+// SetNillableRisk sets the "risk" field if the given value is not nil.
+func (_u *ToolInvocationUpdate) SetNillableRisk(v *string) *ToolInvocationUpdate {
+	if v != nil {
+		_u.SetRisk(*v)
+	}
+	return _u
+}
+
+// SetCategory sets the "category" field.
+func (_u *ToolInvocationUpdate) SetCategory(v string) *ToolInvocationUpdate {
+	_u.mutation.SetCategory(v)
+	return _u
+}
+
+// SetNillableCategory sets the "category" field if the given value is not nil.
+func (_u *ToolInvocationUpdate) SetNillableCategory(v *string) *ToolInvocationUpdate {
+	if v != nil {
+		_u.SetCategory(*v)
+	}
+	return _u
+}
+
+// SetTargetType sets the "target_type" field.
+func (_u *ToolInvocationUpdate) SetTargetType(v string) *ToolInvocationUpdate {
+	_u.mutation.SetTargetType(v)
+	return _u
+}
+
+// SetNillableTargetType sets the "target_type" field if the given value is not nil.
+func (_u *ToolInvocationUpdate) SetNillableTargetType(v *string) *ToolInvocationUpdate {
+	if v != nil {
+		_u.SetTargetType(*v)
+	}
+	return _u
+}
+
+// SetTargetID sets the "target_id" field.
+func (_u *ToolInvocationUpdate) SetTargetID(v string) *ToolInvocationUpdate {
+	_u.mutation.SetTargetID(v)
+	return _u
+}
+
+// SetNillableTargetID sets the "target_id" field if the given value is not nil.
+func (_u *ToolInvocationUpdate) SetNillableTargetID(v *string) *ToolInvocationUpdate {
+	if v != nil {
+		_u.SetTargetID(*v)
+	}
+	return _u
+}
+
+// SetSupportRef sets the "support_ref" field.
+func (_u *ToolInvocationUpdate) SetSupportRef(v string) *ToolInvocationUpdate {
+	_u.mutation.SetSupportRef(v)
+	return _u
+}
+
+// SetNillableSupportRef sets the "support_ref" field if the given value is not nil.
+func (_u *ToolInvocationUpdate) SetNillableSupportRef(v *string) *ToolInvocationUpdate {
+	if v != nil {
+		_u.SetSupportRef(*v)
+	}
+	return _u
+}
+
+// SetIdempotencyKeyHash sets the "idempotency_key_hash" field.
+func (_u *ToolInvocationUpdate) SetIdempotencyKeyHash(v string) *ToolInvocationUpdate {
+	_u.mutation.SetIdempotencyKeyHash(v)
+	return _u
+}
+
+// SetNillableIdempotencyKeyHash sets the "idempotency_key_hash" field if the given value is not nil.
+func (_u *ToolInvocationUpdate) SetNillableIdempotencyKeyHash(v *string) *ToolInvocationUpdate {
+	if v != nil {
+		_u.SetIdempotencyKeyHash(*v)
+	}
+	return _u
+}
+
+// ClearIdempotencyKeyHash clears the value of the "idempotency_key_hash" field.
+func (_u *ToolInvocationUpdate) ClearIdempotencyKeyHash() *ToolInvocationUpdate {
+	_u.mutation.ClearIdempotencyKeyHash()
+	return _u
+}
+
+// SetExpiresAt sets the "expires_at" field.
+func (_u *ToolInvocationUpdate) SetExpiresAt(v time.Time) *ToolInvocationUpdate {
+	_u.mutation.SetExpiresAt(v)
+	return _u
+}
+
+// SetNillableExpiresAt sets the "expires_at" field if the given value is not nil.
+func (_u *ToolInvocationUpdate) SetNillableExpiresAt(v *time.Time) *ToolInvocationUpdate {
+	if v != nil {
+		_u.SetExpiresAt(*v)
+	}
+	return _u
+}
+
+// ClearExpiresAt clears the value of the "expires_at" field.
+func (_u *ToolInvocationUpdate) ClearExpiresAt() *ToolInvocationUpdate {
+	_u.mutation.ClearExpiresAt()
+	return _u
+}
+
+// SetVerifyState sets the "verify_state" field.
+func (_u *ToolInvocationUpdate) SetVerifyState(v string) *ToolInvocationUpdate {
+	_u.mutation.SetVerifyState(v)
+	return _u
+}
+
+// SetNillableVerifyState sets the "verify_state" field if the given value is not nil.
+func (_u *ToolInvocationUpdate) SetNillableVerifyState(v *string) *ToolInvocationUpdate {
+	if v != nil {
+		_u.SetVerifyState(*v)
+	}
+	return _u
+}
+
+// SetVerifyNote sets the "verify_note" field.
+func (_u *ToolInvocationUpdate) SetVerifyNote(v string) *ToolInvocationUpdate {
+	_u.mutation.SetVerifyNote(v)
+	return _u
+}
+
+// SetNillableVerifyNote sets the "verify_note" field if the given value is not nil.
+func (_u *ToolInvocationUpdate) SetNillableVerifyNote(v *string) *ToolInvocationUpdate {
+	if v != nil {
+		_u.SetVerifyNote(*v)
+	}
+	return _u
+}
+
+// SetAttemptCount sets the "attempt_count" field.
+func (_u *ToolInvocationUpdate) SetAttemptCount(v int) *ToolInvocationUpdate {
+	_u.mutation.ResetAttemptCount()
+	_u.mutation.SetAttemptCount(v)
+	return _u
+}
+
+// SetNillableAttemptCount sets the "attempt_count" field if the given value is not nil.
+func (_u *ToolInvocationUpdate) SetNillableAttemptCount(v *int) *ToolInvocationUpdate {
+	if v != nil {
+		_u.SetAttemptCount(*v)
+	}
+	return _u
+}
+
+// AddAttemptCount adds value to the "attempt_count" field.
+func (_u *ToolInvocationUpdate) AddAttemptCount(v int) *ToolInvocationUpdate {
+	_u.mutation.AddAttemptCount(v)
+	return _u
+}
+
+// SetLastErrorCode sets the "last_error_code" field.
+func (_u *ToolInvocationUpdate) SetLastErrorCode(v string) *ToolInvocationUpdate {
+	_u.mutation.SetLastErrorCode(v)
+	return _u
+}
+
+// SetNillableLastErrorCode sets the "last_error_code" field if the given value is not nil.
+func (_u *ToolInvocationUpdate) SetNillableLastErrorCode(v *string) *ToolInvocationUpdate {
+	if v != nil {
+		_u.SetLastErrorCode(*v)
+	}
+	return _u
+}
+
 // SetConversation sets the "conversation" edge to the Conversation entity.
 func (_u *ToolInvocationUpdate) SetConversation(v *Conversation) *ToolInvocationUpdate {
 	return _u.SetConversationID(v.ID)
@@ -486,6 +844,99 @@ func (_u *ToolInvocationUpdate) sqlSave(ctx context.Context) (_node int, err err
 	}
 	if value, ok := _u.mutation.RoleSnapshot(); ok {
 		_spec.SetField(toolinvocation.FieldRoleSnapshot, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.Provider(); ok {
+		_spec.SetField(toolinvocation.FieldProvider, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.McpServerName(); ok {
+		_spec.SetField(toolinvocation.FieldMcpServerName, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.McpRawToolName(); ok {
+		_spec.SetField(toolinvocation.FieldMcpRawToolName, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.McpCallableName(); ok {
+		_spec.SetField(toolinvocation.FieldMcpCallableName, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.ArgsRedacted(); ok {
+		_spec.SetField(toolinvocation.FieldArgsRedacted, field.TypeString, value)
+	}
+	if _u.mutation.ArgsRedactedCleared() {
+		_spec.ClearField(toolinvocation.FieldArgsRedacted, field.TypeString)
+	}
+	if value, ok := _u.mutation.OutputSummary(); ok {
+		_spec.SetField(toolinvocation.FieldOutputSummary, field.TypeString, value)
+	}
+	if _u.mutation.OutputSummaryCleared() {
+		_spec.ClearField(toolinvocation.FieldOutputSummary, field.TypeString)
+	}
+	if value, ok := _u.mutation.DurationMs(); ok {
+		_spec.SetField(toolinvocation.FieldDurationMs, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.AddedDurationMs(); ok {
+		_spec.AddField(toolinvocation.FieldDurationMs, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.ErrorCode(); ok {
+		_spec.SetField(toolinvocation.FieldErrorCode, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.RunID(); ok {
+		_spec.SetField(toolinvocation.FieldRunID, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.AddedRunID(); ok {
+		_spec.AddField(toolinvocation.FieldRunID, field.TypeInt, value)
+	}
+	if _u.mutation.RunIDCleared() {
+		_spec.ClearField(toolinvocation.FieldRunID, field.TypeInt)
+	}
+	if value, ok := _u.mutation.StepID(); ok {
+		_spec.SetField(toolinvocation.FieldStepID, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.AddedStepID(); ok {
+		_spec.AddField(toolinvocation.FieldStepID, field.TypeInt, value)
+	}
+	if _u.mutation.StepIDCleared() {
+		_spec.ClearField(toolinvocation.FieldStepID, field.TypeInt)
+	}
+	if value, ok := _u.mutation.Risk(); ok {
+		_spec.SetField(toolinvocation.FieldRisk, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.Category(); ok {
+		_spec.SetField(toolinvocation.FieldCategory, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.TargetType(); ok {
+		_spec.SetField(toolinvocation.FieldTargetType, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.TargetID(); ok {
+		_spec.SetField(toolinvocation.FieldTargetID, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.SupportRef(); ok {
+		_spec.SetField(toolinvocation.FieldSupportRef, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.IdempotencyKeyHash(); ok {
+		_spec.SetField(toolinvocation.FieldIdempotencyKeyHash, field.TypeString, value)
+	}
+	if _u.mutation.IdempotencyKeyHashCleared() {
+		_spec.ClearField(toolinvocation.FieldIdempotencyKeyHash, field.TypeString)
+	}
+	if value, ok := _u.mutation.ExpiresAt(); ok {
+		_spec.SetField(toolinvocation.FieldExpiresAt, field.TypeTime, value)
+	}
+	if _u.mutation.ExpiresAtCleared() {
+		_spec.ClearField(toolinvocation.FieldExpiresAt, field.TypeTime)
+	}
+	if value, ok := _u.mutation.VerifyState(); ok {
+		_spec.SetField(toolinvocation.FieldVerifyState, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.VerifyNote(); ok {
+		_spec.SetField(toolinvocation.FieldVerifyNote, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.AttemptCount(); ok {
+		_spec.SetField(toolinvocation.FieldAttemptCount, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.AddedAttemptCount(); ok {
+		_spec.AddField(toolinvocation.FieldAttemptCount, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.LastErrorCode(); ok {
+		_spec.SetField(toolinvocation.FieldLastErrorCode, field.TypeString, value)
 	}
 	if _u.mutation.ConversationCleared() {
 		edge := &sqlgraph.EdgeSpec{
@@ -887,6 +1338,364 @@ func (_u *ToolInvocationUpdateOne) SetNillableRoleSnapshot(v *string) *ToolInvoc
 	return _u
 }
 
+// SetProvider sets the "provider" field.
+func (_u *ToolInvocationUpdateOne) SetProvider(v string) *ToolInvocationUpdateOne {
+	_u.mutation.SetProvider(v)
+	return _u
+}
+
+// SetNillableProvider sets the "provider" field if the given value is not nil.
+func (_u *ToolInvocationUpdateOne) SetNillableProvider(v *string) *ToolInvocationUpdateOne {
+	if v != nil {
+		_u.SetProvider(*v)
+	}
+	return _u
+}
+
+// SetMcpServerName sets the "mcp_server_name" field.
+func (_u *ToolInvocationUpdateOne) SetMcpServerName(v string) *ToolInvocationUpdateOne {
+	_u.mutation.SetMcpServerName(v)
+	return _u
+}
+
+// SetNillableMcpServerName sets the "mcp_server_name" field if the given value is not nil.
+func (_u *ToolInvocationUpdateOne) SetNillableMcpServerName(v *string) *ToolInvocationUpdateOne {
+	if v != nil {
+		_u.SetMcpServerName(*v)
+	}
+	return _u
+}
+
+// SetMcpRawToolName sets the "mcp_raw_tool_name" field.
+func (_u *ToolInvocationUpdateOne) SetMcpRawToolName(v string) *ToolInvocationUpdateOne {
+	_u.mutation.SetMcpRawToolName(v)
+	return _u
+}
+
+// SetNillableMcpRawToolName sets the "mcp_raw_tool_name" field if the given value is not nil.
+func (_u *ToolInvocationUpdateOne) SetNillableMcpRawToolName(v *string) *ToolInvocationUpdateOne {
+	if v != nil {
+		_u.SetMcpRawToolName(*v)
+	}
+	return _u
+}
+
+// SetMcpCallableName sets the "mcp_callable_name" field.
+func (_u *ToolInvocationUpdateOne) SetMcpCallableName(v string) *ToolInvocationUpdateOne {
+	_u.mutation.SetMcpCallableName(v)
+	return _u
+}
+
+// SetNillableMcpCallableName sets the "mcp_callable_name" field if the given value is not nil.
+func (_u *ToolInvocationUpdateOne) SetNillableMcpCallableName(v *string) *ToolInvocationUpdateOne {
+	if v != nil {
+		_u.SetMcpCallableName(*v)
+	}
+	return _u
+}
+
+// SetArgsRedacted sets the "args_redacted" field.
+func (_u *ToolInvocationUpdateOne) SetArgsRedacted(v string) *ToolInvocationUpdateOne {
+	_u.mutation.SetArgsRedacted(v)
+	return _u
+}
+
+// SetNillableArgsRedacted sets the "args_redacted" field if the given value is not nil.
+func (_u *ToolInvocationUpdateOne) SetNillableArgsRedacted(v *string) *ToolInvocationUpdateOne {
+	if v != nil {
+		_u.SetArgsRedacted(*v)
+	}
+	return _u
+}
+
+// ClearArgsRedacted clears the value of the "args_redacted" field.
+func (_u *ToolInvocationUpdateOne) ClearArgsRedacted() *ToolInvocationUpdateOne {
+	_u.mutation.ClearArgsRedacted()
+	return _u
+}
+
+// SetOutputSummary sets the "output_summary" field.
+func (_u *ToolInvocationUpdateOne) SetOutputSummary(v string) *ToolInvocationUpdateOne {
+	_u.mutation.SetOutputSummary(v)
+	return _u
+}
+
+// SetNillableOutputSummary sets the "output_summary" field if the given value is not nil.
+func (_u *ToolInvocationUpdateOne) SetNillableOutputSummary(v *string) *ToolInvocationUpdateOne {
+	if v != nil {
+		_u.SetOutputSummary(*v)
+	}
+	return _u
+}
+
+// ClearOutputSummary clears the value of the "output_summary" field.
+func (_u *ToolInvocationUpdateOne) ClearOutputSummary() *ToolInvocationUpdateOne {
+	_u.mutation.ClearOutputSummary()
+	return _u
+}
+
+// SetDurationMs sets the "duration_ms" field.
+func (_u *ToolInvocationUpdateOne) SetDurationMs(v int) *ToolInvocationUpdateOne {
+	_u.mutation.ResetDurationMs()
+	_u.mutation.SetDurationMs(v)
+	return _u
+}
+
+// SetNillableDurationMs sets the "duration_ms" field if the given value is not nil.
+func (_u *ToolInvocationUpdateOne) SetNillableDurationMs(v *int) *ToolInvocationUpdateOne {
+	if v != nil {
+		_u.SetDurationMs(*v)
+	}
+	return _u
+}
+
+// AddDurationMs adds value to the "duration_ms" field.
+func (_u *ToolInvocationUpdateOne) AddDurationMs(v int) *ToolInvocationUpdateOne {
+	_u.mutation.AddDurationMs(v)
+	return _u
+}
+
+// SetErrorCode sets the "error_code" field.
+func (_u *ToolInvocationUpdateOne) SetErrorCode(v string) *ToolInvocationUpdateOne {
+	_u.mutation.SetErrorCode(v)
+	return _u
+}
+
+// SetNillableErrorCode sets the "error_code" field if the given value is not nil.
+func (_u *ToolInvocationUpdateOne) SetNillableErrorCode(v *string) *ToolInvocationUpdateOne {
+	if v != nil {
+		_u.SetErrorCode(*v)
+	}
+	return _u
+}
+
+// SetRunID sets the "run_id" field.
+func (_u *ToolInvocationUpdateOne) SetRunID(v int) *ToolInvocationUpdateOne {
+	_u.mutation.ResetRunID()
+	_u.mutation.SetRunID(v)
+	return _u
+}
+
+// SetNillableRunID sets the "run_id" field if the given value is not nil.
+func (_u *ToolInvocationUpdateOne) SetNillableRunID(v *int) *ToolInvocationUpdateOne {
+	if v != nil {
+		_u.SetRunID(*v)
+	}
+	return _u
+}
+
+// AddRunID adds value to the "run_id" field.
+func (_u *ToolInvocationUpdateOne) AddRunID(v int) *ToolInvocationUpdateOne {
+	_u.mutation.AddRunID(v)
+	return _u
+}
+
+// ClearRunID clears the value of the "run_id" field.
+func (_u *ToolInvocationUpdateOne) ClearRunID() *ToolInvocationUpdateOne {
+	_u.mutation.ClearRunID()
+	return _u
+}
+
+// SetStepID sets the "step_id" field.
+func (_u *ToolInvocationUpdateOne) SetStepID(v int) *ToolInvocationUpdateOne {
+	_u.mutation.ResetStepID()
+	_u.mutation.SetStepID(v)
+	return _u
+}
+
+// SetNillableStepID sets the "step_id" field if the given value is not nil.
+func (_u *ToolInvocationUpdateOne) SetNillableStepID(v *int) *ToolInvocationUpdateOne {
+	if v != nil {
+		_u.SetStepID(*v)
+	}
+	return _u
+}
+
+// AddStepID adds value to the "step_id" field.
+func (_u *ToolInvocationUpdateOne) AddStepID(v int) *ToolInvocationUpdateOne {
+	_u.mutation.AddStepID(v)
+	return _u
+}
+
+// ClearStepID clears the value of the "step_id" field.
+func (_u *ToolInvocationUpdateOne) ClearStepID() *ToolInvocationUpdateOne {
+	_u.mutation.ClearStepID()
+	return _u
+}
+
+// SetRisk sets the "risk" field.
+func (_u *ToolInvocationUpdateOne) SetRisk(v string) *ToolInvocationUpdateOne {
+	_u.mutation.SetRisk(v)
+	return _u
+}
+
+// SetNillableRisk sets the "risk" field if the given value is not nil.
+func (_u *ToolInvocationUpdateOne) SetNillableRisk(v *string) *ToolInvocationUpdateOne {
+	if v != nil {
+		_u.SetRisk(*v)
+	}
+	return _u
+}
+
+// SetCategory sets the "category" field.
+func (_u *ToolInvocationUpdateOne) SetCategory(v string) *ToolInvocationUpdateOne {
+	_u.mutation.SetCategory(v)
+	return _u
+}
+
+// SetNillableCategory sets the "category" field if the given value is not nil.
+func (_u *ToolInvocationUpdateOne) SetNillableCategory(v *string) *ToolInvocationUpdateOne {
+	if v != nil {
+		_u.SetCategory(*v)
+	}
+	return _u
+}
+
+// SetTargetType sets the "target_type" field.
+func (_u *ToolInvocationUpdateOne) SetTargetType(v string) *ToolInvocationUpdateOne {
+	_u.mutation.SetTargetType(v)
+	return _u
+}
+
+// SetNillableTargetType sets the "target_type" field if the given value is not nil.
+func (_u *ToolInvocationUpdateOne) SetNillableTargetType(v *string) *ToolInvocationUpdateOne {
+	if v != nil {
+		_u.SetTargetType(*v)
+	}
+	return _u
+}
+
+// SetTargetID sets the "target_id" field.
+func (_u *ToolInvocationUpdateOne) SetTargetID(v string) *ToolInvocationUpdateOne {
+	_u.mutation.SetTargetID(v)
+	return _u
+}
+
+// SetNillableTargetID sets the "target_id" field if the given value is not nil.
+func (_u *ToolInvocationUpdateOne) SetNillableTargetID(v *string) *ToolInvocationUpdateOne {
+	if v != nil {
+		_u.SetTargetID(*v)
+	}
+	return _u
+}
+
+// SetSupportRef sets the "support_ref" field.
+func (_u *ToolInvocationUpdateOne) SetSupportRef(v string) *ToolInvocationUpdateOne {
+	_u.mutation.SetSupportRef(v)
+	return _u
+}
+
+// SetNillableSupportRef sets the "support_ref" field if the given value is not nil.
+func (_u *ToolInvocationUpdateOne) SetNillableSupportRef(v *string) *ToolInvocationUpdateOne {
+	if v != nil {
+		_u.SetSupportRef(*v)
+	}
+	return _u
+}
+
+// SetIdempotencyKeyHash sets the "idempotency_key_hash" field.
+func (_u *ToolInvocationUpdateOne) SetIdempotencyKeyHash(v string) *ToolInvocationUpdateOne {
+	_u.mutation.SetIdempotencyKeyHash(v)
+	return _u
+}
+
+// SetNillableIdempotencyKeyHash sets the "idempotency_key_hash" field if the given value is not nil.
+func (_u *ToolInvocationUpdateOne) SetNillableIdempotencyKeyHash(v *string) *ToolInvocationUpdateOne {
+	if v != nil {
+		_u.SetIdempotencyKeyHash(*v)
+	}
+	return _u
+}
+
+// ClearIdempotencyKeyHash clears the value of the "idempotency_key_hash" field.
+func (_u *ToolInvocationUpdateOne) ClearIdempotencyKeyHash() *ToolInvocationUpdateOne {
+	_u.mutation.ClearIdempotencyKeyHash()
+	return _u
+}
+
+// SetExpiresAt sets the "expires_at" field.
+func (_u *ToolInvocationUpdateOne) SetExpiresAt(v time.Time) *ToolInvocationUpdateOne {
+	_u.mutation.SetExpiresAt(v)
+	return _u
+}
+
+// SetNillableExpiresAt sets the "expires_at" field if the given value is not nil.
+func (_u *ToolInvocationUpdateOne) SetNillableExpiresAt(v *time.Time) *ToolInvocationUpdateOne {
+	if v != nil {
+		_u.SetExpiresAt(*v)
+	}
+	return _u
+}
+
+// ClearExpiresAt clears the value of the "expires_at" field.
+func (_u *ToolInvocationUpdateOne) ClearExpiresAt() *ToolInvocationUpdateOne {
+	_u.mutation.ClearExpiresAt()
+	return _u
+}
+
+// SetVerifyState sets the "verify_state" field.
+func (_u *ToolInvocationUpdateOne) SetVerifyState(v string) *ToolInvocationUpdateOne {
+	_u.mutation.SetVerifyState(v)
+	return _u
+}
+
+// SetNillableVerifyState sets the "verify_state" field if the given value is not nil.
+func (_u *ToolInvocationUpdateOne) SetNillableVerifyState(v *string) *ToolInvocationUpdateOne {
+	if v != nil {
+		_u.SetVerifyState(*v)
+	}
+	return _u
+}
+
+// SetVerifyNote sets the "verify_note" field.
+func (_u *ToolInvocationUpdateOne) SetVerifyNote(v string) *ToolInvocationUpdateOne {
+	_u.mutation.SetVerifyNote(v)
+	return _u
+}
+
+// SetNillableVerifyNote sets the "verify_note" field if the given value is not nil.
+func (_u *ToolInvocationUpdateOne) SetNillableVerifyNote(v *string) *ToolInvocationUpdateOne {
+	if v != nil {
+		_u.SetVerifyNote(*v)
+	}
+	return _u
+}
+
+// SetAttemptCount sets the "attempt_count" field.
+func (_u *ToolInvocationUpdateOne) SetAttemptCount(v int) *ToolInvocationUpdateOne {
+	_u.mutation.ResetAttemptCount()
+	_u.mutation.SetAttemptCount(v)
+	return _u
+}
+
+// SetNillableAttemptCount sets the "attempt_count" field if the given value is not nil.
+func (_u *ToolInvocationUpdateOne) SetNillableAttemptCount(v *int) *ToolInvocationUpdateOne {
+	if v != nil {
+		_u.SetAttemptCount(*v)
+	}
+	return _u
+}
+
+// AddAttemptCount adds value to the "attempt_count" field.
+func (_u *ToolInvocationUpdateOne) AddAttemptCount(v int) *ToolInvocationUpdateOne {
+	_u.mutation.AddAttemptCount(v)
+	return _u
+}
+
+// SetLastErrorCode sets the "last_error_code" field.
+func (_u *ToolInvocationUpdateOne) SetLastErrorCode(v string) *ToolInvocationUpdateOne {
+	_u.mutation.SetLastErrorCode(v)
+	return _u
+}
+
+// SetNillableLastErrorCode sets the "last_error_code" field if the given value is not nil.
+func (_u *ToolInvocationUpdateOne) SetNillableLastErrorCode(v *string) *ToolInvocationUpdateOne {
+	if v != nil {
+		_u.SetLastErrorCode(*v)
+	}
+	return _u
+}
+
 // SetConversation sets the "conversation" edge to the Conversation entity.
 func (_u *ToolInvocationUpdateOne) SetConversation(v *Conversation) *ToolInvocationUpdateOne {
 	return _u.SetConversationID(v.ID)
@@ -1051,6 +1860,99 @@ func (_u *ToolInvocationUpdateOne) sqlSave(ctx context.Context) (_node *ToolInvo
 	}
 	if value, ok := _u.mutation.RoleSnapshot(); ok {
 		_spec.SetField(toolinvocation.FieldRoleSnapshot, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.Provider(); ok {
+		_spec.SetField(toolinvocation.FieldProvider, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.McpServerName(); ok {
+		_spec.SetField(toolinvocation.FieldMcpServerName, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.McpRawToolName(); ok {
+		_spec.SetField(toolinvocation.FieldMcpRawToolName, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.McpCallableName(); ok {
+		_spec.SetField(toolinvocation.FieldMcpCallableName, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.ArgsRedacted(); ok {
+		_spec.SetField(toolinvocation.FieldArgsRedacted, field.TypeString, value)
+	}
+	if _u.mutation.ArgsRedactedCleared() {
+		_spec.ClearField(toolinvocation.FieldArgsRedacted, field.TypeString)
+	}
+	if value, ok := _u.mutation.OutputSummary(); ok {
+		_spec.SetField(toolinvocation.FieldOutputSummary, field.TypeString, value)
+	}
+	if _u.mutation.OutputSummaryCleared() {
+		_spec.ClearField(toolinvocation.FieldOutputSummary, field.TypeString)
+	}
+	if value, ok := _u.mutation.DurationMs(); ok {
+		_spec.SetField(toolinvocation.FieldDurationMs, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.AddedDurationMs(); ok {
+		_spec.AddField(toolinvocation.FieldDurationMs, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.ErrorCode(); ok {
+		_spec.SetField(toolinvocation.FieldErrorCode, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.RunID(); ok {
+		_spec.SetField(toolinvocation.FieldRunID, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.AddedRunID(); ok {
+		_spec.AddField(toolinvocation.FieldRunID, field.TypeInt, value)
+	}
+	if _u.mutation.RunIDCleared() {
+		_spec.ClearField(toolinvocation.FieldRunID, field.TypeInt)
+	}
+	if value, ok := _u.mutation.StepID(); ok {
+		_spec.SetField(toolinvocation.FieldStepID, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.AddedStepID(); ok {
+		_spec.AddField(toolinvocation.FieldStepID, field.TypeInt, value)
+	}
+	if _u.mutation.StepIDCleared() {
+		_spec.ClearField(toolinvocation.FieldStepID, field.TypeInt)
+	}
+	if value, ok := _u.mutation.Risk(); ok {
+		_spec.SetField(toolinvocation.FieldRisk, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.Category(); ok {
+		_spec.SetField(toolinvocation.FieldCategory, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.TargetType(); ok {
+		_spec.SetField(toolinvocation.FieldTargetType, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.TargetID(); ok {
+		_spec.SetField(toolinvocation.FieldTargetID, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.SupportRef(); ok {
+		_spec.SetField(toolinvocation.FieldSupportRef, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.IdempotencyKeyHash(); ok {
+		_spec.SetField(toolinvocation.FieldIdempotencyKeyHash, field.TypeString, value)
+	}
+	if _u.mutation.IdempotencyKeyHashCleared() {
+		_spec.ClearField(toolinvocation.FieldIdempotencyKeyHash, field.TypeString)
+	}
+	if value, ok := _u.mutation.ExpiresAt(); ok {
+		_spec.SetField(toolinvocation.FieldExpiresAt, field.TypeTime, value)
+	}
+	if _u.mutation.ExpiresAtCleared() {
+		_spec.ClearField(toolinvocation.FieldExpiresAt, field.TypeTime)
+	}
+	if value, ok := _u.mutation.VerifyState(); ok {
+		_spec.SetField(toolinvocation.FieldVerifyState, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.VerifyNote(); ok {
+		_spec.SetField(toolinvocation.FieldVerifyNote, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.AttemptCount(); ok {
+		_spec.SetField(toolinvocation.FieldAttemptCount, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.AddedAttemptCount(); ok {
+		_spec.AddField(toolinvocation.FieldAttemptCount, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.LastErrorCode(); ok {
+		_spec.SetField(toolinvocation.FieldLastErrorCode, field.TypeString, value)
 	}
 	if _u.mutation.ConversationCleared() {
 		edge := &sqlgraph.EdgeSpec{

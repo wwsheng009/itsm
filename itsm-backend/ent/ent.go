@@ -69,6 +69,8 @@ import (
 	"itsm-backend/ent/llmproviderconfig"
 	"itsm-backend/ent/llmuserpreference"
 	"itsm-backend/ent/marketplaceitem"
+	"itsm-backend/ent/mcpserver"
+	"itsm-backend/ent/mcpservertool"
 	"itsm-backend/ent/menu"
 	"itsm-backend/ent/message"
 	"itsm-backend/ent/microservice"
@@ -273,6 +275,8 @@ func checkColumn(t, c string) error {
 			knownerror.Table:                  knownerror.ValidColumn,
 			llmproviderconfig.Table:           llmproviderconfig.ValidColumn,
 			llmuserpreference.Table:           llmuserpreference.ValidColumn,
+			mcpserver.Table:                   mcpserver.ValidColumn,
+			mcpservertool.Table:               mcpservertool.ValidColumn,
 			mspallocation.Table:               mspallocation.ValidColumn,
 			marketplaceitem.Table:             marketplaceitem.ValidColumn,
 			menu.Table:                        menu.ValidColumn,

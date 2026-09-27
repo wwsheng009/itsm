@@ -248,6 +248,7 @@ MCP 线：      ▼                    ▼                   ▼                
 - **要点**：新字段一律带默认值或 nullable（参照 `ent/schema/tool_invocation.go:31` 向后兼容注释）；唯一索引 `(tenant_id, idempotency_key_hash)`（null 不阻塞读工具）；索引首列必须含 `tenant_id`；迁移统一由 `client.Schema.Create(ctx)` 执行（`internal/bootstrap/app.go:1392`，前置兼容 `:1380-1391`）；SQLite 与 Postgres 双驱动冒烟【差异未核实，CI 必须覆盖】；历史数据不强制回填，仅 nullable。
 - **测试与证据**：空库建表 + 旧库升级双路径；ent 读写断言（默认值、唯一冲突、租户隔离）；迁移窗口联合评审记录归档。
 - **DoD**：`integration_verified`。
+- **状态**：ent schema 字段已随 MCP M0-03 **联合迁移窗口**一次落地（2026-09-27；`run_id/step_id/risk/category/target_type/target_id/support_ref/idempotency_key_hash/expires_at/verify_state/verify_note/attempt_count/last_error_code`；命名统一：`input_redacted` → `args_redacted`）；实体结构同步（`handlers/ai/entity.go`）与读写契约测试待本任务执行时补齐。
 
 #### B0-03 审计回填与拒绝原因回填（后端）
 
@@ -894,3 +895,4 @@ MCP 线：      ▼                    ▼                   ▼                
 | --- | --- | --- |
 | 2026-09-27 | AI 辅助编制 | 初稿：基于《ITSM Bot 能力落地分析》（48,468 字节）与《ITSM 外部工具（MCP）接入实施方案》（86,733 字节），产出 B0–B4 共 34 个任务卡、34 条验收项（AB0×7 / AB1×10 / AB2×6 / AB3×7 / AB4×4）、9 组测试用例（BT-01…BT-09）、四级开关回滚预案与风险/决策登记；与 MCP 方案建立 7 项合并点与 3 个联合评审窗口；基线 HEAD `7442fad5`，未改动代码 |
 | 2026-09-27 | AI 辅助编制 | 开工准备：BQ1–BQ8 按建议拍板登记（§10）；BP1 工作树处置完成（独立提交 `d3471221`）；实施分支 `feat/bot-mcp-integration` 创建与文档入库（`3172c12c`） |
+| 2026-09-27 | AI 辅助执行 | 联合迁移窗口执行：B0-02 的 `tool_invocations` 字段随 MCP M0-03 一次加列（避免二次迁移）；命名统一 `input_redacted`→`args_redacted`；证据 `docs/plan/evidence/mcp-m0/M0-03-migration-evidence.md`。 |

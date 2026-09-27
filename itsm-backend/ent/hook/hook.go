@@ -752,6 +752,30 @@ func (f LLMUserPreferenceFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.
 	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.LLMUserPreferenceMutation", m)
 }
 
+// The MCPServerFunc type is an adapter to allow the use of ordinary
+// function as MCPServer mutator.
+type MCPServerFunc func(context.Context, *ent.MCPServerMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f MCPServerFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.MCPServerMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.MCPServerMutation", m)
+}
+
+// The MCPServerToolFunc type is an adapter to allow the use of ordinary
+// function as MCPServerTool mutator.
+type MCPServerToolFunc func(context.Context, *ent.MCPServerToolMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f MCPServerToolFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.MCPServerToolMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.MCPServerToolMutation", m)
+}
+
 // The MSPAllocationFunc type is an adapter to allow the use of ordinary
 // function as MSPAllocation mutator.
 type MSPAllocationFunc func(context.Context, *ent.MSPAllocationMutation) (ent.Value, error)

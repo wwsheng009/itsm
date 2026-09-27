@@ -57,6 +57,48 @@ type ToolInvocation struct {
 	PermissionReason string `json:"permission_reason,omitempty"`
 	// 调用时角色快照，便于事后审计
 	RoleSnapshot string `json:"role_snapshot,omitempty"`
+	// 工具来源: builtin|mcp
+	Provider string `json:"provider,omitempty"`
+	// MCP 服务器标识（provider=mcp 时）
+	McpServerName string `json:"mcp_server_name,omitempty"`
+	// MCP 原始工具名
+	McpRawToolName string `json:"mcp_raw_tool_name,omitempty"`
+	// MCP 投影名 mcp__<server>__<tool>
+	McpCallableName string `json:"mcp_callable_name,omitempty"`
+	// 脱敏后的入参快照（展示/审计唯一来源；与 B0-02 input_redacted 统一命名）
+	ArgsRedacted string `json:"args_redacted,omitempty"`
+	// 结果摘要（脱敏/截断）
+	OutputSummary string `json:"output_summary,omitempty"`
+	// 执行耗时（毫秒）
+	DurationMs int `json:"duration_ms,omitempty"`
+	// 错误码（分类后）
+	ErrorCode string `json:"error_code,omitempty"`
+	// 所属 bot_runs（B1-01 落表后关联）
+	RunID int `json:"run_id,omitempty"`
+	// 所属 bot_steps
+	StepID int `json:"step_id,omitempty"`
+	// 调用时风险快照: read|plan|act_low|act_medium|act_high
+	Risk string `json:"risk,omitempty"`
+	// 工具分类快照
+	Category string `json:"category,omitempty"`
+	// 目标对象类型（ticket/incident/ci/...）
+	TargetType string `json:"target_type,omitempty"`
+	// 目标对象 ID
+	TargetID string `json:"target_id,omitempty"`
+	// 支撑信息引用（证据/来源）
+	SupportRef string `json:"support_ref,omitempty"`
+	// 幂等键 hash（只存 hash；读工具为空）
+	IdempotencyKeyHash string `json:"idempotency_key_hash,omitempty"`
+	// 确认单过期时间
+	ExpiresAt *time.Time `json:"expires_at,omitempty"`
+	// 执行后回读: pending|verified|failed|skipped
+	VerifyState string `json:"verify_state,omitempty"`
+	// VerifyNote holds the value of the "verify_note" field.
+	VerifyNote string `json:"verify_note,omitempty"`
+	// 队列消费尝试次数
+	AttemptCount int `json:"attempt_count,omitempty"`
+	// 最近一次消费错误码
+	LastErrorCode string `json:"last_error_code,omitempty"`
 	// Edges holds the relations/edges for other nodes in the graph.
 	// The values are being populated by the ToolInvocationQuery when eager-loading is set.
 	Edges        ToolInvocationEdges `json:"edges"`
@@ -103,11 +145,11 @@ func (*ToolInvocation) scanValues(columns []string) ([]any, error) {
 		switch columns[i] {
 		case toolinvocation.FieldNeedsApproval, toolinvocation.FieldDryRun:
 			values[i] = new(sql.NullBool)
-		case toolinvocation.FieldID, toolinvocation.FieldTenantID, toolinvocation.FieldConversationID, toolinvocation.FieldApprovedBy, toolinvocation.FieldUserID:
+		case toolinvocation.FieldID, toolinvocation.FieldTenantID, toolinvocation.FieldConversationID, toolinvocation.FieldApprovedBy, toolinvocation.FieldUserID, toolinvocation.FieldDurationMs, toolinvocation.FieldRunID, toolinvocation.FieldStepID, toolinvocation.FieldAttemptCount:
 			values[i] = new(sql.NullInt64)
-		case toolinvocation.FieldToolName, toolinvocation.FieldArguments, toolinvocation.FieldResult, toolinvocation.FieldStatus, toolinvocation.FieldRequestID, toolinvocation.FieldApprovalState, toolinvocation.FieldApprovalReason, toolinvocation.FieldError, toolinvocation.FieldPermissionCheck, toolinvocation.FieldPermissionReason, toolinvocation.FieldRoleSnapshot:
+		case toolinvocation.FieldToolName, toolinvocation.FieldArguments, toolinvocation.FieldResult, toolinvocation.FieldStatus, toolinvocation.FieldRequestID, toolinvocation.FieldApprovalState, toolinvocation.FieldApprovalReason, toolinvocation.FieldError, toolinvocation.FieldPermissionCheck, toolinvocation.FieldPermissionReason, toolinvocation.FieldRoleSnapshot, toolinvocation.FieldProvider, toolinvocation.FieldMcpServerName, toolinvocation.FieldMcpRawToolName, toolinvocation.FieldMcpCallableName, toolinvocation.FieldArgsRedacted, toolinvocation.FieldOutputSummary, toolinvocation.FieldErrorCode, toolinvocation.FieldRisk, toolinvocation.FieldCategory, toolinvocation.FieldTargetType, toolinvocation.FieldTargetID, toolinvocation.FieldSupportRef, toolinvocation.FieldIdempotencyKeyHash, toolinvocation.FieldVerifyState, toolinvocation.FieldVerifyNote, toolinvocation.FieldLastErrorCode:
 			values[i] = new(sql.NullString)
-		case toolinvocation.FieldCreatedAt, toolinvocation.FieldApprovedAt:
+		case toolinvocation.FieldCreatedAt, toolinvocation.FieldApprovedAt, toolinvocation.FieldExpiresAt:
 			values[i] = new(sql.NullTime)
 		default:
 			values[i] = new(sql.UnknownType)
@@ -246,6 +288,133 @@ func (_m *ToolInvocation) assignValues(columns []string, values []any) error {
 			} else if value.Valid {
 				_m.RoleSnapshot = value.String
 			}
+		case toolinvocation.FieldProvider:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field provider", values[i])
+			} else if value.Valid {
+				_m.Provider = value.String
+			}
+		case toolinvocation.FieldMcpServerName:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field mcp_server_name", values[i])
+			} else if value.Valid {
+				_m.McpServerName = value.String
+			}
+		case toolinvocation.FieldMcpRawToolName:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field mcp_raw_tool_name", values[i])
+			} else if value.Valid {
+				_m.McpRawToolName = value.String
+			}
+		case toolinvocation.FieldMcpCallableName:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field mcp_callable_name", values[i])
+			} else if value.Valid {
+				_m.McpCallableName = value.String
+			}
+		case toolinvocation.FieldArgsRedacted:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field args_redacted", values[i])
+			} else if value.Valid {
+				_m.ArgsRedacted = value.String
+			}
+		case toolinvocation.FieldOutputSummary:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field output_summary", values[i])
+			} else if value.Valid {
+				_m.OutputSummary = value.String
+			}
+		case toolinvocation.FieldDurationMs:
+			if value, ok := values[i].(*sql.NullInt64); !ok {
+				return fmt.Errorf("unexpected type %T for field duration_ms", values[i])
+			} else if value.Valid {
+				_m.DurationMs = int(value.Int64)
+			}
+		case toolinvocation.FieldErrorCode:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field error_code", values[i])
+			} else if value.Valid {
+				_m.ErrorCode = value.String
+			}
+		case toolinvocation.FieldRunID:
+			if value, ok := values[i].(*sql.NullInt64); !ok {
+				return fmt.Errorf("unexpected type %T for field run_id", values[i])
+			} else if value.Valid {
+				_m.RunID = int(value.Int64)
+			}
+		case toolinvocation.FieldStepID:
+			if value, ok := values[i].(*sql.NullInt64); !ok {
+				return fmt.Errorf("unexpected type %T for field step_id", values[i])
+			} else if value.Valid {
+				_m.StepID = int(value.Int64)
+			}
+		case toolinvocation.FieldRisk:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field risk", values[i])
+			} else if value.Valid {
+				_m.Risk = value.String
+			}
+		case toolinvocation.FieldCategory:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field category", values[i])
+			} else if value.Valid {
+				_m.Category = value.String
+			}
+		case toolinvocation.FieldTargetType:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field target_type", values[i])
+			} else if value.Valid {
+				_m.TargetType = value.String
+			}
+		case toolinvocation.FieldTargetID:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field target_id", values[i])
+			} else if value.Valid {
+				_m.TargetID = value.String
+			}
+		case toolinvocation.FieldSupportRef:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field support_ref", values[i])
+			} else if value.Valid {
+				_m.SupportRef = value.String
+			}
+		case toolinvocation.FieldIdempotencyKeyHash:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field idempotency_key_hash", values[i])
+			} else if value.Valid {
+				_m.IdempotencyKeyHash = value.String
+			}
+		case toolinvocation.FieldExpiresAt:
+			if value, ok := values[i].(*sql.NullTime); !ok {
+				return fmt.Errorf("unexpected type %T for field expires_at", values[i])
+			} else if value.Valid {
+				_m.ExpiresAt = new(time.Time)
+				*_m.ExpiresAt = value.Time
+			}
+		case toolinvocation.FieldVerifyState:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field verify_state", values[i])
+			} else if value.Valid {
+				_m.VerifyState = value.String
+			}
+		case toolinvocation.FieldVerifyNote:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field verify_note", values[i])
+			} else if value.Valid {
+				_m.VerifyNote = value.String
+			}
+		case toolinvocation.FieldAttemptCount:
+			if value, ok := values[i].(*sql.NullInt64); !ok {
+				return fmt.Errorf("unexpected type %T for field attempt_count", values[i])
+			} else if value.Valid {
+				_m.AttemptCount = int(value.Int64)
+			}
+		case toolinvocation.FieldLastErrorCode:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field last_error_code", values[i])
+			} else if value.Valid {
+				_m.LastErrorCode = value.String
+			}
 		default:
 			_m.selectValues.Set(columns[i], values[i])
 		}
@@ -352,6 +521,71 @@ func (_m *ToolInvocation) String() string {
 	builder.WriteString(", ")
 	builder.WriteString("role_snapshot=")
 	builder.WriteString(_m.RoleSnapshot)
+	builder.WriteString(", ")
+	builder.WriteString("provider=")
+	builder.WriteString(_m.Provider)
+	builder.WriteString(", ")
+	builder.WriteString("mcp_server_name=")
+	builder.WriteString(_m.McpServerName)
+	builder.WriteString(", ")
+	builder.WriteString("mcp_raw_tool_name=")
+	builder.WriteString(_m.McpRawToolName)
+	builder.WriteString(", ")
+	builder.WriteString("mcp_callable_name=")
+	builder.WriteString(_m.McpCallableName)
+	builder.WriteString(", ")
+	builder.WriteString("args_redacted=")
+	builder.WriteString(_m.ArgsRedacted)
+	builder.WriteString(", ")
+	builder.WriteString("output_summary=")
+	builder.WriteString(_m.OutputSummary)
+	builder.WriteString(", ")
+	builder.WriteString("duration_ms=")
+	builder.WriteString(fmt.Sprintf("%v", _m.DurationMs))
+	builder.WriteString(", ")
+	builder.WriteString("error_code=")
+	builder.WriteString(_m.ErrorCode)
+	builder.WriteString(", ")
+	builder.WriteString("run_id=")
+	builder.WriteString(fmt.Sprintf("%v", _m.RunID))
+	builder.WriteString(", ")
+	builder.WriteString("step_id=")
+	builder.WriteString(fmt.Sprintf("%v", _m.StepID))
+	builder.WriteString(", ")
+	builder.WriteString("risk=")
+	builder.WriteString(_m.Risk)
+	builder.WriteString(", ")
+	builder.WriteString("category=")
+	builder.WriteString(_m.Category)
+	builder.WriteString(", ")
+	builder.WriteString("target_type=")
+	builder.WriteString(_m.TargetType)
+	builder.WriteString(", ")
+	builder.WriteString("target_id=")
+	builder.WriteString(_m.TargetID)
+	builder.WriteString(", ")
+	builder.WriteString("support_ref=")
+	builder.WriteString(_m.SupportRef)
+	builder.WriteString(", ")
+	builder.WriteString("idempotency_key_hash=")
+	builder.WriteString(_m.IdempotencyKeyHash)
+	builder.WriteString(", ")
+	if v := _m.ExpiresAt; v != nil {
+		builder.WriteString("expires_at=")
+		builder.WriteString(v.Format(time.ANSIC))
+	}
+	builder.WriteString(", ")
+	builder.WriteString("verify_state=")
+	builder.WriteString(_m.VerifyState)
+	builder.WriteString(", ")
+	builder.WriteString("verify_note=")
+	builder.WriteString(_m.VerifyNote)
+	builder.WriteString(", ")
+	builder.WriteString("attempt_count=")
+	builder.WriteString(fmt.Sprintf("%v", _m.AttemptCount))
+	builder.WriteString(", ")
+	builder.WriteString("last_error_code=")
+	builder.WriteString(_m.LastErrorCode)
 	builder.WriteByte(')')
 	return builder.String()
 }

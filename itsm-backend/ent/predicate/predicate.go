@@ -192,6 +192,12 @@ type LLMProviderConfig func(*sql.Selector)
 // LLMUserPreference is the predicate function for llmuserpreference builders.
 type LLMUserPreference func(*sql.Selector)
 
+// MCPServer is the predicate function for mcpserver builders.
+type MCPServer func(*sql.Selector)
+
+// MCPServerTool is the predicate function for mcpservertool builders.
+type MCPServerTool func(*sql.Selector)
+
 // MSPAllocation is the predicate function for mspallocation builders.
 type MSPAllocation func(*sql.Selector)
 

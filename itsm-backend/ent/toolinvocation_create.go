@@ -272,6 +272,300 @@ func (_c *ToolInvocationCreate) SetNillableRoleSnapshot(v *string) *ToolInvocati
 	return _c
 }
 
+// SetProvider sets the "provider" field.
+func (_c *ToolInvocationCreate) SetProvider(v string) *ToolInvocationCreate {
+	_c.mutation.SetProvider(v)
+	return _c
+}
+
+// SetNillableProvider sets the "provider" field if the given value is not nil.
+func (_c *ToolInvocationCreate) SetNillableProvider(v *string) *ToolInvocationCreate {
+	if v != nil {
+		_c.SetProvider(*v)
+	}
+	return _c
+}
+
+// SetMcpServerName sets the "mcp_server_name" field.
+func (_c *ToolInvocationCreate) SetMcpServerName(v string) *ToolInvocationCreate {
+	_c.mutation.SetMcpServerName(v)
+	return _c
+}
+
+// SetNillableMcpServerName sets the "mcp_server_name" field if the given value is not nil.
+func (_c *ToolInvocationCreate) SetNillableMcpServerName(v *string) *ToolInvocationCreate {
+	if v != nil {
+		_c.SetMcpServerName(*v)
+	}
+	return _c
+}
+
+// SetMcpRawToolName sets the "mcp_raw_tool_name" field.
+func (_c *ToolInvocationCreate) SetMcpRawToolName(v string) *ToolInvocationCreate {
+	_c.mutation.SetMcpRawToolName(v)
+	return _c
+}
+
+// SetNillableMcpRawToolName sets the "mcp_raw_tool_name" field if the given value is not nil.
+func (_c *ToolInvocationCreate) SetNillableMcpRawToolName(v *string) *ToolInvocationCreate {
+	if v != nil {
+		_c.SetMcpRawToolName(*v)
+	}
+	return _c
+}
+
+// SetMcpCallableName sets the "mcp_callable_name" field.
+func (_c *ToolInvocationCreate) SetMcpCallableName(v string) *ToolInvocationCreate {
+	_c.mutation.SetMcpCallableName(v)
+	return _c
+}
+
+// SetNillableMcpCallableName sets the "mcp_callable_name" field if the given value is not nil.
+func (_c *ToolInvocationCreate) SetNillableMcpCallableName(v *string) *ToolInvocationCreate {
+	if v != nil {
+		_c.SetMcpCallableName(*v)
+	}
+	return _c
+}
+
+// SetArgsRedacted sets the "args_redacted" field.
+func (_c *ToolInvocationCreate) SetArgsRedacted(v string) *ToolInvocationCreate {
+	_c.mutation.SetArgsRedacted(v)
+	return _c
+}
+
+// SetNillableArgsRedacted sets the "args_redacted" field if the given value is not nil.
+func (_c *ToolInvocationCreate) SetNillableArgsRedacted(v *string) *ToolInvocationCreate {
+	if v != nil {
+		_c.SetArgsRedacted(*v)
+	}
+	return _c
+}
+
+// SetOutputSummary sets the "output_summary" field.
+func (_c *ToolInvocationCreate) SetOutputSummary(v string) *ToolInvocationCreate {
+	_c.mutation.SetOutputSummary(v)
+	return _c
+}
+
+// SetNillableOutputSummary sets the "output_summary" field if the given value is not nil.
+func (_c *ToolInvocationCreate) SetNillableOutputSummary(v *string) *ToolInvocationCreate {
+	if v != nil {
+		_c.SetOutputSummary(*v)
+	}
+	return _c
+}
+
+// SetDurationMs sets the "duration_ms" field.
+func (_c *ToolInvocationCreate) SetDurationMs(v int) *ToolInvocationCreate {
+	_c.mutation.SetDurationMs(v)
+	return _c
+}
+
+// SetNillableDurationMs sets the "duration_ms" field if the given value is not nil.
+func (_c *ToolInvocationCreate) SetNillableDurationMs(v *int) *ToolInvocationCreate {
+	if v != nil {
+		_c.SetDurationMs(*v)
+	}
+	return _c
+}
+
+// SetErrorCode sets the "error_code" field.
+func (_c *ToolInvocationCreate) SetErrorCode(v string) *ToolInvocationCreate {
+	_c.mutation.SetErrorCode(v)
+	return _c
+}
+
+// SetNillableErrorCode sets the "error_code" field if the given value is not nil.
+func (_c *ToolInvocationCreate) SetNillableErrorCode(v *string) *ToolInvocationCreate {
+	if v != nil {
+		_c.SetErrorCode(*v)
+	}
+	return _c
+}
+
+// SetRunID sets the "run_id" field.
+func (_c *ToolInvocationCreate) SetRunID(v int) *ToolInvocationCreate {
+	_c.mutation.SetRunID(v)
+	return _c
+}
+
+// SetNillableRunID sets the "run_id" field if the given value is not nil.
+func (_c *ToolInvocationCreate) SetNillableRunID(v *int) *ToolInvocationCreate {
+	if v != nil {
+		_c.SetRunID(*v)
+	}
+	return _c
+}
+
+// SetStepID sets the "step_id" field.
+func (_c *ToolInvocationCreate) SetStepID(v int) *ToolInvocationCreate {
+	_c.mutation.SetStepID(v)
+	return _c
+}
+
+// SetNillableStepID sets the "step_id" field if the given value is not nil.
+func (_c *ToolInvocationCreate) SetNillableStepID(v *int) *ToolInvocationCreate {
+	if v != nil {
+		_c.SetStepID(*v)
+	}
+	return _c
+}
+
+// SetRisk sets the "risk" field.
+func (_c *ToolInvocationCreate) SetRisk(v string) *ToolInvocationCreate {
+	_c.mutation.SetRisk(v)
+	return _c
+}
+
+// SetNillableRisk sets the "risk" field if the given value is not nil.
+func (_c *ToolInvocationCreate) SetNillableRisk(v *string) *ToolInvocationCreate {
+	if v != nil {
+		_c.SetRisk(*v)
+	}
+	return _c
+}
+
+// SetCategory sets the "category" field.
+func (_c *ToolInvocationCreate) SetCategory(v string) *ToolInvocationCreate {
+	_c.mutation.SetCategory(v)
+	return _c
+}
+
+// SetNillableCategory sets the "category" field if the given value is not nil.
+func (_c *ToolInvocationCreate) SetNillableCategory(v *string) *ToolInvocationCreate {
+	if v != nil {
+		_c.SetCategory(*v)
+	}
+	return _c
+}
+
+// SetTargetType sets the "target_type" field.
+func (_c *ToolInvocationCreate) SetTargetType(v string) *ToolInvocationCreate {
+	_c.mutation.SetTargetType(v)
+	return _c
+}
+
+// SetNillableTargetType sets the "target_type" field if the given value is not nil.
+func (_c *ToolInvocationCreate) SetNillableTargetType(v *string) *ToolInvocationCreate {
+	if v != nil {
+		_c.SetTargetType(*v)
+	}
+	return _c
+}
+
+// SetTargetID sets the "target_id" field.
+func (_c *ToolInvocationCreate) SetTargetID(v string) *ToolInvocationCreate {
+	_c.mutation.SetTargetID(v)
+	return _c
+}
+
+// SetNillableTargetID sets the "target_id" field if the given value is not nil.
+func (_c *ToolInvocationCreate) SetNillableTargetID(v *string) *ToolInvocationCreate {
+	if v != nil {
+		_c.SetTargetID(*v)
+	}
+	return _c
+}
+
+// SetSupportRef sets the "support_ref" field.
+func (_c *ToolInvocationCreate) SetSupportRef(v string) *ToolInvocationCreate {
+	_c.mutation.SetSupportRef(v)
+	return _c
+}
+
+// SetNillableSupportRef sets the "support_ref" field if the given value is not nil.
+func (_c *ToolInvocationCreate) SetNillableSupportRef(v *string) *ToolInvocationCreate {
+	if v != nil {
+		_c.SetSupportRef(*v)
+	}
+	return _c
+}
+
+// SetIdempotencyKeyHash sets the "idempotency_key_hash" field.
+func (_c *ToolInvocationCreate) SetIdempotencyKeyHash(v string) *ToolInvocationCreate {
+	_c.mutation.SetIdempotencyKeyHash(v)
+	return _c
+}
+
+// SetNillableIdempotencyKeyHash sets the "idempotency_key_hash" field if the given value is not nil.
+func (_c *ToolInvocationCreate) SetNillableIdempotencyKeyHash(v *string) *ToolInvocationCreate {
+	if v != nil {
+		_c.SetIdempotencyKeyHash(*v)
+	}
+	return _c
+}
+
+// SetExpiresAt sets the "expires_at" field.
+func (_c *ToolInvocationCreate) SetExpiresAt(v time.Time) *ToolInvocationCreate {
+	_c.mutation.SetExpiresAt(v)
+	return _c
+}
+
+// SetNillableExpiresAt sets the "expires_at" field if the given value is not nil.
+func (_c *ToolInvocationCreate) SetNillableExpiresAt(v *time.Time) *ToolInvocationCreate {
+	if v != nil {
+		_c.SetExpiresAt(*v)
+	}
+	return _c
+}
+
+// SetVerifyState sets the "verify_state" field.
+func (_c *ToolInvocationCreate) SetVerifyState(v string) *ToolInvocationCreate {
+	_c.mutation.SetVerifyState(v)
+	return _c
+}
+
+// SetNillableVerifyState sets the "verify_state" field if the given value is not nil.
+func (_c *ToolInvocationCreate) SetNillableVerifyState(v *string) *ToolInvocationCreate {
+	if v != nil {
+		_c.SetVerifyState(*v)
+	}
+	return _c
+}
+
+// SetVerifyNote sets the "verify_note" field.
+func (_c *ToolInvocationCreate) SetVerifyNote(v string) *ToolInvocationCreate {
+	_c.mutation.SetVerifyNote(v)
+	return _c
+}
+
+// SetNillableVerifyNote sets the "verify_note" field if the given value is not nil.
+func (_c *ToolInvocationCreate) SetNillableVerifyNote(v *string) *ToolInvocationCreate {
+	if v != nil {
+		_c.SetVerifyNote(*v)
+	}
+	return _c
+}
+
+// SetAttemptCount sets the "attempt_count" field.
+func (_c *ToolInvocationCreate) SetAttemptCount(v int) *ToolInvocationCreate {
+	_c.mutation.SetAttemptCount(v)
+	return _c
+}
+
+// SetNillableAttemptCount sets the "attempt_count" field if the given value is not nil.
+func (_c *ToolInvocationCreate) SetNillableAttemptCount(v *int) *ToolInvocationCreate {
+	if v != nil {
+		_c.SetAttemptCount(*v)
+	}
+	return _c
+}
+
+// SetLastErrorCode sets the "last_error_code" field.
+func (_c *ToolInvocationCreate) SetLastErrorCode(v string) *ToolInvocationCreate {
+	_c.mutation.SetLastErrorCode(v)
+	return _c
+}
+
+// SetNillableLastErrorCode sets the "last_error_code" field if the given value is not nil.
+func (_c *ToolInvocationCreate) SetNillableLastErrorCode(v *string) *ToolInvocationCreate {
+	if v != nil {
+		_c.SetLastErrorCode(*v)
+	}
+	return _c
+}
+
 // SetConversation sets the "conversation" edge to the Conversation entity.
 func (_c *ToolInvocationCreate) SetConversation(v *Conversation) *ToolInvocationCreate {
 	return _c.SetConversationID(v.ID)
@@ -357,6 +651,66 @@ func (_c *ToolInvocationCreate) defaults() {
 		v := toolinvocation.DefaultRoleSnapshot
 		_c.mutation.SetRoleSnapshot(v)
 	}
+	if _, ok := _c.mutation.Provider(); !ok {
+		v := toolinvocation.DefaultProvider
+		_c.mutation.SetProvider(v)
+	}
+	if _, ok := _c.mutation.McpServerName(); !ok {
+		v := toolinvocation.DefaultMcpServerName
+		_c.mutation.SetMcpServerName(v)
+	}
+	if _, ok := _c.mutation.McpRawToolName(); !ok {
+		v := toolinvocation.DefaultMcpRawToolName
+		_c.mutation.SetMcpRawToolName(v)
+	}
+	if _, ok := _c.mutation.McpCallableName(); !ok {
+		v := toolinvocation.DefaultMcpCallableName
+		_c.mutation.SetMcpCallableName(v)
+	}
+	if _, ok := _c.mutation.DurationMs(); !ok {
+		v := toolinvocation.DefaultDurationMs
+		_c.mutation.SetDurationMs(v)
+	}
+	if _, ok := _c.mutation.ErrorCode(); !ok {
+		v := toolinvocation.DefaultErrorCode
+		_c.mutation.SetErrorCode(v)
+	}
+	if _, ok := _c.mutation.Risk(); !ok {
+		v := toolinvocation.DefaultRisk
+		_c.mutation.SetRisk(v)
+	}
+	if _, ok := _c.mutation.Category(); !ok {
+		v := toolinvocation.DefaultCategory
+		_c.mutation.SetCategory(v)
+	}
+	if _, ok := _c.mutation.TargetType(); !ok {
+		v := toolinvocation.DefaultTargetType
+		_c.mutation.SetTargetType(v)
+	}
+	if _, ok := _c.mutation.TargetID(); !ok {
+		v := toolinvocation.DefaultTargetID
+		_c.mutation.SetTargetID(v)
+	}
+	if _, ok := _c.mutation.SupportRef(); !ok {
+		v := toolinvocation.DefaultSupportRef
+		_c.mutation.SetSupportRef(v)
+	}
+	if _, ok := _c.mutation.VerifyState(); !ok {
+		v := toolinvocation.DefaultVerifyState
+		_c.mutation.SetVerifyState(v)
+	}
+	if _, ok := _c.mutation.VerifyNote(); !ok {
+		v := toolinvocation.DefaultVerifyNote
+		_c.mutation.SetVerifyNote(v)
+	}
+	if _, ok := _c.mutation.AttemptCount(); !ok {
+		v := toolinvocation.DefaultAttemptCount
+		_c.mutation.SetAttemptCount(v)
+	}
+	if _, ok := _c.mutation.LastErrorCode(); !ok {
+		v := toolinvocation.DefaultLastErrorCode
+		_c.mutation.SetLastErrorCode(v)
+	}
 }
 
 // check runs all checks and user-defined validators on the builder.
@@ -396,6 +750,51 @@ func (_c *ToolInvocationCreate) check() error {
 	}
 	if _, ok := _c.mutation.RoleSnapshot(); !ok {
 		return &ValidationError{Name: "role_snapshot", err: errors.New(`ent: missing required field "ToolInvocation.role_snapshot"`)}
+	}
+	if _, ok := _c.mutation.Provider(); !ok {
+		return &ValidationError{Name: "provider", err: errors.New(`ent: missing required field "ToolInvocation.provider"`)}
+	}
+	if _, ok := _c.mutation.McpServerName(); !ok {
+		return &ValidationError{Name: "mcp_server_name", err: errors.New(`ent: missing required field "ToolInvocation.mcp_server_name"`)}
+	}
+	if _, ok := _c.mutation.McpRawToolName(); !ok {
+		return &ValidationError{Name: "mcp_raw_tool_name", err: errors.New(`ent: missing required field "ToolInvocation.mcp_raw_tool_name"`)}
+	}
+	if _, ok := _c.mutation.McpCallableName(); !ok {
+		return &ValidationError{Name: "mcp_callable_name", err: errors.New(`ent: missing required field "ToolInvocation.mcp_callable_name"`)}
+	}
+	if _, ok := _c.mutation.DurationMs(); !ok {
+		return &ValidationError{Name: "duration_ms", err: errors.New(`ent: missing required field "ToolInvocation.duration_ms"`)}
+	}
+	if _, ok := _c.mutation.ErrorCode(); !ok {
+		return &ValidationError{Name: "error_code", err: errors.New(`ent: missing required field "ToolInvocation.error_code"`)}
+	}
+	if _, ok := _c.mutation.Risk(); !ok {
+		return &ValidationError{Name: "risk", err: errors.New(`ent: missing required field "ToolInvocation.risk"`)}
+	}
+	if _, ok := _c.mutation.Category(); !ok {
+		return &ValidationError{Name: "category", err: errors.New(`ent: missing required field "ToolInvocation.category"`)}
+	}
+	if _, ok := _c.mutation.TargetType(); !ok {
+		return &ValidationError{Name: "target_type", err: errors.New(`ent: missing required field "ToolInvocation.target_type"`)}
+	}
+	if _, ok := _c.mutation.TargetID(); !ok {
+		return &ValidationError{Name: "target_id", err: errors.New(`ent: missing required field "ToolInvocation.target_id"`)}
+	}
+	if _, ok := _c.mutation.SupportRef(); !ok {
+		return &ValidationError{Name: "support_ref", err: errors.New(`ent: missing required field "ToolInvocation.support_ref"`)}
+	}
+	if _, ok := _c.mutation.VerifyState(); !ok {
+		return &ValidationError{Name: "verify_state", err: errors.New(`ent: missing required field "ToolInvocation.verify_state"`)}
+	}
+	if _, ok := _c.mutation.VerifyNote(); !ok {
+		return &ValidationError{Name: "verify_note", err: errors.New(`ent: missing required field "ToolInvocation.verify_note"`)}
+	}
+	if _, ok := _c.mutation.AttemptCount(); !ok {
+		return &ValidationError{Name: "attempt_count", err: errors.New(`ent: missing required field "ToolInvocation.attempt_count"`)}
+	}
+	if _, ok := _c.mutation.LastErrorCode(); !ok {
+		return &ValidationError{Name: "last_error_code", err: errors.New(`ent: missing required field "ToolInvocation.last_error_code"`)}
 	}
 	return nil
 }
@@ -490,6 +889,90 @@ func (_c *ToolInvocationCreate) createSpec() (*ToolInvocation, *sqlgraph.CreateS
 	if value, ok := _c.mutation.RoleSnapshot(); ok {
 		_spec.SetField(toolinvocation.FieldRoleSnapshot, field.TypeString, value)
 		_node.RoleSnapshot = value
+	}
+	if value, ok := _c.mutation.Provider(); ok {
+		_spec.SetField(toolinvocation.FieldProvider, field.TypeString, value)
+		_node.Provider = value
+	}
+	if value, ok := _c.mutation.McpServerName(); ok {
+		_spec.SetField(toolinvocation.FieldMcpServerName, field.TypeString, value)
+		_node.McpServerName = value
+	}
+	if value, ok := _c.mutation.McpRawToolName(); ok {
+		_spec.SetField(toolinvocation.FieldMcpRawToolName, field.TypeString, value)
+		_node.McpRawToolName = value
+	}
+	if value, ok := _c.mutation.McpCallableName(); ok {
+		_spec.SetField(toolinvocation.FieldMcpCallableName, field.TypeString, value)
+		_node.McpCallableName = value
+	}
+	if value, ok := _c.mutation.ArgsRedacted(); ok {
+		_spec.SetField(toolinvocation.FieldArgsRedacted, field.TypeString, value)
+		_node.ArgsRedacted = value
+	}
+	if value, ok := _c.mutation.OutputSummary(); ok {
+		_spec.SetField(toolinvocation.FieldOutputSummary, field.TypeString, value)
+		_node.OutputSummary = value
+	}
+	if value, ok := _c.mutation.DurationMs(); ok {
+		_spec.SetField(toolinvocation.FieldDurationMs, field.TypeInt, value)
+		_node.DurationMs = value
+	}
+	if value, ok := _c.mutation.ErrorCode(); ok {
+		_spec.SetField(toolinvocation.FieldErrorCode, field.TypeString, value)
+		_node.ErrorCode = value
+	}
+	if value, ok := _c.mutation.RunID(); ok {
+		_spec.SetField(toolinvocation.FieldRunID, field.TypeInt, value)
+		_node.RunID = value
+	}
+	if value, ok := _c.mutation.StepID(); ok {
+		_spec.SetField(toolinvocation.FieldStepID, field.TypeInt, value)
+		_node.StepID = value
+	}
+	if value, ok := _c.mutation.Risk(); ok {
+		_spec.SetField(toolinvocation.FieldRisk, field.TypeString, value)
+		_node.Risk = value
+	}
+	if value, ok := _c.mutation.Category(); ok {
+		_spec.SetField(toolinvocation.FieldCategory, field.TypeString, value)
+		_node.Category = value
+	}
+	if value, ok := _c.mutation.TargetType(); ok {
+		_spec.SetField(toolinvocation.FieldTargetType, field.TypeString, value)
+		_node.TargetType = value
+	}
+	if value, ok := _c.mutation.TargetID(); ok {
+		_spec.SetField(toolinvocation.FieldTargetID, field.TypeString, value)
+		_node.TargetID = value
+	}
+	if value, ok := _c.mutation.SupportRef(); ok {
+		_spec.SetField(toolinvocation.FieldSupportRef, field.TypeString, value)
+		_node.SupportRef = value
+	}
+	if value, ok := _c.mutation.IdempotencyKeyHash(); ok {
+		_spec.SetField(toolinvocation.FieldIdempotencyKeyHash, field.TypeString, value)
+		_node.IdempotencyKeyHash = value
+	}
+	if value, ok := _c.mutation.ExpiresAt(); ok {
+		_spec.SetField(toolinvocation.FieldExpiresAt, field.TypeTime, value)
+		_node.ExpiresAt = &value
+	}
+	if value, ok := _c.mutation.VerifyState(); ok {
+		_spec.SetField(toolinvocation.FieldVerifyState, field.TypeString, value)
+		_node.VerifyState = value
+	}
+	if value, ok := _c.mutation.VerifyNote(); ok {
+		_spec.SetField(toolinvocation.FieldVerifyNote, field.TypeString, value)
+		_node.VerifyNote = value
+	}
+	if value, ok := _c.mutation.AttemptCount(); ok {
+		_spec.SetField(toolinvocation.FieldAttemptCount, field.TypeInt, value)
+		_node.AttemptCount = value
+	}
+	if value, ok := _c.mutation.LastErrorCode(); ok {
+		_spec.SetField(toolinvocation.FieldLastErrorCode, field.TypeString, value)
+		_node.LastErrorCode = value
 	}
 	if nodes := _c.mutation.ConversationIDs(); len(nodes) > 0 {
 		edge := &sqlgraph.EdgeSpec{

@@ -52,6 +52,48 @@ const (
 	FieldPermissionReason = "permission_reason"
 	// FieldRoleSnapshot holds the string denoting the role_snapshot field in the database.
 	FieldRoleSnapshot = "role_snapshot"
+	// FieldProvider holds the string denoting the provider field in the database.
+	FieldProvider = "provider"
+	// FieldMcpServerName holds the string denoting the mcp_server_name field in the database.
+	FieldMcpServerName = "mcp_server_name"
+	// FieldMcpRawToolName holds the string denoting the mcp_raw_tool_name field in the database.
+	FieldMcpRawToolName = "mcp_raw_tool_name"
+	// FieldMcpCallableName holds the string denoting the mcp_callable_name field in the database.
+	FieldMcpCallableName = "mcp_callable_name"
+	// FieldArgsRedacted holds the string denoting the args_redacted field in the database.
+	FieldArgsRedacted = "args_redacted"
+	// FieldOutputSummary holds the string denoting the output_summary field in the database.
+	FieldOutputSummary = "output_summary"
+	// FieldDurationMs holds the string denoting the duration_ms field in the database.
+	FieldDurationMs = "duration_ms"
+	// FieldErrorCode holds the string denoting the error_code field in the database.
+	FieldErrorCode = "error_code"
+	// FieldRunID holds the string denoting the run_id field in the database.
+	FieldRunID = "run_id"
+	// FieldStepID holds the string denoting the step_id field in the database.
+	FieldStepID = "step_id"
+	// FieldRisk holds the string denoting the risk field in the database.
+	FieldRisk = "risk"
+	// FieldCategory holds the string denoting the category field in the database.
+	FieldCategory = "category"
+	// FieldTargetType holds the string denoting the target_type field in the database.
+	FieldTargetType = "target_type"
+	// FieldTargetID holds the string denoting the target_id field in the database.
+	FieldTargetID = "target_id"
+	// FieldSupportRef holds the string denoting the support_ref field in the database.
+	FieldSupportRef = "support_ref"
+	// FieldIdempotencyKeyHash holds the string denoting the idempotency_key_hash field in the database.
+	FieldIdempotencyKeyHash = "idempotency_key_hash"
+	// FieldExpiresAt holds the string denoting the expires_at field in the database.
+	FieldExpiresAt = "expires_at"
+	// FieldVerifyState holds the string denoting the verify_state field in the database.
+	FieldVerifyState = "verify_state"
+	// FieldVerifyNote holds the string denoting the verify_note field in the database.
+	FieldVerifyNote = "verify_note"
+	// FieldAttemptCount holds the string denoting the attempt_count field in the database.
+	FieldAttemptCount = "attempt_count"
+	// FieldLastErrorCode holds the string denoting the last_error_code field in the database.
+	FieldLastErrorCode = "last_error_code"
 	// EdgeConversation holds the string denoting the conversation edge name in mutations.
 	EdgeConversation = "conversation"
 	// EdgeUser holds the string denoting the user edge name in mutations.
@@ -96,6 +138,27 @@ var Columns = []string{
 	FieldPermissionCheck,
 	FieldPermissionReason,
 	FieldRoleSnapshot,
+	FieldProvider,
+	FieldMcpServerName,
+	FieldMcpRawToolName,
+	FieldMcpCallableName,
+	FieldArgsRedacted,
+	FieldOutputSummary,
+	FieldDurationMs,
+	FieldErrorCode,
+	FieldRunID,
+	FieldStepID,
+	FieldRisk,
+	FieldCategory,
+	FieldTargetType,
+	FieldTargetID,
+	FieldSupportRef,
+	FieldIdempotencyKeyHash,
+	FieldExpiresAt,
+	FieldVerifyState,
+	FieldVerifyNote,
+	FieldAttemptCount,
+	FieldLastErrorCode,
 }
 
 // ValidColumn reports if the column name is valid (part of the table columns).
@@ -129,6 +192,36 @@ var (
 	DefaultPermissionReason string
 	// DefaultRoleSnapshot holds the default value on creation for the "role_snapshot" field.
 	DefaultRoleSnapshot string
+	// DefaultProvider holds the default value on creation for the "provider" field.
+	DefaultProvider string
+	// DefaultMcpServerName holds the default value on creation for the "mcp_server_name" field.
+	DefaultMcpServerName string
+	// DefaultMcpRawToolName holds the default value on creation for the "mcp_raw_tool_name" field.
+	DefaultMcpRawToolName string
+	// DefaultMcpCallableName holds the default value on creation for the "mcp_callable_name" field.
+	DefaultMcpCallableName string
+	// DefaultDurationMs holds the default value on creation for the "duration_ms" field.
+	DefaultDurationMs int
+	// DefaultErrorCode holds the default value on creation for the "error_code" field.
+	DefaultErrorCode string
+	// DefaultRisk holds the default value on creation for the "risk" field.
+	DefaultRisk string
+	// DefaultCategory holds the default value on creation for the "category" field.
+	DefaultCategory string
+	// DefaultTargetType holds the default value on creation for the "target_type" field.
+	DefaultTargetType string
+	// DefaultTargetID holds the default value on creation for the "target_id" field.
+	DefaultTargetID string
+	// DefaultSupportRef holds the default value on creation for the "support_ref" field.
+	DefaultSupportRef string
+	// DefaultVerifyState holds the default value on creation for the "verify_state" field.
+	DefaultVerifyState string
+	// DefaultVerifyNote holds the default value on creation for the "verify_note" field.
+	DefaultVerifyNote string
+	// DefaultAttemptCount holds the default value on creation for the "attempt_count" field.
+	DefaultAttemptCount int
+	// DefaultLastErrorCode holds the default value on creation for the "last_error_code" field.
+	DefaultLastErrorCode string
 )
 
 // OrderOption defines the ordering options for the ToolInvocation queries.
@@ -232,6 +325,111 @@ func ByPermissionReason(opts ...sql.OrderTermOption) OrderOption {
 // ByRoleSnapshot orders the results by the role_snapshot field.
 func ByRoleSnapshot(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldRoleSnapshot, opts...).ToFunc()
+}
+
+// ByProvider orders the results by the provider field.
+func ByProvider(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldProvider, opts...).ToFunc()
+}
+
+// ByMcpServerName orders the results by the mcp_server_name field.
+func ByMcpServerName(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldMcpServerName, opts...).ToFunc()
+}
+
+// ByMcpRawToolName orders the results by the mcp_raw_tool_name field.
+func ByMcpRawToolName(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldMcpRawToolName, opts...).ToFunc()
+}
+
+// ByMcpCallableName orders the results by the mcp_callable_name field.
+func ByMcpCallableName(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldMcpCallableName, opts...).ToFunc()
+}
+
+// ByArgsRedacted orders the results by the args_redacted field.
+func ByArgsRedacted(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldArgsRedacted, opts...).ToFunc()
+}
+
+// ByOutputSummary orders the results by the output_summary field.
+func ByOutputSummary(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldOutputSummary, opts...).ToFunc()
+}
+
+// ByDurationMs orders the results by the duration_ms field.
+func ByDurationMs(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldDurationMs, opts...).ToFunc()
+}
+
+// ByErrorCode orders the results by the error_code field.
+func ByErrorCode(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldErrorCode, opts...).ToFunc()
+}
+
+// ByRunID orders the results by the run_id field.
+func ByRunID(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldRunID, opts...).ToFunc()
+}
+
+// ByStepID orders the results by the step_id field.
+func ByStepID(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldStepID, opts...).ToFunc()
+}
+
+// ByRisk orders the results by the risk field.
+func ByRisk(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldRisk, opts...).ToFunc()
+}
+
+// ByCategory orders the results by the category field.
+func ByCategory(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldCategory, opts...).ToFunc()
+}
+
+// ByTargetType orders the results by the target_type field.
+func ByTargetType(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldTargetType, opts...).ToFunc()
+}
+
+// ByTargetID orders the results by the target_id field.
+func ByTargetID(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldTargetID, opts...).ToFunc()
+}
+
+// BySupportRef orders the results by the support_ref field.
+func BySupportRef(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldSupportRef, opts...).ToFunc()
+}
+
+// ByIdempotencyKeyHash orders the results by the idempotency_key_hash field.
+func ByIdempotencyKeyHash(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldIdempotencyKeyHash, opts...).ToFunc()
+}
+
+// ByExpiresAt orders the results by the expires_at field.
+func ByExpiresAt(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldExpiresAt, opts...).ToFunc()
+}
+
+// ByVerifyState orders the results by the verify_state field.
+func ByVerifyState(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldVerifyState, opts...).ToFunc()
+}
+
+// ByVerifyNote orders the results by the verify_note field.
+func ByVerifyNote(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldVerifyNote, opts...).ToFunc()
+}
+
+// ByAttemptCount orders the results by the attempt_count field.
+func ByAttemptCount(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldAttemptCount, opts...).ToFunc()
+}
+
+// ByLastErrorCode orders the results by the last_error_code field.
+func ByLastErrorCode(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldLastErrorCode, opts...).ToFunc()
 }
 
 // ByConversationField orders the results by conversation field.
