@@ -78,6 +78,16 @@ func (s SecretValues) Masked() map[string]string {
 	return masked
 }
 
+// Values 返回内部键值的拷贝。**仅供连接装配层**（解密后注入请求头/凭据）：
+// 调用方不得把返回值写入日志、审计、事件或 API 响应（对外一律用 Masked）。
+func (s SecretValues) Values() map[string]string {
+	copied := make(map[string]string, len(s.values))
+	for key, value := range s.values {
+		copied[key] = value
+	}
+	return copied
+}
+
 // ApplyPatch 返回应用补丁后的新集合：
 //   - patch 中值为空字符串（或纯空白）表示「不修改」原值（与 connector 的更新语义一致）；
 //   - patch 中的非空值覆盖原值；原集合中未出现的键保持不变；

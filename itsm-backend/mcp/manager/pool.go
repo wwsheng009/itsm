@@ -36,8 +36,8 @@ type StatusSnapshot struct {
 	QuarantinedCount int
 }
 
-// toolCaller 抽象 `*client.Session`（测试注入假实现，保证节奏与并发确定性）。
-type toolCaller interface {
+// ToolSession 抽象 `*client.Session`（测试注入假实现，保证节奏与并发确定性）。
+type ToolSession interface {
 	ID() string
 	ProtocolVersion() string
 	ServerName() string
@@ -49,7 +49,7 @@ type toolCaller interface {
 }
 
 // DialFunc 建立到服务器的会话（默认实现走 transport + client；测试可注入）。
-type DialFunc func(ctx context.Context, cfg ServerConfig) (toolCaller, error)
+type DialFunc func(ctx context.Context, cfg ServerConfig) (ToolSession, error)
 
 // BackoffPolicy 是指数退避策略。
 type BackoffPolicy struct {
@@ -92,7 +92,7 @@ type conn struct {
 	sem  chan struct{}
 
 	mu              sync.Mutex
-	session         toolCaller
+	session         ToolSession
 	status          ServerStatus
 	lastError       string
 	protocolVersion string
@@ -168,14 +168,14 @@ func (c *conn) snapshot() StatusSnapshot {
 }
 
 // currentSession 返回当前会话（可能为 nil）。
-func (c *conn) currentSession() toolCaller {
+func (c *conn) currentSession() ToolSession {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	return c.session
 }
 
 // setSession 安装新会话并标记 healthy。
-func (c *conn) setSession(session toolCaller, protocolVersion, serverInfo string, at time.Time) {
+func (c *conn) setSession(session ToolSession, protocolVersion, serverInfo string, at time.Time) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	c.session = session
@@ -250,4 +250,11 @@ func (c *conn) state() (ServerStatus, int, string) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	return c.status, c.attempts, c.lastError
+}
+
+// config 返回配置快照（建连与事件组装使用，避免无锁读取 Upsert 的并发写）。
+func (c *conn) config() ServerConfig {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	return c.cfg
 }

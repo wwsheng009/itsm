@@ -63,11 +63,12 @@ func (m *Manager) ping(ctx context.Context, target *conn) error {
 func (m *Manager) handleHealthFailure(ctx context.Context, target *conn, err error) {
 	target.closeSessionWithEvent(m, "健康检查失败")
 	target.markFailure(err, m.opts.Backoff, m.now())
+	cfg := target.config()
 	m.emit(Event{
 		Type:     EventServerReloadFailed,
-		TenantID: target.cfg.TenantID,
-		ServerID: target.cfg.ID,
-		Server:   target.cfg.Name,
+		TenantID: cfg.TenantID,
+		ServerID: cfg.ID,
+		Server:   cfg.Name,
 		Detail:   "健康检查失败：" + summarize(err),
 	})
 	m.notifyStatus(ctx, target)
@@ -99,11 +100,12 @@ func (c *conn) closeSessionWithEvent(m *Manager, reason string) {
 	c.closeSession()
 
 	if hadSession {
+		cfg := c.config()
 		m.emit(Event{
 			Type:     EventServerDisconnected,
-			TenantID: c.cfg.TenantID,
-			ServerID: c.cfg.ID,
-			Server:   c.cfg.Name,
+			TenantID: cfg.TenantID,
+			ServerID: cfg.ID,
+			Server:   cfg.Name,
 			Detail:   reason,
 		})
 	}

@@ -44,6 +44,7 @@ import (
 	"itsm-backend/handlers/knowledge"
 	"itsm-backend/handlers/known_error"
 	marketplaceHandler "itsm-backend/handlers/marketplace"
+	mcpHandler "itsm-backend/handlers/mcp"
 	mspHandler "itsm-backend/handlers/msp"
 	notificationHandler "itsm-backend/handlers/notification"
 	"itsm-backend/handlers/operations"
@@ -209,7 +210,10 @@ type RouterConfig struct {
 	// LLMProviderAdminHandler 多 Provider 管理 API（BE-4 §3.4）：仅在灰度开关开启时
 	// 由 bootstrap 注入；为 nil 时整组路由不注册（开关关闭 = 端点不可达，§3.5 回滚语义）。
 	LLMProviderAdminHandler *ai.LLMProviderAdminHandler
-	EmailIntakeHandler      *email_intake.Handler
+	// MCPHandler MCP 外部工具管理 API（M0-08，前缀 /api/v1/ai/mcp-servers）；
+	// bootstrap 未注入时为 nil，整组路由不注册（端点不可达即回滚语义）。
+	MCPHandler         *mcpHandler.Handler
+	EmailIntakeHandler *email_intake.Handler
 	// VectorStoreController 提供向量存储（RAG 检索底座）状态查看与连通性测试，
 	// 注册 /api/v1/system/vector-store*；为 nil 时路由不注册。
 	VectorStoreHandler *vectorStoreHandler.Handler
@@ -574,6 +578,11 @@ func SetupRoutes(r *gin.Engine, config *RouterConfig) {
 		// ==================== 多 LLM Provider 管理 API（BE-4） ====================
 		if config.LLMProviderAdminHandler != nil {
 			SetupLLMProviderAdminRoutes(tenant.(*gin.RouterGroup), config.LLMProviderAdminHandler)
+		}
+
+		// ==================== MCP 外部工具管理 API（M0-08） ====================
+		if config.MCPHandler != nil {
+			SetupMCPServerRoutes(tenant.(*gin.RouterGroup), config.MCPHandler)
 		}
 
 		// ==================== Skill Registry v1 ====================

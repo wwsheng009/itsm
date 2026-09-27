@@ -27,6 +27,7 @@ type fakeSession struct {
 	pingErr         error
 	active          int
 	maxActive       int
+	lastOutcome     string
 	protocolVersion string
 	serverName      string
 	serverVersion   string
@@ -80,9 +81,13 @@ func (s *fakeSession) CallTool(ctx context.Context, _ string, _ map[string]any) 
 	if delay > 0 {
 		select {
 		case <-time.After(delay):
+			s.setOutcome("delay")
 		case <-ctx.Done():
+			s.setOutcome("canceled")
 			return nil, ctx.Err()
 		}
+	} else {
+		s.setOutcome("immediate")
 	}
 	if callErr != nil {
 		return nil, callErr
@@ -118,6 +123,18 @@ func (s *fakeSession) peakConcurrency() int {
 	return s.maxActive
 }
 
+func (s *fakeSession) setOutcome(outcome string) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.lastOutcome = outcome
+}
+
+func (s *fakeSession) outcome() string {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.lastOutcome
+}
+
 type fakeDialer struct {
 	mu       sync.Mutex
 	sessions map[int]*fakeSession
@@ -134,7 +151,7 @@ func newFakeDialer() *fakeDialer {
 	}
 }
 
-func (d *fakeDialer) Dial(_ context.Context, cfg ServerConfig) (toolCaller, error) {
+func (d *fakeDialer) Dial(_ context.Context, cfg ServerConfig) (ToolSession, error) {
 	d.mu.Lock()
 	d.attempts[cfg.ID]++
 	err := d.errs[cfg.ID]
@@ -379,7 +396,8 @@ func TestManager_CallTimeoutAndSemaphoreRelease(t *testing.T) {
 	_, err := manager.CallTool(context.Background(), 2, "slow", nil)
 	require.Error(t, err)
 	require.ErrorIs(t, err, context.DeadlineExceeded)
-	require.Less(t, time.Since(start), 250*time.Millisecond, "超时必须生效")
+	require.Equal(t, "canceled", session.outcome(), "超时必须生效（调用被 ctx 截止取消而非等待完整延迟）")
+	require.Less(t, time.Since(start), 2*time.Second, "不得等待完整 callDelay")
 
 	// 额度归还：后续调用仍可执行。
 	session.mu.Lock()

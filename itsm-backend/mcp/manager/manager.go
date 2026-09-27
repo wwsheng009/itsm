@@ -141,7 +141,7 @@ func New(opts Options) *Manager {
 
 // defaultDial 使用 transport + client 建立真实连接。
 func defaultDial(opts Options) DialFunc {
-	return func(ctx context.Context, cfg ServerConfig) (toolCaller, error) {
+	return func(ctx context.Context, cfg ServerConfig) (ToolSession, error) {
 		tr, err := transport.New(ctx, transport.Config{
 			Kind:           cfg.Transport,
 			URL:            cfg.URL,
@@ -228,12 +228,12 @@ func (m *Manager) Enable(ctx context.Context, serverID int) error {
 	target.mu.Lock()
 	target.cfg.Enabled = true
 	target.mu.Unlock()
-	target.markConnecting()
-	m.notifyStatus(ctx, target)
 
 	if !target.beginAttempt() {
-		return nil // 已有建连任务在途（幂等）
+		return nil // 已有建连任务在途（幂等）：不得改写其状态，否则可能卡在 connecting
 	}
+	target.markConnecting()
+	m.notifyStatus(ctx, target)
 	go func() {
 		defer target.endAttempt()
 		_, _ = m.connectAndDiscover(context.Background(), target)
@@ -464,7 +464,8 @@ func (m *Manager) connectAndDiscover(ctx context.Context, target *conn) (Discove
 	target.markConnecting()
 	m.notifyStatus(ctx, target)
 
-	session, err := target.dial(ctx, target.cfg)
+	cfg := target.config()
+	session, err := target.dial(ctx, cfg)
 	if err != nil {
 		target.markFailure(err, m.opts.Backoff, m.now())
 		m.emitDialFailure(target, err)
@@ -475,9 +476,9 @@ func (m *Manager) connectAndDiscover(ctx context.Context, target *conn) (Discove
 	target.setSession(session, session.ProtocolVersion(), serverInfoJSON(session), m.now())
 	m.emit(Event{
 		Type:     EventServerConnected,
-		TenantID: target.cfg.TenantID,
-		ServerID: target.cfg.ID,
-		Server:   target.cfg.Name,
+		TenantID: cfg.TenantID,
+		ServerID: cfg.ID,
+		Server:   cfg.Name,
 		Detail:   fmt.Sprintf("协议版本=%s 服务器=%s", session.ProtocolVersion(), session.ServerName()),
 	})
 	m.notifyStatus(ctx, target)
@@ -493,15 +494,16 @@ func (m *Manager) connectAndDiscover(ctx context.Context, target *conn) (Discove
 }
 
 func (m *Manager) emitDialFailure(target *conn, err error) {
+	cfg := target.config()
 	eventType := EventServerReloadFailed
 	if transport.CodeOf(err) == transport.CodeAuthRequired {
 		eventType = EventServerAuthRequired
 	}
 	m.emit(Event{
 		Type:     eventType,
-		TenantID: target.cfg.TenantID,
-		ServerID: target.cfg.ID,
-		Server:   target.cfg.Name,
+		TenantID: cfg.TenantID,
+		ServerID: cfg.ID,
+		Server:   cfg.Name,
 		Detail:   "建连失败：" + summarize(err),
 	})
 }
@@ -511,20 +513,21 @@ func (m *Manager) handleCallError(ctx context.Context, target *conn, err error) 
 	if transport.CodeOf(err) != transport.CodeAuthRequired {
 		return
 	}
+	cfg := target.config()
 	target.closeSessionWithEvent(m, "调用被拒（认证失效）")
 	target.markFailure(err, m.opts.Backoff, m.now())
 	m.emit(Event{
 		Type:     EventServerAuthRequired,
-		TenantID: target.cfg.TenantID,
-		ServerID: target.cfg.ID,
-		Server:   target.cfg.Name,
+		TenantID: cfg.TenantID,
+		ServerID: cfg.ID,
+		Server:   cfg.Name,
 		Detail:   "调用被拒（认证失效）：" + summarize(err),
 	})
 	m.notifyStatus(ctx, target)
 }
 
 // discoverWithSession 拉取工具列表 → 差分 → 刷新缓存 → 事件。
-func (m *Manager) discoverWithSession(ctx context.Context, target *conn, session toolCaller) (DiscoveryResult, error) {
+func (m *Manager) discoverWithSession(ctx context.Context, target *conn, session ToolSession) (DiscoveryResult, error) {
 	tools, err := session.ListTools(ctx)
 	if err != nil {
 		return DiscoveryResult{}, err
@@ -572,7 +575,7 @@ func (m *Manager) discoverWithSession(ctx context.Context, target *conn, session
 	return result, nil
 }
 
-func serverInfoJSON(session toolCaller) string {
+func serverInfoJSON(session ToolSession) string {
 	payload, err := json.Marshal(map[string]string{
 		"name":    session.ServerName(),
 		"version": session.ServerVersion(),
