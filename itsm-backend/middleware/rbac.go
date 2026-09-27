@@ -170,6 +170,10 @@ var RolePermissions = map[string][]Permission{
 		{Resource: "audit", Action: "read"},
 		{Resource: "ai", Action: "read"},
 		{Resource: "ai", Action: "write"},
+		// MCP 外部工具（M0-10，D7）：治理（admin）+ 使用读取（read）默认仅管理员；
+		// mcp:write（写工具执行）默认不授予，M1-02 接入审批链路后按需显式授权。
+		{Resource: "mcp", Action: "read"},
+		{Resource: "mcp", Action: "admin"},
 		{Resource: "role", Action: "read"},
 		{Resource: "role", Action: "write"},
 		{Resource: "role", Action: "delete"},

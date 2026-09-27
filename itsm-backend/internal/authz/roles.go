@@ -23,9 +23,9 @@ func BuiltinRolePermissionCodes() map[string][]string {
 		// 系统管理员：所有权限
 		"sysadmin": allPermissionCodes(),
 		// IT总监：全局读写（不含系统管理）
-		"it_director": allExcept([]string{"system:write", "msp:write", "msp_allocation:write"}),
+		"it_director": allExcept([]string{"system:write", "msp:write", "msp_allocation:write", "mcp:read", "mcp:write", "mcp:admin"}),
 		// 运维总监：运维相关读写
-		"ops_director": allExcept([]string{"system:write", "msp:write", "msp_allocation:write", "msp_report:write"}),
+		"ops_director": allExcept([]string{"system:write", "msp:write", "msp_allocation:write", "msp_report:write", "mcp:read", "mcp:write", "mcp:admin"}),
 		// 运维经理：运维相关读写
 		"ops_manager": {
 			"ticket:read", "ticket:write", "ticket:create", "ticket:update",
@@ -252,6 +252,9 @@ func BuiltinRolePermissionCodes() map[string][]string {
 			"alerts:read", "alerts:write",
 			"audit:read",
 			"ai:read", "ai:write",
+			// MCP（M0-10，D7）：租户管理员是唯一默认治理者；不给 mcp:write
+			// （写工具执行权属使用面，M1-02 起按需显式授予），体现「read/write 不隐含管理」的反向同样成立。
+			"mcp:read", "mcp:admin",
 			"role:read", "role:write", "role:delete",
 			"permission:read",
 			"system_config:read", "system_config:write",
@@ -426,6 +429,7 @@ func allPermissionCodes() []string {
 		"audit:read",
 		"ai:read", "ai:write",
 		"connector:read", "connector:write",
+		"mcp:read", "mcp:write", "mcp:admin",
 		"email_intake:read", "email_intake:review", "email_intake:retry", "email_intake:override",
 		"customer_master:read", "customer_master:write", "support_contract:read", "support_contract:write",
 		"on_call:read", "on_call:write",

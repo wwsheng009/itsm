@@ -240,6 +240,13 @@ func Definitions() []PermissionDef {
 		{"attachment:read", "查看附件", "attachment", "read", "查看、下载无宿主或系统级附件"},
 		{"attachment:write", "管理附件", "attachment", "write", "上传、绑定无宿主或系统级附件"},
 		{"attachment:delete", "删除附件", "attachment", "delete", "删除、解绑无宿主或系统级附件"},
+		// MCP 外部工具（M0-10，D5/D7 + Q2 拍板）：
+		// 使用与治理分离——read/write 管工具执行，admin 管服务器/工具治理，「read/write 不隐含 admin」。
+		// 默认不授予：仅 sysadmin 全量持有、admin（租户管理员）持 read+admin（见 roles.go 角色矩阵）；
+		// 其它角色一律不授予，需要时由租户管理员在角色管理页显式授权。
+		{"mcp:read", "查看MCP工具", "mcp", "read", "查看 MCP 服务器列表、健康与工具清单（不含治理写操作）"},
+		{"mcp:write", "调用MCP写工具", "mcp", "write", "执行 MCP 写工具（仍需 Gate3 审批链路，M1-02 起生效）"},
+		{"mcp:admin", "管理MCP服务器", "mcp", "admin", "增删改 MCP 服务器、启停重载、工具治理与凭据轮换"},
 	}
 }
 

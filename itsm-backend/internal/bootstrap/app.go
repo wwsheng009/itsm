@@ -39,6 +39,7 @@ import (
 	"itsm-backend/ent/user"
 	a2uiHandler "itsm-backend/handlers/a2ui"
 	"itsm-backend/handlers/ai"
+	mcpHandler "itsm-backend/handlers/mcp"
 	analyticsHandler "itsm-backend/handlers/analytics"
 	applicationHandler "itsm-backend/handlers/application"
 	"itsm-backend/handlers/approval"
@@ -992,6 +993,7 @@ func NewApplication() *Application {
 	// mcp.enabled=false（默认）时不初始化任何组件、不产生任何后台行为（零行为变化）；
 	// 开启后按 M0-02/04/06/07/08 依赖顺序装配：凭据 → ent store → manager → 管理服务 → provider。
 	// 方案：docs/plan/itsm-mcp-external-tool-integration-implementation-plan-2026-09-27.md §4.1。
+	var mcpAdminHandler *mcpHandler.Handler
 	if cfg.MCP.Enabled {
 		mcpProduction := os.Getenv("ENV") == "production" || os.Getenv("GIN_MODE") == "release"
 		key, derivedKey, keyErr := mcpadmin.ResolveEncryptionKey(cfg.JWT.Secret, mcpProduction)
@@ -1047,6 +1049,8 @@ func NewApplication() *Application {
 					}
 					// 工具面接入：与内置工具同源（Gate1/Gate2/Gate3 由 ai.Service 编排）。
 					toolRegistry.RegisterProvider(mcpprovider.New(client, mcpManager, mcpprovider.Options{Enabled: true}))
+					// 管理 API（M0-10 接线）：handler 注入 RouterConfig 后整组注册（mcp:read / mcp:admin）。
+					mcpAdminHandler = mcpHandler.NewHandler(mcpAdminService)
 					sugar.Infow("MCP 外部工具接入已启用",
 						"module", "mcp",
 						"connect_timeout_seconds", cfg.MCP.ConnectTimeoutSeconds,
@@ -1327,6 +1331,7 @@ func NewApplication() *Application {
 		VectorStoreHandler:          vectorStoreHandler.NewHandler(service.NewVectorStore(database.GetRawDB()), sugar),
 		AIHandler:                   aiHandler, // Added AI domain handler
 		LLMProviderAdminHandler:     llmProviderAdminHandler,
+		MCPHandler:                  mcpAdminHandler, // MCP 管理 API（M0-10；nil 时整组不注册）
 		EmailIntakeHandler:          emailIntakeHandler,
 		CommonHandler:               commonHandler,
 		AuthHandler:                 authHTTPHandler,

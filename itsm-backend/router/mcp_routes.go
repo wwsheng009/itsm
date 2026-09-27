@@ -11,9 +11,9 @@ import (
 //
 // 门禁：
 //   - h 为 nil（开关关闭/未装配）时整组不注册——端点不可达即回滚语义；
-//   - 读端点挂 RequirePermission("ai","read")、写端点挂 ("system","write")：
-//     M0-08 阶段先复用既有码（权限码权威源守卫要求），M0-10 切换为 mcp:read / mcp:admin
-//     （新增权限码 + 角色授权 + 预检映射三处同步后替换）；
+//   - 读端点挂 RequirePermission("mcp","read")、写端点挂 ("mcp","admin")（M0-10）：
+//     使用与治理分离——read 不含治理写、admin 不隐含工具执行；两码默认仅 sysadmin/admin 持有
+//     （D7，角色矩阵见 internal/authz/roles.go 与 internal/authz/mcp_roles_test.go）；
 //   - enable/disable/reload 返回 202 + 状态回读（D8，禁止 60s 同步等待）。
 //
 // 注意：本文件的权限声明是 RBAC 预检映射的单一真源，改动后必须执行
@@ -24,8 +24,8 @@ func SetupMCPServerRoutes(tenant *gin.RouterGroup, h *mcpHandler.Handler) {
 		return
 	}
 
-	// 读（M0-10 起为 mcp:read）：列表/详情/工具/健康/事件。
-	read := tenant.Group("/ai", middleware.RequirePermission("ai", "read"))
+	// 读（mcp:read）：列表/详情/工具/健康/事件。
+	read := tenant.Group("/ai", middleware.RequirePermission("mcp", "read"))
 	{
 		// 注意：/health 为静态段，需与 /:id 同级注册（gin 支持静态优先）。
 		read.GET("/mcp-servers", h.ListServers)
@@ -35,8 +35,8 @@ func SetupMCPServerRoutes(tenant *gin.RouterGroup, h *mcpHandler.Handler) {
 		read.GET("/mcp-servers/:id/events", h.Events)
 	}
 
-	// 写（M0-10 起为 mcp:admin）：CRUD / 测试连接 / 启停重载 / 工具治理 / 凭据轮换。
-	admin := tenant.Group("/ai", middleware.RequirePermission("system", "write"))
+	// 治理写（mcp:admin）：CRUD / 测试连接 / 启停重载 / 工具治理 / 凭据轮换。
+	admin := tenant.Group("/ai", middleware.RequirePermission("mcp", "admin"))
 	{
 		admin.POST("/mcp-servers", h.CreateServer)
 		admin.PUT("/mcp-servers/:id", h.UpdateServer)
