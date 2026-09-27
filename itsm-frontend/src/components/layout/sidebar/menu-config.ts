@@ -41,6 +41,8 @@ export const capabilityPathRules: Array<[string, string]> = [
   ['/marketplace', 'marketplace'],
   ['/installations', 'marketplace'],
   ['/admin/connectors', 'marketplace'],
+  // MCP 外部工具（M0-12）：与 AI 能力同一治理域（AI 能力关闭时一并隐藏入口）。
+  ['/admin/mcp-servers', 'ai'],
 ];
 
 export function capabilityForPath(path?: string): string | undefined {

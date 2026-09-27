@@ -14,6 +14,7 @@ export const ROUTE_PATHS: ReadonlySet<string> = new Set([
   '/admin/escalation-matrices',
   '/admin/escalation-rules',
   '/admin/groups',
+  '/admin/mcp-servers',
   '/admin/menus',
   '/admin/permissions',
   '/admin/process-routing',

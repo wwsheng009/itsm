@@ -1798,6 +1798,8 @@ func (s *Seeder) seedMenus(ctx context.Context) {
 		{Name: "审批链", Path: "/admin/approval-chains", Icon: "Link", ParentPath: "/admin", PermissionCode: "approval:write", SortOrder: 275},
 		{Name: "权限管理", Path: "/admin/permissions", Icon: "Lock", ParentPath: "/admin", PermissionCode: "role:write", SortOrder: 280},
 		{Name: "连接器/插件市场", Path: "/admin/connectors", Icon: "Plug", ParentPath: "/admin", PermissionCode: "connector:write", SortOrder: 285},
+		// MCP 外部工具（M0-12，Q3 独立页）：工具执行面 = mcp:read/write，治理面 = mcp:admin（默认仅 sysadmin/admin）。
+		{Name: "MCP 外部工具", Path: "/admin/mcp-servers", Icon: "Plug", ParentPath: "/admin", PermissionCode: "mcp:admin", SortOrder: 286},
 		{Name: "向量存储配置", Path: "/admin/vector-store", Icon: "Database", ParentPath: "/admin", PermissionCode: "system:read", SortOrder: 290},
 		{Name: "系统配置", Path: "/admin/system-config", Icon: "Settings", ParentPath: "/admin", PermissionCode: "system:read", SortOrder: 295},
 		// 通知配置 / 审计日志 / 操作日志：2026-08-30 归位后已移出 /admin，详见顶级菜单与 /workflow 子菜单。

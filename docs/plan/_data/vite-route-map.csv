@@ -15,6 +15,7 @@
 /admin/escalation-matrices,src/app/(main)/admin/escalation-matrices/page.tsx,/admin/escalation-matrices,@/pages/(main)/admin/escalation-matrices/index,(main),,,,/admin/escalation-matrices
 /admin/escalation-rules,src/app/(main)/admin/escalation-rules/page.tsx,/admin/escalation-rules,@/pages/(main)/admin/escalation-rules/index,(main),,,,/admin/escalation-rules
 /admin/groups,src/app/(main)/admin/groups/page.tsx,/admin/groups,@/pages/(main)/admin/groups/index,(main),,,,/admin/groups
+/admin/mcp-servers,src/app/(main)/admin/mcp-servers/page.tsx,/admin/mcp-servers,@/pages/(main)/admin/mcp-servers/index,(main),,,,/admin/mcp-servers
 /admin/menus,src/app/(main)/admin/menus/page.tsx,/admin/menus,@/pages/(main)/admin/menus/index,(main),,,,/admin/menus
 /admin/overview,src/app/(main)/admin/overview/page.tsx,/admin/overview,,,,/admin,redirect-only,/admin/overview
 /admin,src/app/(main)/admin/page.tsx,/admin,@/pages/(main)/admin/index,(main),,,,/admin
