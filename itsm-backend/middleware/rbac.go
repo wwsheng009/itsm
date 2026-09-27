@@ -1206,7 +1206,12 @@ func checkPermissionMatch(permissions []Permission, resource, action string) boo
 			return true
 		}
 		// 资源管理员权限包含该资源下的具体业务动作。
-		if perm.Resource == resource && perm.Action == "admin" {
+		//
+		// MCP 例外（M0-10/D7 + Q2 拍板，M1-01 收口）：外部工具的「使用」与「治理」严格分离——
+		// mcp:admin 只授予服务器/工具治理能力，**不蕴含** mcp:read / mcp:write（写工具执行必须显式授予
+		// mcp:write，且仍走 Gate3 审批）。若沿用通用蕴含规则，租户管理员会通过 mcp:admin 静默获得写工具
+		// 执行权，绕过默认拒绝（D7）。反向（mcp:read/write 不蕴含 mcp:admin）一直成立。
+		if perm.Resource == resource && perm.Action == "admin" && resource != "mcp" {
 			return true
 		}
 		if perm.Resource == resource && perm.Action == action {

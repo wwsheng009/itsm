@@ -16,10 +16,12 @@ import (
 
 // M0-10：MCP 权限位（mcp:read / mcp:write / mcp:admin）的 Gate2 判定矩阵与路由级 403/200。
 //
-// 语义提醒（checkPermissionMatch 既有规则）：资源内 `admin` 动作是超集，覆盖同资源其它动作；
-// 因此「租户管理员持 mcp:admin ⇒ 有效可读」是既有匹配语义的自然结果。
-// 本文件同时锁定**授予面**：mcp:write 不显式授予 admin（使用与治理分离的正向约束），
-// 写工具执行仍受 Gate3 审批（M1-02）约束，不因 Gate2 通过而直通。
+// 语义提醒（M1-01 收口）：通用规则「资源内 `admin` 动作是超集」**对 mcp 资源不适用**——
+// 外部工具的使用与治理必须严格分离（D7 + Q2 拍板）：mcp:admin 只授予治理能力，不蕴含
+// mcp:read / mcp:write；写工具执行必须显式授予 mcp:write，且仍受 Gate3 审批（M1-02）约束。
+//
+// 历史（真实缺陷，2026-09-27 由 M1-01 集成用例发现）：该通用规则曾让持 mcp:admin 的租户管理员
+// 静默获得 mcp:write（Gate2 直通），与授权面（authz.mcp_roles_test 断言 admin 不持 mcp:write）矛盾。
 
 func mcpPairPresent(list []Permission, resource, action string) bool {
 	for _, p := range list {
@@ -42,8 +44,8 @@ func TestMCPPermissionMatrix_HardcodeFallback(t *testing.T) {
 	}{
 		{role: "super_admin", read: true, write: true, admin: true},
 		{role: "sysadmin", read: true, write: true, admin: true},
-		// 租户管理员：显式授予 read+admin ⇒ 有效全部可及（admin 为资源内超集）。
-		{role: "admin", read: true, write: true, admin: true},
+		// 租户管理员：显式授予 read+admin；**不含** write（mcp:write 需显式授予，见 M1-01 收口说明）。
+		{role: "admin", read: true, write: false, admin: true},
 		// 其余角色默认零授予（D7）：含坐席/技术员/经理/最终用户。
 		{role: "manager", read: false, write: false, admin: false},
 		{role: "agent", read: false, write: false, admin: false},
@@ -62,8 +64,8 @@ func TestMCPPermissionMatrix_HardcodeFallback(t *testing.T) {
 	}
 }
 
-// TestMCPUseAndGovernanceSeparation_Matcher 使用与治理分离的**反向**约束：
-// read 不隐含 admin、read 不隐含 write、write 不隐含 admin（正向 admin 超集属既有语义，见文件头注释）。
+// TestMCPUseAndGovernanceSeparation_Matcher 使用与治理分离的**双向**约束：
+// read 不隐含 admin/write、write 不隐含 admin/read、admin 不隐含 read/write（M1-01 收口后无任一蕴含）。
 func TestMCPUseAndGovernanceSeparation_Matcher(t *testing.T) {
 	readOnly := []Permission{{Resource: "mcp", Action: "read"}}
 	assert.True(t, checkPermissionMatch(readOnly, "mcp", "read"))
@@ -74,6 +76,11 @@ func TestMCPUseAndGovernanceSeparation_Matcher(t *testing.T) {
 	assert.True(t, checkPermissionMatch(writeOnly, "mcp", "write"))
 	assert.False(t, checkPermissionMatch(writeOnly, "mcp", "admin"), "write 不得隐含治理")
 	assert.False(t, checkPermissionMatch(writeOnly, "mcp", "read"), "write 不得隐含读取")
+
+	governanceOnly := []Permission{{Resource: "mcp", Action: "admin"}}
+	assert.True(t, checkPermissionMatch(governanceOnly, "mcp", "admin"))
+	assert.False(t, checkPermissionMatch(governanceOnly, "mcp", "write"), "admin 不得蕴含写工具执行")
+	assert.False(t, checkPermissionMatch(governanceOnly, "mcp", "read"), "admin 不得蕴含读取（显式授予）")
 }
 
 // TestMCPAdminGrantSurfaceIsExplicit 授予面断言：兜底表里 admin 显式持有 read+admin、**不**持 write。
