@@ -261,6 +261,7 @@ MCP：         ▼                    ▼                     ▼
 - **要点**：仅 `https`（`http` 仅平台级开关放行）；拒绝环回/私网（RFC1918）/链路本地/ULA/保留段；连接时**二次解析**并比对首次校验结果（DNS rebinding）；禁止跟随重定向；可配域名 + 端口 allowlist；失败统一 `ssrf_blocked` 错误码，对外提示不泄露内网结构；校验动作全量审计。
 - **测试与证据**：表驱动负向用例（各类 IP、域名解析到私网、重定向、rebinding 模拟）；正向用例（allowlist 内 https）。分析报告 §10.4 T-05 前半。
 - **DoD**：`unit_verified`（负向用例必须全过才能进入 M0-08 联调）。
+- **状态**：`unit_verified`（2026-09-27；证据 `docs/plan/evidence/mcp-m0/M0-05-unit-evidence.md`）。实现：`transport/ssrf.go` `SSRFGuard`（https-only 与平台开关、userinfo 拒绝、域名/端口 allowlist、环回/私网/链路本地/ULA/保留段拒绝含 IPv4-mapped 解包、**DNS rebinding 钉住比对**、审计钩子）；`transport.New` 构造期与每个请求各自校验；重定向禁跟随已有结构性测试。
 
 #### M0-06 凭据加密与掩码（后端）
 
@@ -847,3 +848,4 @@ M2-06 交付《MCP 运维手册》（建议 `docs/ops/mcp-runbook.md`），至�
 | 2026-09-27 | AI 辅助执行 | M0-02 交付并回写状态：registry 投影/解析/隔离实现与三组契约测试（投影五类 + 解析四类 + 隔离与解除），与参考实现规则逐字对齐；`go vet ./mcp/...` 干净、`go test ./mcp/...` 全绿（证据 `docs/plan/evidence/mcp-m0/M0-02-unit-evidence.md`）；M0-02 = `unit_verified` |
 | 2026-09-27 | AI 辅助执行 | M0-03 交付并回写状态：`mcp_servers` / `mcp_server_tools` 实体 + `tool_invocations` 联合扩展（含 B0-02 字段一次加列、命名统一 `args_redacted`）；ent 生成刷新、迁移/约束/默认值测试与全量构建通过（证据 `docs/plan/evidence/mcp-m0/M0-03-migration-evidence.md`）；M0-03 = 迁移完成（`unit_verified`，`integration_verified` 待 CI 双驱动） |
 | 2026-09-27 | AI 辅助执行 | M0-04 交付并回写状态：transport（Kind/Config/Guard/HeaderProvider/分层错误 + 禁重定向 + 401 拦截）与 client（连接/会话/内容投影/生命周期事件）落地；Streamable/SSE 双传输与五类错误路径集成测试全绿（`client 1.977s`、`transport 0.223s`），`go vet` 干净、`go build ./...` 通过（证据 `docs/plan/evidence/mcp-m0/M0-04-unit-evidence.md`）；M0-04 = `unit_verified` |
+| 2026-09-27 | AI 辅助执行 | M0-05 交付并回写状态：SSRF 校验器（SSL/私网段/allowlist/rebinding 钉住/审计钩子）与表驱动负向用例（24 例含云元数据、IPv4-mapped、rebinding、重定向禁跟随、审计不泄露）；`go test ./mcp/...` 全绿、`go vet` 干净、`go build ./...` 通过（证据 `docs/plan/evidence/mcp-m0/M0-05-unit-evidence.md`）；M0-05 = `unit_verified`（M0-08 联调前置门槛达成） |
