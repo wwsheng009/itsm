@@ -46,7 +46,7 @@ const server = (overrides: Partial<MCPServer> = {}): MCPServer => ({
   id: 1,
   name: 'gitlab',
   display_name: 'GitLab MCP',
-  transport: 'streamable_http',
+  transport: 'streamable',
   url: 'https://mcp.example.com/mcp',
   credential_type: 'static_header',
   trust_level: 'untrusted',

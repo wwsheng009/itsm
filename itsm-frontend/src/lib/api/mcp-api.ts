@@ -70,8 +70,15 @@ export const isMCPServiceUnavailable = (err: unknown): boolean => {
 
 // ==================== 类型（对齐 admin 包 DTO） ====================
 
-/** 传输类型（一期仅远程）。 */
-export type MCPTransport = 'streamable_http' | 'sse';
+/**
+ * 传输类型（一期仅远程）。
+ *
+ * 取值与后端 `transport.Kind` 常量一致：`streamable`（Streamable HTTP，主）/ `sse`（兼容）。
+ * 注意：**不是** `streamable_http`（后端 ValidateTransport 只接受这两个值，写错即 400 invalid_transport）。
+ */
+export type MCPTransport = 'streamable' | 'sse';
+/** 传输取值清单（供 UI 下拉与契约测试共用，避免再次写错）。 */
+export const MCP_TRANSPORTS: readonly MCPTransport[] = ['streamable', 'sse'] as const;
 /** 凭据类型（`none` = 无凭据）。 */
 export type MCPCredentialType = 'none' | 'static_header' | 'oauth2';
 /** 信任级别（D7 默认 untrusted）。 */

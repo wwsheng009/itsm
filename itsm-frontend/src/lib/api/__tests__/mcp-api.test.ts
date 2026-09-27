@@ -4,6 +4,7 @@ import mcpApi, {
   isMCPFeatureDisabled,
   isMCPServiceUnavailable,
   mcpErrorCode,
+  MCP_TRANSPORTS,
 } from '../mcp-api';
 
 jest.mock('@/lib/api/http-client', () => ({
@@ -118,6 +119,9 @@ describe('mcpApi（M0-12 管理 API 客户端）', () => {
 });
 
 describe('mcpApi 错误码与降级判定', () => {
+  it('传输取值与后端 transport.Kind 一致（streamable / sse，写错即 400 invalid_transport）', () => {
+    expect([...MCP_TRANSPORTS]).toEqual(['streamable', 'sse']);
+  });
   it('describeMCPError：错误码映射 → message → fallback', () => {
     expect(describeMCPError({ errorCode: 'ssrf_blocked' })).toContain('出站安全校验');
     expect(describeMCPError({ errorCode: 'protocol_mismatch' })).toContain('协议版本');

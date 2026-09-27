@@ -67,7 +67,7 @@ const WIZARD_STEP_FIELDS: string[][] = [
 
 const RISK_OPTIONS: MCPRisk[] = ['read', 'plan', 'act_low', 'act_medium', 'act_high'];
 const TRANSPORT_OPTIONS: Array<{ value: MCPTransport; label: string }> = [
-  { value: 'streamable_http', label: 'Streamable HTTP' },
+  { value: 'streamable', label: 'Streamable HTTP' },
   { value: 'sse', label: 'SSE（兼容）' },
 ];
 
