@@ -8,7 +8,7 @@ import (
 
 // AuditEntry 是 MCP 管理操作审计条目（§5.5：actor/tenant/action/object/before-after/result/ip/ts）。
 //
-// 脱敏约束：Before/After 只允许放已脱敏快照（serverAuditSnapshot / maskSecretsMap 产出）；
+// 脱敏约束：Before/After 只允许放已脱敏快照（serverAuditSnapshot 产出，去敏值来自 maskedSecrets + toAnyMap）；
 // 凭据明文、密文、完整 token 一律不得进入审计。
 type AuditEntry struct {
 	TenantID   int
@@ -80,18 +80,6 @@ func (s *MemoryAuditSink) Find(action string) (AuditEntry, bool) {
 	return AuditEntry{}, false
 }
 
-// maskSecretsMap 生成敏感键值的安全展示：键名保留、值统一掩码。
-func maskSecretsMap(values map[string]string) map[string]any {
-	if len(values) == 0 {
-		return map[string]any{}
-	}
-	masked := make(map[string]any, len(values))
-	for key, value := range values {
-		masked[key] = maskSecretValue(value)
-	}
-	return masked
-}
-
 // toAnyMap 把**已掩码**的字符串映射转为审计可序列化形态（值直接透传，不重复掩码）。
 func toAnyMap(values map[string]string) map[string]any {
 	if len(values) == 0 {
@@ -102,12 +90,4 @@ func toAnyMap(values map[string]string) map[string]any {
 		converted[key] = value
 	}
 	return converted
-}
-
-// maskSecretValue 与 MaskSecret 同规则；空值显示为 ""（区别于"有值但短"）。
-func maskSecretValue(value string) string {
-	if value == "" {
-		return ""
-	}
-	return MaskSecret(value)
 }

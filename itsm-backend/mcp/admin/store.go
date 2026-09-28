@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"time"
 
 	"itsm-backend/ent"
 	"itsm-backend/ent/mcpservertool"
@@ -198,14 +197,6 @@ func (s *EntStore) ToolCounts(ctx context.Context, tenantID, serverID int) (tota
 	return total, enabled, quarantined, nil
 }
 
-// nillableTime 供可空时间列使用。
-func nillableTime(value time.Time) *time.Time {
-	if value.IsZero() {
-		return nil
-	}
-	return &value
-}
-
 func truncateText(value string, limit int) string {
 	if limit <= 0 || len(value) <= limit {
 		return value
@@ -213,5 +204,7 @@ func truncateText(value string, limit int) string {
 	return value[:limit]
 }
 
-var _ manager.StatusWriter = (*EntStore)(nil)
-var _ manager.ToolCache = (*EntStore)(nil)
+var (
+	_ manager.StatusWriter = (*EntStore)(nil)
+	_ manager.ToolCache    = (*EntStore)(nil)
+)

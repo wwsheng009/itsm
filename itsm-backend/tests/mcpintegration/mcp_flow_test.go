@@ -115,8 +115,21 @@ func TestM0Flow_EndToEnd(t *testing.T) {
 	}
 
 	// 4) 工具发现：落库、非法字符名被隔离、计数正确。
-	tools, err := h.adminSvc.ListTools(ctx, actor, created.ID)
-	require.NoError(t, err)
+	// 注意：healthy 只保证「连接 + 首轮发现已启动」，工具落库是异步的；全量并发跑测试时
+	// （go test ./... 会并行多个包）落库可能晚于 healthy，因此按目标数量做有界等待。
+	var tools []admin.ToolView
+	deadline = time.Now().Add(20 * time.Second)
+	for {
+		tools, err = h.adminSvc.ListTools(ctx, actor, created.ID)
+		require.NoError(t, err)
+		if len(tools) >= 6 {
+			break
+		}
+		if time.Now().After(deadline) {
+			t.Fatalf("20s 内工具发现未达 6 个（实际 %d）：%+v", len(tools), tools)
+		}
+		time.Sleep(200 * time.Millisecond)
+	}
 	require.Len(t, tools, 6)
 
 	byCallable := map[string]admin.ToolView{}

@@ -174,12 +174,14 @@ func TestConnect_SSE_Handshake(t *testing.T) {
 	tr, err := transport.New(ctx, transport.Config{Kind: transport.KindSSE, URL: httpServer.URL, Guard: &allowGuard{}})
 	require.NoError(t, err)
 
-	session, err := New(Options{Timeouts: Timeouts{Connect: 100 * time.Millisecond}}).Connect(ctx, tr)
+	// 握手预算取 3s：全量并发测试（go test ./...）下 100ms 级预算会因排程抖动误报超时；
+	// 本用例真正要断言的是「会话不绑定握手超时」，因此只需让后续 sleep 超过该预算即可。
+	session, err := New(Options{Timeouts: Timeouts{Connect: 3 * time.Second}}).Connect(ctx, tr)
 	require.NoError(t, err)
 	defer session.Close()
 
 	// 回归守卫（M0-04）：会话不得绑定握手超时——连接超时窗口过后 SSE 流仍必须存活。
-	time.Sleep(150 * time.Millisecond)
+	time.Sleep(3200 * time.Millisecond)
 
 	tools, err := session.ListTools(ctx)
 	require.NoError(t, err, "sse tools/list err=%v", err)

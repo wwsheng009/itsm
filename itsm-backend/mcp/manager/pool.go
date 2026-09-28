@@ -142,9 +142,6 @@ func (c *conn) release() {
 	}
 }
 
-// parallelLimit 返回并发上限（测试断言用）。
-func (c *conn) parallelLimit() int { return cap(c.sem) }
-
 func (c *conn) snapshot() StatusSnapshot {
 	c.mu.Lock()
 	defer c.mu.Unlock()
@@ -268,13 +265,6 @@ func (c *conn) markHealthOK(at time.Time) {
 	c.lastHealthAt = at
 	c.attempts = 0
 	c.nextAttemptAt = time.Time{}
-}
-
-// dueAt 返回下次可尝试时间（零值表示立即可）。
-func (c *conn) dueAt() time.Time {
-	c.mu.Lock()
-	defer c.mu.Unlock()
-	return c.nextAttemptAt
 }
 
 // state 返回 (status, attempts, lastError) 快照。

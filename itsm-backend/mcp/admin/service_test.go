@@ -518,7 +518,6 @@ func TestService_TestServer_RealMockConnectionAndSSRFAndFailure(t *testing.T) {
 	require.True(t, ok)
 	require.Equal(t, http.StatusBadGateway, adminErr.Status)
 	require.Contains(t, []ErrorCode{CodeUnreachable, CodeConnectTimeout}, adminErr.Code)
-
 }
 
 func TestService_ListServersSummaryAndTenantIsolation(t *testing.T) {

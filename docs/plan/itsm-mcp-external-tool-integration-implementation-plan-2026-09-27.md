@@ -119,11 +119,11 @@
 
 - [x] Q1–Q8 全部按建议拍板并登记到 §10 决策日志（2026-09-27；Q1/Q5/Q8 阻塞 M0-03；Q2 阻塞 M0-10；Q3 阻塞 M0-12；Q4 阻塞 M1-02）。
 - [x] P1 工作树改动处置完成（2026-09-27 独立提交 `d3471221` 于 `feat/vite-migration`：会话删除事务化修复 + 会话标题生成，含测试与 CHANGELOG）。
-- [ ] P2 SDK 编译 spike 通过（最小 demo：initialize + tools/list 对 mock server 握手成功）【待实测】。
-- [ ] P3 迁移方案评审完成（新增表 + `tool_invocations` 字段清单冻结；SQLite 与 Postgres 双驱动验证方式确认——差异【未核实】，需在 CI 覆盖）。
-- [ ] P4 mock server 归属（谁实现、放哪个包）与故障注入清单确认。
-- [ ] P7 测试账号/租户/角色矩阵就绪；E2E 环境可启动 mock provider。
-- [ ] CI 门禁草案就绪：新增 `go test ./mcp/...`、前端 `jest` MCP 用例、Playwright MCP 用例（可先 manual/nightly）。
+- [x] P2 SDK 编译 spike 通过（2026-09-27 闭环：`modelcontextprotocol/go-sdk v1.4.0` 在 go 1.25.13 编译与运行均通过，握手用例见 `itsm-backend/mcp/client/sdk_handshake_test.go`，证据 `docs/plan/evidence/mcp-m0/M0-01-unit-evidence.md`；U-1 关闭）。
+- [ ] P3 迁移方案评审——**部分完成**：新增表与 `tool_invocations` 字段清单已冻结并落地（`ent/schema/mcp_server.go`、`ent/schema/mcp_server_tool.go`、`ent/schema/tool_invocation.go` 扩展）；SQLite 侧已验证（`ent/schema/mcp_migration_test.go`）；**Postgres 侧仍待跑**（门控用例 `ent/schema/mcp_migration_postgres_test.go` 需 `MCP_TEST_POSTGRES_DSN`，见 §7 R-09 与 §11.4 U-2）。
+- [x] P4 mock server 归属与故障注入清单确认（2026-09-27 闭环：`itsm-backend/mcp/testutil/mockserver`（Go 集成测试直接 import）与 `itsm-backend/cmd/mcp-mockserver`（独立进程，供前端 E2E/人工冒烟）；控制面 `/__mock/tools`、`/__mock/calls`；注入清单见 `docs/plan/evidence/mcp-m0/M0-13-unit-evidence.md`）。
+- [ ] P7 测试账号/租户/角色矩阵——**部分完成**：集成夹具含租户 + 角色矩阵与跨租户 fail-closed 断言（`tests/mcpintegration`、`middleware` MCP 矩阵用例）；**浏览器级 ≥2 租户 × 3 角色矩阵与独立 E2E 账号待 M2-05**。
+- [ ] CI 门禁草案——**部分完成**：后端 CI 以 `go test $TESTABLE_PKGS` 自动覆盖全部可测包（含 `./mcp/...` 与 `./tests/mcpintegration/`，`backend-ci.yml`）；前端 CI 跑全量 jest（`frontend-ci.yml`）。**缺**：`-race`、Playwright MCP E2E、Postgres 门控用例（`MCP_TEST_POSTGRES_DSN`）与 MCP 专项门禁。
 - [ ] 本实施方案在团队评审通过（评审记录写入 PR 或本文件 §10）。
 
 ---
@@ -156,7 +156,7 @@ MCP：         ▼                    ▼                     ▼
 
 ### 3.3 任务总表（WBS 索引）
 
-> 规模为粗估（S/M/L，见 §1.3）；状态列初始为 `未开始`，随交付回写。详细任务卡见 §4，验收项见 §5.2。
+> 规模为粗估（S/M/L，见 §1.3）；任务状态以 §3.3.1 状态速览表为准（随交付回写）。详细任务卡见 §4，验收项与判定见 §5.2。
 
 | ID | 任务 | 层 | 交付物（摘要） | 依赖 | 规模 | 目标级别 | 验收项 |
 | --- | --- | --- | --- | --- | --- | --- | --- |
@@ -191,6 +191,40 @@ MCP：         ▼                    ▼                     ▼
 | M2-05 | 浏览器 E2E 全链路 | 测试 | 管理页全流程 + 时间线 + 审批流 Playwright 用例 | M0-12/M1-04～06、R3 | L | `flow_verified` | A2-05 |
 | M2-06 | 指标/告警看板与运维手册 | 运维 | 指标暴露、告警阈值、SOC runbook、演练记录 | M1-08 | M | `integration_verified` | A2-06 |
 | M2-07 | accepted 复核与文档回写 | 联调 | 完整度矩阵复核、证据归档、CHANGELOG/ROADMAP 回写 | 全部 | S | `accepted` | A2-08 |
+
+#### 3.3.1 状态速览表（2026-09-27 回写）
+
+> 回写口径说明：本表与各任务卡「状态」段、§5.2 判定表同源同粒度；状态取「已实际验证的最高级别」。原表未设状态列，回写形式由「逐行加列」改为「速览表 + 任务卡状态段」（偏差登记见 §10）。
+
+| ID | 状态 | 证据 / 备注 |
+| --- | --- | --- |
+| M0-01 | `unit_verified` | `evidence/mcp-m0/M0-01-unit-evidence.md` |
+| M0-02 | `unit_verified` | `M0-02-unit-evidence.md`（投影/解析/隔离契约） |
+| M0-03 | `integration_verified`（SQLite；Postgres 待跑） | `M0-03-migration-evidence.md`；Postgres 门控用例 `ent/schema/mcp_migration_postgres_test.go` |
+| M0-04 | `unit_verified` | `M0-04-unit-evidence.md`（Streamable HTTP + SSE 双传输） |
+| M0-05 | `unit_verified` | `M0-05-unit-evidence.md`（SSRF 表驱动 12 例） |
+| M0-06 | `unit_verified` | `M0-06-unit-evidence.md`（AES-GCM/掩码/轮换） |
+| M0-07 | `integration_verified` | `M0-07-unit-evidence.md`（状态机/退避/差分/隔离） |
+| M0-08 | `integration_verified` | `M0-08-integration-evidence.md`（管理 API 202+轮询/乐观锁） |
+| M0-09 | `integration_verified` | `M0-09-integration-evidence.md`（ToolProvider 接入与只读执行） |
+| M0-10 | `integration_verified` | `M0-10-integration-evidence.md`（权限三位 + 路由装配） |
+| M0-11 | `integration_verified` | `M0-11-integration-evidence.md`（三元组审计 + 脱敏） |
+| M0-12 | `unit_verified`（人工冒烟待补） | `M0-12-unit-evidence.md`；冒烟/截图归 M2-05 |
+| M0-13 | `unit_verified` | `M0-13-unit-evidence.md`（testutil + `cmd/mcp-mockserver`） |
+| M0-14 | `integration_verified`（截图待补） | `M0-14-integration-evidence.md` |
+| M1-01 | `integration_verified` | `evidence/mcp-m1/M1-01-integration-evidence.md` |
+| M1-02 | `flow_verified` | `M1-02-integration-evidence.md`（A1-02 由 M1-02 + M1-10 闭环） |
+| M1-03 | `integration_verified` | `M1-03-integration-evidence.md`（SSE 契约 + 兼容） |
+| M1-04 | `flow_verified` | `M1-04-integration-evidence.md`（时间线四态） |
+| M1-05 | `flow_verified`（手工部分归 M2-05） | `M1-05-integration-evidence.md`（R2 退化形态） |
+| M1-06 | `flow_verified`（E2E 部分归 M2-05） | `M1-06-integration-evidence.md` |
+| M1-07 | `flow_verified` | `M1-07-integration-evidence.md`（审计来源维度） |
+| M1-08 | `integration_verified` | `M1-08-integration-evidence.md`（告警/宽限/重试分治/策略回读） |
+| M1-09 | `integration_verified` | `M1-09-security-negative-report.md`（12+2 项） |
+| M1-10 | `flow_verified` | `M1-10-flow-acceptance-evidence.md`（失败注入 4 类） |
+| M2-01～M2-07 | **未开始** | M2 全量未开工（见 `gap-register-2026-09-27.md` §5） |
+
+> 本轮缺口登记与整改台账：`docs/plan/evidence/mcp-m1/gap-register-2026-09-27.md`。
 
 ---
 
@@ -554,7 +588,7 @@ MCP：         ▼                    ▼                     ▼
 | # | 维度 | 要求 |
 | --- | --- | --- |
 | D-1 | 代码质量 | 通过 review；无旁路执行（禁止绕过 Gate1/2/3、队列、审计）；错误码进入统一枚举；关键错误路径有日志 |
-| D-2 | 测试 | 新增单测/契约测试通过；`go test ./...`（后端）与相关 `npm test`（前端）全绿；覆盖率不低于改动前；`golangci-lint`（配置 `.golangci.yml`）通过 |
+| D-2 | 测试 | 新增单测/契约测试通过；`go test ./...`（后端）与相关 `npm test`（前端）全绿；覆盖率不低于改动前；**质量门以 CI 既有工具为准：gofumpt 格式 + staticcheck v0.6.1**（仓库 `.golangci-lint.yml` 保留；如后续引入 golangci-lint 则以其为准）——口径修正见 §10 EX-07 |
 | D-3 | 多租户 | 新增查询全部带 `tenant_id`；新增表索引首列含 `tenant_id`；跨租户 fail-closed 有测试 |
 | D-4 | 安全 | 敏感数据（凭据/参数/输出）全链路脱敏有断言；权限默认拒绝；SSRF 防护不得被绕过 |
 | D-5 | 兼容 | 旧客户端忽略未知 SSE 事件；`tool_invocations` 新字段带默认值/nullable，不破坏存量查询 |
@@ -607,7 +641,41 @@ MCP：         ▼                    ▼                     ▼
 | A2-05 | 浏览器 E2E：管理页全流程（新增→测试→启用→治理→禁用→删除）+ 时间线 + 审批流真实点击全绿，含 trace/video | M2-05 | Playwright | E2E 报告与 trace | `flow_verified` |
 | A2-06 | 指标/告警/演练：指标可抓取、阈值告警可触发；按 runbook 完成"凭据泄露应急禁用"演练并记录 | M2-06 | 指标断言 + 桌面演练 | 演练记录 | `integration_verified` |
 | A2-07 | 完整度复核：对照分析报告 §7.2 M2 目标列逐行判定，未达项列明确结论（阻塞/不阻塞上线） | M2-07 | 复核表评审 | 复核表归档 | 复核件（支撑 accepted） |
-| A2-08 | accepted 判定：验收签署完成；§3.3 任务状态、§5.2 判定列、`CHANGELOG.md` 回写完成；残余风险签字 | M2-07 | 出口评审会 | 验收纪要、回写 diff | `accepted` |
+| A2-08 | accepted 判定：验收签署完成；§3.3.1 任务状态、§5.2.1 判定表、`CHANGELOG.md` 回写完成；残余风险签字 | M2-07 | 出口评审会 | 验收纪要、回写 diff | `accepted` |
+
+#### 5.2.1 判定表（2026-09-27 回写）
+
+> 判定 = 「按证据实际达到的级别」；与 §3.3.1 状态速览表、各任务卡「状态」段一致。**未达目标级别的条目一律在「备注」标明缺口与承接方**；豁免登记见 §10。证据根目录 `docs/plan/evidence/`。
+
+| 验收项 | 目标级别 | 判定 | 备注 |
+| --- | --- | --- | --- |
+| A0-01 | `unit_verified` | `unit_verified` | 开关关断零行为变化（`config` 用例 + bootstrap 短路）；全量回归结论见 `gap-register-2026-09-27.md` §6.1 |
+| A0-02 | `unit_verified` | `unit_verified` | 投影/解析/隔离契约测试 |
+| A0-03 | `integration_verified` | `integration_verified`（**限 SQLite**） | Postgres 门控用例已就位（`MCP_TEST_POSTGRES_DSN`），**待 CI/环境执行** → 缺口 A1 |
+| A0-04 | `unit_verified` | `unit_verified` | 双传输 + 错误分类（mock 集成） |
+| A0-05 | `unit_verified` | `unit_verified` | SSRF 表驱动 12 例 + 专项 |
+| A0-06 | `unit_verified` | `unit_verified` | 凭据加解密/掩码/轮换 |
+| A0-07 | `integration_verified` | `integration_verified` | 生命周期/退避/隔离 |
+| A0-08 | `integration_verified` | `integration_verified` | 管理 API 202+轮询/乐观锁/审计 |
+| A0-09 | `integration_verified` | `integration_verified` | 只读端到端（含三元组） |
+| A0-10 | `integration_verified` | `integration_verified` | 权限矩阵 + 跨租户 fail-closed |
+| A0-11 | `integration_verified` | `integration_verified` | 审计三元组 + 脱敏 |
+| A0-12 | `unit_verified`（+冒烟） | `unit_verified` | **人工冒烟与截图未做** → 缺口 A2（归 M2-05） |
+| A0-13 | `unit_verified` | `unit_verified` | testutil + 独立进程两形态 |
+| A0-14 | `integration_verified` | `integration_verified` | **管理页截图待补** → 缺口 A2；全量回归见 §6.1 |
+| A1-01 | `integration_verified` | `integration_verified` | 分类标注全链路 |
+| A1-02 | `flow_verified` | `flow_verified` | 写路径 E2E（参数冻结/不重试/拒绝回填） |
+| A1-03 | `integration_verified` | `integration_verified` | SSE 契约 + 旧客户端兼容 |
+| A1-04 | `flow_verified` | `flow_verified` | 时间线四态组件测试 |
+| A1-05 | `flow_verified` | `flow_verified`（**手工部分未做**） | 组件测试通过；手工确认归 M2-05 → 缺口 A4 |
+| A1-06 | `flow_verified` | `flow_verified`（**E2E 部分未做**） | 组件测试通过；E2E 归 M2-05 → 缺口 A4/A5 |
+| A1-07 | `flow_verified` | `flow_verified` | 审计来源维度（后端跨状态断言 + 组件） |
+| A1-08 | `integration_verified` | `integration_verified` | 告警/宽限/重试/策略回读 |
+| A1-09 | `integration_verified` | `integration_verified` | 安全负向 12+2 |
+| A1-10 | `flow_verified` | `flow_verified` | 失败注入 4 类 + 前端交互（**浏览器级归 M2-05**） |
+| A2-01～A2-08 | 见 §5.2 M2 表 | **未开始** | M2 全量未开工；A2-05 为 A2/A4/A5 缺口的共同承接方 |
+
+> 判定依据（本轮）：`docs/plan/evidence/mcp-m0/`（14 份）+ `docs/plan/evidence/mcp-m1/`（10 份 + 本台账）；缺口明细与整改动作见 `docs/plan/evidence/mcp-m1/gap-register-2026-09-27.md`。
 
 ### 5.3 测试用例执行清单（分析报告 §10.4 九组，本方案编号 T-01…T-09）
 
@@ -699,6 +767,19 @@ MCP：         ▼                    ▼                     ▼
 | R-12 | 队列持久化缺口（依赖阶段一 B1）【现状未核实】 | 重启丢失待执行审批任务 | 依赖 B1；未落地时在 M1-02 验收注明缺口并评估影响 | 重启后 pending 任务丢失实验复现 | 后端 |
 | R-13 | 审批过期语义缺失（依赖阶段一 G3） | 过期审批可被误执行 | 依赖 G3；未落地时限制审批有效期由人工兜底并登记缺口 | 审批积压且无过期机制 | 产品 + 后端 |
 
+#### 7.1 实施期状态更新（2026-09-27 回写）
+
+| # | 状态更新 | 证据 / 处置 |
+| --- | --- | --- |
+| R-09 | **由【未核实】转为「部分确认」**：SQLite 侧迁移已验证通过；Postgres 侧尚未执行（本机无 Docker/Postgres） | 新增门控用例 `ent/schema/mcp_migration_postgres_test.go`（`MCP_TEST_POSTGRES_DSN` 提供时执行，否则 SKIP）；CI 需补该 steps，见 §2.3 CI 条目与 `docs/plan/evidence/mcp-m1/gap-register-2026-09-27.md` A1 |
+| R-12 | **由【未核实】转为「已确认为真实缺口」**：ToolQueue 为内存队列（容量 100），重启丢失 pending 写调用 | 已在 M1-02 证据登记；处置依赖阶段一 B1；过渡期按故障降级矩阵（§8.3）人工核对 pending 列表 |
+| R-13 | **由「依赖 G3」转为「已确认为真实缺口」**：后端无审批过期状态机，前端卡片仅提示「可能已过期」 | M1-05 证据已固化语义；处置依赖阶段一 G3；过渡期由审批人自查积压 |
+| R-14（新增） | **治理位翻转与异步工具重发现存在竞争窗口**（`SetToolEnabled` 与重发现写工具缓存竞争，可致治理位短期回退） | 来源：M1-10 证据 O-1；方向为更严格（不越权）。集成用例以幂等重放 + 有界等待吸收；建议 M2 加固：工具缓存写入时保留既有 `enabled/risk/quarantine` |
+| R-15（新增） | **mock HTTP 关闭可能被长连接阻塞**（`httptest.Server.Close` 等待活跃 SSE 连接），表现为测试偶发挂起 | 来源：M1-10 证据 O-2；夹具按「先禁服务器（关会话）→ 再关 mock」收尾缓解；M2-05 浏览器 E2E 夹具需沿用该顺序 |
+| R-16（新增） | **MCP 管理页前端套件过重、负载下超时**：3 个整页交互用例，安静环境 255s、满载 595–947s，跨过 300s 单测上限即失败 | 来源：本轮全量 jest（`gap-register-2026-09-27.md` §6.2）；处置：M2-05 一并治理（拆用例/mock 重子组件/独立 `testTimeout`），当前隔离环境功能通过 |
+
+**实施期质量门修复（2026-09-27，详见 gap-register §6.5）**：以 CI 等价工具（`staticcheck@v0.6.1` + `gofumpt@v0.7.0`）执行后，发现并修复 **9 处会直接阻断 backend-ci lint job 的问题**——staticcheck 6 处（`mcp/admin/audit.go` 死代码 2、`mcp/admin/store.go` 1、`mcp/manager/pool.go` 2、`mcp/admin/credential_test.go` S1025）、gofumpt 2 处、**新文件 800 行硬门 1 处**（`mcp/admin/service.go` 1239 行 → 拆为 `service.go`(564)/`service_servers.go`(381)/`service_types.go`(298)）；另修复 3 处负载敏感用例（100ms 握手预算、3s 墙钟断言、工具发现即时计数）。复验：staticcheck exit 0、gofumpt 无输出、`go build`/`go vet` exit 0、MCP 9 包测试全绿、`-race`（registry/transport/integration）无 DATA RACE。
+
 ---
 
 ## 8. 回滚与降级预案
@@ -743,7 +824,7 @@ M2-06 交付《MCP 运维手册》（建议 `docs/ops/mcp-runbook.md`），至�
 | --- | --- | --- | --- |
 | 后端代码 | `itsm-backend/mcp/{transport,client,registry,manager,admin,provider}`；`service/tool_provider.go`；`handlers/mcp/`；`router/mcp_routes.go`；`internal/authz` 与 `internal/bootstrap` 改动 | 后端 | A0-01～A0-11、A1-01/A1-02/A1-03/A1-08、A2-01～A2-04 |
 | 数据模型 | `ent/schema/mcp_server.go`、`mcp_server_tool.go`（+M2 OAuth token）；`tool_invocation.go` 扩展；ent 生成物与迁移验证记录 | 后端 | A0-03、A0-11、A2-02 |
-| 前端代码 | `/admin/mcp-servers` 页面与组件；`lib/api/mcp-api.ts`、`lib/types/mcp.ts`、i18n；AIChat 时间线与待审批卡片；审批/审计页增强；路由/菜单/seed 接线 | 前端 | A0-12、A1-04～A1-07 |
+| 前端代码 | `/admin/mcp-servers` 页面与组件；`lib/api/mcp-api.ts`（MCP 类型同文件）、`src/pages/(main)/admin/mcp-servers/mcp-helpers.ts`、i18n；AIChat 时间线与待审批卡片；审批/审计页增强；路由/菜单/seed 接线（**偏差：`lib/types/mcp.ts` 未单列，见 §10 DV-02 与 M1-04 卡**） | 前端 | A0-12、A1-04～A1-07 |
 | 测试设施 | `mcp/testutil/mockserver`、`cmd/mcp-mockserver`、单元/契约/集成测试、Playwright spec | QA + 后端 | A0-13、A2-05、T-01～T-09 |
 | 文档 | 本实施方案；`mcp/README.md`；运维手册（M2-06）；证据归档目录；`CHANGELOG.md` 回写 | 全体 | A2-08 |
 | 运维资产 | 指标暴露、告警规则样例、演练记录 | SRE | A2-06 |
@@ -762,6 +843,22 @@ M2-06 交付《MCP 运维手册》（建议 `docs/ops/mcp-runbook.md`），至�
 | 2026-09-27 | Q6 OAuth 回调形态 | 已拍板：二期定；统一回调 + state 映射，须 CSRF/开放重定向评审 | 项目负责人（按建议执行） | 阻塞 M2-02 |
 | 2026-09-27 | Q7 BYO 凭据 | 已拍板：一期不开放；管理员在管理页录入 | 项目负责人（按建议执行） | 影响 M0-06/M1 范围 |
 | 2026-09-27 | Q8 工具结果是否入知识库 | 已拍板：不入；仅回填对话与审计 | 项目负责人（按建议执行） | 影响 RAG 集成范围 |
+
+**实施期豁免与偏差登记（2026-09-27，依据 §5.4 规则 7；明细见 `docs/plan/evidence/mcp-m1/gap-register-2026-09-27.md`）**
+
+| 编号 | 事项 | 类型 | 原因与影响面 | 处置 / 承接 | 批准状态 |
+| --- | --- | --- | --- | --- | --- |
+| EX-01 | A0-03 未跑 Postgres 双驱动（仅 SQLite） | 验收豁免 | 本机无 Docker/Postgres；不阻塞功能面，**阻塞生产 Postgres 上线前确认** | 新增门控用例 `ent/schema/mcp_migration_postgres_test.go`（`MCP_TEST_POSTGRES_DSN`）；CI 补 step | 待出口评审确认（后端 + DBA） |
+| EX-02 | A0-12/A0-14 人工冒烟与截图未做 | 证据豁免 | 需真实后端进程 + 登录会话 + 浏览器 | 归 M2-05（Playwright E2E 一并归档截图/trace） | 待出口评审确认（QA） |
+| EX-03 | A1-05「手工」、A1-06「E2E」部分未做 | 验收豁免 | 同 EX-02；组件测试已通过 | 归 M2-05 | 待出口评审确认（QA + 产品） |
+| EX-04 | T-09 Playwright 未在 M1 出口执行（§5.3 原则） | 验收豁免 | 同 EX-02 | M2-05 落地后补跑并回写 | 待出口评审确认（QA） |
+| EX-05 | 全量回归（后端 `go test ./...`、前端全量 jest）此前未执行 | 证据缺口（本轮已补） | M0-01 证据曾声明顺延至 CI | 本轮执行，结果见 gap-register §6.1/§6.2 | 本轮闭环 |
+| EX-06 | `-race` 未执行 | 证据缺口（本轮已补核心面） | 各任务卡自认待补 | `-race` 于 `mcp/registry`、`mcp/transport`、`tests/mcpintegration` 全绿（无 DATA RACE）；其余包建议 CI 常态化（gap-register S3） | 已闭环（核心面） |
+| EX-07 | lint 未执行，且 §5.1 D-2 写的 `.golangci.yml` 与仓库实际 `.golangci-lint.yml` 不符 | 口径偏差（本轮修正） | 仓库未接 golangci-lint；CI 实际为 gofumpt + staticcheck | 本轮以 CI 等价工具（staticcheck v0.6.1 + gofumpt v0.7.0）执行，**发现并修复 9 处 CI 阻断项**（详见 §7.1 末段）；**D-2 口径改述为「CI 既有质量门 + 本轮等价执行」** | 本轮闭环（口径修正需出口评审追认） |
+| EX-08 | CI 硬门命中 3 类 9 处（新文件 800 行、staticcheck、gofumpt） | 缺陷（本轮修复） | 若不合入将直接 fail `backend-ci` lint job：`mcp/admin/service.go` 1239 行；staticcheck 6 处；gofumpt 2 处 | 已拆分 `service.go` → `service.go`(564) + `service_servers.go`(381) + `service_types.go`(298)；staticcheck/gofumpt 复验 exit 0；MCP 9 包测试全绿 | 本轮闭环 |
+| DV-01 | 回写形式变更：§3.3「状态列」→ §3.3.1 状态速览表；§5.2「判定列」→ §5.2.1 判定表 | 文档偏差 | 原表为超长窄列，逐行加列易错且 diff 噪声大；速览表与其同源同粒度 | 已落 §3.3.1 / §5.2.1 | 待出口评审追认 |
+| DV-02 | §9 交付物 `lib/types/mcp.ts` 未单列 | 交付物偏差 | 类型并入 `itsm-frontend/src/lib/api/mcp-api.ts` 与 `src/pages/(main)/admin/mcp-servers/mcp-helpers.ts` | 已在 §9 交付物行注明；如需独立文件归 M2 整理 | 待出口评审追认 |
+| DV-03 | `CHANGELOG.md` 尚无 MCP 条目 | 交付物待办 | 属 M2-07「accepted 复核与文档回写」范围 | 归 M2-07 | 归 M2 |
 
 **变更控制**：实施期任何偏离本方案（范围、设计、验收级别、里程碑顺序）必须在本表新增记录（日期/变更项/原因/影响/批准人），并同步回写分析报告对应章节；未登记的偏离在里程碑验收时一律不认可。
 
@@ -848,12 +945,12 @@ M2-06 交付《MCP 运维手册》（建议 `docs/ops/mcp-runbook.md`），至�
 
 | # | 项 | 状态 | 处理 |
 | --- | --- | --- | --- |
-| U-1 | 官方 Go SDK 在 ITSM go 1.25.13 的编译与运行兼容性 | 【未核实】 | P2 编译 spike（M0-01 内闭环） |
+| U-1 | 官方 Go SDK 在 ITSM go 1.25.13 的编译与运行兼容性 | **已关闭**（2026-09-27：编译 + initialize/tools/list 握手 + 全链路集成均通过） | P2 已闭环（`mcp/client/sdk_handshake_test.go`；证据 M0-01/M0-04） |
 | U-2 | SQLite 与 Postgres 的迁移行为差异 | 【未核实】 | P3 迁移评审 + CI 双驱动（A0-03 硬性） |
 | U-3 | CI 是否具备 Postgres/Docker 环境 | 【未核实】 | P3 确认；过渡方案见 §6.2-5 |
-| U-4 | 现队列（内存态）重启恢复行为 | 【未核实】 | M1-02 实施时确认；缺口登记 R-12 |
+| U-4 | 现队列（内存态）重启恢复行为 | **已确认**（2026-09-27：ToolQueue 为内存队列，重启丢失 pending 写调用；不做隐藏，见 M1-02 证据） | 缺口已登记 R-12，处置依赖阶段一 B1 |
 | U-5 | 阶段一 B0–B4 的实际排期 | 未定 | 影响 R1–R3；建议 MCP 立项时同步确认 |
-| U-6 | 预留新增开关 `mcp.write_enabled` 的配置落位 | 建议项 | 随 P6 一并评审 |
+| U-6 | 预留新增开关 `mcp.write_enabled` 的配置落位 | **已关闭**（2026-09-27：落在 `itsm-backend/config/config.go:112-117`，bootstrap 接线 `internal/bootstrap/app.go:1051-1065`，默认 false） | M1-02 已实现（L1.5 回滚开关） |
 
 **声明**：本文档为草案（draft），所有任务与验收均为**目标**；本方案编制过程未改动任何生产代码，ITSM 仓库当前无 MCP 实现（2026-09-27 对后端 `*.go` 与前端 `src/` 做大小写不敏感检索：前端零命中，后端唯一命中为 `runtime.NumCPU` 的偶发子串，非 MCP 代码；检索不含 `node_modules` 与构建产物）。任务规模与工作量估算为经验值，需团队复核后据此排期。
 
@@ -889,3 +986,4 @@ M2-06 交付《MCP 运维手册》（建议 `docs/ops/mcp-runbook.md`），至�
 | 2026-09-27 | AI 辅助执行 | M1-08 交付并回写状态：运维收口与告警——①连续失败告警（`conn.consecutiveFailures` + `emitHealthAlertIfNeeded`，`failures % 阈值 == 0` 默认 3 发 `mcp.server.health_alert`，建连/探活共用计数，成功清零）；②in-flight 宽限统一（`waitInFlightAndClose`：宽限超时→`last_error` + `mcp.server.disable_grace_expired` + 强断；新增 `Manager.Retire` 供删除使用，`DeleteServer` 改走 `Retire`，立即拒新调用）；③读写重试分治（`CallToolWithPolicy`：读工具至多 `min(平台 1, 服务器 max_retry)`、写工具恒 0、仅瞬时错误可重试；provider 经可选接口 `RetryableToolSource` 按 `read_only` 传策略）；④策略回读（`manager.Policy` + `ServerView.Policy`，`policyView(entity)` 取平台 × 实体更严值，未启用未注册也一致）；manager 6 用例 + admin 回读用例 + provider 256KB 断言，`mcp/...` 9 包与 `handlers/*` 全 ok、`go build ./...` exit 0（证据 `docs/plan/evidence/mcp-m1/M1-08-integration-evidence.md`）；M1-08 = `integration_verified`（A1-08）。边界：告警出口为事件缓冲（`GET /servers/:id/events`），外部通知渠道对接归 M2-06；测试改用「阻塞会话」替代墙钟竞速，`-count=3` 稳定 |
 | 2026-09-27 | AI 辅助执行 | M1-09 交付并回写状态：安全负向测试集——覆盖清单 12 项 + 2 项附加全部 PASS（SSRF 表驱动 12 例含云元数据/ULA/CGNAT/IPv4-mapped、解析含私网即拒、重定向不跟随、rebinding 钉住 + 每请求重校验、https 强制与平台开关、256KB 输出截断、参数只回 `argsRedacted`、凭据掩码与轮换、描述注入不改变分类与解析绑定、返回值注入按数据透传、跨租户执行 fail-closed 且零下游调用、隔离/复核、错误文本不泄露内网）；**发现并修复真实缺陷 D-1**：`redact.ValueSummary` 收结构体时 `Map` 走 default 分支导致键级掩码失效（`token`/`password` 明文落 `output_summary`）→ 新增 `generic()` JSON 往返归一化 + `ValueSummary` 改走 `Map(generic(v))`，补 `pkg/redact` 回归用例与 provider 负向用例（证据 `docs/plan/evidence/mcp-m1/M1-09-security-negative-report.md`）；M1-09 = `integration_verified`（A1-09）。缺口登记：自由文本输出不做密钥模式扫描（P2）、描述不做注入语义识别（靠结构约束）、stdio/红队演练/OAuth2 分别归 M2-01、M2-03·M2-08、二期 |
 | 2026-09-27 | AI 辅助执行 | M1-10 交付并回写状态：M1 流程验收——**M1 达 `flow_verified`**（服务端全链路 E2E + 前端组件交互 + 类型检查；浏览器 Playwright E2E 按计划归 M2-05）。写路径主链路（对话入口 → pending → approve → 队列 → mock MCP 真实 HTTP/SSE → 回填 → 审计可查）由 M1-02 用例承担；新增 `tests/mcpintegration/m1_flow_acceptance_test.go` 覆盖失败注入 4 类：超时（服务器级 `timeout_ms=1000` + 慢工具 2s → `failed`/`tool_timeout`/恰好 1 次调用/失败记录仍脱敏）、服务器下线（审批后禁用 → `tool_not_found` + **零下游调用** + 工具面收缩）、拒绝（`rejected` + 原因与决策人 + 零执行）、过期等价（不存在记录与已终态记录不可审批）；前端 6 套件 37 用例全 PASS、`tsc --noEmit` exit 0；`go test ./tests/mcpintegration/ -count=1` 连跑 2 次 ok（13.2s/19.3s）、`go test ./service/ ./handlers/ai/` ok（证据 `docs/plan/evidence/mcp-m1/M1-10-flow-acceptance-evidence.md`）。**修复 D-2**：审批后工具消失时 `error_code` 退化为 `internal_error` → 新增 `service.ToolExecutionError`（带 `ErrorCode()`）+ `ToolRegistry.ExecuteApprovedWrite` 两分支改用 + `ToolQueue` MCP 前置守卫落 `tool_not_found`。**观察项**：O-1 治理位翻转与异步工具重发现竞争窗口（测试幂等重放吸收；建议 M2 让工具缓存写入保留既有治理位）；O-2 mock HTTP 关闭可能被长连接阻塞（夹具收尾顺序缓解）。M1 出口条件 ①～④ 全部满足，里程碑状态已在 §3.1 回写 |
+| 2026-09-27 | AI 辅助执行 | **缺口审计与整改（阶段三收口）**：以方案 §5.1/§5.2/§5.3/§5.4 为判据完成全量审计，登记 8 项 A 类（判据未满足）、6 项 B 类（文档回写）、6 项 C 类（待承接技术缺口）、7 项 D 类（M2 未开工），台账见 `docs/plan/evidence/mcp-m1/gap-register-2026-09-27.md`。**方案回写**：§2.3 检查清单 6 项更新（P2/P4 闭环、P3/P7/CI 部分完成并注明残留）、§3.3.1 状态速览表（31 任务）、§5.2.1 判定表（32 验收项）、§7.1 风险状态更新（R-09/R-12/R-13 转正 + 新增 R-14/R-15/R-16）、§9 交付物偏差、§10 豁免与偏差登记（EX-01～EX-08 + DV-01～DV-03）、§11.4 未核实项（U-1/U-4/U-6 关闭）、§5.1 D-2 质量门口径修正。**技术补缺**：①新增 Postgres 门控迁移用例 `ent/schema/mcp_migration_postgres_test.go`（3 用例，独立 schema，`MCP_TEST_POSTGRES_DSN` 门控；本机 SKIP——无 Docker/Postgres，已实测 5432 不可达）；②全量后端 `go test ./...` 与全量前端 jest 执行并逐类定性（MCP 3 处负载敏感用例已修；非 MCP 红为既有 Windows 句柄问题 / `pkg/seeder` 既有失败 / 满载包超时）；③`-race` 于 `mcp/registry`、`mcp/transport`、`tests/mcpintegration` 全绿（无 DATA RACE）；④CI 等价质量门（staticcheck v0.6.1 + gofumpt v0.7.0）**发现并修复 9 处会阻断 backend-ci lint job 的问题**：staticcheck 6 处（死代码 5 + S1025 1）、gofumpt 2 处、**新文件 800 行硬门 1 处**（`mcp/admin/service.go` 1239 行 → 拆为 `service.go`(564)/`service_servers.go`(381)/`service_types.go`(298)）；⑤修复 3 处负载敏感用例（SSE 握手预算 100ms→3s、慢建连墙钟断言 3s→10s、工具发现改有界等待）；复验：MCP 9 包测试全绿（admin 19.8s / client 5.9s / manager 2.4s / provider 14.7s / registry 0.4s / mockserver 4.6s / transport 0.6s / mcpintegration 25.7s / handlers/mcp 10.1s）、staticcheck exit 0、gofumpt 无输出、build/vet exit 0。**未闭环**：A1 Postgres 实跑（待 CI）、A2/A4/A5 浏览器证据（归 M2-05）、R-16 前端套件性能（归 M2-05） |

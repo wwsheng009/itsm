@@ -112,7 +112,7 @@ func TestSecretValues_NoLeakInFormatting(t *testing.T) {
 	values := NewSecretValues(map[string]string{"Authorization": "Bearer leak-me-if-you-can"})
 	formatted := []string{
 		fmt.Sprintf("%v", values),
-		fmt.Sprintf("%s", values),
+		values.String(),
 		fmt.Sprintf("%#v", values),
 	}
 	for _, text := range formatted {
