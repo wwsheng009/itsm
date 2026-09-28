@@ -4,6 +4,8 @@ import (
 	"context"
 	"fmt"
 	"time"
+
+	"itsm-backend/metrics"
 )
 
 // HealthTick 执行一轮健康检查与重连（由后台协程周期调用；测试可直接调用）。
@@ -126,9 +128,11 @@ func (c *conn) closeSessionWithEvent(m *Manager, reason string) {
 	c.mu.Unlock()
 
 	c.closeSession()
+	// M2-06：连接态指标置 0（健康失败/禁用/删除/重载共用本路径；重连成功时在 connectAndDiscover 置 1）。
+	cfg := c.config()
+	metrics.MCPServerConnected.WithLabelValues(cfg.Name).Set(0)
 
 	if hadSession {
-		cfg := c.config()
 		m.emit(Event{
 			Type:     EventServerDisconnected,
 			TenantID: cfg.TenantID,

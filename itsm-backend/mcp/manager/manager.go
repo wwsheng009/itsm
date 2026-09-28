@@ -11,6 +11,7 @@ import (
 
 	"itsm-backend/mcp/client"
 	"itsm-backend/mcp/transport"
+	"itsm-backend/metrics"
 )
 
 const (
@@ -649,8 +650,10 @@ func (m *Manager) connectAndDiscover(ctx context.Context, target *conn) (Discove
 	m.notifyStatus(ctx, target)
 
 	cfg := target.config()
+	handshakeStarted := time.Now()
 	session, err := target.dial(ctx, cfg)
 	if err != nil {
+		metrics.MCPServerConnected.WithLabelValues(cfg.Name).Set(0)
 		target.markFailure(err, m.opts.Backoff, m.now())
 		m.emitDialFailure(target, err)
 		m.emitHealthAlertIfNeeded(target, err)
@@ -659,6 +662,9 @@ func (m *Manager) connectAndDiscover(ctx context.Context, target *conn) (Discove
 	}
 
 	target.setSession(session, session.ProtocolVersion(), serverInfoJSON(session), m.now())
+	// M2-06：握手耗时与连接态（成功路径；失败路径只置 0，不污染耗时分布）。
+	metrics.MCPHandshakeDuration.WithLabelValues(cfg.Name).Observe(time.Since(handshakeStarted).Seconds())
+	metrics.MCPServerConnected.WithLabelValues(cfg.Name).Set(1)
 	m.emit(Event{
 		Type:     EventServerConnected,
 		TenantID: cfg.TenantID,
@@ -732,6 +738,7 @@ func (m *Manager) discoverWithSession(ctx context.Context, target *conn, session
 
 	result := PlanDiscovery(serverID, tenantID, serverName, m.cache.List(serverID), discovered, m.now())
 	m.cache.Replace(serverID, result.Records)
+	m.observeToolStates(serverName, result.Records)
 
 	target.mu.Lock()
 	target.discovered = append([]ToolRecord(nil), result.Records...)
@@ -760,6 +767,24 @@ func (m *Manager) discoverWithSession(ctx context.Context, target *conn, session
 	// M2-03：一次发现刷新后判定租户工具面预算（边沿触发，超限时发 mcp.tools.budget_exceeded）。
 	m.EvaluateToolBudget(tenantID)
 	return result, nil
+}
+
+// observeToolStates 写出工具治理状态计数指标（M2-06）。
+func (m *Manager) observeToolStates(serverName string, records []ToolRecord) {
+	enabled, disabled, quarantined := 0, 0, 0
+	for _, record := range records {
+		switch {
+		case record.Quarantined:
+			quarantined++
+		case record.Enabled:
+			enabled++
+		default:
+			disabled++
+		}
+	}
+	metrics.MCPTools.WithLabelValues(serverName, "enabled").Set(float64(enabled))
+	metrics.MCPTools.WithLabelValues(serverName, "disabled").Set(float64(disabled))
+	metrics.MCPTools.WithLabelValues(serverName, "quarantined").Set(float64(quarantined))
 }
 
 func serverInfoJSON(session ToolSession) string {

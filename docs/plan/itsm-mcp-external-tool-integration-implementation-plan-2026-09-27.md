@@ -138,7 +138,7 @@
 | **M1** | 写工具治理与用户侧闭环 | M0 出口达成；Q4/Q7 已拍板；阶段一 B1/B2 若未落地则接受降级形态（R2） | ① 写路径 E2E：对话→待审批→审批→执行→回填→审计可查（A1-01/A1-02）；② 用户侧时间线/审批卡片/审批页/审计页可见且交互测试通过（A1-03～A1-07）；③ 告警与 in-flight 宽限语义落地（A1-08）；④ 安全负向测试通过（A1-09） | `flow_verified` |
 | **M2** | 加固、E2E 与二期预研 | M1 出口达成；Q6 已拍板（若 OAuth 进 M2） | ① stdio 沙箱测试通过（平台级，A2-01）；② OAuth 流程（如启用）与工具面预算方案落地（A2-02/A2-03）；③ 浏览器 E2E 全链路绿（A2-05）；④ 指标/告警/运维手册 + 演练记录（A2-06）；⑤ 完整度矩阵复核并回写文档（A2-08） | `accepted` |
 
-**当前状态（2026-09-27 回写）**：M0 = `integration_verified`（M0-01～M0-14 全部交付）；M1 = **`flow_verified`**（M1-01～M1-10 全部交付；写路径 E2E、失败注入 4 类、前端 6 套件 37 用例、安全负向 12+2 项、运维收口 6 用例均通过，证据见 `docs/plan/evidence/mcp-m0/` 与 `docs/plan/evidence/mcp-m1/`）。M2 已开工：**M2-03 = `unit_verified`**（工具面预算：>40 告警 + token 占比可测量 + 元工具评估产物，证据 `docs/plan/evidence/mcp-m2/`）；M2-01/M2-02/M2-04 依赖 Q1/Q6/Q5 决策（旗舰私有化 / 二期），M2-05～M2-07 未开工。M1 阶段缺口见各任务卡「状态」段与 M1-10 证据 §5。
+**当前状态（2026-09-27 回写）**：M0 = `integration_verified`（M0-01～M0-14 全部交付）；M1 = **`flow_verified`**（M1-01～M1-10 全部交付；写路径 E2E、失败注入 4 类、前端 6 套件 37 用例、安全负向 12+2 项、运维收口 6 用例均通过，证据见 `docs/plan/evidence/mcp-m0/` 与 `docs/plan/evidence/mcp-m1/`）。M2 已开工：**M2-03 = `unit_verified`**（工具面预算）、**M2-06 = `integration_verified`**（指标 10 组 + 告警 10 条 + 运维手册 + 应急禁用演练自动化复现，证据 `docs/plan/evidence/mcp-m2/`）；M2-01/M2-02/M2-04 依赖 Q1/Q6/Q5 决策（旗舰私有化 / 二期），M2-05（浏览器 E2E）与 M2-07（accepted 复核）未开工。M1 阶段缺口见各任务卡「状态」段与 M1-10 证据 §5。
 
 ### 3.2 依赖关系（含与阶段一 B0–B4 的交叉）
 
@@ -226,7 +226,9 @@ MCP：         ▼                    ▼                     ▼
 | M2-02 | 未开始（Q6：二期） | 依赖决策 |
 | M2-03 | **`unit_verified`** | `evidence/mcp-m2/M2-03-unit-evidence.md`（预算告警 5 用例 + 估算 6 用例 + 评估产物） |
 | M2-04 | 未开始（Q5：二期） | 依赖决策 |
-| M2-05～M2-07 | **未开始** | 浏览器 E2E 硬门槛 / 指标与手册 / accepted 复核 |
+| M2-05 | 未开始 | 浏览器 E2E 硬门槛（依赖 Playwright + 真实栈） |
+| M2-06 | **`integration_verified`** | `evidence/mcp-m2/M2-06-integration-evidence.md`（指标 10 组 + 告警 10 条 + 手册 + 演练自动化复现） |
+| M2-07 | 未开始 | accepted 复核与文档回写 |
 
 > 本轮缺口登记与整改台账：`docs/plan/evidence/mcp-m1/gap-register-2026-09-27.md`。
 
@@ -679,7 +681,9 @@ MCP：         ▼                    ▼                     ▼
 | A1-10 | `flow_verified` | `flow_verified` | 失败注入 4 类 + 前端交互（**浏览器级归 M2-05**） |
 | A2-01/A2-02/A2-04 | 见 §5.2 M2 表 | **未开始（依赖决策）** | M2-01 依赖 Q1（旗舰私有化再启用）、M2-02 依赖 Q6（二期）、M2-04 依赖 Q5（二期） |
 | A2-03 | `unit_verified` | `unit_verified` | 工具面预算：>40 告警 + token 占比可测量 + 元工具评估产物（`evidence/mcp-m2/M2-03-unit-evidence.md`） |
-| A2-05～A2-08 | 见 §5.2 M2 表 | **未开始** | A2-05 为 A2/A4/A5 缺口的共同承接方；A2-06 归 M2-06；A2-07/A2-08 归 M2-07 |
+| A2-05 | 见 §5.2 M2 表 | **未开始** | A2-05 为 A2/A4/A5 缺口的共同承接方（需 Playwright + 真实栈） |
+| A2-06 | `integration_verified` | `integration_verified` | 指标暴露断言（10 指标）+ 告警规则 10 条（YAML 校验）+ runbook + 应急禁用演练自动化复现（`evidence/mcp-m2/M2-06-integration-evidence.md`；含管理页点击的人工演练归 M2-05/M2-07） |
+| A2-07/A2-08 | 见 §5.2 M2 表 | **未开始** | 归 M2-07 |
 
 > 判定依据（本轮）：`docs/plan/evidence/mcp-m0/`（14 份）+ `docs/plan/evidence/mcp-m1/`（10 份 + 本台账）；缺口明细与整改动作见 `docs/plan/evidence/mcp-m1/gap-register-2026-09-27.md`。
 
@@ -820,7 +824,7 @@ MCP：         ▼                    ▼                     ▼
 
 ### 8.4 应急操作手册
 
-M2-06 交付《MCP 运维手册》（建议 `docs/ops/mcp-runbook.md`），至少覆盖：凭据泄露应急禁用流程、服务器下线流程、工具误启用回滚、告警处置、日志与审计取证路径。手册必须经一次桌面演练验证（A2-06）。
+M2-06 交付《MCP 运维手册》——**已落盘 `docs/ops/mcp-runbook.md`**（2026-09-27），覆盖：凭据泄露应急禁用流程（L1/L1.5/L2/L3 四级）、服务器下线流程、工具误启用回滚、告警处置、指标清单、日志与审计取证路径、回滚路径。演练：关键路径已由 `TestDrill_CredentialLeakEmergencyDisable` 自动化复现（见 `docs/plan/evidence/mcp-m2/M2-06-integration-evidence.md` §4）；含管理页点击的人工桌面演练归 M2-05/M2-07。告警规则样例见 `docs/ops/mcp-alert-rules.yml`（10 条）。
 
 ---
 
@@ -904,7 +908,7 @@ M2-06 交付《MCP 运维手册》（建议 `docs/ops/mcp-runbook.md`），至�
 | A2-03 | M2-03 | — | 阈值/测量（自动）→ `evidence/mcp-m2/M2-03-unit-evidence.md` |
 | A2-04 | M2-04 | T-06 | 集成（自动） |
 | A2-05 | M2-05 | T-09 | Playwright（自动） |
-| A2-06 | M2-06 | — | 指标断言 + 演练（人工记录） |
+| A2-06 | M2-06 | — | 指标断言 + 演练（自动化复现）→ `evidence/mcp-m2/M2-06-integration-evidence.md`；人工浏览器演练归 M2-05/M2-07 |
 | A2-07 | M2-07 | — | 复核表（人工评审） |
 | A2-08 | M2-07 | — | 签署（人工） |
 
@@ -996,3 +1000,4 @@ M2-06 交付《MCP 运维手册》（建议 `docs/ops/mcp-runbook.md`），至�
 | 2026-09-27 | AI 辅助执行 | **缺口审计与整改（阶段三收口）**：以方案 §5.1/§5.2/§5.3/§5.4 为判据完成全量审计，登记 8 项 A 类（判据未满足）、6 项 B 类（文档回写）、6 项 C 类（待承接技术缺口）、7 项 D 类（M2 未开工），台账见 `docs/plan/evidence/mcp-m1/gap-register-2026-09-27.md`。**方案回写**：§2.3 检查清单 6 项更新（P2/P4 闭环、P3/P7/CI 部分完成并注明残留）、§3.3.1 状态速览表（31 任务）、§5.2.1 判定表（32 验收项）、§7.1 风险状态更新（R-09/R-12/R-13 转正 + 新增 R-14/R-15/R-16）、§9 交付物偏差、§10 豁免与偏差登记（EX-01～EX-08 + DV-01～DV-03）、§11.4 未核实项（U-1/U-4/U-6 关闭）、§5.1 D-2 质量门口径修正。**技术补缺**：①新增 Postgres 门控迁移用例 `ent/schema/mcp_migration_postgres_test.go`（3 用例，独立 schema，`MCP_TEST_POSTGRES_DSN` 门控；本机 SKIP——无 Docker/Postgres，已实测 5432 不可达）；②全量后端 `go test ./...` 与全量前端 jest 执行并逐类定性（MCP 3 处负载敏感用例已修；非 MCP 红为既有 Windows 句柄问题 / `pkg/seeder` 既有失败 / 满载包超时）；③`-race` 于 `mcp/registry`、`mcp/transport`、`tests/mcpintegration` 全绿（无 DATA RACE）；④CI 等价质量门（staticcheck v0.6.1 + gofumpt v0.7.0）**发现并修复 9 处会阻断 backend-ci lint job 的问题**：staticcheck 6 处（死代码 5 + S1025 1）、gofumpt 2 处、**新文件 800 行硬门 1 处**（`mcp/admin/service.go` 1239 行 → 拆为 `service.go`(564)/`service_servers.go`(381)/`service_types.go`(298)）；⑤修复 3 处负载敏感用例（SSE 握手预算 100ms→3s、慢建连墙钟断言 3s→10s、工具发现改有界等待）；复验：MCP 9 包测试全绿（admin 19.8s / client 5.9s / manager 2.4s / provider 14.7s / registry 0.4s / mockserver 4.6s / transport 0.6s / mcpintegration 25.7s / handlers/mcp 10.1s）、staticcheck exit 0、gofumpt 无输出、build/vet exit 0。**未闭环**：A1 Postgres 实跑（待 CI）、A2/A4/A5 浏览器证据（归 M2-05）、R-16 前端套件性能（归 M2-05） |
 | 2026-09-27 | AI 辅助执行 | **CI 接线与并发面收口（S1/S2/S3 落地）**：①`go test -race ./mcp/... ./tests/mcpintegration/ -count=1 -timeout 1800s` → **exit 0，8 包全 ok、无 DATA RACE**（admin 36.7s / client 8.8s / manager 4.5s / provider 23.6s / registry 2.1s / mockserver 7.3s / transport 2.5s / mcpintegration 38.9s，整轮 4 分 23 秒）→ **EX-06 全量闭环**；②`backend-ci.yml` 新增 **`mcp-race`** job（阻断门）把上述命令常态化；③新增 **`mcp-postgres-migrations`** job（`postgres:16-alpine` service container + health-cmd `pg_isready` + `MCP_TEST_POSTGRES_DSN` + `go test ./ent/schema/ -run Postgres -count=1 -v`）让 A0-03 的 Postgres 侧用例在真实实例执行，首轮 `continue-on-error: true` 观察、绿跑后删该行转阻断（workflow 注释已写明）；④Test job 的 `go test` 增加 **`-timeout 20m`**，消除满载下 `panic: test timed out after 10m0s` 假红；⑤workflow YAML 经 `js-yaml` 解析校验（job 列表 = lint / build / test / mcp-postgres-migrations / mcp-race / dependency-review）。**状态**：EX-01 转「CI 已接线，待首次绿跑」；EX-06 已闭环；新增 EX-09（CI 专项门禁补齐，本轮闭环） |
 | 2026-09-27 | AI 辅助执行 | **M2-03 交付并回写状态（M2 开工）**：工具面预算与元工具评估——①新增 `mcp/budget` 包（估算口径：CJK 1 token/字、其余 4 字符/token；`Measure`/`Limits`/`Evaluate` 双信号判定；`Advise` 评估产物）；②`mcp/manager/budget.go`：按「healthy ∧ 工具治理位 enabled ∧ ¬quarantined」统计**租户有效工具面**，`EvaluateToolBudget` 边沿触发 `mcp.tools.budget_exceeded` 事件（首次超限 / 超限期间计数或 token 变化各发一条；未超限不发恢复事件），并在 `discoverWithSession` 末尾自动判定；③阈值可配：`mcp.tools_budget`(40) / `mcp.tools_context_tokens`(128000) / `mcp.tools_token_share`(0.30)（config + `config.yaml.example` 同值双向钉住）→ `manager.Options` → `Manager.Policy` 与管理面 `ServerPolicyView` 回读；④测试：`mcp/budget` 11 例 + `mcp/manager` 预算 5 例（含「未启用工具不计数」默认拒绝语义、跨阈值去重、占比信号、租户隔离与关停）+ config 6 断言；`go test ./mcp/... ./config/ ./tests/mcpintegration/ ./handlers/mcp/` **11 包全 ok**，gofumpt 无输出、staticcheck exit 0、build 与 vet exit 0（证据 `docs/plan/evidence/mcp-m2/M2-03-unit-evidence.md`）。**元工具**：按任务卡「先评估后灰度」只交付评估产物（`Advise`），不实施；实施前置条件（真实超限事件 + `meta__call` 安全评审 + 灰度开关）与未闭环项登记于证据 §4。**顺带修复**：`TestManager_ConnectFailureBackoffThenRecover` 的 20ms 退避窗口在满载/`-race` 下会被调度抖动打穿 → 该用例改用 300ms Base（新增 `newTestManagerWithBackoff`），`-count=3` 稳定。**状态**：M2-03 = `unit_verified`（A2-03）；§3.3.1/§5.2.1/§11.1 已回写；M2-01/M2-02/M2-04 待 Q1/Q6/Q5 决策，M2-05～M2-07 未开工 |
+| 2026-09-27 | AI 辅助执行 | **M2-06 交付并回写状态**：指标、告警与运维手册——①指标：新增 `metrics/mcp_metrics.go` 10 组（`itsm_mcp_server_connected` / `handshake_duration_seconds` / `tool_calls_total{outcome}` / `tool_call_duration_seconds` / `output_truncated_total` / `tools{state}` / `concurrency_in_use|limit` / `tool_face_tools|tokens`），标签只含 server/tool/outcome/state/tenant_id（不含参数内容），沿用既有 `/metrics`（`metricsAuth` + `promhttp`）暴露；②接线：manager 建连成功观测握手并置连接态 1、`closeSessionWithEvent`（健康失败/禁用/删除/重载共用）置 0、发现后写工具状态计数、acquire/release 写并发使用率、预算判定写租户工具面规模；provider 每次下游调用写耗时与 `ok/error/timeout/canceled` 计数、截断单独计数；③告警：`docs/ops/mcp-alert-rules.yml` 1 组 10 条（断流/连接不可用/握手慢/失败率/时延/工具面预算/token 占比/隔离堆积/截断频繁/并发饱和），阈值与 `mcp.tools_*` 默认值对齐，YAML 经 `js-yaml` 解析校验；④手册：`docs/ops/mcp-runbook.md`（快速定位/日常操作/凭据泄露四级应急处置 L1→L1.5→L2→L3 + 轮换/故障排查/指标与告警/审计取证/回滚路径）；⑤演练：`TestDrill_CredentialLeakEmergencyDisable` 自动化复现 runbook 关键路径（L3 工具停用→工具面收缩且连接不变；L2 禁用→工具面塌缩 + 连接态 0 + **零下游调用**；恢复→仅仍启用工具回面、连接态回 1），`-count=2` 稳定；⑥测试：`go test ./metrics/ ./mcp/... ./config/` **10 包全 ok**（含指标暴露断言 10 项、provider 调用指标、演练用例），`go build ./...`/vet exit 0，gofumpt 无输出、staticcheck exit 0（证据 `docs/plan/evidence/mcp-m2/M2-06-integration-evidence.md`）。**范围说明**：含管理页点击的人工桌面演练归 M2-05/M2-07（未虚报）。**状态**：M2-06 = `integration_verified`（A2-06）；§3.1/§3.3.1/§5.2.1/§8.4/§11.1 已回写 |

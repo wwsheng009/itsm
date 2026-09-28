@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"itsm-backend/mcp/transport"
+	"itsm-backend/metrics"
 	"itsm-backend/pkg/redact"
 	"itsm-backend/service"
 
@@ -109,11 +110,15 @@ func (p *Provider) execute(ctx context.Context, tenantID int, name string, args 
 	// 执行策略（M1-08）：读工具可至多重试 1 次（瞬时错误），写工具恒不重试。
 	var result *client.CallResult
 	var err error
+	callStarted := time.Now()
 	if policySource, ok := p.source.(RetryableToolSource); ok {
 		result, err = policySource.CallToolWithPolicy(ctx, tool.serverID, tool.rawName, args, tool.def.ReadOnly)
 	} else {
 		result, err = p.source.CallTool(ctx, tool.serverID, tool.rawName, args)
 	}
+	// M2-06：调用耗时与结果分类（标签只用 server/tool，不含参数）。
+	metrics.MCPToolCallDuration.WithLabelValues(tool.serverName, tool.callable).Observe(time.Since(callStarted).Seconds())
+	metrics.MCPToolCalls.WithLabelValues(tool.serverName, tool.callable, metricsCallOutcome(err)).Inc()
 	if err != nil {
 		mapped := mapCallError(err)
 		finish(mapped)
@@ -125,10 +130,27 @@ func (p *Provider) execute(ctx context.Context, tenantID int, name string, args 
 		return execution, err
 	}
 	execution.Value = value
+	if output, ok := value.(Output); ok && output.Truncated {
+		metrics.MCPOutputTruncated.WithLabelValues(tool.serverName, tool.callable).Inc()
+	}
 	// 摘要：脱敏 + 截断（落 tool_invocations.output_summary；不落原始 Value）。
 	execution.OutputSummary = redact.ValueSummary(value, 512)
 	finish(nil)
 	return execution, nil
+}
+
+// metricsCallOutcome 把调用错误映射为指标结果分类（M2-06）。
+func metricsCallOutcome(err error) string {
+	switch {
+	case err == nil:
+		return metrics.MCPCallOutcomeOK
+	case errors.Is(err, context.DeadlineExceeded):
+		return metrics.MCPCallOutcomeTimeout
+	case errors.Is(err, context.Canceled):
+		return metrics.MCPCallOutcomeCanceled
+	default:
+		return metrics.MCPCallOutcomeError
+	}
 }
 
 // mapCallError 把传输层错误映射为稳定、可回显的 provider 错误码。

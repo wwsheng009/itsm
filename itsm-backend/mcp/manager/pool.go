@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"itsm-backend/mcp/client"
+	"itsm-backend/metrics"
 )
 
 // ServerStatus 是服务器运行位（与 ent `mcp_servers.status` 取值一致）。
@@ -128,6 +129,7 @@ func newConn(cfg ServerConfig, dial DialFunc) *conn {
 func (c *conn) acquire(ctx context.Context) error {
 	select {
 	case c.sem <- struct{}{}:
+		c.observeConcurrency()
 		return nil
 	case <-ctx.Done():
 		return ctx.Err()
@@ -138,8 +140,15 @@ func (c *conn) acquire(ctx context.Context) error {
 func (c *conn) release() {
 	select {
 	case <-c.sem:
+		c.observeConcurrency()
 	default:
 	}
+}
+
+// observeConcurrency 写出并发使用率指标（M2-06：in_use / limit）。
+func (c *conn) observeConcurrency() {
+	metrics.MCPConcurrencyInUse.WithLabelValues(c.cfg.Name).Set(float64(len(c.sem)))
+	metrics.MCPConcurrencyLimit.WithLabelValues(c.cfg.Name).Set(float64(cap(c.sem)))
 }
 
 func (c *conn) snapshot() StatusSnapshot {

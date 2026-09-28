@@ -1,0 +1,139 @@
+# MCP（外部工具接入）告警规则样例（M2-06）
+#
+# 归属：实施方案 docs/plan/itsm-mcp-external-tool-integration-implementation-plan-2026-09-27.md §4.3 M2-06。
+# 用法：把本文件放入 Prometheus 的 rule_files（或 Thanos/Mimir 对应位置），按部署实际调整
+#       for / 阈值 / 通知路由；`itsm_mcp_*` 指标由 `itsm-backend/metrics/mcp_metrics.go` 暴露，
+#       抓取端点 = 后端既有 `/metrics`（router.go 的 metricsAuth 分组，需鉴权）。
+#
+# 适配提示：
+#   - 阈值 40 / 128000 / 0.30 与 `mcp.tools_budget` / `mcp.tools_context_tokens` / `mcp.tools_token_share`
+#     默认值一致；若部署侧改过配置，请同步本文件的表达式（工具面超限事件另有
+#     `mcp.tools.budget_exceeded` 走事件流，指标规则用于「趋势预警」）。
+#   - `mcp.enabled=false` 时进程不装配 MCP 组件、不产生任何 MCP 指标序列；本文件规则使用
+#     `absent()` 的前置条件写法（见 ItsmMCPMetricsMissing），避免把「功能未启用」误报为故障。
+groups:
+  - name: itsm-mcp.rules
+    rules:
+      # 采集断流：功能已启用（存在任意 MCP 序列）但 connected 序列消失 → 指标管线问题。
+      - alert: ItsmMCPMetricsMissing
+        expr: |
+          (count(itsm_mcp_server_connected) or vector(0)) == 0
+        for: 15m
+        labels:
+          severity: warning
+          component: mcp
+        annotations:
+          summary: "MCP 指标缺失（可能未启用 mcp，或 /metrics 抓取失败）"
+          runbook: "docs/ops/mcp-runbook.md#5-指标与告警"
+
+      # 连接不可用：服务器连接态指标长时间为 0。
+      - alert: ItsmMCPServerDisconnected
+        expr: itsm_mcp_server_connected == 0
+        for: 5m
+        labels:
+          severity: critical
+          component: mcp
+        annotations:
+          summary: "MCP 服务器 {{ $labels.server }} 连接不可用（>5m）"
+          description: "连接态=0。先看 GET …/ai/mcp-servers/{{ $labels.server }} 的 last_error 与 /events 事件流（auth_required / reload_failed / disable_grace_expired）。"
+          runbook: "docs/ops/mcp-runbook.md#4-故障排查"
+
+      # 握手过慢：P95 建连+握手 > 5s（网络/对端拥塞或被 SSRF 策略重试）。
+      - alert: ItsmMCPHandshakeSlow
+        expr: |
+          histogram_quantile(0.95,
+            sum by (server, le) (rate(itsm_mcp_handshake_duration_seconds_bucket[10m]))
+          ) > 5
+        for: 15m
+        labels:
+          severity: warning
+          component: mcp
+        annotations:
+          summary: "MCP {{ $labels.server }} 握手 P95 > 5s"
+          runbook: "docs/ops/mcp-runbook.md#4-故障排查"
+
+      # 调用失败率：error/timeout/canceled 占比 > 20%（低流量钳制避免除零）。
+      - alert: ItsmMCPCallFailureRateHigh
+        expr: |
+          sum by (server) (rate(itsm_mcp_tool_calls_total{outcome=~"error|timeout|canceled"}[10m]))
+          /
+          clamp_min(sum by (server) (rate(itsm_mcp_tool_calls_total[10m])), 0.001)
+          > 0.2
+        for: 10m
+        labels:
+          severity: critical
+          component: mcp
+        annotations:
+          summary: "MCP {{ $labels.server }} 调用失败率 > 20%（10m）"
+          runbook: "docs/ops/mcp-runbook.md#4-故障排查"
+
+      # 调用时延：P95 > 10s。
+      - alert: ItsmMCPCallLatencyHigh
+        expr: |
+          histogram_quantile(0.95,
+            sum by (server, le) (rate(itsm_mcp_tool_call_duration_seconds_bucket[10m]))
+          ) > 10
+        for: 10m
+        labels:
+          severity: warning
+          component: mcp
+        annotations:
+          summary: "MCP {{ $labels.server }} 调用 P95 > 10s"
+          runbook: "docs/ops/mcp-runbook.md#4-故障排查"
+
+      # 工具面预算：工具数超过预算（默认 40）持续 30m → 评估检索式工具面（M2-03 评估产物）。
+      - alert: ItsmMCPToolFaceBudgetExceeded
+        expr: itsm_mcp_tool_face_tools > 40
+        for: 30m
+        labels:
+          severity: warning
+          component: mcp
+        annotations:
+          summary: "租户 {{ $labels.tenant_id }} MCP 工具面 {{ $value }} 个 > 预算 40"
+          description: "事件流应有 mcp.tools.budget_exceeded；治理建议见 M2-03 证据 §4（检索式工具面评估）。"
+          runbook: "docs/ops/mcp-runbook.md#5-指标与告警"
+
+      # 工具面 token 占比：> 128000 的 30% 持续 30m。
+      - alert: ItsmMCPToolFaceTokenShareHigh
+        expr: itsm_mcp_tool_face_tokens / 128000 > 0.30
+        for: 30m
+        labels:
+          severity: warning
+          component: mcp
+        annotations:
+          summary: "租户 {{ $labels.tenant_id }} 工具面估算占比 > 30%"
+          runbook: "docs/ops/mcp-runbook.md#5-指标与告警"
+
+      # 隔离工具堆积：schema 变更隔离未被复核（>0 持续 15m）。
+      - alert: ItsmMCPToolsQuarantined
+        expr: itsm_mcp_tools{state="quarantined"} > 0
+        for: 15m
+        labels:
+          severity: warning
+          component: mcp
+        annotations:
+          summary: "MCP {{ $labels.server }} 有 {{ $value }} 个工具处于隔离待复核"
+          runbook: "docs/ops/mcp-runbook.md#4-故障排查"
+
+      # 结果截断频繁：>0.1 次/秒（10m）→ 提示工具设计或上限配置问题。
+      - alert: ItsmMCPOutputTruncatedFrequent
+        expr: sum by (server) (rate(itsm_mcp_output_truncated_total[10m])) > 0.1
+        for: 15m
+        labels:
+          severity: info
+          component: mcp
+        annotations:
+          summary: "MCP {{ $labels.server }} 结果截断频繁（>0.1/s）"
+          runbook: "docs/ops/mcp-runbook.md#4-故障排查"
+
+      # 并发饱和：使用率 > 90% 持续 10m → 扩容并发上限或排查慢调用。
+      - alert: ItsmMCPConcurrencySaturated
+        expr: |
+          itsm_mcp_concurrency_in_use / clamp_min(itsm_mcp_concurrency_limit, 1) > 0.9
+        for: 10m
+        labels:
+          severity: warning
+          component: mcp
+        annotations:
+          summary: "MCP {{ $labels.server }} 并发使用率 > 90%"
+          runbook: "docs/ops/mcp-runbook.md#4-故障排查"

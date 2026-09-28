@@ -2,9 +2,11 @@ package manager
 
 import (
 	"fmt"
+	"strconv"
 	"strings"
 
 	"itsm-backend/mcp/budget"
+	"itsm-backend/metrics"
 )
 
 // M2-03：工具面预算与告警。
@@ -59,6 +61,10 @@ func (m *Manager) ToolBudgetReport(tenantID int) budget.Report {
 // 未超限时仅复位内部状态，不发“恢复”事件（恢复可从 health/事件流的时间序推断）。
 func (m *Manager) EvaluateToolBudget(tenantID int) budget.Report {
 	report := m.ToolBudgetReport(tenantID)
+	// M2-06：工具面规模指标（看板趋势用；超限事件仍走事件流）。
+	tenantLabel := strconv.Itoa(tenantID)
+	metrics.MCPToolFaceTools.WithLabelValues(tenantLabel).Set(float64(report.Surface.Tools))
+	metrics.MCPToolFaceTokens.WithLabelValues(tenantLabel).Set(float64(report.Surface.Tokens))
 
 	m.budgetMu.Lock()
 	if m.budgetLast == nil {
