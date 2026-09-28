@@ -24,6 +24,7 @@ M2-05 要求「浏览器 E2E 全链路绿」。本机（Windows）**无法提供
 | 交付物 | 路径 | 说明 |
 | --- | --- | --- |
 | MCP 浏览器/API E2E 规格 | `itsm-frontend/tests/e2e/flows/flow-mcp-admin.spec.ts` | 3 个用例：①管理面 API 全链路（建服务器→测试连接→启用→工具发现/治理→凭据轮换→禁用，含 D3 前缀与 D7 默认拒绝断言）；②管理页浏览器渲染与交互（UI 登录 → `/admin/mcp-servers` → 服务器行/状态徽标/健康摘要/工具抽屉 + console error 收集 + 截图）；③治理页冒烟 `/ai/approval`、`/ai/audit` |
+| MCP 对话链路浏览器用例 | `itsm-frontend/tests/e2e/flows/flow-mcp-chat-chain.spec.ts` | 1 个用例（A2-05 核心环节）：幂等准备固定名服务器 `e2e-mcp-chat`（冲突先删后建）→ 启用 → **批量启用工具**（D7：新工具默认不启用）→ UI 在 `/ai/chat` 发送含触发词 `__tool__` 的消息 → 断言 ①助手回复到达（mock 固定回复标记）②`[data-testid="tool-call-timeline"]` 可见且包含投影名 `mcp__e2e-mcp-chat__list_issues` ③无 console error + 截图 |
 | CI 作业 | `.github/workflows/e2e-mcp.yml` | 真实栈：postgres:16 service + mock MCP 服务器（`cmd/mcp-mockserver` :19090）+ 后端（`MCP_ENABLED/MCP_WRITE_ENABLED/MCP_ENCRYPTION_KEY`）+ 前端（vite dev :3000，`ITSM_BACKEND_URL` 指向 :8090）+ `playwright install --with-deps chromium` + 规格执行 + 证据归档（playwright-report / trace / 截图 / 后端与 mock 日志） |
 | 确定性 LLM 替身（P7 前置） | `itsm-backend/service/llm_mock_provider.go` + `llm_mock_provider_test.go` | 实现 `LLMProvider` / `StreamingLLMProvider` / `ToolCallingStreamProvider` 三件套：固定回复切片流式下发；声明了工具且内容命中触发词（默认 `__tool__`）时发起**一次确定性**工具调用（`mock-call-N` + 指定/回落工具名 + JSON 参数）。**双条件启用**（`llm.provider=mock` ∧ `LLM_MOCK_ENABLED=true`），未显式开启时回退默认 provider（生产不会隐式启用替身）。CI 作业已注入 `LLM_PROVIDER=mock` / `LLM_MOCK_ENABLED=true` / `LLM_MOCK_TRIGGER=__tool__` |
 
@@ -48,6 +49,7 @@ M2-05 要求「浏览器 E2E 全链路绿」。本机（Windows）**无法提供
 2. **首个管理员创建**：`cmd/initialize -action generate-bootstrap-token -tenant-id 1` 的输出解析 + `POST /api/v1/bootstrap/create-admin` 请求体；密码固定为 `AdminProd2026!` 以对齐 `tests/e2e/fixtures/auth.ts` 的 `TEST_ACCOUNTS.admin`（注：该密码**不在仓库内**，由部署侧 seeder/运维设定，故 CI 必须自建管理员）；
 3. **后端起库/迁移/种子**：以 `config.yaml.example` 作配置文件（含 `${ENV:default}` 占位符）直接启动，若迁移需显式命令则补充；
 4. **登录响应形状**：规格从 `POST /api/v1/auth/login` 响应读取 `data.accessToken`；若为纯 Cookie 会话，规格会在该用例 `skip` 并给出提示（不假红），此时需按实际会话形态调整前置方式。
+5. **对话链路选择器**（`flow-mcp-chat-chain.spec.ts`）：对话页输入框（placeholder 文案）、发送方式（Enter / 发送按钮）、时间线出现时机；若前端要求先选择会话/助手，需补一步。
 
 ## 5. 规格覆盖面与残留
 
@@ -55,9 +57,10 @@ M2-05 要求「浏览器 E2E 全链路绿」。本机（Windows）**无法提供
 - 管理面 API 全链路（真实后端 + 真实 mock MCP 服务器，无打桩）；
 - 管理页浏览器真实渲染与交互（服务器行/状态/摘要/工具抽屉/无 console error/截图）；
 - 审批页与审计页的浏览器冒烟。
+- **对话 → MCP 工具调用 → 时间线**（由 mock LLM provider 确定性驱动；用例已就绪，待真实栈执行）。
 
 **未覆盖（A2-05 仍缺）**：
-1. **对话内工具调用→审批卡片→执行→时间线** 的浏览器**用例**：本轮已补齐确定性驱动（mock LLM provider，见 §2 与下方测试记录），但对话页的浏览器用例尚未编写——需要先校准对话页/时间线/审批卡片的选择器（本机无真实栈可试跑），故与 `e2e-mcp.yml` 的其他校准点一并留待 CI 首轮。M1-05/M1-06/M1-07 的对话内卡片与来源维度当前仍由 jest 组件/页面用例覆盖（`tool-approval-card`、`tool-call-timeline`、审批页、审计页）；
+1. **写工具审批卡片**的浏览器断言（对话 → 待审批 → 审批通过 → 执行回填）：读工具链路已覆盖（见上），写链路需在用例中把目标工具分类为写（`read_only=false`、风险档）并断言 `[data-testid^="tool-approval-card-"]` 出现与后续回填；本轮未写（P7 的写工具浏览器证据仍缺，M1-05 的 jest 用例继续兜底）；
 2. **M0-14 遗留的管理页人工冒烟截图**：本规格的截图可作为其替代证据，但需在真实栈产出（待 CI 首绿）；
 3. **R-16（前端套件性能）**：属 M2-05 出口的另一项，本轮未处理。
 

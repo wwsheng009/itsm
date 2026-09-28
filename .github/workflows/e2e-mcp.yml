@@ -13,6 +13,8 @@
 #       若迁移需额外命令（如 `go run ./cmd/migrate`）请补充；
 #    4) 登录响应形状：spec 会从 `POST /api/v1/auth/login` 响应取 `data.accessToken`；
 #       若为纯 Cookie 会话，spec 会在该用例上 skip 并给出提示（不假红）。
+#    5) 对话链路用例（flow-mcp-chat-chain.spec.ts）选择器：对话页输入框 placeholder、发送方式
+#       （Enter / 发送按钮）、时间线出现时机；必要时补「选择会话/助手」一步。
 name: e2e-mcp
 
 on:
@@ -30,6 +32,7 @@ on:
       - 'itsm-frontend/src/pages/(main)/ai/audit/**'
       - 'itsm-frontend/src/lib/api/mcp-api.ts'
       - 'itsm-frontend/tests/e2e/flows/flow-mcp-admin.spec.ts'
+      - 'itsm-frontend/tests/e2e/flows/flow-mcp-chat-chain.spec.ts'
       - 'itsm-frontend/playwright.config.ts'
       - '.github/workflows/e2e-mcp.yml'
   push:
@@ -83,6 +86,8 @@ jobs:
       LLM_PROVIDER: mock
       LLM_MOCK_ENABLED: 'true'
       LLM_MOCK_TRIGGER: '__tool__'
+      # 与 flow-mcp-chat-chain.spec.ts 的固定服务器名（e2e-mcp-chat）对齐，保证被调用工具可确定。
+      LLM_MOCK_TOOL_NAME: mcp__e2e-mcp-chat__list_issues
       # 前端 vite 代理目标（vite.config.ts: ITSM_BACKEND_URL）。
       ITSM_BACKEND_URL: http://127.0.0.1:8090
       # Playwright fixtures 的 API 基址与前端基址。
@@ -159,7 +164,11 @@ jobs:
       # 5) 执行 MCP 浏览器 E2E（webServer 由 playwright.config.ts 自动起 vite dev :3000）。
       - name: Run MCP E2E spec
         working-directory: itsm-frontend
-        run: npx playwright test tests/e2e/flows/flow-mcp-admin.spec.ts --project=chromium --reporter=list
+        run: |
+          npx playwright test \
+            tests/e2e/flows/flow-mcp-admin.spec.ts \
+            tests/e2e/flows/flow-mcp-chat-chain.spec.ts \
+            --project=chromium --reporter=list
 
       # 6) 证据归档（A2-05 的浏览器证据：截图 / trace / 报告）。
       - name: Upload artifacts
