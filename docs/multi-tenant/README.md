@@ -54,7 +54,7 @@
 
 | 脚本 | 作用 |
 |---|---|
-| `scripts/msp/build-provision-tenant.sh` | 构建 `provision_tenant` 二进制（内网走 goproxy.cn），产物 `/tmp/provision_tenant_linux_amd64` |
+| `scripts/msp/build-provision-tenant.sh` | 构建 `provision_tenant` 二进制（内网走 goproxy.cn），产物 `$HOME/itsm-artifacts/provision_tenant_linux_amd64`（snap docker 可见路径） |
 | `scripts/msp/setup-msp-tenants.sh` | 一键初始化：租户创建 → 模板供给 → MSP 授权 → 首个用户 → 分配 → 隔离性验证（幂等） |
 
 使用方式与阶段说明见 [02 文档 §10](./02-deployment-and-configuration.md)；实测输出见 [06 文档 §7](./06-verification-and-troubleshooting.md)。

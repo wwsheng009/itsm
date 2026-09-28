@@ -33,6 +33,10 @@ PG_CONTAINER="${PG_CONTAINER:-itsm-postgres-prod}"
 DB_NAME="${DB_NAME:-itsm_prod}"
 DB_USER="${DB_USER:-itsm}"
 PROVISION_BIN_HOST="${PROVISION_BIN_HOST:-/tmp/provision_tenant_linux_amd64}"
+# snap 版 docker 的守护进程拥有独立 /tmp（宿主 /tmp 对其 docker cp / -v 不可见：实测
+# docker cp 返回成功但容器内仍是旧文件），且 snap 的 home 接口不放行 $HOME 下的隐藏目录，
+# 因此暂存目录必须放在 $HOME 的非隐藏目录（默认 $HOME/itsm-artifacts）。
+PROVISION_STAGE_DIR="${PROVISION_STAGE_DIR:-$HOME/itsm-artifacts}"
 MSP_STAFF_PASSWORD="${MSP_STAFF_PASSWORD:-Msp@2026Staff!}"
 CUSTOMER_PASSWORD="${CUSTOMER_PASSWORD:-Cust@2026User!}"
 # 设为 1 时即使目标租户已有模板数据也强制重跑 provision_tenant（用于验证二进制可用性；
@@ -158,7 +162,24 @@ provision_tenant() { # tenant_id
     echo "缺少 $PROVISION_BIN_HOST，无法供给租户 $tid；构建方法见 docs/multi-tenant/ 部署文档" >&2
     exit 1
   fi
-  sdo docker cp "$PROVISION_BIN_HOST" "$BACKEND_CONTAINER:/tmp/provision_tenant" >/dev/null
+  local staged bin_sha got_sha
+  staged="$PROVISION_STAGE_DIR/provision_tenant_linux_amd64"
+  mkdir -p "$PROVISION_STAGE_DIR"
+  cp -f "$PROVISION_BIN_HOST" "$staged"
+  chmod 0755 "$staged"
+  bin_sha=$(sha256sum "$staged" | awk '{print $1}')
+  sdo docker cp "$staged" "$BACKEND_CONTAINER:/tmp/provision_tenant" >/dev/null
+  got_sha=$(sdo docker exec "$BACKEND_CONTAINER" sha256sum /tmp/provision_tenant 2>/dev/null | awk '{print $1}')
+  if [ "$got_sha" != "$bin_sha" ]; then
+    echo "provision_tenant 注入容器失败（容器内 sha256=${got_sha:-空} 期望=$bin_sha）" >&2
+    echo "提示：snap 版 docker 看不到 /tmp，请把二进制放到 \$HOME 下（如 $PROVISION_STAGE_DIR）" >&2
+    exit 1
+  fi
+  # 容器内默认用户可能不是 root（如 app），对 root 所有的文件 chmod 会 EPERM；
+  # 宿主机侧已 chmod 0755 且 docker cp 保留权限位，仅在缺失执行位时用 root 兜底。
+  if ! sdo docker exec "$BACKEND_CONTAINER" test -x /tmp/provision_tenant; then
+    sdo docker exec -u 0 "$BACKEND_CONTAINER" chmod +x /tmp/provision_tenant
+  fi
   sdo docker exec -w /app "$BACKEND_CONTAINER" /tmp/provision_tenant \
     -tenant-id "$tid" -template-version 1.0.0 2>&1 | tail -n 2
 }

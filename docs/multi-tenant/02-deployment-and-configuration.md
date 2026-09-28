@@ -107,14 +107,15 @@ scp /tmp/provision_tenant_linux_amd64 <host>:/tmp/
 
 ```bash
 bash build-provision-tenant.sh
-# 构建完成：/tmp/provision_tenant_linux_amd64
+# 构建完成：$HOME/itsm-artifacts/provision_tenant_linux_amd64
 ```
 
 说明：
 
-- 仓库无 `vendor/` 目录，模块需联网下载；本环境实测主机**无法直连 `proxy.golang.org`**（超时）、可直连 `goproxy.cn`，故方式 B 默认 `GOPROXY=https://goproxy.cn,direct` 且 `GOSUMDB=off`，模块缓存持久化在 `/tmp/itsm-gomod-cache`；
+- 仓库无 `vendor/` 目录，模块需联网下载；本环境实测主机**无法直连 `proxy.golang.org`**（超时）、可直连 `goproxy.cn`，故方式 B 默认 `GOPROXY=https://goproxy.cn,direct` 且 `GOSUMDB=off`，模块缓存持久化在 `$HOME/itsm-artifacts/gomod-cache`；
+- **snap 版 docker 的路径约束（本机实测）**：`/snap/bin/docker` 的守护进程拥有独立 `/tmp`，宿主 `/tmp` 对其 `docker cp` / `docker run -v` 不可见（`docker cp` 会返回成功但容器内仍是旧文件、`-v` 产物会"写丢"）；snap 的 `home` 接口也不放行 `$HOME` 下的隐藏目录。因此产物、缓存与暂存目录一律使用 `$HOME` 下的**非隐藏**目录（默认 `$HOME/itsm-artifacts`）；
 - 本次实测中方式 B 的容器内模块下载长时间无进展（容器被反复重建），最终采用方式 A 完成构建与供给验证；方式 B 保留给网络/缓存良好的主机；
-- 方式 B 可覆盖变量：`REPO_DIR` / `OUT` / `IMAGE` / `GOPROXY_URL` / `GOMOD_CACHE` / `SUDO_PASS`。
+- 方式 B 可覆盖变量：`REPO_DIR` / `OUT` / `IMAGE` / `GOPROXY_URL` / `GOMOD_CACHE` / `ARTIFACT_DIR` / `SUDO_PASS`。
 
 ### 10.2 一键初始化
 
@@ -141,5 +142,6 @@ bash setup-msp-tenants.sh
 
 - 需 `sudo` 免密或提供 `SUDO_PASS`；脚本通过 `docker exec` 访问 PostgreSQL 与应用容器；
 - `PROVISION_BIN_HOST` 默认 `/tmp/provision_tenant_linux_amd64`，缺失时脚本报错退出；
+- 注入容器前脚本会把二进制复制到 `$HOME/itsm-artifacts`（snap docker 可见）并**校验 sha256**，不一致即失败退出（规避 snap docker 下 `docker cp` 静默复制旧文件的问题）；
 - 脚本只创建/补齐数据，**不删除**任何数据；对已有同 code 租户复用其 ID；
 - 客户租户 ID 与 provider 绑定由 API 写入，若失败会打印原始响应并以非零码退出。

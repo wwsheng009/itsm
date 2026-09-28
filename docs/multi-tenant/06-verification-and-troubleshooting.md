@@ -146,14 +146,15 @@ FROM msp_allocations ORDER BY msp_user_id;
 # 1) 构建 provision_tenant（本机交叉编译；服务器侧容器构建见 02 文档 §10.1）
 cd itsm-backend
 GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -trimpath -o /tmp/provision_tenant_linux_amd64 ./cmd/provision_tenant
-scp /tmp/provision_tenant_linux_amd64 <host>:/tmp/
+ssh <host> 'mkdir -p ~/itsm-artifacts'
+scp /tmp/provision_tenant_linux_amd64 <host>:~/itsm-artifacts/
 
 # 2) 一键初始化（幂等；FORCE_PROVISION=1 可强制重跑模板供给以验证二进制）
-scp scripts/msp/setup-msp-tenants.sh <host>:/tmp/
-ssh <host> 'bash /tmp/setup-msp-tenants.sh'
+scp scripts/msp/setup-msp-tenants.sh <host>:~/msp-scripts/
+ssh <host> 'cd ~/msp-scripts && PROVISION_BIN_HOST=~/itsm-artifacts/provision_tenant_linux_amd64 bash setup-msp-tenants.sh'
 ```
 
-> 说明：实测中"服务器侧用 golang 容器构建"因容器内模块下载（goproxy.cn）长时间无进展而改用本机交叉编译；两种方式产物一致，容器脚本保留在仓库供有缓存/网络良好的主机使用。
+> 说明：实测中"服务器侧用 golang 容器构建"因容器内模块下载（goproxy.cn）长时间无进展而改用本机交叉编译；两种方式产物一致，容器脚本保留在仓库供有缓存/网络良好的主机使用。**snap 版 docker 下宿主 `/tmp` 对 `docker cp` / `-v` 不可见**（详见 02 文档 §10.1 与 07 文档 G10），故二进制与脚本放在 `$HOME` 下的非隐藏目录。
 
 ## 8. 缺口索引
 

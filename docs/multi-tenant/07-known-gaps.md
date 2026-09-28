@@ -18,6 +18,7 @@
 | G7 | CLI 工具 stdout 混入状态行 | `psql -tAc` 的 `INSERT 0 1` 污染 `returning id` 输出，自动化解析失败 | `last_number()` 过滤 | 工具输出规范（§8） | P2 |
 | G8 | 缓存 key 无租户维度 | 多客户场景存在串数据风险 | 未验证/未修 | 缓存 key 统一带 `tenant_id`（ADR-004 A8）（§9） | P1 |
 | G9 | `X-Tenant-Code` 与 JWT 冲突被静默忽略 | 调用方误以为切换了租户；无冲突告警，排障困难（不越权） | 依赖 JWT 租户；探针按实测标注 | Header 与 JWT 冲突时返回 401/400 并记录告警（§10） | P2 |
+| G10 | snap 版 docker 下宿主 `/tmp` 对守护进程不可见 | `docker cp` 静默复制旧文件；`docker run -v /tmp/...` 产物"写丢"，构建/供给莫名失败 | 产物与暂存目录放 `$HOME` 非隐藏目录 + sha256 校验（§11） | 文档/脚本固化路径约定；容器化部署优先用 bind 到 `$HOME` 或非 snap docker | P1 |
 
 ## 2. G1 · 跨租户创建用户被 tenant guard 拦截
 
@@ -137,7 +138,33 @@
 
 **验收标准**：`X-Tenant-Code` 与 JWT 冲突时返回 401/400；一致时正常放行；日志含冲突双方租户 ID。
 
-## 11. 与 ADR-004 行动项的关系
+## 11. G10 · snap 版 docker 下宿主 `/tmp` 对守护进程不可见
+
+**现象（2026-09-28 实测）**：
+
+- 宿主 `/tmp/provision_tenant_linux_amd64`（123,248,392 字节，sha256 `e7f518…`）经 `docker cp` 注入容器后，容器内 `/tmp/provision_tenant` 仍是**旧文件**（119,537,895 字节，sha256 `7c14a7…`），且 `docker cp` 返回码为 0、无任何报错；
+- `docker run -v /tmp:/out ...` 的构建产物在宿主 `/tmp` 不可见（模块缓存目录同样为空），表现为"构建成功但找不到二进制"；
+- 将源文件换到 `/home/<user>/...` 后 `docker cp` 立即恢复正常（sha256 一致）。
+
+**根因**：docker 由 snap 安装（`/snap/bin/docker` → `/usr/bin/snap`，`snap list docker` = 29.8.0）。snap 沙箱为守护进程提供**独立的 `/tmp`**，宿主 `/tmp` 不在其可见范围内；snap 的 `home` 接口同时**不放行 `$HOME` 下的隐藏目录**（实测 `$HOME/.itsm-provision` 报 `permission denied`，`$HOME/itsm-artifacts` 正常）。
+
+**影响**：所有依赖 `docker cp` / `docker run -v` 且路径在 `/tmp` 的运维动作（二进制注入、构建产物导出、缓存挂载）都可能静默失败或使用陈旧文件；`docker cp` 不报错使问题极难定位。
+
+**当前规避**：
+
+- `scripts/msp/setup-msp-tenants.sh` 注入前先把二进制复制到 `$HOME/itsm-artifacts`（snap 可见）并**校验容器内 sha256**，不一致立即失败退出；
+- `scripts/msp/build-provision-tenant.sh` 的产物与模块缓存默认落在 `$HOME/itsm-artifacts`；
+- 本次实际采用的构建路径为本机交叉编译 + `scp` 到 `$HOME/itsm-artifacts`。
+
+**建议修复（环境/工具侧）**：
+
+1. 部署文档与运维脚本统一约定"docker 可见路径"（`$HOME` 下非隐藏目录，或 `/var/lib/...` 等），禁止把 docker 输入/输出放 `/tmp`；
+2. 或改用非 snap 安装的 docker（apt/deb），消除沙箱路径差异；
+3. 运维脚本对 `docker cp` / `-v` 结果做内容校验（本次已加 sha256 校验，可作为通用范式）。
+
+**验收标准**：在 snap docker 环境下按文档路径执行构建与注入，容器内文件与宿主 sha256 一致；文档不再出现"把二进制/构建产物放 `/tmp` 再 docker cp/-v"的指引。
+
+## 12. 与 ADR-004 行动项的关系
 
 | 本页缺口 | ADR-004 行动项 | 状态 |
 |---|---|---|
@@ -147,8 +174,9 @@
 | G7 | 工具规范 | 实测确认缺口，脚本已规避 |
 | G8 | A8（缓存租户维度） | 待验证/待修 |
 | G9 | A10（隔离回归） | 实测确认行为差异，需 fail-closed 化 |
+| G10 | 部署/工具链（非 ADR 行动项） | 实测确认，脚本与文档已规避 |
 
-## 12. 证据索引
+## 13. 证据索引
 
 - 脚本与复现步骤：[02 文档 §10](./02-deployment-and-configuration.md)、[06 文档 §7](./06-verification-and-troubleshooting.md)；
 - 代码位置：`middleware/tenant.go`、`middleware/msp_middleware.go`、`handlers/user/handler.go:516`、`pkg/seeder/tenant_provisioner.go:27-43`、`cmd/initialize`、`cmd/provision_tenant/main.go`；
