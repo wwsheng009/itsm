@@ -208,6 +208,7 @@ MCP 线：      ▼                    ▼                   ▼                
 | B0-03 | `integration_verified` | 同上（会话归属注入 + 拒绝结论回填 + 按会话回溯） |
 | B0-04 | `integration_verified` | `evidence/bot-b0/B0-04-integration-evidence.md`（预览分支 + 零写入 + 快照 version） |
 | B0-05 | `unit_verified` | `evidence/bot-b0/B0-05-integration-evidence.md`（键生成 + 执行路径接线 + 顺序/并发幂等回放 + 真实 SQLite 回查） |
+| B0-06 | `unit_verified` | `evidence/bot-b0/B0-06-integration-evidence.md`（default/strict 统一入口 + 审计四类字段接线 + MCP 档位解析修复） |
 
 ### 3.4 双线联合路线图（与 MCP 方案合并视图）
 
@@ -303,6 +304,7 @@ MCP 线：      ▼                    ▼                   ▼                
 - **要点**：`default` 档（常规字段保留、密钥/token/密码类强制掩码）与 `strict` 档（高敏工具全参数掩码）；`input_redacted`/`output_summary` 成为展示与审计的唯一来源，原始参数仅内存使用不入库；密钥类字段名单可配；错误文本沿既有脱敏范式（`llm_provider_admin_service.go:818`）。
 - **测试与证据**：表驱动（密钥类、嵌套 JSON、超长输出截断）；DB 断言无明文密钥；与 MCP 凭据脱敏（MCP M0-06）字段口径互查。
 - **DoD**：`unit_verified`。
+- **状态**：`unit_verified`（2026-09-27）——①新增 `service/bot/redactor.go`：`Redactor` + `Profile(default|strict)` + `NormalizeProfile`（未知/空 → strict）+ `RedactArgs/RedactResult/RedactText`；default 档与 `pkg/redact` **逐字节互查一致**，strict 档输出 `{profile,masked,keys,reason}` 信封（只留顶层键名，任何值不落库）；敏感键名单可追加（不改全局）。②审计接线：`redactionProfileFor(ctx,tenantID,tool)` 经 `GetToolForTenant` 解析（**MCP 治理标注同样生效**，未知工具 fail-closed strict）；写工具 pending / dry-run 预览 / 只读审计三处 `args_redacted` 同源；strict 档结果摘要全掩码；审批拒绝回填 `reason` 走档位化 `RedactText`。③测试：表驱动 5 例（含口径互查、截断、档位归一）+ 落库断言 2 例（default 无明文 / strict 只留键名）全绿。④**过程缺陷与修复**：初版用 `GetTool`（仅内置）导致 MCP 工具被误判 strict 全掩码，既有 `TestExecuteTool_MCPReadOnlyAuditTriple` 回归失败 → 改用 `GetToolForTenant` 并补全该测试 stub 的元数据标注。⑤口径边界（已登记）：default 档按键名判定，不做自由文本值级扫描。证据 `docs/plan/evidence/bot-b0/B0-06-integration-evidence.md`。
 
 #### B0-07 B0 集成验收（测试）
 
@@ -930,3 +932,4 @@ MCP 线：      ▼                    ▼                   ▼                
 | 2026-09-27 | AI 辅助执行 | **B0-04 交付（`integration_verified`）**：dry-run 预览分支（`service/tool_preview.go`：`create_ticket` 投影 + `update_ticket` diff，零业务写入）；预览快照 + 内容哈希 `version` 随记录落库（`dry_run=true/status=preview`，不进审批队列）；`ExecuteToolOptions{ConversationID,DryRun}` + `ExecuteToolWithOptions`（既有入口薄封装）；API 可选 `dryRun`；测试 6 例。证据 `docs/plan/evidence/bot-b0/B0-04-integration-evidence.md`。 |
 | 2026-09-27 | AI 辅助执行 | **B0-05 部分交付**：新增 `service/bot/idempotency.go`——`BuildKey`（作用域 = 租户+发起人+工具+目标+参数；`v1` 拼接顺序冻结；canonical JSON；sha256 hex 只存 hash）、`TargetFromArgs`、`IsUniqueViolation`；UT 6 例（确定性/维度隔离/不透明性/空参等价/目标提取/唯一冲突识别）。**未接线**：执行路径生成键、唯一冲突 → 幂等回放（Repository 需新增按 hash 查询）待续，故 B0-05 未达 `unit_verified`。 |
 | 2026-09-27 | AI 辅助执行 | **B0-05 交付（`unit_verified`，接续部分交付）**：接线完成——Repository 新增 `GetToolInvocationByIdempotencyKey`；执行路径生成键、顺序重复直接回放（零新增）、唯一索引冲突 → 回查回放（非 500）；服务接线 4 例 + 真实 SQLite 回查 1 例全绿。证据 `docs/plan/evidence/bot-b0/B0-05-integration-evidence.md`。 |
+| 2026-09-27 | AI 辅助执行 | **B0-06 交付（`unit_verified`）**：统一脱敏入口 `service/bot/redactor.go`（default/strict；default 与 `pkg/redact` 逐字节互查；strict 只留键名）；审计四类字段接线（pending/dry-run/只读 args_redacted、strict 结果摘要、拒绝回填 reason）；档位经 `GetToolForTenant` 解析使 MCP 标注生效（修复初版误判 strict 的回归）。表驱动 5 例 + 落库断言 2 例。证据 `docs/plan/evidence/bot-b0/B0-06-integration-evidence.md`。 |

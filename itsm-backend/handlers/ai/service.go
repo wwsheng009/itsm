@@ -13,7 +13,6 @@ import (
 	"itsm-backend/ent"
 	"itsm-backend/metrics"
 	"itsm-backend/middleware"
-	"itsm-backend/pkg/redact"
 	"itsm-backend/service"
 	"itsm-backend/service/bot"
 
@@ -37,6 +36,8 @@ type Service struct {
 	summarizeService *service.SummarizeService
 	// P2-6: ent client，用于复用 RBAC hasResourcePermission
 	entClient *ent.Client
+	// B0-06：统一脱敏入口（按工具元数据的 default/strict 档位口径）。
+	redactor *bot.Redactor
 }
 
 func NewService(
@@ -64,6 +65,7 @@ func NewService(
 		triageService:      triageService,
 		rca:                rca,
 		aiTelemetryService: aiTelemetryService,
+		redactor:           bot.NewRedactor(),
 	}
 }
 
@@ -274,7 +276,7 @@ func (s *Service) ExecuteToolWithOptions(ctx context.Context, userID, tenantID i
 		ConversationID:   conversationIDFrom(ctx), // B0-03：聊天路径会话归属（无会话则为 0，不入列）
 		ToolName:         name,
 		Arguments:        string(argsStr),
-		ArgsRedacted:     redact.ArgsJSON(args, 0),
+		ArgsRedacted:     s.redactArgs(ctx, tenantID, name, args),
 		Status:           "pending",
 		NeedsApproval:    true,
 		ApprovalState:    "pending",
@@ -304,6 +306,28 @@ func (s *Service) ExecuteToolWithOptions(ctx context.Context, userID, tenantID i
 	}
 
 	return nil, inv.ID, nil
+}
+
+// redactionProfileFor 按工具元数据解析脱敏档（B0-06）。
+// 走 GetToolForTenant（内置优先 → provider 兜底），使 MCP 工具的治理标注同样生效；
+// 工具未知/未装配 → strict（最保守，与 B0-01 兜底口径一致）。
+func (s *Service) redactionProfileFor(ctx context.Context, tenantID int, toolName string) bot.Profile {
+	if s.tools == nil {
+		return bot.ProfileStrict
+	}
+	td := s.tools.GetToolForTenant(ctx, tenantID, toolName)
+	if td == nil {
+		return bot.ProfileStrict
+	}
+	return bot.NormalizeProfile(td.RedactionProfile)
+}
+
+// redactArgs 生成入参脱敏快照（审计/展示唯一来源；B0-06）。
+func (s *Service) redactArgs(ctx context.Context, tenantID int, toolName string, args map[string]interface{}) string {
+	if s.redactor == nil {
+		s.redactor = bot.NewRedactor()
+	}
+	return s.redactor.RedactArgs(s.redactionProfileFor(ctx, tenantID, toolName), args, 0)
 }
 
 // replayInvocation 构造幂等回放载荷（B0-05）：不重复执行，返回首次记录的状态与结果。
@@ -345,8 +369,8 @@ func (s *Service) recordToolAudit(ctx context.Context, tenantID, userID int, rol
 		PermissionCheck:  permCheck,
 		PermissionReason: permReason,
 		RoleSnapshot:     role,
-		// M0-11：脱敏入参快照——审计/展示唯一来源（Arguments 仍是执行真源，审批重放依赖它）。
-		ArgsRedacted: redact.ArgsJSON(args, 0),
+		// M0-11/B0-06：脱敏入参快照——审计/展示唯一来源（Arguments 仍是执行真源，审批重放依赖它）。
+		ArgsRedacted: s.redactArgs(ctx, tenantID, toolName, args),
 	}
 	if execution != nil {
 		audit.Provider = execution.Provider
@@ -355,7 +379,12 @@ func (s *Service) recordToolAudit(ctx context.Context, tenantID, userID int, rol
 		audit.McpCallableName = execution.CallableName
 		audit.DurationMs = execution.DurationMs
 		audit.ErrorCode = execution.ErrorCode
-		audit.OutputSummary = execution.OutputSummary
+		// B0-06：strict 档工具的结果摘要全掩码（只留键名），default 档沿用原语摘要。
+		if s.redactionProfileFor(ctx, tenantID, toolName) == bot.ProfileStrict {
+			audit.OutputSummary = s.redactor.RedactResult(bot.ProfileStrict, execution.Value, 0)
+		} else {
+			audit.OutputSummary = execution.OutputSummary
+		}
 		// B0-01：元数据快照（内置来自注册表、MCP 来自治理标注，均由 ToolExecution 携带）。
 		audit.Risk = execution.Risk
 		audit.Category = execution.Category
@@ -409,7 +438,7 @@ func (s *Service) executeDryRun(ctx context.Context, tenantID, userID int, role,
 		ConversationID:   conversationIDFrom(ctx),
 		ToolName:         name,
 		Arguments:        string(argsStr),
-		ArgsRedacted:     redact.ArgsJSON(args, 0),
+		ArgsRedacted:     s.redactArgs(ctx, tenantID, name, args),
 		Result:           &snapshot,
 		Status:           "preview",
 		NeedsApproval:    false,
@@ -445,7 +474,7 @@ func (s *Service) backfillToolDecision(ctx context.Context, inv *ToolInvocation,
 		"invocationId": inv.ID,
 		"tool":         inv.ToolName,
 		"decision":     decision,
-		"reason":       redact.ValueSummary(reason, 512),
+		"reason":       s.redactor.RedactText(s.redactionProfileFor(ctx, inv.TenantID, inv.ToolName), reason, 512),
 	})
 	if _, err := s.repo.CreateMessage(ctx, &Message{
 		ConversationID: inv.ConversationID,

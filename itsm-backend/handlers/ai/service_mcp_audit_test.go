@@ -79,6 +79,13 @@ func mcpReadTool(name string) service.ToolDefinition {
 		Resource:    "mcp",
 		Action:      "read",
 		ArgsSchema:  map[string]interface{}{"type": "object"},
+		// B0-01/B0-06：治理面下发的 MCP 工具带完整元数据标注；
+		// 缺标注会被保守归一化为 strict（全掩码），本测试验证的是 default 档口径。
+		Risk:             service.ToolRiskRead,
+		Category:         "issue_tracking",
+		RedactionProfile: service.ToolRedactionDefault,
+		TimeoutMs:        service.DefaultToolTimeoutMs,
+		MaxOutputBytes:   service.DefaultToolMaxOutputBytes,
 	}
 }
 
