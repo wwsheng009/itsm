@@ -207,7 +207,7 @@ MCP 线：      ▼                    ▼                   ▼                
 | B0-02 | `integration_verified` | `evidence/bot-b0/B0-02-B0-03-integration-evidence.md`（实体/读写契约 + 幂等唯一索引实测） |
 | B0-03 | `integration_verified` | 同上（会话归属注入 + 拒绝结论回填 + 按会话回溯） |
 | B0-04 | `integration_verified` | `evidence/bot-b0/B0-04-integration-evidence.md`（预览分支 + 零写入 + 快照 version） |
-| B0-05 | 部分交付：键生成模块 + UT 完成；执行路径接入与幂等回放待续（**未达 `unit_verified`**） | `service/bot/idempotency.go`（`BuildKey`/`TargetFromArgs`/`IsUniqueViolation`）+ `idempotency_test.go`（6 例） |
+| B0-05 | `unit_verified` | `evidence/bot-b0/B0-05-integration-evidence.md`（键生成 + 执行路径接线 + 顺序/并发幂等回放 + 真实 SQLite 回查） |
 
 ### 3.4 双线联合路线图（与 MCP 方案合并视图）
 
@@ -293,6 +293,7 @@ MCP 线：      ▼                    ▼                   ▼                
 - **要点**：hash 算法与拼接顺序冻结并写死测试；读工具不生成幂等键；同一幂等键重复请求 → 返回首次执行结果（为 B1-05 的幂等回放提供底座）；唯一冲突映射为幂等命中而非 500；hash 不含明文参数。
 - **测试与证据**：UT：同参数同键命中、参数变更键变化、跨租户/跨用户不串键；唯一索引冲突路径。
 - **DoD**：`unit_verified`。
+- **状态**：`unit_verified`（2026-09-27）——①`service/bot/idempotency.go`：`BuildKey`（`v1` 拼接顺序冻结：租户+发起人+工具+目标+参数；canonical JSON；sha256 hex 仅存 hash）、`TargetFromArgs`、`IsUniqueViolation`、`ErrDuplicateKey`；②仓储：新增 `GetToolInvocationByIdempotencyKey`（未命中返回 `(nil,nil)`，空键不查询）；③执行路径接线：写工具提交前生成键 → 顺序重复**直接回放首次记录**（零新增、不重复进审批队列）；创建时**唯一索引冲突 → 回查命中回放**（非 500）；键无法生成时 fail-closed；④回放载荷 `{idempotentReplay, invocationId, status, approvalState, toolName, result?}`；⑤测试：UT 6 例 + 服务接线 4 例（含并发窗口）+ 真实 SQLite 回查/唯一索引 1 例，全绿；`go build ./...` exit 0、gofumpt 无输出。未闭环：端到端幂等归 B0-07。证据 `docs/plan/evidence/bot-b0/B0-05-integration-evidence.md`。
 
 #### B0-06 基础脱敏引擎（后端）
 
@@ -928,3 +929,4 @@ MCP 线：      ▼                    ▼                   ▼                
 | 2026-09-27 | AI 辅助执行 | **B0-03 交付（`integration_verified`）**：会话归属注入（`ExecuteToolWithConversation` + API 可选 `conversationId`，既有入口行为不变）；审批拒绝 → 结构化结论回填会话（脱敏截断 + 失败打点）；契约测试 4 例；RBAC/审计既有用例回归通过。 |
 | 2026-09-27 | AI 辅助执行 | **B0-04 交付（`integration_verified`）**：dry-run 预览分支（`service/tool_preview.go`：`create_ticket` 投影 + `update_ticket` diff，零业务写入）；预览快照 + 内容哈希 `version` 随记录落库（`dry_run=true/status=preview`，不进审批队列）；`ExecuteToolOptions{ConversationID,DryRun}` + `ExecuteToolWithOptions`（既有入口薄封装）；API 可选 `dryRun`；测试 6 例。证据 `docs/plan/evidence/bot-b0/B0-04-integration-evidence.md`。 |
 | 2026-09-27 | AI 辅助执行 | **B0-05 部分交付**：新增 `service/bot/idempotency.go`——`BuildKey`（作用域 = 租户+发起人+工具+目标+参数；`v1` 拼接顺序冻结；canonical JSON；sha256 hex 只存 hash）、`TargetFromArgs`、`IsUniqueViolation`；UT 6 例（确定性/维度隔离/不透明性/空参等价/目标提取/唯一冲突识别）。**未接线**：执行路径生成键、唯一冲突 → 幂等回放（Repository 需新增按 hash 查询）待续，故 B0-05 未达 `unit_verified`。 |
+| 2026-09-27 | AI 辅助执行 | **B0-05 交付（`unit_verified`，接续部分交付）**：接线完成——Repository 新增 `GetToolInvocationByIdempotencyKey`；执行路径生成键、顺序重复直接回放（零新增）、唯一索引冲突 → 回查回放（非 500）；服务接线 4 例 + 真实 SQLite 回查 1 例全绿。证据 `docs/plan/evidence/bot-b0/B0-05-integration-evidence.md`。 |

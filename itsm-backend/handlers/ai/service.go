@@ -15,6 +15,7 @@ import (
 	"itsm-backend/middleware"
 	"itsm-backend/pkg/redact"
 	"itsm-backend/service"
+	"itsm-backend/service/bot"
 
 	"go.uber.org/zap"
 )
@@ -245,6 +246,29 @@ func (s *Service) ExecuteToolWithOptions(ctx context.Context, userID, tenantID i
 	if sourceProvider != service.ProviderNameBuiltin {
 		callableName = toolDef.Name
 	}
+	// B0-05：写工具统一幂等键（只存 hash；作用域 = 租户 + 发起人 + 工具 + 目标 + 参数）。
+	// 读工具不生成键（Idempotent=false，B0-01 已按 ReadOnly 推导）。
+	idemHash := ""
+	if toolDef.Idempotent {
+		targetType, targetID := bot.TargetFromArgs(args)
+		hash, keyErr := bot.BuildKey(bot.KeyInput{
+			TenantID:   tenantID,
+			UserID:     userID,
+			Tool:       name,
+			TargetType: targetType,
+			TargetID:   targetID,
+			Args:       args,
+		})
+		if keyErr != nil {
+			// fail-closed：无法生成幂等键时不降级为「普通提交」（否则重复提交会重复落地）。
+			return nil, 0, keyErr
+		}
+		idemHash = hash
+		// 顺序重复提交 → 直接回放首次结果（不新增记录、不重复进审批队列）。
+		if existing, lookupErr := s.repo.GetToolInvocationByIdempotencyKey(ctx, tenantID, idemHash); lookupErr == nil && existing != nil {
+			return replayInvocation(existing), existing.ID, nil
+		}
+	}
 	inv, err := s.repo.CreateToolInvocation(ctx, &ToolInvocation{
 		TenantID:         tenantID,
 		ConversationID:   conversationIDFrom(ctx), // B0-03：聊天路径会话归属（无会话则为 0，不入列）
@@ -262,15 +286,44 @@ func (s *Service) ExecuteToolWithOptions(ctx context.Context, userID, tenantID i
 		McpServerName:    toolDef.ServerName,
 		McpRawToolName:   toolDef.RawToolName,
 		McpCallableName:  callableName,
+		// B0-05：幂等键 hash（读工具为空串 → 不入列）。
+		IdempotencyKeyHash: idemHash,
 		// B0-01：元数据快照（调用时冻结，防后续治理变更导致审计歧义）。
 		Risk:     toolDef.Risk,
 		Category: toolDef.Category,
 	})
 	if err != nil {
+		// 并发重复提交：唯一索引冲突 → 映射为幂等命中（回查既有记录），而非 500。
+		if idemHash != "" && bot.IsUniqueViolation(err) {
+			if existing, lookupErr := s.repo.GetToolInvocationByIdempotencyKey(ctx, tenantID, idemHash); lookupErr == nil && existing != nil {
+				return replayInvocation(existing), existing.ID, nil
+			}
+			return nil, 0, bot.ErrDuplicateKey
+		}
 		return nil, 0, err
 	}
 
 	return nil, inv.ID, nil
+}
+
+// replayInvocation 构造幂等回放载荷（B0-05）：不重复执行，返回首次记录的状态与结果。
+func replayInvocation(inv *ToolInvocation) map[string]interface{} {
+	payload := map[string]interface{}{
+		"idempotentReplay": true,
+		"invocationId":     inv.ID,
+		"status":           inv.Status,
+		"approvalState":    inv.ApprovalState,
+		"toolName":         inv.ToolName,
+	}
+	if inv.Result != nil && *inv.Result != "" {
+		var decoded interface{}
+		if json.Unmarshal([]byte(*inv.Result), &decoded) == nil {
+			payload["result"] = decoded
+		} else {
+			payload["result"] = *inv.Result
+		}
+	}
+	return payload
 }
 
 // recordToolAudit 统一记录只读工具执行审计，包含 P2-6 RBAC 校验结果

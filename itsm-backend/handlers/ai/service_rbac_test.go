@@ -97,6 +97,11 @@ func (m *rbacMockRepo) GetToolInvocation(_ context.Context, _ int, _ int) (*ai.T
 	return nil, nil
 }
 
+// B0-05：默认 mock 无幂等命中（未命中即继续，属正常分支）。
+func (m *rbacMockRepo) GetToolInvocationByIdempotencyKey(_ context.Context, _ int, _ string) (*ai.ToolInvocation, error) {
+	return nil, nil
+}
+
 func (m *rbacMockRepo) UpdateToolInvocation(_ context.Context, i *ai.ToolInvocation) (*ai.ToolInvocation, error) {
 	return i, nil
 }

@@ -141,6 +141,21 @@ func TestEntRepository_IdempotencyKeyUniqueness(t *testing.T) {
 	_, err = repo.CreateToolInvocation(ctx, base(t1.ID))
 	require.NoError(t, err)
 
+	// B0-05 接线：按 (tenant_id, hash) 查得到、未命中返回 (nil, nil)、空键不查询。
+	found, err := repo.GetToolInvocationByIdempotencyKey(ctx, t1.ID, "same-hash")
+	require.NoError(t, err)
+	require.NotNil(t, found, "既有幂等键必须可回查（幂等回放前提）")
+	assert.Equal(t, "same-hash", found.IdempotencyKeyHash)
+	assert.Equal(t, t1.ID, found.TenantID)
+
+	miss, err := repo.GetToolInvocationByIdempotencyKey(ctx, t1.ID, "no-such-hash")
+	require.NoError(t, err)
+	assert.Nil(t, miss, "未命中是正常分支：返回 nil 而非错误")
+
+	empty, err := repo.GetToolInvocationByIdempotencyKey(ctx, t1.ID, "")
+	require.NoError(t, err)
+	assert.Nil(t, empty, "空键不得命中读工具记录（唯一索引对空串不约束）")
+
 	_, err = repo.CreateToolInvocation(ctx, base(t1.ID))
 	require.Error(t, err, "同租户同幂等键必须冲突（防止重复写）")
 

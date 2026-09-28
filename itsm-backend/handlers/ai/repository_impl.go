@@ -283,6 +283,28 @@ func (r *EntRepository) GetToolInvocation(ctx context.Context, id int, tenantID 
 	return toToolInvocationDomain(e), nil
 }
 
+// GetToolInvocationByIdempotencyKey 按 (tenant_id, idempotency_key_hash) 查既有调用（B0-05）。
+// 未命中返回 (nil, nil)：幂等查询的"未命中"是正常分支（继续创建），不是错误。
+func (r *EntRepository) GetToolInvocationByIdempotencyKey(ctx context.Context, tenantID int, keyHash string) (*ToolInvocation, error) {
+	if keyHash == "" {
+		// 防御：空键不得查询（唯一索引对空串不做唯一约束，避免误命中读工具记录）。
+		return nil, nil
+	}
+	e, err := r.client.ToolInvocation.Query().
+		Where(
+			toolinvocation.TenantID(tenantID),
+			toolinvocation.IdempotencyKeyHash(keyHash),
+		).
+		Only(ctx)
+	if err != nil {
+		if ent.IsNotFound(err) {
+			return nil, nil
+		}
+		return nil, err
+	}
+	return toToolInvocationDomain(e), nil
+}
+
 // ListToolInvocations 按租户 + 过滤条件列出工具调用记录，按创建时间倒序。
 // filter 为零值时返回该租户全部调用；State="pending" 即审批人待办；
 // Provider/Server 用于审批页与审计页的「来源 + 服务器」维度收敛（M1-06/M1-07）。

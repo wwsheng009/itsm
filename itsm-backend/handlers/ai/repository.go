@@ -20,6 +20,9 @@ type Repository interface {
 	CreateToolInvocation(ctx context.Context, i *ToolInvocation) (*ToolInvocation, error)
 	GetToolInvocation(ctx context.Context, id int, tenantID int) (*ToolInvocation, error)
 	UpdateToolInvocation(ctx context.Context, i *ToolInvocation) (*ToolInvocation, error)
+	// GetToolInvocationByIdempotencyKey 按幂等键查询既有调用（B0-05）；
+	// 无命中返回 (nil, nil)（幂等查询是"未命中即继续"，不是错误路径）。
+	GetToolInvocationByIdempotencyKey(ctx context.Context, tenantID int, keyHash string) (*ToolInvocation, error)
 	ListToolInvocations(ctx context.Context, tenantID int, filter ToolInvocationFilter) ([]*ToolInvocation, error)
 
 	// Root Cause Analysis
