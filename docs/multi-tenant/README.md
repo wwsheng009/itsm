@@ -59,6 +59,12 @@
 
 使用方式与阶段说明见 [02 文档 §10](./02-deployment-and-configuration.md)；实测输出见 [06 文档 §7](./06-verification-and-troubleshooting.md)。
 
+## 方案（plan/）
+
+| 方案 | 内容 |
+|---|---|
+| [msp-user-lifecycle-and-tenant-switching-plan.md](./plan/msp-user-lifecycle-and-tenant-switching-plan.md) | 多租户用户生命周期与租户切换：功能缺口 F1–F15（建号/登录选租户/切换上下文）、路线 A/B 选型、P0 详细设计、分期与验收 |
+
 ## 维护约定
 
 - 本目录为长期文档，文件名不带日期；变更须同步更新受影响文档与 ADR-004 的行动项状态；

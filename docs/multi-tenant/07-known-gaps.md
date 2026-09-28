@@ -4,6 +4,7 @@
 > **更新日期**：2026-09-28
 > **来源**：`saas_msp` 生产环境端到端初始化实测（1 服务商 + 2 客户，见 [06 文档 §7](./06-verification-and-troubleshooting.md)）
 > **用途**：记录实测中确认的**产品缺口**、当前运维规避手段与建议修复方向；缺口关闭后在本页更新状态，不删除历史结论。
+> **配套方案**：用户创建 / 登录选租户 / 租户切换相关缺口（G1/G2/G3/G9）的深入分析与分期方案见 [plan/msp-user-lifecycle-and-tenant-switching-plan.md](./plan/msp-user-lifecycle-and-tenant-switching-plan.md)（缺口编号 F1–F15）。
 
 ## 1. 缺口清单（按影响排序）
 
