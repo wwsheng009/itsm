@@ -113,9 +113,10 @@
 
 ### 6.3 `-race`（A6 / EX-06）
 
-- `go test -race ./mcp/registry/ ./mcp/transport/ -count=1` → **ok**（1.9s / 1.5s，无 DATA RACE）。
-- `go test -race ./tests/mcpintegration/ -count=1` → 首次因与全量回归/jest 并发导致工具 30 分钟上限被杀（**未产生结论**）；已改在轻载下重跑（结果见 §6.7 更新）。
-- 说明：`manager`/`admin` 等含墙钟语义的包建议以 CI 常态化 `-race` 覆盖（避免本机满载误报）。
+- `go test -race ./mcp/registry/ ./mcp/transport/ -count=1` → **ok**（1.9s / 1.5s）。
+- `go test -race ./tests/mcpintegration/ -count=1` → **ok 19.9s**（首次因与全量回归/jest 并发导致工具 30 分钟上限被杀，轻载重跑得结论）。
+- **全量**：`go test -race ./mcp/... ./tests/mcpintegration/ -count=1 -timeout 1800s` → **exit 0，8 包全 ok、无 DATA RACE**：admin 36.7s / client 8.8s / manager 4.5s / provider 23.6s / registry 2.1s / mockserver 7.3s / transport 2.5s / mcpintegration 38.9s（整轮 4 分 23 秒）。
+- 已据此接入 CI：`backend-ci.yml` 新增 **`mcp-race`** job（`go test -race ./mcp/... ./tests/mcpintegration/ -count=1 -timeout 30m`），常态化覆盖并发面（R-14/O-1 相关）。
 
 ### 6.4 Postgres 门控迁移用例（A1 / EX-01）
 
@@ -133,11 +134,23 @@
 - **复验**：`staticcheck ./mcp/... ./tests/mcpintegration/` → **exit 0（无输出）**；`gofumpt -l`（MCP 范围）→ 空；`go build`/`go vet` → exit 0；9 个包测试全绿（§6.1 复测）。
 - 备注：本机 gofumpt 还会列出仓库既有文件（`dto/*`、`handlers/auth|ticket*`）——属**预存在格式差异**（本地为源码构建、版本语义与 CI 发布包可能不同），本轮未触碰，避免引入无关 diff。
 
-### 6.6 文档门禁（docs-gate）
+### 6.6 CI 接线（本轮新增，S1/S2/S3 落地）
+
+`backend-ci.yml` 变更（YAML 已用 `js-yaml` 解析校验，job 列表 = lint / build / test / mcp-postgres-migrations / mcp-race / dependency-review）：
+
+| 项 | 变更 | 目的 |
+| --- | --- | --- |
+| S2 | Test job 的 `go test` 增加 **`-timeout 20m`** | 消除满载下 `panic: test timed out after 10m0s` 的假红（本机观测到 3 个包命中） |
+| S1 | 新增 **`mcp-postgres-migrations`** job：`postgres:16-alpine` service container（health-cmd `pg_isready`）+ `MCP_TEST_POSTGRES_DSN` + `go test ./ent/schema/ -run Postgres -count=1 -v` | 让 A0-03 的 Postgres 侧用例在 CI 真实执行（本地无 Docker/Postgres） |
+| S3 | 新增 **`mcp-race`** job：`go test -race ./mcp/... ./tests/mcpintegration/ -count=1 -timeout 30m` | 并发面常态化（本机已全绿，见 §6.3） |
+
+**风险与开关**：Postgres 侧用例此前从未在真实 Postgres 上跑过（本机仅 SKIP），故该 job **首轮以 `continue-on-error: true` 观察**；绿跑后删除该行即转为阻断门（已在 workflow 注释中写明）。`mcp-race` 有本机全绿依据，直接作为阻断门。
+
+### 6.7 文档门禁（docs-gate）
 
 - 本机无 `bash`（`bash: NOT FOUND`），`scripts/docs-gate/*.sh` 无法执行 → 以人工核对替代：本轮新增内容未引入 Markdown 链接（路径均为行内代码），不触发 C.3「断链」；未涉凭据/发布声明（C.1/C.4）。最终以 CI `docs-gate.yml` 为准。
 
-### 6.7 收尾复核（本轮结束时更新）
+### 6.8 收尾复核（本轮结束时更新）
 
 - `-race` 集成复跑：`go test -race ./tests/mcpintegration/ -count=1` → **ok 19.9s，无 DATA RACE**（总耗时 1292s，主要是 race 插桩重编译）；加上 `./mcp/registry/`、`./mcp/transport/` 的 race 结果，**A6 的 MCP 核心面已闭环**；其余包建议 CI 常态化覆盖。
 - 缺陷修复顺带产出：本轮修复 3 处负载敏感用例 + 6 处 staticcheck 问题 + 2 处格式问题 + 1 处 CI 行数硬门（`service.go` 拆分），详见 §6.1/§6.5。
@@ -148,9 +161,9 @@
 
 | # | 建议动作 | 归属 | 说明 |
 | --- | --- | --- | --- |
-| S1 | CI 增加 Postgres service container + `MCP_TEST_POSTGRES_DSN`，执行 `go test ./ent/schema/ -run Postgres`（A0-03 双驱动硬条件） | 后端 + CI 维护者 | 用例已就绪（`mcp_migration_postgres_test.go`），本机无 Docker/Postgres（已实测 127.0.0.1:5432 不可达、无 `psql`） |
-| S2 | CI 测试步显式 `-timeout 20m`；或对重包（`service`、`handlers/*`）拆分/串行化，避免满载 10m 包级超时 | CI 维护者 | 本机满载观测到 3 个包 `panic: test timed out after 10m0s` |
-| S3 | 常态化 `go test -race ./mcp/... ./tests/mcpintegration/` | CI 维护者 | 本轮已验证核心面绿（registry/transport/integration），建议纳入 nightly 或合并门禁 |
+| S1 | ~~CI 增加 Postgres service container + `MCP_TEST_POSTGRES_DSN`~~ → **本轮已落地**（`mcp-postgres-migrations` job，首轮 `continue-on-error` 观察） | 后端 + CI 维护者 | 待首次 CI 绿跑后移除 `continue-on-error` 转阻断（§6.6） |
+| S2 | ~~CI 测试步显式 `-timeout 20m`~~ → **本轮已落地** | CI 维护者 | 已消除满载 10m 包级超时假红（§6.6） |
+| S3 | ~~常态化 `-race`~~ → **本轮已落地**（`mcp-race` job）+ 本机全量 8 包绿 | CI 维护者 | 依据见 §6.3（admin/client/manager/provider/registry/mockserver/transport/mcpintegration 全 ok） |
 | S4 | 治理 `admin/mcp-servers` 前端套件性能（拆分 3 个巨型用例、mock 重子组件、独立 `testTimeout`） | 前端 + QA（M2-05） | 见 R-16：安静 255s / 负载 595–947s，超 300s 单测上限 |
 | S5 | 处置既有 Windows 本机失败（42 处 `TempDir` 句柄占用）与 `pkg/seeder` 既有失败 | 仓库维护者 | 非 MCP 范围；Linux CI 不复现句柄问题 |
 | S6 | 修复既有格式差异（`dto/*`、`handlers/auth|ticket*` 被本地 gofumpt 列出） | 仓库维护者 | 本地为源码构建的 gofumpt；CI 用 v0.7.0 发布包，需以 CI 结果为准 |
@@ -162,4 +175,5 @@
 | --- | --- |
 | 2026-09-27 | 首次登记：以方案 §5.1/§5.2/§5.3/§5.4 为判据完成审计（A 类 8 项 / B 类 6 项 / C 类 6 项 / D 类 7 任务） |
 | 2026-09-27 | 本轮整改：方案回写（§2.3/§3.3.1/§5.2.1/§7.1/§9/§10/§11.4）；新增 Postgres 门控用例；全量后端+前端回归并分类；`-race` 核心面通过；CI 等价质量门（staticcheck/gofumpt/800 行硬门）发现并修复 9 处问题；修复 3 处负载敏感用例 |
+| 2026-09-27 | 二次整改（CI 接线）：`-race` 全量 8 包绿（A6/EX-06 闭环）；`backend-ci.yml` 新增 `mcp-race`（阻断）与 `mcp-postgres-migrations`（service container，首轮 `continue-on-error` 观察）两个 job、Test job 增 `-timeout 20m`（S1/S2/S3 落地，新增 EX-09） |
 
