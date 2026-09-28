@@ -968,19 +968,29 @@ func (h *Handler) toolInvocationItem(ctx context.Context, tenantID int, inv *Too
 
 // ListToolInvocations handles GET /api/v1/agent/tools/invocations
 // 列出工具调用审批记录，供审批人查看待办。默认返回 pending（待审批），
-// 支持 ?state=approved|rejected|auto 查看其它状态。跨租户隔离由 tenant_id 强制。
+// 支持 ?state=approved|rejected|auto 查看其它状态；
+// M1-06 起支持 ?provider=builtin|mcp 与 ?server=<服务器标识> 的来源维度筛选
+// （过滤在数据库层完成，前端不做二次筛选）。跨租户隔离由 tenant_id 强制。
 func (h *Handler) ListToolInvocations(c *gin.Context) {
 	state := c.Query("state")
 	if state == "" {
 		state = "pending"
 	}
+	provider := strings.TrimSpace(c.Query("provider"))
+	// 来源取值受控：拼错的值会静默返回空列表，对排障不友好，直接 400。
+	if provider != "" && provider != "builtin" && provider != "mcp" {
+		common.Fail(c, common.ParamErrorCode, "invalid provider (want builtin|mcp)")
+		return
+	}
+	server := strings.TrimSpace(c.Query("server"))
 	tenantID := c.GetInt("tenant_id")
 	if tenantID == 0 {
 		common.Fail(c, common.AuthFailedCode, "租户信息缺失")
 		return
 	}
 
-	invs, err := h.svc.repo.ListToolInvocations(c.Request.Context(), tenantID, state)
+	filter := ToolInvocationFilter{State: state, Provider: provider, Server: server}
+	invs, err := h.svc.repo.ListToolInvocations(c.Request.Context(), tenantID, filter)
 	if err != nil {
 		h.svc.logger.Warnw("查询工具调用列表失败", "error", err, "tenantID", tenantID)
 		common.Fail(c, common.InternalErrorCode, "查询工具调用失败")
@@ -993,7 +1003,8 @@ func (h *Handler) ListToolInvocations(c *gin.Context) {
 		// 否则在信息缺失下决策（字段口径集中在 toolInvocationItem）。
 		items = append(items, h.toolInvocationItem(c.Request.Context(), tenantID, inv))
 	}
-	common.Success(c, gin.H{"items": items, "state": state})
+	// 回显生效过滤条件：前端据此做筛选回显与「空态原因」提示。
+	common.Success(c, gin.H{"items": items, "state": state, "provider": provider, "server": server})
 }
 
 // ApproveTool handles POST /api/v1/agent/tools/:id/approve

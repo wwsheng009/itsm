@@ -333,6 +333,18 @@ export interface ToolApproval {
 export interface ToolApprovalListResponse {
   items: ToolApproval[];
   state: string;
+  /** 生效的来源过滤（M1-06；空串=未过滤），用于筛选回显。 */
+  provider?: string;
+  /** 生效的服务器过滤（M1-06；空串=未过滤）。 */
+  server?: string;
+}
+
+/** 审批/审计列表的来源维度过滤（M1-06）：过滤在后端数据库层完成。 */
+export interface ToolApprovalListFilter {
+  /** builtin | mcp；空/缺省=全部。 */
+  provider?: string;
+  /** MCP 服务器标识；空/缺省=全部。 */
+  server?: string;
 }
 
 export interface ToolApproveRequest {
@@ -342,9 +354,15 @@ export interface ToolApproveRequest {
 
 // 列出 AI 工具调用审批记录（默认待审批）
 // 对应后端 GET /api/v1/agent/tools/invocations?state=pending
-export async function aiGetToolApprovals(state = 'pending'): Promise<ToolApprovalListResponse> {
+export async function aiGetToolApprovals(
+  state = 'pending',
+  filter: ToolApprovalListFilter = {}
+): Promise<ToolApprovalListResponse> {
   // 字面量路径 + 拼接，避免模板内三元表达式，保证 api-contract 测试可静态解析路径
-  const url = '/api/v1/agent/tools/invocations?state=' + encodeURIComponent(state);
+  const parts = ['state=' + encodeURIComponent(state)];
+  if (filter.provider) parts.push('provider=' + encodeURIComponent(filter.provider));
+  if (filter.server) parts.push('server=' + encodeURIComponent(filter.server));
+  const url = '/api/v1/agent/tools/invocations?' + parts.join('&');
   return httpClient.get<ToolApprovalListResponse>(url);
 }
 

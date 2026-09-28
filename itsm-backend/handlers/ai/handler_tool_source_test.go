@@ -147,3 +147,104 @@ func TestListToolInvocations_ExposesMCPSourceAndRisk(t *testing.T) {
 	assert.NotContains(t, detailRecorder.Body.String(), "s3cr3t-value", "详情接口同样不得回显明文")
 	assert.NotContains(t, detailRecorder.Body.String(), `"arguments"`)
 }
+
+// TestListToolInvocations_FiltersByProviderAndServer 覆盖 M1-06 的来源维度筛选：
+// provider/server 在数据库层过滤（不是前端二次筛选），非法 provider 直接 400。
+func TestListToolInvocations_FiltersByProviderAndServer(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	client := enttest.Open(t, "sqlite3", "file:tool_source_filter?mode=memory&cache=shared&_fk=1")
+	t.Cleanup(func() { _ = client.Close() })
+	ctx := context.Background()
+
+	tenant := client.Tenant.Create().SetName("Filter").SetCode("tools-filter").SetDomain("tools-filter.test").SaveX(ctx)
+	user := client.User.Create().SetUsername("filter-user").SetEmail("filter@example.com").
+		SetName("Filter").SetPasswordHash("hash").SetTenantID(tenant.ID).SaveX(ctx)
+
+	svc := ai.NewService(ai.NewEntRepository(client), zap.NewNop().Sugar(), nil, nil, nil, nil, nil, nil, nil, nil, nil)
+	svc.SetEntClient(client)
+	h := ai.NewHandler(svc)
+
+	// 三条记录：两条 MCP（不同服务器）+ 一条内置。
+	client.ToolInvocation.Create().SetTenantID(tenant.ID).SetUserID(user.ID).
+		SetToolName("mcp__mock__create_issue").SetStatus("pending").SetApprovalState("pending").
+		SetProvider("mcp").SetMcpServerName("mock").SetMcpRawToolName("create_issue").
+		SetMcpCallableName("mcp__mock__create_issue").SaveX(ctx)
+	client.ToolInvocation.Create().SetTenantID(tenant.ID).SetUserID(user.ID).
+		SetToolName("mcp__other__create_issue").SetStatus("pending").SetApprovalState("pending").
+		SetProvider("mcp").SetMcpServerName("other").SetMcpRawToolName("create_issue").
+		SetMcpCallableName("mcp__other__create_issue").SaveX(ctx)
+	client.ToolInvocation.Create().SetTenantID(tenant.ID).SetUserID(user.ID).
+		SetToolName("create_ticket").SetStatus("pending").SetApprovalState("pending").
+		SetProvider("builtin").SaveX(ctx)
+
+	r := gin.New()
+	r.GET("/api/v1/agent/tools/invocations", func(c *gin.Context) {
+		c.Set("tenant_id", tenant.ID)
+		c.Set("user_id", user.ID)
+		h.ListToolInvocations(c)
+	})
+
+	type listResponse struct {
+		Code int `json:"code"`
+		Data struct {
+			Items    []map[string]interface{} `json:"items"`
+			Provider string                   `json:"provider"`
+			Server   string                   `json:"server"`
+		} `json:"data"`
+	}
+	fetch := func(query string) listResponse {
+		w := httptest.NewRecorder()
+		r.ServeHTTP(w, httptest.NewRequest(http.MethodGet, "/api/v1/agent/tools/invocations"+query, nil))
+		require.Equal(t, http.StatusOK, w.Code, w.Body.String())
+		var resp listResponse
+		require.NoError(t, json.Unmarshal(w.Body.Bytes(), &resp))
+		return resp
+	}
+
+	// 不过滤：三条全见（并回显空过滤条件）。
+	all := fetch("?state=pending")
+	require.Len(t, all.Data.Items, 3)
+	assert.Empty(t, all.Data.Provider)
+	assert.Empty(t, all.Data.Server)
+
+	// provider=mcp：两条 MCP。
+	mcpOnly := fetch("?state=pending&provider=mcp")
+	require.Len(t, mcpOnly.Data.Items, 2)
+	assert.Equal(t, "mcp", mcpOnly.Data.Provider)
+	for _, item := range mcpOnly.Data.Items {
+		assert.Equal(t, "mcp", item["provider"])
+	}
+
+	// provider=mcp&server=mock：收敛到单条，且三元组可追溯。
+	scoped := fetch("?state=pending&provider=mcp&server=mock")
+	require.Len(t, scoped.Data.Items, 1)
+	assert.Equal(t, "mock", scoped.Data.Server)
+	assert.Equal(t, "create_issue", scoped.Data.Items[0]["rawToolName"])
+	assert.Equal(t, "mcp__mock__create_issue", scoped.Data.Items[0]["callableName"])
+
+	// provider=builtin：内置单条（服务器/原始名为空，不应误填）。
+	builtinOnly := fetch("?state=pending&provider=builtin")
+	require.Len(t, builtinOnly.Data.Items, 1)
+	assert.Equal(t, "create_ticket", builtinOnly.Data.Items[0]["toolName"])
+	assert.Empty(t, builtinOnly.Data.Items[0]["serverName"])
+
+	// 非法 provider：400（不静默返回空列表）。
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, httptest.NewRequest(http.MethodGet, "/api/v1/agent/tools/invocations?provider=mcp-servers", nil))
+	assert.Equal(t, http.StatusBadRequest, w.Code, w.Body.String())
+
+	// 跨租户：另一租户看不到本租户记录（过滤条件不削弱租户隔离）。
+	other := client.Tenant.Create().SetName("Other").SetCode("tools-filter-other").SetDomain("tools-other.test").SaveX(ctx)
+	rOther := gin.New()
+	rOther.GET("/api/v1/agent/tools/invocations", func(c *gin.Context) {
+		c.Set("tenant_id", other.ID)
+		c.Set("user_id", user.ID)
+		h.ListToolInvocations(c)
+	})
+	wOther := httptest.NewRecorder()
+	rOther.ServeHTTP(wOther, httptest.NewRequest(http.MethodGet, "/api/v1/agent/tools/invocations?state=pending&provider=mcp", nil))
+	require.Equal(t, http.StatusOK, wOther.Code, wOther.Body.String())
+	var otherResp listResponse
+	require.NoError(t, json.Unmarshal(wOther.Body.Bytes(), &otherResp))
+	assert.Empty(t, otherResp.Data.Items)
+}

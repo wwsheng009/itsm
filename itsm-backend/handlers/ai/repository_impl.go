@@ -219,13 +219,20 @@ func (r *EntRepository) GetToolInvocation(ctx context.Context, id int, tenantID 
 	return toToolInvocationDomain(e), nil
 }
 
-// ListToolInvocations 按租户 + 审批状态列出工具调用记录，按创建时间倒序。
-// state 为空时返回该租户全部调用；传 "pending" 即审批人待办。
-func (r *EntRepository) ListToolInvocations(ctx context.Context, tenantID int, state string) ([]*ToolInvocation, error) {
+// ListToolInvocations 按租户 + 过滤条件列出工具调用记录，按创建时间倒序。
+// filter 为零值时返回该租户全部调用；State="pending" 即审批人待办；
+// Provider/Server 用于审批页与审计页的「来源 + 服务器」维度收敛（M1-06/M1-07）。
+func (r *EntRepository) ListToolInvocations(ctx context.Context, tenantID int, filter ToolInvocationFilter) ([]*ToolInvocation, error) {
 	q := r.client.ToolInvocation.Query().
 		Where(toolinvocation.TenantID(tenantID))
-	if state != "" {
-		q = q.Where(toolinvocation.ApprovalStateEQ(state))
+	if filter.State != "" {
+		q = q.Where(toolinvocation.ApprovalStateEQ(filter.State))
+	}
+	if filter.Provider != "" {
+		q = q.Where(toolinvocation.ProviderEQ(filter.Provider))
+	}
+	if filter.Server != "" {
+		q = q.Where(toolinvocation.McpServerNameEQ(filter.Server))
 	}
 	invocations, err := q.
 		Order(ent.Desc(toolinvocation.FieldCreatedAt)).

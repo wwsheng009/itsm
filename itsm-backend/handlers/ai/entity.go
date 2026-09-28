@@ -23,6 +23,19 @@ type Message struct {
 	CreatedAt      time.Time `json:"createdAt"`
 }
 
+// ToolInvocationFilter 是工具调用记录的查询过滤条件（零值表示不过滤）。
+//
+// M1-06/M1-07：审批页与审计页需要按「来源 + 服务器」维度收敛列表，
+// 过滤在**数据库层**完成（不依赖前端二次筛选，避免分页与计数不一致）。
+type ToolInvocationFilter struct {
+	// State 审批状态：pending | approved | rejected | auto；空串表示全部。
+	State string
+	// Provider 来源：builtin | mcp；空串表示全部。
+	Provider string
+	// Server MCP 服务器标识（仅 provider=mcp 时可能非空）；空串表示全部。
+	Server string
+}
+
 // ToolInvocation represents an AI tool execution
 type ToolInvocation struct {
 	ID             int        `json:"id"`

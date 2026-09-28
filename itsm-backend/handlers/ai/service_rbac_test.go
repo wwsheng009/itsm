@@ -113,7 +113,7 @@ func (m *rbacMockRepo) UpdateRCA(_ context.Context, r *ai.RootCauseAnalysis) (*a
 	return r, nil
 }
 
-func (m *rbacMockRepo) ListToolInvocations(_ context.Context, _ int, _ string) ([]*ai.ToolInvocation, error) {
+func (m *rbacMockRepo) ListToolInvocations(_ context.Context, _ int, _ ai.ToolInvocationFilter) ([]*ai.ToolInvocation, error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	return m.toolInvocations, nil
