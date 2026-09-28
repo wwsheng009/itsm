@@ -29,6 +29,75 @@ type ToolDefinition struct {
 	RawToolName string `json:"rawToolName,omitempty"`
 	// Risk: 治理标注的风险级别（read|plan|act_low|act_medium|act_high）；内置工具为空。
 	Risk string `json:"risk,omitempty"`
+	// Category: 治理标注的能力分类（incident|ticket|cmdb|knowledge|ticket_type 等）。
+	Category string `json:"category,omitempty"`
+	// SupportsDryRun: 是否支持 dry-run 预览（仅写工具可能为 true；预览路径零业务写入，B0-04）。
+	SupportsDryRun bool `json:"supportsDryRun,omitempty"`
+	// Idempotent: 是否要求幂等键（写工具一律 true；读工具 false，B0-05）。
+	Idempotent bool `json:"idempotent,omitempty"`
+	// TimeoutMs: 单次执行超时（毫秒）；0 视为未标注，归一化取 DefaultToolTimeoutMs。
+	TimeoutMs int `json:"timeoutMs,omitempty"`
+	// MaxOutputBytes: 结果输出上限（字节）；0 视为未标注，归一化取 DefaultToolMaxOutputBytes。
+	MaxOutputBytes int `json:"maxOutputBytes,omitempty"`
+	// RedactionProfile: 脱敏档（default|strict）；空视为未标注，归一化按最保守取 strict。
+	RedactionProfile string `json:"redactionProfile,omitempty"`
+}
+
+// 工具元数据取值（B0-01：以代码为单一来源，禁止散落字符串字面量）。
+const (
+	ToolRiskRead      = "read"
+	ToolRiskPlan      = "plan"
+	ToolRiskActLow    = "act_low"
+	ToolRiskActMedium = "act_medium"
+	ToolRiskActHigh   = "act_high"
+
+	ToolRedactionDefault = "default"
+	ToolRedactionStrict  = "strict"
+
+	// ToolCategoryUnclassified 未标注分类的兜底值（归一化产物，不应出现在注册处）。
+	ToolCategoryUnclassified = "unclassified"
+
+	// DefaultToolTimeoutMs 单工具执行超时默认值（BP8 冻结：30s）。
+	DefaultToolTimeoutMs = 30_000
+	// DefaultToolMaxOutputBytes 单工具输出上限默认值（256 KiB，与 MCP 输出上限口径一致）。
+	DefaultToolMaxOutputBytes = 256 * 1024
+)
+
+// NormalizeToolMetadata 以最保守方式补齐缺失元数据（B0-01 要点 3），并返回该定义
+// 是否**完整标注**（false = 走了兜底，工具面装配必须按「不默认下发」丢弃）。
+//
+// 兜底规则：未知/缺失风险 → act_high；缺失分类 → unclassified；缺失脱敏档 → strict；
+// 超时/输出上限 → 取默认；写工具一律要求幂等键。
+func NormalizeToolMetadata(td *ToolDefinition) (annotated bool) {
+	if td == nil {
+		return true
+	}
+	annotated = true
+	switch td.Risk {
+	case ToolRiskRead, ToolRiskPlan, ToolRiskActLow, ToolRiskActMedium, ToolRiskActHigh:
+	default:
+		td.Risk = ToolRiskActHigh
+		annotated = false
+	}
+	if td.Category == "" {
+		td.Category = ToolCategoryUnclassified
+		annotated = false
+	}
+	if td.TimeoutMs <= 0 {
+		td.TimeoutMs = DefaultToolTimeoutMs
+	}
+	if td.MaxOutputBytes <= 0 {
+		td.MaxOutputBytes = DefaultToolMaxOutputBytes
+	}
+	switch td.RedactionProfile {
+	case ToolRedactionDefault, ToolRedactionStrict:
+	default:
+		td.RedactionProfile = ToolRedactionStrict
+		annotated = false
+	}
+	// 写工具强制幂等；读工具不生成幂等键（B0-05）。
+	td.Idempotent = !td.ReadOnly
+	return annotated
 }
 
 type ToolRegistry struct {
@@ -144,6 +213,8 @@ func (t *ToolRegistry) GetTool(name string) *ToolDefinition {
 	for _, td := range t.ListTools() {
 		if td.Name == name {
 			tdCopy := td
+			// B0-01：对外暴露的定义一律带完整元数据（缺失按最保守兜底）。
+			NormalizeToolMetadata(&tdCopy)
 			return &tdCopy
 		}
 	}
@@ -200,7 +271,14 @@ func (t *ToolRegistry) ListToolsForTenant(ctx context.Context, tenantID int) []T
 
 // listBuiltinToolsForTenant 是内置工具清单（含 list_cis 的租户枚举动态化）。
 func (t *ToolRegistry) listBuiltinToolsForTenant(ctx context.Context, tenantID int) []ToolDefinition {
-	tools := t.ListTools()
+	// B0-01：未完整标注的内置工具**不默认下发**（保守处理；守卫测试保证 14/14 全量标注）。
+	registered := t.ListTools()
+	tools := make([]ToolDefinition, 0, len(registered))
+	for _, td := range registered {
+		if NormalizeToolMetadata(&td) {
+			tools = append(tools, td)
+		}
+	}
 	if t.client == nil {
 		return tools
 	}
@@ -244,6 +322,13 @@ func (t *ToolRegistry) ListTools() []ToolDefinition {
 			ReadOnly:    true,
 			Resource:    "incident",
 			Action:      "read",
+
+			// B0-01 元数据标注（代码即单一来源）
+			Risk:             ToolRiskRead,
+			Category:         "incident",
+			TimeoutMs:        DefaultToolTimeoutMs,
+			MaxOutputBytes:   DefaultToolMaxOutputBytes,
+			RedactionProfile: ToolRedactionDefault,
 			ArgsSchema: map[string]interface{}{
 				"type":       "object",
 				"properties": map[string]interface{}{},
@@ -263,6 +348,13 @@ func (t *ToolRegistry) ListTools() []ToolDefinition {
 			ReadOnly:    true,
 			Resource:    "knowledge",
 			Action:      "read",
+
+			// B0-01 元数据标注（代码即单一来源）
+			Risk:             ToolRiskRead,
+			Category:         "knowledge",
+			TimeoutMs:        DefaultToolTimeoutMs,
+			MaxOutputBytes:   DefaultToolMaxOutputBytes,
+			RedactionProfile: ToolRedactionDefault,
 			ArgsSchema: map[string]interface{}{
 				"type": "object",
 				"properties": map[string]interface{}{
@@ -281,6 +373,13 @@ func (t *ToolRegistry) ListTools() []ToolDefinition {
 			ReadOnly:    true,
 			Resource:    "ticket",
 			Action:      "read",
+
+			// B0-01 元数据标注（代码即单一来源）
+			Risk:             ToolRiskRead,
+			Category:         "ticket",
+			TimeoutMs:        DefaultToolTimeoutMs,
+			MaxOutputBytes:   DefaultToolMaxOutputBytes,
+			RedactionProfile: ToolRedactionDefault,
 			ArgsSchema: map[string]interface{}{
 				"type": "object",
 				"properties": map[string]interface{}{
@@ -298,6 +397,13 @@ func (t *ToolRegistry) ListTools() []ToolDefinition {
 			ReadOnly:    true,
 			Resource:    "cmdb",
 			Action:      "read",
+
+			// B0-01 元数据标注（代码即单一来源）
+			Risk:             ToolRiskRead,
+			Category:         "cmdb",
+			TimeoutMs:        DefaultToolTimeoutMs,
+			MaxOutputBytes:   DefaultToolMaxOutputBytes,
+			RedactionProfile: ToolRedactionDefault,
 			ArgsSchema: map[string]interface{}{
 				"type": "object",
 				"properties": map[string]interface{}{
@@ -318,6 +424,13 @@ func (t *ToolRegistry) ListTools() []ToolDefinition {
 			ReadOnly:    true,
 			Resource:    "cmdb",
 			Action:      "read",
+
+			// B0-01 元数据标注（代码即单一来源）
+			Risk:             ToolRiskRead,
+			Category:         "cmdb",
+			TimeoutMs:        DefaultToolTimeoutMs,
+			MaxOutputBytes:   DefaultToolMaxOutputBytes,
+			RedactionProfile: ToolRedactionDefault,
 			ArgsSchema: map[string]interface{}{
 				"type": "object",
 				"properties": map[string]interface{}{
@@ -336,6 +449,15 @@ func (t *ToolRegistry) ListTools() []ToolDefinition {
 			ReadOnly:    false,
 			Resource:    "cmdb",
 			Action:      "write",
+
+			// B0-01 元数据标注（代码即单一来源）
+			Risk:             ToolRiskActLow,
+			Category:         "cmdb",
+			SupportsDryRun:   true,
+			Idempotent:       true,
+			TimeoutMs:        DefaultToolTimeoutMs,
+			MaxOutputBytes:   DefaultToolMaxOutputBytes,
+			RedactionProfile: ToolRedactionDefault,
 			ArgsSchema: map[string]interface{}{
 				"type": "object",
 				"properties": map[string]interface{}{
@@ -354,6 +476,15 @@ func (t *ToolRegistry) ListTools() []ToolDefinition {
 			ReadOnly:    false,
 			Resource:    "ticket",
 			Action:      "write",
+
+			// B0-01 元数据标注（代码即单一来源）
+			Risk:             ToolRiskActLow,
+			Category:         "ticket",
+			SupportsDryRun:   true,
+			Idempotent:       true,
+			TimeoutMs:        DefaultToolTimeoutMs,
+			MaxOutputBytes:   DefaultToolMaxOutputBytes,
+			RedactionProfile: ToolRedactionDefault,
 			ArgsSchema: map[string]interface{}{
 				"type": "object",
 				"properties": map[string]interface{}{
@@ -370,6 +501,15 @@ func (t *ToolRegistry) ListTools() []ToolDefinition {
 			ReadOnly:    false,
 			Resource:    "ticket",
 			Action:      "write",
+
+			// B0-01 元数据标注（代码即单一来源）
+			Risk:             ToolRiskActMedium,
+			Category:         "ticket",
+			SupportsDryRun:   true,
+			Idempotent:       true,
+			TimeoutMs:        DefaultToolTimeoutMs,
+			MaxOutputBytes:   DefaultToolMaxOutputBytes,
+			RedactionProfile: ToolRedactionDefault,
 			ArgsSchema: map[string]interface{}{
 				"type": "object",
 			},
@@ -383,6 +523,16 @@ func (t *ToolRegistry) ListTools() []ToolDefinition {
 			ReadOnly:    false,
 			Resource:    "ticket_type",
 			Action:      "write",
+
+			// B0-01 元数据标注（代码即单一来源）
+			// act_high：管理审批类，需系统管理员级别授权（阶段一报告 §5.5）。
+			Risk:             ToolRiskActHigh,
+			Category:         "ticket_type",
+			SupportsDryRun:   true,
+			Idempotent:       true,
+			TimeoutMs:        DefaultToolTimeoutMs,
+			MaxOutputBytes:   DefaultToolMaxOutputBytes,
+			RedactionProfile: ToolRedactionStrict,
 			ArgsSchema: map[string]interface{}{
 				"type": "object",
 				"properties": map[string]interface{}{
@@ -411,6 +561,13 @@ func (t *ToolRegistry) ListTools() []ToolDefinition {
 			ReadOnly:    true,
 			Resource:    "cmdb",
 			Action:      "read",
+
+			// B0-01 元数据标注（代码即单一来源）
+			Risk:             ToolRiskRead,
+			Category:         "cmdb",
+			TimeoutMs:        DefaultToolTimeoutMs,
+			MaxOutputBytes:   DefaultToolMaxOutputBytes,
+			RedactionProfile: ToolRedactionDefault,
 			ArgsSchema: map[string]interface{}{
 				"type": "object",
 				"properties": map[string]interface{}{
@@ -429,6 +586,13 @@ func (t *ToolRegistry) ListTools() []ToolDefinition {
 			ReadOnly:    true,
 			Resource:    "cmdb",
 			Action:      "read",
+
+			// B0-01 元数据标注（代码即单一来源）
+			Risk:             ToolRiskRead,
+			Category:         "cmdb",
+			TimeoutMs:        DefaultToolTimeoutMs,
+			MaxOutputBytes:   DefaultToolMaxOutputBytes,
+			RedactionProfile: ToolRedactionDefault,
 			ArgsSchema: map[string]interface{}{
 				"type": "object",
 				"properties": map[string]interface{}{
@@ -447,6 +611,15 @@ func (t *ToolRegistry) ListTools() []ToolDefinition {
 			ReadOnly:    false,
 			Resource:    "cmdb",
 			Action:      "write",
+
+			// B0-01 元数据标注（代码即单一来源）
+			Risk:             ToolRiskActHigh,
+			Category:         "cmdb",
+			SupportsDryRun:   true,
+			Idempotent:       true,
+			TimeoutMs:        DefaultToolTimeoutMs,
+			MaxOutputBytes:   DefaultToolMaxOutputBytes,
+			RedactionProfile: ToolRedactionStrict,
 			ArgsSchema: map[string]interface{}{
 				"type": "object",
 				"properties": map[string]interface{}{
@@ -468,6 +641,15 @@ func (t *ToolRegistry) ListTools() []ToolDefinition {
 			ReadOnly:    false,
 			Resource:    "cmdb",
 			Action:      "write",
+
+			// B0-01 元数据标注（代码即单一来源）
+			Risk:             ToolRiskActHigh,
+			Category:         "cmdb",
+			SupportsDryRun:   true,
+			Idempotent:       true,
+			TimeoutMs:        DefaultToolTimeoutMs,
+			MaxOutputBytes:   DefaultToolMaxOutputBytes,
+			RedactionProfile: ToolRedactionStrict,
 			ArgsSchema: map[string]interface{}{
 				"type": "object",
 				"properties": map[string]interface{}{
@@ -485,6 +667,13 @@ func (t *ToolRegistry) ListTools() []ToolDefinition {
 			ReadOnly:    true,
 			Resource:    "cmdb",
 			Action:      "read",
+
+			// B0-01 元数据标注（代码即单一来源）
+			Risk:             ToolRiskPlan,
+			Category:         "cmdb",
+			TimeoutMs:        DefaultToolTimeoutMs,
+			MaxOutputBytes:   DefaultToolMaxOutputBytes,
+			RedactionProfile: ToolRedactionDefault,
 			ArgsSchema: map[string]interface{}{
 				"type": "object",
 				"properties": map[string]interface{}{
@@ -516,7 +705,14 @@ func (t *ToolRegistry) Execute(ctx context.Context, tenantID int, name string, a
 func (t *ToolRegistry) ExecuteWithMeta(ctx context.Context, tenantID int, name string, args map[string]interface{}) (*ToolExecution, error) {
 	if td := t.GetTool(name); td != nil {
 		value, err := t.executeBuiltin(ctx, tenantID, name, args)
-		return &ToolExecution{Value: value, Provider: ProviderNameBuiltin, CallableName: name}, err
+		return &ToolExecution{
+			Value:        value,
+			Provider:     ProviderNameBuiltin,
+			CallableName: name,
+			// B0-01：元数据快照（GetTool 已归一化：缺失按最保守兜底）。
+			Risk:     td.Risk,
+			Category: td.Category,
+		}, err
 	}
 	for _, provider := range t.providers {
 		def, ok := provider.Resolve(ctx, tenantID, name)

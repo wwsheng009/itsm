@@ -90,6 +90,9 @@ func (p *Provider) execute(ctx context.Context, tenantID int, name string, args 
 	execution.ServerName = tool.serverName
 	execution.RawToolName = tool.rawName
 	execution.CallableName = tool.callable
+	// B0-01：治理元数据随执行快照（审计/审批详情使用；MCP 侧来自工具治理标注）。
+	execution.Risk = tool.def.Risk
+	execution.Category = tool.def.Category
 
 	if !tool.def.ReadOnly && !allowWrite {
 		// 写工具必须经 Gate3 审批后由 ToolQueue 调用 ExecuteApprovedWrite；此处保持 fail-closed。

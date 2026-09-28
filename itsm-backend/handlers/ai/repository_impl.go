@@ -161,6 +161,8 @@ func toToolInvocationDomain(e *ent.ToolInvocation) *ToolInvocation {
 		OutputSummary:    e.OutputSummary,
 		DurationMs:       int64(e.DurationMs),
 		ErrorCode:        e.ErrorCode,
+		Risk:             e.Risk,
+		Category:         e.Category,
 	}
 }
 
@@ -201,6 +203,13 @@ func (r *EntRepository) CreateToolInvocation(ctx context.Context, i *ToolInvocat
 	}
 	if i.ErrorCode != "" {
 		create.SetErrorCode(i.ErrorCode)
+	}
+	// B0-01：调用时元数据快照（与 MCP 三元组同批落库，供审计与审批详情使用）。
+	if i.Risk != "" {
+		create.SetRisk(i.Risk)
+	}
+	if i.Category != "" {
+		create.SetCategory(i.Category)
 	}
 	e, err := create.Save(ctx)
 	if err != nil {

@@ -67,6 +67,9 @@ type ToolInvocation struct {
 	OutputSummary   string `json:"outputSummary"`   // 结果摘要（脱敏截断；不落原始 Value）
 	DurationMs      int64  `json:"durationMs"`      // 执行耗时（毫秒）
 	ErrorCode       string `json:"errorCode"`       // 稳定错误码（与前端展示对齐）
+	// B0-01 元数据快照（调用时写入，防元数据漂移导致审计歧义）
+	Risk     string `json:"risk"`     // read|plan|act_low|act_medium|act_high
+	Category string `json:"category"` // 能力分类（incident|ticket|cmdb|knowledge|...）
 }
 
 // RootCauseAnalysis represents an RCA record for a ticket

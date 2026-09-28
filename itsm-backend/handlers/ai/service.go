@@ -214,6 +214,9 @@ func (s *Service) ExecuteTool(ctx context.Context, userID, tenantID int, role, n
 		McpServerName:    toolDef.ServerName,
 		McpRawToolName:   toolDef.RawToolName,
 		McpCallableName:  callableName,
+		// B0-01：元数据快照（调用时冻结，防后续治理变更导致审计歧义）。
+		Risk:     toolDef.Risk,
+		Category: toolDef.Category,
 	})
 	if err != nil {
 		return nil, 0, err
@@ -251,6 +254,9 @@ func (s *Service) recordToolAudit(ctx context.Context, tenantID, userID int, rol
 		audit.DurationMs = execution.DurationMs
 		audit.ErrorCode = execution.ErrorCode
 		audit.OutputSummary = execution.OutputSummary
+		// B0-01：元数据快照（内置来自注册表、MCP 来自治理标注，均由 ToolExecution 携带）。
+		audit.Risk = execution.Risk
+		audit.Category = execution.Category
 	}
 	if _, err := s.repo.CreateToolInvocation(ctx, audit); err != nil {
 		s.logger.Errorw("AI tool audit persistence failed",

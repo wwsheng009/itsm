@@ -28,6 +28,7 @@ type Config struct {
 	Attachment     AttachmentConfig     `mapstructure:"attachment"`
 	CloudDiscovery CloudDiscoveryConfig `mapstructure:"cloud_discovery"`
 	MCP            MCPConfig            `mapstructure:"mcp"`
+	Bot            BotConfig            `mapstructure:"bot"`
 }
 
 // AttachmentConfig 是附件域的灰度开关（方案 §6.1 开关与回滚矩阵）。
@@ -91,6 +92,24 @@ func applyAttachmentDefaults(cfg *AttachmentConfig) {
 	if cfg.CleanupBatchSize <= 0 {
 		cfg.CleanupBatchSize = attachmentDefaultCleanupBatchSize
 	}
+}
+
+// BotConfig Bot 能力落地配置（BP5 全局开关；预算/护栏参数由 BP8 扩展）。
+//
+// 方案：docs/plan/ai-bot-capability-landing-implementation-plan-2026-09-27.md §2.2（BP5）。
+// 默认保守：Enabled=false 时对现有系统零行为变化（不装配 Bot 运行时组件、
+// 工具面与聊天链路保持现状）。
+type BotConfig struct {
+	// Enabled: bot.enabled 全局开关；默认 false。
+	Enabled bool `mapstructure:"enabled"`
+}
+
+// applyBotDefaults 补齐 Bot 配置的零值默认；Enabled 保持零值 false（未配置即关闭）。
+func applyBotDefaults(cfg *BotConfig) {
+	if cfg == nil {
+		return
+	}
+	// 预留：BP8（预算与护栏参数）在此补默认值。
 }
 
 // MCPConfig MCP 外部工具接入配置（M0-01 开关与连接默认值）。
@@ -398,6 +417,7 @@ func LoadConfig() (*Config, error) {
 	viper.Set("attachment", rawConfig["attachment"])
 	viper.Set("cloud_discovery", rawConfig["cloud_discovery"])
 	viper.Set("mcp", rawConfig["mcp"])
+	viper.Set("bot", rawConfig["bot"])
 
 	// 重新绑定到 Config 结构
 	var config Config
@@ -432,6 +452,10 @@ func LoadConfig() (*Config, error) {
 	// 环境变量兜底 MCP_ENABLED；其余项由 config.yaml 的 ${MCP_*:默认} 语法解析。
 	config.MCP.Enabled = getEnvBoolWithDefault("MCP_ENABLED", config.MCP.Enabled)
 	applyMCPDefaults(&config.MCP)
+
+	// Bot 能力落地（BP5）：开关默认关闭；环境变量兜底 BOT_ENABLED。
+	config.Bot.Enabled = getEnvBoolWithDefault("BOT_ENABLED", config.Bot.Enabled)
+	applyBotDefaults(&config.Bot)
 
 	// RLS 三档开关，默认 off（零风险）。
 	config.RLS.Mode = getEnvWithDefault("RLS_MODE", config.RLS.Mode)

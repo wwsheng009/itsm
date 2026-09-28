@@ -119,7 +119,7 @@
 - [ ] BP2 与 MCP 联合迁移窗口书面确认（日期 + 字段清单冻结 + 双驱动验证方式）。
 - [ ] BP3 单一 SSE 事件注册表评审通过（含 MCP 事件；v2 兼容策略明确）。
 - [ ] BP4 队列持久化 spike 通过（重启恢复 demo 可复跑）【待实测】。
-- [ ] BP5 模块骨架与 `bot.enabled` 开关评审通过（关闭态零行为变化）。
+- [ ] BP5 模块骨架与 `bot.enabled` 开关——**实现完成，待评审**（2026-09-27：`itsm-backend/service/bot/`（`doc.go`/`gate.go`）落地；`bot.enabled` 默认 false、环境变量兜底 `BOT_ENABLED`；关闭态无任何装配点=零行为变化；证据 `docs/plan/evidence/bot-b0/BP5-B0-01-unit-evidence.md`；U-B8 归属结论 = `service/bot/`）。
 - [ ] BP7 mock provider 与租户/角色矩阵就绪；Playwright 环境可启动。
 - [ ] 本实施方案在团队评审通过（评审记录写入 PR 或本文件 §10）。
 
@@ -195,6 +195,17 @@ MCP 线：      ▼                    ▼                   ▼                
 | B4-03 | 五级状态回写与文档治理 | 文档 | 本文件/阶段一报告/ROADMAP/CHANGELOG 回写 | B4-01 | S | （治理项，不单独定级） | AB4-03 |
 | B4-04 | S4/S5 评估与 B4 验收 | 产品+测试 | `accepted` 评审纪要、残余风险签字 | B4-01～B4-03 | M | `accepted` | AB4-04 |
 
+#### 3.3.1 状态速览表（2026-09-27 起回写）
+
+> 回写口径：与各任务卡「状态」段、§5.2 判定列同源同粒度；状态取「已实际验证的最高级别」。
+> 原表未设状态列，回写形式为「速览表 + 任务卡状态段」（与 MCP 方案 §3.3.1 同一范式；偏差登记见 §10）。**未列出的任务一律为 `未开始`。**
+
+| ID | 状态 | 证据 / 备注 |
+| --- | --- | --- |
+| BP5（前置） | 实现完成，待评审 | `docs/plan/evidence/bot-b0/BP5-B0-01-unit-evidence.md`（`service/bot/` + `bot.enabled`） |
+| B0-01 | `unit_verified` | `evidence/bot-b0/BP5-B0-01-unit-evidence.md`（14/14 标注 + 守卫测试 + 调用时快照） |
+| B0-02 | 部分完成（schema 已随 MCP M0-03 联合迁移落地） | 见任务卡「状态」段；实体读写契约测试待本任务执行时补齐 |
+
 ### 3.4 双线联合路线图（与 MCP 方案合并视图）
 
 ```text
@@ -236,6 +247,7 @@ MCP 线：      ▼                    ▼                   ▼                
   4. 兼容性：`ToolDefinition` 旧字段不移除、不改语义（`ReadOnly/Resource/Action/ArgsSchema/ResultSchema` 原样保留）。
 - **测试与证据**：标注完整性表驱动测试；`go test ./service/... ./handlers/ai/...` 全绿；工具序列化快照对比。
 - **DoD**：`unit_verified`。
+- **状态**：`unit_verified`（2026-09-27）——①`ToolDefinition` 扩展 6 个元数据字段（`Category/SupportsDryRun/Idempotent/TimeoutMs/MaxOutputBytes/RedactionProfile`，`Risk` 复用 M1-02 字段）+ 取值常量 + `NormalizeToolMetadata`（缺失按 `act_high`+`strict` 兜底并返回 `annotated=false`）；②14/14 内置工具按冻结风险矩阵逐条标注（写工具：`link_ticket_ci`/`create_ticket`=act_low、`update_ticket`=act_medium、`create_ticket_type`/`create_ci_relationship`/`delete_ci_relationship`=act_high；读工具 8 个含 `get_ci_impact`=plan）；③工具面装配处（`listBuiltinToolsForTenant`）对未完整标注者**不默认下发**；④调用时快照：`ToolExecution` 携带 `Risk/Category`（内置取注册表、MCP 取治理标注），落 `tool_invocations.risk/category`（`handlers/ai/entity.go`+`repository_impl.go`+`service.go`）；⑤守卫测试 `service/tool_metadata_test.go`（14/14 完整性 + 矩阵逐项 + 兜底 + `GetTool` 归一化）+ 快照断言；`go build ./...` exit 0、gofumpt 无输出。证据 `docs/plan/evidence/bot-b0/BP5-B0-01-unit-evidence.md`。
 
 #### B0-02 ToolInvocation 扩展与联合迁移（后端）
 
@@ -797,6 +809,13 @@ MCP 线：      ▼                    ▼                   ▼                
 | 2026-09-27 | BQ7 dry-run 语义边界 | 已拍板：文档 + UI 双写提示，失败走错误回填 | 项目负责人（按建议执行） | 阻塞 B0-04 |
 | 2026-09-27 | BQ8 双线排期与迁移窗口 | 已拍板：B0-02 与 M0-03 同窗口；B1 与 M1 同迭代 | 项目负责人（按建议执行） | 阻塞 B0-02 |
 
+**实施期偏差与结论登记**（2026-09-27 起；口径同 MCP 方案 §10）：
+
+| 日期 | 变更项 | 结论 / 原因 | 影响 | 批准人 |
+| --- | --- | --- | --- | --- |
+| 2026-09-27 | §3.3 无「状态列」而 §1.4/§5.1(D-6) 要求回写状态列 | 回写形式改为「§3.3.1 状态速览表 + 任务卡状态段」（与 MCP 方案 §3.3.1 同范式） | 仅文档形式，不改验收口径 | AI 辅助执行（待团队评审追认） |
+| 2026-09-27 | U-B8 Bot 运行时模块归属（`service/bot/` vs `handlers/ai/bot/`） | 结论：`service/bot/`——理由：与 MCP `mcp/` 模块同构（域逻辑在 service 包），`handlers/ai` 只做编排与 HTTP；避免 handlers 反向承载运行时 | BP5 落地位置固定；后续 B1/B2/B3 组件在此包内实现 | AI 辅助执行（待团队评审追认） |
+
 **变更控制**：实施期任何偏离本方案（范围、设计、验收级别、里程碑顺序、合并点）必须在本表新增记录（日期 / 变更项 / 原因 / 影响 / 批准人），并同步回写阶段一报告对应章节；**凡涉及 §11.3 合并点的变更，必须同一评审同步修改 MCP 方案对应章节（§1.4 联动变更规则）**；未登记的偏离在里程碑验收时一律不认可。
 
 ---
@@ -883,9 +902,9 @@ MCP 线：      ▼                    ▼                   ▼                
 | U-B5 | 真实 provider 工具调用覆盖（当前仅 OpenAI 兼容实现 `ChatStreamWithTools`） | 部分已知 | 实施时逐 provider 探测；UI 降级横幅（BQ5） |
 | U-B6 | 阶段一与 MCP 双线的实际排期 | 未定 | BQ8；决定 S1–S7 的生效形态 |
 | U-B7 | 旧客户端 / 部署形态对 SSE 事件的实际依赖面【未核实】 | 未定 | BP3 评审以抓包与客户端清单确认 |
-| U-B8 | Bot 运行时模块归属（`service/bot/` vs `handlers/ai/bot/`） | 待评审 | BP5 |
+| U-B8 | Bot 运行时模块归属（`service/bot/` vs `handlers/ai/bot/`） | **已闭环（2026-09-27）**：结论 `service/bot/`（BP5 落地；登记见 §10） | 评审追认 |
 
-**声明**：本文档为草案（draft），所有任务与验收均为**目标**；本次编制未改动任何生产代码、未编译、未运行测试；任务规模与工作量估算为经验值，需团队复核后据此排期。ITSM 当前**无 Bot 运行时**（run/step/event、模板/授权、确认抽屉等均不存在，结论沿用阶段一报告 §3）。本文档与阶段一报告、MCP 方案建立互链（详见变更记录），互链回写不改变既有结论。
+**声明**：本文档为草案（draft），所有任务与验收均为**目标**；**编制时**未改动任何生产代码、未编译、未运行测试（实施期交付与实测记录见 §3.3.1、§5.2 判定与 `docs/plan/evidence/bot-b0/`）；任务规模与工作量估算为经验值，需团队复核后据此排期。ITSM 在编制时**无 Bot 运行时**（run/step/event、模板/授权、确认抽屉等均不存在，结论沿用阶段一报告 §3）；截至 2026-09-27 已落地 BP5 骨架与 B0-01 工具元数据（同上证据目录），其余仍按任务卡推进。本文档与阶段一报告、MCP 方案建立互链（详见变更记录），互链回写不改变既有结论。
 
 ---
 
@@ -896,3 +915,5 @@ MCP 线：      ▼                    ▼                   ▼                
 | 2026-09-27 | AI 辅助编制 | 初稿：基于《ITSM Bot 能力落地分析》（48,468 字节）与《ITSM 外部工具（MCP）接入实施方案》（86,733 字节），产出 B0–B4 共 34 个任务卡、34 条验收项（AB0×7 / AB1×10 / AB2×6 / AB3×7 / AB4×4）、9 组测试用例（BT-01…BT-09）、四级开关回滚预案与风险/决策登记；与 MCP 方案建立 7 项合并点与 3 个联合评审窗口；基线 HEAD `7442fad5`，未改动代码 |
 | 2026-09-27 | AI 辅助编制 | 开工准备：BQ1–BQ8 按建议拍板登记（§10）；BP1 工作树处置完成（独立提交 `d3471221`）；实施分支 `feat/bot-mcp-integration` 创建与文档入库（`3172c12c`） |
 | 2026-09-27 | AI 辅助执行 | 联合迁移窗口执行：B0-02 的 `tool_invocations` 字段随 MCP M0-03 一次加列（避免二次迁移）；命名统一 `input_redacted`→`args_redacted`；证据 `docs/plan/evidence/mcp-m0/M0-03-migration-evidence.md`。 |
+| 2026-09-27 | AI 辅助执行 | **BP5 落地**：`service/bot/`（`doc.go`/`gate.go`）模块骨架 + `bot.enabled` 全局开关（默认 false、`BOT_ENABLED` 兜底；`config.yaml.example` 同步）；关闭态无装配点=零行为变化。**U-B8 归属结论 `service/bot/`**（§10/§11.4 已回写）。证据 `docs/plan/evidence/bot-b0/BP5-B0-01-unit-evidence.md`。 |
+| 2026-09-27 | AI 辅助执行 | **B0-01 交付（`unit_verified`）**：`ToolDefinition` 扩展 6 个元数据字段 + 常量 + `NormalizeToolMetadata`（缺失 → `act_high`+`strict` 且 `annotated=false`，工具面**不默认下发**）；14/14 内置工具按冻结风险矩阵逐条标注（写 6 / 读 8）；调用时快照 `Risk/Category` 落 `tool_invocations`（内置取注册表、MCP 取治理标注）；守卫测试 `service/tool_metadata_test.go` + 快照往返 `handlers/ai/repository_metadata_snapshot_test.go`。§2.3 BP5 项、§3.3.1 状态速览表、任务卡状态段已回写；`go build ./...` exit 0、gofumpt 无输出。 |

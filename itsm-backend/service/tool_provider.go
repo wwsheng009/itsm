@@ -41,6 +41,10 @@ type ToolExecution struct {
 	DurationMs    int64
 	ErrorCode     string
 	OutputSummary string
+	// Risk/Category: 调用时快照的工具治理元数据（B0-01）——内置工具取自注册表，
+	// MCP 工具取自治理标注；落 tool_invocations.risk/category，供审计与审批详情使用。
+	Risk     string
+	Category string
 }
 
 // WriteCapableProvider 由支持「审批通过后执行写工具」的 provider 实现（M1-02）。
