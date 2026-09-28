@@ -1,0 +1,171 @@
+# MCP 浏览器 E2E（M2-05 / A2-05）
+#
+# 目的：在真实栈（后端 + mock MCP 服务器 + 前端）上执行
+#       `itsm-frontend/tests/e2e/flows/flow-mcp-admin.spec.ts`，覆盖 MCP 管理面的
+#       「建服务器 → 测试连接 → 启用 → 工具治理 → 凭据轮换 → 禁用」与浏览器渲染/交互。
+#
+# ⚠️ 首轮校准（本 workflow 的以下假设未在本机（Windows，无 Postgres/Docker）验证，
+#    首次运行请按实际输出校正；校准通过后把 `continue-on-error` 删除即成为阻断门）：
+#    1) 后端健康探针路径：脚本同时探测 `/api/v1/health` 与 `/health`；
+#    2) 首个管理员创建：`cmd/initialize -action generate-bootstrap-token` 输出格式与
+#       `POST /api/v1/bootstrap/create-admin` 的请求体（见 step「创建首个管理员」）；
+#    3) 后端起库/迁移/种子：直接用 `config.yaml.example` 作配置文件（含 `${ENV:default}` 占位符），
+#       若迁移需额外命令（如 `go run ./cmd/migrate`）请补充；
+#    4) 登录响应形状：spec 会从 `POST /api/v1/auth/login` 响应取 `data.accessToken`；
+#       若为纯 Cookie 会话，spec 会在该用例上 skip 并给出提示（不假红）。
+name: e2e-mcp
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - 'itsm-backend/mcp/**'
+      - 'itsm-backend/handlers/mcp/**'
+      - 'itsm-backend/metrics/**'
+      - 'itsm-backend/router/mcp_routes.go'
+      - 'itsm-backend/cmd/mcp-mockserver/**'
+      - 'itsm-backend/config.yaml.example'
+      - 'itsm-frontend/src/pages/(main)/admin/mcp-servers/**'
+      - 'itsm-frontend/src/pages/(main)/ai/approval/**'
+      - 'itsm-frontend/src/pages/(main)/ai/audit/**'
+      - 'itsm-frontend/src/lib/api/mcp-api.ts'
+      - 'itsm-frontend/tests/e2e/flows/flow-mcp-admin.spec.ts'
+      - 'itsm-frontend/playwright.config.ts'
+      - '.github/workflows/e2e-mcp.yml'
+  push:
+    branches: [main, master]
+    paths:
+      - 'itsm-backend/mcp/**'
+      - 'itsm-backend/handlers/mcp/**'
+      - 'itsm-frontend/src/pages/(main)/admin/mcp-servers/**'
+      - '.github/workflows/e2e-mcp.yml'
+
+concurrency:
+  group: e2e-mcp-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  e2e-mcp:
+    name: MCP 浏览器 E2E（真实栈）
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    # 首轮校准用；校准绿后删除本行使其成为阻断门（对齐实施方案 §4.3 M2-05 的硬门槛定位）。
+    continue-on-error: true
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: itsm
+          POSTGRES_PASSWORD: dev123
+          POSTGRES_DB: itsm
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U itsm -d itsm"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 20
+    env:
+      DB_HOST: 127.0.0.1
+      DB_PORT: '5432'
+      DB_USER: itsm
+      DB_PASSWORD: dev123
+      DB_NAME: itsm
+      DB_SSLMODE: disable
+      GOTOOLCHAIN: auto
+      # MCP 开关（§3.1 L1/L1.5）：E2E 需要管理面 + 写工具面同时打开。
+      MCP_ENABLED: 'true'
+      MCP_WRITE_ENABLED: 'true'
+      # 凭据加密主密钥（middleware.EncryptionService：AES-GCM + SHA-256 派生，仅 E2E 使用）。
+      MCP_ENCRYPTION_KEY: 'itsm-e2e-mcp-encryption-key-0123456789abcdef'
+      # 前端 vite 代理目标（vite.config.ts: ITSM_BACKEND_URL）。
+      ITSM_BACKEND_URL: http://127.0.0.1:8090
+      # Playwright fixtures 的 API 基址与前端基址。
+      VITE_API_URL: http://127.0.0.1:8090
+      PLAYWRIGHT_BASE_URL: http://127.0.0.1:3000
+      PLAYWRIGHT_SKIP_CHANNELS: '1'
+      # 与 tests/e2e/fixtures/auth.ts 的 TEST_ACCOUNTS.admin 保持一致。
+      ADMIN_PASSWORD: 'AdminProd2026!'
+
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-go@v7
+        with:
+          go-version-file: itsm-backend/go.mod
+          cache-dependency-path: itsm-backend/go.sum
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: itsm-frontend/package-lock.json
+
+      # 1) mock MCP 服务器（默认夹具：list_issues / get_issue / search_issues 等只读工具）。
+      - name: Build & start mock MCP server
+        working-directory: itsm-backend
+        run: |
+          go build -o /tmp/mcp-mockserver ./cmd/mcp-mockserver
+          nohup /tmp/mcp-mockserver -addr :19090 -mode normal > /tmp/mock-mcp.log 2>&1 &
+          for i in $(seq 1 30); do
+            if curl -sf -o /dev/null http://127.0.0.1:19090/mcp; then break; fi
+            sleep 1
+          done
+          echo "mock MCP server log:"; tail -5 /tmp/mock-mcp.log
+
+      # 2) 后端：用 example 配置（含 ${ENV:default} 占位符）启动。
+      - name: Build & start backend (MCP enabled)
+        working-directory: itsm-backend
+        run: |
+          cp config.yaml.example config.yaml
+          go build -o /tmp/itsm-backend .
+          nohup /tmp/itsm-backend > /tmp/backend.log 2>&1 &
+          for i in $(seq 1 60); do
+            if curl -sf -o /dev/null http://127.0.0.1:8090/api/v1/health || curl -sf -o /dev/null http://127.0.0.1:8090/health; then
+              echo "backend is up"; break
+            fi
+            sleep 2
+          done
+          tail -20 /tmp/backend.log
+
+      # 3) 首个管理员（bootstrap token → create-admin），密码与 E2E fixtures 对齐。
+      - name: Create first admin
+        working-directory: itsm-backend
+        run: |
+          set -euo pipefail
+          BOOTSTRAP=$(go run ./cmd/initialize -action generate-bootstrap-token -tenant-id 1 \
+            | awk '/=== BOOTSTRAP TOKEN/{getline; print; exit}')
+          echo "bootstrap token length: ${#BOOTSTRAP}"
+          curl -sf -X POST http://127.0.0.1:8090/api/v1/bootstrap/create-admin \
+            -H 'Content-Type: application/json' \
+            -d "{\"token\":\"${BOOTSTRAP}\",\"password\":\"${ADMIN_PASSWORD}\"}" || {
+              echo 'create-admin 失败：请按本 workflow 头部「首轮校准」第 2 条校正接口/请求体';
+              tail -30 /tmp/backend.log; exit 1; }
+
+      # 4) 前端依赖与浏览器。
+      - name: Install frontend deps
+        working-directory: itsm-frontend
+        run: npm ci --legacy-peer-deps
+
+      - name: Install Playwright chromium
+        working-directory: itsm-frontend
+        run: npx playwright install --with-deps chromium
+
+      # 5) 执行 MCP 浏览器 E2E（webServer 由 playwright.config.ts 自动起 vite dev :3000）。
+      - name: Run MCP E2E spec
+        working-directory: itsm-frontend
+        run: npx playwright test tests/e2e/flows/flow-mcp-admin.spec.ts --project=chromium --reporter=list
+
+      # 6) 证据归档（A2-05 的浏览器证据：截图 / trace / 报告）。
+      - name: Upload artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: mcp-e2e-artifacts
+          if-no-files-found: ignore
+          retention-days: 14
+          path: |
+            itsm-frontend/playwright-report
+            /tmp/itsm-playwright-results
+            /tmp/backend.log
+            /tmp/mock-mcp.log
