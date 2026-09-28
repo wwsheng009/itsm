@@ -209,6 +209,8 @@ MCP 线：      ▼                    ▼                   ▼                
 | B0-04 | `integration_verified` | `evidence/bot-b0/B0-04-integration-evidence.md`（预览分支 + 零写入 + 快照 version） |
 | B0-05 | `unit_verified` | `evidence/bot-b0/B0-05-integration-evidence.md`（键生成 + 执行路径接线 + 顺序/并发幂等回放 + 真实 SQLite 回查） |
 | B0-06 | `unit_verified` | `evidence/bot-b0/B0-06-integration-evidence.md`（default/strict 统一入口 + 审计四类字段接线 + MCP 档位解析修复） |
+| B0-07 | `integration_verified` | `evidence/bot-b0/B0-07-b0-acceptance-evidence.md`（端到端 3 用例 + AB0 逐条索引 + MCP 联合评审 + QA 抽检） |
+| **B0 里程碑** | **`integration_verified`（条件达标）** | 出口①～⑥全部满足；条件项 = AB0-02 Postgres 侧（gap A1 外因，CI job S1 已就位、首轮观察态） |
 
 ### 3.4 双线联合路线图（与 MCP 方案合并视图）
 
@@ -314,6 +316,7 @@ MCP 线：      ▼                    ▼                   ▼                
 - **要点**：迁移双驱动结果、契约测试输出、审计回溯样例、dry-run 零写入证明、脱敏断言、与 MCP M0-03 联合评审记录。
 - **测试与证据**：AB0-01～AB0-06 逐项证据；QA 抽检 ≥30% 可复跑。
 - **DoD**：`integration_verified`。
+- **状态**：`integration_verified`（2026-09-27）——新增 `itsm-backend/tests/botintegration/b0_flow_test.go`（3 用例，真实 ent/SQLite，4.2s 全绿）：①主链路（pending 元数据快照/会话归属/幂等键一次落库 → 重复提交幂等回放不新增 → 审批执行恰好一次 → 拒绝不执行 + 原因回填会话 → 按会话回溯）；②dry-run 真实 `tickets` 表零写入 + 快照 `version`；③strict 档只留键名 + provider 标注解析（锁定 `GetToolForTenant` 修复）。过程记录 3 条真实失败与修复（含 provider 写执行须显式实现 `WriteCapableProvider` 的护栏验证）已在证据文档登记。AB0-01～AB0-07 逐条证据索引、与 MCP M0-03 联合评审记录、QA 抽检 8/8 可复跑清单见 `docs/plan/evidence/bot-b0/B0-07-b0-acceptance-evidence.md`。**B0 里程碑判定 = `integration_verified`（条件达标）**：唯一条件项为 AB0-02 的 Postgres 侧（gap A1 外因 + CI job S1 已就位）。
 ### 4.2 B1：运行态与确认闭环（P0）
 
 #### B1-01 run/step/event 三表与 run_id 贯通（后端）
@@ -591,6 +594,8 @@ MCP 线：      ▼                    ▼                   ▼                
 | AB0-05 | 幂等键 hash 落库、作用域正确；重复提交命中幂等返回首次结果；跨租户不串键 | B0-05 | UT + 集成 | 测试输出 | `unit_verified` |
 | AB0-06 | 密钥/token 类字段不落库；`input_redacted`/`output_summary` 可用；strict 档生效 | B0-06 | 表驱动 + DB 断言 | 测试输出 | `unit_verified` |
 | AB0-07 | B0 证据包齐全：迁移/契约/审计/dry-run/脱敏 + 与 MCP 联合评审记录 | B0-07 | 证据评审 | 证据目录 | `integration_verified` |
+
+> **B0 判定（2026-09-27）**：AB0-01～AB0-07 **全部达标**；条件项仅 AB0-02 的 Postgres 双驱动实测（gap A1 外因：本机无 Docker/Postgres；CI job S1 已就位，首轮 `continue-on-error` 观察）。**B0 里程碑判定 = `integration_verified`（条件达标）**，判定与证据索引见 `docs/plan/evidence/bot-b0/B0-07-b0-acceptance-evidence.md` §1/§3。
 
 #### B1（目标：`flow_verified`）
 
@@ -933,3 +938,4 @@ MCP 线：      ▼                    ▼                   ▼                
 | 2026-09-27 | AI 辅助执行 | **B0-05 部分交付**：新增 `service/bot/idempotency.go`——`BuildKey`（作用域 = 租户+发起人+工具+目标+参数；`v1` 拼接顺序冻结；canonical JSON；sha256 hex 只存 hash）、`TargetFromArgs`、`IsUniqueViolation`；UT 6 例（确定性/维度隔离/不透明性/空参等价/目标提取/唯一冲突识别）。**未接线**：执行路径生成键、唯一冲突 → 幂等回放（Repository 需新增按 hash 查询）待续，故 B0-05 未达 `unit_verified`。 |
 | 2026-09-27 | AI 辅助执行 | **B0-05 交付（`unit_verified`，接续部分交付）**：接线完成——Repository 新增 `GetToolInvocationByIdempotencyKey`；执行路径生成键、顺序重复直接回放（零新增）、唯一索引冲突 → 回查回放（非 500）；服务接线 4 例 + 真实 SQLite 回查 1 例全绿。证据 `docs/plan/evidence/bot-b0/B0-05-integration-evidence.md`。 |
 | 2026-09-27 | AI 辅助执行 | **B0-06 交付（`unit_verified`）**：统一脱敏入口 `service/bot/redactor.go`（default/strict；default 与 `pkg/redact` 逐字节互查；strict 只留键名）；审计四类字段接线（pending/dry-run/只读 args_redacted、strict 结果摘要、拒绝回填 reason）；档位经 `GetToolForTenant` 解析使 MCP 标注生效（修复初版误判 strict 的回归）。表驱动 5 例 + 落库断言 2 例。证据 `docs/plan/evidence/bot-b0/B0-06-integration-evidence.md`。 |
+| 2026-09-27 | AI 辅助执行 | **B0-07 交付 + B0 出口（`integration_verified`）**：新增 `itsm-backend/tests/botintegration/b0_flow_test.go` 端到端 3 用例（主链路/零写入/strict+标注，真实 ent/SQLite 4.2s 全绿）；AB0-01～AB0-07 逐条证据索引、与 MCP M0-03 联合评审记录、QA 抽检 8/8 清单见 `docs/plan/evidence/bot-b0/B0-07-b0-acceptance-evidence.md`；§3.1/§3.3.1/§5.2 回写 B0 判定（条件项 = AB0-02 Postgres 侧 gap A1）。**下一步：B1 开工（BQ1–BQ5 拍板 + BP3/BP4/BP8 前置）**。 |
