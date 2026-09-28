@@ -23,6 +23,12 @@ const (
 	defaultHealthFailureThreshold = 3
 	// defaultReadRetry：读工具默认重试上限（§5.4：读至多 1 次；写不重试，恒定 0）。
 	defaultReadRetry = 1
+	// defaultToolBudget：单租户有效工具数预算（M2-03，分析报告 §9.1 第一行）。
+	defaultToolBudget = 40
+	// defaultContextTokens：工具面 token 占比判定使用的上下文预算（M2-03）。
+	defaultContextTokens = 128000
+	// defaultToolTokenShare：工具面 token 占比上限（M2-03）。
+	defaultToolTokenShare = 0.30
 )
 
 var (
@@ -87,6 +93,12 @@ type Options struct {
 	Now           func() time.Time
 	ClientName    string
 	ClientVersion string
+	// ToolBudget：单租户有效工具数预算（M2-03，默认 40）；<=0 用默认值。
+	ToolBudget int
+	// ContextTokens：工具面 token 占比判定使用的上下文预算（默认 128000）；<=0 用默认值。
+	ContextTokens int
+	// ToolTokenShare：工具面 token 占比上限（0-1，默认 0.30）；<=0 用默认值。
+	ToolTokenShare float64
 }
 
 // Manager 管理 MCP 服务器连接生命周期（连接池/退避/发现/并发治理）。
@@ -98,6 +110,10 @@ type Manager struct {
 
 	mu      sync.Mutex
 	servers map[int]*conn
+
+	// budgetMu/budgetLast：工具面预算告警的边沿触发状态（M2-03），与 servers 锁分离。
+	budgetMu   sync.Mutex
+	budgetLast map[int]budgetState
 
 	lifecycleMu sync.Mutex
 	cancel      context.CancelFunc
@@ -123,6 +139,15 @@ func New(opts Options) *Manager {
 	}
 	if opts.HealthFailureThreshold <= 0 {
 		opts.HealthFailureThreshold = defaultHealthFailureThreshold
+	}
+	if opts.ToolBudget <= 0 {
+		opts.ToolBudget = defaultToolBudget
+	}
+	if opts.ContextTokens <= 0 {
+		opts.ContextTokens = defaultContextTokens
+	}
+	if opts.ToolTokenShare <= 0 {
+		opts.ToolTokenShare = defaultToolTokenShare
 	}
 	if opts.ReadRetry < 0 {
 		opts.ReadRetry = 0
@@ -471,14 +496,17 @@ func retryableCallError(err error) bool {
 // Policy 是服务器的**有效执行策略**回读（M1-08；§5.4 默认表 + 服务器覆盖）。
 // 输出上限（256KB）与工具面截断在 provider 层（`provider.DefaultMaxResultBytes`）。
 type Policy struct {
-	TimeoutMS              int `json:"timeout_ms"`
-	ConnectTimeoutMS       int `json:"connect_timeout_ms"`
-	MaxParallelCalls       int `json:"max_parallel_calls"`
-	MaxRetry               int `json:"max_retry"`
-	ReadRetryCap           int `json:"read_retry_cap"`
-	DisableGraceMS         int `json:"disable_grace_ms"`
-	HealthFailureThreshold int `json:"health_failure_threshold"`
-	HealthIntervalMS       int `json:"health_interval_ms"`
+	TimeoutMS              int     `json:"timeout_ms"`
+	ConnectTimeoutMS       int     `json:"connect_timeout_ms"`
+	MaxParallelCalls       int     `json:"max_parallel_calls"`
+	MaxRetry               int     `json:"max_retry"`
+	ReadRetryCap           int     `json:"read_retry_cap"`
+	DisableGraceMS         int     `json:"disable_grace_ms"`
+	HealthFailureThreshold int     `json:"health_failure_threshold"`
+	HealthIntervalMS       int     `json:"health_interval_ms"`
+	ToolBudget             int     `json:"tool_budget"`
+	ContextTokens          int     `json:"context_tokens"`
+	ToolTokenShare         float64 `json:"tool_token_share"`
 }
 
 // Policy 返回有效策略；服务器未注册时返回平台默认值（管理页可照常展示）。
@@ -492,6 +520,9 @@ func (m *Manager) Policy(serverID int) Policy {
 		DisableGraceMS:         int(m.opts.DisableGrace / time.Millisecond),
 		HealthFailureThreshold: m.opts.HealthFailureThreshold,
 		HealthIntervalMS:       int(m.opts.HealthInterval / time.Millisecond),
+		ToolBudget:             m.opts.ToolBudget,
+		ContextTokens:          m.opts.ContextTokens,
+		ToolTokenShare:         m.opts.ToolTokenShare,
 	}
 	target, ok := m.lookup(serverID)
 	if !ok {
@@ -726,6 +757,8 @@ func (m *Manager) discoverWithSession(ctx context.Context, target *conn, session
 			})
 		}
 	}
+	// M2-03：一次发现刷新后判定租户工具面预算（边沿触发，超限时发 mcp.tools.budget_exceeded）。
+	m.EvaluateToolBudget(tenantID)
 	return result, nil
 }
 

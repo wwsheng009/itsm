@@ -147,14 +147,17 @@ type ServerView struct {
 // ServerPolicyView 是执行策略回读视图（超时/并发/重试/宽限/告警阈值）。
 // 输出上限（256KB）与截断标记由 provider 层（`provider.DefaultMaxResultBytes`）保证。
 type ServerPolicyView struct {
-	TimeoutMS              int `json:"timeout_ms"`
-	ConnectTimeoutMS       int `json:"connect_timeout_ms"`
-	MaxParallelCalls       int `json:"max_parallel_calls"`
-	MaxRetry               int `json:"max_retry"`
-	ReadRetryCap           int `json:"read_retry_cap"`
-	DisableGraceMS         int `json:"disable_grace_ms"`
-	HealthFailureThreshold int `json:"health_failure_threshold"`
-	HealthIntervalMS       int `json:"health_interval_ms"`
+	TimeoutMS              int     `json:"timeout_ms"`
+	ConnectTimeoutMS       int     `json:"connect_timeout_ms"`
+	MaxParallelCalls       int     `json:"max_parallel_calls"`
+	MaxRetry               int     `json:"max_retry"`
+	ReadRetryCap           int     `json:"read_retry_cap"`
+	DisableGraceMS         int     `json:"disable_grace_ms"`
+	HealthFailureThreshold int     `json:"health_failure_threshold"`
+	HealthIntervalMS       int     `json:"health_interval_ms"`
+	ToolBudget             int     `json:"tool_budget"`
+	ContextTokens          int     `json:"context_tokens"`
+	ToolTokenShare         float64 `json:"tool_token_share"`
 }
 
 // policyView 计算**有效策略**：平台默认（manager）× 服务器配置（ent）逐字段取「更严」方向。
@@ -184,6 +187,9 @@ func (s *Service) policyView(entity *ent.MCPServer) ServerPolicyView {
 		DisableGraceMS:         policy.DisableGraceMS,
 		HealthFailureThreshold: policy.HealthFailureThreshold,
 		HealthIntervalMS:       policy.HealthIntervalMS,
+		ToolBudget:             policy.ToolBudget,
+		ContextTokens:          policy.ContextTokens,
+		ToolTokenShare:         policy.ToolTokenShare,
 	}
 }
 

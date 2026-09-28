@@ -119,3 +119,7 @@ mcp:
   test_timeout_seconds: ${MCP_TEST_TIMEOUT_SECONDS:10}          # 管理面「测试连接」同步超时（秒，上限 10）
   max_servers_per_tenant: ${MCP_MAX_SERVERS_PER_TENANT:20}      # 单租户服务器数量上限
   write_enabled: ${MCP_WRITE_ENABLED:false}                     # 写工具面（L1.5 回滚开关，M1-02）：开启后写工具可见，仍需 mcp:write + 人工审批
+  # —— 工具面预算（M2-03，分析报告 §9.1）：超限发出 mcp.tools.budget_exceeded 事件 ——
+  tools_budget: ${MCP_TOOLS_BUDGET:40}                          # 单租户有效工具数预算（>40 告警）
+  tools_context_tokens: ${MCP_TOOLS_CONTEXT_TOKENS:128000}      # 占比判定使用的上下文预算（tokens）
+  tools_token_share: ${MCP_TOOLS_TOKEN_SHARE:0.30}              # 工具面 token 占比上限（0-1，>30% 告警）

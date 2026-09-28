@@ -30,6 +30,10 @@ const (
 	EventServerHealthAlert EventType = "mcp.server.health_alert"
 	// EventServerDisableGraceExpired：禁用/删除的 in-flight 宽限期结束仍有在途调用（强制断开并审计）。
 	EventServerDisableGraceExpired EventType = "mcp.server.disable_grace_expired"
+	// EventToolsBudgetExceeded：租户工具面预算超限（M2-03）。
+	// 触发口径：有效工具数 > 预算，或工具面估算 token 占上下文比例 > 上限；
+	// 边沿触发（首次超限与超限期间计数变化时发出），Detail 含 tools/tokens/阈值。
+	EventToolsBudgetExceeded EventType = "mcp.tools.budget_exceeded"
 )
 
 // Event 是生命周期事件。

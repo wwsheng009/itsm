@@ -115,6 +115,13 @@ type MCPConfig struct {
 	// 且每次调用仍必须经 Gate2（mcp:write）+ Gate3（人工审批）才能执行。
 	// 与 Enabled 的关系：Enabled=false 时本开关无意义（MCP 整体关闭）。
 	WriteEnabled bool `mapstructure:"write_enabled"`
+	// ToolsBudget: mcp.tools_budget 单租户有效工具数预算（M2-03），默认 40；<=0 用默认值。
+	ToolsBudget int `mapstructure:"tools_budget"`
+	// ToolsContextTokens: mcp.tools_context_tokens 工具面 token 占比判定使用的上下文预算，
+	// 默认 128000；<=0 用默认值。
+	ToolsContextTokens int `mapstructure:"tools_context_tokens"`
+	// ToolsTokenShare: mcp.tools_token_share 工具面 token 占比上限（0-1），默认 0.30；<=0 用默认值。
+	ToolsTokenShare float64 `mapstructure:"tools_token_share"`
 }
 
 // MCP 连接与治理默认值（须与 config.yaml.example 的 mcp 块保持同值，两侧都有测试钉住）。
@@ -123,6 +130,9 @@ const (
 	mcpDefaultCallTimeoutSeconds    = 30
 	mcpDefaultTestTimeoutSeconds    = 10
 	mcpDefaultMaxServersPerTenant   = 20
+	mcpDefaultToolsBudget           = 40
+	mcpDefaultToolsContextTokens    = 128000
+	mcpDefaultToolsTokenShare       = 0.30
 )
 
 // applyMCPDefaults 补齐 MCP 配置的零值默认；Enabled 保持零值 false（未配置即关闭）。
@@ -144,6 +154,15 @@ func applyMCPDefaults(cfg *MCPConfig) {
 	}
 	if cfg.MaxServersPerTenant <= 0 {
 		cfg.MaxServersPerTenant = mcpDefaultMaxServersPerTenant
+	}
+	if cfg.ToolsBudget <= 0 {
+		cfg.ToolsBudget = mcpDefaultToolsBudget
+	}
+	if cfg.ToolsContextTokens <= 0 {
+		cfg.ToolsContextTokens = mcpDefaultToolsContextTokens
+	}
+	if cfg.ToolsTokenShare <= 0 {
+		cfg.ToolsTokenShare = mcpDefaultToolsTokenShare
 	}
 }
 

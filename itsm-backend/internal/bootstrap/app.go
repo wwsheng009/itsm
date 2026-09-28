@@ -1028,6 +1028,10 @@ func NewApplication() *Application {
 					Events:         mcpEvents,
 					ConnectTimeout: time.Duration(cfg.MCP.ConnectTimeoutSeconds) * time.Second,
 					CallTimeout:    time.Duration(cfg.MCP.CallTimeoutSeconds) * time.Second,
+					// M2-03 工具面预算：超限发出 mcp.tools.budget_exceeded（阈值见 config.yaml 的 mcp.tools_*）。
+					ToolBudget:     cfg.MCP.ToolsBudget,
+					ContextTokens:  cfg.MCP.ToolsContextTokens,
+					ToolTokenShare: cfg.MCP.ToolsTokenShare,
 				})
 				mcpAdminService, serviceErr := mcpadmin.NewService(mcpadmin.Config{
 					Client:      client,

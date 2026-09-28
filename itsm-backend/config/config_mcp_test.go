@@ -14,6 +14,9 @@ func TestLoadConfig_MCPSwitches(t *testing.T) {
   call_timeout_seconds: 45
   test_timeout_seconds: 30
   max_servers_per_tenant: 5
+  tools_budget: 12
+  tools_context_tokens: 64000
+  tools_token_share: 0.5
 `)
 
 	if !cfg.MCP.Enabled {
@@ -30,6 +33,15 @@ func TestLoadConfig_MCPSwitches(t *testing.T) {
 	}
 	if cfg.MCP.MaxServersPerTenant != 5 {
 		t.Errorf("max_servers_per_tenant 应为 5，实际 %d", cfg.MCP.MaxServersPerTenant)
+	}
+	if cfg.MCP.ToolsBudget != 12 {
+		t.Errorf("tools_budget 应为 12，实际 %d", cfg.MCP.ToolsBudget)
+	}
+	if cfg.MCP.ToolsContextTokens != 64000 {
+		t.Errorf("tools_context_tokens 应为 64000，实际 %d", cfg.MCP.ToolsContextTokens)
+	}
+	if cfg.MCP.ToolsTokenShare != 0.5 {
+		t.Errorf("tools_token_share 应为 0.5，实际 %v", cfg.MCP.ToolsTokenShare)
 	}
 }
 
@@ -52,5 +64,15 @@ func TestLoadConfig_MCPDefaults(t *testing.T) {
 	}
 	if cfg.MCP.MaxServersPerTenant != 20 {
 		t.Errorf("max_servers_per_tenant 默认应为 20，实际 %d", cfg.MCP.MaxServersPerTenant)
+	}
+	// M2-03 工具面预算默认值（须与 config.yaml.example 同值）。
+	if cfg.MCP.ToolsBudget != 40 {
+		t.Errorf("tools_budget 默认应为 40，实际 %d", cfg.MCP.ToolsBudget)
+	}
+	if cfg.MCP.ToolsContextTokens != 128000 {
+		t.Errorf("tools_context_tokens 默认应为 128000，实际 %d", cfg.MCP.ToolsContextTokens)
+	}
+	if cfg.MCP.ToolsTokenShare != 0.30 {
+		t.Errorf("tools_token_share 默认应为 0.30，实际 %v", cfg.MCP.ToolsTokenShare)
 	}
 }

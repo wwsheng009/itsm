@@ -255,13 +255,19 @@ func (w *fakeStatusWriter) first(serverID int) (StatusPatch, bool) {
 // —— 测试脚手架 ——
 
 func newTestManager(dialer *fakeDialer) (*Manager, *MemoryEventSink, *fakeStatusWriter) {
+	return newTestManagerWithBackoff(dialer, BackoffPolicy{Base: 20 * time.Millisecond, Factor: 2, Max: 80 * time.Millisecond})
+}
+
+// newTestManagerWithBackoff 与 newTestManager 相同，但可指定退避策略
+// （墙钟敏感用例用更大的 Base，避免「退避未到」断言被调度抖动打穿）。
+func newTestManagerWithBackoff(dialer *fakeDialer, backoff BackoffPolicy) (*Manager, *MemoryEventSink, *fakeStatusWriter) {
 	events := CollectEvents()
 	statuses := newFakeStatusWriter()
 	manager := New(Options{
 		Dial:           dialer.Dial,
 		Events:         events,
 		StatusWriter:   statuses,
-		Backoff:        BackoffPolicy{Base: 20 * time.Millisecond, Factor: 2, Max: 80 * time.Millisecond},
+		Backoff:        backoff,
 		HealthInterval: 10 * time.Millisecond,
 		ConnectTimeout: time.Second,
 		CallTimeout:    time.Second,
@@ -345,7 +351,9 @@ func TestManager_ConnectFailureBackoffThenRecover(t *testing.T) {
 	dialer := newFakeDialer()
 	dialer.setError(1, errors.New("connection refused"))
 	dialer.setSession(1, newFakeSession("echo"))
-	manager, events, _ := newTestManager(dialer)
+	// 退避 Base 取 300ms：让「退避未到不得重试」在满载/竞态插桩下仍确定（原 20ms 易被调度抖动打穿），
+	// 同时 300ms ≪ 恢复阶段的 2s 等待预算。
+	manager, events, _ := newTestManagerWithBackoff(dialer, BackoffPolicy{Base: 300 * time.Millisecond, Factor: 2, Max: 3 * time.Second})
 	manager.Upsert(testServerConfig(1, "srv1"))
 
 	require.NoError(t, manager.Enable(context.Background(), 1))
