@@ -18,7 +18,7 @@ import {
   Modal,
   Tooltip,
 } from 'antd';
-import { CheckCircle2, ExternalLink, Settings2, XCircle, RefreshCw, ShieldAlert } from 'lucide-react';
+import { CheckCircle2, Settings2, XCircle, RefreshCw, ShieldAlert } from 'lucide-react';
 
 import {
   aiGetToolApprovals,
@@ -27,6 +27,13 @@ import {
   type ToolApprovalListResponse,
 } from '@/lib/api/ai-api';
 import { mcpApi, type MCPServer } from '@/lib/api/mcp-api';
+import {
+  ToolInvocationDetail,
+  ToolSourceTag,
+  formatToolSource,
+  prettyArgs,
+  riskColor,
+} from '@/components/ai/tool-invocation-detail';
 import { usePermissions } from '@/lib/hooks/use-permissions';
 import { useAuthStoreHydration } from '@/lib/store/auth-store';
 
@@ -59,15 +66,6 @@ const permissionColor = (p?: string): string => {
   return 'default';
 };
 
-const prettyArgs = (raw?: string): string => {
-  if (!raw) return '-';
-  try {
-    return JSON.stringify(JSON.parse(raw), null, 2);
-  } catch {
-    return raw;
-  }
-};
-
 /** 来源筛选（M1-06）：与后端 `?provider=` 取值对齐。 */
 const PROVIDER_OPTIONS = [
   { value: '', label: '全部来源' },
@@ -75,18 +73,8 @@ const PROVIDER_OPTIONS = [
   { value: 'mcp', label: 'MCP 外部工具' },
 ];
 
-const riskColor = (risk?: string): string => {
-  if (risk === 'high') return 'red';
-  if (risk === 'medium') return 'orange';
-  if (risk === 'low') return 'green';
-  return 'default';
-};
-
-/** 来源徽标：内置 / MCP · <服务器标识>（服务器缺失时退化为 MCP）。 */
-export const formatSource = (record: Pick<ToolApproval, 'provider' | 'serverName'>): string => {
-  if (record.provider !== 'mcp') return '内置';
-  return record.serverName ? `MCP · ${record.serverName}` : 'MCP';
-};
+/** 来源徽标口径与审计页共用（见 `components/ai/tool-invocation-detail`）。 */
+export const formatSource = formatToolSource;
 
 const AIApprovalQueue: React.FC = () => {
   const { message } = App.useApp();
@@ -193,9 +181,7 @@ const AIApprovalQueue: React.FC = () => {
       title: '来源',
       key: 'source',
       width: 140,
-      render: (_: unknown, r: ToolApproval) => (
-        <Tag color={r.provider === 'mcp' ? 'blue' : 'default'}>{formatSource(r)}</Tag>
-      ),
+      render: (_: unknown, r: ToolApproval) => <ToolSourceTag record={r} />,
     },
     {
       title: '风险',
@@ -336,51 +322,12 @@ const AIApprovalQueue: React.FC = () => {
           pagination={{ pageSize: 20, showTotal: (t) => `共 ${t} 条` }}
           expandable={{
             expandedRowRender: (r) => (
-              <Space direction="vertical" size={6} style={{ width: '100%' }}>
-                {/* M1-06：审批详情完整展示来源三元组，避免「信息缺失下决策」。 */}
-                <Descriptions size="small" column={3} bordered>
-                  <Descriptions.Item label="来源">{formatSource(r)}</Descriptions.Item>
-                  <Descriptions.Item label="服务器">{r.serverName || '-'}</Descriptions.Item>
-                  <Descriptions.Item label="风险">{r.risk || '-'}</Descriptions.Item>
-                  <Descriptions.Item label="原始工具名">{r.rawToolName || '-'}</Descriptions.Item>
-                  <Descriptions.Item label="可调用名" span={2}>
-                    {r.callableName || r.toolName}
-                  </Descriptions.Item>
-                  <Descriptions.Item label="角色快照">{r.roleSnapshot || '-'}</Descriptions.Item>
-                  <Descriptions.Item label="权限校验">
-                    {r.permissionCheck || '-'}
-                    {r.permissionReason ? `（${r.permissionReason}）` : ''}
-                  </Descriptions.Item>
-                  <Descriptions.Item label="审批人 / 时间">
-                    {r.approvedBy ? `${r.approvedBy}` : '-'}
-                    {r.approvedAt ? ` · ${new Date(r.approvedAt).toLocaleString('zh-CN', { hour12: false })}` : ''}
-                  </Descriptions.Item>
-                  <Descriptions.Item label="耗时">
-                    {typeof r.durationMs === 'number' ? `${r.durationMs}ms` : '-'}
-                  </Descriptions.Item>
-                  <Descriptions.Item label="错误码">{r.errorCode || '-'}</Descriptions.Item>
-                  <Descriptions.Item label="结果摘要" span={2}>
-                    {r.outputSummary || '-'}
-                  </Descriptions.Item>
-                </Descriptions>
-                {r.approvalReason ? (
-                  <Text type="secondary" style={{ fontSize: 12 }}>
-                    审批意见：{r.approvalReason}
-                  </Text>
-                ) : null}
-                <Divider style={{ margin: '4px 0' }} />
-                <Text type="secondary" style={{ fontSize: 12 }}>
-                  脱敏参数（原始参数仅留在后端执行记录，不回显）
-                </Text>
-                <pre style={{ margin: 0, whiteSpace: 'pre-wrap', wordBreak: 'break-all', fontSize: 12 }}>
-                  {prettyArgs(r.argsRedacted)}
-                </pre>
-                {canGovernTools && r.provider === 'mcp' ? (
-                  <a onClick={() => navigate('/admin/mcp-servers')}>
-                    <ExternalLink size={12} /> 前往工具治理页查看该服务器的工具开关与风险标注
-                  </a>
-                ) : null}
-              </Space>
+              // M1-06：审批详情完整展示来源三元组（与审计页共用同一展示件）。
+              <ToolInvocationDetail
+                record={r}
+                canGovernTools={canGovernTools}
+                onOpenGovernance={() => navigate('/admin/mcp-servers')}
+              />
             ),
           }}
           locale={{

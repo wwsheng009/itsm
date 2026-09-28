@@ -968,13 +968,20 @@ func (h *Handler) toolInvocationItem(ctx context.Context, tenantID int, inv *Too
 
 // ListToolInvocations handles GET /api/v1/agent/tools/invocations
 // 列出工具调用审批记录，供审批人查看待办。默认返回 pending（待审批），
-// 支持 ?state=approved|rejected|auto 查看其它状态；
+// 支持 ?state=approved|rejected|auto 查看其它状态，`?state=all` 表示不限状态
+// （M1-07 审计页按来源维度全量查看）；
 // M1-06 起支持 ?provider=builtin|mcp 与 ?server=<服务器标识> 的来源维度筛选
 // （过滤在数据库层完成，前端不做二次筛选）。跨租户隔离由 tenant_id 强制。
 func (h *Handler) ListToolInvocations(c *gin.Context) {
 	state := c.Query("state")
 	if state == "" {
 		state = "pending"
+	}
+	// `all` 是「不限状态」的显式取值：审计视图需要跨越审批状态看全量调用，
+	// 而空串在 HTTP 语义上与「未传参」无法区分（未传=待审批，是审批页的默认）。
+	filterState := state
+	if state == "all" {
+		filterState = ""
 	}
 	provider := strings.TrimSpace(c.Query("provider"))
 	// 来源取值受控：拼错的值会静默返回空列表，对排障不友好，直接 400。
@@ -989,7 +996,7 @@ func (h *Handler) ListToolInvocations(c *gin.Context) {
 		return
 	}
 
-	filter := ToolInvocationFilter{State: state, Provider: provider, Server: server}
+	filter := ToolInvocationFilter{State: filterState, Provider: provider, Server: server}
 	invs, err := h.svc.repo.ListToolInvocations(c.Request.Context(), tenantID, filter)
 	if err != nil {
 		h.svc.logger.Warnw("查询工具调用列表失败", "error", err, "tenantID", tenantID)

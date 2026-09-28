@@ -1,5 +1,6 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
+import { useNavigate } from 'react-router';
 import {
   Card,
   Table,
@@ -12,16 +13,26 @@ import {
   Descriptions,
   Empty,
   App,
+  Input,
   Tooltip,
 } from 'antd';
 import { BarChart3, RefreshCw, ShieldCheck, Target } from 'lucide-react';
 
 import {
+  aiGetToolApprovals,
   aiGetAuditLogs,
   aiGetEvaluation,
   type AIAuditEntry,
   type AIEvaluationReport,
+  type ToolApproval,
 } from '@/lib/api/ai-api';
+import { mcpApi, type MCPServer } from '@/lib/api/mcp-api';
+import {
+  ToolInvocationDetail,
+  ToolSourceTag,
+  riskColor,
+} from '@/components/ai/tool-invocation-detail';
+import { usePermissions } from '@/lib/hooks/use-permissions';
 import { useAuthStoreHydration } from '@/lib/store/auth-store';
 
 const { Title, Text } = Typography;
@@ -47,6 +58,8 @@ const healthColor = (score: number): string => {
 
 const AIAuditConsole: React.FC = () => {
   const { message } = App.useApp();
+  const navigate = useNavigate();
+  const { hasPermission } = usePermissions();
   useAuthStoreHydration();
 
   const [report, setReport] = useState<AIEvaluationReport | null>(null);
@@ -56,6 +69,57 @@ const AIAuditConsole: React.FC = () => {
   const [kindFilter, setKindFilter] = useState<string>('');
   const [pagination, setPagination] = useState({ current: 1, pageSize: 20, total: 0 });
   const [detail, setDetail] = useState<AIAuditEntry | null>(null);
+
+  // M1-07：工具调用审计（来源维度）。数据真源是 tool_invocations（非 AI 场景审计日志），
+  // `state=all` 表示跨审批状态全量；过滤一律由后端完成。
+  const [toolRows, setToolRows] = useState<ToolApproval[]>([]);
+  const [toolLoading, setToolLoading] = useState(false);
+  const [toolProvider, setToolProvider] = useState<string>('');
+  const [toolServer, setToolServer] = useState<string>('');
+  const [toolState, setToolState] = useState<string>('all');
+  const [servers, setServers] = useState<MCPServer[]>([]);
+  const [serversUnavailable, setServersUnavailable] = useState(false);
+  const [toolFilters, setToolFilters] = useState({ provider: '', server: '', state: 'all' });
+
+  const fetchToolRows = useCallback(
+    async (provider: string, server: string, state: string) => {
+      setToolLoading(true);
+      try {
+        const res = await aiGetToolApprovals(state, { provider, server });
+        setToolRows(res.items ?? []);
+        // 回显后端生效的过滤条件（筛选可分享、空态可解释）。
+        setToolFilters({
+          provider: res.provider ?? provider,
+          server: res.server ?? server,
+          state: res.state ?? state,
+        });
+      } catch (e) {
+        message.error(`加载工具调用审计失败：${(e as Error).message}`);
+      } finally {
+        setToolLoading(false);
+      }
+    },
+    [message]
+  );
+
+  useEffect(() => {
+    void fetchToolRows('', '', 'all');
+  }, [fetchToolRows]);
+
+  useEffect(() => {
+    let cancelled = false;
+    mcpApi
+      .listServers()
+      .then(res => {
+        if (!cancelled) setServers(res.items ?? []);
+      })
+      .catch(() => {
+        if (!cancelled) setServersUnavailable(true);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const fetchEvaluation = useCallback(async () => {
     setEvalLoading(true);
@@ -152,6 +216,69 @@ const AIAuditConsole: React.FC = () => {
       render: (_: unknown, record: AIAuditEntry) => (
         <a onClick={() => setDetail(record)}>详情</a>
       ),
+    },
+  ];
+
+  /** M1-07：工具调用审计列（与 tool_invocations 扩展字段一一对应）。 */
+  const toolColumns = [
+    {
+      title: '时间',
+      dataIndex: 'createdAt',
+      key: 'createdAt',
+      width: 170,
+      render: (v: string) => new Date(v).toLocaleString('zh-CN', { hour12: false }),
+    },
+    {
+      title: '来源',
+      key: 'source',
+      width: 140,
+      render: (_: unknown, r: ToolApproval) => <ToolSourceTag record={r} />,
+    },
+    {
+      title: '工具',
+      dataIndex: 'toolName',
+      key: 'toolName',
+      width: 210,
+      render: (v: string, r: ToolApproval) => (
+        <Space direction="vertical" size={0}>
+          <Tag color={r.provider === 'mcp' ? 'geekblue' : 'default'} style={{ marginInlineEnd: 0 }}>
+            {r.callableName || v}
+          </Tag>
+          {r.provider === 'mcp' && r.rawToolName ? (
+            <Text type="secondary" style={{ fontSize: 10 }}>
+              原始名 {r.rawToolName}
+            </Text>
+          ) : null}
+        </Space>
+      ),
+    },
+    {
+      title: '风险',
+      dataIndex: 'risk',
+      key: 'risk',
+      width: 90,
+      render: (v?: string) => (v ? <Tag color={riskColor(v)}>{v}</Tag> : <Text type="secondary">-</Text>),
+    },
+    {
+      title: '状态',
+      dataIndex: 'status',
+      key: 'status',
+      width: 100,
+      render: (v: string) => <Tag>{v || '-'}</Tag>,
+    },
+    {
+      title: '耗时',
+      dataIndex: 'durationMs',
+      key: 'durationMs',
+      width: 90,
+      render: (v?: number) => (typeof v === 'number' ? `${v}ms` : '-'),
+    },
+    {
+      title: '错误码',
+      dataIndex: 'errorCode',
+      key: 'errorCode',
+      width: 150,
+      render: (v?: string) => (v ? <Text type="danger">{v}</Text> : '-'),
     },
   ];
 
@@ -340,6 +467,111 @@ const AIAuditConsole: React.FC = () => {
               onChange: (page, pageSize) => fetchLogs(page, pageSize, kindFilter),
             }}
             locale={{ emptyText: '暂无 AI 审计记录' }}
+          />
+        </Card>
+
+        {/* M1-07：工具调用审计（来源维度）——数据真源 tool_invocations，脱敏字段原样展示。 */}
+        <Card
+          title="工具调用审计（来源维度）"
+          extra={
+            <Space>
+              <Select
+                style={{ width: 140 }}
+                value={toolProvider}
+                onChange={v => {
+                  setToolProvider(v);
+                  const nextServer = v === 'mcp' ? toolServer : '';
+                  setToolServer(nextServer);
+                  void fetchToolRows(v, nextServer, toolState);
+                }}
+                options={[
+                  { value: '', label: '全部来源' },
+                  { value: 'builtin', label: '内置工具' },
+                  { value: 'mcp', label: 'MCP 外部工具' },
+                ]}
+              />
+              {serversUnavailable ? (
+                <Input
+                  style={{ width: 150 }}
+                  placeholder="服务器标识"
+                  allowClear
+                  onPressEnter={e => {
+                    const v = (e.target as HTMLInputElement).value.trim();
+                    setToolServer(v);
+                    if (v) setToolProvider('mcp');
+                    void fetchToolRows(v ? 'mcp' : toolProvider, v, toolState);
+                  }}
+                />
+              ) : (
+                <Select
+                  style={{ width: 150 }}
+                  placeholder="全部服务器"
+                  allowClear
+                  showSearch
+                  optionFilterProp="label"
+                  value={toolServer || undefined}
+                  onChange={v => {
+                    const nextServer = v ?? '';
+                    setToolServer(nextServer);
+                    if (nextServer) setToolProvider('mcp');
+                    void fetchToolRows(nextServer ? 'mcp' : toolProvider, nextServer, toolState);
+                  }}
+                  options={servers.map(s => ({
+                    value: s.name,
+                    label: s.display_name ? `${s.name}（${s.display_name}）` : s.name,
+                  }))}
+                />
+              )}
+              <Select
+                style={{ width: 130 }}
+                value={toolState}
+                onChange={v => {
+                  setToolState(v);
+                  void fetchToolRows(toolProvider, toolServer, v);
+                }}
+                options={[
+                  { value: 'all', label: '全部状态' },
+                  { value: 'pending', label: '待审批' },
+                  { value: 'approved', label: '已通过' },
+                  { value: 'rejected', label: '已驳回' },
+                  { value: 'auto', label: '自动执行' },
+                ]}
+              />
+              <a onClick={() => void fetchToolRows(toolProvider, toolServer, toolState)}>
+                <RefreshCw size={16} /> 刷新
+              </a>
+            </Space>
+          }
+        >
+          <Table
+            rowKey="id"
+            size="middle"
+            loading={toolLoading}
+            dataSource={toolRows}
+            columns={toolColumns}
+            pagination={{ pageSize: 20, showTotal: t => `共 ${t} 条` }}
+            expandable={{
+              expandedRowRender: (r: ToolApproval) => (
+                <ToolInvocationDetail
+                  record={r}
+                  canGovernTools={hasPermission('mcp', 'admin')}
+                  onOpenGovernance={() => navigate('/admin/mcp-servers')}
+                />
+              ),
+            }}
+            locale={{
+              emptyText: (
+                <Empty
+                  description={
+                    toolFilters.provider || toolFilters.server || toolFilters.state !== 'all'
+                      ? `当前筛选条件下没有工具调用记录（来源=${toolFilters.provider || '全部'}，服务器=${
+                          toolFilters.server || '全部'
+                        }，状态=${toolFilters.state}）`
+                      : '暂无工具调用记录'
+                  }
+                />
+              ),
+            }}
           />
         </Card>
       </Space>

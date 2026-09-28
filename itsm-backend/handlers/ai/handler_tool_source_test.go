@@ -176,6 +176,11 @@ func TestListToolInvocations_FiltersByProviderAndServer(t *testing.T) {
 	client.ToolInvocation.Create().SetTenantID(tenant.ID).SetUserID(user.ID).
 		SetToolName("create_ticket").SetStatus("pending").SetApprovalState("pending").
 		SetProvider("builtin").SaveX(ctx)
+	// 已审批的历史记录（审计视图 `state=all` 必须跨状态可见）。
+	client.ToolInvocation.Create().SetTenantID(tenant.ID).SetUserID(user.ID).
+		SetToolName("mcp__mock__list_issues").SetStatus("done").SetApprovalState("approved").
+		SetProvider("mcp").SetMcpServerName("mock").SetMcpRawToolName("list_issues").
+		SetMcpCallableName("mcp__mock__list_issues").SetDurationMs(42).SaveX(ctx)
 
 	r := gin.New()
 	r.GET("/api/v1/agent/tools/invocations", func(c *gin.Context) {
@@ -190,6 +195,7 @@ func TestListToolInvocations_FiltersByProviderAndServer(t *testing.T) {
 			Items    []map[string]interface{} `json:"items"`
 			Provider string                   `json:"provider"`
 			Server   string                   `json:"server"`
+			State    string                   `json:"state"`
 		} `json:"data"`
 	}
 	fetch := func(query string) listResponse {
@@ -206,6 +212,12 @@ func TestListToolInvocations_FiltersByProviderAndServer(t *testing.T) {
 	require.Len(t, all.Data.Items, 3)
 	assert.Empty(t, all.Data.Provider)
 	assert.Empty(t, all.Data.Server)
+
+	// state=all（M1-07 审计视图）：跨审批状态全量可见（3 待审批 + 1 已通过），且回显供筛选回显。
+	allStates := fetch("?state=all")
+	require.Len(t, allStates.Data.Items, 4)
+	assert.Equal(t, "all", allStates.Data.State)
+	require.Len(t, fetch("?state=approved").Data.Items, 1)
 
 	// provider=mcp：两条 MCP。
 	mcpOnly := fetch("?state=pending&provider=mcp")
