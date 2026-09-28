@@ -92,3 +92,43 @@ func TestBodyJSON(t *testing.T) {
 	require.NoError(t, json.Unmarshal([]byte(oversized), &decoded))
 	assert.Equal(t, true, decoded["truncated"])
 }
+
+// TestValueSummary_MasksSensitiveKeysInStructs 回归守卫：
+// 传结构体/slice-of-struct（如 mcp/provider 的 Output/Content）时也必须按键名脱敏。
+// 历史缺陷：Map 的 default 分支原样返回结构体，敏感键漏过掩码，明文落 output_summary。
+func TestValueSummary_MasksSensitiveKeysInStructs(t *testing.T) {
+	type content struct {
+		Type string                 `json:"type"`
+		Text string                 `json:"text,omitempty"`
+		Data map[string]interface{} `json:"data,omitempty"`
+	}
+	type output struct {
+		Provider  string    `json:"provider"`
+		Content   []content `json:"content"`
+		Truncated bool      `json:"truncated"`
+	}
+
+	summary := ValueSummary(output{
+		Provider: "mcp",
+		Content: []content{
+			{Type: "text", Text: "ok"},
+			{Type: "structured", Data: map[string]interface{}{
+				"token":    "s3cr3t-value",
+				"password": "p@ss",
+				"total":    3,
+			}},
+		},
+	}, 512)
+
+	assert.NotContains(t, summary, "s3cr3t-value")
+	assert.NotContains(t, summary, "p@ss")
+	assert.Contains(t, summary, Mask)
+
+	var decoded map[string]interface{}
+	require.NoError(t, json.Unmarshal([]byte(summary), &decoded))
+	items := decoded["content"].([]interface{})
+	data := items[1].(map[string]interface{})["data"].(map[string]interface{})
+	assert.Equal(t, Mask, data["token"])
+	assert.Equal(t, Mask, data["password"])
+	assert.Equal(t, float64(3), data["total"])
+}

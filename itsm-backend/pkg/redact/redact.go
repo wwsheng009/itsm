@@ -128,6 +128,24 @@ func Summary(text string, limit int) string {
 	return truncateString(text, limit)
 }
 
+// generic 把任意 Go 值归一化为通用 JSON 树（map[string]interface{} / []interface{} / 标量）。
+//
+// 为什么需要：Map 只对**通用容器**做键级脱敏，遇到结构体/slice-of-struct（如 provider 的
+// Output/Content）会走 default 分支原样返回，敏感键因此漏过掩码。摘要类入口统一经此归一化，
+// 保证「先结构化成 key/value，再按键名脱敏」的语义对所有调用方一致。
+// 归一化失败（含函数/通道等不可序列化值）时回退原值，由调用方按原有路径处理。
+func generic(value interface{}) interface{} {
+	encoded, err := json.Marshal(value)
+	if err != nil {
+		return value
+	}
+	var normalized interface{}
+	if err := json.Unmarshal(encoded, &normalized); err != nil {
+		return value
+	}
+	return normalized
+}
+
 // ValueSummary 把任意执行结果转为脱敏、截断的摘要字符串。
 func ValueSummary(value interface{}, limit int) string {
 	if value == nil {
@@ -136,7 +154,7 @@ func ValueSummary(value interface{}, limit int) string {
 	if text, ok := value.(string); ok {
 		return truncateString(text, limit)
 	}
-	encoded, err := json.Marshal(Map(value))
+	encoded, err := json.Marshal(Map(generic(value)))
 	if err != nil {
 		return ""
 	}
