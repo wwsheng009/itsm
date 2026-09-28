@@ -38,6 +38,8 @@ type Service struct {
 	entClient *ent.Client
 	// B0-06：统一脱敏入口（按工具元数据的 default/strict 档位口径）。
 	redactor *bot.Redactor
+	// B1-01：运行态记录（chatStream 起运行/记步骤/记事件；未注入时零行为变化）。
+	botRuns *bot.RunStore
 }
 
 func NewService(
@@ -85,6 +87,14 @@ func (s *Service) SetSummarizeService(svc *service.SummarizeService) {
 // P2-6: AI 工具执行前调用 hasResourcePermission 校验用户对工具 Resource/Action 的权限
 func (s *Service) SetEntClient(client *ent.Client) {
 	s.entClient = client
+}
+
+// SetBotRunStore 注入运行态存储（B1-01）。
+//
+// 未注入（nil）时聊天路径不产生任何 bot_runs/bot_steps/bot_events 写入，
+// 行为与既有版本零差异（关闭态口径，与 `bot.enabled=false` 对应）。
+func (s *Service) SetBotRunStore(store *bot.RunStore) {
+	s.botRuns = store
 }
 
 // Tool Methods
@@ -273,7 +283,8 @@ func (s *Service) ExecuteToolWithOptions(ctx context.Context, userID, tenantID i
 	}
 	inv, err := s.repo.CreateToolInvocation(ctx, &ToolInvocation{
 		TenantID:         tenantID,
-		ConversationID:   conversationIDFrom(ctx), // B0-03：聊天路径会话归属（无会话则为 0，不入列）
+		ConversationID:   conversationIDFrom(ctx),   // B0-03：聊天路径会话归属（无会话则为 0，不入列）
+		RunID:            bot.RunIDFromContext(ctx), // B1-01：运行归属（无运行上下文时为 0，不入列）
 		ToolName:         name,
 		Arguments:        string(argsStr),
 		ArgsRedacted:     s.redactArgs(ctx, tenantID, name, args),
@@ -359,7 +370,8 @@ func (s *Service) recordToolAudit(ctx context.Context, tenantID, userID int, rol
 	argsStr, _ := json.Marshal(args)
 	audit := &ToolInvocation{
 		TenantID:         tenantID,
-		ConversationID:   conversationIDFrom(ctx), // B0-03：会话归属（审计可按 conversation_id 回溯）
+		ConversationID:   conversationIDFrom(ctx),   // B0-03：会话归属（审计可按 conversation_id 回溯）
+		RunID:            bot.RunIDFromContext(ctx), // B1-01：运行归属（无运行上下文时为 0，不入列）
 		ToolName:         toolName,
 		Arguments:        string(argsStr),
 		Status:           status,
@@ -745,10 +757,90 @@ func (s *Service) ChatStreamWithProviderInfo(
 	return resolution, convIDOut, err
 }
 
-// chatStream 是流式聊天主链路的内部实现。gateway/providerReq 决定本次调用实际
+// chatStream 在既有流式链路外包裹运行态记录（B1-01）：
+// 注入 RunStore 时起运行（running）、把 run_id 注入上下文（供 ToolInvocation 贯通），
+// 结束后记 llm 步骤 + run_finished 事件并收口运行；未注入时直接透传，
+// 行为与既有版本零差异。所有运行态写入失败均只告警，**绝不**影响聊天主链路。
+func (s *Service) chatStream(
+	ctx context.Context,
+	tenantID, userID int,
+	role string,
+	query string,
+	limit int,
+	convID int,
+	gateway *service.LLMGateway,
+	providerReq *service.ProviderRequest,
+	onSources func([]map[string]any),
+	onDelta func(string),
+	onTool func(ToolStreamEvent),
+) (int, string, error) {
+	runID := 0
+	startedAt := time.Now()
+	if s.botRuns != nil {
+		run, err := s.botRuns.StartRun(ctx, bot.StartRunInput{
+			TenantID:       tenantID,
+			ConversationID: convID,
+			Entrypoint:     "chat",
+		})
+		if err != nil {
+			s.logger.Warnw("B1-01 运行记录创建失败（降级为不记录）", "error", err, "tenant_id", tenantID)
+		} else if run != nil {
+			runID = run.ID
+			ctx = bot.WithRunID(ctx, runID)
+			if _, evErr := s.botRuns.AppendEvent(ctx, tenantID, runID, "run_started", map[string]any{
+				"entrypoint":     "chat",
+				"conversationId": convID,
+				"limit":          limit,
+			}); evErr != nil {
+				s.logger.Warnw("B1-01 run_started 事件写入失败", "error", evErr, "run_id", runID)
+			}
+		}
+	}
+
+	outConvID, answer, err := s.chatStreamInner(ctx, tenantID, userID, role, query, limit, convID, gateway, providerReq, onSources, onDelta, onTool)
+
+	if runID > 0 {
+		// 收口写入与请求取消解耦：客户端断开也要留下完成态与事件（审计同源）。
+		finishCtx := context.WithoutCancel(ctx)
+		status, code := "completed", ""
+		if err != nil {
+			status, code = "failed", botRunErrorCode(err)
+		}
+		if _, stepErr := s.botRuns.AppendStep(finishCtx, tenantID, runID, 0, "llm", "", int(time.Since(startedAt).Milliseconds())); stepErr != nil {
+			s.logger.Warnw("B1-01 llm 步骤写入失败", "error", stepErr, "run_id", runID)
+		}
+		if _, evErr := s.botRuns.AppendEvent(finishCtx, tenantID, runID, "run_finished", map[string]any{
+			"status":    status,
+			"errorCode": code,
+		}); evErr != nil {
+			s.logger.Warnw("B1-01 run_finished 事件写入失败", "error", evErr, "run_id", runID)
+		}
+		if finishErr := s.botRuns.FinishRun(finishCtx, tenantID, runID, status, code); finishErr != nil {
+			s.logger.Warnw("B1-01 运行收口失败", "error", finishErr, "run_id", runID)
+		}
+	}
+
+	return outConvID, answer, err
+}
+
+// botRunErrorCode 把主链路错误归类为运行态错误码（用于 bot_runs.error_code）。
+func botRunErrorCode(err error) string {
+	switch {
+	case err == nil:
+		return ""
+	case errors.Is(err, context.Canceled):
+		return "cancelled"
+	case errors.Is(err, context.DeadlineExceeded):
+		return "timeout"
+	default:
+		return "chat_error"
+	}
+}
+
+// chatStreamInner 是流式聊天主链路的内部实现。gateway/providerReq 决定本次调用实际
 // 路由到的 provider：providerReq 为 nil = 未绑定（开关关闭且无覆盖），能力探测与
 // 模型调用都保持既有静态口径；非 nil = 绑定副本，按 §3.3 解析链路由。
-func (s *Service) chatStream(
+func (s *Service) chatStreamInner(
 	ctx context.Context,
 	tenantID, userID int,
 	role string,

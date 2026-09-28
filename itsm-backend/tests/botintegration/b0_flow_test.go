@@ -75,6 +75,7 @@ func (p *stubProvider) callCount() int {
 type b0Harness struct {
 	client   *ent.Client
 	registry *service.ToolRegistry
+	queue    *service.ToolQueue
 	svc      *ai.Service
 	provider *stubProvider
 
@@ -158,7 +159,7 @@ func newB0Harness(t *testing.T) *b0Harness {
 	svc.SetEntClient(client)
 
 	return &b0Harness{
-		client: client, registry: registry, svc: svc, provider: provider,
+		client: client, registry: registry, queue: queue, svc: svc, provider: provider,
 		tenantID: tenant.ID, userID: user.ID, convID: conv.ID,
 	}
 }

@@ -211,6 +211,7 @@ MCP 线：      ▼                    ▼                   ▼                
 | B0-06 | `unit_verified` | `evidence/bot-b0/B0-06-integration-evidence.md`（default/strict 统一入口 + 审计四类字段接线 + MCP 档位解析修复） |
 | B0-07 | `integration_verified` | `evidence/bot-b0/B0-07-b0-acceptance-evidence.md`（端到端 3 用例 + AB0 逐条索引 + MCP 联合评审 + QA 抽检） |
 | **B0 里程碑** | **`integration_verified`（条件达标）** | 出口①～⑥全部满足；条件项 = AB0-02 Postgres 侧（gap A1 外因，CI job S1 已就位、首轮观察态） |
+| B1-01 | `integration_verified` | `evidence/bot-b1/B1-01-run-archive-evidence.md`（三表迁移 + RunStore + run_id 贯通 + 真实 chat/stream 运行档案；事件名待 BP3 冻结） |
 
 ### 3.4 双线联合路线图（与 MCP 方案合并视图）
 
@@ -327,6 +328,7 @@ MCP 线：      ▼                    ▼                   ▼                
 - **要点**：`bot_runs(conversation_id, bot_id 预留, entrypoint, status, model, budget_json, error_code, started_at/finished_at)`；`bot_steps(run_id + step_index 唯一, type=llm/tool/confirm, payload_ref, duration_ms)`；`bot_events(run_id + seq 唯一, type, payload_json)`；三表均含 `tenant_id` 且索引首列含租户维度（阶段一报告 §7-4）；保留策略按 BQ4（events 90 天热存 + 归档、runs/steps 180 天）。
 - **测试与证据**：一次对话产生 run + steps + events 的集成断言；租户隔离断言；`(run_id, seq)` 唯一冲突路径。
 - **DoD**：`integration_verified`。
+- **状态**：`integration_verified`（2026-09-27）——①三表落地（`bot_runs`/`bot_steps`/`bot_events`，索引首列含租户；`(run_id, step_index)` 与 `(run_id, seq)` 唯一；`ent generate` 已刷新）＋迁移测试 3 例（含旧行 `run_id=NULL` 可读可回填）；②`service/bot/run.go` `RunStore`（事务内取号 `max(seq)+1` + 冲突重试一次；`FinishRun` 租户维度 Where）＋`service/bot/context.go` 运行上下文；③`chatStream` 拆包装层：起运行 → run_id 注入上下文 → 收口（llm 步骤 + `run_finished` 事件 + 状态），收口用 `context.WithoutCancel`，运行态写入失败只告警不影响主链路；④`ToolInvocation.run_id` 在**读审计与写待审批**两条真实路径贯通，运行外为 0；⑤真实 `/api/v1/ai/chat/stream` 断言一次对话产生 1 run + ≥1 step + ≥2 events（seq 连续），二次对话独立；未注入 RunStore 时运行表零写入（关闭态）。证据 `docs/plan/evidence/bot-b1/B1-01-run-archive-evidence.md`。**条件项**：事件名 `run_started`/`run_finished` 为草案，待 **BP3 单一事件注册表评审**后与 B1-03 一并冻结。
 
 #### B1-02 RunManager 与运行态广播（后端）
 
@@ -939,3 +941,4 @@ MCP 线：      ▼                    ▼                   ▼                
 | 2026-09-27 | AI 辅助执行 | **B0-05 交付（`unit_verified`，接续部分交付）**：接线完成——Repository 新增 `GetToolInvocationByIdempotencyKey`；执行路径生成键、顺序重复直接回放（零新增）、唯一索引冲突 → 回查回放（非 500）；服务接线 4 例 + 真实 SQLite 回查 1 例全绿。证据 `docs/plan/evidence/bot-b0/B0-05-integration-evidence.md`。 |
 | 2026-09-27 | AI 辅助执行 | **B0-06 交付（`unit_verified`）**：统一脱敏入口 `service/bot/redactor.go`（default/strict；default 与 `pkg/redact` 逐字节互查；strict 只留键名）；审计四类字段接线（pending/dry-run/只读 args_redacted、strict 结果摘要、拒绝回填 reason）；档位经 `GetToolForTenant` 解析使 MCP 标注生效（修复初版误判 strict 的回归）。表驱动 5 例 + 落库断言 2 例。证据 `docs/plan/evidence/bot-b0/B0-06-integration-evidence.md`。 |
 | 2026-09-27 | AI 辅助执行 | **B0-07 交付 + B0 出口（`integration_verified`）**：新增 `itsm-backend/tests/botintegration/b0_flow_test.go` 端到端 3 用例（主链路/零写入/strict+标注，真实 ent/SQLite 4.2s 全绿）；AB0-01～AB0-07 逐条证据索引、与 MCP M0-03 联合评审记录、QA 抽检 8/8 清单见 `docs/plan/evidence/bot-b0/B0-07-b0-acceptance-evidence.md`；§3.1/§3.3.1/§5.2 回写 B0 判定（条件项 = AB0-02 Postgres 侧 gap A1）。**下一步：B1 开工（BQ1–BQ5 拍板 + BP3/BP4/BP8 前置）**。 |
+| 2026-09-27 | AI 辅助执行 | **B1-01 交付（`integration_verified`）**：新增 `bot_runs`/`bot_steps`/`bot_events` 三表（索引首列含租户；`(run_id,step_index)`、`(run_id,seq)` 唯一）＋`ent generate` 刷新；`service/bot/run.go` `RunStore`（事件取号 + 冲突重试；`FinishRun` 租户维度 Where）与 `service/bot/context.go` 运行上下文；`chatStream` 拆「包装层 + inner」：起运行 → run_id 注入 → 收口（llm 步骤 + run_finished 事件 + 状态，`context.WithoutCancel`），运行态写入失败只告警；`ToolInvocation.run_id` 在读审计与写待审批两条真实路径贯通。测试：迁移 3 例 + 运行态 4 例（含真实 `/api/v1/ai/chat/stream` 运行档案与关闭态零写入），受影响 4 包全绿（7.3s/12.7s/0.4s/9.4s）。证据 `docs/plan/evidence/bot-b1/B1-01-run-archive-evidence.md`。**条件项**：事件名待 BP3 注册表评审冻结（B1-03 一并）。 |

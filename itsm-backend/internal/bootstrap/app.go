@@ -31,6 +31,7 @@ import (
 	connectorHandler "itsm-backend/handlers/connector"
 	marketplaceHandler "itsm-backend/handlers/marketplace"
 	"itsm-backend/pkg/eventbus"
+	botService "itsm-backend/service/bot"
 	marketplaceService "itsm-backend/service/marketplace"
 
 	"itsm-backend/database"
@@ -987,6 +988,11 @@ func NewApplication() *Application {
 	aiServiceDomain.SetSummarizeService(summarizeService)
 	// P2-6: 注入 ent client 供 AI 工具 RBAC 校验复用 hasResourcePermission
 	aiServiceDomain.SetEntClient(client)
+	// B1-01：Bot 运行态记录（bot_runs/bot_steps/bot_events）。
+	// bot.enabled=false（默认）时不注入 → 聊天链路零额外写入、零行为变化。
+	if cfg.Bot.Enabled {
+		aiServiceDomain.SetBotRunStore(botService.NewRunStore(client))
+	}
 	aiHandler := ai.NewHandler(aiServiceDomain)
 
 	// MCP 外部工具接入（M0-09：provider 装配与运行时拉起）。
