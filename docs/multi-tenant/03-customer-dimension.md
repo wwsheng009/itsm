@@ -34,6 +34,8 @@
 | `costCenterCode` / `legalEntityCode` / `ownerContact` | — | 成本中心/法人实体/负责人 |
 | `settings` / `quota` | — | 租户配置与资源配额 |
 
+> 实测（2026-09-28）：`tenants` 表已含 `parent_tenant_id` / `msp_provider_id` 列，创建客户租户时经 `POST /api/v1/tenants` 传入即落库（MSPCUSTA / MSPCUSTB → provider `3`），无需额外迁移。
+
 更新：`PUT /api/v1/tenants/:id`；状态变更：`PUT /api/v1/tenants/:id/status`（`docs/acl-manifest.yaml:1747-1761`）。
 
 ## 3. 模板开通（provisioning）
