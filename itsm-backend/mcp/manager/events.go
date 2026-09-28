@@ -25,6 +25,11 @@ const (
 	EventToolStateChanged EventType = "mcp.tool.state_changed"
 	// EventToolQuarantined：工具被隔离（如 schema_hash 变更待复核）。
 	EventToolQuarantined EventType = "mcp.tool.quarantined"
+	// EventServerHealthAlert：连续健康检查失败达到阈值（M1-08 告警信号；Detail 含失败次数与最后错误）。
+	// 触发口径：失败次数为阈值的整数倍时发出（3、6、9…），避免每轮健康检查都刷告警。
+	EventServerHealthAlert EventType = "mcp.server.health_alert"
+	// EventServerDisableGraceExpired：禁用/删除的 in-flight 宽限期结束仍有在途调用（强制断开并审计）。
+	EventServerDisableGraceExpired EventType = "mcp.server.disable_grace_expired"
 )
 
 // Event 是生命周期事件。
@@ -35,6 +40,7 @@ type Event struct {
 	Server   string // 服务器稳定标识（投影名主体）
 	Tool     string // 相关工具（原始名）；非工具事件为空
 	Detail   string // 已脱敏的人读说明
+	Failures int    // 仅 EventServerHealthAlert 使用：当前连续失败次数
 	At       time.Time
 }
 

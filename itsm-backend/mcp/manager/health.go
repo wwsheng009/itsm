@@ -2,6 +2,7 @@ package manager
 
 import (
 	"context"
+	"fmt"
 	"time"
 )
 
@@ -35,13 +36,19 @@ func (m *Manager) healthCheckConn(ctx context.Context, target *conn) {
 	if hasSession {
 		if err := m.ping(ctx, target); err != nil {
 			m.handleHealthFailure(ctx, target, err)
+			return
 		}
+		// 探活成功：复位连续失败计数与退避（M1-08）。
+		target.markHealthOK(m.now())
+		target.resetFailures()
 		return
 	}
 	if !due.IsZero() && m.now().Before(due) {
 		return // 退避未到
 	}
-	_, _ = m.connectAndDiscover(ctx, target)
+	if _, err := m.connectAndDiscover(ctx, target); err == nil {
+		target.resetFailures()
+	}
 }
 
 // ping 对现有会话做一次探活（受调用超时约束）。
@@ -71,7 +78,28 @@ func (m *Manager) handleHealthFailure(ctx context.Context, target *conn, err err
 		Server:   cfg.Name,
 		Detail:   "健康检查失败：" + summarize(err),
 	})
+	// M1-08：连续失败达阈值 → 服务器已置 error（markFailure）+ 发出告警事件。
+	m.emitHealthAlertIfNeeded(target, err)
 	m.notifyStatus(ctx, target)
+}
+
+// emitHealthAlertIfNeeded 在连续失败达到阈值时发出告警（建连失败与探活失败共用同一条计数）。
+// 每满一个阈值倍数发一次（3/6/9…）：保证告警不漏，同时避免每轮健康检查刷屏。
+func (m *Manager) emitHealthAlertIfNeeded(target *conn, err error) {
+	failures := target.failures()
+	threshold := m.opts.HealthFailureThreshold
+	if failures < threshold || failures%threshold != 0 {
+		return
+	}
+	cfg := target.config()
+	m.emit(Event{
+		Type:     EventServerHealthAlert,
+		TenantID: cfg.TenantID,
+		ServerID: cfg.ID,
+		Server:   cfg.Name,
+		Detail:   fmt.Sprintf("连续 %d 次健康检查失败，服务器已置 error：%s", failures, summarize(err)),
+		Failures: failures,
+	})
 }
 
 // waitIdle 等待并发额度全部归还（禁用宽限）。

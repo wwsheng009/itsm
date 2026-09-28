@@ -18,14 +18,17 @@ import (
 // —— 假实现（注入 dialer，保证状态机/退避/并发节奏确定可测） ——
 
 type fakeSession struct {
-	mu              sync.Mutex
-	closed          bool
-	tools           []client.Tool
-	listToolsErr    error
-	callDelay       time.Duration
-	callErr         error
-	pingErr         error
-	active          int
+	mu           sync.Mutex
+	closed       bool
+	tools        []client.Tool
+	listToolsErr error
+	callDelay    time.Duration
+	callErr      error
+	pingErr      error
+	active       int
+	calls        int
+	// blockCh：非 nil 时 CallTool 阻塞直到该通道关闭或 ctx 取消（用于确定性构造「在途调用」）。
+	blockCh         chan struct{}
 	maxActive       int
 	lastOutcome     string
 	protocolVersion string
@@ -66,10 +69,12 @@ func (s *fakeSession) ListTools(context.Context) ([]client.Tool, error) {
 func (s *fakeSession) CallTool(ctx context.Context, _ string, _ map[string]any) (*client.CallResult, error) {
 	s.mu.Lock()
 	s.active++
+	s.calls++
 	if s.active > s.maxActive {
 		s.maxActive = s.active
 	}
 	delay, callErr := s.callDelay, s.callErr
+	block := s.blockCh
 	s.mu.Unlock()
 
 	defer func() {
@@ -77,6 +82,15 @@ func (s *fakeSession) CallTool(ctx context.Context, _ string, _ map[string]any) 
 		s.active--
 		s.mu.Unlock()
 	}()
+
+	if block != nil {
+		select {
+		case <-block:
+		case <-ctx.Done():
+			s.setOutcome("canceled")
+			return nil, ctx.Err()
+		}
+	}
 
 	if delay > 0 {
 		select {
@@ -115,6 +129,13 @@ func (s *fakeSession) isClosed() bool {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	return s.closed
+}
+
+// setBlockCh 设置 CallTool 阻塞通道（测试用；持锁写入，避免与 CallTool 的读并发）。
+func (s *fakeSession) setBlockCh(ch chan struct{}) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.blockCh = ch
 }
 
 func (s *fakeSession) peakConcurrency() int {

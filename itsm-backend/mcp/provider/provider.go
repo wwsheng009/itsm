@@ -42,6 +42,12 @@ type ToolSource interface {
 	CallTool(ctx context.Context, serverID int, rawName string, args map[string]interface{}) (*client.CallResult, error)
 }
 
+// RetryableToolSource 是可选能力：按读/写策略执行（读工具可重试，写工具不重试）。
+// manager.Manager 实现该接口；测试替身未实现时 provider 退化为 CallTool（不重试）。
+type RetryableToolSource interface {
+	CallToolWithPolicy(ctx context.Context, serverID int, rawName string, args map[string]interface{}, readOnly bool) (*client.CallResult, error)
+}
+
 // Options 是 provider 选项。
 type Options struct {
 	// Enabled: mcp.enabled 全局开关；false 时工具面恒为空（零行为变化）。

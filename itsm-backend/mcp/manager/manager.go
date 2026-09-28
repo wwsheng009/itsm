@@ -19,6 +19,10 @@ const (
 	defaultConnectTimeout   = 10 * time.Second
 	defaultCallTimeout      = 30 * time.Second
 	defaultDisableGrace     = 30 * time.Second
+	// defaultHealthFailureThreshold：连续健康检查失败告警阈值（M1-08，§9.1）。
+	defaultHealthFailureThreshold = 3
+	// defaultReadRetry：读工具默认重试上限（§5.4：读至多 1 次；写不重试，恒定 0）。
+	defaultReadRetry = 1
 )
 
 var (
@@ -75,9 +79,14 @@ type Options struct {
 	ConnectTimeout time.Duration   // 连接超时（默认 10s）
 	CallTimeout    time.Duration   // 调用超时默认值（服务器 TimeoutMS 优先，默认 30s）
 	DisableGrace   time.Duration   // 禁用 in-flight 宽限（默认 30s）
-	Now            func() time.Time
-	ClientName     string
-	ClientVersion  string
+	// HealthFailureThreshold：连续健康检查失败告警阈值（默认 3）；<=0 用默认值。
+	HealthFailureThreshold int
+	// ReadRetry：读工具重试上限（平台级上限，默认 1；负值=禁用重试）。
+	// 写工具恒不重试（防重复副作用）；服务器侧 MaxRetry=0 亦可单独关闭该服务器的读重试。
+	ReadRetry     int
+	Now           func() time.Time
+	ClientName    string
+	ClientVersion string
 }
 
 // Manager 管理 MCP 服务器连接生命周期（连接池/退避/发现/并发治理）。
@@ -111,6 +120,15 @@ func New(opts Options) *Manager {
 	}
 	if opts.DisableGrace <= 0 {
 		opts.DisableGrace = defaultDisableGrace
+	}
+	if opts.HealthFailureThreshold <= 0 {
+		opts.HealthFailureThreshold = defaultHealthFailureThreshold
+	}
+	if opts.ReadRetry < 0 {
+		opts.ReadRetry = 0
+	}
+	if opts.ReadRetry == 0 {
+		opts.ReadRetry = defaultReadRetry
 	}
 	opts.Backoff = opts.Backoff.WithDefaults()
 	if opts.Events == nil {
@@ -254,16 +272,55 @@ func (m *Manager) Disable(ctx context.Context, serverID int) error {
 	go func() {
 		graceCtx, cancel := context.WithTimeout(context.Background(), m.opts.DisableGrace)
 		defer cancel()
-		if err := target.waitIdle(graceCtx); err != nil && !errors.Is(err, context.Canceled) {
-			target.mu.Lock()
-			target.lastError = errDisableGraceTimeout.Error()
-			target.mu.Unlock()
-		}
-		target.closeSessionWithEvent(m, "服务器已禁用")
+		m.waitInFlightAndClose(target, graceCtx, "服务器已禁用")
 		target.markDisabled()
 		m.notifyStatus(context.Background(), target)
 	}()
 	return nil
+}
+
+// Retire 停用并**从连接表移除**（删除服务器）：立即拒绝新调用（lookup 失败），
+// 在途调用等待 ≤ DisableGrace 后强制断开（宽限超时会发出审计事件），随后清空工具缓存。
+func (m *Manager) Retire(ctx context.Context, serverID int) error {
+	m.mu.Lock()
+	target, ok := m.servers[serverID]
+	delete(m.servers, serverID)
+	m.mu.Unlock()
+	if !ok {
+		return ErrServerNotFound
+	}
+	target.mu.Lock()
+	target.cfg.Enabled = false
+	target.mu.Unlock()
+
+	go func() {
+		graceCtx, cancel := context.WithTimeout(context.Background(), m.opts.DisableGrace)
+		defer cancel()
+		m.waitInFlightAndClose(target, graceCtx, "服务器已删除")
+		target.markDisabled()
+		m.cache.Replace(serverID, nil)
+	}()
+	return nil
+}
+
+// waitInFlightAndClose 等待在途调用结束（≤ 宽限期）后关闭会话；超时则强制断开并留下审计信号。
+func (m *Manager) waitInFlightAndClose(target *conn, graceCtx context.Context, reason string) {
+	err := target.waitIdle(graceCtx)
+	if err == nil || errors.Is(err, context.Canceled) {
+		target.closeSessionWithEvent(m, reason)
+		return
+	}
+	// 宽限期结束仍有在途调用：记 last_error（管理页可见）+ 事件（审计可查），再强制断开。
+	cfg := target.config()
+	target.setLastError(errDisableGraceTimeout.Error())
+	m.emit(Event{
+		Type:     EventServerDisableGraceExpired,
+		TenantID: cfg.TenantID,
+		ServerID: cfg.ID,
+		Server:   cfg.Name,
+		Detail:   reason + "：宽限期结束仍有在途调用，已强制断开（" + errDisableGraceTimeout.Error() + "）",
+	})
+	target.closeSessionWithEvent(m, reason+"（强制断开）")
 }
 
 // Reload 异步重载：先断后连（发现随之刷新；工具开关不触发本方法，D6）。
@@ -321,8 +378,54 @@ func (m *Manager) DiscoverNow(ctx context.Context, serverID int) (DiscoveryResul
 	return m.discoverWithSession(ctx, target, session)
 }
 
-// CallTool 以并发上限与调用超时执行工具（不自动重试；写工具重试策略属 M1）。
+// CallTool 以并发上限与调用超时执行工具（**不重试**）。
+//
+// 需要读重试策略时用 CallToolWithPolicy（provider 按 read_only 选择）。
 func (m *Manager) CallTool(ctx context.Context, serverID int, rawName string, args map[string]any) (*client.CallResult, error) {
+	return m.callOnce(ctx, serverID, rawName, args)
+}
+
+// CallToolWithPolicy 按读/写策略执行工具：
+//   - 读工具：瞬时错误（不可达/超时/传输层）至多重试 min(平台 ReadRetry, 服务器 MaxRetry) 次；
+//   - 写工具：**恒不重试**（防重复副作用，§5.4）；
+//   - 非瞬时错误（认证失效/协议不匹配/服务端业务错误/SSRF 拦截/调用方取消）一律不重试。
+func (m *Manager) CallToolWithPolicy(
+	ctx context.Context,
+	serverID int,
+	rawName string,
+	args map[string]any,
+	readOnly bool,
+) (*client.CallResult, error) {
+	attempts := 0
+	for {
+		result, err := m.callOnce(ctx, serverID, rawName, args)
+		if err == nil {
+			return result, nil
+		}
+		if !readOnly || attempts >= m.readRetryBudget(serverID) || !retryableCallError(err) || ctx.Err() != nil {
+			return nil, err
+		}
+		attempts++
+	}
+}
+
+// readRetryBudget 计算该服务器的实际读重试次数：平台上限与服务器配置取小（服务器未配置则用平台上限）。
+func (m *Manager) readRetryBudget(serverID int) int {
+	cap := m.opts.ReadRetry
+	target, ok := m.lookup(serverID)
+	if !ok {
+		return 0
+	}
+	configured := target.maxRetryBudget()
+	if configured < cap {
+		// 服务器收紧：含 0=显式关闭该服务器读重试（ent 字段 max_retry 默认 1、Min(0)）。
+		return configured
+	}
+	return cap
+}
+
+// callOnce 是单次调用：并发额度 + 调用超时 + 错误分层处理。
+func (m *Manager) callOnce(ctx context.Context, serverID int, rawName string, args map[string]any) (*client.CallResult, error) {
 	target, ok := m.lookup(serverID)
 	if !ok {
 		return nil, ErrServerNotFound
@@ -353,6 +456,56 @@ func (m *Manager) CallTool(ctx context.Context, serverID int, rawName string, ar
 		return nil, err
 	}
 	return result, nil
+}
+
+// retryableCallError 判定错误是否可安全重试（仅瞬时类；业务错误重试会重复副作用）。
+func retryableCallError(err error) bool {
+	switch transport.CodeOf(err) {
+	case transport.CodeUnreachable, transport.CodeConnectTimeout, transport.CodeTransportError:
+		return true
+	}
+	// 调用超时：SDK/HTTP 客户端返回的 deadline exceeded（取消不算）。
+	return errors.Is(err, context.DeadlineExceeded)
+}
+
+// Policy 是服务器的**有效执行策略**回读（M1-08；§5.4 默认表 + 服务器覆盖）。
+// 输出上限（256KB）与工具面截断在 provider 层（`provider.DefaultMaxResultBytes`）。
+type Policy struct {
+	TimeoutMS              int `json:"timeout_ms"`
+	ConnectTimeoutMS       int `json:"connect_timeout_ms"`
+	MaxParallelCalls       int `json:"max_parallel_calls"`
+	MaxRetry               int `json:"max_retry"`
+	ReadRetryCap           int `json:"read_retry_cap"`
+	DisableGraceMS         int `json:"disable_grace_ms"`
+	HealthFailureThreshold int `json:"health_failure_threshold"`
+	HealthIntervalMS       int `json:"health_interval_ms"`
+}
+
+// Policy 返回有效策略；服务器未注册时返回平台默认值（管理页可照常展示）。
+func (m *Manager) Policy(serverID int) Policy {
+	policy := Policy{
+		TimeoutMS:              int(m.opts.CallTimeout / time.Millisecond),
+		ConnectTimeoutMS:       int(m.opts.ConnectTimeout / time.Millisecond),
+		MaxParallelCalls:       defaultMaxParallelCalls,
+		MaxRetry:               defaultReadRetry,
+		ReadRetryCap:           m.opts.ReadRetry,
+		DisableGraceMS:         int(m.opts.DisableGrace / time.Millisecond),
+		HealthFailureThreshold: m.opts.HealthFailureThreshold,
+		HealthIntervalMS:       int(m.opts.HealthInterval / time.Millisecond),
+	}
+	target, ok := m.lookup(serverID)
+	if !ok {
+		return policy
+	}
+	cfg := target.config()
+	if cfg.TimeoutMS > 0 {
+		policy.TimeoutMS = cfg.TimeoutMS
+	}
+	if cfg.MaxParallelCalls > 0 {
+		policy.MaxParallelCalls = cfg.MaxParallelCalls
+	}
+	policy.MaxRetry = m.readRetryBudget(serverID)
+	return policy
 }
 
 // CachedTools 返回某服务器最近一次发现的缓存记录。
@@ -469,6 +622,7 @@ func (m *Manager) connectAndDiscover(ctx context.Context, target *conn) (Discove
 	if err != nil {
 		target.markFailure(err, m.opts.Backoff, m.now())
 		m.emitDialFailure(target, err)
+		m.emitHealthAlertIfNeeded(target, err)
 		m.notifyStatus(ctx, target)
 		return DiscoveryResult{}, err
 	}

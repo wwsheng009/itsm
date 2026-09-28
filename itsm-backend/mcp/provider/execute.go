@@ -9,6 +9,8 @@ import (
 	"itsm-backend/mcp/transport"
 	"itsm-backend/pkg/redact"
 	"itsm-backend/service"
+
+	"itsm-backend/mcp/client"
 )
 
 // 稳定错误码（Gate3 之后由 handlers 回填给模型/审计；**不含**堆栈、URL、内网地址与凭据）。
@@ -104,7 +106,14 @@ func (p *Provider) execute(ctx context.Context, tenantID int, name string, args 
 			return execution, execErr
 		}
 	}
-	result, err := p.source.CallTool(ctx, tool.serverID, tool.rawName, args)
+	// 执行策略（M1-08）：读工具可至多重试 1 次（瞬时错误），写工具恒不重试。
+	var result *client.CallResult
+	var err error
+	if policySource, ok := p.source.(RetryableToolSource); ok {
+		result, err = policySource.CallToolWithPolicy(ctx, tool.serverID, tool.rawName, args, tool.def.ReadOnly)
+	} else {
+		result, err = p.source.CallTool(ctx, tool.serverID, tool.rawName, args)
+	}
 	if err != nil {
 		mapped := mapCallError(err)
 		finish(mapped)

@@ -289,6 +289,10 @@ func TestProvider_ResultNormalization(t *testing.T) {
 	require.LessOrEqual(t, len(normalized.Content), 1)
 	require.Contains(t, normalized.Content[0].Text, "truncated")
 
+	// M1-08 策略一致性：未显式配置时输出上限必须是 §5.4 的 256KB。
+	require.Equal(t, 256*1024, DefaultMaxResultBytes)
+	require.Equal(t, DefaultMaxResultBytes, New(nil, nil, Options{}).opts.MaxResultBytes)
+
 	// StructuredContent 保留为结构化条目。
 	source.result = &mcpclient.CallResult{StructuredContent: json.RawMessage(`{"total":3}`)}
 	execution, err = provider.Execute(ctx, 1, "mcp__github__list_issues", nil)

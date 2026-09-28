@@ -99,10 +99,12 @@ type conn struct {
 	serverInfo      string
 	connectedAt     time.Time
 	attempts        int
-	nextAttemptAt   time.Time
-	lastHealthAt    time.Time
-	discovered      []ToolRecord
-	connecting      bool // 建连任务在途标记（防止并发重复建连）
+	// consecutiveFailures：连续失败计数（M1-08 告警阈值判定；成功即清零）。
+	consecutiveFailures int
+	nextAttemptAt       time.Time
+	lastHealthAt        time.Time
+	discovered          []ToolRecord
+	connecting          bool // 建连任务在途标记（防止并发重复建连）
 }
 
 func newConn(cfg ServerConfig, dial DialFunc) *conn {
@@ -185,6 +187,7 @@ func (c *conn) setSession(session ToolSession, protocolVersion, serverInfo strin
 	c.serverInfo = serverInfo
 	c.connectedAt = at
 	c.attempts = 0
+	c.consecutiveFailures = 0
 	c.nextAttemptAt = time.Time{}
 }
 
@@ -225,7 +228,36 @@ func (c *conn) markFailure(err error, policy BackoffPolicy, now time.Time) {
 		c.lastError = err.Error()
 	}
 	c.attempts++
+	c.consecutiveFailures++
 	c.nextAttemptAt = now.Add(policy.WithDefaults().Delay(c.attempts))
+}
+
+// failures 返回当前连续失败次数（告警阈值判定用）。
+func (c *conn) failures() int {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	return c.consecutiveFailures
+}
+
+// resetFailures 清零连续失败计数（探活/建连成功时调用）。
+func (c *conn) resetFailures() {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	c.consecutiveFailures = 0
+}
+
+// setLastError 记录最近一次错误（不改状态位）。
+func (c *conn) setLastError(message string) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	c.lastError = message
+}
+
+// maxRetryBudget 返回该服务器允许的读重试次数（0 表示不重试）。
+func (c *conn) maxRetryBudget() int {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	return c.cfg.MaxRetry
 }
 
 // markHealthOK 记录一次健康检查成功。

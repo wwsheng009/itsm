@@ -150,8 +150,53 @@ type ServerView struct {
 	QuarantinedToolNum int               `json:"quarantined_tool_count"`
 	HeadersMasked      map[string]string `json:"headers_masked"`
 	CredentialMasked   map[string]string `json:"credential_masked"`
-	CreatedAt          time.Time         `json:"created_at"`
-	UpdatedAt          time.Time         `json:"updated_at"`
+	// Policy 是**有效执行策略**回读（M1-08，A1-08）：平台默认 + 服务器覆盖后的最终值。
+	Policy    ServerPolicyView `json:"policy"`
+	CreatedAt time.Time        `json:"created_at"`
+	UpdatedAt time.Time        `json:"updated_at"`
+}
+
+// ServerPolicyView 是执行策略回读视图（超时/并发/重试/宽限/告警阈值）。
+// 输出上限（256KB）与截断标记由 provider 层（`provider.DefaultMaxResultBytes`）保证。
+type ServerPolicyView struct {
+	TimeoutMS              int `json:"timeout_ms"`
+	ConnectTimeoutMS       int `json:"connect_timeout_ms"`
+	MaxParallelCalls       int `json:"max_parallel_calls"`
+	MaxRetry               int `json:"max_retry"`
+	ReadRetryCap           int `json:"read_retry_cap"`
+	DisableGraceMS         int `json:"disable_grace_ms"`
+	HealthFailureThreshold int `json:"health_failure_threshold"`
+	HealthIntervalMS       int `json:"health_interval_ms"`
+}
+
+// policyView 计算**有效策略**：平台默认（manager）× 服务器配置（ent）逐字段取「更严」方向。
+//
+// 为什么不用 manager.Policy 直接回读：服务器未启用时不会注册到 manager（D7 默认关闭），
+// 此时 manager 只能给平台默认值，回读会与库里配置不一致——管理页看到的策略必须与配置一致。
+func (s *Service) policyView(entity *ent.MCPServer) ServerPolicyView {
+	policy := s.manager.Policy(entity.ID) // 平台默认（含连接超时/宽限/告警阈值/健康间隔）
+	if entity.TimeoutMs > 0 {
+		policy.TimeoutMS = entity.TimeoutMs
+	}
+	if entity.MaxParallelCalls > 0 {
+		policy.MaxParallelCalls = entity.MaxParallelCalls
+	}
+	// 读重试：服务器配置（ent 默认 1，0=关闭）与平台上限取小。
+	if entity.MaxRetry < policy.ReadRetryCap {
+		policy.MaxRetry = entity.MaxRetry
+	} else {
+		policy.MaxRetry = policy.ReadRetryCap
+	}
+	return ServerPolicyView{
+		TimeoutMS:              policy.TimeoutMS,
+		ConnectTimeoutMS:       policy.ConnectTimeoutMS,
+		MaxParallelCalls:       policy.MaxParallelCalls,
+		MaxRetry:               policy.MaxRetry,
+		ReadRetryCap:           policy.ReadRetryCap,
+		DisableGraceMS:         policy.DisableGraceMS,
+		HealthFailureThreshold: policy.HealthFailureThreshold,
+		HealthIntervalMS:       policy.HealthIntervalMS,
+	}
 }
 
 // ServerSummary 是列表/健康摘要计数。
@@ -531,14 +576,15 @@ func (s *Service) UpdateServer(ctx context.Context, actor Actor, serverID int, r
 	return s.serverView(ctx, actor.TenantID, updated)
 }
 
-// DeleteServer 删除服务器（断开连接 + 级联工具缓存）。
+// DeleteServer 删除服务器（M1-08：立即拒绝新调用 → 在途 ≤ 宽限期 → 强断并审计；级联工具缓存）。
 func (s *Service) DeleteServer(ctx context.Context, actor Actor, serverID int) error {
 	entity, err := s.serverEntity(ctx, actor.TenantID, serverID)
 	if err != nil {
 		return err
 	}
 	headers, credential := s.maskedSecrets(entity)
-	s.manager.Remove(entity.ID)
+	// Retire 而非 Remove：保留 in-flight 宽限语义（宽限超时会发出审计事件）。
+	_ = s.manager.Retire(ctx, entity.ID)
 	if err := s.store.DeleteServerTools(ctx, actor.TenantID, entity.ID); err != nil {
 		return WrapAdminError(http.StatusInternalServerError, CodeInternal, "清理工具缓存失败", err)
 	}
@@ -956,8 +1002,10 @@ func (s *Service) serverView(ctx context.Context, tenantID int, entity *ent.MCPS
 		QuarantinedToolNum: quarantined,
 		HeadersMasked:      headers,
 		CredentialMasked:   credential,
-		CreatedAt:          entity.CreatedAt,
-		UpdatedAt:          entity.UpdatedAt,
+		// M1-08：有效执行策略回读（§5.4 默认表 + 服务器覆盖；输出上限在 provider 层）。
+		Policy:    s.policyView(entity),
+		CreatedAt: entity.CreatedAt,
+		UpdatedAt: entity.UpdatedAt,
 	}, nil
 }
 
