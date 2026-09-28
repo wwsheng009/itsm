@@ -206,6 +206,8 @@ MCP 线：      ▼                    ▼                   ▼                
 | B0-01 | `unit_verified` | `evidence/bot-b0/BP5-B0-01-unit-evidence.md`（14/14 标注 + 守卫测试 + 调用时快照） |
 | B0-02 | `integration_verified` | `evidence/bot-b0/B0-02-B0-03-integration-evidence.md`（实体/读写契约 + 幂等唯一索引实测） |
 | B0-03 | `integration_verified` | 同上（会话归属注入 + 拒绝结论回填 + 按会话回溯） |
+| B0-04 | `integration_verified` | `evidence/bot-b0/B0-04-integration-evidence.md`（预览分支 + 零写入 + 快照 version） |
+| B0-05 | 部分交付：键生成模块 + UT 完成；执行路径接入与幂等回放待续（**未达 `unit_verified`**） | `service/bot/idempotency.go`（`BuildKey`/`TargetFromArgs`/`IsUniqueViolation`）+ `idempotency_test.go`（6 例） |
 
 ### 3.4 双线联合路线图（与 MCP 方案合并视图）
 
@@ -281,6 +283,7 @@ MCP 线：      ▼                    ▼                   ▼                
 - **要点**：`dry_run` 字段已存在但未使用（阶段一报告 §3.4），本期启用；预览快照（拟创建字段/diff + 版本信息）随确认单保存，供 B1-05 冻结执行参数；预览不进入业务 service 写路径，只读校验可复用的约束；UI/文档写明“预览不保证最终成功”；预览超时与输出上限吃 B0-01 元数据。
 - **测试与证据**：契约测试（dry-run 后业务库零写入，模式同 `:19-56`）；预览输出结构断言；失败回填路径。
 - **DoD**：`integration_verified`。
+- **状态**：`integration_verified`（2026-09-27）——①新增 `service/tool_preview.go`：`ToolPreview{Mode:create|diff, Fields, Diff, Target, Version, Note}` + `PreviewTool(...)` + `ErrPreviewNotWrite/ErrPreviewUnsupported`；②零写入保证：create 仅参数投影、update 仅走 `TicketService.GetTicket` 只读读取（未注入业务服务时必然失败，测试据此具备结构性约束力）；③快照版本 `version` = 预览内容 sha256（同输入同版本，参数变化即变），供 B1-05 冻结执行参数比对；④执行分支：新增 `ExecuteToolOptions{ConversationID,DryRun}` + `ExecuteToolWithOptions`（既有入口变薄封装，签名/行为不变），dry-run 落 `dry_run=true/status=preview/approval_state=auto/needs_approval=false` 记录并把快照写入 `result`，**不进审批队列**；失败留痕 `preview_failed` + 稳定错误码；⑤API `POST /api/v1/agent/tools/execute` 新增可选 `dryRun`；⑥测试：`service/tool_preview_test.go`（投影/版本确定性/守卫/缺 title/未装配）与 `handlers/ai/service_b0_conversation_test.go` 新增 2 例（含失败留痕）全绿。范围取舍：其余写工具预览待 B1 按需补齐（当前 fail-closed）。证据 `docs/plan/evidence/bot-b0/B0-04-integration-evidence.md`。
 
 #### B0-05 幂等键生成与落库（后端）
 
@@ -923,3 +926,5 @@ MCP 线：      ▼                    ▼                   ▼                
 | 2026-09-27 | AI 辅助执行 | **B0-01 交付（`unit_verified`）**：`ToolDefinition` 扩展 6 个元数据字段 + 常量 + `NormalizeToolMetadata`（缺失 → `act_high`+`strict` 且 `annotated=false`，工具面**不默认下发**）；14/14 内置工具按冻结风险矩阵逐条标注（写 6 / 读 8）；调用时快照 `Risk/Category` 落 `tool_invocations`（内置取注册表、MCP 取治理标注）；守卫测试 `service/tool_metadata_test.go` + 快照往返 `handlers/ai/repository_metadata_snapshot_test.go`。§2.3 BP5 项、§3.3.1 状态速览表、任务卡状态段已回写；`go build ./...` exit 0、gofumpt 无输出。 |
 | 2026-09-27 | AI 辅助执行 | **B0-02 交付（`integration_verified`）**：实体结构补齐 12 字段（含 `DryRun`）；读写契约（零值不写列、`expires_at` nillable 保真）；幂等唯一索引 `(tenant_id, idempotency_key_hash)` 与查询索引 `(tenant_id, conversation_id)` 实测；证据 `docs/plan/evidence/bot-b0/B0-02-B0-03-integration-evidence.md`。登记既有约束：`user_id=0` 触发 FK（B1 待决）。 |
 | 2026-09-27 | AI 辅助执行 | **B0-03 交付（`integration_verified`）**：会话归属注入（`ExecuteToolWithConversation` + API 可选 `conversationId`，既有入口行为不变）；审批拒绝 → 结构化结论回填会话（脱敏截断 + 失败打点）；契约测试 4 例；RBAC/审计既有用例回归通过。 |
+| 2026-09-27 | AI 辅助执行 | **B0-04 交付（`integration_verified`）**：dry-run 预览分支（`service/tool_preview.go`：`create_ticket` 投影 + `update_ticket` diff，零业务写入）；预览快照 + 内容哈希 `version` 随记录落库（`dry_run=true/status=preview`，不进审批队列）；`ExecuteToolOptions{ConversationID,DryRun}` + `ExecuteToolWithOptions`（既有入口薄封装）；API 可选 `dryRun`；测试 6 例。证据 `docs/plan/evidence/bot-b0/B0-04-integration-evidence.md`。 |
+| 2026-09-27 | AI 辅助执行 | **B0-05 部分交付**：新增 `service/bot/idempotency.go`——`BuildKey`（作用域 = 租户+发起人+工具+目标+参数；`v1` 拼接顺序冻结；canonical JSON；sha256 hex 只存 hash）、`TargetFromArgs`、`IsUniqueViolation`；UT 6 例（确定性/维度隔离/不透明性/空参等价/目标提取/唯一冲突识别）。**未接线**：执行路径生成键、唯一冲突 → 幂等回放（Repository 需新增按 hash 查询）待续，故 B0-05 未达 `unit_verified`。 |

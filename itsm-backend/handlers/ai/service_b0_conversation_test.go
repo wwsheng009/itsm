@@ -115,6 +115,52 @@ func TestB0_03_RejectBackfillsConversation(t *testing.T) {
 	assert.Contains(t, msgs[0].Content, "非计划变更窗口", "拒绝原因需对模型可见")
 }
 
+// B0-04：dry-run 请求 → 返回预览 + 落一条 `dry_run/status=preview` 记录，
+// **不进入审批队列**（不产生 pending），也不触发任何业务写路径。
+func TestB0_04_DryRunProducesPreviewWithoutApproval(t *testing.T) {
+	svc, repo := newB0ConvEnv(t)
+
+	res, invID, err := svc.ExecuteToolWithOptions(context.Background(), 1, 10, "super_admin", "create_ticket",
+		map[string]interface{}{"title": "dry-run 工单", "priority": "high"},
+		ai.ExecuteToolOptions{ConversationID: 4242, DryRun: true})
+	require.NoError(t, err)
+	require.NotNil(t, res)
+	require.Greater(t, invID, 0)
+
+	preview, ok := res.(*service.ToolPreview)
+	require.True(t, ok, "dry-run 应返回预览对象，实际 %T", res)
+	assert.Equal(t, "create", preview.Mode)
+	assert.Equal(t, "dry-run 工单", preview.Fields["title"])
+	assert.NotEmpty(t, preview.Version)
+
+	inv := repo.lastInvocation()
+	require.NotNil(t, inv)
+	assert.True(t, inv.DryRun, "预览记录必须标记 dry_run")
+	assert.Equal(t, "preview", inv.Status)
+	assert.False(t, inv.NeedsApproval)
+	assert.Equal(t, "auto", inv.ApprovalState)
+	assert.Equal(t, 4242, inv.ConversationID)
+	require.NotNil(t, inv.Result, "预览快照必须随记录落库（供 B1-05 冻结参数）")
+	assert.Contains(t, *inv.Result, `"version"`)
+	assert.Equal(t, "act_low", inv.Risk, "预览同样记录元数据快照")
+}
+
+// B0-04：dry-run 对读工具/未支持工具 fail-closed，并留 preview_failed 审计。
+func TestB0_04_DryRunUnsupportedToolFailsWithAudit(t *testing.T) {
+	svc, repo := newB0ConvEnv(t)
+
+	_, invID, err := svc.ExecuteToolWithOptions(context.Background(), 1, 10, "super_admin", "list_tickets",
+		map[string]interface{}{}, ai.ExecuteToolOptions{DryRun: true})
+	require.Error(t, err)
+	assert.Zero(t, invID)
+
+	inv := repo.lastInvocation()
+	require.NotNil(t, inv, "预览失败同样留痕")
+	assert.Equal(t, "preview_failed", inv.Status)
+	assert.Equal(t, "preview_not_write", inv.ErrorCode)
+	assert.False(t, inv.DryRun, "失败记录不是预览快照本身")
+}
+
 // B0-03：无会话归属的记录拒绝时不产生回填（避免污染无关会话/空会话）。
 func TestB0_03_RejectWithoutConversationSkipsBackfill(t *testing.T) {
 	svc, repo := newB0ConvEnv(t)

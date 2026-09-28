@@ -3,6 +3,7 @@ package ai
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"strconv"
 	"strings"
@@ -152,7 +153,20 @@ func conversationIDFrom(ctx context.Context) int {
 // 聊天路径调用时携带 conversationId，工具调用审计可按会话回溯；
 // run_id 待 B1-01 落表后由同一入口注入（字段已由 B0-02 预置）。
 func (s *Service) ExecuteToolWithConversation(ctx context.Context, userID, tenantID int, role, name string, args map[string]interface{}, conversationID int) (interface{}, int, error) {
-	ctx = withConversationID(ctx, conversationID)
+	return s.ExecuteToolWithOptions(ctx, userID, tenantID, role, name, args, ExecuteToolOptions{ConversationID: conversationID})
+}
+
+// ExecuteToolOptions 是工具调用的可选上下文（零值 = 既有行为）。
+type ExecuteToolOptions struct {
+	// ConversationID 会话归属（B0-03）；0 = 不落 conversation_id。
+	ConversationID int
+	// DryRun 请求写工具预览（B0-04）：零业务写入，仅生成预览快照并留痕。
+	DryRun bool
+}
+
+// ExecuteToolWithOptions 是执行入口的完整形态（B0-03/B0-04）；其余入口均为其薄封装。
+func (s *Service) ExecuteToolWithOptions(ctx context.Context, userID, tenantID int, role, name string, args map[string]interface{}, opts ExecuteToolOptions) (interface{}, int, error) {
+	ctx = withConversationID(ctx, opts.ConversationID)
 	if userID <= 0 || tenantID <= 0 {
 		return nil, 0, ErrToolPermissionDenied
 	}
@@ -195,6 +209,11 @@ func (s *Service) ExecuteToolWithConversation(ctx context.Context, userID, tenan
 
 	// Check if needs approval
 	needsApproval := !toolDef.ReadOnly
+
+	// B0-04：dry-run 分支——写工具预览，零业务写入，不进审批队列。
+	if opts.DryRun {
+		return s.executeDryRun(ctx, tenantID, userID, role, name, args, permCheck, permReason, toolDef)
+	}
 
 	if !needsApproval {
 		// M0-11：带审计元数据执行（provider/三元组/耗时/错误码/输出摘要）。
@@ -303,6 +322,58 @@ func (s *Service) recordToolAudit(ctx context.Context, tenantID, userID int, rol
 			strconv.Itoa(tenantID),
 		).Inc()
 	}
+}
+
+// executeDryRun 处理写工具的 dry-run 请求（B0-04）：
+//   - 调用注册表预览分支（**零业务写入**：仅参数投影 + 只读读取）；
+//   - 预览快照（含内容哈希 version）写入本条调用记录的 `result`，供 B1-05 冻结执行参数；
+//   - 记录 `dry_run=true / status=preview`，不进审批队列、不触发任何写路径；
+//   - 预览失败同样留痕（稳定错误码），与执行路径同口径。
+func (s *Service) executeDryRun(ctx context.Context, tenantID, userID int, role, name string, args map[string]interface{}, permCheck, permReason string, toolDef *service.ToolDefinition) (interface{}, int, error) {
+	preview, err := s.tools.PreviewTool(ctx, tenantID, name, args)
+	if err != nil {
+		code := "preview_failed"
+		if errors.Is(err, service.ErrPreviewNotWrite) {
+			code = "preview_not_write"
+		} else if errors.Is(err, service.ErrPreviewUnsupported) {
+			code = "preview_unsupported"
+		}
+		s.recordToolAudit(ctx, tenantID, userID, role, name, args, permCheck, permReason, "preview_failed", nil, false,
+			&service.ToolExecution{
+				Provider:  service.ProviderNameBuiltin,
+				ErrorCode: code,
+				Risk:      toolDef.Risk,
+				Category:  toolDef.Category,
+			})
+		return nil, 0, err
+	}
+
+	payload, _ := json.Marshal(preview)
+	snapshot := string(payload)
+	argsStr, _ := json.Marshal(args)
+	inv, err := s.repo.CreateToolInvocation(ctx, &ToolInvocation{
+		TenantID:         tenantID,
+		ConversationID:   conversationIDFrom(ctx),
+		ToolName:         name,
+		Arguments:        string(argsStr),
+		ArgsRedacted:     redact.ArgsJSON(args, 0),
+		Result:           &snapshot,
+		Status:           "preview",
+		NeedsApproval:    false,
+		ApprovalState:    "auto",
+		UserID:           userID,
+		PermissionCheck:  permCheck,
+		PermissionReason: permReason,
+		RoleSnapshot:     role,
+		Provider:         service.ProviderNameBuiltin,
+		Risk:             toolDef.Risk,
+		Category:         toolDef.Category,
+		DryRun:           true,
+	})
+	if err != nil {
+		return nil, 0, err
+	}
+	return preview, inv.ID, nil
 }
 
 // backfillToolDecision 把审批结论结构化回填到会话（B0-03）。
