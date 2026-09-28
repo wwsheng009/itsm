@@ -31,7 +31,7 @@
 | # | 操作 | 期望结果 |
 |---|---|---|
 | 1 | 不带租户上下文（无 JWT/`X-Tenant-Code`/域名）访问业务接口 | 401（`middleware/tenant.go:138-141`） |
-| 2 | 客户 A 的 JWT + `X-Tenant-Code: <客户B>` | 401（租户不匹配，`tenant.go:153-156`） |
+| 2 | 客户 A 的 JWT + `X-Tenant-Code: <客户B>` | 数据不越界；**实测 200**：JWT 已解析出租户时 Header 被忽略（`tenant.go:60-83` 仅作补充来源，不会触发 `tenant.go:146-156` 的不匹配拒绝）→ 见 [07-known-gaps.md](./07-known-gaps.md) G9 |
 | 3 | 服务商工程师带未分配的 `X-Customer-Tenant-ID` | 403（分配校验，`middleware/msp_middleware.go:133`） |
 | 4 | 客户 A 的 token 读取客户 B 的工单/知识库 | 401/403，且无任何数据返回 |
 | 5 | 租户 `suspended`/`expired` 后任意请求 | 403（`tenant.go:160-169`） |
@@ -89,3 +89,72 @@ FROM msp_allocations ORDER BY msp_user_id;
 - `internal/schema/tenant_guard.go:117-127, 219-239`、`config/config.go:107-114`
 - `ent/schema/user.go:69-72`、`ent/schema/msp_allocation.go:19-51`
 - `docs/acl-manifest.yaml:2593-2650`、`docs/articles/05-multi-tenant-msp-operations.md`
+
+## 7. 生产实测记录（2026-09-28，saas_msp）
+
+**环境**：`DEPLOYMENT_MODE=saas_msp`、`RLS_MODE=shadow`、版本 `1.8.0-dev.4ffde439`、PostgreSQL 17（库 `itsm_prod`）。
+**执行**：`scripts/msp/setup-msp-tenants.sh`；随后以 `FORCE_PROVISION=1` 复跑一次，验证二进制可用性与脚本幂等性。
+
+### 7.1 租户与模板供给
+
+| 租户 | code | type | parent | provider | roles | permissions | role_permissions | menus | groups |
+|---|---|---|---|---|---|---|---|---|---|
+| 1 | default | internal | 0 | 0 | 33 | 203 | 913 | 78 | 6 |
+| 3 | MSP001 | msp_provider | 0 | 0 | 33 | 203 | 941 | 78 | 6 |
+| 4 | MSPCUSTA | msp_customer | 3 | 3 | 33 | 203 | 913 | 78 | 6 |
+| 5 | MSPCUSTB | msp_customer | 3 | 3 | 33 | 203 | 913 | 78 | 6 |
+
+- `provision_tenant -tenant-id <ID> -template-version 1.0.0` 对 3 个租户均输出 `tenant provisioning completed`；重复执行后各项计数不变（幂等，`pkg/seeder/tenant_provisioner.go:27-43`）；
+- 二进制由**本机交叉编译**产出（`GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -trimpath ./cmd/provision_tenant`，本机 Go 1.27.1，实测 68s），scp 到 `/tmp/provision_tenant_linux_amd64`（约 123 MB）；
+- provider 租户 MSP 角色授权：`msp_manager=10`、`msp_tech=6`、`msp_viewer=5`、`msp_specialist=7`（合计 28；941 = 913 + 28）。
+
+### 7.2 用户与分配
+
+| 用户 | ID | 租户 | 主角色 | msp_role | 角色边 | 创建方式 |
+|---|---|---|---|---|---|---|
+| mspadmin | 7 | 3 MSP001 | admin | provider_admin | admin + msp_manager | SQL + pgcrypto |
+| mspagent | 10 | 3 MSP001 | agent | provider_agent | msp_tech | SQL + pgcrypto |
+| custa_admin | 8 | 4 MSPCUSTA | admin | customer_user | admin | SQL + pgcrypto |
+| custb_user | 9 | 5 MSPCUSTB | end_user | customer_user | end_user | SQL + pgcrypto |
+
+> 为什么不是 API 创建：见 [07-known-gaps.md](./07-known-gaps.md) G1/G2/G3。密码哈希用 `pgcrypto` 的 `crypt(..., gen_salt('bf',10))`，与 Go `bcrypt` 校验兼容（已实测 4 个账号均可登录）。
+
+`msp_allocations`（经 `POST /api/v1/msp/allocations`，由 mspadmin 的 token 调用）：
+
+| id | msp_user | customer_tenant | role |
+|---|---|---|---|
+| 1 | mspadmin | 4 MSPCUSTA | primary |
+| 2 | mspadmin | 5 MSPCUSTB | primary |
+| 3 | mspagent | 4 MSPCUSTA | primary |
+
+### 7.3 隔离性与能力探针（实测输出）
+
+| 探针 | 期望 | 实测 |
+|---|---|---|
+| mspadmin `GET /api/v1/msp/status` | 200 | 200 |
+| mspadmin `GET /api/v1/msp/context` | 200 | 200 |
+| mspadmin `GET /api/v1/msp/customers` | 200，A+B | 200，`MSPCUSTA(4)` + `MSPCUSTB(5)`，total=2 |
+| mspagent `GET /api/v1/msp/allocations` | 200，仅客户 A | 200，仅 `MSPCUSTA(4)`，total=1 |
+| custa_admin `GET /api/v1/msp/allocations` | 403 | 403 |
+| custa_admin + `X-Tenant-Code: MSPCUSTB` | 数据不越界 | **200**（JWT 已定租户时 Header 被忽略，数据仍限客户 A；与旧预期 401 不符 → G9） |
+| mspagent + `X-Customer-Tenant-ID: 5`（未分配） | 403 | 403 |
+| custa_admin `GET /api/v1/users` | 仅本租户 | 200，`total=1`，仅 `custa_admin` |
+
+### 7.4 复现步骤
+
+```bash
+# 1) 构建 provision_tenant（本机交叉编译；服务器侧容器构建见 02 文档 §10.1）
+cd itsm-backend
+GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -trimpath -o /tmp/provision_tenant_linux_amd64 ./cmd/provision_tenant
+scp /tmp/provision_tenant_linux_amd64 <host>:/tmp/
+
+# 2) 一键初始化（幂等；FORCE_PROVISION=1 可强制重跑模板供给以验证二进制）
+scp scripts/msp/setup-msp-tenants.sh <host>:/tmp/
+ssh <host> 'bash /tmp/setup-msp-tenants.sh'
+```
+
+> 说明：实测中"服务器侧用 golang 容器构建"因容器内模块下载（goproxy.cn）长时间无进展而改用本机交叉编译；两种方式产物一致，容器脚本保留在仓库供有缓存/网络良好的主机使用。
+
+## 8. 缺口索引
+
+实测确认的产品缺口、当前规避与建议修复统一记录在 [07-known-gaps.md](./07-known-gaps.md)（G1–G9）。

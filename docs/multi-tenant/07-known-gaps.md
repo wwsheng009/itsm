@@ -1,0 +1,155 @@
+# 07 · 已确认产品缺口（Known Gaps）
+
+> **状态**：当前
+> **更新日期**：2026-09-28
+> **来源**：`saas_msp` 生产环境端到端初始化实测（1 服务商 + 2 客户，见 [06 文档 §7](./06-verification-and-troubleshooting.md)）
+> **用途**：记录实测中确认的**产品缺口**、当前运维规避手段与建议修复方向；缺口关闭后在本页更新状态，不删除历史结论。
+
+## 1. 缺口清单（按影响排序）
+
+| # | 缺口 | 影响 | 当前规避 | 建议修复 | 优先级 |
+|---|---|---|---|---|---|
+| G1 | 跨租户创建用户被 tenant guard 拦截 | 无法为新租户创建首个用户 | SQL + pgcrypto 直写 | 提供受控的跨租户用户创建路径（见 §2） | P0 |
+| G2 | bootstrap 无法为多租户建首个管理员 | 第 2 个及以后租户无法走官方初始化 | 同上 | bootstrap 支持 `-tenant-id` + 用户名/邮箱策略（§3） | P0 |
+| G3 | MSP 管理员有效角色解析为 `msp_manager` | 同租户 API 建号不可用（无 `user:write`，且过不了角色高攀校验） | 首个用户/技术员均走 SQL | JWT claims 取主角色或按 rank 取最大（§4） | P0 |
+| G4 | 源租户 `default` 缺内置审批组 | `provision_tenant` readiness 失败（groups=0） | 脚本回填 6 个内置组 | migration 回填存量库 + readiness 降级策略（§5） | P1 |
+| G5 | id 序列落后于 `max(id)` | 供给时 `roles_pkey` duplicate key | 脚本 `setval(...)` 校正 | 初始化/迁移统一校正（§6） | P1 |
+| G6 | `role_permissions` 无唯一约束 | 无法 `ON CONFLICT`，供给脚本只能 `where not exists` | 脚本幂等插入 | 增加 `(role_id, permission_id, tenant_id)` 唯一索引（§7） | P2 |
+| G7 | CLI 工具 stdout 混入状态行 | `psql -tAc` 的 `INSERT 0 1` 污染 `returning id` 输出，自动化解析失败 | `last_number()` 过滤 | 工具输出规范（§8） | P2 |
+| G8 | 缓存 key 无租户维度 | 多客户场景存在串数据风险 | 未验证/未修 | 缓存 key 统一带 `tenant_id`（ADR-004 A8）（§9） | P1 |
+| G9 | `X-Tenant-Code` 与 JWT 冲突被静默忽略 | 调用方误以为切换了租户；无冲突告警，排障困难（不越权） | 依赖 JWT 租户；探针按实测标注 | Header 与 JWT 冲突时返回 401/400 并记录告警（§10） | P2 |
+
+## 2. G1 · 跨租户创建用户被 tenant guard 拦截
+
+**现象**：以 `super_admin`（default 租户）通过 `POST /api/v1/users` 为 `msp_provider` 租户（`tenantId=3`）创建用户，返回 `create User with tenant_id=3 but request tenant=1`。
+
+**证据**：tenant guard 中间件按请求上下文（JWT 的 `tenant_id`）校验写入实体归属，`super_admin` 不豁免；当前无 HTTP 头/参数可切换请求租户上下文（`X-Customer-Tenant-ID` 仅对 MSP 分配用户生效，且面向客户业务数据）。
+
+**影响**：新租户（尤其 `msp_provider` / `msp_customer`）的**首个用户**无法通过产品 API 创建，初始化流程必须回落数据库直写。
+
+**当前规避**：`scripts/msp/setup-msp-tenants.sh` §6 用 `pgcrypto` 的 `crypt(..., gen_salt('bf',10))` 生成 bcrypt 口令直写 `users` + `user_roles`（与 Go `bcrypt` 校验兼容，已实测登录成功）。
+
+**建议修复**：为平台管理员提供受审计的跨租户用户开通能力，二选一：
+
+1. `POST /api/v1/tenants/{id}/users`（平台级路由，`tenant:write` + 审计日志，显式指定目标租户）；
+2. 允许 `super_admin` 携带受控头（如 `X-Target-Tenant-ID`）覆盖请求租户上下文，并纳入 tenant guard 白名单与审计。
+
+**验收标准**：`super_admin` 可经 HTTP 为任意租户创建首个管理员；tenant guard 仍拒绝普通跨租户写入；审计日志含操作者/目标租户/被创建用户。
+
+## 3. G2 · bootstrap 无法为多租户建首个管理员
+
+**现象**：
+
+- `bootstrap_tokens` 表为空，且数据库未启用 `pgcrypto`；
+- `cmd/initialize generate-bootstrap-token` 生成的流程固定创建 `username=admin` / `email=admin@example.com`；
+- `users.username` / `users.email` 为**全局唯一**，第 2 个租户必然冲突。
+
+**影响**：`saas_msp` / `saas` 模式无法用官方 bootstrap 流程开通第二个租户的首个管理员。
+
+**当前规避**：同 G1（SQL 直写）。
+
+**建议修复**：
+
+1. `users.username`/`email` 唯一性改为**租户内唯一**（`unique(tenant_id, username)`），或
+2. bootstrap 令牌携带 `tenant_id`，并允许自定义 `username`/`email`（默认值带租户后缀，如 `admin@msp001.local`）；
+3. 初始化 CLI 增加 `-tenant-id` 参数并在文档中明确多租户开通顺序。
+
+**验收标准**：连续为 2 个以上租户执行 bootstrap 均成功，且互不冲突。
+
+## 4. G3 · MSP 管理员有效角色解析为 `msp_manager`
+
+**现象**：`mspadmin`（主角色 `admin`，`msp_role=provider_admin`，角色边含 `admin` + `msp_manager`）登录后 JWT claims 的 `role` 为 `msp_manager`：
+
+- `roleRank("msp_manager") == 0`（`handlers/user/handler.go:516`），低于 `admin`；
+- 其有效权限集仅 10 条 `msp_*`，不含 `user:write`；
+- 即便补权限，创建用户时仍会触发"不得分配高于自身角色的用户角色"校验（`admin` 目标角色 > `msp_manager`）。
+
+**影响**：服务商管理员无法在同租户内通过 API 创建用户/技术员（实测 `mspagent` 只能 SQL 创建）。
+
+**当前规避**：`scripts/msp/setup-msp-tenants.sh` §6b 用 SQL 创建 `mspagent`。
+
+**建议修复**：
+
+1. JWT `role` claims 取**主角色**（`users.role`）或按 `roleRank` 取最大者，MSP 角色只作为附加维度（`msp_role`）；
+2. `roleRank` 为 `msp_*` 角色定义合理秩（不应低于其绑定的主角色能力）；
+3. 明确"角色高攀校验"在 MSP 场景的语义（应比较实际权限集而非角色名）。
+
+**验收标准**：`mspadmin` 登录后 `role=admin`（或 rank ≥ admin），可经 `POST /api/v1/users` 创建 `agent` 用户。
+
+## 5. G4 · 源租户 default 缺内置审批组
+
+**现象**：`provision_tenant` 的 readiness 校验要求源模板租户 `groups > 0`；2026-09-15 新增的 `BuiltinGroups`（`pkg/seeder/seeder.go`：approvers-l1/l2/l3/managers/security/change）未在存量 `default` 租户生效 → 供给直接失败。
+
+**影响**：存量库升级后新租户供给不可用（新建库不受影响）。
+
+**当前规避**：脚本 §1 按 `BuiltinGroups` 回填 6 个组（`where not exists` 幂等）。
+
+**建议修复**：随版本提供一次性回填（migration 或 `initialize` 子命令），并让 readiness 失败信息明确指出缺项与修复命令。
+
+## 6. G5 · id 序列落后于 max(id)
+
+**现象**：`roles` 表 `max(id)=112` 而序列 `last_value=100`，`provision_tenant` 插入时 `roles_pkey` duplicate key。
+
+**影响**：任何依赖序列的自增写入（模板供给、种子数据）在存量库上随机失败。
+
+**当前规避**：脚本 §2 对 `roles/permissions/menus/groups/role_permissions/sla_definitions/ci_types/approval_workflows/system_configs` 执行 `setval(seq, greatest(max(id),1))`。
+
+**建议修复**：初始化/迁移脚本统一执行序列校正（覆盖全部自增表），并在启动自检中告警。
+
+## 7. G6 · role_permissions 无唯一约束
+
+**现象**：`role_permissions` 无 `(role_id, permission_id, tenant_id)` 唯一约束，`ON CONFLICT` 不可用，重复插入会产生重复行（影响权限并集计算与审计）。
+
+**当前规避**：脚本用 `insert ... where not exists (...)`。
+
+**建议修复**：增加唯一索引（先清理历史重复行），并让授权接口使用 upsert。
+
+## 8. G7 · CLI 工具 stdout 混入状态行
+
+**现象**：`psql -tAc "insert ... returning id"` 的输出包含 `INSERT 0 1` 状态行，导致脚本取到的 ID 为多行（实测：`-tenant-id` 解析失败）。
+
+**当前规避**：脚本统一用 `last_number()`（`sed -n 's/^\([0-9][0-9]*\)$/\1/p' | tail -n 1`）过滤；函数内部状态信息一律走 stderr。
+
+**建议修复**：工具/脚本规范：结构化输出仅走 stdout，状态与日志走 stderr；文档中给出示例。
+
+## 9. G8 · 缓存 key 无租户维度
+
+**现象**：`itsm-backend/cache/` 未发现租户维度处理（ADR-004 行动项 A8，尚未在本次实测中触发数据串）。
+
+**影响**：多客户场景下若缓存 key 相同，存在跨租户串数据风险。
+
+**建议修复**：统一缓存 key 前缀 `tenant:{id}:`，并补充单元测试与代码评审检查项。
+
+## 10. G9 · `X-Tenant-Code` 与 JWT 冲突被静默忽略
+
+**现象**：客户 A 的管理员 token 携带 `X-Tenant-Code: MSPCUSTB` 请求 `GET /api/v1/users`，实测返回 **200** 且仅返回客户 A 用户（数据不越界），但也没有任何"租户不匹配"拒绝或告警。
+
+**根因**（`middleware/tenant.go:31-83`）：租户来源优先级为 `JWT claims.tenant_id > X-Tenant-Code > Subdomain > Path`；步骤 2 的 Header 解析条件是 `tenantEntity == nil`，即 **JWT 已解析出实体时 Header 根本不会被读取**，因此步骤 5 的"JWT 与最终结果不一致 → 拒绝"（`tenant.go:144-157`）也不会触发。文档旧表述（"冲突返回 401"）与实际不符。
+
+**影响**：安全上 fail-safe（不会跨租户取数），但：
+
+- 客户端/网关若依赖该 Header 切租户，会得到"看似成功"的响应，实际仍在原租户 → 误操作与排障成本；
+- 冲突请求无审计/告警信号，不符合 fail-closed 的可观测性要求。
+
+**当前规避**：文档与探针按实测行为描述（06 文档 §2 用例 2、§7.3）；客户端一律以 JWT 为准（登录时用 `tenantCode` 换取正确 token）。
+
+**建议修复**：在步骤 2 之前增加"冲突检测"：若请求同时携带 JWT `tenant_id` 与 `X-Tenant-Code`，且二者解析结果不一致 → 返回 401（或 400 参数错误）并记录 `tenant mismatch rejected` 告警。
+
+**验收标准**：`X-Tenant-Code` 与 JWT 冲突时返回 401/400；一致时正常放行；日志含冲突双方租户 ID。
+
+## 11. 与 ADR-004 行动项的关系
+
+| 本页缺口 | ADR-004 行动项 | 状态 |
+|---|---|---|
+| G1/G2 | A2–A3（租户开通与首个管理员） | 实测确认缺口，规避可用 |
+| G3 | A4–A5（MSP 授权与权限矩阵） | 实测确认缺口，规避可用 |
+| G4/G5/G6 | A2（供给可复现性） | 实测确认缺口，脚本已规避 |
+| G7 | 工具规范 | 实测确认缺口，脚本已规避 |
+| G8 | A8（缓存租户维度） | 待验证/待修 |
+| G9 | A10（隔离回归） | 实测确认行为差异，需 fail-closed 化 |
+
+## 12. 证据索引
+
+- 脚本与复现步骤：[02 文档 §10](./02-deployment-and-configuration.md)、[06 文档 §7](./06-verification-and-troubleshooting.md)；
+- 代码位置：`middleware/tenant.go`、`middleware/msp_middleware.go`、`handlers/user/handler.go:516`、`pkg/seeder/tenant_provisioner.go:27-43`、`cmd/initialize`、`cmd/provision_tenant/main.go`；
+- 生产实测数据：租户 3/4/5 供给计数、`msp_allocations` 三条分配、隔离性探针输出（06 文档 §7）。

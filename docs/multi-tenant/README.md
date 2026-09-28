@@ -29,6 +29,7 @@
 | [04-provider-dimension.md](./04-provider-dimension.md) | 服务商维度：provider 租户、`msp_role`、分配与回收、跨客户操作与权限矩阵 | 服务商管理员 |
 | [05-usage-guide.md](./05-usage-guide.md) | 使用指南：客户端与 MSP 端操作路径（控制台/接口/CLI）与典型流程 | 全体使用者 |
 | [06-verification-and-troubleshooting.md](./06-verification-and-troubleshooting.md) | 验证与排障：验收清单、常见问题、错误码与定位方法 | 运维 / 测试 |
+| [07-known-gaps.md](./07-known-gaps.md) | 已确认产品缺口：实测现象、运维规避、建议修复与优先级 | 产品 / 研发 / 运维 |
 
 ## 角色与术语
 
@@ -48,6 +49,15 @@
 - 技术全景与运营案例：`docs/articles/05-multi-tenant-msp-operations.md`；
 - 生产初始化与发布：[production-initialization.md](../delivery/production-initialization.md)；
 - CMDB 可见性口径：[ADR-003](../architecture/adr-003-cmdb-tenant-wide-default.md)（租户内共享、租户间隔离）。
+
+## 运维脚本（scripts/msp/）
+
+| 脚本 | 作用 |
+|---|---|
+| `scripts/msp/build-provision-tenant.sh` | 构建 `provision_tenant` 二进制（内网走 goproxy.cn），产物 `/tmp/provision_tenant_linux_amd64` |
+| `scripts/msp/setup-msp-tenants.sh` | 一键初始化：租户创建 → 模板供给 → MSP 授权 → 首个用户 → 分配 → 隔离性验证（幂等） |
+
+使用方式与阶段说明见 [02 文档 §10](./02-deployment-and-configuration.md)；实测输出见 [06 文档 §7](./06-verification-and-troubleshooting.md)。
 
 ## 维护约定
 

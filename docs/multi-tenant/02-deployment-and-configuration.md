@@ -83,3 +83,63 @@
 | 以为改了 typo 会关闭 MSP | 未知模式按 SaaS 默认**开启** MSP（`msp_gate.go:21-24`） | 关闭 MSP 只能用 `private`，变更后核对 `/msp/status` |
 | 启动即失败并报 tenant_guard | 新表缺 `tenant_id` 且未登记豁免 | 补列或登记豁免（含 owner/reviewed_at + 测试） |
 | `enforce` 后大量 500 | 存在未注入租户上下文的路径 | 退回 `shadow` 补齐缺失点，并切换低权角色 |
+
+## 10. 多租户初始化操作（脚本化）
+
+生产实测（2026-09-28，见 [06 文档 §7](./06-verification-and-troubleshooting.md)）确认：`saas_msp` 模式下从零开通"1 服务商 + N 客户"需同时处理若干存量数据与产品边界问题（详见 [07-known-gaps.md](./07-known-gaps.md)）。为此提供两个幂等运维脚本（位于 `scripts/msp/`）：
+
+| 脚本 | 作用 |
+|---|---|
+| `scripts/msp/build-provision-tenant.sh` | 用 `golang:1.25.13-alpine` 镜像构建 `provision_tenant` 二进制，产物默认 `/tmp/provision_tenant_linux_amd64` |
+| `scripts/msp/setup-msp-tenants.sh` | 一键完成：租户创建 → 模板供给 → MSP 角色授权 → 首个用户 → 分配关系 → 隔离性验证 |
+
+### 10.1 构建 provision_tenant
+
+**方式 A（推荐，2026-09-28 实测通过）——本机交叉编译后上传：**
+
+```bash
+cd itsm-backend
+GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -trimpath -o /tmp/provision_tenant_linux_amd64 ./cmd/provision_tenant
+scp /tmp/provision_tenant_linux_amd64 <host>:/tmp/
+```
+
+**方式 B（备选）——在部署主机用容器构建：**
+
+```bash
+bash build-provision-tenant.sh
+# 构建完成：/tmp/provision_tenant_linux_amd64
+```
+
+说明：
+
+- 仓库无 `vendor/` 目录，模块需联网下载；本环境实测主机**无法直连 `proxy.golang.org`**（超时）、可直连 `goproxy.cn`，故方式 B 默认 `GOPROXY=https://goproxy.cn,direct` 且 `GOSUMDB=off`，模块缓存持久化在 `/tmp/itsm-gomod-cache`；
+- 本次实测中方式 B 的容器内模块下载长时间无进展（容器被反复重建），最终采用方式 A 完成构建与供给验证；方式 B 保留给网络/缓存良好的主机；
+- 方式 B 可覆盖变量：`REPO_DIR` / `OUT` / `IMAGE` / `GOPROXY_URL` / `GOMOD_CACHE` / `SUDO_PASS`。
+
+### 10.2 一键初始化
+
+```bash
+# 默认 BASE=http://127.0.0.1:8088、ADMIN_USER=admin、容器名 itsm-backend-prod / itsm-postgres-prod
+bash setup-msp-tenants.sh
+```
+
+脚本按 8 个阶段执行，全部幂等（重复执行输出 `exists` / `跳过`）：
+
+| 阶段 | 动作 | 必要性 |
+|---|---|---|
+| 0 | admin 登录获取 Bearer token | 租户创建需 `tenant:write` |
+| 1 | 回填 default 租户 6 个内置审批组 | 存量库缺组会导致供给 readiness 校验失败（G4） |
+| 2 | 校正 `roles/permissions/menus/groups/role_permissions/...` 的 id 序列 | 序列落后于 `max(id)` 会触发 `duplicate key`（G5） |
+| 3 | 创建 `msp_provider` + `msp_customer` 租户（含 `parentTenantId` / `mspProviderId` 绑定） | 场景骨架 |
+| 4 | 对每个新租户执行 `provision_tenant -tenant-id <ID> -template-version 1.0.0` | 克隆 roles/permissions/menus/groups/SLA/CI 类型等模板 |
+| 5 | 为 provider 租户 `msp_manager` / `msp_tech` / `msp_viewer` / `msp_specialist` 写 `role_permissions` | DB 权威模式下角色无权限行即 fail-closed（G6） |
+| 6 | 用 SQL + pgcrypto 创建各租户首个用户 | HTTP 途径被 tenant guard 与 bootstrap 限制（G1/G2） |
+| 7 | 由 mspadmin 的 MSP token 调 `POST /api/v1/msp/allocations` 建立分配 | 验证 MSP 分配链路 |
+| 8 | 隔离性探针（06 文档 §7.2） | 验收证据 |
+
+### 10.3 前置条件与注意
+
+- 需 `sudo` 免密或提供 `SUDO_PASS`；脚本通过 `docker exec` 访问 PostgreSQL 与应用容器；
+- `PROVISION_BIN_HOST` 默认 `/tmp/provision_tenant_linux_amd64`，缺失时脚本报错退出；
+- 脚本只创建/补齐数据，**不删除**任何数据；对已有同 code 租户复用其 ID；
+- 客户租户 ID 与 provider 绑定由 API 写入，若失败会打印原始响应并以非零码退出。
