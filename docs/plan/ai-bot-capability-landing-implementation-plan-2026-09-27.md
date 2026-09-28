@@ -120,6 +120,7 @@
 - [ ] BP3 单一 SSE 事件注册表评审通过（含 MCP 事件；v2 兼容策略明确）。
 - [ ] BP4 队列持久化 spike 通过（重启恢复 demo 可复跑）【待实测】。
 - [ ] BP5 模块骨架与 `bot.enabled` 开关——**实现完成，待评审**（2026-09-27：`itsm-backend/service/bot/`（`doc.go`/`gate.go`）落地；`bot.enabled` 默认 false、环境变量兜底 `BOT_ENABLED`；关闭态无任何装配点=零行为变化；证据 `docs/plan/evidence/bot-b0/BP5-B0-01-unit-evidence.md`；U-B8 归属结论 = `service/bot/`）。
+- [x] BP8 预算与护栏参数落配置——**完成（2026-09-27）**：`bot.redaction_profile` + `bot.budget.{max_steps,max_tokens,max_tool_calls,tool_timeout_seconds,max_output_bytes}`，YAML + `BOT_BUDGET_*`/`BOT_REDACTION_PROFILE` 环境变量双通道，非正值/未知档位 fail-safe 回落默认；证据 `docs/plan/evidence/bot-b1/BP8-budget-config-evidence.md`（9 个用例，`config` 包全绿）。
 - [ ] BP7 mock provider 与租户/角色矩阵就绪；Playwright 环境可启动。
 - [ ] 本实施方案在团队评审通过（评审记录写入 PR 或本文件 §10）。
 
@@ -212,6 +213,8 @@ MCP 线：      ▼                    ▼                   ▼                
 | B0-07 | `integration_verified` | `evidence/bot-b0/B0-07-b0-acceptance-evidence.md`（端到端 3 用例 + AB0 逐条索引 + MCP 联合评审 + QA 抽检） |
 | **B0 里程碑** | **`integration_verified`（条件达标）** | 出口①～⑥全部满足；条件项 = AB0-02 Postgres 侧（gap A1 外因，CI job S1 已就位、首轮观察态） |
 | B1-01 | `integration_verified` | `evidence/bot-b1/B1-01-run-archive-evidence.md`（三表迁移 + RunStore + run_id 贯通 + 真实 chat/stream 运行档案；事件名待 BP3 冻结） |
+| BP8 | 完成 | `evidence/bot-b1/BP8-budget-config-evidence.md`（`bot.budget.*` + `redaction_profile` 落配置，YAML/环境变量双通道，fail-safe 归一化） |
+| B1-02 | `unit_verified` | `evidence/bot-b1/B1-02-run-manager-evidence.md`（状态机 + 三类预算 + 单工具超时 + 先落库后广播 + 工具事件旁路；遗留：超限不中止主链路、token 回报/输出字节未接线） |
 
 ### 3.4 双线联合路线图（与 MCP 方案合并视图）
 
@@ -338,6 +341,7 @@ MCP 线：      ▼                    ▼                   ▼                
 - **要点**：状态推进 `running → completed/failed`（`cancelled` 预留）；预算护栏：每 run step 数 / token / 工具调用次数 / 单工具超时（默认 30s）/ 输出字节上限，超限以 `error{code=budget_exceeded}` 结束并落审计（BP8）；事件**先落库后广播**，保证 SSE 重放与审计同源；RunManager 通过接口输出事件流，便于单测与未来替换。
 - **测试与证据**：UT（预算超限、状态转换、落库顺序）；集成（chatStream 事件序列与 DB 一致）。
 - **DoD**：`unit_verified`。
+- **状态**：`unit_verified`（2026-09-27）——①`service/bot/run_manager.go`：`Budget`（五参数 fail-safe 归一化）、`Manager`/`Run` 句柄（`Emit` **先落库后广播**、`RecordStep` 先计数后落库且失败回滚、`ReserveToolCall`/`BeginToolCall`（单工具超时 ctx）、`AddTokens`、`Finish` 幂等首个终态胜出、`BudgetExceeded` → `error{code=budget_exceeded}` + failed 收口）、`TruncateOutput`；②`handlers/ai`：`SetBotRunner`（BP8 预算注入）/`SetBotRunStore`（默认预算适配），`chatStream` 收口改走 `Run`，新增 `botToolObserver`（工具事件**原样透传** + `started` 计预算超限只记一次 error + `done/failed` 落 `tool` 步骤与 `tool_call` 事件）；③`bootstrap` 以 `cfg.Bot.Budget` 构造 Manager。测试：UT 8 例（service/bot 6 + handlers/ai 2）+ 集成 1 例（真实 chat/stream 广播顺序 == DB seq 顺序，Observer 回调时可反查），受影响 4 包全绿（config 1.3s / service/bot 8.3s / handlers/ai 9.6s / botintegration 5.1s）。证据 `docs/plan/evidence/bot-b1/B1-02-run-manager-evidence.md`。**遗留（4 项，见证据 §5）**：超限不中止主链路（归 B1-03）、`AddTokens` 未接 provider 用量、`MaxOutputBytes` 未接工具结果路径、`cancelled` 状态预留。
 
 #### B1-03 SSE 契约 v2 服务端与兼容层（后端）
 
@@ -942,3 +946,5 @@ MCP 线：      ▼                    ▼                   ▼                
 | 2026-09-27 | AI 辅助执行 | **B0-06 交付（`unit_verified`）**：统一脱敏入口 `service/bot/redactor.go`（default/strict；default 与 `pkg/redact` 逐字节互查；strict 只留键名）；审计四类字段接线（pending/dry-run/只读 args_redacted、strict 结果摘要、拒绝回填 reason）；档位经 `GetToolForTenant` 解析使 MCP 标注生效（修复初版误判 strict 的回归）。表驱动 5 例 + 落库断言 2 例。证据 `docs/plan/evidence/bot-b0/B0-06-integration-evidence.md`。 |
 | 2026-09-27 | AI 辅助执行 | **B0-07 交付 + B0 出口（`integration_verified`）**：新增 `itsm-backend/tests/botintegration/b0_flow_test.go` 端到端 3 用例（主链路/零写入/strict+标注，真实 ent/SQLite 4.2s 全绿）；AB0-01～AB0-07 逐条证据索引、与 MCP M0-03 联合评审记录、QA 抽检 8/8 清单见 `docs/plan/evidence/bot-b0/B0-07-b0-acceptance-evidence.md`；§3.1/§3.3.1/§5.2 回写 B0 判定（条件项 = AB0-02 Postgres 侧 gap A1）。**下一步：B1 开工（BQ1–BQ5 拍板 + BP3/BP4/BP8 前置）**。 |
 | 2026-09-27 | AI 辅助执行 | **B1-01 交付（`integration_verified`）**：新增 `bot_runs`/`bot_steps`/`bot_events` 三表（索引首列含租户；`(run_id,step_index)`、`(run_id,seq)` 唯一）＋`ent generate` 刷新；`service/bot/run.go` `RunStore`（事件取号 + 冲突重试；`FinishRun` 租户维度 Where）与 `service/bot/context.go` 运行上下文；`chatStream` 拆「包装层 + inner」：起运行 → run_id 注入 → 收口（llm 步骤 + run_finished 事件 + 状态，`context.WithoutCancel`），运行态写入失败只告警；`ToolInvocation.run_id` 在读审计与写待审批两条真实路径贯通。测试：迁移 3 例 + 运行态 4 例（含真实 `/api/v1/ai/chat/stream` 运行档案与关闭态零写入），受影响 4 包全绿（7.3s/12.7s/0.4s/9.4s）。证据 `docs/plan/evidence/bot-b1/B1-01-run-archive-evidence.md`。**条件项**：事件名待 BP3 注册表评审冻结（B1-03 一并）。 |
+| 2026-09-27 | AI 辅助执行 | **BP8 交付（完成）**：`bot.redaction_profile` + `bot.budget.{max_steps,max_tokens,max_tool_calls,tool_timeout_seconds,max_output_bytes}` 落配置，YAML 与 `BOT_BUDGET_*`/`BOT_REDACTION_PROFILE` 环境变量双通道；`applyBotDefaults` 对未知档位/非正预算 fail-safe 回落默认（不得把护栏关成「无上限」）；新增 `getEnvIntWithDefault`（非法值忽略而非清零）与 `BotToolTimeout()`。测试 9 例（含表驱动 8 子例），`config` 包全绿（0.9s）。证据 `docs/plan/evidence/bot-b1/BP8-budget-config-evidence.md`。 |
+| 2026-09-27 | AI 辅助执行 | **B1-02 交付（`unit_verified`）**：`service/bot/run_manager.go`（`Budget` 归一化、`Manager`/`Run`：`Emit` 先落库后广播、`RecordStep` 先计数后落库且失败回滚、`ReserveToolCall`/`BeginToolCall` 单工具超时、`AddTokens`、`Finish` 幂等首个终态胜出、`BudgetExceeded` → `error{code=budget_exceeded}` + failed 收口、`TruncateOutput`）；`handlers/ai` 新增 `SetBotRunner` 与 `botToolObserver`（工具事件原样透传 + 预算超限只记一次 + `done/failed` 落 tool 步骤与 `tool_call` 事件）；bootstrap 以 `cfg.Bot.Budget` 构造 Manager。测试：UT 8 例 + 集成 1 例（真实 chat/stream「广播顺序 == DB seq 顺序」且回调时可反查），受影响 4 包全绿（1.3s/8.3s/9.6s/5.1s）。证据 `docs/plan/evidence/bot-b1/B1-02-run-manager-evidence.md`。**遗留 4 项**：超限不中止主链路（归 B1-03）、`AddTokens` 未接 provider 用量、`MaxOutputBytes` 未接工具结果路径、`cancelled` 预留。 |

@@ -6,7 +6,9 @@ import (
 	"log"
 	"os"
 	"regexp"
+	"strconv"
 	"strings"
+	"time"
 
 	"github.com/joho/godotenv"
 	"github.com/spf13/viper"
@@ -94,22 +96,76 @@ func applyAttachmentDefaults(cfg *AttachmentConfig) {
 	}
 }
 
-// BotConfig Bot 能力落地配置（BP5 全局开关；预算/护栏参数由 BP8 扩展）。
+// BotConfig Bot 能力落地配置（BP5 全局开关 + BP8 预算与护栏参数）。
 //
-// 方案：docs/plan/ai-bot-capability-landing-implementation-plan-2026-09-27.md §2.2（BP5）。
-// 默认保守：Enabled=false 时对现有系统零行为变化（不装配 Bot 运行时组件、
-// 工具面与聊天链路保持现状）。
+// 方案：docs/plan/ai-bot-capability-landing-implementation-plan-2026-09-27.md §2.2（BP5/BP8）、
+// §4.2 B1-02（预算护栏）。默认保守：Enabled=false 时对现有系统零行为变化（不装配 Bot
+// 运行时组件、工具面与聊天链路保持现状）；预算参数仅在 RunManager 起运行后生效。
 type BotConfig struct {
 	// Enabled: bot.enabled 全局开关；默认 false。
 	Enabled bool `mapstructure:"enabled"`
+	// RedactionProfile: 工具参数/结果脱敏默认档（default|strict）。
+	// 未知值回落 default（fail-safe，不因配置笔误放大可见字段）。
+	RedactionProfile string `mapstructure:"redaction_profile"`
+	// Budget: 每 run 预算与单次工具护栏（BP8）。
+	Budget BotBudgetConfig `mapstructure:"budget"`
 }
 
+// BotBudgetConfig 每 run 预算与护栏参数（BP8；B1-02 RunManager 消费）。
+//
+// 全部为「每 run」级上限：step 数、token 数（模型输入+输出合计，按 provider 回报累加）、
+// 工具调用次数；另含单工具超时与单次工具输出字节上限。非正值一律回落默认值。
+type BotBudgetConfig struct {
+	// MaxSteps: 每 run 步骤上限；超限以 budget_exceeded 收口。
+	MaxSteps int `mapstructure:"max_steps"`
+	// MaxTokens: 每 run token 上限（无 provider 回报时不参与判定）。
+	MaxTokens int `mapstructure:"max_tokens"`
+	// MaxToolCalls: 每 run 工具调用次数上限。
+	MaxToolCalls int `mapstructure:"max_tool_calls"`
+	// ToolTimeoutSeconds: 单工具执行超时（秒）；默认 30s。
+	ToolTimeoutSeconds int `mapstructure:"tool_timeout_seconds"`
+	// MaxOutputBytes: 单次工具输出的字节上限；超限截断并标记。
+	MaxOutputBytes int `mapstructure:"max_output_bytes"`
+}
+
+// BP8 预算护栏默认值（方案 §2.2 BP8：单工具超时默认 30s）。
+const (
+	botDefaultRedactionProfile   = "default"
+	botDefaultMaxSteps           = 24
+	botDefaultMaxTokens          = 100000
+	botDefaultMaxToolCalls       = 12
+	botDefaultToolTimeoutSeconds = 30
+	botDefaultMaxOutputBytes     = 65536
+)
+
 // applyBotDefaults 补齐 Bot 配置的零值默认；Enabled 保持零值 false（未配置即关闭）。
+//
+// 非正预算值一律回落默认（运维写成 0/负数时按默认护栏执行，而不是「无上限」）。
 func applyBotDefaults(cfg *BotConfig) {
 	if cfg == nil {
 		return
 	}
-	// 预留：BP8（预算与护栏参数）在此补默认值。
+	switch strings.ToLower(strings.TrimSpace(cfg.RedactionProfile)) {
+	case "strict":
+		cfg.RedactionProfile = "strict"
+	default:
+		cfg.RedactionProfile = botDefaultRedactionProfile
+	}
+	if cfg.Budget.MaxSteps <= 0 {
+		cfg.Budget.MaxSteps = botDefaultMaxSteps
+	}
+	if cfg.Budget.MaxTokens <= 0 {
+		cfg.Budget.MaxTokens = botDefaultMaxTokens
+	}
+	if cfg.Budget.MaxToolCalls <= 0 {
+		cfg.Budget.MaxToolCalls = botDefaultMaxToolCalls
+	}
+	if cfg.Budget.ToolTimeoutSeconds <= 0 {
+		cfg.Budget.ToolTimeoutSeconds = botDefaultToolTimeoutSeconds
+	}
+	if cfg.Budget.MaxOutputBytes <= 0 {
+		cfg.Budget.MaxOutputBytes = botDefaultMaxOutputBytes
+	}
 }
 
 // MCPConfig MCP 外部工具接入配置（M0-01 开关与连接默认值）。
@@ -455,6 +511,13 @@ func LoadConfig() (*Config, error) {
 
 	// Bot 能力落地（BP5）：开关默认关闭；环境变量兜底 BOT_ENABLED。
 	config.Bot.Enabled = getEnvBoolWithDefault("BOT_ENABLED", config.Bot.Enabled)
+	// BP8 预算与护栏：环境变量兜底（部署侧只改环境变量即可调参与回退）。
+	config.Bot.RedactionProfile = getEnvWithDefault("BOT_REDACTION_PROFILE", config.Bot.RedactionProfile)
+	config.Bot.Budget.MaxSteps = getEnvIntWithDefault("BOT_BUDGET_MAX_STEPS", config.Bot.Budget.MaxSteps)
+	config.Bot.Budget.MaxTokens = getEnvIntWithDefault("BOT_BUDGET_MAX_TOKENS", config.Bot.Budget.MaxTokens)
+	config.Bot.Budget.MaxToolCalls = getEnvIntWithDefault("BOT_BUDGET_MAX_TOOL_CALLS", config.Bot.Budget.MaxToolCalls)
+	config.Bot.Budget.ToolTimeoutSeconds = getEnvIntWithDefault("BOT_BUDGET_TOOL_TIMEOUT_SECONDS", config.Bot.Budget.ToolTimeoutSeconds)
+	config.Bot.Budget.MaxOutputBytes = getEnvIntWithDefault("BOT_BUDGET_MAX_OUTPUT_BYTES", config.Bot.Budget.MaxOutputBytes)
 	applyBotDefaults(&config.Bot)
 
 	// RLS 三档开关，默认 off（零风险）。
@@ -527,4 +590,35 @@ func getEnvBoolWithDefault(key string, defaultValue bool) bool {
 	}
 
 	return defaultValue
+}
+
+// getEnvIntWithDefault 读取整型环境变量（支持裸键与 ITSM_ 前缀两种写法）。
+//
+// 空值、非数字或负值一律返回 defaultValue（= 调用方传入的 config.yaml 解析值或硬默认），
+// 即「非法环境变量被忽略而不是静默清零」；若 config.yaml 本身也缺失/非正值，
+// applyXxxDefaults 再兜一层硬默认，保证护栏不会变成「无上限」。
+func getEnvIntWithDefault(key string, defaultValue int) int {
+	for _, candidate := range []string{key, "ITSM_" + strings.ToUpper(key)} {
+		value := strings.TrimSpace(os.Getenv(candidate))
+		if value == "" {
+			continue
+		}
+		parsed, err := strconv.Atoi(value)
+		if err != nil || parsed <= 0 {
+			return defaultValue
+		}
+		return parsed
+	}
+	return defaultValue
+}
+
+// BotToolTimeout 返回单工具执行超时（BP8；默认 30s）。
+//
+// 放在 config 包内提供，避免调用方（RunManager）各自换算秒→Duration 而产生不一致。
+func (c BotBudgetConfig) BotToolTimeout() time.Duration {
+	seconds := c.ToolTimeoutSeconds
+	if seconds <= 0 {
+		seconds = botDefaultToolTimeoutSeconds
+	}
+	return time.Duration(seconds) * time.Second
 }

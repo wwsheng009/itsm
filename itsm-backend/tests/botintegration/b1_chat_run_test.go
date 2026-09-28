@@ -9,6 +9,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"sync"
 	"testing"
 
 	"github.com/gin-gonic/gin"
@@ -16,9 +17,13 @@ import (
 	"github.com/stretchr/testify/require"
 	"go.uber.org/zap"
 
+	"itsm-backend/ent"
+	"itsm-backend/ent/botevent"
 	"itsm-backend/ent/botrun"
+	"itsm-backend/ent/botstep"
 	"itsm-backend/handlers/ai"
 	"itsm-backend/service"
+	"itsm-backend/service/bot"
 
 	_ "github.com/mattn/go-sqlite3"
 )
@@ -138,4 +143,78 @@ func TestB1RunStoreNilSafe(t *testing.T) {
 	count, err := h.client.BotRun.Query().Count(ctx)
 	require.NoError(t, err)
 	assert.Zero(t, count, "未注入 RunStore 时不得写入任何运行记录（零行为变化）")
+}
+
+// TestB1ChatStreamRunManagerSequenceMatchesDB 覆盖 B1-02 的集成判据：
+// RunManager 接管后，真实 chat/stream 的「广播顺序 == 落库顺序」，且 Observer
+// 回调触发时事件必已可反查（先落库后广播，SSE 重放与审计同源）。
+func TestB1ChatStreamRunManagerSequenceMatchesDB(t *testing.T) {
+	ctx := context.Background()
+	h := newB1Harness(t)
+
+	var (
+		mu         sync.Mutex
+		observed   []string
+		notYetInDB []string
+	)
+	manager := bot.NewManager(bot.NewRunStore(h.client), bot.Budget{MaxSteps: 8, MaxToolCalls: 2}).
+		WithObserver(bot.ObserverFunc(func(tenantID, runID, seq int, eventType string, payload map[string]any) {
+			exists, err := h.client.BotEvent.Query().
+				Where(botevent.RunID(runID), botevent.Seq(seq)).
+				Exist(ctx)
+			mu.Lock()
+			defer mu.Unlock()
+			if err != nil || !exists {
+				notYetInDB = append(notYetInDB, eventType)
+			}
+			observed = append(observed, eventType)
+		}))
+
+	rag := service.NewRAGService(h.client, nil, nil, zap.NewNop().Sugar(), service.RAGConfig{UseKeyword: true})
+	svc := ai.NewService(ai.NewEntRepository(h.client), zap.NewNop().Sugar(), rag, h.registry, h.queue,
+		nil, nil, nil, nil, nil, nil)
+	svc.SetEntClient(h.client)
+	svc.SetBotRunner(manager)
+
+	handler := ai.NewHandler(svc)
+	gin.SetMode(gin.TestMode)
+	router := gin.New()
+	router.POST("/api/v1/ai/chat/stream", func(c *gin.Context) {
+		c.Set("tenant_id", h.tenantID)
+		c.Set("user_id", h.userID)
+		c.Set("role", "super_admin")
+		handler.ChatStream(c)
+	})
+	body, err := json.Marshal(map[string]any{"query": "事件顺序核对", "conversationId": h.convID})
+	require.NoError(t, err)
+	request := httptest.NewRequest(http.MethodPost, "/api/v1/ai/chat/stream", bytes.NewBuffer(body))
+	request.Header.Set("Content-Type", "application/json")
+	recorder := httptest.NewRecorder()
+	router.ServeHTTP(recorder, request)
+	require.Equal(t, http.StatusOK, recorder.Code, "body=%s", recorder.Body.String())
+
+	runs := h.client.BotRun.Query().Where(botrun.TenantID(h.tenantID)).AllX(ctx)
+	require.Len(t, runs, 1)
+	runID := runs[0].ID
+
+	events := h.client.BotEvent.Query().
+		Where(botevent.RunID(runID)).
+		Order(ent.Asc(botevent.FieldSeq)).
+		AllX(ctx)
+	require.Len(t, events, 2, "无工具调用的对话应恰好产生 run_started 与 run_finished")
+
+	mu.Lock()
+	defer mu.Unlock()
+	assert.Empty(t, notYetInDB, "Observer 回调时事件必须已落库（先落库后广播）")
+	assert.Equal(t, []string{events[0].Type, events[1].Type}, observed,
+		"广播顺序必须与落库 seq 顺序一致")
+	assert.Equal(t, []string{"run_started", "run_finished"}, observed)
+
+	steps := h.client.BotStep.Query().
+		Where(botstep.RunID(runID)).
+		Order(ent.Asc(botstep.FieldStepIndex)).
+		AllX(ctx)
+	require.Len(t, steps, 1, "无工具调用时应只有一条 llm 步骤")
+	assert.Equal(t, "llm", steps[0].Type)
+	assert.Equal(t, 0, steps[0].StepIndex)
 }

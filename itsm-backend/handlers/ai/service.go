@@ -38,8 +38,8 @@ type Service struct {
 	entClient *ent.Client
 	// B0-06：统一脱敏入口（按工具元数据的 default/strict 档位口径）。
 	redactor *bot.Redactor
-	// B1-01：运行态记录（chatStream 起运行/记步骤/记事件；未注入时零行为变化）。
-	botRuns *bot.RunStore
+	// B1-01/B1-02：运行态管理器（chatStream 起运行/记步骤/记事件/预算护栏；未注入时零行为变化）。
+	botRunner *bot.Manager
 }
 
 func NewService(
@@ -89,12 +89,20 @@ func (s *Service) SetEntClient(client *ent.Client) {
 	s.entClient = client
 }
 
-// SetBotRunStore 注入运行态存储（B1-01）。
+// SetBotRunner 注入运行态管理器（B1-02；预算参数由装配方从 BP8 配置映射）。
 //
 // 未注入（nil）时聊天路径不产生任何 bot_runs/bot_steps/bot_events 写入，
 // 行为与既有版本零差异（关闭态口径，与 `bot.enabled=false` 对应）。
+func (s *Service) SetBotRunner(manager *bot.Manager) {
+	s.botRunner = manager
+}
+
+// SetBotRunStore 注入运行态存储（B1-01 入口，等价于使用默认预算的 Manager）。
+//
+// 保留该入口是为了让「只想落运行档案」的调用方（含既有测试）不必了解预算参数；
+// 需要按 BP8 配置调预算时改用 SetBotRunner。
 func (s *Service) SetBotRunStore(store *bot.RunStore) {
-	s.botRuns = store
+	s.botRunner = bot.NewManager(store, bot.DefaultBudget())
 }
 
 // Tool Methods
@@ -774,53 +782,105 @@ func (s *Service) chatStream(
 	onDelta func(string),
 	onTool func(ToolStreamEvent),
 ) (int, string, error) {
-	runID := 0
+	var run *bot.Run
 	startedAt := time.Now()
-	if s.botRuns != nil {
-		run, err := s.botRuns.StartRun(ctx, bot.StartRunInput{
+	if s.botRunner != nil {
+		started, err := s.botRunner.Start(ctx, bot.StartRunInput{
 			TenantID:       tenantID,
 			ConversationID: convID,
 			Entrypoint:     "chat",
 		})
 		if err != nil {
 			s.logger.Warnw("B1-01 运行记录创建失败（降级为不记录）", "error", err, "tenant_id", tenantID)
-		} else if run != nil {
-			runID = run.ID
-			ctx = bot.WithRunID(ctx, runID)
-			if _, evErr := s.botRuns.AppendEvent(ctx, tenantID, runID, "run_started", map[string]any{
+		} else if started != nil {
+			run = started
+			ctx = bot.WithRunID(ctx, run.ID())
+			if _, evErr := run.Emit(ctx, "run_started", map[string]any{
 				"entrypoint":     "chat",
 				"conversationId": convID,
 				"limit":          limit,
 			}); evErr != nil {
-				s.logger.Warnw("B1-01 run_started 事件写入失败", "error", evErr, "run_id", runID)
+				s.logger.Warnw("B1-01 run_started 事件写入失败", "error", evErr, "run_id", run.ID())
 			}
 		}
 	}
 
-	outConvID, answer, err := s.chatStreamInner(ctx, tenantID, userID, role, query, limit, convID, gateway, providerReq, onSources, onDelta, onTool)
+	// B1-02：工具事件旁路记录（步骤 + 运行事件），不改变对前端的事件流语义。
+	toolObserver := onTool
+	if run != nil {
+		toolObserver = s.botToolObserver(run, onTool)
+	}
 
-	if runID > 0 {
+	outConvID, answer, err := s.chatStreamInner(ctx, tenantID, userID, role, query, limit, convID, gateway, providerReq, onSources, onDelta, toolObserver)
+
+	if run != nil {
 		// 收口写入与请求取消解耦：客户端断开也要留下完成态与事件（审计同源）。
 		finishCtx := context.WithoutCancel(ctx)
 		status, code := "completed", ""
 		if err != nil {
 			status, code = "failed", botRunErrorCode(err)
 		}
-		if _, stepErr := s.botRuns.AppendStep(finishCtx, tenantID, runID, 0, "llm", "", int(time.Since(startedAt).Milliseconds())); stepErr != nil {
-			s.logger.Warnw("B1-01 llm 步骤写入失败", "error", stepErr, "run_id", runID)
+		if _, stepErr := run.RecordStep(finishCtx, "llm", "", int(time.Since(startedAt).Milliseconds())); stepErr != nil {
+			s.logger.Warnw("B1-01 llm 步骤写入失败", "error", stepErr, "run_id", run.ID())
 		}
-		if _, evErr := s.botRuns.AppendEvent(finishCtx, tenantID, runID, "run_finished", map[string]any{
+		if _, evErr := run.Emit(finishCtx, "run_finished", map[string]any{
 			"status":    status,
 			"errorCode": code,
 		}); evErr != nil {
-			s.logger.Warnw("B1-01 run_finished 事件写入失败", "error", evErr, "run_id", runID)
+			s.logger.Warnw("B1-01 run_finished 事件写入失败", "error", evErr, "run_id", run.ID())
 		}
-		if finishErr := s.botRuns.FinishRun(finishCtx, tenantID, runID, status, code); finishErr != nil {
-			s.logger.Warnw("B1-01 运行收口失败", "error", finishErr, "run_id", runID)
+		if finishErr := run.Finish(finishCtx, status, code); finishErr != nil {
+			s.logger.Warnw("B1-01 运行收口失败", "error", finishErr, "run_id", run.ID())
 		}
 	}
 
 	return outConvID, answer, err
+}
+
+// botToolObserver 包装工具事件回调（B1-02）：
+//   - 事件原样透传给前端回调（契约不变）；
+//   - `started` 计入工具调用预算，超限时记录 error{budget_exceeded} 并停止后续记录
+//     （主链路是否随之中止由 RunManager/调用方决定，此处不改变已有事件流）；
+//   - `done`/`failed` 落一条 tool 步骤（payload_ref = tool_invocation:<id>，无 id 时记工具名）。
+func (s *Service) botToolObserver(run *bot.Run, next func(ToolStreamEvent)) func(ToolStreamEvent) {
+	failedBudget := false
+	return func(event ToolStreamEvent) {
+		switch event.Status {
+		case "started":
+			if !failedBudget {
+				if err := run.ReserveToolCall(); err != nil {
+					failedBudget = true
+					if _, emitErr := run.Emit(context.Background(), bot.EventTypeError, map[string]any{
+						"code":   bot.ErrorCodeBudgetExceeded,
+						"reason": "max_tool_calls",
+						"tool":   event.Tool,
+					}); emitErr != nil {
+						s.logger.Warnw("B1-02 预算超限事件写入失败", "error", emitErr, "run_id", run.ID())
+					}
+				}
+			}
+		case "done", "failed":
+			ref := event.Tool
+			if event.ID > 0 {
+				ref = "tool_invocation:" + strconv.Itoa(event.ID)
+			}
+			if _, err := run.RecordStep(context.Background(), "tool", ref, int(event.DurationMs)); err != nil {
+				s.logger.Warnw("B1-02 工具步骤写入失败", "error", err, "run_id", run.ID(), "tool", event.Tool)
+			}
+			if _, err := run.Emit(context.Background(), "tool_call", map[string]any{
+				"tool":     event.Tool,
+				"provider": event.Provider,
+				"phase":    event.Phase,
+				"status":   event.Status,
+				"id":       event.ID,
+			}); err != nil {
+				s.logger.Warnw("B1-02 工具事件写入失败", "error", err, "run_id", run.ID(), "tool", event.Tool)
+			}
+		}
+		if next != nil {
+			next(event)
+		}
+	}
 }
 
 // botRunErrorCode 把主链路错误归类为运行态错误码（用于 bot_runs.error_code）。

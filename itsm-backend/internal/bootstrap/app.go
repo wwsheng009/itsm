@@ -988,10 +988,16 @@ func NewApplication() *Application {
 	aiServiceDomain.SetSummarizeService(summarizeService)
 	// P2-6: 注入 ent client 供 AI 工具 RBAC 校验复用 hasResourcePermission
 	aiServiceDomain.SetEntClient(client)
-	// B1-01：Bot 运行态记录（bot_runs/bot_steps/bot_events）。
+	// B1-01/B1-02：Bot 运行态管理器（bot_runs/bot_steps/bot_events + BP8 预算护栏）。
 	// bot.enabled=false（默认）时不注入 → 聊天链路零额外写入、零行为变化。
 	if cfg.Bot.Enabled {
-		aiServiceDomain.SetBotRunStore(botService.NewRunStore(client))
+		aiServiceDomain.SetBotRunner(botService.NewManager(botService.NewRunStore(client), botService.Budget{
+			MaxSteps:       cfg.Bot.Budget.MaxSteps,
+			MaxTokens:      cfg.Bot.Budget.MaxTokens,
+			MaxToolCalls:   cfg.Bot.Budget.MaxToolCalls,
+			ToolTimeout:    cfg.Bot.Budget.BotToolTimeout(),
+			MaxOutputBytes: cfg.Bot.Budget.MaxOutputBytes,
+		}))
 	}
 	aiHandler := ai.NewHandler(aiServiceDomain)
 
