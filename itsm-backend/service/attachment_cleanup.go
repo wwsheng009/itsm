@@ -79,12 +79,12 @@ type AttachmentCleanupItem struct {
 
 // AttachmentCleanupResult 单轮清理结果（按租户汇总）。
 type AttachmentCleanupResult struct {
-	Scanned           int                    `json:"scanned"`
-	Purged            int                    `json:"purged"`
-	SkippedReferenced int                    `json:"skippedReferenced"`
-	Failed            int                    `json:"failed"`
-	FreedBytes        int64                  `json:"freedBytes"`
-	DryRun            bool                   `json:"dryRun"`
+	Scanned           int                     `json:"scanned"`
+	Purged            int                     `json:"purged"`
+	SkippedReferenced int                     `json:"skippedReferenced"`
+	Failed            int                     `json:"failed"`
+	FreedBytes        int64                   `json:"freedBytes"`
+	DryRun            bool                    `json:"dryRun"`
 	Items             []AttachmentCleanupItem `json:"items,omitempty"`
 }
 

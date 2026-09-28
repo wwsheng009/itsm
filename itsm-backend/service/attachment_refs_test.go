@@ -58,13 +58,13 @@ func TestValidateRichTextInlineRefs_HostScope(t *testing.T) {
 	foreignTenant := createInlineRefAttachment(t, client, 2, AttachmentBizTypeTicket, 100, AttachmentStatusActive)
 
 	cases := []struct {
-		name         string
-		bizType      string
-		bizID        int
-		input        string
-		wantKept     bool
-		wantReason   string
-		wantStripID  int
+		name        string
+		bizType     string
+		bizID       int
+		input       string
+		wantKept    bool
+		wantReason  string
+		wantStripID int
 	}{
 		{
 			name:     "A4 同宿主保留",
@@ -232,10 +232,10 @@ func TestValidateRichTextInlineRefs_Skips(t *testing.T) {
 
 	client := newInlineRefTestClient(t)
 	for _, tc := range []struct {
-		name      string
-		tenantID  int
-		bizType   string
-		input     string
+		name     string
+		tenantID int
+		bizType  string
+		input    string
 	}{
 		{"空正文", 1, AttachmentBizTypeTicket, ""},
 		{"无图片", 1, AttachmentBizTypeTicket, "<p>纯文本</p>"},

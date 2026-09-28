@@ -68,9 +68,9 @@ func NewTicketAttachmentService(client *ent.Client, logger *zap.SugaredLogger) *
 	}
 
 	return &TicketAttachmentService{
-		client:      client,
-		logger:      logger,
-		uploadDir:   uploadDir,
+		client:       client,
+		logger:       logger,
+		uploadDir:    uploadDir,
 		maxFileSize:  10 * 1024 * 1024, // 10MB
 		allowedTypes: allowedAttachmentMIMEs(),
 		virusScanner: noopAttachmentVirusScanner{},
