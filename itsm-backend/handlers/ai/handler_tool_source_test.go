@@ -9,6 +9,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"strconv"
 	"testing"
 
 	"github.com/gin-gonic/gin"
@@ -120,4 +121,29 @@ func TestListToolInvocations_ExposesMCPSourceAndRisk(t *testing.T) {
 	assert.NotContains(t, w.Body.String(), "s3cr3t-value", "明文敏感值不得出现在审批列表响应中")
 	assert.NotContains(t, w.Body.String(), `"arguments"`, "原始参数不得回显（仅作执行真源留存）")
 	assert.Equal(t, `{"title":"打印机故障","token":"****"}`, item["argsRedacted"], "列表返回脱敏参数快照")
+
+	// 详情接口（GET /tools/:id）与列表同一份字段装配（M1-05 对话内审批卡片依赖本接口）。
+	r.GET("/api/v1/agent/tools/:id", func(c *gin.Context) {
+		c.Set("tenant_id", tenant.ID)
+		c.Set("user_id", user.ID)
+		h.GetToolInvocation(c)
+	})
+	detailRecorder := httptest.NewRecorder()
+	r.ServeHTTP(detailRecorder, httptest.NewRequest(http.MethodGet, "/api/v1/agent/tools/"+strconv.Itoa(invocation.ID), nil))
+	require.Equal(t, http.StatusOK, detailRecorder.Code, detailRecorder.Body.String())
+
+	var detailResponse struct {
+		Code int                    `json:"code"`
+		Data map[string]interface{} `json:"data"`
+	}
+	require.NoError(t, json.Unmarshal(detailRecorder.Body.Bytes(), &detailResponse))
+	assert.Equal(t, float64(invocation.ID), detailResponse.Data["id"])
+	assert.Equal(t, "mcp", detailResponse.Data["provider"])
+	assert.Equal(t, "mock", detailResponse.Data["serverName"])
+	assert.Equal(t, "create_issue", detailResponse.Data["rawToolName"])
+	assert.Equal(t, "mcp__mock__create_issue", detailResponse.Data["callableName"])
+	assert.Equal(t, "act_high", detailResponse.Data["risk"])
+	assert.Equal(t, `{"title":"打印机故障","token":"****"}`, detailResponse.Data["argsRedacted"])
+	assert.NotContains(t, detailRecorder.Body.String(), "s3cr3t-value", "详情接口同样不得回显明文")
+	assert.NotContains(t, detailRecorder.Body.String(), `"arguments"`)
 }

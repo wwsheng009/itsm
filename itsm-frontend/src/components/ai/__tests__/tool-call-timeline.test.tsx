@@ -86,6 +86,23 @@ describe('ToolCallTimeline', () => {
     expect(second.container.firstChild).toBeNull();
   });
 
+  it('hideStatuses：待审批条目交由审批卡片承载后，时间线不再重复展示（全隐藏即不渲染）', () => {
+    const events = [
+      mcpList('started'),
+      mcpList('done', { summary: '{"issues":[]}', durationMs: 12 }),
+      { tool: 'create_ticket', provider: 'builtin', phase: 'write', status: 'started' } as AIToolStreamEvent,
+      { tool: 'create_ticket', provider: 'builtin', phase: 'write', status: 'pending', id: 9 } as AIToolStreamEvent,
+    ];
+
+    const { rerender } = render(<ToolCallTimeline events={events} hideStatuses={['pending']} />);
+    expect(screen.getByText('工具调用 · 1')).toBeTruthy();
+    expect(screen.queryByText('create_ticket')).toBeNull();
+
+    // 全部条目都被隐藏时返回 null（不出现空白容器）。
+    rerender(<ToolCallTimeline events={[events[2], events[3]]} hideStatuses={['pending']} />);
+    expect(screen.queryByTestId('tool-call-timeline')).toBeNull();
+  });
+
   it('超长输出：截断标记展示「已截断」，展开后仍可见摘要（滚动承载）', () => {
     const longSummary = `{"items":["${'x'.repeat(200)}"]}${TRUNCATED_MARKER}`;
     render(<ToolCallTimeline events={[mcpList('done', { summary: longSummary, durationMs: 1500 })]} />);

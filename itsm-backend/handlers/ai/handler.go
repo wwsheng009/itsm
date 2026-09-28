@@ -918,18 +918,52 @@ func (h *Handler) GetToolInvocation(c *gin.Context) {
 		common.Fail(c, common.NotFoundCode, "invocation not found")
 		return
 	}
-	common.Success(c, gin.H{
-		"id":             inv.ID,
-		"status":         inv.Status,
-		"result":         inv.Result,
-		"error":          inv.Error,
-		"needsApproval":  inv.NeedsApproval,
-		"approvalState":  inv.ApprovalState,
-		"requestId":      inv.RequestID,
-		"createdAt":      inv.CreatedAt,
-		"conversationId": inv.ConversationID,
-		"toolName":       inv.ToolName,
-	})
+	// 与列表同一份字段装配：详情/列表不出现两套口径（M1-05 的对话内审批卡片依赖本接口）。
+	item := h.toolInvocationItem(c.Request.Context(), tenantID, inv)
+	item["error"] = inv.Error
+	item["requestId"] = inv.RequestID
+	common.Success(c, item)
+}
+
+// toolInvocationItem 装配工具调用记录的对内响应字段（列表与详情共用）。
+//
+// 口径（M1-02/M1-05）：
+//   - 原始参数 `arguments` **绝不回显**（仅作执行真源留存），展示用脱敏快照 `argsRedacted`；
+//   - 来源三元组来自 pending 落库快照（服务器不可达也可追溯）；
+//   - `risk` 由工具面实时解析（标注变更立即反映，解析不到为空值）。
+func (h *Handler) toolInvocationItem(ctx context.Context, tenantID int, inv *ToolInvocation) gin.H {
+	risk := ""
+	if h.svc.tools != nil {
+		if def := h.svc.tools.GetToolForTenant(ctx, tenantID, inv.ToolName); def != nil {
+			risk = def.Risk
+		}
+	}
+	return gin.H{
+		"id":               inv.ID,
+		"toolName":         inv.ToolName,
+		"argsRedacted":     inv.ArgsRedacted,
+		"status":           inv.Status,
+		"needsApproval":    inv.NeedsApproval,
+		"approvalState":    inv.ApprovalState,
+		"approvalReason":   inv.ApprovalReason,
+		"permissionCheck":  inv.PermissionCheck,
+		"permissionReason": inv.PermissionReason,
+		"createdAt":        inv.CreatedAt,
+		"conversationId":   inv.ConversationID,
+		"userId":           inv.UserID,
+		"provider":         inv.Provider,
+		"serverName":       inv.McpServerName,
+		"rawToolName":      inv.McpRawToolName,
+		"callableName":     inv.McpCallableName,
+		"risk":             risk,
+		"roleSnapshot":     inv.RoleSnapshot,
+		"approvedBy":       inv.ApprovedBy,
+		"approvedAt":       inv.ApprovedAt,
+		"durationMs":       inv.DurationMs,
+		"errorCode":        inv.ErrorCode,
+		"result":           inv.Result,
+		"outputSummary":    inv.OutputSummary,
+	}
 }
 
 // ListToolInvocations handles GET /api/v1/agent/tools/invocations
@@ -956,43 +990,8 @@ func (h *Handler) ListToolInvocations(c *gin.Context) {
 	items := make([]gin.H, 0, len(invs))
 	for _, inv := range invs {
 		// M1-02：审批详情必须让审批人看到「来源（内置/MCP）+ 服务器 + 原始工具名 + 投影名 + 风险」，
-		// 否则在信息缺失下决策。三元组来自 pending 落库快照；risk 由工具面实时解析
-		// （标注变更会立刻反映，且服务器不可达时退化为空值，不影响排障与审计）。
-		risk := ""
-		if h.svc.tools != nil {
-			if def := h.svc.tools.GetToolForTenant(c.Request.Context(), tenantID, inv.ToolName); def != nil {
-				risk = def.Risk
-			}
-		}
-		items = append(items, gin.H{
-			"id":       inv.ID,
-			"toolName": inv.ToolName,
-			// M1-02 安全修正：列表**不再回显原始参数**（`arguments` 仅作为执行真源留在库里），
-			// 展示一律用脱敏快照 `argsRedacted`——避免 MCP 写工具的口令/token 出现在审批页面与浏览器网络面板。
-			"argsRedacted":     inv.ArgsRedacted,
-			"status":           inv.Status,
-			"needsApproval":    inv.NeedsApproval,
-			"approvalState":    inv.ApprovalState,
-			"approvalReason":   inv.ApprovalReason,
-			"permissionCheck":  inv.PermissionCheck,
-			"permissionReason": inv.PermissionReason,
-			"createdAt":        inv.CreatedAt,
-			"conversationId":   inv.ConversationID,
-			"userId":           inv.UserID,
-			// 来源与风险（M1-02）
-			"provider":      inv.Provider,
-			"serverName":    inv.McpServerName,
-			"rawToolName":   inv.McpRawToolName,
-			"callableName":  inv.McpCallableName,
-			"risk":          risk,
-			"roleSnapshot":  inv.RoleSnapshot,
-			"approvedBy":    inv.ApprovedBy,
-			"approvedAt":    inv.ApprovedAt,
-			"durationMs":    inv.DurationMs,
-			"errorCode":     inv.ErrorCode,
-			"result":        inv.Result,
-			"outputSummary": inv.OutputSummary,
-		})
+		// 否则在信息缺失下决策（字段口径集中在 toolInvocationItem）。
+		items = append(items, h.toolInvocationItem(c.Request.Context(), tenantID, inv))
 	}
 	common.Success(c, gin.H{"items": items, "state": state})
 }

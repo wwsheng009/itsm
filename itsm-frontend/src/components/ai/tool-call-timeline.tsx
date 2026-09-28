@@ -139,14 +139,27 @@ export interface ToolCallTimelineProps {
   events?: readonly AIToolStreamEvent[];
   /** 标题文案（默认「工具调用」）。 */
   title?: string;
+  /**
+   * 需要从时间线中隐藏的状态（如 `pending` 由「待审批卡片」单独承载，避免同一件事两处展示）。
+   * 隐藏后若没有可见条目，组件返回 `null`（不出现空白块）。
+   */
+  hideStatuses?: readonly string[];
 }
 
 /**
  * 工具调用时间线：每次调用一个折叠块（来源徽标 → 工具名 → 状态/耗时 → 脱敏摘要）。
  */
-export const ToolCallTimeline: React.FC<ToolCallTimelineProps> = ({ events, title = '工具调用' }) => {
+export const ToolCallTimeline: React.FC<ToolCallTimelineProps> = ({
+  events,
+  title = '工具调用',
+  hideStatuses,
+}) => {
   const { token } = theme.useToken();
-  const entries = useMemo(() => mergeToolEvents(events), [events]);
+  const merged = useMemo(() => mergeToolEvents(events), [events]);
+  const entries = useMemo(
+    () => (hideStatuses && hideStatuses.length > 0 ? merged.filter(e => !hideStatuses.includes(e.status)) : merged),
+    [merged, hideStatuses]
+  );
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
 
   // 无事件（旧后端 / 事件丢失 / 纯知识库问答）→ 不渲染任何容器，避免空白块。

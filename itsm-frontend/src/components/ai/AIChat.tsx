@@ -73,9 +73,16 @@ import {
   buildConversationArticlePrefillState,
 } from '@/lib/knowledge/ai-article-prefill';
 import MarkdownMessage from './MarkdownMessage';
-import ToolCallTimeline from './tool-call-timeline';
+import ToolCallTimeline, { mergeToolEvents } from './tool-call-timeline';
+import ToolApprovalCard from './tool-approval-card';
 
 const { Text } = Typography;
+
+/**
+ * 时间线中不再重复展示的状态（由待审批卡片单独承载）。
+ * 常量置于模块级，避免每次渲染新建数组导致 ToolCallTimeline 的重算。
+ */
+const PENDING_HIDDEN_STATUSES: readonly string[] = ['pending'];
 
 /** done 事件 providerSource → 可读来源（BE-7）。 */
 const PROVIDER_SOURCE_LABELS: Record<string, string> = {
@@ -113,6 +120,11 @@ interface ChatMessage {
    * 事件缺失（旧后端/事件丢失）时组件不渲染时间线，内容仍由 `content` 承载。
    */
   toolEvents?: AIToolStreamEvent[];
+  /**
+   * 写工具的待审批 invocation（M1-05）：由 approval_pending 事件派生，渲染待审批卡片。
+   * 状态刷新由卡片自身的「刷新状态」按钮触发（不轮询）。
+   */
+  pendingApprovals?: number[];
   /** 生效实例（done 事件回带；开关关闭时缺省）。 */
   providerInfo?: { provider?: string; providerSource?: string };
   error?: string;
@@ -216,6 +228,8 @@ interface ChatMessageItemProps {
   message: ChatMessage;
   providerLabel: (key?: string) => string;
   onCreateArticle: (message: ChatMessage) => void;
+  /** M1-05：跳转外置审批页（一期边界 = 外置审批闭环，卡片只提示与跳转）。 */
+  onOpenApproval: (invocationId: number) => void;
 }
 
 /** 单条消息：用户 = 右对齐气泡；助手 = 头像 + Markdown 正文 + 操作区。 */
@@ -223,6 +237,7 @@ const ChatMessageItem: React.FC<ChatMessageItemProps> = ({
   message,
   providerLabel,
   onCreateArticle,
+  onOpenApproval,
 }) => {
   const { token } = theme.useToken();
   const [copied, setCopied] = useState(false);
@@ -249,6 +264,18 @@ const ChatMessageItem: React.FC<ChatMessageItemProps> = ({
       // 剪贴板不可用：静默降级，不打断阅读。
     }
   }, [message.content]);
+
+  /**
+   * 待审批条目（M1-05）：由 SSE 事件配对得到，只取「已提交审批且有 invocationId」的写调用。
+   * 事件缺失时不产生卡片（降级为纯文本回答），与时间线同一套配对规则。
+   */
+  const pendingEntries = useMemo(
+    () =>
+      mergeToolEvents(message.toolEvents).filter(
+        entry => entry.status === 'pending' && typeof entry.invocationId === 'number' && entry.invocationId > 0
+      ),
+    [message.toolEvents]
+  );
 
   if (message.role === 'user') {
     return (
@@ -316,8 +343,21 @@ const ChatMessageItem: React.FC<ChatMessageItemProps> = ({
           />
         ) : null}
 
-        {/* 工具调用时间线（M1-04）：仅 SSE 事件驱动；无事件时不渲染（旧后端/事件丢失降级）。 */}
-        <ToolCallTimeline events={message.toolEvents} />
+        {/* 待审批卡片（M1-05）：写工具提交审批后可见；状态由卡片按需拉取（不轮询）。 */}
+        {pendingEntries.map(entry => (
+          <ToolApprovalCard
+            key={`approval-${entry.invocationId}`}
+            invocationId={entry.invocationId as number}
+            tool={entry.tool}
+            provider={entry.provider}
+            server={entry.server}
+            onOpenApproval={onOpenApproval}
+          />
+        ))}
+
+        {/* 工具调用时间线（M1-04）：仅 SSE 事件驱动；无事件时不渲染（旧后端/事件丢失降级）。
+            pending 条目由上方卡片承载，时间线不再重复展示。 */}
+        <ToolCallTimeline events={message.toolEvents} hideStatuses={PENDING_HIDDEN_STATUSES} />
 
         {message.sources && message.sources.length > 0 ? (
           <SourceList sources={message.sources} />
@@ -494,6 +534,17 @@ const AIChat: React.FC = () => {
     });
   }, [convId, messages.length, navigate, streaming]);
 
+  /**
+   * 跳转外置审批页（M1-05）。一期不提供对话内联确认：卡片只提示状态并把人送到审批页
+   * （内联确认依赖阶段一 B1 的确认状态机，属二期）。
+   */
+  const handleOpenApproval = useCallback(
+    (_invocationId: number) => {
+      navigate('/ai/approval');
+    },
+    [navigate]
+  );
+
   // 所选实例在可用列表中消失（被禁用/删除）→ 清除选择并提示，回退默认（§6.2 场景 5）。
   useEffect(() => {
     if (!selectedProvider || !feature.ready || !feature.enabled) return;
@@ -646,7 +697,12 @@ const AIChat: React.FC = () => {
       prev.map(m => {
         if (m.id !== assistantId) return m;
         const toolEvents = [...(m.toolEvents ?? []), event];
-        return { ...m, toolEvents: toolEvents.slice(-50) };
+        // pendingApprovals：写工具提交审批后生成卡片；同一 invocation 只保留一次。
+        const pendingApprovals =
+          event.status === 'pending' && typeof event.id === 'number' && event.id > 0
+            ? [...(m.pendingApprovals ?? []), event.id].filter((id, idx, arr) => arr.indexOf(id) === idx)
+            : m.pendingApprovals;
+        return { ...m, toolEvents: toolEvents.slice(-50), pendingApprovals };
       })
     );
   }, []);
@@ -1122,6 +1178,7 @@ const AIChat: React.FC = () => {
                   message={item}
                   providerLabel={providerLabel}
                   onCreateArticle={handlePromoteToArticle}
+                  onOpenApproval={handleOpenApproval}
                 />
               ))}
             </div>

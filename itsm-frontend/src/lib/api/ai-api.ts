@@ -312,6 +312,22 @@ export interface ToolApproval {
   createdAt: string;
   conversationId: number;
   userId: number;
+  /**
+   * 来源与风险（M1-02 后端契约）：
+   * `provider` = builtin | mcp；`serverName/rawToolName/callableName` 为 MCP 三元组
+   * （内置工具为空）；`risk` 由工具面实时解析（服务器不可达时为空串）。
+   */
+  provider?: string;
+  serverName?: string;
+  rawToolName?: string;
+  callableName?: string;
+  risk?: string;
+  roleSnapshot?: string;
+  approvedBy?: number;
+  approvedAt?: string | null;
+  durationMs?: number;
+  errorCode?: string;
+  outputSummary?: string;
 }
 
 export interface ToolApprovalListResponse {
@@ -330,6 +346,27 @@ export async function aiGetToolApprovals(state = 'pending'): Promise<ToolApprova
   // 字面量路径 + 拼接，避免模板内三元表达式，保证 api-contract 测试可静态解析路径
   const url = '/api/v1/agent/tools/invocations?state=' + encodeURIComponent(state);
   return httpClient.get<ToolApprovalListResponse>(url);
+}
+
+/**
+ * 工具调用记录详情（M1-05：对话内待审批卡片按需拉取一次，不轮询）。
+ *
+ * 字段与审批列表同口径（后端 `toolInvocationItem` 唯一装配）：
+ * `provider/serverName/rawToolName/callableName/risk/argsRedacted/...`；**不含原始参数**。
+ */
+/** 详情接口在列表字段之上多返回执行结果与错误（同样不含原始参数）。 */
+export interface ToolInvocationDetail extends ToolApproval {
+  result?: string | null;
+  error?: string | null;
+  requestId?: string;
+}
+
+// 查询单条工具调用记录
+// 对应后端 GET /api/v1/agent/tools/:id
+export async function aiGetToolInvocation(id: number): Promise<ToolInvocationDetail> {
+  // 与相邻包装同一写法（字面量拼接），便于 api-contract 测试静态解析路径。
+  const url = '/api/v1/agent/tools/' + encodeURIComponent(String(id));
+  return httpClient.get<ToolInvocationDetail>(url);
 }
 
 // 通过 / 驳回某条工具调用审批
