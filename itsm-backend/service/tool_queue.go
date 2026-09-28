@@ -71,6 +71,16 @@ func (q *ToolQueue) worker() {
 		}
 		var args map[string]interface{}
 		_ = json.Unmarshal([]byte(inv.Arguments), &args)
+		// 审批后目标工具可能已从工具面消失（服务器被禁用/删除、工具被停用或隔离）。
+		// 这类可预期失败必须 fail-closed 并落稳定错误码，不能掉进内置分支退化成 internal_error。
+		if inv.Provider == "mcp" && (q.tools == nil || !q.tools.HasProviderTool(ctx, job.TenantID, inv.ToolName)) {
+			q.finalize(ctx, inv.ID, nil, &ToolExecutionError{
+				Code:    ErrorCodeToolNotFound,
+				Message: "外部工具当前不可用（服务器已禁用/删除，或工具已停用/隔离）",
+			}, startedAt, nil)
+			cancel()
+			continue
+		}
 		var res interface{}
 		// M1-02：外部 provider（MCP）工具——无论读写，审批通过后走专用入口
 		// （写工具只有这条路可达；只读工具正常不会进入队列）。

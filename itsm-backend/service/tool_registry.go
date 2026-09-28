@@ -128,11 +128,14 @@ func (t *ToolRegistry) ExecuteApprovedWrite(ctx context.Context, tenantID int, n
 		}
 		writer, ok := provider.(WriteCapableProvider)
 		if !ok {
-			return nil, fmt.Errorf("provider %s 不支持审批后写执行：%s", provider.ProviderName(), name)
+			return nil, &ToolExecutionError{
+				Code:    ErrorCodeNotSupported,
+				Message: fmt.Sprintf("provider %s 不支持审批后写执行：%s", provider.ProviderName(), name),
+			}
 		}
 		return writer.ExecuteApprovedWrite(ctx, tenantID, name, args)
 	}
-	return nil, fmt.Errorf("unknown tool: %s", name)
+	return nil, &ToolExecutionError{Code: ErrorCodeToolNotFound, Message: fmt.Sprintf("未知工具：%s", name)}
 }
 
 // GetTool 按名称查找工具定义，找不到返回 nil

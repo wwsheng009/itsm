@@ -2,6 +2,28 @@ package service
 
 import "context"
 
+// 稳定错误码：写入 tool_invocations.error_code，前端与审计按此展示（不解析错误文本）。
+const (
+	// ErrorCodeToolNotFound：目标工具当前不可解析（已被停用/隔离，或所属服务器已禁用/删除）。
+	ErrorCodeToolNotFound = "tool_not_found"
+	// ErrorCodeNotSupported：能力缺失（如 provider 未实现审批后写执行），fail-closed。
+	ErrorCodeNotSupported = "not_supported"
+)
+
+// ToolExecutionError 是 service 层的稳定错误（实现 errorCoder，供 tool_queue.errorCodeOf 提取错误码）。
+//
+// 为什么需要：service 不能反向依赖 mcp/provider，但审批后的执行失败必须落**精确**错误码，
+// 而不是让「工具已不可用」这类可预期失败退化成 internal_error。
+type ToolExecutionError struct {
+	Code    string
+	Message string
+}
+
+func (e *ToolExecutionError) Error() string { return e.Message }
+
+// ErrorCode 实现 tool_queue.errorCoder。
+func (e *ToolExecutionError) ErrorCode() string { return e.Code }
+
 // ToolExecution 是一次工具执行的**审计元数据 + 结果**（M0-11）。
 //
 // 内置工具与外部 provider 都返回本类型：Provider 字段区分来源（builtin|mcp），
