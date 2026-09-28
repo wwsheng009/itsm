@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"log"
 	"net/http"
 	"os"
 	"strings"
@@ -616,6 +617,15 @@ func NewProviderFromConfig(cfg ProviderConfig) LLMProvider {
 		return NewLocalProvider(cfg.Endpoint)
 	case "minimax":
 		return NewMiniMaxProvider(apiKey, cfg.Model)
+	case "mock":
+		// M2-05（A2-05）：E2E 用的确定性 LLM 替身。
+		// 双条件启用（provider=mock ∧ LLM_MOCK_ENABLED=true），避免任何生产隐式生效。
+		if !MockLLMEnabled() {
+			log.Printf("[llm] llm.provider=mock 但未设置 %s=true：mock provider 仅限显式开启的 E2E/联调环境，已回退默认 provider", MockLLMEnabledEnv)
+			return NewOpenAIProvider(apiKey, cfg.Endpoint, cfg.Model)
+		}
+		log.Printf("[llm] 已启用 mock LLM provider（确定性替身，仅限 E2E/本地联调；触发词=%q）", MockProviderOptionsFromEnv().Trigger)
+		return NewMockProvider(MockProviderOptionsFromEnv())
 	default:
 		// Default to OpenAI
 		return NewOpenAIProvider(apiKey, cfg.Endpoint, cfg.Model)

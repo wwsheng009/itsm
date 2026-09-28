@@ -78,6 +78,11 @@ jobs:
       MCP_WRITE_ENABLED: 'true'
       # 凭据加密主密钥（middleware.EncryptionService：AES-GCM + SHA-256 派生，仅 E2E 使用）。
       MCP_ENCRYPTION_KEY: 'itsm-e2e-mcp-encryption-key-0123456789abcdef'
+      # 确定性 LLM 替身（M2-05）：让「对话 → 工具调用 → 审批 → 时间线」在没有真实
+      # 模型额度时也可端到端驱动。双条件启用（provider=mock ∧ LLM_MOCK_ENABLED=true）。
+      LLM_PROVIDER: mock
+      LLM_MOCK_ENABLED: 'true'
+      LLM_MOCK_TRIGGER: '__tool__'
       # 前端 vite 代理目标（vite.config.ts: ITSM_BACKEND_URL）。
       ITSM_BACKEND_URL: http://127.0.0.1:8090
       # Playwright fixtures 的 API 基址与前端基址。

@@ -620,6 +620,8 @@ func (s *UserService) BatchUpdateUsers(ctx context.Context, req *dto.BatchUpdate
 
 // validatePassword 保留包内默认策略入口（等价于 DefaultPasswordPolicy().Validate），
 // 供不持有租户上下文的调用方使用；业务路径请优先走 (*UserService).PasswordPolicy。
+//
+//lint:ignore U1000 预留入口：包内默认策略便捷函数，当前无调用方（CI staticcheck v0.6.1 会报 U1000）
 func validatePassword(password string) error {
 	return DefaultPasswordPolicy().Validate(password)
 }

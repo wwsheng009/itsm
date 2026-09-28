@@ -46,7 +46,9 @@ redis:
   db: ${REDIS_DB:0}
 
 llm:
-  provider: "${LLM_PROVIDER:openai}"   # openai, azure, local
+  # mock = E2E/本地联调用的确定性替身（M2-05）；需同时置 LLM_MOCK_ENABLED=true 才生效，
+  # 未显式开启时即使 provider=mock 也会回退默认 provider（生产不会隐式启用替身）。
+  provider: "${LLM_PROVIDER:openai}"   # openai, azure, local, mock
   model: "${LLM_MODEL:gpt-4o-mini}"
   api_key: "${LLM_API_KEY:}"
   endpoint: "${LLM_ENDPOINT:}"          # for azure or local providers

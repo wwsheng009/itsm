@@ -25,6 +25,7 @@ M2-05 要求「浏览器 E2E 全链路绿」。本机（Windows）**无法提供
 | --- | --- | --- |
 | MCP 浏览器/API E2E 规格 | `itsm-frontend/tests/e2e/flows/flow-mcp-admin.spec.ts` | 3 个用例：①管理面 API 全链路（建服务器→测试连接→启用→工具发现/治理→凭据轮换→禁用，含 D3 前缀与 D7 默认拒绝断言）；②管理页浏览器渲染与交互（UI 登录 → `/admin/mcp-servers` → 服务器行/状态徽标/健康摘要/工具抽屉 + console error 收集 + 截图）；③治理页冒烟 `/ai/approval`、`/ai/audit` |
 | CI 作业 | `.github/workflows/e2e-mcp.yml` | 真实栈：postgres:16 service + mock MCP 服务器（`cmd/mcp-mockserver` :19090）+ 后端（`MCP_ENABLED/MCP_WRITE_ENABLED/MCP_ENCRYPTION_KEY`）+ 前端（vite dev :3000，`ITSM_BACKEND_URL` 指向 :8090）+ `playwright install --with-deps chromium` + 规格执行 + 证据归档（playwright-report / trace / 截图 / 后端与 mock 日志） |
+| 确定性 LLM 替身（P7 前置） | `itsm-backend/service/llm_mock_provider.go` + `llm_mock_provider_test.go` | 实现 `LLMProvider` / `StreamingLLMProvider` / `ToolCallingStreamProvider` 三件套：固定回复切片流式下发；声明了工具且内容命中触发词（默认 `__tool__`）时发起**一次确定性**工具调用（`mock-call-N` + 指定/回落工具名 + JSON 参数）。**双条件启用**（`llm.provider=mock` ∧ `LLM_MOCK_ENABLED=true`），未显式开启时回退默认 provider（生产不会隐式启用替身）。CI 作业已注入 `LLM_PROVIDER=mock` / `LLM_MOCK_ENABLED=true` / `LLM_MOCK_TRIGGER=__tool__` |
 
 **为什么此前没有 E2E 自动化**：全仓 `.github/workflows/*` 检索 `test:e2e` / `playwright install` / `PLAYWRIGHT` **零命中**——浏览器 E2E 从未进入 CI；本作业同时补上这一缺口。因无法在本机校准，首轮以 `continue-on-error: true` 观察（与 `backend-ci.yml` 的 `mcp-postgres-migrations` 同一处置范式），绿跑后删除该行转为阻断门。
 
@@ -36,6 +37,8 @@ M2-05 要求「浏览器 E2E 全链路绿」。本机（Windows）**无法提供
 | `PLAYWRIGHT_SKIP_CHANNELS=1 npx playwright test --list tests/e2e/flows/flow-mcp-admin.spec.ts` | **exit 0**：`Total: 9 tests in 1 file`（3 用例 × firefox/webkit/chromium） |
 | 本地浏览器冒烟（临时规格 + `channel:'msedge'` + `video:'off'` + vite webServer） | Edge 成功启动并导航 `/login`（失败点仅为我方临时断言的登录表单可见性：无后端时会话探活未完成，页面停在骨架/介绍态）→ **证明 Playwright+Edge+webServer 链路在本机可用**；临时文件已删除，未入库 |
 | 默认 Playwright 配置（`video: 'retain-on-failure'`） | 失败于 ffmpeg 缺失 → CI 需 `playwright install --with-deps`（作业已含） |
+| `go test ./service/ -run 'TestMockProvider|TestMockLLM|TestNewProviderFromConfig_Mock'` | **ok 1.2s / 8 用例**：流式切片、无工具声明不触发、触发词命中调用指定工具（`mock-call-1`）、未命中不调用、指定名未声明回落第一个、工具名回落消息挂载声明、非法 JSON 规整 `{}`、开关仅 `true\|1` 开启 |
+| `go build ./...` + `gofumpt -l ./service` + `staticcheck v0.6.1 ./service/ ./mcp/... ./metrics/ ./config/` | build exit 0；gofumpt 无输出；staticcheck **exit 0**（本轮顺带修复既有 `service/user_service.go:623 validatePassword unused (U1000)`——以 `//lint:ignore U1000` 注释保留作者「预留入口」意图，未删除代码） |
 
 ## 4. CI 首轮校准清单（作业头部已注明）
 
@@ -54,7 +57,7 @@ M2-05 要求「浏览器 E2E 全链路绿」。本机（Windows）**无法提供
 - 审批页与审计页的浏览器冒烟。
 
 **未覆盖（A2-05 仍缺）**：
-1. **对话内工具调用→审批卡片→执行→时间线** 的浏览器链路：需要 LLM 侧可产生工具调用的确定性驱动（仓库无 mock LLM provider，`internal/llm` 仅 `protocol` 子包；`cmd/` 无 mock provider 二进制）。M1-05/M1-06/M1-07 的对话内卡片与来源维度目前由 jest 组件/页面用例覆盖（`tool-approval-card`、`tool-call-timeline`、审批页、审计页），浏览器级仍缺；
+1. **对话内工具调用→审批卡片→执行→时间线** 的浏览器**用例**：本轮已补齐确定性驱动（mock LLM provider，见 §2 与下方测试记录），但对话页的浏览器用例尚未编写——需要先校准对话页/时间线/审批卡片的选择器（本机无真实栈可试跑），故与 `e2e-mcp.yml` 的其他校准点一并留待 CI 首轮。M1-05/M1-06/M1-07 的对话内卡片与来源维度当前仍由 jest 组件/页面用例覆盖（`tool-approval-card`、`tool-call-timeline`、审批页、审计页）；
 2. **M0-14 遗留的管理页人工冒烟截图**：本规格的截图可作为其替代证据，但需在真实栈产出（待 CI 首绿）；
 3. **R-16（前端套件性能）**：属 M2-05 出口的另一项，本轮未处理。
 
