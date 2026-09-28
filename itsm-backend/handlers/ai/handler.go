@@ -59,6 +59,8 @@ func (h *Handler) ExecuteTool(c *gin.Context) {
 	var req struct {
 		Name string                 `json:"name" binding:"required"`
 		Args map[string]interface{} `json:"args"`
+		// B0-03：可选的会话归属（聊天路径调用时携带，审计可按会话回溯；不传则为 0）。
+		ConversationID int `json:"conversationId"`
 	}
 	if err := c.ShouldBindJSON(&req); err != nil {
 		common.ParamErrorWithErr(c, err, "请求参数错误")
@@ -95,7 +97,7 @@ func (h *Handler) ExecuteTool(c *gin.Context) {
 	}
 	role := c.GetString("role")
 
-	res, invocationID, err := h.svc.ExecuteTool(c.Request.Context(), userID, tenantID, role, req.Name, req.Args)
+	res, invocationID, err := h.svc.ExecuteToolWithConversation(c.Request.Context(), userID, tenantID, role, req.Name, req.Args, req.ConversationID)
 	if err != nil {
 		if errors.Is(err, ErrToolUnavailable) {
 			common.Fail(c, common.ServiceUnavailableCode, "AI 工具权限服务未就绪")

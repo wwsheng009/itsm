@@ -133,36 +133,50 @@ func toToolInvocationDomain(e *ent.ToolInvocation) *ToolInvocation {
 		t := e.ApprovedAt
 		approvedAt = &t
 	}
+	// expires_at 为 nillable 可选列：仅在有值时回带（B0-02 预置）。
+	expiresAt := e.ExpiresAt
 	return &ToolInvocation{
-		ID:               e.ID,
-		TenantID:         e.TenantID,
-		ConversationID:   e.ConversationID,
-		ToolName:         e.ToolName,
-		Arguments:        e.Arguments,
-		Status:           e.Status,
-		Result:           e.Result,
-		Error:            e.Error,
-		NeedsApproval:    e.NeedsApproval,
-		ApprovalState:    e.ApprovalState,
-		ApprovedBy:       e.ApprovedBy,
-		ApprovalReason:   e.ApprovalReason,
-		ApprovedAt:       approvedAt,
-		RequestID:        e.RequestID,
-		CreatedAt:        e.CreatedAt,
-		UserID:           e.UserID,
-		PermissionCheck:  e.PermissionCheck,
-		PermissionReason: e.PermissionReason,
-		RoleSnapshot:     e.RoleSnapshot,
-		Provider:         e.Provider,
-		McpServerName:    e.McpServerName,
-		McpRawToolName:   e.McpRawToolName,
-		McpCallableName:  e.McpCallableName,
-		ArgsRedacted:     e.ArgsRedacted,
-		OutputSummary:    e.OutputSummary,
-		DurationMs:       int64(e.DurationMs),
-		ErrorCode:        e.ErrorCode,
-		Risk:             e.Risk,
-		Category:         e.Category,
+		ID:                 e.ID,
+		TenantID:           e.TenantID,
+		ConversationID:     e.ConversationID,
+		ToolName:           e.ToolName,
+		Arguments:          e.Arguments,
+		Status:             e.Status,
+		Result:             e.Result,
+		Error:              e.Error,
+		NeedsApproval:      e.NeedsApproval,
+		ApprovalState:      e.ApprovalState,
+		ApprovedBy:         e.ApprovedBy,
+		ApprovalReason:     e.ApprovalReason,
+		ApprovedAt:         approvedAt,
+		RequestID:          e.RequestID,
+		CreatedAt:          e.CreatedAt,
+		UserID:             e.UserID,
+		PermissionCheck:    e.PermissionCheck,
+		PermissionReason:   e.PermissionReason,
+		RoleSnapshot:       e.RoleSnapshot,
+		Provider:           e.Provider,
+		McpServerName:      e.McpServerName,
+		McpRawToolName:     e.McpRawToolName,
+		McpCallableName:    e.McpCallableName,
+		ArgsRedacted:       e.ArgsRedacted,
+		OutputSummary:      e.OutputSummary,
+		DurationMs:         int64(e.DurationMs),
+		ErrorCode:          e.ErrorCode,
+		Risk:               e.Risk,
+		Category:           e.Category,
+		RunID:              e.RunID,
+		StepID:             e.StepID,
+		TargetType:         e.TargetType,
+		TargetID:           e.TargetID,
+		SupportRef:         e.SupportRef,
+		IdempotencyKeyHash: e.IdempotencyKeyHash,
+		ExpiresAt:          expiresAt,
+		VerifyState:        e.VerifyState,
+		VerifyNote:         e.VerifyNote,
+		AttemptCount:       e.AttemptCount,
+		LastErrorCode:      e.LastErrorCode,
+		DryRun:             e.DryRun,
 	}
 }
 
@@ -210,6 +224,47 @@ func (r *EntRepository) CreateToolInvocation(ctx context.Context, i *ToolInvocat
 	}
 	if i.Category != "" {
 		create.SetCategory(i.Category)
+	}
+	// B0-02/B0-03：会话归属与 Bot 运行态字段（零值不写，保持既有行为与列默认值）。
+	if i.ConversationID > 0 {
+		create.SetConversationID(i.ConversationID)
+	}
+	if i.RunID > 0 {
+		create.SetRunID(i.RunID)
+	}
+	if i.StepID > 0 {
+		create.SetStepID(i.StepID)
+	}
+	if i.TargetType != "" {
+		create.SetTargetType(i.TargetType)
+	}
+	if i.TargetID != "" {
+		create.SetTargetID(i.TargetID)
+	}
+	if i.SupportRef != "" {
+		create.SetSupportRef(i.SupportRef)
+	}
+	if i.IdempotencyKeyHash != "" {
+		create.SetIdempotencyKeyHash(i.IdempotencyKeyHash)
+	}
+	if i.ExpiresAt != nil {
+		create.SetExpiresAt(*i.ExpiresAt)
+	}
+	if i.VerifyState != "" {
+		create.SetVerifyState(i.VerifyState)
+	}
+	if i.VerifyNote != "" {
+		create.SetVerifyNote(i.VerifyNote)
+	}
+	if i.AttemptCount > 0 {
+		create.SetAttemptCount(i.AttemptCount)
+	}
+	if i.LastErrorCode != "" {
+		create.SetLastErrorCode(i.LastErrorCode)
+	}
+	// dry_run 是布尔列：仅显式 true 时写入（false 与列默认一致）。
+	if i.DryRun {
+		create.SetDryRun(true)
 	}
 	e, err := create.Save(ctx)
 	if err != nil {

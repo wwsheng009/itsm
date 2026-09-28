@@ -125,6 +125,34 @@ var (
 //	Gate 2: 工具级 RBAC（本方法）— 按 ToolDefinition.Resource/Action 校验
 //	Gate 3: 审批流（写工具 !ReadOnly）— 由 NeedsApproval 处理
 func (s *Service) ExecuteTool(ctx context.Context, userID, tenantID int, role, name string, args map[string]interface{}) (interface{}, int, error) {
+	return s.ExecuteToolWithConversation(ctx, userID, tenantID, role, name, args, 0)
+}
+
+// conversationIDKey 在调用链内部传递会话归属（B0-03）。
+//
+// 仅用于把聊天路径的 conversation_id 带到审计写入点；不承载任何安全语义
+// （租户/用户仍走显式参数），无值时行为与既有调用完全一致。
+type conversationIDKey struct{}
+
+func withConversationID(ctx context.Context, id int) context.Context {
+	if id <= 0 {
+		return ctx
+	}
+	return context.WithValue(ctx, conversationIDKey{}, id)
+}
+
+func conversationIDFrom(ctx context.Context) int {
+	if v, ok := ctx.Value(conversationIDKey{}).(int); ok && v > 0 {
+		return v
+	}
+	return 0
+}
+
+// ExecuteToolWithConversation 与 ExecuteTool 相同，并注入会话归属（B0-03）：
+// 聊天路径调用时携带 conversationId，工具调用审计可按会话回溯；
+// run_id 待 B1-01 落表后由同一入口注入（字段已由 B0-02 预置）。
+func (s *Service) ExecuteToolWithConversation(ctx context.Context, userID, tenantID int, role, name string, args map[string]interface{}, conversationID int) (interface{}, int, error) {
+	ctx = withConversationID(ctx, conversationID)
 	if userID <= 0 || tenantID <= 0 {
 		return nil, 0, ErrToolPermissionDenied
 	}
@@ -200,6 +228,7 @@ func (s *Service) ExecuteTool(ctx context.Context, userID, tenantID int, role, n
 	}
 	inv, err := s.repo.CreateToolInvocation(ctx, &ToolInvocation{
 		TenantID:         tenantID,
+		ConversationID:   conversationIDFrom(ctx), // B0-03：聊天路径会话归属（无会话则为 0，不入列）
 		ToolName:         name,
 		Arguments:        string(argsStr),
 		ArgsRedacted:     redact.ArgsJSON(args, 0),
@@ -234,6 +263,7 @@ func (s *Service) recordToolAudit(ctx context.Context, tenantID, userID int, rol
 	argsStr, _ := json.Marshal(args)
 	audit := &ToolInvocation{
 		TenantID:         tenantID,
+		ConversationID:   conversationIDFrom(ctx), // B0-03：会话归属（审计可按 conversation_id 回溯）
 		ToolName:         toolName,
 		Arguments:        string(argsStr),
 		Status:           status,
@@ -275,6 +305,38 @@ func (s *Service) recordToolAudit(ctx context.Context, tenantID, userID int, rol
 	}
 }
 
+// backfillToolDecision 把审批结论结构化回填到会话（B0-03）。
+//
+// 语义：拒绝写工具后，模型需要知道「该调用被拒 + 原因」才能重新规划；
+// 现状该信息只存在于 tool_invocations（会话侧不可见）。回填消息：
+//   - 仅当调用记录带 conversation_id 时写入；
+//   - role=assistant + 结构化 JSON（type=tool_approval_decision），避免被当作普通用户输入；
+//   - reason 经 pkg/redact 统一截断/脱敏，防止审批备注意外带出敏感内容。
+func (s *Service) backfillToolDecision(ctx context.Context, inv *ToolInvocation, decision, reason string) {
+	if inv == nil || inv.ConversationID <= 0 || s.repo == nil {
+		return
+	}
+	payload, _ := json.Marshal(map[string]interface{}{
+		"type":         "tool_approval_decision",
+		"invocationId": inv.ID,
+		"tool":         inv.ToolName,
+		"decision":     decision,
+		"reason":       redact.ValueSummary(reason, 512),
+	})
+	if _, err := s.repo.CreateMessage(ctx, &Message{
+		ConversationID: inv.ConversationID,
+		Role:           "assistant",
+		Content:        string(payload),
+	}); err != nil {
+		s.logger.Errorw("工具审批结论回填会话失败",
+			"invocation_id", inv.ID,
+			"conversation_id", inv.ConversationID,
+			"error", err,
+		)
+		metrics.AIPersistErrors.WithLabelValues("backfill_tool_decision", "", strconv.Itoa(inv.TenantID)).Inc()
+	}
+}
+
 // ApproveTool 审批写工具执行请求（M1-02 加固）。
 //
 // 语义与 fail-closed 保证：
@@ -303,6 +365,10 @@ func (s *Service) ApproveTool(ctx context.Context, id int, tenantID, userID int,
 		inv.ApprovedBy = userID
 		inv.ApprovedAt = &now
 		_, err = s.repo.UpdateToolInvocation(ctx, inv)
+		if err == nil {
+			// B0-03：拒绝原因结构化回填会话，供模型/后续轮次重新规划（无会话归属则跳过）。
+			s.backfillToolDecision(ctx, inv, "rejected", reason)
+		}
 		return "rejected", err
 	}
 

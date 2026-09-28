@@ -70,6 +70,19 @@ type ToolInvocation struct {
 	// B0-01 元数据快照（调用时写入，防元数据漂移导致审计歧义）
 	Risk     string `json:"risk"`     // read|plan|act_low|act_medium|act_high
 	Category string `json:"category"` // 能力分类（incident|ticket|cmdb|knowledge|...）
+	// B0-02 Bot 运行态与治理字段（随 MCP M0-03 联合迁移预置；B1/B2 逐步启用）
+	RunID              int        `json:"runId"`              // 所属 bot_runs（B1-01 落表后关联）
+	StepID             int        `json:"stepId"`             // 所属 bot_steps
+	TargetType         string     `json:"targetType"`         // 目标对象类型（ticket/incident/ci/...）
+	TargetID           string     `json:"targetId"`           // 目标对象 ID
+	SupportRef         string     `json:"supportRef"`         // 支撑信息引用（证据/来源）
+	IdempotencyKeyHash string     `json:"idempotencyKeyHash"` // 幂等键 hash（只存 hash；读工具为空）
+	ExpiresAt          *time.Time `json:"expiresAt"`          // 确认单过期时间
+	VerifyState        string     `json:"verifyState"`        // 执行后回读：pending|verified|failed|skipped
+	VerifyNote         string     `json:"verifyNote"`         // 回读说明
+	AttemptCount       int        `json:"attemptCount"`       // 队列消费尝试次数
+	LastErrorCode      string     `json:"lastErrorCode"`      // 最近一次消费错误码
+	DryRun             bool       `json:"dryRun"`             // 是否为 dry-run 预览（B0-04）
 }
 
 // RootCauseAnalysis represents an RCA record for a ticket

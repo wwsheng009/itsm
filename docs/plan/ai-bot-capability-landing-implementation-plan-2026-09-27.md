@@ -204,7 +204,8 @@ MCP 线：      ▼                    ▼                   ▼                
 | --- | --- | --- |
 | BP5（前置） | 实现完成，待评审 | `docs/plan/evidence/bot-b0/BP5-B0-01-unit-evidence.md`（`service/bot/` + `bot.enabled`） |
 | B0-01 | `unit_verified` | `evidence/bot-b0/BP5-B0-01-unit-evidence.md`（14/14 标注 + 守卫测试 + 调用时快照） |
-| B0-02 | 部分完成（schema 已随 MCP M0-03 联合迁移落地） | 见任务卡「状态」段；实体读写契约测试待本任务执行时补齐 |
+| B0-02 | `integration_verified` | `evidence/bot-b0/B0-02-B0-03-integration-evidence.md`（实体/读写契约 + 幂等唯一索引实测） |
+| B0-03 | `integration_verified` | 同上（会话归属注入 + 拒绝结论回填 + 按会话回溯） |
 
 ### 3.4 双线联合路线图（与 MCP 方案合并视图）
 
@@ -260,7 +261,7 @@ MCP 线：      ▼                    ▼                   ▼                
 - **要点**：新字段一律带默认值或 nullable（参照 `ent/schema/tool_invocation.go:31` 向后兼容注释）；唯一索引 `(tenant_id, idempotency_key_hash)`（null 不阻塞读工具）；索引首列必须含 `tenant_id`；迁移统一由 `client.Schema.Create(ctx)` 执行（`internal/bootstrap/app.go:1392`，前置兼容 `:1380-1391`）；SQLite 与 Postgres 双驱动冒烟【差异未核实，CI 必须覆盖】；历史数据不强制回填，仅 nullable。
 - **测试与证据**：空库建表 + 旧库升级双路径；ent 读写断言（默认值、唯一冲突、租户隔离）；迁移窗口联合评审记录归档。
 - **DoD**：`integration_verified`。
-- **状态**：ent schema 字段已随 MCP M0-03 **联合迁移窗口**一次落地（2026-09-27；`run_id/step_id/risk/category/target_type/target_id/support_ref/idempotency_key_hash/expires_at/verify_state/verify_note/attempt_count/last_error_code`；命名统一：`input_redacted` → `args_redacted`）；实体结构同步（`handlers/ai/entity.go`）与读写契约测试待本任务执行时补齐。
+- **状态**：`integration_verified`（2026-09-27）——①ent schema 字段随 MCP M0-03 **联合迁移窗口**一次落地（`run_id/step_id/risk/category/target_type/target_id/support_ref/idempotency_key_hash/expires_at/verify_state/verify_note/attempt_count/last_error_code`；命名统一 `input_redacted` → `args_redacted`），**无二次迁移**；②实体结构同步补齐（`handlers/ai/entity.go`，含 `DryRun`）；③读写契约：读路径全量映射（`expires_at` nillable 保真）、写路径**零值不写列**（既有调用方行为与列默认值不变，`dry_run` 仅 true 写入）；④索引实测：唯一 `(tenant_id, idempotency_key_hash)` 同租户冲突/跨租户不冲突/空 hash（读工具）多行不冲突，查询索引 `(tenant_id, conversation_id)` 已建；⑤契约测试 `handlers/ai/repository_b0_fields_test.go` 全绿（SQLite 真实往返）。遗留：`user_id=0` 会触发 FK 失败（既有实现语义，未改；B1 决定系统发起调用的归属），Postgres 侧依赖 CI 作业。证据 `docs/plan/evidence/bot-b0/B0-02-B0-03-integration-evidence.md`。
 
 #### B0-03 审计回填与拒绝原因回填（后端）
 
@@ -270,6 +271,7 @@ MCP 线：      ▼                    ▼                   ▼                
 - **要点**：创建 `ToolInvocation` 时注入 `conversation_id`（当前聊天路径未写，阶段一报告 §3.5）与 `run_id`（B1-01 落表前先预留）；拒绝分支生成结构化回填（拒绝原因作为 tool result 回填给模型重新规划，参照参考实现语义）；回填内容经 B0-06 脱敏；既有 RBAC 四件套（`user_id/permission_check/permission_reason/role_snapshot`）与审计行为不变。
 - **测试与证据**：契约测试（拒绝 → 会话可见回填）；审计查询可按 `conversation_id` 回溯；`tool_execution_contract_test.go:19-56` 回归通过。
 - **DoD**：`integration_verified`。
+- **状态**：`integration_verified`（2026-09-27）——①新增 `ExecuteToolWithConversation(...)`（`ExecuteTool` 委托，**签名与行为不变**；无会话=0=不入列），会话 ID 经包内 context 键送达 pending 创建与审计写入点（不承载安全语义）；②API 入口 `POST /api/v1/agent/tools/execute` 新增可选 `conversationId`（增量字段）；③拒绝分支回填：`ApproveTool(approve=false)` 后向 `inv.conversation_id` 追加 `role=assistant` 结构化消息 `{type:tool_approval_decision,invocationId,tool,decision:"rejected",reason}`，`reason` 经 `redact.ValueSummary(...,512)` 脱敏截断，写入失败打点 `itsm_ai_persist_errors_total{operation="backfill_tool_decision"}`，无会话归属跳过；④`run_id/step_id` 已可写可读（B0-02），注入点留待 B1-01；⑤契约测试 `handlers/ai/service_b0_conversation_test.go` 4 例全绿，`tool_execution_contract_test.go` 与 RBAC/审计既有用例回归通过。遗留：拒绝回填消息的**模型侧消费**属 B1-04；审计页会话维度筛选属 B2-03。证据 `docs/plan/evidence/bot-b0/B0-02-B0-03-integration-evidence.md`。
 
 #### B0-04 dry-run 分支与零写入契约（后端）
 
@@ -815,6 +817,8 @@ MCP 线：      ▼                    ▼                   ▼                
 | --- | --- | --- | --- | --- |
 | 2026-09-27 | §3.3 无「状态列」而 §1.4/§5.1(D-6) 要求回写状态列 | 回写形式改为「§3.3.1 状态速览表 + 任务卡状态段」（与 MCP 方案 §3.3.1 同范式） | 仅文档形式，不改验收口径 | AI 辅助执行（待团队评审追认） |
 | 2026-09-27 | U-B8 Bot 运行时模块归属（`service/bot/` vs `handlers/ai/bot/`） | 结论：`service/bot/`——理由：与 MCP `mcp/` 模块同构（域逻辑在 service 包），`handlers/ai` 只做编排与 HTTP；避免 handlers 反向承载运行时 | BP5 落地位置固定；后续 B1/B2/B3 组件在此包内实现 | AI 辅助执行（待团队评审追认） |
+| 2026-09-27 | B0-02 执行暴露的既有约束：`CreateToolInvocation` 无条件 `SetUserID` → `user_id=0` 触发 FK 失败 | 本轮**不改既有语义**（避免影响现有调用方）；登记为 B1 待决：系统/定时发起调用需写 NULL 或引入系统用户 | 仅影响「无用户」调用方（当前不存在）；B1-01/B1-06 设计时必选其一 | AI 辅助执行（待团队评审追认） |
+| 2026-09-27 | B0-03 API 增量：`POST /api/v1/agent/tools/execute` 新增可选 `conversationId` | 允许（增量字段，旧客户端不传即 0，行为与既有完全一致） | 前端/调用方按需携带；审计按会话回溯依赖 `(tenant_id, conversation_id)` 索引 | AI 辅助执行（待团队评审追认） |
 
 **变更控制**：实施期任何偏离本方案（范围、设计、验收级别、里程碑顺序、合并点）必须在本表新增记录（日期 / 变更项 / 原因 / 影响 / 批准人），并同步回写阶段一报告对应章节；**凡涉及 §11.3 合并点的变更，必须同一评审同步修改 MCP 方案对应章节（§1.4 联动变更规则）**；未登记的偏离在里程碑验收时一律不认可。
 
@@ -917,3 +921,5 @@ MCP 线：      ▼                    ▼                   ▼                
 | 2026-09-27 | AI 辅助执行 | 联合迁移窗口执行：B0-02 的 `tool_invocations` 字段随 MCP M0-03 一次加列（避免二次迁移）；命名统一 `input_redacted`→`args_redacted`；证据 `docs/plan/evidence/mcp-m0/M0-03-migration-evidence.md`。 |
 | 2026-09-27 | AI 辅助执行 | **BP5 落地**：`service/bot/`（`doc.go`/`gate.go`）模块骨架 + `bot.enabled` 全局开关（默认 false、`BOT_ENABLED` 兜底；`config.yaml.example` 同步）；关闭态无装配点=零行为变化。**U-B8 归属结论 `service/bot/`**（§10/§11.4 已回写）。证据 `docs/plan/evidence/bot-b0/BP5-B0-01-unit-evidence.md`。 |
 | 2026-09-27 | AI 辅助执行 | **B0-01 交付（`unit_verified`）**：`ToolDefinition` 扩展 6 个元数据字段 + 常量 + `NormalizeToolMetadata`（缺失 → `act_high`+`strict` 且 `annotated=false`，工具面**不默认下发**）；14/14 内置工具按冻结风险矩阵逐条标注（写 6 / 读 8）；调用时快照 `Risk/Category` 落 `tool_invocations`（内置取注册表、MCP 取治理标注）；守卫测试 `service/tool_metadata_test.go` + 快照往返 `handlers/ai/repository_metadata_snapshot_test.go`。§2.3 BP5 项、§3.3.1 状态速览表、任务卡状态段已回写；`go build ./...` exit 0、gofumpt 无输出。 |
+| 2026-09-27 | AI 辅助执行 | **B0-02 交付（`integration_verified`）**：实体结构补齐 12 字段（含 `DryRun`）；读写契约（零值不写列、`expires_at` nillable 保真）；幂等唯一索引 `(tenant_id, idempotency_key_hash)` 与查询索引 `(tenant_id, conversation_id)` 实测；证据 `docs/plan/evidence/bot-b0/B0-02-B0-03-integration-evidence.md`。登记既有约束：`user_id=0` 触发 FK（B1 待决）。 |
+| 2026-09-27 | AI 辅助执行 | **B0-03 交付（`integration_verified`）**：会话归属注入（`ExecuteToolWithConversation` + API 可选 `conversationId`，既有入口行为不变）；审批拒绝 → 结构化结论回填会话（脱敏截断 + 失败打点）；契约测试 4 例；RBAC/审计既有用例回归通过。 |
