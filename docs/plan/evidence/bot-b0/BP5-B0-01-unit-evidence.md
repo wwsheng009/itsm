@@ -35,9 +35,10 @@
 | --- | --- |
 | `gofumpt -w` + `gofumpt -l ./service ./handlers/ai ./mcp/provider ./config` | 无输出（与 CI 同版本 v0.7.0） |
 | `go build ./...` | exit 0 |
-| `go test ./service/ -run 'TestBuiltinToolMetadataComplete\|TestNormalizeToolMetadata\|TestGetToolReturnsNormalized\|TestToolRegistry'` | **ok**（守卫测试 + 既有注册表用例） |
+| `go test ./service/ -run 'TestBuiltinToolMetadataComplete\|TestNormalizeToolMetadata\|TestGetToolReturnsNormalized\|TestToolRegistry'` | **ok 4.8s**（守卫测试 + 既有注册表用例） |
 | `go test ./config/ -run 'Bot\|MCP'`、`go test ./service/bot/` | **ok** |
-| `go test ./service/ ./handlers/ai/ ./mcp/provider/ ./config/ -count=1 -timeout 25m` | 见文末「本轮收尾复跑」（全量受影响包） |
+| `go test ./service/ ./handlers/ai/ ./mcp/provider/ ./config/ -count=1 -timeout 25m` | **exit 0 —— 4 包全 ok**：`service` 485.9s / `handlers/ai` 27.1s / `mcp/provider` 16.9s / `config` 1.4s（受影响包全量，无回归） |
+| `go test ./handlers/ai/ -run 'TestEntRepository_(ToolMetadataSnapshot\|MCPAudit)RoundTrip'` | **ok 1.3s**（元数据快照落库往返 + 空值不写列；MCP 审计往返回归） |
 
 ## 4. 与方案的偏差与未闭环项
 
