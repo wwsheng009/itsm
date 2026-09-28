@@ -1,0 +1,116 @@
+# 05 · 使用指南：客户端、服务商端与平台端
+
+> **状态**：当前
+> **更新日期**：2026-09-28
+> **适用**：全体使用者；前置阅读 [03](./03-customer-dimension.md)、[04](./04-provider-dimension.md)
+
+## 1. 三类使用者与入口
+
+| 使用者 | 登录租户 | 主要入口 | 能做什么 |
+|---|---|---|---|
+| 客户用户 | 自己的客户租户 | Web 客户端（工单/知识库/CMDB/服务目录） | 提交与处理本租户业务 |
+| 客户管理员 | 自己的客户租户 | 客户端管理页 | 管理本租户用户/角色/配置 |
+| 服务商管理员 | provider 租户 | `/msp`、`/msp/management` | 客户列表、分配管理、报表 |
+| 服务商工程师 | provider 租户 | `/msp`、客户工单视图 | 处理被分配客户的工单 |
+| 平台运维 | 任意（通常 super_admin） | `/admin/tenants`、运维接口 | 租户开通/状态/平台配置 |
+
+## 2. 客户用户：日常使用
+
+1. **登录**：输入账号密码；如系统配置了独立域名则直接访问域名，否则在登录请求中携带租户代码（`tenantCode`，`dto/auth_dto.go:13`）；
+2. 登录后 JWT 内固定携带本租户 `tenant_id`，后续请求无需重复指定租户；
+3. 正常使用工单、知识库、服务目录、CMDB 等模块——所有数据自动限定在本租户内；
+4. 若提示"租户已被暂停或过期"（403），联系服务商处理（见 03 §8）。
+
+## 3. 服务商端：跨客户运营
+
+**第一步：确认 MSP 身份可用**
+
+- `GET /api/v1/msp/status`（登录即可）：返回当前用户是否 MSP 员工/管理员；
+- `GET /api/v1/msp/context`（`msp.read`）：返回 MSP 角色与可访问客户集合。
+
+**第二步：查看可访问客户**
+
+- `GET /api/v1/msp/customers`（`msp_customer.read`）——只列出被分配（`MSPAllocation`）的客户；管理页对应 `/msp`。
+
+**第三步：跨客户处理**
+
+| 任务 | 接口 | 权限 |
+|---|---|---|
+| 查看某客户工单 | `GET /api/v1/msp/customers/:customer_tenant_id/tickets` | `msp_ticket.read` |
+| 指派 MSP 技术员 | `POST /api/v1/msp/tickets/:id/assign` | `msp_ticket.write` |
+| 客户服务报表 | `GET /api/v1/msp/reports/customers` | `msp_report.read` |
+| 员工绩效报表 | `GET /api/v1/msp/reports/performance` | `msp_report.read` |
+
+**跨客户两种方式**：
+
+- 单次请求：请求头带 `X-Customer-Tenant-ID: <客户租户ID>`（必须命中分配列表，否则 403）；
+- 连续操作：调用租户切换（`SwitchTenant`）换发目标客户上下文的 JWT 后再操作（`handlers/auth/service.go:114`）。
+
+**分配管理（服务商管理员）**：
+
+- 列表 `GET /api/v1/msp/allocations`；新建 `POST /api/v1/msp/allocations`；解除 `POST /api/v1/msp/allocations/deallocate`（`docs/acl-manifest.yaml:2605-2620`）；
+- 管理页 `/msp/management`；角色建议：主责 `primary`、备份 `backup`、专项 `specialist`。
+
+## 4. 平台端：租户与平台运维
+
+| 任务 | 接口/入口 |
+|---|---|
+| 租户列表/详情 | `GET /api/v1/tenants`、`GET /api/v1/tenants/:id`（`tenant.read`） |
+| 创建/更新租户 | `POST /api/v1/tenants`、`PUT /api/v1/tenants/:id`（`tenant.write`） |
+| 状态变更（暂停/恢复） | `PUT /api/v1/tenants/:id/status` |
+| 模板开通 | `go run ./cmd/provision_tenant -tenant-id <ID>` |
+| 管理页 | `/admin/tenants` |
+
+## 5. 典型流程 A：新客户接入（8 步）
+
+1. 平台/服务商创建租户：`POST /api/v1/tenants`，`type=msp_customer`，填 `parentTenantId`/`mspProviderId`/`planCode`/`expiresAt` 等；
+2. 执行模板开通：`go run ./cmd/provision_tenant -tenant-id <ID>`；
+3. 校验 readiness（roles/permissions/role permissions/menus/groups/SLA/CI types 均非 0）；
+4. 在客户租户内创建客户用户并分配客户侧角色；
+5. 为服务商工程师创建 `MSPAllocation`（`POST /api/v1/msp/allocations`）；
+6. 验证：客户用户登录可见本租户数据；服务商工程师 `GET /msp/customers` 能看到该客户；
+7. 验证隔离：客户 token 访问其他客户数据被拒（401/403）；
+8. 交付客户（告知登录方式：域名或 `tenantCode`）。
+
+## 6. 典型流程 B：服务商工程师日常处理工单
+
+1. 登录 provider 租户 → `/msp` 查看客户列表；
+2. 选择客户（或对后续请求携带 `X-Customer-Tenant-ID`）；
+3. 查看该客户工单（`GET /msp/customers/:id/tickets`），按需指派技术员（`POST /msp/tickets/:id/assign`）；
+4. 需要连续操作时切换租户上下文；
+5. 周期性查看客户报表（`GET /msp/reports/customers`）。
+
+## 7. 典型流程 C：工程师换岗/离场
+
+1. 解除/调整分配：`POST /api/v1/msp/allocations/deallocate`（写 `deassigned_at`）；
+2. 重新指派未结工单；
+3. 清空离场人员的 `msp_role`（撤销 MSP 身份）；
+4. 定期复核 `msp_allocations` 与团队实际一致。
+
+## 8. 典型流程 D：客户退租
+
+1. 结清未结工单/流程；
+2. 解除该客户的全部 `MSPAllocation`；
+3. 按租户导出/归档数据；
+4. `PUT /api/v1/tenants/:id/status` 置 `suspended`（缓冲期）→ 最终 `deleted`（软删除 + 审计）。
+
+## 9. 接口速查
+
+| 场景 | 方法与路径 | 权限 |
+|---|---|---|
+| MSP 状态自检 | `GET /api/v1/msp/status` | 登录即可 |
+| MSP 上下文 | `GET /api/v1/msp/context` | `msp.read` |
+| 分配列表/新建/解除 | `GET/POST /api/v1/msp/allocations`、`POST /api/v1/msp/allocations/deallocate` | `msp_allocation.read/write` |
+| 客户列表 | `GET /api/v1/msp/customers` | `msp_customer.read` |
+| 客户工单 | `GET /api/v1/msp/customers/:customer_tenant_id/tickets` | `msp_ticket.read` |
+| 指派技术员 | `POST /api/v1/msp/tickets/:id/assign` | `msp_ticket.write` |
+| 客户/绩效报表 | `GET /api/v1/msp/reports/customers`、`/reports/performance` | `msp_report.read` |
+| 租户管理 | `GET/POST /api/v1/tenants`、`PUT /api/v1/tenants/:id(/status)` | `tenant.read/write` |
+
+（来源：`docs/acl-manifest.yaml:1729-1761, 2593-2650`。）
+
+## 10. 注意事项
+
+- MSP 面仅在 `saas`/`saas_msp` 模式可用；`private` 下相关页面/接口 404（见 02 文档）；
+- 所有 MSP 接口都经过"身份 + RBAC + 客户分配"三重校验，缺一不可；
+- 未在分配列表中的客户，任何带 `X-Customer-Tenant-ID` 的请求都会被 403 拒绝。

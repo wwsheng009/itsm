@@ -32,6 +32,7 @@
 - [AI-Native ITSM 架构解析](./articles/07-ai-native-architecture-guidance-harness-skill.md)
 - [开源发布能力说明](./product/open-source-release-capability.md)
 - [商业就绪架构评审](./architecture/commercial-ready-architecture.md)
+- [多租户（多客户单一服务商）运营手册](./multi-tenant/README.md)：MSP 场景的架构、部署、客户/服务商维度、使用与验证
 - [企业级 v1 就绪度评估](./archive/reviews/enterprise-v1-readiness-2026-06-07.md)
 - [工作流控制台诊断与设计](./product/workflow-console-diagnosis-and-design.md)
 
