@@ -25,6 +25,8 @@
 
 > **Provider 与 Customer 的定位、功能与区别**（功能清单、逐维度对比、常见误解澄清）：详见 **§2.1**；**默认租户（`code=default`）与"平台/服务商同体"的部署模式矩阵**：详见 **§2.2**。
 
+> **按角色演练**：平台/服务商/客户三种视角的逐步操作剧本（含现状/目标预期与缺口标注）见[三角色业务操作模拟剧本](./msp-three-persona-operation-simulation.md)。
+
 **与现状的差距**（本文 §4 全表）：`type` 枚举 7 值需收敛为 3 类 + legacy 映射；membership 表**不存在**（角色/组织挂不上）；`parent_tenant_id`/`msp_provider_id` 需二选一；`MSPAllocation` 需补 provider 归属；执行器/RLS/审计需统一挂 tenantctx。
 
 ---
