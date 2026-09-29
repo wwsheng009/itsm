@@ -358,6 +358,7 @@ erDiagram
 > **工单不"选择 provider"——工单归属客户租户，provider 归属由客户租户派生。**
 
 - **唯一真相**：`customer_tenant.provider_tenant_id`（客户由谁服务）；
+- **归属基数：1 客户 : 1 provider**——归属字段是**单值**（现状 `parent_tenant_id`/`msp_provider_id` 均为单值 int，归一后保留一个）；"多 provider"指**平台托管多个 provider（每个 provider 有自己的客户）**，不是"一个客户被多个 provider 服务"；
 - **工单侧冗余快照**：建单时把 `msp_provider_id`（+`is_managed_by_msp`）写入工单，用于历史追溯、按 provider 过滤/统计/考核；客户改挂 provider 时**历史工单保留原快照**，变更需显式"重新归属"操作（审计）（决策 E2）；
 - **直客**（无 provider 的 `saas_customer`）：`is_managed_by_msp=false`，纯租户内闭环，不进入 MSP 流转。
 
@@ -421,6 +422,7 @@ sequenceDiagram
 | E3 | 是否允许转派给其他 provider | P2；必须显式 + 双向审计 |
 | E4 | `msp_ticket_id`（外部工单号映射） | 有外部系统对接需求时启用（P2） |
 | E5 | 直客（无 provider）工单 | `is_managed_by_msp=false`，不进 MSP 流转 |
+| E6 | 是否支持"一个客户由多个 provider 服务"（主备/分工） | **当前不支持**（归属单值；allocation 亦应校验同一 provider，R2）。若业务需要：新增 `customer_provider` 服务关系表（含合同/范围/有效期）+ 工单归属/授权/审计按"服务关系"判定——比多 provider 更大的模型变更，暂不建议 |
 
 ### 7.3 provider 租户内的功能管理（双工作面与三权分立）
 
@@ -540,7 +542,7 @@ sequenceDiagram
 | D6 | `data_scope=department` | 实现（membership 子树）/ 下线 | 数据范围能力承诺 |
 | D7 | `msp_role` 并入 membership 的时机 | P1 同批 / P2 | 迁移复杂度 |
 | D8 | 工作台批量操作的边界（跨客户） | 低危动作 + 护栏（建议）/ 不开放 | 效率与风险 |
-| D9 | 工单流转决策（E1–E5） | 见 §7.2：客户 SLA 归属 / 快照 vs 派生 / 转派 / 外部工单映射 / 直客 | 工单与 provider 的关联语义 |
+| D9 | 工单流转决策（E1–E6） | 见 §7.2：客户 SLA 归属 / 快照 vs 派生 / 转派 / 外部工单映射 / 直客 / **客户是否可多 provider 服务（E6）** | 工单与 provider 的关联语义 |
 
 ---
 
@@ -576,3 +578,4 @@ sequenceDiagram
 | v0.4 | 2026-09-29 | 新增 §7.1 Superset 判定：多 provider 架构是单 provider 的超集（N=1 退化），逐层覆盖表；三个必须显式化的差异（默认租户语义/平台与服务商分离/provider 维度约束）；建议"B 的模型 + A 的部署预设"；新增不变量 I13 与验收 A11 |
 | v0.5 | 2026-09-29 | 新增 §7.2 多 provider 业务流转（以工单为例）：归属原则（工单归客户租户、provider 由客户派生+快照）、目标端到端时序、各环节规则与现状断点对照；新增风险 R9（路径/请求体绕过 allocation 校验）/R10（MSPAccessValidator 等死代码）/R11（工单 MSP 四字段零写入）；决策点 E1–E5；P0 增补 ⑧⑨、验收 A11/A12、决策 D9 |
 | v0.6 | 2026-09-29 | 新增 §7.3 provider 租户内的功能管理：双工作面（Home/Cross）、跨客户能力包、三权分立授权公式、管理主体表；现状缺口 G1–G5（msp_* 角色不在内置词表→依赖硬编码兜底/由脚本 SQL 直写、msp_role 3 值 vs 词表 5 角色、MSP 管理员无法经 API 建号、客户内权限缺失）；复杂度预算与净减清单；P0 增补 ⑩ |
+| v0.7 | 2026-09-29 | §7.2 明确归属基数 **1 客户 : 1 provider**（归属字段单值；"多 provider"= 平台托管多个 provider，非共享客户）；新增决策 E6（"一个客户由多个 provider 服务"当前不支持，需服务关系多值模型，暂不建议）；D9 引用同步 E1–E6 |
