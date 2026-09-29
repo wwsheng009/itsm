@@ -5,6 +5,8 @@
 > 参考实现：`E:\projects\ai\ai-gateway`（`tenant_membership` 迁移 127、`docs/plan/shop-multi-tenant-architecture-implementation-plan-20260608.md`）
 > 目的：① 正式回答主方案 Q1（服务方/客户方权限边界）；② 论证"**一个账号、多个作用域（scope）**"目标模型；③ 给出可借鉴/不可照搬清单与对主方案的分期调整建议。
 
+> **修订指针（2026-09-29 一致性整改）**：本文关于"登录 409+候选列表、`last_active` 落地、连续操作走切换、顶栏作用域切换器"的表述已被[登录与切换细化](./msp-login-and-switching-refinement-plan.md)与[工作台方案](./msp-cross-customer-workbench-and-filter-plan.md)（`REV-1`–`REV-5`、`WB1`–`WB6`）修订；正文回填排期见[一致性审计](./msp-docs-consistency-audit.md) §5。
+
 ---
 
 ## 0. 结论先行

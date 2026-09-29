@@ -1,8 +1,9 @@
 # 多租户概念模型与架构总纲（Tenant / Provider / Customer）
 
-> 状态：**Draft v0.1（待评审）**｜日期：2026-09-29｜基准：仓库 HEAD `99eb4074`
+> 状态：**Draft v0.8（待评审）**｜日期：2026-09-29｜基准：仓库 HEAD `06c4b263`
 > 定位：**概念与架构的单一权威（Canon）**。本文定义"每个概念是什么、住在哪、谁是权威、跨租户规则"，并给出与现状的映射与收敛路线；细节方案由各专题文档承接（见附录职责分工）。
-> 关联：[目标架构方案](./msp-target-architecture.md)｜[集成分析与冲突处置](./msp-integration-with-rbac-org-workflow-analysis.md)｜[跨客户工作台与全局过滤](./msp-cross-customer-workbench-and-filter-plan.md)｜[登录与切换细化](./msp-login-and-switching-refinement-plan.md)｜[前端页面与权限分析](./msp-frontend-pages-and-permissions-analysis.md)｜[主方案](./msp-user-lifecycle-and-tenant-switching-plan.md)
+> 上位决策：[ADR-004 多客户管理场景租户模型选型](../../architecture/adr-004-multi-customer-tenant-model-selection.md)（Proposed；行动项引用写作 `ADR-004:A#`）
+> 关联：[目标架构方案](./msp-target-architecture.md)｜[集成分析与冲突处置](./msp-integration-with-rbac-org-workflow-analysis.md)｜[跨客户工作台与全局过滤](./msp-cross-customer-workbench-and-filter-plan.md)｜[登录与切换细化](./msp-login-and-switching-refinement-plan.md)｜[前端页面与权限分析](./msp-frontend-pages-and-permissions-analysis.md)｜[主方案](./msp-user-lifecycle-and-tenant-switching-plan.md)｜[一致性审计](./msp-docs-consistency-audit.md)
 
 ---
 
@@ -41,7 +42,7 @@
 | C4 | 服务商 | **Provider** | 提供 MSP 服务的组织；**一个服务商 = 一个 provider 租户**（定位/功能详见 §2.1） | provider 租户 + membership | 🟡 隐式单例（seed `default`） |
 | C5 | 客户 | **Customer** | 被服务方（MSP 客户）或直客（SaaS 客户）；一个客户 = 一个 customer 租户（定位/功能详见 §2.1） | customer 租户 + `provider_tenant_id`（归属） | ❌ 归属字段为死元数据 |
 | C6 | 账号 | **Account** | 登录主体（`users` 行），全局唯一（username/email） | `users` | ✅ |
-| C7 | 成员身份 | **Membership** | **账号在某租户内的成员关系**：角色、组织归属、生效期、状态 | `memberships` 表（**待建**） | ❌ 不存在（核心割裂点） |
+| C7 | 成员身份 | **Membership** | **账号在某租户内的成员关系**：角色、组织归属、生效期、状态 | `user_tenant_memberships` 表（**待建**，概念名 membership） | ❌ 不存在（核心割裂点） |
 | C8 | 作用域 | **Scope（Active Tenant）** | 一次会话/请求的"当前生效租户"，由 membership 派生 | JWT `tenant_id` + tenantctx | 🟡 有机制，但来源不统一 |
 | C9 | 视图过滤器 | **View Filter** | 只看哪些客户/租户的数据（全部/子集），**不改会话** | 前端 URL + 用户偏好 | ❌ 待实现（工作台方案） |
 | C10 | 服务分配 | **Allocation** | provider 员工 ↔ customer 租户的服务授权关系 | `msp_allocations`（建议补 `provider_tenant_id`） | 🟡 缺 provider 维度与归属校验 |
@@ -252,7 +253,7 @@ erDiagram
 | **Provider 服务商** | 隐式单例：`saas_msp` seed 建 `code=default` 的 provider 租户（`seeder.go:784-833`） | 无唯一性约束、无配置项、无显式"provider 注册"概念 | 显式化：D1 决策（单 provider 部署约束 或 多 provider 支持 + 归属字段） | P0（决策+校验） |
 | **Customer 客户** | `msp_customer`/`saas_customer` 租户 | 归属 provider 的字段是死元数据（`parent_tenant_id`/`msp_provider_id` 只写不读） | 单一 `provider_tenant_id`（NOT NULL 或显式直客标记）+ 校验 + 回填 | P0（校验）/P1（数据） |
 | **Account 账号** | `users`（username/email 全局唯一）；`users.tenant_id` = home | "账号"与"某租户成员"混同（role/msp_role/department_id 全挂在 users 上） | `users` 只保留账号属性；成员属性迁 membership | P1 |
-| **Membership 成员身份** | **不存在** | 角色/组织/生效期无载体；`user_roles` 平台级豁免、`msp_role` 单列 | 新建 `memberships(account_id, tenant_id, role_id, is_primary, status, expires_at)` | P1 |
+| **Membership 成员身份** | **不存在** | 角色/组织/生效期无载体；`user_roles` 平台级豁免、`msp_role` 单列 | 新建 `user_tenant_memberships(account_id, tenant_id, role_id, is_primary, status, expires_at)` | P1 |
 | **Scope 作用域** | JWT `tenant_id` + `tenantctx` + `ResolveRequestTenantID`（`msp_tenant_resolver.go:29-57`） | 来源不统一（BPMN key vs tenantctx）；前端 `tenants[0]` 强制 | 由 membership 派生；执行器统一 `tenantctx`；前端尊重已选 | P0（执行器/前端） |
 | **View Filter 过滤器** | 不存在（曾误设计为"全局切换"） | 与 Scope 混同 → 漏单/误操作 | `CustomerFilter`（只改视图）+ 工作台条目级操作（见工作台方案） | P0 |
 | **Allocation 分配** | `msp_allocations(msp_user_id, customer_tenant_id, role)`（`ent/schema/msp_allocation.go:17-36`） | 无 provider 维度；不校验客户归属 provider；admin 跳过校验 | 补 `provider_tenant_id` + 归属一致性校验（R2 修复） | P0（校验）/P1（字段） |
@@ -297,11 +298,14 @@ erDiagram
 
 ## 7. 部署模式与拓扑
 
-| 模式 | 平台租户 | Provider 租户 | Customer 租户 | MSP 路由 | 典型场景 |
-|---|---|---|---|---|---|
-| `private` | `internal`（Default Tenant） | 无 | 无（单租户自用） | ❌ 404 | 企业自建单租户 |
-| `saas` | `internal`（SaaS Platform Tenant） | 无 | `saas_customer`（直客） | ❌ 404 | 纯 SaaS 多租户 |
-| `saas_msp` | `internal`（同实例） | **provider 租户（当前=1 个）** | `msp_customer`（归属该 provider） | ✅ | 服务商托管多客户 |
+| 模式 | 平台租户 | Provider 租户 | Customer 租户 | MSP 路由（现状代码） | MSP 路由（目标） | 典型场景 |
+|---|---|---|---|---|---|---|
+| `private` | `internal`（Default Tenant） | 无 | 无（单租户自用） | ❌ 404 | ❌ 404 | 企业自建单租户 |
+| `saas` | `internal`（SaaS Platform Tenant） | 无 | `saas_customer`（直客） | ✅ **开启**（与目标不符，见 R12） | ❌ 404（I12） | 纯 SaaS 多租户 |
+| `saas_msp` | `internal`（同实例） | **provider 租户（当前=1 个）** | `msp_customer`（归属该 provider） | ✅ | ✅ | 服务商托管多客户 |
+| 空值/未知值 | — | — | — | ✅ **开启**（静默兜底，见 R12） | ❌ 404 + 启动自检 | 配置缺失/拼写错误 |
+
+> **现状口径**（`middleware/msp_gate.go:21-33`）：仅 `private` 关闭 MSP；`saas`/`saas_msp`/空/未知值一律开启。**目标口径**：仅 `saas_msp` 开启（I12），其余 404 + 启动自检——两列不可混读（本次审计 C1）。
 
 **拓扑决策（D1）**——二选一，必须显式：
 
@@ -309,6 +313,12 @@ erDiagram
 - **选项 B：多 provider 支持**——同一实例承载多个服务商；需补齐：allocation 增 `provider_tenant_id`、customer 归属校验、provider 隔离的 RBAC/报表/审计、工作台按 provider 收窄。
 
 > 建议（含 §7.1 Superset 判定）：**模型/代码层直接按选项 B（多 provider）建模**——B 是 A 的超集（N=1 即单 provider 部署，功能全部保留）；**部署层提供"单 provider 预设"**（初始化 1 个 provider、按需隐藏 provider 管理 UI）。P0 先做校验显式化（类型/归属/mode 源/执行器 ctx），P1 落 membership + provider 维度，避免"先特例后返工"。
+
+> **术语消歧（防割裂）**：本文 §7 的 **"选项 A/B"= 部署拓扑**（单 provider 预设 / 多 provider 模型）；§2.2 的 **"方案 A/B"= 平台-服务商拆分方案**；目标架构/主方案的 **"路线 A/B"= 实现路线**（P0 最小闭环 / P1 membership 转正）。三者互不相同，引用时必须带限定词（注册表见附录 C）。
+
+| # | 风险（新增） | 说明 |
+|---|---|---|
+| R12 | **未知/空 `DEPLOYMENT_MODE` 静默开启 MSP** | `msp_gate.go` 对未知值按 SaaS 默认处理（"typo 不会静默关掉 MSP"，但会静默**打开**）；`saas` 亦开启 → 与目标 I12 不符 |
 
 ### 7.1 多 provider 架构是否覆盖单 provider 部署？（Superset 判定）
 
@@ -463,15 +473,15 @@ sequenceDiagram
 | 平台共享 | `msp_*` 权限码定义 | `internal/authz/catalog.go`（码空间） |
 | 脚本/供给 | 新 provider 租户的 `msp_*` 角色权限行、首个用户 | `scripts/msp/setup-msp-tenants.sh`（SQL 直写） |
 
-#### 现状事实（重要缺口）
+#### 现状事实（重要缺口 K1–K5；K = 能力供给缺口，区别于 07 文档的生产实测缺口 G1–G10）
 
 | # | 事实 | 影响 |
 |---|---|---|
-| G1 | `msp_viewer/msp_tech/msp_specialist/msp_manager/msp_admin` **不在内置角色词表**（`internal/authz/roles.go` 无这些键）→ 常规 seed 不产生其 DB 权限行 | 未走 MSP 脚本的 provider 租户落入 DBOnly「unconfigured」→ 依赖硬编码兜底（`middleware/rbac.go:1119-1140` 三态）；**角色权限无法按租户差异化** |
-| G2 | 实际由 `scripts/msp/setup-msp-tenants.sh:231-233` **SQL 直写** `role_permissions`（msp_manager/msp_tech/msp_viewer/msp_specialist） | 供给脚本成为事实上的"provider 角色配置源"；绕过脚本即漂移 |
-| G3 | `msp_role` 枚举仅 3 值（`provider_admin`/`provider_agent`/`customer_user`），而 RBAC 词表有 5 个 msp_* 角色 | `msp_specialist`/`msp_admin` **不可达**；细分权限无法通过员工角色表达 |
-| G4 | 脚本注释记录产品缺口：MSP 管理员**无法经 API 建号**（`roleRank` 校验，`scripts/msp/setup-msp-tenants.sh:279-282`） | provider 员工管理目前依赖 SQL/脚本 |
-| G5 | 客户内权限未参与（目标态才有）；`X-Customer-Tenant-ID` 只校验头部（R9） | 跨客户操作的第三重约束缺失 |
+| K1 | `msp_viewer/msp_tech/msp_specialist/msp_manager/msp_admin` **不在内置角色词表**（`internal/authz/roles.go` 无这些键）→ 常规 seed 不产生其 DB 权限行 | 未走 MSP 脚本的 provider 租户落入 DBOnly「unconfigured」→ 依赖硬编码兜底（`middleware/rbac.go:1119-1140` 三态）；**角色权限无法按租户差异化** |
+| K2 | 实际由 `scripts/msp/setup-msp-tenants.sh:231-233` **SQL 直写** `role_permissions`（msp_manager/msp_tech/msp_viewer/msp_specialist） | 供给脚本成为事实上的"provider 角色配置源"；绕过脚本即漂移 |
+| K3 | `msp_role` 枚举仅 3 值（`provider_admin`/`provider_agent`/`customer_user`），而 RBAC 词表有 5 个 msp_* 角色 | `msp_specialist`/`msp_admin` **不可达**；细分权限无法通过员工角色表达 |
+| K4 | 脚本注释记录产品缺口：MSP 管理员**无法经 API 建号**（`roleRank` 校验，`scripts/msp/setup-msp-tenants.sh:279-282`） | provider 员工管理目前依赖 SQL/脚本 |
+| K5 | 客户内权限未参与（目标态才有）；`X-Customer-Tenant-ID` 只校验头部（R9） | 跨客户操作的第三重约束缺失 |
 
 #### 复杂度预算（回答"是否越来越复杂"）
 
@@ -491,8 +501,8 @@ sequenceDiagram
 
 | 批次 | 主题 | 关键动作 | 依赖 |
 |---|---|---|---|
-| **P0 概念显式化（不改数据模型）** | 把"隐式约定"变成"校验与文档" | ① type 枚举收敛为 3 类 + legacy 映射（文档+校验函数）；② customer 归属校验（`provider_tenant_id` 一致性，R3）；③ allocation 归属校验（R2）；④ 部署模式单一来源 + 启动自检（R4）；⑤ 执行器 ctx 统一（集成分析 §5.2）；⑥ 工作台/过滤器/条目级授权（工作台方案 P0）；⑦ 术语收敛（§5，文档+API 别名）；⑧ **MSP 读取/指派的 allocation 二次校验（R9）+ 死代码接线或删除（R10）**；⑨ **工单 MSP 快照写入（R11，建单落 `is_managed_by_msp`/`msp_provider_id`）**；⑩ **provider 租户 `msp_*` 角色供给显式化（G1/G2：纳入词表或启动校验）** | 无（可独立发布） |
-| **P1 Membership 化（结构性）** | 建唯一载体，收敛角色/组织 | ① `memberships` 表 + 回填（home 租户 + 单值 FK 组织 + users.role/msp_role）；② 角色挂 membership（`user_roles` 收敛为平台角色）；③ 权限单源（登录/切换/`/auth/me` DB 计算）；④ 组织唯一约束与复合 FK；⑤ RLS 纳入组织/membership 表；⑥ `data_scope` 决策；⑦ 审计字段统一 | P0 |
+| **P0 概念显式化（不改数据模型）** | 把"隐式约定"变成"校验与文档" | ① type 枚举收敛为 3 类 + legacy 映射（文档+校验函数）；② customer 归属校验（`provider_tenant_id` 一致性，R3）；③ allocation 归属校验（R2）；④ 部署模式单一来源 + 启动自检（R4、**R12**）；⑤ 执行器 ctx 统一（集成分析 §5.2）；⑥ 工作台/过滤器/条目级授权（工作台方案 P0）；⑦ 术语收敛（§5，文档+API 别名）；⑧ **MSP 读取/指派的 allocation 二次校验（R9）+ 死代码接线或删除（R10）**；⑨ **工单 MSP 快照写入（R11，建单落 `is_managed_by_msp`/`msp_provider_id`）**；⑩ **provider 租户 `msp_*` 角色供给显式化（K1/K2：纳入词表或启动校验）** | 无（可独立发布） |
+| **P1 Membership 化（结构性）** | 建唯一载体，收敛角色/组织 | ① `user_tenant_memberships` 表 + 回填（home 租户 + 单值 FK 组织 + users.role/msp_role）；② 角色挂 membership（`user_roles` 收敛为平台角色）；③ 权限单源（登录/切换/`/auth/me` DB 计算）；④ 组织唯一约束与复合 FK；⑤ RLS 纳入组织/membership 表；⑥ `data_scope` 决策；⑦ 审计字段统一 | P0 |
 | **P2 多 provider 与治理收尾** | 按产品决策扩展 | ① 选项 B（多 provider）字段与校验；② 共享表治理（messages/模板/is_public）；③ RLS `enforce`；④ 工作台批量/自定义视图；⑤ guard 扩展（成员/关联表一致性） | P1 |
 
 **迁移原则**：先加列/加表并回填（只读兼容）→ 再切读路径 → 最后废弃旧列；期间双写同事务；每个批次都有独立回滚点。
@@ -501,7 +511,7 @@ sequenceDiagram
 
 ## 9. 验收与反例（可测试）
 
-**验收（A1–A10）**：
+**验收（A1–A12）**：
 
 | # | 验收 |
 |---|---|
@@ -543,6 +553,7 @@ sequenceDiagram
 | D7 | `msp_role` 并入 membership 的时机 | P1 同批 / P2 | 迁移复杂度 |
 | D8 | 工作台批量操作的边界（跨客户） | 低危动作 + 护栏（建议）/ 不开放 | 效率与风险 |
 | D9 | 工单流转决策（E1–E6） | 见 §7.2：客户 SLA 归属 / 快照 vs 派生 / 转派 / 外部工单映射 / 直客 / **客户是否可多 provider 服务（E6）** | 工单与 provider 的关联语义 |
+| D10 | **MSP 角色词表统一** | ① 保留代码词表（`msp_viewer/msp_tech/msp_specialist/msp_manager/msp_admin`），Q7 模板映射为 `observer→msp_viewer`、`full→msp_admin`；② 或按 Q7 重命名（含数据迁移） | 三处词表并存（代码/K1、Q7 模板、脚本 SQL）→ 授权语义歧义（审计 C4） |
 
 ---
 
@@ -568,6 +579,52 @@ sequenceDiagram
 - 权限/组织/工作流：`middleware/rbac.go:41-55,487-504,877-905`、`ent/migrate/schema.go:5724-5725`、`service/approver/*`、`internal/schema/tenant_guard.go:65-115`
 - 执行器/RLS：`internal/commandbus/commandbus.go:195,241`、`config/config.go:460-464`、`database/rls/migrations/002_pilot_policies.sql:28-61`
 
+## 附录 C：跨文档一致性登记（权威层级 + 编号注册表）
+
+> 权威版由本文维护；审计与冲突清单见[一致性审计](./msp-docs-consistency-audit.md)。**新增编号/术语必须在此登记。**
+
+### C.1 权威层级（冲突时的裁决顺序）
+
+| 层级 | 文档 | 权威范围 |
+|---|---|---|
+| L0 选型 | `docs/architecture/adr-004-*.md`（Proposed） | 租户模型选型与行动项（引用写作 `ADR-004:A#`） |
+| L1 概念 | **本文（Canon）** | 概念、边界 B1–B6、不变量 I1–I13、术语、迁移、决策 D/E |
+| L2 决策修订源 | 工作台方案（REV-1–REV-5）、登录与切换细化 | 对"跨客户操作/登录落地"的最新修订，**对被修订文档有约束力** |
+| L3 目标详细设计 | 目标架构方案 | membership/上下文/权限矩阵/建号/迁移（须接受 L2 修订） |
+| L4 方案 | 主方案、scope-model、user-flows、frontend | 领域实现计划（局部编号，引用须加前缀） |
+| L5 现状/运营 | 01–07 | 实测现状与运维手册（**不得作为目标口径**） |
+| L6 演练 | 三角色操作剧本 | 操作剧本，不定义架构 |
+
+**规则**：① 概念冲突 → canon 胜；② 实现/交互冲突 → 最新修订源（L2）胜，但**必须回填被修订文档并留指针**；③ 现状冲突 → 01–07 + 代码为准，canon 必须"现状/目标"分列；④ 引用编号带前缀；⑤ 文档状态行与修订记录必须一致。
+
+### C.2 编号注册表
+
+| 编号 | 归属 | 含义 | 引用写法 |
+|---|---|---|---|
+| `R1–R12` | 本文 | 架构/安全风险 | `R9` |
+| `K1–K5` | 本文 §7.3 | provider 能力供给缺口（原 G1–G5 更名） | `K1` |
+| `G1–G10` | 07-known-gaps | 生产实测缺口（唯一 G 空间） | `07:G4` |
+| `F1–F15` | 主方案 | 生命周期/切换发现项 | `F7` |
+| `UF-01–UF-10` | user-flows | 交互流程号（原 F-01…F-10） | `UF-05` |
+| `WB1–WB6` | 工作台方案 | 工作台规则（原 G1–G6） | `WB3` |
+| `REV-1–REV-5` | 工作台方案 | 对既有文档的修订项（原 R7–R11） | `REV-2` |
+| `WB-R1–WB-R6` / `WB-A1–WB-A6` | 工作台方案 | 工作台风险 / 验收（局部编号，必须带前缀） | `WB-R2`、`WB-A1` |
+| `D1–D10` | 本文 §10 | 开放决策 | `D10` |
+| `E1–E6` | 本文 §7.2 | 工单流转决策 | `E2` |
+| `I1–I13` | 本文 §6 | 不变量 | `I9` |
+| `A1–A12` | 本文 §9 | 验收（canon 内裸 `A#` 仅此含义） | `A12` |
+| `ADR-004:A1–A11` | ADR-004 | 行动项（必须带前缀） | `ADR-004:A8` |
+| `LOGIN-A#`/`LOGIN-R#`/`LOGIN-D#`/`LOGIN-B#`/`LOGIN-F#` | 登录细化 | 文档局部编号（必须带前缀） | `LOGIN-R3` |
+| `FE-A#` | 前端分析 | 文档局部验收（必须带前缀） | `FE-A1` |
+
+### C.3 A/B/C 字母消歧（禁止裸用）
+
+| 写法 | 含义 | 出处 |
+|---|---|---|
+| **实现路线 A/B** | P0 最小闭环 / P1 membership 转正 | 目标架构、主方案 |
+| **部署选项 A/B** | 单 provider 预设 / 多 provider 模型 | 本文 §7 |
+| **拆分方案 A/B** | 平台-服务商同体保持 / 拆分平台租户 | 本文 §2.2 |
+
 ## 修订记录
 
 | 版本 | 日期 | 变更 |
@@ -579,3 +636,4 @@ sequenceDiagram
 | v0.5 | 2026-09-29 | 新增 §7.2 多 provider 业务流转（以工单为例）：归属原则（工单归客户租户、provider 由客户派生+快照）、目标端到端时序、各环节规则与现状断点对照；新增风险 R9（路径/请求体绕过 allocation 校验）/R10（MSPAccessValidator 等死代码）/R11（工单 MSP 四字段零写入）；决策点 E1–E5；P0 增补 ⑧⑨、验收 A11/A12、决策 D9 |
 | v0.6 | 2026-09-29 | 新增 §7.3 provider 租户内的功能管理：双工作面（Home/Cross）、跨客户能力包、三权分立授权公式、管理主体表；现状缺口 G1–G5（msp_* 角色不在内置词表→依赖硬编码兜底/由脚本 SQL 直写、msp_role 3 值 vs 词表 5 角色、MSP 管理员无法经 API 建号、客户内权限缺失）；复杂度预算与净减清单；P0 增补 ⑩ |
 | v0.7 | 2026-09-29 | §7.2 明确归属基数 **1 客户 : 1 provider**（归属字段单值；"多 provider"= 平台托管多个 provider，非共享客户）；新增决策 E6（"一个客户由多个 provider 服务"当前不支持，需服务关系多值模型，暂不建议）；D9 引用同步 E1–E6 |
+| v0.8 | 2026-09-29 | **一致性审计整改**：§7 部署门控改为"现状/目标"分列并新增 **R12**（saas/空/未知值静默开启 MSP）；§7.3 `G1–G5`→**`K1–K5`**（消除与 07:G# 重号）；membership 物理表名统一 `user_tenant_memberships`；新增 **附录 C**（权威层级 + 编号注册表 + A/B 消歧）；新增 **D10**（MSP 角色词表统一）；头部状态同步 v0.7→v0.8；关联[一致性审计](./msp-docs-consistency-audit.md) |

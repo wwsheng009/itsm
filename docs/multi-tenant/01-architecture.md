@@ -5,6 +5,8 @@
 > **上位决策**：[ADR-004](../architecture/adr-004-multi-customer-tenant-model-selection.md)
 > **目标架构（to-be）**：[目标架构方案](./plan/msp-target-architecture.md)｜**用户交互流程图**：[msp-user-interaction-flows.md](./plan/msp-user-interaction-flows.md)
 
+> **定位（as-is）**：本文为**现状架构快照**（2026-09-28 实测），**不是目标口径**；目标以 [canon](./plan/msp-concept-model-and-architecture-canon.md) 为准，差异与整改见[一致性审计](./plan/msp-docs-consistency-audit.md) §3（C11）。
+
 ## 1. 场景定义
 
 **角色与诉求**

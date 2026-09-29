@@ -4,6 +4,8 @@
 > **更新日期**：2026-09-28
 > **适用**：服务商管理员；前置阅读 [01-architecture.md](./01-architecture.md)
 
+> **定位（as-is）**：本文为**现状/运营快照**（2026-09-28 实测），**不是目标口径**；目标以 [canon](./plan/msp-concept-model-and-architecture-canon.md) 为准，差异与整改见[一致性审计](./plan/msp-docs-consistency-audit.md) §3（C11）。
+
 ## 1. 服务商租户（provider）
 
 - **一个服务商 = 一个 `msp_provider` 租户**；服务商管理员/工程师账号全部落在该租户；

@@ -1,8 +1,9 @@
 # 多租户 · 多客户单一服务商（MSP）运营手册
 
 > **状态**：当前
-> **更新日期**：2026-09-28
+> **更新日期**：2026-09-29
 > **选型依据**：[ADR-004：多客户管理场景租户模型选型](../architecture/adr-004-multi-customer-tenant-model-selection.md)
+> **概念/目标口径权威**：[概念模型与架构总纲（Canon）](./plan/msp-concept-model-and-architecture-canon.md)（附录 C：权威层级 + 编号注册表）｜**一致性审计**：[msp-docs-consistency-audit.md](./plan/msp-docs-consistency-audit.md)
 
 ## 目标读者与适用场景
 
@@ -17,7 +18,7 @@
 
 ## 核心模型（一句话）
 
-**服务商 = 一个 `msp_provider` 租户；每个客户 = 一个 `msp_customer` 租户；服务商员工通过 `MSPAllocation` 被授权到多个客户租户，经 `X-Customer-Tenant-ID` 或切换租户跨客户操作。**
+**服务商 = 一个 `msp_provider` 租户；每个客户 = 一个 `msp_customer` 租户（归属**唯一** provider，1:1）；服务商员工通过 `MSPAllocation` 被授权到多个客户租户；日常跨客户操作用"工作台 + 客户过滤器 + 条目级操作"，`X-Customer-Tenant-ID` 为单请求只读通道，会话切换仅用于深度操作。**
 
 ## 文档导航
 
@@ -30,6 +31,8 @@
 | [05-usage-guide.md](./05-usage-guide.md) | 使用指南：客户端与 MSP 端操作路径（控制台/接口/CLI）与典型流程 | 全体使用者 |
 | [06-verification-and-troubleshooting.md](./06-verification-and-troubleshooting.md) | 验证与排障：验收清单、常见问题、错误码与定位方法 | 运维 / 测试 |
 | [07-known-gaps.md](./07-known-gaps.md) | 已确认产品缺口：实测现象、运维规避、建议修复与优先级 | 产品 / 研发 / 运维 |
+
+> **说明**：01–07 为**现状/运营（as-is）**文档（更新于 2026-09-28，描述实测行为）；**目标口径一律以 [canon](./plan/msp-concept-model-and-architecture-canon.md) 为准**。两者已知差异与整改记录见[一致性审计](./plan/msp-docs-consistency-audit.md) §3。
 
 ## 角色与术语
 
@@ -63,7 +66,7 @@
 
 | 方案 | 内容 |
 |---|---|
-| [msp-concept-model-and-architecture-canon.md](./plan/msp-concept-model-and-architecture-canon.md) | **⭐ 概念模型与架构总纲（Canon）**：tenant/provider/customer/账号/membership/作用域/分配/组织/角色/工作流/审计 15 个概念的唯一定义与权威载体；四层分层 + 6 条边界规则 + Canonical ER + 12 条不变量；概念→现状→目标映射；术语收敛与废弃；子系统挂接规范；单/多 provider 决策；P0/P1/P2 迁移路线与验收 A1–A10 |
+| [msp-concept-model-and-architecture-canon.md](./plan/msp-concept-model-and-architecture-canon.md) | **⭐ 概念模型与架构总纲（Canon v0.8）**：15 个概念的唯一定义与权威载体；四层分层 + 边界规则 B1–B6 + Canonical ER + 不变量 I1–I13；概念→现状→目标映射；术语收敛；子系统挂接规范；部署模式与单/多 provider 决策（选项 A/B）、工单流转（§7.2）与 provider 功能管理（§7.3）；风险 R1–R12、能力缺口 K1–K5；迁移 P0/P1/P2；验收 A1–A12；决策 D1–D10/E1–E6；**附录 C：权威层级 + 编号注册表** |
 | [msp-user-lifecycle-and-tenant-switching-plan.md](./plan/msp-user-lifecycle-and-tenant-switching-plan.md) | 多租户用户生命周期与租户切换：功能缺口 F1–F15（建号/登录选租户/切换上下文）、路线 A/B 选型、P0 详细设计、分期与验收 |
 | [msp-scope-model-analysis-and-ai-gateway-reference.md](./plan/msp-scope-model-analysis-and-ai-gateway-reference.md) | 服务方/客户方作用域模型分析（Q1 回答）：一个账号、多作用域（membership）目标模型、ai-gateway 多租户设计对照与可借鉴清单 |
 | [msp-target-architecture.md](./plan/msp-target-architecture.md) | **目标架构方案**：账号唯一/作用域多元、membership 模型、租户上下文与 fail-closed 解析、隔离与权限（Q7 角色模板）、建号/邀请/首登、数据模型与迁移、前端架构、审计与 A→B 演进 |
@@ -72,9 +75,13 @@
 | [msp-frontend-pages-and-permissions-analysis.md](./plan/msp-frontend-pages-and-permissions-analysis.md) | **前端页面与权限分析及目标细化**：路由/页面/权限/菜单/租户上下文现状（含权限双源、菜单缓存未分键、`tenants[0]` 等风险）+ 切换器/刷新链路/页面改造清单/分期验收 |
 | [msp-cross-customer-workbench-and-filter-plan.md](./plan/msp-cross-customer-workbench-and-filter-plan.md) | **跨客户工作台与全局过滤方案**（替代"全局切换"）：会话作用域/视图过滤器/条目级操作三概念分离；顶栏 `CustomerFilter`（全部/子集+徽标）；工作台列表带客户列、行内处理、批量护栏；资源级授权与 bounded bypass；API/性能/分期 |
 | [msp-integration-with-rbac-org-workflow-analysis.md](./plan/msp-integration-with-rbac-org-workflow-analysis.md) | **多租户 × 权限/部门/团队/工作流 集成分析与冲突处置**：五问判定框架；RBAC（`user_roles` 平台级豁免、权限双源、`data_scope` 空承诺）、组织（成员关系无成员行、全局唯一键、零 RLS）、工作流（指派未验租户、授权可覆写、列表 fail-open）、执行器（租户 ctx 不统一）、通知；❌6/🟡14 清单 + 7 条不变量 + 分期 |
-| [msp-three-persona-operation-simulation.md](./plan/msp-three-persona-operation-simulation.md) | **三角色业务操作模拟剧本**（平台/服务商/客户）：逐步操作（请求+现状预期+目标预期+缺口标注）；跨视角时序与可见性矩阵；缺口索引（R1–R11/G1–G5）；验收检查表与执行说明 |
+| [msp-three-persona-operation-simulation.md](./plan/msp-three-persona-operation-simulation.md) | **三角色业务操作模拟剧本**（平台/服务商/客户）：逐步操作（请求+现状预期+目标预期+缺口标注）；跨视角时序与可见性矩阵；缺口索引（R1–R11/K1–K5；生产实测缺口见 `07:G1–G10`）；验收检查表与执行说明 |
+| [msp-docs-consistency-audit.md](./plan/msp-docs-consistency-audit.md) | **文档一致性审计（架构割裂排查）**：权威层级与生效规则、术语/编号注册表、冲突清单 C1–C16（含假阳性撤销）、已执行修复、待办与防复发约定 |
 
 ## 维护约定
 
 - 本目录为长期文档，文件名不带日期；变更须同步更新受影响文档与 ADR-004 的行动项状态；
 - 引用代码请标注 `文件:行号`，行号随重构漂移时应以最新代码为准并更新引用。
+- **编号与术语**：新增/引用编号必须查 canon **附录 C** 注册表；跨文档引用带前缀（如 `ADR-004:A8`、`07:G4`、`LOGIN-R3`、`FE-A1`）；字母 A/B 必须带限定词（实现路线/部署选项/拆分方案）。
+- **状态行与修订记录一致**；**现状与目标必须分列**（禁止把目标当现状、或反之）。
+- **修订回填**：任何文档修订既有结论时，必须回填被修订文档并留指针（权威层级见 canon 附录 C.1）。

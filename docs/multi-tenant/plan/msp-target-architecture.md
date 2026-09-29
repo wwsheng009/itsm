@@ -6,6 +6,8 @@
 > 配套：[用户交互流程图](./msp-user-interaction-flows.md)
 > 定位：`01-architecture.md` 描述**现状架构**（as-is）；本文给出**目标架构**（to-be）与 A→B 演进路径，作为实现评审与验收的架构依据。
 
+> **修订指针（2026-09-29 一致性整改）**：本文 §4.2/§4.4 关于"连续操作走切换、写操作需切换、顶栏切换器"的表述已被[工作台方案](./msp-cross-customer-workbench-and-filter-plan.md)（`REV-1`–`REV-5`）与[登录与切换细化](./msp-login-and-switching-refinement-plan.md)修订；概念口径以 [canon](./msp-concept-model-and-architecture-canon.md) 为准。正文回填排期见[一致性审计](./msp-docs-consistency-audit.md) §5。
+
 ---
 
 ## 0. 摘要（TL;DR）

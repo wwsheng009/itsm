@@ -56,7 +56,7 @@
 | E1 | 部署模式 | 查看后端 env `DEPLOYMENT_MODE` | `saas_msp`（否则 `/msp/*` 404） |
 | E2 | MSP 路由可用 | `GET $BASE/api/v1/msp/status`（admin） | 200；`isAdmin=true`（admin 无 msp_role 时 `isMsp=false`） |
 | E3 | 分配关系存在 | `GET $BASE/api/v1/msp/allocations`（mspadmin） | 含 mspagent→MSPCUSTA（脚本第 7 节建立） |
-| E4 | `msp_*` 角色权限行 | 脚本已执行第 5 节（SQL 直写） | provider 租户下 `msp_manager/msp_tech/msp_viewer` 有权限行（见 G1/G2） |
+| E4 | `msp_*` 角色权限行 | 脚本已执行第 5 节（SQL 直写） | provider 租户下 `msp_manager/msp_tech/msp_viewer` 有权限行（见 K1/K2） |
 | E5 | 客户租户归属字段 | `GET $BASE/api/v1/tenants/$MSPCUSTA_ID`（admin） | `parentTenantId`/`mspProviderId` 已回填（现状：**只写不读**，R3） |
 
 ---
@@ -104,8 +104,8 @@
 | M8 | 分配管理 | `GET /api/v1/msp/allocations`；`POST /api/v1/msp/allocations {"mspUserId":<agent>,"customerTenantId":<$A>,"role":"primary"}`；`POST /api/v1/msp/allocations/deallocate {...}` | 创建/解除成功；**不校验"客户所属 provider == 员工所属 provider"**（R2） | 归属一致性校验（R2 修复） | **R2** |
 | M9 | 报表 | `GET /api/v1/msp/reports/customers?startDate=&endDate=`；`/api/v1/msp/reports/performance` | 返回数据（注意 `GetMSPCustomerReports(mspTenantID)` 的入参语义现状混乱） | 按 provider 维度聚合、口径明确 | R8 |
 | M10 | **隔离验证（必做）** | ① `GET /api/v1/msp/customers/$MSPCUSTB_ID/tickets` **带** header B（mspagent 未分配 B）→ **403**；② 同请求**不带** header → **200 且返回客户 B 工单**（R9 绕过）；③ `POST /api/v1/msp/tickets/$TICKET_B_ID/assign {"customerTenantId":$B}` → **200 自我指派成功**（R9） | 三条都应 403（未分配客户） | **R9**（现状必须记录为缺陷） |
-| M11 | 员工管理（服务商侧） | `POST /api/v1/users {"username":"mspagent2","role":"agent","mspRole":"provider_agent",...}` | **失败**：mspadmin 的有效角色被解析为 `msp_manager`（仅 msp_* 权限），无 `user:write`，且 roleRank 校验拦截（G4） | 经 membership 建号：provider_admin 可管理本租户员工 | G4 |
-| M12 | 角色权限查看 | `GET /api/v1/roles`（provider 租户） | 可见 msp_* 角色（脚本 SQL 直写，G2）；未走脚本的租户落入硬编码兜底（G1） | msp_* 角色纳入内置词表、按租户可配置 | G1/G2 |
+| M11 | 员工管理（服务商侧） | `POST /api/v1/users {"username":"mspagent2","role":"agent","mspRole":"provider_agent",...}` | **失败**：mspadmin 的有效角色被解析为 `msp_manager`（仅 msp_* 权限），无 `user:write`，且 roleRank 校验拦截（K4） | 经 membership 建号：provider_admin 可管理本租户员工 | K4 |
+| M12 | 角色权限查看 | `GET /api/v1/roles`（provider 租户） | 可见 msp_* 角色（脚本 SQL 直写，K2）；未走脚本的租户落入硬编码兜底（K1） | msp_* 角色纳入内置词表、按租户可配置 | K1/K2 |
 
 ### 3.2 Home 面操作（服务商自有业务）
 
@@ -200,8 +200,8 @@ sequenceDiagram
 | R3 归属字段死元数据 | P5/P6、C3 | `parentTenantId`/`mspProviderId` 只写不读，建单不消费 | P0/P1 |
 | R9 allocation 校验绕过 | M5/M6/M10 | 路径参数/请求体通道未校验 → 未分配客户可读/可指派 | **P0（安全）** |
 | R11 工单 MSP 字段零写入 | C3/M6/C9 | 快照不落库、详情不展示、无法按 provider 过滤 | P0 |
-| G1/G2 msp_* 角色供给 | M12 | 不在内置词表；靠脚本 SQL 直写或硬编码兜底 | P0 |
-| G4 服务商建号受限 | M11 | mspadmin 无法经 API 建号（roleRank） | P1（membership） |
+| K1/K2 msp_* 角色供给 | M12 | 不在内置词表；靠脚本 SQL 直写或硬编码兜底 | P0 |
+| K4 服务商建号受限 | M11 | mspadmin 无法经 API 建号（roleRank） | P1（membership） |
 | R8 平台/服务商审计不分 | P8 | 审计缺 provider/来源维度 | P1 |
 | 通知无 provider 分支 | C5 | provider 仅在被写成 assignee 时被动收到 | P1 |
 | 智能派单不含 MSP | （客户租户内自动派单） | 候选池=客户租户用户 → MSP 员工永不入选 | P1/P2 |
@@ -227,7 +227,7 @@ sequenceDiagram
 - [ ] M10 **不带 header 的未分配客户访问 → 现状是否 200（R9）**；指派是否可绕过（R9）
 - [ ] M6 指派现状语义 = 自我指派；未写 MSP 字段（R11）
 - [ ] M8 分配创建成功；跨 provider 分配是否被拒（R2）
-- [ ] M11 服务商经 API 建号是否可行（G4）
+- [ ] M11 服务商经 API 建号是否可行（K4）
 - [ ] M13 Home 面仅见服务商自有工单
 
 **客户（Customer）**
@@ -264,3 +264,4 @@ sequenceDiagram
 | 版本 | 日期 | 变更 |
 |---|---|---|
 | v0.1 | 2026-09-29 | 首版：三角色操作剧本（平台 8 步 / 服务商 14 步 / 客户 10 步）、跨视角时序、可见性矩阵、缺口索引（R1–R11/G1–G5）、验收检查表、执行说明 |
+| v0.2 | 2026-09-29 | 一致性整改：缺口编号 `G1/G2/G4` → `K1/K2/K4`（canon §7.3 改名，避免与 07-known-gaps 的 G1–G10 重号） |

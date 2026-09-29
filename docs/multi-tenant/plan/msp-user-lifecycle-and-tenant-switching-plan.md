@@ -6,6 +6,8 @@
 > 作用域模型（Q1 回答 + ai-gateway 参考）：见 [服务方/客户方作用域模型分析](./msp-scope-model-analysis-and-ai-gateway-reference.md)。
 > 通知/邮件通道（Q4 落地设计）：见 [通知模块设计方案](../../plan/notification-module-design-plan-2026-09-29.md)。
 
+> **修订指针（2026-09-29 一致性整改）**：本文 F7/F8/F15 与 §5.3 中"登录候选选择、`last_active` 落地、连续操作走切换"的表述已被[登录与切换细化](./msp-login-and-switching-refinement-plan.md)与[工作台方案](./msp-cross-customer-workbench-and-filter-plan.md)（`REV-1`–`REV-5`）修订；正文回填排期见[一致性审计](./msp-docs-consistency-audit.md) §5。
+
 ---
 
 ## 0. 摘要（TL;DR）

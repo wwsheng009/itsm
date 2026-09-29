@@ -4,6 +4,8 @@
 > **更新日期**：2026-09-28
 > **适用**：全体使用者；前置阅读 [03](./03-customer-dimension.md)、[04](./04-provider-dimension.md)
 
+> **定位（as-is）**：本文为**现状使用指南**（2026-09-28 实测）；其中"连续操作走切换"的表述已被[工作台方案](./plan/msp-cross-customer-workbench-and-filter-plan.md)（`REV-1`/`WB2`）修订——日常跨客户操作用工作台+过滤器，切换仅深度操作。目标口径以 [canon](./plan/msp-concept-model-and-architecture-canon.md) 为准（见[一致性审计](./plan/msp-docs-consistency-audit.md) C2）。
+
 ## 1. 三类使用者与入口
 
 | 使用者 | 登录租户 | 主要入口 | 能做什么 |

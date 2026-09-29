@@ -4,6 +4,8 @@
 > 关联：[目标架构方案](./msp-target-architecture.md)｜[用户生命周期与租户切换方案](./msp-user-lifecycle-and-tenant-switching-plan.md)（F1–F15）｜[07 已知缺口](../07-known-gaps.md)（G1–G10）｜[01 现状架构](../01-architecture.md)｜[通知模块设计方案](../../plan/notification-module-design-plan-2026-09-29.md)
 > 用途：以**用户视角**描述每个多租户交互的完整路径（含异常分支、接口、审计点与实现状态），供产品/前端/测试对齐；流程图用 Mermaid（GitHub 原生渲染；mkdocs 已配置 Mermaid 支持）。
 
+> **编号与修订（2026-09-29 一致性整改）**：本文流程号为 `UF-01–UF-10`（原 F-01…F-10）；对主方案发现项的引用写作 `F#`（主方案 F1–F15）。§0.5/F-06 的写路径口径以[工作台方案](./msp-cross-customer-workbench-and-filter-plan.md) `REV-1`/`WB2` 为准。
+
 ## 0. 图例、角色与总览
 
 **状态图例**：✅ 已实现 ｜ 🟡 部分实现 ｜ ❌ 缺失（本流程图描述的是**目标行为**）｜ ⏳ 规划中
@@ -265,7 +267,7 @@ flowchart TD
     F --> G[写 tenant_source=header<br/>审计 tenant.scope_switch]
 ```
 
-- **接口**：现有 `/api/v1/msp/*` 路由族（非租户组）；头通道**仅单请求只读**，写操作必须走切换（F-05）。
+- **接口**：现有 `/api/v1/msp/*` 路由族（非租户组）；头通道**仅单请求只读**；写操作走**条目级端点**（按资源所属租户授权，无需切换，见工作台方案 `REV-1`/`WB2`）；仅"深度操作"需要切换（F-05）。
 - **当前状态**：🟡 中间件与解析器 ✅（`middleware/msp_middleware.go:27-173`、`msp_tenant_resolver.go:29-57`）；`ValidateCustomerTenantHeader` 定义未挂载；**未写 `tenant_source` 进审计（F15）**。
 - **异常**：头与 JWT 冲突（非服务方身份携带）→ 401；头指向未分配客户 → 403。
 

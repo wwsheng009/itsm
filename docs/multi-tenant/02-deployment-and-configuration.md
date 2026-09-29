@@ -4,6 +4,8 @@
 > **更新日期**：2026-09-28
 > **适用**：运维/部署工程师；前置阅读 [01-architecture.md](./01-architecture.md)
 
+> **定位（as-is）**：本文为**现状部署/运维手册**（2026-09-28 实测），**不是目标口径**；目标以 [canon](./plan/msp-concept-model-and-architecture-canon.md) 为准，差异与整改见[一致性审计](./plan/msp-docs-consistency-audit.md) §3（C1/C11：`saas` 门控、未知模式默认开启、`/tmp` 指引）。
+
 ## 1. 部署模式选择
 
 | 模式 | MSP 路由（`/api/v1/msp/*`） | 适用场景 |

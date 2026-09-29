@@ -4,6 +4,8 @@
 > **更新日期**：2026-09-28
 > **适用**：服务商管理员、客户管理员；前置阅读 [01-architecture.md](./01-architecture.md)
 
+> **定位（as-is）**：本文为**现状/运营快照**（2026-09-28 实测），**不是目标口径**；目标以 [canon](./plan/msp-concept-model-and-architecture-canon.md) 为准，差异与整改见[一致性审计](./plan/msp-docs-consistency-audit.md) §3（C11）。
+
 ## 1. 客户 = 独立租户
 
 每个客户开通一个 `msp_customer` 租户；客户用户、角色、菜单、工单、知识库、CMDB、流程等全部落在该租户内。客户之间不可互见；服务商通过分配（见 04 文档）跨客户访问。
