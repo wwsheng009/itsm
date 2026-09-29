@@ -76,7 +76,8 @@
 | [msp-cross-customer-workbench-and-filter-plan.md](./plan/msp-cross-customer-workbench-and-filter-plan.md) | **跨客户工作台与全局过滤方案**（替代"全局切换"）：会话作用域/视图过滤器/条目级操作三概念分离；顶栏 `CustomerFilter`（全部/子集+徽标）；工作台列表带客户列、行内处理、批量护栏；资源级授权与 bounded bypass；API/性能/分期 |
 | [msp-integration-with-rbac-org-workflow-analysis.md](./plan/msp-integration-with-rbac-org-workflow-analysis.md) | **多租户 × 权限/部门/团队/工作流 集成分析与冲突处置**：五问判定框架；RBAC（`user_roles` 平台级豁免、权限双源、`data_scope` 空承诺）、组织（成员关系无成员行、全局唯一键、零 RLS）、工作流（指派未验租户、授权可覆写、列表 fail-open）、执行器（租户 ctx 不统一）、通知；❌6/🟡14 清单 + 7 条不变量 + 分期 |
 | [msp-three-persona-operation-simulation.md](./plan/msp-three-persona-operation-simulation.md) | **三角色业务操作模拟剧本**（平台/服务商/客户）：逐步操作（请求+现状预期+目标预期+缺口标注）；跨视角时序与可见性矩阵；缺口索引（R1–R11/K1–K5；生产实测缺口见 `07:G1–G10`）；验收检查表与执行说明 |
-| [msp-docs-consistency-audit.md](./plan/msp-docs-consistency-audit.md) | **文档一致性审计（架构割裂排查）**：权威层级与生效规则、术语/编号注册表、冲突清单 C1–C16（含假阳性撤销）、已执行修复、待办与防复发约定 |
+| [msp-docs-consistency-audit.md](./plan/msp-docs-consistency-audit.md) | **文档一致性审计（架构割裂排查）**：权威层级与生效规则、术语/编号注册表、冲突清单 C1–C19（含假阳性撤销）、已执行修复、待办与防复发约定 |
+| [msp-implementation-plan.md](./plan/msp-implementation-plan.md) | **实施方案（P0 → P1 → P2）**：结合现有项目的可执行步骤（工作流 `IP-P*-*`）、分阶段出口 DoD、A1–A12 验收映射、发布/灰度/回滚、风险依赖与里程碑 |
 
 ## 维护约定
 
