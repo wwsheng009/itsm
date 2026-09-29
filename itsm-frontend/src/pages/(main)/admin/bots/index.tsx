@@ -1,12 +1,14 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
-  Alert, App, Button, Card, Descriptions, Drawer, Empty, Form, Input, Modal, Popconfirm,
-  Select, Space, Table, Tag, Tooltip, Typography,
+  Alert, App, AutoComplete, Button, Card, Descriptions, Drawer, Empty, Form, Input, Modal, Popconfirm,
+  Select, Space, Spin, Table, Tag, Tooltip, Typography,
 } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
 import { ListChecks, Plus, RefreshCw, ShieldCheck, Trash2 } from 'lucide-react';
+import { useNavigate } from 'react-router';
 import { PageContainer } from '@/components/common/PageContainer';
 import { useI18n } from '@/lib/i18n/useI18n';
+import { aiListToolCatalog, type ToolCatalogItem } from '@/lib/api/ai-api';
 import botApi, {
   BOT_AUDIENCES,
   BOT_ENTRYPOINT_SUGGESTIONS,
@@ -21,8 +23,8 @@ import botApi, {
   isBotPermissionDenied,
   parseEntrypoints,
   serializeEntrypoints,
-  type BotGrant,
   type BotRisk,
+  type BotGrant,
   type BotTemplate,
   type ImpactWarning,
 } from '@/lib/api/bot-api';
@@ -81,6 +83,43 @@ const BotTemplatesPage: React.FC = () => {
   const [grants, setGrants] = useState<BotGrant[]>([]);
   const [grantsLoading, setGrantsLoading] = useState(false);
   const [grantForm] = Form.useForm<GrantFormValues>();
+
+  const navigate = useNavigate();
+  // 授权抽屉的工具目录（内置 + MCP 统一投影；后端按 RBAC 过滤）：失败静默，仍可手工输入名称。
+  const [toolCatalog, setToolCatalog] = useState<ToolCatalogItem[]>([]);
+  const [toolCatalogLoading, setToolCatalogLoading] = useState(false);
+  const [pickedTool, setPickedTool] = useState<ToolCatalogItem | null>(null);
+  const toolCatalogLoadedRef = useRef(false);
+  const toolSearchTimer = useRef<number | null>(null);
+
+  const loadToolCatalog = useCallback(async (keyword: string) => {
+    setToolCatalogLoading(true);
+    try {
+      const res = await aiListToolCatalog({ q: keyword || undefined, limit: 200 });
+      setToolCatalog(Array.isArray(res?.items) ? res.items : []);
+      toolCatalogLoadedRef.current = true;
+    } catch {
+      // 目录不可用（无权限/后端未装配）不阻塞授权流程：保留手工输入能力。
+      setToolCatalog([]);
+    } finally {
+      setToolCatalogLoading(false);
+    }
+  }, []);
+
+  const handleToolSearch = useCallback(
+    (value: string) => {
+      if (toolSearchTimer.current) window.clearTimeout(toolSearchTimer.current);
+      toolSearchTimer.current = window.setTimeout(() => void loadToolCatalog(value.trim()), 300);
+    },
+    [loadToolCatalog]
+  );
+
+  useEffect(
+    () => () => {
+      if (toolSearchTimer.current) window.clearTimeout(toolSearchTimer.current);
+    },
+    []
+  );
 
   /** 统一写操作错误处理：403 = 无 ai:write（只读提示）；其余走 describeBotError。 */
   const handleWriteError = useCallback(
@@ -219,11 +258,13 @@ const BotTemplatesPage: React.FC = () => {
     (record: BotTemplate) => {
       setGrantsFor(record);
       setGrants([]);
+      setPickedTool(null);
       grantForm.resetFields();
       grantForm.setFieldsValue({ toolName: '', riskLimit: record.riskLimit || 'read', argsPolicyJson: '' });
       void loadGrants(record);
+      void loadToolCatalog('');
     },
-    [grantForm, loadGrants]
+    [grantForm, loadGrants, loadToolCatalog]
   );
 
   const submitGrant = useCallback(async () => {
@@ -284,6 +325,42 @@ const BotTemplatesPage: React.FC = () => {
   const riskLabel = useCallback((risk: string) => tt(`botsAdmin.risk.${risk}`), [tt]);
   const statusLabel = useCallback((status: string) => tt(`botsAdmin.status.${status}`), [tt]);
   const audienceLabel = useCallback((audience: string) => tt(`botsAdmin.audience.${audience}`), [tt]);
+
+  /** 工具目录下拉项：名称 + 来源（内置/MCP·服务器）+ 风险，便于选择时判断边界。 */
+  const toolOptions = useMemo(
+    () =>
+      toolCatalog.map(item => {
+        const source = item.provider === 'mcp' ? tt('toolsCatalog.mcpTag') : tt('toolsCatalog.builtin');
+        const risk = item.risk ? riskLabel(item.risk) : tt('toolsCatalog.riskUnknown');
+        const server = item.serverName ? ` · ${item.serverName}` : '';
+        return { value: item.name, label: `${item.name}（${source}${server} · ${risk}）` };
+      }),
+    [riskLabel, toolCatalog, tt]
+  );
+
+  const catalogSummary = useMemo(() => {
+    const mcp = toolCatalog.filter(item => item.provider === 'mcp').length;
+    return { total: toolCatalog.length, mcp, builtin: toolCatalog.length - mcp };
+  }, [toolCatalog]);
+
+  /**
+   * 选中目录条目：记录来源（MCP 提示）+ 按「工具风险 ≤ 模板上限」预填授权风险上限
+   * （用户随后仍可手改；越界由前端预检 + 后端强校验双重拦截）。
+   */
+  const handleToolPick = useCallback(
+    (value: string) => {
+      const picked = toolCatalog.find(item => item.name === value) ?? null;
+      setPickedTool(picked);
+      if (!picked?.risk || !grantsFor) return;
+      const toolRank = BOT_RISK_RANK[picked.risk as BotRisk];
+      const limitRank = BOT_RISK_RANK[grantsFor.riskLimit as BotRisk];
+      if (toolRank === undefined) return;
+      const chosen: string =
+        limitRank !== undefined && toolRank > limitRank ? grantsFor.riskLimit : picked.risk;
+      grantForm.setFieldsValue({ riskLimit: chosen });
+    },
+    [grantForm, grantsFor, toolCatalog]
+  );
 
   const columns: ColumnsType<BotTemplate> = [
     {
@@ -534,16 +611,51 @@ const BotTemplatesPage: React.FC = () => {
                 risk: riskLabel(grantsFor.riskLimit),
               })}
             />
+            <Space direction="vertical" size={2} style={{ display: 'flex' }}>
+              <Text type="secondary">{tt('botsAdmin.grantsDrawer.toolSearchHint')}</Text>
+              <Space size={8} wrap>
+                <Text type="secondary">
+                  {tt('botsAdmin.grantsDrawer.toolFaceSummary', {
+                    total: catalogSummary.total,
+                    builtin: catalogSummary.builtin,
+                    mcp: catalogSummary.mcp,
+                  })}
+                </Text>
+                <Button type="link" size="small" onClick={() => navigate('/admin/tools')}>
+                  {tt('botsAdmin.grantsDrawer.toolCatalogLink')}
+                </Button>
+              </Space>
+            </Space>
+            {pickedTool?.provider === 'mcp' ? (
+              <Alert type="warning" showIcon message={tt('botsAdmin.grantsDrawer.toolPickedMcpHint')} />
+            ) : null}
             <Form<GrantFormValues> form={grantForm} layout="inline" onFinish={() => void submitGrant()}>
               <Form.Item
                 name="toolName"
                 rules={[{ required: true, message: tt('botsAdmin.grantsDrawer.toolNameRequired') }]}
-                style={{ minWidth: 200 }}
+                style={{ minWidth: 280 }}
               >
-                <Input placeholder={tt('botsAdmin.grantsDrawer.toolName')} />
+                <AutoComplete
+                  options={toolOptions}
+                  onFocus={() => {
+                    if (!toolCatalogLoadedRef.current) void loadToolCatalog('');
+                  }}
+                  onSearch={handleToolSearch}
+                  onSelect={handleToolPick}
+                  filterOption={(input, option) =>
+                    String(option?.value ?? '').toLowerCase().includes(input.toLowerCase()) ||
+                    String(option?.label ?? '').toLowerCase().includes(input.toLowerCase())
+                  }
+                  notFoundContent={toolCatalogLoading ? <Spin size="small" /> : null}
+                >
+                  <Input placeholder={tt('botsAdmin.grantsDrawer.toolName')} allowClear />
+                </AutoComplete>
               </Form.Item>
               <Form.Item name="riskLimit" style={{ minWidth: 160 }}>
-                <Select options={BOT_RISKS.map(value => ({ value, label: riskLabel(value) }))} />
+                <Select
+                  aria-label={tt('botsAdmin.grantsDrawer.riskLimit')}
+                  options={BOT_RISKS.map(value => ({ value, label: riskLabel(value) }))}
+                />
               </Form.Item>
               <Form.Item name="argsPolicyJson" style={{ minWidth: 200 }}>
                 <Input placeholder={tt('botsAdmin.grantsDrawer.argsPolicyHint')} />

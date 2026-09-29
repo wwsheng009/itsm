@@ -39,6 +39,7 @@ const AdminEscalationRules = lazy(() => import('@/pages/(main)/admin/escalation-
 const AdminGroups = lazy(() => import('@/pages/(main)/admin/groups/index'));
 const AdminBots = lazy(() => import('@/pages/(main)/admin/bots/index'));
 const AdminMcpServers = lazy(() => import('@/pages/(main)/admin/mcp-servers/index'));
+const AdminTools = lazy(() => import('@/pages/(main)/admin/tools/index'));
 const AdminMenus = lazy(() => import('@/pages/(main)/admin/menus/index'));
 const AdminPermissions = lazy(() => import('@/pages/(main)/admin/permissions/index'));
 const AdminProcessRouting = lazy(() => import('@/pages/(main)/admin/process-routing/index'));
@@ -239,6 +240,7 @@ export const routes: RouteObject[] = [
           { path: 'admin/groups', element: lazyElement(AdminGroups) },
           { path: 'admin/bots', element: lazyElement(AdminBots) },
           { path: 'admin/mcp-servers', element: lazyElement(AdminMcpServers) },
+          { path: 'admin/tools', element: lazyElement(AdminTools) },
           { path: 'admin/menus', element: lazyElement(AdminMenus) },
           { path: 'admin/permissions', element: lazyElement(AdminPermissions) },
           { path: 'admin/process-routing', element: lazyElement(AdminProcessRouting) },

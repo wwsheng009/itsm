@@ -1280,3 +1280,62 @@ export class AIApi {
     return aiListVisibleBots();
   }
 }
+
+// ==================== 工具目录（内置 + MCP 外部工具的统一查询视图） ====================
+
+/**
+ * 工具目录条目：内置工具与 MCP 外部工具统一投影。
+ *
+ * 后端契约：`GET /api/v1/agent/tools/catalog`（ai:read；按当前角色 RBAC 过滤）。
+ */
+export interface ToolCatalogItem {
+  name: string;
+  description?: string;
+  readOnly: boolean;
+  /** 治理标注风险：read|plan|act_low|act_medium|act_high（内置工具可能为空）。 */
+  risk?: string;
+  category?: string;
+  /** builtin | mcp（内置工具由注册表统一填 builtin）。 */
+  provider?: string;
+  /** provider=mcp 时的服务器标识（callable 名主体）。 */
+  serverName?: string;
+  /** provider=mcp 时的服务器侧原始工具名。 */
+  rawToolName?: string;
+  resource?: string;
+  action?: string;
+  supportsDryRun?: boolean;
+  idempotent?: boolean;
+}
+
+export interface ToolCatalogParams {
+  q?: string;
+  source?: 'builtin' | 'mcp';
+  readOnly?: boolean;
+  risk?: string;
+  limit?: number;
+}
+
+export interface ToolCatalogResult {
+  items: ToolCatalogItem[];
+  total: number;
+}
+
+/**
+ * 查询工具目录（Bot 授权选择器 / 独立工具目录页共用）。
+ *
+ * - `q`：名称/描述/服务器 子串（大小写不敏感，服务端过滤）；
+ * - `source`/`readOnly`/`risk`：可选过滤；`limit` 默认由后端取 200（上限 500）。
+ */
+export async function aiListToolCatalog(params: ToolCatalogParams = {}): Promise<ToolCatalogResult> {
+  const query = new URLSearchParams();
+  if (params.q) query.set('q', params.q);
+  if (params.source) query.set('source', params.source);
+  if (typeof params.readOnly === 'boolean') query.set('readOnly', String(params.readOnly));
+  if (params.risk) query.set('risk', params.risk);
+  if (params.limit && params.limit > 0) query.set('limit', String(params.limit));
+  const qs = query.toString();
+  // 字面量路径 + 拼接，避免模板内三元表达式，保证 api-contract 测试可静态解析路径
+  const url = '/api/v1/agent/tools/catalog' + (qs ? `?${qs}` : '');
+  const res = await httpClient.get<ToolCatalogResult>(url);
+  return { items: Array.isArray(res?.items) ? res.items : [], total: res?.total ?? 0 };
+}

@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -53,6 +54,160 @@ func (h *Handler) ListTools(c *gin.Context) {
 		}
 	}
 	common.Success(c, gin.H{"tools": visible})
+}
+
+// 工具目录查询上限（防超大 payload；目录页与 Bot 授权选择器共用）。
+const (
+	toolCatalogDefaultLimit = 200
+	toolCatalogMaxLimit     = 500
+)
+
+// toolCatalogItem 是工具目录的紧凑投影：不含 argsSchema/resultSchema，避免选择器传输大 payload；
+// 字段口径与 service.ToolDefinition 一一对应（provider=mcp 时带 serverName/rawToolName）。
+type toolCatalogItem struct {
+	Name           string `json:"name"`
+	Description    string `json:"description,omitempty"`
+	ReadOnly       bool   `json:"readOnly"`
+	Risk           string `json:"risk,omitempty"`
+	Category       string `json:"category,omitempty"`
+	Provider       string `json:"provider,omitempty"`
+	ServerName     string `json:"serverName,omitempty"`
+	RawToolName    string `json:"rawToolName,omitempty"`
+	Resource       string `json:"resource,omitempty"`
+	Action         string `json:"action,omitempty"`
+	SupportsDryRun bool   `json:"supportsDryRun,omitempty"`
+	Idempotent     bool   `json:"idempotent,omitempty"`
+}
+
+// ListToolCatalog handles GET /api/v1/agent/tools/catalog
+//
+// 工具目录查询（内置 + MCP 统一投影）：供 Bot 授权选择器与独立「工具目录」页使用。
+// 可见性与 ListTools 同源——租户动态化工具面（ListToolsForTenant）+ 当前角色 RBAC
+// （resource/action）过滤；本接口追加 q/source/readOnly/risk/limit 查询能力。
+func (h *Handler) ListToolCatalog(c *gin.Context) {
+	role := c.GetString("role")
+	tenantID := c.GetInt("tenant_id")
+
+	if tenantID <= 0 || c.GetInt("user_id") <= 0 || role == "" {
+		common.AuthFailed(c, "缺少有效身份上下文")
+		return
+	}
+	if h.svc.entClient == nil || h.svc.tools == nil {
+		common.Fail(c, common.ServiceUnavailableCode, "AI 工具权限服务未就绪")
+		return
+	}
+
+	q := strings.ToLower(strings.TrimSpace(c.Query("q")))
+
+	source := strings.ToLower(strings.TrimSpace(c.Query("source")))
+	switch source {
+	case "", "builtin", "mcp":
+	default:
+		common.Fail(c, common.BadRequestCode, "source 仅支持 builtin|mcp")
+		return
+	}
+
+	readOnly := strings.ToLower(strings.TrimSpace(c.Query("readOnly")))
+	switch readOnly {
+	case "", "true", "1":
+		readOnly = strings.ReplaceAll(readOnly, "1", "true")
+	case "false", "0":
+		readOnly = "false"
+	default:
+		common.Fail(c, common.BadRequestCode, "readOnly 仅支持 true|false")
+		return
+	}
+
+	risk := strings.ToLower(strings.TrimSpace(c.Query("risk")))
+	switch risk {
+	case "", service.ToolRiskRead, service.ToolRiskPlan,
+		service.ToolRiskActLow, service.ToolRiskActMedium, service.ToolRiskActHigh:
+	default:
+		common.Fail(c, common.BadRequestCode, "risk 取值非法（read|plan|act_low|act_medium|act_high）")
+		return
+	}
+
+	limit := toolCatalogDefaultLimit
+	if raw := strings.TrimSpace(c.Query("limit")); raw != "" {
+		parsed, err := strconv.Atoi(raw)
+		if err != nil || parsed <= 0 {
+			common.Fail(c, common.BadRequestCode, "limit 必须为正整数")
+			return
+		}
+		if parsed > toolCatalogMaxLimit {
+			parsed = toolCatalogMaxLimit
+		}
+		limit = parsed
+	}
+
+	allTools := h.svc.ListToolsForTenant(c.Request.Context(), tenantID)
+	items := make([]toolCatalogItem, 0, len(allTools))
+	for _, t := range allTools {
+		if !middleware.HasResourcePermission(c.Request.Context(), h.svc.entClient, role, t.Resource, t.Action, tenantID) {
+			continue
+		}
+		provider := t.Provider
+		if provider == "" {
+			provider = "builtin"
+		}
+		if source != "" && provider != source {
+			continue
+		}
+		switch readOnly {
+		case "true":
+			if !t.ReadOnly {
+				continue
+			}
+		case "false":
+			if t.ReadOnly {
+				continue
+			}
+		}
+		if risk != "" && !strings.EqualFold(t.Risk, risk) {
+			continue
+		}
+		if q != "" && !toolCatalogMatches(t, q) {
+			continue
+		}
+		items = append(items, toolCatalogItem{
+			Name:           t.Name,
+			Description:    t.Description,
+			ReadOnly:       t.ReadOnly,
+			Risk:           t.Risk,
+			Category:       t.Category,
+			Provider:       provider,
+			ServerName:     t.ServerName,
+			RawToolName:    t.RawToolName,
+			Resource:       t.Resource,
+			Action:         t.Action,
+			SupportsDryRun: t.SupportsDryRun,
+			Idempotent:     t.Idempotent,
+		})
+	}
+
+	// 排序：内置在前（provider 字典序），同来源按名称升序——目录页与前端的展示顺序稳定可预期。
+	sort.SliceStable(items, func(i, j int) bool {
+		if items[i].Provider != items[j].Provider {
+			return items[i].Provider < items[j].Provider
+		}
+		return items[i].Name < items[j].Name
+	})
+
+	total := len(items)
+	if total > limit {
+		items = items[:limit]
+	}
+	common.Success(c, gin.H{"items": items, "total": total})
+}
+
+// toolCatalogMatches 关键词匹配：名称/描述/原始工具名/服务器名（大小写不敏感，q 已小写）。
+func toolCatalogMatches(t service.ToolDefinition, q string) bool {
+	for _, field := range []string{t.Name, t.Description, t.RawToolName, t.ServerName} {
+		if field != "" && strings.Contains(strings.ToLower(field), q) {
+			return true
+		}
+	}
+	return false
 }
 
 // ExecuteTool handles POST /api/v1/agent/tools/execute

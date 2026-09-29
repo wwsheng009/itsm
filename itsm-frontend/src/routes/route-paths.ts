@@ -29,6 +29,7 @@ export const ROUTE_PATHS: ReadonlySet<string> = new Set([
   '/admin/ticket-categories',
   '/admin/tickets/assignment-rules',
   '/admin/tickets/automation-rules',
+  '/admin/tools',
   '/admin/users',
   '/admin/vector-store',
   '/admin/workflows',

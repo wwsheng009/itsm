@@ -52,6 +52,9 @@ func SetupAIRoutes(tenant *gin.RouterGroup, h *aiHandler.Handler) {
 	agentGrp := tenant.Group("/agent")
 	{
 		agentGrp.GET("/tools", middleware.RequirePermission("ai", "read"), h.ListTools)
+		// 工具目录查询（内置 + MCP 统一投影；Bot 授权选择器与独立工具目录页共用）：
+		// GET /api/v1/agent/tools/catalog?q=&source=&readOnly=&risk=&limit=
+		agentGrp.GET("/tools/catalog", middleware.RequirePermission("ai", "read"), h.ListToolCatalog)
 		agentGrp.POST("/tools/execute", middleware.RequirePermission("ai", "read"), h.ExecuteTool)
 		agentGrp.GET("/tools/:id", middleware.RequirePermission("ai", "read"), h.GetToolInvocation)
 		// 审批人待办列表：GET /api/v1/agent/tools/invocations?state=pending

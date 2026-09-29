@@ -1,7 +1,9 @@
 import { App } from 'antd';
 import { configure, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import { MemoryRouter } from 'react-router';
 
 import BotTemplatesPage from '..';
+import { aiListToolCatalog } from '@/lib/api/ai-api';
 import botApi, { type BotGrant, type BotTemplate } from '@/lib/api/bot-api';
 
 /**
@@ -31,7 +33,13 @@ jest.mock('@/lib/api/bot-api', () => {
   };
 });
 
+jest.mock('@/lib/api/ai-api', () => {
+  const actual = jest.requireActual('@/lib/api/ai-api');
+  return { __esModule: true, ...actual, aiListToolCatalog: jest.fn() };
+});
+
 const mocked = botApi as jest.Mocked<typeof botApi>;
+const mockedCatalog = aiListToolCatalog as jest.MockedFunction<typeof aiListToolCatalog>;
 
 const template = (overrides: Partial<BotTemplate> = {}): BotTemplate => ({
   id: 1,
@@ -59,9 +67,11 @@ const btn = (label: string) => new RegExp(label.split('').join('\\s*'));
 
 function renderPage() {
   return render(
-    <App>
-      <BotTemplatesPage />
-    </App>
+    <MemoryRouter>
+      <App>
+        <BotTemplatesPage />
+      </App>
+    </MemoryRouter>
   );
 }
 
@@ -75,6 +85,26 @@ describe('Bot 管理页（B2-03）', () => {
     mocked.deleteTemplate.mockResolvedValue({ deleted: true } as never);
     mocked.upsertGrant.mockResolvedValue(grant() as never);
     mocked.deleteGrant.mockResolvedValue({ deleted: true } as never);
+    mockedCatalog.mockResolvedValue({
+      items: [
+        {
+          name: 'mcp__mock__echo',
+          description: '回显工具',
+          readOnly: true,
+          risk: 'read',
+          provider: 'mcp',
+          serverName: 'mock',
+        },
+        {
+          name: 'create_ticket',
+          description: '建单',
+          readOnly: false,
+          risk: 'act_low',
+          provider: 'builtin',
+        },
+      ],
+      total: 2,
+    });
   });
 
   it('列表渲染：名称/slug、状态、受众、风险上限、入口标签', async () => {
@@ -132,7 +162,7 @@ describe('Bot 管理页（B2-03）', () => {
 
     // 越界：模板上限 act_low，选 act_high → 前端拦截，不调后端。
     fireEvent.change(screen.getByPlaceholderText('工具名'), { target: { value: 'delete_ticket' } });
-    const riskSelect = screen.getByRole('combobox', { name: '' }) as HTMLElement;
+    const riskSelect = screen.getByRole('combobox', { name: '授权风险上限' }) as HTMLElement;
     fireEvent.mouseDown(within(riskSelect.closest('.ant-select') as HTMLElement).getByRole('combobox'));
     fireEvent.click(await screen.findByTitle('高风险写'));
     fireEvent.click(screen.getByRole('button', { name: /保存授权/ }));
@@ -168,6 +198,28 @@ describe('Bot 管理页（B2-03）', () => {
 
     await waitFor(() => expect(mocked.deleteTemplate).toHaveBeenCalledWith(1));
     await waitFor(() => expect(mocked.listTemplates).toHaveBeenCalledTimes(2));
+  });
+
+  it('授权抽屉：工具目录（内置 + MCP）可搜索选择，选中 MCP 工具自动预填风险并提示', async () => {
+    renderPage();
+    await screen.findByText('工单助手');
+
+    fireEvent.click(screen.getByRole('button', { name: /工具\s*授权/ }));
+    await waitFor(() => expect(mockedCatalog).toHaveBeenCalled());
+
+    // 输入关键词触发服务端搜索（防抖 300ms），目录项以「名称（来源 · 风险）」渲染。
+    const toolInput = screen.getByPlaceholderText('工具名') as HTMLInputElement;
+    fireEvent.focus(toolInput);
+    fireEvent.change(toolInput, { target: { value: 'mcp__mock__echo' } });
+    await waitFor(() => expect(mockedCatalog).toHaveBeenCalledWith(expect.objectContaining({ q: 'mcp__mock__echo' })));
+
+    const option = await screen.findByText(/mcp__mock__echo（MCP/);
+    fireEvent.click(option);
+
+    // 选中后：工具名回填 + 按工具风险（read）预填授权风险上限（只读）+ MCP 专项提示可见。
+    await waitFor(() => expect(toolInput.value).toBe('mcp__mock__echo'));
+    expect(await screen.findByTitle('只读')).toBeInTheDocument();
+    expect(screen.getByText(/MCP 工具需服务器与工具均已启用/)).toBeInTheDocument();
   });
 
   it('bot.enabled=false（整组路由 404）：降级为"功能未启用"引导，不渲染列表', async () => {

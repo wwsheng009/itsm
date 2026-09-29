@@ -1073,8 +1073,14 @@ func NewApplication() *Application {
 				sugar.Errorw("MCP 组件装配失败，MCP 工具面保持关闭",
 					"module", "mcp", "credentials_error", credText, "store_error", storeText)
 			} else {
-				// 出站安全：默认仅 https + 公网（D7 默认拒绝）；私有化部署放行私网需后续评审加配置项。
-				mcpGuard := transport.NewSSRFGuard(transport.SSRFConfig{})
+				// 出站安全（M0-05）：默认仅 https + 公网 + scheme 默认端口（D7 默认拒绝）。
+				// 私有化/本地联调由 mcp.allow_http / allow_private_networks / allowed_ports
+				// 显式放开（默认 false/空；生产须保持严格）。
+				mcpGuard := transport.NewSSRFGuard(transport.SSRFConfig{
+					AllowHTTP:    cfg.MCP.AllowHTTP,
+					AllowPrivate: cfg.MCP.AllowPrivateNetworks,
+					AllowedPorts: cfg.MCP.AllowedPortList(),
+				})
 				mcpEvents := mcpadmin.NewEventBuffer(0)
 				mcpManager := manager.New(manager.Options{
 					Guard:          mcpGuard,

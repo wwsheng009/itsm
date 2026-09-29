@@ -178,9 +178,11 @@ func applyBotDefaults(cfg *BotConfig) {
 // MCPConfig MCP 外部工具接入配置（M0-01 开关与连接默认值）。
 //
 // 方案：docs/plan/itsm-mcp-external-tool-integration-implementation-plan-2026-09-27.md §4.1。
-// 默认保守：Enabled=false 时对现有系统零行为变化（不建连、不装配组件、工具面不含 MCP）。
+// 默认开启（2026-09-27 变更）：未显式配置时 Enabled=true —— 仅代表「管理面与组件就绪」
+// （路由注册、manager 启动、provider 装配）；服务器、工具与写面仍默认拒绝（D7 不变），
+// 未配置任何服务器时不建连、工具面不含 MCP。Enabled=false 时零装配、零路由（回滚 L1）。
 type MCPConfig struct {
-	// Enabled: mcp.enabled 全局开关；默认 false。
+	// Enabled: mcp.enabled 全局开关；默认 true（显式 false 可彻底关闭）。
 	Enabled bool `mapstructure:"enabled"`
 	// ConnectTimeoutSeconds: mcp.connect_timeout_seconds 建立连接超时（秒），默认 10。
 	ConnectTimeoutSeconds int `mapstructure:"connect_timeout_seconds"`
@@ -197,6 +199,17 @@ type MCPConfig struct {
 	// 且每次调用仍必须经 Gate2（mcp:write）+ Gate3（人工审批）才能执行。
 	// 与 Enabled 的关系：Enabled=false 时本开关无意义（MCP 整体关闭）。
 	WriteEnabled bool `mapstructure:"write_enabled"`
+	// —— 出站安全（M0-05 上线硬门槛；D7 默认拒绝）——
+	//
+	// AllowHTTP: mcp.allow_http 平台级开关，允许 http:// 出站（默认 false = 仅 https）。
+	// AllowPrivateNetworks: mcp.allow_private_networks 平台级开关，允许环回/RFC1918 等私网目标
+	// （默认 false）。二者仅供私有化部署与本地联调（如 127.0.0.1 上的 mock MCP 服务器）；
+	// 生产必须保持 false，负向用例见 mcp/transport/ssrf_test.go 与 M0-05 验收。
+	AllowHTTP            bool `mapstructure:"allow_http"`
+	AllowPrivateNetworks bool `mapstructure:"allow_private_networks"`
+	// AllowedPorts: mcp.allowed_ports 端口 allowlist（逗号分隔，如 "19090,8443"）；
+	// 空 = 仅方案默认端口（https=443 / http=80）。本地 mock 需显式加端口（默认 19090）。
+	AllowedPorts string `mapstructure:"allowed_ports"`
 	// ToolsBudget: mcp.tools_budget 单租户有效工具数预算（M2-03），默认 40；<=0 用默认值。
 	ToolsBudget int `mapstructure:"tools_budget"`
 	// ToolsContextTokens: mcp.tools_context_tokens 工具面 token 占比判定使用的上下文预算，
@@ -246,6 +259,38 @@ func applyMCPDefaults(cfg *MCPConfig) {
 	if cfg.ToolsTokenShare <= 0 {
 		cfg.ToolsTokenShare = mcpDefaultToolsTokenShare
 	}
+}
+
+// mcpEnabledExplicitlyConfigured 判断调用方 config.yaml 是否显式声明了 `mcp.enabled` 键。
+//
+// 用途：区分「未配置 → 默认开启（2026-09-27 变更）」与「显式 false → 保持关闭（回滚 L1）」。
+func mcpEnabledExplicitlyConfigured(rawConfig map[string]interface{}) bool {
+	block, ok := rawConfig["mcp"].(map[string]interface{})
+	if !ok {
+		return false
+	}
+	_, ok = block["enabled"]
+	return ok
+}
+
+// AllowedPortList 解析 mcp.allowed_ports（逗号分隔）为端口列表；空值/非法项忽略。
+func (c MCPConfig) AllowedPortList() []int {
+	raw := strings.TrimSpace(c.AllowedPorts)
+	if raw == "" {
+		return nil
+	}
+	ports := make([]int, 0, 4)
+	for _, part := range strings.Split(raw, ",") {
+		port, err := strconv.Atoi(strings.TrimSpace(part))
+		if err != nil || port <= 0 || port > 65535 {
+			continue
+		}
+		ports = append(ports, port)
+	}
+	if len(ports) == 0 {
+		return nil
+	}
+	return ports
 }
 
 // CloudDiscoveryConfig contains deployment-owned credential material used to
@@ -511,9 +556,19 @@ func LoadConfig() (*Config, error) {
 	// cleanup_enabled 与 cleanup_purge_enabled 保持零值 false（未配置即关闭）。
 	applyAttachmentDefaults(&config.Attachment)
 
-	// MCP 外部工具接入（M0-01）：开关默认关闭；连接/超时默认值见 applyMCPDefaults。
+	// MCP 外部工具接入（M0-01；2026-09-27 起默认开启）：连接/超时默认值见 applyMCPDefaults。
+	// 默认语义：未显式配置 mcp.enabled 且未设置 MCP_ENABLED 时 = true（管理面/组件就绪，
+	// 服务器、工具与写面仍默认拒绝）；config.yaml 或环境变量显式 false 时保持关闭（回滚 L1）。
 	// 环境变量兜底 MCP_ENABLED；其余项由 config.yaml 的 ${MCP_*:默认} 语法解析。
+	if _, envSet := os.LookupEnv("MCP_ENABLED"); !envSet && !mcpEnabledExplicitlyConfigured(rawConfig) {
+		config.MCP.Enabled = true
+	}
 	config.MCP.Enabled = getEnvBoolWithDefault("MCP_ENABLED", config.MCP.Enabled)
+	// 出站安全平台开关（M0-05）：默认严格（仅 https + 公网 + 默认端口）；环境变量兜底，
+	// 便于本地联调（如 127.0.0.1 的 mock MCP 服务器）而无需改 config.yaml。
+	config.MCP.AllowHTTP = getEnvBoolWithDefault("MCP_ALLOW_HTTP", config.MCP.AllowHTTP)
+	config.MCP.AllowPrivateNetworks = getEnvBoolWithDefault("MCP_ALLOW_PRIVATE_NETWORKS", config.MCP.AllowPrivateNetworks)
+	config.MCP.AllowedPorts = getEnvWithDefault("MCP_ALLOWED_PORTS", config.MCP.AllowedPorts)
 	applyMCPDefaults(&config.MCP)
 
 	// Bot 能力落地（BP5）：开关默认关闭；环境变量兜底 BOT_ENABLED。

@@ -1806,6 +1806,8 @@ func (s *Seeder) seedMenus(ctx context.Context) {
 		{Name: "MCP 外部工具", Path: "/admin/mcp-servers", Icon: "Plug", ParentPath: "/admin", PermissionCode: "mcp:admin", SortOrder: 286},
 		// Bot 模板与工具授权（B2-03）：读开放给 ai:read（页面只读可浏览），写动作由后端 ai:write 拦截。
 		{Name: "Bot 管理与授权", Path: "/admin/bots", Icon: "Bot", ParentPath: "/admin", PermissionCode: "ai:read", SortOrder: 287},
+		// 工具目录（查询内置 + MCP 外部工具；与 Bot 授权选择器同源，均按 ai:read 开放）。
+		{Name: "工具目录", Path: "/admin/tools", Icon: "Wrench", ParentPath: "/admin", PermissionCode: "ai:read", SortOrder: 288},
 		{Name: "向量存储配置", Path: "/admin/vector-store", Icon: "Database", ParentPath: "/admin", PermissionCode: "system:read", SortOrder: 290},
 		{Name: "系统配置", Path: "/admin/system-config", Icon: "Settings", ParentPath: "/admin", PermissionCode: "system:read", SortOrder: 295},
 		// 通知配置 / 审计日志 / 操作日志：2026-08-30 归位后已移出 /admin，详见顶级菜单与 /workflow 子菜单。
