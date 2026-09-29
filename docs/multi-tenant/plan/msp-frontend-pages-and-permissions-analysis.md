@@ -152,7 +152,9 @@ type TenantContext = {
 | 位置 | `Header` 右侧（`Header.tsx:221-250` 区域）；当前作用域常驻文本（`tenantCode/name`） |
 | 交互 | 选中 → `POST /api/v1/auth/switch-tenant` → 成功后：写入上下文 → 重拉 `/auth/me` → invalidate 菜单/能力缓存 → 取消在途请求 → 跳转目标作用域首页 |
 | 失败 | 保持原作用域 + 明确提示；**不静默回退**；403 与网络错误区分文案 |
-| 头通道 | 仅 MSP 聚合视图的**单请求只读**使用（`customerTenantId` 临时置入请求头，不写上下文） |
+| 头通道 | 仅 MSP 聚合视图的**单请求只读**使用（`customerTenantId` 临时置入请求头，不写上下文） | 
+
+> **2026-09-29 修订（R11）**：顶栏主控件改为 `CustomerFilter`（全局过滤器：多选/全部客户 + 计数徽标，只改视图不改会话）；`TenantSwitcher` 降级为"进入客户"的**深度操作入口**。跨客户工作台（列表带客户列 + 行内条目级操作，无需切换）见[跨客户工作台与全局过滤方案](./msp-cross-customer-workbench-and-filter-plan.md)。
 
 ### 6.3 切换后刷新链路（关键）
 

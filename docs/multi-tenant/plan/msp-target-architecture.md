@@ -152,6 +152,8 @@
 
 **登录落地（2026-09-29 修订）**：`customer` → 唯一租户；`provider` → **provider 家**（不因 `last_active` 在登录时进入客户作用域）；`platform` → 控制台。**登录页不展示任何租户信息**；服务方的作用域切换只发生在认证后的顶栏（隐私红线，见[登录与切换细化方案](./msp-login-and-switching-refinement-plan.md)）。
 
+**条目级写操作（2026-09-29 修订）**：跨客户工作台的写操作（回复/改状态/指派）**按资源所属租户授权、无需切换会话**；头通道保持"单请求只读"；会话切换仅用于"深度操作"。见[跨客户工作台与全局过滤方案](./msp-cross-customer-workbench-and-filter-plan.md)。
+
 ### 4.3 失败策略（fail-closed 清单）
 
 | 场景 | 行为 |
@@ -316,7 +318,8 @@ Allow = AuthN
 | 租户上下文 | 统一 `tenant-context`：当前作用域（id/code/type/role/source）+ 注入 `X-Tenant-ID/X-Tenant-Code`；服务方头通道注入 `X-Customer-Tenant-ID`（仅单请求只读） | F13/F15 |
 | 登录页 | **无任何租户选择器/列表**（隐私红线）；仅可选"企业代码"文本输入或专属域名（定位手段，非选择器） | F8/F13 |
 | 登录落地 | customer → 唯一租户；provider → provider 家；platform → 控制台（认证后才出现治理选择器） | F8 |
-| 作用域切换器 | 仅服务方与平台可见（顶栏）；切换走 `POST /auth/switch-tenant`，成功后刷新上下文/菜单/权限缓存 | F13 |
+| 顶栏主控件 | **全局过滤器 `CustomerFilter`**（多选客户/全部 + 计数徽标，只改视图不改会话）；`customer` 永不渲染 | F13 |
+| 深度切换 | "进入客户"入口（工作台行/客户详情）；走 `POST /auth/switch-tenant`，成功后刷新上下文/菜单/权限缓存 | F13 |
 | 上下文指示 | 全局可见"当前客户/作用域"标识（顶栏 + 页面标题），避免"在错误客户下操作" | F13 |
 | 路由守卫 | 未解析作用域 → 登录/选择页；无权限路由 → 403 页；切换中 → 阻塞业务请求 | — |
 | API 对齐 | `tenant-api.ts` 的 `switchTenant` 修正为 `/api/v1/auth/switch-tenant`（现打到不存在的 `/api/v1/tenants/switch`） | F11/F13 |
