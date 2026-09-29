@@ -157,11 +157,12 @@
 | N5 | 读侧 `notifications` 与投递 `notification_deliveries` 两套模型，站内信由 worker 补写 | P1 | `ent/schema/notification.go`；`notification_delivery_command_handler.go:181-219` | 明确读写模型边界；补 `source/status` |
 | N6 | **无通知模板实体**；前端模板/渠道/测试为假功能 | P1 | `ent/schema` 无 `notification_template*`；`NotificationCenter.tsx:232-279` | 引入模板表 + 渲染 + 管理 API；前端接线 |
 | N7 | 偏好三套事件词表漂移 + `quiet_hours/frequency` 未消费 | P1 | `dto/notification_preference_dto.go:50-67`；`notification_delivery_command_handler.go:143-146`；`ent/schema/notification_preference.go:26` | 统一事件目录（单一事实源）+ 消费静默时段 |
-| N8 | WS 不推送通知（仅工单事件），前端轮询 | P1 | `service/websocket_service.go:170, 372-443` | 通知落库后推送；前端订阅 |
-| N9 | 无 sms connector；`webhook` 目标硬编码 `"tenant-default-webhook"` | P2 | `connector/builtin/`；`notification_delivery_command_handler.go:317-332` | 预留 SMS 接口；webhook 目标按租户解析 |
+| N8 | WS 不推送通知（仅工单事件），前端只能轮询；实测未读陈旧 | **P0** | `service/websocket_service.go:170, 372-443`；`NotificationCenter.tsx:147-177`；`docs/archive/testing-reports/browser-button-functional-test-report-2026-08-02.md:164` | 通知落库后推送（或轮询 + 失效标记） |
+| N9 | 无 sms connector，但偏好可开 `sms_enabled`、目标解析支持 `Phone` → **开启即必失败**；`webhook` 目标硬编码 `"tenant-default-webhook"` | P1 | `connector/builtin/`；`notification_delivery_command_handler.go:317-332` | 补 SMS provider 或在偏好层禁用该渠道；webhook 目标按租户解析 |
 | N10 | 通知相关 controller/service **无测试** | P1 | `docs/archive/生产就绪审计报告-2026-07-12.md:58`；`docs/testing/controller-failing-list.md:70` | 按 §8 补 E2E 与故障注入 |
 | N11 | 文档与实现不符（能力矩阵"实时推送 ✅"） | P2 | `docs/archive/capability-matrix.md:131, 135` | 修正能力矩阵；登记 v1.1 通知中心重构范围 |
 | N12 | 枚举散落、遗留表 `user_notification_preferences` 与现行表并存 | P2 | `internal/commandbus/commandbus.go:20-25`；`migration/migrations.go:131-144` | 集中枚举；清理遗留迁移 |
+| N13 | 投递审计与 connector 调用**非同事务**：先提交 `pending` 记录再发送，崩溃窗口留下悬空 pending | P1 | `notification_delivery_command_handler.go:229-263` | 补偿扫描（超时 pending 重新入队/对账） |
 
 ---
 
@@ -198,6 +199,7 @@
 - **两条入队路径（事务边界不一致）**：核心 `Emit` 非事务、请求内直发；AI Sites 路径在 distribution **事务内**写 inbox + 邮件 dispatch，交给后台轮询（`distribution.go:188-215`）；
 - **dispatcher**：取 `status=pending OR (failed AND next_retry_at<=now)`，`created_at` 升序、批量 20（`service.go:2032-2061`）；`processDispatch` 状态机 render→resolve→`sending`+attempt+1→`deliver`→`delivered`，失败走 `failDispatch`（`delivery.go:215-275`）；
 - **重试**：`defaultMaxAttempts=3`、`defaultRetryDelay=5m`，退避 `attempt<=1→5m，否则 attempt*5m`；超限终态 `failed`——**没有 dead_letter 状态**（`service.go:21-24`；`helpers.go:602-607`；`delivery.go:945-965`）；手动重试 API 拒绝 `delivered/sending/skipped`（`service.go:675-682`）；
+- **RG 实现更完整（同一仓库）**：dedupe/silent 双窗口 + 抑制原因枚举（`dedupe_window/silent_window/sink_error`）（`dispatcher.go:26-33, 99-130`）；永久失败→`failed`、attempt 耗尽→**`dead_letter`**（`job_runner.go:199-224`）——即"核心引擎缺的，RG outbox 有"（借鉴 R5 的落地样本）；
 - **并发**：核心引擎为单进程 ticker 串行，**无 claim/限流**（`rate_limit_per_hour` 仅透传字段），多实例存在重复发送风险；RG outbox 则有 lease + `FOR UPDATE` 行锁 + 重领（`gorm_repository.go:269`；`job.go:41-71`）——**同一仓库内两种可靠性水位并存**。
 
 ### 3.4 渠道 / 模板 / 偏好
@@ -210,9 +212,10 @@
 ### 3.5 可观测与运维
 
 - `readiness.go`：邮件可用性探针（未配置即显式不可用）；
-- `last_test_status` + "测试发送"能力（渠道配置页可验证）；
+- `last_test_status` + **真实测试发送**（`TestChannel` 走 Emit 真发一条并落状态：`service.go:541-565`；路由 `gin.go:3252`）；
 - 管理侧 `dispatches/retry` API（人工重试）；
 - 错误与渲染内容在落库前 **redact**（`delivery.go:239-248, 950-953`；`helpers.go:582-592`）。
+- 用户 inbox：**游标分页**（`next_cursor`）+ 未读汇总按 `category/source_type` 分桶 + 4 个 partial index，无缓存（`notifications_user.go:25-34, 77-116`；迁移 288）——ITSM 可借鉴其读模型（R3）。
 
 ### 3.6 借鉴 / 不照搬清单
 
@@ -235,7 +238,7 @@
 |---|---|---|
 | X1 | 核心 `Emit` 的"请求内直发 + 非事务" | ITSM 已有强门禁（事务内入箱 + 异步出箱），不允许回退 |
 | X2 | 硬编码 switch 无 Provider 注册表 | ITSM `connector` registry 已有 manifest/checksum/租户装配门禁，更优 |
-| X3 | 无 `dead_letter` 终态 | ITSM 已有死信 + 重放 API（保留） |
+| X3 | 核心引擎无 `dead_letter` 终态（RG 实现有，取其 RG 版本） | ITSM 已有死信 + 重放 API（保留） |
 | X4 | 单进程 ticker、无 claim/限流 | ITSM worker 有租约/围栏；多实例安全不可回退 |
 | X5 | 渠道/模板表无 `tenant_id` | ITSM 多租户下必须租户隔离（平台级模板例外，见 §4.5） |
 
@@ -331,6 +334,7 @@
 | 优先级 | critical 立即；低优先级用 `available_at` 延迟 | 防止通知风暴 |
 | 错误分类 | `4xx/永久`（地址非法、目标缺失）→ 直接死信；`5xx/网络` → 退避 | 现状统一重试浪费次数 |
 | 死信与重放 | **保留**既有 `dead_letter` + 运维重放 API | 不照搬 ai-gateway 的"无死信"（X3） |
+| 悬空补偿 | 扫描超时 `pending` 的投递记录并重新入队/对账（发送前落 pending 的崩溃窗口） | 修 N13；参考 RG 的 lease 重领 |
 
 ### 4.7 安全与合规
 
@@ -491,3 +495,4 @@
 | 版本 | 日期 | 变更 |
 |---|---|---|
 | v0.1 | 2026-09-29 | 首版：ITSM 现状盘点（含 N1–N12 缺口清单）、ai-gateway 通知模块剖析（R1–R8 借鉴 / X1–X5 不照搬）、目标架构（事件目录/模板/偏好/平台-租户双轨/可靠性/可观测）、数据模型与 API 契约、P0–P2 分期、验收矩阵、风险与 D1–D6 决策项 |
+| v0.2 | 2026-09-29 | 并入调研增量：新增 N13（投递审计与发送非同事务→悬空补偿）；N8 升为 P0（未读陈旧实测）、N9 补充"sms 偏好可开但必失败"；§3 补充 RG outbox 的 dedupe/silent 窗口与 dead_letter 落地样本、真实测试发送、用户 inbox 游标分页与未读汇总；§4.6 增加悬空补偿 |
