@@ -4,6 +4,7 @@
 > **更新日期**：2026-09-29
 > **选型依据**：[ADR-004：多客户管理场景租户模型选型](../architecture/adr-004-multi-customer-tenant-model-selection.md)
 > **概念/目标口径权威**：[概念模型与架构总纲（Canon）](./plan/msp-concept-model-and-architecture-canon.md)（附录 C：权威层级 + 编号注册表）｜**一致性审计**：[msp-docs-consistency-audit.md](./plan/msp-docs-consistency-audit.md)
+> **入口索引**：[INDEX.md](./INDEX.md)——全部文档清单 / 阅读路径 / 编号速查 / 目录地图（找文档从这里开始）
 
 ## 目标读者与适用场景
 
