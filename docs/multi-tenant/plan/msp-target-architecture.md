@@ -333,6 +333,8 @@ Allow = AuthN
 
 > **前端细化**：页面/权限/菜单/上下文现状与改造清单见[前端页面与权限分析](./msp-frontend-pages-and-permissions-analysis.md)；登录页隐私约束与切换器细化见[登录与切换细化方案](./msp-login-and-switching-refinement-plan.md)。
 
+> **概念与术语的单一权威**：`tenant`/`provider`/`customer`、账号、membership、作用域（Scope）、视图过滤器（Filter）、分配（Allocation）、组织、角色、工作流的定义、关系与不变量以[概念模型与架构总纲](./msp-concept-model-and-architecture-canon.md)为准；本文承接其目标态的详细设计。
+
 ---
 
 ## 10. 审计与合规

@@ -291,6 +291,8 @@ membership（新增，统一作用域）：
 - **P1**：R1/R3（明确多 provider 策略：`parent_tenant_id` 回填+消费+校验，或显式废弃；provider 唯一性策略）+ R5（`msp_role` 集中校验、清理双轨常量）；
 - **与目标架构衔接**：provider 归属应由 `MSPAllocation`/membership **显式承载**（建议 allocation 增加 `provider_tenant_id`，或由 membership 派生），不再依赖"单一 `default` provider 租户"的隐式约定。
 
+> **架构归位**：本节结论已并入[概念模型与架构总纲](./msp-concept-model-and-architecture-canon.md)——`provider_tenant_id` 字段归一、单/多 provider 决策（D1）、部署模式单一来源（I12）。
+
 ---
 
 ## 附录：证据索引

@@ -63,6 +63,7 @@
 
 | 方案 | 内容 |
 |---|---|
+| [msp-concept-model-and-architecture-canon.md](./plan/msp-concept-model-and-architecture-canon.md) | **⭐ 概念模型与架构总纲（Canon）**：tenant/provider/customer/账号/membership/作用域/分配/组织/角色/工作流/审计 15 个概念的唯一定义与权威载体；四层分层 + 6 条边界规则 + Canonical ER + 12 条不变量；概念→现状→目标映射；术语收敛与废弃；子系统挂接规范；单/多 provider 决策；P0/P1/P2 迁移路线与验收 A1–A10 |
 | [msp-user-lifecycle-and-tenant-switching-plan.md](./plan/msp-user-lifecycle-and-tenant-switching-plan.md) | 多租户用户生命周期与租户切换：功能缺口 F1–F15（建号/登录选租户/切换上下文）、路线 A/B 选型、P0 详细设计、分期与验收 |
 | [msp-scope-model-analysis-and-ai-gateway-reference.md](./plan/msp-scope-model-analysis-and-ai-gateway-reference.md) | 服务方/客户方作用域模型分析（Q1 回答）：一个账号、多作用域（membership）目标模型、ai-gateway 多租户设计对照与可借鉴清单 |
 | [msp-target-architecture.md](./plan/msp-target-architecture.md) | **目标架构方案**：账号唯一/作用域多元、membership 模型、租户上下文与 fail-closed 解析、隔离与权限（Q7 角色模板）、建号/邀请/首登、数据模型与迁移、前端架构、审计与 A→B 演进 |
