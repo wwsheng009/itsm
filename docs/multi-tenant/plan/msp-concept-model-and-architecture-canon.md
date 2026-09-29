@@ -611,6 +611,7 @@ sequenceDiagram
 | `REV-1–REV-5` | 工作台方案 | 对既有文档的修订项（原 R7–R11） | `REV-2` |
 | `WB-R1–WB-R6` / `WB-A1–WB-A6` | 工作台方案 | 工作台风险 / 验收（局部编号，必须带前缀） | `WB-R2`、`WB-A1` |
 | `IP-P0-#` / `IP-P1-#` / `IP-P2-#` | [实施方案](./msp-implementation-plan.md) | 各阶段工作流编号（局部，必须带前缀） | `IP-P0-2` |
+| `CL-01–CL-13` | [闭环审查与改造计划](./msp-business-closure-review-and-refactor-plan.md) | 端到端业务链路编号（局部，必须带前缀） | `CL-07` |
 | `D1–D10` | 本文 §10 | 开放决策 | `D10` |
 | `E1–E6` | 本文 §7.2 | 工单流转决策 | `E2` |
 | `I1–I13` | 本文 §6 | 不变量 | `I9` |

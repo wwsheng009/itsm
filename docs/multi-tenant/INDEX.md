@@ -59,6 +59,8 @@
 | [msp-three-persona-operation-simulation.md](./plan/msp-three-persona-operation-simulation.md) | L6 | Draft v0.2 | 三角色操作演练剧本（验收载体） | — |
 | [msp-docs-consistency-audit.md](./plan/msp-docs-consistency-audit.md) | 治理 | Draft v0.1 | 一致性审计（权威层级/冲突 C1–C19/整改） | `C1–C19` |
 | [msp-implementation-plan.md](./plan/msp-implementation-plan.md) | 落地 | Draft v0.1 | **实施方案 P0→P1→P2**（步骤/DoD/回滚） | `IP-P0-#` `IP-P1-#` `IP-P2-#` |
+| [msp-account-provisioning-and-registration-flow.md](./plan/msp-account-provisioning-and-registration-flow.md) | L4 | Draft v0.1 | **建号与注册流程**（四通道/邀请/首登/过渡期） | — |
+| [msp-business-closure-review-and-refactor-plan.md](./plan/msp-business-closure-review-and-refactor-plan.md) | 治理/落地 | Draft v0.1 | **业务闭环审查 + 现有功能改造计划**（13 链路/波次） | `CL-01–CL-13` |
 
 **上位与关联（本目录之外）**：
 
@@ -107,6 +109,7 @@
 | `LOGIN-A#/R#/D#/B#/F#` | 登录细化 | 文档局部编号（必须带前缀） |
 | `FE-A#` | 前端分析 | 文档局部验收（必须带前缀） |
 | `IP-P0-#/P1-#/P2-#` | 实施方案 | 阶段工作流编号（必须带前缀） |
+| `CL-01–CL-13` | 闭环审查与改造计划 | 端到端业务链路编号（必须带前缀） |
 | `C1–C19` | 一致性审计 | 冲突清单编号 |
 
 **字母消歧（禁止裸用）**：**实现路线 A/B**（P0 最小闭环 / P1 membership 转正）｜**部署选项 A/B**（单 provider 预设 / 多 provider 模型）｜**拆分方案 A/B**（平台-服务商同体 / 拆分平台租户）。
@@ -167,5 +170,7 @@ docs/multi-tenant/
     ├── msp-integration-with-rbac-org-workflow-analysis.md
     ├── msp-three-persona-operation-simulation.md        L6 演练剧本
     ├── msp-docs-consistency-audit.md                    治理：一致性审计
-    └── msp-implementation-plan.md                       落地：实施方案
+    ├── msp-implementation-plan.md                       落地：实施方案
+    ├── msp-account-provisioning-and-registration-flow.md 流程：建号与注册
+    └── msp-business-closure-review-and-refactor-plan.md  治理：闭环审查与改造计划
 ```
