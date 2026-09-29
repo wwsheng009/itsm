@@ -61,6 +61,7 @@ import {
   type ConversationSummary,
   type RagAnswer,
   type AIToolStreamEvent,
+  type AIRunStepEvent,
   type ToolInvocationDetail,
 } from '@/lib/api/ai-api';
 import {
@@ -78,6 +79,8 @@ import MarkdownMessage from './MarkdownMessage';
 import ToolCallTimeline, { mergeToolEvents } from './tool-call-timeline';
 import ToolApprovalCard from './tool-approval-card';
 import ConfirmationDrawer from './confirmation-drawer';
+import EvidencePanel, { type EvidenceTargetMeta } from './evidence-panel';
+import RunStatusBar, { type RunSnapshot } from './run-status-bar';
 
 const { Text } = Typography;
 
@@ -128,6 +131,13 @@ interface ChatMessage {
    * 状态刷新由卡片自身的「刷新状态」按钮触发（不轮询）。
    */
   pendingApprovals?: number[];
+  /**
+   * B1-08：v2 运行快照（`run_started`/`step`/`done`/`error` 增量维护）。
+   * 旧后端不产生 v2 事件 → 保持 undefined，状态条与证据面板均不渲染。
+   */
+  run?: RunSnapshot;
+  /** B1-08：v2 步骤（按 stepIndex 去重、上限 100 条兜底内存）。 */
+  steps?: AIRunStepEvent[];
   /** 生效实例（done 事件回带；开关关闭时缺省）。 */
   providerInfo?: { provider?: string; providerSource?: string };
   error?: string;
@@ -257,6 +267,8 @@ const ChatMessageItem: React.FC<ChatMessageItemProps> = ({
   // B1-07：对话内确认抽屉（仅在 BusinessBot 注入 onRequestConfirm 时启用）。
   const [confirmTarget, setConfirmTarget] = useState<ToolInvocationDetail | null>(null);
   const [confirmError, setConfirmError] = useState<string | undefined>(undefined);
+  // B1-08：invocation id → 目标对象元信息（卡片拉取详情时顺带汇总，零额外请求）。
+  const [detailsById, setDetailsById] = useState<Record<number, EvidenceTargetMeta>>({});
 
   useEffect(
     () => () => {
@@ -367,6 +379,16 @@ const ChatMessageItem: React.FC<ChatMessageItemProps> = ({
             provider={entry.provider}
             server={entry.server}
             onOpenApproval={onOpenApproval}
+            onLoaded={detail => {
+              setDetailsById(prev => ({
+                ...prev,
+                [detail.id]: {
+                  targetType: detail.targetType,
+                  targetId: detail.targetId,
+                  supportRef: detail.supportRef,
+                },
+              }));
+            }}
             onRequestConfirm={
               onRequestConfirm
                 ? detail => {
@@ -378,9 +400,31 @@ const ChatMessageItem: React.FC<ChatMessageItemProps> = ({
           />
         ))}
 
-        {/* 工具调用时间线（M1-04）：仅 SSE 事件驱动；无事件时不渲染（旧后端/事件丢失降级）。
-            pending 条目由上方卡片承载，时间线不再重复展示。 */}
-        <ToolCallTimeline events={message.toolEvents} hideStatuses={PENDING_HIDDEN_STATUSES} />
+        {/* B1-08 运行状态条：仅在收到 v2 `run_started` 时渲染（旧后端不产生 → 无变化）。 */}
+        <RunStatusBar
+          info={
+            message.run
+              ? {
+                  ...message.run,
+                  providerLabel: message.providerInfo?.provider
+                    ? providerLabel(message.providerInfo.provider)
+                    : undefined,
+                }
+              : undefined
+          }
+        />
+
+        {/* 过程证据（B1-08）：有 v2 步骤时用证据面板（含目标/依据），否则回退 M1-04 时间线。
+            pending 条目由上方卡片承载，两者都不重复展示。 */}
+        {message.steps && message.steps.length > 0 ? (
+          <EvidencePanel
+            steps={message.steps}
+            toolEvents={message.toolEvents}
+            detailsByInvocation={detailsById}
+          />
+        ) : (
+          <ToolCallTimeline events={message.toolEvents} hideStatuses={PENDING_HIDDEN_STATUSES} />
+        )}
 
         {/* B1-07：对话内确认抽屉（仅注入 onRequestConfirm 时可用；决策走 B1-05 状态机）。 */}
         {onRequestConfirm ? (
@@ -763,6 +807,31 @@ const AIChat: React.FC = () => {
     );
   }, []);
 
+  /**
+   * 追加 v2 步骤事件（B1-08）：按 `stepIndex` 去重（B1-03 兼容层可能重放同一帧），
+   * 上限 100 条兜底内存；运行快照同步更新步骤数与最近步骤耗时/类型。
+   */
+  const appendRunStep = useCallback((assistantId: string, step: AIRunStepEvent) => {
+    setMessages(prev =>
+      prev.map(m => {
+        if (m.id !== assistantId) return m;
+        const steps = [...(m.steps ?? []).filter(s => s.stepIndex !== step.stepIndex), step]
+          .sort((a, b) => a.stepIndex - b.stepIndex)
+          .slice(-100);
+        return {
+          ...m,
+          steps,
+          run: {
+            ...(m.run ?? { status: 'running' as const }),
+            stepCount: steps.length,
+            lastStepType: step.type,
+            lastDurationMs: step.durationMs,
+          },
+        };
+      })
+    );
+  }, []);
+
   const runStreaming = useCallback(
     async (userMsg: ChatMessage, assistantId: string) => {
       const controller = new AbortController();
@@ -788,15 +857,46 @@ const AIChat: React.FC = () => {
             onToolEvent: event => {
               appendToolEvent(assistantId, event);
             },
+            // B1-08：v2 运行事件（旧后端不发送 → 不产生状态条/证据面板，渲染零影响）。
+            onRunStarted: run => {
+              updateAssistant(assistantId, {
+                run: { runId: run.runId, status: 'running', startedAt: Date.now() },
+              });
+            },
+            onStep: step => {
+              appendRunStep(assistantId, step);
+            },
             onDone: (newConvId, info) => {
               if (newConvId) {
                 setConvId(newConvId);
                 void loadConversations(); // 刷新侧边栏
               }
-              updateAssistant(assistantId, { streaming: false, providerInfo: info });
+              setMessages(prev =>
+                prev.map(m =>
+                  m.id === assistantId
+                    ? {
+                        ...m,
+                        streaming: false,
+                        providerInfo: info,
+                        run: m.run ? { ...m.run, status: 'done' } : undefined,
+                      }
+                    : m
+                )
+              );
             },
             onError: msg => {
-              updateAssistant(assistantId, { streaming: false, error: msg });
+              setMessages(prev =>
+                prev.map(m =>
+                  m.id === assistantId
+                    ? {
+                        ...m,
+                        streaming: false,
+                        error: msg,
+                        run: m.run ? { ...m.run, status: 'failed' } : undefined,
+                      }
+                    : m
+                )
+              );
             },
           }
         );

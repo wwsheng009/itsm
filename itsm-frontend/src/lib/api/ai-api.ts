@@ -336,6 +336,13 @@ export interface ToolApproval {
    */
   confirmationState?: string;
   expiresAt?: string | null;
+  /**
+   * 目标对象与支撑引用（M0-03/B0-02 联合字段）：由后端详情/列表原样返回。
+   * SSE 过程事件不带这些字段，前端只在拿到详情后展示（不臆造）。
+   */
+  targetType?: string;
+  targetId?: string;
+  supportRef?: string;
 }
 
 export interface ToolApprovalListResponse {
