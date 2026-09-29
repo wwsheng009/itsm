@@ -184,6 +184,51 @@ func conversationIDFrom(ctx context.Context) int {
 	return 0
 }
 
+// botIDKey 在调用链内部传递「本次请求选择的 Bot」（B2-04 选择器）。
+//
+// 语义：仅对**新建会话**生效——选择器切换只影响新会话，历史会话归属由
+// conversation.bot_id 决定，本键不回溯改写。0/缺省 = 默认助手。
+type botIDKey struct{}
+
+// WithBotID 注入本次请求的 Bot 选择（0 = 不指定）。
+func WithBotID(ctx context.Context, id int) context.Context {
+	if id <= 0 {
+		return ctx
+	}
+	return context.WithValue(ctx, botIDKey{}, id)
+}
+
+// BotIDFromContext 读取本次请求的 Bot 选择；0 = 未指定（默认助手）。
+func BotIDFromContext(ctx context.Context) int {
+	if v, ok := ctx.Value(botIDKey{}).(int); ok && v > 0 {
+		return v
+	}
+	return 0
+}
+
+func botIDFrom(ctx context.Context) int { return BotIDFromContext(ctx) }
+
+// ensureConversation 返回可用会话 ID（B2-04 单一创建入口）。
+//
+// 已有会话原样返回；否则创建并把**本次请求选择的 Bot**写入 conversation.bot_id
+// （0 = 默认助手）。创建失败返回 0——调用方按「无会话」继续，保持既有容错语义
+// （聊天答复不因审计/归属写入失败而中断）。
+func (s *Service) ensureConversation(ctx context.Context, tenantID, userID, convID int) int {
+	if convID > 0 {
+		return convID
+	}
+	conv, err := s.repo.CreateConversation(ctx, &Conversation{
+		Title:    "AI 对话",
+		UserID:   userID,
+		TenantID: tenantID,
+		BotID:    botIDFrom(ctx),
+	})
+	if err != nil || conv == nil {
+		return 0
+	}
+	return conv.ID
+}
+
 // ExecuteToolWithConversation 与 ExecuteTool 相同，并注入会话归属（B0-03）：
 // 聊天路径调用时携带 conversationId，工具调用审计可按会话回溯；
 // run_id 待 B1-01 落表后由同一入口注入（字段已由 B0-02 预置）。
@@ -379,13 +424,27 @@ func (s *Service) SetBotIDResolver(resolver func(ctx context.Context, tenantID, 
 	s.botIDResolver = resolver
 }
 
-// resolveBotID 解析本次调用所属 Bot；0 = 默认助手（策略层按 slug=default-assistant 解析）。
+// resolveBotID 解析本次调用所属 Bot（B2-04 优先级链）；0 = 默认助手
+// （策略层按 slug=default-assistant 解析）。
+//
+// 优先级：① 请求显式选择（WithBotID，选择器对新会话生效）
+//
+//	② 注入的解析器（B2-04 起 bootstrap 可注入自定义实现）
+//	③ 会话已绑定归属（conversation.bot_id，历史会话回读）
+//	④ 0 = 默认助手
 func (s *Service) resolveBotID(ctx context.Context, tenantID, conversationID int) int {
-	if s.botIDResolver == nil {
-		return 0
-	}
-	if id := s.botIDResolver(ctx, tenantID, conversationID); id > 0 {
+	if id := botIDFrom(ctx); id > 0 {
 		return id
+	}
+	if s.botIDResolver != nil {
+		if id := s.botIDResolver(ctx, tenantID, conversationID); id > 0 {
+			return id
+		}
+	}
+	if conversationID > 0 && s.repo != nil {
+		if conv, err := s.repo.GetConversation(ctx, conversationID, tenantID); err == nil && conv != nil && conv.BotID > 0 {
+			return conv.BotID
+		}
 	}
 	return 0
 }
@@ -705,17 +764,8 @@ func (s *Service) Chat(ctx context.Context, tenantID, userID int, query string, 
 		return nil, 0, err
 	}
 
-	// Persist conversation
-	if convID == 0 {
-		conv, err := s.repo.CreateConversation(ctx, &Conversation{
-			Title:    "AI 对话",
-			UserID:   userID,
-			TenantID: tenantID,
-		})
-		if err == nil {
-			convID = conv.ID
-		}
-	}
+	// Persist conversation（B2-04：创建入口统一走 ensureConversation，新会话带 Bot 归属）
+	convID = s.ensureConversation(ctx, tenantID, userID, convID)
 
 	if convID != 0 {
 		// L8 修复：Chat 路径持久化失败必须可见。两类消息分别打点，避免一次失败掩盖另一类错误。
@@ -1294,16 +1344,8 @@ func (s *Service) chatStreamInner(
 
 	// Persist conversation and messages after the stream completes so we don't
 	// leave partial messages if the client disconnects mid-stream.
-	if convID == 0 {
-		conv, err := s.repo.CreateConversation(ctx, &Conversation{
-			Title:    "AI 对话",
-			UserID:   userID,
-			TenantID: tenantID,
-		})
-		if err == nil && conv != nil {
-			convID = conv.ID
-		}
-	}
+	// B2-04：创建入口统一走 ensureConversation，新会话带 Bot 归属。
+	convID = s.ensureConversation(ctx, tenantID, userID, convID)
 	if convID != 0 {
 		// L8 修复：ChatStream 路径持久化失败同样必须可见，与 Chat 路径共用同一计数器。
 		// 流式响应已经写回客户端；如果 DB 写入失败而日志被吞，

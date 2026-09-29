@@ -22,6 +22,8 @@ const (
 	FieldUserID = "user_id"
 	// FieldTitle holds the string denoting the title field in the database.
 	FieldTitle = "title"
+	// FieldBotID holds the string denoting the bot_id field in the database.
+	FieldBotID = "bot_id"
 	// EdgeMessages holds the string denoting the messages edge name in mutations.
 	EdgeMessages = "messages"
 	// EdgeToolInvocations holds the string denoting the tool_invocations edge name in mutations.
@@ -51,6 +53,7 @@ var Columns = []string{
 	FieldTenantID,
 	FieldUserID,
 	FieldTitle,
+	FieldBotID,
 }
 
 // ValidColumn reports if the column name is valid (part of the table columns).
@@ -68,6 +71,8 @@ var (
 	DefaultCreatedAt func() time.Time
 	// DefaultTitle holds the default value on creation for the "title" field.
 	DefaultTitle string
+	// DefaultBotID holds the default value on creation for the "bot_id" field.
+	DefaultBotID int
 )
 
 // OrderOption defines the ordering options for the Conversation queries.
@@ -96,6 +101,11 @@ func ByUserID(opts ...sql.OrderTermOption) OrderOption {
 // ByTitle orders the results by the title field.
 func ByTitle(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldTitle, opts...).ToFunc()
+}
+
+// ByBotID orders the results by the bot_id field.
+func ByBotID(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldBotID, opts...).ToFunc()
 }
 
 // ByMessagesCount orders the results by messages count.

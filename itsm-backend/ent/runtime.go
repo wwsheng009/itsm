@@ -1650,6 +1650,10 @@ func init() {
 	conversationDescTitle := conversationFields[3].Descriptor()
 	// conversation.DefaultTitle holds the default value on creation for the title field.
 	conversation.DefaultTitle = conversationDescTitle.Default.(string)
+	// conversationDescBotID is the schema descriptor for bot_id field.
+	conversationDescBotID := conversationFields[4].Descriptor()
+	// conversation.DefaultBotID holds the default value on creation for the bot_id field.
+	conversation.DefaultBotID = conversationDescBotID.Default.(int)
 	customerbranchFields := schema.CustomerBranch{}.Fields()
 	_ = customerbranchFields
 	// customerbranchDescTenantID is the schema descriptor for tenant_id field.

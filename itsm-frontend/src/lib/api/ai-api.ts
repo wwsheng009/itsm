@@ -667,12 +667,55 @@ export interface AIChatStreamCallbacks {
   onError?: (message: string) => void;
 }
 
+// —— B2-04 工作区 Bot 选择器 ——
+
+/** 选择器可见的 Bot（后端 GET /api/v1/agent/bots 已按角色 audience 过滤，仅最小字段）。 */
+export interface BotOption {
+  id: number;
+  slug: string;
+  name: string;
+  audience: string;
+}
+
+/**
+ * 拉取当前用户可见的 Bot 列表（工作区选择器）。
+ *
+ * 兼容默认：端点未注册（bot.enabled=false → 404）或请求失败时返回空数组——
+ * 选择器不渲染，聊天链路与引入该能力前完全一致（不因治理面缺失而阻断对话）。
+ */
+export async function aiListVisibleBots(): Promise<BotOption[]> {
+  try {
+    const res = (await httpClient.get('/api/v1/agent/bots')) as { items?: BotOption[] } | undefined;
+    const items = Array.isArray(res?.items) ? res.items : [];
+    return items
+      .filter(
+        (item: unknown): item is BotOption =>
+          Boolean(item) &&
+          typeof (item as BotOption).id === 'number' &&
+          typeof (item as BotOption).name === 'string'
+      )
+      .map((item: BotOption) => ({
+        id: item.id,
+        slug: item.slug ?? '',
+        name: item.name,
+        audience: item.audience ?? '',
+      }));
+  } catch {
+    return [];
+  }
+}
+
 export interface AIChatStreamRequest {
   query: string;
   conversationId?: number;
   limit?: number;
   /** 多 Provider 灰度（BE-7）：显式覆盖实例 key；缺省 = 与现状完全一致（不落该字段）。 */
   provider?: string;
+  /**
+   * B2-04 工作区选择器：新建会话归属的 Bot 模板 id；缺省/0 = 内置默认助手。
+   * 仅对**新建会话**生效（已有 conversationId 时后端按会话绑定归属，忽略该字段）。
+   */
+  botId?: number;
   signal?: AbortSignal;
 }
 
@@ -734,6 +777,8 @@ export async function aiChatStream(
     conversationId: req.conversationId,
     // 未显式选择时不写 provider：请求体与现状逐字节一致（QA-3 门禁）。
     ...(req.provider ? { provider: req.provider } : {}),
+    // 同上：未选择 Bot 时不落 botId（默认助手，请求体与现状一致）。
+    ...(req.botId ? { botId: req.botId } : {}),
   });
 
   let lastError: Error | null = null;
@@ -1032,12 +1077,15 @@ export class AIApi {
     conversationId?: number;
     limit?: number;
     provider?: string;
+    /** B2-04：新建会话归属的 Bot（缺省 = 默认助手；已有会话忽略）。 */
+    botId?: number;
   }): Promise<any> {
     return httpClient.post(`/api/v1/ai/chat`, {
       query: params.query,
       limit: params.limit,
       conversationId: params.conversationId,
       ...(params.provider ? { provider: params.provider } : {}),
+      ...(params.botId ? { botId: params.botId } : {}),
     });
   }
 
@@ -1101,5 +1149,10 @@ export class AIApi {
     callbacks: AIChatStreamCallbacks = {}
   ): Promise<number> {
     return aiChatStream(req, callbacks);
+  }
+
+  /** B2-04：工作区 Bot 选择器候选（失败/未开启返回空数组）。 */
+  static async listVisibleBots(): Promise<BotOption[]> {
+    return aiListVisibleBots();
   }
 }

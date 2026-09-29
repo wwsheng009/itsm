@@ -129,6 +129,35 @@ func (h *BotAdminHandler) ListBotTemplates(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"items": items, "total": len(items)})
 }
 
+// ListVisibleBots GET /api/v1/agent/bots（B2-04 工作区选择器）
+//
+// 与管理面的区别：① 挂 agent 前缀、只要求 ai:read（普通使用者可用）；
+// ② 按调用角色做 audience 过滤（end_user 看不到 internal Bot）；
+// ③ 只返回非 draft 且允许 chat 入口的 Bot（与策略层下发口径一致）；
+// ④ 最小字段集（选择器只需要的 id/slug/name/audience），不下发风险上限/授权等管理信息。
+func (h *BotAdminHandler) ListVisibleBots(c *gin.Context) {
+	tenantID, ok := botTenantID(c)
+	if !ok {
+		return
+	}
+	role := c.GetString("role")
+	templates, err := h.admin.ListVisibleForChat(c.Request.Context(), tenantID, role)
+	if err != nil {
+		writeBotAdminError(c, err)
+		return
+	}
+	items := make([]gin.H, 0, len(templates))
+	for _, tpl := range templates {
+		items = append(items, gin.H{
+			"id":       tpl.ID,
+			"slug":     tpl.Slug,
+			"name":     tpl.Name,
+			"audience": tpl.Audience,
+		})
+	}
+	c.JSON(http.StatusOK, gin.H{"items": items, "total": len(items)})
+}
+
 // GetBotTemplate GET /api/v1/admin/bots/:id（含授权清单）
 func (h *BotAdminHandler) GetBotTemplate(c *gin.Context) {
 	tenantID, ok := botTenantID(c)

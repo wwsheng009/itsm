@@ -47253,6 +47253,8 @@ type ConversationMutation struct {
 	user_id                 *int
 	adduser_id              *int
 	title                   *string
+	bot_id                  *int
+	addbot_id               *int
 	clearedFields           map[string]struct{}
 	messages                map[int]struct{}
 	removedmessages         map[int]struct{}
@@ -47575,6 +47577,62 @@ func (m *ConversationMutation) ResetTitle() {
 	m.title = nil
 }
 
+// SetBotID sets the "bot_id" field.
+func (m *ConversationMutation) SetBotID(i int) {
+	m.bot_id = &i
+	m.addbot_id = nil
+}
+
+// BotID returns the value of the "bot_id" field in the mutation.
+func (m *ConversationMutation) BotID() (r int, exists bool) {
+	v := m.bot_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldBotID returns the old "bot_id" field's value of the Conversation entity.
+// If the Conversation object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *ConversationMutation) OldBotID(ctx context.Context) (v int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldBotID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldBotID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldBotID: %w", err)
+	}
+	return oldValue.BotID, nil
+}
+
+// AddBotID adds i to the "bot_id" field.
+func (m *ConversationMutation) AddBotID(i int) {
+	if m.addbot_id != nil {
+		*m.addbot_id += i
+	} else {
+		m.addbot_id = &i
+	}
+}
+
+// AddedBotID returns the value that was added to the "bot_id" field in this mutation.
+func (m *ConversationMutation) AddedBotID() (r int, exists bool) {
+	v := m.addbot_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetBotID resets all changes to the "bot_id" field.
+func (m *ConversationMutation) ResetBotID() {
+	m.bot_id = nil
+	m.addbot_id = nil
+}
+
 // AddMessageIDs adds the "messages" edge to the Message entity by ids.
 func (m *ConversationMutation) AddMessageIDs(ids ...int) {
 	if m.messages == nil {
@@ -47717,7 +47775,7 @@ func (m *ConversationMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *ConversationMutation) Fields() []string {
-	fields := make([]string, 0, 4)
+	fields := make([]string, 0, 5)
 	if m.created_at != nil {
 		fields = append(fields, conversation.FieldCreatedAt)
 	}
@@ -47729,6 +47787,9 @@ func (m *ConversationMutation) Fields() []string {
 	}
 	if m.title != nil {
 		fields = append(fields, conversation.FieldTitle)
+	}
+	if m.bot_id != nil {
+		fields = append(fields, conversation.FieldBotID)
 	}
 	return fields
 }
@@ -47746,6 +47807,8 @@ func (m *ConversationMutation) Field(name string) (ent.Value, bool) {
 		return m.UserID()
 	case conversation.FieldTitle:
 		return m.Title()
+	case conversation.FieldBotID:
+		return m.BotID()
 	}
 	return nil, false
 }
@@ -47763,6 +47826,8 @@ func (m *ConversationMutation) OldField(ctx context.Context, name string) (ent.V
 		return m.OldUserID(ctx)
 	case conversation.FieldTitle:
 		return m.OldTitle(ctx)
+	case conversation.FieldBotID:
+		return m.OldBotID(ctx)
 	}
 	return nil, fmt.Errorf("unknown Conversation field %s", name)
 }
@@ -47800,6 +47865,13 @@ func (m *ConversationMutation) SetField(name string, value ent.Value) error {
 		}
 		m.SetTitle(v)
 		return nil
+	case conversation.FieldBotID:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetBotID(v)
+		return nil
 	}
 	return fmt.Errorf("unknown Conversation field %s", name)
 }
@@ -47814,6 +47886,9 @@ func (m *ConversationMutation) AddedFields() []string {
 	if m.adduser_id != nil {
 		fields = append(fields, conversation.FieldUserID)
 	}
+	if m.addbot_id != nil {
+		fields = append(fields, conversation.FieldBotID)
+	}
 	return fields
 }
 
@@ -47826,6 +47901,8 @@ func (m *ConversationMutation) AddedField(name string) (ent.Value, bool) {
 		return m.AddedTenantID()
 	case conversation.FieldUserID:
 		return m.AddedUserID()
+	case conversation.FieldBotID:
+		return m.AddedBotID()
 	}
 	return nil, false
 }
@@ -47848,6 +47925,13 @@ func (m *ConversationMutation) AddField(name string, value ent.Value) error {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.AddUserID(v)
+		return nil
+	case conversation.FieldBotID:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddBotID(v)
 		return nil
 	}
 	return fmt.Errorf("unknown Conversation numeric field %s", name)
@@ -47902,6 +47986,9 @@ func (m *ConversationMutation) ResetField(name string) error {
 		return nil
 	case conversation.FieldTitle:
 		m.ResetTitle()
+		return nil
+	case conversation.FieldBotID:
+		m.ResetBotID()
 		return nil
 	}
 	return fmt.Errorf("unknown Conversation field %s", name)

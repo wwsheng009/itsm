@@ -111,6 +111,7 @@ func precheckRoutePermissions() map[string]map[string]Permission {
 			"/api/v1/admin/operations/commands":                    {Resource: "system", Action: "write"},
 			"/api/v1/admin/operations/commands/*":                  {Resource: "system", Action: "write"},
 			"/api/v1/admin/tenants":                                {Resource: "tenant", Action: "read"},
+			"/api/v1/agent/bots":                                   {Resource: "ai", Action: "read"},
 			"/api/v1/agent/tools":                                  {Resource: "ai", Action: "read"},
 			"/api/v1/agent/tools/*":                                {Resource: "ai", Action: "read"},
 			"/api/v1/agent/tools/invocations":                      {Resource: "ai", Action: "read"},

@@ -25,6 +25,8 @@ type Conversation struct {
 	UserID int `json:"user_id,omitempty"`
 	// Title holds the value of the "title" field.
 	Title string `json:"title,omitempty"`
+	// BotID holds the value of the "bot_id" field.
+	BotID int `json:"bot_id,omitempty"`
 	// Edges holds the relations/edges for other nodes in the graph.
 	// The values are being populated by the ConversationQuery when eager-loading is set.
 	Edges        ConversationEdges `json:"edges"`
@@ -65,7 +67,7 @@ func (*Conversation) scanValues(columns []string) ([]any, error) {
 	values := make([]any, len(columns))
 	for i := range columns {
 		switch columns[i] {
-		case conversation.FieldID, conversation.FieldTenantID, conversation.FieldUserID:
+		case conversation.FieldID, conversation.FieldTenantID, conversation.FieldUserID, conversation.FieldBotID:
 			values[i] = new(sql.NullInt64)
 		case conversation.FieldTitle:
 			values[i] = new(sql.NullString)
@@ -115,6 +117,12 @@ func (_m *Conversation) assignValues(columns []string, values []any) error {
 				return fmt.Errorf("unexpected type %T for field title", values[i])
 			} else if value.Valid {
 				_m.Title = value.String
+			}
+		case conversation.FieldBotID:
+			if value, ok := values[i].(*sql.NullInt64); !ok {
+				return fmt.Errorf("unexpected type %T for field bot_id", values[i])
+			} else if value.Valid {
+				_m.BotID = int(value.Int64)
 			}
 		default:
 			_m.selectValues.Set(columns[i], values[i])
@@ -173,6 +181,9 @@ func (_m *Conversation) String() string {
 	builder.WriteString(", ")
 	builder.WriteString("title=")
 	builder.WriteString(_m.Title)
+	builder.WriteString(", ")
+	builder.WriteString("bot_id=")
+	builder.WriteString(fmt.Sprintf("%v", _m.BotID))
 	builder.WriteByte(')')
 	return builder.String()
 }

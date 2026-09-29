@@ -11,6 +11,8 @@ type Conversation struct {
 	UserID    int       `json:"userId"`
 	TenantID  int       `json:"tenantId"`
 	CreatedAt time.Time `json:"createdAt"`
+	// BotID：会话归属的 Bot 模板（B2-04）；0 = 未绑定 = 内置默认助手（兼容默认）。
+	BotID int `json:"botId"`
 }
 
 // Message represents a single message in a conversation

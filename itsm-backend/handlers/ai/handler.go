@@ -144,6 +144,8 @@ func (h *Handler) Chat(c *gin.Context) {
 		ConversationID int    `json:"conversationId"`
 		// Provider 单次覆盖（BE-7，§3.4；P1 起面向全部 ai:read 使用者）：空 = 默认链。
 		Provider string `json:"provider"`
+		// BotID：选择器指定的 Bot 模板（B2-04；仅对新建会话生效，0/缺省 = 默认助手）。
+		BotID int `json:"botId"`
 	}
 	if err := c.ShouldBindJSON(&req); err != nil {
 		common.ParamErrorWithErr(c, err, "请求参数错误")
@@ -173,6 +175,8 @@ func (h *Handler) Chat(c *gin.Context) {
 	// 注入知识访问者身份：RAG 检索据此做分类级可见性过滤（L0 权限边界）。
 	// 不注入则按匿名处理，已纳管的受限分类一律不可见（fail-closed）。
 	chatCtx := knowledgeaccess.WithViewer(c.Request.Context(), knowledgeaccess.Viewer{UserID: userID, Role: role})
+	// B2-04：新会话归属选择器指定的 Bot（0 = 默认助手；历史会话由 conversation.bot_id 决定）。
+	chatCtx = WithBotID(chatCtx, req.BotID)
 
 	if provider == "" && !service.MultiProviderEnabled() {
 		// 开关关闭且未显式覆盖：保持既有调用与响应形状（QA-3 零破坏门禁）。
@@ -250,6 +254,8 @@ func (h *Handler) ChatStream(c *gin.Context) {
 		ConversationID int    `json:"conversationId"`
 		// Provider 单次覆盖（BE-7，§3.4；P1 起面向全部 ai:read 使用者）：空 = 默认链。
 		Provider string `json:"provider"`
+		// BotID：选择器指定的 Bot 模板（B2-04；仅对新建会话生效，0/缺省 = 默认助手）。
+		BotID int `json:"botId"`
 	}
 	if err := c.ShouldBindJSON(&req); err != nil {
 		common.ParamErrorWithErr(c, err, "请求参数错误")
@@ -344,6 +350,8 @@ func (h *Handler) ChatStream(c *gin.Context) {
 
 	// 注入访问者身份：AI 助手主链路，RAG 据此做知识分类可见性过滤（L0 权限边界）
 	chatCtx := knowledgeaccess.WithViewer(c.Request.Context(), knowledgeaccess.Viewer{UserID: userID, Role: role})
+	// B2-04：新会话归属选择器指定的 Bot（0 = 默认助手；历史会话由 conversation.bot_id 决定）。
+	chatCtx = WithBotID(chatCtx, req.BotID)
 	if !useProviderInfo {
 		convID, _, err := h.svc.ChatStream(chatCtx, tenantID, userID, role, req.Query, req.Limit, req.ConversationID, onSources, onDelta, onTool, onRun)
 		if err != nil {

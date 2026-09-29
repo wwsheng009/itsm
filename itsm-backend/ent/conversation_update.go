@@ -112,6 +112,27 @@ func (_u *ConversationUpdate) SetNillableTitle(v *string) *ConversationUpdate {
 	return _u
 }
 
+// SetBotID sets the "bot_id" field.
+func (_u *ConversationUpdate) SetBotID(v int) *ConversationUpdate {
+	_u.mutation.ResetBotID()
+	_u.mutation.SetBotID(v)
+	return _u
+}
+
+// SetNillableBotID sets the "bot_id" field if the given value is not nil.
+func (_u *ConversationUpdate) SetNillableBotID(v *int) *ConversationUpdate {
+	if v != nil {
+		_u.SetBotID(*v)
+	}
+	return _u
+}
+
+// AddBotID adds value to the "bot_id" field.
+func (_u *ConversationUpdate) AddBotID(v int) *ConversationUpdate {
+	_u.mutation.AddBotID(v)
+	return _u
+}
+
 // AddMessageIDs adds the "messages" edge to the Message entity by IDs.
 func (_u *ConversationUpdate) AddMessageIDs(ids ...int) *ConversationUpdate {
 	_u.mutation.AddMessageIDs(ids...)
@@ -248,6 +269,12 @@ func (_u *ConversationUpdate) sqlSave(ctx context.Context) (_node int, err error
 	}
 	if value, ok := _u.mutation.Title(); ok {
 		_spec.SetField(conversation.FieldTitle, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.BotID(); ok {
+		_spec.SetField(conversation.FieldBotID, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.AddedBotID(); ok {
+		_spec.AddField(conversation.FieldBotID, field.TypeInt, value)
 	}
 	if _u.mutation.MessagesCleared() {
 		edge := &sqlgraph.EdgeSpec{
@@ -441,6 +468,27 @@ func (_u *ConversationUpdateOne) SetNillableTitle(v *string) *ConversationUpdate
 	return _u
 }
 
+// SetBotID sets the "bot_id" field.
+func (_u *ConversationUpdateOne) SetBotID(v int) *ConversationUpdateOne {
+	_u.mutation.ResetBotID()
+	_u.mutation.SetBotID(v)
+	return _u
+}
+
+// SetNillableBotID sets the "bot_id" field if the given value is not nil.
+func (_u *ConversationUpdateOne) SetNillableBotID(v *int) *ConversationUpdateOne {
+	if v != nil {
+		_u.SetBotID(*v)
+	}
+	return _u
+}
+
+// AddBotID adds value to the "bot_id" field.
+func (_u *ConversationUpdateOne) AddBotID(v int) *ConversationUpdateOne {
+	_u.mutation.AddBotID(v)
+	return _u
+}
+
 // AddMessageIDs adds the "messages" edge to the Message entity by IDs.
 func (_u *ConversationUpdateOne) AddMessageIDs(ids ...int) *ConversationUpdateOne {
 	_u.mutation.AddMessageIDs(ids...)
@@ -607,6 +655,12 @@ func (_u *ConversationUpdateOne) sqlSave(ctx context.Context) (_node *Conversati
 	}
 	if value, ok := _u.mutation.Title(); ok {
 		_spec.SetField(conversation.FieldTitle, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.BotID(); ok {
+		_spec.SetField(conversation.FieldBotID, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.AddedBotID(); ok {
+		_spec.AddField(conversation.FieldBotID, field.TypeInt, value)
 	}
 	if _u.mutation.MessagesCleared() {
 		edge := &sqlgraph.EdgeSpec{

@@ -75,6 +75,11 @@ func Title(v string) predicate.Conversation {
 	return predicate.Conversation(sql.FieldEQ(FieldTitle, v))
 }
 
+// BotID applies equality check predicate on the "bot_id" field. It's identical to BotIDEQ.
+func BotID(v int) predicate.Conversation {
+	return predicate.Conversation(sql.FieldEQ(FieldBotID, v))
+}
+
 // CreatedAtEQ applies the EQ predicate on the "created_at" field.
 func CreatedAtEQ(v time.Time) predicate.Conversation {
 	return predicate.Conversation(sql.FieldEQ(FieldCreatedAt, v))
@@ -278,6 +283,46 @@ func TitleEqualFold(v string) predicate.Conversation {
 // TitleContainsFold applies the ContainsFold predicate on the "title" field.
 func TitleContainsFold(v string) predicate.Conversation {
 	return predicate.Conversation(sql.FieldContainsFold(FieldTitle, v))
+}
+
+// BotIDEQ applies the EQ predicate on the "bot_id" field.
+func BotIDEQ(v int) predicate.Conversation {
+	return predicate.Conversation(sql.FieldEQ(FieldBotID, v))
+}
+
+// BotIDNEQ applies the NEQ predicate on the "bot_id" field.
+func BotIDNEQ(v int) predicate.Conversation {
+	return predicate.Conversation(sql.FieldNEQ(FieldBotID, v))
+}
+
+// BotIDIn applies the In predicate on the "bot_id" field.
+func BotIDIn(vs ...int) predicate.Conversation {
+	return predicate.Conversation(sql.FieldIn(FieldBotID, vs...))
+}
+
+// BotIDNotIn applies the NotIn predicate on the "bot_id" field.
+func BotIDNotIn(vs ...int) predicate.Conversation {
+	return predicate.Conversation(sql.FieldNotIn(FieldBotID, vs...))
+}
+
+// BotIDGT applies the GT predicate on the "bot_id" field.
+func BotIDGT(v int) predicate.Conversation {
+	return predicate.Conversation(sql.FieldGT(FieldBotID, v))
+}
+
+// BotIDGTE applies the GTE predicate on the "bot_id" field.
+func BotIDGTE(v int) predicate.Conversation {
+	return predicate.Conversation(sql.FieldGTE(FieldBotID, v))
+}
+
+// BotIDLT applies the LT predicate on the "bot_id" field.
+func BotIDLT(v int) predicate.Conversation {
+	return predicate.Conversation(sql.FieldLT(FieldBotID, v))
+}
+
+// BotIDLTE applies the LTE predicate on the "bot_id" field.
+func BotIDLTE(v int) predicate.Conversation {
+	return predicate.Conversation(sql.FieldLTE(FieldBotID, v))
 }
 
 // HasMessages applies the HasEdge predicate on the "messages" edge.

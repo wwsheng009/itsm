@@ -47,6 +47,7 @@ func TestSetupRoutes_BotRoutesAbsentWhenHandlerNil(t *testing.T) {
 
 	for _, route := range engine.Routes() {
 		assert.NotContains(t, route.Path, "/admin/bots", "开关关闭时不得注册 Bot 管理路由：%s", route.Path)
+		assert.NotContains(t, route.Path, "/agent/bots", "开关关闭时不得注册工作区选择器路由：%s", route.Path)
 	}
 	for _, probe := range []struct {
 		method string
@@ -54,6 +55,7 @@ func TestSetupRoutes_BotRoutesAbsentWhenHandlerNil(t *testing.T) {
 	}{
 		{http.MethodGet, "/api/v1/admin/bots"},
 		{http.MethodPost, "/api/v1/admin/bots"},
+		{http.MethodGet, "/api/v1/agent/bots"},
 	} {
 		recorder := httptest.NewRecorder()
 		engine.ServeHTTP(recorder, httptest.NewRequest(probe.method, probe.path, nil))
@@ -80,6 +82,8 @@ func TestSetupRoutes_BotRoutesRegisteredWhenHandlerPresent(t *testing.T) {
 		http.MethodGet + " /api/v1/admin/bots/:id/grants",
 		http.MethodPut + " /api/v1/admin/bots/:id/grants",
 		http.MethodDelete + " /api/v1/admin/bots/:id/grants/:grantId",
+		// B2-04 工作区选择器（agent 前缀，ai:read）
+		http.MethodGet + " /api/v1/agent/bots",
 	}
 	for _, route := range wantRoutes {
 		assert.True(t, registered[route], "Bot 管理路由必须注册：%s", route)
@@ -115,4 +119,22 @@ func TestBotRouteDeclarationsUseAICodes(t *testing.T) {
 		}
 	}
 	require.GreaterOrEqual(t, seen, 8, "必须扫描到全部 Bot 管理路由声明（读 3 + 写 5）")
+}
+
+// TestBotSelectorRouteDeclaresAIRead B2-04 工作区选择器端点必须挂 ai:read（复用既有权限码）。
+func TestBotSelectorRouteDeclaresAIRead(t *testing.T) {
+	declared, err := middleware.ScanDeclaredPermissionRoutes()
+	require.NoError(t, err)
+
+	seen := false
+	for _, route := range declared {
+		if route.FullPath != "/api/v1/agent/bots" {
+			continue
+		}
+		seen = true
+		assert.Equal(t, http.MethodGet, route.Method)
+		assert.Equal(t, "ai", route.Resource)
+		assert.Equal(t, "read", route.Action)
+	}
+	assert.True(t, seen, "必须扫描到 GET /api/v1/agent/bots 的权限声明")
 }

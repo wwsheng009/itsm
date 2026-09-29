@@ -63,6 +63,7 @@ import {
   type AIToolStreamEvent,
   type AIRunStepEvent,
   type ToolInvocationDetail,
+  type BotOption,
 } from '@/lib/api/ai-api';
 import {
   LLM_PROVIDER_DISABLED,
@@ -81,6 +82,7 @@ import ToolApprovalCard from './tool-approval-card';
 import ConfirmationDrawer from './confirmation-drawer';
 import EvidencePanel, { type EvidenceTargetMeta } from './evidence-panel';
 import RunStatusBar, { type RunSnapshot } from './run-status-bar';
+import BotSelector from './BotSelector';
 
 const { Text } = Typography;
 
@@ -594,6 +596,25 @@ const AIChat: React.FC = () => {
   const [selectedProvider, setSelectedProvider] = useState<string | undefined>(undefined);
   const [providerNotice, setProviderNotice] = useState<string | null>(null);
 
+  // B2-04 工作区 Bot 选择器：候选列表按当前角色 audience 过滤（端点未开启 → 空数组 →
+  // 选择器不渲染，行为与引入该能力前一致）。选择仅对**新会话**生效。
+  const [bots, setBots] = useState<BotOption[]>([]);
+  const [selectedBotId, setSelectedBotId] = useState<number | null>(null);
+  useEffect(() => {
+    let alive = true;
+    AIApi.listVisibleBots()
+      .then(list => {
+        if (alive) setBots(list);
+      })
+      .catch(() => {
+        // listVisibleBots 内部已兜底为空数组；此分支仅防未预期异常。
+        if (alive) setBots([]);
+      });
+    return () => {
+      alive = false;
+    };
+  }, []);
+
   const chatCss = useMemo(() => buildChatCss(token), [token]);
 
   // 整页锁定：挂载时把外壳改造成 100vh 纵向 flex 链，卸载时原样还原（布局提交前同步执行，无跳变）。
@@ -845,6 +866,7 @@ const AIChat: React.FC = () => {
             conversationId: convId,
             limit: 5,
             provider: selectedProvider,
+            botId: selectedBotId ?? undefined,
             signal: controller.signal,
           },
           {
@@ -916,6 +938,7 @@ const AIChat: React.FC = () => {
             conversationId: convId,
             limit: 5,
             provider: selectedProvider,
+            botId: selectedBotId ?? undefined,
           });
           const answers: unknown[] = Array.isArray(res?.answers) ? res.answers : [];
           const fallbackText = answers
@@ -946,7 +969,15 @@ const AIChat: React.FC = () => {
         setStreaming(false);
       }
     },
-    [appendAssistantContent, convId, loadConversations, refreshFeature, selectedProvider, updateAssistant]
+    [
+      appendAssistantContent,
+      convId,
+      loadConversations,
+      refreshFeature,
+      selectedBotId,
+      selectedProvider,
+      updateAssistant,
+    ]
   );
 
   // 支持带参调用：空状态建议卡片直接以该文案发送。
@@ -1188,6 +1219,13 @@ const AIChat: React.FC = () => {
               flexShrink: 0,
             }}
           >
+            {/* B2-04 Bot 选择器：已有会话时锁定（切换仅影响新会话，不回溯改写历史归属） */}
+            <BotSelector
+              bots={bots}
+              value={selectedBotId}
+              onChange={setSelectedBotId}
+              locked={Boolean(convId)}
+            />
             {/* Provider 选择器：feature.enabled && providers.length > 1（P1 起普通用户同样可见） */}
             {canSwitchProvider ? (
               <>

@@ -20,6 +20,9 @@ func (Conversation) Fields() []ent.Field {
 		field.Int("tenant_id").Optional(),
 		field.Int("user_id").Optional(),
 		field.String("title").Default(""),
+		// bot_id：会话归属的 Bot 模板（B2-04）；0 = 未绑定 = 内置默认助手（兼容默认）。
+		// 绑定在**创建会话时**写入并按选择器传入，切换不回溯修改历史会话归属。
+		field.Int("bot_id").Default(0),
 	}
 }
 

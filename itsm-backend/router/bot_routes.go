@@ -28,6 +28,12 @@ func SetupBotAdminRoutes(tenant *gin.RouterGroup, h *aiHandler.BotAdminHandler) 
 		read.GET("/bots/:id", h.GetBotTemplate)
 		read.GET("/bots/:id/grants", h.ListBotGrants)
 	}
+	// B2-04 工作区选择器：agent 前缀 + ai:read（普通使用者可用），按角色做 audience 过滤。
+	// 路径注册顺序：更具体的 /agent/bots 与 /admin/bots 分属不同前缀，无冲突。
+	agentRead := tenant.Group("/agent", middleware.RequirePermission("ai", "read"))
+	{
+		agentRead.GET("/bots", h.ListVisibleBots)
+	}
 
 	write := tenant.Group("/admin", middleware.RequirePermission("ai", "write"))
 	{

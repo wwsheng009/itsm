@@ -1564,6 +1564,7 @@ var (
 		{Name: "tenant_id", Type: field.TypeInt, Nullable: true},
 		{Name: "user_id", Type: field.TypeInt, Nullable: true},
 		{Name: "title", Type: field.TypeString, Default: ""},
+		{Name: "bot_id", Type: field.TypeInt, Default: 0},
 	}
 	// ConversationsTable holds the schema information for the "conversations" table.
 	ConversationsTable = &schema.Table{

@@ -10,6 +10,7 @@ import {
   aiClassifyTicket,
   aiSuggestSolutions,
   aiIntelligentSearch,
+  aiListVisibleBots,
   AIApi,
 } from '../ai-api';
 import { httpClient } from '../http-client';
@@ -175,6 +176,26 @@ describe('AI API', () => {
       expect(mockPost).toHaveBeenCalledWith('/api/v1/ai/chat', { query: 'hello', limit: 5, conversationId: undefined });
     });
 
+    it('chat 传 botId 时才落该字段（B2-04：未选择 = 请求体与现状一致）', async () => {
+      mockPost.mockResolvedValue({ answers: [] });
+      await AIApi.chat({ query: 'hello', limit: 5, botId: 0 });
+      expect(mockPost).toHaveBeenCalledWith('/api/v1/ai/chat', {
+        query: 'hello',
+        limit: 5,
+        conversationId: undefined,
+      });
+
+      mockPost.mockClear();
+      mockPost.mockResolvedValue({ answers: [] });
+      await AIApi.chat({ query: 'hello', limit: 5, botId: 42 });
+      expect(mockPost).toHaveBeenCalledWith('/api/v1/ai/chat', {
+        query: 'hello',
+        limit: 5,
+        conversationId: undefined,
+        botId: 42,
+      });
+    });
+
     it('searchKB should delegate', async () => {
       mockPost.mockResolvedValue({ results: [] });
       const result = await AIApi.searchKB('test');
@@ -185,6 +206,30 @@ describe('AI API', () => {
       mockPost.mockResolvedValue({ results: [] });
       const result = await AIApi.similarIncidents('test');
       expect(result.incidents).toEqual([]);
+    });
+
+    it('listVisibleBots 解析 items；端点不可用（404/异常）时返回空数组（选择器不渲染）', async () => {
+      mockGet.mockResolvedValue({
+        items: [
+          { id: 11, slug: 'ops', name: '运维助手', audience: 'internal' },
+          { id: 22, slug: 'user-bot', name: '用户助手', audience: 'end_user' },
+        ],
+      });
+      const bots = await AIApi.listVisibleBots();
+      expect(mockGet).toHaveBeenCalledWith('/api/v1/agent/bots');
+      expect(bots).toEqual([
+        { id: 11, slug: 'ops', name: '运维助手', audience: 'internal' },
+        { id: 22, slug: 'user-bot', name: '用户助手', audience: 'end_user' },
+      ]);
+
+      mockGet.mockRejectedValue(new Error('404 not found'));
+      expect(await aiListVisibleBots()).toEqual([]);
+
+      // 非法条目（缺 id/name）被过滤，避免渲染出不可选选项。
+      mockGet.mockResolvedValue({ items: [{ slug: 'broken' }, { id: 33, name: '合法' }] });
+      expect(await aiListVisibleBots()).toEqual([
+        { id: 33, slug: '', name: '合法', audience: '' },
+      ]);
     });
 
     it('summarize should delegate', async () => {

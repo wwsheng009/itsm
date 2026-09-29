@@ -78,6 +78,20 @@ func (_c *ConversationCreate) SetNillableTitle(v *string) *ConversationCreate {
 	return _c
 }
 
+// SetBotID sets the "bot_id" field.
+func (_c *ConversationCreate) SetBotID(v int) *ConversationCreate {
+	_c.mutation.SetBotID(v)
+	return _c
+}
+
+// SetNillableBotID sets the "bot_id" field if the given value is not nil.
+func (_c *ConversationCreate) SetNillableBotID(v *int) *ConversationCreate {
+	if v != nil {
+		_c.SetBotID(*v)
+	}
+	return _c
+}
+
 // AddMessageIDs adds the "messages" edge to the Message entity by IDs.
 func (_c *ConversationCreate) AddMessageIDs(ids ...int) *ConversationCreate {
 	_c.mutation.AddMessageIDs(ids...)
@@ -151,6 +165,10 @@ func (_c *ConversationCreate) defaults() {
 		v := conversation.DefaultTitle
 		_c.mutation.SetTitle(v)
 	}
+	if _, ok := _c.mutation.BotID(); !ok {
+		v := conversation.DefaultBotID
+		_c.mutation.SetBotID(v)
+	}
 }
 
 // check runs all checks and user-defined validators on the builder.
@@ -160,6 +178,9 @@ func (_c *ConversationCreate) check() error {
 	}
 	if _, ok := _c.mutation.Title(); !ok {
 		return &ValidationError{Name: "title", err: errors.New(`ent: missing required field "Conversation.title"`)}
+	}
+	if _, ok := _c.mutation.BotID(); !ok {
+		return &ValidationError{Name: "bot_id", err: errors.New(`ent: missing required field "Conversation.bot_id"`)}
 	}
 	return nil
 }
@@ -202,6 +223,10 @@ func (_c *ConversationCreate) createSpec() (*Conversation, *sqlgraph.CreateSpec)
 	if value, ok := _c.mutation.Title(); ok {
 		_spec.SetField(conversation.FieldTitle, field.TypeString, value)
 		_node.Title = value
+	}
+	if value, ok := _c.mutation.BotID(); ok {
+		_spec.SetField(conversation.FieldBotID, field.TypeInt, value)
+		_node.BotID = value
 	}
 	if nodes := _c.mutation.MessagesIDs(); len(nodes) > 0 {
 		edge := &sqlgraph.EdgeSpec{

@@ -32,6 +32,7 @@ func toConversationDomain(e *ent.Conversation) *Conversation {
 		UserID:    e.UserID,
 		TenantID:  e.TenantID,
 		CreatedAt: e.CreatedAt,
+		BotID:     e.BotID,
 	}
 }
 
@@ -40,6 +41,7 @@ func (r *EntRepository) CreateConversation(ctx context.Context, c *Conversation)
 		SetTitle(c.Title).
 		SetUserID(c.UserID).
 		SetTenantID(c.TenantID).
+		SetBotID(c.BotID).
 		Save(ctx)
 	if err != nil {
 		return nil, err

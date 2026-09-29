@@ -144,6 +144,62 @@ func (a *TemplateAdmin) ListTemplates(ctx context.Context, tenantID int) ([]*ent
 		All(ctx)
 }
 
+// —— audience 取值与可见性（B2-04 工作区选择器）——
+
+// audience 约定取值：internal（内部人员，B2-01 缺省）/ end_user（终端用户）/ all（不限）。
+const (
+	AudienceInternal = "internal"
+	AudienceEndUser  = "end_user"
+	AudienceAll      = "all"
+)
+
+// VisibleForRole 判定某 audience 的 Bot 对角色是否可见（fail-closed）。
+//
+// 规则：空值视为 internal；end_user 角色仅可见 end_user/all；其余角色可见
+// internal/all/end_user；未知取值仅内部角色可见（宁可少露不可多露）。
+func VisibleForRole(audience, role string) bool {
+	audience = strings.ToLower(strings.TrimSpace(audience))
+	if audience == "" {
+		audience = AudienceInternal
+	}
+	isEndUser := strings.EqualFold(strings.TrimSpace(role), AudienceEndUser)
+	switch audience {
+	case AudienceAll, AudienceEndUser:
+		return true
+	case AudienceInternal:
+		return !isEndUser
+	default:
+		return !isEndUser
+	}
+}
+
+// ListVisibleForChat 返回工作区选择器可见的 Bot（B2-04）。
+//
+// 过滤：① 非 draft（draft 不下发，与策略层一致）；② audience 对角色可见；
+// ③ 入口允许 chat（空/损坏 entrypoints 一律不可见，与策略层 fail-closed 同口径）。
+//
+// 兼容默认：租户无模板时沿用 ListTemplates 的幂等种入（内置默认助手必然在列）。
+func (a *TemplateAdmin) ListVisibleForChat(ctx context.Context, tenantID int, role string) ([]*ent.BotTemplate, error) {
+	rows, err := a.ListTemplates(ctx, tenantID)
+	if err != nil {
+		return nil, err
+	}
+	visible := make([]*ent.BotTemplate, 0, len(rows))
+	for _, tpl := range rows {
+		if strings.EqualFold(strings.TrimSpace(tpl.Status), StatusDraft) {
+			continue
+		}
+		if !VisibleForRole(tpl.Audience, role) {
+			continue
+		}
+		if !entrypointAllowed(tpl.EntrypointsJSON, EntrypointChat) {
+			continue
+		}
+		visible = append(visible, tpl)
+	}
+	return visible, nil
+}
+
 // GetTemplate 返回模板 + 授权（租户隔离；不存在返回 ErrTemplateNotFound）。
 func (a *TemplateAdmin) GetTemplate(ctx context.Context, tenantID, id int) (*ent.BotTemplate, error) {
 	found, err := a.client.BotTemplate.Query().

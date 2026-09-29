@@ -47,6 +47,10 @@ func newBotAdminHarness(t *testing.T) *botAdminHarness {
 			require.NoError(t, err)
 			c.Set("tenant_id", tenantID)
 		}
+		// B2-04：选择器端点按角色做 audience 过滤，测试用 X-Test-Role 注入角色。
+		if role := c.Request.Header.Get("X-Test-Role"); role != "" {
+			c.Set("role", role)
+		}
 		c.Next()
 	})
 	group.GET("/admin/bots", handler.ListBotTemplates)
@@ -57,6 +61,7 @@ func newBotAdminHarness(t *testing.T) *botAdminHarness {
 	group.GET("/admin/bots/:id/grants", handler.ListBotGrants)
 	group.PUT("/admin/bots/:id/grants", handler.UpsertBotGrant)
 	group.DELETE("/admin/bots/:id/grants/:grantId", handler.DeleteBotGrant)
+	group.GET("/agent/bots", handler.ListVisibleBots)
 	return &botAdminHarness{engine: engine, admin: admin}
 }
 
@@ -81,6 +86,30 @@ func (h *botAdminHarness) do(t *testing.T, method, path string, tenant int, body
 }
 
 func intToString(v int) string { return strconv.Itoa(v) }
+
+// doAs 与 do 相同，并注入调用角色（B2-04 audience 过滤用例）。
+func (h *botAdminHarness) doAs(t *testing.T, method, path string, tenant int, role string, body any) *httptest.ResponseRecorder {
+	t.Helper()
+	var reader *bytes.Buffer
+	if body != nil {
+		raw, err := json.Marshal(body)
+		require.NoError(t, err)
+		reader = bytes.NewBuffer(raw)
+	} else {
+		reader = bytes.NewBuffer(nil)
+	}
+	request := httptest.NewRequest(method, path, reader)
+	request.Header.Set("Content-Type", "application/json")
+	if tenant > 0 {
+		request.Header.Set("X-Test-Tenant", strconv.Itoa(tenant))
+	}
+	if role != "" {
+		request.Header.Set("X-Test-Role", role)
+	}
+	recorder := httptest.NewRecorder()
+	h.engine.ServeHTTP(recorder, request)
+	return recorder
+}
 
 func decodeBody(t *testing.T, recorder *httptest.ResponseRecorder) map[string]any {
 	t.Helper()
