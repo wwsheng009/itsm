@@ -5,6 +5,7 @@ export const ROUTE_PATHS: ReadonlySet<string> = new Set([
   '/admin',
   '/admin/approval-chains',
   '/admin/approvals',
+  '/admin/bots',
   '/admin/cab',
   '/admin/cmdb-types',
   '/admin/config-inheritance',
