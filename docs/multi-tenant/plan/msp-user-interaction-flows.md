@@ -51,7 +51,7 @@ flowchart LR
 
 ```mermaid
 flowchart TD
-    S["服务商员工（1 账号）<br/>登录 → 选择/记住作用域"] --> A
+    S["服务商员工（1 账号）<br/>登录 → 进入 provider 家（无选择器）"] --> A
     A["provider 作用域（家）<br/>跨客户总览：客户列表/我的分配/报表"]
     A -->|"看：列表/详情/筛选"| B["头通道 X-Customer-Tenant-ID<br/>单请求只读，不切会话"]
     A -->|"做：回复/改状态/开号"| C["作用域切换<br/>当前客户 = X，全站进入 X 上下文"]
@@ -69,7 +69,7 @@ flowchart TD
 
 ### 一次典型工作流（服务商工程师）
 
-1. 登录（多作用域）→ 命中多个作用域时登录页一次性选择"进入 provider 租户"（F-04）；
+1. 登录 → 直接进入 **provider 作用域（家）**；登录页**不出现任何客户/租户选择器**（隐私约束，F-04）；
 2. 打开 MSP 工作台：看到**所有已分配客户**的列表与各自待办（跨客户总览，无需切换）；
 3. 点开客户 A 的一条工单看详情（头通道单请求只读，F-06）；
 4. 需要回复/改状态 → 顶栏切换器切到**客户 A**（F-05）→ 顶栏显示"当前客户: A" → 处理（权限 = 你在 A 的角色，如 `msp_tech`：工单读写、知识/CMDB 只读）；
@@ -199,21 +199,16 @@ flowchart TD
     E -->|customer| F{active 作用域数}
     F -->|恰好 1| G[自动进入该租户]
     F -->|>1| X2[409 SESSION_AMBIGUOUS<br/>数据异常告警]
-    E -->|provider| H{active 作用域数}
-    H -->|1| G
-    H -->|>1| I{last_active 有效?}
-    I -->|是| J[自动进入 last_active]
-    I -->|否| K[409 SCOPE_SELECTION_REQUIRED<br/>返回候选列表]
-    K --> L[登录页一次性选择]
-    L --> G
-    E -->|platform| M[治理模式: 选择目标租户]
+    E -->|provider| H[进入 provider 作用域（家）<br/>登录页无选择器（隐私）]
+    H --> G
+    E -->|platform| M[进入平台控制台<br/>认证后再选目标租户]
     M --> G
     G --> N[签发 access+refresh<br/>JWT{tenant_id,tenant_source,membership_id}]
     N --> O[更新 last_active_tenant_id]
     O --> P[审计: auth.login]
 ```
 
-- **接口**：`POST /api/v1/auth/login`（响应新增 `tenantSelection` + `availableTenants`）、`GET /api/v1/auth/tenants`（home ∪ 分配 ∪ 平台）。
+- **接口**：`POST /api/v1/auth/login`（响应仅 `tenantSelection{mode}` 提示，**不含候选列表**）、`GET /api/v1/auth/tenants`（home ∪ 分配 ∪ 平台；**仅认证后**，供顶栏切换器）。
 - **当前状态**：🟡 ① 登录不校验租户状态/过期（**F5**）；② 无单租户自动选择逻辑；③ `GET /auth/tenants` 只返回 home（**F9**）；④ 登录时把 `users.role` 覆盖为 MSP 映射角色（**G3**）；⑤ 注册接口可注入 `super_admin`（**F3**）。
 - **异常**：客户方多作用域 = 数据异常（不自动选）；服务方无有效作用域 → 403/引导联系管理员；JWT 与会话不一致 → 401。
 
@@ -378,9 +373,7 @@ stateDiagram-v2
 ```mermaid
 stateDiagram-v2
     [*] --> 未登录
-    未登录 --> 待选择: 登录命中多作用域(409)
-    未登录 --> 已锁定: 单作用域自动进入
-    待选择 --> 已锁定: 一次性选择
+    未登录 --> 已锁定: 登录直接进入默认作用域（客户=唯一租户；服务商=provider 家）
     已锁定 --> 已锁定: 显式切换（重签 JWT + 撤销旧 refresh）
     已锁定 --> 已失效: 作用域回收/租户停用/refresh 复核失败
     已失效 --> 未登录
@@ -413,3 +406,4 @@ stateDiagram-v2
 |---|---|---|
 | v0.1 | 2026-09-29 | 首版：10 个用户交互流程（Mermaid）+ 邀请/会话两个状态机 + 流程×缺口×接口对照表；状态基于 HEAD `99eb4074` 逐流程核验（✅/🟡/❌） |
 | v0.2 | 2026-09-29 | 新增 §0.5 FAQ（产品对齐）："服务商如何同时处理多个客户"——跨客户总览 / 头通道单请求只读 / 作用域切换三种方式对照、典型工作流、边界规则、现状 vs 目标；明确"不需要切换系统、同一前端、一个账号多作用域" |
+| v0.3 | 2026-09-29 | **隐私约束修订**：登录页不得出现租户选择器/租户列表；F-04 改为"服务方登录落 provider 家、认证后顶栏切换"（原 `409 SCOPE_SELECTION_REQUIRED` + 登录页一次性选择作废）；§0.5 与 §11.2 状态机同步；登录响应不含候选列表（移至认证后 `/auth/tenants`）。见[登录与切换细化方案](./msp-login-and-switching-refinement-plan.md) |

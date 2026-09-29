@@ -67,6 +67,8 @@
 | [msp-scope-model-analysis-and-ai-gateway-reference.md](./plan/msp-scope-model-analysis-and-ai-gateway-reference.md) | 服务方/客户方作用域模型分析（Q1 回答）：一个账号、多作用域（membership）目标模型、ai-gateway 多租户设计对照与可借鉴清单 |
 | [msp-target-architecture.md](./plan/msp-target-architecture.md) | **目标架构方案**：账号唯一/作用域多元、membership 模型、租户上下文与 fail-closed 解析、隔离与权限（Q7 角色模板）、建号/邀请/首登、数据模型与迁移、前端架构、审计与 A→B 演进 |
 | [msp-user-interaction-flows.md](./plan/msp-user-interaction-flows.md) | **用户交互流程图**：10 个流程（Mermaid：开通/邀请/建号/登录/切换/头通道/权限/回收/重置/续期）+ 邀请与会话状态机 + 流程×缺口×接口对照 |
+| [msp-login-and-switching-refinement-plan.md](./plan/msp-login-and-switching-refinement-plan.md) | **登录与作用域切换细化方案（隐私优先）**：登录页无租户选择器（客户关系保护）、按 `account_kind` 分派、域名/企业代码定位、服务商登录后顶栏切换器、防枚举、与既有方案 6 项修订 |
+| [msp-frontend-pages-and-permissions-analysis.md](./plan/msp-frontend-pages-and-permissions-analysis.md) | **前端页面与权限分析及目标细化**：路由/页面/权限/菜单/租户上下文现状（含权限双源、菜单缓存未分键、`tenants[0]` 等风险）+ 切换器/刷新链路/页面改造清单/分期验收 |
 
 ## 维护约定
 

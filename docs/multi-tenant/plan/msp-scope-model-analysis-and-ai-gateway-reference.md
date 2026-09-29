@@ -34,7 +34,7 @@
 
 ### 0.4 可借鉴 / 不可照搬（速览）
 
-**可借鉴（9 条）**：① membership 表结构与唯一约束；② `TenantContext`（含 `Source`/`MembershipID`/`RequestTenantID`）；③ 解析优先级 8 级与"非平台管理员不得用参数指定租户"；④ 会话租户与 membership 复核（JWT 不是授权事实）；⑤ 权限 = RBAC × membership × 租户状态 × 资源属主；⑥ 迁移期 `default_compat` 显式标记 + 审计 + 关闭计划；⑦ 登录多候选 → `409 + 候选列表`（一次性选择后锁定）；⑧ JWT 三件套（`tenant_id`/`source`/`membership_id`）；⑨ Admin 通道 header 选择仅限平台管理员且不覆盖上下文。
+**可借鉴（9 条）**：① membership 表结构与唯一约束；② `TenantContext`（含 `Source`/`MembershipID`/`RequestTenantID`）；③ 解析优先级 8 级与"非平台管理员不得用参数指定租户"；④ 会话租户与 membership 复核（JWT 不是授权事实）；⑤ 权限 = RBAC × membership × 租户状态 × 资源属主；⑥ 迁移期 `default_compat` 显式标记 + 审计 + 关闭计划；⑦ ~~登录多候选 → `409 + 候选列表`（一次性选择后锁定）~~ **【2026-09-29 修订：不采纳——隐私红线要求登录页不得出现租户选择器/列表；改为登录落 provider 家、认证后顶栏切换，见[登录与切换细化方案](./msp-login-and-switching-refinement-plan.md)】**；⑧ JWT 三件套（`tenant_id`/`source`/`membership_id`）；⑨ Admin 通道 header 选择仅限平台管理员且不覆盖上下文。
 
 **不可照搬（3 条）**：① ai-gateway 的租户是**商家/SaaS 客户**语义（`tenant` 同时承载平台租户与业务租户），ITSM 的 `msp_provider/msp_customer` 是**服务关系**语义，作用域推导必须走分配；② 其 `tenant_resolution_rule`（域名/Header 规则）在 ITSM 的多客户场景下**不应开放**给客户侧（会造成"静默切租户"）；③ 其 `subject_type` 泛化（admin/user/merchant/access_key/service_account）对 ITSM 过重，第一期只保留 `user` + `service_account` 两类主体。
 

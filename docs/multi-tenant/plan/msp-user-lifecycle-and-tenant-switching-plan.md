@@ -396,7 +396,7 @@ func (s *UserService) ProvisionUser(ctx context.Context, actor ActorRef, target 
 3. **租户校验**：目标租户 `active` 且未过期，否则 `TENANT_SUSPENDED` / `TENANT_EXPIRED`（修 F5）；
 4. **作用域选择**（无显式租户时，按 `account_kind` 分派，对齐 ai-gateway fail-closed 原则）：
    - **客户方**：唯一作用域直接进入；**多作用域命中 → `409 SESSION_AMBIGUOUS`（不自动选，属数据异常）**；
-   - **服务方**：`last_active`（若仍是 active 作用域）→ 否则 provider home；命中多个且无偏好 → `409 SCOPE_SELECTION_REQUIRED` + 候选列表（登录页一次性选择，选定即锁定会话）；
+   - **服务方**：**登录固定落 provider home**（隐私约束：登录页不得出现选择器/候选列表）；`last_active` 仅用于切换器排序与可选偏好（见[登录与切换细化方案](./msp-login-and-switching-refinement-plan.md)）；
    - **平台**：进入治理模式（先显式选择目标租户）；
 5. **冲突**：显式租户不可访问 → `401 TENANT_MISMATCH` 并审计（对齐 G9 的 fail-closed 建议）；
 6. **签发**：以**最终目标租户**签发 access+refresh（修 F6 的"恒 home"），并按 membership 复核（P1-a 后）。
@@ -407,24 +407,18 @@ func (s *UserService) ProvisionUser(ctx context.Context, actor ActorRef, target 
 {
   "user": { "...": "...", "tenantId": 4 },        // 当前生效租户（不再恒为 home）
   "tenant": { "id": 4, "code": "MSPCUSTA", "...": "..." },
-  "tenantSelection": { "mode": "explicit|last_active|single", "autoSelected": true, "reason": "last_active" },
-  "availableTenants": [
-    { "id": 3, "code": "MSP001",  "type": "msp_provider", "source": "home",       "role": "msp_manager" },
-    { "id": 4, "code": "MSPCUSTA","type": "msp_customer", "source": "allocation", "role": "msp_tech" }
-  ]
+  "tenantSelection": { "mode": "single|provider_home", "autoSelected": true, "reason": "provider_home" }
+  // 注意：不含 availableTenants（隐私红线）；候选列表仅在认证后 GET /api/v1/auth/tenants（供顶栏切换器）
 }
 ```
 
-多作用域歧义时**不返回 200**，而是 `409`：
-
-```jsonc
-{ "code": "SCOPE_SELECTION_REQUIRED", "scopeCandidates": [ { "id": 4, "code": "MSPCUSTA", "role": "msp_tech" } ] }
-```
+~~多作用域歧义时返回 `409` + `scopeCandidates`~~ **【2026-09-29 修订：登录流程不再返回候选列表（隐私）；`409 SCOPE_SELECTION_REQUIRED` 仅保留给"服务方无有效 provider 作用域"等异常，且不带客户明细】**
 
 #### 5.3.3 记忆与偏好
 
-- 新增列 `users.last_active_tenant_id int null`（登录/切换成功时更新；`CanAccessTenant` 复核后才采用）；
-- 前端 `localStorage.current_tenant_id/code` 继续使用（已有），登录时以服务端返回为准覆盖。
+- 新增列 `users.last_active_tenant_id int null`（**仅用于切换器排序/高亮与 P1 可选偏好**；不作为登录落地依据——登录固定落 provider home）；
+- 前端 `localStorage.current_tenant_id/code` 继续使用（已有），登录时以服务端返回为准覆盖；
+- **2026-09-29 修订**：登录页不得出现租户选择器/列表（隐私）；完整规则见[登录与切换细化方案](./msp-login-and-switching-refinement-plan.md)。
 
 ### 5.4 租户切换（修复 + 完善）
 
