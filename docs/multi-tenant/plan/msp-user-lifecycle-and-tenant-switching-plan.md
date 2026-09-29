@@ -538,7 +538,7 @@ CREATE UNIQUE INDEX uq_membership_active ON user_tenant_memberships (user_id, te
 |---|---|---|
 | P1-1 | 邀请/入职流（F4） | 邀请 token、落地页、首登改密、撤销与审计 |
 | P1-2 | 邮箱租户内唯一 + 登录候选（F7 前半） | 迁移 + `identifier` 登录 + 409 候选 |
-| P1-3 | 客户租户 MSP 角色模板（F14） | 模板内置 msp 角色与客户业务权限；分配角色映射 |
+| P1-3 | 客户租户 MSP 角色模板（F14） | 模板内置 4 个角色（`msp_observer/msp_tech/msp_manager/msp_full`）+ 客户 admin 可编辑角色权限（含审计）+ `membership.expires_at`；分配角色映射（primary→manager、backup→tech、specialist→specialist）；Q7 采用"客户级角色差异化"，不引入 grants 表（见[分析文档 B.8](./msp-scope-model-analysis-and-ai-gateway-reference.md#b8-建议结论推荐方案)） |
 | P1-4 | 审计与指标 | 建号/切换/登录事件看板；`selection_mode`、通道分布指标 |
 
 ### P2（演进）
