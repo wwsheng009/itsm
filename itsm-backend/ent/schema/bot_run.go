@@ -21,6 +21,8 @@ func (BotRun) Fields() []ent.Field {
 		field.Int("conversation_id").Optional().Comment("会话归属（聊天链路注入；B0-03 同源）"),
 		field.Int("bot_id").Optional().Comment("预留：B2 Bot 模板 ID"),
 		field.String("entrypoint").Default("chat").MaxLen(32).Comment("入口：chat|ticket|incident|ci|..."),
+		field.String("target_type").Default("").MaxLen(32).Comment("入口目标对象类型（B3-01：ticket|incident|ci；空 = 无目标）"),
+		field.Int("target_id").Optional().Comment("入口目标对象 ID（B3-01；与 target_type 成对出现）"),
 		field.String("status").Default("running").MaxLen(16).Comment("running|completed|failed|cancelled"),
 		field.String("model").Default("").MaxLen(128).Comment("本次运行使用的模型标识"),
 		field.Text("budget_json").Default("").Comment("预算护栏快照（BP8：step/token/工具调用/超时/输出上限）"),

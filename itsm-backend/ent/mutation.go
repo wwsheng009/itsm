@@ -17617,6 +17617,9 @@ type BotRunMutation struct {
 	bot_id             *int
 	addbot_id          *int
 	entrypoint         *string
+	target_type        *string
+	target_id          *int
+	addtarget_id       *int
 	status             *string
 	model              *string
 	budget_json        *string
@@ -17965,6 +17968,112 @@ func (m *BotRunMutation) OldEntrypoint(ctx context.Context) (v string, err error
 // ResetEntrypoint resets all changes to the "entrypoint" field.
 func (m *BotRunMutation) ResetEntrypoint() {
 	m.entrypoint = nil
+}
+
+// SetTargetType sets the "target_type" field.
+func (m *BotRunMutation) SetTargetType(s string) {
+	m.target_type = &s
+}
+
+// TargetType returns the value of the "target_type" field in the mutation.
+func (m *BotRunMutation) TargetType() (r string, exists bool) {
+	v := m.target_type
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldTargetType returns the old "target_type" field's value of the BotRun entity.
+// If the BotRun object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *BotRunMutation) OldTargetType(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldTargetType is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldTargetType requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldTargetType: %w", err)
+	}
+	return oldValue.TargetType, nil
+}
+
+// ResetTargetType resets all changes to the "target_type" field.
+func (m *BotRunMutation) ResetTargetType() {
+	m.target_type = nil
+}
+
+// SetTargetID sets the "target_id" field.
+func (m *BotRunMutation) SetTargetID(i int) {
+	m.target_id = &i
+	m.addtarget_id = nil
+}
+
+// TargetID returns the value of the "target_id" field in the mutation.
+func (m *BotRunMutation) TargetID() (r int, exists bool) {
+	v := m.target_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldTargetID returns the old "target_id" field's value of the BotRun entity.
+// If the BotRun object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *BotRunMutation) OldTargetID(ctx context.Context) (v int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldTargetID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldTargetID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldTargetID: %w", err)
+	}
+	return oldValue.TargetID, nil
+}
+
+// AddTargetID adds i to the "target_id" field.
+func (m *BotRunMutation) AddTargetID(i int) {
+	if m.addtarget_id != nil {
+		*m.addtarget_id += i
+	} else {
+		m.addtarget_id = &i
+	}
+}
+
+// AddedTargetID returns the value that was added to the "target_id" field in this mutation.
+func (m *BotRunMutation) AddedTargetID() (r int, exists bool) {
+	v := m.addtarget_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ClearTargetID clears the value of the "target_id" field.
+func (m *BotRunMutation) ClearTargetID() {
+	m.target_id = nil
+	m.addtarget_id = nil
+	m.clearedFields[botrun.FieldTargetID] = struct{}{}
+}
+
+// TargetIDCleared returns if the "target_id" field was cleared in this mutation.
+func (m *BotRunMutation) TargetIDCleared() bool {
+	_, ok := m.clearedFields[botrun.FieldTargetID]
+	return ok
+}
+
+// ResetTargetID resets all changes to the "target_id" field.
+func (m *BotRunMutation) ResetTargetID() {
+	m.target_id = nil
+	m.addtarget_id = nil
+	delete(m.clearedFields, botrun.FieldTargetID)
 }
 
 // SetStatus sets the "status" field.
@@ -18410,7 +18519,7 @@ func (m *BotRunMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *BotRunMutation) Fields() []string {
-	fields := make([]string, 0, 12)
+	fields := make([]string, 0, 14)
 	if m.tenant_id != nil {
 		fields = append(fields, botrun.FieldTenantID)
 	}
@@ -18422,6 +18531,12 @@ func (m *BotRunMutation) Fields() []string {
 	}
 	if m.entrypoint != nil {
 		fields = append(fields, botrun.FieldEntrypoint)
+	}
+	if m.target_type != nil {
+		fields = append(fields, botrun.FieldTargetType)
+	}
+	if m.target_id != nil {
+		fields = append(fields, botrun.FieldTargetID)
 	}
 	if m.status != nil {
 		fields = append(fields, botrun.FieldStatus)
@@ -18463,6 +18578,10 @@ func (m *BotRunMutation) Field(name string) (ent.Value, bool) {
 		return m.BotID()
 	case botrun.FieldEntrypoint:
 		return m.Entrypoint()
+	case botrun.FieldTargetType:
+		return m.TargetType()
+	case botrun.FieldTargetID:
+		return m.TargetID()
 	case botrun.FieldStatus:
 		return m.Status()
 	case botrun.FieldModel:
@@ -18496,6 +18615,10 @@ func (m *BotRunMutation) OldField(ctx context.Context, name string) (ent.Value, 
 		return m.OldBotID(ctx)
 	case botrun.FieldEntrypoint:
 		return m.OldEntrypoint(ctx)
+	case botrun.FieldTargetType:
+		return m.OldTargetType(ctx)
+	case botrun.FieldTargetID:
+		return m.OldTargetID(ctx)
 	case botrun.FieldStatus:
 		return m.OldStatus(ctx)
 	case botrun.FieldModel:
@@ -18548,6 +18671,20 @@ func (m *BotRunMutation) SetField(name string, value ent.Value) error {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.SetEntrypoint(v)
+		return nil
+	case botrun.FieldTargetType:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetTargetType(v)
+		return nil
+	case botrun.FieldTargetID:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetTargetID(v)
 		return nil
 	case botrun.FieldStatus:
 		v, ok := value.(string)
@@ -18622,6 +18759,9 @@ func (m *BotRunMutation) AddedFields() []string {
 	if m.addbot_id != nil {
 		fields = append(fields, botrun.FieldBotID)
 	}
+	if m.addtarget_id != nil {
+		fields = append(fields, botrun.FieldTargetID)
+	}
 	return fields
 }
 
@@ -18636,6 +18776,8 @@ func (m *BotRunMutation) AddedField(name string) (ent.Value, bool) {
 		return m.AddedConversationID()
 	case botrun.FieldBotID:
 		return m.AddedBotID()
+	case botrun.FieldTargetID:
+		return m.AddedTargetID()
 	}
 	return nil, false
 }
@@ -18666,6 +18808,13 @@ func (m *BotRunMutation) AddField(name string, value ent.Value) error {
 		}
 		m.AddBotID(v)
 		return nil
+	case botrun.FieldTargetID:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddTargetID(v)
+		return nil
 	}
 	return fmt.Errorf("unknown BotRun numeric field %s", name)
 }
@@ -18679,6 +18828,9 @@ func (m *BotRunMutation) ClearedFields() []string {
 	}
 	if m.FieldCleared(botrun.FieldBotID) {
 		fields = append(fields, botrun.FieldBotID)
+	}
+	if m.FieldCleared(botrun.FieldTargetID) {
+		fields = append(fields, botrun.FieldTargetID)
 	}
 	if m.FieldCleared(botrun.FieldFinishedAt) {
 		fields = append(fields, botrun.FieldFinishedAt)
@@ -18703,6 +18855,9 @@ func (m *BotRunMutation) ClearField(name string) error {
 	case botrun.FieldBotID:
 		m.ClearBotID()
 		return nil
+	case botrun.FieldTargetID:
+		m.ClearTargetID()
+		return nil
 	case botrun.FieldFinishedAt:
 		m.ClearFinishedAt()
 		return nil
@@ -18725,6 +18880,12 @@ func (m *BotRunMutation) ResetField(name string) error {
 		return nil
 	case botrun.FieldEntrypoint:
 		m.ResetEntrypoint()
+		return nil
+	case botrun.FieldTargetType:
+		m.ResetTargetType()
+		return nil
+	case botrun.FieldTargetID:
+		m.ResetTargetID()
 		return nil
 	case botrun.FieldStatus:
 		m.ResetStatus()

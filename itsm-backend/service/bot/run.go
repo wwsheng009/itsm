@@ -38,8 +38,11 @@ type StartRunInput struct {
 	ConversationID int
 	BotID          int
 	Entrypoint     string
-	Model          string
-	BudgetJSON     string
+	// TargetType/TargetID 是入口上下文的目标对象（B3-01）；成对出现才落库。
+	TargetType string
+	TargetID   int
+	Model      string
+	BudgetJSON string
 }
 
 // StartRun 创建一条 status=running 的运行记录。
@@ -60,6 +63,9 @@ func (s *RunStore) StartRun(ctx context.Context, in StartRunInput) (*ent.BotRun,
 	}
 	if in.BotID > 0 {
 		create.SetBotID(in.BotID)
+	}
+	if in.TargetType != "" && in.TargetID > 0 {
+		create.SetTargetType(in.TargetType).SetTargetID(in.TargetID)
 	}
 	if in.Model != "" {
 		create.SetModel(in.Model)

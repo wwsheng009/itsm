@@ -119,6 +119,47 @@ func (_u *BotRunUpdate) SetNillableEntrypoint(v *string) *BotRunUpdate {
 	return _u
 }
 
+// SetTargetType sets the "target_type" field.
+func (_u *BotRunUpdate) SetTargetType(v string) *BotRunUpdate {
+	_u.mutation.SetTargetType(v)
+	return _u
+}
+
+// SetNillableTargetType sets the "target_type" field if the given value is not nil.
+func (_u *BotRunUpdate) SetNillableTargetType(v *string) *BotRunUpdate {
+	if v != nil {
+		_u.SetTargetType(*v)
+	}
+	return _u
+}
+
+// SetTargetID sets the "target_id" field.
+func (_u *BotRunUpdate) SetTargetID(v int) *BotRunUpdate {
+	_u.mutation.ResetTargetID()
+	_u.mutation.SetTargetID(v)
+	return _u
+}
+
+// SetNillableTargetID sets the "target_id" field if the given value is not nil.
+func (_u *BotRunUpdate) SetNillableTargetID(v *int) *BotRunUpdate {
+	if v != nil {
+		_u.SetTargetID(*v)
+	}
+	return _u
+}
+
+// AddTargetID adds value to the "target_id" field.
+func (_u *BotRunUpdate) AddTargetID(v int) *BotRunUpdate {
+	_u.mutation.AddTargetID(v)
+	return _u
+}
+
+// ClearTargetID clears the value of the "target_id" field.
+func (_u *BotRunUpdate) ClearTargetID() *BotRunUpdate {
+	_u.mutation.ClearTargetID()
+	return _u
+}
+
 // SetStatus sets the "status" field.
 func (_u *BotRunUpdate) SetStatus(v string) *BotRunUpdate {
 	_u.mutation.SetStatus(v)
@@ -354,6 +395,11 @@ func (_u *BotRunUpdate) check() error {
 			return &ValidationError{Name: "entrypoint", err: fmt.Errorf(`ent: validator failed for field "BotRun.entrypoint": %w`, err)}
 		}
 	}
+	if v, ok := _u.mutation.TargetType(); ok {
+		if err := botrun.TargetTypeValidator(v); err != nil {
+			return &ValidationError{Name: "target_type", err: fmt.Errorf(`ent: validator failed for field "BotRun.target_type": %w`, err)}
+		}
+	}
 	if v, ok := _u.mutation.Status(); ok {
 		if err := botrun.StatusValidator(v); err != nil {
 			return &ValidationError{Name: "status", err: fmt.Errorf(`ent: validator failed for field "BotRun.status": %w`, err)}
@@ -410,6 +456,18 @@ func (_u *BotRunUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 	}
 	if value, ok := _u.mutation.Entrypoint(); ok {
 		_spec.SetField(botrun.FieldEntrypoint, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.TargetType(); ok {
+		_spec.SetField(botrun.FieldTargetType, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.TargetID(); ok {
+		_spec.SetField(botrun.FieldTargetID, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.AddedTargetID(); ok {
+		_spec.AddField(botrun.FieldTargetID, field.TypeInt, value)
+	}
+	if _u.mutation.TargetIDCleared() {
+		_spec.ClearField(botrun.FieldTargetID, field.TypeInt)
 	}
 	if value, ok := _u.mutation.Status(); ok {
 		_spec.SetField(botrun.FieldStatus, field.TypeString, value)
@@ -634,6 +692,47 @@ func (_u *BotRunUpdateOne) SetNillableEntrypoint(v *string) *BotRunUpdateOne {
 	if v != nil {
 		_u.SetEntrypoint(*v)
 	}
+	return _u
+}
+
+// SetTargetType sets the "target_type" field.
+func (_u *BotRunUpdateOne) SetTargetType(v string) *BotRunUpdateOne {
+	_u.mutation.SetTargetType(v)
+	return _u
+}
+
+// SetNillableTargetType sets the "target_type" field if the given value is not nil.
+func (_u *BotRunUpdateOne) SetNillableTargetType(v *string) *BotRunUpdateOne {
+	if v != nil {
+		_u.SetTargetType(*v)
+	}
+	return _u
+}
+
+// SetTargetID sets the "target_id" field.
+func (_u *BotRunUpdateOne) SetTargetID(v int) *BotRunUpdateOne {
+	_u.mutation.ResetTargetID()
+	_u.mutation.SetTargetID(v)
+	return _u
+}
+
+// SetNillableTargetID sets the "target_id" field if the given value is not nil.
+func (_u *BotRunUpdateOne) SetNillableTargetID(v *int) *BotRunUpdateOne {
+	if v != nil {
+		_u.SetTargetID(*v)
+	}
+	return _u
+}
+
+// AddTargetID adds value to the "target_id" field.
+func (_u *BotRunUpdateOne) AddTargetID(v int) *BotRunUpdateOne {
+	_u.mutation.AddTargetID(v)
+	return _u
+}
+
+// ClearTargetID clears the value of the "target_id" field.
+func (_u *BotRunUpdateOne) ClearTargetID() *BotRunUpdateOne {
+	_u.mutation.ClearTargetID()
 	return _u
 }
 
@@ -885,6 +984,11 @@ func (_u *BotRunUpdateOne) check() error {
 			return &ValidationError{Name: "entrypoint", err: fmt.Errorf(`ent: validator failed for field "BotRun.entrypoint": %w`, err)}
 		}
 	}
+	if v, ok := _u.mutation.TargetType(); ok {
+		if err := botrun.TargetTypeValidator(v); err != nil {
+			return &ValidationError{Name: "target_type", err: fmt.Errorf(`ent: validator failed for field "BotRun.target_type": %w`, err)}
+		}
+	}
 	if v, ok := _u.mutation.Status(); ok {
 		if err := botrun.StatusValidator(v); err != nil {
 			return &ValidationError{Name: "status", err: fmt.Errorf(`ent: validator failed for field "BotRun.status": %w`, err)}
@@ -958,6 +1062,18 @@ func (_u *BotRunUpdateOne) sqlSave(ctx context.Context) (_node *BotRun, err erro
 	}
 	if value, ok := _u.mutation.Entrypoint(); ok {
 		_spec.SetField(botrun.FieldEntrypoint, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.TargetType(); ok {
+		_spec.SetField(botrun.FieldTargetType, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.TargetID(); ok {
+		_spec.SetField(botrun.FieldTargetID, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.AddedTargetID(); ok {
+		_spec.AddField(botrun.FieldTargetID, field.TypeInt, value)
+	}
+	if _u.mutation.TargetIDCleared() {
+		_spec.ClearField(botrun.FieldTargetID, field.TypeInt)
 	}
 	if value, ok := _u.mutation.Status(); ok {
 		_spec.SetField(botrun.FieldStatus, field.TypeString, value)

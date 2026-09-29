@@ -25,6 +25,10 @@ type BotRun struct {
 	BotID int `json:"bot_id,omitempty"`
 	// 入口：chat|ticket|incident|ci|...
 	Entrypoint string `json:"entrypoint,omitempty"`
+	// 入口目标对象类型（B3-01：ticket|incident|ci；空 = 无目标）
+	TargetType string `json:"target_type,omitempty"`
+	// 入口目标对象 ID（B3-01；与 target_type 成对出现）
+	TargetID int `json:"target_id,omitempty"`
 	// running|completed|failed|cancelled
 	Status string `json:"status,omitempty"`
 	// 本次运行使用的模型标识
@@ -81,9 +85,9 @@ func (*BotRun) scanValues(columns []string) ([]any, error) {
 	values := make([]any, len(columns))
 	for i := range columns {
 		switch columns[i] {
-		case botrun.FieldID, botrun.FieldTenantID, botrun.FieldConversationID, botrun.FieldBotID:
+		case botrun.FieldID, botrun.FieldTenantID, botrun.FieldConversationID, botrun.FieldBotID, botrun.FieldTargetID:
 			values[i] = new(sql.NullInt64)
-		case botrun.FieldEntrypoint, botrun.FieldStatus, botrun.FieldModel, botrun.FieldBudgetJSON, botrun.FieldErrorCode:
+		case botrun.FieldEntrypoint, botrun.FieldTargetType, botrun.FieldStatus, botrun.FieldModel, botrun.FieldBudgetJSON, botrun.FieldErrorCode:
 			values[i] = new(sql.NullString)
 		case botrun.FieldStartedAt, botrun.FieldFinishedAt, botrun.FieldCreatedAt, botrun.FieldUpdatedAt:
 			values[i] = new(sql.NullTime)
@@ -131,6 +135,18 @@ func (_m *BotRun) assignValues(columns []string, values []any) error {
 				return fmt.Errorf("unexpected type %T for field entrypoint", values[i])
 			} else if value.Valid {
 				_m.Entrypoint = value.String
+			}
+		case botrun.FieldTargetType:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field target_type", values[i])
+			} else if value.Valid {
+				_m.TargetType = value.String
+			}
+		case botrun.FieldTargetID:
+			if value, ok := values[i].(*sql.NullInt64); !ok {
+				return fmt.Errorf("unexpected type %T for field target_id", values[i])
+			} else if value.Valid {
+				_m.TargetID = int(value.Int64)
 			}
 		case botrun.FieldStatus:
 			if value, ok := values[i].(*sql.NullString); !ok {
@@ -238,6 +254,12 @@ func (_m *BotRun) String() string {
 	builder.WriteString(", ")
 	builder.WriteString("entrypoint=")
 	builder.WriteString(_m.Entrypoint)
+	builder.WriteString(", ")
+	builder.WriteString("target_type=")
+	builder.WriteString(_m.TargetType)
+	builder.WriteString(", ")
+	builder.WriteString("target_id=")
+	builder.WriteString(fmt.Sprintf("%v", _m.TargetID))
 	builder.WriteString(", ")
 	builder.WriteString("status=")
 	builder.WriteString(_m.Status)

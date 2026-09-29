@@ -518,6 +518,8 @@ var (
 		{Name: "conversation_id", Type: field.TypeInt, Nullable: true},
 		{Name: "bot_id", Type: field.TypeInt, Nullable: true},
 		{Name: "entrypoint", Type: field.TypeString, Size: 32, Default: "chat"},
+		{Name: "target_type", Type: field.TypeString, Size: 32, Default: ""},
+		{Name: "target_id", Type: field.TypeInt, Nullable: true},
 		{Name: "status", Type: field.TypeString, Size: 16, Default: "running"},
 		{Name: "model", Type: field.TypeString, Size: 128, Default: ""},
 		{Name: "budget_json", Type: field.TypeString, Size: 2147483647, Default: ""},
@@ -536,7 +538,7 @@ var (
 			{
 				Name:    "botrun_tenant_id_started_at",
 				Unique:  false,
-				Columns: []*schema.Column{BotRunsColumns[1], BotRunsColumns[9]},
+				Columns: []*schema.Column{BotRunsColumns[1], BotRunsColumns[11]},
 			},
 			{
 				Name:    "botrun_tenant_id_conversation_id",
@@ -546,7 +548,7 @@ var (
 			{
 				Name:    "botrun_tenant_id_status",
 				Unique:  false,
-				Columns: []*schema.Column{BotRunsColumns[1], BotRunsColumns[5]},
+				Columns: []*schema.Column{BotRunsColumns[1], BotRunsColumns[7]},
 			},
 		},
 	}

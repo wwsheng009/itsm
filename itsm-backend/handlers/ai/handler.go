@@ -146,6 +146,11 @@ func (h *Handler) Chat(c *gin.Context) {
 		Provider string `json:"provider"`
 		// BotID：选择器指定的 Bot 模板（B2-04；仅对新建会话生效，0/缺省 = 默认助手）。
 		BotID int `json:"botId"`
+		// B3-01 入口上下文（页面 launcher 携带）：entrypoint/targetType/targetId/summary。
+		Entrypoint string `json:"entrypoint"`
+		TargetType string `json:"targetType"`
+		TargetID   int    `json:"targetId"`
+		Summary    string `json:"summary"`
 	}
 	if err := c.ShouldBindJSON(&req); err != nil {
 		common.ParamErrorWithErr(c, err, "请求参数错误")
@@ -182,6 +187,16 @@ func (h *Handler) Chat(c *gin.Context) {
 		respondBotSelectionError(c, err)
 		return
 	}
+	// B3-01：入口上下文解析 + 目标对象预检（未知入口 400；目标不可用 404；校验器不可用 503）。
+	scope, err := resolveRequestScope(chatCtx, h.svc.ScopeResolver(), tenantID, userID, role, bot.ScopeInput{
+		Entrypoint: req.Entrypoint, TargetType: req.TargetType, TargetID: req.TargetID, Summary: req.Summary,
+	})
+	if err != nil {
+		status, code := scopeHTTPStatus(err)
+		c.JSON(status, gin.H{"code": code, "error": "入口上下文不可用"})
+		return
+	}
+	chatCtx = WithScope(chatCtx, scope)
 
 	if provider == "" && !service.MultiProviderEnabled() {
 		// 开关关闭且未显式覆盖：保持既有调用与响应形状（QA-3 零破坏门禁）。
@@ -261,6 +276,11 @@ func (h *Handler) ChatStream(c *gin.Context) {
 		Provider string `json:"provider"`
 		// BotID：选择器指定的 Bot 模板（B2-04；仅对新建会话生效，0/缺省 = 默认助手）。
 		BotID int `json:"botId"`
+		// B3-01 入口上下文（页面 launcher 携带；与 Chat 同源协议）。
+		Entrypoint string `json:"entrypoint"`
+		TargetType string `json:"targetType"`
+		TargetID   int    `json:"targetId"`
+		Summary    string `json:"summary"`
 	}
 	if err := c.ShouldBindJSON(&req); err != nil {
 		common.ParamErrorWithErr(c, err, "请求参数错误")
@@ -362,6 +382,16 @@ func (h *Handler) ChatStream(c *gin.Context) {
 		writeEvent(SSEEventError, sseErrorPayload(err))
 		return
 	}
+	// B3-01：入口上下文解析 + 目标预检（与 Chat 同源）；失败以统一错误事件收口。
+	scope, scopeErr := resolveRequestScope(chatCtx, h.svc.ScopeResolver(), tenantID, userID, role, bot.ScopeInput{
+		Entrypoint: req.Entrypoint, TargetType: req.TargetType, TargetID: req.TargetID, Summary: req.Summary,
+	})
+	if scopeErr != nil {
+		_, code := scopeHTTPStatus(scopeErr)
+		writeEvent(SSEEventError, map[string]string{"message": "入口上下文不可用", "errorCode": code})
+		return
+	}
+	chatCtx = WithScope(chatCtx, scope)
 	if !useProviderInfo {
 		convID, _, err := h.svc.ChatStream(chatCtx, tenantID, userID, role, req.Query, req.Limit, req.ConversationID, onSources, onDelta, onTool, onRun)
 		if err != nil {

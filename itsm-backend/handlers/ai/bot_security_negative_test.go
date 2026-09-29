@@ -175,18 +175,20 @@ func TestValidateBotSelectionCrossTenantFailClosed(t *testing.T) {
 	assert.ErrorIs(t, err, ErrBotSelectionNotFound)
 }
 
-// 参数守卫：身份/租户/权限键被剥离（大小写与变体归一），业务键保留，留痕键名排序稳定。
+// 参数守卫：身份/租户/权限与入口协议键被剥离（大小写与变体归一），业务键保留，留痕键名排序稳定。
+//
+// 注：`target_id`/`target_type`/`entrypoint` 自 B3-01 起属**入口协议键**（由 ScopeResolver
+// 以服务端解析值覆写，见 scope_test.go），不再随业务参数透传——本用例已相应更新。
 func TestSanitizeReservedArgs(t *testing.T) {
 	in := map[string]interface{}{
 		"tenant_id": 999, "TenantID": 999, "user_id": 1, "userId": 1,
 		"Role": "super_admin", "is_admin": true,
-		"title": "打印机故障", "assignee_id": 7, "target_id": 42, "priority": "high",
+		"title": "打印机故障", "assignee_id": 7, "priority": "high",
 	}
 	cleaned, stripped := sanitizeReservedArgs(in)
-	require.Len(t, cleaned, 4, "只保留业务键：%v", cleaned)
+	require.Len(t, cleaned, 3, "只保留业务键：%v", cleaned)
 	assert.Equal(t, "打印机故障", cleaned["title"])
 	assert.Equal(t, 7, cleaned["assignee_id"])
-	assert.Equal(t, 42, cleaned["target_id"])
 	assert.Equal(t, "high", cleaned["priority"])
 	assert.Equal(t, []string{"Role", "TenantID", "is_admin", "tenant_id", "userId", "user_id"}, stripped)
 	assert.Equal(t, "args_stripped:Role,TenantID,is_admin,tenant_id,userId,user_id", argsStrippedMarker(stripped))

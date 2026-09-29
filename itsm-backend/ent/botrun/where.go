@@ -75,6 +75,16 @@ func Entrypoint(v string) predicate.BotRun {
 	return predicate.BotRun(sql.FieldEQ(FieldEntrypoint, v))
 }
 
+// TargetType applies equality check predicate on the "target_type" field. It's identical to TargetTypeEQ.
+func TargetType(v string) predicate.BotRun {
+	return predicate.BotRun(sql.FieldEQ(FieldTargetType, v))
+}
+
+// TargetID applies equality check predicate on the "target_id" field. It's identical to TargetIDEQ.
+func TargetID(v int) predicate.BotRun {
+	return predicate.BotRun(sql.FieldEQ(FieldTargetID, v))
+}
+
 // Status applies equality check predicate on the "status" field. It's identical to StatusEQ.
 func Status(v string) predicate.BotRun {
 	return predicate.BotRun(sql.FieldEQ(FieldStatus, v))
@@ -318,6 +328,121 @@ func EntrypointEqualFold(v string) predicate.BotRun {
 // EntrypointContainsFold applies the ContainsFold predicate on the "entrypoint" field.
 func EntrypointContainsFold(v string) predicate.BotRun {
 	return predicate.BotRun(sql.FieldContainsFold(FieldEntrypoint, v))
+}
+
+// TargetTypeEQ applies the EQ predicate on the "target_type" field.
+func TargetTypeEQ(v string) predicate.BotRun {
+	return predicate.BotRun(sql.FieldEQ(FieldTargetType, v))
+}
+
+// TargetTypeNEQ applies the NEQ predicate on the "target_type" field.
+func TargetTypeNEQ(v string) predicate.BotRun {
+	return predicate.BotRun(sql.FieldNEQ(FieldTargetType, v))
+}
+
+// TargetTypeIn applies the In predicate on the "target_type" field.
+func TargetTypeIn(vs ...string) predicate.BotRun {
+	return predicate.BotRun(sql.FieldIn(FieldTargetType, vs...))
+}
+
+// TargetTypeNotIn applies the NotIn predicate on the "target_type" field.
+func TargetTypeNotIn(vs ...string) predicate.BotRun {
+	return predicate.BotRun(sql.FieldNotIn(FieldTargetType, vs...))
+}
+
+// TargetTypeGT applies the GT predicate on the "target_type" field.
+func TargetTypeGT(v string) predicate.BotRun {
+	return predicate.BotRun(sql.FieldGT(FieldTargetType, v))
+}
+
+// TargetTypeGTE applies the GTE predicate on the "target_type" field.
+func TargetTypeGTE(v string) predicate.BotRun {
+	return predicate.BotRun(sql.FieldGTE(FieldTargetType, v))
+}
+
+// TargetTypeLT applies the LT predicate on the "target_type" field.
+func TargetTypeLT(v string) predicate.BotRun {
+	return predicate.BotRun(sql.FieldLT(FieldTargetType, v))
+}
+
+// TargetTypeLTE applies the LTE predicate on the "target_type" field.
+func TargetTypeLTE(v string) predicate.BotRun {
+	return predicate.BotRun(sql.FieldLTE(FieldTargetType, v))
+}
+
+// TargetTypeContains applies the Contains predicate on the "target_type" field.
+func TargetTypeContains(v string) predicate.BotRun {
+	return predicate.BotRun(sql.FieldContains(FieldTargetType, v))
+}
+
+// TargetTypeHasPrefix applies the HasPrefix predicate on the "target_type" field.
+func TargetTypeHasPrefix(v string) predicate.BotRun {
+	return predicate.BotRun(sql.FieldHasPrefix(FieldTargetType, v))
+}
+
+// TargetTypeHasSuffix applies the HasSuffix predicate on the "target_type" field.
+func TargetTypeHasSuffix(v string) predicate.BotRun {
+	return predicate.BotRun(sql.FieldHasSuffix(FieldTargetType, v))
+}
+
+// TargetTypeEqualFold applies the EqualFold predicate on the "target_type" field.
+func TargetTypeEqualFold(v string) predicate.BotRun {
+	return predicate.BotRun(sql.FieldEqualFold(FieldTargetType, v))
+}
+
+// TargetTypeContainsFold applies the ContainsFold predicate on the "target_type" field.
+func TargetTypeContainsFold(v string) predicate.BotRun {
+	return predicate.BotRun(sql.FieldContainsFold(FieldTargetType, v))
+}
+
+// TargetIDEQ applies the EQ predicate on the "target_id" field.
+func TargetIDEQ(v int) predicate.BotRun {
+	return predicate.BotRun(sql.FieldEQ(FieldTargetID, v))
+}
+
+// TargetIDNEQ applies the NEQ predicate on the "target_id" field.
+func TargetIDNEQ(v int) predicate.BotRun {
+	return predicate.BotRun(sql.FieldNEQ(FieldTargetID, v))
+}
+
+// TargetIDIn applies the In predicate on the "target_id" field.
+func TargetIDIn(vs ...int) predicate.BotRun {
+	return predicate.BotRun(sql.FieldIn(FieldTargetID, vs...))
+}
+
+// TargetIDNotIn applies the NotIn predicate on the "target_id" field.
+func TargetIDNotIn(vs ...int) predicate.BotRun {
+	return predicate.BotRun(sql.FieldNotIn(FieldTargetID, vs...))
+}
+
+// TargetIDGT applies the GT predicate on the "target_id" field.
+func TargetIDGT(v int) predicate.BotRun {
+	return predicate.BotRun(sql.FieldGT(FieldTargetID, v))
+}
+
+// TargetIDGTE applies the GTE predicate on the "target_id" field.
+func TargetIDGTE(v int) predicate.BotRun {
+	return predicate.BotRun(sql.FieldGTE(FieldTargetID, v))
+}
+
+// TargetIDLT applies the LT predicate on the "target_id" field.
+func TargetIDLT(v int) predicate.BotRun {
+	return predicate.BotRun(sql.FieldLT(FieldTargetID, v))
+}
+
+// TargetIDLTE applies the LTE predicate on the "target_id" field.
+func TargetIDLTE(v int) predicate.BotRun {
+	return predicate.BotRun(sql.FieldLTE(FieldTargetID, v))
+}
+
+// TargetIDIsNil applies the IsNil predicate on the "target_id" field.
+func TargetIDIsNil() predicate.BotRun {
+	return predicate.BotRun(sql.FieldIsNull(FieldTargetID))
+}
+
+// TargetIDNotNil applies the NotNil predicate on the "target_id" field.
+func TargetIDNotNil() predicate.BotRun {
+	return predicate.BotRun(sql.FieldNotNull(FieldTargetID))
 }
 
 // StatusEQ applies the EQ predicate on the "status" field.

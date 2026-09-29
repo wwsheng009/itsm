@@ -22,6 +22,10 @@ const (
 	FieldBotID = "bot_id"
 	// FieldEntrypoint holds the string denoting the entrypoint field in the database.
 	FieldEntrypoint = "entrypoint"
+	// FieldTargetType holds the string denoting the target_type field in the database.
+	FieldTargetType = "target_type"
+	// FieldTargetID holds the string denoting the target_id field in the database.
+	FieldTargetID = "target_id"
 	// FieldStatus holds the string denoting the status field in the database.
 	FieldStatus = "status"
 	// FieldModel holds the string denoting the model field in the database.
@@ -67,6 +71,8 @@ var Columns = []string{
 	FieldConversationID,
 	FieldBotID,
 	FieldEntrypoint,
+	FieldTargetType,
+	FieldTargetID,
 	FieldStatus,
 	FieldModel,
 	FieldBudgetJSON,
@@ -94,6 +100,10 @@ var (
 	DefaultEntrypoint string
 	// EntrypointValidator is a validator for the "entrypoint" field. It is called by the builders before save.
 	EntrypointValidator func(string) error
+	// DefaultTargetType holds the default value on creation for the "target_type" field.
+	DefaultTargetType string
+	// TargetTypeValidator is a validator for the "target_type" field. It is called by the builders before save.
+	TargetTypeValidator func(string) error
 	// DefaultStatus holds the default value on creation for the "status" field.
 	DefaultStatus string
 	// StatusValidator is a validator for the "status" field. It is called by the builders before save.
@@ -144,6 +154,16 @@ func ByBotID(opts ...sql.OrderTermOption) OrderOption {
 // ByEntrypoint orders the results by the entrypoint field.
 func ByEntrypoint(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldEntrypoint, opts...).ToFunc()
+}
+
+// ByTargetType orders the results by the target_type field.
+func ByTargetType(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldTargetType, opts...).ToFunc()
+}
+
+// ByTargetID orders the results by the target_id field.
+func ByTargetID(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldTargetID, opts...).ToFunc()
 }
 
 // ByStatus orders the results by the status field.

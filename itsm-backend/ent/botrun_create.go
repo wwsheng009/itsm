@@ -70,6 +70,34 @@ func (_c *BotRunCreate) SetNillableEntrypoint(v *string) *BotRunCreate {
 	return _c
 }
 
+// SetTargetType sets the "target_type" field.
+func (_c *BotRunCreate) SetTargetType(v string) *BotRunCreate {
+	_c.mutation.SetTargetType(v)
+	return _c
+}
+
+// SetNillableTargetType sets the "target_type" field if the given value is not nil.
+func (_c *BotRunCreate) SetNillableTargetType(v *string) *BotRunCreate {
+	if v != nil {
+		_c.SetTargetType(*v)
+	}
+	return _c
+}
+
+// SetTargetID sets the "target_id" field.
+func (_c *BotRunCreate) SetTargetID(v int) *BotRunCreate {
+	_c.mutation.SetTargetID(v)
+	return _c
+}
+
+// SetNillableTargetID sets the "target_id" field if the given value is not nil.
+func (_c *BotRunCreate) SetNillableTargetID(v *int) *BotRunCreate {
+	if v != nil {
+		_c.SetTargetID(*v)
+	}
+	return _c
+}
+
 // SetStatus sets the "status" field.
 func (_c *BotRunCreate) SetStatus(v string) *BotRunCreate {
 	_c.mutation.SetStatus(v)
@@ -251,6 +279,10 @@ func (_c *BotRunCreate) defaults() {
 		v := botrun.DefaultEntrypoint
 		_c.mutation.SetEntrypoint(v)
 	}
+	if _, ok := _c.mutation.TargetType(); !ok {
+		v := botrun.DefaultTargetType
+		_c.mutation.SetTargetType(v)
+	}
 	if _, ok := _c.mutation.Status(); !ok {
 		v := botrun.DefaultStatus
 		_c.mutation.SetStatus(v)
@@ -297,6 +329,14 @@ func (_c *BotRunCreate) check() error {
 	if v, ok := _c.mutation.Entrypoint(); ok {
 		if err := botrun.EntrypointValidator(v); err != nil {
 			return &ValidationError{Name: "entrypoint", err: fmt.Errorf(`ent: validator failed for field "BotRun.entrypoint": %w`, err)}
+		}
+	}
+	if _, ok := _c.mutation.TargetType(); !ok {
+		return &ValidationError{Name: "target_type", err: errors.New(`ent: missing required field "BotRun.target_type"`)}
+	}
+	if v, ok := _c.mutation.TargetType(); ok {
+		if err := botrun.TargetTypeValidator(v); err != nil {
+			return &ValidationError{Name: "target_type", err: fmt.Errorf(`ent: validator failed for field "BotRun.target_type": %w`, err)}
 		}
 	}
 	if _, ok := _c.mutation.Status(); !ok {
@@ -376,6 +416,14 @@ func (_c *BotRunCreate) createSpec() (*BotRun, *sqlgraph.CreateSpec) {
 	if value, ok := _c.mutation.Entrypoint(); ok {
 		_spec.SetField(botrun.FieldEntrypoint, field.TypeString, value)
 		_node.Entrypoint = value
+	}
+	if value, ok := _c.mutation.TargetType(); ok {
+		_spec.SetField(botrun.FieldTargetType, field.TypeString, value)
+		_node.TargetType = value
+	}
+	if value, ok := _c.mutation.TargetID(); ok {
+		_spec.SetField(botrun.FieldTargetID, field.TypeInt, value)
+		_node.TargetID = value
 	}
 	if value, ok := _c.mutation.Status(); ok {
 		_spec.SetField(botrun.FieldStatus, field.TypeString, value)

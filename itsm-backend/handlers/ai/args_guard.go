@@ -7,6 +7,8 @@ import (
 	"strings"
 
 	"github.com/gin-gonic/gin"
+
+	"itsm-backend/service/bot"
 )
 
 // B2-05 参数守卫：模型**不可**经工具参数覆盖身份/租户/权限。
@@ -19,8 +21,9 @@ import (
 // 留痕写入工具调用审计的 permission_reason（`args_stripped:<keys>`）与 WARN 日志，
 // 便于安全复盘"谁在尝试覆写身份"。
 //
-// 边界：目标对象参数（target_type/target_id 等入口上下文，B3-01 ScopeResolver）
-// 由入口协议覆写，不在本表——本表只处理身份/租户/权限三类键。
+// 边界：目标对象参数（target_type/target_id/entrypoint 等**协议键**）由 B3-01
+// ScopeResolver 以服务端解析值覆写（见 reservedScopeArgKeys）；业务键（如工具
+// 自身语义的 `ticket_id`/`ci_id`）不在本表——那是模型可正常携带的业务参数。
 var reservedIdentityArgKeys = map[string]bool{
 	"tenant_id": true, "tenantid": true,
 	"user_id": true, "userid": true,
@@ -29,6 +32,16 @@ var reservedIdentityArgKeys = map[string]bool{
 	"current_user_id": true, "currentuserid": true,
 	"role": true, "auth_role": true, "authrole": true,
 	"is_admin": true, "isadmin": true, "super_admin": true, "superadmin": true,
+}
+
+// reservedScopeArgKeys 是入口上下文的**协议键**（B3-01）：模型只能经 HTTP 请求体
+// 的受校验字段（entrypoint/targetType/targetId）表达——工具参数中的同名键一律剥离，
+// 由服务端解析结果覆写（仅当模型尝试使用这些键时，见 injectScopeArgs）。
+var reservedScopeArgKeys = map[string]bool{
+	"entrypoint": true, "entry_point": true, "entrypoint_name": true,
+	"target_type": true, "targettype": true,
+	"target_id": true, "targetid": true,
+	"scope": true, "scope_target_type": true, "scope_target_id": true,
 }
 
 // sanitizeReservedArgs 剥离身份/租户/权限键。
@@ -42,7 +55,8 @@ func sanitizeReservedArgs(args map[string]interface{}) (map[string]interface{}, 
 	var stripped []string
 	cleaned := make(map[string]interface{}, len(args))
 	for key, value := range args {
-		if reservedIdentityArgKeys[strings.ToLower(strings.TrimSpace(key))] {
+		normalized := strings.ToLower(strings.TrimSpace(key))
+		if reservedIdentityArgKeys[normalized] || reservedScopeArgKeys[normalized] {
 			stripped = append(stripped, key)
 			continue
 		}
@@ -61,6 +75,33 @@ func argsStrippedMarker(keys []string) string {
 		return ""
 	}
 	return "args_stripped:" + strings.Join(keys, ",")
+}
+
+// scopeProtocolKeysStripped 报告被剥离的键里是否含入口上下文协议键（B3-01）。
+func scopeProtocolKeysStripped(keys []string) bool {
+	for _, key := range keys {
+		if reservedScopeArgKeys[strings.ToLower(strings.TrimSpace(key))] {
+			return true
+		}
+	}
+	return false
+}
+
+// injectScopeArgs 以服务端解析的入口上下文**覆写**模型尝试携带的目标协议键（B3-01）。
+//
+// 语义：仅当模型确实用了协议键（scopeKeysTried=true）时才注入——模型没提目标时
+// 不改变工具入参形状（零行为变化）；模型提到目标时，值一律以服务端校验过的
+// scope 为准（无目标上下文则保持剥离，模型不得凭空指定目标）。
+func injectScopeArgs(args map[string]interface{}, scope bot.Scope, scopeKeysTried bool) map[string]interface{} {
+	if !scopeKeysTried || !scope.HasTarget() {
+		return args
+	}
+	if args == nil {
+		args = make(map[string]interface{}, 2)
+	}
+	args["target_type"] = scope.TargetType
+	args["target_id"] = scope.TargetID
+	return args
 }
 
 // respondBotSelectionError 把 B2-05 的 Bot 归属校验错误映射为 HTTP 语义：

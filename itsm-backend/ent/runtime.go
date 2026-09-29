@@ -768,38 +768,44 @@ func init() {
 	botrun.DefaultEntrypoint = botrunDescEntrypoint.Default.(string)
 	// botrun.EntrypointValidator is a validator for the "entrypoint" field. It is called by the builders before save.
 	botrun.EntrypointValidator = botrunDescEntrypoint.Validators[0].(func(string) error)
+	// botrunDescTargetType is the schema descriptor for target_type field.
+	botrunDescTargetType := botrunFields[4].Descriptor()
+	// botrun.DefaultTargetType holds the default value on creation for the target_type field.
+	botrun.DefaultTargetType = botrunDescTargetType.Default.(string)
+	// botrun.TargetTypeValidator is a validator for the "target_type" field. It is called by the builders before save.
+	botrun.TargetTypeValidator = botrunDescTargetType.Validators[0].(func(string) error)
 	// botrunDescStatus is the schema descriptor for status field.
-	botrunDescStatus := botrunFields[4].Descriptor()
+	botrunDescStatus := botrunFields[6].Descriptor()
 	// botrun.DefaultStatus holds the default value on creation for the status field.
 	botrun.DefaultStatus = botrunDescStatus.Default.(string)
 	// botrun.StatusValidator is a validator for the "status" field. It is called by the builders before save.
 	botrun.StatusValidator = botrunDescStatus.Validators[0].(func(string) error)
 	// botrunDescModel is the schema descriptor for model field.
-	botrunDescModel := botrunFields[5].Descriptor()
+	botrunDescModel := botrunFields[7].Descriptor()
 	// botrun.DefaultModel holds the default value on creation for the model field.
 	botrun.DefaultModel = botrunDescModel.Default.(string)
 	// botrun.ModelValidator is a validator for the "model" field. It is called by the builders before save.
 	botrun.ModelValidator = botrunDescModel.Validators[0].(func(string) error)
 	// botrunDescBudgetJSON is the schema descriptor for budget_json field.
-	botrunDescBudgetJSON := botrunFields[6].Descriptor()
+	botrunDescBudgetJSON := botrunFields[8].Descriptor()
 	// botrun.DefaultBudgetJSON holds the default value on creation for the budget_json field.
 	botrun.DefaultBudgetJSON = botrunDescBudgetJSON.Default.(string)
 	// botrunDescErrorCode is the schema descriptor for error_code field.
-	botrunDescErrorCode := botrunFields[7].Descriptor()
+	botrunDescErrorCode := botrunFields[9].Descriptor()
 	// botrun.DefaultErrorCode holds the default value on creation for the error_code field.
 	botrun.DefaultErrorCode = botrunDescErrorCode.Default.(string)
 	// botrun.ErrorCodeValidator is a validator for the "error_code" field. It is called by the builders before save.
 	botrun.ErrorCodeValidator = botrunDescErrorCode.Validators[0].(func(string) error)
 	// botrunDescStartedAt is the schema descriptor for started_at field.
-	botrunDescStartedAt := botrunFields[8].Descriptor()
+	botrunDescStartedAt := botrunFields[10].Descriptor()
 	// botrun.DefaultStartedAt holds the default value on creation for the started_at field.
 	botrun.DefaultStartedAt = botrunDescStartedAt.Default.(func() time.Time)
 	// botrunDescCreatedAt is the schema descriptor for created_at field.
-	botrunDescCreatedAt := botrunFields[10].Descriptor()
+	botrunDescCreatedAt := botrunFields[12].Descriptor()
 	// botrun.DefaultCreatedAt holds the default value on creation for the created_at field.
 	botrun.DefaultCreatedAt = botrunDescCreatedAt.Default.(func() time.Time)
 	// botrunDescUpdatedAt is the schema descriptor for updated_at field.
-	botrunDescUpdatedAt := botrunFields[11].Descriptor()
+	botrunDescUpdatedAt := botrunFields[13].Descriptor()
 	// botrun.DefaultUpdatedAt holds the default value on creation for the updated_at field.
 	botrun.DefaultUpdatedAt = botrunDescUpdatedAt.Default.(func() time.Time)
 	// botrun.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.

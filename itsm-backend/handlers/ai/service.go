@@ -48,6 +48,8 @@ type Service struct {
 	botPolicy *bot.Policy
 	// B2-02：会话 → Bot 归属解析器（B2-04 落库后替换为真实查询；nil = 一律按默认助手）。
 	botIDResolver func(ctx context.Context, tenantID, conversationID int) int
+	// B3-01：入口上下文解析与目标预检（nil 时按 entClient 懒构造）。
+	scopeResolver *bot.ScopeResolver
 }
 
 func NewService(
@@ -269,8 +271,11 @@ func (s *Service) ExecuteToolWithOptions(ctx context.Context, userID, tenantID i
 	// permission_reason 都会带上 `args_stripped:<keys>` 留痕（安全复盘可检索）。
 	args, strippedArgKeys := sanitizeReservedArgs(args)
 	strippedMarker := argsStrippedMarker(strippedArgKeys)
+	// B3-01：模型若尝试携带入口上下文协议键（target_type/target_id/entrypoint），
+	// 一律以服务端解析并预检过的 scope 覆写；无目标上下文则保持剥离。
+	args = injectScopeArgs(args, ScopeFromContext(ctx), scopeProtocolKeysStripped(strippedArgKeys))
 	if strippedMarker != "" {
-		s.logger.Warnw("AI tool args: 模型携带身份/租户/权限键，已剥离并留痕",
+		s.logger.Warnw("AI tool args: 模型携带身份/租户/权限/入口协议键，已剥离并留痕",
 			"user_id", userID, "tenant_id", tenantID, "role", role, "tool", name,
 			"stripped", strings.Join(strippedArgKeys, ","))
 	}
@@ -320,7 +325,7 @@ func (s *Service) ExecuteToolWithOptions(ctx context.Context, userID, tenantID i
 	// 整段跳过，行为与既有版本零差异。
 	if allowed && s.botPolicy != nil {
 		decision := s.botPolicy.CheckTool(ctx, tenantID,
-			s.resolveBotID(ctx, tenantID, opts.ConversationID), bot.EntrypointChat,
+			s.resolveBotID(ctx, tenantID, opts.ConversationID), EntrypointFromContext(ctx),
 			bot.ToolMeta{
 				Name: toolDef.Name, Provider: toolDef.Provider, ReadOnly: toolDef.ReadOnly,
 				Resource: toolDef.Resource, Action: toolDef.Action, Risk: toolDef.Risk,
@@ -450,6 +455,27 @@ func (s *Service) SetConfirmationTTL(d time.Duration) { s.confirmationTTL = d }
 // SetBotPolicy 注入 Bot 策略门禁（B2-02；nil = 关闭态，走既有遗留判定）。
 func (s *Service) SetBotPolicy(policy *bot.Policy) { s.botPolicy = policy }
 
+// ScopeResolver 返回入口上下文解析器（B3-01）。
+//
+// 优先使用显式注入的解析器（测试/自定义 checker）；否则按 entClient 懒构造
+// （目标对象存在性 + 读权限预检）。两者皆不可用时返回 nil——调用方按关闭态
+// fail-closed 处理（仅放行 chat + 无目标）。
+func (s *Service) ScopeResolver() *bot.ScopeResolver {
+	if s == nil {
+		return nil
+	}
+	if s.scopeResolver != nil {
+		return s.scopeResolver
+	}
+	if s.entClient == nil {
+		return nil
+	}
+	return bot.NewScopeResolver(newEntTargetChecker(s.entClient))
+}
+
+// SetScopeResolver 注入入口上下文解析器（测试替身/自定义校验器）。
+func (s *Service) SetScopeResolver(resolver *bot.ScopeResolver) { s.scopeResolver = resolver }
+
 // SetBotIDResolver 注入「会话 → Bot」解析器（B2-02 预留；B2-04 落库后由 bootstrap 换成真实查询）。
 // 未注入时一律返回 0 = 默认助手（见 resolveBotID）。
 func (s *Service) SetBotIDResolver(resolver func(ctx context.Context, tenantID, conversationID int) int) {
@@ -533,7 +559,7 @@ func (s *Service) chatToolDecision(
 			Name: td.Name, Provider: td.Provider, ReadOnly: td.ReadOnly,
 			Resource: td.Resource, Action: td.Action, Risk: td.Risk,
 		},
-		Entrypoint:  bot.EntrypointChat,
+		Entrypoint:  EntrypointFromContext(ctx),
 		RBACAllowed: s.rbacAllowedFunc(ctx, role, tenantID),
 	})
 	if !decision.Allowed {
@@ -1086,10 +1112,13 @@ func (s *Service) chatStream(
 		broadcastRunEvent(onRun, eventType, payload, run)
 	}
 	if s.botRunner != nil {
+		scope := ScopeFromContext(ctx)
 		started, err := s.botRunner.Start(ctx, bot.StartRunInput{
 			TenantID:       tenantID,
 			ConversationID: convID,
-			Entrypoint:     "chat",
+			Entrypoint:     EntrypointFromContext(ctx),
+			TargetType:     scope.TargetType,
+			TargetID:       scope.TargetID,
 		})
 		if err != nil {
 			s.logger.Warnw("B1-01 运行记录创建失败（降级为不记录）", "error", err, "tenant_id", tenantID)
@@ -1101,9 +1130,14 @@ func (s *Service) chatStream(
 			defer cancelRun()
 			ctx = bot.WithRunID(ctx, run.ID())
 			startedPayload := map[string]any{
-				"entrypoint":     "chat",
+				"entrypoint":     EntrypointFromContext(ctx),
 				"conversationId": convID,
 				"limit":          limit,
+			}
+			// B3-01：入口上下文进入 run 记录与 run_started 事件（审计可回溯"从哪个页面发起、针对哪个对象"）。
+			if scope.HasTarget() {
+				startedPayload["targetType"] = scope.TargetType
+				startedPayload["targetId"] = scope.TargetID
 			}
 			if _, evErr := run.Emit(ctx, "run_started", startedPayload); evErr != nil {
 				s.logger.Warnw("B1-01 run_started 事件写入失败", "error", evErr, "run_id", run.ID())
