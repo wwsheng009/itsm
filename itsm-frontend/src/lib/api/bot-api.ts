@@ -9,6 +9,10 @@ import { httpClient, type HttpClientError } from './http-client';
  *  - 写（`ai:write`）：CRUD、授权 upsert/删除
  *  - 工作区选择器：`GET /api/v1/agent/bots`（B2-04，见 ai-api.ts 的 `aiListVisibleBots`）
  *
+ * 响应契约：统一 `{code,message,data}` 包络（`http-client.ts` 只解包 `data`）——后端**禁止裸 JSON**；
+ * 2026-09-27 修复：`bot_admin.go` 曾返回裸 JSON 导致本页与工作区选择器静默为空（证据
+ * `docs/plan/evidence/bot-b3/S4-S7-business-bots-evidence.md` §5.2）。
+ *
  * 回滚语义：`bot.enabled=false` 时 bootstrap 不注入 handler，整组路由**不注册** →
  * gin 404 且无 errorCode；本文件通过 `isBotFeatureDisabled` 识别，UI 降级为"功能未启用"引导。
  *

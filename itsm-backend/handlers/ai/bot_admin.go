@@ -16,6 +16,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 
+	"itsm-backend/common"
 	"itsm-backend/ent"
 	"itsm-backend/service/bot"
 )
@@ -49,15 +50,17 @@ type botGrantRequest struct {
 	ArgsPolicyJSON string `json:"argsPolicyJson"`
 }
 
+// 响应契约：统一使用 common 包络（`{code,message,data}`）——与 MCP/LLM Provider 等
+// 管理端点同源；前端 httpClient 只解包 `data`，裸 JSON 会导致列表静默为空。
 func botTenantID(c *gin.Context) (int, bool) {
 	value, exists := c.Get("tenant_id")
 	if !exists {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "缺少租户上下文"})
+		common.Fail(c, common.UnauthorizedCode, "缺少租户上下文")
 		return 0, false
 	}
 	tenantID, ok := value.(int)
 	if !ok || tenantID <= 0 {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "租户上下文非法"})
+		common.Fail(c, common.UnauthorizedCode, "租户上下文非法")
 		return 0, false
 	}
 	return tenantID, true
@@ -66,21 +69,21 @@ func botTenantID(c *gin.Context) (int, bool) {
 func botPathID(c *gin.Context, name string) (int, bool) {
 	id, err := strconv.Atoi(c.Param(name))
 	if err != nil || id <= 0 {
-		c.JSON(http.StatusBadRequest, gin.H{"error": name + " 必须是正整数"})
+		common.Fail(c, common.BadRequestCode, name+" 必须是正整数")
 		return 0, false
 	}
 	return id, true
 }
 
-// writeBotAdminError 把服务层稳定错误映射为 HTTP 状态码。
+// writeBotAdminError 把服务层稳定错误映射为统一错误包络（HTTP 状态码由 common.Fail 映射）。
 func writeBotAdminError(c *gin.Context, err error) {
 	switch {
 	case errors.Is(err, bot.ErrTemplateNotFound), errors.Is(err, bot.ErrGrantNotFound):
-		c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
+		common.Fail(c, common.NotFoundCode, err.Error())
 	case errors.Is(err, bot.ErrTemplateSlugUsed), errors.Is(err, bot.ErrValidation):
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		common.Fail(c, common.BadRequestCode, err.Error())
 	default:
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "内部错误"})
+		common.Fail(c, common.InternalErrorCode, "内部错误")
 	}
 }
 
@@ -126,7 +129,7 @@ func (h *BotAdminHandler) ListBotTemplates(c *gin.Context) {
 	for _, tpl := range templates {
 		items = append(items, botTemplateView(tpl))
 	}
-	c.JSON(http.StatusOK, gin.H{"items": items, "total": len(items)})
+	common.Success(c, gin.H{"items": items, "total": len(items)})
 }
 
 // ListVisibleBots GET /api/v1/agent/bots（B2-04 工作区选择器）
@@ -155,7 +158,7 @@ func (h *BotAdminHandler) ListVisibleBots(c *gin.Context) {
 			"audience": tpl.Audience,
 		})
 	}
-	c.JSON(http.StatusOK, gin.H{"items": items, "total": len(items)})
+	common.Success(c, gin.H{"items": items, "total": len(items)})
 }
 
 // GetBotTemplate GET /api/v1/admin/bots/:id（含授权清单）
@@ -184,7 +187,7 @@ func (h *BotAdminHandler) GetBotTemplate(c *gin.Context) {
 	}
 	view := botTemplateView(tpl)
 	view["grants"] = grantViews
-	c.JSON(http.StatusOK, view)
+	common.Success(c, view)
 }
 
 // CreateBotTemplate POST /api/v1/admin/bots
@@ -195,7 +198,7 @@ func (h *BotAdminHandler) CreateBotTemplate(c *gin.Context) {
 	}
 	var req botTemplateRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "请求体非法: " + err.Error()})
+		common.Fail(c, common.BadRequestCode, "请求体非法: "+err.Error())
 		return
 	}
 	tpl, err := h.admin.CreateTemplate(c.Request.Context(), tenantID, bot.TemplateInput{
@@ -206,7 +209,8 @@ func (h *BotAdminHandler) CreateBotTemplate(c *gin.Context) {
 		writeBotAdminError(c, err)
 		return
 	}
-	c.JSON(http.StatusCreated, botTemplateView(tpl))
+	// 201 保留创建语义，同时携带统一包络（common.Success 固定 200，故此处显式构造）。
+	c.JSON(http.StatusCreated, common.Response{Code: common.SuccessCode, Message: "success", Data: botTemplateView(tpl)})
 }
 
 // UpdateBotTemplate PUT /api/v1/admin/bots/:id
@@ -221,11 +225,11 @@ func (h *BotAdminHandler) UpdateBotTemplate(c *gin.Context) {
 	}
 	var req botTemplateRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "请求体非法: " + err.Error()})
+		common.Fail(c, common.BadRequestCode, "请求体非法: "+err.Error())
 		return
 	}
 	if strings.TrimSpace(req.Slug) != "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "slug 不可修改"})
+		common.Fail(c, common.BadRequestCode, "slug 不可修改")
 		return
 	}
 	tpl, err := h.admin.UpdateTemplate(c.Request.Context(), tenantID, id, bot.TemplateInput{
@@ -236,7 +240,7 @@ func (h *BotAdminHandler) UpdateBotTemplate(c *gin.Context) {
 		writeBotAdminError(c, err)
 		return
 	}
-	c.JSON(http.StatusOK, botTemplateView(tpl))
+	common.Success(c, botTemplateView(tpl))
 }
 
 // DeleteBotTemplate DELETE /api/v1/admin/bots/:id（级联删除授权）
@@ -253,7 +257,7 @@ func (h *BotAdminHandler) DeleteBotTemplate(c *gin.Context) {
 		writeBotAdminError(c, err)
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"deleted": true})
+	common.Success(c, gin.H{"deleted": true})
 }
 
 // ListBotGrants GET /api/v1/admin/bots/:id/grants
@@ -275,7 +279,7 @@ func (h *BotAdminHandler) ListBotGrants(c *gin.Context) {
 	for _, grant := range grants {
 		items = append(items, botGrantView(grant))
 	}
-	c.JSON(http.StatusOK, gin.H{"items": items, "total": len(items)})
+	common.Success(c, gin.H{"items": items, "total": len(items)})
 }
 
 // UpsertBotGrant PUT /api/v1/admin/bots/:id/grants
@@ -290,7 +294,7 @@ func (h *BotAdminHandler) UpsertBotGrant(c *gin.Context) {
 	}
 	var req botGrantRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "请求体非法: " + err.Error()})
+		common.Fail(c, common.BadRequestCode, "请求体非法: "+err.Error())
 		return
 	}
 	grant, err := h.admin.UpsertGrant(c.Request.Context(), tenantID, id, bot.GrantInput{
@@ -300,7 +304,7 @@ func (h *BotAdminHandler) UpsertBotGrant(c *gin.Context) {
 		writeBotAdminError(c, err)
 		return
 	}
-	c.JSON(http.StatusOK, botGrantView(grant))
+	common.Success(c, botGrantView(grant))
 }
 
 // DeleteBotGrant DELETE /api/v1/admin/bots/:id/grants/:grantId
@@ -321,5 +325,5 @@ func (h *BotAdminHandler) DeleteBotGrant(c *gin.Context) {
 		writeBotAdminError(c, err)
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"deleted": true})
+	common.Success(c, gin.H{"deleted": true})
 }

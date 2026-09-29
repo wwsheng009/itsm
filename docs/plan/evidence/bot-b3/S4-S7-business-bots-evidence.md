@@ -65,6 +65,31 @@ S1～S3（工单助手 / 事件值班 / 知识自助）覆盖「处理中 + 现�
 | 重放 | `go run ./cmd/initialize -action=apply -release-version=local-2026-09-27.2` | runId=33 succeeded；`bot templates seeded: templates_created=4, grants_created=22, grants_skipped=12`（12 = S1～S3 既有授权，幂等跳过） |
 | 验证 | `GET /api/v1/admin/bots` + `/grants` | `templates=8`（默认助手 + S1～S7）；授权数 `0/5/5/2/8/6/5/3`；风险上限 `act_low/act_low/act_low/act_low/plan/plan/act_low/act_medium` |
 
+### 5.1 浏览器实测（`http://localhost:3000/admin/bots`）
+
+| # | 观察项 | 结果 |
+| --- | --- | --- |
+| 1 | 列表渲染 | 8 行：默认助手 + S1～S7；S4/S5 风险列「规划」（plan）、S6「低风险写」、S7「中风险写」（act_medium）；入口列与定义一致（S4 `chat,ci_detail`；S6 `chat,ticket_list,incident_create`；S7 `chat,ticket_list,ticket_detail`） |
+| 2 | S4 授权抽屉 | 8 条授权，风险标签正确（`analyze_ci_impact_plan`/`get_ci_impact`=规划；其余只读），抽屉顶部提示「模板风险上限：规划」 |
+| 3 | S7 授权抽屉 | 3 条授权：`update_ticket`=中风险写、`draft_ticket_fields`=规划、`list_tickets`=只读；抽屉顶部提示「模板风险上限：中风险写」 |
+| 4 | 工作区选择器 | `GET /api/v1/agent/bots` 返回 `code=0`、8 条（audience/入口允许的子集），修复后非空 |
+
+### 5.2 契约缺陷与修复（本次一并闭环）
+
+**现象**：`/admin/bots` 页面 HTTP 200 但表格恒为「暂无 Bot 模板」；`/api/v1/agent/bots` 同样为空。
+
+**根因**：`handlers/ai/bot_admin.go`（B2-01）所有响应为**裸 JSON**（`{"items":…}` / `{"error":…}`），而前端 `http-client.ts:529` 统一按 `{code,message,data}` 包络只解包 `data`（MCP/LLM Provider 等管理端点均用 `common.Success`）→ `data` 为 `undefined`，列表静默为空。
+
+**修复**（`bot_admin.go`）：
+
+- 成功响应统一 `common.Success(c, …)`（列表/详情/授权/删除）；创建保留 **201** 语义并携带同一包络（`common.Response{Code:0,Message:"success",Data:…}`）；
+- 错误响应统一 `common.Fail(c, code, message)`（未找到 404 / 校验 400 / 内部 500；租户上下文缺失 401）；
+- 契约由此与其余管理端点、`itsm-frontend/src/lib/api/bot-api.ts` 的 `httpClient` 解包口径一致。
+
+**回归**：`handlers/ai/bot_admin_test.go` 的 `decodeBody` 改为断言 `code=0` 并解包 `data`（列表/创建/更新/授权/详情全覆盖）；`go test ./handlers/ai/ -run TestBotAdmin` + `./router/` 全绿；后端 `main.exe` 重建重启后实测 `GET /api/v1/admin/bots` → `code=0, items=8`，页面 8 行与抽屉正常。
+
+> 说明：前端组件单测此前只 mock `botApi`（未覆盖真实 HTTP 解包），故 B2-03 未暴露该缺陷；本次以浏览器实测闭环。
+
 ## 6. Bot 与 AI Provider 的关系（现状口径 + 配置方法）
 
 **结论：当前 Bot 模板与 AI Provider 之间没有绑定关系。** Bot 决定「工具面 / 入口 / 风险上限」，Provider 在**每次请求**上解析。
@@ -94,4 +119,4 @@ S1～S3（工单助手 / 事件值班 / 知识自助）覆盖「处理中 + 现�
 | 1 | S4 无 `change_detail` 入口 | 已知入口仅 `chat/ticket_detail/ticket_list/incident_detail/incident_create/ci_detail`（`service/bot/scope.go:22-28`）；变更域入口需与变更模块联调（列入后续候选） |
 | 2 | S6/S7 依赖 RBAC 授权面 | 授权仅在角色具备对应权限时生效（交集门禁）；管理员可在 `/admin/bots` 按角色实际权限裁剪 |
 | 3 | S7 为唯一 `act_medium` 预置 | 若组织暂不放开 `update_ticket`，可直接停用该模板（不影响其余 7 个）或降级其授权 |
-| 4 | 浏览器端人工冒烟 | 模板可见性与授权抽屉渲染归 BT-09/B4-01 的浏览器通道（与 S1～S3 同口径） |
+| 4 | 浏览器端人工冒烟 | 列表与授权抽屉已实测（§5.1，2026-09-27）；截图未入库（会话内留存），长期证据建议纳入 BT-09/B4-01 浏览器通道 |

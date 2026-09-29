@@ -113,9 +113,14 @@ func (h *botAdminHarness) doAs(t *testing.T, method, path string, tenant int, ro
 
 func decodeBody(t *testing.T, recorder *httptest.ResponseRecorder) map[string]any {
 	t.Helper()
-	var decoded map[string]any
-	require.NoError(t, json.Unmarshal(recorder.Body.Bytes(), &decoded), "body=%s", recorder.Body.String())
-	return decoded
+	// 响应契约：统一 common 包络 {code,message,data}——前端 httpClient 只解包 data。
+	var envelope struct {
+		Code int            `json:"code"`
+		Data map[string]any `json:"data"`
+	}
+	require.NoError(t, json.Unmarshal(recorder.Body.Bytes(), &envelope), "body=%s", recorder.Body.String())
+	require.Equal(t, 0, envelope.Code, "成功响应包络 code 必须为 0：body=%s", recorder.Body.String())
+	return envelope.Data
 }
 
 func TestBotAdminHandler_CRUDRoundtrip(t *testing.T) {
