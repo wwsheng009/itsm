@@ -23,6 +23,8 @@
 | 客户层 | Customer（被服务方/直客） | customer 租户（type=customer，含 `provider_tenant_id` 归属） |
 | 关系层 | Membership / Allocation / Scope / Filter | membership 表（账号↔租户↔组织↔角色）；allocation（provider↔customer↔员工）；会话作用域；视图过滤器 |
 
+> **Provider 与 Customer 的定位、功能与区别**（功能清单、逐维度对比、常见误解澄清）：详见 **§2.1**。
+
 **与现状的差距**（本文 §4 全表）：`type` 枚举 7 值需收敛为 3 类 + legacy 映射；membership 表**不存在**（角色/组织挂不上）；`parent_tenant_id`/`msp_provider_id` 需二选一；`MSPAllocation` 需补 provider 归属；执行器/RLS/审计需统一挂 tenantctx。
 
 ---
@@ -34,8 +36,8 @@
 | C1 | 平台 | **Platform** | 部署实例的运营方；不参与客户业务，负责租户/套餐/治理 | 平台租户（`internal`/`standard`）+ `super_admin` | 🟡 概念存在但未显式化 |
 | C2 | 租户 | **Tenant** | **数据隔离的唯一边界**；每行业务数据以 `tenant_id` 归属 | `tenants` 表 | ✅ 表在，但 `type` 语义发散 |
 | C3 | 租户类型 | **Tenant Kind** | `platform` / `provider` / `customer` 三类（canonical）；其余为 legacy 映射 | `tenants.type`（建议加约束/视图） | ❌ 7 值枚举 + legacy，语义重叠 |
-| C4 | 服务商 | **Provider** | 提供 MSP 服务的组织；**一个服务商 = 一个 provider 租户** | provider 租户 + membership | 🟡 隐式单例（seed `default`） |
-| C5 | 客户 | **Customer** | 被服务方（MSP 客户）或直客（SaaS 客户）；一个客户 = 一个 customer 租户 | customer 租户 + `provider_tenant_id`（归属） | ❌ 归属字段为死元数据 |
+| C4 | 服务商 | **Provider** | 提供 MSP 服务的组织；**一个服务商 = 一个 provider 租户**（定位/功能详见 §2.1） | provider 租户 + membership | 🟡 隐式单例（seed `default`） |
+| C5 | 客户 | **Customer** | 被服务方（MSP 客户）或直客（SaaS 客户）；一个客户 = 一个 customer 租户（定位/功能详见 §2.1） | customer 租户 + `provider_tenant_id`（归属） | ❌ 归属字段为死元数据 |
 | C6 | 账号 | **Account** | 登录主体（`users` 行），全局唯一（username/email） | `users` | ✅ |
 | C7 | 成员身份 | **Membership** | **账号在某租户内的成员关系**：角色、组织归属、生效期、状态 | `memberships` 表（**待建**） | ❌ 不存在（核心割裂点） |
 | C8 | 作用域 | **Scope（Active Tenant）** | 一次会话/请求的"当前生效租户"，由 membership 派生 | JWT `tenant_id` + tenantctx | 🟡 有机制，但来源不统一 |
@@ -85,6 +87,73 @@
 | B4 | **客户内闭环**：客户租户内的组织/角色/工作流/通知自成体系，不引用 provider 的配置 |
 | B5 | **账号跨租户、权限不跨租户**：账号可有多租户 membership，但任一请求的权限只在目标租户内计算 |
 | B6 | **会话作用域（Scope）与视图过滤器（Filter）分离**：过滤器只改"看什么"，条目级操作按资源租户授权，不改会话 |
+
+### 2.1 Provider（服务商）与 Customer（客户）：定位、功能与区别（详解）
+
+#### Provider（`msp_provider`）：服务提供方
+
+**定位**：一个**服务商组织**（提供 IT 托管/MSP 服务的公司）。系统内它就是一个 `tenants.type=msp_provider` 的**租户**——不是平台、也不是客户。当前 `saas_msp` 部署下由 seed 创建唯一一个（`code=default`），**一个服务商 = 一个 provider 租户**。
+
+它在系统里同时承担两个角色：
+
+1. **服务商租户（身份与跨客户能力的归属）**：承载服务商员工账号（`users.tenant_id` = provider 租户 + `msp_role`），并作为 `/api/v1/msp/*` 路由族的身份来源；
+2. **一个普通 ITSM 租户**：服务商自身的内部运维（自有工单/CMDB/知识/变更/服务目录等）也发生在这个租户内，与客户数据天然隔离、互不可见。
+
+**功能清单（现状实现）**：
+
+| 能力 | 说明 | 证据 |
+|---|---|---|
+| MSP 身份判定 | `IsMSP = home tenant 类型 ∈ {msp_provider, legacy msp} ∧ msp_role ≠ ''`；admin 不自动获得 MSP 身份 | `middleware/msp_middleware.go:91-96` |
+| 角色与映射 | `provider_admin → msp_manager`（高风险面：租户开通/计费/跨客户批量，`RequireMSPManager`）；`provider_agent → msp_tech`；未知值回落 `msp_viewer`（fail-safe 收窄） | `middleware/msp_rbac.go:18-30,50` |
+| 客户范围 | **只可见"已分配给自己的客户"**：`AllowedCustomers` = 有效 `MSPAllocation`；未分配客户不可见/不可操作（403） | `middleware/msp_middleware.go:104-131` |
+| 跨客户能力面 | `/msp/status`、`/msp/context`、`/msp/allocations`（分配管理）、`/msp/customers`（客户列表）、`/msp/customers/:id/tickets`（客户工单）、`/msp/tickets/:id/assign`（指派）、`/msp/reports/*`（报表） | `router/msp_routes.go:20-40` |
+| 目标态能力 | 跨客户工作台（列表带客户列 + 条目级处理）+ 全局过滤器；深度操作才切换作用域 | [工作台方案](./msp-cross-customer-workbench-and-filter-plan.md) |
+| 生命周期 | 由平台/seed 创建；`provider_admin` 管理本服务商员工与分配；服务商的客户由 provider 开通（建客户租户 + allocation） | `pkg/seeder/seeder.go:784-833`、`service/msp_allocation_service.go` |
+
+#### Customer（`msp_customer`）：被服务方
+
+**定位**：**购买 MSP 托管服务的企业**（被服务方）。系统内是一个 `tenants.type=msp_customer` 的租户（SaaS 直客为 `saas_customer`，无 provider）。
+
+**功能清单（现状实现）**：
+
+| 能力 | 说明 | 证据 |
+|---|---|---|
+| 数据闭环 | 客户的工单/CMDB/知识/变更/服务目录等全部 `tenant_id` = 客户租户；**永不跨租户** | `middleware/tenant.go:133-183`（fail-closed） |
+| 账号与角色 | 客户员工账号（`users.tenant_id` = 客户租户）；无 `msp_role`（legacy 值 `customer_user` 仅映射 `end_user`，且**不满足** IsMSP 条件） | `middleware/msp_rbac.go:21`、`msp_middleware.go:93` |
+| MSP 路由 | **不可访问** `/api/v1/msp/*`（`IsMSP=false` → 403）；无跨客户视图、无过滤器/切换器 | `middleware/msp_rbac.go:33-46` |
+| 托管可见性 | 工单上可见自己的服务商处理信息（`TicketMSPInfo`：`isManagedByMsp`/`mspProviderName`/`managedByUsername`/`mspTicketId`）——即"谁在帮我处理"，**看不到其他客户** | `dto/msp_dto.go:71-78`、`repository/ticket/repository_impl.go:961-967` |
+| 内部自治 | 客户租户内的组织/角色/工作流/通知自闭环（不受 provider 配置影响） | 集成分析 §3/§4 |
+| 生命周期 | 由 provider（或平台）创建；归属 provider（目标 `provider_tenant_id`）；可暂停/过期（provider 侧操作随之受限） | `service/tenant_service.go:48-52`、`middleware/msp_middleware.go` |
+
+#### Provider vs Customer 对比
+
+| 维度 | **msp_provider（服务商）** | **msp_customer（客户）** |
+|---|---|---|
+| 是什么 | 服务提供方组织 | 被服务方企业（MSP 客户）/ 直客（SaaS） |
+| 租户类型 | `msp_provider`（legacy `msp`） | `msp_customer`（legacy `customer`；直客 `saas_customer`） |
+| 数量关系 | 1 provider : N customers（当前部署仅 1 个 provider） | N customers : 1 provider（直客无 provider） |
+| 账号与角色 | 服务商员工 + `msp_role`（`provider_admin`/`provider_agent`）→ RBAC `msp_manager`/`msp_tech` | 客户员工；无 `msp_role`（legacy `customer_user`→`end_user`） |
+| MSP 路由 `/msp/*` | ✅ 可访问（受 AllowedCustomers 约束） | ❌ 403 |
+| 数据可见范围 | 本服务商自有数据 + **已分配客户**的数据（allocation + 头通道/条目级授权） | **仅本租户**数据 |
+| 跨租户能力 | 有（显式：allocation / 条目级授权 / 头通道只读） | 无 |
+| 组织/工作流 | 本租户内 + 客户租户内（仅在授权范围与目标租户 RBAC 内） | 仅本租户 |
+| 计费/套餐字段 | `billing_enabled`/`service_tier` 等 | `plan_code`/`service_tier`/`expires_at` 等 |
+| 谁创建 | 平台/seed（当前部署唯一） | provider 或平台 |
+| 隐私红线 | 不得看到**未分配**客户；不得跨 provider（R2 待修） | 不得看到其他客户；登录页无租户信息（I8） |
+
+#### 与 Platform（`internal`）的区别
+
+平台是**部署运营方**（第三个租户类型）：不是服务商、也不是客户；承载平台管理员（`super_admin`）与治理能力（租户生命周期/套餐/全局配置），治理操作须"先选目标租户 + 审计"（B2）。
+
+#### 常见误解澄清
+
+| 误解 | 事实 |
+|---|---|
+| "provider 是平台级概念" | ❌ provider 是**一个租户**（当前部署唯一）；平台是另一个租户（`internal`） |
+| "所有用户都在同一个 provider 租户" | ❌ 只有**服务商员工**在 provider 租户；客户员工各自在自己的客户租户 |
+| "`msp_role=customer_user` 表示客户用户" | 🟡 该值为 legacy/占位（映射 `end_user`）；客户用户实际不依赖 `msp_role`，且**不满足** IsMSP 条件 |
+| "provider 能看到所有客户" | ❌ 只能看到**已分配**客户（AllowedCustomers）；未分配 → 403 |
+| "服务商必须靠切换器工作" | ❌ 日常是**工作台 + 全局过滤器 + 条目级操作**；切换仅用于深度操作（I9） |
 
 ---
 
@@ -288,3 +357,4 @@ erDiagram
 | 版本 | 日期 | 变更 |
 |---|---|---|
 | v0.1 | 2026-09-29 | 首版：15 个概念 Canon 定义；四层分层与 6 条边界规则；Canonical ER + 12 条不变量；概念→现状→目标映射表（14 行）；术语收敛与废弃清单；子系统挂接规范；部署模式与单/多 provider 决策；P0/P1/P2 迁移路线；验收 A1–A10 与反例；开放决策 D1–D8；文档职责分工 |
+| v0.2 | 2026-09-29 | 新增 §2.1：Provider（`msp_provider`）与 Customer（`msp_customer`）的定位、功能清单（身份/角色映射/客户范围/能力面/生命周期）、逐维度对比表、与 Platform 的区别、常见误解澄清 |
