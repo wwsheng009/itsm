@@ -70,6 +70,7 @@
 | [msp-login-and-switching-refinement-plan.md](./plan/msp-login-and-switching-refinement-plan.md) | **登录与作用域切换细化方案（隐私优先）**：登录页无租户选择器（客户关系保护）、按 `account_kind` 分派、域名/企业代码定位、服务商登录后顶栏切换器、防枚举、与既有方案 6 项修订 |
 | [msp-frontend-pages-and-permissions-analysis.md](./plan/msp-frontend-pages-and-permissions-analysis.md) | **前端页面与权限分析及目标细化**：路由/页面/权限/菜单/租户上下文现状（含权限双源、菜单缓存未分键、`tenants[0]` 等风险）+ 切换器/刷新链路/页面改造清单/分期验收 |
 | [msp-cross-customer-workbench-and-filter-plan.md](./plan/msp-cross-customer-workbench-and-filter-plan.md) | **跨客户工作台与全局过滤方案**（替代"全局切换"）：会话作用域/视图过滤器/条目级操作三概念分离；顶栏 `CustomerFilter`（全部/子集+徽标）；工作台列表带客户列、行内处理、批量护栏；资源级授权与 bounded bypass；API/性能/分期 |
+| [msp-integration-with-rbac-org-workflow-analysis.md](./plan/msp-integration-with-rbac-org-workflow-analysis.md) | **多租户 × 权限/部门/团队/工作流 集成分析与冲突处置**：五问判定框架；RBAC（`user_roles` 平台级豁免、权限双源、`data_scope` 空承诺）、组织（成员关系无成员行、全局唯一键、零 RLS）、工作流（指派未验租户、授权可覆写、列表 fail-open）、执行器（租户 ctx 不统一）、通知；❌6/🟡14 清单 + 7 条不变量 + 分期 |
 
 ## 维护约定
 
