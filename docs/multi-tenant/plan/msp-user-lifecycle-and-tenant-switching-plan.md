@@ -234,7 +234,7 @@
 - **现象**：`msp_*` 角色的静态权限只有 `msp/msp_customer/msp_ticket/msp_allocation/msp_report`（无客户业务资源）；客户租户模板是否含 `msp_*` 角色及其 `role_permissions` 未确认；切换进客户租户后做客户业务（工单/知识库/CMDB）没有明确授权依据。
 - **证据**：`middleware/rbac.go:437-481`；`middleware/rbac.go:498-506`（DB-only）；`router/msp_routes.go:13-35`（仅 msp_* 端点）。
 - **影响**：切换租户"能进去但干不了活"；或被迫临时提权（admin）破坏最小权限。
-- **目标**：在客户租户模板中内置 `msp_manager/msp_tech/msp_viewer` 角色与**受控的客户业务权限**（建议：工单 read/write、知识库 read、CMDB read；写操作按 ADR 评审），由 `provision_tenant` 幂等供给；MSP 分配角色（primary/backup/specialist）映射到这些角色。
+- **目标**：在客户租户模板中内置 4 个 msp 角色（`msp_observer/msp_tech/msp_manager/msp_full`）与**受控的客户业务权限**（默认基线：工单 read/write，知识库/CMDB/服务目录 read；`msp_manager` 加客户侧 `user:write`；`msp_full` 含 CMDB/变更写且默认不分配），由 `provision_tenant` 幂等供给；客户 admin 可编辑角色权限（Q7 决策）；MSP 分配角色（primary→manager、backup→tech、specialist→specialist）映射到这些角色。
 
 ### F15 跨租户两条通道并存且语义不统一（P1）
 
