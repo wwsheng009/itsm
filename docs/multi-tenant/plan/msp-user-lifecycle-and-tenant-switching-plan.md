@@ -3,6 +3,7 @@
 > 状态：Draft（待评审）｜日期：2026-09-29｜范围：用户创建 / 登录选租户 / 租户切换 / 相关权限与前端
 > 关联：[ADR-004](../../architecture/adr-004-multi-customer-tenant-model-selection.md)、[07 已知缺口](../07-known-gaps.md)（G1–G10）、[06 实测记录 §7](../06-verification-and-troubleshooting.md)、[05 使用指南](../05-usage-guide.md)
 > 证据来源：三个只读子代理调研（认证链路 / 用户与约束 / 前端）+ 主代理复核，逐条 file:line 见 [附录 A](#附录-a证据索引)。
+> 作用域模型（Q1 回答 + ai-gateway 参考）：见 [服务方/客户方作用域模型分析](./msp-scope-model-analysis-and-ai-gateway-reference.md)。
 
 ---
 
@@ -607,11 +608,11 @@ CREATE UNIQUE INDEX uq_membership_active ON user_tenant_memberships (user_id, te
 
 | # | 问题 | 影响 | 建议 |
 |---|---|---|---|
-| Q1 | MSP 员工在客户租户内的权限边界（只读？可写工单？能否建号？） | F14 模板权限设计 | 建议：默认工单读写 + 知识库/CMDB 只读；`msp_manager` 额外 `user:write`（限客户侧角色） |
+| Q1 | MSP 员工在客户租户内的权限边界（只读？可写工单？能否建号？） | F14 模板权限设计 | ✅ 已答：工单读写 + 知识/CMDB/服务目录只读 + `msp_manager` 可开通客户侧账号；变更/发布/CMDB 写/系统配置默认禁止（见[作用域模型分析 §3](./msp-scope-model-analysis-and-ai-gateway-reference.md#3-业务规则确认q1-正式回答)） |
 | Q2 | 平台 `super_admin` 跨租户建号是否需二次确认/审批 | F1 通道安全 | 建议：仅 `super_admin`，强制审计 + 高危操作日志告警 |
-| Q3 | 是否允许同一邮箱在多个租户（决定 P1-2 是否做） | F7/F4 | 建议：允许（租户内唯一），登录走候选选择 |
+| Q3 | 是否允许同一邮箱在多个租户（决定 P1-2 是否做） | F7/F4 | ✅ 建议改为**不允许**：客户方不跨租户 → 保持全局唯一，**取消 P1-2** 的邮箱租户内唯一迁移 |
 | Q4 | 邀请邮件通道（SMTP）是否就绪 | F4 排期 | 若未就绪，先出"邀请链接"由管理员线下传递 |
-| Q5 | 路线 B 的触发与排期 | 长期模型 | 按 §4.2 触发条件评估 |
+| Q5 | 路线 B 的触发与排期 | 长期模型 | ✅ 建议**提前至 P1**：membership 作为"一个账号、多作用域"目标模型的正式部分（见分析文档 §5） |
 
 ---
 
@@ -680,3 +681,4 @@ CREATE UNIQUE INDEX uq_membership_active ON user_tenant_memberships (user_id, te
 | 版本 | 日期 | 变更 |
 |---|---|---|
 | v0.1 | 2026-09-29 | 首版：现状盘点（三方调研）、缺口 F1–F15、路线 A/B 选型、P0 详细设计、分期与验收 |
+| v0.2 | 2026-09-29 | 依据[作用域模型分析](./msp-scope-model-analysis-and-ai-gateway-reference.md)：Q1 已答（服务方/客户方边界）；路线 B（membership）提前至 P1；取消 P1-2 邮箱租户内唯一；客户方登录解析收紧为 fail-closed |

@@ -64,6 +64,7 @@
 | 方案 | 内容 |
 |---|---|
 | [msp-user-lifecycle-and-tenant-switching-plan.md](./plan/msp-user-lifecycle-and-tenant-switching-plan.md) | 多租户用户生命周期与租户切换：功能缺口 F1–F15（建号/登录选租户/切换上下文）、路线 A/B 选型、P0 详细设计、分期与验收 |
+| [msp-scope-model-analysis-and-ai-gateway-reference.md](./plan/msp-scope-model-analysis-and-ai-gateway-reference.md) | 服务方/客户方作用域模型分析（Q1 回答）：一个账号、多作用域（membership）目标模型、ai-gateway 多租户设计对照与可借鉴清单 |
 
 ## 维护约定
 
