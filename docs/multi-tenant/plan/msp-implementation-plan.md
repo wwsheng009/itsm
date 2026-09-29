@@ -1,6 +1,6 @@
 # MSP 多租户实施方案（P0 → P1 → P2）
 
-> 状态：**Draft v0.1（待评审）**｜日期：2026-09-29｜基准：仓库 HEAD `4fcacf68`
+> 状态：**Draft v0.2（待评审）**｜日期：2026-09-29｜基准：仓库 HEAD `4fcacf68`
 > 上位：[ADR-004](../../architecture/adr-004-multi-customer-tenant-model-selection.md)（选型）｜[canon](./msp-concept-model-and-architecture-canon.md)（概念/边界/迁移路线，附录 C 注册表）
 > 设计输入：[目标架构](./msp-target-architecture.md)｜[工作台方案](./msp-cross-customer-workbench-and-filter-plan.md)｜[登录与切换细化](./msp-login-and-switching-refinement-plan.md)｜[前端分析](./msp-frontend-pages-and-permissions-analysis.md)｜[主方案](./msp-user-lifecycle-and-tenant-switching-plan.md)｜[集成分析](./msp-integration-with-rbac-org-workflow-analysis.md)｜[一致性审计](./msp-docs-consistency-audit.md)
 > 定位：把上述目标态落成**可执行、可验收、可回滚**的工程步骤；本文不新增概念。工作流编号为本文局部编号 `IP-P{0|1|2}-#`（已登记 canon 附录 C）。
@@ -208,6 +208,20 @@
 **验收**：审计查询可按 `target_tenant` 过滤；三角色剧本审计断言通过；C.6 通过。
 
 **回滚**：字段为新增列，停止写入即可。
+
+### IP-P0-11 执行器/定时器租户上下文统一（I7；集成分析 §5.2；canon §8 P0 ⑤）
+
+**目标**：所有后台执行路径（BPMN/工作流、定时器/延迟任务、自动化规则、升级矩阵、队列消费者）在**显式租户 ctx** 下运行；无 ctx 即拒绝执行，禁止"无租户上下文旁路"。
+
+**步骤**：
+1. 入口收口：`handlers/{bpmn,approval,approval_chain,timer,automation_rule,escalation_matrix}/` 与对应 service 统一经 `tenantctx` 注入（入队即携带 `tenant_id + actor + reason`）；
+2. 执行器：worker 取出任务先 `WithTenantID` 再执行；审计 `source=job`；确需跨租户时走显式 bounded bypass；
+3. 指派/授权：工作流指派校验 `assignee ∈ provider ∧ allocation`（与 IP-P0-2 同口径）；列表查询 fail-closed；
+4. 测试：错误 ctx 下的跨租户 job 必须失败；客户 A 的定时器/自动化不泄漏到客户 B。
+
+**验收**：跨租户 ctx 用例全过（错误 ctx 执行被拒）；`source=job` 审计可查；集成分析 §5.2 项关闭；A7 前置条件满足。
+
+**回滚**：ctx 注入为增量逻辑；异常时按租户关闭自动化入口（feature flag）。
 ---
 
 ## 4. P1 详细实施（Membership 化）
@@ -257,6 +271,7 @@
 ### 6.2 P0 出口 DoD（发布门）
 
 - [ ] **安全**：未分配客户在头/路径/请求体 3 通道均 403（R9/R10 关闭）；头/JWT 冲突 401 + 告警（07:G9 关闭）；
+- [ ] **执行器/定时器**：后台任务/自动化在显式租户 ctx 下运行、错误 ctx 被拒、`source=job` 可审计（IP-P0-11）；
 - [ ] **功能**：工作台跨客户看+做（WB-A1–A6）；写操作无需切换且逐条审计；
 - [ ] **登录/会话**：provider 登录落 provider 家；切换/刷新/撤销契约通过（F5/F6/F9/F10/F11/F12 对应项）；
 - [ ] **建号**：三通道 `ProvisionUser` 生效；`07:G1/G2` 关闭；角色白名单生效；
@@ -297,7 +312,7 @@
 | A4 多租户 membership（customer 单作用域） | IP-P1-1 | 回填巡检 + DB 约束 |
 | A5 单租户多组织归属 | IP-P1-3 | 集成测试 |
 | A6 权限 DB 单源一致 | IP-P1-2 | 三端点对比测试 |
-| A7 RLS shadow 无 ctx 报错 | IP-P1-7 | shadow 观察报告 |
+| A7 RLS shadow 无 ctx 报错（含执行器/定时器） | IP-P1-7 + IP-P0-11 | shadow 观察报告 |
 | A8 跨租户写仅两类且审计 | IP-P0-7/10 | 审计查询 |
 | A9 客户账号三无（前端+API） | IP-P0-7/8 | FE 测试 + API 403 |
 | A10 模式单一来源自检 | IP-P0-1 | 启动自检日志 |
@@ -361,3 +376,4 @@
 | 版本 | 日期 | 变更 |
 |---|---|---|
 | v0.1 | 2026-09-29 | 首版：P0（10 工作流）/P1（8）/P2（5）步骤、验收 DoD、A1–A12 映射、发布回滚、风险与里程碑 |
+| v0.2 | 2026-09-29 | 补 **IP-P0-11（执行器/定时器租户 ctx 统一，原 canon P0 ⑤ / 集成分析 §5.2 缺口）**；P0 DoD 增执行器勾选项；A7 证据并入该项 |

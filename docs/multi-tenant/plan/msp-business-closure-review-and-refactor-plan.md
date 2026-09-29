@@ -1,6 +1,6 @@
 # MSP 业务闭环审查与现有功能改造计划
 
-> 状态：**Draft v0.1（待评审）**｜日期：2026-09-29｜基准：仓库 HEAD `7e8cc8e5`
+> 状态：**Draft v0.2（待评审）**｜日期：2026-09-29｜基准：仓库 HEAD `7e8cc8e5`
 > 定位：**端到端业务闭环审查**（13 条链路 × 五段判定）+ **现有功能改造计划**（模块级改造项 → 批次 → 验收）。
 > 上位：[canon](./msp-concept-model-and-architecture-canon.md)（边界/不变量）｜[实施方案](./msp-implementation-plan.md)（`IP-P*-*` 工作流）｜[一致性审计](./msp-docs-consistency-audit.md)（编号/权威层级）
 > 配套：[建号与注册流程](./msp-account-provisioning-and-registration-flow.md)｜[三角色演练剧本](./msp-three-persona-operation-simulation.md)｜[现状 01–07](../README.md)
@@ -75,6 +75,7 @@
 | 审计 | `service/audit*`、中间件 | `channel/target_tenant/source/membership_id` 统一；事件目录 | IP-P0-10 | 审计查询按 target_tenant | 字段膨胀 |
 | 数据模型 | `ent/schema/{user,tenant,msp_allocation,ticket}.go`、`ent/migrate` | `must_change_password`、`last_active_tenant_id`、allocation 唯一索引、归属字段收敛 | IP-P0-4/P1-1 | 迁移 + 巡检 0 差异 | 在线 DDL（低风险，只增） |
 | 组织/团队 | `service/approver/*`、`internal/schema/tenant_guard.go` | 成员关系迁 membership；唯一约束；复合 FK；guard 扩展 | IP-P1-3/P2-5 | A5 + 巡检 | 与既有审批链路耦合 |
+| 工作流/执行器 | `handlers/{bpmn,approval,approval_chain,timer,automation_rule,escalation_matrix}/`、`ent/schema/{process_*,workflow*}.go` | 执行器/定时器租户 ctx 统一；指派校验；列表 fail-closed | **IP-P0-11** | 跨租户 ctx 用例 + 指派反例 | 与审批链耦合（错 ctx 会跨租户执行） |
 | RLS | `database/rls/migrations/*` | membership/组织/邀请入 policy；shadow → enforce | IP-P1-7/P2-2 | shadow 0 新增错误 | enforce 误伤（需灰度） |
 
 ### 3.2 前端（itsm-frontend）
@@ -107,6 +108,45 @@
 | P0 | `users.must_change_password`、`users.last_active_tenant_id`、`msp_allocations` 部分唯一索引 | 停写/删索引 |
 | P1 | `user_tenant_memberships`、`invitations`、组织复合 FK | 表可下线（读路径回退） |
 | P2 | `msp_allocations.provider_tenant_id`、RLS policy | 字段可空/模式回退 |
+
+### 3.5 按功能域的改造深度分级（结论：深水区是横切能力，不是业务域）
+
+**判据**：**D3 深度** = 动数据模型/权限模型/执行上下文/DB 安全策略；**D2 中等** = 模型不动，加"授权矩阵 + 查询/投递收窄 + 审计"；**D1 轻量** = 配置/登记/命名/一次性数据；**D0 无需**。
+
+**D3 深度（6 项横切能力）**：
+
+| 能力域（代码位置） | 深改原因 | 批次 |
+|---|---|---|
+| RBAC/权限（`rbac/`、`internal/authz`、`role*`、`permission*`、`menu`） | 权限双源 + `user_roles` 平台豁免 + `msp_*` 不在词表 | IP-P0-9 → IP-P1-2 |
+| 组织/部门/团队（`department/`、`group/`、`team`、`source_organization`、`cab_member`） | 成员关系无成员行 / 全局唯一键 / 零 RLS | IP-P1-3 |
+| 流程/审批/自动化/定时器（`handlers/{bpmn,approval,approval_chain,timer,automation_rule,escalation_matrix}/`、`ent/schema/{process_*,workflow*}.go`） | 执行器 ctx 不统一、指派未验租户、列表 fail-open | **IP-P0-11** |
+| RLS/数据访问（`database/security.go`、`tenant_guard`、`rls/migrations`） | 豁免/低权/ctx 覆盖不全 | IP-P1-7 → IP-P2-2 |
+| 用户/认证（`user/`、`auth/`、`bootstrap_token`、`password_reset_token`） | 全局唯一、bootstrap 写死、建号无通道 | IP-P0-5/6 → IP-P1-4/5 |
+| 审计（`auditlog`、`process_audit_log`） | 缺 `target_tenant/source/membership` | IP-P0-10 → IP-P1-8 |
+
+**D2 中等（业务域，模型不动，统一三件套）**：
+
+| 模块 | MSP 口径 | 动作 |
+|---|---|---|
+| CMDB/资产/云/发现 | provider 默认只读；写/变更/发布禁止；租户内闭环 | 授权矩阵 + UI 隐藏/禁用 + 导入导出按租户 |
+| 知识库/已知错误 | provider 只读、客户内写 | 同上 |
+| 服务目录/服务请求 | 客户内闭环；provider 只读 | 同上 |
+| 变更/发布/标准变更 | provider 默认禁止（审批/执行在客户内） | 高危禁令 + 审批链校验 |
+| SLA/报表/分析/仪表盘 | 按分配收窄 + provider 维度 | 查询改造（P0 部分 / P2 完整） |
+| 通知/消息/邮件/连接器/IM | provider+客户双投递（A12）；模板租户化（D3） | 路由分支 + 邀请 SMTP（P1） |
+| 智能分派/派单/升级矩阵 | 被指派者 ∈ provider ∧ allocation | 指派校验（与 IP-P0-2 同批） |
+| 附件/对象存储 | 条目级访问校验 + key 租户维度 | 接入统一授权入口 |
+| 缓存 | key 必带租户维度 | 逐 key 审查（`ADR-004:A8`） |
+| AI/搜索/向量/MCP | AI 服务无租户状态 → 参数收敛 | 调用鉴权 + `tenantId` 校验 |
+| 系统配置/共享表（`systemconfig`、`tag`、`prompt_template`、`marketplace_item`） | 区分平台级 vs 租户级；共享需登记复核 | 登记 + 季度复核（D3 决策） |
+
+**D1 轻量**：部署门控 R12（IP-P0-1）；内置角色/审批组/序列（K1/K2、`07:G4/G5`，一次性脚本）；共享表登记；脚本路径（已改）。
+**D0 无需**：业务实体模型与领域逻辑本身（`tenant_id` 边界已在）；纯展示/统计口径除外。
+
+**三个关键判断**：
+1. 深度改造清单 = **6 项横切能力**；业务域统一三件套，不逐域发明 MSP 概念（第三重约束统一用客户租户内 RBAC 表达）；
+2. **顺序不可颠倒**：权限/执行器 ctx（深水区）→ RLS → 业务域授权矩阵；
+3. 原实施方案缺"执行器/定时器 ctx 统一"工作流 → 已补 **IP-P0-11**（= 原 canon §8 P0 ⑤ / 集成分析 §5.2）。
 ---
 
 ## 4. 改造顺序与发布单元（现有功能视角）
@@ -208,3 +248,4 @@ IP-P1-1 membership ──→ IP-P1-2 权限单源 ──→ IP-P1-3 组织 ─�
 | 版本 | 日期 | 变更 |
 |---|---|---|
 | v0.1 | 2026-09-29 | 首版：13 条链路闭环审查（五段判定）、闭环结论（P0 后 10/13、P1 后 12/13）、模块级改造计划（后端/前端/脚本/迁移）、发布波次 W1–W8、链路级 DoD、回归与反例、风险与估算 |
+| v0.2 | 2026-09-29 | 新增 **§3.5 按功能域的改造深度分级**（D3 六项横切 / D2 业务域三件套 / D1 / D0）；后端改造表补"工作流/执行器"行并指向 **IP-P0-11** |

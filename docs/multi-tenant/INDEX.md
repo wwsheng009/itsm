@@ -58,9 +58,9 @@
 | [msp-integration-with-rbac-org-workflow-analysis.md](./plan/msp-integration-with-rbac-org-workflow-analysis.md) | L4 | Draft | ×RBAC/组织/工作流集成分析与冲突处置 | — |
 | [msp-three-persona-operation-simulation.md](./plan/msp-three-persona-operation-simulation.md) | L6 | Draft v0.2 | 三角色操作演练剧本（验收载体） | — |
 | [msp-docs-consistency-audit.md](./plan/msp-docs-consistency-audit.md) | 治理 | Draft v0.1 | 一致性审计（权威层级/冲突 C1–C19/整改） | `C1–C19` |
-| [msp-implementation-plan.md](./plan/msp-implementation-plan.md) | 落地 | Draft v0.1 | **实施方案 P0→P1→P2**（步骤/DoD/回滚） | `IP-P0-#` `IP-P1-#` `IP-P2-#` |
+| [msp-implementation-plan.md](./plan/msp-implementation-plan.md) | 落地 | Draft v0.2 | **实施方案 P0→P1→P2**（步骤/DoD/回滚） | `IP-P0-#` `IP-P1-#` `IP-P2-#` |
 | [msp-account-provisioning-and-registration-flow.md](./plan/msp-account-provisioning-and-registration-flow.md) | L4 | Draft v0.1 | **建号与注册流程**（四通道/邀请/首登/过渡期） | — |
-| [msp-business-closure-review-and-refactor-plan.md](./plan/msp-business-closure-review-and-refactor-plan.md) | 治理/落地 | Draft v0.1 | **业务闭环审查 + 现有功能改造计划**（13 链路/波次） | `CL-01–CL-13` |
+| [msp-business-closure-review-and-refactor-plan.md](./plan/msp-business-closure-review-and-refactor-plan.md) | 治理/落地 | Draft v0.2 | **业务闭环审查 + 现有功能改造计划**（13 链路/波次/深度分级） | `CL-01–CL-13` |
 
 **上位与关联（本目录之外）**：
 
@@ -127,7 +127,8 @@
 | user-flows | v0.4 | 文末 |
 | scope-model | v0.3 | 文末 |
 | 三角色剧本 | v0.2 | 文末 |
-| 一致性审计 / 实施方案 | v0.1 | 文末 |
+| 一致性审计 | v0.1 | 文末 |
+| 实施方案 / 闭环审查 | v0.2 | 文末 |
 | README / INDEX | 当前（2026-09-29） | 头部日期 |
 | 01–07 | 现状（2026-09-28） | 头部日期 |
 
