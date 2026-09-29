@@ -387,7 +387,7 @@ func (s *UserService) ProvisionUser(ctx context.Context, actor ActorRef, target 
 **P1（多作用域身份；Q3 已定：不放开同邮箱多租户）**：
 
 - **保持** `users.username/email` 全局唯一，**不做唯一约束迁移**（客户方不跨租户；服务方多作用域由 membership 表达，与邮箱唯一性无关）；
-- 登录支持 `identifier`（username 或 email）；命中多作用域时按 §5.3.1 分派：客户方 fail-closed，服务方 `409 SCOPE_SELECTION_REQUIRED` + 候选列表。
+- 登录支持 `identifier`（username 或 email）；命中多作用域时按 §5.3.1 分派：客户方 fail-closed，**服务方落 provider 家**（不返回候选列表；候选列表仅在认证后 `/auth/tenants`，见登录细化）。
 
 ### 5.3 登录与租户选择（自动切换租户）
 
@@ -434,7 +434,7 @@ func (s *UserService) ProvisionUser(ctx context.Context, actor ActorRef, target 
 | 审计（F12） | 事件 `tenant.switch`：`actor_user_id / from_tenant / to_tenant / source(home\|allocation) / result / ip / ua` |
 | 错误码（F12） | 细分：401 未认证、403 无权限（`TENANT_FORBIDDEN`）、404 租户不存在、409 租户暂停/过期 |
 
-**与 `X-Customer-Tenant-ID` 的分工（F15）**：单请求只读/列表 → 头通道（保留）；需要连续操作/写 → 切换租户。中间件为两种路径统一写入 `tenant_source`（`jwt|header`）并进入审计字段，文档同步更新 05 使用指南。
+**与 `X-Customer-Tenant-ID` 的分工（F15，2026-09-29 修订）**：单请求只读/列表 → 头通道（保留）；**写操作 → 条目级端点**（按资源所属租户授权，无需切换，工作台 `REV-1`/`WB2`）；仅"深度操作"（客户内配置/用户/角色/连续多步）→ 切换租户。中间件为各路径统一写入 `tenant_source`（`jwt|header|workbench`）并进入审计字段，文档同步更新 05 使用指南。
 
 ### 5.5 权限与安全
 
@@ -477,10 +477,10 @@ func (s *UserService) ProvisionUser(ctx context.Context, actor ActorRef, target 
 
 | 页面/组件 | 改造 | 对应缺口 |
 |---|---|---|
-| 登录页 `(auth)/login` | 增加"租户代码"输入（折叠在"更多选项"，支持 `?tenant=CODE` 预填）；提交带 `tenantCode`；处理 `409 SCOPE_SELECTION_REQUIRED` → 弹**作用域选择**（仅服务方；客户方不触发） | F6/F8 |
+| 登录页 `(auth)/login` | **无任何租户列表/选择器**；"企业代码"仅作定位输入（折叠、防枚举，支持 `?tenant=CODE` 预填）；提交带 `tenantCode`；**不处理 409 候选选择**（已下线） | F6/F8 |
 | 会话启动 `session-bootstrap` | 不再固定 `tenants[0]`：以登录响应的 `tenant` + `tenantSelection` 为准；服务方多作用域用 `availableTenants` 选择；**客户方多作用域视为异常并 fail-closed** | F8/F9 |
-| 顶栏租户切换器（新增） | 展示当前租户（name/code/type 徽标）+ 下拉 `availableTenants`（标注 home/allocation）；切换 → `POST /auth/switch-tenant` → 成功后更新 store、清空数据缓存（react-query/SWR）、重拉 `/auth/me`、`/auth/menus` | F13 |
-| MSP 控制台 `/msp` | 顶部客户选择器（`GET /msp/customers`）；两种模式显式切换：**连续操作**（调 switch-tenant）或**单请求**（注入 `X-Customer-Tenant-ID`，需在 http-client 增加该头支持）；页面显著位置显示"当前客户上下文" | F13/F15 |
+| 顶栏 **CustomerFilter**（主控件，新增）+ **深度切换入口**（降级） | 过滤器 = 客户多选/全部（只改视图）；深度入口展示 `availableTenants`（标注 home/allocation）；切换 → `POST /auth/switch-tenant` → 成功后更新 store、清空数据缓存（react-query/SWR）、重拉 `/auth/me`、`/auth/menus` | F13 |
+| MSP 控制台 `/msp` | **工作台（看+做，主路径）+ CustomerFilter**；条目级操作无需切换；单请求模式注入 `X-Customer-Tenant-ID`（只读）；"进入客户"用于深度操作；页面显著位置显示"当前客户上下文" | F13/F15 |
 | 用户管理页 | 新增"目标租户"选择（仅平台/MSP 通道可见）；角色下拉按目标租户加载；`mspRole` 仅在 provider/客户场景显示；错误码（`ROLE_NOT_GRANTABLE` 等）给出可读提示 | F1/F14 |
 | 首登改密页（新增） | `mustChangePassword=true` 时强制跳转 | F2 |
 | http-client | 403 错误码细分提示；`X-Customer-Tenant-ID` 注入与清理；切换租户后清空缓存 | F13 |
@@ -631,7 +631,7 @@ CREATE UNIQUE INDEX uq_customer_single_scope
 | `POST /api/v1/msp/customers/5/users`（mspagent，`msp_tech`） | 403（无 `msp_customer:write`） |
 | `POST /api/v1/tenants/4/users`（custa_admin） | 403（非平台通道） |
 | `POST /api/v1/auth/register`（`role=super_admin`） | 422 |
-| 登录 `mspadmin` + `tenantCode=MSPCUSTA` | 200，JWT `tenantId=4` |
+| 登录 `mspadmin`（不带客户 `tenantCode`） | 200，JWT 落 **provider 家**；随后 `switch-tenant {tenantId:4}` 才进入客户 A（审计 `tenant.switch`） |
 | `POST /api/v1/auth/switch-tenant {tenantId:4}` → `POST /api/v1/auth/refresh` | 刷新后仍 `tenantId=4` |
 | `POST /api/v1/auth/switch-tenant {tenantId:5}`（mspagent 未分配） | 403 |
 | 新租户 `provision_tenant` 后首登 | 成功且 `mustChangePassword=true` |

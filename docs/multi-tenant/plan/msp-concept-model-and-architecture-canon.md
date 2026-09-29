@@ -1,6 +1,6 @@
 # 多租户概念模型与架构总纲（Tenant / Provider / Customer）
 
-> 状态：**Draft v0.8（待评审）**｜日期：2026-09-29｜基准：仓库 HEAD `06c4b263`
+> 状态：**Draft v0.9（待评审）**｜日期：2026-09-29｜基准：仓库 HEAD `06c4b263`
 > 定位：**概念与架构的单一权威（Canon）**。本文定义"每个概念是什么、住在哪、谁是权威、跨租户规则"，并给出与现状的映射与收敛路线；细节方案由各专题文档承接（见附录职责分工）。
 > 上位决策：[ADR-004 多客户管理场景租户模型选型](../../architecture/adr-004-multi-customer-tenant-model-selection.md)（Proposed；行动项引用写作 `ADR-004:A#`）
 > 关联：[目标架构方案](./msp-target-architecture.md)｜[集成分析与冲突处置](./msp-integration-with-rbac-org-workflow-analysis.md)｜[跨客户工作台与全局过滤](./msp-cross-customer-workbench-and-filter-plan.md)｜[登录与切换细化](./msp-login-and-switching-refinement-plan.md)｜[前端页面与权限分析](./msp-frontend-pages-and-permissions-analysis.md)｜[主方案](./msp-user-lifecycle-and-tenant-switching-plan.md)｜[一致性审计](./msp-docs-consistency-audit.md)
@@ -88,7 +88,7 @@
 | B2 | **平台 ≠ 租户数据**：平台管理员不天然拥有客户数据；治理操作必须"先选目标租户 + 审计" |
 | B3 | **服务商 ≠ 超级管理员**：provider 员工访问客户数据 = membership(provider) + allocation + 目标租户 RBAC + 租户 active |
 | B4 | **客户内闭环**：客户租户内的组织/角色/工作流/通知自成体系，不引用 provider 的配置 |
-| B5 | **账号跨租户、权限不跨租户**：账号可有多租户 membership，但任一请求的权限只在目标租户内计算 |
+| B5 | **账号跨租户、权限不跨租户**：账号可有多租户 membership（**例外：`account_kind=customer` 恰好 1 条 active membership**，DB 级强约束，I8 兜底），任一请求的权限只在目标租户内计算 |
 | B6 | **会话作用域（Scope）与视图过滤器（Filter）分离**：过滤器只改"看什么"，条目级操作按资源租户授权，不改会话 |
 
 ### 2.1 Provider（服务商）与 Customer（客户）：定位、功能与区别（详解）
@@ -518,7 +518,7 @@ sequenceDiagram
 | A1 | `tenants.type` 只出现 3 类新值；legacy 值读取正常、写入被拒（或自动映射）；文档/API 无新同义词 |
 | A2 | 建 customer 租户必须携带有效 `provider_tenant_id`（或显式直客标记）；错误归属被拒绝 |
 | A3 | provider A 员工无法被分配到 provider B 的客户（R2 用例）；admin 亦不豁免 |
-| A4 | 一个账号可在 2 个租户各有 1 条 membership；在租户 A 的角色不影响租户 B |
+| A4 | 一个**非 customer 类**账号可在 2 个租户各有 1 条 membership；`account_kind=customer` 恰好 1 条 active membership（部分唯一索引兜底 + `CUSTOMER_SCOPE_CONFLICT`）；在租户 A 的角色不影响租户 B |
 | A5 | 一个账号在一个租户内可多组织归属（部门+团队），且带角色/生效期（membership 行） |
 | A6 | 登录/切换/`/auth/me` 返回的 permissions 完全一致（DB 单源） |
 | A7 | RLS `shadow` 下：定时器/worker/队列无"requires tenant_id"报错 |
@@ -553,7 +553,8 @@ sequenceDiagram
 | D7 | `msp_role` 并入 membership 的时机 | P1 同批 / P2 | 迁移复杂度 |
 | D8 | 工作台批量操作的边界（跨客户） | 低危动作 + 护栏（建议）/ 不开放 | 效率与风险 |
 | D9 | 工单流转决策（E1–E6） | 见 §7.2：客户 SLA 归属 / 快照 vs 派生 / 转派 / 外部工单映射 / 直客 / **客户是否可多 provider 服务（E6）** | 工单与 provider 的关联语义 |
-| D10 | **MSP 角色词表统一** | ① 保留代码词表（`msp_viewer/msp_tech/msp_specialist/msp_manager/msp_admin`），Q7 模板映射为 `observer→msp_viewer`、`full→msp_admin`；② 或按 Q7 重命名（含数据迁移） | 三处词表并存（代码/K1、Q7 模板、脚本 SQL）→ 授权语义歧义（审计 C4） |
+| D10 | **MSP 角色词表统一** | ✅ **已确认（最优实践）**：保留代码词表 `msp_viewer/msp_tech/msp_specialist/msp_manager/msp_admin` 为**唯一 RBAC 角色名**；Q7 合同预设仅作映射（`observer→msp_viewer`、`tech→msp_tech`、`manager→msp_manager`、`full→msp_admin`；`specialist` 由 `allocation.role` 映射）；`msp_role` 收敛为 `provider_admin/provider_agent`（`customer_user` 仅 legacy 读映射）。**零数据迁移** | 三处词表并存（代码/K1、Q7 模板、脚本 SQL）→ 授权语义歧义（审计 C4） |
+| D11 | **平台管理员是否可见 MSP 工作台/客户过滤器** | ✅ **已确认（最优实践）：否**——平台治理走独立通道（先选目标租户 + 审计 + 二次确认，`source=platform_selected`）；工作台/过滤器/头通道仅 provider 面（B2/D5，审计 C17） | 职责分离（R8）、审计清晰、最小权限 |
 
 ---
 
@@ -637,3 +638,4 @@ sequenceDiagram
 | v0.6 | 2026-09-29 | 新增 §7.3 provider 租户内的功能管理：双工作面（Home/Cross）、跨客户能力包、三权分立授权公式、管理主体表；现状缺口 G1–G5（msp_* 角色不在内置词表→依赖硬编码兜底/由脚本 SQL 直写、msp_role 3 值 vs 词表 5 角色、MSP 管理员无法经 API 建号、客户内权限缺失）；复杂度预算与净减清单；P0 增补 ⑩ |
 | v0.7 | 2026-09-29 | §7.2 明确归属基数 **1 客户 : 1 provider**（归属字段单值；"多 provider"= 平台托管多个 provider，非共享客户）；新增决策 E6（"一个客户由多个 provider 服务"当前不支持，需服务关系多值模型，暂不建议）；D9 引用同步 E1–E6 |
 | v0.8 | 2026-09-29 | **一致性审计整改**：§7 部署门控改为"现状/目标"分列并新增 **R12**（saas/空/未知值静默开启 MSP）；§7.3 `G1–G5`→**`K1–K5`**（消除与 07:G# 重号）；membership 物理表名统一 `user_tenant_memberships`；新增 **附录 C**（权威层级 + 编号注册表 + A/B 消歧）；新增 **D10**（MSP 角色词表统一）；头部状态同步 v0.7→v0.8；关联[一致性审计](./msp-docs-consistency-audit.md) |
+| v0.9 | 2026-09-29 | **待办按最优实践确认**：D10 定稿（保留代码词表 + Q7 预设映射，零迁移）；新增 **D11**（平台不可见 MSP 工作台，治理通道独立）；B5/A4 明确 `account_kind=customer` 单作用域 DB 级强约束；[审计 §5](./msp-docs-consistency-audit.md) 待办全部转为已确认决策（T1–T6） |

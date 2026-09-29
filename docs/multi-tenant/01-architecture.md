@@ -101,7 +101,7 @@
 
 | 项 | 说明 |
 |---|---|
-| 缓存租户维度 | `itsm-backend/cache/` 未发现租户处理；多客户场景必须保证 key 带租户（行动项 A8） |
+| 缓存租户维度 | `itsm-backend/cache/` 未发现租户处理；多客户场景必须保证 key 带租户（`ADR-004:A8`） |
 | 共享表语义 | `messages` / `prompt_templates` 标注"待评估"；标签云/市场模板跨租户共享需业务确认 |
 | RLS 默认 off | 当前主要依赖应用层；强合规场景按 02 文档灰度到 `enforce` |
 | 部署门控 | `private` 模式整族 404；未知模式按 SaaS 默认开启 MSP（typo 不会关闭 MSP，见 02 §9） |

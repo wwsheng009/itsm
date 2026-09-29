@@ -19,7 +19,7 @@
 
 **本次已修复**：canon 部署门控事实错误（`saas`/未知模式）、G#→K# 改名、membership 表名对齐、新增附录 C 注册表与权威层级、README 口径与状态、工作台编号（R/G）、user-flows F-06、login 顶栏口径、target-architecture/scope-model/lifecycle 修订指针、01–07 as-is 横幅。
 
-**仍待决策**：MSP 角色词表统一（D10）；`account_kind` 客户单作用域强约束 vs canon B5/A4/D4；scope-model/lifecycle 正文回填排期。
+**已按最优实践确认**：T1–T6 全部定稿（见 §5），canon 同步 D10/D11/B5/A4；不再有"待决策"阻断项。
 
 ---
 
@@ -113,16 +113,20 @@
 
 ---
 
-## 5. 待办（需决策或后续排期）
+## 5. 待办 → 已确认决策（按最优实践）
 
-| # | 事项 | 责任/批次 |
-|---|---|---|
-| T1 | **D10 角色词表统一**：保留代码词表并将 Q7 模板映射为 `observer→msp_viewer`、`full→msp_admin`？或重命名代码词表 | 架构决策（P0 前） |
-| T2 | scope-model / lifecycle / target-architecture 正文回填（C2/C3/C13/C14） | P1 设计冻结同批 |
-| T3 | `account_kind` 单作用域强约束与 canon A4/D4 的取舍（C12） | 并入 D4 评审 |
-| T4 | 02 文档 `/tmp` 指引改为 `$HOME/itsm-artifacts`（G10 方向） | 文档小改（可随时） |
-| T5 | 01–07 逐份"现状 vs 目标"差异标注（本轮仅加横幅） | 后续迭代 |
-| T6 | 建立文档门禁：新增/修改文档检查（编号登记、状态行与修订记录一致、被修订文档回填） | 工具化建议 |
+> 2026-09-29 复核确认。原则：**零迁移 > 有迁移；纵深防御 > 应用自觉；职责分离 > 便利；单一权威 > 局部优化；可执行门禁 > 人工约定**。
+
+| # | 事项 | ✅ 确认结论 | 依据（最优实践） | 落地 |
+|---|---|---|---|---|
+| T1 | MSP 角色词表统一 | **保留代码词表为唯一 RBAC 角色名**（`msp_viewer/tech/specialist/manager/admin`）；Q7 合同预设仅作映射（`observer→msp_viewer`、`tech→msp_tech`、`manager→msp_manager`、`full→msp_admin`；`specialist` 由 `allocation.role` 映射）；`msp_role` 收敛为 `provider_admin/provider_agent` | 零数据迁移；与 ACL manifest/`rbac.go`/脚本一致；"预设"是权限包而非角色 | canon **D10 定稿** |
+| T2 | 修订回填 | **修订即回填（same-PR）**：本轮完成高风险段落内联修订（scope-model §3、lifecycle §5.3/§5.4/§6 前端清单）；全文重写随 P1 设计冻结同批 | 消除"两套答案"；只留横幅=仍割裂 | 本文 C2/C3/C18 闭环；两个文档已内联修订 |
+| T3 | `account_kind` 单作用域 | **采纳 DB 级强约束**：`customer` 类恰好 1 条 active membership（部分唯一索引 + `CUSTOMER_SCOPE_CONFLICT`）；provider/platform 不受限 | 纵深防御；I8 隐私红线的 DB 级兜底；fail-closed | canon **B5/A4 已修订** |
+| T4 | 平台可见工作台 | **否**：平台不挂载工作台/过滤器/头通道；治理走独立通道（先选目标租户 + 审计 + 二次确认，`source=platform_selected`） | 职责分离（R8）、审计清晰、最小权限 | canon **D11**；workbench §2.1/§2.2 已修订（C17 闭环） |
+| T5 | `/tmp` 指引 | **统一 `$HOME/itsm-artifacts`**（非隐藏目录）+ sha256 校验；文档**禁止** `/tmp` 指引 | snap docker 实测（G10）：`docker cp`/`-v` 静默失败 | 02 §10 已修订 |
+| T6 | 文档门禁 | **新增 Gate C.6**：multi-tenant 文档头部四件套 + 编号注册表一致性（`K#`/`WB#`/`REV#`/`ADR-004:` 前缀/`UF-`/`LOGIN-`）自动检查 | 把一致性变成可执行、可回归的检查 | `scripts/docs-gate/check-multi-tenant-consistency.sh` + run-all 接入 |
+
+> 说明：原 T5"01–07 逐份差异标注"升级为**门禁保障**（C.6 检查头部四件套；逐份差异标注随各文档下一次修订回填）。
 
 ---
 

@@ -62,7 +62,7 @@
 
 ## 7. 缓存与外部依赖
 
-- `itsm-backend/cache/` 未发现租户维度处理：**缓存 key 必须自带租户维度**（行动项 A8），否则多客户会串数据；
+- `itsm-backend/cache/` 未发现租户维度处理：**缓存 key 必须自带租户维度**（`ADR-004:A8`），否则多客户会串数据；
 - AI 服务（`itsm-ai-service`）无租户状态，按请求参数接收 `tenantId`；
 - 附件/对象存储按租户记录隔离（`attachments` 表带 `tenant_id`）。
 
@@ -92,7 +92,7 @@
 
 | 脚本 | 作用 |
 |---|---|
-| `scripts/msp/build-provision-tenant.sh` | 用 `golang:1.25.13-alpine` 镜像构建 `provision_tenant` 二进制，产物默认 `/tmp/provision_tenant_linux_amd64` |
+| `scripts/msp/build-provision-tenant.sh` | 用 `golang:1.25.13-alpine` 镜像构建 `provision_tenant` 二进制，产物默认 `$HOME/itsm-artifacts/provision_tenant_linux_amd64`（snap docker 可见路径，见 G10） |
 | `scripts/msp/setup-msp-tenants.sh` | 一键完成：租户创建 → 模板供给 → MSP 角色授权 → 首个用户 → 分配关系 → 隔离性验证 |
 
 ### 10.1 构建 provision_tenant
@@ -101,8 +101,9 @@
 
 ```bash
 cd itsm-backend
-GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -trimpath -o /tmp/provision_tenant_linux_amd64 ./cmd/provision_tenant
-scp /tmp/provision_tenant_linux_amd64 <host>:/tmp/
+mkdir -p "$HOME/itsm-artifacts"
+GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -trimpath -o "$HOME/itsm-artifacts/provision_tenant_linux_amd64" ./cmd/provision_tenant
+scp "$HOME/itsm-artifacts/provision_tenant_linux_amd64" <host>:~/itsm-artifacts/
 ```
 
 **方式 B（备选）——在部署主机用容器构建：**
@@ -143,7 +144,7 @@ bash setup-msp-tenants.sh
 ### 10.3 前置条件与注意
 
 - 需 `sudo` 免密或提供 `SUDO_PASS`；脚本通过 `docker exec` 访问 PostgreSQL 与应用容器；
-- `PROVISION_BIN_HOST` 默认 `/tmp/provision_tenant_linux_amd64`，缺失时脚本报错退出；
+- `PROVISION_BIN_HOST` 默认 `$HOME/itsm-artifacts/provision_tenant_linux_amd64`（**禁止放 `/tmp`**：snap docker 守护进程不可见，见 G10），缺失时脚本报错退出；
 - 注入容器前脚本会把二进制复制到 `$HOME/itsm-artifacts`（snap docker 可见）并**校验 sha256**，不一致即失败退出（规避 snap docker 下 `docker cp` 静默复制旧文件的问题）；
 - 脚本只创建/补齐数据，**不删除**任何数据；对已有同 code 租户复用其 ID；
 - 客户租户 ID 与 provider 绑定由 API 写入，若失败会打印原始响应并以非零码退出。
