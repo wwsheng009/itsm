@@ -1,7 +1,7 @@
 # 🛣️ ITSM Roadmap
 
 > **Source of truth for what is shipping, what is shipping next, and what
-> is parked.** Updated as part of every release. Last synced: 2026-09-17.
+> is parked.** Updated as part of every release. Last synced: 2026-09-27.
 >
 > Cross-references:
 > - PRD library: [docs/prd/](./docs/prd)
@@ -125,6 +125,9 @@ Concretely that means:
 - [ ] **CMDB 数据治理** — 发现 Job、Diff、调和、退役、质量指标与规模测试。
   - 已完成：AI-Native P0/P1（见上）。
   - 剩余：数据治理本身尚未启动。
+- [ ] **用户侧 Bot 能力落地（B0–B4）** — Bot 工作区、工具治理、运行档案与运行维度看板（方案：`docs/plan/ai-bot-capability-landing-implementation-plan-2026-09-27.md`）。
+  - 已完成：B0 工具元数据与一次迁移（`integration_verified`）；B1 运行档案/确认五态/持久队列/SSE v2（`flow_verified`）；B2 模板与授权治理（`flow_verified`）；B3 三入口与场景 pilot S1/S2/S3（`flow_verified`，条件达标）；B4-01 E2E 双通道章程与 run-summary（`flow_verified`）、B4-02 运行维度指标与看板（`integration_verified`）。
+  - 剩余：B4 `accepted` 评审签署（产品 + 测试）；browser E2E 首轮 CI 校准（摘 `continue-on-error`）；token 计量接线；S3 `create_kb_draft` 写工具与产物读取端点。
 
 ### 发布门禁
 
