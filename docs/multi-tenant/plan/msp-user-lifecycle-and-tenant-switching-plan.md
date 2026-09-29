@@ -13,7 +13,7 @@
 
 **现状结论**：链路"半成品"——切换租户的后端骨架（`POST /auth/switch-tenant`、`GET /auth/tenants`）已存在，但**建号能力被写路径守卫阻断、登录不按租户解析、切换语义有三处硬伤、前端完全没有入口**，导致实际运营只能靠 SQL 兜底（见 06 文档 §7）。
 
-**四类功能缺口（F1–F14，详见 §3）**：
+**四类功能缺口（F1–F15，详见 §3）**：
 
 | 类别 | 编号 | 一句话 |
 |---|---|---|
@@ -22,7 +22,12 @@
 | 切换 | F9–F12 | `GET /auth/tenants` 只返回主租户；**refresh 令牌按主租户重签导致切换被静默回退**；切换后响应/角色/权限不一致；无审计与旧令牌撤销 |
 | 运营与前端 | F13–F14 | 前端无租户切换器与客户上下文指示；MSP 员工在客户租户内的角色权限未定义 |
 
-**方案**：路线 A（P0，推荐，2–3 个批次交付）= 保持 `users.tenant_id` 1:1 主租户 + `msp_allocations` 作为运营侧"可访问租户"来源，补齐**建号通道 / 登录解析 / 切换修复 / 前端入口**四件事；路线 B（P2 可选）= 引入 `user_tenant_memberships` 支持真正的 N:N 身份（同一自然人加入多个客户租户），本方案给出完整设计与触发条件，但**不建议在 P0 之前动唯一约束**。
+**已定方案（2026-09-29 决策）**：
+
+- **P0 = 路线 A 最小闭环**：保持 `users.tenant_id` 主租户 + `msp_allocations` 作为运营侧作用域来源，补齐**建号通道 / 登录解析 / 切换修复 / 前端入口**四件事（不触碰唯一约束与既有数据）；
+- **P1 = 路线 B 转正（目标模型）**：引入 `user_tenant_memberships`——"**一个账号、多作用域**"；客户方单作用域由**数据库部分唯一索引**强约束，服务方作用域 = provider 租户 + 有效分配；
+- **Q7 采用客户级角色差异化**：客户租户模板内置 4 个 msp 角色，客户 admin 可编辑其权限集；不引入 grants 表；
+- 决策明细见 [§9.2 决议记录](#92-决议记录2026-09-29)，依据见[作用域模型分析](./msp-scope-model-analysis-and-ai-gateway-reference.md)。
 
 ---
 
@@ -175,7 +180,7 @@
 - **影响**：与 G9（`X-Tenant-Code` 冲突被静默忽略）同类的"静默降级"，排障困难；MSP 场景下极易误操作。
 - **目标**：① 租户无效 → 明确报错；② MSP 员工带可访问客户 `tenantCode` → 直接签发客户上下文；③ 冲突/不可访问 → 明确拒绝并记录。
 
-### F7 缺少"多租户身份"模型（P1/P2）
+### F7 缺少"多租户身份"模型（P1，路线 B 已采纳）
 
 - **现象**：`users.tenant_id` 1:1；无成员关系表；`user_roles` 虽平台级但无解析逻辑。客户用户无法加入第二个租户；同一自然人不能既是 MSP 员工又是客户联系人；同一邮箱邀请到两个租户会被全局唯一挡住。
 - **证据**：`ent/schema/user.go:59-61, 89-93`；`ent/migrate/schema.go:6280-6301`；`internal/schema/tenant_guard.go:83`。
@@ -241,28 +246,32 @@
 
 ## 4. 方案总览与选型
 
-### 4.1 两条路线
+### 4.1 已定路线（A → B 递进）
 
-| | 路线 A（P0 推荐） | 路线 B（P2 演进） |
+| | 路线 A（P0，最小闭环） | 路线 B（P1，目标模型） |
 |---|---|---|
-| 身份模型 | 保持 `users.tenant_id` 1:1 主租户 | 新增 `user_tenant_memberships`，N:N |
-| 跨租户访问来源 | `msp_allocations`（运营侧）+ `super_admin`（平台侧） | memberships ∪ allocations ∪ home |
-| 客户用户跨租户 | ❌ 不支持（符合 ADR-004 客户隔离） | ✅ 支持（需显式邀请+审批） |
-| 改动面 | 认证/用户服务 + 1 张表（`users.last_active_tenant_id`） | 再加 1 张成员表 + 唯一约束迁移 + 登录选择 |
-| 风险 | 低（不碰唯一约束与既有数据） | 中高（唯一约束变更、RLS/审计全链路） |
-| 交付 | 2–3 批次 | 评估后单独立项 |
+| 身份模型 | 保持 `users.tenant_id` 1:1 主租户 | 新增 `user_tenant_memberships`（一个账号、多作用域） |
+| 跨租户访问来源 | `msp_allocations` + `super_admin` | memberships（= home ∪ allocations 的物化） |
+| 客户用户跨租户 | ❌ 不支持 | ❌ 仍不支持（**DB 级单作用域约束**） |
+| 服务方跨租户 | ⚠️ 隐式（仅分配，无作用域语义） | ✅ 显式作用域（可切换、可审计、可到期） |
+| 改动面 | 认证/用户服务 + `users.last_active_tenant_id` | + 成员表 + 上下文扩展 + 4 角色模板 |
+| 风险 | 低（不碰唯一约束与既有数据） | 中（新表 + 回填 + 会话复核；**不涉及唯一约束迁移**） |
+| 交付 | 2–3 批次 | P1 首批 |
 
-### 4.2 推荐与触发条件
+### 4.2 决策要点（2026-09-29）
 
-**推荐先做路线 A**：它精确对应"运营可用"的四件事（建号、引导、登录选租户、切换修复），且不触碰 ADR-004 的隔离边界。
-
-**路线 B 的触发条件**（满足其一再启动）：① 出现"同一自然人须在 ≥2 个客户租户内工作"的真实需求（集团顾问/跨法人审批/驻场）；② 需要把 MSP 员工以客户身份（而非服务方身份）计入客户租户；③ 客户租户间用户合并/迁移成为常态。
+1. **路线 B 由"可选演进"转正为 P1 首批**：它是"账号只有一个、作用域不同"的落地形态（分析文档 §0.2），P0 的 `AccessibleTenants` 抽象已为其预留接口；
+2. **客户方单作用域**用 `uq_customer_single_scope` 部分唯一索引做**数据库级**强约束（不靠应用自觉）；
+3. **不迁移唯一约束**：保持 `users.username/email` 全局唯一（客户方不跨租户 → 原 P1-2 取消）；
+4. **Q7 采用客户级角色差异化**（4 个 msp 角色模板 + 客户 admin 可编辑权限），不引入 `membership_scope_grants` 表（B 方案留触发条件，见分析文档 B.8）；
+5. **客户方登录 fail-closed**：多作用域命中不自动选择（对齐 ai-gateway），仅服务方允许显式选择/切换。
 
 ### 4.3 不可变约束
 
 1. 不引入 `customer_id` 业务维度做隔离（ADR-004 否决项）；
 2. 跨租户写入必须**显式授权 + 可审计**，禁止扩大 `IsSystemBypass` 的使用面（当前仅 seeder/provisioner 使用）；
 3. 任何"当前租户"的判定必须收敛到**单一函数**（§5.1），不得在 handler 各自推导。
+4. **客户账号永不跨租户**（DB 级约束）；服务方不得自我扩权（含 `msp_manager`）。
 
 ---
 
@@ -367,10 +376,10 @@ func (s *UserService) ProvisionUser(ctx context.Context, actor ActorRef, target 
 - `provision_tenant` 新增 `-admin-username/-admin-email/-admin-password-stdin`，并在创建后置 `must_change_password=true`；
 - 新列 `users.must_change_password bool default false`；登录响应带 `mustChangePassword`，前端强制跳转改密页。
 
-**P1（放开多租户同邮箱）**：
+**P1（多作用域身份；Q3 已定：不放开同邮箱多租户）**：
 
-- `users.email` 唯一性改为 `UNIQUE (tenant_id, email)`（迁移：先建复合唯一索引，再删列级唯一；保留 username 全局唯一作为登录名）；
-- 登录支持 `identifier`（username 或 email）：email 命中多个租户时返回 `409 MULTIPLE_TENANTS` + 候选列表（§5.3.2 的 `availableTenants`）。
+- **保持** `users.username/email` 全局唯一，**不做唯一约束迁移**（客户方不跨租户；服务方多作用域由 membership 表达，与邮箱唯一性无关）；
+- 登录支持 `identifier`（username 或 email）；命中多作用域时按 §5.3.1 分派：客户方 fail-closed，服务方 `409 SCOPE_SELECTION_REQUIRED` + 候选列表。
 
 ### 5.3 登录与租户选择（自动切换租户）
 
@@ -379,9 +388,12 @@ func (s *UserService) ProvisionUser(ctx context.Context, actor ActorRef, target 
 1. **显式租户**：`tenantCode`（或域名 / `X-Tenant-Code`）→ 无效则 `400 TENANT_NOT_FOUND`（**不再静默忽略**，修 F6）；
 2. **身份定位**：username（全局唯一）或 email；
 3. **租户校验**：目标租户 `active` 且未过期，否则 `TENANT_SUSPENDED` / `TENANT_EXPIRED`（修 F5）；
-4. **自动选择**（无显式租户时）：`last_active_tenant`（若可访问）→ 否则 `home`；若用户可访问多个租户 → 响应带 `availableTenants` + `tenantSelection.autoSelected=true`（修 F8）；
+4. **作用域选择**（无显式租户时，按 `account_kind` 分派，对齐 ai-gateway fail-closed 原则）：
+   - **客户方**：唯一作用域直接进入；**多作用域命中 → `409 SESSION_AMBIGUOUS`（不自动选，属数据异常）**；
+   - **服务方**：`last_active`（若仍是 active 作用域）→ 否则 provider home；命中多个且无偏好 → `409 SCOPE_SELECTION_REQUIRED` + 候选列表（登录页一次性选择，选定即锁定会话）；
+   - **平台**：进入治理模式（先显式选择目标租户）；
 5. **冲突**：显式租户不可访问 → `401 TENANT_MISMATCH` 并审计（对齐 G9 的 fail-closed 建议）；
-6. **签发**：以**最终目标租户**签发 access+refresh（修 F6 的"恒 home"）。
+6. **签发**：以**最终目标租户**签发 access+refresh（修 F6 的"恒 home"），并按 membership 复核（P1-a 后）。
 
 #### 5.3.2 契约（向后兼容的增量字段）
 
@@ -389,12 +401,18 @@ func (s *UserService) ProvisionUser(ctx context.Context, actor ActorRef, target 
 {
   "user": { "...": "...", "tenantId": 4 },        // 当前生效租户（不再恒为 home）
   "tenant": { "id": 4, "code": "MSPCUSTA", "...": "..." },
-  "tenantSelection": { "mode": "explicit|auto|single", "autoSelected": true, "reason": "last_active" },
+  "tenantSelection": { "mode": "explicit|last_active|single", "autoSelected": true, "reason": "last_active" },
   "availableTenants": [
     { "id": 3, "code": "MSP001",  "type": "msp_provider", "source": "home",       "role": "msp_manager" },
     { "id": 4, "code": "MSPCUSTA","type": "msp_customer", "source": "allocation", "role": "msp_tech" }
   ]
 }
+```
+
+多作用域歧义时**不返回 200**，而是 `409`：
+
+```jsonc
+{ "code": "SCOPE_SELECTION_REQUIRED", "scopeCandidates": [ { "id": 4, "code": "MSPCUSTA", "role": "msp_tech" } ] }
 ```
 
 #### 5.3.3 记忆与偏好
@@ -424,12 +442,21 @@ func (s *UserService) ProvisionUser(ctx context.Context, actor ActorRef, target 
 - `POST /users`（各通道）：角色必须属于目标租户（复用 `service/user_service.go:150-167`）；rank 比较以"调用者在**目标租户**的 rank"为准（MSP 员工在客户租户的 rank 由映射角色决定，见 5.5.2）；
 - `msp_role` 仅允许：`platform`/`msp` 通道设置，且 `provider_*` 仅限 provider 租户、`customer_user` 仅限客户租户。
 
-#### 5.5.2 MSP 员工在客户租户内的有效权限（F14，P1）
+#### 5.5.2 MSP 员工在客户租户内的有效权限（F14，P1；Q7 已定）
 
-- 客户租户模板内置角色：`msp_manager` / `msp_tech` / `msp_viewer`（`pkg/seeder/tenant_provisioner.go` 扩展）；
-- 建议权限基线（评审项）：`ticket:read/write`、`knowledge:read`、`cmdb:read`、`service_request:read`；`msp_manager` 可再加 `user:write`（用于客户侧建号）；
-- 分配角色映射：`primary → msp_manager`、`backup → msp_tech`、`specialist → msp_specialist`；
-- `provision_tenant` 幂等供给这些 `role_permissions`（现 `setup-msp-tenants.sh` §5 的 SQL 改为脚本内 API 或迁移内置）。
+客户租户模板内置 **4 个 msp 角色**（`pkg/seeder/tenant_provisioner.go` 扩展）：
+
+| 角色 | 权限集（默认） | 适用合同形态 |
+|---|---|---|
+| `msp_observer` | `ticket:read` + 评论 | 只读协办 |
+| `msp_tech` | `ticket:read/write`、`knowledge:read`、`cmdb:read`、`service_catalog:read` | 只代工单（默认） |
+| `msp_manager` | `msp_tech` + `user:write`（限客户侧角色）+ `report:read` | 代工单 + 客户侧开号 |
+| `msp_full` | `msp_manager` + `cmdb:write`、`change:write`（**默认不分配**） | 全托管（客户显式确认） |
+
+- **差异化机制（Q7 决策：客户级角色差异化）**：客户 admin 调整本租户 `msp_*` 角色的权限集（覆盖绝大多数场景）；个别人员用 membership 的 `role`/`expires_at`（个人级）；**不引入 grants 表**（触发条件见分析文档 B.8）；
+- **分配角色映射**：`primary → msp_manager`、`backup → msp_tech`、`specialist → msp_specialist`（沿用现有 specialist 角色）；
+- **上限约束**：服务方在客户作用域的权限 ≤ 该租户内角色权限；**服务方不可自我扩权**；角色/授权变更需重新登录或重新切换作用域后生效；
+- `provision_tenant` 幂等供给这些角色与 `role_permissions`（现 `setup-msp-tenants.sh` §5 的 SQL 改为脚本内 API 或迁移内置）。
 
 #### 5.5.3 审计事件模型
 
@@ -448,8 +475,8 @@ func (s *UserService) ProvisionUser(ctx context.Context, actor ActorRef, target 
 
 | 页面/组件 | 改造 | 对应缺口 |
 |---|---|---|
-| 登录页 `(auth)/login` | 增加"租户代码"输入（折叠在"更多选项"，支持 `?tenant=CODE` 预填）；提交带 `tenantCode`；处理 `409 MULTIPLE_TENANTS` → 弹租户选择 | F6/F8 |
-| 会话启动 `session-bootstrap` | 不再固定 `tenants[0]`：以登录响应的 `tenant` + `tenantSelection` 为准；无会话时用 `availableTenants` 选择 | F8/F9 |
+| 登录页 `(auth)/login` | 增加"租户代码"输入（折叠在"更多选项"，支持 `?tenant=CODE` 预填）；提交带 `tenantCode`；处理 `409 SCOPE_SELECTION_REQUIRED` → 弹**作用域选择**（仅服务方；客户方不触发） | F6/F8 |
+| 会话启动 `session-bootstrap` | 不再固定 `tenants[0]`：以登录响应的 `tenant` + `tenantSelection` 为准；服务方多作用域用 `availableTenants` 选择；**客户方多作用域视为异常并 fail-closed** | F8/F9 |
 | 顶栏租户切换器（新增） | 展示当前租户（name/code/type 徽标）+ 下拉 `availableTenants`（标注 home/allocation）；切换 → `POST /auth/switch-tenant` → 成功后更新 store、清空数据缓存（react-query/SWR）、重拉 `/auth/me`、`/auth/menus` | F13 |
 | MSP 控制台 `/msp` | 顶部客户选择器（`GET /msp/customers`）；两种模式显式切换：**连续操作**（调 switch-tenant）或**单请求**（注入 `X-Customer-Tenant-ID`，需在 http-client 增加该头支持）；页面显著位置显示"当前客户上下文" | F13/F15 |
 | 用户管理页 | 新增"目标租户"选择（仅平台/MSP 通道可见）；角色下拉按目标租户加载；`mspRole` 仅在 provider/客户场景显示；错误码（`ROLE_NOT_GRANTABLE` 等）给出可读提示 | F1/F14 |
@@ -463,10 +490,10 @@ func (s *UserService) ProvisionUser(ctx context.Context, actor ActorRef, target 
 | `users.last_active_tenant_id` | `int null`，FK `tenants(id)`；登录/切换成功时更新 | P0-1 |
 | `users.must_change_password` | `bool not null default false` | P0-3 |
 | `msp_allocations` 去重 | 部分唯一索引 `unique (msp_user_id, customer_tenant_id) where deassigned_at is null` | P0-2 |
-| `users.email` 租户内唯一 | 建 `unique (tenant_id, email)` → 删列级唯一（独立窗口，先查重） | P1-2 |
-| `user_tenant_memberships` | 见 §6.2 | P2 |
+| `user_tenant_memberships` | 见 §6.1（含 `account_kind`/`expires_at`/3 个部分唯一索引） | P1-a |
+| `users.account_kind` | `varchar(16) not null default 'customer'`（customer/provider/platform） | P1-a |
 
-迁移策略：加列/加索引均为在线 DDL（无锁或短锁）；唯一约束变更前先跑数据体检（重复 email 清单）；每步可独立回滚（删列/删索引）。
+迁移策略：加列/加索引均为在线 DDL（无锁或短锁）；**本方案不含唯一约束变更**（Q3 决策：保持 `username/email` 全局唯一）；每步可独立回滚（删列/删索引）；membership 回填后跑一致性巡检（customer 账号恰好 1 条 active 作用域）。
 
 ### 5.8 兼容与回滚
 
@@ -477,46 +504,66 @@ func (s *UserService) ProvisionUser(ctx context.Context, actor ActorRef, target 
 
 ---
 
-## 6. 方案 B（可选演进）：N:N 成员关系
+## 6. 方案 B（P1 首批，已采纳）：一个账号、多作用域
 
-> 触发条件见 §4.2；本方案只给出设计要点与风险，不作为 P0 交付。
+> 2026-09-29 决策：路线 B 由"可选演进"转正为 **P1 首批**；本节即目标模型的数据与语义基线（完整论证见[作用域模型分析](./msp-scope-model-analysis-and-ai-gateway-reference.md) §3/§4）。
 
 ### 6.1 数据模型
 
 ```sql
+-- 账号类型：跨租户能力的唯一判据（由创建通道决定，禁止自助修改）
+ALTER TABLE users ADD COLUMN account_kind varchar(16) NOT NULL DEFAULT 'customer';
+-- customer（单作用域）| provider（多作用域）| platform（全域）
+
 CREATE TABLE user_tenant_memberships (
   id            bigserial PRIMARY KEY,
   user_id       int  NOT NULL REFERENCES users(id),
-  tenant_id     int  NOT NULL REFERENCES tenants(id),   -- 带租户列，避免新增豁免
-  source        text NOT NULL,   -- home | invite | msp | migration
-  status        text NOT NULL DEFAULT 'active',          -- active | suspended
-  role_id       int  NULL REFERENCES roles(id),          -- 该租户内的角色（租户级）
-  msp_role      text NULL,                               -- 仅 MSP 相关租户
+  tenant_id     int  NOT NULL REFERENCES tenants(id),
+  account_kind  varchar(16) NOT NULL DEFAULT 'customer',  -- 冗余列，供部分唯一索引判定
+  subject_type  varchar(16) NOT NULL DEFAULT 'user',      -- user | service_account（P2）
+  source        varchar(16) NOT NULL,                     -- home | allocation | platform | invite | migration
+  role_id       int  NULL REFERENCES roles(id),           -- 该租户内的角色（租户模板角色）
+  msp_role      varchar(32) NULL,                         -- provider 员工在客户作用域的有效 MSP 角色
+  allocation_id int  NULL REFERENCES msp_allocations(id), -- 服务方作用域来源（可追溯）
+  status        varchar(16) NOT NULL DEFAULT 'active',    -- active | suspended
+  is_default    boolean NOT NULL DEFAULT false,           -- 服务方默认作用域（每人最多 1 条）
+  expires_at    timestamptz NULL,                         -- 作用域到期（Q7 建议）
   invited_by    int  NULL REFERENCES users(id),
   joined_at     timestamptz NOT NULL DEFAULT now(),
   deassigned_at timestamptz NULL,
+  deleted_at    timestamptz NULL,
   created_at    timestamptz NOT NULL DEFAULT now(),
   updated_at    timestamptz NOT NULL DEFAULT now()
 );
-CREATE UNIQUE INDEX uq_membership_active ON user_tenant_memberships (user_id, tenant_id) WHERE deassigned_at IS NULL;
+
+CREATE UNIQUE INDEX uq_membership_live
+  ON user_tenant_memberships (user_id, tenant_id) WHERE deleted_at IS NULL;
+CREATE UNIQUE INDEX uq_membership_default
+  ON user_tenant_memberships (user_id) WHERE deleted_at IS NULL AND is_default AND status = 'active';
+-- 客户方单作用域：数据库级强约束（不靠应用自觉）
+CREATE UNIQUE INDEX uq_customer_single_scope
+  ON user_tenant_memberships (user_id)
+  WHERE deleted_at IS NULL AND status = 'active' AND account_kind = 'customer';
 ```
 
-要点：成员关系**显式**（邀请/审批产生）、**可回收**（`deassigned_at`）、**带租户列**（不进豁免清单，RLS 可覆盖）。
+要点：成员关系**显式**（分配/邀请产生）、**可回收**（`deassigned_at`/`deleted_at`）、**可到期**（`expires_at`）、**带租户列**（不进 `tenant_guard` 豁免清单，RLS 可覆盖）、**客户单作用域为 DB 强约束**。
 
 ### 6.2 与既有模型的关系
 
 | 概念 | 保留/新增 |
 |---|---|
-| `users.tenant_id` | 保留为"主租户"（home membership 的物化，兼容既有代码） |
-| `msp_allocations` | 保留（运营侧分配），`AccessibleTenants` 合并为同一集合 |
-| `user_roles` | **不直接复用**做多租户角色（平台级、无 tenant_id）；成员关系上用 `role_id` 表达租户内角色 |
-| 登录选择 | `availableTenants` = home ∪ memberships ∪ allocations；显式/自动/候选三种模式 |
+| `users.tenant_id` | 保留为"主租户"（home membership 的物化，兼容既有代码与快速查询） |
+| `users.account_kind` | 新增（customer/provider/platform） |
+| `msp_allocations` | 保留（运营侧分配）；有效分配 → provider 侧作用域（`allocation_id` 可追溯） |
+| `user_roles` | 平台角色保留；租户内角色改挂 `membership.role_id`（P1 收敛，避免"角色双源"） |
+| 会话 | `availableTenants` = home ∪ memberships（P0 阶段由 home ∪ allocations 计算，**接口不变**） |
 
 ### 6.3 风险与前置
 
-- 唯一约束迁移（email 租户内唯一）必须在成员关系上线前完成，否则邀请同邮箱到第二租户仍失败；
-- `user_roles` 与 membership.role_id 并存会造成"角色双源"，需在 P1-2 时先做收敛（推荐：membership 承载租户内角色，`user_roles` 仅保留平台角色）；
-- RLS `enforce` 前需验证：切换后的 `tenant_id` 与 membership 一致、审计事件完整。
+- **无唯一约束迁移**（Q3 决策：客户方不跨租户，保持 `username/email` 全局唯一）——原 P1-2 取消；
+- 回填：`users.tenant_id` → home membership；有效 `msp_allocations` → provider 作用域；回填后跑一致性巡检（每个 customer 账号恰好 1 条 active 作用域）；
+- `user_roles` 与 `membership.role_id` 并存会造成"角色双源"，需在 P1-b 前收敛（membership 承载租户内角色，`user_roles` 仅保留平台角色）；
+- RLS `enforce` 前需验证：切换后的 `tenant_id` 与 membership 一致、审计事件完整、`expires_at` 到期回收有效。
 
 ---
 
@@ -532,12 +579,13 @@ CREATE UNIQUE INDEX uq_membership_active ON user_tenant_memberships (user_id, te
 | P0-4 | 前端入口 | 登录租户输入、顶栏切换器、MSP 客户选择器、用户管理租户字段、首登改密页、http-client 扩展 | P0-1/2 | 手工回归 + 组件测试；切换后数据不串租户 |
 | P0-5 | 文档与脚本收口 | 02/05/06/07 更新；`setup-msp-tenants.sh` 改为 **API 优先 + SQL 兜底**；CHANGELOG | P0-2/3 | 脚本在全新租户上零 SQL 完成建号与验证 |
 
-### P1（体验与合规）
+### P1（目标模型 + 体验与合规）
 
 | # | 任务 | 说明 |
 |---|---|---|
+| P1-a | membership 落地（F7） | `user_tenant_memberships` 表 + `users.account_kind` + 回填（home/allocations）+ 一致性巡检；`AccessibleTenants` 切换到读表 |
+| P1-b | 上下文与审计扩展（F15） | 请求上下文注入 `tenant_source/membership_id/is_platform_admin`；`membership.grant/revoke/suspend`、`tenant.scope_switch/denied` 审计落库 |
 | P1-1 | 邀请/入职流（F4） | 邀请 token、落地页、首登改密、撤销与审计 |
-| P1-2 | 邮箱租户内唯一 + 登录候选（F7 前半） | 迁移 + `identifier` 登录 + 409 候选 |
 | P1-3 | 客户租户 MSP 角色模板（F14） | 模板内置 4 个角色（`msp_observer/msp_tech/msp_manager/msp_full`）+ 客户 admin 可编辑角色权限（含审计）+ `membership.expires_at`；分配角色映射（primary→manager、backup→tech、specialist→specialist）；Q7 采用"客户级角色差异化"，不引入 grants 表（见[分析文档 B.8](./msp-scope-model-analysis-and-ai-gateway-reference.md#b8-建议结论推荐方案)） |
 | P1-4 | 审计与指标 | 建号/切换/登录事件看板；`selection_mode`、通道分布指标 |
 
@@ -545,8 +593,9 @@ CREATE UNIQUE INDEX uq_membership_active ON user_tenant_memberships (user_id, te
 
 | # | 任务 | 说明 |
 |---|---|---|
-| P2-1 | 路线 B（memberships） | 单独立项 + ADR 补充决议 |
-| P2-2 | G8 缓存租户维度、RLS enforce 前置 | 与本文解耦，按 ADR-004 A8/A11 推进 |
+| P2-1 | `service_account` 作用域（Q8） | API Key/集成账号纳入作用域（按 ai-gateway access-key binding 模式） |
+| P2-2 | `membership_scope_grants`（Q7 备选 B） | 仅当出现"限时/单次/合同号绑定"提权需求时启用（触发条件见分析文档 B.8） |
+| P2-3 | G8 缓存租户维度、RLS enforce 前置 | 与本文解耦，按 ADR-004 A8/A11 推进 |
 ---
 
 ## 8. 验收标准与测试计划
@@ -564,7 +613,10 @@ CREATE UNIQUE INDEX uq_membership_active ON user_tenant_memberships (user_id, te
 | 建号 | platform 通道任意租户 / msp 通道已分配客户 / msp 通道未分配客户 / tenant 通道本租户 / 跨租户 | 201 / 201 / 403 `MSP_ALLOCATION_REQUIRED` / 201 / 403 `CROSS_TENANT_FORBIDDEN` |
 | 建号 | 角色不属于目标租户 / rank 高于调用者 / `msp_role` 非法组合 | 422 `ROLE_NOT_GRANTABLE` / 422 / 422 `MSP_ROLE_NOT_ALLOWED` |
 | 注册 | `role=super_admin` / `role=admin` / 缺省 | 422 / 按白名单策略 / `end_user` |
-| 唯一性 | username 全局重复 / email 同租户重复 / email 跨租户（P1 后） | 409 / 409 / 允许（P1） |
+| 唯一性 | username 全局重复 / email 全局重复（Q3：不允许同邮箱多租户） | 409 / 409 |
+| 作用域 | customer 账号被加入第二租户 / 服务方访问 `expires_at` 已过期作用域 | DB 约束拒绝（`CUSTOMER_SCOPE_CONFLICT`）/ 403（作用域失效）+ 审计 |
+| 作用域 | 客户方命中多作用域（数据异常）/ 服务方多作用域未选择 | `409 SESSION_AMBIGUOUS` / `409 SCOPE_SELECTION_REQUIRED` + 候选列表 |
+| 权限 | 服务方在客户作用域执行 `cmdb:write`（默认基线）/ 客户 admin 调整 msp 角色权限后重签会话 | 403 `SCOPE_GRANT_REQUIRED` / 新权限生效（未重签则维持旧权限） |
 | 审计 | 上述每条路径 | 生成对应审计事件且字段齐全 |
 
 ### 8.2 生产验收脚本（改造 `scripts/msp/setup-msp-tenants.sh`）
@@ -602,17 +654,20 @@ CREATE UNIQUE INDEX uq_membership_active ON user_tenant_memberships (user_id, te
 | `WithProvisioningBypass` 被滥用扩大跨租户写入面 | 高 | 仅 service 层可调用（评审清单 + 静态检查）；必须携带 actor/reason；审计强制；CODEOWNERS 覆盖 `tenantctx` 包 |
 | refresh 撤销表写入量/性能 | 低 | 复用现有撤销机制（TTL 与 access 有效期一致），仅切换时写入 |
 | 前端切换后残留旧租户数据 | 中 | 统一切换函数：清 store/缓存 → 重拉 me/menus → 硬刷新兜底；组件测试覆盖 |
-| email 复合唯一迁移（P1） | 中 | 迁移前体检（重复清单）+ 独立窗口 + 可回滚索引 |
+| membership 回填不一致（P1-a） | 中 | 回填脚本幂等 + 一致性巡检（customer 恰好 1 条 active 作用域）+ 差异清单人工处置 |
 
-### 9.2 开放问题（需决策）
+### 9.2 决议记录（2026-09-29）
 
-| # | 问题 | 影响 | 建议 |
+| # | 问题 | 决议 | 依据/落地 |
 |---|---|---|---|
-| Q1 | MSP 员工在客户租户内的权限边界（只读？可写工单？能否建号？） | F14 模板权限设计 | ✅ 已答：工单读写 + 知识/CMDB/服务目录只读 + `msp_manager` 可开通客户侧账号；变更/发布/CMDB 写/系统配置默认禁止（见[作用域模型分析 §3](./msp-scope-model-analysis-and-ai-gateway-reference.md#3-业务规则确认q1-正式回答)） |
-| Q2 | 平台 `super_admin` 跨租户建号是否需二次确认/审批 | F1 通道安全 | 建议：仅 `super_admin`，强制审计 + 高危操作日志告警 |
-| Q3 | 是否允许同一邮箱在多个租户（决定 P1-2 是否做） | F7/F4 | ✅ 建议改为**不允许**：客户方不跨租户 → 保持全局唯一，**取消 P1-2** 的邮箱租户内唯一迁移 |
-| Q4 | 邀请邮件通道（SMTP）是否就绪 | F4 排期 | 若未就绪，先出"邀请链接"由管理员线下传递 |
-| Q5 | 路线 B 的触发与排期 | 长期模型 | ✅ 建议**提前至 P1**：membership 作为"一个账号、多作用域"目标模型的正式部分（见分析文档 §5） |
+| Q1 | 服务方/客户方权限边界 | ✅ 客户方锁单租户、拥有完整业务功能；服务方一个账号多作用域，客户租户内基线 = 工单读写 + 知识/CMDB/服务目录只读 + `msp_manager` 开通客户侧账号 | [分析文档 §3](./msp-scope-model-analysis-and-ai-gateway-reference.md#3-业务规则确认q1-正式回答)；§5.5.2 |
+| Q2 | 平台 `super_admin` 跨租户建号 | ✅ 仅 `super_admin`，强制审计 + 高危日志告警 | §5.2 |
+| Q3 | 同一邮箱多租户 | ✅ **不允许**（客户方不跨租户）→ 保持全局唯一，取消邮箱租户内唯一迁移 | §4.2、§6.3 |
+| Q4 | 邀请邮件通道（SMTP） | ⏳ 待确认；未就绪时先出"邀请链接"由管理员线下传递 | P1-1 |
+| Q5 | 路线 B 排期 | ✅ 提前至 **P1 首批**（目标模型） | §4.1、§6 |
+| Q6 | 客户账号"转移"到另一租户 | ✅ 仅平台通道；软删旧作用域 + 新建，保留审计与历史归属 | §6.1 |
+| Q7 | 服务方写权限按合同差异化 | ✅ **客户级角色差异化**（4 角色模板 + 客户 admin 可编辑权限）；不建 grants 表；授予方 = 客户 admin 为主、平台应急兜底；`expires_at` + 季度复核替代到期回收 | [分析文档 B.8](./msp-scope-model-analysis-and-ai-gateway-reference.md#b8-建议结论推荐方案)；§5.5.2 |
+| Q8 | `service_account` 是否纳入作用域 | ✅ 第一期不纳入（仅 `user`）；P2 按 access-key binding 模式扩展 | §7 P2-1 |
 
 ---
 
@@ -682,3 +737,4 @@ CREATE UNIQUE INDEX uq_membership_active ON user_tenant_memberships (user_id, te
 |---|---|---|
 | v0.1 | 2026-09-29 | 首版：现状盘点（三方调研）、缺口 F1–F15、路线 A/B 选型、P0 详细设计、分期与验收 |
 | v0.2 | 2026-09-29 | 依据[作用域模型分析](./msp-scope-model-analysis-and-ai-gateway-reference.md)：Q1 已答（服务方/客户方边界）；路线 B（membership）提前至 P1；取消 P1-2 邮箱租户内唯一；客户方登录解析收紧为 fail-closed |
+| v0.3 | 2026-09-29 | **按建议固化决策**：§0/§4 改为"已定路线（A→B 递进）"；§6 由"可选演进"改写为"P1 首批目标模型"（membership DDL 含 `account_kind`/`expires_at`/客户单作用域 DB 约束）；§5.2.4 取消唯一约束迁移；§5.3 登录解析按 account_kind 分派（客户 fail-closed、服务方 409 选择）；§5.5.2 落 4 个 msp 角色与客户级差异化；§7 分期重排（P1-a/b、P2-1/2/3）；§9.2 改为决议记录（Q1–Q8） |
