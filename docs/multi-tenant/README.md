@@ -65,6 +65,8 @@
 |---|---|
 | [msp-user-lifecycle-and-tenant-switching-plan.md](./plan/msp-user-lifecycle-and-tenant-switching-plan.md) | 多租户用户生命周期与租户切换：功能缺口 F1–F15（建号/登录选租户/切换上下文）、路线 A/B 选型、P0 详细设计、分期与验收 |
 | [msp-scope-model-analysis-and-ai-gateway-reference.md](./plan/msp-scope-model-analysis-and-ai-gateway-reference.md) | 服务方/客户方作用域模型分析（Q1 回答）：一个账号、多作用域（membership）目标模型、ai-gateway 多租户设计对照与可借鉴清单 |
+| [msp-target-architecture.md](./plan/msp-target-architecture.md) | **目标架构方案**：账号唯一/作用域多元、membership 模型、租户上下文与 fail-closed 解析、隔离与权限（Q7 角色模板）、建号/邀请/首登、数据模型与迁移、前端架构、审计与 A→B 演进 |
+| [msp-user-interaction-flows.md](./plan/msp-user-interaction-flows.md) | **用户交互流程图**：10 个流程（Mermaid：开通/邀请/建号/登录/切换/头通道/权限/回收/重置/续期）+ 邀请与会话状态机 + 流程×缺口×接口对照 |
 
 ## 维护约定
 

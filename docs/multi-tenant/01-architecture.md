@@ -3,6 +3,7 @@
 > **状态**：当前
 > **更新日期**：2026-09-28
 > **上位决策**：[ADR-004](../architecture/adr-004-multi-customer-tenant-model-selection.md)
+> **目标架构（to-be）**：[目标架构方案](./plan/msp-target-architecture.md)｜**用户交互流程图**：[msp-user-interaction-flows.md](./plan/msp-user-interaction-flows.md)
 
 ## 1. 场景定义
 
