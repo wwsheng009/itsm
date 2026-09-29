@@ -42,6 +42,11 @@ type Service struct {
 	botRunner *bot.Manager
 	// B1-05：确认单有效期（默认 24h；<=0 表示不设过期，仅测试/离线场景使用）。
 	confirmationTTL time.Duration
+	// B2-02：Bot 策略门禁（授权 ∩ RBAC ∩ 风险上限 ∩ 入口）。
+	// 未注入（nil，对应 bot.enabled=false）时，下发与执行都走既有遗留判定，行为零差异。
+	botPolicy *bot.Policy
+	// B2-02：会话 → Bot 归属解析器（B2-04 落库后替换为真实查询；nil = 一律按默认助手）。
+	botIDResolver func(ctx context.Context, tenantID, conversationID int) int
 }
 
 func NewService(
@@ -231,6 +236,29 @@ func (s *Service) ExecuteToolWithOptions(ctx context.Context, userID, tenantID i
 		}
 	}
 
+	// === B2-02 Gate 2.5: Bot 策略二次校验（执行面，不可只靠下发过滤）===
+	//
+	// 下发面过滤只保证「模型看不到」；执行面必须独立复判——授权可能在下发后被回收、
+	// 调用可能绕过聊天链路（直接 API / agent 路径）。未注入 Policy（bot.enabled=false）时
+	// 整段跳过，行为与既有版本零差异。
+	if allowed && s.botPolicy != nil {
+		decision := s.botPolicy.CheckTool(ctx, tenantID,
+			s.resolveBotID(ctx, tenantID, opts.ConversationID), bot.EntrypointChat,
+			bot.ToolMeta{
+				Name: toolDef.Name, Provider: toolDef.Provider, ReadOnly: toolDef.ReadOnly,
+				Resource: toolDef.Resource, Action: toolDef.Action, Risk: toolDef.Risk,
+			},
+			s.rbacAllowedFunc(ctx, role, tenantID))
+		if !decision.Allowed {
+			permCheck = "denied"
+			permReason = "bot policy: " + decision.Reason
+			allowed = false
+			s.logger.Warnw("AI tool denied by bot policy",
+				"user_id", userID, "tenant_id", tenantID, "role", role,
+				"tool", name, "reason", decision.Reason)
+		}
+	}
+
 	// Authorization is mandatory; feature flags must never bypass it.
 	if !allowed {
 		s.recordToolAudit(ctx, tenantID, userID, role, name, args, permCheck, permReason, "", nil, false, nil)
@@ -341,6 +369,44 @@ func (s *Service) ExecuteToolWithOptions(ctx context.Context, userID, tenantID i
 // SetConfirmationTTL 设置确认单有效期（B1-05；bootstrap 从配置注入）。
 // d <= 0 表示不设过期（离线/测试），生产默认走 bot.DefaultConfirmationTTL。
 func (s *Service) SetConfirmationTTL(d time.Duration) { s.confirmationTTL = d }
+
+// SetBotPolicy 注入 Bot 策略门禁（B2-02；nil = 关闭态，走既有遗留判定）。
+func (s *Service) SetBotPolicy(policy *bot.Policy) { s.botPolicy = policy }
+
+// SetBotIDResolver 注入「会话 → Bot」解析器（B2-02 预留；B2-04 落库后由 bootstrap 换成真实查询）。
+// 未注入时一律返回 0 = 默认助手（见 resolveBotID）。
+func (s *Service) SetBotIDResolver(resolver func(ctx context.Context, tenantID, conversationID int) int) {
+	s.botIDResolver = resolver
+}
+
+// resolveBotID 解析本次调用所属 Bot；0 = 默认助手（策略层按 slug=default-assistant 解析）。
+func (s *Service) resolveBotID(ctx context.Context, tenantID, conversationID int) int {
+	if s.botIDResolver == nil {
+		return 0
+	}
+	if id := s.botIDResolver(ctx, tenantID, conversationID); id > 0 {
+		return id
+	}
+	return 0
+}
+
+// rbacAllowedFunc 返回与 Gate 2 同源的 RBAC 判定回调（口径单一来源，避免策略层与
+// 执行层各写一份导致漂移）：
+//
+//	关闭 RBAC 开关 / 无 ent client / 空角色 / super_admin → 放行（既有条件）
+//	其余角色 → HasResourcePermission(resource, action, tenant)
+//
+// 之所以让策略层复用该回调，是为了让「四重交集」在一次 Decide 内闭合；执行路径
+// 在 Gate 2 已判过一次，回调重判结果相同（幂等，无副作用）。
+func (s *Service) rbacAllowedFunc(ctx context.Context, role string, tenantID int) func(resource, action string) bool {
+	if !IsToolRBACEnabled() || s.entClient == nil || role == "" || role == "super_admin" {
+		return func(string, string) bool { return true }
+	}
+	client := s.entClient
+	return func(resource, action string) bool {
+		return middleware.HasResourcePermission(ctx, client, role, resource, action, tenantID)
+	}
+}
 
 // newConfirmationExpiry 依据 TTL 计算过期时间；TTL<=0 返回 nil（不设期限）。
 func (s *Service) newConfirmationExpiry(now time.Time) *time.Time {
@@ -758,17 +824,10 @@ func (s *Service) chatGateway(tenantID, userID int, provider string) (*service.L
 // chatWritableTools 是允许注入聊天路径的写工具白名单。
 // 这些工具经由 ExecuteTool 的审批流（创建 pending invocation + 入队等待人工审批），
 // 绝不在聊天链路内直接落库，因此可安全暴露给 LLM 自主决策调用。
-var chatWritableTools = map[string]bool{
-	"create_ticket":      true,
-	"update_ticket":      true,
-	"create_ticket_type": true,
-	// CMDB 本体链路：把工单挂到配置项（走同一审批流）
-	"link_ticket_ci": true,
-	// CMDB 关系写操作：与上面同一审批流 + Gate2 RBAC（resource=ci_relationship, action=write）
-	// LLM 在聊天中建/删 CI 关系必须走人工审批，与原生 UI 路径行为一致。
-	"create_ci_relationship": true,
-	"delete_ci_relationship": true,
-}
+//
+// B2-02：单一来源已迁移到 `service/bot`（`bot.LegacyChatWritableTools`，策略层的兼容默认
+// 与关闭态共用同一张表）；这里保留别名，杜绝「关闭态」与「开启态兼容默认」两处漂移。
+var chatWritableTools = bot.LegacyChatWritableTools
 
 // ChatStream streams a RAG answer through onDelta while emitting sources
 // separately via onSources. It also persists the resulting conversation and
@@ -1066,15 +1125,52 @@ func (s *Service) chatStreamInner(
 		}
 	}
 	if s.tools != nil && providerSupportsTools {
+		// B2-02：开启态一次性取策略快照（未配置授权 → 兼容默认，见 service/bot/policy.go）。
+		// 取快照失败 → fail-closed（不下发任何工具），避免「策略不可知时仍放行」。
+		var policySnapshot *bot.Snapshot
+		policyReady := s.botPolicy != nil
+		if policyReady {
+			snapshot, err := s.botPolicy.SnapshotForBot(ctx, tenantID, s.resolveBotID(ctx, tenantID, convID))
+			if err != nil {
+				s.logger.Warnw("AI ChatStream: Bot 策略快照读取失败，工具面 fail-closed",
+					"error", err, "tenant_id", tenantID, "conv_id", convID)
+				policyReady = false
+			}
+			policySnapshot = snapshot
+		}
+		rbacAllowed := s.rbacAllowedFunc(ctx, role, tenantID)
 		// 按租户动态化工具参数（list_cis 的 ci_type 枚举来自租户 CIType 表）
 		for _, td := range s.tools.ListToolsForTenant(ctx, tenantID) {
-			if !td.ReadOnly && !chatWritableTools[td.Name] {
-				continue
-			}
-			if IsToolRBACEnabled() && s.entClient != nil && role != "" && role != "super_admin" {
-				if !middleware.HasResourcePermission(ctx, s.entClient, role, td.Resource, td.Action, tenantID) {
-					s.logger.Debugw("AI ChatStream: tool filtered by RBAC",
-						"tool", td.Name, "resource", td.Resource, "action", td.Action, "role", role, "tenantID", tenantID)
+			if s.botPolicy == nil {
+				// 关闭态（bot.enabled=false）：既有逻辑逐字节不变。
+				if !td.ReadOnly && !chatWritableTools[td.Name] {
+					continue
+				}
+				if IsToolRBACEnabled() && s.entClient != nil && role != "" && role != "super_admin" {
+					if !middleware.HasResourcePermission(ctx, s.entClient, role, td.Resource, td.Action, tenantID) {
+						s.logger.Debugw("AI ChatStream: tool filtered by RBAC",
+							"tool", td.Name, "resource", td.Resource, "action", td.Action, "role", role, "tenantID", tenantID)
+						continue
+					}
+				}
+			} else {
+				// 开启态：策略判定（授权 ∩ RBAC ∩ 风险上限 ∩ 入口）。
+				if !policyReady {
+					continue
+				}
+				decision := bot.Decide(bot.CheckInput{
+					Snapshot: policySnapshot,
+					Tool: bot.ToolMeta{
+						Name: td.Name, Provider: td.Provider, ReadOnly: td.ReadOnly,
+						Resource: td.Resource, Action: td.Action, Risk: td.Risk,
+					},
+					Entrypoint:  bot.EntrypointChat,
+					RBACAllowed: rbacAllowed,
+				})
+				if !decision.Allowed {
+					s.logger.Debugw("AI ChatStream: tool filtered by bot policy",
+						"tool", td.Name, "reason", decision.Reason, "legacy", decision.Legacy,
+						"role", role, "tenantID", tenantID)
 					continue
 				}
 			}

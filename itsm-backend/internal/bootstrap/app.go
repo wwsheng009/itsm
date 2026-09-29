@@ -1011,6 +1011,9 @@ func NewApplication() *Application {
 		}))
 		// B1-05：确认单有效期 + 过期扫描（惰性判定在 ApproveTool，周期扫描兜底待办列表）。
 		aiServiceDomain.SetConfirmationTTL(time.Duration(cfg.Bot.ConfirmationTTLHours) * time.Hour)
+		// B2-02：Bot 策略门禁（授权 ∩ RBAC ∩ 风险上限 ∩ 入口），下发与执行同一判定。
+		// 未配置任何授权的 Bot 走兼容默认（等价现状：只读 + 遗留写白名单），行为不变。
+		aiServiceDomain.SetBotPolicy(botService.NewPolicy(client))
 		sweeper := &botService.Sweeper{
 			Store:    aiServiceDomain.ConfirmationStore(),
 			Interval: 10 * time.Minute,
