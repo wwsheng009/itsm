@@ -51,6 +51,12 @@ type BotRun func(*sql.Selector)
 // BotStep is the predicate function for botstep builders.
 type BotStep func(*sql.Selector)
 
+// BotTemplate is the predicate function for bottemplate builders.
+type BotTemplate func(*sql.Selector)
+
+// BotToolGrant is the predicate function for bottoolgrant builders.
+type BotToolGrant func(*sql.Selector)
+
 // CABMember is the predicate function for cabmember builders.
 type CABMember func(*sql.Selector)
 

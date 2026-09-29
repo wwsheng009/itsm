@@ -188,6 +188,30 @@ func (f BotStepFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, err
 	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.BotStepMutation", m)
 }
 
+// The BotTemplateFunc type is an adapter to allow the use of ordinary
+// function as BotTemplate mutator.
+type BotTemplateFunc func(context.Context, *ent.BotTemplateMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f BotTemplateFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.BotTemplateMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.BotTemplateMutation", m)
+}
+
+// The BotToolGrantFunc type is an adapter to allow the use of ordinary
+// function as BotToolGrant mutator.
+type BotToolGrantFunc func(context.Context, *ent.BotToolGrantMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f BotToolGrantFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.BotToolGrantMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.BotToolGrantMutation", m)
+}
+
 // The CABMemberFunc type is an adapter to allow the use of ordinary
 // function as CABMember mutator.
 type CABMemberFunc func(context.Context, *ent.CABMemberMutation) (ent.Value, error)

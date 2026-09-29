@@ -42,6 +42,10 @@ type Tx struct {
 	BotRun *BotRunClient
 	// BotStep is the client for interacting with the BotStep builders.
 	BotStep *BotStepClient
+	// BotTemplate is the client for interacting with the BotTemplate builders.
+	BotTemplate *BotTemplateClient
+	// BotToolGrant is the client for interacting with the BotToolGrant builders.
+	BotToolGrant *BotToolGrantClient
 	// CABMember is the client for interacting with the CABMember builders.
 	CABMember *CABMemberClient
 	// CIAttributeDefinition is the client for interacting with the CIAttributeDefinition builders.
@@ -446,6 +450,8 @@ func (tx *Tx) init() {
 	tx.BotEvent = NewBotEventClient(tx.config)
 	tx.BotRun = NewBotRunClient(tx.config)
 	tx.BotStep = NewBotStepClient(tx.config)
+	tx.BotTemplate = NewBotTemplateClient(tx.config)
+	tx.BotToolGrant = NewBotToolGrantClient(tx.config)
 	tx.CABMember = NewCABMemberClient(tx.config)
 	tx.CIAttributeDefinition = NewCIAttributeDefinitionClient(tx.config)
 	tx.CIRelationship = NewCIRelationshipClient(tx.config)

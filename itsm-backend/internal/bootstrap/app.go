@@ -1028,6 +1028,14 @@ func NewApplication() *Application {
 	}
 	aiHandler := ai.NewHandler(aiServiceDomain)
 
+	// B2-01：Bot 模板/授权管理面（/api/v1/admin/bots；读 ai:read、写 ai:write）。
+	// bot.enabled=false（默认）时不注入 → 整组路由不注册（端点不可达即回滚语义）；
+	// 首次列表访问时按租户幂等种入内置「默认助手」（兼容默认，见 service/bot/admin.go）。
+	var botAdminHandler *ai.BotAdminHandler
+	if cfg.Bot.Enabled {
+		botAdminHandler = ai.NewBotAdminHandler(botService.NewTemplateAdmin(client))
+	}
+
 	// MCP 外部工具接入（M0-09：provider 装配与运行时拉起）。
 	// mcp.enabled=false（默认）时不初始化任何组件、不产生任何后台行为（零行为变化）；
 	// 开启后按 M0-02/04/06/07/08 依赖顺序装配：凭据 → ent store → manager → 管理服务 → provider。
@@ -1381,6 +1389,7 @@ func NewApplication() *Application {
 		AIHandler:                   aiHandler, // Added AI domain handler
 		LLMProviderAdminHandler:     llmProviderAdminHandler,
 		MCPHandler:                  mcpAdminHandler, // MCP 管理 API（M0-10；nil 时整组不注册）
+		BotAdminHandler:             botAdminHandler, // Bot 模板/授权管理 API（B2-01；nil 时整组不注册）
 		EmailIntakeHandler:          emailIntakeHandler,
 		CommonHandler:               commonHandler,
 		AuthHandler:                 authHTTPHandler,

@@ -15,6 +15,8 @@ package middleware
 func precheckRoutePermissions() map[string]map[string]Permission {
 	return map[string]map[string]Permission{
 		"DELETE": {
+			"/api/v1/admin/bots/*":                                {Resource: "ai", Action: "write"},
+			"/api/v1/admin/bots/*/grants/*":                       {Resource: "ai", Action: "write"},
 			"/api/v1/admin/skills/*":                              {Resource: "marketplace", Action: "write"},
 			"/api/v1/ai/analysis-results/*":                       {Resource: "ai", Action: "write"},
 			"/api/v1/ai/conversations/*":                          {Resource: "ai", Action: "write"},
@@ -103,6 +105,9 @@ func precheckRoutePermissions() map[string]map[string]Permission {
 			"/api/v1/vendors/*":                                   {Resource: "vendor", Action: "delete"},
 		},
 		"GET": {
+			"/api/v1/admin/bots":                                   {Resource: "ai", Action: "read"},
+			"/api/v1/admin/bots/*":                                 {Resource: "ai", Action: "read"},
+			"/api/v1/admin/bots/*/grants":                          {Resource: "ai", Action: "read"},
 			"/api/v1/admin/operations/commands":                    {Resource: "system", Action: "write"},
 			"/api/v1/admin/operations/commands/*":                  {Resource: "system", Action: "write"},
 			"/api/v1/admin/tenants":                                {Resource: "tenant", Action: "read"},
@@ -513,6 +518,7 @@ func precheckRoutePermissions() map[string]map[string]Permission {
 			"/api/v1/a2ui/ticket/action":                        {Resource: "ai", Action: "write"},
 			"/api/v1/a2ui/ticket/form":                          {Resource: "ai", Action: "write"},
 			"/api/v1/a2ui/tickets":                              {Resource: "ai", Action: "write"},
+			"/api/v1/admin/bots":                                {Resource: "ai", Action: "write"},
 			"/api/v1/admin/operations/commands/*/cancel":        {Resource: "system", Action: "write"},
 			"/api/v1/admin/operations/commands/*/replay":        {Resource: "system", Action: "write"},
 			"/api/v1/admin/operations/commands/bulk-cancel":     {Resource: "system", Action: "write"},
@@ -779,6 +785,8 @@ func precheckRoutePermissions() map[string]map[string]Permission {
 			"/api/v1/workflow/tasks/*/claim":                    {Resource: "task", Action: "update"},
 		},
 		"PUT": {
+			"/api/v1/admin/bots/*":                                {Resource: "ai", Action: "write"},
+			"/api/v1/admin/bots/*/grants":                         {Resource: "ai", Action: "write"},
 			"/api/v1/admin/skills/*":                              {Resource: "marketplace", Action: "write"},
 			"/api/v1/ai/mcp-servers/*":                            {Resource: "mcp", Action: "admin"},
 			"/api/v1/ai/mcp-servers/*/tools/*/classification":     {Resource: "mcp", Action: "admin"},

@@ -25,6 +25,8 @@ import (
 	"itsm-backend/ent/botevent"
 	"itsm-backend/ent/botrun"
 	"itsm-backend/ent/botstep"
+	"itsm-backend/ent/bottemplate"
+	"itsm-backend/ent/bottoolgrant"
 	"itsm-backend/ent/bpmnpermission"
 	"itsm-backend/ent/cabmember"
 	"itsm-backend/ent/change"
@@ -197,6 +199,10 @@ type Client struct {
 	BotRun *BotRunClient
 	// BotStep is the client for interacting with the BotStep builders.
 	BotStep *BotStepClient
+	// BotTemplate is the client for interacting with the BotTemplate builders.
+	BotTemplate *BotTemplateClient
+	// BotToolGrant is the client for interacting with the BotToolGrant builders.
+	BotToolGrant *BotToolGrantClient
 	// CABMember is the client for interacting with the CABMember builders.
 	CABMember *CABMemberClient
 	// CIAttributeDefinition is the client for interacting with the CIAttributeDefinition builders.
@@ -481,6 +487,8 @@ func (c *Client) init() {
 	c.BotEvent = NewBotEventClient(c.config)
 	c.BotRun = NewBotRunClient(c.config)
 	c.BotStep = NewBotStepClient(c.config)
+	c.BotTemplate = NewBotTemplateClient(c.config)
+	c.BotToolGrant = NewBotToolGrantClient(c.config)
 	c.CABMember = NewCABMemberClient(c.config)
 	c.CIAttributeDefinition = NewCIAttributeDefinitionClient(c.config)
 	c.CIRelationship = NewCIRelationshipClient(c.config)
@@ -717,6 +725,8 @@ func (c *Client) Tx(ctx context.Context) (*Tx, error) {
 		BotEvent:                    NewBotEventClient(cfg),
 		BotRun:                      NewBotRunClient(cfg),
 		BotStep:                     NewBotStepClient(cfg),
+		BotTemplate:                 NewBotTemplateClient(cfg),
+		BotToolGrant:                NewBotToolGrantClient(cfg),
 		CABMember:                   NewCABMemberClient(cfg),
 		CIAttributeDefinition:       NewCIAttributeDefinitionClient(cfg),
 		CIRelationship:              NewCIRelationshipClient(cfg),
@@ -880,6 +890,8 @@ func (c *Client) BeginTx(ctx context.Context, opts *sql.TxOptions) (*Tx, error) 
 		BotEvent:                    NewBotEventClient(cfg),
 		BotRun:                      NewBotRunClient(cfg),
 		BotStep:                     NewBotStepClient(cfg),
+		BotTemplate:                 NewBotTemplateClient(cfg),
+		BotToolGrant:                NewBotToolGrantClient(cfg),
 		CABMember:                   NewCABMemberClient(cfg),
 		CIAttributeDefinition:       NewCIAttributeDefinitionClient(cfg),
 		CIRelationship:              NewCIRelationshipClient(cfg),
@@ -1041,13 +1053,14 @@ func (c *Client) Use(hooks ...Hook) {
 		c.AIAnalysisResult, c.Alert, c.Application, c.ApprovalChain, c.ApprovalRecord,
 		c.ApprovalWorkflow, c.Asset, c.AssetLicense, c.Attachment, c.AuditLog,
 		c.BPMNPermission, c.BootstrapToken, c.BotEvent, c.BotRun, c.BotStep,
-		c.CABMember, c.CIAttributeDefinition, c.CIRelationship, c.CITag, c.CIType,
-		c.CMDBExportTask, c.CMDBImportTask, c.CMDBSavedView, c.Change, c.ChangePIR,
-		c.CloudAccount, c.CloudResource, c.CloudService, c.ConfigurationItem,
-		c.ConfigurationItemHistory, c.ConnectorConfig, c.ConnectorInboundDedup,
-		c.Contract, c.Conversation, c.CustomerBranch, c.Department, c.DiscoveryJob,
-		c.DiscoveryResult, c.DiscoverySource, c.DomainConfig, c.EmailConversation,
-		c.EmailIntakeAnalysis, c.EmailOutboundMessage, c.EndpointACL, c.EngineerSkill,
+		c.BotTemplate, c.BotToolGrant, c.CABMember, c.CIAttributeDefinition,
+		c.CIRelationship, c.CITag, c.CIType, c.CMDBExportTask, c.CMDBImportTask,
+		c.CMDBSavedView, c.Change, c.ChangePIR, c.CloudAccount, c.CloudResource,
+		c.CloudService, c.ConfigurationItem, c.ConfigurationItemHistory,
+		c.ConnectorConfig, c.ConnectorInboundDedup, c.Contract, c.Conversation,
+		c.CustomerBranch, c.Department, c.DiscoveryJob, c.DiscoveryResult,
+		c.DiscoverySource, c.DomainConfig, c.EmailConversation, c.EmailIntakeAnalysis,
+		c.EmailOutboundMessage, c.EndpointACL, c.EngineerSkill,
 		c.ExternalContractReference, c.FeishuTicketSync, c.Group,
 		c.InboundEmailMessage, c.Incident, c.IncidentAlert, c.IncidentEscalationRule,
 		c.IncidentEvent, c.IncidentMetric, c.IncidentRule, c.IncidentRuleExecution,
@@ -1086,13 +1099,14 @@ func (c *Client) Intercept(interceptors ...Interceptor) {
 		c.AIAnalysisResult, c.Alert, c.Application, c.ApprovalChain, c.ApprovalRecord,
 		c.ApprovalWorkflow, c.Asset, c.AssetLicense, c.Attachment, c.AuditLog,
 		c.BPMNPermission, c.BootstrapToken, c.BotEvent, c.BotRun, c.BotStep,
-		c.CABMember, c.CIAttributeDefinition, c.CIRelationship, c.CITag, c.CIType,
-		c.CMDBExportTask, c.CMDBImportTask, c.CMDBSavedView, c.Change, c.ChangePIR,
-		c.CloudAccount, c.CloudResource, c.CloudService, c.ConfigurationItem,
-		c.ConfigurationItemHistory, c.ConnectorConfig, c.ConnectorInboundDedup,
-		c.Contract, c.Conversation, c.CustomerBranch, c.Department, c.DiscoveryJob,
-		c.DiscoveryResult, c.DiscoverySource, c.DomainConfig, c.EmailConversation,
-		c.EmailIntakeAnalysis, c.EmailOutboundMessage, c.EndpointACL, c.EngineerSkill,
+		c.BotTemplate, c.BotToolGrant, c.CABMember, c.CIAttributeDefinition,
+		c.CIRelationship, c.CITag, c.CIType, c.CMDBExportTask, c.CMDBImportTask,
+		c.CMDBSavedView, c.Change, c.ChangePIR, c.CloudAccount, c.CloudResource,
+		c.CloudService, c.ConfigurationItem, c.ConfigurationItemHistory,
+		c.ConnectorConfig, c.ConnectorInboundDedup, c.Contract, c.Conversation,
+		c.CustomerBranch, c.Department, c.DiscoveryJob, c.DiscoveryResult,
+		c.DiscoverySource, c.DomainConfig, c.EmailConversation, c.EmailIntakeAnalysis,
+		c.EmailOutboundMessage, c.EndpointACL, c.EngineerSkill,
 		c.ExternalContractReference, c.FeishuTicketSync, c.Group,
 		c.InboundEmailMessage, c.Incident, c.IncidentAlert, c.IncidentEscalationRule,
 		c.IncidentEvent, c.IncidentMetric, c.IncidentRule, c.IncidentRuleExecution,
@@ -1157,6 +1171,10 @@ func (c *Client) Mutate(ctx context.Context, m Mutation) (Value, error) {
 		return c.BotRun.mutate(ctx, m)
 	case *BotStepMutation:
 		return c.BotStep.mutate(ctx, m)
+	case *BotTemplateMutation:
+		return c.BotTemplate.mutate(ctx, m)
+	case *BotToolGrantMutation:
+		return c.BotToolGrant.mutate(ctx, m)
 	case *CABMemberMutation:
 		return c.CABMember.mutate(ctx, m)
 	case *CIAttributeDefinitionMutation:
@@ -3620,6 +3638,304 @@ func (c *BotStepClient) mutate(ctx context.Context, m *BotStepMutation) (Value, 
 		return (&BotStepDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
 	default:
 		return nil, fmt.Errorf("ent: unknown BotStep mutation op: %q", m.Op())
+	}
+}
+
+// BotTemplateClient is a client for the BotTemplate schema.
+type BotTemplateClient struct {
+	config
+}
+
+// NewBotTemplateClient returns a client for the BotTemplate from the given config.
+func NewBotTemplateClient(c config) *BotTemplateClient {
+	return &BotTemplateClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `bottemplate.Hooks(f(g(h())))`.
+func (c *BotTemplateClient) Use(hooks ...Hook) {
+	c.hooks.BotTemplate = append(c.hooks.BotTemplate, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `bottemplate.Intercept(f(g(h())))`.
+func (c *BotTemplateClient) Intercept(interceptors ...Interceptor) {
+	c.inters.BotTemplate = append(c.inters.BotTemplate, interceptors...)
+}
+
+// Create returns a builder for creating a BotTemplate entity.
+func (c *BotTemplateClient) Create() *BotTemplateCreate {
+	mutation := newBotTemplateMutation(c.config, OpCreate)
+	return &BotTemplateCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of BotTemplate entities.
+func (c *BotTemplateClient) CreateBulk(builders ...*BotTemplateCreate) *BotTemplateCreateBulk {
+	return &BotTemplateCreateBulk{config: c.config, builders: builders}
+}
+
+// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
+// a builder and applies setFunc on it.
+func (c *BotTemplateClient) MapCreateBulk(slice any, setFunc func(*BotTemplateCreate, int)) *BotTemplateCreateBulk {
+	rv := reflect.ValueOf(slice)
+	if rv.Kind() != reflect.Slice {
+		return &BotTemplateCreateBulk{err: fmt.Errorf("calling to BotTemplateClient.MapCreateBulk with wrong type %T, need slice", slice)}
+	}
+	builders := make([]*BotTemplateCreate, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		builders[i] = c.Create()
+		setFunc(builders[i], i)
+	}
+	return &BotTemplateCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for BotTemplate.
+func (c *BotTemplateClient) Update() *BotTemplateUpdate {
+	mutation := newBotTemplateMutation(c.config, OpUpdate)
+	return &BotTemplateUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *BotTemplateClient) UpdateOne(_m *BotTemplate) *BotTemplateUpdateOne {
+	mutation := newBotTemplateMutation(c.config, OpUpdateOne, withBotTemplate(_m))
+	return &BotTemplateUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *BotTemplateClient) UpdateOneID(id int) *BotTemplateUpdateOne {
+	mutation := newBotTemplateMutation(c.config, OpUpdateOne, withBotTemplateID(id))
+	return &BotTemplateUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for BotTemplate.
+func (c *BotTemplateClient) Delete() *BotTemplateDelete {
+	mutation := newBotTemplateMutation(c.config, OpDelete)
+	return &BotTemplateDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *BotTemplateClient) DeleteOne(_m *BotTemplate) *BotTemplateDeleteOne {
+	return c.DeleteOneID(_m.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *BotTemplateClient) DeleteOneID(id int) *BotTemplateDeleteOne {
+	builder := c.Delete().Where(bottemplate.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &BotTemplateDeleteOne{builder}
+}
+
+// Query returns a query builder for BotTemplate.
+func (c *BotTemplateClient) Query() *BotTemplateQuery {
+	return &BotTemplateQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypeBotTemplate},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a BotTemplate entity by its id.
+func (c *BotTemplateClient) Get(ctx context.Context, id int) (*BotTemplate, error) {
+	return c.Query().Where(bottemplate.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *BotTemplateClient) GetX(ctx context.Context, id int) *BotTemplate {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// QueryGrants queries the grants edge of a BotTemplate.
+func (c *BotTemplateClient) QueryGrants(_m *BotTemplate) *BotToolGrantQuery {
+	query := (&BotToolGrantClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(bottemplate.Table, bottemplate.FieldID, id),
+			sqlgraph.To(bottoolgrant.Table, bottoolgrant.FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, bottemplate.GrantsTable, bottemplate.GrantsColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
+// Hooks returns the client hooks.
+func (c *BotTemplateClient) Hooks() []Hook {
+	return c.hooks.BotTemplate
+}
+
+// Interceptors returns the client interceptors.
+func (c *BotTemplateClient) Interceptors() []Interceptor {
+	return c.inters.BotTemplate
+}
+
+func (c *BotTemplateClient) mutate(ctx context.Context, m *BotTemplateMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&BotTemplateCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&BotTemplateUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&BotTemplateUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&BotTemplateDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("ent: unknown BotTemplate mutation op: %q", m.Op())
+	}
+}
+
+// BotToolGrantClient is a client for the BotToolGrant schema.
+type BotToolGrantClient struct {
+	config
+}
+
+// NewBotToolGrantClient returns a client for the BotToolGrant from the given config.
+func NewBotToolGrantClient(c config) *BotToolGrantClient {
+	return &BotToolGrantClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `bottoolgrant.Hooks(f(g(h())))`.
+func (c *BotToolGrantClient) Use(hooks ...Hook) {
+	c.hooks.BotToolGrant = append(c.hooks.BotToolGrant, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `bottoolgrant.Intercept(f(g(h())))`.
+func (c *BotToolGrantClient) Intercept(interceptors ...Interceptor) {
+	c.inters.BotToolGrant = append(c.inters.BotToolGrant, interceptors...)
+}
+
+// Create returns a builder for creating a BotToolGrant entity.
+func (c *BotToolGrantClient) Create() *BotToolGrantCreate {
+	mutation := newBotToolGrantMutation(c.config, OpCreate)
+	return &BotToolGrantCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of BotToolGrant entities.
+func (c *BotToolGrantClient) CreateBulk(builders ...*BotToolGrantCreate) *BotToolGrantCreateBulk {
+	return &BotToolGrantCreateBulk{config: c.config, builders: builders}
+}
+
+// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
+// a builder and applies setFunc on it.
+func (c *BotToolGrantClient) MapCreateBulk(slice any, setFunc func(*BotToolGrantCreate, int)) *BotToolGrantCreateBulk {
+	rv := reflect.ValueOf(slice)
+	if rv.Kind() != reflect.Slice {
+		return &BotToolGrantCreateBulk{err: fmt.Errorf("calling to BotToolGrantClient.MapCreateBulk with wrong type %T, need slice", slice)}
+	}
+	builders := make([]*BotToolGrantCreate, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		builders[i] = c.Create()
+		setFunc(builders[i], i)
+	}
+	return &BotToolGrantCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for BotToolGrant.
+func (c *BotToolGrantClient) Update() *BotToolGrantUpdate {
+	mutation := newBotToolGrantMutation(c.config, OpUpdate)
+	return &BotToolGrantUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *BotToolGrantClient) UpdateOne(_m *BotToolGrant) *BotToolGrantUpdateOne {
+	mutation := newBotToolGrantMutation(c.config, OpUpdateOne, withBotToolGrant(_m))
+	return &BotToolGrantUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *BotToolGrantClient) UpdateOneID(id int) *BotToolGrantUpdateOne {
+	mutation := newBotToolGrantMutation(c.config, OpUpdateOne, withBotToolGrantID(id))
+	return &BotToolGrantUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for BotToolGrant.
+func (c *BotToolGrantClient) Delete() *BotToolGrantDelete {
+	mutation := newBotToolGrantMutation(c.config, OpDelete)
+	return &BotToolGrantDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *BotToolGrantClient) DeleteOne(_m *BotToolGrant) *BotToolGrantDeleteOne {
+	return c.DeleteOneID(_m.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *BotToolGrantClient) DeleteOneID(id int) *BotToolGrantDeleteOne {
+	builder := c.Delete().Where(bottoolgrant.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &BotToolGrantDeleteOne{builder}
+}
+
+// Query returns a query builder for BotToolGrant.
+func (c *BotToolGrantClient) Query() *BotToolGrantQuery {
+	return &BotToolGrantQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypeBotToolGrant},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a BotToolGrant entity by its id.
+func (c *BotToolGrantClient) Get(ctx context.Context, id int) (*BotToolGrant, error) {
+	return c.Query().Where(bottoolgrant.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *BotToolGrantClient) GetX(ctx context.Context, id int) *BotToolGrant {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// QueryBot queries the bot edge of a BotToolGrant.
+func (c *BotToolGrantClient) QueryBot(_m *BotToolGrant) *BotTemplateQuery {
+	query := (&BotTemplateClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(bottoolgrant.Table, bottoolgrant.FieldID, id),
+			sqlgraph.To(bottemplate.Table, bottemplate.FieldID),
+			sqlgraph.Edge(sqlgraph.M2O, true, bottoolgrant.BotTable, bottoolgrant.BotColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
+// Hooks returns the client hooks.
+func (c *BotToolGrantClient) Hooks() []Hook {
+	return c.hooks.BotToolGrant
+}
+
+// Interceptors returns the client interceptors.
+func (c *BotToolGrantClient) Interceptors() []Interceptor {
+	return c.inters.BotToolGrant
+}
+
+func (c *BotToolGrantClient) mutate(ctx context.Context, m *BotToolGrantMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&BotToolGrantCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&BotToolGrantUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&BotToolGrantUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&BotToolGrantDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("ent: unknown BotToolGrant mutation op: %q", m.Op())
 	}
 }
 
@@ -24609,12 +24925,12 @@ type (
 	hooks struct {
 		AIAnalysisResult, Alert, Application, ApprovalChain, ApprovalRecord,
 		ApprovalWorkflow, Asset, AssetLicense, Attachment, AuditLog, BPMNPermission,
-		BootstrapToken, BotEvent, BotRun, BotStep, CABMember, CIAttributeDefinition,
-		CIRelationship, CITag, CIType, CMDBExportTask, CMDBImportTask, CMDBSavedView,
-		Change, ChangePIR, CloudAccount, CloudResource, CloudService,
-		ConfigurationItem, ConfigurationItemHistory, ConnectorConfig,
-		ConnectorInboundDedup, Contract, Conversation, CustomerBranch, Department,
-		DiscoveryJob, DiscoveryResult, DiscoverySource, DomainConfig,
+		BootstrapToken, BotEvent, BotRun, BotStep, BotTemplate, BotToolGrant,
+		CABMember, CIAttributeDefinition, CIRelationship, CITag, CIType,
+		CMDBExportTask, CMDBImportTask, CMDBSavedView, Change, ChangePIR, CloudAccount,
+		CloudResource, CloudService, ConfigurationItem, ConfigurationItemHistory,
+		ConnectorConfig, ConnectorInboundDedup, Contract, Conversation, CustomerBranch,
+		Department, DiscoveryJob, DiscoveryResult, DiscoverySource, DomainConfig,
 		EmailConversation, EmailIntakeAnalysis, EmailOutboundMessage, EndpointACL,
 		EngineerSkill, ExternalContractReference, FeishuTicketSync, Group,
 		InboundEmailMessage, Incident, IncidentAlert, IncidentEscalationRule,
@@ -24643,12 +24959,12 @@ type (
 	inters struct {
 		AIAnalysisResult, Alert, Application, ApprovalChain, ApprovalRecord,
 		ApprovalWorkflow, Asset, AssetLicense, Attachment, AuditLog, BPMNPermission,
-		BootstrapToken, BotEvent, BotRun, BotStep, CABMember, CIAttributeDefinition,
-		CIRelationship, CITag, CIType, CMDBExportTask, CMDBImportTask, CMDBSavedView,
-		Change, ChangePIR, CloudAccount, CloudResource, CloudService,
-		ConfigurationItem, ConfigurationItemHistory, ConnectorConfig,
-		ConnectorInboundDedup, Contract, Conversation, CustomerBranch, Department,
-		DiscoveryJob, DiscoveryResult, DiscoverySource, DomainConfig,
+		BootstrapToken, BotEvent, BotRun, BotStep, BotTemplate, BotToolGrant,
+		CABMember, CIAttributeDefinition, CIRelationship, CITag, CIType,
+		CMDBExportTask, CMDBImportTask, CMDBSavedView, Change, ChangePIR, CloudAccount,
+		CloudResource, CloudService, ConfigurationItem, ConfigurationItemHistory,
+		ConnectorConfig, ConnectorInboundDedup, Contract, Conversation, CustomerBranch,
+		Department, DiscoveryJob, DiscoveryResult, DiscoverySource, DomainConfig,
 		EmailConversation, EmailIntakeAnalysis, EmailOutboundMessage, EndpointACL,
 		EngineerSkill, ExternalContractReference, FeishuTicketSync, Group,
 		InboundEmailMessage, Incident, IncidentAlert, IncidentEscalationRule,

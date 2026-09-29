@@ -20,6 +20,8 @@ import (
 	"itsm-backend/ent/botevent"
 	"itsm-backend/ent/botrun"
 	"itsm-backend/ent/botstep"
+	"itsm-backend/ent/bottemplate"
+	"itsm-backend/ent/bottoolgrant"
 	"itsm-backend/ent/bpmnpermission"
 	"itsm-backend/ent/cabmember"
 	"itsm-backend/ent/change"
@@ -231,6 +233,8 @@ func checkColumn(t, c string) error {
 			botevent.Table:                    botevent.ValidColumn,
 			botrun.Table:                      botrun.ValidColumn,
 			botstep.Table:                     botstep.ValidColumn,
+			bottemplate.Table:                 bottemplate.ValidColumn,
+			bottoolgrant.Table:                bottoolgrant.ValidColumn,
 			cabmember.Table:                   cabmember.ValidColumn,
 			ciattributedefinition.Table:       ciattributedefinition.ValidColumn,
 			cirelationship.Table:              cirelationship.ValidColumn,
