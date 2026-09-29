@@ -34,13 +34,17 @@
 
 ### 0.4 可借鉴 / 不可照搬（速览）
 
-**可借鉴（6 条）**：① membership 表结构与唯一约束；② `TenantContext`（含 `Source`/`MembershipID`/`RequestTenantID`）；③ 解析优先级 8 级与"非平台管理员不得用参数指定租户"；④ 会话租户与 membership 复核（JWT 不是授权事实）；⑤ 权限 = RBAC × membership × 租户状态 × 资源属主；⑥ 迁移期 `default_compat` 显式标记 + 审计 + 关闭计划。
+**可借鉴（9 条）**：① membership 表结构与唯一约束；② `TenantContext`（含 `Source`/`MembershipID`/`RequestTenantID`）；③ 解析优先级 8 级与"非平台管理员不得用参数指定租户"；④ 会话租户与 membership 复核（JWT 不是授权事实）；⑤ 权限 = RBAC × membership × 租户状态 × 资源属主；⑥ 迁移期 `default_compat` 显式标记 + 审计 + 关闭计划；⑦ 登录多候选 → `409 + 候选列表`（一次性选择后锁定）；⑧ JWT 三件套（`tenant_id`/`source`/`membership_id`）；⑨ Admin 通道 header 选择仅限平台管理员且不覆盖上下文。
 
 **不可照搬（3 条）**：① ai-gateway 的租户是**商家/SaaS 客户**语义（`tenant` 同时承载平台租户与业务租户），ITSM 的 `msp_provider/msp_customer` 是**服务关系**语义，作用域推导必须走分配；② 其 `tenant_resolution_rule`（域名/Header 规则）在 ITSM 的多客户场景下**不应开放**给客户侧（会造成"静默切租户"）；③ 其 `subject_type` 泛化（admin/user/merchant/access_key/service_account）对 ITSM 过重，第一期只保留 `user` + `service_account` 两类主体。
 
 ---
 
 ## 1. ai-gateway 多租户设计剖析
+
+### 1.0 术语澄清（重要）
+
+`ai-gateway` 中 **tenant 是唯一的作用域实体**；`workspace` **不是后端实体**，只是 `apps/portal-modern` 前端的"页面工作区"命名（布局/路由守卫/表单组件），`migrations/` 与 `internal/` 中不存在 workspace 表或服务。本文所有"作用域"讨论均对应其 `tenant_membership`。
 
 ### 1.1 数据模型
 
@@ -68,6 +72,12 @@ type TenantContext struct {
 ```
 （plan 文档 §5.3:330-354）
 
+配套机制：
+
+- **JWT 会话声明三件套**：`shop_tenant_id` + `shop_tenant_source` + `shop_tenant_membership_id`（`internal/gateway/handlers/user_auth.go:2133-2136`），供服务端复核与审计；
+- **Admin 通道**：仅平台管理员可用 `X-Shop-Tenant-ID` / `X-Tenant-ID` / `tenant_id` 显式选择，且不覆盖已有上下文（`internal/gateway/middleware/shop_tenant_context.go:20-23, 47-84`）；
+- **机器通道**：Access Key 用独立绑定表 `tenant_access_key_binding` 解析租户（`migrations/127:82-96`）。
+
 ### 1.3 解析优先级（plan §7.1:497-516）
 
 1. 后台作业显式任务参数（job schema 声明）→ 2. 平台管理员显式选择 → 3. 租户管理员 membership → 4. 商家 membership → 5. Portal 用户 membership → 6. Access Key 绑定 → 7. 启用后的域名/Header 规则 → 8. `default_compat`（仅迁移期，需审计标记）。
@@ -78,7 +88,8 @@ type TenantContext struct {
 
 | 场景 | 行为 |
 |---|---|
-| 普通用户命中多个 active membership | `SHOP_TENANT_SESSION_AMBIGUOUS`（**不**用 `is_default` 自动选） |
+| 登录时命中多个 active membership | `409 SHOP_TENANT_SELECTION_REQUIRED` + 候选列表（登录页渲染选择器，选定后会话锁定；`user_auth.go:2607-2625`） |
+| 登录后会话解析命中多个 active membership | `SHOP_TENANT_SESSION_AMBIGUOUS`（**不**用 `is_default` 自动选；`shop_user_tenant_context.go:139-160`） |
 | JWT 会话租户与当前 membership 不一致 | `SHOP_TENANT_ACCESS_DENIED`（不信任旧 JWT、不静默切换） |
 | 请求参数租户与会话租户冲突 | `SHOP_TENANT_SELECTION_CONFLICT` |
 | 缺会话租户 | `SHOP_TENANT_SESSION_REQUIRED` |
@@ -103,7 +114,8 @@ type TenantContext struct {
 ### 1.7 前端模式（与本文目标最相关）
 
 - **Admin/治理侧**：先选租户（全局选择器）→ 再进入配置/成员/诊断；请求必须绑定具体 `tenant_id`；
-- **普通用户侧**：登录即锁定唯一租户，页面**不得出现租户选择器**；历史参数只做一致性校验（plan §4:255-257、§7.2:525-536）。
+- **普通用户侧**：登录时若账号有多个租户候选，登录页**一次性选择**（`apps/portal-modern/src/app/auth/LoginPage.tsx:127-129, 913-935`）；进入会话后**锁定单一租户、无运行期切换**，页面不提供切换器；历史参数只做一致性校验（plan §4:255-257、§7.2:525-536；`user_shop_tenants.go:26-28` 明确"多 membership 是配置冲突，不是 UI 选项"）。
+
 ---
 
 ## 2. ITSM 现状与 ai-gateway 对照
@@ -249,6 +261,10 @@ CREATE UNIQUE INDEX uq_customer_single_scope
 - 服务方头通道（`X-Customer-Tenant-ID`）仅用于**单请求只读**，且必须命中作用域；连续操作一律走切换；
 - 任何解析失败不得回退默认租户或全量数据（不引入 `default_compat` 式的隐式兜底）。
 
+**登录时的作用域选择（服务方）**：provider 员工命中多个 active 作用域时，登录返回 `409 SCOPE_SELECTION_REQUIRED` + 候选列表（provider 租户 + 已分配客户），由登录页选择后完成签发——与 ai-gateway 的登录选择器一致；选定后写入 JWT，并由服务端按 membership 复核。
+
+**运行期切换（服务方，与 ai-gateway 的差异点）**：ai-gateway 对"普通用户"禁止运行期切换（其普通用户 = 终端客户）。ITSM 的服务方员工是**运营者**（对应其 `admin_user` 主体类型，允许显式选择），因此允许在**自己的作用域集合内**运行期切换；每次切换 = 重签 JWT + 旧 refresh 撤销 + 审计（主方案 §5.4）。客户方**不适用**：任何运行期切换一律拒绝。
+
 ### 4.4 权限解析
 
 ```text
@@ -305,6 +321,9 @@ Allow = AuthN
 | 4 | 会话租户须与当前 membership 复核；JWT 不是授权事实 | plan §7.2:531-536、§7.4:591-599 | 主方案 F10/F11 的修复口径 + P1-5 复核逻辑 |
 | 5 | 权限 = RBAC ∧ membership ∧ 租户状态 ∧ 属主 | plan §11.4:1159-1204 | §4.4（现只有 RBAC 一维） |
 | 6 | 迁移期"默认租户"必须显式标记 + 指标 + 关闭计划 | plan §7.1:508、§12:1206-1241 | 不引入新的隐式兜底；历史数据仅在迁移脚本显式标记 |
+| 7 | 登录多候选 → `409 + 候选列表`（前端一次性选择，选定即锁定会话） | `user_auth.go:2607-2625`；`LoginPage.tsx:913-935` | §4.3 登录选择（服务方），客户方不触发 |
+| 8 | JWT 三件套：`tenant_id` + `tenant_source` + `membership_id` | `user_auth.go:2133-2136` | P1-6 上下文扩展的落地形态 |
+| 9 | Admin 通道 header 选择"仅平台管理员 + 不覆盖已有上下文" | `shop_tenant_context.go:20-23, 47-84` | 平台治理选择器；服务方禁用 header 越权 |
 
 ## 7. 不建议照搬清单
 
@@ -355,6 +374,15 @@ Allow = AuthN
 | 角色模型与 membership-RBAC 映射 | 同上 `:1103-1113`、`:1159-1204` |
 | 审计要求 | 同上 `:1133-1158` |
 | 迁移分期与默认租户兼容标记 | 同上 `:1206-1241`；`docs/implementation-progress/risk-decision-log.md:2036, 2102, 2206-2209` |
+| 全局用户表（无租户列）与 `email_hash` 全局唯一 | `migrations/046_create_auth_registration_postgres.sql:9`；`internal/model/entity/user.go:11-18` |
+| 注册选项 / 注册即建 membership（同事务） | `internal/gateway/handlers/user_auth.go:785, 2862-2884, 3163-3177` |
+| 登录解析（0/1/N membership）与 409 选择 | `internal/gateway/handlers/shop_user_tenant_context.go:139-160`；`user_auth.go:1480-1486, 2607-2625` |
+| JWT 租户三件套 | `internal/gateway/handlers/user_auth.go:2133-2136` |
+| 会话锁定（普通用户不暴露可选租户列表） | `internal/gateway/handlers/user_shop_tenants.go:26-28` |
+| Admin 通道 header 选择（仅平台管理员、不覆盖上下文） | `internal/gateway/middleware/shop_tenant_context.go:20-23, 47-84` |
+| Access Key 租户绑定表 `tenant_access_key_binding` | `migrations/127_create_shop_tenant_management_postgres.sql:82-96` |
+| 前端登录页租户选择器 | `apps/portal-modern/src/app/auth/LoginPage.tsx:127-129, 913-935` |
+| membership 枚举（subject/role/status） | `internal/model/entity/shop_tenant.go:15-28` |
 
 ---
 
@@ -363,3 +391,4 @@ Allow = AuthN
 | 版本 | 日期 | 变更 |
 |---|---|---|
 | v0.1 | 2026-09-29 | 首版：ai-gateway 设计剖析、ITSM 对照、Q1 正式回答、membership 目标模型（含 DDL/解析/权限/审计）、对主方案的修订建议与分期增量 |
+| v0.2 | 2026-09-29 | 补充代码级证据（登录 409 选择器、JWT 三件套、会话锁定、Admin 通道 header 规则、Access Key 绑定）；新增术语澄清（workspace 仅为前端命名）；可借鉴清单扩至 9 条；明确"服务方允许运行期切换、客户方禁止"的差异与理由 |
