@@ -343,6 +343,12 @@ export interface ToolApproval {
   targetType?: string;
   targetId?: string;
   supportRef?: string;
+  /** B1-06/B0-04 队列与预览字段（后端 `handlers/ai/entity.go` 原样返回）。 */
+  dryRun?: boolean;
+  verifyState?: string;
+  verifyNote?: string;
+  attemptCount?: number;
+  lastErrorCode?: string;
 }
 
 export interface ToolApprovalListResponse {

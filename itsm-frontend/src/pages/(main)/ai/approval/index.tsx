@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useNavigate } from 'react-router';
 import {
   Alert,
@@ -18,7 +18,7 @@ import {
   Modal,
   Tooltip,
 } from 'antd';
-import { CheckCircle2, Settings2, XCircle, RefreshCw, ShieldAlert } from 'lucide-react';
+import { CheckCircle2, Clock, Settings2, XCircle, RefreshCw, ShieldAlert } from 'lucide-react';
 
 import {
   aiGetToolApprovals,
@@ -34,6 +34,9 @@ import {
   prettyArgs,
   riskColor,
 } from '@/components/ai/tool-invocation-detail';
+import { targetUrl } from '@/components/ai/evidence-panel';
+import { formatRemaining } from '@/components/ai/confirmation-drawer';
+import DryRunSnapshot from '@/components/ai/dry-run-snapshot';
 import { usePermissions } from '@/lib/hooks/use-permissions';
 import { useAuthStoreHydration } from '@/lib/store/auth-store';
 
@@ -92,6 +95,28 @@ const AIApprovalQueue: React.FC = () => {
   const [serversUnavailable, setServersUnavailable] = useState(false);
   const [rejectId, setRejectId] = useState<number | null>(null);
   const [rejectReason, setRejectReason] = useState('');
+  // B1-09：过期倒计时（仅当列表存在「待审批且有 expiresAt」的行时起 1s 定时器）。
+  const [nowTick, setNowTick] = useState(() => Date.now());
+  const hasExpiring = useMemo(
+    () => items.some(r => r.approvalState === 'pending' && !!(r.expiresAt && !Number.isNaN(Date.parse(r.expiresAt)))),
+    [items]
+  );
+
+  useEffect(() => {
+    if (!hasExpiring) return undefined;
+    const timer = window.setInterval(() => setNowTick(Date.now()), 1000);
+    return () => window.clearInterval(timer);
+  }, [hasExpiring]);
+
+  /** 待审批但已过确认单有效期（B1-05 状态机：过期不会被执行，也不会被补批准）。 */
+  const isExpired = useCallback(
+    (r: ToolApproval): boolean => {
+      if (r.approvalState !== 'pending' || !r.expiresAt) return false;
+      const exp = Date.parse(r.expiresAt);
+      return !Number.isNaN(exp) && nowTick >= exp;
+    },
+    [nowTick]
+  );
 
   const fetchList = useCallback(async () => {
     setLoading(true);
@@ -184,11 +209,71 @@ const AIApprovalQueue: React.FC = () => {
       render: (_: unknown, r: ToolApproval) => <ToolSourceTag record={r} />,
     },
     {
+      title: '目标对象',
+      key: 'target',
+      width: 160,
+      render: (_: unknown, r: ToolApproval) => {
+        if (!r.targetType || !r.targetId) return <Text type="secondary">-</Text>;
+        const url = targetUrl(r.targetType, r.targetId);
+        return (
+          <Space size={4} wrap>
+            {url ? (
+              <Typography.Link
+                data-testid={`target-link-${r.id}`}
+                style={{ fontSize: 12 }}
+                onClick={() => navigate(url)}
+              >
+                {r.targetType}#{r.targetId}
+              </Typography.Link>
+            ) : (
+              // 未核实路由的类型只展示标识（B1-09：不生成猜测链接）。
+              <Text style={{ fontSize: 12 }}>
+                {r.targetType}#{r.targetId}
+              </Text>
+            )}
+            {r.supportRef ? (
+              <Tooltip title="支撑信息引用（证据/来源）">
+                <Tag color="purple" style={{ marginInlineEnd: 0 }}>
+                  依据 {r.supportRef}
+                </Tag>
+              </Tooltip>
+            ) : null}
+          </Space>
+        );
+      },
+    },
+    {
       title: '风险',
       dataIndex: 'risk',
       key: 'risk',
       width: 90,
       render: (v?: string) => (v ? <Tag color={riskColor(v)}>{v}</Tag> : <Text type="secondary">-</Text>),
+    },
+    {
+      title: '确认时限',
+      key: 'expiresAt',
+      width: 150,
+      render: (_: unknown, r: ToolApproval) => {
+        // dry-run 标识与审批状态无关（预览记录通常是 auto），任何状态都要可见。
+        const dryRunTag = r.dryRun ? (
+          <Tooltip title="dry-run 预览：只生成预览记录，不写业务数据">
+            <Tag color="purple" style={{ marginInlineEnd: 0 }}>
+              预览
+            </Tag>
+          </Tooltip>
+        ) : null;
+        if (r.approvalState !== 'pending') return dryRunTag ?? <Text type="secondary">-</Text>;
+        if (!r.expiresAt) return <Text type="secondary">未设置</Text>;
+        const expired = isExpired(r);
+        return (
+          <Space size={4}>
+            <Tag color={expired ? 'red' : 'blue'} icon={<Clock size={12} />} style={{ marginInlineEnd: 0 }}>
+              {expired ? '已过期' : formatRemaining(r.expiresAt, nowTick)}
+            </Tag>
+            {dryRunTag}
+          </Space>
+        );
+      },
     },
     {
       title: '参数',
@@ -232,7 +317,18 @@ const AIApprovalQueue: React.FC = () => {
       key: 'action',
       width: 150,
       render: (_: unknown, r: ToolApproval) =>
-        r.approvalState === 'pending' ? (
+        r.approvalState === 'pending' && isExpired(r) ? (
+          <Tooltip title="确认单已过期：不会被执行，也不会被补批准；请重新发起">
+            <Space>
+              <Button type="primary" size="small" icon={<CheckCircle2 size={14} />} disabled>
+                通过
+              </Button>
+              <Button danger size="small" icon={<XCircle size={14} />} disabled>
+                驳回
+              </Button>
+            </Space>
+          </Tooltip>
+        ) : r.approvalState === 'pending' ? (
           <Space>
             <Button
               type="primary"
@@ -322,12 +418,16 @@ const AIApprovalQueue: React.FC = () => {
           pagination={{ pageSize: 20, showTotal: (t) => `共 ${t} 条` }}
           expandable={{
             expandedRowRender: (r) => (
-              // M1-06：审批详情完整展示来源三元组（与审计页共用同一展示件）。
-              <ToolInvocationDetail
-                record={r}
-                canGovernTools={canGovernTools}
-                onOpenGovernance={() => navigate('/admin/mcp-servers')}
-              />
+              <>
+                {/* M1-06：审批详情完整展示来源三元组（与审计页共用同一展示件）。 */}
+                <ToolInvocationDetail
+                  record={r}
+                  canGovernTools={canGovernTools}
+                  onOpenGovernance={() => navigate('/admin/mcp-servers')}
+                />
+                {/* B1-09：dry-run 预览快照（仅预览记录；按需拉取一次详情，不轮询）。 */}
+                {r.dryRun ? <DryRunSnapshot invocationId={r.id} /> : null}
+              </>
             ),
           }}
           locale={{
