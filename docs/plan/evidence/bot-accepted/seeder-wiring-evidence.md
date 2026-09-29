@@ -45,10 +45,12 @@ B0–B4 交付后存在三处「数据面」缺口，本任务补齐：
 | ① 仅读预检 | `go run ./cmd/mig-verify -ro` | `applied=53 pending=0`（SQL 账本无欠账） |
 | ② ent 基线 | `go run ./cmd/mig-verify -entbaseline -up` | `ENT BASELINE created (Schema.Create)`；补齐 `bot_*` 等 ent 表；`APPLIED 0 migration(s)` |
 | ③ 种子重放 | `go run ./cmd/initialize -action=apply -release-version=local-2026-09-27` | `runId=32 status=succeeded`（含新组件 `ai-bot-core` 的 apply+verify） |
-| ④ 运行验证（API，管理员会话） | `GET /api/v1/admin/bots` + `/grants` | `templates=4`：`default-assistant ga act_low grants=0`；`s1-ticket-assistant pilot grants=5`；`s2-incident-oncall pilot grants=5`；`s3-knowledge-assistant pilot grants=2`（合计 12 条，与 `ScenarioBots()` 定义一致） |
+| ④ 运行验证（API，管理员会话） | `GET /api/v1/admin/bots` + `/grants` | `templates=4`：`default-assistant ga act_low grants=0`；`s1-ticket-assistant pilot grants=5`；`s2-incident-oncall pilot grants=5`；`s3-knowledge-assistant pilot grants=2`（合计 12 条，与**当时**的 `ScenarioBots()` 定义一致） |
 | ⑤ 菜单验证 | `GET /api/v1/auth/menus` | `has_bot_metrics=true`、`has_admin_bots=true`（`/admin/bots` 行由本会话早前经 `/api/v1/menus` 补录，id=313） |
 
 > 说明：③ 之前的一次 apply（run 31）因本机缺 ent 表而失败——`ai-bot-core` 的 verify 在事务内拦截并整体回滚，属**预期的 fail-closed** 行为，非缺陷。
+>
+> 计数为 S4–S7 业务模板扩展**之前**的快照（2026-09-27，run 32）。扩展后为 8 个模板 / 34 条场景授权 + 默认助手，见 `docs/plan/evidence/bot-b3/S4-S7-business-bots-evidence.md`。
 
 ## 5. 残余与边界
 

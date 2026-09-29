@@ -6,6 +6,7 @@
 > 任务：B3-03（S1）/ B3-04（S2）/ B3-05（S3，部分交付）
 > 关联文档：`docs/plan/ai-bot-capability-landing-implementation-plan-2026-09-27.md`（§4.4 B3-03～B3-05、§5.2 AB3-03～AB3-05）
 > 核查方式：种子幂等测试 + 定义边界断言（负向）+ 策略矩阵（下发/执行同源判定）+ 工具注册表核对
+> 后续扩展：S4～S7 业务模板（变更影响 / 事件复盘 / 服务台受理 / 工单质量巡检）见 `docs/plan/evidence/bot-b3/S4-S7-business-bots-evidence.md`（B3-08 增量交付）；本单口径与结论不变。
 
 ## 1. 结论
 

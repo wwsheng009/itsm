@@ -8,15 +8,19 @@ import (
 	"itsm-backend/ent/bottemplate"
 )
 
-// B3 场景 Bot pilot 定义与幂等种子（B3-03/B3-04/B3-05）。
+// 业务场景 Bot pilot 定义与幂等种子（B3-03/B3-04/B3-05 起，S4–S7 于业务模板扩展批次加入）。
 //
 // 口径：
 //   - 场景 Bot 与「默认助手」并列存在，由管理页/种子装配；种子**只增不改**——
 //     管理员对模板与授权的显式修改优先（已存在时不覆盖字段，只补齐缺失授权）。
 //   - 场景边界写进定义本身，便于验收断言：
 //     S2（事件/值班）**不含**任何"改级/改状态"工具（只是建议，人工执行）；
-//     S3（知识/自助）**不含**发布类工具（草稿只落到产物，发布走既有流程）。
-//   - 风险上限按场景最小必要授权：pilot 期统一 act_low（plan 类工具风险为 plan，低于 act_low）。
+//     S3（知识/自助）**不含**发布类工具（草稿只落到产物，发布走既有流程）；
+//     S4/S5（变更影响、事件复盘）为**零写入**（只读 + plan 产物，可被测试断言）；
+//     S6 写面仅 create_ticket；S7 写面仅 update_ticket，且不授任何 act_high/删除类工具。
+//   - 风险上限按**场景最小必要**取值，不再一律 act_low：
+//     只读/计划场景取 plan；含 act_low 写工具取 act_low；update_ticket 自身为
+//     act_medium → S7 取 act_medium（仍为 pilot + RBAC ∩ Gate3 人工确认，非自动执行）。
 
 // ScenarioBot 是一个场景 Bot 的种子定义。
 type ScenarioBot struct {
@@ -34,7 +38,7 @@ type ScenarioGrant struct {
 	RiskLimit string
 }
 
-// ScenarioBots 返回三个 pilot 场景的定义（稳定顺序：S1/S2/S3）。
+// ScenarioBots 返回七个业务场景的定义（稳定顺序：S1～S7）。
 func ScenarioBots() []ScenarioBot {
 	return []ScenarioBot{
 		{
@@ -74,6 +78,72 @@ func ScenarioBots() []ScenarioBot {
 			Grants: []ScenarioGrant{
 				{"list_kb", RiskRead},
 				{"draft_kb_article", RiskPlan},
+			},
+		},
+		{
+			// 变更/发布前置：CAB 影响面证据链（CI 上下游 + 关联工单 + 历史事件统计 +
+			// analysis 产物），只读 + plan，零写入。
+			Slug:        "s4-change-impact-analyst",
+			Name:        "S4 变更影响分析助手",
+			Audience:    "internal",
+			RiskLimit:   RiskPlan,
+			Entrypoints: []string{EntrypointChat, EntrypointCIDetail},
+			Grants: []ScenarioGrant{
+				{"list_cis", RiskRead},
+				{"get_ci", RiskRead},
+				{"get_ci_relationships", RiskRead},
+				{"get_ci_impact", RiskPlan},
+				{"get_ci_tickets", RiskRead},
+				{"analyze_ci_impact_plan", RiskPlan},
+				{"list_tickets", RiskRead},
+				{"get_incident_stats", RiskRead},
+			},
+		},
+		{
+			// 事件关闭后的复盘：影响面回溯 + 复盘知识草稿（草稿只落 bot_artifacts，不发布），
+			// 只读 + plan，零写入。
+			Slug:        "s5-incident-postmortem",
+			Name:        "S5 事件复盘助手",
+			Audience:    "internal",
+			RiskLimit:   RiskPlan,
+			Entrypoints: []string{EntrypointChat, EntrypointIncidentDetail},
+			Grants: []ScenarioGrant{
+				{"list_tickets", RiskRead},
+				{"get_incident_stats", RiskRead},
+				{"list_cis", RiskRead},
+				{"get_ci_tickets", RiskRead},
+				{"get_ci_impact", RiskPlan},
+				{"draft_kb_article", RiskPlan},
+			},
+		},
+		{
+			// 服务台受理：查重（list_tickets）→ 知识建议（list_kb）→ 字段草案 →
+			// 代客建单（create_ticket 走 Gate3 人工确认后落库，不在聊天链路内直接写入）。
+			Slug:        "s6-service-desk-intake",
+			Name:        "S6 服务台受理助手",
+			Audience:    "internal",
+			RiskLimit:   RiskActLow,
+			Entrypoints: []string{EntrypointChat, EntrypointTicketList, EntrypointIncidentCreate},
+			Grants: []ScenarioGrant{
+				{"list_tickets", RiskRead},
+				{"list_kb", RiskRead},
+				{"get_incident_stats", RiskRead},
+				{"draft_ticket_fields", RiskPlan},
+				{"create_ticket", RiskActLow},
+			},
+		},
+		{
+			// 工单质量巡检：定位缺字段/错分类工单并逐条确认补正（update_ticket 自身
+			// act_medium，为唯一预置 act_medium 模板；不授任何 act_high/删除类工具）。
+			Slug:        "s7-ticket-quality-auditor",
+			Name:        "S7 工单质量巡检助手",
+			Audience:    "internal",
+			RiskLimit:   RiskActMedium,
+			Entrypoints: []string{EntrypointChat, EntrypointTicketList, EntrypointTicketDetail},
+			Grants: []ScenarioGrant{
+				{"list_tickets", RiskRead},
+				{"draft_ticket_fields", RiskPlan},
+				{"update_ticket", RiskActMedium},
 			},
 		},
 	}
