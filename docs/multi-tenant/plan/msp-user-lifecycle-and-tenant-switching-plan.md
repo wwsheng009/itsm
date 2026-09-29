@@ -164,7 +164,12 @@
 - **现象**：管理员建号需自行设定初始密码并线下传递；无邀请 token、无首登改密、无邮箱验证、无失效控制。
 - **证据**：`handlers/user/handler.go:38-102`（创建即设密码）；`dto/user_dto.go:8-25`（无邀请字段）。
 - **影响**：密码分发不可审计、离职/换岗无回收链路；与"客户自助开通"目标冲突。
-- **目标**：邀请流（一次性 token + 租户 + 角色 + 有效期）→ 落地页设置密码 → 首登审计；邀请可撤销。
+- **发信通道现状（2026-09-29 补充核查，即 Q4）**：
+  ① 全局 SMTP **配置存在但未接线**——`config/config.go:332-333`（`SMTPConfig`）+ env `SMTP_*`（:489-494）、`config.yaml.example:71-79`（默认 `enabled:false`），`service/email_service.go` 已实现发送；但 **`NewEmailService(` 无生产调用点、`SetEmailService(` 无调用方**（bootstrap 未构造/未注入），导致 `handlers/auth/service.go:234-236` 的"忘记密码邮件"分支 `if s.emailService != nil` 恒不成立——**密码重置邮件实际不发**（同源隐性缺口）；
+  ② 真正在用的邮件路径是**租户级 email connector**：`internal/bootstrap/app.go:525-527` 注册 `NotificationDeliveryCommandHandler(client, connectorManager, …)` → `service/notification_delivery_command_handler.go:221-291` → `connectorManager.Send`；目标地址取 `recipient.Email`（:323-324）、偏好取 `pref.EmailEnabled`（:169-170）；按租户配置 IMAP/SMTP（`connector/builtin/email`），语义是"工单邮箱"，不适合平台级邀请；
+  ③ `service/incident_alerting_service.go:55-58` 的 SMTP 直发字段是遗留死路径（构造无配置来源，bootstrap 已改 `SetConnectorManager`，`app.go:716`）；
+  ④ 文档 `docs/archive/capability-matrix.md:132` 标"邮件通知 ✅ 已完成（SMTP 集成）"与代码不符，需修正。
+- **目标**：邀请流（一次性 token + 租户 + 角色 + 有效期）→ 落地页设置密码 → 首登审计；邀请可撤销；**邀请链接由 API 直接返回（管理员可线下传递），全局 SMTP 接线完成后自动升级为邮件发送**（决策见 §9.2 Q4）。
 
 ### F5 登录不校验租户状态（P0）
 
@@ -663,7 +668,7 @@ CREATE UNIQUE INDEX uq_customer_single_scope
 | Q1 | 服务方/客户方权限边界 | ✅ 客户方锁单租户、拥有完整业务功能；服务方一个账号多作用域，客户租户内基线 = 工单读写 + 知识/CMDB/服务目录只读 + `msp_manager` 开通客户侧账号 | [分析文档 §3](./msp-scope-model-analysis-and-ai-gateway-reference.md#3-业务规则确认q1-正式回答)；§5.5.2 |
 | Q2 | 平台 `super_admin` 跨租户建号 | ✅ 仅 `super_admin`，强制审计 + 高危日志告警 | §5.2 |
 | Q3 | 同一邮箱多租户 | ✅ **不允许**（客户方不跨租户）→ 保持全局唯一，取消邮箱租户内唯一迁移 | §4.2、§6.3 |
-| Q4 | 邀请邮件通道（SMTP） | ⏳ 待确认；未就绪时先出"邀请链接"由管理员线下传递 | P1-1 |
+| Q4 | 邀请邮件通道（SMTP） | ⏳ 待确认（**运维项**）：全局 SMTP 配置存在但**未接线**（`NewEmailService` 无生产调用点），现行邮件路径是租户级 connector；建议 P1-1 按"API 返回邀请链接"交付，SMTP 接线后自动发信（详见 §3 F4） | §3 F4、P1-1 |
 | Q5 | 路线 B 排期 | ✅ 提前至 **P1 首批**（目标模型） | §4.1、§6 |
 | Q6 | 客户账号"转移"到另一租户 | ✅ 仅平台通道；软删旧作用域 + 新建，保留审计与历史归属 | §6.1 |
 | Q7 | 服务方写权限按合同差异化 | ✅ **客户级角色差异化**（4 角色模板 + 客户 admin 可编辑权限）；不建 grants 表；授予方 = 客户 admin 为主、平台应急兜底；`expires_at` + 季度复核替代到期回收 | [分析文档 B.8](./msp-scope-model-analysis-and-ai-gateway-reference.md#b8-建议结论推荐方案)；§5.5.2 |
