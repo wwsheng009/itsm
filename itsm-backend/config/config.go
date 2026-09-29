@@ -564,6 +564,9 @@ func LoadConfig() (*Config, error) {
 		config.MCP.Enabled = true
 	}
 	config.MCP.Enabled = getEnvBoolWithDefault("MCP_ENABLED", config.MCP.Enabled)
+	// 写工具面（L1.5 回滚开关，M1-02）：同样支持环境变量兜底——本地/CI 联调写工具审批链路时
+	// 无需改 config.yaml 即可开启（开启后写工具进入工具面，但每次调用仍需 mcp:write + 人工审批）。
+	config.MCP.WriteEnabled = getEnvBoolWithDefault("MCP_WRITE_ENABLED", config.MCP.WriteEnabled)
 	// 出站安全平台开关（M0-05）：默认严格（仅 https + 公网 + 默认端口）；环境变量兜底，
 	// 便于本地联调（如 127.0.0.1 的 mock MCP 服务器）而无需改 config.yaml。
 	config.MCP.AllowHTTP = getEnvBoolWithDefault("MCP_ALLOW_HTTP", config.MCP.AllowHTTP)

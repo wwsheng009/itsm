@@ -78,6 +78,30 @@ func TestLoadConfig_MCPDefaults(t *testing.T) {
 	}
 }
 
+// TestLoadConfig_MCPWriteEnabledEnvOverride 验证 mcp.write_enabled（L1.5 回滚开关）的
+// 环境变量兜底与优先级：本地/CI 联调写工具审批链路时无需改 config.yaml 即可开启；
+// 环境变量显式设置时优先于 YAML（与 MCP_ENABLED 同口径），未设置时保持 YAML/默认值。
+func TestLoadConfig_MCPWriteEnabledEnvOverride(t *testing.T) {
+	// ① 未设置环境变量：YAML 显式 false 保持 false（默认值口径）。
+	cfg := newTestConfig(t, "mcp:\n  write_enabled: false\n")
+	if cfg.MCP.WriteEnabled {
+		t.Error("write_enabled 未配置环境变量时应保持 YAML 值 false")
+	}
+
+	// ② 环境变量 true：覆盖 YAML 的 false。
+	t.Setenv("MCP_WRITE_ENABLED", "true")
+	cfg = newTestConfig(t, "mcp:\n  write_enabled: false\n")
+	if !cfg.MCP.WriteEnabled {
+		t.Error("MCP_WRITE_ENABLED=true 应覆盖 YAML 中的 write_enabled: false")
+	}
+
+	// ③ 无 mcp 块 + 环境变量 true：默认 false 被覆盖为 true。
+	cfg = newTestConfig(t, "server:\n  port: 8080\n")
+	if !cfg.MCP.WriteEnabled {
+		t.Error("无 mcp 块时 MCP_WRITE_ENABLED=true 应把默认 false 覆盖为 true")
+	}
+}
+
 // TestLoadConfig_MCPExplicitDisable 验证显式关闭优先于「默认开启」（回滚 L1）：
 // config.yaml 里写 enabled: false（或 MCP_ENABLED=false）时，全局开关必须保持关闭。
 func TestLoadConfig_MCPExplicitDisable(t *testing.T) {
