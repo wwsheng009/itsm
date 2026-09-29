@@ -669,7 +669,7 @@ CREATE UNIQUE INDEX uq_customer_single_scope
 | Q1 | 服务方/客户方权限边界 | ✅ 客户方锁单租户、拥有完整业务功能；服务方一个账号多作用域，客户租户内基线 = 工单读写 + 知识/CMDB/服务目录只读 + `msp_manager` 开通客户侧账号 | [分析文档 §3](./msp-scope-model-analysis-and-ai-gateway-reference.md#3-业务规则确认q1-正式回答)；§5.5.2 |
 | Q2 | 平台 `super_admin` 跨租户建号 | ✅ 仅 `super_admin`，强制审计 + 高危日志告警 | §5.2 |
 | Q3 | 同一邮箱多租户 | ✅ **不允许**（客户方不跨租户）→ 保持全局唯一，取消邮箱租户内唯一迁移 | §4.2、§6.3 |
-| Q4 | 邀请邮件通道（SMTP） | ⏳ 待确认（**运维项**）：全局 SMTP 配置存在但**未接线**（`NewEmailService` 无生产调用点），现行邮件路径是租户级 connector；建议 P1-1 按"API 返回邀请链接"交付，SMTP 接线后自动发信（通道设计见[通知模块设计方案](../../plan/notification-module-design-plan-2026-09-29.md) §4.5 与 §7 P0-1） | §3 F4、P1-1 |
+| Q4 | 邀请邮件通道（SMTP） | ✅ **已确认**（通知方案 §11.3 D1）：平台 SMTP + 独立发件子域（SPF/DKIM/DMARC，ESP relay）；**运维配置为前置**——未完成前邀请按"API 返回邀请链接"交付（`emailSent=false`），不阻塞 P1-1；通道设计见[通知模块设计方案](../../plan/notification-module-design-plan-2026-09-29.md) §4.5/§7 P0-1 | §3 F4、P1-1 |
 | Q5 | 路线 B 排期 | ✅ 提前至 **P1 首批**（目标模型） | §4.1、§6 |
 | Q6 | 客户账号"转移"到另一租户 | ✅ 仅平台通道；软删旧作用域 + 新建，保留审计与历史归属 | §6.1 |
 | Q7 | 服务方写权限按合同差异化 | ✅ **客户级角色差异化**（4 角色模板 + 客户 admin 可编辑权限）；不建 grants 表；授予方 = 客户 admin 为主、平台应急兜底；`expires_at` + 季度复核替代到期回收 | [分析文档 B.8](./msp-scope-model-analysis-and-ai-gateway-reference.md#b8-建议结论推荐方案)；§5.5.2 |

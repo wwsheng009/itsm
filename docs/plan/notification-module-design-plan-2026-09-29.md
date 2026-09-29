@@ -1,6 +1,6 @@
 # 通知模块设计方案（借鉴 ai-gateway）
 
-> 状态：Draft（待评审）｜日期：2026-09-29｜范围：站内信 / 邮件 / IM 与 Webhook 渠道 / 偏好 / 模板 / 投递可靠性 / 审计与可观测
+> 状态：**Confirmed v0.4**（2026-09-29 按最佳实践确认：自检 + 独立对抗式评审；D1 运维配置为 P0-1 前置）｜日期：2026-09-29｜范围：站内信 / 邮件 / IM 与 Webhook 渠道 / 偏好 / 模板 / 投递可靠性 / 审计与可观测
 > 关联：[multi-tenant 方案 Q4 邀请邮件](./../multi-tenant/plan/msp-user-lifecycle-and-tenant-switching-plan.md)（§3 F4、§9.2 Q4）、[Operational Command / Outbox 基座](../architecture/operational-command-outbox.md)、[领域所有权与迁移边界](../architecture/domain-ownership.md)（"通知：多渠道统一走 `notification.deliver`"）
 > 参考实现：`E:\projects\ai\ai-gateway` 通知模块（证据见 §3 与附录 A）
 > 目的：① 借鉴 ai-gateway 的完整通知模块；② 在 ITSM 既有 outbox 基座上补齐"通知模块"的完整能力面；③ 回答 multi-tenant 方案 Q4（邀请邮件通道）。
@@ -57,7 +57,7 @@
 2. **事务内入箱**：业务变更与命令同事务提交，禁止"先提交业务，再尽力 enqueue"；
 3. **凭据与目标不落 payload**：payload 只存引用与不可变参数；邮箱/手机号/open_id 由 Handler 在租户范围内实时解析（既有约定）；
 4. **fail-closed**：解析不到目标、租户不匹配、渠道未配置 → 明确失败/降级并留痕，绝不静默丢弃或跨租户兜底；
-5. **幂等优先**：以业务 occurrence key 派生幂等键；重试不产生重复通知；
+5. **幂等优先（B4 修正）**：以业务 occurrence key 派生幂等键——**命令级**保证同一业务事件最多一条命令；**渠道级**去重取决于 Provider 能力（§4.6 幂等矩阵），SMTP 等无幂等渠道为至少一次，重复经 `status=unknown` 暴露并人工确认；
 6. **可解释**：每次投递可从 `notification_deliveries` 还原"为什么发/为什么没发/发给了谁（掩码）/重试了几次"；
 7. **平台与租户分层**：平台级通道（邀请、密码重置、安全告警）与租户级通道（业务通知）显式分离，配置与审计各自独立。
 
@@ -261,7 +261,7 @@
                       └─ 外部   → connector.Manager.Send            [既有]
 ```
 
-**只新增两块**：事件目录（Event Catalog）与渲染层（Template Renderer）；投递可靠性、租户隔离、幂等全部复用现有基座。
+**新增三处**：事件目录（Event Catalog）、渲染层（Template Renderer）与 **commandbus 错误分类契约**（`PermanentError` → 直接死信，见 §4.6/B9）；投递可靠性、租户隔离、幂等复用现有基座。
 
 ### 4.2 事件目录（单一事实源）
 
@@ -274,10 +274,14 @@
 | `mandatory_channels` | **必达渠道**（用户不可关），如安全告警的 in_app+email |
 | `allow_user_opt_out` | 是否允许用户关闭 |
 | `variables_schema` | 模板变量契约（JSON Schema 子集） |
+| `schema_version` | 事件 payload 契约版本（新增字段=minor；破坏性变更=major，靠别名映射兼容旧版） |
 
+- **命名规范**：`<domain>_<object>_<past_tense>`、小写下划线（如 `change_approval_completed`）；**禁止把两个源事件合并为一个泛化词**（`change_approval_decided` 与 `approval_completed` 必须拆开或明确别名到其一）；旧短词仅作 alias；
 - 落地：代码内置默认（`internal/notification/catalog.go`）+ 平台可覆盖表 `notification_event_catalog`（仅平台管理员写 + 审计）；
 - 目的：**消灭三套词表漂移**（N7）——偏好 DTO、投递归一化、模板全部从目录取值；
 - 兼容：保留现有短词表映射，映射表由目录生成（不破坏已落库偏好行）。
+- **优先级与治理**：DB `status=enabled` 行 > 代码默认；删除须先 `deprecated`（保留别名解析）再下线；状态枚举 `active/deprecated/blocked`；
+- **契约测试**：目录 ↔ 偏好 DTO ↔ 模板 ↔ 前端事件列表 一致性用例（防再次漂移，见 §8 A17）。
 
 ### 4.3 模板与渲染
 
@@ -293,7 +297,10 @@
 - 唯一：`(COALESCE(tenant_id,0), event_type, channel, locale, version)` 有效期内唯一；
 - 渲染：投递前完成；渲染结果与变量 **redact 后**落 `notification_deliveries.rendered_*`（借鉴 R1/R5）；
 - 缺变量：默认失败进重试；可按渠道配置降级为纯文本并告警；
-- 解析顺序：租户覆盖 → 平台模板 → 代码内置兜底（保证"永远能渲染"）。
+- 解析顺序：租户覆盖 → 平台模板 → 代码内置兜底（保证"永远能渲染"）；
+- **转义与白名单（B17）**：按格式默认转义——HTML 用 `html/template` 语义；Markdown 用 allowlist sanitizer；纯文本原样（剥离标签）；模板**禁止内联脚本/事件属性/外部资源**；租户模板与平台模板**同过** sanitizer；新增 XSS payload 单测；
+- **生命周期（B18）**：草稿 → 预览（`POST /notification-templates/preview`，样例变量、不发信）→ 发布（`version+1`）→ 回滚（切回上一版本）；**版本不可变**，`(tenant,event,channel,locale) WHERE status='active'` 部分唯一；激活/回滚写审计并支持 feature flag 灰度；
+- **变量校验时机（B18）**：入箱事务内按 `variables_schema` 校验；渲染期缺变量 → **永久失败 → dead_letter + 告警**（与 §4.6 错误分类一致）。
 
 ### 4.4 偏好与静默规则
 
@@ -307,8 +314,9 @@
 | `mute_until` / `quiet_hours` | **真正消费**（当前仅存储，N7）；必达事件不受静默限制 |
 | `frequency` | `immediate`（默认）/`daily`（P2 摘要） |
 
+- **时区语义（B15）**：按收件人 IANA 时区的**本地 HH:MM 窗口**计算（跨午夜与 DST 按当地日历）；非必达延迟到窗口结束 + 抖动；**最长 12h** 后仅投 in_app 并记 `skip_reason=quiet_hours_expired`；
 - **判定顺序**：目录必达 → 用户偏好 → 静默时段（仅非必达）→ 渠道可用性（connector/平台 SMTP 是否就绪）；
-- **结果留痕**：被跳过时写 `notification_deliveries.status=skipped` + `skip_reason`（`preference_off` / `quiet_hours` / `channel_not_configured` / `no_target`），**不再"静默成功"**（借鉴 R5，修 N5）。
+- **结果留痕（B11）**：被跳过时写 `notification_deliveries.status=skipped` + `skip_reason`，枚举**仅限** `preference_off` / `quiet_hours` / `channel_not_configured` / `suppressed` / `superseded` / `channel_circuit_open` / `quota_exceeded`；**`no_target` 属永久失败 → dead_letter**（`error_code=no_target`），不列入 skipped；**不再"静默成功"**（借鉴 R5，修 N5）。
 
 ### 4.5 平台通道 vs 租户通道（回答 multi-tenant Q4）
 
@@ -320,28 +328,48 @@
 
 规则：
 
+0. **平台 scope 入箱契约（B1，Blocker）**：平台级命令以**目标租户 `tenant_id`** 承载审计与隔离；payload 只存 `invitationId` / `recipientRef`（**不存邮箱**）；新增 `EnqueuePlatformNotificationTx` 与 Handler 的 `resourceType=platform_invitation|platform_account` 分支，由 Handler 依据邀请/账号记录解析邮箱；**不得要求邀请对象是租户内 Active 用户**；
 1. `scope=platform` 事件只能走平台通道；`scope=tenant` 事件默认租户通道，租户未配置时**降级 in_app** 并记 `skip_reason=channel_not_configured`（可配置为失败告警）；
-2. 邀请/密码重置等"用户尚无租户上下文"的场景**固定走平台 SMTP**；
+2. 邀请（对象尚无用户记录）与密码重置（平台级安全邮件，与租户 connector 解耦）**固定走平台 SMTP**；
 3. 平台 SMTP 未配置：邀请接口返回 `inviteUrl` + `emailSent=false`；密码重置返回明确提示——**不再静默跳过**（修 N2）；
-4. 平台 SMTP 与租户 connector **互不兜底**（禁止跨域发信），避免"用客户邮箱发平台邮件"的合规问题。
+4. 平台 SMTP 与租户 connector **互不兜底**（禁止跨域发信），避免"用客户邮箱发平台邮件"的合规问题；
+5. **平台公告 = 订阅类（B13）**：附 RFC 8058 `List-Unsubscribe`/`List-Unsubscribe-Post` + 频次上限 + 退订记录；**邀请/密码重置邮件禁止夹带公告或营销内容**（事务/营销分流）；
+6. **可见性（B20）**：`channel_scope=platform` 的投递记录仅平台 `system:write` 可见，租户查询默认排除（防邀请/重置邮件元数据泄露）。
 
 ### 4.6 可靠性增强（在既有 outbox 之上）
 
 | 增强 | 说明 | 备注 |
 |---|---|---|
-| 每渠道限流 | 令牌桶（租户+渠道维度），超限 `available_at` 顺延 | ai-gateway 有字段无执行（X4），ITSM 落到 worker |
+| 每渠道限流 + 配额 | 令牌桶（租户+渠道）+ **每租户日配额**；超限记 `skipped(quota_exceeded)` 或延期；worker 按租户加权轮询防队头阻塞 | **前移为 P0-1 前置**（至少平台 SMTP 全局 + 每租户日配额）；B7/B21 |
 | 去重窗口 | 同 `recipient+event+resource` 在 N 分钟内合并（内容相同才合并） | 幂等键保持"一次业务事件一条命令" |
-| 优先级 | critical 立即；低优先级用 `available_at` 延迟 | 防止通知风暴 |
-| 错误分类 | `4xx/永久`（地址非法、目标缺失）→ 直接死信；`5xx/网络` → 退避 | 现状统一重试浪费次数 |
+| 优先级 | critical 立即；低优先级经 `commandbus.DeferCommand(id, until)` 延期（**不消耗 attempt**） | 新增 `priority/not_before` 字段，不复用 `available_at`（B8） |
+| 退避抖动 | 退避叠加随机抖动（`base ± rand`），避免重试风暴 | 现实现无抖动（`commandbus.go:298-326`） |
+| 熔断与降级 | 渠道连续失败达阈值 → 熔断期内直接 `skipped(channel_circuit_open)`；业务通知降级 in_app | 防止无效重试打满队列 |
+| 退信/投诉抑制 | 硬退信、投诉命中 → 地址进抑制名单，后续 `skipped(suppressed)` | 保护发信声誉（配合 §4.7） |
+| 错误分类 | commandbus 新增 **`PermanentError`** 类型（`errors.As` → 直接 `dead_letter`）；永久类=`no_target`/地址非法/模板缺变量；`5xx/网络` → 退避 | B9/B11；§4.1"新增三处"之一 |
 | 死信与重放 | **保留**既有 `dead_letter` + 运维重放 API | 不照搬 ai-gateway 的"无死信"（X3） |
-| 悬空补偿 | 扫描超时 `pending` 的投递记录并重新入队/对账（发送前落 pending 的崩溃窗口） | 修 N13；参考 RG 的 lease 重领 |
+| 悬空补偿 | 超时 `pending` **仅经 fencing 重领原命令**（不新增命令、不复用幂等键）；无法确认是否已发送的渠道标记 `status=unknown` 进人工重发队列 | 修 N13；B3（同键重入队会被唯一约束拒绝） |
+| 顺序性 | **不保证跨命令顺序**；同一 `(recipient, resource, event_family)` 的状态类通知采用 supersede（新状态使旧命令置 `skipped(superseded)`） | B10 |
+| 渠道幂等矩阵 | 命令级幂等=同一业务事件最多一条命令；渠道级去重取决于 Provider 能力——IM/Webhook 可透传 ID，**SMTP 无 Provider 幂等（至少一次）**，重复经 `status=unknown` 暴露并人工确认 | B4（修正 §1.4-5 的过度承诺） |
 
 ### 4.7 安全与合规
 
 - 凭据：平台 SMTP 密码仅环境变量/加密配置；connector 凭据沿用 `CONNECTOR_CONFIG_ENCRYPTION_KEY` 加密与 fail-closed（既有）；
 - 目标地址：仅 Handler 运行时在租户内解析；日志/审计只存掩码（既有约定，保持）；
 - 审计：模板变更、必达清单变更、渠道启停、人工重发/取消 → `audit_logs`；
-- PII：渲染变量与正文在落库前 redact（借鉴 ai-gateway `sensitivePayload`）。
+- PII：渲染变量与正文在落库前 redact（借鉴 ai-gateway `sensitivePayload`）；
+- **邮件合规（B12/B13，P0-1 前置，未完成不得开启平台 SMTP）**：
+
+  | 项 | 要求 |
+  |---|---|
+  | 发件域 | 独立子域 `notify.<platform-domain>` + 独立 Return-Path/bounce 子域 |
+  | 认证 | SPF + DKIM(2048) + DMARC（`p=none → quarantine`，`rua/ruf`） |
+  | 通道 | 用 ESP relay（不自建 MTA）；ESP bounce/complaint webhook → 抑制名单（§4.6） |
+  | 分流 | 事务邮件（邀请/重置/安全）与订阅类（公告）分流；订阅类附 RFC 8058 一键退订 + 频次上限 |
+  | 预热 | 30 天发信预热曲线 + 每日配额 |
+
+- **出站 Webhook（B19）**：沿用既有 HMAC-SHA256 签名（`X-ITSM-Signature`，`connector/builtin/webhook/webhook.go:76-80`）并**强制配置 secret**、加 timestamp/nonce 防重放；**补 SSRF 防护**——复用仓库既有 `mcp/transport.SSRFGuard`（拒私网/链路本地/元数据地址，DNS pin + 协议/端口 allowlist），配置与发送两侧均校验并审计；作为 P1-5 前置；
+- **数据保留**：`notifications`/`notification_deliveries` 按保留期清理（默认 180 天，可配；审计与合规例外），复用附件清理的 dry-run + 审计模式（`service/attachment_cleanup.go` 先例）。
 
 ### 4.8 可观测
 
@@ -352,6 +380,10 @@
 | 渠道 | `connector` health（`lastSuccessAt/lastFailureAt`）+ `last_test_status` + 平台 SMTP readiness |
 | 一致性 | 通知中心未读数与 `notifications.read=false` 计数对账（修"未读陈旧"） |
 | 运维 | 现有 `/admin/operations/commands`（重放/取消）+ 新增按 delivery 的查询/重发 |
+| SLO（B22） | 成功率：in_app ≥ 99.9%、email ≥ 97%（不含用户偏好跳过）；最老 pending ≤ 5m；死信率 ≤ 0.1% |
+| 告警阈值（B22） | DLQ 增长 > 0/15m；熔断打开；readiness=false；bounce > 2%；complaint > 0.1%；单渠道失败率与 pending 最老等待超阈 |
+| 失败分类枚举（B23） | `permanent / retryable / rate_limited / circuit_open / config / template` 作为 dashboard 与重试策略的**唯一维度**；connector health 展示前对 `lastError` 分类脱敏（不落 provider 原始错误） |
+| 运行手册（B22） | `docs/ops/` 增：SMTP 送达率骤降、渠道 401/403、DLQ 重放、配额调整、模板回滚 |
 
 ---
 
@@ -359,21 +391,23 @@
 
 | 变更 | 内容 | 批次 |
 |---|---|---|
-| `notification_event_catalog`（新） | 平台级事件目录：`event_type/scope/severity/default_channels/mandatory_channels/allow_user_opt_out/variables_schema/aliases/status` | P0-3 |
+| `notification_event_catalog`（新） | 平台级事件目录：`event_type/scope/severity/default_channels/mandatory_channels/allow_user_opt_out/variables_schema/aliases/schema_version/status`；**必须登记 `TenantExemptTables`（reason/owner/reviewed_at）+ 一致性单测 + `docs/architecture/tenant-isolation.md` 豁免章节 + CHANGELOG，否则生产启动 fail-closed（B2）** | P0-3 |
 | `notification_templates`（新） | 见 §4.3；`tenant_id NULL=平台` | P1-1 |
 | `notification_deliveries` 扩展 | `event_type`、`channel_scope(platform\|tenant)`、`template_version`、`rendered_subject/body`（redacted）、`skip_reason` | P1-1/P1-3 |
-| `notification_preferences` 扩展 | 渠道维度（`channels jsonb` 或渠道行）、`min_severity`、`mute_until`；**消费** `quiet_hours`/`frequency` | P1-2 |
+| `notification_preferences` 扩展 | **定稿（B16）**：保留 4 bool 为兼容读模型，新增 `notification_preference_channels` 行表为**唯一写入源**并双写回填（含回填/回滚脚本，修正 §5"add-only"表述）；新增 `min_severity`、`mute_until`、`locale`（B18）；**消费** `quiet_hours`/`frequency` | P1-2 |
 | `notifications`（读侧）扩展 | `source`、`event_type`、`severity`、`expires_at`（借鉴 R3）；`type` 保留兼容 | P1-3 |
-| 迁移策略 | 全部为加表/加列（在线 DDL）；回填 `notifications.event_type`（由 `type` 映射）；**无唯一约束变更**；每步可独立回滚 | — |
+| `notification_suppressions`（新） | 抑制名单：`tenant_id`、`address_hash`、`reason(hard_bounce/complaint/manual)`、`expires_at`、`created_by`；命中即 `skipped(suppressed)` | P1-5 |
+| 保留策略（B24） | `notification_deliveries` 180d、`rendered_*` 30d、读侧 `notifications` 180d（用户删除级联）、`operational_commands` 180d、审计按合规策略；每日清理任务（dry-run + 审计）+ 用户删除/导出流程 + 法律保留例外 | P1-3 |
+| 迁移策略 | 加表/加列为主（**例外：偏好渠道化需双写回填**，见上）；在线 DDL；回填 `notifications.event_type`（由 `type` 映射）+ **回填校验（计数+抽样+幂等重跑，A18）**；**无唯一约束变更**；每步可独立回滚 | — |
 
 ## 6. API 与事件契约
 
 | 变更 | 说明 | 批次 |
 |---|---|---|
 | `GET /notification-event-types` | 从**目录**读取（替代 DTO 硬编码 15 项），返回 canonical + 别名 + 可关闭性 | P0-3 |
-| `GET/POST/PUT /notification-templates` | 平台管理员管理平台模板；租户管理员管理本租户覆盖 | P1-1 |
+| `/notification-templates`（GET/POST/PUT）+ `/notification-templates/preview`（样例变量渲染，不发信）+ `/notification-templates/:id/activate\|rollback` | 平台管理员管理平台模板；租户管理员管理本租户覆盖；**版本不可变**，激活/回滚写审计 | P1-1 |
 | `POST /notification-channels/:name/test` | **真实测试发送**（替换前端 `setTimeout` 假成功） | P1-5 |
-| `GET /admin/notifications/deliveries` | 运维查询（按 tenant/event/channel/status 过滤） | P1-3 |
+| `GET /admin/notifications/deliveries` | 运维查询（按 tenant/event/channel/status 过滤）；`channel_scope=platform` 记录仅平台 `system:write` 可见（B20） | P1-3 |
 | `POST /admin/notifications/deliveries/:id/retry` | 人工重发（写审计） | P1-3 |
 | 邀请/密码重置 | `POST /users/invitations` → `{inviteUrl, emailSent}`；`POST /auth/password-reset` → `{emailSent}`（未配置 SMTP 时 `false` + 提示） | P0-1 |
 | 事件命名 | canonical 保留现短词（`ticket_created`…）；目录登记别名（`created`、`approval_completed` 等），偏好/模板/归一化统一走目录 | P0-3 |
@@ -387,20 +421,20 @@
 
 | # | 任务 | 内容 | 对应缺口 |
 |---|---|---|---|
-| P0-1 | 平台 SMTP 接线 | bootstrap 依 `smtp.enabled` 构造 `EmailService` → 注入 `handlers/auth`；密码重置/邀请改走 `notification.deliver(scope=platform)`；未配置时 API 显式返回（`emailSent=false` + 提示） | N1/N2；multi-tenant Q4 |
+| P0-1 | 平台 SMTP 接线 | bootstrap 依 `smtp.enabled` 构造 `EmailService` → 注入 `handlers/auth`；密码重置/邀请改走 `notification.deliver(scope=platform)`；未配置时 API 显式返回（`emailSent=false` + 提示）。**接线前置（B14）**：关闭 `EmailService` 内部重试（避免 3×8=24 次）、生成稳定 Message-ID、强制 STARTTLS/TLS（不可用 fail-closed）、日志与错误脱敏；**限流与每租户日配额前移（B7）**；**邮件合规项（§4.7）未完成不得开启** | N1/N2；multi-tenant Q4 |
 | P0-2 | 旁路清理 | SLA critical 直发改走 outbox；删除 `TicketNotificationService` 旧同步路径（含 N×N 缺陷）；生产强制 `EnableTxOutbox`（fail-closed） | N3/N4 |
 | P0-3 | 事件目录 v1 | canonical 词表 + 别名；替换 handler 归一化、偏好 DTO、前端事件列表的硬编码 | N7（前半） |
-| P0-4 | 测试基线 | 通知 controller/service 测试；outbox 故障注入（重试/死信/围栏）；各渠道 mock E2E | N10 |
+| P0-4 | 测试基线 | 通知 controller/service 测试；outbox 故障注入（重试/死信/围栏）；各渠道 mock E2E；**风暴/负载用例** | N10 |
 
 ### P1（模块化）
 
 | # | 任务 | 内容 | 对应缺口 |
 |---|---|---|---|
-| P1-1 | 模板与渲染 | `notification_templates` + 渲染器 + 管理 API + 三级兜底（租户→平台→代码） | N6 |
+| P1-1 | 模板与渲染 | `notification_templates` + 渲染器（**转义/白名单**）+ 管理 API + 三级兜底（租户→平台→代码）+ **发布流程（草稿→预览→发布→回滚）** | N6 |
 | P1-2 | 偏好升级 | 渠道维度、`min_severity`、`mute_until`；**消费** `quiet_hours/frequency`；必达白名单；前端 API 对齐（实现或移除） | N7（后半） |
 | P1-3 | 投递可解释 | `skipped + skip_reason` 落库；`notifications` 读侧扩展（`source/event_type/severity/expires_at`）；运维 deliveries 查询/重发 API | N5 |
 | P1-4 | 实时推送 | 通知落库后 `SendToUser` 推送；前端由轮询改订阅（含未读对账） | N8 |
-| P1-5 | 渠道治理 | 真实"测试发送"、渠道健康视图、`webhook` 目标按租户解析、平台 SMTP readiness | N6/N9 |
+| P1-5 | 渠道治理 | 真实"测试发送"、渠道健康视图、`webhook` 目标按租户解析 + **SSRF 校验**、平台 SMTP readiness、**退信/投诉抑制名单** | N6/N9 |
 
 ### P2（增强）
 
@@ -419,7 +453,7 @@
 
 | # | 场景 | 期望 |
 |---|---|---|
-| A1 | 平台 SMTP 未配置 → 发起邀请 | `200 {inviteUrl, emailSent:false}`；无静默失败；`notification_deliveries` 有 `skipped(channel_not_configured)` 或明确无邮件意图 |
+| A1 | 平台 SMTP 未配置 → 发起邀请 | `200 {inviteUrl, emailSent:false}`；**必须留投递记录**（`skipped(channel_not_configured)` 或平台 scope 的明确未入箱原因），不得"无记录"（B11） |
 | A2 | 配置 SMTP → 邀请 / 密码重置 | 邮件可达；deliveries 记录 `sent` + `target_masked` + `provider_message_id` |
 | A3 | 用户关闭非必达渠道（email） | `skipped(skip_reason=preference_off)`；in_app 正常；**必达渠道不受影响** |
 | A4 | 静默时段（quiet_hours）内非必达通知 | 延迟或跳过（按配置）；critical/必达立即送达 |
@@ -430,12 +464,22 @@
 | A9 | 多实例并发 | 同一命令仅一个 Worker 提交成功（lease + fencing） |
 | A10 | 越权 | 跨租户目标解析失败（403/错误分类）；模板与目录租户隔离 |
 | A11 | 回归 | `go test ./service/... ./internal/commandbus/...`；docs gate 5/5 |
+| A12 | 退信/投诉 | 硬退信地址进入抑制名单；后续投递 `skipped(suppressed)`；解除需人工 + 审计 |
+| A13 | Webhook SSRF/签名 | 私网/元数据地址被拒绝配置；出站请求带 `X-ITSM-Signature` 且可验签 |
+| A14 | 熔断/抖动 | 渠道连续失败触发熔断（不再无效重试）；多次退避间隔含随机抖动 |
+| A15 | 保留清理 | 超保留期的通知/投递记录被清理（dry-run 可预演，清理写审计） |
+| A16 | 风暴/负载（B26） | 每租户 1k 通知/分钟、单资源 10k 收件人：无队头阻塞、无重试风暴（抖动生效）、配额按预期生效 |
+| A17 | 契约测试（B25） | 目录 ↔ 偏好 DTO ↔ 模板 ↔ 前端事件列表 一致性用例通过 |
+| A18 | 回填校验（B26） | 回填后计数一致、抽样映射正确、脚本可幂等重跑 |
+| A19 | 灰度与回滚（B26） | 每阶段 feature flag 灰度；旧路径删除前"告警灰度一周"；模板/偏好可回滚 |
 
 ---
 
 ## 9. 风险与开放问题
 
-### 9.1 待决策（D1–D6）
+### 9.1 决策项（D1–D6）
+
+> 2026-09-29 已按最佳实践确认：**最终取值见 §11.3**；下表保留原始问题与建议，作为决策轨迹。
 
 | # | 问题 | 建议 |
 |---|---|---|
@@ -490,9 +534,135 @@
 
 ---
 
+## 11. 最佳实践对照与方案确认（2026-09-29）
+
+### 11.1 确认方式与判定口径
+
+- **依据**：通知/投递系统通行最佳实践——事务性 outbox、幂等消费、退避与**抖动**、死信与重放、**熔断与降级**、限流与配额、邮件认证（SPF/DKIM/**DMARC**）、退订（RFC 8058）、退信/投诉抑制、偏好与静默（含**时区**）、模板版本化与预览、渲染转义、凭据与 PII、出站 Webhook **签名与 SSRF**、多租户隔离与配额、SLI/SLO 与告警阈值、数据保留与清理、事件命名与 schema 版本、契约与故障注入测试、灰度与回滚。
+- **方式**：主代理自检 + **独立评审子代理对抗式复核**（只读，逐条给出方案锚点与修订建议）；结论落本方案并同步修订正文。
+- **判定口径**：✅ 已覆盖 ｜ ⚠️ 需补（本轮已写入修订）｜ ➖ 不适用/本期不做（附理由）。
+
+### 11.2 对照矩阵（自检）
+
+| # | 最佳实践 | 方案锚点 | 判定 | 修订/说明 |
+|---|---|---|---|---|
+| 1 | 事务性 outbox（业务与命令同事务） | §1.4-2、§2.1、§4.1 | ✅ | 既有门禁，禁止回退 |
+| 2 | 至少一次 + 幂等键 | §2.1、§4.6 | ✅ | `(tenant, type, idempotency_key)` 唯一 |
+| 3 | 退避 + **抖动** | §4.6 | ⚠️ | 现退避 `min(2^attempt,300)s` **无抖动**（`commandbus.go:298-326`）→ §4.6 增抖动 |
+| 4 | 死信 + 重放 | §2.1、§4.6 | ✅ | 保留并复用 |
+| 5 | **熔断/降级** | — | ⚠️ | 渠道连续失败应快速失败并降级 in_app → §4.6 增 |
+| 6 | 限流与**按租户配额** | §4.6 | ✅ | P2-3；补"配额+公平调度"表述 |
+| 7 | 悬空补偿 | §4.6 | ✅ | 修 N13 |
+| 8 | 邮件认证 SPF/DKIM/**DMARC** | §9.1 D1 | ⚠️ | 原仅提 SPF/DKIM → §4.7/§11.3 补 DMARC 与渐进策略 |
+| 9 | 退订（RFC 8058） | — | ⚠️ | 非事务性邮件需 `List-Unsubscribe`；安全/事务类例外 → §4.7 增 |
+| 10 | 退信/投诉抑制 | — | ⚠️ | 硬退信与投诉命中即 `skipped(suppressed)` → §4.6/§5 增 `notification_suppressions` |
+| 11 | 独立发件域 + 预热 | §9.1 D1 | ✅ | 补"预热"与配额 |
+| 12 | 偏好/必达/静默（**时区**） | §4.4 | ⚠️ | 静默时段需明确取用户时区、缺省租户时区 → §4.4 补 |
+| 13 | 模板版本/发布/回滚 | §4.3 | ⚠️ | 有 `version/status` 但无发布流程 → §4.3 补草稿→预览→发布→回滚 |
+| 14 | 渲染转义/XSS | §9.2 风险 | ⚠️ | 缓解在风险表，未入正文 → §4.3 补转义与白名单 |
+| 15 | 凭据与 PII 最小化 | §4.7 | ✅ | 既有加密 + 运行时解析 + redact |
+| 16 | 出站 Webhook 签名 | §4.7 | ✅ | **ITSM 已实现** HMAC-SHA256（`webhook.go:76-80`，`X-ITSM-Signature`）→ 方案改为"引用并保持" |
+| 17 | 出站 Webhook **SSRF** 防护 | — | ⚠️ | `webhook.go:51-55` 仅校验 url 非空，未拦私网/元数据地址（email connector 有先例 `validateConfiguredHost`）→ §4.7 增 |
+| 18 | 多租户隔离 + 平台模板可见性 | §4.5、§4.7 | ✅ | 平台/租户两级，平台模板只读 |
+| 19 | SLI/SLO 与告警阈值 | §4.8 | ⚠️ | 有指标无目标 → §4.8 增 SLO 与告警阈值 |
+| 20 | 运行手册 | §4.8 | ⚠️ | 控制面有了，手册缺 → §4.8 增入口（`docs/ops/`） |
+| 21 | 数据保留与清理（GDPR） | — | ⚠️ | 未提 → §4.7/§5 增保留策略（参照既有 `attachment_cleanup.go` 先例） |
+| 22 | 事件命名与 **schema 版本** | §4.2、§6 | ⚠️ | 有 canonical/别名，无版本 → §4.2 增 `schema_version` 与命名规范 |
+| 23 | 契约/故障注入/**风暴测试** | §8 | ⚠️ | 有 A1–A11，无负载/风暴 → §8 增 A12–A15 |
+| 24 | 灰度与回滚 | §7 P0-2 | ✅ | 旧路径"告警灰度一周再删"；补模板/偏好变更 feature flag |
+| 25 | 可访问性（aria-live） | — | ➖ | 属前端 UX 重构（v1.1）范围，本方案不展开 |
+| 26 | 平台 scope 入箱契约（Blocker） | §4.5 规则 0 | ✅ | 独立评审 B1；`EnqueuePlatformNotificationTx` + 平台资源分支 |
+| 27 | 平台表 tenant guard 豁免（Blocker） | §5 | ✅ | 独立评审 B2；`TenantExemptTables` + 单测 + 文档 + CHANGELOG |
+
+> 上表 ⚠️ 项均已在 §11.4/§11.6 落地；独立评审共 26 项（B1–B26）+ 6 条门禁矛盾，处置见 §11.6。
+
+### 11.3 确认结论（D1–D6 最终值）
+
+| 决策 | 最终确认（含独立评审修订） | 依据 / 前置 |
+|---|---|---|
+| **D1** 平台 SMTP | **现在定，P0-1 前置**：独立子域 `notify.<platform-domain>` + 独立 Return-Path；SPF + DKIM(2048) + DMARC（`p=none → quarantine`，`rua/ruf`）；**用 ESP relay，不自建 MTA**；允许向客户域名发事务邮件、**禁止用客户 connector 发平台邮件**；本期不做租户自定义 From。**未完成前 P0-1 退化为仅返回 `inviteUrl`**（对齐 multi-tenant Q4 建议） | 送达率与合规门槛，晚定必返工 |
+| **D2** 模板存储 | **DB 两级 + 代码兜底**，附条件：**版本不可变、单 active（部分唯一）、发布/回滚审计、兜底仅覆盖 P0 事务模板、契约测试防漂移** | 可运营性；全量可编辑会引入漂移与 XSS 面 |
+| **D3** 必达清单 | **收窄**：所有事件 in_app 必达；仅**密码重置/安全告警/邀请** email 必达；审批结果默认开但**可关**（in_app 兜底）；禁 SMS/IM 必达；平台清单租户不可改、变更审计 + UI 明示 | 强制邮件与静默/退订预期冲突，制造投诉 |
+| **D4** digest | **P2**；**P1 不暴露 `daily`**；schema 既有 `hourly_digest/daily_digest` 与方案 `immediate/daily` **收敛为同一枚举** | 避免"选了 daily 仍即时发送"的口径不一致 |
+| **D5** SMS | **P2 单独立项**；**立即隐藏/置灰 `sms_enabled`**；立项须含同意记录、退订、静默时段、送达回执，不自建网关 | 消除 N9"开启即必失败"；SMS 合规成本高于邮件 |
+| **D6** 通知中心 UX | 与 v1.1 对齐；**现在冻结最小后端契约**（未读游标分页、WS 失效事件、幂等已读、对账修复任务）；前端假功能"实现或移除" | P0 未读陈旧不依赖 UX 重构即可修复，避免接口二次返工 |
+
+### 11.4 本次确认引入的正文修订
+
+| 修订 | 落点 |
+|---|---|
+| 退避增加抖动；渠道熔断与降级；退信/投诉抑制 | §4.6 |
+| 邮件 DMARC 与渐进策略；`List-Unsubscribe`；Webhook SSRF 校验；数据保留与清理 | §4.7 |
+| 静默时段时区语义；模板转义/白名单；模板发布流程 | §4.4 / §4.3 |
+| SLO 与告警阈值；运行手册入口 | §4.8 |
+| `schema_version` 与命名规范 | §4.2 / §6 |
+| `notification_suppressions` 表；保留期配置 | §5 |
+| 风暴/负载测试与 SSRF/退信用例 | §8（A12–A15） |
+| P1-5 增 SSRF 与抑制；P1-1 增发布流程；P0-4 增风暴用例 | §7 |
+
+### 11.5 明确不采纳（避免过度设计）
+
+| 不采纳 | 理由 |
+|---|---|
+| 引入独立消息队列（Kafka/RabbitMQ） | 现有 outbox + Worker 已满足；引入新基建不划算 |
+| 第三方通知 SaaS | 自托管与多租户隔离优先；SaaS 仅作邮件通道备选（D1 备选） |
+| 用户级渠道自定义（BYO 渠道） | 仅平台/租户两级；用户级只做偏好开关 |
+| 多级审批式模板发布 | 单人审核 + 审计足够；避免流程空转 |
+| 跨渠道优先级抢占调度 | P2 再评估；当前用延迟调度即可 |
+| 通知已读/未读的强一致缓存 | 先用 DB 计数 + 前端对账；缓存引入一致性成本 |
+| ai-gateway **全量订阅模型**（scope/category/conditions DSL） | 现模型够用；只取 `quiet_hours`/`mute_until`，conditions DSL 过度设计 |
+| **租户自定义事件目录** | 目录须平台治理，否则词表漂移、跨租户统计失效（与 §4.2 目标矛盾） |
+| **营销平台能力**（campaign/名单/A-B/打开像素） | §1.3 已排除；仅平台公告需最小一键退订 |
+| **多 SMTP Provider 切换 / 每租户独立 IP 或域名** | 成本高收益低；单 ESP + DLQ + 人工重放足够 |
+| **P1 做 digest** | 先把即时正确性、静默、去重做对（同 D4） |
+| `silent_window` 与 `quiet_hours` 并列 | 两窗叠加难解释"为什么没发"；统一为 `quiet_hours + mute_until` |
+| **全量实时 WS 推送 / 多端同步协议** | 用"落库 → 失效事件 → 拉取"即可 |
+| **阅读回执/打开追踪** | 隐私与 GDPR 风险，对 ITSM 无业务价值 |
+| **exactly-once / 全局内容哈希去重** | 与 occurrence key 冲突，会误吞合法重复事件 |
+| **富文本 WYSIWYG 模板编辑器** | 文本 + 变量 + 预览足够，减少 XSS 面与治理成本 |
+
+### 11.6 独立评审发现与处置（B1–B26）
+
+> 独立评审子代理（只读、对抗式）对 v0.2 出具 26 项问题 + 6 条门禁矛盾；下表为处置记录（已并入正文者标注落点）。
+
+| # | 严重度 | 发现（摘要） | 处置 / 落点 |
+|---|---|---|---|
+| B1 | **Blocker** | 平台 scope 无法入箱（现有入箱要求 tenant_id>0、recipientId>0 且收件人 Active；Handler 仅支持 3 类资源） | ✅ §4.5 规则 0：`EnqueuePlatformNotificationTx` + Handler 平台分支 + payload 存 `invitationId/recipientRef` |
+| B2 | **Blocker** | `notification_event_catalog` 缺 `tenant_id` → 生产 tenant guard **拒启** | ✅ §5：登记 `TenantExemptTables` + 单测 + tenant-isolation 文档 + CHANGELOG |
+| B3 | Major | 悬空补偿"重新入队"与幂等唯一键冲突 | ✅ §4.6：仅 fencing 重领；`status=unknown` 人工重发 |
+| B4 | Major | "重试不重复"过度承诺（SMTP 无 Provider 幂等） | ✅ §4.6 渠道幂等矩阵；§1.4-5 口径修正 |
+| B5 | Major | 退避无抖动 → 重试风暴 | ✅ §4.6：full jitter + `retry_burst` 指标 |
+| B6 | Major | 无熔断/降级，SMTP 故障耗尽 8 次尝试 | ✅ §4.6：按 `(tenant,channel)` 熔断 + 半开探测 + 告警 |
+| B7 | Major | 限流/去重被推到 P2，而 P0-1 先开邮件 | ✅ §4.6/§7：限流与每租户日配额**前移为 P0-1 前置** |
+| B8 | Major | `available_at` 语义过载 | ✅ §4.6：新增 `priority/not_before` + `DeferCommand`（不耗 attempt） |
+| B9 | Major | 永久失败直死信需 commandbus 支持，与"只新增两块"矛盾 | ✅ §4.1 改"新增三处"；§4.6 `PermanentError` |
+| B10 | Minor | 未识别顺序性 | ✅ §4.6：声明无序 + supersede 语义 |
+| B11 | Minor | `no_target` 语义冲突；A1 留痕口径矛盾 | ✅ §4.4 枚举收敛；`no_target`→dead_letter；A1 修正 |
+| B12 | Major | 邮件合规缺失（DMARC/Return-Path/退信/投诉/分流/预热） | ✅ §4.7 合规表（P0-1 前置） |
+| B13 | Major | 平台公告混入事务流、无退订 | ✅ §4.5 规则 5：订阅类 + RFC 8058 退订 + 频次上限 |
+| B14 | Major | 接线 `EmailService` 的隐患（3×8 重试/日志/未强制 TLS） | ✅ §7 P0-1 前置改造清单 |
+| B15 | Major | 静默时段未定义（本地窗口/跨午夜/DST/最大延迟） | ✅ §4.4 时区语义 + 12h 上限 |
+| B16 | Major | 偏好存储二选一未决，与 §5 add-only 不自洽 | ✅ §5 定稿：渠道行表 + 双写回填 + 修正表述 |
+| B17 | Major | XSS 仅风险表一句，无实现规范 | ✅ §4.3：按格式转义 + sanitizer + 禁项 + 单测 |
+| B18 | Minor | 缺 preview API/单 active 约束/变量校验时机/locale | ✅ §4.3/§5/§6：预览 API、部分唯一、入箱校验、`locale` |
+| B19 | Major | 出站 Webhook 无 SSRF 防护、HMAC 未强制 | ✅ §4.7：复用 `mcp/transport.SSRFGuard` + 强制签名 + 防重放 |
+| B20 | Minor | 平台 scope 投递记录的租户可见性 | ✅ §4.5 规则 6：仅平台可见 |
+| B21 | Major | 无每租户配额与公平调度（队头阻塞） | ✅ §4.6：日配额 + 加权轮询 |
+| B22 | Major | 无 SLI/SLO、告警阈值、运行手册 | ✅ §4.8：SLO/阈值/手册清单 |
+| B23 | Minor | 失败分类无枚举；health 暴露 provider 原始错误 | ✅ §4.8：枚举 + 展示前脱敏 |
+| B24 | Major | 数据生命周期（保留/清理/GDPR）缺失 | ✅ §5 保留策略 + 清理任务 + 删除/导出 |
+| B25 | Major | 代码/DB 双事实源优先级与 schema 版本未定义 | ✅ §4.2：DB>代码、deprecated 流程、命名与契约测试 |
+| B26 | Major | 无风暴/契约/回填/灰度验收 | ✅ §8 A16–A19 |
+
+**C. 门禁矛盾（6 条）**：① 平台 scope 例外契约（B1，已补）；② tenant guard 豁免（B2，已补）；③ 永久失败分类需基座支持（B9，已补）；④ connector health 暴露原始错误（B23，已补）；⑤ `EmailService` 现状与 outbox 语义冲突（B14，已补）；⑥ **跨方案 Q4 口径**——multi-tenant 方案标"待确认"，本方案曾称"P0-1 关闭 Q4"；已统一为：**D1 已确认，未完成前 P0-1 退化为返回 `inviteUrl`**（multi-tenant 方案 Q4 行同步更新）。
+
+---
+
 ## 修订记录
 
 | 版本 | 日期 | 变更 |
 |---|---|---|
 | v0.1 | 2026-09-29 | 首版：ITSM 现状盘点（含 N1–N12 缺口清单）、ai-gateway 通知模块剖析（R1–R8 借鉴 / X1–X5 不照搬）、目标架构（事件目录/模板/偏好/平台-租户双轨/可靠性/可观测）、数据模型与 API 契约、P0–P2 分期、验收矩阵、风险与 D1–D6 决策项 |
 | v0.2 | 2026-09-29 | 并入调研增量：新增 N13（投递审计与发送非同事务→悬空补偿）；N8 升为 P0（未读陈旧实测）、N9 补充"sms 偏好可开但必失败"；§3 补充 RG outbox 的 dedupe/silent 窗口与 dead_letter 落地样本、真实测试发送、用户 inbox 游标分页与未读汇总；§4.6 增加悬空补偿 |
+| v0.3 | 2026-09-29 | **按最佳实践完成方案确认**（新增 §11：确认方式、25 项对照矩阵、D1–D6 最终值、修订清单、明确不采纳项）。正文修订：§4.2 `schema_version` 与命名规范；§4.3 渲染转义与模板发布流程；§4.4 静默时段时区语义；§4.6 退避抖动/熔断降级/退信抑制；§4.7 DMARC、`List-Unsubscribe`、Webhook SSRF、数据保留；§4.8 SLO 与运行手册；§5 `notification_suppressions` 与保留策略；§7/§8 同步用例与任务 |
+| v0.4 | 2026-09-29 | **并入独立对抗式评审（B1–B26 + 6 条门禁矛盾）并完成最终确认**：2 个 Blocker（平台 scope 入箱契约、catalog 的 tenant guard 豁免）与 20+ Major/Minor 全部处置（§11.6）；D1–D6 按评审建议收敛（§11.3）；新增 §11.5 不采纳清单（11 项）；正文同步：§4.1"新增三处"、§4.5 平台契约/公告/可见性、§4.6 抖动/熔断/配额/`PermanentError`/supersede/幂等矩阵、§4.7 邮件合规表与 SSRFGuard、§4.8 SLO 与失败枚举、§5 偏好定稿/保留策略/豁免登记、§6 模板预览与激活 API、§7 P0-1 前置、§8 A16–A19、§1.4-5 幂等口径 |
