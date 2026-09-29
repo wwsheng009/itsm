@@ -335,6 +335,7 @@ Allow = AuthN
 | `tenant.lifecycle` | 租户开通/暂停/过期/退租 | `actor`、`target`、`before/after` |
 
 - 审计写入与业务变更**同事务**；跨租户操作必须能回答"谁、以什么身份、在哪个作用域、对哪个租户做了什么"；
+- **现状覆盖**：登录成功/失败审计与 bootstrap 首管创建审计**已实现**（`itsm-backend/middleware/audit.go:24-41`；`pkg/bootstrap/token.go:164-174`）；建号仅有通用 AuditMiddleware（🟡）；**切换与分配增删无审计（F12）**，是本节主要补齐项；
 - 保留策略：审计按合规策略（≥1 年），不随通知清理任务删除；
 - 与通知方案联动：邀请/密码重置/安全告警的投递审计在 `notification_deliveries`，业务审计在 `audit_logs`，两者以 `trace`/`request_id` 关联。
 
