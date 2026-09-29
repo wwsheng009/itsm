@@ -152,6 +152,18 @@ func (f BootstrapTokenFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Val
 	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.BootstrapTokenMutation", m)
 }
 
+// The BotArtifactFunc type is an adapter to allow the use of ordinary
+// function as BotArtifact mutator.
+type BotArtifactFunc func(context.Context, *ent.BotArtifactMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f BotArtifactFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.BotArtifactMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.BotArtifactMutation", m)
+}
+
 // The BotEventFunc type is an adapter to allow the use of ordinary
 // function as BotEvent mutator.
 type BotEventFunc func(context.Context, *ent.BotEventMutation) (ent.Value, error)

@@ -9,7 +9,47 @@ import (
 	"itsm-backend/ent"
 	"itsm-backend/ent/citype"
 	"itsm-backend/ent/ticket"
+	"itsm-backend/service/bot"
 )
+
+// —— B3-06 工具调用者上下文（产物归属；由 handlers/ai 在执行入口注入）——
+
+type toolActorKey struct{}
+
+// WithToolActor 注入本次工具调用的发起人（当前仅用于产物归属）。
+func WithToolActor(ctx context.Context, userID int) context.Context {
+	if userID <= 0 {
+		return ctx
+	}
+	return context.WithValue(ctx, toolActorKey{}, userID)
+}
+
+// ToolActorFromContext 读取发起人；0 = 未注入。
+func ToolActorFromContext(ctx context.Context) int {
+	if v, ok := ctx.Value(toolActorKey{}).(int); ok && v > 0 {
+		return v
+	}
+	return 0
+}
+
+type toolConversationKey struct{}
+
+// WithToolConversation 注入本次工具调用的会话归属（产物/审计归属用；跨包不可读的
+// handlers/ai 私有键由此再暴露一份只读视图）。
+func WithToolConversation(ctx context.Context, conversationID int) context.Context {
+	if conversationID <= 0 {
+		return ctx
+	}
+	return context.WithValue(ctx, toolConversationKey{}, conversationID)
+}
+
+// ToolConversationFromContext 读取会话归属；0 = 未注入。
+func ToolConversationFromContext(ctx context.Context) int {
+	if v, ok := ctx.Value(toolConversationKey{}).(int); ok && v > 0 {
+		return v
+	}
+	return 0
+}
 
 type ToolDefinition struct {
 	Name         string                 `json:"name"`
@@ -109,6 +149,8 @@ type ToolRegistry struct {
 	ticket         *TicketService
 	ticketType     *TicketTypeService
 	impactExplain  *ImpactExplanationService
+	// artifacts 是 plan/analysis/draft 类工具的产物存储（B3-06；nil = 该能力不注册）。
+	artifacts *bot.ArtifactStore
 	// providers 是内置工具之外的工具来源（M0-09：MCP），按注册顺序作为解析兜底。
 	providers []ToolProvider
 }
@@ -128,6 +170,9 @@ func (t *ToolRegistry) SetCIRelationshipService(s *CIRelationshipService) {
 
 // SetImpactExplainer P1-4：影响分析 AI 解释服务（可选注入，未注入时不报错）
 func (t *ToolRegistry) SetImpactExplainer(s *ImpactExplanationService) { t.impactExplain = s }
+
+// SetArtifactStore 注入产物存储（B3-06）；nil 时 plan/analysis/draft 工具执行返回「能力未启用」。
+func (t *ToolRegistry) SetArtifactStore(store *bot.ArtifactStore) { t.artifacts = store }
 
 // RegisterProvider 注册外部工具来源（M0-09：MCP provider；nil 忽略）。
 // 解析顺序 = 内置优先 → provider 注册顺序。
@@ -393,6 +438,92 @@ func (t *ToolRegistry) ListTools() []ToolDefinition {
 			},
 			ResultSchema: map[string]interface{}{
 				"type": "array",
+			},
+		},
+		{
+			Name:        "draft_ticket_fields",
+			Description: "根据自然语言描述生成工单字段草案（plan：只读，不落业务库，产物存 bot_artifacts）",
+			ReadOnly:    true,
+			Resource:    "ticket",
+			Action:      "read",
+
+			Risk:             ToolRiskPlan,
+			Category:         "ticket",
+			TimeoutMs:        DefaultToolTimeoutMs,
+			MaxOutputBytes:   DefaultToolMaxOutputBytes,
+			RedactionProfile: ToolRedactionDefault,
+			ArgsSchema: map[string]interface{}{
+				"type": "object",
+				"properties": map[string]interface{}{
+					"description": map[string]interface{}{"type": "string"},
+					"title":       map[string]interface{}{"type": "string"},
+					"priority":    map[string]interface{}{"type": "string"},
+				},
+				"required": []string{"description"},
+			},
+			ResultSchema: map[string]interface{}{
+				"type": "object",
+				"properties": map[string]interface{}{
+					"artifactId": map[string]interface{}{"type": "integer"},
+					"kind":       map[string]interface{}{"type": "string"},
+				},
+			},
+		},
+		{
+			Name:        "analyze_ci_impact_plan",
+			Description: "为配置项变更生成影响面分析草案（analysis：只读，不落业务库；含证据引用）",
+			ReadOnly:    true,
+			Resource:    "cmdb",
+			Action:      "read",
+
+			Risk:             ToolRiskPlan,
+			Category:         "cmdb",
+			TimeoutMs:        DefaultToolTimeoutMs,
+			MaxOutputBytes:   DefaultToolMaxOutputBytes,
+			RedactionProfile: ToolRedactionDefault,
+			ArgsSchema: map[string]interface{}{
+				"type": "object",
+				"properties": map[string]interface{}{
+					"ciId":    map[string]interface{}{"type": "integer", "minimum": 1},
+					"change":  map[string]interface{}{"type": "string"},
+					"summary": map[string]interface{}{"type": "string"},
+				},
+				"required": []string{"ciId"},
+			},
+			ResultSchema: map[string]interface{}{
+				"type": "object",
+				"properties": map[string]interface{}{
+					"artifactId": map[string]interface{}{"type": "integer"},
+					"kind":       map[string]interface{}{"type": "string"},
+				},
+			},
+		},
+		{
+			Name:        "draft_kb_article",
+			Description: "把对话/描述整理为知识文章草稿（draft：只读，不自动发布，产物存 bot_artifacts）",
+			ReadOnly:    true,
+			Resource:    "knowledge",
+			Action:      "read",
+
+			Risk:             ToolRiskPlan,
+			Category:         "knowledge",
+			TimeoutMs:        DefaultToolTimeoutMs,
+			MaxOutputBytes:   DefaultToolMaxOutputBytes,
+			RedactionProfile: ToolRedactionDefault,
+			ArgsSchema: map[string]interface{}{
+				"type": "object",
+				"properties": map[string]interface{}{
+					"title":   map[string]interface{}{"type": "string"},
+					"content": map[string]interface{}{"type": "string"},
+				},
+				"required": []string{"title", "content"},
+			},
+			ResultSchema: map[string]interface{}{
+				"type": "object",
+				"properties": map[string]interface{}{
+					"artifactId": map[string]interface{}{"type": "integer"},
+					"kind":       map[string]interface{}{"type": "string"},
+				},
 			},
 		},
 		{
@@ -772,6 +903,12 @@ func (t *ToolRegistry) ExecuteWithMeta(ctx context.Context, tenantID int, name s
 
 func (t *ToolRegistry) executeBuiltin(ctx context.Context, tenantID int, name string, args map[string]interface{}) (interface{}, error) {
 	switch name {
+	case "draft_ticket_fields":
+		return t.executeDraftTicketFields(ctx, tenantID, args)
+	case "analyze_ci_impact_plan":
+		return t.executeCIImpactPlan(ctx, tenantID, args)
+	case "draft_kb_article":
+		return t.executeDraftKBArticle(ctx, tenantID, args)
 	case "get_incident_stats":
 		// 使用ListIncidents来获取统计信息
 		incidents, _, err := t.incident.ListIncidents(ctx, tenantID, 1, 1000, map[string]interface{}{})

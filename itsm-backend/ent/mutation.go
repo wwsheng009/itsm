@@ -17,6 +17,7 @@ import (
 	"itsm-backend/ent/attachment"
 	"itsm-backend/ent/auditlog"
 	"itsm-backend/ent/bootstraptoken"
+	"itsm-backend/ent/botartifact"
 	"itsm-backend/ent/botevent"
 	"itsm-backend/ent/botrun"
 	"itsm-backend/ent/botstep"
@@ -182,6 +183,7 @@ const (
 	TypeAuditLog                    = "AuditLog"
 	TypeBPMNPermission              = "BPMNPermission"
 	TypeBootstrapToken              = "BootstrapToken"
+	TypeBotArtifact                 = "BotArtifact"
 	TypeBotEvent                    = "BotEvent"
 	TypeBotRun                      = "BotRun"
 	TypeBotStep                     = "BotStep"
@@ -16883,6 +16885,996 @@ func (m *BootstrapTokenMutation) ResetEdge(name string) error {
 		return nil
 	}
 	return fmt.Errorf("unknown BootstrapToken edge %s", name)
+}
+
+// BotArtifactMutation represents an operation that mutates the BotArtifact nodes in the graph.
+type BotArtifactMutation struct {
+	config
+	op                 Op
+	typ                string
+	id                 *int
+	tenant_id          *int
+	addtenant_id       *int
+	owner_user_id      *int
+	addowner_user_id   *int
+	conversation_id    *int
+	addconversation_id *int
+	run_id             *int
+	addrun_id          *int
+	kind               *string
+	tool_name          *string
+	title              *string
+	content_json       *string
+	evidence_json      *string
+	created_at         *time.Time
+	clearedFields      map[string]struct{}
+	done               bool
+	oldValue           func(context.Context) (*BotArtifact, error)
+	predicates         []predicate.BotArtifact
+}
+
+var _ ent.Mutation = (*BotArtifactMutation)(nil)
+
+// botartifactOption allows management of the mutation configuration using functional options.
+type botartifactOption func(*BotArtifactMutation)
+
+// newBotArtifactMutation creates new mutation for the BotArtifact entity.
+func newBotArtifactMutation(c config, op Op, opts ...botartifactOption) *BotArtifactMutation {
+	m := &BotArtifactMutation{
+		config:        c,
+		op:            op,
+		typ:           TypeBotArtifact,
+		clearedFields: make(map[string]struct{}),
+	}
+	for _, opt := range opts {
+		opt(m)
+	}
+	return m
+}
+
+// withBotArtifactID sets the ID field of the mutation.
+func withBotArtifactID(id int) botartifactOption {
+	return func(m *BotArtifactMutation) {
+		var (
+			err   error
+			once  sync.Once
+			value *BotArtifact
+		)
+		m.oldValue = func(ctx context.Context) (*BotArtifact, error) {
+			once.Do(func() {
+				if m.done {
+					err = errors.New("querying old values post mutation is not allowed")
+				} else {
+					value, err = m.Client().BotArtifact.Get(ctx, id)
+				}
+			})
+			return value, err
+		}
+		m.id = &id
+	}
+}
+
+// withBotArtifact sets the old BotArtifact of the mutation.
+func withBotArtifact(node *BotArtifact) botartifactOption {
+	return func(m *BotArtifactMutation) {
+		m.oldValue = func(context.Context) (*BotArtifact, error) {
+			return node, nil
+		}
+		m.id = &node.ID
+	}
+}
+
+// Client returns a new `ent.Client` from the mutation. If the mutation was
+// executed in a transaction (ent.Tx), a transactional client is returned.
+func (m BotArtifactMutation) Client() *Client {
+	client := &Client{config: m.config}
+	client.init()
+	return client
+}
+
+// Tx returns an `ent.Tx` for mutations that were executed in transactions;
+// it returns an error otherwise.
+func (m BotArtifactMutation) Tx() (*Tx, error) {
+	if _, ok := m.driver.(*txDriver); !ok {
+		return nil, errors.New("ent: mutation is not running in a transaction")
+	}
+	tx := &Tx{config: m.config}
+	tx.init()
+	return tx, nil
+}
+
+// ID returns the ID value in the mutation. Note that the ID is only available
+// if it was provided to the builder or after it was returned from the database.
+func (m *BotArtifactMutation) ID() (id int, exists bool) {
+	if m.id == nil {
+		return
+	}
+	return *m.id, true
+}
+
+// IDs queries the database and returns the entity ids that match the mutation's predicate.
+// That means, if the mutation is applied within a transaction with an isolation level such
+// as sql.LevelSerializable, the returned ids match the ids of the rows that will be updated
+// or updated by the mutation.
+func (m *BotArtifactMutation) IDs(ctx context.Context) ([]int, error) {
+	switch {
+	case m.op.Is(OpUpdateOne | OpDeleteOne):
+		id, exists := m.ID()
+		if exists {
+			return []int{id}, nil
+		}
+		fallthrough
+	case m.op.Is(OpUpdate | OpDelete):
+		return m.Client().BotArtifact.Query().Where(m.predicates...).IDs(ctx)
+	default:
+		return nil, fmt.Errorf("IDs is not allowed on %s operations", m.op)
+	}
+}
+
+// SetTenantID sets the "tenant_id" field.
+func (m *BotArtifactMutation) SetTenantID(i int) {
+	m.tenant_id = &i
+	m.addtenant_id = nil
+}
+
+// TenantID returns the value of the "tenant_id" field in the mutation.
+func (m *BotArtifactMutation) TenantID() (r int, exists bool) {
+	v := m.tenant_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldTenantID returns the old "tenant_id" field's value of the BotArtifact entity.
+// If the BotArtifact object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *BotArtifactMutation) OldTenantID(ctx context.Context) (v int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldTenantID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldTenantID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldTenantID: %w", err)
+	}
+	return oldValue.TenantID, nil
+}
+
+// AddTenantID adds i to the "tenant_id" field.
+func (m *BotArtifactMutation) AddTenantID(i int) {
+	if m.addtenant_id != nil {
+		*m.addtenant_id += i
+	} else {
+		m.addtenant_id = &i
+	}
+}
+
+// AddedTenantID returns the value that was added to the "tenant_id" field in this mutation.
+func (m *BotArtifactMutation) AddedTenantID() (r int, exists bool) {
+	v := m.addtenant_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetTenantID resets all changes to the "tenant_id" field.
+func (m *BotArtifactMutation) ResetTenantID() {
+	m.tenant_id = nil
+	m.addtenant_id = nil
+}
+
+// SetOwnerUserID sets the "owner_user_id" field.
+func (m *BotArtifactMutation) SetOwnerUserID(i int) {
+	m.owner_user_id = &i
+	m.addowner_user_id = nil
+}
+
+// OwnerUserID returns the value of the "owner_user_id" field in the mutation.
+func (m *BotArtifactMutation) OwnerUserID() (r int, exists bool) {
+	v := m.owner_user_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldOwnerUserID returns the old "owner_user_id" field's value of the BotArtifact entity.
+// If the BotArtifact object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *BotArtifactMutation) OldOwnerUserID(ctx context.Context) (v int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldOwnerUserID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldOwnerUserID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldOwnerUserID: %w", err)
+	}
+	return oldValue.OwnerUserID, nil
+}
+
+// AddOwnerUserID adds i to the "owner_user_id" field.
+func (m *BotArtifactMutation) AddOwnerUserID(i int) {
+	if m.addowner_user_id != nil {
+		*m.addowner_user_id += i
+	} else {
+		m.addowner_user_id = &i
+	}
+}
+
+// AddedOwnerUserID returns the value that was added to the "owner_user_id" field in this mutation.
+func (m *BotArtifactMutation) AddedOwnerUserID() (r int, exists bool) {
+	v := m.addowner_user_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetOwnerUserID resets all changes to the "owner_user_id" field.
+func (m *BotArtifactMutation) ResetOwnerUserID() {
+	m.owner_user_id = nil
+	m.addowner_user_id = nil
+}
+
+// SetConversationID sets the "conversation_id" field.
+func (m *BotArtifactMutation) SetConversationID(i int) {
+	m.conversation_id = &i
+	m.addconversation_id = nil
+}
+
+// ConversationID returns the value of the "conversation_id" field in the mutation.
+func (m *BotArtifactMutation) ConversationID() (r int, exists bool) {
+	v := m.conversation_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldConversationID returns the old "conversation_id" field's value of the BotArtifact entity.
+// If the BotArtifact object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *BotArtifactMutation) OldConversationID(ctx context.Context) (v int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldConversationID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldConversationID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldConversationID: %w", err)
+	}
+	return oldValue.ConversationID, nil
+}
+
+// AddConversationID adds i to the "conversation_id" field.
+func (m *BotArtifactMutation) AddConversationID(i int) {
+	if m.addconversation_id != nil {
+		*m.addconversation_id += i
+	} else {
+		m.addconversation_id = &i
+	}
+}
+
+// AddedConversationID returns the value that was added to the "conversation_id" field in this mutation.
+func (m *BotArtifactMutation) AddedConversationID() (r int, exists bool) {
+	v := m.addconversation_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ClearConversationID clears the value of the "conversation_id" field.
+func (m *BotArtifactMutation) ClearConversationID() {
+	m.conversation_id = nil
+	m.addconversation_id = nil
+	m.clearedFields[botartifact.FieldConversationID] = struct{}{}
+}
+
+// ConversationIDCleared returns if the "conversation_id" field was cleared in this mutation.
+func (m *BotArtifactMutation) ConversationIDCleared() bool {
+	_, ok := m.clearedFields[botartifact.FieldConversationID]
+	return ok
+}
+
+// ResetConversationID resets all changes to the "conversation_id" field.
+func (m *BotArtifactMutation) ResetConversationID() {
+	m.conversation_id = nil
+	m.addconversation_id = nil
+	delete(m.clearedFields, botartifact.FieldConversationID)
+}
+
+// SetRunID sets the "run_id" field.
+func (m *BotArtifactMutation) SetRunID(i int) {
+	m.run_id = &i
+	m.addrun_id = nil
+}
+
+// RunID returns the value of the "run_id" field in the mutation.
+func (m *BotArtifactMutation) RunID() (r int, exists bool) {
+	v := m.run_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldRunID returns the old "run_id" field's value of the BotArtifact entity.
+// If the BotArtifact object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *BotArtifactMutation) OldRunID(ctx context.Context) (v int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldRunID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldRunID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldRunID: %w", err)
+	}
+	return oldValue.RunID, nil
+}
+
+// AddRunID adds i to the "run_id" field.
+func (m *BotArtifactMutation) AddRunID(i int) {
+	if m.addrun_id != nil {
+		*m.addrun_id += i
+	} else {
+		m.addrun_id = &i
+	}
+}
+
+// AddedRunID returns the value that was added to the "run_id" field in this mutation.
+func (m *BotArtifactMutation) AddedRunID() (r int, exists bool) {
+	v := m.addrun_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ClearRunID clears the value of the "run_id" field.
+func (m *BotArtifactMutation) ClearRunID() {
+	m.run_id = nil
+	m.addrun_id = nil
+	m.clearedFields[botartifact.FieldRunID] = struct{}{}
+}
+
+// RunIDCleared returns if the "run_id" field was cleared in this mutation.
+func (m *BotArtifactMutation) RunIDCleared() bool {
+	_, ok := m.clearedFields[botartifact.FieldRunID]
+	return ok
+}
+
+// ResetRunID resets all changes to the "run_id" field.
+func (m *BotArtifactMutation) ResetRunID() {
+	m.run_id = nil
+	m.addrun_id = nil
+	delete(m.clearedFields, botartifact.FieldRunID)
+}
+
+// SetKind sets the "kind" field.
+func (m *BotArtifactMutation) SetKind(s string) {
+	m.kind = &s
+}
+
+// Kind returns the value of the "kind" field in the mutation.
+func (m *BotArtifactMutation) Kind() (r string, exists bool) {
+	v := m.kind
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldKind returns the old "kind" field's value of the BotArtifact entity.
+// If the BotArtifact object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *BotArtifactMutation) OldKind(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldKind is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldKind requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldKind: %w", err)
+	}
+	return oldValue.Kind, nil
+}
+
+// ResetKind resets all changes to the "kind" field.
+func (m *BotArtifactMutation) ResetKind() {
+	m.kind = nil
+}
+
+// SetToolName sets the "tool_name" field.
+func (m *BotArtifactMutation) SetToolName(s string) {
+	m.tool_name = &s
+}
+
+// ToolName returns the value of the "tool_name" field in the mutation.
+func (m *BotArtifactMutation) ToolName() (r string, exists bool) {
+	v := m.tool_name
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldToolName returns the old "tool_name" field's value of the BotArtifact entity.
+// If the BotArtifact object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *BotArtifactMutation) OldToolName(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldToolName is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldToolName requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldToolName: %w", err)
+	}
+	return oldValue.ToolName, nil
+}
+
+// ResetToolName resets all changes to the "tool_name" field.
+func (m *BotArtifactMutation) ResetToolName() {
+	m.tool_name = nil
+}
+
+// SetTitle sets the "title" field.
+func (m *BotArtifactMutation) SetTitle(s string) {
+	m.title = &s
+}
+
+// Title returns the value of the "title" field in the mutation.
+func (m *BotArtifactMutation) Title() (r string, exists bool) {
+	v := m.title
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldTitle returns the old "title" field's value of the BotArtifact entity.
+// If the BotArtifact object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *BotArtifactMutation) OldTitle(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldTitle is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldTitle requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldTitle: %w", err)
+	}
+	return oldValue.Title, nil
+}
+
+// ResetTitle resets all changes to the "title" field.
+func (m *BotArtifactMutation) ResetTitle() {
+	m.title = nil
+}
+
+// SetContentJSON sets the "content_json" field.
+func (m *BotArtifactMutation) SetContentJSON(s string) {
+	m.content_json = &s
+}
+
+// ContentJSON returns the value of the "content_json" field in the mutation.
+func (m *BotArtifactMutation) ContentJSON() (r string, exists bool) {
+	v := m.content_json
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldContentJSON returns the old "content_json" field's value of the BotArtifact entity.
+// If the BotArtifact object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *BotArtifactMutation) OldContentJSON(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldContentJSON is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldContentJSON requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldContentJSON: %w", err)
+	}
+	return oldValue.ContentJSON, nil
+}
+
+// ResetContentJSON resets all changes to the "content_json" field.
+func (m *BotArtifactMutation) ResetContentJSON() {
+	m.content_json = nil
+}
+
+// SetEvidenceJSON sets the "evidence_json" field.
+func (m *BotArtifactMutation) SetEvidenceJSON(s string) {
+	m.evidence_json = &s
+}
+
+// EvidenceJSON returns the value of the "evidence_json" field in the mutation.
+func (m *BotArtifactMutation) EvidenceJSON() (r string, exists bool) {
+	v := m.evidence_json
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldEvidenceJSON returns the old "evidence_json" field's value of the BotArtifact entity.
+// If the BotArtifact object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *BotArtifactMutation) OldEvidenceJSON(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldEvidenceJSON is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldEvidenceJSON requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldEvidenceJSON: %w", err)
+	}
+	return oldValue.EvidenceJSON, nil
+}
+
+// ResetEvidenceJSON resets all changes to the "evidence_json" field.
+func (m *BotArtifactMutation) ResetEvidenceJSON() {
+	m.evidence_json = nil
+}
+
+// SetCreatedAt sets the "created_at" field.
+func (m *BotArtifactMutation) SetCreatedAt(t time.Time) {
+	m.created_at = &t
+}
+
+// CreatedAt returns the value of the "created_at" field in the mutation.
+func (m *BotArtifactMutation) CreatedAt() (r time.Time, exists bool) {
+	v := m.created_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldCreatedAt returns the old "created_at" field's value of the BotArtifact entity.
+// If the BotArtifact object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *BotArtifactMutation) OldCreatedAt(ctx context.Context) (v time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldCreatedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldCreatedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldCreatedAt: %w", err)
+	}
+	return oldValue.CreatedAt, nil
+}
+
+// ResetCreatedAt resets all changes to the "created_at" field.
+func (m *BotArtifactMutation) ResetCreatedAt() {
+	m.created_at = nil
+}
+
+// Where appends a list predicates to the BotArtifactMutation builder.
+func (m *BotArtifactMutation) Where(ps ...predicate.BotArtifact) {
+	m.predicates = append(m.predicates, ps...)
+}
+
+// WhereP appends storage-level predicates to the BotArtifactMutation builder. Using this method,
+// users can use type-assertion to append predicates that do not depend on any generated package.
+func (m *BotArtifactMutation) WhereP(ps ...func(*sql.Selector)) {
+	p := make([]predicate.BotArtifact, len(ps))
+	for i := range ps {
+		p[i] = ps[i]
+	}
+	m.Where(p...)
+}
+
+// Op returns the operation name.
+func (m *BotArtifactMutation) Op() Op {
+	return m.op
+}
+
+// SetOp allows setting the mutation operation.
+func (m *BotArtifactMutation) SetOp(op Op) {
+	m.op = op
+}
+
+// Type returns the node type of this mutation (BotArtifact).
+func (m *BotArtifactMutation) Type() string {
+	return m.typ
+}
+
+// Fields returns all fields that were changed during this mutation. Note that in
+// order to get all numeric fields that were incremented/decremented, call
+// AddedFields().
+func (m *BotArtifactMutation) Fields() []string {
+	fields := make([]string, 0, 10)
+	if m.tenant_id != nil {
+		fields = append(fields, botartifact.FieldTenantID)
+	}
+	if m.owner_user_id != nil {
+		fields = append(fields, botartifact.FieldOwnerUserID)
+	}
+	if m.conversation_id != nil {
+		fields = append(fields, botartifact.FieldConversationID)
+	}
+	if m.run_id != nil {
+		fields = append(fields, botartifact.FieldRunID)
+	}
+	if m.kind != nil {
+		fields = append(fields, botartifact.FieldKind)
+	}
+	if m.tool_name != nil {
+		fields = append(fields, botartifact.FieldToolName)
+	}
+	if m.title != nil {
+		fields = append(fields, botartifact.FieldTitle)
+	}
+	if m.content_json != nil {
+		fields = append(fields, botartifact.FieldContentJSON)
+	}
+	if m.evidence_json != nil {
+		fields = append(fields, botartifact.FieldEvidenceJSON)
+	}
+	if m.created_at != nil {
+		fields = append(fields, botartifact.FieldCreatedAt)
+	}
+	return fields
+}
+
+// Field returns the value of a field with the given name. The second boolean
+// return value indicates that this field was not set, or was not defined in the
+// schema.
+func (m *BotArtifactMutation) Field(name string) (ent.Value, bool) {
+	switch name {
+	case botartifact.FieldTenantID:
+		return m.TenantID()
+	case botartifact.FieldOwnerUserID:
+		return m.OwnerUserID()
+	case botartifact.FieldConversationID:
+		return m.ConversationID()
+	case botartifact.FieldRunID:
+		return m.RunID()
+	case botartifact.FieldKind:
+		return m.Kind()
+	case botartifact.FieldToolName:
+		return m.ToolName()
+	case botartifact.FieldTitle:
+		return m.Title()
+	case botartifact.FieldContentJSON:
+		return m.ContentJSON()
+	case botartifact.FieldEvidenceJSON:
+		return m.EvidenceJSON()
+	case botartifact.FieldCreatedAt:
+		return m.CreatedAt()
+	}
+	return nil, false
+}
+
+// OldField returns the old value of the field from the database. An error is
+// returned if the mutation operation is not UpdateOne, or the query to the
+// database failed.
+func (m *BotArtifactMutation) OldField(ctx context.Context, name string) (ent.Value, error) {
+	switch name {
+	case botartifact.FieldTenantID:
+		return m.OldTenantID(ctx)
+	case botartifact.FieldOwnerUserID:
+		return m.OldOwnerUserID(ctx)
+	case botartifact.FieldConversationID:
+		return m.OldConversationID(ctx)
+	case botartifact.FieldRunID:
+		return m.OldRunID(ctx)
+	case botartifact.FieldKind:
+		return m.OldKind(ctx)
+	case botartifact.FieldToolName:
+		return m.OldToolName(ctx)
+	case botartifact.FieldTitle:
+		return m.OldTitle(ctx)
+	case botartifact.FieldContentJSON:
+		return m.OldContentJSON(ctx)
+	case botartifact.FieldEvidenceJSON:
+		return m.OldEvidenceJSON(ctx)
+	case botartifact.FieldCreatedAt:
+		return m.OldCreatedAt(ctx)
+	}
+	return nil, fmt.Errorf("unknown BotArtifact field %s", name)
+}
+
+// SetField sets the value of a field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *BotArtifactMutation) SetField(name string, value ent.Value) error {
+	switch name {
+	case botartifact.FieldTenantID:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetTenantID(v)
+		return nil
+	case botartifact.FieldOwnerUserID:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetOwnerUserID(v)
+		return nil
+	case botartifact.FieldConversationID:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetConversationID(v)
+		return nil
+	case botartifact.FieldRunID:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetRunID(v)
+		return nil
+	case botartifact.FieldKind:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetKind(v)
+		return nil
+	case botartifact.FieldToolName:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetToolName(v)
+		return nil
+	case botartifact.FieldTitle:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetTitle(v)
+		return nil
+	case botartifact.FieldContentJSON:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetContentJSON(v)
+		return nil
+	case botartifact.FieldEvidenceJSON:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetEvidenceJSON(v)
+		return nil
+	case botartifact.FieldCreatedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetCreatedAt(v)
+		return nil
+	}
+	return fmt.Errorf("unknown BotArtifact field %s", name)
+}
+
+// AddedFields returns all numeric fields that were incremented/decremented during
+// this mutation.
+func (m *BotArtifactMutation) AddedFields() []string {
+	var fields []string
+	if m.addtenant_id != nil {
+		fields = append(fields, botartifact.FieldTenantID)
+	}
+	if m.addowner_user_id != nil {
+		fields = append(fields, botartifact.FieldOwnerUserID)
+	}
+	if m.addconversation_id != nil {
+		fields = append(fields, botartifact.FieldConversationID)
+	}
+	if m.addrun_id != nil {
+		fields = append(fields, botartifact.FieldRunID)
+	}
+	return fields
+}
+
+// AddedField returns the numeric value that was incremented/decremented on a field
+// with the given name. The second boolean return value indicates that this field
+// was not set, or was not defined in the schema.
+func (m *BotArtifactMutation) AddedField(name string) (ent.Value, bool) {
+	switch name {
+	case botartifact.FieldTenantID:
+		return m.AddedTenantID()
+	case botartifact.FieldOwnerUserID:
+		return m.AddedOwnerUserID()
+	case botartifact.FieldConversationID:
+		return m.AddedConversationID()
+	case botartifact.FieldRunID:
+		return m.AddedRunID()
+	}
+	return nil, false
+}
+
+// AddField adds the value to the field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *BotArtifactMutation) AddField(name string, value ent.Value) error {
+	switch name {
+	case botartifact.FieldTenantID:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddTenantID(v)
+		return nil
+	case botartifact.FieldOwnerUserID:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddOwnerUserID(v)
+		return nil
+	case botartifact.FieldConversationID:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddConversationID(v)
+		return nil
+	case botartifact.FieldRunID:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddRunID(v)
+		return nil
+	}
+	return fmt.Errorf("unknown BotArtifact numeric field %s", name)
+}
+
+// ClearedFields returns all nullable fields that were cleared during this
+// mutation.
+func (m *BotArtifactMutation) ClearedFields() []string {
+	var fields []string
+	if m.FieldCleared(botartifact.FieldConversationID) {
+		fields = append(fields, botartifact.FieldConversationID)
+	}
+	if m.FieldCleared(botartifact.FieldRunID) {
+		fields = append(fields, botartifact.FieldRunID)
+	}
+	return fields
+}
+
+// FieldCleared returns a boolean indicating if a field with the given name was
+// cleared in this mutation.
+func (m *BotArtifactMutation) FieldCleared(name string) bool {
+	_, ok := m.clearedFields[name]
+	return ok
+}
+
+// ClearField clears the value of the field with the given name. It returns an
+// error if the field is not defined in the schema.
+func (m *BotArtifactMutation) ClearField(name string) error {
+	switch name {
+	case botartifact.FieldConversationID:
+		m.ClearConversationID()
+		return nil
+	case botartifact.FieldRunID:
+		m.ClearRunID()
+		return nil
+	}
+	return fmt.Errorf("unknown BotArtifact nullable field %s", name)
+}
+
+// ResetField resets all changes in the mutation for the field with the given name.
+// It returns an error if the field is not defined in the schema.
+func (m *BotArtifactMutation) ResetField(name string) error {
+	switch name {
+	case botartifact.FieldTenantID:
+		m.ResetTenantID()
+		return nil
+	case botartifact.FieldOwnerUserID:
+		m.ResetOwnerUserID()
+		return nil
+	case botartifact.FieldConversationID:
+		m.ResetConversationID()
+		return nil
+	case botartifact.FieldRunID:
+		m.ResetRunID()
+		return nil
+	case botartifact.FieldKind:
+		m.ResetKind()
+		return nil
+	case botartifact.FieldToolName:
+		m.ResetToolName()
+		return nil
+	case botartifact.FieldTitle:
+		m.ResetTitle()
+		return nil
+	case botartifact.FieldContentJSON:
+		m.ResetContentJSON()
+		return nil
+	case botartifact.FieldEvidenceJSON:
+		m.ResetEvidenceJSON()
+		return nil
+	case botartifact.FieldCreatedAt:
+		m.ResetCreatedAt()
+		return nil
+	}
+	return fmt.Errorf("unknown BotArtifact field %s", name)
+}
+
+// AddedEdges returns all edge names that were set/added in this mutation.
+func (m *BotArtifactMutation) AddedEdges() []string {
+	edges := make([]string, 0, 0)
+	return edges
+}
+
+// AddedIDs returns all IDs (to other nodes) that were added for the given edge
+// name in this mutation.
+func (m *BotArtifactMutation) AddedIDs(name string) []ent.Value {
+	return nil
+}
+
+// RemovedEdges returns all edge names that were removed in this mutation.
+func (m *BotArtifactMutation) RemovedEdges() []string {
+	edges := make([]string, 0, 0)
+	return edges
+}
+
+// RemovedIDs returns all IDs (to other nodes) that were removed for the edge with
+// the given name in this mutation.
+func (m *BotArtifactMutation) RemovedIDs(name string) []ent.Value {
+	return nil
+}
+
+// ClearedEdges returns all edge names that were cleared in this mutation.
+func (m *BotArtifactMutation) ClearedEdges() []string {
+	edges := make([]string, 0, 0)
+	return edges
+}
+
+// EdgeCleared returns a boolean which indicates if the edge with the given name
+// was cleared in this mutation.
+func (m *BotArtifactMutation) EdgeCleared(name string) bool {
+	return false
+}
+
+// ClearEdge clears the value of the edge with the given name. It returns an error
+// if that edge is not defined in the schema.
+func (m *BotArtifactMutation) ClearEdge(name string) error {
+	return fmt.Errorf("unknown BotArtifact unique edge %s", name)
+}
+
+// ResetEdge resets all changes to the edge with the given name in this mutation.
+// It returns an error if the edge is not defined in the schema.
+func (m *BotArtifactMutation) ResetEdge(name string) error {
+	return fmt.Errorf("unknown BotArtifact edge %s", name)
 }
 
 // BotEventMutation represents an operation that mutates the BotEvent nodes in the graph.

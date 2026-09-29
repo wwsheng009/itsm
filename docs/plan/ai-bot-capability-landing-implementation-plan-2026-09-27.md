@@ -232,6 +232,10 @@ MCP 线：      ▼                    ▼                   ▼                
 | **B2 里程碑** | **`flow_verified`（条件达标）** | 出口①～⑥全部满足（AB2-01～AB2-06）；条件项 = 浏览器级交互（B3-02/BT-09）与真实 provider 工具覆盖（B4-01）、目标参数覆写（B3-01） |
 | B3-01 | `integration_verified` | `evidence/bot-b3/B3-01-entrypoint-scope-evidence.md`（入口枚举 + 上下文协议 + `ScopeResolver` 目标预检 fail-closed（400/404/503）+ 入口贯通下发/执行/run 记录（`bot_runs.target_type/target_id` 新列）+ 协议键覆写与留痕；条件项：页面 launcher 与手工截图归 B3-02/BT-09、内容级权限深化归 B4） |
 | B3-02 | `unit_verified` | `evidence/bot-b3/B3-02-launcher-evidence.md`（`ask-ai-scope` 路由 state 契约（校验 fail-closed）+ `AskAILauncher`（权限置灰/隐藏 + onNavigate 注入）+ 工作区消费（请求回传 + 上下文条）+ 工单/事件/CI 三处接入；条件项：手工截图归 BT-09、列表/创建入口与 i18n 归 B4） |
+| B3-03 | `integration_verified` | `evidence/bot-b3/B3-scenario-pilots-acceptance.md`（S1 `s1-ticket-assistant`：3 入口 + 5 项授权（含 `create_ticket`/`draft_ticket_fields`）；`SeedScenarioBots` 幂等且不覆盖管理员改动；条件项：真实对话 E2E 与审计截图归 B4-01/BT-09） |
+| B3-04 | `integration_verified` | 同上（S2 `s2-incident-oncall`：3 入口 + 5 项授权；**负向断言**：与改级/改状态工具零交集，只建议不自动变更；影响面 plan 工具；条件项同上） |
+| B3-05 | **部分交付（`unit_verified` 级）** | 同上（S3 `s3-knowledge-assistant`：`list_kb` + `draft_kb_article`；**负向断言**：与发布类工具零交集且知识实体零写入）；未竟项 `create_kb_draft` 归入 B4 |
+| B3-06 | `integration_verified` | `evidence/bot-b3/B3-06-plan-tools-artifact-evidence.md`（`bot_artifacts` 表 + `ArtifactStore`（租户+归属隔离）+ 三件 plan/analysis/draft 工具（只读业务库、证据引用、零业务写入）；条件项：产物读取端点与图遍历深化归 B4） |
 
 ### 3.4 双线联合路线图（与 MCP 方案合并视图）
 
@@ -532,6 +536,7 @@ MCP 线：      ▼                    ▼                   ▼                
 - **要点**：典型链路：自然语言查询 → 对话创建工单（确认抽屉 → 执行 → 回填工单号）；验收要点：SSE 含 `confirmation_required`、确认后执行 ≤30s、执行后 verify 回读、审计含 `conversation_id/target_type/target_id`。
 - **测试与证据**：场景验收单 + E2E 片段 + 审计截图。
 - **DoD**：`flow_verified`。
+- **状态**：`integration_verified`（2026-09-27）——场景定义落地于 `service/bot/scenarios.go`（`s1-ticket-assistant`：入口 `chat`/`ticket_detail`/`ticket_list`；授权 `list_tickets`/`get_incident_stats`/`list_kb`(read) + `create_ticket`(act_low) + `draft_ticket_fields`(plan)）；`SeedScenarioBots` 幂等装配（只增不改：管理员改名/调上限后复跑不覆盖，测试锁定）；典型链路能力就绪（写工具走 B1 确认→执行→回读闭环，字段草案见 B3-06）。真实对话 E2E 与审计截图归 **B4-01/BT-09**（条件项）。证据 `docs/plan/evidence/bot-b3/B3-scenario-pilots-acceptance.md`。
 
 #### B3-04 S2 事件/值班助手 pilot（全栈）
 
@@ -541,6 +546,7 @@ MCP 线：      ▼                    ▼                   ▼                
 - **要点**：相似事件检索与影响面分析；定级建议**只建议不自动变更**（负向断言，与 `ROADMAP.md:146-159` human-in-the-loop 一致）；一键关联 CI 走确认闭环；影响面工具超时与 `max_output_bytes` 生效。
 - **测试与证据**：负向断言（无自动改级/改状态调用）+ 场景验收单。
 - **DoD**：`flow_verified`。
+- **状态**：`integration_verified`（2026-09-27）——`s2-incident-oncall`（入口 `chat`/`incident_detail`/`incident_create`；授权 `list_tickets`/`get_incident_stats`(read) + `get_ci_impact`/`analyze_ci_impact_plan`(plan) + `link_ticket_ci`(act_low)）；**负向断言锁定"只建议不自动变更"**：授权与 `update_incident`/`declare_major`/`escalate_incident`/`resolve_incident`/`update_ticket` 零交集（`TestScenarioBots_Definitions`）；关联 CI 走确认闭环；影响面工具沿用 30s/256KiB 元数据。真实对话 E2E 归 **B4-01/BT-09**（条件项）。
 
 #### B3-05 S3 知识/自助助手 pilot（全栈）
 
@@ -550,6 +556,7 @@ MCP 线：      ▼                    ▼                   ▼                
 - **要点**：问答引用 → 一键保存草稿（artifact + 知识草稿，归属当前用户）；**不得自动发布**（publish 属 act_high，后续评估）；草稿租户隔离。
 - **测试与证据**：归属/隔离测试；负向断言（无自动发布）+ 场景验收单。
 - **DoD**：`flow_verified`。
+- **状态**：**部分交付（`unit_verified` 级）**（2026-09-27）——`s3-knowledge-assistant`（入口 `chat`/`ci_detail`；授权 `list_kb`(read) + `draft_kb_article`(plan)）；**负向断言锁定"不自动发布"**：授权与 `publish_*`/`create_kb_article` 零交集，且 `draft_kb_article` 只落 `bot_artifacts`（知识文章实体零写入由 B3-06 集成测试断言）；草稿归属/隔离由 `ArtifactStore` 保证。**未竟项**：`create_kb_draft`（act_low，真正创建知识草稿实体并归属当前用户）经评审归入 **B4**（依赖 B3-06 产物 + 写工具审批链 + 草稿租户隔离评审），故本任务暂不标 `flow_verified`。证据同上。
 
 #### B3-06 计划类工具与 artifact（后端）
 
@@ -559,6 +566,7 @@ MCP 线：      ▼                    ▼                   ▼                
 - **要点**：plan/analysis 类工具**只读不写业务库**；artifact 归属与会话隔离（`owner_user_id`）；输出含证据引用（RAG 来源/CI 关系）；预算与超时沿用 B0-01 元数据。
 - **测试与证据**：UT + 集成（artifact 归属、租户隔离、零业务写入）。
 - **DoD**：`unit_verified`。
+- **状态**：`integration_verified`（2026-09-27；实际覆盖达集成级，超 DoD）——①`bot_artifacts` 新表（`tenant_id`/`owner_user_id`/`conversation_id`/`run_id`/`kind`/`tool_name`/`title`/`content_json`/`evidence_json` + 四个租户前置索引）；②`ArtifactStore`（Create 类型校验 + 归属必填；Get/List 一律「租户 + 归属」双条件，跨租户/跨用户表现为不存在）；③三件工具注册并落地：`draft_ticket_fields`(plan，含保守优先级建议)、`analyze_ci_impact_plan`(analysis，**只读**本租户 CI + 检查清单 + 证据引用，CI 不可用即拒绝且不产生产物)、`draft_kb_article`(draft，不发布)；④发起人/会话经 `service.WithToolActor`/`WithToolConversation` 注入（`run_id` 由 B1-03 既有注入），bootstrap 装配 `SetArtifactStore`。测试：`TestArtifactStore_*` 4 组 + `TestPlanTools_ArtifactsAndZeroBusinessWrites`（含**零业务写入**断言）全绿。证据 `docs/plan/evidence/bot-b3/B3-06-plan-tools-artifact-evidence.md`；产物读取端点与图遍历深化归 B4。
 
 #### B3-07 B3 流程验收（测试）
 
@@ -1001,3 +1009,4 @@ MCP 线：      ▼                    ▼                   ▼                
 | 2026-09-27 | AI 辅助执行 | **B2-06 交付（`flow_verified`，B2 里程碑出口达成〔条件达标〕）**：新增 `itsm-backend/tests/botintegration/b2_acceptance_test.go`——①**28 格下发矩阵**（2 角色 `operator_full`/`viewer_readonly` × 2 入口 `chat`/`ticket_detail` × 7 工具类：授权读/授权写/超风险/未授权/三类黑名单）逐格断言可见性与原因码；②黑名单**先于**入口/角色/状态判定的不变量在全部格内可见；③draft 模板与兼容默认（未配置授权 = 只读 ∪ 遗留写白名单）回归锁定；④执行面审计双态证据（允许 `executed/passed`；未授权 `denied/tool_not_granted`；黑名单 `denied/tool_blacklisted:admin_surface`）；⑤跨租户 `botId` → `404 BOT_NOT_FOUND` HTTP 契约（闭环 B2-05 遗留项）。AB2-01～AB2-06 逐项证据归档于 `docs/plan/evidence/bot-b2/B2-06-acceptance-evidence.md`；出口①～⑥全部满足。条件项：浏览器级交互（B3-02/BT-09）、真实 provider 工具覆盖（B4-01）、目标参数覆写（B3-01）。 |
 | 2026-09-27 | AI 辅助执行 | **B3-01 交付（`integration_verified`）**：入口枚举（`chat`/`ticket_detail`/`ticket_list`/`incident_detail`/`incident_create`/`ci_detail`）与上下文协议 `{entrypoint, target_type, target_id, summary}` 落地——新增 `service/bot/scope.go`（`ScopeResolver` 归一化 + 目标预检 fail-closed：成对校验/未知类型/校验器缺失/不存在/跨租户/无读权限）与 `handlers/ai/scope.go`（`entTargetChecker` = 租户内存在性 + 资源读权限；HTTP 语义 400/404/503，SSE 统一错误事件 + `errorCode`）；入口贯通下发面 `chatToolDecision`、执行面 Gate 2.5 与运行记录（`bot_runs` 新增 `target_type`/`target_id` 列，`run_started` 事件携带入口与目标）；`reservedScopeArgKeys` 剥离模型携带的协议键并仅在其确实使用时以服务端解析值覆写（`args_stripped` 留痕不变，未使用则零行为变化）。测试：`service/bot` 3 组 + `handlers/ai` 5 组 + `tests/botintegration` 2 组全绿；回归 `./ent/schema/ ./handlers/ai/ ./tests/botintegration/` 通过（`ent/schema` 16.5s / `handlers/ai` 27.2s / `botintegration` 24.3s）。证据 `docs/plan/evidence/bot-b3/B3-01-entrypoint-scope-evidence.md`；既有用例适配 1 处（`target_id` 语义变更）。 |
 | 2026-09-27 | AI 辅助执行 | **B3-02 交付（`unit_verified`）**：页面「问 AI」入口落地——①新增 `src/lib/ai/ask-ai-scope.ts`（路由 state 契约：入口枚举与后端对齐、目标必须成对、ID 必须正整数、summary 300 截断，非法 state 一律按无上下文处理）；②新增 `src/components/ai/AskAILauncher.tsx`（携带上下文跳转 `/ai/chat`，无 AI 读权限时置灰 + Tooltip，可 `denyMode='hidden'`；`onNavigate` 可注入）；③工作区消费：`AIChat` 校验 `location.state` 后作为请求级上下文随流式请求与降级请求回传，右上角渲染可关闭上下文条；④`ai-api.ts` 请求类型/请求体新增入口字段（仅非空落字段，缺省请求体与现状逐字节一致）；⑤三处接入：工单详情、事件详情、CI 详情（权限预检统一 `hasPermission('ai:read')`）。验证：契约 12 例 + 组件 5 例 + AI 组件面回归 **117 例全绿**；`tsc --noEmit` 0 错误、`eslint` 0 error；受控页面回归通过（登记 O-3 双套件并发 flake 一次，单跑/复跑均过）。证据 `docs/plan/evidence/bot-b3/B3-02-launcher-evidence.md`。 |
+| 2026-09-27 | AI 辅助执行 | **B3-03/B3-04/B3-06 交付（`integration_verified`）+ B3-05 部分交付（`unit_verified` 级）**：①新增 `service/bot/scenarios.go`——S1 工单助手（3 入口；`create_ticket`/`draft_ticket_fields` 等 5 项授权）、S2 事件值班助手（3 入口；**不含任何改级/改状态工具**，只建议不自动变更）、S3 知识自助助手（`list_kb` + `draft_kb_article`，**不含发布类工具**）；`SeedScenarioBots` 幂等且**不覆盖管理员改动**（改名/调风险上限后复跑保持，测试锁定）；②新增 `bot_artifacts` 表（租户/归属/会话/运行/类型/内容/证据 + 四个租户前置索引）与 `service/bot/artifact.go`（Create 类型校验 + 归属必填；Get/List 一律「租户 + 归属」双条件）；③新增 `service/tool_registry_plan.go`：`draft_ticket_fields`(plan)、`analyze_ci_impact_plan`(analysis，只读本租户 CI + 检查清单 + 证据引用，CI 不可用即拒绝且不产生产物)、`draft_kb_article`(draft，不发布)；④注册表新增 `SetArtifactStore` 与调用者上下文（`WithToolActor`/`WithToolConversation`），`handlers/ai` 只读执行路径注入归属，bootstrap 装配产物存储。测试：`TestArtifactStore_*` 4 组 + `TestPlanTools_ArtifactsAndZeroBusinessWrites`（6 子例，含**零业务写入**断言）+ `TestScenarioBots_Definitions`/`TestSeedScenarioBots_IdempotentAndNonOverwriting` 全绿。证据 `evidence/bot-b3/B3-06-plan-tools-artifact-evidence.md` 与 `B3-scenario-pilots-acceptance.md`。未竟项：`create_kb_draft`（写工具）归 B4；产物读取端点/图遍历深化归 B4；真实对话 E2E 与浏览器截图归 B4-01/BT-09。 |

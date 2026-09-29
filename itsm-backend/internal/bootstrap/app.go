@@ -767,6 +767,8 @@ func NewApplication() *Application {
 	// P1-4：影响分析 AI 解释服务（可选注入；LLM/Redis 任意缺失 → fail-open 不影响主流程）
 	impactExplainer := service.NewImpactExplanationService(llmGateway, llmConfig.Model, nil, sugar)
 	toolRegistry.SetImpactExplainer(impactExplainer)
+	// B3-06：plan/analysis/draft 类工具产物存储（bot_artifacts；租户 + 归属隔离）。
+	toolRegistry.SetArtifactStore(botService.NewArtifactStore(client))
 
 	// General Notification Service & Controller
 	notificationService := service.NewNotificationService(client)

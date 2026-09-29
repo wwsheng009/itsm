@@ -356,6 +356,9 @@ func (s *Service) ExecuteToolWithOptions(ctx context.Context, userID, tenantID i
 	}
 
 	if !needsApproval {
+		// B3-06：为 plan/analysis/draft 类工具注入产物归属（发起人/会话；run_id 已由 B1-03 注入）。
+		ctx = service.WithToolActor(ctx, userID)
+		ctx = service.WithToolConversation(ctx, opts.ConversationID)
 		// M0-11：带审计元数据执行（provider/三元组/耗时/错误码/输出摘要）。
 		execution, err := s.tools.ExecuteWithMeta(ctx, tenantID, name, args)
 		var res interface{}

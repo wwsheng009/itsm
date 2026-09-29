@@ -14,6 +14,7 @@ import (
 	"itsm-backend/ent/attachment"
 	"itsm-backend/ent/auditlog"
 	"itsm-backend/ent/bootstraptoken"
+	"itsm-backend/ent/botartifact"
 	"itsm-backend/ent/botevent"
 	"itsm-backend/ent/botrun"
 	"itsm-backend/ent/botstep"
@@ -734,6 +735,42 @@ func init() {
 	bootstraptokenDescTenantID := bootstraptokenFields[5].Descriptor()
 	// bootstraptoken.TenantIDValidator is a validator for the "tenant_id" field. It is called by the builders before save.
 	bootstraptoken.TenantIDValidator = bootstraptokenDescTenantID.Validators[0].(func(int) error)
+	botartifactFields := schema.BotArtifact{}.Fields()
+	_ = botartifactFields
+	// botartifactDescTenantID is the schema descriptor for tenant_id field.
+	botartifactDescTenantID := botartifactFields[0].Descriptor()
+	// botartifact.TenantIDValidator is a validator for the "tenant_id" field. It is called by the builders before save.
+	botartifact.TenantIDValidator = botartifactDescTenantID.Validators[0].(func(int) error)
+	// botartifactDescOwnerUserID is the schema descriptor for owner_user_id field.
+	botartifactDescOwnerUserID := botartifactFields[1].Descriptor()
+	// botartifact.OwnerUserIDValidator is a validator for the "owner_user_id" field. It is called by the builders before save.
+	botartifact.OwnerUserIDValidator = botartifactDescOwnerUserID.Validators[0].(func(int) error)
+	// botartifactDescKind is the schema descriptor for kind field.
+	botartifactDescKind := botartifactFields[4].Descriptor()
+	// botartifact.KindValidator is a validator for the "kind" field. It is called by the builders before save.
+	botartifact.KindValidator = botartifactDescKind.Validators[0].(func(string) error)
+	// botartifactDescToolName is the schema descriptor for tool_name field.
+	botartifactDescToolName := botartifactFields[5].Descriptor()
+	// botartifact.ToolNameValidator is a validator for the "tool_name" field. It is called by the builders before save.
+	botartifact.ToolNameValidator = botartifactDescToolName.Validators[0].(func(string) error)
+	// botartifactDescTitle is the schema descriptor for title field.
+	botartifactDescTitle := botartifactFields[6].Descriptor()
+	// botartifact.DefaultTitle holds the default value on creation for the title field.
+	botartifact.DefaultTitle = botartifactDescTitle.Default.(string)
+	// botartifact.TitleValidator is a validator for the "title" field. It is called by the builders before save.
+	botartifact.TitleValidator = botartifactDescTitle.Validators[0].(func(string) error)
+	// botartifactDescContentJSON is the schema descriptor for content_json field.
+	botartifactDescContentJSON := botartifactFields[7].Descriptor()
+	// botartifact.DefaultContentJSON holds the default value on creation for the content_json field.
+	botartifact.DefaultContentJSON = botartifactDescContentJSON.Default.(string)
+	// botartifactDescEvidenceJSON is the schema descriptor for evidence_json field.
+	botartifactDescEvidenceJSON := botartifactFields[8].Descriptor()
+	// botartifact.DefaultEvidenceJSON holds the default value on creation for the evidence_json field.
+	botartifact.DefaultEvidenceJSON = botartifactDescEvidenceJSON.Default.(string)
+	// botartifactDescCreatedAt is the schema descriptor for created_at field.
+	botartifactDescCreatedAt := botartifactFields[9].Descriptor()
+	// botartifact.DefaultCreatedAt holds the default value on creation for the created_at field.
+	botartifact.DefaultCreatedAt = botartifactDescCreatedAt.Default.(func() time.Time)
 	boteventFields := schema.BotEvent{}.Fields()
 	_ = boteventFields
 	// boteventDescTenantID is the schema descriptor for tenant_id field.

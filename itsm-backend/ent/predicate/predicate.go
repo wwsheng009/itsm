@@ -42,6 +42,9 @@ type BPMNPermission func(*sql.Selector)
 // BootstrapToken is the predicate function for bootstraptoken builders.
 type BootstrapToken func(*sql.Selector)
 
+// BotArtifact is the predicate function for botartifact builders.
+type BotArtifact func(*sql.Selector)
+
 // BotEvent is the predicate function for botevent builders.
 type BotEvent func(*sql.Selector)
 

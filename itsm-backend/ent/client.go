@@ -22,6 +22,7 @@ import (
 	"itsm-backend/ent/attachment"
 	"itsm-backend/ent/auditlog"
 	"itsm-backend/ent/bootstraptoken"
+	"itsm-backend/ent/botartifact"
 	"itsm-backend/ent/botevent"
 	"itsm-backend/ent/botrun"
 	"itsm-backend/ent/botstep"
@@ -193,6 +194,8 @@ type Client struct {
 	BPMNPermission *BPMNPermissionClient
 	// BootstrapToken is the client for interacting with the BootstrapToken builders.
 	BootstrapToken *BootstrapTokenClient
+	// BotArtifact is the client for interacting with the BotArtifact builders.
+	BotArtifact *BotArtifactClient
 	// BotEvent is the client for interacting with the BotEvent builders.
 	BotEvent *BotEventClient
 	// BotRun is the client for interacting with the BotRun builders.
@@ -484,6 +487,7 @@ func (c *Client) init() {
 	c.AuditLog = NewAuditLogClient(c.config)
 	c.BPMNPermission = NewBPMNPermissionClient(c.config)
 	c.BootstrapToken = NewBootstrapTokenClient(c.config)
+	c.BotArtifact = NewBotArtifactClient(c.config)
 	c.BotEvent = NewBotEventClient(c.config)
 	c.BotRun = NewBotRunClient(c.config)
 	c.BotStep = NewBotStepClient(c.config)
@@ -722,6 +726,7 @@ func (c *Client) Tx(ctx context.Context) (*Tx, error) {
 		AuditLog:                    NewAuditLogClient(cfg),
 		BPMNPermission:              NewBPMNPermissionClient(cfg),
 		BootstrapToken:              NewBootstrapTokenClient(cfg),
+		BotArtifact:                 NewBotArtifactClient(cfg),
 		BotEvent:                    NewBotEventClient(cfg),
 		BotRun:                      NewBotRunClient(cfg),
 		BotStep:                     NewBotStepClient(cfg),
@@ -887,6 +892,7 @@ func (c *Client) BeginTx(ctx context.Context, opts *sql.TxOptions) (*Tx, error) 
 		AuditLog:                    NewAuditLogClient(cfg),
 		BPMNPermission:              NewBPMNPermissionClient(cfg),
 		BootstrapToken:              NewBootstrapTokenClient(cfg),
+		BotArtifact:                 NewBotArtifactClient(cfg),
 		BotEvent:                    NewBotEventClient(cfg),
 		BotRun:                      NewBotRunClient(cfg),
 		BotStep:                     NewBotStepClient(cfg),
@@ -1052,8 +1058,8 @@ func (c *Client) Use(hooks ...Hook) {
 	for _, n := range []interface{ Use(...Hook) }{
 		c.AIAnalysisResult, c.Alert, c.Application, c.ApprovalChain, c.ApprovalRecord,
 		c.ApprovalWorkflow, c.Asset, c.AssetLicense, c.Attachment, c.AuditLog,
-		c.BPMNPermission, c.BootstrapToken, c.BotEvent, c.BotRun, c.BotStep,
-		c.BotTemplate, c.BotToolGrant, c.CABMember, c.CIAttributeDefinition,
+		c.BPMNPermission, c.BootstrapToken, c.BotArtifact, c.BotEvent, c.BotRun,
+		c.BotStep, c.BotTemplate, c.BotToolGrant, c.CABMember, c.CIAttributeDefinition,
 		c.CIRelationship, c.CITag, c.CIType, c.CMDBExportTask, c.CMDBImportTask,
 		c.CMDBSavedView, c.Change, c.ChangePIR, c.CloudAccount, c.CloudResource,
 		c.CloudService, c.ConfigurationItem, c.ConfigurationItemHistory,
@@ -1098,8 +1104,8 @@ func (c *Client) Intercept(interceptors ...Interceptor) {
 	for _, n := range []interface{ Intercept(...Interceptor) }{
 		c.AIAnalysisResult, c.Alert, c.Application, c.ApprovalChain, c.ApprovalRecord,
 		c.ApprovalWorkflow, c.Asset, c.AssetLicense, c.Attachment, c.AuditLog,
-		c.BPMNPermission, c.BootstrapToken, c.BotEvent, c.BotRun, c.BotStep,
-		c.BotTemplate, c.BotToolGrant, c.CABMember, c.CIAttributeDefinition,
+		c.BPMNPermission, c.BootstrapToken, c.BotArtifact, c.BotEvent, c.BotRun,
+		c.BotStep, c.BotTemplate, c.BotToolGrant, c.CABMember, c.CIAttributeDefinition,
 		c.CIRelationship, c.CITag, c.CIType, c.CMDBExportTask, c.CMDBImportTask,
 		c.CMDBSavedView, c.Change, c.ChangePIR, c.CloudAccount, c.CloudResource,
 		c.CloudService, c.ConfigurationItem, c.ConfigurationItemHistory,
@@ -1165,6 +1171,8 @@ func (c *Client) Mutate(ctx context.Context, m Mutation) (Value, error) {
 		return c.BPMNPermission.mutate(ctx, m)
 	case *BootstrapTokenMutation:
 		return c.BootstrapToken.mutate(ctx, m)
+	case *BotArtifactMutation:
+		return c.BotArtifact.mutate(ctx, m)
 	case *BotEventMutation:
 		return c.BotEvent.mutate(ctx, m)
 	case *BotRunMutation:
@@ -3175,6 +3183,139 @@ func (c *BootstrapTokenClient) mutate(ctx context.Context, m *BootstrapTokenMuta
 		return (&BootstrapTokenDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
 	default:
 		return nil, fmt.Errorf("ent: unknown BootstrapToken mutation op: %q", m.Op())
+	}
+}
+
+// BotArtifactClient is a client for the BotArtifact schema.
+type BotArtifactClient struct {
+	config
+}
+
+// NewBotArtifactClient returns a client for the BotArtifact from the given config.
+func NewBotArtifactClient(c config) *BotArtifactClient {
+	return &BotArtifactClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `botartifact.Hooks(f(g(h())))`.
+func (c *BotArtifactClient) Use(hooks ...Hook) {
+	c.hooks.BotArtifact = append(c.hooks.BotArtifact, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `botartifact.Intercept(f(g(h())))`.
+func (c *BotArtifactClient) Intercept(interceptors ...Interceptor) {
+	c.inters.BotArtifact = append(c.inters.BotArtifact, interceptors...)
+}
+
+// Create returns a builder for creating a BotArtifact entity.
+func (c *BotArtifactClient) Create() *BotArtifactCreate {
+	mutation := newBotArtifactMutation(c.config, OpCreate)
+	return &BotArtifactCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of BotArtifact entities.
+func (c *BotArtifactClient) CreateBulk(builders ...*BotArtifactCreate) *BotArtifactCreateBulk {
+	return &BotArtifactCreateBulk{config: c.config, builders: builders}
+}
+
+// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
+// a builder and applies setFunc on it.
+func (c *BotArtifactClient) MapCreateBulk(slice any, setFunc func(*BotArtifactCreate, int)) *BotArtifactCreateBulk {
+	rv := reflect.ValueOf(slice)
+	if rv.Kind() != reflect.Slice {
+		return &BotArtifactCreateBulk{err: fmt.Errorf("calling to BotArtifactClient.MapCreateBulk with wrong type %T, need slice", slice)}
+	}
+	builders := make([]*BotArtifactCreate, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		builders[i] = c.Create()
+		setFunc(builders[i], i)
+	}
+	return &BotArtifactCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for BotArtifact.
+func (c *BotArtifactClient) Update() *BotArtifactUpdate {
+	mutation := newBotArtifactMutation(c.config, OpUpdate)
+	return &BotArtifactUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *BotArtifactClient) UpdateOne(_m *BotArtifact) *BotArtifactUpdateOne {
+	mutation := newBotArtifactMutation(c.config, OpUpdateOne, withBotArtifact(_m))
+	return &BotArtifactUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *BotArtifactClient) UpdateOneID(id int) *BotArtifactUpdateOne {
+	mutation := newBotArtifactMutation(c.config, OpUpdateOne, withBotArtifactID(id))
+	return &BotArtifactUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for BotArtifact.
+func (c *BotArtifactClient) Delete() *BotArtifactDelete {
+	mutation := newBotArtifactMutation(c.config, OpDelete)
+	return &BotArtifactDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *BotArtifactClient) DeleteOne(_m *BotArtifact) *BotArtifactDeleteOne {
+	return c.DeleteOneID(_m.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *BotArtifactClient) DeleteOneID(id int) *BotArtifactDeleteOne {
+	builder := c.Delete().Where(botartifact.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &BotArtifactDeleteOne{builder}
+}
+
+// Query returns a query builder for BotArtifact.
+func (c *BotArtifactClient) Query() *BotArtifactQuery {
+	return &BotArtifactQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypeBotArtifact},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a BotArtifact entity by its id.
+func (c *BotArtifactClient) Get(ctx context.Context, id int) (*BotArtifact, error) {
+	return c.Query().Where(botartifact.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *BotArtifactClient) GetX(ctx context.Context, id int) *BotArtifact {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// Hooks returns the client hooks.
+func (c *BotArtifactClient) Hooks() []Hook {
+	return c.hooks.BotArtifact
+}
+
+// Interceptors returns the client interceptors.
+func (c *BotArtifactClient) Interceptors() []Interceptor {
+	return c.inters.BotArtifact
+}
+
+func (c *BotArtifactClient) mutate(ctx context.Context, m *BotArtifactMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&BotArtifactCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&BotArtifactUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&BotArtifactUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&BotArtifactDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("ent: unknown BotArtifact mutation op: %q", m.Op())
 	}
 }
 
@@ -24925,8 +25066,8 @@ type (
 	hooks struct {
 		AIAnalysisResult, Alert, Application, ApprovalChain, ApprovalRecord,
 		ApprovalWorkflow, Asset, AssetLicense, Attachment, AuditLog, BPMNPermission,
-		BootstrapToken, BotEvent, BotRun, BotStep, BotTemplate, BotToolGrant,
-		CABMember, CIAttributeDefinition, CIRelationship, CITag, CIType,
+		BootstrapToken, BotArtifact, BotEvent, BotRun, BotStep, BotTemplate,
+		BotToolGrant, CABMember, CIAttributeDefinition, CIRelationship, CITag, CIType,
 		CMDBExportTask, CMDBImportTask, CMDBSavedView, Change, ChangePIR, CloudAccount,
 		CloudResource, CloudService, ConfigurationItem, ConfigurationItemHistory,
 		ConnectorConfig, ConnectorInboundDedup, Contract, Conversation, CustomerBranch,
@@ -24959,8 +25100,8 @@ type (
 	inters struct {
 		AIAnalysisResult, Alert, Application, ApprovalChain, ApprovalRecord,
 		ApprovalWorkflow, Asset, AssetLicense, Attachment, AuditLog, BPMNPermission,
-		BootstrapToken, BotEvent, BotRun, BotStep, BotTemplate, BotToolGrant,
-		CABMember, CIAttributeDefinition, CIRelationship, CITag, CIType,
+		BootstrapToken, BotArtifact, BotEvent, BotRun, BotStep, BotTemplate,
+		BotToolGrant, CABMember, CIAttributeDefinition, CIRelationship, CITag, CIType,
 		CMDBExportTask, CMDBImportTask, CMDBSavedView, Change, ChangePIR, CloudAccount,
 		CloudResource, CloudService, ConfigurationItem, ConfigurationItemHistory,
 		ConnectorConfig, ConnectorInboundDedup, Contract, Conversation, CustomerBranch,
