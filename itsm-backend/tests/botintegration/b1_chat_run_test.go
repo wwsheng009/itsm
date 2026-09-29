@@ -9,6 +9,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"sync"
 	"testing"
 
@@ -217,4 +218,175 @@ func TestB1ChatStreamRunManagerSequenceMatchesDB(t *testing.T) {
 	require.Len(t, steps, 1, "无工具调用时应只有一条 llm 步骤")
 	assert.Equal(t, "llm", steps[0].Type)
 	assert.Equal(t, 0, steps[0].StepIndex)
+
+	// B1-03：SSE 帧契约——v2 运行事件带 `v:2` + runId，v1 事件载荷不变，done 收尾。
+	frames := parseSSEFrames(t, recorder.Body.String())
+	require.NotEmpty(t, frames)
+	assert.Equal(t, "run_started", frames[0].Event, "运行开始必须是首帧（有运行档案时）")
+	runStarted := frames[0].Object(t)
+	assert.Equal(t, float64(ai.SSEProtocolVersionV2), runStarted["v"])
+	assert.Equal(t, float64(runID), runStarted["runId"])
+	assert.Equal(t, "chat", runStarted["entrypoint"])
+	assert.Equal(t, "done", frames[len(frames)-1].Event)
+
+	var stepFrames, deltaFrames, doneFrames int
+	for _, frame := range frames {
+		assert.True(t, ai.IsKnownSSEEvent(frame.Event), "帧事件名 %s 必须已登记", frame.Event)
+		switch frame.Event {
+		case "step":
+			stepFrames++
+			payload := frame.Object(t)
+			assert.Equal(t, float64(ai.SSEProtocolVersionV2), payload["v"])
+			assert.Equal(t, "llm", payload["type"])
+		case "delta":
+			deltaFrames++
+			// v1 兼容承诺：delta 载荷保持 {content} 且不带 `v`。
+			payload := frame.Object(t)
+			assert.NotContains(t, payload, "v")
+			assert.Contains(t, payload, "content")
+		case "done":
+			doneFrames++
+			payload := frame.Object(t)
+			assert.NotContains(t, payload, "v")
+			assert.Equal(t, float64(h.convID), payload["conversationId"])
+		}
+	}
+	assert.Equal(t, 1, stepFrames, "llm 步骤应广播一次")
+	assert.Equal(t, 1, doneFrames)
+	// delta 帧数量取决于 RAG 回答路径（无网关时可能为 0），其载荷形状已在循环内逐帧断言。
+	assert.GreaterOrEqual(t, deltaFrames, 0)
+}
+
+// TestB1ChatStreamBudgetAbortEndToEnd 覆盖 AB1-02/AB1-03 的端到端判据：
+// 模型连续发起工具调用触发预算超限 → 记录 error{budget_exceeded} 并收口为 failed
+// → **中止主链路**（流以 error 结束、不再有 done），且 v1 工具事件契约不变。
+func TestB1ChatStreamBudgetAbortEndToEnd(t *testing.T) {
+	h := newB1Harness(t)
+	rag := service.NewRAGService(h.client, nil, nil, zap.NewNop().Sugar(), service.RAGConfig{UseKeyword: true})
+	svc := ai.NewService(ai.NewEntRepository(h.client), zap.NewNop().Sugar(), rag, h.registry, h.queue,
+		nil, nil, nil, nil, nil, nil)
+	svc.SetEntClient(h.client)
+	// 确定性模型替身：每次模型轮次都发起一次 stub__list_notes 调用（工具循环见 rag_service）。
+	svc.SetLLMGateway(service.NewLLMGateway(
+		service.NewMockProvider(service.MockProviderOptions{
+			Trigger:  "__tool__",
+			ToolName: "stub__list_notes",
+			ToolArgs: "{}",
+		}), nil, nil, "mock"))
+	manager := bot.NewManager(bot.NewRunStore(h.client), bot.Budget{MaxSteps: 8, MaxToolCalls: 1})
+	svc.SetBotRunner(manager)
+
+	handler := ai.NewHandler(svc)
+	gin.SetMode(gin.TestMode)
+	router := gin.New()
+	router.POST("/api/v1/ai/chat/stream", func(c *gin.Context) {
+		c.Set("tenant_id", h.tenantID)
+		c.Set("user_id", h.userID)
+		c.Set("role", "super_admin")
+		handler.ChatStream(c)
+	})
+	body, err := json.Marshal(map[string]any{"query": "__tool__ 查一下备注", "conversationId": h.convID})
+	require.NoError(t, err)
+	request := httptest.NewRequest(http.MethodPost, "/api/v1/ai/chat/stream", bytes.NewBuffer(body))
+	request.Header.Set("Content-Type", "application/json")
+	recorder := httptest.NewRecorder()
+	router.ServeHTTP(recorder, request)
+	require.Equal(t, http.StatusOK, recorder.Code, "body=%s", recorder.Body.String())
+
+	frames := parseSSEFrames(t, recorder.Body.String())
+	require.NotEmpty(t, frames)
+
+	var (
+		startedFrames, finishedFrames, errorFrames, doneFrames int
+		errorPayload                                           map[string]interface{}
+	)
+	for _, frame := range frames {
+		switch frame.Event {
+		case "tool_call_started":
+			startedFrames++
+			assert.NotContains(t, frame.Object(t), "v", "v1 工具事件载荷不得因 B1-03 变化")
+		case "tool_call_finished":
+			finishedFrames++
+		case "error":
+			errorFrames++
+			errorPayload = frame.Object(t)
+		case "done":
+			doneFrames++
+		}
+	}
+	assert.Equal(t, 1, startedFrames, "第二次调用在执行点被预算闸门拒绝：不再发 started")
+	assert.Equal(t, 1, finishedFrames, "首次调用正常完成")
+	assert.Equal(t, 1, errorFrames, "流以 error 结束")
+	assert.Contains(t, errorPayload["errorCode"], "budget_exceeded")
+	assert.Zero(t, doneFrames, "预算超限中止主链路：不得再发 done")
+
+	// 运行档案：收口 failed + budget_exceeded，error 事件落库一次，工具调用事件成对。
+	runs := h.client.BotRun.Query().Where(botrun.TenantID(h.tenantID)).AllX(context.Background())
+	require.Len(t, runs, 1)
+	runID := runs[0].ID
+	assert.Equal(t, "failed", runs[0].Status)
+	assert.Equal(t, "budget_exceeded", runs[0].ErrorCode)
+
+	events := h.client.BotEvent.Query().
+		Where(botevent.RunID(runID)).
+		Order(ent.Asc(botevent.FieldSeq)).
+		AllX(context.Background())
+	var budgetEvents, toolDoneEvents, toolFailedEvents int
+	for _, event := range events {
+		switch event.Type {
+		case "error":
+			budgetEvents++
+			assert.Contains(t, event.PayloadJSON, `"code":"budget_exceeded"`)
+			assert.Contains(t, event.PayloadJSON, `"reason":"max_tool_calls"`)
+		case "tool_call":
+			if strings.Contains(event.PayloadJSON, `"status":"done"`) {
+				toolDoneEvents++
+			}
+			if strings.Contains(event.PayloadJSON, `"status":"failed"`) {
+				toolFailedEvents++
+			}
+		}
+	}
+	assert.Equal(t, 1, budgetEvents, "预算超限只记一条审计（重复拒绝不重复落库）")
+	assert.Equal(t, 1, toolDoneEvents, "首次工具调用正常落库")
+	assert.Equal(t, 1, toolFailedEvents, "被拒绝的调用只落一条 failed（带 budget_exceeded 错误码）")
+}
+
+// sseFrame 是 SSE 响应体解析出的一帧。
+type sseFrame struct {
+	Event string
+	Data  string
+}
+
+// Object 把帧载荷解析为对象（数组载荷调用会失败，测试中仅对象帧调用本方法）。
+func (f sseFrame) Object(t *testing.T) map[string]interface{} {
+	t.Helper()
+	var payload map[string]interface{}
+	require.NoError(t, json.Unmarshal([]byte(f.Data), &payload), "帧 %s 载荷必须是 JSON 对象：%s", f.Event, f.Data)
+	return payload
+}
+
+// parseSSEFrames 解析 `event:` / `data:` 帧序列（body 为 handler 的 SSE 输出）。
+func parseSSEFrames(t *testing.T, body string) []sseFrame {
+	t.Helper()
+	var frames []sseFrame
+	for _, block := range strings.Split(strings.ReplaceAll(body, "\r\n", "\n"), "\n\n") {
+		block = strings.TrimSpace(block)
+		if block == "" {
+			continue
+		}
+		frame := sseFrame{}
+		for _, line := range strings.Split(block, "\n") {
+			switch {
+			case strings.HasPrefix(line, "event: "):
+				frame.Event = strings.TrimPrefix(line, "event: ")
+			case strings.HasPrefix(line, "data: "):
+				frame.Data = strings.TrimPrefix(line, "data: ")
+			}
+		}
+		if frame.Event != "" {
+			frames = append(frames, frame)
+		}
+	}
+	return frames
 }

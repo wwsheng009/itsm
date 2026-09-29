@@ -2,6 +2,7 @@ package ai
 
 import (
 	"context"
+	"fmt"
 	"path/filepath"
 	"testing"
 
@@ -18,10 +19,14 @@ import (
 	_ "github.com/mattn/go-sqlite3"
 )
 
-// B1-02 工具事件旁路（botToolObserver）的 UT：
+// B1-02/B1-03 工具事件旁路（botToolObserver）的 UT：
 //   - 事件原样透传（前端契约不变）；
-//   - started 计入工具预算，超限记 error{budget_exceeded} 且不再计数；
-//   - done/failed 落一条 tool 步骤 + tool_call 事件（先落库后广播由 RunManager 保证）。
+//   - done/failed 落一条 tool 步骤 + tool_call 事件，并广播 v2 step 事件；
+//   - pending（写路径待审批）不产生步骤/运行事件，但必须透传；
+//   - 运行收口后不再接受步骤写入（审计一致性优先）。
+//
+// 预算判定不在此（B1-03 上移到执行点闸门 admitTool）：准入判定与收口由
+// `run_manager_test.go`（ReserveToolCall/BudgetExceeded）与 botintegration 端到端用例覆盖。
 func newObserverService(t *testing.T, budget bot.Budget) (*Service, *bot.Run, *ent.Client) {
 	t.Helper()
 	client := enttest.Open(t, "sqlite3", filepath.Join(t.TempDir(), "observer.db")+"?_fk=1")
@@ -39,7 +44,11 @@ func TestBotToolObserver_ForwardsAndRecords(t *testing.T) {
 	svc, run, client := newObserverService(t, bot.Budget{MaxToolCalls: 5})
 
 	var forwarded []string
-	observer := svc.botToolObserver(run, func(event ToolStreamEvent) {
+	var runEvents []string
+	observer := svc.botToolObserver(run, func(eventType string, payload map[string]any) {
+		runEvents = append(runEvents, eventType)
+		require.Equal(t, run.ID(), payload["runId"], "v2 事件必须带 runId")
+	}, func(event ToolStreamEvent) {
 		forwarded = append(forwarded, event.Status)
 	})
 
@@ -50,7 +59,8 @@ func TestBotToolObserver_ForwardsAndRecords(t *testing.T) {
 	observer(ToolStreamEvent{Tool: "ticket_update", Provider: "builtin", Phase: "write", Status: "pending"})
 
 	assert.Equal(t, []string{"started", "done", "failed", "pending"}, forwarded, "事件必须原样透传（契约不变）")
-	assert.Equal(t, 1, run.ToolCalls(), "只有 started 计数")
+	assert.Equal(t, []string{"step", "step"}, runEvents, "done/failed 各广播一条 v2 step 事件")
+	assert.Zero(t, run.ToolCalls(), "B1-03：观察者不做预算计数（计数在执行点闸门）")
 
 	steps, err := client.BotStep.Query().Where(botstep.RunID(run.ID())).All(ctx)
 	require.NoError(t, err)
@@ -71,30 +81,27 @@ func TestBotToolObserver_ForwardsAndRecords(t *testing.T) {
 	assert.Equal(t, 1, events[1].Seq)
 }
 
-func TestBotToolObserver_BudgetExceededStopsCounting(t *testing.T) {
+// TestBotToolObserver_StepRecordRejectedAfterFinish 固定「运行收口后拒绝新步骤」的边界：
+// 观察者仍透传前端事件，但不得写入已收口运行的档案。
+func TestBotToolObserver_StepRecordRejectedAfterFinish(t *testing.T) {
 	ctx := context.Background()
-	svc, run, client := newObserverService(t, bot.Budget{MaxToolCalls: 1})
+	svc, run, client := newObserverService(t, bot.Budget{})
+
+	require.NoError(t, run.Finish(ctx, bot.RunStatusCompleted, ""))
 
 	var forwarded int
-	observer := svc.botToolObserver(run, func(ToolStreamEvent) { forwarded++ })
+	observer := svc.botToolObserver(run, nil, func(ToolStreamEvent) { forwarded++ })
+	observer(ToolStreamEvent{Tool: "ticket_read", Provider: "builtin", Phase: "read", Status: "done", DurationMs: 3})
 
-	observer(ToolStreamEvent{Tool: "a", Status: "started"})
-	observer(ToolStreamEvent{Tool: "b", Status: "started"}) // 超限：记 error 事件，不再计数
-	observer(ToolStreamEvent{Tool: "c", Status: "started"}) // 已标记超限：既不计数也不再重复记事件
-	observer(ToolStreamEvent{Tool: "a", Status: "done", DurationMs: 1})
-
-	assert.Equal(t, 4, forwarded, "超限也不得吞掉前端事件")
-	assert.Equal(t, 1, run.ToolCalls(), "超限后不再计数")
-
-	events, err := client.BotEvent.Query().Where(botevent.RunID(run.ID())).Order(ent.Asc(botevent.FieldSeq)).All(ctx)
+	assert.Equal(t, 1, forwarded, "前端事件仍透传（收口不影响流内可见性）")
+	steps, err := client.BotStep.Query().Where(botstep.RunID(run.ID())).All(ctx)
 	require.NoError(t, err)
-	var budgetEvents int
-	for _, event := range events {
-		if event.Type == "error" {
-			budgetEvents++
-			assert.Contains(t, event.PayloadJSON, `"code":"budget_exceeded"`)
-			assert.Contains(t, event.PayloadJSON, `"reason":"max_tool_calls"`)
-		}
-	}
-	assert.Equal(t, 1, budgetEvents, "预算超限事件只记一次（不随每次 started 重复）")
+	assert.Empty(t, steps, "已收口运行不再接受步骤写入")
+}
+
+// TestToolEventErrorCode_BudgetGate 锁定执行点闸门错误的错误码映射（B1-03）：
+// 前端据此把「预算拒绝」与「执行失败」区分开。
+func TestToolEventErrorCode_BudgetGate(t *testing.T) {
+	assert.Equal(t, bot.ErrorCodeBudgetExceeded, toolEventErrorCode(
+		fmt.Errorf("本次对话已超出工具调用预算: %w", bot.ErrBudgetExceeded)))
 }

@@ -736,9 +736,10 @@ func (s *Service) ChatStream(
 	onSources func([]map[string]any),
 	onDelta func(string),
 	onTool func(ToolStreamEvent),
+	onRun func(eventType string, payload map[string]any),
 ) (int, string, error) {
 	gateway, providerReq := s.chatGateway(tenantID, userID, "")
-	return s.chatStream(ctx, tenantID, userID, role, query, limit, convID, gateway, providerReq, onSources, onDelta, onTool)
+	return s.chatStream(ctx, tenantID, userID, role, query, limit, convID, gateway, providerReq, onSources, onDelta, onTool, onRun)
 }
 
 // ChatStreamWithProviderInfo 同 ChatStream，但按 §3.3 解析 provider（BE-7）：
@@ -755,13 +756,14 @@ func (s *Service) ChatStreamWithProviderInfo(
 	onSources func([]map[string]any),
 	onDelta func(string),
 	onTool func(ToolStreamEvent),
+	onRun func(eventType string, payload map[string]any),
 ) (service.ProviderResolution, int, error) {
 	resolution, err := s.ResolveChatProvider(ctx, tenantID, userID, provider)
 	if err != nil {
 		return resolution, 0, err
 	}
 	gateway, providerReq := s.chatGateway(tenantID, userID, provider)
-	convIDOut, _, err := s.chatStream(ctx, tenantID, userID, role, query, limit, convID, gateway, providerReq, onSources, onDelta, onTool)
+	convIDOut, _, err := s.chatStream(ctx, tenantID, userID, role, query, limit, convID, gateway, providerReq, onSources, onDelta, onTool, onRun)
 	return resolution, convIDOut, err
 }
 
@@ -781,9 +783,45 @@ func (s *Service) chatStream(
 	onSources func([]map[string]any),
 	onDelta func(string),
 	onTool func(ToolStreamEvent),
+	onRun func(eventType string, payload map[string]any),
 ) (int, string, error) {
 	var run *bot.Run
 	startedAt := time.Now()
+	budgetAborted := false
+	var cancelRun context.CancelFunc
+	// admitTool 是工具执行的**预算闸门**（B1-03）：在执行点判定，超限即拒绝执行并收口运行。
+	//
+	// 口径：计数与拒绝都发生在真正调用工具之前（不是事后记账）；判定失败时收口运行、
+	// 置 budgetAborted 并取消本次链路上下文，让模型侧轮次尽快停止。
+	// 第二个返回值表示「这是首次拒绝」：模型循环可能在收口后继续尝试调用，重复的拒绝
+	// 只影响主链路中止，不再重复写审计/不再重复外发事件（避免一次超限刷出多条记录）。
+	budgetRejected := false
+	admitTool := func() (error, bool) {
+		if run == nil {
+			return nil, false
+		}
+		if err := run.ReserveToolCall(); err != nil {
+			first := !budgetRejected
+			budgetRejected = true
+			budgetAborted = true
+			if first {
+				if exceedErr := run.BudgetExceeded(context.Background(), "max_tool_calls"); exceedErr != nil {
+					s.logger.Warnw("B1-03 预算超限收口失败", "error", exceedErr, "run_id", run.ID())
+				}
+				if cancelRun != nil {
+					cancelRun()
+				}
+			}
+			return fmt.Errorf("本次对话已超出工具调用预算（%s），已停止执行: %w", bot.ErrorCodeBudgetExceeded, bot.ErrBudgetExceeded), first
+		}
+		return nil, false
+	}
+	broadcastRun := func(eventType string, payload map[string]any) {
+		if onRun == nil || run == nil {
+			return
+		}
+		broadcastRunEvent(onRun, eventType, payload, run)
+	}
 	if s.botRunner != nil {
 		started, err := s.botRunner.Start(ctx, bot.StartRunInput{
 			TenantID:       tenantID,
@@ -794,24 +832,31 @@ func (s *Service) chatStream(
 			s.logger.Warnw("B1-01 运行记录创建失败（降级为不记录）", "error", err, "tenant_id", tenantID)
 		} else if started != nil {
 			run = started
+			// B1-03：预算超限需要**中止主链路**，因此运行存在时给本次请求挂可取消 ctx。
+			// 取消只影响本次聊天链路，不影响 HTTP 请求上下文（错误帧仍可写出）。
+			ctx, cancelRun = context.WithCancel(ctx)
+			defer cancelRun()
 			ctx = bot.WithRunID(ctx, run.ID())
-			if _, evErr := run.Emit(ctx, "run_started", map[string]any{
+			startedPayload := map[string]any{
 				"entrypoint":     "chat",
 				"conversationId": convID,
 				"limit":          limit,
-			}); evErr != nil {
+			}
+			if _, evErr := run.Emit(ctx, "run_started", startedPayload); evErr != nil {
 				s.logger.Warnw("B1-01 run_started 事件写入失败", "error", evErr, "run_id", run.ID())
+			} else {
+				broadcastRun("run_started", startedPayload)
 			}
 		}
 	}
 
-	// B1-02：工具事件旁路记录（步骤 + 运行事件），不改变对前端的事件流语义。
+	// B1-02/B1-03：工具事件旁路记录（步骤 + 运行事件），并对前端保持原样透传。
 	toolObserver := onTool
 	if run != nil {
-		toolObserver = s.botToolObserver(run, onTool)
+		toolObserver = s.botToolObserver(run, onRun, onTool)
 	}
 
-	outConvID, answer, err := s.chatStreamInner(ctx, tenantID, userID, role, query, limit, convID, gateway, providerReq, onSources, onDelta, toolObserver)
+	outConvID, answer, err := s.chatStreamInner(ctx, tenantID, userID, role, query, limit, convID, gateway, providerReq, onSources, onDelta, toolObserver, admitTool)
 
 	if run != nil {
 		// 收口写入与请求取消解耦：客户端断开也要留下完成态与事件（审计同源）。
@@ -820,8 +865,22 @@ func (s *Service) chatStream(
 		if err != nil {
 			status, code = "failed", botRunErrorCode(err)
 		}
-		if _, stepErr := run.RecordStep(finishCtx, "llm", "", int(time.Since(startedAt).Milliseconds())); stepErr != nil {
-			s.logger.Warnw("B1-01 llm 步骤写入失败", "error", stepErr, "run_id", run.ID())
+		if budgetAborted {
+			// 预算超限：错误事件的落库与运行收口已由 Run.BudgetExceeded 完成，此处只对齐
+			// 返回错误语义（供 HTTP 层输出 error{errorCode=budget_exceeded}）。
+			status, code = "failed", bot.ErrorCodeBudgetExceeded
+			err = fmt.Errorf("本次对话已超出工具调用预算（%s），执行已停止: %w", bot.ErrorCodeBudgetExceeded, bot.ErrBudgetExceeded)
+		} else {
+			durationMs := int(time.Since(startedAt).Milliseconds())
+			if _, stepErr := run.RecordStep(finishCtx, "llm", "", durationMs); stepErr != nil {
+				s.logger.Warnw("B1-01 llm 步骤写入失败", "error", stepErr, "run_id", run.ID())
+			} else {
+				broadcastRun("step", map[string]any{
+					"stepIndex":  run.Steps() - 1,
+					"type":       "llm",
+					"durationMs": durationMs,
+				})
+			}
 		}
 		if _, evErr := run.Emit(finishCtx, "run_finished", map[string]any{
 			"status":    status,
@@ -837,35 +896,50 @@ func (s *Service) chatStream(
 	return outConvID, answer, err
 }
 
-// botToolObserver 包装工具事件回调（B1-02）：
+// broadcastRunEvent 把**已落库**的运行事件转交 SSE 广播（B1-03），并统一补充 runId。
+//
+// 口径：只在持久化成功之后调用，保证「先落库后广播」；onRun 为 nil 时静默跳过。
+func broadcastRunEvent(onRun func(eventType string, payload map[string]any), eventType string, payload map[string]any, run *bot.Run) {
+	if onRun == nil || run == nil {
+		return
+	}
+	enriched := make(map[string]any, len(payload)+1)
+	for key, value := range payload {
+		enriched[key] = value
+	}
+	enriched["runId"] = run.ID()
+	onRun(eventType, enriched)
+}
+
+// botToolObserver 包装工具事件回调（B1-02/B1-03）：
 //   - 事件原样透传给前端回调（契约不变）；
-//   - `started` 计入工具调用预算，超限时记录 error{budget_exceeded} 并停止后续记录
-//     （主链路是否随之中止由 RunManager/调用方决定，此处不改变已有事件流）；
-//   - `done`/`failed` 落一条 tool 步骤（payload_ref = tool_invocation:<id>，无 id 时记工具名）。
-func (s *Service) botToolObserver(run *bot.Run, next func(ToolStreamEvent)) func(ToolStreamEvent) {
-	failedBudget := false
+//   - `done`/`failed` 落一条 tool 步骤（payload_ref = tool_invocation:<id>，无 id 时记工具名）
+//     并广播 v2 `step` 事件（与 bot_steps 同源）。
+//
+// 边界：**预算判定不在本观察者内**（B1-03 起上移到执行点闸门 `admitTool`）——观察者是
+// 「已发生事实」的记录者，若在此处做准入判定会晚于实际执行，无法真正中止主链路。
+func (s *Service) botToolObserver(
+	run *bot.Run,
+	onRun func(eventType string, payload map[string]any),
+	next func(ToolStreamEvent),
+) func(ToolStreamEvent) {
 	return func(event ToolStreamEvent) {
 		switch event.Status {
-		case "started":
-			if !failedBudget {
-				if err := run.ReserveToolCall(); err != nil {
-					failedBudget = true
-					if _, emitErr := run.Emit(context.Background(), bot.EventTypeError, map[string]any{
-						"code":   bot.ErrorCodeBudgetExceeded,
-						"reason": "max_tool_calls",
-						"tool":   event.Tool,
-					}); emitErr != nil {
-						s.logger.Warnw("B1-02 预算超限事件写入失败", "error", emitErr, "run_id", run.ID())
-					}
-				}
-			}
 		case "done", "failed":
 			ref := event.Tool
 			if event.ID > 0 {
 				ref = "tool_invocation:" + strconv.Itoa(event.ID)
 			}
-			if _, err := run.RecordStep(context.Background(), "tool", ref, int(event.DurationMs)); err != nil {
-				s.logger.Warnw("B1-02 工具步骤写入失败", "error", err, "run_id", run.ID(), "tool", event.Tool)
+			stepIndex, stepErr := run.RecordStep(context.Background(), "tool", ref, int(event.DurationMs))
+			if stepErr != nil {
+				s.logger.Warnw("B1-02 工具步骤写入失败", "error", stepErr, "run_id", run.ID(), "tool", event.Tool)
+			} else {
+				broadcastRunEvent(onRun, "step", map[string]any{
+					"stepIndex":  stepIndex,
+					"type":       "tool",
+					"payloadRef": ref,
+					"durationMs": event.DurationMs,
+				}, run)
 			}
 			if _, err := run.Emit(context.Background(), "tool_call", map[string]any{
 				"tool":     event.Tool,
@@ -912,6 +986,7 @@ func (s *Service) chatStreamInner(
 	onSources func([]map[string]any),
 	onDelta func(string),
 	onTool func(ToolStreamEvent),
+	admitTool func() (error, bool),
 ) (int, string, error) {
 	s.logger.Infow("AI ChatStream", "query", query, "tenantID", tenantID, "convID", convID, "role", role)
 
@@ -997,6 +1072,19 @@ func (s *Service) chatStreamInner(
 		}
 
 		started := time.Now()
+		// B1-03：预算闸门必须在**执行点**判定——超限即拒绝执行（不产生副作用），
+		// 只发一条 failed 事件（带 budget_exceeded），并把错误抛回模型循环以中止主链路。
+		if admitTool != nil {
+			if admitErr, firstRejection := admitTool(); admitErr != nil {
+				event.Status = ToolEventStatusFailed
+				event.ErrorCode = toolEventErrorCode(admitErr)
+				if firstRejection {
+					// 只让前端与审计看到一次预算拒绝；重复拒绝仅用于尽快结束循环。
+					emit(event)
+				}
+				return nil, admitErr
+			}
+		}
 		event.Status = ToolEventStatusStarted
 		emit(event)
 

@@ -117,7 +117,7 @@
 - [x] BQ1–BQ8 全部按建议拍板并登记到 §10 决策日志（2026-09-27；BQ1/BQ8 阻塞 B0-02/B1；BQ3 阻塞 B1-06；BQ4 阻塞 B1-01）。
 - [x] BP1 工作树改动处置完成（2026-09-27 独立提交 `d3471221` 于 `feat/vite-migration`，与 MCP P1 同一批）。
 - [ ] BP2 与 MCP 联合迁移窗口书面确认（日期 + 字段清单冻结 + 双驱动验证方式）。
-- [ ] BP3 单一 SSE 事件注册表评审通过（含 MCP 事件；v2 兼容策略明确）。
+- [ ] BP3 单一 SSE 事件注册表评审通过（含 MCP 事件；v2 兼容策略明确）——**实现完成，待评审**（2026-09-27：`handlers/ai/sse_events.go` 单表 12 事件 + `v:2` 信封 + 双发别名 + 未知事件忽略契约；与 MCP M1-03 同表；证据 `docs/plan/evidence/bot-b1/B1-03-sse-v2-evidence.md`）。
 - [ ] BP4 队列持久化 spike 通过（重启恢复 demo 可复跑）【待实测】。
 - [ ] BP5 模块骨架与 `bot.enabled` 开关——**实现完成，待评审**（2026-09-27：`itsm-backend/service/bot/`（`doc.go`/`gate.go`）落地；`bot.enabled` 默认 false、环境变量兜底 `BOT_ENABLED`；关闭态无任何装配点=零行为变化；证据 `docs/plan/evidence/bot-b0/BP5-B0-01-unit-evidence.md`；U-B8 归属结论 = `service/bot/`）。
 - [x] BP8 预算与护栏参数落配置——**完成（2026-09-27）**：`bot.redaction_profile` + `bot.budget.{max_steps,max_tokens,max_tool_calls,tool_timeout_seconds,max_output_bytes}`，YAML + `BOT_BUDGET_*`/`BOT_REDACTION_PROFILE` 环境变量双通道，非正值/未知档位 fail-safe 回落默认；证据 `docs/plan/evidence/bot-b1/BP8-budget-config-evidence.md`（9 个用例，`config` 包全绿）。
@@ -215,6 +215,7 @@ MCP 线：      ▼                    ▼                   ▼                
 | B1-01 | `integration_verified` | `evidence/bot-b1/B1-01-run-archive-evidence.md`（三表迁移 + RunStore + run_id 贯通 + 真实 chat/stream 运行档案；事件名待 BP3 冻结） |
 | BP8 | 完成 | `evidence/bot-b1/BP8-budget-config-evidence.md`（`bot.budget.*` + `redaction_profile` 落配置，YAML/环境变量双通道，fail-safe 归一化） |
 | B1-02 | `unit_verified` | `evidence/bot-b1/B1-02-run-manager-evidence.md`（状态机 + 三类预算 + 单工具超时 + 先落库后广播 + 工具事件旁路；遗留：超限不中止主链路、token 回报/输出字节未接线） |
+| B1-03 | `integration_verified` | `evidence/bot-b1/B1-03-sse-v2-evidence.md`（单一事件注册表 12 事件 + v1 载荷字节级不变 + v2 `v:2` 信封 + `approval_pending`/`confirmation_required` 双发 + 运行事件广播 + **执行点预算闸门中止主链路**；遗留：前端消费归 B1-04） |
 
 ### 3.4 双线联合路线图（与 MCP 方案合并视图）
 
@@ -351,6 +352,7 @@ MCP 线：      ▼                    ▼                   ▼                
 - **要点**：事件：`run_started` / `step` / `tool_call` / `confirmation_required` / `delta` / `sources` / `artifact` / `done` / `error`；旧事件名（`delta/sources/done/error`）保持可用（双发或等价映射，评审定）；未知事件忽略策略写入注册表文档；MCP 相关事件（工具调用来源为 `mcp__*`）同表登记，与 MCP 方案 M1-03 **同一注册表、同一 PR 节奏**（S2）。
 - **测试与证据**：SSE 抓包断言事件名与字段；旧客户端兼容用例；与 MCP M1-03 的联合评审记录。
 - **DoD**：`integration_verified`。
+- **状态**：`integration_verified`（2026-09-27）——①`sse_events.go` 单一注册表（v1×8 + v2×4，含版本/家族/别名/载荷字段；未知事件忽略契约写入表头）；②v1 事件名与载荷**字节级不变**，v2 新增 `run_started`/`step`/`confirmation_required`（对象载荷带 `v:2`），`approval_pending` 与 `confirmation_required` **双发**；③运行事件在**落库成功之后**广播（`run_started`/`step`，统一补 `runId`；`tool_call`/`run_finished` 不外发避免双份）；④**预算超限改为执行点闸门**（`admitTool`）：拒绝执行、只发一条 `tool_call_failed{errorCode=budget_exceeded}`、收口 failed、错误抛回循环中止（修正 B1-02 遗留①——原观察者记账式判定晚于执行，实测 5 轮全部执行完才收口）；重复拒绝不重复落库/外发。测试：注册表/信封/映射/错误码/旧客户端模拟 6 例 + 端到端 2 例（帧契约 + 预算中止：1 次执行、1 条超限审计、流以 error 结束无 done）。证据 `docs/plan/evidence/bot-b1/B1-03-sse-v2-evidence.md`。**与 MCP M1-03 同表**（`tool_call_*`/`approval_pending` 不另立名）。遗留：前端消费 v2 归 B1-04；`artifact` 登记未发送（B3-06）。
 
 #### B1-04 前端 SSE 解析升级（前端）
 
@@ -948,3 +950,5 @@ MCP 线：      ▼                    ▼                   ▼                
 | 2026-09-27 | AI 辅助执行 | **B1-01 交付（`integration_verified`）**：新增 `bot_runs`/`bot_steps`/`bot_events` 三表（索引首列含租户；`(run_id,step_index)`、`(run_id,seq)` 唯一）＋`ent generate` 刷新；`service/bot/run.go` `RunStore`（事件取号 + 冲突重试；`FinishRun` 租户维度 Where）与 `service/bot/context.go` 运行上下文；`chatStream` 拆「包装层 + inner」：起运行 → run_id 注入 → 收口（llm 步骤 + run_finished 事件 + 状态，`context.WithoutCancel`），运行态写入失败只告警；`ToolInvocation.run_id` 在读审计与写待审批两条真实路径贯通。测试：迁移 3 例 + 运行态 4 例（含真实 `/api/v1/ai/chat/stream` 运行档案与关闭态零写入），受影响 4 包全绿（7.3s/12.7s/0.4s/9.4s）。证据 `docs/plan/evidence/bot-b1/B1-01-run-archive-evidence.md`。**条件项**：事件名待 BP3 注册表评审冻结（B1-03 一并）。 |
 | 2026-09-27 | AI 辅助执行 | **BP8 交付（完成）**：`bot.redaction_profile` + `bot.budget.{max_steps,max_tokens,max_tool_calls,tool_timeout_seconds,max_output_bytes}` 落配置，YAML 与 `BOT_BUDGET_*`/`BOT_REDACTION_PROFILE` 环境变量双通道；`applyBotDefaults` 对未知档位/非正预算 fail-safe 回落默认（不得把护栏关成「无上限」）；新增 `getEnvIntWithDefault`（非法值忽略而非清零）与 `BotToolTimeout()`。测试 9 例（含表驱动 8 子例），`config` 包全绿（0.9s）。证据 `docs/plan/evidence/bot-b1/BP8-budget-config-evidence.md`。 |
 | 2026-09-27 | AI 辅助执行 | **B1-02 交付（`unit_verified`）**：`service/bot/run_manager.go`（`Budget` 归一化、`Manager`/`Run`：`Emit` 先落库后广播、`RecordStep` 先计数后落库且失败回滚、`ReserveToolCall`/`BeginToolCall` 单工具超时、`AddTokens`、`Finish` 幂等首个终态胜出、`BudgetExceeded` → `error{code=budget_exceeded}` + failed 收口、`TruncateOutput`）；`handlers/ai` 新增 `SetBotRunner` 与 `botToolObserver`（工具事件原样透传 + 预算超限只记一次 + `done/failed` 落 tool 步骤与 `tool_call` 事件）；bootstrap 以 `cfg.Bot.Budget` 构造 Manager。测试：UT 8 例 + 集成 1 例（真实 chat/stream「广播顺序 == DB seq 顺序」且回调时可反查），受影响 4 包全绿（1.3s/8.3s/9.6s/5.1s）。证据 `docs/plan/evidence/bot-b1/B1-02-run-manager-evidence.md`。**遗留 4 项**：超限不中止主链路（归 B1-03）、`AddTokens` 未接 provider 用量、`MaxOutputBytes` 未接工具结果路径、`cancelled` 预留。 |
+| 2026-09-27 | AI 辅助执行 | **B1-03 交付（`integration_verified`）**：①单一 SSE 事件注册表 `handlers/ai/sse_events.go`（v1×8 + v2×4；版本/家族/别名/载荷字段；未知事件忽略契约）——**BP3 事件名冻结落地，与 MCP M1-03 同表**；②v1 载荷字节级不变 + v2 `run_started`/`step`/`confirmation_required`（`v:2` 信封）+ `approval_pending` 双发；③运行事件在落库成功之后广播（`run_started`/`step`，补 `runId`）；`error` 帧支持 `errorCode`（预算/Provider/外部工具码）。④**修正 B1-02 遗留①**：预算判定从「观察者事后记账」上移到**执行点闸门**——超限拒绝执行（无副作用）、只发一条 `tool_call_failed{errorCode=budget_exceeded}`、收口 failed、错误抛回模型循环中止；重复拒绝不重复落库/外发。测试：注册表/信封/映射/错误码/旧客户端模拟 6 例 + 端到端 2 例（**预算中止**：mock provider 连发工具调用 → 仅 1 次真实执行、第 2 次被拒、流以 error 结束且无 `done`；审计 1 条超限 + done/failed 各 1 条）。证据 `docs/plan/evidence/bot-b1/B1-03-sse-v2-evidence.md`。遗留：前端消费 v2 归 B1-04；`artifact` 登记未发送（B3-06）；token 预算仍待用量口径。 |
+| 2026-09-27 | AI 辅助执行 | **B1-03 回归修复（跨线）**：全量回归暴露 MCP 两处集成用例失败（`args_redacted` 退化为 strict keys-only；`git stash` 基线复现 → **非 B1-03 引入**）。根因：B0-06 的归一化把「脱敏档留空」视为未标注并取最保守 strict，而 MCP provider 从未声明该字段 → 所有 MCP 工具审计入参只剩键名，与 MCP A0-11/A1-09 证据矛盾。修复：MCP 工具投影显式声明 `RedactionProfile=default`（口令/token 仍掩码、长值截断）。MCP 两用例恢复通过；「MCP 无 strict 配置入口」登记为已知缺口（证据 §6.1）。 |

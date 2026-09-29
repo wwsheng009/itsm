@@ -225,15 +225,21 @@ func (h *Handler) Chat(c *gin.Context) {
 }
 
 // ChatStream handles POST /api/v1/ai/chat/stream and emits Server-Sent Events.
-// Events:
-//   - event: sources        data: [{objectType,id,title,snippet,score,...}]
-//   - event: delta          data: {"content": "..."}
-//   - event: tool_call_started  data: {id?,tool,provider,server?,phase,status:"started"}
-//   - event: tool_call_finished data: {...,status:"done",summary,durationMs}
-//   - event: tool_call_failed   data: {...,status:"failed",errorCode}
-//   - event: approval_pending   data: {id,tool,provider,server?,phase:"write",status:"pending"}
+// Events（B1-03 起以 `handlers/ai/sse_events.go` 的**单一注册表**为准）：
+//   - event: sources        data: [{objectType,id,title,snippet,score,...}]（v1）
+//   - event: delta          data: {"content": "..."}（v1）
+//   - event: tool_call_started  data: {id?,tool,provider,server?,phase,status:"started"}（v1，tool_call 家族）
+//   - event: tool_call_finished data: {...,status:"done",summary,durationMs}（v1，tool_call 家族）
+//   - event: tool_call_failed   data: {...,status:"failed",errorCode}（v1，tool_call 家族）
+//   - event: approval_pending   data: {id,tool,provider,server?,phase:"write",status:"pending"}（v1，旧名）
+//   - event: confirmation_required data: {v:2, ...同 approval_pending}（v2，与旧名**双发**）
+//   - event: run_started    data: {v:2, runId, entrypoint, conversationId?}（v2；仅有运行档案时发送）
+//   - event: step           data: {v:2, runId, stepIndex, type, payloadRef?, durationMs}（v2；llm/tool 步骤）
 //   - event: done           data: {"conversationId": <id>}（多 Provider 开启/显式覆盖时附加 provider/providerSource）
-//   - event: error          data: {"message": "..."}（provider 解析失败时附加 errorCode，§3.4 契约）
+//   - event: error          data: {"message": "..."}（预算超限附加 errorCode=budget_exceeded；provider 解析失败附加 §3.4 错误码）
+//
+// 兼容承诺：v1 事件名与载荷不变；新增 v2 事件对旧客户端是未知事件，按注册表约定**必须忽略**。
+// `artifact`（B3-06）已登记但本期不发送。
 //
 // M1-03：工具事件为**叠加**语义——最终答案仍由 delta/done 承载；事件丢失时前端按最终消息降级渲染。
 func (h *Handler) ChatStream(c *gin.Context) {
@@ -319,41 +325,46 @@ func (h *Handler) ChatStream(c *gin.Context) {
 	}
 
 	onSources := func(items []map[string]any) {
-		writeEvent("sources", items)
+		writeEvent(SSEEventSources, items)
 	}
 	onDelta := func(delta string) {
-		writeEvent("delta", map[string]string{"content": delta})
+		writeEvent(SSEEventDelta, map[string]string{"content": delta})
 	}
 	// M1-03：工具事件（过程可见）。未知状态一律按 started 下发，保证事件不丢；
 	// 旧客户端遇到未知事件名必须忽略（前端解析 default 分支），故叠加事件是向后兼容的。
 	onTool := func(ev ToolStreamEvent) {
 		writeToolEvent(writeEvent, ev)
 	}
+	// B1-03：运行态事件（run_started/step）与工具事件同源——都在持久化成功之后广播；
+	// 未映射的 run 事件（tool_call/run_finished）不重复外发，避免与 tool_call_* 双份。
+	onRun := func(eventType string, payload map[string]any) {
+		writeSSERunEvent(writeEvent, eventType, payload)
+	}
 
 	// 注入访问者身份：AI 助手主链路，RAG 据此做知识分类可见性过滤（L0 权限边界）
 	chatCtx := knowledgeaccess.WithViewer(c.Request.Context(), knowledgeaccess.Viewer{UserID: userID, Role: role})
 	if !useProviderInfo {
-		convID, _, err := h.svc.ChatStream(chatCtx, tenantID, userID, role, req.Query, req.Limit, req.ConversationID, onSources, onDelta, onTool)
+		convID, _, err := h.svc.ChatStream(chatCtx, tenantID, userID, role, req.Query, req.Limit, req.ConversationID, onSources, onDelta, onTool, onRun)
 		if err != nil {
 			h.svc.logger.Warnw("AI ChatStream 失败", "error", err, "tenantID", tenantID)
-			writeEvent("error", map[string]string{"message": err.Error()})
+			writeEvent(SSEEventError, sseErrorPayload(err))
 			return
 		}
-		writeEvent("done", map[string]int{"conversationId": convID})
+		writeEvent(SSEEventDone, map[string]int{"conversationId": convID})
 		return
 	}
 
 	// BE-7：多 Provider 开启或显式覆盖——解析 provider 并把生效标注写进 done 事件；
 	// 显式覆盖的解析失败在 SSE error 事件内可见地失败（带 errorCode），不回退默认 provider。
-	resolution, convID, err := h.svc.ChatStreamWithProviderInfo(chatCtx, tenantID, userID, role, req.Query, req.Limit, req.ConversationID, provider, onSources, onDelta, onTool)
+	resolution, convID, err := h.svc.ChatStreamWithProviderInfo(chatCtx, tenantID, userID, role, req.Query, req.Limit, req.ConversationID, provider, onSources, onDelta, onTool, onRun)
 	if err != nil {
 		h.svc.logger.Warnw("AI ChatStream 失败", "error", err, "tenantID", tenantID, "provider", provider)
 		if isProviderResolutionError(err) {
 			_, code, message := providerErrorContract(err, provider)
-			writeEvent("error", map[string]string{"message": message, "errorCode": code})
+			writeEvent(SSEEventError, map[string]string{"message": message, "errorCode": code})
 			return
 		}
-		writeEvent("error", map[string]string{"message": err.Error()})
+		writeEvent(SSEEventError, sseErrorPayload(err))
 		return
 	}
 	done := map[string]any{"conversationId": convID}
@@ -361,7 +372,7 @@ func (h *Handler) ChatStream(c *gin.Context) {
 		done["provider"] = resolution.Key
 		done["providerSource"] = resolution.Source
 	}
-	writeEvent("done", done)
+	writeEvent(SSEEventDone, done)
 }
 
 // canUseProviderOverride 判定当前请求能否使用 provider 单次覆盖参数（BE-7 §3.4；P1 演进）：

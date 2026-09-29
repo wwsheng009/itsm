@@ -139,6 +139,16 @@ func newB0Harness(t *testing.T) *b0Harness {
 				TimeoutMs: service.DefaultToolTimeoutMs, MaxOutputBytes: service.DefaultToolMaxOutputBytes,
 				ArgsSchema: map[string]interface{}{"type": "object"},
 			},
+			{
+				// B1-03：读路径桩工具——供「模型发起工具调用 → 预算中止」的端到端用例使用。
+				Name: "stub__list_notes", Description: "列出备注（B1-03 读路径桩）",
+				ReadOnly: true, Resource: "ticket", Action: "read",
+				Provider: "stub", ServerName: "stub", RawToolName: "list_notes",
+				Risk: service.ToolRiskActLow, Category: "ticket",
+				RedactionProfile: service.ToolRedactionDefault, Idempotent: true,
+				TimeoutMs: service.DefaultToolTimeoutMs, MaxOutputBytes: service.DefaultToolMaxOutputBytes,
+				ArgsSchema: map[string]interface{}{"type": "object"},
+			},
 		},
 		exec: &service.ToolExecution{
 			Value:         map[string]interface{}{"noteId": 11},

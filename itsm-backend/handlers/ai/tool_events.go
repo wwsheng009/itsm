@@ -13,6 +13,7 @@ import (
 	"strings"
 
 	"itsm-backend/pkg/redact"
+	"itsm-backend/service/bot"
 )
 
 // 工具事件状态（与 SSE 事件名一一映射，见 handler.writeToolEvent）。
@@ -80,6 +81,9 @@ func toolEventErrorCode(err error) string {
 		return "tool_queue_unavailable"
 	case errors.Is(err, ErrInvocationNotPending):
 		return "invocation_not_pending"
+	case errors.Is(err, bot.ErrBudgetExceeded):
+		// B1-03：执行点预算闸门拒绝（工具未执行，无副作用）。
+		return bot.ErrorCodeBudgetExceeded
 	}
 	var coder errorCoder
 	if errors.As(err, &coder) {

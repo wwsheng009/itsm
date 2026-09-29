@@ -109,6 +109,9 @@ func TestProvider_FaceFiltering(t *testing.T) {
 	require.Equal(t, "read", tool.Action)
 	require.True(t, strings.HasPrefix(tool.Description, "[MCP:github] "))
 	require.NotNil(t, tool.ArgsSchema)
+	// 脱敏档必须显式投影为 default（MCP 无 ITSM 侧标注面；留空会被归一化为 strict，
+	// 使 args_redacted 退化为 keys-only——回归锚点，见 B1-03 证据 §6.1）。
+	require.Equal(t, "default", tool.RedactionProfile)
 
 	// 写工具默认不进面（一期只读先行）。
 	_, ok := provider.Resolve(ctx, 1, "mcp__github__create_issue")
@@ -120,6 +123,7 @@ func TestProvider_FaceFiltering(t *testing.T) {
 	require.True(t, ok)
 	require.False(t, def.ReadOnly)
 	require.Equal(t, "write", def.Action)
+	require.Equal(t, "default", def.RedactionProfile, "写工具的脱敏档同样显式声明")
 
 	// 跨租户：租户 2 只见自己的工具（github/oldserver 的工具不可见）。
 	tenant2Tools := provider.ListTools(ctx, 2)

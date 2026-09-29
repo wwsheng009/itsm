@@ -188,6 +188,12 @@ func (p *Provider) snapshot(ctx context.Context, tenantID int) *toolFace {
 			ServerName:  serverName,
 			RawToolName: record.RawName,
 			Risk:        record.Risk,
+			// 跨线口径（B0-06 归一化的边界）：MCP 工具没有 ITSM 侧脱敏档标注面
+			// （MCP 协议也不提供该字段），若留空会被 `normalizeDefinition` 按「未标注」
+			// 收敛为 strict（只留键名），使 MCP A0-11/A1-09 的「敏感键掩码 + 其余值保留」
+			// 审计口径静默退化。这里显式取 default：口令/token 类键仍强制掩码、长值截断，
+			// 与 MCP 线既有验收证据一致；需要更严档位时再引入 MCP 侧标注字段（记入已知缺口）。
+			RedactionProfile: service.ToolRedactionDefault,
 		}
 		face.byCanonical[definition.Name] = len(face.tools)
 		face.tools = append(face.tools, faceTool{
