@@ -349,13 +349,84 @@ erDiagram
 - **I13**：provider 维度在所有跨客户能力中显式存在；单 provider 部署 = N=1 退化，不存在按 provider 数量分支的代码路径（UI 展示除外）；
 - **A11**：同一套 e2e 用例（建 provider→建客户→分配→工作台→条目操作）在 N=1 与 N=2 下均通过，且 N=1 时无额外 UI/步骤。
 
+### 7.2 多 provider 环境下的业务流转（以工单为例）
+
+#### 归属原则（先定这个，流转才有唯一答案）
+
+> **工单不"选择 provider"——工单归属客户租户，provider 归属由客户租户派生。**
+
+- **唯一真相**：`customer_tenant.provider_tenant_id`（客户由谁服务）；
+- **工单侧冗余快照**：建单时把 `msp_provider_id`（+`is_managed_by_msp`）写入工单，用于历史追溯、按 provider 过滤/统计/考核；客户改挂 provider 时**历史工单保留原快照**，变更需显式"重新归属"操作（审计）（决策 E2）；
+- **直客**（无 provider 的 `saas_customer`）：`is_managed_by_msp=false`，纯租户内闭环，不进入 MSP 流转。
+
+#### 目标端到端流转（客户建单 → 关单）
+
+```mermaid
+sequenceDiagram
+    participant CU as 客户员工(客户租户)
+    participant API as Ticket API(客户租户上下文)
+    participant T as tickets
+    participant PW as Provider 工作台(provider 员工)
+    participant N as 通知
+    CU->>API: POST /tickets（home=客户租户）
+    API->>API: 读 customer.provider_tenant_id（服务关系校验：provider 有效/客户 active）
+    API->>T: 落 is_managed_by_msp=true + msp_provider_id=provider租户（快照）
+    PW->>API: 工作台查询（我的 allocation ∩ 我的 provider 的客户）
+    API-->>PW: 跨客户列表（含客户列、SLA、状态）
+    PW->>API: 指派：assignee ∈ 该 provider ∧ 有该客户 allocation
+    API->>T: 写 assignee_id + managed_by_user_id
+    PW->>API: 条目级处理（回复/改状态，资源租户=客户租户）
+    API->>N: 客户侧通知(客户 membership) + provider 侧通知(被指派人/provider_admin)
+    CU->>API: 关单/评价（客户租户内）
+    API->>API: 审计：actor(membership)+target_tenant(客户)+source(workbench/header)
+```
+
+#### 各环节规则
+
+| 环节 | 规则（目标） | 现状（断点） |
+|---|---|---|
+| 建单 | 客户租户内建单；解析客户 `provider_tenant_id` 落 MSP 快照；provider 无效/客户停用 → 按普通工单处理 | ❌ 完全不读 provider 归属；四字段零写入 |
+| provider 可见 | 工作台按 **"我的 provider 的客户" ∩ "我的有效 allocation"** 收窄；头通道只读；未分配客户 403 | 🟡 仅 `TenantIDEQ(客户租户)`，无 provider 维度；`GetCustomerTicketsForMSP` 忽略 userID、无 allocation 二次校验（**R9**） |
+| 指派 | assignee 必须 ∈ 工单 provider 租户 ∧ 持有该客户 allocation ∧ 客户 active；写 `managed_by_user_id` | ❌ 指派=把调用者自己写成 assignee；不写 MSP 字段；`AssignTickets`/`ReassignTicket` 不校验租户一致性 |
+| 处理 | 条目级授权：provider membership + allocation + 客户租户 RBAC + 条目 allowedActions；资源租户=客户租户 | 🟡 依赖头通道/路由；无条目级 `allowedActions` |
+| 通知 | 客户侧=客户 membership（requester/客户 assignee）；**provider 侧=被指派人 + provider 管理员**（新增分支） | ❌ 无 MSP 分支；provider 仅在被写成 assignee 时被动收到 |
+| SLA/升级/自动化 | **客户租户配置生效**（客户数据闭环）；provider 侧考核/看板为 overlay（决策 E1） | ✅ 已按客户租户（SLA/升级/自动化均客户维度） |
+| 关单/评价 | 客户租户内完成；provider 处理记录保留在工单审计 | ✅ 现状可关单；无 provider 归属记录 |
+| 审计 | actor(账号+membership) + target_tenant + source + provider 快照 | ❌ 审计缺 provider/来源维度 |
+
+#### 现状流转（供对照）
+
+1. 客户建单 → 工单归客户租户，MSP 四字段默认/NULL；
+2. 通知按客户租户 requester/assignee；
+3. provider 员工走 `/api/v1/msp/*`：MSPMiddleware（provider 租户 + msp_role + allocation）→ `GetCustomerTicketsForMSP` 跨租户读；
+4. MSP 指派 = 把 MSP 员工写成客户工单 `assignee_id`；
+5. 解决/关单在客户租户内；**全程无 provider 归属落库、无 provider 通知、无外部工单映射**。
+
+#### 关键风险（新增）
+
+| # | 风险 | 证据 |
+|---|---|---|
+| R9 | **MSP 客户数据读取/指派未做 allocation 二次校验**：`X-Customer-Tenant-ID` 校验只覆盖**头部**；路径参数（`/msp/customers/:id/tickets`）与请求体（`AssignMSPTechnician.customerTenantId`）路径不校验 → 未分配客户可被读取/指派 | `service/ticket_service.go:2495-2517`（userID 未使用）、`handlers/msp/handler.go:202-233,236-260`、`middleware/msp_rbac.go:181-214`（仅 header） |
+| R10 | `MSPAccessValidator`（`ValidateCustomerAccess`）**存在但未接线**（死代码）；`GetTicketsForCustomer`、`MSPFilterByCustomer` 同为死代码 → 新路由复用 service 会绕过授权 | `service/msp_access_validator.go`、`service/msp_allocation_service.go:277-297`、`middleware/msp_middleware.go:178-184` |
+| R11 | 工单 MSP 四字段（`is_managed_by_msp`/`msp_provider_id`/`managed_by_user_id`/`msp_ticket_id`）**零写入**：无法按 provider 过滤/统计/路由/外部映射 | `ent/schema/ticket.go:130-141`；全仓无 setter；仅 `repository/ticket/repository_impl.go:910,962-969` 读取 |
+
+#### 决策点
+
+| # | 决策 | 建议 |
+|---|---|---|
+| E1 | 客户工单的 SLA/升级/工作流配置归属 | 客户租户生效（现状 ✅）；provider 考核看板作为 overlay（P2） |
+| E2 | 工单 provider 归属：快照 vs 动态派生 | **快照 + 显式"重新归属"**（客户改挂 provider 时历史可追溯） |
+| E3 | 是否允许转派给其他 provider | P2；必须显式 + 双向审计 |
+| E4 | `msp_ticket_id`（外部工单号映射） | 有外部系统对接需求时启用（P2） |
+| E5 | 直客（无 provider）工单 | `is_managed_by_msp=false`，不进 MSP 流转 |
+
 ---
 
 ## 8. 迁移路线（从现状到目标，禁止大爆炸）
 
 | 批次 | 主题 | 关键动作 | 依赖 |
 |---|---|---|---|
-| **P0 概念显式化（不改数据模型）** | 把"隐式约定"变成"校验与文档" | ① type 枚举收敛为 3 类 + legacy 映射（文档+校验函数）；② customer 归属校验（`provider_tenant_id` 一致性，R3）；③ allocation 归属校验（R2）；④ 部署模式单一来源 + 启动自检（R4）；⑤ 执行器 ctx 统一（集成分析 §5.2）；⑥ 工作台/过滤器/条目级授权（工作台方案 P0）；⑦ 术语收敛（§5，文档+API 别名） | 无（可独立发布） |
+| **P0 概念显式化（不改数据模型）** | 把"隐式约定"变成"校验与文档" | ① type 枚举收敛为 3 类 + legacy 映射（文档+校验函数）；② customer 归属校验（`provider_tenant_id` 一致性，R3）；③ allocation 归属校验（R2）；④ 部署模式单一来源 + 启动自检（R4）；⑤ 执行器 ctx 统一（集成分析 §5.2）；⑥ 工作台/过滤器/条目级授权（工作台方案 P0）；⑦ 术语收敛（§5，文档+API 别名）；⑧ **MSP 读取/指派的 allocation 二次校验（R9）+ 死代码接线或删除（R10）**；⑨ **工单 MSP 快照写入（R11，建单落 `is_managed_by_msp`/`msp_provider_id`）** | 无（可独立发布） |
 | **P1 Membership 化（结构性）** | 建唯一载体，收敛角色/组织 | ① `memberships` 表 + 回填（home 租户 + 单值 FK 组织 + users.role/msp_role）；② 角色挂 membership（`user_roles` 收敛为平台角色）；③ 权限单源（登录/切换/`/auth/me` DB 计算）；④ 组织唯一约束与复合 FK；⑤ RLS 纳入组织/membership 表；⑥ `data_scope` 决策；⑦ 审计字段统一 | P0 |
 | **P2 多 provider 与治理收尾** | 按产品决策扩展 | ① 选项 B（多 provider）字段与校验；② 共享表治理（messages/模板/is_public）；③ RLS `enforce`；④ 工作台批量/自定义视图；⑤ guard 扩展（成员/关联表一致性） | P1 |
 
@@ -379,6 +450,8 @@ erDiagram
 | A8 | 跨租户写操作仅两类可成功（工作台条目级/平台治理），且均产出含 `target_tenant` 的审计 |
 | A9 | 客户账号无过滤器/无切换器/无工作台（前端与 API 双重拒绝） |
 | A10 | `DEPLOYMENT_MODE` 单一来源：gate 与 seed 模式一致性自检通过（R4） |
+| A11 | 同一套 e2e（建 provider→建客户→分配→工作台→条目操作）在 N=1 与 N=2 下均通过，N=1 无额外 UI/步骤（§7.1） |
+| A12 | 多 provider 工单流转：客户建单落 provider 快照；provider 工作台可见（provider ∩ allocation 收窄）；指派校验 assignee ∈ provider ∧ allocation；通知双投递；跨 provider/未分配客户在 API 层被拒绝（§7.2） |
 
 **反例（必须拒绝）**：
 
@@ -404,6 +477,7 @@ erDiagram
 | D6 | `data_scope=department` | 实现（membership 子树）/ 下线 | 数据范围能力承诺 |
 | D7 | `msp_role` 并入 membership 的时机 | P1 同批 / P2 | 迁移复杂度 |
 | D8 | 工作台批量操作的边界（跨客户） | 低危动作 + 护栏（建议）/ 不开放 | 效率与风险 |
+| D9 | 工单流转决策（E1–E5） | 见 §7.2：客户 SLA 归属 / 快照 vs 派生 / 转派 / 外部工单映射 / 直客 | 工单与 provider 的关联语义 |
 
 ---
 
@@ -437,3 +511,4 @@ erDiagram
 | v0.2 | 2026-09-29 | 新增 §2.1：Provider（`msp_provider`）与 Customer（`msp_customer`）的定位、功能清单（身份/角色映射/客户范围/能力面/生命周期）、逐维度对比表、与 Platform 的区别、常见误解澄清 |
 | v0.3 | 2026-09-29 | 新增 §2.2：默认租户（`code=default`）部署模式矩阵——"平台与服务商同体"（saas_msp 下 default=provider 租户且承载 super_admin），区分靠角色而非租户；风险 R7（模式切换原地改写类型）/R8（治理与服务商审计难区分）；方案 A/B |
 | v0.4 | 2026-09-29 | 新增 §7.1 Superset 判定：多 provider 架构是单 provider 的超集（N=1 退化），逐层覆盖表；三个必须显式化的差异（默认租户语义/平台与服务商分离/provider 维度约束）；建议"B 的模型 + A 的部署预设"；新增不变量 I13 与验收 A11 |
+| v0.5 | 2026-09-29 | 新增 §7.2 多 provider 业务流转（以工单为例）：归属原则（工单归客户租户、provider 由客户派生+快照）、目标端到端时序、各环节规则与现状断点对照；新增风险 R9（路径/请求体绕过 allocation 校验）/R10（MSPAccessValidator 等死代码）/R11（工单 MSP 四字段零写入）；决策点 E1–E5；P0 增补 ⑧⑨、验收 A11/A12、决策 D9 |
