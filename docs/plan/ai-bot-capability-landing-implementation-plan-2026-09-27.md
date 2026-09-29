@@ -222,6 +222,7 @@ MCP 线：      ▼                    ▼                   ▼                
 | B1-07 | `unit_verified` | `evidence/bot-b1/B1-07-confirmation-drawer-evidence.md`（确认抽屉：脱敏参数/预览快照/倒计时/原因必填/只读态 + AIChat 接线；组件 10 例 + 回归 34 例） |
 | B1-08 | `unit_verified` | `evidence/bot-b1/B1-08-evidence-panel-evidence.md`（RunStatusBar + EvidencePanel：v2 事件驱动、旧后端回退时间线、目标跳转仅限已核实路由；13 例 + 回归 46 例；缺口 G-B1-08-1/2 登记） |
 | B1-09 | `unit_verified` | `evidence/bot-b1/B1-09-approval-page-evidence.md`（审批页：目标对象列 + 确认时限倒计时 + 过期禁用 + dry-run 快照；4 例 + 回归 56 例） |
+| B1-10 | `flow_verified` | `evidence/bot-b1/B1-10-flow-acceptance-evidence.md`（全链路验收：确认→执行→回读→run-summary + 重启恢复保 run 关联；AB1-01～10 判定汇总 + run-summary 模板定稿；条件项：浏览器 E2E 归 BT-09/B4-01） |
 
 ### 3.4 双线联合路线图（与 MCP 方案合并视图）
 
@@ -428,6 +429,8 @@ MCP 线：      ▼                    ▼                   ▼                
 - **要点**：一条「对话 → 确认 → 执行 → 回读」链路（含 SSE 抓包）、一条队列重启恢复用例、run-summary 模板定稿。
 - **测试与证据**：AB1-01～AB1-09 逐项证据；QA 抽检。
 - **DoD**：`flow_verified`。
+- **状态**：`flow_verified`（条件达标，2026-09-27）——新增 `itsm-backend/tests/botintegration/b1_acceptance_test.go`：①`TestB1FlowAcceptance_ConfirmExecuteVerifyWithRunArchive`：`StartRun → 写工具待审批（run_id 贯通 + 脱敏断言）→ AppendStep/Event（确认单档案）→ ApproveTool → 队列执行 → SetVerifier 回读 verified → FinishRun`，并以 `runSummary`（runId/status/entrypoint/conversationId/stepCount/eventCount/toolInvocations/lastEventType）固定 **run-summary 模板**；②`TestB1FlowAcceptance_QueueRestartKeepsRunLink`：「approved+pending 带 run_id」落库 → 新队列实例恢复 → 恰好执行一次（`attempt_count=1`）→ 重复恢复不双执行 → 档案仍可回溯。AB1-01～10 逐项判定与模板见 `docs/plan/evidence/bot-b1/B1-10-flow-acceptance-evidence.md`。执行记录：botintegration **ok 7.7s**；回归 botintegration/handlers/ai/service/bot 全绿（`service` 包既有抖动 `TestBiz_ListProcessInstancesByTenant` 与本线无交集）；前端 56 例全绿；`tsc --noEmit` 干净。条件项：浏览器级 E2E/截图归 BT-09/B4-01（与 M1-10 同口径）。
+
 ### 4.3 B2：Bot 模板与工具授权（P1）
 
 #### B2-01 模板/授权模型与管理 API（后端）
@@ -631,6 +634,8 @@ MCP 线：      ▼                    ▼                   ▼                
 | AB1-08 | 证据面板渲染 step/tool_call 时间线与 target 跳转；状态条显示 run 状态/预算 | B1-08 | 组件测试 | 测试输出 | `unit_verified` |
 | AB1-09 | 审批页 risk 徽标、目标跳转、dry-run 快照、过期倒计时可用 | B1-09 | 组件测试 | 测试输出 | `unit_verified` |
 | AB1-10 | 「对话 → 确认 → 执行 → 回读」全链路 E2E + run-summary；既有回归通过 | B1-10 | E2E | E2E 报告、抓包 | `flow_verified` |
+
+> **B1 判定（2026-09-27）**：AB1-01～AB1-09 全部达标（其中 AB1-01/02/03/05/06 为 `integration_verified`，AB1-04/07/08/09 为 `unit_verified`）；AB1-10 达标。条件项 = 浏览器级 E2E 与截图（归 BT-09/B4-01，与 M1-10 同口径）。**B1 里程碑判定 = `flow_verified`（条件达标）**，判定与证据索引见 `docs/plan/evidence/bot-b1/B1-10-flow-acceptance-evidence.md` §1/§4。
 
 #### B2（目标：`flow_verified`）
 
@@ -970,3 +975,4 @@ MCP 线：      ▼                    ▼                   ▼                
 | 2026-09-27 | AI 辅助执行 | **B1-07 交付（`unit_verified`）**：对话内确认抽屉——①新增 `components/ai/confirmation-drawer.tsx`（脱敏参数、dry-run 预览快照、`expires_at` 倒计时、拒绝原因必填、通过/拒绝、过期/已处理只读；纯函数 `deriveConfirmationView` 采用「已决优先于 pending 兜底」防重复操作，`formatRemaining` 天/时/分/秒）；②`tool-approval-card.tsx` 增可选 `onRequestConfirm`（未注入=一期行为不变，注入后仅 pending 且未过期出现「确认 / 拒绝」，文案自适应）；③`AIChat.tsx` 消息项托管抽屉（复用卡片已拉取详情，不新增请求），决策走 `aiApproveTool`，后端过期/冲突/队列不可用错误在抽屉内可见；④`ai-api.ts` 的 `ToolApproval` 补 `confirmationState`/`expiresAt`。测试：抽屉 10 例 + AI 组件回归 34 例全绿，`tsc --noEmit` 干净。证据 `docs/plan/evidence/bot-b1/B1-07-confirmation-drawer-evidence.md`。遗留：手工 E2E 截图、`cancelled` 触发点、历史消息不重放抽屉。 |
 | 2026-09-27 | AI 辅助执行 | **B1-08 交付（`unit_verified`）**：过程可见性组件——①新增 `components/ai/run-status-bar.tsx`（run 状态/生效实例/步骤数/最近步骤耗时/已运行计时；预算段仅有上限时渲染）与 `components/ai/evidence-panel.tsx`（`mergeToolEvents` 配对工具调用、步骤按 `stepIndex` 排序、目标跳转 + 依据引用、空态/错误态）；②`AIChat.tsx` 捕获 v2 `onRunStarted`/`onStep`（stepIndex 去重 + 上限 100），`done`/`error` 置终态；有 v2 步骤时用证据面板、否则回退 M1-04 时间线（旧后端零影响）；待审批卡片 `onLoaded` 汇总 `detailsByInvocation`（零额外请求）；③`ai-api.ts` 补 `targetType/targetId/supportRef`（后端 `handlers/ai/entity.go:76-78` 已有）。跳转仅对已核实路由（tickets/incidents/cmdb cis 详情）生成，未知类型退化纯文本。测试：13 例 + AI 组件回归 46 例全绿，`tsc --noEmit` 干净。证据 `docs/plan/evidence/bot-b1/B1-08-evidence-panel-evidence.md`。缺口登记：G-B1-08-1（读路径工具事件不含目标/依据字段）、G-B1-08-2（事件不含预算计数）、手工 E2E 截图归 B1-10。 |
 | 2026-09-27 | AI 辅助执行 | **B1-09 交付（`unit_verified`）**：审批页增强——①**目标对象列**（`targetType#targetId`，仅对已核实路由 `/tickets/:id`、`/incidents/:id`、`/cmdb/cis/:id` 生成链接，未知类型退化纯文本；`supportRef` 以「依据 …」标签展示）；②**确认时限列**（`expires_at` 倒计时，仅当列表存在「待审批 + expiresAt」行时起 1s 定时器；过期置红）；③**过期禁用**（通过/驳回 disabled + Tooltip「不会被执行，也不会被补批准；请重新发起」，与 B1-05 状态机口径一致）；④**dry-run 预览快照**（新增 `components/ai/dry-run-snapshot.tsx`，展开行按需拉取详情，展示预览结果 + 脱敏参数，不轮询）；⑤复用抽屉的 `formatRemaining`/`targetUrl` 保证两处口径一致；⑥`ai-api.ts` 补 `dryRun/verifyState/verifyNote/attemptCount/lastErrorCode` 类型。测试：4 例新增 + 审批页/AI 组件回归 56 例全绿，`tsc --noEmit` 干净。证据 `docs/plan/evidence/bot-b1/B1-09-approval-page-evidence.md`。 |
+| 2026-09-27 | AI 辅助执行 | **B1-10 交付（B1 里程碑 = `flow_verified` 条件达标）**：新增 `itsm-backend/tests/botintegration/b1_acceptance_test.go` 两用例——①全链路「对话发起 → 确认单（run_id 贯通 + 脱敏）→ 审批通过 → 队列执行 → 回读校验（verify_state=verified）→ 运行收口」，并以 `runSummary` 固定 **run-summary 模板**（runId/status/entrypoint/conversationId/stepCount/eventCount/toolInvocations/lastEventType）；②「approved+pending 带 run_id」重启恢复：新队列实例恢复 → 恰好一次执行（attempt_count=1）→ 重复恢复不双执行 → 档案仍可回溯。AB1-01～10 逐项判定、`service` 包既有抖动登记、条件项（浏览器 E2E/截图归 BT-09/B4-01）见 `docs/plan/evidence/bot-b1/B1-10-flow-acceptance-evidence.md`。 |
