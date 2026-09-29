@@ -6,6 +6,8 @@ import (
 
 	"itsm-backend/ent"
 	"itsm-backend/ent/approvalworkflow"
+	"itsm-backend/ent/bottemplate"
+	"itsm-backend/ent/bottoolgrant"
 	"itsm-backend/ent/citype"
 	"itsm-backend/ent/group"
 	"itsm-backend/ent/menu"
@@ -332,6 +334,54 @@ func cloneTenantTemplates(ctx context.Context, c *ent.Client, sourceID, tenantID
 				SetOverrides(item.Overrides).SetTenantID(tenantID).
 				SetProcessDefinitionID(targetDefinition.ID).Save(ctx); err != nil {
 				return fmt.Errorf("provision process binding: %w", err)
+			}
+		}
+	}
+
+	// Bot 模板与授权（B2-01 默认助手 + B3 场景 pilot）：与菜单/SLA 同级的
+	// 租户产品基线，随开通克隆；同 slug 已存在时跳过模板字段（管理员修改优先），
+	// 授权按 (bot, tool) 去重补齐。
+	botTemplates, err := c.BotTemplate.Query().Where(bottemplate.TenantIDEQ(sourceID)).All(ctx)
+	if err != nil {
+		return err
+	}
+	for _, item := range botTemplates {
+		target, err := c.BotTemplate.Query().
+			Where(bottemplate.SlugEQ(item.Slug), bottemplate.TenantIDEQ(tenantID)).
+			Only(ctx)
+		if ent.IsNotFound(err) {
+			target, err = c.BotTemplate.Create().
+				SetSlug(item.Slug).SetName(item.Name).SetAudience(item.Audience).
+				SetRiskLimit(item.RiskLimit).SetEntrypointsJSON(item.EntrypointsJSON).
+				SetSystemPromptRef(item.SystemPromptRef).SetStatus(item.Status).
+				SetTenantID(tenantID).Save(ctx)
+		}
+		if err != nil {
+			return fmt.Errorf("provision bot template %s: %w", item.Slug, err)
+		}
+		grants, err := c.BotToolGrant.Query().
+			Where(bottoolgrant.TenantIDEQ(sourceID), bottoolgrant.BotIDEQ(item.ID)).
+			All(ctx)
+		if err != nil {
+			return fmt.Errorf("load bot template %s grants: %w", item.Slug, err)
+		}
+		for _, grant := range grants {
+			exists, err := c.BotToolGrant.Query().Where(
+				bottoolgrant.TenantIDEQ(tenantID),
+				bottoolgrant.BotIDEQ(target.ID),
+				bottoolgrant.ToolNameEQ(grant.ToolName),
+			).Exist(ctx)
+			if err != nil {
+				return err
+			}
+			if exists {
+				continue
+			}
+			if _, err := c.BotToolGrant.Create().
+				SetToolName(grant.ToolName).SetRiskLimit(grant.RiskLimit).
+				SetArgsPolicyJSON(grant.ArgsPolicyJSON).
+				SetTenantID(tenantID).SetBotID(target.ID).Save(ctx); err != nil {
+				return fmt.Errorf("provision bot grant %s/%s: %w", item.Slug, grant.ToolName, err)
 			}
 		}
 	}
