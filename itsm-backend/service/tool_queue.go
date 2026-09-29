@@ -28,6 +28,8 @@ type ToolQueue struct {
 	tickets     *TicketService
 	ticketTypes *TicketTypeService
 	logger      *zap.SugaredLogger
+	// B1-06：执行后回读校验器（未注入时终态 verify_state=skipped）。
+	verifier ToolVerifier
 }
 
 // ErrToolQueueFull 队列已满（fail-closed：调用方必须把审批留在 pending 可重试，不得静默丢弃）。
@@ -48,6 +50,9 @@ func NewToolQueue(client *ent.Client, tools *ToolRegistry, capacity int, logger 
 // SetTicketTypeService 注入工单类型服务，供 create_ticket_type 审批通过后执行。
 func (q *ToolQueue) SetTicketTypeService(s *TicketTypeService) { q.ticketTypes = s }
 
+// SetVerifier 注入执行后回读校验器（B1-06）；未注入时终态落 verify_state=skipped。
+func (q *ToolQueue) SetVerifier(v ToolVerifier) { q.verifier = v }
+
 // Enqueue 非阻塞入队；队列满时返回 ErrToolQueueFull（fail-closed）。
 //
 // 历史行为是「满则静默丢弃」，会让已批准的写工具永久停在 approved 且永不执行——
@@ -67,6 +72,18 @@ func (q *ToolQueue) worker() {
 		startedAt := time.Now()
 		inv, err := q.client.ToolInvocation.Get(ctx, job.InvocationID)
 		if err != nil {
+			cancel()
+			continue
+		}
+		// B1-06：以条件状态迁移抢占任务（pending → running + attempt_count+1）。
+		// 重复恢复/并发消费时只有一个消费者能抢占成功，避免写工具被双执行。
+		claimed, claimErr := q.claimForExecution(ctx, inv.ID, inv.TenantID)
+		if claimErr != nil {
+			q.logger.Errorw("抢占确认单失败", "invocation_id", inv.ID, "error", claimErr)
+			cancel()
+			continue
+		}
+		if !claimed {
 			cancel()
 			continue
 		}
@@ -220,21 +237,51 @@ func (q *ToolQueue) finalize(ctx context.Context, invocationID int, res interfac
 			SetStatus("failed").
 			SetError(redact.Summary(err.Error(), 512)).
 			SetDurationMs(int(durationMs)).
-			SetErrorCode(errorCodeOf(err))).
+			SetErrorCode(errorCodeOf(err)).
+			// B1-06：最近一次消费错误码（与 error_code 同值，供队列恢复/告警按列筛选）。
+			SetLastErrorCode(errorCodeOf(err))).
 			Save(ctx); updateErr != nil {
 			q.logger.Errorw("Failed to update tool invocation status to failed", "invocation_id", invocationID, "error", updateErr)
 		}
 		return
 	}
 	out, _ := json.Marshal(res)
+	verifyState, verifyNote := VerifyStateSkipped, ""
+	if q.verifier != nil {
+		// B1-06：回读校验。失败只影响 verify_state（业务执行已成功），不改变终态语义。
+		verifyState, verifyNote = q.verifyResult(invocationID, res)
+	}
 	if _, updateErr := applySource(q.client.ToolInvocation.UpdateOneID(invocationID).
 		SetStatus("done").
 		SetResult(string(out)).
 		SetDurationMs(int(durationMs)).
-		SetOutputSummary(redact.ValueSummary(res, 512))).
+		SetOutputSummary(redact.ValueSummary(res, 512)).
+		SetVerifyState(verifyState).
+		SetVerifyNote(verifyNote)).
 		Save(ctx); updateErr != nil {
 		q.logger.Errorw("Failed to update tool invocation status to done", "invocation_id", invocationID, "error", updateErr)
 	}
+}
+
+// withInvocationUser 把发起审批的用户ID回填进参数，让 ToolRegistry 能正确归属
+// verifyResult 读取确认单的落库参数并执行回读校验（B1-06）。
+//
+// 说明：参数以 `tool_invocations.arguments` **落库快照**为准（审批后模型不可改参），
+// 校验器只看执行真源，避免与请求侧内存参数漂移。
+func (q *ToolQueue) verifyResult(invocationID int, result interface{}) (string, string) {
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	inv, err := q.client.ToolInvocation.Get(ctx, invocationID)
+	if err != nil {
+		return VerifyStateSkipped, "读取确认单失败，跳过回读"
+	}
+	var args map[string]interface{}
+	_ = json.Unmarshal([]byte(inv.Arguments), &args)
+	state, note := q.verifier.Verify(ctx, inv.TenantID, inv.ToolName, args, result)
+	if state == "" {
+		state = VerifyStateSkipped
+	}
+	return state, note
 }
 
 // withInvocationUser 把发起审批的用户ID回填进参数，让 ToolRegistry 能正确归属

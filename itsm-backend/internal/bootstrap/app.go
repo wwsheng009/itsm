@@ -751,6 +751,17 @@ func NewApplication() *Application {
 	toolQueue := service.NewToolQueue(client, toolRegistry, 100, sugar)
 	// 写工具（create_ticket/update_ticket/create_ticket_type）需要领域服务支撑；ticketService 已就绪，此处注入。
 	toolRegistry.SetTicketService(ticketService)
+	// B1-06：写工具执行后回读校验（update_ticket 比对状态/处理人；create_ticket 校验已创建）。
+	toolQueue.SetVerifier(service.NewTicketWriteVerifier(ticketService))
+	// B1-06：启动恢复——把「已批准但未执行」的确认单重新入队（进程重启/崩溃后不丢单）。
+	// 消费端以条件状态迁移抢占，重复恢复不会造成双执行。
+	if recovered, recErr := toolQueue.RecoverPending(context.Background(), 200); recErr != nil {
+		zap.L().Warn("工具队列启动恢复未完全完成",
+			zap.Int("found", recovered.Found), zap.Int("enqueued", recovered.Enqueued), zap.Error(recErr))
+	} else if recovered.Enqueued > 0 {
+		zap.L().Info("工具队列启动恢复完成",
+			zap.Int("found", recovered.Found), zap.Int("enqueued", recovered.Enqueued))
+	}
 	// P1-3：CMDB 关系类工具（get_ci/get_ci_relationships/create_ci_relationship/delete_ci_relationship/get_ci_impact）需要 CIRelationshipService
 	toolRegistry.SetCIRelationshipService(ciRelationshipService)
 	// P1-4：影响分析 AI 解释服务（可选注入；LLM/Redis 任意缺失 → fail-open 不影响主流程）

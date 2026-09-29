@@ -37,6 +37,7 @@ type stubProvider struct {
 
 	mu    sync.Mutex
 	calls []string
+	err   error
 }
 
 func (p *stubProvider) ProviderName() string { return "stub" }
@@ -56,8 +57,19 @@ func (p *stubProvider) Resolve(_ context.Context, _ int, name string) (*service.
 func (p *stubProvider) Execute(_ context.Context, _ int, name string, _ map[string]interface{}) (*service.ToolExecution, error) {
 	p.mu.Lock()
 	p.calls = append(p.calls, name)
+	err := p.err
 	p.mu.Unlock()
+	if err != nil {
+		return nil, err
+	}
 	return p.exec, nil
+}
+
+// setExecErr 注入/清除执行错误（B1-06 队列失败终态用例使用；并发安全）。
+func (p *stubProvider) setExecErr(err error) {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	p.err = err
 }
 
 // ExecuteApprovedWrite 声明本 provider 支持「审批通过后执行写工具」（M1-02 的 WriteCapableProvider）。
