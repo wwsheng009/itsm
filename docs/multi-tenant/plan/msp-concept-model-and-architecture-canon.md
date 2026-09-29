@@ -23,7 +23,7 @@
 | 客户层 | Customer（被服务方/直客） | customer 租户（type=customer，含 `provider_tenant_id` 归属） |
 | 关系层 | Membership / Allocation / Scope / Filter | membership 表（账号↔租户↔组织↔角色）；allocation（provider↔customer↔员工）；会话作用域；视图过滤器 |
 
-> **Provider 与 Customer 的定位、功能与区别**（功能清单、逐维度对比、常见误解澄清）：详见 **§2.1**。
+> **Provider 与 Customer 的定位、功能与区别**（功能清单、逐维度对比、常见误解澄清）：详见 **§2.1**；**默认租户（`code=default`）与"平台/服务商同体"的部署模式矩阵**：详见 **§2.2**。
 
 **与现状的差距**（本文 §4 全表）：`type` 枚举 7 值需收敛为 3 类 + legacy 映射；membership 表**不存在**（角色/组织挂不上）；`parent_tenant_id`/`msp_provider_id` 需二选一；`MSPAllocation` 需补 provider 归属；执行器/RLS/审计需统一挂 tenantctx。
 
@@ -154,6 +154,42 @@
 | "`msp_role=customer_user` 表示客户用户" | 🟡 该值为 legacy/占位（映射 `end_user`）；客户用户实际不依赖 `msp_role`，且**不满足** IsMSP 条件 |
 | "provider 能看到所有客户" | ❌ 只能看到**已分配**客户（AllowedCustomers）；未分配 → 403 |
 | "服务商必须靠切换器工作" | ❌ 日常是**工作台 + 全局过滤器 + 条目级操作**；切换仅用于深度操作（I9） |
+
+### 2.2 默认租户（`code=default`）："平台与服务商同体"的现状与拆分
+
+**结论：当前不是"默认平台租户 + 默认 provider 租户"两个租户，而是"一个默认租户按部署模式扮演不同角色"。**
+
+| 部署模式 | 默认租户（`code=default`）的类型与名称 | 平台管理员（super_admin）住在哪 | 客户租户 | MSP 路由 |
+|---|---|---|---|---|
+| `private` | `internal`（"Default Tenant"） | 默认租户 | 无（单租户自用） | ❌ 404 |
+| `saas` | `internal`（"SaaS Platform Tenant"） | 默认租户 | 额外创建（`saas_customer`） | ❌ 404 |
+| `saas_msp` | **`msp_provider`（"MSP Provider Tenant"）** | **同一个默认租户**（provider 租户） | 额外创建（`msp_customer`） | ✅ |
+
+**证据**：
+
+- `seedDefaultTenant` 只创建/维护一行 `code=default`：`saas_msp` 时 `rootType=msp_provider`，其余模式 `internal`；**已存在的 default 租户会被原地改写类型**（`pkg/seeder/seeder.go:784-833`，尤其 `:800-807`）；
+- `seedAdmin`/bootstrap 把 `super_admin` 管理员建在 default 租户内（`pkg/seeder/seeder.go:849-896`、`pkg/bootstrap/token.go:141-151`）；
+- `saas_msp` 下 seed **只建 provider 租户、不建客户**（`pkg/seeder/seeder_test.go:159-178`）；
+- 平台管理员**不自动拥有 MSP 身份**：`RequireMSPPermission` 无 admin 旁路，`IsMSP` 必须"provider 租户类型 + `msp_role`"（`middleware/msp_rbac.go:127-137`、`middleware/msp_middleware.go:91-96`）；admin 只能走 `/msp/status` 的"管理员模式"（`handlers/msp/handler.go:48-70`）；
+- default 租户受特殊保护：`code=default` 不可被暂停/过期（`handlers/tenant/handler.go:24-50`）。
+
+**理解要点（与"两个默认租户"的差异）**：
+
+1. `saas_msp` 下**平台管理与服务商运营同体**：同一个租户既是"服务商租户"（承载 provider 员工与 `/msp/*` 能力），又承载平台管理员账号（`super_admin`）；
+2. 区分二者的不是租户，而是**角色**：`super_admin`（平台治理，无 msp_role → 非 MSP 员工）vs `provider_admin/provider_agent`（服务商员工，有 msp_role → IsMSP）；
+3. 客户**不是**默认租户的一部分——每个客户是独立创建的 `msp_customer` 租户。
+
+**风险与目标建议**：
+
+| # | 风险 | 说明 |
+|---|---|---|
+| R7 | 部署模式切换**原地改写** default 租户类型（`internal ⇄ msp_provider`） | 同一行数据语义漂移；对已运行实例切换模式可能造成 provider/平台语义混乱 |
+| R8 | 平台与服务商**同体**：权限边界完全依赖角色字符串 | 审计上"平台治理操作"与"服务商操作"难以区分；平台管理员可被误配 `msp_role` 而获得 MSP 能力 |
+
+**目标（并入 D1/D5 决策）**：
+
+- **方案 A（单 provider 部署，建议 P0）**：明确"default 租户 = provider 租户"，平台管理员以 `super_admin` 角色（无 `msp_role`）区分；加启动自检（模式与 default 类型一致、provider 唯一）+ 文档化；
+- **方案 B（多 provider / 平台独立，P2 可选）**：显式拆分"平台租户（internal）+ provider 租户"，平台管理员归属平台租户，通过 membership 治理 provider；default 租户不再兼任双角色。
 
 ---
 
@@ -319,11 +355,11 @@ erDiagram
 
 | # | 决策 | 选项 | 影响 |
 |---|---|---|---|
-| D1 | 单 provider vs 多 provider | A 单 provider 部署（建议 P0）/ B 多 provider | allocation 字段、RBAC/报表/审计收窄 |
+| D1 | 单 provider vs 多 provider | A 单 provider 部署（建议 P0）/ B 多 provider（详见 §2.2 方案 A/B） | allocation 字段、RBAC/报表/审计收窄 |
 | D2 | `saas_customer`（直客）是否允许"无 provider" | 允许（显式标记）/ 统一挂默认 provider | customer 归属约束 |
 | D3 | 通知模板/`messages` 是否租户化 | 租户化 / 平台共享（登记） | 客户自定义文案能力 |
 | D4 | 账号唯一性 vs 身份合并 | 保持全局唯一 + `identity_key`（建议）/ 改租户内唯一 | 登录与账号模型 |
-| D5 | 平台管理员是否必须有 membership | 是（建议）/ 保留 users.role 特例 | 平台治理审计 |
+| D5 | 平台管理员是否必须有 membership | 是（建议）/ 保留 users.role 特例（现状：与 provider 同体，详见 §2.2） | 平台治理审计 |
 | D6 | `data_scope=department` | 实现（membership 子树）/ 下线 | 数据范围能力承诺 |
 | D7 | `msp_role` 并入 membership 的时机 | P1 同批 / P2 | 迁移复杂度 |
 | D8 | 工作台批量操作的边界（跨客户） | 低危动作 + 护栏（建议）/ 不开放 | 效率与风险 |
@@ -358,3 +394,4 @@ erDiagram
 |---|---|---|
 | v0.1 | 2026-09-29 | 首版：15 个概念 Canon 定义；四层分层与 6 条边界规则；Canonical ER + 12 条不变量；概念→现状→目标映射表（14 行）；术语收敛与废弃清单；子系统挂接规范；部署模式与单/多 provider 决策；P0/P1/P2 迁移路线；验收 A1–A10 与反例；开放决策 D1–D8；文档职责分工 |
 | v0.2 | 2026-09-29 | 新增 §2.1：Provider（`msp_provider`）与 Customer（`msp_customer`）的定位、功能清单（身份/角色映射/客户范围/能力面/生命周期）、逐维度对比表、与 Platform 的区别、常见误解澄清 |
+| v0.3 | 2026-09-29 | 新增 §2.2：默认租户（`code=default`）部署模式矩阵——"平台与服务商同体"（saas_msp 下 default=provider 租户且承载 super_admin），区分靠角色而非租户；风险 R7（模式切换原地改写类型）/R8（治理与服务商审计难区分）；方案 A/B |
