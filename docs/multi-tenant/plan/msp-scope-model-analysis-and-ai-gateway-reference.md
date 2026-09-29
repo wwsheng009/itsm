@@ -386,6 +386,82 @@ Allow = AuthN
 
 ---
 
+## 附录 B：Q7 详细设计（服务方写权限差异化）
+
+### B.1 问题原文
+
+> **服务方写权限是否按客户合同差异化？**
+> 建议：P1 预留，默认不开；开启需审计与客户确认。
+
+背景：§3.2 的基线是"工单读写 + 知识/CMDB/服务目录只读 + `msp_manager` 开通客户侧账号"。但真实 MSP 合同差异很大：
+
+| 合同形态 | 需要的权限 |
+|---|---|
+| 只代工单（最常见） | 基线即可 |
+| 只读协办（客户自己处理，服务方看单/评论） | 基线再降级：`ticket:read` + 评论 |
+| 全托管（CMDB/资产/变更也交给服务方） | 需要 `cmdb:write`、`change:write` 等 |
+| 临时项目（迁移/上线支持） | 需要在**限期内**临时提权，到期回收 |
+
+问题本质：**"一刀切"满足不了合同差异；但放开来又会破坏"最小权限"与"服务方不得越权"的边界。**
+
+### B.2 三个选项
+
+| 选项 | 机制 | 优点 | 缺点 |
+|---|---|---|---|
+| A 全局一刀切 | 所有客户作用域同一套权限 | 最简、无新表 | 不满足差异化；只能靠"给服务方建客户本地账号"绕过（破坏单账号模型） |
+| B 作用域授权表（grants） | `membership_scope_grants`（resource/action/有效期/授予人） | 精确到单权限、可到期、可审计、可绑定合同号 | 新表 + 新判定逻辑；与 RBAC 形成"双源" |
+| **C 客户侧自定义角色（推荐首选）** | 客户租户 admin 创建/调整角色（如"MSP 全托管"），服务方作用域的 `membership.role` 指向该角色 | **零新表**，复用 RBAC/菜单/审计；与"角色即权限包"一致 | 粒度是"角色"而非单权限；临时提权需建临时角色（可用 membership 的到期时间兜底） |
+
+**推荐：C 为主、B 为辅**——先用"客户租户内的角色"表达合同差异；仅当出现"限时/单次/必须绑定合同号"的提权需求时，再引入 B。
+
+### B.3 通用安全约束（无论选 B 或 C）
+
+1. **上限约束**：服务方在客户作用域的权限 ≤ 客户租户内该角色的权限；grants（B）只能是角色权限的**子集**，不得突破；
+2. **授予方**：客户租户 `admin`（本租户内，针对服务方作用域）或平台管理员；**服务方不得自我扩权**（`msp_manager` 也不行）；
+3. **生效时机**：角色/授权变更后需**重新登录或重新切换作用域**才生效（对齐 ai-gateway"membership 变更需重新签发会话"，避免运行期权限漂移）；
+4. **审计**：`membership.role_change` / `scope_grant.grant|revoke`，必填 reason（合同号/工单号）与 before/after；
+5. **到期（B）**：`expires_at` 到期自动失效（惰性判定 + 后台回收任务），避免"离职/合同结束后仍持有权限"；
+6. **错误码**：`SCOPE_GRANT_REQUIRED`（403，响应附"所需能力 + 当前角色"），前端可提示"联系客户管理员授权"。
+
+### B.4 B 方案 DDL（备选，触发时启用）
+
+```sql
+CREATE TABLE membership_scope_grants (
+  id            bigserial PRIMARY KEY,
+  membership_id bigint NOT NULL REFERENCES user_tenant_memberships(id),
+  resource      varchar(64) NOT NULL,   -- ticket | cmdb | change | knowledge | user | report ...
+  action        varchar(32) NOT NULL,   -- read | write | approve | export
+  granted_by    int  NOT NULL REFERENCES users(id),
+  reason        text NOT NULL,          -- 合同号 / 工单号（审计必填）
+  granted_at    timestamptz NOT NULL DEFAULT now(),
+  expires_at    timestamptz NULL,
+  revoked_at    timestamptz NULL,
+  revoked_by    int  NULL REFERENCES users(id)
+);
+CREATE UNIQUE INDEX uq_scope_grant_live
+  ON membership_scope_grants (membership_id, resource, action) WHERE revoked_at IS NULL;
+```
+
+### B.5 默认基线（不启用差异化时）
+
+`ticket:read/write`、`knowledge:read`、`cmdb:read`、`service_catalog:read`；`msp_manager` 额外 `user:write`（限客户侧角色）。
+
+### B.6 验收用例（B/C 通用）
+
+1. 默认：服务方尝试 `cmdb:write` → 403 `SCOPE_GRANT_REQUIRED`；
+2. 授予后（C：换角色；B：加 grant）：切换作用域重签会话 → 通过；
+3. 撤销/过期后 → 再次 403；
+4. 服务方尝试给自己授予 → 403（授予方校验）；
+5. 审计事件含 reason 与 before/after。
+
+### B.7 待确认
+
+- 选 **C（推荐）** 还是 B？
+- 授予方是否包含平台管理员（建议包含，用于应急）；
+- 是否需要"到期自动回收"（若是，则 B 成为必须项）。
+
+---
+
 ## 修订记录
 
 | 版本 | 日期 | 变更 |
