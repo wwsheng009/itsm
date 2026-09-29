@@ -177,6 +177,11 @@ func (h *Handler) Chat(c *gin.Context) {
 	chatCtx := knowledgeaccess.WithViewer(c.Request.Context(), knowledgeaccess.Viewer{UserID: userID, Role: role})
 	// B2-04：新会话归属选择器指定的 Bot（0 = 默认助手；历史会话由 conversation.bot_id 决定）。
 	chatCtx = WithBotID(chatCtx, req.BotID)
+	// B2-05：跨租户 fail-closed——显式 botId 必须命中本租户模板，否则 404（不静默降级到兼容默认）。
+	if err := h.svc.ValidateBotSelection(chatCtx, tenantID); err != nil {
+		respondBotSelectionError(c, err)
+		return
+	}
 
 	if provider == "" && !service.MultiProviderEnabled() {
 		// 开关关闭且未显式覆盖：保持既有调用与响应形状（QA-3 零破坏门禁）。
@@ -352,6 +357,11 @@ func (h *Handler) ChatStream(c *gin.Context) {
 	chatCtx := knowledgeaccess.WithViewer(c.Request.Context(), knowledgeaccess.Viewer{UserID: userID, Role: role})
 	// B2-04：新会话归属选择器指定的 Bot（0 = 默认助手；历史会话由 conversation.bot_id 决定）。
 	chatCtx = WithBotID(chatCtx, req.BotID)
+	// B2-05：跨租户 fail-closed（与 Chat 同源校验）；SSE 已开始前拒绝，走统一错误事件。
+	if err := h.svc.ValidateBotSelection(chatCtx, tenantID); err != nil {
+		writeEvent(SSEEventError, sseErrorPayload(err))
+		return
+	}
 	if !useProviderInfo {
 		convID, _, err := h.svc.ChatStream(chatCtx, tenantID, userID, role, req.Query, req.Limit, req.ConversationID, onSources, onDelta, onTool, onRun)
 		if err != nil {

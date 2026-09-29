@@ -156,6 +156,11 @@ func (p *Policy) CheckTool(ctx context.Context, tenantID, botID int, entrypoint 
 
 // Decide 是纯函数判定（便于表驱动测试与复用）。
 func Decide(in CheckInput) Decision {
+	// ⓪ 黑名单（B2-05）：命中即拒绝，与授权/兼容默认无关——管理员显式授权也不放行。
+	if rule := BlacklistRule(in.Tool.Name, in.Tool.Provider, in.Tool.Resource); rule != "" {
+		return Decision{Allowed: false, Reason: ReasonToolBlacklisted + ":" + rule}
+	}
+
 	// ① 兼容默认：无模板 或 模板未配置任何授权 → 等价现状（只读 + 遗留写白名单）。
 	if in.Snapshot == nil || in.Snapshot.Template == nil || len(in.Snapshot.Grants) == 0 {
 		if !in.Tool.ReadOnly && !LegacyChatWritableTools[in.Tool.Name] {

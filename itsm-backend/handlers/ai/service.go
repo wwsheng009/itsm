@@ -11,6 +11,7 @@ import (
 
 	"itsm-backend/dto"
 	"itsm-backend/ent"
+	"itsm-backend/ent/bottemplate"
 	"itsm-backend/metrics"
 	"itsm-backend/middleware"
 	"itsm-backend/service"
@@ -137,6 +138,14 @@ var ErrUnknownTool = fmt.Errorf("unknown tool")
 
 var ErrToolUnavailable = fmt.Errorf("tool authorization dependencies unavailable")
 
+// B2-05 跨租户 Bot 选择（fail-closed）：
+var (
+	// ErrBotSelectionNotFound：显式 botId 在本租户不存在（含跨租户引用）→ 404。
+	ErrBotSelectionNotFound = fmt.Errorf("bot template not found in current tenant")
+	// ErrBotSelectionUnavailable：归属校验依赖不可用 → fail-closed（不静默降级）。
+	ErrBotSelectionUnavailable = fmt.Errorf("bot selection validation unavailable")
+)
+
 // M1-02 审批链路错误（fail-closed：调用方可据此决定是否重试，绝不静默丢弃）。
 var (
 	// ErrInvocationNotPending：审批状态机保护——只有 pending 记录可被审批（防重复执行写工具）。
@@ -254,9 +263,32 @@ func (s *Service) ExecuteToolWithOptions(ctx context.Context, userID, tenantID i
 		return nil, 0, ErrToolUnavailable
 	}
 
+	// === B2-05 参数守卫：剥离模型伪造的身份/租户/权限键（服务端上下文才是唯一真源） ===
+	//
+	// 剥离发生在任何审计/执行之前，因此 denied/executed/failed/审批各路径的
+	// permission_reason 都会带上 `args_stripped:<keys>` 留痕（安全复盘可检索）。
+	args, strippedArgKeys := sanitizeReservedArgs(args)
+	strippedMarker := argsStrippedMarker(strippedArgKeys)
+	if strippedMarker != "" {
+		s.logger.Warnw("AI tool args: 模型携带身份/租户/权限键，已剥离并留痕",
+			"user_id", userID, "tenant_id", tenantID, "role", role, "tool", name,
+			"stripped", strings.Join(strippedArgKeys, ","))
+	}
+
 	// === P2-6 Gate 2: 工具级 RBAC 校验 ===
 	permCheck := "passed"
-	permReason := ""
+	// 成功路径也保留参数留痕（审计可检索「模型尝试覆写身份」的所有调用）。
+	permReason := strippedMarker
+	// 所有拒绝原因都带上参数留痕（安全复盘可检索 `args_stripped`）。
+	withStripped := func(reason string) string {
+		if strippedMarker == "" {
+			return reason
+		}
+		if reason == "" {
+			return strippedMarker
+		}
+		return reason + "; " + strippedMarker
+	}
 	allowed := true
 
 	// M0-09：解析含外部 provider（MCP）——同一投影/解析函数，内置优先。
@@ -272,7 +304,7 @@ func (s *Service) ExecuteToolWithOptions(ctx context.Context, userID, tenantID i
 			permCheck = "passed"
 		} else {
 			permCheck = "denied"
-			permReason = fmt.Sprintf("role=%s lacks %s:%s", role, toolDef.Resource, toolDef.Action)
+			permReason = withStripped(fmt.Sprintf("role=%s lacks %s:%s", role, toolDef.Resource, toolDef.Action))
 			allowed = false
 			s.logger.Warnw("AI tool RBAC denied",
 				"user_id", userID, "tenant_id", tenantID, "role", role,
@@ -296,7 +328,7 @@ func (s *Service) ExecuteToolWithOptions(ctx context.Context, userID, tenantID i
 			s.rbacAllowedFunc(ctx, role, tenantID))
 		if !decision.Allowed {
 			permCheck = "denied"
-			permReason = "bot policy: " + decision.Reason
+			permReason = withStripped("bot policy: " + decision.Reason)
 			allowed = false
 			s.logger.Warnw("AI tool denied by bot policy",
 				"user_id", userID, "tenant_id", tenantID, "role", role,
@@ -465,6 +497,77 @@ func (s *Service) rbacAllowedFunc(ctx context.Context, role string, tenantID int
 	return func(resource, action string) bool {
 		return middleware.HasResourcePermission(ctx, client, role, resource, action, tenantID)
 	}
+}
+
+// chatToolDecision 是聊天工具面装配的单工具判定（B2-05 自 ChatStream 内联逻辑抽出，
+// 便于负向安全测试直接覆盖，避免安全断言依赖 SSE 全链路）。
+//
+// 返回 (allowed, reason, legacy)：
+//   - **黑名单优先**（B2-05）：命中即不可见，与开关状态、授权、兼容默认无关；
+//   - 关闭态（botPolicy=nil）：既有逻辑（只读 ∪ 遗留写白名单 + RBAC），行为逐字节不变；
+//   - 开启态：策略判定（授权 ∩ RBAC ∩ 风险上限 ∩ 入口）；快照不可用 → fail-closed 全拒。
+func (s *Service) chatToolDecision(
+	ctx context.Context, tenantID int, role string,
+	td service.ToolDefinition, policyReady bool, snapshot *bot.Snapshot,
+) (bool, string, bool) {
+	if rule := bot.BlacklistRule(td.Name, td.Provider, td.Resource); rule != "" {
+		return false, bot.ReasonToolBlacklisted + ":" + rule, false
+	}
+	if s.botPolicy == nil {
+		if !td.ReadOnly && !chatWritableTools[td.Name] {
+			return false, "not_in_writable_whitelist", true
+		}
+		if IsToolRBACEnabled() && s.entClient != nil && role != "" && role != "super_admin" {
+			if !middleware.HasResourcePermission(ctx, s.entClient, role, td.Resource, td.Action, tenantID) {
+				return false, "rbac_denied", true
+			}
+		}
+		return true, "", true
+	}
+	if !policyReady {
+		return false, bot.ReasonSnapshotError, false
+	}
+	decision := bot.Decide(bot.CheckInput{
+		Snapshot: snapshot,
+		Tool: bot.ToolMeta{
+			Name: td.Name, Provider: td.Provider, ReadOnly: td.ReadOnly,
+			Resource: td.Resource, Action: td.Action, Risk: td.Risk,
+		},
+		Entrypoint:  bot.EntrypointChat,
+		RBACAllowed: s.rbacAllowedFunc(ctx, role, tenantID),
+	})
+	if !decision.Allowed {
+		return false, decision.Reason, decision.Legacy
+	}
+	return true, "", decision.Legacy
+}
+
+// ValidateBotSelection 校验「本次请求显式选择的 Bot」归属（B2-05 跨租户 fail-closed）。
+//
+// 此前 botId 只做正数透传：跨租户 ID 会让 SnapshotForBot 在本租户查不到模板 →
+// **静默退化到兼容默认**（放大权限面：本应严格交集的 Bot 变成宽松默认）。
+// 现在：显式选择必须命中本租户模板，否则直接 404（不静默忽略、不降级）。
+//
+// `bot.enabled=false`（未注入 Policy）时不做校验：该模式下 Bot 选择对工具面本就无影响，
+// 保持既有行为逐字节不变（门禁回归口径）。
+func (s *Service) ValidateBotSelection(ctx context.Context, tenantID int) error {
+	if s == nil || s.botPolicy == nil || s.entClient == nil {
+		return nil
+	}
+	botID := botIDFrom(ctx)
+	if botID <= 0 {
+		return nil
+	}
+	exists, err := s.entClient.BotTemplate.Query().
+		Where(bottemplate.TenantID(tenantID), bottemplate.ID(botID)).
+		Exist(ctx)
+	if err != nil {
+		return fmt.Errorf("%w: %v", ErrBotSelectionUnavailable, err)
+	}
+	if !exists {
+		return ErrBotSelectionNotFound
+	}
+	return nil
 }
 
 // newConfirmationExpiry 依据 TTL 计算过期时间；TTL<=0 返回 nil（不设期限）。
@@ -1188,41 +1291,14 @@ func (s *Service) chatStreamInner(
 			}
 			policySnapshot = snapshot
 		}
-		rbacAllowed := s.rbacAllowedFunc(ctx, role, tenantID)
 		// 按租户动态化工具参数（list_cis 的 ci_type 枚举来自租户 CIType 表）
 		for _, td := range s.tools.ListToolsForTenant(ctx, tenantID) {
-			if s.botPolicy == nil {
-				// 关闭态（bot.enabled=false）：既有逻辑逐字节不变。
-				if !td.ReadOnly && !chatWritableTools[td.Name] {
-					continue
-				}
-				if IsToolRBACEnabled() && s.entClient != nil && role != "" && role != "super_admin" {
-					if !middleware.HasResourcePermission(ctx, s.entClient, role, td.Resource, td.Action, tenantID) {
-						s.logger.Debugw("AI ChatStream: tool filtered by RBAC",
-							"tool", td.Name, "resource", td.Resource, "action", td.Action, "role", role, "tenantID", tenantID)
-						continue
-					}
-				}
-			} else {
-				// 开启态：策略判定（授权 ∩ RBAC ∩ 风险上限 ∩ 入口）。
-				if !policyReady {
-					continue
-				}
-				decision := bot.Decide(bot.CheckInput{
-					Snapshot: policySnapshot,
-					Tool: bot.ToolMeta{
-						Name: td.Name, Provider: td.Provider, ReadOnly: td.ReadOnly,
-						Resource: td.Resource, Action: td.Action, Risk: td.Risk,
-					},
-					Entrypoint:  bot.EntrypointChat,
-					RBACAllowed: rbacAllowed,
-				})
-				if !decision.Allowed {
-					s.logger.Debugw("AI ChatStream: tool filtered by bot policy",
-						"tool", td.Name, "reason", decision.Reason, "legacy", decision.Legacy,
-						"role", role, "tenantID", tenantID)
-					continue
-				}
+			allowed, reason, legacy := s.chatToolDecision(ctx, tenantID, role, td, policyReady, policySnapshot)
+			if !allowed {
+				s.logger.Debugw("AI ChatStream: tool filtered",
+					"tool", td.Name, "reason", reason, "legacy", legacy,
+					"role", role, "tenantID", tenantID)
+				continue
 			}
 			tools = append(tools, service.LLMTool{
 				Name:        td.Name,

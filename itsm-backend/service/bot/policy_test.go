@@ -52,7 +52,7 @@ func TestDecide_LegacyCompatPinsOldRule(t *testing.T) {
 		{"遗留白名单写工具放行(link_ticket_ci)", writeTool("link_ticket_ci", RiskActLow), true},
 		{"遗留白名单写工具放行(create_ci_relationship)", writeTool("create_ci_relationship", RiskActLow), true},
 		{"遗留白名单写工具放行(delete_ci_relationship)", writeTool("delete_ci_relationship", RiskActLow), true},
-		{"非白名单写工具拒绝", writeTool("delete_ticket", RiskActHigh), false},
+		{"非白名单写工具拒绝", writeTool("bulk_archive_tickets", RiskActHigh), false},
 		{"MCP 写工具拒绝(未授权)", writeTool("mcp__github__create_issue", RiskActLow), false},
 		{"风险未标注仍放行(兼容默认不看风险)", writeTool("create_ticket", ""), true},
 	}
@@ -94,7 +94,7 @@ func TestDecide_StrictIntersection(t *testing.T) {
 
 	t.Run("未授权工具拒绝", func(t *testing.T) {
 		snapshot := strictSnapshot(StatusGA, RiskActMedium, chatGA, grant("create_ticket", RiskActLow))
-		decision := Decide(CheckInput{Snapshot: snapshot, Tool: writeTool("delete_ticket", RiskActLow), Entrypoint: EntrypointChat})
+		decision := Decide(CheckInput{Snapshot: snapshot, Tool: writeTool("bulk_archive_tickets", RiskActLow), Entrypoint: EntrypointChat})
 		assert.False(t, decision.Allowed)
 		assert.Equal(t, ReasonToolNotGranted, decision.Reason)
 	})
