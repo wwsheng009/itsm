@@ -857,6 +857,41 @@ func (h *Handler) GetMetrics(c *gin.Context) {
 	common.Success(c, metrics)
 }
 
+// GetBotMetrics handles GET /api/v1/ai/bot-metrics（B4-02：运行维度指标）。
+//
+// 查询参数：`days`（默认 7，上限 90）、`botId`（可选）、`entrypoint`（可选）。
+// 未装配指标服务（bot.enabled=false）时返回 503，前端据此隐藏/置灰看板。
+func (h *Handler) GetBotMetrics(c *gin.Context) {
+	tenantID := c.GetInt("tenant_id")
+	if tenantID == 0 {
+		common.Fail(c, common.AuthFailedCode, "租户信息缺失")
+		return
+	}
+	q := bot.MetricsQuery{}
+	if daysStr := c.Query("days"); daysStr != "" {
+		if days, err := strconv.Atoi(daysStr); err == nil && days > 0 {
+			q.Days = days
+		}
+	}
+	if botIDStr := c.Query("botId"); botIDStr != "" {
+		if botID, err := strconv.Atoi(botIDStr); err == nil && botID > 0 {
+			q.BotID = botID
+		}
+	}
+	q.Entrypoint = c.Query("entrypoint")
+
+	summary, err := h.svc.GetBotMetrics(c.Request.Context(), tenantID, q)
+	if err != nil {
+		if errors.Is(err, ErrBotMetricsUnavailable) {
+			common.Fail(c, common.ServiceUnavailableCode, "Bot 指标服务未启用")
+			return
+		}
+		common.FailWithErr(c, err, "操作失败")
+		return
+	}
+	common.Success(c, summary)
+}
+
 // KnowledgeSearch handles POST /api/v1/ai/rag/search - RAG search over knowledge base
 func (h *Handler) KnowledgeSearch(c *gin.Context) {
 	var req struct {

@@ -1016,6 +1016,9 @@ func NewApplication() *Application {
 		// B2-02：Bot 策略门禁（授权 ∩ RBAC ∩ 风险上限 ∩ 入口），下发与执行同一判定。
 		// 未配置任何授权的 Bot 走兼容默认（等价现状：只读 + 遗留写白名单），行为不变。
 		aiServiceDomain.SetBotPolicy(botService.NewPolicy(client))
+		// B4-02：运行维度指标（成功/确认/verify/工具错误/时延/成本代理）。
+		// 同一 bot.enabled 开关：关闭时不注入 → `GET /ai/bot-metrics` 返回 503（前端隐藏看板）。
+		aiServiceDomain.SetBotMetrics(botService.NewMetricsService(client))
 		sweeper := &botService.Sweeper{
 			Store:    aiServiceDomain.ConfirmationStore(),
 			Interval: 10 * time.Minute,

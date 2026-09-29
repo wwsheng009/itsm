@@ -48,6 +48,95 @@ export interface AIMetrics {
   responseTimeAvailable?: boolean;
 }
 
+// —— B4-02：Bot 运行维度指标（GET /api/v1/ai/bot-metrics）——
+
+export interface BotMetricsRunStats {
+  total: number;
+  completed: number;
+  failed: number;
+  running: number;
+  cancelled: number;
+  successRate: number;
+  avgDurationMs: number;
+}
+
+export interface BotMetricsStepStats {
+  total: number;
+  llmSteps: number;
+  toolSteps: number;
+  confirmSteps: number;
+  avgPerRun: number;
+  avgDurationMs: number;
+}
+
+export interface BotMetricsToolStats {
+  total: number;
+  errors: number;
+  errorRate: number;
+  avgDurationMs: number;
+  topTools?: Array<{ key: string; count: number }>;
+}
+
+export interface BotMetricsVerifyStats {
+  verified: number;
+  failed: number;
+  skipped: number;
+  pending: number;
+  failRate: number;
+}
+
+export interface BotMetricsConfirmStats {
+  approved: number;
+  rejected: number;
+  expired: number;
+  pending: number;
+  approvalRate: number;
+  rejectRate: number;
+  expireRate: number;
+  avgDecisionMs?: number;
+}
+
+export interface BotMetricsCostStats {
+  llmCalls: number;
+  toolCalls: number;
+  steps: number;
+  avgStepsPerRun: number;
+  avgToolCallsPerRun: number;
+}
+
+export interface BotMetricsBreakdown {
+  key: string;
+  runs: number;
+  failed: number;
+  successRate: number;
+  avgDurationMs: number;
+  toolCalls: number;
+  toolErrors: number;
+}
+
+export interface BotMetrics {
+  windowDays: number;
+  since: string;
+  generatedAt: string;
+  runs: BotMetricsRunStats;
+  steps: BotMetricsStepStats;
+  tools: BotMetricsToolStats;
+  verify: BotMetricsVerifyStats;
+  confirmations: BotMetricsConfirmStats;
+  cost: BotMetricsCostStats;
+  byEntrypoint: BotMetricsBreakdown[];
+  byBot: BotMetricsBreakdown[];
+  /** token 计量未接线（B1-02 遗留）：成本维度为代理口径。 */
+  tokensRecorded: boolean;
+  notes?: string[];
+}
+
+export interface BotMetricsQuery {
+  days?: number;
+  botId?: number;
+  entrypoint?: string;
+}
+
 export interface AIAuditEntry {
   id: number;
   tenantId: number;
@@ -175,6 +264,21 @@ export async function aiSaveFeedback(feedback: AIFeedbackRequest): Promise<{ mes
 
 export async function aiGetMetrics(days = 7): Promise<AIMetrics> {
   return httpClient.get<AIMetrics>(`/api/v1/ai/metrics?days=${days}`);
+}
+
+/**
+ * Bot 运行维度指标（B4-02）。
+ *
+ * 后端契约：`GET /api/v1/ai/bot-metrics?days=&botId=&entrypoint=`；
+ * `bot.enabled=false` 时后端返回 503（调用方据此隐藏/置灰看板）。
+ */
+export async function aiGetBotMetrics(params: BotMetricsQuery = {}): Promise<BotMetrics> {
+  const search = new URLSearchParams();
+  if (params.days && params.days > 0) search.set('days', String(params.days));
+  if (params.botId && params.botId > 0) search.set('botId', String(params.botId));
+  if (params.entrypoint) search.set('entrypoint', params.entrypoint);
+  const qs = search.toString();
+  return httpClient.get<BotMetrics>(`/api/v1/ai/bot-metrics${qs ? `?${qs}` : ''}`);
 }
 
 // ==================== AI 评估与审计（AI-Native：可观测、可回测） ====================

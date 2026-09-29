@@ -37,6 +37,8 @@ type Service struct {
 	summarizeService *service.SummarizeService
 	// P2-6: ent client，用于复用 RBAC hasResourcePermission
 	entClient *ent.Client
+	// botMetrics 运行维度指标（B4-02；nil = 指标端点返回 503，不影响既有行为）。
+	botMetrics *bot.MetricsService
 	// B0-06：统一脱敏入口（按工具元数据的 default/strict 档位口径）。
 	redactor *bot.Redactor
 	// B1-01/B1-02：运行态管理器（chatStream 起运行/记步骤/记事件/预算护栏；未注入时零行为变化）。
@@ -98,6 +100,25 @@ func (s *Service) SetSummarizeService(svc *service.SummarizeService) {
 func (s *Service) SetEntClient(client *ent.Client) {
 	s.entClient = client
 }
+
+// SetBotMetrics 注入运行维度指标服务（B4-02）。
+//
+// 未注入（nil）时 `GET /ai/bot-metrics` 返回不可用错误（503），
+// 既有 `/ai/metrics` 行为不变（bot 段缺省省略）。
+func (s *Service) SetBotMetrics(metrics *bot.MetricsService) {
+	s.botMetrics = metrics
+}
+
+// GetBotMetrics 聚合运行维度指标（B4-02）。
+func (s *Service) GetBotMetrics(ctx context.Context, tenantID int, q bot.MetricsQuery) (*bot.MetricsSummary, error) {
+	if s.botMetrics == nil {
+		return nil, ErrBotMetricsUnavailable
+	}
+	return s.botMetrics.Summary(ctx, tenantID, q)
+}
+
+// ErrBotMetricsUnavailable 指标服务未装配（bot.enabled=false 的兼容态）。
+var ErrBotMetricsUnavailable = fmt.Errorf("bot metrics service not initialized")
 
 // SetBotRunner 注入运行态管理器（B1-02；预算参数由装配方从 BP8 配置映射）。
 //
