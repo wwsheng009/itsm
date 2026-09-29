@@ -40,6 +40,8 @@ type Service struct {
 	redactor *bot.Redactor
 	// B1-01/B1-02：运行态管理器（chatStream 起运行/记步骤/记事件/预算护栏；未注入时零行为变化）。
 	botRunner *bot.Manager
+	// B1-05：确认单有效期（默认 24h；<=0 表示不设过期，仅测试/离线场景使用）。
+	confirmationTTL time.Duration
 }
 
 func NewService(
@@ -136,6 +138,13 @@ var (
 	ErrInvocationNotPending = fmt.Errorf("tool invocation is not pending approval")
 	// ErrToolQueueUnavailable：执行队列不可用/已满；审批不落 approved，保持 pending 可重试。
 	ErrToolQueueUnavailable = fmt.Errorf("tool queue unavailable")
+	// ErrInvocationExpired：确认单已过期（B1-05）——不可执行，需重新发起确认。
+	ErrInvocationExpired = fmt.Errorf("tool invocation confirmation expired")
+	// ErrInvocationStateConflict：与既有决策冲突（B1-05：异人决策/改判/生命周期终止）。
+	//
+	// 包装 ErrInvocationNotPending：终态不可再决策这一既有不变量保持不变（老调用方
+	// 仍可用 errors.Is(err, ErrInvocationNotPending) 判定），新调用方按冲突错误细分提示。
+	ErrInvocationStateConflict = fmt.Errorf("%w: decision conflicts with existing state", ErrInvocationNotPending)
 )
 
 // ExecuteTool 执行 AI 工具
@@ -312,6 +321,8 @@ func (s *Service) ExecuteToolWithOptions(ctx context.Context, userID, tenantID i
 		// B0-01：元数据快照（调用时冻结，防后续治理变更导致审计歧义）。
 		Risk:     toolDef.Risk,
 		Category: toolDef.Category,
+		// B1-05：确认单有效期（默认 24h；TTL<=0 = 不设期限，仅离线/测试）。
+		ExpiresAt: s.newConfirmationExpiry(time.Now()),
 	})
 	if err != nil {
 		// 并发重复提交：唯一索引冲突 → 映射为幂等命中（回查既有记录），而非 500。
@@ -325,6 +336,19 @@ func (s *Service) ExecuteToolWithOptions(ctx context.Context, userID, tenantID i
 	}
 
 	return nil, inv.ID, nil
+}
+
+// SetConfirmationTTL 设置确认单有效期（B1-05；bootstrap 从配置注入）。
+// d <= 0 表示不设过期（离线/测试），生产默认走 bot.DefaultConfirmationTTL。
+func (s *Service) SetConfirmationTTL(d time.Duration) { s.confirmationTTL = d }
+
+// newConfirmationExpiry 依据 TTL 计算过期时间；TTL<=0 返回 nil（不设期限）。
+func (s *Service) newConfirmationExpiry(now time.Time) *time.Time {
+	if s.confirmationTTL <= 0 {
+		return nil
+	}
+	expires := now.Add(s.confirmationTTL)
+	return &expires
 }
 
 // redactionProfileFor 按工具元数据解析脱敏档（B0-06）。
@@ -526,11 +550,38 @@ func (s *Service) ApproveTool(ctx context.Context, id int, tenantID, userID int,
 	if err != nil {
 		return "", err
 	}
-	if inv.ApprovalState != "pending" {
-		return "", ErrInvocationNotPending
+	now := time.Now()
+	state := bot.NormalizeConfirmationState(inv.ApprovalState, inv.Status)
+
+	// B1-05 惰性过期：扫描任务之外的兜底判定——过期单不得执行，也不得被"补批准"。
+	if state == bot.ConfirmationPending && bot.IsExpiredAt(inv.ExpiresAt, now) {
+		inv.ApprovalState = string(bot.ConfirmationExpired)
+		inv.Status = string(bot.ConfirmationExpired)
+		if _, updateErr := s.repo.UpdateToolInvocation(ctx, inv); updateErr != nil {
+			// 过期标记失败不阻断拒绝语义：向调用方报过期，避免误批准。
+			s.logger.Warnw("确认单过期标记失败", "invocation_id", inv.ID, "tenant_id", tenantID, "error", updateErr)
+		} else {
+			s.backfillToolDecision(ctx, inv, "expired", "确认单已过期，请重新发起")
+		}
+		return "", ErrInvocationExpired
 	}
 
-	now := time.Now()
+	priorApprove := inv.ApprovalState == "approved" || inv.ApprovalState == string(bot.ConfirmationConfirmed)
+	switch bot.EvaluateDecision(state, inv.ApprovedBy, userID, approve, priorApprove) {
+	case bot.DecisionReplay:
+		// B1-05 幂等回放：同人同向重试（网络抖动/前端重发）返回既有决策，不重复执行、不改库。
+		if priorApprove {
+			return "approved", nil
+		}
+		return "rejected", nil
+	case bot.DecisionConflict:
+		return "", ErrInvocationStateConflict
+	case bot.DecisionApply:
+		// 落决策（下方按 approve 分支处理）。
+	default:
+		return "", ErrInvocationStateConflict
+	}
+
 	if !approve {
 		inv.ApprovalState = "rejected"
 		inv.Status = "rejected"

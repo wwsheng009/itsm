@@ -6,6 +6,7 @@ import (
 	"errors"
 	"time"
 
+	"itsm-backend/common"
 	"itsm-backend/dto"
 	"itsm-backend/ent"
 	"itsm-backend/pkg/redact"
@@ -259,6 +260,12 @@ type errorCoder interface{ ErrorCode() string }
 func errorCodeOf(err error) string {
 	if err == nil {
 		return ""
+	}
+	// B1-05：工单乐观锁冲突（update_ticket 的 expected_version 不匹配）——
+	// 稳定错误码，供审计与前端提示「刷新后重试」。
+	var versionConflict *common.VersionConflictError
+	if errors.As(err, &versionConflict) {
+		return "tool_version_conflict"
 	}
 	var coded errorCoder
 	if errors.As(err, &coded) {

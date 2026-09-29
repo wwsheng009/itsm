@@ -12,6 +12,7 @@ import (
 	"errors"
 	"strings"
 
+	"itsm-backend/common"
 	"itsm-backend/pkg/redact"
 	"itsm-backend/service/bot"
 )
@@ -79,11 +80,24 @@ func toolEventErrorCode(err error) string {
 		return "tool_unavailable"
 	case errors.Is(err, ErrToolQueueUnavailable):
 		return "tool_queue_unavailable"
+	case errors.Is(err, ErrInvocationExpired):
+		// B1-05：确认单过期（未执行、无副作用）。
+		return "invocation_expired"
+	case errors.Is(err, ErrInvocationStateConflict):
+		// B1-05：与既有决策冲突（异人/改判/终态）。必须先于 ErrInvocationNotPending 判定
+		// （冲突错误包装了后者，保持老调用方兼容）。
+		return "invocation_state_conflict"
 	case errors.Is(err, ErrInvocationNotPending):
 		return "invocation_not_pending"
 	case errors.Is(err, bot.ErrBudgetExceeded):
 		// B1-03：执行点预算闸门拒绝（工具未执行，无副作用）。
 		return bot.ErrorCodeBudgetExceeded
+	}
+	// B1-05：工单乐观锁冲突（update_ticket 的 expected_version 不匹配）。
+	// 走错误码而非错误串，前端可给出「数据已更新，请刷新后重试」的确定性提示。
+	var versionConflict *common.VersionConflictError
+	if errors.As(err, &versionConflict) {
+		return "tool_version_conflict"
 	}
 	var coder errorCoder
 	if errors.As(err, &coder) {

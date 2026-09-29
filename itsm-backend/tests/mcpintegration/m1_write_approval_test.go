@@ -138,10 +138,23 @@ func TestM1WriteApproval_EndToEnd(t *testing.T) {
 	assert.Equal(t, "打印机故障", calls[0].Args["title"], "执行参数必须来自落库快照（审批后篡改无效）")
 	assert.NotEqual(t, "被篡改的标题", calls[0].Args["title"])
 
-	// 4) 状态机：重复审批被拒，且不会二次执行。
-	_, err = svc.ApproveTool(ctx, pendingID, h.tenantID, h.userID, true, "再来一次")
-	require.ErrorIs(t, err, ai.ErrInvocationNotPending)
+	// 4) 状态机（B1-05）：同人同向重复审批 = 幂等回放（返回既有决策），但仍不会二次执行。
+	state, err = svc.ApproveTool(ctx, pendingID, h.tenantID, h.userID, true, "再来一次")
+	require.NoError(t, err)
+	assert.Equal(t, "approved", state, "同人同向重试必须幂等回放既有决策")
 	assert.Len(t, h.mock.Calls(), 1, "重复审批不得触发第二次执行")
+	// 4b) 异人补批 → 冲突（不静默回放）。
+	otherUser, err := h.client.User.Create().
+		SetUsername("m1-02-other").
+		SetEmail("m1-02-other@example.com").
+		SetName("M1-02 Other").
+		SetPasswordHash("x").
+		SetTenantID(h.tenantID).
+		Save(ctx)
+	require.NoError(t, err)
+	_, err = svc.ApproveTool(ctx, pendingID, h.tenantID, otherUser.ID, true, "他人补批")
+	require.ErrorIs(t, err, ai.ErrInvocationStateConflict)
+	assert.Len(t, h.mock.Calls(), 1, "冲突路径不得触发执行")
 
 	// 5) 拒绝路径：落 rejected + 原因 + 决策人，且不触发执行。
 	_, rejectID, err := svc.ExecuteTool(ctx, h.userID, h.tenantID, "sysadmin", "mcp__mock__create_issue",

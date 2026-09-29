@@ -221,6 +221,34 @@ func (t *ToolRegistry) GetTool(name string) *ToolDefinition {
 	return nil
 }
 
+// updateTicketRequestFromArgs 把模型入参映射为工单更新请求（B1-05）。
+//
+// ticket_id 缺失/非法 → (0, 请求体)：由调用方返回参数错误；
+// `expected_version > 0` 时启用乐观锁（与工单 version 比对，冲突即中止并要求刷新）。
+func updateTicketRequestFromArgs(args map[string]interface{}) (int, *dto.UpdateTicketRequest) {
+	ticketID := 0
+	if v, ok := args["ticket_id"].(float64); ok {
+		ticketID = int(v)
+	}
+	status, _ := args["status"].(string)
+	priority, _ := args["priority"].(string)
+	resolution, _ := args["resolution"].(string)
+	assigneeID := 0
+	if v, ok := args["assignee_id"].(float64); ok {
+		assigneeID = int(v)
+	}
+	req := &dto.UpdateTicketRequest{
+		Status:     status,
+		Priority:   priority,
+		Resolution: resolution,
+		AssigneeID: assigneeID,
+	}
+	if v, ok := args["expected_version"].(float64); ok && v > 0 {
+		req.Version = int(v)
+	}
+	return ticketID, req
+}
+
 // canExecuteWriteTool 判断某工具能否交由 ToolRegistry.Execute 统一执行。
 // ToolQueue 审批通过后会调用它决定是否委派：写工具要求对应领域服务已注入，
 // 未注入时返回 false，让 ToolQueue 回落到内联实现。
@@ -512,6 +540,20 @@ func (t *ToolRegistry) ListTools() []ToolDefinition {
 			RedactionProfile: ToolRedactionDefault,
 			ArgsSchema: map[string]interface{}{
 				"type": "object",
+				"properties": map[string]interface{}{
+					"ticket_id": map[string]interface{}{"type": "integer", "description": "工单 ID（先用 list_tickets/get_ticket 定位）"},
+					"status":    map[string]interface{}{"type": "string", "description": "目标状态，如 in_progress/resolved/closed"},
+					"priority":  map[string]interface{}{"type": "string", "enum": []any{"low", "medium", "high", "critical"}},
+					"resolution": map[string]interface{}{
+						"type": "string", "description": "解决方案（置 resolved/closed 时建议填写）",
+					},
+					"assignee_id": map[string]interface{}{"type": "integer", "description": "处理人用户 ID"},
+					"expected_version": map[string]interface{}{
+						"type":        "integer",
+						"description": "乐观锁版本号（取自 get_ticket 返回的 version）；不一致时本次更新被拒绝，需重新读取后再提交",
+					},
+				},
+				"required": []string{"ticket_id"},
 			},
 			ResultSchema: map[string]interface{}{
 				"type": "object",
@@ -919,25 +961,9 @@ func (t *ToolRegistry) executeBuiltin(ctx context.Context, tenantID int, name st
 		if t.ticket == nil {
 			return nil, fmt.Errorf("ticket service not initialized")
 		}
-		ticketID := 0
-		if v, ok := args["ticket_id"].(float64); ok {
-			ticketID = int(v)
-		}
+		ticketID, req := updateTicketRequestFromArgs(args)
 		if ticketID == 0 {
 			return nil, fmt.Errorf("update_ticket: ticket_id is required")
-		}
-		status, _ := args["status"].(string)
-		priority, _ := args["priority"].(string)
-		resolution, _ := args["resolution"].(string)
-		var assigneeID int
-		if v, ok := args["assignee_id"].(float64); ok {
-			assigneeID = int(v)
-		}
-		req := &dto.UpdateTicketRequest{
-			Status:     status,
-			Priority:   priority,
-			Resolution: resolution,
-			AssigneeID: assigneeID,
 		}
 		updated, err := t.ticket.UpdateTicket(ctx, ticketID, req, tenantID, 0, "") // 0=系统操作，跳过 DataScope
 		if err != nil {

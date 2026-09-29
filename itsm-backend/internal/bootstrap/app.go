@@ -998,6 +998,22 @@ func NewApplication() *Application {
 			ToolTimeout:    cfg.Bot.Budget.BotToolTimeout(),
 			MaxOutputBytes: cfg.Bot.Budget.MaxOutputBytes,
 		}))
+		// B1-05：确认单有效期 + 过期扫描（惰性判定在 ApproveTool，周期扫描兜底待办列表）。
+		aiServiceDomain.SetConfirmationTTL(time.Duration(cfg.Bot.ConfirmationTTLHours) * time.Hour)
+		sweeper := &botService.Sweeper{
+			Store:    aiServiceDomain.ConfirmationStore(),
+			Interval: 10 * time.Minute,
+			OnResult: func(result botService.SweepResult) {
+				if result.Expired > 0 {
+					zap.L().Info("MCP/Bot 确认单过期扫描完成",
+						zap.Int("scanned", result.Scanned), zap.Int("expired", result.Expired))
+				}
+			},
+			OnError: func(err error) {
+				zap.L().Warn("确认单过期扫描失败", zap.Error(err))
+			},
+		}
+		go sweeper.Run(context.Background())
 	}
 	aiHandler := ai.NewHandler(aiServiceDomain)
 

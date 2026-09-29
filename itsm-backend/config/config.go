@@ -109,6 +109,9 @@ type BotConfig struct {
 	RedactionProfile string `mapstructure:"redaction_profile"`
 	// Budget: 每 run 预算与单次工具护栏（BP8）。
 	Budget BotBudgetConfig `mapstructure:"budget"`
+	// ConfirmationTTLHours: 写工具确认单有效期（小时；B1-05）。
+	// 非正值回落默认 24h —— 护栏不得被配置成「永不过期」。
+	ConfirmationTTLHours int `mapstructure:"confirmation_ttl_hours"`
 }
 
 // BotBudgetConfig 每 run 预算与护栏参数（BP8；B1-02 RunManager 消费）。
@@ -130,12 +133,13 @@ type BotBudgetConfig struct {
 
 // BP8 预算护栏默认值（方案 §2.2 BP8：单工具超时默认 30s）。
 const (
-	botDefaultRedactionProfile   = "default"
-	botDefaultMaxSteps           = 24
-	botDefaultMaxTokens          = 100000
-	botDefaultMaxToolCalls       = 12
-	botDefaultToolTimeoutSeconds = 30
-	botDefaultMaxOutputBytes     = 65536
+	botDefaultRedactionProfile     = "default"
+	botDefaultMaxSteps             = 24
+	botDefaultMaxTokens            = 100000
+	botDefaultMaxToolCalls         = 12
+	botDefaultToolTimeoutSeconds   = 30
+	botDefaultMaxOutputBytes       = 65536
+	botDefaultConfirmationTTLHours = 24
 )
 
 // applyBotDefaults 补齐 Bot 配置的零值默认；Enabled 保持零值 false（未配置即关闭）。
@@ -165,6 +169,9 @@ func applyBotDefaults(cfg *BotConfig) {
 	}
 	if cfg.Budget.MaxOutputBytes <= 0 {
 		cfg.Budget.MaxOutputBytes = botDefaultMaxOutputBytes
+	}
+	if cfg.ConfirmationTTLHours <= 0 {
+		cfg.ConfirmationTTLHours = botDefaultConfirmationTTLHours
 	}
 }
 
@@ -518,6 +525,8 @@ func LoadConfig() (*Config, error) {
 	config.Bot.Budget.MaxToolCalls = getEnvIntWithDefault("BOT_BUDGET_MAX_TOOL_CALLS", config.Bot.Budget.MaxToolCalls)
 	config.Bot.Budget.ToolTimeoutSeconds = getEnvIntWithDefault("BOT_BUDGET_TOOL_TIMEOUT_SECONDS", config.Bot.Budget.ToolTimeoutSeconds)
 	config.Bot.Budget.MaxOutputBytes = getEnvIntWithDefault("BOT_BUDGET_MAX_OUTPUT_BYTES", config.Bot.Budget.MaxOutputBytes)
+	// B1-05：确认单有效期（小时）。
+	config.Bot.ConfirmationTTLHours = getEnvIntWithDefault("BOT_CONFIRMATION_TTL_HOURS", config.Bot.ConfirmationTTLHours)
 	applyBotDefaults(&config.Bot)
 
 	// RLS 三档开关，默认 off（零风险）。

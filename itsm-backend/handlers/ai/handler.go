@@ -15,6 +15,7 @@ import (
 	"itsm-backend/handlers/common/knowledgeaccess"
 	"itsm-backend/middleware"
 	"itsm-backend/service"
+	"itsm-backend/service/bot"
 
 	"github.com/gin-gonic/gin"
 )
@@ -955,30 +956,34 @@ func (h *Handler) toolInvocationItem(ctx context.Context, tenantID int, inv *Too
 		}
 	}
 	return gin.H{
-		"id":               inv.ID,
-		"toolName":         inv.ToolName,
-		"argsRedacted":     inv.ArgsRedacted,
-		"status":           inv.Status,
-		"needsApproval":    inv.NeedsApproval,
-		"approvalState":    inv.ApprovalState,
-		"approvalReason":   inv.ApprovalReason,
-		"permissionCheck":  inv.PermissionCheck,
-		"permissionReason": inv.PermissionReason,
-		"createdAt":        inv.CreatedAt,
-		"conversationId":   inv.ConversationID,
-		"userId":           inv.UserID,
-		"provider":         inv.Provider,
-		"serverName":       inv.McpServerName,
-		"rawToolName":      inv.McpRawToolName,
-		"callableName":     inv.McpCallableName,
-		"risk":             risk,
-		"roleSnapshot":     inv.RoleSnapshot,
-		"approvedBy":       inv.ApprovedBy,
-		"approvedAt":       inv.ApprovedAt,
-		"durationMs":       inv.DurationMs,
-		"errorCode":        inv.ErrorCode,
-		"result":           inv.Result,
-		"outputSummary":    inv.OutputSummary,
+		"id":            inv.ID,
+		"toolName":      inv.ToolName,
+		"argsRedacted":  inv.ArgsRedacted,
+		"status":        inv.Status,
+		"needsApproval": inv.NeedsApproval,
+		"approvalState": inv.ApprovalState,
+		// B1-05：规范化确认状态（pending/confirmed/rejected/expired/cancelled/unknown）。
+		// 与 approvalState 并存：前者是新词汇表，后者保持既有前端契约不变。
+		"confirmationState": string(bot.NormalizeConfirmationState(inv.ApprovalState, inv.Status)),
+		"expiresAt":         inv.ExpiresAt,
+		"approvalReason":    inv.ApprovalReason,
+		"permissionCheck":   inv.PermissionCheck,
+		"permissionReason":  inv.PermissionReason,
+		"createdAt":         inv.CreatedAt,
+		"conversationId":    inv.ConversationID,
+		"userId":            inv.UserID,
+		"provider":          inv.Provider,
+		"serverName":        inv.McpServerName,
+		"rawToolName":       inv.McpRawToolName,
+		"callableName":      inv.McpCallableName,
+		"risk":              risk,
+		"roleSnapshot":      inv.RoleSnapshot,
+		"approvedBy":        inv.ApprovedBy,
+		"approvedAt":        inv.ApprovedAt,
+		"durationMs":        inv.DurationMs,
+		"errorCode":         inv.ErrorCode,
+		"result":            inv.Result,
+		"outputSummary":     inv.OutputSummary,
 	}
 }
 
@@ -1058,6 +1063,12 @@ func (h *Handler) ApproveTool(c *gin.Context) {
 	if err != nil {
 		// M1-02：错误语义分层，便于调用方区分「重试有用」与「重试无意义」。
 		switch {
+		case errors.Is(err, ErrInvocationExpired):
+			// B1-05：过期单不可执行；提示调用方重新发起确认（不可原地重试）。
+			common.Fail(c, common.ConflictCode, "确认单已过期，请重新发起确认")
+		case errors.Is(err, ErrInvocationStateConflict):
+			// B1-05：异人决策/改判/生命周期终止——冲突可见，不静默回放。
+			common.Fail(c, common.ConflictCode, "该确认单已有他人决策或状态已终止，请刷新后查看")
 		case errors.Is(err, ErrInvocationNotPending):
 			common.Fail(c, common.ConflictCode, "该审批已处理（仅 pending 记录可审批）")
 		case errors.Is(err, ErrToolQueueUnavailable):

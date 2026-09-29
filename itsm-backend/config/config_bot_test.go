@@ -55,6 +55,25 @@ func TestLoadConfig_BotBudgetDefaults(t *testing.T) {
 	if got := cfg.Bot.Budget.BotToolTimeout(); got != 30*time.Second {
 		t.Errorf("BotToolTimeout 默认应为 30s，实际 %v", got)
 	}
+	if cfg.Bot.ConfirmationTTLHours != 24 {
+		t.Errorf("confirmation_ttl_hours 默认应为 24（B1-05），实际 %d", cfg.Bot.ConfirmationTTLHours)
+	}
+}
+
+// TestLoadConfig_BotConfirmationTTL 覆盖 B1-05 验收：TTL 可用环境变量覆盖，
+// 非法值（<=0）回落 24h —— 护栏不得被配置成「永不过期」。
+func TestLoadConfig_BotConfirmationTTL(t *testing.T) {
+	t.Setenv("BOT_CONFIRMATION_TTL_HOURS", "72")
+	cfg := newTestConfig(t, "server:\n  port: 8080\n")
+	if cfg.Bot.ConfirmationTTLHours != 72 {
+		t.Errorf("BOT_CONFIRMATION_TTL_HOURS 覆盖失败，实际 %d", cfg.Bot.ConfirmationTTLHours)
+	}
+
+	t.Setenv("BOT_CONFIRMATION_TTL_HOURS", "0")
+	cfg = newTestConfig(t, "server:\n  port: 8080\n")
+	if cfg.Bot.ConfirmationTTLHours != 24 {
+		t.Errorf("非正 TTL 必须回落 24h，实际 %d", cfg.Bot.ConfirmationTTLHours)
+	}
 }
 
 // TestLoadConfig_BotBudgetFromYAMLAndEnv 覆盖 BP8 验收：预算参数可被 config.yaml 解析，
