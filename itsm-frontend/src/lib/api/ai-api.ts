@@ -564,8 +564,37 @@ export type AIChatStreamEvent =
   | { type: 'tool_call_finished'; event: AIToolStreamEvent }
   | { type: 'tool_call_failed'; event: AIToolStreamEvent }
   | { type: 'approval_pending'; event: AIToolStreamEvent }
+  | { type: 'confirmation_required'; event: AIToolStreamEvent }
+  | { type: 'run_started'; run: AIRunStartedEvent }
+  | { type: 'step'; step: AIRunStepEvent }
   | { type: 'done'; conversationId: number; provider?: string; providerSource?: string }
   | { type: 'error'; message: string };
+
+/**
+ * v2 运行事件（B1-03 注册表；对象载荷带 `v:2`）。
+ *
+ * 语义：一次对话回合（run）开始。旧后端/开关关闭时不出现——调用方不得依赖其存在。
+ */
+export interface AIRunStartedEvent {
+  v?: number;
+  runId: number;
+  entrypoint?: string;
+  conversationId?: number;
+}
+
+/**
+ * v2 步骤事件（B1-03 注册表）：llm / tool 等步骤**落库成功后**广播。
+ *
+ * 只承载索引与元数据，业务载荷经 `payloadRef` 引用（不在此展开）。
+ */
+export interface AIRunStepEvent {
+  v?: number;
+  runId: number;
+  stepIndex: number;
+  type: string;
+  payloadRef?: string;
+  durationMs?: number;
+}
 
 /**
  * 对话内工具事件（M1-03 后端契约）。
@@ -604,6 +633,15 @@ export interface AIChatStreamCallbacks {
    * 工具调用过程事件（M1-03）。旧调用方不传即可——新增事件对既有渲染零影响。
    */
   onToolEvent?: AIToolStreamCallback;
+  /** v2 运行开始（B1-03）；不传即忽略。 */
+  onRunStarted?: (run: AIRunStartedEvent) => void;
+  /** v2 步骤进度（B1-03）；不传即忽略。 */
+  onStep?: (step: AIRunStepEvent) => void;
+  /**
+   * 未知事件上报（可选）：默认静默忽略以保证前向兼容；
+   * 传入时仅用于日志/埋点，**不得**据此中断流或渲染。
+   */
+  onUnknownEvent?: (event: string, data: unknown) => void;
   onDone?: (conversationId: number, info?: AIChatDoneInfo) => void;
   onError?: (message: string) => void;
 }
@@ -719,6 +757,8 @@ export async function aiChatStream(
       const decoder = new TextDecoder('utf-8');
       let buffer = '';
       let finalConversationId = 0;
+      // B1-03 双发去重：同一 invocation id 的待审批事件（v1 + v2）只回调一次。
+      const seenPendingIds = new Set<number>();
 
       const dispatch = (event: string, dataRaw: string) => {
         let data: unknown;
@@ -771,16 +811,30 @@ export async function aiChatStream(
           case 'tool_call_started':
           case 'tool_call_finished':
           case 'tool_call_failed':
-          case 'approval_pending': {
+          case 'approval_pending':
+          case 'confirmation_required': {
             const payload = data as Partial<AIToolStreamEvent> | null;
             if (!payload || typeof payload.tool !== 'string' || payload.tool.length === 0) {
               break;
+            }
+            // B1-03 兼容双发：待审批会先发 v1 `approval_pending` 再发 v2
+            // `confirmation_required`（同一 invocation id）。按 id 去重，
+            // 保证前端只渲染一张待审批卡片；v2-only 后端也能正常接住。
+            const pendingId = typeof payload.id === 'number' ? payload.id : undefined;
+            if (event === 'confirmation_required' && pendingId !== undefined) {
+              if (seenPendingIds.has(pendingId)) {
+                break;
+              }
+              seenPendingIds.add(pendingId);
+            } else if (event === 'approval_pending' && pendingId !== undefined) {
+              seenPendingIds.add(pendingId);
             }
             const fallbackStatus: Record<string, string> = {
               tool_call_started: 'started',
               tool_call_finished: 'done',
               tool_call_failed: 'failed',
               approval_pending: 'pending',
+              confirmation_required: 'pending',
             };
             callbacks.onToolEvent?.({
               ...payload,
@@ -791,8 +845,45 @@ export async function aiChatStream(
             });
             break;
           }
+          // B1-03 v2 运行事件：只做解析与回调，不改变既有渲染路径。
+          case 'run_started': {
+            const payload = data as Partial<AIRunStartedEvent> | null;
+            if (!payload || typeof payload.runId !== 'number') {
+              break;
+            }
+            callbacks.onRunStarted?.({
+              v: payload.v,
+              runId: payload.runId,
+              entrypoint: payload.entrypoint,
+              conversationId: payload.conversationId,
+            });
+            break;
+          }
+          case 'step': {
+            const payload = data as Partial<AIRunStepEvent> | null;
+            if (
+              !payload ||
+              typeof payload.runId !== 'number' ||
+              typeof payload.stepIndex !== 'number' ||
+              typeof payload.type !== 'string' ||
+              payload.type.length === 0
+            ) {
+              break;
+            }
+            callbacks.onStep?.({
+              v: payload.v,
+              runId: payload.runId,
+              stepIndex: payload.stepIndex,
+              type: payload.type,
+              payloadRef: payload.payloadRef,
+              durationMs: payload.durationMs,
+            });
+            break;
+          }
           default:
             // 未知事件一律忽略：新后端叠加的事件不会破坏旧前端的渲染（M1-03 兼容口径）。
+            // 需要观测时由调用方经 onUnknownEvent 自行埋点（不得据此渲染或中断流）。
+            callbacks.onUnknownEvent?.(event, data);
             break;
         }
       };

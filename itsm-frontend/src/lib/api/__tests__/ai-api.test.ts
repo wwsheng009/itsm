@@ -410,11 +410,89 @@ describe('AI API', () => {
 
       const onToolEvent = jest.fn();
       const onDelta = jest.fn();
-      const result = await aiChatStream({ query: 'test' }, { onToolEvent, onDelta });
+      const onUnknownEvent = jest.fn();
+      const result = await aiChatStream({ query: 'test' }, { onToolEvent, onDelta, onUnknownEvent });
 
       expect(onToolEvent).not.toHaveBeenCalled();
       expect(onDelta).toHaveBeenCalledWith('Hello');
+      // 未知事件静默忽略（不影响渲染），但可经 onUnknownEvent 上报观测。
+      expect(onUnknownEvent).toHaveBeenCalledTimes(1);
+      expect(onUnknownEvent).toHaveBeenCalledWith('tool_call_future_thing', { tool: 'x', unexpected: true });
       expect(result).toBe(11);
+    });
+
+    it('should dispatch v2 run events (run_started / step) and keep v1 frames intact', async () => {
+      const { aiChatStream } = require('../ai-api');
+      streamFrames([
+        'event:run_started\ndata:{"v":2,"runId":42,"entrypoint":"chat","conversationId":7}\n\n',
+        'event:step\ndata:{"v":2,"runId":42,"stepIndex":0,"type":"llm","durationMs":12}\n\n',
+        'event:step\ndata:{"v":2,"runId":42,"stepIndex":1,"type":"tool","payloadRef":"tool_invocation:9"}\n\n',
+        'event:delta\ndata:{"content":"Hi"}\n\n',
+        'event:done\ndata:{"conversationId":7}\n\n',
+      ]);
+
+      const onRunStarted = jest.fn();
+      const onStep = jest.fn();
+      const onDelta = jest.fn();
+      const result = await aiChatStream({ query: 'test' }, { onRunStarted, onStep, onDelta });
+
+      expect(onRunStarted).toHaveBeenCalledTimes(1);
+      expect(onRunStarted).toHaveBeenCalledWith({
+        v: 2,
+        runId: 42,
+        entrypoint: 'chat',
+        conversationId: 7,
+      });
+      expect(onStep.mock.calls.map((c: any[]) => [c[0].stepIndex, c[0].type])).toEqual([
+        [0, 'llm'],
+        [1, 'tool'],
+      ]);
+      expect(onStep.mock.calls[1][0].payloadRef).toBe('tool_invocation:9');
+      expect(onDelta).toHaveBeenCalledWith('Hi');
+      expect(result).toBe(7);
+    });
+
+    it('should dedupe approval_pending + confirmation_required for the same invocation id', async () => {
+      const { aiChatStream } = require('../ai-api');
+      streamFrames([
+        'event:approval_pending\ndata:{"id":9,"tool":"create_ticket","provider":"builtin","phase":"write","status":"pending"}\n\n',
+        'event:confirmation_required\ndata:{"v":2,"id":9,"tool":"create_ticket","provider":"builtin","phase":"write","status":"pending"}\n\n',
+        // 另一条 invocation：只发 v2（v2-only 后端）也必须被接住。
+        'event:confirmation_required\ndata:{"v":2,"id":10,"tool":"update_ticket","provider":"mcp","server":"mock","phase":"write","status":"pending"}\n\n',
+        'event:done\ndata:{"conversationId":3}\n\n',
+      ]);
+
+      const onToolEvent = jest.fn();
+      const result = await aiChatStream({ query: 'test' }, { onToolEvent });
+
+      expect(onToolEvent).toHaveBeenCalledTimes(2);
+      expect(onToolEvent.mock.calls.map((c: any[]) => c[0].id)).toEqual([9, 10]);
+      expect(onToolEvent.mock.calls.every((c: any[]) => c[0].status === 'pending')).toBe(true);
+      expect(result).toBe(3);
+    });
+
+    it('should ignore malformed v2 run/step payloads without breaking the stream', async () => {
+      const { aiChatStream } = require('../ai-api');
+      streamFrames([
+        // 缺 runId
+        'event:run_started\ndata:{"v":2,"entrypoint":"chat"}\n\n',
+        // stepIndex 非法
+        'event:step\ndata:{"v":2,"runId":1,"stepIndex":"zero","type":"llm"}\n\n',
+        // type 为空
+        'event:step\ndata:{"v":2,"runId":1,"stepIndex":0,"type":""}\n\n',
+        'event:delta\ndata:{"content":"ok"}\n\n',
+        'event:done\ndata:{"conversationId":4}\n\n',
+      ]);
+
+      const onRunStarted = jest.fn();
+      const onStep = jest.fn();
+      const onDelta = jest.fn();
+      const result = await aiChatStream({ query: 'test' }, { onRunStarted, onStep, onDelta });
+
+      expect(onRunStarted).not.toHaveBeenCalled();
+      expect(onStep).not.toHaveBeenCalled();
+      expect(onDelta).toHaveBeenCalledWith('ok');
+      expect(result).toBe(4);
     });
 
     it('should drop malformed tool events instead of throwing', async () => {
