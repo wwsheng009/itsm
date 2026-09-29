@@ -79,7 +79,11 @@ jest.mock('@/lib/hooks/useUserListQuery', () => ({
 }));
 
 jest.mock('@/lib/store/auth-store', () => ({
-  useAuthStore: () => ({ user: { id: 1, username: 'admin', name: '系统管理员' } }),
+  // hasPermission：B3-02 起 TicketDetail 用它做「问 AI」入口的权限预检（AI 读权限）。
+  useAuthStore: () => ({
+    user: { id: 1, username: 'admin', name: '系统管理员' },
+    hasPermission: () => true,
+  }),
 }));
 
 jest.mock('@/lib/hooks/useErrorHandler', () => ({

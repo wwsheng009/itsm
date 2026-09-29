@@ -716,6 +716,14 @@ export interface AIChatStreamRequest {
    * 仅对**新建会话**生效（已有 conversationId 时后端按会话绑定归属，忽略该字段）。
    */
   botId?: number;
+  /**
+   * B3-01/B3-02 入口上下文（页面 launcher 携带；缺省 = chat/无目标，请求体与现状一致）。
+   * 服务端会再次解析并做目标对象预检（前端值只是提示）。
+   */
+  entrypoint?: string;
+  targetType?: string;
+  targetId?: number;
+  summary?: string;
   signal?: AbortSignal;
 }
 
@@ -779,6 +787,10 @@ export async function aiChatStream(
     ...(req.provider ? { provider: req.provider } : {}),
     // 同上：未选择 Bot 时不落 botId（默认助手，请求体与现状一致）。
     ...(req.botId ? { botId: req.botId } : {}),
+    // B3-02：仅携带入口上下文时落字段（缺省请求体与现状一致）。
+    ...(req.entrypoint ? { entrypoint: req.entrypoint } : {}),
+    ...(req.targetType && req.targetId ? { targetType: req.targetType, targetId: req.targetId } : {}),
+    ...(req.summary ? { summary: req.summary } : {}),
   });
 
   let lastError: Error | null = null;
@@ -1079,6 +1091,11 @@ export class AIApi {
     provider?: string;
     /** B2-04：新建会话归属的 Bot（缺省 = 默认助手；已有会话忽略）。 */
     botId?: number;
+    /** B3-01/B3-02：入口上下文（缺省 = chat/无目标）。 */
+    entrypoint?: string;
+    targetType?: string;
+    targetId?: number;
+    summary?: string;
   }): Promise<any> {
     return httpClient.post(`/api/v1/ai/chat`, {
       query: params.query,
@@ -1086,6 +1103,9 @@ export class AIApi {
       conversationId: params.conversationId,
       ...(params.provider ? { provider: params.provider } : {}),
       ...(params.botId ? { botId: params.botId } : {}),
+      ...(params.entrypoint ? { entrypoint: params.entrypoint } : {}),
+      ...(params.targetType && params.targetId ? { targetType: params.targetType, targetId: params.targetId } : {}),
+      ...(params.summary ? { summary: params.summary } : {}),
     });
   }
 

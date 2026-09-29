@@ -1,4 +1,4 @@
-import { useNavigate } from 'react-router';
+import { useLocation, useNavigate } from 'react-router';
 
 /**
  * AI 智能助手 — 流式回答 + 引用来源 + 会话历史（ChatGPT / DeepSeek 风格会话界面）
@@ -76,6 +76,12 @@ import {
   buildArticlePrefillState,
   buildConversationArticlePrefillState,
 } from '@/lib/knowledge/ai-article-prefill';
+import {
+  askAIEntrypointLabel,
+  buildAskAIRequestScope,
+  readAskAIScope,
+  type AskAIScope,
+} from '@/lib/ai/ask-ai-scope';
 import MarkdownMessage from './MarkdownMessage';
 import ToolCallTimeline, { mergeToolEvents } from './tool-call-timeline';
 import ToolApprovalCard from './tool-approval-card';
@@ -568,6 +574,7 @@ const SourceList: React.FC<{ sources: RagAnswer[] }> = ({ sources }) => {
 
 const AIChat: React.FC = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const { token } = theme.useToken();
   const { hasPermission } = usePermissions();
   // 「设为我的默认 / 清除默认」写的是 PUT /ai/user-preference，仍是 system:write（P1 只放开读端点）
@@ -579,6 +586,11 @@ const AIChat: React.FC = () => {
     typeof window === 'undefined' ? true : window.innerWidth >= 768
   );
   const [query, setQuery] = useState('');
+  // B3-02：页面 launcher 携带的入口上下文（路由 state，一次性；可手动清除）。
+  // 契约与校验见 lib/ai/ask-ai-scope（非法 state 一律按「无上下文」处理）。
+  const [scopeDismissed, setScopeDismissed] = useState(false);
+  const entryScope = useMemo<AskAIScope | null>(() => readAskAIScope(location.state), [location.state]);
+  const activeScope = scopeDismissed ? null : entryScope;
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [convId, setConvId] = useState<number | undefined>(undefined);
   const [streaming, setStreaming] = useState(false);
@@ -867,6 +879,8 @@ const AIChat: React.FC = () => {
             limit: 5,
             provider: selectedProvider,
             botId: selectedBotId ?? undefined,
+            // B3-02：入口上下文（无 launcher 上下文时为空对象，请求体与现状一致）。
+            ...buildAskAIRequestScope(activeScope),
             signal: controller.signal,
           },
           {
@@ -939,6 +953,7 @@ const AIChat: React.FC = () => {
             limit: 5,
             provider: selectedProvider,
             botId: selectedBotId ?? undefined,
+            ...buildAskAIRequestScope(activeScope),
           });
           const answers: unknown[] = Array.isArray(res?.answers) ? res.answers : [];
           const fallbackText = answers
@@ -970,6 +985,7 @@ const AIChat: React.FC = () => {
       }
     },
     [
+      activeScope,
       appendAssistantContent,
       convId,
       loadConversations,
@@ -1226,6 +1242,24 @@ const AIChat: React.FC = () => {
               onChange={setSelectedBotId}
               locked={Boolean(convId)}
             />
+            {/* B3-02：入口上下文条（来自页面 launcher；可清除，清除后按普通对话处理） */}
+            {activeScope ? (
+              <Tag
+                color="processing"
+                closable
+                onClose={e => {
+                  e.preventDefault();
+                  setScopeDismissed(true);
+                }}
+                data-testid="ask-ai-scope-chip"
+                style={{ marginInlineEnd: 0 }}
+              >
+                {askAIEntrypointLabel(activeScope.entrypoint)}
+                {activeScope.targetType && activeScope.targetId
+                  ? ` · ${activeScope.targetType}#${activeScope.targetId}`
+                  : ''}
+              </Tag>
+            ) : null}
             {/* Provider 选择器：feature.enabled && providers.length > 1（P1 起普通用户同样可见） */}
             {canSwitchProvider ? (
               <>

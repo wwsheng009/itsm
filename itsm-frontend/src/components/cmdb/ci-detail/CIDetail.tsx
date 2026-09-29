@@ -17,11 +17,14 @@ import { CIRelationshipsTab } from './sections/CIRelationshipsTab';
 import { CIImpactAnalysisTab } from './sections/CIImpactAnalysisTab';
 import { CIChangeHistoryTab } from './sections/CIChangeHistoryTab';
 import type { ConfigurationItem, CIType } from '@/types/biz/cmdb';
+import { AskAILauncher } from '@/components/ai/AskAILauncher';
+import { useAuthStore } from '@/lib/store/auth-store';
 
 const { Title, Text } = Typography;
 
 export const CIDetail: React.FC = () => {
   const navigate = useNavigate();
+  const { hasPermission } = useAuthStore();
   const {
     ci,
     loading,
@@ -149,13 +152,19 @@ export const CIDetail: React.FC = () => {
 
       <Card>
         <div style={{ marginBottom: 24 }}>
-          <Button
-            icon={<ArrowLeft />}
-            onClick={() => navigate('/cmdb/cis')}
-            style={{ marginBottom: 16 }}
-          >
-            返回列表
-          </Button>
+          <Space style={{ marginBottom: 16 }}>
+            <Button icon={<ArrowLeft />} onClick={() => navigate('/cmdb/cis')}>
+              返回列表
+            </Button>
+            {/* B3-02：携带入口上下文（ci_detail + 本配置项）打开 AI 工作区 */}
+            <AskAILauncher
+              entrypoint="ci_detail"
+              targetType="ci"
+              targetId={ci.id}
+              summary={ci.name}
+              denied={!hasPermission('ai:read')}
+            />
+          </Space>
           <div
             style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}
           >
