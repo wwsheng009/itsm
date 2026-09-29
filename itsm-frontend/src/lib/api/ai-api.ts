@@ -328,6 +328,14 @@ export interface ToolApproval {
   durationMs?: number;
   errorCode?: string;
   outputSummary?: string;
+  /**
+   * B1-05 后端附加字段：
+   * `confirmationState` = pending|confirmed|rejected|expired|cancelled|unknown（规范化状态）；
+   * `expiresAt` = 确认单有效期（未配置 TTL 时为 null）。
+   * 旧后端不返回时二者缺省，前端按 `approvalState` 降级推导。
+   */
+  confirmationState?: string;
+  expiresAt?: string | null;
 }
 
 export interface ToolApprovalListResponse {

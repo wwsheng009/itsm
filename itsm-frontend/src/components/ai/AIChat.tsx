@@ -53,6 +53,7 @@ import {
 
 import {
   AIApi,
+  aiApproveTool,
   aiChatStream,
   deleteConversation,
   getConversationMessages,
@@ -60,6 +61,7 @@ import {
   type ConversationSummary,
   type RagAnswer,
   type AIToolStreamEvent,
+  type ToolInvocationDetail,
 } from '@/lib/api/ai-api';
 import {
   LLM_PROVIDER_DISABLED,
@@ -75,6 +77,7 @@ import {
 import MarkdownMessage from './MarkdownMessage';
 import ToolCallTimeline, { mergeToolEvents } from './tool-call-timeline';
 import ToolApprovalCard from './tool-approval-card';
+import ConfirmationDrawer from './confirmation-drawer';
 
 const { Text } = Typography;
 
@@ -230,6 +233,13 @@ interface ChatMessageItemProps {
   onCreateArticle: (message: ChatMessage) => void;
   /** M1-05：跳转外置审批页（一期边界 = 外置审批闭环，卡片只提示与跳转）。 */
   onOpenApproval: (invocationId: number) => void;
+  /**
+   * B1-07：对话内确认。缺省时保持一期行为（卡片只提示 + 跳转）。
+   * 注入后由卡片提供「确认 / 拒绝」入口，抽屉负责倒计时与原因必填。
+   */
+  onRequestConfirm?: (invocationId: number) => void;
+  /** B1-07：确认后的刷新回调（状态变化后让外层刷新会话/审计视图）。 */
+  onConfirmed?: () => void;
 }
 
 /** 单条消息：用户 = 右对齐气泡；助手 = 头像 + Markdown 正文 + 操作区。 */
@@ -238,10 +248,15 @@ const ChatMessageItem: React.FC<ChatMessageItemProps> = ({
   providerLabel,
   onCreateArticle,
   onOpenApproval,
+  onRequestConfirm,
+  onConfirmed,
 }) => {
   const { token } = theme.useToken();
   const [copied, setCopied] = useState(false);
   const copyTimerRef = useRef<number | null>(null);
+  // B1-07：对话内确认抽屉（仅在 BusinessBot 注入 onRequestConfirm 时启用）。
+  const [confirmTarget, setConfirmTarget] = useState<ToolInvocationDetail | null>(null);
+  const [confirmError, setConfirmError] = useState<string | undefined>(undefined);
 
   useEffect(
     () => () => {
@@ -352,12 +367,45 @@ const ChatMessageItem: React.FC<ChatMessageItemProps> = ({
             provider={entry.provider}
             server={entry.server}
             onOpenApproval={onOpenApproval}
+            onRequestConfirm={
+              onRequestConfirm
+                ? detail => {
+                    setConfirmError(undefined);
+                    setConfirmTarget(detail);
+                  }
+                : undefined
+            }
           />
         ))}
 
         {/* 工具调用时间线（M1-04）：仅 SSE 事件驱动；无事件时不渲染（旧后端/事件丢失降级）。
             pending 条目由上方卡片承载，时间线不再重复展示。 */}
         <ToolCallTimeline events={message.toolEvents} hideStatuses={PENDING_HIDDEN_STATUSES} />
+
+        {/* B1-07：对话内确认抽屉（仅注入 onRequestConfirm 时可用；决策走 B1-05 状态机）。 */}
+        {onRequestConfirm ? (
+          <ConfirmationDrawer
+            open={confirmTarget !== null}
+            detail={confirmTarget}
+            errorMessage={confirmError}
+            onClose={() => {
+              setConfirmTarget(null);
+              setConfirmError(undefined);
+            }}
+            onDecision={async (approve, reason) => {
+              if (!confirmTarget) return;
+              try {
+                await aiApproveTool(confirmTarget.id, { approve, reason: reason || undefined });
+                setConfirmTarget(null);
+                setConfirmError(undefined);
+                onConfirmed?.();
+              } catch (err) {
+                // 过期/冲突/队列不可用等：错误语义由后端给出，抽屉内可见地失败并保留上下文。
+                setConfirmError((err as Error)?.message || '确认操作失败，请稍后重试');
+              }
+            }}
+          />
+        ) : null}
 
         {message.sources && message.sources.length > 0 ? (
           <SourceList sources={message.sources} />
@@ -544,6 +592,14 @@ const AIChat: React.FC = () => {
     },
     [navigate]
   );
+
+  /**
+   * B1-07：启用对话内确认入口。
+   *
+   * 抽屉由消息项本地托管（确认单详情在卡片拉取后直接传入，避免二次请求）；
+   * 这里只保留调用点用于埋点/扩展，不改变渲染路径。
+   */
+  const handleRequestConfirm = useCallback((_invocationId: number) => undefined, []);
 
   // 所选实例在可用列表中消失（被禁用/删除）→ 清除选择并提示，回退默认（§6.2 场景 5）。
   useEffect(() => {
@@ -1179,6 +1235,8 @@ const AIChat: React.FC = () => {
                   providerLabel={providerLabel}
                   onCreateArticle={handlePromoteToArticle}
                   onOpenApproval={handleOpenApproval}
+                  // B1-07：对话内确认（确认抽屉）。入口只在确认单仍 pending 且未过期时出现。
+                  onRequestConfirm={handleRequestConfirm}
                 />
               ))}
             </div>
