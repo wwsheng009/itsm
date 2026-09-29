@@ -19,6 +19,8 @@
 
 **一句话**：**租户维度在数据模型上是"基本齐全"的**（tenant_guard 强制 + 组织/工作流/通知主表都带 `tenant_id`），真正的冲突集中在**三个结构性缺口**：① 组织成员关系没有成员行（无 membership 载体）；② 权限双源 + `user_roles` 平台级豁免；③ 执行器/定时器/后台任务的租户上下文通道不统一（RLS 兼容性）。另有 4 处**具体安全缺陷**需 P0 修复（§7.1）。
 
+> **专项核实（§11）**：`msp_provider` 只是**租户类型标签**；"所有服务商用户同属一个平台级 tenant"**不是硬约束**——`saas_msp` 部署 seed 只创建一个 `code="default"` 的 provider 租户（隐式单例），且 `parent_tenant_id`/`msp_provider_id` 为"死元数据"、分配不校验 provider 归属（风险 R1–R6）。
+
 ---
 
 ## 1. 判定框架（五问）
@@ -261,6 +263,36 @@ membership（新增，统一作用域）：
 
 ---
 
+## 11. 专项核实：`msp_provider` 概念与"单一 provider 租户"假设（2026-09-29）
+
+**问题**：服务商（MSP）用户是否都属于同一个平台级 tenant（类型 `msp_provider`）？
+
+**结论：不是硬约束，但存在"隐式单例"。**
+
+- `msp_provider` 是 **`tenants.type` 枚举上的一个类型标签**（legacy `msp`），不是独立实体；provider 租户与客户租户之间**没有 edge/外键**，`parent_tenant_id`（"MSP客户指向MSP提供商"）与 `msp_provider_id`（"MSP服务提供商ID"）都是**可空裸整数**（`ent/schema/tenant.go:29-41`；Tenant 仅 users/allocations/bootstrap_tokens 三条 edge，`:80-88`）。
+- **事实上的唯一 provider**：`saas_msp` 部署下 seed 把 `code="default"` 租户设为 `msp_provider`（"MSP Provider Tenant"，`pkg/seeder/seeder.go:784-833`）；测试断言该模式**只建 provider、不建客户**（`seeder_test.go:159-178`）。全仓**无任何配置项**固定 provider 租户 ID/Code。
+- **身份判定与 provider 归属无关**：`IsMSP = 用户 home tenant 类型 ∈ {msp_provider, msp} ∧ msp_role ≠ ''`（`middleware/msp_middleware.go:91-96`）；`AllowedCustomers` 只来自 `MSPAllocation(msp_user_id, customer_tenant_id, deassigned_at IS NULL)`（`:104-131`）；`SwitchTenant` 同样只查 allocation（`handlers/auth/service.go:126-135`）。
+- **可创建任意多个 provider 租户**：`CreateTenant` 原样落库 type/parent/provider 字段、无类型-父子一致性校验（`service/tenant_service.go:48-52`、`dto/tenant_dto.go:10`）；type 无唯一约束（仅 `code` 唯一）。
+
+**风险清单（R1–R6）**：
+
+| # | 风险 | 证据 | 影响 |
+|---|---|---|---|
+| R1 | 无唯一性约束：有 tenant 写权限即可建第二个 `msp_provider` 租户，其用户立即被认定 MSP，但无客户关系/归属记录 | `middleware/msp_middleware.go:93` | 多 provider 语义混乱 |
+| R2 | **跨 provider 分配**：分配创建不校验"客户所属 provider == 用户所属 provider"；admin 还跳过两侧类型校验 | `service/msp_allocation_service.go:43,46,66-68` | provider A 用户可访问 provider B 客户（访问链全链路只查 allocation） |
+| R3 | 父字段是**死元数据**：`parent_tenant_id`/`msp_provider_id` 只写不读（仅 DTO 序列化输出） | `service/tenant_service.go:51-52,195-199` → `dto/mappers.go:414-418` | 不能作为归属校验依据；建客户时无人自动填 provider |
+| R4 | 门控与 seed 模式**源不一致**：`main.go:33` 读 env，seeder 读 cfg | `main.go:33`、`pkg/seeder/seeder.go:835-840` | 可能"路由开但按 private 初始化"或反之 |
+| R5 | 身份命名双轨：`dto/msp_dto.go:25-30` 的 `msp_*` 常量未被引用；实际值为 `provider_admin/provider_agent/customer_user` | `middleware/msp_rbac.go:18-22` | `msp_role` 取值域无集中校验 |
+| R6 | 弱重建：`GetMSPContextFromContext` 只要 Go ctx 有 customer tenant id 即返回 `IsMSP=true`（Role/AllowedCustomers 丢失） | `middleware/msp_context.go:67-76` | 服务层误用做鉴权会绕过校验 |
+
+**处置建议**：
+
+- **P0**：R2（分配时校验客户 provider 归属，admin 不跳过归属校验）+ R4（统一 mode 源）+ R6（标注"仅数据传递、不可鉴权"或移除）；
+- **P1**：R1/R3（明确多 provider 策略：`parent_tenant_id` 回填+消费+校验，或显式废弃；provider 唯一性策略）+ R5（`msp_role` 集中校验、清理双轨常量）；
+- **与目标架构衔接**：provider 归属应由 `MSPAllocation`/membership **显式承载**（建议 allocation 增加 `provider_tenant_id`，或由 membership 派生），不再依赖"单一 `default` provider 租户"的隐式约定。
+
+---
+
 ## 附录：证据索引
 
 - 权限/RBAC：`itsm-backend/middleware/rbac.go:41-55,99-469,487-504,877-905,1225-1239`、`middleware/smart_permission.go:144-150`、`service/menu_service.go:334-411`、`handlers/common/datascope/datascope.go:19-41,117-143`
@@ -275,3 +307,4 @@ membership（新增，统一作用域）：
 | 版本 | 日期 | 变更 |
 |---|---|---|
 | v0.1 | 2026-09-29 | 首版：五问判定框架；权限/组织/工作流/执行器/通知五域现状与冲突（❌ 6 项 P0 + 🟡 14 项 P1）；目标集成模型 7 条不变量；分期验收与开放问题（D1–D6） |
+| v0.2 | 2026-09-29 | 新增 §11 专项核实：`msp_provider` 为租户类型标签；"单一平台级 provider 租户"为 seed 隐式单例而非约束；`parent_tenant_id/msp_provider_id` 死元数据、分配不校验 provider 归属；风险 R1–R6 与处置建议 |
