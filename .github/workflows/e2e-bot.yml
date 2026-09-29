@@ -1,0 +1,167 @@
+# Bot 浏览器 E2E（B4-01 / AB4-01 的 browser 通道）
+#
+# 目的：在真实栈（后端 + 前端 + mock LLM）上执行
+#       `itsm-frontend/tests/e2e/flows/flow-bot-workspace.spec.ts`，覆盖
+#       「详情页 launcher → 工作区（入口上下文）→ SSE 流与工具时间线 → 写工具确认抽屉」。
+#
+# ⚠️ 首轮校准（本机为 Windows，无 Postgres/Docker，以下假设首次运行需按实际输出校正；
+#    校准通过后把 `continue-on-error` 删除即成为阻断门）：
+#    1) 后端健康探针路径：脚本同时探测 `/api/v1/health` 与 `/health`（沿用 e2e-mcp.yml）；
+#    2) 首个管理员创建：`cmd/initialize -action generate-bootstrap-token` 输出格式与
+#       `POST /api/v1/bootstrap/create-admin` 请求体（沿用 e2e-mcp.yml 的校准）；
+#    3) `BOT_ENABLED=true` 是否足以打开工作区与确认链路（另需 `bot` 白名单/授权默认值，
+#       见实施方案 §4.3 BP6/B1-07 的兼容默认）；
+#    4) mock LLM 工具名 `create_ticket`（内置写工具）是否触发确认抽屉；若被策略拒绝，
+#       按 `/tmp/backend.log` 的 `reason_code` 调整 seed 或改用只读工具（用例③会 self-skip）；
+#    5) 对话输入框 placeholder 与发送方式（Enter / 按钮）——见 spec 头部校准清单。
+name: e2e-bot
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - 'itsm-backend/service/bot/**'
+      - 'itsm-backend/handlers/ai/**'
+      - 'itsm-backend/ent/schema/bot_*.go'
+      - 'itsm-backend/ent/schema/tool_invocation*.go'
+      - 'itsm-backend/tests/botintegration/**'
+      - 'itsm-backend/config.yaml.example'
+      - 'itsm-frontend/src/components/ai/**'
+      - 'itsm-frontend/src/pages/(main)/ai/**'
+      - 'itsm-frontend/src/lib/ai/**'
+      - 'itsm-frontend/tests/e2e/flows/flow-bot-workspace.spec.ts'
+      - 'itsm-frontend/playwright.config.ts'
+      - 'e2e/**'
+      - '.github/workflows/e2e-bot.yml'
+  push:
+    branches: [main, master]
+    paths:
+      - 'itsm-backend/service/bot/**'
+      - 'itsm-backend/handlers/ai/**'
+      - 'itsm-frontend/src/components/ai/**'
+      - '.github/workflows/e2e-bot.yml'
+
+concurrency:
+  group: e2e-bot-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  e2e-bot:
+    name: Bot 浏览器 E2E（真实栈）
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    # 首轮校准用；校准绿后删除本行使其成为阻断门（对齐实施方案 §4.5 B4-01 的硬门槛定位）。
+    continue-on-error: true
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: itsm
+          POSTGRES_PASSWORD: dev123
+          POSTGRES_DB: itsm
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U itsm -d itsm"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 20
+
+    env:
+      DB_HOST: 127.0.0.1
+      DB_PORT: '5432'
+      DB_USER: itsm
+      DB_PASSWORD: dev123
+      DB_NAME: itsm
+      DB_SSLMODE: disable
+      GOTOOLCHAIN: auto
+      # Bot 面开关（BP5 兼容默认：关闭时零行为变化；E2E 需要打开）。
+      BOT_ENABLED: 'true'
+      # 确定性 LLM 替身：让「对话 → 工具调用 → 确认抽屉」在没有真实模型额度时也可端到端驱动。
+      # 双条件启用（provider=mock ∧ LLM_MOCK_ENABLED=true）。
+      LLM_PROVIDER: mock
+      LLM_MOCK_ENABLED: 'true'
+      LLM_MOCK_TRIGGER: '__tool__'
+      # 写工具路径：触发 Gate3 → 对话内确认抽屉（flow-bot-workspace.spec.ts 用例③）。
+      LLM_MOCK_TOOL_NAME: create_ticket
+      # 前端 vite 代理目标（vite.config.ts: ITSM_BACKEND_URL）。
+      ITSM_BACKEND_URL: http://127.0.0.1:8090
+      # Playwright fixtures 的 API 基址与前端基址。
+      VITE_API_URL: http://127.0.0.1:8090
+      PLAYWRIGHT_BASE_URL: http://127.0.0.1:3000
+      PLAYWRIGHT_SKIP_CHANNELS: '1'
+      # 与 tests/e2e/fixtures/auth.ts 的 TEST_ACCOUNTS.admin 保持一致。
+      ADMIN_PASSWORD: 'AdminProd2026!'
+
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-go@v7
+        with:
+          go-version-file: itsm-backend/go.mod
+          cache-dependency-path: itsm-backend/go.sum
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: itsm-frontend/package-lock.json
+
+      # 1) 后端：用 example 配置（含 ${ENV:default} 占位符）启动（Bot 面已由 BOT_ENABLED 打开）。
+      - name: Build & start backend (bot enabled)
+        working-directory: itsm-backend
+        run: |
+          cp config.yaml.example config.yaml
+          go build -o /tmp/itsm-backend .
+          nohup /tmp/itsm-backend > /tmp/backend.log 2>&1 &
+          for i in $(seq 1 60); do
+            if curl -sf -o /dev/null http://127.0.0.1:8090/api/v1/health || curl -sf -o /dev/null http://127.0.0.1:8090/health; then
+              echo "backend is up"; break
+            fi
+            sleep 2
+          done
+          tail -20 /tmp/backend.log
+
+      # 2) 首个管理员（bootstrap token → create-admin），密码与 E2E fixtures 对齐。
+      - name: Create first admin
+        working-directory: itsm-backend
+        run: |
+          set -euo pipefail
+          BOOTSTRAP=$(go run ./cmd/initialize -action generate-bootstrap-token -tenant-id 1 \
+            | awk '/=== BOOTSTRAP TOKEN/{getline; print; exit}')
+          echo "bootstrap token length: ${#BOOTSTRAP}"
+          curl -sf -X POST http://127.0.0.1:8090/api/v1/bootstrap/create-admin \
+            -H 'Content-Type: application/json' \
+            -d "{\"token\":\"${BOOTSTRAP}\",\"password\":\"${ADMIN_PASSWORD}\"}" || {
+              echo 'create-admin 失败：请按本 workflow 头部「首轮校准」第 2 条校正接口/请求体';
+              tail -30 /tmp/backend.log; exit 1; }
+
+      # 3) 前端依赖与浏览器。
+      - name: Install frontend deps
+        working-directory: itsm-frontend
+        run: npm ci --legacy-peer-deps
+
+      - name: Install Playwright chromium
+        working-directory: itsm-frontend
+        run: npx playwright install --with-deps chromium
+
+      # 4) 执行 Bot 浏览器 E2E（webServer 由 playwright.config.ts 自动起 vite dev :3000）。
+      - name: Run Bot E2E spec
+        working-directory: itsm-frontend
+        run: |
+          npx playwright test \
+            tests/e2e/flows/flow-bot-workspace.spec.ts \
+            --project=chromium --reporter=list
+
+      # 5) 证据归档（B4-01 的浏览器证据：截图 / trace / 报告 / 后端日志）。
+      - name: Upload artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: bot-e2e-artifacts
+          if-no-files-found: ignore
+          retention-days: 14
+          path: |
+            itsm-frontend/playwright-report
+            /tmp/itsm-playwright-results
+            /tmp/backend.log
