@@ -33,6 +33,7 @@
 - [开源发布能力说明](./product/open-source-release-capability.md)
 - [商业就绪架构评审](./architecture/commercial-ready-architecture.md)
 - [多租户（多客户单一服务商）运营手册](./multi-tenant/README.md)：MSP 场景的架构、部署、客户/服务商维度、使用与验证
+- [通知模块设计方案（借鉴 ai-gateway）](./plan/notification-module-design-plan-2026-09-29.md)：站内信/邮件/IM 渠道、模板、偏好、投递可靠性与 P0–P2 分期
 - [企业级 v1 就绪度评估](./archive/reviews/enterprise-v1-readiness-2026-06-07.md)
 - [工作流控制台诊断与设计](./product/workflow-console-diagnosis-and-design.md)
 
