@@ -306,7 +306,48 @@ erDiagram
 - **选项 A：单 provider 部署（当前事实）**——`saas_msp` = 一个服务商实例；约束落地：启动自检"provider 租户唯一"（type=msp_provider 计数 ≤1）+ `parent/provider` 字段回填与校验；
 - **选项 B：多 provider 支持**——同一实例承载多个服务商；需补齐：allocation 增 `provider_tenant_id`、customer 归属校验、provider 隔离的 RBAC/报表/审计、工作台按 provider 收窄。
 
-> 建议：**P0 先按选项 A 显式化**（成本低、消除隐式假设），把选项 B 作为 P2 的产品决策（若需要"平台运营多个服务商"，再按 B 补齐字段与校验，模型已预留）。
+> 建议（含 §7.1 Superset 判定）：**模型/代码层直接按选项 B（多 provider）建模**——B 是 A 的超集（N=1 即单 provider 部署，功能全部保留）；**部署层提供"单 provider 预设"**（初始化 1 个 provider、按需隐藏 provider 管理 UI）。P0 先做校验显式化（类型/归属/mode 源/执行器 ctx），P1 落 membership + provider 维度，避免"先特例后返工"。
+
+### 7.1 多 provider 架构是否覆盖单 provider 部署？（Superset 判定）
+
+**结论：架构上是超集（N=1 退化），但"覆盖"要按三层拆开——模型/代码层统一、部署层简化、初始化层差异。**
+
+| 层 | 单 provider 部署 | 多 provider 架构 | 覆盖判定 |
+|---|---|---|---|
+| 概念模型 | provider 租户 1 个，客户归属它 | provider 租户 N 个，客户归属各自 provider | ✅ 超集（N=1） |
+| MSP 身份判定 | `IsMSP = provider 类型 + msp_role` | 同（每个 provider 员工在自己租户） | ✅ 同一套逻辑 |
+| 客户授权 | allocation（用户↔客户） | 同 + **归属一致性校验**（R2 修复） | ✅ 单 provider 下校验恒真，无副作用 |
+| 跨客户能力 | `/msp/*` + AllowedCustomers | 同 + **provider 维度收窄**（列表/报表/审计） | ✅ 单 provider 下收窄恒为全量（无感） |
+| 平台/服务商边界 | **同体**（default=provider，R8） | **分离**（平台租户 + provider 租户） | ⚠️ 行为差异（见下） |
+| 默认租户 | `default`=provider | `default`=platform，provider 另建 | ⚠️ 行为差异（见下） |
+| 运维能力 | 不需要 provider 管理 | 需要 provider 生命周期（创建/暂停/配额/报表） | 🟡 后端必须齐备，UI 可按部署模式隐藏 |
+| 迁移 | — | legacy 布局（default=provider）需迁移/兼容 | 🟡 一次性迁移脚本 + 兼容期 |
+
+**三个必须显式化的差异**（否则"覆盖"会变成行为破坏）：
+
+1. **默认租户语义**：多 provider 架构下 `default` = 平台租户；单 provider 部署也应"平台租户 + 1 个 provider 租户"两个租户（推荐），或保留 legacy `default=provider` 仅只读兼容 + 迁移脚本；
+2. **平台与服务商分离**：多 provider 天然分离（修复 R8），单 provider 部署的管理员因此需要**两个身份**（平台管理员 membership + 可选 provider membership）——建议**不兼任**，靠 membership 区分；
+3. **provider 维度约束**：所有跨客户查询/报表/审计加 provider 收窄；单 provider 下恒为唯一 provider（用户无感），但**代码路径必须一致**——不允许 `if providerCount == 1` 之类的特例分支。
+
+**原则**：
+
+- **模型/代码按多 provider 统一**（provider 维度无处不在，N=1 自然退化）；
+- **部署按模式简化**（`saas_msp` = 多 provider 架构的"单 provider 预设"：初始化 1 个 provider、按需隐藏 provider 管理 UI）；
+- **禁止特例分支**：单 provider 不是"另一种架构"，只是 N=1。
+
+**成本对比**：
+
+| 路线 | 一次性成本 | 长期风险 |
+|---|---|---|
+| 先做单 provider 特例，未来再改多 provider | 低 | **高**：模型/校验/审计/报表返工（"割裂"的真正来源） |
+| **直接按多 provider 建模 + 单 provider 预设** | 中（provider 维度从一开始就在） | 低：单 provider 只是 N=1；多 provider 无需重构 |
+
+**建议**：直接按多 provider 建模（D1 采用 B 的模型），部署上提供"单 provider 快速初始化"预设——**单 provider 部署的功能全部保留**，且 R2/R7/R8 一并消除。
+
+**新增不变量与验收**：
+
+- **I13**：provider 维度在所有跨客户能力中显式存在；单 provider 部署 = N=1 退化，不存在按 provider 数量分支的代码路径（UI 展示除外）；
+- **A11**：同一套 e2e 用例（建 provider→建客户→分配→工作台→条目操作）在 N=1 与 N=2 下均通过，且 N=1 时无额外 UI/步骤。
 
 ---
 
@@ -355,7 +396,7 @@ erDiagram
 
 | # | 决策 | 选项 | 影响 |
 |---|---|---|---|
-| D1 | 单 provider vs 多 provider | A 单 provider 部署（建议 P0）/ B 多 provider（详见 §2.2 方案 A/B） | allocation 字段、RBAC/报表/审计收窄 |
+| D1 | 单 provider vs 多 provider | **建议：B 的模型 + A 的部署预设**（§7.1：多 provider 覆盖单 provider，N=1 退化；§2.2 方案 A/B） | allocation 字段、RBAC/报表/审计收窄 |
 | D2 | `saas_customer`（直客）是否允许"无 provider" | 允许（显式标记）/ 统一挂默认 provider | customer 归属约束 |
 | D3 | 通知模板/`messages` 是否租户化 | 租户化 / 平台共享（登记） | 客户自定义文案能力 |
 | D4 | 账号唯一性 vs 身份合并 | 保持全局唯一 + `identity_key`（建议）/ 改租户内唯一 | 登录与账号模型 |
@@ -395,3 +436,4 @@ erDiagram
 | v0.1 | 2026-09-29 | 首版：15 个概念 Canon 定义；四层分层与 6 条边界规则；Canonical ER + 12 条不变量；概念→现状→目标映射表（14 行）；术语收敛与废弃清单；子系统挂接规范；部署模式与单/多 provider 决策；P0/P1/P2 迁移路线；验收 A1–A10 与反例；开放决策 D1–D8；文档职责分工 |
 | v0.2 | 2026-09-29 | 新增 §2.1：Provider（`msp_provider`）与 Customer（`msp_customer`）的定位、功能清单（身份/角色映射/客户范围/能力面/生命周期）、逐维度对比表、与 Platform 的区别、常见误解澄清 |
 | v0.3 | 2026-09-29 | 新增 §2.2：默认租户（`code=default`）部署模式矩阵——"平台与服务商同体"（saas_msp 下 default=provider 租户且承载 super_admin），区分靠角色而非租户；风险 R7（模式切换原地改写类型）/R8（治理与服务商审计难区分）；方案 A/B |
+| v0.4 | 2026-09-29 | 新增 §7.1 Superset 判定：多 provider 架构是单 provider 的超集（N=1 退化），逐层覆盖表；三个必须显式化的差异（默认租户语义/平台与服务商分离/provider 维度约束）；建议"B 的模型 + A 的部署预设"；新增不变量 I13 与验收 A11 |
