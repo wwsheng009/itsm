@@ -153,11 +153,13 @@ type WorkflowNodeMSPConfig struct {
 }
 
 type MSPStatusResponse struct {
-	IsMSP     bool   `json:"isMsp"`
-	MSPUserID int    `json:"mspUserId,omitempty"`
-	Role      string `json:"role,omitempty"`
-	IsAdmin   bool   `json:"isAdmin"`
-	Message   string `json:"message,omitempty"`
+	IsMSP            bool   `json:"isMsp"`
+	MSPUserID        int    `json:"mspUserId,omitempty"`
+	Role             string `json:"role,omitempty"`
+	IsAdmin          bool   `json:"isAdmin"`
+	Message          string `json:"message,omitempty"`
+	DeploymentMode   string `json:"deploymentMode,omitempty"` // IP-P0-1：当前部署模式（仅 saas_msp 开放 MSP）
+	MSPRoutesEnabled bool   `json:"mspRoutesEnabled"`         // IP-P0-1：与 middleware.IsMSPEnabled() 同源
 }
 
 type MSPAllocationListResponse struct {

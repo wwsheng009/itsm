@@ -1,11 +1,11 @@
 # 服务方 / 客户方作用域模型分析（参考 ai-gateway 多租户设计）
 
-> 状态：Draft（待评审）｜日期：2026-09-29
+> 状态：**Draft v0.4（2026-09-30 口径回填完成）**｜日期：2026-09-30
 > 关联：[用户生命周期与租户切换方案](./msp-user-lifecycle-and-tenant-switching-plan.md)（下称"主方案"）、[ADR-004](../../architecture/adr-004-multi-customer-tenant-model-selection.md)、[07 已知缺口](../07-known-gaps.md)
 > 参考实现：`E:\projects\ai\ai-gateway`（`tenant_membership` 迁移 127、`docs/plan/shop-multi-tenant-architecture-implementation-plan-20260608.md`）
 > 目的：① 正式回答主方案 Q1（服务方/客户方权限边界）；② 论证"**一个账号、多个作用域（scope）**"目标模型；③ 给出可借鉴/不可照搬清单与对主方案的分期调整建议。
 
-> **修订指针（2026-09-29 一致性整改）**：本文关于"登录 409+候选列表、`last_active` 落地、连续操作走切换、顶栏作用域切换器"的表述已被[登录与切换细化](./msp-login-and-switching-refinement-plan.md)与[工作台方案](./msp-cross-customer-workbench-and-filter-plan.md)（`REV-1`–`REV-5`、`WB1`–`WB6`）修订；正文回填排期见[一致性审计](./msp-docs-consistency-audit.md) §5。
+> **修订指针（2026-09-30 回填完成）**：本文关于"登录 409+候选列表、`last_active` 落地、连续操作走切换、顶栏作用域切换器"的表述已按[登录与切换细化](./msp-login-and-switching-refinement-plan.md)与[工作台方案](./msp-cross-customer-workbench-and-filter-plan.md)（`REV-1`–`REV-5`、`WB1`–`WB6`）回填：登录落 provider 家、无候选列表、CustomerFilter 为主控件、角色词表统一 D10。
 
 ---
 
@@ -19,7 +19,7 @@
 | 跨租户 | ❌ **不允许**（作用域恒等于其所属客户租户） | ✅ 允许，但**仅限被授权的客户租户集合**（= 有效 `MSPAllocation`）+ 自身 provider 租户 | ✅ 全域（受 RBAC + 审计 + 高危二次确认） |
 | 作用域来源 | 账号创建时绑定（home membership，唯一） | `provider 租户` + 每个有效分配生成一条 membership | 平台身份（`IsPlatformAdmin` 式能力位） |
 | 租户内角色 | 客户租户模板角色（admin/manager/agent/technician/end_user），**拥有大部分业务级功能** | 每个作用域独立角色：primary→`msp_manager`、backup→`msp_tech`、specialist→`msp_specialist`；客户租户内的业务权限按 §3.3 基线收敛 | 由平台 RBAC 决定 |
-| 会话行为 | 登录即锁定唯一租户；**前端不出现租户选择器**（多命中即数据异常，fail-closed） | 登录后可在已授权作用域间**显式选择/切换**；前端提供作用域选择器与"当前客户"指示 | 治理模式：先选目标租户再操作 |
+| 会话行为 | 登录即锁定唯一租户；**前端不出现租户选择器**（多命中即数据异常，fail-closed） | 登录落 **provider 家**（无选择器/无候选列表）；认证后顶栏 `CustomerFilter`（主控件）+ 深度切换入口 +"当前客户"指示 | 治理模式：先选目标租户再操作 |
 
 ### 0.2 目标模型（一句话）
 
@@ -32,7 +32,7 @@
 1. **路线 B（memberships）不再是"可选演进"，而是目标模型的正式部分**，建议由 P2 提前到 **P1 首批**（主方案 F7 的定位随之更新）；
 2. **无需改动 `users.email/username` 全局唯一约束**（原 P1-2 的"邮箱租户内唯一"可**取消**）：客户方不跨租户 → 一邮箱一账号即可；服务方多作用域通过 membership 表达，与邮箱唯一性无关。这同时消除了主方案 §9.1 的一项中风险迁移；
 3. **服务方作用域 = `MSPAllocation` 的物化**（分配变化 → membership 同步），客户方作用域 = 创建账号时写入的唯一 home membership；
-4. 主方案的登录解析顺序（§5.3.1）需按 ai-gateway 的 fail-closed 原则**收紧**：客户方多作用域不自动选、直接报错；服务方允许"上次作用域/显式选择"，但不允许请求参数越权指定。
+4. 主方案的登录解析顺序（§5.3.1）需按 ai-gateway 的 fail-closed 原则**收紧**：客户方多作用域不自动选、直接报错；服务方登录落 provider 家（`last_active` 仅用于排序、不作登录落地；`LOGIN-D2`），认证后显式切换，且不允许请求参数越权指定。
 
 ### 0.4 可借鉴 / 不可照搬（速览）
 
@@ -130,7 +130,7 @@ type TenantContext struct {
 | 租户解析 | 8 级优先级 + 严格禁止参数越权 | 静默降级（`tenantCode` 查不到忽略）、签发恒 home | 按 §4.3 重写解析（主方案 F5/F6/F8） |
 | 会话与 JWT | JWT 是**会话声明**，须与当前 membership 复核 | JWT claim 被直接信任；refresh 按 home 重签（回退） | 复核 + refresh 按 claim 租户（主方案 F10） |
 | 多作用域歧义 | 普通用户多命中 → `SESSION_AMBIGUOUS`（fail-closed，**不自动选**） | 无此概念（客户用户本就 1 租户） | 客户方保持 fail-closed；服务方允许显式选择 |
-| 前端 | 治理侧有租户选择器；用户侧**无**选择器 | 两侧都无（`tenants[0]` 固定） | 客户侧无选择器；服务方/平台加作用域选择器（主方案 F13） |
+| 前端 | 治理侧有租户选择器；用户侧**无**选择器 | 两侧都无（`tenants[0]` 固定） | 客户侧永不渲染；服务方/平台为 `CustomerFilter`（主控件）+ 深度切换入口（主方案 F13） |
 | 兼容期标记 | `default_compat` + 指标 + 关闭计划 | 无标记（默认租户/静默忽略） | 新逻辑不引入默认租户兜底；历史数据仅在迁移脚本中显式标记 |
 
 ---
@@ -244,7 +244,8 @@ CREATE UNIQUE INDEX uq_customer_single_scope
 > - `uq_membership_live` 保证"同一租户不重复授权"；
 > - `uq_membership_default` 保证服务方"默认作用域"唯一；
 > - `uq_customer_single_scope` 用**部分唯一索引**把"客户账号不跨租户"落成**数据库级强约束**（不依赖应用自觉）；
-> - `account_kind` 冗余进 membership 是为了让上述索引可判定；服务层在写入时从 `users.account_kind` 同步，另有定期一致性巡检（P1）。
+> - `account_kind` 冗余进 membership 是为了让上述索引可判定；服务层写入时从 `users.account_kind` **同事务同步**，定期巡检兜底；本约束以**部分唯一索引为唯一裁量（DB 级强约束，不依赖应用自觉）**。
+> - **P1 冻结契约**（组织关联子表 `user_tenant_membership_orgs`、`msp_allocations.provider_tenant_id`、`invitations` DDL）见[实施方案 §4.0](./msp-implementation-plan.md)（2026-09-30 冻结）。
 
 ### 4.3 会话与作用域解析（ITSM 版优先级）
 
@@ -292,7 +293,7 @@ Allow = AuthN
 | 事件 | 字段 |
 |---|---|
 | `membership.grant` / `membership.revoke` / `membership.suspend` | actor、subject、tenant、role、source、reason、before/after |
-| `tenant.scope_switch` | actor、from/to、source（explicit/last_active）、result、ip、ua |
+| `tenant.switch` | actor、from/to、source（explicit/last_active）、result、ip、ua |
 | `tenant.scope_denied` | actor、requested tenant、命中原因（未分配/状态异常/参数冲突） |
 ---
 
@@ -303,7 +304,7 @@ Allow = AuthN
 | §4.1 路线 A/B | 路线 B（memberships）为 P2 可选 | **改为：membership 是目标模型的正式部分，P1 首批落地**；P0 仍保持"最小闭环"不变 |
 | F7（缺少多租户身份模型） | P1/P2 | 重述为"**membership 未落地**"；客户方单作用域、服务方多作用域由 membership 表达 |
 | §5.3.1 登录解析顺序 | "多租户身份 → last_active 自动选择" | **收紧**：客户方多命中 → fail-closed（`SESSION_AMBIGUOUS`）；仅服务方允许 last_active/显式选择（§4.3） |
-| §5.5.2 MSP 客户租户权限（F14） | 待评审 | **Q1 已答**：工单读写 + 知识/CMDB/服务目录只读 + `msp_manager` 可开通客户侧账号；其余默认禁止（§3.2） |
+| §5.5.2 MSP 客户租户权限（F14） | （原）待评审 → ✅ Q7/D10 定稿 | **Q1 已答**：工单读写 + 知识/CMDB/服务目录只读 + `msp_manager` 可开通客户侧账号；其余默认禁止（§3.2）；客户 admin 可编辑本租户 `msp_*` 权限集（Q7） |
 | P1-2（邮箱租户内唯一） | 允许同一邮箱多租户 | **取消**：客户方不跨租户 → 保持 `username/email` 全局唯一即可，避免唯一约束迁移风险 |
 | P1-3（客户租户 MSP 角色模板） | 模板内置 msp 角色 | 保留，并与 membership.role 对齐（作用域角色指向租户模板角色） |
 | 新增 P1-5 | — | `user_tenant_memberships` 表 + 回填（`users.tenant_id` → home；有效 `msp_allocations` → provider 作用域）+ 一致性巡检 |
@@ -456,34 +457,36 @@ CREATE UNIQUE INDEX uq_scope_grant_live
 4. 服务方尝试给自己授予 → 403（授予方校验）；
 5. 审计事件含 reason 与 before/after。
 
-### B.7 待确认
+### B.7 待确认（✅ 2026-09-30 全部解决）
 
-- 选 **C（推荐）** 还是 B？
-- 授予方是否包含平台管理员（建议包含，用于应急）；
-- 是否需要"到期自动回收"（若是，则 B 成为必须项）。
+- ~~选 **C（推荐）** 还是 B？~~ → ✅ 选 **C**（客户级角色差异化；B 不建表，仅保留触发条件）；
+- ~~授予方是否包含平台管理员？~~ → ✅ 包含（应急兜底 + 跨租户审计）；
+- ~~是否需要"到期自动回收"？~~ → ✅ 不启用 B；改用 `membership.expires_at` + 季度权限复核（见 B.8）。
 
 ### B.8 建议结论（推荐方案）
 
 1. **选 C（唯一机制），B 不建表、只留触发条件**：差异化落在"**客户租户内的角色权限集**"，而不是给每个服务方人员逐条授权；
 2. **授予方**：客户租户 `admin` 为主（定制本租户 msp_* 角色权限、决定服务方作用域角色），**平台管理员为应急兜底**（跨租户运维 + 审计）；服务方不可自授；
-3. **到期回收不上 B**：① 在 `user_tenant_memberships` 增加 `expires_at`（P1-a 建表时一并加，成本极低）；② 高权角色（如 `msp_full`）变更告警 + 季度权限复核（客户 admin + 平台报表）；
+3. **到期回收不上 B**：① 在 `user_tenant_memberships` 增加 `expires_at`（P1-a 建表时一并加，成本极低）；② 高权角色（如 `msp_admin`）变更告警 + 季度权限复核（客户 admin + 平台报表）；
 4. **B 的触发条件**（满足其一再启用）：出现"限时/单次提权"需求且无法用角色+到期表达；或合规要求逐条授权留痕（合同号绑定到单条授权）。
 
-**合同形态 → 角色映射（P1 模板内置 4 个角色）**：
+**合同形态 → 角色映射（P1 模板内置 5 个角色，D10 唯一词表）**：
 
-| 合同形态 | 客户租户内角色 | 权限集（默认） |
+| 合同形态 | 客户租户内角色（预设名仅作映射） | 权限集（默认） |
 |---|---|---|
-| 只读协办 | `msp_observer`（新增） | `ticket:read` + 评论 |
-| 只代工单（默认） | `msp_tech` | `ticket:read/write`、`knowledge:read`、`cmdb:read`、`service_catalog:read` |
-| 代工单 + 客户侧开号 | `msp_manager` | `msp_tech` + `user:write`（限客户侧角色）+ `report:read` |
-| 全托管（客户显式确认） | `msp_full`（模板预置、默认不分配） | `msp_manager` + `cmdb:write`、`change:write` |
+| 只读协办 | `msp_viewer`（预设 observer） | `ticket:read` + 评论 |
+| 只代工单（默认） | `msp_tech`（预设 tech） | `ticket:read/write`、`knowledge:read`、`cmdb:read`、`service_catalog:read` |
+| 代工单 + 客户侧开号 | `msp_manager`（预设 manager） | `msp_tech` + `user:write`（限客户侧角色）+ `report:read` |
+| 全托管（客户显式确认） | `msp_admin`（预设 full；模板预置、默认不分配） | `msp_manager` + `cmdb:write`、`change:write` |
+
+> `msp_specialist` 由 `allocation.role=specialist` 映射（权限基线 = `msp_tech`，专项能力由客户 admin 按需扩展）。
 
 **两个作用层级（推荐用法）**：
 
 - **客户级（默认，覆盖 95% 场景）**：客户 admin 调整本租户 `msp_*` 角色的权限集 → 对该客户下所有服务方人员统一生效；
-- **个人级（极少数）**：调整个别 membership 的 `role`（如临时指向 `msp_full`）或 `expires_at`。
+- **个人级（极少数）**：调整个别 membership 的 `role`（如临时指向 `msp_admin`）或 `expires_at`。
 
-**决策后的影响**：P1-c 任务范围 = 模板内置 4 个 msp 角色 + 客户 admin 可编辑其权限（含审计）+ `membership.expires_at`；验收用例在 B.6 基础上增加"客户 admin 改角色权限 → 服务方重签会话后生效"。
+**决策后的影响**：P1-c 任务范围 = 模板内置 5 个 msp 角色（D10 词表）+ 客户 admin 可编辑其权限（含审计）+ `membership.expires_at`；验收用例在 B.6 基础上增加"客户 admin 改角色权限 → 服务方重签会话后生效"。
 
 ---
 
@@ -494,3 +497,5 @@ CREATE UNIQUE INDEX uq_scope_grant_live
 | v0.1 | 2026-09-29 | 首版：ai-gateway 设计剖析、ITSM 对照、Q1 正式回答、membership 目标模型（含 DDL/解析/权限/审计）、对主方案的修订建议与分期增量 |
 | v0.2 | 2026-09-29 | 补充代码级证据（登录 409 选择器、JWT 三件套、会话锁定、Admin 通道 header 规则、Access Key 绑定）；新增术语澄清（workspace 仅为前端命名）；可借鉴清单扩至 9 条；明确"服务方允许运行期切换、客户方禁止"的差异与理由 |
 | v0.3 | 2026-09-29 | 新增附录 B（Q7 详细设计）与 B.8 建议结论；Q6/Q7/Q8 决议标记为已采纳并同步主方案（主方案 v0.3） |
+| v0.4 | 2026-09-30 | **口径回填**：§0.1 会话行为与 §1 前端列改为 CustomerFilter + 深度切换入口；§4.2 约束说明改"DB 级强约束"；附录 B 合同映射统一 D10 词表（5 角色，预设名仅映射）；`last_active` 仅排序；基准与 canon v1.0 对齐 |
+| v0.5 | 2026-09-30 | **P1 契约冻结同步**：§4.2 增实施方案 §4.0 指针；§5 影响表"待评审"改已定稿；B.7 待确认全部标记解决 |

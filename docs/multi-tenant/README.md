@@ -1,7 +1,7 @@
 # 多租户 · 多客户单一服务商（MSP）运营手册
 
 > **状态**：当前
-> **更新日期**：2026-09-29
+> **更新日期**：2026-09-30（决策冻结：D1–D11 / E1–E6 全定稿；P0 契约见[实施方案 §3.0](./plan/msp-implementation-plan.md)）
 > **选型依据**：[ADR-004：多客户管理场景租户模型选型](../architecture/adr-004-multi-customer-tenant-model-selection.md)
 > **概念/目标口径权威**：[概念模型与架构总纲（Canon）](./plan/msp-concept-model-and-architecture-canon.md)（附录 C：权威层级 + 编号注册表）｜**一致性审计**：[msp-docs-consistency-audit.md](./plan/msp-docs-consistency-audit.md)
 > **入口索引**：[INDEX.md](./INDEX.md)——全部文档清单 / 阅读路径 / 编号速查 / 目录地图（找文档从这里开始）
@@ -67,12 +67,12 @@
 
 | 方案 | 内容 |
 |---|---|
-| [msp-concept-model-and-architecture-canon.md](./plan/msp-concept-model-and-architecture-canon.md) | **⭐ 概念模型与架构总纲（Canon v0.8）**：15 个概念的唯一定义与权威载体；四层分层 + 边界规则 B1–B6 + Canonical ER + 不变量 I1–I13；概念→现状→目标映射；术语收敛；子系统挂接规范；部署模式与单/多 provider 决策（选项 A/B）、工单流转（§7.2）与 provider 功能管理（§7.3）；风险 R1–R12、能力缺口 K1–K5；迁移 P0/P1/P2；验收 A1–A12；决策 D1–D10/E1–E6；**附录 C：权威层级 + 编号注册表** |
+| [msp-concept-model-and-architecture-canon.md](./plan/msp-concept-model-and-architecture-canon.md) | **⭐ 概念模型与架构总纲（Canon v1.0，定稿）**：15 个概念的唯一定义与权威载体；四层分层 + 边界规则 B1–B6 + Canonical ER + 不变量 I1–I13；概念→现状→目标映射；术语收敛；子系统挂接规范；部署模式与单/多 provider 决策（选项 A/B）、工单流转（§7.2）与 provider 功能管理（§7.3）；风险 R1–R12、能力缺口 K1–K5；迁移 P0/P1/P2；验收 A1–A12；**决策 D1–D11/E1–E6（全部定稿）**；**附录 C：权威层级 + 编号注册表** |
 | [msp-user-lifecycle-and-tenant-switching-plan.md](./plan/msp-user-lifecycle-and-tenant-switching-plan.md) | 多租户用户生命周期与租户切换：功能缺口 F1–F15（建号/登录选租户/切换上下文）、路线 A/B 选型、P0 详细设计、分期与验收 |
 | [msp-scope-model-analysis-and-ai-gateway-reference.md](./plan/msp-scope-model-analysis-and-ai-gateway-reference.md) | 服务方/客户方作用域模型分析（Q1 回答）：一个账号、多作用域（membership）目标模型、ai-gateway 多租户设计对照与可借鉴清单 |
 | [msp-target-architecture.md](./plan/msp-target-architecture.md) | **目标架构方案**：账号唯一/作用域多元、membership 模型、租户上下文与 fail-closed 解析、隔离与权限（Q7 角色模板）、建号/邀请/首登、数据模型与迁移、前端架构、审计与 A→B 演进 |
 | [msp-user-interaction-flows.md](./plan/msp-user-interaction-flows.md) | **用户交互流程图**：10 个流程（Mermaid：开通/邀请/建号/登录/切换/头通道/权限/回收/重置/续期）+ 邀请与会话状态机 + 流程×缺口×接口对照 |
-| [msp-login-and-switching-refinement-plan.md](./plan/msp-login-and-switching-refinement-plan.md) | **登录与作用域切换细化方案（隐私优先）**：登录页无租户选择器（客户关系保护）、按 `account_kind` 分派、域名/企业代码定位、服务商登录后顶栏切换器、防枚举、与既有方案 6 项修订 |
+| [msp-login-and-switching-refinement-plan.md](./plan/msp-login-and-switching-refinement-plan.md) | **登录与作用域切换细化方案（隐私优先）**：登录页无租户选择器（客户关系保护）、按 `account_kind` 分派、域名/企业代码定位、服务商登录后 `CustomerFilter`（主控件）+ 深度切换入口、防枚举、与既有方案 6 项修订 |
 | [msp-frontend-pages-and-permissions-analysis.md](./plan/msp-frontend-pages-and-permissions-analysis.md) | **前端页面与权限分析及目标细化**：路由/页面/权限/菜单/租户上下文现状（含权限双源、菜单缓存未分键、`tenants[0]` 等风险）+ 切换器/刷新链路/页面改造清单/分期验收 |
 | [msp-cross-customer-workbench-and-filter-plan.md](./plan/msp-cross-customer-workbench-and-filter-plan.md) | **跨客户工作台与全局过滤方案**（替代"全局切换"）：会话作用域/视图过滤器/条目级操作三概念分离；顶栏 `CustomerFilter`（全部/子集+徽标）；工作台列表带客户列、行内处理、批量护栏；资源级授权与 bounded bypass；API/性能/分期 |
 | [msp-integration-with-rbac-org-workflow-analysis.md](./plan/msp-integration-with-rbac-org-workflow-analysis.md) | **多租户 × 权限/部门/团队/工作流 集成分析与冲突处置**：五问判定框架；RBAC（`user_roles` 平台级豁免、权限双源、`data_scope` 空承诺）、组织（成员关系无成员行、全局唯一键、零 RLS）、工作流（指派未验租户、授权可覆写、列表 fail-open）、执行器（租户 ctx 不统一）、通知；❌6/🟡14 清单 + 7 条不变量 + 分期 |

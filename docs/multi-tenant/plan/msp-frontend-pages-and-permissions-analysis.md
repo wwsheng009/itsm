@@ -1,6 +1,6 @@
 # MSP 多租户前端页面与权限分析及目标细化方案
 
-> 状态：**Draft v0.1（待评审）**｜日期：2026-09-29｜基准：仓库 HEAD `99eb4074`
+> 状态：**Draft v0.2（2026-09-30 P0 契约冻结；页面清单回填）**｜日期：2026-09-30｜基准：仓库 HEAD `337558e3`
 > 范围：`itsm-frontend` 页面/路由/权限/菜单/租户上下文现状 → 目标架构的前端细化（切换器、上下文指示、切换后权限与缓存刷新、按 `account_kind` 的差异化 UI）
 > 关联：[目标架构方案](./msp-target-architecture.md)（§9 前端架构）｜[登录与切换细化方案](./msp-login-and-switching-refinement-plan.md)（隐私红线/切换器）｜[用户交互流程图](./msp-user-interaction-flows.md)（F-04/F-05）｜[07 已知缺口](../07-known-gaps.md)（G8 缓存）
 
@@ -143,7 +143,7 @@ type TenantContext = {
 - 单一来源：由服务端响应/`/auth/me` 写入；**前端不得自行推导**（`tenants[0]` 兜底移除）；
 - 持久化仅 `tenantId/tenantCode`（现有 localStorage 键保留）；内存态以 store 为准。
 
-### 6.2 切换器与上下文指示（`TenantSwitcher`）
+### 6.2 过滤器、深度切换入口与上下文指示（`CustomerFilter` 主控件）
 
 | 项 | 设计 |
 |---|---|
@@ -183,14 +183,15 @@ switch-tenant 成功
 |---|---|---|
 | `pages/(auth)/login/index.tsx` | 保持无租户字段；补测试断言（DOM 无租户列表/选择器）；可选折叠"企业代码"（D1 决策后） | P0 |
 | `lib/services/auth-service.ts` | 移除默认租户兜底；统一错误文案（与后端防枚举对齐） | P0 |
-| 新增 `components/layout/header/TenantSwitcher.tsx` | 切换器 + 指示器（§6.2） | P0 |
-| `Header.tsx` / `UserMenuDropdown.tsx` | 挂载切换器；上下文指示并入 | P0 |
+| 新增 `components/layout/header/CustomerFilter.tsx` | 顶栏主控件：客户多选/全部 + 搜索 + 计数徽标（只改视图，§6.2） | P0 |
+| 新增/降级 `TenantSwitcher`（"进入客户"）+ 新增 `pages/(main)/msp/workbench/index.tsx` | 深度切换入口 + 跨客户工作台页（列表带客户列 + 行内条目级操作） | P0 |
+| `Header.tsx` / `UserMenuDropdown.tsx` | 挂载过滤器与深度入口；上下文指示并入 | P0 |
 | `lib/auth/session-bootstrap.ts` / `AuthGuard.tsx` | 移除 `tenants[0]`；尊重已选作用域；`resetSessionBootstrap` 接入登出 | P0 |
 | `lib/api/tenant-api.ts` / `http-client.ts` | 端点修正；`X-Customer-Tenant-ID` 注入（仅头通道请求） | P0 |
 | `lib/store/auth-store.ts` | 切换后重拉 `/auth/me`；登出清 queryClient + reset bootstrap | P0 |
 | `useUserMenusQuery.ts` / `useCapabilities.ts` | queryKey 按租户分键 + invalidate | P0 |
-| `pages/(main)/msp/**` | 客户维度收敛到全局上下文/头通道；去除局部 state 双源 | P1 |
-| `pages/(main)/admin/users/index.tsx` + `user-api.ts` | 目标租户选择（按通道）+ 角色白名单（Q7/F3，去 super_admin/admin 可选项） | P1 |
+| `pages/(main)/msp/**` | 工作台/过滤器主路径接入；客户维度收敛到全局上下文/头通道；去除局部 state 双源 | P0 |
+| `pages/(main)/admin/users/index.tsx` + `user-api.ts` | 目标租户选择（按通道）+ 角色白名单（Q7/F3，去 super_admin/admin 可选项）；后端通道 P0=`IP-P0-5`，本 UI 随 P1 上线 | P1 |
 | `pages/(auth)/register/index.tsx` | 角色选项走白名单接口（默认 end_user）；错误透传 | P1 |
 | `routes/*` | 独立 403 路由；路由元数据接入或清理遗留；admin/msp 分组守卫 | P1 |
 | `menu-config.ts` / `Sidebar.tsx` | `capabilityPathRules` 去重（单一来源） | P1 |
@@ -207,7 +208,7 @@ switch-tenant 成功
 
 | 批次 | 内容 | 验收 |
 |---|---|---|
-| **P0** | 切换器 + 切换链路 + 上下文指示；`tenants[0]` 移除；登出清理补齐；queryKey 分键；端点/头修正；登录页防回归测试 | A1 服务商可在顶栏切换并立即生效（菜单/权限/数据全换）；A2 刷新页面保持所选作用域；A3 登出后重登不残留上一租户菜单/数据；A4 登录页 DOM 无任何租户列表；A5 客户账号无切换器节点 |
+| **P0** | **`CustomerFilter`（主控件）+ 工作台页 + 深度切换入口**；`tenants[0]` 移除；登出清理补齐；queryKey 分键；端点/头修正；登录页防回归测试 | A1 服务商可跨客户处理工单且深度切换立即生效（菜单/权限/数据全换）；A2 刷新页面保持所选作用域；A3 登出后重登不残留上一租户菜单/数据；A4 登录页 DOM 无任何租户列表；A5 客户账号无过滤器/工作台/深度切换节点 |
 | **P1** | MSP 页面上下文收敛；管理页目标租户选择 + 角色白名单；路由/守卫收敛；403 路由；capabilityPathRules 去重 | A6 建号可选目标租户（按通道）且 `msp_*` 角色可选；A7 越权路由跳 403；A8 路由元数据单一模型 |
 | **P2** | 切换器搜索/最近使用（依赖 `last_active` 排序）；页面级骨架屏与切换体验优化 | — |
 
@@ -239,3 +240,4 @@ switch-tenant 成功
 | 版本 | 日期 | 变更 |
 |---|---|---|
 | v0.1 | 2026-09-29 | 首版：前端路由/页面/权限/菜单/租户上下文现状盘点（HEAD `99eb4074`）+ 目标细化（上下文 v2、切换器、切换后刷新链路、路由守卫、页面改造清单、分期与验收、风险） |
+| v0.2 | 2026-09-30 | **回填与冻结**：§6.2/§6.5/§7 按工作台 `REV-5` 改为 `CustomerFilter` 主控件 + 深度切换入口 + `/msp/workbench` 页（P0）；`pages/(main)/msp/**` 收敛上调 P0；用户管理目标租户 UI 标注 P1（后端 `IP-P0-5` 为 P0）；FE 验收补"客户账号无过滤器/工作台"；基准 HEAD 重钉 `337558e3` |

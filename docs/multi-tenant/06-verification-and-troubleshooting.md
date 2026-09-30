@@ -80,9 +80,9 @@ FROM msp_allocations ORDER BY msp_user_id;
 | A1 部署模式 | §1 部署层、§3（404 排查） |
 | A2–A3 服务商/客户租户与开通 | §1 租户层、§3（provisioning 排查） |
 | A4–A5 分配与权限 | §1 权限层、§3（列表为空/403） |
-| A8 缓存租户维度核查 | §3（数据串排查） |
-| A9 共享表影响评估 | 01 文档 §4.3、03 文档 §6 |
-| A10 隔离回归 | §2 全部用例 |
+| `ADR-004:A8` 缓存租户维度核查 | §3（数据串排查）；实现承接 `IP-P0-2`（`07:G8`） |
+| `ADR-004:A9` 共享表影响评估 | 01 文档 §4.3、03 文档 §6；实现承接 `IP-P2-3` |
+| `ADR-004:A10` 隔离回归 | §2 全部用例；实现承接 `IP-P0-1/2/6` |
 | A11 RLS 灰度 | §1、§3（RLS enforce 排查） |
 
 ## 6. 证据索引
@@ -107,7 +107,7 @@ FROM msp_allocations ORDER BY msp_user_id;
 | 5 | MSPCUSTB | msp_customer | 3 | 3 | 33 | 203 | 913 | 78 | 6 |
 
 - `provision_tenant -tenant-id <ID> -template-version 1.0.0` 对 3 个租户均输出 `tenant provisioning completed`；重复执行后各项计数不变（幂等，`pkg/seeder/tenant_provisioner.go:27-43`）；
-- 二进制由**本机交叉编译**产出（`GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -trimpath ./cmd/provision_tenant`，本机 Go 1.27.1，实测 68s），scp 到 `/tmp/provision_tenant_linux_amd64`（约 123 MB）；
+- 二进制由**本机交叉编译**产出（`GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -trimpath ./cmd/provision_tenant`，本机 Go 1.27.1，实测 68s），scp 到 `$HOME/itsm-artifacts/provision_tenant_linux_amd64`（约 123 MB；2026-09-30 修正：原记录为 `/tmp`，按 `07:G10` 统一到 `$HOME/itsm-artifacts`）；
 - provider 租户 MSP 角色授权：`msp_manager=10`、`msp_tech=6`、`msp_viewer=5`、`msp_specialist=7`（合计 28；941 = 913 + 28）。
 
 ### 7.2 用户与分配
@@ -147,9 +147,9 @@ FROM msp_allocations ORDER BY msp_user_id;
 ```bash
 # 1) 构建 provision_tenant（本机交叉编译；服务器侧容器构建见 02 文档 §10.1）
 cd itsm-backend
-GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -trimpath -o /tmp/provision_tenant_linux_amd64 ./cmd/provision_tenant
+GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -trimpath -o "$HOME/itsm-artifacts/provision_tenant_linux_amd64" ./cmd/provision_tenant
 ssh <host> 'mkdir -p ~/itsm-artifacts'
-scp /tmp/provision_tenant_linux_amd64 <host>:~/itsm-artifacts/
+scp "$HOME/itsm-artifacts/provision_tenant_linux_amd64" <host>:~/itsm-artifacts/
 
 # 2) 一键初始化（幂等；FORCE_PROVISION=1 可强制重跑模板供给以验证二进制）
 scp scripts/msp/setup-msp-tenants.sh <host>:~/msp-scripts/
@@ -160,4 +160,4 @@ ssh <host> 'cd ~/msp-scripts && PROVISION_BIN_HOST=~/itsm-artifacts/provision_te
 
 ## 8. 缺口索引
 
-实测确认的产品缺口、当前规避与建议修复统一记录在 [07-known-gaps.md](./07-known-gaps.md)（G1–G9）。
+实测确认的产品缺口、当前规避与建议修复统一记录在 [07-known-gaps.md](./07-known-gaps.md)（G1–G10）；实现承接映射见[实施方案 §3.0-F](./plan/msp-implementation-plan.md)。

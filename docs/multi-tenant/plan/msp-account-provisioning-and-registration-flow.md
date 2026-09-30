@@ -1,6 +1,6 @@
 # MSP 建号与注册流程（租户创建之后）
 
-> 状态：**Draft v0.1（待评审）**｜日期：2026-09-29｜基准：仓库 HEAD `7e8cc8e5`
+> 状态：**Draft v0.2（2026-09-30 决策冻结同步）**｜日期：2026-09-30｜基准：仓库 HEAD `337558e3`
 > 定位：**账号生命周期的流程规范**——`msp_provider`/`msp_customer` 租户创建完成后，provider 侧与 customer 侧"如何建号、邀请、注册、首登"的端到端流程、授权边界与过渡期操作。
 > 上位（权威顺序）：[canon](./msp-concept-model-and-architecture-canon.md)（概念/边界/决策）→ [目标架构 §6](./msp-target-architecture.md)（建号/邀请/首登设计）→ [主方案 §5.2/F1–F4](./msp-user-lifecycle-and-tenant-switching-plan.md)（通道矩阵与缺口）→ [实施方案 `IP-P0-5`/`IP-P1-4`/`IP-P1-5`](./msp-implementation-plan.md)（落地步骤）。
 > 相关：[登录与切换细化](./msp-login-and-switching-refinement-plan.md)｜[工作台方案](./msp-cross-customer-workbench-and-filter-plan.md)｜[三角色演练剧本](./msp-three-persona-operation-simulation.md)
@@ -180,7 +180,7 @@
 
 ---
 
-## 8. 现状 vs 目标（映射与未决）
+## 8. 现状 vs 目标（映射与决议）
 
 | 环节 | 现状（as-is） | 目标 | 工作流 |
 |---|---|---|---|
@@ -191,7 +191,7 @@
 | 注册角色 | ⚠️ 无白名单，可提权（F3） | 白名单默认 `end_user` | IP-P0-5 |
 | 分配校验 | ⚠️ 不校验归属（R2）；通道绕过（R9/R10） | 归属一致性 + 统一授权入口 | IP-P0-2/4 |
 
-**未决**：① 服务商是否可自助建 customer 租户（当前否，产品决策）；② 邀请 token TTL 与 `invitations` DDL（P1 设计冻结）；③ 直客（`saas_customer`）注册策略（D2）。
+**决议（2026-09-30）**：① 服务商自助建 customer 租户：**当前否**（平台通道为主，P2 评估）；② 邀请 token：TTL 72h（`INVITATION_TTL_HOURS` 可配）、sha256 哈希、一次性、撤销 API `POST /api/v1/users/invitations/:id/revoke`（`invitations` DDL 随 `IP-P1-4`）；③ 直客（`saas_customer`）：**允许，类型即显式标记**（`msp_provider_id` 为空；canon D2）。
 
 ---
 
@@ -212,3 +212,5 @@
 | 版本 | 日期 | 变更 |
 |---|---|---|
 | v0.1 | 2026-09-29 | 首版：四通道矩阵、provider/customer 双场景流程、邀请与首登、授权边界、审计字段、过渡期操作、现状→目标映射与专项验收 |
+| v0.2 | 2026-09-30 | 决策冻结同步：§8 未决项改为决议（自助开租户否 / 邀请契约冻结 / 直客类型即标记）；基准 HEAD 重钉 `337558e3` |
+| v0.3 | 2026-09-30 | §8 标题术语对齐（"未决"→"决议"）；邀请 DDL 权威指针（[实施方案 §4.0-C](./msp-implementation-plan.md)） |

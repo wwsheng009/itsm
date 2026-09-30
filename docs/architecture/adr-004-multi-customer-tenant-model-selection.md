@@ -2,7 +2,7 @@
 
 ## 状态
 
-Proposed（2026-09-28）——固化"多个客户需登录操作、服务方需同时维护多个客户"场景的选型结论与建议行动项；待评审确认后转 Accepted。
+**Accepted（2026-09-30）**——固化"多个客户需登录操作、服务方需同时维护多个客户"场景的选型结论与建议行动项；2026-09-30 按最佳实践完成评审确认（D1–D11 / E1–E6 定稿，见 [canon v1.0](../multi-tenant/plan/msp-concept-model-and-architecture-canon.md) §10），行动项执行跟踪见 [实施方案](../multi-tenant/plan/msp-implementation-plan.md)（`IP-P0-*` / `IP-P1-*` / `IP-P2-*`）。
 
 ## 背景
 
@@ -101,13 +101,15 @@ Proposed（2026-09-28）——固化"多个客户需登录操作、服务方需�
 | A10 | 隔离回归验证 | ① 无租户上下文 → 401；② `X-Customer-Tenant-ID` 未分配 → 403；③ `private` 模式 MSP 路由 → 404；④ 客户 A token 访问客户 B 数据 → 401/403；⑤ 切换租户后 JWT 的 `tenant_id` 正确 |
 | A11 | （合规场景）RLS 灰度 | `off → shadow → enforce`（`config/config.go:107-114`）；enforce 前先补齐上下文缺失点 |
 
+> **行动项执行跟踪（2026-09-30 确认）**：A1→`IP-P0-1`；A2/A3→`IP-P0-5`（bootstrap 首管为 `IP-P1-5`）；A4→`IP-P0-2`（allocation 唯一索引 + 归属校验）；A5→`IP-P0-9`（五角色词表与权限行）；A6→`IP-P0-5`；A7→运营档案（无独立工作流，随 `IP-P1-5` 复核）；A8→`IP-P0-2`（缓存租户维度审查，`07:G8`）；A9→`IP-P2-3`；A10→`IP-P0-1/2/6`（隔离回归）；A11→`IP-P2-2`。缺口映射见实施方案 §3.0-F。
+
 ## 风险与注意事项
 
 - **开通成本**：每客户克隆一套 RBAC/SLA/审批组等，已自动化（provisioner + readiness），但仍需纳入交付流程；
 - **共享表语义**：标签云/市场模板等跨租户共享是既有设计（`TenantExemptTables` 显式登记），MSP 多客户运营下需业务确认；
 - **外部路径租户标识**：AI 服务按参数接收 `tenantId`；缓存层待补租户维度（见 A8）；
 - **权限回收**：`MSPAllocation.deassigned_at` 是服务方人员离场/换岗的唯一回收入口，需纳入流程；
-- 本 ADR 状态为 Proposed，评审确认后更新为 Accepted。
+- 本 ADR 状态：**Accepted（2026-09-30）**；行动项状态由实施方案（§3.0-F 缺口映射 / §6 DoD）与 [07-known-gaps](../multi-tenant/07-known-gaps.md) 持续跟踪。
 
 ## 与既有 ADR / 文档的关系
 

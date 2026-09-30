@@ -346,6 +346,15 @@ func NewApplication() *Application {
 	logger := initLogger(&cfg.Log)
 	sugar := logger.Sugar()
 	middleware.SetLogger(sugar)
+	// IP-P0-1：部署门控单一来源（cfg.Deployment.Mode ← DEPLOYMENT_MODE，默认 private）。
+	// 仅 saas_msp 开放 /api/v1/msp/*；未知/空值 fatal（canon I12 / R12）。
+	if err := middleware.ApplyDeploymentMode(cfg.Deployment.Mode); err != nil {
+		log.Fatalf("invalid deployment mode: %v", err)
+	}
+	sugar.Infow("deployment gate resolved",
+		"deployment_mode", cfg.Deployment.Mode,
+		"msp_enabled", middleware.IsMSPEnabled(),
+	)
 	LogDefaultCredentialRisks(
 		GuardRuntimeCredentials(cfg.Deployment.Mode, cfg.JWT.Secret, cfg.Database.Password),
 		sugar,
@@ -1633,6 +1642,22 @@ func InitializeStorage(cfg *config.Config, client *ent.Client, sugar *zap.Sugare
 			return fmt.Errorf("initialize production defaults (run %d): %w", runID, err)
 		}
 		sugar.Infow("seed completed", "deployment_mode", cfg.Deployment.Mode, "initialization_run_id", runID)
+	}
+
+	// IP-P0-1 启动自检（warning-only）：gate ↔ 已落库租户形态一致性；不一致仅告警不阻断。
+	if count, err := verifyDeploymentTenantShape(ctx, client, cfg.Deployment.Mode, middleware.IsMSPEnabled()); err != nil {
+		sugar.Warnw("deployment self-check mismatch",
+			"deployment_mode", cfg.Deployment.Mode,
+			"msp_enabled", middleware.IsMSPEnabled(),
+			"provider_tenants", count,
+			"reason", err.Error(),
+		)
+	} else {
+		sugar.Infow("deployment self-check passed",
+			"deployment_mode", cfg.Deployment.Mode,
+			"msp_enabled", middleware.IsMSPEnabled(),
+			"provider_tenants", count,
+		)
 	}
 
 	return nil

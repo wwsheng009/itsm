@@ -1,6 +1,6 @@
 # MSP 多租户用户交互流程图
 
-> 状态：**Draft v0.1（待评审）**｜日期：2026-09-29｜基准：仓库 HEAD `99eb4074`
+> 状态：**Draft v0.5（2026-09-30 口径回填完成）**｜日期：2026-09-30｜基准：仓库 HEAD `337558e3`
 > 关联：[目标架构方案](./msp-target-architecture.md)｜[用户生命周期与租户切换方案](./msp-user-lifecycle-and-tenant-switching-plan.md)（F1–F15）｜[07 已知缺口](../07-known-gaps.md)（G1–G10）｜[01 现状架构](../01-architecture.md)｜[通知模块设计方案](../../plan/notification-module-design-plan-2026-09-29.md)
 > 用途：以**用户视角**描述每个多租户交互的完整路径（含异常分支、接口、审计点与实现状态），供产品/前端/测试对齐；流程图用 Mermaid（GitHub 原生渲染；mkdocs 已配置 Mermaid 支持）。
 
@@ -49,7 +49,7 @@ flowchart LR
 
 **Q：服务商要处理多个客户的需求，需要切换系统吗？还是同一前端就能看到不同客户的需求？**
 
-**A：不需要切换系统。** 目标方案是"**一套部署、一个前端、一个账号、多个作用域**"：服务商员工用同一账号登录同一前端，通过三种方式处理多客户需求——**① 跨客户总览（provider 作用域内看）**、**② 头通道单请求只读钻取**、**③ 作用域切换（切到某客户去干活）**。所谓"切换"只换**会话的当前生效作用域**，不换系统、不换账号、不换浏览器标签。
+**A：不需要切换系统。** 目标方案是"**一套部署、一个前端、一个账号、多个作用域**"：服务商员工用同一账号登录同一前端，通过**四种方式**处理多客户需求——**① 跨客户工作台（看+做，主路径）**、**② 客户过滤器（只改视图）**、**③ 头通道单请求只读钻取**、**④ 深度切换（进入客户做配置/连续多步）**。所谓"切换"只换**会话的当前生效作用域**，不换系统、不换账号、不换浏览器标签。
 
 ```mermaid
 flowchart TD
@@ -212,7 +212,7 @@ flowchart TD
     O --> P[审计: auth.login]
 ```
 
-- **接口**：`POST /api/v1/auth/login`（响应仅 `tenantSelection{mode}` 提示，**不含候选列表**）、`GET /api/v1/auth/tenants`（home ∪ 分配 ∪ 平台；**仅认证后**，供顶栏切换器）。
+- **接口**：`POST /api/v1/auth/login`（响应仅 `tenantSelection{mode}` 提示，**不含候选列表**）、`GET /api/v1/auth/tenants`（home ∪ 分配 ∪ 平台；**仅认证后**，供顶栏过滤器/深度切换入口）。
 - **当前状态**：🟡 ① 登录不校验租户状态/过期（**F5**）；② 无单租户自动选择逻辑；③ `GET /auth/tenants` 只返回 home（**F9**）；④ 登录时把 `users.role` 覆盖为 MSP 映射角色（**G3**）；⑤ 注册接口可注入 `super_admin`（**F3**）。
 - **异常**：客户方多作用域 = 数据异常（不自动选）；服务方无有效作用域 → 403/引导联系管理员；JWT 与会话不一致 → 401。
 
@@ -233,7 +233,7 @@ sequenceDiagram
     API->>DB: CanAccessTenant(user, target)<br/>membership active + 分配有效
     alt 允许
         API->>DB: 更新 last_active_tenant_id
-        API->>DB: 撤销旧 refresh + 写审计 tenant.scope_switch
+        API->>DB: 撤销旧 refresh + 写审计 tenant.switch
         API-->>FE: 新 access+refresh (tenant_id=目标)<br/>user.tenantId=目标 tenant=目标
         FE->>FE: 刷新上下文/菜单/权限缓存
         FE-->>U: 顶栏指示"当前客户: X"
@@ -245,7 +245,7 @@ sequenceDiagram
 ```
 
 - **接口**：`POST /api/v1/auth/switch-tenant`。
-- **审计点**：`tenant.scope_switch`（from/to/source/result/ip/ua）、`tenant.scope_denied`。
+- **审计点**：`tenant.switch`（from/to/source/result/ip/ua）、`tenant.switch_denied`、`tenant.scope_denied`（事件目录以[实施方案 §3.0-E](./msp-implementation-plan.md) 为权威）。
 - **当前状态**：🟡 允许条件已实现（native/super_admin/有效分配 + 目标状态校验）；但 ① 响应 `user.tenantId` 仍为 home 租户（**F11**）；② 权限用静态表、不随切换刷新（**F11**）；③ 无审计、无旧令牌撤销（**F12**）；④ 前端 `tenant-api.ts` 打到不存在的 `/api/v1/tenants/switch`。
 - **异常**：切换后旧 refresh 立即失效（防回退）；目标作用域被回收 → 403 + 当前会话保持原作用域。
 
@@ -264,7 +264,7 @@ flowchart TD
     D -->|否| X2[403 ErrMSPCustomerDenied<br/>审计 tenant.scope_denied]
     D -->|是| E[RequireMSPPermission<br/>RBAC × 分配]
     E --> F[业务查询按目标客户 tenant_id 收窄]
-    F --> G[写 tenant_source=header<br/>审计 tenant.scope_switch]
+    F --> G[写 tenant_source=header<br/>审计 source=header（会话不变；越权落 tenant.scope_denied）]
 ```
 
 - **接口**：现有 `/api/v1/msp/*` 路由族（非租户组）；头通道**仅单请求只读**；写操作走**条目级端点**（按资源所属租户授权，无需切换，见工作台方案 `REV-1`/`WB2`）；仅"深度操作"需要切换（F-05）。
@@ -400,7 +400,7 @@ stateDiagram-v2
 | F-09 密码重置 | `/auth/password-reset` | 🟡 | EmailService 未接线（静默跳过）→ 通知方案 P0-1 |
 | F-10 续期 | `POST /auth/refresh` | ❌ | F10 静默回退 home |
 
-**07 缺口映射**（按 07 文档 G1–G10 逐条核验）：G1→F-03（并 F-01/F-02）；G2→F-02（并 F-01）；G3→F-04/F-03（并 F-08）；G4/G5/G6/G7/G10→F-01（模板供给与部署路径）；G8（缓存租户维度）→F-05/F-09 上下文刷新；G9（`X-Tenant-Code` 冲突）→F-04/F-06 异常分支。
+**07 缺口映射**（按 07 文档 G1–G10 逐条核验；实现承接见[实施方案 §3.0-F](./msp-implementation-plan.md)）：G1→F-03（并 F-01/F-02，`IP-P0-5`）；G2→F-02（并 F-01，`IP-P1-5`）；G3→F-04/F-03（并 F-08，`IP-P0-9`）；G4/G5/G6→F-01（`IP-P1-5`）；G7/G10→F-01（工具/部署路径规范）；G8（缓存租户维度）→F-05/F-09 上下文刷新（实现承接 `IP-P0-2` 缓存审查）；G9（`X-Tenant-Code` 冲突）→F-04/F-06 异常分支（`IP-P0-6`）。
 
 ---
 
@@ -412,3 +412,4 @@ stateDiagram-v2
 | v0.2 | 2026-09-29 | 新增 §0.5 FAQ（产品对齐）："服务商如何同时处理多个客户"——跨客户总览 / 头通道单请求只读 / 作用域切换三种方式对照、典型工作流、边界规则、现状 vs 目标；明确"不需要切换系统、同一前端、一个账号多作用域" |
 | v0.3 | 2026-09-29 | **隐私约束修订**：登录页不得出现租户选择器/租户列表；F-04 改为"服务方登录落 provider 家、认证后顶栏切换"（原 `409 SCOPE_SELECTION_REQUIRED` + 登录页一次性选择作废）；§0.5 与 §11.2 状态机同步；登录响应不含候选列表（移至认证后 `/auth/tenants`）。见[登录与切换细化方案](./msp-login-and-switching-refinement-plan.md) |
 | v0.4 | 2026-09-29 | **工作台修订**：顶栏主控件改为全局过滤器；跨客户工作台（列表带客户列 + 行内条目级操作）成为主路径；"写操作必须切换"改为"条目级写无需切换、深度操作才切换"；§0.5 四种方式对照与结论同步。见[跨客户工作台与全局过滤方案](./msp-cross-customer-workbench-and-filter-plan.md) |
+| v0.5 | 2026-09-30 | **口径回填**：§0.5 正文"三种方式"改为"四种方式"（工作台/过滤器/头通道/深度切换），与 REV-4 对照表一致；07 缺口映射补实现承接（G3/G8 等）；基准 HEAD 重钉 `337558e3` |

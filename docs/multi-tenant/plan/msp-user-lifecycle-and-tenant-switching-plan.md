@@ -1,12 +1,12 @@
 # MSP 多租户用户生命周期与租户切换方案
 
-> 状态：Draft（待评审）｜日期：2026-09-29｜范围：用户创建 / 登录选租户 / 租户切换 / 相关权限与前端
+> 状态：**Draft v0.4（2026-09-30 P0 契约冻结；回填完成）**｜日期：2026-09-30｜范围：用户创建 / 登录选租户 / 租户切换 / 相关权限与前端
 > 关联：[ADR-004](../../architecture/adr-004-multi-customer-tenant-model-selection.md)、[07 已知缺口](../07-known-gaps.md)（G1–G10）、[06 实测记录 §7](../06-verification-and-troubleshooting.md)、[05 使用指南](../05-usage-guide.md)
 > 证据来源：三个只读子代理调研（认证链路 / 用户与约束 / 前端）+ 主代理复核，逐条 file:line 见 [附录 A](#附录-a证据索引)。
 > 作用域模型（Q1 回答 + ai-gateway 参考）：见 [服务方/客户方作用域模型分析](./msp-scope-model-analysis-and-ai-gateway-reference.md)。
 > 通知/邮件通道（Q4 落地设计）：见 [通知模块设计方案](../../plan/notification-module-design-plan-2026-09-29.md)。
 
-> **修订指针（2026-09-29 一致性整改）**：本文 F7/F8/F15 与 §5.3 中"登录候选选择、`last_active` 落地、连续操作走切换"的表述已被[登录与切换细化](./msp-login-and-switching-refinement-plan.md)与[工作台方案](./msp-cross-customer-workbench-and-filter-plan.md)（`REV-1`–`REV-5`）修订；正文回填排期见[一致性审计](./msp-docs-consistency-audit.md) §5。
+> **修订指针（2026-09-30 回填完成）**：本文 F7/F8/F14/F15 与 §5.3/§5.5.2/§5.6/§6.2/§7/§8 已按[登录与切换细化](./msp-login-and-switching-refinement-plan.md)（`LOGIN-R1`–`R6`）、[工作台方案](./msp-cross-customer-workbench-and-filter-plan.md)（`REV-1`–`REV-5`）与 canon v1.0 §10 回填：登录落 provider 家且不返回候选列表、写操作无需切换、**5 个 msp 角色统一为 D10 词表**。
 
 ---
 
@@ -21,7 +21,7 @@
 | 类别 | 编号 | 一句话 |
 |---|---|---|
 | 建号 | F1–F4 | 跨租户建号无合法通道；新租户首个用户无引导（固定 `admin@example.com` 撞全局唯一）；注册接口角色无白名单（可注入 `super_admin`）；无邀请/入职流程 |
-| 登录 | F5–F8 | 登录不校验租户状态；`tenantCode` 不影响签发；无"多租户身份"模型；无租户选择/自动选择 |
+| 登录 | F5–F8 | 登录不校验租户状态；`tenantCode` 不影响签发；无"多租户身份"模型；登录不落正确作用域（目标：落 provider 家、无选择器——见 F8） |
 | 切换 | F9–F12 | `GET /auth/tenants` 只返回主租户；**refresh 令牌按主租户重签导致切换被静默回退**；切换后响应/角色/权限不一致；无审计与旧令牌撤销 |
 | 运营与前端 | F13–F14 | 前端无租户切换器与客户上下文指示；MSP 员工在客户租户内的角色权限未定义 |
 
@@ -29,7 +29,7 @@
 
 - **P0 = 路线 A 最小闭环**：保持 `users.tenant_id` 主租户 + `msp_allocations` 作为运营侧作用域来源，补齐**建号通道 / 登录解析 / 切换修复 / 前端入口**四件事（不触碰唯一约束与既有数据）；
 - **P1 = 路线 B 转正（目标模型）**：引入 `user_tenant_memberships`——"**一个账号、多作用域**"；客户方单作用域由**数据库部分唯一索引**强约束，服务方作用域 = provider 租户 + 有效分配；
-- **Q7 采用客户级角色差异化**：客户租户模板内置 4 个 msp 角色，客户 admin 可编辑其权限集；不引入 grants 表；
+- **Q7 采用客户级角色差异化**：客户租户模板内置 5 个 msp 角色（D10 词表），客户 admin 可编辑其权限集；不引入 grants 表；
 - 决策明细见 [§9.2 决议记录](#92-决议记录2026-09-29)，依据见[作用域模型分析](./msp-scope-model-analysis-and-ai-gateway-reference.md)。
 
 ---
@@ -200,7 +200,7 @@
 - **现象**：前端登录表单无租户字段（`tenantCode=undefined`）；后端登录响应不含"可访问租户集合"；`bootstrapSession` 固定取 `tenants[0]`。
 - **证据**：`src/pages/(auth)/login/index.tsx:146,158-163,280-301`；`src/lib/auth/session-bootstrap.ts:61-64,92-103`；`handlers/common/service.go:308-334`。
 - **影响**：多租户身份用户无法选择进入哪个租户；MSP 员工只能进 provider 租户再手工调接口切换。
-- **目标**：登录解析顺序（§5.3.1）+ 自动选择（记忆租户）+ 候选列表返回 + 前端选择器。
+- **目标（2026-09-30 回填）**：登录解析顺序（§5.3.1）；**服务方登录落 provider 家（不返回候选列表、无选择器）**；候选列表仅在认证后 `GET /auth/tenants` 用于深度切换；客户方多作用域 fail-closed。
 
 ### F9 `GET /api/v1/auth/tenants` 语义错误（P0）
 
@@ -242,14 +242,14 @@
 - **现象**：`msp_*` 角色的静态权限只有 `msp/msp_customer/msp_ticket/msp_allocation/msp_report`（无客户业务资源）；客户租户模板是否含 `msp_*` 角色及其 `role_permissions` 未确认；切换进客户租户后做客户业务（工单/知识库/CMDB）没有明确授权依据。
 - **证据**：`middleware/rbac.go:437-481`；`middleware/rbac.go:498-506`（DB-only）；`router/msp_routes.go:13-35`（仅 msp_* 端点）。
 - **影响**：切换租户"能进去但干不了活"；或被迫临时提权（admin）破坏最小权限。
-- **目标**：在客户租户模板中内置 4 个 msp 角色（`msp_observer/msp_tech/msp_manager/msp_full`）与**受控的客户业务权限**（默认基线：工单 read/write，知识库/CMDB/服务目录 read；`msp_manager` 加客户侧 `user:write`；`msp_full` 含 CMDB/变更写且默认不分配），由 `provision_tenant` 幂等供给；客户 admin 可编辑角色权限（Q7 决策）；MSP 分配角色（primary→manager、backup→tech、specialist→specialist）映射到这些角色。
+- **目标**：在客户租户模板中内置 5 个 msp 角色（`msp_viewer/msp_tech/msp_specialist/msp_manager/msp_admin`，D10 唯一词表）与**受控的客户业务权限**（默认基线：工单 read/write，知识库/CMDB/服务目录 read；`msp_manager` 加客户侧 `user:write`；`msp_admin` 含 CMDB/变更写且默认不分配），由 `provision_tenant` 幂等供给；客户 admin 可编辑角色权限（Q7 决策）；MSP 分配角色（primary→manager、backup→tech、specialist→specialist）映射到这些角色。
 
 ### F15 跨租户两条通道并存且语义不统一（P1）
 
 - **现象**：`X-Customer-Tenant-ID`（单请求头，MSP 中间件校验分配）与"切换租户后的 JWT"（`tenant_id` 已改）两条路径并行；前者不改上下文（审计/RLS 仍按 provider 租户？），后者改上下文但不撤销旧令牌；两者的权限解析、审计、缓存口径均未统一。
 - **证据**：`middleware/msp_middleware.go:88-168`；`handlers/auth/service.go:114-157`；`middleware/tenant.go:26-31`（来源优先级）。
 - **影响**：同一业务操作有两种"当前租户"来源，排障与合规口径分裂；G9 正是该分裂的表现之一。
-- **目标**：明确推荐路径（**连续操作走切换、单请求走头**），并在中间件层统一"有效租户"的推导与审计字段（`tenant_source`）。
+- **目标（2026-09-30 回填）**：明确推荐路径——**日常跨客户处理走工作台/条目级操作（无需切换）+ 过滤器；单请求只读走头通道；仅"深度操作"走会话切换**；并在中间件层统一"有效租户"的推导与审计字段（`tenant_source`），审计事件统一 `tenant.switch`/`tenant.switch_denied`/`tenant.scope_denied`。
 ---
 
 ## 4. 方案总览与选型
@@ -262,7 +262,7 @@
 | 跨租户访问来源 | `msp_allocations` + `super_admin` | memberships（= home ∪ allocations 的物化） |
 | 客户用户跨租户 | ❌ 不支持 | ❌ 仍不支持（**DB 级单作用域约束**） |
 | 服务方跨租户 | ⚠️ 隐式（仅分配，无作用域语义） | ✅ 显式作用域（可切换、可审计、可到期） |
-| 改动面 | 认证/用户服务 + `users.last_active_tenant_id` | + 成员表 + 上下文扩展 + 4 角色模板 |
+| 改动面 | 认证/用户服务 + `users.last_active_tenant_id` | + 成员表 + 上下文扩展 + 5 角色模板 |
 | 风险 | 低（不碰唯一约束与既有数据） | 中（新表 + 回填 + 会话复核；**不涉及唯一约束迁移**） |
 | 交付 | 2–3 批次 | P1 首批 |
 
@@ -271,7 +271,7 @@
 1. **路线 B 由"可选演进"转正为 P1 首批**：它是"账号只有一个、作用域不同"的落地形态（分析文档 §0.2），P0 的 `AccessibleTenants` 抽象已为其预留接口；
 2. **客户方单作用域**用 `uq_customer_single_scope` 部分唯一索引做**数据库级**强约束（不靠应用自觉）；
 3. **不迁移唯一约束**：保持 `users.username/email` 全局唯一（客户方不跨租户 → 原 P1-2 取消）；
-4. **Q7 采用客户级角色差异化**（4 个 msp 角色模板 + 客户 admin 可编辑权限），不引入 `membership_scope_grants` 表（B 方案留触发条件，见分析文档 B.8）；
+4. **Q7 采用客户级角色差异化**（5 个 msp 角色模板（D10 词表）+ 客户 admin 可编辑权限），不引入 `membership_scope_grants` 表（B 方案留触发条件，见分析文档 B.8）；
 5. **客户方登录 fail-closed**：多作用域命中不自动选择（对齐 ai-gateway），仅服务方允许显式选择/切换。
 
 ### 4.3 不可变约束
@@ -410,11 +410,11 @@ func (s *UserService) ProvisionUser(ctx context.Context, actor ActorRef, target 
   "user": { "...": "...", "tenantId": 4 },        // 当前生效租户（不再恒为 home）
   "tenant": { "id": 4, "code": "MSPCUSTA", "...": "..." },
   "tenantSelection": { "mode": "single|provider_home", "autoSelected": true, "reason": "provider_home" }
-  // 注意：不含 availableTenants（隐私红线）；候选列表仅在认证后 GET /api/v1/auth/tenants（供顶栏切换器）
+  // 注意：不含 availableTenants（隐私红线）；候选列表仅在认证后 GET /api/v1/auth/tenants（供顶栏过滤器/深度切换入口）
 }
 ```
 
-~~多作用域歧义时返回 `409` + `scopeCandidates`~~ **【2026-09-29 修订：登录流程不再返回候选列表（隐私）；`409 SCOPE_SELECTION_REQUIRED` 仅保留给"服务方无有效 provider 作用域"等异常，且不带客户明细】**
+~~多作用域歧义时返回 `409` + `scopeCandidates`~~ **【2026-09-30 修订：登录流程不返回候选列表；原"409 + 候选选择"契约整体作废（`LOGIN-R1/R2`，P0 下线）；服务方登录恒落 provider home，异常作用域一律 fail-closed 统一失败（不暴露原因差异）】**
 
 #### 5.3.3 记忆与偏好
 
@@ -444,16 +444,17 @@ func (s *UserService) ProvisionUser(ctx context.Context, actor ActorRef, target 
 - `POST /users`（各通道）：角色必须属于目标租户（复用 `service/user_service.go:150-167`）；rank 比较以"调用者在**目标租户**的 rank"为准（MSP 员工在客户租户的 rank 由映射角色决定，见 5.5.2）；
 - `msp_role` 仅允许：`platform`/`msp` 通道设置，且 `provider_*` 仅限 provider 租户、`customer_user` 仅限客户租户。
 
-#### 5.5.2 MSP 员工在客户租户内的有效权限（F14，P1；Q7 已定）
+#### 5.5.2 MSP 员工在客户租户内的有效权限（F14，P1；Q7 已定；D10 词表）
 
-客户租户模板内置 **4 个 msp 角色**（`pkg/seeder/tenant_provisioner.go` 扩展）：
+客户租户模板内置 **5 个 msp 角色**（`pkg/seeder/tenant_provisioner.go` 扩展；D10 唯一词表，合同预设仅作映射）：
 
 | 角色 | 权限集（默认） | 适用合同形态 |
 |---|---|---|
-| `msp_observer` | `ticket:read` + 评论 | 只读协办 |
-| `msp_tech` | `ticket:read/write`、`knowledge:read`、`cmdb:read`、`service_catalog:read` | 只代工单（默认） |
-| `msp_manager` | `msp_tech` + `user:write`（限客户侧角色）+ `report:read` | 代工单 + 客户侧开号 |
-| `msp_full` | `msp_manager` + `cmdb:write`、`change:write`（**默认不分配**） | 全托管（客户显式确认） |
+| `msp_viewer` | `ticket:read` + 评论 | 只读协办（预设 observer） |
+| `msp_tech` | `ticket:read/write`、`knowledge:read`、`cmdb:read`、`service_catalog:read` | 只代工单（默认；预设 tech） |
+| `msp_specialist` | `msp_tech` 基线（专项能力由客户 admin 按需扩展） | 专项（由 `allocation.role` 映射） |
+| `msp_manager` | `msp_tech` + `user:write`（限客户侧角色）+ `report:read` | 代工单 + 客户侧开号（预设 manager） |
+| `msp_admin` | `msp_manager` + `cmdb:write`、`change:write`（**默认不分配**） | 全托管（预设 full；客户显式确认） |
 
 - **差异化机制（Q7 决策：客户级角色差异化）**：客户 admin 调整本租户 `msp_*` 角色的权限集（覆盖绝大多数场景）；个别人员用 membership 的 `role`/`expires_at`（个人级）；**不引入 grants 表**（触发条件见分析文档 B.8）；
 - **分配角色映射**：`primary → msp_manager`、`backup → msp_tech`、`specialist → msp_specialist`（沿用现有 specialist 角色）；
@@ -472,14 +473,14 @@ func (s *UserService) ProvisionUser(ctx context.Context, actor ActorRef, target 
 #### 5.5.4 RLS 与 tenant guard 影响
 
 - `WithProvisioningBypass` 仅影响 **Ent 写守卫**；同时必须 `WithTenantID(target)`，确保 RLS（`enforce` 后）按目标租户生效，而不是绕过；
-- `tenant_guard` 的表级豁免清单**不新增**（本方案不新建免租户列的表；路线 B 的 memberships 表会带 `tenant_id`，若不带需登记豁免并说明理由）。
+- `tenant_guard` 的表级豁免清单**不新增**（本方案不新建免租户列的表；路线 B 的 `user_tenant_memberships` 表会带 `tenant_id`，若不带需登记豁免并说明理由）。
 ### 5.6 前端改造（itsm-frontend）
 
 | 页面/组件 | 改造 | 对应缺口 |
 |---|---|---|
 | 登录页 `(auth)/login` | **无任何租户列表/选择器**；"企业代码"仅作定位输入（折叠、防枚举，支持 `?tenant=CODE` 预填）；提交带 `tenantCode`；**不处理 409 候选选择**（已下线） | F6/F8 |
-| 会话启动 `session-bootstrap` | 不再固定 `tenants[0]`：以登录响应的 `tenant` + `tenantSelection` 为准；服务方多作用域用 `availableTenants` 选择；**客户方多作用域视为异常并 fail-closed** | F8/F9 |
-| 顶栏 **CustomerFilter**（主控件，新增）+ **深度切换入口**（降级） | 过滤器 = 客户多选/全部（只改视图）；深度入口展示 `availableTenants`（标注 home/allocation）；切换 → `POST /auth/switch-tenant` → 成功后更新 store、清空数据缓存（react-query/SWR）、重拉 `/auth/me`、`/auth/menus` | F13 |
+| 会话启动 `session-bootstrap` | 不再固定 `tenants[0]`：以登录响应的 `tenant` + `tenantSelection` 为准；服务方多作用域候选在认证后经 `GET /auth/tenants` 获取；**登录响应不含候选列表**；客户方多作用域视为异常并 fail-closed | F8/F9 |
+| 顶栏 **CustomerFilter**（主控件，新增）+ **深度切换入口**（降级） | 过滤器 = 客户多选/全部（只改视图）；深度入口使用认证后 `GET /auth/tenants` 返回的候选（标注 home/allocation）；切换 → `POST /auth/switch-tenant` → 成功后更新 store、清空数据缓存（react-query/SWR）、重拉 `/auth/me`、`/auth/menus` | F13 |
 | MSP 控制台 `/msp` | **工作台（看+做，主路径）+ CustomerFilter**；条目级操作无需切换；单请求模式注入 `X-Customer-Tenant-ID`（只读）；"进入客户"用于深度操作；页面显著位置显示"当前客户上下文" | F13/F15 |
 | 用户管理页 | 新增"目标租户"选择（仅平台/MSP 通道可见）；角色下拉按目标租户加载；`mspRole` 仅在 provider/客户场景显示；错误码（`ROLE_NOT_GRANTABLE` 等）给出可读提示 | F1/F14 |
 | 首登改密页（新增） | `mustChangePassword=true` 时强制跳转 | F2 |
@@ -494,12 +495,15 @@ func (s *UserService) ProvisionUser(ctx context.Context, actor ActorRef, target 
 | `msp_allocations` 去重 | 部分唯一索引 `unique (msp_user_id, customer_tenant_id) where deassigned_at is null` | P0-2 |
 | `user_tenant_memberships` | 见 §6.1（含 `account_kind`/`expires_at`/3 个部分唯一索引） | P1-a |
 | `users.account_kind` | `varchar(16) not null default 'customer'`（customer/provider/platform） | P1-a |
+| `user_tenant_membership_orgs` | 组织关联子表（多态 + 复合 FK + 同租户校验；见[实施方案 §4.0-A](./msp-implementation-plan.md)） | P1-a |
+| `msp_allocations.provider_tenant_id` | provider 维度列 + 回填 + 归属校验（见[实施方案 §4.0-B](./msp-implementation-plan.md)） | P1（`IP-P2-1` 收口） |
+| `invitations` | 邀请表（sha256 token/TTL 72h/撤销；见[实施方案 §4.0-C](./msp-implementation-plan.md)） | P1-4 |
 
 迁移策略：加列/加索引均为在线 DDL（无锁或短锁）；**本方案不含唯一约束变更**（Q3 决策：保持 `username/email` 全局唯一）；每步可独立回滚（删列/删索引）；membership 回填后跑一致性巡检（customer 账号恰好 1 条 active 作用域）。
 
 ### 5.8 兼容与回滚
 
-- **响应兼容**：登录/切换响应只**新增**字段（`tenantSelection`、`availableTenants`、`mustChangePassword`），旧前端不受影响；
+- **响应兼容**：登录/切换响应只**新增**字段（`tenantSelection`、`mustChangePassword`；**不含 `availableTenants`**——候选列表仅认证后 `/auth/tenants`），旧前端不受影响；
 - **行为兼容**：`tenantCode` 无效从"静默忽略"改为报错属**有意破坏**（修 F6），需在 02/05 文档与 CHANGELOG 标注；可通过开关 `AUTH_TENANT_STRICT_RESOLUTION` 灰度（默认开）；
 - **通道开关**：`USER_PROVISIONING_CHANNELS_ENABLED`（默认关→灰度开），关闭时新端点 404、旧 `POST /users` 行为不变；
 - **回滚**：新端点/新列可独立下线；bypass 只在新路径使用，回滚不影响既有租户内建号。
@@ -546,9 +550,15 @@ CREATE UNIQUE INDEX uq_membership_default
 CREATE UNIQUE INDEX uq_customer_single_scope
   ON user_tenant_memberships (user_id)
   WHERE deleted_at IS NULL AND status = 'active' AND account_kind = 'customer';
+
+-- 子表复合 FK 目标（组织关联子表，见实施方案 §4.0-A）
+CREATE UNIQUE INDEX uq_membership_id_tenant
+  ON user_tenant_memberships (id, tenant_id);
 ```
 
 要点：成员关系**显式**（分配/邀请产生）、**可回收**（`deassigned_at`/`deleted_at`）、**可到期**（`expires_at`）、**带租户列**（不进 `tenant_guard` 豁免清单，RLS 可覆盖）、**客户单作用域为 DB 强约束**。
+
+> **P1 冻结契约**（组织关联子表 `user_tenant_membership_orgs`、`msp_allocations.provider_tenant_id`、`invitations` DDL 与生命周期）见[实施方案 §4.0](./msp-implementation-plan.md)（2026-09-30 冻结）；本节仅保留 membership 基表。
 
 ### 6.2 与既有模型的关系
 
@@ -558,7 +568,7 @@ CREATE UNIQUE INDEX uq_customer_single_scope
 | `users.account_kind` | 新增（customer/provider/platform） |
 | `msp_allocations` | 保留（运营侧分配）；有效分配 → provider 侧作用域（`allocation_id` 可追溯） |
 | `user_roles` | 平台角色保留；租户内角色改挂 `membership.role_id`（P1 收敛，避免"角色双源"） |
-| 会话 | `availableTenants` = home ∪ memberships（P0 阶段由 home ∪ allocations 计算，**接口不变**） |
+| 会话 | 认证后 `GET /auth/tenants` 返回 home ∪ memberships（P0 阶段由 home ∪ allocations 计算，**接口不变**；登录响应不含候选列表） |
 
 ### 6.3 风险与前置
 
@@ -578,7 +588,7 @@ CREATE UNIQUE INDEX uq_customer_single_scope
 | P0-1 | 认证与租户解析重构 | `service/tenant_access.go`（新）；`handlers/common/service.go`（login/refresh/GetUserTenants）；`handlers/auth/service.go`（switch）；`users.last_active_tenant_id` 迁移；错误码新增 | — | 单测：解析顺序矩阵（显式/自动/冲突/停租户）；refresh 保持切换后租户；`/auth/tenants` 返回多租户 |
 | P0-2 | 建号通道 | `service/provisioning.go`（新）；`tenantctx.WithProvisioningBypass`；3 个端点；角色白名单；`msp_allocations` 部分唯一索引；审计 `user.provision` | P0-1 | 契约测试：平台/MSP/租户内三通道 + 越权矩阵（非分配客户 403、rank 高攀 422、注册注入 super_admin 拒绝） |
 | P0-3 | 引导身份与首登改密 | `pkg/bootstrap/token.go`、`pkg/seeder/seeder.go`、`cmd/initialize`、`cmd/provision_tenant`、`users.must_change_password` | P0-2 | 新租户 `provision_tenant` 后可直接登录（不再 SQL）；第二个租户无唯一冲突 |
-| P0-4 | 前端入口 | 登录租户输入、顶栏切换器、MSP 客户选择器、用户管理租户字段、首登改密页、http-client 扩展 | P0-1/2 | 手工回归 + 组件测试；切换后数据不串租户 |
+| P0-4 | 前端入口 | 登录租户输入、顶栏 `CustomerFilter` + 跨客户工作台 + 深度切换入口、用户管理租户字段、首登改密页、http-client 扩展 | P0-1/2 | 手工回归 + 组件测试；切换后数据不串租户 |
 | P0-5 | 文档与脚本收口 | 02/05/06/07 更新；`setup-msp-tenants.sh` 改为 **API 优先 + SQL 兜底**；CHANGELOG | P0-2/3 | 脚本在全新租户上零 SQL 完成建号与验证 |
 
 ### P1（目标模型 + 体验与合规）
@@ -586,9 +596,9 @@ CREATE UNIQUE INDEX uq_customer_single_scope
 | # | 任务 | 说明 |
 |---|---|---|
 | P1-a | membership 落地（F7） | `user_tenant_memberships` 表 + `users.account_kind` + 回填（home/allocations）+ 一致性巡检；`AccessibleTenants` 切换到读表 |
-| P1-b | 上下文与审计扩展（F15） | 请求上下文注入 `tenant_source/membership_id/is_platform_admin`；`membership.grant/revoke/suspend`、`tenant.scope_switch/denied` 审计落库 |
+| P1-b | 上下文与审计扩展（F15） | 请求上下文注入 `tenant_source/membership_id/is_platform_admin`；`membership.grant/revoke/suspend`、`tenant.switch/switch_denied`、`tenant.scope_denied` 审计落库（事件以[实施方案 §3.0-E](./msp-implementation-plan.md) 为权威） |
 | P1-1 | 邀请/入职流（F4） | 邀请 token、落地页、首登改密、撤销与审计 |
-| P1-3 | 客户租户 MSP 角色模板（F14） | 模板内置 4 个角色（`msp_observer/msp_tech/msp_manager/msp_full`）+ 客户 admin 可编辑角色权限（含审计）+ `membership.expires_at`；分配角色映射（primary→manager、backup→tech、specialist→specialist）；Q7 采用"客户级角色差异化"，不引入 grants 表（见[分析文档 B.8](./msp-scope-model-analysis-and-ai-gateway-reference.md#b8-建议结论推荐方案)） |
+| P1-3 | 客户租户 MSP 角色模板（F14） | 模板内置 5 个角色（`msp_viewer/msp_tech/msp_specialist/msp_manager/msp_admin`，D10 词表）+ 客户 admin 可编辑角色权限（含审计）+ `membership.expires_at`；分配角色映射（primary→manager、backup→tech、specialist→specialist）；Q7 采用"客户级角色差异化"，不引入 grants 表（见[分析文档 B.8](./msp-scope-model-analysis-and-ai-gateway-reference.md#b8-建议结论推荐方案)） |
 | P1-4 | 审计与指标 | 建号/切换/登录事件看板；`selection_mode`、通道分布指标 |
 
 ### P2（演进）
@@ -597,7 +607,7 @@ CREATE UNIQUE INDEX uq_customer_single_scope
 |---|---|---|
 | P2-1 | `service_account` 作用域（Q8） | API Key/集成账号纳入作用域（按 ai-gateway access-key binding 模式） |
 | P2-2 | `membership_scope_grants`（Q7 备选 B） | 仅当出现"限时/单次/合同号绑定"提权需求时启用（触发条件见分析文档 B.8） |
-| P2-3 | G8 缓存租户维度、RLS enforce 前置 | 与本文解耦，按 ADR-004 A8/A11 推进 |
+| P2-3 | RLS enforce 前置（`07:G8` 缓存维度已上调 P0，由 IP-P0-2 承接） | 按 `ADR-004:A11` 推进 |
 ---
 
 ## 8. 验收标准与测试计划
@@ -607,7 +617,7 @@ CREATE UNIQUE INDEX uq_customer_single_scope
 | 主题 | 用例 | 期望 |
 |---|---|---|
 | 登录解析 | 显式 `tenantCode` 有效 / 无效 / 停用 / 过期 | 进入目标租户 / `TENANT_NOT_FOUND` / `TENANT_SUSPENDED` / `TENANT_EXPIRED` |
-| 登录解析 | 无 `tenantCode`：单租户身份 / 多租户身份（有 last_active）/ 多租户身份（无偏好） | 单租户直接进入 / 自动进 last_active / 进 home + 返回 `availableTenants` |
+| 登录解析 | 无 `tenantCode`：单租户身份 / 服务方多作用域 | 单租户直接进入 / **落 provider 家**（不返回候选；候选仅认证后 `/auth/tenants`） |
 | 登录解析 | MSP 员工 + 客户 `tenantCode`（已分配 / 未分配） | 签发客户上下文 / `401 TENANT_MISMATCH` + 审计 |
 | 切换 | native / allocation / super_admin / 无权限 / 目标停用 | 200（JWT tenant=目标）/ 403 `TENANT_FORBIDDEN` / 403 / 403 |
 | 切换 | 切换后 refresh（同租户 / 已回收租户） | 仍为目标租户 / `401 TENANT_ACCESS_REVOKED` |
@@ -617,7 +627,7 @@ CREATE UNIQUE INDEX uq_customer_single_scope
 | 注册 | `role=super_admin` / `role=admin` / 缺省 | 422 / 按白名单策略 / `end_user` |
 | 唯一性 | username 全局重复 / email 全局重复（Q3：不允许同邮箱多租户） | 409 / 409 |
 | 作用域 | customer 账号被加入第二租户 / 服务方访问 `expires_at` 已过期作用域 | DB 约束拒绝（`CUSTOMER_SCOPE_CONFLICT`）/ 403（作用域失效）+ 审计 |
-| 作用域 | 客户方命中多作用域（数据异常）/ 服务方多作用域未选择 | `409 SESSION_AMBIGUOUS` / `409 SCOPE_SELECTION_REQUIRED` + 候选列表 |
+| 作用域 | 客户方命中多作用域（数据异常）/ 服务方多作用域 | `409 SESSION_AMBIGUOUS`（异常，fail-closed）/ 登录不弹选择器：落 provider 家、认证后切换（无 409 候选） |
 | 权限 | 服务方在客户作用域执行 `cmdb:write`（默认基线）/ 客户 admin 调整 msp 角色权限后重签会话 | 403 `SCOPE_GRANT_REQUIRED` / 新权限生效（未重签则维持旧权限） |
 | 审计 | 上述每条路径 | 生成对应审计事件且字段齐全 |
 
@@ -670,6 +680,7 @@ CREATE UNIQUE INDEX uq_customer_single_scope
 | Q6 | 客户账号"转移"到另一租户 | ✅ 仅平台通道；软删旧作用域 + 新建，保留审计与历史归属 | §6.1 |
 | Q7 | 服务方写权限按合同差异化 | ✅ **客户级角色差异化**（4 角色模板 + 客户 admin 可编辑权限）；不建 grants 表；授予方 = 客户 admin 为主、平台应急兜底；`expires_at` + 季度复核替代到期回收 | [分析文档 B.8](./msp-scope-model-analysis-and-ai-gateway-reference.md#b8-建议结论推荐方案)；§5.5.2 |
 | Q8 | `service_account` 是否纳入作用域 | ✅ 第一期不纳入（仅 `user`）；P2 按 access-key binding 模式扩展 | §7 P2-1 |
+| Q9 | 2026-09-30 决策冻结（D1–D9 / E1–E6 / LOGIN-D1–D4 / 邀请契约） | ✅ 全部按最佳实践确认：D1 多 provider 建模+单 provider 预设；D2 `saas_customer` 即直客标记；D3 消息/模板租户化；D4 全局唯一+`identity_key` 不合并；D5 平台管理员必须有 membership；D6 `data_scope=department` 下线；D7 `msp_role` P1 同批并入；D8 批量低危+护栏；D9=E1–E6 全确认；邀请 token TTL 72h、sha256 哈希、一次性、撤销 API 冻结 | canon v1.0 §10；[实施方案 §3.0](./msp-implementation-plan.md) |
 
 ---
 
@@ -724,10 +735,10 @@ CREATE UNIQUE INDEX uq_customer_single_scope
 | F8/F9 | — | A10⑤ | P0-1 / P0-4 |
 | F10/F11/F12 | — | A10⑤ | P0-1 |
 | F13 | — | — | P0-4 |
-| F14 | G3 | A5（MSP 权限授予） | P1-3 |
+| F14 | G3 | A5（MSP 权限授予） | P0（`IP-P0-9` 修 G3）+ P1-3（客户模板） |
 | F15 | G9 | A10② | P0-1（审计统一） |
-| — | G4/G5/G6/G7 | A2（供给可复现） | 已由脚本规避，P0-5 收敛 |
-| — | G8/G10 | A8 | P2-2 / 运维已规避 |
+| — | G4/G5/G6（→`IP-P1-5`）/ G7（P2 工具规范） | A2（供给可复现） | 已由脚本规避，`IP-P1-5` 收敛 |
+| — | G8（→`IP-P0-2`，P0）/ G10（已文档化 + sha256，收尾） | A8 | `IP-P0-2` / 运维已规避 |
 
 **文档同步清单（P0-5）**：`02-deployment-and-configuration.md`（建号通道与引导）、`05-usage-guide.md`（登录选租户/切换/客户上下文）、`06-verification-and-troubleshooting.md`（新增探针与错误码）、`07-known-gaps.md`（G1/G2/G3/G9 状态更新为"方案已出"）、`CHANGELOG.md`。
 
@@ -740,3 +751,7 @@ CREATE UNIQUE INDEX uq_customer_single_scope
 | v0.1 | 2026-09-29 | 首版：现状盘点（三方调研）、缺口 F1–F15、路线 A/B 选型、P0 详细设计、分期与验收 |
 | v0.2 | 2026-09-29 | 依据[作用域模型分析](./msp-scope-model-analysis-and-ai-gateway-reference.md)：Q1 已答（服务方/客户方边界）；路线 B（membership）提前至 P1；取消 P1-2 邮箱租户内唯一；客户方登录解析收紧为 fail-closed |
 | v0.3 | 2026-09-29 | **按建议固化决策**：§0/§4 改为"已定路线（A→B 递进）"；§6 由"可选演进"改写为"P1 首批目标模型"（membership DDL 含 `account_kind`/`expires_at`/客户单作用域 DB 约束）；§5.2.4 取消唯一约束迁移；§5.3 登录解析按 account_kind 分派（客户 fail-closed、服务方 409 选择）；§5.5.2 落 4 个 msp 角色与客户级差异化；§7 分期重排（P1-a/b、P2-1/2/3）；§9.2 改为决议记录（Q1–Q8） |
+| v0.4 | 2026-09-30 | **P0 契约冻结与回填**：F8 目标改为"落 provider 家、无候选列表/选择器"；§5.5.2 角色表统一 D10 词表（5 角色，合同预设仅映射）；§5.6/§6.2/§8 移除登录响应 `availableTenants`（候选仅认证后 `/auth/tenants`）；§7 P2-3 改 RLS（G8 上调 P0→IP-P0-2）；§9.2 增 Q9 决策冻结；§11 映射表更新 G3/G7/G8/G10 承接 |
+| v0.5 | 2026-09-30 | **P1 契约冻结同步**：§6.1 增 `uq_membership_id_tenant`（子表复合 FK 目标）；§5.7 增组织关联子表/ allocation provider 列/ invitations 行并指向实施方案 §4.0 |
+| v0.6 | 2026-09-30 | **F15 目标回填**：推荐路径改为"工作台/条目级 + 过滤器为主、头通道只读、仅深度操作切换"；§5.3.2 旧 409 异常语义整体作废（fail-closed 统一失败）；"4 角色模板"→5（D10）；修订记录对齐 |
+| v0.7 | 2026-09-30 | 口径残留清理：§0 摘要与 §7 P0-4 的"顶栏切换器"改为 `CustomerFilter` + 深度切换入口；§4.2 角色模板数同步 5 |

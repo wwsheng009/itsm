@@ -1,6 +1,6 @@
 # 多租户文档索引（INDEX）
 
-> 状态：**当前**｜更新日期：2026-09-29｜定位：`docs/multi-tenant/` 的**唯一入口索引**——文档清单、权威层级、编号速查、阅读路径与维护规则。
+> 状态：**当前**｜更新日期：2026-09-30（决策全量冻结 + P0 契约冻结）｜定位：`docs/multi-tenant/` 的**唯一入口索引**——文档清单、权威层级、编号速查、阅读路径与维护规则。
 > 维护：新增/重命名/停用文档必须同步本索引，并保持 docs-gate **C.6**（多租户一致性门禁）通过。
 
 ---
@@ -47,26 +47,26 @@
 | [05-usage-guide.md](../05-usage-guide.md) | L5 | 现状（2026-09-28） | 使用指南（as-is） | — |
 | [06-verification-and-troubleshooting.md](../06-verification-and-troubleshooting.md) | L5 | 现状（2026-09-28） | 验证与排障、验收清单 | — |
 | [07-known-gaps.md](../07-known-gaps.md) | L5 | 现状（2026-09-28） | 生产实测缺口（唯一 G 空间） | `G1–G10` |
-| [msp-concept-model-and-architecture-canon.md](./plan/msp-concept-model-and-architecture-canon.md) | **L1** | Draft v0.9 | **概念与架构单一权威**：定义/边界/不变量/风险/验收/决策 | `R1–R12` `K1–K5` `D1–D11` `E1–E6` `I1–I13` `A1–A12` `B1–B6` |
-| [msp-target-architecture.md](./plan/msp-target-architecture.md) | L3 | Draft | 目标态详细设计（membership/上下文/权限/建号/迁移） | — |
-| [msp-cross-customer-workbench-and-filter-plan.md](./plan/msp-cross-customer-workbench-and-filter-plan.md) | **L2** | Draft v0.1 | 跨客户工作台 + 过滤器（**决策修订源**） | `WB1–WB6` `WB-R1–6` `WB-A1–6` `REV-1–5` |
-| [msp-login-and-switching-refinement-plan.md](./plan/msp-login-and-switching-refinement-plan.md) | **L2** | Draft v0.2 | 登录落地/隐私/切换（**决策修订源**） | `LOGIN-*` |
-| [msp-user-lifecycle-and-tenant-switching-plan.md](./plan/msp-user-lifecycle-and-tenant-switching-plan.md) | L4 | Draft v0.3 | 生命周期与切换实现计划（主方案） | `F1–F15` |
-| [msp-scope-model-analysis-and-ai-gateway-reference.md](./plan/msp-scope-model-analysis-and-ai-gateway-reference.md) | L4 | Draft v0.3 | 作用域模型分析（Q1 回答） | — |
-| [msp-user-interaction-flows.md](./plan/msp-user-interaction-flows.md) | L4 | Draft v0.4 | 用户交互流程图 | `UF-01–UF-10` |
-| [msp-frontend-pages-and-permissions-analysis.md](./plan/msp-frontend-pages-and-permissions-analysis.md) | L4 | Draft v0.1 | 前端页面/权限/菜单现状与改造 | `FE-A1–A8` |
-| [msp-integration-with-rbac-org-workflow-analysis.md](./plan/msp-integration-with-rbac-org-workflow-analysis.md) | L4 | Draft | ×RBAC/组织/工作流集成分析与冲突处置 | — |
-| [msp-three-persona-operation-simulation.md](./plan/msp-three-persona-operation-simulation.md) | L6 | Draft v0.2 | 三角色操作演练剧本（验收载体） | — |
-| [msp-docs-consistency-audit.md](./plan/msp-docs-consistency-audit.md) | 治理 | Draft v0.1 | 一致性审计（权威层级/冲突 C1–C19/整改） | `C1–C19` |
-| [msp-implementation-plan.md](./plan/msp-implementation-plan.md) | 落地 | Draft v0.2 | **实施方案 P0→P1→P2**（步骤/DoD/回滚） | `IP-P0-#` `IP-P1-#` `IP-P2-#` |
-| [msp-account-provisioning-and-registration-flow.md](./plan/msp-account-provisioning-and-registration-flow.md) | L4 | Draft v0.1 | **建号与注册流程**（四通道/邀请/首登/过渡期） | — |
-| [msp-business-closure-review-and-refactor-plan.md](./plan/msp-business-closure-review-and-refactor-plan.md) | 治理/落地 | Draft v0.2 | **业务闭环审查 + 现有功能改造计划**（13 链路/波次/深度分级） | `CL-01–CL-13` |
+| [msp-concept-model-and-architecture-canon.md](./plan/msp-concept-model-and-architecture-canon.md) | **L1** | **v1.0（定稿）** | **概念与架构单一权威**：定义/边界/不变量/风险/验收/决策 | `R1–R12` `K1–K5` `D1–D11` `E1–E6` `I1–I13` `A1–A12` `B1–B6` |
+| [msp-target-architecture.md](./plan/msp-target-architecture.md) | L3 | Draft v0.3（P0/P1 契约冻结） | 目标态详细设计（membership/上下文/权限/建号/迁移） | — |
+| [msp-cross-customer-workbench-and-filter-plan.md](./plan/msp-cross-customer-workbench-and-filter-plan.md) | **L2** | Draft v0.2（P0 契约冻结） | 跨客户工作台 + 过滤器（**决策修订源**） | `WB1–WB6` `WB-R1–6` `WB-A1–6` `REV-1–5` |
+| [msp-login-and-switching-refinement-plan.md](./plan/msp-login-and-switching-refinement-plan.md) | **L2** | Draft v0.3（决策确认） | 登录落地/隐私/切换（**决策修订源**） | `LOGIN-*` |
+| [msp-user-lifecycle-and-tenant-switching-plan.md](./plan/msp-user-lifecycle-and-tenant-switching-plan.md) | L4 | Draft v0.5（P0/P1 契约冻结） | 生命周期与切换实现计划（主方案） | `F1–F15` |
+| [msp-scope-model-analysis-and-ai-gateway-reference.md](./plan/msp-scope-model-analysis-and-ai-gateway-reference.md) | L4 | Draft v0.5（P0/P1 契约冻结） | 作用域模型分析（Q1 回答） | — |
+| [msp-user-interaction-flows.md](./plan/msp-user-interaction-flows.md) | L4 | Draft v0.5（口径回填） | 用户交互流程图 | `UF-01–UF-10` |
+| [msp-frontend-pages-and-permissions-analysis.md](./plan/msp-frontend-pages-and-permissions-analysis.md) | L4 | Draft v0.2（P0 契约冻结） | 前端页面/权限/菜单现状与改造 | `FE-A1–A8` |
+| [msp-integration-with-rbac-org-workflow-analysis.md](./plan/msp-integration-with-rbac-org-workflow-analysis.md) | L4 | Draft v0.4（回填 + P1 同步） | ×RBAC/组织/工作流集成分析与冲突处置 | `INT-D#` |
+| [msp-three-persona-operation-simulation.md](./plan/msp-three-persona-operation-simulation.md) | L6 | Draft v0.3（复核） | 三角色操作演练剧本（验收载体） | — |
+| [msp-docs-consistency-audit.md](./plan/msp-docs-consistency-audit.md) | 治理 | v0.3（C1–C19 全闭环） | 一致性审计（权威层级/冲突 C1–C19/整改） | `C1–C19` |
+| [msp-implementation-plan.md](./plan/msp-implementation-plan.md) | 落地 | **v1.1（P0/P1 契约冻结）** | **实施方案 P0→P1→P2**（步骤/DoD/回滚） | `IP-P0-#` `IP-P1-#` `IP-P2-#` |
+| [msp-account-provisioning-and-registration-flow.md](./plan/msp-account-provisioning-and-registration-flow.md) | L4 | Draft v0.3（决策同步） | **建号与注册流程**（四通道/邀请/首登/过渡期） | — |
+| [msp-business-closure-review-and-refactor-plan.md](./plan/msp-business-closure-review-and-refactor-plan.md) | 治理/落地 | Draft v0.4（决策同步） | **业务闭环审查 + 现有功能改造计划**（13 链路/波次/深度分级） | `CL-01–CL-13` |
 
 **上位与关联（本目录之外）**：
 
 | 文档 | 关系 |
 |---|---|
-| [ADR-004 多客户管理场景租户模型选型](../../architecture/adr-004-multi-customer-tenant-model-selection.md) | **L0 选型**（Proposed）；行动项引用写作 `ADR-004:A#` |
+| [ADR-004 多客户管理场景租户模型选型](../../architecture/adr-004-multi-customer-tenant-model-selection.md) | **L0 选型（Accepted 2026-09-30）**；行动项引用写作 `ADR-004:A#`，执行跟踪见实施方案 |
 | [ADR-003 CMDB 模型](../../architecture/)（按需查阅） | 03 文档引用的 CMDB 租户内模型决策 |
 | [通知模块设计方案](../../plan/notification-module-design-plan-2026-09-29.md) | 主方案/目标架构引用的 Q4 落地设计（通知/邮件通道） |
 | `scripts/msp/setup-msp-tenants.sh` / `build-provision-tenant.sh` | 一键初始化与构建（8 阶段幂等 + 隔离探针） |
@@ -120,16 +120,21 @@
 
 | 文档 | 版本/状态 | 修订记录位置 |
 |---|---|---|
-| canon | v0.9（待评审） | 文末"修订记录" |
-| 工作台方案 | v0.1 + 编号整改 | 文末 |
-| 登录细化 | v0.2 | 文末 |
-| 主方案 | v0.3 | 文末 |
-| user-flows | v0.4 | 文末 |
-| scope-model | v0.3 | 文末 |
-| 三角色剧本 | v0.2 | 文末 |
-| 一致性审计 | v0.1 | 文末 |
-| 实施方案 / 闭环审查 | v0.2 | 文末 |
-| README / INDEX | 当前（2026-09-29） | 头部日期 |
+| canon | **v1.0（定稿，2026-09-30）** | 文末 |
+| 工作台方案 | v0.2（P0 契约冻结） | 文末 |
+| 登录细化 | v0.3（决策确认） | 文末 |
+| 目标架构 | v0.3（P0/P1 契约冻结） | 文末 |
+| 主方案 | v0.5（P0/P1 契约冻结） | 文末 |
+| user-flows | v0.5 | 文末 |
+| scope-model | v0.5（P1 契约冻结） | 文末 |
+| 前端分析 | v0.2（P0 契约冻结） | 文末 |
+| 集成分析 | v0.4（回填 + P1 同步） | 文末 |
+| 建号流程 | v0.3（决策同步） | 文末 |
+| 三角色剧本 | v0.3（复核） | 文末 |
+| 一致性审计 | v0.3（C1–C19 全闭环） | 文末 |
+| 实施方案 / 闭环审查 | v1.1 / v0.4 | 文末 |
+| ADR-004 | Accepted（2026-09-30） | 状态段 |
+| README / INDEX | 当前（2026-09-30） | 头部日期 |
 | 01–07 | 现状（2026-09-28） | 头部日期 |
 
 > 版本规则：**状态行与修订记录必须一致**；批次交付后更新日期并追加修订记录（docs-gate C.6 强制头部四件套）。

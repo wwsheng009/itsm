@@ -1,9 +1,10 @@
 # 多租户 × 权限系统 / 部门 / 团队 / 工作流：集成分析与冲突处置方案
 
-> 状态：**Draft v0.1（待评审）**｜日期：2026-09-29｜基准：仓库 HEAD `99eb4074`
+> 状态：**Draft v0.4（2026-09-30 一致性回填 + P1 契约同步）**｜日期：2026-09-30｜基准：仓库 HEAD `337558e3`
 > 范围：现有 RBAC、组织架构（部门/团队/组/项目）、工作流（审批链/BPMN/自动化/SLA/定时器）、通知订阅 与目标多租户机制（membership 多作用域、条目级跨租户操作、fail-closed）的**集成关系与冲突**
 > 关联：[目标架构方案](./msp-target-architecture.md)｜[跨客户工作台与全局过滤方案](./msp-cross-customer-workbench-and-filter-plan.md)｜[登录与切换细化方案](./msp-login-and-switching-refinement-plan.md)｜[前端页面与权限分析](./msp-frontend-pages-and-permissions-analysis.md)｜[07 已知缺口](../07-known-gaps.md)
 > 判定口径：✅ 兼容｜🟡 需改造｜❌ 冲突（安全/正确性风险）
+> 编号：本文 §10 开放问题使用局部编号 `D1–D6`（跨文档引用必须带前缀 `INT-D#`，避免与 canon D# 混淆）。
 
 ---
 
@@ -108,7 +109,7 @@
   departments（树）─┬─ projects ── teams
                     └─ users（home 归属）
 membership（新增，统一作用域）：
-  (user_id, tenant_id, org_type, org_id, role, is_primary, expires_at, status)
+  (user_id, tenant_id, org_type, org_id, role, is_default, expires_at, status)
   org_type ∈ department|team|group|project
   → 一个用户在一个租户内可多归属（部门 + 多个团队/项目组），带角色与生效期
 ```
@@ -193,22 +194,22 @@ membership（新增，统一作用域）：
 | 3 | 列表 fail-open（全租户） | `workflow_service.go:74-75`、`bpmn_deployment_service.go:200-201` | `TenantID<=0` → 拒绝（fail-closed） |
 | 4 | Skill 入参可覆盖租户 | `handlers/skill/handler.go:456-460` | 强制覆写上下文租户；不一致拒绝 |
 | 5 | 自动升级任务静默失效 | `workflow_automation_service.go:458` | 接线 + 补租户 ctx（对齐 commandbus 样板） |
-| 6 | 组织/项目全局唯一键（跨租户冲突+可枚举） | `project.go:24`、`user.go:22-27,48-51` | `project.code` → `(tenant_id, code)`；账号唯一性按既定 Q3 决策保持（见 §10 D2） |
+| 6 | 组织/项目全局唯一键（跨租户冲突+可枚举） | `project.go:24`、`user.go:22-27,48-51` | `project.code` → `(tenant_id, code)`；账号唯一性按既定 Q3 决策保持（见 §10 INT-D2） |
 
 ### 7.2 🟡 P1：结构性改造（与 membership 化同批）
 
 | # | 项 | 位置 | 改造 |
 |---|---|---|---|
-| 1 | 成员关系无成员行 | `migrate/schema.go:5724-5725`、`user.go:41` | 新增 `memberships`（tenant + org + role + 生效期），旧列回填兼容 |
+| 1 | 成员关系无成员行 | `migrate/schema.go:5724-5725`、`user.go:41` | 新增 `user_tenant_memberships`（权威 DDL 见[目标架构 §3.2](./msp-target-architecture.md)）+ 组织关联子表 `user_tenant_membership_orgs`（[实施方案 §4.0-A](./msp-implementation-plan.md)），旧列回填兼容 |
 | 2 | `user_roles` 平台级豁免 | `tenant_guard.go:83` | 角色挂 membership；`user_roles` 收敛为平台角色专用 |
 | 3 | 权限双源 | `common/service.go:67-91`、`auth/service.go:90-112` | 统一 DB 计算（B4） |
-| 4 | `data_scope=department` 空承诺 | `datascope.go:117-143` | 实现（基于 membership 部门子树）或下线 |
+| 4 | `data_scope=department` 空承诺 | `datascope.go:117-143` | **下线**（canon D6 已确认：P1 移除档位并显式报"未启用"） |
 | 5 | 执行器租户 ctx 不统一 | `timer_event_handler.go:213` 等 | 统一 `tenantctx`（§5.2 规范） |
 | 6 | 后台 worker 缺租户 ctx | `app.go:1919-1954` | `SystemContext` + per-tenant `WithTenantID` |
 | 7 | 组织零 RLS | `002_pilot_policies.sql`、`config.go:460-464` | R2 把组织表纳入 policy（与 membership 表同批） |
 | 8 | 裸 FK 无复合约束 | `user.go:41` 等 | `(tenant_id, id)` 复合唯一 + 应用层校验双保险 |
 | 9 | 组织唯一约束缺失 | `group.go`/`team.go` | `(tenant_id, name)` 唯一 |
-| 10 | 通知模板全局豁免 | `tenant_guard.go:112` | 租户化或固化决策（D3） |
+| 10 | 通知模板全局豁免 | `tenant_guard.go:112` | **租户化**（canon D3 已确认；平台默认模板登记豁免、租户可覆盖） |
 | 11 | 后台通知反查租户 | `ticket_notification_service.go:1066-1074` | 显式传作用域 |
 | 12 | `approvalchain` NULL 语义 | `approvalchain.go:25` | 收敛为 NOT NULL 或删除"全局链"概念 |
 | 13 | 升级规则目标裸字段 | `incident_escalation_rule.go:43,46` | 目标解析限定租户内 |
@@ -245,7 +246,7 @@ membership（新增，统一作用域）：
 | 批次 | 内容 | 验收 |
 |---|---|---|
 | **P0（安全修复，独立可发）** | §7.1 六项 + 定时器/worker ctx 统一（C19/C21） | 指派/授权/列表/技能四类越权用例全部拒绝并审计；RLS `shadow` 下执行器无"requires tenant_id"报错 |
-| **P1（与 membership 同批）** | memberships 表 + 回填；角色挂 membership；权限单源；组织唯一约束/复合 FK；RLS 纳入组织表；`data_scope` 决策 | 一个用户在一租户内可多组织归属并携带角色；跨租户成员关系被 DB 与应用双重拒绝 |
+| **P1（与 membership 同批）** | `user_tenant_memberships` 表 + 回填；角色挂 membership；权限单源；组织唯一约束/复合 FK；RLS 纳入组织表；`data_scope=department` 下线 | 一个用户在一租户内可多组织归属并携带角色；跨租户成员关系被 DB 与应用双重拒绝 |
 | **P2（收尾）** | `messages`/`is_public` 模板共享决策；guard 扩展；升级规则目标解析；`approvalchain` 语义收敛 | 共享表清单与豁免理由经评审；guard 覆盖成员/关联表一致性 |
 
 ---
@@ -254,12 +255,12 @@ membership（新增，统一作用域）：
 
 | # | 项 | 说明 |
 |---|---|---|
-| D1 | membership 表与现有单值 FK 的迁移顺序 | 建议：先建 memberships + 回填（只读），再切读路径，最后废弃列；期间双写需同事务 |
-| D2 | `username/email` 全局唯一是否保留 | 主方案 Q3 已定"保持不变"；但"同一自然人跨租户"场景需**身份合并键**（P1 设计：`identity_key` 或平台级 person 表），不与账号唯一性冲突 |
-| D3 | `messages` 模板是否租户化 | 若客户需要自定义通知文案 → 必须租户化；否则固化"平台级模板"决策并登记 |
-| D4 | `is_public` 工作流模板的跨租户语义 | 需显式"条目级跨租户授权"（谁可见/可实例化 + 审计），不能靠 `is_public` 隐式放行 |
-| D5 | RLS `enforce` 的推进顺序 | 先执行器 ctx 统一（P0）→ 再 shadow 比对 → 最后 enforce；组织表与 membership 表同批 |
-| D6 | `data_scope=department` 的实现成本 | 依赖 membership 的部门归属 + 部门子树查询；若成本高可先下线该档位（对客户透明） |
+| INT-D1 | membership 表与现有单值 FK 的迁移顺序 | ✅ 已确认（canon D7）：先建 `user_tenant_memberships` + 回填（只读），再切读路径，最后废弃列；期间双写同事务 |
+| INT-D2 | `username/email` 全局唯一是否保留 | ✅ 已确认（canon D4）：保持全局唯一 + `identity_key` 仅作识别、不做账号合并 |
+| INT-D3 | `messages` 模板是否租户化 | ✅ 已确认（canon D3）：租户化（租户可覆盖）；平台默认模板登记豁免 |
+| INT-D4 | `is_public` 工作流模板的跨租户语义 | 需显式"条目级跨租户授权"（谁可见/可实例化 + 审计），不能靠 `is_public` 隐式放行（P2，随 IP-P2-3 登记复核） |
+| INT-D5 | RLS `enforce` 的推进顺序 | ✅ 既定：先执行器 ctx 统一（P0=IP-P0-11）→ 再 shadow 比对 → 最后 enforce（IP-P2-2）；组织表与 membership 表同批纳入 |
+| INT-D6 | `data_scope=department` 的实现成本 | ✅ 已确认（canon D6）：**下线**该档位（P1），未来按 membership 部门子树立项 |
 
 ---
 
@@ -291,7 +292,7 @@ membership（新增，统一作用域）：
 - **P1**：R1/R3（明确多 provider 策略：`parent_tenant_id` 回填+消费+校验，或显式废弃；provider 唯一性策略）+ R5（`msp_role` 集中校验、清理双轨常量）；
 - **与目标架构衔接**：provider 归属应由 `MSPAllocation`/membership **显式承载**（建议 allocation 增加 `provider_tenant_id`，或由 membership 派生），不再依赖"单一 `default` provider 租户"的隐式约定。
 
-> **架构归位**：本节结论已并入[概念模型与架构总纲](./msp-concept-model-and-architecture-canon.md)——`provider_tenant_id` 字段归一、单/多 provider 决策（D1）、部署模式单一来源（I12）。
+> **架构归位**：本节结论已并入[概念模型与架构总纲](./msp-concept-model-and-architecture-canon.md)——`provider_tenant_id` 字段归一、单/多 provider 决策（canon D1）、部署模式单一来源（I12）。
 
 ---
 
@@ -310,3 +311,5 @@ membership（新增，统一作用域）：
 |---|---|---|
 | v0.1 | 2026-09-29 | 首版：五问判定框架；权限/组织/工作流/执行器/通知五域现状与冲突（❌ 6 项 P0 + 🟡 14 项 P1）；目标集成模型 7 条不变量；分期验收与开放问题（D1–D6） |
 | v0.2 | 2026-09-29 | 新增 §11 专项核实：`msp_provider` 为租户类型标签；"单一平台级 provider 租户"为 seed 隐式单例而非约束；`parent_tenant_id/msp_provider_id` 死元数据、分配不校验 provider 归属；风险 R1–R6 与处置建议 |
+| v0.3 | 2026-09-30 | **一致性回填**：membership 表名统一 `user_tenant_memberships`（3 处）；§10 开放问题改局部前缀 `INT-D#` 并标记决议（↔canon D3/D4/D6/D7）；§7.2/§9 同步 `data_scope=department` 下线与消息模板租户化 |
+| v0.4 | 2026-09-30 | 头部状态与修订记录对齐（v0.1→v0.4）；§7.2 成员关系行指向组织关联子表（实施方案 §4.0-A）；基准 HEAD 重钉 `337558e3` |

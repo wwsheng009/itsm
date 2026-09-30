@@ -1,6 +1,6 @@
 # MSP 登录与作用域切换细化方案（隐私优先）
 
-> 状态：**Draft v0.1（待评审）**｜日期：2026-09-29｜范围：登录页隐私约束、账号类型分派、域名/企业代码定位、服务商登录后切换器、错误码与防枚举、与既有方案的修订点
+> 状态：**Draft v0.3（2026-09-30 决策确认 + 回填）**｜日期：2026-09-30｜范围：登录页隐私约束、账号类型分派、域名/企业代码定位、服务商登录后的过滤器与深度切换、错误码与防枚举、与既有方案的修订点
 > 编号：本文使用**文档局部编号**（`R#`/`D#`/`B#`/`F#`/`A#`）；跨文档引用必须加前缀 `LOGIN-`（如 `LOGIN-R3`）；权威注册表见 [canon 附录 C](./msp-concept-model-and-architecture-canon.md#附录-c跨文档一致性登记权威层级--编号注册表)。
 > 关联：[目标架构方案](./msp-target-architecture.md)（§3/§4/§9）｜[用户交互流程图](./msp-user-interaction-flows.md)（F-04/F-05、§0.5）｜[主方案](./msp-user-lifecycle-and-tenant-switching-plan.md)（§5.3）｜[作用域模型分析](./msp-scope-model-analysis-and-ai-gateway-reference.md)（§1.7/§2）
 > 决策来源：2026-09-29 产品约束——**登录页不得出现多租户选择器**（泄露客户隐私）。
@@ -16,7 +16,7 @@
 | `account_kind` | 登录页输入 | 登录后落地 | 切换器 |
 |---|---|---|---|
 | `customer` | 邮箱/用户名 + 密码（可选：专属域名或**企业代码**文本输入） | **唯一租户**（账号绑定），直接进入 | ❌ 无（永不出现） |
-| `provider` | 邮箱/用户名 + 密码 | **provider 作用域（家）** | ✅ 顶栏切换器（provider + 已分配客户） |
+| `provider` | 邮箱/用户名 + 密码 | **provider 作用域（家）** | ✅ 认证后顶栏：`CustomerFilter`（主控件）+ 深度切换入口（provider + 已分配客户） |
 | `platform` | 邮箱/用户名 + 密码 | 平台控制台（治理模式） | ✅ 治理用租户选择器（管理台内，认证后） |
 
 **关键修订**：原设计"服务方登录命中多作用域 → `409 SCOPE_SELECTION_REQUIRED` + 登录页一次性选择"**作废**（隐私原因）；改为"登录落 provider 家 → 应用内切换"。分析文档"可借鉴 ⑧（登录多候选 409 + 候选列表）"**不采纳**，改为登录后切换。
@@ -56,8 +56,8 @@
 
 ### 2.2 服务商账号（`account_kind=provider`）
 
-- **登录落地 = provider 作用域（家）**：不因"上次看过哪个客户"而在登录时进入客户上下文（避免"登录即进入某客户"的误解与审计歧义；`last_active` 仅用于切换器排序/高亮，见 §4.4）；
-- **顶栏切换器**（登录后可见，§4）：provider 家 + 已分配客户列表；
+- **登录落地 = provider 作用域（家）**：不因"上次看过哪个客户"而在登录时进入客户上下文（避免"登录即进入某客户"的误解与审计歧义；`last_active` 仅用于深度入口排序/高亮，见 §4.4）；
+- **顶栏主控件 `CustomerFilter` + 深度切换入口**（登录后可见，§4）：过滤器 = 客户多选/全部（只改视图）；深度入口 = provider 家 + 已分配客户列表（进入客户）；
 - **登录页无任何客户信息**：即使该服务商分配了 20 个客户，登录页也只有一个普通表单。
 
 ### 2.3 平台账号（`account_kind=platform`）
@@ -95,7 +95,7 @@
 
 ---
 
-## 4. 服务商登录后切换器（应用内）
+## 4. 服务商登录后的过滤器与作用域切换（应用内）
 
 ### 4.1 位置与可见性
 
@@ -174,10 +174,10 @@
 
 | # | 项 | 处置 |
 |---|---|---|
-| D1 | 无子域部署时的企业代码输入是否保留？ | 建议保留（折叠、默认隐藏）；评审确认 |
-| D2 | 服务商"记住上次作用域"是否默认开？ | 建议默认关（隐私/一致性优先），P1 评审 |
-| D3 | 登录页品牌化（客户 logo）是否算泄露？ | 专属域名页面可展示该客户品牌（域名本身已公开）；共享登录页不得展示任何客户品牌 |
-| D4 | 时延侧信道（租户命中与否的耗时差异） | P1 安全评审；必要时恒定耗时处理 |
+| D1 | 无子域部署时的企业代码输入是否保留？ | **✅ 已确认（2026-09-30）：保留**——折叠、默认隐藏、仅作定位手段（非选择器、不枚举）；P1 完善输入体验 |
+| D2 | 服务商"记住上次作用域"是否默认开？ | **✅ 已确认：默认关**；`last_active` 仅用于会话内排序提示、不作登录落地；P1 如开启仅"登录后自动切换一次"，登录页仍无选择器 |
+| D3 | 登录页品牌化（客户 logo）是否算泄露？ | **✅ 已确认**：专属域名页面可展示该客户品牌（域名本身已公开）；共享登录页不得展示任何客户品牌 |
+| D4 | 时延侧信道（租户命中与否的耗时差异） | **✅ 已确认**：P0 统一失败响应/文案 + 限流（见 B9）；P1 安全评审，必要时恒定耗时处理 |
 
 ---
 
@@ -192,7 +192,7 @@
 | B3 | 无租户时按 username 全局查询（`:101-112`，依赖全局唯一） | 🟡 | 保留；失败响应统一（与 B2 配合） |
 | B4 | 登录/切换返回的 permissions 来自**静态硬编码表**（`handlers/common/service.go:67-91`、`handlers/auth/service.go:90-112`），运行时却是 DBOnly fail-closed（`middleware/rbac.go:497-506`） | ❌ | 登录/切换/刷新**统一从 DB 按目标租户计算**权限（消除双源） |
 | B5 | refresh 响应不填 permissions（`handlers/common/service.go:187-214` vs `:223-232`） | 🟡 | 统一响应结构 |
-| B6 | 切换无审计、不撤销旧 refresh（`handlers/auth/service.go:150-157`；黑名单机制已存在 `:40-62`） | ❌ | 撤销旧 refresh + 审计 `tenant.scope_switch` |
+| B6 | 切换无审计、不撤销旧 refresh（`handlers/auth/service.go:150-157`；黑名单机制已存在 `:40-62`） | ❌ | 撤销旧 refresh + 审计 `tenant.switch` |
 | B7 | `tenants.domain` 可选、**无唯一约束、无消费方**（`ent/schema/tenant.go:26-28`） | ❌ | 唯一约束（未删除）+ 登录/中间件解析消费 |
 | B8 | 子域解析仅中间件内、未导出、≥3 段规则、无 base-domain/保留子域配置（`middleware/tenant.go:189-197`） | 🟡 | 提取公共解析器 + 配置项 |
 | B9 | **防枚举缺陷**：`GET /auth/password-policy?tenantCode=` 公开无限流、按租户存在性返回 400/200（`handlers/auth/handler.go:42-45`）；注册回显"用户名/邮箱已注册/租户不存在"（`handlers/auth/service.go:169-181`）；切换 403 区分"无权限/不存在/暂停/过期"（`:118-148`） | ❌ | 统一文案/错误码 + 限流 + 内部审计（§3.3） |
@@ -206,7 +206,7 @@
 | F2 | `AuthService` 登录回退硬编码默认租户（`lib/services/auth-service.ts:306-315`：`t?.id \|\| u?.tenantId \|\| 1`，code 默认 `default`） | ❌ | 移除兜底；服务端返回为准，缺失即失败 |
 | F3 | `session-bootstrap` 每次探活强制 `tenants[0]`（`lib/auth/session-bootstrap.ts:61-62`；`components/auth/AuthGuard.tsx:81`） | ❌ | 尊重已选作用域；无则按服务端解析 |
 | F4 | `TenantAPI.switchTenant` 存在但无调用方、端点错误（`lib/api/tenant-api.ts:41-44`） | ❌ | 接入切换器；端点改 `/api/v1/auth/switch-tenant` |
-| F5 | 无顶栏切换器/全局上下文指示（已检索无组件） | ❌ | 新增 `TenantSwitcher` + 指示（§4） |
+| F5 | 无顶栏过滤器/深度切换入口/全局上下文指示（已检索无组件） | ❌ | 新增 `CustomerFilter`（主控件）+ 深度切换入口 + 上下文指示（§4；工作台 `REV-2`） |
 | F6 | `http-client` 仅注入 `X-Tenant-ID/X-Tenant-Code`（`lib/api/http-client.ts:180-192`），无 `X-Customer-Tenant-ID` | 🟡 | 上下文含客户作用域时注入（单请求只读） |
 | F7 | 菜单 queryKey 为常量、登出/切换不失效（`lib/hooks/useUserMenusQuery.ts:20,46-60`） | ❌ | key 按租户分键 + 切换时 invalidate |
 | F8 | 登出未清 React Query 缓存、未调 `resetSessionBootstrap`、WS 仅组件卸载断开（`lib/store/auth-store.ts:78-93`、`session-bootstrap.ts:32-34`、`components/layout/header/Header.tsx:115-118`） | ❌ | 登出统一清理（缓存/探活/WS） |
@@ -222,7 +222,7 @@
 | D1 | `tenants.domain` | 唯一约束（`WHERE deleted_at IS NULL`）+ 格式校验 + 保留子域清单 |
 | D2 | `users.last_active_tenant_id` | 语义按 §4.4 修订（仅排序/偏好，不作登录落地） |
 | D3 | 登录/切换/刷新响应 | 统一：`tenantSelection{mode}`（无候选列表）+ 目标作用域 `role/permissions`（DB 计算） |
-| D4 | 审计事件 | `auth.login`（含 `source=domain/code/none`、`attempted_tenant`）、`tenant.scope_switch/denied`、`tenant.probe_denied`（防枚举） |
+| D4 | 审计事件 | `auth.login`（含 `source=domain/code/none`、`attempted_tenant`）、`tenant.switch/switch_denied`、`tenant.scope_denied`、`tenant.probe_denied`（防枚举；事件以[实施方案 §3.0-E](./msp-implementation-plan.md) 为权威） |
 
 ---
 
@@ -239,3 +239,4 @@
 |---|---|---|
 | v0.1 | 2026-09-29 | 首版：隐私优先约束（登录页无租户选择器）、按 `account_kind` 分派、域名/企业代码定位（非选择器）、服务商登录后顶栏切换器、防枚举、与既有方案 6 项修订 |
 | v0.2 | 2026-09-29 | 并入逐条核验（HEAD `99eb4074`）：后端 10 项（含 B4 权限双源、B9 三处防枚举缺陷）、前端 12 项、数据契约 4 项；附录补证据索引 |
+| v0.3 | 2026-09-30 | **决策确认与回填**：`LOGIN-D1–D4` 定稿（企业代码保留但仅作定位；记住作用域默认关；品牌化边界；时延侧信道 P0 统一响应 / P1 评审）；审计事件统一 `tenant.switch/switch_denied` + `tenant.scope_denied`（权威=实施方案 §3.0-E）；F5 与 §0 provider 行改 `CustomerFilter` 主控件 + 深度切换入口；绑定 canon v1.0 与实施方案 §3.0 |

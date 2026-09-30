@@ -11,10 +11,13 @@
 | 模式 | MSP 路由（`/api/v1/msp/*`） | 适用场景 |
 |---|---|---|
 | `private` | **404（整族关闭）** | 单企业内部私有化部署 |
-| `saas` | 开启 | 纯多租户 SaaS（无服务商托管面） |
-| `saas_msp` | 开启 | **多客户单一服务商托管（本目录场景）** |
+| `saas` | **404（目标态；2026-09-30 前为开启——缺陷 R12 已修）** | 纯多租户 SaaS（无服务商托管面） |
+| `saas_msp` | **开启（唯一允许）** | **多客户单一服务商托管（本目录场景）** |
+| 空值/未知值 | **启动失败（fatal：`invalid DEPLOYMENT_MODE`）** | 必须显式声明模式 |
 
-配置来源：`itsm-backend/config.yaml:25-28`（`mode: "${DEPLOYMENT_MODE:private}"`，默认 `private`）；门控实现在 `middleware/msp_gate.go:21-33`，`main.go` 在路由注册前调用。
+配置来源：`itsm-backend/config.yaml:25-28`（`mode: "${DEPLOYMENT_MODE:private}"`，默认 `private`）；门控实现在 `middleware/msp_gate.go`，2026-09-30 起由 `internal/bootstrap/app.go` 在加载配置后应用（旧版为 `main.go` 读原始 env，见 IP-P0-1）。
+
+> **目标口径（2026-09-30，IP-P0-1 已实现）**：仅 `saas_msp` 开放 MSP 路由；`saas`/`private` 关闭；空值/未知值启动失败。门控**单一来源** = `cfg.Deployment.Mode`（env `DEPLOYMENT_MODE`，默认 `private`），由 `internal/bootstrap/app.go` 在加载配置后应用（`main.go` 不再直接读原始 env）；启动日志输出 `deployment gate resolved` 与 `deployment self-check`（模式 / gate / provider 租户数三项）；`GET /api/v1/msp/status` 返回 `deploymentMode` + `mspRoutesEnabled`。
 
 ## 2. 前置条件
 
@@ -82,7 +85,10 @@
 | 现象 | 原因 | 处理 |
 |---|---|---|
 | `/api/v1/msp/*` 全部 404 | `DEPLOYMENT_MODE=private`（或未设置，默认 private） | 显式设为 `saas_msp` 并重启 |
-| 以为改了 typo 会关闭 MSP | 未知模式按 SaaS 默认**开启** MSP（`msp_gate.go:21-24`） | 关闭 MSP 只能用 `private`，变更后核对 `/msp/status` |
+| `/api/v1/msp/*` 全部 404（saas 部署） | `DEPLOYMENT_MODE=saas`（目标态不开放 MSP，2026-09-30 起） | 确有 MSP 业务则显式设 `saas_msp`；否则保持 `saas` |
+| 启动失败：`invalid DEPLOYMENT_MODE` | 空值/未知值（拼写错误、大小写不符） | 改为 `private`/`saas`/`saas_msp` 之一（大小写敏感） |
+| 启动日志 `deployment self-check mismatch` | gate 与租户形态不一致（如 saas_msp 无 provider 租户） | 检查 seed/迁移是否完成；该项仅告警不阻断 |
+| 以为改了 typo 会关闭 MSP | 旧版本未知模式按 SaaS 默认**开启** MSP（已修，R12） | 2026-09-30 起空/未知值**启动失败**；关闭 MSP 用 `private`，变更后核对 `/msp/status` |
 | 启动即失败并报 tenant_guard | 新表缺 `tenant_id` 且未登记豁免 | 补列或登记豁免（含 owner/reviewed_at + 测试） |
 | `enforce` 后大量 500 | 存在未注入租户上下文的路径 | 退回 `shadow` 补齐缺失点，并切换低权角色 |
 

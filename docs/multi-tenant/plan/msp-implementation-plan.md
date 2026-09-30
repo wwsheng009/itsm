@@ -1,7 +1,7 @@
 # MSP 多租户实施方案（P0 → P1 → P2）
 
-> 状态：**Draft v0.2（待评审）**｜日期：2026-09-29｜基准：仓库 HEAD `4fcacf68`
-> 上位：[ADR-004](../../architecture/adr-004-multi-customer-tenant-model-selection.md)（选型）｜[canon](./msp-concept-model-and-architecture-canon.md)（概念/边界/迁移路线，附录 C 注册表）
+> 状态：**v1.0（2026-09-30 评审通过；P0 契约冻结）**｜日期：2026-09-30｜基准：仓库 HEAD `337558e3`
+> 上位：[ADR-004](../../architecture/adr-004-multi-customer-tenant-model-selection.md)（**Accepted 2026-09-30**）｜[canon](./msp-concept-model-and-architecture-canon.md)（v1.0；概念/边界/决策登记，附录 C 注册表）
 > 设计输入：[目标架构](./msp-target-architecture.md)｜[工作台方案](./msp-cross-customer-workbench-and-filter-plan.md)｜[登录与切换细化](./msp-login-and-switching-refinement-plan.md)｜[前端分析](./msp-frontend-pages-and-permissions-analysis.md)｜[主方案](./msp-user-lifecycle-and-tenant-switching-plan.md)｜[集成分析](./msp-integration-with-rbac-org-workflow-analysis.md)｜[一致性审计](./msp-docs-consistency-audit.md)
 > 定位：把上述目标态落成**可执行、可验收、可回滚**的工程步骤；本文不新增概念。工作流编号为本文局部编号 `IP-P{0|1|2}-#`（已登记 canon 附录 C）。
 > 现状基线文档：[01](../01-architecture.md)–[07](../07-known-gaps.md)（as-is）｜演练剧本：[三角色操作模拟](./msp-three-persona-operation-simulation.md)
@@ -18,6 +18,7 @@
 | P2 目标 | 多 provider 维度收窄、RLS `enforce`、共享表治理、工作台批量/自定义视图、guard 扩展 |
 | 贯穿不变量 | fail-closed（I7/I8/I9）；**客户端不做权限判定**（I2/A6）；**修订即回填**（审计 §6）；**编号登记**（canon 附录 C）；**每步可独立回滚** |
 | 总验收 | canon **A1–A12** + 工作台 **WB-A1–WB-A6** + 前端 **FE-A1–A8** + 本文各阶段 DoD（§6） |
+| 决策与契约 | ✅ 2026-09-30 冻结：D1–D11 / E1–E6 全部定稿（canon v1.0 §10）；P0 错误码 / DDL / 权限矩阵 / workbench schema / 审计事件见 **§3.0** |
 
 **三阶段出口条件（一句话）**：
 
@@ -57,9 +58,119 @@
 > **发布策略**：每批内按工作流独立发布（feature flag / 灰度开关），不做大爆炸（canon §8 迁移原则）。
 ---
 
-## 3. P0 详细实施（10 个工作流）
+## 3. P0 详细实施（11 个工作流）
 
 > 通用规则：每个工作流 = 一个 PR（或一组小 PR）；**代码与文档同 PR**（修订即回填）；新增编号先登记 canon 附录 C；发布前 `make docs-gate` 6/6。
+
+### 3.0 P0 冻结契约（2026-09-30；错误码 / DDL / 权限矩阵 / Schema）
+
+> 本节与 [canon v1.0 §10](./msp-concept-model-and-architecture-canon.md)、ADR-004（Accepted）同步；**冻结后变更须回填本节并在修订记录登记**。
+
+**A. 错误码注册表（统一 `{code, message, details}`；所有 401/403 带审计）**
+
+| 错误码 | HTTP | 触发 | 关联工作流 |
+|---|---|---|---|
+| `CROSS_TENANT_FORBIDDEN` | 403 | 非合法跨租户通道/身份（无平台或 MSP 权限） | IP-P0-2/5 |
+| `MSP_ALLOCATION_REQUIRED` | 403 | 无有效 allocation（头/路径/请求体/切换四通道一致） | IP-P0-2/5/6/7 |
+| `CUSTOMER_TENANT_NOT_FOUND` | 404 | 目标客户租户不存在或不属于本 provider | IP-P0-2 |
+| `CUSTOMER_INACTIVE` | 403 | 目标租户 suspended/expired（写一律拒绝） | IP-P0-2/6/7 |
+| `RESOURCE_TENANT_MISMATCH` | 400 | 请求声明的 `customerTenantId` 与资源实际租户不一致 | IP-P0-2/7 |
+| `TENANT_MISMATCH_REJECTED` | 401 | JWT 与 `X-Tenant-Code`/`X-Tenant-ID` 冲突（修 `07:G9`） | IP-P0-6 |
+| `TENANT_SELECTION_CONFLICT` | 400 | 请求参数租户与会话冲突 | IP-P0-6 |
+| `TENANT_ACCESS_REVOKED` | 401 | refresh 复核失败（分配/会话失效，不回退 home） | IP-P0-6 |
+| `MSP_TICKET_ID_CONFLICT` | 409 | `(msp_provider_id, msp_ticket_id)` 重复 | IP-P0-3 |
+| `ROLE_NOT_GRANTABLE` | 422 | 角色不在目标租户或高于调用者权限集 | IP-P0-5/9 |
+| `MSP_ROLE_NOT_ALLOWED` | 422 | `msp_role` 非法组合或通道不允许 | IP-P0-5 |
+| `USERNAME_EXISTS` / `EMAIL_EXISTS` | 409 | 全局唯一冲突 | IP-P0-5 |
+| `INVALID_CURSOR` | 400 | 工作台游标失效/非法 | IP-P0-7 |
+| `BATCH_LIMIT_EXCEEDED` / `ACTION_NOT_ALLOWED` | 400 / 403 | 批量超限 / 含高危动作（P1） | IP-P1-6 |
+| `CUSTOMER_SCOPE_CONFLICT` | 422 | customer 账号出现第 2 条 active membership（P1，DB 兜底） | IP-P1-1 |
+
+**B. P0 DDL 清单（在线 DDL；索引先跑重复行预检，`CREATE INDEX CONCURRENTLY`；回滚 = DROP INDEX / 保留列）**
+
+```sql
+-- B1 users 两列（在线加列，可空/默认 false）
+ALTER TABLE users ADD COLUMN IF NOT EXISTS last_active_tenant_id int NULL REFERENCES tenants(id);
+ALTER TABLE users ADD COLUMN IF NOT EXISTS must_change_password boolean NOT NULL DEFAULT false;
+
+-- B2 allocation 活跃唯一（预检重复行后建索引；历史重复按"保留最早、其余 deassigned_at=now"处置，并由回填脚本输出差异清单）
+CREATE UNIQUE INDEX CONCURRENTLY IF NOT EXISTS uk_msp_allocation_active
+  ON msp_allocations (msp_user_id, customer_tenant_id) WHERE deassigned_at IS NULL;
+
+-- B3 审计扩展列（membership_id 在 P1 建表后补 FK；历史行 source 读侧映射 legacy）
+ALTER TABLE audit_logs ADD COLUMN IF NOT EXISTS actor_account varchar(64);
+ALTER TABLE audit_logs ADD COLUMN IF NOT EXISTS membership_id bigint;
+ALTER TABLE audit_logs ADD COLUMN IF NOT EXISTS target_tenant_id int;
+ALTER TABLE audit_logs ADD COLUMN IF NOT EXISTS source varchar(32);
+CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_audit_scope ON audit_logs (tenant_id, target_tenant_id, created_at);
+
+-- B4 工单外部号：provider 维度唯一（E4 启用时；仅非空行）
+CREATE UNIQUE INDEX CONCURRENTLY IF NOT EXISTS uk_ticket_provider_msp_ticket
+  ON tickets (msp_provider_id, msp_ticket_id) WHERE msp_ticket_id IS NOT NULL;
+
+-- B5 工作台索引（先查 pg_indexes；实测缺失后再建；SLA 列名为 sla_resolution_deadline）
+CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_tickets_tenant_status_updated ON tickets (tenant_id, status, updated_at);
+CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_tickets_tenant_assignee_status ON tickets (tenant_id, assignee_id, status);
+CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_tickets_tenant_sla_deadline ON tickets (tenant_id, sla_resolution_deadline);
+```
+
+- 表名/列名以 Ent schema 为准：审计表 `audit_logs`（`ent/schema/auditlog.go`）；工单列 `assignee_id` / `sla_resolution_deadline`（`ent/schema/ticket.go`）。
+- Ent 侧同步：`ent/schema/msp_allocation.go` 增加部分唯一索引（`entsql.IndexWhere`），避免 auto-migrate 与实际库漂移；DDL 同部落 `migrations/`（legacy `ent/migrate/20250313_add_msp_tables.sql:35` 仅作历史）。
+- P1 登记（不阻塞 P0）：`tenants.domain` 部分唯一（`WHERE deleted_at IS NULL`，`LOGIN-D1`，随专属域名入口 P1）；membership/RLS 见 IP-P1-1/7。
+
+**C. 五角色权限矩阵（D10 唯一词表；两套作用域）**
+
+C1 · provider 租户 RBAC（资源码 = `middleware/rbac.go` 硬编码矩阵；落库由 seeder 幂等生成）：
+
+| 角色 | 权限（resource:action） | 条数 | 用途 |
+|---|---|---|---|
+| `msp_viewer` | msp:read、msp_customer:read、msp_ticket:read、msp_allocation:read、msp_report:read | 5 | 只读 |
+| `msp_tech` | viewer + msp_ticket:write | 6 | 工单处理（默认） |
+| `msp_specialist` | msp:read、msp_customer:read/write、msp_ticket:read/write、msp_allocation:read、msp_report:read | 7 | 专项（含客户信息写） |
+| `msp_manager` | msp:read/write、msp_customer:read/write、msp_ticket:read/write、msp_allocation:read/write、msp_report:read/write | 10 | provider 管理（分配/报表） |
+| `msp_admin` | `msp_*` 全资源全动作（`*`） | 兜底 | 全托管；默认不分配 |
+
+C2 · 客户租户内 msp 角色基线（Q7 合同形态 → 客户侧业务权限；客户 admin 可编辑，变更审计）：
+
+| 角色（唯一词表） | 默认权限集 | 合同预设映射 |
+|---|---|---|
+| `msp_viewer` | ticket:read + 评论 | observer（只读协办） |
+| `msp_tech` | + ticket:write、knowledge:read、cmdb:read、service_catalog:read | tech（只代工单，默认） |
+| `msp_specialist` | msp_tech 基线（专项能力由客户 admin 按需扩展） | specialist（由 `allocation.role` 映射） |
+| `msp_manager` | msp_tech + user:write（限客户侧角色）+ report:read | manager（代工单 + 开号） |
+| `msp_admin` | msp_manager + cmdb:write、change:write | full（全托管；默认不分配） |
+
+- 落库：`internal/authz/roles.go` 内置词表新增 5 角色 → `pkg/seeder` 为 provider 租户幂等生成 `roles` + `role_permissions`；迁移 `20260501_enable_rbac_from_db.sql:33-77`（id 108–112）保留兼容；`scripts/msp/setup-msp-tenants.sh` 的 SQL 直写降级为兜底（并补 `msp_admin`）。DBOnly 三态（unavailable / unconfigured / configured）语义不变。
+- `msp_role` 收敛（IP-P0-9）：`provider_admin→msp_manager`、`provider_agent→msp_tech`；`customer_user` 仅 legacy 读映射。
+
+**D. 工作台 API Schema（P0 冻结；端点全量见[工作台方案 §4](./msp-cross-customer-workbench-and-filter-plan.md)）**
+
+- 查询参数：`customerTenantIds=all|1,2`（服务端上限 50）、`status/priority/assigneeId/q/updatedAfter`、`groupBy=customer`、`sort=sla|updated`、`cursor`、`limit`（默认 50、上限 200）。
+- 列表项：`{id, customerTenantId, customerName, status, priority, assigneeId, assigneeName, updatedAt, slaDeadline, allowedActions[]}`。
+- `allowedActions[]` 元素：`{"action":"reply|status|assign","allowed":true|false,"reasonCode":"<A 表错误码>","reasonText":"..."}`；`allowed=false` 必须带 `reasonCode`（前端仅按该数组渲染，禁止前端推断权限）。
+- `summary` 响应：`{generatedAt, ttlSeconds:30, customers:[{customerTenantId, customerName, open, slaRisk, unassigned}]}`（仅当前分配集合；未分配客户服务端剔除并审计 `tenant.scope_denied`）。
+- 游标：opaque base64url(JSON `{v:1, sort:"sla|updated", perTenant:[{tenantId, lastSort, lastId}]}`)；非法/过期 → 400 `INVALID_CURSOR`。
+- 显式请求未分配客户 → 403 `MSP_ALLOCATION_REQUIRED`；条目声明租户与资源不符 → 400 `RESOURCE_TENANT_MISMATCH`。
+
+**E. 审计事件与 source 枚举（canonical）**
+
+- 事件目录：`auth.login`、`tenant.switch`、`tenant.switch_denied`、`tenant.scope_denied`、`tenant.probe_denied`、`user.provision`、`user.invite`、`user.invite_accept`、`membership.grant/revoke/suspend/role_change`（P1）、`tenant.lifecycle`、`workbench.action`。
+- `audit_logs.source` 枚举：`login|switch|header|workbench|platform_selected|job|system|legacy`（历史行为 NULL，读侧视为 `legacy`）。
+- 统一字段：`actor_account` + `membership_id`（P1 起）+ `target_tenant_id` + `request_id`；跨租户操作（条目级/治理/bypass）**必审计**。
+- 目标架构 §10 原 `scope_switch` 事件名、登录细化 §8 原 `scope_switch/denied` 统一为 `tenant.switch` / `tenant.switch_denied` / `tenant.scope_denied`（以本节为权威）。
+
+**F. `07:G1–G10` 承接映射（2026-09-30 复核；消除“缺口无工作流”）**
+
+| 缺口 | 承接工作流 | 批次 | 验收 |
+|---|---|---|---|
+| `07:G1` 跨租户建号被拦 | IP-P0-5 | P0 | `ProvisionUser` 三通道；`07:G1` 关闭 |
+| `07:G2` bootstrap 多租户 | IP-P1-5（P0 DoD 不再声称关闭 G2） | P1 | 连续 2 租户 bootstrap 成功 |
+| `07:G3` MSP 管理员角色解析 | IP-P0-9（JWT `role`=主角色或最大 rank；`roleRank` 覆盖 msp_*；高攀按权限集比较） | P0 | 同租户 API 建 `agent` 成功；`07:G3` 关闭 |
+| `07:G4/G5/G6` 审批组/序列/唯一约束 | IP-P1-5（迁移一次性校正） | P1 | 存量库供给可复现 |
+| `07:G7` CLI 输出规范 | 工具规范（脚本 `last_number()` 已规避；P2 提升为通用约定） | P2（接受现状） | 文档示例 + 脚本 lint |
+| `07:G8` 缓存 key 无租户维度 | IP-P0-2 步骤 6（逐 key 审查 + 修复 + 单测） | P0 | 缓存 key 清单 0 缺失；`07:G8` 关闭 |
+| `07:G9` 头/JWT 冲突静默 | IP-P0-6 | P0 | 冲突 401 + 告警 |
+| `07:G10` snap docker 路径 | 已文档化 + 脚本 sha256 校验；随 IP-P0-1 部署自检复核 | P0（收尾） | 文档无 `/tmp` 指引；校验失败即退出 |
 
 ### IP-P0-1 部署与门控显式化（R4/R12；ADR-004:A1/A10）
 
@@ -75,18 +186,21 @@
 
 **回滚**：env 回退 `saas_msp`；自检降级为 warning。
 
-### IP-P0-2 隔离与授权修复：allocation 二次校验（R9/R10/R2/R3；canon A3）
+**进度（2026-09-30）**：✅ **已实现**。代码：`pkg/tenantmode.ValidateDeploymentMode/MSPRoutesEnabled`、`middleware.ApplyDeploymentMode`（仅 `saas_msp` 开启；`saas` 关闭并告警；空/未知返回错误且不改变门控状态）、`internal/bootstrap` 启动自检（warning-only，模式/gate/provider 租户数）、`/msp/status` 返回 `deploymentMode`+`mspRoutesEnabled`；`main.go` 移除原始 env 调用（单一来源 = `cfg.Deployment.Mode`）。测试：`TestApplyDeploymentMode*`、`TestDeploymentShapeMismatch` 通过；`go build ./...` 通过。
 
-**目标**：**所有通道**（头 / 路径参数 / 请求体）统一走同一授权函数；未分配客户一律 403。
+### IP-P0-2 隔离与授权修复：allocation 二次校验（R9/R10/R2/R3；canon A3；`07:G8`）
+
+**目标**：**所有通道**（头 / 路径参数 / 请求体 / 切换）统一走同一授权函数；未分配客户一律 403；缓存键带租户维度（`07:G8`，隔离面 fail-closed）。
 
 **步骤**：
-1. 在 `service/` 层实现唯一入口 `CanAccessCustomer(actor, customerTenantID, action)`：`allocation 有效 ∧ 客户归属 provider ∧ 客户 active ∧ 目标租户 RBAC`；
-2. 接线 `MSPAccessValidator`（或删除死代码，二选一，禁止并存）；`GetTicketsForCustomer`/`MSPFilterByCustomer` 一并处理；
+1. 在 `service/` 层实现唯一入口 `CanAccessCustomer(actor, customerTenantID, action)`：`allocation 有效 ∧ 客户归属 provider ∧ 客户 active ∧ 目标租户 RBAC`；错误码见 §3.0-A（`MSP_ALLOCATION_REQUIRED` / `CUSTOMER_TENANT_NOT_FOUND` / `CUSTOMER_INACTIVE` / `RESOURCE_TENANT_MISMATCH`）；
+2. **接线 `MSPAccessValidator`**（已冻结：复用既有实现；`GetTicketsForCustomer`/`MSPFilterByCustomer` 收敛为内部方法或删除，禁止并存与双实现）；
 3. `handlers/msp/handler.go`：`/msp/customers/:id/tickets`、`assign`（请求体 `customerTenantId`）、工单详情/回复等**全部改走**统一入口；
-4. `msp_allocations` 增加部分唯一索引 `(msp_user_id, customer_tenant_id) WHERE deassigned_at IS NULL`（ADR-004:A4 数据面）；
-5. 反例用例：未分配客户 3 条通道均 403（见 §6.5）。
+4. `msp_allocations` 部分唯一索引：从 legacy 迁移到规范迁移与 Ent schema（DDL 见 §3.0-B2；含重复行预检）；
+5. 反例用例：未分配客户 3 条通道均 403（见 §6.5）；
+6. **缓存租户维度（`07:G8` / `ADR-004:A8`）**：逐 key 审查 `itsm-backend/cache/`（读写键必须含 `tenant_id`；已合规键登记清单），修复无租户维度的 key，补单测与评审检查项；工作台 `summary` 内存缓存 key = 租户集合哈希 + 用户。
 
-**验收**：三角色剧本 M10 三条全部 403（现状为 200，见 07/剧本）；`R9`/`R10` 关闭；新增单测覆盖 3 通道 × 2 角色。
+**验收**：三角色剧本 M10 三条全部 403（现状为 200，见 07/剧本）；`R9`/`R10` 关闭；`07:G8` 关闭（缓存 key 清单 0 缺失）；新增单测覆盖 3 通道 × 2 角色 + 缓存键用例。
 
 **回滚**：入口函数保留开关 `MSP_STRICT_CUSTOMER_ACCESS`（默认 on），off 时退回旧行为仅用于排障（发布后一个版本移除）。
 
@@ -97,7 +211,7 @@
 **步骤**：
 1. 建单链路（客户租户内 + MSP 代建）统一 setter：provider 由**客户派生**（`customer.provider_tenant_id`）+ 落快照；
 2. 列表/详情/报表查询按 `provider_tenant_id` 收窄（与 IP-P0-2 入口组合）；
-3. `msp_ticket_id` 外部映射字段：仅在有外部工单源时写入，唯一性按 provider 维度；
+3. `msp_ticket_id` 外部映射字段：仅在有外部工单源时写入；唯一性按 `(msp_provider_id, msp_ticket_id)`（DDL 见 §3.0-B4；冲突返回 `MSP_TICKET_ID_CONFLICT`）；
 4. 回填：存量工单按客户归属补快照（幂等脚本，dry-run 输出差异清单）。
 
 **验收**：新建工单四字段正确；按 provider 过滤返回=分配集合内工单；快照与客户归属不一致被拒绝；A12 前置条件满足。
@@ -109,8 +223,8 @@
 **目标**：`tenants.type` 只出现 3 类新值；customer 归属唯一化。
 
 **步骤**：
-1. 校验函数：写入拒绝 legacy 值（`msp`/`customer`/`standard`…），读取兼容映射（文档 + 单测）；
-2. `provider_tenant_id`：customer 必填（或显式 `direct_customer` 标记）；`parent_tenant_id`/`msp_provider_id` **二选一**收敛（保留兼容读，停止双写）；
+1. 校验函数：列值口径固定为 `internal/msp_provider/msp_customer`（概念名 platform/provider/customer）；写入拒绝 legacy 值（`msp`/`customer`/`standard`…），读取兼容映射（文档 + 单测）；
+2. 归属校验（D2 已确认）：`msp_customer` ⇔ `msp_provider_id` 非空且指向 `msp_provider`；`saas_customer`（直客）⇔ 为空；其余组合拒绝。归属写入仅 `msp_provider_id`（不改物理列名；`parent_tenant_id` 保留兼容读，**P0 停止新增双写**，P1 数据收敛/回填）；
 3. 建 customer 租户 API/脚本补归属校验（指向必须为 `msp_provider`，禁自指）；
 4. 文档：01/03 的枚举与双字段表述回填为"现状 + 目标"两列。
 
@@ -129,7 +243,7 @@
 4. 端点：`POST /api/v1/tenants/:id/users`、`POST /api/v1/msp/customers/:id/users`（平台/MSP 面），与既有 `POST /api/v1/users` 共用 service；
 5. 灰度：`USER_PROVISIONING_CHANNELS_ENABLED`（按租户开启）；运营脚本 §6 的 SQL 直写降级为**兜底**（默认不再使用）。
 
-**验收**：服务商经 API 为分配客户建号 201；未分配客户 403；客户 admin 无法建平台角色（422）；`07:G1/G2` 关闭；K4 关闭。
+**验收**：服务商经 API 为分配客户建号 201；未分配客户 403（`MSP_ALLOCATION_REQUIRED`）；客户 admin 无法建平台角色（422 `ROLE_NOT_GRANTABLE`）；**`07:G1` 关闭（`07:G2` 由 IP-P1-5 关闭，不在本项范围）**；K4 关闭。
 
 **回滚**：开关关闭即回退旧路径；SQL 兜底脚本保留。
 
@@ -142,7 +256,7 @@
 2. `/auth/tenants`：语义修正为 **home ∪ 有效分配 ∪ 平台全量**（认证后使用）；
 3. `switch-tenant`：目标租户校验（membership/allocation）→ 重签 JWT（`tenant_id + tenant_source + membership_id`）→ **撤销旧 refresh** → 审计 `tenant.switch` → 响应 `user.tenantId == tenant.id`；
 4. `refresh`：按 `claims.TenantID` 重签 + 复核；失效 → `TENANT_ACCESS_REVOKED`（不回退 home）；
-5. 头/JWT 冲突：**拒绝**（401/400 + `tenant mismatch rejected` 告警）——修 07:G9；
+5. 头/JWT 冲突：**拒绝**（401/400 `TENANT_MISMATCH_REJECTED` + `tenant mismatch rejected` 告警）——修 07:G9（错误码见 §3.0-A）；
 6. 前端契约同步（见 IP-P0-8）。
 
 **验收**：三角色剧本 M1–M5、F5–F12 相关项；`mspadmin` 登录 JWT 落 provider 家；`switch→refresh` 保持目标租户；撤销后旧 refresh 401；冲突请求 401 + 日志。
@@ -154,7 +268,7 @@
 **目标**：服务商**不切换会话**即可看+做多客户单据；写操作按资源租户授权。
 
 **步骤**：
-1. 后端：`GET /msp/workbench/tickets`（逐租户查询 + 内存合并，P0）、`GET /msp/workbench/summary`（计数徽标）、条目级 `reply/status/assign`（`POST /msp/workbench/tickets/:id/*`）；
+1. 后端：`GET /msp/workbench/tickets`（逐租户查询 + 内存合并，P0）、`GET /msp/workbench/summary`（计数徽标）、条目级 `reply/status/assign`（`POST /msp/workbench/tickets/:id/*`）；响应/游标/`allowedActions` schema 见 §3.0-D；
 2. 授权链（每条目）：`资源租户 ∈ 分配 ∧ 目标租户 RBAC ∧ 租户 active ∧ 资源状态`；响应逐行返回 `allowedActions`；
 3. bounded bypass：`actor + 集合 + reason`，逐次审计（`source=workbench`）；
 4. 前端：顶栏 `CustomerFilter`（全部/子集 + 搜索 + 计数徽标，URL 同步）；列表带"客户"列 + 行内操作；"进入客户"深度入口；
@@ -192,7 +306,9 @@
 4. Q7 预设映射：`observer→msp_viewer`、`full→msp_admin`（合同/分配层预设，不新增角色名）；
 5. 脚本 `setup-msp-tenants.sh` §5 改为"校验 + 兜底"（默认不写 SQL）。
 
-**验收**：新 provider 租户 seed 后 `/roles` 可见 5 角色且权限行齐备；不跑脚本的租户不再落入硬编码兜底（K1/K2 关闭）；D10 映射表单测。
+6. 修 `07:G3`：JWT `role` claims 取主角色（`users.role`）或按 `roleRank` 取最大；为 `msp_*` 定义合理 rank（不低于其绑定主角色能力）；"角色高攀"校验改为比较实际权限集。
+
+**验收**：新 provider 租户 seed 后 `/roles` 可见 5 角色且权限行齐备（矩阵见 §3.0-C1）；不跑脚本的租户不再落入硬编码兜底（K1/K2 关闭）；D10 映射表单测；**`07:G3` 关闭**（mspadmin 登录 `role=admin` 或 rank ≥ admin，可经同租户 API 建 `agent` 用户）。
 
 **回滚**：角色为新增数据，删除/停用即可；脚本兜底保留。
 
@@ -201,7 +317,7 @@
 **目标**：跨租户/切换/建号/工作台操作统一审计字段；文档与代码同步。
 
 **步骤**：
-1. 审计字段：`actor_account + membership_id + target_tenant + source(login/header/workbench/platform_selected/job)`；事件目录（`tenant.switch`/`tenant.scope_denied`/`user.invite_accept`…）；
+1. 审计字段/事件目录/`source` 枚举按 §3.0-E 实现；新增列 DDL 见 §3.0-B3（在线加列 + `idx_audit_scope`）；
 2. 05 使用指南回填工作台/过滤器口径；01–07 与目标差异随各文档下次修订回填；
 3. docs-gate C.6 保持 6/6；新增编号（如有）登记 canon 附录 C。
 
@@ -227,6 +343,86 @@
 ## 4. P1 详细实施（Membership 化）
 
 > 原则：先加表/列并回填（只读兼容）→ 双写同事务 → 切读路径 → 废弃旧列；每步独立回滚（canon §8）。
+
+### 4.0 P1 冻结契约（2026-09-30；membership 组织 / allocation provider / invitations）
+
+> 与 §3.0 同规则：本节即 P1 编码基线，**变更须回填本节并登记修订记录**。审计 C13（P1 设计冻结）由此闭环；组织关联、邀请 DDL 不再有"实现评审时冻结"的悬置项。
+
+**4.0-A 成员组织关联：`user_tenant_membership_orgs`（新增子表；IP-P1-3）**
+
+```sql
+-- 父表补复合唯一（作为子表复合 FK 目标）
+CREATE UNIQUE INDEX uq_membership_id_tenant ON user_tenant_memberships (id, tenant_id);
+
+CREATE TABLE user_tenant_membership_orgs (
+  id            bigserial PRIMARY KEY,
+  membership_id bigint NOT NULL,
+  tenant_id     int    NOT NULL REFERENCES tenants(id),
+  org_type      varchar(16) NOT NULL,          -- department | team | group | project
+  org_id        bigint NOT NULL,
+  role_id       int NULL REFERENCES roles(id), -- 可选：组织内角色
+  is_primary    boolean NOT NULL DEFAULT false,
+  status        varchar(16) NOT NULL DEFAULT 'active', -- active | suspended
+  expires_at    timestamptz NULL,
+  deleted_at    timestamptz NULL,
+  created_at    timestamptz NOT NULL DEFAULT now(),
+  updated_at    timestamptz NOT NULL DEFAULT now(),
+  CONSTRAINT fk_membership_org_membership
+    FOREIGN KEY (membership_id, tenant_id)
+    REFERENCES user_tenant_memberships (id, tenant_id),
+  CONSTRAINT uq_membership_org UNIQUE (membership_id, org_type, org_id)
+);
+CREATE INDEX idx_membership_org_scope ON user_tenant_membership_orgs (tenant_id, org_type, org_id);
+CREATE UNIQUE INDEX uq_membership_org_primary ON user_tenant_membership_orgs (membership_id, org_type)
+  WHERE deleted_at IS NULL AND is_primary;
+```
+
+- **多态校验**：`org_type` 指向 department/team/group/project 四表，无法建单一物理 FK → 应用层写入校验 `org.tenant_id == membership.tenant_id`，并由 P1 guard 扩展做启动扫描（`IP-P2-5`）；跨租户组织关联用例必须被拒（`IP-P1-3` DoD）。
+- **租户列必带**：不申请 `tenant_guard` 豁免，RLS 可覆盖（`IP-P1-7`）。
+
+**4.0-B allocation provider 维度：`msp_allocations.provider_tenant_id`（新增列；IP-P2-1 落地、P0 起应用层校验）**
+
+```sql
+ALTER TABLE msp_allocations ADD COLUMN IF NOT EXISTS provider_tenant_id int NULL REFERENCES tenants(id);
+-- 回填：provider_tenant_id = 客户租户的 msp_provider_id（差异清单人工复核）
+UPDATE msp_allocations a SET provider_tenant_id = c.msp_provider_id
+  FROM tenants c WHERE c.id = a.customer_tenant_id AND a.provider_tenant_id IS NULL;
+-- 校验通过后（IP-P2-1 收尾）置 NOT NULL，并加"必须指向 msp_provider"的应用校验
+CREATE INDEX IF NOT EXISTS idx_msp_allocations_provider
+  ON msp_allocations (provider_tenant_id) WHERE deassigned_at IS NULL;
+```
+
+- 写入校验：`allocation.provider_tenant_id == customer.msp_provider_id`；跨 provider 分配拒绝（R2）。
+- 与 D2 配合：直客（`saas_customer`，`msp_provider_id` 为空）**不得创建 allocation**。
+
+**4.0-C 邀请表：`invitations`（DDL 冻结；IP-P1-4）**
+
+```sql
+CREATE TABLE invitations (
+  id             bigserial PRIMARY KEY,
+  tenant_id      int NOT NULL REFERENCES tenants(id),
+  token_hash     varchar(64) NOT NULL UNIQUE,      -- sha256(token) hex；原始 token 不落库
+  email          varchar(255) NOT NULL,
+  target_user_id int NULL REFERENCES users(id),    -- 可选：邀请已存在账号绑定
+  role_id        int NOT NULL REFERENCES roles(id),
+  msp_role       varchar(32) NULL,                 -- 白名单：provider_admin/provider_agent（provider 通道）
+  invited_by     int NOT NULL REFERENCES users(id),
+  status         varchar(16) NOT NULL DEFAULT 'pending', -- pending | accepted | revoked | expired
+  expires_at     timestamptz NOT NULL,             -- 默认 now()+72h（INVITATION_TTL_HOURS 可配）
+  accepted_at    timestamptz NULL,
+  revoked_at     timestamptz NULL,
+  created_at     timestamptz NOT NULL DEFAULT now(),
+  updated_at     timestamptz NOT NULL DEFAULT now()
+);
+CREATE UNIQUE INDEX uq_invitation_pending ON invitations (tenant_id, lower(email)) WHERE status = 'pending';
+CREATE INDEX idx_invitations_tenant_status ON invitations (tenant_id, status);
+CREATE INDEX idx_invitations_expiry ON invitations (expires_at) WHERE status = 'pending';
+```
+
+- **生命周期**：创建（角色白名单 + `msp_role` 通道校验）→ 投递（SMTP 或 `inviteUrl`）→ 接受（一次性：`status=pending ∧ now()<expires_at`，事务内置 `accepted` + 建号/绑定）→ 撤销（仅 pending，`revoked_at`）→ 过期由巡检置 `expired`；重发 = 新 token 且旧 token 失效。
+- **API**：`GET /api/v1/auth/invitations/:token`（最小回显）、`POST /api/v1/auth/invitations/:token/accept`、`POST /api/v1/users/invitations/:id/revoke`；审计 `user.invite` / `user.invite_accept`。
+- **安全**：token 128-bit 随机 + sha256 存储 + 日志脱敏；`super_admin/sysadmin/admin` 不可被邀请（F3）。
+- **租户列必带**：`tenant_id` 纳入 RLS/guard（同 4.0-A）。
 
 | 工作流 | 目标 | 关键步骤 | 验收（DoD） | 回滚 |
 |---|---|---|---|---|
@@ -270,14 +466,16 @@
 
 ### 6.2 P0 出口 DoD（发布门）
 
-- [ ] **安全**：未分配客户在头/路径/请求体 3 通道均 403（R9/R10 关闭）；头/JWT 冲突 401 + 告警（07:G9 关闭）；
+- [ ] **安全**：未分配客户在头/路径/请求体/切换 4 通道均 403（含 `MSP_ALLOCATION_REQUIRED` 错误码；R9/R10 关闭）；头/JWT 冲突 401 + 告警（`07:G9` 关闭）；
+- [ ] **缓存隔离**：`itsm-backend/cache/` 逐 key 审查完成、跨租户 key 修复 + 单测（`07:G8` 关闭，IP-P0-2 步骤 6）；
 - [ ] **执行器/定时器**：后台任务/自动化在显式租户 ctx 下运行、错误 ctx 被拒、`source=job` 可审计（IP-P0-11）；
 - [ ] **功能**：工作台跨客户看+做（WB-A1–A6）；写操作无需切换且逐条审计；
 - [ ] **登录/会话**：provider 登录落 provider 家；切换/刷新/撤销契约通过（F5/F6/F9/F10/F11/F12 对应项）；
-- [ ] **建号**：三通道 `ProvisionUser` 生效；`07:G1/G2` 关闭；角色白名单生效；
-- [ ] **角色供给**：新 provider 租户 seed 后 5 个 `msp_*` 角色权限齐备（K1/K2 关闭）；
+- [ ] **建号**：三通道 `ProvisionUser` 生效；`07:G1` 关闭（`07:G2` 归 IP-P1-5）；角色白名单生效；
+- [ ] **角色供给**：新 provider 租户 seed 后 5 个 `msp_*` 角色权限齐备（K1/K2 关闭）；`07:G3` 关闭；
 - [ ] **前端**：FE-A1–A8；登录页 DOM 无租户列表；客户账号无过滤器/切换器/工作台节点；
-- [ ] **门禁**：docs-gate 6/6；`make test` 全绿；三角色剧本 P0 项全过。
+- [ ] **契约**：错误码/DDL/审计事件与 §3.0 一致；`07:G1–G10` 映射表（§3.0-F）无遗漏；
+- [ ] **门禁**：docs-gate 6/6（含 C.6 语义锚点）；`make test` 全绿；三角色剧本 P0 项全过。
 
 ### 6.3 P1 出口 DoD
 
@@ -340,25 +538,38 @@
 | **R9/R10**（未分配客户可读/可指派） | 安全（高） | P0 首日修复（IP-P0-2），修复前禁止生产开通多客户 |
 | **R12**（未知模式开启 MSP） | 安全/治理 | IP-P0-1；过渡期告警 |
 | **K1/K4**（角色供给/建号） | 交付效率 | IP-P0-5/9；SQL 兜底保留 |
-| **D2**（直客无 provider） | 归属模型 | IP-P0-4 前确认；默认"显式直客标记" |
-| **D3**（`messages` 租户化） | 共享表语义 | IP-P2-3 前确认 |
-| **D5**（平台 membership） | 治理审计 | 与 D11 一并确认（平台治理通道独立） |
-| **D8**（批量边界） | 效率/风险 | IP-P1-6 前确认（低危 + 护栏为建议值） |
-| **E1–E6**（工单流转） | A12 | IP-P0-3/IP-P2-1 设计冻结前确认 |
-| **07:G4/G5/G6**（审批组/序列/唯一约束） | 供给可复现 | 迁移脚本一次性校正（并入 IP-P1-5） |
-| **07:G10**（snap docker 路径） | 运维 | 路径约定 + sha256 校验（已文档化，脚本沿用） |
+| **D2**（直客无 provider） | 归属模型 | ✅ 2026-09-30 已确认：`saas_customer` 即显式直客标记；IP-P0-4 直接实施 |
+| **D3**（`messages` 租户化） | 共享表语义 | ✅ 已确认租户化（IP-P2-3） |
+| **D5**（平台 membership） | 治理审计 | ✅ 已确认必须有 membership（IP-P1-1；与 D11 一致） |
+| **D8**（批量边界） | 效率/风险 | ✅ 已确认低危 + 护栏（IP-P1-6） |
+| **E1–E6**（工单流转） | A12 | ✅ 全部确认（canon §7.2）；IP-P0-3 / IP-P2-1 直接实施 |
+| **07:G1–G10**（生产实测缺口） | 可追溯性 | 承接映射见 **§3.0-F**（G2/G4–G6 在 IP-P1-5；G7 P2 接受现状；G10 收尾） |
 
 ---
 
-## 9. 里程碑与工作量（粗估，待排期校准）
+## 9. 里程碑、排期骨架与工作量（2026-09-30 基线）
 
 | 批次 | 工作流数 | 粗估（人日，后端+前端+测试） | 关键里程碑 |
 |---|---|---|---|
-| P0 | 10 | 25–40 | M1 安全闭环（IP-P0-1/2/3）；M2 登录/建号（5/6）；M3 工作台+前端（7/8）；M4 角色/审计+文档（9/10） |
+| P0 | 11 | 25–40 | M1 安全闭环（IP-P0-1/2/3，含缓存审查）；M2 登录/建号（5/6）；M3 工作台+前端（7/8）；M4 角色/审计/执行器+文档（9/10/11） |
 | P1 | 8 | 25–35 | M5 membership+回填；M6 权限单源/组织；M7 邀请/首登；M8 RLS shadow |
 | P2 | 5 | 15–25 | M9 provider 维度+N=2 e2e；M10 RLS enforce；M11 治理收尾 |
 
-> 说明：估算不含产品决策等待时间（D/E 项）；以"工作流 = 1 个可独立发布的 PR 组"为粒度校准。
+> 说明：估算不含产品决策等待时间（D/E 项已清零）；以"工作流 = 1 个可独立发布的 PR 组"为粒度校准。
+
+### 9.1 执行顺序与建议窗口（Owner 待指派）
+
+| 里程碑 | 工作流（顺序） | 依赖 | 建议窗口（相对 P0 启动） | 出口证据 |
+|---|---|---|---|---|
+| M1 安全闭环 | `IP-P0-1` → `IP-P0-2` → `IP-P0-3` | — | 第 1–2 周 | R9/R10/`07:G8`/`07:G9` 关闭；四通道 403 用例全过 |
+| M2 登录/建号 | `IP-P0-6` → `IP-P0-5` | M1（统一授权入口） | 第 2–4 周（与 M1 尾并行） | 登录/切换/refresh 契约用例；`07:G1` 关闭 |
+| M3 工作台+前端 | `IP-P0-7` → `IP-P0-8` | M2（响应契约） | 第 4–6 周 | WB-A1–A6；FE-A1–A8 |
+| M4 角色/审计/执行器/文档 | `IP-P0-9` → `IP-P0-10` → `IP-P0-11` | 可与 M1–M3 并行 | 第 3–6 周 | K1/K2/`07:G3` 关闭；docs-gate 全绿 |
+| M5–M8（P1） | `IP-P1-1/2` → `IP-P1-3` → `IP-P1-4/5` → `IP-P1-6/7/8` | P0 出口 DoD（§6.2） | P0 完成后 4–6 周 | 路线 B 转正；`07:G2`、`07:G4–G6` 关闭 |
+
+- **关键路径**：M1 → M2 → M3；`IP-P0-2` 是所有跨租户能力的共同依赖，**禁止后置**；
+- **并行度**：M4 与 M1–M3 并行（角色/审计/执行器改动面独立）；`IP-P1-1`（只加表/回填，不改读路径）可在本方案冻结后先行开发；
+- **Owner 与日历排期**：由项目组按上述工作流粒度指派 RACI 并在 3 个工作日内确认窗口；本方案不预设人名。
 
 ---
 
@@ -377,3 +588,6 @@
 |---|---|---|
 | v0.1 | 2026-09-29 | 首版：P0（10 工作流）/P1（8）/P2（5）步骤、验收 DoD、A1–A12 映射、发布回滚、风险与里程碑 |
 | v0.2 | 2026-09-29 | 补 **IP-P0-11（执行器/定时器租户 ctx 统一，原 canon P0 ⑤ / 集成分析 §5.2 缺口）**；P0 DoD 增执行器勾选项；A7 证据并入该项 |
+| v1.0 | 2026-09-30 | **评审通过 + P0 契约冻结**：新增 §3.0（错误码注册表 / P0 DDL 清单 / 五角色权限矩阵 / 工作台 Schema / 审计事件目录 / `07:G1–G10` 承接映射）；修正工作流计数 10→11；IP-P0-2 增加缓存租户维度步骤（`07:G8`）；IP-P0-9 增加 `07:G3` 修复项；IP-P0-5/P0 DoD 修正 G2 批次；D2/D3/D5/D8/E1–E6 标记已确认；基准 HEAD 重钉 `337558e3` |
+| v1.1 | 2026-09-30 | **P1 契约冻结 + 排期骨架**：新增 §4.0（`user_tenant_membership_orgs` 组织关联子表与复合 FK、`msp_allocations.provider_tenant_id` 列与回填、`invitations` DDL/生命周期/API/安全口径）——审计 C13 闭环；§9 增 §9.1 执行顺序与建议窗口（Owner 待指派）；标题去除"待排期校准" |
+| v1.2 | 2026-09-30 | **IP-P0-1 落地**：门控严格化（仅 saas_msp）+ 单一来源（cfg）+ 未知/空值 fatal + 启动自检 + `/msp/status` 暴露模式/gate；相关单测与 `go build ./...` 通过；02 §1/§9 同步目标口径 |

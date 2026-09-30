@@ -39,10 +39,12 @@ func TestMSPAllocationDTOUsesCamelCaseJSON(t *testing.T) {
 
 func TestMSPStatusResponseUsesCamelCaseJSON(t *testing.T) {
 	resp := MSPStatusResponse{
-		IsMSP:     true,
-		MSPUserID: 9,
-		Role:      "msp_manager",
-		IsAdmin:   true,
+		IsMSP:            true,
+		MSPUserID:        9,
+		Role:             "msp_manager",
+		IsAdmin:          true,
+		DeploymentMode:   "saas_msp",
+		MSPRoutesEnabled: true,
 	}
 
 	data, err := json.Marshal(resp)
@@ -52,6 +54,8 @@ func TestMSPStatusResponseUsesCamelCaseJSON(t *testing.T) {
 	assert.Contains(t, jsonStr, `"isMsp":true`)
 	assert.Contains(t, jsonStr, `"mspUserId":9`)
 	assert.Contains(t, jsonStr, `"isAdmin":true`)
+	assert.Contains(t, jsonStr, `"deploymentMode":"saas_msp"`)
+	assert.Contains(t, jsonStr, `"mspRoutesEnabled":true`)
 	assert.NotContains(t, jsonStr, `"is_msp"`)
 	assert.NotContains(t, jsonStr, `"msp_user_id"`)
 	assert.NotContains(t, jsonStr, `"is_admin"`)

@@ -10,7 +10,13 @@
 #   R3 工作台文档必须使用 WB 系编号，且不得出现旧 R7–R11 / G1–G6 / R1–R6 / A1–A6 条目；
 #   R4 07-known-gaps 必须声明 G1–G10 为唯一 G 空间；
 #   R5 ADR-004 行动项引用必须带 `ADR-004:` 前缀（一致性审计报告本身豁免）；
-#   R6 login / user-flows 必须声明局部前缀（LOGIN- / UF-）。
+#   R6 login / user-flows 必须声明局部前缀（LOGIN- / UF-）；
+#   R7 全文不得出现 legacy 角色 token（msp_observer / msp_full，D10 唯一词表）与旧切换事件名（tenant.scope_switch）；
+#   R8 target-architecture 不得保留已作废登录契约（availableTenants[] / 409 SCOPE_SELECTION_REQUIRED）；
+#   R9 决策注册表必须为 D1–D11，且读侧文档不得出现 D1–D10；
+#   R10 实施方案必须声明 "11 个工作流" 且不得出现 "10 个工作流"；
+#   R11 实施方案必须包含 07:G8 承接映射（缓存租户维度）；
+#   R12 实施方案必须包含 P1 冻结契约（§4.0：组织关联表 / invitations DDL）。
 #
 # 用法：
 #   ./scripts/docs-gate/check-multi-tenant-consistency.sh
@@ -45,6 +51,9 @@ WB="${DIR}/plan/msp-cross-customer-workbench-and-filter-plan.md"
 GAPS="${DIR}/07-known-gaps.md"
 LOGIN="${DIR}/plan/msp-login-and-switching-refinement-plan.md"
 FLOWS="${DIR}/plan/msp-user-interaction-flows.md"
+TARGET="${DIR}/plan/msp-target-architecture.md"
+IMPL="${DIR}/plan/msp-implementation-plan.md"
+AUDIT="${DIR}/plan/msp-docs-consistency-audit.md"
 
 # R2 canon 注册表
 grep -q '附录 C' "${CANON}" || fail "canon 缺少附录 C 注册表"
@@ -84,6 +93,38 @@ fi
 # R6 局部编号前缀声明
 grep -q 'LOGIN-' "${LOGIN}" || fail "login 文档缺少 LOGIN- 局部前缀声明"
 grep -q 'UF-01' "${FLOWS}" || fail "user-flows 缺少 UF-01–UF-10 编号声明"
+
+# R7 legacy 角色 token（D10 唯一词表）
+LEGACY="$(grep -rn --include='*.md' -E 'msp_observer|msp_full|tenant\.scope_switch' "${DIR}" || true)"
+if [ -n "${LEGACY}" ]; then
+  echo "${LEGACY}" | sed 's/^/    /'
+  fail "存在 legacy 锚点（msp_observer / msp_full / tenant.scope_switch）；唯一口径见 canon D10 与实施方案 §3.0-E"
+fi
+
+# R8 已作废登录契约（仅检查 target-architecture 正文）
+if grep -Eq 'availableTenants\[|SCOPE_SELECTION_REQUIRED' "${TARGET}"; then
+  fail "target-architecture 仍含已作废登录契约（availableTenants[] / 409 SCOPE_SELECTION_REQUIRED）"
+fi
+
+# R9 决策注册表
+if grep -l 'D1–D10' "${CANON}" "${DIR}/README.md" "${DIR}/INDEX.md" "${AUDIT}" >/dev/null 2>&1; then
+  fail "存在过期注册表 D1–D10（应为 D1–D11）"
+fi
+grep -q 'D1–D11' "${CANON}" || fail "canon 注册表缺少 D1–D11"
+
+# R10 P0 工作流计数
+if grep -q '10 个工作流' "${IMPL}"; then
+  fail "实施方案仍写 '10 个工作流'（应为 11 个工作流）"
+fi
+grep -q '11 个工作流' "${IMPL}" || fail "实施方案缺少 '11 个工作流' 声明"
+
+# R11 G8 承接锚点
+grep -q '07:G8' "${IMPL}" || fail "实施方案缺少 07:G8（缓存租户维度）承接映射"
+
+# R12 P1 契约冻结锚点
+grep -q 'P1 冻结契约' "${IMPL}" || fail "实施方案缺少 P1 冻结契约（§4.0）"
+grep -q 'user_tenant_membership_orgs' "${IMPL}" || fail "实施方案缺少 user_tenant_membership_orgs 定义（§4.0-A）"
+grep -q 'CREATE TABLE invitations' "${IMPL}" || fail "实施方案缺少 invitations DDL（§4.0-C）"
 
 echo ""
 echo "########################################"

@@ -54,27 +54,33 @@ func (h *Handler) GetMSPStatus(c *gin.Context) {
 
 	if exists && mspCtx.IsMSP {
 		common.Success(c, dto.MSPStatusResponse{
-			IsMSP:     true,
-			MSPUserID: mspCtx.MSPUserID,
-			Role:      mspCtx.Role,
-			IsAdmin:   isAdmin,
+			IsMSP:            true,
+			MSPUserID:        mspCtx.MSPUserID,
+			Role:             mspCtx.Role,
+			IsAdmin:          isAdmin,
+			DeploymentMode:   middleware.DeploymentMode(),
+			MSPRoutesEnabled: middleware.IsMSPEnabled(),
 		})
 		return
 	}
 
 	if isAdmin {
 		common.Success(c, dto.MSPStatusResponse{
-			IsMSP:   false,
-			IsAdmin: true,
-			Message: "管理员模式：可配置MSP功能",
+			IsMSP:            false,
+			IsAdmin:          true,
+			Message:          "管理员模式：可配置MSP功能",
+			DeploymentMode:   middleware.DeploymentMode(),
+			MSPRoutesEnabled: middleware.IsMSPEnabled(),
 		})
 		return
 	}
 
 	common.Success(c, dto.MSPStatusResponse{
-		IsMSP:   false,
-		IsAdmin: false,
-		Message: "非MSP用户",
+		IsMSP:            false,
+		IsAdmin:          false,
+		Message:          "非MSP用户",
+		DeploymentMode:   middleware.DeploymentMode(),
+		MSPRoutesEnabled: middleware.IsMSPEnabled(),
 	})
 }
 

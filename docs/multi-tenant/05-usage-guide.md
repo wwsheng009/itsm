@@ -48,6 +48,8 @@
 - 单次请求：请求头带 `X-Customer-Tenant-ID: <客户租户ID>`（必须命中分配列表，否则 403）；
 - 连续操作：调用租户切换（`SwitchTenant`）换发目标客户上下文的 JWT 后再操作（`handlers/auth/service.go:114`）。
 
+> **目标口径（2026-09-30，canon v1.0；本文其余内容为现状 as-is）**：日常跨客户处理走"**跨客户工作台 + `CustomerFilter` + 条目级操作**"（无需切换会话）；头通道为单请求只读；仅"深度操作"（客户内配置/用户/连续多步）走会话切换（`POST /api/v1/auth/switch-tenant`）。目标步骤见[实施方案 `IP-P0-7`/`IP-P0-8`](./plan/msp-implementation-plan.md)。
+
 **分配管理（服务商管理员）**：
 
 - 列表 `GET /api/v1/msp/allocations`；新建 `POST /api/v1/msp/allocations`；解除 `POST /api/v1/msp/allocations/deallocate`（`docs/acl-manifest.yaml:2605-2620`）；

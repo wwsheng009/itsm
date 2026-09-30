@@ -1,6 +1,6 @@
 # MSP 跨客户工作台与全局过滤方案（替代"全局切换"）
 
-> 状态：**Draft v0.1（待评审）**｜日期：2026-09-29｜基准：仓库 HEAD `99eb4074`
+> 状态：**Draft v0.2（2026-09-30 P0 契约冻结）**｜日期：2026-09-30｜基准：仓库 HEAD `337558e3`
 > 关联：[目标架构方案](./msp-target-architecture.md)（§5 权限、§9 前端）｜[登录与切换细化方案](./msp-login-and-switching-refinement-plan.md)（§4 切换器）｜[前端页面与权限分析](./msp-frontend-pages-and-permissions-analysis.md)（§6.2）｜[用户交互流程图](./msp-user-interaction-flows.md)（§0.5/F-05/F-06）｜[主方案](./msp-user-lifecycle-and-tenant-switching-plan.md)（F13/F14）
 > 决策来源：2026-09-29 产品反馈——**服务商多客户并行处理时，"全局切换"会漏单**；顶栏选择器应作为**全局过滤器**（全部/部分客户），单据列表直接展示并处理跨客户条目。
 
@@ -144,7 +144,7 @@ ctx = tenantctx.WithMSPWorkbenchBypass(ctx, actor, allowedTenantIDs, "workbench:
 
 | 端点 | 用途 | 备注 |
 |---|---|---|
-| `GET /api/v1/msp/workbench/tickets` | **跨客户工单列表**：`customerTenantIds=all\|1,2`、`status/priority/assigneeId/q/updatedAfter`、`groupBy=customer`、`sort=sla\|updated`、cursor 分页 | 每项含 `customerTenantId/customerName` + `allowedActions[]` |
+| `GET /api/v1/msp/workbench/tickets` | **跨客户工单列表**：`customerTenantIds=all\|1,2`、`status/priority/assigneeId/q/updatedAfter`、`groupBy=customer`、`sort=sla\|updated`、cursor 分页 | 每项含 `customerTenantId/customerName` + `allowedActions[]`；**响应/游标/元素结构见[实施方案 §3.0-D](./msp-implementation-plan.md)** |
 | `GET /api/v1/msp/workbench/summary` | 每客户计数（待处理/超 SLA/未指派），供过滤器徽标 | 轻量聚合 |
 | `POST /api/v1/msp/tickets/:id/reply` | 条目级回复 | 服务端按单据租户授权 + 审计 |
 | `POST /api/v1/msp/tickets/:id/status` | 条目级改状态 | 同上；状态机校验 |
@@ -153,7 +153,7 @@ ctx = tenantctx.WithMSPWorkbenchBypass(ctx, actor, allowedTenantIDs, "workbench:
 | `GET/PUT /api/v1/users/me/preferences`（P1） | 过滤器/排序偏好 | 仅本人 |
 | 保留 | `GET /msp/customers/:id/tickets`、`/msp/reports/*` | 单客户钻取与报表不变 |
 
-**错误码**：`MSP_ALLOCATION_REQUIRED`、`CUSTOMER_TENANT_MISMATCH`、`TENANT_SUSPENDED`、`BATCH_LIMIT_EXCEEDED`、`ACTION_NOT_ALLOWED`（均带审计）。
+**错误码**（权威注册表见[实施方案 §3.0-A](./msp-implementation-plan.md)）：`MSP_ALLOCATION_REQUIRED`、`RESOURCE_TENANT_MISMATCH`、`CUSTOMER_INACTIVE`、`INVALID_CURSOR`、`BATCH_LIMIT_EXCEEDED`、`ACTION_NOT_ALLOWED`（均带审计）。
 
 ---
 
@@ -161,7 +161,7 @@ ctx = tenantctx.WithMSPWorkbenchBypass(ctx, actor, allowedTenantIDs, "workbench:
 
 | 项 | 设计 |
 |---|---|
-| 索引 | `tickets(tenant_id, status, updated_at)`、`tickets(tenant_id, assignee_id, status)`、`tickets(tenant_id, sla_due_at)`（按现有 schema 对齐） |
+| 索引 | `tickets(tenant_id, status, updated_at)`、`tickets(tenant_id, assignee_id, status)`、`tickets(tenant_id, sla_resolution_deadline)`（先查 `pg_indexes`，缺则建；DDL 见[实施方案 §3.0-B5](./msp-implementation-plan.md)） |
 | 分页 | 跨租户统一排序用**复合游标** `(sort_key, tenant_id, id)`；禁用深 OFFSET |
 | 查询规模 | 单请求租户集合 ≤ 50（超出拒绝或分批）；P0 逐租户查询并发上限 8 |
 | 限流 | 工作台查询按用户 QPS；写操作按 `(actor, tenant)` 双维度 |
@@ -212,7 +212,7 @@ ctx = tenantctx.WithMSPWorkbenchBypass(ctx, actor, allowedTenantIDs, "workbench:
 - WB-A2 过滤器"全部/子集"生效，刷新/分享 URL 保持；徽标计数与列表一致；
 - WB-A3 未分配客户不出现在过滤器与列表（且不可操作）；
 - WB-A4 批量操作逐条授权、逐条审计、超限拒绝、客户分布确认；
-- WB-A5 暂停租户条目只读；`msp_full` 未授予域仍拒绝（`msp_full` 词表统一见 canon D10）；
+- WB-A5 暂停租户条目只读；`msp_admin` 未授予域仍拒绝（角色词表统一见 canon D10）；
 - WB-A6 工作台态与深度态指示互不混淆。
 
 ---
@@ -242,3 +242,4 @@ ctx = tenantctx.WithMSPWorkbenchBypass(ctx, actor, allowedTenantIDs, "workbench:
 | 版本 | 日期 | 变更 |
 |---|---|---|
 | v0.1 | 2026-09-29 | 首版：会话作用域/视图过滤器/条目级操作三概念分离；顶栏全局过滤器；跨客户工作台（列表带客户列 + 行内操作 + 批量护栏）；资源级授权与 bounded bypass；API 设计（workbench list/summary + 条目级写）；数据/性能（逐租户查询、复合游标、限流）；R7–R11 修订 |
+| v0.2 | 2026-09-30 | **P0 契约冻结与回填**：API 响应/游标/`allowedActions` 元素结构指向实施方案 §3.0-D；错误码统一（`RESOURCE_TENANT_MISMATCH`/`CUSTOMER_INACTIVE`/`INVALID_CURSOR`）；索引补 `sla_resolution_deadline`；WB-A5 角色改 `msp_admin`；基准 HEAD 重钉 `337558e3` |
