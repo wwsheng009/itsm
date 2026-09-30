@@ -27,6 +27,11 @@ func SetupSystemConfigRoutes(tenant *gin.RouterGroup, h *systemConfigHandler.Han
 		sysConfigs.PUT("/:id", middleware.RequirePermission("system_config", "write"), h.UpdateConfig)
 		sysConfigs.PUT("/batch", middleware.RequirePermission("system_config", "write"), h.BatchUpdateConfigs)
 
+		// M2 能力开关（MCP / Bot 运行时开关）：读 = system_config:read，写 = system_config:write
+		// （超级管理员）；写后立即失效运行时缓存，免重启生效。
+		sysConfigs.GET("/ai-capabilities", middleware.RequirePermission("system_config", "read"), h.GetAICapabilities)
+		sysConfigs.PUT("/ai-capabilities", middleware.RequirePermission("system_config", "write"), h.UpdateAICapabilities)
+
 		// 系统状态
 		sysConfigs.GET("/status", middleware.RequirePermission("system_config", "read"), func(c *gin.Context) {
 			systemStatusResponse(c, appStartTime)

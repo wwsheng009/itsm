@@ -92,6 +92,15 @@ func (q *ToolQueue) worker() {
 		// 审批后目标工具可能已从工具面消失（服务器被禁用/删除、工具被停用或隔离）。
 		// 这类可预期失败必须 fail-closed 并落稳定错误码，不能掉进内置分支退化成 internal_error。
 		if inv.Provider == "mcp" && (q.tools == nil || !q.tools.HasProviderTool(ctx, job.TenantID, inv.ToolName)) {
+			// 能力开关（mcp.enabled / mcp.write_enabled）先于「工具不可用」判定：
+			// 已批准的写单在开关关闭后不得执行，且原因必须可检索（capability_disabled:*）。
+			if q.tools != nil {
+				if reason := q.tools.GateReason(ctx, job.TenantID, inv.ToolName); reason != "" {
+					q.finalize(ctx, inv.ID, nil, CapabilityGateError(reason), startedAt, nil)
+					cancel()
+					continue
+				}
+			}
 			q.finalize(ctx, inv.ID, nil, &ToolExecutionError{
 				Code:    ErrorCodeToolNotFound,
 				Message: "外部工具当前不可用（服务器已禁用/删除，或工具已停用/隔离）",

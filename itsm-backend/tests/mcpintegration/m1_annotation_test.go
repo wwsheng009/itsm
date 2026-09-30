@@ -2,7 +2,8 @@
 //
 // 覆盖（对应实施方案 §4.2 M1-01 的「测试与证据」）：
 //  1. 默认值 D7：read_only=false、risk=high、category=""、enabled=false；
-//  2. 工具面随标注**立即**变化（无会话冻结）：改只读 → 进只读面；改回写 → 离面且执行返回未知工具；
+//  2. 工具面随标注**立即**变化（无会话冻结）：改只读 → 进只读面；
+//     改回写 → 离面且执行被能力开关挡下（M2 起返回精确原因，而非笼统的未知工具）；
 //  3. Gate2 映射：Resource/Action 由标注派生（mcp:read / mcp:write），权限不足即拒绝且不产生副作用；
 //  4. 标注变更必审计：audit_logs(resource=mcp, action=set_tool_classification) 含 before/after 差异；
 //  5. 写面（IncludeWriteTools=true）：写工具解析为 Action=write，经 Gate3 创建 pending 审批（执行链路由 M1-02 完成）。
@@ -145,7 +146,11 @@ func TestM1Annotation_DefaultsAndFaceSwitching(t *testing.T) {
 
 	_, _, execErr := h.aiSvc.ExecuteTool(ctx, h.userID, h.tenantID, "admin", "mcp__mock__create_issue", nil)
 	require.Error(t, execErr)
-	assert.ErrorIs(t, execErr, ai.ErrUnknownTool)
+	// M2 能力开关：写工具被写面挡下时返回精确原因（capability_disabled:mcp_write），
+	// 不再退化为笼统的「未知工具」——前端/审批页据此给出可操作提示。
+	var capErr *ai.CapabilityDisabledError
+	require.ErrorAs(t, execErr, &capErr)
+	assert.Equal(t, service.ReasonCapabilityMCPWriteDisabled, capErr.Reason)
 }
 
 // TestM1Annotation_Gate2ReadVsWrite 锁定 Gate2 的 Resource/Action 映射与默认零授予角色矩阵。

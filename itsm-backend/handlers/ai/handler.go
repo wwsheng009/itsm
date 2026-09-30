@@ -197,7 +197,21 @@ func (h *Handler) ListToolCatalog(c *gin.Context) {
 	if total > limit {
 		items = items[:limit]
 	}
-	common.Success(c, gin.H{"items": items, "total": total})
+	// M2 能力开关：目录页与对话工具面板据此渲染「全局已关闭」状态（与门禁同源）。
+	common.Success(c, gin.H{"items": items, "total": total, "capabilities": h.capabilitiesView(c, tenantID)})
+}
+
+// capabilitiesView 返回展示用能力块（M2 能力开关；未注入能力源时为默认值）。
+func (h *Handler) capabilitiesView(c *gin.Context, tenantID int) gin.H {
+	view := gin.H{"mcpEnabled": true, "mcpWriteEnabled": false, "botEnabled": true}
+	if h == nil || h.svc == nil || h.svc.capability == nil {
+		return view
+	}
+	snap := h.svc.capability.For(c.Request.Context(), tenantID)
+	view["mcpEnabled"] = snap.MCPEnabled
+	view["mcpWriteEnabled"] = snap.MCPWriteEnabled
+	view["botEnabled"] = snap.BotEnabled
+	return view
 }
 
 // toolCatalogMatches 关键词匹配：名称/描述/原始工具名/服务器名（大小写不敏感，q 已小写）。
@@ -265,6 +279,12 @@ func (h *Handler) ExecuteTool(c *gin.Context) {
 		// P2-6: 区分权限拒绝与未知工具的错误码
 		if errors.Is(err, ErrToolPermissionDenied) {
 			common.Fail(c, common.ToolPermissionDeniedCode, "无权执行该工具")
+			return
+		}
+		// M2 能力开关：能力被管理后台关闭时给出可操作提示（原因可检索）。
+		var capErr *CapabilityDisabledError
+		if errors.As(err, &capErr) {
+			common.Fail(c, common.ToolPermissionDeniedCode, CapabilityDisabledMessage(capErr.Reason))
 			return
 		}
 		if errors.Is(err, ErrUnknownTool) {

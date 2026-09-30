@@ -15,6 +15,7 @@ import (
 	"syscall"
 	"time"
 
+	"itsm-backend/capability"
 	"itsm-backend/common"
 	"itsm-backend/common/tenantctx"
 	"itsm-backend/config"
@@ -1001,6 +1002,16 @@ func NewApplication() *Application {
 	aiServiceDomain.SetSummarizeService(summarizeService)
 	// P2-6: 注入 ent client 供 AI 工具 RBAC 校验复用 hasResourcePermission
 	aiServiceDomain.SetEntClient(client)
+
+	// M2 能力开关（2026-09-30 方案）：MCP / Bot 运行时开关（管理后台可切换，免重启）。
+	// 默认值取静态配置（env / config.yaml）——system_configs 缺行即跟随默认，升级零行为变化；
+	// 静态 mcp.enabled=false / bot.enabled=false 仍是最高优先级短路（组件不装配、路由不注册）。
+	capabilitySource := capability.NewConfigSource(client, capability.Defaults{
+		MCPEnabled:      cfg.MCP.Enabled,
+		MCPWriteEnabled: cfg.MCP.WriteEnabled,
+		BotEnabled:      cfg.Bot.Enabled,
+	}, sugar)
+	aiServiceDomain.SetCapabilitySource(capabilitySource)
 	// B1-01/B1-02：Bot 运行态管理器（bot_runs/bot_steps/bot_events + BP8 预算护栏）。
 	// bot.enabled=false（默认）时不注入 → 聊天链路零额外写入、零行为变化。
 	if cfg.Bot.Enabled {
@@ -1042,6 +1053,8 @@ func NewApplication() *Application {
 	var botAdminHandler *ai.BotAdminHandler
 	if cfg.Bot.Enabled {
 		botAdminHandler = ai.NewBotAdminHandler(botService.NewTemplateAdmin(client))
+		// M2 能力开关：写端运行时门禁（bot.enabled 可在管理后台关闭；读端保留）。
+		botAdminHandler.SetCapabilitySource(capabilitySource)
 	}
 
 	// MCP 外部工具接入（M0-09：provider 装配与运行时拉起）。
@@ -1118,9 +1131,13 @@ func NewApplication() *Application {
 					toolRegistry.RegisterProvider(mcpprovider.New(client, mcpManager, mcpprovider.Options{
 						Enabled:           true,
 						IncludeWriteTools: cfg.MCP.WriteEnabled,
+						// M2 能力开关：运行时总开关 + 写面（静态 IncludeWriteTools 仅作无源时回退）。
+						Capabilities: capabilitySource,
 					}))
 					// 管理 API（M0-10 接线）：handler 注入 RouterConfig 后整组注册（mcp:read / mcp:admin）。
 					mcpAdminHandler = mcpHandler.NewHandler(mcpAdminService)
+					// M2 能力开关：管理写端运行时门禁（mcp.enabled=false → 403）+ 列表能力块。
+					mcpAdminHandler.SetCapabilitySource(capabilitySource)
 					sugar.Infow("MCP 外部工具接入已启用",
 						"module", "mcp",
 						"connect_timeout_seconds", cfg.MCP.ConnectTimeoutSeconds,
@@ -1251,6 +1268,9 @@ func NewApplication() *Application {
 	// System Config Handler（2026-09-02 迁移至 handlers/systemconfig）
 	systemConfigService := service.NewSystemConfigService(client, sugar)
 	systemConfigHandler := systemconfig.NewHandler(systemConfigService, sugar)
+	// M2 能力开关：管理端点（GET/PUT /system-configs/ai-capabilities）+ 通用配置写入的缓存失效挂钩。
+	systemConfigHandler.SetCapabilitySource(capabilitySource)
+	systemConfigService.SetCapabilityInvalidator(capabilitySource.Invalidate)
 	// 密码策略由 system_configs 驱动：注入所有设密入口（建用户/管理员重置/注册/找回密码），
 	// 使 /admin/system-config 保存的 passwordMinLength 等配置立即生效。
 	userService.SetSystemConfigService(systemConfigService)

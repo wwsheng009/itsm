@@ -4,6 +4,7 @@
 package systemconfig
 
 import (
+	"itsm-backend/capability"
 	"itsm-backend/service"
 
 	"go.uber.org/zap"
@@ -13,6 +14,10 @@ import (
 type Handler struct {
 	configService *service.SystemConfigService
 	logger        *zap.SugaredLogger
+	// M2 能力开关：运行时能力开关源（SetCapabilitySource 注入；nil = 端点返回 503）。
+	capability capability.Source
+	// capabilityAdmin 是同一来源的管理面能力（Update/Clear/Defaults）；未实现时为 nil。
+	capabilityAdmin capabilityAdmin
 }
 
 // NewHandler 创建系统配置 handler 实例

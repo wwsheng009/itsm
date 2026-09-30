@@ -36,7 +36,9 @@ func SetupMCPServerRoutes(tenant *gin.RouterGroup, h *mcpHandler.Handler) {
 	}
 
 	// 治理写（mcp:admin）：CRUD / 测试连接 / 启停重载 / 工具治理 / 凭据轮换。
-	admin := tenant.Group("/ai", middleware.RequirePermission("mcp", "admin"))
+	// M2 能力开关：h.RequireEnabled() 为运行时门禁（mcp.enabled=false → 403）；
+	// 读端不挂（管理页需展示「已关闭」状态与重新开启入口）。
+	admin := tenant.Group("/ai", middleware.RequirePermission("mcp", "admin"), h.RequireEnabled())
 	{
 		admin.POST("/mcp-servers", h.CreateServer)
 		admin.PUT("/mcp-servers/:id", h.UpdateServer)

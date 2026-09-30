@@ -9,6 +9,7 @@ import (
 	"strings"
 	"time"
 
+	"itsm-backend/capability"
 	"itsm-backend/dto"
 	"itsm-backend/ent"
 	"itsm-backend/ent/bottemplate"
@@ -52,6 +53,8 @@ type Service struct {
 	botIDResolver func(ctx context.Context, tenantID, conversationID int) int
 	// B3-01：入口上下文解析与目标预检（nil 时按 entClient 懒构造）。
 	scopeResolver *bot.ScopeResolver
+	// M2 能力开关：运行时能力开关源（nil = 保持既有行为，未启用运行时开关）。
+	capability capability.Source
 }
 
 func NewService(
@@ -160,6 +163,34 @@ var ErrToolPermissionDenied = fmt.Errorf("tool permission denied")
 var ErrUnknownTool = fmt.Errorf("unknown tool")
 
 var ErrToolUnavailable = fmt.Errorf("tool authorization dependencies unavailable")
+
+// ErrToolCapabilityDisabled 工具被运行时能力开关挡下（M2 能力开关）。
+//
+// 携带具体原因（capability_disabled:mcp / capability_disabled:mcp_write），
+// 供 handler 映射为用户可操作提示、供审计按原因检索。
+var ErrToolCapabilityDisabled = fmt.Errorf("tool disabled by capability switch")
+
+// CapabilityDisabledError 能力开关拒绝错误（实现 errors.Is(ErrToolCapabilityDisabled)）。
+type CapabilityDisabledError struct {
+	Reason string
+}
+
+func (e *CapabilityDisabledError) Error() string { return "capability disabled: " + e.Reason }
+
+// Is 支持 errors.Is(err, ErrToolCapabilityDisabled) 判定。
+func (e *CapabilityDisabledError) Is(target error) bool { return target == ErrToolCapabilityDisabled }
+
+// CapabilityDisabledMessage 把原因串映射为用户可操作提示（前后端展示同源）。
+func CapabilityDisabledMessage(reason string) string {
+	switch reason {
+	case service.ReasonCapabilityMCPDisabled:
+		return "MCP 能力已在管理后台关闭，请在「MCP 管理」中重新启用后再试"
+	case service.ReasonCapabilityMCPWriteDisabled:
+		return "外部写工具面已在管理后台关闭（mcp.write_enabled=false），开启后写工具才会进入审批流"
+	default:
+		return "该工具当前不可用"
+	}
+}
 
 // B2-05 跨租户 Bot 选择（fail-closed）：
 var (
@@ -320,6 +351,13 @@ func (s *Service) ExecuteToolWithOptions(ctx context.Context, userID, tenantID i
 	// M0-09：解析含外部 provider（MCP）——同一投影/解析函数，内置优先。
 	toolDef := s.tools.GetToolForTenant(ctx, tenantID, name)
 	if toolDef == nil {
+		// Gate 0（能力开关，M2 能力开关方案）：工具不在当前面内时先区分
+		// 「被运行时能力开关挡下」与「未知工具」——前者给出可操作原因并落审计，
+		// 避免用户只看到笼统的「工具不存在」。
+		if reason := s.tools.GateReason(ctx, tenantID, name); reason != "" {
+			s.recordToolAudit(ctx, tenantID, userID, role, name, args, "denied", withStripped(reason), "", nil, false, nil)
+			return nil, 0, &CapabilityDisabledError{Reason: reason}
+		}
 		// 未知工具：记录 denied 审计，返回错误
 		s.recordToolAudit(ctx, tenantID, userID, role, name, args, "denied", "unknown tool", "", nil, false, nil)
 		return nil, 0, ErrUnknownTool
@@ -344,7 +382,7 @@ func (s *Service) ExecuteToolWithOptions(ctx context.Context, userID, tenantID i
 	// 下发面过滤只保证「模型看不到」；执行面必须独立复判——授权可能在下发后被回收、
 	// 调用可能绕过聊天链路（直接 API / agent 路径）。未注入 Policy（bot.enabled=false）时
 	// 整段跳过，行为与既有版本零差异。
-	if allowed && s.botPolicy != nil {
+	if allowed && s.botEnabled(ctx, tenantID) {
 		decision := s.botPolicy.CheckTool(ctx, tenantID,
 			s.resolveBotID(ctx, tenantID, opts.ConversationID), EntrypointFromContext(ctx),
 			bot.ToolMeta{
@@ -479,6 +517,24 @@ func (s *Service) SetConfirmationTTL(d time.Duration) { s.confirmationTTL = d }
 // SetBotPolicy 注入 Bot 策略门禁（B2-02；nil = 关闭态，走既有遗留判定）。
 func (s *Service) SetBotPolicy(policy *bot.Policy) { s.botPolicy = policy }
 
+// SetCapabilitySource 注入运行时能力开关源（M2 能力开关；nil = 保持既有行为）。
+func (s *Service) SetCapabilitySource(src capability.Source) { s.capability = src }
+
+// botEnabled 返回 Bot 能力当前是否生效：
+//
+//	策略未注入（静态 bot.enabled=false）→ false；
+//	未注入能力源（旧装配/单测）      → true（保持既有行为）；
+//	能力源返回 false（管理后台关闭） → false（策略按未注入处理 = 兼容默认）。
+func (s *Service) botEnabled(ctx context.Context, tenantID int) bool {
+	if s == nil || s.botPolicy == nil {
+		return false
+	}
+	if s.capability == nil {
+		return true
+	}
+	return s.capability.For(ctx, tenantID).BotEnabled
+}
+
 // ScopeResolver 返回入口上下文解析器（B3-01）。
 //
 // 优先使用显式注入的解析器（测试/自定义 checker）；否则按 entClient 懒构造
@@ -563,7 +619,7 @@ func (s *Service) chatToolDecision(
 	if rule := bot.BlacklistRule(td.Name, td.Provider, td.Resource); rule != "" {
 		return false, bot.ReasonToolBlacklisted + ":" + rule, false
 	}
-	if s.botPolicy == nil {
+	if !s.botEnabled(ctx, tenantID) {
 		if !td.ReadOnly && !chatWritableTools[td.Name] {
 			return false, "not_in_writable_whitelist", true
 		}
@@ -601,7 +657,7 @@ func (s *Service) chatToolDecision(
 // `bot.enabled=false`（未注入 Policy）时不做校验：该模式下 Bot 选择对工具面本就无影响，
 // 保持既有行为逐字节不变（门禁回归口径）。
 func (s *Service) ValidateBotSelection(ctx context.Context, tenantID int) error {
-	if s == nil || s.botPolicy == nil || s.entClient == nil {
+	if s == nil || !s.botEnabled(ctx, tenantID) || s.entClient == nil {
 		return nil
 	}
 	botID := botIDFrom(ctx)
@@ -1341,7 +1397,7 @@ func (s *Service) chatStreamInner(
 		// B2-02：开启态一次性取策略快照（未配置授权 → 兼容默认，见 service/bot/policy.go）。
 		// 取快照失败 → fail-closed（不下发任何工具），避免「策略不可知时仍放行」。
 		var policySnapshot *bot.Snapshot
-		policyReady := s.botPolicy != nil
+		policyReady := s.botEnabled(ctx, tenantID)
 		if policyReady {
 			snapshot, err := s.botPolicy.SnapshotForBot(ctx, tenantID, s.resolveBotID(ctx, tenantID, convID))
 			if err != nil {

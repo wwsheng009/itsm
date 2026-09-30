@@ -9,6 +9,7 @@
 package ai
 
 import (
+	"context"
 	"errors"
 	"net/http"
 	"strconv"
@@ -16,6 +17,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 
+	"itsm-backend/capability"
 	"itsm-backend/common"
 	"itsm-backend/ent"
 	"itsm-backend/service/bot"
@@ -24,6 +26,8 @@ import (
 // BotAdminHandler 暴露 Bot 模板/授权管理 API。
 type BotAdminHandler struct {
 	admin *bot.TemplateAdmin
+	// M2 能力开关：运行时能力开关源（nil = 不做运行时门禁，保持既有行为）。
+	capability capability.Source
 }
 
 func NewBotAdminHandler(admin *bot.TemplateAdmin) *BotAdminHandler {
@@ -31,6 +35,34 @@ func NewBotAdminHandler(admin *bot.TemplateAdmin) *BotAdminHandler {
 		return nil
 	}
 	return &BotAdminHandler{admin: admin}
+}
+
+// SetCapabilitySource 注入运行时能力开关源（M2 能力开关）。
+func (h *BotAdminHandler) SetCapabilitySource(src capability.Source) { h.capability = src }
+
+// capabilitiesFor 返回展示用能力块（页面据此渲染「已关闭」状态，与门禁同源）。
+func (h *BotAdminHandler) capabilitiesFor(ctx context.Context, tenantID int) gin.H {
+	view := gin.H{"botEnabled": true, "mcpWriteEnabled": true}
+	if h == nil || h.capability == nil {
+		return view
+	}
+	snap := h.capability.For(ctx, tenantID)
+	view["botEnabled"] = snap.BotEnabled
+	view["mcpWriteEnabled"] = snap.MCPWriteEnabled
+	return view
+}
+
+// requireBotEnabled 写端运行时门禁（M2 能力开关）：关闭时 403；
+// 读端保留（页面需要展示「已关闭」状态与重新启用入口）。
+func (h *BotAdminHandler) requireBotEnabled(c *gin.Context, tenantID int) bool {
+	if h == nil || h.capability == nil {
+		return true
+	}
+	if h.capability.For(c.Request.Context(), tenantID).BotEnabled {
+		return true
+	}
+	common.Fail(c, common.ForbiddenCode, "Bot 能力已在管理后台关闭（bot.enabled=false），请先在管理后台启用后再操作")
+	return false
 }
 
 // 请求体（与 service.TemplateInput 同形；空值 = 不改动）。
@@ -129,7 +161,7 @@ func (h *BotAdminHandler) ListBotTemplates(c *gin.Context) {
 	for _, tpl := range templates {
 		items = append(items, botTemplateView(tpl))
 	}
-	common.Success(c, gin.H{"items": items, "total": len(items)})
+	common.Success(c, gin.H{"items": items, "total": len(items), "capabilities": h.capabilitiesFor(c.Request.Context(), tenantID)})
 }
 
 // ListVisibleBots GET /api/v1/agent/bots（B2-04 工作区选择器）
@@ -144,6 +176,13 @@ func (h *BotAdminHandler) ListVisibleBots(c *gin.Context) {
 		return
 	}
 	role := c.GetString("role")
+	capabilities := h.capabilitiesFor(c.Request.Context(), tenantID)
+	// M2 能力开关：Bot 能力关闭时选择器返回空列表（前端据此隐藏/禁用入口），
+	// 但仍下发 capabilities 块，便于页面显示「已关闭」而不是空白。
+	if enabled, _ := capabilities["botEnabled"].(bool); !enabled {
+		common.Success(c, gin.H{"items": []gin.H{}, "total": 0, "capabilities": capabilities})
+		return
+	}
 	templates, err := h.admin.ListVisibleForChat(c.Request.Context(), tenantID, role)
 	if err != nil {
 		writeBotAdminError(c, err)
@@ -158,7 +197,7 @@ func (h *BotAdminHandler) ListVisibleBots(c *gin.Context) {
 			"audience": tpl.Audience,
 		})
 	}
-	common.Success(c, gin.H{"items": items, "total": len(items)})
+	common.Success(c, gin.H{"items": items, "total": len(items), "capabilities": capabilities})
 }
 
 // GetBotTemplate GET /api/v1/admin/bots/:id（含授权清单）
@@ -187,6 +226,7 @@ func (h *BotAdminHandler) GetBotTemplate(c *gin.Context) {
 	}
 	view := botTemplateView(tpl)
 	view["grants"] = grantViews
+	view["capabilities"] = h.capabilitiesFor(c.Request.Context(), tenantID)
 	common.Success(c, view)
 }
 
@@ -194,6 +234,9 @@ func (h *BotAdminHandler) GetBotTemplate(c *gin.Context) {
 func (h *BotAdminHandler) CreateBotTemplate(c *gin.Context) {
 	tenantID, ok := botTenantID(c)
 	if !ok {
+		return
+	}
+	if !h.requireBotEnabled(c, tenantID) {
 		return
 	}
 	var req botTemplateRequest
@@ -217,6 +260,9 @@ func (h *BotAdminHandler) CreateBotTemplate(c *gin.Context) {
 func (h *BotAdminHandler) UpdateBotTemplate(c *gin.Context) {
 	tenantID, ok := botTenantID(c)
 	if !ok {
+		return
+	}
+	if !h.requireBotEnabled(c, tenantID) {
 		return
 	}
 	id, ok := botPathID(c, "id")
@@ -247,6 +293,9 @@ func (h *BotAdminHandler) UpdateBotTemplate(c *gin.Context) {
 func (h *BotAdminHandler) DeleteBotTemplate(c *gin.Context) {
 	tenantID, ok := botTenantID(c)
 	if !ok {
+		return
+	}
+	if !h.requireBotEnabled(c, tenantID) {
 		return
 	}
 	id, ok := botPathID(c, "id")
@@ -288,6 +337,9 @@ func (h *BotAdminHandler) UpsertBotGrant(c *gin.Context) {
 	if !ok {
 		return
 	}
+	if !h.requireBotEnabled(c, tenantID) {
+		return
+	}
 	id, ok := botPathID(c, "id")
 	if !ok {
 		return
@@ -311,6 +363,9 @@ func (h *BotAdminHandler) UpsertBotGrant(c *gin.Context) {
 func (h *BotAdminHandler) DeleteBotGrant(c *gin.Context) {
 	tenantID, ok := botTenantID(c)
 	if !ok {
+		return
+	}
+	if !h.requireBotEnabled(c, tenantID) {
 		return
 	}
 	id, ok := botPathID(c, "id")

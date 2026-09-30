@@ -233,11 +233,12 @@ func TestProvider_Execute(t *testing.T) {
 	require.Equal(t, CodeInvalidArgs, CodeOf(err))
 	require.Empty(t, source.calls, "schema 校验失败不得发起调用")
 
-	// 未知工具（含写工具默认不进面）→ tool_not_found。
+	// 未知工具 → tool_not_found；写工具默认不进面 → 精确错误码 mcp_write_disabled
+	// （M2 能力开关：被写面挡下与「不存在」区分，审计/前端据此给出可操作提示）。
 	_, err = provider.Execute(ctx, 1, "mcp__github__missing", nil)
 	require.Equal(t, CodeToolNotFound, CodeOf(err))
 	_, err = provider.Execute(ctx, 1, "mcp__github__create_issue", nil)
-	require.Equal(t, CodeToolNotFound, CodeOf(err))
+	require.Equal(t, CodeMCPWriteDisabled, CodeOf(err))
 
 	// 写工具在写面打开后仍拒绝直接执行（Gate3 未接入）。
 	withWrite := New(client, source, Options{Enabled: true, IncludeWriteTools: true})

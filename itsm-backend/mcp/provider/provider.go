@@ -13,6 +13,7 @@ import (
 	"strings"
 	"unicode"
 
+	"itsm-backend/capability"
 	"itsm-backend/ent"
 	"itsm-backend/ent/mcpserver"
 	"itsm-backend/mcp/client"
@@ -57,8 +58,22 @@ type Options struct {
 	// IncludeWriteTools: 是否把未标注只读的工具放入工具面。
 	// 一期（M0-09）为 false——默认拒绝（D7）下新工具 read_only=false，先只读先行；
 	// M1-02 接入 Gate3 审批后由 bootstrap 置 true。
+	//
+	// 2026-09-30 起：Capabilities 非空时，写面改由运行时能力开关决定，
+	// 本字段仅作为未注入 Capabilities 时的**静态回退值**（保持既有测试与部署口径）。
 	IncludeWriteTools bool
+	// Capabilities: 运行时能力开关源（管理后台可切换，免重启）。
+	// 为 nil 时退化为「静态 Enabled + IncludeWriteTools」的旧行为（零行为变化）。
+	Capabilities capability.Source
 }
+
+// 能力开关拒绝原因（Gate 语义：capability_disabled:<feature>）。
+const (
+	// ReasonMCPDisabled: MCP 能力已在管理后台关闭。
+	ReasonMCPDisabled = "capability_disabled:mcp"
+	// ReasonMCPWriteDisabled: 外部写工具面已在管理后台关闭。
+	ReasonMCPWriteDisabled = "capability_disabled:mcp_write"
+)
 
 // Provider 实现 service.ToolProvider。
 type Provider struct {
@@ -123,14 +138,42 @@ func emptyFace() *toolFace {
 	return &toolFace{byCanonical: map[string]int{}, registry: registry.New()}
 }
 
-// snapshot 组装某租户的 MCP 工具面：
+// gateView 返回当前生效的能力开关（静态 Enabled=false 为最高优先级短路）。
 //
-//	server.enabled(租户内) ∧ manager.EffectiveTools（healthy ∧ tool.enabled ∧ ¬quarantined）
+//	enabled      = 静态 mcp.enabled（短路） ∧ 运行时 mcp.enabled
+//	writeEnabled = 运行时 mcp.write_enabled（未注入 Capabilities 时回退 Options.IncludeWriteTools）
+func (p *Provider) gateView(ctx context.Context, tenantID int) (enabled bool, writeEnabled bool) {
+	if p == nil || !p.opts.Enabled {
+		return false, false
+	}
+	if p.opts.Capabilities == nil {
+		return true, p.opts.IncludeWriteTools
+	}
+	snap := p.opts.Capabilities.For(ctx, tenantID)
+	return snap.MCPEnabled, snap.MCPWriteEnabled
+}
+
+// snapshot 组装某租户的 MCP 工具面（按当前生效能力开关过滤）：
+//
+//	capability(mcp.enabled) ∧ server.enabled(租户内)
+//	∧ manager.EffectiveTools（healthy ∧ tool.enabled ∧ ¬quarantined）
 //	∧ registry 投影未被隔离（canonical 碰撞）∧ inputSchema 可解析
+//	∧（只读 ∨ capability(mcp.write_enabled)）
 //
 // 任一步失败都 fail-closed（跳过该工具 / 返回空面），不影响内置工具与对话主链路。
 func (p *Provider) snapshot(ctx context.Context, tenantID int) *toolFace {
-	if p == nil || !p.opts.Enabled || p.client == nil || p.source == nil || tenantID <= 0 {
+	enabled, writeEnabled := p.gateView(ctx, tenantID)
+	if !enabled {
+		return emptyFace()
+	}
+	return p.face(ctx, tenantID, writeEnabled)
+}
+
+// face 组装工具面；includeWrite=false 时排除未标注只读的工具。
+//
+// 调用方负责先判定能力开关（snapshot/GateReason 各自决定 includeWrite 取值）。
+func (p *Provider) face(ctx context.Context, tenantID int, includeWrite bool) *toolFace {
+	if p == nil || p.client == nil || p.source == nil || tenantID <= 0 {
 		return emptyFace()
 	}
 	servers, err := p.client.MCPServer.Query().
@@ -171,8 +214,8 @@ func (p *Provider) snapshot(ctx context.Context, tenantID int) *toolFace {
 		if !schemaOK {
 			continue // schema 不可解析：该工具不进面（隔离待复核，待 M0-07 隔离位回写）
 		}
-		if !record.ReadOnly && !p.opts.IncludeWriteTools {
-			continue // 一期只读先行（M1-02 打开写工具面）
+		if !record.ReadOnly && !includeWrite {
+			continue // 写工具面关闭（默认拒绝 D7；管理后台 mcp.write_enabled 控制）
 		}
 		readOnly := record.ReadOnly
 		definition := service.ToolDefinition{
@@ -228,8 +271,12 @@ func registerTools(refs []registry.ToolRef) (*registry.Registry, map[string]regi
 
 // lookup 解析工具名（canonical 精确 → 唯一短名 → 歧义/未知 fail-closed）。
 func (p *Provider) lookup(ctx context.Context, tenantID int, name string) (*faceTool, bool) {
-	face := p.snapshot(ctx, tenantID)
-	if len(face.tools) == 0 {
+	return lookupInFace(p.snapshot(ctx, tenantID), name)
+}
+
+// lookupInFace 在给定工具面内解析工具名（canonical 精确 → 唯一短名 → 歧义/未知 fail-closed）。
+func lookupInFace(face *toolFace, name string) (*faceTool, bool) {
+	if face == nil || len(face.tools) == 0 {
 		return nil, false
 	}
 	callable, err := face.registry.Resolve(name)
@@ -241,6 +288,33 @@ func (p *Provider) lookup(ctx context.Context, tenantID int, name string) (*face
 		return nil, false
 	}
 	return &face.tools[index], true
+}
+
+// GateReason 返回工具「因能力开关而不可见 / 不可执行」的原因（"" = 无门禁/工具不存在）。
+//
+// 用途：工具不在当前面内时，调用方（ai.Service 的 Gate 0 / ToolQueue worker）
+// 需要区分「未知工具」与「被能力开关挡下」，以便给出可操作提示并落审计原因。
+// 判定时忽略开关本身（仅要求工具在治理面内存在），因此关闭态下也能识别。
+func (p *Provider) GateReason(ctx context.Context, tenantID int, name string) string {
+	if p == nil || p.client == nil || p.source == nil || tenantID <= 0 {
+		return ""
+	}
+	enabled, writeEnabled := p.gateView(ctx, tenantID)
+	if enabled && writeEnabled {
+		return ""
+	}
+	// 忽略开关组装完整面（含写工具），只用于识别「工具存在但被挡」。
+	tool, ok := lookupInFace(p.face(ctx, tenantID, true), name)
+	if !ok {
+		return ""
+	}
+	if !enabled {
+		return ReasonMCPDisabled
+	}
+	if !tool.def.ReadOnly {
+		return ReasonMCPWriteDisabled
+	}
+	return ""
 }
 
 func actionFor(readOnly bool) string {

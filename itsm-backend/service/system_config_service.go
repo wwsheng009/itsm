@@ -21,6 +21,8 @@ type SystemConfigService struct {
 	// 配置写入路径会主动失效，TTL 仅作兜底。
 	policyMu    sync.RWMutex
 	policyCache map[int]passwordPolicyCacheEntry
+	// M2 能力开关：配置写入后失效运行时能力开关缓存（可选注入）。
+	capabilityInvalidator func(tenantID int)
 }
 
 func NewSystemConfigService(client *ent.Client, logger *zap.SugaredLogger) *SystemConfigService {
@@ -28,6 +30,23 @@ func NewSystemConfigService(client *ent.Client, logger *zap.SugaredLogger) *Syst
 		client:      client,
 		logger:      logger,
 		policyCache: make(map[int]passwordPolicyCacheEntry),
+	}
+}
+
+// SetCapabilityInvalidator 注入能力开关缓存失效回调（M2 能力开关）。
+//
+// 目的：通用配置接口（/system-configs 或 /configs）写入 mcp.*/bot.* 键时，
+// 运行时能力开关缓存不得滞留旧值（与专用端点同一失效口径）。
+func (s *SystemConfigService) SetCapabilityInvalidator(fn func(tenantID int)) {
+	if s == nil {
+		return
+	}
+	s.capabilityInvalidator = fn
+}
+
+func (s *SystemConfigService) invalidateCapability(tenantID int) {
+	if s != nil && s.capabilityInvalidator != nil {
+		s.capabilityInvalidator(tenantID)
 	}
 }
 
@@ -62,6 +81,7 @@ func (s *SystemConfigService) CreateSystemConfig(ctx context.Context, req *dto.S
 	}
 
 	s.InvalidatePasswordPolicy(tenantID)
+	s.invalidateCapability(tenantID)
 	return config, nil
 }
 
@@ -176,6 +196,7 @@ func (s *SystemConfigService) UpdateSystemConfig(ctx context.Context, id int, re
 	}
 
 	s.InvalidatePasswordPolicy(tenantID)
+	s.invalidateCapability(tenantID)
 	return updated, nil
 }
 
@@ -252,6 +273,7 @@ func (s *SystemConfigService) DeleteSystemConfig(ctx context.Context, id int, te
 	}
 
 	s.InvalidatePasswordPolicy(tenantID)
+	s.invalidateCapability(tenantID)
 	return nil
 }
 

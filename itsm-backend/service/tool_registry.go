@@ -224,6 +224,30 @@ func (t *ToolRegistry) HasProviderTool(ctx context.Context, tenantID int, name s
 	return false
 }
 
+// ToolGateReasoner 由支持「能力开关门禁原因」的 provider 实现（MCP provider）。
+//
+// 用途：工具不在当前工具面内时，调用方（handlers/ai 的 Gate 0、ToolQueue worker）
+// 需要区分「未知工具」与「被运行时能力开关挡下」（capability_disabled:*），
+// 以便给出可操作提示并落审计原因。
+type ToolGateReasoner interface {
+	GateReason(ctx context.Context, tenantID int, name string) string
+}
+
+// GateReason 返回工具被能力开关挡下的原因（"" = 无门禁或工具不存在）。
+func (t *ToolRegistry) GateReason(ctx context.Context, tenantID int, name string) string {
+	if t == nil {
+		return ""
+	}
+	for _, provider := range t.providers {
+		if reasoner, ok := provider.(ToolGateReasoner); ok {
+			if reason := reasoner.GateReason(ctx, tenantID, name); reason != "" {
+				return reason
+			}
+		}
+	}
+	return ""
+}
+
 // ExecuteApprovedWrite 执行**已获审批**的外部工具（M1-02，Gate3 已满足）。
 //
 // 语义：
