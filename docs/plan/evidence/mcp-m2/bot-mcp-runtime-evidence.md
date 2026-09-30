@@ -201,7 +201,7 @@ list_tickets、list_cis、get_ci_tickets、link_ticket_ci 等工具，但本次�
 
 ### 8.3 验证
 
-- 单测：`go test ./service/ -count=1 -run 'TestBuildToolAwareSystemPrompt|TestSummarizeToolDescription'` → **ok**；`TestBuiltinToolMetadataComplete` 等元数据用例 → **ok**；`go test ./handlers/ai/` → **ok**（12.9s）。
+- 单测：`go test ./service/ -count=1 -run 'TestBuildToolAwareSystemPrompt|TestSummarizeToolDescription'` → **ok**；`TestBuiltinToolMetadataComplete` 等元数据用例 → **ok**；`go test ./handlers/ai/` → **ok**（12.9s）；**全量 `go test ./service/ -count=1 -timeout 25m` → ok（293.5s，exit 0）**；`go vet ./service/ ./handlers/ai/` → exit 0。
 - 实测（重建 `main.exe` 后重启，真实模型链路）：
   - **bot 9（仅 `mcp__mock__list_issues`，只读）**：模型如实回答"本次会话可调用的工具仅 1 个且为只读"，明确"建单/改单/挂 CI 无法执行，原因是本次会话未挂载写工具"，并建议"改用默认助手，或为本 Bot 授权对应的写工具"——**不再出现 MCP 未挂载归因**。
   - **默认助手（兼容默认：只读 ∪ 遗留写白名单）**：模型逐项列出 8 读 + 3 plan + 6 写 + MCP 工具，并说明"写操作都会进入人工审批流……审批通过后才正式生效"。
