@@ -61,6 +61,8 @@
 
 **结论**：①②③④⑤⑥⑦ 覆盖 AC-01/02/04 的运行面；⑧ 覆盖 AC-08 的展示面（Bot 页）。
 
+> **验证结束时的运行态（2026-09-30）**：`mcpEnabled=true` / `mcpWriteEnabled=true`（**管理台覆盖**，`updatedBy=admin`）/ `botEnabled=true`；MCP 工具目录 3 个（`create_issue` 已在面内）。即「MCP 联调助手」的会话面 = 授权 {`list_issues`,`create_issue`} ∩ 面 = **2 个工具**（用户原始问题已消除）。如需回到默认（写面关闭）：管理后台 → MCP 管理 → 能力开关 → 「恢复默认」（或 `PUT {"reset":["mcp.write_enabled"]}`）。
+
 ## 4. 自动化测试结果
 
 ### 4.1 后端
