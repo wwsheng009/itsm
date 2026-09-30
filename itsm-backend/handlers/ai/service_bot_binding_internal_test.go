@@ -39,23 +39,24 @@ func TestEnsureConversation_PersistsSelectedBot(t *testing.T) {
 
 	// ① 选择器指定 Bot 33 → 新会话写入 33。
 	ctx := WithBotID(context.Background(), 33)
-	convID := svc.ensureConversation(ctx, 1, 9, 0)
+	convID := svc.ensureConversation(ctx, 1, 9, 0, "查询当前告警")
 	require.Equal(t, 77, convID)
 	require.NotNil(t, repo.created)
 	assert.Equal(t, 33, repo.created.BotID, "新会话必须绑定请求选择的 Bot")
 	assert.Equal(t, 1, repo.created.TenantID)
 	assert.Equal(t, 9, repo.created.UserID)
+	assert.Equal(t, "查询当前告警", repo.created.Title, "新会话标题必须由首条 prompt 推导")
 
 	// ② 未指定（0）→ 写 0 = 默认助手（兼容默认）。
 	repo.created = nil
-	convID = svc.ensureConversation(context.Background(), 1, 9, 0)
+	convID = svc.ensureConversation(context.Background(), 1, 9, 0, "第二个会话")
 	require.Equal(t, 77, convID)
 	require.NotNil(t, repo.created)
 	assert.Equal(t, 0, repo.created.BotID, "未选择 = 默认助手（bot_id=0）")
 
 	// ③ 已有会话 → 原样返回，不再创建（不回溯改写历史会话归属）。
 	repo.created = nil
-	convID = svc.ensureConversation(WithBotID(context.Background(), 55), 1, 9, 123)
+	convID = svc.ensureConversation(WithBotID(context.Background(), 55), 1, 9, 123, "已有会话不重写标题")
 	assert.Equal(t, 123, convID)
 	assert.Nil(t, repo.created, "已有会话不得重复创建或改写归属")
 

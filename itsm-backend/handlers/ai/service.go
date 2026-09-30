@@ -274,14 +274,15 @@ func botIDFrom(ctx context.Context) int { return BotIDFromContext(ctx) }
 // ensureConversation 返回可用会话 ID（B2-04 单一创建入口）。
 //
 // 已有会话原样返回；否则创建并把**本次请求选择的 Bot**写入 conversation.bot_id
-// （0 = 默认助手）。创建失败返回 0——调用方按「无会话」继续，保持既有容错语义
-// （聊天答复不因审计/归属写入失败而中断）。
-func (s *Service) ensureConversation(ctx context.Context, tenantID, userID, convID int) int {
+// （0 = 默认助手），标题由首条用户 prompt 推导（deriveConversationTitle：
+// 空白折叠 / 码点截断，空输入兜底「AI 会话」）。创建失败返回 0——调用方按
+// 「无会话」继续，保持既有容错语义（聊天答复不因审计/归属写入失败而中断）。
+func (s *Service) ensureConversation(ctx context.Context, tenantID, userID, convID int, query string) int {
 	if convID > 0 {
 		return convID
 	}
 	conv, err := s.repo.CreateConversation(ctx, &Conversation{
-		Title:    "AI 对话",
+		Title:    deriveConversationTitle(query),
 		UserID:   userID,
 		TenantID: tenantID,
 		BotID:    botIDFrom(ctx),
@@ -974,7 +975,7 @@ func (s *Service) Chat(ctx context.Context, tenantID, userID int, query string, 
 	}
 
 	// Persist conversation（B2-04：创建入口统一走 ensureConversation，新会话带 Bot 归属）
-	convID = s.ensureConversation(ctx, tenantID, userID, convID)
+	convID = s.ensureConversation(ctx, tenantID, userID, convID, query)
 
 	if convID != 0 {
 		// L8 修复：Chat 路径持久化失败必须可见。两类消息分别打点，避免一次失败掩盖另一类错误。
@@ -1541,7 +1542,7 @@ func (s *Service) chatStreamInner(
 	// Persist conversation and messages after the stream completes so we don't
 	// leave partial messages if the client disconnects mid-stream.
 	// B2-04：创建入口统一走 ensureConversation，新会话带 Bot 归属。
-	convID = s.ensureConversation(ctx, tenantID, userID, convID)
+	convID = s.ensureConversation(ctx, tenantID, userID, convID, query)
 	if convID != 0 {
 		// L8 修复：ChatStream 路径持久化失败同样必须可见，与 Chat 路径共用同一计数器。
 		// 流式响应已经写回客户端；如果 DB 写入失败而日志被吞，

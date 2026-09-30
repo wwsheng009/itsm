@@ -29,6 +29,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- **AI 会话标题恢复按首条用户 prompt 生成（跨分支回归修复）** — `ensureConversation`（B2-04 单一创建入口）新建会话时标题由固定 `"AI 对话"` 改为 `deriveConversationTitle(query)`：空白（含换行 / 全角空格）折叠单行、Unicode 码点截断 30 字并追加省略号、空输入兜底「AI 会话」（`handlers/ai/conversation_title.go`）。背景：该能力此前只在 `feat/vite-migration` 分支（`d3471221`）落地、未合并进当前分支 `feat/bot-mcp-integration`，后端二进制从当前分支重建后标题退回固定占位（库中历史会话全部同名）。已有历史会话标题不变；`Chat` / `ChatStream` 共用同一创建入口，`done` 事件后前端 `loadConversations()` 刷新即得新标题。证据：`gofmt -l handlers/ai` 无输出、`go build ./...` exit 0、`go test ./handlers/ai/ -run 'TestDeriveConversationTitle|TestEnsureConversation' -count=1` 全绿（含 `ensureConversation` 标题推导断言）
+
 ### Changed
 
 - **知识库发布 / 版本语义收敛：版本 = 发布历史** — 版本快照只在发布动作中产生：`POST /knowledge/articles/{id}/publish` 支持可选请求体 `changeLog`（缺省由服务端生成「首次发布」/「发布更新」，版本作者记为发布人），文章首次发布即 v1；`PUT /knowledge/articles/{id}` 保存不再产生版本，并一律把文章置回草稿——已发布文章编辑保存后自动下架，必须重新发布才对外生效（请求体 `status` 被忽略，发布态只能由 publish / unpublish 两个动作改变，避免保存动作绕过版本记录把未发布内容放出去）；`unpublish` 只切换可见性、幂等且不产生版本；内容与最近发布版本一致（title / content / category / tags 全等）时重复发布或原样重新上架不占用版本号，内容变化才追加新版本；`versions/{version}/restore` 回落为草稿而不是静默追加版本。向量 outbox：发布 / 下架与 `vector_index` 同步 / 移除命令同事务落库，草稿变更按移除处理，知识检索只承载已发布内容。前端：编辑已发布文章提供「保存并重新发布」（写回内容后立即发布，内容未变时不占用版本号）与「保存为草稿」（下架待发布，保存后提示重新发布）双动作，表单顶部说明两种保存语义，详情页草稿态告警，发布确认与版本控件（发布 / 恢复 / 版本说明）文案对齐新语义；`KnowledgeBaseApi.getCategories()` 把后端字符串数组归一化为 `{id, name}`（修复编辑 / 新建页按对象解析失败后把文章分类回写成 `"1"`、进而让下一次发布凭空多出内容差异与版本的问题）；`docs/api-reference.md` 同步改写（新增发布 / 下架接口，改写保存 / 版本历史 / 恢复口径），`PublishArticleRequest.scheduleAt` 调整为 `changeLog`。证据：`go build ./...` exit 0、`go test ./handlers/knowledge/ -count=1` ok（`version_test.go` 全链路：创建→保存无版本→发布 v1→重复发布幂等→编辑回草稿→发布 v2→下架→原样重发不产生 v3→恢复 v1 回草稿→发布 v3→版本对比→跨租户 404）与 `outbox_test.go` 全绿、`go vet ./handlers/knowledge/` 无输出；`npx tsc --noEmit` exit 0、`npx eslint`（6 个改动文件）无输出、`npx jest`（knowledge-base-api / useKnowledgeBase / knowledge-new-article-prefill）3 套件 84 用例全绿；运行时复验（重启后端二进制后）：临时文章「创建 → 发布 v1 → 原样保存回落草稿且版本仍为 1 → 原样重发仍为 1」，浏览器点击「保存并重新发布」后分类 / 正文原样、版本不新增
