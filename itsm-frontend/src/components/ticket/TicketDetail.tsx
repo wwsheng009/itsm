@@ -57,6 +57,7 @@ import {
   sanitizeRichTextHtml,
 } from '@/lib/rich-text/sanitize';
 import { AISuggestionPanel } from '@/components/business/AISuggestionPanel';
+import { AskAILauncher } from '@/components/ai/AskAILauncher';
 import { WorkflowProgressCard } from '@/components/business/WorkflowProgressCard';
 import {
   isValidTransition,
@@ -189,7 +190,7 @@ const TicketDetail: React.FC<{ id?: string }> = ({ id: propId }) => {
   const params = useParams();
   const { message: antMessage, modal: antModal } = App.useApp();
   const { t } = useI18n();
-  const { user: currentUser } = useAuthStore();
+  const { user: currentUser, hasPermission } = useAuthStore();
   const { handleError } = useErrorHandler();
 
   // 创建基于翻译的状态和优先级映射
@@ -747,6 +748,14 @@ const TicketDetail: React.FC<{ id?: string }> = ({ id: propId }) => {
             </div>
           </div>
           <div className="flex flex-wrap items-center gap-2">
+            {/* B3-02：携带入口上下文（ticket_detail + 本工单）打开 AI 工作区 */}
+            <AskAILauncher
+              entrypoint="ticket_detail"
+              targetType="ticket"
+              targetId={ticket.id}
+              summary={ticket.title}
+              denied={!hasPermission('ai:read')}
+            />
             <Badge
               status={statusMap[ticket.status]?.status || 'default'}
               text={statusMap[ticket.status]?.text || ticket.status}

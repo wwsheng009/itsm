@@ -11,6 +11,7 @@ import {
   fetchAuditLogHistory,
 } from '@/components/business/detail-tabs';
 import { useAuthStore } from '@/lib/store/auth-store';
+import { AskAILauncher } from '@/components/ai/AskAILauncher';
 import { useI18n } from '@/lib/i18n/useI18n';
 import { AIApi } from '@/lib/api/ai-api';
 import dayjs from 'dayjs';
@@ -193,13 +194,13 @@ export default function IncidentDetailPage() {
   const params = useParams();
   const id = params?.id as string;
   const numericId = Number(id);
-  const { user } = useAuthStore();
+  const { user, hasPermission } = useAuthStore();
   const { t } = useI18n();
 
   return (
     <App>
       <div style={{ padding: 24 }}>
-        <div style={{ marginBottom: 16 }}>
+        <div style={{ marginBottom: 16, display: 'flex', alignItems: 'center', gap: 8 }}>
           <Button
             type="link"
             icon={<ArrowLeft />}
@@ -208,6 +209,15 @@ export default function IncidentDetailPage() {
           >
             {t('common.back')}
           </Button>
+          {/* B3-02：携带入口上下文（incident_detail + 本事件）打开 AI 工作区 */}
+          {Number.isFinite(numericId) && numericId > 0 ? (
+            <AskAILauncher
+              entrypoint="incident_detail"
+              targetType="incident"
+              targetId={numericId}
+              denied={!hasPermission('ai:read')}
+            />
+          ) : null}
         </div>
         <IncidentDetail id={id} />
 

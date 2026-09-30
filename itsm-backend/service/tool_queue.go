@@ -6,6 +6,7 @@ import (
 	"errors"
 	"time"
 
+	"itsm-backend/common"
 	"itsm-backend/dto"
 	"itsm-backend/ent"
 	"itsm-backend/pkg/redact"
@@ -27,6 +28,8 @@ type ToolQueue struct {
 	tickets     *TicketService
 	ticketTypes *TicketTypeService
 	logger      *zap.SugaredLogger
+	// B1-06：执行后回读校验器（未注入时终态 verify_state=skipped）。
+	verifier ToolVerifier
 }
 
 // ErrToolQueueFull 队列已满（fail-closed：调用方必须把审批留在 pending 可重试，不得静默丢弃）。
@@ -46,6 +49,9 @@ func NewToolQueue(client *ent.Client, tools *ToolRegistry, capacity int, logger 
 
 // SetTicketTypeService 注入工单类型服务，供 create_ticket_type 审批通过后执行。
 func (q *ToolQueue) SetTicketTypeService(s *TicketTypeService) { q.ticketTypes = s }
+
+// SetVerifier 注入执行后回读校验器（B1-06）；未注入时终态落 verify_state=skipped。
+func (q *ToolQueue) SetVerifier(v ToolVerifier) { q.verifier = v }
 
 // Enqueue 非阻塞入队；队列满时返回 ErrToolQueueFull（fail-closed）。
 //
@@ -69,11 +75,32 @@ func (q *ToolQueue) worker() {
 			cancel()
 			continue
 		}
+		// B1-06：以条件状态迁移抢占任务（pending → running + attempt_count+1）。
+		// 重复恢复/并发消费时只有一个消费者能抢占成功，避免写工具被双执行。
+		claimed, claimErr := q.claimForExecution(ctx, inv.ID, inv.TenantID)
+		if claimErr != nil {
+			q.logger.Errorw("抢占确认单失败", "invocation_id", inv.ID, "error", claimErr)
+			cancel()
+			continue
+		}
+		if !claimed {
+			cancel()
+			continue
+		}
 		var args map[string]interface{}
 		_ = json.Unmarshal([]byte(inv.Arguments), &args)
 		// 审批后目标工具可能已从工具面消失（服务器被禁用/删除、工具被停用或隔离）。
 		// 这类可预期失败必须 fail-closed 并落稳定错误码，不能掉进内置分支退化成 internal_error。
 		if inv.Provider == "mcp" && (q.tools == nil || !q.tools.HasProviderTool(ctx, job.TenantID, inv.ToolName)) {
+			// 能力开关（mcp.enabled / mcp.write_enabled）先于「工具不可用」判定：
+			// 已批准的写单在开关关闭后不得执行，且原因必须可检索（capability_disabled:*）。
+			if q.tools != nil {
+				if reason := q.tools.GateReason(ctx, job.TenantID, inv.ToolName); reason != "" {
+					q.finalize(ctx, inv.ID, nil, CapabilityGateError(reason), startedAt, nil)
+					cancel()
+					continue
+				}
+			}
 			q.finalize(ctx, inv.ID, nil, &ToolExecutionError{
 				Code:    ErrorCodeToolNotFound,
 				Message: "外部工具当前不可用（服务器已禁用/删除，或工具已停用/隔离）",
@@ -219,21 +246,51 @@ func (q *ToolQueue) finalize(ctx context.Context, invocationID int, res interfac
 			SetStatus("failed").
 			SetError(redact.Summary(err.Error(), 512)).
 			SetDurationMs(int(durationMs)).
-			SetErrorCode(errorCodeOf(err))).
+			SetErrorCode(errorCodeOf(err)).
+			// B1-06：最近一次消费错误码（与 error_code 同值，供队列恢复/告警按列筛选）。
+			SetLastErrorCode(errorCodeOf(err))).
 			Save(ctx); updateErr != nil {
 			q.logger.Errorw("Failed to update tool invocation status to failed", "invocation_id", invocationID, "error", updateErr)
 		}
 		return
 	}
 	out, _ := json.Marshal(res)
+	verifyState, verifyNote := VerifyStateSkipped, ""
+	if q.verifier != nil {
+		// B1-06：回读校验。失败只影响 verify_state（业务执行已成功），不改变终态语义。
+		verifyState, verifyNote = q.verifyResult(invocationID, res)
+	}
 	if _, updateErr := applySource(q.client.ToolInvocation.UpdateOneID(invocationID).
 		SetStatus("done").
 		SetResult(string(out)).
 		SetDurationMs(int(durationMs)).
-		SetOutputSummary(redact.ValueSummary(res, 512))).
+		SetOutputSummary(redact.ValueSummary(res, 512)).
+		SetVerifyState(verifyState).
+		SetVerifyNote(verifyNote)).
 		Save(ctx); updateErr != nil {
 		q.logger.Errorw("Failed to update tool invocation status to done", "invocation_id", invocationID, "error", updateErr)
 	}
+}
+
+// withInvocationUser 把发起审批的用户ID回填进参数，让 ToolRegistry 能正确归属
+// verifyResult 读取确认单的落库参数并执行回读校验（B1-06）。
+//
+// 说明：参数以 `tool_invocations.arguments` **落库快照**为准（审批后模型不可改参），
+// 校验器只看执行真源，避免与请求侧内存参数漂移。
+func (q *ToolQueue) verifyResult(invocationID int, result interface{}) (string, string) {
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	inv, err := q.client.ToolInvocation.Get(ctx, invocationID)
+	if err != nil {
+		return VerifyStateSkipped, "读取确认单失败，跳过回读"
+	}
+	var args map[string]interface{}
+	_ = json.Unmarshal([]byte(inv.Arguments), &args)
+	state, note := q.verifier.Verify(ctx, inv.TenantID, inv.ToolName, args, result)
+	if state == "" {
+		state = VerifyStateSkipped
+	}
+	return state, note
 }
 
 // withInvocationUser 把发起审批的用户ID回填进参数，让 ToolRegistry 能正确归属
@@ -259,6 +316,12 @@ type errorCoder interface{ ErrorCode() string }
 func errorCodeOf(err error) string {
 	if err == nil {
 		return ""
+	}
+	// B1-05：工单乐观锁冲突（update_ticket 的 expected_version 不匹配）——
+	// 稳定错误码，供审计与前端提示「刷新后重试」。
+	var versionConflict *common.VersionConflictError
+	if errors.As(err, &versionConflict) {
+		return "tool_version_conflict"
 	}
 	var coded errorCoder
 	if errors.As(err, &coded) {

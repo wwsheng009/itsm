@@ -24,6 +24,11 @@ const (
 	CodeAuthRequired      = "auth_required"
 	CodeServerError       = "server_error"
 	CodeToolError         = "tool_error"
+	// M2 能力开关（2026-09-30）：运行时能力开关的稳定错误码。
+	// CodeMCPDisabled：MCP 能力已在管理后台关闭（mcp.enabled=false）。
+	CodeMCPDisabled = "mcp_disabled"
+	// CodeMCPWriteDisabled：外部写工具面已在管理后台关闭（mcp.write_enabled=false）。
+	CodeMCPWriteDisabled = "mcp_write_disabled"
 )
 
 // ExecuteError 是 provider 的稳定错误（可 errors.Is/As 判定，安全可回显）。
@@ -44,6 +49,19 @@ func CodeOf(err error) string {
 		return execErr.Code
 	}
 	return ""
+}
+
+// capabilityGateError 把能力开关原因（ReasonMCPDisabled / ReasonMCPWriteDisabled）
+// 映射为稳定错误码与用户可读文案；未知原因回落为「工具不存在」。
+func capabilityGateError(reason string) *ExecuteError {
+	switch reason {
+	case ReasonMCPDisabled:
+		return &ExecuteError{Code: CodeMCPDisabled, Message: "MCP 能力已在管理后台关闭，当前不可执行"}
+	case ReasonMCPWriteDisabled:
+		return &ExecuteError{Code: CodeMCPWriteDisabled, Message: "外部写工具面已在管理后台关闭，当前不可执行"}
+	default:
+		return &ExecuteError{Code: CodeToolNotFound, Message: "工具不存在或当前不可用"}
+	}
 }
 
 // Execute 实现 service.ToolProvider：解析 → 只读校验 → 参数 schema 校验 → 调用 → 规范化。
@@ -83,6 +101,13 @@ func (p *Provider) execute(ctx context.Context, tenantID int, name string, args 
 
 	tool, ok := p.lookup(ctx, tenantID, name)
 	if !ok {
+		// 能力开关关闭时工具不在面内：给出稳定错误码与可操作提示，
+		// 而不是笼统的「工具不存在」（审计/前端据此区分原因）。
+		if reason := p.GateReason(ctx, tenantID, name); reason != "" {
+			err := capabilityGateError(reason)
+			finish(err)
+			return execution, err
+		}
 		err := &ExecuteError{Code: CodeToolNotFound, Message: "工具不存在或当前不可用"}
 		finish(err)
 		return execution, err
@@ -93,6 +118,20 @@ func (p *Provider) execute(ctx context.Context, tenantID int, name string, args 
 	// B0-01：治理元数据随执行快照（审计/审批详情使用；MCP 侧来自工具治理标注）。
 	execution.Risk = tool.def.Risk
 	execution.Category = tool.def.Category
+
+	// 能力开关的执行期复判（含审批后队列路径 G2）：开关可能在审批期间被管理员关闭，
+	// 面内解析成功也不代表此刻仍允许执行——每次调用都按最新生效值判定。
+	enabled, writeEnabled := p.gateView(ctx, tenantID)
+	if !enabled {
+		err := capabilityGateError(ReasonMCPDisabled)
+		finish(err)
+		return execution, err
+	}
+	if !tool.def.ReadOnly && !writeEnabled {
+		err := capabilityGateError(ReasonMCPWriteDisabled)
+		finish(err)
+		return execution, err
+	}
 
 	if !tool.def.ReadOnly && !allowWrite {
 		// 写工具必须经 Gate3 审批后由 ToolQueue 调用 ExecuteApprovedWrite；此处保持 fail-closed。

@@ -475,6 +475,232 @@ var (
 			},
 		},
 	}
+	// BotArtifactsColumns holds the columns for the "bot_artifacts" table.
+	BotArtifactsColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeInt, Increment: true},
+		{Name: "tenant_id", Type: field.TypeInt},
+		{Name: "owner_user_id", Type: field.TypeInt},
+		{Name: "conversation_id", Type: field.TypeInt, Nullable: true},
+		{Name: "run_id", Type: field.TypeInt, Nullable: true},
+		{Name: "kind", Type: field.TypeString, Size: 16},
+		{Name: "tool_name", Type: field.TypeString, Size: 64},
+		{Name: "title", Type: field.TypeString, Size: 200, Default: ""},
+		{Name: "content_json", Type: field.TypeString, Size: 2147483647, Default: ""},
+		{Name: "evidence_json", Type: field.TypeString, Size: 2147483647, Default: ""},
+		{Name: "created_at", Type: field.TypeTime},
+	}
+	// BotArtifactsTable holds the schema information for the "bot_artifacts" table.
+	BotArtifactsTable = &schema.Table{
+		Name:       "bot_artifacts",
+		Columns:    BotArtifactsColumns,
+		PrimaryKey: []*schema.Column{BotArtifactsColumns[0]},
+		Indexes: []*schema.Index{
+			{
+				Name:    "botartifact_tenant_id_owner_user_id_created_at",
+				Unique:  false,
+				Columns: []*schema.Column{BotArtifactsColumns[1], BotArtifactsColumns[2], BotArtifactsColumns[10]},
+			},
+			{
+				Name:    "botartifact_tenant_id_conversation_id",
+				Unique:  false,
+				Columns: []*schema.Column{BotArtifactsColumns[1], BotArtifactsColumns[3]},
+			},
+			{
+				Name:    "botartifact_tenant_id_run_id",
+				Unique:  false,
+				Columns: []*schema.Column{BotArtifactsColumns[1], BotArtifactsColumns[4]},
+			},
+			{
+				Name:    "botartifact_tenant_id_kind",
+				Unique:  false,
+				Columns: []*schema.Column{BotArtifactsColumns[1], BotArtifactsColumns[5]},
+			},
+		},
+	}
+	// BotEventsColumns holds the columns for the "bot_events" table.
+	BotEventsColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeInt, Increment: true},
+		{Name: "tenant_id", Type: field.TypeInt},
+		{Name: "seq", Type: field.TypeInt},
+		{Name: "type", Type: field.TypeString, Size: 64},
+		{Name: "payload_json", Type: field.TypeString, Size: 2147483647, Default: ""},
+		{Name: "created_at", Type: field.TypeTime},
+		{Name: "run_id", Type: field.TypeInt},
+	}
+	// BotEventsTable holds the schema information for the "bot_events" table.
+	BotEventsTable = &schema.Table{
+		Name:       "bot_events",
+		Columns:    BotEventsColumns,
+		PrimaryKey: []*schema.Column{BotEventsColumns[0]},
+		ForeignKeys: []*schema.ForeignKey{
+			{
+				Symbol:     "bot_events_bot_runs_events",
+				Columns:    []*schema.Column{BotEventsColumns[6]},
+				RefColumns: []*schema.Column{BotRunsColumns[0]},
+				OnDelete:   schema.NoAction,
+			},
+		},
+		Indexes: []*schema.Index{
+			{
+				Name:    "botevent_run_id_seq",
+				Unique:  true,
+				Columns: []*schema.Column{BotEventsColumns[6], BotEventsColumns[2]},
+			},
+			{
+				Name:    "botevent_tenant_id_run_id",
+				Unique:  false,
+				Columns: []*schema.Column{BotEventsColumns[1], BotEventsColumns[6]},
+			},
+		},
+	}
+	// BotRunsColumns holds the columns for the "bot_runs" table.
+	BotRunsColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeInt, Increment: true},
+		{Name: "tenant_id", Type: field.TypeInt},
+		{Name: "conversation_id", Type: field.TypeInt, Nullable: true},
+		{Name: "bot_id", Type: field.TypeInt, Nullable: true},
+		{Name: "entrypoint", Type: field.TypeString, Size: 32, Default: "chat"},
+		{Name: "target_type", Type: field.TypeString, Size: 32, Default: ""},
+		{Name: "target_id", Type: field.TypeInt, Nullable: true},
+		{Name: "status", Type: field.TypeString, Size: 16, Default: "running"},
+		{Name: "model", Type: field.TypeString, Size: 128, Default: ""},
+		{Name: "budget_json", Type: field.TypeString, Size: 2147483647, Default: ""},
+		{Name: "error_code", Type: field.TypeString, Size: 64, Default: ""},
+		{Name: "started_at", Type: field.TypeTime},
+		{Name: "finished_at", Type: field.TypeTime, Nullable: true},
+		{Name: "created_at", Type: field.TypeTime},
+		{Name: "updated_at", Type: field.TypeTime},
+	}
+	// BotRunsTable holds the schema information for the "bot_runs" table.
+	BotRunsTable = &schema.Table{
+		Name:       "bot_runs",
+		Columns:    BotRunsColumns,
+		PrimaryKey: []*schema.Column{BotRunsColumns[0]},
+		Indexes: []*schema.Index{
+			{
+				Name:    "botrun_tenant_id_started_at",
+				Unique:  false,
+				Columns: []*schema.Column{BotRunsColumns[1], BotRunsColumns[11]},
+			},
+			{
+				Name:    "botrun_tenant_id_conversation_id",
+				Unique:  false,
+				Columns: []*schema.Column{BotRunsColumns[1], BotRunsColumns[2]},
+			},
+			{
+				Name:    "botrun_tenant_id_status",
+				Unique:  false,
+				Columns: []*schema.Column{BotRunsColumns[1], BotRunsColumns[7]},
+			},
+		},
+	}
+	// BotStepsColumns holds the columns for the "bot_steps" table.
+	BotStepsColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeInt, Increment: true},
+		{Name: "tenant_id", Type: field.TypeInt},
+		{Name: "step_index", Type: field.TypeInt},
+		{Name: "type", Type: field.TypeString, Size: 16},
+		{Name: "payload_ref", Type: field.TypeString, Size: 256, Default: ""},
+		{Name: "duration_ms", Type: field.TypeInt, Default: 0},
+		{Name: "error_code", Type: field.TypeString, Size: 64, Default: ""},
+		{Name: "created_at", Type: field.TypeTime},
+		{Name: "run_id", Type: field.TypeInt},
+	}
+	// BotStepsTable holds the schema information for the "bot_steps" table.
+	BotStepsTable = &schema.Table{
+		Name:       "bot_steps",
+		Columns:    BotStepsColumns,
+		PrimaryKey: []*schema.Column{BotStepsColumns[0]},
+		ForeignKeys: []*schema.ForeignKey{
+			{
+				Symbol:     "bot_steps_bot_runs_steps",
+				Columns:    []*schema.Column{BotStepsColumns[8]},
+				RefColumns: []*schema.Column{BotRunsColumns[0]},
+				OnDelete:   schema.NoAction,
+			},
+		},
+		Indexes: []*schema.Index{
+			{
+				Name:    "botstep_run_id_step_index",
+				Unique:  true,
+				Columns: []*schema.Column{BotStepsColumns[8], BotStepsColumns[2]},
+			},
+			{
+				Name:    "botstep_tenant_id_run_id",
+				Unique:  false,
+				Columns: []*schema.Column{BotStepsColumns[1], BotStepsColumns[8]},
+			},
+		},
+	}
+	// BotTemplatesColumns holds the columns for the "bot_templates" table.
+	BotTemplatesColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeInt, Increment: true},
+		{Name: "tenant_id", Type: field.TypeInt},
+		{Name: "slug", Type: field.TypeString, Size: 64},
+		{Name: "name", Type: field.TypeString, Size: 128},
+		{Name: "audience", Type: field.TypeString, Size: 32, Default: "internal"},
+		{Name: "risk_limit", Type: field.TypeString, Size: 32, Default: "act_low"},
+		{Name: "entrypoints_json", Type: field.TypeString, Size: 2147483647, Default: "[]"},
+		{Name: "system_prompt_ref", Type: field.TypeString, Size: 255, Default: ""},
+		{Name: "status", Type: field.TypeString, Size: 16, Default: "draft"},
+		{Name: "created_at", Type: field.TypeTime},
+		{Name: "updated_at", Type: field.TypeTime},
+	}
+	// BotTemplatesTable holds the schema information for the "bot_templates" table.
+	BotTemplatesTable = &schema.Table{
+		Name:       "bot_templates",
+		Columns:    BotTemplatesColumns,
+		PrimaryKey: []*schema.Column{BotTemplatesColumns[0]},
+		Indexes: []*schema.Index{
+			{
+				Name:    "bottemplate_tenant_id_slug",
+				Unique:  true,
+				Columns: []*schema.Column{BotTemplatesColumns[1], BotTemplatesColumns[2]},
+			},
+			{
+				Name:    "bottemplate_tenant_id_status",
+				Unique:  false,
+				Columns: []*schema.Column{BotTemplatesColumns[1], BotTemplatesColumns[8]},
+			},
+		},
+	}
+	// BotToolGrantsColumns holds the columns for the "bot_tool_grants" table.
+	BotToolGrantsColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeInt, Increment: true},
+		{Name: "tenant_id", Type: field.TypeInt},
+		{Name: "tool_name", Type: field.TypeString, Size: 128},
+		{Name: "risk_limit", Type: field.TypeString, Size: 32, Default: "act_low"},
+		{Name: "args_policy_json", Type: field.TypeString, Size: 2147483647, Default: ""},
+		{Name: "created_at", Type: field.TypeTime},
+		{Name: "updated_at", Type: field.TypeTime},
+		{Name: "bot_id", Type: field.TypeInt},
+	}
+	// BotToolGrantsTable holds the schema information for the "bot_tool_grants" table.
+	BotToolGrantsTable = &schema.Table{
+		Name:       "bot_tool_grants",
+		Columns:    BotToolGrantsColumns,
+		PrimaryKey: []*schema.Column{BotToolGrantsColumns[0]},
+		ForeignKeys: []*schema.ForeignKey{
+			{
+				Symbol:     "bot_tool_grants_bot_templates_grants",
+				Columns:    []*schema.Column{BotToolGrantsColumns[7]},
+				RefColumns: []*schema.Column{BotTemplatesColumns[0]},
+				OnDelete:   schema.NoAction,
+			},
+		},
+		Indexes: []*schema.Index{
+			{
+				Name:    "bottoolgrant_tenant_id_bot_id_tool_name",
+				Unique:  true,
+				Columns: []*schema.Column{BotToolGrantsColumns[1], BotToolGrantsColumns[7], BotToolGrantsColumns[2]},
+			},
+			{
+				Name:    "bottoolgrant_tenant_id_tool_name",
+				Unique:  false,
+				Columns: []*schema.Column{BotToolGrantsColumns[1], BotToolGrantsColumns[2]},
+			},
+		},
+	}
 	// CabMembersColumns holds the columns for the "cab_members" table.
 	CabMembersColumns = []*schema.Column{
 		{Name: "id", Type: field.TypeInt, Increment: true},
@@ -1382,6 +1608,7 @@ var (
 		{Name: "tenant_id", Type: field.TypeInt, Nullable: true},
 		{Name: "user_id", Type: field.TypeInt, Nullable: true},
 		{Name: "title", Type: field.TypeString, Default: ""},
+		{Name: "bot_id", Type: field.TypeInt, Default: 0},
 	}
 	// ConversationsTable holds the schema information for the "conversations" table.
 	ConversationsTable = &schema.Table{
@@ -6366,6 +6593,12 @@ var (
 		AuditLogsTable,
 		BpmnPermissionsTable,
 		BootstrapTokensTable,
+		BotArtifactsTable,
+		BotEventsTable,
+		BotRunsTable,
+		BotStepsTable,
+		BotTemplatesTable,
+		BotToolGrantsTable,
 		CabMembersTable,
 		CiAttributeDefinitionsTable,
 		CiRelationshipsTable,
@@ -6520,6 +6753,9 @@ func init() {
 	ApprovalRecordsTable.ForeignKeys[1].RefTable = TicketsTable
 	AssetsTable.ForeignKeys[0].RefTable = VendorsTable
 	BootstrapTokensTable.ForeignKeys[0].RefTable = TenantsTable
+	BotEventsTable.ForeignKeys[0].RefTable = BotRunsTable
+	BotStepsTable.ForeignKeys[0].RefTable = BotRunsTable
+	BotToolGrantsTable.ForeignKeys[0].RefTable = BotTemplatesTable
 	CiAttributeDefinitionsTable.ForeignKeys[0].RefTable = CiTypesTable
 	CiRelationshipsTable.ForeignKeys[0].RefTable = ConfigurationItemsTable
 	CiRelationshipsTable.ForeignKeys[1].RefTable = ConfigurationItemsTable

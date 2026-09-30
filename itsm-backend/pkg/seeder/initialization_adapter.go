@@ -8,6 +8,8 @@ import (
 	"fmt"
 
 	"itsm-backend/ent"
+	"itsm-backend/ent/bottemplate"
+	"itsm-backend/ent/bottoolgrant"
 	"itsm-backend/ent/citype"
 	"itsm-backend/ent/menu"
 	"itsm-backend/ent/permission"
@@ -22,6 +24,7 @@ import (
 	"itsm-backend/ent/user"
 	"itsm-backend/internal/initialization"
 	"itsm-backend/service"
+	servicebot "itsm-backend/service/bot"
 )
 
 type productionComponentInitializer struct {
@@ -40,6 +43,7 @@ var ProductionComponentNames = []string{
 	"sla-core",
 	"cmdb-core",
 	"extension-core",
+	"ai-bot-core",
 }
 
 // ProductionInitializers returns the audited production component DAG. The
@@ -153,7 +157,22 @@ func ProductionInitializers(seeder *Seeder) ([]initialization.Initializer, error
 			return target.verifyExtensionTemplates(ctx)
 		},
 	}
-	return []initialization.Initializer{identity, itil, workflow, sla, cmdb, extension}, nil
+	// Bot 模板种子（B2-01 默认助手 + B3 场景 pilot）：只依赖 identity-rbac
+	// （default 租户），与菜单/权限同属产品基线；数据幂等只增，管理员修改优先。
+	botCore := &productionComponentInitializer{
+		seeder:       seeder,
+		name:         "ai-bot-core",
+		dependencies: []string{"identity-rbac"},
+		checksum:     checksum("ai-bot-core"),
+		apply: func(ctx context.Context, transactional *Seeder) error {
+			transactional.seedBotTemplates(ctx)
+			return nil
+		},
+		verify: func(ctx context.Context, target *Seeder) error {
+			return target.verifyBotTemplates(ctx)
+		},
+	}
+	return []initialization.Initializer{identity, itil, workflow, sla, cmdb, extension, botCore}, nil
 }
 
 func (i *productionComponentInitializer) Name() string { return i.name }
@@ -305,6 +324,44 @@ func (s *Seeder) defaultTenantID(ctx context.Context) (int, error) {
 		return 0, err
 	}
 	return root.ID, nil
+}
+
+// verifyBotTemplates 校验 Bot 模板种子：内置默认助手存在，且三个场景 pilot
+// 模板与其定义中的授权逐一齐备（缺一即失败）。与 apply 同属只增语义，可复跑。
+func (s *Seeder) verifyBotTemplates(ctx context.Context) error {
+	tenantID, err := s.defaultTenantID(ctx)
+	if err != nil {
+		return fmt.Errorf("verify bot templates: default tenant: %w", err)
+	}
+	if _, err := s.client.BotTemplate.Query().
+		Where(bottemplate.TenantIDEQ(tenantID), bottemplate.SlugEQ(servicebot.DefaultTemplateSlug)).
+		Only(ctx); err != nil {
+		return fmt.Errorf("verify default assistant template: %w", err)
+	}
+	for _, scenario := range servicebot.ScenarioBots() {
+		tpl, err := s.client.BotTemplate.Query().
+			Where(bottemplate.TenantIDEQ(tenantID), bottemplate.SlugEQ(scenario.Slug)).
+			Only(ctx)
+		if err != nil {
+			return fmt.Errorf("verify scenario template %s: %w", scenario.Slug, err)
+		}
+		grants, err := s.client.BotToolGrant.Query().
+			Where(bottoolgrant.TenantIDEQ(tenantID), bottoolgrant.BotIDEQ(tpl.ID)).
+			All(ctx)
+		if err != nil {
+			return fmt.Errorf("verify scenario %s grants: %w", scenario.Slug, err)
+		}
+		granted := make(map[string]struct{}, len(grants))
+		for _, grant := range grants {
+			granted[grant.ToolName] = struct{}{}
+		}
+		for _, want := range scenario.Grants {
+			if _, ok := granted[want.ToolName]; !ok {
+				return fmt.Errorf("verify scenario %s missing grant %s", scenario.Slug, want.ToolName)
+			}
+		}
+	}
+	return nil
 }
 
 func (s *Seeder) verifyITILTemplates(ctx context.Context) error {

@@ -48,6 +48,95 @@ export interface AIMetrics {
   responseTimeAvailable?: boolean;
 }
 
+// —— B4-02：Bot 运行维度指标（GET /api/v1/ai/bot-metrics）——
+
+export interface BotMetricsRunStats {
+  total: number;
+  completed: number;
+  failed: number;
+  running: number;
+  cancelled: number;
+  successRate: number;
+  avgDurationMs: number;
+}
+
+export interface BotMetricsStepStats {
+  total: number;
+  llmSteps: number;
+  toolSteps: number;
+  confirmSteps: number;
+  avgPerRun: number;
+  avgDurationMs: number;
+}
+
+export interface BotMetricsToolStats {
+  total: number;
+  errors: number;
+  errorRate: number;
+  avgDurationMs: number;
+  topTools?: Array<{ key: string; count: number }>;
+}
+
+export interface BotMetricsVerifyStats {
+  verified: number;
+  failed: number;
+  skipped: number;
+  pending: number;
+  failRate: number;
+}
+
+export interface BotMetricsConfirmStats {
+  approved: number;
+  rejected: number;
+  expired: number;
+  pending: number;
+  approvalRate: number;
+  rejectRate: number;
+  expireRate: number;
+  avgDecisionMs?: number;
+}
+
+export interface BotMetricsCostStats {
+  llmCalls: number;
+  toolCalls: number;
+  steps: number;
+  avgStepsPerRun: number;
+  avgToolCallsPerRun: number;
+}
+
+export interface BotMetricsBreakdown {
+  key: string;
+  runs: number;
+  failed: number;
+  successRate: number;
+  avgDurationMs: number;
+  toolCalls: number;
+  toolErrors: number;
+}
+
+export interface BotMetrics {
+  windowDays: number;
+  since: string;
+  generatedAt: string;
+  runs: BotMetricsRunStats;
+  steps: BotMetricsStepStats;
+  tools: BotMetricsToolStats;
+  verify: BotMetricsVerifyStats;
+  confirmations: BotMetricsConfirmStats;
+  cost: BotMetricsCostStats;
+  byEntrypoint: BotMetricsBreakdown[];
+  byBot: BotMetricsBreakdown[];
+  /** token 计量未接线（B1-02 遗留）：成本维度为代理口径。 */
+  tokensRecorded: boolean;
+  notes?: string[];
+}
+
+export interface BotMetricsQuery {
+  days?: number;
+  botId?: number;
+  entrypoint?: string;
+}
+
 export interface AIAuditEntry {
   id: number;
   tenantId: number;
@@ -175,6 +264,21 @@ export async function aiSaveFeedback(feedback: AIFeedbackRequest): Promise<{ mes
 
 export async function aiGetMetrics(days = 7): Promise<AIMetrics> {
   return httpClient.get<AIMetrics>(`/api/v1/ai/metrics?days=${days}`);
+}
+
+/**
+ * Bot 运行维度指标（B4-02）。
+ *
+ * 后端契约：`GET /api/v1/ai/bot-metrics?days=&botId=&entrypoint=`；
+ * `bot.enabled=false` 时后端返回 503（调用方据此隐藏/置灰看板）。
+ */
+export async function aiGetBotMetrics(params: BotMetricsQuery = {}): Promise<BotMetrics> {
+  const search = new URLSearchParams();
+  if (params.days && params.days > 0) search.set('days', String(params.days));
+  if (params.botId && params.botId > 0) search.set('botId', String(params.botId));
+  if (params.entrypoint) search.set('entrypoint', params.entrypoint);
+  const qs = search.toString();
+  return httpClient.get<BotMetrics>(`/api/v1/ai/bot-metrics${qs ? `?${qs}` : ''}`);
 }
 
 // ==================== AI 评估与审计（AI-Native：可观测、可回测） ====================
@@ -328,6 +432,27 @@ export interface ToolApproval {
   durationMs?: number;
   errorCode?: string;
   outputSummary?: string;
+  /**
+   * B1-05 后端附加字段：
+   * `confirmationState` = pending|confirmed|rejected|expired|cancelled|unknown（规范化状态）；
+   * `expiresAt` = 确认单有效期（未配置 TTL 时为 null）。
+   * 旧后端不返回时二者缺省，前端按 `approvalState` 降级推导。
+   */
+  confirmationState?: string;
+  expiresAt?: string | null;
+  /**
+   * 目标对象与支撑引用（M0-03/B0-02 联合字段）：由后端详情/列表原样返回。
+   * SSE 过程事件不带这些字段，前端只在拿到详情后展示（不臆造）。
+   */
+  targetType?: string;
+  targetId?: string;
+  supportRef?: string;
+  /** B1-06/B0-04 队列与预览字段（后端 `handlers/ai/entity.go` 原样返回）。 */
+  dryRun?: boolean;
+  verifyState?: string;
+  verifyNote?: string;
+  attemptCount?: number;
+  lastErrorCode?: string;
 }
 
 export interface ToolApprovalListResponse {
@@ -564,8 +689,37 @@ export type AIChatStreamEvent =
   | { type: 'tool_call_finished'; event: AIToolStreamEvent }
   | { type: 'tool_call_failed'; event: AIToolStreamEvent }
   | { type: 'approval_pending'; event: AIToolStreamEvent }
+  | { type: 'confirmation_required'; event: AIToolStreamEvent }
+  | { type: 'run_started'; run: AIRunStartedEvent }
+  | { type: 'step'; step: AIRunStepEvent }
   | { type: 'done'; conversationId: number; provider?: string; providerSource?: string }
   | { type: 'error'; message: string };
+
+/**
+ * v2 运行事件（B1-03 注册表；对象载荷带 `v:2`）。
+ *
+ * 语义：一次对话回合（run）开始。旧后端/开关关闭时不出现——调用方不得依赖其存在。
+ */
+export interface AIRunStartedEvent {
+  v?: number;
+  runId: number;
+  entrypoint?: string;
+  conversationId?: number;
+}
+
+/**
+ * v2 步骤事件（B1-03 注册表）：llm / tool 等步骤**落库成功后**广播。
+ *
+ * 只承载索引与元数据，业务载荷经 `payloadRef` 引用（不在此展开）。
+ */
+export interface AIRunStepEvent {
+  v?: number;
+  runId: number;
+  stepIndex: number;
+  type: string;
+  payloadRef?: string;
+  durationMs?: number;
+}
 
 /**
  * 对话内工具事件（M1-03 后端契约）。
@@ -604,8 +758,94 @@ export interface AIChatStreamCallbacks {
    * 工具调用过程事件（M1-03）。旧调用方不传即可——新增事件对既有渲染零影响。
    */
   onToolEvent?: AIToolStreamCallback;
+  /** v2 运行开始（B1-03）；不传即忽略。 */
+  onRunStarted?: (run: AIRunStartedEvent) => void;
+  /** v2 步骤进度（B1-03）；不传即忽略。 */
+  onStep?: (step: AIRunStepEvent) => void;
+  /**
+   * 未知事件上报（可选）：默认静默忽略以保证前向兼容；
+   * 传入时仅用于日志/埋点，**不得**据此中断流或渲染。
+   */
+  onUnknownEvent?: (event: string, data: unknown) => void;
   onDone?: (conversationId: number, info?: AIChatDoneInfo) => void;
   onError?: (message: string) => void;
+}
+
+// —— B2-04 工作区 Bot 选择器 ——
+
+/** 选择器可见的 Bot（后端 GET /api/v1/agent/bots 已按角色 audience 过滤，仅最小字段）。 */
+export interface BotOption {
+  id: number;
+  slug: string;
+  name: string;
+  audience: string;
+}
+
+/**
+ * 拉取当前用户可见的 Bot 列表（工作区选择器）。
+ *
+ * 兼容默认：端点未注册（bot.enabled=false → 404）或请求失败时返回空数组——
+ * 选择器不渲染，聊天链路与引入该能力前完全一致（不因治理面缺失而阻断对话）。
+ */
+export async function aiListVisibleBots(): Promise<BotOption[]> {
+  const res = await aiListVisibleBotsWithCapabilities();
+  return res.items;
+}
+
+/**
+ * 展示用能力块（`GET /api/v1/agent/bots` 随列表下发，camelCase）。
+ *
+ * `botEnabled=false` 时后端返回空列表 + 该块；对话页据此禁用/隐藏选择器并提示，
+ * **不新增任何请求**。
+ */
+export interface AgentBotsCapabilities {
+  botEnabled: boolean;
+  mcpWriteEnabled: boolean;
+}
+
+export interface AgentBotsResult {
+  items: BotOption[];
+  /** 旧后端未下发时为 null（页面按"未管控"降级）。 */
+  capabilities: AgentBotsCapabilities | null;
+}
+
+/**
+ * 同 `aiListVisibleBots`，但额外返回展示用 capabilities 块（一次请求，供对话页复用）。
+ *
+ * 失败兜底：任何异常都返回空列表 + null capabilities，绝不阻断聊天链路。
+ */
+export async function aiListVisibleBotsWithCapabilities(): Promise<AgentBotsResult> {
+  try {
+    const res = (await httpClient.get('/api/v1/agent/bots')) as
+      | { items?: BotOption[]; capabilities?: AgentBotsCapabilities }
+      | undefined;
+    const items = Array.isArray(res?.items) ? res.items : [];
+    const capabilities =
+      res?.capabilities && typeof res.capabilities.botEnabled === 'boolean'
+        ? {
+            botEnabled: res.capabilities.botEnabled,
+            mcpWriteEnabled: Boolean(res.capabilities.mcpWriteEnabled),
+          }
+        : null;
+    return {
+      items: items
+        .filter(
+          (item: unknown): item is BotOption =>
+            Boolean(item) &&
+            typeof (item as BotOption).id === 'number' &&
+            typeof (item as BotOption).name === 'string'
+        )
+        .map((item: BotOption) => ({
+          id: item.id,
+          slug: item.slug ?? '',
+          name: item.name,
+          audience: item.audience ?? '',
+        })),
+      capabilities,
+    };
+  } catch {
+    return { items: [], capabilities: null };
+  }
 }
 
 export interface AIChatStreamRequest {
@@ -614,6 +854,19 @@ export interface AIChatStreamRequest {
   limit?: number;
   /** 多 Provider 灰度（BE-7）：显式覆盖实例 key；缺省 = 与现状完全一致（不落该字段）。 */
   provider?: string;
+  /**
+   * B2-04 工作区选择器：新建会话归属的 Bot 模板 id；缺省/0 = 内置默认助手。
+   * 仅对**新建会话**生效（已有 conversationId 时后端按会话绑定归属，忽略该字段）。
+   */
+  botId?: number;
+  /**
+   * B3-01/B3-02 入口上下文（页面 launcher 携带；缺省 = chat/无目标，请求体与现状一致）。
+   * 服务端会再次解析并做目标对象预检（前端值只是提示）。
+   */
+  entrypoint?: string;
+  targetType?: string;
+  targetId?: number;
+  summary?: string;
   signal?: AbortSignal;
 }
 
@@ -675,6 +928,12 @@ export async function aiChatStream(
     conversationId: req.conversationId,
     // 未显式选择时不写 provider：请求体与现状逐字节一致（QA-3 门禁）。
     ...(req.provider ? { provider: req.provider } : {}),
+    // 同上：未选择 Bot 时不落 botId（默认助手，请求体与现状一致）。
+    ...(req.botId ? { botId: req.botId } : {}),
+    // B3-02：仅携带入口上下文时落字段（缺省请求体与现状一致）。
+    ...(req.entrypoint ? { entrypoint: req.entrypoint } : {}),
+    ...(req.targetType && req.targetId ? { targetType: req.targetType, targetId: req.targetId } : {}),
+    ...(req.summary ? { summary: req.summary } : {}),
   });
 
   let lastError: Error | null = null;
@@ -719,6 +978,8 @@ export async function aiChatStream(
       const decoder = new TextDecoder('utf-8');
       let buffer = '';
       let finalConversationId = 0;
+      // B1-03 双发去重：同一 invocation id 的待审批事件（v1 + v2）只回调一次。
+      const seenPendingIds = new Set<number>();
 
       const dispatch = (event: string, dataRaw: string) => {
         let data: unknown;
@@ -771,16 +1032,30 @@ export async function aiChatStream(
           case 'tool_call_started':
           case 'tool_call_finished':
           case 'tool_call_failed':
-          case 'approval_pending': {
+          case 'approval_pending':
+          case 'confirmation_required': {
             const payload = data as Partial<AIToolStreamEvent> | null;
             if (!payload || typeof payload.tool !== 'string' || payload.tool.length === 0) {
               break;
+            }
+            // B1-03 兼容双发：待审批会先发 v1 `approval_pending` 再发 v2
+            // `confirmation_required`（同一 invocation id）。按 id 去重，
+            // 保证前端只渲染一张待审批卡片；v2-only 后端也能正常接住。
+            const pendingId = typeof payload.id === 'number' ? payload.id : undefined;
+            if (event === 'confirmation_required' && pendingId !== undefined) {
+              if (seenPendingIds.has(pendingId)) {
+                break;
+              }
+              seenPendingIds.add(pendingId);
+            } else if (event === 'approval_pending' && pendingId !== undefined) {
+              seenPendingIds.add(pendingId);
             }
             const fallbackStatus: Record<string, string> = {
               tool_call_started: 'started',
               tool_call_finished: 'done',
               tool_call_failed: 'failed',
               approval_pending: 'pending',
+              confirmation_required: 'pending',
             };
             callbacks.onToolEvent?.({
               ...payload,
@@ -791,8 +1066,45 @@ export async function aiChatStream(
             });
             break;
           }
+          // B1-03 v2 运行事件：只做解析与回调，不改变既有渲染路径。
+          case 'run_started': {
+            const payload = data as Partial<AIRunStartedEvent> | null;
+            if (!payload || typeof payload.runId !== 'number') {
+              break;
+            }
+            callbacks.onRunStarted?.({
+              v: payload.v,
+              runId: payload.runId,
+              entrypoint: payload.entrypoint,
+              conversationId: payload.conversationId,
+            });
+            break;
+          }
+          case 'step': {
+            const payload = data as Partial<AIRunStepEvent> | null;
+            if (
+              !payload ||
+              typeof payload.runId !== 'number' ||
+              typeof payload.stepIndex !== 'number' ||
+              typeof payload.type !== 'string' ||
+              payload.type.length === 0
+            ) {
+              break;
+            }
+            callbacks.onStep?.({
+              v: payload.v,
+              runId: payload.runId,
+              stepIndex: payload.stepIndex,
+              type: payload.type,
+              payloadRef: payload.payloadRef,
+              durationMs: payload.durationMs,
+            });
+            break;
+          }
           default:
             // 未知事件一律忽略：新后端叠加的事件不会破坏旧前端的渲染（M1-03 兼容口径）。
+            // 需要观测时由调用方经 onUnknownEvent 自行埋点（不得据此渲染或中断流）。
+            callbacks.onUnknownEvent?.(event, data);
             break;
         }
       };
@@ -920,12 +1232,23 @@ export class AIApi {
     conversationId?: number;
     limit?: number;
     provider?: string;
+    /** B2-04：新建会话归属的 Bot（缺省 = 默认助手；已有会话忽略）。 */
+    botId?: number;
+    /** B3-01/B3-02：入口上下文（缺省 = chat/无目标）。 */
+    entrypoint?: string;
+    targetType?: string;
+    targetId?: number;
+    summary?: string;
   }): Promise<any> {
     return httpClient.post(`/api/v1/ai/chat`, {
       query: params.query,
       limit: params.limit,
       conversationId: params.conversationId,
       ...(params.provider ? { provider: params.provider } : {}),
+      ...(params.botId ? { botId: params.botId } : {}),
+      ...(params.entrypoint ? { entrypoint: params.entrypoint } : {}),
+      ...(params.targetType && params.targetId ? { targetType: params.targetType, targetId: params.targetId } : {}),
+      ...(params.summary ? { summary: params.summary } : {}),
     });
   }
 
@@ -990,4 +1313,89 @@ export class AIApi {
   ): Promise<number> {
     return aiChatStream(req, callbacks);
   }
+
+  /** B2-04：工作区 Bot 选择器候选（失败/未开启返回空数组）。 */
+  static async listVisibleBots(): Promise<BotOption[]> {
+    return aiListVisibleBots();
+  }
+
+  /** 工作区 Bot 候选 + 展示用 capabilities（单次请求，供对话页能力降级复用）。 */
+  static async listVisibleBotsWithCapabilities(): Promise<AgentBotsResult> {
+    return aiListVisibleBotsWithCapabilities();
+  }
+}
+
+// ==================== 工具目录（内置 + MCP 外部工具的统一查询视图） ====================
+
+/**
+ * 工具目录条目：内置工具与 MCP 外部工具统一投影。
+ *
+ * 后端契约：`GET /api/v1/agent/tools/catalog`（ai:read；按当前角色 RBAC 过滤）。
+ */
+export interface ToolCatalogItem {
+  name: string;
+  description?: string;
+  readOnly: boolean;
+  /** 治理标注风险：read|plan|act_low|act_medium|act_high（内置工具可能为空）。 */
+  risk?: string;
+  category?: string;
+  /** builtin | mcp（内置工具由注册表统一填 builtin）。 */
+  provider?: string;
+  /** provider=mcp 时的服务器标识（callable 名主体）。 */
+  serverName?: string;
+  /** provider=mcp 时的服务器侧原始工具名。 */
+  rawToolName?: string;
+  resource?: string;
+  action?: string;
+  supportsDryRun?: boolean;
+  idempotent?: boolean;
+}
+
+export interface ToolCatalogParams {
+  q?: string;
+  source?: 'builtin' | 'mcp';
+  readOnly?: boolean;
+  risk?: string;
+  limit?: number;
+}
+
+/**
+ * 工具目录展示用能力块（camelCase，随响应下发）。
+ *
+ * 工具页据此渲染"能力关闭"Alert 与 MCP 写工具行徽标；缺省 = 未管控，不渲染。
+ */
+export interface ToolCatalogCapabilities {
+  mcpEnabled: boolean;
+  mcpWriteEnabled: boolean;
+  botEnabled: boolean;
+}
+
+export interface ToolCatalogResult {
+  items: ToolCatalogItem[];
+  total: number;
+  capabilities?: ToolCatalogCapabilities;
+}
+
+/**
+ * 查询工具目录（Bot 授权选择器 / 独立工具目录页共用）。
+ *
+ * - `q`：名称/描述/服务器 子串（大小写不敏感，服务端过滤）；
+ * - `source`/`readOnly`/`risk`：可选过滤；`limit` 默认由后端取 200（上限 500）。
+ */
+export async function aiListToolCatalog(params: ToolCatalogParams = {}): Promise<ToolCatalogResult> {
+  const query = new URLSearchParams();
+  if (params.q) query.set('q', params.q);
+  if (params.source) query.set('source', params.source);
+  if (typeof params.readOnly === 'boolean') query.set('readOnly', String(params.readOnly));
+  if (params.risk) query.set('risk', params.risk);
+  if (params.limit && params.limit > 0) query.set('limit', String(params.limit));
+  const qs = query.toString();
+  // 字面量路径 + 拼接，避免模板内三元表达式，保证 api-contract 测试可静态解析路径
+  const url = '/api/v1/agent/tools/catalog' + (qs ? `?${qs}` : '');
+  const res = await httpClient.get<ToolCatalogResult>(url);
+  return {
+    items: Array.isArray(res?.items) ? res.items : [],
+    total: res?.total ?? 0,
+    capabilities: res?.capabilities,
+  };
 }

@@ -6,7 +6,9 @@ import (
 	"log"
 	"os"
 	"regexp"
+	"strconv"
 	"strings"
+	"time"
 
 	"github.com/joho/godotenv"
 	"github.com/spf13/viper"
@@ -94,30 +96,93 @@ func applyAttachmentDefaults(cfg *AttachmentConfig) {
 	}
 }
 
-// BotConfig Bot 能力落地配置（BP5 全局开关；预算/护栏参数由 BP8 扩展）。
+// BotConfig Bot 能力落地配置（BP5 全局开关 + BP8 预算与护栏参数）。
 //
-// 方案：docs/plan/ai-bot-capability-landing-implementation-plan-2026-09-27.md §2.2（BP5）。
-// 默认保守：Enabled=false 时对现有系统零行为变化（不装配 Bot 运行时组件、
-// 工具面与聊天链路保持现状）。
+// 方案：docs/plan/ai-bot-capability-landing-implementation-plan-2026-09-27.md §2.2（BP5/BP8）、
+// §4.2 B1-02（预算护栏）。默认保守：Enabled=false 时对现有系统零行为变化（不装配 Bot
+// 运行时组件、工具面与聊天链路保持现状）；预算参数仅在 RunManager 起运行后生效。
 type BotConfig struct {
 	// Enabled: bot.enabled 全局开关；默认 false。
 	Enabled bool `mapstructure:"enabled"`
+	// RedactionProfile: 工具参数/结果脱敏默认档（default|strict）。
+	// 未知值回落 default（fail-safe，不因配置笔误放大可见字段）。
+	RedactionProfile string `mapstructure:"redaction_profile"`
+	// Budget: 每 run 预算与单次工具护栏（BP8）。
+	Budget BotBudgetConfig `mapstructure:"budget"`
+	// ConfirmationTTLHours: 写工具确认单有效期（小时；B1-05）。
+	// 非正值回落默认 24h —— 护栏不得被配置成「永不过期」。
+	ConfirmationTTLHours int `mapstructure:"confirmation_ttl_hours"`
 }
 
+// BotBudgetConfig 每 run 预算与护栏参数（BP8；B1-02 RunManager 消费）。
+//
+// 全部为「每 run」级上限：step 数、token 数（模型输入+输出合计，按 provider 回报累加）、
+// 工具调用次数；另含单工具超时与单次工具输出字节上限。非正值一律回落默认值。
+type BotBudgetConfig struct {
+	// MaxSteps: 每 run 步骤上限；超限以 budget_exceeded 收口。
+	MaxSteps int `mapstructure:"max_steps"`
+	// MaxTokens: 每 run token 上限（无 provider 回报时不参与判定）。
+	MaxTokens int `mapstructure:"max_tokens"`
+	// MaxToolCalls: 每 run 工具调用次数上限。
+	MaxToolCalls int `mapstructure:"max_tool_calls"`
+	// ToolTimeoutSeconds: 单工具执行超时（秒）；默认 30s。
+	ToolTimeoutSeconds int `mapstructure:"tool_timeout_seconds"`
+	// MaxOutputBytes: 单次工具输出的字节上限；超限截断并标记。
+	MaxOutputBytes int `mapstructure:"max_output_bytes"`
+}
+
+// BP8 预算护栏默认值（方案 §2.2 BP8：单工具超时默认 30s）。
+const (
+	botDefaultRedactionProfile     = "default"
+	botDefaultMaxSteps             = 24
+	botDefaultMaxTokens            = 100000
+	botDefaultMaxToolCalls         = 12
+	botDefaultToolTimeoutSeconds   = 30
+	botDefaultMaxOutputBytes       = 65536
+	botDefaultConfirmationTTLHours = 24
+)
+
 // applyBotDefaults 补齐 Bot 配置的零值默认；Enabled 保持零值 false（未配置即关闭）。
+//
+// 非正预算值一律回落默认（运维写成 0/负数时按默认护栏执行，而不是「无上限」）。
 func applyBotDefaults(cfg *BotConfig) {
 	if cfg == nil {
 		return
 	}
-	// 预留：BP8（预算与护栏参数）在此补默认值。
+	switch strings.ToLower(strings.TrimSpace(cfg.RedactionProfile)) {
+	case "strict":
+		cfg.RedactionProfile = "strict"
+	default:
+		cfg.RedactionProfile = botDefaultRedactionProfile
+	}
+	if cfg.Budget.MaxSteps <= 0 {
+		cfg.Budget.MaxSteps = botDefaultMaxSteps
+	}
+	if cfg.Budget.MaxTokens <= 0 {
+		cfg.Budget.MaxTokens = botDefaultMaxTokens
+	}
+	if cfg.Budget.MaxToolCalls <= 0 {
+		cfg.Budget.MaxToolCalls = botDefaultMaxToolCalls
+	}
+	if cfg.Budget.ToolTimeoutSeconds <= 0 {
+		cfg.Budget.ToolTimeoutSeconds = botDefaultToolTimeoutSeconds
+	}
+	if cfg.Budget.MaxOutputBytes <= 0 {
+		cfg.Budget.MaxOutputBytes = botDefaultMaxOutputBytes
+	}
+	if cfg.ConfirmationTTLHours <= 0 {
+		cfg.ConfirmationTTLHours = botDefaultConfirmationTTLHours
+	}
 }
 
 // MCPConfig MCP 外部工具接入配置（M0-01 开关与连接默认值）。
 //
 // 方案：docs/plan/itsm-mcp-external-tool-integration-implementation-plan-2026-09-27.md §4.1。
-// 默认保守：Enabled=false 时对现有系统零行为变化（不建连、不装配组件、工具面不含 MCP）。
+// 默认开启（2026-09-27 变更）：未显式配置时 Enabled=true —— 仅代表「管理面与组件就绪」
+// （路由注册、manager 启动、provider 装配）；服务器、工具与写面仍默认拒绝（D7 不变），
+// 未配置任何服务器时不建连、工具面不含 MCP。Enabled=false 时零装配、零路由（回滚 L1）。
 type MCPConfig struct {
-	// Enabled: mcp.enabled 全局开关；默认 false。
+	// Enabled: mcp.enabled 全局开关；默认 true（显式 false 可彻底关闭）。
 	Enabled bool `mapstructure:"enabled"`
 	// ConnectTimeoutSeconds: mcp.connect_timeout_seconds 建立连接超时（秒），默认 10。
 	ConnectTimeoutSeconds int `mapstructure:"connect_timeout_seconds"`
@@ -134,6 +199,17 @@ type MCPConfig struct {
 	// 且每次调用仍必须经 Gate2（mcp:write）+ Gate3（人工审批）才能执行。
 	// 与 Enabled 的关系：Enabled=false 时本开关无意义（MCP 整体关闭）。
 	WriteEnabled bool `mapstructure:"write_enabled"`
+	// —— 出站安全（M0-05 上线硬门槛；D7 默认拒绝）——
+	//
+	// AllowHTTP: mcp.allow_http 平台级开关，允许 http:// 出站（默认 false = 仅 https）。
+	// AllowPrivateNetworks: mcp.allow_private_networks 平台级开关，允许环回/RFC1918 等私网目标
+	// （默认 false）。二者仅供私有化部署与本地联调（如 127.0.0.1 上的 mock MCP 服务器）；
+	// 生产必须保持 false，负向用例见 mcp/transport/ssrf_test.go 与 M0-05 验收。
+	AllowHTTP            bool `mapstructure:"allow_http"`
+	AllowPrivateNetworks bool `mapstructure:"allow_private_networks"`
+	// AllowedPorts: mcp.allowed_ports 端口 allowlist（逗号分隔，如 "19090,8443"）；
+	// 空 = 仅方案默认端口（https=443 / http=80）。本地 mock 需显式加端口（默认 19090）。
+	AllowedPorts string `mapstructure:"allowed_ports"`
 	// ToolsBudget: mcp.tools_budget 单租户有效工具数预算（M2-03），默认 40；<=0 用默认值。
 	ToolsBudget int `mapstructure:"tools_budget"`
 	// ToolsContextTokens: mcp.tools_context_tokens 工具面 token 占比判定使用的上下文预算，
@@ -183,6 +259,38 @@ func applyMCPDefaults(cfg *MCPConfig) {
 	if cfg.ToolsTokenShare <= 0 {
 		cfg.ToolsTokenShare = mcpDefaultToolsTokenShare
 	}
+}
+
+// mcpEnabledExplicitlyConfigured 判断调用方 config.yaml 是否显式声明了 `mcp.enabled` 键。
+//
+// 用途：区分「未配置 → 默认开启（2026-09-27 变更）」与「显式 false → 保持关闭（回滚 L1）」。
+func mcpEnabledExplicitlyConfigured(rawConfig map[string]interface{}) bool {
+	block, ok := rawConfig["mcp"].(map[string]interface{})
+	if !ok {
+		return false
+	}
+	_, ok = block["enabled"]
+	return ok
+}
+
+// AllowedPortList 解析 mcp.allowed_ports（逗号分隔）为端口列表；空值/非法项忽略。
+func (c MCPConfig) AllowedPortList() []int {
+	raw := strings.TrimSpace(c.AllowedPorts)
+	if raw == "" {
+		return nil
+	}
+	ports := make([]int, 0, 4)
+	for _, part := range strings.Split(raw, ",") {
+		port, err := strconv.Atoi(strings.TrimSpace(part))
+		if err != nil || port <= 0 || port > 65535 {
+			continue
+		}
+		ports = append(ports, port)
+	}
+	if len(ports) == 0 {
+		return nil
+	}
+	return ports
 }
 
 // CloudDiscoveryConfig contains deployment-owned credential material used to
@@ -448,13 +556,35 @@ func LoadConfig() (*Config, error) {
 	// cleanup_enabled 与 cleanup_purge_enabled 保持零值 false（未配置即关闭）。
 	applyAttachmentDefaults(&config.Attachment)
 
-	// MCP 外部工具接入（M0-01）：开关默认关闭；连接/超时默认值见 applyMCPDefaults。
+	// MCP 外部工具接入（M0-01；2026-09-27 起默认开启）：连接/超时默认值见 applyMCPDefaults。
+	// 默认语义：未显式配置 mcp.enabled 且未设置 MCP_ENABLED 时 = true（管理面/组件就绪，
+	// 服务器、工具与写面仍默认拒绝）；config.yaml 或环境变量显式 false 时保持关闭（回滚 L1）。
 	// 环境变量兜底 MCP_ENABLED；其余项由 config.yaml 的 ${MCP_*:默认} 语法解析。
+	if _, envSet := os.LookupEnv("MCP_ENABLED"); !envSet && !mcpEnabledExplicitlyConfigured(rawConfig) {
+		config.MCP.Enabled = true
+	}
 	config.MCP.Enabled = getEnvBoolWithDefault("MCP_ENABLED", config.MCP.Enabled)
+	// 写工具面（L1.5 回滚开关，M1-02）：同样支持环境变量兜底——本地/CI 联调写工具审批链路时
+	// 无需改 config.yaml 即可开启（开启后写工具进入工具面，但每次调用仍需 mcp:write + 人工审批）。
+	config.MCP.WriteEnabled = getEnvBoolWithDefault("MCP_WRITE_ENABLED", config.MCP.WriteEnabled)
+	// 出站安全平台开关（M0-05）：默认严格（仅 https + 公网 + 默认端口）；环境变量兜底，
+	// 便于本地联调（如 127.0.0.1 的 mock MCP 服务器）而无需改 config.yaml。
+	config.MCP.AllowHTTP = getEnvBoolWithDefault("MCP_ALLOW_HTTP", config.MCP.AllowHTTP)
+	config.MCP.AllowPrivateNetworks = getEnvBoolWithDefault("MCP_ALLOW_PRIVATE_NETWORKS", config.MCP.AllowPrivateNetworks)
+	config.MCP.AllowedPorts = getEnvWithDefault("MCP_ALLOWED_PORTS", config.MCP.AllowedPorts)
 	applyMCPDefaults(&config.MCP)
 
 	// Bot 能力落地（BP5）：开关默认关闭；环境变量兜底 BOT_ENABLED。
 	config.Bot.Enabled = getEnvBoolWithDefault("BOT_ENABLED", config.Bot.Enabled)
+	// BP8 预算与护栏：环境变量兜底（部署侧只改环境变量即可调参与回退）。
+	config.Bot.RedactionProfile = getEnvWithDefault("BOT_REDACTION_PROFILE", config.Bot.RedactionProfile)
+	config.Bot.Budget.MaxSteps = getEnvIntWithDefault("BOT_BUDGET_MAX_STEPS", config.Bot.Budget.MaxSteps)
+	config.Bot.Budget.MaxTokens = getEnvIntWithDefault("BOT_BUDGET_MAX_TOKENS", config.Bot.Budget.MaxTokens)
+	config.Bot.Budget.MaxToolCalls = getEnvIntWithDefault("BOT_BUDGET_MAX_TOOL_CALLS", config.Bot.Budget.MaxToolCalls)
+	config.Bot.Budget.ToolTimeoutSeconds = getEnvIntWithDefault("BOT_BUDGET_TOOL_TIMEOUT_SECONDS", config.Bot.Budget.ToolTimeoutSeconds)
+	config.Bot.Budget.MaxOutputBytes = getEnvIntWithDefault("BOT_BUDGET_MAX_OUTPUT_BYTES", config.Bot.Budget.MaxOutputBytes)
+	// B1-05：确认单有效期（小时）。
+	config.Bot.ConfirmationTTLHours = getEnvIntWithDefault("BOT_CONFIRMATION_TTL_HOURS", config.Bot.ConfirmationTTLHours)
 	applyBotDefaults(&config.Bot)
 
 	// RLS 三档开关，默认 off（零风险）。
@@ -527,4 +657,35 @@ func getEnvBoolWithDefault(key string, defaultValue bool) bool {
 	}
 
 	return defaultValue
+}
+
+// getEnvIntWithDefault 读取整型环境变量（支持裸键与 ITSM_ 前缀两种写法）。
+//
+// 空值、非数字或负值一律返回 defaultValue（= 调用方传入的 config.yaml 解析值或硬默认），
+// 即「非法环境变量被忽略而不是静默清零」；若 config.yaml 本身也缺失/非正值，
+// applyXxxDefaults 再兜一层硬默认，保证护栏不会变成「无上限」。
+func getEnvIntWithDefault(key string, defaultValue int) int {
+	for _, candidate := range []string{key, "ITSM_" + strings.ToUpper(key)} {
+		value := strings.TrimSpace(os.Getenv(candidate))
+		if value == "" {
+			continue
+		}
+		parsed, err := strconv.Atoi(value)
+		if err != nil || parsed <= 0 {
+			return defaultValue
+		}
+		return parsed
+	}
+	return defaultValue
+}
+
+// BotToolTimeout 返回单工具执行超时（BP8；默认 30s）。
+//
+// 放在 config 包内提供，避免调用方（RunManager）各自换算秒→Duration 而产生不一致。
+func (c BotBudgetConfig) BotToolTimeout() time.Duration {
+	seconds := c.ToolTimeoutSeconds
+	if seconds <= 0 {
+		seconds = botDefaultToolTimeoutSeconds
+	}
+	return time.Duration(seconds) * time.Second
 }

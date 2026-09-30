@@ -8,12 +8,16 @@ import (
 
 // builtinToolCount 内置工具总数。新增/删除工具时必须同步更新本文件与风险矩阵
 // （方案 B0-01 要点 3：守卫测试保证全量标注，防止元数据漂移）。
-const builtinToolCount = 14
+//
+// 2026-09-30：14 → 17——B3-06 新增 3 个 plan 工具（draft_ticket_fields /
+// analyze_ci_impact_plan / draft_kb_article）时未同步本计数，守卫测试自此恒失败；
+// 本次一并补齐（这 3 个工具在注册表已按 plan 完整标注）。
+const builtinToolCount = 17
 
 // wantBuiltinRisk 是 B0-01 冻结的风险矩阵（对齐阶段一报告 §5.5）：
 // 读工具 read/plan；写工具按影响面 act_low → act_medium → act_high。
 var wantBuiltinRisk = map[string]string{
-	// 读 / 计划（8）
+	// 读 / 计划（11）
 	"get_incident_stats":   ToolRiskRead,
 	"list_kb":              ToolRiskRead,
 	"list_tickets":         ToolRiskRead,
@@ -22,6 +26,10 @@ var wantBuiltinRisk = map[string]string{
 	"get_ci":               ToolRiskRead,
 	"get_ci_relationships": ToolRiskRead,
 	"get_ci_impact":        ToolRiskPlan,
+	// B3-06 plan 工具（3）：只读草案生成，产物落 bot_artifacts
+	"draft_ticket_fields":    ToolRiskPlan,
+	"analyze_ci_impact_plan": ToolRiskPlan,
+	"draft_kb_article":       ToolRiskPlan,
 	// 写（6）
 	"link_ticket_ci":         ToolRiskActLow,
 	"create_ticket":          ToolRiskActLow,
@@ -31,7 +39,7 @@ var wantBuiltinRisk = map[string]string{
 	"delete_ci_relationship": ToolRiskActHigh,
 }
 
-// TestBuiltinToolMetadataComplete 覆盖 AB0-01：14/14 内置工具含
+// TestBuiltinToolMetadataComplete 覆盖 AB0-01：17/17 内置工具含
 // risk/category/dry-run/幂等/超时/输出上限/脱敏档标注；缺标注即失败。
 func TestBuiltinToolMetadataComplete(t *testing.T) {
 	reg := NewToolRegistry(nil, nil, nil, nil)

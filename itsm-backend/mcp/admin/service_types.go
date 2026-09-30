@@ -209,6 +209,15 @@ type ServerSummary struct {
 type ServerListResult struct {
 	Items   []ServerView  `json:"items"`
 	Summary ServerSummary `json:"summary"`
+	// Capabilities 是 M2 能力开关的展示块（页面渲染与门禁同源；未注入能力源时为 nil）。
+	Capabilities *CapabilityView `json:"capabilities,omitempty"`
+}
+
+// CapabilityView 是 M2 能力开关的展示块（snake_case，与 MCP 管理 API 契约一致）。
+type CapabilityView struct {
+	MCPEnabled      bool `json:"mcp_enabled"`
+	MCPWriteEnabled bool `json:"mcp_write_enabled"`
+	BotEnabled      bool `json:"bot_enabled"`
 }
 
 // ToolView 是工具治理视图（三态分离：enabled/healthy/configured）。

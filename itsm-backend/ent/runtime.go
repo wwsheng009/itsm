@@ -14,6 +14,12 @@ import (
 	"itsm-backend/ent/attachment"
 	"itsm-backend/ent/auditlog"
 	"itsm-backend/ent/bootstraptoken"
+	"itsm-backend/ent/botartifact"
+	"itsm-backend/ent/botevent"
+	"itsm-backend/ent/botrun"
+	"itsm-backend/ent/botstep"
+	"itsm-backend/ent/bottemplate"
+	"itsm-backend/ent/bottoolgrant"
 	"itsm-backend/ent/bpmnpermission"
 	"itsm-backend/ent/cabmember"
 	"itsm-backend/ent/change"
@@ -729,6 +735,276 @@ func init() {
 	bootstraptokenDescTenantID := bootstraptokenFields[5].Descriptor()
 	// bootstraptoken.TenantIDValidator is a validator for the "tenant_id" field. It is called by the builders before save.
 	bootstraptoken.TenantIDValidator = bootstraptokenDescTenantID.Validators[0].(func(int) error)
+	botartifactFields := schema.BotArtifact{}.Fields()
+	_ = botartifactFields
+	// botartifactDescTenantID is the schema descriptor for tenant_id field.
+	botartifactDescTenantID := botartifactFields[0].Descriptor()
+	// botartifact.TenantIDValidator is a validator for the "tenant_id" field. It is called by the builders before save.
+	botartifact.TenantIDValidator = botartifactDescTenantID.Validators[0].(func(int) error)
+	// botartifactDescOwnerUserID is the schema descriptor for owner_user_id field.
+	botartifactDescOwnerUserID := botartifactFields[1].Descriptor()
+	// botartifact.OwnerUserIDValidator is a validator for the "owner_user_id" field. It is called by the builders before save.
+	botartifact.OwnerUserIDValidator = botartifactDescOwnerUserID.Validators[0].(func(int) error)
+	// botartifactDescKind is the schema descriptor for kind field.
+	botartifactDescKind := botartifactFields[4].Descriptor()
+	// botartifact.KindValidator is a validator for the "kind" field. It is called by the builders before save.
+	botartifact.KindValidator = botartifactDescKind.Validators[0].(func(string) error)
+	// botartifactDescToolName is the schema descriptor for tool_name field.
+	botartifactDescToolName := botartifactFields[5].Descriptor()
+	// botartifact.ToolNameValidator is a validator for the "tool_name" field. It is called by the builders before save.
+	botartifact.ToolNameValidator = botartifactDescToolName.Validators[0].(func(string) error)
+	// botartifactDescTitle is the schema descriptor for title field.
+	botartifactDescTitle := botartifactFields[6].Descriptor()
+	// botartifact.DefaultTitle holds the default value on creation for the title field.
+	botartifact.DefaultTitle = botartifactDescTitle.Default.(string)
+	// botartifact.TitleValidator is a validator for the "title" field. It is called by the builders before save.
+	botartifact.TitleValidator = botartifactDescTitle.Validators[0].(func(string) error)
+	// botartifactDescContentJSON is the schema descriptor for content_json field.
+	botartifactDescContentJSON := botartifactFields[7].Descriptor()
+	// botartifact.DefaultContentJSON holds the default value on creation for the content_json field.
+	botartifact.DefaultContentJSON = botartifactDescContentJSON.Default.(string)
+	// botartifactDescEvidenceJSON is the schema descriptor for evidence_json field.
+	botartifactDescEvidenceJSON := botartifactFields[8].Descriptor()
+	// botartifact.DefaultEvidenceJSON holds the default value on creation for the evidence_json field.
+	botartifact.DefaultEvidenceJSON = botartifactDescEvidenceJSON.Default.(string)
+	// botartifactDescCreatedAt is the schema descriptor for created_at field.
+	botartifactDescCreatedAt := botartifactFields[9].Descriptor()
+	// botartifact.DefaultCreatedAt holds the default value on creation for the created_at field.
+	botartifact.DefaultCreatedAt = botartifactDescCreatedAt.Default.(func() time.Time)
+	boteventFields := schema.BotEvent{}.Fields()
+	_ = boteventFields
+	// boteventDescTenantID is the schema descriptor for tenant_id field.
+	boteventDescTenantID := boteventFields[0].Descriptor()
+	// botevent.TenantIDValidator is a validator for the "tenant_id" field. It is called by the builders before save.
+	botevent.TenantIDValidator = boteventDescTenantID.Validators[0].(func(int) error)
+	// boteventDescSeq is the schema descriptor for seq field.
+	boteventDescSeq := boteventFields[2].Descriptor()
+	// botevent.SeqValidator is a validator for the "seq" field. It is called by the builders before save.
+	botevent.SeqValidator = boteventDescSeq.Validators[0].(func(int) error)
+	// boteventDescType is the schema descriptor for type field.
+	boteventDescType := boteventFields[3].Descriptor()
+	// botevent.TypeValidator is a validator for the "type" field. It is called by the builders before save.
+	botevent.TypeValidator = boteventDescType.Validators[0].(func(string) error)
+	// boteventDescPayloadJSON is the schema descriptor for payload_json field.
+	boteventDescPayloadJSON := boteventFields[4].Descriptor()
+	// botevent.DefaultPayloadJSON holds the default value on creation for the payload_json field.
+	botevent.DefaultPayloadJSON = boteventDescPayloadJSON.Default.(string)
+	// boteventDescCreatedAt is the schema descriptor for created_at field.
+	boteventDescCreatedAt := boteventFields[5].Descriptor()
+	// botevent.DefaultCreatedAt holds the default value on creation for the created_at field.
+	botevent.DefaultCreatedAt = boteventDescCreatedAt.Default.(func() time.Time)
+	botrunFields := schema.BotRun{}.Fields()
+	_ = botrunFields
+	// botrunDescTenantID is the schema descriptor for tenant_id field.
+	botrunDescTenantID := botrunFields[0].Descriptor()
+	// botrun.TenantIDValidator is a validator for the "tenant_id" field. It is called by the builders before save.
+	botrun.TenantIDValidator = botrunDescTenantID.Validators[0].(func(int) error)
+	// botrunDescEntrypoint is the schema descriptor for entrypoint field.
+	botrunDescEntrypoint := botrunFields[3].Descriptor()
+	// botrun.DefaultEntrypoint holds the default value on creation for the entrypoint field.
+	botrun.DefaultEntrypoint = botrunDescEntrypoint.Default.(string)
+	// botrun.EntrypointValidator is a validator for the "entrypoint" field. It is called by the builders before save.
+	botrun.EntrypointValidator = botrunDescEntrypoint.Validators[0].(func(string) error)
+	// botrunDescTargetType is the schema descriptor for target_type field.
+	botrunDescTargetType := botrunFields[4].Descriptor()
+	// botrun.DefaultTargetType holds the default value on creation for the target_type field.
+	botrun.DefaultTargetType = botrunDescTargetType.Default.(string)
+	// botrun.TargetTypeValidator is a validator for the "target_type" field. It is called by the builders before save.
+	botrun.TargetTypeValidator = botrunDescTargetType.Validators[0].(func(string) error)
+	// botrunDescStatus is the schema descriptor for status field.
+	botrunDescStatus := botrunFields[6].Descriptor()
+	// botrun.DefaultStatus holds the default value on creation for the status field.
+	botrun.DefaultStatus = botrunDescStatus.Default.(string)
+	// botrun.StatusValidator is a validator for the "status" field. It is called by the builders before save.
+	botrun.StatusValidator = botrunDescStatus.Validators[0].(func(string) error)
+	// botrunDescModel is the schema descriptor for model field.
+	botrunDescModel := botrunFields[7].Descriptor()
+	// botrun.DefaultModel holds the default value on creation for the model field.
+	botrun.DefaultModel = botrunDescModel.Default.(string)
+	// botrun.ModelValidator is a validator for the "model" field. It is called by the builders before save.
+	botrun.ModelValidator = botrunDescModel.Validators[0].(func(string) error)
+	// botrunDescBudgetJSON is the schema descriptor for budget_json field.
+	botrunDescBudgetJSON := botrunFields[8].Descriptor()
+	// botrun.DefaultBudgetJSON holds the default value on creation for the budget_json field.
+	botrun.DefaultBudgetJSON = botrunDescBudgetJSON.Default.(string)
+	// botrunDescErrorCode is the schema descriptor for error_code field.
+	botrunDescErrorCode := botrunFields[9].Descriptor()
+	// botrun.DefaultErrorCode holds the default value on creation for the error_code field.
+	botrun.DefaultErrorCode = botrunDescErrorCode.Default.(string)
+	// botrun.ErrorCodeValidator is a validator for the "error_code" field. It is called by the builders before save.
+	botrun.ErrorCodeValidator = botrunDescErrorCode.Validators[0].(func(string) error)
+	// botrunDescStartedAt is the schema descriptor for started_at field.
+	botrunDescStartedAt := botrunFields[10].Descriptor()
+	// botrun.DefaultStartedAt holds the default value on creation for the started_at field.
+	botrun.DefaultStartedAt = botrunDescStartedAt.Default.(func() time.Time)
+	// botrunDescCreatedAt is the schema descriptor for created_at field.
+	botrunDescCreatedAt := botrunFields[12].Descriptor()
+	// botrun.DefaultCreatedAt holds the default value on creation for the created_at field.
+	botrun.DefaultCreatedAt = botrunDescCreatedAt.Default.(func() time.Time)
+	// botrunDescUpdatedAt is the schema descriptor for updated_at field.
+	botrunDescUpdatedAt := botrunFields[13].Descriptor()
+	// botrun.DefaultUpdatedAt holds the default value on creation for the updated_at field.
+	botrun.DefaultUpdatedAt = botrunDescUpdatedAt.Default.(func() time.Time)
+	// botrun.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
+	botrun.UpdateDefaultUpdatedAt = botrunDescUpdatedAt.UpdateDefault.(func() time.Time)
+	botstepFields := schema.BotStep{}.Fields()
+	_ = botstepFields
+	// botstepDescTenantID is the schema descriptor for tenant_id field.
+	botstepDescTenantID := botstepFields[0].Descriptor()
+	// botstep.TenantIDValidator is a validator for the "tenant_id" field. It is called by the builders before save.
+	botstep.TenantIDValidator = botstepDescTenantID.Validators[0].(func(int) error)
+	// botstepDescStepIndex is the schema descriptor for step_index field.
+	botstepDescStepIndex := botstepFields[2].Descriptor()
+	// botstep.StepIndexValidator is a validator for the "step_index" field. It is called by the builders before save.
+	botstep.StepIndexValidator = botstepDescStepIndex.Validators[0].(func(int) error)
+	// botstepDescType is the schema descriptor for type field.
+	botstepDescType := botstepFields[3].Descriptor()
+	// botstep.TypeValidator is a validator for the "type" field. It is called by the builders before save.
+	botstep.TypeValidator = botstepDescType.Validators[0].(func(string) error)
+	// botstepDescPayloadRef is the schema descriptor for payload_ref field.
+	botstepDescPayloadRef := botstepFields[4].Descriptor()
+	// botstep.DefaultPayloadRef holds the default value on creation for the payload_ref field.
+	botstep.DefaultPayloadRef = botstepDescPayloadRef.Default.(string)
+	// botstep.PayloadRefValidator is a validator for the "payload_ref" field. It is called by the builders before save.
+	botstep.PayloadRefValidator = botstepDescPayloadRef.Validators[0].(func(string) error)
+	// botstepDescDurationMs is the schema descriptor for duration_ms field.
+	botstepDescDurationMs := botstepFields[5].Descriptor()
+	// botstep.DefaultDurationMs holds the default value on creation for the duration_ms field.
+	botstep.DefaultDurationMs = botstepDescDurationMs.Default.(int)
+	// botstepDescErrorCode is the schema descriptor for error_code field.
+	botstepDescErrorCode := botstepFields[6].Descriptor()
+	// botstep.DefaultErrorCode holds the default value on creation for the error_code field.
+	botstep.DefaultErrorCode = botstepDescErrorCode.Default.(string)
+	// botstep.ErrorCodeValidator is a validator for the "error_code" field. It is called by the builders before save.
+	botstep.ErrorCodeValidator = botstepDescErrorCode.Validators[0].(func(string) error)
+	// botstepDescCreatedAt is the schema descriptor for created_at field.
+	botstepDescCreatedAt := botstepFields[7].Descriptor()
+	// botstep.DefaultCreatedAt holds the default value on creation for the created_at field.
+	botstep.DefaultCreatedAt = botstepDescCreatedAt.Default.(func() time.Time)
+	bottemplateFields := schema.BotTemplate{}.Fields()
+	_ = bottemplateFields
+	// bottemplateDescTenantID is the schema descriptor for tenant_id field.
+	bottemplateDescTenantID := bottemplateFields[0].Descriptor()
+	// bottemplate.TenantIDValidator is a validator for the "tenant_id" field. It is called by the builders before save.
+	bottemplate.TenantIDValidator = bottemplateDescTenantID.Validators[0].(func(int) error)
+	// bottemplateDescSlug is the schema descriptor for slug field.
+	bottemplateDescSlug := bottemplateFields[1].Descriptor()
+	// bottemplate.SlugValidator is a validator for the "slug" field. It is called by the builders before save.
+	bottemplate.SlugValidator = func() func(string) error {
+		validators := bottemplateDescSlug.Validators
+		fns := [...]func(string) error{
+			validators[0].(func(string) error),
+			validators[1].(func(string) error),
+		}
+		return func(slug string) error {
+			for _, fn := range fns {
+				if err := fn(slug); err != nil {
+					return err
+				}
+			}
+			return nil
+		}
+	}()
+	// bottemplateDescName is the schema descriptor for name field.
+	bottemplateDescName := bottemplateFields[2].Descriptor()
+	// bottemplate.NameValidator is a validator for the "name" field. It is called by the builders before save.
+	bottemplate.NameValidator = func() func(string) error {
+		validators := bottemplateDescName.Validators
+		fns := [...]func(string) error{
+			validators[0].(func(string) error),
+			validators[1].(func(string) error),
+		}
+		return func(name string) error {
+			for _, fn := range fns {
+				if err := fn(name); err != nil {
+					return err
+				}
+			}
+			return nil
+		}
+	}()
+	// bottemplateDescAudience is the schema descriptor for audience field.
+	bottemplateDescAudience := bottemplateFields[3].Descriptor()
+	// bottemplate.DefaultAudience holds the default value on creation for the audience field.
+	bottemplate.DefaultAudience = bottemplateDescAudience.Default.(string)
+	// bottemplate.AudienceValidator is a validator for the "audience" field. It is called by the builders before save.
+	bottemplate.AudienceValidator = bottemplateDescAudience.Validators[0].(func(string) error)
+	// bottemplateDescRiskLimit is the schema descriptor for risk_limit field.
+	bottemplateDescRiskLimit := bottemplateFields[4].Descriptor()
+	// bottemplate.DefaultRiskLimit holds the default value on creation for the risk_limit field.
+	bottemplate.DefaultRiskLimit = bottemplateDescRiskLimit.Default.(string)
+	// bottemplate.RiskLimitValidator is a validator for the "risk_limit" field. It is called by the builders before save.
+	bottemplate.RiskLimitValidator = bottemplateDescRiskLimit.Validators[0].(func(string) error)
+	// bottemplateDescEntrypointsJSON is the schema descriptor for entrypoints_json field.
+	bottemplateDescEntrypointsJSON := bottemplateFields[5].Descriptor()
+	// bottemplate.DefaultEntrypointsJSON holds the default value on creation for the entrypoints_json field.
+	bottemplate.DefaultEntrypointsJSON = bottemplateDescEntrypointsJSON.Default.(string)
+	// bottemplateDescSystemPromptRef is the schema descriptor for system_prompt_ref field.
+	bottemplateDescSystemPromptRef := bottemplateFields[6].Descriptor()
+	// bottemplate.DefaultSystemPromptRef holds the default value on creation for the system_prompt_ref field.
+	bottemplate.DefaultSystemPromptRef = bottemplateDescSystemPromptRef.Default.(string)
+	// bottemplate.SystemPromptRefValidator is a validator for the "system_prompt_ref" field. It is called by the builders before save.
+	bottemplate.SystemPromptRefValidator = bottemplateDescSystemPromptRef.Validators[0].(func(string) error)
+	// bottemplateDescStatus is the schema descriptor for status field.
+	bottemplateDescStatus := bottemplateFields[7].Descriptor()
+	// bottemplate.DefaultStatus holds the default value on creation for the status field.
+	bottemplate.DefaultStatus = bottemplateDescStatus.Default.(string)
+	// bottemplate.StatusValidator is a validator for the "status" field. It is called by the builders before save.
+	bottemplate.StatusValidator = bottemplateDescStatus.Validators[0].(func(string) error)
+	// bottemplateDescCreatedAt is the schema descriptor for created_at field.
+	bottemplateDescCreatedAt := bottemplateFields[8].Descriptor()
+	// bottemplate.DefaultCreatedAt holds the default value on creation for the created_at field.
+	bottemplate.DefaultCreatedAt = bottemplateDescCreatedAt.Default.(func() time.Time)
+	// bottemplateDescUpdatedAt is the schema descriptor for updated_at field.
+	bottemplateDescUpdatedAt := bottemplateFields[9].Descriptor()
+	// bottemplate.DefaultUpdatedAt holds the default value on creation for the updated_at field.
+	bottemplate.DefaultUpdatedAt = bottemplateDescUpdatedAt.Default.(func() time.Time)
+	// bottemplate.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
+	bottemplate.UpdateDefaultUpdatedAt = bottemplateDescUpdatedAt.UpdateDefault.(func() time.Time)
+	bottoolgrantFields := schema.BotToolGrant{}.Fields()
+	_ = bottoolgrantFields
+	// bottoolgrantDescTenantID is the schema descriptor for tenant_id field.
+	bottoolgrantDescTenantID := bottoolgrantFields[0].Descriptor()
+	// bottoolgrant.TenantIDValidator is a validator for the "tenant_id" field. It is called by the builders before save.
+	bottoolgrant.TenantIDValidator = bottoolgrantDescTenantID.Validators[0].(func(int) error)
+	// bottoolgrantDescToolName is the schema descriptor for tool_name field.
+	bottoolgrantDescToolName := bottoolgrantFields[2].Descriptor()
+	// bottoolgrant.ToolNameValidator is a validator for the "tool_name" field. It is called by the builders before save.
+	bottoolgrant.ToolNameValidator = func() func(string) error {
+		validators := bottoolgrantDescToolName.Validators
+		fns := [...]func(string) error{
+			validators[0].(func(string) error),
+			validators[1].(func(string) error),
+		}
+		return func(tool_name string) error {
+			for _, fn := range fns {
+				if err := fn(tool_name); err != nil {
+					return err
+				}
+			}
+			return nil
+		}
+	}()
+	// bottoolgrantDescRiskLimit is the schema descriptor for risk_limit field.
+	bottoolgrantDescRiskLimit := bottoolgrantFields[3].Descriptor()
+	// bottoolgrant.DefaultRiskLimit holds the default value on creation for the risk_limit field.
+	bottoolgrant.DefaultRiskLimit = bottoolgrantDescRiskLimit.Default.(string)
+	// bottoolgrant.RiskLimitValidator is a validator for the "risk_limit" field. It is called by the builders before save.
+	bottoolgrant.RiskLimitValidator = bottoolgrantDescRiskLimit.Validators[0].(func(string) error)
+	// bottoolgrantDescArgsPolicyJSON is the schema descriptor for args_policy_json field.
+	bottoolgrantDescArgsPolicyJSON := bottoolgrantFields[4].Descriptor()
+	// bottoolgrant.DefaultArgsPolicyJSON holds the default value on creation for the args_policy_json field.
+	bottoolgrant.DefaultArgsPolicyJSON = bottoolgrantDescArgsPolicyJSON.Default.(string)
+	// bottoolgrantDescCreatedAt is the schema descriptor for created_at field.
+	bottoolgrantDescCreatedAt := bottoolgrantFields[5].Descriptor()
+	// bottoolgrant.DefaultCreatedAt holds the default value on creation for the created_at field.
+	bottoolgrant.DefaultCreatedAt = bottoolgrantDescCreatedAt.Default.(func() time.Time)
+	// bottoolgrantDescUpdatedAt is the schema descriptor for updated_at field.
+	bottoolgrantDescUpdatedAt := bottoolgrantFields[6].Descriptor()
+	// bottoolgrant.DefaultUpdatedAt holds the default value on creation for the updated_at field.
+	bottoolgrant.DefaultUpdatedAt = bottoolgrantDescUpdatedAt.Default.(func() time.Time)
+	// bottoolgrant.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
+	bottoolgrant.UpdateDefaultUpdatedAt = bottoolgrantDescUpdatedAt.UpdateDefault.(func() time.Time)
 	cabmemberFields := schema.CABMember{}.Fields()
 	_ = cabmemberFields
 	// cabmemberDescUserID is the schema descriptor for user_id field.
@@ -1417,6 +1693,10 @@ func init() {
 	conversationDescTitle := conversationFields[3].Descriptor()
 	// conversation.DefaultTitle holds the default value on creation for the title field.
 	conversation.DefaultTitle = conversationDescTitle.Default.(string)
+	// conversationDescBotID is the schema descriptor for bot_id field.
+	conversationDescBotID := conversationFields[4].Descriptor()
+	// conversation.DefaultBotID holds the default value on creation for the bot_id field.
+	conversation.DefaultBotID = conversationDescBotID.Default.(int)
 	customerbranchFields := schema.CustomerBranch{}.Fields()
 	_ = customerbranchFields
 	// customerbranchDescTenantID is the schema descriptor for tenant_id field.

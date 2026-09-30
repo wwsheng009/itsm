@@ -1,4 +1,4 @@
-import { useNavigate } from 'react-router';
+import { useLocation, useNavigate } from 'react-router';
 
 /**
  * AI 智能助手 — 流式回答 + 引用来源 + 会话历史（ChatGPT / DeepSeek 风格会话界面）
@@ -53,6 +53,7 @@ import {
 
 import {
   AIApi,
+  aiApproveTool,
   aiChatStream,
   deleteConversation,
   getConversationMessages,
@@ -60,6 +61,10 @@ import {
   type ConversationSummary,
   type RagAnswer,
   type AIToolStreamEvent,
+  type AIRunStepEvent,
+  type ToolInvocationDetail,
+  type BotOption,
+  type AgentBotsCapabilities,
 } from '@/lib/api/ai-api';
 import {
   LLM_PROVIDER_DISABLED,
@@ -68,13 +73,24 @@ import {
 } from '@/lib/api/llm-provider-api';
 import { useLLMProviderFeature } from '@/lib/hooks/use-llm-provider-feature';
 import { usePermissions } from '@/lib/hooks/use-permissions';
+import { useI18n } from '@/lib/i18n/useI18n';
 import {
   buildArticlePrefillState,
   buildConversationArticlePrefillState,
 } from '@/lib/knowledge/ai-article-prefill';
+import {
+  askAIEntrypointLabel,
+  buildAskAIRequestScope,
+  readAskAIScope,
+  type AskAIScope,
+} from '@/lib/ai/ask-ai-scope';
 import MarkdownMessage from './MarkdownMessage';
 import ToolCallTimeline, { mergeToolEvents } from './tool-call-timeline';
 import ToolApprovalCard from './tool-approval-card';
+import ConfirmationDrawer from './confirmation-drawer';
+import EvidencePanel, { type EvidenceTargetMeta } from './evidence-panel';
+import RunStatusBar, { type RunSnapshot } from './run-status-bar';
+import BotSelector from './BotSelector';
 
 const { Text } = Typography;
 
@@ -125,6 +141,13 @@ interface ChatMessage {
    * 状态刷新由卡片自身的「刷新状态」按钮触发（不轮询）。
    */
   pendingApprovals?: number[];
+  /**
+   * B1-08：v2 运行快照（`run_started`/`step`/`done`/`error` 增量维护）。
+   * 旧后端不产生 v2 事件 → 保持 undefined，状态条与证据面板均不渲染。
+   */
+  run?: RunSnapshot;
+  /** B1-08：v2 步骤（按 stepIndex 去重、上限 100 条兜底内存）。 */
+  steps?: AIRunStepEvent[];
   /** 生效实例（done 事件回带；开关关闭时缺省）。 */
   providerInfo?: { provider?: string; providerSource?: string };
   error?: string;
@@ -230,6 +253,13 @@ interface ChatMessageItemProps {
   onCreateArticle: (message: ChatMessage) => void;
   /** M1-05：跳转外置审批页（一期边界 = 外置审批闭环，卡片只提示与跳转）。 */
   onOpenApproval: (invocationId: number) => void;
+  /**
+   * B1-07：对话内确认。缺省时保持一期行为（卡片只提示 + 跳转）。
+   * 注入后由卡片提供「确认 / 拒绝」入口，抽屉负责倒计时与原因必填。
+   */
+  onRequestConfirm?: (invocationId: number) => void;
+  /** B1-07：确认后的刷新回调（状态变化后让外层刷新会话/审计视图）。 */
+  onConfirmed?: () => void;
 }
 
 /** 单条消息：用户 = 右对齐气泡；助手 = 头像 + Markdown 正文 + 操作区。 */
@@ -238,10 +268,17 @@ const ChatMessageItem: React.FC<ChatMessageItemProps> = ({
   providerLabel,
   onCreateArticle,
   onOpenApproval,
+  onRequestConfirm,
+  onConfirmed,
 }) => {
   const { token } = theme.useToken();
   const [copied, setCopied] = useState(false);
   const copyTimerRef = useRef<number | null>(null);
+  // B1-07：对话内确认抽屉（仅在 BusinessBot 注入 onRequestConfirm 时启用）。
+  const [confirmTarget, setConfirmTarget] = useState<ToolInvocationDetail | null>(null);
+  const [confirmError, setConfirmError] = useState<string | undefined>(undefined);
+  // B1-08：invocation id → 目标对象元信息（卡片拉取详情时顺带汇总，零额外请求）。
+  const [detailsById, setDetailsById] = useState<Record<number, EvidenceTargetMeta>>({});
 
   useEffect(
     () => () => {
@@ -352,12 +389,77 @@ const ChatMessageItem: React.FC<ChatMessageItemProps> = ({
             provider={entry.provider}
             server={entry.server}
             onOpenApproval={onOpenApproval}
+            onLoaded={detail => {
+              setDetailsById(prev => ({
+                ...prev,
+                [detail.id]: {
+                  targetType: detail.targetType,
+                  targetId: detail.targetId,
+                  supportRef: detail.supportRef,
+                },
+              }));
+            }}
+            onRequestConfirm={
+              onRequestConfirm
+                ? detail => {
+                    setConfirmError(undefined);
+                    setConfirmTarget(detail);
+                  }
+                : undefined
+            }
           />
         ))}
 
-        {/* 工具调用时间线（M1-04）：仅 SSE 事件驱动；无事件时不渲染（旧后端/事件丢失降级）。
-            pending 条目由上方卡片承载，时间线不再重复展示。 */}
-        <ToolCallTimeline events={message.toolEvents} hideStatuses={PENDING_HIDDEN_STATUSES} />
+        {/* B1-08 运行状态条：仅在收到 v2 `run_started` 时渲染（旧后端不产生 → 无变化）。 */}
+        <RunStatusBar
+          info={
+            message.run
+              ? {
+                  ...message.run,
+                  providerLabel: message.providerInfo?.provider
+                    ? providerLabel(message.providerInfo.provider)
+                    : undefined,
+                }
+              : undefined
+          }
+        />
+
+        {/* 过程证据（B1-08）：有 v2 步骤时用证据面板（含目标/依据），否则回退 M1-04 时间线。
+            pending 条目由上方卡片承载，两者都不重复展示。 */}
+        {message.steps && message.steps.length > 0 ? (
+          <EvidencePanel
+            steps={message.steps}
+            toolEvents={message.toolEvents}
+            detailsByInvocation={detailsById}
+          />
+        ) : (
+          <ToolCallTimeline events={message.toolEvents} hideStatuses={PENDING_HIDDEN_STATUSES} />
+        )}
+
+        {/* B1-07：对话内确认抽屉（仅注入 onRequestConfirm 时可用；决策走 B1-05 状态机）。 */}
+        {onRequestConfirm ? (
+          <ConfirmationDrawer
+            open={confirmTarget !== null}
+            detail={confirmTarget}
+            errorMessage={confirmError}
+            onClose={() => {
+              setConfirmTarget(null);
+              setConfirmError(undefined);
+            }}
+            onDecision={async (approve, reason) => {
+              if (!confirmTarget) return;
+              try {
+                await aiApproveTool(confirmTarget.id, { approve, reason: reason || undefined });
+                setConfirmTarget(null);
+                setConfirmError(undefined);
+                onConfirmed?.();
+              } catch (err) {
+                // 过期/冲突/队列不可用等：错误语义由后端给出，抽屉内可见地失败并保留上下文。
+                setConfirmError((err as Error)?.message || '确认操作失败，请稍后重试');
+              }
+            }}
+          />
+        ) : null}
 
         {message.sources && message.sources.length > 0 ? (
           <SourceList sources={message.sources} />
@@ -474,6 +576,8 @@ const SourceList: React.FC<{ sources: RagAnswer[] }> = ({ sources }) => {
 
 const AIChat: React.FC = () => {
   const navigate = useNavigate();
+  const location = useLocation();
+  const { t } = useI18n();
   const { token } = theme.useToken();
   const { hasPermission } = usePermissions();
   // 「设为我的默认 / 清除默认」写的是 PUT /ai/user-preference，仍是 system:write（P1 只放开读端点）
@@ -485,6 +589,11 @@ const AIChat: React.FC = () => {
     typeof window === 'undefined' ? true : window.innerWidth >= 768
   );
   const [query, setQuery] = useState('');
+  // B3-02：页面 launcher 携带的入口上下文（路由 state，一次性；可手动清除）。
+  // 契约与校验见 lib/ai/ask-ai-scope（非法 state 一律按「无上下文」处理）。
+  const [scopeDismissed, setScopeDismissed] = useState(false);
+  const entryScope = useMemo<AskAIScope | null>(() => readAskAIScope(location.state), [location.state]);
+  const activeScope = scopeDismissed ? null : entryScope;
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [convId, setConvId] = useState<number | undefined>(undefined);
   const [streaming, setStreaming] = useState(false);
@@ -501,6 +610,34 @@ const AIChat: React.FC = () => {
   const canSwitchProvider = feature.enabled && feature.providers.length > 1;
   const [selectedProvider, setSelectedProvider] = useState<string | undefined>(undefined);
   const [providerNotice, setProviderNotice] = useState<string | null>(null);
+
+  // B2-04 工作区 Bot 选择器：候选列表按当前角色 audience 过滤（端点未开启 → 空数组 →
+  // 选择器不渲染，行为与引入该能力前一致）。选择仅对**新会话**生效。
+  const [bots, setBots] = useState<BotOption[]>([]);
+  // 展示用能力块：与候选列表同一次请求下发（不新增请求），用于 bot.enabled=false 的禁用态。
+  const [botCapabilities, setBotCapabilities] = useState<AgentBotsCapabilities | null>(null);
+  const [selectedBotId, setSelectedBotId] = useState<number | null>(null);
+  useEffect(() => {
+    let alive = true;
+    AIApi.listVisibleBotsWithCapabilities()
+      .then(result => {
+        if (!alive) return;
+        setBots(result.items);
+        setBotCapabilities(result.capabilities);
+        // 能力已关闭：清空本地选择，避免继续携带失效的 botId（后端策略同时会降级）。
+        if (result.capabilities?.botEnabled === false) setSelectedBotId(null);
+      })
+      .catch(() => {
+        // listVisibleBotsWithCapabilities 内部已兜底为空；此分支仅防未预期异常。
+        if (alive) {
+          setBots([]);
+          setBotCapabilities(null);
+        }
+      });
+    return () => {
+      alive = false;
+    };
+  }, []);
 
   const chatCss = useMemo(() => buildChatCss(token), [token]);
 
@@ -544,6 +681,14 @@ const AIChat: React.FC = () => {
     },
     [navigate]
   );
+
+  /**
+   * B1-07：启用对话内确认入口。
+   *
+   * 抽屉由消息项本地托管（确认单详情在卡片拉取后直接传入，避免二次请求）；
+   * 这里只保留调用点用于埋点/扩展，不改变渲染路径。
+   */
+  const handleRequestConfirm = useCallback((_invocationId: number) => undefined, []);
 
   // 所选实例在可用列表中消失（被禁用/删除）→ 清除选择并提示，回退默认（§6.2 场景 5）。
   useEffect(() => {
@@ -707,6 +852,31 @@ const AIChat: React.FC = () => {
     );
   }, []);
 
+  /**
+   * 追加 v2 步骤事件（B1-08）：按 `stepIndex` 去重（B1-03 兼容层可能重放同一帧），
+   * 上限 100 条兜底内存；运行快照同步更新步骤数与最近步骤耗时/类型。
+   */
+  const appendRunStep = useCallback((assistantId: string, step: AIRunStepEvent) => {
+    setMessages(prev =>
+      prev.map(m => {
+        if (m.id !== assistantId) return m;
+        const steps = [...(m.steps ?? []).filter(s => s.stepIndex !== step.stepIndex), step]
+          .sort((a, b) => a.stepIndex - b.stepIndex)
+          .slice(-100);
+        return {
+          ...m,
+          steps,
+          run: {
+            ...(m.run ?? { status: 'running' as const }),
+            stepCount: steps.length,
+            lastStepType: step.type,
+            lastDurationMs: step.durationMs,
+          },
+        };
+      })
+    );
+  }, []);
+
   const runStreaming = useCallback(
     async (userMsg: ChatMessage, assistantId: string) => {
       const controller = new AbortController();
@@ -720,6 +890,9 @@ const AIChat: React.FC = () => {
             conversationId: convId,
             limit: 5,
             provider: selectedProvider,
+            botId: selectedBotId ?? undefined,
+            // B3-02：入口上下文（无 launcher 上下文时为空对象，请求体与现状一致）。
+            ...buildAskAIRequestScope(activeScope),
             signal: controller.signal,
           },
           {
@@ -732,15 +905,46 @@ const AIChat: React.FC = () => {
             onToolEvent: event => {
               appendToolEvent(assistantId, event);
             },
+            // B1-08：v2 运行事件（旧后端不发送 → 不产生状态条/证据面板，渲染零影响）。
+            onRunStarted: run => {
+              updateAssistant(assistantId, {
+                run: { runId: run.runId, status: 'running', startedAt: Date.now() },
+              });
+            },
+            onStep: step => {
+              appendRunStep(assistantId, step);
+            },
             onDone: (newConvId, info) => {
               if (newConvId) {
                 setConvId(newConvId);
                 void loadConversations(); // 刷新侧边栏
               }
-              updateAssistant(assistantId, { streaming: false, providerInfo: info });
+              setMessages(prev =>
+                prev.map(m =>
+                  m.id === assistantId
+                    ? {
+                        ...m,
+                        streaming: false,
+                        providerInfo: info,
+                        run: m.run ? { ...m.run, status: 'done' } : undefined,
+                      }
+                    : m
+                )
+              );
             },
             onError: msg => {
-              updateAssistant(assistantId, { streaming: false, error: msg });
+              setMessages(prev =>
+                prev.map(m =>
+                  m.id === assistantId
+                    ? {
+                        ...m,
+                        streaming: false,
+                        error: msg,
+                        run: m.run ? { ...m.run, status: 'failed' } : undefined,
+                      }
+                    : m
+                )
+              );
             },
           }
         );
@@ -760,6 +964,8 @@ const AIChat: React.FC = () => {
             conversationId: convId,
             limit: 5,
             provider: selectedProvider,
+            botId: selectedBotId ?? undefined,
+            ...buildAskAIRequestScope(activeScope),
           });
           const answers: unknown[] = Array.isArray(res?.answers) ? res.answers : [];
           const fallbackText = answers
@@ -790,7 +996,16 @@ const AIChat: React.FC = () => {
         setStreaming(false);
       }
     },
-    [appendAssistantContent, convId, loadConversations, refreshFeature, selectedProvider, updateAssistant]
+    [
+      activeScope,
+      appendAssistantContent,
+      convId,
+      loadConversations,
+      refreshFeature,
+      selectedBotId,
+      selectedProvider,
+      updateAssistant,
+    ]
   );
 
   // 支持带参调用：空状态建议卡片直接以该文案发送。
@@ -1032,6 +1247,33 @@ const AIChat: React.FC = () => {
               flexShrink: 0,
             }}
           >
+            {/* B2-04 Bot 选择器：已有会话时锁定（切换仅影响新会话，不回溯改写历史归属） */}
+            <BotSelector
+              bots={bots}
+              value={selectedBotId}
+              onChange={setSelectedBotId}
+              locked={Boolean(convId)}
+              disabled={botCapabilities?.botEnabled === false}
+              labels={{ disabledHint: t('bots.capabilities.selectorDisabled') }}
+            />
+            {/* B3-02：入口上下文条（来自页面 launcher；可清除，清除后按普通对话处理） */}
+            {activeScope ? (
+              <Tag
+                color="processing"
+                closable
+                onClose={e => {
+                  e.preventDefault();
+                  setScopeDismissed(true);
+                }}
+                data-testid="ask-ai-scope-chip"
+                style={{ marginInlineEnd: 0 }}
+              >
+                {askAIEntrypointLabel(activeScope.entrypoint)}
+                {activeScope.targetType && activeScope.targetId
+                  ? ` · ${activeScope.targetType}#${activeScope.targetId}`
+                  : ''}
+              </Tag>
+            ) : null}
             {/* Provider 选择器：feature.enabled && providers.length > 1（P1 起普通用户同样可见） */}
             {canSwitchProvider ? (
               <>
@@ -1179,6 +1421,8 @@ const AIChat: React.FC = () => {
                   providerLabel={providerLabel}
                   onCreateArticle={handlePromoteToArticle}
                   onOpenApproval={handleOpenApproval}
+                  // B1-07：对话内确认（确认抽屉）。入口只在确认单仍 pending 且未过期时出现。
+                  onRequestConfirm={handleRequestConfirm}
                 />
               ))}
             </div>

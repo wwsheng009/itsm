@@ -14,12 +14,12 @@
 
 | 类别 | 数量 | 说明 |
 | --- | --- | --- |
-| A 类：已交付部分未满足方案判据（§5.2/§5.3/§5.4） | 8 | 其中 6 项本轮可补，2 项需真实浏览器会话（归 M2-05） |
+| A 类：已交付部分未满足方案判据（§5.2/§5.3/§5.4） | 9 | 其中 6 项本轮可补，2 项需真实浏览器会话（归 M2-05）；A9 为 2026-09-30 追加（管理页真实栈不可用） |
 | B 类：文档回写缺口 | 6 | 本轮全部回写 |
 | C 类：方案内已登记、待 M2/阶段一承接的技术缺口 | 6 | 状态更新与责任归属 |
 | D 类：M2 未开工 | 7 任务 / 8 验收项 | 属计划内后续范围，非缺陷 |
 
-**核心结论**：M0/M1 功能交付属实（`integration_verified` / `flow_verified` 的**功能面**成立）；但按本方案 §5.4 规则 7，A 类 8 项均属「豁免」情形，而 §10 决策日志此前**无任何豁免登记**——本轮已补齐登记（见 §6、本方案 §10）。
+**核心结论**：M0/M1 功能交付属实（`integration_verified` / `flow_verified` 的**功能面**成立）；但按本方案 §5.4 规则 7，A 类 9 项均属「豁免」情形，而 §10 决策日志此前**无任何豁免登记**——本轮已补齐登记（见 §6、本方案 §10）。**2026-09-30 追加 A9**：MCP 管理页在真实栈上字段全部脱靶（见 §2 A9 与 §6.9），已修复并复验。
 
 ---
 
@@ -35,6 +35,7 @@
 | A6 | **`-race` 从未执行** | §5.1 D-2 精神 + 各任务卡「测试与证据」 | M0-07 证据 :43、M0-08 证据 :67、M0-14 证据 :79 三处自认待补 | 并发正确性无机器验证（O-1 恰为并发面） | **已补（核心面）**：`registry`/`transport`/`tests/mcpintegration` race 全绿、无 DATA RACE（§6.3/§6.7）；其余包建议 CI 常态化（S3） |
 | A7 | **lint 未执行**；且本方案 §5.1 D-2 写的 `.golangci.yml` 与仓库实际 `.golangci-lint.yml` 不符 | §5.1 D-2（:557） | 仓库有 `.golangci-lint.yml`；`golangci-lint` 本机未安装；CI 实际为 gofumpt + staticcheck（`backend-ci.yml:8-11/:111/:132`） | D-2 未满足（或需改口径为「CI 既有质量门」） | **已补（并发现 9 处 CI 阻断项，全部修复）**：staticcheck 6 + gofumpt 2 + 800 行硬门 1（`service.go` 拆分）→ 复验 exit 0（§6.5）；D-2 口径已回写 |
 | A8 | **豁免未登记**（A1–A7 均属 §5.4 规则 7 情形） | §5.4 规则 7（:636）、§10 变更控制（:766） | §10（:755-764）此前仅 Q1–Q8 | 程序性缺口：M0/M1 状态声明在方案口径下不成立 | 已补：本方案 §10 新增「实施期豁免与偏差登记」 |
+| A9 | **MCP 管理页在真实栈上不可用**（2026-09-30 追加）：服务器列表「工具（启用/总数）」渲染 `undefined/undefined`、汇总卡「生效工具」恒 0、工具治理页「投影名」为空、只读/启用开关恒 false，写操作（启停/分类/轮换）因投影名为 undefined 而不可用 | §5.2 A0-12（:621）、P5（:111「不得只做静态渲染」）、§5.3 原则（E2E 走真实栈） | 2026-09-30 浏览器实测（页面文本 + 应用自身 `httpClient` 直调 + `.ant-switch` aria-checked）；根因 = `http-client.ts` 全局 key 归一化 × MCP 管理 API 的 snake_case 契约 | A0-12 的「+冒烟」判据不成立；A2-05 的 UI 用例必然失败；页面**全部 snake_case 字段**读不到值 | **已补**：`httpClient.requestRaw()` 通道 + `mcp-api.ts` 13 端点改造 + 3 例守护测试；浏览器复验 `3/6`、生效工具 3、投影名/开关/写路径全部正确（证据 `evidence/mcp-m2/mcp-admin-page-contract-fix-2026-09-30.md`）；A2-05 仍待 CI 首绿 |
 
 ---
 
@@ -155,6 +156,14 @@
 - `-race` 集成复跑：`go test -race ./tests/mcpintegration/ -count=1` → **ok 19.9s，无 DATA RACE**（总耗时 1292s，主要是 race 插桩重编译）；加上 `./mcp/registry/`、`./mcp/transport/` 的 race 结果，**A6 的 MCP 核心面已闭环**；其余包建议 CI 常态化覆盖。
 - 缺陷修复顺带产出：本轮修复 3 处负载敏感用例 + 6 处 staticcheck 问题 + 2 处格式问题 + 1 处 CI 行数硬门（`service.go` 拆分），详见 §6.1/§6.5。
 
+### 6.9 管理页字段契约缺陷修复（A9，2026-09-30 追加）
+
+- **触发**：用户报告 `/admin/mcp-servers` 工具列显示 `undefined/undefined`、工具治理「生效状态」与投影名异常。
+- **定位**（真实浏览器 + 应用自身模块直调）：`http-client.ts` 对所有响应/请求体做 camelCase 归一化，而 MCP 管理 API 契约是 snake_case → 页面全部 snake_case 字段读到 `undefined`。修复前实测 `httpClient.get('/api/v1/ai/mcp-servers')` 返回 key 全为 camelCase、无一下划线。
+- **修复**：`http-client.ts` 增 `RequestConfig.rawKeys` 与公开方法 `requestRaw()`（:617-619）；`mcp-api.ts` 13 端点改走 `requestRaw`；新增 3 例守护测试（snake_case 双向保持 + 默认路径回归守护），`mcp-api.test.ts` 断言同步。
+- **验证**：`tsc` / `eslint` exit 0；`jest` 4 套件 54 用例全绿；浏览器复验「工具（启用/总数）= 3/6」「生效工具 3」「投影名 6 行齐全」「开关与接口一致」；写路径（分类/启停/重载）经应用模块直调成功（详见 `evidence/mcp-m2/mcp-admin-page-contract-fix-2026-09-30.md`）。
+- **残留**：A2-05 的验收级 E2E 仍以 CI `e2e-mcp.yml` 首绿为准；截图归 CI trace/video。
+
 ---
 
 ## 7. 建议与归属（未在本轮闭环的部分）
@@ -176,4 +185,5 @@
 | 2026-09-27 | 首次登记：以方案 §5.1/§5.2/§5.3/§5.4 为判据完成审计（A 类 8 项 / B 类 6 项 / C 类 6 项 / D 类 7 任务） |
 | 2026-09-27 | 本轮整改：方案回写（§2.3/§3.3.1/§5.2.1/§7.1/§9/§10/§11.4）；新增 Postgres 门控用例；全量后端+前端回归并分类；`-race` 核心面通过；CI 等价质量门（staticcheck/gofumpt/800 行硬门）发现并修复 9 处问题；修复 3 处负载敏感用例 |
 | 2026-09-27 | 二次整改（CI 接线）：`-race` 全量 8 包绿（A6/EX-06 闭环）；`backend-ci.yml` 新增 `mcp-race`（阻断）与 `mcp-postgres-migrations`（service container，首轮 `continue-on-error` 观察）两个 job、Test job 增 `-timeout 20m`（S1/S2/S3 落地，新增 EX-09） |
+| 2026-09-30 | 追加 A9：MCP 管理页真实栈不可用（camelCase 归一化 × snake_case 契约）→ 已修复（`requestRaw` 通道 + `mcp-api.ts` 13 端点 + 3 例守护测试）并在真实浏览器复验；新增 §6.9 与证据 `evidence/mcp-m2/mcp-admin-page-contract-fix-2026-09-30.md` |
 

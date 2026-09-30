@@ -15,6 +15,7 @@ import (
 	"syscall"
 	"time"
 
+	"itsm-backend/capability"
 	"itsm-backend/common"
 	"itsm-backend/common/tenantctx"
 	"itsm-backend/config"
@@ -31,6 +32,7 @@ import (
 	connectorHandler "itsm-backend/handlers/connector"
 	marketplaceHandler "itsm-backend/handlers/marketplace"
 	"itsm-backend/pkg/eventbus"
+	botService "itsm-backend/service/bot"
 	marketplaceService "itsm-backend/service/marketplace"
 
 	"itsm-backend/database"
@@ -750,11 +752,24 @@ func NewApplication() *Application {
 	toolQueue := service.NewToolQueue(client, toolRegistry, 100, sugar)
 	// 写工具（create_ticket/update_ticket/create_ticket_type）需要领域服务支撑；ticketService 已就绪，此处注入。
 	toolRegistry.SetTicketService(ticketService)
+	// B1-06：写工具执行后回读校验（update_ticket 比对状态/处理人；create_ticket 校验已创建）。
+	toolQueue.SetVerifier(service.NewTicketWriteVerifier(ticketService))
+	// B1-06：启动恢复——把「已批准但未执行」的确认单重新入队（进程重启/崩溃后不丢单）。
+	// 消费端以条件状态迁移抢占，重复恢复不会造成双执行。
+	if recovered, recErr := toolQueue.RecoverPending(context.Background(), 200); recErr != nil {
+		zap.L().Warn("工具队列启动恢复未完全完成",
+			zap.Int("found", recovered.Found), zap.Int("enqueued", recovered.Enqueued), zap.Error(recErr))
+	} else if recovered.Enqueued > 0 {
+		zap.L().Info("工具队列启动恢复完成",
+			zap.Int("found", recovered.Found), zap.Int("enqueued", recovered.Enqueued))
+	}
 	// P1-3：CMDB 关系类工具（get_ci/get_ci_relationships/create_ci_relationship/delete_ci_relationship/get_ci_impact）需要 CIRelationshipService
 	toolRegistry.SetCIRelationshipService(ciRelationshipService)
 	// P1-4：影响分析 AI 解释服务（可选注入；LLM/Redis 任意缺失 → fail-open 不影响主流程）
 	impactExplainer := service.NewImpactExplanationService(llmGateway, llmConfig.Model, nil, sugar)
 	toolRegistry.SetImpactExplainer(impactExplainer)
+	// B3-06：plan/analysis/draft 类工具产物存储（bot_artifacts；租户 + 归属隔离）。
+	toolRegistry.SetArtifactStore(botService.NewArtifactStore(client))
 
 	// General Notification Service & Controller
 	notificationService := service.NewNotificationService(client)
@@ -987,7 +1002,60 @@ func NewApplication() *Application {
 	aiServiceDomain.SetSummarizeService(summarizeService)
 	// P2-6: 注入 ent client 供 AI 工具 RBAC 校验复用 hasResourcePermission
 	aiServiceDomain.SetEntClient(client)
+
+	// M2 能力开关（2026-09-30 方案）：MCP / Bot 运行时开关（管理后台可切换，免重启）。
+	// 默认值取静态配置（env / config.yaml）——system_configs 缺行即跟随默认，升级零行为变化；
+	// 静态 mcp.enabled=false / bot.enabled=false 仍是最高优先级短路（组件不装配、路由不注册）。
+	capabilitySource := capability.NewConfigSource(client, capability.Defaults{
+		MCPEnabled:      cfg.MCP.Enabled,
+		MCPWriteEnabled: cfg.MCP.WriteEnabled,
+		BotEnabled:      cfg.Bot.Enabled,
+	}, sugar)
+	aiServiceDomain.SetCapabilitySource(capabilitySource)
+	// B1-01/B1-02：Bot 运行态管理器（bot_runs/bot_steps/bot_events + BP8 预算护栏）。
+	// bot.enabled=false（默认）时不注入 → 聊天链路零额外写入、零行为变化。
+	if cfg.Bot.Enabled {
+		aiServiceDomain.SetBotRunner(botService.NewManager(botService.NewRunStore(client), botService.Budget{
+			MaxSteps:       cfg.Bot.Budget.MaxSteps,
+			MaxTokens:      cfg.Bot.Budget.MaxTokens,
+			MaxToolCalls:   cfg.Bot.Budget.MaxToolCalls,
+			ToolTimeout:    cfg.Bot.Budget.BotToolTimeout(),
+			MaxOutputBytes: cfg.Bot.Budget.MaxOutputBytes,
+		}))
+		// B1-05：确认单有效期 + 过期扫描（惰性判定在 ApproveTool，周期扫描兜底待办列表）。
+		aiServiceDomain.SetConfirmationTTL(time.Duration(cfg.Bot.ConfirmationTTLHours) * time.Hour)
+		// B2-02：Bot 策略门禁（授权 ∩ RBAC ∩ 风险上限 ∩ 入口），下发与执行同一判定。
+		// 未配置任何授权的 Bot 走兼容默认（等价现状：只读 + 遗留写白名单），行为不变。
+		aiServiceDomain.SetBotPolicy(botService.NewPolicy(client))
+		// B4-02：运行维度指标（成功/确认/verify/工具错误/时延/成本代理）。
+		// 同一 bot.enabled 开关：关闭时不注入 → `GET /ai/bot-metrics` 返回 503（前端隐藏看板）。
+		aiServiceDomain.SetBotMetrics(botService.NewMetricsService(client))
+		sweeper := &botService.Sweeper{
+			Store:    aiServiceDomain.ConfirmationStore(),
+			Interval: 10 * time.Minute,
+			OnResult: func(result botService.SweepResult) {
+				if result.Expired > 0 {
+					zap.L().Info("MCP/Bot 确认单过期扫描完成",
+						zap.Int("scanned", result.Scanned), zap.Int("expired", result.Expired))
+				}
+			},
+			OnError: func(err error) {
+				zap.L().Warn("确认单过期扫描失败", zap.Error(err))
+			},
+		}
+		go sweeper.Run(context.Background())
+	}
 	aiHandler := ai.NewHandler(aiServiceDomain)
+
+	// B2-01：Bot 模板/授权管理面（/api/v1/admin/bots；读 ai:read、写 ai:write）。
+	// bot.enabled=false（默认）时不注入 → 整组路由不注册（端点不可达即回滚语义）；
+	// 首次列表访问时按租户幂等种入内置「默认助手」（兼容默认，见 service/bot/admin.go）。
+	var botAdminHandler *ai.BotAdminHandler
+	if cfg.Bot.Enabled {
+		botAdminHandler = ai.NewBotAdminHandler(botService.NewTemplateAdmin(client))
+		// M2 能力开关：写端运行时门禁（bot.enabled 可在管理后台关闭；读端保留）。
+		botAdminHandler.SetCapabilitySource(capabilitySource)
+	}
 
 	// MCP 外部工具接入（M0-09：provider 装配与运行时拉起）。
 	// mcp.enabled=false（默认）时不初始化任何组件、不产生任何后台行为（零行为变化）；
@@ -1018,8 +1086,14 @@ func NewApplication() *Application {
 				sugar.Errorw("MCP 组件装配失败，MCP 工具面保持关闭",
 					"module", "mcp", "credentials_error", credText, "store_error", storeText)
 			} else {
-				// 出站安全：默认仅 https + 公网（D7 默认拒绝）；私有化部署放行私网需后续评审加配置项。
-				mcpGuard := transport.NewSSRFGuard(transport.SSRFConfig{})
+				// 出站安全（M0-05）：默认仅 https + 公网 + scheme 默认端口（D7 默认拒绝）。
+				// 私有化/本地联调由 mcp.allow_http / allow_private_networks / allowed_ports
+				// 显式放开（默认 false/空；生产须保持严格）。
+				mcpGuard := transport.NewSSRFGuard(transport.SSRFConfig{
+					AllowHTTP:    cfg.MCP.AllowHTTP,
+					AllowPrivate: cfg.MCP.AllowPrivateNetworks,
+					AllowedPorts: cfg.MCP.AllowedPortList(),
+				})
 				mcpEvents := mcpadmin.NewEventBuffer(0)
 				mcpManager := manager.New(manager.Options{
 					Guard:          mcpGuard,
@@ -1057,9 +1131,13 @@ func NewApplication() *Application {
 					toolRegistry.RegisterProvider(mcpprovider.New(client, mcpManager, mcpprovider.Options{
 						Enabled:           true,
 						IncludeWriteTools: cfg.MCP.WriteEnabled,
+						// M2 能力开关：运行时总开关 + 写面（静态 IncludeWriteTools 仅作无源时回退）。
+						Capabilities: capabilitySource,
 					}))
 					// 管理 API（M0-10 接线）：handler 注入 RouterConfig 后整组注册（mcp:read / mcp:admin）。
 					mcpAdminHandler = mcpHandler.NewHandler(mcpAdminService)
+					// M2 能力开关：管理写端运行时门禁（mcp.enabled=false → 403）+ 列表能力块。
+					mcpAdminHandler.SetCapabilitySource(capabilitySource)
 					sugar.Infow("MCP 外部工具接入已启用",
 						"module", "mcp",
 						"connect_timeout_seconds", cfg.MCP.ConnectTimeoutSeconds,
@@ -1190,6 +1268,9 @@ func NewApplication() *Application {
 	// System Config Handler（2026-09-02 迁移至 handlers/systemconfig）
 	systemConfigService := service.NewSystemConfigService(client, sugar)
 	systemConfigHandler := systemconfig.NewHandler(systemConfigService, sugar)
+	// M2 能力开关：管理端点（GET/PUT /system-configs/ai-capabilities）+ 通用配置写入的缓存失效挂钩。
+	systemConfigHandler.SetCapabilitySource(capabilitySource)
+	systemConfigService.SetCapabilityInvalidator(capabilitySource.Invalidate)
 	// 密码策略由 system_configs 驱动：注入所有设密入口（建用户/管理员重置/注册/找回密码），
 	// 使 /admin/system-config 保存的 passwordMinLength 等配置立即生效。
 	userService.SetSystemConfigService(systemConfigService)
@@ -1342,6 +1423,7 @@ func NewApplication() *Application {
 		AIHandler:                   aiHandler, // Added AI domain handler
 		LLMProviderAdminHandler:     llmProviderAdminHandler,
 		MCPHandler:                  mcpAdminHandler, // MCP 管理 API（M0-10；nil 时整组不注册）
+		BotAdminHandler:             botAdminHandler, // Bot 模板/授权管理 API（B2-01；nil 时整组不注册）
 		EmailIntakeHandler:          emailIntakeHandler,
 		CommonHandler:               commonHandler,
 		AuthHandler:                 authHTTPHandler,

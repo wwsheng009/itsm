@@ -37,7 +37,9 @@ const AdminDepartments = lazy(() => import('@/pages/(main)/admin/departments/ind
 const AdminEscalationMatrices = lazy(() => import('@/pages/(main)/admin/escalation-matrices/index'));
 const AdminEscalationRules = lazy(() => import('@/pages/(main)/admin/escalation-rules/index'));
 const AdminGroups = lazy(() => import('@/pages/(main)/admin/groups/index'));
+const AdminBots = lazy(() => import('@/pages/(main)/admin/bots/index'));
 const AdminMcpServers = lazy(() => import('@/pages/(main)/admin/mcp-servers/index'));
+const AdminTools = lazy(() => import('@/pages/(main)/admin/tools/index'));
 const AdminMenus = lazy(() => import('@/pages/(main)/admin/menus/index'));
 const AdminPermissions = lazy(() => import('@/pages/(main)/admin/permissions/index'));
 const AdminProcessRouting = lazy(() => import('@/pages/(main)/admin/process-routing/index'));
@@ -57,6 +59,7 @@ const AdminWorkflows = lazy(() => import('@/pages/(main)/admin/workflows/index')
 const AgentOpsDemo = lazy(() => import('@/pages/agent-ops-demo/index'));
 const AiApproval = lazy(() => import('@/pages/(main)/ai/approval/index'));
 const AiAudit = lazy(() => import('@/pages/(main)/ai/audit/index'));
+const AiBotMetrics = lazy(() => import('@/pages/(main)/ai/bot-metrics/index'));
 const AiChat = lazy(() => import('@/pages/(main)/ai/chat/index'));
 const Applications = lazy(() => import('@/pages/(main)/applications/index'));
 const Approvals = lazy(() => import('@/pages/(main)/approvals/index'));
@@ -235,7 +238,9 @@ export const routes: RouteObject[] = [
           { path: 'admin/escalation-matrices', element: lazyElement(AdminEscalationMatrices) },
           { path: 'admin/escalation-rules', element: lazyElement(AdminEscalationRules) },
           { path: 'admin/groups', element: lazyElement(AdminGroups) },
+          { path: 'admin/bots', element: lazyElement(AdminBots) },
           { path: 'admin/mcp-servers', element: lazyElement(AdminMcpServers) },
+          { path: 'admin/tools', element: lazyElement(AdminTools) },
           { path: 'admin/menus', element: lazyElement(AdminMenus) },
           { path: 'admin/permissions', element: lazyElement(AdminPermissions) },
           { path: 'admin/process-routing', element: lazyElement(AdminProcessRouting) },
@@ -254,6 +259,7 @@ export const routes: RouteObject[] = [
           { path: 'admin/workflows', element: lazyElement(AdminWorkflows) },
           { path: 'ai/approval', element: lazyElement(AiApproval) },
           { path: 'ai/audit', element: lazyElement(AiAudit) },
+          { path: 'ai/bot-metrics', element: lazyElement(AiBotMetrics) },
           { path: 'ai/chat', element: lazyElement(AiChat) },
           { path: 'applications', element: lazyElement(Applications) },
           { path: 'approvals', element: lazyElement(Approvals) },

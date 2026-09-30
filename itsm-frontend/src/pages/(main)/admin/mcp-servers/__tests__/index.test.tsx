@@ -3,6 +3,7 @@ import { configure, fireEvent, render, screen, waitFor, within } from '@testing-
 
 import MCPServersAdminPage from '..';
 import mcpApi, { type MCPServer, type MCPTool } from '@/lib/api/mcp-api';
+import { SystemConfigAPI } from '@/lib/api/system-config-api';
 
 /**
  * MCP 管理页组件测试（M0-12）。
@@ -41,6 +42,33 @@ jest.mock('@/lib/api/mcp-api', () => {
 });
 
 const mocked = mcpApi as jest.Mocked<typeof mcpApi>;
+
+jest.mock('@/lib/api/system-config-api', () => {
+  const actual = jest.requireActual('@/lib/api/system-config-api');
+  return {
+    __esModule: true,
+    ...actual,
+    // 保留 isAICapabilityOverridden 等纯函数实现，仅替换网络方法。
+    SystemConfigAPI: {
+      getAICapabilities: jest.fn(),
+      updateAICapabilities: jest.fn(),
+    },
+  };
+});
+
+const mockedConfig = SystemConfigAPI as jest.Mocked<typeof SystemConfigAPI>;
+
+const aiCapabilities = (overrides: Record<string, unknown> = {}) => ({
+  mcpEnabled: true,
+  mcpWriteEnabled: false,
+  botEnabled: true,
+  defaults: { mcpEnabled: true, mcpWriteEnabled: false, botEnabled: true },
+  overridden: {},
+  updatedAt: '2026-09-30T01:00:00Z',
+  updatedBy: 'admin',
+  keys: ['mcp.enabled', 'mcp.write_enabled', 'bot.enabled'],
+  ...overrides,
+});
 
 const server = (overrides: Partial<MCPServer> = {}): MCPServer => ({
   id: 1,
@@ -122,6 +150,40 @@ describe('MCP 管理页（M0-12）', () => {
     mocked.listTools.mockResolvedValue([] as never);
     mocked.getServer.mockResolvedValue(server() as never);
     mocked.bulkSetTools.mockResolvedValue({ affected: 2, enabled: false } as never);
+    mockedConfig.getAICapabilities.mockResolvedValue(aiCapabilities() as never);
+  });
+
+  it('能力开关卡片 + 写面关闭禁用态：工具治理 Alert + 写工具行徽标（只读行不加）', async () => {
+    mocked.listServers.mockResolvedValue({
+      items: [server()],
+      summary: summary(),
+      capabilities: { mcp_enabled: true, mcp_write_enabled: false, bot_enabled: true },
+    } as never);
+    mocked.listTools.mockResolvedValue([
+      tool(),
+      tool({
+        id: 12,
+        raw_name: 'create_issue',
+        callable_name: 'mcp__gitlab__create_issue',
+        read_only: false,
+        risk: 'act_low',
+      }),
+    ] as never);
+
+    renderPage();
+
+    // 能力开关卡片（快照随 system-configs 接口下发；无写权限时只读展示）。
+    expect(await screen.findByTestId('mcp-capability-card')).toBeInTheDocument();
+    expect(screen.getByTestId('mcp-capability-switch-mcp.write_enabled')).not.toBeChecked();
+
+    // 工具治理页签：顶部说明性 Alert + 写工具行徽标（read_only=true 不加）。
+    const row1 = await screen.findByTestId('mcp-row-1');
+    fireEvent.click(within(row1).getByRole('button', { name: btn('工具治理') }));
+    await waitFor(() => expect(screen.getByTestId('mcp-tools-write-blocked')).toBeInTheDocument());
+    expect(
+      screen.getByTestId('mcp-tool-write-blocked-mcp__gitlab__create_issue'),
+    ).toBeInTheDocument();
+    expect(screen.queryByTestId('mcp-tool-write-blocked-mcp__gitlab__list_issues')).toBeNull();
   });
 
   it('服务器三态 + 隔离计数 + 工具生效状态 + 批量停用二次确认', async () => {

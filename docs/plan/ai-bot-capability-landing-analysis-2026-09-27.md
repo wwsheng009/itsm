@@ -478,8 +478,30 @@ Triage、Chat、KnowledgeSearch、Summarize、Analyze、Analytics、TrendPredict
 
 ---
 
+## 9. 落地状态回写（2026-09-27）
+
+> 本报告为**设计态**分析（初稿未运行测试）。B0–B4 的实际交付状态按五级口径回写如下；每一行的证据均可在 `docs/plan/evidence/` 下复核，方案文档为 `docs/plan/ai-bot-capability-landing-implementation-plan-2026-09-27.md`。
+
+| 阶段 | 交付状态 | 证据与说明 |
+| --- | --- | --- |
+| BP5 前置 | 实现完成 | `evidence/bot-b0/BP5-B0-01-unit-evidence.md`（`service/bot/` 骨架 + `bot.enabled` 开关，默认关闭零行为变化） |
+| B0 元数据与一次迁移 | `integration_verified` | `evidence/bot-b0/B0-07-b0-acceptance-evidence.md`（14 个内置工具全量标注 + `tool_invocations` 联合迁移 + dry-run 零写入 + 统一脱敏入口）；条件项：Postgres 侧 CI job 首轮观察 |
+| B1 运行档案与确认 | `flow_verified` | `evidence/bot-b1/B1-10-flow-acceptance-evidence.md`（run/step/event 三表 + 确认五态 + 持久队列重启恢复 + SSE v2 注册表 + 前端确认抽屉/证据面板/审批页）；条件项：浏览器 E2E 归 B4-01/BT-09（**B4-01 已交付 api 通道，browser 通道待 CI 首轮**） |
+| B2 模板与授权治理 | `flow_verified` | `evidence/bot-b2/B2-06-acceptance-evidence.md`（模板/授权两表 + `BotPolicy` 四重交集（下发与执行同源）+ 越权负向安全集 + `/admin/bots` 管理页 + 工作区 Bot 选择器）；条件项：浏览器级交互归 BT-09、真实 provider 覆盖归 B4-01 |
+| B3 入口上下文与场景 pilot | `flow_verified`（条件达标） | `evidence/bot-b3/B3-07-flow-acceptance-evidence.md`（六入口协议与目标预检 fail-closed + 三处 launcher + S1/S2/S3 验收单与负向断言）；**部分交付**：S3 的 `create_kb_draft`（写工具）归 B4；条件项：真实对话 E2E 归 B4-01 |
+| B4 E2E 验收与状态回写 | 进行中（本文件即回写动作之一） | `evidence/bot-b4/B4-01-e2e-charter-evidence.md`（双通道章程 + run-summary，api 6/6 实跑通过）、`evidence/bot-b4/B4-02-metrics-evidence.md`（运行维度指标与看板）；**B4-03 本次完成**（本文件/ROADMAP/CHANGELOG 回写）；B4-04 `accepted` 评审待产品与测试签署 |
+
+**与初稿设计的三处偏差（已在方案中登记）**：
+
+1. **`/ai/metrics` 复用改为专用端点**：B4-02 新增 `GET /api/v1/ai/bot-metrics`，以保持既有 telemetry 载荷字节稳定并隔离数据源（方案 §4.5 B4-02 状态行）。
+2. **S3 场景部分交付**：`draft_kb_article`（只读业务库、产物落 `bot_artifacts`）已交付；`create_kb_draft`（真正创建知识草稿实体）因依赖写工具审批链与草稿租户隔离评审，归入 B4。
+3. **token 计量未接线**：成本维度暂以「步数 / 工具调用数 / 时延」为代理（`tokensRecorded=false` 显式暴露，页面与指标 `notes` 均提示）。
+
+---
+
 ## 变更记录
 
 | 日期 | 作者 | 变更 |
 | --- | --- | --- |
 | 2026-09-27 | AI 辅助分析 | 初稿：完成 ai-gateway 可借鉴性判定、ITSM 现状盘点、差距矩阵与 B0–B4 分期建议（基于 `feat/vite-migration` 工作树静态核对，未运行测试） |
+| 2026-09-27 | AI 辅助执行 | 新增 §9 落地状态回写：B0–B3 交付状态（`integration_verified`/`flow_verified`）与 B4 进行中状态、三处设计偏差登记；与 ROADMAP / CHANGELOG 回写同步（B4-03） |

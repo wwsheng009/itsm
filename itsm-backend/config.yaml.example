@@ -113,14 +113,22 @@ attachment:
   cleanup_batch_size: ${ATTACHMENT_CLEANUP_BATCH_SIZE:200}          # 单轮单租户处理上限（条，硬上限 1000）
 
 # MCP 外部工具接入（方案 docs/plan/itsm-mcp-external-tool-integration-implementation-plan-2026-09-27.md M0-01）
-# 默认关闭：不建连、不装配、工具面不含 MCP，对现有系统零行为变化。
+# 默认开启（2026-09-27 变更）：仅代表管理面与组件就绪（路由注册 / manager 启动 / provider 装配）；
+# 服务器、工具与写面仍默认拒绝（D7 不变），未配置任何服务器时不建连、工具面不含 MCP。
+# 需要彻底关闭（零装配、零路由）时置 MCP_ENABLED=false 或本项 enabled: false。
 mcp:
-  enabled: ${MCP_ENABLED:false}                                 # 全局开关；关闭时零行为变化
+  enabled: ${MCP_ENABLED:true}                                  # 全局开关；false 时零装配零路由（回滚 L1）
   connect_timeout_seconds: ${MCP_CONNECT_TIMEOUT_SECONDS:10}    # 建立连接超时（秒）
   call_timeout_seconds: ${MCP_CALL_TIMEOUT_SECONDS:30}          # 单次 tools/call 超时（秒）
   test_timeout_seconds: ${MCP_TEST_TIMEOUT_SECONDS:10}          # 管理面「测试连接」同步超时（秒，上限 10）
   max_servers_per_tenant: ${MCP_MAX_SERVERS_PER_TENANT:20}      # 单租户服务器数量上限
   write_enabled: ${MCP_WRITE_ENABLED:false}                     # 写工具面（L1.5 回滚开关，M1-02）：开启后写工具可见，仍需 mcp:write + 人工审批
+  # —— 出站安全（M0-05 硬门槛；默认拒绝，生产必须保持 false/空）——
+  # 本地联调 mock MCP（127.0.0.1:19090）时才放开；样例：allow_http=true + allow_private_networks=true
+  # + allowed_ports=19090。
+  allow_http: ${MCP_ALLOW_HTTP:false}                           # 允许 http:// 出站（默认仅 https）
+  allow_private_networks: ${MCP_ALLOW_PRIVATE_NETWORKS:false}   # 允许环回/RFC1918 等私网目标（默认拒绝）
+  allowed_ports: ${MCP_ALLOWED_PORTS:}                          # 端口 allowlist（逗号分隔；空=仅 443/80）
   # —— 工具面预算（M2-03，分析报告 §9.1）：超限发出 mcp.tools.budget_exceeded 事件 ——
   tools_budget: ${MCP_TOOLS_BUDGET:40}                          # 单租户有效工具数预算（>40 告警）
   tools_context_tokens: ${MCP_TOOLS_CONTEXT_TOKENS:128000}      # 占比判定使用的上下文预算（tokens）

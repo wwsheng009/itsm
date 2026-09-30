@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -15,6 +16,7 @@ import (
 	"itsm-backend/handlers/common/knowledgeaccess"
 	"itsm-backend/middleware"
 	"itsm-backend/service"
+	"itsm-backend/service/bot"
 
 	"github.com/gin-gonic/gin"
 )
@@ -52,6 +54,174 @@ func (h *Handler) ListTools(c *gin.Context) {
 		}
 	}
 	common.Success(c, gin.H{"tools": visible})
+}
+
+// 工具目录查询上限（防超大 payload；目录页与 Bot 授权选择器共用）。
+const (
+	toolCatalogDefaultLimit = 200
+	toolCatalogMaxLimit     = 500
+)
+
+// toolCatalogItem 是工具目录的紧凑投影：不含 argsSchema/resultSchema，避免选择器传输大 payload；
+// 字段口径与 service.ToolDefinition 一一对应（provider=mcp 时带 serverName/rawToolName）。
+type toolCatalogItem struct {
+	Name           string `json:"name"`
+	Description    string `json:"description,omitempty"`
+	ReadOnly       bool   `json:"readOnly"`
+	Risk           string `json:"risk,omitempty"`
+	Category       string `json:"category,omitempty"`
+	Provider       string `json:"provider,omitempty"`
+	ServerName     string `json:"serverName,omitempty"`
+	RawToolName    string `json:"rawToolName,omitempty"`
+	Resource       string `json:"resource,omitempty"`
+	Action         string `json:"action,omitempty"`
+	SupportsDryRun bool   `json:"supportsDryRun,omitempty"`
+	Idempotent     bool   `json:"idempotent,omitempty"`
+}
+
+// ListToolCatalog handles GET /api/v1/agent/tools/catalog
+//
+// 工具目录查询（内置 + MCP 统一投影）：供 Bot 授权选择器与独立「工具目录」页使用。
+// 可见性与 ListTools 同源——租户动态化工具面（ListToolsForTenant）+ 当前角色 RBAC
+// （resource/action）过滤；本接口追加 q/source/readOnly/risk/limit 查询能力。
+func (h *Handler) ListToolCatalog(c *gin.Context) {
+	role := c.GetString("role")
+	tenantID := c.GetInt("tenant_id")
+
+	if tenantID <= 0 || c.GetInt("user_id") <= 0 || role == "" {
+		common.AuthFailed(c, "缺少有效身份上下文")
+		return
+	}
+	if h.svc.entClient == nil || h.svc.tools == nil {
+		common.Fail(c, common.ServiceUnavailableCode, "AI 工具权限服务未就绪")
+		return
+	}
+
+	q := strings.ToLower(strings.TrimSpace(c.Query("q")))
+
+	source := strings.ToLower(strings.TrimSpace(c.Query("source")))
+	switch source {
+	case "", "builtin", "mcp":
+	default:
+		common.Fail(c, common.BadRequestCode, "source 仅支持 builtin|mcp")
+		return
+	}
+
+	readOnly := strings.ToLower(strings.TrimSpace(c.Query("readOnly")))
+	switch readOnly {
+	case "", "true", "1":
+		readOnly = strings.ReplaceAll(readOnly, "1", "true")
+	case "false", "0":
+		readOnly = "false"
+	default:
+		common.Fail(c, common.BadRequestCode, "readOnly 仅支持 true|false")
+		return
+	}
+
+	risk := strings.ToLower(strings.TrimSpace(c.Query("risk")))
+	switch risk {
+	case "", service.ToolRiskRead, service.ToolRiskPlan,
+		service.ToolRiskActLow, service.ToolRiskActMedium, service.ToolRiskActHigh:
+	default:
+		common.Fail(c, common.BadRequestCode, "risk 取值非法（read|plan|act_low|act_medium|act_high）")
+		return
+	}
+
+	limit := toolCatalogDefaultLimit
+	if raw := strings.TrimSpace(c.Query("limit")); raw != "" {
+		parsed, err := strconv.Atoi(raw)
+		if err != nil || parsed <= 0 {
+			common.Fail(c, common.BadRequestCode, "limit 必须为正整数")
+			return
+		}
+		if parsed > toolCatalogMaxLimit {
+			parsed = toolCatalogMaxLimit
+		}
+		limit = parsed
+	}
+
+	allTools := h.svc.ListToolsForTenant(c.Request.Context(), tenantID)
+	items := make([]toolCatalogItem, 0, len(allTools))
+	for _, t := range allTools {
+		if !middleware.HasResourcePermission(c.Request.Context(), h.svc.entClient, role, t.Resource, t.Action, tenantID) {
+			continue
+		}
+		provider := t.Provider
+		if provider == "" {
+			provider = "builtin"
+		}
+		if source != "" && provider != source {
+			continue
+		}
+		switch readOnly {
+		case "true":
+			if !t.ReadOnly {
+				continue
+			}
+		case "false":
+			if t.ReadOnly {
+				continue
+			}
+		}
+		if risk != "" && !strings.EqualFold(t.Risk, risk) {
+			continue
+		}
+		if q != "" && !toolCatalogMatches(t, q) {
+			continue
+		}
+		items = append(items, toolCatalogItem{
+			Name:           t.Name,
+			Description:    t.Description,
+			ReadOnly:       t.ReadOnly,
+			Risk:           t.Risk,
+			Category:       t.Category,
+			Provider:       provider,
+			ServerName:     t.ServerName,
+			RawToolName:    t.RawToolName,
+			Resource:       t.Resource,
+			Action:         t.Action,
+			SupportsDryRun: t.SupportsDryRun,
+			Idempotent:     t.Idempotent,
+		})
+	}
+
+	// 排序：内置在前（provider 字典序），同来源按名称升序——目录页与前端的展示顺序稳定可预期。
+	sort.SliceStable(items, func(i, j int) bool {
+		if items[i].Provider != items[j].Provider {
+			return items[i].Provider < items[j].Provider
+		}
+		return items[i].Name < items[j].Name
+	})
+
+	total := len(items)
+	if total > limit {
+		items = items[:limit]
+	}
+	// M2 能力开关：目录页与对话工具面板据此渲染「全局已关闭」状态（与门禁同源）。
+	common.Success(c, gin.H{"items": items, "total": total, "capabilities": h.capabilitiesView(c, tenantID)})
+}
+
+// capabilitiesView 返回展示用能力块（M2 能力开关；未注入能力源时为默认值）。
+func (h *Handler) capabilitiesView(c *gin.Context, tenantID int) gin.H {
+	view := gin.H{"mcpEnabled": true, "mcpWriteEnabled": false, "botEnabled": true}
+	if h == nil || h.svc == nil || h.svc.capability == nil {
+		return view
+	}
+	snap := h.svc.capability.For(c.Request.Context(), tenantID)
+	view["mcpEnabled"] = snap.MCPEnabled
+	view["mcpWriteEnabled"] = snap.MCPWriteEnabled
+	view["botEnabled"] = snap.BotEnabled
+	return view
+}
+
+// toolCatalogMatches 关键词匹配：名称/描述/原始工具名/服务器名（大小写不敏感，q 已小写）。
+func toolCatalogMatches(t service.ToolDefinition, q string) bool {
+	for _, field := range []string{t.Name, t.Description, t.RawToolName, t.ServerName} {
+		if field != "" && strings.Contains(strings.ToLower(field), q) {
+			return true
+		}
+	}
+	return false
 }
 
 // ExecuteTool handles POST /api/v1/agent/tools/execute
@@ -111,6 +281,12 @@ func (h *Handler) ExecuteTool(c *gin.Context) {
 			common.Fail(c, common.ToolPermissionDeniedCode, "无权执行该工具")
 			return
 		}
+		// M2 能力开关：能力被管理后台关闭时给出可操作提示（原因可检索）。
+		var capErr *CapabilityDisabledError
+		if errors.As(err, &capErr) {
+			common.Fail(c, common.ToolPermissionDeniedCode, CapabilityDisabledMessage(capErr.Reason))
+			return
+		}
 		if errors.Is(err, ErrUnknownTool) {
 			common.Fail(c, common.UnknownToolCode, "工具不存在")
 			return
@@ -143,6 +319,13 @@ func (h *Handler) Chat(c *gin.Context) {
 		ConversationID int    `json:"conversationId"`
 		// Provider 单次覆盖（BE-7，§3.4；P1 起面向全部 ai:read 使用者）：空 = 默认链。
 		Provider string `json:"provider"`
+		// BotID：选择器指定的 Bot 模板（B2-04；仅对新建会话生效，0/缺省 = 默认助手）。
+		BotID int `json:"botId"`
+		// B3-01 入口上下文（页面 launcher 携带）：entrypoint/targetType/targetId/summary。
+		Entrypoint string `json:"entrypoint"`
+		TargetType string `json:"targetType"`
+		TargetID   int    `json:"targetId"`
+		Summary    string `json:"summary"`
 	}
 	if err := c.ShouldBindJSON(&req); err != nil {
 		common.ParamErrorWithErr(c, err, "请求参数错误")
@@ -172,6 +355,23 @@ func (h *Handler) Chat(c *gin.Context) {
 	// 注入知识访问者身份：RAG 检索据此做分类级可见性过滤（L0 权限边界）。
 	// 不注入则按匿名处理，已纳管的受限分类一律不可见（fail-closed）。
 	chatCtx := knowledgeaccess.WithViewer(c.Request.Context(), knowledgeaccess.Viewer{UserID: userID, Role: role})
+	// B2-04：新会话归属选择器指定的 Bot（0 = 默认助手；历史会话由 conversation.bot_id 决定）。
+	chatCtx = WithBotID(chatCtx, req.BotID)
+	// B2-05：跨租户 fail-closed——显式 botId 必须命中本租户模板，否则 404（不静默降级到兼容默认）。
+	if err := h.svc.ValidateBotSelection(chatCtx, tenantID); err != nil {
+		respondBotSelectionError(c, err)
+		return
+	}
+	// B3-01：入口上下文解析 + 目标对象预检（未知入口 400；目标不可用 404；校验器不可用 503）。
+	scope, err := resolveRequestScope(chatCtx, h.svc.ScopeResolver(), tenantID, userID, role, bot.ScopeInput{
+		Entrypoint: req.Entrypoint, TargetType: req.TargetType, TargetID: req.TargetID, Summary: req.Summary,
+	})
+	if err != nil {
+		status, code := scopeHTTPStatus(err)
+		c.JSON(status, gin.H{"code": code, "error": "入口上下文不可用"})
+		return
+	}
+	chatCtx = WithScope(chatCtx, scope)
 
 	if provider == "" && !service.MultiProviderEnabled() {
 		// 开关关闭且未显式覆盖：保持既有调用与响应形状（QA-3 零破坏门禁）。
@@ -225,15 +425,21 @@ func (h *Handler) Chat(c *gin.Context) {
 }
 
 // ChatStream handles POST /api/v1/ai/chat/stream and emits Server-Sent Events.
-// Events:
-//   - event: sources        data: [{objectType,id,title,snippet,score,...}]
-//   - event: delta          data: {"content": "..."}
-//   - event: tool_call_started  data: {id?,tool,provider,server?,phase,status:"started"}
-//   - event: tool_call_finished data: {...,status:"done",summary,durationMs}
-//   - event: tool_call_failed   data: {...,status:"failed",errorCode}
-//   - event: approval_pending   data: {id,tool,provider,server?,phase:"write",status:"pending"}
+// Events（B1-03 起以 `handlers/ai/sse_events.go` 的**单一注册表**为准）：
+//   - event: sources        data: [{objectType,id,title,snippet,score,...}]（v1）
+//   - event: delta          data: {"content": "..."}（v1）
+//   - event: tool_call_started  data: {id?,tool,provider,server?,phase,status:"started"}（v1，tool_call 家族）
+//   - event: tool_call_finished data: {...,status:"done",summary,durationMs}（v1，tool_call 家族）
+//   - event: tool_call_failed   data: {...,status:"failed",errorCode}（v1，tool_call 家族）
+//   - event: approval_pending   data: {id,tool,provider,server?,phase:"write",status:"pending"}（v1，旧名）
+//   - event: confirmation_required data: {v:2, ...同 approval_pending}（v2，与旧名**双发**）
+//   - event: run_started    data: {v:2, runId, entrypoint, conversationId?}（v2；仅有运行档案时发送）
+//   - event: step           data: {v:2, runId, stepIndex, type, payloadRef?, durationMs}（v2；llm/tool 步骤）
 //   - event: done           data: {"conversationId": <id>}（多 Provider 开启/显式覆盖时附加 provider/providerSource）
-//   - event: error          data: {"message": "..."}（provider 解析失败时附加 errorCode，§3.4 契约）
+//   - event: error          data: {"message": "..."}（预算超限附加 errorCode=budget_exceeded；provider 解析失败附加 §3.4 错误码）
+//
+// 兼容承诺：v1 事件名与载荷不变；新增 v2 事件对旧客户端是未知事件，按注册表约定**必须忽略**。
+// `artifact`（B3-06）已登记但本期不发送。
 //
 // M1-03：工具事件为**叠加**语义——最终答案仍由 delta/done 承载；事件丢失时前端按最终消息降级渲染。
 func (h *Handler) ChatStream(c *gin.Context) {
@@ -243,6 +449,13 @@ func (h *Handler) ChatStream(c *gin.Context) {
 		ConversationID int    `json:"conversationId"`
 		// Provider 单次覆盖（BE-7，§3.4；P1 起面向全部 ai:read 使用者）：空 = 默认链。
 		Provider string `json:"provider"`
+		// BotID：选择器指定的 Bot 模板（B2-04；仅对新建会话生效，0/缺省 = 默认助手）。
+		BotID int `json:"botId"`
+		// B3-01 入口上下文（页面 launcher 携带；与 Chat 同源协议）。
+		Entrypoint string `json:"entrypoint"`
+		TargetType string `json:"targetType"`
+		TargetID   int    `json:"targetId"`
+		Summary    string `json:"summary"`
 	}
 	if err := c.ShouldBindJSON(&req); err != nil {
 		common.ParamErrorWithErr(c, err, "请求参数错误")
@@ -319,41 +532,63 @@ func (h *Handler) ChatStream(c *gin.Context) {
 	}
 
 	onSources := func(items []map[string]any) {
-		writeEvent("sources", items)
+		writeEvent(SSEEventSources, items)
 	}
 	onDelta := func(delta string) {
-		writeEvent("delta", map[string]string{"content": delta})
+		writeEvent(SSEEventDelta, map[string]string{"content": delta})
 	}
 	// M1-03：工具事件（过程可见）。未知状态一律按 started 下发，保证事件不丢；
 	// 旧客户端遇到未知事件名必须忽略（前端解析 default 分支），故叠加事件是向后兼容的。
 	onTool := func(ev ToolStreamEvent) {
 		writeToolEvent(writeEvent, ev)
 	}
+	// B1-03：运行态事件（run_started/step）与工具事件同源——都在持久化成功之后广播；
+	// 未映射的 run 事件（tool_call/run_finished）不重复外发，避免与 tool_call_* 双份。
+	onRun := func(eventType string, payload map[string]any) {
+		writeSSERunEvent(writeEvent, eventType, payload)
+	}
 
 	// 注入访问者身份：AI 助手主链路，RAG 据此做知识分类可见性过滤（L0 权限边界）
 	chatCtx := knowledgeaccess.WithViewer(c.Request.Context(), knowledgeaccess.Viewer{UserID: userID, Role: role})
+	// B2-04：新会话归属选择器指定的 Bot（0 = 默认助手；历史会话由 conversation.bot_id 决定）。
+	chatCtx = WithBotID(chatCtx, req.BotID)
+	// B2-05：跨租户 fail-closed（与 Chat 同源校验）；SSE 已开始前拒绝，走统一错误事件。
+	if err := h.svc.ValidateBotSelection(chatCtx, tenantID); err != nil {
+		writeEvent(SSEEventError, sseErrorPayload(err))
+		return
+	}
+	// B3-01：入口上下文解析 + 目标预检（与 Chat 同源）；失败以统一错误事件收口。
+	scope, scopeErr := resolveRequestScope(chatCtx, h.svc.ScopeResolver(), tenantID, userID, role, bot.ScopeInput{
+		Entrypoint: req.Entrypoint, TargetType: req.TargetType, TargetID: req.TargetID, Summary: req.Summary,
+	})
+	if scopeErr != nil {
+		_, code := scopeHTTPStatus(scopeErr)
+		writeEvent(SSEEventError, map[string]string{"message": "入口上下文不可用", "errorCode": code})
+		return
+	}
+	chatCtx = WithScope(chatCtx, scope)
 	if !useProviderInfo {
-		convID, _, err := h.svc.ChatStream(chatCtx, tenantID, userID, role, req.Query, req.Limit, req.ConversationID, onSources, onDelta, onTool)
+		convID, _, err := h.svc.ChatStream(chatCtx, tenantID, userID, role, req.Query, req.Limit, req.ConversationID, onSources, onDelta, onTool, onRun)
 		if err != nil {
 			h.svc.logger.Warnw("AI ChatStream 失败", "error", err, "tenantID", tenantID)
-			writeEvent("error", map[string]string{"message": err.Error()})
+			writeEvent(SSEEventError, sseErrorPayload(err))
 			return
 		}
-		writeEvent("done", map[string]int{"conversationId": convID})
+		writeEvent(SSEEventDone, map[string]int{"conversationId": convID})
 		return
 	}
 
 	// BE-7：多 Provider 开启或显式覆盖——解析 provider 并把生效标注写进 done 事件；
 	// 显式覆盖的解析失败在 SSE error 事件内可见地失败（带 errorCode），不回退默认 provider。
-	resolution, convID, err := h.svc.ChatStreamWithProviderInfo(chatCtx, tenantID, userID, role, req.Query, req.Limit, req.ConversationID, provider, onSources, onDelta, onTool)
+	resolution, convID, err := h.svc.ChatStreamWithProviderInfo(chatCtx, tenantID, userID, role, req.Query, req.Limit, req.ConversationID, provider, onSources, onDelta, onTool, onRun)
 	if err != nil {
 		h.svc.logger.Warnw("AI ChatStream 失败", "error", err, "tenantID", tenantID, "provider", provider)
 		if isProviderResolutionError(err) {
 			_, code, message := providerErrorContract(err, provider)
-			writeEvent("error", map[string]string{"message": message, "errorCode": code})
+			writeEvent(SSEEventError, map[string]string{"message": message, "errorCode": code})
 			return
 		}
-		writeEvent("error", map[string]string{"message": err.Error()})
+		writeEvent(SSEEventError, sseErrorPayload(err))
 		return
 	}
 	done := map[string]any{"conversationId": convID}
@@ -361,7 +596,7 @@ func (h *Handler) ChatStream(c *gin.Context) {
 		done["provider"] = resolution.Key
 		done["providerSource"] = resolution.Source
 	}
-	writeEvent("done", done)
+	writeEvent(SSEEventDone, done)
 }
 
 // canUseProviderOverride 判定当前请求能否使用 provider 单次覆盖参数（BE-7 §3.4；P1 演进）：
@@ -797,6 +1032,41 @@ func (h *Handler) GetMetrics(c *gin.Context) {
 	common.Success(c, metrics)
 }
 
+// GetBotMetrics handles GET /api/v1/ai/bot-metrics（B4-02：运行维度指标）。
+//
+// 查询参数：`days`（默认 7，上限 90）、`botId`（可选）、`entrypoint`（可选）。
+// 未装配指标服务（bot.enabled=false）时返回 503，前端据此隐藏/置灰看板。
+func (h *Handler) GetBotMetrics(c *gin.Context) {
+	tenantID := c.GetInt("tenant_id")
+	if tenantID == 0 {
+		common.Fail(c, common.AuthFailedCode, "租户信息缺失")
+		return
+	}
+	q := bot.MetricsQuery{}
+	if daysStr := c.Query("days"); daysStr != "" {
+		if days, err := strconv.Atoi(daysStr); err == nil && days > 0 {
+			q.Days = days
+		}
+	}
+	if botIDStr := c.Query("botId"); botIDStr != "" {
+		if botID, err := strconv.Atoi(botIDStr); err == nil && botID > 0 {
+			q.BotID = botID
+		}
+	}
+	q.Entrypoint = c.Query("entrypoint")
+
+	summary, err := h.svc.GetBotMetrics(c.Request.Context(), tenantID, q)
+	if err != nil {
+		if errors.Is(err, ErrBotMetricsUnavailable) {
+			common.Fail(c, common.ServiceUnavailableCode, "Bot 指标服务未启用")
+			return
+		}
+		common.FailWithErr(c, err, "操作失败")
+		return
+	}
+	common.Success(c, summary)
+}
+
 // KnowledgeSearch handles POST /api/v1/ai/rag/search - RAG search over knowledge base
 func (h *Handler) KnowledgeSearch(c *gin.Context) {
 	var req struct {
@@ -944,30 +1214,34 @@ func (h *Handler) toolInvocationItem(ctx context.Context, tenantID int, inv *Too
 		}
 	}
 	return gin.H{
-		"id":               inv.ID,
-		"toolName":         inv.ToolName,
-		"argsRedacted":     inv.ArgsRedacted,
-		"status":           inv.Status,
-		"needsApproval":    inv.NeedsApproval,
-		"approvalState":    inv.ApprovalState,
-		"approvalReason":   inv.ApprovalReason,
-		"permissionCheck":  inv.PermissionCheck,
-		"permissionReason": inv.PermissionReason,
-		"createdAt":        inv.CreatedAt,
-		"conversationId":   inv.ConversationID,
-		"userId":           inv.UserID,
-		"provider":         inv.Provider,
-		"serverName":       inv.McpServerName,
-		"rawToolName":      inv.McpRawToolName,
-		"callableName":     inv.McpCallableName,
-		"risk":             risk,
-		"roleSnapshot":     inv.RoleSnapshot,
-		"approvedBy":       inv.ApprovedBy,
-		"approvedAt":       inv.ApprovedAt,
-		"durationMs":       inv.DurationMs,
-		"errorCode":        inv.ErrorCode,
-		"result":           inv.Result,
-		"outputSummary":    inv.OutputSummary,
+		"id":            inv.ID,
+		"toolName":      inv.ToolName,
+		"argsRedacted":  inv.ArgsRedacted,
+		"status":        inv.Status,
+		"needsApproval": inv.NeedsApproval,
+		"approvalState": inv.ApprovalState,
+		// B1-05：规范化确认状态（pending/confirmed/rejected/expired/cancelled/unknown）。
+		// 与 approvalState 并存：前者是新词汇表，后者保持既有前端契约不变。
+		"confirmationState": string(bot.NormalizeConfirmationState(inv.ApprovalState, inv.Status)),
+		"expiresAt":         inv.ExpiresAt,
+		"approvalReason":    inv.ApprovalReason,
+		"permissionCheck":   inv.PermissionCheck,
+		"permissionReason":  inv.PermissionReason,
+		"createdAt":         inv.CreatedAt,
+		"conversationId":    inv.ConversationID,
+		"userId":            inv.UserID,
+		"provider":          inv.Provider,
+		"serverName":        inv.McpServerName,
+		"rawToolName":       inv.McpRawToolName,
+		"callableName":      inv.McpCallableName,
+		"risk":              risk,
+		"roleSnapshot":      inv.RoleSnapshot,
+		"approvedBy":        inv.ApprovedBy,
+		"approvedAt":        inv.ApprovedAt,
+		"durationMs":        inv.DurationMs,
+		"errorCode":         inv.ErrorCode,
+		"result":            inv.Result,
+		"outputSummary":     inv.OutputSummary,
 	}
 }
 
@@ -1047,6 +1321,12 @@ func (h *Handler) ApproveTool(c *gin.Context) {
 	if err != nil {
 		// M1-02：错误语义分层，便于调用方区分「重试有用」与「重试无意义」。
 		switch {
+		case errors.Is(err, ErrInvocationExpired):
+			// B1-05：过期单不可执行；提示调用方重新发起确认（不可原地重试）。
+			common.Fail(c, common.ConflictCode, "确认单已过期，请重新发起确认")
+		case errors.Is(err, ErrInvocationStateConflict):
+			// B1-05：异人决策/改判/生命周期终止——冲突可见，不静默回放。
+			common.Fail(c, common.ConflictCode, "该确认单已有他人决策或状态已终止，请刷新后查看")
 		case errors.Is(err, ErrInvocationNotPending):
 			common.Fail(c, common.ConflictCode, "该审批已处理（仅 pending 记录可审批）")
 		case errors.Is(err, ErrToolQueueUnavailable):

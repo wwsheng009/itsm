@@ -6,6 +6,7 @@
 /sso/callback,src/app/(auth)/sso/callback/page.tsx,/sso/callback,@/pages/(auth)/sso/callback/index,(auth),,,,/sso/callback
 /admin/approval-chains,src/app/(main)/admin/approval-chains/page.tsx,/admin/approval-chains,@/pages/(main)/admin/approval-chains/index,(main),,,,/admin/approval-chains
 /admin/approvals,src/app/(main)/admin/approvals/page.tsx,/admin/approvals,@/pages/(main)/admin/approvals/index,(main),,,,/admin/approvals
+/admin/bots,src/app/(main)/admin/bots/page.tsx,/admin/bots,@/pages/(main)/admin/bots/index,(main),,,,/admin/bots
 /admin/cab,src/app/(main)/admin/cab/page.tsx,/admin/cab,@/pages/(main)/admin/cab/index,(main),,,,/admin/cab
 /admin/cmdb-types,src/app/(main)/admin/cmdb-types/page.tsx,/admin/cmdb-types,@/pages/(main)/admin/cmdb-types/index,(main),,,,/admin/cmdb-types
 /admin/config-inheritance,src/app/(main)/admin/config-inheritance/page.tsx,/admin/config-inheritance,@/pages/(main)/admin/config-inheritance/index,(main),,,,/admin/config-inheritance

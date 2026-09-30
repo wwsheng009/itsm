@@ -844,10 +844,12 @@ func (r *RAGService) AskWithLLMStream(
 const maxToolRounds = 5
 
 // AskWithLLMStreamWithTools 是 AskWithLLMStream 的工具增强版本：除检索知识库与本体图谱外，
-// 还向 LLM 声明一组只读工具。模型若发起工具调用，通过 execTool 执行（由调用方负责
-// RBAC 校验与审计），结果回填对话后继续生成，最终答案经 onDelta 流式下发。
+// 还向 LLM 声明本次会话**实际下发**的工具面（读工具 + 按策略放行的写工具），并据此生成系统
+// 提示词（见 buildToolAwareSystemPrompt）——提示词与函数调用 schema 同源，只承诺本次真正
+// 可调用的工具。模型若发起工具调用，通过 execTool 执行（由调用方负责 RBAC 校验与审计），
+// 结果回填对话后继续生成，最终答案经 onDelta 流式下发。
 //
-// 不改动原 AskWithLLMStream 签名；当 gateway 为 nil 或 tools 为空时完全退化为原方法行为，
+// 不改动原 AskWithLLMStream 签名；当 gateway 为 nil 或 face 为空时完全退化为原方法行为，
 // 保证既有调用方零回归。execTool 返回的 error 会被序列化为工具结果（{"error": ...}），
 // 让模型感知执行失败而不中断整条流。
 func (r *RAGService) AskWithLLMStreamWithTools(
@@ -856,13 +858,18 @@ func (r *RAGService) AskWithLLMStreamWithTools(
 	query string,
 	gateway *LLMGateway,
 	maxResults int,
-	tools []LLMTool,
+	face []ToolFaceEntry,
 	onSources func(sources []map[string]any),
 	onDelta func(delta string),
 	execTool func(name string, args map[string]any) (any, error),
 ) error {
-	if gateway == nil || len(tools) == 0 {
+	if gateway == nil || len(face) == 0 {
 		return r.AskWithLLMStream(ctx, tenantID, query, gateway, maxResults, onSources, onDelta)
+	}
+	// 函数调用 schema 与系统提示词同源派生，杜绝「提示词说有、实际没下发」的错位。
+	tools := make([]LLMTool, 0, len(face))
+	for _, entry := range face {
+		tools = append(tools, entry.Tool)
 	}
 	if maxResults <= 0 {
 		maxResults = 5
@@ -916,16 +923,9 @@ func (r *RAGService) AskWithLLMStreamWithTools(
 回答：`, contextBuilder.String(), query)
 
 	messages := []LLMMessage{
-		{Role: "system", Content: `你是 IT 服务管理（ITSM）智能助手，基于检索到的知识库内容与 CMDB/工单图谱事实回答用户问题。请遵守以下约定：
-1. 口语与错别字纠正：用户常把"工单"说成"工地"，"单子/报修/工单子"也指工单；"测试工单/探针工单"通常指 E2E 或探针产生的测试数据，可先用 list_tickets 查询并询问是否需要清理归档，不要当作未知概念去检索知识库。
-2. 图谱中的对象编号、状态、关联关系是系统实时数据，可信度高于推测。需要实时数据（当前有哪些工单、事件统计、CI 列表等）时，必须优先调用已提供的工具获取，严禁编造数据。
-3. 你可以调用 create_ticket 创建工单、create_ticket_type 创建工单类型、update_ticket 更新工单；这些写操作会进入审批流，调用后请明确告知用户"已提交、待人工审批（含 invocationId）"，并说明审批通过后才会正式生效。
-4. CMDB 本体关联（故障→配置项→工单）：当用户报告某台设备/数据库/服务/网络故障（如"HIS-DB-01 连接超时""护士站电脑蓝屏""PACS 上传失败"）时，必须先定位受影响的配置项（CI），再把工单挂到该 CI 上，形成 ITSM↔CMDB 本体闭环。操作顺序：
-   (a) 用 list_cis 定位 CI —— 支持 search 按名称/资产标签/序列号/型号/厂商/云资源ID 模糊匹配，也支持 ci_type 按类型过滤（server/database/application/network/storage/cloud_resource）。从返回结果中取 id 作为 ci_id。
-   (b) 建单时带 ci_id：调用 create_ticket 时把 ci_id 一并传入，工单创建后会自动绑定到该配置项。
-   (c) 若用户先报障建单、后才说清是哪台设备，用 link_ticket_ci 把已存在的工单补挂到 CI（需审批）。
-   (d) 影响面分析：用 get_ci_tickets 查询某个 CI 上已关联的工单，判断是否为重复报障、该资产是否反复故障。这在回答"这台服务器最近怎么老出问题"类问题时是必做步骤。
-   (e) 若 list_cis 未找到匹配 CI，可正常创建工单，并在回答中明确提示用户补充设备名称/资产编号，不要编造 ci_id。`},
+		// 系统提示词与函数调用 schema 同源（都来自 face）：只承诺本次真正下发的工具，
+		// 避免模型"知道"未授权/未下发的工具（2026-09-30 修复）。
+		{Role: "system", Content: buildToolAwareSystemPrompt(face)},
 		{Role: "user", Content: prompt},
 	}
 
@@ -964,6 +964,131 @@ func (r *RAGService) AskWithLLMStreamWithTools(
 		// 继续下一轮，让模型基于工具结果生成最终回答
 	}
 	return fmt.Errorf("tool loop exceeded max rounds (%d)", maxToolRounds)
+}
+
+// ToolFaceEntry 是本次会话实际下发给模型的单个工具及其策略口径（M0/B2 工具面装配的产物）。
+//
+// 之所以不只传 LLMTool：系统提示词必须按工具面动态生成（写明本次可用工具、写工具有无）。
+// 历史缺陷（2026-09-30 修复）：提示词硬编码内置工具名，与策略裁剪后的工具面脱钩，模型会
+// 声称具备未下发的能力，甚至把缺失归因为"MCP 服务未挂载"。
+type ToolFaceEntry struct {
+	Tool     LLMTool // 下发给模型的名字/描述/参数 schema
+	ReadOnly bool    // true=读工具；false=写工具（执行走人工审批流）
+	Provider string  // builtin / mcp（仅用于排障与措辞，不参与判定）
+}
+
+// toolPromptDescriptionMaxRunes 限制单个工具在系统提示词中的说明长度，防止长描述挤占上下文。
+const toolPromptDescriptionMaxRunes = 100
+
+// buildToolAwareSystemPrompt 依据本次会话实际下发的工具面生成系统提示词。
+//
+// 修复（2026-09-30）：此前提示词硬编码 create_ticket/create_ticket_type/update_ticket/
+// list_tickets/list_cis/link_ticket_ci/get_ci_tickets 等内置工具名，与「按 Bot 策略装配的
+// 工具面」脱钩——当会话选中的 Bot 只授权 MCP 工具（或写面被 mcp.write_enabled 关闭）时，
+// 模型仍会声称具备这些能力，并给出"请确认 MCP 服务是否已挂载"之类的错误归因。
+// 现在按面生成：只列实际下发工具；写工具有无分别给出口径；CMDB 本体闭环指引按可用工具裁剪。
+func buildToolAwareSystemPrompt(face []ToolFaceEntry) string {
+	available := make(map[string]bool, len(face))
+	writes := make([]string, 0, 4)
+	for _, entry := range face {
+		name := strings.TrimSpace(entry.Tool.Name)
+		if name == "" {
+			continue
+		}
+		available[name] = true
+		if !entry.ReadOnly {
+			writes = append(writes, name)
+		}
+	}
+
+	var b strings.Builder
+	b.WriteString("你是 IT 服务管理（ITSM）智能助手，基于检索到的知识库内容与 CMDB/工单图谱事实回答用户问题。请遵守以下约定：\n")
+	b.WriteString(`1. 口语与错别字纠正：用户常把"工单"说成"工地"，"单子/报修/工单子"也指工单；"测试工单/探针工单"通常指 E2E 或探针产生的测试数据，属于待清理的测试数据，不要当作未知概念去检索知识库`)
+	if available["list_tickets"] {
+		b.WriteString("（可先用 list_tickets 查询确认）")
+	}
+	b.WriteString("。\n")
+	b.WriteString("2. 图谱中的对象编号、状态、关联关系是系统实时数据，可信度高于推测。需要实时数据（当前有哪些工单、事件统计、CI 列表等）时，必须优先调用下面列出的工具获取，严禁编造数据。\n")
+	b.WriteString("3. 本次会话可调用的工具（仅以下清单，未列出的工具一律不可调用）：\n")
+	for _, entry := range face {
+		name := strings.TrimSpace(entry.Tool.Name)
+		if name == "" {
+			continue
+		}
+		b.WriteString("   - ")
+		b.WriteString(name)
+		if desc := summarizeToolDescription(entry.Tool.Description); desc != "" {
+			b.WriteString("：")
+			b.WriteString(desc)
+		}
+		b.WriteString("\n")
+	}
+	if len(writes) > 0 {
+		b.WriteString("4. 写工具（")
+		b.WriteString(strings.Join(writes, "、"))
+		b.WriteString("）会进入人工审批流：调用后必须明确告知用户“已提交、待人工审批”，并说明审批通过后才正式生效；不要声称变更已直接完成。\n")
+	} else {
+		b.WriteString("4. 本次会话**未挂载写工具**（建单、改单、建工单类型、关联 CI 等写操作不可用）：若用户要求这类操作，请如实说明当前会话无法执行，并建议其改用默认助手或为该 Bot 授权对应工具；不要归因为“MCP 服务未挂载”，也不要声称已提交审批。\n")
+	}
+	if steps := cmdbClosureGuidance(available); len(steps) > 0 {
+		b.WriteString("5. CMDB 本体关联（故障→配置项→工单）：当用户报告某台设备/数据库/服务/网络故障（如“HIS-DB-01 连接超时”“护士站电脑蓝屏”“PACS 上传失败”）时，先把受影响的配置项（CI）与本条对话对齐，形成 ITSM↔CMDB 本体闭环。操作顺序：\n")
+		for _, step := range steps {
+			b.WriteString(step)
+			b.WriteString("\n")
+		}
+	}
+	return b.String()
+}
+
+// cmdbClosureGuidance 按「本次确实可用的工具」逐条裁剪 CMDB 闭环指引，
+// 避免提示词承诺当前会话并未下发的动作（如未授权 list_cis 时仍要求模型先定位 CI）。
+func cmdbClosureGuidance(available map[string]bool) []string {
+	hasListCIs := available["list_cis"]
+	hasCreate := available["create_ticket"]
+	hasLink := available["link_ticket_ci"]
+	hasCITickets := available["get_ci_tickets"]
+	if !hasListCIs && !hasCreate && !hasLink && !hasCITickets {
+		return nil
+	}
+	steps := make([]string, 0, 5)
+	label := byte('a')
+	add := func(text string) {
+		steps = append(steps, "   ("+string(label)+") "+text)
+		label++
+	}
+	if hasListCIs {
+		add("用 list_cis 定位 CI —— 支持 search 按名称/资产标签/序列号/型号/厂商/云资源ID 模糊匹配，也支持 ci_type 按类型过滤。从返回结果中取 id 作为 ci_id。")
+	}
+	if hasCreate {
+		add("建单时带 ci_id：调用 create_ticket 时把 ci_id 一并传入，工单创建后会自动绑定到该配置项。")
+	}
+	if hasLink {
+		add("若用户先报障建单、后才说清是哪台设备，用 link_ticket_ci 把已存在的工单补挂到 CI（需审批）。")
+	}
+	if hasCITickets {
+		add("影响面分析：用 get_ci_tickets 查询某个 CI 上已关联的工单，判断是否为重复报障、该资产是否反复故障。这在回答“这台服务器最近怎么老出问题”类问题时是必做步骤。")
+	}
+	if hasListCIs {
+		add("若 list_cis 未找到匹配 CI，可正常建单/回答，并在回答中明确提示用户补充设备名称/资产编号，不要编造 ci_id。")
+	}
+	return steps
+}
+
+// summarizeToolDescription 把工具描述压成一行短语（折叠空白 + 取首句 + 截断），
+// 便于在系统提示词中逐条列出而不挤占上下文。
+func summarizeToolDescription(desc string) string {
+	flat := strings.Join(strings.Fields(desc), " ")
+	if flat == "" {
+		return ""
+	}
+	if idx := strings.IndexAny(flat, "。；;"); idx >= 0 {
+		flat = flat[:idx]
+	}
+	runes := []rune(flat)
+	if len(runes) > toolPromptDescriptionMaxRunes {
+		return string(runes[:toolPromptDescriptionMaxRunes]) + "…"
+	}
+	return flat
 }
 
 // parseToolArgs 解析模型返回的工具参数 JSON；空串/非法 JSON 时返回空 map 或降级兜底，

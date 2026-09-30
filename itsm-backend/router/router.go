@@ -212,7 +212,10 @@ type RouterConfig struct {
 	LLMProviderAdminHandler *ai.LLMProviderAdminHandler
 	// MCPHandler MCP 外部工具管理 API（M0-08，前缀 /api/v1/ai/mcp-servers）；
 	// bootstrap 未注入时为 nil，整组路由不注册（端点不可达即回滚语义）。
-	MCPHandler         *mcpHandler.Handler
+	MCPHandler *mcpHandler.Handler
+	// BotAdminHandler Bot 模板/授权管理 API（B2-01，前缀 /api/v1/admin/bots）；
+	// 仅 bot.enabled=true 时由 bootstrap 注入；为 nil 时整组路由不注册（开关关闭 = 零行为变化）。
+	BotAdminHandler    *ai.BotAdminHandler
 	EmailIntakeHandler *email_intake.Handler
 	// VectorStoreController 提供向量存储（RAG 检索底座）状态查看与连通性测试，
 	// 注册 /api/v1/system/vector-store*；为 nil 时路由不注册。
@@ -583,6 +586,11 @@ func SetupRoutes(r *gin.Engine, config *RouterConfig) {
 		// ==================== MCP 外部工具管理 API（M0-08） ====================
 		if config.MCPHandler != nil {
 			SetupMCPServerRoutes(tenant.(*gin.RouterGroup), config.MCPHandler)
+		}
+
+		// ==================== Bot 模板/授权管理 API（B2-01） ====================
+		if config.BotAdminHandler != nil {
+			SetupBotAdminRoutes(tenant.(*gin.RouterGroup), config.BotAdminHandler)
 		}
 
 		// ==================== Skill Registry v1 ====================

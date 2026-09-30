@@ -4,6 +4,7 @@ import (
 	"net/http"
 	"strconv"
 
+	"itsm-backend/capability"
 	"itsm-backend/common"
 	"itsm-backend/mcp/admin"
 
@@ -20,10 +21,47 @@ import (
 // 额外给出 errorCode（§5.5 字符串码）供前端分支；绝不回显凭据明文（服务层已掩码）。
 type Handler struct {
 	svc *admin.Service
+	// M2 能力开关：运行时能力开关源（nil = 不做运行时门禁，保持既有行为）。
+	capability capability.Source
 }
 
 // NewHandler 构造管理面 handler（svc 为 nil 时所有方法返回 503）。
 func NewHandler(svc *admin.Service) *Handler { return &Handler{svc: svc} }
+
+// SetCapabilitySource 注入运行时能力开关源（M2 能力开关）。
+func (h *Handler) SetCapabilitySource(src capability.Source) { h.capability = src }
+
+// RequireEnabled 是治理写端的运行时门禁（M2 能力开关）：mcp.enabled=false → 403。
+//
+// 读端不挂：管理页需要展示「已关闭」状态与重新开启入口（开关面板本身必须可达）。
+func (h *Handler) RequireEnabled() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		if h == nil || h.capability == nil {
+			c.Next()
+			return
+		}
+		tenantID := c.GetInt("tenant_id")
+		if h.capability.For(c.Request.Context(), tenantID).MCPEnabled {
+			c.Next()
+			return
+		}
+		common.Fail(c, common.ForbiddenCode, "MCP 能力已在管理后台关闭（mcp.enabled=false），请先在管理后台启用后再操作")
+		c.Abort()
+	}
+}
+
+// capabilitiesView 返回展示用能力块（页面据此渲染「已关闭」状态，与门禁同源）。
+func (h *Handler) capabilitiesView(c *gin.Context) *admin.CapabilityView {
+	view := &admin.CapabilityView{MCPEnabled: true, BotEnabled: true}
+	if h == nil || h.capability == nil {
+		return view
+	}
+	snap := h.capability.For(c.Request.Context(), c.GetInt("tenant_id"))
+	view.MCPEnabled = snap.MCPEnabled
+	view.MCPWriteEnabled = snap.MCPWriteEnabled
+	view.BotEnabled = snap.BotEnabled
+	return view
+}
 
 // ListServers GET /api/v1/ai/mcp-servers
 func (h *Handler) ListServers(c *gin.Context) {
@@ -40,6 +78,8 @@ func (h *Handler) ListServers(c *gin.Context) {
 		respondError(c, err)
 		return
 	}
+	// M2 能力开关：列表响应追加展示用能力块（与门禁同源；未注入能力源时为默认值）。
+	result.Capabilities = h.capabilitiesView(c)
 	common.Success(c, result)
 }
 

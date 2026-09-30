@@ -41,6 +41,7 @@ import (
 	"itsm-backend/ent/user"
 	"itsm-backend/internal/authz"
 	"itsm-backend/service"
+	servicebot "itsm-backend/service/bot"
 
 	"itsm-backend/config"
 	"itsm-backend/database"
@@ -623,6 +624,7 @@ func (s *Seeder) SeedAll(ctx context.Context) {
 	s.seedStandardChanges(ctx)        // 新增：初始化标准变更模板
 	s.seedTicketTags(ctx)             // 新增：初始化标签
 	s.seedMenuAndPermissionFixes(ctx) // 修复：更新菜单路径和补充缺失权限
+	s.seedBotTemplates(ctx)           // B2/B3：Bot 模板种子（内置默认助手 + 三个场景 pilot，幂等只增）
 	s.seedRolePermissions(ctx)        // 新增：为角色分配权限
 	s.seedBusinessRecords(ctx)        // 演示业务记录：仅当种子配置包含 Incidents/Problems/Changes/KnowledgeArticles 时生效
 }
@@ -1773,6 +1775,8 @@ func (s *Seeder) seedMenus(ctx context.Context) {
 		{Name: "AI 创建工单", Path: "/tickets/ai-create", Icon: "Sparkles", ParentPath: "/ai/chat", PermissionCode: "ai:read", SortOrder: 112},
 		{Name: "AI 评估与审计", Path: "/ai/audit", Icon: "ShieldCheck", ParentPath: "/ai/chat", PermissionCode: "ai:read", SortOrder: 113},
 		{Name: "AI 审批", Path: "/ai/approval", Icon: "ShieldAlert", ParentPath: "/ai/chat", PermissionCode: "ai:read", SortOrder: 114},
+		// Bot 运行看板（B4-02）：菜单挂载点评审结论 = 挂 AI 助手子项（与 AI 评估/审批同域，ai:read 可读）。
+		{Name: "Bot 运行看板", Path: "/ai/bot-metrics", Icon: "Activity", ParentPath: "/ai/chat", PermissionCode: "ai:read", SortOrder: 116},
 
 		// ===== 子菜单：MSP 客户管理 =====
 		{Name: "客户管理子页", Path: "/msp/management", Icon: "Settings", ParentPath: "/msp", PermissionCode: "msp:write", SortOrder: 122},
@@ -1800,6 +1804,10 @@ func (s *Seeder) seedMenus(ctx context.Context) {
 		{Name: "连接器/插件市场", Path: "/admin/connectors", Icon: "Plug", ParentPath: "/admin", PermissionCode: "connector:write", SortOrder: 285},
 		// MCP 外部工具（M0-12，Q3 独立页）：工具执行面 = mcp:read/write，治理面 = mcp:admin（默认仅 sysadmin/admin）。
 		{Name: "MCP 外部工具", Path: "/admin/mcp-servers", Icon: "Plug", ParentPath: "/admin", PermissionCode: "mcp:admin", SortOrder: 286},
+		// Bot 模板与工具授权（B2-03）：读开放给 ai:read（页面只读可浏览），写动作由后端 ai:write 拦截。
+		{Name: "Bot 管理与授权", Path: "/admin/bots", Icon: "Bot", ParentPath: "/admin", PermissionCode: "ai:read", SortOrder: 287},
+		// 工具目录（查询内置 + MCP 外部工具；与 Bot 授权选择器同源，均按 ai:read 开放）。
+		{Name: "工具目录", Path: "/admin/tools", Icon: "Wrench", ParentPath: "/admin", PermissionCode: "ai:read", SortOrder: 288},
 		{Name: "向量存储配置", Path: "/admin/vector-store", Icon: "Database", ParentPath: "/admin", PermissionCode: "system:read", SortOrder: 290},
 		{Name: "系统配置", Path: "/admin/system-config", Icon: "Settings", ParentPath: "/admin", PermissionCode: "system:read", SortOrder: 295},
 		// 通知配置 / 审计日志 / 操作日志：2026-08-30 归位后已移出 /admin，详见顶级菜单与 /workflow 子菜单。
@@ -1897,6 +1905,42 @@ func (s *Seeder) upsertMenu(ctx context.Context, tenantID int, m menuSpec, paren
 	if _, cerr := createBuilder.Save(ctx); cerr != nil {
 		s.sugar.Warnw("seed menu failed", "error", cerr, "name", m.Name)
 	}
+}
+
+// seedBotTemplates 装配 Bot 模板种子（B2-01 内置「默认助手」+ B3 三个场景 pilot Bot）。
+//
+// 语义：
+//   - 默认助手经 SeedDefaultTemplate（存在即不覆盖，含被管理员改名/改状态的情形）；
+//   - 场景 Bot 经 SeedScenarioBots（模板已存在不覆盖字段，只补齐缺失授权）；
+//   - 幂等可复跑：fresh install 与 initialize apply 重放结果一致，管理员显式修改优先。
+//
+// 目标租户为 `default`（产品模板租户）；其他租户由 ProvisionTenant 克隆继承
+// （见 tenant_provisioner.go cloneTenantTemplates）。
+func (s *Seeder) seedBotTemplates(ctx context.Context) {
+	t, err := s.client.Tenant.Query().Where(tenant.CodeEQ("default")).First(ctx)
+	if err != nil {
+		s.sugar.Warnw("default tenant not found; skip bot template seed", "error", err)
+		return
+	}
+
+	admin := servicebot.NewTemplateAdmin(s.client)
+	if _, created, err := admin.SeedDefaultTemplate(ctx, t.ID); err != nil {
+		s.sugar.Warnw("seed default assistant template failed", "error", err, "tenant", t.ID)
+	} else if created {
+		s.sugar.Infow("default assistant template seeded", "tenant", t.ID)
+	}
+
+	result, err := admin.SeedScenarioBots(ctx, t.ID)
+	if err != nil {
+		s.sugar.Warnw("seed scenario bots failed", "error", err, "tenant", t.ID)
+		return
+	}
+	s.sugar.Infow("bot templates seeded",
+		"tenant", t.ID,
+		"templates_created", result.CreatedTemplates,
+		"grants_created", result.CreatedGrants,
+		"grants_skipped", result.SkippedGrants,
+	)
 }
 
 // seedMenuAndPermissionFixes 兼容历史菜单路径 & 补充缺失权限

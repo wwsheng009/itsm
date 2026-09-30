@@ -9,7 +9,47 @@ import (
 	"itsm-backend/ent"
 	"itsm-backend/ent/citype"
 	"itsm-backend/ent/ticket"
+	"itsm-backend/service/bot"
 )
+
+// —— B3-06 工具调用者上下文（产物归属；由 handlers/ai 在执行入口注入）——
+
+type toolActorKey struct{}
+
+// WithToolActor 注入本次工具调用的发起人（当前仅用于产物归属）。
+func WithToolActor(ctx context.Context, userID int) context.Context {
+	if userID <= 0 {
+		return ctx
+	}
+	return context.WithValue(ctx, toolActorKey{}, userID)
+}
+
+// ToolActorFromContext 读取发起人；0 = 未注入。
+func ToolActorFromContext(ctx context.Context) int {
+	if v, ok := ctx.Value(toolActorKey{}).(int); ok && v > 0 {
+		return v
+	}
+	return 0
+}
+
+type toolConversationKey struct{}
+
+// WithToolConversation 注入本次工具调用的会话归属（产物/审计归属用；跨包不可读的
+// handlers/ai 私有键由此再暴露一份只读视图）。
+func WithToolConversation(ctx context.Context, conversationID int) context.Context {
+	if conversationID <= 0 {
+		return ctx
+	}
+	return context.WithValue(ctx, toolConversationKey{}, conversationID)
+}
+
+// ToolConversationFromContext 读取会话归属；0 = 未注入。
+func ToolConversationFromContext(ctx context.Context) int {
+	if v, ok := ctx.Value(toolConversationKey{}).(int); ok && v > 0 {
+		return v
+	}
+	return 0
+}
 
 type ToolDefinition struct {
 	Name         string                 `json:"name"`
@@ -109,6 +149,8 @@ type ToolRegistry struct {
 	ticket         *TicketService
 	ticketType     *TicketTypeService
 	impactExplain  *ImpactExplanationService
+	// artifacts 是 plan/analysis/draft 类工具的产物存储（B3-06；nil = 该能力不注册）。
+	artifacts *bot.ArtifactStore
 	// providers 是内置工具之外的工具来源（M0-09：MCP），按注册顺序作为解析兜底。
 	providers []ToolProvider
 }
@@ -128,6 +170,9 @@ func (t *ToolRegistry) SetCIRelationshipService(s *CIRelationshipService) {
 
 // SetImpactExplainer P1-4：影响分析 AI 解释服务（可选注入，未注入时不报错）
 func (t *ToolRegistry) SetImpactExplainer(s *ImpactExplanationService) { t.impactExplain = s }
+
+// SetArtifactStore 注入产物存储（B3-06）；nil 时 plan/analysis/draft 工具执行返回「能力未启用」。
+func (t *ToolRegistry) SetArtifactStore(store *bot.ArtifactStore) { t.artifacts = store }
 
 // RegisterProvider 注册外部工具来源（M0-09：MCP provider；nil 忽略）。
 // 解析顺序 = 内置优先 → provider 注册顺序。
@@ -179,6 +224,30 @@ func (t *ToolRegistry) HasProviderTool(ctx context.Context, tenantID int, name s
 	return false
 }
 
+// ToolGateReasoner 由支持「能力开关门禁原因」的 provider 实现（MCP provider）。
+//
+// 用途：工具不在当前工具面内时，调用方（handlers/ai 的 Gate 0、ToolQueue worker）
+// 需要区分「未知工具」与「被运行时能力开关挡下」（capability_disabled:*），
+// 以便给出可操作提示并落审计原因。
+type ToolGateReasoner interface {
+	GateReason(ctx context.Context, tenantID int, name string) string
+}
+
+// GateReason 返回工具被能力开关挡下的原因（"" = 无门禁或工具不存在）。
+func (t *ToolRegistry) GateReason(ctx context.Context, tenantID int, name string) string {
+	if t == nil {
+		return ""
+	}
+	for _, provider := range t.providers {
+		if reasoner, ok := provider.(ToolGateReasoner); ok {
+			if reason := reasoner.GateReason(ctx, tenantID, name); reason != "" {
+				return reason
+			}
+		}
+	}
+	return ""
+}
+
 // ExecuteApprovedWrite 执行**已获审批**的外部工具（M1-02，Gate3 已满足）。
 //
 // 语义：
@@ -219,6 +288,34 @@ func (t *ToolRegistry) GetTool(name string) *ToolDefinition {
 		}
 	}
 	return nil
+}
+
+// updateTicketRequestFromArgs 把模型入参映射为工单更新请求（B1-05）。
+//
+// ticket_id 缺失/非法 → (0, 请求体)：由调用方返回参数错误；
+// `expected_version > 0` 时启用乐观锁（与工单 version 比对，冲突即中止并要求刷新）。
+func updateTicketRequestFromArgs(args map[string]interface{}) (int, *dto.UpdateTicketRequest) {
+	ticketID := 0
+	if v, ok := args["ticket_id"].(float64); ok {
+		ticketID = int(v)
+	}
+	status, _ := args["status"].(string)
+	priority, _ := args["priority"].(string)
+	resolution, _ := args["resolution"].(string)
+	assigneeID := 0
+	if v, ok := args["assignee_id"].(float64); ok {
+		assigneeID = int(v)
+	}
+	req := &dto.UpdateTicketRequest{
+		Status:     status,
+		Priority:   priority,
+		Resolution: resolution,
+		AssigneeID: assigneeID,
+	}
+	if v, ok := args["expected_version"].(float64); ok && v > 0 {
+		req.Version = int(v)
+	}
+	return ticketID, req
 }
 
 // canExecuteWriteTool 判断某工具能否交由 ToolRegistry.Execute 统一执行。
@@ -368,6 +465,92 @@ func (t *ToolRegistry) ListTools() []ToolDefinition {
 			},
 		},
 		{
+			Name:        "draft_ticket_fields",
+			Description: "根据自然语言描述生成工单字段草案（plan：只读，不落业务库，产物存 bot_artifacts）",
+			ReadOnly:    true,
+			Resource:    "ticket",
+			Action:      "read",
+
+			Risk:             ToolRiskPlan,
+			Category:         "ticket",
+			TimeoutMs:        DefaultToolTimeoutMs,
+			MaxOutputBytes:   DefaultToolMaxOutputBytes,
+			RedactionProfile: ToolRedactionDefault,
+			ArgsSchema: map[string]interface{}{
+				"type": "object",
+				"properties": map[string]interface{}{
+					"description": map[string]interface{}{"type": "string"},
+					"title":       map[string]interface{}{"type": "string"},
+					"priority":    map[string]interface{}{"type": "string"},
+				},
+				"required": []string{"description"},
+			},
+			ResultSchema: map[string]interface{}{
+				"type": "object",
+				"properties": map[string]interface{}{
+					"artifactId": map[string]interface{}{"type": "integer"},
+					"kind":       map[string]interface{}{"type": "string"},
+				},
+			},
+		},
+		{
+			Name:        "analyze_ci_impact_plan",
+			Description: "为配置项变更生成影响面分析草案（analysis：只读，不落业务库；含证据引用）",
+			ReadOnly:    true,
+			Resource:    "cmdb",
+			Action:      "read",
+
+			Risk:             ToolRiskPlan,
+			Category:         "cmdb",
+			TimeoutMs:        DefaultToolTimeoutMs,
+			MaxOutputBytes:   DefaultToolMaxOutputBytes,
+			RedactionProfile: ToolRedactionDefault,
+			ArgsSchema: map[string]interface{}{
+				"type": "object",
+				"properties": map[string]interface{}{
+					"ciId":    map[string]interface{}{"type": "integer", "minimum": 1},
+					"change":  map[string]interface{}{"type": "string"},
+					"summary": map[string]interface{}{"type": "string"},
+				},
+				"required": []string{"ciId"},
+			},
+			ResultSchema: map[string]interface{}{
+				"type": "object",
+				"properties": map[string]interface{}{
+					"artifactId": map[string]interface{}{"type": "integer"},
+					"kind":       map[string]interface{}{"type": "string"},
+				},
+			},
+		},
+		{
+			Name:        "draft_kb_article",
+			Description: "把对话/描述整理为知识文章草稿（draft：只读，不自动发布，产物存 bot_artifacts）",
+			ReadOnly:    true,
+			Resource:    "knowledge",
+			Action:      "read",
+
+			Risk:             ToolRiskPlan,
+			Category:         "knowledge",
+			TimeoutMs:        DefaultToolTimeoutMs,
+			MaxOutputBytes:   DefaultToolMaxOutputBytes,
+			RedactionProfile: ToolRedactionDefault,
+			ArgsSchema: map[string]interface{}{
+				"type": "object",
+				"properties": map[string]interface{}{
+					"title":   map[string]interface{}{"type": "string"},
+					"content": map[string]interface{}{"type": "string"},
+				},
+				"required": []string{"title", "content"},
+			},
+			ResultSchema: map[string]interface{}{
+				"type": "object",
+				"properties": map[string]interface{}{
+					"artifactId": map[string]interface{}{"type": "integer"},
+					"kind":       map[string]interface{}{"type": "string"},
+				},
+			},
+		},
+		{
 			Name:        "list_tickets",
 			Description: "列出当前租户的工单（分页，按创建时间倒序）",
 			ReadOnly:    true,
@@ -512,6 +695,20 @@ func (t *ToolRegistry) ListTools() []ToolDefinition {
 			RedactionProfile: ToolRedactionDefault,
 			ArgsSchema: map[string]interface{}{
 				"type": "object",
+				"properties": map[string]interface{}{
+					"ticket_id": map[string]interface{}{"type": "integer", "description": "工单 ID（先用 list_tickets/get_ticket 定位）"},
+					"status":    map[string]interface{}{"type": "string", "description": "目标状态，如 in_progress/resolved/closed"},
+					"priority":  map[string]interface{}{"type": "string", "enum": []any{"low", "medium", "high", "critical"}},
+					"resolution": map[string]interface{}{
+						"type": "string", "description": "解决方案（置 resolved/closed 时建议填写）",
+					},
+					"assignee_id": map[string]interface{}{"type": "integer", "description": "处理人用户 ID"},
+					"expected_version": map[string]interface{}{
+						"type":        "integer",
+						"description": "乐观锁版本号（取自 get_ticket 返回的 version）；不一致时本次更新被拒绝，需重新读取后再提交",
+					},
+				},
+				"required": []string{"ticket_id"},
 			},
 			ResultSchema: map[string]interface{}{
 				"type": "object",
@@ -730,6 +927,12 @@ func (t *ToolRegistry) ExecuteWithMeta(ctx context.Context, tenantID int, name s
 
 func (t *ToolRegistry) executeBuiltin(ctx context.Context, tenantID int, name string, args map[string]interface{}) (interface{}, error) {
 	switch name {
+	case "draft_ticket_fields":
+		return t.executeDraftTicketFields(ctx, tenantID, args)
+	case "analyze_ci_impact_plan":
+		return t.executeCIImpactPlan(ctx, tenantID, args)
+	case "draft_kb_article":
+		return t.executeDraftKBArticle(ctx, tenantID, args)
 	case "get_incident_stats":
 		// 使用ListIncidents来获取统计信息
 		incidents, _, err := t.incident.ListIncidents(ctx, tenantID, 1, 1000, map[string]interface{}{})
@@ -919,25 +1122,9 @@ func (t *ToolRegistry) executeBuiltin(ctx context.Context, tenantID int, name st
 		if t.ticket == nil {
 			return nil, fmt.Errorf("ticket service not initialized")
 		}
-		ticketID := 0
-		if v, ok := args["ticket_id"].(float64); ok {
-			ticketID = int(v)
-		}
+		ticketID, req := updateTicketRequestFromArgs(args)
 		if ticketID == 0 {
 			return nil, fmt.Errorf("update_ticket: ticket_id is required")
-		}
-		status, _ := args["status"].(string)
-		priority, _ := args["priority"].(string)
-		resolution, _ := args["resolution"].(string)
-		var assigneeID int
-		if v, ok := args["assignee_id"].(float64); ok {
-			assigneeID = int(v)
-		}
-		req := &dto.UpdateTicketRequest{
-			Status:     status,
-			Priority:   priority,
-			Resolution: resolution,
-			AssigneeID: assigneeID,
 		}
 		updated, err := t.ticket.UpdateTicket(ctx, ticketID, req, tenantID, 0, "") // 0=系统操作，跳过 DataScope
 		if err != nil {

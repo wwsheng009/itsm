@@ -8,7 +8,32 @@ const (
 	ErrorCodeToolNotFound = "tool_not_found"
 	// ErrorCodeNotSupported：能力缺失（如 provider 未实现审批后写执行），fail-closed。
 	ErrorCodeNotSupported = "not_supported"
+	// ErrorCodeMCPDisabled：MCP 能力已在管理后台关闭（mcp.enabled=false）。
+	// 与 mcp/provider 的同名常量保持一致；service 不反向依赖 provider。
+	ErrorCodeMCPDisabled = "mcp_disabled"
+	// ErrorCodeMCPWriteDisabled：外部写工具面已在管理后台关闭（mcp.write_enabled=false）。
+	ErrorCodeMCPWriteDisabled = "mcp_write_disabled"
 )
+
+// 能力开关拒绝原因的稳定串（与 mcp/provider.ReasonMCP* 一致，用于审计可检索）。
+const (
+	// ReasonCapabilityMCPDisabled：MCP 总开关关闭。
+	ReasonCapabilityMCPDisabled = "capability_disabled:mcp"
+	// ReasonCapabilityMCPWriteDisabled：写工具面关闭。
+	ReasonCapabilityMCPWriteDisabled = "capability_disabled:mcp_write"
+)
+
+// CapabilityGateError 由能力开关原因串构造稳定错误（未知原因回落为工具不可用）。
+func CapabilityGateError(reason string) *ToolExecutionError {
+	switch reason {
+	case ReasonCapabilityMCPDisabled:
+		return &ToolExecutionError{Code: ErrorCodeMCPDisabled, Message: "MCP 能力已在管理后台关闭，当前不可执行"}
+	case ReasonCapabilityMCPWriteDisabled:
+		return &ToolExecutionError{Code: ErrorCodeMCPWriteDisabled, Message: "外部写工具面已在管理后台关闭，当前不可执行"}
+	default:
+		return &ToolExecutionError{Code: ErrorCodeToolNotFound, Message: "外部工具当前不可用（服务器已禁用/删除，或工具已停用/隔离）"}
+	}
+}
 
 // ToolExecutionError 是 service 层的稳定错误（实现 errorCoder，供 tool_queue.errorCodeOf 提取错误码）。
 //

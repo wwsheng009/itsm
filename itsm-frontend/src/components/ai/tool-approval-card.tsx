@@ -37,6 +37,13 @@ export interface ToolApprovalCardProps {
   onLoaded?: (detail: ToolInvocationDetail) => void;
   /** 跳转审批页（由外层注入路由跳转，便于单测断言）。 */
   onOpenApproval?: (invocationId: number) => void;
+  /**
+   * 请求在对话内确认（B1-07）。
+   *
+   * **可选**：未注入时卡片保持一期行为（只提示 + 跳转，不提供内联确认）；
+   * 注入后仅 `confirmationState=pending` 且未过期时展示「确认/拒绝」入口。
+   */
+  onRequestConfirm?: (detail: ToolInvocationDetail) => void;
   /** 当前时间（单测注入，默认 Date.now）。 */
   now?: () => number;
 }
@@ -99,6 +106,7 @@ export const ToolApprovalCard: React.FC<ToolApprovalCardProps> = ({
   server,
   onLoaded,
   onOpenApproval,
+  onRequestConfirm,
   now = Date.now,
 }) => {
   const { token } = theme.useToken();
@@ -128,6 +136,9 @@ export const ToolApprovalCard: React.FC<ToolApprovalCardProps> = ({
   const detail = view.detail;
   const risk = detail?.risk;
   const canAct = view.state === 'pending';
+  // B1-07：内联确认入口（仅 pending 且后端给出 confirmationState=pending 时可用）。
+  const canConfirmInline =
+    canAct && !!onRequestConfirm && (detail?.confirmationState ?? 'pending') === 'pending';
 
   return (
     <div
@@ -167,7 +178,10 @@ export const ToolApprovalCard: React.FC<ToolApprovalCardProps> = ({
       <div style={{ marginTop: 6, fontSize: 12, color: token.colorTextSecondary }}>
         {view.state === 'loading' ? '正在查询审批状态…' : null}
         {view.state === 'pending' ? (
-          <>已提交人工审批（#{invocationId}），审批通过后由系统执行；本会话不提供内联确认。</>
+          <>
+            已提交人工审批（#{invocationId}），审批通过后由系统执行；
+            {canConfirmInline ? '可在此确认或拒绝，也可前往审批页处理。' : '本会话不提供内联确认。'}
+          </>
         ) : null}
         {view.state === 'approved' ? <>该请求已处理（#{invocationId}），无需再次操作。</> : null}
         {view.state === 'rejected' ? <>该请求已被驳回（#{invocationId}），未执行。</> : null}
@@ -178,9 +192,20 @@ export const ToolApprovalCard: React.FC<ToolApprovalCardProps> = ({
       </div>
 
       <Space size={8} style={{ marginTop: 8 }}>
-        {canAct ? (
+        {canConfirmInline ? (
           <Button
             type="primary"
+            size="small"
+            data-testid={`tool-approval-confirm-${invocationId}`}
+            icon={<ShieldAlert size={12} />}
+            onClick={() => detail && onRequestConfirm?.(detail)}
+          >
+            确认 / 拒绝
+          </Button>
+        ) : null}
+        {canAct ? (
+          <Button
+            type={canConfirmInline ? 'default' : 'primary'}
             size="small"
             icon={<ExternalLink size={12} />}
             onClick={() => onOpenApproval?.(invocationId)}

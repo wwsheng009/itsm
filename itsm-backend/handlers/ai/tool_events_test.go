@@ -47,15 +47,27 @@ func TestWriteToolEvent_NameMapping(t *testing.T) {
 		ToolStreamEvent{Tool: "mcp__mock__create_issue", Provider: "mcp", Server: "mock", Phase: "write", Status: ToolEventStatusPending},
 		ToolStreamEvent{Tool: "odd", Provider: "builtin", Phase: "read", Status: "weird-status"},
 	)
-	require.Len(t, frames, 5)
+	// B1-03：pending 双发（approval_pending 旧名 + confirmation_required v2 新名），其余保持单发。
+	require.Len(t, frames, 6)
 	assert.Equal(t, "tool_call_started", frames[0].event)
 	assert.Equal(t, "tool_call_finished", frames[1].event)
 	assert.Equal(t, "tool_call_failed", frames[2].event)
-	assert.Equal(t, "approval_pending", frames[3].event)
-	assert.Equal(t, "tool_call_started", frames[4].event, "未知状态不得被静默吞掉")
+	assert.Equal(t, SSEEventApprovalPending, frames[3].event, "旧名先发（旧客户端命中后忽略未知事件）")
+	assert.Equal(t, SSEEventConfirmationRequired, frames[4].event, "v2 新名随发")
+	assert.Equal(t, "tool_call_started", frames[5].event, "未知状态不得被静默吞掉")
 
 	// 载荷必须原样透传（事件名映射不改写字段，避免前端看到两套口径）。
 	assert.Equal(t, base.Tool, frames[0].payload.(ToolStreamEvent).Tool)
+
+	// 双发语义：旧名载荷保持 v1 原样（无 v 字段）；新名载荷是同一事件 + `v:2`。
+	legacy, ok := frames[3].payload.(ToolStreamEvent)
+	require.True(t, ok, "旧名载荷必须是原事件结构体（v1 契约不变）")
+	assert.Equal(t, "mcp__mock__create_issue", legacy.Tool)
+	v2, ok := frames[4].payload.(map[string]interface{})
+	require.True(t, ok, "v2 事件载荷必须是对象信封")
+	assert.Equal(t, SSEProtocolVersionV2, v2["v"])
+	assert.Equal(t, "mcp__mock__create_issue", v2["tool"])
+	assert.Equal(t, "pending", v2["status"])
 }
 
 func TestToolStreamEvent_JSONContract(t *testing.T) {

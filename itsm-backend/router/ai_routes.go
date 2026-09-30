@@ -31,6 +31,8 @@ func SetupAIRoutes(tenant *gin.RouterGroup, h *aiHandler.Handler) {
 		aiGrp.POST("/feedback", middleware.RequirePermission("ai", "write"), h.SaveFeedback)
 		aiGrp.POST("/audit", middleware.RequirePermission("ai", "write"), h.RecordAudit)
 		aiGrp.GET("/metrics", middleware.RequirePermission("ai", "read"), h.GetMetrics)
+		// B4-02：Bot 运行维度指标（成功/确认/verify/工具错误/时延/成本代理）。
+		aiGrp.GET("/bot-metrics", middleware.RequirePermission("ai", "read"), h.GetBotMetrics)
 		// AI 评估报告（按场景有用率 / 置信度校准 / 平台 LLM 统计）
 		aiGrp.GET("/evaluation", middleware.RequirePermission("ai", "read"), h.GetEvaluation)
 		// AI 审计日志（ai_audit 记录分页查询）
@@ -50,6 +52,9 @@ func SetupAIRoutes(tenant *gin.RouterGroup, h *aiHandler.Handler) {
 	agentGrp := tenant.Group("/agent")
 	{
 		agentGrp.GET("/tools", middleware.RequirePermission("ai", "read"), h.ListTools)
+		// 工具目录查询（内置 + MCP 统一投影；Bot 授权选择器与独立工具目录页共用）：
+		// GET /api/v1/agent/tools/catalog?q=&source=&readOnly=&risk=&limit=
+		agentGrp.GET("/tools/catalog", middleware.RequirePermission("ai", "read"), h.ListToolCatalog)
 		agentGrp.POST("/tools/execute", middleware.RequirePermission("ai", "read"), h.ExecuteTool)
 		agentGrp.GET("/tools/:id", middleware.RequirePermission("ai", "read"), h.GetToolInvocation)
 		// 审批人待办列表：GET /api/v1/agent/tools/invocations?state=pending
