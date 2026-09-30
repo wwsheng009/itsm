@@ -1323,7 +1323,9 @@ func (s *Service) chatStreamInner(
 	// 但 System Prompt 依然告诉模型“必须调用工具”，导致模型在文本中假装调用
 	// (“正在调用 list_tickets 工具...”) 但永远拿不到结果。修复：检测 provider
 	// 能力，不支持时不注入 tools，让 RAG 层退化为纯知识库问答（合规）。
-	var tools []service.LLMTool
+	// 工具面（face）：下发给模型的函数 schema 与系统提示词同源，提示词只承诺本次真正
+	// 放行的工具（2026-09-30 修复，见 service.buildToolAwareSystemPrompt）。
+	var toolFace []service.ToolFaceEntry
 	// BE-7：绑定路径（多 Provider 开启或显式覆盖）按解析出的 provider 探测工具能力——
 	// 无 ctx 的 SupportsToolCalling 只看静态 provider，会把「租户默认不支持工具」误判为
 	// 支持，导致模型在文本里假装调用工具却永远拿不到结果。未绑定时维持既有静态口径。
@@ -1358,10 +1360,14 @@ func (s *Service) chatStreamInner(
 					"role", role, "tenantID", tenantID)
 				continue
 			}
-			tools = append(tools, service.LLMTool{
-				Name:        td.Name,
-				Description: td.Description,
-				Parameters:  td.ArgsSchema,
+			toolFace = append(toolFace, service.ToolFaceEntry{
+				Tool: service.LLMTool{
+					Name:        td.Name,
+					Description: td.Description,
+					Parameters:  td.ArgsSchema,
+				},
+				ReadOnly: td.ReadOnly,
+				Provider: td.Provider,
 			})
 		}
 	}
@@ -1472,7 +1478,7 @@ func (s *Service) chatStreamInner(
 		}
 	}
 
-	if err := s.rag.AskWithLLMStreamWithTools(ctx, tenantID, query, gateway, limit, tools, wrappedSources, wrappedDelta, execTool); err != nil {
+	if err := s.rag.AskWithLLMStreamWithTools(ctx, tenantID, query, gateway, limit, toolFace, wrappedSources, wrappedDelta, execTool); err != nil {
 		return 0, "", err
 	}
 

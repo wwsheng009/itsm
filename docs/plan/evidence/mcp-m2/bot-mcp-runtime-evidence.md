@@ -176,8 +176,39 @@ curl.exe -s -b $jar 'http://127.0.0.1:8090/api/v1/agent/tools/invocations?state=
 | N-4 | 替身触发词导致的多轮调用 | 已知行为 | 同一触发词每轮都会命中，直到 5 轮护栏；E2E 断言宜取首轮事件或在触发后改写消息 |
 | N-5 | MCP 工具 strict 脱敏档 | 已登记 | 见 MCP 方案变更记录「跨线回归修复」：MCP 工具暂无 strict 档可配置入口 |
 
-## 8. 变更记录
+## 8. 缺陷修复：聊天系统提示词与工具面同源（2026-09-30）
+
+### 8.1 现象与误诊
+
+现象：选中只授权 MCP 工具的 Bot（conversation 13 / bot 9「MCP 联调助手」）后，模型回复
+「按平台配置说明，ITSM 侧原本还声明了 create_ticket、create_ticket_type、update_ticket、
+list_tickets、list_cis、get_ci_tickets、link_ticket_ci 等工具，但本次会话的工具清单中并未
+包含它们……建议确认相应 MCP 服务是否已为当前会话挂载」。
+
+根因：`itsm-backend/service/rag_service.go:919-928`（修复前行号）的系统提示词**硬编码**上述
+7 个内置工具名，与「按 Bot 策略装配的工具面」脱钩——工具清单是策略交集的结果，提示词却是常量；
+模型没有"工具为何缺失"的元信息，只能自行猜测（于是误归因为 MCP 未挂载）。这些工具本身是**内置
+工具**（`service/tool_registry.go`），与 MCP 无关。
+
+### 8.2 修复内容
+
+| 文件 | 变更 |
+| --- | --- |
+| `itsm-backend/service/rag_service.go` | 新增 `ToolFaceEntry{Tool, ReadOnly, Provider}`；`AskWithLLMStreamWithTools` 形参由 `[]LLMTool` 改为 `[]ToolFaceEntry`，**函数 schema 与系统提示词同源派生**；新增 `buildToolAwareSystemPrompt`（只列实际下发工具 + 写工具有无分别给出口径 + CMDB 闭环指引按可用工具逐条裁剪 + 显式禁止"MCP 服务未挂载"归因）与 `summarizeToolDescription`（描述折叠取首句、100 字截断） |
+| `itsm-backend/handlers/ai/service.go` | 工具面装配处改传 `ToolFaceEntry`（带 `td.ReadOnly`/`td.Provider`），调用点同步 |
+| `itsm-backend/service/rag_service_prompt_face_test.go` | 新增 5 个用例：MCP-only 面不含任何内置工具名、完整内置面保留 (a)～(d)、按工具裁剪、空面/空名边界、描述压缩 |
+| `itsm-backend/service/tool_metadata_test.go` | **顺带修复既有守卫测试漂移**：B3-06 新增 3 个 plan 工具（`draft_ticket_fields`/`analyze_ci_impact_plan`/`draft_kb_article`）后 `builtinToolCount` 未同步，`TestBuiltinToolMetadataComplete` 恒失败；本轮 14 → 17 并补齐风险矩阵（plan） |
+
+### 8.3 验证
+
+- 单测：`go test ./service/ -count=1 -run 'TestBuildToolAwareSystemPrompt|TestSummarizeToolDescription'` → **ok**；`TestBuiltinToolMetadataComplete` 等元数据用例 → **ok**；`go test ./handlers/ai/` → **ok**（12.9s）。
+- 实测（重建 `main.exe` 后重启，真实模型链路）：
+  - **bot 9（仅 `mcp__mock__list_issues`，只读）**：模型如实回答"本次会话可调用的工具仅 1 个且为只读"，明确"建单/改单/挂 CI 无法执行，原因是本次会话未挂载写工具"，并建议"改用默认助手，或为本 Bot 授权对应的写工具"——**不再出现 MCP 未挂载归因**。
+  - **默认助手（兼容默认：只读 ∪ 遗留写白名单）**：模型逐项列出 8 读 + 3 plan + 6 写 + MCP 工具，并说明"写操作都会进入人工审批流……审批通过后才正式生效"。
+
+## 9. 变更记录
 
 | 日期 | 变更人 | 内容 |
 | --- | --- | --- |
 | 2026-09-30 | AI 辅助执行 | 初稿：Bot 入口/开关/权限使用指南 + 三条链路实测（真实模型 / 确定性替身 / 写工具 Gate3）+ 浏览器实测 + 复跑命令与残留风险 |
+| 2026-09-30 | AI 辅助执行 | 新增 §8 缺陷修复：聊天系统提示词改为按工具面动态生成（提示词与函数 schema 同源），消除"模型感知到未下发工具/误归因 MCP 未挂载"；附单测与双链路实测；顺带修复 `TestBuiltinToolMetadataComplete` 既有计数漂移（14→17） |
