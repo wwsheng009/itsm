@@ -228,6 +228,15 @@ C2 · 客户租户内 msp 角色基线（Q7 合同形态 → 客户侧业务权�
 
 **回滚**：字段可空，停止写入即可；回填脚本带 `--rollback`（清空本批写入标记）。
 
+**进度（2026-09-30）**：✅ **建单/指派快照写入 + 回填脚本已实现**（步骤 1、4；步骤 2 随 IP-P0-7 工作台，步骤 3 待外部工单源 E4）。
+
+- 建单统一 setter：`service/msp_snapshot.go`（`resolveTicketMSPProvider`，判据 = 客户 active/未过期 → `msp_provider_id`（legacy `customer` 回退读 `parent_tenant_id`）→ provider 类型/状态有效）；两条建单链路（`TicketService.CreateTicket`、`TicketCoreService.CreateTicketBasic`）共用；无效归属按普通工单处理，不阻断建单。
+- 指派写 `managed_by_user_id`：`AssignMSPTechnician` 经 `UpdateParams` 补写（含历史工单快照补齐，幂等）。
+- 仓库层：`CreateParams`/`UpdateParams` 增加 MSP 字段，`applyMSPCreateSnapshot`/`applyMSPUpdateSnapshot` 覆盖 Create/CreateWithTx/Update/UpdateWithTxHook 四个 builder，防漏写路径。
+- 单测：建单 4 场景（托管客户/直客/客户停用/provider 停用）+ 指派补写；`go build` 通过。
+- 回填：`scripts/msp/backfill-ticket-msp-snapshot.sql`（`mode=dry_run|apply|rollback`，psql 参数切换；dry-run 输出候选计数+前 50 行样例）。
+- **偏差记录**：未加批次标记列，rollback 按"快照 == 当前客户归属"匹配（会同时清运行时同 provider 快照），脚本内已注明；`msp_ticket_id` 与 `(provider, msp_ticket_id)` 唯一索引随 B4/E4 外部源启用。
+
 ### IP-P0-4 租户类型与归属收敛（R3；canon A1/A2）
 
 **目标**：`tenants.type` 只出现 3 类新值；customer 归属唯一化。
@@ -602,3 +611,4 @@ CREATE INDEX idx_invitations_expiry ON invitations (expires_at) WHERE status = '
 | v1.1 | 2026-09-30 | **P1 契约冻结 + 排期骨架**：新增 §4.0（`user_tenant_membership_orgs` 组织关联子表与复合 FK、`msp_allocations.provider_tenant_id` 列与回填、`invitations` DDL/生命周期/API/安全口径）——审计 C13 闭环；§9 增 §9.1 执行顺序与建议窗口（Owner 待指派）；标题去除"待排期校准" |
 | v1.2 | 2026-09-30 | **IP-P0-1 落地**：门控严格化（仅 saas_msp）+ 单一来源（cfg）+ 未知/空值 fatal + 启动自检 + `/msp/status` 暴露模式/gate；相关单测与 `go build ./...` 通过；02 §1/§9 同步目标口径 |
 | v1.3 | 2026-09-30 | **IP-P0-2 安全核心落地**：`pkg/mspguard` 唯一授权入口（头/路径/请求体/报表四通道）+ R10 死代码删除 + `uk_msp_allocation_active`（ent schema + 迁移 022）+ G8 缓存审查关闭；三通道反例单测全绿 |
+| v1.4 | 2026-09-30 | **IP-P0-3 快照落地**：建单双链路派生 `is_managed_by_msp`/`msp_provider_id`（无效归属按普通工单）；指派补写 `managed_by_user_id`；仓库 4 个 builder 全覆盖；回填脚本（dry-run/apply/rollback）交付 |

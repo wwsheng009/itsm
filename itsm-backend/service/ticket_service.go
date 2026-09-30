@@ -371,6 +371,12 @@ func (s *TicketService) CreateTicket(ctx context.Context, req *dto.CreateTicketR
 		params.CategoryID = categoryID
 	}
 
+	// IP-P0-3 / R11：按客户租户归属派生 MSP 快照；客户停用/provider 无效 → 按普通工单处理。
+	if providerID := resolveTicketMSPProvider(ctx, s.client, tenantID); providerID != nil {
+		params.IsManagedByMSP = true
+		params.MSPProviderID = providerID
+	}
+
 	// 阶段 B（工单创建下沉）起，ticket INSERT 与工单创建通知必须在同一事务内落库。
 	// 这样 ticket 创建失败时不会出现「主表不存在但已经派发通知」或反之的不一致状态。
 	// 其他后续副作用（智能分配 / SLA 期限 / 审批触发）不在本次事务范围内，按原语义保持
@@ -2576,9 +2582,17 @@ func (s *TicketService) AssignMSPTechnician(ctx context.Context, ticketID, custo
 		return nil, err
 	}
 	status := current.Status
-	updated, err := s.updateTicketWithFeishuCommand(ctx, ticketID, &ticket.UpdateParams{
+	// IP-P0-3 / R11：指派即写 managed_by_user_id，并按客户归属补齐快照（对历史工单幂等）。
+	updateParams := &ticket.UpdateParams{
 		AssigneeID: &assignerID, Status: &status, Version: current.Version,
-	}, customerTenantID, "msp_assigned")
+		ManagedByUserID: &assignerID,
+	}
+	if providerID := resolveTicketMSPProvider(ctx, s.client, customerTenantID); providerID != nil {
+		managed := true
+		updateParams.IsManagedByMSP = &managed
+		updateParams.MSPProviderID = providerID
+	}
+	updated, err := s.updateTicketWithFeishuCommand(ctx, ticketID, updateParams, customerTenantID, "msp_assigned")
 	if err != nil {
 		return nil, fmt.Errorf("failed to assign MSP technician: %w", err)
 	}

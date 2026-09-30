@@ -68,6 +68,35 @@ func (r *EntRepository) SetRawDB(db *sql.DB) {
 	r.numberRepo = newTicketNumberRepository(db)
 }
 
+// applyMSPCreateSnapshot 写入建单时的 MSP 快照字段（IP-P0-3 / R11）。
+func applyMSPCreateSnapshot(builder *ent.TicketCreate, params *CreateParams) {
+	if params.IsManagedByMSP {
+		builder.SetIsManagedByMsp(true)
+	}
+	if params.MSPProviderID != nil {
+		builder.SetMspProviderID(*params.MSPProviderID)
+	}
+	if params.ManagedByUserID != nil {
+		builder.SetManagedByUserID(*params.ManagedByUserID)
+	}
+	if params.MSPTicketID != nil && *params.MSPTicketID != "" {
+		builder.SetMspTicketID(*params.MSPTicketID)
+	}
+}
+
+// applyMSPUpdateSnapshot 在更新（含乐观锁路径）时补齐/变更 MSP 快照字段；nil = 不修改。
+func applyMSPUpdateSnapshot(builder *ent.TicketUpdateOne, params *UpdateParams) {
+	if params.IsManagedByMSP != nil {
+		builder.SetIsManagedByMsp(*params.IsManagedByMSP)
+	}
+	if params.MSPProviderID != nil {
+		builder.SetMspProviderID(*params.MSPProviderID)
+	}
+	if params.ManagedByUserID != nil {
+		builder.SetManagedByUserID(*params.ManagedByUserID)
+	}
+}
+
 // Create 创建工单
 func (r *EntRepository) Create(ctx context.Context, params *CreateParams, tenantID int) (*Ticket, error) {
 	for attempt := 0; attempt < 3; attempt++ {
@@ -120,6 +149,7 @@ func (r *EntRepository) Create(ctx context.Context, params *CreateParams, tenant
 		if len(params.TagIDs) > 0 {
 			builder.AddTagIDs(params.TagIDs...)
 		}
+		applyMSPCreateSnapshot(builder, params)
 
 		entity, err := builder.Save(ctx)
 		if err == nil {
@@ -198,6 +228,7 @@ func (r *EntRepository) CreateWithTx(ctx context.Context, tx *ent.Tx, params *Cr
 		if len(params.TagIDs) > 0 {
 			builder.AddTagIDs(params.TagIDs...)
 		}
+		applyMSPCreateSnapshot(builder, params)
 
 		entity, err := builder.Save(ctx)
 		if err == nil {
@@ -325,6 +356,7 @@ func (r *EntRepository) Update(ctx context.Context, id int, params *UpdateParams
 	if params.FormFields != nil {
 		builder.SetFormFields(*params.FormFields)
 	}
+	applyMSPUpdateSnapshot(builder, params)
 
 	entity, err := builder.Save(ctx)
 	if err != nil {
@@ -408,6 +440,7 @@ func (r *EntRepository) UpdateWithTxHook(ctx context.Context, id int, params *Up
 	if params.Resolution != nil {
 		builder.SetResolution(*params.Resolution)
 	}
+	applyMSPUpdateSnapshot(builder, params)
 	updatedEntity, err := builder.Save(ctx)
 	if err != nil {
 		if ent.IsNotFound(err) {

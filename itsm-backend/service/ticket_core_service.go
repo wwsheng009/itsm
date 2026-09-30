@@ -122,6 +122,8 @@ func (s *TicketCoreService) CreateTicketBasic(ctx context.Context, req *dto.Crea
 		}
 	}
 
+	// IP-P0-3：建单快照（与 TicketService.CreateTicket 同一派生规则；无效归属按普通工单处理）。
+	mspProviderID := resolveTicketMSPProvider(ctx, s.client, tenantID)
 	newCreateBuilder := func(number string) *ent.TicketCreate {
 		builder := s.client.Ticket.Create().
 			SetTitle(req.Title).
@@ -146,6 +148,9 @@ func (s *TicketCoreService) CreateTicketBasic(ctx context.Context, req *dto.Crea
 		}
 		if len(tagIDs) > 0 {
 			builder.AddTagIDs(tagIDs...)
+		}
+		if mspProviderID != nil {
+			builder.SetIsManagedByMsp(true).SetMspProviderID(*mspProviderID)
 		}
 		return builder
 	}

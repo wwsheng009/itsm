@@ -215,6 +215,12 @@ type CreateParams struct {
 	ParentTicketID    *int
 	TagIDs            []int
 	Tags              []string
+	// MSP 快照（IP-P0-3 / R11）：由客户租户归属派生，建单时一次写入；
+	// ManagedByUserID/MSPTicketID 在指派/外部映射时写入。
+	IsManagedByMSP  bool
+	MSPProviderID   *int
+	ManagedByUserID *int
+	MSPTicketID     *string
 }
 
 // UpdateParams 工单更新参数
@@ -232,5 +238,9 @@ type UpdateParams struct {
 	TagIDs            []int
 	Resolution        *string
 	FormFields        *map[string]interface{}
-	Version           int // 乐观锁版本号
+	// MSP 快照（IP-P0-3）：指派/回填时补齐单工单快照，nil = 不修改。
+	IsManagedByMSP  *bool
+	MSPProviderID   *int
+	ManagedByUserID *int
+	Version         int // 乐观锁版本号
 }
