@@ -245,62 +245,84 @@ export interface MCPRotateCredentialRequest {
 
 const BASE = '/api/v1/ai/mcp-servers';
 
+/**
+ * MCP 管理 API 的后端契约是 snake_case（`handlers/mcp` + `mcp/admin`，已由后端测试与
+ * M2-05 的 E2E 规格冻结）；而 `httpClient` 默认把 key 归一化为 camelCase——
+ * 会让 `tool_count`/`enabled_tool_count`/`callable_name`/`display_name` 等字段在页面上
+ * 全部取不到值（表现为 undefined、开关恒 false、投影名为空）。
+ *
+ * 因此本模块统一走 `requestRaw`：请求体与响应体都保持后端原始 key。
+ */
+const rawGet = <T,>(endpoint: string): Promise<T> =>
+  httpClient.requestRaw<T>(endpoint, { method: 'GET' });
+
+const rawSend = <T,>(
+  endpoint: string,
+  method: 'POST' | 'PUT' | 'DELETE',
+  payload?: unknown,
+): Promise<T> =>
+  httpClient.requestRaw<T>(endpoint, {
+    method,
+    body: payload === undefined ? undefined : JSON.stringify(payload),
+  });
+
 class MCPApi {
   /** 服务器列表 + 摘要。 */
   async listServers(): Promise<MCPServerListResult> {
-    const r = await httpClient.get<MCPServerListResult>(BASE);
+    const r = await rawGet<MCPServerListResult>(BASE);
     return { items: r.items || [], summary: r.summary };
   }
 
   /** 健康摘要（复用列表投影，读端点为 /health）。 */
   async healthSummary(): Promise<MCPServerListResult> {
-    const r = await httpClient.get<MCPServerListResult>(`${BASE}/health`);
+    const r = await rawGet<MCPServerListResult>(`${BASE}/health`);
     return { items: r.items || [], summary: r.summary };
   }
 
   async getServer(id: number): Promise<MCPServer> {
-    return httpClient.get<MCPServer>(`${BASE}/${id}`);
+    return rawGet<MCPServer>(`${BASE}/${id}`);
   }
 
   async createServer(payload: MCPCreateServerRequest): Promise<MCPServer> {
-    return httpClient.post<MCPServer>(BASE, payload);
+    return rawSend<MCPServer>(BASE, 'POST', payload);
   }
 
   async updateServer(id: number, payload: MCPUpdateServerRequest): Promise<MCPServer> {
-    return httpClient.put<MCPServer>(`${BASE}/${id}`, payload);
+    return rawSend<MCPServer>(`${BASE}/${id}`, 'PUT', payload);
   }
 
   async deleteServer(id: number): Promise<{ deleted: boolean }> {
-    return httpClient.delete<{ deleted: boolean }>(`${BASE}/${id}`);
+    return rawSend<{ deleted: boolean }>(`${BASE}/${id}`, 'DELETE');
   }
 
   /** 测试连接（覆盖项为空则用已存配置；不落库）。 */
   async testServer(id: number, payload?: MCPTestServerRequest): Promise<MCPConnectionTestResult> {
-    return httpClient.post<MCPConnectionTestResult>(`${BASE}/${id}/test`, payload ?? {});
+    return rawSend<MCPConnectionTestResult>(`${BASE}/${id}/test`, 'POST', payload ?? {});
   }
 
   /** 启用（202 + 状态回读：调用方按 2s 轮询 getServer）。 */
   async enableServer(id: number): Promise<MCPServer> {
-    return httpClient.post<MCPServer>(`${BASE}/${id}/enable`, {});
+    return rawSend<MCPServer>(`${BASE}/${id}/enable`, 'POST', {});
   }
 
   async disableServer(id: number): Promise<MCPServer> {
-    return httpClient.post<MCPServer>(`${BASE}/${id}/disable`, {});
+    return rawSend<MCPServer>(`${BASE}/${id}/disable`, 'POST', {});
   }
 
   async reloadServer(id: number): Promise<MCPServer> {
-    return httpClient.post<MCPServer>(`${BASE}/${id}/reload`, {});
+    return rawSend<MCPServer>(`${BASE}/${id}/reload`, 'POST', {});
   }
 
   async listTools(id: number): Promise<MCPTool[]> {
-    const r = await httpClient.get<{ items: MCPTool[]; total: number }>(`${BASE}/${id}/tools`);
+    const r = await rawGet<{ items: MCPTool[]; total: number }>(`${BASE}/${id}/tools`);
     return r.items || [];
   }
 
   async setToolEnabled(id: number, callableName: string, enabled: boolean): Promise<MCPTool> {
     const suffix = enabled ? 'enable' : 'disable';
-    return httpClient.post<MCPTool>(
+    return rawSend<MCPTool>(
       `${BASE}/${id}/tools/${encodeURIComponent(callableName)}/${suffix}`,
+      'POST',
       {},
     );
   }
@@ -310,7 +332,7 @@ class MCPApi {
     id: number,
     payload: MCPBulkToolRequest,
   ): Promise<{ affected: number; enabled: boolean }> {
-    return httpClient.post<{ affected: number; enabled: boolean }>(`${BASE}/${id}/tools/bulk`, payload);
+    return rawSend<{ affected: number; enabled: boolean }>(`${BASE}/${id}/tools/bulk`, 'POST', payload);
   }
 
   /** 工具分类标注（read_only/risk/category）。 */
@@ -319,19 +341,20 @@ class MCPApi {
     callableName: string,
     payload: MCPClassificationRequest,
   ): Promise<MCPTool> {
-    return httpClient.put<MCPTool>(
+    return rawSend<MCPTool>(
       `${BASE}/${id}/tools/${encodeURIComponent(callableName)}/classification`,
+      'PUT',
       payload,
     );
   }
 
   /** 凭据轮换（只写不读回）。 */
   async rotateCredential(id: number, payload: MCPRotateCredentialRequest): Promise<MCPServer> {
-    return httpClient.post<MCPServer>(`${BASE}/${id}/rotate-credential`, payload);
+    return rawSend<MCPServer>(`${BASE}/${id}/rotate-credential`, 'POST', payload);
   }
 
   async listEvents(id: number): Promise<MCPServerEvent[]> {
-    const r = await httpClient.get<{ items: MCPServerEvent[]; total: number }>(`${BASE}/${id}/events`);
+    const r = await rawGet<{ items: MCPServerEvent[]; total: number }>(`${BASE}/${id}/events`);
     return r.items || [];
   }
 }

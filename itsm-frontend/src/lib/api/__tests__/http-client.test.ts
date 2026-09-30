@@ -11,6 +11,7 @@
  *     are dropped)
  *   - JSON request bodies are camelCased before being sent (contract rule)
  *   - Response data has snake_case keys converted to camelCase
+ *   - `requestRaw` 关闭两端的 key 归一化（snake_case 契约模块，如 MCP 管理 API）
  *   - Non-zero `code` payloads throw with the backend message
  *   - HTTP non-2xx responses throw with status
  *   - `getPaginated` flattens nested filters into `filters[key]`
@@ -150,6 +151,55 @@ describe('httpClient', () => {
         ticketNumber: 'TKT-001',
         assigneeId: 7,
         createdAt: '2024-01-01',
+      });
+    });
+
+    describe('requestRaw（关闭 key 归一化：MCP 管理 API 等 snake_case 契约模块）', () => {
+      it('响应保持后端原始 snake_case key（不转 camelCase）', async () => {
+        fetchMock.mockResolvedValueOnce(
+          jsonResponse({
+            code: 0,
+            message: 'ok',
+            data: { tool_count: 6, enabled_tool_count: 3, callable_name: 'mcp__mock__list_issues' },
+          })
+        );
+
+        const result = await httpClient.requestRaw<{
+          tool_count: number;
+          enabled_tool_count: number;
+          callable_name: string;
+          toolCount?: number;
+        }>('/api/v1/ai/mcp-servers/1/tools', { method: 'GET' });
+
+        expect(result.tool_count).toBe(6);
+        expect(result.enabled_tool_count).toBe(3);
+        expect(result.callable_name).toBe('mcp__mock__list_issues');
+        expect(result.toolCount).toBeUndefined();
+      });
+
+      it('请求体保持原始 snake_case key（不转 camelCase）', async () => {
+        fetchMock.mockResolvedValueOnce(jsonResponse({ code: 0, message: 'ok', data: { id: 1 } }));
+
+        await httpClient.requestRaw('/api/v1/ai/mcp-servers', {
+          method: 'POST',
+          body: JSON.stringify({ display_name: 'GitLab', credential_type: 'none' }),
+        });
+
+        const [, init] = fetchMock.mock.calls[0];
+        expect(init.method).toBe('POST');
+        expect(init.body).toBe(JSON.stringify({ display_name: 'GitLab', credential_type: 'none' }));
+      });
+
+      it('对照：默认 request 路径仍把请求体归一化为 camelCase（回归守护）', async () => {
+        fetchMock.mockResolvedValueOnce(jsonResponse({ code: 0, message: 'ok', data: { id: 1 } }));
+
+        await httpClient.post('/api/v1/ai/mcp-servers', {
+          display_name: 'GitLab',
+          credential_type: 'none',
+        });
+
+        const [, init] = fetchMock.mock.calls[0];
+        expect(init.body).toBe(JSON.stringify({ displayName: 'GitLab', credentialType: 'none' }));
       });
     });
   });

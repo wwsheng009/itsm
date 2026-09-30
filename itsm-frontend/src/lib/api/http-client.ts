@@ -31,6 +31,14 @@ export interface RequestConfig {
   body?: BodyInit | null;
   timeout?: number;
   responseType?: 'json' | 'blob';
+  /**
+   * 关闭 key 归一化（默认 false）。
+   *
+   * 默认行为：请求体与响应体的 key 都转成 camelCase（仓库主流约定，后端新端点也用 camelCase tag）。
+   * 例外：个别模块的后端契约冻结为 snake_case（如 MCP 管理 API），归一化会让字段全部读不到值；
+   * 这些模块经 `requestRaw()` 显式置 true。
+   */
+  rawKeys?: boolean;
 }
 
 // Axios-like request config used by some legacy API modules
@@ -366,8 +374,9 @@ class HttpClient {
       method: config.method,
       headers: this.mergeRequestHeaders(headers, config.headers, isFormData),
       // Normalize request body keys to camelCase to keep the HTTP contract consistent.
+      // rawKeys=true 时保持调用方原始 key（后端契约为 snake_case 的模块，如 MCP 管理 API）。
       body:
-        config.body && typeof config.body === 'string' && config.body.startsWith('{')
+        !config.rawKeys && config.body && typeof config.body === 'string' && config.body.startsWith('{')
           ? JSON.stringify(toCamelCase(JSON.parse(config.body as string)))
           : config.body,
     };
@@ -525,8 +534,8 @@ class HttpClient {
         });
       }
 
-      // 自动转换响应数据 key 为 camelCase
-      return toCamelCase(responseData.data) as T;
+      // 自动转换响应数据 key 为 camelCase（rawKeys=true 时保持后端原始 key）
+      return (config.rawKeys ? responseData.data : toCamelCase(responseData.data)) as T;
     } catch (error: unknown) {
       // AbortError 是正常的中止请求，不记录错误日志
       if (error instanceof Error && error.name === 'AbortError') {
@@ -597,6 +606,16 @@ class HttpClient {
       timeout: cfg.timeout,
       responseType: cfg.responseType || 'json',
     });
+  }
+
+  /**
+   * 原样 key 请求：请求体与响应体均保持后端原始 key（不做 camelCase 归一化）。
+   *
+   * 使用场景：后端契约冻结为 snake_case 的模块（当前为 MCP 管理 API，见 `mcp-api.ts`）。
+   * 其余模块请用 `get/post/put/patch/delete`，保持仓库主流的 camelCase 契约。
+   */
+  async requestRaw<T>(endpoint: string, config: RequestConfig = {}): Promise<T> {
+    return this.requestInternal<T>(endpoint, { ...config, rawKeys: true });
   }
 
   async get<T>(endpoint: string, params?: object): Promise<T> {

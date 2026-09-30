@@ -9,112 +9,124 @@ import mcpApi, {
 
 jest.mock('@/lib/api/http-client', () => ({
   httpClient: {
-    get: jest.fn(),
-    post: jest.fn(),
-    put: jest.fn(),
-    delete: jest.fn(),
-    patch: jest.fn(),
+    requestRaw: jest.fn(),
   },
 }));
 
-const mockGet = httpClient.get as jest.Mock;
-const mockPost = httpClient.post as jest.Mock;
-const mockPut = httpClient.put as jest.Mock;
-const mockDelete = httpClient.delete as jest.Mock;
+// MCP 管理 API 的后端契约是 snake_case，模块统一走 requestRaw（关闭 camelCase 归一化）。
+const mockRaw = httpClient.requestRaw as jest.Mock;
 
 describe('mcpApi（M0-12 管理 API 客户端）', () => {
   beforeEach(() => {
     jest.clearAllMocks();
   });
 
-  it('listServers：GET 列表并兜底空数组', async () => {
-    mockGet.mockResolvedValueOnce({ items: [{ id: 1, name: 'gitlab' }], summary: { total: 1 } });
+  it('listServers：GET 列表（requestRaw）并兜底空数组', async () => {
+    mockRaw.mockResolvedValueOnce({ items: [{ id: 1, name: 'gitlab' }], summary: { total: 1 } });
     const result = await mcpApi.listServers();
-    expect(mockGet).toHaveBeenCalledWith('/api/v1/ai/mcp-servers');
+    expect(mockRaw).toHaveBeenCalledWith('/api/v1/ai/mcp-servers', { method: 'GET' });
     expect(result.items).toHaveLength(1);
     expect(result.summary.total).toBe(1);
 
-    mockGet.mockResolvedValueOnce({ total: 0 });
+    mockRaw.mockResolvedValueOnce({ total: 0 });
     const empty = await mcpApi.listServers();
     expect(empty.items).toEqual([]);
   });
 
   it('healthSummary：GET /health（与列表同投影）', async () => {
-    mockGet.mockResolvedValue({ items: [], summary: { error: 2, auth_required: 1 } });
+    mockRaw.mockResolvedValue({ items: [], summary: { error: 2, auth_required: 1 } });
     const result = await mcpApi.healthSummary();
-    expect(mockGet).toHaveBeenCalledWith('/api/v1/ai/mcp-servers/health');
+    expect(mockRaw).toHaveBeenCalledWith('/api/v1/ai/mcp-servers/health', { method: 'GET' });
     expect(result.summary.error).toBe(2);
   });
 
   it('测试连接：POST /:id/test，缺省传空对象（用已存配置）', async () => {
-    mockPost.mockResolvedValue({ ok: true, tool_count: 3, duration_ms: 12 });
+    mockRaw.mockResolvedValue({ ok: true, tool_count: 3, duration_ms: 12 });
     await mcpApi.testServer(7);
-    expect(mockPost).toHaveBeenCalledWith('/api/v1/ai/mcp-servers/7/test', {});
+    expect(mockRaw).toHaveBeenCalledWith('/api/v1/ai/mcp-servers/7/test', {
+      method: 'POST',
+      body: '{}',
+    });
 
     await mcpApi.testServer(7, { url: 'https://x.example.com/mcp' });
-    expect(mockPost).toHaveBeenCalledWith('/api/v1/ai/mcp-servers/7/test', {
-      url: 'https://x.example.com/mcp',
+    expect(mockRaw).toHaveBeenCalledWith('/api/v1/ai/mcp-servers/7/test', {
+      method: 'POST',
+      body: JSON.stringify({ url: 'https://x.example.com/mcp' }),
     });
   });
 
   it('生命周期：enable/disable/reload 均走 POST 且路径正确', async () => {
-    mockPost.mockResolvedValue({ id: 3 });
+    mockRaw.mockResolvedValue({ id: 3 });
     await mcpApi.enableServer(3);
     await mcpApi.disableServer(3);
     await mcpApi.reloadServer(3);
-    expect(mockPost).toHaveBeenNthCalledWith(1, '/api/v1/ai/mcp-servers/3/enable', {});
-    expect(mockPost).toHaveBeenNthCalledWith(2, '/api/v1/ai/mcp-servers/3/disable', {});
-    expect(mockPost).toHaveBeenNthCalledWith(3, '/api/v1/ai/mcp-servers/3/reload', {});
+    expect(mockRaw).toHaveBeenNthCalledWith(1, '/api/v1/ai/mcp-servers/3/enable', {
+      method: 'POST',
+      body: '{}',
+    });
+    expect(mockRaw).toHaveBeenNthCalledWith(2, '/api/v1/ai/mcp-servers/3/disable', {
+      method: 'POST',
+      body: '{}',
+    });
+    expect(mockRaw).toHaveBeenNthCalledWith(3, '/api/v1/ai/mcp-servers/3/reload', {
+      method: 'POST',
+      body: '{}',
+    });
   });
 
   it('工具治理：投影名必须 URL 编码（含 mcp__ 前缀与特殊字符）', async () => {
     const callable = 'mcp__gitlab__list issues';
-    mockPost.mockResolvedValue({ callable_name: callable });
-    mockPut.mockResolvedValue({ callable_name: callable });
+    mockRaw.mockResolvedValue({ callable_name: callable });
 
     await mcpApi.setToolEnabled(5, callable, true);
-    expect(mockPost).toHaveBeenCalledWith(
+    expect(mockRaw).toHaveBeenCalledWith(
       `/api/v1/ai/mcp-servers/5/tools/${encodeURIComponent(callable)}/enable`,
-      {},
+      { method: 'POST', body: '{}' },
     );
     await mcpApi.setToolEnabled(5, callable, false);
-    expect(mockPost).toHaveBeenCalledWith(
+    expect(mockRaw).toHaveBeenCalledWith(
       `/api/v1/ai/mcp-servers/5/tools/${encodeURIComponent(callable)}/disable`,
-      {},
+      { method: 'POST', body: '{}' },
     );
     await mcpApi.setToolClassification(5, callable, { read_only: true, risk: 'read', category: 'issue' });
-    expect(mockPut).toHaveBeenCalledWith(
+    expect(mockRaw).toHaveBeenCalledWith(
       `/api/v1/ai/mcp-servers/5/tools/${encodeURIComponent(callable)}/classification`,
-      { read_only: true, risk: 'read', category: 'issue' },
+      {
+        method: 'PUT',
+        body: JSON.stringify({ read_only: true, risk: 'read', category: 'issue' }),
+      },
     );
   });
 
   it('批量治理与凭据轮换：载荷原样透传', async () => {
-    mockPost.mockResolvedValue({ affected: 2, enabled: false });
+    mockRaw.mockResolvedValue({ affected: 2, enabled: false });
     await mcpApi.bulkSetTools(9, { tools: ['a', 'b'], enabled: false });
-    expect(mockPost).toHaveBeenCalledWith('/api/v1/ai/mcp-servers/9/tools/bulk', {
-      tools: ['a', 'b'],
-      enabled: false,
+    expect(mockRaw).toHaveBeenCalledWith('/api/v1/ai/mcp-servers/9/tools/bulk', {
+      method: 'POST',
+      body: JSON.stringify({ tools: ['a', 'b'], enabled: false }),
     });
 
-    mockPost.mockResolvedValue({ id: 9 });
+    mockRaw.mockResolvedValue({ id: 9 });
     await mcpApi.rotateCredential(9, { credential_type: 'static_header', credential: { token: 't' } });
-    expect(mockPost).toHaveBeenCalledWith('/api/v1/ai/mcp-servers/9/rotate-credential', {
-      credential_type: 'static_header',
-      credential: { token: 't' },
+    expect(mockRaw).toHaveBeenCalledWith('/api/v1/ai/mcp-servers/9/rotate-credential', {
+      method: 'POST',
+      body: JSON.stringify({
+        credential_type: 'static_header',
+        credential: { token: 't' },
+      }),
     });
   });
 
   it('工具清单/事件：items 缺省兜底为空数组；删除走 DELETE', async () => {
-    mockGet.mockResolvedValue({ total: 0 });
+    mockRaw.mockResolvedValue({ total: 0 });
     expect(await mcpApi.listTools(1)).toEqual([]);
     expect(await mcpApi.listEvents(1)).toEqual([]);
-    expect(mockGet).toHaveBeenNthCalledWith(1, '/api/v1/ai/mcp-servers/1/tools');
-    expect(mockGet).toHaveBeenNthCalledWith(2, '/api/v1/ai/mcp-servers/1/events');
+    expect(mockRaw).toHaveBeenNthCalledWith(1, '/api/v1/ai/mcp-servers/1/tools', { method: 'GET' });
+    expect(mockRaw).toHaveBeenNthCalledWith(2, '/api/v1/ai/mcp-servers/1/events', { method: 'GET' });
 
-    mockDelete.mockResolvedValue({ deleted: true });
+    mockRaw.mockResolvedValue({ deleted: true });
     await mcpApi.deleteServer(1);
-    expect(mockDelete).toHaveBeenCalledWith('/api/v1/ai/mcp-servers/1');
+    expect(mockRaw).toHaveBeenCalledWith('/api/v1/ai/mcp-servers/1', { method: 'DELETE' });
   });
 });
 
