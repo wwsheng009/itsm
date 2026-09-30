@@ -1,15 +1,14 @@
 package middleware
 
 import (
-	"context"
 	"net/http"
 	"strconv"
 
 	"itsm-backend/ent"
 	"itsm-backend/ent/mspallocation"
 	"itsm-backend/ent/tenant"
-	"itsm-backend/ent/ticket"
 	"itsm-backend/ent/user"
+	"itsm-backend/pkg/mspguard"
 	"itsm-backend/pkg/tenantmode"
 
 	"github.com/gin-gonic/gin"
@@ -130,7 +129,8 @@ func MSPMiddleware(client *ent.Client) gin.HandlerFunc {
 			ctx.Role = mspRole
 			ctx.AllowedCustomers = allowedCustomers
 
-			// 4.3 如果请求头中包含目标客户租户，验证权限
+			// 4.3 头通道与路径/请求体通道统一走 mspguard.CanAccessCustomer（IP-P0-2；R9/R10），
+			// 额外校验 provider 归属（R2）与客户 active，而不是只比对 allowedCustomers。
 			targetCustomerHeader := c.GetHeader("X-Customer-Tenant-ID")
 			if targetCustomerHeader != "" {
 				targetTenantID, convErr := strconv.Atoi(targetCustomerHeader)
@@ -143,21 +143,22 @@ func MSPMiddleware(client *ent.Client) gin.HandlerFunc {
 					return
 				}
 
-				hasAccess := false
-				for _, allowedID := range allowedCustomers {
-					if allowedID == targetTenantID {
-						hasAccess = true
-						break
+				if accessErr := mspguard.New(client).CanAccessCustomer(c.Request.Context(), userID, targetTenantID); accessErr != nil {
+					status := http.StatusForbidden
+					reasonCode := mspguard.CodeMSPAllocationRequired
+					if ae, ok := mspguard.AsAccessError(accessErr); ok {
+						reasonCode = ae.Code
+						if ae.Code == mspguard.CodeCustomerTenantNotFound {
+							status = http.StatusNotFound
+						}
 					}
-				}
-				if !hasAccess {
-					c.JSON(http.StatusForbidden, gin.H{
-						"code":    http.StatusForbidden,
+					c.JSON(status, gin.H{
+						"code":    status,
 						"message": "MSP员工无权访问此客户租户",
 						"data": gin.H{
-							"msp_user_id":       userID,
-							"target_customer":   targetTenantID,
-							"allowed_customers": allowedCustomers,
+							"reasonCode":      reasonCode,
+							"msp_user_id":     userID,
+							"target_customer": targetTenantID,
 						},
 					})
 					c.Abort()
@@ -170,15 +171,4 @@ func MSPMiddleware(client *ent.Client) gin.HandlerFunc {
 		c.Set(MSPContextKey, ctx)
 		c.Next()
 	}
-}
-
-// MSPFilterByCustomer 根据 Go context 中存放的客户租户 ID 给 ent 查询加
-// TenantIDEQ 过滤。非 MSP 请求或未限定客户时原样返回，让 Service 层继续走
-// 自己注入的租户过滤。
-func MSPFilterByCustomer(ctx context.Context, client *ent.Client, query *ent.TicketQuery) (*ent.TicketQuery, error) {
-	tenantID, ok := GetMSPCustomerTenantID(ctx)
-	if !ok || tenantID == 0 {
-		return query, nil
-	}
-	return query.Where(ticket.TenantIDEQ(tenantID)), nil
 }

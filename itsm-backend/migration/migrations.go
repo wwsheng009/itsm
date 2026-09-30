@@ -114,6 +114,11 @@ var RegisteredMigrations = []Migration{
 		Description: "Add tenant-scoped, versioned AI business workflow template catalog",
 		RollbackSQL: "DROP TABLE IF EXISTS workflow_templates;",
 	},
+	{
+		Version:     "022_enforce_active_msp_allocation_unique",
+		Description: "Enforce one active MSP allocation per (msp_user_id, customer_tenant_id); deactivate historical duplicates first (IP-P0-2 §3.0-B2)",
+		RollbackSQL: "DROP INDEX IF EXISTS uk_msp_allocation_active;",
+	},
 }
 
 // PostSchemaMigrations returns a defensive copy of the canonical active stream.
@@ -859,6 +864,23 @@ SET ci_number = CASE
     END
 FROM backfill b
 WHERE ci.id = b.id;
+`
+	case "022_enforce_active_msp_allocation_unique":
+		return `
+-- IP-P0-2 §3.0-B2：MSP 活跃分配唯一（部分唯一索引）。
+-- 预检并处置历史重复行：每个 (msp_user_id, customer_tenant_id) 仅保留最早一条 active，
+-- 其余置 deassigned_at = CURRENT_TIMESTAMP（保留行便于审计回溯；影响行数见迁移日志）。
+UPDATE msp_allocations
+   SET deassigned_at = CURRENT_TIMESTAMP
+ WHERE deassigned_at IS NULL
+   AND id NOT IN (
+       SELECT min(id) FROM msp_allocations
+        WHERE deassigned_at IS NULL
+        GROUP BY msp_user_id, customer_tenant_id
+   );
+CREATE UNIQUE INDEX IF NOT EXISTS uk_msp_allocation_active
+    ON msp_allocations (msp_user_id, customer_tenant_id)
+    WHERE deassigned_at IS NULL;
 `
 	default:
 		return ""

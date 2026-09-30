@@ -4,8 +4,10 @@ import (
 	"time"
 
 	"entgo.io/ent"
+	"entgo.io/ent/dialect/entsql"
 	"entgo.io/ent/schema/edge"
 	"entgo.io/ent/schema/field"
+	"entgo.io/ent/schema/index"
 )
 
 // MSPAllocation holds the schema definition for the MSPAllocation entity.
@@ -32,6 +34,16 @@ func (MSPAllocation) Fields() []ent.Field {
 		field.Time("created_at").
 			Comment("创建时间").
 			Default(time.Now),
+	}
+}
+
+// Indexes of the MSPAllocation：活跃分配唯一（IP-P0-2 §3.0-B2，与迁移 022 同源）。
+func (MSPAllocation) Indexes() []ent.Index {
+	return []ent.Index{
+		index.Fields("msp_user_id", "customer_tenant_id").
+			Unique().
+			StorageKey("uk_msp_allocation_active").
+			Annotations(entsql.IndexWhere("deassigned_at IS NULL")),
 	}
 }
 

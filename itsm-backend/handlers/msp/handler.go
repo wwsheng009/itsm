@@ -45,6 +45,25 @@ func parseDateOrZero(s string) (time.Time, error) {
 	return time.Parse("2006-01-02", s)
 }
 
+// failMSPAccess 将跨租户授权错误（pkg/mspguard，经 service 门面）映射为
+// 稳定 HTTP 语义 + reasonCode（IP-P0-2 / §3.0-A）；非授权错误按内部错误处理。
+func failMSPAccess(c *gin.Context, err error, publicMsg string) {
+	if ae, ok := service.AsCustomerAccessError(err); ok {
+		switch ae.Code {
+		case service.CodeCustomerTenantNotFound:
+			common.FailWithData(c, common.NotFoundCode, ae.Message, gin.H{"reasonCode": ae.Code})
+		case service.CodeMSPAllocationRequired, service.CodeCustomerInactive:
+			common.FailWithData(c, common.ForbiddenCode, ae.Message, gin.H{"reasonCode": ae.Code})
+		case service.CodeResourceTenantMismatch:
+			common.FailWithData(c, common.ParamErrorCode, ae.Message, gin.H{"reasonCode": ae.Code})
+		default:
+			common.FailWithData(c, common.ForbiddenCode, ae.Message, gin.H{"reasonCode": ae.Code})
+		}
+		return
+	}
+	common.FailWithErr(c, err, publicMsg)
+}
+
 // GetMSPStatus 获取当前用户的 MSP 状态
 func (h *Handler) GetMSPStatus(c *gin.Context) {
 	mspCtx, exists := middleware.GetMSPContext(c)
@@ -228,7 +247,7 @@ func (h *Handler) GetCustomerTickets(c *gin.Context) {
 	tickets, err := h.ticketService.GetCustomerTicketsForMSP(c.Request.Context(), userID, customerTenantID, &status, page, pageSize)
 	if err != nil {
 		h.logger.Errorw("Failed to get customer tickets", "error", err, "customer_tenant_id", customerTenantID)
-		common.Fail(c, common.InternalErrorCode, "查询工单失败")
+		failMSPAccess(c, err, "查询工单失败")
 		return
 	}
 
@@ -261,7 +280,7 @@ func (h *Handler) AssignMSPTechnician(c *gin.Context) {
 	ticket, err := h.ticketService.AssignMSPTechnician(c.Request.Context(), ticketID, req.CustomerTenantID, assignerID)
 	if err != nil {
 		h.logger.Errorw("Failed to assign MSP technician", "error", err, "ticket_id", ticketID)
-		common.FailWithErr(c, err, "操作失败")
+		failMSPAccess(c, err, "操作失败")
 		return
 	}
 
@@ -299,7 +318,7 @@ func (h *Handler) GetCustomerReports(c *gin.Context) {
 	reports, err := h.ticketService.GetMSPCustomerReports(c.Request.Context(), mspUserID, dateFrom, dateTo)
 	if err != nil {
 		h.logger.Errorw("Failed to get customer reports", "error", err)
-		common.Fail(c, common.InternalErrorCode, "生成报表失败")
+		failMSPAccess(c, err, "生成报表失败")
 		return
 	}
 

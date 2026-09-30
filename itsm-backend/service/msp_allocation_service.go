@@ -9,7 +9,6 @@ import (
 	"itsm-backend/ent"
 	"itsm-backend/ent/mspallocation"
 	"itsm-backend/ent/tenant"
-	"itsm-backend/ent/ticket"
 	"itsm-backend/ent/user"
 	"itsm-backend/pkg/tenantmode"
 
@@ -272,26 +271,4 @@ func (s *MSPAllocationService) GetMSPCustomers(ctx context.Context, mspUserID in
 	}
 
 	return customers, nil
-}
-
-// GetTicketsForCustomer 获取指定客户租户的工单列表
-func (s *MSPAllocationService) GetTicketsForCustomer(ctx context.Context, customerTenantID int, page, pageSize int) ([]*ent.Ticket, int, error) {
-	query := s.client.Ticket.Query().
-		Where(ticket.TenantIDEQ(customerTenantID))
-
-	total, err := query.Count(ctx)
-	if err != nil {
-		return nil, 0, fmt.Errorf("查询工单数量失败: %w", err)
-	}
-
-	tickets, err := query.
-		Order(ent.Desc(ticket.FieldCreatedAt)).
-		Offset((page - 1) * pageSize).
-		Limit(pageSize).
-		All(ctx)
-	if err != nil {
-		return nil, 0, fmt.Errorf("查询工单列表失败: %w", err)
-	}
-
-	return tickets, total, nil
 }

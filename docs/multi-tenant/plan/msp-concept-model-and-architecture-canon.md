@@ -399,7 +399,7 @@ sequenceDiagram
 | 环节 | 规则（目标） | 现状（断点） |
 |---|---|---|
 | 建单 | 客户租户内建单；解析客户 `provider_tenant_id` 落 MSP 快照；provider 无效/客户停用 → 按普通工单处理 | ❌ 完全不读 provider 归属；四字段零写入 |
-| provider 可见 | 工作台按 **"我的 provider 的客户" ∩ "我的有效 allocation"** 收窄；头通道只读；未分配客户 403 | 🟡 仅 `TenantIDEQ(客户租户)`，无 provider 维度；`GetCustomerTicketsForMSP` 忽略 userID、无 allocation 二次校验（**R9**） |
+| provider 可见 | 工作台按 **"我的 provider 的客户" ∩ "我的有效 allocation"** 收窄；头通道只读；未分配客户 403 | 🟡 仅 `TenantIDEQ(客户租户)`，无 provider 维度；`GetCustomerTicketsForMSP` 忽略 userID、无 allocation 二次校验（**R9**）（2026-09-30 已修：R9/R10 注记） |
 | 指派 | assignee 必须 ∈ 工单 provider 租户 ∧ 持有该客户 allocation ∧ 客户 active；写 `managed_by_user_id` | ❌ 指派=把调用者自己写成 assignee；不写 MSP 字段；`AssignTickets`/`ReassignTicket` 不校验租户一致性 |
 | 处理 | 条目级授权：provider membership + allocation + 客户租户 RBAC + 条目 allowedActions；资源租户=客户租户 | 🟡 依赖头通道/路由；无条目级 `allowedActions` |
 | 通知 | 客户侧=客户 membership（requester/客户 assignee）；**provider 侧=被指派人 + provider 管理员**（新增分支） | ❌ 无 MSP 分支；provider 仅在被写成 assignee 时被动收到 |
@@ -419,8 +419,8 @@ sequenceDiagram
 
 | # | 风险 | 证据 |
 |---|---|---|
-| R9 | **MSP 客户数据读取/指派未做 allocation 二次校验**：`X-Customer-Tenant-ID` 校验只覆盖**头部**；路径参数（`/msp/customers/:id/tickets`）与请求体（`AssignMSPTechnician.customerTenantId`）路径不校验 → 未分配客户可被读取/指派 | `service/ticket_service.go:2495-2517`（userID 未使用）、`handlers/msp/handler.go:202-233,236-260`、`middleware/msp_rbac.go:181-214`（仅 header） |
-| R10 | `MSPAccessValidator`（`ValidateCustomerAccess`）**存在但未接线**（死代码）；`GetTicketsForCustomer`、`MSPFilterByCustomer` 同为死代码 → 新路由复用 service 会绕过授权 | `service/msp_access_validator.go`、`service/msp_allocation_service.go:277-297`、`middleware/msp_middleware.go:178-184` |
+| R9 | **MSP 客户数据读取/指派未做 allocation 二次校验**：`X-Customer-Tenant-ID` 校验只覆盖**头部**；路径参数（`/msp/customers/:id/tickets`）与请求体（`AssignMSPTechnician.customerTenantId`）路径不校验 → 未分配客户可被读取/指派 | `service/ticket_service.go:2495-2517`（userID 未使用）、`handlers/msp/handler.go:202-233,236-260`、`middleware/msp_rbac.go:181-214`（仅 header）；**→ ✅ 已修（2026-09-30，IP-P0-2）：`pkg/mspguard` 唯一入口（头/路径/请求体同源）+ service 守卫 + 三通道单测** |
+| R10 | `MSPAccessValidator`（`ValidateCustomerAccess`）**存在但未接线**（死代码）；`GetTicketsForCustomer`、`MSPFilterByCustomer` 同为死代码 → 新路由复用 service 会绕过授权 | `service/msp_access_validator.go`、`service/msp_allocation_service.go:277-297`、`middleware/msp_middleware.go:178-184`；**→ ✅ 已修（2026-09-30）：`MSPAccessValidator` 门面接入统一入口；两条死代码已删除** |
 | R11 | 工单 MSP 四字段（`is_managed_by_msp`/`msp_provider_id`/`managed_by_user_id`/`msp_ticket_id`）**零写入**：无法按 provider 过滤/统计/路由/外部映射 | `ent/schema/ticket.go:130-141`；全仓无 setter；仅 `repository/ticket/repository_impl.go:910,962-969` 读取 |
 
 #### 决策点
@@ -644,4 +644,5 @@ sequenceDiagram
 | v0.7 | 2026-09-29 | §7.2 明确归属基数 **1 客户 : 1 provider**（归属字段单值；"多 provider"= 平台托管多个 provider，非共享客户）；新增决策 E6（"一个客户由多个 provider 服务"当前不支持，需服务关系多值模型，暂不建议）；D9 引用同步 E1–E6 |
 | v0.8 | 2026-09-29 | **一致性审计整改**：§7 部署门控改为"现状/目标"分列并新增 **R12**（saas/空/未知值静默开启 MSP）；§7.3 `G1–G5`→**`K1–K5`**（消除与 07:G# 重号）；membership 物理表名统一 `user_tenant_memberships`；新增 **附录 C**（权威层级 + 编号注册表 + A/B 消歧）；新增 **D10**（MSP 角色词表统一）；头部状态同步 v0.7→v0.8；关联[一致性审计](./msp-docs-consistency-audit.md) |
 | v0.9 | 2026-09-29 | **待办按最优实践确认**：D10 定稿（保留代码词表 + Q7 预设映射，零迁移）；新增 **D11**（平台不可见 MSP 工作台，治理通道独立）；B5/A4 明确 `account_kind=customer` 单作用域 DB 级强约束；[审计 §5](./msp-docs-consistency-audit.md) 待办全部转为已确认决策（T1–T6） |
-| v1.0 | 2026-09-30 | **决策冻结与全量确认（评审通过）**：D1–D9 按最佳实践定稿（D1 多 provider 建模+单 provider 预设；D2 直客以 `saas_customer` 为显式标记；D3 消息/模板租户化；D4 全局唯一 + `identity_key` 不合并；D5 平台管理员必须有 membership；D6 `data_scope=department` 下线；D7 `msp_role` P1 同批并入；D8 批量低危+护栏；D9=E1–E6 全确认）；附录 C 注册表同步 `D1–D11`、ADR-004 转 Accepted；membership 列名统一为 `user_id/.../is_default`；术语表补 `provider_tenant_id` 存储口径与 `data_scope` 下线；标注基准 HEAD `337558e3` | 
+| v1.0 | 2026-09-30 | **决策冻结与全量确认（评审通过）**：D1–D9 按最佳实践定稿（D1 多 provider 建模+单 provider 预设；D2 直客以 `saas_customer` 为显式标记；D3 消息/模板租户化；D4 全局唯一 + `identity_key` 不合并；D5 平台管理员必须有 membership；D6 `data_scope=department` 下线；D7 `msp_role` P1 同批并入；D8 批量低危+护栏；D9=E1–E6 全确认）；附录 C 注册表同步 `D1–D11`、ADR-004 转 Accepted；membership 列名统一为 `user_id/.../is_default`；术语表补 `provider_tenant_id` 存储口径与 `data_scope` 下线；标注基准 HEAD `337558e3` |
+| v1.1 | 2026-09-30 | **代码落地回填**：R9（三通道统一 allocation 二次校验，`pkg/mspguard` 唯一入口 + service 门面）、R10（死代码接线并删除 `MSPFilterByCustomer`/`GetTicketsForCustomer`）、R4/R12（IP-P0-1 门控单一来源）；G8 缓存审查关闭见 07 §9 |

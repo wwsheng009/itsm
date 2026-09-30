@@ -40,7 +40,8 @@ import (
 // 使用构造函数注入和 Repository 模式
 type TicketService struct {
 	repo                   ticket.Repository
-	client                 *ent.Client // 用于 ProcessInstance 等系统级查询（不走 Repository）
+	client                 *ent.Client         // 用于 ProcessInstance 等系统级查询（不走 Repository）
+	mspAccessValidator     *MSPAccessValidator // IP-P0-2：MSP 跨租户访问统一守卫（由 client 构造）
 	logger                 *zap.SugaredLogger
 	notificationSvc        *TicketNotificationService
 	approvalSvc            *ApprovalService
@@ -98,6 +99,7 @@ func NewTicketService(cfg *TicketServiceConfig) *TicketService {
 		connectorManager:  cfg.ConnectorManager,
 	}
 	if cfg.Client != nil {
+		s.mspAccessValidator = NewMSPAccessValidator(cfg.Client)
 		assignmentService := NewTicketAssignmentService(cfg.Client, cfg.Logger)
 		assignmentRuleService := NewTicketAssignmentRuleService(cfg.Client, cfg.Logger)
 		s.assignmentSmartService = NewTicketAssignmentSmartService(cfg.Client, cfg.Logger, assignmentService, assignmentRuleService)
@@ -2491,10 +2493,41 @@ func (s *TicketService) parseExcel(data []byte) ([]map[string]interface{}, error
 
 // ==================== MSP 相关方法 ====================
 
+// ensureCustomerAccess 是 MSP 跨租户访问的统一守卫（IP-P0-2 / R9/R10）。
+func (s *TicketService) ensureCustomerAccess(ctx context.Context, mspUserID, customerTenantID int) error {
+	if mspUserID <= 0 || customerTenantID <= 0 {
+		return NewCustomerAccessError(CodeMSPAllocationRequired, "缺少 MSP 用户或客户租户参数")
+	}
+	if s.mspAccessValidator == nil {
+		if s.client == nil {
+			return fmt.Errorf("customer access validator unavailable")
+		}
+		s.mspAccessValidator = NewMSPAccessValidator(s.client)
+	}
+	return s.mspAccessValidator.CanAccessCustomer(ctx, mspUserID, customerTenantID)
+}
+
+// ensureAccessibleCustomerIDs 返回该 MSP 员工可访问的客户租户集合（fail-closed）。
+func (s *TicketService) ensureAccessibleCustomerIDs(ctx context.Context, mspUserID int) ([]int, error) {
+	if mspUserID <= 0 {
+		return nil, NewCustomerAccessError(CodeMSPAllocationRequired, "缺少 MSP 用户参数")
+	}
+	if s.mspAccessValidator == nil {
+		if s.client == nil {
+			return nil, fmt.Errorf("customer access validator unavailable")
+		}
+		s.mspAccessValidator = NewMSPAccessValidator(s.client)
+	}
+	return s.mspAccessValidator.ListAccessibleCustomerIDs(ctx, mspUserID)
+}
+
 // GetCustomerTicketsForMSP 获取 MSP 视角下的客户工单
 func (s *TicketService) GetCustomerTicketsForMSP(ctx context.Context, userID, customerTenantID int, status *string, page, pageSize int) ([]*ticket.Ticket, error) {
 	if s.client == nil {
 		return nil, fmt.Errorf("ent client not available for MSP query")
+	}
+	if err := s.ensureCustomerAccess(ctx, userID, customerTenantID); err != nil {
+		return nil, err
 	}
 	query := s.client.Ticket.Query().Where(entTicket.TenantIDEQ(customerTenantID))
 	if status != nil && *status != "" {
@@ -2521,6 +2554,9 @@ func (s *TicketService) AssignMSPTechnician(ctx context.Context, ticketID, custo
 	if s.client == nil {
 		return nil, fmt.Errorf("ent client not available for MSP assign")
 	}
+	if err := s.ensureCustomerAccess(ctx, assignerID, customerTenantID); err != nil {
+		return nil, err
+	}
 	t, err := s.client.Ticket.Get(ctx, ticketID)
 	if err != nil {
 		if ent.IsNotFound(err) {
@@ -2529,7 +2565,7 @@ func (s *TicketService) AssignMSPTechnician(ctx context.Context, ticketID, custo
 		return nil, err
 	}
 	if t.TenantID != customerTenantID {
-		return nil, fmt.Errorf("工单不属于指定客户租户")
+		return nil, NewCustomerAccessError(CodeResourceTenantMismatch, "工单 %d 不属于客户租户 %d", ticketID, customerTenantID)
 	}
 	// 分配与同步命令在 EntRepository 中同事务提交。
 	current, err := s.repo.GetByID(ctx, ticketID, customerTenantID)
@@ -2586,12 +2622,19 @@ func (s *TicketService) AssignMSPTechnician(ctx context.Context, ticketID, custo
 	return updated, nil
 }
 
-// GetMSPCustomerReports 获取 MSP 客户报告
-func (s *TicketService) GetMSPCustomerReports(ctx context.Context, mspTenantID int, dateFrom, dateTo time.Time) ([]map[string]interface{}, error) {
+// GetMSPCustomerReports 获取 MSP 客户报告（仅统计该员工可访问的客户租户；IP-P0-2）
+func (s *TicketService) GetMSPCustomerReports(ctx context.Context, mspUserID int, dateFrom, dateTo time.Time) ([]map[string]interface{}, error) {
 	if s.client == nil {
 		return nil, fmt.Errorf("ent client not available for MSP reports")
 	}
-	query := s.client.Ticket.Query().Where(entTicket.TenantID(mspTenantID))
+	allowed, err := s.ensureAccessibleCustomerIDs(ctx, mspUserID)
+	if err != nil {
+		return nil, err
+	}
+	if len(allowed) == 0 {
+		return []map[string]interface{}{}, nil
+	}
+	query := s.client.Ticket.Query().Where(entTicket.TenantIDIn(allowed...))
 	if !dateFrom.IsZero() {
 		query = query.Where(entTicket.CreatedAtGTE(dateFrom))
 	}

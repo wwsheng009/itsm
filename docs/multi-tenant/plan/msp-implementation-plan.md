@@ -204,6 +204,16 @@ C2 · 客户租户内 msp 角色基线（Q7 合同形态 → 客户侧业务权�
 
 **回滚**：入口函数保留开关 `MSP_STRICT_CUSTOMER_ACCESS`（默认 on），off 时退回旧行为仅用于排障（发布后一个版本移除）。
 
+**进度（2026-09-30）**：✅ **安全核心已实现**（步骤 1–3、5–6），步骤 4 待发布流程执行线上 DDL。
+
+- 统一入口：`pkg/mspguard.CanAccessCustomer`（判定链：MSP 身份 → 有效分配 → 客户存在 → 归属本 provider（R2）→ 客户 active/未过期），错误码 `MSP_ALLOCATION_REQUIRED`/`CUSTOMER_TENANT_NOT_FOUND`/`CUSTOMER_INACTIVE`；`RESOURCE_TENANT_MISMATCH` 用于工单与声明租户不符。因 `service` 已依赖 `middleware`，实现置于 `pkg/`（避免循环依赖），`service.MSPAccessValidator` 为门面委托。
+- 通道接线：`MSPMiddleware` 头通道、`GetCustomerTicketsForMSP`（路径）、`AssignMSPTechnician`（请求体）、`GetMSPCustomerReports`（改为按可访问客户集合聚合，同时修掉旧实现把 userID 当 tenant 查询的缺陷）。
+- 死代码收敛：`MSPFilterByCustomer`、`MSPAllocationService.GetTicketsForCustomer` 删除，禁止双实现（R10）。
+- 反例单测：`pkg/mspguard`（8 例）+ `service`（3 例：路径/请求体/报表）+ `middleware`（2 例：头通道 403/404）全部通过。
+- DDL：ent schema `Indexes()`（`entsql.IndexWhere`）+ 迁移 **022**（先处置历史重复行，再建 `uk_msp_allocation_active` 部分唯一索引）。
+- G8 缓存审查：关闭（清单与豁免见 [07 §9](../07-known-gaps.md)）。
+- **偏差记录**：不实现文档原设的 `MSP_STRICT_CUSTOMER_ACCESS` 运行时旁路（避免授权外露面）；回滚 = revert 本 PR + env `DEPLOYMENT_MODE` 无需变更。
+
 ### IP-P0-3 工单 MSP 快照写入（R11；canon A12）
 
 **目标**：建单落 `is_managed_by_msp / msp_provider_id / managed_by_user_id / msp_ticket_id`，支持按 provider 过滤/统计/外部映射。
@@ -591,3 +601,4 @@ CREATE INDEX idx_invitations_expiry ON invitations (expires_at) WHERE status = '
 | v1.0 | 2026-09-30 | **评审通过 + P0 契约冻结**：新增 §3.0（错误码注册表 / P0 DDL 清单 / 五角色权限矩阵 / 工作台 Schema / 审计事件目录 / `07:G1–G10` 承接映射）；修正工作流计数 10→11；IP-P0-2 增加缓存租户维度步骤（`07:G8`）；IP-P0-9 增加 `07:G3` 修复项；IP-P0-5/P0 DoD 修正 G2 批次；D2/D3/D5/D8/E1–E6 标记已确认；基准 HEAD 重钉 `337558e3` |
 | v1.1 | 2026-09-30 | **P1 契约冻结 + 排期骨架**：新增 §4.0（`user_tenant_membership_orgs` 组织关联子表与复合 FK、`msp_allocations.provider_tenant_id` 列与回填、`invitations` DDL/生命周期/API/安全口径）——审计 C13 闭环；§9 增 §9.1 执行顺序与建议窗口（Owner 待指派）；标题去除"待排期校准" |
 | v1.2 | 2026-09-30 | **IP-P0-1 落地**：门控严格化（仅 saas_msp）+ 单一来源（cfg）+ 未知/空值 fatal + 启动自检 + `/msp/status` 暴露模式/gate；相关单测与 `go build ./...` 通过；02 §1/§9 同步目标口径 |
+| v1.3 | 2026-09-30 | **IP-P0-2 安全核心落地**：`pkg/mspguard` 唯一授权入口（头/路径/请求体/报表四通道）+ R10 死代码删除 + `uk_msp_allocation_active`（ent schema + 迁移 022）+ G8 缓存审查关闭；三通道反例单测全绿 |

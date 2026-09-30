@@ -21,7 +21,7 @@
 | G5 | id 序列落后于 `max(id)` | 供给时 `roles_pkey` duplicate key | 脚本 `setval(...)` 校正 | 初始化/迁移统一校正（§6） | P1 |
 | G6 | `role_permissions` 无唯一约束 | 无法 `ON CONFLICT`，供给脚本只能 `where not exists` | 脚本幂等插入 | 增加 `(role_id, permission_id, tenant_id)` 唯一索引（§7） | P2 |
 | G7 | CLI 工具 stdout 混入状态行 | `psql -tAc` 的 `INSERT 0 1` 污染 `returning id` 输出，自动化解析失败 | `last_number()` 过滤 | 工具输出规范（§8） | P2 |
-| G8 | 缓存 key 无租户维度 | 多客户场景存在串数据风险 | 未验证/未修 | 缓存 key 统一带 `tenant_id`（`ADR-004:A8`）；承接 `IP-P0-2` 步骤 6（2026-09-30） | **P0** |
+| G8 | 缓存 key 无租户维度 | 多客户场景存在串数据风险 | **✅ 已审查并关闭（2026-09-30）** | 逐 key 审查完成：租户分区缓存/序列均含 `tenant_id`；全局编号序列登记豁免（见 §9）；承接 `IP-P0-2` 步骤 6 | **P0** |
 | G9 | `X-Tenant-Code` 与 JWT 冲突被静默忽略 | 调用方误以为切换了租户；无冲突告警，排障困难（不越权） | 依赖 JWT 租户；探针按实测标注 | Header 与 JWT 冲突时返回 401/400 并记录告警（§10） | P2 |
 | G10 | snap 版 docker 下宿主 `/tmp` 对守护进程不可见 | `docker cp` 静默复制旧文件；`docker run -v /tmp/...` 产物"写丢"，构建/供给莫名失败 | 产物与暂存目录放 `$HOME` 非隐藏目录 + sha256 校验（§11） | 文档/脚本固化路径约定；容器化部署优先用 bind 到 `$HOME` 或非 snap docker | P1 |
 
@@ -120,11 +120,19 @@
 
 ## 9. G8 · 缓存 key 无租户维度
 
-**现象**：`itsm-backend/cache/` 未发现租户维度处理（`ADR-004:A8`，尚未在本次实测中触发数据串）。
+**审查结论（2026-09-30，`IP-P0-2` 步骤 6）**：**关闭**。逐 key 清单：
 
-**影响**：多客户场景下若缓存 key 相同，存在跨租户串数据风险。
+| 键/缓存（代码位置） | 格式 | 判定 |
+|---|---|---|
+| RBAC 权限缓存（`middleware/rbac.go`） | `{role}_{tenantID}` | ✅ 含租户维度 |
+| HTTP 响应缓存（`middleware/cache_middleware.go`） | `api:tenant:{id}:user:{id}:path:{path}:query:{hash}` | ✅ 含租户+用户维度 |
+| 影响面解释缓存（`service/impact_explanation_service.go`） | `cacheKey(tenantID, ciID, hops)` | ✅ 含租户维度 |
+| 工单号序列（`repository/ticket`、`service/ticket_core_service.go`） | `sequence:ticket:{tenantID}:{YYYYMM}` | ✅ 含租户维度 |
+| Token 黑名单（`service/token_blacklist_service.go`） | `jwt:blacklist:{token}` / `refresh:blacklist:{token}` | ➖ 凭据键，无租户业务数据 |
+| 事件号/CI 号序列（`incident_service`、`configuration_item_service`） | `sequence:incident:{YYYYMM}` / `sequence:ci:{YYYYMM}` | ⚪ **豁免**：编号为全局唯一（唯一约束不含 `tenant_id`），序列用于跨租户协调 + 存在性跳号，不含租户数据；若后续要求编号按租户隔离，需先改唯一约束（登记 P2） |
+| `cache/redis.go` 包装器 / `query_optimizer.GenerateCacheKey` | — | ➖ 当前无业务调用方（无生效键） |
 
-**建议修复**：统一缓存 key 前缀 `tenant:{id}:`，并补充单元测试与代码评审检查项。
+**评审检查项**：新增缓存/序列键必须含 `tenant_id`；全局协调键须在代码注释中声明豁免理由，并在本表登记。
 
 ## 10. G9 · `X-Tenant-Code` 与 JWT 冲突被静默忽略
 
