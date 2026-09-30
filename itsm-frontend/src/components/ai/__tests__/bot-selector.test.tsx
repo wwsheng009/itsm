@@ -55,4 +55,17 @@ describe('BotSelector', () => {
     render(<BotSelector bots={bots} value={0} onChange={jest.fn()} />);
     expect(screen.getByTestId('bot-selector')).toBeInTheDocument();
   });
+
+  it('Bot 能力关闭（botEnabled=false）：列表为空也渲染禁用选择器 + 提示，不静默消失', () => {
+    render(
+      <BotSelector
+        bots={[]}
+        value={null}
+        onChange={jest.fn()}
+        disabled
+        labels={{ disabledHint: 'Bot 能力已关闭' }}
+      />
+    );
+    expect(screen.getByTestId('bot-selector')).toHaveClass('ant-select-disabled');
+  });
 });

@@ -126,9 +126,22 @@ export interface MCPServerSummary {
   quarantined_tools: number;
 }
 
+/**
+ * 展示用能力开关块（随列表响应下发；snake_case，与本模块 rawKeys 口径一致）。
+ *
+ * 运行开关（`system_configs`）生效值，用于页面渲染禁用态；读端点在能力关闭时仍保留，
+ * 因此列表接口始终是可用的展示来源。字段可选：旧后端未下发时页面按"未管控"降级。
+ */
+export interface MCPCapabilities {
+  mcp_enabled: boolean;
+  mcp_write_enabled: boolean;
+  bot_enabled: boolean;
+}
+
 export interface MCPServerListResult {
   items: MCPServer[];
   summary: MCPServerSummary;
+  capabilities?: MCPCapabilities;
 }
 
 /** 工具治理视图（三态分离：enabled=生效中 / configured_enabled=配置值 / healthy=发现态）。 */
@@ -270,7 +283,7 @@ class MCPApi {
   /** 服务器列表 + 摘要。 */
   async listServers(): Promise<MCPServerListResult> {
     const r = await rawGet<MCPServerListResult>(BASE);
-    return { items: r.items || [], summary: r.summary };
+    return { items: r.items || [], summary: r.summary, capabilities: r.capabilities };
   }
 
   /** 健康摘要（复用列表投影，读端点为 /health）。 */

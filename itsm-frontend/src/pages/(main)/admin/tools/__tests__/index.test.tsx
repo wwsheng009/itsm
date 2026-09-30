@@ -115,4 +115,31 @@ describe('工具目录页（/admin/tools）', () => {
     expect(await screen.findByText(/没有匹配的工具/)).toBeInTheDocument();
     expect(screen.getByText('共 0 个工具')).toBeInTheDocument();
   });
+
+  it('能力关闭禁用态：MCP 关闭 / 写面关闭 Alert + MCP 写工具行徽标（只读行不加）', async () => {
+    mockedList.mockResolvedValue({
+      items: [
+        builtinTool(),
+        mcpTool(),
+        mcpTool({
+          name: 'mcp__mock__create_issue',
+          readOnly: false,
+          risk: 'act_low',
+          rawToolName: 'create_issue',
+        }),
+      ],
+      total: 3,
+      capabilities: { mcpEnabled: false, mcpWriteEnabled: false, botEnabled: true },
+    });
+    renderPage();
+
+    expect(await screen.findByTestId('tools-mcp-disabled')).toBeInTheDocument();
+    expect(screen.getByTestId('tools-write-face-disabled')).toBeInTheDocument();
+    // 仅 MCP 写工具行加徽标；只读 MCP 行与内置写工具行不加。
+    expect(
+      screen.getByTestId('tools-write-blocked-mcp__mock__create_issue'),
+    ).toBeInTheDocument();
+    expect(screen.queryByTestId('tools-write-blocked-mcp__mock__echo')).toBeNull();
+    expect(screen.queryByTestId('tools-write-blocked-create_ticket')).toBeNull();
+  });
 });

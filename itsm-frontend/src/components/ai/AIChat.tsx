@@ -64,6 +64,7 @@ import {
   type AIRunStepEvent,
   type ToolInvocationDetail,
   type BotOption,
+  type AgentBotsCapabilities,
 } from '@/lib/api/ai-api';
 import {
   LLM_PROVIDER_DISABLED,
@@ -72,6 +73,7 @@ import {
 } from '@/lib/api/llm-provider-api';
 import { useLLMProviderFeature } from '@/lib/hooks/use-llm-provider-feature';
 import { usePermissions } from '@/lib/hooks/use-permissions';
+import { useI18n } from '@/lib/i18n/useI18n';
 import {
   buildArticlePrefillState,
   buildConversationArticlePrefillState,
@@ -575,6 +577,7 @@ const SourceList: React.FC<{ sources: RagAnswer[] }> = ({ sources }) => {
 const AIChat: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
+  const { t } = useI18n();
   const { token } = theme.useToken();
   const { hasPermission } = usePermissions();
   // 「设为我的默认 / 清除默认」写的是 PUT /ai/user-preference，仍是 system:write（P1 只放开读端点）
@@ -611,16 +614,25 @@ const AIChat: React.FC = () => {
   // B2-04 工作区 Bot 选择器：候选列表按当前角色 audience 过滤（端点未开启 → 空数组 →
   // 选择器不渲染，行为与引入该能力前一致）。选择仅对**新会话**生效。
   const [bots, setBots] = useState<BotOption[]>([]);
+  // 展示用能力块：与候选列表同一次请求下发（不新增请求），用于 bot.enabled=false 的禁用态。
+  const [botCapabilities, setBotCapabilities] = useState<AgentBotsCapabilities | null>(null);
   const [selectedBotId, setSelectedBotId] = useState<number | null>(null);
   useEffect(() => {
     let alive = true;
-    AIApi.listVisibleBots()
-      .then(list => {
-        if (alive) setBots(list);
+    AIApi.listVisibleBotsWithCapabilities()
+      .then(result => {
+        if (!alive) return;
+        setBots(result.items);
+        setBotCapabilities(result.capabilities);
+        // 能力已关闭：清空本地选择，避免继续携带失效的 botId（后端策略同时会降级）。
+        if (result.capabilities?.botEnabled === false) setSelectedBotId(null);
       })
       .catch(() => {
-        // listVisibleBots 内部已兜底为空数组；此分支仅防未预期异常。
-        if (alive) setBots([]);
+        // listVisibleBotsWithCapabilities 内部已兜底为空；此分支仅防未预期异常。
+        if (alive) {
+          setBots([]);
+          setBotCapabilities(null);
+        }
       });
     return () => {
       alive = false;
@@ -1241,6 +1253,8 @@ const AIChat: React.FC = () => {
               value={selectedBotId}
               onChange={setSelectedBotId}
               locked={Boolean(convId)}
+              disabled={botCapabilities?.botEnabled === false}
+              labels={{ disabledHint: t('bots.capabilities.selectorDisabled') }}
             />
             {/* B3-02：入口上下文条（来自页面 launcher；可清除，清除后按普通对话处理） */}
             {activeScope ? (

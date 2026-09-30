@@ -22,15 +22,27 @@ describe('mcpApi（M0-12 管理 API 客户端）', () => {
   });
 
   it('listServers：GET 列表（requestRaw）并兜底空数组', async () => {
-    mockRaw.mockResolvedValueOnce({ items: [{ id: 1, name: 'gitlab' }], summary: { total: 1 } });
+    mockRaw.mockResolvedValueOnce({
+      items: [{ id: 1, name: 'gitlab' }],
+      summary: { total: 1 },
+      capabilities: { mcp_enabled: true, mcp_write_enabled: false, bot_enabled: true },
+    });
     const result = await mcpApi.listServers();
     expect(mockRaw).toHaveBeenCalledWith('/api/v1/ai/mcp-servers', { method: 'GET' });
     expect(result.items).toHaveLength(1);
     expect(result.summary.total).toBe(1);
+    // 展示用 capabilities 块原样透传（snake_case，未归一化）。
+    expect(result.capabilities).toEqual({
+      mcp_enabled: true,
+      mcp_write_enabled: false,
+      bot_enabled: true,
+    });
 
     mockRaw.mockResolvedValueOnce({ total: 0 });
     const empty = await mcpApi.listServers();
     expect(empty.items).toEqual([]);
+    // 旧后端未下发 = undefined（页面按未管控降级）。
+    expect(empty.capabilities).toBeUndefined();
   });
 
   it('healthSummary：GET /health（与列表同投影）', async () => {

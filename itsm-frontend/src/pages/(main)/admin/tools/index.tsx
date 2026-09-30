@@ -4,7 +4,12 @@ import type { ColumnsType } from 'antd/es/table';
 import { Copy, RefreshCw } from 'lucide-react';
 import { PageContainer } from '@/components/common/PageContainer';
 import { useI18n } from '@/lib/i18n/useI18n';
-import { aiListToolCatalog, type ToolCatalogItem, type ToolCatalogParams } from '@/lib/api/ai-api';
+import {
+  aiListToolCatalog,
+  type ToolCatalogCapabilities,
+  type ToolCatalogItem,
+  type ToolCatalogParams,
+} from '@/lib/api/ai-api';
 
 const { Text } = Typography;
 
@@ -48,6 +53,10 @@ const ToolsCatalogPage: React.FC = () => {
   const [items, setItems] = useState<ToolCatalogItem[]>([]);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(false);
+  // 展示用能力块（随目录响应下发；缺省 = 未管控）。
+  const [capabilities, setCapabilities] = useState<ToolCatalogCapabilities | undefined>(undefined);
+  const mcpDisabled = capabilities?.mcpEnabled === false;
+  const mcpWriteBlocked = capabilities?.mcpWriteEnabled === false;
 
   const [searchText, setSearchText] = useState('');
   const [query, setQuery] = useState('');
@@ -86,6 +95,7 @@ const ToolsCatalogPage: React.FC = () => {
       if (requestId !== requestSeqRef.current) return;
       setItems(Array.isArray(res?.items) ? res.items : []);
       setTotal(res?.total ?? 0);
+      setCapabilities(res?.capabilities);
     } catch {
       if (requestId !== requestSeqRef.current) return;
       setItems([]);
@@ -134,6 +144,13 @@ const ToolsCatalogPage: React.FC = () => {
           <Space size={4}>
             <Text strong>{record.name}</Text>
             {record.provider === 'mcp' ? <Tag color="geekblue">{tt('toolsCatalog.mcpTag')}</Tag> : null}
+            {mcpWriteBlocked && record.provider === 'mcp' && !record.readOnly ? (
+              <Tooltip title={tt('tools.capabilities.writeToolHint')}>
+                <Tag color="warning" data-testid={`tools-write-blocked-${record.name}`}>
+                  {tt('tools.capabilities.writeToolBadge')}
+                </Tag>
+              </Tooltip>
+            ) : null}
           </Space>
           {record.serverName ? (
             <Text type="secondary" style={{ fontSize: 12 }}>
@@ -233,6 +250,26 @@ const ToolsCatalogPage: React.FC = () => {
           </Button>
         }
       >
+        {mcpDisabled ? (
+          <Alert
+            data-testid="tools-mcp-disabled"
+            type="warning"
+            showIcon
+            message={tt('tools.capabilities.mcpDisabledTitle')}
+            description={tt('tools.capabilities.mcpDisabledHint')}
+            style={{ marginBottom: 16 }}
+          />
+        ) : null}
+        {mcpWriteBlocked ? (
+          <Alert
+            data-testid="tools-write-face-disabled"
+            type="warning"
+            showIcon
+            message={tt('tools.capabilities.writeDisabledTitle')}
+            description={tt('tools.capabilities.writeDisabledHint')}
+            style={{ marginBottom: 16 }}
+          />
+        ) : null}
         <Alert type="info" showIcon title={tt('toolsCatalog.rbacHint')} style={{ marginBottom: 16 }} />
 
         <Space wrap style={{ marginBottom: 12 }}>

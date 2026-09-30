@@ -244,4 +244,55 @@ describe('Bot 管理页（B2-03）', () => {
     // 列表仍在（未被清空）。
     expect(screen.getByText('工单助手')).toBeInTheDocument();
   });
+
+  it('botEnabled=false：顶部 Alert + 新建/编辑/删除/授权保存全部禁用（含 tooltip 说明）', async () => {
+    mocked.listTemplates.mockResolvedValue({
+      items: [template()],
+      total: 1,
+      capabilities: { botEnabled: false, mcpWriteEnabled: true },
+    } as never);
+    renderPage();
+
+    expect(await screen.findByTestId('bots-capability-disabled')).toBeInTheDocument();
+    expect(screen.getByTestId('bots-create')).toBeDisabled();
+
+    const row = (await screen.findByText('工单助手')).closest('tr') as HTMLElement;
+    const rowButtons = within(row).getAllByRole('button');
+    // [编辑, 工具授权(读入口), 删除]：写操作禁用，授权抽屉仍可打开查看。
+    expect(rowButtons[0]).toBeDisabled();
+    expect(rowButtons[1]).toBeEnabled();
+    expect(rowButtons[rowButtons.length - 1]).toBeDisabled();
+
+    fireEvent.click(rowButtons[1]);
+    await waitFor(() => expect(mocked.listGrants).toHaveBeenCalledWith(1));
+    // 授权保存（「保存授权」提交）同样被禁用；授权仍可展示。
+    expect(await screen.findByTestId('bots-grant-submit')).toBeDisabled();
+  });
+
+  it('mcpWriteEnabled=false：写面 Alert + 写工具授权徽标 + 选中写工具后禁止保存（可展示不可保存）', async () => {
+    mocked.listTemplates.mockResolvedValue({
+      items: [template()],
+      total: 1,
+      capabilities: { botEnabled: true, mcpWriteEnabled: false },
+    } as never);
+    renderPage();
+
+    expect(await screen.findByTestId('bots-write-face-disabled')).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: /工具\s*授权/ }));
+    expect(await screen.findByTestId('bots-grant-write-face-disabled')).toBeInTheDocument();
+    // 目录中 create_ticket 为 readOnly=false：已有授权行显示"全局写面已关闭"徽标。
+    expect(await screen.findByTestId('bots-grant-write-blocked-create_ticket')).toBeInTheDocument();
+
+    // 未选中写工具时提交可用；选中写工具后禁用并给出专项提示（仍然展示）。
+    expect(screen.getByTestId('bots-grant-submit')).toBeEnabled();
+    const toolInput = screen.getByPlaceholderText('工具名') as HTMLInputElement;
+    fireEvent.focus(toolInput);
+    fireEvent.change(toolInput, { target: { value: 'create_ticket' } });
+    const option = await screen.findByText(/create_ticket（内置/);
+    fireEvent.click(option);
+
+    await waitFor(() => expect(screen.getByTestId('bots-grant-submit')).toBeDisabled());
+    expect(screen.getByTestId('bots-grant-write-picked-blocked')).toBeInTheDocument();
+  });
 });

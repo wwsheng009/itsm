@@ -24,6 +24,7 @@ import botApi, {
   parseEntrypoints,
   serializeEntrypoints,
   type BotRisk,
+  type BotCapabilities,
   type BotGrant,
   type BotTemplate,
   type ImpactWarning,
@@ -73,6 +74,11 @@ const BotTemplatesPage: React.FC = () => {
   const [templates, setTemplates] = useState<BotTemplate[]>([]);
   const [loading, setLoading] = useState(false);
   const [featureDisabled, setFeatureDisabled] = useState(false);
+  // 展示用能力块（随列表下发）：botEnabled=false 禁用全部写操作；mcpWriteEnabled=false 禁止写工具授权保存。
+  const [capabilities, setCapabilities] = useState<BotCapabilities | null>(null);
+  const botEnabled = capabilities?.botEnabled ?? true;
+  const mcpWriteEnabled = capabilities?.mcpWriteEnabled ?? true;
+  const writeDisabled = !botEnabled;
 
   const [editorOpen, setEditorOpen] = useState(false);
   const [editing, setEditing] = useState<BotTemplate | null>(null);
@@ -138,6 +144,7 @@ const BotTemplatesPage: React.FC = () => {
     try {
       const res = await botApi.listTemplates();
       setTemplates(Array.isArray(res?.items) ? res.items : []);
+      setCapabilities(res?.capabilities ?? null);
       setFeatureDisabled(false);
     } catch (err) {
       if (isBotFeatureDisabled(err)) {
@@ -333,10 +340,25 @@ const BotTemplatesPage: React.FC = () => {
         const source = item.provider === 'mcp' ? tt('toolsCatalog.mcpTag') : tt('toolsCatalog.builtin');
         const risk = item.risk ? riskLabel(item.risk) : tt('toolsCatalog.riskUnknown');
         const server = item.serverName ? ` · ${item.serverName}` : '';
-        return { value: item.name, label: `${item.name}（${source}${server} · ${risk}）` };
+        // 全局写面关闭时，写工具仍可展示与选择，但会在提示中标注"不可保存"。
+        const writeBlocked =
+          !mcpWriteEnabled && item.readOnly === false
+            ? ` · ${tt('bots.capabilities.grantWriteBlockedBadge')}`
+            : '';
+        return { value: item.name, label: `${item.name}（${source}${server} · ${risk}${writeBlocked}）` };
       }),
-    [riskLabel, toolCatalog, tt]
+    [mcpWriteEnabled, riskLabel, toolCatalog, tt]
   );
+
+  /** 目录中已知的写工具（readOnly=false）；手工输入未命中目录时不判定，避免误禁用。 */
+  const isCatalogWriteTool = useCallback(
+    (toolName: string) => toolCatalog.some(item => item.name === toolName && item.readOnly === false),
+    [toolCatalog]
+  );
+
+  /** 选中项为写工具且全局写面关闭：可展示、不可提交（「允许」提交按钮禁用）。 */
+  const pickedWriteToolBlocked = !mcpWriteEnabled && pickedTool?.readOnly === false;
+  const grantSubmitBlocked = writeDisabled || pickedWriteToolBlocked;
 
   const catalogSummary = useMemo(() => {
     const mcp = toolCatalog.filter(item => item.provider === 'mcp').length;
@@ -422,9 +444,11 @@ const BotTemplatesPage: React.FC = () => {
       width: 240,
       render: (_, record) => (
         <Space size={4}>
-          <Button size="small" type="link" onClick={() => openEdit(record)}>
-            {tt('botsAdmin.edit')}
-          </Button>
+          <Tooltip title={writeDisabled ? tt('bots.capabilities.writeActionTooltip') : undefined}>
+            <Button size="small" type="link" disabled={writeDisabled} onClick={() => openEdit(record)}>
+              {tt('botsAdmin.edit')}
+            </Button>
+          </Tooltip>
           <Button
             size="small"
             type="link"
@@ -433,14 +457,22 @@ const BotTemplatesPage: React.FC = () => {
           >
             {tt('botsAdmin.grants')}
           </Button>
-          <Popconfirm
-            title={tt('botsAdmin.deleteConfirm')}
-            onConfirm={() => void removeTemplate(record)}
-            okText={tt('botsAdmin.confirm')}
-            cancelText={tt('botsAdmin.cancel')}
-          >
-            <Button size="small" type="link" danger icon={<Trash2 size={14} />} />
-          </Popconfirm>
+          <Tooltip title={writeDisabled ? tt('bots.capabilities.writeActionTooltip') : undefined}>
+            <Popconfirm
+              title={tt('botsAdmin.deleteConfirm')}
+              onConfirm={() => void removeTemplate(record)}
+              okText={tt('botsAdmin.confirm')}
+              cancelText={tt('botsAdmin.cancel')}
+            >
+              <Button
+                size="small"
+                type="link"
+                danger
+                disabled={writeDisabled}
+                icon={<Trash2 size={14} />}
+              />
+            </Popconfirm>
+          </Tooltip>
         </Space>
       ),
     },
@@ -460,6 +492,26 @@ const BotTemplatesPage: React.FC = () => {
         },
       }}
     >
+      {!featureDisabled && !botEnabled ? (
+        <Alert
+          data-testid="bots-capability-disabled"
+          type="warning"
+          showIcon
+          style={{ marginBottom: 16 }}
+          message={tt('bots.capabilities.botDisabledTitle')}
+          description={tt('bots.capabilities.botDisabledHint')}
+        />
+      ) : null}
+      {!featureDisabled && mcpWriteEnabled === false ? (
+        <Alert
+          data-testid="bots-write-face-disabled"
+          type="info"
+          showIcon
+          style={{ marginBottom: 16 }}
+          message={tt('bots.capabilities.writeDisabledTitle')}
+          description={tt('bots.capabilities.writeDisabledHint')}
+        />
+      ) : null}
       {featureDisabled ? (
         <Alert
           type="info"
@@ -475,9 +527,17 @@ const BotTemplatesPage: React.FC = () => {
               <Button icon={<RefreshCw size={14} />} onClick={() => void loadTemplates()} loading={loading}>
                 {tt('botsAdmin.refresh')}
               </Button>
-              <Button type="primary" icon={<Plus size={14} />} onClick={openCreate}>
-                {tt('botsAdmin.create')}
-              </Button>
+              <Tooltip title={writeDisabled ? tt('bots.capabilities.writeActionTooltip') : undefined}>
+                <Button
+                  type="primary"
+                  icon={<Plus size={14} />}
+                  data-testid="bots-create"
+                  disabled={writeDisabled}
+                  onClick={openCreate}
+                >
+                  {tt('botsAdmin.create')}
+                </Button>
+              </Tooltip>
             </Space>
           }
         >
@@ -611,6 +671,24 @@ const BotTemplatesPage: React.FC = () => {
                 risk: riskLabel(grantsFor.riskLimit),
               })}
             />
+            {!mcpWriteEnabled ? (
+              <Alert
+                data-testid="bots-grant-write-face-disabled"
+                type="warning"
+                showIcon
+                message={tt('bots.capabilities.writeDisabledTitle')}
+                description={tt('bots.capabilities.grantWriteBlockedHint')}
+              />
+            ) : null}
+            {pickedWriteToolBlocked ? (
+              <Alert
+                data-testid="bots-grant-write-picked-blocked"
+                type="warning"
+                showIcon
+                message={tt('bots.capabilities.grantWriteBlockedBadge')}
+                description={tt('bots.capabilities.grantWriteBlockedHint')}
+              />
+            ) : null}
             <Space direction="vertical" size={2} style={{ display: 'flex' }}>
               <Text type="secondary">{tt('botsAdmin.grantsDrawer.toolSearchHint')}</Text>
               <Space size={8} wrap>
@@ -661,9 +739,25 @@ const BotTemplatesPage: React.FC = () => {
                 <Input placeholder={tt('botsAdmin.grantsDrawer.argsPolicyHint')} />
               </Form.Item>
               <Form.Item>
-                <Button type="primary" htmlType="submit" icon={<Plus size={14} />}>
-                  {tt('botsAdmin.grantsDrawer.upsert')}
-                </Button>
+                <Tooltip
+                  title={
+                    writeDisabled
+                      ? tt('bots.capabilities.writeActionTooltip')
+                      : pickedWriteToolBlocked
+                        ? tt('bots.capabilities.grantWriteBlockedHint')
+                        : undefined
+                  }
+                >
+                  <Button
+                    type="primary"
+                    htmlType="submit"
+                    icon={<Plus size={14} />}
+                    data-testid="bots-grant-submit"
+                    disabled={grantSubmitBlocked}
+                  >
+                    {tt('botsAdmin.grantsDrawer.upsert')}
+                  </Button>
+                </Tooltip>
               </Form.Item>
             </Form>
             <Table<BotGrant>
@@ -674,7 +768,21 @@ const BotTemplatesPage: React.FC = () => {
               pagination={false}
               locale={{ emptyText: <Empty description={tt('botsAdmin.grantsDrawer.empty')} /> }}
               columns={[
-                { title: tt('botsAdmin.grantsDrawer.toolName'), dataIndex: 'toolName', key: 'toolName' },
+                {
+                  title: tt('botsAdmin.grantsDrawer.toolName'),
+                  dataIndex: 'toolName',
+                  key: 'toolName',
+                  render: (value: string) => (
+                    <Space size={4} wrap>
+                      <Text>{value}</Text>
+                      {!mcpWriteEnabled && isCatalogWriteTool(value) ? (
+                        <Tag color="warning" data-testid={`bots-grant-write-blocked-${value}`}>
+                          {tt('bots.capabilities.grantWriteBlockedBadge')}
+                        </Tag>
+                      ) : null}
+                    </Space>
+                  ),
+                },
                 {
                   title: tt('botsAdmin.grantsDrawer.riskLimit'),
                   dataIndex: 'riskLimit',
@@ -700,14 +808,22 @@ const BotTemplatesPage: React.FC = () => {
                   key: 'actions',
                   width: 90,
                   render: (_, record) => (
-                    <Popconfirm
-                      title={tt('botsAdmin.deleteGrantConfirm')}
-                      onConfirm={() => void removeGrant(record)}
-                      okText={tt('botsAdmin.confirm')}
-                      cancelText={tt('botsAdmin.cancel')}
-                    >
-                      <Button size="small" type="link" danger icon={<Trash2 size={14} />} />
-                    </Popconfirm>
+                    <Tooltip title={writeDisabled ? tt('bots.capabilities.writeActionTooltip') : undefined}>
+                      <Popconfirm
+                        title={tt('botsAdmin.deleteGrantConfirm')}
+                        onConfirm={() => void removeGrant(record)}
+                        okText={tt('botsAdmin.confirm')}
+                        cancelText={tt('botsAdmin.cancel')}
+                      >
+                        <Button
+                          size="small"
+                          type="link"
+                          danger
+                          disabled={writeDisabled}
+                          icon={<Trash2 size={14} />}
+                        />
+                      </Popconfirm>
+                    </Tooltip>
                   ),
                 },
               ]}

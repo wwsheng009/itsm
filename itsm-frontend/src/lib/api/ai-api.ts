@@ -788,24 +788,63 @@ export interface BotOption {
  * 选择器不渲染，聊天链路与引入该能力前完全一致（不因治理面缺失而阻断对话）。
  */
 export async function aiListVisibleBots(): Promise<BotOption[]> {
+  const res = await aiListVisibleBotsWithCapabilities();
+  return res.items;
+}
+
+/**
+ * 展示用能力块（`GET /api/v1/agent/bots` 随列表下发，camelCase）。
+ *
+ * `botEnabled=false` 时后端返回空列表 + 该块；对话页据此禁用/隐藏选择器并提示，
+ * **不新增任何请求**。
+ */
+export interface AgentBotsCapabilities {
+  botEnabled: boolean;
+  mcpWriteEnabled: boolean;
+}
+
+export interface AgentBotsResult {
+  items: BotOption[];
+  /** 旧后端未下发时为 null（页面按"未管控"降级）。 */
+  capabilities: AgentBotsCapabilities | null;
+}
+
+/**
+ * 同 `aiListVisibleBots`，但额外返回展示用 capabilities 块（一次请求，供对话页复用）。
+ *
+ * 失败兜底：任何异常都返回空列表 + null capabilities，绝不阻断聊天链路。
+ */
+export async function aiListVisibleBotsWithCapabilities(): Promise<AgentBotsResult> {
   try {
-    const res = (await httpClient.get('/api/v1/agent/bots')) as { items?: BotOption[] } | undefined;
+    const res = (await httpClient.get('/api/v1/agent/bots')) as
+      | { items?: BotOption[]; capabilities?: AgentBotsCapabilities }
+      | undefined;
     const items = Array.isArray(res?.items) ? res.items : [];
-    return items
-      .filter(
-        (item: unknown): item is BotOption =>
-          Boolean(item) &&
-          typeof (item as BotOption).id === 'number' &&
-          typeof (item as BotOption).name === 'string'
-      )
-      .map((item: BotOption) => ({
-        id: item.id,
-        slug: item.slug ?? '',
-        name: item.name,
-        audience: item.audience ?? '',
-      }));
+    const capabilities =
+      res?.capabilities && typeof res.capabilities.botEnabled === 'boolean'
+        ? {
+            botEnabled: res.capabilities.botEnabled,
+            mcpWriteEnabled: Boolean(res.capabilities.mcpWriteEnabled),
+          }
+        : null;
+    return {
+      items: items
+        .filter(
+          (item: unknown): item is BotOption =>
+            Boolean(item) &&
+            typeof (item as BotOption).id === 'number' &&
+            typeof (item as BotOption).name === 'string'
+        )
+        .map((item: BotOption) => ({
+          id: item.id,
+          slug: item.slug ?? '',
+          name: item.name,
+          audience: item.audience ?? '',
+        })),
+      capabilities,
+    };
   } catch {
-    return [];
+    return { items: [], capabilities: null };
   }
 }
 
@@ -1279,6 +1318,11 @@ export class AIApi {
   static async listVisibleBots(): Promise<BotOption[]> {
     return aiListVisibleBots();
   }
+
+  /** 工作区 Bot 候选 + 展示用 capabilities（单次请求，供对话页能力降级复用）。 */
+  static async listVisibleBotsWithCapabilities(): Promise<AgentBotsResult> {
+    return aiListVisibleBotsWithCapabilities();
+  }
 }
 
 // ==================== 工具目录（内置 + MCP 外部工具的统一查询视图） ====================
@@ -1315,9 +1359,21 @@ export interface ToolCatalogParams {
   limit?: number;
 }
 
+/**
+ * 工具目录展示用能力块（camelCase，随响应下发）。
+ *
+ * 工具页据此渲染"能力关闭"Alert 与 MCP 写工具行徽标；缺省 = 未管控，不渲染。
+ */
+export interface ToolCatalogCapabilities {
+  mcpEnabled: boolean;
+  mcpWriteEnabled: boolean;
+  botEnabled: boolean;
+}
+
 export interface ToolCatalogResult {
   items: ToolCatalogItem[];
   total: number;
+  capabilities?: ToolCatalogCapabilities;
 }
 
 /**
@@ -1337,5 +1393,9 @@ export async function aiListToolCatalog(params: ToolCatalogParams = {}): Promise
   // 字面量路径 + 拼接，避免模板内三元表达式，保证 api-contract 测试可静态解析路径
   const url = '/api/v1/agent/tools/catalog' + (qs ? `?${qs}` : '');
   const res = await httpClient.get<ToolCatalogResult>(url);
-  return { items: Array.isArray(res?.items) ? res.items : [], total: res?.total ?? 0 };
+  return {
+    items: Array.isArray(res?.items) ? res.items : [],
+    total: res?.total ?? 0,
+    capabilities: res?.capabilities,
+  };
 }

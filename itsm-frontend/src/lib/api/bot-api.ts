@@ -97,9 +97,23 @@ export interface BotGrantInput {
   argsPolicyJson?: string;
 }
 
+/**
+ * 展示用能力开关块（随列表响应下发，camelCase）。
+ *
+ * - `botEnabled=false`：Bot 管理写端 403，页面禁用全部写操作；
+ * - `mcpWriteEnabled=false`：外部写工具全局禁用（授权可读，但不会下发/执行）。
+ *
+ * 字段可选：旧后端未下发时页面按"未管控"降级（不误禁用）。
+ */
+export interface BotCapabilities {
+  botEnabled: boolean;
+  mcpWriteEnabled: boolean;
+}
+
 export interface BotTemplateListResult {
   items: BotTemplate[];
   total: number;
+  capabilities?: BotCapabilities;
 }
 
 export interface BotGrantListResult {

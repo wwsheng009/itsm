@@ -11,6 +11,8 @@ import {
   aiSuggestSolutions,
   aiIntelligentSearch,
   aiListVisibleBots,
+  aiListVisibleBotsWithCapabilities,
+  aiListToolCatalog,
   AIApi,
 } from '../ai-api';
 import { httpClient } from '../http-client';
@@ -230,6 +232,43 @@ describe('AI API', () => {
       expect(await aiListVisibleBots()).toEqual([
         { id: 33, slug: '', name: '合法', audience: '' },
       ]);
+    });
+
+    it('listVisibleBotsWithCapabilities：单次请求返回候选 + 能力块', async () => {
+      mockGet.mockResolvedValue({
+        items: [{ id: 11, slug: 'ops', name: '运维助手', audience: 'internal' }],
+        capabilities: { botEnabled: false, mcpWriteEnabled: false },
+      });
+      const res = await aiListVisibleBotsWithCapabilities();
+      expect(mockGet).toHaveBeenCalledWith('/api/v1/agent/bots');
+      expect(res.items).toEqual([
+        { id: 11, slug: 'ops', name: '运维助手', audience: 'internal' },
+      ]);
+      expect(res.capabilities).toEqual({ botEnabled: false, mcpWriteEnabled: false });
+
+      // 旧后端未下发 capabilities → null（页面按未管控降级，不误禁用）。
+      mockGet.mockResolvedValue({ items: [] });
+      expect(await aiListVisibleBotsWithCapabilities()).toEqual({ items: [], capabilities: null });
+
+      // 异常兜底：空列表 + null，不阻断聊天链路。
+      mockGet.mockRejectedValue(new Error('404'));
+      expect(await aiListVisibleBotsWithCapabilities()).toEqual({ items: [], capabilities: null });
+    });
+
+    it('aiListToolCatalog：透传 capabilities 块（工具页禁用态来源）', async () => {
+      mockGet.mockResolvedValue({
+        items: [{ name: 'mcp__mock__create_issue', readOnly: false, provider: 'mcp' }],
+        total: 1,
+        capabilities: { mcpEnabled: true, mcpWriteEnabled: false, botEnabled: true },
+      });
+      const res = await aiListToolCatalog({ limit: 10 });
+      expect(mockGet).toHaveBeenCalledWith('/api/v1/agent/tools/catalog?limit=10');
+      expect(res.items).toHaveLength(1);
+      expect(res.capabilities).toEqual({
+        mcpEnabled: true,
+        mcpWriteEnabled: false,
+        botEnabled: true,
+      });
     });
 
     it('summarize should delegate', async () => {

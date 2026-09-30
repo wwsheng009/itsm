@@ -13,6 +13,8 @@ export interface BotSelectorLabels {
   defaultBot?: string;
   /** 已有会话时（锁定态）的提示文案。 */
   lockedHint?: string;
+  /** Bot 能力关闭时（禁用态）的提示文案。 */
+  disabledHint?: string;
 }
 
 export interface BotSelectorProps {
@@ -24,6 +26,8 @@ export interface BotSelectorProps {
   onChange: (botId: number | null) => void;
   /** 已有会话：锁定切换（切换不回溯改写历史会话归属）。 */
   locked?: boolean;
+  /** 能力开关：`bot.enabled=false` 时禁用选择器并提示（列表可能为空，仍渲染提示）。 */
+  disabled?: boolean;
   /** 加载中：不渲染（避免布局抖动）。 */
   loading?: boolean;
   labels?: BotSelectorLabels;
@@ -33,6 +37,7 @@ const DEFAULT_LABELS: Required<BotSelectorLabels> = {
   title: '选择 Bot（仅影响新会话）',
   defaultBot: '默认助手',
   lockedHint: '当前会话归属已固定；切换 Bot 仅影响新会话',
+  disabledHint: 'Bot 能力已被管理员关闭',
 };
 
 /**
@@ -50,11 +55,13 @@ const BotSelector: React.FC<BotSelectorProps> = ({
   value,
   onChange,
   locked = false,
+  disabled = false,
   loading = false,
   labels,
 }) => {
   const text = { ...DEFAULT_LABELS, ...(labels ?? {}) };
-  if (loading || bots.length === 0) {
+  // 能力关闭时必须渲染提示（列表为空亦然）；仅在未关闭且无候选时保持兼容默认（不渲染）。
+  if (loading || (!disabled && bots.length === 0)) {
     return null;
   }
 
@@ -65,7 +72,7 @@ const BotSelector: React.FC<BotSelectorProps> = ({
       aria-label={text.title}
       style={{ minWidth: 140, maxWidth: 220 }}
       value={value ?? DEFAULT_BOT_VALUE}
-      disabled={locked}
+      disabled={locked || disabled}
       options={[
         { value: DEFAULT_BOT_VALUE, label: text.defaultBot },
         ...bots.map(bot => ({ value: bot.id, label: bot.name })),
@@ -74,7 +81,8 @@ const BotSelector: React.FC<BotSelectorProps> = ({
     />
   );
 
-  return locked ? <Tooltip title={text.lockedHint}>{control}</Tooltip> : control;
+  const hint = disabled ? text.disabledHint : locked ? text.lockedHint : undefined;
+  return hint ? <Tooltip title={hint}>{control}</Tooltip> : control;
 };
 
 export default BotSelector;
