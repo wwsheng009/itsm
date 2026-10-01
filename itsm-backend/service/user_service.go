@@ -195,6 +195,17 @@ func serviceRoleRank(role string) int {
 	switch strings.ToLower(strings.TrimSpace(role)) {
 	case "super_admin":
 		return 5
+	case "sysadmin":
+		// IP-P0-5：sysadmin 视为平台级（显式拒绝授予由建号通道白名单负责）。
+		return 5
+	case "msp_admin":
+		return 4
+	case "msp_manager":
+		return 3
+	case "msp_specialist", "msp_tech":
+		return 2
+	case "msp_viewer":
+		return 1
 	case "admin":
 		return 4
 	case "manager":

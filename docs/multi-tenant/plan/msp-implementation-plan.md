@@ -275,6 +275,17 @@ C2 · 客户租户内 msp 角色基线（Q7 合同形态 → 客户侧业务权�
 
 **回滚**：开关关闭即回退旧路径；SQL 兜底脚本保留。
 
+**进度（2026-09-30）**：✅ **三通道建号收口已实现（K4/`07:G1` 关闭）**。
+
+- 唯一入口：`service/user_provisioning.go#UserProvisioningService.ProvisionUser`（与交付任务的 `ProvisioningService` 同名冲突已改名为 `UserProvisioningService`）——内部完成 ① 目标租户存在/active ② 通道解析（platform/msp/tenant）③ 角色白名单 + 通道 rank 上限 ④ `WithTenantID(target)` + `WithProvisioningBypass(actor,channel,target)` ⑤ 复用 `UserService.CreateUser`。
+- 通道矩阵：`platform`（super_admin/sysadmin → 任意 active 租户）；`msp`（provider 管理员 + `mspguard.CanAccessCustomer` allocation/归属二次校验 → 仅分配客户，rank 上限=客户 admin）；`tenant`（本租户，rank=调用方有效角色，msp_role 映射计入）。
+- 错误码：`CROSS_TENANT_FORBIDDEN`(403) / `MSP_ALLOCATION_REQUIRED`(403) / `ROLE_NOT_GRANTABLE`(422) / `MSP_ROLE_NOT_ALLOWED`(422) / `USERNAME_EXISTS`、`EMAIL_EXISTS`(409) / `TENANT_NOT_FOUND`(404) / `TENANT_SUSPENDED`(403) / `PROVISIONING_CHANNELS_DISABLED`(404)。
+- 写路径：`database/security.go` 写守卫放行 provisioning bypass（仍强制 ctx tenant=目标租户，RLS 语义不变）；handler 不拼 bypass（`SetProvisioningService` 注入，未接线时保留 legacy 逻辑）。
+- 端点：`POST /api/v1/tenants/:id/users`（平台面）、`POST /api/v1/msp/customers/:customer_tenant_id/users`（MSP 面，`msp_customer:write`）、既有 `POST /api/v1/users`（有 provisioning 时统一走收口）。
+- 灰度：`USER_PROVISIONING_CHANNELS_ENABLED`（默认关；关闭时新端点 404 `PROVISIONING_CHANNELS_DISABLED`，`/users` 回退 legacy）。
+- 单测：8 个子用例（平台建首管/租户内建号/平台角色拒绝/mspRole 白名单/未分配客户拒绝/已分配客户成功/跨租户拒绝/开关关闭）全绿；`go build ./...`、`handlers/user`、`router`、`database`、`common/tenantctx` 全绿。
+- **待办**：`invite` 通道归 P1（IP-P1-2）；按租户灰度（settings 级开关）与 `07:G2`（provider 首个管理员 bootstrap 租户化）归 IP-P1-5；e2e（服务商 API 建号 201）纳入 M1 验收。
+
 ### IP-P0-6 登录、切换与刷新契约（I8；F5/F6/F9/F10/F11/F12；07:G9）
 
 **目标**：登录落 provider 家；**无候选列表/无 409**；切换/刷新/头通道全部 fail-closed 且可审计。
@@ -499,7 +510,7 @@ CREATE INDEX idx_invitations_expiry ON invitations (expires_at) WHERE status = '
 - [ ] **执行器/定时器**：后台任务/自动化在显式租户 ctx 下运行、错误 ctx 被拒、`source=job` 可审计（IP-P0-11）；
 - [ ] **功能**：工作台跨客户看+做（WB-A1–A6）；写操作无需切换且逐条审计；
 - [ ] **登录/会话**：provider 登录落 provider 家；切换/刷新/撤销契约通过（F5/F6/F9/F10/F11/F12 对应项）；
-- [ ] **建号**：三通道 `ProvisionUser` 生效；`07:G1` 关闭（`07:G2` 归 IP-P1-5）；角色白名单生效；
+- [x] **建号**：三通道 `UserProvisioningService` 生效；`07:G1`/K4 关闭（2026-09-30）；角色白名单与注册白名单生效（`07:G2` 归 IP-P1-5）；
 - [ ] **角色供给**：新 provider 租户 seed 后 5 个 `msp_*` 角色权限齐备（K1/K2 关闭）；`07:G3` 关闭；
 - [ ] **前端**：FE-A1–A8；登录页 DOM 无租户列表；客户账号无过滤器/切换器/工作台节点；
 - [ ] **契约**：错误码/DDL/审计事件与 §3.0 一致；`07:G1–G10` 映射表（§3.0-F）无遗漏；
@@ -622,3 +633,4 @@ CREATE INDEX idx_invitations_expiry ON invitations (expires_at) WHERE status = '
 | v1.3 | 2026-09-30 | **IP-P0-2 安全核心落地**：`pkg/mspguard` 唯一授权入口（头/路径/请求体/报表四通道）+ R10 死代码删除 + `uk_msp_allocation_active`（ent schema + 迁移 022）+ G8 缓存审查关闭；三通道反例单测全绿 |
 | v1.4 | 2026-09-30 | **IP-P0-3 快照落地**：建单双链路派生 `is_managed_by_msp`/`msp_provider_id`（无效归属按普通工单）；指派补写 `managed_by_user_id`；仓库 4 个 builder 全覆盖；回填脚本（dry-run/apply/rollback）交付 |
 | v1.5 | 2026-09-30 | **IP-P0-4 类型/归属收敛落地**：`pkg/tenantmode` 校验+读取映射；`TenantService` 写入接入、归属复核、停止 `parent_tenant_id` 双写；DTO binding 收敛；巡检脚本 + 01/03 文档回填 |
+| v1.6 | 2026-09-30 | **IP-P0-5 建号通道收口落地（K4/07:G1 关闭）**：`UserProvisioningService` 三通道 + 角色白名单/rank + `WithProvisioningBypass` + 写守卫放行 + 3 端点 + 灰度开关；8 子用例全绿 |

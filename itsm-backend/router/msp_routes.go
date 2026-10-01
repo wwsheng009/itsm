@@ -30,6 +30,10 @@ func SetupMSPRoutes(r *gin.Engine, config *RouterConfig) {
 		// 客户管理 - 需要 msp_customer 权限
 		msp.GET("/customers", middleware.RequireMSPPermission("msp_customer", "read"), config.MSPHandler.GetAllCustomers)
 		msp.GET("/customers/:customer_tenant_id/tickets", middleware.RequireMSPPermission("msp_ticket", "read"), config.MSPHandler.GetCustomerTickets)
+		// 建号通道（IP-P0-5）：MSP 管理员为分配客户建号；服务端二次校验 allocation（mspguard 唯一入口）。
+		if config.UserHandler != nil {
+			msp.POST("/customers/:customer_tenant_id/users", middleware.RequireMSPPermission("msp_customer", "write"), config.UserHandler.ProvisionUserToCustomer)
+		}
 
 		// 工单分配 - 需要 msp_ticket:write 权限
 		msp.POST("/tickets/:id/assign", middleware.RequireMSPPermission("msp_ticket", "write"), config.MSPHandler.AssignMSPTechnician)

@@ -416,8 +416,8 @@ func TestService_ResetPassword(t *testing.T) {
 		require.NoError(t, err)
 
 		req := &dto.PasswordResetRequest{
-			Token:           tok.Token,
-			Email:           fx.user.Email,
+			Token: tok.Token,
+			Email: fx.user.Email,
 			// 需满足默认密码策略（12 位 + 大写/小写/数字/特殊字符）
 			Password:        "Brand-New-Pass1",
 			PasswordConfirm: "Brand-New-Pass1",
@@ -496,3 +496,25 @@ func TestGenerateResetToken_Distinct(t *testing.T) {
 
 // 防止 unused import 标记
 var _ = ent.User{}
+
+// TestService_Register_RoleWhitelist 锁定 IP-P0-5 / F3：自助注册仅 end_user，平台/管理角色被拒。
+func TestService_Register_RoleWhitelist(t *testing.T) {
+	fx := newAuthFixture(t)
+	defer fx.client.Close()
+
+	for _, role := range []string{"super_admin", "sysadmin", "admin", "manager", "agent", "it_admin", "security_admin"} {
+		_, err := fx.service.Register(fx.ctx, &dto.RegisterRequest{
+			Username: "evil-" + role, Email: "evil-" + role + "@example.com",
+			Password: "SecurePass1!", DisplayName: "Evil", Role: role, TenantCode: "test",
+		})
+		require.Error(t, err, "role=%s 必须被拒绝", role)
+	}
+
+	resp, err := fx.service.Register(fx.ctx, &dto.RegisterRequest{
+		Username: "norm", Email: "norm@example.com", Password: "SecurePass1!",
+		DisplayName: "Norm", Role: "user", TenantCode: "test",
+	})
+	require.NoError(t, err)
+	require.NotNil(t, resp)
+	assert.Equal(t, "norm", resp.Username)
+}

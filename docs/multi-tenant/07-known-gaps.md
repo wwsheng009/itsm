@@ -14,7 +14,7 @@
 
 | # | 缺口 | 影响 | 当前规避 | 建议修复 | 优先级 |
 |---|---|---|---|---|---|
-| G1 | 跨租户创建用户被 tenant guard 拦截 | 无法为新租户创建首个用户 | SQL + pgcrypto 直写 | 提供受控的跨租户用户创建路径（见 §2） | P0 |
+| G1 | 跨租户创建用户被 tenant guard 拦截 | 无法为新租户创建首个用户 | SQL + pgcrypto 直写 | 提供受控的跨租户用户创建路径（见 §2）；**→ ✅ 已关闭（2026-09-30，IP-P0-5）：`UserProvisioningService` 三通道 + `tenantctx.WithProvisioningBypass(actor,channel,target)`；平台/MSP/租户内均可经 API 建号（`07:G2` 仍归 IP-P1-5）** | P0 |
 | G2 | bootstrap 无法为多租户建首个管理员 | 第 2 个及以后租户无法走官方初始化 | 同上 | bootstrap 支持 `-tenant-id` + 用户名/邮箱策略（§3） | P0 |
 | G3 | MSP 管理员有效角色解析为 `msp_manager` | 同租户 API 建号不可用（无 `user:write`，且过不了角色高攀校验） | 首个用户/技术员均走 SQL | JWT claims 取主角色或按 rank 取最大（§4） | P0 |
 | G4 | 源租户 `default` 缺内置审批组 | `provision_tenant` readiness 失败（groups=0） | 脚本回填 6 个内置组 | migration 回填存量库 + readiness 降级策略（§5） | P1 |

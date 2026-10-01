@@ -6,6 +6,7 @@ import (
 
 	"itsm-backend/common"
 	"itsm-backend/dto"
+	"itsm-backend/service"
 
 	"github.com/gin-gonic/gin"
 	"go.uber.org/zap"
@@ -13,8 +14,9 @@ import (
 
 // UserHandler HTTP handlers for user domain
 type UserHandler struct {
-	userService Service
-	logger      *zap.SugaredLogger
+	userService  Service
+	provisioning *service.UserProvisioningService
+	logger       *zap.SugaredLogger
 }
 
 // NewHandler creates a new UserHandler
@@ -23,6 +25,12 @@ func NewHandler(userService Service, logger *zap.SugaredLogger) *UserHandler {
 		userService: userService,
 		logger:      logger,
 	}
+}
+
+// SetProvisioningService 注入建号通道收口服务（IP-P0-5）。
+// 未接线时创建用户回退既有逻辑（测试/灰度回滚）。
+func (h *UserHandler) SetProvisioningService(p *service.UserProvisioningService) {
+	h.provisioning = p
 }
 
 // CreateUser 创建用户
@@ -54,6 +62,13 @@ func (h *UserHandler) CreateUser(c *gin.Context) {
 	userRole, _ := c.Get("role")
 	if userRole == "super_admin" && req.TenantID > 0 {
 		targetTenantID = req.TenantID
+	}
+
+	// IP-P0-5：建号通道收口（platform/msp/tenant 自动解析 + 角色白名单）。
+	// 未接线时保留下方 legacy 校验逻辑（灰度开关关闭或测试场景）。
+	if h.provisioning != nil {
+		h.provisionUserWithRequest(c, targetTenantID, &req)
+		return
 	}
 
 	// 角色越权防护（C3 修复）：调用者不能分配高于自身权限的角色
@@ -99,6 +114,76 @@ func (h *UserHandler) CreateUser(c *gin.Context) {
 	response := dto.ToUserDetailResponse(user)
 
 	common.Success(c, response)
+}
+
+// ProvisionUserToTenant 平台/租户通道建号（POST /api/v1/tenants/:id/users）。
+func (h *UserHandler) ProvisionUserToTenant(c *gin.Context) {
+	tenantID, err := strconv.Atoi(c.Param("id"))
+	if err != nil || tenantID <= 0 {
+		common.ParamError(c, "无效的租户ID")
+		return
+	}
+	h.provisionUser(c, tenantID)
+}
+
+// ProvisionUserToCustomer MSP 通道建号（POST /api/v1/msp/customers/:customer_tenant_id/users）。
+func (h *UserHandler) ProvisionUserToCustomer(c *gin.Context) {
+	tenantID, err := strconv.Atoi(c.Param("customer_tenant_id"))
+	if err != nil || tenantID <= 0 {
+		common.ParamError(c, "无效的客户租户ID")
+		return
+	}
+	h.provisionUser(c, tenantID)
+}
+
+// provisionUser 绑定请求体并走统一建号入口。
+func (h *UserHandler) provisionUser(c *gin.Context, targetTenantID int) {
+	var req dto.CreateUserRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		h.logger.Errorf("参数绑定失败: %v", err)
+		common.ParamErrorWithErr(c, err, "请求参数错误")
+		return
+	}
+	h.provisionUserWithRequest(c, targetTenantID, &req)
+}
+
+// provisionUserWithRequest 共用建号调用 + 稳定错误码映射。
+func (h *UserHandler) provisionUserWithRequest(c *gin.Context, targetTenantID int, req *dto.CreateUserRequest) {
+	if h.provisioning == nil {
+		common.Fail(c, common.ServiceUnavailableCode, "建号通道未启用")
+		return
+	}
+	created, err := h.provisioning.ProvisionUser(c.Request.Context(), provisionActorFromContext(c), targetTenantID, req)
+	if err != nil {
+		respondProvisionError(c, err)
+		return
+	}
+	common.Success(c, dto.ToUserDetailResponse(created))
+}
+
+// provisionActorFromContext 从 gin context 提取调用方身份（JWT claims 派生）。
+func provisionActorFromContext(c *gin.Context) service.ProvisionActor {
+	mspRole := c.GetString("msp_role")
+	if strings.TrimSpace(mspRole) == "" {
+		mspRole = c.GetString("mspRole")
+	}
+	return service.ProvisionActor{
+		UserID:       c.GetInt("user_id"),
+		HomeTenantID: c.GetInt("tenant_id"),
+		Role:         c.GetString("role"),
+		MSPRole:      mspRole,
+		Username:     c.GetString("username"),
+	}
+}
+
+// respondProvisionError 将建号通道的稳定错误码映射为响应（对齐 MSP 中间件风格）。
+func respondProvisionError(c *gin.Context, err error) {
+	if pe, ok := service.AsProvisionError(err); ok {
+		c.JSON(pe.Status, gin.H{"code": pe.Code, "message": pe.Message, "error": pe.Message})
+		c.Abort()
+		return
+	}
+	common.FailWithErr(c, err, "创建用户失败")
 }
 
 // ListUsers 获取用户列表

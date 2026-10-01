@@ -1257,6 +1257,10 @@ func NewApplication() *Application {
 	// User Handler
 	userService := service.NewUserService(client, sugar)
 	userHTTPHandler := userHandler.NewHandler(userService, sugar)
+	// IP-P0-5 建号通道收口：ProvisioningService 注入 user handler；
+	// 灰度开关 USER_PROVISIONING_CHANNELS_ENABLED（默认关，关闭时可回退 legacy 建号逻辑）。
+	userProvisioningService := service.NewUserProvisioningService(client, userService, sugar)
+	userHTTPHandler.SetProvisioningService(userProvisioningService)
 
 	// Group Handler
 	groupService := service.NewGroupService(client)

@@ -101,7 +101,9 @@ func registerSoftDeleteInterceptor(client *ent.Client) {
 func registerTenantWriteGuard(client *ent.Client) {
 	client.Use(ent.Hook(func(next ent.Mutator) ent.Mutator {
 		return ent.MutateFunc(func(ctx context.Context, m ent.Mutation) (ent.Value, error) {
-			if tenantctx.IsSystemBypass(ctx) {
+			// IP-P0-5：显式建号通道（actor+channel+target 审计）与 SystemBypass 同等放行；
+			// 通道授权与角色白名单由 service.UserProvisioningService 收口，此处只负责写守卫放行。
+			if tenantctx.IsSystemBypass(ctx) || tenantctx.IsProvisioningBypass(ctx) {
 				return next.Mutate(ctx, m)
 			}
 			tid, ok := tenantctx.TenantID(ctx)

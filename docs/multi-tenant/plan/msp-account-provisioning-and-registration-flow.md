@@ -184,11 +184,11 @@
 
 | 环节 | 现状（as-is） | 目标 | 工作流 |
 |---|---|---|---|
-| 跨租户建号 | ❌ 403/Ent hook 拦截，仅 SQL（`07:G1`） | platform/msp 通道 | **IP-P0-5** |
-| 服务商建号 | ❌ 无 MSP 用户端点（K4） | `/msp/customers/:id/users` | IP-P0-5 |
+| 跨租户建号 | ❌ 403/Ent hook 拦截，仅 SQL（`07:G1`）→ **✅ 已交付（2026-09-30，IP-P0-5）** | platform/msp 通道 | **IP-P0-5** |
+| 服务商建号 | ❌ 无 MSP 用户端点（K4）→ **✅ 已交付（2026-09-30，`/msp/customers/:id/users`）** | `/msp/customers/:id/users` | IP-P0-5 |
 | 首个管理员 | ⚠️ 写死 `admin`，第二租户撞唯一（`07:G2`） | `admin-<tenantCode>` + 强制改密 | **IP-P1-5** |
 | 邀请 | ❌ 无 | invitations + 一次性 token | **IP-P1-4** |
-| 注册角色 | ⚠️ 无白名单，可提权（F3） | 白名单默认 `end_user` | IP-P0-5 |
+| 注册角色 | ⚠️ 无白名单，可提权（F3）→ **✅ 已修（2026-09-30，IP-P0-5：仅 `end_user`）** | 白名单默认 `end_user` | IP-P0-5 |
 | 分配校验 | ⚠️ 不校验归属（R2）；通道绕过（R9/R10） | 归属一致性 + 统一授权入口 | IP-P0-2/4 |
 
 **决议（2026-09-30）**：① 服务商自助建 customer 租户：**当前否**（平台通道为主，P2 评估）；② 邀请 token：TTL 72h（`INVITATION_TTL_HOURS` 可配）、sha256 哈希、一次性、撤销 API `POST /api/v1/users/invitations/:id/revoke`（`invitations` DDL 随 `IP-P1-4`）；③ 直客（`saas_customer`）：**允许，类型即显式标记**（`msp_provider_id` 为空；canon D2）。
@@ -197,9 +197,9 @@
 
 ## 9. 验收（本流程专项）
 
-- [ ] 四通道矩阵逐项可用：platform/msp/tenant/invite 各自正例 + 反例（越权 403、白名单拒绝、allocation 缺失拒绝）；
-- [ ] 服务商经 API 为**已分配客户**建号成功；未分配客户 403（`MSP_ALLOCATION_REQUIRED`）；
-- [ ] 注册 `super_admin` 被拒（修 F3）；`msp_role` 仅 platform/msp 可设；
+- [x] 四通道矩阵：platform/msp/tenant **已交付（2026-09-30，IP-P0-5，单测 8 用例）**；invite 归 `IP-P1-4`；
+- [x] 服务商经 API 为**已分配客户**建号成功；未分配客户 403（`MSP_ALLOCATION_REQUIRED`）——**单测覆盖（2026-09-30）**；
+- [x] 注册 `super_admin` 被拒（修 F3）；`msp_role` 仅 platform/msp/provider 本租户可设——**单测覆盖（2026-09-30）**；
 - [ ] 首个管理员流程：连续 2 个租户 bootstrap 均成功（`07:G2` 关闭）；首登强制改密生效；
 - [ ] 邀请：创建→落地→设密→首登→审计→撤销全链路；SMTP 未配置时 `inviteUrl` 可用；
 - [ ] 审计：`user.provision`/`user.invite_*` 可按 `target_tenant` 查询；

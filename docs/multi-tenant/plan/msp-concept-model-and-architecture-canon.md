@@ -480,7 +480,7 @@ sequenceDiagram
 | K1 | `msp_viewer/msp_tech/msp_specialist/msp_manager/msp_admin` **不在内置角色词表**（`internal/authz/roles.go` 无这些键）→ 常规 seed 不产生其 DB 权限行 | 未走 MSP 脚本的 provider 租户落入 DBOnly「unconfigured」→ 依赖硬编码兜底（`middleware/rbac.go:1119-1140` 三态）；**角色权限无法按租户差异化** |
 | K2 | 实际由 `scripts/msp/setup-msp-tenants.sh:231-233` **SQL 直写** `role_permissions`（msp_manager/msp_tech/msp_viewer/msp_specialist） | 供给脚本成为事实上的"provider 角色配置源"；绕过脚本即漂移 |
 | K3 | `msp_role` 枚举仅 3 值（`provider_admin`/`provider_agent`/`customer_user`），而 RBAC 词表有 5 个 msp_* 角色 | `msp_specialist`/`msp_admin` **不可达**；细分权限无法通过员工角色表达 |
-| K4 | 脚本注释记录产品缺口：MSP 管理员**无法经 API 建号**（`roleRank` 校验，`scripts/msp/setup-msp-tenants.sh:279-282`） | provider 员工管理目前依赖 SQL/脚本 |
+| K4 | 脚本注释记录产品缺口：MSP 管理员**无法经 API 建号**（`roleRank` 校验，`scripts/msp/setup-msp-tenants.sh:279-282`） | provider 员工管理目前依赖 SQL/脚本；**→ ✅ 已关闭（2026-09-30，IP-P0-5）：三通道 `ProvisionUser` + `tenantctx.WithProvisioningBypass`（actor+channel 审计）收口；角色白名单与通道 rank 上限生效** |
 | K5 | 客户内权限未参与（目标态才有）；`X-Customer-Tenant-ID` 只校验头部（R9） | 跨客户操作的第三重约束缺失 |
 
 #### 复杂度预算（回答"是否越来越复杂"）
@@ -648,3 +648,4 @@ sequenceDiagram
 | v1.1 | 2026-09-30 | **代码落地回填**：R9（三通道统一 allocation 二次校验，`pkg/mspguard` 唯一入口 + service 门面）、R10（死代码接线并删除 `MSPFilterByCustomer`/`GetTicketsForCustomer`）、R4/R12（IP-P0-1 门控单一来源）；G8 缓存审查关闭见 07 §9 |
 | v1.2 | 2026-09-30 | **IP-P0-3 快照写入口落地**：建单派生 `is_managed_by_msp`/`msp_provider_id`（无效归属按普通工单）、指派补写 `managed_by_user_id`、回填脚本交付；R11 由"零写入"降级为"部分修复"（`msp_ticket_id` 待 E4） |
 | v1.3 | 2026-09-30 | **IP-P0-4 类型/归属收敛落地**：写入集合收敛（legacy `standard`/`msp`/`customer` 只读）、归属校验（A2/D2）、`parent_tenant_id` 停止双写、列表过滤兼容、存量巡检脚本 |
+| v1.4 | 2026-09-30 | **IP-P0-5 建号通道收口落地（K4 关闭）**：`service/user_provisioning.go`（platform/msp/tenant 三通道 + 角色白名单 + rank 上限）、`WithProvisioningBypass`、写守卫放行、三个端点接线与灰度开关 `USER_PROVISIONING_CHANNELS_ENABLED` |

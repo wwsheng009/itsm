@@ -164,6 +164,12 @@ func (s *Service) SwitchTenant(ctx context.Context, userID, tenantID int) (*dto.
 }
 
 func (s *Service) Register(ctx context.Context, req *dto.RegisterRequest) (*dto.RegisterResponse, error) {
+	// IP-P0-5 / F3：自助注册角色白名单——仅 end_user（user/空 归一）；
+	// 平台/管理角色（super_admin/sysadmin/admin/manager/agent 等）一律拒绝，防注册提权。
+	role := normalizeSelfRegisterRole(req.Role)
+	if role != user.RoleEndUser {
+		return nil, fmt.Errorf("不允许的角色: %s（自助注册仅支持 end_user）", req.Role)
+	}
 	if exists, err := s.client.User.Query().Where(user.UsernameEQ(req.Username)).Exist(ctx); err != nil {
 		return nil, fmt.Errorf("检查用户名失败")
 	} else if exists {
@@ -199,15 +205,23 @@ func (s *Service) Register(ctx context.Context, req *dto.RegisterRequest) (*dto.
 	if err != nil {
 		return nil, fmt.Errorf("密码加密失败")
 	}
-	role := user.Role(req.Role)
-	if role.String() == "" {
-		role = user.RoleEndUser
-	}
+	// 角色已在入口处归一为 end_user（IP-P0-5 白名单）。
 	userEntity, err := s.client.User.Create().SetUsername(req.Username).SetEmail(req.Email).SetName(req.ResolvedDisplayName()).SetPasswordHash(string(hashedPassword)).SetPhone(req.Phone).SetDepartment(req.Company).SetRole(role).SetTenantID(tenantID).SetActive(true).Save(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("创建用户失败")
 	}
 	return &dto.RegisterResponse{ID: userEntity.ID, Username: userEntity.Username, Email: userEntity.Email, Message: "注册成功"}, nil
+}
+
+// normalizeSelfRegisterRole 归一自助注册角色：""/"user"/"end_user" → end_user；
+// 其余原样返回（由调用方拒绝）。
+func normalizeSelfRegisterRole(role string) user.Role {
+	switch strings.ToLower(strings.TrimSpace(role)) {
+	case "", "user", "end_user":
+		return user.RoleEndUser
+	default:
+		return user.Role(strings.ToLower(strings.TrimSpace(role)))
+	}
 }
 
 func (s *Service) ForgotPassword(ctx context.Context, req *dto.ForgotPasswordRequest) (*dto.ForgotPasswordResponse, error) {
