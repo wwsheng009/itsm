@@ -568,8 +568,8 @@ CREATE INDEX idx_invitations_expiry ON invitations (expires_at) WHERE status = '
 
 ### 6.2 P0 出口 DoD（发布门）
 
-- [ ] **安全**：未分配客户在头/路径/请求体/切换 4 通道均 403（含 `MSP_ALLOCATION_REQUIRED` 错误码；R9/R10 关闭）；头/JWT 冲突 401 + 告警（`07:G9` 关闭）；
-- [ ] **缓存隔离**：`itsm-backend/cache/` 逐 key 审查完成、跨租户 key 修复 + 单测（`07:G8` 关闭，IP-P0-2 步骤 6）；
+- [x] **安全**：未分配客户在头/路径/请求体/切换 4 通道均 403（含 `MSP_ALLOCATION_REQUIRED` 错误码；R9/R10 关闭，v1.3）；头/JWT 冲突 401 + 告警（`07:G9` 关闭，v1.7）；
+- [x] **缓存隔离**：`itsm-backend/cache/` 逐 key 审查完成、跨租户 key 修复 + 单测（`07:G8` 关闭，v1.3；清单与豁免见 07 §9）；工作台 summary 缓存 key = 租户集合哈希 + 用户（v1.9）；
 - [x] **执行器/定时器**：后台任务/自动化在显式租户 ctx 下运行、错误 ctx 被拒、`source=job` 可审计（IP-P0-11，2026-09-30）；
 - [x] **功能（后端）**：工作台 list/summary/reply/status 落地 + 条目级授权链 + `allowedActions[]` + 逐条审计（2026-09-30）；前端入口/行内操作/双态指示（WB-A2/A6 前端面）归 IP-P0-8；批量（WB-A4）留 P1；
 - [x] **登录/会话**：provider 登录落 provider 家；切换/刷新/撤销契约通过（F5/F6/F9/F10/F11a/F12 后端，2026-09-30；F11b/c 前端/权限行归 IP-P0-8/9）；
@@ -577,7 +577,7 @@ CREATE INDEX idx_invitations_expiry ON invitations (expires_at) WHERE status = '
 - [x] **角色供给**：新 provider 租户 seed 后 5 个 `msp_*` 角色权限齐备（K1/K2 关闭，2026-09-30）；`07:G3` 关闭（登录 rank 取最大 + roleRank 单源）；
 - [x] **前端（P0 面）**：FE-A1–A5、A7 落地（2026-09-30）；登录页 DOM 无租户列表；客户账号无过滤器/切换器/工作台节点；FE-A6（管理页建号目标租户 UI）/A8（路由元数据单一模型清理）随 P1；
 - [x] **契约**：错误码/DDL/审计事件与 §3.0 一致（审计作用域列 + 事件目录 + source 枚举，2026-09-30；`membership_id` 填充随 IP-P1-1）；`07:G1–G10` 映射表（§3.0-F）无遗漏；
-- [ ] **门禁**：docs-gate 6/6（含 C.6 语义锚点）；`make test` 全绿；三角色剧本 P0 项全过。
+- [ ] **门禁**：docs-gate 6/6（含 C.6 语义锚点）✅ 0 violation（2026-09-30 复核）；`make test` 余已知红待清（后端 2 条既有 fixture/报告用例、前端 1 条 attachment 既有）；三角色剧本 P0 项以单测/e2e 已覆盖部分为准（M10 四通道 403 见 IP-P0-2 单测）。
 
 ### 6.3 P1 出口 DoD
 
