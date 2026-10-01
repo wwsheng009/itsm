@@ -192515,6 +192515,9 @@ type UserMutation struct {
 	assigned_by_msp_id              *int
 	addassigned_by_msp_id           *int
 	is_bootstrap_admin              *bool
+	must_change_password            *bool
+	last_active_tenant_id           *int
+	addlast_active_tenant_id        *int
 	clearedFields                   map[string]struct{}
 	department_ref                  *int
 	cleareddepartment_ref           bool
@@ -193344,6 +193347,112 @@ func (m *UserMutation) OldIsBootstrapAdmin(ctx context.Context) (v bool, err err
 // ResetIsBootstrapAdmin resets all changes to the "is_bootstrap_admin" field.
 func (m *UserMutation) ResetIsBootstrapAdmin() {
 	m.is_bootstrap_admin = nil
+}
+
+// SetMustChangePassword sets the "must_change_password" field.
+func (m *UserMutation) SetMustChangePassword(b bool) {
+	m.must_change_password = &b
+}
+
+// MustChangePassword returns the value of the "must_change_password" field in the mutation.
+func (m *UserMutation) MustChangePassword() (r bool, exists bool) {
+	v := m.must_change_password
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldMustChangePassword returns the old "must_change_password" field's value of the User entity.
+// If the User object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *UserMutation) OldMustChangePassword(ctx context.Context) (v bool, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldMustChangePassword is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldMustChangePassword requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldMustChangePassword: %w", err)
+	}
+	return oldValue.MustChangePassword, nil
+}
+
+// ResetMustChangePassword resets all changes to the "must_change_password" field.
+func (m *UserMutation) ResetMustChangePassword() {
+	m.must_change_password = nil
+}
+
+// SetLastActiveTenantID sets the "last_active_tenant_id" field.
+func (m *UserMutation) SetLastActiveTenantID(i int) {
+	m.last_active_tenant_id = &i
+	m.addlast_active_tenant_id = nil
+}
+
+// LastActiveTenantID returns the value of the "last_active_tenant_id" field in the mutation.
+func (m *UserMutation) LastActiveTenantID() (r int, exists bool) {
+	v := m.last_active_tenant_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldLastActiveTenantID returns the old "last_active_tenant_id" field's value of the User entity.
+// If the User object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *UserMutation) OldLastActiveTenantID(ctx context.Context) (v *int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldLastActiveTenantID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldLastActiveTenantID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldLastActiveTenantID: %w", err)
+	}
+	return oldValue.LastActiveTenantID, nil
+}
+
+// AddLastActiveTenantID adds i to the "last_active_tenant_id" field.
+func (m *UserMutation) AddLastActiveTenantID(i int) {
+	if m.addlast_active_tenant_id != nil {
+		*m.addlast_active_tenant_id += i
+	} else {
+		m.addlast_active_tenant_id = &i
+	}
+}
+
+// AddedLastActiveTenantID returns the value that was added to the "last_active_tenant_id" field in this mutation.
+func (m *UserMutation) AddedLastActiveTenantID() (r int, exists bool) {
+	v := m.addlast_active_tenant_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ClearLastActiveTenantID clears the value of the "last_active_tenant_id" field.
+func (m *UserMutation) ClearLastActiveTenantID() {
+	m.last_active_tenant_id = nil
+	m.addlast_active_tenant_id = nil
+	m.clearedFields[user.FieldLastActiveTenantID] = struct{}{}
+}
+
+// LastActiveTenantIDCleared returns if the "last_active_tenant_id" field was cleared in this mutation.
+func (m *UserMutation) LastActiveTenantIDCleared() bool {
+	_, ok := m.clearedFields[user.FieldLastActiveTenantID]
+	return ok
+}
+
+// ResetLastActiveTenantID resets all changes to the "last_active_tenant_id" field.
+func (m *UserMutation) ResetLastActiveTenantID() {
+	m.last_active_tenant_id = nil
+	m.addlast_active_tenant_id = nil
+	delete(m.clearedFields, user.FieldLastActiveTenantID)
 }
 
 // SetDepartmentRefID sets the "department_ref" edge to the Department entity by id.
@@ -194311,7 +194420,7 @@ func (m *UserMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *UserMutation) Fields() []string {
-	fields := make([]string, 0, 16)
+	fields := make([]string, 0, 18)
 	if m.username != nil {
 		fields = append(fields, user.FieldUsername)
 	}
@@ -194360,6 +194469,12 @@ func (m *UserMutation) Fields() []string {
 	if m.is_bootstrap_admin != nil {
 		fields = append(fields, user.FieldIsBootstrapAdmin)
 	}
+	if m.must_change_password != nil {
+		fields = append(fields, user.FieldMustChangePassword)
+	}
+	if m.last_active_tenant_id != nil {
+		fields = append(fields, user.FieldLastActiveTenantID)
+	}
 	return fields
 }
 
@@ -194400,6 +194515,10 @@ func (m *UserMutation) Field(name string) (ent.Value, bool) {
 		return m.AssignedByMspID()
 	case user.FieldIsBootstrapAdmin:
 		return m.IsBootstrapAdmin()
+	case user.FieldMustChangePassword:
+		return m.MustChangePassword()
+	case user.FieldLastActiveTenantID:
+		return m.LastActiveTenantID()
 	}
 	return nil, false
 }
@@ -194441,6 +194560,10 @@ func (m *UserMutation) OldField(ctx context.Context, name string) (ent.Value, er
 		return m.OldAssignedByMspID(ctx)
 	case user.FieldIsBootstrapAdmin:
 		return m.OldIsBootstrapAdmin(ctx)
+	case user.FieldMustChangePassword:
+		return m.OldMustChangePassword(ctx)
+	case user.FieldLastActiveTenantID:
+		return m.OldLastActiveTenantID(ctx)
 	}
 	return nil, fmt.Errorf("unknown User field %s", name)
 }
@@ -194562,6 +194685,20 @@ func (m *UserMutation) SetField(name string, value ent.Value) error {
 		}
 		m.SetIsBootstrapAdmin(v)
 		return nil
+	case user.FieldMustChangePassword:
+		v, ok := value.(bool)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetMustChangePassword(v)
+		return nil
+	case user.FieldLastActiveTenantID:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetLastActiveTenantID(v)
+		return nil
 	}
 	return fmt.Errorf("unknown User field %s", name)
 }
@@ -194573,6 +194710,9 @@ func (m *UserMutation) AddedFields() []string {
 	if m.addassigned_by_msp_id != nil {
 		fields = append(fields, user.FieldAssignedByMspID)
 	}
+	if m.addlast_active_tenant_id != nil {
+		fields = append(fields, user.FieldLastActiveTenantID)
+	}
 	return fields
 }
 
@@ -194583,6 +194723,8 @@ func (m *UserMutation) AddedField(name string) (ent.Value, bool) {
 	switch name {
 	case user.FieldAssignedByMspID:
 		return m.AddedAssignedByMspID()
+	case user.FieldLastActiveTenantID:
+		return m.AddedLastActiveTenantID()
 	}
 	return nil, false
 }
@@ -194598,6 +194740,13 @@ func (m *UserMutation) AddField(name string, value ent.Value) error {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.AddAssignedByMspID(v)
+		return nil
+	case user.FieldLastActiveTenantID:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddLastActiveTenantID(v)
 		return nil
 	}
 	return fmt.Errorf("unknown User numeric field %s", name)
@@ -194624,6 +194773,9 @@ func (m *UserMutation) ClearedFields() []string {
 	}
 	if m.FieldCleared(user.FieldAssignedByMspID) {
 		fields = append(fields, user.FieldAssignedByMspID)
+	}
+	if m.FieldCleared(user.FieldLastActiveTenantID) {
+		fields = append(fields, user.FieldLastActiveTenantID)
 	}
 	return fields
 }
@@ -194656,6 +194808,9 @@ func (m *UserMutation) ClearField(name string) error {
 		return nil
 	case user.FieldAssignedByMspID:
 		m.ClearAssignedByMspID()
+		return nil
+	case user.FieldLastActiveTenantID:
+		m.ClearLastActiveTenantID()
 		return nil
 	}
 	return fmt.Errorf("unknown User nullable field %s", name)
@@ -194712,6 +194867,12 @@ func (m *UserMutation) ResetField(name string) error {
 		return nil
 	case user.FieldIsBootstrapAdmin:
 		m.ResetIsBootstrapAdmin()
+		return nil
+	case user.FieldMustChangePassword:
+		m.ResetMustChangePassword()
+		return nil
+	case user.FieldLastActiveTenantID:
+		m.ResetLastActiveTenantID()
 		return nil
 	}
 	return fmt.Errorf("unknown User field %s", name)

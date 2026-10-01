@@ -41,9 +41,10 @@ var writeRouteExemptions = map[string]string{
 	"bootstrap_routes.go POST /create-admin":                              "初始化引导：仅在系统未初始化时可用，凭一次性 bootstrap token",
 
 	// —— 2. 身份自省面：只需已认证身份 + 归属校验 ——
-	"common_system_routes.go POST /logout":        "登出，凭会话自身即可失效",
-	"common_system_routes.go POST /switch-tenant": "切换至该用户已归属的租户，授权依据是租户成员关系而非资源动作",
-	"router.go POST /ws/ticket":                   "颁发一次性 WebSocket 票据，凭已认证身份且仅限本人会话",
+	"common_system_routes.go POST /logout":          "登出，凭会话自身即可失效",
+	"common_system_routes.go POST /switch-tenant":   "切换至该用户已归属的租户，授权依据是租户成员关系而非资源动作",
+	"common_system_routes.go POST /change-password": "自助改密：授权依据是「已认证身份 + 持有旧密码」，不走资源动作权限",
+	"router.go POST /ws/ticket":                     "颁发一次性 WebSocket 票据，凭已认证身份且仅限本人会话",
 }
 
 type scannedRoute struct {

@@ -125,6 +125,16 @@ func IsBootstrapAdmin(v bool) predicate.User {
 	return predicate.User(sql.FieldEQ(FieldIsBootstrapAdmin, v))
 }
 
+// MustChangePassword applies equality check predicate on the "must_change_password" field. It's identical to MustChangePasswordEQ.
+func MustChangePassword(v bool) predicate.User {
+	return predicate.User(sql.FieldEQ(FieldMustChangePassword, v))
+}
+
+// LastActiveTenantID applies equality check predicate on the "last_active_tenant_id" field. It's identical to LastActiveTenantIDEQ.
+func LastActiveTenantID(v int) predicate.User {
+	return predicate.User(sql.FieldEQ(FieldLastActiveTenantID, v))
+}
+
 // UsernameEQ applies the EQ predicate on the "username" field.
 func UsernameEQ(v string) predicate.User {
 	return predicate.User(sql.FieldEQ(FieldUsername, v))
@@ -858,6 +868,66 @@ func IsBootstrapAdminEQ(v bool) predicate.User {
 // IsBootstrapAdminNEQ applies the NEQ predicate on the "is_bootstrap_admin" field.
 func IsBootstrapAdminNEQ(v bool) predicate.User {
 	return predicate.User(sql.FieldNEQ(FieldIsBootstrapAdmin, v))
+}
+
+// MustChangePasswordEQ applies the EQ predicate on the "must_change_password" field.
+func MustChangePasswordEQ(v bool) predicate.User {
+	return predicate.User(sql.FieldEQ(FieldMustChangePassword, v))
+}
+
+// MustChangePasswordNEQ applies the NEQ predicate on the "must_change_password" field.
+func MustChangePasswordNEQ(v bool) predicate.User {
+	return predicate.User(sql.FieldNEQ(FieldMustChangePassword, v))
+}
+
+// LastActiveTenantIDEQ applies the EQ predicate on the "last_active_tenant_id" field.
+func LastActiveTenantIDEQ(v int) predicate.User {
+	return predicate.User(sql.FieldEQ(FieldLastActiveTenantID, v))
+}
+
+// LastActiveTenantIDNEQ applies the NEQ predicate on the "last_active_tenant_id" field.
+func LastActiveTenantIDNEQ(v int) predicate.User {
+	return predicate.User(sql.FieldNEQ(FieldLastActiveTenantID, v))
+}
+
+// LastActiveTenantIDIn applies the In predicate on the "last_active_tenant_id" field.
+func LastActiveTenantIDIn(vs ...int) predicate.User {
+	return predicate.User(sql.FieldIn(FieldLastActiveTenantID, vs...))
+}
+
+// LastActiveTenantIDNotIn applies the NotIn predicate on the "last_active_tenant_id" field.
+func LastActiveTenantIDNotIn(vs ...int) predicate.User {
+	return predicate.User(sql.FieldNotIn(FieldLastActiveTenantID, vs...))
+}
+
+// LastActiveTenantIDGT applies the GT predicate on the "last_active_tenant_id" field.
+func LastActiveTenantIDGT(v int) predicate.User {
+	return predicate.User(sql.FieldGT(FieldLastActiveTenantID, v))
+}
+
+// LastActiveTenantIDGTE applies the GTE predicate on the "last_active_tenant_id" field.
+func LastActiveTenantIDGTE(v int) predicate.User {
+	return predicate.User(sql.FieldGTE(FieldLastActiveTenantID, v))
+}
+
+// LastActiveTenantIDLT applies the LT predicate on the "last_active_tenant_id" field.
+func LastActiveTenantIDLT(v int) predicate.User {
+	return predicate.User(sql.FieldLT(FieldLastActiveTenantID, v))
+}
+
+// LastActiveTenantIDLTE applies the LTE predicate on the "last_active_tenant_id" field.
+func LastActiveTenantIDLTE(v int) predicate.User {
+	return predicate.User(sql.FieldLTE(FieldLastActiveTenantID, v))
+}
+
+// LastActiveTenantIDIsNil applies the IsNil predicate on the "last_active_tenant_id" field.
+func LastActiveTenantIDIsNil() predicate.User {
+	return predicate.User(sql.FieldIsNull(FieldLastActiveTenantID))
+}
+
+// LastActiveTenantIDNotNil applies the NotNil predicate on the "last_active_tenant_id" field.
+func LastActiveTenantIDNotNil() predicate.User {
+	return predicate.User(sql.FieldNotNull(FieldLastActiveTenantID))
 }
 
 // HasDepartmentRef applies the HasEdge predicate on the "department_ref" edge.

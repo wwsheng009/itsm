@@ -51,6 +51,10 @@ type User struct {
 	AssignedByMspID int `json:"assigned_by_msp_id,omitempty"`
 	// 是否通过bootstrap token创建
 	IsBootstrapAdmin bool `json:"is_bootstrap_admin,omitempty"`
+	// 首登强制改密（IP-P1-5；bootstrap 管理员默认 true）
+	MustChangePassword bool `json:"must_change_password,omitempty"`
+	// 最近活跃租户（登录/切换时更新；IP-P1-5）
+	LastActiveTenantID *int `json:"last_active_tenant_id,omitempty"`
 	// Edges holds the relations/edges for other nodes in the graph.
 	// The values are being populated by the UserQuery when eager-loading is set.
 	Edges                  UserEdges `json:"edges"`
@@ -274,9 +278,9 @@ func (*User) scanValues(columns []string) ([]any, error) {
 	values := make([]any, len(columns))
 	for i := range columns {
 		switch columns[i] {
-		case user.FieldActive, user.FieldIsBootstrapAdmin:
+		case user.FieldActive, user.FieldIsBootstrapAdmin, user.FieldMustChangePassword:
 			values[i] = new(sql.NullBool)
-		case user.FieldID, user.FieldDepartmentID, user.FieldTenantID, user.FieldAssignedByMspID:
+		case user.FieldID, user.FieldDepartmentID, user.FieldTenantID, user.FieldAssignedByMspID, user.FieldLastActiveTenantID:
 			values[i] = new(sql.NullInt64)
 		case user.FieldUsername, user.FieldEmail, user.FieldName, user.FieldRole, user.FieldDepartment, user.FieldPhone, user.FieldFeishuOpenID, user.FieldPasswordHash, user.FieldMspRole:
 			values[i] = new(sql.NullString)
@@ -404,6 +408,19 @@ func (_m *User) assignValues(columns []string, values []any) error {
 				return fmt.Errorf("unexpected type %T for field is_bootstrap_admin", values[i])
 			} else if value.Valid {
 				_m.IsBootstrapAdmin = value.Bool
+			}
+		case user.FieldMustChangePassword:
+			if value, ok := values[i].(*sql.NullBool); !ok {
+				return fmt.Errorf("unexpected type %T for field must_change_password", values[i])
+			} else if value.Valid {
+				_m.MustChangePassword = value.Bool
+			}
+		case user.FieldLastActiveTenantID:
+			if value, ok := values[i].(*sql.NullInt64); !ok {
+				return fmt.Errorf("unexpected type %T for field last_active_tenant_id", values[i])
+			} else if value.Valid {
+				_m.LastActiveTenantID = new(int)
+				*_m.LastActiveTenantID = int(value.Int64)
 			}
 		case user.ForeignKeys[0]:
 			if value, ok := values[i].(*sql.NullInt64); !ok {
@@ -599,6 +616,14 @@ func (_m *User) String() string {
 	builder.WriteString(", ")
 	builder.WriteString("is_bootstrap_admin=")
 	builder.WriteString(fmt.Sprintf("%v", _m.IsBootstrapAdmin))
+	builder.WriteString(", ")
+	builder.WriteString("must_change_password=")
+	builder.WriteString(fmt.Sprintf("%v", _m.MustChangePassword))
+	builder.WriteString(", ")
+	if v := _m.LastActiveTenantID; v != nil {
+		builder.WriteString("last_active_tenant_id=")
+		builder.WriteString(fmt.Sprintf("%v", *v))
+	}
 	builder.WriteByte(')')
 	return builder.String()
 }

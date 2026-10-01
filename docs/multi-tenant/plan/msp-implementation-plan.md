@@ -573,6 +573,15 @@ CREATE INDEX idx_invitations_expiry ON invitations (expires_at) WHERE status = '
 - IP-P1-4b（API 层）：`handlers/invitation/handler.go` 四端点——`POST /api/v1/users/invitations`（认证 + `user:write`；`tenantId` 省略取当前租户）、`POST /api/v1/users/invitations/:id/revoke`（认证 + `user:write`）、`GET /api/v1/auth/invitations/:token`（公开，最小回显）、`POST /api/v1/auth/invitations/:token/accept`（公开 + 登录限流）；邀请域错误码映射（`INVITATION_*` → 404/409/410/422/403）；`inviteUrl` 直返调用方（SMTP 未配置）。装配于 `internal/bootstrap/app.go`，路由注册独立于 UserHandler 接线。测试：`handlers/invitation` 全链路 HTTP 契约（创建→回显→接受→重放 409→撤销→410→非法 token 404）+ `router` 路由契约各 1 组。
 - 边界：前端邀请落地页/设置密码页 + e2e 邀请→首登链路归 IP-P1-4c（依赖 IP-P1-5 首登契约）；invitations RLS policy 归 IP-P1-7。
 
+**进度（2026-09-30）**：✅ **IP-P1-5 首登与 bootstrap 租户化（后端闭环）**（`07:G2` 关闭）。
+
+- 账号策略：`pkg/bootstrap` 两条通道（bootstrap token / break-glass）统一 `admin-<tenantCode>` + `admin-<tenantCode>@bootstrap.local`（`WithAdminIdentity` 可覆盖；租户 code 清洗后截断 24 字符）；`Status` 改按 `is_bootstrap_admin` 判定（兼容历史 `admin` 账号）。
+- users 两列（§4.0-B B1）：`must_change_password`（默认 false；bootstrap 管理员默认 true，`BOOTSTRAP_ADMIN_MUST_CHANGE_PASSWORD` 可关）+ `last_active_tenant_id`（登录时更新）；迁移 `20260508_users_login_hardening(.sql/_down.sql)`。
+- 首登强制改密：登录响应 `user.mustChangePassword` → `POST /api/v1/auth/change-password`（认证 + 旧密码校验 + 密码策略 + 清标志 + 审计 `auth.change_password`）。
+- CLI：`cmd/initialize` 支持 `-tenant-id`/`-tenant-code`（不再写死 `default`）与 `-admin-username`/`-admin-email`；`cmd/provision_tenant` 支持 `-tenant-code` 与 `-create-admin`（无 token 通道 `bootstrap.CreateFirstAdmin`，幂等：已有 bootstrap 管理员则拒绝）。
+- 测试：`TestBootstrapToken_MultiTenantAdminsDoNotCollide`（连续 2 租户 bootstrap 成功 + 身份/首登标志断言）、`TestCreateFirstAdmin_IdempotentAndTenantScoped`、`TestChangePassword_FlowAndFlagClear`；build/migration-lint/docs-gate 全绿。
+- 边界：前端强制改密路由归 IP-P1-4c（与邀请落地页同批）；`07:G4/G5/G6`（供给可复现性）仍按 P1 排期。
+
 ---
 
 ## 5. P2 详细实施（多 provider 与治理收尾）
@@ -620,7 +629,8 @@ CREATE INDEX idx_invitations_expiry ON invitations (expires_at) WHERE status = '
 - [x] membership 表/回填/约束机制落地（v1.13，2026-09-30；customer 恰 1 条 active 由 `uq_customer_single_scope` DB 强约束 + 约束回归）；生产库巡检档案随后续部署执行 `scripts/msp/verify-membership-backfill.sql` 留档；
 - [x] 权限 DB 单源（权限清单面）：登录/刷新/切换/`/auth/me`/菜单同源，跨租户权限互不影响（A6；v1.14，2026-09-30；请求期 RBAC 判定链与 `shadow`/enforce 仍按 IP-P1-7 推进）；
 - [x] 组织多归属 + 生效期（A5：`user_tenant_membership_orgs` 子表/回填/复合 FK/应用双校验 + 组织唯一约束租户化；v1.15/v1.16，2026-09-30）；
-- [ ] 邀请/首登链路通过；bootstrap 多租户连续成功（07:G2 关闭）；
+- [x] bootstrap 多租户连续成功（`07:G2` 关闭，v1.19；连续 2 租户用例 + 幂等无 token 通道）；
+- [ ] 邀请→首登 e2e（后端 ✅ v1.18；前端落地页/强制改密 UI 归 IP-P1-4c）；
 - [ ] RLS `shadow` 无新增错误（A7）；批量护栏通过（WB-A4）；
 - [ ] docs-gate 6/6；`make test` 全绿。
 
@@ -746,3 +756,4 @@ CREATE INDEX idx_invitations_expiry ON invitations (expires_at) WHERE status = '
 | v1.16 | 2026-09-30 | **IP-P1-3b 组织唯一约束租户化**：team/group 名称 + project 代码收敛为 `(tenant_id, ...)` 唯一（迁移 20260506；project 去全局唯一、team 部分唯一软删可重名）；跨租户同名/同码共存 + 同租户重复拒绝断言；IP-P1-3 批次收口（A5 数据面完成） |
 | v1.17 | 2026-09-30 | **IP-P1-4a 邀请生命周期（服务层）**：`invitations` 表（§4.0-C）+ 迁移 20260507 + `InvitationService`（创建/接受/撤销/回显；token 仅存 sha256、重发失效、事务建号 + membership source=invite、审计 user.invite / user.invite_accept）+ 5 组测试；路由/落地页归 IP-P1-4b |
 | v1.18 | 2026-09-30 | **IP-P1-4b 邀请 API（后端闭环）**：`handlers/invitation` 四端点（创建/撤销认证 + `user:write`；落地页/接受公开 + 限流）+ 邀请域错误码映射 + bootstrap 装配；HTTP 契约测试与路由契约测试全绿；前端落地页/e2e 归 IP-P1-4c |
+| v1.19 | 2026-09-30 | **IP-P1-5 首登与 bootstrap 租户化**：账号策略 `admin-<tenantCode>`（token/break-glass/provision_tenant 三通道同口径，`07:G2` 关闭）；users `must_change_password` + `last_active_tenant_id`（迁移 20260508）；登录下发 `mustChangePassword` + `POST /auth/change-password` 自助改密；`cmd/initialize` 租户定位与身份覆盖、`provision_tenant -create-admin` 幂等通道；4 组回归用例 |

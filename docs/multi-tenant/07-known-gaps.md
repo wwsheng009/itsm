@@ -15,7 +15,7 @@
 | # | 缺口 | 影响 | 当前规避 | 建议修复 | 优先级 |
 |---|---|---|---|---|---|
 | G1 | 跨租户创建用户被 tenant guard 拦截 | 无法为新租户创建首个用户 | SQL + pgcrypto 直写 | 提供受控的跨租户用户创建路径（见 §2）；**→ ✅ 已关闭（2026-09-30，IP-P0-5）：`UserProvisioningService` 三通道 + `tenantctx.WithProvisioningBypass(actor,channel,target)`；平台/MSP/租户内均可经 API 建号（`07:G2` 仍归 IP-P1-5）** | P0 |
-| G2 | bootstrap 无法为多租户建首个管理员 | 第 2 个及以后租户无法走官方初始化 | 同上 | bootstrap 支持 `-tenant-id` + 用户名/邮箱策略（§3） | P0 |
+| G2 | bootstrap 无法为多租户建首个管理员 | 第 2 个及以后租户无法走官方初始化 | 同上 | bootstrap 支持 `-tenant-id` + 用户名/邮箱策略（§3）；**→ ✅ 已关闭（2026-09-30，IP-P1-5）：账号策略 `admin-<tenantCode>`（username/email 不再全局冲突）；`cmd/initialize` 支持 `-tenant-id`/`-tenant-code`/`-admin-username`/`-admin-email`；`provision_tenant -create-admin` 无 token 通道（幂等）；`must_change_password` 首登强制改密 + `POST /api/v1/auth/change-password`；连续 2 租户 bootstrap 用例通过** | P0 |
 | G3 | MSP 管理员有效角色解析为 `msp_manager` | 同租户 API 建号不可用（无 `user:write`，且过不了角色高攀校验） | 首个用户/技术员均走 SQL | JWT claims 取主角色或按 rank 取最大（§4）；**→ ✅ 已关闭（2026-09-30，IP-P0-9）：登录 role=max(主角色, MSP 映射角色)（`admin`+`provider_admin`→`admin`）；`middleware.RoleRank` 单源覆盖 `msp_*`；同租户 API 可建 `agent`** | P0 |
 | G4 | 源租户 `default` 缺内置审批组 | `provision_tenant` readiness 失败（groups=0） | 脚本回填 6 个内置组 | migration 回填存量库 + readiness 降级策略（§5） | P1 |
 | G5 | id 序列落后于 `max(id)` | 供给时 `roles_pkey` duplicate key | 脚本 `setval(...)` 校正 | 初始化/迁移统一校正（§6） | P1 |
@@ -49,6 +49,8 @@
 - `bootstrap_tokens` 表为空，且数据库未启用 `pgcrypto`；
 - `cmd/initialize generate-bootstrap-token` 生成的流程固定创建 `username=admin` / `email=admin@example.com`；
 - `users.username` / `users.email` 为**全局唯一**，第 2 个租户必然冲突。
+
+**关闭（2026-09-30，IP-P1-5）**：账号策略改为 `admin-<tenantCode>`（邮箱 `admin-<tenantCode>@bootstrap.local`，可用 `-admin-username/-admin-email` 显式覆盖）；`cmd/initialize` 支持 `-tenant-id`/`-tenant-code` 定位目标租户（不再写死 `default`）；`provision_tenant -create-admin` 提供无 token 通道（`CreateFirstAdmin`，幂等保护：租户已有 bootstrap 管理员则拒绝）；bootstrap 管理员默认 `must_change_password=true`，登录响应携带 `mustChangePassword`，经 `POST /api/v1/auth/change-password`（持旧密码 + 密码策略）清除。回归：`pkg/bootstrap` 连续 2 租户用例 + 身份/幂等用例。
 
 **影响**：`saas_msp` / `saas` 模式无法用官方 bootstrap 流程开通第二个租户的首个管理员。
 
@@ -181,7 +183,7 @@
 
 | 本页缺口 | ADR-004 行动项 | 状态 |
 |---|---|---|
-| G1/G2 | A2–A3（租户开通与首个管理员） | 实测确认；G1→`IP-P0-5`（P0）、G2→`IP-P1-5`（P1） |
+| G1/G2 | A2–A3（租户开通与首个管理员） | 实测确认；G1→`IP-P0-5`（P0）→ **✅ 关闭（2026-09-30）**；G2→`IP-P1-5`（P1）→ **✅ 关闭（2026-09-30）** |
 | G3 | A4–A5（MSP 授权与权限矩阵） | 实测确认；承接 `IP-P0-9`（P0）→ **✅ 关闭（2026-09-30）** |
 | G4/G5/G6 | A2（供给可复现性） | 实测确认；脚本已规避，承接 `IP-P1-5`（P1） |
 | G7 | 工具规范 | 实测确认；脚本已规避，P2 提升为通用约定（接受现状） |

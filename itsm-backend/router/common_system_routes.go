@@ -21,6 +21,8 @@ func SetupCommonSystemRoutes(r *gin.Engine, tenant *gin.RouterGroup, config *Rou
 			authGrp.GET("/me", middleware.AuthMiddleware(config.JWTSecret), config.CommonHandler.GetMe)
 			authGrp.GET("/tenants", middleware.AuthMiddleware(config.JWTSecret), config.CommonHandler.GetUserTenants)
 			authGrp.POST("/logout", middleware.AuthMiddleware(config.JWTSecret), config.CommonHandler.Logout)
+			// IP-P1-5 自助改密（首登强制改密收口；授权依据=持有旧密码）。
+			authGrp.POST("/change-password", middleware.AuthMiddleware(config.JWTSecret), config.CommonHandler.ChangePassword)
 			if config.AuthHandler != nil {
 				authGrp.POST("/switch-tenant", middleware.AuthMiddleware(config.JWTSecret), config.AuthHandler.SwitchTenant)
 			}

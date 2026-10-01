@@ -147,6 +147,11 @@ func (s *Service) Login(ctx context.Context, username, password string, tenantID
 		})
 		return nil, fmt.Errorf("user account is inactive")
 	}
+	// IP-P1-5：首登标志随响应下发；最近活跃租户留痕（失败不阻塞登录）。
+	u.MustChangePassword = entUser.MustChangePassword
+	if _, uerr := s.client.User.UpdateOneID(entUser.ID).SetLastActiveTenantID(u.TenantID).Save(ctx); uerr != nil {
+		s.logger.Warnw("record last active tenant failed", "user_id", u.ID, "error", uerr)
+	}
 
 	// 07:G3：JWT role 取「主角色」与「MSP 映射角色」中 rank 更高者（middleware.RoleRank 单一词表）。
 	// 例：users.role=admin + msp_role=provider_admin → admin(4) > msp_manager(3)，保持 admin，

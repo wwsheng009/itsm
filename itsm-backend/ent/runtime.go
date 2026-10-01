@@ -6176,6 +6176,10 @@ func init() {
 	userDescIsBootstrapAdmin := userFields[15].Descriptor()
 	// user.DefaultIsBootstrapAdmin holds the default value on creation for the is_bootstrap_admin field.
 	user.DefaultIsBootstrapAdmin = userDescIsBootstrapAdmin.Default.(bool)
+	// userDescMustChangePassword is the schema descriptor for must_change_password field.
+	userDescMustChangePassword := userFields[16].Descriptor()
+	// user.DefaultMustChangePassword holds the default value on creation for the must_change_password field.
+	user.DefaultMustChangePassword = userDescMustChangePassword.Default.(bool)
 	usertenantmembershipFields := schema.UserTenantMembership{}.Fields()
 	_ = usertenantmembershipFields
 	// usertenantmembershipDescIsDefault is the schema descriptor for is_default field.

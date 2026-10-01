@@ -6,20 +6,22 @@ import (
 
 // User represents a system user
 type User struct {
-	ID           int       `json:"id"`
-	Username     string    `json:"username"`
-	Email        string    `json:"email"`
-	Name         string    `json:"name"`
-	Role         string    `json:"role"`
-	MSPRole      *string   `json:"mspRole,omitempty"`
-	Department   string    `json:"department"`
-	DepartmentID int       `json:"departmentId"`
-	Phone        string    `json:"phone"`
-	Active       bool      `json:"active"`
-	TenantID     int       `json:"tenantId"`
-	CreatedAt    time.Time `json:"createdAt"`
-	UpdatedAt    time.Time `json:"updatedAt"`
-	Permissions  []string  `json:"permissions,omitempty"` // 用户权限列表
+	ID           int     `json:"id"`
+	Username     string  `json:"username"`
+	Email        string  `json:"email"`
+	Name         string  `json:"name"`
+	Role         string  `json:"role"`
+	MSPRole      *string `json:"mspRole,omitempty"`
+	Department   string  `json:"department"`
+	DepartmentID int     `json:"departmentId"`
+	Phone        string  `json:"phone"`
+	Active       bool    `json:"active"`
+	// MustChangePassword 首登强制改密标志（IP-P1-5）：前端据此进入改密流程。
+	MustChangePassword bool      `json:"mustChangePassword"`
+	TenantID           int       `json:"tenantId"`
+	CreatedAt          time.Time `json:"createdAt"`
+	UpdatedAt          time.Time `json:"updatedAt"`
+	Permissions        []string  `json:"permissions,omitempty"` // 用户权限列表
 }
 
 // Department represents a spatial or organizational unit

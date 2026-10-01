@@ -221,6 +221,34 @@ func (_c *UserCreate) SetNillableIsBootstrapAdmin(v *bool) *UserCreate {
 	return _c
 }
 
+// SetMustChangePassword sets the "must_change_password" field.
+func (_c *UserCreate) SetMustChangePassword(v bool) *UserCreate {
+	_c.mutation.SetMustChangePassword(v)
+	return _c
+}
+
+// SetNillableMustChangePassword sets the "must_change_password" field if the given value is not nil.
+func (_c *UserCreate) SetNillableMustChangePassword(v *bool) *UserCreate {
+	if v != nil {
+		_c.SetMustChangePassword(*v)
+	}
+	return _c
+}
+
+// SetLastActiveTenantID sets the "last_active_tenant_id" field.
+func (_c *UserCreate) SetLastActiveTenantID(v int) *UserCreate {
+	_c.mutation.SetLastActiveTenantID(v)
+	return _c
+}
+
+// SetNillableLastActiveTenantID sets the "last_active_tenant_id" field if the given value is not nil.
+func (_c *UserCreate) SetNillableLastActiveTenantID(v *int) *UserCreate {
+	if v != nil {
+		_c.SetLastActiveTenantID(*v)
+	}
+	return _c
+}
+
 // SetDepartmentRefID sets the "department_ref" edge to the Department entity by ID.
 func (_c *UserCreate) SetDepartmentRefID(id int) *UserCreate {
 	_c.mutation.SetDepartmentRefID(id)
@@ -540,6 +568,10 @@ func (_c *UserCreate) defaults() {
 		v := user.DefaultIsBootstrapAdmin
 		_c.mutation.SetIsBootstrapAdmin(v)
 	}
+	if _, ok := _c.mutation.MustChangePassword(); !ok {
+		v := user.DefaultMustChangePassword
+		_c.mutation.SetMustChangePassword(v)
+	}
 }
 
 // check runs all checks and user-defined validators on the builder.
@@ -608,6 +640,9 @@ func (_c *UserCreate) check() error {
 	}
 	if _, ok := _c.mutation.IsBootstrapAdmin(); !ok {
 		return &ValidationError{Name: "is_bootstrap_admin", err: errors.New(`ent: missing required field "User.is_bootstrap_admin"`)}
+	}
+	if _, ok := _c.mutation.MustChangePassword(); !ok {
+		return &ValidationError{Name: "must_change_password", err: errors.New(`ent: missing required field "User.must_change_password"`)}
 	}
 	if len(_c.mutation.TenantIDs()) == 0 {
 		return &ValidationError{Name: "tenant", err: errors.New(`ent: missing required edge "User.tenant"`)}
@@ -693,6 +728,14 @@ func (_c *UserCreate) createSpec() (*User, *sqlgraph.CreateSpec) {
 	if value, ok := _c.mutation.IsBootstrapAdmin(); ok {
 		_spec.SetField(user.FieldIsBootstrapAdmin, field.TypeBool, value)
 		_node.IsBootstrapAdmin = value
+	}
+	if value, ok := _c.mutation.MustChangePassword(); ok {
+		_spec.SetField(user.FieldMustChangePassword, field.TypeBool, value)
+		_node.MustChangePassword = value
+	}
+	if value, ok := _c.mutation.LastActiveTenantID(); ok {
+		_spec.SetField(user.FieldLastActiveTenantID, field.TypeInt, value)
+		_node.LastActiveTenantID = &value
 	}
 	if nodes := _c.mutation.DepartmentRefIDs(); len(nodes) > 0 {
 		edge := &sqlgraph.EdgeSpec{

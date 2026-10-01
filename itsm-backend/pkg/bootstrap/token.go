@@ -7,6 +7,8 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"strconv"
+	"strings"
 	"time"
 
 	"itsm-backend/ent"
@@ -22,6 +24,74 @@ const (
 	DefaultBootstrapTokenTTL = 24 * time.Hour
 	TokenLength              = 32
 )
+
+// ConsumeOption 定制首次管理员身份与首登策略（IP-P1-5：账号策略多租户化）。
+type ConsumeOption func(*consumeOptions)
+
+type consumeOptions struct {
+	username           string
+	email              string
+	mustChangePassword bool
+}
+
+// WithAdminIdentity 显式覆盖默认 `admin-<tenantCode>` 用户名/邮箱（运维指定）。
+func WithAdminIdentity(username, email string) ConsumeOption {
+	return func(o *consumeOptions) {
+		if v := strings.TrimSpace(username); v != "" {
+			o.username = v
+		}
+		if v := strings.TrimSpace(email); v != "" {
+			o.email = v
+		}
+	}
+}
+
+// WithMustChangePassword 覆盖首登强制改密（默认读 BOOTSTRAP_ADMIN_MUST_CHANGE_PASSWORD，缺省 true）。
+func WithMustChangePassword(v bool) ConsumeOption {
+	return func(o *consumeOptions) {
+		o.mustChangePassword = v
+	}
+}
+
+func defaultMustChangePassword() bool {
+	raw := strings.TrimSpace(os.Getenv("BOOTSTRAP_ADMIN_MUST_CHANGE_PASSWORD"))
+	if raw == "" {
+		return true
+	}
+	parsed, err := strconv.ParseBool(raw)
+	if err != nil {
+		return true
+	}
+	return parsed
+}
+
+// bootstrapAdminIdentity 多租户账号策略（07:G2）：username/email = `admin-<tenantCode>`，
+// 同一部署内连续 bootstrap 多个租户互不冲突（username/email 全局唯一）。
+func bootstrapAdminIdentity(tenantCode string, tenantID int) (string, string) {
+	code := sanitizeTenantCodeForUsername(tenantCode)
+	if code == "" {
+		code = strconv.Itoa(tenantID)
+	}
+	username := "admin-" + code
+	return username, username + "@bootstrap.local"
+}
+
+func sanitizeTenantCodeForUsername(code string) string {
+	var b strings.Builder
+	for _, r := range strings.ToLower(strings.TrimSpace(code)) {
+		switch {
+		case r >= 'a' && r <= 'z', r >= '0' && r <= '9', r == '-', r == '_':
+			b.WriteRune(r)
+		case r == '.' || r == ' ':
+			b.WriteRune('-')
+		}
+	}
+	out := strings.Trim(b.String(), "-")
+	if len(out) > 24 {
+		out = out[:24]
+	}
+	return out
+}
 
 // BootstrapTokenManager manages one-time bootstrap tokens for first admin creation.
 type BootstrapTokenManager struct {
@@ -96,7 +166,11 @@ func (m *BootstrapTokenManager) GenerateToken(ctx context.Context, tenantID int)
 
 // ConsumeToken atomically validates and consumes a bootstrap token.
 // Returns the created admin user ID on success.
-func (m *BootstrapTokenManager) ConsumeToken(ctx context.Context, rawToken string, tenantID int, adminPassword string) (int, error) {
+func (m *BootstrapTokenManager) ConsumeToken(ctx context.Context, rawToken string, tenantID int, adminPassword string, opts ...ConsumeOption) (int, error) {
+	options := consumeOptions{mustChangePassword: defaultMustChangePassword()}
+	for _, opt := range opts {
+		opt(&options)
+	}
 	if len(adminPassword) < 12 || len(adminPassword) > 128 {
 		return 0, errors.New("admin password must be between 12 and 128 characters")
 	}
@@ -132,6 +206,19 @@ func (m *BootstrapTokenManager) ConsumeToken(ctx context.Context, rawToken strin
 		return 0, errors.New("invalid bootstrap token")
 	}
 
+	// 多租户账号策略（07:G2）：admin-<tenantCode>；运维可用 WithAdminIdentity 覆盖。
+	tenantRecord, err := tx.Tenant.Get(ctx, tenantID)
+	if err != nil {
+		return 0, fmt.Errorf("resolve tenant for admin identity: %w", err)
+	}
+	username, email := bootstrapAdminIdentity(tenantRecord.Code, tenantID)
+	if options.username != "" {
+		username = options.username
+	}
+	if options.email != "" {
+		email = options.email
+	}
+
 	// Create admin user.
 	passHash, err := bcrypt.GenerateFromPassword([]byte(adminPassword), bcrypt.DefaultCost)
 	if err != nil {
@@ -139,15 +226,16 @@ func (m *BootstrapTokenManager) ConsumeToken(ctx context.Context, rawToken strin
 	}
 
 	admin, err := tx.User.Create().
-		SetUsername("admin").
+		SetUsername(username).
 		SetRole("super_admin").
 		SetPasswordHash(string(passHash)).
-		SetEmail("admin@example.com").
+		SetEmail(email).
 		SetName("系统管理员").
 		SetDepartment("IT部门").
 		SetActive(true).
 		SetTenantID(tenantID).
 		SetIsBootstrapAdmin(true).
+		SetMustChangePassword(options.mustChangePassword).
 		Save(ctx)
 	if err != nil {
 		return 0, fmt.Errorf("create admin user: %w", err)
@@ -184,7 +272,7 @@ func (m *BootstrapTokenManager) ConsumeToken(ctx context.Context, rawToken strin
 // Status reports first-admin bootstrap state without exposing token material.
 func (m *BootstrapTokenManager) Status(ctx context.Context, tenantID int) (required bool, tokenAvailable bool, expiresAt *time.Time, err error) {
 	adminExists, err := m.client.User.Query().Where(
-		user.UsernameEQ("admin"),
+		user.IsBootstrapAdminEQ(true),
 		user.TenantIDEQ(tenantID),
 	).Exist(ctx)
 	if err != nil {
@@ -244,6 +332,13 @@ func (m *BootstrapTokenManager) BreakGlassCreateAdmin(ctx context.Context, tenan
 		return 0, fmt.Errorf("store emergency bootstrap token audit record: %w", err)
 	}
 
+	// 多租户账号策略（07:G2）：emergency 路径与 token 路径同口径。
+	tenantRecord, err := tx.Tenant.Get(ctx, tenantID)
+	if err != nil {
+		return 0, fmt.Errorf("resolve tenant for emergency admin identity: %w", err)
+	}
+	username, email := bootstrapAdminIdentity(tenantRecord.Code, tenantID)
+
 	// Create admin user.
 	passHash, err := bcrypt.GenerateFromPassword([]byte(adminPassword), bcrypt.DefaultCost)
 	if err != nil {
@@ -251,15 +346,16 @@ func (m *BootstrapTokenManager) BreakGlassCreateAdmin(ctx context.Context, tenan
 	}
 
 	admin, err := tx.User.Create().
-		SetUsername("admin").
+		SetUsername(username).
 		SetRole("super_admin").
 		SetPasswordHash(string(passHash)).
-		SetEmail("admin@example.com").
+		SetEmail(email).
 		SetName("系统管理员 (emergency)").
 		SetDepartment("IT部门").
 		SetActive(true).
 		SetTenantID(tenantID).
 		SetIsBootstrapAdmin(true).
+		SetMustChangePassword(defaultMustChangePassword()).
 		Save(ctx)
 	if err != nil {
 		return 0, fmt.Errorf("create emergency admin user: %w", err)

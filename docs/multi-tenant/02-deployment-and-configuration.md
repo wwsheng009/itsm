@@ -143,7 +143,7 @@ bash setup-msp-tenants.sh
 | 3 | 创建 `msp_provider` + `msp_customer` 租户（含 `parentTenantId` / `mspProviderId` 绑定） | 场景骨架 |
 | 4 | 对每个新租户执行 `provision_tenant -tenant-id <ID> -template-version 1.0.0` | 克隆 roles/permissions/menus/groups/SLA/CI 类型等模板 |
 | 5 | 为 provider 租户 `msp_manager` / `msp_tech` / `msp_viewer` / `msp_specialist` 写 `role_permissions` | DB 权威模式下角色无权限行即 fail-closed（G6） |
-| 6 | 用 SQL + pgcrypto 创建各租户首个用户 | **`07:G1` 已关闭（2026-09-30，IP-P0-5）：平台/MSP 可经 API 建号（`POST /api/v1/tenants/:id/users`、`POST /api/v1/msp/customers/:id/users`，需开启 `USER_PROVISIONING_CHANNELS_ENABLED`）；bootstrap 首管策略（`07:G2`）仍归 IP-P1-5** |
+| 6 | 用 SQL + pgcrypto 创建各租户首个用户 | **`07:G1`/`07:G2` 均已关闭（2026-09-30）**：平台/MSP 可经 API 建号（`POST /api/v1/tenants/:id/users`、`POST /api/v1/msp/customers/:id/users`，需开启 `USER_PROVISIONING_CHANNELS_ENABLED`）；首个管理员走 `cmd/initialize -tenant-id/-tenant-code`（bootstrap token，账号策略 `admin-<tenantCode>`）或 `provision_tenant -create-admin`；首登强制改密经 `/api/v1/auth/change-password` |
 | 7 | 由 mspadmin 的 MSP token 调 `POST /api/v1/msp/allocations` 建立分配 | 验证 MSP 分配链路 |
 | 8 | 隔离性探针（06 文档 §7.2） | 验收证据 |
 

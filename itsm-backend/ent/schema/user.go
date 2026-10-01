@@ -76,6 +76,13 @@ func (User) Fields() []ent.Field {
 		field.Bool("is_bootstrap_admin").
 			Comment("是否通过bootstrap token创建").
 			Default(false),
+		field.Bool("must_change_password").
+			Comment("首登强制改密（IP-P1-5；bootstrap 管理员默认 true）").
+			Default(false),
+		field.Int("last_active_tenant_id").
+			Comment("最近活跃租户（登录/切换时更新；IP-P1-5）").
+			Optional().
+			Nillable(),
 	}
 }
 

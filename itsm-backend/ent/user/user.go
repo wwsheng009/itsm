@@ -47,6 +47,10 @@ const (
 	FieldAssignedByMspID = "assigned_by_msp_id"
 	// FieldIsBootstrapAdmin holds the string denoting the is_bootstrap_admin field in the database.
 	FieldIsBootstrapAdmin = "is_bootstrap_admin"
+	// FieldMustChangePassword holds the string denoting the must_change_password field in the database.
+	FieldMustChangePassword = "must_change_password"
+	// FieldLastActiveTenantID holds the string denoting the last_active_tenant_id field in the database.
+	FieldLastActiveTenantID = "last_active_tenant_id"
 	// EdgeDepartmentRef holds the string denoting the department_ref edge name in mutations.
 	EdgeDepartmentRef = "department_ref"
 	// EdgeTenant holds the string denoting the tenant edge name in mutations.
@@ -226,6 +230,8 @@ var Columns = []string{
 	FieldMspRole,
 	FieldAssignedByMspID,
 	FieldIsBootstrapAdmin,
+	FieldMustChangePassword,
+	FieldLastActiveTenantID,
 }
 
 // ForeignKeys holds the SQL foreign-keys that are owned by the "users"
@@ -284,6 +290,8 @@ var (
 	UpdateDefaultUpdatedAt func() time.Time
 	// DefaultIsBootstrapAdmin holds the default value on creation for the "is_bootstrap_admin" field.
 	DefaultIsBootstrapAdmin bool
+	// DefaultMustChangePassword holds the default value on creation for the "must_change_password" field.
+	DefaultMustChangePassword bool
 )
 
 // Role defines the type for the "role" enum field.
@@ -430,6 +438,16 @@ func ByAssignedByMspID(opts ...sql.OrderTermOption) OrderOption {
 // ByIsBootstrapAdmin orders the results by the is_bootstrap_admin field.
 func ByIsBootstrapAdmin(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldIsBootstrapAdmin, opts...).ToFunc()
+}
+
+// ByMustChangePassword orders the results by the must_change_password field.
+func ByMustChangePassword(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldMustChangePassword, opts...).ToFunc()
+}
+
+// ByLastActiveTenantID orders the results by the last_active_tenant_id field.
+func ByLastActiveTenantID(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldLastActiveTenantID, opts...).ToFunc()
 }
 
 // ByDepartmentRefField orders the results by department_ref field.

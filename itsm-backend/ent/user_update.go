@@ -304,6 +304,47 @@ func (_u *UserUpdate) SetNillableIsBootstrapAdmin(v *bool) *UserUpdate {
 	return _u
 }
 
+// SetMustChangePassword sets the "must_change_password" field.
+func (_u *UserUpdate) SetMustChangePassword(v bool) *UserUpdate {
+	_u.mutation.SetMustChangePassword(v)
+	return _u
+}
+
+// SetNillableMustChangePassword sets the "must_change_password" field if the given value is not nil.
+func (_u *UserUpdate) SetNillableMustChangePassword(v *bool) *UserUpdate {
+	if v != nil {
+		_u.SetMustChangePassword(*v)
+	}
+	return _u
+}
+
+// SetLastActiveTenantID sets the "last_active_tenant_id" field.
+func (_u *UserUpdate) SetLastActiveTenantID(v int) *UserUpdate {
+	_u.mutation.ResetLastActiveTenantID()
+	_u.mutation.SetLastActiveTenantID(v)
+	return _u
+}
+
+// SetNillableLastActiveTenantID sets the "last_active_tenant_id" field if the given value is not nil.
+func (_u *UserUpdate) SetNillableLastActiveTenantID(v *int) *UserUpdate {
+	if v != nil {
+		_u.SetLastActiveTenantID(*v)
+	}
+	return _u
+}
+
+// AddLastActiveTenantID adds value to the "last_active_tenant_id" field.
+func (_u *UserUpdate) AddLastActiveTenantID(v int) *UserUpdate {
+	_u.mutation.AddLastActiveTenantID(v)
+	return _u
+}
+
+// ClearLastActiveTenantID clears the value of the "last_active_tenant_id" field.
+func (_u *UserUpdate) ClearLastActiveTenantID() *UserUpdate {
+	_u.mutation.ClearLastActiveTenantID()
+	return _u
+}
+
 // SetDepartmentRefID sets the "department_ref" edge to the Department entity by ID.
 func (_u *UserUpdate) SetDepartmentRefID(id int) *UserUpdate {
 	_u.mutation.SetDepartmentRefID(id)
@@ -1071,6 +1112,18 @@ func (_u *UserUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 	}
 	if value, ok := _u.mutation.IsBootstrapAdmin(); ok {
 		_spec.SetField(user.FieldIsBootstrapAdmin, field.TypeBool, value)
+	}
+	if value, ok := _u.mutation.MustChangePassword(); ok {
+		_spec.SetField(user.FieldMustChangePassword, field.TypeBool, value)
+	}
+	if value, ok := _u.mutation.LastActiveTenantID(); ok {
+		_spec.SetField(user.FieldLastActiveTenantID, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.AddedLastActiveTenantID(); ok {
+		_spec.AddField(user.FieldLastActiveTenantID, field.TypeInt, value)
+	}
+	if _u.mutation.LastActiveTenantIDCleared() {
+		_spec.ClearField(user.FieldLastActiveTenantID, field.TypeInt)
 	}
 	if _u.mutation.DepartmentRefCleared() {
 		edge := &sqlgraph.EdgeSpec{
@@ -2129,6 +2182,47 @@ func (_u *UserUpdateOne) SetNillableIsBootstrapAdmin(v *bool) *UserUpdateOne {
 	return _u
 }
 
+// SetMustChangePassword sets the "must_change_password" field.
+func (_u *UserUpdateOne) SetMustChangePassword(v bool) *UserUpdateOne {
+	_u.mutation.SetMustChangePassword(v)
+	return _u
+}
+
+// SetNillableMustChangePassword sets the "must_change_password" field if the given value is not nil.
+func (_u *UserUpdateOne) SetNillableMustChangePassword(v *bool) *UserUpdateOne {
+	if v != nil {
+		_u.SetMustChangePassword(*v)
+	}
+	return _u
+}
+
+// SetLastActiveTenantID sets the "last_active_tenant_id" field.
+func (_u *UserUpdateOne) SetLastActiveTenantID(v int) *UserUpdateOne {
+	_u.mutation.ResetLastActiveTenantID()
+	_u.mutation.SetLastActiveTenantID(v)
+	return _u
+}
+
+// SetNillableLastActiveTenantID sets the "last_active_tenant_id" field if the given value is not nil.
+func (_u *UserUpdateOne) SetNillableLastActiveTenantID(v *int) *UserUpdateOne {
+	if v != nil {
+		_u.SetLastActiveTenantID(*v)
+	}
+	return _u
+}
+
+// AddLastActiveTenantID adds value to the "last_active_tenant_id" field.
+func (_u *UserUpdateOne) AddLastActiveTenantID(v int) *UserUpdateOne {
+	_u.mutation.AddLastActiveTenantID(v)
+	return _u
+}
+
+// ClearLastActiveTenantID clears the value of the "last_active_tenant_id" field.
+func (_u *UserUpdateOne) ClearLastActiveTenantID() *UserUpdateOne {
+	_u.mutation.ClearLastActiveTenantID()
+	return _u
+}
+
 // SetDepartmentRefID sets the "department_ref" edge to the Department entity by ID.
 func (_u *UserUpdateOne) SetDepartmentRefID(id int) *UserUpdateOne {
 	_u.mutation.SetDepartmentRefID(id)
@@ -2926,6 +3020,18 @@ func (_u *UserUpdateOne) sqlSave(ctx context.Context) (_node *User, err error) {
 	}
 	if value, ok := _u.mutation.IsBootstrapAdmin(); ok {
 		_spec.SetField(user.FieldIsBootstrapAdmin, field.TypeBool, value)
+	}
+	if value, ok := _u.mutation.MustChangePassword(); ok {
+		_spec.SetField(user.FieldMustChangePassword, field.TypeBool, value)
+	}
+	if value, ok := _u.mutation.LastActiveTenantID(); ok {
+		_spec.SetField(user.FieldLastActiveTenantID, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.AddedLastActiveTenantID(); ok {
+		_spec.AddField(user.FieldLastActiveTenantID, field.TypeInt, value)
+	}
+	if _u.mutation.LastActiveTenantIDCleared() {
+		_spec.ClearField(user.FieldLastActiveTenantID, field.TypeInt)
 	}
 	if _u.mutation.DepartmentRefCleared() {
 		edge := &sqlgraph.EdgeSpec{

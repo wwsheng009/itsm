@@ -74,6 +74,33 @@ func (h *Handler) Login(c *gin.Context) {
 	common.Success(c, res)
 }
 
+// ChangePassword 自助改密（认证后；IP-P1-5 首登强制改密由 mustChangePassword 标志驱动）。
+func (h *Handler) ChangePassword(c *gin.Context) {
+	var req struct {
+		OldPassword string `json:"oldPassword" binding:"required"`
+		NewPassword string `json:"newPassword" binding:"required"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		common.ParamError(c, "参数错误: "+err.Error())
+		return
+	}
+	userID := c.GetInt("user_id")
+	tenantID := c.GetInt("tenant_id")
+	if userID <= 0 {
+		common.AuthFailed(c, "用户信息缺失")
+		return
+	}
+	if err := h.svc.ChangePassword(c.Request.Context(), userID, tenantID, req.OldPassword, req.NewPassword); err != nil {
+		if errors.Is(err, ErrOldPasswordMismatch) {
+			common.Fail(c, common.ParamErrorCode, "旧密码不正确")
+			return
+		}
+		common.FailWithErr(c, err, "修改密码失败")
+		return
+	}
+	common.Success(c, gin.H{"mustChangePassword": false})
+}
+
 func (h *Handler) RefreshToken(c *gin.Context) {
 	var req struct {
 		RefreshToken string `json:"refreshToken"`

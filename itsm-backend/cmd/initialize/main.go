@@ -12,6 +12,7 @@ import (
 	"itsm-backend/common/tenantctx"
 	"itsm-backend/config"
 	"itsm-backend/database"
+	"itsm-backend/ent"
 	"itsm-backend/ent/tenant"
 	"itsm-backend/internal/initialization"
 	"itsm-backend/pkg/bootstrap"
@@ -25,6 +26,10 @@ func main() {
 	releaseVersion := flag.String("release-version", os.Getenv("ITSM_RELEASE_VERSION"), "release version")
 	requestedBy := flag.String("requested-by", "operator", "audited requester identity")
 	bootstrapToken := flag.String("bootstrap-token", "", "bootstrap token for first admin creation (used with apply action)")
+	tenantIDFlag := flag.Int("tenant-id", 1, "tenant ID for bootstrap token scope")
+	tenantCodeFlag := flag.String("tenant-code", "", "tenant code (alternative to -tenant-id; takes precedence)")
+	adminUsername := flag.String("admin-username", "", "override first admin username (default admin-<tenantCode>)")
+	adminEmail := flag.String("admin-email", "", "override first admin email (default admin-<tenantCode>@bootstrap.local)")
 	flag.Parse()
 
 	cfg, err := config.LoadConfig()
@@ -68,10 +73,12 @@ func main() {
 	switch strings.ToLower(strings.TrimSpace(*action)) {
 	case "generate-bootstrap-token":
 		// Generate a new bootstrap token for first admin creation.
-		tenantID := flag.Int("tenant-id", 1, "tenant ID for the bootstrap token")
-		flag.Parse()
+		targetTenant, err := resolveCLITenant(ctx, client, *tenantIDFlag, *tenantCodeFlag)
+		if err != nil {
+			exitf("resolve bootstrap tenant: %v", err)
+		}
 		tokenMgr := bootstrap.NewBootstrapTokenManager(client, sugar)
-		rawToken, err := tokenMgr.GenerateToken(ctx, *tenantID)
+		rawToken, err := tokenMgr.GenerateToken(ctx, targetTenant.ID)
 		if err != nil {
 			exitf("generate bootstrap token: %v", err)
 		}
@@ -79,7 +86,7 @@ func main() {
 		fmt.Printf("=== BOOTSTRAP TOKEN (shown only once) ===\n%s\n=== USE THIS TOKEN TO CREATE FIRST ADMIN ===\n", rawToken)
 		writeJSON(map[string]any{
 			"token":     rawToken,
-			"tenant_id": *tenantID,
+			"tenant_id": targetTenant.ID,
 			"ttl_hours": "24",
 			"usage":     "POST /api/v1/bootstrap/create-admin with {\"token\": \"<token>\", \"password\": \"<admin_password>\"}",
 		})
@@ -102,12 +109,12 @@ func main() {
 			if adminPassword == "" {
 				exitf("ADMIN_PASSWORD env var is required when using bootstrap token")
 			}
-			// Get default tenant ID.
-			t, err := client.Tenant.Query().Where(tenant.CodeEQ("default")).First(ctx)
+			// 多租户：显式解析目标租户（-tenant-id / -tenant-code），不再写死 default。
+			t, err := resolveCLITenant(ctx, client, *tenantIDFlag, *tenantCodeFlag)
 			if err != nil {
-				exitf("get default tenant: %v", err)
+				exitf("resolve bootstrap tenant: %v", err)
 			}
-			userID, err := tokenMgr.ConsumeToken(ctx, *bootstrapToken, t.ID, adminPassword)
+			userID, err := tokenMgr.ConsumeToken(ctx, *bootstrapToken, t.ID, adminPassword, bootstrap.WithAdminIdentity(*adminUsername, *adminEmail))
 			if err != nil {
 				exitf("consume bootstrap token: %v", err)
 			}
@@ -168,4 +175,15 @@ func writeJSON(value any) {
 func exitf(format string, args ...any) {
 	fmt.Fprintf(os.Stderr, format+"\n", args...)
 	os.Exit(1)
+}
+
+// resolveCLITenant 解析 bootstrap 目标租户（IP-P1-5 多租户）：code 优先，其次 id，缺省 1。
+func resolveCLITenant(ctx context.Context, client *ent.Client, tenantID int, tenantCode string) (*ent.Tenant, error) {
+	if code := strings.TrimSpace(tenantCode); code != "" {
+		return client.Tenant.Query().Where(tenant.CodeEQ(code)).Only(ctx)
+	}
+	if tenantID <= 0 {
+		tenantID = 1
+	}
+	return client.Tenant.Get(ctx, tenantID)
 }

@@ -200,8 +200,8 @@
 - [x] 四通道矩阵：platform/msp/tenant **已交付（2026-09-30，IP-P0-5，单测 8 用例）**；invite 归 `IP-P1-4`；
 - [x] 服务商经 API 为**已分配客户**建号成功；未分配客户 403（`MSP_ALLOCATION_REQUIRED`）——**单测覆盖（2026-09-30）**；
 - [x] 注册 `super_admin` 被拒（修 F3）；`msp_role` 仅 platform/msp/provider 本租户可设——**单测覆盖（2026-09-30）**；
-- [ ] 首个管理员流程：连续 2 个租户 bootstrap 均成功（`07:G2` 关闭）；首登强制改密生效；
-- [ ] 邀请：创建→落地→设密→首登→审计→撤销全链路；SMTP 未配置时 `inviteUrl` 可用；
+- [x] 首个管理员流程：**连续 2 个租户 bootstrap 均成功（`07:G2` 关闭，2026-09-30，IP-P1-5）**；账号策略 `admin-<tenantCode>`；首登强制改密生效（`must_change_password` + `/api/v1/auth/change-password`；`pkg/bootstrap` 回归用例）；
+- [ ] 邀请：创建→落地→设密→首登→审计→撤销全链路；SMTP 未配置时 `inviteUrl` 可用（**后端 ✅ 2026-09-30（IP-P1-4a/b：服务 + 四端点 + HTTP 契约测试）；前端落地页 + e2e 归 IP-P1-4c**）；
 - [ ] 审计：`user.provision`/`user.invite_*` 可按 `target_tenant` 查询；
 - [ ] 与 [三角色演练剧本](./msp-three-persona-operation-simulation.md) M11/M12 及 `IP-P0-5` DoD 一致。
 
