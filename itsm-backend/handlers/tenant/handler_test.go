@@ -89,7 +89,7 @@ func doJSON(h *Handler, method, path, body string) (*httptest.ResponseRecorder, 
 func sampleTenant() *ent.Tenant {
 	return &ent.Tenant{
 		ID: 1, Name: "Acme", Code: "acme", Domain: "acme.com",
-		Status: "active", Type: "standard", BillingEnabled: true,
+		Status: "active", Type: "internal", BillingEnabled: true,
 		CreatedAt: time.Now(), UpdatedAt: time.Now(),
 	}
 }
@@ -99,7 +99,7 @@ func TestCreateTenant_Success(t *testing.T) {
 	h := newTenantHandler(m)
 	m.On("CreateTenant", mock.Anything, mock.Anything).Return(sampleTenant(), nil)
 
-	w, c := doJSON(h, http.MethodPost, "/api/v1/tenants", `{"name":"Acme","code":"acme","type":"standard"}`)
+	w, c := doJSON(h, http.MethodPost, "/api/v1/tenants", `{"name":"Acme","code":"acme","type":"internal"}`)
 	h.CreateTenant(c)
 
 	assert.Equal(t, http.StatusOK, w.Code)
@@ -117,7 +117,7 @@ func TestCreateTenant_ValidationFailure(t *testing.T) {
 	h := newTenantHandler(m)
 
 	// 缺 name（required）→ 绑定失败 400
-	w, c := doJSON(h, http.MethodPost, "/api/v1/tenants", `{"code":"acme","type":"standard"}`)
+	w, c := doJSON(h, http.MethodPost, "/api/v1/tenants", `{"code":"acme","type":"internal"}`)
 	h.CreateTenant(c)
 
 	assert.Equal(t, http.StatusBadRequest, w.Code)
@@ -142,7 +142,7 @@ func TestCreateTenant_AllowsUnderscoreCode(t *testing.T) {
 	m.On("CreateTenant", mock.Anything, mock.Anything).Return(sampleTenant(), nil)
 
 	// 带下划线的合法编码此前被 alphanum 绑定误拒，现应放行到 service
-	w, c := doJSON(h, http.MethodPost, "/api/v1/tenants", `{"name":"FinOps","code":"finops_001","type":"standard"}`)
+	w, c := doJSON(h, http.MethodPost, "/api/v1/tenants", `{"name":"FinOps","code":"finops_001","type":"internal"}`)
 	h.CreateTenant(c)
 
 	assert.Equal(t, http.StatusOK, w.Code)
@@ -154,7 +154,7 @@ func TestCreateTenant_RejectsInvalidCode(t *testing.T) {
 	h := newTenantHandler(m)
 
 	// 含空格的非法编码 → 400，且不调用 service
-	w, c := doJSON(h, http.MethodPost, "/api/v1/tenants", `{"name":"Acme","code":"bad code","type":"standard"}`)
+	w, c := doJSON(h, http.MethodPost, "/api/v1/tenants", `{"name":"Acme","code":"bad code","type":"internal"}`)
 	h.CreateTenant(c)
 
 	assert.Equal(t, http.StatusBadRequest, w.Code)

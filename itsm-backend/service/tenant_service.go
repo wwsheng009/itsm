@@ -9,6 +9,7 @@ import (
 	"itsm-backend/ent"
 	"itsm-backend/ent/tenant"
 	"itsm-backend/ent/user"
+	"itsm-backend/pkg/tenantmode"
 
 	"go.uber.org/zap"
 )
@@ -39,6 +40,20 @@ func (s *TenantService) CreateTenant(ctx context.Context, req *dto.CreateTenantR
 		return nil, fmt.Errorf("租户代码已存在: %s", req.Code)
 	}
 
+	// IP-P0-4 / A1：写入拒绝 legacy 类型（msp/customer/standard），只接受目标集合。
+	if err := tenantmode.ValidateTenantTypeForWrite(req.Type); err != nil {
+		return nil, err
+	}
+	// IP-P0-4 / A2（D2/R3）：归属形状 + 目标必须是有效 msp_provider。
+	// P0 起停止 parent_tenant_id 双写：旧字段仅作为兼容输入，统一落 msp_provider_id。
+	providerID := req.MSPProviderID
+	if providerID == nil {
+		providerID = req.ParentTenantID
+	}
+	if err := s.validateTenantOwnership(ctx, 0, req.Type, providerID); err != nil {
+		return nil, err
+	}
+
 	// 创建租户
 	tenantEntity, err := s.client.Tenant.
 		Create().
@@ -48,8 +63,7 @@ func (s *TenantService) CreateTenant(ctx context.Context, req *dto.CreateTenantR
 		SetType(tenant.Type(req.Type)).
 		SetStatus(defaultTenantStatus(req.Status)).
 		SetNillableExpiresAt(req.ExpiresAt).
-		SetNillableParentTenantID(req.ParentTenantID).
-		SetNillableMspProviderID(req.MSPProviderID).
+		SetNillableMspProviderID(providerID).
 		SetNillablePlanCode(req.PlanCode).
 		SetNillableBillingEnabled(req.BillingEnabled).
 		SetNillableCostCenterCode(req.CostCenterCode).
@@ -108,9 +122,14 @@ func (s *TenantService) ListTenants(ctx context.Context, req *dto.ListTenantsReq
 		query = query.Where(tenant.StatusEQ(req.Status))
 	}
 
-	// 类型过滤
+	// 类型过滤（IP-P0-4 读取兼容：legacy 与新值互相可见）
 	if req.Type != "" {
-		query = query.Where(tenant.TypeEQ(tenant.Type(req.Type)))
+		values := tenantmode.TenantTypeFilterValues(req.Type)
+		typeValues := make([]tenant.Type, 0, len(values))
+		for _, v := range values {
+			typeValues = append(typeValues, tenant.Type(v))
+		}
+		query = query.Where(tenant.TypeIn(typeValues...))
 	}
 
 	// 搜索过滤
@@ -162,20 +181,47 @@ func (s *TenantService) GetTenant(ctx context.Context, tenantID int) (*ent.Tenan
 
 // UpdateTenant 更新租户
 func (s *TenantService) UpdateTenant(ctx context.Context, tenantID int, req *dto.UpdateTenantRequest) (*ent.Tenant, error) {
-	// 检查租户是否存在
-	exists, err := s.client.Tenant.Query().
+	// 检查租户是否存在（取现状用于归属/类型收敛校验）
+	current, err := s.client.Tenant.Query().
 		Where(tenant.ID(tenantID)).
-		Exist(ctx)
+		Only(ctx)
 	if err != nil {
+		if ent.IsNotFound(err) {
+			return nil, fmt.Errorf("租户不存在: %d", tenantID)
+		}
 		s.logger.Errorf("检查租户失败: %v", err)
 		return nil, fmt.Errorf("检查租户失败: %w", err)
-	}
-	if !exists {
-		return nil, fmt.Errorf("租户不存在: %d", tenantID)
 	}
 
 	// 构建更新操作
 	update := s.client.Tenant.UpdateOneID(tenantID).SetUpdatedAt(time.Now())
+
+	// IP-P0-4 / A1：类型变更同样拒绝 legacy 值。
+	if req.Type != nil && *req.Type != "" {
+		if err := tenantmode.ValidateTenantTypeForWrite(*req.Type); err != nil {
+			return nil, err
+		}
+	}
+	// IP-P0-4 / A2：仅在类型或归属被触碰时校验；有效值 = 现状 + 本次变更。
+	effectiveType := string(current.Type)
+	if req.Type != nil && *req.Type != "" {
+		effectiveType = *req.Type
+	}
+	providerID := current.MspProviderID
+	providerTouched := false
+	if req.ParentTenantID != nil && req.MSPProviderID == nil {
+		providerID = *req.ParentTenantID
+		providerTouched = true
+	}
+	if req.MSPProviderID != nil {
+		providerID = *req.MSPProviderID
+		providerTouched = true
+	}
+	if providerTouched || (req.Type != nil && *req.Type != "") {
+		if err := s.validateTenantOwnership(ctx, tenantID, effectiveType, intPtrOrNil(providerID)); err != nil {
+			return nil, err
+		}
+	}
 
 	if req.Name != nil && *req.Name != "" {
 		update = update.SetName(*req.Name)
@@ -192,11 +238,14 @@ func (s *TenantService) UpdateTenant(ctx context.Context, tenantID int, req *dto
 	if req.ExpiresAt != nil {
 		update = update.SetNillableExpiresAt(req.ExpiresAt)
 	}
-	if req.ParentTenantID != nil {
-		update = update.SetNillableParentTenantID(req.ParentTenantID)
-	}
-	if req.MSPProviderID != nil {
-		update = update.SetNillableMspProviderID(req.MSPProviderID)
+	if providerTouched {
+		// P0 停止 parent_tenant_id 双写：旧字段仅作输入来源，唯一写通道 msp_provider_id。
+		// 注意：SetNillableMspProviderID(nil) 是 no-op，清空需显式 Clear。
+		if providerID > 0 {
+			update = update.SetMspProviderID(providerID)
+		} else {
+			update = update.ClearMspProviderID()
+		}
 	}
 	if req.PlanCode != nil {
 		update = update.SetNillablePlanCode(req.PlanCode)
@@ -280,4 +329,34 @@ func defaultTenantStatus(status *string) string {
 		return "active"
 	}
 	return *status
+}
+
+// validateTenantOwnership 归属形状校验 + provider 目标复核（IP-P0-4 / A2）。
+// 形状规则见 tenantmode.ValidateTenantOwnership；msp_customer 需再查库确认目标确为 msp_provider。
+func (s *TenantService) validateTenantOwnership(ctx context.Context, selfID int, kind string, providerID *int) error {
+	if err := tenantmode.ValidateTenantOwnership(kind, providerID, selfID); err != nil {
+		return err
+	}
+	if kind != tenantmode.TenantTypeMSPCustomer || providerID == nil {
+		return nil
+	}
+	provider, err := s.client.Tenant.Query().Where(tenant.ID(*providerID)).Only(ctx)
+	if err != nil {
+		if ent.IsNotFound(err) {
+			return fmt.Errorf("归属的 MSP 提供方租户不存在: %d", *providerID)
+		}
+		return fmt.Errorf("查询归属的 MSP 提供方租户失败: %w", err)
+	}
+	if !tenantmode.IsMSPProviderTenantType(string(provider.Type)) {
+		return fmt.Errorf("归属目标 %d 不是 MSP 提供方租户（type=%s）", provider.ID, provider.Type)
+	}
+	return nil
+}
+
+// intPtrOrNil 将 <=0 的归属值归一为 nil（清空），>0 返回值指针（写入 msp_provider_id）。
+func intPtrOrNil(v int) *int {
+	if v <= 0 {
+		return nil
+	}
+	return &v
 }

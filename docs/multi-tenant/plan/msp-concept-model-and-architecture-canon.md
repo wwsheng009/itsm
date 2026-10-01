@@ -515,8 +515,8 @@ sequenceDiagram
 
 | # | 验收 |
 |---|---|
-| A1 | `tenants.type` 只出现 3 类新值；legacy 值读取正常、写入被拒（或自动映射）；文档/API 无新同义词 |
-| A2 | 建 customer 租户必须携带有效 `provider_tenant_id`（或显式直客标记）；错误归属被拒绝 |
+| A1 | `tenants.type` 只出现 3 类新值；legacy 值读取正常、写入被拒（或自动映射）；文档/API 无新同义词；**→ ✅ 已实现（2026-09-30，IP-P0-4）：`pkg/tenantmode` 写入校验 + 读取映射/过滤归一 + 服务层接入** |
+| A2 | 建 customer 租户必须携带有效 `provider_tenant_id`（或显式直客标记）；错误归属被拒绝；**→ ✅ 已实现（2026-09-30，IP-P0-4）：`msp_customer` ⇔ 有效 `msp_provider`、直客禁带 provider、禁自指；`parent_tenant_id` 停止双写；存量巡检脚本交付** |
 | A3 | provider A 员工无法被分配到 provider B 的客户（R2 用例）；admin 亦不豁免 |
 | A4 | 一个**非 customer 类**账号可在 2 个租户各有 1 条 membership；`account_kind=customer` 恰好 1 条 active membership（部分唯一索引兜底 + `CUSTOMER_SCOPE_CONFLICT`）；在租户 A 的角色不影响租户 B |
 | A5 | 一个账号在一个租户内可多组织归属（部门+团队），且带角色/生效期（membership 行） |
@@ -647,3 +647,4 @@ sequenceDiagram
 | v1.0 | 2026-09-30 | **决策冻结与全量确认（评审通过）**：D1–D9 按最佳实践定稿（D1 多 provider 建模+单 provider 预设；D2 直客以 `saas_customer` 为显式标记；D3 消息/模板租户化；D4 全局唯一 + `identity_key` 不合并；D5 平台管理员必须有 membership；D6 `data_scope=department` 下线；D7 `msp_role` P1 同批并入；D8 批量低危+护栏；D9=E1–E6 全确认）；附录 C 注册表同步 `D1–D11`、ADR-004 转 Accepted；membership 列名统一为 `user_id/.../is_default`；术语表补 `provider_tenant_id` 存储口径与 `data_scope` 下线；标注基准 HEAD `337558e3` |
 | v1.1 | 2026-09-30 | **代码落地回填**：R9（三通道统一 allocation 二次校验，`pkg/mspguard` 唯一入口 + service 门面）、R10（死代码接线并删除 `MSPFilterByCustomer`/`GetTicketsForCustomer`）、R4/R12（IP-P0-1 门控单一来源）；G8 缓存审查关闭见 07 §9 |
 | v1.2 | 2026-09-30 | **IP-P0-3 快照写入口落地**：建单派生 `is_managed_by_msp`/`msp_provider_id`（无效归属按普通工单）、指派补写 `managed_by_user_id`、回填脚本交付；R11 由"零写入"降级为"部分修复"（`msp_ticket_id` 待 E4） |
+| v1.3 | 2026-09-30 | **IP-P0-4 类型/归属收敛落地**：写入集合收敛（legacy `standard`/`msp`/`customer` 只读）、归属校验（A2/D2）、`parent_tenant_id` 停止双写、列表过滤兼容、存量巡检脚本 |

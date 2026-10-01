@@ -26,10 +26,10 @@
 | 字段 | 必填 | 说明 |
 |---|---|---|
 | `name` / `code` | ✅ | 租户名称/代码（code 用于登录与接口识别） |
-| `type` | ✅ | 客户填 `msp_customer`（枚举含 `standard/internal/saas_customer/msp_provider/msp_customer` 及历史值） |
+| `type` | ✅ | 写入集合：`internal` / `saas_customer` / `msp_provider` / `msp_customer`（IP-P0-4 起 legacy `standard`/`msp`/`customer` 只读） |
 | `status` | — | `active` / `suspended` / `expired` / `deleted`，默认 `active` |
-| `parentTenantId` | 建议 | 父租户 = 服务商租户 ID |
-| `mspProviderId` | 建议 | MSP 提供方租户 ID |
+| `parentTenantId` | 兼容 | 历史字段：仅作输入来源映射到 `mspProviderId`；P0 起停止双写，新集成请直接使用 `mspProviderId` |
+| `mspProviderId` | 条件必填 | 归属唯一写通道；`msp_customer` 必填且目标必须是 `msp_provider`（禁自指），`saas_customer` 禁止携带 |
 | `domain` | — | 独立域名（用于按子域名解析租户） |
 | `expiresAt` | — | 到期时间；过期后请求 403 |
 | `planCode` / `billingEnabled` / `currency` / `serviceTier` | — | 套餐与计费维度 |
@@ -37,6 +37,8 @@
 | `settings` / `quota` | — | 租户配置与资源配额 |
 
 > 实测（2026-09-28）：`tenants` 表已含 `parent_tenant_id` / `msp_provider_id` 列，创建客户租户时经 `POST /api/v1/tenants` 传入即落库（MSPCUSTA / MSPCUSTB → provider `3`），无需额外迁移。
+>
+> 目标口径（IP-P0-4，2026-09-30）：创建客户租户统一传 `mspProviderId`（`parentTenantId` 停止双写）；错误归属（缺 provider/指向非 provider/直客带 provider）与 legacy 类型写入返回 4xx。
 
 更新：`PUT /api/v1/tenants/:id`；状态变更：`PUT /api/v1/tenants/:id/status`（`docs/acl-manifest.yaml:1747-1761`）。
 

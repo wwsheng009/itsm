@@ -7,7 +7,7 @@ type CreateTenantRequest struct {
 	Name            string                 `json:"name" binding:"required,max=100" comment:"租户名称"`
 	Code            string                 `json:"code" binding:"required,max=50" comment:"租户代码"`
 	Domain          *string                `json:"domain,omitempty" binding:"omitempty,max=100" comment:"自定义域名"`
-	Type            string                 `json:"type" binding:"required,oneof=standard internal saas_customer msp_provider msp_customer msp customer" comment:"租户类型"`
+	Type            string                 `json:"type" binding:"required,oneof=internal saas_customer msp_provider msp_customer" comment:"租户类型（目标集合；legacy 值只读）"`
 	Status          *string                `json:"status,omitempty" binding:"omitempty,oneof=active suspended expired deleted" comment:"租户状态"`
 	Settings        map[string]interface{} `json:"settings,omitempty" comment:"租户配置"`
 	Quota           map[string]interface{} `json:"quota,omitempty" comment:"资源配额"`
@@ -27,7 +27,7 @@ type CreateTenantRequest struct {
 type UpdateTenantRequest struct {
 	Name            *string                `json:"name,omitempty" binding:"omitempty,max=100" comment:"租户名称"`
 	Domain          *string                `json:"domain,omitempty" binding:"omitempty,max=100" comment:"自定义域名"`
-	Type            *string                `json:"type,omitempty" binding:"omitempty,oneof=standard internal saas_customer msp_provider msp_customer msp customer" comment:"租户类型"`
+	Type            *string                `json:"type,omitempty" binding:"omitempty,oneof=internal saas_customer msp_provider msp_customer" comment:"租户类型（目标集合；legacy 值只读）"`
 	Status          *string                `json:"status,omitempty" binding:"omitempty,oneof=active suspended expired deleted" comment:"租户状态"`
 	Settings        map[string]interface{} `json:"settings,omitempty" comment:"租户配置"`
 	Quota           map[string]interface{} `json:"quota,omitempty" comment:"资源配额"`
@@ -48,7 +48,7 @@ type ListTenantsRequest struct {
 	Page     int    `form:"page,default=1" binding:"min=1" comment:"页码"`
 	PageSize int    `form:"pageSize,default=10" binding:"min=1,max=100" comment:"每页数量"`
 	Status   string `form:"status" binding:"omitempty,oneof=active suspended expired deleted" comment:"状态过滤"`
-	Type     string `form:"type" binding:"omitempty,oneof=standard internal saas_customer msp_provider msp_customer msp customer" comment:"类型过滤"`
+	Type     string `form:"type" binding:"omitempty,oneof=standard internal saas_customer msp_provider msp_customer msp customer" comment:"类型过滤（兼容 legacy 输入，服务端归一）"`
 	Search   string `form:"search" comment:"搜索关键词"`
 }
 

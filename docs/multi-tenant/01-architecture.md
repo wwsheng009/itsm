@@ -74,6 +74,8 @@
 
 - **身份标记**：`users.msp_role` 枚举 `provider_admin` / `provider_agent` / `customer_user`（`ent/schema/user.go:69-72`）；`admin` 角色**不会**自动获得 MSP 访问权。
 - **身份判定**：租户类型为 `msp_provider` 且 `msp_role` 非空才认定 MSP 身份（`middleware/msp_middleware.go:19-27`）。
+- **类型收敛（2026-09-30，IP-P0-4）**：`tenants.type` 写入仅接受 `internal` / `msp_provider` / `msp_customer` / `saas_customer`（概念名 platform/provider/customer + 直客标记）；legacy `standard`/`msp`/`customer` 只读（读取映射与列表过滤归一），写入被拒（`pkg/tenantmode`，校验接入 `TenantService`）。
+- **归属唯一化（2026-09-30，IP-P0-4）**：`msp_customer` ⇔ `msp_provider_id` 指向 `msp_provider`（禁自指）；`saas_customer`/`internal`/`msp_provider` ⇔ 为空；P0 停止 `parent_tenant_id` 双写（旧字段仅兼容输入，唯一写通道 `msp_provider_id`）。存量巡检：`scripts/msp/audit-tenant-type-ownership.sql`。
 - **分配**：`MSPAllocation`（`msp_user_id` ↔ `customer_tenant_id`，角色 `primary/backup/specialist`，含 `deassigned_at`；`ent/schema/msp_allocation.go:19-51`）决定该员工可访问的客户集合（`AllowedCustomers`）。
 - **跨客户请求**：请求头 `X-Customer-Tenant-ID` 必须命中分配列表，否则 403（`middleware/msp_middleware.go:23, 133`）。
 - **联合检查**：`RequireMSPPermission` = MSP 身份 → RBAC 资源权限 → 客户分配（`middleware/msp_rbac.go:125-127`）。

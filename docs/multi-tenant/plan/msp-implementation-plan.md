@@ -251,6 +251,15 @@ C2 · 客户租户内 msp 角色基线（Q7 合同形态 → 客户侧业务权�
 
 **回滚**：校验可降级 warning（一个版本）；读兼容保留。
 
+**进度（2026-09-30）**：✅ **代码与巡检脚本已实现**（步骤 1–3；步骤 4 文档已回填 01/03 + canon）。
+
+- 校验函数（`pkg/tenantmode`）：`ValidateTenantTypeForWrite`（目标集合 `internal`/`msp_provider`/`msp_customer`/`saas_customer`；legacy/未知/空拒绝）、`NormalizeTenantTypeRead` + `TenantTypeFilterValues`（legacy 读取映射与过滤归一）、`ValidateTenantOwnership`（形状+禁自指）。
+- 服务接入（`TenantService`）：`CreateTenant`/`UpdateTenant` 写入校验 + 归属复核（目标必须是有 records 的 `msp_provider`）；更新仅在类型/归属被触碰时校验；**停止 `parent_tenant_id` 双写**（旧字段仅作兼容输入映射至 `msp_provider_id`，清空走显式 `Clear`）。
+- API 契约：`CreateTenantRequest`/`UpdateTenantRequest` binding 收敛为目标集合（legacy 写入 400）；列表过滤保留 legacy 输入（服务端归一）。
+- 单测：`pkg/tenantmode`（写入集合/读取映射/过滤/归属形状）+ `service` 3 组（类型收敛、归属一致性、更新守卫、legacy 过滤兼容）全绿；`handlers/tenant` 全绿。
+- 存量巡检：`scripts/msp/audit-tenant-type-ownership.sql`（5 段：legacy 类型 / 归属形状 / 目标无效 / 双写残留 / 汇总计数）；`setup-msp-tenants.sh` 同步停止双写。
+- **待办**：存量数据收敛（P1，按巡检输出回填）；e2e 纳入 M1 验收（A2 反例：建租户拒绝错误归属）。
+
 ### IP-P0-5 建号通道收口（K4；ADR-004:A2/A3；F1/F3/F14）
 
 **目标**：三通道建号（platform/msp/tenant）统一走 `ProvisionUser`，**handler 不得自行拼 bypass**。
@@ -612,3 +621,4 @@ CREATE INDEX idx_invitations_expiry ON invitations (expires_at) WHERE status = '
 | v1.2 | 2026-09-30 | **IP-P0-1 落地**：门控严格化（仅 saas_msp）+ 单一来源（cfg）+ 未知/空值 fatal + 启动自检 + `/msp/status` 暴露模式/gate；相关单测与 `go build ./...` 通过；02 §1/§9 同步目标口径 |
 | v1.3 | 2026-09-30 | **IP-P0-2 安全核心落地**：`pkg/mspguard` 唯一授权入口（头/路径/请求体/报表四通道）+ R10 死代码删除 + `uk_msp_allocation_active`（ent schema + 迁移 022）+ G8 缓存审查关闭；三通道反例单测全绿 |
 | v1.4 | 2026-09-30 | **IP-P0-3 快照落地**：建单双链路派生 `is_managed_by_msp`/`msp_provider_id`（无效归属按普通工单）；指派补写 `managed_by_user_id`；仓库 4 个 builder 全覆盖；回填脚本（dry-run/apply/rollback）交付 |
+| v1.5 | 2026-09-30 | **IP-P0-4 类型/归属收敛落地**：`pkg/tenantmode` 校验+读取映射；`TenantService` 写入接入、归属复核、停止 `parent_tenant_id` 双写；DTO binding 收敛；巡检脚本 + 01/03 文档回填 |

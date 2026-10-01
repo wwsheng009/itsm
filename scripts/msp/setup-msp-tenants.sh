@@ -142,8 +142,9 @@ ensure_tenant() { # code name type [parent] [provider]
 
 say "3. 创建 MSP 提供商与客户租户"
 PROVIDER_ID=$(ensure_tenant "$PROVIDER_CODE" "$PROVIDER_NAME" msp_provider)
-CUSTA_ID=$(ensure_tenant "$CUSTOMER_A_CODE" "$CUSTOMER_A_NAME" msp_customer "$PROVIDER_ID" "$PROVIDER_ID")
-CUSTB_ID=$(ensure_tenant "$CUSTOMER_B_CODE" "$CUSTOMER_B_NAME" msp_customer "$PROVIDER_ID" "$PROVIDER_ID")
+# IP-P0-4：归属唯一写通道为 mspProviderId；parentTenantId 仅历史兼容输入，脚本不再双写。
+CUSTA_ID=$(ensure_tenant "$CUSTOMER_A_CODE" "$CUSTOMER_A_NAME" msp_customer "" "$PROVIDER_ID")
+CUSTB_ID=$(ensure_tenant "$CUSTOMER_B_CODE" "$CUSTOMER_B_NAME" msp_customer "" "$PROVIDER_ID")
 echo "provider=$PROVIDER_ID customerA=$CUSTA_ID customerB=$CUSTB_ID"
 psql_c "select id,code,type,coalesce(parent_tenant_id,0) parent,coalesce(msp_provider_id,0) provider from tenants order by id"
 

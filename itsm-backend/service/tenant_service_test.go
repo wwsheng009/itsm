@@ -11,6 +11,7 @@ import (
 	"itsm-backend/dto"
 	"itsm-backend/ent"
 	"itsm-backend/ent/enttest"
+	"itsm-backend/ent/tenant"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -36,7 +37,7 @@ func TestTenantService_CreateTenant_Success(t *testing.T) {
 	req := &dto.CreateTenantRequest{
 		Name: "测试公司",
 		Code: "TEST-COMP",
-		Type: "standard",
+		Type: "internal",
 	}
 
 	tenant, err := service.CreateTenant(ctx, req)
@@ -55,7 +56,7 @@ func TestTenantService_CreateTenant_WithDomain(t *testing.T) {
 	req := &dto.CreateTenantRequest{
 		Name:   "测试公司",
 		Code:   "TEST-DOMAIN",
-		Type:   "standard",
+		Type:   "internal",
 		Domain: &domain,
 	}
 
@@ -72,7 +73,7 @@ func TestTenantService_CreateTenant_DuplicateCode(t *testing.T) {
 	req := &dto.CreateTenantRequest{
 		Name: "第一个租户",
 		Code: "DUP-CODE",
-		Type: "standard",
+		Type: "internal",
 	}
 
 	_, err := service.CreateTenant(ctx, req)
@@ -82,7 +83,7 @@ func TestTenantService_CreateTenant_DuplicateCode(t *testing.T) {
 	req2 := &dto.CreateTenantRequest{
 		Name: "第二个租户",
 		Code: "DUP-CODE",
-		Type: "standard",
+		Type: "internal",
 	}
 
 	_, err = service.CreateTenant(ctx, req2)
@@ -98,7 +99,7 @@ func TestTenantService_CreateTenant_WithExpiry(t *testing.T) {
 	req := &dto.CreateTenantRequest{
 		Name:      "试用租户",
 		Code:      "TRIAL-001",
-		Type:      "msp",
+		Type:      "msp_provider",
 		ExpiresAt: &expiresAt,
 	}
 
@@ -117,7 +118,7 @@ func TestTenantService_GetTenantByCode_Success(t *testing.T) {
 	req := &dto.CreateTenantRequest{
 		Name: "测试租户",
 		Code: "GET-BY-CODE",
-		Type: "standard",
+		Type: "internal",
 	}
 
 	_, err := service.CreateTenant(ctx, req)
@@ -144,7 +145,7 @@ func TestTenantService_GetTenant_Success(t *testing.T) {
 	req := &dto.CreateTenantRequest{
 		Name: "测试租户",
 		Code: "GET-BY-ID",
-		Type: "standard",
+		Type: "internal",
 	}
 
 	created, err := service.CreateTenant(ctx, req)
@@ -174,7 +175,7 @@ func TestTenantService_UpdateTenantStatus_Success(t *testing.T) {
 	req := &dto.CreateTenantRequest{
 		Name: "状态测试租户",
 		Code: "STATUS-TEST",
-		Type: "standard",
+		Type: "internal",
 	}
 
 	tenant, err := service.CreateTenant(ctx, req)
@@ -200,7 +201,7 @@ func TestTenantService_ListTenants_Success(t *testing.T) {
 		req := &dto.CreateTenantRequest{
 			Name: fmt.Sprintf("租户%d", i),
 			Code: fmt.Sprintf("LIST-%03d", i),
-			Type: "standard",
+			Type: "internal",
 		}
 		_, err := service.CreateTenant(ctx, req)
 		require.NoError(t, err)
@@ -226,7 +227,7 @@ func TestTenantService_ListTenants_Pagination(t *testing.T) {
 		req := &dto.CreateTenantRequest{
 			Name: fmt.Sprintf("分页租户%d", i),
 			Code: fmt.Sprintf("PAGE-%03d", i),
-			Type: "standard",
+			Type: "internal",
 		}
 		_, err := service.CreateTenant(ctx, req)
 		require.NoError(t, err)
@@ -260,7 +261,7 @@ func TestTenantService_ListTenants_FilterByStatus(t *testing.T) {
 		req := &dto.CreateTenantRequest{
 			Name: fmt.Sprintf("状态租户%d", i),
 			Code: fmt.Sprintf("STATUS-F-%d", i),
-			Type: "standard",
+			Type: "internal",
 		}
 		tenant, err := service.CreateTenant(ctx, req)
 		require.NoError(t, err)
@@ -288,7 +289,7 @@ func TestTenantService_ListTenants_FilterByType(t *testing.T) {
 	defer client.Close()
 
 	// 创建不同类型的租户
-	types := []string{"standard", "msp", "standard"}
+	types := []string{"internal", "msp_provider", "internal"}
 	for i, tenantType := range types {
 		req := &dto.CreateTenantRequest{
 			Name: fmt.Sprintf("类型租户%d", i),
@@ -302,7 +303,7 @@ func TestTenantService_ListTenants_FilterByType(t *testing.T) {
 	req := &dto.ListTenantsRequest{
 		Page:     1,
 		PageSize: 10,
-		Type:     "msp",
+		Type:     "msp_provider",
 	}
 
 	tenants, total, err := service.ListTenants(ctx, req)
@@ -319,7 +320,7 @@ func TestTenantService_ListTenants_Search(t *testing.T) {
 	req1 := &dto.CreateTenantRequest{
 		Name: "科技公司",
 		Code: "TECH-CO",
-		Type: "standard",
+		Type: "internal",
 	}
 	_, err := service.CreateTenant(ctx, req1)
 	require.NoError(t, err)
@@ -327,7 +328,7 @@ func TestTenantService_ListTenants_Search(t *testing.T) {
 	req2 := &dto.CreateTenantRequest{
 		Name: "金融公司",
 		Code: "FIN-CO",
-		Type: "standard",
+		Type: "internal",
 	}
 	_, err = service.CreateTenant(ctx, req2)
 	require.NoError(t, err)
@@ -355,7 +356,7 @@ func TestTenantService_UpdateTenant_Success(t *testing.T) {
 	req := &dto.CreateTenantRequest{
 		Name: "原名称",
 		Code: "UPDATE-TEST",
-		Type: "standard",
+		Type: "internal",
 	}
 
 	tenant, err := service.CreateTenant(ctx, req)
@@ -395,7 +396,7 @@ func TestTenantService_UpdateTenant_PartialUpdate(t *testing.T) {
 	req := &dto.CreateTenantRequest{
 		Name: "原名称",
 		Code: "PARTIAL-TEST",
-		Type: "standard",
+		Type: "internal",
 	}
 
 	tenant, err := service.CreateTenant(ctx, req)
@@ -422,7 +423,7 @@ func TestTenantService_DeleteTenant_Success(t *testing.T) {
 	req := &dto.CreateTenantRequest{
 		Name: "待删除租户",
 		Code: "DEL-TEST",
-		Type: "standard",
+		Type: "internal",
 	}
 
 	tenant, err := service.CreateTenant(ctx, req)
@@ -455,7 +456,7 @@ func TestTenantService_DeleteTenant_WithUsers(t *testing.T) {
 	req := &dto.CreateTenantRequest{
 		Name: "有用户租户",
 		Code: "HAS-USERS",
-		Type: "standard",
+		Type: "internal",
 	}
 
 	tenant, err := service.CreateTenant(ctx, req)
@@ -477,4 +478,117 @@ func TestTenantService_DeleteTenant_WithUsers(t *testing.T) {
 	err = service.DeleteTenant(ctx, tenant.ID)
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "租户下还有用户")
+}
+
+// ==================== IP-P0-4 类型收敛与归属校验（A1/A2） ====================
+
+// TestTenantService_CreateTenant_TypeConvergence 锁定 A1：legacy/未知类型写入被拒。
+func TestTenantService_CreateTenant_TypeConvergence(t *testing.T) {
+	client, service, ctx := setupTenantTest(t)
+	defer client.Close()
+
+	for _, bad := range []string{"msp", "customer", "standard", "platform", ""} {
+		_, err := service.CreateTenant(ctx, &dto.CreateTenantRequest{
+			Name: "坏类型", Code: "BAD-TYPE-" + bad, Type: bad,
+		})
+		require.Error(t, err, "type=%q 必须被拒绝", bad)
+	}
+}
+
+// TestTenantService_CreateTenant_OwnershipConsistency 锁定 A2/D2：
+// msp_customer ⇔ 有效 msp_provider；saas_customer/非客户类型 ⇔ 空；旧字段兼容输入但不双写。
+func TestTenantService_CreateTenant_OwnershipConsistency(t *testing.T) {
+	client, service, ctx := setupTenantTest(t)
+	defer client.Close()
+
+	internalTenant, err := service.CreateTenant(ctx, &dto.CreateTenantRequest{Name: "内部", Code: "INT-1", Type: "internal"})
+	require.NoError(t, err)
+	ids := []int{internalTenant.ID}
+
+	_, err = service.CreateTenant(ctx, &dto.CreateTenantRequest{Name: "直客", Code: "DIRECT-1", Type: "saas_customer", MSPProviderID: &ids[0]})
+	require.Error(t, err, "saas_customer 不得携带 provider")
+
+	_, err = service.CreateTenant(ctx, &dto.CreateTenantRequest{Name: "客户", Code: "CUST-NOPROV", Type: "msp_customer"})
+	require.Error(t, err, "msp_customer 必须携带 provider")
+
+	_, err = service.CreateTenant(ctx, &dto.CreateTenantRequest{Name: "客户", Code: "CUST-BADPROV", Type: "msp_customer", MSPProviderID: &ids[0]})
+	require.Error(t, err, "provider 目标必须是 msp_provider 类型")
+
+	provider, err := service.CreateTenant(ctx, &dto.CreateTenantRequest{Name: "服务商", Code: "PROV-1", Type: "msp_provider"})
+	require.NoError(t, err)
+
+	_, err = service.CreateTenant(ctx, &dto.CreateTenantRequest{Name: "服务商2", Code: "PROV-2", Type: "msp_provider", MSPProviderID: &provider.ID})
+	require.Error(t, err, "msp_provider 不得携带 provider")
+
+	// 兼容输入：仅传 parentTenantId 时归一写入 msp_provider_id；不再双写 parent_tenant_id。
+	customer, err := service.CreateTenant(ctx, &dto.CreateTenantRequest{Name: "客户", Code: "CUST-1", Type: "msp_customer", ParentTenantID: &provider.ID})
+	require.NoError(t, err)
+	assert.Equal(t, provider.ID, customer.MspProviderID)
+	assert.Zero(t, customer.ParentTenantID, "P0 起停止 parent_tenant_id 双写")
+}
+
+// TestTenantService_UpdateTenant_OwnershipGuards 锁定更新路径：自指/错误目标/legacy 类型被拒，合法变更生效。
+func TestTenantService_UpdateTenant_OwnershipGuards(t *testing.T) {
+	client, service, ctx := setupTenantTest(t)
+	defer client.Close()
+
+	provider, err := service.CreateTenant(ctx, &dto.CreateTenantRequest{Name: "服务商", Code: "PROV-U", Type: "msp_provider"})
+	require.NoError(t, err)
+	internalTenant, err := service.CreateTenant(ctx, &dto.CreateTenantRequest{Name: "内部", Code: "INT-U", Type: "internal"})
+	require.NoError(t, err)
+	customer, err := service.CreateTenant(ctx, &dto.CreateTenantRequest{Name: "客户", Code: "CUST-U", Type: "msp_customer", MSPProviderID: &provider.ID})
+	require.NoError(t, err)
+
+	// 自指
+	_, err = service.UpdateTenant(ctx, customer.ID, &dto.UpdateTenantRequest{MSPProviderID: &customer.ID})
+	require.Error(t, err)
+
+	// 指向非 provider
+	_, err = service.UpdateTenant(ctx, customer.ID, &dto.UpdateTenantRequest{MSPProviderID: &internalTenant.ID})
+	require.Error(t, err)
+
+	// legacy 类型变更
+	legacy := "standard"
+	_, err = service.UpdateTenant(ctx, customer.ID, &dto.UpdateTenantRequest{Type: &legacy})
+	require.Error(t, err)
+
+	// 合法：切直客并清空归属
+	direct := "saas_customer"
+	zero := 0
+	updated, err := service.UpdateTenant(ctx, customer.ID, &dto.UpdateTenantRequest{Type: &direct, MSPProviderID: &zero})
+	require.NoError(t, err)
+	assert.Equal(t, "saas_customer", string(updated.Type))
+	assert.Zero(t, updated.MspProviderID)
+}
+
+// TestTenantService_ListTenants_LegacyTypeFilterCompat 锁定 A1 读取兼容：
+// legacy 行按新值过滤可见，legacy 输入同样能匹配新值行。
+func TestTenantService_ListTenants_LegacyTypeFilterCompat(t *testing.T) {
+	client, service, ctx := setupTenantTest(t)
+	defer client.Close()
+
+	// 直写 legacy 行（模拟存量数据；写入路径已被校验拒绝，此处绕过 service）。
+	legacyRow, err := client.Tenant.Create().
+		SetName("存量MSP").SetCode("LEGACY-MSP").SetType(tenant.Type("msp")).SetStatus("active").
+		Save(ctx)
+	require.NoError(t, err)
+
+	_, err = service.CreateTenant(ctx, &dto.CreateTenantRequest{Name: "新服务商", Code: "NEW-MSP", Type: "msp_provider"})
+	require.NoError(t, err)
+
+	list, total, err := service.ListTenants(ctx, &dto.ListTenantsRequest{Page: 1, PageSize: 10, Type: "msp_provider"})
+	require.NoError(t, err)
+	assert.Equal(t, 2, total, "新值过滤应同时命中 legacy 行")
+	found := false
+	for _, item := range list {
+		if item.ID == legacyRow.ID {
+			found = true
+		}
+	}
+	assert.True(t, found)
+
+	list2, total2, err := service.ListTenants(ctx, &dto.ListTenantsRequest{Page: 1, PageSize: 10, Type: "msp"})
+	require.NoError(t, err)
+	assert.Equal(t, 2, total2, "legacy 输入过滤应同时命中新值行")
+	assert.Len(t, list2, 2)
 }
