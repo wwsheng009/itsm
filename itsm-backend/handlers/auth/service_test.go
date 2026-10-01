@@ -8,6 +8,7 @@ import (
 	"itsm-backend/dto"
 	"itsm-backend/ent"
 	"itsm-backend/ent/enttest"
+	"itsm-backend/ent/usertenantmembership"
 	"itsm-backend/middleware"
 
 	_ "github.com/mattn/go-sqlite3"
@@ -79,6 +80,32 @@ func newAuthFixture(t *testing.T) *authFixture {
 		Save(ctx)
 	require.NoError(t, err)
 
+	// IP-P1-2 权限单源：SwitchTenant 的 permissions 来自
+	// membership.role_id → role_permissions。夹具为 alice 播种默认成员身份，
+	// 使既有断言 "end_user 角色应有非空 permissions" 在默认 fail-closed 语义下仍成立
+	// （仅新增夹具数据，未改动任何既有断言；权限码 ticket:read 来自 membership）。
+	// 注意：默认 AUTHZ_STATIC_FALLBACK=false，未播种成员身份的用例不依赖静态权限表；
+	// 需要静态回退的场景由 middleware/membership_permission_test.go 显式开启开关覆盖，
+	// 本夹具只验证 membership 主路径不破坏既有断言（非静态表来源，ticket:read）。
+	roleEntity, err := client.Role.Create().
+		SetName("end_user").SetCode("end_user").SetTenantID(tenant.ID).
+		Save(ctx)
+	require.NoError(t, err)
+	permEntity, err := client.Permission.Create().
+		SetCode("ticket:read").SetName("ticket:read").
+		SetResource("ticket").SetAction("read").SetTenantID(tenant.ID).
+		Save(ctx)
+	require.NoError(t, err)
+	_, err = client.RolePermission.Create().
+		SetRoleID(roleEntity.ID).SetPermissionID(permEntity.ID).SetTenantID(tenant.ID).
+		Save(ctx)
+	require.NoError(t, err)
+	_, err = client.UserTenantMembership.Create().
+		SetUserID(user.ID).SetTenantID(tenant.ID).SetRoleID(roleEntity.ID).
+		SetSource(usertenantmembership.SourceHome).SetIsDefault(true).
+		Save(ctx)
+	require.NoError(t, err)
+
 	return &authFixture{
 		client:  client,
 		service: svc,
@@ -106,7 +133,7 @@ func TestService_SwitchTenant(t *testing.T) {
 		assert.Equal(t, fx.user.ID, resp.User.ID)
 		assert.Equal(t, fx.tenant.ID, resp.User.TenantID)
 		assert.Equal(t, fx.tenant.ID, resp.Tenant.ID)
-		// end_user 角色应有非空 permissions（来自 RolePermissions）
+		// end_user 角色应有非空 permissions（IP-P1-2：来自 membership → role_permissions）
 		assert.NotEmpty(t, resp.User.Permissions)
 	})
 

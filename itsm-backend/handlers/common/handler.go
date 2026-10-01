@@ -148,7 +148,11 @@ func (h *Handler) Logout(c *gin.Context) {
 
 func (h *Handler) GetMe(c *gin.Context) {
 	userID := c.GetInt("user_id")
-	u, err := h.svc.GetUser(c.Request.Context(), userID)
+	// IP-P1-2：/auth/me 的 permissions 必须按 token 当前作用域（切换后的目标租户）
+	// 计算，而不是 users.tenant_id（home），否则 A/B 租户权限会串。
+	// tenant_id 缺失（0）时 GetUserScoped 内部回退 users.tenant_id。
+	tenantID := c.GetInt("tenant_id")
+	u, err := h.svc.GetUserScoped(c.Request.Context(), userID, tenantID)
 	if err != nil {
 		common.NotFound(c, "User not found")
 		return

@@ -31,6 +31,7 @@ type Config struct {
 	CloudDiscovery CloudDiscoveryConfig `mapstructure:"cloud_discovery"`
 	MCP            MCPConfig            `mapstructure:"mcp"`
 	Bot            BotConfig            `mapstructure:"bot"`
+	Authz          AuthzConfig          `mapstructure:"authz"`
 }
 
 // AttachmentConfig 是附件域的灰度开关（方案 §6.1 开关与回滚矩阵）。
@@ -326,6 +327,15 @@ type DeploymentConfig struct {
 	AutoSeed    bool   `mapstructure:"auto_seed"`
 }
 
+// AuthzConfig 授权域开关（IP-P1-2 权限单源）。
+//
+// StaticFallback: 静态 RolePermissions 回退开关，对应环境变量 AUTHZ_STATIC_FALLBACK。
+// 默认 false —— membership 缺失/role_id 为空时 fail-closed；仅 IP-P1-1 回填窗口内
+// 显式置 true 才回退编译期静态表，且每次回退都会记 Warn 日志。
+type AuthzConfig struct {
+	StaticFallback bool `mapstructure:"static_fallback"`
+}
+
 // SecurityConfig 安全配置
 type SecurityConfig struct {
 	CSRFEnabled bool `mapstructure:"csrf_enabled"` // 是否启用 CSRF 保护
@@ -526,6 +536,7 @@ func LoadConfig() (*Config, error) {
 	viper.Set("cloud_discovery", rawConfig["cloud_discovery"])
 	viper.Set("mcp", rawConfig["mcp"])
 	viper.Set("bot", rawConfig["bot"])
+	viper.Set("authz", rawConfig["authz"])
 
 	// 重新绑定到 Config 结构
 	var config Config
@@ -551,6 +562,8 @@ func LoadConfig() (*Config, error) {
 	config.Deployment.Mode = getEnvWithDefault("DEPLOYMENT_MODE", config.Deployment.Mode)
 	config.Deployment.AutoMigrate = getEnvBoolWithDefault("ITSM_AUTO_MIGRATE", config.Deployment.AutoMigrate)
 	config.Deployment.AutoSeed = getEnvBoolWithDefault("ITSM_AUTO_SEED", config.Deployment.AutoSeed)
+	// IP-P1-2：静态权限表回退开关，默认 false（关闭）。仅迁移期显式开启。
+	config.Authz.StaticFallback = getEnvBoolWithDefault("AUTHZ_STATIC_FALLBACK", config.Authz.StaticFallback)
 
 	// 附件域清理默认值（BE-8）：保留期 30 天 / 轮询 360 分钟 / 单批 200 条；
 	// cleanup_enabled 与 cleanup_purge_enabled 保持零值 false（未配置即关闭）。

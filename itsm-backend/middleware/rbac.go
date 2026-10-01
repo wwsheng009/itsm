@@ -606,6 +606,10 @@ func invalidatePermissionCache(roleName string, tenantID int) {
 	permissionCacheLock.Lock()
 	delete(permissionCache, cacheKey)
 	permissionCacheLock.Unlock()
+	// IP-P1-2：角色定义/授权变更后，用户级 membership 权限缓存无法由 role 反查用户，
+	// 按租户整体失效（保守正确；成员/角色变更的显式失效仍属后续批次）。
+	// 跨实例一致性沿用既有 broadcast 链路（订阅端同样调用本函数）。
+	invalidateMembershipPermissionCacheForTenant(tenantID)
 }
 
 // InvalidateAllPermissionCaches 使所有权限缓存失效
@@ -613,6 +617,8 @@ func InvalidateAllPermissionCaches() {
 	permissionCacheLock.Lock()
 	clear(permissionCache)
 	permissionCacheLock.Unlock()
+	// IP-P1-2：一并清理 membership 用户级权限缓存。
+	clearMembershipPermissionCache()
 }
 
 // loadPermissionsFromDB 从 role_permission + permission（旧表）加载角色权限。

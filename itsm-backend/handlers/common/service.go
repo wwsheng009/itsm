@@ -70,30 +70,17 @@ func (s *Service) isRefreshBlacklisted(ctx context.Context, token string) (bool,
 
 // Auth
 
-// getUserPermissions 获取用户的权限列表
-func (s *Service) getUserPermissions(role string) []string {
-	permissions := make([]string, 0)
-
-	// 超级管理员拥有所有权限
-	if role == "super_admin" {
-		return []string{"*"}
+// resolvePermissions IP-P1-2 权限单源：按 (user_id, tenant_id) 走
+// middleware.ResolvePermissions（membership → role_id → role_permissions）。
+// 无 membership 且未开启 AUTHZ_STATIC_FALLBACK 时解析器返回空集合（fail-closed），
+// 仅基础设施错误会带 error，调用方记日志后仍使用返回值（空集合）。
+// 说明：super_admin 直通 ["*"] 由解析器内部保持现状。
+func (s *Service) resolvePermissions(ctx context.Context, userID, tenantID int) []string {
+	permissions, source, err := middleware.ResolvePermissions(ctx, s.client, userID, tenantID)
+	if err != nil && s.logger != nil {
+		s.logger.Warnw("failed to resolve permissions",
+			"user_id", userID, "tenant_id", tenantID, "source", source, "error", err)
 	}
-
-	// 从 middleware.RolePermissions 获取角色权限
-	rolePerms, ok := middleware.RolePermissions[role]
-	if !ok {
-		return permissions
-	}
-
-	seen := make(map[string]bool)
-	for _, p := range rolePerms {
-		key := p.Resource + ":" + p.Action
-		if !seen[key] {
-			seen[key] = true
-			permissions = append(permissions, key)
-		}
-	}
-
 	return permissions
 }
 
@@ -188,8 +175,8 @@ func (s *Service) Login(ctx context.Context, username, password string, tenantID
 		return nil, err
 	}
 
-	// 获取用户权限
-	u.Permissions = s.getUserPermissions(u.Role)
+	// 获取用户权限（IP-P1-2：按 home 租户经 membership → role_permissions 计算）
+	u.Permissions = s.resolvePermissions(ctx, entUser.ID, u.TenantID)
 	middleware.RecordAuthAudit(ctx, s.client, middleware.AuthAuditEntry{
 		UserID: entUser.ID, TenantID: entUser.TenantID, TargetTenantID: u.TenantID, ActorAccount: username,
 		Source: middleware.AuditSourceLogin, Action: "auth.login",
@@ -288,6 +275,10 @@ func (s *Service) RefreshToken(ctx context.Context, refreshToken string) (*AuthR
 		}
 	}
 
+	// IP-P1-2：刷新响应权限按当前 token 作用域（目标租户）重算，
+	// 保证切换租户后续签不会把权限解析回 home 租户。
+	user.Permissions = s.resolvePermissions(ctx, user.ID, scopeTenantID)
+
 	return &AuthResult{
 		AccessToken:     accessToken,
 		RefreshToken:    newRefresh,
@@ -339,15 +330,29 @@ func (s *Service) tenantAccessForRefresh(ctx context.Context, u *User, tenantID 
 // GetUser 获取用户信息（/auth/me 数据源）。
 // 前端刷新页面后由 AuthGuard 重建 user，若此处不带 permissions，
 // hasPermission 会全部返回 false，导致 Sidebar 管理功能区等权限驱动 UI 消失。
-// 因此与 Login 相同，按角色填充权限列表（super_admin → ["*"]）。
+// IP-P1-2：与 Login 相同走权限单源解析器（按 home 租户；super_admin → ["*"]）。
 func (s *Service) GetUser(ctx context.Context, id int) (*User, error) {
 	u, err := s.repo.GetUserByID(ctx, id)
 	if err != nil {
 		return nil, err
 	}
-	if len(u.Permissions) == 0 {
-		u.Permissions = s.getUserPermissions(u.Role)
+	// IP-P1-2：权限统一经解析器按 home 租户计算（GetMe 的 token 作用域优先走
+	// GetUserScoped；保留本方法作为未传租户的兼容入口）。
+	u.Permissions = s.resolvePermissions(ctx, u.ID, u.TenantID)
+	return u, nil
+}
+
+// GetUserScoped 获取用户信息，并按指定租户（token 作用域）计算 permissions。
+// /auth/me 在切换租户后必须返回目标租户的权限，故由 handler 传入 context 中的 tenant_id。
+func (s *Service) GetUserScoped(ctx context.Context, id, tenantID int) (*User, error) {
+	u, err := s.repo.GetUserByID(ctx, id)
+	if err != nil {
+		return nil, err
 	}
+	if tenantID <= 0 {
+		tenantID = u.TenantID
+	}
+	u.Permissions = s.resolvePermissions(ctx, u.ID, tenantID)
 	return u, nil
 }
 

@@ -363,6 +363,10 @@ func NewApplication() *Application {
 	// 3. 生产权限必须以数据库为唯一事实来源并在缺失时 fail closed。
 	// 只有显式 development/test/local 环境允许使用开发期硬编码回退。
 	configurePermissionMode(os.Getenv("ENV"))
+	// IP-P1-2：AUTHZ_STATIC_FALLBACK（默认 false）——权限单源解析器在
+	// membership 缺失/role_id 为空时是否回退编译期静态表；仅迁移窗口显式开启。
+	// 与 PermissionConfig.Mode 正交：后者管请求期 RBAC 的角色码回退链。
+	middleware.SetAuthzStaticFallback(cfg.Authz.StaticFallback)
 
 	if err := ValidateWebStartupConfig(cfg); err != nil {
 		log.Fatalf("Unsafe web startup configuration: %v", err)

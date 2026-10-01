@@ -87,30 +87,6 @@ func (s *Service) PasswordPolicy(ctx context.Context, tenantCode string) (*dto.P
 	}, nil
 }
 
-func (s *Service) permissions(userEntity *ent.User) []string {
-	if userEntity.Role == user.RoleSuperAdmin {
-		return []string{"*"}
-	}
-	permissions := make([]string, 0)
-	seen := make(map[string]bool)
-	roles := []string{string(userEntity.Role)}
-	if userEntity.MspRole != "" {
-		if role := middleware.GetMSPRBACRole(string(userEntity.MspRole)); role != "" {
-			roles = append(roles, role)
-		}
-	}
-	for _, role := range roles {
-		for _, permission := range middleware.RolePermissions[role] {
-			key := permission.Resource + ":" + permission.Action
-			if !seen[key] {
-				seen[key] = true
-				permissions = append(permissions, key)
-			}
-		}
-	}
-	return permissions
-}
-
 // SwitchTenant 保持兼容签名：不撤销旧 refresh（测试/内部调用）。
 func (s *Service) SwitchTenant(ctx context.Context, userID, tenantID int) (*dto.LoginResponse, error) {
 	return s.SwitchTenantWithRevoke(ctx, userID, tenantID, "")
@@ -189,12 +165,23 @@ func (s *Service) SwitchTenantWithRevoke(ctx context.Context, userID, tenantID i
 		"target_tenant_id", tenantID,
 		"tenant_source", "switch",
 	)
+	// IP-P1-2：权限单一真源——按「目标租户」经 membership → role_id → role_permissions 计算；
+	// 无 membership 且未开启 AUTHZ_STATIC_FALLBACK 时为 fail-closed（空集合）。
+	// A6 核心：同一账号 A/B 租户权限各自独立，切换响应不得沿用 home 权限。
+	// 与 Login/RefreshToken/GetMe/菜单生成共用 middleware.ResolvePermissions。
+	// 解析失败/无 membership：permissions 为空（fail-closed），仅记 warn，不影响切换本身（失败开放仅限"权限清单"这一展示面，
+	// 鉴权仍由 RBACMiddleware 独立判定）。
+	permissions, source, permErr := middleware.ResolvePermissions(ctx, s.client, userEntity.ID, tenantID)
+	if permErr != nil {
+		s.logger.Warnw("failed to resolve permissions for tenant switch",
+			"user_id", userID, "target_tenant_id", tenantID, "source", source, "error", permErr)
+	}
 	mspRole := string(userEntity.MspRole)
 	var mspRolePtr *string
 	if mspRole != "" {
 		mspRolePtr = &mspRole
 	}
-	return &dto.LoginResponse{AccessToken: accessToken, RefreshToken: refreshToken, User: &dto.LoginUserResponse{ID: userEntity.ID, Username: userEntity.Username, Email: userEntity.Email, Name: userEntity.Name, Role: string(userEntity.Role), MSPRole: mspRolePtr, Department: userEntity.Department, DepartmentID: userEntity.DepartmentID, Phone: userEntity.Phone, Active: userEntity.Active, TenantID: tenantID, CreatedAt: userEntity.CreatedAt, UpdatedAt: userEntity.UpdatedAt, Permissions: s.permissions(userEntity)}, Tenant: tenantEntity, TenantSelection: &dto.TenantSelection{Mode: switchTenantMode(userEntity, tenantEntity)}}, nil
+	return &dto.LoginResponse{AccessToken: accessToken, RefreshToken: refreshToken, User: &dto.LoginUserResponse{ID: userEntity.ID, Username: userEntity.Username, Email: userEntity.Email, Name: userEntity.Name, Role: string(userEntity.Role), MSPRole: mspRolePtr, Department: userEntity.Department, DepartmentID: userEntity.DepartmentID, Phone: userEntity.Phone, Active: userEntity.Active, TenantID: tenantID, CreatedAt: userEntity.CreatedAt, UpdatedAt: userEntity.UpdatedAt, Permissions: permissions}, Tenant: tenantEntity, TenantSelection: &dto.TenantSelection{Mode: switchTenantMode(userEntity, tenantEntity)}}, nil
 }
 
 // switchTenantMode 派生切换后的作用域模式（平台控制台/provider 家/单一租户）。

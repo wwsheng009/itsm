@@ -545,6 +545,15 @@ CREATE INDEX idx_invitations_expiry ON invitations (expires_at) WHERE status = '
 - 验证：`go build ./...`；约束回归 `TestUserTenantMembership_Constraints`（三索引 + 软删重入 + provider 多作用域 5 子例）；`go test ./internal/schema ./migration/...`；`cmd/migration-lint` 全绿。
 - IP-P0-10 遗留的 `membership_id` 填充随本批关闭（历史行按 actor home 回填，其后由写入方落值）。
 
+**进度（2026-09-30）**：✅ **IP-P1-2 权限单源落地**（A6 主体：登录/刷新/切换/`/auth/me`/菜单同源，同账号 A/B 权限独立）。
+
+- 解析器：`middleware/membership_permission.go` `ResolvePermissions(user_id, tenant_id)`：`super_admin` 直通 → 存活 membership（active 且未软删）→ `role_id`（同租户 roles）→ `role_permissions` → `permissions`；角色已配置但权限为空 = DB 显式撤销（不回退）；无 membership / `role_id` 为空 → 按 `AUTHZ_STATIC_FALLBACK`（默认 **false = fail-closed**）决定是否回退静态表并记 Warn；缓存 key 含 `user_id + tenant_id`，角色/权限变更经既有失效链路按租户清理。
+- 接线：Login 落 home 租户、Refresh 按 claims 租户、SwitchTenant 按**目标租户**、`/auth/me` 读 token `tenant_id`（`GetUserScoped`）、菜单生成共用同一解析器；`GetUser` 保留为未传租户的兼容入口。
+- 配置：`AUTHZ_STATIC_FALLBACK`（`config.authz.static_fallback`，默认 false）+ `.env.example` 迁移窗口说明；启动时注入 `middleware.SetAuthzStaticFallback`。
+- 测试：`middleware` 解析器 5 例（A6 跨租户/防串缓存、fail-closed、静态回退、显式撤销、super_admin）；`handlers/auth` 端点四方对拍（provider→customer 切换权限独立，`login≠switch`）；`handlers/auth/service_test.go` 仅补夹具播种（未改既有断言）。
+- 边界：请求期 `RBACMiddleware` 仍走既有角色码/DB 判定链（未动；`AUTHZ_STATIC_FALLBACK` 只管权限清单与菜单的计算源）；成员变更的显式缓存失效钩子随 membership 写入路径（IP-P1-3/5）接入。
+- 验证：`go build ./...`、gofmt 绿；`middleware`/`handlers/auth`/`handlers/common`/`router` 全绿；`service` 仅 `TestTicketService_GetMSPCustomerReports_AllocationAware` 失败——已在 `c13cc055` worktree 复现为**既有红灯**（legacy `type=msp` 夹具 vs mspguard provider 强校验），与本批无关。
+
 ---
 
 ## 5. P2 详细实施（多 provider 与治理收尾）
@@ -590,7 +599,7 @@ CREATE INDEX idx_invitations_expiry ON invitations (expires_at) WHERE status = '
 ### 6.3 P1 出口 DoD
 
 - [x] membership 表/回填/约束机制落地（v1.13，2026-09-30；customer 恰 1 条 active 由 `uq_customer_single_scope` DB 强约束 + 约束回归）；生产库巡检档案随后续部署执行 `scripts/msp/verify-membership-backfill.sql` 留档；
-- [ ] 权限 DB 单源：登录/切换/`/auth/me` 权限一致（A6）；跨租户权限互不影响；
+- [x] 权限 DB 单源（权限清单面）：登录/刷新/切换/`/auth/me`/菜单同源，跨租户权限互不影响（A6；v1.14，2026-09-30；请求期 RBAC 判定链与 `shadow`/enforce 仍按 IP-P1-7 推进）；
 - [ ] 组织多归属 + 生效期（A5）；邀请/首登链路通过；bootstrap 多租户连续成功（07:G2 关闭）；
 - [ ] RLS `shadow` 无新增错误（A7）；批量护栏通过（WB-A4）；
 - [ ] docs-gate 6/6；`make test` 全绿。
@@ -712,3 +721,4 @@ CREATE INDEX idx_invitations_expiry ON invitations (expires_at) WHERE status = '
 | v1.11 | 2026-09-30 | **IP-P0-11 执行器 ctx 统一落地（C19/C21/C22 关闭）**：`tenantctx.EnsureJobTenant` fail-closed + `SystemContext` 枚举 / `WithTenantID` 执行两段式；timer/超时扫描/自动升级/bootstrap 八类后台循环统一注入；`source=job` 审计（timer.fire/bpmn.timeout_scan/workflow.escalation）；工单指派同租户校验 + workflow/deployment 列表 fail-closed + BPMN 授权租户化 |
 | v1.12 | 2026-09-30 | **IP-P0-8 前端上下文/权限链路落地（FE-A1–A5、A7）**：`tenants[0]` 移除（作用域=服务端）；`switch-tenant` 端点修正 + store 切换链路（abort→重签→重拉 me→清缓存）+ 登出清理；菜单/能力 queryKey 按租户分键；`/403` + `RequireCapability` 分组守卫（admin/msp）；`CustomerFilter` + `/msp/workbench` 页（allowedActions 行内操作、只读态、游标）；登录页无租户面回归；FE-A6/A8 归 P1 |
 | v1.13 | 2026-09-30 | **IP-P1-1 membership 表/回填/约束落地**：`user_tenant_memberships`（目标架构 §3.2 字段 + 3 个部分唯一索引 + 复合 FK 目标）+ 幂等迁移（home/allocation 回填、D10 角色映射、`audit_logs.membership_id` 回填）+ 巡检脚本 `verify-membership-backfill.sql` + Ent schema 与约束回归；读路径仍回退 home+allocation（切换归 IP-P1-2） |
+| v1.14 | 2026-09-30 | **IP-P1-2 权限单源落地**：`middleware.ResolvePermissions`（membership.role → role_permissions，super_admin 直通，空角色=显式撤销）+ Login/Refresh/Switch/`/auth/me`/菜单同源接线（切换按目标租户，A6）；`AUTHZ_STATIC_FALLBACK` 默认 false（fail-closed，仅迁移窗口可开）；解析器 5 例 + 端点四方对拍测试；请求期 RBAC 判定链未动（后续批次） |
