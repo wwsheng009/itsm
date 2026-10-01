@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"itsm-backend/common"
+	"itsm-backend/common/tenantctx"
 	"itsm-backend/ent"
 	"itsm-backend/ent/processtask"
 	"itsm-backend/service/bpmn"
@@ -37,6 +38,11 @@ func (s *TimeoutScanner) ScanOverdueTasks(ctx context.Context, tenantID int) (in
 	if tenantID <= 0 {
 		return 0, fmt.Errorf("timeout scanner: invalid tenant ID")
 	}
+	// IP-P0-11 / §5.2：错误 ctx 不得执行其他租户的 job；执行前显式收窄。
+	if err := tenantctx.EnsureJobTenant(ctx, tenantID); err != nil {
+		return 0, fmt.Errorf("timeout scanner: %w", err)
+	}
+	ctx = tenantctx.WithTenantID(ctx, tenantID)
 
 	now := time.Now()
 	tasks, err := s.client.ProcessTask.Query().
@@ -64,6 +70,17 @@ func (s *TimeoutScanner) ScanOverdueTasks(ctx context.Context, tenantID int) (in
 		processed++
 	}
 
+	if processed > 0 {
+		RecordJobAudit(ctx, s.client, s.logger, JobAuditEntry{
+			TenantID:   tenantID,
+			Component:  "bpmn-timeout-scanner",
+			Action:     "bpmn.timeout_scan",
+			Resource:   "process_task",
+			StatusCode: 200,
+			Detail:     map[string]any{"processed": processed},
+		})
+	}
+
 	return processed, nil
 }
 
@@ -73,7 +90,11 @@ func (s *TimeoutScanner) dispatchTimeoutAction(ctx context.Context, task *ent.Pr
 		action = common.TimeoutActionNotify
 	}
 
-	taskCtx := context.WithValue(ctx, bpmn.BPMNTenantIDContextKey, tenantID)
+	// 兜底校验：直接调用方也必须 ctx 一致；随后同时注入 tenantctx 与 BPMN 专用 key。
+	if err := tenantctx.EnsureJobTenant(ctx, tenantID); err != nil {
+		return err
+	}
+	taskCtx := context.WithValue(tenantctx.WithTenantID(ctx, tenantID), bpmn.BPMNTenantIDContextKey, tenantID)
 
 	switch action {
 	case common.TimeoutActionNotify:

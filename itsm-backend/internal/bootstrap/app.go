@@ -888,18 +888,20 @@ func NewApplication() *Application {
 	// 部署到所有 active 租户,而不是硬编码 tenant_id=1。
 	common.GoSafe(func() {
 		ctx := context.Background()
+		deployCtx := tenantctx.SystemContext(ctx, "bpmn-template-bootstrap-deploy:list_tenants", "enumerate active tenants for template deployment")
 		tenants, err := client.Tenant.Query().
 			Where(tenant.StatusEQ("active")).
-			All(ctx)
+			All(deployCtx)
 		if err != nil {
 			sugar.Errorw("Failed to query tenants for BPMN template deployment", "error", err)
 			return
 		}
 		for _, t := range tenants {
-			if _, err := bpmnTemplateService.LoadAndDeployTemplates(ctx, t.ID); err != nil {
+			tenantCtx := tenantctx.WithTenantID(deployCtx, t.ID)
+			if _, err := bpmnTemplateService.LoadAndDeployTemplates(tenantCtx, t.ID); err != nil {
 				sugar.Warnw("Failed to deploy BPMN templates", "tenant_id", t.ID, "error", err)
 			}
-			if err := processBindingService.InitDefaultBindings(ctx, t.ID); err != nil {
+			if err := processBindingService.InitDefaultBindings(tenantCtx, t.ID); err != nil {
 				sugar.Warnw("Failed to init default process bindings", "tenant_id", t.ID, "error", err)
 			}
 		}
@@ -1400,8 +1402,8 @@ func NewApplication() *Application {
 		AuditLogHandler:              auditlogHandler.NewHandler(auditLogService, sugar),
 		MSPHandler: mspHandler.NewHandler(mspAllocationService, ticketService,
 			service.NewMSPWorkbenchService(client, ticketService, ticketCommentService, sugar), sugar),
-		SystemConfigHandler:          systemConfigHandler,
-		ApprovalChainHandler:         approvalChainHandler.NewHandler(approvalChainService, sugar),
+		SystemConfigHandler:  systemConfigHandler,
+		ApprovalChainHandler: approvalChainHandler.NewHandler(approvalChainService, sugar),
 
 		// Vendor Controller
 		VendorHandler: vendorHandler.NewHandler(vendorService, sugar),
@@ -1883,13 +1885,15 @@ func (app *Application) startBackgroundTasks(ctx context.Context) {
 	if app.ServiceRequestRepo != nil {
 		safeGo("service-request-approval-repair", func() {
 			repairer := service_request.NewPendingApprovalRepairer(app.ServiceRequestRepo, app.Logger)
-			tenants, err := app.DBClient.Tenant.Query().All(ctx)
+			scanCtx := tenantctx.SystemContext(ctx, "service-request-approval-repair:list_tenants", "enumerate tenants for approval repair")
+			tenants, err := app.DBClient.Tenant.Query().All(scanCtx)
 			if err != nil {
 				app.Logger.Warnw("service-request approval repair: query tenants failed", "error", err)
 				return
 			}
 			for _, t := range tenants {
-				repaired, err := repairer.RunOnce(ctx, t.ID)
+				tenantCtx := tenantctx.WithTenantID(scanCtx, t.ID)
+				repaired, err := repairer.RunOnce(tenantCtx, t.ID)
 				if err != nil {
 					app.Logger.Warnw("service-request approval repair failed", "tenant_id", t.ID, "error", err)
 					continue
@@ -1915,13 +1919,15 @@ func (app *Application) startBackgroundTasks(ctx context.Context) {
 			}
 
 			runOnce := func() {
-				tenants, err := app.DBClient.Tenant.Query().All(ctx)
+				scanCtx := tenantctx.SystemContext(ctx, "attachment-cleanup:list_tenants", "enumerate tenants for attachment cleanup")
+				tenants, err := app.DBClient.Tenant.Query().All(scanCtx)
 				if err != nil {
 					app.Logger.Warnw("attachment cleanup: query tenants failed", "error", err)
 					return
 				}
 				for _, t := range tenants {
-					res, err := app.AttachmentService.CleanupExpired(ctx, service.AttachmentCleanupOptions{
+					tenantCtx := tenantctx.WithTenantID(scanCtx, t.ID)
+					res, err := app.AttachmentService.CleanupExpired(tenantCtx, service.AttachmentCleanupOptions{
 						TenantID:  t.ID,
 						Retention: retention,
 						BatchSize: batchSize,
@@ -1961,11 +1967,13 @@ func (app *Application) startBackgroundTasks(ctx context.Context) {
 	// Embedding pipeline 后台任务
 	safeGo("embedding-pipeline", func() {
 		pipeline := service.NewEmbeddingPipeline(app.DBClient, app.Embedder, app.Logger, app.LegacyVectorStore)
+		scanCtx := tenantctx.SystemContext(ctx, "embedding-pipeline:list_tenants", "enumerate tenants for embedding pipeline")
 		// initial full-ish pass per tenant
-		tenants, err := app.DBClient.Tenant.Query().All(ctx)
+		tenants, err := app.DBClient.Tenant.Query().All(scanCtx)
 		if err == nil {
 			for _, t := range tenants {
-				if err := pipeline.RunOnce(ctx, t.ID, 200); err != nil {
+				tenantCtx := tenantctx.WithTenantID(scanCtx, t.ID)
+				if err := pipeline.RunOnce(tenantCtx, t.ID, 200); err != nil {
 					app.Logger.Warnw("embedding pipeline failed", "error", err, "tenant_id", t.ID)
 				}
 			}
@@ -1984,12 +1992,13 @@ func (app *Application) startBackgroundTasks(ctx context.Context) {
 				return
 			case <-ticker.C:
 			}
-			tenants, err := app.DBClient.Tenant.Query().All(ctx)
+			tenants, err := app.DBClient.Tenant.Query().All(scanCtx)
 			if err != nil {
 				continue
 			}
 			for _, t := range tenants {
-				if err := pipeline.RunOnce(ctx, t.ID, 50); err != nil {
+				tenantCtx := tenantctx.WithTenantID(scanCtx, t.ID)
+				if err := pipeline.RunOnce(tenantCtx, t.ID, 50); err != nil {
 					app.Logger.Warnw("embedding pipeline failed", "error", err, "tenant_id", t.ID)
 				}
 			}
@@ -2009,27 +2018,30 @@ func (app *Application) startBackgroundTasks(ctx context.Context) {
 		escalationTicker := time.NewTicker(15 * time.Minute)
 		defer escalationTicker.Stop()
 
+		scanCtx := tenantctx.SystemContext(ctx, "sla-monitor-escalation:list_tenants", "enumerate tenants for SLA and escalation checks")
 		for {
 			select {
 			case <-ctx.Done():
 				return
 			case <-slaTicker.C:
-				tenants, err := app.DBClient.Tenant.Query().All(ctx)
+				tenants, err := app.DBClient.Tenant.Query().All(scanCtx)
 				if err != nil {
 					continue
 				}
 				for _, t := range tenants {
-					if _, err := slaMonitorService.CheckSLAViolations(ctx, t.ID); err != nil {
+					tenantCtx := tenantctx.WithTenantID(scanCtx, t.ID)
+					if _, err := slaMonitorService.CheckSLAViolations(tenantCtx, t.ID); err != nil {
 						app.Logger.Warnw("SLA violation check failed", "error", err, "tenant_id", t.ID)
 					}
 				}
 			case <-escalationTicker.C:
-				tenants, err := app.DBClient.Tenant.Query().All(ctx)
+				tenants, err := app.DBClient.Tenant.Query().All(scanCtx)
 				if err != nil {
 					continue
 				}
 				for _, t := range tenants {
-					if err := escalationService.ProcessEscalations(ctx, t.ID); err != nil {
+					tenantCtx := tenantctx.WithTenantID(scanCtx, t.ID)
+					if err := escalationService.ProcessEscalations(tenantCtx, t.ID); err != nil {
 						app.Logger.Warnw("escalation processing failed", "error", err, "tenant_id", t.ID)
 					}
 				}
@@ -2045,17 +2057,19 @@ func (app *Application) startBackgroundTasks(ctx context.Context) {
 		scanner := service.NewTimeoutScanner(app.DBClient, app.Logger)
 		ticker := time.NewTicker(2 * time.Minute)
 		defer ticker.Stop()
+		scanCtx := tenantctx.SystemContext(ctx, "bpmn-timeout-scanner:list_tenants", "enumerate tenants for timeout scan")
 		for {
 			select {
 			case <-ctx.Done():
 				return
 			case <-ticker.C:
-				tenants, err := app.DBClient.Tenant.Query().All(ctx)
+				tenants, err := app.DBClient.Tenant.Query().All(scanCtx)
 				if err != nil {
 					continue
 				}
 				for _, t := range tenants {
-					processed, err := scanner.ScanOverdueTasks(ctx, t.ID)
+					tenantCtx := tenantctx.WithTenantID(scanCtx, t.ID)
+					processed, err := scanner.ScanOverdueTasks(tenantCtx, t.ID)
 					if err != nil {
 						app.Logger.Warnw("BPMN timeout scan failed", "error", err, "tenant_id", t.ID)
 						continue
@@ -2076,6 +2090,23 @@ func (app *Application) startBackgroundTasks(ctx context.Context) {
 		}
 		<-ctx.Done()
 		app.TimerScheduler.Stop()
+	})
+
+	// 自动升级任务（IP-P0-11 / 集成分析 C22）：此前 StartAutoEscalationTimer 无调用方
+	// （静默失效）。按 active 租户接线；每租户 goroutine 内注入 tenant ctx，
+	// 发生升级时落 source=job 审计（workflow.escalation）。
+	safeGo("workflow-auto-escalation", func() {
+		was := service.NewWorkflowAutomationService(app.DBClient, app.Logger)
+		scanCtx := tenantctx.SystemContext(ctx, "workflow-auto-escalation:list_tenants", "enumerate active tenants for auto escalation")
+		tenants, err := app.DBClient.Tenant.Query().Where(tenant.StatusEQ("active")).All(scanCtx)
+		if err != nil {
+			app.Logger.Warnw("workflow auto escalation: query tenants failed", "error", err)
+			return
+		}
+		for _, t := range tenants {
+			was.StartAutoEscalationTimer(ctx, t.ID)
+		}
+		<-ctx.Done()
 	})
 }
 

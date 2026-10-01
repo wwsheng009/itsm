@@ -155,6 +155,8 @@ membership（新增，统一作用域）：
 | C22 | **自动升级任务未接线**（`StartAutoEscalationTimer` 无调用方） | `service/workflow_automation_service.go:143,458` | ❌ 功能实际不运行（静默失效） |
 | C23 | 正确样板：commandbus claim 用 `SystemContext`，执行前 `WithTenantID(claimed.TenantID)` 收窄 | `internal/commandbus/commandbus.go:195,241` | ✅ **所有执行器应对齐此模式** |
 
+> **处置（2026-09-30，IP-P0-11）**：C19/C21/C22 关闭 —— timer/超时扫描/自动升级/bootstrap 后台循环统一 `SystemContext`（枚举）+ `WithTenantID`（执行），入口 `tenantctx.EnsureJobTenant` fail-closed（错误 ctx 拒绝），`source=job` 审计落 `timer.fire`/`bpmn.timeout_scan`/`workflow.escalation`；C20（CASFire 租户参数）为纵深项留后续（timerID 全局唯一，风险有限）。
+
 ### 5.2 目标模式（执行器租户上下文规范）
 
 ```text
@@ -195,6 +197,8 @@ membership（新增，统一作用域）：
 | 4 | Skill 入参可覆盖租户 | `handlers/skill/handler.go:456-460` | 强制覆写上下文租户；不一致拒绝 |
 | 5 | 自动升级任务静默失效 | `workflow_automation_service.go:458` | 接线 + 补租户 ctx（对齐 commandbus 样板） |
 | 6 | 组织/项目全局唯一键（跨租户冲突+可枚举） | `project.go:24`、`user.go:22-27,48-51` | `project.code` → `(tenant_id, code)`；账号唯一性按既定 Q3 决策保持（见 §10 INT-D2） |
+
+> **处置（2026-09-30，IP-P0-11）**：1（工单指派同租户校验）、2（BPMN 授权去重键含 tenant + 授予强制 ctx 租户）、3（`ListWorkflows`/`ListDeployments` fail-closed）、5（自动升级接线 + 租户 ctx + `source=job` 审计）已闭环；4（`handlers/skill` 入参覆盖租户）另行复核。
 
 ### 7.2 🟡 P1：结构性改造（与 membership 化同批）
 

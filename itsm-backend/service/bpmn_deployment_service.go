@@ -194,12 +194,11 @@ func (s *BPMNDeploymentService) GetDeployment(ctx context.Context, deploymentID 
 
 // ListDeployments 获取部署记录列表
 func (s *BPMNDeploymentService) ListDeployments(ctx context.Context, req *ListDeploymentsRequest) ([]*ent.ProcessDeployment, int, error) {
-	query := s.client.ProcessDeployment.Query()
-
-	// 添加租户过滤
-	if req.TenantID > 0 {
-		query = query.Where(processdeployment.TenantID(req.TenantID))
+	// IP-P0-11：列表查询 fail-closed —— 缺少租户即拒绝（禁止全租户列表）。
+	if req.TenantID <= 0 {
+		return nil, 0, fmt.Errorf("tenant_id required for deployment list (fail-closed)")
 	}
+	query := s.client.ProcessDeployment.Query().Where(processdeployment.TenantID(req.TenantID))
 
 	// 添加状态过滤 - ProcessDeployment没有Status字段，使用IsActive代替
 	if req.Status != "" {

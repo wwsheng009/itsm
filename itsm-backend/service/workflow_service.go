@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"time"
 
 	"itsm-backend/ent"
@@ -62,7 +63,11 @@ func (s *WorkflowService) GetWorkflow(ctx context.Context, id int, tenantID int)
 
 // ListWorkflows 获取工作流列表
 func (s *WorkflowService) ListWorkflows(ctx context.Context, req *ListWorkflowsRequest) ([]*ent.Workflow, int, error) {
-	query := s.client.Workflow.Query()
+	// IP-P0-11：列表查询 fail-closed —— 缺少租户即拒绝（禁止全租户列表）。
+	if req.TenantID <= 0 {
+		return nil, 0, fmt.Errorf("tenant_id required for workflow list (fail-closed)")
+	}
+	query := s.client.Workflow.Query().Where(workflow.TenantID(req.TenantID))
 
 	// 应用过滤条件
 	if req.Type != "" {
@@ -71,10 +76,6 @@ func (s *WorkflowService) ListWorkflows(ctx context.Context, req *ListWorkflowsR
 	if req.IsActive != nil {
 		query = query.Where(workflow.IsActive(*req.IsActive))
 	}
-	if req.TenantID > 0 {
-		query = query.Where(workflow.TenantID(req.TenantID))
-	}
-
 	// 获取总数
 	total, err := query.Count(ctx)
 	if err != nil {

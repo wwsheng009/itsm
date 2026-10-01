@@ -55,13 +55,26 @@ const (
 
 // GrantPermission 授予权限
 func (s *BPMNPermissionService) GrantPermission(ctx context.Context, req *GrantPermissionRequest) (*ent.BPMNPermission, error) {
-	// 检查权限是否已存在
+	// IP-P0-11：授予强制 ctx 租户；ctx 与请求声明的租户不一致时拒绝（禁止跨租户覆写）。
+	tenantID := req.TenantID
+	if v, ok := ctx.Value(bpmn.BPMNTenantIDContextKey).(int); ok && v > 0 {
+		if tenantID > 0 && tenantID != v {
+			return nil, fmt.Errorf("tenant mismatch: request=%d ctx=%d", tenantID, v)
+		}
+		tenantID = v
+	}
+	if tenantID <= 0 {
+		return nil, fmt.Errorf("tenant_id required to grant permission")
+	}
+
+	// 检查权限是否已存在（去重键含 tenant）
 	existing, err := s.client.BPMNPermission.Query().
 		Where(bpmnpermission.ResourceType(req.ResourceType)).
 		Where(bpmnpermission.ResourceID(req.ResourceID)).
 		Where(bpmnpermission.PrincipalType(req.PrincipalType)).
 		Where(bpmnpermission.PrincipalID(req.PrincipalID)).
 		Where(bpmnpermission.PermissionType(req.PermissionType)).
+		Where(bpmnpermission.TenantID(tenantID)).
 		First(ctx)
 	if err == nil {
 		// 权限已存在，更新
@@ -87,7 +100,7 @@ func (s *BPMNPermissionService) GrantPermission(ctx context.Context, req *GrantP
 		SetConditions(req.Conditions).
 		SetFieldPermissions(req.FieldPermissions).
 		SetDescription(req.Description).
-		SetTenantID(req.TenantID)
+		SetTenantID(tenantID)
 	if !req.ExpiresAt.IsZero() {
 		create = create.SetExpiresAt(req.ExpiresAt)
 	}

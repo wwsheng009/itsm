@@ -7,6 +7,7 @@ import (
 	"sync"
 	"time"
 
+	"itsm-backend/common/tenantctx"
 	"itsm-backend/ent"
 	"itsm-backend/metrics"
 
@@ -208,6 +209,12 @@ func (s *TimerScheduler) fireCallback(ctx context.Context, record *TimerRecord) 
 	}
 
 	if s.callback != nil {
+		// IP-P0-11 / §5.2：执行前按 timer 租户收窄 ctx（fail-closed）；
+		// CASFire/领取仍是系统枚举（SystemContext 由恢复/同步入口声明）。
+		if record.TenantID <= 0 {
+			s.logger.Errorf("timer callback rejected: tenant_id missing for timer %s", record.TimerID)
+			return
+		}
 		callbackRecord := &TimerRecord{
 			TimerID:              dbTimer.TimerID,
 			TimerType:            dbTimer.TimerType,
@@ -221,7 +228,8 @@ func (s *TimerScheduler) fireCallback(ctx context.Context, record *TimerRecord) 
 			ContextVariables:     dbTimer.ContextVariables,
 		}
 
-		if err := s.callback(ctx, callbackRecord); err != nil {
+		fireCtx := tenantctx.WithTenantID(ctx, dbTimer.TenantID)
+		if err := s.callback(fireCtx, callbackRecord); err != nil {
 			s.logger.Errorf("timer callback failed for %s: %v", record.TimerID, err)
 			metrics.TimerFiredTotal.WithLabelValues(record.TimerType, "failed", strconv.Itoa(record.TenantID)).Inc()
 			s.handleFireFailure(ctx, record, err)
@@ -282,7 +290,8 @@ func (s *TimerScheduler) handleFireFailure(ctx context.Context, record *TimerRec
 }
 
 func (s *TimerScheduler) recover(ctx context.Context) error {
-	tenants, err := s.listTenants(ctx)
+	recoverCtx := tenantctx.SystemContext(ctx, "timer-scheduler:recover", "enumerate tenants to recover pending timers")
+	tenants, err := s.listTenants(recoverCtx)
 	if err != nil {
 		return fmt.Errorf("failed to list tenants for recovery: %w", err)
 	}
@@ -291,14 +300,15 @@ func (s *TimerScheduler) recover(ctx context.Context) error {
 	totalRecovered := 0
 
 	for _, tenantID := range tenants {
-		overdue, err := s.store.FindPendingDue(ctx, tenantID, now)
+		tenantCtx := tenantctx.WithTenantID(recoverCtx, tenantID)
+		overdue, err := s.store.FindPendingDue(tenantCtx, tenantID, now)
 		if err != nil {
 			s.logger.Errorf("recovery: failed to find overdue timers for tenant %d: %v", tenantID, err)
 			continue
 		}
 		for _, timer := range overdue {
 			record := entTimerToRecord(timer)
-			if err := s.Schedule(ctx, record); err != nil {
+			if err := s.Schedule(tenantCtx, record); err != nil {
 				s.logger.Errorf("recovery: failed to schedule overdue timer %s: %v", timer.TimerID, err)
 				continue
 			}
@@ -307,21 +317,21 @@ func (s *TimerScheduler) recover(ctx context.Context) error {
 			metrics.TimerRecoveryTotal.WithLabelValues(strconv.Itoa(tenantID)).Inc()
 		}
 
-		future, err := s.store.FindPendingFuture(ctx, tenantID, now)
+		future, err := s.store.FindPendingFuture(tenantCtx, tenantID, now)
 		if err != nil {
 			s.logger.Errorf("recovery: failed to find future timers for tenant %d: %v", tenantID, err)
 			continue
 		}
 		for _, timer := range future {
 			record := entTimerToRecord(timer)
-			if err := s.Schedule(ctx, record); err != nil {
+			if err := s.Schedule(tenantCtx, record); err != nil {
 				s.logger.Errorf("recovery: failed to schedule future timer %s: %v", timer.TimerID, err)
 				continue
 			}
 			totalRecovered++
 		}
 
-		staleFired, err := s.store.FindFiredStale(ctx, now.Add(-5*time.Minute))
+		staleFired, err := s.store.FindFiredStale(tenantCtx, now.Add(-5*time.Minute))
 		if err != nil {
 			s.logger.Errorf("recovery: failed to find stale fired timers: %v", err)
 			continue
@@ -353,14 +363,16 @@ func (s *TimerScheduler) periodicSync(ctx context.Context) {
 
 func (s *TimerScheduler) syncWithDB(ctx context.Context) {
 	now := s.now()
-	tenants, err := s.listTenants(ctx)
+	syncCtx := tenantctx.SystemContext(ctx, "timer-scheduler:sync", "enumerate tenants for periodic timer sync")
+	tenants, err := s.listTenants(syncCtx)
 	if err != nil {
 		s.logger.Errorf("periodic sync: failed to list tenants: %v", err)
 		return
 	}
 
 	for _, tenantID := range tenants {
-		overdue, err := s.store.FindPendingDue(ctx, tenantID, now)
+		tenantCtx := tenantctx.WithTenantID(syncCtx, tenantID)
+		overdue, err := s.store.FindPendingDue(tenantCtx, tenantID, now)
 		if err != nil {
 			s.logger.Errorf("periodic sync: failed to find overdue timers for tenant %d: %v", tenantID, err)
 			continue
@@ -371,7 +383,7 @@ func (s *TimerScheduler) syncWithDB(ctx context.Context) {
 			s.mu.Unlock()
 			if !exists {
 				record := entTimerToRecord(timer)
-				if err := s.Schedule(ctx, record); err != nil {
+				if err := s.Schedule(tenantCtx, record); err != nil {
 					s.logger.Errorf("periodic sync: failed to schedule timer %s: %v", timer.TimerID, err)
 				}
 			}
@@ -381,7 +393,7 @@ func (s *TimerScheduler) syncWithDB(ctx context.Context) {
 		// 触发后重排的下一跳等）必须在其 fire_at 之前进入内存调度器，
 		// 否则只能等它逾期后才被上面的 overdue 分支拾起（触发时间漂移到下一个 tick）。
 		// 窗口取 2 倍 tick 以保证"在 fire_at 之前至少被扫描到一次"。
-		future, err := s.store.FindPendingFuture(ctx, tenantID, now)
+		future, err := s.store.FindPendingFuture(tenantCtx, tenantID, now)
 		if err != nil {
 			s.logger.Errorf("periodic sync: failed to find future timers for tenant %d: %v", tenantID, err)
 			continue
@@ -397,7 +409,7 @@ func (s *TimerScheduler) syncWithDB(ctx context.Context) {
 			if exists {
 				continue
 			}
-			if err := s.Schedule(ctx, entTimerToRecord(timer)); err != nil {
+			if err := s.Schedule(tenantCtx, entTimerToRecord(timer)); err != nil {
 				s.logger.Errorf("periodic sync: failed to schedule future timer %s: %v", timer.TimerID, err)
 			}
 		}

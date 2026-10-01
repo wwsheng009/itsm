@@ -483,8 +483,22 @@ func (s *TicketAssignmentService) GetTeamWorkload(ctx context.Context, tenantID 
 
 // ReassignTicket 重新分配工单
 func (s *TicketAssignmentService) ReassignTicket(ctx context.Context, ticketID int, newAssigneeID int, reason string) error {
+	// IP-P0-11：跨租户指派 fail-closed —— 处理人必须与工单同租户。
+	tk, err := s.client.Ticket.Get(ctx, ticketID)
+	if err != nil {
+		return fmt.Errorf("重新分配失败: %w", err)
+	}
+	assignee, err := s.client.User.Get(ctx, newAssigneeID)
+	if err != nil {
+		return fmt.Errorf("处理人不存在: %w", err)
+	}
+	if assignee.TenantID != tk.TenantID {
+		return fmt.Errorf("跨租户指派被拒: 处理人租户(%d)与工单租户(%d)不一致", assignee.TenantID, tk.TenantID)
+	}
+
 	// 更新工单分配人
-	err := s.client.Ticket.UpdateOneID(ticketID).
+	err = s.client.Ticket.UpdateOneID(ticketID).
+		Where(ticket.TenantIDEQ(tk.TenantID)).
 		SetAssigneeID(newAssigneeID).
 		Exec(ctx)
 	if err != nil {
@@ -567,20 +581,27 @@ func (s *TicketAssignmentService) AssignTickets(ctx context.Context, tenantID in
 		return nil
 	}
 
-	// 验证用户是否存在
-	_, err := s.client.User.Get(ctx, assigneeID)
+	// 验证用户存在且属于目标租户（IP-P0-11：禁止跨租户指派）。
+	assignee, err := s.client.User.Get(ctx, assigneeID)
 	if err != nil {
 		return fmt.Errorf("用户不存在: %w", err)
 	}
+	if assignee.TenantID != tenantID {
+		return fmt.Errorf("跨租户指派被拒: 处理人租户(%d)与目标租户(%d)不一致", assignee.TenantID, tenantID)
+	}
 
-	// 批量更新工单分配人
+	// 批量更新工单分配人：租户条件收窄，租户不符的工单跳过（不越权改写）。
 	for _, ticketID := range ticketIDs {
-		err := s.client.Ticket.UpdateOneID(ticketID).
+		affected, err := s.client.Ticket.Update().
+			Where(ticket.IDEQ(ticketID), ticket.TenantIDEQ(tenantID)).
 			SetAssigneeID(assigneeID).
-			Exec(ctx)
+			Save(ctx)
 		if err != nil {
 			s.logger.Errorw("Failed to assign ticket", "ticketID", ticketID, "error", err)
 			continue
+		}
+		if affected == 0 {
+			s.logger.Warnw("Ticket assignment skipped: tenant mismatch or missing", "ticketID", ticketID, "tenant_id", tenantID)
 		}
 	}
 

@@ -141,6 +141,11 @@ func (was *WorkflowAutomationService) SmartRouteTask(ctx context.Context, task *
 
 // CheckAutoEscalation 检查自动升级
 func (was *WorkflowAutomationService) CheckAutoEscalation(ctx context.Context, tenantID int) error {
+	// IP-P0-11 / §5.2：执行前 fail-closed 校验 + 显式租户 ctx 收窄。
+	if err := tenantctx.EnsureJobTenant(ctx, tenantID); err != nil {
+		return fmt.Errorf("auto escalation rejected: %w", err)
+	}
+	ctx = tenantctx.WithTenantID(ctx, tenantID)
 	was.logger.Infow("Checking auto escalation", "tenant_id", tenantID)
 
 	// 查询待处理的任务
@@ -171,6 +176,11 @@ func (was *WorkflowAutomationService) CheckAutoEscalation(ctx context.Context, t
 
 	// 检查每个任务是否需要升级
 	for _, task := range tasks {
+		if task.TenantID != tenantID {
+			// 防御性校验：查询已按租户收窄，此处拒绝任何越租户脏数据。
+			was.logger.Warnw("auto escalation skipped task with mismatched tenant", "task_id", task.TaskID, "task_tenant_id", task.TenantID, "tenant_id", tenantID)
+			continue
+		}
 		for _, rule := range sortedRules {
 			if !rule.IsActive {
 				continue
@@ -191,6 +201,16 @@ func (was *WorkflowAutomationService) CheckAutoEscalation(ctx context.Context, t
 	}
 
 	was.logger.Infow("Auto escalation check completed", "escalated_count", escalatedCount, "tenant_id", tenantID)
+	if escalatedCount > 0 {
+		RecordJobAudit(ctx, was.client, was.logger, JobAuditEntry{
+			TenantID:   tenantID,
+			Component:  "workflow-automation",
+			Action:     "workflow.escalation",
+			Resource:   "workflow_task",
+			StatusCode: 200,
+			Detail:     map[string]any{"escalated_count": escalatedCount},
+		})
+	}
 	return nil
 }
 

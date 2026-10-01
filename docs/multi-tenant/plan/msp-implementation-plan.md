@@ -419,6 +419,18 @@ C2 · 客户租户内 msp 角色基线（Q7 合同形态 → 客户侧业务权�
 **验收**：跨租户 ctx 用例全过（错误 ctx 执行被拒）；`source=job` 审计可查；集成分析 §5.2 项关闭；A7 前置条件满足。
 
 **回滚**：ctx 注入为增量逻辑；异常时按租户关闭自动化入口（feature flag）。
+
+**进度（2026-09-30）**：✅ 执行器/定时器租户 ctx 统一落地；`source=job` 审计可查。
+
+- 统一模式（§5.2）：新增 `tenantctx.EnsureJobTenant` —— 任务租户必须 >0、ctx 租户不符即拒绝（系统旁路不豁免执行期 mismatch）；跨租户**枚举/领取**用 `SystemContext` 显式声明，**执行前** `WithTenantID(task.TenantID)` 收窄。
+- 写入路径：
+  - Timer：调度器 fire 回调按 timer 租户注入 ctx；`TimerEventHandler` 入口 guard + `tenantctx` + BPMN key，落 `timer.fire`（source=job）；
+  - 超时扫描：`TimeoutScanner` 入口 guard + 逐租户 ctx（BPMN key 同步），批量处理落 `bpmn.timeout_scan`；
+  - 自动升级：`workflow_automation` guard + 任务租户一致性防御；**`StartAutoEscalationTimer` 接线**（集成分析 C22 关闭，此前无调用方静默失效），升级发生落 `workflow.escalation`；
+  - bootstrap 后台循环（模板部署/审批自愈/附件清理/嵌入管线/SLA/升级/超时扫描/自动升级）逐租户注入 ctx，枚举统一 `SystemContext`（C21 关闭）。
+- 安全修复（§7.1）：工单指派 fail-closed（`ReassignTicket`/`AssignTickets` 校验处理人与工单同租户、批量按租户收窄）；`ListWorkflows`/`ListDeployments` fail-closed（缺租户即拒绝）；BPMN 授权去重键含 tenant + 授予强制 ctx 租户（跨租户覆写被拒）。
+- 测试：`tenantctx` 守卫单测；timer/scanner/auto-escalation 错误 ctx 拒绝与 `source=job` 审计断言；既有超时/指派/部署/权限套件回归。
+- 遗留：C20（`CASFire` 无租户参数）为纵深项，timerID 全局唯一风险有限，不阻塞 A7；`handlers/skill` 入参租户覆盖（§7.1-4）另行复核。
 ---
 
 ## 4. P1 详细实施（Membership 化）
@@ -549,7 +561,7 @@ CREATE INDEX idx_invitations_expiry ON invitations (expires_at) WHERE status = '
 
 - [ ] **安全**：未分配客户在头/路径/请求体/切换 4 通道均 403（含 `MSP_ALLOCATION_REQUIRED` 错误码；R9/R10 关闭）；头/JWT 冲突 401 + 告警（`07:G9` 关闭）；
 - [ ] **缓存隔离**：`itsm-backend/cache/` 逐 key 审查完成、跨租户 key 修复 + 单测（`07:G8` 关闭，IP-P0-2 步骤 6）；
-- [ ] **执行器/定时器**：后台任务/自动化在显式租户 ctx 下运行、错误 ctx 被拒、`source=job` 可审计（IP-P0-11）；
+- [x] **执行器/定时器**：后台任务/自动化在显式租户 ctx 下运行、错误 ctx 被拒、`source=job` 可审计（IP-P0-11，2026-09-30）；
 - [x] **功能（后端）**：工作台 list/summary/reply/status 落地 + 条目级授权链 + `allowedActions[]` + 逐条审计（2026-09-30）；前端入口/行内操作/双态指示（WB-A2/A6 前端面）归 IP-P0-8；批量（WB-A4）留 P1；
 - [x] **登录/会话**：provider 登录落 provider 家；切换/刷新/撤销契约通过（F5/F6/F9/F10/F11a/F12 后端，2026-09-30；F11b/c 前端/权限行归 IP-P0-8/9）；
 - [x] **建号**：三通道 `UserProvisioningService` 生效；`07:G1`/K4 关闭（2026-09-30）；角色白名单与注册白名单生效（`07:G2` 归 IP-P1-5）；
@@ -680,3 +692,4 @@ CREATE INDEX idx_invitations_expiry ON invitations (expires_at) WHERE status = '
 | v1.8 | 2026-09-30 | **IP-P0-9 角色供给显式化落地（K1/K2/07:G3 关闭）**：5 个 `msp_*` 入内置词表 + seeder 角色种子；`middleware.RoleRank` 单源（登录取主角色/MSP 映射 rank 更高者）；脚本 §5 降级为校验 + `MSP_ROLE_SQL_FALLBACK` 兜底；tests/parity 矩阵对拍守卫 |
 | v1.9 | 2026-09-30 | **IP-P0-7 工作台后端落地**：列表/summary/reply/status 四端点 + 条目级授权链 + `allowedActions[]` + per-tenant 复合游标 + 逐条审计（source=workbench/target_tenant）+ 工作台索引 DDL；前端链路归 IP-P0-8 |
 | v1.10 | 2026-09-30 | **IP-P0-10 审计统一落地**：`audit_logs` 四列（actor_account/membership_id/target_tenant_id/source）+ `idx_audit_scope`；事件目录 `auth.login`/`tenant.switch(-_denied)`/`tenant.scope_denied`/`workbench.action`/`user.provision` 与 source 枚举写入；审计查询支持 targetTenantId/source（legacy=历史 NULL）/actorAccount；`membership_id` 填充随 IP-P1-1 |
+| v1.11 | 2026-09-30 | **IP-P0-11 执行器 ctx 统一落地（C19/C21/C22 关闭）**：`tenantctx.EnsureJobTenant` fail-closed + `SystemContext` 枚举 / `WithTenantID` 执行两段式；timer/超时扫描/自动升级/bootstrap 八类后台循环统一注入；`source=job` 审计（timer.fire/bpmn.timeout_scan/workflow.escalation）；工单指派同租户校验 + workflow/deployment 列表 fail-closed + BPMN 授权租户化 |

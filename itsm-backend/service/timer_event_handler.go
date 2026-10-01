@@ -8,6 +8,7 @@ import (
 
 	"go.uber.org/zap"
 
+	"itsm-backend/common/tenantctx"
 	"itsm-backend/ent"
 	"itsm-backend/ent/processinstance"
 	"itsm-backend/ent/processtask"
@@ -44,6 +45,31 @@ func (h *TimerEventHandler) Callback() TimerFireCallback {
 func (h *TimerEventHandler) HandleTimerFire(ctx context.Context, timer *TimerRecord) error {
 	if timer == nil {
 		return fmt.Errorf("timer record is nil")
+	}
+
+	// IP-P0-11 / 集成分析 §5.2：执行前 fail-closed 校验 + 显式租户 ctx 收窄。
+	// 错误 ctx（租户不符）或缺失租户身份的 timer 一律拒绝，禁止裸执行。
+	if err := tenantctx.EnsureJobTenant(ctx, timer.TenantID); err != nil {
+		h.logger.Errorw("Timer fire rejected by tenant guard",
+			"timer_id", timer.TimerID, "tenant_id", timer.TenantID, "error", err)
+		return fmt.Errorf("timer fire rejected: %w", err)
+	}
+	ctx = tenantctx.WithTenantID(ctx, timer.TenantID)
+	ctx = context.WithValue(ctx, bpmn.BPMNTenantIDContextKey, timer.TenantID)
+	if h.engine != nil && h.engine.client != nil {
+		RecordJobAudit(ctx, h.engine.client, h.logger, JobAuditEntry{
+			TenantID:   timer.TenantID,
+			Component:  "timer-scheduler",
+			Action:     "timer.fire",
+			Resource:   "process_timer",
+			StatusCode: 200,
+			Detail: map[string]any{
+				"timer_id":            timer.TimerID,
+				"timer_type":          timer.TimerType,
+				"process_instance_id": timer.ProcessInstanceID,
+				"activity_id":         timer.ActivityID,
+			},
+		})
 	}
 
 	h.logger.Infow("Timer event fired",
@@ -209,7 +235,7 @@ func (h *TimerEventHandler) handleStartTimer(ctx context.Context, timer *TimerRe
 		return fmt.Errorf("start timer: query existing instance: %w", err)
 	}
 
-	// StartProcess 强制要求租户上下文（fail-closed，P1-4）
+	// StartProcess 强制要求租户上下文（fail-closed，P1-4）；tenantctx 已在入口注入。
 	workflowCtx := context.WithValue(ctx, bpmn.BPMNTenantIDContextKey, timer.TenantID)
 
 	variables := map[string]interface{}{
