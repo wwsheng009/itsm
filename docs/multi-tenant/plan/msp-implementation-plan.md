@@ -582,6 +582,14 @@ CREATE INDEX idx_invitations_expiry ON invitations (expires_at) WHERE status = '
 - 测试：`TestBootstrapToken_MultiTenantAdminsDoNotCollide`（连续 2 租户 bootstrap 成功 + 身份/首登标志断言）、`TestCreateFirstAdmin_IdempotentAndTenantScoped`、`TestChangePassword_FlowAndFlagClear`；build/migration-lint/docs-gate 全绿。
 - 边界：前端强制改密路由归 IP-P1-4c（与邀请落地页同批）；`07:G4/G5/G6`（供给可复现性）仍按 P1 排期。
 
+**进度（2026-09-30）**：✅ **IP-P1-4c 前端落地页与强制改密 UI**（前端部分）。
+
+- 公开邀请落地页 `/invite?token=...`：`AuthService.inspectInvitation` 回显（租户/脱敏邮箱/角色/状态）→ 设置密码（强度条 + 二次确认）→ `acceptInvitation` 激活 → 引导登录；失效/过期/撤销给出可读原因。
+- 首登强制改密：登录与 `/auth/me` 下发 `mustChangePassword`（`toUserDomain`/`session-mappers`/`AuthService.login` 全链路映射）；`RequireAuth` 对未改密用户把所有受保护路由收敛到 `/change-password`（放行改密页防自锁）；改密页 `changePassword` 成功后清本地标志并回 `/dashboard`。
+- 路由：`vite-route-map.csv` 增 `/invite`（(auth)）与 `/change-password`（(main)），`gen_routes.py` 重生成 `route-paths.ts`；`routes/index.tsx` 手工增量（保留 IP-P0-8 分组守卫结构）。
+- 测试：`guards-must-change-password.test.tsx` 3 用例（收敛/自锁豁免/放行）；`tsc --noEmit` 0 错误；`guards`、`auth-service` 既有套件回归通过。
+- 边界：浏览器级 invite→首登 e2e 与个人中心改密入口待环境联跑（Playwright 需后端+DB）。
+
 ---
 
 ## 5. P2 详细实施（多 provider 与治理收尾）
@@ -757,3 +765,4 @@ CREATE INDEX idx_invitations_expiry ON invitations (expires_at) WHERE status = '
 | v1.17 | 2026-09-30 | **IP-P1-4a 邀请生命周期（服务层）**：`invitations` 表（§4.0-C）+ 迁移 20260507 + `InvitationService`（创建/接受/撤销/回显；token 仅存 sha256、重发失效、事务建号 + membership source=invite、审计 user.invite / user.invite_accept）+ 5 组测试；路由/落地页归 IP-P1-4b |
 | v1.18 | 2026-09-30 | **IP-P1-4b 邀请 API（后端闭环）**：`handlers/invitation` 四端点（创建/撤销认证 + `user:write`；落地页/接受公开 + 限流）+ 邀请域错误码映射 + bootstrap 装配；HTTP 契约测试与路由契约测试全绿；前端落地页/e2e 归 IP-P1-4c |
 | v1.19 | 2026-09-30 | **IP-P1-5 首登与 bootstrap 租户化**：账号策略 `admin-<tenantCode>`（token/break-glass/provision_tenant 三通道同口径，`07:G2` 关闭）；users `must_change_password` + `last_active_tenant_id`（迁移 20260508）；登录下发 `mustChangePassword` + `POST /auth/change-password` 自助改密；`cmd/initialize` 租户定位与身份覆盖、`provision_tenant -create-admin` 幂等通道；4 组回归用例 |
+| v1.20 | 2026-09-30 | **IP-P1-4c 前端落地页与强制改密 UI**：`/invite` 邀请落地页（回显→设密→激活→登录）、`/change-password` 改密页、`RequireAuth` 强制收敛、`mustChangePassword` 全链路映射；路由 CSV + 重生成 + 守卫测试 3 用例；tsc/jest 绿；e2e 待联跑 |

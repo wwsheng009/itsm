@@ -196,6 +196,8 @@ export interface User {
   mspRole?: string;
   department?: string;
   permissions?: string[];
+  /** IP-P1-5：首登强制改密标志（登录/`/auth/me` 下发；改密成功后清除）。 */
+  mustChangePassword?: boolean;
   createdAt?: string;
   updatedAt?: string;
 }

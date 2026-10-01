@@ -93,6 +93,7 @@ const CmdbRegistry = lazy(() => import('@/pages/(main)/cmdb/registry/index'));
 const CmdbRelationships = lazy(() => import('@/pages/(main)/cmdb/relationships/index'));
 const CmdbTopology = lazy(() => import('@/pages/(main)/cmdb/topology/index'));
 const Dashboard = lazy(() => import('@/pages/(main)/dashboard/index'));
+const ChangePassword = lazy(() => import('@/pages/(main)/change-password/index'));
 const EmailIntake = lazy(() => import('@/pages/(main)/email-intake/index'));
 const EmailIntakeContracts = lazy(() => import('@/pages/(main)/email-intake/contracts/index'));
 const EmailIntakeCustomers = lazy(() => import('@/pages/(main)/email-intake/customers/index'));
@@ -101,6 +102,7 @@ const EmailIntakeSources = lazy(() => import('@/pages/(main)/email-intake/source
 const EnterpriseDepartments = lazy(() => import('@/pages/(main)/enterprise/departments/index'));
 const EnterpriseTeams = lazy(() => import('@/pages/(main)/enterprise/teams/index'));
 const ForgotPassword = lazy(() => import('@/pages/(auth)/forgot-password/index'));
+const Invite = lazy(() => import('@/pages/(auth)/invite/index'));
 const Improvements = lazy(() => import('@/pages/(main)/improvements/index'));
 const ImprovementsId = lazy(() => import('@/pages/(main)/improvements/$id/index'));
 const ImprovementsNew = lazy(() => import('@/pages/(main)/improvements/new/index'));
@@ -204,6 +206,7 @@ export const routes: RouteObject[] = [
             element: <AuthLayout />,
             children: [
           { path: 'forgot-password', element: lazyElement(ForgotPassword) },
+          { path: 'invite', element: lazyElement(Invite) },
           { path: 'login', element: lazyElement(Login) },
           { path: 'register', element: lazyElement(Register) },
           { path: 'reset-password', element: lazyElement(ResetPassword) },
@@ -233,6 +236,8 @@ export const routes: RouteObject[] = [
             ],
           },
           { path: '403', element: lazyElement(Forbidden) },
+          // IP-P1-5：首登强制改密的收敛页（RequireAuth 会拦截未改密用户到此处）
+          { path: 'change-password', element: lazyElement(ChangePassword) },
           {
             element: <RequireCapability anyOf={ADMIN_AREA_PERMISSIONS} />,
             children: [

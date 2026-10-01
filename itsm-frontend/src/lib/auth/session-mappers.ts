@@ -13,6 +13,7 @@ export function mapServerUser(raw: unknown): User {
     name: String(src.name || ''),
     tenantId: src.tenantId ? Number(src.tenantId) : undefined,
     role: String(src.role || 'end_user'),
+    mustChangePassword: Boolean(src.mustChangePassword),
     mspRole: typeof src.mspRole === 'string' ? src.mspRole : undefined,
     department: typeof src.department === 'string' ? src.department : undefined,
     permissions: Array.isArray(src.permissions) ? (src.permissions as string[]) : undefined,

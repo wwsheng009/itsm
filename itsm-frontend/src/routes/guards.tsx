@@ -42,6 +42,13 @@ export function RequireAuth(): ReactElement {
     return <Navigate to={`/login?redirect=${redirect}`} replace />;
   }
 
+  // IP-P1-5：首登强制改密——bootstrap 管理员（或任何 must_change_password 用户）
+  // 在改密完成前只能停留在 /change-password，其余受保护路由一律收敛回改密页。
+  const mustChangePassword = useAuthStore.getState().user?.mustChangePassword === true;
+  if (mustChangePassword && location.pathname !== '/change-password') {
+    return <Navigate to='/change-password' replace />;
+  }
+
   return <Outlet />;
 }
 

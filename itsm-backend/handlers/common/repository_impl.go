@@ -42,6 +42,8 @@ func toUserDomain(e *ent.User) *User {
 		DepartmentID: e.DepartmentID,
 		Phone:        e.Phone,
 		Active:       e.Active,
+		// IP-P1-5：首登强制改密随 /auth/me 下发（前端刷新后仍能收敛到改密页）。
+		MustChangePassword: e.MustChangePassword,
 		TenantID:     e.TenantID,
 		CreatedAt:    e.CreatedAt,
 		UpdatedAt:    e.UpdatedAt,

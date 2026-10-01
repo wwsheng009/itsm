@@ -3,6 +3,8 @@
 /login,src/app/(auth)/login/page.tsx,/login,@/pages/(auth)/login/index,(auth),,,,/login
 /register,src/app/(auth)/register/page.tsx,/register,@/pages/(auth)/register/index,(auth),,,,/register
 /reset-password,src/app/(auth)/reset-password/page.tsx,/reset-password,@/pages/(auth)/reset-password/index,(auth),,,,/reset-password
+/invite,src/app/(auth)/invite/page.tsx,/invite,@/pages/(auth)/invite/index,(auth),,,,/invite
+/change-password,src/app/(main)/change-password/page.tsx,/change-password,@/pages/(main)/change-password/index,(main),,,,/change-password
 /sso/callback,src/app/(auth)/sso/callback/page.tsx,/sso/callback,@/pages/(auth)/sso/callback/index,(auth),,,,/sso/callback
 /admin/approval-chains,src/app/(main)/admin/approval-chains/page.tsx,/admin/approval-chains,@/pages/(main)/admin/approval-chains/index,(main),,,,/admin/approval-chains
 /admin/approvals,src/app/(main)/admin/approvals/page.tsx,/admin/approvals,@/pages/(main)/admin/approvals/index,(main),,,,/admin/approvals

@@ -299,6 +299,8 @@ export class AuthService {
               : undefined,
           department: u?.department,
           permissions: u?.permissions,
+          // IP-P1-5：首登强制改密标志（登录下发；改密成功后清除）
+          mustChangePassword: Boolean(u?.mustChangePassword),
           createdAt: u?.createdAt || u?.createdAt,
           updatedAt: u?.updatedAt || u?.updatedAt,
         },
@@ -429,6 +431,56 @@ export class AuthService {
       return false;
     }
   }
+
+  /**
+   * IP-P1-5 自助改密（认证后）：旧密码校验 + 服务端密码策略；成功后后端清除
+   * must_change_password 标志。
+   */
+  static async changePassword(params: { oldPassword: string; newPassword: string }): Promise<void> {
+    await this.makeRequest<{ mustChangePassword: boolean }>('/api/v1/auth/change-password', {
+      method: 'POST',
+      body: JSON.stringify(params),
+    });
+  }
+
+  /**
+   * IP-P1-4c 邀请落地页回显（公开，GET）：最小字段 + 邮箱脱敏。
+   * 失效/撤销/过期由后端错误体给出可展示原因（makeRequest 抛 Error）。
+   */
+  static async inspectInvitation(token: string): Promise<InvitationLandingInfo> {
+    return this.makeRequest<InvitationLandingInfo>(
+      `/api/v1/auth/invitations/${encodeURIComponent(token)}`,
+      { method: 'GET' }
+    );
+  }
+
+  /**
+   * IP-P1-4c 接受邀请（公开，POST）：设置密码并完成建号/绑定 + membership。
+   */
+  static async acceptInvitation(params: {
+    token: string;
+    password: string;
+    name?: string;
+  }): Promise<{ userId: number; username: string }> {
+    return this.makeRequest<{ userId: number; username: string }>(
+      `/api/v1/auth/invitations/${encodeURIComponent(params.token)}/accept`,
+      {
+        method: 'POST',
+        body: JSON.stringify({ password: params.password, name: params.name }),
+      }
+    );
+  }
+}
+
+/** 邀请落地页回显契约（service.InvitationInfo）。 */
+export interface InvitationLandingInfo {
+  status: 'pending' | 'accepted' | 'revoked' | 'expired' | string;
+  emailMasked: string;
+  tenantName: string;
+  roleCode: string;
+  mspRole?: string;
+  expiresAt: string;
+  hasTargetUser: boolean;
 }
 
 export default AuthService;
