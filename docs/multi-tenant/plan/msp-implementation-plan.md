@@ -766,3 +766,4 @@ CREATE INDEX idx_invitations_expiry ON invitations (expires_at) WHERE status = '
 | v1.18 | 2026-09-30 | **IP-P1-4b 邀请 API（后端闭环）**：`handlers/invitation` 四端点（创建/撤销认证 + `user:write`；落地页/接受公开 + 限流）+ 邀请域错误码映射 + bootstrap 装配；HTTP 契约测试与路由契约测试全绿；前端落地页/e2e 归 IP-P1-4c |
 | v1.19 | 2026-09-30 | **IP-P1-5 首登与 bootstrap 租户化**：账号策略 `admin-<tenantCode>`（token/break-glass/provision_tenant 三通道同口径，`07:G2` 关闭）；users `must_change_password` + `last_active_tenant_id`（迁移 20260508）；登录下发 `mustChangePassword` + `POST /auth/change-password` 自助改密；`cmd/initialize` 租户定位与身份覆盖、`provision_tenant -create-admin` 幂等通道；4 组回归用例 |
 | v1.20 | 2026-09-30 | **IP-P1-4c 前端落地页与强制改密 UI**：`/invite` 邀请落地页（回显→设密→激活→登录）、`/change-password` 改密页、`RequireAuth` 强制收敛、`mustChangePassword` 全链路映射；路由 CSV + 重生成 + 守卫测试 3 用例；tsc/jest 绿；e2e 待联跑 |
+| v1.21 | 2026-09-30 | **IP-P1-6a 工作台批量（后端）**：`POST /msp/workbench/batch`（≤100、低危白名单 reply/status/assign、逐条授权/结果/审计带 `batch_id`、每租户 20 次/分钟护栏）；DTO + 服务 + 路由 + 4 组护栏用例；批量前端与偏好存储待续 |

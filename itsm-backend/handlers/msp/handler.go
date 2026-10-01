@@ -59,6 +59,8 @@ func failMSPAccess(c *gin.Context, err error, publicMsg string) {
 			common.FailWithData(c, common.ForbiddenCode, ae.Message, gin.H{"reasonCode": ae.Code})
 		case service.CodeResourceTenantMismatch, service.CodeInvalidCursor, service.CodeTooManyTenants:
 			common.FailWithData(c, common.ParamErrorCode, ae.Message, gin.H{"reasonCode": ae.Code})
+		case service.CodeBatchLimitExceeded:
+			common.FailWithData(c, common.ParamErrorCode, ae.Message, gin.H{"reasonCode": ae.Code})
 		default:
 			common.FailWithData(c, common.ForbiddenCode, ae.Message, gin.H{"reasonCode": ae.Code})
 		}

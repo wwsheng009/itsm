@@ -41,6 +41,8 @@ func SetupMSPRoutes(r *gin.Engine, config *RouterConfig) {
 		// 跨客户工作台（IP-P0-7）：端点级 RBAC + 条目级授权链（服务端二次校验 allocation）。
 		msp.GET("/workbench/tickets", middleware.RequireMSPPermission("msp_ticket", "read"), config.MSPHandler.ListWorkbenchTickets)
 		msp.GET("/workbench/summary", middleware.RequireMSPPermission("msp_ticket", "read"), config.MSPHandler.GetWorkbenchSummary)
+		// 批量操作（IP-P1-6）：≤100 条 + 低危动作白名单 + 逐条授权/审计 + 每租户限流。
+		msp.POST("/workbench/batch", middleware.RequireMSPPermission("msp_ticket", "write"), config.MSPHandler.BatchWorkbench)
 		msp.POST("/tickets/:id/reply", middleware.RequireMSPPermission("msp_ticket", "write"), config.MSPHandler.ReplyWorkbenchTicket)
 		msp.POST("/tickets/:id/status", middleware.RequireMSPPermission("msp_ticket", "write"), config.MSPHandler.ChangeWorkbenchTicketStatus)
 

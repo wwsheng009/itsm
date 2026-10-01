@@ -192,3 +192,28 @@ func (h *Handler) ChangeWorkbenchTicketStatus(c *gin.Context) {
 	}
 	common.Success(c, updated)
 }
+
+// BatchWorkbench POST /api/v1/msp/workbench/batch（IP-P1-6）
+func (h *Handler) BatchWorkbench(c *gin.Context) {
+	actor, ok := workbenchActorFrom(c)
+	if !ok {
+		common.Fail(c, common.ForbiddenCode, "非MSP用户")
+		return
+	}
+	if h.workbench == nil {
+		common.Fail(c, common.InternalErrorCode, "工作台服务未启用")
+		return
+	}
+	var req dto.WorkbenchBatchRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		common.ParamErrorWithErr(c, err, "请求参数错误")
+		return
+	}
+	resp, err := h.workbench.Batch(c.Request.Context(), actor, req)
+	if err != nil {
+		h.logger.Errorw("workbench batch failed", "error", err, "user_id", actor.UserID, "action", req.Action)
+		failMSPAccess(c, err, "批量操作失败")
+		return
+	}
+	common.Success(c, resp)
+}

@@ -73,3 +73,39 @@ type WorkbenchStatusRequest struct {
 	CustomerTenantID int    `json:"customerTenantId" binding:"required"`
 	Status           string `json:"status" binding:"required"`
 }
+// WorkbenchBatchRequest 批量操作请求（IP-P1-6）：低危动作 + 条目清单 + 动作载荷。
+type WorkbenchBatchRequest struct {
+	Action  string                `json:"action" binding:"required"`
+	Items   []WorkbenchBatchItem  `json:"items" binding:"required,dive"`
+	Payload WorkbenchBatchPayload `json:"payload"`
+}
+
+// WorkbenchBatchItem 批量条目（显式声明目标租户，服务端逐条校验资源租户一致）。
+type WorkbenchBatchItem struct {
+	TicketID         int `json:"ticketId" binding:"required"`
+	CustomerTenantID int `json:"customerTenantId" binding:"required"`
+}
+
+// WorkbenchBatchPayload 批量动作载荷（按 action 取用对应字段）。
+type WorkbenchBatchPayload struct {
+	Content    string `json:"content,omitempty"`
+	Status     string `json:"status,omitempty"`
+	AssigneeID int    `json:"assigneeId,omitempty"`
+}
+
+// WorkbenchBatchItemResult 逐条结果（部分失败不影响其余条目）。
+type WorkbenchBatchItemResult struct {
+	TicketID         int    `json:"ticketId"`
+	CustomerTenantID int    `json:"customerTenantId"`
+	OK               bool   `json:"ok"`
+	ReasonCode       string `json:"reasonCode,omitempty"`
+	Message          string `json:"message,omitempty"`
+}
+
+// WorkbenchBatchResponse 批量结果（batchId 供整批审计回溯）。
+type WorkbenchBatchResponse struct {
+	BatchID   string                    `json:"batchId"`
+	Succeeded int                       `json:"succeeded"`
+	Failed    int                       `json:"failed"`
+	Results   []WorkbenchBatchItemResult `json:"results"`
+}

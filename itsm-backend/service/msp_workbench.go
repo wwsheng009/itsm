@@ -17,6 +17,7 @@ import (
 	"fmt"
 	"sort"
 	"strings"
+	"sync"
 	"time"
 
 	"itsm-backend/dto"
@@ -36,6 +37,8 @@ const (
 	CodeInvalidCursor    = "INVALID_CURSOR"
 	CodeActionNotAllowed = "ACTION_NOT_ALLOWED"
 	CodeTooManyTenants   = "TOO_MANY_TENANTS"
+	CodeBatchLimitExceeded = "BATCH_LIMIT_EXCEEDED"
+	CodeBatchRateLimited   = "BATCH_RATE_LIMITED"
 )
 
 // workbench 常量。
@@ -44,6 +47,8 @@ const (
 	workbenchLimitMax     = 200
 	workbenchTenantMax    = 50
 	workbenchSummaryTTL   = 30
+	workbenchBatchMax     = 100 // IP-P1-6：单批上限（工作台方案 §3.3）
+	workbenchBatchPerMin  = 20  // 每租户每分钟批量次数（防单客户风暴）
 )
 
 // MSPWorkbenchActor 工作台调用方身份快照（由 handler 从 MSPContext 转换）。
@@ -53,6 +58,8 @@ type MSPWorkbenchActor struct {
 	HomeTenantID     int
 	MSPRole          string
 	AllowedCustomers []int
+	// BatchID 非空表示本次调用来自批量入口（IP-P1-6）：逐条审计带 batch_id。
+	BatchID string
 }
 
 // MSPWorkbenchService 跨客户工作台服务。
@@ -61,6 +68,8 @@ type MSPWorkbenchService struct {
 	ticketSvc  *TicketService
 	commentSvc *TicketCommentService
 	logger     *zap.SugaredLogger
+	batchMu    sync.Mutex
+	batchHits  map[int][]time.Time
 }
 
 // NewMSPWorkbenchService 构造工作台服务（依赖均可为 nil，方法内 fail-closed）。
@@ -576,6 +585,7 @@ func (s *MSPWorkbenchService) recordWorkbenchAudit(actor MSPWorkbenchActor, op s
 		"target_tenant_id":     tenantID,
 		"ticket_id":            ticketID,
 		"outcome":              outcome,
+		"batch_id":             actor.BatchID,
 	})
 	rowTenant := actor.HomeTenantID
 	if rowTenant <= 0 {
@@ -641,4 +651,95 @@ func (s *MSPWorkbenchService) recordScopeDenied(actor MSPWorkbenchActor, request
 			s.logger.Warnw("workbench scope-denied audit write failed", "error", err, "target_tenant_id", tid)
 		}
 	}
+}
+
+// Batch 批量操作（IP-P1-6，WB-A4）：≤100 条、仅低危动作（reply/status/assign）、
+// 逐条授权 + 逐条审计（batch_id 关联）、单租户速率护栏；返回逐条结果。
+func (s *MSPWorkbenchService) Batch(ctx context.Context, actor MSPWorkbenchActor, req dto.WorkbenchBatchRequest) (*dto.WorkbenchBatchResponse, error) {
+	action := strings.ToLower(strings.TrimSpace(req.Action))
+	if len(req.Items) == 0 || len(req.Items) > workbenchBatchMax {
+		return nil, NewCustomerAccessError(CodeBatchLimitExceeded, "批量条目数需在 1-100 之间")
+	}
+	switch action {
+	case "reply", "status", "assign":
+	default:
+		return nil, NewCustomerAccessError(CodeActionNotAllowed, "仅支持低危动作：reply/status/assign")
+	}
+	if !s.batchAllowed(actor.HomeTenantID) {
+		return nil, NewCustomerAccessError(CodeBatchRateLimited, "批量操作过于频繁，请稍后重试")
+	}
+	batchID := fmt.Sprintf("wb-%d-%d", time.Now().UnixNano(), actor.UserID)
+	actor.BatchID = batchID
+	resp := &dto.WorkbenchBatchResponse{
+		BatchID: batchID,
+		Results: make([]dto.WorkbenchBatchItemResult, 0, len(req.Items)),
+	}
+	for _, item := range req.Items {
+		res := dto.WorkbenchBatchItemResult{
+			TicketID:         item.TicketID,
+			CustomerTenantID: item.CustomerTenantID,
+		}
+		var err error
+		switch action {
+		case "reply":
+			_, err = s.Reply(ctx, actor, item.TicketID, dto.WorkbenchReplyRequest{
+				CustomerTenantID: item.CustomerTenantID,
+				Content:          req.Payload.Content,
+			})
+		case "status":
+			_, err = s.ChangeStatus(ctx, actor, item.TicketID, dto.WorkbenchStatusRequest{
+				CustomerTenantID: item.CustomerTenantID,
+				Status:           req.Payload.Status,
+			})
+		case "assign":
+			if !s.tenantActionPermissions(ctx, actor, item.CustomerTenantID, true)["assign"] {
+				err = NewCustomerAccessError(CodeActionNotAllowed, "当前角色在该客户租户无指派权限")
+			} else if s.ticketSvc == nil {
+				err = fmt.Errorf("ticket service unavailable")
+			} else if _, aerr := s.ticketSvc.AssignMSPTechnician(ctx, item.TicketID, item.CustomerTenantID, actor.UserID); aerr != nil {
+				err = aerr
+			} else {
+				s.recordWorkbenchAudit(actor, "assign", item.CustomerTenantID, item.TicketID, "success")
+			}
+		}
+		if err != nil {
+			res.OK = false
+			if ae, ok := AsCustomerAccessError(err); ok {
+				res.ReasonCode = ae.Code
+				res.Message = ae.Message
+			} else {
+				res.Message = "操作失败"
+			}
+			resp.Failed++
+		} else {
+			res.OK = true
+			resp.Succeeded++
+		}
+		resp.Results = append(resp.Results, res)
+	}
+	return resp, nil
+}
+
+// batchAllowed 单租户批量速率护栏（滑动窗口；内存实现，实例级）。
+func (s *MSPWorkbenchService) batchAllowed(homeTenantID int) bool {
+	now := time.Now()
+	cutoff := now.Add(-time.Minute)
+	s.batchMu.Lock()
+	defer s.batchMu.Unlock()
+	if s.batchHits == nil {
+		s.batchHits = make(map[int][]time.Time)
+	}
+	hits := s.batchHits[homeTenantID]
+	kept := hits[:0]
+	for _, ts := range hits {
+		if ts.After(cutoff) {
+			kept = append(kept, ts)
+		}
+	}
+	if len(kept) >= workbenchBatchPerMin {
+		s.batchHits[homeTenantID] = kept
+		return false
+	}
+	s.batchHits[homeTenantID] = append(kept, now)
+	return true
 }
