@@ -1398,7 +1398,8 @@ func NewApplication() *Application {
 		TicketTagHandler:             ticketTagHandler.NewHandler(ticketTagService, sugar),
 		EscalationMatrixHandler:      escalationMatrixHandler.NewHandler(sugar, escalationMatrixService),
 		AuditLogHandler:              auditlogHandler.NewHandler(auditLogService, sugar),
-		MSPHandler:                   mspHandler.NewHandler(mspAllocationService, ticketService, sugar),
+		MSPHandler: mspHandler.NewHandler(mspAllocationService, ticketService,
+			service.NewMSPWorkbenchService(client, ticketService, ticketCommentService, sugar), sugar),
 		SystemConfigHandler:          systemConfigHandler,
 		ApprovalChainHandler:         approvalChainHandler.NewHandler(approvalChainService, sugar),
 

@@ -38,6 +38,12 @@ func SetupMSPRoutes(r *gin.Engine, config *RouterConfig) {
 		// 工单分配 - 需要 msp_ticket:write 权限
 		msp.POST("/tickets/:id/assign", middleware.RequireMSPPermission("msp_ticket", "write"), config.MSPHandler.AssignMSPTechnician)
 
+		// 跨客户工作台（IP-P0-7）：端点级 RBAC + 条目级授权链（服务端二次校验 allocation）。
+		msp.GET("/workbench/tickets", middleware.RequireMSPPermission("msp_ticket", "read"), config.MSPHandler.ListWorkbenchTickets)
+		msp.GET("/workbench/summary", middleware.RequireMSPPermission("msp_ticket", "read"), config.MSPHandler.GetWorkbenchSummary)
+		msp.POST("/tickets/:id/reply", middleware.RequireMSPPermission("msp_ticket", "write"), config.MSPHandler.ReplyWorkbenchTicket)
+		msp.POST("/tickets/:id/status", middleware.RequireMSPPermission("msp_ticket", "write"), config.MSPHandler.ChangeWorkbenchTicketStatus)
+
 		// 报表 - 需要 msp_report 权限
 		msp.GET("/reports/customers", middleware.RequireMSPPermission("msp_report", "read"), config.MSPHandler.GetCustomerReports)
 		msp.GET("/reports/performance", middleware.RequireMSPPermission("msp_report", "read"), config.MSPHandler.GetPerformanceReports)

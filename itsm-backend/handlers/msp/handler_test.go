@@ -32,7 +32,7 @@ func newMSPTestRouter(t *testing.T, client *ent.Client, userID int, mspCtx *midd
 	t.Helper()
 	gin.SetMode(gin.TestMode)
 	logger := zaptest.NewLogger(t).Sugar()
-	h := NewHandler(nil, service.NewTicketServiceForTest(client, logger), logger)
+	h := NewHandler(nil, service.NewTicketServiceForTest(client, logger), nil, logger)
 
 	r := gin.New()
 	r.Use(gin.Recovery())
@@ -101,11 +101,19 @@ func TestGetCustomerReports_HonorsCamelCaseDateRange(t *testing.T) {
 	defer client.Close()
 
 	ctx := context.Background()
-	tenant, err := client.Tenant.Create().SetName("MSP-A").SetCode("msp-a").SetType("msp").Save(ctx)
+	// IP-P0-2 后客户报表经 mspguard：MSP 员工（provider 租户 + msp_role）+ 有效 allocation。
+	provider, err := client.Tenant.Create().SetName("MSP-A").SetCode("msp-a").
+		SetType("msp_provider").SetStatus("active").Save(ctx)
+	require.NoError(t, err)
+	customer, err := client.Tenant.Create().SetName("Cust-A").SetCode("cust-a").
+		SetType("msp_customer").SetMspProviderID(provider.ID).SetStatus("active").Save(ctx)
 	require.NoError(t, err)
 	user, err := client.User.Create().
 		SetUsername("msp_agent").SetEmail("msp-a@example.com").SetName("MSP Agent").
-		SetPasswordHash("hash").SetTenantID(tenant.ID).Save(ctx)
+		SetPasswordHash("hash").SetTenantID(provider.ID).SetMspRole("provider_agent").Save(ctx)
+	require.NoError(t, err)
+	_, err = client.MSPAllocation.Create().
+		SetMspUserID(user.ID).SetCustomerTenantID(customer.ID).SetRole("primary").Save(ctx)
 	require.NoError(t, err)
 
 	r := newMSPTestRouter(t, client, user.ID, nil)
@@ -208,12 +216,24 @@ func TestGetCustomerTickets_WithMSPContext(t *testing.T) {
 	defer client.Close()
 
 	ctx := context.Background()
-	customer, err := client.Tenant.Create().SetName("Cust").SetCode("cust-1").SetType("customer").Save(ctx)
+	// IP-P0-2 后本端点经 mspguard 统一授权：需 provider 归属 + 有效 allocation + 客户 active。
+	provider, err := client.Tenant.Create().SetName("Provider").SetCode("prov-1").
+		SetType("msp_provider").SetStatus("active").Save(ctx)
+	require.NoError(t, err)
+	customer, err := client.Tenant.Create().SetName("Cust").SetCode("cust-1").
+		SetType("msp_customer").SetMspProviderID(provider.ID).SetStatus("active").Save(ctx)
+	require.NoError(t, err)
+	mspUser, err := client.User.Create().SetUsername("msp-42").SetEmail("msp42@example.com").
+		SetName("MSP 42").SetPasswordHash("hash").SetTenantID(provider.ID).
+		SetMspRole("provider_agent").Save(ctx)
+	require.NoError(t, err)
+	_, err = client.MSPAllocation.Create().
+		SetMspUserID(mspUser.ID).SetCustomerTenantID(customer.ID).SetRole("primary").Save(ctx)
 	require.NoError(t, err)
 
 	r := newMSPTestRouter(t, client, 1, &middleware.MSPContext{
 		IsMSP:     true,
-		MSPUserID: 42,
+		MSPUserID: mspUser.ID,
 		Role:      "provider_agent",
 	})
 	status, body := doMSPRequest(t, r, "/api/v1/msp/customers/"+strconv.Itoa(customer.ID)+"/tickets")

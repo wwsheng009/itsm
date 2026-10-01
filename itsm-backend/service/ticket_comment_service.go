@@ -273,6 +273,11 @@ func (s *TicketCommentService) UpdateTicketComment(ctx context.Context, ticketID
 func (s *TicketCommentService) canManageInternalComments(ctx context.Context, userID, tenantID int) (bool, error) {
 	u, err := s.client.User.Query().Where(user.ID(userID), user.TenantID(tenantID), user.Active(true)).Only(ctx)
 	if err != nil {
+		if ent.IsNotFound(err) {
+			// 跨租户 MSP 员工（工作台条目级回复）：不在目标租户成员表内，
+			// 视为非特权（仅可发公开评论，禁止 internal note）。
+			return false, nil
+		}
 		return false, fmt.Errorf("authenticated user not found")
 	}
 	switch string(u.Role) {

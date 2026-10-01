@@ -21,6 +21,7 @@ import (
 type Handler struct {
 	mspAllocationService *service.MSPAllocationService
 	ticketService        *service.TicketService
+	workbench            *service.MSPWorkbenchService
 	logger               *zap.SugaredLogger
 }
 
@@ -28,11 +29,13 @@ type Handler struct {
 func NewHandler(
 	mspAllocationService *service.MSPAllocationService,
 	ticketService *service.TicketService,
+	workbench *service.MSPWorkbenchService,
 	logger *zap.SugaredLogger,
 ) *Handler {
 	return &Handler{
 		mspAllocationService: mspAllocationService,
 		ticketService:        ticketService,
+		workbench:            workbench,
 		logger:               logger,
 	}
 }
@@ -52,9 +55,9 @@ func failMSPAccess(c *gin.Context, err error, publicMsg string) {
 		switch ae.Code {
 		case service.CodeCustomerTenantNotFound:
 			common.FailWithData(c, common.NotFoundCode, ae.Message, gin.H{"reasonCode": ae.Code})
-		case service.CodeMSPAllocationRequired, service.CodeCustomerInactive:
+		case service.CodeMSPAllocationRequired, service.CodeCustomerInactive, service.CodeActionNotAllowed:
 			common.FailWithData(c, common.ForbiddenCode, ae.Message, gin.H{"reasonCode": ae.Code})
-		case service.CodeResourceTenantMismatch:
+		case service.CodeResourceTenantMismatch, service.CodeInvalidCursor, service.CodeTooManyTenants:
 			common.FailWithData(c, common.ParamErrorCode, ae.Message, gin.H{"reasonCode": ae.Code})
 		default:
 			common.FailWithData(c, common.ForbiddenCode, ae.Message, gin.H{"reasonCode": ae.Code})
