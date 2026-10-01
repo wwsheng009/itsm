@@ -6005,6 +6005,93 @@ var (
 			},
 		},
 	}
+	// UserTenantMembershipsColumns holds the columns for the "user_tenant_memberships" table.
+	UserTenantMembershipsColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeInt, Increment: true},
+		{Name: "account_kind", Type: field.TypeEnum, Enums: []string{"customer", "provider", "platform"}, Default: "customer"},
+		{Name: "subject_type", Type: field.TypeEnum, Enums: []string{"user"}, Default: "user"},
+		{Name: "source", Type: field.TypeEnum, Enums: []string{"home", "allocation", "platform", "invite", "migration"}},
+		{Name: "role_id", Type: field.TypeInt, Nullable: true},
+		{Name: "msp_role", Type: field.TypeString, Nullable: true},
+		{Name: "allocation_id", Type: field.TypeInt, Nullable: true},
+		{Name: "status", Type: field.TypeEnum, Enums: []string{"active", "suspended"}, Default: "active"},
+		{Name: "is_default", Type: field.TypeBool, Default: false},
+		{Name: "expires_at", Type: field.TypeTime, Nullable: true},
+		{Name: "invited_by", Type: field.TypeInt, Nullable: true},
+		{Name: "joined_at", Type: field.TypeTime, Nullable: true},
+		{Name: "deassigned_at", Type: field.TypeTime, Nullable: true},
+		{Name: "deleted_at", Type: field.TypeTime, Nullable: true},
+		{Name: "created_at", Type: field.TypeTime},
+		{Name: "updated_at", Type: field.TypeTime},
+		{Name: "tenant_id", Type: field.TypeInt},
+		{Name: "user_id", Type: field.TypeInt},
+	}
+	// UserTenantMembershipsTable holds the schema information for the "user_tenant_memberships" table.
+	UserTenantMembershipsTable = &schema.Table{
+		Name:       "user_tenant_memberships",
+		Columns:    UserTenantMembershipsColumns,
+		PrimaryKey: []*schema.Column{UserTenantMembershipsColumns[0]},
+		ForeignKeys: []*schema.ForeignKey{
+			{
+				Symbol:     "user_tenant_memberships_tenants_memberships",
+				Columns:    []*schema.Column{UserTenantMembershipsColumns[16]},
+				RefColumns: []*schema.Column{TenantsColumns[0]},
+				OnDelete:   schema.NoAction,
+			},
+			{
+				Symbol:     "user_tenant_memberships_users_tenant_memberships",
+				Columns:    []*schema.Column{UserTenantMembershipsColumns[17]},
+				RefColumns: []*schema.Column{UsersColumns[0]},
+				OnDelete:   schema.NoAction,
+			},
+		},
+		Indexes: []*schema.Index{
+			{
+				Name:    "uq_membership_live",
+				Unique:  true,
+				Columns: []*schema.Column{UserTenantMembershipsColumns[17], UserTenantMembershipsColumns[16]},
+				Annotation: &entsql.IndexAnnotation{
+					Where: "deleted_at IS NULL",
+				},
+			},
+			{
+				Name:    "uq_membership_default",
+				Unique:  true,
+				Columns: []*schema.Column{UserTenantMembershipsColumns[17], UserTenantMembershipsColumns[8], UserTenantMembershipsColumns[7]},
+				Annotation: &entsql.IndexAnnotation{
+					Where: "deleted_at IS NULL AND is_default AND status = 'active'",
+				},
+			},
+			{
+				Name:    "uq_customer_single_scope",
+				Unique:  true,
+				Columns: []*schema.Column{UserTenantMembershipsColumns[17], UserTenantMembershipsColumns[1], UserTenantMembershipsColumns[7]},
+				Annotation: &entsql.IndexAnnotation{
+					Where: "deleted_at IS NULL AND status = 'active' AND account_kind = 'customer'",
+				},
+			},
+			{
+				Name:    "uq_membership_id_tenant",
+				Unique:  true,
+				Columns: []*schema.Column{UserTenantMembershipsColumns[0], UserTenantMembershipsColumns[16]},
+			},
+			{
+				Name:    "idx_membership_tenant_status",
+				Unique:  false,
+				Columns: []*schema.Column{UserTenantMembershipsColumns[16], UserTenantMembershipsColumns[7]},
+			},
+			{
+				Name:    "idx_membership_user_status",
+				Unique:  false,
+				Columns: []*schema.Column{UserTenantMembershipsColumns[17], UserTenantMembershipsColumns[7]},
+			},
+			{
+				Name:    "idx_membership_allocation",
+				Unique:  false,
+				Columns: []*schema.Column{UserTenantMembershipsColumns[6]},
+			},
+		},
+	}
 	// VendorsColumns holds the columns for the "vendors" table.
 	VendorsColumns = []*schema.Column{
 		{Name: "id", Type: field.TypeInt, Increment: true},
@@ -6737,6 +6824,7 @@ var (
 		TicketWorkflowRecordsTable,
 		ToolInvocationsTable,
 		UsersTable,
+		UserTenantMembershipsTable,
 		VendorsTable,
 		WorkflowsTable,
 		WorkflowInstancesTable,
@@ -6884,6 +6972,8 @@ func init() {
 	UsersTable.ForeignKeys[2].RefTable = GroupsTable
 	UsersTable.ForeignKeys[3].RefTable = TeamsTable
 	UsersTable.ForeignKeys[4].RefTable = TenantsTable
+	UserTenantMembershipsTable.ForeignKeys[0].RefTable = TenantsTable
+	UserTenantMembershipsTable.ForeignKeys[1].RefTable = UsersTable
 	WorkflowsTable.ForeignKeys[0].RefTable = DepartmentsTable
 	WorkflowInstancesTable.ForeignKeys[0].RefTable = WorkflowsTable
 	WorkflowTasksTable.ForeignKeys[0].RefTable = WorkflowInstancesTable

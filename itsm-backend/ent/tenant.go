@@ -65,11 +65,13 @@ type TenantEdges struct {
 	Users []*User `json:"users,omitempty"`
 	// MSP客户分配
 	MspCustomerAllocations []*MSPAllocation `json:"msp_customer_allocations,omitempty"`
+	// 租户成员身份（IP-P1-1）
+	Memberships []*UserTenantMembership `json:"memberships,omitempty"`
 	// bootstrap token
 	BootstrapTokens []*BootstrapToken `json:"bootstrap_tokens,omitempty"`
 	// loadedTypes holds the information for reporting if a
 	// type was loaded (or requested) in eager-loading or not.
-	loadedTypes [3]bool
+	loadedTypes [4]bool
 }
 
 // UsersOrErr returns the Users value or an error if the edge
@@ -90,10 +92,19 @@ func (e TenantEdges) MspCustomerAllocationsOrErr() ([]*MSPAllocation, error) {
 	return nil, &NotLoadedError{edge: "msp_customer_allocations"}
 }
 
+// MembershipsOrErr returns the Memberships value or an error if the edge
+// was not loaded in eager-loading.
+func (e TenantEdges) MembershipsOrErr() ([]*UserTenantMembership, error) {
+	if e.loadedTypes[2] {
+		return e.Memberships, nil
+	}
+	return nil, &NotLoadedError{edge: "memberships"}
+}
+
 // BootstrapTokensOrErr returns the BootstrapTokens value or an error if the edge
 // was not loaded in eager-loading.
 func (e TenantEdges) BootstrapTokensOrErr() ([]*BootstrapToken, error) {
-	if e.loadedTypes[2] {
+	if e.loadedTypes[3] {
 		return e.BootstrapTokens, nil
 	}
 	return nil, &NotLoadedError{edge: "bootstrap_tokens"}
@@ -262,6 +273,11 @@ func (_m *Tenant) QueryUsers() *UserQuery {
 // QueryMspCustomerAllocations queries the "msp_customer_allocations" edge of the Tenant entity.
 func (_m *Tenant) QueryMspCustomerAllocations() *MSPAllocationQuery {
 	return NewTenantClient(_m.config).QueryMspCustomerAllocations(_m)
+}
+
+// QueryMemberships queries the "memberships" edge of the Tenant entity.
+func (_m *Tenant) QueryMemberships() *UserTenantMembershipQuery {
+	return NewTenantClient(_m.config).QueryMemberships(_m)
 }
 
 // QueryBootstrapTokens queries the "bootstrap_tokens" edge of the Tenant entity.

@@ -149,6 +149,7 @@ import (
 	"itsm-backend/ent/ticketworkflowrecord"
 	"itsm-backend/ent/toolinvocation"
 	"itsm-backend/ent/user"
+	"itsm-backend/ent/usertenantmembership"
 	"itsm-backend/ent/vendor"
 	"itsm-backend/ent/workflow"
 	"itsm-backend/ent/workflowinstance"
@@ -312,6 +313,7 @@ const (
 	TypeTicketWorkflowRecord        = "TicketWorkflowRecord"
 	TypeToolInvocation              = "ToolInvocation"
 	TypeUser                        = "User"
+	TypeUserTenantMembership        = "UserTenantMembership"
 	TypeVendor                      = "Vendor"
 	TypeWorkflow                    = "Workflow"
 	TypeWorkflowInstance            = "WorkflowInstance"
@@ -165239,6 +165241,9 @@ type TenantMutation struct {
 	msp_customer_allocations        map[int]struct{}
 	removedmsp_customer_allocations map[int]struct{}
 	clearedmsp_customer_allocations bool
+	memberships                     map[int]struct{}
+	removedmemberships              map[int]struct{}
+	clearedmemberships              bool
 	bootstrap_tokens                map[int]struct{}
 	removedbootstrap_tokens         map[int]struct{}
 	clearedbootstrap_tokens         bool
@@ -166273,6 +166278,60 @@ func (m *TenantMutation) ResetMspCustomerAllocations() {
 	m.removedmsp_customer_allocations = nil
 }
 
+// AddMembershipIDs adds the "memberships" edge to the UserTenantMembership entity by ids.
+func (m *TenantMutation) AddMembershipIDs(ids ...int) {
+	if m.memberships == nil {
+		m.memberships = make(map[int]struct{})
+	}
+	for i := range ids {
+		m.memberships[ids[i]] = struct{}{}
+	}
+}
+
+// ClearMemberships clears the "memberships" edge to the UserTenantMembership entity.
+func (m *TenantMutation) ClearMemberships() {
+	m.clearedmemberships = true
+}
+
+// MembershipsCleared reports if the "memberships" edge to the UserTenantMembership entity was cleared.
+func (m *TenantMutation) MembershipsCleared() bool {
+	return m.clearedmemberships
+}
+
+// RemoveMembershipIDs removes the "memberships" edge to the UserTenantMembership entity by IDs.
+func (m *TenantMutation) RemoveMembershipIDs(ids ...int) {
+	if m.removedmemberships == nil {
+		m.removedmemberships = make(map[int]struct{})
+	}
+	for i := range ids {
+		delete(m.memberships, ids[i])
+		m.removedmemberships[ids[i]] = struct{}{}
+	}
+}
+
+// RemovedMemberships returns the removed IDs of the "memberships" edge to the UserTenantMembership entity.
+func (m *TenantMutation) RemovedMembershipsIDs() (ids []int) {
+	for id := range m.removedmemberships {
+		ids = append(ids, id)
+	}
+	return
+}
+
+// MembershipsIDs returns the "memberships" edge IDs in the mutation.
+func (m *TenantMutation) MembershipsIDs() (ids []int) {
+	for id := range m.memberships {
+		ids = append(ids, id)
+	}
+	return
+}
+
+// ResetMemberships resets all changes to the "memberships" edge.
+func (m *TenantMutation) ResetMemberships() {
+	m.memberships = nil
+	m.clearedmemberships = false
+	m.removedmemberships = nil
+}
+
 // AddBootstrapTokenIDs adds the "bootstrap_tokens" edge to the BootstrapToken entity by ids.
 func (m *TenantMutation) AddBootstrapTokenIDs(ids ...int) {
 	if m.bootstrap_tokens == nil {
@@ -166839,12 +166898,15 @@ func (m *TenantMutation) ResetField(name string) error {
 
 // AddedEdges returns all edge names that were set/added in this mutation.
 func (m *TenantMutation) AddedEdges() []string {
-	edges := make([]string, 0, 3)
+	edges := make([]string, 0, 4)
 	if m.users != nil {
 		edges = append(edges, tenant.EdgeUsers)
 	}
 	if m.msp_customer_allocations != nil {
 		edges = append(edges, tenant.EdgeMspCustomerAllocations)
+	}
+	if m.memberships != nil {
+		edges = append(edges, tenant.EdgeMemberships)
 	}
 	if m.bootstrap_tokens != nil {
 		edges = append(edges, tenant.EdgeBootstrapTokens)
@@ -166868,6 +166930,12 @@ func (m *TenantMutation) AddedIDs(name string) []ent.Value {
 			ids = append(ids, id)
 		}
 		return ids
+	case tenant.EdgeMemberships:
+		ids := make([]ent.Value, 0, len(m.memberships))
+		for id := range m.memberships {
+			ids = append(ids, id)
+		}
+		return ids
 	case tenant.EdgeBootstrapTokens:
 		ids := make([]ent.Value, 0, len(m.bootstrap_tokens))
 		for id := range m.bootstrap_tokens {
@@ -166880,12 +166948,15 @@ func (m *TenantMutation) AddedIDs(name string) []ent.Value {
 
 // RemovedEdges returns all edge names that were removed in this mutation.
 func (m *TenantMutation) RemovedEdges() []string {
-	edges := make([]string, 0, 3)
+	edges := make([]string, 0, 4)
 	if m.removedusers != nil {
 		edges = append(edges, tenant.EdgeUsers)
 	}
 	if m.removedmsp_customer_allocations != nil {
 		edges = append(edges, tenant.EdgeMspCustomerAllocations)
+	}
+	if m.removedmemberships != nil {
+		edges = append(edges, tenant.EdgeMemberships)
 	}
 	if m.removedbootstrap_tokens != nil {
 		edges = append(edges, tenant.EdgeBootstrapTokens)
@@ -166909,6 +166980,12 @@ func (m *TenantMutation) RemovedIDs(name string) []ent.Value {
 			ids = append(ids, id)
 		}
 		return ids
+	case tenant.EdgeMemberships:
+		ids := make([]ent.Value, 0, len(m.removedmemberships))
+		for id := range m.removedmemberships {
+			ids = append(ids, id)
+		}
+		return ids
 	case tenant.EdgeBootstrapTokens:
 		ids := make([]ent.Value, 0, len(m.removedbootstrap_tokens))
 		for id := range m.removedbootstrap_tokens {
@@ -166921,12 +166998,15 @@ func (m *TenantMutation) RemovedIDs(name string) []ent.Value {
 
 // ClearedEdges returns all edge names that were cleared in this mutation.
 func (m *TenantMutation) ClearedEdges() []string {
-	edges := make([]string, 0, 3)
+	edges := make([]string, 0, 4)
 	if m.clearedusers {
 		edges = append(edges, tenant.EdgeUsers)
 	}
 	if m.clearedmsp_customer_allocations {
 		edges = append(edges, tenant.EdgeMspCustomerAllocations)
+	}
+	if m.clearedmemberships {
+		edges = append(edges, tenant.EdgeMemberships)
 	}
 	if m.clearedbootstrap_tokens {
 		edges = append(edges, tenant.EdgeBootstrapTokens)
@@ -166942,6 +167022,8 @@ func (m *TenantMutation) EdgeCleared(name string) bool {
 		return m.clearedusers
 	case tenant.EdgeMspCustomerAllocations:
 		return m.clearedmsp_customer_allocations
+	case tenant.EdgeMemberships:
+		return m.clearedmemberships
 	case tenant.EdgeBootstrapTokens:
 		return m.clearedbootstrap_tokens
 	}
@@ -166965,6 +167047,9 @@ func (m *TenantMutation) ResetEdge(name string) error {
 		return nil
 	case tenant.EdgeMspCustomerAllocations:
 		m.ResetMspCustomerAllocations()
+		return nil
+	case tenant.EdgeMemberships:
+		m.ResetMemberships()
 		return nil
 	case tenant.EdgeBootstrapTokens:
 		m.ResetBootstrapTokens()
@@ -191189,6 +191274,9 @@ type UserMutation struct {
 	msp_allocations                 map[int]struct{}
 	removedmsp_allocations          map[int]struct{}
 	clearedmsp_allocations          bool
+	tenant_memberships              map[int]struct{}
+	removedtenant_memberships       map[int]struct{}
+	clearedtenant_memberships       bool
 	article_sessions                map[int]struct{}
 	removedarticle_sessions         map[int]struct{}
 	clearedarticle_sessions         bool
@@ -192589,6 +192677,60 @@ func (m *UserMutation) ResetMspAllocations() {
 	m.removedmsp_allocations = nil
 }
 
+// AddTenantMembershipIDs adds the "tenant_memberships" edge to the UserTenantMembership entity by ids.
+func (m *UserMutation) AddTenantMembershipIDs(ids ...int) {
+	if m.tenant_memberships == nil {
+		m.tenant_memberships = make(map[int]struct{})
+	}
+	for i := range ids {
+		m.tenant_memberships[ids[i]] = struct{}{}
+	}
+}
+
+// ClearTenantMemberships clears the "tenant_memberships" edge to the UserTenantMembership entity.
+func (m *UserMutation) ClearTenantMemberships() {
+	m.clearedtenant_memberships = true
+}
+
+// TenantMembershipsCleared reports if the "tenant_memberships" edge to the UserTenantMembership entity was cleared.
+func (m *UserMutation) TenantMembershipsCleared() bool {
+	return m.clearedtenant_memberships
+}
+
+// RemoveTenantMembershipIDs removes the "tenant_memberships" edge to the UserTenantMembership entity by IDs.
+func (m *UserMutation) RemoveTenantMembershipIDs(ids ...int) {
+	if m.removedtenant_memberships == nil {
+		m.removedtenant_memberships = make(map[int]struct{})
+	}
+	for i := range ids {
+		delete(m.tenant_memberships, ids[i])
+		m.removedtenant_memberships[ids[i]] = struct{}{}
+	}
+}
+
+// RemovedTenantMemberships returns the removed IDs of the "tenant_memberships" edge to the UserTenantMembership entity.
+func (m *UserMutation) RemovedTenantMembershipsIDs() (ids []int) {
+	for id := range m.removedtenant_memberships {
+		ids = append(ids, id)
+	}
+	return
+}
+
+// TenantMembershipsIDs returns the "tenant_memberships" edge IDs in the mutation.
+func (m *UserMutation) TenantMembershipsIDs() (ids []int) {
+	for id := range m.tenant_memberships {
+		ids = append(ids, id)
+	}
+	return
+}
+
+// ResetTenantMemberships resets all changes to the "tenant_memberships" edge.
+func (m *UserMutation) ResetTenantMemberships() {
+	m.tenant_memberships = nil
+	m.clearedtenant_memberships = false
+	m.removedtenant_memberships = nil
+}
+
 // AddArticleSessionIDs adds the "article_sessions" edge to the KnowledgeArticleSession entity by ids.
 func (m *UserMutation) AddArticleSessionIDs(ids ...int) {
 	if m.article_sessions == nil {
@@ -193301,7 +193443,7 @@ func (m *UserMutation) ResetField(name string) error {
 
 // AddedEdges returns all edge names that were set/added in this mutation.
 func (m *UserMutation) AddedEdges() []string {
-	edges := make([]string, 0, 17)
+	edges := make([]string, 0, 18)
 	if m.department_ref != nil {
 		edges = append(edges, user.EdgeDepartmentRef)
 	}
@@ -193337,6 +193479,9 @@ func (m *UserMutation) AddedEdges() []string {
 	}
 	if m.msp_allocations != nil {
 		edges = append(edges, user.EdgeMspAllocations)
+	}
+	if m.tenant_memberships != nil {
+		edges = append(edges, user.EdgeTenantMemberships)
 	}
 	if m.article_sessions != nil {
 		edges = append(edges, user.EdgeArticleSessions)
@@ -193428,6 +193573,12 @@ func (m *UserMutation) AddedIDs(name string) []ent.Value {
 			ids = append(ids, id)
 		}
 		return ids
+	case user.EdgeTenantMemberships:
+		ids := make([]ent.Value, 0, len(m.tenant_memberships))
+		for id := range m.tenant_memberships {
+			ids = append(ids, id)
+		}
+		return ids
 	case user.EdgeArticleSessions:
 		ids := make([]ent.Value, 0, len(m.article_sessions))
 		for id := range m.article_sessions {
@@ -193464,7 +193615,7 @@ func (m *UserMutation) AddedIDs(name string) []ent.Value {
 
 // RemovedEdges returns all edge names that were removed in this mutation.
 func (m *UserMutation) RemovedEdges() []string {
-	edges := make([]string, 0, 17)
+	edges := make([]string, 0, 18)
 	if m.removedtickets != nil {
 		edges = append(edges, user.EdgeTickets)
 	}
@@ -193494,6 +193645,9 @@ func (m *UserMutation) RemovedEdges() []string {
 	}
 	if m.removedmsp_allocations != nil {
 		edges = append(edges, user.EdgeMspAllocations)
+	}
+	if m.removedtenant_memberships != nil {
+		edges = append(edges, user.EdgeTenantMemberships)
 	}
 	if m.removedarticle_sessions != nil {
 		edges = append(edges, user.EdgeArticleSessions)
@@ -193577,6 +193731,12 @@ func (m *UserMutation) RemovedIDs(name string) []ent.Value {
 			ids = append(ids, id)
 		}
 		return ids
+	case user.EdgeTenantMemberships:
+		ids := make([]ent.Value, 0, len(m.removedtenant_memberships))
+		for id := range m.removedtenant_memberships {
+			ids = append(ids, id)
+		}
+		return ids
 	case user.EdgeArticleSessions:
 		ids := make([]ent.Value, 0, len(m.removedarticle_sessions))
 		for id := range m.removedarticle_sessions {
@@ -193613,7 +193773,7 @@ func (m *UserMutation) RemovedIDs(name string) []ent.Value {
 
 // ClearedEdges returns all edge names that were cleared in this mutation.
 func (m *UserMutation) ClearedEdges() []string {
-	edges := make([]string, 0, 17)
+	edges := make([]string, 0, 18)
 	if m.cleareddepartment_ref {
 		edges = append(edges, user.EdgeDepartmentRef)
 	}
@@ -193649,6 +193809,9 @@ func (m *UserMutation) ClearedEdges() []string {
 	}
 	if m.clearedmsp_allocations {
 		edges = append(edges, user.EdgeMspAllocations)
+	}
+	if m.clearedtenant_memberships {
+		edges = append(edges, user.EdgeTenantMemberships)
 	}
 	if m.clearedarticle_sessions {
 		edges = append(edges, user.EdgeArticleSessions)
@@ -193696,6 +193859,8 @@ func (m *UserMutation) EdgeCleared(name string) bool {
 		return m.clearedgroups
 	case user.EdgeMspAllocations:
 		return m.clearedmsp_allocations
+	case user.EdgeTenantMemberships:
+		return m.clearedtenant_memberships
 	case user.EdgeArticleSessions:
 		return m.clearedarticle_sessions
 	case user.EdgeArticleParticipations:
@@ -193764,6 +193929,9 @@ func (m *UserMutation) ResetEdge(name string) error {
 	case user.EdgeMspAllocations:
 		m.ResetMspAllocations()
 		return nil
+	case user.EdgeTenantMemberships:
+		m.ResetTenantMemberships()
+		return nil
 	case user.EdgeArticleSessions:
 		m.ResetArticleSessions()
 		return nil
@@ -193781,6 +193949,1556 @@ func (m *UserMutation) ResetEdge(name string) error {
 		return nil
 	}
 	return fmt.Errorf("unknown User edge %s", name)
+}
+
+// UserTenantMembershipMutation represents an operation that mutates the UserTenantMembership nodes in the graph.
+type UserTenantMembershipMutation struct {
+	config
+	op               Op
+	typ              string
+	id               *int
+	account_kind     *usertenantmembership.AccountKind
+	subject_type     *usertenantmembership.SubjectType
+	source           *usertenantmembership.Source
+	role_id          *int
+	addrole_id       *int
+	msp_role         *string
+	allocation_id    *int
+	addallocation_id *int
+	status           *usertenantmembership.Status
+	is_default       *bool
+	expires_at       *time.Time
+	invited_by       *int
+	addinvited_by    *int
+	joined_at        *time.Time
+	deassigned_at    *time.Time
+	deleted_at       *time.Time
+	created_at       *time.Time
+	updated_at       *time.Time
+	clearedFields    map[string]struct{}
+	user             *int
+	cleareduser      bool
+	tenant           *int
+	clearedtenant    bool
+	done             bool
+	oldValue         func(context.Context) (*UserTenantMembership, error)
+	predicates       []predicate.UserTenantMembership
+}
+
+var _ ent.Mutation = (*UserTenantMembershipMutation)(nil)
+
+// usertenantmembershipOption allows management of the mutation configuration using functional options.
+type usertenantmembershipOption func(*UserTenantMembershipMutation)
+
+// newUserTenantMembershipMutation creates new mutation for the UserTenantMembership entity.
+func newUserTenantMembershipMutation(c config, op Op, opts ...usertenantmembershipOption) *UserTenantMembershipMutation {
+	m := &UserTenantMembershipMutation{
+		config:        c,
+		op:            op,
+		typ:           TypeUserTenantMembership,
+		clearedFields: make(map[string]struct{}),
+	}
+	for _, opt := range opts {
+		opt(m)
+	}
+	return m
+}
+
+// withUserTenantMembershipID sets the ID field of the mutation.
+func withUserTenantMembershipID(id int) usertenantmembershipOption {
+	return func(m *UserTenantMembershipMutation) {
+		var (
+			err   error
+			once  sync.Once
+			value *UserTenantMembership
+		)
+		m.oldValue = func(ctx context.Context) (*UserTenantMembership, error) {
+			once.Do(func() {
+				if m.done {
+					err = errors.New("querying old values post mutation is not allowed")
+				} else {
+					value, err = m.Client().UserTenantMembership.Get(ctx, id)
+				}
+			})
+			return value, err
+		}
+		m.id = &id
+	}
+}
+
+// withUserTenantMembership sets the old UserTenantMembership of the mutation.
+func withUserTenantMembership(node *UserTenantMembership) usertenantmembershipOption {
+	return func(m *UserTenantMembershipMutation) {
+		m.oldValue = func(context.Context) (*UserTenantMembership, error) {
+			return node, nil
+		}
+		m.id = &node.ID
+	}
+}
+
+// Client returns a new `ent.Client` from the mutation. If the mutation was
+// executed in a transaction (ent.Tx), a transactional client is returned.
+func (m UserTenantMembershipMutation) Client() *Client {
+	client := &Client{config: m.config}
+	client.init()
+	return client
+}
+
+// Tx returns an `ent.Tx` for mutations that were executed in transactions;
+// it returns an error otherwise.
+func (m UserTenantMembershipMutation) Tx() (*Tx, error) {
+	if _, ok := m.driver.(*txDriver); !ok {
+		return nil, errors.New("ent: mutation is not running in a transaction")
+	}
+	tx := &Tx{config: m.config}
+	tx.init()
+	return tx, nil
+}
+
+// ID returns the ID value in the mutation. Note that the ID is only available
+// if it was provided to the builder or after it was returned from the database.
+func (m *UserTenantMembershipMutation) ID() (id int, exists bool) {
+	if m.id == nil {
+		return
+	}
+	return *m.id, true
+}
+
+// IDs queries the database and returns the entity ids that match the mutation's predicate.
+// That means, if the mutation is applied within a transaction with an isolation level such
+// as sql.LevelSerializable, the returned ids match the ids of the rows that will be updated
+// or updated by the mutation.
+func (m *UserTenantMembershipMutation) IDs(ctx context.Context) ([]int, error) {
+	switch {
+	case m.op.Is(OpUpdateOne | OpDeleteOne):
+		id, exists := m.ID()
+		if exists {
+			return []int{id}, nil
+		}
+		fallthrough
+	case m.op.Is(OpUpdate | OpDelete):
+		return m.Client().UserTenantMembership.Query().Where(m.predicates...).IDs(ctx)
+	default:
+		return nil, fmt.Errorf("IDs is not allowed on %s operations", m.op)
+	}
+}
+
+// SetUserID sets the "user_id" field.
+func (m *UserTenantMembershipMutation) SetUserID(i int) {
+	m.user = &i
+}
+
+// UserID returns the value of the "user_id" field in the mutation.
+func (m *UserTenantMembershipMutation) UserID() (r int, exists bool) {
+	v := m.user
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldUserID returns the old "user_id" field's value of the UserTenantMembership entity.
+// If the UserTenantMembership object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *UserTenantMembershipMutation) OldUserID(ctx context.Context) (v int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldUserID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldUserID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldUserID: %w", err)
+	}
+	return oldValue.UserID, nil
+}
+
+// ResetUserID resets all changes to the "user_id" field.
+func (m *UserTenantMembershipMutation) ResetUserID() {
+	m.user = nil
+}
+
+// SetTenantID sets the "tenant_id" field.
+func (m *UserTenantMembershipMutation) SetTenantID(i int) {
+	m.tenant = &i
+}
+
+// TenantID returns the value of the "tenant_id" field in the mutation.
+func (m *UserTenantMembershipMutation) TenantID() (r int, exists bool) {
+	v := m.tenant
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldTenantID returns the old "tenant_id" field's value of the UserTenantMembership entity.
+// If the UserTenantMembership object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *UserTenantMembershipMutation) OldTenantID(ctx context.Context) (v int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldTenantID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldTenantID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldTenantID: %w", err)
+	}
+	return oldValue.TenantID, nil
+}
+
+// ResetTenantID resets all changes to the "tenant_id" field.
+func (m *UserTenantMembershipMutation) ResetTenantID() {
+	m.tenant = nil
+}
+
+// SetAccountKind sets the "account_kind" field.
+func (m *UserTenantMembershipMutation) SetAccountKind(uk usertenantmembership.AccountKind) {
+	m.account_kind = &uk
+}
+
+// AccountKind returns the value of the "account_kind" field in the mutation.
+func (m *UserTenantMembershipMutation) AccountKind() (r usertenantmembership.AccountKind, exists bool) {
+	v := m.account_kind
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldAccountKind returns the old "account_kind" field's value of the UserTenantMembership entity.
+// If the UserTenantMembership object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *UserTenantMembershipMutation) OldAccountKind(ctx context.Context) (v usertenantmembership.AccountKind, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldAccountKind is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldAccountKind requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldAccountKind: %w", err)
+	}
+	return oldValue.AccountKind, nil
+}
+
+// ResetAccountKind resets all changes to the "account_kind" field.
+func (m *UserTenantMembershipMutation) ResetAccountKind() {
+	m.account_kind = nil
+}
+
+// SetSubjectType sets the "subject_type" field.
+func (m *UserTenantMembershipMutation) SetSubjectType(ut usertenantmembership.SubjectType) {
+	m.subject_type = &ut
+}
+
+// SubjectType returns the value of the "subject_type" field in the mutation.
+func (m *UserTenantMembershipMutation) SubjectType() (r usertenantmembership.SubjectType, exists bool) {
+	v := m.subject_type
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldSubjectType returns the old "subject_type" field's value of the UserTenantMembership entity.
+// If the UserTenantMembership object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *UserTenantMembershipMutation) OldSubjectType(ctx context.Context) (v usertenantmembership.SubjectType, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldSubjectType is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldSubjectType requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldSubjectType: %w", err)
+	}
+	return oldValue.SubjectType, nil
+}
+
+// ResetSubjectType resets all changes to the "subject_type" field.
+func (m *UserTenantMembershipMutation) ResetSubjectType() {
+	m.subject_type = nil
+}
+
+// SetSource sets the "source" field.
+func (m *UserTenantMembershipMutation) SetSource(u usertenantmembership.Source) {
+	m.source = &u
+}
+
+// Source returns the value of the "source" field in the mutation.
+func (m *UserTenantMembershipMutation) Source() (r usertenantmembership.Source, exists bool) {
+	v := m.source
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldSource returns the old "source" field's value of the UserTenantMembership entity.
+// If the UserTenantMembership object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *UserTenantMembershipMutation) OldSource(ctx context.Context) (v usertenantmembership.Source, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldSource is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldSource requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldSource: %w", err)
+	}
+	return oldValue.Source, nil
+}
+
+// ResetSource resets all changes to the "source" field.
+func (m *UserTenantMembershipMutation) ResetSource() {
+	m.source = nil
+}
+
+// SetRoleID sets the "role_id" field.
+func (m *UserTenantMembershipMutation) SetRoleID(i int) {
+	m.role_id = &i
+	m.addrole_id = nil
+}
+
+// RoleID returns the value of the "role_id" field in the mutation.
+func (m *UserTenantMembershipMutation) RoleID() (r int, exists bool) {
+	v := m.role_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldRoleID returns the old "role_id" field's value of the UserTenantMembership entity.
+// If the UserTenantMembership object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *UserTenantMembershipMutation) OldRoleID(ctx context.Context) (v *int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldRoleID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldRoleID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldRoleID: %w", err)
+	}
+	return oldValue.RoleID, nil
+}
+
+// AddRoleID adds i to the "role_id" field.
+func (m *UserTenantMembershipMutation) AddRoleID(i int) {
+	if m.addrole_id != nil {
+		*m.addrole_id += i
+	} else {
+		m.addrole_id = &i
+	}
+}
+
+// AddedRoleID returns the value that was added to the "role_id" field in this mutation.
+func (m *UserTenantMembershipMutation) AddedRoleID() (r int, exists bool) {
+	v := m.addrole_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ClearRoleID clears the value of the "role_id" field.
+func (m *UserTenantMembershipMutation) ClearRoleID() {
+	m.role_id = nil
+	m.addrole_id = nil
+	m.clearedFields[usertenantmembership.FieldRoleID] = struct{}{}
+}
+
+// RoleIDCleared returns if the "role_id" field was cleared in this mutation.
+func (m *UserTenantMembershipMutation) RoleIDCleared() bool {
+	_, ok := m.clearedFields[usertenantmembership.FieldRoleID]
+	return ok
+}
+
+// ResetRoleID resets all changes to the "role_id" field.
+func (m *UserTenantMembershipMutation) ResetRoleID() {
+	m.role_id = nil
+	m.addrole_id = nil
+	delete(m.clearedFields, usertenantmembership.FieldRoleID)
+}
+
+// SetMspRole sets the "msp_role" field.
+func (m *UserTenantMembershipMutation) SetMspRole(s string) {
+	m.msp_role = &s
+}
+
+// MspRole returns the value of the "msp_role" field in the mutation.
+func (m *UserTenantMembershipMutation) MspRole() (r string, exists bool) {
+	v := m.msp_role
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldMspRole returns the old "msp_role" field's value of the UserTenantMembership entity.
+// If the UserTenantMembership object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *UserTenantMembershipMutation) OldMspRole(ctx context.Context) (v *string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldMspRole is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldMspRole requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldMspRole: %w", err)
+	}
+	return oldValue.MspRole, nil
+}
+
+// ClearMspRole clears the value of the "msp_role" field.
+func (m *UserTenantMembershipMutation) ClearMspRole() {
+	m.msp_role = nil
+	m.clearedFields[usertenantmembership.FieldMspRole] = struct{}{}
+}
+
+// MspRoleCleared returns if the "msp_role" field was cleared in this mutation.
+func (m *UserTenantMembershipMutation) MspRoleCleared() bool {
+	_, ok := m.clearedFields[usertenantmembership.FieldMspRole]
+	return ok
+}
+
+// ResetMspRole resets all changes to the "msp_role" field.
+func (m *UserTenantMembershipMutation) ResetMspRole() {
+	m.msp_role = nil
+	delete(m.clearedFields, usertenantmembership.FieldMspRole)
+}
+
+// SetAllocationID sets the "allocation_id" field.
+func (m *UserTenantMembershipMutation) SetAllocationID(i int) {
+	m.allocation_id = &i
+	m.addallocation_id = nil
+}
+
+// AllocationID returns the value of the "allocation_id" field in the mutation.
+func (m *UserTenantMembershipMutation) AllocationID() (r int, exists bool) {
+	v := m.allocation_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldAllocationID returns the old "allocation_id" field's value of the UserTenantMembership entity.
+// If the UserTenantMembership object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *UserTenantMembershipMutation) OldAllocationID(ctx context.Context) (v *int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldAllocationID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldAllocationID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldAllocationID: %w", err)
+	}
+	return oldValue.AllocationID, nil
+}
+
+// AddAllocationID adds i to the "allocation_id" field.
+func (m *UserTenantMembershipMutation) AddAllocationID(i int) {
+	if m.addallocation_id != nil {
+		*m.addallocation_id += i
+	} else {
+		m.addallocation_id = &i
+	}
+}
+
+// AddedAllocationID returns the value that was added to the "allocation_id" field in this mutation.
+func (m *UserTenantMembershipMutation) AddedAllocationID() (r int, exists bool) {
+	v := m.addallocation_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ClearAllocationID clears the value of the "allocation_id" field.
+func (m *UserTenantMembershipMutation) ClearAllocationID() {
+	m.allocation_id = nil
+	m.addallocation_id = nil
+	m.clearedFields[usertenantmembership.FieldAllocationID] = struct{}{}
+}
+
+// AllocationIDCleared returns if the "allocation_id" field was cleared in this mutation.
+func (m *UserTenantMembershipMutation) AllocationIDCleared() bool {
+	_, ok := m.clearedFields[usertenantmembership.FieldAllocationID]
+	return ok
+}
+
+// ResetAllocationID resets all changes to the "allocation_id" field.
+func (m *UserTenantMembershipMutation) ResetAllocationID() {
+	m.allocation_id = nil
+	m.addallocation_id = nil
+	delete(m.clearedFields, usertenantmembership.FieldAllocationID)
+}
+
+// SetStatus sets the "status" field.
+func (m *UserTenantMembershipMutation) SetStatus(u usertenantmembership.Status) {
+	m.status = &u
+}
+
+// Status returns the value of the "status" field in the mutation.
+func (m *UserTenantMembershipMutation) Status() (r usertenantmembership.Status, exists bool) {
+	v := m.status
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldStatus returns the old "status" field's value of the UserTenantMembership entity.
+// If the UserTenantMembership object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *UserTenantMembershipMutation) OldStatus(ctx context.Context) (v usertenantmembership.Status, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldStatus is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldStatus requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldStatus: %w", err)
+	}
+	return oldValue.Status, nil
+}
+
+// ResetStatus resets all changes to the "status" field.
+func (m *UserTenantMembershipMutation) ResetStatus() {
+	m.status = nil
+}
+
+// SetIsDefault sets the "is_default" field.
+func (m *UserTenantMembershipMutation) SetIsDefault(b bool) {
+	m.is_default = &b
+}
+
+// IsDefault returns the value of the "is_default" field in the mutation.
+func (m *UserTenantMembershipMutation) IsDefault() (r bool, exists bool) {
+	v := m.is_default
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldIsDefault returns the old "is_default" field's value of the UserTenantMembership entity.
+// If the UserTenantMembership object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *UserTenantMembershipMutation) OldIsDefault(ctx context.Context) (v bool, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldIsDefault is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldIsDefault requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldIsDefault: %w", err)
+	}
+	return oldValue.IsDefault, nil
+}
+
+// ResetIsDefault resets all changes to the "is_default" field.
+func (m *UserTenantMembershipMutation) ResetIsDefault() {
+	m.is_default = nil
+}
+
+// SetExpiresAt sets the "expires_at" field.
+func (m *UserTenantMembershipMutation) SetExpiresAt(t time.Time) {
+	m.expires_at = &t
+}
+
+// ExpiresAt returns the value of the "expires_at" field in the mutation.
+func (m *UserTenantMembershipMutation) ExpiresAt() (r time.Time, exists bool) {
+	v := m.expires_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldExpiresAt returns the old "expires_at" field's value of the UserTenantMembership entity.
+// If the UserTenantMembership object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *UserTenantMembershipMutation) OldExpiresAt(ctx context.Context) (v *time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldExpiresAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldExpiresAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldExpiresAt: %w", err)
+	}
+	return oldValue.ExpiresAt, nil
+}
+
+// ClearExpiresAt clears the value of the "expires_at" field.
+func (m *UserTenantMembershipMutation) ClearExpiresAt() {
+	m.expires_at = nil
+	m.clearedFields[usertenantmembership.FieldExpiresAt] = struct{}{}
+}
+
+// ExpiresAtCleared returns if the "expires_at" field was cleared in this mutation.
+func (m *UserTenantMembershipMutation) ExpiresAtCleared() bool {
+	_, ok := m.clearedFields[usertenantmembership.FieldExpiresAt]
+	return ok
+}
+
+// ResetExpiresAt resets all changes to the "expires_at" field.
+func (m *UserTenantMembershipMutation) ResetExpiresAt() {
+	m.expires_at = nil
+	delete(m.clearedFields, usertenantmembership.FieldExpiresAt)
+}
+
+// SetInvitedBy sets the "invited_by" field.
+func (m *UserTenantMembershipMutation) SetInvitedBy(i int) {
+	m.invited_by = &i
+	m.addinvited_by = nil
+}
+
+// InvitedBy returns the value of the "invited_by" field in the mutation.
+func (m *UserTenantMembershipMutation) InvitedBy() (r int, exists bool) {
+	v := m.invited_by
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldInvitedBy returns the old "invited_by" field's value of the UserTenantMembership entity.
+// If the UserTenantMembership object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *UserTenantMembershipMutation) OldInvitedBy(ctx context.Context) (v *int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldInvitedBy is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldInvitedBy requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldInvitedBy: %w", err)
+	}
+	return oldValue.InvitedBy, nil
+}
+
+// AddInvitedBy adds i to the "invited_by" field.
+func (m *UserTenantMembershipMutation) AddInvitedBy(i int) {
+	if m.addinvited_by != nil {
+		*m.addinvited_by += i
+	} else {
+		m.addinvited_by = &i
+	}
+}
+
+// AddedInvitedBy returns the value that was added to the "invited_by" field in this mutation.
+func (m *UserTenantMembershipMutation) AddedInvitedBy() (r int, exists bool) {
+	v := m.addinvited_by
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ClearInvitedBy clears the value of the "invited_by" field.
+func (m *UserTenantMembershipMutation) ClearInvitedBy() {
+	m.invited_by = nil
+	m.addinvited_by = nil
+	m.clearedFields[usertenantmembership.FieldInvitedBy] = struct{}{}
+}
+
+// InvitedByCleared returns if the "invited_by" field was cleared in this mutation.
+func (m *UserTenantMembershipMutation) InvitedByCleared() bool {
+	_, ok := m.clearedFields[usertenantmembership.FieldInvitedBy]
+	return ok
+}
+
+// ResetInvitedBy resets all changes to the "invited_by" field.
+func (m *UserTenantMembershipMutation) ResetInvitedBy() {
+	m.invited_by = nil
+	m.addinvited_by = nil
+	delete(m.clearedFields, usertenantmembership.FieldInvitedBy)
+}
+
+// SetJoinedAt sets the "joined_at" field.
+func (m *UserTenantMembershipMutation) SetJoinedAt(t time.Time) {
+	m.joined_at = &t
+}
+
+// JoinedAt returns the value of the "joined_at" field in the mutation.
+func (m *UserTenantMembershipMutation) JoinedAt() (r time.Time, exists bool) {
+	v := m.joined_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldJoinedAt returns the old "joined_at" field's value of the UserTenantMembership entity.
+// If the UserTenantMembership object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *UserTenantMembershipMutation) OldJoinedAt(ctx context.Context) (v *time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldJoinedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldJoinedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldJoinedAt: %w", err)
+	}
+	return oldValue.JoinedAt, nil
+}
+
+// ClearJoinedAt clears the value of the "joined_at" field.
+func (m *UserTenantMembershipMutation) ClearJoinedAt() {
+	m.joined_at = nil
+	m.clearedFields[usertenantmembership.FieldJoinedAt] = struct{}{}
+}
+
+// JoinedAtCleared returns if the "joined_at" field was cleared in this mutation.
+func (m *UserTenantMembershipMutation) JoinedAtCleared() bool {
+	_, ok := m.clearedFields[usertenantmembership.FieldJoinedAt]
+	return ok
+}
+
+// ResetJoinedAt resets all changes to the "joined_at" field.
+func (m *UserTenantMembershipMutation) ResetJoinedAt() {
+	m.joined_at = nil
+	delete(m.clearedFields, usertenantmembership.FieldJoinedAt)
+}
+
+// SetDeassignedAt sets the "deassigned_at" field.
+func (m *UserTenantMembershipMutation) SetDeassignedAt(t time.Time) {
+	m.deassigned_at = &t
+}
+
+// DeassignedAt returns the value of the "deassigned_at" field in the mutation.
+func (m *UserTenantMembershipMutation) DeassignedAt() (r time.Time, exists bool) {
+	v := m.deassigned_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldDeassignedAt returns the old "deassigned_at" field's value of the UserTenantMembership entity.
+// If the UserTenantMembership object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *UserTenantMembershipMutation) OldDeassignedAt(ctx context.Context) (v *time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldDeassignedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldDeassignedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldDeassignedAt: %w", err)
+	}
+	return oldValue.DeassignedAt, nil
+}
+
+// ClearDeassignedAt clears the value of the "deassigned_at" field.
+func (m *UserTenantMembershipMutation) ClearDeassignedAt() {
+	m.deassigned_at = nil
+	m.clearedFields[usertenantmembership.FieldDeassignedAt] = struct{}{}
+}
+
+// DeassignedAtCleared returns if the "deassigned_at" field was cleared in this mutation.
+func (m *UserTenantMembershipMutation) DeassignedAtCleared() bool {
+	_, ok := m.clearedFields[usertenantmembership.FieldDeassignedAt]
+	return ok
+}
+
+// ResetDeassignedAt resets all changes to the "deassigned_at" field.
+func (m *UserTenantMembershipMutation) ResetDeassignedAt() {
+	m.deassigned_at = nil
+	delete(m.clearedFields, usertenantmembership.FieldDeassignedAt)
+}
+
+// SetDeletedAt sets the "deleted_at" field.
+func (m *UserTenantMembershipMutation) SetDeletedAt(t time.Time) {
+	m.deleted_at = &t
+}
+
+// DeletedAt returns the value of the "deleted_at" field in the mutation.
+func (m *UserTenantMembershipMutation) DeletedAt() (r time.Time, exists bool) {
+	v := m.deleted_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldDeletedAt returns the old "deleted_at" field's value of the UserTenantMembership entity.
+// If the UserTenantMembership object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *UserTenantMembershipMutation) OldDeletedAt(ctx context.Context) (v *time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldDeletedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldDeletedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldDeletedAt: %w", err)
+	}
+	return oldValue.DeletedAt, nil
+}
+
+// ClearDeletedAt clears the value of the "deleted_at" field.
+func (m *UserTenantMembershipMutation) ClearDeletedAt() {
+	m.deleted_at = nil
+	m.clearedFields[usertenantmembership.FieldDeletedAt] = struct{}{}
+}
+
+// DeletedAtCleared returns if the "deleted_at" field was cleared in this mutation.
+func (m *UserTenantMembershipMutation) DeletedAtCleared() bool {
+	_, ok := m.clearedFields[usertenantmembership.FieldDeletedAt]
+	return ok
+}
+
+// ResetDeletedAt resets all changes to the "deleted_at" field.
+func (m *UserTenantMembershipMutation) ResetDeletedAt() {
+	m.deleted_at = nil
+	delete(m.clearedFields, usertenantmembership.FieldDeletedAt)
+}
+
+// SetCreatedAt sets the "created_at" field.
+func (m *UserTenantMembershipMutation) SetCreatedAt(t time.Time) {
+	m.created_at = &t
+}
+
+// CreatedAt returns the value of the "created_at" field in the mutation.
+func (m *UserTenantMembershipMutation) CreatedAt() (r time.Time, exists bool) {
+	v := m.created_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldCreatedAt returns the old "created_at" field's value of the UserTenantMembership entity.
+// If the UserTenantMembership object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *UserTenantMembershipMutation) OldCreatedAt(ctx context.Context) (v time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldCreatedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldCreatedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldCreatedAt: %w", err)
+	}
+	return oldValue.CreatedAt, nil
+}
+
+// ResetCreatedAt resets all changes to the "created_at" field.
+func (m *UserTenantMembershipMutation) ResetCreatedAt() {
+	m.created_at = nil
+}
+
+// SetUpdatedAt sets the "updated_at" field.
+func (m *UserTenantMembershipMutation) SetUpdatedAt(t time.Time) {
+	m.updated_at = &t
+}
+
+// UpdatedAt returns the value of the "updated_at" field in the mutation.
+func (m *UserTenantMembershipMutation) UpdatedAt() (r time.Time, exists bool) {
+	v := m.updated_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldUpdatedAt returns the old "updated_at" field's value of the UserTenantMembership entity.
+// If the UserTenantMembership object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *UserTenantMembershipMutation) OldUpdatedAt(ctx context.Context) (v time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldUpdatedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldUpdatedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldUpdatedAt: %w", err)
+	}
+	return oldValue.UpdatedAt, nil
+}
+
+// ResetUpdatedAt resets all changes to the "updated_at" field.
+func (m *UserTenantMembershipMutation) ResetUpdatedAt() {
+	m.updated_at = nil
+}
+
+// ClearUser clears the "user" edge to the User entity.
+func (m *UserTenantMembershipMutation) ClearUser() {
+	m.cleareduser = true
+	m.clearedFields[usertenantmembership.FieldUserID] = struct{}{}
+}
+
+// UserCleared reports if the "user" edge to the User entity was cleared.
+func (m *UserTenantMembershipMutation) UserCleared() bool {
+	return m.cleareduser
+}
+
+// UserIDs returns the "user" edge IDs in the mutation.
+// Note that IDs always returns len(IDs) <= 1 for unique edges, and you should use
+// UserID instead. It exists only for internal usage by the builders.
+func (m *UserTenantMembershipMutation) UserIDs() (ids []int) {
+	if id := m.user; id != nil {
+		ids = append(ids, *id)
+	}
+	return
+}
+
+// ResetUser resets all changes to the "user" edge.
+func (m *UserTenantMembershipMutation) ResetUser() {
+	m.user = nil
+	m.cleareduser = false
+}
+
+// ClearTenant clears the "tenant" edge to the Tenant entity.
+func (m *UserTenantMembershipMutation) ClearTenant() {
+	m.clearedtenant = true
+	m.clearedFields[usertenantmembership.FieldTenantID] = struct{}{}
+}
+
+// TenantCleared reports if the "tenant" edge to the Tenant entity was cleared.
+func (m *UserTenantMembershipMutation) TenantCleared() bool {
+	return m.clearedtenant
+}
+
+// TenantIDs returns the "tenant" edge IDs in the mutation.
+// Note that IDs always returns len(IDs) <= 1 for unique edges, and you should use
+// TenantID instead. It exists only for internal usage by the builders.
+func (m *UserTenantMembershipMutation) TenantIDs() (ids []int) {
+	if id := m.tenant; id != nil {
+		ids = append(ids, *id)
+	}
+	return
+}
+
+// ResetTenant resets all changes to the "tenant" edge.
+func (m *UserTenantMembershipMutation) ResetTenant() {
+	m.tenant = nil
+	m.clearedtenant = false
+}
+
+// Where appends a list predicates to the UserTenantMembershipMutation builder.
+func (m *UserTenantMembershipMutation) Where(ps ...predicate.UserTenantMembership) {
+	m.predicates = append(m.predicates, ps...)
+}
+
+// WhereP appends storage-level predicates to the UserTenantMembershipMutation builder. Using this method,
+// users can use type-assertion to append predicates that do not depend on any generated package.
+func (m *UserTenantMembershipMutation) WhereP(ps ...func(*sql.Selector)) {
+	p := make([]predicate.UserTenantMembership, len(ps))
+	for i := range ps {
+		p[i] = ps[i]
+	}
+	m.Where(p...)
+}
+
+// Op returns the operation name.
+func (m *UserTenantMembershipMutation) Op() Op {
+	return m.op
+}
+
+// SetOp allows setting the mutation operation.
+func (m *UserTenantMembershipMutation) SetOp(op Op) {
+	m.op = op
+}
+
+// Type returns the node type of this mutation (UserTenantMembership).
+func (m *UserTenantMembershipMutation) Type() string {
+	return m.typ
+}
+
+// Fields returns all fields that were changed during this mutation. Note that in
+// order to get all numeric fields that were incremented/decremented, call
+// AddedFields().
+func (m *UserTenantMembershipMutation) Fields() []string {
+	fields := make([]string, 0, 17)
+	if m.user != nil {
+		fields = append(fields, usertenantmembership.FieldUserID)
+	}
+	if m.tenant != nil {
+		fields = append(fields, usertenantmembership.FieldTenantID)
+	}
+	if m.account_kind != nil {
+		fields = append(fields, usertenantmembership.FieldAccountKind)
+	}
+	if m.subject_type != nil {
+		fields = append(fields, usertenantmembership.FieldSubjectType)
+	}
+	if m.source != nil {
+		fields = append(fields, usertenantmembership.FieldSource)
+	}
+	if m.role_id != nil {
+		fields = append(fields, usertenantmembership.FieldRoleID)
+	}
+	if m.msp_role != nil {
+		fields = append(fields, usertenantmembership.FieldMspRole)
+	}
+	if m.allocation_id != nil {
+		fields = append(fields, usertenantmembership.FieldAllocationID)
+	}
+	if m.status != nil {
+		fields = append(fields, usertenantmembership.FieldStatus)
+	}
+	if m.is_default != nil {
+		fields = append(fields, usertenantmembership.FieldIsDefault)
+	}
+	if m.expires_at != nil {
+		fields = append(fields, usertenantmembership.FieldExpiresAt)
+	}
+	if m.invited_by != nil {
+		fields = append(fields, usertenantmembership.FieldInvitedBy)
+	}
+	if m.joined_at != nil {
+		fields = append(fields, usertenantmembership.FieldJoinedAt)
+	}
+	if m.deassigned_at != nil {
+		fields = append(fields, usertenantmembership.FieldDeassignedAt)
+	}
+	if m.deleted_at != nil {
+		fields = append(fields, usertenantmembership.FieldDeletedAt)
+	}
+	if m.created_at != nil {
+		fields = append(fields, usertenantmembership.FieldCreatedAt)
+	}
+	if m.updated_at != nil {
+		fields = append(fields, usertenantmembership.FieldUpdatedAt)
+	}
+	return fields
+}
+
+// Field returns the value of a field with the given name. The second boolean
+// return value indicates that this field was not set, or was not defined in the
+// schema.
+func (m *UserTenantMembershipMutation) Field(name string) (ent.Value, bool) {
+	switch name {
+	case usertenantmembership.FieldUserID:
+		return m.UserID()
+	case usertenantmembership.FieldTenantID:
+		return m.TenantID()
+	case usertenantmembership.FieldAccountKind:
+		return m.AccountKind()
+	case usertenantmembership.FieldSubjectType:
+		return m.SubjectType()
+	case usertenantmembership.FieldSource:
+		return m.Source()
+	case usertenantmembership.FieldRoleID:
+		return m.RoleID()
+	case usertenantmembership.FieldMspRole:
+		return m.MspRole()
+	case usertenantmembership.FieldAllocationID:
+		return m.AllocationID()
+	case usertenantmembership.FieldStatus:
+		return m.Status()
+	case usertenantmembership.FieldIsDefault:
+		return m.IsDefault()
+	case usertenantmembership.FieldExpiresAt:
+		return m.ExpiresAt()
+	case usertenantmembership.FieldInvitedBy:
+		return m.InvitedBy()
+	case usertenantmembership.FieldJoinedAt:
+		return m.JoinedAt()
+	case usertenantmembership.FieldDeassignedAt:
+		return m.DeassignedAt()
+	case usertenantmembership.FieldDeletedAt:
+		return m.DeletedAt()
+	case usertenantmembership.FieldCreatedAt:
+		return m.CreatedAt()
+	case usertenantmembership.FieldUpdatedAt:
+		return m.UpdatedAt()
+	}
+	return nil, false
+}
+
+// OldField returns the old value of the field from the database. An error is
+// returned if the mutation operation is not UpdateOne, or the query to the
+// database failed.
+func (m *UserTenantMembershipMutation) OldField(ctx context.Context, name string) (ent.Value, error) {
+	switch name {
+	case usertenantmembership.FieldUserID:
+		return m.OldUserID(ctx)
+	case usertenantmembership.FieldTenantID:
+		return m.OldTenantID(ctx)
+	case usertenantmembership.FieldAccountKind:
+		return m.OldAccountKind(ctx)
+	case usertenantmembership.FieldSubjectType:
+		return m.OldSubjectType(ctx)
+	case usertenantmembership.FieldSource:
+		return m.OldSource(ctx)
+	case usertenantmembership.FieldRoleID:
+		return m.OldRoleID(ctx)
+	case usertenantmembership.FieldMspRole:
+		return m.OldMspRole(ctx)
+	case usertenantmembership.FieldAllocationID:
+		return m.OldAllocationID(ctx)
+	case usertenantmembership.FieldStatus:
+		return m.OldStatus(ctx)
+	case usertenantmembership.FieldIsDefault:
+		return m.OldIsDefault(ctx)
+	case usertenantmembership.FieldExpiresAt:
+		return m.OldExpiresAt(ctx)
+	case usertenantmembership.FieldInvitedBy:
+		return m.OldInvitedBy(ctx)
+	case usertenantmembership.FieldJoinedAt:
+		return m.OldJoinedAt(ctx)
+	case usertenantmembership.FieldDeassignedAt:
+		return m.OldDeassignedAt(ctx)
+	case usertenantmembership.FieldDeletedAt:
+		return m.OldDeletedAt(ctx)
+	case usertenantmembership.FieldCreatedAt:
+		return m.OldCreatedAt(ctx)
+	case usertenantmembership.FieldUpdatedAt:
+		return m.OldUpdatedAt(ctx)
+	}
+	return nil, fmt.Errorf("unknown UserTenantMembership field %s", name)
+}
+
+// SetField sets the value of a field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *UserTenantMembershipMutation) SetField(name string, value ent.Value) error {
+	switch name {
+	case usertenantmembership.FieldUserID:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetUserID(v)
+		return nil
+	case usertenantmembership.FieldTenantID:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetTenantID(v)
+		return nil
+	case usertenantmembership.FieldAccountKind:
+		v, ok := value.(usertenantmembership.AccountKind)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetAccountKind(v)
+		return nil
+	case usertenantmembership.FieldSubjectType:
+		v, ok := value.(usertenantmembership.SubjectType)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetSubjectType(v)
+		return nil
+	case usertenantmembership.FieldSource:
+		v, ok := value.(usertenantmembership.Source)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetSource(v)
+		return nil
+	case usertenantmembership.FieldRoleID:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetRoleID(v)
+		return nil
+	case usertenantmembership.FieldMspRole:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetMspRole(v)
+		return nil
+	case usertenantmembership.FieldAllocationID:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetAllocationID(v)
+		return nil
+	case usertenantmembership.FieldStatus:
+		v, ok := value.(usertenantmembership.Status)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetStatus(v)
+		return nil
+	case usertenantmembership.FieldIsDefault:
+		v, ok := value.(bool)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetIsDefault(v)
+		return nil
+	case usertenantmembership.FieldExpiresAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetExpiresAt(v)
+		return nil
+	case usertenantmembership.FieldInvitedBy:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetInvitedBy(v)
+		return nil
+	case usertenantmembership.FieldJoinedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetJoinedAt(v)
+		return nil
+	case usertenantmembership.FieldDeassignedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetDeassignedAt(v)
+		return nil
+	case usertenantmembership.FieldDeletedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetDeletedAt(v)
+		return nil
+	case usertenantmembership.FieldCreatedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetCreatedAt(v)
+		return nil
+	case usertenantmembership.FieldUpdatedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetUpdatedAt(v)
+		return nil
+	}
+	return fmt.Errorf("unknown UserTenantMembership field %s", name)
+}
+
+// AddedFields returns all numeric fields that were incremented/decremented during
+// this mutation.
+func (m *UserTenantMembershipMutation) AddedFields() []string {
+	var fields []string
+	if m.addrole_id != nil {
+		fields = append(fields, usertenantmembership.FieldRoleID)
+	}
+	if m.addallocation_id != nil {
+		fields = append(fields, usertenantmembership.FieldAllocationID)
+	}
+	if m.addinvited_by != nil {
+		fields = append(fields, usertenantmembership.FieldInvitedBy)
+	}
+	return fields
+}
+
+// AddedField returns the numeric value that was incremented/decremented on a field
+// with the given name. The second boolean return value indicates that this field
+// was not set, or was not defined in the schema.
+func (m *UserTenantMembershipMutation) AddedField(name string) (ent.Value, bool) {
+	switch name {
+	case usertenantmembership.FieldRoleID:
+		return m.AddedRoleID()
+	case usertenantmembership.FieldAllocationID:
+		return m.AddedAllocationID()
+	case usertenantmembership.FieldInvitedBy:
+		return m.AddedInvitedBy()
+	}
+	return nil, false
+}
+
+// AddField adds the value to the field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *UserTenantMembershipMutation) AddField(name string, value ent.Value) error {
+	switch name {
+	case usertenantmembership.FieldRoleID:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddRoleID(v)
+		return nil
+	case usertenantmembership.FieldAllocationID:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddAllocationID(v)
+		return nil
+	case usertenantmembership.FieldInvitedBy:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddInvitedBy(v)
+		return nil
+	}
+	return fmt.Errorf("unknown UserTenantMembership numeric field %s", name)
+}
+
+// ClearedFields returns all nullable fields that were cleared during this
+// mutation.
+func (m *UserTenantMembershipMutation) ClearedFields() []string {
+	var fields []string
+	if m.FieldCleared(usertenantmembership.FieldRoleID) {
+		fields = append(fields, usertenantmembership.FieldRoleID)
+	}
+	if m.FieldCleared(usertenantmembership.FieldMspRole) {
+		fields = append(fields, usertenantmembership.FieldMspRole)
+	}
+	if m.FieldCleared(usertenantmembership.FieldAllocationID) {
+		fields = append(fields, usertenantmembership.FieldAllocationID)
+	}
+	if m.FieldCleared(usertenantmembership.FieldExpiresAt) {
+		fields = append(fields, usertenantmembership.FieldExpiresAt)
+	}
+	if m.FieldCleared(usertenantmembership.FieldInvitedBy) {
+		fields = append(fields, usertenantmembership.FieldInvitedBy)
+	}
+	if m.FieldCleared(usertenantmembership.FieldJoinedAt) {
+		fields = append(fields, usertenantmembership.FieldJoinedAt)
+	}
+	if m.FieldCleared(usertenantmembership.FieldDeassignedAt) {
+		fields = append(fields, usertenantmembership.FieldDeassignedAt)
+	}
+	if m.FieldCleared(usertenantmembership.FieldDeletedAt) {
+		fields = append(fields, usertenantmembership.FieldDeletedAt)
+	}
+	return fields
+}
+
+// FieldCleared returns a boolean indicating if a field with the given name was
+// cleared in this mutation.
+func (m *UserTenantMembershipMutation) FieldCleared(name string) bool {
+	_, ok := m.clearedFields[name]
+	return ok
+}
+
+// ClearField clears the value of the field with the given name. It returns an
+// error if the field is not defined in the schema.
+func (m *UserTenantMembershipMutation) ClearField(name string) error {
+	switch name {
+	case usertenantmembership.FieldRoleID:
+		m.ClearRoleID()
+		return nil
+	case usertenantmembership.FieldMspRole:
+		m.ClearMspRole()
+		return nil
+	case usertenantmembership.FieldAllocationID:
+		m.ClearAllocationID()
+		return nil
+	case usertenantmembership.FieldExpiresAt:
+		m.ClearExpiresAt()
+		return nil
+	case usertenantmembership.FieldInvitedBy:
+		m.ClearInvitedBy()
+		return nil
+	case usertenantmembership.FieldJoinedAt:
+		m.ClearJoinedAt()
+		return nil
+	case usertenantmembership.FieldDeassignedAt:
+		m.ClearDeassignedAt()
+		return nil
+	case usertenantmembership.FieldDeletedAt:
+		m.ClearDeletedAt()
+		return nil
+	}
+	return fmt.Errorf("unknown UserTenantMembership nullable field %s", name)
+}
+
+// ResetField resets all changes in the mutation for the field with the given name.
+// It returns an error if the field is not defined in the schema.
+func (m *UserTenantMembershipMutation) ResetField(name string) error {
+	switch name {
+	case usertenantmembership.FieldUserID:
+		m.ResetUserID()
+		return nil
+	case usertenantmembership.FieldTenantID:
+		m.ResetTenantID()
+		return nil
+	case usertenantmembership.FieldAccountKind:
+		m.ResetAccountKind()
+		return nil
+	case usertenantmembership.FieldSubjectType:
+		m.ResetSubjectType()
+		return nil
+	case usertenantmembership.FieldSource:
+		m.ResetSource()
+		return nil
+	case usertenantmembership.FieldRoleID:
+		m.ResetRoleID()
+		return nil
+	case usertenantmembership.FieldMspRole:
+		m.ResetMspRole()
+		return nil
+	case usertenantmembership.FieldAllocationID:
+		m.ResetAllocationID()
+		return nil
+	case usertenantmembership.FieldStatus:
+		m.ResetStatus()
+		return nil
+	case usertenantmembership.FieldIsDefault:
+		m.ResetIsDefault()
+		return nil
+	case usertenantmembership.FieldExpiresAt:
+		m.ResetExpiresAt()
+		return nil
+	case usertenantmembership.FieldInvitedBy:
+		m.ResetInvitedBy()
+		return nil
+	case usertenantmembership.FieldJoinedAt:
+		m.ResetJoinedAt()
+		return nil
+	case usertenantmembership.FieldDeassignedAt:
+		m.ResetDeassignedAt()
+		return nil
+	case usertenantmembership.FieldDeletedAt:
+		m.ResetDeletedAt()
+		return nil
+	case usertenantmembership.FieldCreatedAt:
+		m.ResetCreatedAt()
+		return nil
+	case usertenantmembership.FieldUpdatedAt:
+		m.ResetUpdatedAt()
+		return nil
+	}
+	return fmt.Errorf("unknown UserTenantMembership field %s", name)
+}
+
+// AddedEdges returns all edge names that were set/added in this mutation.
+func (m *UserTenantMembershipMutation) AddedEdges() []string {
+	edges := make([]string, 0, 2)
+	if m.user != nil {
+		edges = append(edges, usertenantmembership.EdgeUser)
+	}
+	if m.tenant != nil {
+		edges = append(edges, usertenantmembership.EdgeTenant)
+	}
+	return edges
+}
+
+// AddedIDs returns all IDs (to other nodes) that were added for the given edge
+// name in this mutation.
+func (m *UserTenantMembershipMutation) AddedIDs(name string) []ent.Value {
+	switch name {
+	case usertenantmembership.EdgeUser:
+		if id := m.user; id != nil {
+			return []ent.Value{*id}
+		}
+	case usertenantmembership.EdgeTenant:
+		if id := m.tenant; id != nil {
+			return []ent.Value{*id}
+		}
+	}
+	return nil
+}
+
+// RemovedEdges returns all edge names that were removed in this mutation.
+func (m *UserTenantMembershipMutation) RemovedEdges() []string {
+	edges := make([]string, 0, 2)
+	return edges
+}
+
+// RemovedIDs returns all IDs (to other nodes) that were removed for the edge with
+// the given name in this mutation.
+func (m *UserTenantMembershipMutation) RemovedIDs(name string) []ent.Value {
+	return nil
+}
+
+// ClearedEdges returns all edge names that were cleared in this mutation.
+func (m *UserTenantMembershipMutation) ClearedEdges() []string {
+	edges := make([]string, 0, 2)
+	if m.cleareduser {
+		edges = append(edges, usertenantmembership.EdgeUser)
+	}
+	if m.clearedtenant {
+		edges = append(edges, usertenantmembership.EdgeTenant)
+	}
+	return edges
+}
+
+// EdgeCleared returns a boolean which indicates if the edge with the given name
+// was cleared in this mutation.
+func (m *UserTenantMembershipMutation) EdgeCleared(name string) bool {
+	switch name {
+	case usertenantmembership.EdgeUser:
+		return m.cleareduser
+	case usertenantmembership.EdgeTenant:
+		return m.clearedtenant
+	}
+	return false
+}
+
+// ClearEdge clears the value of the edge with the given name. It returns an error
+// if that edge is not defined in the schema.
+func (m *UserTenantMembershipMutation) ClearEdge(name string) error {
+	switch name {
+	case usertenantmembership.EdgeUser:
+		m.ClearUser()
+		return nil
+	case usertenantmembership.EdgeTenant:
+		m.ClearTenant()
+		return nil
+	}
+	return fmt.Errorf("unknown UserTenantMembership unique edge %s", name)
+}
+
+// ResetEdge resets all changes to the edge with the given name in this mutation.
+// It returns an error if the edge is not defined in the schema.
+func (m *UserTenantMembershipMutation) ResetEdge(name string) error {
+	switch name {
+	case usertenantmembership.EdgeUser:
+		m.ResetUser()
+		return nil
+	case usertenantmembership.EdgeTenant:
+		m.ResetTenant()
+		return nil
+	}
+	return fmt.Errorf("unknown UserTenantMembership edge %s", name)
 }
 
 // VendorMutation represents an operation that mutates the Vendor nodes in the graph.

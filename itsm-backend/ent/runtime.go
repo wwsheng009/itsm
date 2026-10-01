@@ -144,6 +144,7 @@ import (
 	"itsm-backend/ent/ticketworkflowrecord"
 	"itsm-backend/ent/toolinvocation"
 	"itsm-backend/ent/user"
+	"itsm-backend/ent/usertenantmembership"
 	"itsm-backend/ent/vendor"
 	"itsm-backend/ent/workflow"
 	"itsm-backend/ent/workflowinstance"
@@ -6135,6 +6136,22 @@ func init() {
 	userDescIsBootstrapAdmin := userFields[15].Descriptor()
 	// user.DefaultIsBootstrapAdmin holds the default value on creation for the is_bootstrap_admin field.
 	user.DefaultIsBootstrapAdmin = userDescIsBootstrapAdmin.Default.(bool)
+	usertenantmembershipFields := schema.UserTenantMembership{}.Fields()
+	_ = usertenantmembershipFields
+	// usertenantmembershipDescIsDefault is the schema descriptor for is_default field.
+	usertenantmembershipDescIsDefault := usertenantmembershipFields[9].Descriptor()
+	// usertenantmembership.DefaultIsDefault holds the default value on creation for the is_default field.
+	usertenantmembership.DefaultIsDefault = usertenantmembershipDescIsDefault.Default.(bool)
+	// usertenantmembershipDescCreatedAt is the schema descriptor for created_at field.
+	usertenantmembershipDescCreatedAt := usertenantmembershipFields[15].Descriptor()
+	// usertenantmembership.DefaultCreatedAt holds the default value on creation for the created_at field.
+	usertenantmembership.DefaultCreatedAt = usertenantmembershipDescCreatedAt.Default.(func() time.Time)
+	// usertenantmembershipDescUpdatedAt is the schema descriptor for updated_at field.
+	usertenantmembershipDescUpdatedAt := usertenantmembershipFields[16].Descriptor()
+	// usertenantmembership.DefaultUpdatedAt holds the default value on creation for the updated_at field.
+	usertenantmembership.DefaultUpdatedAt = usertenantmembershipDescUpdatedAt.Default.(func() time.Time)
+	// usertenantmembership.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
+	usertenantmembership.UpdateDefaultUpdatedAt = usertenantmembershipDescUpdatedAt.UpdateDefault.(func() time.Time)
 	vendorFields := schema.Vendor{}.Fields()
 	_ = vendorFields
 	// vendorDescName is the schema descriptor for name field.

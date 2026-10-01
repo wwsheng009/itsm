@@ -55,6 +55,8 @@ const (
 	EdgeUsers = "users"
 	// EdgeMspCustomerAllocations holds the string denoting the msp_customer_allocations edge name in mutations.
 	EdgeMspCustomerAllocations = "msp_customer_allocations"
+	// EdgeMemberships holds the string denoting the memberships edge name in mutations.
+	EdgeMemberships = "memberships"
 	// EdgeBootstrapTokens holds the string denoting the bootstrap_tokens edge name in mutations.
 	EdgeBootstrapTokens = "bootstrap_tokens"
 	// Table holds the table name of the tenant in the database.
@@ -73,6 +75,13 @@ const (
 	MspCustomerAllocationsInverseTable = "msp_allocations"
 	// MspCustomerAllocationsColumn is the table column denoting the msp_customer_allocations relation/edge.
 	MspCustomerAllocationsColumn = "customer_tenant_id"
+	// MembershipsTable is the table that holds the memberships relation/edge.
+	MembershipsTable = "user_tenant_memberships"
+	// MembershipsInverseTable is the table name for the UserTenantMembership entity.
+	// It exists in this package in order to avoid circular dependency with the "usertenantmembership" package.
+	MembershipsInverseTable = "user_tenant_memberships"
+	// MembershipsColumn is the table column denoting the memberships relation/edge.
+	MembershipsColumn = "tenant_id"
 	// BootstrapTokensTable is the table that holds the bootstrap_tokens relation/edge.
 	BootstrapTokensTable = "bootstrap_tokens"
 	// BootstrapTokensInverseTable is the table name for the BootstrapToken entity.
@@ -291,6 +300,20 @@ func ByMspCustomerAllocations(term sql.OrderTerm, terms ...sql.OrderTerm) OrderO
 	}
 }
 
+// ByMembershipsCount orders the results by memberships count.
+func ByMembershipsCount(opts ...sql.OrderTermOption) OrderOption {
+	return func(s *sql.Selector) {
+		sqlgraph.OrderByNeighborsCount(s, newMembershipsStep(), opts...)
+	}
+}
+
+// ByMemberships orders the results by memberships terms.
+func ByMemberships(term sql.OrderTerm, terms ...sql.OrderTerm) OrderOption {
+	return func(s *sql.Selector) {
+		sqlgraph.OrderByNeighborTerms(s, newMembershipsStep(), append([]sql.OrderTerm{term}, terms...)...)
+	}
+}
+
 // ByBootstrapTokensCount orders the results by bootstrap_tokens count.
 func ByBootstrapTokensCount(opts ...sql.OrderTermOption) OrderOption {
 	return func(s *sql.Selector) {
@@ -316,6 +339,13 @@ func newMspCustomerAllocationsStep() *sqlgraph.Step {
 		sqlgraph.From(Table, FieldID),
 		sqlgraph.To(MspCustomerAllocationsInverseTable, FieldID),
 		sqlgraph.Edge(sqlgraph.O2M, false, MspCustomerAllocationsTable, MspCustomerAllocationsColumn),
+	)
+}
+func newMembershipsStep() *sqlgraph.Step {
+	return sqlgraph.NewStep(
+		sqlgraph.From(Table, FieldID),
+		sqlgraph.To(MembershipsInverseTable, FieldID),
+		sqlgraph.Edge(sqlgraph.O2M, false, MembershipsTable, MembershipsColumn),
 	)
 }
 func newBootstrapTokensStep() *sqlgraph.Step {

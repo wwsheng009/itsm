@@ -10,6 +10,7 @@ import (
 	"itsm-backend/ent/mspallocation"
 	"itsm-backend/ent/tenant"
 	"itsm-backend/ent/user"
+	"itsm-backend/ent/usertenantmembership"
 	"time"
 
 	"entgo.io/ent/dialect/sql/sqlgraph"
@@ -289,6 +290,21 @@ func (_c *TenantCreate) AddMspCustomerAllocations(v ...*MSPAllocation) *TenantCr
 	return _c.AddMspCustomerAllocationIDs(ids...)
 }
 
+// AddMembershipIDs adds the "memberships" edge to the UserTenantMembership entity by IDs.
+func (_c *TenantCreate) AddMembershipIDs(ids ...int) *TenantCreate {
+	_c.mutation.AddMembershipIDs(ids...)
+	return _c
+}
+
+// AddMemberships adds the "memberships" edges to the UserTenantMembership entity.
+func (_c *TenantCreate) AddMemberships(v ...*UserTenantMembership) *TenantCreate {
+	ids := make([]int, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _c.AddMembershipIDs(ids...)
+}
+
 // AddBootstrapTokenIDs adds the "bootstrap_tokens" edge to the BootstrapToken entity by IDs.
 func (_c *TenantCreate) AddBootstrapTokenIDs(ids ...int) *TenantCreate {
 	_c.mutation.AddBootstrapTokenIDs(ids...)
@@ -529,6 +545,22 @@ func (_c *TenantCreate) createSpec() (*Tenant, *sqlgraph.CreateSpec) {
 			Bidi:    false,
 			Target: &sqlgraph.EdgeTarget{
 				IDSpec: sqlgraph.NewFieldSpec(mspallocation.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges = append(_spec.Edges, edge)
+	}
+	if nodes := _c.mutation.MembershipsIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   tenant.MembershipsTable,
+			Columns: []string{tenant.MembershipsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(usertenantmembership.FieldID, field.TypeInt),
 			},
 		}
 		for _, k := range nodes {

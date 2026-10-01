@@ -24,6 +24,7 @@ import (
 	"itsm-backend/ent/ticketnotification"
 	"itsm-backend/ent/toolinvocation"
 	"itsm-backend/ent/user"
+	"itsm-backend/ent/usertenantmembership"
 	"time"
 
 	"entgo.io/ent/dialect/sql"
@@ -477,6 +478,21 @@ func (_u *UserUpdate) AddMspAllocations(v ...*MSPAllocation) *UserUpdate {
 	return _u.AddMspAllocationIDs(ids...)
 }
 
+// AddTenantMembershipIDs adds the "tenant_memberships" edge to the UserTenantMembership entity by IDs.
+func (_u *UserUpdate) AddTenantMembershipIDs(ids ...int) *UserUpdate {
+	_u.mutation.AddTenantMembershipIDs(ids...)
+	return _u
+}
+
+// AddTenantMemberships adds the "tenant_memberships" edges to the UserTenantMembership entity.
+func (_u *UserUpdate) AddTenantMemberships(v ...*UserTenantMembership) *UserUpdate {
+	ids := make([]int, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.AddTenantMembershipIDs(ids...)
+}
+
 // AddArticleSessionIDs adds the "article_sessions" edge to the KnowledgeArticleSession entity by IDs.
 func (_u *UserUpdate) AddArticleSessionIDs(ids ...int) *UserUpdate {
 	_u.mutation.AddArticleSessionIDs(ids...)
@@ -777,6 +793,27 @@ func (_u *UserUpdate) RemoveMspAllocations(v ...*MSPAllocation) *UserUpdate {
 		ids[i] = v[i].ID
 	}
 	return _u.RemoveMspAllocationIDs(ids...)
+}
+
+// ClearTenantMemberships clears all "tenant_memberships" edges to the UserTenantMembership entity.
+func (_u *UserUpdate) ClearTenantMemberships() *UserUpdate {
+	_u.mutation.ClearTenantMemberships()
+	return _u
+}
+
+// RemoveTenantMembershipIDs removes the "tenant_memberships" edge to UserTenantMembership entities by IDs.
+func (_u *UserUpdate) RemoveTenantMembershipIDs(ids ...int) *UserUpdate {
+	_u.mutation.RemoveTenantMembershipIDs(ids...)
+	return _u
+}
+
+// RemoveTenantMemberships removes "tenant_memberships" edges to UserTenantMembership entities.
+func (_u *UserUpdate) RemoveTenantMemberships(v ...*UserTenantMembership) *UserUpdate {
+	ids := make([]int, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.RemoveTenantMembershipIDs(ids...)
 }
 
 // ClearArticleSessions clears all "article_sessions" edges to the KnowledgeArticleSession entity.
@@ -1543,6 +1580,51 @@ func (_u *UserUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 		}
 		_spec.Edges.Add = append(_spec.Edges.Add, edge)
 	}
+	if _u.mutation.TenantMembershipsCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   user.TenantMembershipsTable,
+			Columns: []string{user.TenantMembershipsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(usertenantmembership.FieldID, field.TypeInt),
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.RemovedTenantMembershipsIDs(); len(nodes) > 0 && !_u.mutation.TenantMembershipsCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   user.TenantMembershipsTable,
+			Columns: []string{user.TenantMembershipsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(usertenantmembership.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.TenantMembershipsIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   user.TenantMembershipsTable,
+			Columns: []string{user.TenantMembershipsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(usertenantmembership.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
+	}
 	if _u.mutation.ArticleSessionsCleared() {
 		edge := &sqlgraph.EdgeSpec{
 			Rel:     sqlgraph.M2M,
@@ -2221,6 +2303,21 @@ func (_u *UserUpdateOne) AddMspAllocations(v ...*MSPAllocation) *UserUpdateOne {
 	return _u.AddMspAllocationIDs(ids...)
 }
 
+// AddTenantMembershipIDs adds the "tenant_memberships" edge to the UserTenantMembership entity by IDs.
+func (_u *UserUpdateOne) AddTenantMembershipIDs(ids ...int) *UserUpdateOne {
+	_u.mutation.AddTenantMembershipIDs(ids...)
+	return _u
+}
+
+// AddTenantMemberships adds the "tenant_memberships" edges to the UserTenantMembership entity.
+func (_u *UserUpdateOne) AddTenantMemberships(v ...*UserTenantMembership) *UserUpdateOne {
+	ids := make([]int, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.AddTenantMembershipIDs(ids...)
+}
+
 // AddArticleSessionIDs adds the "article_sessions" edge to the KnowledgeArticleSession entity by IDs.
 func (_u *UserUpdateOne) AddArticleSessionIDs(ids ...int) *UserUpdateOne {
 	_u.mutation.AddArticleSessionIDs(ids...)
@@ -2521,6 +2618,27 @@ func (_u *UserUpdateOne) RemoveMspAllocations(v ...*MSPAllocation) *UserUpdateOn
 		ids[i] = v[i].ID
 	}
 	return _u.RemoveMspAllocationIDs(ids...)
+}
+
+// ClearTenantMemberships clears all "tenant_memberships" edges to the UserTenantMembership entity.
+func (_u *UserUpdateOne) ClearTenantMemberships() *UserUpdateOne {
+	_u.mutation.ClearTenantMemberships()
+	return _u
+}
+
+// RemoveTenantMembershipIDs removes the "tenant_memberships" edge to UserTenantMembership entities by IDs.
+func (_u *UserUpdateOne) RemoveTenantMembershipIDs(ids ...int) *UserUpdateOne {
+	_u.mutation.RemoveTenantMembershipIDs(ids...)
+	return _u
+}
+
+// RemoveTenantMemberships removes "tenant_memberships" edges to UserTenantMembership entities.
+func (_u *UserUpdateOne) RemoveTenantMemberships(v ...*UserTenantMembership) *UserUpdateOne {
+	ids := make([]int, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.RemoveTenantMembershipIDs(ids...)
 }
 
 // ClearArticleSessions clears all "article_sessions" edges to the KnowledgeArticleSession entity.
@@ -3310,6 +3428,51 @@ func (_u *UserUpdateOne) sqlSave(ctx context.Context) (_node *User, err error) {
 			Bidi:    false,
 			Target: &sqlgraph.EdgeTarget{
 				IDSpec: sqlgraph.NewFieldSpec(mspallocation.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
+	}
+	if _u.mutation.TenantMembershipsCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   user.TenantMembershipsTable,
+			Columns: []string{user.TenantMembershipsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(usertenantmembership.FieldID, field.TypeInt),
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.RemovedTenantMembershipsIDs(); len(nodes) > 0 && !_u.mutation.TenantMembershipsCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   user.TenantMembershipsTable,
+			Columns: []string{user.TenantMembershipsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(usertenantmembership.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.TenantMembershipsIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   user.TenantMembershipsTable,
+			Columns: []string{user.TenantMembershipsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(usertenantmembership.FieldID, field.TypeInt),
 			},
 		}
 		for _, k := range nodes {

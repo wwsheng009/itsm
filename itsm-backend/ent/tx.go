@@ -294,6 +294,8 @@ type Tx struct {
 	ToolInvocation *ToolInvocationClient
 	// User is the client for interacting with the User builders.
 	User *UserClient
+	// UserTenantMembership is the client for interacting with the UserTenantMembership builders.
+	UserTenantMembership *UserTenantMembershipClient
 	// Vendor is the client for interacting with the Vendor builders.
 	Vendor *VendorClient
 	// Workflow is the client for interacting with the Workflow builders.
@@ -578,6 +580,7 @@ func (tx *Tx) init() {
 	tx.TicketWorkflowRecord = NewTicketWorkflowRecordClient(tx.config)
 	tx.ToolInvocation = NewToolInvocationClient(tx.config)
 	tx.User = NewUserClient(tx.config)
+	tx.UserTenantMembership = NewUserTenantMembershipClient(tx.config)
 	tx.Vendor = NewVendorClient(tx.config)
 	tx.Workflow = NewWorkflowClient(tx.config)
 	tx.WorkflowInstance = NewWorkflowInstanceClient(tx.config)

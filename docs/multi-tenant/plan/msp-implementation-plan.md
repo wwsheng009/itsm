@@ -411,7 +411,7 @@ C2 · 客户租户内 msp 角色基线（Q7 合同形态 → 客户侧业务权�
   - 建号：`user.provision`（source 按通道：platform→`platform_selected` / msp→`header` / tenant→`login`，target=目标租户）；
   - 通用 API 审计（`AuditMiddleware`）：按上下文派生 source（workbench 路径 > switch > 头通道 > login > system），`target_tenant_id` 默认同 `tenant_id`。
 - 查询：`GET /api/v1/audit-logs` 新增 `targetTenantId` / `source`（`legacy`→NULL 历史行）/ `actorAccount` 过滤。
-- `membership_id` 列已建、P1 起填充（IP-P1-1 后随 membership 落库）。
+- `membership_id` 列已建；**2026-09-30 IP-P1-1 已回填历史行**（按 actor home membership），其后由写入方落值。
 - 测试：`middleware`（字段 + source 派生）、`service`（作用域过滤 + 工作台审计列断言）、`handlers/common`/`handlers/auth` 回归全绿。
 - 文档：05 使用指南回填工作台/过滤器与审计作用域口径；事件目录仍以本文 §3.0-E 为权威。
 
@@ -537,6 +537,14 @@ CREATE INDEX idx_invitations_expiry ON invitations (expires_at) WHERE status = '
 | **IP-P1-7** RLS 纳入新表 | 数据库层兜底 | membership/组织/invitations 纳入 RLS policy；`shadow` 观察 → 无 `requires tenant_id` 报错 | A7；shadow 期 0 新增错误；enforce 前置清单完成 | 模式回退 `shadow/off` |
 | **IP-P1-8** 审计看板 | 治理可观测 | 按 `target_tenant/source/membership` 聚合；越权尝试/冲突告警面板 | 审计看板可查"未分配客户访问尝试"；告警接通 | 面板独立 |
 
+**进度（2026-09-30）**：✅ **IP-P1-1 表 + 回填 + 约束落地**（读路径未切换；A4 的 DB 约束与物化完成，读切换归 IP-P1-2）。
+
+- 表：`user_tenant_memberships`（目标架构 §3.2 字段全集）+ 3 个部分唯一索引（live / 唯一默认 / customer 单作用域）+ 复合 FK 目标 `uq_membership_id_tenant`（供 IP-P1-3 子表）；Ent schema 同步（`ent/schema/user_tenant_membership.go`，auto-migrate 与磁盘迁移一致）。
+- 迁移：`migrations/20260504_create_user_tenant_memberships(.sql/_down.sql)`（幂等）：`account_kind` 按 home 租户类型派生 customer/provider/platform；home 回填含 D10 角色映射（`provider_admin→msp_manager`、`provider_agent→msp_tech`）；有效 allocation 回填（`specialist→msp_specialist`、其余 `msp_tech`）；`audit_logs.membership_id` 按 actor home membership 回填。
+- 巡检：`scripts/msp/verify-membership-backfill.sql`（缺 home / 多默认 / customer 多作用域 / provider 作用域数 / 分配缺行 / 角色映射失败 / 重复存活 / 审计余量，共 8 节；生产库执行后留档）。
+- 验证：`go build ./...`；约束回归 `TestUserTenantMembership_Constraints`（三索引 + 软删重入 + provider 多作用域 5 子例）；`go test ./internal/schema ./migration/...`；`cmd/migration-lint` 全绿。
+- IP-P0-10 遗留的 `membership_id` 填充随本批关闭（历史行按 actor home 回填，其后由写入方落值）。
+
 ---
 
 ## 5. P2 详细实施（多 provider 与治理收尾）
@@ -581,7 +589,7 @@ CREATE INDEX idx_invitations_expiry ON invitations (expires_at) WHERE status = '
 
 ### 6.3 P1 出口 DoD
 
-- [ ] membership 回填巡检 0 差异；customer 恰 1 条 active（部分唯一索引生效，A4）；
+- [x] membership 表/回填/约束机制落地（v1.13，2026-09-30；customer 恰 1 条 active 由 `uq_customer_single_scope` DB 强约束 + 约束回归）；生产库巡检档案随后续部署执行 `scripts/msp/verify-membership-backfill.sql` 留档；
 - [ ] 权限 DB 单源：登录/切换/`/auth/me` 权限一致（A6）；跨租户权限互不影响；
 - [ ] 组织多归属 + 生效期（A5）；邀请/首登链路通过；bootstrap 多租户连续成功（07:G2 关闭）；
 - [ ] RLS `shadow` 无新增错误（A7）；批量护栏通过（WB-A4）；
@@ -703,3 +711,4 @@ CREATE INDEX idx_invitations_expiry ON invitations (expires_at) WHERE status = '
 | v1.10 | 2026-09-30 | **IP-P0-10 审计统一落地**：`audit_logs` 四列（actor_account/membership_id/target_tenant_id/source）+ `idx_audit_scope`；事件目录 `auth.login`/`tenant.switch(-_denied)`/`tenant.scope_denied`/`workbench.action`/`user.provision` 与 source 枚举写入；审计查询支持 targetTenantId/source（legacy=历史 NULL）/actorAccount；`membership_id` 填充随 IP-P1-1 |
 | v1.11 | 2026-09-30 | **IP-P0-11 执行器 ctx 统一落地（C19/C21/C22 关闭）**：`tenantctx.EnsureJobTenant` fail-closed + `SystemContext` 枚举 / `WithTenantID` 执行两段式；timer/超时扫描/自动升级/bootstrap 八类后台循环统一注入；`source=job` 审计（timer.fire/bpmn.timeout_scan/workflow.escalation）；工单指派同租户校验 + workflow/deployment 列表 fail-closed + BPMN 授权租户化 |
 | v1.12 | 2026-09-30 | **IP-P0-8 前端上下文/权限链路落地（FE-A1–A5、A7）**：`tenants[0]` 移除（作用域=服务端）；`switch-tenant` 端点修正 + store 切换链路（abort→重签→重拉 me→清缓存）+ 登出清理；菜单/能力 queryKey 按租户分键；`/403` + `RequireCapability` 分组守卫（admin/msp）；`CustomerFilter` + `/msp/workbench` 页（allowedActions 行内操作、只读态、游标）；登录页无租户面回归；FE-A6/A8 归 P1 |
+| v1.13 | 2026-09-30 | **IP-P1-1 membership 表/回填/约束落地**：`user_tenant_memberships`（目标架构 §3.2 字段 + 3 个部分唯一索引 + 复合 FK 目标）+ 幂等迁移（home/allocation 回填、D10 角色映射、`audit_logs.membership_id` 回填）+ 巡检脚本 `verify-membership-backfill.sql` + Ent schema 与约束回归；读路径仍回退 home+allocation（切换归 IP-P1-2） |

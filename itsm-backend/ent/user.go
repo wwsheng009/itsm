@@ -86,6 +86,8 @@ type UserEdges struct {
 	Groups []*Group `json:"groups,omitempty"`
 	// MSP用户分配
 	MspAllocations []*MSPAllocation `json:"msp_allocations,omitempty"`
+	// 账号的租户成员身份（IP-P1-1）
+	TenantMemberships []*UserTenantMembership `json:"tenant_memberships,omitempty"`
 	// 文章协作会话
 	ArticleSessions []*KnowledgeArticleSession `json:"article_sessions,omitempty"`
 	// 文章协作参与
@@ -98,7 +100,7 @@ type UserEdges struct {
 	OnCallShifts []*OnCallShift `json:"on_call_shifts,omitempty"`
 	// loadedTypes holds the information for reporting if a
 	// type was loaded (or requested) in eager-loading or not.
-	loadedTypes [17]bool
+	loadedTypes [18]bool
 }
 
 // DepartmentRefOrErr returns the DepartmentRef value or an error if the edge
@@ -213,10 +215,19 @@ func (e UserEdges) MspAllocationsOrErr() ([]*MSPAllocation, error) {
 	return nil, &NotLoadedError{edge: "msp_allocations"}
 }
 
+// TenantMembershipsOrErr returns the TenantMemberships value or an error if the edge
+// was not loaded in eager-loading.
+func (e UserEdges) TenantMembershipsOrErr() ([]*UserTenantMembership, error) {
+	if e.loadedTypes[12] {
+		return e.TenantMemberships, nil
+	}
+	return nil, &NotLoadedError{edge: "tenant_memberships"}
+}
+
 // ArticleSessionsOrErr returns the ArticleSessions value or an error if the edge
 // was not loaded in eager-loading.
 func (e UserEdges) ArticleSessionsOrErr() ([]*KnowledgeArticleSession, error) {
-	if e.loadedTypes[12] {
+	if e.loadedTypes[13] {
 		return e.ArticleSessions, nil
 	}
 	return nil, &NotLoadedError{edge: "article_sessions"}
@@ -225,7 +236,7 @@ func (e UserEdges) ArticleSessionsOrErr() ([]*KnowledgeArticleSession, error) {
 // ArticleParticipationsOrErr returns the ArticleParticipations value or an error if the edge
 // was not loaded in eager-loading.
 func (e UserEdges) ArticleParticipationsOrErr() ([]*KnowledgeArticleParticipant, error) {
-	if e.loadedTypes[13] {
+	if e.loadedTypes[14] {
 		return e.ArticleParticipations, nil
 	}
 	return nil, &NotLoadedError{edge: "article_participations"}
@@ -234,7 +245,7 @@ func (e UserEdges) ArticleParticipationsOrErr() ([]*KnowledgeArticleParticipant,
 // PirReviewsOrErr returns the PirReviews value or an error if the edge
 // was not loaded in eager-loading.
 func (e UserEdges) PirReviewsOrErr() ([]*ChangePIR, error) {
-	if e.loadedTypes[14] {
+	if e.loadedTypes[15] {
 		return e.PirReviews, nil
 	}
 	return nil, &NotLoadedError{edge: "pir_reviews"}
@@ -243,7 +254,7 @@ func (e UserEdges) PirReviewsOrErr() ([]*ChangePIR, error) {
 // ToolInvocationsOrErr returns the ToolInvocations value or an error if the edge
 // was not loaded in eager-loading.
 func (e UserEdges) ToolInvocationsOrErr() ([]*ToolInvocation, error) {
-	if e.loadedTypes[15] {
+	if e.loadedTypes[16] {
 		return e.ToolInvocations, nil
 	}
 	return nil, &NotLoadedError{edge: "tool_invocations"}
@@ -252,7 +263,7 @@ func (e UserEdges) ToolInvocationsOrErr() ([]*ToolInvocation, error) {
 // OnCallShiftsOrErr returns the OnCallShifts value or an error if the edge
 // was not loaded in eager-loading.
 func (e UserEdges) OnCallShiftsOrErr() ([]*OnCallShift, error) {
-	if e.loadedTypes[16] {
+	if e.loadedTypes[17] {
 		return e.OnCallShifts, nil
 	}
 	return nil, &NotLoadedError{edge: "on_call_shifts"}
@@ -486,6 +497,11 @@ func (_m *User) QueryGroups() *GroupQuery {
 // QueryMspAllocations queries the "msp_allocations" edge of the User entity.
 func (_m *User) QueryMspAllocations() *MSPAllocationQuery {
 	return NewUserClient(_m.config).QueryMspAllocations(_m)
+}
+
+// QueryTenantMemberships queries the "tenant_memberships" edge of the User entity.
+func (_m *User) QueryTenantMemberships() *UserTenantMembershipQuery {
+	return NewUserClient(_m.config).QueryTenantMemberships(_m)
 }
 
 // QueryArticleSessions queries the "article_sessions" edge of the User entity.

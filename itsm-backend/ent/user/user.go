@@ -71,6 +71,8 @@ const (
 	EdgeGroups = "groups"
 	// EdgeMspAllocations holds the string denoting the msp_allocations edge name in mutations.
 	EdgeMspAllocations = "msp_allocations"
+	// EdgeTenantMemberships holds the string denoting the tenant_memberships edge name in mutations.
+	EdgeTenantMemberships = "tenant_memberships"
 	// EdgeArticleSessions holds the string denoting the article_sessions edge name in mutations.
 	EdgeArticleSessions = "article_sessions"
 	// EdgeArticleParticipations holds the string denoting the article_participations edge name in mutations.
@@ -165,6 +167,13 @@ const (
 	MspAllocationsInverseTable = "msp_allocations"
 	// MspAllocationsColumn is the table column denoting the msp_allocations relation/edge.
 	MspAllocationsColumn = "msp_user_id"
+	// TenantMembershipsTable is the table that holds the tenant_memberships relation/edge.
+	TenantMembershipsTable = "user_tenant_memberships"
+	// TenantMembershipsInverseTable is the table name for the UserTenantMembership entity.
+	// It exists in this package in order to avoid circular dependency with the "usertenantmembership" package.
+	TenantMembershipsInverseTable = "user_tenant_memberships"
+	// TenantMembershipsColumn is the table column denoting the tenant_memberships relation/edge.
+	TenantMembershipsColumn = "user_id"
 	// ArticleSessionsTable is the table that holds the article_sessions relation/edge. The primary key declared below.
 	ArticleSessionsTable = "user_article_sessions"
 	// ArticleSessionsInverseTable is the table name for the KnowledgeArticleSession entity.
@@ -577,6 +586,20 @@ func ByMspAllocations(term sql.OrderTerm, terms ...sql.OrderTerm) OrderOption {
 	}
 }
 
+// ByTenantMembershipsCount orders the results by tenant_memberships count.
+func ByTenantMembershipsCount(opts ...sql.OrderTermOption) OrderOption {
+	return func(s *sql.Selector) {
+		sqlgraph.OrderByNeighborsCount(s, newTenantMembershipsStep(), opts...)
+	}
+}
+
+// ByTenantMemberships orders the results by tenant_memberships terms.
+func ByTenantMemberships(term sql.OrderTerm, terms ...sql.OrderTerm) OrderOption {
+	return func(s *sql.Selector) {
+		sqlgraph.OrderByNeighborTerms(s, newTenantMembershipsStep(), append([]sql.OrderTerm{term}, terms...)...)
+	}
+}
+
 // ByArticleSessionsCount orders the results by article_sessions count.
 func ByArticleSessionsCount(opts ...sql.OrderTermOption) OrderOption {
 	return func(s *sql.Selector) {
@@ -728,6 +751,13 @@ func newMspAllocationsStep() *sqlgraph.Step {
 		sqlgraph.From(Table, FieldID),
 		sqlgraph.To(MspAllocationsInverseTable, FieldID),
 		sqlgraph.Edge(sqlgraph.O2M, false, MspAllocationsTable, MspAllocationsColumn),
+	)
+}
+func newTenantMembershipsStep() *sqlgraph.Step {
+	return sqlgraph.NewStep(
+		sqlgraph.From(Table, FieldID),
+		sqlgraph.To(TenantMembershipsInverseTable, FieldID),
+		sqlgraph.Edge(sqlgraph.O2M, false, TenantMembershipsTable, TenantMembershipsColumn),
 	)
 }
 func newArticleSessionsStep() *sqlgraph.Step {

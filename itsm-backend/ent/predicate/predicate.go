@@ -429,6 +429,9 @@ type ToolInvocation func(*sql.Selector)
 // User is the predicate function for user builders.
 type User func(*sql.Selector)
 
+// UserTenantMembership is the predicate function for usertenantmembership builders.
+type UserTenantMembership func(*sql.Selector)
+
 // Vendor is the predicate function for vendor builders.
 type Vendor func(*sql.Selector)
 

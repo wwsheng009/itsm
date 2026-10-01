@@ -1700,6 +1700,18 @@ func (f UserFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error)
 	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.UserMutation", m)
 }
 
+// The UserTenantMembershipFunc type is an adapter to allow the use of ordinary
+// function as UserTenantMembership mutator.
+type UserTenantMembershipFunc func(context.Context, *ent.UserTenantMembershipMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f UserTenantMembershipFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.UserTenantMembershipMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.UserTenantMembershipMutation", m)
+}
+
 // The VendorFunc type is an adapter to allow the use of ordinary
 // function as Vendor mutator.
 type VendorFunc func(context.Context, *ent.VendorMutation) (ent.Value, error)

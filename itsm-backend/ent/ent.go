@@ -147,6 +147,7 @@ import (
 	"itsm-backend/ent/ticketworkflowrecord"
 	"itsm-backend/ent/toolinvocation"
 	"itsm-backend/ent/user"
+	"itsm-backend/ent/usertenantmembership"
 	"itsm-backend/ent/vendor"
 	"itsm-backend/ent/workflow"
 	"itsm-backend/ent/workflowinstance"
@@ -360,6 +361,7 @@ func checkColumn(t, c string) error {
 			ticketworkflowrecord.Table:        ticketworkflowrecord.ValidColumn,
 			toolinvocation.Table:              toolinvocation.ValidColumn,
 			user.Table:                        user.ValidColumn,
+			usertenantmembership.Table:        usertenantmembership.ValidColumn,
 			vendor.Table:                      vendor.ValidColumn,
 			workflow.Table:                    workflow.ValidColumn,
 			workflowinstance.Table:            workflowinstance.ValidColumn,
