@@ -1,6 +1,7 @@
 package common
 
 import (
+	"errors"
 	"net/http"
 	"strconv"
 	"strings"
@@ -92,6 +93,16 @@ func (h *Handler) RefreshToken(c *gin.Context) {
 
 	res, err := h.svc.RefreshToken(c.Request.Context(), req.RefreshToken)
 	if err != nil {
+		// IP-P0-6：作用域失效是确定性拒绝（不回退 home），给稳定 reasonCode。
+		if errors.Is(err, ErrTenantAccessRevoked) {
+			c.JSON(http.StatusUnauthorized, gin.H{
+				"code":       common.AuthFailedCode,
+				"message":    "租户访问已失效，请重新登录",
+				"reasonCode": "TENANT_ACCESS_REVOKED",
+			})
+			c.Abort()
+			return
+		}
 		common.AuthFailed(c, err.Error())
 		return
 	}

@@ -98,7 +98,7 @@ flowchart TD
 | 头通道中间件与分配校验 | ✅ | 未写 `tenant_source` 审计（F15） |
 | 前端注入 `X-Customer-Tenant-ID` | ❌ | 仅注入 `X-Tenant-ID/X-Tenant-Code` |
 | 顶栏作用域切换器 + 上下文指示 | ❌ | F13；`switchTenant` 打到不存在的端点 |
-| 切换后上下文/权限刷新 | ❌ | F11（`user.tenantId` 仍回 home、权限不重算） |
+| 切换后上下文/权限刷新 | 🟡 | 后端 `user.tenantId`=目标租户已修（IP-P0-6，2026-09-30）；权限重算（DB `role_permissions`）归 IP-P0-9，前端链路归 IP-P0-8 |
 | 跨客户统一工作台（一列表看/处理全部客户需求） | ❌ | **升级为 P0 目标**（替代"全局切换"），见[跨客户工作台方案](./msp-cross-customer-workbench-and-filter-plan.md) |
 
 > 结论：**目标态** = 同一前端完成"过滤 → 工作台处理 → （必要时）进入客户深度操作"全流程；**现状**需 P0 批次（工作台 + 过滤器 + 条目级写 + 切换修复）后达成。**跨客户批量写**按护栏（上限/客户分布确认/逐条审计）在 P1 提供。
@@ -246,7 +246,7 @@ sequenceDiagram
 
 - **接口**：`POST /api/v1/auth/switch-tenant`。
 - **审计点**：`tenant.switch`（from/to/source/result/ip/ua）、`tenant.switch_denied`、`tenant.scope_denied`（事件目录以[实施方案 §3.0-E](./msp-implementation-plan.md) 为权威）。
-- **当前状态**：🟡 允许条件已实现（native/super_admin/有效分配 + 目标状态校验）；但 ① 响应 `user.tenantId` 仍为 home 租户（**F11**）；② 权限用静态表、不随切换刷新（**F11**）；③ 无审计、无旧令牌撤销（**F12**）；④ 前端 `tenant-api.ts` 打到不存在的 `/api/v1/tenants/switch`。
+- **当前状态（2026-09-30 更新）**：✅ 后端已修复（IP-P0-6）：① 响应 `user.tenantId` = 目标租户（F11a 关闭）；③ 审计 `TENANT_SWITCH` + 旧 refresh 撤销（F12 后端关闭）；JWT 增 `tenant_source=switch`。⏳ 遗留：② 权限按目标租户解析（F11c）随 IP-P0-9 的 DB `role_permissions`；④ 前端端点/刷新链路归 IP-P0-8。
 - **异常**：切换后旧 refresh 立即失效（防回退）；目标作用域被回收 → 403 + 当前会话保持原作用域。
 
 ---
@@ -352,7 +352,7 @@ flowchart TD
     D --> E[会话保持当前作用域<br/>不回到 home]
 ```
 
-- **当前状态**：❌ 现状按 `user.TenantID`（home）重签 → **切换后任意刷新静默回退主租户（F10）**。
+- **当前状态（2026-09-30 更新）**：✅ 已修复（IP-P0-6）：按 `claims.TenantID` 重签 + 可访问性复核；失效返回 401 `TENANT_ACCESS_REVOKED`，**不回退 home**（F10 后端关闭）。
 - **验收**：切换后连续 refresh 3 次，作用域不变；作用域被回收后 refresh → 401。
 
 ---

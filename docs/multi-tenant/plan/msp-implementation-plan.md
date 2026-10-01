@@ -302,6 +302,16 @@ C2 · 客户租户内 msp 角色基线（Q7 合同形态 → 客户侧业务权�
 
 **回滚**：无状态变更，代码回退即可；审计事件保留。
 
+**进度（2026-09-30）**：✅ **登录/切换/刷新后端契约已实现（F10/F11a/F12/G9 关闭）**。
+
+- **登录落 home**：`handlers/common` Login 始终以 `users.tenant_id` 签发（`tenant_source=home`），`tenantCode` 仅参与身份定位、不改签发作用域；响应新增 `tenantSelection{mode}`（`platform`/`home`/`single`）——登录页/响应不含候选列表（I8）。
+- **切换**：`SwitchTenantWithRevoke` → 目标校验（本租户/平台/有效 allocation）→ 重签 JWT（`tenant_source=switch`）→ 撤销旧 refresh（`AddRefreshToBlacklist`，handler 传 httpOnly cookie）→ 审计 `TENANT_SWITCH` → **响应 `user.tenantId` = 目标租户**（修 F11a）。
+- **刷新**：按 `claims.TenantID` 重签（保持 `tenant_source`），并复核 home/平台/有效 allocation + 租户 active/未过期；失效 → 401 `TENANT_ACCESS_REVOKED`（**不回退 home**，修 F10）。
+- **`/auth/tenants`**：语义修正为 home ∪ 有效 allocation 客户 ∪ 平台全量（super_admin/sysadmin，去重、home 优先）；F5/F6 契约。
+- **头/JWT 冲突**：401 + `reasonCode=TENANT_MISMATCH_REJECTED` + `tenant mismatch rejected` 告警（修 G9）。
+- 单测：`handlers/auth` 切换（含 provider→分配客户 claims 断言、无分配反例）、`handlers/common` 刷新作用域保持/撤销拒绝/租户并集、`middleware` 预检新鲜度全绿；`go build ./...` 全绿；`authz-gen` 生成物已同步。
+- **遗留**：F11c（权限按目标租户 DB `role_permissions` 解析）随 IP-P0-9 的 `msp_*` 权限行；前端切换入口/缓存刷新（F5/F6/F11b/F12 前端侧）归 IP-P0-8；`membership_id` claim 随 P1 membership 表落地。
+
 ### IP-P0-7 跨客户工作台 + CustomerFilter + 条目级操作（WB1–WB6；WB-A1–A6）
 
 **目标**：服务商**不切换会话**即可看+做多客户单据；写操作按资源租户授权。
@@ -509,7 +519,7 @@ CREATE INDEX idx_invitations_expiry ON invitations (expires_at) WHERE status = '
 - [ ] **缓存隔离**：`itsm-backend/cache/` 逐 key 审查完成、跨租户 key 修复 + 单测（`07:G8` 关闭，IP-P0-2 步骤 6）；
 - [ ] **执行器/定时器**：后台任务/自动化在显式租户 ctx 下运行、错误 ctx 被拒、`source=job` 可审计（IP-P0-11）；
 - [ ] **功能**：工作台跨客户看+做（WB-A1–A6）；写操作无需切换且逐条审计；
-- [ ] **登录/会话**：provider 登录落 provider 家；切换/刷新/撤销契约通过（F5/F6/F9/F10/F11/F12 对应项）；
+- [x] **登录/会话**：provider 登录落 provider 家；切换/刷新/撤销契约通过（F5/F6/F9/F10/F11a/F12 后端，2026-09-30；F11b/c 前端/权限行归 IP-P0-8/9）；
 - [x] **建号**：三通道 `UserProvisioningService` 生效；`07:G1`/K4 关闭（2026-09-30）；角色白名单与注册白名单生效（`07:G2` 归 IP-P1-5）；
 - [ ] **角色供给**：新 provider 租户 seed 后 5 个 `msp_*` 角色权限齐备（K1/K2 关闭）；`07:G3` 关闭；
 - [ ] **前端**：FE-A1–A8；登录页 DOM 无租户列表；客户账号无过滤器/切换器/工作台节点；
@@ -634,3 +644,4 @@ CREATE INDEX idx_invitations_expiry ON invitations (expires_at) WHERE status = '
 | v1.4 | 2026-09-30 | **IP-P0-3 快照落地**：建单双链路派生 `is_managed_by_msp`/`msp_provider_id`（无效归属按普通工单）；指派补写 `managed_by_user_id`；仓库 4 个 builder 全覆盖；回填脚本（dry-run/apply/rollback）交付 |
 | v1.5 | 2026-09-30 | **IP-P0-4 类型/归属收敛落地**：`pkg/tenantmode` 校验+读取映射；`TenantService` 写入接入、归属复核、停止 `parent_tenant_id` 双写；DTO binding 收敛；巡检脚本 + 01/03 文档回填 |
 | v1.6 | 2026-09-30 | **IP-P0-5 建号通道收口落地（K4/07:G1 关闭）**：`UserProvisioningService` 三通道 + 角色白名单/rank + `WithProvisioningBypass` + 写守卫放行 + 3 端点 + 灰度开关；8 子用例全绿 |
+| v1.7 | 2026-09-30 | **IP-P0-6 登录/切换/刷新契约落地（F10/F11a/F12/G9 关闭）**：登录落 home + `tenantSelection`；切换重签 `tenant_source=switch`、撤销旧 refresh、审计、响应 `user.tenantId=目标`；refresh 按 claim 重签 + `TENANT_ACCESS_REVOKED`；`/auth/tenants` = home∪allocation∪平台全量；头冲突 `TENANT_MISMATCH_REJECTED` |

@@ -111,7 +111,14 @@ func (s *Service) permissions(userEntity *ent.User) []string {
 	return permissions
 }
 
+// SwitchTenant 保持兼容签名：不撤销旧 refresh（测试/内部调用）。
 func (s *Service) SwitchTenant(ctx context.Context, userID, tenantID int) (*dto.LoginResponse, error) {
+	return s.SwitchTenantWithRevoke(ctx, userID, tenantID, "")
+}
+
+// SwitchTenantWithRevoke 显式切换作用域（IP-P0-6）：
+// 目标校验 → 重签 JWT（tenant_source=switch）→ 撤销旧 refresh → 审计 tenant.switch。
+func (s *Service) SwitchTenantWithRevoke(ctx context.Context, userID, tenantID int, oldRefreshToken string) (*dto.LoginResponse, error) {
 	userEntity, err := s.client.User.Get(ctx, userID)
 	if err != nil {
 		if ent.IsNotFound(err) {
@@ -147,20 +154,48 @@ func (s *Service) SwitchTenant(ctx context.Context, userID, tenantID int) (*dto.
 	if !tenantEntity.ExpiresAt.IsZero() && tenantEntity.ExpiresAt.Before(time.Now()) {
 		return nil, fmt.Errorf("租户已过期")
 	}
-	accessToken, err := middleware.GenerateAccessToken(userEntity.ID, userEntity.Username, string(userEntity.Role), tenantID, s.jwtSecret, 15*time.Minute)
+	accessToken, err := middleware.GenerateAccessTokenWithSource(userEntity.ID, userEntity.Username, string(userEntity.Role), tenantID, "switch", s.jwtSecret, 15*time.Minute)
 	if err != nil {
 		return nil, fmt.Errorf("生成token失败")
 	}
-	refreshToken, err := middleware.GenerateRefreshToken(userEntity.ID, userEntity.Username, string(userEntity.Role), tenantID, s.jwtSecret, 7*24*time.Hour)
+	refreshToken, err := middleware.GenerateRefreshTokenWithSource(userEntity.ID, userEntity.Username, string(userEntity.Role), tenantID, "switch", s.jwtSecret, 7*24*time.Hour)
 	if err != nil {
 		return nil, fmt.Errorf("生成刷新令牌失败")
 	}
+
+	// 撤销旧 refresh（若由 handler 提供）：切换即会话轮换，旧作用域不可再续签。
+	if oldRefreshToken != "" && s.tokenBlacklist != nil {
+		if oldClaims, cErr := middleware.ValidateRefreshToken(oldRefreshToken, s.jwtSecret); cErr == nil && oldClaims.ExpiresAt != nil {
+			if bErr := s.tokenBlacklist.AddRefreshToBlacklist(oldRefreshToken, oldClaims.ExpiresAt.Time); bErr != nil {
+				s.logger.Warnw("failed to revoke old refresh token on tenant switch", "user_id", userID, "error", bErr)
+			}
+		}
+	}
+	// 审计：tenant.switch（target_tenant 维度可查）。
+	middleware.RecordLoginAudit(ctx, s.client, userID, tenantID, userEntity.Username, "TENANT_SWITCH", "")
+	s.logger.Infow("tenant switched",
+		"user_id", userID,
+		"home_tenant_id", userEntity.TenantID,
+		"target_tenant_id", tenantID,
+		"tenant_source", "switch",
+	)
 	mspRole := string(userEntity.MspRole)
 	var mspRolePtr *string
 	if mspRole != "" {
 		mspRolePtr = &mspRole
 	}
-	return &dto.LoginResponse{AccessToken: accessToken, RefreshToken: refreshToken, User: &dto.LoginUserResponse{ID: userEntity.ID, Username: userEntity.Username, Email: userEntity.Email, Name: userEntity.Name, Role: string(userEntity.Role), MSPRole: mspRolePtr, Department: userEntity.Department, DepartmentID: userEntity.DepartmentID, Phone: userEntity.Phone, Active: userEntity.Active, TenantID: userEntity.TenantID, CreatedAt: userEntity.CreatedAt, UpdatedAt: userEntity.UpdatedAt, Permissions: s.permissions(userEntity)}, Tenant: tenantEntity}, nil
+	return &dto.LoginResponse{AccessToken: accessToken, RefreshToken: refreshToken, User: &dto.LoginUserResponse{ID: userEntity.ID, Username: userEntity.Username, Email: userEntity.Email, Name: userEntity.Name, Role: string(userEntity.Role), MSPRole: mspRolePtr, Department: userEntity.Department, DepartmentID: userEntity.DepartmentID, Phone: userEntity.Phone, Active: userEntity.Active, TenantID: tenantID, CreatedAt: userEntity.CreatedAt, UpdatedAt: userEntity.UpdatedAt, Permissions: s.permissions(userEntity)}, Tenant: tenantEntity, TenantSelection: &dto.TenantSelection{Mode: switchTenantMode(userEntity, tenantEntity)}}, nil
+}
+
+// switchTenantMode 派生切换后的作用域模式（平台控制台/provider 家/单一租户）。
+func switchTenantMode(userEntity *ent.User, tenantEntity *ent.Tenant) string {
+	if string(userEntity.Role) == "super_admin" || string(userEntity.Role) == "sysadmin" {
+		return "platform"
+	}
+	if tenantmode.IsMSPProviderTenantType(string(tenantEntity.Type)) {
+		return "home"
+	}
+	return "single"
 }
 
 func (s *Service) Register(ctx context.Context, req *dto.RegisterRequest) (*dto.RegisterResponse, error) {

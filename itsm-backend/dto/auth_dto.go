@@ -16,10 +16,17 @@ type LoginRequest struct {
 type LoginResponse struct {
 	// Tokens are transport-only values. Controllers place them in HttpOnly
 	// cookies and must never serialize them into a browser-readable response.
-	AccessToken  string             `json:"-"`
-	RefreshToken string             `json:"-"`
-	User         *LoginUserResponse `json:"user"`
-	Tenant       *ent.Tenant        `json:"tenant"`
+	AccessToken     string             `json:"-"`
+	RefreshToken    string             `json:"-"`
+	User            *LoginUserResponse `json:"user"`
+	Tenant          *ent.Tenant        `json:"tenant"`
+	TenantSelection *TenantSelection   `json:"tenantSelection,omitempty"`
+}
+
+// TenantSelection 描述服务端派生的作用域（IP-P0-6）：
+// 登录仅返回服务端派生结果，不接受客户端选择租户；切换走显式端点。
+type TenantSelection struct {
+	Mode string `json:"mode"` // single | home | platform | switch
 }
 
 // LoginUserResponse 登录返回的用户信息（包含权限列表）
@@ -85,8 +92,8 @@ type UserTenantsResponse struct {
 // f575c3f4 将 fullName 改名为 displayName 时漏改前端（auth-service.ts 仍发 fullName），
 // 导致注册接口对前端 100% 返回 400。此处用 fullName 接旧字段，handler 层归一。
 type RegisterRequest struct {
-	Username    string `json:"username" binding:"required,min=3,max=20,alphanum"`
-	Email       string `json:"email" binding:"required,email"`
+	Username string `json:"username" binding:"required,min=3,max=20,alphanum"`
+	Email    string `json:"email" binding:"required,email"`
 	// 长度下限只做兜底；真实强度由 service 层按租户密码策略校验（见 dto.PasswordPolicyResponse）。
 	Password    string `json:"password" binding:"required,min=6,max=128"`
 	DisplayName string `json:"displayName" binding:"omitempty"`

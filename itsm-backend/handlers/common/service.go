@@ -2,18 +2,25 @@ package common
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"time"
 
 	"itsm-backend/ent"
+	"itsm-backend/ent/mspallocation"
 	enttenant "itsm-backend/ent/tenant"
 	entuser "itsm-backend/ent/user"
 	"itsm-backend/middleware"
+	"itsm-backend/pkg/tenantmode"
 
 	"github.com/redis/go-redis/v9"
 	"go.uber.org/zap"
 	"golang.org/x/crypto/bcrypt"
 )
+
+// ErrTenantAccessRevoked：refresh 续签时目标作用域已不可用
+// （allocation/归属撤销、租户停用）——确定性拒绝，不回退 home（IP-P0-6）。
+var ErrTenantAccessRevoked = errors.New("TENANT_ACCESS_REVOKED")
 
 type Service struct {
 	repo      Repository
@@ -147,13 +154,18 @@ func (s *Service) Login(ctx context.Context, username, password string, tenantID
 		}
 	}
 
-	// Generate tokens
-	accessToken, err := middleware.GenerateAccessToken(u.ID, u.Username, u.Role, u.TenantID, s.jwtSecret, 15*time.Minute)
+	// 登录落 home（IP-P0-6）：token 作用域 = users.tenant_id；tenantCode 仅参与身份定位，
+	// 不改变签发作用域（不因 last_active/tenantCode 直签客户）。
+	loginTenant, tenantErr := s.client.Tenant.Get(ctx, u.TenantID)
+	if tenantErr != nil {
+		s.logger.Warnw("login tenant lookup failed", "user_id", u.ID, "tenant_id", u.TenantID, "error", tenantErr)
+	}
+	accessToken, err := middleware.GenerateAccessTokenWithSource(u.ID, u.Username, u.Role, u.TenantID, "home", s.jwtSecret, 15*time.Minute)
 	if err != nil {
 		return nil, err
 	}
 
-	refreshToken, err := middleware.GenerateRefreshToken(u.ID, u.Username, u.Role, u.TenantID, s.jwtSecret, 7*24*time.Hour)
+	refreshToken, err := middleware.GenerateRefreshTokenWithSource(u.ID, u.Username, u.Role, u.TenantID, "home", s.jwtSecret, 7*24*time.Hour)
 	if err != nil {
 		return nil, err
 	}
@@ -163,10 +175,37 @@ func (s *Service) Login(ctx context.Context, username, password string, tenantID
 	middleware.RecordLoginAudit(ctx, s.client, entUser.ID, entUser.TenantID, username, "LOGIN_SUCCESS", "")
 
 	return &AuthResult{
-		AccessToken:  accessToken,
-		RefreshToken: refreshToken,
-		User:         u,
+		AccessToken:     accessToken,
+		RefreshToken:    refreshToken,
+		User:            u,
+		Tenant:          toAuthTenantInfo(loginTenant),
+		TenantSelection: &TenantSelection{Mode: tenantScopeMode(u.Role, loginTenant)},
 	}, nil
+}
+
+// tenantScopeMode 派生登录作用域模式：平台控制台 / provider 家 / 单一租户。
+func tenantScopeMode(role string, t *ent.Tenant) string {
+	if role == "super_admin" || role == "sysadmin" {
+		return "platform"
+	}
+	if t != nil && tenantmode.IsMSPProviderTenantType(string(t.Type)) {
+		return "home"
+	}
+	return "single"
+}
+
+func toAuthTenantInfo(t *ent.Tenant) *TenantInfo {
+	if t == nil {
+		return nil
+	}
+	return &TenantInfo{
+		ID:        t.ID,
+		Name:      t.Name,
+		Code:      t.Code,
+		Type:      string(t.Type),
+		Status:    t.Status,
+		ExpiresAt: t.ExpiresAt,
+	}
 }
 
 func (s *Service) RefreshToken(ctx context.Context, refreshToken string) (*AuthResult, error) {
@@ -189,13 +228,33 @@ func (s *Service) RefreshToken(ctx context.Context, refreshToken string) (*AuthR
 		return nil, fmt.Errorf("user not found")
 	}
 
-	// regenerate tokens
-	accessToken, err := middleware.GenerateAccessToken(user.ID, user.Username, user.Role, user.TenantID, s.jwtSecret, 15*time.Minute)
+	// IP-P0-6：作用域保持——按 claims.TenantID 重签并复核；失效 → TENANT_ACCESS_REVOKED
+	// （不回退 home，避免"切换后被静默拉回家租户"）。
+	scopeTenantID := claims.TenantID
+	if scopeTenantID <= 0 {
+		scopeTenantID = user.TenantID
+	}
+	targetTenant, allowed := s.tenantAccessForRefresh(ctx, user, scopeTenantID)
+	if !allowed {
+		s.logger.Warnw("refresh tenant access revoked",
+			"user_id", user.ID,
+			"home_tenant_id", user.TenantID,
+			"scope_tenant_id", scopeTenantID,
+		)
+		return nil, ErrTenantAccessRevoked
+	}
+	source := claims.TenantSource
+	if source == "" {
+		source = "home" // 兼容旧 token
+	}
+
+	// regenerate tokens（作用域与来源保持）
+	accessToken, err := middleware.GenerateAccessTokenWithSource(user.ID, user.Username, user.Role, scopeTenantID, source, s.jwtSecret, 15*time.Minute)
 	if err != nil {
 		return nil, err
 	}
 
-	newRefresh, err := middleware.GenerateRefreshToken(user.ID, user.Username, user.Role, user.TenantID, s.jwtSecret, 7*24*time.Hour)
+	newRefresh, err := middleware.GenerateRefreshTokenWithSource(user.ID, user.Username, user.Role, scopeTenantID, source, s.jwtSecret, 7*24*time.Hour)
 	if err != nil {
 		return nil, err
 	}
@@ -208,10 +267,49 @@ func (s *Service) RefreshToken(ctx context.Context, refreshToken string) (*AuthR
 	}
 
 	return &AuthResult{
-		AccessToken:  accessToken,
-		RefreshToken: newRefresh,
-		User:         user,
+		AccessToken:     accessToken,
+		RefreshToken:    newRefresh,
+		User:            user,
+		Tenant:          toAuthTenantInfo(targetTenant),
+		TenantSelection: &TenantSelection{Mode: source},
 	}, nil
+}
+
+// tenantAccessForRefresh 复核 refresh 目标作用域：home / 平台 / 有效 allocation 客户；
+// 租户不存在/停用/过期一律不允许（fail-closed）。
+func (s *Service) tenantAccessForRefresh(ctx context.Context, u *User, tenantID int) (*ent.Tenant, bool) {
+	target, err := s.client.Tenant.Get(ctx, tenantID)
+	if err != nil {
+		return nil, false
+	}
+	if target.Status != "active" {
+		return target, false
+	}
+	if !target.ExpiresAt.IsZero() && target.ExpiresAt.Before(time.Now()) {
+		return target, false
+	}
+	if u.TenantID == tenantID {
+		return target, true
+	}
+	if u.Role == "super_admin" || u.Role == "sysadmin" {
+		return target, true
+	}
+	if u.MSPRole != nil && *u.MSPRole != "" && tenantmode.IsCustomerTenantType(string(target.Type)) {
+		origin, oErr := s.client.Tenant.Get(ctx, u.TenantID)
+		if oErr == nil && tenantmode.IsMSPProviderTenantType(string(origin.Type)) {
+			n, cErr := s.client.MSPAllocation.Query().
+				Where(
+					mspallocation.MspUserIDEQ(u.ID),
+					mspallocation.CustomerTenantIDEQ(tenantID),
+					mspallocation.DeassignedAtIsNil(),
+				).
+				Count(ctx)
+			if cErr == nil && n > 0 {
+				return target, true
+			}
+		}
+	}
+	return target, false
 }
 
 // User Management
@@ -305,31 +403,66 @@ func (s *Service) GetAuditLogs(ctx context.Context, tenantID int, userID int) ([
 	return s.repo.ListAuditLogs(ctx, tenantID, userID, 100)
 }
 
-// GetUserTenants 获取用户所属的租户列表
+// GetUserTenants 获取用户可访问的租户集合（IP-P0-6 语义修正）：
+// home ∪ 有效 allocation 客户 ∪ 平台全量（super_admin/sysadmin）；去重且 home 优先。
 func (s *Service) GetUserTenants(ctx context.Context, userID int) ([]interface{}, error) {
-	// 直接使用 ent client 查询用户关联的租户
 	user, err := s.client.User.Get(ctx, userID)
 	if err != nil {
 		return nil, fmt.Errorf("user not found: %w", err)
 	}
 
-	// 通过 tenant_id 直接查询租户
-	tenant, err := s.client.Tenant.Get(ctx, user.TenantID)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get tenant: %w", err)
+	seen := make(map[int]bool)
+	result := make([]interface{}, 0, 4)
+	add := func(t *ent.Tenant) {
+		if t == nil || seen[t.ID] {
+			return
+		}
+		seen[t.ID] = true
+		result = append(result, map[string]interface{}{
+			"id":        t.ID,
+			"name":      t.Name,
+			"code":      t.Code,
+			"type":      t.Type,
+			"status":    t.Status,
+			"expiresAt": t.ExpiresAt,
+		})
 	}
 
-	if tenant == nil {
-		return []interface{}{}, nil
+	// 1) home（家租户始终第一位）
+	if home, hErr := s.client.Tenant.Get(ctx, user.TenantID); hErr == nil {
+		add(home)
 	}
 
-	return []interface{}{
-		map[string]interface{}{
-			"id":     tenant.ID,
-			"name":   tenant.Name,
-			"code":   tenant.Code,
-			"type":   tenant.Type,
-			"status": tenant.Status,
-		},
-	}, nil
+	if string(user.Role) == "super_admin" || string(user.Role) == "sysadmin" {
+		// 2a) 平台角色：全部 active 租户（治理面）
+		all, aErr := s.client.Tenant.Query().
+			Where(enttenant.StatusEQ("active")).
+			Order(ent.Asc(enttenant.FieldID)).
+			All(ctx)
+		if aErr != nil {
+			return nil, fmt.Errorf("failed to list tenants: %w", aErr)
+		}
+		for _, t := range all {
+			add(t)
+		}
+		return result, nil
+	}
+
+	// 2b) provider 员工：home ∪ 有效 allocation 的客户租户（R9/R10 同源）。
+	if string(user.MspRole) != "" {
+		allocs, aErr := s.client.MSPAllocation.Query().
+			Where(mspallocation.MspUserIDEQ(userID), mspallocation.DeassignedAtIsNil()).
+			Order(ent.Asc(mspallocation.FieldID)).
+			All(ctx)
+		if aErr != nil {
+			return nil, fmt.Errorf("failed to list allocations: %w", aErr)
+		}
+		for _, a := range allocs {
+			if t, tErr := s.client.Tenant.Get(ctx, a.CustomerTenantID); tErr == nil {
+				add(t)
+			}
+		}
+	}
+
+	return result, nil
 }

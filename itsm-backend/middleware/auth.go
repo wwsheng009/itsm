@@ -12,11 +12,14 @@ import (
 )
 
 type Claims struct {
-	UserID    int    `json:"userId"`
-	Username  string `json:"username"`
-	Role      string `json:"role"`
-	TenantID  int    `json:"tenantId"`
-	TokenType string `json:"tokenType"` // "access" 或 "refresh"
+	UserID   int    `json:"userId"`
+	Username string `json:"username"`
+	Role     string `json:"role"`
+	TenantID int    `json:"tenantId"`
+	// TenantSource 记录 token 作用域来源（IP-P0-6）：home（登录家租户）/
+	// switch（显式切换）。空值兼容旧 token，按 home 处理。
+	TenantSource string `json:"tenantSource,omitempty"`
+	TokenType    string `json:"tokenType"` // "access" 或 "refresh"
 	jwt.RegisteredClaims
 }
 
@@ -58,12 +61,18 @@ func ValidateRefreshToken(tokenString, jwtSecret string) (*Claims, error) {
 
 // 生成Access Token
 func GenerateAccessToken(userID int, username, role string, tenantID int, jwtSecret string, expireTime time.Duration) (string, error) {
+	return GenerateAccessTokenWithSource(userID, username, role, tenantID, "", jwtSecret, expireTime)
+}
+
+// GenerateAccessTokenWithSource 生成本次作用域来源可审计的 access token（IP-P0-6）。
+func GenerateAccessTokenWithSource(userID int, username, role string, tenantID int, tenantSource, jwtSecret string, expireTime time.Duration) (string, error) {
 	claims := Claims{
-		UserID:    userID,
-		Username:  username,
-		Role:      role,
-		TenantID:  tenantID,
-		TokenType: "access",
+		UserID:       userID,
+		Username:     username,
+		Role:         role,
+		TenantID:     tenantID,
+		TenantSource: tenantSource,
+		TokenType:    "access",
 		RegisteredClaims: jwt.RegisteredClaims{
 			ExpiresAt: jwt.NewNumericDate(time.Now().Add(expireTime)),
 			IssuedAt:  jwt.NewNumericDate(time.Now()),
@@ -79,14 +88,20 @@ func GenerateAccessToken(userID int, username, role string, tenantID int, jwtSec
 // 之前只填 userID，导致 refresh 续签时 handler 拿到空字符串身份，降级为匿名。
 // 现在签名补齐：调用方传入 user 完整信息，refresh 续签可解析出 tenant 上下文。
 func GenerateRefreshToken(userID int, username, role string, tenantID int, jwtSecret string, expireTime time.Duration) (string, error) {
+	return GenerateRefreshTokenWithSource(userID, username, role, tenantID, "", jwtSecret, expireTime)
+}
+
+// GenerateRefreshTokenWithSource 与 GenerateRefreshToken 相同，但携带作用域来源（IP-P0-6）。
+func GenerateRefreshTokenWithSource(userID int, username, role string, tenantID int, tenantSource, jwtSecret string, expireTime time.Duration) (string, error) {
 	// jti 用于 refresh token 黑名单唯一标识；带随机后缀避免同一秒重复
 	jti := fmt.Sprintf("rt-%d-%d-%d", userID, time.Now().UnixNano(), randSeq6())
 	claims := Claims{
-		UserID:    userID,
-		Username:  username,
-		Role:      role,
-		TenantID:  tenantID,
-		TokenType: "refresh",
+		UserID:       userID,
+		Username:     username,
+		Role:         role,
+		TenantID:     tenantID,
+		TenantSource: tenantSource,
+		TokenType:    "refresh",
 		RegisteredClaims: jwt.RegisteredClaims{
 			ID:        jti,
 			ExpiresAt: jwt.NewNumericDate(time.Now().Add(expireTime)),

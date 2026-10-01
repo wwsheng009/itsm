@@ -22,7 +22,7 @@
 | G6 | `role_permissions` 无唯一约束 | 无法 `ON CONFLICT`，供给脚本只能 `where not exists` | 脚本幂等插入 | 增加 `(role_id, permission_id, tenant_id)` 唯一索引（§7） | P2 |
 | G7 | CLI 工具 stdout 混入状态行 | `psql -tAc` 的 `INSERT 0 1` 污染 `returning id` 输出，自动化解析失败 | `last_number()` 过滤 | 工具输出规范（§8） | P2 |
 | G8 | 缓存 key 无租户维度 | 多客户场景存在串数据风险 | **✅ 已审查并关闭（2026-09-30）** | 逐 key 审查完成：租户分区缓存/序列均含 `tenant_id`；全局编号序列登记豁免（见 §9）；承接 `IP-P0-2` 步骤 6 | **P0** |
-| G9 | `X-Tenant-Code` 与 JWT 冲突被静默忽略 | 调用方误以为切换了租户；无冲突告警，排障困难（不越权） | 依赖 JWT 租户；探针按实测标注 | Header 与 JWT 冲突时返回 401/400 并记录告警（§10） | P2 |
+| G9 | `X-Tenant-Code` 与 JWT 冲突被静默忽略 | 调用方误以为切换了租户；无冲突告警，排障困难（不越权） | 依赖 JWT 租户；探针按实测标注 | Header 与 JWT 冲突时返回 401/400 并记录告警（§10）；**→ ✅ 已关闭（2026-09-30，IP-P0-6）：401 + `reasonCode=TENANT_MISMATCH_REJECTED` + `tenant mismatch rejected` 告警** | P2 |
 | G10 | snap 版 docker 下宿主 `/tmp` 对守护进程不可见 | `docker cp` 静默复制旧文件；`docker run -v /tmp/...` 产物"写丢"，构建/供给莫名失败 | 产物与暂存目录放 `$HOME` 非隐藏目录 + sha256 校验（§11） | 文档/脚本固化路径约定；容器化部署优先用 bind 到 `$HOME` 或非 snap docker | P1 |
 
 ## 2. G1 · 跨租户创建用户被 tenant guard 拦截

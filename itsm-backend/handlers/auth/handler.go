@@ -100,7 +100,9 @@ func (h *Handler) SwitchTenant(c *gin.Context) {
 		common.AuthFailed(c, "用户未认证")
 		return
 	}
-	response, err := h.service.SwitchTenant(c.Request.Context(), userID, req.TenantID)
+	// IP-P0-6：切换即轮换会话——旧 refresh 一并撤销（来自 httpOnly cookie）。
+	oldRefresh, _ := c.Cookie("refresh_token")
+	response, err := h.service.SwitchTenantWithRevoke(c.Request.Context(), userID, req.TenantID, oldRefresh)
 	if err != nil {
 		common.Forbidden(c, err.Error())
 		return

@@ -78,8 +78,26 @@ type AuditLog struct {
 }
 
 // AuthResult contains tokens and user context
+// TenantSelection 描述服务端派生的登录作用域（IP-P0-6）：
+// 登录不接受客户端选择租户，仅支持登录后经 /auth/switch-tenant 显式切换。
+type TenantSelection struct {
+	Mode string `json:"mode"` // single | home | platform | switch
+}
+
+// TenantInfo 是认证响应中的租户最小视图（避免直接序列化 ent.Tenant）。
+type TenantInfo struct {
+	ID        int       `json:"id"`
+	Name      string    `json:"name"`
+	Code      string    `json:"code"`
+	Type      string    `json:"type"`
+	Status    string    `json:"status"`
+	ExpiresAt time.Time `json:"expiresAt,omitempty"`
+}
+
 type AuthResult struct {
-	AccessToken  string `json:"-"`
-	RefreshToken string `json:"-"`
-	User         *User  `json:"user"`
+	AccessToken     string           `json:"-"`
+	RefreshToken    string           `json:"-"`
+	User            *User            `json:"user"`
+	Tenant          *TenantInfo      `json:"tenant,omitempty"`
+	TenantSelection *TenantSelection `json:"tenantSelection,omitempty"`
 }

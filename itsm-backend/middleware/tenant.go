@@ -2,6 +2,7 @@ package middleware
 
 import (
 	"errors"
+	"net/http"
 	"strings"
 	"time"
 
@@ -151,7 +152,12 @@ func TenantMiddleware(client *ent.Client) gin.HandlerFunc {
 				"source", source,
 				"user_id", c.GetInt("user_id"),
 			)
-			common.Fail(c, common.AuthFailedCode, "租户不匹配")
+			// IP-P0-6：稳定 reasonCode（保留既有 401/2002 形状），前端与告警按 code 识别。
+			c.JSON(http.StatusUnauthorized, gin.H{
+				"code":       common.AuthFailedCode,
+				"message":    "租户不匹配",
+				"reasonCode": "TENANT_MISMATCH_REJECTED",
+			})
 			c.Abort()
 			return
 		}

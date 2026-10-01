@@ -8,6 +8,7 @@ import (
 	"itsm-backend/dto"
 	"itsm-backend/ent"
 	"itsm-backend/ent/enttest"
+	"itsm-backend/middleware"
 
 	_ "github.com/mattn/go-sqlite3"
 	"github.com/stretchr/testify/assert"
@@ -517,4 +518,64 @@ func TestService_Register_RoleWhitelist(t *testing.T) {
 	require.NoError(t, err)
 	require.NotNil(t, resp)
 	assert.Equal(t, "norm", resp.Username)
+}
+
+// TestService_SwitchTenant_MSPProviderScope 锁定 IP-P0-6：provider 管理员切到分配客户后，
+// JWT 作用域=客户租户、tenant_source=switch、响应 user.tenantId=目标租户（不再回带 home）。
+func TestService_SwitchTenant_MSPProviderScope(t *testing.T) {
+	fx := newAuthFixture(t)
+	defer fx.client.Close()
+
+	provider := fx.client.Tenant.Create().
+		SetName("Provider").SetCode("provider-1").SetStatus("active").SetType("msp_provider").
+		SaveX(fx.ctx)
+	customer := fx.client.Tenant.Create().
+		SetName("Customer").SetCode("customer-1").SetStatus("active").SetType("msp_customer").
+		SetMspProviderID(provider.ID).
+		SaveX(fx.ctx)
+	mspUser := fx.client.User.Create().
+		SetUsername("mspadmin").SetEmail("mspadmin@example.com").SetName("MSP Admin").
+		SetPasswordHash("hash").SetRole("admin").SetMspRole("provider_admin").
+		SetActive(true).SetTenantID(provider.ID).
+		SaveX(fx.ctx)
+	fx.client.MSPAllocation.Create().
+		SetMspUserID(mspUser.ID).SetCustomerTenantID(customer.ID).SetRole("provider_agent").
+		SaveX(fx.ctx)
+
+	resp, err := fx.service.SwitchTenant(fx.ctx, mspUser.ID, customer.ID)
+	require.NoError(t, err)
+	require.NotNil(t, resp)
+
+	// 响应作用域 = 目标租户（修复前这里回带 userEntity.TenantID=provider）。
+	assert.Equal(t, customer.ID, resp.User.TenantID)
+	require.NotNil(t, resp.Tenant)
+	assert.Equal(t, customer.ID, resp.Tenant.ID)
+
+	claims, err := middleware.ValidateAccessToken(resp.AccessToken, "test-secret-key")
+	require.NoError(t, err)
+	assert.Equal(t, customer.ID, claims.TenantID)
+	assert.Equal(t, "switch", claims.TenantSource)
+}
+
+// TestService_SwitchTenant_DeniedWithoutAllocation 锁定反例：无 allocation 的客户不可切换。
+func TestService_SwitchTenant_DeniedWithoutAllocation(t *testing.T) {
+	fx := newAuthFixture(t)
+	defer fx.client.Close()
+
+	provider := fx.client.Tenant.Create().
+		SetName("Provider").SetCode("provider-2").SetStatus("active").SetType("msp_provider").
+		SaveX(fx.ctx)
+	customer := fx.client.Tenant.Create().
+		SetName("Customer").SetCode("customer-2").SetStatus("active").SetType("msp_customer").
+		SetMspProviderID(provider.ID).
+		SaveX(fx.ctx)
+	mspUser := fx.client.User.Create().
+		SetUsername("mspadmin2").SetEmail("mspadmin2@example.com").SetName("MSP Admin 2").
+		SetPasswordHash("hash").SetRole("admin").SetMspRole("provider_admin").
+		SetActive(true).SetTenantID(provider.ID).
+		SaveX(fx.ctx)
+
+	_, err := fx.service.SwitchTenant(fx.ctx, mspUser.ID, customer.ID)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "无权限访问该租户")
 }
