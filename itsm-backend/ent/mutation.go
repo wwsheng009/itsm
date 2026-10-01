@@ -192518,6 +192518,7 @@ type UserMutation struct {
 	must_change_password            *bool
 	last_active_tenant_id           *int
 	addlast_active_tenant_id        *int
+	preferences                     *map[string]interface{}
 	clearedFields                   map[string]struct{}
 	department_ref                  *int
 	cleareddepartment_ref           bool
@@ -193453,6 +193454,55 @@ func (m *UserMutation) ResetLastActiveTenantID() {
 	m.last_active_tenant_id = nil
 	m.addlast_active_tenant_id = nil
 	delete(m.clearedFields, user.FieldLastActiveTenantID)
+}
+
+// SetPreferences sets the "preferences" field.
+func (m *UserMutation) SetPreferences(value map[string]interface{}) {
+	m.preferences = &value
+}
+
+// Preferences returns the value of the "preferences" field in the mutation.
+func (m *UserMutation) Preferences() (r map[string]interface{}, exists bool) {
+	v := m.preferences
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldPreferences returns the old "preferences" field's value of the User entity.
+// If the User object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *UserMutation) OldPreferences(ctx context.Context) (v map[string]interface{}, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldPreferences is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldPreferences requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldPreferences: %w", err)
+	}
+	return oldValue.Preferences, nil
+}
+
+// ClearPreferences clears the value of the "preferences" field.
+func (m *UserMutation) ClearPreferences() {
+	m.preferences = nil
+	m.clearedFields[user.FieldPreferences] = struct{}{}
+}
+
+// PreferencesCleared returns if the "preferences" field was cleared in this mutation.
+func (m *UserMutation) PreferencesCleared() bool {
+	_, ok := m.clearedFields[user.FieldPreferences]
+	return ok
+}
+
+// ResetPreferences resets all changes to the "preferences" field.
+func (m *UserMutation) ResetPreferences() {
+	m.preferences = nil
+	delete(m.clearedFields, user.FieldPreferences)
 }
 
 // SetDepartmentRefID sets the "department_ref" edge to the Department entity by id.
@@ -194420,7 +194470,7 @@ func (m *UserMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *UserMutation) Fields() []string {
-	fields := make([]string, 0, 18)
+	fields := make([]string, 0, 19)
 	if m.username != nil {
 		fields = append(fields, user.FieldUsername)
 	}
@@ -194475,6 +194525,9 @@ func (m *UserMutation) Fields() []string {
 	if m.last_active_tenant_id != nil {
 		fields = append(fields, user.FieldLastActiveTenantID)
 	}
+	if m.preferences != nil {
+		fields = append(fields, user.FieldPreferences)
+	}
 	return fields
 }
 
@@ -194519,6 +194572,8 @@ func (m *UserMutation) Field(name string) (ent.Value, bool) {
 		return m.MustChangePassword()
 	case user.FieldLastActiveTenantID:
 		return m.LastActiveTenantID()
+	case user.FieldPreferences:
+		return m.Preferences()
 	}
 	return nil, false
 }
@@ -194564,6 +194619,8 @@ func (m *UserMutation) OldField(ctx context.Context, name string) (ent.Value, er
 		return m.OldMustChangePassword(ctx)
 	case user.FieldLastActiveTenantID:
 		return m.OldLastActiveTenantID(ctx)
+	case user.FieldPreferences:
+		return m.OldPreferences(ctx)
 	}
 	return nil, fmt.Errorf("unknown User field %s", name)
 }
@@ -194699,6 +194756,13 @@ func (m *UserMutation) SetField(name string, value ent.Value) error {
 		}
 		m.SetLastActiveTenantID(v)
 		return nil
+	case user.FieldPreferences:
+		v, ok := value.(map[string]interface{})
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetPreferences(v)
+		return nil
 	}
 	return fmt.Errorf("unknown User field %s", name)
 }
@@ -194777,6 +194841,9 @@ func (m *UserMutation) ClearedFields() []string {
 	if m.FieldCleared(user.FieldLastActiveTenantID) {
 		fields = append(fields, user.FieldLastActiveTenantID)
 	}
+	if m.FieldCleared(user.FieldPreferences) {
+		fields = append(fields, user.FieldPreferences)
+	}
 	return fields
 }
 
@@ -194811,6 +194878,9 @@ func (m *UserMutation) ClearField(name string) error {
 		return nil
 	case user.FieldLastActiveTenantID:
 		m.ClearLastActiveTenantID()
+		return nil
+	case user.FieldPreferences:
+		m.ClearPreferences()
 		return nil
 	}
 	return fmt.Errorf("unknown User nullable field %s", name)
@@ -194873,6 +194943,9 @@ func (m *UserMutation) ResetField(name string) error {
 		return nil
 	case user.FieldLastActiveTenantID:
 		m.ResetLastActiveTenantID()
+		return nil
+	case user.FieldPreferences:
+		m.ResetPreferences()
 		return nil
 	}
 	return fmt.Errorf("unknown User field %s", name)

@@ -83,6 +83,9 @@ func (User) Fields() []ent.Field {
 			Comment("最近活跃租户（登录/切换时更新；IP-P1-5）").
 			Optional().
 			Nillable(),
+		field.JSON("preferences", map[string]any{}).
+			Comment("用户偏好（IP-P1-6c）：workbenchFilter 等；仅本人可读写").
+			Optional(),
 	}
 }
 

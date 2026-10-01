@@ -51,6 +51,8 @@ const (
 	FieldMustChangePassword = "must_change_password"
 	// FieldLastActiveTenantID holds the string denoting the last_active_tenant_id field in the database.
 	FieldLastActiveTenantID = "last_active_tenant_id"
+	// FieldPreferences holds the string denoting the preferences field in the database.
+	FieldPreferences = "preferences"
 	// EdgeDepartmentRef holds the string denoting the department_ref edge name in mutations.
 	EdgeDepartmentRef = "department_ref"
 	// EdgeTenant holds the string denoting the tenant edge name in mutations.
@@ -232,6 +234,7 @@ var Columns = []string{
 	FieldIsBootstrapAdmin,
 	FieldMustChangePassword,
 	FieldLastActiveTenantID,
+	FieldPreferences,
 }
 
 // ForeignKeys holds the SQL foreign-keys that are owned by the "users"

@@ -3,6 +3,7 @@
 package ent
 
 import (
+	"encoding/json"
 	"fmt"
 	"itsm-backend/ent/department"
 	"itsm-backend/ent/tenant"
@@ -55,6 +56,8 @@ type User struct {
 	MustChangePassword bool `json:"must_change_password,omitempty"`
 	// 最近活跃租户（登录/切换时更新；IP-P1-5）
 	LastActiveTenantID *int `json:"last_active_tenant_id,omitempty"`
+	// 用户偏好（IP-P1-6c）：workbenchFilter 等；仅本人可读写
+	Preferences map[string]interface{} `json:"preferences,omitempty"`
 	// Edges holds the relations/edges for other nodes in the graph.
 	// The values are being populated by the UserQuery when eager-loading is set.
 	Edges                  UserEdges `json:"edges"`
@@ -278,6 +281,8 @@ func (*User) scanValues(columns []string) ([]any, error) {
 	values := make([]any, len(columns))
 	for i := range columns {
 		switch columns[i] {
+		case user.FieldPreferences:
+			values[i] = new([]byte)
 		case user.FieldActive, user.FieldIsBootstrapAdmin, user.FieldMustChangePassword:
 			values[i] = new(sql.NullBool)
 		case user.FieldID, user.FieldDepartmentID, user.FieldTenantID, user.FieldAssignedByMspID, user.FieldLastActiveTenantID:
@@ -421,6 +426,14 @@ func (_m *User) assignValues(columns []string, values []any) error {
 			} else if value.Valid {
 				_m.LastActiveTenantID = new(int)
 				*_m.LastActiveTenantID = int(value.Int64)
+			}
+		case user.FieldPreferences:
+			if value, ok := values[i].(*[]byte); !ok {
+				return fmt.Errorf("unexpected type %T for field preferences", values[i])
+			} else if value != nil && len(*value) > 0 {
+				if err := json.Unmarshal(*value, &_m.Preferences); err != nil {
+					return fmt.Errorf("unmarshal field preferences: %w", err)
+				}
 			}
 		case user.ForeignKeys[0]:
 			if value, ok := values[i].(*sql.NullInt64); !ok {
@@ -624,6 +637,9 @@ func (_m *User) String() string {
 		builder.WriteString("last_active_tenant_id=")
 		builder.WriteString(fmt.Sprintf("%v", *v))
 	}
+	builder.WriteString(", ")
+	builder.WriteString("preferences=")
+	builder.WriteString(fmt.Sprintf("%v", _m.Preferences))
 	builder.WriteByte(')')
 	return builder.String()
 }

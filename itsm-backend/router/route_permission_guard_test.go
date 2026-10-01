@@ -44,6 +44,7 @@ var writeRouteExemptions = map[string]string{
 	"common_system_routes.go POST /logout":          "登出，凭会话自身即可失效",
 	"common_system_routes.go POST /switch-tenant":   "切换至该用户已归属的租户，授权依据是租户成员关系而非资源动作",
 	"common_system_routes.go POST /change-password": "自助改密：授权依据是「已认证身份 + 持有旧密码」，不走资源动作权限",
+	"common_system_routes.go PUT /me/preferences": "本人偏好（IP-P1-6c）：授权依据是已认证身份 + 仅写本人 users.preferences，不接受路径参数",
 	"router.go POST /ws/ticket":                     "颁发一次性 WebSocket 票据，凭已认证身份且仅限本人会话",
 }
 

@@ -345,6 +345,18 @@ func (_u *UserUpdate) ClearLastActiveTenantID() *UserUpdate {
 	return _u
 }
 
+// SetPreferences sets the "preferences" field.
+func (_u *UserUpdate) SetPreferences(v map[string]interface{}) *UserUpdate {
+	_u.mutation.SetPreferences(v)
+	return _u
+}
+
+// ClearPreferences clears the value of the "preferences" field.
+func (_u *UserUpdate) ClearPreferences() *UserUpdate {
+	_u.mutation.ClearPreferences()
+	return _u
+}
+
 // SetDepartmentRefID sets the "department_ref" edge to the Department entity by ID.
 func (_u *UserUpdate) SetDepartmentRefID(id int) *UserUpdate {
 	_u.mutation.SetDepartmentRefID(id)
@@ -1124,6 +1136,12 @@ func (_u *UserUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 	}
 	if _u.mutation.LastActiveTenantIDCleared() {
 		_spec.ClearField(user.FieldLastActiveTenantID, field.TypeInt)
+	}
+	if value, ok := _u.mutation.Preferences(); ok {
+		_spec.SetField(user.FieldPreferences, field.TypeJSON, value)
+	}
+	if _u.mutation.PreferencesCleared() {
+		_spec.ClearField(user.FieldPreferences, field.TypeJSON)
 	}
 	if _u.mutation.DepartmentRefCleared() {
 		edge := &sqlgraph.EdgeSpec{
@@ -2223,6 +2241,18 @@ func (_u *UserUpdateOne) ClearLastActiveTenantID() *UserUpdateOne {
 	return _u
 }
 
+// SetPreferences sets the "preferences" field.
+func (_u *UserUpdateOne) SetPreferences(v map[string]interface{}) *UserUpdateOne {
+	_u.mutation.SetPreferences(v)
+	return _u
+}
+
+// ClearPreferences clears the value of the "preferences" field.
+func (_u *UserUpdateOne) ClearPreferences() *UserUpdateOne {
+	_u.mutation.ClearPreferences()
+	return _u
+}
+
 // SetDepartmentRefID sets the "department_ref" edge to the Department entity by ID.
 func (_u *UserUpdateOne) SetDepartmentRefID(id int) *UserUpdateOne {
 	_u.mutation.SetDepartmentRefID(id)
@@ -3032,6 +3062,12 @@ func (_u *UserUpdateOne) sqlSave(ctx context.Context) (_node *User, err error) {
 	}
 	if _u.mutation.LastActiveTenantIDCleared() {
 		_spec.ClearField(user.FieldLastActiveTenantID, field.TypeInt)
+	}
+	if value, ok := _u.mutation.Preferences(); ok {
+		_spec.SetField(user.FieldPreferences, field.TypeJSON, value)
+	}
+	if _u.mutation.PreferencesCleared() {
+		_spec.ClearField(user.FieldPreferences, field.TypeJSON)
 	}
 	if _u.mutation.DepartmentRefCleared() {
 		edge := &sqlgraph.EdgeSpec{

@@ -249,6 +249,12 @@ func (_c *UserCreate) SetNillableLastActiveTenantID(v *int) *UserCreate {
 	return _c
 }
 
+// SetPreferences sets the "preferences" field.
+func (_c *UserCreate) SetPreferences(v map[string]interface{}) *UserCreate {
+	_c.mutation.SetPreferences(v)
+	return _c
+}
+
 // SetDepartmentRefID sets the "department_ref" edge to the Department entity by ID.
 func (_c *UserCreate) SetDepartmentRefID(id int) *UserCreate {
 	_c.mutation.SetDepartmentRefID(id)
@@ -736,6 +742,10 @@ func (_c *UserCreate) createSpec() (*User, *sqlgraph.CreateSpec) {
 	if value, ok := _c.mutation.LastActiveTenantID(); ok {
 		_spec.SetField(user.FieldLastActiveTenantID, field.TypeInt, value)
 		_node.LastActiveTenantID = &value
+	}
+	if value, ok := _c.mutation.Preferences(); ok {
+		_spec.SetField(user.FieldPreferences, field.TypeJSON, value)
+		_node.Preferences = value
 	}
 	if nodes := _c.mutation.DepartmentRefIDs(); len(nodes) > 0 {
 		edge := &sqlgraph.EdgeSpec{
