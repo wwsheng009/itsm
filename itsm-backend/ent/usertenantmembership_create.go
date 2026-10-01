@@ -9,6 +9,7 @@ import (
 	"itsm-backend/ent/tenant"
 	"itsm-backend/ent/user"
 	"itsm-backend/ent/usertenantmembership"
+	"itsm-backend/ent/usertenantmembershiporg"
 	"time"
 
 	"entgo.io/ent/dialect/sql/sqlgraph"
@@ -246,6 +247,21 @@ func (_c *UserTenantMembershipCreate) SetTenant(v *Tenant) *UserTenantMembership
 	return _c.SetTenantID(v.ID)
 }
 
+// AddOrgIDs adds the "orgs" edge to the UserTenantMembershipOrg entity by IDs.
+func (_c *UserTenantMembershipCreate) AddOrgIDs(ids ...int) *UserTenantMembershipCreate {
+	_c.mutation.AddOrgIDs(ids...)
+	return _c
+}
+
+// AddOrgs adds the "orgs" edges to the UserTenantMembershipOrg entity.
+func (_c *UserTenantMembershipCreate) AddOrgs(v ...*UserTenantMembershipOrg) *UserTenantMembershipCreate {
+	ids := make([]int, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _c.AddOrgIDs(ids...)
+}
+
 // Mutation returns the UserTenantMembershipMutation object of the builder.
 func (_c *UserTenantMembershipCreate) Mutation() *UserTenantMembershipMutation {
 	return _c.mutation
@@ -480,6 +496,22 @@ func (_c *UserTenantMembershipCreate) createSpec() (*UserTenantMembership, *sqlg
 			edge.Target.Nodes = append(edge.Target.Nodes, k)
 		}
 		_node.TenantID = nodes[0]
+		_spec.Edges = append(_spec.Edges, edge)
+	}
+	if nodes := _c.mutation.OrgsIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   usertenantmembership.OrgsTable,
+			Columns: []string{usertenantmembership.OrgsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(usertenantmembershiporg.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
 		_spec.Edges = append(_spec.Edges, edge)
 	}
 	return _node, _spec

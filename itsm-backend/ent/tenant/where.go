@@ -1254,6 +1254,29 @@ func HasMembershipsWith(preds ...predicate.UserTenantMembership) predicate.Tenan
 	})
 }
 
+// HasMembershipOrgs applies the HasEdge predicate on the "membership_orgs" edge.
+func HasMembershipOrgs() predicate.Tenant {
+	return predicate.Tenant(func(s *sql.Selector) {
+		step := sqlgraph.NewStep(
+			sqlgraph.From(Table, FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, MembershipOrgsTable, MembershipOrgsColumn),
+		)
+		sqlgraph.HasNeighbors(s, step)
+	})
+}
+
+// HasMembershipOrgsWith applies the HasEdge predicate on the "membership_orgs" edge with a given conditions (other predicates).
+func HasMembershipOrgsWith(preds ...predicate.UserTenantMembershipOrg) predicate.Tenant {
+	return predicate.Tenant(func(s *sql.Selector) {
+		step := newMembershipOrgsStep()
+		sqlgraph.HasNeighborsWith(s, step, func(s *sql.Selector) {
+			for _, p := range preds {
+				p(s)
+			}
+		})
+	})
+}
+
 // HasBootstrapTokens applies the HasEdge predicate on the "bootstrap_tokens" edge.
 func HasBootstrapTokens() predicate.Tenant {
 	return predicate.Tenant(func(s *sql.Selector) {

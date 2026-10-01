@@ -554,6 +554,16 @@ CREATE INDEX idx_invitations_expiry ON invitations (expires_at) WHERE status = '
 - 边界：请求期 `RBACMiddleware` 仍走既有角色码/DB 判定链（未动；`AUTHZ_STATIC_FALLBACK` 只管权限清单与菜单的计算源）；成员变更的显式缓存失效钩子随 membership 写入路径（IP-P1-3/5）接入。
 - 验证：`go build ./...`、gofmt 绿；`middleware`/`handlers/auth`/`handlers/common`/`router` 全绿；`service` 仅 `TestTicketService_GetMSPCustomerReports_AllocationAware` 失败——已在 `c13cc055` worktree 复现为**既有红灯**（legacy `type=msp` 夹具 vs mspguard provider 强校验），与本批无关。
 
+**进度（2026-09-30）**：✅ **IP-P1-3 组织挂 membership（数据模型 + 双校验）落地**（A5 主体：多组织归属以 membership 为唯一载体；跨租户关联拒绝）。
+
+- 表：`user_tenant_membership_orgs`（§4.0-A 契约：`org_type ∈ department|team|group|project` 多态 + `role_id/is_primary/status/expires_at/deleted_at`）；索引 `uq_membership_org`（membership+type+org 唯一，含历史行 → 复挂复活原行）、部分唯一 `uq_membership_org_primary`（同类型至多一个存活主组织）、`idx_membership_org_scope`。
+- DB 约束：复合 FK `(membership_id, tenant_id) → user_tenant_memberships(id, tenant_id)`（迁移 20260505 以 `DROP IF EXISTS` + `ADD` 落地，ent 先行建表也能补齐；跨租户配对 DB 层拒绝）。
+- 回填：department（`users.department_id`）/team（`users.team_users`）/group（`users.group_members`）按**同租户** JOIN 预过滤入表，`ON CONFLICT DO NOTHING`；project 当前无成员列留空（由写入路径产生）。users 单值 FK 保留兼容读。
+- 应用层：`service/membership_org_service.go` `Attach/Detach/ListForMembership`——多态四表加载比对 `org.tenant_id == membership.tenant_id`（跨租户 `ErrMembershipOrgCrossTenant`、悬挂组织 / 类型非法 / 成员非活跃分列错误）；主组织切换自动降级旧主；软删复活幂等复用原行。
+- 测试：`TestMembershipOrgService_*` 4 组（同租户挂接 + 主组织唯一 + 多态 team/group、跨租户拒绝（department/project 两态）、软删复活、校验错误）；`go generate ./ent` + `go build ./...` 绿。
+- 巡检：`scripts/msp/verify-membership-orgs-backfill.sql` 8 节（复合 FK 存在 / 类型分布 / 跨租户错配 / 悬挂 / 主组织重复 / 遗留 FK 未回填 / 软删状态不一致 / 过期存活）。
+- 边界（拆分）：组织唯一约束 `(tenant_id, code/name)`（group/team name、project code）随 **IP-P1-3b** 落地；组织表 RLS 与 guard 一致性扫描归 IP-P1-7 / IP-P2-5。
+
 ---
 
 ## 5. P2 详细实施（多 provider 与治理收尾）
@@ -600,7 +610,8 @@ CREATE INDEX idx_invitations_expiry ON invitations (expires_at) WHERE status = '
 
 - [x] membership 表/回填/约束机制落地（v1.13，2026-09-30；customer 恰 1 条 active 由 `uq_customer_single_scope` DB 强约束 + 约束回归）；生产库巡检档案随后续部署执行 `scripts/msp/verify-membership-backfill.sql` 留档；
 - [x] 权限 DB 单源（权限清单面）：登录/刷新/切换/`/auth/me`/菜单同源，跨租户权限互不影响（A6；v1.14，2026-09-30；请求期 RBAC 判定链与 `shadow`/enforce 仍按 IP-P1-7 推进）；
-- [ ] 组织多归属 + 生效期（A5）；邀请/首登链路通过；bootstrap 多租户连续成功（07:G2 关闭）；
+- [x] 组织多归属 + 生效期（A5 数据面：`user_tenant_membership_orgs` 子表/回填/复合 FK/应用双校验；v1.15，2026-09-30；组织唯一约束 `(tenant_id, code/name)` 归 IP-P1-3b）；
+- [ ] 邀请/首登链路通过；bootstrap 多租户连续成功（07:G2 关闭）；
 - [ ] RLS `shadow` 无新增错误（A7）；批量护栏通过（WB-A4）；
 - [ ] docs-gate 6/6；`make test` 全绿。
 
@@ -722,3 +733,4 @@ CREATE INDEX idx_invitations_expiry ON invitations (expires_at) WHERE status = '
 | v1.12 | 2026-09-30 | **IP-P0-8 前端上下文/权限链路落地（FE-A1–A5、A7）**：`tenants[0]` 移除（作用域=服务端）；`switch-tenant` 端点修正 + store 切换链路（abort→重签→重拉 me→清缓存）+ 登出清理；菜单/能力 queryKey 按租户分键；`/403` + `RequireCapability` 分组守卫（admin/msp）；`CustomerFilter` + `/msp/workbench` 页（allowedActions 行内操作、只读态、游标）；登录页无租户面回归；FE-A6/A8 归 P1 |
 | v1.13 | 2026-09-30 | **IP-P1-1 membership 表/回填/约束落地**：`user_tenant_memberships`（目标架构 §3.2 字段 + 3 个部分唯一索引 + 复合 FK 目标）+ 幂等迁移（home/allocation 回填、D10 角色映射、`audit_logs.membership_id` 回填）+ 巡检脚本 `verify-membership-backfill.sql` + Ent schema 与约束回归；读路径仍回退 home+allocation（切换归 IP-P1-2） |
 | v1.14 | 2026-09-30 | **IP-P1-2 权限单源落地**：`middleware.ResolvePermissions`（membership.role → role_permissions，super_admin 直通，空角色=显式撤销）+ Login/Refresh/Switch/`/auth/me`/菜单同源接线（切换按目标租户，A6）；`AUTHZ_STATIC_FALLBACK` 默认 false（fail-closed，仅迁移窗口可开）；解析器 5 例 + 端点四方对拍测试；请求期 RBAC 判定链未动（后续批次） |
+| v1.15 | 2026-09-30 | **IP-P1-3a 组织挂 membership 落地**：`user_tenant_membership_orgs` 子表（§4.0-A：多态 org_type + 生效期/主组织/软删）+ 复合 FK `(membership_id, tenant_id)` + department/team/group 回填 + `MembershipOrgService` 应用层同租户强校验（跨租户拒绝 A5）+ 4 组测试 + 8 节巡检脚本；组织唯一约束 `(tenant_id, code/name)` 拆分为 IP-P1-3b |

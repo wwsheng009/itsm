@@ -6092,6 +6092,61 @@ var (
 			},
 		},
 	}
+	// UserTenantMembershipOrgsColumns holds the columns for the "user_tenant_membership_orgs" table.
+	UserTenantMembershipOrgsColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeInt, Increment: true},
+		{Name: "org_type", Type: field.TypeEnum, Enums: []string{"department", "team", "group", "project"}},
+		{Name: "org_id", Type: field.TypeInt64},
+		{Name: "role_id", Type: field.TypeInt, Nullable: true},
+		{Name: "is_primary", Type: field.TypeBool, Default: false},
+		{Name: "status", Type: field.TypeEnum, Enums: []string{"active", "suspended"}, Default: "active"},
+		{Name: "expires_at", Type: field.TypeTime, Nullable: true},
+		{Name: "deleted_at", Type: field.TypeTime, Nullable: true},
+		{Name: "created_at", Type: field.TypeTime},
+		{Name: "updated_at", Type: field.TypeTime},
+		{Name: "tenant_id", Type: field.TypeInt},
+		{Name: "membership_id", Type: field.TypeInt},
+	}
+	// UserTenantMembershipOrgsTable holds the schema information for the "user_tenant_membership_orgs" table.
+	UserTenantMembershipOrgsTable = &schema.Table{
+		Name:       "user_tenant_membership_orgs",
+		Columns:    UserTenantMembershipOrgsColumns,
+		PrimaryKey: []*schema.Column{UserTenantMembershipOrgsColumns[0]},
+		ForeignKeys: []*schema.ForeignKey{
+			{
+				Symbol:     "user_tenant_membership_orgs_tenants_membership_orgs",
+				Columns:    []*schema.Column{UserTenantMembershipOrgsColumns[10]},
+				RefColumns: []*schema.Column{TenantsColumns[0]},
+				OnDelete:   schema.NoAction,
+			},
+			{
+				Symbol:     "user_tenant_membership_orgs_user_tenant_memberships_orgs",
+				Columns:    []*schema.Column{UserTenantMembershipOrgsColumns[11]},
+				RefColumns: []*schema.Column{UserTenantMembershipsColumns[0]},
+				OnDelete:   schema.NoAction,
+			},
+		},
+		Indexes: []*schema.Index{
+			{
+				Name:    "uq_membership_org",
+				Unique:  true,
+				Columns: []*schema.Column{UserTenantMembershipOrgsColumns[11], UserTenantMembershipOrgsColumns[1], UserTenantMembershipOrgsColumns[2]},
+			},
+			{
+				Name:    "uq_membership_org_primary",
+				Unique:  true,
+				Columns: []*schema.Column{UserTenantMembershipOrgsColumns[11], UserTenantMembershipOrgsColumns[1]},
+				Annotation: &entsql.IndexAnnotation{
+					Where: "deleted_at IS NULL AND is_primary",
+				},
+			},
+			{
+				Name:    "idx_membership_org_scope",
+				Unique:  false,
+				Columns: []*schema.Column{UserTenantMembershipOrgsColumns[10], UserTenantMembershipOrgsColumns[1], UserTenantMembershipOrgsColumns[2]},
+			},
+		},
+	}
 	// VendorsColumns holds the columns for the "vendors" table.
 	VendorsColumns = []*schema.Column{
 		{Name: "id", Type: field.TypeInt, Increment: true},
@@ -6825,6 +6880,7 @@ var (
 		ToolInvocationsTable,
 		UsersTable,
 		UserTenantMembershipsTable,
+		UserTenantMembershipOrgsTable,
 		VendorsTable,
 		WorkflowsTable,
 		WorkflowInstancesTable,
@@ -6974,6 +7030,8 @@ func init() {
 	UsersTable.ForeignKeys[4].RefTable = TenantsTable
 	UserTenantMembershipsTable.ForeignKeys[0].RefTable = TenantsTable
 	UserTenantMembershipsTable.ForeignKeys[1].RefTable = UsersTable
+	UserTenantMembershipOrgsTable.ForeignKeys[0].RefTable = TenantsTable
+	UserTenantMembershipOrgsTable.ForeignKeys[1].RefTable = UserTenantMembershipsTable
 	WorkflowsTable.ForeignKeys[0].RefTable = DepartmentsTable
 	WorkflowInstancesTable.ForeignKeys[0].RefTable = WorkflowsTable
 	WorkflowTasksTable.ForeignKeys[0].RefTable = WorkflowInstancesTable

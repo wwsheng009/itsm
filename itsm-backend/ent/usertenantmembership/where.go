@@ -801,6 +801,29 @@ func HasTenantWith(preds ...predicate.Tenant) predicate.UserTenantMembership {
 	})
 }
 
+// HasOrgs applies the HasEdge predicate on the "orgs" edge.
+func HasOrgs() predicate.UserTenantMembership {
+	return predicate.UserTenantMembership(func(s *sql.Selector) {
+		step := sqlgraph.NewStep(
+			sqlgraph.From(Table, FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, OrgsTable, OrgsColumn),
+		)
+		sqlgraph.HasNeighbors(s, step)
+	})
+}
+
+// HasOrgsWith applies the HasEdge predicate on the "orgs" edge with a given conditions (other predicates).
+func HasOrgsWith(preds ...predicate.UserTenantMembershipOrg) predicate.UserTenantMembership {
+	return predicate.UserTenantMembership(func(s *sql.Selector) {
+		step := newOrgsStep()
+		sqlgraph.HasNeighborsWith(s, step, func(s *sql.Selector) {
+			for _, p := range preds {
+				p(s)
+			}
+		})
+	})
+}
+
 // And groups predicates with the AND operator between them.
 func And(predicates ...predicate.UserTenantMembership) predicate.UserTenantMembership {
 	return predicate.UserTenantMembership(sql.AndPredicates(predicates...))

@@ -153,6 +153,7 @@ import (
 	"itsm-backend/ent/toolinvocation"
 	"itsm-backend/ent/user"
 	"itsm-backend/ent/usertenantmembership"
+	"itsm-backend/ent/usertenantmembershiporg"
 	"itsm-backend/ent/vendor"
 	"itsm-backend/ent/workflow"
 	"itsm-backend/ent/workflowinstance"
@@ -455,6 +456,8 @@ type Client struct {
 	User *UserClient
 	// UserTenantMembership is the client for interacting with the UserTenantMembership builders.
 	UserTenantMembership *UserTenantMembershipClient
+	// UserTenantMembershipOrg is the client for interacting with the UserTenantMembershipOrg builders.
+	UserTenantMembershipOrg *UserTenantMembershipOrgClient
 	// Vendor is the client for interacting with the Vendor builders.
 	Vendor *VendorClient
 	// Workflow is the client for interacting with the Workflow builders.
@@ -620,6 +623,7 @@ func (c *Client) init() {
 	c.ToolInvocation = NewToolInvocationClient(c.config)
 	c.User = NewUserClient(c.config)
 	c.UserTenantMembership = NewUserTenantMembershipClient(c.config)
+	c.UserTenantMembershipOrg = NewUserTenantMembershipOrgClient(c.config)
 	c.Vendor = NewVendorClient(c.config)
 	c.Workflow = NewWorkflowClient(c.config)
 	c.WorkflowInstance = NewWorkflowInstanceClient(c.config)
@@ -860,6 +864,7 @@ func (c *Client) Tx(ctx context.Context) (*Tx, error) {
 		ToolInvocation:              NewToolInvocationClient(cfg),
 		User:                        NewUserClient(cfg),
 		UserTenantMembership:        NewUserTenantMembershipClient(cfg),
+		UserTenantMembershipOrg:     NewUserTenantMembershipOrgClient(cfg),
 		Vendor:                      NewVendorClient(cfg),
 		Workflow:                    NewWorkflowClient(cfg),
 		WorkflowInstance:            NewWorkflowInstanceClient(cfg),
@@ -1027,6 +1032,7 @@ func (c *Client) BeginTx(ctx context.Context, opts *sql.TxOptions) (*Tx, error) 
 		ToolInvocation:              NewToolInvocationClient(cfg),
 		User:                        NewUserClient(cfg),
 		UserTenantMembership:        NewUserTenantMembershipClient(cfg),
+		UserTenantMembershipOrg:     NewUserTenantMembershipOrgClient(cfg),
 		Vendor:                      NewVendorClient(cfg),
 		Workflow:                    NewWorkflowClient(cfg),
 		WorkflowInstance:            NewWorkflowInstanceClient(cfg),
@@ -1097,8 +1103,9 @@ func (c *Client) Use(hooks ...Hook) {
 		c.TicketAssignmentRule, c.TicketAttachment, c.TicketAutomationRule, c.TicketCC,
 		c.TicketCategory, c.TicketComment, c.TicketNotification, c.TicketTag,
 		c.TicketTemplate, c.TicketType, c.TicketView, c.TicketWorkflowRecord,
-		c.ToolInvocation, c.User, c.UserTenantMembership, c.Vendor, c.Workflow,
-		c.WorkflowInstance, c.WorkflowTask, c.WorkflowTemplate, c.WorkflowVersion,
+		c.ToolInvocation, c.User, c.UserTenantMembership, c.UserTenantMembershipOrg,
+		c.Vendor, c.Workflow, c.WorkflowInstance, c.WorkflowTask, c.WorkflowTemplate,
+		c.WorkflowVersion,
 	} {
 		n.Use(hooks...)
 	}
@@ -1143,8 +1150,9 @@ func (c *Client) Intercept(interceptors ...Interceptor) {
 		c.TicketAssignmentRule, c.TicketAttachment, c.TicketAutomationRule, c.TicketCC,
 		c.TicketCategory, c.TicketComment, c.TicketNotification, c.TicketTag,
 		c.TicketTemplate, c.TicketType, c.TicketView, c.TicketWorkflowRecord,
-		c.ToolInvocation, c.User, c.UserTenantMembership, c.Vendor, c.Workflow,
-		c.WorkflowInstance, c.WorkflowTask, c.WorkflowTemplate, c.WorkflowVersion,
+		c.ToolInvocation, c.User, c.UserTenantMembership, c.UserTenantMembershipOrg,
+		c.Vendor, c.Workflow, c.WorkflowInstance, c.WorkflowTask, c.WorkflowTemplate,
+		c.WorkflowVersion,
 	} {
 		n.Intercept(interceptors...)
 	}
@@ -1437,6 +1445,8 @@ func (c *Client) Mutate(ctx context.Context, m Mutation) (Value, error) {
 		return c.User.mutate(ctx, m)
 	case *UserTenantMembershipMutation:
 		return c.UserTenantMembership.mutate(ctx, m)
+	case *UserTenantMembershipOrgMutation:
+		return c.UserTenantMembershipOrg.mutate(ctx, m)
 	case *VendorMutation:
 		return c.Vendor.mutate(ctx, m)
 	case *WorkflowMutation:
@@ -20945,6 +20955,22 @@ func (c *TenantClient) QueryMemberships(_m *Tenant) *UserTenantMembershipQuery {
 	return query
 }
 
+// QueryMembershipOrgs queries the membership_orgs edge of a Tenant.
+func (c *TenantClient) QueryMembershipOrgs(_m *Tenant) *UserTenantMembershipOrgQuery {
+	query := (&UserTenantMembershipOrgClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(tenant.Table, tenant.FieldID, id),
+			sqlgraph.To(usertenantmembershiporg.Table, usertenantmembershiporg.FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, tenant.MembershipOrgsTable, tenant.MembershipOrgsColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
 // QueryBootstrapTokens queries the bootstrap_tokens edge of a Tenant.
 func (c *TenantClient) QueryBootstrapTokens(_m *Tenant) *BootstrapTokenQuery {
 	query := (&BootstrapTokenClient{config: c.config}).Query()
@@ -24299,6 +24325,22 @@ func (c *UserTenantMembershipClient) QueryTenant(_m *UserTenantMembership) *Tena
 	return query
 }
 
+// QueryOrgs queries the orgs edge of a UserTenantMembership.
+func (c *UserTenantMembershipClient) QueryOrgs(_m *UserTenantMembership) *UserTenantMembershipOrgQuery {
+	query := (&UserTenantMembershipOrgClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(usertenantmembership.Table, usertenantmembership.FieldID, id),
+			sqlgraph.To(usertenantmembershiporg.Table, usertenantmembershiporg.FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, usertenantmembership.OrgsTable, usertenantmembership.OrgsColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
 // Hooks returns the client hooks.
 func (c *UserTenantMembershipClient) Hooks() []Hook {
 	return c.hooks.UserTenantMembership
@@ -24321,6 +24363,171 @@ func (c *UserTenantMembershipClient) mutate(ctx context.Context, m *UserTenantMe
 		return (&UserTenantMembershipDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
 	default:
 		return nil, fmt.Errorf("ent: unknown UserTenantMembership mutation op: %q", m.Op())
+	}
+}
+
+// UserTenantMembershipOrgClient is a client for the UserTenantMembershipOrg schema.
+type UserTenantMembershipOrgClient struct {
+	config
+}
+
+// NewUserTenantMembershipOrgClient returns a client for the UserTenantMembershipOrg from the given config.
+func NewUserTenantMembershipOrgClient(c config) *UserTenantMembershipOrgClient {
+	return &UserTenantMembershipOrgClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `usertenantmembershiporg.Hooks(f(g(h())))`.
+func (c *UserTenantMembershipOrgClient) Use(hooks ...Hook) {
+	c.hooks.UserTenantMembershipOrg = append(c.hooks.UserTenantMembershipOrg, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `usertenantmembershiporg.Intercept(f(g(h())))`.
+func (c *UserTenantMembershipOrgClient) Intercept(interceptors ...Interceptor) {
+	c.inters.UserTenantMembershipOrg = append(c.inters.UserTenantMembershipOrg, interceptors...)
+}
+
+// Create returns a builder for creating a UserTenantMembershipOrg entity.
+func (c *UserTenantMembershipOrgClient) Create() *UserTenantMembershipOrgCreate {
+	mutation := newUserTenantMembershipOrgMutation(c.config, OpCreate)
+	return &UserTenantMembershipOrgCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of UserTenantMembershipOrg entities.
+func (c *UserTenantMembershipOrgClient) CreateBulk(builders ...*UserTenantMembershipOrgCreate) *UserTenantMembershipOrgCreateBulk {
+	return &UserTenantMembershipOrgCreateBulk{config: c.config, builders: builders}
+}
+
+// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
+// a builder and applies setFunc on it.
+func (c *UserTenantMembershipOrgClient) MapCreateBulk(slice any, setFunc func(*UserTenantMembershipOrgCreate, int)) *UserTenantMembershipOrgCreateBulk {
+	rv := reflect.ValueOf(slice)
+	if rv.Kind() != reflect.Slice {
+		return &UserTenantMembershipOrgCreateBulk{err: fmt.Errorf("calling to UserTenantMembershipOrgClient.MapCreateBulk with wrong type %T, need slice", slice)}
+	}
+	builders := make([]*UserTenantMembershipOrgCreate, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		builders[i] = c.Create()
+		setFunc(builders[i], i)
+	}
+	return &UserTenantMembershipOrgCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for UserTenantMembershipOrg.
+func (c *UserTenantMembershipOrgClient) Update() *UserTenantMembershipOrgUpdate {
+	mutation := newUserTenantMembershipOrgMutation(c.config, OpUpdate)
+	return &UserTenantMembershipOrgUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *UserTenantMembershipOrgClient) UpdateOne(_m *UserTenantMembershipOrg) *UserTenantMembershipOrgUpdateOne {
+	mutation := newUserTenantMembershipOrgMutation(c.config, OpUpdateOne, withUserTenantMembershipOrg(_m))
+	return &UserTenantMembershipOrgUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *UserTenantMembershipOrgClient) UpdateOneID(id int) *UserTenantMembershipOrgUpdateOne {
+	mutation := newUserTenantMembershipOrgMutation(c.config, OpUpdateOne, withUserTenantMembershipOrgID(id))
+	return &UserTenantMembershipOrgUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for UserTenantMembershipOrg.
+func (c *UserTenantMembershipOrgClient) Delete() *UserTenantMembershipOrgDelete {
+	mutation := newUserTenantMembershipOrgMutation(c.config, OpDelete)
+	return &UserTenantMembershipOrgDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *UserTenantMembershipOrgClient) DeleteOne(_m *UserTenantMembershipOrg) *UserTenantMembershipOrgDeleteOne {
+	return c.DeleteOneID(_m.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *UserTenantMembershipOrgClient) DeleteOneID(id int) *UserTenantMembershipOrgDeleteOne {
+	builder := c.Delete().Where(usertenantmembershiporg.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &UserTenantMembershipOrgDeleteOne{builder}
+}
+
+// Query returns a query builder for UserTenantMembershipOrg.
+func (c *UserTenantMembershipOrgClient) Query() *UserTenantMembershipOrgQuery {
+	return &UserTenantMembershipOrgQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypeUserTenantMembershipOrg},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a UserTenantMembershipOrg entity by its id.
+func (c *UserTenantMembershipOrgClient) Get(ctx context.Context, id int) (*UserTenantMembershipOrg, error) {
+	return c.Query().Where(usertenantmembershiporg.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *UserTenantMembershipOrgClient) GetX(ctx context.Context, id int) *UserTenantMembershipOrg {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// QueryMembership queries the membership edge of a UserTenantMembershipOrg.
+func (c *UserTenantMembershipOrgClient) QueryMembership(_m *UserTenantMembershipOrg) *UserTenantMembershipQuery {
+	query := (&UserTenantMembershipClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(usertenantmembershiporg.Table, usertenantmembershiporg.FieldID, id),
+			sqlgraph.To(usertenantmembership.Table, usertenantmembership.FieldID),
+			sqlgraph.Edge(sqlgraph.M2O, true, usertenantmembershiporg.MembershipTable, usertenantmembershiporg.MembershipColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
+// QueryTenant queries the tenant edge of a UserTenantMembershipOrg.
+func (c *UserTenantMembershipOrgClient) QueryTenant(_m *UserTenantMembershipOrg) *TenantQuery {
+	query := (&TenantClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(usertenantmembershiporg.Table, usertenantmembershiporg.FieldID, id),
+			sqlgraph.To(tenant.Table, tenant.FieldID),
+			sqlgraph.Edge(sqlgraph.M2O, true, usertenantmembershiporg.TenantTable, usertenantmembershiporg.TenantColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
+// Hooks returns the client hooks.
+func (c *UserTenantMembershipOrgClient) Hooks() []Hook {
+	return c.hooks.UserTenantMembershipOrg
+}
+
+// Interceptors returns the client interceptors.
+func (c *UserTenantMembershipOrgClient) Interceptors() []Interceptor {
+	return c.inters.UserTenantMembershipOrg
+}
+
+func (c *UserTenantMembershipOrgClient) mutate(ctx context.Context, m *UserTenantMembershipOrgMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&UserTenantMembershipOrgCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&UserTenantMembershipOrgUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&UserTenantMembershipOrgUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&UserTenantMembershipOrgDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("ent: unknown UserTenantMembershipOrg mutation op: %q", m.Op())
 	}
 }
 
@@ -25299,8 +25506,8 @@ type (
 		TicketAssignmentRule, TicketAttachment, TicketAutomationRule, TicketCC,
 		TicketCategory, TicketComment, TicketNotification, TicketTag, TicketTemplate,
 		TicketType, TicketView, TicketWorkflowRecord, ToolInvocation, User,
-		UserTenantMembership, Vendor, Workflow, WorkflowInstance, WorkflowTask,
-		WorkflowTemplate, WorkflowVersion []ent.Hook
+		UserTenantMembership, UserTenantMembershipOrg, Vendor, Workflow,
+		WorkflowInstance, WorkflowTask, WorkflowTemplate, WorkflowVersion []ent.Hook
 	}
 	inters struct {
 		AIAnalysisResult, Alert, Application, ApprovalChain, ApprovalRecord,
@@ -25333,7 +25540,8 @@ type (
 		TicketAssignmentRule, TicketAttachment, TicketAutomationRule, TicketCC,
 		TicketCategory, TicketComment, TicketNotification, TicketTag, TicketTemplate,
 		TicketType, TicketView, TicketWorkflowRecord, ToolInvocation, User,
-		UserTenantMembership, Vendor, Workflow, WorkflowInstance, WorkflowTask,
-		WorkflowTemplate, WorkflowVersion []ent.Interceptor
+		UserTenantMembership, UserTenantMembershipOrg, Vendor, Workflow,
+		WorkflowInstance, WorkflowTask, WorkflowTemplate,
+		WorkflowVersion []ent.Interceptor
 	}
 )

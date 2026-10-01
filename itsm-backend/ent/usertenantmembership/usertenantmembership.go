@@ -53,6 +53,8 @@ const (
 	EdgeUser = "user"
 	// EdgeTenant holds the string denoting the tenant edge name in mutations.
 	EdgeTenant = "tenant"
+	// EdgeOrgs holds the string denoting the orgs edge name in mutations.
+	EdgeOrgs = "orgs"
 	// Table holds the table name of the usertenantmembership in the database.
 	Table = "user_tenant_memberships"
 	// UserTable is the table that holds the user relation/edge.
@@ -69,6 +71,13 @@ const (
 	TenantInverseTable = "tenants"
 	// TenantColumn is the table column denoting the tenant relation/edge.
 	TenantColumn = "tenant_id"
+	// OrgsTable is the table that holds the orgs relation/edge.
+	OrgsTable = "user_tenant_membership_orgs"
+	// OrgsInverseTable is the table name for the UserTenantMembershipOrg entity.
+	// It exists in this package in order to avoid circular dependency with the "usertenantmembershiporg" package.
+	OrgsInverseTable = "user_tenant_membership_orgs"
+	// OrgsColumn is the table column denoting the orgs relation/edge.
+	OrgsColumn = "membership_id"
 )
 
 // Columns holds all SQL columns for usertenantmembership fields.
@@ -324,6 +333,20 @@ func ByTenantField(field string, opts ...sql.OrderTermOption) OrderOption {
 		sqlgraph.OrderByNeighborTerms(s, newTenantStep(), sql.OrderByField(field, opts...))
 	}
 }
+
+// ByOrgsCount orders the results by orgs count.
+func ByOrgsCount(opts ...sql.OrderTermOption) OrderOption {
+	return func(s *sql.Selector) {
+		sqlgraph.OrderByNeighborsCount(s, newOrgsStep(), opts...)
+	}
+}
+
+// ByOrgs orders the results by orgs terms.
+func ByOrgs(term sql.OrderTerm, terms ...sql.OrderTerm) OrderOption {
+	return func(s *sql.Selector) {
+		sqlgraph.OrderByNeighborTerms(s, newOrgsStep(), append([]sql.OrderTerm{term}, terms...)...)
+	}
+}
 func newUserStep() *sqlgraph.Step {
 	return sqlgraph.NewStep(
 		sqlgraph.From(Table, FieldID),
@@ -336,5 +359,12 @@ func newTenantStep() *sqlgraph.Step {
 		sqlgraph.From(Table, FieldID),
 		sqlgraph.To(TenantInverseTable, FieldID),
 		sqlgraph.Edge(sqlgraph.M2O, true, TenantTable, TenantColumn),
+	)
+}
+func newOrgsStep() *sqlgraph.Step {
+	return sqlgraph.NewStep(
+		sqlgraph.From(Table, FieldID),
+		sqlgraph.To(OrgsInverseTable, FieldID),
+		sqlgraph.Edge(sqlgraph.O2M, false, OrgsTable, OrgsColumn),
 	)
 }

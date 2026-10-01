@@ -65,9 +65,11 @@ type UserTenantMembershipEdges struct {
 	User *User `json:"user,omitempty"`
 	// Tenant holds the value of the tenant edge.
 	Tenant *Tenant `json:"tenant,omitempty"`
+	// 组织归属（IP-P1-3：多组织/生效期以 membership 为唯一载体）
+	Orgs []*UserTenantMembershipOrg `json:"orgs,omitempty"`
 	// loadedTypes holds the information for reporting if a
 	// type was loaded (or requested) in eager-loading or not.
-	loadedTypes [2]bool
+	loadedTypes [3]bool
 }
 
 // UserOrErr returns the User value or an error if the edge
@@ -90,6 +92,15 @@ func (e UserTenantMembershipEdges) TenantOrErr() (*Tenant, error) {
 		return nil, &NotFoundError{label: tenant.Label}
 	}
 	return nil, &NotLoadedError{edge: "tenant"}
+}
+
+// OrgsOrErr returns the Orgs value or an error if the edge
+// was not loaded in eager-loading.
+func (e UserTenantMembershipEdges) OrgsOrErr() ([]*UserTenantMembershipOrg, error) {
+	if e.loadedTypes[2] {
+		return e.Orgs, nil
+	}
+	return nil, &NotLoadedError{edge: "orgs"}
 }
 
 // scanValues returns the types for scanning values from sql.Rows.
@@ -257,6 +268,11 @@ func (_m *UserTenantMembership) QueryUser() *UserQuery {
 // QueryTenant queries the "tenant" edge of the UserTenantMembership entity.
 func (_m *UserTenantMembership) QueryTenant() *TenantQuery {
 	return NewUserTenantMembershipClient(_m.config).QueryTenant(_m)
+}
+
+// QueryOrgs queries the "orgs" edge of the UserTenantMembership entity.
+func (_m *UserTenantMembership) QueryOrgs() *UserTenantMembershipOrgQuery {
+	return NewUserTenantMembershipClient(_m.config).QueryOrgs(_m)
 }
 
 // Update returns a builder for updating this UserTenantMembership.

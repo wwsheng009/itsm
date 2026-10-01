@@ -85,6 +85,8 @@ func (Tenant) Edges() []ent.Edge {
 			Comment("MSP客户分配"),
 		edge.To("memberships", UserTenantMembership.Type).
 			Comment("租户成员身份（IP-P1-1）"),
+		edge.To("membership_orgs", UserTenantMembershipOrg.Type).
+			Comment("成员组织归属（IP-P1-3）"),
 		edge.To("bootstrap_tokens", BootstrapToken.Type).
 			Comment("bootstrap token"),
 	}

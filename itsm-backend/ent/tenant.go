@@ -67,11 +67,13 @@ type TenantEdges struct {
 	MspCustomerAllocations []*MSPAllocation `json:"msp_customer_allocations,omitempty"`
 	// 租户成员身份（IP-P1-1）
 	Memberships []*UserTenantMembership `json:"memberships,omitempty"`
+	// 成员组织归属（IP-P1-3）
+	MembershipOrgs []*UserTenantMembershipOrg `json:"membership_orgs,omitempty"`
 	// bootstrap token
 	BootstrapTokens []*BootstrapToken `json:"bootstrap_tokens,omitempty"`
 	// loadedTypes holds the information for reporting if a
 	// type was loaded (or requested) in eager-loading or not.
-	loadedTypes [4]bool
+	loadedTypes [5]bool
 }
 
 // UsersOrErr returns the Users value or an error if the edge
@@ -101,10 +103,19 @@ func (e TenantEdges) MembershipsOrErr() ([]*UserTenantMembership, error) {
 	return nil, &NotLoadedError{edge: "memberships"}
 }
 
+// MembershipOrgsOrErr returns the MembershipOrgs value or an error if the edge
+// was not loaded in eager-loading.
+func (e TenantEdges) MembershipOrgsOrErr() ([]*UserTenantMembershipOrg, error) {
+	if e.loadedTypes[3] {
+		return e.MembershipOrgs, nil
+	}
+	return nil, &NotLoadedError{edge: "membership_orgs"}
+}
+
 // BootstrapTokensOrErr returns the BootstrapTokens value or an error if the edge
 // was not loaded in eager-loading.
 func (e TenantEdges) BootstrapTokensOrErr() ([]*BootstrapToken, error) {
-	if e.loadedTypes[3] {
+	if e.loadedTypes[4] {
 		return e.BootstrapTokens, nil
 	}
 	return nil, &NotLoadedError{edge: "bootstrap_tokens"}
@@ -278,6 +289,11 @@ func (_m *Tenant) QueryMspCustomerAllocations() *MSPAllocationQuery {
 // QueryMemberships queries the "memberships" edge of the Tenant entity.
 func (_m *Tenant) QueryMemberships() *UserTenantMembershipQuery {
 	return NewTenantClient(_m.config).QueryMemberships(_m)
+}
+
+// QueryMembershipOrgs queries the "membership_orgs" edge of the Tenant entity.
+func (_m *Tenant) QueryMembershipOrgs() *UserTenantMembershipOrgQuery {
+	return NewTenantClient(_m.config).QueryMembershipOrgs(_m)
 }
 
 // QueryBootstrapTokens queries the "bootstrap_tokens" edge of the Tenant entity.

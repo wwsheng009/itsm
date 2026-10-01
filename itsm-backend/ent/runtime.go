@@ -145,6 +145,7 @@ import (
 	"itsm-backend/ent/toolinvocation"
 	"itsm-backend/ent/user"
 	"itsm-backend/ent/usertenantmembership"
+	"itsm-backend/ent/usertenantmembershiporg"
 	"itsm-backend/ent/vendor"
 	"itsm-backend/ent/workflow"
 	"itsm-backend/ent/workflowinstance"
@@ -6152,6 +6153,26 @@ func init() {
 	usertenantmembership.DefaultUpdatedAt = usertenantmembershipDescUpdatedAt.Default.(func() time.Time)
 	// usertenantmembership.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
 	usertenantmembership.UpdateDefaultUpdatedAt = usertenantmembershipDescUpdatedAt.UpdateDefault.(func() time.Time)
+	usertenantmembershiporgFields := schema.UserTenantMembershipOrg{}.Fields()
+	_ = usertenantmembershiporgFields
+	// usertenantmembershiporgDescOrgID is the schema descriptor for org_id field.
+	usertenantmembershiporgDescOrgID := usertenantmembershiporgFields[3].Descriptor()
+	// usertenantmembershiporg.OrgIDValidator is a validator for the "org_id" field. It is called by the builders before save.
+	usertenantmembershiporg.OrgIDValidator = usertenantmembershiporgDescOrgID.Validators[0].(func(int64) error)
+	// usertenantmembershiporgDescIsPrimary is the schema descriptor for is_primary field.
+	usertenantmembershiporgDescIsPrimary := usertenantmembershiporgFields[5].Descriptor()
+	// usertenantmembershiporg.DefaultIsPrimary holds the default value on creation for the is_primary field.
+	usertenantmembershiporg.DefaultIsPrimary = usertenantmembershiporgDescIsPrimary.Default.(bool)
+	// usertenantmembershiporgDescCreatedAt is the schema descriptor for created_at field.
+	usertenantmembershiporgDescCreatedAt := usertenantmembershiporgFields[9].Descriptor()
+	// usertenantmembershiporg.DefaultCreatedAt holds the default value on creation for the created_at field.
+	usertenantmembershiporg.DefaultCreatedAt = usertenantmembershiporgDescCreatedAt.Default.(func() time.Time)
+	// usertenantmembershiporgDescUpdatedAt is the schema descriptor for updated_at field.
+	usertenantmembershiporgDescUpdatedAt := usertenantmembershiporgFields[10].Descriptor()
+	// usertenantmembershiporg.DefaultUpdatedAt holds the default value on creation for the updated_at field.
+	usertenantmembershiporg.DefaultUpdatedAt = usertenantmembershiporgDescUpdatedAt.Default.(func() time.Time)
+	// usertenantmembershiporg.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
+	usertenantmembershiporg.UpdateDefaultUpdatedAt = usertenantmembershiporgDescUpdatedAt.UpdateDefault.(func() time.Time)
 	vendorFields := schema.Vendor{}.Fields()
 	_ = vendorFields
 	// vendorDescName is the schema descriptor for name field.

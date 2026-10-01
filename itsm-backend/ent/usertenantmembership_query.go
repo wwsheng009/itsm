@@ -4,11 +4,13 @@ package ent
 
 import (
 	"context"
+	"database/sql/driver"
 	"fmt"
 	"itsm-backend/ent/predicate"
 	"itsm-backend/ent/tenant"
 	"itsm-backend/ent/user"
 	"itsm-backend/ent/usertenantmembership"
+	"itsm-backend/ent/usertenantmembershiporg"
 	"math"
 
 	"entgo.io/ent"
@@ -26,6 +28,7 @@ type UserTenantMembershipQuery struct {
 	predicates []predicate.UserTenantMembership
 	withUser   *UserQuery
 	withTenant *TenantQuery
+	withOrgs   *UserTenantMembershipOrgQuery
 	// intermediate query (i.e. traversal path).
 	sql  *sql.Selector
 	path func(context.Context) (*sql.Selector, error)
@@ -99,6 +102,28 @@ func (_q *UserTenantMembershipQuery) QueryTenant() *TenantQuery {
 			sqlgraph.From(usertenantmembership.Table, usertenantmembership.FieldID, selector),
 			sqlgraph.To(tenant.Table, tenant.FieldID),
 			sqlgraph.Edge(sqlgraph.M2O, true, usertenantmembership.TenantTable, usertenantmembership.TenantColumn),
+		)
+		fromU = sqlgraph.SetNeighbors(_q.driver.Dialect(), step)
+		return fromU, nil
+	}
+	return query
+}
+
+// QueryOrgs chains the current query on the "orgs" edge.
+func (_q *UserTenantMembershipQuery) QueryOrgs() *UserTenantMembershipOrgQuery {
+	query := (&UserTenantMembershipOrgClient{config: _q.config}).Query()
+	query.path = func(ctx context.Context) (fromU *sql.Selector, err error) {
+		if err := _q.prepareQuery(ctx); err != nil {
+			return nil, err
+		}
+		selector := _q.sqlQuery(ctx)
+		if err := selector.Err(); err != nil {
+			return nil, err
+		}
+		step := sqlgraph.NewStep(
+			sqlgraph.From(usertenantmembership.Table, usertenantmembership.FieldID, selector),
+			sqlgraph.To(usertenantmembershiporg.Table, usertenantmembershiporg.FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, usertenantmembership.OrgsTable, usertenantmembership.OrgsColumn),
 		)
 		fromU = sqlgraph.SetNeighbors(_q.driver.Dialect(), step)
 		return fromU, nil
@@ -300,6 +325,7 @@ func (_q *UserTenantMembershipQuery) Clone() *UserTenantMembershipQuery {
 		predicates: append([]predicate.UserTenantMembership{}, _q.predicates...),
 		withUser:   _q.withUser.Clone(),
 		withTenant: _q.withTenant.Clone(),
+		withOrgs:   _q.withOrgs.Clone(),
 		// clone intermediate query.
 		sql:  _q.sql.Clone(),
 		path: _q.path,
@@ -325,6 +351,17 @@ func (_q *UserTenantMembershipQuery) WithTenant(opts ...func(*TenantQuery)) *Use
 		opt(query)
 	}
 	_q.withTenant = query
+	return _q
+}
+
+// WithOrgs tells the query-builder to eager-load the nodes that are connected to
+// the "orgs" edge. The optional arguments are used to configure the query builder of the edge.
+func (_q *UserTenantMembershipQuery) WithOrgs(opts ...func(*UserTenantMembershipOrgQuery)) *UserTenantMembershipQuery {
+	query := (&UserTenantMembershipOrgClient{config: _q.config}).Query()
+	for _, opt := range opts {
+		opt(query)
+	}
+	_q.withOrgs = query
 	return _q
 }
 
@@ -406,9 +443,10 @@ func (_q *UserTenantMembershipQuery) sqlAll(ctx context.Context, hooks ...queryH
 	var (
 		nodes       = []*UserTenantMembership{}
 		_spec       = _q.querySpec()
-		loadedTypes = [2]bool{
+		loadedTypes = [3]bool{
 			_q.withUser != nil,
 			_q.withTenant != nil,
+			_q.withOrgs != nil,
 		}
 	)
 	_spec.ScanValues = func(columns []string) ([]any, error) {
@@ -438,6 +476,13 @@ func (_q *UserTenantMembershipQuery) sqlAll(ctx context.Context, hooks ...queryH
 	if query := _q.withTenant; query != nil {
 		if err := _q.loadTenant(ctx, query, nodes, nil,
 			func(n *UserTenantMembership, e *Tenant) { n.Edges.Tenant = e }); err != nil {
+			return nil, err
+		}
+	}
+	if query := _q.withOrgs; query != nil {
+		if err := _q.loadOrgs(ctx, query, nodes,
+			func(n *UserTenantMembership) { n.Edges.Orgs = []*UserTenantMembershipOrg{} },
+			func(n *UserTenantMembership, e *UserTenantMembershipOrg) { n.Edges.Orgs = append(n.Edges.Orgs, e) }); err != nil {
 			return nil, err
 		}
 	}
@@ -499,6 +544,36 @@ func (_q *UserTenantMembershipQuery) loadTenant(ctx context.Context, query *Tena
 		for i := range nodes {
 			assign(nodes[i], n)
 		}
+	}
+	return nil
+}
+func (_q *UserTenantMembershipQuery) loadOrgs(ctx context.Context, query *UserTenantMembershipOrgQuery, nodes []*UserTenantMembership, init func(*UserTenantMembership), assign func(*UserTenantMembership, *UserTenantMembershipOrg)) error {
+	fks := make([]driver.Value, 0, len(nodes))
+	nodeids := make(map[int]*UserTenantMembership)
+	for i := range nodes {
+		fks = append(fks, nodes[i].ID)
+		nodeids[nodes[i].ID] = nodes[i]
+		if init != nil {
+			init(nodes[i])
+		}
+	}
+	if len(query.ctx.Fields) > 0 {
+		query.ctx.AppendFieldOnce(usertenantmembershiporg.FieldMembershipID)
+	}
+	query.Where(predicate.UserTenantMembershipOrg(func(s *sql.Selector) {
+		s.Where(sql.InValues(s.C(usertenantmembership.OrgsColumn), fks...))
+	}))
+	neighbors, err := query.All(ctx)
+	if err != nil {
+		return err
+	}
+	for _, n := range neighbors {
+		fk := n.MembershipID
+		node, ok := nodeids[fk]
+		if !ok {
+			return fmt.Errorf(`unexpected referenced foreign-key "membership_id" returned %v for node %v`, fk, n.ID)
+		}
+		assign(node, n)
 	}
 	return nil
 }

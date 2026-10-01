@@ -432,6 +432,9 @@ type User func(*sql.Selector)
 // UserTenantMembership is the predicate function for usertenantmembership builders.
 type UserTenantMembership func(*sql.Selector)
 
+// UserTenantMembershipOrg is the predicate function for usertenantmembershiporg builders.
+type UserTenantMembershipOrg func(*sql.Selector)
+
 // Vendor is the predicate function for vendor builders.
 type Vendor func(*sql.Selector)
 

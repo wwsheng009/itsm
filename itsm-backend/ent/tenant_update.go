@@ -12,6 +12,7 @@ import (
 	"itsm-backend/ent/tenant"
 	"itsm-backend/ent/user"
 	"itsm-backend/ent/usertenantmembership"
+	"itsm-backend/ent/usertenantmembershiporg"
 	"time"
 
 	"entgo.io/ent/dialect/sql"
@@ -395,6 +396,21 @@ func (_u *TenantUpdate) AddMemberships(v ...*UserTenantMembership) *TenantUpdate
 	return _u.AddMembershipIDs(ids...)
 }
 
+// AddMembershipOrgIDs adds the "membership_orgs" edge to the UserTenantMembershipOrg entity by IDs.
+func (_u *TenantUpdate) AddMembershipOrgIDs(ids ...int) *TenantUpdate {
+	_u.mutation.AddMembershipOrgIDs(ids...)
+	return _u
+}
+
+// AddMembershipOrgs adds the "membership_orgs" edges to the UserTenantMembershipOrg entity.
+func (_u *TenantUpdate) AddMembershipOrgs(v ...*UserTenantMembershipOrg) *TenantUpdate {
+	ids := make([]int, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.AddMembershipOrgIDs(ids...)
+}
+
 // AddBootstrapTokenIDs adds the "bootstrap_tokens" edge to the BootstrapToken entity by IDs.
 func (_u *TenantUpdate) AddBootstrapTokenIDs(ids ...int) *TenantUpdate {
 	_u.mutation.AddBootstrapTokenIDs(ids...)
@@ -476,6 +492,27 @@ func (_u *TenantUpdate) RemoveMemberships(v ...*UserTenantMembership) *TenantUpd
 		ids[i] = v[i].ID
 	}
 	return _u.RemoveMembershipIDs(ids...)
+}
+
+// ClearMembershipOrgs clears all "membership_orgs" edges to the UserTenantMembershipOrg entity.
+func (_u *TenantUpdate) ClearMembershipOrgs() *TenantUpdate {
+	_u.mutation.ClearMembershipOrgs()
+	return _u
+}
+
+// RemoveMembershipOrgIDs removes the "membership_orgs" edge to UserTenantMembershipOrg entities by IDs.
+func (_u *TenantUpdate) RemoveMembershipOrgIDs(ids ...int) *TenantUpdate {
+	_u.mutation.RemoveMembershipOrgIDs(ids...)
+	return _u
+}
+
+// RemoveMembershipOrgs removes "membership_orgs" edges to UserTenantMembershipOrg entities.
+func (_u *TenantUpdate) RemoveMembershipOrgs(v ...*UserTenantMembershipOrg) *TenantUpdate {
+	ids := make([]int, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.RemoveMembershipOrgIDs(ids...)
 }
 
 // ClearBootstrapTokens clears all "bootstrap_tokens" edges to the BootstrapToken entity.
@@ -785,6 +822,51 @@ func (_u *TenantUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 			Bidi:    false,
 			Target: &sqlgraph.EdgeTarget{
 				IDSpec: sqlgraph.NewFieldSpec(usertenantmembership.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
+	}
+	if _u.mutation.MembershipOrgsCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   tenant.MembershipOrgsTable,
+			Columns: []string{tenant.MembershipOrgsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(usertenantmembershiporg.FieldID, field.TypeInt),
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.RemovedMembershipOrgsIDs(); len(nodes) > 0 && !_u.mutation.MembershipOrgsCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   tenant.MembershipOrgsTable,
+			Columns: []string{tenant.MembershipOrgsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(usertenantmembershiporg.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.MembershipOrgsIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   tenant.MembershipOrgsTable,
+			Columns: []string{tenant.MembershipOrgsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(usertenantmembershiporg.FieldID, field.TypeInt),
 			},
 		}
 		for _, k := range nodes {
@@ -1220,6 +1302,21 @@ func (_u *TenantUpdateOne) AddMemberships(v ...*UserTenantMembership) *TenantUpd
 	return _u.AddMembershipIDs(ids...)
 }
 
+// AddMembershipOrgIDs adds the "membership_orgs" edge to the UserTenantMembershipOrg entity by IDs.
+func (_u *TenantUpdateOne) AddMembershipOrgIDs(ids ...int) *TenantUpdateOne {
+	_u.mutation.AddMembershipOrgIDs(ids...)
+	return _u
+}
+
+// AddMembershipOrgs adds the "membership_orgs" edges to the UserTenantMembershipOrg entity.
+func (_u *TenantUpdateOne) AddMembershipOrgs(v ...*UserTenantMembershipOrg) *TenantUpdateOne {
+	ids := make([]int, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.AddMembershipOrgIDs(ids...)
+}
+
 // AddBootstrapTokenIDs adds the "bootstrap_tokens" edge to the BootstrapToken entity by IDs.
 func (_u *TenantUpdateOne) AddBootstrapTokenIDs(ids ...int) *TenantUpdateOne {
 	_u.mutation.AddBootstrapTokenIDs(ids...)
@@ -1301,6 +1398,27 @@ func (_u *TenantUpdateOne) RemoveMemberships(v ...*UserTenantMembership) *Tenant
 		ids[i] = v[i].ID
 	}
 	return _u.RemoveMembershipIDs(ids...)
+}
+
+// ClearMembershipOrgs clears all "membership_orgs" edges to the UserTenantMembershipOrg entity.
+func (_u *TenantUpdateOne) ClearMembershipOrgs() *TenantUpdateOne {
+	_u.mutation.ClearMembershipOrgs()
+	return _u
+}
+
+// RemoveMembershipOrgIDs removes the "membership_orgs" edge to UserTenantMembershipOrg entities by IDs.
+func (_u *TenantUpdateOne) RemoveMembershipOrgIDs(ids ...int) *TenantUpdateOne {
+	_u.mutation.RemoveMembershipOrgIDs(ids...)
+	return _u
+}
+
+// RemoveMembershipOrgs removes "membership_orgs" edges to UserTenantMembershipOrg entities.
+func (_u *TenantUpdateOne) RemoveMembershipOrgs(v ...*UserTenantMembershipOrg) *TenantUpdateOne {
+	ids := make([]int, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.RemoveMembershipOrgIDs(ids...)
 }
 
 // ClearBootstrapTokens clears all "bootstrap_tokens" edges to the BootstrapToken entity.
@@ -1640,6 +1758,51 @@ func (_u *TenantUpdateOne) sqlSave(ctx context.Context) (_node *Tenant, err erro
 			Bidi:    false,
 			Target: &sqlgraph.EdgeTarget{
 				IDSpec: sqlgraph.NewFieldSpec(usertenantmembership.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
+	}
+	if _u.mutation.MembershipOrgsCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   tenant.MembershipOrgsTable,
+			Columns: []string{tenant.MembershipOrgsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(usertenantmembershiporg.FieldID, field.TypeInt),
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.RemovedMembershipOrgsIDs(); len(nodes) > 0 && !_u.mutation.MembershipOrgsCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   tenant.MembershipOrgsTable,
+			Columns: []string{tenant.MembershipOrgsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(usertenantmembershiporg.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.MembershipOrgsIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   tenant.MembershipOrgsTable,
+			Columns: []string{tenant.MembershipOrgsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(usertenantmembershiporg.FieldID, field.TypeInt),
 			},
 		}
 		for _, k := range nodes {

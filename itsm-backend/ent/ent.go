@@ -148,6 +148,7 @@ import (
 	"itsm-backend/ent/toolinvocation"
 	"itsm-backend/ent/user"
 	"itsm-backend/ent/usertenantmembership"
+	"itsm-backend/ent/usertenantmembershiporg"
 	"itsm-backend/ent/vendor"
 	"itsm-backend/ent/workflow"
 	"itsm-backend/ent/workflowinstance"
@@ -362,6 +363,7 @@ func checkColumn(t, c string) error {
 			toolinvocation.Table:              toolinvocation.ValidColumn,
 			user.Table:                        user.ValidColumn,
 			usertenantmembership.Table:        usertenantmembership.ValidColumn,
+			usertenantmembershiporg.Table:     usertenantmembershiporg.ValidColumn,
 			vendor.Table:                      vendor.ValidColumn,
 			workflow.Table:                    workflow.ValidColumn,
 			workflowinstance.Table:            workflowinstance.ValidColumn,

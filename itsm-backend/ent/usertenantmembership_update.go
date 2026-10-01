@@ -10,6 +10,7 @@ import (
 	"itsm-backend/ent/tenant"
 	"itsm-backend/ent/user"
 	"itsm-backend/ent/usertenantmembership"
+	"itsm-backend/ent/usertenantmembershiporg"
 	"time"
 
 	"entgo.io/ent/dialect/sql"
@@ -339,6 +340,21 @@ func (_u *UserTenantMembershipUpdate) SetTenant(v *Tenant) *UserTenantMembership
 	return _u.SetTenantID(v.ID)
 }
 
+// AddOrgIDs adds the "orgs" edge to the UserTenantMembershipOrg entity by IDs.
+func (_u *UserTenantMembershipUpdate) AddOrgIDs(ids ...int) *UserTenantMembershipUpdate {
+	_u.mutation.AddOrgIDs(ids...)
+	return _u
+}
+
+// AddOrgs adds the "orgs" edges to the UserTenantMembershipOrg entity.
+func (_u *UserTenantMembershipUpdate) AddOrgs(v ...*UserTenantMembershipOrg) *UserTenantMembershipUpdate {
+	ids := make([]int, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.AddOrgIDs(ids...)
+}
+
 // Mutation returns the UserTenantMembershipMutation object of the builder.
 func (_u *UserTenantMembershipUpdate) Mutation() *UserTenantMembershipMutation {
 	return _u.mutation
@@ -354,6 +370,27 @@ func (_u *UserTenantMembershipUpdate) ClearUser() *UserTenantMembershipUpdate {
 func (_u *UserTenantMembershipUpdate) ClearTenant() *UserTenantMembershipUpdate {
 	_u.mutation.ClearTenant()
 	return _u
+}
+
+// ClearOrgs clears all "orgs" edges to the UserTenantMembershipOrg entity.
+func (_u *UserTenantMembershipUpdate) ClearOrgs() *UserTenantMembershipUpdate {
+	_u.mutation.ClearOrgs()
+	return _u
+}
+
+// RemoveOrgIDs removes the "orgs" edge to UserTenantMembershipOrg entities by IDs.
+func (_u *UserTenantMembershipUpdate) RemoveOrgIDs(ids ...int) *UserTenantMembershipUpdate {
+	_u.mutation.RemoveOrgIDs(ids...)
+	return _u
+}
+
+// RemoveOrgs removes "orgs" edges to UserTenantMembershipOrg entities.
+func (_u *UserTenantMembershipUpdate) RemoveOrgs(v ...*UserTenantMembershipOrg) *UserTenantMembershipUpdate {
+	ids := make([]int, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.RemoveOrgIDs(ids...)
 }
 
 // Save executes the query and returns the number of nodes affected by the update operation.
@@ -564,6 +601,51 @@ func (_u *UserTenantMembershipUpdate) sqlSave(ctx context.Context) (_node int, e
 			Bidi:    false,
 			Target: &sqlgraph.EdgeTarget{
 				IDSpec: sqlgraph.NewFieldSpec(tenant.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
+	}
+	if _u.mutation.OrgsCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   usertenantmembership.OrgsTable,
+			Columns: []string{usertenantmembership.OrgsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(usertenantmembershiporg.FieldID, field.TypeInt),
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.RemovedOrgsIDs(); len(nodes) > 0 && !_u.mutation.OrgsCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   usertenantmembership.OrgsTable,
+			Columns: []string{usertenantmembership.OrgsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(usertenantmembershiporg.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.OrgsIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   usertenantmembership.OrgsTable,
+			Columns: []string{usertenantmembership.OrgsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(usertenantmembershiporg.FieldID, field.TypeInt),
 			},
 		}
 		for _, k := range nodes {
@@ -900,6 +982,21 @@ func (_u *UserTenantMembershipUpdateOne) SetTenant(v *Tenant) *UserTenantMembers
 	return _u.SetTenantID(v.ID)
 }
 
+// AddOrgIDs adds the "orgs" edge to the UserTenantMembershipOrg entity by IDs.
+func (_u *UserTenantMembershipUpdateOne) AddOrgIDs(ids ...int) *UserTenantMembershipUpdateOne {
+	_u.mutation.AddOrgIDs(ids...)
+	return _u
+}
+
+// AddOrgs adds the "orgs" edges to the UserTenantMembershipOrg entity.
+func (_u *UserTenantMembershipUpdateOne) AddOrgs(v ...*UserTenantMembershipOrg) *UserTenantMembershipUpdateOne {
+	ids := make([]int, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.AddOrgIDs(ids...)
+}
+
 // Mutation returns the UserTenantMembershipMutation object of the builder.
 func (_u *UserTenantMembershipUpdateOne) Mutation() *UserTenantMembershipMutation {
 	return _u.mutation
@@ -915,6 +1012,27 @@ func (_u *UserTenantMembershipUpdateOne) ClearUser() *UserTenantMembershipUpdate
 func (_u *UserTenantMembershipUpdateOne) ClearTenant() *UserTenantMembershipUpdateOne {
 	_u.mutation.ClearTenant()
 	return _u
+}
+
+// ClearOrgs clears all "orgs" edges to the UserTenantMembershipOrg entity.
+func (_u *UserTenantMembershipUpdateOne) ClearOrgs() *UserTenantMembershipUpdateOne {
+	_u.mutation.ClearOrgs()
+	return _u
+}
+
+// RemoveOrgIDs removes the "orgs" edge to UserTenantMembershipOrg entities by IDs.
+func (_u *UserTenantMembershipUpdateOne) RemoveOrgIDs(ids ...int) *UserTenantMembershipUpdateOne {
+	_u.mutation.RemoveOrgIDs(ids...)
+	return _u
+}
+
+// RemoveOrgs removes "orgs" edges to UserTenantMembershipOrg entities.
+func (_u *UserTenantMembershipUpdateOne) RemoveOrgs(v ...*UserTenantMembershipOrg) *UserTenantMembershipUpdateOne {
+	ids := make([]int, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.RemoveOrgIDs(ids...)
 }
 
 // Where appends a list predicates to the UserTenantMembershipUpdate builder.
@@ -1155,6 +1273,51 @@ func (_u *UserTenantMembershipUpdateOne) sqlSave(ctx context.Context) (_node *Us
 			Bidi:    false,
 			Target: &sqlgraph.EdgeTarget{
 				IDSpec: sqlgraph.NewFieldSpec(tenant.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
+	}
+	if _u.mutation.OrgsCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   usertenantmembership.OrgsTable,
+			Columns: []string{usertenantmembership.OrgsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(usertenantmembershiporg.FieldID, field.TypeInt),
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.RemovedOrgsIDs(); len(nodes) > 0 && !_u.mutation.OrgsCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   usertenantmembership.OrgsTable,
+			Columns: []string{usertenantmembership.OrgsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(usertenantmembershiporg.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.OrgsIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   usertenantmembership.OrgsTable,
+			Columns: []string{usertenantmembership.OrgsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(usertenantmembershiporg.FieldID, field.TypeInt),
 			},
 		}
 		for _, k := range nodes {

@@ -131,5 +131,7 @@ func (UserTenantMembership) Edges() []ent.Edge {
 			Field("tenant_id").
 			Required().
 			Unique(),
+		edge.To("orgs", UserTenantMembershipOrg.Type).
+			Comment("组织归属（IP-P1-3：多组织/生效期以 membership 为唯一载体）"),
 	}
 }
