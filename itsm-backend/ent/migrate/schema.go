@@ -2219,6 +2219,13 @@ var (
 				OnDelete:   schema.SetNull,
 			},
 		},
+		Indexes: []*schema.Index{
+			{
+				Name:    "uq_group_tenant_name",
+				Unique:  true,
+				Columns: []*schema.Column{GroupsColumns[3], GroupsColumns[1]},
+			},
+		},
 	}
 	// InboundEmailMessagesColumns holds the columns for the "inbound_email_messages" table.
 	InboundEmailMessagesColumns = []*schema.Column{
@@ -4239,7 +4246,7 @@ var (
 	ProjectsColumns = []*schema.Column{
 		{Name: "id", Type: field.TypeInt, Increment: true},
 		{Name: "name", Type: field.TypeString},
-		{Name: "code", Type: field.TypeString, Unique: true},
+		{Name: "code", Type: field.TypeString},
 		{Name: "description", Type: field.TypeString, Nullable: true, Size: 2147483647},
 		{Name: "manager_id", Type: field.TypeInt, Nullable: true},
 		{Name: "start_date", Type: field.TypeTime, Nullable: true},
@@ -4261,6 +4268,13 @@ var (
 				Columns:    []*schema.Column{ProjectsColumns[11]},
 				RefColumns: []*schema.Column{DepartmentsColumns[0]},
 				OnDelete:   schema.SetNull,
+			},
+		},
+		Indexes: []*schema.Index{
+			{
+				Name:    "uq_project_tenant_code",
+				Unique:  true,
+				Columns: []*schema.Column{ProjectsColumns[8], ProjectsColumns[2]},
 			},
 		},
 	}
@@ -5189,6 +5203,16 @@ var (
 		Name:       "teams",
 		Columns:    TeamsColumns,
 		PrimaryKey: []*schema.Column{TeamsColumns[0]},
+		Indexes: []*schema.Index{
+			{
+				Name:    "uq_team_tenant_name",
+				Unique:  true,
+				Columns: []*schema.Column{TeamsColumns[6], TeamsColumns[1]},
+				Annotation: &entsql.IndexAnnotation{
+					Where: "deleted_at IS NULL",
+				},
+			},
+		},
 	}
 	// TenantsColumns holds the columns for the "tenants" table.
 	TenantsColumns = []*schema.Column{

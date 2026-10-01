@@ -4,8 +4,10 @@ import (
 	"time"
 
 	"entgo.io/ent"
+	"entgo.io/ent/dialect/entsql"
 	"entgo.io/ent/schema/edge"
 	"entgo.io/ent/schema/field"
+	"entgo.io/ent/schema/index"
 )
 
 // Team holds the schema definition for the Team entity.
@@ -45,6 +47,16 @@ func (Team) Fields() []ent.Field {
 			Comment("软删除时间").
 			Optional().
 			Nillable(),
+	}
+}
+
+// Indexes of the Team（IP-P1-3b：团队名唯一性收敛到租户内，软删可重名）。
+func (Team) Indexes() []ent.Index {
+	return []ent.Index{
+		index.Fields("tenant_id", "name").
+			Unique().
+			StorageKey("uq_team_tenant_name").
+			Annotations(entsql.IndexWhere("deleted_at IS NULL")),
 	}
 }
 

@@ -6,6 +6,7 @@ import (
 	"entgo.io/ent"
 	"entgo.io/ent/schema/edge"
 	"entgo.io/ent/schema/field"
+	"entgo.io/ent/schema/index"
 )
 
 // Group holds the schema definition for the Group entity.
@@ -32,6 +33,15 @@ func (Group) Fields() []ent.Field {
 			Comment("更新时间").
 			Default(time.Now).
 			UpdateDefault(time.Now),
+	}
+}
+
+// Indexes of the Group（IP-P1-3b：组名唯一性收敛到租户内）。
+func (Group) Indexes() []ent.Index {
+	return []ent.Index{
+		index.Fields("tenant_id", "name").
+			Unique().
+			StorageKey("uq_group_tenant_name"),
 	}
 }
 

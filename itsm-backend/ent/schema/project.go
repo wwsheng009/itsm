@@ -6,6 +6,7 @@ import (
 	"entgo.io/ent"
 	"entgo.io/ent/schema/edge"
 	"entgo.io/ent/schema/field"
+	"entgo.io/ent/schema/index"
 )
 
 // Project holds the schema definition for the Project entity.
@@ -21,7 +22,6 @@ func (Project) Fields() []ent.Field {
 			NotEmpty(),
 		field.String("code").
 			Comment("项目代码").
-			Unique().
 			NotEmpty(),
 		field.Text("description").
 			Comment("项目描述").
@@ -51,6 +51,15 @@ func (Project) Fields() []ent.Field {
 			Comment("更新时间").
 			Default(time.Now).
 			UpdateDefault(time.Now),
+	}
+}
+
+// Indexes of the Project（IP-P1-3b：代码唯一性收敛到租户内，替换全局唯一）。
+func (Project) Indexes() []ent.Index {
+	return []ent.Index{
+		index.Fields("tenant_id", "code").
+			Unique().
+			StorageKey("uq_project_tenant_code"),
 	}
 }
 
