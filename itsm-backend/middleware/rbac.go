@@ -480,6 +480,27 @@ var RolePermissions = map[string][]Permission{
 	},
 }
 
+// RoleRank 返回角色权限层级（数值越大权限越高）。
+//
+// 单一词表（IP-P0-9 / 07:G3）：handler/user、service、登录（handlers/common）共用，
+// 覆盖 msp_*，避免各层各自维护导致 MSP 管理员被解析为低 rank 而无法建号/管理。
+func RoleRank(role string) int {
+	switch strings.ToLower(strings.TrimSpace(role)) {
+	case "super_admin", "sysadmin":
+		return 5
+	case "msp_admin", "admin":
+		return 4
+	case "msp_manager", "manager":
+		return 3
+	case "msp_specialist", "msp_tech", "agent":
+		return 2
+	case "msp_viewer", "end_user", "user", "":
+		return 1
+	default:
+		return 0
+	}
+}
+
 // PermissionConfigMode 权限配置模式
 type PermissionConfigMode int
 

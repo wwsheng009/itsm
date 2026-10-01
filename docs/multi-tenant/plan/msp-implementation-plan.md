@@ -361,6 +361,16 @@ C2 · 客户租户内 msp 角色基线（Q7 合同形态 → 客户侧业务权�
 
 **回滚**：角色为新增数据，删除/停用即可；脚本兜底保留。
 
+**进度（2026-09-30）**：✅ **角色供给显式化已落地（K1/K2 关闭；07:G3 关闭）**。
+
+- 词表：`internal/authz/roles.go` 内置 5 角色（C1 矩阵；`msp_admin` 以 read/write 显式码表达全动作）；`pkg/seeder.BuiltinRoles` 同步 5 角色 → 常规 seed 幂等生成 `roles` + `role_permissions`。
+- 单一源守卫：`tests/parity` 新增矩阵对拍（authz 词表 ⟷ `middleware.RolePermissions` 硬编码，剥离 task 基线后全等）+ 种子存在性 + rank 单调（`msp_manager ≥ agent`）；`internal/authz` 新增 C1 全等测试。
+- rank 单源：`middleware.RoleRank` 统一 `handlers/user`、`service`、登录三处（原三份 switch 合并；覆盖 `msp_*`）。
+- **07:G3**：登录 JWT `role` 取「主角色 vs MSP 映射角色」rank 更高者（`admin`+`provider_admin` → `admin`(4)；`end_user`+`provider_admin` → `msp_manager`(3)），同租户建号/管理不再被 `msp_manager` 遮蔽。
+- 脚本：`setup-msp-tenants.sh` §5 默认仅校验（`MSP_ROLE_SQL_FALLBACK=1` 才 SQL 兜底，含 `msp_admin`）；§6 注释同步 API 建号可用。
+- 遗留：`msp_role` 枚举保持 3 值（D10：`provider_admin`/`provider_agent` + `customer_user` legacy 读映射）；`msp_specialist`/`msp_admin` 经 `allocation.role`/合同预设映射，不改枚举。
+- 验证：`go build ./...`、`internal/authz`、`tests/parity`、`middleware`、`router`、`handlers/common`、`handlers/user`、`pkg/seeder` 与 `service`（除 HEAD 既有红 2 条：`TestProvisionTenant*` process-definition fixture、`TestTicketService_GetMSPCustomerReports_AllocationAware`）全绿。
+
 ### IP-P0-10 审计统一与文档回填（I11；C.6）
 
 **目标**：跨租户/切换/建号/工作台操作统一审计字段；文档与代码同步。
@@ -521,7 +531,7 @@ CREATE INDEX idx_invitations_expiry ON invitations (expires_at) WHERE status = '
 - [ ] **功能**：工作台跨客户看+做（WB-A1–A6）；写操作无需切换且逐条审计；
 - [x] **登录/会话**：provider 登录落 provider 家；切换/刷新/撤销契约通过（F5/F6/F9/F10/F11a/F12 后端，2026-09-30；F11b/c 前端/权限行归 IP-P0-8/9）；
 - [x] **建号**：三通道 `UserProvisioningService` 生效；`07:G1`/K4 关闭（2026-09-30）；角色白名单与注册白名单生效（`07:G2` 归 IP-P1-5）；
-- [ ] **角色供给**：新 provider 租户 seed 后 5 个 `msp_*` 角色权限齐备（K1/K2 关闭）；`07:G3` 关闭；
+- [x] **角色供给**：新 provider 租户 seed 后 5 个 `msp_*` 角色权限齐备（K1/K2 关闭，2026-09-30）；`07:G3` 关闭（登录 rank 取最大 + roleRank 单源）；
 - [ ] **前端**：FE-A1–A8；登录页 DOM 无租户列表；客户账号无过滤器/切换器/工作台节点；
 - [ ] **契约**：错误码/DDL/审计事件与 §3.0 一致；`07:G1–G10` 映射表（§3.0-F）无遗漏；
 - [ ] **门禁**：docs-gate 6/6（含 C.6 语义锚点）；`make test` 全绿；三角色剧本 P0 项全过。
@@ -645,3 +655,4 @@ CREATE INDEX idx_invitations_expiry ON invitations (expires_at) WHERE status = '
 | v1.5 | 2026-09-30 | **IP-P0-4 类型/归属收敛落地**：`pkg/tenantmode` 校验+读取映射；`TenantService` 写入接入、归属复核、停止 `parent_tenant_id` 双写；DTO binding 收敛；巡检脚本 + 01/03 文档回填 |
 | v1.6 | 2026-09-30 | **IP-P0-5 建号通道收口落地（K4/07:G1 关闭）**：`UserProvisioningService` 三通道 + 角色白名单/rank + `WithProvisioningBypass` + 写守卫放行 + 3 端点 + 灰度开关；8 子用例全绿 |
 | v1.7 | 2026-09-30 | **IP-P0-6 登录/切换/刷新契约落地（F10/F11a/F12/G9 关闭）**：登录落 home + `tenantSelection`；切换重签 `tenant_source=switch`、撤销旧 refresh、审计、响应 `user.tenantId=目标`；refresh 按 claim 重签 + `TENANT_ACCESS_REVOKED`；`/auth/tenants` = home∪allocation∪平台全量；头冲突 `TENANT_MISMATCH_REJECTED` |
+| v1.8 | 2026-09-30 | **IP-P0-9 角色供给显式化落地（K1/K2/07:G3 关闭）**：5 个 `msp_*` 入内置词表 + seeder 角色种子；`middleware.RoleRank` 单源（登录取主角色/MSP 映射 rank 更高者）；脚本 §5 降级为校验 + `MSP_ROLE_SQL_FALLBACK` 兜底；tests/parity 矩阵对拍守卫 |

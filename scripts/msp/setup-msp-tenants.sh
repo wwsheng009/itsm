@@ -199,8 +199,12 @@ psql_c "select t.id, t.code,
         from tenants t where t.id in (1,$PROVIDER_ID,$CUSTA_ID,$CUSTB_ID) order by t.id"
 
 # ---------------------------------------------------------------------------
-# 5. 提供商租户 msp_* 角色授权（DB 权威模式：角色行存在即 fail-closed，
-#    必须显式写入 role_permissions；矩阵对齐 middleware/rbac.go RolePermissions）
+# 5. 提供商租户 msp_* 角色授权（IP-P0-9：seeder 为权威源，本步默认仅"校验"）
+#
+#    K1/K2 关闭后：msp_* 五角色已纳入内置词表（internal/authz/roles.go）并随
+#    pkg/seeder / provision_tenant 幂等生成 role_permissions（矩阵 = §3.0-C1）。
+#    本脚本默认**不直写 SQL**，仅校验权限行是否齐备；未走 seed 的历史库可设置
+#    MSP_ROLE_SQL_FALLBACK=1 启用下方兜底直写（含 msp_admin）。
 # ---------------------------------------------------------------------------
 seed_role_perms() { # tenant_id role_code filter_sql
   local tid=$1 role=$2 filter=$3
@@ -216,33 +220,46 @@ seed_role_perms() { # tenant_id role_code filter_sql
           where rp.tenant_id = $tid and r.code = '$role'"
 }
 
-say "5. 提供商租户 MSP 角色授权"
-F_ALL="p.resource like 'msp%'"
-F_READ="p.resource like 'msp%' and p.action = 'read'"
-F_TECH="(p.resource = 'msp' and p.action = 'read')
-        or (p.resource = 'msp_customer' and p.action = 'read')
-        or (p.resource = 'msp_ticket')
-        or (p.resource = 'msp_allocation' and p.action = 'read')
-        or (p.resource = 'msp_report' and p.action = 'read')"
-F_SPECIALIST="(p.resource = 'msp' and p.action = 'read')
-        or (p.resource = 'msp_customer')
-        or (p.resource = 'msp_ticket')
-        or (p.resource = 'msp_allocation' and p.action = 'read')
-        or (p.resource = 'msp_report' and p.action = 'read')"
-for pair in "msp_manager|$F_ALL" "msp_tech|$F_TECH" "msp_viewer|$F_READ" "msp_specialist|$F_SPECIALIST"; do
-  role=${pair%%|*}; filter=${pair#*|}
-  printf '%s -> %s\n' "$role" "$(seed_role_perms "$PROVIDER_ID" "$role" "$filter")"
-done
+say "5. 提供商租户 MSP 角色授权（校验 + 可选兜底）"
+if [ "${MSP_ROLE_SQL_FALLBACK:-0}" = "1" ]; then
+  echo "MSP_ROLE_SQL_FALLBACK=1：启用 SQL 兜底直写（仅历史库/seed 不可用时）" >&2
+  F_ALL="p.resource like 'msp%'"
+  F_READ="p.resource like 'msp%' and p.action = 'read'"
+  F_TECH="(p.resource = 'msp' and p.action = 'read')
+          or (p.resource = 'msp_customer' and p.action = 'read')
+          or (p.resource = 'msp_ticket')
+          or (p.resource = 'msp_allocation' and p.action = 'read')
+          or (p.resource = 'msp_report' and p.action = 'read')"
+  F_SPECIALIST="(p.resource = 'msp' and p.action = 'read')
+          or (p.resource = 'msp_customer')
+          or (p.resource = 'msp_ticket')
+          or (p.resource = 'msp_allocation' and p.action = 'read')
+          or (p.resource = 'msp_report' and p.action = 'read')"
+  for pair in "msp_manager|$F_ALL" "msp_tech|$F_TECH" "msp_viewer|$F_READ" "msp_specialist|$F_SPECIALIST" "msp_admin|$F_ALL"; do
+    role=${pair%%|*}; filter=${pair#*|}
+    printf '%s -> %s\n' "$role" "$(seed_role_perms "$PROVIDER_ID" "$role" "$filter")"
+  done
+else
+  missing=0
+  for role in msp_viewer msp_tech msp_specialist msp_manager msp_admin; do
+    cnt=$(psql_q "select count(*) from role_permissions rp
+                  join roles r on r.id = rp.role_id
+                  where rp.tenant_id = $PROVIDER_ID and r.code = '$role'" | last_number)
+    printf 'check %-16s -> %s\n' "$role" "${cnt:-0}"
+    [ "${cnt:-0}" -gt 0 ] || missing=$((missing + 1))
+  done
+  if [ "$missing" -gt 0 ]; then
+    echo "提示：$missing 个 msp_* 角色无权限行；请确认已运行新版本 seeder/provision_tenant（IP-P0-9），或设置 MSP_ROLE_SQL_FALLBACK=1 用 SQL 兜底。" >&2
+  fi
+fi
 
 # ---------------------------------------------------------------------------
 # 6. 用户创建
 #
-#    部署实测结论：新建租户的“首个用户”无法经 HTTP API 创建——
-#      a) tenant guard 禁止跨租户写入（super_admin 亦被拦截）；
-#      b) bootstrap 流程固定创建 username=admin / email=admin@example.com，
-#         而 users.username / users.email 为全局唯一，第二个租户必然冲突。
-#    故本脚本所有租户内用户均由 SQL 直接写入（pgcrypto bcrypt 与 Go bcrypt 兼容）；
-#    注意 MSP 管理员同样无法经 API 建号（有效角色被解析为 msp_manager，见 07 文档 G3）。
+#    IP-P0-5/9 后 07:G1/G3 已关闭：平台/MSP 可经 API 建号（三通道）；
+#    bootstrap 首管策略（07:G2）仍归 IP-P1-5。本脚本保留 SQL 直写用于
+#    部署期幂等铺设（pgcrypto bcrypt 与 Go bcrypt 兼容）；已有环境的
+#    用户/角色维护请优先走 API。
 # ---------------------------------------------------------------------------
 psql_q "CREATE EXTENSION IF NOT EXISTS pgcrypto" >/dev/null
 

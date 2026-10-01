@@ -16,7 +16,7 @@
 |---|---|---|---|---|---|
 | G1 | 跨租户创建用户被 tenant guard 拦截 | 无法为新租户创建首个用户 | SQL + pgcrypto 直写 | 提供受控的跨租户用户创建路径（见 §2）；**→ ✅ 已关闭（2026-09-30，IP-P0-5）：`UserProvisioningService` 三通道 + `tenantctx.WithProvisioningBypass(actor,channel,target)`；平台/MSP/租户内均可经 API 建号（`07:G2` 仍归 IP-P1-5）** | P0 |
 | G2 | bootstrap 无法为多租户建首个管理员 | 第 2 个及以后租户无法走官方初始化 | 同上 | bootstrap 支持 `-tenant-id` + 用户名/邮箱策略（§3） | P0 |
-| G3 | MSP 管理员有效角色解析为 `msp_manager` | 同租户 API 建号不可用（无 `user:write`，且过不了角色高攀校验） | 首个用户/技术员均走 SQL | JWT claims 取主角色或按 rank 取最大（§4） | P0 |
+| G3 | MSP 管理员有效角色解析为 `msp_manager` | 同租户 API 建号不可用（无 `user:write`，且过不了角色高攀校验） | 首个用户/技术员均走 SQL | JWT claims 取主角色或按 rank 取最大（§4）；**→ ✅ 已关闭（2026-09-30，IP-P0-9）：登录 role=max(主角色, MSP 映射角色)（`admin`+`provider_admin`→`admin`）；`middleware.RoleRank` 单源覆盖 `msp_*`；同租户 API 可建 `agent`** | P0 |
 | G4 | 源租户 `default` 缺内置审批组 | `provision_tenant` readiness 失败（groups=0） | 脚本回填 6 个内置组 | migration 回填存量库 + readiness 降级策略（§5） | P1 |
 | G5 | id 序列落后于 `max(id)` | 供给时 `roles_pkey` duplicate key | 脚本 `setval(...)` 校正 | 初始化/迁移统一校正（§6） | P1 |
 | G6 | `role_permissions` 无唯一约束 | 无法 `ON CONFLICT`，供给脚本只能 `where not exists` | 脚本幂等插入 | 增加 `(role_id, permission_id, tenant_id)` 唯一索引（§7） | P2 |
@@ -182,7 +182,7 @@
 | 本页缺口 | ADR-004 行动项 | 状态 |
 |---|---|---|
 | G1/G2 | A2–A3（租户开通与首个管理员） | 实测确认；G1→`IP-P0-5`（P0）、G2→`IP-P1-5`（P1） |
-| G3 | A4–A5（MSP 授权与权限矩阵） | 实测确认；承接 `IP-P0-9`（P0） |
+| G3 | A4–A5（MSP 授权与权限矩阵） | 实测确认；承接 `IP-P0-9`（P0）→ **✅ 关闭（2026-09-30）** |
 | G4/G5/G6 | A2（供给可复现性） | 实测确认；脚本已规避，承接 `IP-P1-5`（P1） |
 | G7 | 工具规范 | 实测确认；脚本已规避，P2 提升为通用约定（接受现状） |
 | G8 | A8（缓存租户维度） | **P0**；承接 `IP-P0-2` 步骤 6（2026-09-30 上调） |

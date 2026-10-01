@@ -290,6 +290,32 @@ func BuiltinRolePermissionCodes() map[string][]string {
 			"bpmn:read",
 			"task:read", "task:update",
 		},
+		// MSP 五角色（D10 唯一词表；矩阵 = §3.0-C1 / middleware/rbac.go 硬编码，IP-P0-9）。
+		// 注意：下方循环会为除 guest 外所有角色补 task:read/update 基线；
+		// tests/parity 的矩阵对拍会先剥离基线再与 middleware 硬编码比对。
+		"msp_viewer": {
+			"msp:read", "msp_customer:read", "msp_ticket:read", "msp_allocation:read", "msp_report:read",
+		},
+		"msp_tech": {
+			"msp:read", "msp_customer:read", "msp_ticket:read", "msp_ticket:write",
+			"msp_allocation:read", "msp_report:read",
+		},
+		"msp_specialist": {
+			"msp:read", "msp_customer:read", "msp_customer:write", "msp_ticket:read", "msp_ticket:write",
+			"msp_allocation:read", "msp_report:read",
+		},
+		"msp_manager": {
+			"msp:read", "msp:write", "msp_customer:read", "msp_customer:write",
+			"msp_ticket:read", "msp_ticket:write", "msp_allocation:read", "msp_allocation:write",
+			"msp_report:read", "msp_report:write",
+		},
+		// msp_admin：硬编码矩阵为 msp_* 全资源 `*`；DB 词表只登记 read/write 显式码
+		// （catalog 无通配码），语义等价于全动作（见 parity 对拍）。
+		"msp_admin": {
+			"msp:read", "msp:write", "msp_customer:read", "msp_customer:write",
+			"msp_ticket:read", "msp_ticket:write", "msp_allocation:read", "msp_allocation:write",
+			"msp_report:read", "msp_report:write",
+		},
 	}
 
 	// 任务面基线（2026-09-17 P0「越权写收口」）。

@@ -12,6 +12,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/zap/zaptest"
+	"golang.org/x/crypto/bcrypt"
 
 	"itsm-backend/ent"
 	"itsm-backend/ent/enttest"
@@ -150,5 +151,45 @@ func TestGetUserTenants_Union(t *testing.T) {
 		list, err := svc.GetUserTenants(ctx, superUser.ID)
 		require.NoError(t, err)
 		assert.Len(t, list, 4) // home + provider + cust-a + cust-b
+	})
+}
+
+// TestLogin_JWTRoleRankSelection 锁定 07:G3：JWT role = max(主角色, MSP 映射角色)。
+func TestLogin_JWTRoleRankSelection(t *testing.T) {
+	client, svc, _, _, ctx := newAuthScopeFixture(t)
+	defer client.Close()
+
+	provider := client.Tenant.Create().SetName("Provider3").SetCode("prov-3").SetStatus("active").SetType("msp_provider").SaveX(ctx)
+	hash, err := bcrypt.GenerateFromPassword([]byte("password123"), bcrypt.DefaultCost)
+	require.NoError(t, err)
+
+	t.Run("admin primary beats msp_manager mapping", func(t *testing.T) {
+		client.User.Create().
+			SetUsername("mspadmin3").SetEmail("mspadmin3@example.com").SetName("MSP Admin 3").
+			SetPasswordHash(string(hash)).SetRole("admin").SetMspRole("provider_admin").
+			SetActive(true).SetTenantID(provider.ID).
+			SaveX(ctx)
+
+		res, err := svc.Login(ctx, "mspadmin3", "password123", 0, "")
+		require.NoError(t, err)
+		claims, err := middleware.ValidateAccessToken(res.AccessToken, authScopeTestSecret)
+		require.NoError(t, err)
+		assert.Equal(t, "admin", claims.Role, "主角色 rank(4) > msp_manager(3)，应保留 admin")
+		assert.Equal(t, provider.ID, claims.TenantID, "登录落 provider 家")
+		assert.Equal(t, "home", claims.TenantSource)
+	})
+
+	t.Run("weak primary falls back to mapped role", func(t *testing.T) {
+		client.User.Create().
+			SetUsername("weakadmin").SetEmail("weakadmin@example.com").SetName("Weak").
+			SetPasswordHash(string(hash)).SetRole("end_user").SetMspRole("provider_admin").
+			SetActive(true).SetTenantID(provider.ID).
+			SaveX(ctx)
+
+		res, err := svc.Login(ctx, "weakadmin", "password123", 0, "")
+		require.NoError(t, err)
+		claims, err := middleware.ValidateAccessToken(res.AccessToken, authScopeTestSecret)
+		require.NoError(t, err)
+		assert.Equal(t, "msp_manager", claims.Role, "主角色 rank(1) < 映射(3)，应取 msp_manager")
 	})
 }

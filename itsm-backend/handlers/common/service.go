@@ -145,11 +145,13 @@ func (s *Service) Login(ctx context.Context, username, password string, tenantID
 		return nil, fmt.Errorf("user account is inactive")
 	}
 
-	// 对于 MSP 用户，需要将 MSP 角色转换为 RBAC 角色
-	// u.Role 是数据库中存储的 RBAC 角色（MSP 用户的 Role 是 admin）
-	// 如果用户有 MSP 角色，则从 MSP 角色映射到正确的 RBAC 角色
+	// 07:G3：JWT role 取「主角色」与「MSP 映射角色」中 rank 更高者（middleware.RoleRank 单一词表）。
+	// 例：users.role=admin + msp_role=provider_admin → admin(4) > msp_manager(3)，保持 admin，
+	// 同租户建号/管理能力不再被 msp_manager 遮蔽；MSP 路由鉴权仍按 msp_role 映射
+	// （RequireMSPPermission 独立解析 msp_role，不受本处影响）。
+	// 反例：users.role=end_user + msp_role=provider_admin → 映射 msp_manager(3) 更高，取 msp_manager。
 	if mspRoleStr != "" {
-		if mappedRole := middleware.GetMSPRBACRole(mspRoleStr); mappedRole != "" {
+		if mappedRole := middleware.GetMSPRBACRole(mspRoleStr); mappedRole != "" && middleware.RoleRank(mappedRole) > middleware.RoleRank(u.Role) {
 			u.Role = mappedRole
 		}
 	}

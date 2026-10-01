@@ -1037,6 +1037,12 @@ func BuiltinRoles() []RoleSeed {
 		{Code: domainrole.Agent, Name: "服务台坐席", Description: "一线支持与工单处理"},
 		{Code: domainrole.Technician, Name: "技术员", Description: "二线技术处理"},
 		{Code: domainrole.EndUser, Name: "最终用户", Description: "服务请求与查看本人工单"},
+		// MSP 五角色（D10 唯一词表；IP-P0-9）：常规 seed 落库，脚本 SQL 仅兜底。
+		{Code: "msp_viewer", Name: "MSP查看者", Description: "MSP 只读（客户/工单/分配/报表）"},
+		{Code: "msp_tech", Name: "MSP技术员", Description: "MSP 工单处理（默认）"},
+		{Code: "msp_specialist", Name: "MSP专家", Description: "MSP 专项（含客户信息写）"},
+		{Code: "msp_manager", Name: "MSP经理", Description: "provider 管理（分配/报表）"},
+		{Code: "msp_admin", Name: "MSP管理员", Description: "全托管（默认不分配）"},
 	}
 }
 

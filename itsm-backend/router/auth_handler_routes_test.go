@@ -100,7 +100,17 @@ func TestSetupRoutes_AuthCookieOnlyResponses(t *testing.T) {
 			_, exists := envelope.Data[field]
 			require.False(t, exists, "JSON response must omit %s", field)
 		}
-		require.Len(t, envelope.Data, 1)
+		// IP-P0-6：登录/刷新响应新增 `tenant`（最小视图）与 `tenantSelection{mode}`；
+		// 契约断言改为"必需字段 + token 零泄漏"，不再锁定键数量。
+		for _, field := range []string{"user", "tenant", "tenantSelection"} {
+			_, exists := envelope.Data[field]
+			require.True(t, exists, "JSON response must include %s", field)
+		}
+		var selection struct {
+			Mode string `json:"mode"`
+		}
+		require.NoError(t, json.Unmarshal(envelope.Data["tenantSelection"], &selection))
+		require.NotEmpty(t, selection.Mode)
 		var returnedUser map[string]json.RawMessage
 		require.NoError(t, json.Unmarshal(envelope.Data["user"], &returnedUser))
 		for _, field := range []string{"password", "passwordHash", "tenant_id"} {

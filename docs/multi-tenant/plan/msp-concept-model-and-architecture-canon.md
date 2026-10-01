@@ -477,9 +477,9 @@ sequenceDiagram
 
 | # | 事实 | 影响 |
 |---|---|---|
-| K1 | `msp_viewer/msp_tech/msp_specialist/msp_manager/msp_admin` **不在内置角色词表**（`internal/authz/roles.go` 无这些键）→ 常规 seed 不产生其 DB 权限行 | 未走 MSP 脚本的 provider 租户落入 DBOnly「unconfigured」→ 依赖硬编码兜底（`middleware/rbac.go:1119-1140` 三态）；**角色权限无法按租户差异化** |
-| K2 | 实际由 `scripts/msp/setup-msp-tenants.sh:231-233` **SQL 直写** `role_permissions`（msp_manager/msp_tech/msp_viewer/msp_specialist） | 供给脚本成为事实上的"provider 角色配置源"；绕过脚本即漂移 |
-| K3 | `msp_role` 枚举仅 3 值（`provider_admin`/`provider_agent`/`customer_user`），而 RBAC 词表有 5 个 msp_* 角色 | `msp_specialist`/`msp_admin` **不可达**；细分权限无法通过员工角色表达 |
+| K1 | `msp_viewer/msp_tech/msp_specialist/msp_manager/msp_admin` **不在内置角色词表**（`internal/authz/roles.go` 无这些键）→ 常规 seed 不产生其 DB 权限行 | 未走 MSP 脚本的 provider 租户落入 DBOnly「unconfigured」→ 依赖硬编码兜底（`middleware/rbac.go:1119-1140` 三态）；**角色权限无法按租户差异化** → **✅ 已关闭（2026-09-30，IP-P0-9）：5 角色入内置词表 + `pkg/seeder` 幂等落库，`tests/parity` 矩阵对拍守卫** |
+| K2 | 实际由 `scripts/msp/setup-msp-tenants.sh:231-233` **SQL 直写** `role_permissions`（msp_manager/msp_tech/msp_viewer/msp_specialist） | 供给脚本成为事实上的"provider 角色配置源"；绕过脚本即漂移 → **✅ 已关闭（2026-09-30，IP-P0-9）：脚本 §5 默认仅校验；`MSP_ROLE_SQL_FALLBACK=1` 才 SQL 兜底（含 msp_admin）** |
+| K3 | `msp_role` 枚举仅 3 值（`provider_admin`/`provider_agent`/`customer_user`），而 RBAC 词表有 5 个 msp_* 角色 | `msp_specialist`/`msp_admin` **不可达**；细分权限无法通过员工角色表达 → **✅ 收敛（2026-09-30，IP-P0-9）：`msp_role` 仅 `provider_admin`/`provider_agent`（`customer_user` legacy 读映射）；`specialist/admin` 经 `allocation.role`/合同预设映射，枚举不变（D10）** |
 | K4 | 脚本注释记录产品缺口：MSP 管理员**无法经 API 建号**（`roleRank` 校验，`scripts/msp/setup-msp-tenants.sh:279-282`） | provider 员工管理目前依赖 SQL/脚本；**→ ✅ 已关闭（2026-09-30，IP-P0-5）：三通道 `ProvisionUser` + `tenantctx.WithProvisioningBypass`（actor+channel 审计）收口；角色白名单与通道 rank 上限生效** |
 | K5 | 客户内权限未参与（目标态才有）；`X-Customer-Tenant-ID` 只校验头部（R9） | 跨客户操作的第三重约束缺失 |
 

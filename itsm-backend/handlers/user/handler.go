@@ -6,6 +6,7 @@ import (
 
 	"itsm-backend/common"
 	"itsm-backend/dto"
+	"itsm-backend/middleware"
 	"itsm-backend/service"
 
 	"github.com/gin-gonic/gin"
@@ -597,22 +598,9 @@ func (h *UserHandler) SearchUsers(c *gin.Context) {
 	common.Success(c, users)
 }
 
-// roleRank 返回角色权限层级，数值越大权限越高
+// roleRank 返回角色权限层级（单一词表：middleware.RoleRank，覆盖 msp_*；IP-P0-9/07:G3）。
 func roleRank(role string) int {
-	switch strings.ToLower(strings.TrimSpace(role)) {
-	case "super_admin":
-		return 5
-	case "admin":
-		return 4
-	case "manager":
-		return 3
-	case "agent":
-		return 2
-	case "end_user", "user", "":
-		return 1
-	default:
-		return 0
-	}
+	return middleware.RoleRank(role)
 }
 
 // normalizeRole 将前端传入的角色归一化（user -> end_user）
