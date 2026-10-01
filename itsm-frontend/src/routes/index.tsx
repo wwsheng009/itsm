@@ -13,7 +13,7 @@ import RouteLoading from '@/components/common/RouteLoading';
 import Home from '@/pages/home/index';
 import NotFound from '@/pages/not-found';
 import RootProviders from '@/App';
-import { RequireAuth } from './guards';
+import { RequireAuth, RequireCapability } from './guards';
 import { LegacyRedirectGate } from './legacy-redirects';
 
 
@@ -25,6 +25,11 @@ function lazyElement(Component: LazyExoticComponent<ComponentType>): ReactElemen
   );
 }
 
+// IP-P0-8 分组守卫权限集（与 Sidebar 管理区可见性口径一致；admin 角色语义由守卫保留）。
+const ADMIN_AREA_PERMISSIONS = ['user:write', 'role:write', 'system_config:write', 'ticket_type:manage'];
+const MSP_AREA_PERMISSIONS = ['msp:read', 'msp_ticket:read', 'msp_customer:read', 'msp_allocation:read', 'msp_report:read'];
+
+const Forbidden = lazy(() => import('@/pages/403'));
 const Admin = lazy(() => import('@/pages/(main)/admin/index'));
 const AdminApprovalChains = lazy(() => import('@/pages/(main)/admin/approval-chains/index'));
 const AdminApprovals = lazy(() => import('@/pages/(main)/admin/approvals/index'));
@@ -119,6 +124,7 @@ const Marketplace = lazy(() => import('@/pages/(main)/marketplace/index'));
 const MarketplaceId = lazy(() => import('@/pages/(main)/marketplace/$id/index'));
 const Msp = lazy(() => import('@/pages/(main)/msp/index'));
 const MspManagement = lazy(() => import('@/pages/(main)/msp/management/index'));
+const MspWorkbench = lazy(() => import('@/pages/(main)/msp/workbench/index'));
 const MyRequests = lazy(() => import('@/pages/(main)/my-requests/index'));
 const MyRequestsRequestId = lazy(() => import('@/pages/(main)/my-requests/$requestId/index'));
 const Noc = lazy(() => import('@/pages/(main)/noc/index'));
@@ -226,6 +232,10 @@ export const routes: RouteObject[] = [
             { path: 'types', element: lazyElement(TicketsTypes) },
             ],
           },
+          { path: '403', element: lazyElement(Forbidden) },
+          {
+            element: <RequireCapability anyOf={ADMIN_AREA_PERMISSIONS} />,
+            children: [
           { path: 'admin', element: lazyElement(Admin) },
           { path: 'admin/approval-chains', element: lazyElement(AdminApprovalChains) },
           { path: 'admin/approvals', element: lazyElement(AdminApprovals) },
@@ -257,6 +267,8 @@ export const routes: RouteObject[] = [
           { path: 'admin/users', element: lazyElement(AdminUsers) },
           { path: 'admin/vector-store', element: lazyElement(AdminVectorStore) },
           { path: 'admin/workflows', element: lazyElement(AdminWorkflows) },
+            ],
+          },
           { path: 'ai/approval', element: lazyElement(AiApproval) },
           { path: 'ai/audit', element: lazyElement(AiAudit) },
           { path: 'ai/bot-metrics', element: lazyElement(AiBotMetrics) },
@@ -314,8 +326,14 @@ export const routes: RouteObject[] = [
           { path: 'licenses/new', element: lazyElement(LicensesNew) },
           { path: 'marketplace', element: lazyElement(Marketplace) },
           { path: 'marketplace/:id', element: lazyElement(MarketplaceId) },
+          {
+            element: <RequireCapability anyOf={MSP_AREA_PERMISSIONS} />,
+            children: [
           { path: 'msp', element: lazyElement(Msp) },
           { path: 'msp/management', element: lazyElement(MspManagement) },
+          { path: 'msp/workbench', element: lazyElement(MspWorkbench) },
+            ],
+          },
           { path: 'my-requests', element: lazyElement(MyRequests) },
           { path: 'my-requests/:requestId', element: lazyElement(MyRequestsRequestId) },
           { path: 'noc', element: lazyElement(Noc) },

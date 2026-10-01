@@ -32,6 +32,13 @@ export interface RequestConfig {
   timeout?: number;
   responseType?: 'json' | 'blob';
   /**
+   * 头通道（单请求跨客户）显式注入 `X-Customer-Tenant-ID`。
+   * 只对本次请求生效，绝不写入全局上下文 / localStorage。
+   */
+  customerTenantId?: number | string | null;
+  /** 调用方取消信号（切换租户/登出时取消在途请求，避免旧作用域响应覆盖新状态）。 */
+  signal?: AbortSignal;
+  /**
    * 关闭 key 归一化（默认 false）。
    *
    * 默认行为：请求体与响应体的 key 都转成 camelCase（仓库主流约定，后端新端点也用 camelCase tag）。
@@ -49,7 +56,18 @@ export interface AxiosLikeRequestConfig {
   data?: unknown;
   headers?: Record<string, string>;
   responseType?: 'json' | 'blob';
+  customerTenantId?: number | string | null;
+  signal?: AbortSignal;
 }
+
+// 在途请求登记表：切换租户/登出时统一中止，防止旧作用域响应覆盖新会话。
+const inFlightControllers = new Set<AbortController>();
+
+/** 取消所有在途请求（切换租户、登出时调用）。 */
+export const abortAllRequests = (): void => {
+  inFlightControllers.forEach(controller => controller.abort());
+  inFlightControllers.clear();
+};
 
 // API response interface
 interface ApiResponse<T> {
@@ -363,7 +381,27 @@ class HttpClient {
     const url = `${this.baseURL}${endpoint}`;
     const responseType = config.responseType || 'json';
     const isFormData = typeof FormData !== 'undefined' && config.body instanceof FormData;
+    // 控制器在首个 await 之前就创建并登记：切换/登出时的 abortAllRequests 能覆盖
+    // 仍处于 CSRF/头准备阶段的在途请求。
+    const controller = new AbortController();
+    inFlightControllers.add(controller);
+    if (config.signal) {
+      if (config.signal.aborted) {
+        controller.abort();
+      } else {
+        config.signal.addEventListener('abort', () => controller.abort(), { once: true });
+      }
+    }
+    let abortTimeoutId: ReturnType<typeof setTimeout> | null = null;
     let headers = this.getHeaders();
+    // 头通道：仅本次请求显式携带 X-Customer-Tenant-ID（不写上下文）。
+    if (
+      config.customerTenantId !== undefined &&
+      config.customerTenantId !== null &&
+      config.customerTenantId !== ''
+    ) {
+      headers['X-Customer-Tenant-ID'] = String(config.customerTenantId);
+    }
     // 为mutating请求添加CSRF token
     headers = await this.addCSRFHeader(headers, config.method || 'GET');
     const sanitizedHeaders = { ...headers };
@@ -394,9 +432,8 @@ class HttpClient {
     }
 
     try {
-      const controller = new AbortController();
       const timeoutMs = config.timeout ?? this.timeout;
-      const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+      abortTimeoutId = setTimeout(() => controller.abort(), timeoutMs);
 
       let response = await fetch(url, {
         ...requestConfig,
@@ -404,7 +441,8 @@ class HttpClient {
         signal: controller.signal,
       });
 
-      clearTimeout(timeoutId);
+      clearTimeout(abortTimeoutId);
+      inFlightControllers.delete(controller);
 
       // The backend rotates the token after every successful mutation. A cached token
       // can therefore race with the CSRF cookie; refresh it once and retry the request.
@@ -550,6 +588,9 @@ class HttpClient {
         throw error;
       }
       throw new Error('未知错误发生');
+    } finally {
+      if (abortTimeoutId) clearTimeout(abortTimeoutId);
+      inFlightControllers.delete(controller);
     }
   }
 
@@ -591,6 +632,8 @@ class HttpClient {
         headers: cfg.headers,
         body,
         responseType: cfg.responseType || 'json',
+        customerTenantId: cfg.customerTenantId,
+        signal: cfg.signal,
       });
 
       return data as T;
@@ -605,6 +648,8 @@ class HttpClient {
       body: cfg.body,
       timeout: cfg.timeout,
       responseType: cfg.responseType || 'json',
+      customerTenantId: cfg.customerTenantId,
+      signal: cfg.signal,
     });
   }
 
@@ -618,7 +663,11 @@ class HttpClient {
     return this.requestInternal<T>(endpoint, { ...config, rawKeys: true });
   }
 
-  async get<T>(endpoint: string, params?: object): Promise<T> {
+  async get<T>(
+    endpoint: string,
+    params?: object,
+    config?: { customerTenantId?: number | string | null; signal?: AbortSignal }
+  ): Promise<T> {
     let url = endpoint;
     if (params) {
       const searchParams = new URLSearchParams();
@@ -632,6 +681,8 @@ class HttpClient {
 
     return this.requestInternal<T>(url, {
       method: 'GET',
+      customerTenantId: config?.customerTenantId,
+      signal: config?.signal,
     });
   }
 
@@ -725,6 +776,8 @@ class HttpClient {
       onUploadProgress?: (progress: number) => void;
       headers?: Record<string, string>;
       responseType?: 'json' | 'blob';
+      customerTenantId?: number | string | null;
+      signal?: AbortSignal;
     }
   ): Promise<T> {
     // FormData 上传：无进度需求时统一交给 requestInternal，复用 CSRF / credentials /
@@ -743,6 +796,8 @@ class HttpClient {
         body: data,
         headers: config?.headers,
         responseType: config?.responseType || 'json',
+        customerTenantId: config?.customerTenantId,
+        signal: config?.signal,
       });
     }
 
@@ -750,6 +805,8 @@ class HttpClient {
       method: 'POST',
       body: data ? JSON.stringify(data) : undefined,
       headers: config?.headers,
+      customerTenantId: config?.customerTenantId,
+      signal: config?.signal,
     });
   }
 

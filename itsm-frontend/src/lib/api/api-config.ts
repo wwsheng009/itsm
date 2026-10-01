@@ -192,6 +192,8 @@ export interface User {
   name: string;
   tenantId?: number;
   role?: string;
+  /** MSP 身份角色（provider_admin/provider_agent；客户账号为空）。 */
+  mspRole?: string;
   department?: string;
   permissions?: string[];
   createdAt?: string;

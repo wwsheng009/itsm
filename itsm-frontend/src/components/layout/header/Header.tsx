@@ -19,6 +19,7 @@ import { notificationWS } from '@/lib/services/notification-ws';
 import { UserMenuDropdown } from './UserMenuDropdown';
 import { NotificationDrawer } from './NotificationDrawer';
 import { GlobalSearch, SearchInput } from './GlobalSearch';
+import { CustomerFilter } from './CustomerFilter';
 import { buildBreadcrumb, useBuildBreadcrumb } from './breadcrumb-utils';
 import styles from './Header.module.css';
 
@@ -50,6 +51,14 @@ export const Header: React.FC<HeaderProps> = ({
   const { isDark, toggleTheme } = useTheme();
   const { language, changeLanguage } = useI18n();
   useAuthStoreHydration();
+
+  // FE-A5：仅 provider 侧渲染 CustomerFilter（客户账号/无 MSP 权限完全不渲染）
+  const mspRole = user?.mspRole;
+  const canUseMspWorkbench =
+    !!user?.id &&
+    mspRole !== 'customer_user' &&
+    (hasPermission('msp_ticket:read') ||
+      (typeof mspRole === 'string' && mspRole.startsWith('provider_')));
 
   // 动态菜单驱动的面包屑：与 Sidebar 共享 useUserMenusQuery 缓存，
   // 未传入自定义 breadcrumb 时优先用 hook 版（带菜单 label），失败时回退到 segment 兜底
@@ -252,6 +261,9 @@ export const Header: React.FC<HeaderProps> = ({
 
         {/* 右侧 */}
         <div className={styles.right}>
+          {/* 跨客户全局过滤器（仅 provider；只改视图不改会话） */}
+          {isClient && canUseMspWorkbench ? <CustomerFilter /> : null}
+
           {/* 搜索 */}
           <SearchInput
             value={searchValue}

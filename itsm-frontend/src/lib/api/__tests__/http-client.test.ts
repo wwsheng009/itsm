@@ -24,7 +24,7 @@
  *   - Missing code field is tolerated (BPMN controller quirk)
  */
 
-import { httpClient } from '../http-client';
+import { httpClient, abortAllRequests } from '../http-client';
 import { security } from '@/lib/security';
 import { setTenantId, setTenantCode, clearTenant } from '@/lib/auth/tenant-context';
 
@@ -353,6 +353,50 @@ describe('httpClient', () => {
       const [, init] = fetchMock.mock.calls[0];
       expect(init.headers['X-Tenant-ID']).toBeUndefined();
       expect(init.headers['X-Tenant-Code']).toBeUndefined();
+    });
+
+    it('injects X-Customer-Tenant-ID only for the explicit header-channel request', async () => {
+      fetchMock.mockResolvedValueOnce(jsonResponse({ code: 0, message: 'ok', data: {} }));
+
+      await httpClient.get('/api/v1/msp/customers/9/tickets', undefined, { customerTenantId: 9 });
+
+      const [, init] = fetchMock.mock.calls[0];
+      expect(init.headers['X-Customer-Tenant-ID']).toBe('9');
+    });
+
+    it('does not leak X-Customer-Tenant-ID into subsequent requests (view-only header)', async () => {
+      fetchMock
+        .mockResolvedValueOnce(jsonResponse({ code: 0, message: 'ok', data: {} }))
+        .mockResolvedValueOnce(jsonResponse({ code: 0, message: 'ok', data: {} }));
+
+      await httpClient.get('/api/v1/msp/customers/9/tickets', undefined, { customerTenantId: 9 });
+      await httpClient.get('/api/v1/tickets');
+
+      expect(fetchMock.mock.calls[0][1].headers['X-Customer-Tenant-ID']).toBe('9');
+      expect(fetchMock.mock.calls[1][1].headers['X-Customer-Tenant-ID']).toBeUndefined();
+    });
+
+    it('abortAllRequests cancels in-flight requests (switch/logout barrier)', async () => {
+      fetchMock.mockImplementationOnce(
+        (_url: string, init: RequestInit) =>
+          new Promise((_resolve, reject) => {
+            const rejectAborted = () => {
+              const err = new Error('aborted');
+              err.name = 'AbortError';
+              reject(err);
+            };
+            if (init.signal?.aborted) {
+              rejectAborted();
+            } else {
+              init.signal?.addEventListener('abort', rejectAborted);
+            }
+          })
+      );
+
+      const pending = httpClient.get('/api/v1/tickets');
+      abortAllRequests();
+
+      await expect(pending).resolves.toBeNull();
     });
   });
 

@@ -23,8 +23,19 @@ jest.mock('@/lib/api/http-client', () => ({
     setTenantId: jest.fn(),
     setTenantCode: jest.fn(),
     clearToken: jest.fn(),
+    get: jest.fn(),
   },
+  abortAllRequests: jest.fn(),
 }));
+
+jest.mock('@/lib/api/tenant-api', () => ({
+  TenantAPI: { switchTenant: jest.fn() },
+}));
+
+jest.mock('@/lib/providers/QueryProvider', () => {
+  const clear = jest.fn();
+  return { getQueryClient: jest.fn(() => ({ clear })), __clear: clear };
+});
 
 describe('useAuthStore', () => {
   beforeEach(() => {
@@ -139,6 +150,50 @@ describe('useAuthStore', () => {
       expect(state.token).toBeNull();
       expect(state.currentTenant).toBeNull();
       expect(state.isAuthenticated).toBe(false);
+
+      // IP-P0-8：登出清理 = 取消在途 + 清空数据缓存
+      const { abortAllRequests } = await import('@/lib/api/http-client');
+      expect(abortAllRequests).toHaveBeenCalled();
+      const queryProvider = (await import('@/lib/providers/QueryProvider')) as unknown as {
+        __clear: jest.Mock;
+      };
+      expect(queryProvider.__clear).toHaveBeenCalled();
+    });
+  });
+
+  describe('switchTenant（IP-P0-8 深度切换链路）', () => {
+    it('切换成功后重建 user/租户并清空缓存', async () => {
+      const { useAuthStore } = await import('../auth-store');
+      const { TenantAPI } = await import('@/lib/api/tenant-api');
+      const { httpClient } = await import('@/lib/api/http-client');
+      const queryProvider = (await import('@/lib/providers/QueryProvider')) as unknown as {
+        __clear: jest.Mock;
+      };
+
+      (TenantAPI.switchTenant as jest.Mock).mockResolvedValue({
+        tenant: { id: 9, name: 'Customer', code: 'cust', type: 'msp_customer', status: 'active' },
+      });
+      (httpClient.get as jest.Mock).mockResolvedValue({
+        id: 1,
+        username: 'msp',
+        email: 'msp@example.com',
+        name: 'MSP User',
+        role: 'agent',
+        tenantId: 9,
+        permissions: ['msp_ticket:read'],
+      });
+
+      await act(async () => {
+        await useAuthStore.getState().switchTenant(9);
+      });
+
+      expect(TenantAPI.switchTenant).toHaveBeenCalledWith(9);
+      expect(httpClient.get).toHaveBeenCalledWith('/api/v1/auth/me');
+      const state = useAuthStore.getState();
+      expect(state.currentTenant?.id).toBe(9);
+      expect(state.user?.tenantId).toBe(9);
+      expect(state.isSwitching).toBe(false);
+      expect(queryProvider.__clear).toHaveBeenCalled();
     });
   });
 

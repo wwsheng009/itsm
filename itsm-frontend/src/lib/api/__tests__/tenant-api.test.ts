@@ -80,10 +80,22 @@ describe('TenantAPI', () => {
   });
 
   describe('switchTenant', () => {
-    it('should switch tenant', async () => {
-      mockPost.mockResolvedValue(undefined);
-      await TenantAPI.switchTenant(2);
-      expect(mockPost).toHaveBeenCalledWith('/api/v1/tenants/switch', { tenantId: 2 });
+    it('uses the auth switch-tenant endpoint (IP-P0-6 contract)', async () => {
+      const resp = { tenant: { id: 2, name: 'Customer', code: 'cust', type: 'msp_customer', status: 'active' } };
+      mockPost.mockResolvedValue(resp);
+      const res = await TenantAPI.switchTenant(2);
+      expect(mockPost).toHaveBeenCalledWith('/api/v1/auth/switch-tenant', { tenantId: 2 });
+      expect(res).toEqual(resp);
+    });
+  });
+
+  describe('getMyTenants', () => {
+    it('reads candidates from /api/v1/auth/tenants', async () => {
+      const resp = { tenants: [{ id: 1, name: 'Home', code: 'home' }] };
+      mockGet.mockResolvedValue(resp);
+      const res = await TenantAPI.getMyTenants();
+      expect(mockGet).toHaveBeenCalledWith('/api/v1/auth/tenants');
+      expect(res).toEqual(resp);
     });
   });
 });

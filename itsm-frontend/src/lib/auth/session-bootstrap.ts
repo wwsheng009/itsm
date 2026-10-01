@@ -1,6 +1,6 @@
 import { httpClient } from '@/lib/api/http-client';
 import { useAuthStore } from '@/lib/store/auth-store';
-import type { Tenant } from '@/lib/api/api-config';
+import { mapServerTenant, mapServerUser } from '@/lib/auth/session-mappers';
 
 export type SessionStatus = 'pending' | 'authenticated' | 'anonymous';
 
@@ -58,48 +58,26 @@ async function run(): Promise<SessionStatus> {
     return 'authenticated';
   }
 
-  const tenants = Array.isArray(tenantInfo?.tenants) ? tenantInfo.tenants : [];
-  const currentTenant = tenants[0];
+  // IP-P0-8：作用域以服务端为准 —— /auth/me 的 tenantId 即当前 JWT 作用域。
+  // 候选列表（/auth/tenants = home ∪ allocation ∪ 平台全量）仅用于深度切换入口，
+  // 绝不参与自动选租户（移除历史 tenants[0] 强制）。
+  const tenants: unknown[] = Array.isArray(tenantInfo?.tenants) ? tenantInfo.tenants : [];
+  const serverTenantId = Number(userInfo?.tenantId || 0);
+  const matchedTenantRaw =
+    serverTenantId > 0
+      ? tenants.find(t => Number((t as Record<string, unknown>)?.id) === serverTenantId)
+      : undefined;
+  const currentTenant = mapServerTenant(matchedTenantRaw);
 
   const { login, setCurrentTenant } = useAuthStore.getState();
   login(
-    {
-      id: Number(userInfo?.id || 0),
-      username: String(userInfo?.username || ''),
-      email: String(userInfo?.email || ''),
-      name: String(userInfo?.name || ''),
-      role: String(userInfo?.role || 'end_user'),
-      department: userInfo?.department,
-      tenantId: userInfo?.tenantId ? Number(userInfo.tenantId) : undefined,
-      permissions: userInfo?.permissions,
-      createdAt: userInfo?.createdAt ?? new Date().toISOString(),
-      updatedAt: userInfo?.updatedAt ?? new Date().toISOString(),
-    },
+    mapServerUser(userInfo),
     'authenticated',
-    currentTenant
-      ? {
-          id: Number(currentTenant.id),
-          name: String(currentTenant.name),
-          code: String(currentTenant.code),
-          type: currentTenant.type,
-          status: currentTenant.status,
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
-        }
-      : undefined
+    currentTenant ?? undefined
   );
 
   if (currentTenant) {
-    const tenantData: Tenant = {
-      id: Number(currentTenant.id),
-      name: String(currentTenant.name),
-      code: String(currentTenant.code),
-      type: currentTenant.type || 'standard',
-      status: currentTenant.status || 'active',
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-    };
-    setCurrentTenant(tenantData);
+    setCurrentTenant(currentTenant);
   }
 
   return 'authenticated';

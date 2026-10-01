@@ -9,7 +9,11 @@ import { persist } from 'zustand/middleware';
 import { clearAuthStorage } from '@/lib/auth/token-storage';
 import { setTenant, clearTenant } from '@/lib/auth/tenant-context';
 import type { User, Tenant } from '@/lib/api/api-config';
-import { httpClient } from '@/lib/api/http-client';
+import { httpClient, abortAllRequests } from '@/lib/api/http-client';
+import { TenantAPI } from '@/lib/api/tenant-api';
+import { getQueryClient } from '@/lib/providers/QueryProvider';
+import { mapServerTenant, mapServerUser } from '@/lib/auth/session-mappers';
+import { notificationWS } from '@/lib/services/notification-ws';
 
 // ===================================
 // 类型定义
@@ -24,6 +28,8 @@ interface AuthState {
   currentTenant: Tenant | null;
   isAuthenticated: boolean;
   isLoading: boolean;
+  /** IP-P0-8：切换进行中（全局 loading 屏障 / 阻止旧作用域请求）。 */
+  isSwitching: boolean;
 
   // 认证操作
   login: (user: User, token: string, tenant?: Tenant) => void;
@@ -34,6 +40,8 @@ interface AuthState {
   // 租户操作
   setCurrentTenant: (tenant: Tenant) => void;
   clearTenant: () => void;
+  /** 深度切换作用域（IP-P0-6 契约 + IP-P0-8 链路）：取消在途 → 重签 → 重拉 me → 清缓存。 */
+  switchTenant: (tenantId: number) => Promise<void>;
 
   // 权限检查
   hasPermission: (permission: string) => boolean;
@@ -54,6 +62,7 @@ export const useAuthStore = create<AuthState>()(
       currentTenant: null,
       isAuthenticated: false,
       isLoading: false,
+      isSwitching: false,
 
       // 登录操作
       // 注意：token 存储在 httpOnly cookie 中，前端不需要存储
@@ -90,6 +99,20 @@ export const useAuthStore = create<AuthState>()(
         httpClient.clearToken();
         httpClient.setTenantId(null);
         httpClient.setTenantCode(null);
+        // IP-P0-8：登出清理 —— 取消在途请求 + 清空数据缓存 + 断 WS + 重置会话探活缓存。
+        abortAllRequests();
+        getQueryClient()?.clear();
+        try {
+          notificationWS.disconnect();
+        } catch {
+          // WS 未连接时忽略
+        }
+        // 动态导入：session-bootstrap 依赖本 store，静态导入会形成循环。
+        void import('@/lib/auth/session-bootstrap')
+          .then(m => m.resetSessionBootstrap())
+          .catch(() => {
+            // 测试环境/模块未加载时忽略
+          });
       },
 
       // 更新用户信息
@@ -116,6 +139,37 @@ export const useAuthStore = create<AuthState>()(
         if (typeof window !== 'undefined') {
           localStorage.setItem('current_tenant_id', tenant.id.toString());
           localStorage.setItem('current_tenant_code', tenant.code);
+        }
+      },
+
+      // 深度切换作用域（IP-P0-8）
+      switchTenant: async (tenantId: number) => {
+        if (!Number.isFinite(tenantId) || tenantId <= 0) {
+          throw new Error('目标租户无效');
+        }
+        set({ isLoading: true, isSwitching: true } as Record<string, unknown>);
+        // 取消所有在途请求，避免旧作用域响应覆盖新会话（R3）
+        abortAllRequests();
+        try {
+          const resp = await TenantAPI.switchTenant(tenantId);
+          // 重拉 /auth/me 重建 user/permissions（切换后菜单/权限/数据全换）
+          const me = await httpClient.get<unknown>('/api/v1/auth/me').catch(() => null);
+          const nextUser = me ? mapServerUser(me) : get().user;
+          set({
+            user: nextUser,
+            isAuthenticated: true,
+            isLoading: false,
+            isSwitching: false,
+          } as Record<string, unknown>);
+          const targetTenant = mapServerTenant(resp?.tenant);
+          if (targetTenant) {
+            get().setCurrentTenant(targetTenant);
+          }
+          // 作用域已变化：清空所有数据缓存，确保目标租户首屏数据不串。
+          getQueryClient()?.clear();
+        } catch (error) {
+          set({ isLoading: false, isSwitching: false } as Record<string, unknown>);
+          throw error;
         }
       },
 

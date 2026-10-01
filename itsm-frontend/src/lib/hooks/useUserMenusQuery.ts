@@ -16,6 +16,7 @@
 import { useEffect } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { getUserMenus, MENUS_UPDATED_EVENT, type MenuTreeResponse } from '@/lib/api/menu-api';
+import { useAuthStore } from '@/lib/store/auth-store';
 
 export const USER_MENUS_KEY = ['auth', 'menus'] as const;
 
@@ -31,8 +32,10 @@ export interface UseUserMenusQueryOptions {
  */
 export function useUserMenusQuery(options: UseUserMenusQueryOptions = {}) {
   const { enabled = true, staleTime = 5 * 60 * 1000 } = options;
+  // IP-P0-8：queryKey 按租户分键，避免切换/登出后跨租户菜单残留（R2）。
+  const tenantId = useAuthStore(state => state.currentTenant?.id ?? 0);
   return useQuery<MenuTreeResponse>({
-    queryKey: USER_MENUS_KEY,
+    queryKey: [...USER_MENUS_KEY, tenantId],
     queryFn: () => getUserMenus(),
     enabled,
     staleTime,

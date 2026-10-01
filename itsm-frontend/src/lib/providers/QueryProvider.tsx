@@ -14,9 +14,15 @@ const ReactQueryDevtools =
       )
     : null;
 
+// 模块级引用：供非组件代码（store 的登出/切换、错误处理）调用 clear/invalidate。
+let sharedQueryClient: QueryClient | null = null;
+
+/** 获取全局 QueryClient（未挂载时返回 null）。 */
+export const getQueryClient = (): QueryClient | null => sharedQueryClient;
+
 // 创建QueryClient实例
 const createQueryClient = () => {
-  return new QueryClient({
+  const client = new QueryClient({
     defaultOptions: {
       queries: {
         // 数据缓存时间（5分钟）
@@ -40,6 +46,8 @@ const createQueryClient = () => {
       },
     },
   });
+  sharedQueryClient = client;
+  return client;
 };
 
 interface QueryProviderProps {

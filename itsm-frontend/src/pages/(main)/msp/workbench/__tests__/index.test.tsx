@@ -1,0 +1,156 @@
+/**
+ * MSP 跨客户工作台页测试（IP-P0-8 / WB-A2、WB-A5）。
+ *
+ * 覆盖：
+ * - 列表渲染客户列与跨客户条目；
+ * - 行内操作严格按每条 allowedActions[] 渲染（allowed=true 可点，allowed=false 禁用）；
+ * - allowedActions 为空 → 只读态，不渲染操作按钮；
+ * - nextCursor 分页（加载更多携带 cursor）。
+ */
+import React from 'react';
+import { render, screen, waitFor, within } from '@/lib/test-utils';
+import userEvent from '@testing-library/user-event';
+
+const mockSetSearchParams = jest.fn();
+
+jest.mock('react-router', () => ({
+  ...jest.requireActual('react-router'),
+  useNavigate: () => jest.fn(),
+  useLocation: () => ({
+    pathname: '/msp/workbench',
+    search: '',
+    hash: '',
+    state: null,
+    key: 'test',
+  }),
+  useSearchParams: () => [
+    new URLSearchParams('customerTenantIds=all'),
+    mockSetSearchParams,
+  ],
+}));
+
+jest.mock('@/lib/api/msp-workbench-api', () => {
+  const actual = jest.requireActual('@/lib/api/msp-workbench-api');
+  return {
+    ...actual,
+    listWorkbenchTickets: jest.fn(),
+  };
+});
+
+import { listWorkbenchTickets, type WorkbenchTicketItem } from '@/lib/api/msp-workbench-api';
+import MSPWorkbenchPage from '../index';
+
+const ticketWithActions: WorkbenchTicketItem = {
+  id: 1,
+  customerTenantId: 1,
+  customerName: 'Acme Corp',
+  ticketNumber: 'ACME-1',
+  title: 'VPN 无法连接',
+  status: 'open',
+  priority: 'high',
+  assigneeName: '张三',
+  updatedAt: '2026-09-30T08:00:00Z',
+  allowedActions: [
+    { action: 'reply', allowed: true },
+    {
+      action: 'status',
+      allowed: false,
+      reasonCode: 'ACTION_NOT_ALLOWED',
+      reasonText: '当前角色在该客户租户无对应权限',
+    },
+    { action: 'assign', allowed: false, reasonCode: 'ACTION_NOT_ALLOWED' },
+  ],
+};
+
+const readOnlyTicket: WorkbenchTicketItem = {
+  id: 2,
+  customerTenantId: 2,
+  customerName: 'Beta LLC',
+  ticketNumber: 'BETA-2',
+  title: '打印机离线',
+  status: 'in_progress',
+  priority: 'medium',
+  updatedAt: '2026-09-30T07:00:00Z',
+  allowedActions: [],
+};
+
+describe('MSPWorkbenchPage', () => {
+  beforeEach(() => {
+    (listWorkbenchTickets as jest.Mock).mockResolvedValue({
+      items: [ticketWithActions, readOnlyTicket],
+      total: 2,
+    });
+  });
+
+  it('渲染跨客户列表并带客户列', async () => {
+    render(<MSPWorkbenchPage />);
+
+    expect(await screen.findByText('VPN 无法连接')).toBeInTheDocument();
+    expect(screen.getByText('打印机离线')).toBeInTheDocument();
+    expect(screen.getByText('Acme Corp')).toBeInTheDocument();
+    expect(screen.getByText('Beta LLC')).toBeInTheDocument();
+    expect(screen.getByTestId('workbench-scope')).toHaveTextContent('全部客户');
+    expect(listWorkbenchTickets).toHaveBeenCalledWith(
+      expect.objectContaining({ customerTenantIds: 'all', sort: 'updated' })
+    );
+  });
+
+  it('行内操作严格按 allowedActions 渲染（reply 可用 / status 禁用）', async () => {
+    render(<MSPWorkbenchPage />);
+
+    const replyButton = await screen.findByTestId('action-reply-1');
+    expect(replyButton).toBeEnabled();
+    expect(screen.getByTestId('action-status-1')).toBeDisabled();
+  });
+
+  it('allowedActions 为空 → 只读态且不渲染操作按钮（WB-A5）', async () => {
+    render(<MSPWorkbenchPage />);
+
+    await screen.findByText('打印机离线');
+    expect(screen.getByTestId('ticket-readonly-2')).toHaveTextContent('只读');
+    expect(screen.queryByTestId('action-reply-2')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('action-status-2')).not.toBeInTheDocument();
+  });
+
+  it('nextCursor 分页：加载更多携带游标并追加条目', async () => {
+    (listWorkbenchTickets as jest.Mock)
+      .mockResolvedValueOnce({ items: [ticketWithActions], nextCursor: 'cursor-1', total: 1 })
+      .mockResolvedValueOnce({ items: [readOnlyTicket], total: 1 });
+
+    render(<MSPWorkbenchPage />);
+    await screen.findByText('VPN 无法连接');
+
+    const loadMore = screen.getByTestId('workbench-load-more');
+    await userEvent.click(loadMore);
+
+    await waitFor(() => expect(screen.getByText('打印机离线')).toBeInTheDocument());
+    const secondCall = (listWorkbenchTickets as jest.Mock).mock.calls[1][0];
+    expect(secondCall.cursor).toBe('cursor-1');
+    expect(screen.queryByTestId('workbench-load-more')).not.toBeInTheDocument();
+  });
+
+  it('CUSTOMER_INACTIVE → 只读态（暂停客户不渲染操作按钮）', async () => {
+    (listWorkbenchTickets as jest.Mock).mockResolvedValue({
+      items: [
+        {
+          ...ticketWithActions,
+          id: 3,
+          allowedActions: [
+            {
+              action: 'reply',
+              allowed: false,
+              reasonCode: 'CUSTOMER_INACTIVE',
+              reasonText: '客户租户已暂停或过期，仅可查看',
+            },
+          ],
+        },
+      ],
+      total: 1,
+    });
+
+    render(<MSPWorkbenchPage />);
+
+    expect(await screen.findByTestId('ticket-readonly-3')).toHaveTextContent('只读');
+    expect(screen.queryByTestId('action-reply-3')).not.toBeInTheDocument();
+  });
+});

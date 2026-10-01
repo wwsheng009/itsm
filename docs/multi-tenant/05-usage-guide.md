@@ -50,7 +50,7 @@
 
 > **目标口径（2026-09-30，canon v1.0；本文其余内容为现状 as-is）**：日常跨客户处理走"**跨客户工作台 + `CustomerFilter` + 条目级操作**"（无需切换会话）；头通道为单请求只读；仅"深度操作"（客户内配置/用户/连续多步）走会话切换（`POST /api/v1/auth/switch-tenant`）。目标步骤见[实施方案 `IP-P0-7`/`IP-P0-8`](./plan/msp-implementation-plan.md)。
 >
-> **后端实现状态（2026-09-30，IP-P0-7）**：工作台列表/徽标/条目级回复/改状态四个端点已上线（见 §9）；每条返回 `allowedActions[]`，暂停客户条目整条只读（`CUSTOMER_INACTIVE`）；显式请求未分配客户 403 `MSP_ALLOCATION_REQUIRED`（审计 `tenant.scope_denied`）。前端 `CustomerFilter`/行内操作/双态指示（WB-A6）归 `IP-P0-8`。
+> **实现状态（2026-09-30，IP-P0-7 + IP-P0-8）**：工作台列表/徽标/条目级回复/改状态四个端点已上线（见 §9）；每条返回 `allowedActions[]`，暂停客户条目整条只读（`CUSTOMER_INACTIVE`）；显式请求未分配客户 403 `MSP_ALLOCATION_REQUIRED`（审计 `tenant.scope_denied`）。前端已落地：顶栏 `CustomerFilter`（多选/全部+搜索+徽标，只改视图，provider-only）、`/msp/workbench` 页（客户列 + 行内操作 + 双态指示）、"进入客户"深度切换（`POST /auth/switch-tenant`，切换后数据缓存清空）；客户账号不渲染过滤器/工作台入口。
 
 **分配管理（服务商管理员）**：
 

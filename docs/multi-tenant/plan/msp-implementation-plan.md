@@ -353,6 +353,15 @@ C2 · 客户租户内 msp 角色基线（Q7 合同形态 → 客户侧业务权�
 
 **回滚**：前端按发布批次回退（无数据依赖）。
 
+**进度（2026-09-30）**：✅ 前端上下文/权限链路落地（FE-A1–A5、A7）；FE-A6/A8 余项归 P1。
+
+- 会话/API（`lib/auth`、`lib/api`、`lib/store`）：`session-bootstrap` 移除 `tenants[0]` 强制（作用域 = 服务端 `/auth/me.tenantId`，候选列表仅深度入口）；`TenantAPI.switchTenant → POST /api/v1/auth/switch-tenant` + `getMyTenants`；http-client 支持按请求显式 `X-Customer-Tenant-ID`（不写上下文）与 `abortAllRequests`；store 新增 `switchTenant`（取消在途→重签→重拉 me→`queryClient.clear()`）与登出清理（clear + `resetSessionBootstrap` + 断 WS）；菜单/能力 queryKey 按租户分键。
+- 路由/守卫（`routes/*`）：新增独立 `/403` 页与路由；`RequireCapability` 分组守卫覆盖 `/admin/*` 与 `/msp/*`（`hasPermission()` 单一模型 + admin 语义保留）；`/msp/workbench` 路由注册。
+- 工作台/过滤器（`components/layout/header/CustomerFilter.tsx`、`pages/(main)/msp/workbench/`）：`CustomerFilter` 多选/全部 + 搜索 + 计数徽标（URL `customerTenantIds` 同步，只改视图；provider-only）；工作台列表带客户列、严格按 `allowedActions[]` 渲染 reply/status、空数组或 `CUSTOMER_INACTIVE` 只读、`nextCursor` 分页；“进入客户”走 store `switchTenant` 链路（无整页重载）。
+- 登录页：源码级回归锁定 DOM 无租户列表/选择器（FE-A4）；Header 对客户账号/无 MSP 权限完全不渲染过滤器与工作台入口（FE-A5）。
+- 遗留：FE-A6（管理页建号目标租户 UI）与 FE-A8（legacy route-config 单一模型清理）随 P1；`ticket-attachment-api` 1 条用例为 HEAD 既有红（与本批无关）。
+- 验证：`tsc --noEmit` 0 错；`vite build` 成功；受影响 jest 86/87 套件通过（唯一红为上述既有）。
+
 ### IP-P0-9 角色供给显式化（K1/K2/K3；D10）
 
 **目标**：`msp_*` 角色纳入内置词表；常规 seed 生成权限行；脚本降级兜底。
@@ -566,7 +575,7 @@ CREATE INDEX idx_invitations_expiry ON invitations (expires_at) WHERE status = '
 - [x] **登录/会话**：provider 登录落 provider 家；切换/刷新/撤销契约通过（F5/F6/F9/F10/F11a/F12 后端，2026-09-30；F11b/c 前端/权限行归 IP-P0-8/9）；
 - [x] **建号**：三通道 `UserProvisioningService` 生效；`07:G1`/K4 关闭（2026-09-30）；角色白名单与注册白名单生效（`07:G2` 归 IP-P1-5）；
 - [x] **角色供给**：新 provider 租户 seed 后 5 个 `msp_*` 角色权限齐备（K1/K2 关闭，2026-09-30）；`07:G3` 关闭（登录 rank 取最大 + roleRank 单源）；
-- [ ] **前端**：FE-A1–A8；登录页 DOM 无租户列表；客户账号无过滤器/切换器/工作台节点；
+- [x] **前端（P0 面）**：FE-A1–A5、A7 落地（2026-09-30）；登录页 DOM 无租户列表；客户账号无过滤器/切换器/工作台节点；FE-A6（管理页建号目标租户 UI）/A8（路由元数据单一模型清理）随 P1；
 - [x] **契约**：错误码/DDL/审计事件与 §3.0 一致（审计作用域列 + 事件目录 + source 枚举，2026-09-30；`membership_id` 填充随 IP-P1-1）；`07:G1–G10` 映射表（§3.0-F）无遗漏；
 - [ ] **门禁**：docs-gate 6/6（含 C.6 语义锚点）；`make test` 全绿；三角色剧本 P0 项全过。
 
@@ -693,3 +702,4 @@ CREATE INDEX idx_invitations_expiry ON invitations (expires_at) WHERE status = '
 | v1.9 | 2026-09-30 | **IP-P0-7 工作台后端落地**：列表/summary/reply/status 四端点 + 条目级授权链 + `allowedActions[]` + per-tenant 复合游标 + 逐条审计（source=workbench/target_tenant）+ 工作台索引 DDL；前端链路归 IP-P0-8 |
 | v1.10 | 2026-09-30 | **IP-P0-10 审计统一落地**：`audit_logs` 四列（actor_account/membership_id/target_tenant_id/source）+ `idx_audit_scope`；事件目录 `auth.login`/`tenant.switch(-_denied)`/`tenant.scope_denied`/`workbench.action`/`user.provision` 与 source 枚举写入；审计查询支持 targetTenantId/source（legacy=历史 NULL）/actorAccount；`membership_id` 填充随 IP-P1-1 |
 | v1.11 | 2026-09-30 | **IP-P0-11 执行器 ctx 统一落地（C19/C21/C22 关闭）**：`tenantctx.EnsureJobTenant` fail-closed + `SystemContext` 枚举 / `WithTenantID` 执行两段式；timer/超时扫描/自动升级/bootstrap 八类后台循环统一注入；`source=job` 审计（timer.fire/bpmn.timeout_scan/workflow.escalation）；工单指派同租户校验 + workflow/deployment 列表 fail-closed + BPMN 授权租户化 |
+| v1.12 | 2026-09-30 | **IP-P0-8 前端上下文/权限链路落地（FE-A1–A5、A7）**：`tenants[0]` 移除（作用域=服务端）；`switch-tenant` 端点修正 + store 切换链路（abort→重签→重拉 me→清缓存）+ 登出清理；菜单/能力 queryKey 按租户分键；`/403` + `RequireCapability` 分组守卫（admin/msp）；`CustomerFilter` + `/msp/workbench` 页（allowedActions 行内操作、只读态、游标）；登录页无租户面回归；FE-A6/A8 归 P1 |

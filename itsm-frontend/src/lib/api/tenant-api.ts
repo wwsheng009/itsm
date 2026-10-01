@@ -7,6 +7,15 @@ import type {
   GetTenantsParams,
 } from './api-config';
 
+/** POST /api/v1/auth/switch-tenant 响应（与登录同构，仅取会话所需字段）。 */
+export interface SwitchTenantResponse {
+  accessToken?: string;
+  refreshToken?: string;
+  user?: Record<string, unknown>;
+  tenant?: Tenant;
+  tenantSelection?: { mode?: string; autoSelected?: boolean; reason?: string };
+}
+
 export class TenantAPI {
   // 获取租户列表
   static async getTenants(params?: GetTenantsParams): Promise<TenantListResponse> {
@@ -38,8 +47,13 @@ export class TenantAPI {
     return httpClient.get<Tenant>('/api/v1/tenants/current');
   }
 
-  // 切换租户（如果用户属于多个租户）
-  static async switchTenant(tenantId: number): Promise<void> {
-    return httpClient.post<void>('/api/v1/tenants/switch', { tenantId: tenantId });
+  // 深度切换作用域（IP-P0-6 契约端点）：POST /api/v1/auth/switch-tenant。
+  static async switchTenant(tenantId: number): Promise<SwitchTenantResponse> {
+    return httpClient.post<SwitchTenantResponse>('/api/v1/auth/switch-tenant', { tenantId });
+  }
+
+  // 认证后的可访问租户候选（home ∪ allocation ∪ 平台全量；仅用于深度切换入口）。
+  static async getMyTenants(): Promise<{ tenants: Tenant[] }> {
+    return httpClient.get<{ tenants: Tenant[] }>('/api/v1/auth/tenants');
   }
 }
