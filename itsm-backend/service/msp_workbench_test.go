@@ -23,14 +23,15 @@ import (
 var workbenchDBCounter int64
 
 type workbenchEnv struct {
-	client  *ent.Client
-	svc     *MSPWorkbenchService
-	actor   MSPWorkbenchActor
-	a, b, c *ent.Tenant
-	tA      *ent.Ticket // A：open，未指派，SLA 已超期（slaRisk）
-	tA2     *ent.Ticket // A：in_progress，已指派
-	tB      *ent.Ticket // B：open（B 暂停 → 只读）
-	tC      *ent.Ticket // C：未分配（不得出现在结果）
+	client   *ent.Client
+	svc      *MSPWorkbenchService
+	actor    MSPWorkbenchActor
+	provider *ent.Tenant
+	a, b, c  *ent.Tenant
+	tA       *ent.Ticket // A：open，未指派，SLA 已超期（slaRisk）
+	tA2      *ent.Ticket // A：in_progress，已指派
+	tB       *ent.Ticket // B：open（B 暂停 → 只读）
+	tC       *ent.Ticket // C：未分配（不得出现在结果）
 }
 
 // newWorkbenchEnv 构造工作台夹具：
@@ -118,7 +119,8 @@ func newWorkbenchEnv(t *testing.T) *workbenchEnv {
 			MSPRole:          "provider_agent",
 			AllowedCustomers: []int{a.ID, b.ID},
 		},
-		a: a, b: b, c: c,
+		provider: provider,
+		a:        a, b: b, c: c,
 		tA: tA, tA2: tA2, tB: tB, tC: tC,
 	}
 }
@@ -166,6 +168,16 @@ func TestWorkbenchListScopesAndAllowedActions(t *testing.T) {
 		CustomerTenantIDs: []int{env.c.ID},
 	})
 	requireWorkbenchCode(t, err, CodeMSPAllocationRequired)
+
+	// IP-P0-10：未分配显式请求落 tenant.scope_denied（source=workbench，target=被请求租户）。
+	denied, err := env.client.AuditLog.Query().All(context.Background())
+	require.NoError(t, err)
+	require.Len(t, denied, 1)
+	assert.Equal(t, "tenant.scope_denied", denied[0].Action)
+	assert.Equal(t, middleware.AuditSourceWorkbench, denied[0].Source)
+	assert.Equal(t, env.provider.ID, denied[0].TenantID)
+	assert.Equal(t, env.c.ID, denied[0].TargetTenantID)
+	assert.Equal(t, "wb-msp", denied[0].ActorAccount)
 
 	// 非法游标 → INVALID_CURSOR。
 	_, err = env.svc.ListTickets(context.Background(), env.actor, dto.WorkbenchTicketQuery{Cursor: "not-base64"})
@@ -217,11 +229,14 @@ func TestWorkbenchWriteAuthorizationChain(t *testing.T) {
 	logs, err := env.client.AuditLog.Query().All(ctx)
 	require.NoError(t, err)
 	require.Len(t, logs, 1)
-	assert.Equal(t, env.a.ID, logs[0].TenantID)
+	assert.Equal(t, env.provider.ID, logs[0].TenantID, "审计行归属 actor 家租户")
+	assert.Equal(t, env.a.ID, logs[0].TargetTenantID, "target_tenant_id 指向被操作客户")
 	require.NotNil(t, logs[0].RequestBody)
 	assert.Contains(t, *logs[0].RequestBody, "workbench")
 	assert.Contains(t, *logs[0].RequestBody, fmt.Sprintf("%d", env.a.ID))
-	assert.Equal(t, "WORKBENCH_REPLY", logs[0].Action)
+	assert.Equal(t, "workbench.action", logs[0].Action)
+	assert.Equal(t, middleware.AuditSourceWorkbench, logs[0].Source)
+	assert.Equal(t, "wb-msp", logs[0].ActorAccount)
 
 	// 状态流转：open → in_progress 合法；终态/暂停场景由资源状态与授权链拦截。
 	updated, err := env.svc.ChangeStatus(ctx, env.actor, env.tA.ID, dto.WorkbenchStatusRequest{CustomerTenantID: env.a.ID, Status: "in_progress"})

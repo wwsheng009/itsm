@@ -49,6 +49,8 @@
 - 连续操作：调用租户切换（`SwitchTenant`）换发目标客户上下文的 JWT 后再操作（`handlers/auth/service.go:114`）。
 
 > **目标口径（2026-09-30，canon v1.0；本文其余内容为现状 as-is）**：日常跨客户处理走"**跨客户工作台 + `CustomerFilter` + 条目级操作**"（无需切换会话）；头通道为单请求只读；仅"深度操作"（客户内配置/用户/连续多步）走会话切换（`POST /api/v1/auth/switch-tenant`）。目标步骤见[实施方案 `IP-P0-7`/`IP-P0-8`](./plan/msp-implementation-plan.md)。
+>
+> **后端实现状态（2026-09-30，IP-P0-7）**：工作台列表/徽标/条目级回复/改状态四个端点已上线（见 §9）；每条返回 `allowedActions[]`，暂停客户条目整条只读（`CUSTOMER_INACTIVE`）；显式请求未分配客户 403 `MSP_ALLOCATION_REQUIRED`（审计 `tenant.scope_denied`）。前端 `CustomerFilter`/行内操作/双态指示（WB-A6）归 `IP-P0-8`。
 
 **分配管理（服务商管理员）**：
 
@@ -108,7 +110,11 @@
 | 客户列表 | `GET /api/v1/msp/customers` | `msp_customer.read` |
 | 客户工单 | `GET /api/v1/msp/customers/:customer_tenant_id/tickets` | `msp_ticket.read` |
 | 指派技术员 | `POST /api/v1/msp/tickets/:id/assign` | `msp_ticket.write` |
+| 工作台列表（跨客户） | `GET /api/v1/msp/workbench/tickets?customerTenantIds=all`（`status/priority/assigneeId/q/updatedAfter/sort/cursor/limit`） | `msp_ticket.read` |
+| 工作台徽标 | `GET /api/v1/msp/workbench/summary`（open/slaRisk/unassigned） | `msp_ticket.read` |
+| 工作台回复/改状态 | `POST /api/v1/msp/tickets/:id/reply`、`POST /api/v1/msp/tickets/:id/status` | `msp_ticket.write` |
 | 客户/绩效报表 | `GET /api/v1/msp/reports/customers`、`/reports/performance` | `msp_report.read` |
+| 审计查询（作用域） | `GET /api/v1/audit-logs?targetTenantId=&source=&actorAccount=`（`source=legacy` 查历史 NULL 行） | `audit_log.read` |
 | 租户管理 | `GET/POST /api/v1/tenants`、`PUT /api/v1/tenants/:id(/status)` | `tenant.read/write` |
 
 （来源：`docs/acl-manifest.yaml:1729-1761, 2593-2650`。）
@@ -118,3 +124,4 @@
 - MSP 面仅在 `saas`/`saas_msp` 模式可用；`private` 下相关页面/接口 404（见 02 文档）；
 - 所有 MSP 接口都经过"身份 + RBAC + 客户分配"三重校验，缺一不可；
 - 未在分配列表中的客户，任何带 `X-Customer-Tenant-ID` 的请求都会被 403 拒绝。
+- 审计作用域（IP-P0-10）：`source` 枚举 `login|switch|header|workbench|platform_selected|job|system`（历史行为 NULL，读侧显示 `legacy`）；跨租户操作审计行归属 **actor 家租户**，`target_tenant_id` 指向被操作客户，可按 `targetTenantId` 过滤。

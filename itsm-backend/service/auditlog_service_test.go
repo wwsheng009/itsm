@@ -538,3 +538,49 @@ func TestAuditLogService_GetCIAuditLogs_Pagination(t *testing.T) {
 	assert.Equal(t, 15, response.Total)
 	assert.Len(t, response.Logs, 5)
 }
+
+// TestAuditLogService_ScopeFilters IP-P0-10：审计查询支持 target_tenant_id / source 过滤；
+// 历史行（source/target 为 NULL）读侧映射 legacy。
+func TestAuditLogService_ScopeFilters(t *testing.T) {
+	client, service, ctx := setupAuditLogTest(t)
+	defer client.Close()
+
+	tenant, err := createAuditLogTestTenant(ctx, client, "scope")
+	require.NoError(t, err)
+
+	seed := func(action, source string, target int) {
+		b := client.AuditLog.Create().
+			SetTenantID(tenant.ID).SetPath("/api/v1/msp/workbench/tickets").
+			SetMethod("POST").SetAction(action)
+		if source != "" {
+			b = b.SetSource(source)
+		}
+		if target > 0 {
+			b = b.SetTargetTenantID(target)
+		}
+		_, err := b.Save(ctx)
+		require.NoError(t, err)
+	}
+	seed("workbench.action", "workbench", 55)
+	seed("auth.login", "login", tenant.ID)
+	seed("view", "", 0) // legacy：source/target 均 NULL
+
+	target := 55
+	resp, err := service.ListAuditLogs(ctx, &dto.ListAuditLogsRequest{TargetTenantID: &target}, tenant.ID)
+	require.NoError(t, err)
+	require.Len(t, resp.Logs, 1)
+	assert.Equal(t, "workbench.action", resp.Logs[0].Action)
+	require.NotNil(t, resp.Logs[0].TargetTenantID)
+	assert.Equal(t, 55, *resp.Logs[0].TargetTenantID)
+
+	resp, err = service.ListAuditLogs(ctx, &dto.ListAuditLogsRequest{Source: "login"}, tenant.ID)
+	require.NoError(t, err)
+	require.Len(t, resp.Logs, 1)
+	assert.Equal(t, "auth.login", resp.Logs[0].Action)
+
+	resp, err = service.ListAuditLogs(ctx, &dto.ListAuditLogsRequest{Source: "legacy"}, tenant.ID)
+	require.NoError(t, err)
+	require.Len(t, resp.Logs, 1)
+	assert.Equal(t, "view", resp.Logs[0].Action)
+	assert.Equal(t, "legacy", resp.Logs[0].Source, "NULL source 读侧映射 legacy")
+}

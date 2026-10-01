@@ -142,6 +142,12 @@ func (s *Service) SwitchTenantWithRevoke(ctx context.Context, userID, tenantID i
 	}
 	if !nativeSwitch && !superAdmin && !mspAllowed {
 		s.logger.Warnw("Switch tenant denied", "user_id", userID, "tenant_id", tenantID, "native_switch", nativeSwitch, "super_admin", superAdmin, "msp_role", string(userEntity.MspRole))
+		middleware.RecordAuthAudit(ctx, s.client, middleware.AuthAuditEntry{
+			UserID: userID, TenantID: userEntity.TenantID, TargetTenantID: tenantID,
+			ActorAccount: userEntity.Username, Source: middleware.AuditSourceSwitch,
+			Action: "tenant.switch_denied", Path: "/api/v1/auth/switch-tenant", Method: "POST",
+			StatusCode: 403, FailureReason: "无权限访问该租户",
+		})
 		return nil, fmt.Errorf("无权限访问该租户")
 	}
 	tenantEntity, err := s.client.Tenant.Get(ctx, tenantID)
@@ -172,7 +178,11 @@ func (s *Service) SwitchTenantWithRevoke(ctx context.Context, userID, tenantID i
 		}
 	}
 	// 审计：tenant.switch（target_tenant 维度可查）。
-	middleware.RecordLoginAudit(ctx, s.client, userID, tenantID, userEntity.Username, "TENANT_SWITCH", "")
+	middleware.RecordAuthAudit(ctx, s.client, middleware.AuthAuditEntry{
+		UserID: userID, TenantID: userEntity.TenantID, TargetTenantID: tenantID,
+		ActorAccount: userEntity.Username, Source: middleware.AuditSourceSwitch,
+		Action: "tenant.switch", Path: "/api/v1/auth/switch-tenant", Method: "POST", StatusCode: 200,
+	})
 	s.logger.Infow("tenant switched",
 		"user_id", userID,
 		"home_tenant_id", userEntity.TenantID,

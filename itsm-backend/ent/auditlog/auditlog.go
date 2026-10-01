@@ -35,6 +35,14 @@ const (
 	FieldStatusCode = "status_code"
 	// FieldRequestBody holds the string denoting the request_body field in the database.
 	FieldRequestBody = "request_body"
+	// FieldActorAccount holds the string denoting the actor_account field in the database.
+	FieldActorAccount = "actor_account"
+	// FieldMembershipID holds the string denoting the membership_id field in the database.
+	FieldMembershipID = "membership_id"
+	// FieldTargetTenantID holds the string denoting the target_tenant_id field in the database.
+	FieldTargetTenantID = "target_tenant_id"
+	// FieldSource holds the string denoting the source field in the database.
+	FieldSource = "source"
 	// Table holds the table name of the auditlog in the database.
 	Table = "audit_logs"
 )
@@ -53,6 +61,10 @@ var Columns = []string{
 	FieldMethod,
 	FieldStatusCode,
 	FieldRequestBody,
+	FieldActorAccount,
+	FieldMembershipID,
+	FieldTargetTenantID,
+	FieldSource,
 }
 
 // ValidColumn reports if the column name is valid (part of the table columns).
@@ -76,6 +88,10 @@ var (
 	DefaultAction string
 	// DefaultStatusCode holds the default value on creation for the "status_code" field.
 	DefaultStatusCode int
+	// ActorAccountValidator is a validator for the "actor_account" field. It is called by the builders before save.
+	ActorAccountValidator func(string) error
+	// SourceValidator is a validator for the "source" field. It is called by the builders before save.
+	SourceValidator func(string) error
 )
 
 // OrderOption defines the ordering options for the AuditLog queries.
@@ -139,4 +155,24 @@ func ByStatusCode(opts ...sql.OrderTermOption) OrderOption {
 // ByRequestBody orders the results by the request_body field.
 func ByRequestBody(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldRequestBody, opts...).ToFunc()
+}
+
+// ByActorAccount orders the results by the actor_account field.
+func ByActorAccount(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldActorAccount, opts...).ToFunc()
+}
+
+// ByMembershipID orders the results by the membership_id field.
+func ByMembershipID(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldMembershipID, opts...).ToFunc()
+}
+
+// ByTargetTenantID orders the results by the target_tenant_id field.
+func ByTargetTenantID(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldTargetTenantID, opts...).ToFunc()
+}
+
+// BySource orders the results by the source field.
+func BySource(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldSource, opts...).ToFunc()
 }

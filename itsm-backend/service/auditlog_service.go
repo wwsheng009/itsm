@@ -57,6 +57,20 @@ func (s *AuditLogService) ListAuditLogs(ctx context.Context, req *dto.ListAuditL
 	if req.RequestID != "" {
 		q = q.Where(auditlog.RequestIDEQ(req.RequestID))
 	}
+	// IP-P0-10：作用域过滤（source=legacy 映射历史 NULL 行；targetTenantId 精确匹配）。
+	if req.ActorAccount != "" {
+		q = q.Where(auditlog.ActorAccountEQ(req.ActorAccount))
+	}
+	if req.TargetTenantID != nil {
+		q = q.Where(auditlog.TargetTenantIDEQ(*req.TargetTenantID))
+	}
+	if req.Source != "" {
+		if req.Source == "legacy" {
+			q = q.Where(auditlog.SourceIsNil())
+		} else {
+			q = q.Where(auditlog.SourceEQ(req.Source))
+		}
+	}
 
 	// 时间范围过滤
 	if req.From != "" {
@@ -119,18 +133,24 @@ func (s *AuditLogService) ListAuditLogs(ctx context.Context, req *dto.ListAuditL
 			body = *it.RequestBody
 		}
 		log := &dto.AuditLog{
-			ID:          it.ID,
-			CreatedAt:   it.CreatedAt,
-			TenantID:    it.TenantID,
-			UserID:      it.UserID,
-			RequestID:   it.RequestID,
-			IP:          it.IP,
-			Resource:    it.Resource,
-			Action:      it.Action,
-			Path:        it.Path,
-			Method:      it.Method,
-			StatusCode:  it.StatusCode,
-			RequestBody: body,
+			ID:           it.ID,
+			CreatedAt:    it.CreatedAt,
+			TenantID:     it.TenantID,
+			UserID:       it.UserID,
+			RequestID:    it.RequestID,
+			IP:           it.IP,
+			Resource:     it.Resource,
+			Action:       it.Action,
+			Path:         it.Path,
+			Method:       it.Method,
+			StatusCode:   it.StatusCode,
+			RequestBody:  body,
+			ActorAccount: it.ActorAccount,
+			Source:       auditLogSource(it.Source),
+		}
+		if it.TargetTenantID > 0 {
+			target := it.TargetTenantID
+			log.TargetTenantID = &target
 		}
 		if it.UserID > 0 {
 			if name, ok := userNameMap[it.UserID]; ok {
@@ -209,18 +229,20 @@ func (s *AuditLogService) GetCIAuditLogs(ctx context.Context, tenantID, ciID, pa
 			body = *it.RequestBody
 		}
 		logs = append(logs, &dto.AuditLog{
-			ID:          it.ID,
-			CreatedAt:   it.CreatedAt,
-			TenantID:    it.TenantID,
-			UserID:      it.UserID,
-			RequestID:   it.RequestID,
-			IP:          it.IP,
-			Resource:    it.Resource,
-			Action:      it.Action,
-			Path:        it.Path,
-			Method:      it.Method,
-			StatusCode:  it.StatusCode,
-			RequestBody: body,
+			ID:           it.ID,
+			CreatedAt:    it.CreatedAt,
+			TenantID:     it.TenantID,
+			UserID:       it.UserID,
+			RequestID:    it.RequestID,
+			IP:           it.IP,
+			Resource:     it.Resource,
+			Action:       it.Action,
+			Path:         it.Path,
+			Method:       it.Method,
+			StatusCode:   it.StatusCode,
+			RequestBody:  body,
+			ActorAccount: it.ActorAccount,
+			Source:       auditLogSource(it.Source),
 		})
 	}
 
@@ -230,4 +252,12 @@ func (s *AuditLogService) GetCIAuditLogs(ctx context.Context, tenantID, ciID, pa
 		Page:     page,
 		PageSize: pageSize,
 	}, nil
+}
+
+// auditLogSource 读侧口径：历史行（NULL/空）统一映射 legacy（§3.0-E）。
+func auditLogSource(source string) string {
+	if source == "" {
+		return "legacy"
+	}
+	return source
 }

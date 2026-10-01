@@ -227,6 +227,100 @@ func (_u *AuditLogUpdate) ClearRequestBody() *AuditLogUpdate {
 	return _u
 }
 
+// SetActorAccount sets the "actor_account" field.
+func (_u *AuditLogUpdate) SetActorAccount(v string) *AuditLogUpdate {
+	_u.mutation.SetActorAccount(v)
+	return _u
+}
+
+// SetNillableActorAccount sets the "actor_account" field if the given value is not nil.
+func (_u *AuditLogUpdate) SetNillableActorAccount(v *string) *AuditLogUpdate {
+	if v != nil {
+		_u.SetActorAccount(*v)
+	}
+	return _u
+}
+
+// ClearActorAccount clears the value of the "actor_account" field.
+func (_u *AuditLogUpdate) ClearActorAccount() *AuditLogUpdate {
+	_u.mutation.ClearActorAccount()
+	return _u
+}
+
+// SetMembershipID sets the "membership_id" field.
+func (_u *AuditLogUpdate) SetMembershipID(v int) *AuditLogUpdate {
+	_u.mutation.ResetMembershipID()
+	_u.mutation.SetMembershipID(v)
+	return _u
+}
+
+// SetNillableMembershipID sets the "membership_id" field if the given value is not nil.
+func (_u *AuditLogUpdate) SetNillableMembershipID(v *int) *AuditLogUpdate {
+	if v != nil {
+		_u.SetMembershipID(*v)
+	}
+	return _u
+}
+
+// AddMembershipID adds value to the "membership_id" field.
+func (_u *AuditLogUpdate) AddMembershipID(v int) *AuditLogUpdate {
+	_u.mutation.AddMembershipID(v)
+	return _u
+}
+
+// ClearMembershipID clears the value of the "membership_id" field.
+func (_u *AuditLogUpdate) ClearMembershipID() *AuditLogUpdate {
+	_u.mutation.ClearMembershipID()
+	return _u
+}
+
+// SetTargetTenantID sets the "target_tenant_id" field.
+func (_u *AuditLogUpdate) SetTargetTenantID(v int) *AuditLogUpdate {
+	_u.mutation.ResetTargetTenantID()
+	_u.mutation.SetTargetTenantID(v)
+	return _u
+}
+
+// SetNillableTargetTenantID sets the "target_tenant_id" field if the given value is not nil.
+func (_u *AuditLogUpdate) SetNillableTargetTenantID(v *int) *AuditLogUpdate {
+	if v != nil {
+		_u.SetTargetTenantID(*v)
+	}
+	return _u
+}
+
+// AddTargetTenantID adds value to the "target_tenant_id" field.
+func (_u *AuditLogUpdate) AddTargetTenantID(v int) *AuditLogUpdate {
+	_u.mutation.AddTargetTenantID(v)
+	return _u
+}
+
+// ClearTargetTenantID clears the value of the "target_tenant_id" field.
+func (_u *AuditLogUpdate) ClearTargetTenantID() *AuditLogUpdate {
+	_u.mutation.ClearTargetTenantID()
+	return _u
+}
+
+// SetSource sets the "source" field.
+func (_u *AuditLogUpdate) SetSource(v string) *AuditLogUpdate {
+	_u.mutation.SetSource(v)
+	return _u
+}
+
+// SetNillableSource sets the "source" field if the given value is not nil.
+func (_u *AuditLogUpdate) SetNillableSource(v *string) *AuditLogUpdate {
+	if v != nil {
+		_u.SetSource(*v)
+	}
+	return _u
+}
+
+// ClearSource clears the value of the "source" field.
+func (_u *AuditLogUpdate) ClearSource() *AuditLogUpdate {
+	_u.mutation.ClearSource()
+	return _u
+}
+
 // Mutation returns the AuditLogMutation object of the builder.
 func (_u *AuditLogUpdate) Mutation() *AuditLogMutation {
 	return _u.mutation
@@ -259,7 +353,25 @@ func (_u *AuditLogUpdate) ExecX(ctx context.Context) {
 	}
 }
 
+// check runs all checks and user-defined validators on the builder.
+func (_u *AuditLogUpdate) check() error {
+	if v, ok := _u.mutation.ActorAccount(); ok {
+		if err := auditlog.ActorAccountValidator(v); err != nil {
+			return &ValidationError{Name: "actor_account", err: fmt.Errorf(`ent: validator failed for field "AuditLog.actor_account": %w`, err)}
+		}
+	}
+	if v, ok := _u.mutation.Source(); ok {
+		if err := auditlog.SourceValidator(v); err != nil {
+			return &ValidationError{Name: "source", err: fmt.Errorf(`ent: validator failed for field "AuditLog.source": %w`, err)}
+		}
+	}
+	return nil
+}
+
 func (_u *AuditLogUpdate) sqlSave(ctx context.Context) (_node int, err error) {
+	if err := _u.check(); err != nil {
+		return _node, err
+	}
 	_spec := sqlgraph.NewUpdateSpec(auditlog.Table, auditlog.Columns, sqlgraph.NewFieldSpec(auditlog.FieldID, field.TypeInt))
 	if ps := _u.mutation.predicates; len(ps) > 0 {
 		_spec.Predicate = func(selector *sql.Selector) {
@@ -321,6 +433,36 @@ func (_u *AuditLogUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 	}
 	if _u.mutation.RequestBodyCleared() {
 		_spec.ClearField(auditlog.FieldRequestBody, field.TypeString)
+	}
+	if value, ok := _u.mutation.ActorAccount(); ok {
+		_spec.SetField(auditlog.FieldActorAccount, field.TypeString, value)
+	}
+	if _u.mutation.ActorAccountCleared() {
+		_spec.ClearField(auditlog.FieldActorAccount, field.TypeString)
+	}
+	if value, ok := _u.mutation.MembershipID(); ok {
+		_spec.SetField(auditlog.FieldMembershipID, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.AddedMembershipID(); ok {
+		_spec.AddField(auditlog.FieldMembershipID, field.TypeInt, value)
+	}
+	if _u.mutation.MembershipIDCleared() {
+		_spec.ClearField(auditlog.FieldMembershipID, field.TypeInt)
+	}
+	if value, ok := _u.mutation.TargetTenantID(); ok {
+		_spec.SetField(auditlog.FieldTargetTenantID, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.AddedTargetTenantID(); ok {
+		_spec.AddField(auditlog.FieldTargetTenantID, field.TypeInt, value)
+	}
+	if _u.mutation.TargetTenantIDCleared() {
+		_spec.ClearField(auditlog.FieldTargetTenantID, field.TypeInt)
+	}
+	if value, ok := _u.mutation.Source(); ok {
+		_spec.SetField(auditlog.FieldSource, field.TypeString, value)
+	}
+	if _u.mutation.SourceCleared() {
+		_spec.ClearField(auditlog.FieldSource, field.TypeString)
 	}
 	if _node, err = sqlgraph.UpdateNodes(ctx, _u.driver, _spec); err != nil {
 		if _, ok := err.(*sqlgraph.NotFoundError); ok {
@@ -541,6 +683,100 @@ func (_u *AuditLogUpdateOne) ClearRequestBody() *AuditLogUpdateOne {
 	return _u
 }
 
+// SetActorAccount sets the "actor_account" field.
+func (_u *AuditLogUpdateOne) SetActorAccount(v string) *AuditLogUpdateOne {
+	_u.mutation.SetActorAccount(v)
+	return _u
+}
+
+// SetNillableActorAccount sets the "actor_account" field if the given value is not nil.
+func (_u *AuditLogUpdateOne) SetNillableActorAccount(v *string) *AuditLogUpdateOne {
+	if v != nil {
+		_u.SetActorAccount(*v)
+	}
+	return _u
+}
+
+// ClearActorAccount clears the value of the "actor_account" field.
+func (_u *AuditLogUpdateOne) ClearActorAccount() *AuditLogUpdateOne {
+	_u.mutation.ClearActorAccount()
+	return _u
+}
+
+// SetMembershipID sets the "membership_id" field.
+func (_u *AuditLogUpdateOne) SetMembershipID(v int) *AuditLogUpdateOne {
+	_u.mutation.ResetMembershipID()
+	_u.mutation.SetMembershipID(v)
+	return _u
+}
+
+// SetNillableMembershipID sets the "membership_id" field if the given value is not nil.
+func (_u *AuditLogUpdateOne) SetNillableMembershipID(v *int) *AuditLogUpdateOne {
+	if v != nil {
+		_u.SetMembershipID(*v)
+	}
+	return _u
+}
+
+// AddMembershipID adds value to the "membership_id" field.
+func (_u *AuditLogUpdateOne) AddMembershipID(v int) *AuditLogUpdateOne {
+	_u.mutation.AddMembershipID(v)
+	return _u
+}
+
+// ClearMembershipID clears the value of the "membership_id" field.
+func (_u *AuditLogUpdateOne) ClearMembershipID() *AuditLogUpdateOne {
+	_u.mutation.ClearMembershipID()
+	return _u
+}
+
+// SetTargetTenantID sets the "target_tenant_id" field.
+func (_u *AuditLogUpdateOne) SetTargetTenantID(v int) *AuditLogUpdateOne {
+	_u.mutation.ResetTargetTenantID()
+	_u.mutation.SetTargetTenantID(v)
+	return _u
+}
+
+// SetNillableTargetTenantID sets the "target_tenant_id" field if the given value is not nil.
+func (_u *AuditLogUpdateOne) SetNillableTargetTenantID(v *int) *AuditLogUpdateOne {
+	if v != nil {
+		_u.SetTargetTenantID(*v)
+	}
+	return _u
+}
+
+// AddTargetTenantID adds value to the "target_tenant_id" field.
+func (_u *AuditLogUpdateOne) AddTargetTenantID(v int) *AuditLogUpdateOne {
+	_u.mutation.AddTargetTenantID(v)
+	return _u
+}
+
+// ClearTargetTenantID clears the value of the "target_tenant_id" field.
+func (_u *AuditLogUpdateOne) ClearTargetTenantID() *AuditLogUpdateOne {
+	_u.mutation.ClearTargetTenantID()
+	return _u
+}
+
+// SetSource sets the "source" field.
+func (_u *AuditLogUpdateOne) SetSource(v string) *AuditLogUpdateOne {
+	_u.mutation.SetSource(v)
+	return _u
+}
+
+// SetNillableSource sets the "source" field if the given value is not nil.
+func (_u *AuditLogUpdateOne) SetNillableSource(v *string) *AuditLogUpdateOne {
+	if v != nil {
+		_u.SetSource(*v)
+	}
+	return _u
+}
+
+// ClearSource clears the value of the "source" field.
+func (_u *AuditLogUpdateOne) ClearSource() *AuditLogUpdateOne {
+	_u.mutation.ClearSource()
+	return _u
+}
+
 // Mutation returns the AuditLogMutation object of the builder.
 func (_u *AuditLogUpdateOne) Mutation() *AuditLogMutation {
 	return _u.mutation
@@ -586,7 +822,25 @@ func (_u *AuditLogUpdateOne) ExecX(ctx context.Context) {
 	}
 }
 
+// check runs all checks and user-defined validators on the builder.
+func (_u *AuditLogUpdateOne) check() error {
+	if v, ok := _u.mutation.ActorAccount(); ok {
+		if err := auditlog.ActorAccountValidator(v); err != nil {
+			return &ValidationError{Name: "actor_account", err: fmt.Errorf(`ent: validator failed for field "AuditLog.actor_account": %w`, err)}
+		}
+	}
+	if v, ok := _u.mutation.Source(); ok {
+		if err := auditlog.SourceValidator(v); err != nil {
+			return &ValidationError{Name: "source", err: fmt.Errorf(`ent: validator failed for field "AuditLog.source": %w`, err)}
+		}
+	}
+	return nil
+}
+
 func (_u *AuditLogUpdateOne) sqlSave(ctx context.Context) (_node *AuditLog, err error) {
+	if err := _u.check(); err != nil {
+		return _node, err
+	}
 	_spec := sqlgraph.NewUpdateSpec(auditlog.Table, auditlog.Columns, sqlgraph.NewFieldSpec(auditlog.FieldID, field.TypeInt))
 	id, ok := _u.mutation.ID()
 	if !ok {
@@ -665,6 +919,36 @@ func (_u *AuditLogUpdateOne) sqlSave(ctx context.Context) (_node *AuditLog, err 
 	}
 	if _u.mutation.RequestBodyCleared() {
 		_spec.ClearField(auditlog.FieldRequestBody, field.TypeString)
+	}
+	if value, ok := _u.mutation.ActorAccount(); ok {
+		_spec.SetField(auditlog.FieldActorAccount, field.TypeString, value)
+	}
+	if _u.mutation.ActorAccountCleared() {
+		_spec.ClearField(auditlog.FieldActorAccount, field.TypeString)
+	}
+	if value, ok := _u.mutation.MembershipID(); ok {
+		_spec.SetField(auditlog.FieldMembershipID, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.AddedMembershipID(); ok {
+		_spec.AddField(auditlog.FieldMembershipID, field.TypeInt, value)
+	}
+	if _u.mutation.MembershipIDCleared() {
+		_spec.ClearField(auditlog.FieldMembershipID, field.TypeInt)
+	}
+	if value, ok := _u.mutation.TargetTenantID(); ok {
+		_spec.SetField(auditlog.FieldTargetTenantID, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.AddedTargetTenantID(); ok {
+		_spec.AddField(auditlog.FieldTargetTenantID, field.TypeInt, value)
+	}
+	if _u.mutation.TargetTenantIDCleared() {
+		_spec.ClearField(auditlog.FieldTargetTenantID, field.TypeInt)
+	}
+	if value, ok := _u.mutation.Source(); ok {
+		_spec.SetField(auditlog.FieldSource, field.TypeString, value)
+	}
+	if _u.mutation.SourceCleared() {
+		_spec.ClearField(auditlog.FieldSource, field.TypeString)
 	}
 	_node = &AuditLog{config: _u.config}
 	_spec.Assign = _node.assignValues

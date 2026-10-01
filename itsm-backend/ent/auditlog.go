@@ -38,7 +38,15 @@ type AuditLog struct {
 	// StatusCode holds the value of the "status_code" field.
 	StatusCode int `json:"status_code,omitempty"`
 	// RequestBody holds the value of the "request_body" field.
-	RequestBody  *string `json:"request_body,omitempty"`
+	RequestBody *string `json:"request_body,omitempty"`
+	// ActorAccount holds the value of the "actor_account" field.
+	ActorAccount string `json:"actor_account,omitempty"`
+	// P1 membership 表落地后填充（IP-P0-1/3）
+	MembershipID int `json:"membership_id,omitempty"`
+	// 跨租户操作的目标租户；同租户时等于 tenant_id
+	TargetTenantID int `json:"target_tenant_id,omitempty"`
+	// login|switch|header|workbench|platform_selected|job|system；NULL=legacy
+	Source       string `json:"source,omitempty"`
 	selectValues sql.SelectValues
 }
 
@@ -47,9 +55,9 @@ func (*AuditLog) scanValues(columns []string) ([]any, error) {
 	values := make([]any, len(columns))
 	for i := range columns {
 		switch columns[i] {
-		case auditlog.FieldID, auditlog.FieldTenantID, auditlog.FieldUserID, auditlog.FieldStatusCode:
+		case auditlog.FieldID, auditlog.FieldTenantID, auditlog.FieldUserID, auditlog.FieldStatusCode, auditlog.FieldMembershipID, auditlog.FieldTargetTenantID:
 			values[i] = new(sql.NullInt64)
-		case auditlog.FieldRequestID, auditlog.FieldIP, auditlog.FieldResource, auditlog.FieldAction, auditlog.FieldPath, auditlog.FieldMethod, auditlog.FieldRequestBody:
+		case auditlog.FieldRequestID, auditlog.FieldIP, auditlog.FieldResource, auditlog.FieldAction, auditlog.FieldPath, auditlog.FieldMethod, auditlog.FieldRequestBody, auditlog.FieldActorAccount, auditlog.FieldSource:
 			values[i] = new(sql.NullString)
 		case auditlog.FieldCreatedAt:
 			values[i] = new(sql.NullTime)
@@ -141,6 +149,30 @@ func (_m *AuditLog) assignValues(columns []string, values []any) error {
 				_m.RequestBody = new(string)
 				*_m.RequestBody = value.String
 			}
+		case auditlog.FieldActorAccount:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field actor_account", values[i])
+			} else if value.Valid {
+				_m.ActorAccount = value.String
+			}
+		case auditlog.FieldMembershipID:
+			if value, ok := values[i].(*sql.NullInt64); !ok {
+				return fmt.Errorf("unexpected type %T for field membership_id", values[i])
+			} else if value.Valid {
+				_m.MembershipID = int(value.Int64)
+			}
+		case auditlog.FieldTargetTenantID:
+			if value, ok := values[i].(*sql.NullInt64); !ok {
+				return fmt.Errorf("unexpected type %T for field target_tenant_id", values[i])
+			} else if value.Valid {
+				_m.TargetTenantID = int(value.Int64)
+			}
+		case auditlog.FieldSource:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field source", values[i])
+			} else if value.Valid {
+				_m.Source = value.String
+			}
 		default:
 			_m.selectValues.Set(columns[i], values[i])
 		}
@@ -211,6 +243,18 @@ func (_m *AuditLog) String() string {
 		builder.WriteString("request_body=")
 		builder.WriteString(*v)
 	}
+	builder.WriteString(", ")
+	builder.WriteString("actor_account=")
+	builder.WriteString(_m.ActorAccount)
+	builder.WriteString(", ")
+	builder.WriteString("membership_id=")
+	builder.WriteString(fmt.Sprintf("%v", _m.MembershipID))
+	builder.WriteString(", ")
+	builder.WriteString("target_tenant_id=")
+	builder.WriteString(fmt.Sprintf("%v", _m.TargetTenantID))
+	builder.WriteString(", ")
+	builder.WriteString("source=")
+	builder.WriteString(_m.Source)
 	builder.WriteByte(')')
 	return builder.String()
 }

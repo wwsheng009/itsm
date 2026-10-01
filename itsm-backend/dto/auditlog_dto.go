@@ -19,6 +19,10 @@ type AuditLog struct {
 	Method      string  `json:"method"`
 	StatusCode  int     `json:"statusCode"`
 	RequestBody string  `json:"requestBody"`
+	// IP-P0-10：作用域字段（source / target_tenant_id / actor_account）。
+	ActorAccount   string `json:"actorAccount,omitempty"`
+	TargetTenantID *int   `json:"targetTenantId,omitempty"`
+	Source         string `json:"source,omitempty"`
 }
 
 // ListAuditLogsRequest 审计日志查询请求参数
@@ -34,6 +38,10 @@ type ListAuditLogsRequest struct {
 	RequestID  string `form:"requestId"`
 	From       string `form:"from"`
 	To         string `form:"to"`
+	// IP-P0-10：按作用域过滤（source 枚举见 middleware.AuditSource*；targetTenantId 精确匹配）。
+	ActorAccount   string `form:"actorAccount"`
+	TargetTenantID *int   `form:"targetTenantId"`
+	Source         string `form:"source"`
 }
 
 // ListAuditLogsResponse 审计日志查询响应结构

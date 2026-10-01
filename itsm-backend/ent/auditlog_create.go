@@ -158,6 +158,62 @@ func (_c *AuditLogCreate) SetNillableRequestBody(v *string) *AuditLogCreate {
 	return _c
 }
 
+// SetActorAccount sets the "actor_account" field.
+func (_c *AuditLogCreate) SetActorAccount(v string) *AuditLogCreate {
+	_c.mutation.SetActorAccount(v)
+	return _c
+}
+
+// SetNillableActorAccount sets the "actor_account" field if the given value is not nil.
+func (_c *AuditLogCreate) SetNillableActorAccount(v *string) *AuditLogCreate {
+	if v != nil {
+		_c.SetActorAccount(*v)
+	}
+	return _c
+}
+
+// SetMembershipID sets the "membership_id" field.
+func (_c *AuditLogCreate) SetMembershipID(v int) *AuditLogCreate {
+	_c.mutation.SetMembershipID(v)
+	return _c
+}
+
+// SetNillableMembershipID sets the "membership_id" field if the given value is not nil.
+func (_c *AuditLogCreate) SetNillableMembershipID(v *int) *AuditLogCreate {
+	if v != nil {
+		_c.SetMembershipID(*v)
+	}
+	return _c
+}
+
+// SetTargetTenantID sets the "target_tenant_id" field.
+func (_c *AuditLogCreate) SetTargetTenantID(v int) *AuditLogCreate {
+	_c.mutation.SetTargetTenantID(v)
+	return _c
+}
+
+// SetNillableTargetTenantID sets the "target_tenant_id" field if the given value is not nil.
+func (_c *AuditLogCreate) SetNillableTargetTenantID(v *int) *AuditLogCreate {
+	if v != nil {
+		_c.SetTargetTenantID(*v)
+	}
+	return _c
+}
+
+// SetSource sets the "source" field.
+func (_c *AuditLogCreate) SetSource(v string) *AuditLogCreate {
+	_c.mutation.SetSource(v)
+	return _c
+}
+
+// SetNillableSource sets the "source" field if the given value is not nil.
+func (_c *AuditLogCreate) SetNillableSource(v *string) *AuditLogCreate {
+	if v != nil {
+		_c.SetSource(*v)
+	}
+	return _c
+}
+
 // Mutation returns the AuditLogMutation object of the builder.
 func (_c *AuditLogCreate) Mutation() *AuditLogMutation {
 	return _c.mutation
@@ -238,6 +294,16 @@ func (_c *AuditLogCreate) check() error {
 	if _, ok := _c.mutation.StatusCode(); !ok {
 		return &ValidationError{Name: "status_code", err: errors.New(`ent: missing required field "AuditLog.status_code"`)}
 	}
+	if v, ok := _c.mutation.ActorAccount(); ok {
+		if err := auditlog.ActorAccountValidator(v); err != nil {
+			return &ValidationError{Name: "actor_account", err: fmt.Errorf(`ent: validator failed for field "AuditLog.actor_account": %w`, err)}
+		}
+	}
+	if v, ok := _c.mutation.Source(); ok {
+		if err := auditlog.SourceValidator(v); err != nil {
+			return &ValidationError{Name: "source", err: fmt.Errorf(`ent: validator failed for field "AuditLog.source": %w`, err)}
+		}
+	}
 	return nil
 }
 
@@ -307,6 +373,22 @@ func (_c *AuditLogCreate) createSpec() (*AuditLog, *sqlgraph.CreateSpec) {
 	if value, ok := _c.mutation.RequestBody(); ok {
 		_spec.SetField(auditlog.FieldRequestBody, field.TypeString, value)
 		_node.RequestBody = &value
+	}
+	if value, ok := _c.mutation.ActorAccount(); ok {
+		_spec.SetField(auditlog.FieldActorAccount, field.TypeString, value)
+		_node.ActorAccount = value
+	}
+	if value, ok := _c.mutation.MembershipID(); ok {
+		_spec.SetField(auditlog.FieldMembershipID, field.TypeInt, value)
+		_node.MembershipID = value
+	}
+	if value, ok := _c.mutation.TargetTenantID(); ok {
+		_spec.SetField(auditlog.FieldTargetTenantID, field.TypeInt, value)
+		_node.TargetTenantID = value
+	}
+	if value, ok := _c.mutation.Source(); ok {
+		_spec.SetField(auditlog.FieldSource, field.TypeString, value)
+		_node.Source = value
 	}
 	return _node, _spec
 }

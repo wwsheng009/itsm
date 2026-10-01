@@ -3,6 +3,7 @@
 package migrate
 
 import (
+	"entgo.io/ent/dialect/entsql"
 	"entgo.io/ent/dialect/sql/schema"
 	"entgo.io/ent/schema/field"
 )
@@ -368,6 +369,10 @@ var (
 		{Name: "method", Type: field.TypeString},
 		{Name: "status_code", Type: field.TypeInt, Default: 0},
 		{Name: "request_body", Type: field.TypeString, Nullable: true, Size: 2147483647},
+		{Name: "actor_account", Type: field.TypeString, Nullable: true, Size: 64},
+		{Name: "membership_id", Type: field.TypeInt, Nullable: true},
+		{Name: "target_tenant_id", Type: field.TypeInt, Nullable: true},
+		{Name: "source", Type: field.TypeString, Nullable: true, Size: 32},
 	}
 	// AuditLogsTable holds the schema information for the "audit_logs" table.
 	AuditLogsTable = &schema.Table{
@@ -2957,6 +2962,16 @@ var (
 				Columns:    []*schema.Column{MspAllocationsColumns[6]},
 				RefColumns: []*schema.Column{UsersColumns[0]},
 				OnDelete:   schema.NoAction,
+			},
+		},
+		Indexes: []*schema.Index{
+			{
+				Name:    "uk_msp_allocation_active",
+				Unique:  true,
+				Columns: []*schema.Column{MspAllocationsColumns[6], MspAllocationsColumns[5]},
+				Annotation: &entsql.IndexAnnotation{
+					Where: "deassigned_at IS NULL",
+				},
 			},
 		},
 	}

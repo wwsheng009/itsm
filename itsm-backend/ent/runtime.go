@@ -677,6 +677,14 @@ func init() {
 	auditlogDescStatusCode := auditlogFields[9].Descriptor()
 	// auditlog.DefaultStatusCode holds the default value on creation for the status_code field.
 	auditlog.DefaultStatusCode = auditlogDescStatusCode.Default.(int)
+	// auditlogDescActorAccount is the schema descriptor for actor_account field.
+	auditlogDescActorAccount := auditlogFields[11].Descriptor()
+	// auditlog.ActorAccountValidator is a validator for the "actor_account" field. It is called by the builders before save.
+	auditlog.ActorAccountValidator = auditlogDescActorAccount.Validators[0].(func(string) error)
+	// auditlogDescSource is the schema descriptor for source field.
+	auditlogDescSource := auditlogFields[14].Descriptor()
+	// auditlog.SourceValidator is a validator for the "source" field. It is called by the builders before save.
+	auditlog.SourceValidator = auditlogDescSource.Validators[0].(func(string) error)
 	bpmnpermissionFields := schema.BPMNPermission{}.Fields()
 	_ = bpmnpermissionFields
 	// bpmnpermissionDescResourceType is the schema descriptor for resource_type field.

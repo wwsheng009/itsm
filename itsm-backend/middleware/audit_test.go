@@ -25,7 +25,7 @@ func TestAuditMiddleware_UserCRUD(t *testing.T) {
 	client := enttest.Open(t, "sqlite3", "file:ent?mode=memory&_fk=1")
 	defer client.Close()
 
-	run := func(method, path, body string) {
+	runCtx := func(method, path, body string, extra func(c *gin.Context, req *http.Request)) {
 		t.Helper()
 		w := httptest.NewRecorder()
 		c, _ := gin.CreateTestContext(w)
@@ -39,10 +39,15 @@ func TestAuditMiddleware_UserCRUD(t *testing.T) {
 		c.Request = req
 		c.Set("tenant_id", 7)
 		c.Set("user_id", 42)
+		c.Set("username", "auditor")
+		if extra != nil {
+			extra(c, req)
+		}
 
 		AuditMiddleware(client)(c)
 		// 中间件已在 c.Next() 后写审计；无需真实 handler
 	}
+	run := func(method, path, body string) { runCtx(method, path, body, nil) }
 
 	t.Run("CreateUser Persists Audit With Masked Password", func(t *testing.T) {
 		run("POST", "/api/v1/users", `{"username":"alice","password":"SuperSecret123!","role":"agent"}`)
@@ -55,6 +60,9 @@ func TestAuditMiddleware_UserCRUD(t *testing.T) {
 			assert.Equal(t, "users", logs[0].Resource)
 			assert.Equal(t, 42, logs[0].UserID)
 			assert.Equal(t, "POST", logs[0].Method)
+			assert.Equal(t, AuditSourceLogin, logs[0].Source)
+			assert.Equal(t, 7, logs[0].TargetTenantID)
+			assert.Equal(t, "auditor", logs[0].ActorAccount)
 			if assert.NotNil(t, logs[0].RequestBody) {
 				assert.Contains(t, *logs[0].RequestBody, "alice")
 				assert.NotContains(t, *logs[0].RequestBody, "SuperSecret123!")
@@ -98,6 +106,38 @@ func TestAuditMiddleware_UserCRUD(t *testing.T) {
 			assert.NotNil(t, logs[0].RequestBody)
 			if logs[0].RequestBody != nil {
 				assert.NotContains(t, *logs[0].RequestBody, "NewPass456!")
+			}
+		}
+	})
+
+	t.Run("Source Derived From Context", func(t *testing.T) {
+		// 显式切换：tenant_source=switch + audit_target_tenant_id。
+		runCtx("POST", "/api/v1/auth/switch-tenant", `{}`, func(c *gin.Context, _ *http.Request) {
+			c.Set("tenant_source", "switch")
+			c.Set("audit_target_tenant_id", 99)
+		})
+		logs, err := client.AuditLog.Query().
+			Where(auditlog.PathEQ("/api/v1/auth/switch-tenant")).
+			All(context.Background())
+		assert.NoError(t, err)
+		if assert.Len(t, logs, 1) {
+			assert.Equal(t, AuditSourceSwitch, logs[0].Source)
+			assert.Equal(t, 99, logs[0].TargetTenantID)
+		}
+
+		// 工作台路径优先判定 workbench；头通道判定 header。
+		run("POST", "/api/v1/msp/workbench/tickets/1/status", `{}`)
+		runCtx("POST", "/api/v1/users", `{}`, func(_ *gin.Context, req *http.Request) {
+			req.Header.Set("X-Tenant-Code", "acme")
+		})
+		for path, want := range map[string]string{
+			"/api/v1/msp/workbench/tickets/1/status": AuditSourceWorkbench,
+			"/api/v1/users":                          AuditSourceHeader,
+		} {
+			logs, err := client.AuditLog.Query().Where(auditlog.PathEQ(path)).All(context.Background())
+			assert.NoError(t, err)
+			if assert.NotEmpty(t, logs) {
+				assert.Equal(t, want, logs[len(logs)-1].Source, path)
 			}
 		}
 	})

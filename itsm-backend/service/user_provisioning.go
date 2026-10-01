@@ -2,11 +2,13 @@ package service
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
 	"os"
 	"strings"
+	"time"
 
 	"go.uber.org/zap"
 
@@ -14,6 +16,7 @@ import (
 	"itsm-backend/dto"
 	"itsm-backend/ent"
 	"itsm-backend/ent/tenant"
+	"itsm-backend/middleware"
 	"itsm-backend/pkg/mspguard"
 	"itsm-backend/pkg/tenantmode"
 )
@@ -169,7 +172,52 @@ func (s *UserProvisioningService) ProvisionUser(ctx context.Context, actor Provi
 		"user_id", created.ID,
 		"role", created.Role,
 	)
+	s.recordProvisionAudit(actor, channel, target.ID, created.ID)
 	return created, nil
+}
+
+// recordProvisionAudit 审计事件 user.provision（IP-P0-10）：source 按通道映射，
+// 审计行归属 actor 家租户，target_tenant_id 指向目标租户。
+func (s *UserProvisioningService) recordProvisionAudit(actor ProvisionActor, channel string, targetTenantID, createdUserID int) {
+	if s.client == nil {
+		return
+	}
+	source := middleware.AuditSourceHeader
+	switch channel {
+	case ProvisionChannelPlatform:
+		source = middleware.AuditSourcePlatformSelected
+	case ProvisionChannelTenant:
+		source = middleware.AuditSourceLogin
+	}
+	rowTenant := actor.HomeTenantID
+	if rowTenant <= 0 {
+		rowTenant = targetTenantID
+	}
+	payload, _ := json.Marshal(map[string]any{
+		"channel":              channel,
+		"actor_user_id":        actor.UserID,
+		"actor_home_tenant_id": actor.HomeTenantID,
+		"target_tenant_id":     targetTenantID,
+		"created_user_id":      createdUserID,
+	})
+	auditCtx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+	if _, err := s.client.AuditLog.Create().
+		SetCreatedAt(time.Now()).
+		SetTenantID(rowTenant).
+		SetUserID(actor.UserID).
+		SetActorAccount(actor.Username).
+		SetTargetTenantID(targetTenantID).
+		SetSource(source).
+		SetResource("user").
+		SetAction("user.provision").
+		SetPath("/api/v1/msp/customers/:id/users").
+		SetMethod("POST").
+		SetStatusCode(201).
+		SetRequestBody(string(payload)).
+		Save(auditCtx); err != nil && s.logger != nil {
+		s.logger.Warnw("provision audit write failed", "error", err, "target_tenant_id", targetTenantID)
+	}
 }
 
 // resolveChannel 依调用方与目标租户解析通道；不满足任何通道 → CROSS_TENANT_FORBIDDEN。

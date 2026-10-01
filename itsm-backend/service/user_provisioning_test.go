@@ -11,6 +11,7 @@ import (
 
 	"itsm-backend/dto"
 	"itsm-backend/ent"
+	"itsm-backend/ent/auditlog"
 	"itsm-backend/ent/enttest"
 	"itsm-backend/ent/tenant"
 	"itsm-backend/ent/user"
@@ -70,6 +71,15 @@ func TestProvisioningService_Channels(t *testing.T) {
 		created, err := prov.ProvisionUser(ctx, platformActor, provider.ID, r)
 		require.NoError(t, err)
 		assert.Equal(t, provider.ID, created.TenantID)
+
+		// IP-P0-10：建号落 user.provision 审计（source=platform_selected，target=目标租户）。
+		logs, err := client.AuditLog.Query().Where(auditlog.ActionEQ("user.provision")).All(ctx)
+		require.NoError(t, err)
+		require.Len(t, logs, 1)
+		assert.Equal(t, "platform_selected", logs[0].Source)
+		assert.Equal(t, platform.ID, logs[0].TenantID)
+		assert.Equal(t, provider.ID, logs[0].TargetTenantID)
+		assert.Equal(t, "root", logs[0].ActorAccount)
 	})
 
 	t.Run("tenant channel admin creates end_user in own tenant", func(t *testing.T) {

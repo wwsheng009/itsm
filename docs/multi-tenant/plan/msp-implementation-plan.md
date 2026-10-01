@@ -393,6 +393,19 @@ C2 · 客户租户内 msp 角色基线（Q7 合同形态 → 客户侧业务权�
 
 **回滚**：字段为新增列，停止写入即可。
 
+**进度（2026-09-30）**：✅ 审计作用域字段/事件目录/`source` 枚举与查询过滤已落地。
+
+- 列（B3）：`actor_account` / `membership_id` / `target_tenant_id` / `source`（全部可空；历史行 NULL 读侧映射 `legacy`）+ `idx_audit_scope`；DDL `itsm-backend/migrations/20260503_audit_scope_columns.sql`（Ent schema 同步）。
+- 写入方统一（source 枚举 `login|switch|header|workbench|platform_selected|job|system`）：
+  - 认证：`auth.login`（成功/失败）、`tenant.switch` / `tenant.switch_denied`（source=switch，target=目标租户）；
+  - 工作台：`workbench.action`（source=workbench，行归属 actor 家租户、target=客户租户）、`tenant.scope_denied`（显式请求未分配客户时逐租户记录）；
+  - 建号：`user.provision`（source 按通道：platform→`platform_selected` / msp→`header` / tenant→`login`，target=目标租户）；
+  - 通用 API 审计（`AuditMiddleware`）：按上下文派生 source（workbench 路径 > switch > 头通道 > login > system），`target_tenant_id` 默认同 `tenant_id`。
+- 查询：`GET /api/v1/audit-logs` 新增 `targetTenantId` / `source`（`legacy`→NULL 历史行）/ `actorAccount` 过滤。
+- `membership_id` 列已建、P1 起填充（IP-P1-1 后随 membership 落库）。
+- 测试：`middleware`（字段 + source 派生）、`service`（作用域过滤 + 工作台审计列断言）、`handlers/common`/`handlers/auth` 回归全绿。
+- 文档：05 使用指南回填工作台/过滤器与审计作用域口径；事件目录仍以本文 §3.0-E 为权威。
+
 ### IP-P0-11 执行器/定时器租户上下文统一（I7；集成分析 §5.2；canon §8 P0 ⑤）
 
 **目标**：所有后台执行路径（BPMN/工作流、定时器/延迟任务、自动化规则、升级矩阵、队列消费者）在**显式租户 ctx** 下运行；无 ctx 即拒绝执行，禁止"无租户上下文旁路"。
@@ -542,7 +555,7 @@ CREATE INDEX idx_invitations_expiry ON invitations (expires_at) WHERE status = '
 - [x] **建号**：三通道 `UserProvisioningService` 生效；`07:G1`/K4 关闭（2026-09-30）；角色白名单与注册白名单生效（`07:G2` 归 IP-P1-5）；
 - [x] **角色供给**：新 provider 租户 seed 后 5 个 `msp_*` 角色权限齐备（K1/K2 关闭，2026-09-30）；`07:G3` 关闭（登录 rank 取最大 + roleRank 单源）；
 - [ ] **前端**：FE-A1–A8；登录页 DOM 无租户列表；客户账号无过滤器/切换器/工作台节点；
-- [ ] **契约**：错误码/DDL/审计事件与 §3.0 一致；`07:G1–G10` 映射表（§3.0-F）无遗漏；
+- [x] **契约**：错误码/DDL/审计事件与 §3.0 一致（审计作用域列 + 事件目录 + source 枚举，2026-09-30；`membership_id` 填充随 IP-P1-1）；`07:G1–G10` 映射表（§3.0-F）无遗漏；
 - [ ] **门禁**：docs-gate 6/6（含 C.6 语义锚点）；`make test` 全绿；三角色剧本 P0 项全过。
 
 ### 6.3 P1 出口 DoD
@@ -666,3 +679,4 @@ CREATE INDEX idx_invitations_expiry ON invitations (expires_at) WHERE status = '
 | v1.7 | 2026-09-30 | **IP-P0-6 登录/切换/刷新契约落地（F10/F11a/F12/G9 关闭）**：登录落 home + `tenantSelection`；切换重签 `tenant_source=switch`、撤销旧 refresh、审计、响应 `user.tenantId=目标`；refresh 按 claim 重签 + `TENANT_ACCESS_REVOKED`；`/auth/tenants` = home∪allocation∪平台全量；头冲突 `TENANT_MISMATCH_REJECTED` |
 | v1.8 | 2026-09-30 | **IP-P0-9 角色供给显式化落地（K1/K2/07:G3 关闭）**：5 个 `msp_*` 入内置词表 + seeder 角色种子；`middleware.RoleRank` 单源（登录取主角色/MSP 映射 rank 更高者）；脚本 §5 降级为校验 + `MSP_ROLE_SQL_FALLBACK` 兜底；tests/parity 矩阵对拍守卫 |
 | v1.9 | 2026-09-30 | **IP-P0-7 工作台后端落地**：列表/summary/reply/status 四端点 + 条目级授权链 + `allowedActions[]` + per-tenant 复合游标 + 逐条审计（source=workbench/target_tenant）+ 工作台索引 DDL；前端链路归 IP-P0-8 |
+| v1.10 | 2026-09-30 | **IP-P0-10 审计统一落地**：`audit_logs` 四列（actor_account/membership_id/target_tenant_id/source）+ `idx_audit_scope`；事件目录 `auth.login`/`tenant.switch(-_denied)`/`tenant.scope_denied`/`workbench.action`/`user.provision` 与 source 枚举写入；审计查询支持 targetTenantId/source（legacy=历史 NULL）/actorAccount；`membership_id` 填充随 IP-P1-1 |

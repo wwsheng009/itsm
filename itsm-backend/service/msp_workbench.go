@@ -110,6 +110,9 @@ func (s *MSPWorkbenchService) ListTickets(ctx context.Context, actor MSPWorkbenc
 	}
 	tenantIDs, err := s.normalizeTenantSet(req.CustomerTenantIDs, actor.AllowedCustomers)
 	if err != nil {
+		if ae, ok := AsCustomerAccessError(err); ok && ae.Code == CodeMSPAllocationRequired {
+			s.recordScopeDenied(actor, req.CustomerTenantIDs)
+		}
 		return nil, err
 	}
 	sortKey := req.Sort
@@ -560,32 +563,82 @@ func (s *MSPWorkbenchService) ensureAllocated(actor MSPWorkbenchActor, tenantID 
 	return NewCustomerAccessError(CodeMSPAllocationRequired, "目标客户未分配或不可访问")
 }
 
-// recordWorkbenchAudit 跨租户写逐条审计（source=workbench + target_tenant_id）。
-func (s *MSPWorkbenchService) recordWorkbenchAudit(actor MSPWorkbenchActor, action string, tenantID, ticketID int, outcome string) {
+// recordWorkbenchAudit 跨租户写逐条审计（事件 workbench.action；source/target_tenant_id/actor_account 落列）。
+func (s *MSPWorkbenchService) recordWorkbenchAudit(actor MSPWorkbenchActor, op string, tenantID, ticketID int, outcome string) {
 	if s.client == nil {
 		return
 	}
 	payload, _ := json.Marshal(map[string]any{
 		"source":               "workbench",
+		"op":                   op,
 		"actor_user_id":        actor.UserID,
 		"actor_home_tenant_id": actor.HomeTenantID,
 		"target_tenant_id":     tenantID,
 		"ticket_id":            ticketID,
 		"outcome":              outcome,
 	})
+	rowTenant := actor.HomeTenantID
+	if rowTenant <= 0 {
+		rowTenant = tenantID
+	}
 	auditCtx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 	defer cancel()
 	if _, err := s.client.AuditLog.Create().
 		SetCreatedAt(time.Now()).
-		SetTenantID(tenantID).
+		SetTenantID(rowTenant).
 		SetUserID(actor.UserID).
+		SetActorAccount(actor.Username).
+		SetTargetTenantID(tenantID).
+		SetSource(middleware.AuditSourceWorkbench).
 		SetResource("msp_ticket").
-		SetAction("WORKBENCH_" + strings.ToUpper(action)).
+		SetAction("workbench.action").
 		SetPath("/api/v1/msp/workbench/tickets").
 		SetMethod("POST").
 		SetStatusCode(map[bool]int{true: 200, false: 403}[outcome == "success"]).
 		SetRequestBody(string(payload)).
 		Save(auditCtx); err != nil && s.logger != nil {
-		s.logger.Warnw("workbench audit write failed", "error", err, "action", action, "ticket_id", ticketID)
+		s.logger.Warnw("workbench audit write failed", "error", err, "op", op, "ticket_id", ticketID)
+	}
+}
+
+// recordScopeDenied 显式请求未分配客户 → 审计 tenant.scope_denied（防枚举：逐租户记录，不泄露存在性）。
+func (s *MSPWorkbenchService) recordScopeDenied(actor MSPWorkbenchActor, requested []int) {
+	if s.client == nil || len(requested) == 0 {
+		return
+	}
+	allowed := make(map[int]bool, len(actor.AllowedCustomers))
+	for _, id := range actor.AllowedCustomers {
+		allowed[id] = true
+	}
+	for _, tid := range requested {
+		if tid <= 0 || allowed[tid] {
+			continue
+		}
+		payload, _ := json.Marshal(map[string]any{
+			"source":               "workbench",
+			"op":                   "scope_denied",
+			"actor_user_id":        actor.UserID,
+			"actor_home_tenant_id": actor.HomeTenantID,
+			"target_tenant_id":     tid,
+		})
+		auditCtx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+		_, err := s.client.AuditLog.Create().
+			SetCreatedAt(time.Now()).
+			SetTenantID(actor.HomeTenantID).
+			SetUserID(actor.UserID).
+			SetActorAccount(actor.Username).
+			SetTargetTenantID(tid).
+			SetSource(middleware.AuditSourceWorkbench).
+			SetResource("msp_customer").
+			SetAction("tenant.scope_denied").
+			SetPath("/api/v1/msp/workbench/tickets").
+			SetMethod("GET").
+			SetStatusCode(403).
+			SetRequestBody(string(payload)).
+			Save(auditCtx)
+		cancel()
+		if err != nil && s.logger != nil {
+			s.logger.Warnw("workbench scope-denied audit write failed", "error", err, "target_tenant_id", tid)
+		}
 	}
 }

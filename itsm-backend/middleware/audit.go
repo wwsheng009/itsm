@@ -21,22 +21,56 @@ func WithLoginAuditRequest(ctx context.Context, ip, userAgent string) context.Co
 	return context.WithValue(ctx, loginAuditRequestKey{}, LoginAuditRequest{IP: ip, UserAgent: userAgent})
 }
 
-// RecordLoginAudit writes only explicitly allow-listed authentication metadata.
+// 审计 source 枚举（IP-P0-10 / §3.0-E canonical；NULL=legacy 仅历史行）。
+const (
+	AuditSourceLogin            = "login"
+	AuditSourceSwitch           = "switch"
+	AuditSourceHeader           = "header"
+	AuditSourceWorkbench        = "workbench"
+	AuditSourcePlatformSelected = "platform_selected"
+	AuditSourceJob              = "job"
+	AuditSourceSystem           = "system"
+)
+
+// AuthAuditEntry 认证/会话类审计事件（login/switch 及拒绝事件；事件名以 §3.0-E 为准）。
+type AuthAuditEntry struct {
+	UserID         int
+	TenantID       int // 审计行归属租户（通常为 actor 家租户）
+	TargetTenantID int // 跨租户目标（切换/条目级操作）
+	ActorAccount   string
+	Source         string
+	Action         string // 事件目录：auth.login / tenant.switch / tenant.switch_denied ...
+	Path           string
+	Method         string
+	StatusCode     int
+	FailureReason  string
+}
+
+// RecordAuthAudit writes only explicitly allow-listed authentication metadata.
 // Passwords and issued/reset tokens are never accepted by this API.
-func RecordLoginAudit(ctx context.Context, client *ent.Client, userID, tenantID int, username, action, failureReason string) {
+func RecordAuthAudit(ctx context.Context, client *ent.Client, e AuthAuditEntry) {
 	if client == nil {
 		return
 	}
 	req, _ := ctx.Value(loginAuditRequestKey{}).(LoginAuditRequest)
-	payload, _ := json.Marshal(map[string]string{"username": username, "userAgent": req.UserAgent, "failureReason": failureReason})
+	payload, _ := json.Marshal(map[string]string{"username": e.ActorAccount, "userAgent": req.UserAgent, "failureReason": e.FailureReason})
 	auditCtx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 	defer cancel()
-	err := client.AuditLog.Create().SetCreatedAt(time.Now()).SetTenantID(tenantID).SetUserID(userID).
-		SetIP(req.IP).SetResource("auth").SetAction(action).SetPath("/api/v1/auth/login").
-		SetMethod("POST").SetStatusCode(map[bool]int{true: 200, false: 401}[action == "LOGIN_SUCCESS"]).
-		SetRequestBody(string(payload)).Exec(auditCtx)
-	if err != nil && globalLogger != nil {
-		globalLogger.Errorw("failed to save login audit", "error", err, "action", action)
+	create := client.AuditLog.Create().SetCreatedAt(time.Now()).
+		SetUserID(e.UserID).SetIP(req.IP).SetResource("auth").SetAction(e.Action).
+		SetPath(e.Path).SetMethod(e.Method).SetStatusCode(e.StatusCode).
+		SetRequestBody(string(payload)).SetSource(e.Source)
+	if e.TenantID > 0 {
+		create = create.SetTenantID(e.TenantID)
+	}
+	if e.TargetTenantID > 0 {
+		create = create.SetTargetTenantID(e.TargetTenantID)
+	}
+	if e.ActorAccount != "" {
+		create = create.SetActorAccount(e.ActorAccount)
+	}
+	if err := create.Exec(auditCtx); err != nil && globalLogger != nil {
+		globalLogger.Errorw("failed to save auth audit", "error", err, "action", e.Action)
 	}
 }
 
@@ -152,6 +186,13 @@ func AuditMiddleware(client *ent.Client) gin.HandlerFunc {
 		// 检查是否为敏感操作
 		isSensitive := isSensitiveOperation(action, resource, status)
 
+		// IP-P0-10：作用域字段（source / target_tenant_id / actor_account）。
+		source := auditSourceForRequest(c)
+		targetTenantID := c.GetInt("audit_target_tenant_id")
+		if targetTenantID <= 0 {
+			targetTenantID = tenantID
+		}
+
 		// 审计记录是企业合规数据，不能使用无确认的 goroutine（进程退出时会静默丢失）。
 		auditCtx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 		defer cancel()
@@ -166,7 +207,14 @@ func AuditMiddleware(client *ent.Client) gin.HandlerFunc {
 			SetStatusCode(status).
 			SetResource(resource).
 			SetAction(action).
-			SetRequestBody(requestBody)
+			SetRequestBody(requestBody).
+			SetSource(source)
+		if targetTenantID > 0 {
+			auditCreate = auditCreate.SetTargetTenantID(targetTenantID)
+		}
+		if username != "" {
+			auditCreate = auditCreate.SetActorAccount(username)
+		}
 
 		err := auditCreate.Exec(auditCtx)
 		if err != nil && globalLogger != nil {
@@ -190,6 +238,8 @@ func AuditMiddleware(client *ent.Client) gin.HandlerFunc {
 			"latency_ms", duration.Milliseconds(),
 			"success", status < 400,
 			"sensitive", isSensitive,
+			"audit_source", source,
+			"target_tenant_id", targetTenantID,
 		}
 
 		if globalLogger != nil {
@@ -200,6 +250,26 @@ func AuditMiddleware(client *ent.Client) gin.HandlerFunc {
 			}
 		}
 	}
+}
+
+// auditSourceForRequest 派生本轮请求的租户上下文来源（§3.0-E 枚举；写死优先级，禁止调用方误传）。
+func auditSourceForRequest(c *gin.Context) string {
+	if v := c.GetString("audit_source"); v != "" {
+		return v
+	}
+	if strings.Contains(c.Request.URL.Path, "/workbench") {
+		return AuditSourceWorkbench
+	}
+	if c.GetString("tenant_source") == "switch" {
+		return AuditSourceSwitch
+	}
+	if c.GetHeader("X-Customer-Tenant-ID") != "" || c.GetHeader("X-Tenant-Code") != "" {
+		return AuditSourceHeader
+	}
+	if c.GetInt("user_id") > 0 {
+		return AuditSourceLogin
+	}
+	return AuditSourceSystem
 }
 
 // shouldAuditRequest 判断是否需要审计请求
