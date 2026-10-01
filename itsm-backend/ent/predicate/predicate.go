@@ -183,6 +183,9 @@ type IncidentRule func(*sql.Selector)
 // IncidentRuleExecution is the predicate function for incidentruleexecution builders.
 type IncidentRuleExecution func(*sql.Selector)
 
+// Invitation is the predicate function for invitation builders.
+type Invitation func(*sql.Selector)
+
 // ItemVersion is the predicate function for itemversion builders.
 type ItemVersion func(*sql.Selector)
 

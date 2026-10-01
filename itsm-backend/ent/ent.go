@@ -65,6 +65,7 @@ import (
 	"itsm-backend/ent/incidentmetric"
 	"itsm-backend/ent/incidentrule"
 	"itsm-backend/ent/incidentruleexecution"
+	"itsm-backend/ent/invitation"
 	"itsm-backend/ent/itemversion"
 	"itsm-backend/ent/knowledgearticle"
 	"itsm-backend/ent/knowledgearticlelike"
@@ -280,6 +281,7 @@ func checkColumn(t, c string) error {
 			incidentmetric.Table:              incidentmetric.ValidColumn,
 			incidentrule.Table:                incidentrule.ValidColumn,
 			incidentruleexecution.Table:       incidentruleexecution.ValidColumn,
+			invitation.Table:                  invitation.ValidColumn,
 			itemversion.Table:                 itemversion.ValidColumn,
 			knowledgearticle.Table:            knowledgearticle.ValidColumn,
 			knowledgearticlelike.Table:        knowledgearticlelike.ValidColumn,

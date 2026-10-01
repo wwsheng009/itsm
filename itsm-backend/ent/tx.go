@@ -130,6 +130,8 @@ type Tx struct {
 	IncidentRule *IncidentRuleClient
 	// IncidentRuleExecution is the client for interacting with the IncidentRuleExecution builders.
 	IncidentRuleExecution *IncidentRuleExecutionClient
+	// Invitation is the client for interacting with the Invitation builders.
+	Invitation *InvitationClient
 	// ItemVersion is the client for interacting with the ItemVersion builders.
 	ItemVersion *ItemVersionClient
 	// KnowledgeArticle is the client for interacting with the KnowledgeArticle builders.
@@ -500,6 +502,7 @@ func (tx *Tx) init() {
 	tx.IncidentMetric = NewIncidentMetricClient(tx.config)
 	tx.IncidentRule = NewIncidentRuleClient(tx.config)
 	tx.IncidentRuleExecution = NewIncidentRuleExecutionClient(tx.config)
+	tx.Invitation = NewInvitationClient(tx.config)
 	tx.ItemVersion = NewItemVersionClient(tx.config)
 	tx.KnowledgeArticle = NewKnowledgeArticleClient(tx.config)
 	tx.KnowledgeArticleLike = NewKnowledgeArticleLikeClient(tx.config)

@@ -62,6 +62,7 @@ import (
 	"itsm-backend/ent/incidentmetric"
 	"itsm-backend/ent/incidentrule"
 	"itsm-backend/ent/incidentruleexecution"
+	"itsm-backend/ent/invitation"
 	"itsm-backend/ent/itemversion"
 	"itsm-backend/ent/knowledgearticle"
 	"itsm-backend/ent/knowledgearticlelike"
@@ -2835,6 +2836,44 @@ func init() {
 	incidentruleexecution.DefaultUpdatedAt = incidentruleexecutionDescUpdatedAt.Default.(func() time.Time)
 	// incidentruleexecution.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
 	incidentruleexecution.UpdateDefaultUpdatedAt = incidentruleexecutionDescUpdatedAt.UpdateDefault.(func() time.Time)
+	invitationFields := schema.Invitation{}.Fields()
+	_ = invitationFields
+	// invitationDescTokenHash is the schema descriptor for token_hash field.
+	invitationDescTokenHash := invitationFields[1].Descriptor()
+	// invitation.TokenHashValidator is a validator for the "token_hash" field. It is called by the builders before save.
+	invitation.TokenHashValidator = invitationDescTokenHash.Validators[0].(func(string) error)
+	// invitationDescEmail is the schema descriptor for email field.
+	invitationDescEmail := invitationFields[2].Descriptor()
+	// invitation.EmailValidator is a validator for the "email" field. It is called by the builders before save.
+	invitation.EmailValidator = func() func(string) error {
+		validators := invitationDescEmail.Validators
+		fns := [...]func(string) error{
+			validators[0].(func(string) error),
+			validators[1].(func(string) error),
+		}
+		return func(email string) error {
+			for _, fn := range fns {
+				if err := fn(email); err != nil {
+					return err
+				}
+			}
+			return nil
+		}
+	}()
+	// invitationDescMspRole is the schema descriptor for msp_role field.
+	invitationDescMspRole := invitationFields[5].Descriptor()
+	// invitation.MspRoleValidator is a validator for the "msp_role" field. It is called by the builders before save.
+	invitation.MspRoleValidator = invitationDescMspRole.Validators[0].(func(string) error)
+	// invitationDescCreatedAt is the schema descriptor for created_at field.
+	invitationDescCreatedAt := invitationFields[11].Descriptor()
+	// invitation.DefaultCreatedAt holds the default value on creation for the created_at field.
+	invitation.DefaultCreatedAt = invitationDescCreatedAt.Default.(func() time.Time)
+	// invitationDescUpdatedAt is the schema descriptor for updated_at field.
+	invitationDescUpdatedAt := invitationFields[12].Descriptor()
+	// invitation.DefaultUpdatedAt holds the default value on creation for the updated_at field.
+	invitation.DefaultUpdatedAt = invitationDescUpdatedAt.Default.(func() time.Time)
+	// invitation.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
+	invitation.UpdateDefaultUpdatedAt = invitationDescUpdatedAt.UpdateDefault.(func() time.Time)
 	itemversionFields := schema.ItemVersion{}.Fields()
 	_ = itemversionFields
 	// itemversionDescDownloadCount is the schema descriptor for download_count field.
