@@ -65,6 +65,7 @@ import (
 	globalSearchHandler "itsm-backend/handlers/global_search"
 	groupHandler "itsm-backend/handlers/group"
 	"itsm-backend/handlers/incident"
+	invitationHandler "itsm-backend/handlers/invitation"
 	"itsm-backend/handlers/knowledge"
 	"itsm-backend/handlers/known_error"
 	mcpHandler "itsm-backend/handlers/mcp"
@@ -1267,6 +1268,9 @@ func NewApplication() *Application {
 	// 灰度开关 USER_PROVISIONING_CHANNELS_ENABLED（默认关，关闭时可回退 legacy 建号逻辑）。
 	userProvisioningService := service.NewUserProvisioningService(client, userService, sugar)
 	userHTTPHandler.SetProvisioningService(userProvisioningService)
+	// IP-P1-4b 邀请生命周期：服务 + HTTP（创建/撤销走用户组，落地页/接受走公开 auth 组）。
+	invitationService := service.NewInvitationService(client, userService, sugar)
+	invitationHTTPHandler := invitationHandler.NewHandler(invitationService, sugar)
 
 	// Group Handler
 	groupService := service.NewGroupService(client)
@@ -1415,6 +1419,7 @@ func NewApplication() *Application {
 		// Additional controllers
 		ProvisioningHandler: provisioningHandler.NewHandler(provisioningService, sugar),
 		UserHandler:         userHTTPHandler,
+		InvitationHandler:   invitationHTTPHandler,
 		GroupHandler:        groupHTTPHandler,
 
 		// RBAC and tenant handlers

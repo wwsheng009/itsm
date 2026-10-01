@@ -565,12 +565,13 @@ CREATE INDEX idx_invitations_expiry ON invitations (expires_at) WHERE status = '
 - IP-P1-3b（本批收口）：组织唯一约束租户化——team/group 名称、project 代码收敛为 `(tenant_id, ...)` 唯一（迁移 20260506；project 去全局唯一，team 部分唯一 `WHERE deleted_at IS NULL`）；跨租户同名/同码可共存、同租户重复被 DB 拒绝、team 软删可重名；`service/org_unique_constraint_test.go` 断言。
 - 边界：组织表 RLS 与 guard 一致性扫描归 IP-P1-7 / IP-P2-5。
 
-**进度（2026-09-30）**：🟡 **IP-P1-4 邀请生命周期（服务层）落地**（handlers/落地页路由归 IP-P1-4b）。
+**进度（2026-09-30）**：✅ **IP-P1-4 邀请生命周期（后端闭环：服务 + API）**；前端落地页 + e2e 归 IP-P1-4c。
 
 - 表：`invitations`（§4.0-C 契约冻结）+ `migrations/20260507_create_invitations(.sql/_down.sql)`（token_hash UNIQUE、`uq_invitation_pending` 按 `lower(email)` 部分唯一、tenant/status 与 expiry 索引）。
 - 服务：`service/invitation_service.go`——`Create`（platform/tenant/msp 三通道授权 + rank 上限；`super_admin/sysadmin` 不可被邀请；msp_role 白名单；重发 = 旧邀请置 revoked；token 128-bit 随机仅存 sha256；SMTP 未配置返回 `inviteUrl` + `emailSent=false`；审计 `user.invite`）、`Accept`（一次性：pending ∧ 未过期；事务内建号/绑定已有账号 + membership `source=invite` + 置 accepted；`channel=invite` 显式建号通道；审计 `user.invite_accept`）、`Revoke`（仅 pending）、`Inspect`（邮箱脱敏最小回显）。
 - 测试：`TestInvitationService_*` 5 组（创建+接受全链路与审计、白名单/rank/msp_role 守卫、过期/撤销/重发失效、绑定已有账号、跨租户禁止）；`go generate ./ent`、`go build ./...`、`cmd/migration-lint`、docs-gate 全绿。
-- 边界：API 路由 `GET /api/v1/auth/invitations/:token`、`POST /api/v1/auth/invitations/:token/accept`、`POST /api/v1/users/invitations/:id/revoke` 归 IP-P1-4b；invitations RLS policy 归 IP-P1-7。
+- IP-P1-4b（API 层）：`handlers/invitation/handler.go` 四端点——`POST /api/v1/users/invitations`（认证 + `user:write`；`tenantId` 省略取当前租户）、`POST /api/v1/users/invitations/:id/revoke`（认证 + `user:write`）、`GET /api/v1/auth/invitations/:token`（公开，最小回显）、`POST /api/v1/auth/invitations/:token/accept`（公开 + 登录限流）；邀请域错误码映射（`INVITATION_*` → 404/409/410/422/403）；`inviteUrl` 直返调用方（SMTP 未配置）。装配于 `internal/bootstrap/app.go`，路由注册独立于 UserHandler 接线。测试：`handlers/invitation` 全链路 HTTP 契约（创建→回显→接受→重放 409→撤销→410→非法 token 404）+ `router` 路由契约各 1 组。
+- 边界：前端邀请落地页/设置密码页 + e2e 邀请→首登链路归 IP-P1-4c（依赖 IP-P1-5 首登契约）；invitations RLS policy 归 IP-P1-7。
 
 ---
 
@@ -744,3 +745,4 @@ CREATE INDEX idx_invitations_expiry ON invitations (expires_at) WHERE status = '
 | v1.15 | 2026-09-30 | **IP-P1-3a 组织挂 membership 落地**：`user_tenant_membership_orgs` 子表（§4.0-A：多态 org_type + 生效期/主组织/软删）+ 复合 FK `(membership_id, tenant_id)` + department/team/group 回填 + `MembershipOrgService` 应用层同租户强校验（跨租户拒绝 A5）+ 4 组测试 + 8 节巡检脚本；组织唯一约束 `(tenant_id, code/name)` 拆分为 IP-P1-3b |
 | v1.16 | 2026-09-30 | **IP-P1-3b 组织唯一约束租户化**：team/group 名称 + project 代码收敛为 `(tenant_id, ...)` 唯一（迁移 20260506；project 去全局唯一、team 部分唯一软删可重名）；跨租户同名/同码共存 + 同租户重复拒绝断言；IP-P1-3 批次收口（A5 数据面完成） |
 | v1.17 | 2026-09-30 | **IP-P1-4a 邀请生命周期（服务层）**：`invitations` 表（§4.0-C）+ 迁移 20260507 + `InvitationService`（创建/接受/撤销/回显；token 仅存 sha256、重发失效、事务建号 + membership source=invite、审计 user.invite / user.invite_accept）+ 5 组测试；路由/落地页归 IP-P1-4b |
+| v1.18 | 2026-09-30 | **IP-P1-4b 邀请 API（后端闭环）**：`handlers/invitation` 四端点（创建/撤销认证 + `user:write`；落地页/接受公开 + 限流）+ 邀请域错误码映射 + bootstrap 装配；HTTP 契约测试与路由契约测试全绿；前端落地页/e2e 归 IP-P1-4c |

@@ -41,6 +41,7 @@ import (
 	globalSearchHandler "itsm-backend/handlers/global_search"
 	groupHandler "itsm-backend/handlers/group"
 	incidentHandler "itsm-backend/handlers/incident"
+	invitationHandler "itsm-backend/handlers/invitation"
 	"itsm-backend/handlers/knowledge"
 	"itsm-backend/handlers/known_error"
 	marketplaceHandler "itsm-backend/handlers/marketplace"
@@ -171,6 +172,9 @@ type RouterConfig struct {
 
 	// User Handler
 	UserHandler *usersHandler.UserHandler
+
+	// Invitation Handler（IP-P1-4b）
+	InvitationHandler *invitationHandler.Handler
 
 	// Group Handler
 	GroupHandler *groupHandler.Handler
@@ -324,6 +328,12 @@ func SetupRoutes(r *gin.Engine, config *RouterConfig) {
 			// 密码策略公开只读端点：注册/登录/找回密码等未登录页面据此渲染规则，
 			// 与 /admin/system-config 保存的策略同源。
 			public.GET("/auth/password-policy", config.AuthHandler.PasswordPolicy)
+		}
+
+		// 邀请落地页/接受（公开；IP-P1-4b §4.0-C）
+		if config.InvitationHandler != nil {
+			public.GET("/auth/invitations/:token", config.InvitationHandler.Inspect)
+			public.POST("/auth/invitations/:token/accept", middleware.LoginRateLimiter(), config.InvitationHandler.Accept)
 		}
 
 		// CSRF token 获取端点（无需认证）

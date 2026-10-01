@@ -33,6 +33,7 @@ var writeRouteExemptions = map[string]string{
 	"router.go POST /auth/forgot-password":                                "找回密码入口，登录前无角色",
 	"router.go POST /auth/reset-password":                                 "重置密码，凭一次性重置令牌",
 	"router.go POST /auth/validate-reset-token":                           "校验一次性重置令牌",
+	"router.go POST /auth/invitations/:token/accept":                      "邀请接受入口：凭一次性邀请 token（sha256 哈希落库、TTL/一次性/可撤销）+ 登录限流，登录前无角色",
 	"feishu_routes.go POST /feishu/webhook/:instance_id":                  "飞书事件回调，走飞书签名校验",
 	"../handlers/feishu/handler.go POST /feishu/webhook/:instance_id":     "飞书事件回调，走飞书签名校验",
 	"../handlers/dingtalk/handler.go POST /dingtalk/webhook/:instance_id": "钉钉事件回调，走钉钉签名校验",
