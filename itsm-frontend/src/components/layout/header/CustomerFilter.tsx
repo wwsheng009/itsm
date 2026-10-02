@@ -10,7 +10,7 @@
  * - "进入客户"深度入口：POST /api/v1/auth/switch-tenant，成功后整页重载重新引导会话
  *   （会话/store 刷新链路由父会话负责，本组件不依赖未定 API）。
  */
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useLocation, useNavigate, useSearchParams } from 'react-router';
 import { Badge, Button, Checkbox, Empty, Input, Popconfirm, Popover, Spin, Tag, Tooltip, message } from 'antd';
 import { LogIn, Search, Undo2, Users } from 'lucide-react';
@@ -26,6 +26,10 @@ import {
   type MspCustomer,
   type WorkbenchSummaryCustomer,
 } from '@/lib/api/msp-workbench-api';
+import {
+  getUserPreferences,
+  updateUserPreferences,
+} from '@/lib/api/user-preferences-api';
 
 /** summary 契约 ttlSeconds=30，按 TTL 轮询徽标。 */
 const SUMMARY_REFRESH_INTERVAL_MS = 30_000;
@@ -54,6 +58,8 @@ export const CustomerFilter: React.FC<CustomerFilterProps> = ({ className }) => 
   const [open, setOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [enteringId, setEnteringId] = useState<number | null>(null);
+  const saveTimerRef = useRef<number | null>(null);
+  const prefHydratedRef = useRef(false);
 
   const customerParam = searchParams.get(CUSTOMER_TENANT_IDS_PARAM);
   const selected = useMemo(() => parseCustomerTenantIds(customerParam), [customerParam]);
@@ -98,8 +104,54 @@ export const CustomerFilter: React.FC<CustomerFilterProps> = ({ className }) => 
     return () => window.clearInterval(timer);
   }, [loadSummary]);
 
+  // 服务端偏好水合（IP-P1-6c）：仅工作台页且 URL 未显式指定过滤器时应用；
+  // 读取失败静默回退 URL/默认"全部客户"，不阻塞主链路。
+  useEffect(() => {
+    if (prefHydratedRef.current) return;
+    if (location.pathname !== MSP_WORKBENCH_PATH || searchParams.has(CUSTOMER_TENANT_IDS_PARAM)) {
+      return;
+    }
+    prefHydratedRef.current = true;
+    getUserPreferences()
+      .then(response => {
+        const pref = response?.preferences?.workbenchFilter;
+        if (!pref) return;
+        const ids = Array.isArray(pref.customerTenantIds)
+          ? pref.customerTenantIds.filter(id => Number.isInteger(id) && id > 0)
+          : [];
+        const params = new URLSearchParams(searchParams.toString());
+        params.set(
+          CUSTOMER_TENANT_IDS_PARAM,
+          pref.mode === 'subset' && ids.length > 0 ? ids.join(',') : 'all'
+        );
+        setSearchParams(params, { replace: true });
+      })
+      .catch(() => {
+        // 无偏好/未登录/网络失败：保持 URL 态。
+      });
+  }, [location.pathname, searchParams, setSearchParams]);
+
+  // 卸载时清理偏好保存定时器。
+  useEffect(
+    () => () => {
+      if (saveTimerRef.current !== null) window.clearTimeout(saveTimerRef.current);
+    },
+    []
+  );
+
   const commitSelection = useCallback(
     (nextIds: number[]) => {
+      // 服务端偏好节流保存（IP-P1-6c，400ms）：失败静默，URL 本地态仍生效。
+      if (saveTimerRef.current !== null) window.clearTimeout(saveTimerRef.current);
+      saveTimerRef.current = window.setTimeout(() => {
+        void updateUserPreferences({
+          workbenchFilter:
+            nextIds.length > 0
+              ? { mode: 'subset', customerTenantIds: nextIds }
+              : { mode: 'all', customerTenantIds: [] },
+        }).catch(() => {});
+      }, 400);
+
       const params = new URLSearchParams(searchParams.toString());
       if (nextIds.length === 0) {
         params.set(CUSTOMER_TENANT_IDS_PARAM, 'all');

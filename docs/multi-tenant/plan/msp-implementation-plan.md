@@ -768,3 +768,4 @@ CREATE INDEX idx_invitations_expiry ON invitations (expires_at) WHERE status = '
 | v1.20 | 2026-09-30 | **IP-P1-4c 前端落地页与强制改密 UI**：`/invite` 邀请落地页（回显→设密→激活→登录）、`/change-password` 改密页、`RequireAuth` 强制收敛、`mustChangePassword` 全链路映射；路由 CSV + 重生成 + 守卫测试 3 用例；tsc/jest 绿；e2e 待联跑 |
 | v1.21 | 2026-09-30 | **IP-P1-6a 工作台批量（后端）**：`POST /msp/workbench/batch`（≤100、低危白名单 reply/status/assign、逐条授权/结果/审计带 `batch_id`、每租户 20 次/分钟护栏）；DTO + 服务 + 路由 + 4 组护栏用例；批量前端与偏好存储待续 |
 | v1.22 | 2026-09-30 | **IP-P1-6c 过滤器服务端偏好**：`users.preferences` jsonb（迁移 20260930 + ent 再生成）+ `GET/PUT /api/v1/users/me/preferences`（白名单键 `workbenchFilter`、≤8KB、顶层合并、nil 删除、仅本人）；写路由白名单豁免登记；服务级回归 1 组；批量前端（6b）待续 |
+| v1.23 | 2026-09-30 | **IP-P1-6c 前端接入**：`user-preferences-api` + `CustomerFilter` 水合（仅工作台页且 URL 未显式指定时应用偏好）+ 选择变更 400ms 节流保存（失败静默回退 URL）；tsc + CustomerFilter 6/6、工作台页 5/5 用例绿；批量 UI（6b）待续 |

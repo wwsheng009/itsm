@@ -39,12 +39,18 @@ jest.mock('@/lib/api/msp-workbench-api', () => {
   };
 });
 
+jest.mock('@/lib/api/user-preferences-api', () => ({
+  getUserPreferences: jest.fn(),
+  updateUserPreferences: jest.fn(),
+}));
+
 import {
   getWorkbenchSummary,
   listMspCustomers,
   type MspCustomersResponse,
   type WorkbenchSummary,
 } from '@/lib/api/msp-workbench-api';
+import { getUserPreferences, updateUserPreferences } from '@/lib/api/user-preferences-api';
 import { CustomerFilter } from '../CustomerFilter';
 
 const mockCustomersResponse: MspCustomersResponse = {
@@ -70,6 +76,8 @@ describe('CustomerFilter', () => {
     mockPathname = '/msp/workbench';
     (listMspCustomers as jest.Mock).mockResolvedValue(mockCustomersResponse);
     (getWorkbenchSummary as jest.Mock).mockResolvedValue(mockSummary);
+    (getUserPreferences as jest.Mock).mockResolvedValue({ preferences: {} });
+    (updateUserPreferences as jest.Mock).mockResolvedValue({ preferences: {} });
   });
 
   it('渲染全部客户、计数徽标与每客户计数（WB-A2）', async () => {
@@ -135,5 +143,31 @@ describe('CustomerFilter', () => {
 
     expect(mockNavigate).toHaveBeenCalledWith('/msp/workbench?customerTenantIds=1');
     expect(mockSetSearchParams).not.toHaveBeenCalled();
+  });
+
+  it('无 URL 参数时应用服务端偏好（IP-P1-6c 水合）', async () => {
+    (getUserPreferences as jest.Mock).mockResolvedValue({
+      preferences: { workbenchFilter: { mode: 'subset', customerTenantIds: [2] } },
+    });
+    render(<CustomerFilter />);
+
+    await waitFor(() => expect(getUserPreferences).toHaveBeenCalledTimes(1));
+    await waitFor(() => expect(mockSetSearchParams).toHaveBeenCalled());
+    const calls = mockSetSearchParams.mock.calls;
+    const params = calls[calls.length - 1][0] as URLSearchParams;
+    expect(params.get('customerTenantIds')).toBe('2');
+  });
+
+  it('选择客户后节流保存服务端偏好（IP-P1-6c 持久化）', async () => {
+    render(<CustomerFilter />);
+    await userEvent.click(screen.getByTestId('customer-filter-trigger'));
+    const row1 = await screen.findByTestId('customer-row-1');
+    await userEvent.click(within(row1).getByRole('checkbox'));
+
+    await waitFor(() =>
+      expect(updateUserPreferences).toHaveBeenCalledWith({
+        workbenchFilter: { mode: 'subset', customerTenantIds: [1] },
+      })
+    );
   });
 });
