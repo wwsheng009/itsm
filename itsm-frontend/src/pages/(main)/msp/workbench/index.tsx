@@ -16,6 +16,7 @@ import {
   Card,
   Dropdown,
   Input,
+  InputNumber,
   Modal,
   Select,
   Space,
@@ -29,7 +30,9 @@ import type { TableColumnsType } from 'antd';
 import { RefreshCw } from 'lucide-react';
 import { DESIGN } from '@/design-system/tokens';
 import {
+  MAX_BATCH_ITEMS,
   CUSTOMER_TENANT_IDS_PARAM,
+  batchWorkbenchItems,
   changeWorkbenchTicketStatus,
   findAllowedAction,
   isCustomerInactive,
@@ -37,6 +40,9 @@ import {
   listWorkbenchTickets,
   parseCustomerTenantIds,
   replyWorkbenchTicket,
+  type WorkbenchBatchAction,
+  type WorkbenchBatchPayload,
+  type WorkbenchBatchResponse,
   type WorkbenchTicketItem,
   type WorkbenchTicketQuery,
 } from '@/lib/api/msp-workbench-api';
@@ -75,6 +81,12 @@ const PRIORITY_COLOR: Record<string, string> = {
 };
 
 const TERMINAL_STATUSES = new Set(['resolved', 'closed', 'cancelled']);
+
+const BATCH_ACTION_LABEL: Record<WorkbenchBatchAction, string> = {
+  reply: '批量回复',
+  status: '批量改状态',
+  assign: '批量指派',
+};
 
 interface WorkbenchFilters {
   customerTenantIdsParam: string;
@@ -148,6 +160,16 @@ export default function MSPWorkbenchPage() {
   const [error, setError] = useState<string | null>(null);
   const requestSeq = useRef(0);
 
+  // ==================== 批量操作状态（IP-P1-6b） ====================
+  const [selectedRowKeys, setSelectedRowKeys] = useState<React.Key[]>([]);
+  const [batchAction, setBatchAction] = useState<WorkbenchBatchAction | null>(null);
+  const [batchContent, setBatchContent] = useState('');
+  const [batchStatus, setBatchStatus] = useState('');
+  const [batchAssigneeId, setBatchAssigneeId] = useState<number | null>(null);
+  const [batchConfirmOpen, setBatchConfirmOpen] = useState(false);
+  const [batchSubmitting, setBatchSubmitting] = useState(false);
+  const [batchResult, setBatchResult] = useState<WorkbenchBatchResponse | null>(null);
+
   const loadFirstPage = useCallback(async () => {
     const seq = ++requestSeq.current;
     setLoading(true);
@@ -196,6 +218,108 @@ export default function MSPWorkbenchPage() {
       setSearchParams(params);
     },
     [queryString, setSearchParams]
+  );
+
+  // ==================== 批量操作（IP-P1-6b） ====================
+
+  const ticketById = useMemo(() => new Map(tickets.map(item => [item.id, item])), [tickets]);
+
+  const selectedRecords = useMemo(
+    () =>
+      selectedRowKeys
+        .map(key => ticketById.get(Number(key)))
+        .filter((item): item is WorkbenchTicketItem => !!item),
+    [selectedRowKeys, ticketById]
+  );
+
+  const batchEligible = useMemo(() => {
+    if (!batchAction) return [] as WorkbenchTicketItem[];
+    return selectedRecords.filter(record => findAllowedAction(record, batchAction)?.allowed);
+  }, [batchAction, selectedRecords]);
+
+  const batchDistribution = useMemo(() => {
+    const map = new Map<string, number>();
+    batchEligible.forEach(record =>
+      map.set(record.customerName, (map.get(record.customerName) ?? 0) + 1)
+    );
+    return [...map.entries()];
+  }, [batchEligible]);
+
+  const batchSkipped = selectedRecords.length - batchEligible.length;
+  const batchOverLimit = batchEligible.length > MAX_BATCH_ITEMS;
+
+  const closeBatchFlow = useCallback(() => {
+    setBatchAction(null);
+    setBatchConfirmOpen(false);
+    setBatchContent('');
+    setBatchStatus('');
+    setBatchAssigneeId(null);
+  }, []);
+
+  const openBatchAction = useCallback((action: WorkbenchBatchAction) => {
+    setBatchAction(action);
+    setBatchContent('');
+    setBatchStatus('');
+    setBatchAssigneeId(null);
+  }, []);
+
+  const batchInputValid = useMemo(() => {
+    if (batchAction === 'reply') return batchContent.trim().length > 0;
+    if (batchAction === 'status') return batchStatus.length > 0;
+    if (batchAction === 'assign') return !!batchAssigneeId && batchAssigneeId > 0;
+    return false;
+  }, [batchAction, batchAssigneeId, batchContent, batchStatus]);
+
+  const goBatchConfirm = useCallback(() => {
+    if (!batchInputValid) {
+      message.warning('请先填写批量操作内容');
+      return;
+    }
+    if (batchEligible.length === 0) {
+      message.warning('所选条目均不可执行该批量操作');
+      return;
+    }
+    setBatchConfirmOpen(true);
+  }, [batchEligible.length, batchInputValid]);
+
+  const submitBatch = useCallback(async () => {
+    if (!batchAction) return;
+    setBatchSubmitting(true);
+    try {
+      const payload: WorkbenchBatchPayload = {};
+      if (batchAction === 'reply') payload.content = batchContent.trim();
+      if (batchAction === 'status') payload.status = batchStatus;
+      if (batchAction === 'assign' && batchAssigneeId) payload.assigneeId = batchAssigneeId;
+      const response = await batchWorkbenchItems({
+        action: batchAction,
+        items: batchEligible.map(record => ({
+          ticketId: record.id,
+          customerTenantId: record.customerTenantId,
+        })),
+        payload,
+      });
+      setBatchResult(response);
+      setBatchConfirmOpen(false);
+      setBatchAction(null);
+      setSelectedRowKeys([]);
+      void loadFirstPage();
+    } catch (err) {
+      message.error(errorMessage(err, '批量操作失败'));
+    } finally {
+      setBatchSubmitting(false);
+    }
+  }, [batchAction, batchAssigneeId, batchContent, batchEligible, batchStatus, loadFirstPage]);
+
+  const rowSelection = useMemo(
+    () => ({
+      selectedRowKeys,
+      onChange: (keys: React.Key[]) => setSelectedRowKeys(keys),
+      getCheckboxProps: (record: WorkbenchTicketItem) => ({
+        disabled: isTicketReadOnly(record),
+        name: record.ticketNumber,
+      }),
+    }),
+    [selectedRowKeys]
   );
 
   // ==================== 行内操作（严格按 allowedActions） ====================
@@ -478,6 +602,26 @@ export default function MSPWorkbenchPage() {
         </Space>
       </Card>
 
+      {selectedRecords.length > 0 && (
+        <Card size="small" style={{ marginBottom: 16 }} data-testid="batch-toolbar">
+          <Space wrap size={8}>
+            <span data-testid="batch-selected-count">已选 {selectedRecords.length} 条</span>
+            <Button size="small" onClick={() => openBatchAction('reply')} data-testid="batch-reply">
+              批量回复
+            </Button>
+            <Button size="small" onClick={() => openBatchAction('status')} data-testid="batch-status">
+              批量改状态
+            </Button>
+            <Button size="small" onClick={() => openBatchAction('assign')} data-testid="batch-assign">
+              批量指派
+            </Button>
+            <Button size="small" type="link" onClick={() => setSelectedRowKeys([])}>
+              清空选择
+            </Button>
+          </Space>
+        </Card>
+      )}
+
       {error && (
         <Alert
           type="error"
@@ -494,6 +638,7 @@ export default function MSPWorkbenchPage() {
 
       <Table<WorkbenchTicketItem>
         rowKey="id"
+        rowSelection={rowSelection}
         columns={columns}
         dataSource={tickets}
         loading={loading}
@@ -533,6 +678,139 @@ export default function MSPWorkbenchPage() {
           placeholder="输入回复内容（将写入该客户工单评论并按条目审计）"
           data-testid="reply-content"
         />
+      </Modal>
+
+      {/* 批量步骤 1：动作载荷 */}
+      <Modal
+        open={!!batchAction && !batchConfirmOpen}
+        title={batchAction ? BATCH_ACTION_LABEL[batchAction] : '批量操作'}
+        okText="下一步"
+        cancelText="取消"
+        okButtonProps={{ disabled: !batchInputValid }}
+        onOk={goBatchConfirm}
+        onCancel={closeBatchFlow}
+        destroyOnHidden
+      >
+        {batchAction === 'reply' && (
+          <Input.TextArea
+            rows={4}
+            maxLength={2000}
+            showCount
+            value={batchContent}
+            onChange={event => setBatchContent(event.target.value)}
+            placeholder={`批量回复将写入 ${selectedRecords.length} 条工单（逐条审计）`}
+            data-testid="batch-reply-content"
+          />
+        )}
+        {batchAction === 'status' && (
+          <Select
+            style={{ width: '100%' }}
+            placeholder="选择目标状态"
+            value={batchStatus || undefined}
+            options={WORKBENCH_STATUS_OPTIONS.map(option => ({ ...option }))}
+            onChange={setBatchStatus}
+            data-testid="batch-status-select"
+          />
+        )}
+        {batchAction === 'assign' && (
+          <InputNumber
+            min={1}
+            style={{ width: '100%' }}
+            placeholder="负责人用户 ID（服务端校验成员存在）"
+            value={batchAssigneeId}
+            onChange={value => setBatchAssigneeId(typeof value === 'number' ? value : null)}
+            data-testid="batch-assignee-id"
+          />
+        )}
+      </Modal>
+
+      {/* 批量步骤 2：客户分布确认 */}
+      <Modal
+        open={batchConfirmOpen}
+        title="确认批量操作"
+        okText={`提交（${batchEligible.length} 条）`}
+        cancelText="返回"
+        confirmLoading={batchSubmitting}
+        okButtonProps={{ disabled: batchOverLimit || batchEligible.length === 0 }}
+        onOk={() => void submitBatch()}
+        onCancel={() => setBatchConfirmOpen(false)}
+        destroyOnHidden
+      >
+        <div data-testid="batch-confirm">
+          <p style={{ marginBottom: 8 }}>
+            操作：{batchAction ? BATCH_ACTION_LABEL[batchAction] : ''} · 生效 {batchEligible.length}{' '}
+            条
+          </p>
+          <p style={{ marginBottom: 4 }}>客户分布：</p>
+          <ul style={{ margin: 0, paddingLeft: 20 }}>
+            {batchDistribution.map(([name, count]) => (
+              <li key={name} data-testid={`batch-dist-${name}`}>
+                {name}：{count} 条
+              </li>
+            ))}
+          </ul>
+          {batchSkipped > 0 && (
+            <Alert
+              type="warning"
+              showIcon
+              style={{ marginTop: 12 }}
+              message={`${batchSkipped} 条所选条目无此操作权限，已自动排除`}
+            />
+          )}
+          {batchOverLimit && (
+            <Alert
+              type="error"
+              showIcon
+              style={{ marginTop: 12 }}
+              message={`单次最多 ${MAX_BATCH_ITEMS} 条，请减少选择`}
+            />
+          )}
+        </div>
+      </Modal>
+
+      {/* 批量步骤 3：逐条结果 */}
+      <Modal
+        open={!!batchResult}
+        title={batchResult ? `批量结果（${batchResult.batchId}）` : '批量结果'}
+        footer={
+          <Button onClick={() => setBatchResult(null)} data-testid="batch-result-close">
+            关闭
+          </Button>
+        }
+        onCancel={() => setBatchResult(null)}
+        destroyOnHidden
+      >
+        {batchResult && (
+          <div data-testid="batch-result">
+            <Space>
+              <Tag color="green">成功 {batchResult.succeeded}</Tag>
+              <Tag color={batchResult.failed > 0 ? 'red' : 'default'}>
+                失败 {batchResult.failed}
+              </Tag>
+            </Space>
+            <div style={{ marginTop: 12, maxHeight: 300, overflowY: 'auto' }}>
+              {batchResult.results.map(item => {
+                const record = ticketById.get(item.ticketId);
+                return (
+                  <div
+                    key={`${item.ticketId}-${item.customerTenantId}`}
+                    style={{ display: 'flex', gap: 8, padding: '4px 0', alignItems: 'center' }}
+                  >
+                    <span style={{ minWidth: 110 }}>{record?.ticketNumber ?? `#${item.ticketId}`}</span>
+                    <Tag color={item.ok ? 'green' : 'red'} style={{ margin: 0 }}>
+                      {item.ok ? '成功' : '失败'}
+                    </Tag>
+                    {!item.ok && (
+                      <span style={{ fontSize: 12, color: DESIGN.colors.textMuted }}>
+                        {[item.reasonCode, item.message].filter(Boolean).join(' · ')}
+                      </span>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
       </Modal>
     </div>
   );

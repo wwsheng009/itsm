@@ -220,3 +220,52 @@ export async function changeWorkbenchTicketStatus(
 export async function switchTenantScope(tenantId: number): Promise<unknown> {
   return httpClient.post<unknown>('/api/v1/auth/switch-tenant', { tenantId });
 }
+
+// ==================== 批量操作（POST /api/v1/msp/workbench/batch，IP-P1-6a/6b） ====================
+
+/** 单次批量上限（与后端 dto 校验一致）。 */
+export const MAX_BATCH_ITEMS = 100;
+
+/** 低危批量动作白名单（后端同口径）。 */
+export type WorkbenchBatchAction = 'reply' | 'status' | 'assign';
+
+export interface WorkbenchBatchItem {
+  ticketId: number;
+  /** 显式声明目标租户；服务端逐条校验资源租户一致。 */
+  customerTenantId: number;
+}
+
+export interface WorkbenchBatchPayload {
+  content?: string;
+  status?: string;
+  assigneeId?: number;
+}
+
+export interface WorkbenchBatchRequest {
+  action: WorkbenchBatchAction;
+  items: WorkbenchBatchItem[];
+  payload?: WorkbenchBatchPayload;
+}
+
+export interface WorkbenchBatchItemResult {
+  ticketId: number;
+  customerTenantId: number;
+  ok: boolean;
+  reasonCode?: string;
+  message?: string;
+}
+
+export interface WorkbenchBatchResponse {
+  /** 整批审计回溯 id。 */
+  batchId: string;
+  succeeded: number;
+  failed: number;
+  results: WorkbenchBatchItemResult[];
+}
+
+/** POST /api/v1/msp/workbench/batch —— 批量低危操作（部分失败不影响其余条目）。 */
+export async function batchWorkbenchItems(
+  body: WorkbenchBatchRequest
+): Promise<WorkbenchBatchResponse> {
+  return httpClient.post<WorkbenchBatchResponse>('/api/v1/msp/workbench/batch', body);
+}

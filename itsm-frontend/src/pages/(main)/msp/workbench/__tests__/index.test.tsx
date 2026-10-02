@@ -8,8 +8,11 @@
  * - nextCursor 分页（加载更多携带 cursor）。
  */
 import React from 'react';
+import { fireEvent } from '@testing-library/react';
 import { render, screen, waitFor, within } from '@/lib/test-utils';
 import userEvent from '@testing-library/user-event';
+
+jest.setTimeout(30000);
 
 const mockSetSearchParams = jest.fn();
 
@@ -34,10 +37,15 @@ jest.mock('@/lib/api/msp-workbench-api', () => {
   return {
     ...actual,
     listWorkbenchTickets: jest.fn(),
+    batchWorkbenchItems: jest.fn(),
   };
 });
 
-import { listWorkbenchTickets, type WorkbenchTicketItem } from '@/lib/api/msp-workbench-api';
+import {
+  batchWorkbenchItems,
+  listWorkbenchTickets,
+  type WorkbenchTicketItem,
+} from '@/lib/api/msp-workbench-api';
 import MSPWorkbenchPage from '../index';
 
 const ticketWithActions: WorkbenchTicketItem = {
@@ -79,6 +87,12 @@ describe('MSPWorkbenchPage', () => {
     (listWorkbenchTickets as jest.Mock).mockResolvedValue({
       items: [ticketWithActions, readOnlyTicket],
       total: 2,
+    });
+    (batchWorkbenchItems as jest.Mock).mockResolvedValue({
+      batchId: 'batch-test',
+      succeeded: 0,
+      failed: 0,
+      results: [],
     });
   });
 
@@ -152,5 +166,64 @@ describe('MSPWorkbenchPage', () => {
 
     expect(await screen.findByTestId('ticket-readonly-3')).toHaveTextContent('只读');
     expect(screen.queryByTestId('action-reply-3')).not.toBeInTheDocument();
+  });
+
+  it('批量回复：选择 → 客户分布确认 → 逐条结果（IP-P1-6b）', async () => {
+    (listWorkbenchTickets as jest.Mock).mockResolvedValue({
+      items: [
+        { ...ticketWithActions },
+        { ...readOnlyTicket, allowedActions: [{ action: 'reply', allowed: true }] },
+      ],
+      total: 2,
+    });
+    (batchWorkbenchItems as jest.Mock).mockResolvedValue({
+      batchId: 'BATCH-9',
+      succeeded: 1,
+      failed: 1,
+      results: [
+        { ticketId: 1, customerTenantId: 1, ok: true },
+        {
+          ticketId: 2,
+          customerTenantId: 2,
+          ok: false,
+          reasonCode: 'ACTION_NOT_ALLOWED',
+          message: '当前角色无权限',
+        },
+      ],
+    });
+
+    render(<MSPWorkbenchPage />);
+    const row1 = (await screen.findByText('VPN 无法连接')).closest('tr') as HTMLElement;
+    const row2 = screen.getByText('打印机离线').closest('tr') as HTMLElement;
+    fireEvent.click(within(row1).getByRole('checkbox'));
+    fireEvent.click(within(row2).getByRole('checkbox'));
+
+    expect(screen.getByTestId('batch-selected-count')).toHaveTextContent('已选 2 条');
+    fireEvent.click(screen.getByTestId('batch-reply'));
+    fireEvent.change(screen.getByTestId('batch-reply-content'), {
+      target: { value: '统一回复：正在处理' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: '下一步' }));
+
+    const confirm = await screen.findByTestId('batch-confirm');
+    expect(within(confirm).getByTestId('batch-dist-Acme Corp')).toHaveTextContent('1 条');
+    expect(within(confirm).getByTestId('batch-dist-Beta LLC')).toHaveTextContent('1 条');
+    fireEvent.click(screen.getByRole('button', { name: '提交（2 条）' }));
+
+    await waitFor(() =>
+      expect(batchWorkbenchItems).toHaveBeenCalledWith({
+        action: 'reply',
+        items: [
+          { ticketId: 1, customerTenantId: 1 },
+          { ticketId: 2, customerTenantId: 2 },
+        ],
+        payload: { content: '统一回复：正在处理' },
+      })
+    );
+
+    const result = await screen.findByTestId('batch-result');
+    expect(result).toHaveTextContent('成功 1');
+    expect(result).toHaveTextContent('失败 1');
+    expect(result).toHaveTextContent('ACTION_NOT_ALLOWED');
   });
 });

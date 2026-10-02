@@ -769,3 +769,4 @@ CREATE INDEX idx_invitations_expiry ON invitations (expires_at) WHERE status = '
 | v1.21 | 2026-09-30 | **IP-P1-6a 工作台批量（后端）**：`POST /msp/workbench/batch`（≤100、低危白名单 reply/status/assign、逐条授权/结果/审计带 `batch_id`、每租户 20 次/分钟护栏）；DTO + 服务 + 路由 + 4 组护栏用例；批量前端与偏好存储待续 |
 | v1.22 | 2026-09-30 | **IP-P1-6c 过滤器服务端偏好**：`users.preferences` jsonb（迁移 20260930 + ent 再生成）+ `GET/PUT /api/v1/users/me/preferences`（白名单键 `workbenchFilter`、≤8KB、顶层合并、nil 删除、仅本人）；写路由白名单豁免登记；服务级回归 1 组；批量前端（6b）待续 |
 | v1.23 | 2026-09-30 | **IP-P1-6c 前端接入**：`user-preferences-api` + `CustomerFilter` 水合（仅工作台页且 URL 未显式指定时应用偏好）+ 选择变更 400ms 节流保存（失败静默回退 URL）；tsc + CustomerFilter 6/6、工作台页 5/5 用例绿；批量 UI（6b）待续 |
+| v1.24 | 2026-09-30 | **IP-P1-6b 批量 UI**：工作台行勾选（只读行禁用）+ 批量条（回复/改状态/指派 ≤100）+ 客户分布确认弹窗（无权限条目自动排除并提示）+ 逐条结果弹窗（batchId/成功失败/原因码）；`batchWorkbenchItems` 契约对齐；tsc/eslint 绿、工作台页 6/6 用例（含端到端批量链路） |
