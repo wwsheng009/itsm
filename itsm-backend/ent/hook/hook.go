@@ -1748,6 +1748,18 @@ func (f VendorFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, erro
 	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.VendorMutation", m)
 }
 
+// The WorkbenchViewFunc type is an adapter to allow the use of ordinary
+// function as WorkbenchView mutator.
+type WorkbenchViewFunc func(context.Context, *ent.WorkbenchViewMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f WorkbenchViewFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.WorkbenchViewMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.WorkbenchViewMutation", m)
+}
+
 // The WorkflowFunc type is an adapter to allow the use of ordinary
 // function as Workflow mutator.
 type WorkflowFunc func(context.Context, *ent.WorkflowMutation) (ent.Value, error)

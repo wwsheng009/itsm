@@ -441,6 +441,9 @@ type UserTenantMembershipOrg func(*sql.Selector)
 // Vendor is the predicate function for vendor builders.
 type Vendor func(*sql.Selector)
 
+// WorkbenchView is the predicate function for workbenchview builders.
+type WorkbenchView func(*sql.Selector)
+
 // Workflow is the predicate function for workflow builders.
 type Workflow func(*sql.Selector)
 

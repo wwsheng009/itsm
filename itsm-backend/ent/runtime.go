@@ -148,6 +148,7 @@ import (
 	"itsm-backend/ent/usertenantmembership"
 	"itsm-backend/ent/usertenantmembershiporg"
 	"itsm-backend/ent/vendor"
+	"itsm-backend/ent/workbenchview"
 	"itsm-backend/ent/workflow"
 	"itsm-backend/ent/workflowinstance"
 	"itsm-backend/ent/workflowtask"
@@ -6242,6 +6243,52 @@ func init() {
 	vendorDescUpdatedAt := vendorFields[12].Descriptor()
 	// vendor.DefaultUpdatedAt holds the default value on creation for the updated_at field.
 	vendor.DefaultUpdatedAt = vendorDescUpdatedAt.Default.(func() time.Time)
+	workbenchviewFields := schema.WorkbenchView{}.Fields()
+	_ = workbenchviewFields
+	// workbenchviewDescTenantID is the schema descriptor for tenant_id field.
+	workbenchviewDescTenantID := workbenchviewFields[0].Descriptor()
+	// workbenchview.TenantIDValidator is a validator for the "tenant_id" field. It is called by the builders before save.
+	workbenchview.TenantIDValidator = workbenchviewDescTenantID.Validators[0].(func(int) error)
+	// workbenchviewDescOwnerUserID is the schema descriptor for owner_user_id field.
+	workbenchviewDescOwnerUserID := workbenchviewFields[1].Descriptor()
+	// workbenchview.OwnerUserIDValidator is a validator for the "owner_user_id" field. It is called by the builders before save.
+	workbenchview.OwnerUserIDValidator = workbenchviewDescOwnerUserID.Validators[0].(func(int) error)
+	// workbenchviewDescName is the schema descriptor for name field.
+	workbenchviewDescName := workbenchviewFields[2].Descriptor()
+	// workbenchview.NameValidator is a validator for the "name" field. It is called by the builders before save.
+	workbenchview.NameValidator = func() func(string) error {
+		validators := workbenchviewDescName.Validators
+		fns := [...]func(string) error{
+			validators[0].(func(string) error),
+			validators[1].(func(string) error),
+		}
+		return func(name string) error {
+			for _, fn := range fns {
+				if err := fn(name); err != nil {
+					return err
+				}
+			}
+			return nil
+		}
+	}()
+	// workbenchviewDescIsShared is the schema descriptor for is_shared field.
+	workbenchviewDescIsShared := workbenchviewFields[4].Descriptor()
+	// workbenchview.DefaultIsShared holds the default value on creation for the is_shared field.
+	workbenchview.DefaultIsShared = workbenchviewDescIsShared.Default.(bool)
+	// workbenchviewDescIsDefault is the schema descriptor for is_default field.
+	workbenchviewDescIsDefault := workbenchviewFields[5].Descriptor()
+	// workbenchview.DefaultIsDefault holds the default value on creation for the is_default field.
+	workbenchview.DefaultIsDefault = workbenchviewDescIsDefault.Default.(bool)
+	// workbenchviewDescCreatedAt is the schema descriptor for created_at field.
+	workbenchviewDescCreatedAt := workbenchviewFields[6].Descriptor()
+	// workbenchview.DefaultCreatedAt holds the default value on creation for the created_at field.
+	workbenchview.DefaultCreatedAt = workbenchviewDescCreatedAt.Default.(func() time.Time)
+	// workbenchviewDescUpdatedAt is the schema descriptor for updated_at field.
+	workbenchviewDescUpdatedAt := workbenchviewFields[7].Descriptor()
+	// workbenchview.DefaultUpdatedAt holds the default value on creation for the updated_at field.
+	workbenchview.DefaultUpdatedAt = workbenchviewDescUpdatedAt.Default.(func() time.Time)
+	// workbenchview.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
+	workbenchview.UpdateDefaultUpdatedAt = workbenchviewDescUpdatedAt.UpdateDefault.(func() time.Time)
 	workflowFields := schema.Workflow{}.Fields()
 	_ = workflowFields
 	// workflowDescName is the schema descriptor for name field.

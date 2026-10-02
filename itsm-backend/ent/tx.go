@@ -302,6 +302,8 @@ type Tx struct {
 	UserTenantMembershipOrg *UserTenantMembershipOrgClient
 	// Vendor is the client for interacting with the Vendor builders.
 	Vendor *VendorClient
+	// WorkbenchView is the client for interacting with the WorkbenchView builders.
+	WorkbenchView *WorkbenchViewClient
 	// Workflow is the client for interacting with the Workflow builders.
 	Workflow *WorkflowClient
 	// WorkflowInstance is the client for interacting with the WorkflowInstance builders.
@@ -588,6 +590,7 @@ func (tx *Tx) init() {
 	tx.UserTenantMembership = NewUserTenantMembershipClient(tx.config)
 	tx.UserTenantMembershipOrg = NewUserTenantMembershipOrgClient(tx.config)
 	tx.Vendor = NewVendorClient(tx.config)
+	tx.WorkbenchView = NewWorkbenchViewClient(tx.config)
 	tx.Workflow = NewWorkflowClient(tx.config)
 	tx.WorkflowInstance = NewWorkflowInstanceClient(tx.config)
 	tx.WorkflowTask = NewWorkflowTaskClient(tx.config)

@@ -1410,6 +1410,7 @@ func NewApplication() *Application {
 		AuditLogHandler:              auditlogHandler.NewHandler(auditLogService, sugar),
 		MSPHandler: mspHandler.NewHandler(mspAllocationService, ticketService,
 			service.NewMSPWorkbenchService(client, ticketService, ticketCommentService, sugar),
+			service.NewMSPWorkbenchViewService(client, sugar),
 			service.NewMSPAuditService(client, sugar), sugar),
 		SystemConfigHandler:  systemConfigHandler,
 		ApprovalChainHandler: approvalChainHandler.NewHandler(approvalChainService, sugar),

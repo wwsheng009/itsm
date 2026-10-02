@@ -6266,6 +6266,36 @@ var (
 		Columns:    VendorsColumns,
 		PrimaryKey: []*schema.Column{VendorsColumns[0]},
 	}
+	// WorkbenchViewsColumns holds the columns for the "workbench_views" table.
+	WorkbenchViewsColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeInt, Increment: true},
+		{Name: "tenant_id", Type: field.TypeInt},
+		{Name: "owner_user_id", Type: field.TypeInt},
+		{Name: "name", Type: field.TypeString, Size: 60},
+		{Name: "filters", Type: field.TypeJSON},
+		{Name: "is_shared", Type: field.TypeBool, Default: false},
+		{Name: "is_default", Type: field.TypeBool, Default: false},
+		{Name: "created_at", Type: field.TypeTime},
+		{Name: "updated_at", Type: field.TypeTime},
+	}
+	// WorkbenchViewsTable holds the schema information for the "workbench_views" table.
+	WorkbenchViewsTable = &schema.Table{
+		Name:       "workbench_views",
+		Columns:    WorkbenchViewsColumns,
+		PrimaryKey: []*schema.Column{WorkbenchViewsColumns[0]},
+		Indexes: []*schema.Index{
+			{
+				Name:    "workbenchview_tenant_id_owner_user_id_name",
+				Unique:  true,
+				Columns: []*schema.Column{WorkbenchViewsColumns[1], WorkbenchViewsColumns[2], WorkbenchViewsColumns[3]},
+			},
+			{
+				Name:    "workbenchview_tenant_id_is_shared",
+				Unique:  false,
+				Columns: []*schema.Column{WorkbenchViewsColumns[1], WorkbenchViewsColumns[5]},
+			},
+		},
+	}
 	// WorkflowsColumns holds the columns for the "workflows" table.
 	WorkflowsColumns = []*schema.Column{
 		{Name: "id", Type: field.TypeInt, Increment: true},
@@ -6979,6 +7009,7 @@ var (
 		UserTenantMembershipsTable,
 		UserTenantMembershipOrgsTable,
 		VendorsTable,
+		WorkbenchViewsTable,
 		WorkflowsTable,
 		WorkflowInstancesTable,
 		WorkflowTasksTable,

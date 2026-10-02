@@ -73,6 +73,7 @@ type WorkbenchStatusRequest struct {
 	CustomerTenantID int    `json:"customerTenantId" binding:"required"`
 	Status           string `json:"status" binding:"required"`
 }
+
 // WorkbenchBatchRequest 批量操作请求（IP-P1-6）：低危动作 + 条目清单 + 动作载荷。
 type WorkbenchBatchRequest struct {
 	Action  string                `json:"action" binding:"required"`
@@ -104,8 +105,47 @@ type WorkbenchBatchItemResult struct {
 
 // WorkbenchBatchResponse 批量结果（batchId 供整批审计回溯）。
 type WorkbenchBatchResponse struct {
-	BatchID   string                    `json:"batchId"`
-	Succeeded int                       `json:"succeeded"`
-	Failed    int                       `json:"failed"`
+	BatchID   string                     `json:"batchId"`
+	Succeeded int                        `json:"succeeded"`
+	Failed    int                        `json:"failed"`
 	Results   []WorkbenchBatchItemResult `json:"results"`
+}
+
+// ---------- IP-P2-4a 工作台自定义视图（保存的过滤器组合） ----------
+
+// WorkbenchViewFilter 保存的过滤器组合（与 WorkbenchTicketQuery 对齐；空 customerTenantIds = 全部客户）。
+type WorkbenchViewFilter struct {
+	CustomerTenantIDs []int  `json:"customerTenantIds"`
+	Status            string `json:"status,omitempty"`
+	Priority          string `json:"priority,omitempty"`
+	AssigneeID        int    `json:"assigneeId,omitempty"`
+	Q                 string `json:"q,omitempty"`
+	Sort              string `json:"sort,omitempty"`
+}
+
+// WorkbenchViewResponse 视图（isOwner=false 表示他人分享，只读）。
+type WorkbenchViewResponse struct {
+	ID          int                 `json:"id"`
+	Name        string              `json:"name"`
+	Filters     WorkbenchViewFilter `json:"filters"`
+	IsShared    bool                `json:"isShared"`
+	IsDefault   bool                `json:"isDefault"`
+	IsOwner     bool                `json:"isOwner"`
+	OwnerUserID int                 `json:"ownerUserId"`
+	CreatedAt   time.Time           `json:"createdAt"`
+	UpdatedAt   time.Time           `json:"updatedAt"`
+}
+
+// WorkbenchViewCreateRequest 创建视图。
+type WorkbenchViewCreateRequest struct {
+	Name     string              `json:"name" binding:"required"`
+	Filters  WorkbenchViewFilter `json:"filters"`
+	IsShared bool                `json:"isShared"`
+}
+
+// WorkbenchViewUpdateRequest 更新视图（owner 本人）。
+type WorkbenchViewUpdateRequest struct {
+	Name     string              `json:"name" binding:"required"`
+	Filters  WorkbenchViewFilter `json:"filters"`
+	IsShared bool                `json:"isShared"`
 }

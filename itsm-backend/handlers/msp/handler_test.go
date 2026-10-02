@@ -32,7 +32,7 @@ func newMSPTestRouter(t *testing.T, client *ent.Client, userID int, mspCtx *midd
 	t.Helper()
 	gin.SetMode(gin.TestMode)
 	logger := zaptest.NewLogger(t).Sugar()
-	h := NewHandler(nil, service.NewTicketServiceForTest(client, logger), nil,
+	h := NewHandler(nil, service.NewTicketServiceForTest(client, logger), nil, nil,
 		service.NewMSPAuditService(client, logger), logger)
 
 	r := gin.New()

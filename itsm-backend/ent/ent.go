@@ -151,6 +151,7 @@ import (
 	"itsm-backend/ent/usertenantmembership"
 	"itsm-backend/ent/usertenantmembershiporg"
 	"itsm-backend/ent/vendor"
+	"itsm-backend/ent/workbenchview"
 	"itsm-backend/ent/workflow"
 	"itsm-backend/ent/workflowinstance"
 	"itsm-backend/ent/workflowtask"
@@ -367,6 +368,7 @@ func checkColumn(t, c string) error {
 			usertenantmembership.Table:        usertenantmembership.ValidColumn,
 			usertenantmembershiporg.Table:     usertenantmembershiporg.ValidColumn,
 			vendor.Table:                      vendor.ValidColumn,
+			workbenchview.Table:               workbenchview.ValidColumn,
 			workflow.Table:                    workflow.ValidColumn,
 			workflowinstance.Table:            workflowinstance.ValidColumn,
 			workflowtask.Table:                workflowtask.ValidColumn,

@@ -153,6 +153,7 @@ import (
 	"itsm-backend/ent/usertenantmembership"
 	"itsm-backend/ent/usertenantmembershiporg"
 	"itsm-backend/ent/vendor"
+	"itsm-backend/ent/workbenchview"
 	"itsm-backend/ent/workflow"
 	"itsm-backend/ent/workflowinstance"
 	"itsm-backend/ent/workflowtask"
@@ -319,6 +320,7 @@ const (
 	TypeUserTenantMembership        = "UserTenantMembership"
 	TypeUserTenantMembershipOrg     = "UserTenantMembershipOrg"
 	TypeVendor                      = "Vendor"
+	TypeWorkbenchView               = "WorkbenchView"
 	TypeWorkflow                    = "Workflow"
 	TypeWorkflowInstance            = "WorkflowInstance"
 	TypeWorkflowTask                = "WorkflowTask"
@@ -199718,6 +199720,779 @@ func (m *VendorMutation) ResetEdge(name string) error {
 		return nil
 	}
 	return fmt.Errorf("unknown Vendor edge %s", name)
+}
+
+// WorkbenchViewMutation represents an operation that mutates the WorkbenchView nodes in the graph.
+type WorkbenchViewMutation struct {
+	config
+	op               Op
+	typ              string
+	id               *int
+	tenant_id        *int
+	addtenant_id     *int
+	owner_user_id    *int
+	addowner_user_id *int
+	name             *string
+	filters          *map[string]interface{}
+	is_shared        *bool
+	is_default       *bool
+	created_at       *time.Time
+	updated_at       *time.Time
+	clearedFields    map[string]struct{}
+	done             bool
+	oldValue         func(context.Context) (*WorkbenchView, error)
+	predicates       []predicate.WorkbenchView
+}
+
+var _ ent.Mutation = (*WorkbenchViewMutation)(nil)
+
+// workbenchviewOption allows management of the mutation configuration using functional options.
+type workbenchviewOption func(*WorkbenchViewMutation)
+
+// newWorkbenchViewMutation creates new mutation for the WorkbenchView entity.
+func newWorkbenchViewMutation(c config, op Op, opts ...workbenchviewOption) *WorkbenchViewMutation {
+	m := &WorkbenchViewMutation{
+		config:        c,
+		op:            op,
+		typ:           TypeWorkbenchView,
+		clearedFields: make(map[string]struct{}),
+	}
+	for _, opt := range opts {
+		opt(m)
+	}
+	return m
+}
+
+// withWorkbenchViewID sets the ID field of the mutation.
+func withWorkbenchViewID(id int) workbenchviewOption {
+	return func(m *WorkbenchViewMutation) {
+		var (
+			err   error
+			once  sync.Once
+			value *WorkbenchView
+		)
+		m.oldValue = func(ctx context.Context) (*WorkbenchView, error) {
+			once.Do(func() {
+				if m.done {
+					err = errors.New("querying old values post mutation is not allowed")
+				} else {
+					value, err = m.Client().WorkbenchView.Get(ctx, id)
+				}
+			})
+			return value, err
+		}
+		m.id = &id
+	}
+}
+
+// withWorkbenchView sets the old WorkbenchView of the mutation.
+func withWorkbenchView(node *WorkbenchView) workbenchviewOption {
+	return func(m *WorkbenchViewMutation) {
+		m.oldValue = func(context.Context) (*WorkbenchView, error) {
+			return node, nil
+		}
+		m.id = &node.ID
+	}
+}
+
+// Client returns a new `ent.Client` from the mutation. If the mutation was
+// executed in a transaction (ent.Tx), a transactional client is returned.
+func (m WorkbenchViewMutation) Client() *Client {
+	client := &Client{config: m.config}
+	client.init()
+	return client
+}
+
+// Tx returns an `ent.Tx` for mutations that were executed in transactions;
+// it returns an error otherwise.
+func (m WorkbenchViewMutation) Tx() (*Tx, error) {
+	if _, ok := m.driver.(*txDriver); !ok {
+		return nil, errors.New("ent: mutation is not running in a transaction")
+	}
+	tx := &Tx{config: m.config}
+	tx.init()
+	return tx, nil
+}
+
+// ID returns the ID value in the mutation. Note that the ID is only available
+// if it was provided to the builder or after it was returned from the database.
+func (m *WorkbenchViewMutation) ID() (id int, exists bool) {
+	if m.id == nil {
+		return
+	}
+	return *m.id, true
+}
+
+// IDs queries the database and returns the entity ids that match the mutation's predicate.
+// That means, if the mutation is applied within a transaction with an isolation level such
+// as sql.LevelSerializable, the returned ids match the ids of the rows that will be updated
+// or updated by the mutation.
+func (m *WorkbenchViewMutation) IDs(ctx context.Context) ([]int, error) {
+	switch {
+	case m.op.Is(OpUpdateOne | OpDeleteOne):
+		id, exists := m.ID()
+		if exists {
+			return []int{id}, nil
+		}
+		fallthrough
+	case m.op.Is(OpUpdate | OpDelete):
+		return m.Client().WorkbenchView.Query().Where(m.predicates...).IDs(ctx)
+	default:
+		return nil, fmt.Errorf("IDs is not allowed on %s operations", m.op)
+	}
+}
+
+// SetTenantID sets the "tenant_id" field.
+func (m *WorkbenchViewMutation) SetTenantID(i int) {
+	m.tenant_id = &i
+	m.addtenant_id = nil
+}
+
+// TenantID returns the value of the "tenant_id" field in the mutation.
+func (m *WorkbenchViewMutation) TenantID() (r int, exists bool) {
+	v := m.tenant_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldTenantID returns the old "tenant_id" field's value of the WorkbenchView entity.
+// If the WorkbenchView object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *WorkbenchViewMutation) OldTenantID(ctx context.Context) (v int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldTenantID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldTenantID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldTenantID: %w", err)
+	}
+	return oldValue.TenantID, nil
+}
+
+// AddTenantID adds i to the "tenant_id" field.
+func (m *WorkbenchViewMutation) AddTenantID(i int) {
+	if m.addtenant_id != nil {
+		*m.addtenant_id += i
+	} else {
+		m.addtenant_id = &i
+	}
+}
+
+// AddedTenantID returns the value that was added to the "tenant_id" field in this mutation.
+func (m *WorkbenchViewMutation) AddedTenantID() (r int, exists bool) {
+	v := m.addtenant_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetTenantID resets all changes to the "tenant_id" field.
+func (m *WorkbenchViewMutation) ResetTenantID() {
+	m.tenant_id = nil
+	m.addtenant_id = nil
+}
+
+// SetOwnerUserID sets the "owner_user_id" field.
+func (m *WorkbenchViewMutation) SetOwnerUserID(i int) {
+	m.owner_user_id = &i
+	m.addowner_user_id = nil
+}
+
+// OwnerUserID returns the value of the "owner_user_id" field in the mutation.
+func (m *WorkbenchViewMutation) OwnerUserID() (r int, exists bool) {
+	v := m.owner_user_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldOwnerUserID returns the old "owner_user_id" field's value of the WorkbenchView entity.
+// If the WorkbenchView object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *WorkbenchViewMutation) OldOwnerUserID(ctx context.Context) (v int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldOwnerUserID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldOwnerUserID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldOwnerUserID: %w", err)
+	}
+	return oldValue.OwnerUserID, nil
+}
+
+// AddOwnerUserID adds i to the "owner_user_id" field.
+func (m *WorkbenchViewMutation) AddOwnerUserID(i int) {
+	if m.addowner_user_id != nil {
+		*m.addowner_user_id += i
+	} else {
+		m.addowner_user_id = &i
+	}
+}
+
+// AddedOwnerUserID returns the value that was added to the "owner_user_id" field in this mutation.
+func (m *WorkbenchViewMutation) AddedOwnerUserID() (r int, exists bool) {
+	v := m.addowner_user_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetOwnerUserID resets all changes to the "owner_user_id" field.
+func (m *WorkbenchViewMutation) ResetOwnerUserID() {
+	m.owner_user_id = nil
+	m.addowner_user_id = nil
+}
+
+// SetName sets the "name" field.
+func (m *WorkbenchViewMutation) SetName(s string) {
+	m.name = &s
+}
+
+// Name returns the value of the "name" field in the mutation.
+func (m *WorkbenchViewMutation) Name() (r string, exists bool) {
+	v := m.name
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldName returns the old "name" field's value of the WorkbenchView entity.
+// If the WorkbenchView object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *WorkbenchViewMutation) OldName(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldName is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldName requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldName: %w", err)
+	}
+	return oldValue.Name, nil
+}
+
+// ResetName resets all changes to the "name" field.
+func (m *WorkbenchViewMutation) ResetName() {
+	m.name = nil
+}
+
+// SetFilters sets the "filters" field.
+func (m *WorkbenchViewMutation) SetFilters(value map[string]interface{}) {
+	m.filters = &value
+}
+
+// Filters returns the value of the "filters" field in the mutation.
+func (m *WorkbenchViewMutation) Filters() (r map[string]interface{}, exists bool) {
+	v := m.filters
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldFilters returns the old "filters" field's value of the WorkbenchView entity.
+// If the WorkbenchView object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *WorkbenchViewMutation) OldFilters(ctx context.Context) (v map[string]interface{}, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldFilters is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldFilters requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldFilters: %w", err)
+	}
+	return oldValue.Filters, nil
+}
+
+// ResetFilters resets all changes to the "filters" field.
+func (m *WorkbenchViewMutation) ResetFilters() {
+	m.filters = nil
+}
+
+// SetIsShared sets the "is_shared" field.
+func (m *WorkbenchViewMutation) SetIsShared(b bool) {
+	m.is_shared = &b
+}
+
+// IsShared returns the value of the "is_shared" field in the mutation.
+func (m *WorkbenchViewMutation) IsShared() (r bool, exists bool) {
+	v := m.is_shared
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldIsShared returns the old "is_shared" field's value of the WorkbenchView entity.
+// If the WorkbenchView object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *WorkbenchViewMutation) OldIsShared(ctx context.Context) (v bool, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldIsShared is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldIsShared requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldIsShared: %w", err)
+	}
+	return oldValue.IsShared, nil
+}
+
+// ResetIsShared resets all changes to the "is_shared" field.
+func (m *WorkbenchViewMutation) ResetIsShared() {
+	m.is_shared = nil
+}
+
+// SetIsDefault sets the "is_default" field.
+func (m *WorkbenchViewMutation) SetIsDefault(b bool) {
+	m.is_default = &b
+}
+
+// IsDefault returns the value of the "is_default" field in the mutation.
+func (m *WorkbenchViewMutation) IsDefault() (r bool, exists bool) {
+	v := m.is_default
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldIsDefault returns the old "is_default" field's value of the WorkbenchView entity.
+// If the WorkbenchView object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *WorkbenchViewMutation) OldIsDefault(ctx context.Context) (v bool, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldIsDefault is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldIsDefault requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldIsDefault: %w", err)
+	}
+	return oldValue.IsDefault, nil
+}
+
+// ResetIsDefault resets all changes to the "is_default" field.
+func (m *WorkbenchViewMutation) ResetIsDefault() {
+	m.is_default = nil
+}
+
+// SetCreatedAt sets the "created_at" field.
+func (m *WorkbenchViewMutation) SetCreatedAt(t time.Time) {
+	m.created_at = &t
+}
+
+// CreatedAt returns the value of the "created_at" field in the mutation.
+func (m *WorkbenchViewMutation) CreatedAt() (r time.Time, exists bool) {
+	v := m.created_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldCreatedAt returns the old "created_at" field's value of the WorkbenchView entity.
+// If the WorkbenchView object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *WorkbenchViewMutation) OldCreatedAt(ctx context.Context) (v time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldCreatedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldCreatedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldCreatedAt: %w", err)
+	}
+	return oldValue.CreatedAt, nil
+}
+
+// ResetCreatedAt resets all changes to the "created_at" field.
+func (m *WorkbenchViewMutation) ResetCreatedAt() {
+	m.created_at = nil
+}
+
+// SetUpdatedAt sets the "updated_at" field.
+func (m *WorkbenchViewMutation) SetUpdatedAt(t time.Time) {
+	m.updated_at = &t
+}
+
+// UpdatedAt returns the value of the "updated_at" field in the mutation.
+func (m *WorkbenchViewMutation) UpdatedAt() (r time.Time, exists bool) {
+	v := m.updated_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldUpdatedAt returns the old "updated_at" field's value of the WorkbenchView entity.
+// If the WorkbenchView object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *WorkbenchViewMutation) OldUpdatedAt(ctx context.Context) (v time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldUpdatedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldUpdatedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldUpdatedAt: %w", err)
+	}
+	return oldValue.UpdatedAt, nil
+}
+
+// ResetUpdatedAt resets all changes to the "updated_at" field.
+func (m *WorkbenchViewMutation) ResetUpdatedAt() {
+	m.updated_at = nil
+}
+
+// Where appends a list predicates to the WorkbenchViewMutation builder.
+func (m *WorkbenchViewMutation) Where(ps ...predicate.WorkbenchView) {
+	m.predicates = append(m.predicates, ps...)
+}
+
+// WhereP appends storage-level predicates to the WorkbenchViewMutation builder. Using this method,
+// users can use type-assertion to append predicates that do not depend on any generated package.
+func (m *WorkbenchViewMutation) WhereP(ps ...func(*sql.Selector)) {
+	p := make([]predicate.WorkbenchView, len(ps))
+	for i := range ps {
+		p[i] = ps[i]
+	}
+	m.Where(p...)
+}
+
+// Op returns the operation name.
+func (m *WorkbenchViewMutation) Op() Op {
+	return m.op
+}
+
+// SetOp allows setting the mutation operation.
+func (m *WorkbenchViewMutation) SetOp(op Op) {
+	m.op = op
+}
+
+// Type returns the node type of this mutation (WorkbenchView).
+func (m *WorkbenchViewMutation) Type() string {
+	return m.typ
+}
+
+// Fields returns all fields that were changed during this mutation. Note that in
+// order to get all numeric fields that were incremented/decremented, call
+// AddedFields().
+func (m *WorkbenchViewMutation) Fields() []string {
+	fields := make([]string, 0, 8)
+	if m.tenant_id != nil {
+		fields = append(fields, workbenchview.FieldTenantID)
+	}
+	if m.owner_user_id != nil {
+		fields = append(fields, workbenchview.FieldOwnerUserID)
+	}
+	if m.name != nil {
+		fields = append(fields, workbenchview.FieldName)
+	}
+	if m.filters != nil {
+		fields = append(fields, workbenchview.FieldFilters)
+	}
+	if m.is_shared != nil {
+		fields = append(fields, workbenchview.FieldIsShared)
+	}
+	if m.is_default != nil {
+		fields = append(fields, workbenchview.FieldIsDefault)
+	}
+	if m.created_at != nil {
+		fields = append(fields, workbenchview.FieldCreatedAt)
+	}
+	if m.updated_at != nil {
+		fields = append(fields, workbenchview.FieldUpdatedAt)
+	}
+	return fields
+}
+
+// Field returns the value of a field with the given name. The second boolean
+// return value indicates that this field was not set, or was not defined in the
+// schema.
+func (m *WorkbenchViewMutation) Field(name string) (ent.Value, bool) {
+	switch name {
+	case workbenchview.FieldTenantID:
+		return m.TenantID()
+	case workbenchview.FieldOwnerUserID:
+		return m.OwnerUserID()
+	case workbenchview.FieldName:
+		return m.Name()
+	case workbenchview.FieldFilters:
+		return m.Filters()
+	case workbenchview.FieldIsShared:
+		return m.IsShared()
+	case workbenchview.FieldIsDefault:
+		return m.IsDefault()
+	case workbenchview.FieldCreatedAt:
+		return m.CreatedAt()
+	case workbenchview.FieldUpdatedAt:
+		return m.UpdatedAt()
+	}
+	return nil, false
+}
+
+// OldField returns the old value of the field from the database. An error is
+// returned if the mutation operation is not UpdateOne, or the query to the
+// database failed.
+func (m *WorkbenchViewMutation) OldField(ctx context.Context, name string) (ent.Value, error) {
+	switch name {
+	case workbenchview.FieldTenantID:
+		return m.OldTenantID(ctx)
+	case workbenchview.FieldOwnerUserID:
+		return m.OldOwnerUserID(ctx)
+	case workbenchview.FieldName:
+		return m.OldName(ctx)
+	case workbenchview.FieldFilters:
+		return m.OldFilters(ctx)
+	case workbenchview.FieldIsShared:
+		return m.OldIsShared(ctx)
+	case workbenchview.FieldIsDefault:
+		return m.OldIsDefault(ctx)
+	case workbenchview.FieldCreatedAt:
+		return m.OldCreatedAt(ctx)
+	case workbenchview.FieldUpdatedAt:
+		return m.OldUpdatedAt(ctx)
+	}
+	return nil, fmt.Errorf("unknown WorkbenchView field %s", name)
+}
+
+// SetField sets the value of a field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *WorkbenchViewMutation) SetField(name string, value ent.Value) error {
+	switch name {
+	case workbenchview.FieldTenantID:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetTenantID(v)
+		return nil
+	case workbenchview.FieldOwnerUserID:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetOwnerUserID(v)
+		return nil
+	case workbenchview.FieldName:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetName(v)
+		return nil
+	case workbenchview.FieldFilters:
+		v, ok := value.(map[string]interface{})
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetFilters(v)
+		return nil
+	case workbenchview.FieldIsShared:
+		v, ok := value.(bool)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetIsShared(v)
+		return nil
+	case workbenchview.FieldIsDefault:
+		v, ok := value.(bool)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetIsDefault(v)
+		return nil
+	case workbenchview.FieldCreatedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetCreatedAt(v)
+		return nil
+	case workbenchview.FieldUpdatedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetUpdatedAt(v)
+		return nil
+	}
+	return fmt.Errorf("unknown WorkbenchView field %s", name)
+}
+
+// AddedFields returns all numeric fields that were incremented/decremented during
+// this mutation.
+func (m *WorkbenchViewMutation) AddedFields() []string {
+	var fields []string
+	if m.addtenant_id != nil {
+		fields = append(fields, workbenchview.FieldTenantID)
+	}
+	if m.addowner_user_id != nil {
+		fields = append(fields, workbenchview.FieldOwnerUserID)
+	}
+	return fields
+}
+
+// AddedField returns the numeric value that was incremented/decremented on a field
+// with the given name. The second boolean return value indicates that this field
+// was not set, or was not defined in the schema.
+func (m *WorkbenchViewMutation) AddedField(name string) (ent.Value, bool) {
+	switch name {
+	case workbenchview.FieldTenantID:
+		return m.AddedTenantID()
+	case workbenchview.FieldOwnerUserID:
+		return m.AddedOwnerUserID()
+	}
+	return nil, false
+}
+
+// AddField adds the value to the field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *WorkbenchViewMutation) AddField(name string, value ent.Value) error {
+	switch name {
+	case workbenchview.FieldTenantID:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddTenantID(v)
+		return nil
+	case workbenchview.FieldOwnerUserID:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddOwnerUserID(v)
+		return nil
+	}
+	return fmt.Errorf("unknown WorkbenchView numeric field %s", name)
+}
+
+// ClearedFields returns all nullable fields that were cleared during this
+// mutation.
+func (m *WorkbenchViewMutation) ClearedFields() []string {
+	return nil
+}
+
+// FieldCleared returns a boolean indicating if a field with the given name was
+// cleared in this mutation.
+func (m *WorkbenchViewMutation) FieldCleared(name string) bool {
+	_, ok := m.clearedFields[name]
+	return ok
+}
+
+// ClearField clears the value of the field with the given name. It returns an
+// error if the field is not defined in the schema.
+func (m *WorkbenchViewMutation) ClearField(name string) error {
+	return fmt.Errorf("unknown WorkbenchView nullable field %s", name)
+}
+
+// ResetField resets all changes in the mutation for the field with the given name.
+// It returns an error if the field is not defined in the schema.
+func (m *WorkbenchViewMutation) ResetField(name string) error {
+	switch name {
+	case workbenchview.FieldTenantID:
+		m.ResetTenantID()
+		return nil
+	case workbenchview.FieldOwnerUserID:
+		m.ResetOwnerUserID()
+		return nil
+	case workbenchview.FieldName:
+		m.ResetName()
+		return nil
+	case workbenchview.FieldFilters:
+		m.ResetFilters()
+		return nil
+	case workbenchview.FieldIsShared:
+		m.ResetIsShared()
+		return nil
+	case workbenchview.FieldIsDefault:
+		m.ResetIsDefault()
+		return nil
+	case workbenchview.FieldCreatedAt:
+		m.ResetCreatedAt()
+		return nil
+	case workbenchview.FieldUpdatedAt:
+		m.ResetUpdatedAt()
+		return nil
+	}
+	return fmt.Errorf("unknown WorkbenchView field %s", name)
+}
+
+// AddedEdges returns all edge names that were set/added in this mutation.
+func (m *WorkbenchViewMutation) AddedEdges() []string {
+	edges := make([]string, 0, 0)
+	return edges
+}
+
+// AddedIDs returns all IDs (to other nodes) that were added for the given edge
+// name in this mutation.
+func (m *WorkbenchViewMutation) AddedIDs(name string) []ent.Value {
+	return nil
+}
+
+// RemovedEdges returns all edge names that were removed in this mutation.
+func (m *WorkbenchViewMutation) RemovedEdges() []string {
+	edges := make([]string, 0, 0)
+	return edges
+}
+
+// RemovedIDs returns all IDs (to other nodes) that were removed for the edge with
+// the given name in this mutation.
+func (m *WorkbenchViewMutation) RemovedIDs(name string) []ent.Value {
+	return nil
+}
+
+// ClearedEdges returns all edge names that were cleared in this mutation.
+func (m *WorkbenchViewMutation) ClearedEdges() []string {
+	edges := make([]string, 0, 0)
+	return edges
+}
+
+// EdgeCleared returns a boolean which indicates if the edge with the given name
+// was cleared in this mutation.
+func (m *WorkbenchViewMutation) EdgeCleared(name string) bool {
+	return false
+}
+
+// ClearEdge clears the value of the edge with the given name. It returns an error
+// if that edge is not defined in the schema.
+func (m *WorkbenchViewMutation) ClearEdge(name string) error {
+	return fmt.Errorf("unknown WorkbenchView unique edge %s", name)
+}
+
+// ResetEdge resets all changes to the edge with the given name in this mutation.
+// It returns an error if the edge is not defined in the schema.
+func (m *WorkbenchViewMutation) ResetEdge(name string) error {
+	return fmt.Errorf("unknown WorkbenchView edge %s", name)
 }
 
 // WorkflowMutation represents an operation that mutates the Workflow nodes in the graph.

@@ -45,6 +45,12 @@ func SetupMSPRoutes(r *gin.Engine, config *RouterConfig) {
 		msp.POST("/workbench/batch", middleware.RequireMSPPermission("msp_ticket", "write"), config.MSPHandler.BatchWorkbench)
 		msp.POST("/tickets/:id/reply", middleware.RequireMSPPermission("msp_ticket", "write"), config.MSPHandler.ReplyWorkbenchTicket)
 		msp.POST("/tickets/:id/status", middleware.RequireMSPPermission("msp_ticket", "write"), config.MSPHandler.ChangeWorkbenchTicketStatus)
+		// 自定义视图（IP-P2-4a）：保存过滤器组合 + 同 provider 分享（灰度 WORKBENCH_VIEWS_ENABLED，默认关）。
+		msp.GET("/workbench/views", middleware.RequireMSPPermission("msp_ticket", "read"), config.MSPHandler.ListWorkbenchViews)
+		msp.POST("/workbench/views", middleware.RequireMSPPermission("msp_ticket", "write"), config.MSPHandler.CreateWorkbenchView)
+		msp.PUT("/workbench/views/:id", middleware.RequireMSPPermission("msp_ticket", "write"), config.MSPHandler.UpdateWorkbenchView)
+		msp.DELETE("/workbench/views/:id", middleware.RequireMSPPermission("msp_ticket", "write"), config.MSPHandler.DeleteWorkbenchView)
+		msp.POST("/workbench/views/:id/default", middleware.RequireMSPPermission("msp_ticket", "write"), config.MSPHandler.SetDefaultWorkbenchView)
 
 		// 报表 - 需要 msp_report 权限
 		msp.GET("/reports/customers", middleware.RequireMSPPermission("msp_report", "read"), config.MSPHandler.GetCustomerReports)

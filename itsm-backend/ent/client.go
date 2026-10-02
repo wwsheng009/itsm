@@ -156,6 +156,7 @@ import (
 	"itsm-backend/ent/usertenantmembership"
 	"itsm-backend/ent/usertenantmembershiporg"
 	"itsm-backend/ent/vendor"
+	"itsm-backend/ent/workbenchview"
 	"itsm-backend/ent/workflow"
 	"itsm-backend/ent/workflowinstance"
 	"itsm-backend/ent/workflowtask"
@@ -463,6 +464,8 @@ type Client struct {
 	UserTenantMembershipOrg *UserTenantMembershipOrgClient
 	// Vendor is the client for interacting with the Vendor builders.
 	Vendor *VendorClient
+	// WorkbenchView is the client for interacting with the WorkbenchView builders.
+	WorkbenchView *WorkbenchViewClient
 	// Workflow is the client for interacting with the Workflow builders.
 	Workflow *WorkflowClient
 	// WorkflowInstance is the client for interacting with the WorkflowInstance builders.
@@ -629,6 +632,7 @@ func (c *Client) init() {
 	c.UserTenantMembership = NewUserTenantMembershipClient(c.config)
 	c.UserTenantMembershipOrg = NewUserTenantMembershipOrgClient(c.config)
 	c.Vendor = NewVendorClient(c.config)
+	c.WorkbenchView = NewWorkbenchViewClient(c.config)
 	c.Workflow = NewWorkflowClient(c.config)
 	c.WorkflowInstance = NewWorkflowInstanceClient(c.config)
 	c.WorkflowTask = NewWorkflowTaskClient(c.config)
@@ -871,6 +875,7 @@ func (c *Client) Tx(ctx context.Context) (*Tx, error) {
 		UserTenantMembership:        NewUserTenantMembershipClient(cfg),
 		UserTenantMembershipOrg:     NewUserTenantMembershipOrgClient(cfg),
 		Vendor:                      NewVendorClient(cfg),
+		WorkbenchView:               NewWorkbenchViewClient(cfg),
 		Workflow:                    NewWorkflowClient(cfg),
 		WorkflowInstance:            NewWorkflowInstanceClient(cfg),
 		WorkflowTask:                NewWorkflowTaskClient(cfg),
@@ -1040,6 +1045,7 @@ func (c *Client) BeginTx(ctx context.Context, opts *sql.TxOptions) (*Tx, error) 
 		UserTenantMembership:        NewUserTenantMembershipClient(cfg),
 		UserTenantMembershipOrg:     NewUserTenantMembershipOrgClient(cfg),
 		Vendor:                      NewVendorClient(cfg),
+		WorkbenchView:               NewWorkbenchViewClient(cfg),
 		Workflow:                    NewWorkflowClient(cfg),
 		WorkflowInstance:            NewWorkflowInstanceClient(cfg),
 		WorkflowTask:                NewWorkflowTaskClient(cfg),
@@ -1110,8 +1116,8 @@ func (c *Client) Use(hooks ...Hook) {
 		c.TicketCategory, c.TicketComment, c.TicketNotification, c.TicketTag,
 		c.TicketTemplate, c.TicketType, c.TicketView, c.TicketWorkflowRecord,
 		c.ToolInvocation, c.User, c.UserTenantMembership, c.UserTenantMembershipOrg,
-		c.Vendor, c.Workflow, c.WorkflowInstance, c.WorkflowTask, c.WorkflowTemplate,
-		c.WorkflowVersion,
+		c.Vendor, c.WorkbenchView, c.Workflow, c.WorkflowInstance, c.WorkflowTask,
+		c.WorkflowTemplate, c.WorkflowVersion,
 	} {
 		n.Use(hooks...)
 	}
@@ -1157,8 +1163,8 @@ func (c *Client) Intercept(interceptors ...Interceptor) {
 		c.TicketCategory, c.TicketComment, c.TicketNotification, c.TicketTag,
 		c.TicketTemplate, c.TicketType, c.TicketView, c.TicketWorkflowRecord,
 		c.ToolInvocation, c.User, c.UserTenantMembership, c.UserTenantMembershipOrg,
-		c.Vendor, c.Workflow, c.WorkflowInstance, c.WorkflowTask, c.WorkflowTemplate,
-		c.WorkflowVersion,
+		c.Vendor, c.WorkbenchView, c.Workflow, c.WorkflowInstance, c.WorkflowTask,
+		c.WorkflowTemplate, c.WorkflowVersion,
 	} {
 		n.Intercept(interceptors...)
 	}
@@ -1457,6 +1463,8 @@ func (c *Client) Mutate(ctx context.Context, m Mutation) (Value, error) {
 		return c.UserTenantMembershipOrg.mutate(ctx, m)
 	case *VendorMutation:
 		return c.Vendor.mutate(ctx, m)
+	case *WorkbenchViewMutation:
+		return c.WorkbenchView.mutate(ctx, m)
 	case *WorkflowMutation:
 		return c.Workflow.mutate(ctx, m)
 	case *WorkflowInstanceMutation:
@@ -24869,6 +24877,139 @@ func (c *VendorClient) mutate(ctx context.Context, m *VendorMutation) (Value, er
 	}
 }
 
+// WorkbenchViewClient is a client for the WorkbenchView schema.
+type WorkbenchViewClient struct {
+	config
+}
+
+// NewWorkbenchViewClient returns a client for the WorkbenchView from the given config.
+func NewWorkbenchViewClient(c config) *WorkbenchViewClient {
+	return &WorkbenchViewClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `workbenchview.Hooks(f(g(h())))`.
+func (c *WorkbenchViewClient) Use(hooks ...Hook) {
+	c.hooks.WorkbenchView = append(c.hooks.WorkbenchView, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `workbenchview.Intercept(f(g(h())))`.
+func (c *WorkbenchViewClient) Intercept(interceptors ...Interceptor) {
+	c.inters.WorkbenchView = append(c.inters.WorkbenchView, interceptors...)
+}
+
+// Create returns a builder for creating a WorkbenchView entity.
+func (c *WorkbenchViewClient) Create() *WorkbenchViewCreate {
+	mutation := newWorkbenchViewMutation(c.config, OpCreate)
+	return &WorkbenchViewCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of WorkbenchView entities.
+func (c *WorkbenchViewClient) CreateBulk(builders ...*WorkbenchViewCreate) *WorkbenchViewCreateBulk {
+	return &WorkbenchViewCreateBulk{config: c.config, builders: builders}
+}
+
+// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
+// a builder and applies setFunc on it.
+func (c *WorkbenchViewClient) MapCreateBulk(slice any, setFunc func(*WorkbenchViewCreate, int)) *WorkbenchViewCreateBulk {
+	rv := reflect.ValueOf(slice)
+	if rv.Kind() != reflect.Slice {
+		return &WorkbenchViewCreateBulk{err: fmt.Errorf("calling to WorkbenchViewClient.MapCreateBulk with wrong type %T, need slice", slice)}
+	}
+	builders := make([]*WorkbenchViewCreate, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		builders[i] = c.Create()
+		setFunc(builders[i], i)
+	}
+	return &WorkbenchViewCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for WorkbenchView.
+func (c *WorkbenchViewClient) Update() *WorkbenchViewUpdate {
+	mutation := newWorkbenchViewMutation(c.config, OpUpdate)
+	return &WorkbenchViewUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *WorkbenchViewClient) UpdateOne(_m *WorkbenchView) *WorkbenchViewUpdateOne {
+	mutation := newWorkbenchViewMutation(c.config, OpUpdateOne, withWorkbenchView(_m))
+	return &WorkbenchViewUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *WorkbenchViewClient) UpdateOneID(id int) *WorkbenchViewUpdateOne {
+	mutation := newWorkbenchViewMutation(c.config, OpUpdateOne, withWorkbenchViewID(id))
+	return &WorkbenchViewUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for WorkbenchView.
+func (c *WorkbenchViewClient) Delete() *WorkbenchViewDelete {
+	mutation := newWorkbenchViewMutation(c.config, OpDelete)
+	return &WorkbenchViewDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *WorkbenchViewClient) DeleteOne(_m *WorkbenchView) *WorkbenchViewDeleteOne {
+	return c.DeleteOneID(_m.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *WorkbenchViewClient) DeleteOneID(id int) *WorkbenchViewDeleteOne {
+	builder := c.Delete().Where(workbenchview.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &WorkbenchViewDeleteOne{builder}
+}
+
+// Query returns a query builder for WorkbenchView.
+func (c *WorkbenchViewClient) Query() *WorkbenchViewQuery {
+	return &WorkbenchViewQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypeWorkbenchView},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a WorkbenchView entity by its id.
+func (c *WorkbenchViewClient) Get(ctx context.Context, id int) (*WorkbenchView, error) {
+	return c.Query().Where(workbenchview.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *WorkbenchViewClient) GetX(ctx context.Context, id int) *WorkbenchView {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// Hooks returns the client hooks.
+func (c *WorkbenchViewClient) Hooks() []Hook {
+	return c.hooks.WorkbenchView
+}
+
+// Interceptors returns the client interceptors.
+func (c *WorkbenchViewClient) Interceptors() []Interceptor {
+	return c.inters.WorkbenchView
+}
+
+func (c *WorkbenchViewClient) mutate(ctx context.Context, m *WorkbenchViewMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&WorkbenchViewCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&WorkbenchViewUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&WorkbenchViewUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&WorkbenchViewDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("ent: unknown WorkbenchView mutation op: %q", m.Op())
+	}
+}
+
 // WorkflowClient is a client for the Workflow schema.
 type WorkflowClient struct {
 	config
@@ -25679,7 +25820,7 @@ type (
 		TicketAssignmentRule, TicketAttachment, TicketAutomationRule, TicketCC,
 		TicketCategory, TicketComment, TicketNotification, TicketTag, TicketTemplate,
 		TicketType, TicketView, TicketWorkflowRecord, ToolInvocation, User,
-		UserTenantMembership, UserTenantMembershipOrg, Vendor, Workflow,
+		UserTenantMembership, UserTenantMembershipOrg, Vendor, WorkbenchView, Workflow,
 		WorkflowInstance, WorkflowTask, WorkflowTemplate, WorkflowVersion []ent.Hook
 	}
 	inters struct {
@@ -25713,7 +25854,7 @@ type (
 		TicketAssignmentRule, TicketAttachment, TicketAutomationRule, TicketCC,
 		TicketCategory, TicketComment, TicketNotification, TicketTag, TicketTemplate,
 		TicketType, TicketView, TicketWorkflowRecord, ToolInvocation, User,
-		UserTenantMembership, UserTenantMembershipOrg, Vendor, Workflow,
+		UserTenantMembership, UserTenantMembershipOrg, Vendor, WorkbenchView, Workflow,
 		WorkflowInstance, WorkflowTask, WorkflowTemplate,
 		WorkflowVersion []ent.Interceptor
 	}
