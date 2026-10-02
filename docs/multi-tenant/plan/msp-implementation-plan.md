@@ -639,7 +639,7 @@ CREATE INDEX idx_invitations_expiry ON invitations (expires_at) WHERE status = '
 - [x] **角色供给**：新 provider 租户 seed 后 5 个 `msp_*` 角色权限齐备（K1/K2 关闭，2026-09-30）；`07:G3` 关闭（登录 rank 取最大 + roleRank 单源）；
 - [x] **前端（P0 面）**：FE-A1–A5、A7 落地（2026-09-30）；登录页 DOM 无租户列表；客户账号无过滤器/切换器/工作台节点；FE-A6（管理页建号目标租户 UI）/A8（路由元数据单一模型清理）随 P1；
 - [x] **契约**：错误码/DDL/审计事件与 §3.0 一致（审计作用域列 + 事件目录 + source 枚举，2026-09-30；`membership_id` 填充随 IP-P1-1）；`07:G1–G10` 映射表（§3.0-F）无遗漏；
-- [ ] **门禁**：docs-gate 6/6（含 C.6 语义锚点）✅ 0 violation（2026-09-30 复核）；`make test` 余已知红待清（后端 2 条既有 fixture/报告用例、前端 1 条 attachment 既有）；三角色剧本 P0 项以单测/e2e 已覆盖部分为准（M10 四通道 403 见 IP-P0-2 单测）。
+- [x] **门禁**：docs-gate 6/6 —— 完整 `run-all.sh` 终局 `6 total, 0 failed`、`GATE_EXIT=0`（2026-09-30；C.1/C.2/C.4/C.5/C.6 = 0 violation；C.3 84 条历代断链为 advisory）；`make test` 全绿 —— 后端 `go test ./...` 全绿（既有 fixture/报告用例已修复）；前端规范 `npm test` 全量复跑 **263/263 套件、4014 通过、13 skip**，覆盖率门槛全达标（Statements 80.33% / Branches 67.81% / Functions 81.24% / Lines 81.51%）；三角色剧本 P0 项以单测/e2e 已覆盖部分为准（M10 四通道 403 见 IP-P0-2 单测）。
 
 ### 6.3 P1 出口 DoD
 
@@ -651,7 +651,7 @@ CREATE INDEX idx_invitations_expiry ON invitations (expires_at) WHERE status = '
 - [x] 审计看板：拒绝事件落库（`tenant.scope_denied` / `tenant.probe_denied`）+ 聚合 API + `/msp/audit` 面板（IP-P1-8，v1.29；`07:G9` 真正关闭）；
 - [x] 批量护栏通过（WB-A4）：批量 ≤100、仅低危动作（reply/status/assign）、高危拒绝、客户分布确认、逐条授权/审计与限流（IP-P1-6，v1.24；后端 `TestWorkbenchBatch_Validation` + 前端批量链路用例）；
 - [ ] RLS `shadow` 无新增错误（A7）：IP-P1-7 评估完成（见 `msp-rls-collection-query-assessment.md`），shadow 观察待 staging/生产环境执行；
-- [ ] docs-gate 6/6；`make test` 全绿。
+- [x] docs-gate 6/6；`make test` 全绿 —— 2026-09-30 终局认定：docs-gate `run-all.sh` `6 total, 0 failed`（`GATE_EXIT=0`）；后端 `go test ./...` 全绿；前端 `npm test` 263/263 套件全绿（含覆盖率门槛）。既有红修复：契约扫描误报、附件契约对齐、慢环境用例超时放宽；全量首跑 5 套件因并发负载超时，隔离复验与全量复跑均绿。
 
 ### 6.4 P2 出口 DoD
 
@@ -786,3 +786,4 @@ CREATE INDEX idx_invitations_expiry ON invitations (expires_at) WHERE status = '
 | v1.27 | 2026-09-30 | **分组视图（IP-P1-6 收口）**：工作台新增平铺/按客户分组切换（`view=group` URL 持久化、不参与查询键避免重拉）；Collapse 组头=客户名+条数，组内省略客户列；复用行内操作与批量勾选（只读行禁用）；tsc/eslint 绿、工作台页 8/8 用例。**工作台 P1 清单全项完成**（批量 ✓ / 偏好 ✓ / allowedActions ✓ / RLS 评估 ✓ / 分组视图 ✓） |
 | v1.28 | 2026-09-30 | **IP-P1-4c 收口（邀请落地/首登 UI）**：修复契约断链——后端 `inviteUrl` 为路径式 `/invite/<token>`，前端此前仅注册 `/invite` 且只读 `?token=`（邮件链接将 404）；新增 `invite/:token` 路由 + `useParams` 优先（保留查询式兼容）。测试：落地页 5 用例（路径/查询 token、缺 token、accepted、密码不一致）+ 强制改密 2 用例；e2e `flow-invitation-onboarding.spec.ts`（@multi-tenant；`page.request` cookie/token 双模；旧构建 404 显式 skip 不假红）；fixture 支持 `E2E_ADMIN_USERNAME/PASSWORD` 覆盖（本机 seeder 口令差异痛点）；后端 handler/service 邀请定向回归绿 |
 | v1.29 | 2026-09-30 | **IP-P1-8 审计看板 + `07:G9` 真正关闭**：复核发现 IP-P0-6 的"header/JWT 冲突 401"从未生效（JWT 已锁定时 Header 被完全跳过 → 冲突分支不可达），本轮改为锁定时仍解析并校验 Header（冲突 → 401 + `TENANT_MISMATCH_REJECTED` + `tenant.probe_denied` 审计）；头通道未分配/客户不存在拒绝落 `tenant.scope_denied` 审计；新增 `GET /api/v1/msp/audit/summary`（窗口聚合：跨租户/拒绝计数、by source/action/target/membership、最近拒绝 + reasonCode、租户名回填）+ `/msp/audit` 前端看板；后端 service/middleware 定向与 router/build/前端 tsc/eslint 全绿 |
+| v1.30 | 2026-09-30 | **P0/P1 门禁终局收官（docs-gate 6/6 + make test 全绿）**：docs-gate 完整 `run-all.sh` 通过（`6 total, 0 failed`、`GATE_EXIT=0`；C.3 84 条历代断链为 advisory）；后端 `go test ./...` 全绿（清 2 条既有 fixture/报告红）；前端全量 `npm test` 263/263 套件、4014 通过、13 skip，覆盖率门槛达标（S 80.33% / B 67.81% / F 81.24% / L 81.51%）；修复清单：api-contract 误报、附件服务契约对齐、邀请/工作台/慢套件超时放宽、TicketDetailAssignSearch 30s→120s；P0/P1 出口 DoD 门禁项勾选 |
