@@ -611,7 +611,7 @@ CREATE INDEX idx_invitations_expiry ON invitations (expires_at) WHERE status = '
 | **IP-P2-4** 工作台进阶 | 自定义视图/配额 | 保存过滤器组合、SLA 风险看板、每客户配额可视化 | 视图可分享/复现；配额数据与后端一致 | feature flag |
 | **IP-P2-5** guard 扩展 | 成员/关联表一致性 | tenant_guard 增加"关联表一致性"检查（跨租户 FK/悬挂成员） | 启动扫描 0 高危；CI 用例覆盖 | 检查项分级（fatal→warn） |
 
-> **P2 进度（2026-09-30 起）**：IP-P2-1 首批落地——`provider_tenant_id` 迁移（可空 + 回填 + 部分索引，`20260930_msp_allocation_provider_dimension.sql`）、写侧归属校验（admin 不豁免）、读侧 provider 收窄（middleware / 租户切换列表 / 分配列表；工作台与报表维持 `mspguard` 单源收窄）、巡检脚本与单测；**NOT NULL 收尾**待巡检归零 + A11/A12 e2e（环境依赖）。IP-P2-5 首组检查落地——`ApplyConsistencyChecks`（悬挂成员 / 组织关联跨租户 / allocation provider 错配；缺表/缺列自动跳过告警），接入启动 `runTenantGuard`，3 组用例绿（v1.32）。IP-P2-2 前置代码收口——工作台列表/汇总/条目级动作/assign 链路按目标客户租户重绑定 RLS ctx；评估清单 1/2/3 完成、4 待 staging 观察（v1.33）。IP-P2-3 共享表复核——`messages` 租户化（加列 + 回填 + 索引 + 写入 ctx 派生）、`marketplace_items` / `prompt_templates` 保留显式共享并固化季度复核（v1.34）。IP-P2-4a 自定义视图全链完成（v1.36）。IP-P2-4b SLA 风险看板落地（v1.37）。IP-P2-4c 每客户用量看板（usage-only 定案）落地——summary 增 `members`（active membership 单源）/`ticketsCreated30d`（30d 窗口下发）；前端 `CustomerUsageBoard`（排序/条形/点击收窄）+ 组件单测 5/5；硬配额（limits）登记「平台租户管理」批次遗留；**P2-4 全项收口（v1.38）**。
+> **P2 进度（2026-09-30 起）**：IP-P2-1 首批落地——`provider_tenant_id` 迁移（可空 + 回填 + 部分索引，`20260930_msp_allocation_provider_dimension.sql`）、写侧归属校验（admin 不豁免）、读侧 provider 收窄（middleware / 租户切换列表 / 分配列表；工作台与报表维持 `mspguard` 单源收窄）、巡检脚本与单测；**A11/A12 api 通道 e2e 落地**（v1.39）；**NOT NULL 收尾**待巡检归零。IP-P2-5 首组检查落地（v1.32）。IP-P2-2 前置代码收口（v1.33）。IP-P2-3 共享表复核（v1.34）。IP-P2-4a 自定义视图全链完成（v1.36）。IP-P2-4b SLA 风险看板落地（v1.37）。IP-P2-4c 每客户用量看板（usage-only 定案）落地——**P2-4 全项收口（v1.38）**。
 
 ### 5.0 P2 冻结契约（2026-09-30；本节即 P2 编码基线）
 
@@ -624,7 +624,7 @@ CREATE INDEX idx_invitations_expiry ON invitations (expires_at) WHERE status = '
 - **收窄点（N=1 行为不变）**：① `middleware/msp_middleware.go` 的 `AllowedCustomers` 由 provider 收窄后的分配集合构建（授权链仍唯一走 `mspguard`）；② 工作台 / 报表（`GetMSPCustomerReports`）/ 审计（`MSPAuditService`）查询按 `provider_tenant_id` 收窄。
 - **过渡兼容**：收窄条件 `provider_tenant_id = <provider> OR provider_tenant_id IS NULL`（回填前存量行不丢；NOT NULL 收尾后收敛为等值）。
 - **回滚**：字段可空 + 代码回退；R2 主链不受影响（`mspguard` 读路径仍强校验归属）。
-- **验收**：`TestMSPAllocationService_*`（provider 派生 / 跨 provider 拒绝 / 一致性）、`middleware` N=2 收窄用例；A11/A12 e2e。
+- **验收**：`TestMSPAllocationService_*`（provider 派生 / 跨 provider 拒绝 / 一致性）、`middleware` N=2 收窄用例；**A11/A12 api 通道 e2e ✅**（`router/msp_a11_a12_e2e_test.go`，v1.39）。
 
 **5.0-B IP-P2-2 RLS `enforce` 前置（冻结）**
 
@@ -692,7 +692,7 @@ CREATE INDEX idx_invitations_expiry ON invitations (expires_at) WHERE status = '
 
 ### 6.4 P2 出口 DoD
 
-- [ ] A11（N=1/N=2 同一 e2e）；A12（多 provider 工单流转：快照/收窄/指派校验/通知双投递/拒绝路径）——用例就绪，待多 provider 环境执行；
+- [x] A11/A12 **api 通道 e2e 落地**（v1.39，`router/msp_a11_a12_e2e_test.go`）：N=1/N=2 同一剧本行为指纹一致；建单快照 / 工作台可见与 provider∩allocation 收窄 / 指派校验 / 跨 provider 与未分配客户拒绝全覆盖；**通知双投递为唯一未实现子项**（后端无 dual-delivery 代码路径，登记遗留）；浏览器/多部署环境 e2e 为可选补强；
 - [ ] RLS `enforce` 灰度无 500——代码侧 ctx 收口与 shadow 前置完成（v1.33），灰度待 staging 执行；**✅ 共享表治理清单完成**（v1.34：`messages` 租户化 + `msp-exempt-tables-quarterly-review.md` 固化 owner/复核期）；
 - [ ] guard 扩展检查 **0 高危**待生产库执行（首组三检查 v1.32 已接入，启动扫描 0 高危以生产巡检为准）；**✅ docs-gate 6/6**（2026-09-30 全量 `run-all.sh`，C.6 语义锚点门禁常开）。
 
@@ -721,8 +721,8 @@ CREATE INDEX idx_invitations_expiry ON invitations (expires_at) WHERE status = '
 | A8 跨租户写仅两类且审计 | IP-P0-7/10 | 审计查询 |
 | A9 客户账号三无（前端+API） | IP-P0-7/8 | FE 测试 + API 403 |
 | A10 模式单一来源自检 | IP-P0-1 | 启动自检日志 |
-| A11 N=1/N=2 e2e | IP-P2-1 | e2e 报告 |
-| A12 多 provider 工单流转 | IP-P0-3 + IP-P2-1 | 剧本 P 系列 + 快照断言 |
+| A11 N=1/N=2 e2e | IP-P2-1 | `router/msp_a11_a12_e2e_test.go`（`TestMSP_A11_SameScenarioForN1AndN2`：同一剧本行为指纹一致） |
+| A12 多 provider 工单流转 | IP-P0-3 + IP-P2-1 | 同上（`TestMSP_A12_ProviderScopedTicketFlow`：快照/收窄/指派/拒绝路径）+ 快照单测 |
 
 ---
 
@@ -834,3 +834,4 @@ CREATE INDEX idx_invitations_expiry ON invitations (expires_at) WHERE status = '
 | v1.36 | 2026-09-30 | **IP-P2-4a 前端：SavedViews 控件 + URL 复现**：`msp-workbench-api.ts` 增视图 API/类型/`viewFilterToQueryPatch`；新组件 `SavedViews`（视图下拉：默认★/他人分享标记；保存当前筛选为视图；编辑/删除/设为默认仅 owner；删除二次确认）；工作台页接入：服务端 `enabled` 驱动灰度（未开启静默隐藏）、`?viewId=N` 首次加载展开过滤器回 query（刷新/分享/收藏复现、防循环），`viewId` 不参与数据过滤键；组件单测 6/6 + 页面 8/8 + CustomerFilter 6/6；tsc/eslint 绿 |
 | v1.37 | 2026-09-30 | **IP-P2-4b SLA 风险看板**：`WorkbenchSummaryCustomer` 增 `slaDueSoon`、响应增 `slaDueSoonWindowHours=24`（`workbenchSLADueSoonWindow`；已超期不重复计入）；前端新组件 `SlaRiskBoard`（超期 desc → 临近 desc → open desc 排序；合计徽标；红/橙/灰占比条；点击行写 `customerTenantIds` 收窄；刷新/空态/错误态）；后端 summary 用例扩展（追加 2h 内到期工单断言分桶与窗口）+ 前端组件 5/5、页面 8/8、CustomerFilter 6/6；tsc/eslint 绿 |
 | v1.38 | 2026-09-30 | **IP-P2-4c 每客户用量看板（usage-only 定案；P2-4 收口）**：数据源核查——`tenants` 无 `quota/settings` 列、`dto.TenantDTO.Quota` 从未赋值、附件配额 6106 无校验，确认**无硬配额数据源**；`WorkbenchSummaryCustomer` 增 `members`（active 且未删除 membership 计数）/`ticketsCreated30d`（`CreatedAtGTE(now-30d)`），响应增 `usageWindowDays=30`；前端新组件 `CustomerUsageBoard`（窗口新增 desc → 成员 desc 排序；成员/未关闭/新增数字 + 相对最大值条；点击行写 `customerTenantIds`；刷新/空态/错误态 + 口径提示）；后端 summary 用例扩展（membership active/suspended 分桶 + 窗口断言）+ 前端组件 5/5、页面 8/8、CustomerFilter 6/6；硬配额（limits）登记遗留；fmt/tsc/eslint 绿 |
+| v1.39 | 2026-09-30 | **A11/A12 api 通道 e2e 落地**：新增 `router/msp_a11_a12_e2e_test.go`（路由器级全中间件链：Auth → RBAC → MSPMiddleware → RequireMSPPermission → handler → service/mspguard，ent/sqlite 内存库，无需外部环境）——`TestMSP_A11_SameScenarioForN1AndN2` 以同一剧本跑 N=1/N=2 并比较行为指纹（工作台列表/汇总/指派状态与计数全等）；`TestMSP_A12_ProviderScopedTicketFlow` 覆盖建单 provider 快照（DTO+DB 双断言）/工作台可见与 provider∩allocation 收窄/指派校验（allocated=200 且落 `managed_by_user_id`，未分配 403 `MSP_ALLOCATION_REQUIRED`）/跨 provider 拒绝（P2 员工访问 P1 客户 403、不带筛选仅见本 provider 客户）；夹具还原生产口径（`users.role=agent` + m2m `msp_tech` 角色 + role_permissions + allocation 带 `provider_tenant_id`）；`./router` 全包回归绿；通知双投递仍为遗留子项（后端无实现） |
