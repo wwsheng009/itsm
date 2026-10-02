@@ -1396,28 +1396,34 @@ func TestTicketService_GetMSPCustomerReports_AllocationAware(t *testing.T) {
 	mspTenant, _ := client.Tenant.Create().
 		SetName("MSP").
 		SetCode("msp").
-		SetType("msp").
+		SetType("msp_provider").
 		Save(ctx)
 
 	allocatedTenant, _ := client.Tenant.Create().
 		SetName("AllocatedCustomer").
 		SetCode("alloc_cust").
-		SetType("customer").
+		SetType("msp_customer").
+		SetMspProviderID(mspTenant.ID).
 		Save(ctx)
 
-	unallocatedTenant, _ := client.Tenant.Create().
-		SetName("UnallocatedCustomer").
-		SetCode("unalloc_cust").
-		SetType("customer").
-		Save(ctx)
-
-	// Create MSP user
+	// Create MSP user（provider 员工：msp_role 非空，mspguard 身份校验通过）
 	mspUser, _ := client.User.Create().
 		SetUsername("msp_user").
 		SetEmail("msp@example.com").
 		SetName("MSP User").
 		SetPasswordHash("hash").
 		SetTenantID(mspTenant.ID).
+		SetMspRole("provider_admin").
+		Save(ctx)
+
+	// 第二个 provider 员工：无 allocation（fail-closed 应返回空集合）
+	unallocatedUser, _ := client.User.Create().
+		SetUsername("msp_user_2").
+		SetEmail("msp2@example.com").
+		SetName("MSP User 2").
+		SetPasswordHash("hash").
+		SetTenantID(mspTenant.ID).
+		SetMspRole("provider_agent").
 		Save(ctx)
 
 	// Create allocation ONLY to allocatedTenant
@@ -1427,10 +1433,10 @@ func TestTicketService_GetMSPCustomerReports_AllocationAware(t *testing.T) {
 		SetRole("provider_agent").
 		Save(ctx)
 
-	// Test: V2 GetMSPCustomerReports 按 mspTenantID 维度聚合统计
+	// Test: V2 GetMSPCustomerReports 按 msp 员工可访问客户维度聚合统计
 	dateFrom, _ := time.Parse("2006-01-02", "2024-01-01")
 	dateTo, _ := time.Parse("2006-01-02", "2024-12-31")
-	reports, err := ticketService.GetMSPCustomerReports(ctx, mspTenant.ID, dateFrom, dateTo)
+	reports, err := ticketService.GetMSPCustomerReports(ctx, mspUser.ID, dateFrom, dateTo)
 	assert.NoError(t, err)
 	assert.NotNil(t, reports)
 	// V2 返回的 reports 至少包含 status_summary 等字段
@@ -1439,10 +1445,10 @@ func TestTicketService_GetMSPCustomerReports_AllocationAware(t *testing.T) {
 		assert.Contains(t, reports[0], "total_tickets")
 	}
 
-	// Test: 验证未分配租户场景下 V2 仅返回 msp 租户维度统计，不会报错
-	reports, err = ticketService.GetMSPCustomerReports(ctx, unallocatedTenant.ID, dateFrom, dateTo)
+	// Test: 无分配员工 fail-closed：返回空集合且不报错（不泄露任何客户维度）
+	reports, err = ticketService.GetMSPCustomerReports(ctx, unallocatedUser.ID, dateFrom, dateTo)
 	assert.NoError(t, err)
-	assert.NotNil(t, reports)
+	assert.Empty(t, reports)
 }
 
 // 基准测试

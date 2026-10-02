@@ -27,8 +27,8 @@
 | 架构评审 | canon（全篇）→ [目标架构](./plan/msp-target-architecture.md) → [集成分析](./plan/msp-integration-with-rbac-org-workflow-analysis.md) → 一致性审计 §1/§2 |
 | 后端研发 | 实施方案 §3 → 目标架构 §3–§8 → 集成分析 → canon §6（不变量） |
 | 前端研发 | [前端分析](./plan/msp-frontend-pages-and-permissions-analysis.md) → 工作台方案 §2 → [用户交互流程](./plan/msp-user-interaction-flows.md) → 实施方案 `IP-P0-8` |
-| 测试/QA | [06 验证与排障](../06-verification-and-troubleshooting.md) → 三角色演练剧本 → 实施方案 §6（DoD/反例/映射） |
-| 运维/部署 | [02 部署与配置](../02-deployment-and-configuration.md) → [07 已知缺口](../07-known-gaps.md) → `scripts/msp/*` → 06 §7 |
+| 测试/QA | [06 验证与排障](./06-verification-and-troubleshooting.md) → 三角色演练剧本 → 实施方案 §6（DoD/反例/映射） |
+| 运维/部署 | [02 部署与配置](./02-deployment-and-configuration.md) → [07 已知缺口](./07-known-gaps.md) → `scripts/msp/*` → 06 §7 |
 
 ---
 
@@ -40,13 +40,13 @@
 |---|---|---|---|---|
 | [INDEX.md](./INDEX.md)（本文件） | 入口 | 当前 | 索引/阅读路径/速查 | — |
 | [README.md](./README.md) | 入口 | 当前 | 运营手册入口、角色术语、维护约定 | — |
-| [01-architecture.md](../01-architecture.md) | L5 | 现状（2026-09-28） | 场景与总体架构（as-is） | — |
-| [02-deployment-and-configuration.md](../02-deployment-and-configuration.md) | L5 | 现状（2026-09-28） | 部署与配置、运维脚本（as-is） | — |
-| [03-customer-dimension.md](../03-customer-dimension.md) | L5 | 现状（2026-09-28） | 客户租户生命周期（as-is） | — |
-| [04-provider-dimension.md](../04-provider-dimension.md) | L5 | 现状（2026-09-28） | 服务商维度与分配（as-is） | — |
-| [05-usage-guide.md](../05-usage-guide.md) | L5 | 现状（2026-09-28） | 使用指南（as-is） | — |
-| [06-verification-and-troubleshooting.md](../06-verification-and-troubleshooting.md) | L5 | 现状（2026-09-28） | 验证与排障、验收清单 | — |
-| [07-known-gaps.md](../07-known-gaps.md) | L5 | 现状（2026-09-28） | 生产实测缺口（唯一 G 空间） | `G1–G10` |
+| [01-architecture.md](./01-architecture.md) | L5 | 现状（2026-09-28） | 场景与总体架构（as-is） | — |
+| [02-deployment-and-configuration.md](./02-deployment-and-configuration.md) | L5 | 现状（2026-09-28） | 部署与配置、运维脚本（as-is） | — |
+| [03-customer-dimension.md](./03-customer-dimension.md) | L5 | 现状（2026-09-28） | 客户租户生命周期（as-is） | — |
+| [04-provider-dimension.md](./04-provider-dimension.md) | L5 | 现状（2026-09-28） | 服务商维度与分配（as-is） | — |
+| [05-usage-guide.md](./05-usage-guide.md) | L5 | 现状（2026-09-28） | 使用指南（as-is） | — |
+| [06-verification-and-troubleshooting.md](./06-verification-and-troubleshooting.md) | L5 | 现状（2026-09-28） | 验证与排障、验收清单 | — |
+| [07-known-gaps.md](./07-known-gaps.md) | L5 | 现状（2026-09-28） | 生产实测缺口（唯一 G 空间） | `G1–G10` |
 | [msp-concept-model-and-architecture-canon.md](./plan/msp-concept-model-and-architecture-canon.md) | **L1** | **v1.0（定稿）** | **概念与架构单一权威**：定义/边界/不变量/风险/验收/决策 | `R1–R12` `K1–K5` `D1–D11` `E1–E6` `I1–I13` `A1–A12` `B1–B6` |
 | [msp-target-architecture.md](./plan/msp-target-architecture.md) | L3 | Draft v0.3（P0/P1 契约冻结） | 目标态详细设计（membership/上下文/权限/建号/迁移） | — |
 | [msp-cross-customer-workbench-and-filter-plan.md](./plan/msp-cross-customer-workbench-and-filter-plan.md) | **L2** | Draft v0.2（P0 契约冻结） | 跨客户工作台 + 过滤器（**决策修订源**） | `WB1–WB6` `WB-R1–6` `WB-A1–6` `REV-1–5` |
@@ -66,9 +66,9 @@
 
 | 文档 | 关系 |
 |---|---|
-| [ADR-004 多客户管理场景租户模型选型](../../architecture/adr-004-multi-customer-tenant-model-selection.md) | **L0 选型（Accepted 2026-09-30）**；行动项引用写作 `ADR-004:A#`，执行跟踪见实施方案 |
-| [ADR-003 CMDB 模型](../../architecture/)（按需查阅） | 03 文档引用的 CMDB 租户内模型决策 |
-| [通知模块设计方案](../../plan/notification-module-design-plan-2026-09-29.md) | 主方案/目标架构引用的 Q4 落地设计（通知/邮件通道） |
+| [ADR-004 多客户管理场景租户模型选型](../architecture/adr-004-multi-customer-tenant-model-selection.md) | **L0 选型（Accepted 2026-09-30）**；行动项引用写作 `ADR-004:A#`，执行跟踪见实施方案 |
+| [ADR-003 CMDB 模型](../architecture/)（按需查阅） | 03 文档引用的 CMDB 租户内模型决策 |
+| [通知模块设计方案](../plan/notification-module-design-plan-2026-09-29.md) | 主方案/目标架构引用的 Q4 落地设计（通知/邮件通道） |
 | `scripts/msp/setup-msp-tenants.sh` / `build-provision-tenant.sh` | 一键初始化与构建（8 阶段幂等 + 隔离探针） |
 | `scripts/docs-gate/check-multi-tenant-consistency.sh`（C.6） | 本目录一致性自动门禁 |
 
