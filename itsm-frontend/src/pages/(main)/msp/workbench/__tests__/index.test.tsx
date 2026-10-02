@@ -247,4 +247,28 @@ describe('MSPWorkbenchPage', () => {
       expect(assignWorkbenchTicket).toHaveBeenCalledWith(1, { customerTenantId: 1 })
     );
   });
+
+  it('分组视图：按客户分组展示，组内可勾选且保留行内操作（P1）', async () => {
+    render(<MSPWorkbenchPage />);
+    await screen.findByText('VPN 无法连接');
+
+    fireEvent.click(screen.getByText('按客户分组'));
+
+    expect(await screen.findByTestId('workbench-group-view')).toBeInTheDocument();
+    expect(screen.getByTestId('group-count-1')).toHaveTextContent('1 条');
+    expect(screen.getByTestId('group-count-2')).toHaveTextContent('1 条');
+
+    const body1 = screen.getByTestId('group-body-1');
+    expect(within(body1).getByText('ACME-1')).toBeInTheDocument();
+    expect(within(body1).getByTestId('action-reply-1')).toBeInTheDocument();
+    // 组内复选：只读行（Beta）禁用，可勾选行（Acme）驱动全局批量条。
+    const row1 = within(body1).getByText('ACME-1').closest('tr') as HTMLElement;
+    fireEvent.click(within(row1).getByRole('checkbox'));
+    await waitFor(() =>
+      expect(screen.getByTestId('batch-selected-count')).toHaveTextContent('已选 1 条')
+    );
+    const body2 = screen.getByTestId('group-body-2');
+    const row2 = within(body2).getByText('BETA-2').closest('tr') as HTMLElement;
+    expect(within(row2).getByRole('checkbox')).toBeDisabled();
+  });
 });

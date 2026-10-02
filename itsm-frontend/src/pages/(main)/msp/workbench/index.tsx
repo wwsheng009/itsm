@@ -14,9 +14,11 @@ import {
   Alert,
   Button,
   Card,
+  Collapse,
   Dropdown,
   Input,
   Modal,
+  Segmented,
   Select,
   Space,
   Table,
@@ -144,6 +146,8 @@ export default function MSPWorkbenchPage() {
   const filterKey = useMemo(() => {
     const params = new URLSearchParams(queryString);
     params.delete('cursor');
+    // 视图模式（平铺/分组）不影响数据查询，避免切换视图触发重拉。
+    params.delete('view');
     return params.toString();
   }, [queryString]);
 
@@ -152,6 +156,11 @@ export default function MSPWorkbenchPage() {
     filters.customerTenantIdsParam.toLowerCase() === 'all'
       ? '全部客户'
       : `${parseCustomerTenantIds(filters.customerTenantIdsParam).length} 个客户`;
+
+  // 视图模式（P1 分组视图）：URL 持久化（view=group），本地 state 驱动渲染。
+  const [viewMode, setViewMode] = useState<'flat' | 'group'>(
+    new URLSearchParams(queryString).get('view') === 'group' ? 'group' : 'flat'
+  );
 
   const [tickets, setTickets] = useState<WorkbenchTicketItem[]>([]);
   const [nextCursor, setNextCursor] = useState<string | null>(null);
@@ -217,6 +226,14 @@ export default function MSPWorkbenchPage() {
       setSearchParams(params);
     },
     [queryString, setSearchParams]
+  );
+
+  const changeViewMode = useCallback(
+    (value: 'flat' | 'group') => {
+      setViewMode(value);
+      updateFilter({ view: value === 'group' ? 'group' : null });
+    },
+    [updateFilter]
   );
 
   // ==================== 批量操作（IP-P1-6b） ====================
@@ -560,6 +577,35 @@ export default function MSPWorkbenchPage() {
     [renderActions]
   );
 
+  // ==================== 分组视图（P1） ====================
+
+  const groups = useMemo(() => {
+    const map = new Map<number, { key: number; name: string; items: WorkbenchTicketItem[] }>();
+    tickets.forEach(item => {
+      const existing = map.get(item.customerTenantId);
+      if (existing) existing.items.push(item);
+      else
+        map.set(item.customerTenantId, {
+          key: item.customerTenantId,
+          name: item.customerName,
+          items: [item],
+        });
+    });
+    return [...map.values()];
+  }, [tickets]);
+
+  // 组头已展示客户名，组内表格省略"客户"列。
+  const groupColumns = useMemo(
+    () => columns.filter(column => column.key !== 'customerName'),
+    [columns]
+  );
+
+  const [collapsedGroupKeys, setCollapsedGroupKeys] = useState<string[]>([]);
+  const activeGroupKeys = useMemo(
+    () => groups.map(group => String(group.key)).filter(key => !collapsedGroupKeys.includes(key)),
+    [collapsedGroupKeys, groups]
+  );
+
   return (
     <div style={{ padding: 24 }} data-testid="msp-workbench-page">
       <div
@@ -631,6 +677,15 @@ export default function MSPWorkbenchPage() {
             onChange={value => updateFilter({ sort: value })}
             data-testid="workbench-sort"
           />
+          <Segmented
+            value={viewMode}
+            options={[
+              { label: '平铺', value: 'flat' },
+              { label: '按客户分组', value: 'group' },
+            ]}
+            onChange={value => changeViewMode(value as 'flat' | 'group')}
+            data-testid="workbench-view-mode"
+          />
         </Space>
       </Card>
 
@@ -668,16 +723,67 @@ export default function MSPWorkbenchPage() {
         />
       )}
 
-      <Table<WorkbenchTicketItem>
-        rowKey="id"
-        rowSelection={rowSelection}
-        columns={columns}
-        dataSource={tickets}
-        loading={loading}
-        pagination={false}
-        scroll={{ x: 1280 }}
-        locale={{ emptyText: '当前过滤条件下暂无工单' }}
-      />
+      {viewMode === 'flat' ? (
+        <Table<WorkbenchTicketItem>
+          rowKey="id"
+          rowSelection={rowSelection}
+          columns={columns}
+          dataSource={tickets}
+          loading={loading}
+          pagination={false}
+          scroll={{ x: 1280 }}
+          locale={{ emptyText: '当前过滤条件下暂无工单' }}
+        />
+      ) : groups.length === 0 ? (
+        <Table<WorkbenchTicketItem>
+          columns={groupColumns}
+          dataSource={[]}
+          loading={loading}
+          pagination={false}
+          locale={{ emptyText: '当前过滤条件下暂无工单' }}
+        />
+      ) : (
+        <div data-testid="workbench-group-view">
+          <Collapse
+            activeKey={activeGroupKeys}
+            onChange={keys => {
+              const active = (Array.isArray(keys) ? keys : [keys]).map(String);
+              setCollapsedGroupKeys(
+                groups.map(group => String(group.key)).filter(key => !active.includes(key))
+              );
+            }}
+            items={groups.map(group => ({
+              key: String(group.key),
+              label: (
+                <Space size={8}>
+                  <Tag color="geekblue" style={{ margin: 0 }}>
+                    {group.name || '未知客户'}
+                  </Tag>
+                  <span
+                    data-testid={`group-count-${group.key}`}
+                    style={{ color: DESIGN.colors.textMuted, fontSize: 12 }}
+                  >
+                    {group.items.length} 条
+                  </span>
+                </Space>
+              ),
+              children: (
+                <div data-testid={`group-body-${group.key}`}>
+                  <Table<WorkbenchTicketItem>
+                    rowKey="id"
+                    rowSelection={rowSelection}
+                    columns={groupColumns}
+                    dataSource={group.items}
+                    pagination={false}
+                    size="small"
+                    scroll={{ x: 1120 }}
+                  />
+                </div>
+              ),
+            }))}
+          />
+        </div>
+      )}
 
       {nextCursor && (
         <div style={{ textAlign: 'center', marginTop: 16 }}>

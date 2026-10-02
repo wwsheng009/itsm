@@ -772,3 +772,4 @@ CREATE INDEX idx_invitations_expiry ON invitations (expires_at) WHERE status = '
 | v1.24 | 2026-09-30 | **IP-P1-6b 批量 UI**：工作台行勾选（只读行禁用）+ 批量条（回复/改状态/指派 ≤100）+ 客户分布确认弹窗（无权限条目自动排除并提示）+ 逐条结果弹窗（batchId/成功失败/原因码）；`batchWorkbenchItems` 契约对齐；tsc/eslint 绿、工作台页 6/6 用例（含端到端批量链路） |
 | v1.25 | 2026-09-30 | **`allowedActions` 全量接入**：行内新增 `assign`（`POST /msp/tickets/:id/assign`，语义=指派给当前 MSP 技术员，同步 managed_by/快照）；批量指派修正为同语义（移除误导性 assigneeId 输入，改为说明提示）；tsc/eslint 绿、工作台页 7/7 用例 |
 | v1.26 | 2026-09-30 | **RLS 集合查询评估（IP-P1-7 前置）**：新增 `plan/msp-rls-collection-query-assessment.md`——结论=保留逐租户查询；发现 enforce 前置缺口（工作台 per-tenant 查询 ctx 仍为 provider 租户，`tickets` 入 policy 后需 `tenantctx.WithTenantID` 重绑定）+ 5 条前置清单；B2 请求面 bypass 否决、B3 授权集合 GUC 触发条件登记 |
+| v1.27 | 2026-09-30 | **分组视图（IP-P1-6 收口）**：工作台新增平铺/按客户分组切换（`view=group` URL 持久化、不参与查询键避免重拉）；Collapse 组头=客户名+条数，组内省略客户列；复用行内操作与批量勾选（只读行禁用）；tsc/eslint 绿、工作台页 8/8 用例。**工作台 P1 清单全项完成**（批量 ✓ / 偏好 ✓ / allowedActions ✓ / RLS 评估 ✓ / 分组视图 ✓） |
