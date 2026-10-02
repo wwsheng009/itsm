@@ -20,6 +20,7 @@ import (
 	"sync"
 	"time"
 
+	"itsm-backend/common/tenantctx"
 	"itsm-backend/dto"
 	"itsm-backend/ent"
 	"itsm-backend/ent/predicate"
@@ -34,9 +35,9 @@ import (
 
 // 工作台错误码（§3.0-A 注册表；经 CustomerAccessError 通道返回给 handler）。
 const (
-	CodeInvalidCursor    = "INVALID_CURSOR"
-	CodeActionNotAllowed = "ACTION_NOT_ALLOWED"
-	CodeTooManyTenants   = "TOO_MANY_TENANTS"
+	CodeInvalidCursor      = "INVALID_CURSOR"
+	CodeActionNotAllowed   = "ACTION_NOT_ALLOWED"
+	CodeTooManyTenants     = "TOO_MANY_TENANTS"
 	CodeBatchLimitExceeded = "BATCH_LIMIT_EXCEEDED"
 	CodeBatchRateLimited   = "BATCH_RATE_LIMITED"
 )
@@ -164,6 +165,8 @@ func (s *MSPWorkbenchService) ListTickets(ctx context.Context, actor MSPWorkbenc
 	merged := make([]mergedRow, 0, limit+1)
 	moreByTenant := make(map[int]bool, len(tenantIDs))
 	for _, tid := range tenantIDs {
+		// IP-P2-2：授权边界内按目标客户租户重绑定 ctx（RLS enforce 下 GUC 单值 = 查询语义）。
+		qctx := tenantctx.WithTenantID(ctx, tid)
 		q := s.client.Ticket.Query().Where(entTicket.TenantIDEQ(tid))
 		q = applyWorkbenchFilters(q, req)
 		if p, ok := posByTenant[tid]; ok {
@@ -174,7 +177,7 @@ func (s *MSPWorkbenchService) ListTickets(ctx context.Context, actor MSPWorkbenc
 		} else {
 			q = q.Order(ent.Desc(entTicket.FieldUpdatedAt), ent.Desc(entTicket.FieldID))
 		}
-		rows, err := q.Limit(limit + 1).All(ctx)
+		rows, err := q.Limit(limit + 1).All(qctx)
 		if err != nil {
 			return nil, fmt.Errorf("workbench query tenant %d: %w", tid, err)
 		}
@@ -455,20 +458,22 @@ func (s *MSPWorkbenchService) Summary(ctx context.Context, actor MSPWorkbenchAct
 	now := time.Now()
 	out := make([]dto.WorkbenchSummaryCustomer, 0, len(tenantIDs))
 	for _, tid := range tenantIDs {
+		// IP-P2-2：同列表口径，按目标客户租户重绑定 ctx。
+		qctx := tenantctx.WithTenantID(ctx, tid)
 		base := s.client.Ticket.Query().Where(entTicket.TenantIDEQ(tid), openTicketPredicate())
-		openCount, err := base.Clone().Count(ctx)
+		openCount, err := base.Clone().Count(qctx)
 		if err != nil {
 			return nil, fmt.Errorf("workbench summary open tenant %d: %w", tid, err)
 		}
 		slaRisk, err := s.client.Ticket.Query().
 			Where(entTicket.TenantIDEQ(tid), openTicketPredicate(), entTicket.SLAResolutionDeadlineLT(now)).
-			Count(ctx)
+			Count(qctx)
 		if err != nil {
 			return nil, fmt.Errorf("workbench summary sla tenant %d: %w", tid, err)
 		}
 		unassigned, err := s.client.Ticket.Query().
 			Where(entTicket.TenantIDEQ(tid), openTicketPredicate(), entTicket.AssigneeIDIsNil()).
-			Count(ctx)
+			Count(qctx)
 		if err != nil {
 			return nil, fmt.Errorf("workbench summary unassigned tenant %d: %w", tid, err)
 		}
@@ -500,7 +505,8 @@ func (s *MSPWorkbenchService) Reply(ctx context.Context, actor MSPWorkbenchActor
 	if s.commentSvc == nil {
 		return nil, fmt.Errorf("ticket comment service unavailable")
 	}
-	comment, err := s.commentSvc.CreateTicketComment(ctx, ticketID, &dto.CreateTicketCommentRequest{
+	// IP-P2-2：评论写路径按目标客户租户重绑定（enforce 下写侧 GUC 同源）。
+	comment, err := s.commentSvc.CreateTicketComment(tenantctx.WithTenantID(ctx, t.TenantID), ticketID, &dto.CreateTicketCommentRequest{
 		Content: req.Content,
 	}, actor.UserID, t.TenantID)
 	if err != nil {
@@ -520,7 +526,7 @@ func (s *MSPWorkbenchService) ChangeStatus(ctx context.Context, actor MSPWorkben
 	if s.ticketSvc == nil {
 		return nil, fmt.Errorf("ticket service unavailable")
 	}
-	updated, err := s.ticketSvc.UpdateTicketStatus(ctx, ticketID, strings.TrimSpace(req.Status), t.TenantID, actor.UserID)
+	updated, err := s.ticketSvc.UpdateTicketStatus(tenantctx.WithTenantID(ctx, t.TenantID), ticketID, strings.TrimSpace(req.Status), t.TenantID, actor.UserID)
 	if err != nil {
 		s.recordWorkbenchAudit(actor, "status", t.TenantID, ticketID, "failed")
 		return nil, err
@@ -534,7 +540,8 @@ func (s *MSPWorkbenchService) authorizeTicketAction(ctx context.Context, actor M
 	if s.client == nil {
 		return nil, fmt.Errorf("ent client not available for msp workbench")
 	}
-	t, err := s.client.Ticket.Get(ctx, ticketID)
+	// IP-P2-2：以声明租户为 RLS GUC 读取（enforce 下跨租户探测 fail-closed → not-found）。
+	t, err := s.client.Ticket.Get(tenantctx.WithTenantID(ctx, declaredTenantID), ticketID)
 	if err != nil {
 		if ent.IsNotFound(err) {
 			return nil, NewCustomerAccessError(CodeCustomerTenantNotFound, "工单不存在")

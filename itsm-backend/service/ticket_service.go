@@ -15,6 +15,7 @@ import (
 	feishuConnector "itsm-backend/connector/builtin/feishu"
 
 	"itsm-backend/common"
+	"itsm-backend/common/tenantctx"
 	"itsm-backend/dto"
 	"itsm-backend/ent"
 	"itsm-backend/ent/configurationitem"
@@ -2535,6 +2536,8 @@ func (s *TicketService) GetCustomerTicketsForMSP(ctx context.Context, userID, cu
 	if err := s.ensureCustomerAccess(ctx, userID, customerTenantID); err != nil {
 		return nil, err
 	}
+	// IP-P2-2：按目标客户租户重绑定 ctx（RLS enforce 下逐租户查询与 GUC 单值一致）。
+	tctx := tenantctx.WithTenantID(ctx, customerTenantID)
 	query := s.client.Ticket.Query().Where(entTicket.TenantIDEQ(customerTenantID))
 	if status != nil && *status != "" {
 		query = query.Where(entTicket.StatusEQ(*status))
@@ -2544,7 +2547,7 @@ func (s *TicketService) GetCustomerTicketsForMSP(ctx context.Context, userID, cu
 		query = query.Offset(offset).Limit(pageSize)
 	}
 	query = query.Order(ent.Desc(entTicket.FieldCreatedAt))
-	ents, err := query.All(ctx)
+	ents, err := query.All(tctx)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get customer tickets for MSP: %w", err)
 	}
@@ -2563,6 +2566,8 @@ func (s *TicketService) AssignMSPTechnician(ctx context.Context, ticketID, custo
 	if err := s.ensureCustomerAccess(ctx, assignerID, customerTenantID); err != nil {
 		return nil, err
 	}
+	// IP-P2-2：授权通过后按目标客户租户重绑定 ctx（enforce 下后续 Ticket/Repository 查询同 GUC）。
+	ctx = tenantctx.WithTenantID(ctx, customerTenantID)
 	t, err := s.client.Ticket.Get(ctx, ticketID)
 	if err != nil {
 		if ent.IsNotFound(err) {

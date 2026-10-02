@@ -67,3 +67,10 @@
 - `itsm-backend/service/msp_workbench.go:45-50, 115-199, 442-475, 532-542, 684-704`
 - `itsm-backend/service/ticket_service.go:2558-2575`；`itsm-backend/common/tenantctx/tenantctx.go:37-67`
 - `docs/multi-tenant/plan/msp-cross-customer-workbench-and-filter-plan.md:166-169, 224-228`
+
+## 8. 落地进度（2026-09-30，IP-P2-2）
+
+- §5-1/2 **代码完成**：`MSPWorkbenchService` 列表/汇总逐租户查询与条目级动作（`authorizeTicketAction` / `Reply` / `ChangeStatus` / 批量 assign）已按目标客户租户 `tenantctx.WithTenantID` 重绑定；`TicketService.GetCustomerTicketsForMSP` / `AssignMSPTechnician` 同口径——`tickets` 纳入 policy 后即可通过 GUC 单值校验（enforce 下跨租户探测 fail-closed）。
+- §5-3 **核对完成**：`tenants` / `msp_allocations` 属 `TenantExemptTables`（无 policy）；`users` / `user_tenant_memberships` 含 `tenant_id` 且未纳 policy（§2 F3 清单）；`loadTenantMeta` / `loadAssigneeNames` 读路径无需重绑定，待其纳 policy 时按同口径处理。
+- §5-4 **待环境**：staging 开 `tickets` policy → `shadow` 观察 `rls: query without tenant scope` = 0 后再切 `enforce`（离线环境无法执行，留待部署批次）。
+- §5-5 维持：请求面零 bypass（`WithSystemBypass` 仍无生产调用点）。
