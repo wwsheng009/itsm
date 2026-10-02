@@ -649,7 +649,8 @@ CREATE INDEX idx_invitations_expiry ON invitations (expires_at) WHERE status = '
 - [x] bootstrap 多租户连续成功（`07:G2` 关闭，v1.19；连续 2 租户用例 + 幂等无 token 通道）；
 - [ ] 邀请→首登 e2e：后端 ✅（v1.18；handler/service 定向回归绿）、前端 UI ✅（v1.28：`/invite/:token` 路径式契约修复 + 落地页 5 用例 + 强制改密 2 用例）、e2e 用例 ✅ 就绪（`flow-invitation-onboarding.spec.ts`；本机运行实例为旧构建 → 显式 skip 不假红）——端到端绿待部署含 IP-P1-4b 的后端构建；
 - [x] 审计看板：拒绝事件落库（`tenant.scope_denied` / `tenant.probe_denied`）+ 聚合 API + `/msp/audit` 面板（IP-P1-8，v1.29；`07:G9` 真正关闭）；
-- [ ] RLS `shadow` 无新增错误（A7）；批量护栏通过（WB-A4）；
+- [x] 批量护栏通过（WB-A4）：批量 ≤100、仅低危动作（reply/status/assign）、高危拒绝、客户分布确认、逐条授权/审计与限流（IP-P1-6，v1.24；后端 `TestWorkbenchBatch_Validation` + 前端批量链路用例）；
+- [ ] RLS `shadow` 无新增错误（A7）：IP-P1-7 评估完成（见 `msp-rls-collection-query-assessment.md`），shadow 观察待 staging/生产环境执行；
 - [ ] docs-gate 6/6；`make test` 全绿。
 
 ### 6.4 P2 出口 DoD
