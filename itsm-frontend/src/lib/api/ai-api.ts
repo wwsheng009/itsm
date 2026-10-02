@@ -278,7 +278,12 @@ export async function aiGetBotMetrics(params: BotMetricsQuery = {}): Promise<Bot
   if (params.botId && params.botId > 0) search.set('botId', String(params.botId));
   if (params.entrypoint) search.set('entrypoint', params.entrypoint);
   const qs = search.toString();
-  return httpClient.get<BotMetrics>(`/api/v1/ai/bot-metrics${qs ? `?${qs}` : ''}`);
+  // 注意：不要在此处写嵌套模板字面量（`...${qs ? `?${qs}` : ''}`）——api-contract 扫描器
+  // 会把内层反引号当作字符串终点，将路径误报为「真实契约漂移」（见 api-contract.test.ts 提取规则）。
+  if (qs) {
+    return httpClient.get<BotMetrics>(`/api/v1/ai/bot-metrics?${qs}`);
+  }
+  return httpClient.get<BotMetrics>('/api/v1/ai/bot-metrics');
 }
 
 // ==================== AI 评估与审计（AI-Native：可观测、可回测） ====================

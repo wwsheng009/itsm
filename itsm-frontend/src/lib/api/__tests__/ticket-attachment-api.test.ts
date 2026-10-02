@@ -54,7 +54,8 @@ describe('TicketAttachmentApi', () => {
       // FE-4 起返回值经 AttachmentApi 归一为统一契约再回映射，旧字段全部保留，
       // 并补齐 fileUrl/fileSize 等默认项 —— 因此用 toMatchObject 校验旧字段仍在。
       expect(result).toMatchObject(uploaded);
-      expect(result.fileUrl).toBe('/api/v1/tickets/10/attachments/7/preview');
+      // D5：fileUrl = 域内内容地址（下载语义）；旧形状不含 previewUrl（由 getPreviewUrl 生成）。
+      expect(result.fileUrl).toBe('/api/v1/tickets/10/attachments/7');
     });
 
     it('forwards progress callback as undefined when caller omits it', async () => {

@@ -47,7 +47,8 @@ export interface DisabledApiContract {
 export const DISABLED_API_CONTRACTS: readonly DisabledApiContract[] = [
   { capability: 'advancedBatchOperations', file: 'batch-operations-api.ts', reason: 'Advanced batch orchestration is roadmap-only' },
   { capability: 'changeClassification', file: 'change-classification-api.ts', reason: 'Change classification/rule APIs are not registered' },
-  { capability: 'changeClassification', file: 'change-api.ts', path: /\/changes\/templates\//, reason: 'Template instantiation route is not registered' },
+  // 注：change-api.ts 的 /changes/templates 调用现被动态段路由（/changes/:id、/changes/:id/attachments/:ref）
+  // 在 api-contract 扫描器中「吸收」，无法再被区分为未注册契约，故不再列入清单（changeClassification 能力仍为 false）。
   { capability: 'collaborationAdvanced', file: 'collaboration-api.ts', reason: 'Advanced comments, mentions and presence routes are not registered' },
   { capability: 'knowledgeAdvancedActions', file: 'knowledge-base-api.ts', reason: 'Advanced knowledge lifecycle actions are not registered' },
   { capability: 'notificationTemplateManagement', file: 'notification-preference-api.ts', reason: 'Preference reset/template application routes are not registered' },

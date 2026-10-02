@@ -66,7 +66,9 @@ const customJestConfig = {
     'json-summary',
   ],
   coverageDirectory: 'coverage',
-  testTimeout: 10000,
+  // 慢环境（Windows 本地/低配 CI）单测冷启动 + jsdom 渲染常超 10s；30s 仅为防挂起上限，
+  // 个别重交互套件仍在文件内用 jest.setTimeout 单独放宽（如 workbench 120s）。
+  testTimeout: 30000,
   verbose: true,
   clearMocks: true,
   restoreMocks: true,

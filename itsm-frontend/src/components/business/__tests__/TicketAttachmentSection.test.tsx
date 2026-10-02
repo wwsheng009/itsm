@@ -224,7 +224,10 @@ describe('TicketAttachmentSection (FE-3)', () => {
     await act(async () => {
       reportProgress(50);
     });
-    expect(screen.getByRole('progressbar')).toHaveAttribute('aria-valuenow', '50');
+    // 上传中可能同时存在列表行与上传按钮两处进度条，均为百分比透传结果。
+    const progressBars = screen.getAllByRole('progressbar');
+    expect(progressBars.length).toBeGreaterThan(0);
+    progressBars.forEach(bar => expect(bar).toHaveAttribute('aria-valuenow', '50'));
 
     await act(async () => {
       resolveUpload?.(makeRef({ id: 11 }));

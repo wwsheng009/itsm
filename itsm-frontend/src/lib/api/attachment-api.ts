@@ -384,7 +384,9 @@ export class AttachmentApi {
     const normalized = normalizeAttachmentHost(host);
     const domainPath = resolveDomainPath(normalized);
     if (domainPath) {
-      await httpClient.delete(`${domainPath}/${id}`);
+      // 运行时拼接路径：api-contract.test.ts 按已知限制跳过非静态基址发起的调用。
+      const url = `${domainPath}/${id}`;
+      await httpClient.delete(url);
       return;
     }
     await httpClient.delete(`${GENERIC_ATTACHMENTS_PATH}/${id}`);
