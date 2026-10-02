@@ -12,8 +12,8 @@ import { fireEvent } from '@testing-library/react';
 import { render, screen, waitFor, within } from '@/lib/test-utils';
 import userEvent from '@testing-library/user-event';
 
-// 交互链路用例在慢环境（CI/本地冷启动）下单例可达 ~30s，统一放宽到 120s 避免假红。
-jest.setTimeout(120000);
+// 交互链路用例在慢环境（CI/本地冷启动/全量并跑+覆盖率）下单例可达 170s+，统一放宽到 300s 避免假红。
+jest.setTimeout(300000);
 
 const mockSetSearchParams = jest.fn();
 

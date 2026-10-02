@@ -126,7 +126,10 @@ describe('InviteLandingPage', () => {
     fillPasswordPair('Str0ng!Pass', 'Different!Pass');
     fireEvent.click(screen.getByRole('button', { name: '设置密码并激活账号' }));
 
-    expect(await screen.findByText('两次输入的密码不一致')).toBeInTheDocument();
+    // 全量并跑 + 覆盖率插桩下异步校验信息可能 >1s 才渲染，显式放宽等待。
+    expect(
+      await screen.findByText('两次输入的密码不一致', {}, { timeout: 15000 })
+    ).toBeInTheDocument();
     expect(AuthService.acceptInvitation).not.toHaveBeenCalled();
   });
 });

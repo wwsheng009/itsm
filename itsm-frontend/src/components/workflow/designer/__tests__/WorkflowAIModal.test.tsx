@@ -97,5 +97,5 @@ describe('WorkflowAIModal', () => {
 
     expect(await screen.findByText('生成失败')).toBeInTheDocument();
     expect(screen.getByText('AI服务暂不可用')).toBeInTheDocument();
-  });
+  }, 120_000);
 });

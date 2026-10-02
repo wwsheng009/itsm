@@ -12,7 +12,8 @@ import botApi, { type BotGrant, type BotTemplate } from '@/lib/api/bot-api';
  * 环境说明：antd + jsdom 渲染成本高（单次 render 可达数十秒），用例按"一次渲染覆盖多条行为"组织；
  * 纯校验口径见 `src/lib/api/__tests__/bot-api.test.ts`。
  */
-jest.setTimeout(300000);
+// antd + jsdom 在全量并跑 + 覆盖率插桩下单例可达 6min+，统一放大等待预算。
+jest.setTimeout(900000);
 configure({ asyncUtilTimeout: 60000 });
 
 jest.mock('@/lib/api/bot-api', () => {

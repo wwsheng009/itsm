@@ -11,8 +11,8 @@ import { SystemConfigAPI } from '@/lib/api/system-config-api';
  * 环境说明：antd + jsdom 渲染成本高（单次 render 数十秒），因此用例按"一次渲染覆盖多条行为"组织，
  * 纯状态/校验口径另见同目录 `mcp-helpers.test.ts`（快速、无渲染）。
  */
-// antd + jsdom 在本仓环境渲染很慢（单次 render 可达数十秒），统一放大等待预算。
-jest.setTimeout(300000);
+// antd + jsdom 在本仓环境渲染很慢（全量并跑 + 覆盖率插桩下单例可达 8min+），统一放大等待预算。
+jest.setTimeout(900000);
 configure({ asyncUtilTimeout: 60000 });
 
 jest.mock('@/lib/api/mcp-api', () => {
