@@ -33,21 +33,31 @@ import { DESIGN } from '@/design-system/tokens';
 import {
   MAX_BATCH_ITEMS,
   CUSTOMER_TENANT_IDS_PARAM,
+  WORKBENCH_VIEW_ID_PARAM,
   assignWorkbenchTicket,
   batchWorkbenchItems,
   changeWorkbenchTicketStatus,
+  createWorkbenchView,
+  deleteWorkbenchView,
   findAllowedAction,
   isCustomerInactive,
   isTicketReadOnly,
+  listWorkbenchViews,
   listWorkbenchTickets,
   parseCustomerTenantIds,
   replyWorkbenchTicket,
+  setDefaultWorkbenchView,
+  updateWorkbenchView,
+  viewFilterToQueryPatch,
   type WorkbenchBatchAction,
   type WorkbenchBatchPayload,
   type WorkbenchBatchResponse,
   type WorkbenchTicketItem,
   type WorkbenchTicketQuery,
+  type WorkbenchView,
+  type WorkbenchViewPayload,
 } from '@/lib/api/msp-workbench-api';
+import SavedViews from './components/SavedViews';
 
 const PAGE_SIZE = 50;
 
@@ -148,6 +158,8 @@ export default function MSPWorkbenchPage() {
     params.delete('cursor');
     // 视图模式（平铺/分组）不影响数据查询，避免切换视图触发重拉。
     params.delete('view');
+    // 视图选中态（viewId）不参与数据过滤键：其过滤器已展开为 query 参数。
+    params.delete(WORKBENCH_VIEW_ID_PARAM);
     return params.toString();
   }, [queryString]);
 
@@ -234,6 +246,120 @@ export default function MSPWorkbenchPage() {
       updateFilter({ view: value === 'group' ? 'group' : null });
     },
     [updateFilter]
+  );
+
+  // ==================== 自定义视图（IP-P2-4a；服务端 enabled 驱动灰度） ====================
+
+  const [savedViews, setSavedViews] = useState<WorkbenchView[]>([]);
+  const [viewsEnabled, setViewsEnabled] = useState(false);
+  const [activeViewId, setActiveViewId] = useState<number | undefined>(() => {
+    const raw = new URLSearchParams(queryString).get(WORKBENCH_VIEW_ID_PARAM);
+    const id = raw ? Number(raw) : NaN;
+    return Number.isFinite(id) && id > 0 ? id : undefined;
+  });
+  const appliedViewIdRef = useRef<number | null>(null);
+
+  const loadViews = useCallback(async () => {
+    try {
+      const response = await listWorkbenchViews();
+      if (response?.enabled) {
+        setSavedViews(response.views ?? []);
+        setViewsEnabled(true);
+        return;
+      }
+    } catch {
+      // 服务端灰度未开启 / 不可用：静默隐藏控件（不回退本地存储，避免与后端口径漂移）。
+    }
+    setSavedViews([]);
+    setViewsEnabled(false);
+  }, []);
+
+  useEffect(() => {
+    void loadViews();
+  }, [loadViews]);
+
+  const currentFiltersAsView = useMemo<WorkbenchViewPayload['filters']>(() => {
+    const ids = parseCustomerTenantIds(filters.customerTenantIdsParam);
+    return {
+      customerTenantIds: ids === 'all' ? [] : ids,
+      status: filters.status || undefined,
+      priority: filters.priority || undefined,
+      assigneeId: filters.assigneeId,
+      q: filters.q || undefined,
+      sort: filters.sort,
+    };
+  }, [filters]);
+
+  const applyView = useCallback(
+    (view: WorkbenchView) => {
+      appliedViewIdRef.current = view.id;
+      setActiveViewId(view.id);
+      updateFilter({
+        ...viewFilterToQueryPatch(view.filters),
+        [WORKBENCH_VIEW_ID_PARAM]: String(view.id),
+      });
+    },
+    [updateFilter]
+  );
+
+  // URL 复现：?viewId=N（刷新/分享/收藏）→ 过滤器回填到 URL query（仅首次应用，防循环）。
+  useEffect(() => {
+    if (!viewsEnabled) return;
+    const raw = new URLSearchParams(queryString).get(WORKBENCH_VIEW_ID_PARAM);
+    const id = raw ? Number(raw) : NaN;
+    if (!Number.isFinite(id) || id <= 0) return;
+    if (appliedViewIdRef.current === id) return;
+    const view = savedViews.find(item => item.id === id);
+    if (!view) return;
+    applyView(view);
+  }, [viewsEnabled, savedViews, queryString, applyView]);
+
+  const handleViewClear = useCallback(() => {
+    setActiveViewId(undefined);
+    appliedViewIdRef.current = null;
+    updateFilter({ [WORKBENCH_VIEW_ID_PARAM]: null });
+  }, [updateFilter]);
+
+  const handleCreateView = useCallback(
+    async (payload: WorkbenchViewPayload) => {
+      const created = await createWorkbenchView(payload);
+      await loadViews();
+      if (created?.id) {
+        appliedViewIdRef.current = created.id;
+        setActiveViewId(created.id);
+        updateFilter({ [WORKBENCH_VIEW_ID_PARAM]: String(created.id) });
+      }
+    },
+    [loadViews, updateFilter]
+  );
+
+  const handleUpdateView = useCallback(
+    async (id: number, payload: WorkbenchViewPayload) => {
+      await updateWorkbenchView(id, payload);
+      await loadViews();
+    },
+    [loadViews]
+  );
+
+  const handleDeleteView = useCallback(
+    async (id: number) => {
+      await deleteWorkbenchView(id);
+      if (activeViewId === id) {
+        setActiveViewId(undefined);
+        appliedViewIdRef.current = null;
+        updateFilter({ [WORKBENCH_VIEW_ID_PARAM]: null });
+      }
+      await loadViews();
+    },
+    [activeViewId, loadViews, updateFilter]
+  );
+
+  const handleSetDefaultView = useCallback(
+    async (id: number) => {
+      await setDefaultWorkbenchView(id);
+      await loadViews();
+    },
+    [loadViews]
   );
 
   // ==================== 批量操作（IP-P1-6b） ====================
@@ -686,6 +812,19 @@ export default function MSPWorkbenchPage() {
             onChange={value => changeViewMode(value as 'flat' | 'group')}
             data-testid="workbench-view-mode"
           />
+          {viewsEnabled && (
+            <SavedViews
+              views={savedViews}
+              activeViewId={activeViewId}
+              currentFilters={currentFiltersAsView}
+              onApply={applyView}
+              onClear={handleViewClear}
+              onCreate={handleCreateView}
+              onUpdate={handleUpdateView}
+              onDelete={handleDeleteView}
+              onSetDefault={handleSetDefaultView}
+            />
+          )}
         </Space>
       </Card>
 

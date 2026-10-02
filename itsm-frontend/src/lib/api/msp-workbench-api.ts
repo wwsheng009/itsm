@@ -282,3 +282,91 @@ export async function batchWorkbenchItems(
 ): Promise<WorkbenchBatchResponse> {
   return httpClient.post<WorkbenchBatchResponse>('/api/v1/msp/workbench/batch', body);
 }
+
+// ==================== 自定义视图（IP-P2-4a；后端灰度 WORKBENCH_VIEWS_ENABLED） ====================
+
+/** 服务端未开启视图能力时返回的 reasonCode（HTTP 404）。 */
+export const WORKBENCH_VIEWS_DISABLED_REASON = 'WORKBENCH_VIEWS_DISABLED';
+
+/** 视图 URL query 参数名（分享/刷新可复现）。 */
+export const WORKBENCH_VIEW_ID_PARAM = 'viewId';
+
+/** 保存的过滤器组合（与 WorkbenchTicketQuery 对齐；customerTenantIds 空数组 = 全部客户）。 */
+export interface WorkbenchViewFilter {
+  customerTenantIds: number[];
+  status?: string;
+  priority?: string;
+  assigneeId?: number;
+  q?: string;
+  sort?: 'updated' | 'sla';
+}
+
+export interface WorkbenchView {
+  id: number;
+  name: string;
+  filters: WorkbenchViewFilter;
+  isShared: boolean;
+  isDefault: boolean;
+  /** false = 他人分享（只读）。 */
+  isOwner: boolean;
+  ownerUserId: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface WorkbenchViewListResponse {
+  views: WorkbenchView[];
+  total: number;
+  /** 服务端灰度开关状态（false 时前端不渲染视图控件）。 */
+  enabled: boolean;
+}
+
+export interface WorkbenchViewPayload {
+  name: string;
+  filters: WorkbenchViewFilter;
+  isShared: boolean;
+}
+
+/** GET /api/v1/msp/workbench/views —— own + 同 provider 分享视图。 */
+export async function listWorkbenchViews(): Promise<WorkbenchViewListResponse> {
+  return httpClient.get<WorkbenchViewListResponse>('/api/v1/msp/workbench/views');
+}
+
+/** POST /api/v1/msp/workbench/views —— 保存当前筛选为视图。 */
+export async function createWorkbenchView(body: WorkbenchViewPayload): Promise<WorkbenchView> {
+  return httpClient.post<WorkbenchView>('/api/v1/msp/workbench/views', body);
+}
+
+/** PUT /api/v1/msp/workbench/views/:id —— 更新视图（仅 owner）。 */
+export async function updateWorkbenchView(
+  id: number,
+  body: WorkbenchViewPayload
+): Promise<WorkbenchView> {
+  return httpClient.put<WorkbenchView>(`/api/v1/msp/workbench/views/${id}`, body);
+}
+
+/** DELETE /api/v1/msp/workbench/views/:id —— 删除视图（仅 owner）。 */
+export async function deleteWorkbenchView(id: number): Promise<unknown> {
+  return httpClient.delete<unknown>(`/api/v1/msp/workbench/views/${id}`);
+}
+
+/** POST /api/v1/msp/workbench/views/:id/default —— 设为当前用户默认视图（仅 owner）。 */
+export async function setDefaultWorkbenchView(id: number): Promise<WorkbenchView> {
+  return httpClient.post<WorkbenchView>(`/api/v1/msp/workbench/views/${id}/default`);
+}
+
+/** 视图过滤器 → URL query 补丁（供页面 updateFilter 应用；空 customerTenantIds → 'all'）。 */
+export function viewFilterToQueryPatch(
+  filter?: Partial<WorkbenchViewFilter>
+): Record<string, string | null> {
+  const ids = (filter?.customerTenantIds ?? []).filter(id => Number.isFinite(id) && id > 0);
+  return {
+    [CUSTOMER_TENANT_IDS_PARAM]: ids.length > 0 ? ids.join(',') : 'all',
+    status: filter?.status || null,
+    priority: filter?.priority || null,
+    assigneeId:
+      filter?.assigneeId !== undefined && filter.assigneeId > 0 ? String(filter.assigneeId) : null,
+    q: filter?.q || null,
+    sort: filter?.sort === 'sla' ? 'sla' : null,
+  };
+}

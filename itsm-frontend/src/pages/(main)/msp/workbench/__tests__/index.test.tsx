@@ -40,6 +40,8 @@ jest.mock('@/lib/api/msp-workbench-api', () => {
     listWorkbenchTickets: jest.fn(),
     batchWorkbenchItems: jest.fn(),
     assignWorkbenchTicket: jest.fn(),
+    // IP-P2-4a：默认按"服务端灰度未开启"处理，现有用例不受视图控件影响。
+    listWorkbenchViews: jest.fn().mockResolvedValue({ views: [], total: 0, enabled: false }),
   };
 });
 
