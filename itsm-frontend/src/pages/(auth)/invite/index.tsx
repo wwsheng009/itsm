@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Link, useNavigate, useSearchParams } from 'react-router';
+import { Link, useNavigate, useParams, useSearchParams } from 'react-router';
 import { AlertCircle, CheckCircle, Lock, UserPlus } from 'lucide-react';
 import { Button, Card, ConfigProvider, Flex, Form, Input, Typography, message } from 'antd';
 import { antdTheme } from '@/lib/antd-theme';
@@ -18,8 +18,10 @@ const { Text, Title } = Typography;
 export default function InviteLandingPage() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
+  const routeParams = useParams<{ token?: string }>();
   const [form] = Form.useForm();
-  const token = searchParams.get('token') || '';
+  // 兼容两种投递形态：路径式 `/invite/<token>`（后端 inviteUrl 默认）与查询式 `/invite?token=...`。
+  const token = (routeParams.token ?? '').trim() || searchParams.get('token') || '';
 
   const [loading, setLoading] = useState(true);
   const [info, setInfo] = useState<InvitationLandingInfo | null>(null);

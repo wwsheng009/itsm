@@ -41,7 +41,7 @@ pwsh e2e/run-bot-e2e.ps1 -OutDir docs/plan/evidence/bot-b4
 | 通道 | 前置 |
 | --- | --- |
 | api | Go 工具链；无外部依赖（ent/sqlite 内存库；mock 工具源） |
-| browser | 后端 `bot.enabled=true`；mock LLM（`LLM_PROVIDER=mock` ∧ `LLM_MOCK_ENABLED=true` ∧ `LLM_MOCK_TOOL_NAME=<工具>`）；vite dev :3000（`ITSM_BACKEND_URL` → :8090）；admin 账号（`AdminProd2026!`，与 `tests/e2e/fixtures/auth.ts` 对齐）；种子数据（至少一条工单） |
+| browser | 后端 `bot.enabled=true`；mock LLM（`LLM_PROVIDER=mock` ∧ `LLM_MOCK_ENABLED=true` ∧ `LLM_MOCK_TOOL_NAME=<工具>`）；vite dev :3000（`ITSM_BACKEND_URL` → :8090）；admin 账号（默认 `admin / AdminProd2026!`，可用 `E2E_ADMIN_USERNAME` / `E2E_ADMIN_PASSWORD` 覆盖以匹配本机 seeder，见 `tests/e2e/fixtures/auth.ts`）；种子数据（至少一条工单） |
 
 CI：`.github/workflows/e2e-bot.yml`（真实栈，含 mock LLM；首轮校准后转阻断门）。
 

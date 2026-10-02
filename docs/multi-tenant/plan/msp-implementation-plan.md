@@ -638,7 +638,7 @@ CREATE INDEX idx_invitations_expiry ON invitations (expires_at) WHERE status = '
 - [x] 权限 DB 单源（权限清单面）：登录/刷新/切换/`/auth/me`/菜单同源，跨租户权限互不影响（A6；v1.14，2026-09-30；请求期 RBAC 判定链与 `shadow`/enforce 仍按 IP-P1-7 推进）；
 - [x] 组织多归属 + 生效期（A5：`user_tenant_membership_orgs` 子表/回填/复合 FK/应用双校验 + 组织唯一约束租户化；v1.15/v1.16，2026-09-30）；
 - [x] bootstrap 多租户连续成功（`07:G2` 关闭，v1.19；连续 2 租户用例 + 幂等无 token 通道）；
-- [ ] 邀请→首登 e2e（后端 ✅ v1.18；前端落地页/强制改密 UI 归 IP-P1-4c）；
+- [ ] 邀请→首登 e2e：后端 ✅（v1.18；handler/service 定向回归绿）、前端 UI ✅（v1.28：`/invite/:token` 路径式契约修复 + 落地页 5 用例 + 强制改密 2 用例）、e2e 用例 ✅ 就绪（`flow-invitation-onboarding.spec.ts`；本机运行实例为旧构建 → 显式 skip 不假红）——端到端绿待部署含 IP-P1-4b 的后端构建；
 - [ ] RLS `shadow` 无新增错误（A7）；批量护栏通过（WB-A4）；
 - [ ] docs-gate 6/6；`make test` 全绿。
 
@@ -773,3 +773,4 @@ CREATE INDEX idx_invitations_expiry ON invitations (expires_at) WHERE status = '
 | v1.25 | 2026-09-30 | **`allowedActions` 全量接入**：行内新增 `assign`（`POST /msp/tickets/:id/assign`，语义=指派给当前 MSP 技术员，同步 managed_by/快照）；批量指派修正为同语义（移除误导性 assigneeId 输入，改为说明提示）；tsc/eslint 绿、工作台页 7/7 用例 |
 | v1.26 | 2026-09-30 | **RLS 集合查询评估（IP-P1-7 前置）**：新增 `plan/msp-rls-collection-query-assessment.md`——结论=保留逐租户查询；发现 enforce 前置缺口（工作台 per-tenant 查询 ctx 仍为 provider 租户，`tickets` 入 policy 后需 `tenantctx.WithTenantID` 重绑定）+ 5 条前置清单；B2 请求面 bypass 否决、B3 授权集合 GUC 触发条件登记 |
 | v1.27 | 2026-09-30 | **分组视图（IP-P1-6 收口）**：工作台新增平铺/按客户分组切换（`view=group` URL 持久化、不参与查询键避免重拉）；Collapse 组头=客户名+条数，组内省略客户列；复用行内操作与批量勾选（只读行禁用）；tsc/eslint 绿、工作台页 8/8 用例。**工作台 P1 清单全项完成**（批量 ✓ / 偏好 ✓ / allowedActions ✓ / RLS 评估 ✓ / 分组视图 ✓） |
+| v1.28 | 2026-09-30 | **IP-P1-4c 收口（邀请落地/首登 UI）**：修复契约断链——后端 `inviteUrl` 为路径式 `/invite/<token>`，前端此前仅注册 `/invite` 且只读 `?token=`（邮件链接将 404）；新增 `invite/:token` 路由 + `useParams` 优先（保留查询式兼容）。测试：落地页 5 用例（路径/查询 token、缺 token、accepted、密码不一致）+ 强制改密 2 用例；e2e `flow-invitation-onboarding.spec.ts`（@multi-tenant；`page.request` cookie/token 双模；旧构建 404 显式 skip 不假红）；fixture 支持 `E2E_ADMIN_USERNAME/PASSWORD` 覆盖（本机 seeder 口令差异痛点）；后端 handler/service 邀请定向回归绿 |

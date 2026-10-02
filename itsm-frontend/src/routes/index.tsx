@@ -207,6 +207,9 @@ export const routes: RouteObject[] = [
             children: [
           { path: 'forgot-password', element: lazyElement(ForgotPassword) },
           { path: 'invite', element: lazyElement(Invite) },
+          // 后端邀请链接为路径式（`/invite/<token>`，见 invitation_service.go inviteURL），
+          // 同时保留 `/invite?token=` 查询式兼容（邮件模板/手工拼接）。
+          { path: 'invite/:token', element: lazyElement(Invite) },
           { path: 'login', element: lazyElement(Login) },
           { path: 'register', element: lazyElement(Register) },
           { path: 'reset-password', element: lazyElement(ResetPassword) },

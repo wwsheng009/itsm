@@ -5,7 +5,13 @@ import { test as base, Page } from '@playwright/test';
  * 与 seeder.go 中 seedRoleTestAccounts 保持一致
  */
 export const TEST_ACCOUNTS = {
-  admin: { username: 'admin', password: 'AdminProd2026!', role: 'admin' },
+  // 本机/CI seeder 口令可能不同（见 docs/plan/evidence/mcp-m2/M2-05）：
+  // 允许用 E2E_ADMIN_USERNAME / E2E_ADMIN_PASSWORD 覆盖，默认对齐 seeder 约定。
+  admin: {
+    username: process.env.E2E_ADMIN_USERNAME || 'admin',
+    password: process.env.E2E_ADMIN_PASSWORD || 'AdminProd2026!',
+    role: 'admin',
+  },
   user1: { username: 'user1', password: 'user123456', role: 'end_user' },
   security1: { username: 'security1', password: 'security123456', role: 'security' },
   engineer1: { username: 'engineer1', password: 'eng123456', role: 'technician' },
