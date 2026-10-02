@@ -50,6 +50,8 @@ const (
 	workbenchSummaryTTL   = 30
 	workbenchBatchMax     = 100 // IP-P1-6：单批上限（工作台方案 §3.3）
 	workbenchBatchPerMin  = 20  // 每租户每分钟批量次数（防单客户风暴）
+	// IP-P2-4b："临近 SLA" 窗口（24h 内到期且未关闭）——与前端看板展示口径一致。
+	workbenchSLADueSoonWindow = 24 * time.Hour
 )
 
 // MSPWorkbenchActor 工作台调用方身份快照（由 handler 从 MSPContext 转换）。
@@ -442,7 +444,7 @@ func workbenchAllowedActions(t *ent.Ticket, tenantActive bool, perms map[string]
 	}
 }
 
-// Summary 每客户计数徽标（open / slaRisk / unassigned）。
+// Summary 每客户计数徽标（open / slaRisk 超期 / slaDueSoon 24h 内到期 / unassigned）。
 func (s *MSPWorkbenchService) Summary(ctx context.Context, actor MSPWorkbenchActor) (*dto.WorkbenchSummaryResponse, error) {
 	if s.client == nil {
 		return nil, fmt.Errorf("ent client not available for msp workbench")
@@ -471,6 +473,18 @@ func (s *MSPWorkbenchService) Summary(ctx context.Context, actor MSPWorkbenchAct
 		if err != nil {
 			return nil, fmt.Errorf("workbench summary sla tenant %d: %w", tid, err)
 		}
+		// IP-P2-4b：临近 SLA = (now, now+24h] 内到期且未关闭（不含已超期）。
+		slaDueSoon, err := s.client.Ticket.Query().
+			Where(
+				entTicket.TenantIDEQ(tid),
+				openTicketPredicate(),
+				entTicket.SLAResolutionDeadlineGT(now),
+				entTicket.SLAResolutionDeadlineLTE(now.Add(workbenchSLADueSoonWindow)),
+			).
+			Count(qctx)
+		if err != nil {
+			return nil, fmt.Errorf("workbench summary due-soon tenant %d: %w", tid, err)
+		}
 		unassigned, err := s.client.Ticket.Query().
 			Where(entTicket.TenantIDEQ(tid), openTicketPredicate(), entTicket.AssigneeIDIsNil()).
 			Count(qctx)
@@ -482,10 +496,16 @@ func (s *MSPWorkbenchService) Summary(ctx context.Context, actor MSPWorkbenchAct
 			CustomerName:     meta[tid].name,
 			Open:             openCount,
 			SLARisk:          slaRisk,
+			SLADueSoon:       slaDueSoon,
 			Unassigned:       unassigned,
 		})
 	}
-	return &dto.WorkbenchSummaryResponse{GeneratedAt: now, TTLSeconds: workbenchSummaryTTL, Customers: out}, nil
+	return &dto.WorkbenchSummaryResponse{
+		GeneratedAt:           now,
+		TTLSeconds:            workbenchSummaryTTL,
+		SLADueSoonWindowHours: int(workbenchSLADueSoonWindow / time.Hour),
+		Customers:             out,
+	}, nil
 }
 
 func openTicketPredicate() predicate.Ticket {

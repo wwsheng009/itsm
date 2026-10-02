@@ -42,6 +42,8 @@ export interface WorkbenchSummaryCustomer {
   open: number;
   /** 已超 SLA 截止的未关闭工单数 */
   slaRisk: number;
+  /** 窗口内临近到期（未超期）的未关闭工单数（IP-P2-4b）。 */
+  slaDueSoon: number;
   /** 未指派工单数 */
   unassigned: number;
 }
@@ -49,6 +51,8 @@ export interface WorkbenchSummaryCustomer {
 export interface WorkbenchSummary {
   generatedAt: string;
   ttlSeconds: number;
+  /** 服务端"临近 SLA"窗口小时数（IP-P2-4b；旧响应缺省按 24 处理）。 */
+  slaDueSoonWindowHours?: number;
   customers: WorkbenchSummaryCustomer[];
 }
 

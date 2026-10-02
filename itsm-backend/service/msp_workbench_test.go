@@ -184,23 +184,36 @@ func TestWorkbenchListScopesAndAllowedActions(t *testing.T) {
 	requireWorkbenchCode(t, err, CodeInvalidCursor)
 }
 
-// TestWorkbenchSummaryCounts 徽标计数：open/slaRisk/unassigned 与列表一致（WB-A2）。
+// TestWorkbenchSummaryCounts 徽标计数：open/slaRisk/slaDueSoon/unassigned 与列表一致（WB-A2 / IP-P2-4b）。
 func TestWorkbenchSummaryCounts(t *testing.T) {
 	env := newWorkbenchEnv(t)
-	resp, err := env.svc.Summary(context.Background(), env.actor)
+	ctx := context.Background()
+	// IP-P2-4b：追加一张 2h 内到期（未超期）工单到客户 A，验证 slaDueSoon 桶。
+	soon := time.Now().Add(2 * time.Hour)
+	_, err := env.client.Ticket.Create().
+		SetTicketNumber("WB-A-2h").SetTitle("A 临近 SLA").SetStatus("open").
+		SetTenantID(env.a.ID).SetRequesterID(env.tA.RequesterID).SetPriority("high").
+		SetSLAResolutionDeadline(soon).
+		Save(ctx)
+	require.NoError(t, err)
+
+	resp, err := env.svc.Summary(ctx, env.actor)
 	require.NoError(t, err)
 	require.Len(t, resp.Customers, 2)
+	assert.Equal(t, 24, resp.SLADueSoonWindowHours, "临近窗口固定 24h")
 	byID := map[int]dto.WorkbenchSummaryCustomer{}
 	for _, c := range resp.Customers {
 		byID[c.CustomerTenantID] = c
 	}
 	a := byID[env.a.ID]
-	assert.Equal(t, 2, a.Open)
+	assert.Equal(t, 3, a.Open)
 	assert.Equal(t, 1, a.SLARisk, "SLA 已超期的 open 工单计 1")
-	assert.Equal(t, 1, a.Unassigned)
+	assert.Equal(t, 1, a.SLADueSoon, "24h 内到期且未超期计 1（已超期不重复计入）")
+	assert.Equal(t, 2, a.Unassigned)
 	b := byID[env.b.ID]
 	assert.Equal(t, 1, b.Open)
 	assert.Equal(t, 0, b.SLARisk)
+	assert.Equal(t, 0, b.SLADueSoon)
 	assert.Equal(t, 1, b.Unassigned)
 }
 

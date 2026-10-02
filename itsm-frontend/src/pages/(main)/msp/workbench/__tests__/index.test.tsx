@@ -42,6 +42,13 @@ jest.mock('@/lib/api/msp-workbench-api', () => {
     assignWorkbenchTicket: jest.fn(),
     // IP-P2-4a：默认按"服务端灰度未开启"处理，现有用例不受视图控件影响。
     listWorkbenchViews: jest.fn().mockResolvedValue({ views: [], total: 0, enabled: false }),
+    // IP-P2-4b：SLA 风险看板默认空数据，避免真实请求。
+    getWorkbenchSummary: jest.fn().mockResolvedValue({
+      generatedAt: '2026-09-30T08:00:00Z',
+      ttlSeconds: 30,
+      slaDueSoonWindowHours: 24,
+      customers: [],
+    }),
   };
 });
 

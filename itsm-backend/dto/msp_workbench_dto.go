@@ -52,14 +52,18 @@ type WorkbenchSummaryCustomer struct {
 	CustomerName     string `json:"customerName"`
 	Open             int    `json:"open"`
 	SLARisk          int    `json:"slaRisk"`
-	Unassigned       int    `json:"unassigned"`
+	// IP-P2-4b：临近 SLA 到期（窗口见 WorkbenchSummaryResponse.SLADueSoonWindowHours）。
+	SLADueSoon int `json:"slaDueSoon"`
+	Unassigned int `json:"unassigned"`
 }
 
 // WorkbenchSummaryResponse 工作台计数徽标响应。
 type WorkbenchSummaryResponse struct {
-	GeneratedAt time.Time                  `json:"generatedAt"`
-	TTLSeconds  int                        `json:"ttlSeconds"`
-	Customers   []WorkbenchSummaryCustomer `json:"customers"`
+	GeneratedAt time.Time `json:"generatedAt"`
+	TTLSeconds  int       `json:"ttlSeconds"`
+	// IP-P2-4b：临近 SLA 窗口（小时）——前端看板按同口径展示。
+	SLADueSoonWindowHours int                        `json:"slaDueSoonWindowHours"`
+	Customers             []WorkbenchSummaryCustomer `json:"customers"`
 }
 
 // WorkbenchReplyRequest 条目级回复（服务端按单据租户授权 + 审计）。

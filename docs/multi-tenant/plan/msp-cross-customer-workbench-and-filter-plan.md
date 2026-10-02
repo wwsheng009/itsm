@@ -204,7 +204,7 @@ ctx = tenantctx.WithMSPWorkbenchBypass(ctx, actor, allowedTenantIDs, "workbench:
 |---|---|
 | **P0** | 工作台列表 + summary + 条目级 reply/status/assign + `CustomerFilter`（全部/子集）+ 行内操作 + 审计 + 未分配客户剔除（**后端 ✅ 2026-09-30，IP-P0-7**；前端归 IP-P0-8） |
 | **P1（全项完成）** | 批量操作（护栏）**✅ 2026-09-30（IP-P1-6a 后端 `POST /msp/workbench/batch`：≤100/低危白名单/逐条授权审计 batch_id/租户限流；IP-P1-6b 前端：行勾选 + 客户分布确认 + 逐条结果）** + 过滤器服务端偏好**✅（IP-P1-6c：后端 `users.preferences` + `GET/PUT /users/me/preferences`；前端水合 + 400ms 节流保存）** + `allowedActions` 全量接入**✅（reply/status/assign 三动作行内渲染；assign 语义=指派给当前技术员，批量同口径）** + RLS 集合查询评估**✅（[评估文档](./msp-rls-collection-query-assessment.md)：保留逐租户查询；enforce 前置清单归 IP-P1-7）** + 分组视图**✅（平铺/按客户分组切换，`view=group` URL 持久化；组头客户名+条数，组内复用行内操作与批量勾选）** |
-| **P2（进行中）** | 工作台自定义视图（保存过滤器组合）**✅ 2026-09-30（IP-P2-4a 全链：后端 `workbench_views` + CRUD/分享/默认 + 灰度 `WORKBENCH_VIEWS_ENABLED`；前端 `SavedViews` 控件 + `?viewId=` URL 复现〔刷新/分享/收藏恢复筛选组合〕；组件单测 6/6）**；SLA 风险看板（summary 已有每客户 `slaRisk` 计数；超期/临近细分与可视化待排）；每客户配额可视化（数据源待定） |
+| **P2（进行中）** | 工作台自定义视图（保存过滤器组合）**✅ 2026-09-30（IP-P2-4a 全链：后端 `workbench_views` + CRUD/分享/默认 + 灰度 `WORKBENCH_VIEWS_ENABLED`；前端 `SavedViews` 控件 + `?viewId=` URL 复现〔刷新/分享/收藏恢复筛选组合〕；组件单测 6/6）**；SLA 风险看板 **✅ 2026-09-30（IP-P2-4b：后端 summary 增 `slaDueSoon` 分桶〔(now, now+24h] 且未关闭，已超期不重复计入〕+ `slaDueSoonWindowHours` 下发；前端 `SlaRiskBoard`：超期/临近合计与逐客户徽标、红/橙/灰占比条、点击客户行收窄 `customerTenantIds`、刷新/空态/错误态；组件单测 5/5）**；每客户配额可视化（数据源待定） |
 
 **验收（WB-A1–WB-A6）**：
 
@@ -245,3 +245,4 @@ ctx = tenantctx.WithMSPWorkbenchBypass(ctx, actor, allowedTenantIDs, "workbench:
 | v0.2 | 2026-09-30 | **P0 契约冻结与回填**：API 响应/游标/`allowedActions` 元素结构指向实施方案 §3.0-D；错误码统一（`RESOURCE_TENANT_MISMATCH`/`CUSTOMER_INACTIVE`/`INVALID_CURSOR`）；索引补 `sla_resolution_deadline`；WB-A5 角色改 `msp_admin`；基准 HEAD 重钉 `337558e3` |
 | v0.3 | 2026-09-30 | **P2 起步：IP-P2-4a 自定义视图后端落地**（`workbench_views` 表/迁移；CRUD/分享/默认；过滤器 ⊆ 可访问集合校验；灰度开关）；前端接入与 SLA/配额看板下一批 |
 | v0.4 | 2026-09-30 | **IP-P2-4a 全链完成**：前端 `SavedViews` 控件（视图下拉含默认★/分享标记；保存当前筛选为视图；编辑/删除/设为默认仅 owner；`Modal.confirm` 二次确认）；`?viewId=N` URL 复现（页面首次加载把视图过滤器展开回 query，刷新/分享/收藏可恢复）；服务端 `enabled` 驱动灰度（未开启静默隐藏，不回退本地存储）；组件单测 6/6 绿 |
+| v0.5 | 2026-09-30 | **IP-P2-4b SLA 风险看板落地**：summary 新增 `slaDueSoon`（24h 窗口，`slaDueSoonWindowHours` 响应下发）+ 前端 `SlaRiskBoard`（排序/合计/占比条/点击收窄过滤）；后端分桶用例扩展、前端组件 5/5 |
