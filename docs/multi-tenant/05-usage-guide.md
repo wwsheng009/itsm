@@ -51,6 +51,8 @@
 > **目标口径（2026-09-30，canon v1.0；本文其余内容为现状 as-is）**：日常跨客户处理走"**跨客户工作台 + `CustomerFilter` + 条目级操作**"（无需切换会话）；头通道为单请求只读；仅"深度操作"（客户内配置/用户/连续多步）走会话切换（`POST /api/v1/auth/switch-tenant`）。目标步骤见[实施方案 `IP-P0-7`/`IP-P0-8`](./plan/msp-implementation-plan.md)。
 >
 > **实现状态（2026-09-30，IP-P0-7 + IP-P0-8）**：工作台列表/徽标/条目级回复/改状态四个端点已上线（见 §9）；每条返回 `allowedActions[]`，暂停客户条目整条只读（`CUSTOMER_INACTIVE`）；显式请求未分配客户 403 `MSP_ALLOCATION_REQUIRED`（审计 `tenant.scope_denied`）。前端已落地：顶栏 `CustomerFilter`（多选/全部+搜索+徽标，只改视图，provider-only）、`/msp/workbench` 页（客户列 + 行内操作 + 双态指示）、"进入客户"深度切换（`POST /auth/switch-tenant`，切换后数据缓存清空）；客户账号不渲染过滤器/工作台入口。
+>
+> **审计看板（2026-09-30，IP-P1-8）**：`/msp/audit` 提供窗口内（7/30/90 天）跨租户审计聚合与"越权尝试/冲突告警"面板——未分配客户访问（`tenant.scope_denied`）与 header/JWT 冲突探测（`tenant.probe_denied`）落库后可直接检索；头/JWT 冲突自本批起为 **401 + `TENANT_MISMATCH_REJECTED`**（此前被静默忽略，`07:G9` 已复核更正）。
 
 **分配管理（服务商管理员）**：
 
@@ -113,6 +115,7 @@
 | 工作台列表（跨客户） | `GET /api/v1/msp/workbench/tickets?customerTenantIds=all`（`status/priority/assigneeId/q/updatedAfter/sort/cursor/limit`） | `msp_ticket.read` |
 | 工作台徽标 | `GET /api/v1/msp/workbench/summary`（open/slaRisk/unassigned） | `msp_ticket.read` |
 | 工作台回复/改状态 | `POST /api/v1/msp/tickets/:id/reply`、`POST /api/v1/msp/tickets/:id/status` | `msp_ticket.write` |
+| 审计看板聚合（IP-P1-8） | `GET /api/v1/msp/audit/summary?days=30` | `msp_report.read` |
 | 客户/绩效报表 | `GET /api/v1/msp/reports/customers`、`/reports/performance` | `msp_report.read` |
 | 审计查询（作用域） | `GET /api/v1/audit-logs?targetTenantId=&source=&actorAccount=`（`source=legacy` 查历史 NULL 行） | `audit_log.read` |
 | 租户管理 | `GET/POST /api/v1/tenants`、`PUT /api/v1/tenants/:id(/status)` | `tenant.read/write` |

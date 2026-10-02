@@ -58,10 +58,12 @@ func TenantMiddleware(client *ent.Client) gin.HandlerFunc {
 			}
 		}
 
-		// 2) Header:仅在 JWT 没拿到实体时作为补充。
-		// JWT 已经锁定后,Header 结果必须 == JWT (稍后统一校验)。
-		if tenantEntity == nil {
-			if code := c.GetHeader("X-Tenant-Code"); code != "" {
+		// 2) Header 通道（IP-P1-8 / G9 fail-closed）：
+		//   - JWT 未锁定租户时：header 作为来源解析（原行为）；
+		//   - JWT 已锁定租户时：header 不再被静默忽略——解析后做一致性校验，
+		//     冲突 → 401 TENANT_MISMATCH_REJECTED + tenant.probe_denied 审计。
+		if code := c.GetHeader("X-Tenant-Code"); code != "" {
+			if tenantEntity == nil {
 				tenantEntity, err = client.Tenant.
 					Query().
 					Where(tenant.CodeEQ(code)).
@@ -79,6 +81,39 @@ func TenantMiddleware(client *ent.Client) gin.HandlerFunc {
 				}
 				if tenantEntity != nil {
 					source = "header"
+				}
+			} else {
+				headerTenant, hErr := client.Tenant.
+					Query().
+					Where(tenant.CodeEQ(code)).
+					First(c.Request.Context())
+				if hErr != nil {
+					if ent.IsNotFound(hErr) {
+						common.NotFound(c, "租户不存在")
+						c.Abort()
+						return
+					}
+					zap.S().Errorw("tenant lookup failed", "source", "header", "error", hErr)
+					common.Fail(c, common.InternalErrorCode, "租户查询失败")
+					c.Abort()
+					return
+				}
+				if headerTenant != nil && headerTenant.ID != tenantEntity.ID {
+					zap.S().Warnw(
+						"tenant header conflict rejected",
+						"jwt_tenant_id", tenantEntity.ID,
+						"header_tenant_id", headerTenant.ID,
+						"user_id", c.GetInt("user_id"),
+					)
+					RecordTenantDeniedAudit(client, c, "tenant.probe_denied", AuditSourceHeader,
+						"auth", headerTenant.ID, http.StatusUnauthorized, "TENANT_MISMATCH_REJECTED")
+					c.JSON(http.StatusUnauthorized, gin.H{
+						"code":       common.AuthFailedCode,
+						"message":    "租户不匹配",
+						"reasonCode": "TENANT_MISMATCH_REJECTED",
+					})
+					c.Abort()
+					return
 				}
 			}
 		}
@@ -153,6 +188,13 @@ func TenantMiddleware(client *ent.Client) gin.HandlerFunc {
 				"user_id", c.GetInt("user_id"),
 			)
 			// IP-P0-6：稳定 reasonCode（保留既有 401/2002 形状），前端与告警按 code 识别。
+			// IP-P1-8：冲突落审计（tenant.probe_denied），供治理看板"冲突告警"面板消费。
+			auditSource := AuditSourceHeader
+			if source != "header" {
+				auditSource = AuditSourceLogin
+			}
+			RecordTenantDeniedAudit(client, c, "tenant.probe_denied", auditSource,
+				"auth", tenantEntity.ID, http.StatusUnauthorized, "TENANT_MISMATCH_REJECTED")
 			c.JSON(http.StatusUnauthorized, gin.H{
 				"code":       common.AuthFailedCode,
 				"message":    "租户不匹配",

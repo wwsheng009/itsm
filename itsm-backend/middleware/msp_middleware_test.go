@@ -13,6 +13,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"itsm-backend/ent/enttest"
+	"itsm-backend/ent/auditlog"
 	"itsm-backend/ent/tenant"
 	"itsm-backend/ent/user"
 )
@@ -81,6 +82,8 @@ func TestMSPMiddleware_HeaderChannelUnifiedGuard(t *testing.T) {
 		c.Request = httptest.NewRequest(http.MethodGet, "/api/v1/msp/customers/"+strconv.Itoa(headerTenantID)+"/tickets", nil)
 		c.Request.Header.Set("X-Customer-Tenant-ID", strconv.Itoa(headerTenantID))
 		c.Set("user_id", mspUser.ID)
+		c.Set("tenant_id", provider.ID)
+		c.Set("username", "msp-hdr")
 		MSPMiddleware(client)(c)
 		return w
 	}
@@ -89,6 +92,21 @@ func TestMSPMiddleware_HeaderChannelUnifiedGuard(t *testing.T) {
 		w := call(customer.ID)
 		assert.Equal(t, http.StatusForbidden, w.Code)
 		assert.Contains(t, w.Body.String(), "MSP_ALLOCATION_REQUIRED")
+
+		// IP-P1-8：头通道拒绝落审计 tenant.scope_denied（source=header，target=客户租户）。
+		logs, err := client.AuditLog.Query().
+			Where(
+				auditlog.ActionEQ("tenant.scope_denied"),
+				auditlog.TargetTenantIDEQ(customer.ID),
+			).
+			All(context.Background())
+		assert.NoError(t, err)
+		if assert.Len(t, logs, 1) {
+			assert.Equal(t, "header", logs[0].Source)
+			assert.Equal(t, provider.ID, logs[0].TenantID)
+			assert.Equal(t, "msp-hdr", logs[0].ActorAccount)
+			assert.Equal(t, http.StatusForbidden, logs[0].StatusCode)
+		}
 	})
 
 	t.Run("unknown customer tenant returns not found", func(t *testing.T) {

@@ -22,6 +22,7 @@ type Handler struct {
 	mspAllocationService *service.MSPAllocationService
 	ticketService        *service.TicketService
 	workbench            *service.MSPWorkbenchService
+	audit                *service.MSPAuditService
 	logger               *zap.SugaredLogger
 }
 
@@ -30,12 +31,14 @@ func NewHandler(
 	mspAllocationService *service.MSPAllocationService,
 	ticketService *service.TicketService,
 	workbench *service.MSPWorkbenchService,
+	audit *service.MSPAuditService,
 	logger *zap.SugaredLogger,
 ) *Handler {
 	return &Handler{
 		mspAllocationService: mspAllocationService,
 		ticketService:        ticketService,
 		workbench:            workbench,
+		audit:                audit,
 		logger:               logger,
 	}
 }

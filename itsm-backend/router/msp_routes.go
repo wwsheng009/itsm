@@ -49,5 +49,8 @@ func SetupMSPRoutes(r *gin.Engine, config *RouterConfig) {
 		// 报表 - 需要 msp_report 权限
 		msp.GET("/reports/customers", middleware.RequireMSPPermission("msp_report", "read"), config.MSPHandler.GetCustomerReports)
 		msp.GET("/reports/performance", middleware.RequireMSPPermission("msp_report", "read"), config.MSPHandler.GetPerformanceReports)
+
+		// 审计看板（IP-P1-8）：跨租户审计聚合 + 越权尝试/冲突告警面板。
+		msp.GET("/audit/summary", middleware.RequireMSPPermission("msp_report", "read"), config.MSPHandler.GetAuditSummary)
 	}
 }

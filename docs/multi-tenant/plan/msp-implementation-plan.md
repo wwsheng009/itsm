@@ -590,6 +590,15 @@ CREATE INDEX idx_invitations_expiry ON invitations (expires_at) WHERE status = '
 - 测试：`guards-must-change-password.test.tsx` 3 用例（收敛/自锁豁免/放行）；`tsc --noEmit` 0 错误；`guards`、`auth-service` 既有套件回归通过。
 - 边界：浏览器级 invite→首登 e2e 与个人中心改密入口待环境联跑（Playwright 需后端+DB）。
 
+**进度（2026-09-30）**：✅ **IP-P1-8 审计看板落地**（治理可观测；顺带复核并真正关闭 `07:G9`）。
+
+- 拒绝事件落库补全：① 头通道拒绝（`X-Customer-Tenant-ID` 未分配/客户不存在）写 `tenant.scope_denied`（source=header，target=客户租户）；② `X-Tenant-Code` 与 JWT 冲突写 `tenant.probe_denied`（source=header，target=被请求租户）。两者经 `middleware.RecordTenantDeniedAudit` 统一同步落库（2s 超时、失败可见）。
+- **G9 复核（诚实更正）**：原 IP-P0-6 的"冲突 401"未生效——`tenant.go` 在 JWT 已解析实体时**完全跳过** Header 读取，步骤 5 的冲突分支不可达（与 07 §10 根因描述一致）；本轮改为"JWT 已锁定时 Header 仍解析并校验一致性"，冲突 → 401 + `TENANT_MISMATCH_REJECTED` + 审计。测试：`TestTenantMiddleware/JWT/Header Conflict Rejected and Audited`（含一致放行回归）、`TestMSPMiddleware_HeaderChannelUnifiedGuard`（拒绝落审计断言）。
+- 聚合 API：`GET /api/v1/msp/audit/summary?days=30`（`msp_report:read`）——窗口内跨租户事件数、拒绝事件数、按 source/action/目标租户/membership 聚合（目标租户名回填）、最近 50 条拒绝明细（含 reasonCode）；`service/msp_audit.go` + `handlers/msp/audit.go`，扫描上限 5000 行兜底。
+- 前端看板：`/msp/audit`（`pages/(main)/msp/audit`，msp 分组守卫内）——三统计卡 + 来源/动作分布 + 客户分布 + 越权/冲突明细表；`msp-audit-api.ts` 契约层。
+- 测试：`TestMSPAuditService_Summary`（窗口过滤/聚合/名称回填/排序/窗口收敛）；前端看板 4 用例（聚合渲染/空态/窗口切换重拉/失败提示）；`go build ./...`、`router`、`middleware`、`handlers/msp`、`service` 定向、tsc/eslint 全绿；`cmd/authz-gen` 生成物随路由更新。
+- 边界：治理看板当前面向 provider 管理员（`msp_report:read`）；平台治理视角（跨 provider 汇总）留 P2（IP-P2-1 provider 维度）。
+
 ---
 
 ## 5. P2 详细实施（多 provider 与治理收尾）
@@ -621,7 +630,7 @@ CREATE INDEX idx_invitations_expiry ON invitations (expires_at) WHERE status = '
 
 ### 6.2 P0 出口 DoD（发布门）
 
-- [x] **安全**：未分配客户在头/路径/请求体/切换 4 通道均 403（含 `MSP_ALLOCATION_REQUIRED` 错误码；R9/R10 关闭，v1.3）；头/JWT 冲突 401 + 告警（`07:G9` 关闭，v1.7）；
+- [x] **安全**：未分配客户在头/路径/请求体/切换 4 通道均 403（含 `MSP_ALLOCATION_REQUIRED` 错误码；R9/R10 关闭，v1.3）；头/JWT 冲突 401 + 告警（`07:G9`：**v1.7 声明的关闭经 2026-09-30 复核未生效**——JWT 已锁定时 Header 被跳过、冲突分支不可达；**由 IP-P1-8 v1.29 真正落地**：401 + `TENANT_MISMATCH_REJECTED` + `tenant.probe_denied` 审计）；
 - [x] **缓存隔离**：`itsm-backend/cache/` 逐 key 审查完成、跨租户 key 修复 + 单测（`07:G8` 关闭，v1.3；清单与豁免见 07 §9）；工作台 summary 缓存 key = 租户集合哈希 + 用户（v1.9）；
 - [x] **执行器/定时器**：后台任务/自动化在显式租户 ctx 下运行、错误 ctx 被拒、`source=job` 可审计（IP-P0-11，2026-09-30）；
 - [x] **功能（后端）**：工作台 list/summary/reply/status 落地 + 条目级授权链 + `allowedActions[]` + 逐条审计（2026-09-30）；前端入口/行内操作/双态指示（WB-A2/A6 前端面）归 IP-P0-8；批量（WB-A4）留 P1；
@@ -639,6 +648,7 @@ CREATE INDEX idx_invitations_expiry ON invitations (expires_at) WHERE status = '
 - [x] 组织多归属 + 生效期（A5：`user_tenant_membership_orgs` 子表/回填/复合 FK/应用双校验 + 组织唯一约束租户化；v1.15/v1.16，2026-09-30）；
 - [x] bootstrap 多租户连续成功（`07:G2` 关闭，v1.19；连续 2 租户用例 + 幂等无 token 通道）；
 - [ ] 邀请→首登 e2e：后端 ✅（v1.18；handler/service 定向回归绿）、前端 UI ✅（v1.28：`/invite/:token` 路径式契约修复 + 落地页 5 用例 + 强制改密 2 用例）、e2e 用例 ✅ 就绪（`flow-invitation-onboarding.spec.ts`；本机运行实例为旧构建 → 显式 skip 不假红）——端到端绿待部署含 IP-P1-4b 的后端构建；
+- [x] 审计看板：拒绝事件落库（`tenant.scope_denied` / `tenant.probe_denied`）+ 聚合 API + `/msp/audit` 面板（IP-P1-8，v1.29；`07:G9` 真正关闭）；
 - [ ] RLS `shadow` 无新增错误（A7）；批量护栏通过（WB-A4）；
 - [ ] docs-gate 6/6；`make test` 全绿。
 
@@ -774,3 +784,4 @@ CREATE INDEX idx_invitations_expiry ON invitations (expires_at) WHERE status = '
 | v1.26 | 2026-09-30 | **RLS 集合查询评估（IP-P1-7 前置）**：新增 `plan/msp-rls-collection-query-assessment.md`——结论=保留逐租户查询；发现 enforce 前置缺口（工作台 per-tenant 查询 ctx 仍为 provider 租户，`tickets` 入 policy 后需 `tenantctx.WithTenantID` 重绑定）+ 5 条前置清单；B2 请求面 bypass 否决、B3 授权集合 GUC 触发条件登记 |
 | v1.27 | 2026-09-30 | **分组视图（IP-P1-6 收口）**：工作台新增平铺/按客户分组切换（`view=group` URL 持久化、不参与查询键避免重拉）；Collapse 组头=客户名+条数，组内省略客户列；复用行内操作与批量勾选（只读行禁用）；tsc/eslint 绿、工作台页 8/8 用例。**工作台 P1 清单全项完成**（批量 ✓ / 偏好 ✓ / allowedActions ✓ / RLS 评估 ✓ / 分组视图 ✓） |
 | v1.28 | 2026-09-30 | **IP-P1-4c 收口（邀请落地/首登 UI）**：修复契约断链——后端 `inviteUrl` 为路径式 `/invite/<token>`，前端此前仅注册 `/invite` 且只读 `?token=`（邮件链接将 404）；新增 `invite/:token` 路由 + `useParams` 优先（保留查询式兼容）。测试：落地页 5 用例（路径/查询 token、缺 token、accepted、密码不一致）+ 强制改密 2 用例；e2e `flow-invitation-onboarding.spec.ts`（@multi-tenant；`page.request` cookie/token 双模；旧构建 404 显式 skip 不假红）；fixture 支持 `E2E_ADMIN_USERNAME/PASSWORD` 覆盖（本机 seeder 口令差异痛点）；后端 handler/service 邀请定向回归绿 |
+| v1.29 | 2026-09-30 | **IP-P1-8 审计看板 + `07:G9` 真正关闭**：复核发现 IP-P0-6 的"header/JWT 冲突 401"从未生效（JWT 已锁定时 Header 被完全跳过 → 冲突分支不可达），本轮改为锁定时仍解析并校验 Header（冲突 → 401 + `TENANT_MISMATCH_REJECTED` + `tenant.probe_denied` 审计）；头通道未分配/客户不存在拒绝落 `tenant.scope_denied` 审计；新增 `GET /api/v1/msp/audit/summary`（窗口聚合：跨租户/拒绝计数、by source/action/target/membership、最近拒绝 + reasonCode、租户名回填）+ `/msp/audit` 前端看板；后端 service/middleware 定向与 router/build/前端 tsc/eslint 全绿 |

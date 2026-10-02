@@ -152,6 +152,9 @@ func MSPMiddleware(client *ent.Client) gin.HandlerFunc {
 							status = http.StatusNotFound
 						}
 					}
+					// IP-P1-8：头通道拒绝落审计（未分配客户访问尝试 / 客户不存在探测）。
+					RecordTenantDeniedAudit(client, c, "tenant.scope_denied", AuditSourceHeader,
+						"msp_customer", targetTenantID, status, reasonCode)
 					c.JSON(status, gin.H{
 						"code":    status,
 						"message": "MSP员工无权访问此客户租户",

@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"itsm-backend/ent"
+	"itsm-backend/ent/auditlog"
 	"itsm-backend/ent/enttest"
 
 	"github.com/gin-gonic/gin"
@@ -129,6 +130,49 @@ func TestTenantMiddleware(t *testing.T) {
 
 		// Should abort — X-Tenant-ID header is not a trusted source
 		assert.True(t, c.IsAborted())
+	})
+
+	t.Run("JWT/Header Conflict Rejected and Audited", func(t *testing.T) {
+		w := httptest.NewRecorder()
+		c, _ := gin.CreateTestContext(w)
+		c.Request, _ = http.NewRequest("GET", "/api/v1/tickets", nil)
+		c.Request.Header.Set("X-Tenant-Code", "inactive-tenant")
+		c.Set("tenant_id", activeTenant.ID) // JWT 锁定 active；header 指向另一租户 → 冲突
+		c.Set("user_id", 42)
+		c.Set("username", "probe-user")
+
+		TenantMiddleware(client)(c)
+
+		assert.Equal(t, http.StatusUnauthorized, w.Code)
+		assert.Contains(t, w.Body.String(), "TENANT_MISMATCH_REJECTED")
+
+		// IP-P1-8：冲突必须落审计（tenant.probe_denied），供治理看板"冲突告警"面板消费。
+		logs, err := client.AuditLog.Query().
+			Where(auditlog.ActionEQ("tenant.probe_denied")).
+			All(context.Background())
+		assert.NoError(t, err)
+		if assert.Len(t, logs, 1) {
+			assert.Equal(t, "header", logs[0].Source)
+			assert.Equal(t, activeTenant.ID, logs[0].TenantID)  // 行归属 actor（JWT）租户
+			assert.Equal(t, inactiveTenant.ID, logs[0].TargetTenantID)
+			assert.Equal(t, "probe-user", logs[0].ActorAccount)
+			assert.Equal(t, http.StatusUnauthorized, logs[0].StatusCode)
+		}
+	})
+
+	t.Run("JWT/Header Same Tenant Passes", func(t *testing.T) {
+		w := httptest.NewRecorder()
+		c, _ := gin.CreateTestContext(w)
+		c.Request, _ = http.NewRequest("GET", "/api/v1/tickets", nil)
+		c.Request.Header.Set("X-Tenant-Code", "active-tenant")
+		c.Set("tenant_id", activeTenant.ID)
+
+		TenantMiddleware(client)(c)
+
+		assert.False(t, c.IsAborted(), "一致时不得误拒")
+		tenantCtx, exists := GetTenantContext(c)
+		assert.True(t, exists)
+		assert.Equal(t, activeTenant.ID, tenantCtx.TenantID)
 	})
 }
 

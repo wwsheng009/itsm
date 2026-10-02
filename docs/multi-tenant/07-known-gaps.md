@@ -6,7 +6,7 @@
 > **用途**：记录实测中确认的**产品缺口**、当前运维规避手段与建议修复方向；缺口关闭后在本页更新状态，不删除历史结论。
 > **配套方案**：用户创建 / 登录选租户 / 租户切换相关缺口（G1/G2/G3/G9）的深入分析与分期方案见 [plan/msp-user-lifecycle-and-tenant-switching-plan.md](./plan/msp-user-lifecycle-and-tenant-switching-plan.md)（缺口编号 F1–F15）。
 
-> **复核（2026-09-30）**：G1–G10 的承接工作流见[实施方案 §3.0-F](./plan/msp-implementation-plan.md)。G8 优先级上调为 **P0**（并入 `IP-P0-2` 缓存审查）；G1/G3/G8/G9 在 P0 关闭，G2/G4/G5/G6 在 P1 关闭，G7 接受现状（P2 提升为通用约定），G10 文档/脚本已规避（P0 收尾）。
+> **复核（2026-09-30）**：G1–G10 的承接工作流见[实施方案 §3.0-F](./plan/msp-implementation-plan.md)。G8 优先级上调为 **P0**（并入 `IP-P0-2` 缓存审查）；G1/G3/G8 在 P0 关闭；**G9 的 P0 关闭（IP-P0-6）经 2026-09-30 复核未生效（JWT 已锁定时 Header 被跳过），已由 IP-P1-8 真正关闭**（401 + `tenant.probe_denied` 落库审计，见 §10 实现复核）；G2/G4/G5/G6 在 P1 关闭，G7 接受现状（P2 提升为通用约定），G10 文档/脚本已规避（P0 收尾）。
 
 > **编号（2026-09-29 一致性整改）**：本页 `G1–G10` 是**生产实测缺口**的唯一 G 空间；canon §7.3 的能力供给缺口已更名 `K1–K5`；工作台规则已更名 `WB1–WB6`。跨文档引用本页写作 `07:G4`（注册表见 canon 附录 C）。
 
@@ -22,7 +22,7 @@
 | G6 | `role_permissions` 无唯一约束 | 无法 `ON CONFLICT`，供给脚本只能 `where not exists` | 脚本幂等插入 | 增加 `(role_id, permission_id, tenant_id)` 唯一索引（§7） | P2 |
 | G7 | CLI 工具 stdout 混入状态行 | `psql -tAc` 的 `INSERT 0 1` 污染 `returning id` 输出，自动化解析失败 | `last_number()` 过滤 | 工具输出规范（§8） | P2 |
 | G8 | 缓存 key 无租户维度 | 多客户场景存在串数据风险 | **✅ 已审查并关闭（2026-09-30）** | 逐 key 审查完成：租户分区缓存/序列均含 `tenant_id`；全局编号序列登记豁免（见 §9）；承接 `IP-P0-2` 步骤 6 | **P0** |
-| G9 | `X-Tenant-Code` 与 JWT 冲突被静默忽略 | 调用方误以为切换了租户；无冲突告警，排障困难（不越权） | 依赖 JWT 租户；探针按实测标注 | Header 与 JWT 冲突时返回 401/400 并记录告警（§10）；**→ ✅ 已关闭（2026-09-30，IP-P0-6）：401 + `reasonCode=TENANT_MISMATCH_REJECTED` + `tenant mismatch rejected` 告警** | P2 |
+| G9 | `X-Tenant-Code` 与 JWT 冲突被静默忽略 | 调用方误以为切换了租户；无冲突告警，排障困难（不越权） | 依赖 JWT 租户；探针按实测标注 | Header 与 JWT 冲突时返回 401/400 并记录告警（§10）；**→ ✅ 真正关闭（2026-09-30 复核 + IP-P1-8 v1.29）**：IP-P0-6 声明的关闭未生效（JWT 已锁定时 Header 被跳过，冲突分支不可达）；现为 401 + `reasonCode=TENANT_MISMATCH_REJECTED` + `tenant.probe_denied` 落库审计（一致时正常放行） | P2 |
 | G10 | snap 版 docker 下宿主 `/tmp` 对守护进程不可见 | `docker cp` 静默复制旧文件；`docker run -v /tmp/...` 产物"写丢"，构建/供给莫名失败 | 产物与暂存目录放 `$HOME` 非隐藏目录 + sha256 校验（§11） | 文档/脚本固化路径约定；容器化部署优先用 bind 到 `$HOME` 或非 snap docker | P1 |
 
 ## 2. G1 · 跨租户创建用户被 tenant guard 拦截
@@ -153,6 +153,8 @@
 
 **验收标准**：`X-Tenant-Code` 与 JWT 冲突时返回 401/400；一致时正常放行；日志含冲突双方租户 ID。
 
+**实现复核（2026-09-30，IP-P1-8）**：IP-P0-6 曾声明本缺口已在 P0 关闭，但复核确认该路径仍被跳过（根因同上）——冲突分支仅在"JWT 解析不到实体"时才可能触发。IP-P1-8 将 Header 解析改为**无论 JWT 是否锁定都执行**，锁定时做一致性校验：冲突 → 401 + `TENANT_MISMATCH_REJECTED` + `tenant.probe_denied` 审计（source=header）；一致 → 正常放行。回归：`middleware/tenant_test.go` 冲突/一致两态 + 头通道拒绝审计。
+
 ## 11. G10 · snap 版 docker 下宿主 `/tmp` 对守护进程不可见
 
 **现象（2026-09-28 实测）**：
@@ -188,7 +190,7 @@
 | G4/G5/G6 | A2（供给可复现性） | 实测确认；脚本已规避，承接 `IP-P1-5`（P1） |
 | G7 | 工具规范 | 实测确认；脚本已规避，P2 提升为通用约定（接受现状） |
 | G8 | A8（缓存租户维度） | **P0**；承接 `IP-P0-2` 步骤 6（2026-09-30 上调） |
-| G9 | A10（隔离回归） | 实测确认；承接 `IP-P0-6`（P0，fail-closed 化） |
+| G9 | A10（隔离回归） | ✅ 已关闭（IP-P1-8 v1.29；IP-P0-6 漏覆盖 header 冲突路径，复核后修复并落审计） |
 | G10 | 部署/工具链（非 ADR 行动项） | 已文档化 + sha256 校验；P0 收尾（随 `IP-P0-1` 自检复核） |
 
 ## 13. 证据索引

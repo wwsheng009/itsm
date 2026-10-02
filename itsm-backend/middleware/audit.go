@@ -11,6 +11,7 @@ import (
 	"itsm-backend/ent"
 
 	"github.com/gin-gonic/gin"
+	"go.uber.org/zap"
 )
 
 type loginAuditRequestKey struct{}
@@ -71,6 +72,54 @@ func RecordAuthAudit(ctx context.Context, client *ent.Client, e AuthAuditEntry) 
 	}
 	if err := create.Exec(auditCtx); err != nil && globalLogger != nil {
 		globalLogger.Errorw("failed to save auth audit", "error", err, "action", e.Action)
+	}
+}
+
+// RecordTenantDeniedAudit 记录租户面拒绝事件（IP-P1-8）：
+//
+//	action=tenant.scope_denied —— 显式请求未分配客户（header 通道等，防枚举逐租户记录）；
+//	action=tenant.probe_denied —— 跨作用域探测（如 header/JWT 冲突被拒，G9 告警）。
+//
+// 行归属 actor home 租户（tenant_id），target=被请求/冲突的目标租户，同步写、2s 超时。
+func RecordTenantDeniedAudit(
+	client *ent.Client,
+	c *gin.Context,
+	action, source, resource string,
+	targetTenantID, statusCode int,
+	reasonCode string,
+) {
+	if client == nil {
+		return
+	}
+	payload, _ := json.Marshal(map[string]any{
+		"reasonCode":     reasonCode,
+		"targetTenantId": targetTenantID,
+	})
+	auditCtx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+	create := client.AuditLog.Create().SetCreatedAt(time.Now()).
+		SetResource(resource).SetAction(action).
+		SetPath(c.FullPath()).SetMethod(c.Request.Method).SetStatusCode(statusCode).
+		SetRequestBody(string(payload)).SetSource(source).
+		SetIP(c.ClientIP()).SetRequestID(c.GetString("request_id"))
+	if uid := c.GetInt("user_id"); uid > 0 {
+		create = create.SetUserID(uid)
+	}
+	if tid := c.GetInt("tenant_id"); tid > 0 {
+		create = create.SetTenantID(tid)
+	}
+	if targetTenantID > 0 {
+		create = create.SetTargetTenantID(targetTenantID)
+	}
+	if acc := c.GetString("username"); acc != "" {
+		create = create.SetActorAccount(acc)
+	}
+	if err := create.Exec(auditCtx); err != nil {
+		if globalLogger != nil {
+			globalLogger.Errorw("failed to save tenant denied audit", "error", err, "action", action)
+		} else {
+			zap.S().Errorw("failed to save tenant denied audit", "error", err, "action", action)
+		}
 	}
 }
 

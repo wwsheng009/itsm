@@ -1409,7 +1409,8 @@ func NewApplication() *Application {
 		EscalationMatrixHandler:      escalationMatrixHandler.NewHandler(sugar, escalationMatrixService),
 		AuditLogHandler:              auditlogHandler.NewHandler(auditLogService, sugar),
 		MSPHandler: mspHandler.NewHandler(mspAllocationService, ticketService,
-			service.NewMSPWorkbenchService(client, ticketService, ticketCommentService, sugar), sugar),
+			service.NewMSPWorkbenchService(client, ticketService, ticketCommentService, sugar),
+			service.NewMSPAuditService(client, sugar), sugar),
 		SystemConfigHandler:  systemConfigHandler,
 		ApprovalChainHandler: approvalChainHandler.NewHandler(approvalChainService, sugar),
 
