@@ -1753,7 +1753,11 @@ func (noopMigrationLogger) Infow(string, ...interface{})  {}
 // 拆为独立函数便于后续接入 cmd/cmdb、itsm-worker 等独立二进制启动路径。
 func runTenantGuard(ctx context.Context, db *sql.DB, logger *zap.SugaredLogger) error {
 	policy := schema.ResolvePolicy()
-	_, err := schema.ApplyGuard(ctx, db, logger, policy)
+	if _, err := schema.ApplyGuard(ctx, db, logger, policy); err != nil {
+		return err
+	}
+	// IP-P2-5：关联表一致性（跨租户组织/悬挂成员/allocation provider 错配），同策略分级。
+	_, err := schema.ApplyConsistencyChecks(ctx, db, logger, policy)
 	return err
 }
 
