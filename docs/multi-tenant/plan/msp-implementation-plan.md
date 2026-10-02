@@ -692,9 +692,11 @@ CREATE INDEX idx_invitations_expiry ON invitations (expires_at) WHERE status = '
 
 ### 6.4 P2 出口 DoD
 
-- [ ] A11（N=1/N=2 同一 e2e）；A12（多 provider 工单流转：快照/收窄/指派校验/通知双投递/拒绝路径）；
-- [ ] RLS `enforce` 灰度无 500；共享表治理清单完成（owner/复核期）；
-- [ ] guard 扩展检查 0 高危；docs-gate 6/6。
+- [ ] A11（N=1/N=2 同一 e2e）；A12（多 provider 工单流转：快照/收窄/指派校验/通知双投递/拒绝路径）——用例就绪，待多 provider 环境执行；
+- [ ] RLS `enforce` 灰度无 500——代码侧 ctx 收口与 shadow 前置完成（v1.33），灰度待 staging 执行；**✅ 共享表治理清单完成**（v1.34：`messages` 租户化 + `msp-exempt-tables-quarterly-review.md` 固化 owner/复核期）；
+- [ ] guard 扩展检查 **0 高危**待生产库执行（首组三检查 v1.32 已接入，启动扫描 0 高危以生产巡检为准）；**✅ docs-gate 6/6**（2026-09-30 全量 `run-all.sh`，C.6 语义锚点门禁常开）。
+
+> **P2 工作流代码侧全项交付（2026-09-30）**：IP-P2-1（provider 维度收窄；NOT NULL 收尾待巡检）/ IP-P2-2（ctx 收口 + 评估档案）/ IP-P2-3（共享表治理）/ **IP-P2-4 全链（视图 / SLA 看板 / 用量看板，v1.35–v1.38）** / IP-P2-5（guard 首组检查）。上表未勾项均为**环境/数据依赖**项（多 provider e2e、enforce 灰度、生产库巡检），随部署执行。
 
 ### 6.5 安全反例（必须全部拒绝，target-arch §5.4）
 
