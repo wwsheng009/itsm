@@ -38,10 +38,12 @@ jest.mock('@/lib/api/msp-workbench-api', () => {
     ...actual,
     listWorkbenchTickets: jest.fn(),
     batchWorkbenchItems: jest.fn(),
+    assignWorkbenchTicket: jest.fn(),
   };
 });
 
 import {
+  assignWorkbenchTicket,
   batchWorkbenchItems,
   listWorkbenchTickets,
   type WorkbenchTicketItem,
@@ -94,6 +96,7 @@ describe('MSPWorkbenchPage', () => {
       failed: 0,
       results: [],
     });
+    (assignWorkbenchTicket as jest.Mock).mockResolvedValue(undefined);
   });
 
   it('渲染跨客户列表并带客户列', async () => {
@@ -225,5 +228,23 @@ describe('MSPWorkbenchPage', () => {
     expect(result).toHaveTextContent('成功 1');
     expect(result).toHaveTextContent('失败 1');
     expect(result).toHaveTextContent('ACTION_NOT_ALLOWED');
+  });
+
+  it('行内指派：assign 动作 allowed=true 时确认后指派给当前技术员', async () => {
+    (listWorkbenchTickets as jest.Mock).mockResolvedValue({
+      items: [{ ...ticketWithActions, allowedActions: [{ action: 'assign', allowed: true }] }],
+      total: 1,
+    });
+
+    render(<MSPWorkbenchPage />);
+    fireEvent.click(await screen.findByTestId('action-assign-1'));
+
+    const confirm = await screen.findByTestId('assign-confirm');
+    expect(confirm).toHaveTextContent('当前 MSP 技术员');
+    fireEvent.click(screen.getByRole('button', { name: '确认指派' }));
+
+    await waitFor(() =>
+      expect(assignWorkbenchTicket).toHaveBeenCalledWith(1, { customerTenantId: 1 })
+    );
   });
 });

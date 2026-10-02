@@ -203,7 +203,7 @@ ctx = tenantctx.WithMSPWorkbenchBypass(ctx, actor, allowedTenantIDs, "workbench:
 | 批次 | 内容 |
 |---|---|
 | **P0** | 工作台列表 + summary + 条目级 reply/status/assign + `CustomerFilter`（全部/子集）+ 行内操作 + 审计 + 未分配客户剔除（**后端 ✅ 2026-09-30，IP-P0-7**；前端归 IP-P0-8） |
-| **P1** | 批量操作（护栏）**✅ 2026-09-30（IP-P1-6a 后端 `POST /msp/workbench/batch`：≤100/低危白名单/逐条授权审计 batch_id/租户限流；IP-P1-6b 前端：行勾选 + 客户分布确认 + 逐条结果）** + 过滤器服务端偏好**✅（IP-P1-6c：后端 `users.preferences` + `GET/PUT /users/me/preferences`；前端水合 + 400ms 节流保存）** + 分组视图 + `allowedActions` 全量接入 + RLS 集合查询评估 |
+| **P1** | 批量操作（护栏）**✅ 2026-09-30（IP-P1-6a 后端 `POST /msp/workbench/batch`：≤100/低危白名单/逐条授权审计 batch_id/租户限流；IP-P1-6b 前端：行勾选 + 客户分布确认 + 逐条结果）** + 过滤器服务端偏好**✅（IP-P1-6c：后端 `users.preferences` + `GET/PUT /users/me/preferences`；前端水合 + 400ms 节流保存）** + `allowedActions` 全量接入**✅（reply/status/assign 三动作行内渲染；assign 语义=指派给当前技术员，批量同口径）** + 分组视图 + RLS 集合查询评估 |
 | **P2** | 工作台自定义视图（保存过滤器组合）、SLA 风险看板、每客户配额可视化 |
 
 **验收（WB-A1–WB-A6）**：

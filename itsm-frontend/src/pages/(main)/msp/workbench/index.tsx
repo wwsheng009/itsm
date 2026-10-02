@@ -16,7 +16,6 @@ import {
   Card,
   Dropdown,
   Input,
-  InputNumber,
   Modal,
   Select,
   Space,
@@ -32,6 +31,7 @@ import { DESIGN } from '@/design-system/tokens';
 import {
   MAX_BATCH_ITEMS,
   CUSTOMER_TENANT_IDS_PARAM,
+  assignWorkbenchTicket,
   batchWorkbenchItems,
   changeWorkbenchTicketStatus,
   findAllowedAction,
@@ -165,7 +165,6 @@ export default function MSPWorkbenchPage() {
   const [batchAction, setBatchAction] = useState<WorkbenchBatchAction | null>(null);
   const [batchContent, setBatchContent] = useState('');
   const [batchStatus, setBatchStatus] = useState('');
-  const [batchAssigneeId, setBatchAssigneeId] = useState<number | null>(null);
   const [batchConfirmOpen, setBatchConfirmOpen] = useState(false);
   const [batchSubmitting, setBatchSubmitting] = useState(false);
   const [batchResult, setBatchResult] = useState<WorkbenchBatchResponse | null>(null);
@@ -253,22 +252,21 @@ export default function MSPWorkbenchPage() {
     setBatchConfirmOpen(false);
     setBatchContent('');
     setBatchStatus('');
-    setBatchAssigneeId(null);
   }, []);
 
   const openBatchAction = useCallback((action: WorkbenchBatchAction) => {
     setBatchAction(action);
     setBatchContent('');
     setBatchStatus('');
-    setBatchAssigneeId(null);
   }, []);
 
   const batchInputValid = useMemo(() => {
     if (batchAction === 'reply') return batchContent.trim().length > 0;
     if (batchAction === 'status') return batchStatus.length > 0;
-    if (batchAction === 'assign') return !!batchAssigneeId && batchAssigneeId > 0;
+    // 指派语义 = 指派给当前技术员（提交人），无需额外输入。
+    if (batchAction === 'assign') return true;
     return false;
-  }, [batchAction, batchAssigneeId, batchContent, batchStatus]);
+  }, [batchAction, batchContent, batchStatus]);
 
   const goBatchConfirm = useCallback(() => {
     if (!batchInputValid) {
@@ -289,7 +287,6 @@ export default function MSPWorkbenchPage() {
       const payload: WorkbenchBatchPayload = {};
       if (batchAction === 'reply') payload.content = batchContent.trim();
       if (batchAction === 'status') payload.status = batchStatus;
-      if (batchAction === 'assign' && batchAssigneeId) payload.assigneeId = batchAssigneeId;
       const response = await batchWorkbenchItems({
         action: batchAction,
         items: batchEligible.map(record => ({
@@ -308,7 +305,28 @@ export default function MSPWorkbenchPage() {
     } finally {
       setBatchSubmitting(false);
     }
-  }, [batchAction, batchAssigneeId, batchContent, batchEligible, batchStatus, loadFirstPage]);
+  }, [batchAction, batchContent, batchEligible, batchStatus, loadFirstPage]);
+
+  // 行内指派（assign 动作全量接入）：后端把工单指派给当前 MSP 技术员（提交人）。
+  const [assignTarget, setAssignTarget] = useState<WorkbenchTicketItem | null>(null);
+  const [assigning, setAssigning] = useState(false);
+
+  const submitAssign = useCallback(async () => {
+    if (!assignTarget) return;
+    setAssigning(true);
+    try {
+      await assignWorkbenchTicket(assignTarget.id, {
+        customerTenantId: assignTarget.customerTenantId,
+      });
+      message.success('已指派给当前技术员');
+      setAssignTarget(null);
+      void loadFirstPage();
+    } catch (err) {
+      message.error(errorMessage(err, '指派失败'));
+    } finally {
+      setAssigning(false);
+    }
+  }, [assignTarget, loadFirstPage]);
 
   const rowSelection = useMemo(
     () => ({
@@ -390,6 +408,7 @@ export default function MSPWorkbenchPage() {
 
       const reply = findAllowedAction(record, 'reply');
       const status = findAllowedAction(record, 'status');
+      const assign = findAllowedAction(record, 'assign');
 
       return (
         <Space size={0}>
@@ -428,6 +447,19 @@ export default function MSPWorkbenchPage() {
                   改状态
                 </Button>
               </Dropdown>
+            </Tooltip>
+          ) : null}
+          {assign ? (
+            <Tooltip title={assign.allowed ? '' : assign.reasonText ?? '当前不可指派'}>
+              <Button
+                type="link"
+                size="small"
+                disabled={!assign.allowed}
+                onClick={() => setAssignTarget(record)}
+                data-testid={`action-assign-${record.id}`}
+              >
+                指派
+              </Button>
             </Tooltip>
           ) : null}
         </Space>
@@ -680,6 +712,23 @@ export default function MSPWorkbenchPage() {
         />
       </Modal>
 
+      {/* 行内指派确认（assign 动作全量接入） */}
+      <Modal
+        open={!!assignTarget}
+        title={assignTarget ? `指派工单 ${assignTarget.ticketNumber}` : '指派工单'}
+        okText="确认指派"
+        cancelText="取消"
+        confirmLoading={assigning}
+        onOk={() => void submitAssign()}
+        onCancel={() => setAssignTarget(null)}
+        destroyOnHidden
+      >
+        <div data-testid="assign-confirm">
+          将工单指派给<strong>当前 MSP 技术员（你）</strong>
+          ，并同步写入该客户工单的 managed_by 归属与快照（按条目审计）。
+        </div>
+      </Modal>
+
       {/* 批量步骤 1：动作载荷 */}
       <Modal
         open={!!batchAction && !batchConfirmOpen}
@@ -713,13 +762,11 @@ export default function MSPWorkbenchPage() {
           />
         )}
         {batchAction === 'assign' && (
-          <InputNumber
-            min={1}
-            style={{ width: '100%' }}
-            placeholder="负责人用户 ID（服务端校验成员存在）"
-            value={batchAssigneeId}
-            onChange={value => setBatchAssigneeId(typeof value === 'number' ? value : null)}
-            data-testid="batch-assignee-id"
+          <Alert
+            type="info"
+            showIcon
+            message="批量指派将把所有选中工单指派给当前登录的 MSP 技术员（服务端按提交人记录 managed_by）。"
+            data-testid="batch-assign-hint"
           />
         )}
       </Modal>

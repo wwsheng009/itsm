@@ -214,6 +214,19 @@ export async function changeWorkbenchTicketStatus(
 }
 
 /**
+ * POST /api/v1/msp/tickets/:id/assign —— 行内指派（IP-P1 / assign 动作全量接入）。
+ *
+ * 语义（后端 ticket_service.AssignMSPTechnician）：把工单指派给**当前登录的 MSP 技术员**
+ * （即提交人），同步写 `managed_by_user_id` 与客户快照；不接受自定义 assigneeId。
+ */
+export async function assignWorkbenchTicket(
+  ticketId: number,
+  body: { customerTenantId: number }
+): Promise<unknown> {
+  return httpClient.post<unknown>(`/api/v1/msp/tickets/${ticketId}/assign`, body);
+}
+
+/**
  * POST /api/v1/auth/switch-tenant —— 深度操作入口（会话切换）。
  * 成功后调用方需整页 `window.location.assign('/')` 重新引导会话（父会话负责 store 刷新链路）。
  */
