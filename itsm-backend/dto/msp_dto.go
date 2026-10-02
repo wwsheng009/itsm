@@ -45,6 +45,7 @@ type MSPAllocationDTO struct {
 	ID                 int        `json:"id"`
 	MSPUserID          int        `json:"mspUserId"`
 	MSPUsername        string     `json:"mspUsername,omitempty"`
+	ProviderTenantID   int        `json:"providerTenantId,omitempty"` // IP-P2-1：provider 维度
 	CustomerTenantID   int        `json:"customerTenantId"`
 	CustomerTenantName string     `json:"customerTenantName,omitempty"`
 	Role               string     `json:"role"` // primary|backup|specialist

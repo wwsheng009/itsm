@@ -381,6 +381,21 @@ func (_u *TenantUpdate) AddMspCustomerAllocations(v ...*MSPAllocation) *TenantUp
 	return _u.AddMspCustomerAllocationIDs(ids...)
 }
 
+// AddMspProviderAllocationIDs adds the "msp_provider_allocations" edge to the MSPAllocation entity by IDs.
+func (_u *TenantUpdate) AddMspProviderAllocationIDs(ids ...int) *TenantUpdate {
+	_u.mutation.AddMspProviderAllocationIDs(ids...)
+	return _u
+}
+
+// AddMspProviderAllocations adds the "msp_provider_allocations" edges to the MSPAllocation entity.
+func (_u *TenantUpdate) AddMspProviderAllocations(v ...*MSPAllocation) *TenantUpdate {
+	ids := make([]int, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.AddMspProviderAllocationIDs(ids...)
+}
+
 // AddMembershipIDs adds the "memberships" edge to the UserTenantMembership entity by IDs.
 func (_u *TenantUpdate) AddMembershipIDs(ids ...int) *TenantUpdate {
 	_u.mutation.AddMembershipIDs(ids...)
@@ -471,6 +486,27 @@ func (_u *TenantUpdate) RemoveMspCustomerAllocations(v ...*MSPAllocation) *Tenan
 		ids[i] = v[i].ID
 	}
 	return _u.RemoveMspCustomerAllocationIDs(ids...)
+}
+
+// ClearMspProviderAllocations clears all "msp_provider_allocations" edges to the MSPAllocation entity.
+func (_u *TenantUpdate) ClearMspProviderAllocations() *TenantUpdate {
+	_u.mutation.ClearMspProviderAllocations()
+	return _u
+}
+
+// RemoveMspProviderAllocationIDs removes the "msp_provider_allocations" edge to MSPAllocation entities by IDs.
+func (_u *TenantUpdate) RemoveMspProviderAllocationIDs(ids ...int) *TenantUpdate {
+	_u.mutation.RemoveMspProviderAllocationIDs(ids...)
+	return _u
+}
+
+// RemoveMspProviderAllocations removes "msp_provider_allocations" edges to MSPAllocation entities.
+func (_u *TenantUpdate) RemoveMspProviderAllocations(v ...*MSPAllocation) *TenantUpdate {
+	ids := make([]int, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.RemoveMspProviderAllocationIDs(ids...)
 }
 
 // ClearMemberships clears all "memberships" edges to the UserTenantMembership entity.
@@ -774,6 +810,51 @@ func (_u *TenantUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 			Inverse: false,
 			Table:   tenant.MspCustomerAllocationsTable,
 			Columns: []string{tenant.MspCustomerAllocationsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(mspallocation.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
+	}
+	if _u.mutation.MspProviderAllocationsCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   tenant.MspProviderAllocationsTable,
+			Columns: []string{tenant.MspProviderAllocationsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(mspallocation.FieldID, field.TypeInt),
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.RemovedMspProviderAllocationsIDs(); len(nodes) > 0 && !_u.mutation.MspProviderAllocationsCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   tenant.MspProviderAllocationsTable,
+			Columns: []string{tenant.MspProviderAllocationsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(mspallocation.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.MspProviderAllocationsIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   tenant.MspProviderAllocationsTable,
+			Columns: []string{tenant.MspProviderAllocationsColumn},
 			Bidi:    false,
 			Target: &sqlgraph.EdgeTarget{
 				IDSpec: sqlgraph.NewFieldSpec(mspallocation.FieldID, field.TypeInt),
@@ -1287,6 +1368,21 @@ func (_u *TenantUpdateOne) AddMspCustomerAllocations(v ...*MSPAllocation) *Tenan
 	return _u.AddMspCustomerAllocationIDs(ids...)
 }
 
+// AddMspProviderAllocationIDs adds the "msp_provider_allocations" edge to the MSPAllocation entity by IDs.
+func (_u *TenantUpdateOne) AddMspProviderAllocationIDs(ids ...int) *TenantUpdateOne {
+	_u.mutation.AddMspProviderAllocationIDs(ids...)
+	return _u
+}
+
+// AddMspProviderAllocations adds the "msp_provider_allocations" edges to the MSPAllocation entity.
+func (_u *TenantUpdateOne) AddMspProviderAllocations(v ...*MSPAllocation) *TenantUpdateOne {
+	ids := make([]int, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.AddMspProviderAllocationIDs(ids...)
+}
+
 // AddMembershipIDs adds the "memberships" edge to the UserTenantMembership entity by IDs.
 func (_u *TenantUpdateOne) AddMembershipIDs(ids ...int) *TenantUpdateOne {
 	_u.mutation.AddMembershipIDs(ids...)
@@ -1377,6 +1473,27 @@ func (_u *TenantUpdateOne) RemoveMspCustomerAllocations(v ...*MSPAllocation) *Te
 		ids[i] = v[i].ID
 	}
 	return _u.RemoveMspCustomerAllocationIDs(ids...)
+}
+
+// ClearMspProviderAllocations clears all "msp_provider_allocations" edges to the MSPAllocation entity.
+func (_u *TenantUpdateOne) ClearMspProviderAllocations() *TenantUpdateOne {
+	_u.mutation.ClearMspProviderAllocations()
+	return _u
+}
+
+// RemoveMspProviderAllocationIDs removes the "msp_provider_allocations" edge to MSPAllocation entities by IDs.
+func (_u *TenantUpdateOne) RemoveMspProviderAllocationIDs(ids ...int) *TenantUpdateOne {
+	_u.mutation.RemoveMspProviderAllocationIDs(ids...)
+	return _u
+}
+
+// RemoveMspProviderAllocations removes "msp_provider_allocations" edges to MSPAllocation entities.
+func (_u *TenantUpdateOne) RemoveMspProviderAllocations(v ...*MSPAllocation) *TenantUpdateOne {
+	ids := make([]int, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.RemoveMspProviderAllocationIDs(ids...)
 }
 
 // ClearMemberships clears all "memberships" edges to the UserTenantMembership entity.
@@ -1710,6 +1827,51 @@ func (_u *TenantUpdateOne) sqlSave(ctx context.Context) (_node *Tenant, err erro
 			Inverse: false,
 			Table:   tenant.MspCustomerAllocationsTable,
 			Columns: []string{tenant.MspCustomerAllocationsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(mspallocation.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
+	}
+	if _u.mutation.MspProviderAllocationsCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   tenant.MspProviderAllocationsTable,
+			Columns: []string{tenant.MspProviderAllocationsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(mspallocation.FieldID, field.TypeInt),
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.RemovedMspProviderAllocationsIDs(); len(nodes) > 0 && !_u.mutation.MspProviderAllocationsCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   tenant.MspProviderAllocationsTable,
+			Columns: []string{tenant.MspProviderAllocationsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(mspallocation.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.MspProviderAllocationsIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   tenant.MspProviderAllocationsTable,
+			Columns: []string{tenant.MspProviderAllocationsColumn},
 			Bidi:    false,
 			Target: &sqlgraph.EdgeTarget{
 				IDSpec: sqlgraph.NewFieldSpec(mspallocation.FieldID, field.TypeInt),

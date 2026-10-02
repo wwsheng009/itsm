@@ -22,6 +22,9 @@ func (MSPAllocation) Fields() []ent.Field {
 			Comment("MSP 员工ID（属于MSP租户）"),
 		field.Int("customer_tenant_id").
 			Comment("客户租户ID（支持单客户模式）"),
+		field.Int("provider_tenant_id").
+			Optional().
+			Comment("服务商租户ID（IP-P2-1：= MSP 员工 home provider 且 == customer.msp_provider_id）"),
 		field.String("role").
 			Comment("分配角色: primary|backup|specialist").
 			Default("primary"),
@@ -44,6 +47,9 @@ func (MSPAllocation) Indexes() []ent.Index {
 			Unique().
 			StorageKey("uk_msp_allocation_active").
 			Annotations(entsql.IndexWhere("deassigned_at IS NULL")),
+		index.Fields("provider_tenant_id").
+			StorageKey("idx_msp_allocations_provider").
+			Annotations(entsql.IndexWhere("deassigned_at IS NULL")),
 	}
 }
 
@@ -60,5 +66,9 @@ func (MSPAllocation) Edges() []ent.Edge {
 			Ref("msp_customer_allocations").
 			Unique().
 			Required(),
+		edge.From("provider_tenant", Tenant.Type).
+			Field("provider_tenant_id").
+			Ref("msp_provider_allocations").
+			Unique(),
 	}
 }

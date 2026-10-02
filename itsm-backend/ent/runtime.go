@@ -3407,15 +3407,15 @@ func init() {
 	mspallocationFields := schema.MSPAllocation{}.Fields()
 	_ = mspallocationFields
 	// mspallocationDescRole is the schema descriptor for role field.
-	mspallocationDescRole := mspallocationFields[2].Descriptor()
+	mspallocationDescRole := mspallocationFields[3].Descriptor()
 	// mspallocation.DefaultRole holds the default value on creation for the role field.
 	mspallocation.DefaultRole = mspallocationDescRole.Default.(string)
 	// mspallocationDescAssignedAt is the schema descriptor for assigned_at field.
-	mspallocationDescAssignedAt := mspallocationFields[3].Descriptor()
+	mspallocationDescAssignedAt := mspallocationFields[4].Descriptor()
 	// mspallocation.DefaultAssignedAt holds the default value on creation for the assigned_at field.
 	mspallocation.DefaultAssignedAt = mspallocationDescAssignedAt.Default.(func() time.Time)
 	// mspallocationDescCreatedAt is the schema descriptor for created_at field.
-	mspallocationDescCreatedAt := mspallocationFields[5].Descriptor()
+	mspallocationDescCreatedAt := mspallocationFields[6].Descriptor()
 	// mspallocation.DefaultCreatedAt holds the default value on creation for the created_at field.
 	mspallocation.DefaultCreatedAt = mspallocationDescCreatedAt.Default.(func() time.Time)
 	marketplaceitemFields := schema.MarketplaceItem{}.Fields()

@@ -58,6 +58,26 @@ func (_u *MSPAllocationUpdate) SetNillableCustomerTenantID(v *int) *MSPAllocatio
 	return _u
 }
 
+// SetProviderTenantID sets the "provider_tenant_id" field.
+func (_u *MSPAllocationUpdate) SetProviderTenantID(v int) *MSPAllocationUpdate {
+	_u.mutation.SetProviderTenantID(v)
+	return _u
+}
+
+// SetNillableProviderTenantID sets the "provider_tenant_id" field if the given value is not nil.
+func (_u *MSPAllocationUpdate) SetNillableProviderTenantID(v *int) *MSPAllocationUpdate {
+	if v != nil {
+		_u.SetProviderTenantID(*v)
+	}
+	return _u
+}
+
+// ClearProviderTenantID clears the value of the "provider_tenant_id" field.
+func (_u *MSPAllocationUpdate) ClearProviderTenantID() *MSPAllocationUpdate {
+	_u.mutation.ClearProviderTenantID()
+	return _u
+}
+
 // SetRole sets the "role" field.
 func (_u *MSPAllocationUpdate) SetRole(v string) *MSPAllocationUpdate {
 	_u.mutation.SetRole(v)
@@ -130,6 +150,11 @@ func (_u *MSPAllocationUpdate) SetCustomerTenant(v *Tenant) *MSPAllocationUpdate
 	return _u.SetCustomerTenantID(v.ID)
 }
 
+// SetProviderTenant sets the "provider_tenant" edge to the Tenant entity.
+func (_u *MSPAllocationUpdate) SetProviderTenant(v *Tenant) *MSPAllocationUpdate {
+	return _u.SetProviderTenantID(v.ID)
+}
+
 // Mutation returns the MSPAllocationMutation object of the builder.
 func (_u *MSPAllocationUpdate) Mutation() *MSPAllocationMutation {
 	return _u.mutation
@@ -144,6 +169,12 @@ func (_u *MSPAllocationUpdate) ClearMspUser() *MSPAllocationUpdate {
 // ClearCustomerTenant clears the "customer_tenant" edge to the Tenant entity.
 func (_u *MSPAllocationUpdate) ClearCustomerTenant() *MSPAllocationUpdate {
 	_u.mutation.ClearCustomerTenant()
+	return _u
+}
+
+// ClearProviderTenant clears the "provider_tenant" edge to the Tenant entity.
+func (_u *MSPAllocationUpdate) ClearProviderTenant() *MSPAllocationUpdate {
+	_u.mutation.ClearProviderTenant()
 	return _u
 }
 
@@ -270,6 +301,35 @@ func (_u *MSPAllocationUpdate) sqlSave(ctx context.Context) (_node int, err erro
 		}
 		_spec.Edges.Add = append(_spec.Edges.Add, edge)
 	}
+	if _u.mutation.ProviderTenantCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.M2O,
+			Inverse: true,
+			Table:   mspallocation.ProviderTenantTable,
+			Columns: []string{mspallocation.ProviderTenantColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(tenant.FieldID, field.TypeInt),
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.ProviderTenantIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.M2O,
+			Inverse: true,
+			Table:   mspallocation.ProviderTenantTable,
+			Columns: []string{mspallocation.ProviderTenantColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(tenant.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
+	}
 	if _node, err = sqlgraph.UpdateNodes(ctx, _u.driver, _spec); err != nil {
 		if _, ok := err.(*sqlgraph.NotFoundError); ok {
 			err = &NotFoundError{mspallocation.Label}
@@ -315,6 +375,26 @@ func (_u *MSPAllocationUpdateOne) SetNillableCustomerTenantID(v *int) *MSPAlloca
 	if v != nil {
 		_u.SetCustomerTenantID(*v)
 	}
+	return _u
+}
+
+// SetProviderTenantID sets the "provider_tenant_id" field.
+func (_u *MSPAllocationUpdateOne) SetProviderTenantID(v int) *MSPAllocationUpdateOne {
+	_u.mutation.SetProviderTenantID(v)
+	return _u
+}
+
+// SetNillableProviderTenantID sets the "provider_tenant_id" field if the given value is not nil.
+func (_u *MSPAllocationUpdateOne) SetNillableProviderTenantID(v *int) *MSPAllocationUpdateOne {
+	if v != nil {
+		_u.SetProviderTenantID(*v)
+	}
+	return _u
+}
+
+// ClearProviderTenantID clears the value of the "provider_tenant_id" field.
+func (_u *MSPAllocationUpdateOne) ClearProviderTenantID() *MSPAllocationUpdateOne {
+	_u.mutation.ClearProviderTenantID()
 	return _u
 }
 
@@ -390,6 +470,11 @@ func (_u *MSPAllocationUpdateOne) SetCustomerTenant(v *Tenant) *MSPAllocationUpd
 	return _u.SetCustomerTenantID(v.ID)
 }
 
+// SetProviderTenant sets the "provider_tenant" edge to the Tenant entity.
+func (_u *MSPAllocationUpdateOne) SetProviderTenant(v *Tenant) *MSPAllocationUpdateOne {
+	return _u.SetProviderTenantID(v.ID)
+}
+
 // Mutation returns the MSPAllocationMutation object of the builder.
 func (_u *MSPAllocationUpdateOne) Mutation() *MSPAllocationMutation {
 	return _u.mutation
@@ -404,6 +489,12 @@ func (_u *MSPAllocationUpdateOne) ClearMspUser() *MSPAllocationUpdateOne {
 // ClearCustomerTenant clears the "customer_tenant" edge to the Tenant entity.
 func (_u *MSPAllocationUpdateOne) ClearCustomerTenant() *MSPAllocationUpdateOne {
 	_u.mutation.ClearCustomerTenant()
+	return _u
+}
+
+// ClearProviderTenant clears the "provider_tenant" edge to the Tenant entity.
+func (_u *MSPAllocationUpdateOne) ClearProviderTenant() *MSPAllocationUpdateOne {
+	_u.mutation.ClearProviderTenant()
 	return _u
 }
 
@@ -550,6 +641,35 @@ func (_u *MSPAllocationUpdateOne) sqlSave(ctx context.Context) (_node *MSPAlloca
 			Inverse: true,
 			Table:   mspallocation.CustomerTenantTable,
 			Columns: []string{mspallocation.CustomerTenantColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(tenant.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
+	}
+	if _u.mutation.ProviderTenantCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.M2O,
+			Inverse: true,
+			Table:   mspallocation.ProviderTenantTable,
+			Columns: []string{mspallocation.ProviderTenantColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(tenant.FieldID, field.TypeInt),
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.ProviderTenantIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.M2O,
+			Inverse: true,
+			Table:   mspallocation.ProviderTenantTable,
+			Columns: []string{mspallocation.ProviderTenantColumn},
 			Bidi:    false,
 			Target: &sqlgraph.EdgeTarget{
 				IDSpec: sqlgraph.NewFieldSpec(tenant.FieldID, field.TypeInt),

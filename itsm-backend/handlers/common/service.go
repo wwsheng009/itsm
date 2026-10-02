@@ -483,16 +483,30 @@ func (s *Service) GetUserTenants(ctx context.Context, userID int) ([]interface{}
 	// 2b) provider 员工：home ∪ 有效 allocation 的客户租户（R9/R10 同源）。
 	if string(user.MspRole) != "" {
 		allocs, aErr := s.client.MSPAllocation.Query().
-			Where(mspallocation.MspUserIDEQ(userID), mspallocation.DeassignedAtIsNil()).
+			Where(
+				mspallocation.MspUserIDEQ(userID),
+				mspallocation.DeassignedAtIsNil(),
+				// IP-P2-1 provider 收窄（过渡兼容：未回填行 IS NULL 保留；NOT NULL 收尾后收敛为等值）。
+				mspallocation.Or(
+					mspallocation.ProviderTenantIDEQ(user.TenantID),
+					mspallocation.ProviderTenantIDIsNil(),
+				),
+			).
 			Order(ent.Asc(mspallocation.FieldID)).
 			All(ctx)
 		if aErr != nil {
 			return nil, fmt.Errorf("failed to list allocations: %w", aErr)
 		}
 		for _, a := range allocs {
-			if t, tErr := s.client.Tenant.Get(ctx, a.CustomerTenantID); tErr == nil {
-				add(t)
+			t, tErr := s.client.Tenant.Get(ctx, a.CustomerTenantID)
+			if tErr != nil {
+				continue
 			}
+			// R2：客户必须归属本 provider（fail-closed；与 mspguard.validateCustomerForProvider 同口径）。
+			if t.MspProviderID == 0 || t.MspProviderID != user.TenantID {
+				continue
+			}
+			add(t)
 		}
 	}
 

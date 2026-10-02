@@ -12815,6 +12815,22 @@ func (c *MSPAllocationClient) QueryCustomerTenant(_m *MSPAllocation) *TenantQuer
 	return query
 }
 
+// QueryProviderTenant queries the provider_tenant edge of a MSPAllocation.
+func (c *MSPAllocationClient) QueryProviderTenant(_m *MSPAllocation) *TenantQuery {
+	query := (&TenantClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(mspallocation.Table, mspallocation.FieldID, id),
+			sqlgraph.To(tenant.Table, tenant.FieldID),
+			sqlgraph.Edge(sqlgraph.M2O, true, mspallocation.ProviderTenantTable, mspallocation.ProviderTenantColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
 // Hooks returns the client hooks.
 func (c *MSPAllocationClient) Hooks() []Hook {
 	return c.hooks.MSPAllocation
@@ -21073,6 +21089,22 @@ func (c *TenantClient) QueryMspCustomerAllocations(_m *Tenant) *MSPAllocationQue
 			sqlgraph.From(tenant.Table, tenant.FieldID, id),
 			sqlgraph.To(mspallocation.Table, mspallocation.FieldID),
 			sqlgraph.Edge(sqlgraph.O2M, false, tenant.MspCustomerAllocationsTable, tenant.MspCustomerAllocationsColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
+// QueryMspProviderAllocations queries the msp_provider_allocations edge of a Tenant.
+func (c *TenantClient) QueryMspProviderAllocations(_m *Tenant) *MSPAllocationQuery {
+	query := (&MSPAllocationClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(tenant.Table, tenant.FieldID, id),
+			sqlgraph.To(mspallocation.Table, mspallocation.FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, tenant.MspProviderAllocationsTable, tenant.MspProviderAllocationsColumn),
 		)
 		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
 		return fromV, nil

@@ -18,6 +18,8 @@ const (
 	FieldMspUserID = "msp_user_id"
 	// FieldCustomerTenantID holds the string denoting the customer_tenant_id field in the database.
 	FieldCustomerTenantID = "customer_tenant_id"
+	// FieldProviderTenantID holds the string denoting the provider_tenant_id field in the database.
+	FieldProviderTenantID = "provider_tenant_id"
 	// FieldRole holds the string denoting the role field in the database.
 	FieldRole = "role"
 	// FieldAssignedAt holds the string denoting the assigned_at field in the database.
@@ -30,6 +32,8 @@ const (
 	EdgeMspUser = "msp_user"
 	// EdgeCustomerTenant holds the string denoting the customer_tenant edge name in mutations.
 	EdgeCustomerTenant = "customer_tenant"
+	// EdgeProviderTenant holds the string denoting the provider_tenant edge name in mutations.
+	EdgeProviderTenant = "provider_tenant"
 	// Table holds the table name of the mspallocation in the database.
 	Table = "msp_allocations"
 	// MspUserTable is the table that holds the msp_user relation/edge.
@@ -46,6 +50,13 @@ const (
 	CustomerTenantInverseTable = "tenants"
 	// CustomerTenantColumn is the table column denoting the customer_tenant relation/edge.
 	CustomerTenantColumn = "customer_tenant_id"
+	// ProviderTenantTable is the table that holds the provider_tenant relation/edge.
+	ProviderTenantTable = "msp_allocations"
+	// ProviderTenantInverseTable is the table name for the Tenant entity.
+	// It exists in this package in order to avoid circular dependency with the "tenant" package.
+	ProviderTenantInverseTable = "tenants"
+	// ProviderTenantColumn is the table column denoting the provider_tenant relation/edge.
+	ProviderTenantColumn = "provider_tenant_id"
 )
 
 // Columns holds all SQL columns for mspallocation fields.
@@ -53,6 +64,7 @@ var Columns = []string{
 	FieldID,
 	FieldMspUserID,
 	FieldCustomerTenantID,
+	FieldProviderTenantID,
 	FieldRole,
 	FieldAssignedAt,
 	FieldDeassignedAt,
@@ -96,6 +108,11 @@ func ByCustomerTenantID(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldCustomerTenantID, opts...).ToFunc()
 }
 
+// ByProviderTenantID orders the results by the provider_tenant_id field.
+func ByProviderTenantID(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldProviderTenantID, opts...).ToFunc()
+}
+
 // ByRole orders the results by the role field.
 func ByRole(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldRole, opts...).ToFunc()
@@ -129,6 +146,13 @@ func ByCustomerTenantField(field string, opts ...sql.OrderTermOption) OrderOptio
 		sqlgraph.OrderByNeighborTerms(s, newCustomerTenantStep(), sql.OrderByField(field, opts...))
 	}
 }
+
+// ByProviderTenantField orders the results by provider_tenant field.
+func ByProviderTenantField(field string, opts ...sql.OrderTermOption) OrderOption {
+	return func(s *sql.Selector) {
+		sqlgraph.OrderByNeighborTerms(s, newProviderTenantStep(), sql.OrderByField(field, opts...))
+	}
+}
 func newMspUserStep() *sqlgraph.Step {
 	return sqlgraph.NewStep(
 		sqlgraph.From(Table, FieldID),
@@ -141,5 +165,12 @@ func newCustomerTenantStep() *sqlgraph.Step {
 		sqlgraph.From(Table, FieldID),
 		sqlgraph.To(CustomerTenantInverseTable, FieldID),
 		sqlgraph.Edge(sqlgraph.M2O, true, CustomerTenantTable, CustomerTenantColumn),
+	)
+}
+func newProviderTenantStep() *sqlgraph.Step {
+	return sqlgraph.NewStep(
+		sqlgraph.From(Table, FieldID),
+		sqlgraph.To(ProviderTenantInverseTable, FieldID),
+		sqlgraph.Edge(sqlgraph.M2O, true, ProviderTenantTable, ProviderTenantColumn),
 	)
 }

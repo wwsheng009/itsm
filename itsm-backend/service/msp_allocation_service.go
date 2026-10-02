@@ -10,6 +10,7 @@ import (
 	"itsm-backend/ent/mspallocation"
 	"itsm-backend/ent/tenant"
 	"itsm-backend/ent/user"
+	"itsm-backend/pkg/mspguard"
 	"itsm-backend/pkg/tenantmode"
 
 	"go.uber.org/zap"
@@ -41,21 +42,20 @@ func (s *MSPAllocationService) Create(
 	// 检查是否是管理员操作
 	isAdmin := len(operatorRole) > 0 && (operatorRole[0] == "super_admin" || operatorRole[0] == "sysadmin")
 
-	// 1. 验证 MSP 用户必须是 MSP 租户（管理员除外）
-	if !isAdmin {
-		u, err := s.client.User.Query().
-			Where(user.IDEQ(mspUserID)).
-			WithTenant().
-			Only(ctx)
-		if err != nil {
-			return nil, fmt.Errorf("MSP用户不存在: %w", err)
-		}
-		if u.Edges.Tenant == nil || !tenantmode.IsMSPProviderTenantType(string(u.Edges.Tenant.Type)) {
-			return nil, fmt.Errorf("用户不属于MSP租户")
-		}
+	// 1. 载入 MSP 员工并派生 provider（IP-P2-1 §5.0-A：admin 不豁免归属校验）。
+	u, err := s.client.User.Query().
+		Where(user.IDEQ(mspUserID)).
+		WithTenant().
+		Only(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("MSP用户不存在: %w", err)
 	}
+	if u.Edges.Tenant == nil || !tenantmode.IsMSPProviderTenantType(string(u.Edges.Tenant.Type)) {
+		return nil, fmt.Errorf("用户不属于MSP租户（allocation 必须属于服务商员工）")
+	}
+	providerTenantID := u.Edges.Tenant.ID
 
-	// 2. 验证客户租户（管理员除外，需要是 customer 类型）
+	// 2. 验证客户租户并校验归属一致性（R2：跨 provider 分配拒绝）。
 	cust, err := s.client.Tenant.Query().
 		Where(tenant.IDEQ(customerTenantID)).
 		Only(ctx)
@@ -64,6 +64,10 @@ func (s *MSPAllocationService) Create(
 	}
 	if !isAdmin && !tenantmode.IsCustomerTenantType(string(cust.Type)) {
 		return nil, fmt.Errorf("目标租户不是客户类型")
+	}
+	if cust.MspProviderID == 0 || cust.MspProviderID != providerTenantID {
+		return nil, fmt.Errorf("跨 provider 分配被拒绝：客户租户 %d 归属服务商 %d，员工 %d 的 provider 为 %d",
+			customerTenantID, cust.MspProviderID, mspUserID, providerTenantID)
 	}
 
 	// 3. 检查是否已存在有效的未解除分配
@@ -99,6 +103,7 @@ func (s *MSPAllocationService) Create(
 	alloc, err := s.client.MSPAllocation.Create().
 		SetMspUserID(mspUserID).
 		SetCustomerTenantID(customerTenantID).
+		SetProviderTenantID(providerTenantID).
 		SetRole(role).
 		SetAssignedAt(time.Now()).
 		Save(ctx)
@@ -138,6 +143,7 @@ func (s *MSPAllocationService) toDTO(a *ent.MSPAllocation) (*dto.MSPAllocationDT
 		ID:                 a.ID,
 		MSPUserID:          a.MspUserID,
 		MSPUsername:        mspUsername,
+		ProviderTenantID:   a.ProviderTenantID,
 		CustomerTenantID:   customerTenantID,
 		CustomerTenantName: customerTenantName,
 		Role:               a.Role,
@@ -148,10 +154,17 @@ func (s *MSPAllocationService) toDTO(a *ent.MSPAllocation) (*dto.MSPAllocationDT
 
 // ListByMSPUser 根据 MSP 用户 ID 获取其所有分配
 func (s *MSPAllocationService) ListByMSPUser(ctx context.Context, mspUserID int) ([]*dto.MSPAllocationDTO, error) {
-	allocations, err := s.client.MSPAllocation.Query().
+	q := s.client.MSPAllocation.Query().
 		Where(mspallocation.MspUserIDEQ(mspUserID)).
-		WithCustomerTenant().
-		All(ctx)
+		WithCustomerTenant()
+	if providerID, ok := s.providerTenantID(ctx, mspUserID); ok {
+		// IP-P2-1 过渡兼容：已回填行按 provider 收窄；未回填行保留（NOT NULL 收尾后收敛为等值）。
+		q = q.Where(mspallocation.Or(
+			mspallocation.ProviderTenantIDEQ(providerID),
+			mspallocation.ProviderTenantIDIsNil(),
+		))
+	}
+	allocations, err := q.All(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("查询分配失败: %w", err)
 	}
@@ -239,6 +252,7 @@ func (s *MSPAllocationService) GetActiveAllocations(ctx context.Context) ([]*dto
 			ID:                 a.ID,
 			MSPUserID:          a.MspUserID,
 			MSPUsername:        mspUsername,
+			ProviderTenantID:   a.ProviderTenantID,
 			CustomerTenantID:   customerTenantID,
 			CustomerTenantName: customerTenantName,
 			Role:               a.Role,
@@ -250,25 +264,34 @@ func (s *MSPAllocationService) GetActiveAllocations(ctx context.Context) ([]*dto
 	return dtos, nil
 }
 
-// GetMSPCustomers 获取指定 MSP 用户可访问的客户列表
+// GetMSPCustomers 获取指定 MSP 用户可访问的客户列表（IP-P2-1：统一走 mspguard 收窄，fail-closed）。
 func (s *MSPAllocationService) GetMSPCustomers(ctx context.Context, mspUserID int) ([]*ent.Tenant, error) {
-	allocations, err := s.client.MSPAllocation.Query().
-		Where(
-			mspallocation.MspUserIDEQ(mspUserID),
-			mspallocation.DeassignedAtIsNil(),
-		).
-		WithCustomerTenant().
-		All(ctx)
+	ids, err := mspguard.New(s.client).ListAccessibleCustomerIDs(ctx, mspUserID)
 	if err != nil {
-		return nil, fmt.Errorf("查询客户列表失败: %w", err)
+		return nil, err
 	}
-
-	customers := make([]*ent.Tenant, 0, len(allocations))
-	for _, a := range allocations {
-		if a.Edges.CustomerTenant != nil {
-			customers = append(customers, a.Edges.CustomerTenant)
-		}
+	if len(ids) == 0 {
+		return []*ent.Tenant{}, nil
 	}
+	return s.client.Tenant.Query().
+		Where(tenant.IDIn(ids...)).
+		Order(ent.Asc(tenant.FieldID)).
+		All(ctx)
+}
 
-	return customers, nil
+// providerTenantID 解析 MSP 员工的 home provider 租户 ID（IP-P2-1；非服务商员工返回 false）。
+func (s *MSPAllocationService) providerTenantID(ctx context.Context, mspUserID int) (int, bool) {
+	u, err := s.client.User.Query().
+		Where(user.IDEQ(mspUserID)).
+		WithTenant(func(q *ent.TenantQuery) {
+			q.Select(tenant.FieldID, tenant.FieldType)
+		}).
+		Only(ctx)
+	if err != nil || u.Edges.Tenant == nil {
+		return 0, false
+	}
+	if !tenantmode.IsMSPProviderTenantType(string(u.Edges.Tenant.Type)) {
+		return 0, false
+	}
+	return u.Edges.Tenant.ID, true
 }

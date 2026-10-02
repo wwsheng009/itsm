@@ -611,6 +611,43 @@ CREATE INDEX idx_invitations_expiry ON invitations (expires_at) WHERE status = '
 | **IP-P2-4** 工作台进阶 | 自定义视图/配额 | 保存过滤器组合、SLA 风险看板、每客户配额可视化 | 视图可分享/复现；配额数据与后端一致 | feature flag |
 | **IP-P2-5** guard 扩展 | 成员/关联表一致性 | tenant_guard 增加"关联表一致性"检查（跨租户 FK/悬挂成员） | 启动扫描 0 高危；CI 用例覆盖 | 检查项分级（fatal→warn） |
 
+> **P2 进度（2026-09-30 起）**：IP-P2-1 首批落地——`provider_tenant_id` 迁移（可空 + 回填 + 部分索引，`20260930_msp_allocation_provider_dimension.sql`）、写侧归属校验（admin 不豁免）、读侧 provider 收窄（middleware / 租户切换列表 / 分配列表；工作台与报表维持 `mspguard` 单源收窄）、巡检脚本与单测；**NOT NULL 收尾**待巡检归零 + A11/A12 e2e（环境依赖）。
+
+### 5.0 P2 冻结契约（2026-09-30；本节即 P2 编码基线）
+
+> 与 §3.0/§4.0 同规则：**变更须回填本节并登记修订记录**。
+
+**5.0-A IP-P2-1 provider 维度（收口 §4.0-B）**
+
+- **DDL**：沿用 §4.0-B（`provider_tenant_id int NULL REFERENCES tenants(id)` 在线加列 → 回填 → 部分索引）；**NOT NULL 收尾条件**：回填差异清单为零 + N=1/N=2 e2e 全绿后单独迁移（登记修订记录）。
+- **写入校验（唯一入口 `service.MSPAllocationService.Create`）**：`allocation.provider_tenant_id` = MSP 员工 home provider；必须 == `customer.msp_provider_id`；跨 provider 分配拒绝（R2；admin 不豁免归属校验，canon C10/D1）。
+- **收窄点（N=1 行为不变）**：① `middleware/msp_middleware.go` 的 `AllowedCustomers` 由 provider 收窄后的分配集合构建（授权链仍唯一走 `mspguard`）；② 工作台 / 报表（`GetMSPCustomerReports`）/ 审计（`MSPAuditService`）查询按 `provider_tenant_id` 收窄。
+- **过渡兼容**：收窄条件 `provider_tenant_id = <provider> OR provider_tenant_id IS NULL`（回填前存量行不丢；NOT NULL 收尾后收敛为等值）。
+- **回滚**：字段可空 + 代码回退；R2 主链不受影响（`mspguard` 读路径仍强校验归属）。
+- **验收**：`TestMSPAllocationService_*`（provider 派生 / 跨 provider 拒绝 / 一致性）、`middleware` N=2 收窄用例；A11/A12 e2e。
+
+**5.0-B IP-P2-2 RLS `enforce` 前置（冻结）**
+
+- **前置清单（全部满足才允许 `shadow → enforce`）**：① 低权角色（`msp_tech` 等）在 shadow 期无新增 `permission denied`；② 全路径 ctx 补齐：HTTP（auth→tenant→rbac）、BPMN 执行器、定时器/worker、迁移/运维脚本（集成分析 §5.2 清单）逐个 dry-run；③ 运维通道显式带 tenant context 或列入豁免表并复核。
+- **灰度**：`off → shadow → enforce` 顺序不可跳跃；enforce 按租户/表分批；回退点 `shadow`。
+- **门禁**：enforce 后核心路径 0 500；隔离回归（A10）全过。
+
+**5.0-C IP-P2-3 共享表治理（冻结清单，源自 `TenantExemptTables`）**
+
+- 待复核条目（须有 owner/理由/复核期）：`marketplace_items`（global）、`messages`（global，**D3 已定：租户化落地**）、`prompt_templates`（global）、标签云系列（derived，维持）。
+- 动作：`messages` 增 `tenant_id`（在线加列 + 回填 + 切读）；其余逐表复核并记季度记录（180 天超期启动告警已存在）。
+- 回滚：逐表回退（只增不删）。
+
+**5.0-D IP-P2-4 工作台进阶（范围冻结）**
+
+- 保存过滤器组合（命名视图 / 分享）；SLA 风险看板；每客户配额可视化（数据源与后端一致）。
+- 门禁：feature flag 灰度；前端单测 + 视图 URL 可复现。
+
+**5.0-E IP-P2-5 guard 扩展（冻结检查项）**
+
+- `tenant_guard` 新增"关联表一致性"检查：① 跨租户 FK（如 `user_tenant_membership_orgs.org_id` 指向异租户组织）；② 悬挂成员（membership 指向已删租户/用户）；③ `msp_allocations.provider_tenant_id` 与 `tenants.msp_provider_id` 不一致。
+- 分级：生产默认 `fatal`，逐项可降 `warn`；CI 用例覆盖（构造违规样本断言检出）。
+
 ---
 
 ## 6. 验收体系（步骤 ↔ 标准 ↔ 证据）
@@ -787,3 +824,4 @@ CREATE INDEX idx_invitations_expiry ON invitations (expires_at) WHERE status = '
 | v1.28 | 2026-09-30 | **IP-P1-4c 收口（邀请落地/首登 UI）**：修复契约断链——后端 `inviteUrl` 为路径式 `/invite/<token>`，前端此前仅注册 `/invite` 且只读 `?token=`（邮件链接将 404）；新增 `invite/:token` 路由 + `useParams` 优先（保留查询式兼容）。测试：落地页 5 用例（路径/查询 token、缺 token、accepted、密码不一致）+ 强制改密 2 用例；e2e `flow-invitation-onboarding.spec.ts`（@multi-tenant；`page.request` cookie/token 双模；旧构建 404 显式 skip 不假红）；fixture 支持 `E2E_ADMIN_USERNAME/PASSWORD` 覆盖（本机 seeder 口令差异痛点）；后端 handler/service 邀请定向回归绿 |
 | v1.29 | 2026-09-30 | **IP-P1-8 审计看板 + `07:G9` 真正关闭**：复核发现 IP-P0-6 的"header/JWT 冲突 401"从未生效（JWT 已锁定时 Header 被完全跳过 → 冲突分支不可达），本轮改为锁定时仍解析并校验 Header（冲突 → 401 + `TENANT_MISMATCH_REJECTED` + `tenant.probe_denied` 审计）；头通道未分配/客户不存在拒绝落 `tenant.scope_denied` 审计；新增 `GET /api/v1/msp/audit/summary`（窗口聚合：跨租户/拒绝计数、by source/action/target/membership、最近拒绝 + reasonCode、租户名回填）+ `/msp/audit` 前端看板；后端 service/middleware 定向与 router/build/前端 tsc/eslint 全绿 |
 | v1.30 | 2026-09-30 | **P0/P1 门禁终局收官（docs-gate 6/6 + make test 全绿）**：docs-gate 完整 `run-all.sh` 通过（`6 total, 0 failed`、`GATE_EXIT=0`；C.3 84 条历代断链为 advisory）；后端 `go test ./...` 全绿（清 2 条既有 fixture/报告红）；前端全量 `npm test` 263/263 套件、4014 通过、13 skip，覆盖率门槛达标（S 80.33% / B 67.81% / F 81.24% / L 81.51%）；修复清单：api-contract 误报、附件服务契约对齐、邀请/工作台/慢套件超时放宽、TicketDetailAssignSearch 30s→120s；P0/P1 出口 DoD 门禁项勾选 |
+| v1.31 | 2026-09-30 | **P2 启动：§5.0 契约冻结 + IP-P2-1 provider 维度落地**：`msp_allocations.provider_tenant_id`（在线加列 + 回填 + 部分索引，迁移 `20260930_msp_allocation_provider_dimension.sql`；巡检 `scripts/msp/verify-allocation-provider-backfill.sql`）；写侧 `Create` 派生 provider 并强校验 `== customer.msp_provider_id`（admin 不豁免）；读侧收窄——middleware `AllowedCustomers`、租户切换列表、分配列表按 provider（过渡兼容 NULL 行），`/msp/customers` 改走 `mspguard` 单源；DTO 增 `providerTenantId`；单测 7 子例 + 中间件 N=2 用例绿；NOT NULL 收尾待巡检归零 + A11/A12 e2e |

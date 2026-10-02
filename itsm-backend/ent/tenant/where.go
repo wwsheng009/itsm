@@ -1231,6 +1231,29 @@ func HasMspCustomerAllocationsWith(preds ...predicate.MSPAllocation) predicate.T
 	})
 }
 
+// HasMspProviderAllocations applies the HasEdge predicate on the "msp_provider_allocations" edge.
+func HasMspProviderAllocations() predicate.Tenant {
+	return predicate.Tenant(func(s *sql.Selector) {
+		step := sqlgraph.NewStep(
+			sqlgraph.From(Table, FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, MspProviderAllocationsTable, MspProviderAllocationsColumn),
+		)
+		sqlgraph.HasNeighbors(s, step)
+	})
+}
+
+// HasMspProviderAllocationsWith applies the HasEdge predicate on the "msp_provider_allocations" edge with a given conditions (other predicates).
+func HasMspProviderAllocationsWith(preds ...predicate.MSPAllocation) predicate.Tenant {
+	return predicate.Tenant(func(s *sql.Selector) {
+		step := newMspProviderAllocationsStep()
+		sqlgraph.HasNeighborsWith(s, step, func(s *sql.Selector) {
+			for _, p := range preds {
+				p(s)
+			}
+		})
+	})
+}
+
 // HasMemberships applies the HasEdge predicate on the "memberships" edge.
 func HasMemberships() predicate.Tenant {
 	return predicate.Tenant(func(s *sql.Selector) {

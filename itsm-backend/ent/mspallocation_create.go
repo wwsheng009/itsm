@@ -34,6 +34,20 @@ func (_c *MSPAllocationCreate) SetCustomerTenantID(v int) *MSPAllocationCreate {
 	return _c
 }
 
+// SetProviderTenantID sets the "provider_tenant_id" field.
+func (_c *MSPAllocationCreate) SetProviderTenantID(v int) *MSPAllocationCreate {
+	_c.mutation.SetProviderTenantID(v)
+	return _c
+}
+
+// SetNillableProviderTenantID sets the "provider_tenant_id" field if the given value is not nil.
+func (_c *MSPAllocationCreate) SetNillableProviderTenantID(v *int) *MSPAllocationCreate {
+	if v != nil {
+		_c.SetProviderTenantID(*v)
+	}
+	return _c
+}
+
 // SetRole sets the "role" field.
 func (_c *MSPAllocationCreate) SetRole(v string) *MSPAllocationCreate {
 	_c.mutation.SetRole(v)
@@ -98,6 +112,11 @@ func (_c *MSPAllocationCreate) SetMspUser(v *User) *MSPAllocationCreate {
 // SetCustomerTenant sets the "customer_tenant" edge to the Tenant entity.
 func (_c *MSPAllocationCreate) SetCustomerTenant(v *Tenant) *MSPAllocationCreate {
 	return _c.SetCustomerTenantID(v.ID)
+}
+
+// SetProviderTenant sets the "provider_tenant" edge to the Tenant entity.
+func (_c *MSPAllocationCreate) SetProviderTenant(v *Tenant) *MSPAllocationCreate {
+	return _c.SetProviderTenantID(v.ID)
 }
 
 // Mutation returns the MSPAllocationMutation object of the builder.
@@ -246,6 +265,23 @@ func (_c *MSPAllocationCreate) createSpec() (*MSPAllocation, *sqlgraph.CreateSpe
 			edge.Target.Nodes = append(edge.Target.Nodes, k)
 		}
 		_node.CustomerTenantID = nodes[0]
+		_spec.Edges = append(_spec.Edges, edge)
+	}
+	if nodes := _c.mutation.ProviderTenantIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.M2O,
+			Inverse: true,
+			Table:   mspallocation.ProviderTenantTable,
+			Columns: []string{mspallocation.ProviderTenantColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(tenant.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_node.ProviderTenantID = nodes[0]
 		_spec.Edges = append(_spec.Edges, edge)
 	}
 	return _node, _spec

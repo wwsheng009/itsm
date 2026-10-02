@@ -291,6 +291,21 @@ func (_c *TenantCreate) AddMspCustomerAllocations(v ...*MSPAllocation) *TenantCr
 	return _c.AddMspCustomerAllocationIDs(ids...)
 }
 
+// AddMspProviderAllocationIDs adds the "msp_provider_allocations" edge to the MSPAllocation entity by IDs.
+func (_c *TenantCreate) AddMspProviderAllocationIDs(ids ...int) *TenantCreate {
+	_c.mutation.AddMspProviderAllocationIDs(ids...)
+	return _c
+}
+
+// AddMspProviderAllocations adds the "msp_provider_allocations" edges to the MSPAllocation entity.
+func (_c *TenantCreate) AddMspProviderAllocations(v ...*MSPAllocation) *TenantCreate {
+	ids := make([]int, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _c.AddMspProviderAllocationIDs(ids...)
+}
+
 // AddMembershipIDs adds the "memberships" edge to the UserTenantMembership entity by IDs.
 func (_c *TenantCreate) AddMembershipIDs(ids ...int) *TenantCreate {
 	_c.mutation.AddMembershipIDs(ids...)
@@ -558,6 +573,22 @@ func (_c *TenantCreate) createSpec() (*Tenant, *sqlgraph.CreateSpec) {
 			Inverse: false,
 			Table:   tenant.MspCustomerAllocationsTable,
 			Columns: []string{tenant.MspCustomerAllocationsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(mspallocation.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges = append(_spec.Edges, edge)
+	}
+	if nodes := _c.mutation.MspProviderAllocationsIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   tenant.MspProviderAllocationsTable,
+			Columns: []string{tenant.MspProviderAllocationsColumn},
 			Bidi:    false,
 			Target: &sqlgraph.EdgeTarget{
 				IDSpec: sqlgraph.NewFieldSpec(mspallocation.FieldID, field.TypeInt),

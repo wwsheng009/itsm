@@ -55,6 +55,8 @@ const (
 	EdgeUsers = "users"
 	// EdgeMspCustomerAllocations holds the string denoting the msp_customer_allocations edge name in mutations.
 	EdgeMspCustomerAllocations = "msp_customer_allocations"
+	// EdgeMspProviderAllocations holds the string denoting the msp_provider_allocations edge name in mutations.
+	EdgeMspProviderAllocations = "msp_provider_allocations"
 	// EdgeMemberships holds the string denoting the memberships edge name in mutations.
 	EdgeMemberships = "memberships"
 	// EdgeMembershipOrgs holds the string denoting the membership_orgs edge name in mutations.
@@ -77,6 +79,13 @@ const (
 	MspCustomerAllocationsInverseTable = "msp_allocations"
 	// MspCustomerAllocationsColumn is the table column denoting the msp_customer_allocations relation/edge.
 	MspCustomerAllocationsColumn = "customer_tenant_id"
+	// MspProviderAllocationsTable is the table that holds the msp_provider_allocations relation/edge.
+	MspProviderAllocationsTable = "msp_allocations"
+	// MspProviderAllocationsInverseTable is the table name for the MSPAllocation entity.
+	// It exists in this package in order to avoid circular dependency with the "mspallocation" package.
+	MspProviderAllocationsInverseTable = "msp_allocations"
+	// MspProviderAllocationsColumn is the table column denoting the msp_provider_allocations relation/edge.
+	MspProviderAllocationsColumn = "provider_tenant_id"
 	// MembershipsTable is the table that holds the memberships relation/edge.
 	MembershipsTable = "user_tenant_memberships"
 	// MembershipsInverseTable is the table name for the UserTenantMembership entity.
@@ -309,6 +318,20 @@ func ByMspCustomerAllocations(term sql.OrderTerm, terms ...sql.OrderTerm) OrderO
 	}
 }
 
+// ByMspProviderAllocationsCount orders the results by msp_provider_allocations count.
+func ByMspProviderAllocationsCount(opts ...sql.OrderTermOption) OrderOption {
+	return func(s *sql.Selector) {
+		sqlgraph.OrderByNeighborsCount(s, newMspProviderAllocationsStep(), opts...)
+	}
+}
+
+// ByMspProviderAllocations orders the results by msp_provider_allocations terms.
+func ByMspProviderAllocations(term sql.OrderTerm, terms ...sql.OrderTerm) OrderOption {
+	return func(s *sql.Selector) {
+		sqlgraph.OrderByNeighborTerms(s, newMspProviderAllocationsStep(), append([]sql.OrderTerm{term}, terms...)...)
+	}
+}
+
 // ByMembershipsCount orders the results by memberships count.
 func ByMembershipsCount(opts ...sql.OrderTermOption) OrderOption {
 	return func(s *sql.Selector) {
@@ -362,6 +385,13 @@ func newMspCustomerAllocationsStep() *sqlgraph.Step {
 		sqlgraph.From(Table, FieldID),
 		sqlgraph.To(MspCustomerAllocationsInverseTable, FieldID),
 		sqlgraph.Edge(sqlgraph.O2M, false, MspCustomerAllocationsTable, MspCustomerAllocationsColumn),
+	)
+}
+func newMspProviderAllocationsStep() *sqlgraph.Step {
+	return sqlgraph.NewStep(
+		sqlgraph.From(Table, FieldID),
+		sqlgraph.To(MspProviderAllocationsInverseTable, FieldID),
+		sqlgraph.Edge(sqlgraph.O2M, false, MspProviderAllocationsTable, MspProviderAllocationsColumn),
 	)
 }
 func newMembershipsStep() *sqlgraph.Step {

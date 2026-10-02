@@ -23,6 +23,8 @@ type MSPAllocation struct {
 	MspUserID int `json:"msp_user_id,omitempty"`
 	// 客户租户ID（支持单客户模式）
 	CustomerTenantID int `json:"customer_tenant_id,omitempty"`
+	// 服务商租户ID（IP-P2-1：= MSP 员工 home provider 且 == customer.msp_provider_id）
+	ProviderTenantID int `json:"provider_tenant_id,omitempty"`
 	// 分配角色: primary|backup|specialist
 	Role string `json:"role,omitempty"`
 	// 分配时间
@@ -43,9 +45,11 @@ type MSPAllocationEdges struct {
 	MspUser *User `json:"msp_user,omitempty"`
 	// CustomerTenant holds the value of the customer_tenant edge.
 	CustomerTenant *Tenant `json:"customer_tenant,omitempty"`
+	// ProviderTenant holds the value of the provider_tenant edge.
+	ProviderTenant *Tenant `json:"provider_tenant,omitempty"`
 	// loadedTypes holds the information for reporting if a
 	// type was loaded (or requested) in eager-loading or not.
-	loadedTypes [2]bool
+	loadedTypes [3]bool
 }
 
 // MspUserOrErr returns the MspUser value or an error if the edge
@@ -70,12 +74,23 @@ func (e MSPAllocationEdges) CustomerTenantOrErr() (*Tenant, error) {
 	return nil, &NotLoadedError{edge: "customer_tenant"}
 }
 
+// ProviderTenantOrErr returns the ProviderTenant value or an error if the edge
+// was not loaded in eager-loading, or loaded but was not found.
+func (e MSPAllocationEdges) ProviderTenantOrErr() (*Tenant, error) {
+	if e.ProviderTenant != nil {
+		return e.ProviderTenant, nil
+	} else if e.loadedTypes[2] {
+		return nil, &NotFoundError{label: tenant.Label}
+	}
+	return nil, &NotLoadedError{edge: "provider_tenant"}
+}
+
 // scanValues returns the types for scanning values from sql.Rows.
 func (*MSPAllocation) scanValues(columns []string) ([]any, error) {
 	values := make([]any, len(columns))
 	for i := range columns {
 		switch columns[i] {
-		case mspallocation.FieldID, mspallocation.FieldMspUserID, mspallocation.FieldCustomerTenantID:
+		case mspallocation.FieldID, mspallocation.FieldMspUserID, mspallocation.FieldCustomerTenantID, mspallocation.FieldProviderTenantID:
 			values[i] = new(sql.NullInt64)
 		case mspallocation.FieldRole:
 			values[i] = new(sql.NullString)
@@ -113,6 +128,12 @@ func (_m *MSPAllocation) assignValues(columns []string, values []any) error {
 				return fmt.Errorf("unexpected type %T for field customer_tenant_id", values[i])
 			} else if value.Valid {
 				_m.CustomerTenantID = int(value.Int64)
+			}
+		case mspallocation.FieldProviderTenantID:
+			if value, ok := values[i].(*sql.NullInt64); !ok {
+				return fmt.Errorf("unexpected type %T for field provider_tenant_id", values[i])
+			} else if value.Valid {
+				_m.ProviderTenantID = int(value.Int64)
 			}
 		case mspallocation.FieldRole:
 			if value, ok := values[i].(*sql.NullString); !ok {
@@ -161,6 +182,11 @@ func (_m *MSPAllocation) QueryCustomerTenant() *TenantQuery {
 	return NewMSPAllocationClient(_m.config).QueryCustomerTenant(_m)
 }
 
+// QueryProviderTenant queries the "provider_tenant" edge of the MSPAllocation entity.
+func (_m *MSPAllocation) QueryProviderTenant() *TenantQuery {
+	return NewMSPAllocationClient(_m.config).QueryProviderTenant(_m)
+}
+
 // Update returns a builder for updating this MSPAllocation.
 // Note that you need to call MSPAllocation.Unwrap() before calling this method if this MSPAllocation
 // was returned from a transaction, and the transaction was committed or rolled back.
@@ -189,6 +215,9 @@ func (_m *MSPAllocation) String() string {
 	builder.WriteString(", ")
 	builder.WriteString("customer_tenant_id=")
 	builder.WriteString(fmt.Sprintf("%v", _m.CustomerTenantID))
+	builder.WriteString(", ")
+	builder.WriteString("provider_tenant_id=")
+	builder.WriteString(fmt.Sprintf("%v", _m.ProviderTenantID))
 	builder.WriteString(", ")
 	builder.WriteString("role=")
 	builder.WriteString(_m.Role)

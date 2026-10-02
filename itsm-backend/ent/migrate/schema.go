@@ -2996,6 +2996,7 @@ var (
 		{Name: "deassigned_at", Type: field.TypeTime, Nullable: true},
 		{Name: "created_at", Type: field.TypeTime},
 		{Name: "customer_tenant_id", Type: field.TypeInt},
+		{Name: "provider_tenant_id", Type: field.TypeInt, Nullable: true},
 		{Name: "msp_user_id", Type: field.TypeInt},
 	}
 	// MspAllocationsTable holds the schema information for the "msp_allocations" table.
@@ -3011,8 +3012,14 @@ var (
 				OnDelete:   schema.NoAction,
 			},
 			{
-				Symbol:     "msp_allocations_users_msp_allocations",
+				Symbol:     "msp_allocations_tenants_msp_provider_allocations",
 				Columns:    []*schema.Column{MspAllocationsColumns[6]},
+				RefColumns: []*schema.Column{TenantsColumns[0]},
+				OnDelete:   schema.SetNull,
+			},
+			{
+				Symbol:     "msp_allocations_users_msp_allocations",
+				Columns:    []*schema.Column{MspAllocationsColumns[7]},
 				RefColumns: []*schema.Column{UsersColumns[0]},
 				OnDelete:   schema.NoAction,
 			},
@@ -3021,7 +3028,15 @@ var (
 			{
 				Name:    "uk_msp_allocation_active",
 				Unique:  true,
-				Columns: []*schema.Column{MspAllocationsColumns[6], MspAllocationsColumns[5]},
+				Columns: []*schema.Column{MspAllocationsColumns[7], MspAllocationsColumns[5]},
+				Annotation: &entsql.IndexAnnotation{
+					Where: "deassigned_at IS NULL",
+				},
+			},
+			{
+				Name:    "idx_msp_allocations_provider",
+				Unique:  false,
+				Columns: []*schema.Column{MspAllocationsColumns[6]},
 				Annotation: &entsql.IndexAnnotation{
 					Where: "deassigned_at IS NULL",
 				},
@@ -7033,7 +7048,8 @@ func init() {
 	KnowledgeArticleVersionsTable.ForeignKeys[0].RefTable = KnowledgeArticlesTable
 	McpServerToolsTable.ForeignKeys[0].RefTable = McpServersTable
 	MspAllocationsTable.ForeignKeys[0].RefTable = TenantsTable
-	MspAllocationsTable.ForeignKeys[1].RefTable = UsersTable
+	MspAllocationsTable.ForeignKeys[1].RefTable = TenantsTable
+	MspAllocationsTable.ForeignKeys[2].RefTable = UsersTable
 	MenusTable.ForeignKeys[0].RefTable = MenusTable
 	MessagesTable.ForeignKeys[0].RefTable = ConversationsTable
 	MicroservicesTable.ForeignKeys[0].RefTable = ApplicationsTable

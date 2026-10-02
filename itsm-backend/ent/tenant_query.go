@@ -30,6 +30,7 @@ type TenantQuery struct {
 	predicates                 []predicate.Tenant
 	withUsers                  *UserQuery
 	withMspCustomerAllocations *MSPAllocationQuery
+	withMspProviderAllocations *MSPAllocationQuery
 	withMemberships            *UserTenantMembershipQuery
 	withMembershipOrgs         *UserTenantMembershipOrgQuery
 	withBootstrapTokens        *BootstrapTokenQuery
@@ -106,6 +107,28 @@ func (_q *TenantQuery) QueryMspCustomerAllocations() *MSPAllocationQuery {
 			sqlgraph.From(tenant.Table, tenant.FieldID, selector),
 			sqlgraph.To(mspallocation.Table, mspallocation.FieldID),
 			sqlgraph.Edge(sqlgraph.O2M, false, tenant.MspCustomerAllocationsTable, tenant.MspCustomerAllocationsColumn),
+		)
+		fromU = sqlgraph.SetNeighbors(_q.driver.Dialect(), step)
+		return fromU, nil
+	}
+	return query
+}
+
+// QueryMspProviderAllocations chains the current query on the "msp_provider_allocations" edge.
+func (_q *TenantQuery) QueryMspProviderAllocations() *MSPAllocationQuery {
+	query := (&MSPAllocationClient{config: _q.config}).Query()
+	query.path = func(ctx context.Context) (fromU *sql.Selector, err error) {
+		if err := _q.prepareQuery(ctx); err != nil {
+			return nil, err
+		}
+		selector := _q.sqlQuery(ctx)
+		if err := selector.Err(); err != nil {
+			return nil, err
+		}
+		step := sqlgraph.NewStep(
+			sqlgraph.From(tenant.Table, tenant.FieldID, selector),
+			sqlgraph.To(mspallocation.Table, mspallocation.FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, tenant.MspProviderAllocationsTable, tenant.MspProviderAllocationsColumn),
 		)
 		fromU = sqlgraph.SetNeighbors(_q.driver.Dialect(), step)
 		return fromU, nil
@@ -373,6 +396,7 @@ func (_q *TenantQuery) Clone() *TenantQuery {
 		predicates:                 append([]predicate.Tenant{}, _q.predicates...),
 		withUsers:                  _q.withUsers.Clone(),
 		withMspCustomerAllocations: _q.withMspCustomerAllocations.Clone(),
+		withMspProviderAllocations: _q.withMspProviderAllocations.Clone(),
 		withMemberships:            _q.withMemberships.Clone(),
 		withMembershipOrgs:         _q.withMembershipOrgs.Clone(),
 		withBootstrapTokens:        _q.withBootstrapTokens.Clone(),
@@ -401,6 +425,17 @@ func (_q *TenantQuery) WithMspCustomerAllocations(opts ...func(*MSPAllocationQue
 		opt(query)
 	}
 	_q.withMspCustomerAllocations = query
+	return _q
+}
+
+// WithMspProviderAllocations tells the query-builder to eager-load the nodes that are connected to
+// the "msp_provider_allocations" edge. The optional arguments are used to configure the query builder of the edge.
+func (_q *TenantQuery) WithMspProviderAllocations(opts ...func(*MSPAllocationQuery)) *TenantQuery {
+	query := (&MSPAllocationClient{config: _q.config}).Query()
+	for _, opt := range opts {
+		opt(query)
+	}
+	_q.withMspProviderAllocations = query
 	return _q
 }
 
@@ -515,9 +550,10 @@ func (_q *TenantQuery) sqlAll(ctx context.Context, hooks ...queryHook) ([]*Tenan
 	var (
 		nodes       = []*Tenant{}
 		_spec       = _q.querySpec()
-		loadedTypes = [5]bool{
+		loadedTypes = [6]bool{
 			_q.withUsers != nil,
 			_q.withMspCustomerAllocations != nil,
+			_q.withMspProviderAllocations != nil,
 			_q.withMemberships != nil,
 			_q.withMembershipOrgs != nil,
 			_q.withBootstrapTokens != nil,
@@ -553,6 +589,15 @@ func (_q *TenantQuery) sqlAll(ctx context.Context, hooks ...queryHook) ([]*Tenan
 			func(n *Tenant) { n.Edges.MspCustomerAllocations = []*MSPAllocation{} },
 			func(n *Tenant, e *MSPAllocation) {
 				n.Edges.MspCustomerAllocations = append(n.Edges.MspCustomerAllocations, e)
+			}); err != nil {
+			return nil, err
+		}
+	}
+	if query := _q.withMspProviderAllocations; query != nil {
+		if err := _q.loadMspProviderAllocations(ctx, query, nodes,
+			func(n *Tenant) { n.Edges.MspProviderAllocations = []*MSPAllocation{} },
+			func(n *Tenant, e *MSPAllocation) {
+				n.Edges.MspProviderAllocations = append(n.Edges.MspProviderAllocations, e)
 			}); err != nil {
 			return nil, err
 		}
@@ -639,6 +684,36 @@ func (_q *TenantQuery) loadMspCustomerAllocations(ctx context.Context, query *MS
 		node, ok := nodeids[fk]
 		if !ok {
 			return fmt.Errorf(`unexpected referenced foreign-key "customer_tenant_id" returned %v for node %v`, fk, n.ID)
+		}
+		assign(node, n)
+	}
+	return nil
+}
+func (_q *TenantQuery) loadMspProviderAllocations(ctx context.Context, query *MSPAllocationQuery, nodes []*Tenant, init func(*Tenant), assign func(*Tenant, *MSPAllocation)) error {
+	fks := make([]driver.Value, 0, len(nodes))
+	nodeids := make(map[int]*Tenant)
+	for i := range nodes {
+		fks = append(fks, nodes[i].ID)
+		nodeids[nodes[i].ID] = nodes[i]
+		if init != nil {
+			init(nodes[i])
+		}
+	}
+	if len(query.ctx.Fields) > 0 {
+		query.ctx.AppendFieldOnce(mspallocation.FieldProviderTenantID)
+	}
+	query.Where(predicate.MSPAllocation(func(s *sql.Selector) {
+		s.Where(sql.InValues(s.C(tenant.MspProviderAllocationsColumn), fks...))
+	}))
+	neighbors, err := query.All(ctx)
+	if err != nil {
+		return err
+	}
+	for _, n := range neighbors {
+		fk := n.ProviderTenantID
+		node, ok := nodeids[fk]
+		if !ok {
+			return fmt.Errorf(`unexpected referenced foreign-key "provider_tenant_id" returned %v for node %v`, fk, n.ID)
 		}
 		assign(node, n)
 	}

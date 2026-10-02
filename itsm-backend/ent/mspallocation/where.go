@@ -65,6 +65,11 @@ func CustomerTenantID(v int) predicate.MSPAllocation {
 	return predicate.MSPAllocation(sql.FieldEQ(FieldCustomerTenantID, v))
 }
 
+// ProviderTenantID applies equality check predicate on the "provider_tenant_id" field. It's identical to ProviderTenantIDEQ.
+func ProviderTenantID(v int) predicate.MSPAllocation {
+	return predicate.MSPAllocation(sql.FieldEQ(FieldProviderTenantID, v))
+}
+
 // Role applies equality check predicate on the "role" field. It's identical to RoleEQ.
 func Role(v string) predicate.MSPAllocation {
 	return predicate.MSPAllocation(sql.FieldEQ(FieldRole, v))
@@ -123,6 +128,36 @@ func CustomerTenantIDIn(vs ...int) predicate.MSPAllocation {
 // CustomerTenantIDNotIn applies the NotIn predicate on the "customer_tenant_id" field.
 func CustomerTenantIDNotIn(vs ...int) predicate.MSPAllocation {
 	return predicate.MSPAllocation(sql.FieldNotIn(FieldCustomerTenantID, vs...))
+}
+
+// ProviderTenantIDEQ applies the EQ predicate on the "provider_tenant_id" field.
+func ProviderTenantIDEQ(v int) predicate.MSPAllocation {
+	return predicate.MSPAllocation(sql.FieldEQ(FieldProviderTenantID, v))
+}
+
+// ProviderTenantIDNEQ applies the NEQ predicate on the "provider_tenant_id" field.
+func ProviderTenantIDNEQ(v int) predicate.MSPAllocation {
+	return predicate.MSPAllocation(sql.FieldNEQ(FieldProviderTenantID, v))
+}
+
+// ProviderTenantIDIn applies the In predicate on the "provider_tenant_id" field.
+func ProviderTenantIDIn(vs ...int) predicate.MSPAllocation {
+	return predicate.MSPAllocation(sql.FieldIn(FieldProviderTenantID, vs...))
+}
+
+// ProviderTenantIDNotIn applies the NotIn predicate on the "provider_tenant_id" field.
+func ProviderTenantIDNotIn(vs ...int) predicate.MSPAllocation {
+	return predicate.MSPAllocation(sql.FieldNotIn(FieldProviderTenantID, vs...))
+}
+
+// ProviderTenantIDIsNil applies the IsNil predicate on the "provider_tenant_id" field.
+func ProviderTenantIDIsNil() predicate.MSPAllocation {
+	return predicate.MSPAllocation(sql.FieldIsNull(FieldProviderTenantID))
+}
+
+// ProviderTenantIDNotNil applies the NotNil predicate on the "provider_tenant_id" field.
+func ProviderTenantIDNotNil() predicate.MSPAllocation {
+	return predicate.MSPAllocation(sql.FieldNotNull(FieldProviderTenantID))
 }
 
 // RoleEQ applies the EQ predicate on the "role" field.
@@ -358,6 +393,29 @@ func HasCustomerTenant() predicate.MSPAllocation {
 func HasCustomerTenantWith(preds ...predicate.Tenant) predicate.MSPAllocation {
 	return predicate.MSPAllocation(func(s *sql.Selector) {
 		step := newCustomerTenantStep()
+		sqlgraph.HasNeighborsWith(s, step, func(s *sql.Selector) {
+			for _, p := range preds {
+				p(s)
+			}
+		})
+	})
+}
+
+// HasProviderTenant applies the HasEdge predicate on the "provider_tenant" edge.
+func HasProviderTenant() predicate.MSPAllocation {
+	return predicate.MSPAllocation(func(s *sql.Selector) {
+		step := sqlgraph.NewStep(
+			sqlgraph.From(Table, FieldID),
+			sqlgraph.Edge(sqlgraph.M2O, true, ProviderTenantTable, ProviderTenantColumn),
+		)
+		sqlgraph.HasNeighbors(s, step)
+	})
+}
+
+// HasProviderTenantWith applies the HasEdge predicate on the "provider_tenant" edge with a given conditions (other predicates).
+func HasProviderTenantWith(preds ...predicate.Tenant) predicate.MSPAllocation {
+	return predicate.MSPAllocation(func(s *sql.Selector) {
+		step := newProviderTenantStep()
 		sqlgraph.HasNeighborsWith(s, step, func(s *sql.Selector) {
 			for _, p := range preds {
 				p(s)

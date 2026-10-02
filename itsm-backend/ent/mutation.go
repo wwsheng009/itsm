@@ -97771,6 +97771,8 @@ type MSPAllocationMutation struct {
 	clearedmsp_user        bool
 	customer_tenant        *int
 	clearedcustomer_tenant bool
+	provider_tenant        *int
+	clearedprovider_tenant bool
 	done                   bool
 	oldValue               func(context.Context) (*MSPAllocation, error)
 	predicates             []predicate.MSPAllocation
@@ -97944,6 +97946,55 @@ func (m *MSPAllocationMutation) OldCustomerTenantID(ctx context.Context) (v int,
 // ResetCustomerTenantID resets all changes to the "customer_tenant_id" field.
 func (m *MSPAllocationMutation) ResetCustomerTenantID() {
 	m.customer_tenant = nil
+}
+
+// SetProviderTenantID sets the "provider_tenant_id" field.
+func (m *MSPAllocationMutation) SetProviderTenantID(i int) {
+	m.provider_tenant = &i
+}
+
+// ProviderTenantID returns the value of the "provider_tenant_id" field in the mutation.
+func (m *MSPAllocationMutation) ProviderTenantID() (r int, exists bool) {
+	v := m.provider_tenant
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldProviderTenantID returns the old "provider_tenant_id" field's value of the MSPAllocation entity.
+// If the MSPAllocation object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *MSPAllocationMutation) OldProviderTenantID(ctx context.Context) (v int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldProviderTenantID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldProviderTenantID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldProviderTenantID: %w", err)
+	}
+	return oldValue.ProviderTenantID, nil
+}
+
+// ClearProviderTenantID clears the value of the "provider_tenant_id" field.
+func (m *MSPAllocationMutation) ClearProviderTenantID() {
+	m.provider_tenant = nil
+	m.clearedFields[mspallocation.FieldProviderTenantID] = struct{}{}
+}
+
+// ProviderTenantIDCleared returns if the "provider_tenant_id" field was cleared in this mutation.
+func (m *MSPAllocationMutation) ProviderTenantIDCleared() bool {
+	_, ok := m.clearedFields[mspallocation.FieldProviderTenantID]
+	return ok
+}
+
+// ResetProviderTenantID resets all changes to the "provider_tenant_id" field.
+func (m *MSPAllocationMutation) ResetProviderTenantID() {
+	m.provider_tenant = nil
+	delete(m.clearedFields, mspallocation.FieldProviderTenantID)
 }
 
 // SetRole sets the "role" field.
@@ -98157,6 +98208,33 @@ func (m *MSPAllocationMutation) ResetCustomerTenant() {
 	m.clearedcustomer_tenant = false
 }
 
+// ClearProviderTenant clears the "provider_tenant" edge to the Tenant entity.
+func (m *MSPAllocationMutation) ClearProviderTenant() {
+	m.clearedprovider_tenant = true
+	m.clearedFields[mspallocation.FieldProviderTenantID] = struct{}{}
+}
+
+// ProviderTenantCleared reports if the "provider_tenant" edge to the Tenant entity was cleared.
+func (m *MSPAllocationMutation) ProviderTenantCleared() bool {
+	return m.ProviderTenantIDCleared() || m.clearedprovider_tenant
+}
+
+// ProviderTenantIDs returns the "provider_tenant" edge IDs in the mutation.
+// Note that IDs always returns len(IDs) <= 1 for unique edges, and you should use
+// ProviderTenantID instead. It exists only for internal usage by the builders.
+func (m *MSPAllocationMutation) ProviderTenantIDs() (ids []int) {
+	if id := m.provider_tenant; id != nil {
+		ids = append(ids, *id)
+	}
+	return
+}
+
+// ResetProviderTenant resets all changes to the "provider_tenant" edge.
+func (m *MSPAllocationMutation) ResetProviderTenant() {
+	m.provider_tenant = nil
+	m.clearedprovider_tenant = false
+}
+
 // Where appends a list predicates to the MSPAllocationMutation builder.
 func (m *MSPAllocationMutation) Where(ps ...predicate.MSPAllocation) {
 	m.predicates = append(m.predicates, ps...)
@@ -98191,12 +98269,15 @@ func (m *MSPAllocationMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *MSPAllocationMutation) Fields() []string {
-	fields := make([]string, 0, 6)
+	fields := make([]string, 0, 7)
 	if m.msp_user != nil {
 		fields = append(fields, mspallocation.FieldMspUserID)
 	}
 	if m.customer_tenant != nil {
 		fields = append(fields, mspallocation.FieldCustomerTenantID)
+	}
+	if m.provider_tenant != nil {
+		fields = append(fields, mspallocation.FieldProviderTenantID)
 	}
 	if m.role != nil {
 		fields = append(fields, mspallocation.FieldRole)
@@ -98222,6 +98303,8 @@ func (m *MSPAllocationMutation) Field(name string) (ent.Value, bool) {
 		return m.MspUserID()
 	case mspallocation.FieldCustomerTenantID:
 		return m.CustomerTenantID()
+	case mspallocation.FieldProviderTenantID:
+		return m.ProviderTenantID()
 	case mspallocation.FieldRole:
 		return m.Role()
 	case mspallocation.FieldAssignedAt:
@@ -98243,6 +98326,8 @@ func (m *MSPAllocationMutation) OldField(ctx context.Context, name string) (ent.
 		return m.OldMspUserID(ctx)
 	case mspallocation.FieldCustomerTenantID:
 		return m.OldCustomerTenantID(ctx)
+	case mspallocation.FieldProviderTenantID:
+		return m.OldProviderTenantID(ctx)
 	case mspallocation.FieldRole:
 		return m.OldRole(ctx)
 	case mspallocation.FieldAssignedAt:
@@ -98273,6 +98358,13 @@ func (m *MSPAllocationMutation) SetField(name string, value ent.Value) error {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.SetCustomerTenantID(v)
+		return nil
+	case mspallocation.FieldProviderTenantID:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetProviderTenantID(v)
 		return nil
 	case mspallocation.FieldRole:
 		v, ok := value.(string)
@@ -98335,6 +98427,9 @@ func (m *MSPAllocationMutation) AddField(name string, value ent.Value) error {
 // mutation.
 func (m *MSPAllocationMutation) ClearedFields() []string {
 	var fields []string
+	if m.FieldCleared(mspallocation.FieldProviderTenantID) {
+		fields = append(fields, mspallocation.FieldProviderTenantID)
+	}
 	if m.FieldCleared(mspallocation.FieldDeassignedAt) {
 		fields = append(fields, mspallocation.FieldDeassignedAt)
 	}
@@ -98352,6 +98447,9 @@ func (m *MSPAllocationMutation) FieldCleared(name string) bool {
 // error if the field is not defined in the schema.
 func (m *MSPAllocationMutation) ClearField(name string) error {
 	switch name {
+	case mspallocation.FieldProviderTenantID:
+		m.ClearProviderTenantID()
+		return nil
 	case mspallocation.FieldDeassignedAt:
 		m.ClearDeassignedAt()
 		return nil
@@ -98368,6 +98466,9 @@ func (m *MSPAllocationMutation) ResetField(name string) error {
 		return nil
 	case mspallocation.FieldCustomerTenantID:
 		m.ResetCustomerTenantID()
+		return nil
+	case mspallocation.FieldProviderTenantID:
+		m.ResetProviderTenantID()
 		return nil
 	case mspallocation.FieldRole:
 		m.ResetRole()
@@ -98387,12 +98488,15 @@ func (m *MSPAllocationMutation) ResetField(name string) error {
 
 // AddedEdges returns all edge names that were set/added in this mutation.
 func (m *MSPAllocationMutation) AddedEdges() []string {
-	edges := make([]string, 0, 2)
+	edges := make([]string, 0, 3)
 	if m.msp_user != nil {
 		edges = append(edges, mspallocation.EdgeMspUser)
 	}
 	if m.customer_tenant != nil {
 		edges = append(edges, mspallocation.EdgeCustomerTenant)
+	}
+	if m.provider_tenant != nil {
+		edges = append(edges, mspallocation.EdgeProviderTenant)
 	}
 	return edges
 }
@@ -98409,13 +98513,17 @@ func (m *MSPAllocationMutation) AddedIDs(name string) []ent.Value {
 		if id := m.customer_tenant; id != nil {
 			return []ent.Value{*id}
 		}
+	case mspallocation.EdgeProviderTenant:
+		if id := m.provider_tenant; id != nil {
+			return []ent.Value{*id}
+		}
 	}
 	return nil
 }
 
 // RemovedEdges returns all edge names that were removed in this mutation.
 func (m *MSPAllocationMutation) RemovedEdges() []string {
-	edges := make([]string, 0, 2)
+	edges := make([]string, 0, 3)
 	return edges
 }
 
@@ -98427,12 +98535,15 @@ func (m *MSPAllocationMutation) RemovedIDs(name string) []ent.Value {
 
 // ClearedEdges returns all edge names that were cleared in this mutation.
 func (m *MSPAllocationMutation) ClearedEdges() []string {
-	edges := make([]string, 0, 2)
+	edges := make([]string, 0, 3)
 	if m.clearedmsp_user {
 		edges = append(edges, mspallocation.EdgeMspUser)
 	}
 	if m.clearedcustomer_tenant {
 		edges = append(edges, mspallocation.EdgeCustomerTenant)
+	}
+	if m.clearedprovider_tenant {
+		edges = append(edges, mspallocation.EdgeProviderTenant)
 	}
 	return edges
 }
@@ -98445,6 +98556,8 @@ func (m *MSPAllocationMutation) EdgeCleared(name string) bool {
 		return m.clearedmsp_user
 	case mspallocation.EdgeCustomerTenant:
 		return m.clearedcustomer_tenant
+	case mspallocation.EdgeProviderTenant:
+		return m.clearedprovider_tenant
 	}
 	return false
 }
@@ -98459,6 +98572,9 @@ func (m *MSPAllocationMutation) ClearEdge(name string) error {
 	case mspallocation.EdgeCustomerTenant:
 		m.ClearCustomerTenant()
 		return nil
+	case mspallocation.EdgeProviderTenant:
+		m.ClearProviderTenant()
+		return nil
 	}
 	return fmt.Errorf("unknown MSPAllocation unique edge %s", name)
 }
@@ -98472,6 +98588,9 @@ func (m *MSPAllocationMutation) ResetEdge(name string) error {
 		return nil
 	case mspallocation.EdgeCustomerTenant:
 		m.ResetCustomerTenant()
+		return nil
+	case mspallocation.EdgeProviderTenant:
+		m.ResetProviderTenant()
 		return nil
 	}
 	return fmt.Errorf("unknown MSPAllocation edge %s", name)
@@ -166434,6 +166553,9 @@ type TenantMutation struct {
 	msp_customer_allocations        map[int]struct{}
 	removedmsp_customer_allocations map[int]struct{}
 	clearedmsp_customer_allocations bool
+	msp_provider_allocations        map[int]struct{}
+	removedmsp_provider_allocations map[int]struct{}
+	clearedmsp_provider_allocations bool
 	memberships                     map[int]struct{}
 	removedmemberships              map[int]struct{}
 	clearedmemberships              bool
@@ -167474,6 +167596,60 @@ func (m *TenantMutation) ResetMspCustomerAllocations() {
 	m.removedmsp_customer_allocations = nil
 }
 
+// AddMspProviderAllocationIDs adds the "msp_provider_allocations" edge to the MSPAllocation entity by ids.
+func (m *TenantMutation) AddMspProviderAllocationIDs(ids ...int) {
+	if m.msp_provider_allocations == nil {
+		m.msp_provider_allocations = make(map[int]struct{})
+	}
+	for i := range ids {
+		m.msp_provider_allocations[ids[i]] = struct{}{}
+	}
+}
+
+// ClearMspProviderAllocations clears the "msp_provider_allocations" edge to the MSPAllocation entity.
+func (m *TenantMutation) ClearMspProviderAllocations() {
+	m.clearedmsp_provider_allocations = true
+}
+
+// MspProviderAllocationsCleared reports if the "msp_provider_allocations" edge to the MSPAllocation entity was cleared.
+func (m *TenantMutation) MspProviderAllocationsCleared() bool {
+	return m.clearedmsp_provider_allocations
+}
+
+// RemoveMspProviderAllocationIDs removes the "msp_provider_allocations" edge to the MSPAllocation entity by IDs.
+func (m *TenantMutation) RemoveMspProviderAllocationIDs(ids ...int) {
+	if m.removedmsp_provider_allocations == nil {
+		m.removedmsp_provider_allocations = make(map[int]struct{})
+	}
+	for i := range ids {
+		delete(m.msp_provider_allocations, ids[i])
+		m.removedmsp_provider_allocations[ids[i]] = struct{}{}
+	}
+}
+
+// RemovedMspProviderAllocations returns the removed IDs of the "msp_provider_allocations" edge to the MSPAllocation entity.
+func (m *TenantMutation) RemovedMspProviderAllocationsIDs() (ids []int) {
+	for id := range m.removedmsp_provider_allocations {
+		ids = append(ids, id)
+	}
+	return
+}
+
+// MspProviderAllocationsIDs returns the "msp_provider_allocations" edge IDs in the mutation.
+func (m *TenantMutation) MspProviderAllocationsIDs() (ids []int) {
+	for id := range m.msp_provider_allocations {
+		ids = append(ids, id)
+	}
+	return
+}
+
+// ResetMspProviderAllocations resets all changes to the "msp_provider_allocations" edge.
+func (m *TenantMutation) ResetMspProviderAllocations() {
+	m.msp_provider_allocations = nil
+	m.clearedmsp_provider_allocations = false
+	m.removedmsp_provider_allocations = nil
+}
+
 // AddMembershipIDs adds the "memberships" edge to the UserTenantMembership entity by ids.
 func (m *TenantMutation) AddMembershipIDs(ids ...int) {
 	if m.memberships == nil {
@@ -168148,12 +168324,15 @@ func (m *TenantMutation) ResetField(name string) error {
 
 // AddedEdges returns all edge names that were set/added in this mutation.
 func (m *TenantMutation) AddedEdges() []string {
-	edges := make([]string, 0, 5)
+	edges := make([]string, 0, 6)
 	if m.users != nil {
 		edges = append(edges, tenant.EdgeUsers)
 	}
 	if m.msp_customer_allocations != nil {
 		edges = append(edges, tenant.EdgeMspCustomerAllocations)
+	}
+	if m.msp_provider_allocations != nil {
+		edges = append(edges, tenant.EdgeMspProviderAllocations)
 	}
 	if m.memberships != nil {
 		edges = append(edges, tenant.EdgeMemberships)
@@ -168183,6 +168362,12 @@ func (m *TenantMutation) AddedIDs(name string) []ent.Value {
 			ids = append(ids, id)
 		}
 		return ids
+	case tenant.EdgeMspProviderAllocations:
+		ids := make([]ent.Value, 0, len(m.msp_provider_allocations))
+		for id := range m.msp_provider_allocations {
+			ids = append(ids, id)
+		}
+		return ids
 	case tenant.EdgeMemberships:
 		ids := make([]ent.Value, 0, len(m.memberships))
 		for id := range m.memberships {
@@ -168207,12 +168392,15 @@ func (m *TenantMutation) AddedIDs(name string) []ent.Value {
 
 // RemovedEdges returns all edge names that were removed in this mutation.
 func (m *TenantMutation) RemovedEdges() []string {
-	edges := make([]string, 0, 5)
+	edges := make([]string, 0, 6)
 	if m.removedusers != nil {
 		edges = append(edges, tenant.EdgeUsers)
 	}
 	if m.removedmsp_customer_allocations != nil {
 		edges = append(edges, tenant.EdgeMspCustomerAllocations)
+	}
+	if m.removedmsp_provider_allocations != nil {
+		edges = append(edges, tenant.EdgeMspProviderAllocations)
 	}
 	if m.removedmemberships != nil {
 		edges = append(edges, tenant.EdgeMemberships)
@@ -168242,6 +168430,12 @@ func (m *TenantMutation) RemovedIDs(name string) []ent.Value {
 			ids = append(ids, id)
 		}
 		return ids
+	case tenant.EdgeMspProviderAllocations:
+		ids := make([]ent.Value, 0, len(m.removedmsp_provider_allocations))
+		for id := range m.removedmsp_provider_allocations {
+			ids = append(ids, id)
+		}
+		return ids
 	case tenant.EdgeMemberships:
 		ids := make([]ent.Value, 0, len(m.removedmemberships))
 		for id := range m.removedmemberships {
@@ -168266,12 +168460,15 @@ func (m *TenantMutation) RemovedIDs(name string) []ent.Value {
 
 // ClearedEdges returns all edge names that were cleared in this mutation.
 func (m *TenantMutation) ClearedEdges() []string {
-	edges := make([]string, 0, 5)
+	edges := make([]string, 0, 6)
 	if m.clearedusers {
 		edges = append(edges, tenant.EdgeUsers)
 	}
 	if m.clearedmsp_customer_allocations {
 		edges = append(edges, tenant.EdgeMspCustomerAllocations)
+	}
+	if m.clearedmsp_provider_allocations {
+		edges = append(edges, tenant.EdgeMspProviderAllocations)
 	}
 	if m.clearedmemberships {
 		edges = append(edges, tenant.EdgeMemberships)
@@ -168293,6 +168490,8 @@ func (m *TenantMutation) EdgeCleared(name string) bool {
 		return m.clearedusers
 	case tenant.EdgeMspCustomerAllocations:
 		return m.clearedmsp_customer_allocations
+	case tenant.EdgeMspProviderAllocations:
+		return m.clearedmsp_provider_allocations
 	case tenant.EdgeMemberships:
 		return m.clearedmemberships
 	case tenant.EdgeMembershipOrgs:
@@ -168320,6 +168519,9 @@ func (m *TenantMutation) ResetEdge(name string) error {
 		return nil
 	case tenant.EdgeMspCustomerAllocations:
 		m.ResetMspCustomerAllocations()
+		return nil
+	case tenant.EdgeMspProviderAllocations:
+		m.ResetMspProviderAllocations()
 		return nil
 	case tenant.EdgeMemberships:
 		m.ResetMemberships()
