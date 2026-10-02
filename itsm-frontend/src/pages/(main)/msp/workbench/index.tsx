@@ -59,6 +59,7 @@ import {
 } from '@/lib/api/msp-workbench-api';
 import SavedViews from './components/SavedViews';
 import SlaRiskBoard from './components/SlaRiskBoard';
+import CustomerUsageBoard from './components/CustomerUsageBoard';
 
 const PAGE_SIZE = 50;
 
@@ -363,7 +364,7 @@ export default function MSPWorkbenchPage() {
     [loadViews]
   );
 
-  // SLA 风险看板（IP-P2-4b）：点击客户行 → 收窄 customerTenantIds（与顶栏过滤器同源）。
+  // 健康看板（IP-P2-4b/c）：点击客户行 → 收窄 customerTenantIds（与顶栏过滤器同源）。
   const handleSelectSlaCustomer = useCallback(
     (customerTenantId: number) => {
       updateFilter({ [CUSTOMER_TENANT_IDS_PARAM]: String(customerTenantId) });
@@ -838,6 +839,7 @@ export default function MSPWorkbenchPage() {
       </Card>
 
       <SlaRiskBoard onSelectCustomer={handleSelectSlaCustomer} />
+      <CustomerUsageBoard onSelectCustomer={handleSelectSlaCustomer} />
 
       {selectedRecords.length > 0 && (
         <Card size="small" style={{ marginBottom: 16 }} data-testid="batch-toolbar">

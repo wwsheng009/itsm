@@ -22,6 +22,8 @@ const acme: WorkbenchSummaryCustomer = {
   slaRisk: 2,
   slaDueSoon: 0,
   unassigned: 1,
+  members: 5,
+  ticketsCreated30d: 8,
 };
 
 const beta: WorkbenchSummaryCustomer = {
@@ -31,6 +33,8 @@ const beta: WorkbenchSummaryCustomer = {
   slaRisk: 0,
   slaDueSoon: 2,
   unassigned: 0,
+  members: 3,
+  ticketsCreated30d: 4,
 };
 
 const gamma: WorkbenchSummaryCustomer = {
@@ -40,6 +44,8 @@ const gamma: WorkbenchSummaryCustomer = {
   slaRisk: 0,
   slaDueSoon: 0,
   unassigned: 0,
+  members: 1,
+  ticketsCreated30d: 1,
 };
 
 function setup(overrides: Partial<SlaRiskBoardProps> = {}) {

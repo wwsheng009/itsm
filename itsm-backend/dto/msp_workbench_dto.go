@@ -55,6 +55,10 @@ type WorkbenchSummaryCustomer struct {
 	// IP-P2-4b：临近 SLA 到期（窗口见 WorkbenchSummaryResponse.SLADueSoonWindowHours）。
 	SLADueSoon int `json:"slaDueSoon"`
 	Unassigned int `json:"unassigned"`
+	// IP-P2-4c：用量口径（硬配额上限无数据源，usage-only）——
+	// Members = active 成员身份数（membership 单源）；TicketsCreated30d = 窗口内新建工单数。
+	Members           int `json:"members"`
+	TicketsCreated30d int `json:"ticketsCreated30d"`
 }
 
 // WorkbenchSummaryResponse 工作台计数徽标响应。
@@ -62,8 +66,10 @@ type WorkbenchSummaryResponse struct {
 	GeneratedAt time.Time `json:"generatedAt"`
 	TTLSeconds  int       `json:"ttlSeconds"`
 	// IP-P2-4b：临近 SLA 窗口（小时）——前端看板按同口径展示。
-	SLADueSoonWindowHours int                        `json:"slaDueSoonWindowHours"`
-	Customers             []WorkbenchSummaryCustomer `json:"customers"`
+	SLADueSoonWindowHours int `json:"slaDueSoonWindowHours"`
+	// IP-P2-4c：用量窗口（天）——与 ticketsCreated30d 同口径。
+	UsageWindowDays int                        `json:"usageWindowDays"`
+	Customers       []WorkbenchSummaryCustomer `json:"customers"`
 }
 
 // WorkbenchReplyRequest 条目级回复（服务端按单据租户授权 + 审计）。

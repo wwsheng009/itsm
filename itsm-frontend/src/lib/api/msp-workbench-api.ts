@@ -46,6 +46,10 @@ export interface WorkbenchSummaryCustomer {
   slaDueSoon: number;
   /** 未指派工单数 */
   unassigned: number;
+  /** 用量：active 成员身份数（membership 单源，IP-P2-4c）。 */
+  members: number;
+  /** 用量：窗口内新建工单数（窗口见 WorkbenchSummary.usageWindowDays，IP-P2-4c）。 */
+  ticketsCreated30d: number;
 }
 
 export interface WorkbenchSummary {
@@ -53,6 +57,8 @@ export interface WorkbenchSummary {
   ttlSeconds: number;
   /** 服务端"临近 SLA"窗口小时数（IP-P2-4b；旧响应缺省按 24 处理）。 */
   slaDueSoonWindowHours?: number;
+  /** 服务端用量窗口天数（IP-P2-4c；旧响应缺省按 30 处理）。 */
+  usageWindowDays?: number;
   customers: WorkbenchSummaryCustomer[];
 }
 

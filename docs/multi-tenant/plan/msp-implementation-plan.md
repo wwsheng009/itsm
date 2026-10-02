@@ -611,7 +611,7 @@ CREATE INDEX idx_invitations_expiry ON invitations (expires_at) WHERE status = '
 | **IP-P2-4** 工作台进阶 | 自定义视图/配额 | 保存过滤器组合、SLA 风险看板、每客户配额可视化 | 视图可分享/复现；配额数据与后端一致 | feature flag |
 | **IP-P2-5** guard 扩展 | 成员/关联表一致性 | tenant_guard 增加"关联表一致性"检查（跨租户 FK/悬挂成员） | 启动扫描 0 高危；CI 用例覆盖 | 检查项分级（fatal→warn） |
 
-> **P2 进度（2026-09-30 起）**：IP-P2-1 首批落地——`provider_tenant_id` 迁移（可空 + 回填 + 部分索引，`20260930_msp_allocation_provider_dimension.sql`）、写侧归属校验（admin 不豁免）、读侧 provider 收窄（middleware / 租户切换列表 / 分配列表；工作台与报表维持 `mspguard` 单源收窄）、巡检脚本与单测；**NOT NULL 收尾**待巡检归零 + A11/A12 e2e（环境依赖）。IP-P2-5 首组检查落地——`ApplyConsistencyChecks`（悬挂成员 / 组织关联跨租户 / allocation provider 错配；缺表/缺列自动跳过告警），接入启动 `runTenantGuard`，3 组用例绿（v1.32）。IP-P2-2 前置代码收口——工作台列表/汇总/条目级动作/assign 链路按目标客户租户重绑定 RLS ctx；评估清单 1/2/3 完成、4 待 staging 观察（v1.33）。IP-P2-3 共享表复核——`messages` 租户化（加列 + 回填 + 索引 + 写入 ctx 派生）、`marketplace_items` / `prompt_templates` 保留显式共享并固化季度复核（v1.34）。IP-P2-4a 自定义视图全链完成——后端 `workbench_views` + CRUD/分享/默认（灰度 `WORKBENCH_VIEWS_ENABLED`）；前端 `SavedViews` 控件 + `?viewId=` URL 复现 + 组件单测 6/6（v1.36）。IP-P2-4b SLA 风险看板落地——summary 增 `slaDueSoon`（(now, now+24h] 且未关闭；`slaDueSoonWindowHours` 下发）；前端 `SlaRiskBoard`（排序/合计/占比条/点击收窄过滤）+ 组件单测 5/5；配额可视化下一批（v1.37）。
+> **P2 进度（2026-09-30 起）**：IP-P2-1 首批落地——`provider_tenant_id` 迁移（可空 + 回填 + 部分索引，`20260930_msp_allocation_provider_dimension.sql`）、写侧归属校验（admin 不豁免）、读侧 provider 收窄（middleware / 租户切换列表 / 分配列表；工作台与报表维持 `mspguard` 单源收窄）、巡检脚本与单测；**NOT NULL 收尾**待巡检归零 + A11/A12 e2e（环境依赖）。IP-P2-5 首组检查落地——`ApplyConsistencyChecks`（悬挂成员 / 组织关联跨租户 / allocation provider 错配；缺表/缺列自动跳过告警），接入启动 `runTenantGuard`，3 组用例绿（v1.32）。IP-P2-2 前置代码收口——工作台列表/汇总/条目级动作/assign 链路按目标客户租户重绑定 RLS ctx；评估清单 1/2/3 完成、4 待 staging 观察（v1.33）。IP-P2-3 共享表复核——`messages` 租户化（加列 + 回填 + 索引 + 写入 ctx 派生）、`marketplace_items` / `prompt_templates` 保留显式共享并固化季度复核（v1.34）。IP-P2-4a 自定义视图全链完成（v1.36）。IP-P2-4b SLA 风险看板落地（v1.37）。IP-P2-4c 每客户用量看板（usage-only 定案）落地——summary 增 `members`（active membership 单源）/`ticketsCreated30d`（30d 窗口下发）；前端 `CustomerUsageBoard`（排序/条形/点击收窄）+ 组件单测 5/5；硬配额（limits）登记「平台租户管理」批次遗留；**P2-4 全项收口（v1.38）**。
 
 ### 5.0 P2 冻结契约（2026-09-30；本节即 P2 编码基线）
 
@@ -640,7 +640,7 @@ CREATE INDEX idx_invitations_expiry ON invitations (expires_at) WHERE status = '
 
 **5.0-D IP-P2-4 工作台进阶（范围冻结）**
 
-- 保存过滤器组合（命名视图 / 分享）；SLA 风险看板；每客户配额可视化（数据源与后端一致）。
+- 保存过滤器组合（命名视图 / 分享）；SLA 风险看板；每客户用量/配额可视化——**2026-09-30 数据源定案**：硬配额无数据源（`tenants` 无 `quota/settings` 列；`TenantDTO.Quota` 遗留未赋值；附件配额 6106 仅错误码），以 **usage-only** 交付（`members` / 未关闭 / `ticketsCreated30d`，窗口 `usageWindowDays=30` 下发）；**硬配额（limits）模型与校验登记「平台租户管理」批次遗留**。
 - 门禁：feature flag 灰度；前端单测 + 视图 URL 可复现。
 
 **5.0-E IP-P2-5 guard 扩展（冻结检查项）**
@@ -831,3 +831,4 @@ CREATE INDEX idx_invitations_expiry ON invitations (expires_at) WHERE status = '
 | v1.35 | 2026-09-30 | **IP-P2-4a 自定义视图（保存过滤器组合）后端落地**：新增 `workbench_views`（provider 域 + owner + 名称唯一；`filters` JSON 与 `WorkbenchTicketQuery` 对齐；`is_shared` 同 provider 可见 / `is_default` 每 owner 至多一，部分唯一索引 `uq_workbench_views_owner_default`；迁移 `20260930_workbench_views.sql`）；服务 `MSPWorkbenchViewService`（列表=own+分享、CRUD、设为默认事务先清后置；过滤器服务端校验 ⊆ `MSPContext.AllowedCustomers`；错误码族 `WORKBENCH_VIEW_*`）；路由 5 条（`msp_ticket` read/write）；灰度 `WORKBENCH_VIEWS_ENABLED`（默认关，未开启 404 reasonCode）；用例覆盖生命周期/可见性/越权/默认唯一/跨 provider 隔离；前端接入 + SLA 风险看板 + 配额可视化下一批 |
 | v1.36 | 2026-09-30 | **IP-P2-4a 前端：SavedViews 控件 + URL 复现**：`msp-workbench-api.ts` 增视图 API/类型/`viewFilterToQueryPatch`；新组件 `SavedViews`（视图下拉：默认★/他人分享标记；保存当前筛选为视图；编辑/删除/设为默认仅 owner；删除二次确认）；工作台页接入：服务端 `enabled` 驱动灰度（未开启静默隐藏）、`?viewId=N` 首次加载展开过滤器回 query（刷新/分享/收藏复现、防循环），`viewId` 不参与数据过滤键；组件单测 6/6 + 页面 8/8 + CustomerFilter 6/6；tsc/eslint 绿 |
 | v1.37 | 2026-09-30 | **IP-P2-4b SLA 风险看板**：`WorkbenchSummaryCustomer` 增 `slaDueSoon`、响应增 `slaDueSoonWindowHours=24`（`workbenchSLADueSoonWindow`；已超期不重复计入）；前端新组件 `SlaRiskBoard`（超期 desc → 临近 desc → open desc 排序；合计徽标；红/橙/灰占比条；点击行写 `customerTenantIds` 收窄；刷新/空态/错误态）；后端 summary 用例扩展（追加 2h 内到期工单断言分桶与窗口）+ 前端组件 5/5、页面 8/8、CustomerFilter 6/6；tsc/eslint 绿 |
+| v1.38 | 2026-09-30 | **IP-P2-4c 每客户用量看板（usage-only 定案；P2-4 收口）**：数据源核查——`tenants` 无 `quota/settings` 列、`dto.TenantDTO.Quota` 从未赋值、附件配额 6106 无校验，确认**无硬配额数据源**；`WorkbenchSummaryCustomer` 增 `members`（active 且未删除 membership 计数）/`ticketsCreated30d`（`CreatedAtGTE(now-30d)`），响应增 `usageWindowDays=30`；前端新组件 `CustomerUsageBoard`（窗口新增 desc → 成员 desc 排序；成员/未关闭/新增数字 + 相对最大值条；点击行写 `customerTenantIds`；刷新/空态/错误态 + 口径提示）；后端 summary 用例扩展（membership active/suspended 分桶 + 窗口断言）+ 前端组件 5/5、页面 8/8、CustomerFilter 6/6；硬配额（limits）登记遗留；fmt/tsc/eslint 绿 |

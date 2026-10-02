@@ -66,8 +66,8 @@ const mockSummary: WorkbenchSummary = {
   ttlSeconds: 30,
   slaDueSoonWindowHours: 24,
   customers: [
-    { customerTenantId: 1, customerName: 'Acme Corp', open: 3, slaRisk: 1, slaDueSoon: 1, unassigned: 2 },
-    { customerTenantId: 2, customerName: 'Beta LLC', open: 5, slaRisk: 0, slaDueSoon: 0, unassigned: 1 },
+    { customerTenantId: 1, customerName: 'Acme Corp', open: 3, slaRisk: 1, slaDueSoon: 1, unassigned: 2, members: 12, ticketsCreated30d: 30 },
+    { customerTenantId: 2, customerName: 'Beta LLC', open: 5, slaRisk: 0, slaDueSoon: 0, unassigned: 1, members: 3, ticketsCreated30d: 5 },
   ],
 };
 

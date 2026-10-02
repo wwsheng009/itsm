@@ -12,6 +12,7 @@ import (
 	"itsm-backend/ent/enttest"
 	entTenant "itsm-backend/ent/tenant"
 	entUser "itsm-backend/ent/user"
+	usertenantmembership "itsm-backend/ent/usertenantmembership"
 	"itsm-backend/middleware"
 
 	_ "github.com/mattn/go-sqlite3"
@@ -196,11 +197,25 @@ func TestWorkbenchSummaryCounts(t *testing.T) {
 		SetSLAResolutionDeadline(soon).
 		Save(ctx)
 	require.NoError(t, err)
+	// IP-P2-4c：成员口径（membership 单源）——A 记 1 active（suspended 不计），B 记 1 active。
+	mkMembership := func(userID, tenantID int, status usertenantmembership.Status) {
+		_, mErr := env.client.UserTenantMembership.Create().
+			SetUserID(userID).SetTenantID(tenantID).
+			SetAccountKind(usertenantmembership.AccountKindCustomer).
+			SetSource(usertenantmembership.SourceHome).
+			SetStatus(status).
+			Save(ctx)
+		require.NoError(t, mErr)
+	}
+	mkMembership(env.tA.RequesterID, env.a.ID, usertenantmembership.StatusActive)
+	mkMembership(env.tB.RequesterID, env.a.ID, usertenantmembership.StatusSuspended)
+	mkMembership(env.tB.RequesterID, env.b.ID, usertenantmembership.StatusActive)
 
 	resp, err := env.svc.Summary(ctx, env.actor)
 	require.NoError(t, err)
 	require.Len(t, resp.Customers, 2)
 	assert.Equal(t, 24, resp.SLADueSoonWindowHours, "临近窗口固定 24h")
+	assert.Equal(t, 30, resp.UsageWindowDays, "用量窗口固定 30d")
 	byID := map[int]dto.WorkbenchSummaryCustomer{}
 	for _, c := range resp.Customers {
 		byID[c.CustomerTenantID] = c
@@ -210,11 +225,15 @@ func TestWorkbenchSummaryCounts(t *testing.T) {
 	assert.Equal(t, 1, a.SLARisk, "SLA 已超期的 open 工单计 1")
 	assert.Equal(t, 1, a.SLADueSoon, "24h 内到期且未超期计 1（已超期不重复计入）")
 	assert.Equal(t, 2, a.Unassigned)
+	assert.Equal(t, 1, a.Members, "成员=active 且未删除的 membership（suspended 不计）")
+	assert.Equal(t, 3, a.TicketsCreated30d, "用量=窗口内新建（含已超期/已指派）")
 	b := byID[env.b.ID]
 	assert.Equal(t, 1, b.Open)
 	assert.Equal(t, 0, b.SLARisk)
 	assert.Equal(t, 0, b.SLADueSoon)
 	assert.Equal(t, 1, b.Unassigned)
+	assert.Equal(t, 1, b.Members)
+	assert.Equal(t, 1, b.TicketsCreated30d)
 }
 
 // TestWorkbenchWriteAuthorizationChain 条目级授权链（WB-A1/A5）：

@@ -27,6 +27,7 @@ import (
 	entTenant "itsm-backend/ent/tenant"
 	entTicket "itsm-backend/ent/ticket"
 	"itsm-backend/ent/user"
+	usertenantmembership "itsm-backend/ent/usertenantmembership"
 	"itsm-backend/middleware"
 	"itsm-backend/repository/ticket"
 
@@ -52,6 +53,8 @@ const (
 	workbenchBatchPerMin  = 20  // 每租户每分钟批量次数（防单客户风暴）
 	// IP-P2-4b："临近 SLA" 窗口（24h 内到期且未关闭）——与前端看板展示口径一致。
 	workbenchSLADueSoonWindow = 24 * time.Hour
+	// IP-P2-4c：用量窗口（近 N 天新建工单）——硬配额无数据源，先交付 usage-only 口径。
+	workbenchUsageWindowDays = 30
 )
 
 // MSPWorkbenchActor 工作台调用方身份快照（由 handler 从 MSPContext 转换）。
@@ -485,6 +488,29 @@ func (s *MSPWorkbenchService) Summary(ctx context.Context, actor MSPWorkbenchAct
 		if err != nil {
 			return nil, fmt.Errorf("workbench summary due-soon tenant %d: %w", tid, err)
 		}
+		// IP-P2-4c：用量口径（usage-only；硬配额上限无数据源）——
+		// members = 该租户 active 且未删除的成员身份数（IP-P1-1 membership 单源）；
+		// ticketsCreated30d = 近 30 天新建工单数。
+		members, err := s.client.UserTenantMembership.Query().
+			Where(
+				usertenantmembership.TenantIDEQ(tid),
+				usertenantmembership.StatusEQ(usertenantmembership.StatusActive),
+				usertenantmembership.DeletedAtIsNil(),
+			).
+			Count(qctx)
+		if err != nil {
+			return nil, fmt.Errorf("workbench summary members tenant %d: %w", tid, err)
+		}
+		ticketsCreated30d, err := s.client.Ticket.Query().
+			Where(
+				entTicket.TenantIDEQ(tid),
+				entTicket.DeletedAtIsNil(),
+				entTicket.CreatedAtGTE(now.AddDate(0, 0, -workbenchUsageWindowDays)),
+			).
+			Count(qctx)
+		if err != nil {
+			return nil, fmt.Errorf("workbench summary usage tenant %d: %w", tid, err)
+		}
 		unassigned, err := s.client.Ticket.Query().
 			Where(entTicket.TenantIDEQ(tid), openTicketPredicate(), entTicket.AssigneeIDIsNil()).
 			Count(qctx)
@@ -492,18 +518,21 @@ func (s *MSPWorkbenchService) Summary(ctx context.Context, actor MSPWorkbenchAct
 			return nil, fmt.Errorf("workbench summary unassigned tenant %d: %w", tid, err)
 		}
 		out = append(out, dto.WorkbenchSummaryCustomer{
-			CustomerTenantID: tid,
-			CustomerName:     meta[tid].name,
-			Open:             openCount,
-			SLARisk:          slaRisk,
-			SLADueSoon:       slaDueSoon,
-			Unassigned:       unassigned,
+			CustomerTenantID:  tid,
+			CustomerName:      meta[tid].name,
+			Open:              openCount,
+			SLARisk:           slaRisk,
+			SLADueSoon:        slaDueSoon,
+			Members:           members,
+			TicketsCreated30d: ticketsCreated30d,
+			Unassigned:        unassigned,
 		})
 	}
 	return &dto.WorkbenchSummaryResponse{
 		GeneratedAt:           now,
 		TTLSeconds:            workbenchSummaryTTL,
 		SLADueSoonWindowHours: int(workbenchSLADueSoonWindow / time.Hour),
+		UsageWindowDays:       workbenchUsageWindowDays,
 		Customers:             out,
 	}, nil
 }
