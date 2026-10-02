@@ -102120,6 +102120,8 @@ type MessageMutation struct {
 	typ                 string
 	id                  *int
 	created_at          *time.Time
+	tenant_id           *int
+	addtenant_id        *int
 	role                *string
 	content             *string
 	request_id          *string
@@ -102299,6 +102301,76 @@ func (m *MessageMutation) OldConversationID(ctx context.Context) (v int, err err
 // ResetConversationID resets all changes to the "conversation_id" field.
 func (m *MessageMutation) ResetConversationID() {
 	m.conversation = nil
+}
+
+// SetTenantID sets the "tenant_id" field.
+func (m *MessageMutation) SetTenantID(i int) {
+	m.tenant_id = &i
+	m.addtenant_id = nil
+}
+
+// TenantID returns the value of the "tenant_id" field in the mutation.
+func (m *MessageMutation) TenantID() (r int, exists bool) {
+	v := m.tenant_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldTenantID returns the old "tenant_id" field's value of the Message entity.
+// If the Message object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *MessageMutation) OldTenantID(ctx context.Context) (v int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldTenantID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldTenantID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldTenantID: %w", err)
+	}
+	return oldValue.TenantID, nil
+}
+
+// AddTenantID adds i to the "tenant_id" field.
+func (m *MessageMutation) AddTenantID(i int) {
+	if m.addtenant_id != nil {
+		*m.addtenant_id += i
+	} else {
+		m.addtenant_id = &i
+	}
+}
+
+// AddedTenantID returns the value that was added to the "tenant_id" field in this mutation.
+func (m *MessageMutation) AddedTenantID() (r int, exists bool) {
+	v := m.addtenant_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ClearTenantID clears the value of the "tenant_id" field.
+func (m *MessageMutation) ClearTenantID() {
+	m.tenant_id = nil
+	m.addtenant_id = nil
+	m.clearedFields[message.FieldTenantID] = struct{}{}
+}
+
+// TenantIDCleared returns if the "tenant_id" field was cleared in this mutation.
+func (m *MessageMutation) TenantIDCleared() bool {
+	_, ok := m.clearedFields[message.FieldTenantID]
+	return ok
+}
+
+// ResetTenantID resets all changes to the "tenant_id" field.
+func (m *MessageMutation) ResetTenantID() {
+	m.tenant_id = nil
+	m.addtenant_id = nil
+	delete(m.clearedFields, message.FieldTenantID)
 }
 
 // SetRole sets the "role" field.
@@ -102483,12 +102555,15 @@ func (m *MessageMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *MessageMutation) Fields() []string {
-	fields := make([]string, 0, 5)
+	fields := make([]string, 0, 6)
 	if m.created_at != nil {
 		fields = append(fields, message.FieldCreatedAt)
 	}
 	if m.conversation != nil {
 		fields = append(fields, message.FieldConversationID)
+	}
+	if m.tenant_id != nil {
+		fields = append(fields, message.FieldTenantID)
 	}
 	if m.role != nil {
 		fields = append(fields, message.FieldRole)
@@ -102511,6 +102586,8 @@ func (m *MessageMutation) Field(name string) (ent.Value, bool) {
 		return m.CreatedAt()
 	case message.FieldConversationID:
 		return m.ConversationID()
+	case message.FieldTenantID:
+		return m.TenantID()
 	case message.FieldRole:
 		return m.Role()
 	case message.FieldContent:
@@ -102530,6 +102607,8 @@ func (m *MessageMutation) OldField(ctx context.Context, name string) (ent.Value,
 		return m.OldCreatedAt(ctx)
 	case message.FieldConversationID:
 		return m.OldConversationID(ctx)
+	case message.FieldTenantID:
+		return m.OldTenantID(ctx)
 	case message.FieldRole:
 		return m.OldRole(ctx)
 	case message.FieldContent:
@@ -102558,6 +102637,13 @@ func (m *MessageMutation) SetField(name string, value ent.Value) error {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.SetConversationID(v)
+		return nil
+	case message.FieldTenantID:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetTenantID(v)
 		return nil
 	case message.FieldRole:
 		v, ok := value.(string)
@@ -102588,6 +102674,9 @@ func (m *MessageMutation) SetField(name string, value ent.Value) error {
 // this mutation.
 func (m *MessageMutation) AddedFields() []string {
 	var fields []string
+	if m.addtenant_id != nil {
+		fields = append(fields, message.FieldTenantID)
+	}
 	return fields
 }
 
@@ -102596,6 +102685,8 @@ func (m *MessageMutation) AddedFields() []string {
 // was not set, or was not defined in the schema.
 func (m *MessageMutation) AddedField(name string) (ent.Value, bool) {
 	switch name {
+	case message.FieldTenantID:
+		return m.AddedTenantID()
 	}
 	return nil, false
 }
@@ -102605,6 +102696,13 @@ func (m *MessageMutation) AddedField(name string) (ent.Value, bool) {
 // type.
 func (m *MessageMutation) AddField(name string, value ent.Value) error {
 	switch name {
+	case message.FieldTenantID:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddTenantID(v)
+		return nil
 	}
 	return fmt.Errorf("unknown Message numeric field %s", name)
 }
@@ -102613,6 +102711,9 @@ func (m *MessageMutation) AddField(name string, value ent.Value) error {
 // mutation.
 func (m *MessageMutation) ClearedFields() []string {
 	var fields []string
+	if m.FieldCleared(message.FieldTenantID) {
+		fields = append(fields, message.FieldTenantID)
+	}
 	if m.FieldCleared(message.FieldRequestID) {
 		fields = append(fields, message.FieldRequestID)
 	}
@@ -102630,6 +102731,9 @@ func (m *MessageMutation) FieldCleared(name string) bool {
 // error if the field is not defined in the schema.
 func (m *MessageMutation) ClearField(name string) error {
 	switch name {
+	case message.FieldTenantID:
+		m.ClearTenantID()
+		return nil
 	case message.FieldRequestID:
 		m.ClearRequestID()
 		return nil
@@ -102646,6 +102750,9 @@ func (m *MessageMutation) ResetField(name string) error {
 		return nil
 	case message.FieldConversationID:
 		m.ResetConversationID()
+		return nil
+	case message.FieldTenantID:
+		m.ResetTenantID()
 		return nil
 	case message.FieldRole:
 		m.ResetRole()

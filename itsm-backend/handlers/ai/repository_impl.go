@@ -4,6 +4,7 @@ import (
 	"context"
 	"time"
 
+	"itsm-backend/common/tenantctx"
 	"itsm-backend/ent"
 	"itsm-backend/ent/aianalysisresult"
 	"itsm-backend/ent/conversation"
@@ -97,12 +98,16 @@ func toMessageDomain(e *ent.Message) *Message {
 }
 
 func (r *EntRepository) CreateMessage(ctx context.Context, m *Message) (*Message, error) {
-	e, err := r.client.Message.Create().
+	builder := r.client.Message.Create().
 		SetConversationID(m.ConversationID).
 		SetRole(m.Role).
 		SetContent(m.Content).
-		SetRequestID(m.RequestID).
-		Save(ctx)
+		SetRequestID(m.RequestID)
+	// IP-P2-3：租户化——优先取请求 ctx 租户；ctx 无租户时保持 NULL（历史兼容，由回填/巡检兜底）。
+	if tid, ok := tenantctx.TenantID(ctx); ok && tid > 0 {
+		builder.SetTenantID(tid)
+	}
+	e, err := builder.Save(ctx)
 	if err != nil {
 		return nil, err
 	}

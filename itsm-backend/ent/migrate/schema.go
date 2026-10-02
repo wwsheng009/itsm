@@ -3130,6 +3130,7 @@ var (
 	MessagesColumns = []*schema.Column{
 		{Name: "id", Type: field.TypeInt, Increment: true},
 		{Name: "created_at", Type: field.TypeTime},
+		{Name: "tenant_id", Type: field.TypeInt, Nullable: true},
 		{Name: "role", Type: field.TypeString},
 		{Name: "content", Type: field.TypeString, Size: 2147483647, Default: ""},
 		{Name: "request_id", Type: field.TypeString, Nullable: true},
@@ -3143,9 +3144,16 @@ var (
 		ForeignKeys: []*schema.ForeignKey{
 			{
 				Symbol:     "messages_conversations_messages",
-				Columns:    []*schema.Column{MessagesColumns[5]},
+				Columns:    []*schema.Column{MessagesColumns[6]},
 				RefColumns: []*schema.Column{ConversationsColumns[0]},
 				OnDelete:   schema.NoAction,
+			},
+		},
+		Indexes: []*schema.Index{
+			{
+				Name:    "message_tenant_id_conversation_id_created_at",
+				Unique:  false,
+				Columns: []*schema.Column{MessagesColumns[2], MessagesColumns[6], MessagesColumns[1]},
 			},
 		},
 	}

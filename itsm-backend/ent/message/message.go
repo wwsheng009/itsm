@@ -18,6 +18,8 @@ const (
 	FieldCreatedAt = "created_at"
 	// FieldConversationID holds the string denoting the conversation_id field in the database.
 	FieldConversationID = "conversation_id"
+	// FieldTenantID holds the string denoting the tenant_id field in the database.
+	FieldTenantID = "tenant_id"
 	// FieldRole holds the string denoting the role field in the database.
 	FieldRole = "role"
 	// FieldContent holds the string denoting the content field in the database.
@@ -42,6 +44,7 @@ var Columns = []string{
 	FieldID,
 	FieldCreatedAt,
 	FieldConversationID,
+	FieldTenantID,
 	FieldRole,
 	FieldContent,
 	FieldRequestID,
@@ -80,6 +83,11 @@ func ByCreatedAt(opts ...sql.OrderTermOption) OrderOption {
 // ByConversationID orders the results by the conversation_id field.
 func ByConversationID(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldConversationID, opts...).ToFunc()
+}
+
+// ByTenantID orders the results by the tenant_id field.
+func ByTenantID(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldTenantID, opts...).ToFunc()
 }
 
 // ByRole orders the results by the role field.

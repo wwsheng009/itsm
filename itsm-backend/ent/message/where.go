@@ -65,6 +65,11 @@ func ConversationID(v int) predicate.Message {
 	return predicate.Message(sql.FieldEQ(FieldConversationID, v))
 }
 
+// TenantID applies equality check predicate on the "tenant_id" field. It's identical to TenantIDEQ.
+func TenantID(v int) predicate.Message {
+	return predicate.Message(sql.FieldEQ(FieldTenantID, v))
+}
+
 // Role applies equality check predicate on the "role" field. It's identical to RoleEQ.
 func Role(v string) predicate.Message {
 	return predicate.Message(sql.FieldEQ(FieldRole, v))
@@ -138,6 +143,56 @@ func ConversationIDIn(vs ...int) predicate.Message {
 // ConversationIDNotIn applies the NotIn predicate on the "conversation_id" field.
 func ConversationIDNotIn(vs ...int) predicate.Message {
 	return predicate.Message(sql.FieldNotIn(FieldConversationID, vs...))
+}
+
+// TenantIDEQ applies the EQ predicate on the "tenant_id" field.
+func TenantIDEQ(v int) predicate.Message {
+	return predicate.Message(sql.FieldEQ(FieldTenantID, v))
+}
+
+// TenantIDNEQ applies the NEQ predicate on the "tenant_id" field.
+func TenantIDNEQ(v int) predicate.Message {
+	return predicate.Message(sql.FieldNEQ(FieldTenantID, v))
+}
+
+// TenantIDIn applies the In predicate on the "tenant_id" field.
+func TenantIDIn(vs ...int) predicate.Message {
+	return predicate.Message(sql.FieldIn(FieldTenantID, vs...))
+}
+
+// TenantIDNotIn applies the NotIn predicate on the "tenant_id" field.
+func TenantIDNotIn(vs ...int) predicate.Message {
+	return predicate.Message(sql.FieldNotIn(FieldTenantID, vs...))
+}
+
+// TenantIDGT applies the GT predicate on the "tenant_id" field.
+func TenantIDGT(v int) predicate.Message {
+	return predicate.Message(sql.FieldGT(FieldTenantID, v))
+}
+
+// TenantIDGTE applies the GTE predicate on the "tenant_id" field.
+func TenantIDGTE(v int) predicate.Message {
+	return predicate.Message(sql.FieldGTE(FieldTenantID, v))
+}
+
+// TenantIDLT applies the LT predicate on the "tenant_id" field.
+func TenantIDLT(v int) predicate.Message {
+	return predicate.Message(sql.FieldLT(FieldTenantID, v))
+}
+
+// TenantIDLTE applies the LTE predicate on the "tenant_id" field.
+func TenantIDLTE(v int) predicate.Message {
+	return predicate.Message(sql.FieldLTE(FieldTenantID, v))
+}
+
+// TenantIDIsNil applies the IsNil predicate on the "tenant_id" field.
+func TenantIDIsNil() predicate.Message {
+	return predicate.Message(sql.FieldIsNull(FieldTenantID))
+}
+
+// TenantIDNotNil applies the NotNil predicate on the "tenant_id" field.
+func TenantIDNotNil() predicate.Message {
+	return predicate.Message(sql.FieldNotNull(FieldTenantID))
 }
 
 // RoleEQ applies the EQ predicate on the "role" field.

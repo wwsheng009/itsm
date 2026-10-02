@@ -57,6 +57,33 @@ func (_u *MessageUpdate) SetNillableConversationID(v *int) *MessageUpdate {
 	return _u
 }
 
+// SetTenantID sets the "tenant_id" field.
+func (_u *MessageUpdate) SetTenantID(v int) *MessageUpdate {
+	_u.mutation.ResetTenantID()
+	_u.mutation.SetTenantID(v)
+	return _u
+}
+
+// SetNillableTenantID sets the "tenant_id" field if the given value is not nil.
+func (_u *MessageUpdate) SetNillableTenantID(v *int) *MessageUpdate {
+	if v != nil {
+		_u.SetTenantID(*v)
+	}
+	return _u
+}
+
+// AddTenantID adds value to the "tenant_id" field.
+func (_u *MessageUpdate) AddTenantID(v int) *MessageUpdate {
+	_u.mutation.AddTenantID(v)
+	return _u
+}
+
+// ClearTenantID clears the value of the "tenant_id" field.
+func (_u *MessageUpdate) ClearTenantID() *MessageUpdate {
+	_u.mutation.ClearTenantID()
+	return _u
+}
+
 // SetRole sets the "role" field.
 func (_u *MessageUpdate) SetRole(v string) *MessageUpdate {
 	_u.mutation.SetRole(v)
@@ -171,6 +198,15 @@ func (_u *MessageUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 	if value, ok := _u.mutation.CreatedAt(); ok {
 		_spec.SetField(message.FieldCreatedAt, field.TypeTime, value)
 	}
+	if value, ok := _u.mutation.TenantID(); ok {
+		_spec.SetField(message.FieldTenantID, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.AddedTenantID(); ok {
+		_spec.AddField(message.FieldTenantID, field.TypeInt, value)
+	}
+	if _u.mutation.TenantIDCleared() {
+		_spec.ClearField(message.FieldTenantID, field.TypeInt)
+	}
 	if value, ok := _u.mutation.Role(); ok {
 		_spec.SetField(message.FieldRole, field.TypeString, value)
 	}
@@ -257,6 +293,33 @@ func (_u *MessageUpdateOne) SetNillableConversationID(v *int) *MessageUpdateOne 
 	if v != nil {
 		_u.SetConversationID(*v)
 	}
+	return _u
+}
+
+// SetTenantID sets the "tenant_id" field.
+func (_u *MessageUpdateOne) SetTenantID(v int) *MessageUpdateOne {
+	_u.mutation.ResetTenantID()
+	_u.mutation.SetTenantID(v)
+	return _u
+}
+
+// SetNillableTenantID sets the "tenant_id" field if the given value is not nil.
+func (_u *MessageUpdateOne) SetNillableTenantID(v *int) *MessageUpdateOne {
+	if v != nil {
+		_u.SetTenantID(*v)
+	}
+	return _u
+}
+
+// AddTenantID adds value to the "tenant_id" field.
+func (_u *MessageUpdateOne) AddTenantID(v int) *MessageUpdateOne {
+	_u.mutation.AddTenantID(v)
+	return _u
+}
+
+// ClearTenantID clears the value of the "tenant_id" field.
+func (_u *MessageUpdateOne) ClearTenantID() *MessageUpdateOne {
+	_u.mutation.ClearTenantID()
 	return _u
 }
 
@@ -403,6 +466,15 @@ func (_u *MessageUpdateOne) sqlSave(ctx context.Context) (_node *Message, err er
 	}
 	if value, ok := _u.mutation.CreatedAt(); ok {
 		_spec.SetField(message.FieldCreatedAt, field.TypeTime, value)
+	}
+	if value, ok := _u.mutation.TenantID(); ok {
+		_spec.SetField(message.FieldTenantID, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.AddedTenantID(); ok {
+		_spec.AddField(message.FieldTenantID, field.TypeInt, value)
+	}
+	if _u.mutation.TenantIDCleared() {
+		_spec.ClearField(message.FieldTenantID, field.TypeInt)
 	}
 	if value, ok := _u.mutation.Role(); ok {
 		_spec.SetField(message.FieldRole, field.TypeString, value)

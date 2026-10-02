@@ -41,6 +41,20 @@ func (_c *MessageCreate) SetConversationID(v int) *MessageCreate {
 	return _c
 }
 
+// SetTenantID sets the "tenant_id" field.
+func (_c *MessageCreate) SetTenantID(v int) *MessageCreate {
+	_c.mutation.SetTenantID(v)
+	return _c
+}
+
+// SetNillableTenantID sets the "tenant_id" field if the given value is not nil.
+func (_c *MessageCreate) SetNillableTenantID(v *int) *MessageCreate {
+	if v != nil {
+		_c.SetTenantID(*v)
+	}
+	return _c
+}
+
 // SetRole sets the "role" field.
 func (_c *MessageCreate) SetRole(v string) *MessageCreate {
 	_c.mutation.SetRole(v)
@@ -171,6 +185,10 @@ func (_c *MessageCreate) createSpec() (*Message, *sqlgraph.CreateSpec) {
 	if value, ok := _c.mutation.CreatedAt(); ok {
 		_spec.SetField(message.FieldCreatedAt, field.TypeTime, value)
 		_node.CreatedAt = value
+	}
+	if value, ok := _c.mutation.TenantID(); ok {
+		_spec.SetField(message.FieldTenantID, field.TypeInt, value)
+		_node.TenantID = value
 	}
 	if value, ok := _c.mutation.Role(); ok {
 		_spec.SetField(message.FieldRole, field.TypeString, value)

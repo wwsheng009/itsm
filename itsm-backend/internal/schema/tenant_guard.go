@@ -107,10 +107,11 @@ var TenantExemptTables = []ExemptTable{
 	{TableName: "knowledge_article_sessions", Reason: "知识库协作会话，session_id 天然唯一", Owner: "knowledge", Scope: "derived", ReviewedAt: time.Date(2026, 9, 8, 0, 0, 0, 0, time.UTC)},
 	{TableName: "knowledge_article_versions", Reason: "知识库版本快照", Owner: "knowledge", Scope: "derived", ReviewedAt: time.Date(2026, 9, 8, 0, 0, 0, 0, time.UTC)},
 	{TableName: "item_versions", Reason: "通用版本快照", Owner: "platform", Scope: "derived", ReviewedAt: time.Date(2026, 9, 8, 0, 0, 0, 0, time.UTC)},
-	// marketplace / messages / prompt_templates / password_reset_tokens：需评估，暂列豁免并标注 owner
-	{TableName: "marketplace_items", Reason: "市场项目模板，跨租户共享", Owner: "marketplace", Scope: "global", ReviewedAt: time.Date(2026, 9, 8, 0, 0, 0, 0, time.UTC)},
-	{TableName: "messages", Reason: "消息模板/通知字典，跨租户共享（待评估：是否需要按租户隔离）", Owner: "notification", Scope: "global", ReviewedAt: time.Date(2026, 9, 8, 0, 0, 0, 0, time.UTC)},
-	{TableName: "prompt_templates", Reason: "AI prompt 模板库，跨租户共享（待评估）", Owner: "ai", Scope: "global", ReviewedAt: time.Date(2026, 9, 8, 0, 0, 0, 0, time.UTC)},
+	// marketplace / prompt_templates / password_reset_tokens：季度复核结论（2026-09-30，见
+	// docs/multi-tenant/plan/msp-exempt-tables-quarterly-review.md）：保留显式共享。
+	// messages：已租户化（迁移 20260930_messages_tenant_id.sql），移出豁免清单。
+	{TableName: "marketplace_items", Reason: "市场项目模板，跨租户显式共享（2026-09-30 复核保留）", Owner: "marketplace", Scope: "global", ReviewedAt: time.Date(2026, 9, 30, 0, 0, 0, 0, time.UTC)},
+	{TableName: "prompt_templates", Reason: "AI prompt 模板库，跨租户显式共享（2026-09-30 复核保留；租户自定义走后续 RFC）", Owner: "ai", Scope: "global", ReviewedAt: time.Date(2026, 9, 30, 0, 0, 0, 0, time.UTC)},
 	{TableName: "password_reset_tokens", Reason: "密码重置令牌，按 token 唯一，无租户归属语义", Owner: "auth", Scope: "platform", ReviewedAt: time.Date(2026, 9, 8, 0, 0, 0, 0, time.UTC)},
 }
 

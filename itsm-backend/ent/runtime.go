@@ -3483,7 +3483,7 @@ func init() {
 	// message.DefaultCreatedAt holds the default value on creation for the created_at field.
 	message.DefaultCreatedAt = messageDescCreatedAt.Default.(func() time.Time)
 	// messageDescContent is the schema descriptor for content field.
-	messageDescContent := messageFields[3].Descriptor()
+	messageDescContent := messageFields[4].Descriptor()
 	// message.DefaultContent holds the default value on creation for the content field.
 	message.DefaultContent = messageDescContent.Default.(string)
 	microserviceFields := schema.Microservice{}.Fields()
