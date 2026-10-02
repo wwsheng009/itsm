@@ -150,6 +150,9 @@ async function openAssignModal() {
   return await screen.findByText('ticketDetail.assignTitle');
 }
 
+// 慢环境（Windows/jsdom）下单例 userEvent 交互可达 30s+，放宽防假红（同 workbench 约定）。
+jest.setTimeout(120000);
+
 describe('TicketDetail 分配工单弹窗 — 处理人搜索回归', () => {
   beforeEach(() => {
     jest.clearAllMocks();
