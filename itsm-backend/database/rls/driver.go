@@ -37,6 +37,8 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"path/filepath"
+	"runtime"
 	"strconv"
 	"strings"
 	"sync/atomic"
@@ -297,6 +299,7 @@ func (d *Driver) observe(ctx context.Context, op, query string) {
 				"op", op,
 				"stmt", firstTok,
 				"query", preview,
+				"caller", callerFrame(),
 				"mode", string(d.mode),
 			)
 			return
@@ -353,6 +356,31 @@ func sqlPreview(q string) string {
 		s += "…"
 	}
 	return s
+}
+
+// callerFrame 返回首个业务调用方（跳过 RLS 装饰器自身与 ent 生成/方言层），
+// 供 shadow 告警把 query 归因到具体代码路径（2026-10-03 run9 补强）。
+func callerFrame() string {
+	var fallback string
+	for i := 2; i < 24; i++ {
+		_, file, line, ok := runtime.Caller(i)
+		if !ok {
+			break
+		}
+		f := filepath.ToSlash(file)
+		// 跳过第三方模块缓存（entgo.io/ent 等）与装饰器自身，优先返回业务代码帧。
+		if strings.Contains(f, "go/pkg/mod/") || strings.Contains(f, "/database/rls/") ||
+			strings.Contains(f, "/itsm-backend/ent/") || strings.Contains(f, "/itsm-backend/database/") {
+			continue
+		}
+		if strings.Contains(f, "/itsm-backend/") {
+			return fmt.Sprintf("%s:%d", f, line)
+		}
+		if fallback == "" {
+			fallback = fmt.Sprintf("%s:%d", f, line)
+		}
+	}
+	return fallback
 }
 
 // -----------------------------------------------------------------------

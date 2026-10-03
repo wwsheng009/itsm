@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 
+	"itsm-backend/common/tenantctx"
 	"itsm-backend/ent"
 	"itsm-backend/ent/mcpservertool"
 	"itsm-backend/mcp/manager"
@@ -25,8 +26,18 @@ func NewEntStore(client *ent.Client) (*EntStore, error) {
 	return &EntStore{client: client}, nil
 }
 
+// sysCtx 返回平台组件作用域 ctx：MCP manager 的运行态同步/工具缓存是系统任务，
+// 不隶属单个租户；R2B 阴影观察（2026-10-03）前用裸 background，enforce 下会被
+// RLS 装饰器 fail-closed 拦截（且丢失审计归因）。
+func (s *EntStore) sysCtx(reason string) context.Context {
+	return tenantctx.SystemContext(context.Background(), "mcp:admin:store", reason)
+}
+
 // UpdateServerStatus 实现 manager.StatusWriter（不含凭据；服务器已删除时忽略）。
 func (s *EntStore) UpdateServerStatus(ctx context.Context, serverID int, patch manager.StatusPatch) error {
+	// R2B 阴影观察（2026-10-03）：manager 运行态回写为平台组件任务（调用方可能带裸 ctx），
+	// 显式 system 作用域，避免 enforce 下 fail-closed（唯一调用方=mcp manager）。
+	ctx = tenantctx.SystemContext(ctx, "mcp:admin:store", "server status write (manager runtime)")
 	update := s.client.MCPServer.UpdateOneID(serverID).
 		SetStatus(string(patch.Status)).
 		SetLastError(truncateText(patch.LastError, 2000)).
@@ -51,7 +62,7 @@ func (s *EntStore) List(serverID int) []manager.ToolRecord {
 	rows, err := s.client.MCPServerTool.Query().
 		Where(mcpservertool.ServerIDEQ(serverID)).
 		Order(ent.Asc(mcpservertool.FieldRawName)).
-		All(context.Background())
+		All(s.sysCtx("tool cache list"))
 	if err != nil {
 		return nil
 	}
@@ -88,7 +99,7 @@ func (s *EntStore) List(serverID int) []manager.ToolRecord {
 //   - canonical 名已被同租户其它服务器占用：跳过落库（唯一索引冲突），由 registry/M0-09 侧隔离；
 //   - 消失的工具：healthy=false（保留治理位与历史，由管理端决定删除）。
 func (s *EntStore) Replace(serverID int, records []manager.ToolRecord) {
-	ctx := context.Background()
+	ctx := s.sysCtx("tool cache replace (discovery sync)")
 	server, err := s.client.MCPServer.Get(ctx, serverID)
 	if err != nil {
 		return

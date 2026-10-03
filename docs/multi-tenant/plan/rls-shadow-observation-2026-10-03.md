@@ -34,6 +34,9 @@ enforce 前置的"阴影观察"：以 `RLS_MODE=shadow` 运行真实实例，采
 | 首轮（driver 仅 op+首词） | 131 | 28 | 无法归因 → 先补 `query` 预览字段 |
 | 复跑（含 ACL/审计修复） | 100 | 52 | `endpoint_ac_ls` 21→0；`audit_logs` 4→1 |
 | run8（最终构建，含全部 ctx 修复） | **25** | **131** | `audit_logs`=0、`endpoint_ac_ls`=0、roles/permissions/role_permissions=0、users 列表/菜单链路=0；残余见下表 |
+| run10/11（`saas_msp` 模式，覆盖 MSP 面） | 27 → 11 | 186 | MCP store 修复（工具缓存/状态回写）；登录链路收口 |
+| run13/14（含 caller 归因） | 2 → 0 | 192 | 仅剩 `msp_allocation:toDTO`（1 对 DISTINCT 查询）→ 修复后归零 |
+| **run15（终验，窗口含启动）** | **0** | **192** | `DEPLOYMENT_MODE=saas_msp` + `RLS_MODE=shadow` + debug；三类身份全端点 + 启动序列零缺租户告警 |
 
 **已修复（本轮，代码）**：
 
@@ -43,15 +46,20 @@ enforce 前置的"阴影观察"：以 `RLS_MODE=shadow` 运行真实实例，采
 4. `middleware/rbac.go`：RBAC 预检先于租户中间件（router.go 先挂 `RBACMiddleware`），且 auth-scoped 路由（`/auth/me|menus|tenants`）不挂租户中间件——预检在 JWT 解析出 tenantID 后**显式注入请求 ctx**，并对 `loadPermissionsFromDB`/`DBOnlyState` 两处加载器补租户 ctx。**roles/permissions/role_permissions 告警归零**。
 5. `middleware/membership_permission.go`（`ResolvePermissions`）、`service/menu_service.go`（`GetUserMenus`）、`handlers/common/service.go`（`GetUserScoped`）补租户 ctx；`GetUserTenants`（跨租户聚合，IP-P0-6）显式 **system bypass**（平台面白名单）。**用户/菜单链路告警归零**。
 
-**run8 残余 warn 25 条分类（enforce 前需处置）**：
+**残余 warn 收口（run10→run15，全部清零）**：
 
-| 类别 | 代表查询 | 处置方向 |
-| --- | --- | --- |
-| 无租户事务（12） | `Tx`（op=Tx，无 query） | 逐点定位事务开启方（登录/审计/组件状态链路），补 ctx 或 system |
-| MCP/连接器元数据（7） | `mcp_server_tools` / `mcp_servers` / `connector_configs` / `tool_invocations` | 组件就绪/状态链路的平台级读取：按平台面显式 system bypass（或按 tenant_id 收窄） |
-| 预认证/会话残余（6） | `tenants`（多租户选择）、`users`（用户名查找） | 设计上无租户上下文：enforce 前改为 **system bypass ctx**（或该路径专用 admin 连接） |
+driver 告警增补 `caller` 归因（栈回溯跳过 `ent/` 生成码与 `database/` 拦截器帧），逐条定位并修复：
 
-> MSP 专属路径（`/api/v1/msp/*`）本轮未覆盖：联调实例当前为 `DEPLOYMENT_MODE=private`（MSP 路由 404）。多 provider 场景的阴影观察应切 `saas_msp` 后复跑本工具。
+| 站点 | 处置 |
+| --- | --- |
+| 登录落 home 后租户视图加载（`handlers/common/service.go`） | `WithTenantID`（home 租户已知）；`last_active` 回写同 |
+| 登录/注册/找回/密码策略、租户代码解析（预认证跨租户） | `tenantctx.SystemContext(...)` 显式平台作用域 |
+| MCP 组件启动（`bootstrap:mcp-startup`）+ 工具缓存 `List/Replace` + 服务状态回写（`mcp/admin/store.go`） | system 作用域（平台组件运行态） |
+| 连接器重水合（bootstrap）+ 连接器管理器内部 ctx（`connector/manager.go`） | system 作用域播种 |
+| 工具队列启动恢复扫描（`service/tool_queue_durable.go`，跨租户运维语义） | system 作用域 |
+| allocation 展示名解析（`service/msp_allocation_service.go:toDTO`，跨 provider/客户） | system 作用域 |
+
+> MSP 专属路径已覆盖：run10 起实例以 `DEPLOYMENT_MODE=saas_msp` 运行，`/msp/*` 全端点 200（`mspagent` provider_agent 低权身份 + allocation 数据就绪），与 private/平台面合并观察至 run15 清零。
 
 ## 4. 复现步骤
 
@@ -74,7 +82,7 @@ Get-Content itsm-backend\logs\itsm.log -Tail 20000 | Where-Object { $_ -match 'q
 
 1. **DB 侧**：执行 `database/rls/migrations/001_roles.sql`（itsm_app / itsm_admin，密码注入）+ `002_pilot_policies.sql`（changes/vectors pilot）。
 2. **连接侧**：应用常规连接切 `itsm_app`；迁移/后台/平台面走 `itsm_admin`（BYPASSRLS）。当前 `itsm` 超管连接需在灰度完成前保留为回滚路径。
-3. **调用点收口**：按 §3 剩余分类补齐 ctx 或显式 system bypass；`LOG_LEVEL=debug` 复跑本工具至 warn 归零/白名单化。
+3. ✅ **调用点收口（2026-10-03 完成）**：按 §3 残余表逐条补齐 ctx 或显式 system 作用域；`LOG_LEVEL=debug` 复跑至 **warn=0**（run15，含启动窗口与 MSP 面；带租户 192 条）。
 4. **enforce 灰度**：`RLS_MODE=enforce` 先在 pilot 两表验证（变更/知识检索路径），观察 `rls: enforce ...` 计数器与错误率；再扩展策略表。
 5. **监控**：`Driver.Snapshot()`（`QueriesShadow/MissingTenant/SystemBypass/EnforceApplied`）接入指标/告警；`MissingTenant` 非零即回滚 shadow。
 
@@ -84,3 +92,4 @@ Get-Content itsm-backend\logs\itsm.log -Tail 20000 | Where-Object { $_ -match 'q
 | --- | --- |
 | 2026-10-03 | 首轮 shadow 观察：driver 告警增补 query 预览；修复 ACL/审计 4 处 ctx；产出剩余分类与 enforce 清单 |
 | 2026-10-03 | run8 复跑（最终构建）：warn 131→**25**、带租户 28→**131**；审计/ACL/RBAC/用户/菜单链路归零；残余 25 = Tx 12 + MCP/连接器 7 + 预认证/会话 6。补充 RBAC 预检 ctx 注入与 `/auth/me`/menus/tenants 收口 |
+| 2026-10-03 | run10–15（`saas_msp` 全表面）：driver 告警增补 **caller 归因**；修复 MCP store/组件启动、连接器管理器/重水合、工具队列启动恢复、allocation 展示名、登录落 home 租户视图与预认证 system 作用域；**run15 warns=0 / dbg=192（含启动窗口）** |

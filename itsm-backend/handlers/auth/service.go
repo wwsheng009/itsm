@@ -8,6 +8,7 @@ import (
 	"strings"
 	"time"
 
+	"itsm-backend/common/tenantctx"
 	"itsm-backend/dto"
 	"itsm-backend/ent"
 	"itsm-backend/ent/mspallocation"
@@ -57,6 +58,8 @@ func (s *Service) passwordPolicy(ctx context.Context, tenantID int) service.Pass
 // 未指定 tenantCode 时与注册一致：仅当系统只有一个启用租户时才按其策略解析，
 // 多租户场景返回默认策略，避免把任意租户的配置暴露给未指定租户的调用方。
 func (s *Service) PasswordPolicy(ctx context.Context, tenantCode string) (*dto.PasswordPolicyResponse, error) {
+	// R2B 阴影观察（2026-10-03）：公开端点（未登录）——租户解析为平台范围查询。
+	ctx = tenantctx.SystemContext(ctx, "auth:password-policy", "pre-auth tenant resolution (public endpoint)")
 	tenantID := 0
 	if code := strings.TrimSpace(tenantCode); code != "" {
 		tenantEntity, err := s.client.Tenant.Query().Where(tenant.CodeEQ(code)).First(ctx)
@@ -202,25 +205,27 @@ func (s *Service) Register(ctx context.Context, req *dto.RegisterRequest) (*dto.
 	if role != user.RoleEndUser {
 		return nil, fmt.Errorf("不允许的角色: %s（自助注册仅支持 end_user）", req.Role)
 	}
-	if exists, err := s.client.User.Query().Where(user.UsernameEQ(req.Username)).Exist(ctx); err != nil {
+	// R2B 阴影观察（2026-10-03）：注册为预认证路径，用户名/邮箱唯一性检查跨租户（平台范围）。
+	regCtx := tenantctx.SystemContext(ctx, "auth:register", "pre-auth uniqueness check (cross-tenant)")
+	if exists, err := s.client.User.Query().Where(user.UsernameEQ(req.Username)).Exist(regCtx); err != nil {
 		return nil, fmt.Errorf("检查用户名失败")
 	} else if exists {
 		return nil, fmt.Errorf("用户名已被注册")
 	}
-	if exists, err := s.client.User.Query().Where(user.EmailEQ(req.Email)).Exist(ctx); err != nil {
+	if exists, err := s.client.User.Query().Where(user.EmailEQ(req.Email)).Exist(regCtx); err != nil {
 		return nil, fmt.Errorf("检查邮箱失败")
 	} else if exists {
 		return nil, fmt.Errorf("邮箱已被注册")
 	}
 	var tenantID int
 	if req.TenantCode != "" {
-		tenantEntity, err := s.client.Tenant.Query().Where(tenant.CodeEQ(req.TenantCode)).First(ctx)
+		tenantEntity, err := s.client.Tenant.Query().Where(tenant.CodeEQ(req.TenantCode)).First(regCtx)
 		if err != nil {
 			return nil, fmt.Errorf("租户不存在")
 		}
 		tenantID = tenantEntity.ID
 	} else {
-		tenants, err := s.client.Tenant.Query().Where(tenant.StatusEQ("active")).Order(ent.Asc(tenant.FieldID)).Limit(2).All(ctx)
+		tenants, err := s.client.Tenant.Query().Where(tenant.StatusEQ("active")).Order(ent.Asc(tenant.FieldID)).Limit(2).All(regCtx)
 		if err != nil {
 			return nil, fmt.Errorf("查询租户失败")
 		}
@@ -238,7 +243,8 @@ func (s *Service) Register(ctx context.Context, req *dto.RegisterRequest) (*dto.
 		return nil, fmt.Errorf("密码加密失败")
 	}
 	// 角色已在入口处归一为 end_user（IP-P0-5 白名单）。
-	userEntity, err := s.client.User.Create().SetUsername(req.Username).SetEmail(req.Email).SetName(req.ResolvedDisplayName()).SetPasswordHash(string(hashedPassword)).SetPhone(req.Phone).SetDepartment(req.Company).SetRole(role).SetTenantID(tenantID).SetActive(true).Save(ctx)
+	userEntity, err := s.client.User.Create().SetUsername(req.Username).SetEmail(req.Email).SetName(req.ResolvedDisplayName()).SetPasswordHash(string(hashedPassword)).SetPhone(req.Phone).SetDepartment(req.Company).SetRole(role).SetTenantID(tenantID).SetActive(true).
+		Save(tenantctx.WithTenantID(ctx, tenantID))
 	if err != nil {
 		return nil, fmt.Errorf("创建用户失败")
 	}
@@ -258,15 +264,17 @@ func normalizeSelfRegisterRole(role string) user.Role {
 
 func (s *Service) ForgotPassword(ctx context.Context, req *dto.ForgotPasswordRequest) (*dto.ForgotPasswordResponse, error) {
 	genericOK := &dto.ForgotPasswordResponse{Message: "如果该邮箱已注册，我们将发送密码重置链接"}
+	// R2B 阴影观察（2026-10-03）：找回密码为预认证路径，邮箱查找跨租户（平台范围）。
+	lookupCtx := tenantctx.SystemContext(ctx, "auth:forgot-password", "pre-auth email lookup (cross-tenant)")
 	query := s.client.User.Query().Where(user.EmailEQ(req.Email))
 	if req.TenantCode != "" {
-		tenantEntity, err := s.client.Tenant.Query().Where(tenant.CodeEQ(req.TenantCode)).First(ctx)
+		tenantEntity, err := s.client.Tenant.Query().Where(tenant.CodeEQ(req.TenantCode)).First(lookupCtx)
 		if err != nil {
 			return genericOK, nil
 		}
 		query = query.Where(user.TenantIDEQ(tenantEntity.ID))
 	}
-	userEntity, err := query.First(ctx)
+	userEntity, err := query.First(lookupCtx)
 	if err != nil {
 		return genericOK, nil
 	}

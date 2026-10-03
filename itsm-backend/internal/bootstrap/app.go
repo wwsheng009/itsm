@@ -526,11 +526,13 @@ func NewApplication() *Application {
 	// controller.ConnectorController，导致 h.store 为 nil，Provision/Revoke 跳过落库，
 	// 配置仅存于内存、重启即丢失。
 	connectorHandler.SetPersistentStore(connectorStore)
-	if persistedConfigs, loadErr := connectorStore.LoadAll(context.Background()); loadErr != nil {
+	// R2B 阴影观察（2026-10-03）：连接器配置重水合是平台启动任务（跨租户），显式 system 作用域。
+	hydrateCtx := tenantctx.SystemContext(context.Background(), "bootstrap:connector-rehydrate", "load persisted connector configs (platform scope)")
+	if persistedConfigs, loadErr := connectorStore.LoadAll(hydrateCtx); loadErr != nil {
 		sugar.Warnw("Failed to reload persisted connector configs", "error", loadErr)
 	} else {
 		for _, persistedConfig := range persistedConfigs {
-			if provisionErr := connectorManager.Provision(context.Background(), persistedConfig); provisionErr != nil {
+			if provisionErr := connectorManager.Provision(hydrateCtx, persistedConfig); provisionErr != nil {
 				sugar.Errorw("Failed to rehydrate connector", "tenant", persistedConfig.TenantID, "name", persistedConfig.Name, "error", provisionErr)
 			}
 		}
@@ -1142,7 +1144,10 @@ func NewApplication() *Application {
 						"module", "mcp", "error", serviceErr.Error())
 				} else {
 					mcpManager.Start(context.Background())
-					if startupErr := mcpAdminService.Startup(context.Background()); startupErr != nil {
+					// R2B 阴影观察（2026-10-03）：MCP 管理组件启动拉起已启用服务器（平台任务，
+					// 跨租户枚举），显式 system 作用域（enforce 前置）。
+					mcpStartupCtx := tenantctx.SystemContext(context.Background(), "bootstrap:mcp-startup", "load enabled MCP servers (platform scope)")
+					if startupErr := mcpAdminService.Startup(mcpStartupCtx); startupErr != nil {
 						sugar.Errorw("MCP 已启用服务器拉起失败（管理面可用，运行态待重连）",
 							"module", "mcp", "error", startupErr.Error())
 					}

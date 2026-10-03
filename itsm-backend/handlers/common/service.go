@@ -88,7 +88,10 @@ func (s *Service) resolvePermissions(ctx context.Context, userID, tenantID int) 
 func (s *Service) Login(ctx context.Context, username, password string, tenantID int, tenantCode string) (*AuthResult, error) {
 	// Resolve tenant
 	if tenantID == 0 && tenantCode != "" {
-		t, err := s.client.Tenant.Query().Where(enttenant.CodeEQ(tenantCode)).First(ctx)
+		// R2B 阴影观察（2026-10-03）：登录为预认证路径；租户代码解析跨租户（平台范围），
+		// 显式 system 作用域（enforce 前置；此前裸 ctx 会被 fail-closed）。
+		lookupCtx := tenantctx.SystemContext(ctx, "auth:login", "pre-auth tenant code resolution")
+		t, err := s.client.Tenant.Query().Where(enttenant.CodeEQ(tenantCode)).First(lookupCtx)
 		if err == nil {
 			tenantID = t.ID
 		}
@@ -99,7 +102,9 @@ func (s *Service) Login(ctx context.Context, username, password string, tenantID
 	var err error
 	if tenantID == 0 {
 		// Look for user by username without tenant filter
-		entUser, err = s.client.User.Query().Where(entuser.UsernameEQ(username)).Only(ctx)
+		// 跨租户用户名查找（登录入口，租户未定）→ 平台作用域。
+		entUser, err = s.client.User.Query().Where(entuser.UsernameEQ(username)).
+			Only(tenantctx.SystemContext(ctx, "auth:login", "pre-auth username lookup (cross-tenant)"))
 		if err != nil {
 			middleware.RecordAuthAudit(ctx, s.client, middleware.AuthAuditEntry{
 				TenantID: tenantID, ActorAccount: username, Source: middleware.AuditSourceLogin,
@@ -110,9 +115,10 @@ func (s *Service) Login(ctx context.Context, username, password string, tenantID
 		}
 		u = toUserDomain(entUser)
 	} else {
+		// 已知租户：显式补齐租户 ctx（RLS 归因；enforce 前置）。
 		entUser, err = s.client.User.Query().
 			Where(entuser.UsernameEQ(username), entuser.TenantID(tenantID)).
-			Only(ctx)
+			Only(tenantctx.WithTenantID(ctx, tenantID))
 		if err != nil {
 			middleware.RecordAuthAudit(ctx, s.client, middleware.AuthAuditEntry{
 				TenantID: tenantID, ActorAccount: username, Source: middleware.AuditSourceLogin,
@@ -150,7 +156,8 @@ func (s *Service) Login(ctx context.Context, username, password string, tenantID
 	}
 	// IP-P1-5：首登标志随响应下发；最近活跃租户留痕（失败不阻塞登录）。
 	u.MustChangePassword = entUser.MustChangePassword
-	if _, uerr := s.client.User.UpdateOneID(entUser.ID).SetLastActiveTenantID(u.TenantID).Save(ctx); uerr != nil {
+	if _, uerr := s.client.User.UpdateOneID(entUser.ID).SetLastActiveTenantID(u.TenantID).
+		Save(tenantctx.WithTenantID(ctx, entUser.TenantID)); uerr != nil {
 		s.logger.Warnw("record last active tenant failed", "user_id", u.ID, "error", uerr)
 	}
 
@@ -167,7 +174,8 @@ func (s *Service) Login(ctx context.Context, username, password string, tenantID
 
 	// 登录落 home（IP-P0-6）：token 作用域 = users.tenant_id；tenantCode 仅参与身份定位，
 	// 不改变签发作用域（不因 last_active/tenantCode 直签客户）。
-	loginTenant, tenantErr := s.client.Tenant.Get(ctx, u.TenantID)
+	// R2B 阴影观察（2026-10-03）：登录落 home 后加载租户视图（home 租户已知）→ 补租户 ctx。
+	loginTenant, tenantErr := s.client.Tenant.Get(tenantctx.WithTenantID(ctx, u.TenantID), u.TenantID)
 	if tenantErr != nil {
 		s.logger.Warnw("login tenant lookup failed", "user_id", u.ID, "tenant_id", u.TenantID, "error", tenantErr)
 	}

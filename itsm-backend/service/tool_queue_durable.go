@@ -9,6 +9,7 @@ package service
 import (
 	"context"
 
+	"itsm-backend/common/tenantctx"
 	"itsm-backend/ent/toolinvocation"
 )
 
@@ -34,6 +35,9 @@ func (q *ToolQueue) RecoverPending(ctx context.Context, limit int) (RecoveryResu
 	if q == nil || q.client == nil {
 		return result, nil
 	}
+	// R2B 阴影观察（2026-10-03）：启动恢复为跨租户运维扫描（见函数注释），
+	// 显式 system 作用域（enforce 前置；此前裸 ctx 会被 fail-closed）。
+	ctx = tenantctx.SystemContext(ctx, "tool-queue:recover-pending", "startup recovery scan (cross-tenant, ops scope)")
 	if limit <= 0 {
 		limit = 200
 	}

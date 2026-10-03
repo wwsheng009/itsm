@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"time"
 
+	"itsm-backend/common/tenantctx"
 	"itsm-backend/dto"
 	"itsm-backend/ent"
 	"itsm-backend/ent/mspallocation"
@@ -117,7 +118,9 @@ func (s *MSPAllocationService) Create(
 // toDTO 转换为 DTO
 func (s *MSPAllocationService) toDTO(a *ent.MSPAllocation) (*dto.MSPAllocationDTO, error) {
 	// 查询关联的用户和租户
-	ctx := context.Background()
+	// R2B 阴影观察（2026-10-03）：展示名解析跨 provider（MSP 员工）与客户租户两侧，
+	// 属平台范围读取；显式 system 作用域（enforce 前置；此前裸 background 会 fail-closed）。
+	ctx := tenantctx.SystemContext(context.Background(), "msp:allocation:toDTO", "resolve allocation display names (cross-tenant, platform scope)")
 
 	var mspUsername string
 	var customerTenantID int

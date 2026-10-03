@@ -6,6 +6,8 @@ import (
 	"sync"
 	"time"
 
+	"itsm-backend/common/tenantctx"
+
 	"go.uber.org/zap"
 )
 
@@ -35,7 +37,11 @@ func NewManager(registry *Registry, logger *zap.SugaredLogger) *Manager {
 	if registry == nil {
 		registry = Default()
 	}
-	ctx, cancel := context.WithCancel(context.Background())
+	// R2B 阴影观察（2026-10-03）：连接器管理器是平台组件（跨租户桥接/配置加载），
+	// 其内部 ctx 以 system 作用域播种，避免 enforce 下 DB 读写被 fail-closed 拦截。
+	ctx, cancel := context.WithCancel(
+		tenantctx.SystemContext(context.Background(), "connector:manager", "runtime bridge lifecycle / config load (platform scope)"),
+	)
 	return &Manager{
 		registry:        registry,
 		logger:          logger,
