@@ -43,11 +43,12 @@ func main() {
 		rollback = flag.Bool("rollback", false, "按 002→001 顺序执行 *_rollback.sql")
 		setPw    = flag.Bool("set-passwords", false, "按 .env 的 DB_APP_ROLE_PASSWORD / DB_ADMIN_ROLE_PASSWORD 设置角色密码")
 		verify   = flag.Bool("verify", false, "校验角色/策略状态并运行 itsm_app 探针")
+		query    = flag.String("query", "", "只读诊断：执行单条 SELECT 并输出结果（制表符分隔）")
 		dir      = flag.String("dir", filepath.Join("database", "rls", "migrations"), "迁移脚本目录")
 	)
 	flag.Parse()
 
-	if *files == "" && !*rollback && !*setPw && !*verify {
+	if *files == "" && !*rollback && !*setPw && !*verify && *query == "" {
 		flag.Usage()
 		os.Exit(2)
 	}
@@ -84,6 +85,52 @@ func main() {
 		if !verifyAll(ctx, db) {
 			os.Exit(1)
 		}
+	}
+	if *query != "" {
+		runQuery(ctx, db, *query)
+	}
+}
+
+// runQuery 执行单条只读 SELECT（诊断用途；拒绝非 SELECT 语句）。
+func runQuery(ctx context.Context, db *sql.DB, q string) {
+	trimmed := strings.TrimSpace(strings.ToUpper(q))
+	if !strings.HasPrefix(trimmed, "SELECT") && !strings.HasPrefix(trimmed, "WITH") {
+		fatalf("-query 仅允许 SELECT/WITH（只读诊断）")
+	}
+	rows, err := db.QueryContext(ctx, q)
+	if err != nil {
+		fatalf("query: %v", err)
+	}
+	defer rows.Close()
+	cols, err := rows.Columns()
+	if err != nil {
+		fatalf("columns: %v", err)
+	}
+	fmt.Println(strings.Join(cols, "\t"))
+	vals := make([]any, len(cols))
+	ptrs := make([]any, len(cols))
+	for i := range vals {
+		ptrs[i] = &vals[i]
+	}
+	for rows.Next() {
+		if err := rows.Scan(ptrs...); err != nil {
+			fatalf("scan: %v", err)
+		}
+		out := make([]string, len(cols))
+		for i, v := range vals {
+			switch tv := v.(type) {
+			case nil:
+				out[i] = "NULL"
+			case []byte:
+				out[i] = string(tv)
+			default:
+				out[i] = fmt.Sprintf("%v", tv)
+			}
+		}
+		fmt.Println(strings.Join(out, "\t"))
+	}
+	if err := rows.Err(); err != nil {
+		fatalf("rows: %v", err)
 	}
 }
 

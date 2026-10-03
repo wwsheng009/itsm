@@ -25,6 +25,10 @@ var rawDB *sql.DB
 // 等诊断端点读取运行时统计。为 nil 表示未启用 RLS 或未初始化。
 var rlsDriver *rls.Driver
 
+// appDB 是 R2B 连接侧分流后的低权请求池（itsm_app，RLS policy 生效）。
+// 仅当 RLS_MODE=enforce 且配置了 DB_APP_ROLE_* 时开通；否则为 nil。
+var appDB *sql.DB
+
 // GetRawDB returns the underlying *sql.DB for raw SQL operations (e.g., pgvector)
 func GetRawDB() *sql.DB { return rawDB }
 
@@ -32,11 +36,28 @@ func GetRawDB() *sql.DB { return rawDB }
 // 用于运维/诊断端点导出 Stats()。
 func GetRLSDriver() *rls.Driver { return rlsDriver }
 
+// GetAppDB 返回低权请求池（未开通时为 nil）。
+func GetAppDB() *sql.DB { return appDB }
+
+// buildDSN 构造 PostgreSQL 连接串（单一口径，避免多处拼接漂移）。
+func buildDSN(cfg *config.DatabaseConfig, user, password string) string {
+	return fmt.Sprintf("host=%s port=%d user=%s dbname=%s sslmode=%s password=%s",
+		cfg.Host, cfg.Port, user, cfg.DBName, cfg.SSLMode, password)
+}
+
+// requestDB 返回租户作用域原始 SQL 应使用的连接池：R2B 分流（enforce + 低权池
+// 就绪）时使用请求池（policy 强制）；否则回落调用方传入的池（行为不变）。
+func requestDB(fallback *sql.DB) *sql.DB {
+	if appDB != nil && rlsDriver != nil && rlsDriver.Mode() == rls.ModeEnforce {
+		return appDB
+	}
+	return fallback
+}
+
 // InitDB initializes a raw database connection without Ent-specific setup
 // Used for migrations and other operations that don't need Ent ORM
 func InitDB(cfg *config.DatabaseConfig) (*sql.DB, error) {
-	dsn := fmt.Sprintf("host=%s port=%d user=%s dbname=%s sslmode=%s password=%s",
-		cfg.Host, cfg.Port, cfg.User, cfg.DBName, cfg.SSLMode, cfg.Password)
+	dsn := buildDSN(cfg, cfg.User, cfg.Password)
 
 	db, err := sql.Open("postgres", dsn)
 	if err != nil {
@@ -65,13 +86,7 @@ func InitDB(cfg *config.DatabaseConfig) (*sql.DB, error) {
 func InitDatabase(cfg *config.DatabaseConfig) (*ent.Client, error) {
 	// 构建数据库连接字符串（DSN - Data Source Name）
 	// PostgreSQL连接字符串格式：host=xxx port=xxx user=xxx dbname=xxx sslmode=xxx password=xxx
-	dsn := fmt.Sprintf("host=%s port=%d user=%s dbname=%s sslmode=%s password=%s",
-		cfg.Host,     // 数据库主机地址
-		cfg.Port,     // 数据库端口号
-		cfg.User,     // 数据库用户名
-		cfg.DBName,   // 数据库名称
-		cfg.SSLMode,  // SSL模式（disable/require/verify-ca等）
-		cfg.Password) // 数据库密码
+	dsn := buildDSN(cfg, cfg.User, cfg.Password)
 
 	// 方法一：使用 sql.Open 创建连接，然后配置连接池
 	// sql.Open 不会立即连接数据库，只是验证连接字符串格式
@@ -208,11 +223,49 @@ func InitDatabaseWithRLS(cfg *config.DatabaseConfig, rlsCfg *config.RLSConfig, l
 	innerDrv := entsql.OpenDB("postgres", rawDB)
 	deco := rls.From(innerDrv, rlsCfg.Mode, logger)
 	rlsDriver = deco
+
+	// R2B 连接侧分流（IP-P2-2 后续）：配置了低权角色且处于 enforce 时，
+	// 开通请求池 itsm_app；租户作用域语句走该池（policy 强制），平台/系统
+	// 绕过语句仍走管理池（BYPASSRLS）。未配置/连通失败时保持单池行为。
+	if deco.Mode() == rls.ModeEnforce && cfg.AppRoleUser != "" {
+		lg := logger
+		if lg == nil {
+			lg = zap.S()
+		}
+		appUser, appPass := cfg.AppDSN()
+		pool, err := sql.Open("postgres", buildDSN(cfg, appUser, appPass))
+		if err != nil {
+			lg.Errorw("rls: open app pool failed; request routing disabled", "user", appUser, "error", err)
+		} else {
+			pool.SetMaxOpenConns(25)
+			pool.SetMaxIdleConns(5)
+			pool.SetConnMaxLifetime(5 * time.Minute)
+			pingCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+			pingErr := pool.PingContext(pingCtx)
+			var appUserNow string
+			if pingErr == nil {
+				// 启动探针：确认低权池的连接身份（证据留档，便于灰度核验）。
+				pingErr = pool.QueryRowContext(pingCtx, "SELECT current_user").Scan(&appUserNow)
+			}
+			cancel()
+			if pingErr != nil {
+				lg.Errorw("rls: app pool ping failed; request routing disabled", "user", appUser, "error", pingErr)
+				_ = pool.Close()
+			} else {
+				deco.SetAppPool(entsql.OpenDB("postgres", pool))
+				appDB = pool
+				lg.Infow("rls: app pool ready", "user", appUser, "current_user", appUserNow,
+					"routing", "tenant→app / system→admin")
+			}
+		}
+	}
+
 	if logger != nil {
 		logger.Infow(
 			"rls: driver installed",
 			"mode", string(deco.Mode()),
 			"tenant_var", rlsCfg.TenantVarName,
+			"app_pool", deco.AppPoolConfigured(),
 		)
 	}
 	rlsClient := ent.NewClient(ent.Driver(deco))

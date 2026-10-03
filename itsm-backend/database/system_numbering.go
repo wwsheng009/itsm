@@ -43,10 +43,11 @@ func (e *SystemNumberingExecutor) WithTx(ctx context.Context, resource string, f
 	var conn *sql.Conn
 	var err error
 	driver := GetRLSDriver()
+	scopedDB := requestDB(e.db)
 	if driver == nil || driver.Mode() == rls.ModeOff {
-		tx, err = e.db.BeginTx(ctx, nil)
+		tx, err = scopedDB.BeginTx(ctx, nil)
 	} else {
-		conn, err = rls.AcquireConn(ctx, e.db)
+		conn, err = rls.AcquireConn(ctx, scopedDB)
 		if err == nil {
 			tx, err = conn.BeginTx(ctx, nil)
 		}

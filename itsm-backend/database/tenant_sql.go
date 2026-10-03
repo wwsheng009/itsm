@@ -35,10 +35,11 @@ func WithTenantSQL[T any](ctx context.Context, db *sql.DB, tenantID int, fn func
 	}
 
 	driver := GetRLSDriver()
+	scopedDB := requestDB(db)
 	if driver == nil || driver.Mode() == rls.ModeOff {
-		return fn(db)
+		return fn(scopedDB)
 	}
-	conn, err := rls.AcquireConn(ctx, db)
+	conn, err := rls.AcquireConn(ctx, scopedDB)
 	if err != nil {
 		return zero, err
 	}
@@ -66,10 +67,11 @@ func WithTenantTx[T any](ctx context.Context, db *sql.DB, tenantID int, fn func(
 	var conn *sql.Conn
 	var err error
 	driver := GetRLSDriver()
+	scopedDB := requestDB(db)
 	if driver == nil || driver.Mode() == rls.ModeOff {
-		tx, err = db.BeginTx(ctx, nil)
+		tx, err = scopedDB.BeginTx(ctx, nil)
 	} else {
-		conn, err = rls.AcquireConn(ctx, db)
+		conn, err = rls.AcquireConn(ctx, scopedDB)
 		if err == nil {
 			tx, err = conn.BeginTx(ctx, nil)
 		}

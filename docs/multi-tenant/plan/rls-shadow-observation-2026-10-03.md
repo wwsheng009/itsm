@@ -101,9 +101,9 @@ go test -tags integration_rls -v ./database/rls/...
 ## 5. enforce 推进清单（按序）
 
 1. ✅ **DB 侧（2026-10-03 完成）**：`001_roles.sql` → `itsm_app`（login、非 superuser、非 BYPASSRLS，740 表授权）/ `itsm_admin`（BYPASSRLS），密码经 `rls-apply -set-passwords` 注入（`.env` 的 `DB_APP_ROLE_*`）；`002_pilot_policies.sql` → `changes`/`vectors` `rowsecurity+forcerowsecurity=true` + `tenant_isolation` 策略。
-2. ⬜ **连接侧（enforce 真实强制的前置，未完成）**：请求池切 `itsm_app`、平台/后台池走 `itsm_admin`——需在 `InitDatabaseWithRLS` 双池化（启动期 schema 兼容 DDL / 水合仍走管理连接），bootstrap 按用途分发 client；当前应用仍为 `itsm` 超管连接（policy 不生效，保留为回滚路径）。
+2. ✅ **连接侧（2026-10-03 完成）**：`rls.Driver` 增补**按作用域分流**——enforce 下租户语句路由低权请求池（`itsm_app`，policy 强制），系统绕过/平台语句走管理池（BYPASSRLS）；`InitDatabaseWithRLS` 在 `DB_APP_ROLE_*` 配置且 enforce 时开通请求池（启动期 schema DDL/水合仍在管理池），`WithTenantSQL/WithTenantTx` 与系统编号分配同步分流（`requestDB`）。启动探针与首路由日志已内建（见下）。**pilot 两表（changes/vectors）的真实 DB 级强制自此生效**；其余表待策略扩展（第 6 条）。
 3. ✅ **调用点收口（2026-10-03 完成）**：按 §3 残余表逐条补齐 ctx 或显式 system 作用域；`LOG_LEVEL=debug` 复跑至 **warn=0**（run15，含启动窗口与 MSP 面；带租户 192 条）。
-4. ◐ **enforce 灰度演练（driver 语义层，2026-10-03 完成；DB 强制待第 2 条）**：`RLS_MODE=enforce` 起服 + 三类身份全端点流量——逐请求与 `RLS_MODE=off` 基线**完全一致（diff=0；22×200 + 1×400 报表参数 + 1×404 视图 flag 关闭）**，日志仅 1 行 `rls: driver installed mode=enforce`、无 `enforce mode requires tenant_id` 错误 → fail-closed 不变量成立。
+4. ✅ **enforce 演练（2026-10-03，含分流）**：`RLS_MODE=enforce` + 双池起服——逐请求与 `RLS_MODE=off` 基线**完全一致（diff=0；22×200 + 1×400 报表参数 + 1×404 视图 flag 关闭）**；无 `enforce mode requires tenant_id`、无 `permission denied`。**现场修复**：`Tx/BeginTx` 的 `SET LOCAL` 参数由 untyped `nil` 改为定型 `[]any{}`（否则 `dialect/sql` 报 `invalid type <nil>. expect []any for args`，「记录 last_active 租户」事务静默失败；新增单测锁定）。
 5. ⬜ **监控**：`Driver.Snapshot()`（`QueriesShadow/MissingTenant/SystemBypass/EnforceApplied`）接入指标/告警；`MissingTenant` 非零即回滚。enforce 演练期间该值为 0。
 6. ⬜ **灰度扩展**：连接侧落地后，pilot 两表真实强制观察 → 逐步扩展策略表（R2 里程碑）。
 
@@ -112,6 +112,7 @@ go test -tags integration_rls -v ./database/rls/...
 - `rls-apply -verify`：`changes`/`vectors` RLS+FORCE 开启、`tenant_isolation` 策略存在；
 - 低权探针（`SET LOCAL ROLE itsm_app`）：tenant=990001 可见 **1** 行（播种的自身探针）、无租户 **0** 行、tenant=999999 **0** 行（探针行自动清理）；
 - 集成测试 `integration_rls`（真实库）：通过——session 变量注入/发放/回收、无租户拒绝（`ErrNoTenant`）、system bypass 跳过 SET；租户可见性正例因 `changes` 表空按设计 SKIP，由 `rls-apply` 播种探针覆盖。
+- 连接侧分流证据（启动与首流量）：`rls: app pool ready user=itsm_app current_user=itsm_app`、`rls: first statement routed to app pool tenant_id=1`；`pg_stat_activity` 可见 `itsm_app` 会话。
 
 ## 6. 变更记录
 
@@ -121,3 +122,4 @@ go test -tags integration_rls -v ./database/rls/...
 | 2026-10-03 | run8 复跑（最终构建）：warn 131→**25**、带租户 28→**131**；审计/ACL/RBAC/用户/菜单链路归零；残余 25 = Tx 12 + MCP/连接器 7 + 预认证/会话 6。补充 RBAC 预检 ctx 注入与 `/auth/me`/menus/tenants 收口 |
 | 2026-10-03 | run10–15（`saas_msp` 全表面）：driver 告警增补 **caller 归因**；修复 MCP store/组件启动、连接器管理器/重水合、工具队列启动恢复、allocation 展示名、登录落 home 租户视图与预认证 system 作用域；**run15 warns=0 / dbg=192（含启动窗口）** |
 | 2026-10-03 | **enforce 前置推进**：`rls-apply` 工具落地（角色/策略应用、密码注入、状态校验与低权探针）；DB 侧完成（roles + pilot 策略 + 探针实证）；集成测试 `integration_rls` 通过；`RLS_MODE=enforce` 演练与 `off` 基线逐请求一致（diff=0，无 fail-closed 错误）。剩余：连接侧双池化（请求=itsm_app / 平台=itsm_admin）与监控接入 |
+| 2026-10-03 | **连接侧分流落地（enforce 全链路）**：`rls.Driver` 按作用域选池（租户→`itsm_app` / 系统绕过→管理池）；`InitDatabaseWithRLS` 开通请求池并内建启动探针（`current_user`）；`WithTenantSQL/Tx`、系统编号分配经 `requestDB` 同步分流。现场修复 `Tx/BeginTx` 的 `SET LOCAL` 参数定型缺陷（untyped `nil` → `[]any{}`，否则事务静默失败）。复核：`app pool ready(current_user=itsm_app)` + `first statement routed to app pool(tenant_id=1)`；流量与基线 diff=0；**changes/vectors 两表 DB 级强制生效**。剩余：监控接入 + 策略扩展（R2） |

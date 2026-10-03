@@ -41,6 +41,7 @@ import (
 	"runtime"
 	"strconv"
 	"strings"
+	"sync"
 	"sync/atomic"
 
 	"itsm-backend/common/tenantctx"
@@ -77,8 +78,11 @@ func ParseMode(s string) Mode {
 // underlying entsql driver.
 type Driver struct {
 	inner dialect.Driver
-	mode  Mode
-	log   *zap.SugaredLogger
+	// appInner：低权请求池（itsm_app，RLS policy 生效）。仅 enforce 模式下、
+	// 且 ctx 带租户作用域时使用；为 nil 表示单池（行为与旧版一致）。
+	appInner dialect.Driver
+	mode     Mode
+	log      *zap.SugaredLogger
 
 	// stats: atomic counters exposed via Stats(). Cheap to update on hot path.
 	nQueriesOff     atomic.Uint64
@@ -86,6 +90,11 @@ type Driver struct {
 	nMissingTenant  atomic.Uint64
 	nSystemBypass   atomic.Uint64
 	nEnforceApplied atomic.Uint64
+	nAppRouted      atomic.Uint64
+
+	// appFirstOnce：首次把租户语句路由到低权池时记录一次 Info 日志，
+	// 供灰度期验证「路由确实发生」（无需外部探针）。
+	appFirstOnce sync.Once
 }
 
 // NewDriver wraps drv with the given mode. If log is nil, zap's global
@@ -104,6 +113,13 @@ func NewDriver(drv dialect.Driver, mode Mode, log *zap.SugaredLogger) *Driver {
 // Mode returns the currently active enforcement mode.
 func (d *Driver) Mode() Mode { return d.mode }
 
+// SetAppPool 配置低权请求池（itsm_app）。仅当 RLS_MODE=enforce 且语句带租户
+// 作用域时路由到该池；平台/系统绕过语句仍走管理池（BYPASSRLS）。
+func (d *Driver) SetAppPool(drv dialect.Driver) { d.appInner = drv }
+
+// AppPoolConfigured 报告是否已配置低权请求池。
+func (d *Driver) AppPoolConfigured() bool { return d.appInner != nil }
+
 // Stats returns runtime counters. Intended for /internal/rls debug endpoint.
 type Stats struct {
 	Mode           Mode   `json:"mode"`
@@ -112,6 +128,7 @@ type Stats struct {
 	MissingTenant  uint64 `json:"missing_tenant"`
 	SystemBypass   uint64 `json:"system_bypass"`
 	EnforceApplied uint64 `json:"enforce_applied"`
+	AppRouted      uint64 `json:"app_routed"`
 }
 
 // Stats snapshots the current counters.
@@ -123,7 +140,24 @@ func (d *Driver) Stats() Stats {
 		MissingTenant:  d.nMissingTenant.Load(),
 		SystemBypass:   d.nSystemBypass.Load(),
 		EnforceApplied: d.nEnforceApplied.Load(),
+		AppRouted:      d.nAppRouted.Load(),
 	}
+}
+
+// target 按 ctx 作用域选择连接池：enforce 模式下，租户作用域语句走低权请求池
+// （itsm_app，policy 强制）；系统绕过语句走管理池（BYPASSRLS）。其余模式恒用
+// 管理池，保持与分流前完全一致的行为。
+func (d *Driver) target(ctx context.Context) dialect.Driver {
+	if d.appInner != nil && d.mode == ModeEnforce && !tenantctx.IsSystemBypass(ctx) {
+		if tid, ok := tenantctx.TenantID(ctx); ok {
+			d.nAppRouted.Add(1)
+			d.appFirstOnce.Do(func() {
+				d.log.Infow("rls: first statement routed to app pool", "tenant_id", tid)
+			})
+			return d.appInner
+		}
+	}
+	return d.inner
 }
 
 // -----------------------------------------------------------------------
@@ -141,7 +175,7 @@ func (d *Driver) Close() error { return d.inner.Close() }
 // tenant context for all subsequent queries in this transaction.
 func (d *Driver) Tx(ctx context.Context) (dialect.Tx, error) {
 	d.observe(ctx, "Tx", "")
-	tx, err := d.inner.Tx(ctx)
+	tx, err := d.target(ctx).Tx(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -150,7 +184,9 @@ func (d *Driver) Tx(ctx context.Context) (dialect.Tx, error) {
 	if d.mode == ModeEnforce && !tenantctx.IsSystemBypass(ctx) {
 		if tid, ok := tenantctx.TenantID(ctx); ok {
 			// Execute SET LOCAL to set tenant context for this transaction
-			if err := tx.Exec(ctx, fmt.Sprintf("SET LOCAL %s = %d", tenantVarName, tid), nil, nil); err != nil {
+			// 注意：args 必须是定型 []any（untyped nil 会被 dialect/sql 拒绝：
+			// "invalid type <nil>. expect []any for args"）。
+			if err := tx.Exec(ctx, fmt.Sprintf("SET LOCAL %s = %d", tenantVarName, tid), []any{}, nil); err != nil {
 				// Rollback on failure - don't return a broken tx
 				_ = tx.Rollback()
 				return nil, fmt.Errorf("rls: failed to set tenant in transaction: %w", err)
@@ -175,12 +211,13 @@ func (d *Driver) BeginTx(ctx context.Context, opts *sql.TxOptions) (dialect.Tx, 
 	var tx dialect.Tx
 	var err error
 
-	if t, ok := d.inner.(interface {
+	inner := d.target(ctx)
+	if t, ok := inner.(interface {
 		BeginTx(context.Context, *sql.TxOptions) (dialect.Tx, error)
 	}); ok {
 		tx, err = t.BeginTx(ctx, opts)
 	} else {
-		tx, err = d.inner.Tx(ctx)
+		tx, err = inner.Tx(ctx)
 	}
 	if err != nil {
 		return nil, err
@@ -189,7 +226,7 @@ func (d *Driver) BeginTx(ctx context.Context, opts *sql.TxOptions) (dialect.Tx, 
 	// In enforce mode, set tenant context immediately after transaction start
 	if d.mode == ModeEnforce && !tenantctx.IsSystemBypass(ctx) {
 		if tid, ok := tenantctx.TenantID(ctx); ok {
-			if err := tx.Exec(ctx, fmt.Sprintf("SET LOCAL %s = %d", tenantVarName, tid), nil, nil); err != nil {
+			if err := tx.Exec(ctx, fmt.Sprintf("SET LOCAL %s = %d", tenantVarName, tid), []any{}, nil); err != nil {
 				_ = tx.Rollback()
 				return nil, fmt.Errorf("rls: failed to set tenant in transaction: %w", err)
 			}
@@ -211,7 +248,7 @@ func (d *Driver) Exec(ctx context.Context, query string, args, v any) error {
 		if err != nil {
 			return err
 		}
-		return d.inner.Exec(ec, query, args, v)
+		return d.target(ctx).Exec(ec, query, args, v)
 	}
 	d.observe(ctx, "Exec", query)
 	return d.inner.Exec(ctx, query, args, v)
@@ -224,7 +261,7 @@ func (d *Driver) Query(ctx context.Context, query string, args, v any) error {
 		if err != nil {
 			return err
 		}
-		return d.inner.Query(ec, query, args, v)
+		return d.target(ctx).Query(ec, query, args, v)
 	}
 	d.observe(ctx, "Query", query)
 	return d.inner.Query(ctx, query, args, v)
