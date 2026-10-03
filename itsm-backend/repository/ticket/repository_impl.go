@@ -3,6 +3,7 @@ package ticket
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"fmt"
 	"reflect"
 	"strings"
@@ -19,6 +20,20 @@ import (
 // SequenceProvider 工单号生成接口（避免循环依赖）
 type SequenceProvider interface {
 	GetNextSequenceWithExpiry(ctx context.Context, key string, expiredAt time.Time) (int64, error)
+}
+
+// ErrTicketNumberCollision：工单号在事务内发生唯一键冲突。
+//
+// 事务内冲突会使 PostgreSQL 将整个事务置为 aborted（后续语句一律 25P02），
+// 因此仓库层**不得**在同一事务内重试语句；必须上抛该哨兵错误，由调用方回滚
+// 并以**新事务**重试（service.CreateTicket 已实现重试循环）。
+var ErrTicketNumberCollision = errors.New("ticket number collision")
+
+// isTicketNumberCollision 判定唯一键冲突（Postgres 23505 / ent 约束错误）。
+func isTicketNumberCollision(err error) bool {
+	return ent.IsConstraintError(err) ||
+		strings.Contains(err.Error(), "duplicate key") ||
+		strings.Contains(err.Error(), "23505")
 }
 
 // sequenceServiceAdapter SequenceService 适配器
@@ -156,7 +171,7 @@ func (r *EntRepository) Create(ctx context.Context, params *CreateParams, tenant
 			return toDomainModel(entity), nil
 		}
 
-		if ent.IsConstraintError(err) || strings.Contains(err.Error(), "duplicate key") || strings.Contains(err.Error(), "23505") {
+		if isTicketNumberCollision(err) {
 			r.logger.Warnw("ticket number collision detected during create, retrying",
 				"ticket_number", ticketNumber,
 				"tenant_id", tenantID,
@@ -178,76 +193,71 @@ func (r *EntRepository) CreateWithTx(ctx context.Context, tx *ent.Tx, params *Cr
 	if tx == nil {
 		return nil, fmt.Errorf("CreateWithTx requires non-nil tx")
 	}
-	for attempt := 0; attempt < 3; attempt++ {
-		ticketNumber, err := r.GenerateTicketNumber(ctx, tenantID)
-		if err != nil {
-			return nil, fmt.Errorf("generate ticket number: %w", err)
-		}
-
-		builder := tx.Ticket.Create().
-			SetTitle(params.Title).
-			SetDescription(params.Description).
-			SetType(string(params.Type)).
-			SetPriority(string(params.Priority)).
-			SetTicketNumber(ticketNumber).
-			SetRequesterID(params.RequesterID).
-			SetTenantID(tenantID).
-			SetStatus(string(StatusNew))
-		if params.DescriptionHTML != "" {
-			builder.SetDescriptionHTML(params.DescriptionHTML)
-		}
-		if params.DescriptionFormat != "" {
-			builder.SetDescriptionFormat(params.DescriptionFormat)
-		}
-		if params.FormFields == nil {
-			params.FormFields = map[string]interface{}{}
-		}
-		builder.SetFormFields(params.FormFields)
-		if params.TicketTypeID != nil {
-			builder.SetTicketTypeID(*params.TicketTypeID)
-		}
-		if params.TicketTypeCode != "" {
-			builder.SetTicketTypeCodeSnapshot(params.TicketTypeCode)
-		}
-		if params.TicketTypeName != "" {
-			builder.SetTicketTypeNameSnapshot(params.TicketTypeName)
-		}
-
-		if params.AssigneeID != nil {
-			builder.SetAssigneeID(*params.AssigneeID)
-		}
-		if params.CategoryID != nil {
-			builder.SetCategoryID(*params.CategoryID)
-		}
-		if params.TemplateID != nil {
-			builder.SetTemplateID(*params.TemplateID)
-		}
-		if params.ParentTicketID != nil {
-			builder.SetParentTicketID(*params.ParentTicketID)
-		}
-		if len(params.TagIDs) > 0 {
-			builder.AddTagIDs(params.TagIDs...)
-		}
-		applyMSPCreateSnapshot(builder, params)
-
-		entity, err := builder.Save(ctx)
-		if err == nil {
-			return toDomainModel(entity), nil
-		}
-
-		if ent.IsConstraintError(err) || strings.Contains(err.Error(), "duplicate key") || strings.Contains(err.Error(), "23505") {
-			r.logger.Warnw("ticket number collision detected during create (tx), retrying",
-				"ticket_number", ticketNumber,
-				"tenant_id", tenantID,
-				"attempt", attempt+1,
-				"error", err)
-			continue
-		}
-
-		return nil, fmt.Errorf("create ticket (tx): %w", err)
+	ticketNumber, err := r.GenerateTicketNumber(ctx, tenantID)
+	if err != nil {
+		return nil, fmt.Errorf("generate ticket number: %w", err)
 	}
 
-	return nil, fmt.Errorf("create ticket (tx): ticket number collision persisted after retries")
+	builder := tx.Ticket.Create().
+		SetTitle(params.Title).
+		SetDescription(params.Description).
+		SetType(string(params.Type)).
+		SetPriority(string(params.Priority)).
+		SetTicketNumber(ticketNumber).
+		SetRequesterID(params.RequesterID).
+		SetTenantID(tenantID).
+		SetStatus(string(StatusNew))
+	if params.DescriptionHTML != "" {
+		builder.SetDescriptionHTML(params.DescriptionHTML)
+	}
+	if params.DescriptionFormat != "" {
+		builder.SetDescriptionFormat(params.DescriptionFormat)
+	}
+	if params.FormFields == nil {
+		params.FormFields = map[string]interface{}{}
+	}
+	builder.SetFormFields(params.FormFields)
+	if params.TicketTypeID != nil {
+		builder.SetTicketTypeID(*params.TicketTypeID)
+	}
+	if params.TicketTypeCode != "" {
+		builder.SetTicketTypeCodeSnapshot(params.TicketTypeCode)
+	}
+	if params.TicketTypeName != "" {
+		builder.SetTicketTypeNameSnapshot(params.TicketTypeName)
+	}
+
+	if params.AssigneeID != nil {
+		builder.SetAssigneeID(*params.AssigneeID)
+	}
+	if params.CategoryID != nil {
+		builder.SetCategoryID(*params.CategoryID)
+	}
+	if params.TemplateID != nil {
+		builder.SetTemplateID(*params.TemplateID)
+	}
+	if params.ParentTicketID != nil {
+		builder.SetParentTicketID(*params.ParentTicketID)
+	}
+	if len(params.TagIDs) > 0 {
+		builder.AddTagIDs(params.TagIDs...)
+	}
+	applyMSPCreateSnapshot(builder, params)
+
+	entity, err := builder.Save(ctx)
+	if err == nil {
+		return toDomainModel(entity), nil
+	}
+
+	if isTicketNumberCollision(err) {
+		r.logger.Warnw("ticket number collision detected during create (tx); caller must retry with a fresh transaction",
+			"ticket_number", ticketNumber,
+			"tenant_id", tenantID,
+			"error", err)
+		return nil, fmt.Errorf("%w: number=%s: %v", ErrTicketNumberCollision, ticketNumber, err)
+	}
+
+	return nil, fmt.Errorf("create ticket (tx): %w", err)
 }
 
 // GetByID 根据 ID 获取工单

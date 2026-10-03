@@ -872,3 +872,47 @@ func TestTicketStateMachine_SingleSourceOfTruth(t *testing.T) {
 		}
 	}
 }
+
+// TestRepository_CreateWithTx_NumberCollisionReturnsSentinel（2026-10-03 业务验收缺陷回归）：
+// 事务内工单号冲突会让 PostgreSQL 中止事务（后续语句 25P02），因此仓库层禁止在同一
+// 事务内重试；必须返回 ErrTicketNumberCollision，由调用方回滚并以新事务重试。
+func TestRepository_CreateWithTx_NumberCollisionReturnsSentinel(t *testing.T) {
+	fx := newRepoFixture(t)
+	defer fx.client.Close()
+	repo := fx.repo.(*EntRepository)
+
+	now := time.Now()
+	prefix := fmt.Sprintf("TKT-%04d%02d-", now.Year(), int(now.Month()))
+
+	// 占用 000001（模拟序列落后：号已被历史数据使用）。
+	occupier, err := repo.Create(fx.ctx, &CreateParams{
+		Title: "occupy", Description: "occupy", Priority: PriorityMedium,
+		Type: TypeIncident, RequesterID: fx.user.ID,
+	}, fx.tenant.ID)
+	require.NoError(t, err)
+	require.Equal(t, prefix+"000001", occupier.TicketNumber)
+
+	// 序列重放 1 → 事务内冲突：必须返回哨兵错误（而不是继续在同一事务里 SQL 重试）。
+	repo.SetSequenceService(&stubSequenceProvider{values: []int64{1}})
+	tx, err := fx.client.Tx(fx.ctx)
+	require.NoError(t, err)
+	_, err = repo.CreateWithTx(fx.ctx, tx, &CreateParams{
+		Title: "collide", Description: "collide", Priority: PriorityMedium,
+		Type: TypeIncident, RequesterID: fx.user.ID,
+	}, fx.tenant.ID)
+	require.Error(t, err)
+	require.ErrorIs(t, err, ErrTicketNumberCollision)
+	require.NoError(t, tx.Rollback())
+
+	// 调用方以新事务 + 新的序列值重试 → 成功（这正是 service.CreateTicket 的重试语义）。
+	repo.SetSequenceService(&stubSequenceProvider{values: []int64{2}})
+	tx2, err := fx.client.Tx(fx.ctx)
+	require.NoError(t, err)
+	created, err := repo.CreateWithTx(fx.ctx, tx2, &CreateParams{
+		Title: "retry ok", Description: "retry ok", Priority: PriorityMedium,
+		Type: TypeIncident, RequesterID: fx.user.ID,
+	}, fx.tenant.ID)
+	require.NoError(t, err)
+	require.NoError(t, tx2.Commit())
+	require.Equal(t, prefix+"000002", created.TicketNumber)
+}

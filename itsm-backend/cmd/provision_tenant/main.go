@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"errors"
 	"flag"
 	"fmt"
 	"os"
@@ -80,8 +81,14 @@ func main() {
 		adminID, err := bootstrap.CreateFirstAdmin(ctx, client, sugar, targetID, *adminPassword,
 			bootstrap.WithAdminIdentity(*adminUsername, *adminEmail))
 		if err != nil {
-			sugar.Fatalw("create first admin failed", "tenant_id", targetID, "error", err)
+			// IP-P1-5 幂等：复跑（管理员已存在）不视为失败，便于部署/验收脚本反复执行。
+			if errors.Is(err, bootstrap.ErrAdminExists) {
+				sugar.Infow("first admin already exists; skip", "tenant_id", targetID)
+			} else {
+				sugar.Fatalw("create first admin failed", "tenant_id", targetID, "error", err)
+			}
+		} else {
+			sugar.Infow("first admin created", "tenant_id", targetID, "user_id", adminID)
 		}
-		sugar.Infow("first admin created", "tenant_id", targetID, "user_id", adminID)
 	}
 }

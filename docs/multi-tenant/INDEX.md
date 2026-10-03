@@ -57,6 +57,7 @@
 | [msp-frontend-pages-and-permissions-analysis.md](./plan/msp-frontend-pages-and-permissions-analysis.md) | L4 | Draft v0.2（P0 契约冻结） | 前端页面/权限/菜单现状与改造 | `FE-A1–A8` |
 | [msp-integration-with-rbac-org-workflow-analysis.md](./plan/msp-integration-with-rbac-org-workflow-analysis.md) | L4 | Draft v0.4（回填 + P1 同步） | ×RBAC/组织/工作流集成分析与冲突处置 | `INT-D#` |
 | [msp-three-persona-operation-simulation.md](./plan/msp-three-persona-operation-simulation.md) | L6 | Draft v0.3（复核） | 三角色操作演练剧本（验收载体） | — |
+| [msp-multi-tenant-business-acceptance-design.md](./plan/msp-multi-tenant-business-acceptance-design.md) | L6 | v1.1（2026-10-03） | **多租户业务验收设计**（G0–G7 场景目录 + 判据 + 证据）：平台建租户/服务商接单/客户闭环/隔离反例/审计；脚本 `scripts/msp/acceptance/run-msp-business-acceptance.ps1` | `S1–S4` `P1–P10` `C1–C6` `I1–I6` `A1–A3` |
 | [msp-docs-consistency-audit.md](./plan/msp-docs-consistency-audit.md) | 治理 | v0.3（C1–C19 全闭环） | 一致性审计（权威层级/冲突 C1–C19/整改） | `C1–C19` |
 | [msp-implementation-plan.md](./plan/msp-implementation-plan.md) | 落地 | **v1.1（P0/P1 契约冻结）** | **实施方案 P0→P1→P2**（步骤/DoD/回滚） | `IP-P0-#` `IP-P1-#` `IP-P2-#` |
 | [msp-account-provisioning-and-registration-flow.md](./plan/msp-account-provisioning-and-registration-flow.md) | L4 | Draft v0.3（决策同步） | **建号与注册流程**（四通道/邀请/首登/过渡期） | — |

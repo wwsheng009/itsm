@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/csv"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"regexp"
 	"strconv"
@@ -396,52 +397,67 @@ func (s *TicketService) CreateTicket(ctx context.Context, req *dto.CreateTicketR
 	// 其他后续副作用（智能分配 / SLA 期限 / 审批触发）不在本次事务范围内，按原语义保持
 	// 独立提交，其失败仅记 warnw 不阻塞工单创建。
 	var tkt *ticket.Ticket
-	err = s.runCreateTicketTx(ctx, params, tenantID, func(tx *ent.Tx) error {
-		created, err := s.repo.CreateWithTx(ctx, tx, params, tenantID)
-		if err != nil {
-			return err
-		}
-		tkt = created
-
-		if s.notificationSvc != nil {
-			entTicket := s.toEntTicket(tkt)
-			if err := s.notificationSvc.NotifyTicketCreatedTx(ctx, tx, entTicket); err != nil {
-				return fmt.Errorf("enqueue ticket-created notification: %w", err)
-			}
-		}
-		if s.workflowOutboxEnabled {
-			_, err := commandbus.EnqueueTx(ctx, tx, commandbus.EnqueueRequest{
-				TenantID: tenantID, CommandType: commandbus.CommandStartBPMN,
-				AggregateType: "ticket", AggregateID: created.ID,
-				IdempotencyKey: fmt.Sprintf("ticket:%d:workflow:start", created.ID),
-				Payload: map[string]interface{}{
-					"businessType": "ticket", "businessId": created.ID,
-					"workflowDefinitionKey": workflowDefinitionKey,
-				},
-			})
+	// 工单号冲突处置（2026-10-03 业务验收发现的缺陷）：事务内唯一键冲突会使
+	// PostgreSQL 中止整个事务（后续语句 25P02）；仓库层返回 ErrTicketNumberCollision，
+	// 这里必须回滚并以**新事务**重试（≤3 次），禁止在同一事务内重试语句。
+	err = nil
+	for attempt := 0; attempt < 3; attempt++ {
+		tkt = nil
+		err = s.runCreateTicketTx(ctx, params, tenantID, func(tx *ent.Tx) error {
+			created, err := s.repo.CreateWithTx(ctx, tx, params, tenantID)
 			if err != nil {
-				return fmt.Errorf("enqueue ticket workflow: %w", err)
+				return err
 			}
-		}
-		if s.sideEffectOutboxEnabled {
-			commands := []commandbus.EnqueueRequest{
-				{
-					TenantID: tenantID, CommandType: commandbus.CommandExecuteTicketRules, AggregateType: "ticket", AggregateID: created.ID,
-					IdempotencyKey: fmt.Sprintf("ticket:%d:rules:create", created.ID), Payload: map[string]interface{}{"event": "created"},
-				},
-				{
-					TenantID: tenantID, CommandType: commandbus.CommandSyncTicketFeishu, AggregateType: "ticket", AggregateID: created.ID,
-					IdempotencyKey: fmt.Sprintf("ticket:%d:feishu:sync:v%d", created.ID, created.Version), Payload: map[string]interface{}{"event": "created", "version": created.Version},
-				},
-			}
-			for _, command := range commands {
-				if _, err := commandbus.EnqueueTx(ctx, tx, command); err != nil {
-					return fmt.Errorf("enqueue ticket side effect %s: %w", command.CommandType, err)
+			tkt = created
+
+			if s.notificationSvc != nil {
+				entTicket := s.toEntTicket(tkt)
+				if err := s.notificationSvc.NotifyTicketCreatedTx(ctx, tx, entTicket); err != nil {
+					return fmt.Errorf("enqueue ticket-created notification: %w", err)
 				}
 			}
+			if s.workflowOutboxEnabled {
+				_, err := commandbus.EnqueueTx(ctx, tx, commandbus.EnqueueRequest{
+					TenantID: tenantID, CommandType: commandbus.CommandStartBPMN,
+					AggregateType: "ticket", AggregateID: created.ID,
+					IdempotencyKey: fmt.Sprintf("ticket:%d:workflow:start", created.ID),
+					Payload: map[string]interface{}{
+						"businessType": "ticket", "businessId": created.ID,
+						"workflowDefinitionKey": workflowDefinitionKey,
+					},
+				})
+				if err != nil {
+					return fmt.Errorf("enqueue ticket workflow: %w", err)
+				}
+			}
+			if s.sideEffectOutboxEnabled {
+				commands := []commandbus.EnqueueRequest{
+					{
+						TenantID: tenantID, CommandType: commandbus.CommandExecuteTicketRules, AggregateType: "ticket", AggregateID: created.ID,
+						IdempotencyKey: fmt.Sprintf("ticket:%d:rules:create", created.ID), Payload: map[string]interface{}{"event": "created"},
+					},
+					{
+						TenantID: tenantID, CommandType: commandbus.CommandSyncTicketFeishu, AggregateType: "ticket", AggregateID: created.ID,
+						IdempotencyKey: fmt.Sprintf("ticket:%d:feishu:sync:v%d", created.ID, created.Version), Payload: map[string]interface{}{"event": "created", "version": created.Version},
+					},
+				}
+				for _, command := range commands {
+					if _, err := commandbus.EnqueueTx(ctx, tx, command); err != nil {
+						return fmt.Errorf("enqueue ticket side effect %s: %w", command.CommandType, err)
+					}
+				}
+			}
+			return nil
+		})
+		if err == nil {
+			break
 		}
-		return nil
-	})
+		if !errors.Is(err, ticket.ErrTicketNumberCollision) {
+			break
+		}
+		s.logger.Warnw("ticket number collision on create; retrying with a fresh transaction",
+			"tenant_id", tenantID, "attempt", attempt+1, "error", err)
+	}
 	if err != nil {
 		s.logger.Errorw("Failed to create ticket", "error", err)
 		return nil, err
