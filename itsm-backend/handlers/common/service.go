@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"time"
 
+	"itsm-backend/common/tenantctx"
 	"itsm-backend/ent"
 	"itsm-backend/ent/mspallocation"
 	enttenant "itsm-backend/ent/tenant"
@@ -350,6 +351,11 @@ func (s *Service) GetUser(ctx context.Context, id int) (*User, error) {
 // GetUserScoped 获取用户信息，并按指定租户（token 作用域）计算 permissions。
 // /auth/me 在切换租户后必须返回目标租户的权限，故由 handler 传入 context 中的 tenant_id。
 func (s *Service) GetUserScoped(ctx context.Context, id, tenantID int) (*User, error) {
+	// R2B 阴影观察（2026-10-03）：/auth/me 为 auth-scoped 路由（只挂 Auth 中间件），
+	// token 作用域租户已知时显式补齐 ctx（用户行/权限解析归因；enforce 前置）。
+	if tenantID > 0 {
+		ctx = tenantctx.WithTenantID(ctx, tenantID)
+	}
 	u, err := s.repo.GetUserByID(ctx, id)
 	if err != nil {
 		return nil, err
@@ -357,7 +363,7 @@ func (s *Service) GetUserScoped(ctx context.Context, id, tenantID int) (*User, e
 	if tenantID <= 0 {
 		tenantID = u.TenantID
 	}
-	u.Permissions = s.resolvePermissions(ctx, u.ID, tenantID)
+	u.Permissions = s.resolvePermissions(tenantctx.WithTenantID(ctx, tenantID), u.ID, tenantID)
 	return u, nil
 }
 
@@ -438,6 +444,9 @@ func (s *Service) GetAuditLogs(ctx context.Context, tenantID int, userID int) ([
 // GetUserTenants 获取用户可访问的租户集合（IP-P0-6 语义修正）：
 // home ∪ 有效 allocation 客户 ∪ 平台全量（super_admin/sysadmin）；去重且 home 优先。
 func (s *Service) GetUserTenants(ctx context.Context, userID int) ([]interface{}, error) {
+	// IP-P0-6：本方法跨租户聚合（home ∪ allocation 客户 ∪ 平台全量），属平台范围查询；
+	// R2B：显式 system bypass，避免 enforce 下被 RLS 装饰器 fail-closed 拦截（平台面白名单）。
+	ctx = tenantctx.WithSystemBypass(ctx)
 	user, err := s.client.User.Get(ctx, userID)
 	if err != nil {
 		return nil, fmt.Errorf("user not found: %w", err)

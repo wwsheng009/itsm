@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"strings"
 
+	"itsm-backend/common/tenantctx"
 	"itsm-backend/dto"
 	"itsm-backend/ent"
 	"itsm-backend/ent/menu"
@@ -208,6 +209,10 @@ func (s *MenuService) DeleteMenu(ctx context.Context, id int, tenantID int) erro
 // GetUserMenus 获取用户可见菜单（根据用户角色和权限）
 func (s *MenuService) GetUserMenus(ctx context.Context, userID int, tenantID int) (*dto.MenuTreeResponse, error) {
 	s.logger.Infow("Getting user menus", "user_id", userID, "tenant_id", tenantID)
+
+	// R2B 阴影观察（2026-10-03）：/auth/menus 为 auth-scoped 路由（不挂租户中间件），
+	// 显式补齐租户 ctx 供本函数与 getUserPermissions 的查询归因（enforce 前置）。
+	ctx = tenantctx.WithTenantID(ctx, tenantID)
 
 	// 获取用户角色
 	userEntity, err := s.client.User.Query().

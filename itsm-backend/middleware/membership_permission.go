@@ -10,6 +10,7 @@ import (
 	"sync/atomic"
 	"time"
 
+	"itsm-backend/common/tenantctx"
 	"itsm-backend/ent"
 	"itsm-backend/ent/permission"
 	"itsm-backend/ent/role"
@@ -163,6 +164,10 @@ func ResolvePermissions(ctx context.Context, client *ent.Client, userID, tenantI
 			"user_id", userID, "tenant_id", tenantID, "reason", "invalid_scope")
 		return nil, PermissionSourceNone, errors.New("invalid user/tenant scope")
 	}
+
+	// R2B 阴影观察（2026-10-03）：调用方（RBAC 预检）可能先于租户中间件执行；
+	// 本函数全部查询按 tenantID 收窄，显式补齐租户 ctx（enforce 前置）。
+	ctx = tenantctx.WithTenantID(ctx, tenantID)
 
 	userEntity, err := client.User.Get(ctx, userID)
 	if err != nil {

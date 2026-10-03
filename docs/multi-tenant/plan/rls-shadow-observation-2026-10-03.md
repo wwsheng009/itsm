@@ -33,23 +33,23 @@ enforce 前置的"阴影观察"：以 `RLS_MODE=shadow` 运行真实实例，采
 | --- | --- | --- | --- |
 | 首轮（driver 仅 op+首词） | 131 | 28 | 无法归因 → 先补 `query` 预览字段 |
 | 复跑（含 ACL/审计修复） | 100 | 52 | `endpoint_ac_ls` 21→0；`audit_logs` 4→1 |
-| 审计第 3 写入点修复后 | 预期 ≥98 级别收敛 | — | 由 `middleware/audit.go` 三处写入统一覆盖 |
+| run8（最终构建，含全部 ctx 修复） | **25** | **131** | `audit_logs`=0、`endpoint_ac_ls`=0、roles/permissions/role_permissions=0、users 列表/菜单链路=0；残余见下表 |
 
 **已修复（本轮，代码）**：
 
 1. `database/rls/driver.go`：shadow/enforce 告警与 debug 增补 `query`（单行化、截断 160 字符、仅占位符）——可归因到具体 SQL；此前只有 `op+SELECT/INSERT`，无法定位调用方。
 2. `middleware/smart_permission.go` → `loadACLsFromDB`：按 tenant 过滤但未补 ctx；现显式 `tenantctx.WithTenantID(ctx, tenantID)`（预检可能先于租户中间件）。**实测告警 21→0**。
-3. `middleware/audit.go`（3 个写入点：`RecordAuthAudit`、`RecordTenantDeniedAudit`、gin 审计中间件）：写入 ctx 由 `context.Background()` 派生且未带租户；现已知租户 → `WithTenantID`，未知（登录失败/预认证）→ `WithSystemBypass`（审计不丢）。**实测 4→1，第三点修复后应归零**。
+3. `middleware/audit.go`（3 个写入点：`RecordAuthAudit`、`RecordTenantDeniedAudit`、gin 审计中间件）：写入 ctx 由 `context.Background()` 派生且未带租户；现已知租户 → `WithTenantID`，未知（登录失败/预认证）→ `WithSystemBypass`（审计不丢）。**run8 实测 0**。
+4. `middleware/rbac.go`：RBAC 预检先于租户中间件（router.go 先挂 `RBACMiddleware`），且 auth-scoped 路由（`/auth/me|menus|tenants`）不挂租户中间件——预检在 JWT 解析出 tenantID 后**显式注入请求 ctx**，并对 `loadPermissionsFromDB`/`DBOnlyState` 两处加载器补租户 ctx。**roles/permissions/role_permissions 告警归零**。
+5. `middleware/membership_permission.go`（`ResolvePermissions`）、`service/menu_service.go`（`GetUserMenus`）、`handlers/common/service.go`（`GetUserScoped`）补租户 ctx；`GetUserTenants`（跨租户聚合，IP-P0-6）显式 **system bypass**（平台面白名单）。**用户/菜单链路告警归零**。
 
-**剩余 warn 分类（enforce 前需处置）**：
+**run8 残余 warn 25 条分类（enforce 前需处置）**：
 
 | 类别 | 代表查询 | 处置方向 |
 | --- | --- | --- |
-| 预认证（登录/初始化） | `users`（用户名查找）、`roles`/`role_permissions`（身份解析）、`tenants`（多租户选择列表） | 设计上无租户上下文；enforce 前改为 **system bypass ctx**（或该路径专用 admin 连接） |
-| 平台面运维查询 | `admin/tenants` 全租户列表、`tenants` 查询 | 同上：平台 scope 显式 system bypass |
-| 登录后 RBAC/菜单解析 | `permissions` / `role_permissions` / `roles` / `menus`（约 17 条） | 逐点补 `tenantctx`（请求已认证、租户已知） |
-| 无租户事务 | `Tx`（9 条，op=Tx 无 query） | 定位开启点（工作台/批量/后台扫描），补 ctx 或改 system |
-| MCP/连接器元数据 | `mcp_servers` / `mcp_server_tools` / `connector_configs` 等 | 平台级配置：按豁免/系统路径处置 |
+| 无租户事务（12） | `Tx`（op=Tx，无 query） | 逐点定位事务开启方（登录/审计/组件状态链路），补 ctx 或 system |
+| MCP/连接器元数据（7） | `mcp_server_tools` / `mcp_servers` / `connector_configs` / `tool_invocations` | 组件就绪/状态链路的平台级读取：按平台面显式 system bypass（或按 tenant_id 收窄） |
+| 预认证/会话残余（6） | `tenants`（多租户选择）、`users`（用户名查找） | 设计上无租户上下文：enforce 前改为 **system bypass ctx**（或该路径专用 admin 连接） |
 
 > MSP 专属路径（`/api/v1/msp/*`）本轮未覆盖：联调实例当前为 `DEPLOYMENT_MODE=private`（MSP 路由 404）。多 provider 场景的阴影观察应切 `saas_msp` 后复跑本工具。
 
@@ -83,3 +83,4 @@ Get-Content itsm-backend\logs\itsm.log -Tail 20000 | Where-Object { $_ -match 'q
 | 日期 | 变更 |
 | --- | --- |
 | 2026-10-03 | 首轮 shadow 观察：driver 告警增补 query 预览；修复 ACL/审计 4 处 ctx；产出剩余分类与 enforce 清单 |
+| 2026-10-03 | run8 复跑（最终构建）：warn 131→**25**、带租户 28→**131**；审计/ACL/RBAC/用户/菜单链路归零；残余 25 = Tx 12 + MCP/连接器 7 + 预认证/会话 6。补充 RBAC 预检 ctx 注入与 `/auth/me`/menus/tenants 收口 |

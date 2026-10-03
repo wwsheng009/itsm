@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"itsm-backend/common"
+	"itsm-backend/common/tenantctx"
 	"itsm-backend/ent"
 	"itsm-backend/ent/permission"
 	"itsm-backend/ent/role"
@@ -550,13 +551,17 @@ func loadRolePermissionsFromDB(ctx context.Context, client *ent.Client, roleName
 	// 从数据库加载: 通过 role_permissions 联表查询
 	var perms []Permission
 
+	// R2B 阴影观察（2026-10-03）：调用方可能先于租户中间件（RBAC 预检链路），
+	// 而本组查询均按 tenantID 收窄；显式补齐租户 ctx。
+	qctx := tenantctx.WithTenantID(ctx, tenantID)
+
 	// 首先查找角色ID
 	roleEntity, err := client.Role.Query().
 		Where(
 			role.Code(roleName),
 			role.TenantID(tenantID),
 		).
-		Only(ctx)
+		Only(qctx)
 
 	if err == nil && roleEntity != nil {
 		roleID := roleEntity.ID
@@ -564,7 +569,7 @@ func loadRolePermissionsFromDB(ctx context.Context, client *ent.Client, roleName
 		// 直接查询 role_permissions 联表获取该角色的权限
 		rolePerms, err := client.RolePermission.Query().
 			Where(rolepermission.RoleIDEQ(roleID), rolepermission.TenantID(tenantID)).
-			All(ctx)
+			All(qctx)
 
 		if err == nil && len(rolePerms) > 0 {
 			// 提取permission_id列表
@@ -576,7 +581,7 @@ func loadRolePermissionsFromDB(ctx context.Context, client *ent.Client, roleName
 			// 查询 permissions 表获取权限详情（加 tenant 过滤）
 			permsData, err := client.Permission.Query().
 				Where(permission.IDIn(permIDs...), permission.TenantID(tenantID)).
-				All(ctx)
+				All(qctx)
 
 			if err == nil {
 				for _, p := range permsData {
@@ -725,7 +730,7 @@ func loadPermissionsFromDBDBOnlyStateUncached(ctx context.Context, client *ent.C
 			role.Code(roleName),
 			role.TenantID(tenantID),
 		).
-		Only(ctx)
+		Only(tenantctx.WithTenantID(ctx, tenantID))
 	if err != nil || roleEntity == nil {
 		// DB 可用但没角色行（典型：租户未跑 RBAC 初始化）
 		return permissionDBOnlyUnconfigured, nil
@@ -897,6 +902,15 @@ func RBACMiddleware(client *ent.Client) gin.HandlerFunc {
 			c.Abort()
 			return
 		}
+
+		// R2B 阴影观察（2026-10-03）：RBAC 预检先于租户中间件执行（router.go 先挂
+		// RBACMiddleware，后由 tenant 组挂 TenantMiddleware），且 auth-scoped 路由
+		// （/auth/me、/auth/menus、/auth/tenants）不挂租户中间件；而 tenant_id 此刻
+		// 已由 AuthMiddleware 从 JWT 解出。显式注入租户 ctx，使 RBAC 自身的用户/
+		// 角色查询与下游 service 查询均可被 RLS 归因（enforce 前置）。
+		c.Request = c.Request.WithContext(
+			tenantctx.WithTenantID(c.Request.Context(), tenantID),
+		)
 
 		// 从数据库获取用户最新角色信息
 		// P0-4：使用请求 ctx，随请求超时/取消传播
