@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io/fs"
 	"os"
+	"path"
 	"path/filepath"
 	"sort"
 	"strings"
@@ -186,7 +187,10 @@ func (s *BPMNTemplateService) isTemplateDeployed(ctx context.Context, templateID
 // deployTemplate 部署单个模板
 func (s *BPMNTemplateService) deployTemplate(ctx context.Context, tmpl *TemplateInfo, tenantID int) error {
 	// 读取模板文件
-	data, err := bpmnTemplates.ReadFile(filepath.Join("bpmn", tmpl.Filename))
+	// embed.FS 只接受正斜杠路径：filepath.Join 在 Windows 产出 `bpmn\x.bpmn`
+	// 会命中 "file does not exist"（2026-10-03 修复；此前 Windows 上全部内置模板
+	// 被误判为未通过部署门禁，进而 0 流程定义 + ProvisionTenant 失败）。
+	data, err := bpmnTemplates.ReadFile(path.Join("bpmn", tmpl.Filename))
 	if err != nil {
 		return errors.Wrap(err, "读取模板文件失败")
 	}
@@ -319,8 +323,8 @@ func (s *BPMNTemplateService) DeployTemplateByName(ctx context.Context, name str
 
 // GetTemplateContent 获取模板内容
 func (s *BPMNTemplateService) GetTemplateContent(name string) ([]byte, error) {
-	path := filepath.Join("bpmn", name+".bpmn")
-	return bpmnTemplates.ReadFile(path)
+	rel := path.Join("bpmn", name+".bpmn")
+	return bpmnTemplates.ReadFile(rel)
 }
 
 // ExportTemplateToFile 将已部署的流程导出为BPMN文件

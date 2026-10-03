@@ -49,7 +49,7 @@
 错误均为 `resolve process definition incident_emergency_flow: ent: process_definition not found`。
 **隔离方法**：`git stash push -- internal/authz/catalog.go … router/mcp_routes.go`（仅本次改动）后复跑同一用例 → **同样失败**；
 `git stash pop` 已还原（`Dropped refs/stash@{0}`）。
-结论：与 M0-10 无关的存量红（租户模板流程定义种子缺失），已登记为独立欠账，不在本任务修复范围。
+结论：与 M0-10 无关的存量红（租户模板流程定义种子缺失），已登记为独立欠账，不在本任务修复范围。**后续关闭（2026-10-03，v1.45）**：根因＝Windows `filepath.Join` 拼 embed.FS 路径（反斜杠）；改 `path.Join` 后 `pkg/seeder` 全包绿。
 
 ## 覆盖说明
 

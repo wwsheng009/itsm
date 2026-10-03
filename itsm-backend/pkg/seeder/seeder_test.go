@@ -400,7 +400,16 @@ func TestProductionInitializersRepairMissingServiceCatalogWithoutOverwritingTena
 	).Exec(ctx)
 	require.NoError(t, err)
 
-	extension := components[len(components)-1]
+	// 按名称选取 extension-core：组件列表在 v1.40+ 追加了 ai-bot-core 等，
+	// 不能再假设最后一个组件是扩展组件（2026-10-03 修复）。
+	var extension initialization.Initializer
+	for _, component := range components {
+		if component.Name() == "extension-core" {
+			extension = component
+			break
+		}
+	}
+	require.NotNil(t, extension, "extension-core 组件必须存在")
 	plan, err := extension.Plan(ctx, scope)
 	require.NoError(t, err)
 	_, err = extension.Apply(ctx, scope, plan, 100)

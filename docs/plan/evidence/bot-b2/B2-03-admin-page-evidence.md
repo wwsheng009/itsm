@@ -57,7 +57,7 @@
 | --- | --- | --- |
 | 1 | G-B2-03-1：`python .dev/vite-migration/gen_routes.py` 全量重生成会产生 **1000+ 行无关 diff**（route-paths.ts 与 index.tsx 整文件重写，疑为行尾/生成器版本漂移）。本次改用手工最小登记（1 行 import + 1 行路由 + 1 行路径） | 登记为工程债：建议单开一次"生成器产物对齐"小任务，避免每次加路由都触发全文件 diff |
 | 2 | G-B2-03-2：手工全流程（新增 → 授权 → 生效 → 回收）与浏览器截图 | **B2-06 / BT-09**（需要真实后端 + 登录会话） |
-| 3 | O-4（既有失败，非本任务引入）：`pkg/seeder` 5 例失败（`incident_emergency_flow: process_definition not found` 系列） | A/B 对照确认 pre-existing；建议独立小任务处置（属工作流种子数据问题，与 Bot 菜单行无关） |
+| 3 | O-4（既有失败，非本任务引入）：`pkg/seeder` 5 例失败（`incident_emergency_flow: process_definition not found` 系列） | A/B 对照确认 pre-existing；**已修复（2026-10-03，v1.45）**：根因＝Windows `filepath.Join` 拼 embed.FS 路径；改 `path.Join` 后全包绿 |
 | 4 | 入口枚举待 B3-01 落地后收敛 UI 建议值 | B3-01 |
 
 ## 6. 变更记录

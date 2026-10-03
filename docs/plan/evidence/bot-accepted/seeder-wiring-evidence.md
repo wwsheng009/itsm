@@ -56,7 +56,7 @@ B0–B4 交付后存在三处「数据面」缺口，本任务补齐：
 
 | # | 项 | 说明 |
 | --- | --- | --- |
-| 1 | 存量失败 5 例 | `pkg/seeder` 的 `incident_emergency_flow` 系列（B2-03 O-4 / gap S5）；建议独立任务处置，不属本次范围 |
+| 1 | ~~存量失败 5 例~~ **已关闭（2026-10-03）** | 根因＝Windows `filepath.Join` 拼 `embed.FS` 路径产生反斜杠 → 18 个内置模板全部被"部署门禁"误判、默认租户 0 流程定义 → `ProvisionTenant` 失败；修复（`path.Join` + 测试组件按名选取）后 `pkg/seeder` 全包绿，联调库 `initialize apply`（runId=35）重放一致 |
 | 2 | 本机 DB 迁移路径 | 生产/CI 仍以 SQL 迁移账本为准；本次 ent 基线仅面向已存在的开发库（`mig-verify -entbaseline` 为仓库既有工具） |
 | 3 | 场景模板可见性 | S1/S2/S3 为 `pilot` + `internal/all` 受众，管理页按受众过滤；终端用户不可见属预期 |
 | 4 | `/ai/bot-metrics` 菜单 | 已随 `seedMenus` 幂等上架；已存在的旧租户在下次 `initialize apply`/重跑种子后生效（本机已生效） |

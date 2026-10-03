@@ -58,9 +58,11 @@ func TestSeedBotTemplatesSeedsAssistantAndScenarios(t *testing.T) {
 // TestCloneTenantTemplatesCopiesBotTemplates 校验租户开通克隆（cloneTenantTemplates）：
 // 目标租户继承默认租户的 Bot 模板与授权，且复跑幂等。
 //
-// 直测克隆函数而非 ProvisionTenant：后者的完整链路当前被既有问题
-// `incident_emergency_flow: process_definition not found` 阻塞（B2-03 O-4 / M0-10），
-// 与 Bot 克隆无关（该失败发生在流程绑定阶段，早于 Bot 克隆块）。
+// 直测克隆函数而非 ProvisionTenant：保持用例聚焦（避开完整链路的角色/组织前置换数据）。
+// 说明：此前 `incident_emergency_flow: process_definition not found`（B2-03 O-4 / M0-10）
+// 的根因是 embed.FS 路径在 Windows 下被 filepath.Join 拼接出反斜杠，导致全部内置模板
+// 部署失败、默认租户 0 流程定义；已修复（2026-10-03），完整链路由
+// TestProvisionTenantReadinessAcrossDeploymentModes 覆盖。
 func TestCloneTenantTemplatesCopiesBotTemplates(t *testing.T) {
 	seeder, ctx := newTestSeeder(t, tenantmode.DeploymentModePrivate)
 	root := seeder.seedDefaultTenant(ctx)
