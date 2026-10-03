@@ -150,21 +150,41 @@ func TestAcquireConn_TenantScopeIsolation(t *testing.T) {
 	teardown := setupPolicy(t, db)
 	defer teardown()
 
-	// tenant=1 must see > 0 rows (assumes dev DB has changes for tenant 1)
-	ctx1 := WithTenant(context.Background(), 1)
+	// 联调/生产库的租户 id 不保证从 1 开始：动态选取一个确有 changes 数据的租户
+	// 作为正例（owner 连接查询，绕开本用例刚启用的策略）。
+	positive := pickTenantWithChanges(t)
+	if positive == 0 {
+		t.Skip("changes 表无数据，跳过租户可见性正例")
+	}
+	ctx1 := WithTenant(context.Background(), int64(positive))
 	n1 := countChangesAs(t, db, ctx1)
 	if n1 == 0 {
-		t.Fatalf("tenant 1 saw 0 rows; dev DB may be missing seed data")
+		t.Fatalf("tenant %d saw 0 rows; dev DB may be missing seed data", positive)
 	}
 
-	// tenant=999 must see 0 rows (unless someone seeded it, which is a bug)
-	ctx999 := WithTenant(context.Background(), 999)
+	// 不存在的租户必须 0 行（若可见即为策略被绕过）。
+	ctx999 := WithTenant(context.Background(), int64(999999))
 	n999 := countChangesAs(t, db, ctx999)
 	if n999 != 0 {
-		t.Fatalf("tenant 999 saw %d rows; expected 0 (RLS bypassed?)", n999)
+		t.Fatalf("tenant 999999 saw %d rows; expected 0 (RLS bypassed?)", n999)
 	}
 
-	t.Logf("tenant=1 visible=%d, tenant=999 visible=%d ✓", n1, n999)
+	t.Logf("tenant=%d visible=%d, tenant=999999 visible=%d ✓", positive, n1, n999)
+}
+
+// pickTenantWithChanges 通过 owner（superuser/BYPASSRLS）连接挑选一个
+// changes 行数最多的租户 id；无数据时返回 0。
+func pickTenantWithChanges(t *testing.T) int {
+	t.Helper()
+	owner := openOwnerDB(t)
+	defer owner.Close()
+	var tid int
+	err := owner.QueryRowContext(context.Background(),
+		`SELECT tenant_id FROM changes GROUP BY tenant_id ORDER BY count(*) DESC LIMIT 1`).Scan(&tid)
+	if err != nil {
+		return 0
+	}
+	return tid
 }
 
 // TestAcquireConn_NoTenantRejected ensures ErrNoTenant surfaces when
