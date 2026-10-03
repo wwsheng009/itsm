@@ -2,6 +2,8 @@ package middleware
 
 import (
 	"math"
+	"os"
+	"strconv"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -15,9 +17,18 @@ import (
 //
 // P0-2（2026-09-06 UAT 修复）：从 5/分钟提到 10/分钟（真实用户首次输错常试 2-3 次）。
 // 命中时返回 retry_after_seconds，前端可展示倒计时；同时设 Retry-After HTTP 头。
+//
+// LOGIN_RATE_LIMIT_PER_MIN 可按环境覆盖（默认 10，保持不变）：
+// 验收/压测/共享出口 IP（NAT）场景可提高；<=0 或非法值回退默认。
 func LoginRateLimiter() gin.HandlerFunc {
+	limit := int64(10)
+	if v := os.Getenv("LOGIN_RATE_LIMIT_PER_MIN"); v != "" {
+		if n, err := strconv.ParseInt(v, 10, 64); err == nil && n > 0 {
+			limit = n
+		}
+	}
 	rate := limiter.Rate{
-		Limit:  10,              // 10 attempts（UAT 后从 5 提到 10）
+		Limit:  limit,           // 默认 10 attempts（UAT 后从 5 提到 10）
 		Period: 1 * time.Minute, // per minute
 	}
 	store := memoryStore.NewStore()

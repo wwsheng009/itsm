@@ -1198,7 +1198,10 @@ func isForbiddenErr(err error) bool {
 // 的错误出口：403 AppError 必须按语义分流（对齐错误映射铁律），不得掉入
 // FailWithErr 兜底被吞成 500。
 func failTicketOperation(c *gin.Context, err error) {
-	if isForbiddenErr(err) {
+	// AppError（含 400 参数类/403 越权类）统一按语义分流，不得掉入 500 兜底；
+	// D-7 状态机拒绝（400 invalid status transition）依赖此路径返回 4xx。
+	var appErr *common.AppError
+	if errors.As(err, &appErr) {
 		common.RespondError(c, err, "操作失败")
 		return
 	}

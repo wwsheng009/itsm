@@ -42,21 +42,21 @@ func (m *mockRepository) Create(ctx context.Context, params *CreateParams, tenan
 	defer m.mu.Unlock()
 	m.nextID++
 	t := &Ticket{
-		ID:           m.nextID,
-		TicketNumber: "TKT-" + time.Now().Format("20060102") + "-001",
-		Title:        params.Title,
-		Description:  params.Description,
+		ID:                m.nextID,
+		TicketNumber:      "TKT-" + time.Now().Format("20060102") + "-001",
+		Title:             params.Title,
+		Description:       params.Description,
 		DescriptionHTML:   params.DescriptionHTML,
 		DescriptionFormat: params.DescriptionFormat,
-		Status:       "new",
-		Priority:     params.Priority,
-		Type:         params.Type,
-		RequesterID:  params.RequesterID,
-		AssigneeID:   params.AssigneeID,
-		TenantID:     tenantID,
-		Version:      1,
-		CreatedAt:    time.Now(),
-		UpdatedAt:    time.Now(),
+		Status:            "new",
+		Priority:          params.Priority,
+		Type:              params.Type,
+		RequesterID:       params.RequesterID,
+		AssigneeID:        params.AssigneeID,
+		TenantID:          tenantID,
+		Version:           1,
+		CreatedAt:         time.Now(),
+		UpdatedAt:         time.Now(),
 	}
 	m.tickets[t.ID] = t
 	return t, nil
@@ -735,4 +735,42 @@ func TestService_RichTextSanitizeAndDoubleWrite(t *testing.T) {
 	require.NoError(t, err)
 	assert.Empty(t, plain.DescriptionHTML)
 	assert.Empty(t, plain.DescriptionFormat)
+}
+
+// TestUpdateTicketStatus_StateMachineAndProtectedResolved （D-7 回归）：
+// PUT /tickets/:id/status 必须遵守状态机（closed 为终态），且 resolved 受保护
+// （无解决方案时直改必须 400 且提示走 ResolveTicket）。
+func TestUpdateTicketStatus_StateMachineAndProtectedResolved(t *testing.T) {
+	r, repo := newTestHarness(t)
+	hdr := map[string]string{"X-Test-TenantID": "1", "X-Test-UserID": "7"}
+
+	repo.mu.Lock()
+	repo.tickets[42] = &Ticket{
+		ID: 42, TicketNumber: "TKT-TEST-42", Title: "closed ticket",
+		Status: "closed", TenantID: 1, RequesterID: 7, Version: 1,
+		CreatedAt: time.Now(), UpdatedAt: time.Now(),
+	}
+	repo.mu.Unlock()
+
+	// closed 为终态：closed → open 必须被拒（400），不再静默放行。
+	w := doJSON(t, r, http.MethodPut, "/api/v1/tickets/42/status",
+		map[string]string{"status": "open"}, hdr)
+	assert.Equal(t, 400, w.Code, w.Body.String())
+	assert.Contains(t, w.Body.String(), "invalid status transition")
+
+	// resolved 受保护：in_progress → resolved 无解决方案时必须 400 且指向 ResolveTicket。
+	repo.mu.Lock()
+	repo.tickets[42].Status = "in_progress"
+	repo.tickets[42].Resolution = nil
+	repo.mu.Unlock()
+
+	w2 := doJSON(t, r, http.MethodPut, "/api/v1/tickets/42/status",
+		map[string]string{"status": "resolved"}, hdr)
+	assert.Equal(t, 400, w2.Code, w2.Body.String())
+	assert.Contains(t, w2.Body.String(), "ResolveTicket")
+
+	// 合法转移不误伤：in_progress → pending。
+	w3 := doJSON(t, r, http.MethodPut, "/api/v1/tickets/42/status",
+		map[string]string{"status": "pending"}, hdr)
+	assert.Equal(t, 200, w3.Code, w3.Body.String())
 }

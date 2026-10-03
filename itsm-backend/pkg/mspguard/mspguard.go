@@ -23,6 +23,7 @@ import (
 // 跨租户授权错误码（权威：实施方案 §3.0-A）。
 const (
 	CodeMSPAllocationRequired  = "MSP_ALLOCATION_REQUIRED"
+	CodeMSPAllocationExists    = "MSP_ALLOCATION_EXISTS"
 	CodeCustomerTenantNotFound = "CUSTOMER_TENANT_NOT_FOUND"
 	CodeCustomerInactive       = "CUSTOMER_INACTIVE"
 	CodeResourceTenantMismatch = "RESOURCE_TENANT_MISMATCH"

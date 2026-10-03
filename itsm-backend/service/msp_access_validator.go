@@ -92,6 +92,7 @@ func (v *MSPAccessValidator) FilterByMSPAllocation(ctx context.Context, mspUserI
 // 跨租户授权错误码（权威：实施方案 §3.0-A）。
 const (
 	CodeMSPAllocationRequired  = mspguard.CodeMSPAllocationRequired
+	CodeMSPAllocationExists    = mspguard.CodeMSPAllocationExists
 	CodeCustomerTenantNotFound = mspguard.CodeCustomerTenantNotFound
 	CodeCustomerInactive       = mspguard.CodeCustomerInactive
 	CodeResourceTenantMismatch = mspguard.CodeResourceTenantMismatch

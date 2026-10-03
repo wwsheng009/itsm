@@ -5,6 +5,7 @@
 package msp
 
 import (
+	"errors"
 	"strconv"
 	"time"
 
@@ -173,6 +174,13 @@ func (h *Handler) CreateAllocation(c *gin.Context) {
 	alloc, err := h.mspAllocationService.Create(c.Request.Context(), req.MSPUserID, req.CustomerTenantID, req.Role, operatorRole)
 	if err != nil {
 		h.logger.Errorw("Failed to create allocation", "error", err, "operator", operatorID)
+		// D-2：重复分配是业务冲突（409 + 稳定 reasonCode），不再兜底成 500「操作失败」。
+		if errors.Is(err, service.ErrAllocationExists) {
+			common.FailWithData(c, common.ConflictCode, "该员工已分配至该客户", gin.H{
+				"reasonCode": service.CodeMSPAllocationExists,
+			})
+			return
+		}
 		common.FailWithErr(c, err, "操作失败")
 		return
 	}

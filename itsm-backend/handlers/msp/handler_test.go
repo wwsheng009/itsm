@@ -1,6 +1,7 @@
 package msp
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"net/http"
@@ -9,6 +10,7 @@ import (
 	"testing"
 	"time"
 
+	"itsm-backend/common"
 	"itsm-backend/ent"
 	"itsm-backend/ent/enttest"
 	"itsm-backend/middleware"
@@ -243,4 +245,55 @@ func TestGetCustomerTickets_WithMSPContext(t *testing.T) {
 
 	require.Equal(t, http.StatusOK, status, body["message"])
 	assert.Equal(t, float64(0), body["code"])
+}
+
+// TestCreateAllocation_DuplicateReturns409 （D-2 回归）：
+// 同员工同客户重复分配必须返回 409 + 稳定 reasonCode=MSP_ALLOCATION_EXISTS，
+// 而不是 500「操作失败」（调用方需要可判定的幂等语义）。
+func TestCreateAllocation_DuplicateReturns409(t *testing.T) {
+	client := enttest.Open(t, "sqlite3", "file:msp_alloc_dup?mode=memory&cache=shared&_fk=1")
+	defer client.Close()
+	ctx := context.Background()
+
+	provider, err := client.Tenant.Create().SetName("MSP-D").SetCode("msp-d").
+		SetType("msp_provider").SetStatus("active").Save(ctx)
+	require.NoError(t, err)
+	customer, err := client.Tenant.Create().SetName("Cust-D").SetCode("cust-d").
+		SetType("msp_customer").SetMspProviderID(provider.ID).SetStatus("active").Save(ctx)
+	require.NoError(t, err)
+	user, err := client.User.Create().
+		SetUsername("msp_dup").SetEmail("msp-d@example.com").SetName("MSP Dup").
+		SetPasswordHash("hash").SetTenantID(provider.ID).SetMspRole("provider_agent").Save(ctx)
+	require.NoError(t, err)
+
+	logger := zaptest.NewLogger(t).Sugar()
+	h := NewHandler(service.NewMSPAllocationService(client, logger), nil, nil, nil, nil, logger)
+	gin.SetMode(gin.TestMode)
+	r := gin.New()
+	r.POST("/api/v1/msp/allocations", func(c *gin.Context) {
+		c.Set("user_id", 1)
+		c.Set("role", "admin")
+		h.CreateAllocation(c)
+	})
+
+	payload := []byte(`{"mspUserId":` + strconv.Itoa(user.ID) + `,"customerTenantId":` + strconv.Itoa(customer.ID) + `,"role":"primary"}`)
+
+	w1 := httptest.NewRecorder()
+	req1 := httptest.NewRequest(http.MethodPost, "/api/v1/msp/allocations", bytes.NewReader(payload))
+	req1.Header.Set("Content-Type", "application/json")
+	r.ServeHTTP(w1, req1)
+	require.Equal(t, http.StatusOK, w1.Code, w1.Body.String())
+
+	w2 := httptest.NewRecorder()
+	req2 := httptest.NewRequest(http.MethodPost, "/api/v1/msp/allocations", bytes.NewReader(payload))
+	req2.Header.Set("Content-Type", "application/json")
+	r.ServeHTTP(w2, req2)
+	assert.Equal(t, http.StatusConflict, w2.Code, w2.Body.String())
+
+	var body map[string]interface{}
+	require.NoError(t, json.Unmarshal(w2.Body.Bytes(), &body), w2.Body.String())
+	assert.Equal(t, float64(common.ConflictCode), body["code"])
+	data, _ := body["data"].(map[string]interface{})
+	require.NotNil(t, data, "重复分配必须带 data.reasonCode，实际 %v", body)
+	assert.Equal(t, "MSP_ALLOCATION_EXISTS", data["reasonCode"])
 }

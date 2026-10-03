@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"time"
 
@@ -18,6 +19,10 @@ import (
 )
 
 // MSPAllocationService MSP 分配业务服务
+
+// ErrAllocationExists 同员工同客户已存在有效分配（幂等语义：重复分配返回 409 + reasonCode）。
+var ErrAllocationExists = errors.New("allocation already exists")
+
 type MSPAllocationService struct {
 	client *ent.Client
 	logger *zap.SugaredLogger
@@ -83,7 +88,7 @@ func (s *MSPAllocationService) Create(
 		return nil, fmt.Errorf("查询现有分配失败: %w", err)
 	}
 	if exists {
-		return nil, fmt.Errorf("已存在有效分配记录")
+		return nil, fmt.Errorf("%w: user=%d customer=%d", ErrAllocationExists, mspUserID, customerTenantID)
 	}
 
 	// 4. 如果有已解除的旧记录，标记为已解除（避免重复）

@@ -223,9 +223,11 @@ func (c *Container) queryMaxTicketSeqFromDB(key string) (int64, error) {
 	}
 
 	prefix := fmt.Sprintf("TKT-%04d%02d-", year, month)
-	query := `SELECT ticket_number FROM tickets WHERE tenant_id = $1 AND ticket_number LIKE $2 AND ticket_number IS NOT NULL AND ticket_number != '' ORDER BY ticket_number DESC LIMIT 1`
+	// S-4 对齐（D-6）：ticket_number 为**全局唯一**约束（不含 tenant_id），序列起点必须取
+	// 全表当月最大号，否则新租户从自己（空）序列的 1 开始、与已占用号段持续碰撞。
+	query := `SELECT ticket_number FROM tickets WHERE ticket_number LIKE $1 AND ticket_number IS NOT NULL AND ticket_number != '' ORDER BY ticket_number DESC LIMIT 1`
 	var maxTicketNum string
-	err = c.db.QueryRowContext(context.Background(), query, tenantID, prefix+"%").Scan(&maxTicketNum)
+	err = c.db.QueryRowContext(context.Background(), query, prefix+"%").Scan(&maxTicketNum)
 	if err == sql.ErrNoRows || maxTicketNum == "" {
 		return 0, nil
 	}

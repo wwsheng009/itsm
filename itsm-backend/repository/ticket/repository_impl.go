@@ -762,7 +762,29 @@ func (r *EntRepository) generateTicketNumberWithRedis(ctx context.Context, tenan
 		return r.generateTicketNumberWithDB(ctx, tenantID, year, month)
 	}
 
-	return fmt.Sprintf("TKT-%04d%02d-%06d", year, month, seq), nil
+	// S-4 对齐（D-6）：tickets.ticket_number 是**全局唯一**约束（不含 tenant_id），
+	// 而序列 key 按租户/年月分片，新租户或历史补数会让候选号与他租户已用号碰撞。
+	// 对候选号做全局存在性校验并向前跳号（≤20），把「必然失败」降级为「跳过占用号」。
+	for probe := 0; probe < 20; probe++ {
+		candidate := fmt.Sprintf("TKT-%04d%02d-%06d", year, month, seq)
+		occupied, checkErr := r.Client().Ticket.Query().
+			Where(ticket.TicketNumberEQ(candidate)).
+			Exist(ctx)
+		if checkErr != nil {
+			return "", fmt.Errorf("check ticket number %s: %w", candidate, checkErr)
+		}
+		if !occupied {
+			return candidate, nil
+		}
+		r.logger.Warnw("ticket number occupied globally, skipping", "number", candidate, "probe", probe+1)
+		seq, err = r.sequenceService.GetNextSequenceWithExpiry(ctx, key, expiredAt)
+		if err != nil {
+			// 序列推进失败（Redis 抖动等）→ 回退 DB 路径继续跳号，不把「跳过占用号」变成失败。
+			r.logger.Warnw("Redis sequence failed during collision probe, fallback to DB", "error", err)
+			return r.generateTicketNumberWithDB(ctx, tenantID, year, month)
+		}
+	}
+	return "", fmt.Errorf("no free ticket number after probing occupied numbers")
 }
 
 // generateTicketNumberWithDB 使用数据库事务+SELECT FOR UPDATE NOWAIT 生成工单编号（备用方案）
@@ -830,6 +852,19 @@ func (r *EntRepository) generateTicketNumberWithDB(ctx context.Context, tenantID
 				r.logger.Warnw("Ent fallback ticket number collision, retrying", "number", candidate, "attempt", attempt+1)
 				continue
 			}
+		}
+
+		// S-4 对齐（D-6）：DB 回退同样必须跨租户校验，占用则向前跳号。
+		for probe := 0; probe < 20; probe++ {
+			occupied, checkErr := r.Client().Ticket.Query().
+				Where(ticket.TicketNumberEQ(candidate)).
+				Exist(ctx)
+			if checkErr != nil || !occupied {
+				break
+			}
+			r.logger.Warnw("ticket number occupied globally, skipping (db fallback)", "number", candidate, "probe", probe+1)
+			seq = parseSequenceSuffix(candidate) + 1
+			candidate = fmt.Sprintf("TKT-%04d%02d-%06d", year, month, seq)
 		}
 
 		return candidate, nil

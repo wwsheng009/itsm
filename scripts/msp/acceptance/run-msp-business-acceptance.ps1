@@ -44,6 +44,7 @@ $BackendDir = Join-Path $RepoRoot "itsm-backend"
 if ([string]::IsNullOrWhiteSpace($OutDir)) { $OutDir = Join-Path $RepoRoot "docs\multi-tenant\evidence\msp-business-acceptance" }
 New-Item -ItemType Directory -Force -Path $OutDir | Out-Null
 $ts = Get-Date -Format "yyyyMMdd-HHmmss"
+$runDate = Get-Date -Format "yyyy-MM-dd"
 $RunSummaryPath = Join-Path $OutDir "run-summary-$ts.md"
 # 邀请邮箱：默认每轮唯一（已存在账号的邮箱再次邀请会在 accept 阶段返回 409
 # INVITATION_EMAIL_EXISTS——设计语义：需管理员绑定/重发，不支持自助注册）。
@@ -92,7 +93,10 @@ function Invoke-Api {
     if (-not $Anonymous -and $null -ne $Sess) { $h["Authorization"] = "Bearer $($Sess.Token)" }
     foreach ($k in $Headers.Keys) { $h[$k] = $Headers[$k] }
     $p = @{ Uri = "$Base$Path"; Method = $Method; Headers = $h; SkipHttpErrorCheck = $true; TimeoutSec = 45 }
-    if ($null -ne $Sess) { $p["WebSession"] = $Sess.Session }
+    # 注意：这里刻意不挂 WebSession。PS7 的 Invoke-WebRequest 会把 -Headers 合并进
+    # WebSession.Headers 并持续到后续请求（实测 7.6.1），I4 的冲突头 X-Tenant-Code
+    # 会因此污染同一会话的后续调用（全部 401 TENANT_MISMATCH_REJECTED）。
+    # 认证统一走 Bearer（$Sess.Token），无需 cookie 会话。
     if ($null -ne $Body) { $p["Body"] = ($Body | ConvertTo-Json -Depth 10); $p["ContentType"] = "application/json" }
     try { $resp = Invoke-WebRequest @p } catch { return [pscustomobject]@{ Status = -1; Json = $null; Raw = $_.Exception.Message } }
     $json = $null
@@ -212,8 +216,9 @@ if ($SkipTenantLifecycle) {
         Assert-Case "S2" "模板供给与首管理员（provision_tenant）" $provisionOk "exit=$pexit tail=$($provisionTail.Substring(0, [Math]::Min(240, $provisionTail.Length)))"
 
         # S3：首登（强制改密）→ 重登录 → 身份核对
-        $ntAdmin = Try-Login $adminUser $NewTenantAdminPass
-        if ($null -eq $ntAdmin) { $ntAdmin = Try-Login $adminUser $NewTenantAdminPass2 }
+        # 复跑时密码已是 pass2（S3 首次已改密）：先试 pass2 可少占一次登录限流额度。
+        $ntAdmin = Try-Login $adminUser $NewTenantAdminPass2
+        if ($null -eq $ntAdmin) { $ntAdmin = Try-Login $adminUser $NewTenantAdminPass }
         $ntAdmin = Resolve-MustChange $ntAdmin $NewTenantAdminPass $NewTenantAdminPass2
         $me = if ($null -ne $ntAdmin) { Invoke-Api -Method Get -Path "/api/v1/auth/me" -Sess $ntAdmin } else { $null }
         $meTenant = if ($me) { if ($me.Json.data.user) { $me.Json.data.user.tenantId } else { $me.Json.data.tenantId } } else { $null }
@@ -396,7 +401,7 @@ if ($null -eq $agent) {
             if ($null -ne $found) { $agentId = [int]$found.id }
         }
         $ac = Invoke-Api -Method Post -Path "/api/v1/msp/allocations" -Sess $mspadmin -Body @{ mspUserId = $agentId; customerTenantId = $tenantA.id; role = "primary" }
-        $dup = ($ac.Raw -match "已存在有效分配记录") -or ($ac.Raw -match "already exists")
+        $dup = ($ac.Raw -match "已存在有效分配记录") -or ($ac.Raw -match "already exists") -or ($ac.Raw -match "MSP_ALLOCATION_EXISTS") -or ($ac.Status -eq 409)
         $agentAllocated = (($ac.Status -ge 200) -and ($ac.Status -lt 300)) -or $dup
         Assert-Case "P3" "服务商分配技术员到客户A" $agentAllocated "status=$($ac.Status) body=$($ac.Raw.Substring(0, [Math]::Min(160, $ac.Raw.Length)))"
     }
@@ -533,6 +538,237 @@ $pda = $a3.Raw -match "probe_denied"
 Assert-Case "A3" "Header 冲突拒绝留痕（客户侧）" (($a3.Status -eq 200) -and $pda) "status=$($a3.Status) probe_denied=$pda"
 
 # =============================================================================
+# G8 业务规则深化（L/W/R/Q/T）：操作链与规则逻辑（第二波）
+# =============================================================================
+
+# ---- L：工单生命周期全程 + 受保护终局/终态守卫 ----
+$lTicketId = 0
+if ($null -eq $acptUser -or $null -eq $mspadmin -or $null -eq $custa) {
+    foreach ($idc in @("L1","L2","L3","L4","L5","L6","L7","L8","L9")) { Skip $idc "生命周期链" "角色未就绪" }
+} else {
+    $lc = Invoke-Api -Method Post -Path "/api/v1/tickets" -Sess $acptUser -Body @{
+        title = "[ACPT-L-$ts] 生命周期样本"; description = "lifecycle sample"; priority = "low"; type = "incident"
+    }
+    if ($lc.Json.data.id) { $lTicketId = [int]$lc.Json.data.id }
+    if ($lTicketId -le 0) {
+        foreach ($idc in @("L1","L2","L3","L4","L5","L6","L7","L8","L9")) { Skip $idc "生命周期链" "样本工单创建失败 status=$($lc.Status) body=$($lc.Raw.Substring(0, [Math]::Min(140, $lc.Raw.Length)))" }
+    } else {
+        $l1 = Invoke-Api -Method Post -Path "/api/v1/msp/tickets/$lTicketId/status" -Sess $mspadmin -Body @{ customerTenantId = $tenantA.id; status = "in_progress" }
+        Assert-Case "L1" "链：new→in_progress（服务商开工）" (($l1.Status -ge 200) -and ($l1.Status -lt 300)) "status=$($l1.Status)"
+
+        $l2 = Invoke-Api -Method Post -Path "/api/v1/msp/tickets/$lTicketId/status" -Sess $mspadmin -Body @{ customerTenantId = $tenantA.id; status = "resolved" }
+        Assert-Case "L2" "规则：resolved 受保护（直改被拒）" ($l2.Status -ge 400) "status=$($l2.Status) body=$($l2.Raw.Substring(0, [Math]::Min(140, $l2.Raw.Length)))"
+
+        $l3 = Invoke-Api -Method Post -Path "/api/v1/msp/tickets/$lTicketId/status" -Sess $mspadmin -Body @{ customerTenantId = $tenantA.id; status = "pending" }
+        Assert-Case "L3" "链：in_progress→pending（等客户）" (($l3.Status -ge 200) -and ($l3.Status -lt 300)) "status=$($l3.Status)"
+
+        $l4 = Invoke-Api -Method Post -Path "/api/v1/msp/tickets/$lTicketId/status" -Sess $mspadmin -Body @{ customerTenantId = $tenantA.id; status = "in_progress" }
+        Assert-Case "L4" "链：pending→in_progress（重启处理）" (($l4.Status -ge 200) -and ($l4.Status -lt 300)) "status=$($l4.Status)"
+
+        $l5 = Invoke-Api -Method Post -Path "/api/v1/tickets/$lTicketId/resolve" -Sess $custa -Body @{ resolution = "[ACPT-L-resolve-$ts] 客户确认已解决" }
+        Assert-Case "L5" "链：客户 resolve→resolved（提交解决方案）" (($l5.Status -ge 200) -and ($l5.Status -lt 300)) "status=$($l5.Status)"
+
+        $l6 = Invoke-Api -Method Put -Path "/api/v1/tickets/$lTicketId/status" -Sess $custa -Body @{ status = "closed" }
+        Assert-Case "L6" "链：resolved→closed（客户归档）" (($l6.Status -ge 200) -and ($l6.Status -lt 300)) "status=$($l6.Status) body=$($l6.Raw.Substring(0, [Math]::Min(120, $l6.Raw.Length)))"
+
+        $l7 = Invoke-Api -Method Post -Path "/api/v1/msp/tickets/$lTicketId/status" -Sess $mspadmin -Body @{ customerTenantId = $tenantA.id; status = "open" }
+        Assert-Case "L7" "规则：终态（closed）服务商侧守卫拒绝" ($l7.Status -ge 400) "status=$($l7.Status)"
+
+        $l8 = Invoke-Api -Method Put -Path "/api/v1/tickets/$lTicketId/status" -Sess $custa -Body @{ status = "open" }
+        Assert-Case "L8" "规则：状态机拒绝 closed→open（终态）" ($l8.Status -ge 400) "status=$($l8.Status)"
+
+        $ld = Invoke-Api -Method Get -Path "/api/v1/tickets/$lTicketId" -Sess $acptUser
+        $lst = if ($ld.Json.data.status) { $ld.Json.data.status } else { "" }
+        Assert-Case "L9" "客户视角终态核对=closed" (($ld.Status -eq 200) -and ($lst -eq "closed")) "status=$lst"
+    }
+}
+
+# ---- W：批量逐条语义（跨客户成功 + 未分配部分失败且无副作用） ----
+$wTicketA = 0
+if ($null -eq $acptUser -or $null -eq $mspadmin -or $tenantBTicketId -le 0) {
+    foreach ($idc in @("W1","W2","W3")) { Skip $idc "批量逐条语义" "前置未就绪" }
+} else {
+    $wc = Invoke-Api -Method Post -Path "/api/v1/tickets" -Sess $acptUser -Body @{
+        title = "[ACPT-W-$ts] 批量样本"; description = "batch sample"; priority = "low"; type = "incident"
+    }
+    if ($wc.Json.data.id) { $wTicketA = [int]$wc.Json.data.id }
+    if ($wTicketA -le 0) {
+        foreach ($idc in @("W1","W2","W3")) { Skip $idc "批量逐条语义" "样本工单创建失败 status=$($wc.Status) body=$($wc.Raw.Substring(0, [Math]::Min(140, $wc.Raw.Length)))" }
+    } else {
+        $w1 = Invoke-Api -Method Post -Path "/api/v1/msp/workbench/batch" -Sess $mspadmin -Body @{
+            action = "reply"; payload = @{ content = "[ACPT-W1-$ts] 跨客户批量回复" };
+            items = @(
+                @{ ticketId = $wTicketA; customerTenantId = $tenantA.id },
+                @{ ticketId = $tenantBTicketId; customerTenantId = $tenantB.id }
+            )
+        }
+        $w1ok = ($w1.Status -eq 200) -and ($w1.Json.data.succeeded -eq 2) -and ($w1.Json.data.failed -eq 0)
+        Assert-Case "W1" "批量：跨客户 A+B 各 1 条全部成功" $w1ok "status=$($w1.Status) succeeded=$($w1.Json.data.succeeded) failed=$($w1.Json.data.failed) body=$($w1.Raw.Substring(0, [Math]::Min(160, $w1.Raw.Length)))"
+    }
+}
+if ($wTicketA -le 0 -or $null -eq $agent -or $tenantBTicketId -le 0) {
+    Skip "W2" "批量部分失败逐条语义" "前置未就绪"
+    Skip "W3" "被拒条目无副作用" "前置未就绪"
+} else {
+    $w2 = Invoke-Api -Method Post -Path "/api/v1/msp/workbench/batch" -Sess $agent -Body @{
+        action = "reply"; payload = @{ content = "[ACPT-W2-$ts] 未分配目标不应落地" };
+        items = @(
+            @{ ticketId = $wTicketA; customerTenantId = $tenantA.id },
+            @{ ticketId = $tenantBTicketId; customerTenantId = $tenantB.id }
+        )
+    }
+    $wr = @($w2.Json.data.results)
+    $w2ok = ($w2.Status -eq 200) -and ($w2.Json.data.succeeded -eq 1) -and ($w2.Json.data.failed -eq 1) `
+        -and ($wr.Count -eq 2) -and ($wr[1].ok -eq $false) -and ($wr[1].reasonCode -eq "MSP_ALLOCATION_REQUIRED")
+    Assert-Case "W2" "批量：agent 仅 A 成功 / B 逐条拒绝（不整体回滚）" $w2ok "succeeded=$($w2.Json.data.succeeded) failed=$($w2.Json.data.failed) results=$($w2.Raw.Substring(0, [Math]::Min(220, $w2.Raw.Length)))"
+
+    $bCm = Invoke-Api -Method Get -Path "/api/v1/tickets/$tenantBTicketId/comments" -Sess $custb
+    $noSide = -not ($bCm.Raw -match [regex]::Escape("[ACPT-W2-$ts]"))
+    Assert-Case "W3" "批量：被拒条目无副作用（B 无该评论）" (($bCm.Status -eq 200) -and $noSide) "comments=$($bCm.Status) markers=$($noSide)"
+}
+
+# ---- R：分配回收即时失效（第二技术员全链路） ----
+$agent2 = $null
+$agent2Name = "acpt_agent2"
+$agent2Pass = "Acpt@2026Staff2!"
+if ($null -ne $mspadmin -and $null -ne $techRole) {
+    $crA2 = Invoke-Api -Method Post -Path "/api/v1/users" -Sess $mspadmin -Body @{
+        username = $agent2Name; email = "$agent2Name@msp.local"; name = "Acceptance Agent2";
+        password = $agent2Pass; role = "agent"; roleIds = @($techRole.id); mspRole = "provider_agent"
+    }
+    $a2Reuse = ($crA2.Raw -match "USERNAME_EXISTS") -or ($crA2.Raw -match "已存在")
+    $agent2 = Try-Login $agent2Name $agent2Pass
+    if ($null -ne $agent2) {
+        $agent2Pass2 = $agent2Pass + "2"
+        $agent2 = Resolve-MustChange $agent2 $agent2Pass $agent2Pass2
+    }
+} elseif ($null -ne $mspadmin) {
+    $agent2 = Try-Login $agent2Name $agent2Pass
+}
+if ($null -eq $agent2 -or $null -eq $mspadmin) {
+    foreach ($idc in @("R1","R2","R3","R4","R5")) { Skip $idc "分配回收" "agent2 未就绪" }
+} else {
+    $agent2Id = [int]$agent2.Login.data.user.id
+    $r0 = Invoke-Api -Method Get -Path "/api/v1/msp/customers" -Sess $agent2
+    $preA = @($r0.Json.data.customers) | Where-Object { $_.id -eq $tenantA.id } | Select-Object -First 1
+    if ($null -ne $preA) {
+        Pass "R1" "分配回收：agent2→A 已有分配（复用）" "customers=$($r0.Raw.Substring(0, [Math]::Min(120, $r0.Raw.Length)))"
+    } else {
+        $ra = Invoke-Api -Method Post -Path "/api/v1/msp/allocations" -Sess $mspadmin -Body @{ mspUserId = $agent2Id; customerTenantId = $tenantA.id; role = "backup" }
+        $raOk = (($ra.Status -ge 200) -and ($ra.Status -lt 300)) -or ($ra.Raw -match "已存在")
+        Assert-Case "R1" "分配回收：建立 agent2→A 分配" $raOk "status=$($ra.Status)"
+    }
+
+    $r2 = Invoke-Api -Method Get -Path "/api/v1/msp/customers" -Sess $agent2
+    $visA = @($r2.Json.data.customers) | Where-Object { $_.id -eq $tenantA.id } | Select-Object -First 1
+    Assert-Case "R2" "回收前：agent2 可见客户A" ($null -ne $visA) "customers=$($r2.Raw.Substring(0, [Math]::Min(120, $r2.Raw.Length)))"
+
+    $r3 = Invoke-Api -Method Post -Path "/api/v1/msp/allocations/deallocate" -Sess $mspadmin -Body @{ mspUserId = $agent2Id; customerTenantId = $tenantA.id; reason = "acceptance revoke" }
+    $r3Ok = (($r3.Status -ge 200) -and ($r3.Status -lt 300)) -or ($r3.Raw -match "不存在|no active")
+    Assert-Case "R3" "回收：解除 agent2→A（含原因）" $r3Ok "status=$($r3.Status) body=$($r3.Raw.Substring(0, [Math]::Min(140, $r3.Raw.Length)))"
+
+    $r4 = Invoke-Api -Method Get -Path "/api/v1/msp/customers" -Sess $agent2
+    $stillA = @($r4.Json.data.customers) | Where-Object { $_.id -eq $tenantA.id } | Select-Object -First 1
+    Assert-Case "R4" "回收后：agent2 不再可见客户A" ($null -eq $stillA) "customers=$($r4.Raw.Substring(0, [Math]::Min(120, $r4.Raw.Length)))"
+
+    $r5 = Invoke-Api -Method Get -Path "/api/v1/msp/customers/$($tenantA.id)/tickets" -Sess $agent2
+    $r5ok = ($r5.Status -eq 403) -and ($r5.Raw -match "MSP_ALLOCATION_REQUIRED")
+    Assert-Case "R5" "回收后：路径通道即时失效（403）" $r5ok "status=$($r5.Status) body=$($r5.Raw.Substring(0, [Math]::Min(140, $r5.Raw.Length)))"
+
+    # R6：分配幂等语义——重复分配必须是可判定的 409 + reasonCode（D-2 收口）。
+    $r6 = Invoke-Api -Method Post -Path "/api/v1/msp/allocations" -Sess $mspadmin -Body @{ mspUserId = [int]$mspadmin.Login.data.user.id; customerTenantId = $tenantA.id; role = "primary" }
+    $r6ok = ($r6.Status -eq 409) -and ($r6.Raw -match "MSP_ALLOCATION_EXISTS")
+    Assert-Case "R6" "分配幂等：重复分配返回 409 + reasonCode" $r6ok "status=$($r6.Status) body=$($r6.Raw.Substring(0, [Math]::Min(140, $r6.Raw.Length)))"
+}
+
+# ---- Q：租户硬配额（maxUsers / maxTicketsPerMonth；读用量后按 used+1 设限，复跑安全） ----
+if ($null -eq $newTenant -or $null -eq $admin) {
+    foreach ($idc in @("Q1","Q2","Q3","Q4","Q5","Q6")) { Skip $idc "硬配额" "验收租户未就绪" }
+} else {
+    # 复用 S3 已建立的验收租户管理员会话（避免额外登录 + 限流额度）。
+    $qAdm = $ntAdmin
+    if ($null -eq $qAdm) {
+        foreach ($idc in @("Q1","Q2","Q3","Q4","Q5","Q6")) { Skip $idc "硬配额" "验收租户管理员登录失败" }
+    } else {
+        $uq = Invoke-Api -Method Get -Path "/api/v1/tenants/$($newTenant.id)/usage" -Sess $admin
+        $usedUsers = [int]$uq.Json.data.used.users
+        $usedTickets = [int]$uq.Json.data.used.ticketsThisMonth
+        $q1 = Invoke-Api -Method Put -Path "/api/v1/tenants/$($newTenant.id)" -Sess $admin -Body @{
+            quota = @{ maxUsers = ($usedUsers + 1); maxTicketsPerMonth = ($usedTickets + 1) }
+        }
+        Assert-Case "Q1" "平台设置硬配额（users=used+1 / tickets=used+1）" ($q1.Status -eq 200) "status=$($q1.Status) used=$usedUsers/$usedTickets"
+
+        $qt1 = Invoke-Api -Method Post -Path "/api/v1/tickets" -Sess $qAdm -Body @{ title = "[ACPT-Q-$ts] 配额内样本"; description = "quota"; priority = "low"; type = "incident" }
+        Assert-Case "Q2" "配额内建单成功（末位放行）" (($qt1.Status -ge 200) -and ($qt1.Status -lt 300)) "status=$($qt1.Status)"
+
+        $qt2 = Invoke-Api -Method Post -Path "/api/v1/tickets" -Sess $qAdm -Body @{ title = "[ACPT-Q-$ts] 超额样本"; description = "quota"; priority = "low"; type = "incident" }
+        $q3ok = ($qt2.Status -eq 422) -and ($qt2.Raw -match "TENANT_QUOTA_EXCEEDED")
+        Assert-Case "Q3" "超配额建单被拒（422 TENANT_QUOTA_EXCEEDED）" $q3ok "status=$($qt2.Status) body=$($qt2.Raw.Substring(0, [Math]::Min(160, $qt2.Raw.Length)))"
+
+        $pu1 = Invoke-Api -Method Post -Path "/api/v1/tenants/$($newTenant.id)/users" -Sess $admin -Body @{
+            username = "acpt-q-$ts"; password = "Acpt@2026Quota!"; name = "Quota User"; email = "acpt-q-$ts@example.com"; role = "end_user"
+        }
+        Assert-Case "Q4" "平台供给建号成功（配额末位）" (($pu1.Status -ge 200) -and ($pu1.Status -lt 300)) "status=$($pu1.Status) body=$($pu1.Raw.Substring(0, [Math]::Min(140, $pu1.Raw.Length)))"
+
+        $pu2 = Invoke-Api -Method Post -Path "/api/v1/tenants/$($newTenant.id)/users" -Sess $admin -Body @{
+            username = "acpt-q2-$ts"; password = "Acpt@2026Quota!"; name = "Quota User 2"; email = "acpt-q2-$ts@example.com"; role = "end_user"
+        }
+        $q5ok = ($pu2.Status -eq 422) -and ($pu2.Raw -match "TENANT_QUOTA_EXCEEDED")
+        Assert-Case "Q5" "超配额供给被拒（422 TENANT_QUOTA_EXCEEDED）" $q5ok "status=$($pu2.Status) body=$($pu2.Raw.Substring(0, [Math]::Min(160, $pu2.Raw.Length)))"
+
+        $q6res = Invoke-Api -Method Put -Path "/api/v1/tenants/$($newTenant.id)" -Sess $admin -Body @{ quota = @{ maxUsers = 0; maxTicketsPerMonth = 0 } }
+        $qt3 = Invoke-Api -Method Post -Path "/api/v1/tickets" -Sess $qAdm -Body @{ title = "[ACPT-Q-$ts] 解除配额后"; description = "quota off"; priority = "low"; type = "incident" }
+        $q6ok = ($q6res.Status -eq 200) -and (($qt3.Status -ge 200) -and ($qt3.Status -lt 300))
+        Assert-Case "Q6" "解除配额（0=不限）后建单恢复" $q6ok "restore=$($q6res.Status) ticket=$($qt3.Status)"
+    }
+}
+
+# ---- T：租户暂停/恢复（客户面 + 服务商面可见性） ----
+if ($null -eq $newTenant -or $null -eq $admin -or $null -eq $mspadmin -or $null -eq $qAdm) {
+    foreach ($idc in @("T1","T2","T3","T4","T5","T6","T7")) { Skip $idc "租户暂停恢复" "前置未就绪" }
+} else {
+    # 服务商对该新客户租户建立分配（T 校验 CUSTOMER_INACTIVE 需要先过分配闸）
+    $mspAdminId = [int]$mspadmin.Login.data.user.id
+    $talloc = Invoke-Api -Method Post -Path "/api/v1/msp/allocations" -Sess $mspadmin -Body @{ mspUserId = $mspAdminId; customerTenantId = $newTenant.id; role = "primary" }
+    $tallocOk = (($talloc.Status -ge 200) -and ($talloc.Status -lt 300)) -or ($talloc.Raw -match "MSP_ALLOCATION_EXISTS") -or ($talloc.Raw -match "已存在")
+    if (-not $tallocOk) {
+        # 兜底：以「该员工可见客户」为准（重复分配的旧版本曾返回 500 无 reasonCode）。
+        $viewT = Invoke-Api -Method Get -Path "/api/v1/msp/customers" -Sess $mspadmin
+        $hasT = @($viewT.Json.data.customers) | Where-Object { $_.id -eq $newTenant.id } | Select-Object -First 1
+        $tallocOk = ($null -ne $hasT)
+    }
+    if (-not $tallocOk) {
+        Skip "T1" "租户暂停恢复" "服务商对新租户分配失败 status=$($talloc.Status)"
+        foreach ($idc in @("T2","T3","T4","T5","T6","T7")) { Skip $idc "租户暂停恢复" "分配未就绪" }
+    } else {
+        $t1 = Invoke-Api -Method Put -Path "/api/v1/tenants/$($newTenant.id)/status" -Sess $admin -Body @{ status = "suspended" }
+        Assert-Case "T1" "平台暂停客户租户" ($t1.Status -eq 200) "status=$($t1.Status)"
+
+        # 业务路由必须 fail-closed（身份端点观察见 T7）。
+        $t2 = Invoke-Api -Method Get -Path "/api/v1/tickets?page=1&pageSize=5" -Sess $qAdm
+        $t2ok = ($t2.Status -eq 403) -and ($t2.Raw -match "暂停|过期")
+        Assert-Case "T2" "暂停后 live JWT 业务请求被拒（403）" $t2ok "status=$($t2.Status) body=$($t2.Raw.Substring(0, [Math]::Min(140, $t2.Raw.Length)))"
+
+        $t3 = Invoke-Api -Method Get -Path "/api/v1/msp/customers/$($newTenant.id)/tickets" -Sess $mspadmin
+        $t3ok = ($t3.Status -eq 403) -and ($t3.Raw -match "CUSTOMER_INACTIVE")
+        Assert-Case "T3" "暂停客户对服务商不可见（CUSTOMER_INACTIVE）" $t3ok "status=$($t3.Status) body=$($t3.Raw.Substring(0, [Math]::Min(160, $t3.Raw.Length)))"
+
+        $t4 = Invoke-Api -Method Put -Path "/api/v1/tenants/$($newTenant.id)/status" -Sess $admin -Body @{ status = "active" }
+        Assert-Case "T4" "平台恢复租户 active" ($t4.Status -eq 200) "status=$($t4.Status)"
+
+        $t5 = Invoke-Api -Method Get -Path "/api/v1/auth/me" -Sess $qAdm
+        Assert-Case "T5" "恢复后客户面访问正常" ($t5.Status -eq 200) "status=$($t5.Status)"
+
+        $t6 = Invoke-Api -Method Get -Path "/api/v1/msp/customers/$($newTenant.id)/tickets" -Sess $mspadmin
+        Assert-Case "T6" "恢复后服务商面可见性正常" ($t6.Status -eq 200) "status=$($t6.Status)"
+
+        # T7 观察项：/auth/me 不挂租户状态门禁（仅身份读取，无租户数据；已登记设计文档 D-8）。
+        $t7 = Invoke-Api -Method Get -Path "/api/v1/auth/me" -Sess $qAdm
+        Assert-Case "T7" "观察：/auth/me 身份端点不受租户状态门禁（D-8）" ($t7.Status -eq 200) "status=$($t7.Status)"
+    }
+}
+
+# =============================================================================
 # 汇总与 run-summary
 # =============================================================================
 $passN = @($script:Results | Where-Object { $_.Status -eq "PASS" }).Count
@@ -543,7 +779,7 @@ $totalS = [math]::Round($swAll.Elapsed.TotalSeconds, 1)
 $md = New-Object System.Collections.Generic.List[string]
 $md.Add("# MSP 多租户业务验收 run-summary（$ts）")
 $md.Add("")
-$md.Add("> 实例：``$Base``（saas_msp）｜总耗时：$totalS s｜**PASS $passN / FAIL $failN / SKIP $skipN**｜脚本：``scripts/msp/acceptance/run-msp-business-acceptance.ps1``")
+$md.Add("> 状态：**PASS $passN / FAIL $failN / SKIP $skipN**｜日期：$runDate｜实例：``$Base``（saas_msp）｜总耗时：$totalS s｜脚本：``scripts/msp/acceptance/run-msp-business-acceptance.ps1``")
 $md.Add("")
 $md.Add("| ID | 场景 | 状态 | 证据 |")
 $md.Add("|---|---|---|---|")

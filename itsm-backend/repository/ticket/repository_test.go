@@ -873,10 +873,10 @@ func TestTicketStateMachine_SingleSourceOfTruth(t *testing.T) {
 	}
 }
 
-// TestRepository_CreateWithTx_NumberCollisionReturnsSentinel（2026-10-03 业务验收缺陷回归）：
-// 事务内工单号冲突会让 PostgreSQL 中止事务（后续语句 25P02），因此仓库层禁止在同一
-// 事务内重试；必须返回 ErrTicketNumberCollision，由调用方回滚并以新事务重试。
-func TestRepository_CreateWithTx_NumberCollisionReturnsSentinel(t *testing.T) {
+// TestRepository_CreateWithTx_SkipsOccupiedSequenceNumber（D-6 回归）：
+// 序列候选号已被占用（历史数据/其他租户）时，事务内创建必须**向前跳号**成功，
+// 而不是把「必然碰撞」上抛失败；序列不可用时回退 DB 路径继续跳号。
+func TestRepository_CreateWithTx_SkipsOccupiedSequenceNumber(t *testing.T) {
 	fx := newRepoFixture(t)
 	defer fx.client.Close()
 	repo := fx.repo.(*EntRepository)
@@ -885,6 +885,7 @@ func TestRepository_CreateWithTx_NumberCollisionReturnsSentinel(t *testing.T) {
 	prefix := fmt.Sprintf("TKT-%04d%02d-", now.Year(), int(now.Month()))
 
 	// 占用 000001（模拟序列落后：号已被历史数据使用）。
+	repo.SetSequenceService(&stubSequenceProvider{values: []int64{1}})
 	occupier, err := repo.Create(fx.ctx, &CreateParams{
 		Title: "occupy", Description: "occupy", Priority: PriorityMedium,
 		Type: TypeIncident, RequesterID: fx.user.ID,
@@ -892,27 +893,79 @@ func TestRepository_CreateWithTx_NumberCollisionReturnsSentinel(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, prefix+"000001", occupier.TicketNumber)
 
-	// 序列重放 1 → 事务内冲突：必须返回哨兵错误（而不是继续在同一事务里 SQL 重试）。
+	// 序列重放 1（且已耗尽）→ 探针发现占用 → 回退 DB 路径继续跳号 → 000002 成功。
 	repo.SetSequenceService(&stubSequenceProvider{values: []int64{1}})
 	tx, err := fx.client.Tx(fx.ctx)
 	require.NoError(t, err)
-	_, err = repo.CreateWithTx(fx.ctx, tx, &CreateParams{
-		Title: "collide", Description: "collide", Priority: PriorityMedium,
-		Type: TypeIncident, RequesterID: fx.user.ID,
-	}, fx.tenant.ID)
-	require.Error(t, err)
-	require.ErrorIs(t, err, ErrTicketNumberCollision)
-	require.NoError(t, tx.Rollback())
-
-	// 调用方以新事务 + 新的序列值重试 → 成功（这正是 service.CreateTicket 的重试语义）。
-	repo.SetSequenceService(&stubSequenceProvider{values: []int64{2}})
-	tx2, err := fx.client.Tx(fx.ctx)
-	require.NoError(t, err)
-	created, err := repo.CreateWithTx(fx.ctx, tx2, &CreateParams{
-		Title: "retry ok", Description: "retry ok", Priority: PriorityMedium,
+	created, err := repo.CreateWithTx(fx.ctx, tx, &CreateParams{
+		Title: "skip occupied", Description: "skip occupied", Priority: PriorityMedium,
 		Type: TypeIncident, RequesterID: fx.user.ID,
 	}, fx.tenant.ID)
 	require.NoError(t, err)
-	require.NoError(t, tx2.Commit())
+	require.NoError(t, tx.Commit())
 	require.Equal(t, prefix+"000002", created.TicketNumber)
+}
+
+// TestIsTicketNumberCollision_DetectsUniqueViolations 锁定哨兵判定：
+// 事务内唯一键冲突必须被识别（Postgres 23505 / duplicate key 文案），
+// 由仓库层上抛 ErrTicketNumberCollision、调用方以新事务重试（25P02 防护）。
+func TestIsTicketNumberCollision_DetectsUniqueViolations(t *testing.T) {
+	cases := []struct {
+		name string
+		err  error
+		want bool
+	}{
+		{"postgres duplicate key", fmt.Errorf("pq: duplicate key value violates unique constraint \"tickets_ticket_number_key\" (23505)"), true},
+		{"postgres 23505 code", fmt.Errorf("driver: 23505 unique violation"), true},
+		{"ent constraint error", &ent.ConstraintError{}, true},
+		{"generic", fmt.Errorf("connection refused"), false},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			assert.Equal(t, tc.want, isTicketNumberCollision(tc.err))
+		})
+	}
+}
+
+// TestGenerateTicketNumber_SkipsGloballyOccupied （D-6 回归）：
+// ticket_number 为全局唯一；序列候选号被他租户占用时必须向前跳号而非直接返回碰撞号。
+// 使用独立内存库：默认 fixture 的共享 DSN 会让本用例占用的号段污染同包其他用例。
+func TestGenerateTicketNumber_SkipsGloballyOccupied(t *testing.T) {
+	ctx := context.Background()
+	dsn := fmt.Sprintf("file:repo_skip_%d?mode=memory&cache=shared&_fk=1", time.Now().UnixNano())
+	client := enttest.Open(t, "sqlite3", dsn)
+	defer client.Close()
+	repo := NewEntRepository(client, zaptest.NewLogger(t).Sugar())
+
+	tenant, err := client.Tenant.Create().
+		SetName("Skip Tenant").SetCode("skip-a").SetDomain("skip-a.com").SetStatus("active").
+		Save(ctx)
+	require.NoError(t, err)
+	other, err := client.Tenant.Create().
+		SetName("Other Tenant").SetCode("skip-b").SetDomain("skip-b.com").SetStatus("active").
+		Save(ctx)
+	require.NoError(t, err)
+	user, err := client.User.Create().
+		SetUsername("skip-user").SetEmail("skip@test.com").SetName("Skip").
+		SetPasswordHash("hash").SetRole("end_user").SetActive(true).SetTenantID(tenant.ID).
+		Save(ctx)
+	require.NoError(t, err)
+
+	now := time.Now()
+	prefix := fmt.Sprintf("TKT-%04d%02d-", now.Year(), int(now.Month()))
+	// 模拟他租户/历史数据已占用 000001、000002。
+	for _, n := range []string{prefix + "000001", prefix + "000002"} {
+		_, err := client.Ticket.Create().
+			SetTitle("occupied").SetDescription("occupied number").
+			SetType(string(TypeIncident)).SetPriority(string(PriorityLow)).
+			SetTicketNumber(n).SetRequesterID(user.ID).SetTenantID(other.ID).
+			SetStatus(string(StatusNew)).
+			Save(ctx)
+		require.NoError(t, err)
+	}
+
+	repo.SetSequenceService(&stubSequenceProvider{values: []int64{1, 2, 3}})
+	num, err := repo.GenerateTicketNumber(ctx, tenant.ID)
+	require.NoError(t, err)
+	assert.Equal(t, prefix+"000003", num, "占用号必须被跳过")
 }

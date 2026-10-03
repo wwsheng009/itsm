@@ -3,6 +3,7 @@ package ticket
 import (
 	"context"
 	"fmt"
+	"strings"
 	"time"
 
 	"itsm-backend/common"
@@ -263,9 +264,23 @@ func (s *Service) CloseTicket(ctx context.Context, ticketID int, tenantID int, a
 // UpdateStatus updates the status of a ticket.
 // P1-DataScope：状态流转是生命周期写操作，行级校验对齐 Update/Delete
 // （写权限 ⊆ 读权限，普通角色仅创建人/受理人/管理员）。
+// D-7：状态机单一事实来源（common.IsValidTicketStatusTransition）；resolved 属受保护
+// 终局，必须走 ResolveTicket 提交解决方案，禁止直接置位。
 func (s *Service) UpdateStatus(ctx context.Context, ticketID int, status string, tenantID int, userID int, actorRole string) (*Ticket, error) {
 	if err := s.lifecycleGuard(ctx, ticketID, userID, actorRole, tenantID, "变更状态"); err != nil {
 		return nil, err
+	}
+	current, err := s.repo.GetByID(ctx, ticketID, tenantID)
+	if err != nil {
+		return nil, err
+	}
+	if !common.IsValidTicketStatusTransition(current.Status, status) {
+		return nil, common.NewBadRequestError(
+			fmt.Sprintf("invalid status transition: %s -> %s", current.Status, status), nil)
+	}
+	if status == string(common.TicketStatusResolved) &&
+		(current.Resolution == nil || strings.TrimSpace(*current.Resolution) == "") {
+		return nil, common.NewBadRequestError("解决工单必须通过 ResolveTicket 提交解决方案", nil)
 	}
 	return s.repo.UpdateStatus(ctx, ticketID, status, tenantID)
 }

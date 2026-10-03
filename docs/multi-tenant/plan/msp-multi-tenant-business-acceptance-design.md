@@ -185,12 +185,87 @@ pwsh scripts/msp/acceptance/run-msp-business-acceptance.ps1 -Base http://127.0.0
 |---|---|---|
 | v1.0 | 2026-10-03 | 首版：G0–G7 场景目录、判据、脚本入口与证据约定（本机 saas_msp 实测基线） |
 | v1.1 | 2026-10-03 | 首轮实测校准：P3 分配真值改用 `/msp/customers`；I3/I6 反例改用「未分配客户B」；P9 改为状态机合法终局 `pending` + 新增 C6 客户确认解决；C2b 明确 token 在 `/invite/<token>` 路径段 |
+| v1.2 | 2026-10-04 | 第二波「操作链与规则逻辑」：新增 G8–G12（L 生命周期链 9 项 / W 批量逐条 3 项 / R 分配回收 6 项 / Q 硬配额 6 项 / T 暂停恢复 7 项）；实测 **70/70 全绿**（FAIL=0 SKIP=0，88s）。同期修复 D-2（重复分配 409）与 D-6（工单号跨租户碰撞）、D-7（状态机绕过），登记 D-5/D-8 |
 
 ## 9. 首轮实测发现（2026-10-03，本机 saas_msp）
 
 | # | 发现 | 处置 |
 |---|---|---|
-| D-1 | **工单号碰撞后事务内重试导致 500**：`tickets.ticket_number` 唯一键冲突（序列落后于 max，如 `TKT-202610-000004` 重复）后，仓库层在**同一已中止事务**内重试语句 → `25P02 current transaction is aborted`，建单失败（业务验收 C3 实测捕获）。 | **已修复**：`repository/ticket` 新增 `ErrTicketNumberCollision` 哨兵并停止事务内重试；`service.CreateTicket` 以**新事务**重试 ≤3 次。回归用例 `TestRepository_CreateWithTx_NumberCollisionReturnsSentinel`。 |
-| D-2 | 重复分配（同一员工同一客户已有有效记录）时 `POST /msp/allocations` 返回 **500 `操作失败`**，非 409/业务错误码，调用方无法稳定判定。 | **登记遗留**（建议：映射 409 + 稳定 `reasonCode`，需登记 canon 错误码表后实施）；当前脚本以 `/msp/customers` 为真值、并把 500 重复文案按幂等复用处理。 |
+| D-1 | **工单号碰撞后事务内重试导致 500**：`tickets.ticket_number` 唯一键冲突（序列落后于 max，如 `TKT-202610-000004` 重复）后，仓库层在**同一已中止事务**内重试语句 → `25P02 current transaction is aborted`，建单失败（业务验收 C3 实测捕获）。 | **已修复**：`repository/ticket` 新增 `ErrTicketNumberCollision` 哨兵并停止事务内重试；`service.CreateTicket` 以**新事务**重试 ≤3 次。回归用例 `TestRepository_CreateWithTx_SkipsOccupiedSequenceNumber` / `TestIsTicketNumberCollision_DetectsUniqueViolations`（2026-10-04 起语义收敛为「全局跳号优先、哨兵兜底」）。 |
+| D-2 | 重复分配（同一员工同一客户已有有效记录）时 `POST /msp/allocations` 返回 **500 `操作失败`**，非 409/业务错误码，调用方无法稳定判定。 | **✅ 已收口（2026-10-04）**：`service.ErrAllocationExists` → handler 映射 **409 + `reasonCode=MSP_ALLOCATION_EXISTS`**（注册表 §3.0-A）；回归 `TestCreateAllocation_DuplicateReturns409`、验收 R6。 |
 | D-3 | 契约差异：`/msp/allocations` 仅返回**调用者自身**分配（不可用于核对他人）；邀请链接 token 在路径段（`/invite/<token>`）。 | **脚本已适配**；设计文档已明确口径。 |
 | D-4 | 邀请语义：对**已有账号**的邮箱再次发起邀请，`accept` 返回 409 `INVITATION_EMAIL_EXISTS`（需管理员绑定后重发，不支持自助注册）。 | **脚本改用每轮唯一邀请邮箱**（`acpt-invite-<ts>@example.com`），完整走通「邀请→落地→接受→首登」；语义本身符合设计（防账号劫持）。 |
+
+## 10. 第二波：操作链与规则逻辑（G8–G12，2026-10-04）
+
+> 目标：从「主链路可用」深化到「规则语义可信」——状态机边界、批量逐条语义、分配生命周期、配额与租户状态门禁。
+> 全部通过真实 HTTP + 联调库执行（同一脚本 `-SkipTenantLifecycle` 外的默认全量路径）。**实测 70/70 全绿**。
+
+**运行前置补充**：验收机建议 `LOGIN_RATE_LIMIT_PER_MIN=120`（该中间件默认 10/min/IP，登录 + 邀请接受会共享额度；见 `middleware/rate_limiter.go`）。
+
+### G8 工单生命周期链（L）
+
+| ID | 操作者 | 步骤 | 判据 |
+|---|---|---|---|
+| L1 | mspadmin（工作台） | `POST /msp/tickets/:id/status`：`new→in_progress` | 200 |
+| L2 | mspadmin（工作台） | 同上：`in_progress→resolved` 直改 | 非 2xx（受保护终局；服务端日志给出 ResolveTicket 指引） |
+| L3 | mspadmin（工作台） | `in_progress→pending` | 200 |
+| L4 | mspadmin（工作台） | `pending→in_progress`（重启处理） | 200 |
+| L5 | custa_admin | `POST /tickets/:id/resolve`（提交解决方案） | 2xx → `resolved` |
+| L6 | custa_admin | `PUT /tickets/:id/status`：`resolved→closed` | 2xx → `closed`（客户归档） |
+| L7 | mspadmin（工作台） | 对 `closed` 工单改状态 | 非 2xx（工作台终态守卫 403 `ACTION_NOT_ALLOWED`） |
+| L8 | custa_admin | `closed→open`（终态重开） | **400**（`common.IsValidTicketStatusTransition` 拒绝，D-7 收口） |
+| L9 | acpt_user | 复查终态 | `status=closed` |
+
+### G9 批量逐条语义（W）
+
+| ID | 操作者 | 步骤 | 判据 |
+|---|---|---|---|
+| W1 | mspadmin（A/B 均分配） | 批量 reply：A、B 各 1 条 | `succeeded=2 failed=0`（跨客户同一批次） |
+| W2 | acpt_agent（仅分配 A） | 批量 reply：A、B 各 1 条 | `succeeded=1 failed=1`；B 条目 `ok=false reasonCode=MSP_ALLOCATION_REQUIRED`（**不整体回滚**） |
+| W3 | custb_user 复查 | B 评论列表 | 不含 W2 标记（**被拒条目无副作用**） |
+
+### G10 分配回收与幂等（R）
+
+| ID | 操作者 | 步骤 | 判据 |
+|---|---|---|---|
+| R1 | mspadmin | 建立/复用 `acpt_agent2→A` 分配 | 2xx 或已存在复用 |
+| R2 | acpt_agent2 | `GET /msp/customers` | 回收前：可见客户A |
+| R3 | mspadmin | `POST /msp/allocations/deallocate`（含 reason） | 2xx |
+| R4 | acpt_agent2 | `GET /msp/customers` | 回收后：不再可见客户A（空集） |
+| R5 | acpt_agent2 | `GET /msp/customers/:A/tickets` | 403 `MSP_ALLOCATION_REQUIRED`（**即时失效**） |
+| R6 | mspadmin | 重复分配（同员工同客户） | **409 + `MSP_ALLOCATION_EXISTS`**（D-2 收口；可幂等判定） |
+
+### G11 租户硬配额（Q，IP-P2-6）
+
+> 复跑安全：先读 `/tenants/:id/usage`，按 `used+1` 设限，保证每轮「末位放行、下一条拒绝」可重复验证。
+
+| ID | 操作者 | 步骤 | 判据 |
+|---|---|---|---|
+| Q1 | admin | `PUT /tenants/:id`（`quota={maxUsers:used+1,maxTicketsPerMonth:used+1}`） | 200 |
+| Q2 | admin-mspacpt | 建单（used → used+1） | 200 |
+| Q3 | admin-mspacpt | 再建单（超限） | **422 + `TENANT_QUOTA_EXCEEDED`**（含 limit/used/quota 明细） |
+| Q4 | admin | `POST /tenants/:id/users`（供给末位） | 200 |
+| Q5 | admin | 再供给（超限） | **422 + `TENANT_QUOTA_EXCEEDED`** |
+| Q6 | admin | `quota=0（不限）` 后建单 | restore 200；建单 200（恢复） |
+
+### G12 租户暂停/恢复（T）
+
+| ID | 操作者 | 步骤 | 判据 |
+|---|---|---|---|
+| T1 | admin | `PUT /tenants/:id/status {suspended}` | 200 |
+| T2 | admin-mspacpt（live JWT） | `GET /tickets`（业务路由） | **403「租户已被暂停或过期」**（fail-closed） |
+| T3 | mspadmin（已分配该客户） | `GET /msp/customers/:id/tickets` | 403 `CUSTOMER_INACTIVE`（服务商面同样 fail-closed） |
+| T4 | admin | `status {active}` | 200 |
+| T5 | admin-mspacpt | `GET /auth/me` 等 | 200（恢复） |
+| T6 | mspadmin | `GET /msp/customers/:id/tickets` | 200（恢复） |
+| T7 | admin-mspacpt | `GET /auth/me`（暂停期间） | 观察项：身份端点不受租户状态门禁（仅身份、无租户数据；见 D-8） |
+
+### 第二波发现与修复
+
+| # | 发现 | 处置 |
+|---|---|---|
+| D-5 | **客户端会话污染**（脚本层，非服务端缺陷）：PS7 `Invoke-WebRequest -Headers ... -WebSession` 会把头合并进 `WebSession.Headers` 并持续到后续请求（实测 7.6.1）；I4 的 `X-Tenant-Code` 曾污染同会话后续调用（全部 401 `TENANT_MISMATCH_REJECTED`）。`Bearer-only（无 WebSession）` 复验 200，证明服务端无状态污染。 | **脚本已隔离**：`Invoke-Api` 统一仅用 `Authorization: Bearer`、不挂 WebSession；并在注释中固化该陷阱。 |
+| D-6 | **工单号跨租户碰撞（500）**：`tickets.ticket_number` 全局唯一，而 Redis 序列按「租户+年月」分片、DB 同步也只取本租户最大值——新租户从空序列出号，必然撞他租户已用号段；重试 3 次烧尽后 500（实测租户6 建单全部失败）。 | **已修复**：① Redis 候选号**全局存在性探针 + 向前跳号（≤20）**，序列推进失败自动回退 DB 路径；② DB 回退同样跨租户跳号；③ `queryMaxTicketSeqFromDB` 改取**全表当月最大号**作为序列起点。回归：`TestGenerateTicketNumber_SkipsGloballyOccupied`、`TestRepository_CreateWithTx_SkipsOccupiedSequenceNumber`（+ 哨兵判定 `TestIsTicketNumberCollision_DetectsUniqueViolations`）。 |
+| D-7 | **状态机绕过（`PUT /tickets/:id/status`）**：`closed→open` 实测 200 且状态被改写（`handlers/ticket.Service.UpdateStatus` 未走状态机；旧兜底把 4xx 吞成 500 或直接放行）。 | **已修复**：`UpdateStatus` 收口 `common.IsValidTicketStatusTransition` + `resolved` 需解决方案（指向 `ResolveTicket`）；`failTicketOperation` 统一按 AppError 语义分流 4xx。回归：`TestUpdateTicketStatus_StateMachineAndProtectedResolved`。 |
+| D-8 | **观察（非缺陷）**：`/auth/me` 不挂租户状态门禁，暂停租户下仍 200（仅身份读取、无租户数据；业务路由已验证 403 fail-closed）。 | 已登记；如需统一「暂停=全端点拒绝」口径，可将身份端点纳入状态校验（待定，避免影响刷新令牌链路）。 |
