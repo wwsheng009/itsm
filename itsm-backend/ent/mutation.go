@@ -102337,24 +102337,10 @@ func (m *MessageMutation) AddedTenantID() (r int, exists bool) {
 	return *v, true
 }
 
-// ClearTenantID clears the value of the "tenant_id" field.
-func (m *MessageMutation) ClearTenantID() {
-	m.tenant_id = nil
-	m.addtenant_id = nil
-	m.clearedFields[message.FieldTenantID] = struct{}{}
-}
-
-// TenantIDCleared returns if the "tenant_id" field was cleared in this mutation.
-func (m *MessageMutation) TenantIDCleared() bool {
-	_, ok := m.clearedFields[message.FieldTenantID]
-	return ok
-}
-
 // ResetTenantID resets all changes to the "tenant_id" field.
 func (m *MessageMutation) ResetTenantID() {
 	m.tenant_id = nil
 	m.addtenant_id = nil
-	delete(m.clearedFields, message.FieldTenantID)
 }
 
 // SetRole sets the "role" field.
@@ -102695,9 +102681,6 @@ func (m *MessageMutation) AddField(name string, value ent.Value) error {
 // mutation.
 func (m *MessageMutation) ClearedFields() []string {
 	var fields []string
-	if m.FieldCleared(message.FieldTenantID) {
-		fields = append(fields, message.FieldTenantID)
-	}
 	if m.FieldCleared(message.FieldRequestID) {
 		fields = append(fields, message.FieldRequestID)
 	}
@@ -102715,9 +102698,6 @@ func (m *MessageMutation) FieldCleared(name string) bool {
 // error if the field is not defined in the schema.
 func (m *MessageMutation) ClearField(name string) error {
 	switch name {
-	case message.FieldTenantID:
-		m.ClearTenantID()
-		return nil
 	case message.FieldRequestID:
 		m.ClearRequestID()
 		return nil

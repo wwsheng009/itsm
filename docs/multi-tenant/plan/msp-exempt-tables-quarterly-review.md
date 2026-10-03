@@ -18,10 +18,11 @@
 
 - 事实：`messages`（AI 会话消息）无 `tenant_id`，仅经 `conversation_id` 派生；`conversations.tenant_id` 可空。
 - 决策：**租户化**。理由：AI 内容属租户数据，RLS / 审计 / 级联删除需要直接租户列，避免仅依赖 join 派生。
-- 落地：迁移加列 + 回填 + `(tenant_id, conversation_id, created_at)` 索引；写入点 `handlers/ai/repository_impl.go`（ctx 租户优先；无 ctx 保持 NULL 兼容历史）。
+- 落地：迁移加列 + 回填 + `(tenant_id, conversation_id, created_at)` 索引；写入点 `handlers/ai/repository_impl.go`（**收尾后：ctx 租户优先；ctx 缺失由会话派生；跨租户冲突/双方缺失 fail-closed**）。
 - 巡检（只读）：① 未回填且会话有租户 ② 消息与会话租户错配 ③ 会话自身无租户的历史范围。
-- 收尾条件：①=0 且 ②=0，且 ③ 已明确处置 → 单独迁移收紧 `NOT NULL`（不在本批）。
-- **巡检结果留档（2026-10-03，联调库）**：①=0 / ②=0 / ③=0（`scripts/msp/verify-messages-tenant-backfill.sql`）。收紧 `NOT NULL` 的前置仍未满足：写入侧 `handlers/ai/repository_impl.go` 无 ctx 时保持写 NULL 兼容历史，需先收口（fail-closed/派生）再单独迁移。
+- 收尾条件：①=0 且 ②=0，且 ③ 已明确处置 → 单独迁移收紧 `NOT NULL`（**已于 2026-10-03 执行，见下**）。
+- **巡检结果留档（2026-10-03，联调库）**：①=0 / ②=0 / ③=0（`scripts/msp/verify-messages-tenant-backfill.sql`）。
+- **收尾落地（2026-10-03，v1.46）**：写入侧收口（ctx 优先 → 会话派生 → fail-closed）→ 迁移 `20261003_messages_tenant_not_null.sql`（幂等：再回填 + 残余空值显式报错阻断 + `SET NOT NULL`）+ ent 字段必填（生成物同步）；联调库 `applied=68 pending=0`、`tenant_id nullable=NO`、空值 0 行。
 
 ## 3. 保留判定依据（复核不变）
 

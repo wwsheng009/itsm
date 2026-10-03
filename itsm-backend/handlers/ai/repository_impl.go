@@ -2,6 +2,7 @@ package ai
 
 import (
 	"context"
+	"fmt"
 	"time"
 
 	"itsm-backend/common/tenantctx"
@@ -98,16 +99,35 @@ func toMessageDomain(e *ent.Message) *Message {
 }
 
 func (r *EntRepository) CreateMessage(ctx context.Context, m *Message) (*Message, error) {
-	builder := r.client.Message.Create().
+	// IP-P2-3 收尾（2026-10-03）：tenant_id 必填。解析顺序：
+	// ① 请求 ctx 租户；② ctx 缺失时由所属会话派生；③ 两者冲突（跨租户写入）或
+	// 均缺失（会话自身无租户）时 fail-closed，避免写入不可归属的消息。
+	tenantID := 0
+	if tid, ok := tenantctx.TenantID(ctx); ok && tid > 0 {
+		tenantID = tid
+	}
+	conv, err := r.client.Conversation.Query().
+		Where(conversation.IDEQ(m.ConversationID)).
+		Select(conversation.FieldTenantID).
+		Only(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("resolve message conversation %d: %w", m.ConversationID, err)
+	}
+	switch {
+	case conv.TenantID > 0 && tenantID > 0 && conv.TenantID != tenantID:
+		return nil, fmt.Errorf("message tenant mismatch: ctx=%d conversation=%d", tenantID, conv.TenantID)
+	case tenantID == 0 && conv.TenantID > 0:
+		tenantID = conv.TenantID
+	case tenantID == 0:
+		return nil, fmt.Errorf("message tenant unresolved: conversation %d has no tenant", m.ConversationID)
+	}
+	e, err := r.client.Message.Create().
 		SetConversationID(m.ConversationID).
+		SetTenantID(tenantID).
 		SetRole(m.Role).
 		SetContent(m.Content).
-		SetRequestID(m.RequestID)
-	// IP-P2-3：租户化——优先取请求 ctx 租户；ctx 无租户时保持 NULL（历史兼容，由回填/巡检兜底）。
-	if tid, ok := tenantctx.TenantID(ctx); ok && tid > 0 {
-		builder.SetTenantID(tid)
-	}
-	e, err := builder.Save(ctx)
+		SetRequestID(m.RequestID).
+		Save(ctx)
 	if err != nil {
 		return nil, err
 	}

@@ -185,16 +185,6 @@ func TenantIDLTE(v int) predicate.Message {
 	return predicate.Message(sql.FieldLTE(FieldTenantID, v))
 }
 
-// TenantIDIsNil applies the IsNil predicate on the "tenant_id" field.
-func TenantIDIsNil() predicate.Message {
-	return predicate.Message(sql.FieldIsNull(FieldTenantID))
-}
-
-// TenantIDNotNil applies the NotNil predicate on the "tenant_id" field.
-func TenantIDNotNil() predicate.Message {
-	return predicate.Message(sql.FieldNotNull(FieldTenantID))
-}
-
 // RoleEQ applies the EQ predicate on the "role" field.
 func RoleEQ(v string) predicate.Message {
 	return predicate.Message(sql.FieldEQ(FieldRole, v))

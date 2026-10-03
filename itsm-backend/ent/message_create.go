@@ -47,14 +47,6 @@ func (_c *MessageCreate) SetTenantID(v int) *MessageCreate {
 	return _c
 }
 
-// SetNillableTenantID sets the "tenant_id" field if the given value is not nil.
-func (_c *MessageCreate) SetNillableTenantID(v *int) *MessageCreate {
-	if v != nil {
-		_c.SetTenantID(*v)
-	}
-	return _c
-}
-
 // SetRole sets the "role" field.
 func (_c *MessageCreate) SetRole(v string) *MessageCreate {
 	_c.mutation.SetRole(v)
@@ -146,6 +138,9 @@ func (_c *MessageCreate) check() error {
 	}
 	if _, ok := _c.mutation.ConversationID(); !ok {
 		return &ValidationError{Name: "conversation_id", err: errors.New(`ent: missing required field "Message.conversation_id"`)}
+	}
+	if _, ok := _c.mutation.TenantID(); !ok {
+		return &ValidationError{Name: "tenant_id", err: errors.New(`ent: missing required field "Message.tenant_id"`)}
 	}
 	if _, ok := _c.mutation.Role(); !ok {
 		return &ValidationError{Name: "role", err: errors.New(`ent: missing required field "Message.role"`)}

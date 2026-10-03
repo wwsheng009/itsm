@@ -3130,7 +3130,7 @@ var (
 	MessagesColumns = []*schema.Column{
 		{Name: "id", Type: field.TypeInt, Increment: true},
 		{Name: "created_at", Type: field.TypeTime},
-		{Name: "tenant_id", Type: field.TypeInt, Nullable: true},
+		{Name: "tenant_id", Type: field.TypeInt},
 		{Name: "role", Type: field.TypeString},
 		{Name: "content", Type: field.TypeString, Size: 2147483647, Default: ""},
 		{Name: "request_id", Type: field.TypeString, Nullable: true},
