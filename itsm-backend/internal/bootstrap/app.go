@@ -394,6 +394,9 @@ func NewApplication() *Application {
 	ticketCommentService := service.NewTicketCommentService(client, sugar)
 	ticketAttachmentService := service.NewTicketAttachmentService(client, sugar)
 	attachmentService := service.NewAttachmentService(client, sugar, nil)
+	// IP-P2-6 租户硬配额：读取 tenants.quota；未配置（NULL/零值）= 不限，行为与改造前一致。
+	tenantQuotaService := service.NewTenantQuotaService(client, sugar)
+	attachmentService.SetTenantQuotaService(tenantQuotaService)
 	// BE-6 薄适配接线：把通用附件服务与部署级灰度开关注入旧工单附件服务。
 	// 开关默认全关（configs/config.yaml.example 亦为 false），旧链路行为不变；
 	// 只改环境变量即可灰度/回滚（ATTACHMENT_GENERIC_READ_ENABLED / _WRITE_ENABLED）。
@@ -571,6 +574,8 @@ func NewApplication() *Application {
 		ConnectorManager:      connectorManager,
 	})
 	ticketService.EnableWorkflowOutbox()
+	// IP-P2-6：工单创建纳入租户硬配额（maxTicketsPerMonth）。
+	ticketService.SetTenantQuotaService(tenantQuotaService)
 	// BE-8：附件清理任务开启时，工单删除级联软删其通用附件（关闭时保持旧行为）。
 	if cfg.Attachment.CleanupEnabled {
 		ticketService.SetAttachmentLifecycle(attachmentService)
@@ -1268,6 +1273,8 @@ func NewApplication() *Application {
 	// 灰度开关 USER_PROVISIONING_CHANNELS_ENABLED（默认关，关闭时可回退 legacy 建号逻辑）。
 	userProvisioningService := service.NewUserProvisioningService(client, userService, sugar)
 	userHTTPHandler.SetProvisioningService(userProvisioningService)
+	// IP-P2-6：三通道建号纳入租户硬配额（maxUsers）。
+	userProvisioningService.SetTenantQuotaService(tenantQuotaService)
 	// IP-P1-4b 邀请生命周期：服务 + HTTP（创建/撤销走用户组，落地页/接受走公开 auth 组）。
 	invitationService := service.NewInvitationService(client, userService, sugar)
 	invitationHTTPHandler := invitationHandler.NewHandler(invitationService, sugar)

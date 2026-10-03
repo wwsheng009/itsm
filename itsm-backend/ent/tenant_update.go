@@ -13,6 +13,7 @@ import (
 	"itsm-backend/ent/user"
 	"itsm-backend/ent/usertenantmembership"
 	"itsm-backend/ent/usertenantmembershiporg"
+	"itsm-backend/pkg/tenantquota"
 	"time"
 
 	"entgo.io/ent/dialect/sql"
@@ -328,6 +329,26 @@ func (_u *TenantUpdate) SetNillableTimezone(v *string) *TenantUpdate {
 	if v != nil {
 		_u.SetTimezone(*v)
 	}
+	return _u
+}
+
+// SetQuota sets the "quota" field.
+func (_u *TenantUpdate) SetQuota(v tenantquota.Limits) *TenantUpdate {
+	_u.mutation.SetQuota(v)
+	return _u
+}
+
+// SetNillableQuota sets the "quota" field if the given value is not nil.
+func (_u *TenantUpdate) SetNillableQuota(v *tenantquota.Limits) *TenantUpdate {
+	if v != nil {
+		_u.SetQuota(*v)
+	}
+	return _u
+}
+
+// ClearQuota clears the value of the "quota" field.
+func (_u *TenantUpdate) ClearQuota() *TenantUpdate {
+	_u.mutation.ClearQuota()
 	return _u
 }
 
@@ -723,6 +744,12 @@ func (_u *TenantUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 	}
 	if value, ok := _u.mutation.Timezone(); ok {
 		_spec.SetField(tenant.FieldTimezone, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.Quota(); ok {
+		_spec.SetField(tenant.FieldQuota, field.TypeJSON, value)
+	}
+	if _u.mutation.QuotaCleared() {
+		_spec.ClearField(tenant.FieldQuota, field.TypeJSON)
 	}
 	if value, ok := _u.mutation.CreatedAt(); ok {
 		_spec.SetField(tenant.FieldCreatedAt, field.TypeTime, value)
@@ -1318,6 +1345,26 @@ func (_u *TenantUpdateOne) SetNillableTimezone(v *string) *TenantUpdateOne {
 	return _u
 }
 
+// SetQuota sets the "quota" field.
+func (_u *TenantUpdateOne) SetQuota(v tenantquota.Limits) *TenantUpdateOne {
+	_u.mutation.SetQuota(v)
+	return _u
+}
+
+// SetNillableQuota sets the "quota" field if the given value is not nil.
+func (_u *TenantUpdateOne) SetNillableQuota(v *tenantquota.Limits) *TenantUpdateOne {
+	if v != nil {
+		_u.SetQuota(*v)
+	}
+	return _u
+}
+
+// ClearQuota clears the value of the "quota" field.
+func (_u *TenantUpdateOne) ClearQuota() *TenantUpdateOne {
+	_u.mutation.ClearQuota()
+	return _u
+}
+
 // SetCreatedAt sets the "created_at" field.
 func (_u *TenantUpdateOne) SetCreatedAt(v time.Time) *TenantUpdateOne {
 	_u.mutation.SetCreatedAt(v)
@@ -1740,6 +1787,12 @@ func (_u *TenantUpdateOne) sqlSave(ctx context.Context) (_node *Tenant, err erro
 	}
 	if value, ok := _u.mutation.Timezone(); ok {
 		_spec.SetField(tenant.FieldTimezone, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.Quota(); ok {
+		_spec.SetField(tenant.FieldQuota, field.TypeJSON, value)
+	}
+	if _u.mutation.QuotaCleared() {
+		_spec.ClearField(tenant.FieldQuota, field.TypeJSON)
 	}
 	if value, ok := _u.mutation.CreatedAt(); ok {
 		_spec.SetField(tenant.FieldCreatedAt, field.TypeTime, value)

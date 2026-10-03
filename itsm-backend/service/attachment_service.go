@@ -270,7 +270,11 @@ type AttachmentService struct {
 	allowedTypes []string
 	virusScanner AttachmentVirusScanner
 	hosts        map[string]AttachmentHost
+	quotaSvc     *TenantQuotaService // IP-P2-6：租户存储配额（maxStorageMB），nil 时跳过
 }
+
+// SetTenantQuotaService 注入租户配额服务（IP-P2-6；nil 关闭校验）。
+func (s *AttachmentService) SetTenantQuotaService(q *TenantQuotaService) { s.quotaSvc = q }
 
 // AttachmentUploadInput A1 上传入参（handler 负责 multipart 解析与权限判定）。
 type AttachmentUploadInput struct {
@@ -402,6 +406,14 @@ func (s *AttachmentService) Upload(ctx context.Context, tenantID, userID int, in
 		}
 		if !ent.IsNotFound(err) {
 			return nil, fmt.Errorf("failed to check client token: %w", err)
+		}
+	}
+
+	// IP-P2-6：租户存储配额（maxStorageMB）校验——按声明大小预检，超限直接拒绝、
+	// 不落盘；错误沿用既有 6106 语义（ErrAttachmentQuotaExceeded → 422）。
+	if s.quotaSvc != nil {
+		if err := s.quotaSvc.CheckStorageAdd(ctx, tenantID, header.Size); err != nil {
+			return nil, fmt.Errorf("%w: %v", ErrAttachmentQuotaExceeded, err)
 		}
 	}
 

@@ -159,6 +159,7 @@ import (
 	"itsm-backend/ent/workflowtask"
 	"itsm-backend/ent/workflowtemplate"
 	"itsm-backend/ent/workflowversion"
+	"itsm-backend/pkg/tenantquota"
 	"sync"
 	"time"
 
@@ -166653,6 +166654,7 @@ type TenantMutation struct {
 	service_tier                    *string
 	owner_contact                   *string
 	timezone                        *string
+	quota                           *tenantquota.Limits
 	created_at                      *time.Time
 	updated_at                      *time.Time
 	clearedFields                   map[string]struct{}
@@ -167525,6 +167527,55 @@ func (m *TenantMutation) ResetTimezone() {
 	m.timezone = nil
 }
 
+// SetQuota sets the "quota" field.
+func (m *TenantMutation) SetQuota(t tenantquota.Limits) {
+	m.quota = &t
+}
+
+// Quota returns the value of the "quota" field in the mutation.
+func (m *TenantMutation) Quota() (r tenantquota.Limits, exists bool) {
+	v := m.quota
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldQuota returns the old "quota" field's value of the Tenant entity.
+// If the Tenant object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *TenantMutation) OldQuota(ctx context.Context) (v tenantquota.Limits, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldQuota is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldQuota requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldQuota: %w", err)
+	}
+	return oldValue.Quota, nil
+}
+
+// ClearQuota clears the value of the "quota" field.
+func (m *TenantMutation) ClearQuota() {
+	m.quota = nil
+	m.clearedFields[tenant.FieldQuota] = struct{}{}
+}
+
+// QuotaCleared returns if the "quota" field was cleared in this mutation.
+func (m *TenantMutation) QuotaCleared() bool {
+	_, ok := m.clearedFields[tenant.FieldQuota]
+	return ok
+}
+
+// ResetQuota resets all changes to the "quota" field.
+func (m *TenantMutation) ResetQuota() {
+	m.quota = nil
+	delete(m.clearedFields, tenant.FieldQuota)
+}
+
 // SetCreatedAt sets the "created_at" field.
 func (m *TenantMutation) SetCreatedAt(t time.Time) {
 	m.created_at = &t
@@ -167955,7 +168006,7 @@ func (m *TenantMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *TenantMutation) Fields() []string {
-	fields := make([]string, 0, 18)
+	fields := make([]string, 0, 19)
 	if m.name != nil {
 		fields = append(fields, tenant.FieldName)
 	}
@@ -168004,6 +168055,9 @@ func (m *TenantMutation) Fields() []string {
 	if m.timezone != nil {
 		fields = append(fields, tenant.FieldTimezone)
 	}
+	if m.quota != nil {
+		fields = append(fields, tenant.FieldQuota)
+	}
 	if m.created_at != nil {
 		fields = append(fields, tenant.FieldCreatedAt)
 	}
@@ -168050,6 +168104,8 @@ func (m *TenantMutation) Field(name string) (ent.Value, bool) {
 		return m.OwnerContact()
 	case tenant.FieldTimezone:
 		return m.Timezone()
+	case tenant.FieldQuota:
+		return m.Quota()
 	case tenant.FieldCreatedAt:
 		return m.CreatedAt()
 	case tenant.FieldUpdatedAt:
@@ -168095,6 +168151,8 @@ func (m *TenantMutation) OldField(ctx context.Context, name string) (ent.Value, 
 		return m.OldOwnerContact(ctx)
 	case tenant.FieldTimezone:
 		return m.OldTimezone(ctx)
+	case tenant.FieldQuota:
+		return m.OldQuota(ctx)
 	case tenant.FieldCreatedAt:
 		return m.OldCreatedAt(ctx)
 	case tenant.FieldUpdatedAt:
@@ -168220,6 +168278,13 @@ func (m *TenantMutation) SetField(name string, value ent.Value) error {
 		}
 		m.SetTimezone(v)
 		return nil
+	case tenant.FieldQuota:
+		v, ok := value.(tenantquota.Limits)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetQuota(v)
+		return nil
 	case tenant.FieldCreatedAt:
 		v, ok := value.(time.Time)
 		if !ok {
@@ -168321,6 +168386,9 @@ func (m *TenantMutation) ClearedFields() []string {
 	if m.FieldCleared(tenant.FieldOwnerContact) {
 		fields = append(fields, tenant.FieldOwnerContact)
 	}
+	if m.FieldCleared(tenant.FieldQuota) {
+		fields = append(fields, tenant.FieldQuota)
+	}
 	return fields
 }
 
@@ -168364,6 +168432,9 @@ func (m *TenantMutation) ClearField(name string) error {
 		return nil
 	case tenant.FieldOwnerContact:
 		m.ClearOwnerContact()
+		return nil
+	case tenant.FieldQuota:
+		m.ClearQuota()
 		return nil
 	}
 	return fmt.Errorf("unknown Tenant nullable field %s", name)
@@ -168420,6 +168491,9 @@ func (m *TenantMutation) ResetField(name string) error {
 		return nil
 	case tenant.FieldTimezone:
 		m.ResetTimezone()
+		return nil
+	case tenant.FieldQuota:
+		m.ResetQuota()
 		return nil
 	case tenant.FieldCreatedAt:
 		m.ResetCreatedAt()

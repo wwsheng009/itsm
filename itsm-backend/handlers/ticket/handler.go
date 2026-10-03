@@ -8,6 +8,7 @@ import (
 	"itsm-backend/common"
 	"itsm-backend/common/handlerctx"
 	"itsm-backend/dto"
+	"itsm-backend/pkg/tenantquota"
 
 	"github.com/gin-gonic/gin"
 )
@@ -144,6 +145,16 @@ func (h *Handler) CreateTicket(c *gin.Context) {
 
 	ticket, err := h.service.Create(c.Request.Context(), tenantID, params)
 	if err != nil {
+		// IP-P2-6：租户硬配额（maxTicketsPerMonth）超限 → 422 + reasonCode（与 MSP 拒绝同风格）。
+		if qe, ok := tenantquota.AsExceeded(err); ok {
+			common.FailWithData(c, common.UnprocessableEntityCode, qe.Error(), gin.H{
+				"reasonCode": tenantquota.CodeTenantQuotaExceeded,
+				"quota":      qe.Quota,
+				"limit":      qe.Limit,
+				"used":       qe.Used,
+			})
+			return
+		}
 		// 统一错误出口：AppError/BusinessError 按语义分流，其余兜底 500。
 		common.RespondError(c, err, "创建工单失败")
 		return

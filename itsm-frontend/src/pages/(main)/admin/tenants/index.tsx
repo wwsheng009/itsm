@@ -36,9 +36,11 @@ import {
   App,
   Tag,
   DatePicker,
+  InputNumber,
 } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
 import { TenantAPI } from '@/lib/api/tenant-api';
+import type { TenantQuota } from '@/lib/api/api-config';
 
 const { Title, Text } = Typography;
 
@@ -79,6 +81,7 @@ type Tenant = {
   userCount?: number;
   ticketCount?: number;
   expiresAt?: string;
+  quota?: TenantQuota;
 };
 
 type TenantFormValues = {
@@ -88,6 +91,10 @@ type TenantFormValues = {
   type: string;
   status: string;
   expiresAt?: Dayjs;
+  // IP-P2-6 硬配额（0/空 = 不限）
+  maxUsers?: number;
+  maxTicketsPerMonth?: number;
+  maxStorageMB?: number;
 };
 
 export default function TenantManagement() {
@@ -154,12 +161,19 @@ export default function TenantManagement() {
   const handleSaveTenant = async () => {
     try {
       const values = (await form.validateFields()) as TenantFormValues;
+      // IP-P2-6：显式提交 quota 对象（全空 = {} 清空 → 不限）；仅收敛 >0 的键。
+      const quota: TenantQuota = {};
+      if (values.maxUsers && values.maxUsers > 0) quota.maxUsers = values.maxUsers;
+      if (values.maxTicketsPerMonth && values.maxTicketsPerMonth > 0)
+        quota.maxTicketsPerMonth = values.maxTicketsPerMonth;
+      if (values.maxStorageMB && values.maxStorageMB > 0) quota.maxStorageMB = values.maxStorageMB;
       const payload = {
         name: values.name,
         domain: values.domain,
         type: values.type,
         status: values.status,
         expiresAt: values.expiresAt ? values.expiresAt.toISOString() : undefined,
+        quota,
       };
 
       if (selectedTenant) {
@@ -191,6 +205,10 @@ export default function TenantManagement() {
       form.setFieldsValue({
         ...tenant,
         expiresAt: tenant.expiresAt ? dayjs(tenant.expiresAt) : undefined,
+        // IP-P2-6：quota 对象摊平为三个表单字段（缺省留空 = 不限）。
+        maxUsers: tenant.quota?.maxUsers,
+        maxTicketsPerMonth: tenant.quota?.maxTicketsPerMonth,
+        maxStorageMB: tenant.quota?.maxStorageMB,
       });
     } else {
       form.resetFields();
@@ -269,6 +287,23 @@ export default function TenantManagement() {
           <div className="text-xs text-gray-500">{record.ticketCount || 0} 工单</div>
         </div>
       ),
+    },
+    {
+      title: '配额',
+      key: 'quota',
+      render: (_: unknown, record: Tenant) => {
+        const q = record.quota;
+        if (!q || (!q.maxUsers && !q.maxTicketsPerMonth && !q.maxStorageMB)) {
+          return <Text type="secondary">不限</Text>;
+        }
+        return (
+          <Space size={4} wrap>
+            {q.maxUsers ? <Tag>用户 {q.maxUsers}</Tag> : null}
+            {q.maxTicketsPerMonth ? <Tag>月工单 {q.maxTicketsPerMonth}</Tag> : null}
+            {q.maxStorageMB ? <Tag>存储 {q.maxStorageMB}MB</Tag> : null}
+          </Space>
+        );
+      },
     },
     {
       title: '到期时间',
@@ -588,6 +623,25 @@ export default function TenantManagement() {
           <Form.Item label="到期时间" name="expiresAt">
             <DatePicker style={{ width: '100%' }} placeholder="选择到期时间" />
           </Form.Item>
+
+          {/* IP-P2-6 硬配额：0/空 = 不限；超限写入统一 422 TENANT_QUOTA_EXCEEDED。 */}
+          <Row gutter={16}>
+            <Col span={8}>
+              <Form.Item label="用户上限" name="maxUsers">
+                <InputNumber min={0} style={{ width: '100%' }} placeholder="0 = 不限" />
+              </Form.Item>
+            </Col>
+            <Col span={8}>
+              <Form.Item label="月工单上限" name="maxTicketsPerMonth">
+                <InputNumber min={0} style={{ width: '100%' }} placeholder="0 = 不限" />
+              </Form.Item>
+            </Col>
+            <Col span={8}>
+              <Form.Item label="存储上限 (MB)" name="maxStorageMB">
+                <InputNumber min={0} style={{ width: '100%' }} placeholder="0 = 不限" />
+              </Form.Item>
+            </Col>
+          </Row>
         </Form>
       </Modal>
     </div>

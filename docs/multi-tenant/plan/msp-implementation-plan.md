@@ -85,6 +85,7 @@
 | `INVALID_CURSOR` | 400 | 工作台游标失效/非法 | IP-P0-7 |
 | `BATCH_LIMIT_EXCEEDED` / `ACTION_NOT_ALLOWED` | 400 / 403 | 批量超限 / 含高危动作（P1） | IP-P1-6 |
 | `CUSTOMER_SCOPE_CONFLICT` | 422 | customer 账号出现第 2 条 active membership（P1，DB 兜底） | IP-P1-1 |
+| `TENANT_QUOTA_EXCEEDED` | 422 | 租户硬配额超限（`maxUsers` / `maxTicketsPerMonth` / `maxStorageMB`；明细 `quota/limit/used`；缺省/<=0 = 不限） | IP-P2-6 |
 
 **B. P0 DDL 清单（在线 DDL；索引先跑重复行预检，`CREATE INDEX CONCURRENTLY`；回滚 = DROP INDEX / 保留列）**
 
@@ -610,8 +611,9 @@ CREATE INDEX idx_invitations_expiry ON invitations (expires_at) WHERE status = '
 | **IP-P2-3** 共享表治理 | 显式共享（D3） | `TenantExemptTables` 复核（标签云/市场模板/`messages`/`prompt_templates`）；`messages` 租户化决策落地 | 每张共享表有 owner/理由/复核期；季度复核记录 | 逐表回退 |
 | **IP-P2-4** 工作台进阶 | 自定义视图/配额 | 保存过滤器组合、SLA 风险看板、每客户配额可视化 | 视图可分享/复现；配额数据与后端一致 | feature flag |
 | **IP-P2-5** guard 扩展 | 成员/关联表一致性 | tenant_guard 增加"关联表一致性"检查（跨租户 FK/悬挂成员） | 启动扫描 0 高危；CI 用例覆盖 | 检查项分级（fatal→warn） |
+| **IP-P2-6** 平台租户管理：硬配额 | 租户 limits 模型与校验 | `tenants.quota`（jsonb，`maxUsers`/`maxTicketsPerMonth`/`maxStorageMB`）；三写入路径接入（建号/建单/附件）；平台面读写 + 非法值 400；用量口径与校验一致 | 超限 422 `TENANT_QUOTA_EXCEEDED`（附件沿用 6106）；缺省不限行为不变；单测覆盖三路径 | 列可空保留 + 移除校验调用（行为回退） |
 
-> **P2 进度（2026-09-30 起）**：IP-P2-1 首批落地——`provider_tenant_id` 迁移（可空 + 回填 + 部分索引，`20260930_msp_allocation_provider_dimension.sql`）、写侧归属校验（admin 不豁免）、读侧 provider 收窄（middleware / 租户切换列表 / 分配列表；工作台与报表维持 `mspguard` 单源收窄）、巡检脚本与单测；**A11/A12 api 通道 e2e 落地**（v1.39）；**NOT NULL 收尾**待巡检归零。IP-P2-5 首组检查落地（v1.32）。IP-P2-2 前置代码收口（v1.33）。IP-P2-3 共享表复核（v1.34）。IP-P2-4a 自定义视图全链完成（v1.36）。IP-P2-4b SLA 风险看板落地（v1.37）。IP-P2-4c 每客户用量看板（usage-only 定案）落地——**P2-4 全项收口（v1.38）**。
+> **P2 进度（2026-09-30 起）**：IP-P2-1 首批落地——`provider_tenant_id` 迁移（可空 + 回填 + 部分索引，`20260930_msp_allocation_provider_dimension.sql`）、写侧归属校验（admin 不豁免）、读侧 provider 收窄（middleware / 租户切换列表 / 分配列表；工作台与报表维持 `mspguard` 单源收窄）、巡检脚本与单测；**A11/A12 api 通道 e2e 落地**（v1.39）；**NOT NULL 收尾**待巡检归零。IP-P2-5 首组检查落地（v1.32）。IP-P2-2 前置代码收口（v1.33）。IP-P2-3 共享表复核（v1.34）。IP-P2-4a 自定义视图全链完成（v1.36）。IP-P2-4b SLA 风险看板落地（v1.37）。IP-P2-4c 每客户用量看板（usage-only 定案）落地——**P2-4 全项收口（v1.38）**。**IP-P2-6 硬配额后端落地（v1.41）**：`tenants.quota` + 三写入路径校验（建号/建单/附件），前端治理页编辑与用量展示下一批。
 
 ### 5.0 P2 冻结契约（2026-09-30；本节即 P2 编码基线）
 
@@ -647,6 +649,13 @@ CREATE INDEX idx_invitations_expiry ON invitations (expires_at) WHERE status = '
 
 - `tenant_guard` 新增"关联表一致性"检查：① 跨租户 FK（如 `user_tenant_membership_orgs.org_id` 指向异租户组织）；② 悬挂成员（membership 指向已删租户/用户）；③ `msp_allocations.provider_tenant_id` 与 `tenants.msp_provider_id` 不一致。
 - 分级：生产默认 `fatal`，逐项可降 `warn`；CI 用例覆盖（构造违规样本断言检出）。
+
+**5.0-F IP-P2-6 平台租户管理：硬配额（冻结契约）**
+
+- **模型**：`tenants.quota`（jsonb，可空）；键 `maxUsers` / `maxTicketsPerMonth` / `maxStorageMB`（单位 MB）。**值 <= 0 / 键缺省 / 列 NULL = 不限**（fail-open，存量行为不变）；写入按显式模型校验（未知键、负值、非整数、超上限 → 400），`PUT /api/v1/tenants/:id` 与创建接口均接受 `quota` 对象（显式 `{}` = 清空）。
+- **用量口径（与校验一致）**：users = 该租户 `users` 行数；ticketsThisMonth = `created_at >= 本月起点 ∧ deleted_at IS NULL`；storageBytes = `attachments(status=active ∧ deleted_at IS NULL).file_size` 合计（自然月按服务器本地时区）。
+- **接入点与错误语义**：建号（`UserProvisioningService`，含 platform/msp/tenant 三通道）→ 422 `TENANT_QUOTA_EXCEEDED`；建单（`TicketService.CreateTicket`）→ 422 `TENANT_QUOTA_EXCEEDED`（响应含 `quota/limit/used`）；附件上传（`AttachmentService`，写盘前预检）→ 沿用 6106 `ErrAttachmentQuotaExceeded`（422）。bootstrap/break-glass 属恢复通道，不经 `UserProvisioningService`，不受建号配额约束（有意例外）。
+- **回滚**：列可空保留；撤销 `SetTenantQuotaService` 注入即恢复旧行为（校验对 nil 服务安全）。
 
 ---
 
@@ -695,6 +704,7 @@ CREATE INDEX idx_invitations_expiry ON invitations (expires_at) WHERE status = '
 - [x] A11/A12 **api 通道 e2e 落地**（v1.39，`router/msp_a11_a12_e2e_test.go`）：N=1/N=2 同一剧本行为指纹一致；建单快照 / 工作台可见与 provider∩allocation 收窄 / 指派校验 / 跨 provider 与未分配客户拒绝全覆盖；**通知双投递已实现**（v1.40：provider 侧 = 托管处理人 + provider 管理员，回复/改状态/指派/建单四事件全链；单测 `service/msp_provider_side_notification_test.go` + e2e 断言）；浏览器/多部署环境 e2e 为可选补强；
 - [ ] RLS `enforce` 灰度无 500——代码侧 ctx 收口与 shadow 前置完成（v1.33），灰度待 staging 执行；**✅ 共享表治理清单完成**（v1.34：`messages` 租户化 + `msp-exempt-tables-quarterly-review.md` 固化 owner/复核期）；
 - [ ] guard 扩展检查 **0 高危**待生产库执行（首组三检查 v1.32 已接入，启动扫描 0 高危以生产巡检为准）；**✅ docs-gate 6/6**（2026-09-30 全量 `run-all.sh`，C.6 语义锚点门禁常开）。
+- [x] **平台租户管理：硬配额（limits）后端落地**（v1.41，IP-P2-6）：`tenants.quota` 模型 + 用量口径；三写入路径接入（建号/建单/附件，超限 422 `TENANT_QUOTA_EXCEEDED`、附件沿用 6106）；平台面读写 + 非法值 400；单测覆盖三条路径与 fail-open 缺省；前端治理页编辑与用量展示下一批。
 
 > **P2 工作流代码侧全项交付（2026-09-30）**：IP-P2-1（provider 维度收窄；NOT NULL 收尾待巡检）/ IP-P2-2（ctx 收口 + 评估档案）/ IP-P2-3（共享表治理）/ **IP-P2-4 全链（视图 / SLA 看板 / 用量看板，v1.35–v1.38）** / IP-P2-5（guard 首组检查）。上表未勾项均为**环境/数据依赖**项（多 provider e2e、enforce 灰度、生产库巡检），随部署执行。
 
@@ -836,3 +846,4 @@ CREATE INDEX idx_invitations_expiry ON invitations (expires_at) WHERE status = '
 | v1.38 | 2026-09-30 | **IP-P2-4c 每客户用量看板（usage-only 定案；P2-4 收口）**：数据源核查——`tenants` 无 `quota/settings` 列、`dto.TenantDTO.Quota` 从未赋值、附件配额 6106 无校验，确认**无硬配额数据源**；`WorkbenchSummaryCustomer` 增 `members`（active 且未删除 membership 计数）/`ticketsCreated30d`（`CreatedAtGTE(now-30d)`），响应增 `usageWindowDays=30`；前端新组件 `CustomerUsageBoard`（窗口新增 desc → 成员 desc 排序；成员/未关闭/新增数字 + 相对最大值条；点击行写 `customerTenantIds`；刷新/空态/错误态 + 口径提示）；后端 summary 用例扩展（membership active/suspended 分桶 + 窗口断言）+ 前端组件 5/5、页面 8/8、CustomerFilter 6/6；硬配额（limits）登记遗留；fmt/tsc/eslint 绿 |
 | v1.39 | 2026-09-30 | **A11/A12 api 通道 e2e 落地**：新增 `router/msp_a11_a12_e2e_test.go`（路由器级全中间件链：Auth → RBAC → MSPMiddleware → RequireMSPPermission → handler → service/mspguard，ent/sqlite 内存库，无需外部环境）——`TestMSP_A11_SameScenarioForN1AndN2` 以同一剧本跑 N=1/N=2 并比较行为指纹（工作台列表/汇总/指派状态与计数全等）；`TestMSP_A12_ProviderScopedTicketFlow` 覆盖建单 provider 快照（DTO+DB 双断言）/工作台可见与 provider∩allocation 收窄/指派校验（allocated=200 且落 `managed_by_user_id`，未分配 403 `MSP_ALLOCATION_REQUIRED`）/跨 provider 拒绝（P2 员工访问 P1 客户 403、不带筛选仅见本 provider 客户）；夹具还原生产口径（`users.role=agent` + m2m `msp_tech` 角色 + role_permissions + allocation 带 `provider_tenant_id`）；`./router` 全包回归绿；通知双投递仍为遗留子项（后端无实现） |
 | v1.40 | 2026-09-30 | **A12 通知双投递（provider 侧）落地**：新增 `service/msp_provider_side_notification.go`——托管工单（`is_managed_by_msp=true ∧ msp_provider_id>0`）在客户侧通知之外向 **provider 租户**再投递一份；收件人 = 托管处理人（`managed_by_user_id`，须属 provider 租户且 active）+ 工单 assignee（同校验）+ provider 租户 active `provider_admin`；actor 自身排除；provider 侧行（`notification`/`ticket_notification`）归属 provider 租户、深链 `/msp/workbench`；provider 租户不存在/停用/类型非法 → fail-closed 跳过；接入四个事件：`commented`/`assigned`/`status_changed`/`created`（`NotifyTicketCreatedTx` 在调用方事务内写行，与工单主表同生同死）；工作台条目级改状态开始触发状态通知（`MSPWorkbenchService.ChangeStatus` → `TicketService.NotifyTicketStatusChanged`，客户侧 requester/assignee + provider 侧）；单测矩阵 `service/msp_provider_side_notification_test.go`（4 用例：评论/指派+状态/守卫四态/Tx 原子性全绿）；`router/msp_a11_a12_e2e_test.go` 追加回复与改状态的 provider 侧落库断言（含 actor 排除） |
+| v1.41 | 2026-09-30 | **IP-P2-6 平台租户管理：硬配额（limits）后端落地**：新增 `pkg/tenantquota`（`Limits{maxUsers,maxTicketsPerMonth,maxStorageMB}`；严格解析：未知键/负值/非整数/超上限拒绝；零值/缺省 = 不限）+ `tenants.quota` jsonb 迁移（`20261001_add_tenants_quota.sql`，幂等加列）；`TenantQuotaService` 统一用量口径（users / 本月新建未删工单 / active 未删附件字节）与三键校验（nil 安全）；三写入路径接入——建号三通道（422 `TENANT_QUOTA_EXCEEDED`，`ProvisionError` 稳定码）、建单（422 + `quota/limit/used` 明细）、附件上传（写盘前预检，沿用 6106 `ErrAttachmentQuotaExceeded`，超限不落盘）；平台面 `PUT/POST /api/v1/tenants/:id` 接受 `quota` 对象（GET 回显），非法值 400；单测 5 组（用量口径含软删排除、fail-closed/nil 安全、建号/建单/附件三路径拦截与正例回滚验证）全绿 |

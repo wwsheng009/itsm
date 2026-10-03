@@ -47,6 +47,8 @@ const (
 	FieldOwnerContact = "owner_contact"
 	// FieldTimezone holds the string denoting the timezone field in the database.
 	FieldTimezone = "timezone"
+	// FieldQuota holds the string denoting the quota field in the database.
+	FieldQuota = "quota"
 	// FieldCreatedAt holds the string denoting the created_at field in the database.
 	FieldCreatedAt = "created_at"
 	// FieldUpdatedAt holds the string denoting the updated_at field in the database.
@@ -128,6 +130,7 @@ var Columns = []string{
 	FieldServiceTier,
 	FieldOwnerContact,
 	FieldTimezone,
+	FieldQuota,
 	FieldCreatedAt,
 	FieldUpdatedAt,
 }

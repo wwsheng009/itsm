@@ -59,6 +59,18 @@ describe('TenantAPI', () => {
       expect(mockPut).toHaveBeenCalledWith('/api/v1/tenants/1', data);
       expect(res).toEqual(expected);
     });
+
+    // IP-P2-6：quota 对象原样透传（空 {} = 清空 → 不限）。
+    it('should pass tenant quota through unchanged', async () => {
+      const data = { quota: { maxUsers: 5, maxTicketsPerMonth: 100 } };
+      mockPut.mockResolvedValue({ id: 1, ...data });
+      await TenantAPI.updateTenant(1, data as any);
+      expect(mockPut).toHaveBeenCalledWith('/api/v1/tenants/1', data);
+
+      mockPut.mockClear();
+      await TenantAPI.updateTenant(1, { quota: {} } as any);
+      expect(mockPut).toHaveBeenCalledWith('/api/v1/tenants/1', { quota: {} });
+    });
   });
 
   describe('deleteTenant', () => {

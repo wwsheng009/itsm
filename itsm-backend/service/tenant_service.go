@@ -10,6 +10,7 @@ import (
 	"itsm-backend/ent/tenant"
 	"itsm-backend/ent/user"
 	"itsm-backend/pkg/tenantmode"
+	"itsm-backend/pkg/tenantquota"
 
 	"go.uber.org/zap"
 )
@@ -54,9 +55,18 @@ func (s *TenantService) CreateTenant(ctx context.Context, req *dto.CreateTenantR
 		return nil, err
 	}
 
+	// IP-P2-6：租户硬配额（limits）——写入按显式模型校验（未知键/负值拒绝）。
+	limits, err := tenantquota.Parse(req.Quota)
+	if err != nil {
+		return nil, err
+	}
+
 	// 创建租户
-	tenantEntity, err := s.client.Tenant.
-		Create().
+	create := s.client.Tenant.Create()
+	if req.Quota != nil {
+		create = create.SetQuota(limits)
+	}
+	tenantEntity, err := create.
 		SetName(req.Name).
 		SetCode(req.Code).
 		SetNillableDomain(req.Domain).
@@ -267,6 +277,14 @@ func (s *TenantService) UpdateTenant(ctx context.Context, tenantID int, req *dto
 	}
 	if req.OwnerContact != nil {
 		update = update.SetNillableOwnerContact(req.OwnerContact)
+	}
+	// IP-P2-6：配额热更新；显式传 {} 表示清空（不限）。
+	if req.Quota != nil {
+		limits, err := tenantquota.Parse(req.Quota)
+		if err != nil {
+			return nil, err
+		}
+		update = update.SetQuota(limits)
 	}
 
 	tenantEntity, err := update.Save(ctx)

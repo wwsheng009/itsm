@@ -1105,6 +1105,16 @@ func TimezoneContainsFold(v string) predicate.Tenant {
 	return predicate.Tenant(sql.FieldContainsFold(FieldTimezone, v))
 }
 
+// QuotaIsNil applies the IsNil predicate on the "quota" field.
+func QuotaIsNil() predicate.Tenant {
+	return predicate.Tenant(sql.FieldIsNull(FieldQuota))
+}
+
+// QuotaNotNil applies the NotNil predicate on the "quota" field.
+func QuotaNotNil() predicate.Tenant {
+	return predicate.Tenant(sql.FieldNotNull(FieldQuota))
+}
+
 // CreatedAtEQ applies the EQ predicate on the "created_at" field.
 func CreatedAtEQ(v time.Time) predicate.Tenant {
 	return predicate.Tenant(sql.FieldEQ(FieldCreatedAt, v))

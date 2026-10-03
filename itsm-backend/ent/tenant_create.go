@@ -12,6 +12,7 @@ import (
 	"itsm-backend/ent/user"
 	"itsm-backend/ent/usertenantmembership"
 	"itsm-backend/ent/usertenantmembershiporg"
+	"itsm-backend/pkg/tenantquota"
 	"time"
 
 	"entgo.io/ent/dialect/sql/sqlgraph"
@@ -229,6 +230,20 @@ func (_c *TenantCreate) SetTimezone(v string) *TenantCreate {
 func (_c *TenantCreate) SetNillableTimezone(v *string) *TenantCreate {
 	if v != nil {
 		_c.SetTimezone(*v)
+	}
+	return _c
+}
+
+// SetQuota sets the "quota" field.
+func (_c *TenantCreate) SetQuota(v tenantquota.Limits) *TenantCreate {
+	_c.mutation.SetQuota(v)
+	return _c
+}
+
+// SetNillableQuota sets the "quota" field if the given value is not nil.
+func (_c *TenantCreate) SetNillableQuota(v *tenantquota.Limits) *TenantCreate {
+	if v != nil {
+		_c.SetQuota(*v)
 	}
 	return _c
 }
@@ -542,6 +557,10 @@ func (_c *TenantCreate) createSpec() (*Tenant, *sqlgraph.CreateSpec) {
 	if value, ok := _c.mutation.Timezone(); ok {
 		_spec.SetField(tenant.FieldTimezone, field.TypeString, value)
 		_node.Timezone = value
+	}
+	if value, ok := _c.mutation.Quota(); ok {
+		_spec.SetField(tenant.FieldQuota, field.TypeJSON, value)
+		_node.Quota = value
 	}
 	if value, ok := _c.mutation.CreatedAt(); ok {
 		_spec.SetField(tenant.FieldCreatedAt, field.TypeTime, value)

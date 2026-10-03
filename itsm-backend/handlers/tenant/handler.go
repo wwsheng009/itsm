@@ -1,10 +1,12 @@
 package tenant
 
 import (
+	"errors"
 	"strconv"
 
 	"itsm-backend/common"
 	"itsm-backend/dto"
+	"itsm-backend/pkg/tenantquota"
 
 	"github.com/gin-gonic/gin"
 	"go.uber.org/zap"
@@ -66,7 +68,7 @@ func (h *Handler) CreateTenant(c *gin.Context) {
 	tenant, err := h.svc.CreateTenant(c.Request.Context(), &req)
 	if err != nil {
 		h.logger.Errorf("创建租户失败: %v", err)
-		common.FailWithErr(c, err, "操作失败")
+		respondTenantWriteError(c, err)
 		return
 	}
 
@@ -189,7 +191,7 @@ func (h *Handler) UpdateTenant(c *gin.Context) {
 	tenant, err := h.svc.UpdateTenant(c.Request.Context(), id, &req)
 	if err != nil {
 		h.logger.Errorf("更新租户失败: %v", err)
-		common.FailWithErr(c, err, "操作失败")
+		respondTenantWriteError(c, err)
 		return
 	}
 
@@ -219,6 +221,16 @@ func (h *Handler) DeleteTenant(c *gin.Context) {
 
 	h.recordAudit(c, "tenant.delete", id)
 	common.Success(c, nil)
+}
+
+// respondTenantWriteError 租户写路径统一错误出口：配额非法 → 400（其余兜底保持原行为）。
+func respondTenantWriteError(c *gin.Context, err error) {
+	var invalid *tenantquota.InvalidError
+	if errors.As(err, &invalid) {
+		common.Fail(c, common.ParamErrorCode, err.Error())
+		return
+	}
+	common.FailWithErr(c, err, "操作失败")
 }
 
 // recordAudit emits a structured audit log entry for a tenant write action.

@@ -19,6 +19,7 @@ import (
 	"itsm-backend/middleware"
 	"itsm-backend/pkg/mspguard"
 	"itsm-backend/pkg/tenantmode"
+	"itsm-backend/pkg/tenantquota"
 )
 
 // provisioning.go：三通道建号收口（IP-P0-5；canon K4、ADR-004:A2/A3、F1/F3/F14）。
@@ -48,6 +49,8 @@ const (
 	ProvisionCodeTenantNotFound       = "TENANT_NOT_FOUND"
 	ProvisionCodeTenantSuspended      = "TENANT_SUSPENDED"
 	ProvisionCodeChannelsDisabled     = "PROVISIONING_CHANNELS_DISABLED"
+	// ProvisionCodeTenantQuotaExceeded IP-P2-6：目标租户 maxUsers 配额超限（HTTP 422）。
+	ProvisionCodeTenantQuotaExceeded = tenantquota.CodeTenantQuotaExceeded
 )
 
 // ProvisionError 是建号通道的稳定拒绝类型：handler 依据 Code/Status 映射响应。
@@ -88,6 +91,7 @@ type UserProvisioningService struct {
 	checker         *mspguard.Checker
 	logger          *zap.SugaredLogger
 	channelsEnabled bool
+	quotaSvc        *TenantQuotaService // IP-P2-6：租户硬配额（maxUsers），nil 时跳过
 }
 
 // NewUserProvisioningService 构造建号收口服务。
@@ -105,6 +109,9 @@ func NewUserProvisioningService(client *ent.Client, users *UserService, logger *
 
 // SetChannelsEnabled 显式设置灰度开关（测试与按租户灰度使用）。
 func (s *UserProvisioningService) SetChannelsEnabled(enabled bool) { s.channelsEnabled = enabled }
+
+// SetTenantQuotaService 注入租户配额服务（IP-P2-6；nil 关闭校验）。
+func (s *UserProvisioningService) SetTenantQuotaService(q *TenantQuotaService) { s.quotaSvc = q }
 
 // ChannelsEnabled 报告建号通道是否开启。
 func (s *UserProvisioningService) ChannelsEnabled() bool { return s != nil && s.channelsEnabled }
@@ -141,6 +148,16 @@ func (s *UserProvisioningService) ProvisionUser(ctx context.Context, actor Provi
 	}
 	if err := s.validateRole(ctx, actor, channel, target, req); err != nil {
 		return nil, err
+	}
+
+	// IP-P2-6：租户硬配额（maxUsers）校验；bootstrap/break-glass 通道不在本服务范围内。
+	if s.quotaSvc != nil {
+		if err := s.quotaSvc.CheckUserCreate(ctx, target.ID); err != nil {
+			if _, ok := tenantquota.AsExceeded(err); ok {
+				return nil, newProvisionError(ProvisionCodeTenantQuotaExceeded, http.StatusUnprocessableEntity, "%s", err.Error())
+			}
+			return nil, err
+		}
 	}
 
 	provisionCtx := tenantctx.WithTenantID(ctx, target.ID)

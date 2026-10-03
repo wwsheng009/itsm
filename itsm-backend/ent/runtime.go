@@ -5526,11 +5526,11 @@ func init() {
 	// tenant.DefaultTimezone holds the default value on creation for the timezone field.
 	tenant.DefaultTimezone = tenantDescTimezone.Default.(string)
 	// tenantDescCreatedAt is the schema descriptor for created_at field.
-	tenantDescCreatedAt := tenantFields[16].Descriptor()
+	tenantDescCreatedAt := tenantFields[17].Descriptor()
 	// tenant.DefaultCreatedAt holds the default value on creation for the created_at field.
 	tenant.DefaultCreatedAt = tenantDescCreatedAt.Default.(func() time.Time)
 	// tenantDescUpdatedAt is the schema descriptor for updated_at field.
-	tenantDescUpdatedAt := tenantFields[17].Descriptor()
+	tenantDescUpdatedAt := tenantFields[18].Descriptor()
 	// tenant.DefaultUpdatedAt holds the default value on creation for the updated_at field.
 	tenant.DefaultUpdatedAt = tenantDescUpdatedAt.Default.(func() time.Time)
 	// tenant.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.

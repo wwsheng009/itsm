@@ -6,6 +6,8 @@ import (
 	"entgo.io/ent"
 	"entgo.io/ent/schema/edge"
 	"entgo.io/ent/schema/field"
+
+	"itsm-backend/pkg/tenantquota"
 )
 
 // Tenant holds the schema definition for the Tenant entity.
@@ -66,6 +68,11 @@ func (Tenant) Fields() []ent.Field {
 		field.String("timezone").
 			Comment("时区").
 			Default("Asia/Shanghai"),
+		// IP-P2-6 平台租户管理：租户硬配额（limits）。
+		// 语义：NULL / 零值 = 不限；键 maxUsers / maxTicketsPerMonth / maxStorageMB（>0 生效）。
+		field.JSON("quota", tenantquota.Limits{}).
+			Comment("租户硬配额（limits）：{maxUsers,maxTicketsPerMonth,maxStorageMB}；NULL 或值<=0 = 不限").
+			Optional(),
 		field.Time("created_at").
 			Comment("创建时间").
 			Default(time.Now),

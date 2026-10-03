@@ -348,19 +348,19 @@ func ToKnowledgeArticleResponse(article *ent.KnowledgeArticle) *KnowledgeArticle
 	}
 
 	response := &KnowledgeArticleResponse{
-		ID:        article.ID,
-		Title:     article.Title,
-		Content:   article.Content,
+		ID:      article.ID,
+		Title:   article.Title,
+		Content: article.Content,
 		// 与 handlers/knowledge 的响应口径一致：历史空类型按内容形态兜底。
 		ContentType: knowledgecontent.Resolve(article.ContentType, article.Content),
-		Category:  article.Category,
-		Status:    status,
-		Author:    "", // Default, could be populated from authorID if needed
-		Views:     0,  // Default value, could be added to schema if needed
-		Tags:      tags,
-		TenantID:  article.TenantID,
-		CreatedAt: article.CreatedAt,
-		UpdatedAt: article.UpdatedAt,
+		Category:    article.Category,
+		Status:      status,
+		Author:      "", // Default, could be populated from authorID if needed
+		Views:       0,  // Default value, could be added to schema if needed
+		Tags:        tags,
+		TenantID:    article.TenantID,
+		CreatedAt:   article.CreatedAt,
+		UpdatedAt:   article.UpdatedAt,
 	}
 
 	// Note: If you need to populate Author name, you'll need to query the user separately
@@ -434,6 +434,11 @@ func ToTenantResponse(tenant *ent.Tenant) *TenantResponse {
 	}
 	if tenant.OwnerContact != "" {
 		response.OwnerContact = &tenant.OwnerContact
+	}
+
+	// IP-P2-6：租户硬配额（NULL/零值 = 不限，不下发空对象）。
+	if !tenant.Quota.IsZero() {
+		response.Quota = tenant.Quota.ToMap()
 	}
 
 	// Timezone - 默认为 Asia/Shanghai

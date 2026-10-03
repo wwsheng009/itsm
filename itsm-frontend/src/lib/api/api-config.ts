@@ -39,6 +39,13 @@ export interface PaginationResponse<T> {
 }
 
 // 租户相关接口
+// IP-P2-6 租户硬配额（limits）：>0 生效；缺省/0 = 不限。
+export interface TenantQuota {
+  maxUsers?: number;
+  maxTicketsPerMonth?: number;
+  maxStorageMB?: number;
+}
+
 export interface Tenant {
   id: number;
   name: string;
@@ -61,6 +68,7 @@ export interface Tenant {
   updatedAt: string;
   expiresAt?: string;
   settings?: Record<string, unknown>;
+  quota?: TenantQuota;
 }
 
 export interface TenantListResponse {
@@ -77,6 +85,7 @@ export interface CreateTenantRequest {
   type: string;
   expiresAt?: string;
   settings?: Record<string, unknown>;
+  quota?: TenantQuota;
 }
 
 export interface UpdateTenantRequest {
@@ -86,6 +95,7 @@ export interface UpdateTenantRequest {
   status?: string;
   expiresAt?: string;
   settings?: Record<string, unknown>;
+  quota?: TenantQuota;
 }
 
 export interface GetTenantsParams {

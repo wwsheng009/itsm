@@ -5302,6 +5302,7 @@ var (
 		{Name: "service_tier", Type: field.TypeString, Nullable: true},
 		{Name: "owner_contact", Type: field.TypeString, Nullable: true},
 		{Name: "timezone", Type: field.TypeString, Default: "Asia/Shanghai"},
+		{Name: "quota", Type: field.TypeJSON, Nullable: true},
 		{Name: "created_at", Type: field.TypeTime},
 		{Name: "updated_at", Type: field.TypeTime},
 	}

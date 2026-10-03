@@ -60,6 +60,9 @@ type TicketService struct {
 	// attachmentLifecycle BE-8：宿主删除级联（通用附件软删）。
 	// 由 bootstrap 在 attachment.cleanup_enabled 打开时注入；nil 时删除路径与改造前一致。
 	attachmentLifecycle AttachmentLifecycleCascader
+
+	// quotaSvc IP-P2-6：租户硬配额校验（nil 时跳过，保持单测/未接入路径行为不变）。
+	quotaSvc *TenantQuotaService
 }
 
 // TicketServiceConfig 工单服务配置
@@ -121,6 +124,11 @@ func NewTicketServiceForTest(client *ent.Client, logger *zap.SugaredLogger) *Tic
 // SetNotificationService 注入通知服务（运行时依赖注入）
 func (s *TicketService) SetNotificationService(n *TicketNotificationService) {
 	s.notificationSvc = n
+}
+
+// SetTenantQuotaService 注入租户配额服务（IP-P2-6；nil 关闭校验）。
+func (s *TicketService) SetTenantQuotaService(q *TenantQuotaService) {
+	s.quotaSvc = q
 }
 
 // SetApprovalService 注入审批服务（运行时依赖注入）
@@ -376,6 +384,11 @@ func (s *TicketService) CreateTicket(ctx context.Context, req *dto.CreateTicketR
 	if providerID := resolveTicketMSPProvider(ctx, s.client, tenantID); providerID != nil {
 		params.IsManagedByMSP = true
 		params.MSPProviderID = providerID
+	}
+
+	// IP-P2-6：租户硬配额（maxTicketsPerMonth）在进入事务前校验；超限 → 422 TENANT_QUOTA_EXCEEDED。
+	if err := s.quotaSvc.CheckTicketCreate(ctx, tenantID); err != nil {
+		return nil, err
 	}
 
 	// 阶段 B（工单创建下沉）起，ticket INSERT 与工单创建通知必须在同一事务内落库。
