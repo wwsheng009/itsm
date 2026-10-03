@@ -166,7 +166,7 @@ sequenceDiagram
     PV->>SYS: M4/M5 客户列表 + 客户A工单（allocation 约束）
     PV->>SYS: M6 指派（现状=自我指派；目标=指派技术员+校验）
     PV->>SYS: M7 处理（回复/改状态）
-    CU->>SYS: C5 评论（通知客户侧；目标：双投递 provider 侧）
+    CU->>SYS: C5 评论（客户侧通知 + provider 侧双投递，v1.40 已落地）
     CU->>SYS: C6 关单/评价
     PF->>SYS: P8 审计与治理（目标：含 provider/来源维度）
 ```
@@ -245,7 +245,7 @@ sequenceDiagram
 - [ ] A11 同一套操作在 N=1 与 N=2 provider 下一致（无特例步骤）
 - [ ] A12 建单落 provider 快照 → 工作台可见（provider ∩ allocation）→ 指派校验 → 通知双投递 → 跨 provider/未分配一律拒绝
 
-> **自动化覆盖（2026-09-30）**：A11/A12 已由 **api 通道 e2e** 固化——`itsm-backend/router/msp_a11_a12_e2e_test.go`（N=1/N=2 同一剧本行为指纹一致；快照/收窄/指派/拒绝路径全覆盖；`go test ./router` 即可复跑，无需外部环境）。**通知双投递**无后端实现，为 A12 唯一遗留子项（已在实施方案 §6.4 登记）。本表保留人工演练用途：浏览器形态与多环境部署复核。
+> **自动化覆盖（2026-09-30）**：A11/A12 已由 **api 通道 e2e** 固化——`itsm-backend/router/msp_a11_a12_e2e_test.go`（N=1/N=2 同一剧本行为指纹一致；快照/收窄/指派/拒绝/双投递全覆盖；`go test ./router` 即可复跑，无需外部环境）。**通知双投递已实现**（v1.40：provider 侧 = 托管处理人 + provider 管理员，四事件接入，单测矩阵 `service/msp_provider_side_notification_test.go`）。本表保留人工演练用途：浏览器形态与多环境部署复核。
 
 ---
 
@@ -270,3 +270,4 @@ sequenceDiagram
 | v0.2 | 2026-09-29 | 一致性整改：缺口编号 `G1/G2/G4` → `K1/K2/K4`（canon §7.3 改名，避免与 07-known-gaps 的 G1–G10 重号） |
 | v0.3 | 2026-09-30 | 头部状态对齐（v0.1→v0.3）；补 P1 契约/D10 词表复核注记；基准 HEAD 重钉 `337558e3` |
 | v0.4 | 2026-09-30 | A11/A12 标注 api 通道自动化覆盖（`router/msp_a11_a12_e2e_test.go`）；通知双投递登记为 A12 遗留子项 |
+| v0.5 | 2026-09-30 | 通知双投递落地（provider 侧收件人/深链/fail-closed；四事件接入；单测 + e2e 断言）——A12 无遗留子项 |

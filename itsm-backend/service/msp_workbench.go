@@ -581,6 +581,8 @@ func (s *MSPWorkbenchService) ChangeStatus(ctx context.Context, actor MSPWorkben
 		return nil, err
 	}
 	s.recordWorkbenchAudit(actor, "status", t.TenantID, ticketID, "success")
+	// A12 通知双投递：工作台条目级改状态触发状态通知（客户侧 requester/assignee + provider 侧）。
+	s.ticketSvc.NotifyTicketStatusChanged(tenantctx.WithTenantID(ctx, t.TenantID), ticketID, t.Status, strings.TrimSpace(req.Status), t.TenantID)
 	return updated, nil
 }
 

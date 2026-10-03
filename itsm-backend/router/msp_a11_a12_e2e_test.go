@@ -15,8 +15,9 @@
 //   - provider 工作台可见（provider ∩ allocation 收窄；显式未分配客户 403 MSP_ALLOCATION_REQUIRED）；
 //   - 指派校验（assigner ∈ allocation ∧ provider；未分配员工拒绝）；
 //   - 跨 provider 拒绝（P2 员工访问 P1 客户 403；不带筛选仅见本 provider 客户）。
-//   - 通知双投递：后端尚无该实现（代码无 dual-delivery 路径），本文件不伪造断言，
-//     由实施方案 §6.4 显式登记为遗留（见文档「通知双投递待实现」）。
+//   - 通知双投递（v1.40）：工作台回复/改状态在客户侧之外，向 provider 租户投递
+//     （托管处理人 + provider 管理员；actor 自身排除），provider 侧行归属 provider 租户、
+//     深链指向工作台；单测矩阵见 service/msp_provider_side_notification_test.go。
 package router
 
 import (
@@ -33,6 +34,7 @@ import (
 	"itsm-backend/dto"
 	"itsm-backend/ent"
 	"itsm-backend/ent/enttest"
+	entNotification "itsm-backend/ent/notification"
 	"itsm-backend/ent/tenant"
 	"itsm-backend/ent/ticket"
 	"itsm-backend/ent/user"
@@ -60,18 +62,19 @@ type mspE2EOutcome struct {
 }
 
 type mspE2EEnv struct {
-	client    *ent.Client
-	engine    *gin.Engine
-	provider  *ent.Tenant
-	provider2 *ent.Tenant // 仅 N=2
-	customer  *ent.Tenant
-	customer2 *ent.Tenant
-	customer3 *ent.Tenant // 仅 N=2（P2 的客户）
-	agent     *ent.User   // P1，已分配 C1/C2
-	agent2    *ent.User   // P1，未分配任何客户
-	agent3    *ent.User   // P2（N=2），已分配 C3
-	ticket    *ticketrepo.Ticket
-	ticketID3 int
+	client        *ent.Client
+	engine        *gin.Engine
+	provider      *ent.Tenant
+	provider2     *ent.Tenant // 仅 N=2
+	customer      *ent.Tenant
+	customer2     *ent.Tenant
+	customer3     *ent.Tenant // 仅 N=2（P2 的客户）
+	agent         *ent.User   // P1，已分配 C1/C2
+	agent2        *ent.User   // P1，未分配任何客户
+	agent3        *ent.User   // P2（N=2），已分配 C3
+	providerAdmin *ent.User   // P1 provider 管理员（A12 双投递收件人）
+	ticket        *ticketrepo.Ticket
+	ticketID3     int
 }
 
 func newMSPE2EEngine(t *testing.T, client *ent.Client) *gin.Engine {
@@ -79,10 +82,14 @@ func newMSPE2EEngine(t *testing.T, client *ent.Client) *gin.Engine {
 	gin.SetMode(gin.TestMode)
 	logger := zaptest.NewLogger(t).Sugar()
 	ticketSvc := service.NewTicketServiceForTest(client, logger)
+	notificationSvc := service.NewTicketNotificationService(client, logger)
+	ticketSvc.SetNotificationService(notificationSvc)
+	commentSvc := service.NewTicketCommentService(client, logger)
+	commentSvc.SetNotificationService(notificationSvc)
 	h := mspHandler.NewHandler(
 		service.NewMSPAllocationService(client, logger),
 		ticketSvc,
-		service.NewMSPWorkbenchService(client, ticketSvc, nil, logger),
+		service.NewMSPWorkbenchService(client, ticketSvc, commentSvc, logger),
 		nil, // views：本剧本不覆盖（IP-P2-4a 另有单测）
 		service.NewMSPAuditService(client, logger),
 		logger,
@@ -183,6 +190,7 @@ func runScenario(t *testing.T, nProviders int) *mspE2EOutcome {
 	// 3) 员工与分配（provider ∩ allocation 是唯一授权来源）。
 	env.agent = mustMSPUser(t, client, "e2e-agent-1", env.provider.ID, role1.ID)
 	env.agent2 = mustMSPUser(t, client, "e2e-agent-2", env.provider.ID, role1.ID) // 故意不分配
+	env.providerAdmin = mustProviderAdmin(t, client, "e2e-provider-admin", env.provider.ID)
 	_, err := client.MSPAllocation.Create().SetMspUserID(env.agent.ID).
 		SetCustomerTenantID(env.customer.ID).SetProviderTenantID(env.provider.ID).SetRole("primary").Save(ctx)
 	require.NoError(t, err)
@@ -274,6 +282,41 @@ func runScenario(t *testing.T, nProviders int) *mspE2EOutcome {
 	require.NotZero(t, updated.ManagedByUserID, "指派后应写 managed_by_user_id（R11 第四字段）")
 	assert.Equal(t, env.agent.ID, updated.ManagedByUserID)
 
+	// 7.1) A12 通知双投递：工作台回复 → provider 侧通知落 provider 租户（客户侧仍落客户租户）。
+	replyStatus, replyBody := mspE2ERequest(t, engine, http.MethodPost,
+		fmt.Sprintf("/api/v1/msp/tickets/%d/reply", env.ticket.ID), agentToken,
+		map[string]interface{}{"customerTenantId": env.customer.ID, "content": "A12 e2e 回复"})
+	require.Equal(t, http.StatusOK, replyStatus, replyBody)
+	providerSide, err := client.Notification.Query().
+		Where(entNotification.TenantIDEQ(env.provider.ID), entNotification.UserIDEQ(env.providerAdmin.ID)).
+		All(ctx)
+	require.NoError(t, err)
+	require.NotEmpty(t, providerSide, "provider 侧通知应落 provider 租户（A12 双投递）")
+	assert.Equal(t, "/msp/workbench", providerSide[0].ActionURL)
+	// 回复者即托管处理人 → provider 侧不给自己发（actor 排除）。
+	agentSelf, err := client.Notification.Query().
+		Where(entNotification.TenantIDEQ(env.provider.ID), entNotification.UserIDEQ(env.agent.ID)).
+		All(ctx)
+	require.NoError(t, err)
+	assert.Empty(t, agentSelf, "评论者本人不应收到 provider 侧评论通知")
+
+	// 7.2) 改状态：客户侧 requester 收状态通知 + provider 侧再投递一份。
+	statusStatus, statusBody := mspE2ERequest(t, engine, http.MethodPost,
+		fmt.Sprintf("/api/v1/msp/tickets/%d/status", env.ticket.ID), agentToken,
+		map[string]interface{}{"customerTenantId": env.customer.ID, "status": "in_progress"})
+	require.Equal(t, http.StatusOK, statusStatus, statusBody)
+	customerSide, err := client.Notification.Query().
+		Where(entNotification.TenantIDEQ(env.customer.ID), entNotification.TitleEQ("status_changed")).
+		All(ctx)
+	require.NoError(t, err)
+	require.NotEmpty(t, customerSide, "客户侧 requester 应收到状态变更通知")
+	statusProviderSide, err := client.Notification.Query().
+		Where(entNotification.TenantIDEQ(env.provider.ID), entNotification.UserIDEQ(env.agent.ID),
+			entNotification.TitleEQ("status_changed")).
+		All(ctx)
+	require.NoError(t, err)
+	require.NotEmpty(t, statusProviderSide, "provider 侧处理人应收到状态变更通知")
+
 	// 8) 拒绝路径（A12）：未分配员工对 C1 的列表与指派一律 403 + MSP_ALLOCATION_REQUIRED。
 	agent2Token := mspE2EToken(t, env.agent2)
 	denyListStatus, denyListBody := mspE2ERequest(t, engine, http.MethodGet,
@@ -332,6 +375,18 @@ func TestMSP_A12_ProviderScopedTicketFlow(t *testing.T) {
 }
 
 // ---- 夹具 ----
+
+// mustProviderAdmin 创建 provider 租户管理员（A12 双投递的 provider 侧收件人）。
+func mustProviderAdmin(t *testing.T, client *ent.Client, username string, tenantID int) *ent.User {
+	t.Helper()
+	entity, err := client.User.Create().
+		SetUsername(username).SetEmail(username + "@example.com").SetName(username).
+		SetPasswordHash("hash").SetActive(true).
+		SetTenantID(tenantID).SetRole("admin").SetMspRole(user.MspRole("provider_admin")).
+		Save(context.Background())
+	require.NoError(t, err)
+	return entity
+}
 
 func mustTenant(t *testing.T, client *ent.Client, name, code, tenantType string, providerID ...int) *ent.Tenant {
 	t.Helper()

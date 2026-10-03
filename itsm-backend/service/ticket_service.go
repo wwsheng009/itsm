@@ -1600,6 +1600,17 @@ func (s *TicketService) toEntTicket(t *ticket.Ticket) *ent.Ticket {
 
 // ==================== 状态变更 / SLA / 批量 / 升级 / 查询（V1 兼容） ====================
 
+// NotifyTicketStatusChanged 触发工单状态变更通知（客户侧 + provider 侧双投递，A12）。
+// 仅工作台条目级改状态调用；通知失败不阻塞主流程（与既有通知链路一致）。
+func (s *TicketService) NotifyTicketStatusChanged(ctx context.Context, ticketID int, oldStatus, newStatus string, tenantID int) {
+	if s.notificationSvc == nil {
+		return
+	}
+	if err := s.notificationSvc.NotifyTicketStatusChanged(ctx, ticketID, oldStatus, newStatus, tenantID); err != nil {
+		s.logger.Warnw("Failed to send ticket status notification", "error", err, "ticket_id", ticketID)
+	}
+}
+
 // UpdateTicketStatus 更新工单状态（等价 V1.TicketService.UpdateTicketStatus）
 func (s *TicketService) UpdateTicketStatus(ctx context.Context, ticketID int, status string, tenantID int, operatorID int) (*ticket.Ticket, error) {
 	s.logger.Infow("Updating ticket status", "ticket_id", ticketID, "status", status, "tenant_id", tenantID, "operator_id", operatorID)

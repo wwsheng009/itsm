@@ -342,16 +342,23 @@ func (s *TicketNotificationService) NotifyTicketCreated(ctx context.Context, tic
 	}
 
 	if len(userIDs) == 0 {
-		return nil
+		// 客户侧无收件人时不提前返回：托管工单的 provider 侧双投递仍需投递（A12）。
+	} else {
+		content := fmt.Sprintf("新工单已创建：%s (#%s)", ticket.Title, ticket.TicketNumber)
+		if err := s.SendNotification(ctx, ticket.ID, &dto.SendTicketNotificationRequest{
+			UserIDs: userIDs,
+			Type:    "created",
+			Channel: "in_app",
+			Content: content,
+		}, ticket.TenantID); err != nil {
+			return err
+		}
 	}
 
-	content := fmt.Sprintf("新工单已创建：%s (#%s)", ticket.Title, ticket.TicketNumber)
-	return s.SendNotification(ctx, ticket.ID, &dto.SendTicketNotificationRequest{
-		UserIDs: userIDs,
-		Type:    "created",
-		Channel: "in_app",
-		Content: content,
-	}, ticket.TenantID)
+	// A12 通知双投递：provider 侧（托管处理人 + provider 管理员）。
+	s.notifyMSPProviderSide(ctx, ticket, "created",
+		fmt.Sprintf("托管工单 #%s 已创建：%s", ticket.TicketNumber, ticket.Title), 0)
+	return nil
 }
 
 // NotifyTicketAssigned 工单分配时发送通知
@@ -362,12 +369,18 @@ func (s *TicketNotificationService) NotifyTicketAssigned(ctx context.Context, ti
 	}
 
 	content := fmt.Sprintf("您被分配了工单：%s (#%s)", ticket.Title, ticket.TicketNumber)
-	return s.SendNotification(ctx, ticketID, &dto.SendTicketNotificationRequest{
+	if err := s.SendNotification(ctx, ticketID, &dto.SendTicketNotificationRequest{
 		UserIDs: []int{assigneeID},
 		Type:    "assigned",
 		Channel: "in_app",
 		Content: content,
-	}, tenantID)
+	}, tenantID); err != nil {
+		return err
+	}
+	// A12 通知双投递：provider 侧（被指派 provider 员工 + provider 管理员）。
+	s.notifyMSPProviderSide(ctx, ticket, "assigned",
+		fmt.Sprintf("托管工单 #%s 已指派处理人", ticket.TicketNumber), 0)
+	return nil
 }
 
 // NotifyTicketStatusChanged 工单状态变更时发送通知
@@ -388,12 +401,18 @@ func (s *TicketNotificationService) NotifyTicketStatusChanged(
 		userIDs = append(userIDs, ticket.AssigneeID)
 	}
 
-	return s.SendNotification(ctx, ticketID, &dto.SendTicketNotificationRequest{
+	if err := s.SendNotification(ctx, ticketID, &dto.SendTicketNotificationRequest{
 		UserIDs: userIDs,
 		Type:    "status_changed",
 		Channel: "in_app",
 		Content: content,
-	}, tenantID)
+	}, tenantID); err != nil {
+		return err
+	}
+	// A12 通知双投递：provider 侧（托管处理人 / assignee + provider 管理员）。
+	s.notifyMSPProviderSide(ctx, ticket, "status_changed",
+		fmt.Sprintf("托管工单 #%s 状态已从 %s 变更为 %s", ticket.TicketNumber, oldStatus, newStatus), 0)
+	return nil
 }
 
 // NotifyTicketCommented 工单评论时发送通知
@@ -432,16 +451,23 @@ func (s *TicketNotificationService) NotifyTicketCommented(
 	}
 
 	if len(userIDs) == 0 {
-		return nil
+		// 客户侧无收件人时不提前返回：托管工单的 provider 侧双投递仍需投递（A12）。
+	} else {
+		content := fmt.Sprintf("工单 #%s 有新的评论", ticket.TicketNumber)
+		if err := s.SendNotification(ctx, ticketID, &dto.SendTicketNotificationRequest{
+			UserIDs: userIDs,
+			Type:    "commented",
+			Channel: "in_app",
+			Content: content,
+		}, tenantID); err != nil {
+			return err
+		}
 	}
 
-	content := fmt.Sprintf("工单 #%s 有新的评论", ticket.TicketNumber)
-	return s.SendNotification(ctx, ticketID, &dto.SendTicketNotificationRequest{
-		UserIDs: userIDs,
-		Type:    "commented",
-		Channel: "in_app",
-		Content: content,
-	}, tenantID)
+	// A12 通知双投递：provider 侧（排除评论者本人，避免自我提醒）。
+	s.notifyMSPProviderSide(ctx, ticket, "commented",
+		fmt.Sprintf("托管工单 #%s 有新的评论", ticket.TicketNumber), commenterID)
+	return nil
 }
 
 // NotifySLAWarning SLA即将到期时发送提醒
@@ -603,15 +629,19 @@ func (s *TicketNotificationService) NotifyTicketCreatedTx(ctx context.Context, t
 		return fmt.Errorf("NotifyTicketCreatedTx requires non-nil tx and ticket")
 	}
 	userIDs := collectCreatedRecipients(ctx, tx, ticket)
-	if len(userIDs) == 0 {
-		return nil
-	}
-	content := fmt.Sprintf("新工单已创建：%s (#%s)", ticket.Title, ticket.TicketNumber)
-	occurrenceKey := fmt.Sprintf("created:%d:%d", ticket.TenantID, ticket.ID)
-	for _, recipientID := range userIDs {
-		if err := enqueueTicketNotificationCommandTx(ctx, tx, ticket.TenantID, ticket.ID, recipientID, "created", "in_app", content, occurrenceKey); err != nil && !ent.IsConstraintError(err) {
-			return fmt.Errorf("enqueue ticket created notification: %w", err)
+	if len(userIDs) > 0 {
+		content := fmt.Sprintf("新工单已创建：%s (#%s)", ticket.Title, ticket.TicketNumber)
+		occurrenceKey := fmt.Sprintf("created:%d:%d", ticket.TenantID, ticket.ID)
+		for _, recipientID := range userIDs {
+			if err := enqueueTicketNotificationCommandTx(ctx, tx, ticket.TenantID, ticket.ID, recipientID, "created", "in_app", content, occurrenceKey); err != nil && !ent.IsConstraintError(err) {
+				return fmt.Errorf("enqueue ticket created notification: %w", err)
+			}
 		}
+	}
+	// A12 通知双投递：provider 侧（与工单主表同事务写行，回滚同死）。
+	if err := s.notifyMSPProviderSideTx(ctx, tx, ticket, "created",
+		fmt.Sprintf("托管工单 #%s 已创建：%s", ticket.TicketNumber, ticket.Title), 0); err != nil {
+		return err
 	}
 	return nil
 }
