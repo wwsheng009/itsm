@@ -223,6 +223,14 @@ func InitDatabaseWithRLS(cfg *config.DatabaseConfig, rlsCfg *config.RLSConfig, l
 	innerDrv := entsql.OpenDB("postgres", rawDB)
 	deco := rls.From(innerDrv, rlsCfg.Mode, logger)
 	rlsDriver = deco
+	// 监控接入（报告 §5）：计数器桥接 Prometheus /metrics（幂等注册）。
+	if err := rls.RegisterMetrics(deco); err != nil {
+		lgw := logger
+		if lgw == nil {
+			lgw = zap.S()
+		}
+		lgw.Warnw("rls: register prometheus metrics failed", "error", err)
+	}
 
 	// R2B 连接侧分流（IP-P2-2 后续）：配置了低权角色且处于 enforce 时，
 	// 开通请求池 itsm_app；租户作用域语句走该池（policy 强制），平台/系统

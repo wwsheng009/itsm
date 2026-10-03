@@ -12,6 +12,7 @@ import (
 
 	"itsm-backend/common"
 	connectorAlert "itsm-backend/connector/alert"
+	"itsm-backend/database"
 	"itsm-backend/ent"
 	"itsm-backend/handlers"
 	a2uiHandler "itsm-backend/handlers/a2ui"
@@ -412,6 +413,23 @@ func SetupRoutes(r *gin.Engine, config *RouterConfig) {
 		operationRoutes.POST("/bulk-replay", operationHandler.BulkReplay)
 		operationRoutes.POST("/bulk-cancel", operationHandler.BulkCancel)
 	}
+
+	// RLS 运行指标端点（enforce 灰度观测面，报告 §5）：
+	// itsm_rls_missing_tenant_total > 0 即暂停灰度并评估回滚；此端点输出同一快照，
+	// 供没有 Prometheus 抓取链路的现场排障使用。
+	auth.GET("/admin/rls/stats", middleware.RequirePermission("system", "read"), func(c *gin.Context) {
+		drv := database.GetRLSDriver()
+		if drv == nil {
+			common.Success(c, gin.H{"enabled": false})
+			return
+		}
+		common.Success(c, gin.H{
+			"enabled":           true,
+			"mode":              drv.Mode(),
+			"appPoolConfigured": drv.AppPoolConfigured(),
+			"stats":             drv.Stats(),
+		})
+	})
 
 	if config.Client != nil {
 		timerStore := service.NewDBTimerStore(config.Client, zap.S())
