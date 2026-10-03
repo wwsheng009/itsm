@@ -34,7 +34,7 @@
 | `expiresAt` | — | 到期时间；过期后请求 403 |
 | `planCode` / `billingEnabled` / `currency` / `serviceTier` | — | 套餐与计费维度 |
 | `costCenterCode` / `legalEntityCode` / `ownerContact` | — | 成本中心/法人实体/负责人 |
-| `settings` / `quota` | — | 租户配置与资源配额；**`quota`（IP-P2-6，2026-09-30 起落地）**：`{maxUsers,maxTicketsPerMonth,maxStorageMB}`，单键 >0 生效、缺省/0 = 不限，超限 422 `TENANT_QUOTA_EXCEEDED`（附件沿用 6106）；`settings` 仍为未持久化遗留字段 |
+| `settings` / `quota` | — | 租户配置与资源配额；**`quota`（IP-P2-6，2026-09-30 起落地）**：`{maxUsers,maxTicketsPerMonth,maxStorageMB}`，单键 >0 生效、缺省/0 = 不限，超限 422 `TENANT_QUOTA_EXCEEDED`（附件沿用 6106）；用量查询 `GET /api/v1/tenants/:id/usage`（治理页展示，口径与写入校验一致）；`settings` 仍为未持久化遗留字段 |
 
 > 实测（2026-09-28）：`tenants` 表已含 `parent_tenant_id` / `msp_provider_id` 列，创建客户租户时经 `POST /api/v1/tenants` 传入即落库（MSPCUSTA / MSPCUSTB → provider `3`），无需额外迁移。
 >

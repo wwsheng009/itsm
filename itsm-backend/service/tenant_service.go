@@ -16,8 +16,9 @@ import (
 )
 
 type TenantService struct {
-	client *ent.Client
-	logger *zap.SugaredLogger
+	client   *ent.Client
+	logger   *zap.SugaredLogger
+	quotaSvc *TenantQuotaService // IP-P2-6 收尾：治理页用量展示（nil 时返回空用量）
 }
 
 func NewTenantService(client *ent.Client, logger *zap.SugaredLogger) *TenantService {
@@ -25,6 +26,11 @@ func NewTenantService(client *ent.Client, logger *zap.SugaredLogger) *TenantServ
 		client: client,
 		logger: logger,
 	}
+}
+
+// SetTenantQuotaService 注入租户配额服务（IP-P2-6 收尾；nil 关闭用量汇总）。
+func (s *TenantService) SetTenantQuotaService(q *TenantQuotaService) {
+	s.quotaSvc = q
 }
 
 // CreateTenant 创建租户
@@ -295,6 +301,34 @@ func (s *TenantService) UpdateTenant(ctx context.Context, tenantID int, req *dto
 
 	s.logger.Infof("成功更新租户: %d", tenantID)
 	return tenantEntity, nil
+}
+
+// QuotaUsage 汇总租户硬配额的“上限 vs 当前用量”（IP-P2-6 收尾；口径与写入校验一致）。
+// quotaSvc 未注入（nil）时返回空用量、不报错——装配顺序与测试装配套路保持宽松。
+func (s *TenantService) QuotaUsage(ctx context.Context, tenantID int) (*dto.TenantQuotaUsageResponse, error) {
+	resp := &dto.TenantQuotaUsageResponse{TenantID: tenantID}
+	if s == nil || s.quotaSvc == nil {
+		return resp, nil
+	}
+	limits, err := s.quotaSvc.LimitsOf(ctx, tenantID)
+	if err != nil {
+		return nil, err
+	}
+	used, err := s.quotaSvc.Usage(ctx, tenantID)
+	if err != nil {
+		return nil, err
+	}
+	resp.Limits = dto.TenantQuotaLimits{
+		MaxUsers:           limits.MaxUsers,
+		MaxTicketsPerMonth: limits.MaxTicketsPerMonth,
+		MaxStorageMB:       limits.MaxStorageMB,
+	}
+	resp.Used = dto.TenantQuotaUsage{
+		Users:            used.Users,
+		TicketsThisMonth: used.TicketsThisMonth,
+		StorageBytes:     used.StorageBytes,
+	}
+	return resp, nil
 }
 
 // DeleteTenant 删除租户

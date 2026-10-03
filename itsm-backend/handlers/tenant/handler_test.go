@@ -66,6 +66,14 @@ func (m *mockTenantService) DeleteTenant(ctx context.Context, tenantID int) erro
 	return args.Error(0)
 }
 
+func (m *mockTenantService) QuotaUsage(ctx context.Context, tenantID int) (*dto.TenantQuotaUsageResponse, error) {
+	args := m.Called(ctx, tenantID)
+	if r, ok := args.Get(0).(*dto.TenantQuotaUsageResponse); ok {
+		return r, args.Error(1)
+	}
+	return nil, args.Error(1)
+}
+
 func newTenantHandler(m *mockTenantService) *Handler {
 	gin.SetMode(gin.TestMode)
 	return NewHandler(m, zap.NewNop().Sugar())
@@ -247,6 +255,49 @@ func TestGetTenant_InvalidID(t *testing.T) {
 
 	assert.Equal(t, http.StatusBadRequest, w.Code)
 	m.AssertNotCalled(t, "GetTenant")
+}
+
+func TestGetTenantUsage_Success(t *testing.T) {
+	m := &mockTenantService{}
+	h := newTenantHandler(m)
+	m.On("QuotaUsage", mock.Anything, 1).Return(&dto.TenantQuotaUsageResponse{
+		TenantID: 1,
+		Limits:   dto.TenantQuotaLimits{MaxUsers: 5, MaxTicketsPerMonth: 100, MaxStorageMB: 2048},
+		Used:     dto.TenantQuotaUsage{Users: 3, TicketsThisMonth: 12, StorageBytes: 1048576},
+	}, nil)
+
+	w, c := doJSON(h, http.MethodGet, "/api/v1/tenants/1/usage", "")
+	h.GetTenantUsage(c)
+
+	assert.Equal(t, http.StatusOK, w.Code)
+	var resp common.Response
+	assert.NoError(t, json.Unmarshal(w.Body.Bytes(), &resp))
+	data, ok := resp.Data.(map[string]interface{})
+	assert.True(t, ok)
+	assert.Equal(t, float64(1), data["tenantId"])
+	limits, _ := data["limits"].(map[string]interface{})
+	assert.Equal(t, float64(5), limits["maxUsers"])
+	assert.Equal(t, float64(100), limits["maxTicketsPerMonth"])
+	used, _ := data["used"].(map[string]interface{})
+	assert.Equal(t, float64(3), used["users"])
+	assert.Equal(t, float64(12), used["ticketsThisMonth"])
+	assert.Equal(t, float64(1048576), used["storageBytes"])
+	m.AssertExpectations(t)
+}
+
+func TestGetTenantUsage_InvalidID(t *testing.T) {
+	m := &mockTenantService{}
+	h := newTenantHandler(m)
+
+	w := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(w)
+	c.Request = httptest.NewRequest(http.MethodGet, "/api/v1/tenants/abc/usage", nil)
+	c.Params = gin.Params{{Key: "id", Value: "abc"}}
+
+	h.GetTenantUsage(c)
+
+	assert.Equal(t, http.StatusBadRequest, w.Code)
+	m.AssertNotCalled(t, "QuotaUsage")
 }
 
 func TestDeleteTenant_Success(t *testing.T) {

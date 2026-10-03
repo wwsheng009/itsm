@@ -592,3 +592,49 @@ func TestTenantService_ListTenants_LegacyTypeFilterCompat(t *testing.T) {
 	assert.Equal(t, 2, total2, "legacy 输入过滤应同时命中新值行")
 	assert.Len(t, list2, 2)
 }
+
+// ==================== 配额用量（IP-P2-6 收尾） ====================
+
+func TestTenantService_QuotaUsage(t *testing.T) {
+	client, service, ctx := setupTenantTest(t)
+	defer client.Close()
+
+	created, err := service.CreateTenant(ctx, &dto.CreateTenantRequest{
+		Name: "配额租户",
+		Code: "QUOTA-USAGE",
+		Type: "internal",
+		Quota: map[string]interface{}{
+			"maxUsers":           5,
+			"maxTicketsPerMonth": 100,
+		},
+	})
+	require.NoError(t, err)
+
+	// 未注入配额服务：返回空用量、不报错（装配宽松）。
+	resp, err := service.QuotaUsage(ctx, created.ID)
+	require.NoError(t, err)
+	assert.Equal(t, created.ID, resp.TenantID)
+	assert.Zero(t, resp.Limits.MaxUsers)
+	assert.Zero(t, resp.Used.Users)
+
+	// 注入后：上限回显，用量与写入校验同口径（此处锁定 users 维度）。
+	service.SetTenantQuotaService(NewTenantQuotaService(client, zaptest.NewLogger(t).Sugar()))
+	_, err = client.User.Create().
+		SetUsername("quota-usage-user").
+		SetEmail("quota-usage@example.com").
+		SetName("配额用量用户").
+		SetPasswordHash("x").
+		SetTenantID(created.ID).
+		Save(ctx)
+	require.NoError(t, err)
+
+	resp, err = service.QuotaUsage(ctx, created.ID)
+	require.NoError(t, err)
+	assert.Equal(t, int64(5), resp.Limits.MaxUsers)
+	assert.Equal(t, int64(100), resp.Limits.MaxTicketsPerMonth)
+	assert.Equal(t, int64(1), resp.Used.Users)
+
+	// 租户不存在：fail-closed 报错（避免治理页对幽灵租户展示“不限”）。
+	_, err = service.QuotaUsage(ctx, 99999)
+	require.Error(t, err)
+}

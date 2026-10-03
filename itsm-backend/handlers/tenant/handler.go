@@ -168,6 +168,26 @@ func (h *Handler) GetTenant(c *gin.Context) {
 	common.Success(c, dto.ToTenantResponse(tenant))
 }
 
+// GetTenantUsage 返回租户硬配额的“上限 vs 当前用量”（IP-P2-6 收尾；
+// 口径与写入校验一致：users / 本月新建未删工单 / active 未删附件字节）。
+func (h *Handler) GetTenantUsage(c *gin.Context) {
+	idStr := c.Param("id")
+	id, err := strconv.Atoi(idStr)
+	if err != nil {
+		common.Fail(c, 1001, "无效的租户ID")
+		return
+	}
+
+	overview, err := h.svc.QuotaUsage(c.Request.Context(), id)
+	if err != nil {
+		h.logger.Errorf("获取租户用量失败: %v", err)
+		common.FailWithErr(c, err, "操作失败")
+		return
+	}
+
+	common.Success(c, overview)
+}
+
 // UpdateTenant updates a tenant
 func (h *Handler) UpdateTenant(c *gin.Context) {
 	idStr := c.Param("id")

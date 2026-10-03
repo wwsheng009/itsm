@@ -13,6 +13,7 @@ import {
   Calendar,
   PauseCircle,
   PlayCircle,
+  BarChart3,
 } from 'lucide-react';
 
 import React, { useState, useEffect } from 'react';
@@ -41,6 +42,7 @@ import {
 import type { ColumnsType } from 'antd/es/table';
 import { TenantAPI } from '@/lib/api/tenant-api';
 import type { TenantQuota } from '@/lib/api/api-config';
+import TenantUsageModal from './components/TenantUsageModal';
 
 const { Title, Text } = Typography;
 
@@ -104,6 +106,8 @@ export default function TenantManagement() {
   const [showModal, setShowModal] = useState(false);
   const [selectedTenant, setSelectedTenant] = useState<Tenant | null>(null);
   const [viewOnly, setViewOnly] = useState(false);
+  // IP-P2-6 收尾：打开用量弹窗的目标租户（null = 关闭）。
+  const [usageTenant, setUsageTenant] = useState<Tenant | null>(null);
   const [form] = Form.useForm();
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
@@ -319,7 +323,7 @@ export default function TenantManagement() {
     {
       title: '操作',
       key: 'actions',
-      width: 120,
+      width: 150,
       render: (_: unknown, record: Tenant) => (
         <Space size="small">
           <Tooltip title="编辑">
@@ -334,6 +338,13 @@ export default function TenantManagement() {
               type="text"
               icon={<Eye className="w-4 h-4" />}
               onClick={() => openTenantModal(record, true)}
+            />
+          </Tooltip>
+          <Tooltip title="用量">
+            <Button
+              type="text"
+              icon={<BarChart3 className="w-4 h-4" />}
+              onClick={() => setUsageTenant(record)}
             />
           </Tooltip>
           {record.status === 'active' ? (
@@ -644,6 +655,14 @@ export default function TenantManagement() {
           </Row>
         </Form>
       </Modal>
+
+      {/* IP-P2-6 收尾：租户用量（配额 vs 用量，口径与写入校验一致）。 */}
+      <TenantUsageModal
+        open={!!usageTenant}
+        tenantId={usageTenant?.id}
+        tenantName={usageTenant?.name}
+        onClose={() => setUsageTenant(null)}
+      />
     </div>
   );
 }

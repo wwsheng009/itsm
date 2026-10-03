@@ -18,4 +18,6 @@ type Service interface {
 	UpdateTenant(ctx context.Context, tenantID int, req *dto.UpdateTenantRequest) (*ent.Tenant, error)
 	UpdateTenantStatus(ctx context.Context, tenantID int, status string) error
 	DeleteTenant(ctx context.Context, tenantID int) error
+	// QuotaUsage 汇总租户硬配额的“上限 vs 当前用量”（IP-P2-6 收尾，治理页展示）。
+	QuotaUsage(ctx context.Context, tenantID int) (*dto.TenantQuotaUsageResponse, error)
 }

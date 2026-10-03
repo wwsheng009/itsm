@@ -187,6 +187,8 @@ func SetupCommonSystemRoutes(r *gin.Engine, tenant *gin.RouterGroup, config *Rou
 				tenants.GET("", middleware.RequirePermission("tenant", "read"), config.TenantHandler.ListTenants)
 				tenants.POST("", middleware.RequirePermission("tenant", "write"), config.TenantHandler.CreateTenant)
 				tenants.GET("/:id", middleware.RequirePermission("tenant", "read"), config.TenantHandler.GetTenant)
+				// IP-P2-6 收尾：治理页“配额 vs 用量”（口径同写入校验）。
+				tenants.GET("/:id/usage", middleware.RequirePermission("tenant", "read"), config.TenantHandler.GetTenantUsage)
 				tenants.PUT("/:id", middleware.RequirePermission("tenant", "write"), config.TenantHandler.UpdateTenant)
 				tenants.DELETE("/:id", middleware.RequirePermission("tenant", "write"), config.TenantHandler.DeleteTenant)
 				tenants.PUT("/:id/status", middleware.RequirePermission("tenant", "write"), config.TenantHandler.UpdateTenantStatus)

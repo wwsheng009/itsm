@@ -84,3 +84,24 @@ type TenantListResponse struct {
 	Page     int              `json:"page"`
 	PageSize int              `json:"pageSize"`
 }
+
+// TenantQuotaLimits 租户硬配额上限（键缺省 / 0 = 不限；IP-P2-6）。
+type TenantQuotaLimits struct {
+	MaxUsers           int64 `json:"maxUsers,omitempty"`
+	MaxTicketsPerMonth int64 `json:"maxTicketsPerMonth,omitempty"`
+	MaxStorageMB       int64 `json:"maxStorageMB,omitempty"`
+}
+
+// TenantQuotaUsage 租户当前用量（与写入校验同口径）。
+type TenantQuotaUsage struct {
+	Users            int64 `json:"users"`
+	TicketsThisMonth int64 `json:"ticketsThisMonth"`
+	StorageBytes     int64 `json:"storageBytes"`
+}
+
+// TenantQuotaUsageResponse GET /api/v1/tenants/:id/usage 响应（治理页“配额 vs 用量”）。
+type TenantQuotaUsageResponse struct {
+	TenantID int               `json:"tenantId"`
+	Limits   TenantQuotaLimits `json:"limits"`
+	Used     TenantQuotaUsage  `json:"used"`
+}

@@ -5,6 +5,7 @@ import type {
   CreateTenantRequest,
   UpdateTenantRequest,
   GetTenantsParams,
+  TenantQuotaUsageResponse,
 } from './api-config';
 
 /** POST /api/v1/auth/switch-tenant 响应（与登录同构，仅取会话所需字段）。 */
@@ -35,6 +36,11 @@ export class TenantAPI {
   // 更新租户
   static async updateTenant(id: number, data: UpdateTenantRequest): Promise<Tenant> {
     return httpClient.put<Tenant>(`/api/v1/tenants/${id}`, data);
+  }
+
+  // 租户硬配额用量（IP-P2-6 收尾；上限与用量同源，口径与写入校验一致）。
+  static async getTenantUsage(id: number): Promise<TenantQuotaUsageResponse> {
+    return httpClient.get<TenantQuotaUsageResponse>(`/api/v1/tenants/${id}/usage`);
   }
 
   // 删除租户

@@ -46,6 +46,19 @@ export interface TenantQuota {
   maxStorageMB?: number;
 }
 
+// IP-P2-6 收尾：治理页“配额 vs 用量”（GET /api/v1/tenants/:id/usage，口径同写入校验）。
+export interface TenantQuotaUsage {
+  users: number;
+  ticketsThisMonth: number;
+  storageBytes: number;
+}
+
+export interface TenantQuotaUsageResponse {
+  tenantId: number;
+  limits: TenantQuota;
+  used: TenantQuotaUsage;
+}
+
 export interface Tenant {
   id: number;
   name: string;
