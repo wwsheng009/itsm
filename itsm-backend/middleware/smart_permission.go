@@ -6,6 +6,7 @@ import (
 	"sync"
 	"time"
 
+	"itsm-backend/common/tenantctx"
 	"itsm-backend/ent"
 	"itsm-backend/ent/endpointacl"
 
@@ -250,13 +251,17 @@ func loadACLsFromDB(ctx context.Context, client *ent.Client, tenantID int) []End
 		return nil
 	}
 
+	// R2B 阴影观察（2026-10-03）：该查询已按 tenant 过滤，但预检可能先于租户
+	// 中间件执行、请求 ctx 未必携带租户；显式补齐租户上下文，避免 enforce 下
+	// 被 RLS 装饰器 fail-closed 拦下（影子观察曾报 query without tenant scope）。
+	qctx := tenantctx.WithTenantID(ctx, tenantID)
 	rows, err := client.EndpointACL.Query().
 		Where(
 			endpointacl.TenantIDEQ(tenantID),
 			endpointacl.IsActiveEQ(true),
 		).
 		Order(ent.Desc(endpointacl.FieldPriority)).
-		All(ctx)
+		All(qctx)
 	if err != nil {
 		zap.S().Warnw("Failed to load ACLs from DB",
 			"tenant_id", tenantID, "error", err)

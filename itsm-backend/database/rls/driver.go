@@ -38,6 +38,7 @@ import (
 	"database/sql"
 	"fmt"
 	"strconv"
+	"strings"
 	"sync/atomic"
 
 	"itsm-backend/common/tenantctx"
@@ -210,7 +211,7 @@ func (d *Driver) Exec(ctx context.Context, query string, args, v any) error {
 		}
 		return d.inner.Exec(ec, query, args, v)
 	}
-	d.observe(ctx, "Exec", firstToken(query))
+	d.observe(ctx, "Exec", query)
 	return d.inner.Exec(ctx, query, args, v)
 }
 
@@ -223,7 +224,7 @@ func (d *Driver) Query(ctx context.Context, query string, args, v any) error {
 		}
 		return d.inner.Query(ec, query, args, v)
 	}
-	d.observe(ctx, "Query", firstToken(query))
+	d.observe(ctx, "Query", query)
 	return d.inner.Query(ctx, query, args, v)
 }
 
@@ -269,7 +270,12 @@ const tenantVarName = "app.current_tenant"
 // blocks and never returns an error: the goal is auditing, not enforcement.
 // Enforce-mode side effects live in the caller (AcquireConn / withRLS),
 // keeping this decorator lightweight and safe to disable at runtime.
-func (d *Driver) observe(ctx context.Context, op, firstTok string) {
+func (d *Driver) observe(ctx context.Context, op, query string) {
+	firstTok := ""
+	if query != "" {
+		firstTok = firstToken(query)
+	}
+	preview := sqlPreview(query)
 	switch d.mode {
 	case ModeOff:
 		d.nQueriesOff.Add(1)
@@ -290,6 +296,7 @@ func (d *Driver) observe(ctx context.Context, op, firstTok string) {
 				"rls: query without tenant scope",
 				"op", op,
 				"stmt", firstTok,
+				"query", preview,
 				"mode", string(d.mode),
 			)
 			return
@@ -298,7 +305,7 @@ func (d *Driver) observe(ctx context.Context, op, firstTok string) {
 			d.nQueriesShadow.Add(1)
 			d.log.Debugw(
 				"rls: shadow query",
-				"op", op, "stmt", firstTok, "tenant_id", tid,
+				"op", op, "stmt", firstTok, "query", preview, "tenant_id", tid,
 			)
 		} else {
 			// Enforce mode: no-op here; SET LOCAL is applied at conn checkout.
@@ -323,6 +330,29 @@ func firstToken(q string) string {
 		}
 	}
 	return q
+}
+
+// sqlPreview 返回单行化、限长的 SQL 预览（仅占位符，不含参数值），
+// 供 shadow 观察期把缺租户告警归因到具体查询/端点（2026-10-03 补充）：
+// 此前的告警只有 op+首词（SELECT/INSERT），无法定位调用方。
+func sqlPreview(q string) string {
+	if q == "" {
+		return ""
+	}
+	const max = 160
+	var b strings.Builder
+	for i := 0; i < len(q) && b.Len() < max; i++ {
+		c := q[i]
+		if c == '\n' || c == '\r' || c == '\t' {
+			c = ' '
+		}
+		b.WriteByte(c)
+	}
+	s := b.String()
+	if len(q) > len(s) {
+		s += "…"
+	}
+	return s
 }
 
 // -----------------------------------------------------------------------

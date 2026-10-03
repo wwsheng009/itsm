@@ -8,6 +8,7 @@ import (
 	"strings"
 	"time"
 
+	"itsm-backend/common/tenantctx"
 	"itsm-backend/ent"
 
 	"github.com/gin-gonic/gin"
@@ -57,6 +58,13 @@ func RecordAuthAudit(ctx context.Context, client *ent.Client, e AuthAuditEntry) 
 	payload, _ := json.Marshal(map[string]string{"username": e.ActorAccount, "userAgent": req.UserAgent, "failureReason": e.FailureReason})
 	auditCtx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 	defer cancel()
+	// R2B 阴影观察（2026-10-03）：审计写入是跨切面路径，登录阶段尚无租户上下文；
+	// 已知租户时显式补齐（RLS WITH CHECK 可用），未知时走 system bypass（审计不丢）。
+	if e.TenantID > 0 {
+		auditCtx = tenantctx.WithTenantID(auditCtx, e.TenantID)
+	} else {
+		auditCtx = tenantctx.WithSystemBypass(auditCtx)
+	}
 	create := client.AuditLog.Create().SetCreatedAt(time.Now()).
 		SetUserID(e.UserID).SetIP(req.IP).SetResource("auth").SetAction(e.Action).
 		SetPath(e.Path).SetMethod(e.Method).SetStatusCode(e.StatusCode).
@@ -97,6 +105,12 @@ func RecordTenantDeniedAudit(
 	})
 	auditCtx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 	defer cancel()
+	// 同上：actor home 租户优先，未知时 system bypass。
+	if tid := c.GetInt("tenant_id"); tid > 0 {
+		auditCtx = tenantctx.WithTenantID(auditCtx, tid)
+	} else {
+		auditCtx = tenantctx.WithSystemBypass(auditCtx)
+	}
 	create := client.AuditLog.Create().SetCreatedAt(time.Now()).
 		SetResource(resource).SetAction(action).
 		SetPath(c.FullPath()).SetMethod(c.Request.Method).SetStatusCode(statusCode).
@@ -245,6 +259,13 @@ func AuditMiddleware(client *ent.Client) gin.HandlerFunc {
 		// 审计记录是企业合规数据，不能使用无确认的 goroutine（进程退出时会静默丢失）。
 		auditCtx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 		defer cancel()
+		// R2B 阴影观察（2026-10-03）：补齐租户上下文（已知租户）或 system bypass，
+		// 否则 enforce 下审计写入会被 RLS 装饰器 fail-closed 拦下。
+		if tenantID > 0 {
+			auditCtx = tenantctx.WithTenantID(auditCtx, tenantID)
+		} else {
+			auditCtx = tenantctx.WithSystemBypass(auditCtx)
+		}
 		auditCreate := client.AuditLog.Create().
 			SetCreatedAt(time.Now()).
 			SetTenantID(tenantID).
