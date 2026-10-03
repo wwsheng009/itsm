@@ -105,12 +105,8 @@ func MSPMiddleware(client *ent.Client) gin.HandlerFunc {
 				Where(
 					mspallocation.MspUserIDEQ(userID),
 					mspallocation.DeassignedAtIsNil(),
-					// IP-P2-1 provider 收窄（过渡兼容：未回填行 provider IS NULL 保留，
-					// NOT NULL 收尾后收敛为等值；越权判定仍由 mspguard 强校验）。
-					mspallocation.Or(
-						mspallocation.ProviderTenantIDEQ(tenantObj.ID),
-						mspallocation.ProviderTenantIDIsNil(),
-					),
+					// IP-P2-1 收尾（NOT NULL）：provider 等值收窄；越权判定仍由 mspguard 强校验。
+					mspallocation.ProviderTenantIDEQ(tenantObj.ID),
 				).
 				WithCustomerTenant(func(q *ent.TenantQuery) {
 					q.Select(tenant.FieldID, tenant.FieldCode, tenant.FieldName)

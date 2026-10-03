@@ -111,6 +111,7 @@ func TestPermissionEndpoints_ShareMembershipSingleSource(t *testing.T) {
 	_, err = client.MSPAllocation.Create().
 		SetMspUserID(userEntity.ID).
 		SetCustomerTenantID(customerTenant.ID).
+		SetProviderTenantID(providerTenant.ID).
 		Save(ctx)
 	require.NoError(t, err)
 

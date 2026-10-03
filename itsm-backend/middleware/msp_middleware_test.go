@@ -116,8 +116,8 @@ func TestMSPMiddleware_HeaderChannelUnifiedGuard(t *testing.T) {
 	})
 }
 
-// TestMSPMiddleware_ProviderNarrowing IP-P2-1（N=2）：员工 AllowedCustomers 只含本 provider 的活跃分配；
-// 他 provider 的错配行被剔除；未回填（provider IS NULL）行过渡期保留。
+// TestMSPMiddleware_ProviderNarrowing IP-P2-1（N=2，NOT NULL 收尾后）：员工 AllowedCustomers
+// 只含本 provider 的活跃分配；他 provider 的错配行被剔除。
 func TestMSPMiddleware_ProviderNarrowing(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	SetMSPEnabled(true)
@@ -137,9 +137,6 @@ func TestMSPMiddleware_ProviderNarrowing(t *testing.T) {
 	custB, err := client.Tenant.Create().SetName("Customer B").SetCode("cust-b").
 		SetType(tenant.Type("msp_customer")).SetStatus("active").SetMspProviderID(provB.ID).Save(ctx)
 	require.NoError(t, err)
-	custLegacy, err := client.Tenant.Create().SetName("Customer L").SetCode("cust-l").
-		SetType(tenant.Type("msp_customer")).SetStatus("active").SetMspProviderID(provA.ID).Save(ctx)
-	require.NoError(t, err)
 	agent, err := client.User.Create().SetUsername("agent-a").SetEmail("agent-a@example.com").
 		SetName("Agent A").SetPasswordHash("h").SetTenantID(provA.ID).
 		SetMspRole(user.MspRole("provider_agent")).Save(ctx)
@@ -154,10 +151,6 @@ func TestMSPMiddleware_ProviderNarrowing(t *testing.T) {
 		SetMspUserID(agent.ID).SetCustomerTenantID(custB.ID).
 		SetProviderTenantID(provB.ID).SetRole("primary").Save(ctx)
 	require.NoError(t, err)
-	// 未回填行（过渡期）：provider 留空，读路径保留（NOT NULL 收尾后消失）。
-	_, err = client.MSPAllocation.Create().
-		SetMspUserID(agent.ID).SetCustomerTenantID(custLegacy.ID).SetRole("primary").Save(ctx)
-	require.NoError(t, err)
 
 	w := httptest.NewRecorder()
 	c, _ := gin.CreateTestContext(w)
@@ -169,5 +162,5 @@ func TestMSPMiddleware_ProviderNarrowing(t *testing.T) {
 	require.True(t, exists, "MSPContext 必须写入")
 	mspCtx, ok := val.(*MSPContext)
 	require.True(t, ok)
-	assert.ElementsMatch(t, []int{custA.ID, custLegacy.ID}, mspCtx.AllowedCustomers)
+	assert.ElementsMatch(t, []int{custA.ID}, mspCtx.AllowedCustomers)
 }

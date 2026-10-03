@@ -567,6 +567,7 @@ func TestService_SwitchTenant_MSPProviderScope(t *testing.T) {
 		SaveX(fx.ctx)
 	fx.client.MSPAllocation.Create().
 		SetMspUserID(mspUser.ID).SetCustomerTenantID(customer.ID).SetRole("provider_agent").
+		SetProviderTenantID(provider.ID).
 		SaveX(fx.ctx)
 
 	resp, err := fx.service.SwitchTenant(fx.ctx, mspUser.ID, customer.ID)

@@ -150,16 +150,6 @@ func ProviderTenantIDNotIn(vs ...int) predicate.MSPAllocation {
 	return predicate.MSPAllocation(sql.FieldNotIn(FieldProviderTenantID, vs...))
 }
 
-// ProviderTenantIDIsNil applies the IsNil predicate on the "provider_tenant_id" field.
-func ProviderTenantIDIsNil() predicate.MSPAllocation {
-	return predicate.MSPAllocation(sql.FieldIsNull(FieldProviderTenantID))
-}
-
-// ProviderTenantIDNotNil applies the NotNil predicate on the "provider_tenant_id" field.
-func ProviderTenantIDNotNil() predicate.MSPAllocation {
-	return predicate.MSPAllocation(sql.FieldNotNull(FieldProviderTenantID))
-}
-
 // RoleEQ applies the EQ predicate on the "role" field.
 func RoleEQ(v string) predicate.MSPAllocation {
 	return predicate.MSPAllocation(sql.FieldEQ(FieldRole, v))

@@ -40,14 +40,6 @@ func (_c *MSPAllocationCreate) SetProviderTenantID(v int) *MSPAllocationCreate {
 	return _c
 }
 
-// SetNillableProviderTenantID sets the "provider_tenant_id" field if the given value is not nil.
-func (_c *MSPAllocationCreate) SetNillableProviderTenantID(v *int) *MSPAllocationCreate {
-	if v != nil {
-		_c.SetProviderTenantID(*v)
-	}
-	return _c
-}
-
 // SetRole sets the "role" field.
 func (_c *MSPAllocationCreate) SetRole(v string) *MSPAllocationCreate {
 	_c.mutation.SetRole(v)
@@ -176,6 +168,9 @@ func (_c *MSPAllocationCreate) check() error {
 	if _, ok := _c.mutation.CustomerTenantID(); !ok {
 		return &ValidationError{Name: "customer_tenant_id", err: errors.New(`ent: missing required field "MSPAllocation.customer_tenant_id"`)}
 	}
+	if _, ok := _c.mutation.ProviderTenantID(); !ok {
+		return &ValidationError{Name: "provider_tenant_id", err: errors.New(`ent: missing required field "MSPAllocation.provider_tenant_id"`)}
+	}
 	if _, ok := _c.mutation.Role(); !ok {
 		return &ValidationError{Name: "role", err: errors.New(`ent: missing required field "MSPAllocation.role"`)}
 	}
@@ -190,6 +185,9 @@ func (_c *MSPAllocationCreate) check() error {
 	}
 	if len(_c.mutation.CustomerTenantIDs()) == 0 {
 		return &ValidationError{Name: "customer_tenant", err: errors.New(`ent: missing required edge "MSPAllocation.customer_tenant"`)}
+	}
+	if len(_c.mutation.ProviderTenantIDs()) == 0 {
+		return &ValidationError{Name: "provider_tenant", err: errors.New(`ent: missing required edge "MSPAllocation.provider_tenant"`)}
 	}
 	return nil
 }

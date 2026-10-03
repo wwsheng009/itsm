@@ -73,7 +73,7 @@ func TestRefreshToken_ProviderAllocationScopeKept(t *testing.T) {
 		SetUsername("mspadmin").SetEmail("mspadmin@example.com").SetName("MSP").
 		SetPasswordHash("hash").SetRole("admin").SetMspRole("provider_admin").SetActive(true).SetTenantID(provider.ID).
 		SaveX(ctx)
-	client.MSPAllocation.Create().SetMspUserID(mspUser.ID).SetCustomerTenantID(customer.ID).SetRole("provider_agent").SaveX(ctx)
+	client.MSPAllocation.Create().SetMspUserID(mspUser.ID).SetCustomerTenantID(customer.ID).SetProviderTenantID(provider.ID).SetRole("provider_agent").SaveX(ctx)
 
 	tok, err := middleware.GenerateRefreshTokenWithSource(mspUser.ID, mspUser.Username, string(mspUser.Role), customer.ID, "switch", authScopeTestSecret, time.Hour)
 	require.NoError(t, err)
@@ -131,10 +131,10 @@ func TestGetUserTenants_Union(t *testing.T) {
 		SetUsername("agent").SetEmail("agent@example.com").SetName("Agent").
 		SetPasswordHash("hash").SetRole("agent").SetMspRole("provider_agent").SetActive(true).SetTenantID(provider.ID).
 		SaveX(ctx)
-	client.MSPAllocation.Create().SetMspUserID(mspUser.ID).SetCustomerTenantID(customerA.ID).SetRole("provider_agent").SaveX(ctx)
-	client.MSPAllocation.Create().SetMspUserID(mspUser.ID).SetCustomerTenantID(customerB.ID).SetRole("provider_agent").SaveX(ctx)
+	client.MSPAllocation.Create().SetMspUserID(mspUser.ID).SetCustomerTenantID(customerA.ID).SetProviderTenantID(provider.ID).SetRole("provider_agent").SaveX(ctx)
+	client.MSPAllocation.Create().SetMspUserID(mspUser.ID).SetCustomerTenantID(customerB.ID).SetProviderTenantID(provider.ID).SetRole("provider_agent").SaveX(ctx)
 	// 已解除的分配不出现
-	allocC := client.MSPAllocation.Create().SetMspUserID(mspUser.ID).SetCustomerTenantID(home.ID).SetRole("provider_agent").SaveX(ctx)
+	allocC := client.MSPAllocation.Create().SetMspUserID(mspUser.ID).SetCustomerTenantID(home.ID).SetProviderTenantID(provider.ID).SetRole("provider_agent").SaveX(ctx)
 	client.MSPAllocation.UpdateOneID(allocC.ID).SetDeassignedAt(time.Now()).SaveX(ctx)
 
 	t.Run("provider home plus active allocations", func(t *testing.T) {

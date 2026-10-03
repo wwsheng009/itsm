@@ -1,6 +1,8 @@
 -- IP-P1-1 回填巡检（DoD：逐项 0 差异；customer 恰 1 条 active；provider = home + 有效分配）
 -- 用法：psql -f scripts/msp/verify-membership-backfill.sql -v ON_ERROR_STOP=1
 -- 每节标题下方为"差异行"；无输出 = 该项通过。
+-- 判据注：邀请建号的"home"行按契约为 source=invite（目标架构 §6.2「创建账号 + home membership
+-- （source=invite）」），因此"主作用域"= (source='home' OR is_default)，见第 1 节。
 
 \echo '== 0. 回填总览（信息项，非差异） =='
 SELECT
@@ -9,14 +11,15 @@ SELECT
   (SELECT count(*) FROM user_tenant_memberships WHERE source = 'allocation' AND deleted_at IS NULL) AS allocation_rows,
   (SELECT count(*) FROM msp_allocations WHERE deassigned_at IS NULL) AS active_allocations;
 
-\echo '== 1. 缺少 home membership 的用户（期望 0 行） =='
+\echo '== 1. 缺少 home/主作用域 membership 的用户（期望 0 行；source=invite 亦为其 home） =='
 SELECT u.id, u.username, u.tenant_id
 FROM users u
 WHERE u.tenant_id IS NOT NULL
   AND NOT EXISTS (
     SELECT 1 FROM user_tenant_memberships m
     WHERE m.user_id = u.id AND m.tenant_id = u.tenant_id
-      AND m.deleted_at IS NULL AND m.source = 'home'
+      AND m.deleted_at IS NULL
+      AND (m.source = 'home' OR m.is_default)
   );
 
 \echo '== 2. 用户存在多条 active 默认作用域（期望 0 行） =='

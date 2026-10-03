@@ -2996,7 +2996,7 @@ var (
 		{Name: "deassigned_at", Type: field.TypeTime, Nullable: true},
 		{Name: "created_at", Type: field.TypeTime},
 		{Name: "customer_tenant_id", Type: field.TypeInt},
-		{Name: "provider_tenant_id", Type: field.TypeInt, Nullable: true},
+		{Name: "provider_tenant_id", Type: field.TypeInt},
 		{Name: "msp_user_id", Type: field.TypeInt},
 	}
 	// MspAllocationsTable holds the schema information for the "msp_allocations" table.
@@ -3015,7 +3015,7 @@ var (
 				Symbol:     "msp_allocations_tenants_msp_provider_allocations",
 				Columns:    []*schema.Column{MspAllocationsColumns[6]},
 				RefColumns: []*schema.Column{TenantsColumns[0]},
-				OnDelete:   schema.SetNull,
+				OnDelete:   schema.NoAction,
 			},
 			{
 				Symbol:     "msp_allocations_users_msp_allocations",

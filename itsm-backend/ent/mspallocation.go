@@ -23,7 +23,7 @@ type MSPAllocation struct {
 	MspUserID int `json:"msp_user_id,omitempty"`
 	// 客户租户ID（支持单客户模式）
 	CustomerTenantID int `json:"customer_tenant_id,omitempty"`
-	// 服务商租户ID（IP-P2-1：= MSP 员工 home provider 且 == customer.msp_provider_id）
+	// 服务商租户ID（IP-P2-1：= MSP 员工 home provider 且 == customer.msp_provider_id；NOT NULL 收尾）
 	ProviderTenantID int `json:"provider_tenant_id,omitempty"`
 	// 分配角色: primary|backup|specialist
 	Role string `json:"role,omitempty"`

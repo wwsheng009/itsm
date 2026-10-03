@@ -21,6 +21,7 @@
 - 落地：迁移加列 + 回填 + `(tenant_id, conversation_id, created_at)` 索引；写入点 `handlers/ai/repository_impl.go`（ctx 租户优先；无 ctx 保持 NULL 兼容历史）。
 - 巡检（只读）：① 未回填且会话有租户 ② 消息与会话租户错配 ③ 会话自身无租户的历史范围。
 - 收尾条件：①=0 且 ②=0，且 ③ 已明确处置 → 单独迁移收紧 `NOT NULL`（不在本批）。
+- **巡检结果留档（2026-10-03，联调库）**：①=0 / ②=0 / ③=0（`scripts/msp/verify-messages-tenant-backfill.sql`）。收紧 `NOT NULL` 的前置仍未满足：写入侧 `handlers/ai/repository_impl.go` 无 ctx 时保持写 NULL 兼容历史，需先收口（fail-closed/派生）再单独迁移。
 
 ## 3. 保留判定依据（复核不变）
 

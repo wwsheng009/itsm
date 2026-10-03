@@ -72,12 +72,6 @@ func (_u *MSPAllocationUpdate) SetNillableProviderTenantID(v *int) *MSPAllocatio
 	return _u
 }
 
-// ClearProviderTenantID clears the value of the "provider_tenant_id" field.
-func (_u *MSPAllocationUpdate) ClearProviderTenantID() *MSPAllocationUpdate {
-	_u.mutation.ClearProviderTenantID()
-	return _u
-}
-
 // SetRole sets the "role" field.
 func (_u *MSPAllocationUpdate) SetRole(v string) *MSPAllocationUpdate {
 	_u.mutation.SetRole(v)
@@ -212,6 +206,9 @@ func (_u *MSPAllocationUpdate) check() error {
 	}
 	if _u.mutation.CustomerTenantCleared() && len(_u.mutation.CustomerTenantIDs()) > 0 {
 		return errors.New(`ent: clearing a required unique edge "MSPAllocation.customer_tenant"`)
+	}
+	if _u.mutation.ProviderTenantCleared() && len(_u.mutation.ProviderTenantIDs()) > 0 {
+		return errors.New(`ent: clearing a required unique edge "MSPAllocation.provider_tenant"`)
 	}
 	return nil
 }
@@ -392,12 +389,6 @@ func (_u *MSPAllocationUpdateOne) SetNillableProviderTenantID(v *int) *MSPAlloca
 	return _u
 }
 
-// ClearProviderTenantID clears the value of the "provider_tenant_id" field.
-func (_u *MSPAllocationUpdateOne) ClearProviderTenantID() *MSPAllocationUpdateOne {
-	_u.mutation.ClearProviderTenantID()
-	return _u
-}
-
 // SetRole sets the "role" field.
 func (_u *MSPAllocationUpdateOne) SetRole(v string) *MSPAllocationUpdateOne {
 	_u.mutation.SetRole(v)
@@ -545,6 +536,9 @@ func (_u *MSPAllocationUpdateOne) check() error {
 	}
 	if _u.mutation.CustomerTenantCleared() && len(_u.mutation.CustomerTenantIDs()) > 0 {
 		return errors.New(`ent: clearing a required unique edge "MSPAllocation.customer_tenant"`)
+	}
+	if _u.mutation.ProviderTenantCleared() && len(_u.mutation.ProviderTenantIDs()) > 0 {
+		return errors.New(`ent: clearing a required unique edge "MSPAllocation.provider_tenant"`)
 	}
 	return nil
 }

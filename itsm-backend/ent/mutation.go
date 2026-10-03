@@ -97982,22 +97982,9 @@ func (m *MSPAllocationMutation) OldProviderTenantID(ctx context.Context) (v int,
 	return oldValue.ProviderTenantID, nil
 }
 
-// ClearProviderTenantID clears the value of the "provider_tenant_id" field.
-func (m *MSPAllocationMutation) ClearProviderTenantID() {
-	m.provider_tenant = nil
-	m.clearedFields[mspallocation.FieldProviderTenantID] = struct{}{}
-}
-
-// ProviderTenantIDCleared returns if the "provider_tenant_id" field was cleared in this mutation.
-func (m *MSPAllocationMutation) ProviderTenantIDCleared() bool {
-	_, ok := m.clearedFields[mspallocation.FieldProviderTenantID]
-	return ok
-}
-
 // ResetProviderTenantID resets all changes to the "provider_tenant_id" field.
 func (m *MSPAllocationMutation) ResetProviderTenantID() {
 	m.provider_tenant = nil
-	delete(m.clearedFields, mspallocation.FieldProviderTenantID)
 }
 
 // SetRole sets the "role" field.
@@ -98219,7 +98206,7 @@ func (m *MSPAllocationMutation) ClearProviderTenant() {
 
 // ProviderTenantCleared reports if the "provider_tenant" edge to the Tenant entity was cleared.
 func (m *MSPAllocationMutation) ProviderTenantCleared() bool {
-	return m.ProviderTenantIDCleared() || m.clearedprovider_tenant
+	return m.clearedprovider_tenant
 }
 
 // ProviderTenantIDs returns the "provider_tenant" edge IDs in the mutation.
@@ -98430,9 +98417,6 @@ func (m *MSPAllocationMutation) AddField(name string, value ent.Value) error {
 // mutation.
 func (m *MSPAllocationMutation) ClearedFields() []string {
 	var fields []string
-	if m.FieldCleared(mspallocation.FieldProviderTenantID) {
-		fields = append(fields, mspallocation.FieldProviderTenantID)
-	}
 	if m.FieldCleared(mspallocation.FieldDeassignedAt) {
 		fields = append(fields, mspallocation.FieldDeassignedAt)
 	}
@@ -98450,9 +98434,6 @@ func (m *MSPAllocationMutation) FieldCleared(name string) bool {
 // error if the field is not defined in the schema.
 func (m *MSPAllocationMutation) ClearField(name string) error {
 	switch name {
-	case mspallocation.FieldProviderTenantID:
-		m.ClearProviderTenantID()
-		return nil
 	case mspallocation.FieldDeassignedAt:
 		m.ClearDeassignedAt()
 		return nil

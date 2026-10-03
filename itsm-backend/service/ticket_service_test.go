@@ -1430,6 +1430,7 @@ func TestTicketService_GetMSPCustomerReports_AllocationAware(t *testing.T) {
 	client.MSPAllocation.Create().
 		SetMspUserID(mspUser.ID).
 		SetCustomerTenantID(allocatedTenant.ID).
+		SetProviderTenantID(mspTenant.ID).
 		SetRole("provider_agent").
 		Save(ctx)
 

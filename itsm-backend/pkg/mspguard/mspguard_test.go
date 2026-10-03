@@ -75,9 +75,16 @@ func newAccessFixture(t *testing.T) *accessFixture {
 
 func (f *accessFixture) allocate(t *testing.T, mspUserID, customerTenantID int) *ent.MSPAllocation {
 	t.Helper()
+	// provider 维度收尾：allocation.provider_tenant_id 必须 == customer.msp_provider_id；
+	// 未显式设置客户 provider 的用例回退到 fixture 的 provider。
+	providerID := f.provider.ID
+	if cust, cErr := f.client.Tenant.Get(context.Background(), customerTenantID); cErr == nil && cust.MspProviderID > 0 {
+		providerID = cust.MspProviderID
+	}
 	alloc, err := f.client.MSPAllocation.Create().
 		SetMspUserID(mspUserID).
 		SetCustomerTenantID(customerTenantID).
+		SetProviderTenantID(providerID).
 		SetRole("primary").
 		Save(context.Background())
 	require.NoError(t, err)

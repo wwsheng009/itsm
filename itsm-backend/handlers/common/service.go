@@ -486,11 +486,8 @@ func (s *Service) GetUserTenants(ctx context.Context, userID int) ([]interface{}
 			Where(
 				mspallocation.MspUserIDEQ(userID),
 				mspallocation.DeassignedAtIsNil(),
-				// IP-P2-1 provider 收窄（过渡兼容：未回填行 IS NULL 保留；NOT NULL 收尾后收敛为等值）。
-				mspallocation.Or(
-					mspallocation.ProviderTenantIDEQ(user.TenantID),
-					mspallocation.ProviderTenantIDIsNil(),
-				),
+				// IP-P2-1 收尾（NOT NULL）：provider 等值收窄。
+				mspallocation.ProviderTenantIDEQ(user.TenantID),
 			).
 			Order(ent.Asc(mspallocation.FieldID)).
 			All(ctx)

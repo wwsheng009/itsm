@@ -83,7 +83,8 @@ func newWorkbenchEnv(t *testing.T) *workbenchEnv {
 
 	for _, pair := range [][2]int{{mspUser.ID, a.ID}, {mspUser.ID, b.ID}} {
 		_, err := client.MSPAllocation.Create().
-			SetMspUserID(pair[0]).SetCustomerTenantID(pair[1]).SetRole("primary").Save(ctx)
+			SetMspUserID(pair[0]).SetCustomerTenantID(pair[1]).SetProviderTenantID(provider.ID).
+			SetRole("primary").Save(ctx)
 		require.NoError(t, err)
 	}
 

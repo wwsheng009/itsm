@@ -490,7 +490,7 @@ ALTER TABLE msp_allocations ADD COLUMN IF NOT EXISTS provider_tenant_id int NULL
 -- 回填：provider_tenant_id = 客户租户的 msp_provider_id（差异清单人工复核）
 UPDATE msp_allocations a SET provider_tenant_id = c.msp_provider_id
   FROM tenants c WHERE c.id = a.customer_tenant_id AND a.provider_tenant_id IS NULL;
--- 校验通过后（IP-P2-1 收尾）置 NOT NULL，并加"必须指向 msp_provider"的应用校验
+-- 校验通过后置 NOT NULL（2026-10-03 收尾落地：migrations/20261003_msp_allocations_provider_not_null.sql），并加"必须指向 msp_provider"的应用校验
 CREATE INDEX IF NOT EXISTS idx_msp_allocations_provider
   ON msp_allocations (provider_tenant_id) WHERE deassigned_at IS NULL;
 ```
@@ -542,7 +542,7 @@ CREATE INDEX idx_invitations_expiry ON invitations (expires_at) WHERE status = '
 
 - 表：`user_tenant_memberships`（目标架构 §3.2 字段全集）+ 3 个部分唯一索引（live / 唯一默认 / customer 单作用域）+ 复合 FK 目标 `uq_membership_id_tenant`（供 IP-P1-3 子表）；Ent schema 同步（`ent/schema/user_tenant_membership.go`，auto-migrate 与磁盘迁移一致）。
 - 迁移：`migrations/20260504_create_user_tenant_memberships(.sql/_down.sql)`（幂等）：`account_kind` 按 home 租户类型派生 customer/provider/platform；home 回填含 D10 角色映射（`provider_admin→msp_manager`、`provider_agent→msp_tech`）；有效 allocation 回填（`specialist→msp_specialist`、其余 `msp_tech`）；`audit_logs.membership_id` 按 actor home membership 回填。
-- 巡检：`scripts/msp/verify-membership-backfill.sql`（缺 home / 多默认 / customer 多作用域 / provider 作用域数 / 分配缺行 / 角色映射失败 / 重复存活 / 审计余量，共 8 节；生产库执行后留档）。
+- 巡检：`scripts/msp/verify-membership-backfill.sql`（缺 home/主作用域 / 多默认 / customer 多作用域 / provider 作用域数 / 分配缺行 / 角色映射失败 / 重复存活 / 审计余量，共 8 节）。**2026-10-03 联调库执行：8 节全零**（第 1 节判据修正为 `(source='home' OR is_default)`，覆盖邀请建号的 `source=invite` 主作用域语义，见目标架构 §6.2）；生产库留档随后续部署。
 - 验证：`go build ./...`；约束回归 `TestUserTenantMembership_Constraints`（三索引 + 软删重入 + provider 多作用域 5 子例）；`go test ./internal/schema ./migration/...`；`cmd/migration-lint` 全绿。
 - IP-P0-10 遗留的 `membership_id` 填充随本批关闭（历史行按 actor home 回填，其后由写入方落值）。
 
@@ -613,7 +613,7 @@ CREATE INDEX idx_invitations_expiry ON invitations (expires_at) WHERE status = '
 | **IP-P2-5** guard 扩展 | 成员/关联表一致性 | tenant_guard 增加"关联表一致性"检查（跨租户 FK/悬挂成员） | 启动扫描 0 高危；CI 用例覆盖 | 检查项分级（fatal→warn） |
 | **IP-P2-6** 平台租户管理：硬配额 | 租户 limits 模型与校验 | `tenants.quota`（jsonb，`maxUsers`/`maxTicketsPerMonth`/`maxStorageMB`）；三写入路径接入（建号/建单/附件）；平台面读写 + 非法值 400；用量口径与校验一致 | 超限 422 `TENANT_QUOTA_EXCEEDED`（附件沿用 6106）；缺省不限行为不变；单测覆盖三路径 | 列可空保留 + 移除校验调用（行为回退） |
 
-> **P2 进度（2026-09-30 起）**：IP-P2-1 首批落地——`provider_tenant_id` 迁移（可空 + 回填 + 部分索引，`20260930_msp_allocation_provider_dimension.sql`）、写侧归属校验（admin 不豁免）、读侧 provider 收窄（middleware / 租户切换列表 / 分配列表；工作台与报表维持 `mspguard` 单源收窄）、巡检脚本与单测；**A11/A12 api 通道 e2e 落地**（v1.39）；**NOT NULL 收尾**待巡检归零。IP-P2-5 首组检查落地（v1.32）。IP-P2-2 前置代码收口（v1.33）。IP-P2-3 共享表复核（v1.34）。IP-P2-4a 自定义视图全链完成（v1.36）。IP-P2-4b SLA 风险看板落地（v1.37）。IP-P2-4c 每客户用量看板（usage-only 定案）落地——**P2-4 全项收口（v1.38）**。**IP-P2-6 硬配额全链落地（v1.41–v1.42）**：`tenants.quota` + 三写入路径校验（建号/建单/附件）+ 治理页编辑（v1.41）与「用量」弹窗（`GET /api/v1/tenants/:id/usage`，v1.42）。
+> **P2 进度（2026-09-30 起）**：IP-P2-1 首批落地——`provider_tenant_id` 迁移（可空 + 回填 + 部分索引，`20260930_msp_allocation_provider_dimension.sql`）、写侧归属校验（admin 不豁免）、读侧 provider 收窄（middleware / 租户切换列表 / 分配列表；工作台与报表维持 `mspguard` 单源收窄）、巡检脚本与单测；**A11/A12 api 通道 e2e 落地**（v1.39）；**NOT NULL 收尾已落地**（v1.44：联调库巡检 4/4 归零 → 迁移 `20261003_msp_allocations_provider_not_null.sql` + ent 必填 + 读侧等值收敛）。IP-P2-5 首组检查落地（v1.32）。IP-P2-2 前置代码收口（v1.33）。IP-P2-3 共享表复核（v1.34）。IP-P2-4a 自定义视图全链完成（v1.36）。IP-P2-4b SLA 风险看板落地（v1.37）。IP-P2-4c 每客户用量看板（usage-only 定案）落地——**P2-4 全项收口（v1.38）**。**IP-P2-6 硬配额全链落地（v1.41–v1.42）**：`tenants.quota` + 三写入路径校验（建号/建单/附件）+ 治理页编辑（v1.41）与「用量」弹窗（`GET /api/v1/tenants/:id/usage`，v1.42）。
 
 ### 5.0 P2 冻结契约（2026-09-30；本节即 P2 编码基线）
 
@@ -621,10 +621,10 @@ CREATE INDEX idx_invitations_expiry ON invitations (expires_at) WHERE status = '
 
 **5.0-A IP-P2-1 provider 维度（收口 §4.0-B）**
 
-- **DDL**：沿用 §4.0-B（`provider_tenant_id int NULL REFERENCES tenants(id)` 在线加列 → 回填 → 部分索引）；**NOT NULL 收尾条件**：回填差异清单为零 + N=1/N=2 e2e 全绿后单独迁移（登记修订记录）。
+- **DDL**：沿用 §4.0-B（`provider_tenant_id int NULL REFERENCES tenants(id)` 在线加列 → 回填 → 部分索引）；**NOT NULL 收尾条件**：回填差异清单为零 + N=1/N=2 e2e 全绿后单独迁移（登记修订记录）。**2026-10-03 收尾落地**：联调库 `verify-allocation-provider-backfill.sql` 4/4 归零 + A11/A12 e2e 绿 → 迁移 `20261003_msp_allocations_provider_not_null.sql`（幂等；残余 NULL 先再回填、仍存在则显式报错阻断）+ ent `provider_tenant_id` 必填（边 `Required`）+ 读侧三处收敛为等值。
 - **写入校验（唯一入口 `service.MSPAllocationService.Create`）**：`allocation.provider_tenant_id` = MSP 员工 home provider；必须 == `customer.msp_provider_id`；跨 provider 分配拒绝（R2；admin 不豁免归属校验，canon C10/D1）。
 - **收窄点（N=1 行为不变）**：① `middleware/msp_middleware.go` 的 `AllowedCustomers` 由 provider 收窄后的分配集合构建（授权链仍唯一走 `mspguard`）；② 工作台 / 报表（`GetMSPCustomerReports`）/ 审计（`MSPAuditService`）查询按 `provider_tenant_id` 收窄。
-- **过渡兼容**：收窄条件 `provider_tenant_id = <provider> OR provider_tenant_id IS NULL`（回填前存量行不丢；NOT NULL 收尾后收敛为等值）。
+- **过渡兼容（已收敛）**：收窄条件曾为 `provider_tenant_id = <provider> OR provider_tenant_id IS NULL`（回填前存量行不丢）；v1.44 NOT NULL 收尾后三处读路径统一为等值。
 - **回滚**：字段可空 + 代码回退；R2 主链不受影响（`mspguard` 读路径仍强校验归属）。
 - **验收**：`TestMSPAllocationService_*`（provider 派生 / 跨 provider 拒绝 / 一致性）、`middleware` N=2 收窄用例；**A11/A12 api 通道 e2e ✅**（`router/msp_a11_a12_e2e_test.go`，v1.39）。
 
@@ -690,7 +690,7 @@ CREATE INDEX idx_invitations_expiry ON invitations (expires_at) WHERE status = '
 
 ### 6.3 P1 出口 DoD
 
-- [x] membership 表/回填/约束机制落地（v1.13，2026-09-30；customer 恰 1 条 active 由 `uq_customer_single_scope` DB 强约束 + 约束回归）；生产库巡检档案随后续部署执行 `scripts/msp/verify-membership-backfill.sql` 留档；
+- [x] membership 表/回填/约束机制落地（v1.13，2026-09-30；customer 恰 1 条 active 由 `uq_customer_single_scope` DB 强约束 + 约束回归）；**联调库巡检 2026-10-03：8 节全零**（判据修正：邀请建号 `source=invite` 即其主作用域）；生产库巡检档案随后续部署执行 `scripts/msp/verify-membership-backfill.sql` 留档；
 - [x] 权限 DB 单源（权限清单面）：登录/刷新/切换/`/auth/me`/菜单同源，跨租户权限互不影响（A6；v1.14，2026-09-30；请求期 RBAC 判定链与 `shadow`/enforce 仍按 IP-P1-7 推进）；
 - [x] 组织多归属 + 生效期（A5：`user_tenant_membership_orgs` 子表/回填/复合 FK/应用双校验 + 组织唯一约束租户化；v1.15/v1.16，2026-09-30）；
 - [x] bootstrap 多租户连续成功（`07:G2` 关闭，v1.19；连续 2 租户用例 + 幂等无 token 通道）；
@@ -707,7 +707,7 @@ CREATE INDEX idx_invitations_expiry ON invitations (expires_at) WHERE status = '
 - [ ] guard 扩展检查 **0 高危**待生产库执行（首组三检查 v1.32 已接入，启动扫描 0 高危以生产巡检为准）；**✅ docs-gate 6/6**（2026-09-30 全量 `run-all.sh`，C.6 语义锚点门禁常开）。
 - [x] **平台租户管理：硬配额（limits）全链落地**（v1.41–v1.42，IP-P2-6）：`tenants.quota` 模型 + 用量口径；三写入路径接入（建号/建单/附件，超限 422 `TENANT_QUOTA_EXCEEDED`、附件沿用 6106）；平台面读写 + 非法值 400；用量查询端点（`GET /tenants/:id/usage`，v1.42）；前端治理页配额编辑与「用量」弹窗（配额 vs 用量，v1.42）；单测覆盖三条路径、fail-open 缺省与用量委派。
 
-> **P2 工作流代码侧全项交付（2026-09-30）**：IP-P2-1（provider 维度收窄；NOT NULL 收尾待巡检）/ IP-P2-2（ctx 收口 + 评估档案）/ IP-P2-3（共享表治理）/ **IP-P2-4 全链（视图 / SLA 看板 / 用量看板，v1.35–v1.38）** / IP-P2-5（guard 首组检查）。上表未勾项均为**环境/数据依赖**项（多 provider e2e、enforce 灰度、生产库巡检），随部署执行。
+> **P2 工作流代码侧全项交付（2026-09-30；v1.44 追加 IP-P2-1 NOT NULL 收尾）**：IP-P2-1（provider 维度收窄 + NOT NULL 收尾）/ IP-P2-2（ctx 收口 + 评估档案）/ IP-P2-3（共享表治理）/ **IP-P2-4 全链（视图 / SLA 看板 / 用量看板，v1.35–v1.38）** / IP-P2-5（guard 首组检查）。上表未勾项均为**环境/数据依赖**项（enforce 灰度、生产库巡检/留档——联调库已按 v1.44 执行），随部署执行。
 
 ### 6.5 安全反例（必须全部拒绝，target-arch §5.4）
 
@@ -850,3 +850,4 @@ CREATE INDEX idx_invitations_expiry ON invitations (expires_at) WHERE status = '
 | v1.41 | 2026-09-30 | **IP-P2-6 平台租户管理：硬配额（limits）后端落地**：新增 `pkg/tenantquota`（`Limits{maxUsers,maxTicketsPerMonth,maxStorageMB}`；严格解析：未知键/负值/非整数/超上限拒绝；零值/缺省 = 不限）+ `tenants.quota` jsonb 迁移（`20261001_add_tenants_quota.sql`，幂等加列）；`TenantQuotaService` 统一用量口径（users / 本月新建未删工单 / active 未删附件字节）与三键校验（nil 安全）；三写入路径接入——建号三通道（422 `TENANT_QUOTA_EXCEEDED`，`ProvisionError` 稳定码）、建单（422 + `quota/limit/used` 明细）、附件上传（写盘前预检，沿用 6106 `ErrAttachmentQuotaExceeded`，超限不落盘）；平台面 `PUT/POST /api/v1/tenants/:id` 接受 `quota` 对象（GET 回显），非法值 400；单测 5 组（用量口径含软删排除、fail-closed/nil 安全、建号/建单/附件三路径拦截与正例回滚验证）全绿 |
 | v1.42 | 2026-09-30 | **IP-P2-6 收尾：租户用量展示（配额 vs 用量）**：后端新增 `GET /api/v1/tenants/:id/usage`（`tenant:read`；响应 `{tenantId, limits, used:{users,ticketsThisMonth,storageBytes}}`；上限与用量同源自 `TenantQuotaService`，与写入校验逐字同口径；租户不存在 fail-closed）——`dto.TenantQuotaUsageResponse` + `TenantService.QuotaUsage`（`SetTenantQuotaService` 委派，nil 安全）+ handler/路由 + `rbac_precheck_gen.go` 再生成；前端治理页行操作新增「用量」→ `TenantUsageModal`（三行已用/上限 + 进度条，不限键仅文本；可注入 `fetchUsage`，关闭重开重新拉取）；`TenantAPI.getTenantUsage` + 类型契约；测试：handler 2 用例、service 委派用例、组件 5 用例、租户 API 契约用例全绿；tsc/eslint 与 router/middleware 守卫（含预检新鲜度/对齐）全绿 |
 | v1.43 | 2026-10-03 | **联调环境换版 + 邀请→首登 e2e 收口（环境项首次推进）**：SSH 隧道联调库（`127.0.0.1:15433`，经 `mig-verify` 核对为 dev 目标）只读预检 `mig-verify -ro`（applied=53 / pending=13，无 checksum 冲突）→ `mig-verify -up` 应用 13 个迁移（022 allocation 唯一索引 / P0-7 工作台索引 / P0-10 审计列 / P1-1/P1-3 membership+组织 / P1-4 invitations / P1-5 首登列 / P1-6c preferences / P2-1 provider 列 / P2-3 messages / P2-4a views / P2-6 quota），复检 `pending=0`；8090 实例重建为 HEAD 产物（含邀请路由）并干净重启（health/login 200，启动无报错）；e2e spec 对齐真实 CSRF 契约（`GET /api/v1/csrf-token` → `X-CSRF-Token`，Double Submit）并加 `test.slow()` 覆盖 vite 冷编译；邀请→落地→设密→首登浏览器链路 **2 次复跑全绿**（访问日志：`POST /users/invitations` → `GET/POST /auth/invitations/:token(/accept)` → `POST /auth/login` 全链 200）。 |
+| v1.44 | 2026-10-03 | **联调库巡检执行 + IP-P2-1 NOT NULL 收尾**：本机无 psql，新增临时只读 runner（`tmp_sqlrun`，不入库）实跑 5 个 `scripts/msp/verify-*.sql`——allocation 4/4、membership 7 差异节、membership-orgs/messages 全零，tenant 类型巡检仅存量 legacy 1 行（既有登记）；**修正 membership 巡检第 1 节判据**为 `(source='home' OR is_default)`（邀请建号 `source=invite` 即主作用域，消除邀请用户误报）。**NOT NULL 收尾**：新增迁移 `20261003_msp_allocations_provider_not_null(.sql/_down.sql)`（幂等；残余 NULL 先再回填、仍存在显式报错阻断）、ent 字段必填（边 `Required`）、读侧 `msp_middleware` / `ListByMSPUser` / 租户联合三处收敛等值；联调库应用后 `applied=67 pending=0`，实例换版（health/login 200）。测试：pkg/mspguard、middleware、handlers/common\|msp\|auth、internal/schema、migration、internal/bootstrap、service（384s）、router 全绿。**存量红登记**：`pkg/seeder` 2 用例 3 子例（`TestProvisionTenantReadinessAcrossDeploymentModes` saas/saas_msp、`TestProvisionTenantRollsBackWhenSourceTemplateIsIncomplete`；`process_definition incident_emergency_flow` fixture 缺失）在干净 HEAD 工作树复现，与本批无关，待单独修复 |

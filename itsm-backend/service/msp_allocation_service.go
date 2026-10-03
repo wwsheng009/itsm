@@ -158,11 +158,8 @@ func (s *MSPAllocationService) ListByMSPUser(ctx context.Context, mspUserID int)
 		Where(mspallocation.MspUserIDEQ(mspUserID)).
 		WithCustomerTenant()
 	if providerID, ok := s.providerTenantID(ctx, mspUserID); ok {
-		// IP-P2-1 过渡兼容：已回填行按 provider 收窄；未回填行保留（NOT NULL 收尾后收敛为等值）。
-		q = q.Where(mspallocation.Or(
-			mspallocation.ProviderTenantIDEQ(providerID),
-			mspallocation.ProviderTenantIDIsNil(),
-		))
+		// IP-P2-1 收尾（NOT NULL）：按 provider 等值收窄。
+		q = q.Where(mspallocation.ProviderTenantIDEQ(providerID))
 	}
 	allocations, err := q.All(ctx)
 	if err != nil {

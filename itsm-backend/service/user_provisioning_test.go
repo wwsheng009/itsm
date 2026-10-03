@@ -133,6 +133,7 @@ func TestProvisioningService_Channels(t *testing.T) {
 		_, err := client.MSPAllocation.Create().
 			SetMspUserID(mspAdmin.ID).
 			SetCustomerTenantID(customer.ID).
+			SetProviderTenantID(provider.ID).
 			SetRole("provider_agent").
 			Save(ctx)
 		require.NoError(t, err)

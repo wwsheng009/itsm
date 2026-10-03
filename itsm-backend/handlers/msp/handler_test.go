@@ -114,7 +114,8 @@ func TestGetCustomerReports_HonorsCamelCaseDateRange(t *testing.T) {
 		SetPasswordHash("hash").SetTenantID(provider.ID).SetMspRole("provider_agent").Save(ctx)
 	require.NoError(t, err)
 	_, err = client.MSPAllocation.Create().
-		SetMspUserID(user.ID).SetCustomerTenantID(customer.ID).SetRole("primary").Save(ctx)
+		SetMspUserID(user.ID).SetCustomerTenantID(customer.ID).SetProviderTenantID(provider.ID).
+		SetRole("primary").Save(ctx)
 	require.NoError(t, err)
 
 	r := newMSPTestRouter(t, client, user.ID, nil)
@@ -229,7 +230,8 @@ func TestGetCustomerTickets_WithMSPContext(t *testing.T) {
 		SetMspRole("provider_agent").Save(ctx)
 	require.NoError(t, err)
 	_, err = client.MSPAllocation.Create().
-		SetMspUserID(mspUser.ID).SetCustomerTenantID(customer.ID).SetRole("primary").Save(ctx)
+		SetMspUserID(mspUser.ID).SetCustomerTenantID(customer.ID).SetProviderTenantID(provider.ID).
+		SetRole("primary").Save(ctx)
 	require.NoError(t, err)
 
 	r := newMSPTestRouter(t, client, 1, &middleware.MSPContext{

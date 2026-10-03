@@ -23,8 +23,7 @@ func (MSPAllocation) Fields() []ent.Field {
 		field.Int("customer_tenant_id").
 			Comment("客户租户ID（支持单客户模式）"),
 		field.Int("provider_tenant_id").
-			Optional().
-			Comment("服务商租户ID（IP-P2-1：= MSP 员工 home provider 且 == customer.msp_provider_id）"),
+			Comment("服务商租户ID（IP-P2-1：= MSP 员工 home provider 且 == customer.msp_provider_id；NOT NULL 收尾）"),
 		field.String("role").
 			Comment("分配角色: primary|backup|specialist").
 			Default("primary"),
@@ -69,6 +68,7 @@ func (MSPAllocation) Edges() []ent.Edge {
 		edge.From("provider_tenant", Tenant.Type).
 			Field("provider_tenant_id").
 			Ref("msp_provider_allocations").
+			Required().
 			Unique(),
 	}
 }
