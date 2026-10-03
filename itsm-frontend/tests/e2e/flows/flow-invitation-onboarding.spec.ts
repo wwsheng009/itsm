@@ -38,6 +38,9 @@ test.describe('@multi-tenant 邀请 → 落地 → 首登（IP-P1-4c）', () => 
     page,
     request,
   }) => {
+    // 首次访问 /invite/* 触发 vite 按需编译（本机冷启动实测 ~60s），放宽超时（3×）。
+    test.slow();
+
     // 管理端会话：兼容 Cookie 会话（当前 8090 后端：data.user + Set-Cookie，无 accessToken）
     // 与 Bearer token 两种形态，统一走 page.request（共享浏览器上下文 cookie）。
     const api = page.request;
@@ -60,12 +63,20 @@ test.describe('@multi-tenant 邀请 → 落地 → 首登（IP-P1-4c）', () => 
     const role = pickInvitableRole(await rolesResp.json());
     test.skip(!role, 'roles 列表为空，无可邀请角色');
 
+    // 1.5) CSRF：Cookie 会话下的写操作走 Double Submit（与 SPA 一致：
+    //      GET /api/v1/csrf-token 取 token → 写请求带 X-CSRF-Token 头）。
+    const csrfResp = await api.get(`${apiURL}/api/v1/csrf-token`);
+    const csrfJson = csrfResp.ok() ? await csrfResp.json() : {};
+    const csrfToken: string | undefined = csrfJson?.data?.csrf_token;
+    test.skip(!csrfToken, `CSRF token 不可用（HTTP ${csrfResp.status()}）`);
+    const csrfHeaders = csrfToken ? { 'X-CSRF-Token': csrfToken } : {};
+
     const stamp = Date.now();
     const username = `e2e.invite.${stamp}`;
     const email = `${username}@example.com`;
 
     const createdResp = await api.post(`${apiURL}/api/v1/users/invitations`, {
-      headers: authHeaders,
+      headers: { ...authHeaders, ...csrfHeaders },
       data: { email, roleId: role!.id },
     });
     const createdStatus = createdResp.status();
