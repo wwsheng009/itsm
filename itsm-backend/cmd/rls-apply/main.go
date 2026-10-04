@@ -64,6 +64,9 @@ var rlsManagedTables = []string{
 	"workflow_instances", "workflow_tasks", "workflow_templates", "workflow_versions",
 	"workflows",
 	"bpmn_permissions",
+	// 007 批次 5 鉴权/菜单/配置/审计
+	"role_permissions", "permissions", "menus", "system_configs",
+	"audit_logs", "endpoint_acls",
 }
 
 // rlsProbeTables — 逐表低权探针清单（003 批次 1 + 004 批次 2 + 005 批次 3；changes 走带播种的特殊探针）。
@@ -88,6 +91,8 @@ var rlsProbeTables = []string{
 	"workflow_instances", "workflow_tasks", "workflow_templates", "workflow_versions",
 	"workflows",
 	"bpmn_permissions",
+	"role_permissions", "permissions", "menus", "system_configs",
+	"audit_logs", "endpoint_acls",
 }
 
 func main() {

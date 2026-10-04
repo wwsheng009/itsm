@@ -22,6 +22,7 @@ import (
 	"sync"
 	"time"
 
+	"itsm-backend/common/tenantctx"
 	"itsm-backend/ent"
 	"itsm-backend/ent/systemconfig"
 
@@ -203,6 +204,9 @@ func (s *ConfigSource) InvalidateAll() {
 
 // load 从 system_configs 读取覆盖行并合成快照（缺失/非法值 = 跟随默认）。
 func (s *ConfigSource) load(ctx context.Context, tenantID int) (Snapshot, error) {
+	// RLS 批次 5（007）：按目标租户收窄作用域，避免调用方 ctx 缺失/为其他租户时
+	// 被 system_configs 策略 fail-closed 误判为「未配置」。
+	ctx = tenantctx.WithTenantID(ctx, tenantID)
 	rows, err := s.client.SystemConfig.Query().
 		Where(
 			systemconfig.TenantIDEQ(tenantID),
@@ -254,6 +258,8 @@ func (c *ConfigSource) Update(ctx context.Context, tenantID int, patch Patch, op
 	if tenantID <= 0 {
 		return Snapshot{}, ErrInvalidTenant
 	}
+	// RLS 批次 5（007）：平台管理员可管理指定租户的覆盖行 → 以目标租户重绑定 ctx。
+	ctx = tenantctx.WithTenantID(ctx, tenantID)
 
 	upserts := make(map[string]bool, 3)
 	if patch.MCPEnabled != nil {
@@ -282,6 +288,8 @@ func (c *ConfigSource) Clear(ctx context.Context, tenantID int, keys ...string) 
 	if tenantID <= 0 {
 		return Snapshot{}, ErrInvalidTenant
 	}
+	// RLS 批次 5（007）：同上，读写一律以目标租户作用域执行。
+	ctx = tenantctx.WithTenantID(ctx, tenantID)
 	for _, key := range keys {
 		if !IsKnownKey(key) {
 			return Snapshot{}, ErrUnknownKey

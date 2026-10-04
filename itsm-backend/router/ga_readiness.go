@@ -147,6 +147,9 @@ func countOrZero(ctx context.Context, client *ent.Client, key string) int {
 	if client == nil {
 		return 0
 	}
+	// RLS 批次 5（007）：平台级就绪诊断需跨租户计数（permissions/menus/audit_logs 等），
+	// enforce 下显式使用 system 作用域，避免被 tenant_isolation 策略收窄为 0。
+	ctx = tenantctx.WithSystemBypass(ctx)
 	var (
 		count int
 		err   error

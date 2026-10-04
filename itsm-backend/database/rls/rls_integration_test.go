@@ -609,3 +609,54 @@ func TestBatch4_TenantScopeIsolation(t *testing.T) {
 		})
 	}
 }
+
+// ---------------------------------------------------------------------------
+// 007 批次 5（鉴权/菜单/配置/审计）逐表隔离回归
+// ---------------------------------------------------------------------------
+
+// batch5Tables 与 database/rls/migrations/007_authz_audit_tables_policies.sql 对齐。
+var batch5Tables = []string{
+	"role_permissions",
+	"permissions",
+	"menus",
+	"system_configs",
+	"audit_logs",
+	"endpoint_acls",
+}
+
+// TestBatch5_TenantScopeIsolation 逐表验证 007 批次 5 的 DB 级租户隔离：
+// 正例（数据最多租户可见）> 0，反例（不存在租户 999999）== 0；空表仅验证 fail-closed。
+func TestBatch5_TenantScopeIsolation(t *testing.T) {
+	db := openTestDB(t)
+	defer db.Close()
+	ensureTenantHelper(t)
+
+	for _, table := range batch5Tables {
+		table := table
+		t.Run(table, func(t *testing.T) {
+			teardown, ok := setupTablePolicyFor(t, table)
+			if !ok {
+				t.Skipf("%s 不存在，跳过", table)
+			}
+			defer teardown()
+
+			positive := pickTenantWithData(t, table)
+			if positive == 0 {
+				if n := countTableAs(t, db, WithTenant(context.Background(), 999999), table); n != 0 {
+					t.Fatalf("%s: tenant 999999 saw %d rows", table, n)
+				}
+				t.Skipf("%s 无数据：仅验证 fail-closed", table)
+			}
+
+			n1 := countTableAs(t, db, WithTenant(context.Background(), int64(positive)), table)
+			if n1 == 0 {
+				t.Fatalf("%s: tenant %d saw 0 rows", table, positive)
+			}
+			nOther := countTableAs(t, db, WithTenant(context.Background(), 999999), table)
+			if nOther != 0 {
+				t.Fatalf("%s: tenant 999999 saw %d rows (RLS bypassed?)", table, nOther)
+			}
+			t.Logf("%s: tenant=%d visible=%d, tenant=999999 visible=%d ✓", table, positive, n1, nOther)
+		})
+	}
+}
