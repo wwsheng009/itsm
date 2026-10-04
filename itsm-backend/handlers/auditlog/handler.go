@@ -2,6 +2,7 @@ package auditlog
 
 import (
 	"itsm-backend/common"
+	"itsm-backend/common/tenantctx"
 	"itsm-backend/dto"
 	"itsm-backend/middleware"
 	"itsm-backend/service"
@@ -53,7 +54,10 @@ func (h *Handler) ListAuditLogs(ctx *gin.Context) {
 		return
 	}
 
-	resp, err := h.service.ListAuditLogs(ctx, &req, tenantID)
+	// RLS enforce：审计查询必须携带租户作用域（否则 driver fail-closed：
+	// "rls: enforce mode requires tenant_id in context"，A1/A3 实锤）。
+	reqCtx := tenantctx.WithTenantID(ctx.Request.Context(), tenantID)
+	resp, err := h.service.ListAuditLogs(reqCtx, &req, tenantID)
 	if err != nil {
 		h.logger.Errorw("Failed to list audit logs", "error", err, "tenant_id", tenantID)
 		common.Fail(ctx, common.InternalErrorCode, err.Error())

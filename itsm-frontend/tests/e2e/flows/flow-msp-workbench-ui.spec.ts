@@ -56,8 +56,9 @@ test.describe('@multi-tenant MSP 工作台 UI 点击链', () => {
   test('过滤器 → 行内回复/改状态 → 批量确认 → 看板/分组', async ({ page }) => {
     test.setTimeout(240_000); // 冷启动 vite 编译本页较慢（实测 >60s），放宽
 
-    const mspApi = await pwRequest.newContext({ baseURL: APP_URL });
-    const custaApi = await pwRequest.newContext({ baseURL: APP_URL });
+    // 显式超时：慢环境（enforce/高负载）下单条建单可超默认 10s，避免把资源竞争误报为功能失败。
+    const mspApi = await pwRequest.newContext({ baseURL: APP_URL, timeout: 60_000 });
+    const custaApi = await pwRequest.newContext({ baseURL: APP_URL, timeout: 60_000 });
 
     try {
       // ---------- 0. API 前置 ----------
@@ -117,8 +118,10 @@ test.describe('@multi-tenant MSP 工作台 UI 点击链', () => {
       await expect(page.getByTestId('msp-workbench-page')).toBeVisible({ timeout: 30_000 });
 
       // ---------- U1 样本可见（默认全部客户） ----------
-      await expect(page.getByText(sampleTitles[0])).toBeVisible({ timeout: 20_000 });
-      await expect(page.getByText(sampleTitles[1])).toBeVisible();
+      // 慢环境容忍：enforce/大量历史工单下「全部客户」首屏（逐租户查询 + 内存归并）
+      // 实测可超 20s；放宽首条等待（后续断言随首屏就绪即时可见）。
+      await expect(page.getByText(sampleTitles[0])).toBeVisible({ timeout: 60_000 });
+      await expect(page.getByText(sampleTitles[1])).toBeVisible({ timeout: 20_000 });
 
       // ---------- U2 顶栏过滤器：勾选客户A → URL 同步 ----------
       const filterTrigger = page.getByTestId('customer-filter-trigger');

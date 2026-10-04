@@ -479,6 +479,9 @@ func (s *InvitationService) Accept(ctx context.Context, token string, req *Accep
 	if s == nil || s.client == nil {
 		return nil, fmt.Errorf("invitation service unavailable")
 	}
+	// 预认证面（token 即凭证，跨租户查询）：RLS enforce 下以平台作用域执行，
+	// 否则 driver fail-closed（"enforce mode requires tenant_id"）→ 邀请接受 500（C2b 实锤）。
+	ctx = tenantctx.WithSystemBypass(ctx)
 	if req == nil {
 		req = &AcceptInvitationRequest{}
 	}
@@ -736,6 +739,8 @@ func (s *InvitationService) Revoke(ctx context.Context, actor InvitationActor, i
 
 // Inspect 邀请最小回显（GET 落地页）：邮箱脱敏；过期即置 expired。
 func (s *InvitationService) Inspect(ctx context.Context, token string) (*InvitationInfo, error) {
+	// 预认证面：与 Accept 同口径（system 作用域）；否则 enforce 下 500（C2b 实锤）。
+	ctx = tenantctx.WithSystemBypass(ctx)
 	inv, err := s.findInvitationByToken(ctx, token)
 	if err != nil {
 		return nil, err

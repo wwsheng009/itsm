@@ -216,15 +216,17 @@ func makeSequenceDBSyncFn(db *sql.DB, logger *zap.SugaredLogger) func(key string
 				return 0, fmt.Errorf("invalid ticket sequence key: %s", key)
 			}
 			prefix := fmt.Sprintf("TKT-%s%s-", ym[:4], ym[4:])
-			tid, err := strconv.Atoi(tenantID)
-			if err != nil {
+			if _, err := strconv.Atoi(tenantID); err != nil {
 				return 0, fmt.Errorf("invalid tenant id in sequence key: %s", key)
 			}
+			// ticket_number 为全局唯一约束（不含 tenant_id）：起点取**全表**当月最大号，
+			// 与 incident / CI 分支同口径。否则新租户（本租户 max 落后）从低号段起发，
+			// 预览/历史补数场景必与他租户已用号碰撞（D-6/D-11；RLS 全局探针只兜底）。
 			return queryMax(
 				`SELECT ticket_number FROM tickets `+
-					`WHERE tenant_id = $1 AND ticket_number LIKE $2 AND ticket_number IS NOT NULL AND ticket_number != '' `+
+					`WHERE ticket_number LIKE $1 AND ticket_number IS NOT NULL AND ticket_number != '' `+
 					`ORDER BY ticket_number DESC LIMIT 1`,
-				tid, prefix+"%",
+				prefix+"%",
 			)
 		}
 

@@ -7,6 +7,7 @@ import (
 
 	"go.uber.org/zap"
 
+	"itsm-backend/common/tenantctx"
 	"itsm-backend/ent"
 	"itsm-backend/ent/attachment"
 	"itsm-backend/ent/tenant"
@@ -43,6 +44,10 @@ func (s *TenantQuotaService) LimitsOf(ctx context.Context, tenantID int) (tenant
 	if s == nil || s.client == nil {
 		return tenantquota.Limits{}, nil
 	}
+	// RLS（enforce）：配额/用量属于**目标租户**的数据面。平台管理员、服务商建号等
+	// 调用方的请求 ctx 携带的是自己家租户，直接查询会被策略收窄为 0 行——
+	// 轻则误判超限（Q2），重则**静默绕过配额**（Q5：超限仍建号成功）。统一重绑定。
+	ctx = tenantctx.WithTenantID(ctx, tenantID)
 	row, err := s.client.Tenant.Query().
 		Where(tenant.IDEQ(tenantID)).
 		Only(ctx)
@@ -60,6 +65,8 @@ func (s *TenantQuotaService) Usage(ctx context.Context, tenantID int) (*TenantQu
 	if s == nil || s.client == nil {
 		return &TenantQuotaUsage{}, nil
 	}
+	// 同 LimitsOf：用量计数以目标租户为作用域（RLS enforce 下缺此绑定会静默清零）。
+	ctx = tenantctx.WithTenantID(ctx, tenantID)
 	users, err := s.client.User.Query().Where(user.TenantID(tenantID)).Count(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("count tenant users: %w", err)
@@ -110,6 +117,9 @@ func (s *TenantQuotaService) CheckUserCreate(ctx context.Context, tenantID int) 
 	if s == nil || s.client == nil {
 		return nil
 	}
+	// RLS（enforce）：内联计数同样必须以目标租户为作用域；否则平台/服务商上下文中
+	// 计数被策略收窄为 0 → **超限仍放行**（Q5 实锤：maxUsers 形同虚设）。
+	ctx = tenantctx.WithTenantID(ctx, tenantID)
 	limits, err := s.LimitsOf(ctx, tenantID)
 	if err != nil {
 		return err
@@ -133,6 +143,8 @@ func (s *TenantQuotaService) CheckTicketCreate(ctx context.Context, tenantID int
 	if s == nil || s.client == nil {
 		return nil
 	}
+	// 同 CheckUserCreate：内联计数与目标租户作用域绑定（RLS enforce）。
+	ctx = tenantctx.WithTenantID(ctx, tenantID)
 	limits, err := s.LimitsOf(ctx, tenantID)
 	if err != nil {
 		return err
@@ -162,6 +174,8 @@ func (s *TenantQuotaService) CheckStorageAdd(ctx context.Context, tenantID int, 
 	if s == nil || s.client == nil {
 		return nil
 	}
+	// 同 CheckUserCreate：内联存储计数与目标租户作用域绑定（RLS enforce）。
+	ctx = tenantctx.WithTenantID(ctx, tenantID)
 	limits, err := s.LimitsOf(ctx, tenantID)
 	if err != nil {
 		return err

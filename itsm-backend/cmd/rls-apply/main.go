@@ -37,6 +37,21 @@ import (
 	_ "github.com/lib/pq"
 )
 
+// rlsManagedTables — -verify 的受管表清单（与 database/rls/migrations 002/003 对齐）。
+// 002 试点表在前、003 批次 1 在后；存在的表必须已启用 RLS 且有策略，否则 -verify 非零退出。
+var rlsManagedTables = []string{
+	"changes", "vectors", // 002 试点
+	"tickets", "ticket_comments", "ticket_attachments", "ticket_ccs", "ticket_workflow_records", // 003 工单核心
+	"user_tenant_memberships", "user_tenant_membership_orgs", // 003 成员
+	"groups", "projects", "workbench_views", // 003 组织/工作台
+}
+
+// rlsProbeTables — 逐表低权探针清单（003 批次 1；changes 走带播种的特殊探针）。
+var rlsProbeTables = []string{
+	"tickets", "ticket_comments", "ticket_attachments", "ticket_ccs", "ticket_workflow_records",
+	"user_tenant_memberships", "user_tenant_membership_orgs", "groups", "projects", "workbench_views",
+}
+
 func main() {
 	var (
 		files    = flag.String("files", "", "要执行的迁移文件名列表（逗号分隔，位于 -dir）")
@@ -74,7 +89,7 @@ func main() {
 		}
 	}
 	if *rollback {
-		for _, name := range []string{"002_pilot_policies_rollback.sql", "001_roles_rollback.sql"} {
+		for _, name := range []string{"003_business_tables_policies_rollback.sql", "002_pilot_policies_rollback.sql", "001_roles_rollback.sql"} {
 			runFile(ctx, db, filepath.Join(*dir, name))
 		}
 	}
@@ -211,49 +226,80 @@ func verifyAll(ctx context.Context, db *sql.DB) bool {
 		ok = false
 	}
 
-	fmt.Println("== rls state (pilot) ==")
+	fmt.Println("== rls state (managed) ==")
 	rows, err = db.QueryContext(ctx, `SELECT c.relname, c.relrowsecurity, c.relforcerowsecurity
 		FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace
-		WHERE n.nspname='public' AND c.relname IN ('changes','vectors') ORDER BY c.relname`)
+		WHERE n.nspname='public' AND c.relkind='r'`)
 	if err != nil {
 		fatalf("query rls state: %v", err)
 	}
-	rlsOn := map[string]bool{}
-	found := map[string]bool{}
+	type rlsState struct{ enabled, forced bool }
+	state := map[string]rlsState{}
 	for rows.Next() {
 		var tn string
 		var rs, fr bool
 		if err := rows.Scan(&tn, &rs, &fr); err != nil {
 			fatalf("scan rls state: %v", err)
 		}
-		found[tn] = true
-		rlsOn[tn] = rs && fr
-		fmt.Printf("  %-8s rowsecurity=%-5v forcerowsecurity=%v\n", tn, rs, fr)
+		state[tn] = rlsState{enabled: rs, forced: fr}
 	}
 	rows.Close()
+
+	rlsOn := map[string]bool{}
+	found := map[string]bool{}
+	for _, tn := range rlsManagedTables {
+		st, exists := state[tn]
+		if !exists {
+			fmt.Printf("  %-26s （表不存在，跳过）\n", tn)
+			continue
+		}
+		found[tn] = true
+		rlsOn[tn] = st.enabled
+		mark := "✓"
+		if !st.enabled {
+			mark = "✗ 未启用 RLS（执行 003/002 迁移）"
+			ok = false
+		}
+		fmt.Printf("  %-26s rowsecurity=%-5v forcerowsecurity=%-5v %s\n", tn, st.enabled, st.forced, mark)
+	}
 	if !found["changes"] {
 		fmt.Println("  changes 表不存在")
 		ok = false
 	}
 
-	fmt.Println("== policies ==")
+	fmt.Println("== policies (managed) ==")
 	rows, err = db.QueryContext(ctx, `SELECT tablename, policyname, cmd FROM pg_policies
-		WHERE schemaname='public' AND tablename IN ('changes','vectors') ORDER BY tablename`)
+		WHERE schemaname='public' ORDER BY tablename, policyname`)
 	if err != nil {
 		fatalf("query policies: %v", err)
 	}
+	managed := map[string]bool{}
+	for _, tn := range rlsManagedTables {
+		managed[tn] = true
+	}
+	polSeen := map[string]int{}
 	polCount := 0
 	for rows.Next() {
 		var tn, pn, cmd string
 		if err := rows.Scan(&tn, &pn, &cmd); err != nil {
 			fatalf("scan policies: %v", err)
 		}
+		if !managed[tn] {
+			continue
+		}
 		polCount++
-		fmt.Printf("  %-8s %-18s %s\n", tn, pn, cmd)
+		polSeen[tn]++
+		fmt.Printf("  %-26s %-34s %s\n", tn, pn, cmd)
 	}
 	rows.Close()
 	if polCount == 0 {
 		fmt.Println("  （无策略）")
+	}
+	for _, tn := range rlsManagedTables {
+		if found[tn] && rlsOn[tn] && polSeen[tn] == 0 {
+			fmt.Printf("  ✗ %s 已启用 RLS 但无策略（默认拒绝，业务会 fail-closed）\n", tn)
+			ok = false
+		}
 	}
 
 	fmt.Println("== itsm_app 低权探针（SET LOCAL ROLE）==")
@@ -284,17 +330,17 @@ func verifyAll(ctx context.Context, db *sql.DB) bool {
 	if scopedTid == 0 {
 		scopedTid = 1
 	}
-	scoped, err := probeChanges(ctx, db, scopedTid)
+	scoped, err := probeTable(ctx, db, "changes", scopedTid)
 	if err != nil {
 		fmt.Printf("  scoped probe: %v\n", err)
 		ok = false
 	}
-	none, err := probeChanges(ctx, db, 0)
+	none, err := probeTable(ctx, db, "changes", 0)
 	if err != nil {
 		fmt.Printf("  no-scope probe: %v\n", err)
 		ok = false
 	}
-	other, err := probeChanges(ctx, db, 999999)
+	other, err := probeTable(ctx, db, "changes", 999999)
 	if err != nil {
 		fmt.Printf("  other probe: %v\n", err)
 		ok = false
@@ -302,7 +348,7 @@ func verifyAll(ctx context.Context, db *sql.DB) bool {
 	fmt.Printf("  changes: total(top tenant %d)=%d | tenant=%d visible=%d | 无租户 visible=%d | tenant=999999 visible=%d\n",
 		tenantID, total, scopedTid, scoped, none, other)
 	if strict {
-		second, err2 := probeChanges(ctx, db, 990002)
+		second, err2 := probeTable(ctx, db, "changes", 990002)
 		if err2 != nil {
 			fmt.Printf("  second probe: %v\n", err2)
 			ok = false
@@ -320,6 +366,51 @@ func verifyAll(ctx context.Context, db *sql.DB) bool {
 		ok = false
 	} else {
 		fmt.Println("  ✓ 租户隔离生效（无租户与其他租户均 0 行）")
+	}
+
+	// ---- 003 批次 1：逐表低权探针（正例=数据最多租户；反例=无租户/不存在租户） ----
+	fmt.Println("== batch-1 低权探针（逐表） ==")
+	for _, tn := range rlsProbeTables {
+		if !rlsOn[tn] {
+			fmt.Printf("  %-26s RLS 未启用，跳过探针\n", tn)
+			continue
+		}
+		var tid, total int
+		err := db.QueryRowContext(ctx,
+			fmt.Sprintf(`SELECT tenant_id, count(*) FROM %s GROUP BY tenant_id ORDER BY count(*) DESC LIMIT 1`, tn)).
+			Scan(&tid, &total)
+		if err != nil {
+			// 空表：无法构造正例，仍验证「无租户」fail-closed。
+			none, nerr := probeTable(ctx, db, tn, 0)
+			if nerr != nil {
+				fmt.Printf("  %-26s no-scope probe 异常：%v\n", tn, nerr)
+				ok = false
+				continue
+			}
+			if none != 0 {
+				fmt.Printf("  ✗ %-24s （空表）无租户仍可见 %d 行\n", tn, none)
+				ok = false
+			} else {
+				fmt.Printf("  ✓ %-24s （空表）无租户 visible=0\n", tn)
+			}
+			continue
+		}
+		scoped, e1 := probeTable(ctx, db, tn, tid)
+		none, e2 := probeTable(ctx, db, tn, 0)
+		other, e3 := probeTable(ctx, db, tn, 999999)
+		if e1 != nil || e2 != nil || e3 != nil {
+			fmt.Printf("  ✗ %-24s 探针异常：scoped=%v none=%v other=%v\n", tn, e1, e2, e3)
+			ok = false
+			continue
+		}
+		bad := scoped == 0 || none != 0 || other != 0
+		mark := "✓"
+		if bad {
+			mark = "✗"
+			ok = false
+		}
+		fmt.Printf("  %s %-24s total(tenant %d)=%d | scoped=%d | none=%d | other=%d\n",
+			mark, tn, tid, total, scoped, none, other)
 	}
 	return ok
 }
@@ -339,16 +430,17 @@ func seedChangeProbes(ctx context.Context, db *sql.DB) (func(), error) {
 	return func() {
 		if _, err := db.ExecContext(context.Background(),
 			`DELETE FROM changes WHERE change_number LIKE 'RLS-PROBE-%'`); err != nil {
-			fmt.Printf("  ✗ 探针清理失败（请手工删除 RLS-PROBE-% 行）：%v\n", err)
+			fmt.Printf("  ✗ 探针清理失败（请手工删除 RLS-PROBE-<tid> 行）：%v\n", err)
 		} else {
 			fmt.Println("  探针行已清理")
 		}
 	}, nil
 }
 
-// probeChanges 在事务内切换到 itsm_app 角色并统计 changes 可见行数。
+// probeTable 在事务内切换到 itsm_app 角色并统计目标表可见行数。
+// table 只允许来自本文件内的受管白名单（rlsProbeTables / changes），不接受外部输入。
 // tenantID<=0 表示不设置 app.current_tenant（验证空值拒绝路径）。
-func probeChanges(ctx context.Context, db *sql.DB, tenantID int) (int, error) {
+func probeTable(ctx context.Context, db *sql.DB, table string, tenantID int) (int, error) {
 	tx, err := db.BeginTx(ctx, nil)
 	if err != nil {
 		return 0, err
@@ -363,8 +455,8 @@ func probeChanges(ctx context.Context, db *sql.DB, tenantID int) (int, error) {
 		}
 	}
 	var n int
-	if err := tx.QueryRowContext(ctx, "SELECT count(*) FROM changes").Scan(&n); err != nil {
-		return 0, fmt.Errorf("count changes: %w", err)
+	if err := tx.QueryRowContext(ctx, fmt.Sprintf("SELECT count(*) FROM %s", table)).Scan(&n); err != nil {
+		return 0, fmt.Errorf("count %s: %w", table, err)
 	}
 	if err := tx.Commit(); err != nil {
 		return 0, err

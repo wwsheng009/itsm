@@ -39,6 +39,7 @@ package rls
 import (
 	"context"
 	"database/sql"
+	"fmt"
 	"os"
 	"testing"
 
@@ -269,4 +270,159 @@ func TestReleaseConn_DiscardsSessionState(t *testing.T) {
 		t.Fatalf("session state leaked across borrows: got %q, want empty", tid2.String)
 	}
 	t.Logf("session state correctly cleared after ReleaseConn ✓")
+}
+
+// ---------------------------------------------------------------------------
+// 003 批次 1（工单核心 / 组织与成员 / 工作台）逐表隔离回归
+// ---------------------------------------------------------------------------
+
+// batch1Tables 与 database/rls/migrations/003_business_tables_policies.sql 对齐。
+var batch1Tables = []string{
+	"tickets",
+	"ticket_comments",
+	"ticket_attachments",
+	"ticket_ccs",
+	"ticket_workflow_records",
+	"user_tenant_memberships",
+	"user_tenant_membership_orgs",
+	"groups",
+	"projects",
+	"workbench_views",
+}
+
+// ensureTenantHelper 幂等创建 get_current_tenant_id()（与 019 前向修复一致）。
+func ensureTenantHelper(t *testing.T) {
+	t.Helper()
+	owner := openOwnerDB(t) // SETUP DSN 缺失时整体 skip
+	defer owner.Close()
+	if _, err := owner.ExecContext(context.Background(), `
+CREATE OR REPLACE FUNCTION get_current_tenant_id() RETURNS INTEGER AS $$
+BEGIN
+    RETURN NULLIF(current_setting('app.current_tenant', true), '')::INTEGER;
+EXCEPTION
+    WHEN invalid_text_representation THEN
+        RETURN NULL;
+END;
+$$ LANGUAGE plpgsql STABLE`); err != nil {
+		t.Fatalf("ensure get_current_tenant_id: %v", err)
+	}
+}
+
+// setupTablePolicyFor 启用单表策略，返回 (teardown, 表存在)。
+// teardown 仅在“测试前该表未启用 RLS”时真正关闭，避免破坏已落地的 003 状态。
+func setupTablePolicyFor(t *testing.T, table string) (func(), bool) {
+	t.Helper()
+	owner := openOwnerDB(t)
+	ctx := context.Background()
+
+	var exists bool
+	if err := owner.QueryRowContext(ctx, `SELECT to_regclass($1) IS NOT NULL`, "public."+table).Scan(&exists); err != nil || !exists {
+		owner.Close()
+		return func() {}, false
+	}
+	var hadRLS bool
+	_ = owner.QueryRowContext(ctx,
+		`SELECT relrowsecurity FROM pg_class WHERE relname=$1 AND relnamespace='public'::regnamespace`, table).Scan(&hadRLS)
+
+	policy := "tenant_isolation_" + table
+	stmts := []string{
+		fmt.Sprintf(`ALTER TABLE %s ENABLE ROW LEVEL SECURITY`, table),
+		fmt.Sprintf(`DROP POLICY IF EXISTS %s ON %s`, policy, table),
+		fmt.Sprintf(`CREATE POLICY %s ON %s
+			USING       (tenant_id = get_current_tenant_id())
+			WITH CHECK  (tenant_id = get_current_tenant_id())`, policy, table),
+	}
+	for _, s := range stmts {
+		if _, err := owner.ExecContext(ctx, s); err != nil {
+			owner.Close()
+			t.Fatalf("setup policy %s (%q): %v", table, s, err)
+		}
+	}
+	return func() {
+		defer owner.Close()
+		if hadRLS {
+			return // 003 已落地：保留策略与启用状态
+		}
+		for _, s := range []string{
+			fmt.Sprintf(`DROP POLICY IF EXISTS %s ON %s`, policy, table),
+			fmt.Sprintf(`ALTER TABLE %s NO FORCE ROW LEVEL SECURITY`, table),
+			fmt.Sprintf(`ALTER TABLE %s DISABLE ROW LEVEL SECURITY`, table),
+		} {
+			_, _ = owner.ExecContext(ctx, s)
+		}
+	}, true
+}
+
+// countTableAs 统计 table 在 ctx 租户作用域下的可见行数（真实 AcquireConn 路径）。
+func countTableAs(t *testing.T, db *sql.DB, ctx context.Context, table string) int {
+	t.Helper()
+	conn, err := AcquireConn(ctx, db)
+	if err != nil {
+		t.Fatalf("acquire conn: %v", err)
+	}
+	defer func() {
+		if err := ReleaseConn(ctx, conn); err != nil {
+			t.Logf("release: %v (non-fatal)", err)
+		}
+	}()
+	if _, err := conn.ExecContext(ctx, "SET ROLE itsm_app"); err != nil {
+		t.Fatalf("set role: %v", err)
+	}
+	var n int
+	if err := conn.QueryRowContext(ctx, fmt.Sprintf("SELECT COUNT(*) FROM %s", table)).Scan(&n); err != nil {
+		t.Fatalf("count %s: %v", table, err)
+	}
+	return n
+}
+
+// pickTenantWithData 返回 table 中行数最多的租户；空表返回 0（owner 连接）。
+func pickTenantWithData(t *testing.T, table string) int {
+	t.Helper()
+	owner := openOwnerDB(t)
+	defer owner.Close()
+	var tid int
+	err := owner.QueryRowContext(context.Background(),
+		fmt.Sprintf(`SELECT tenant_id FROM %s GROUP BY tenant_id ORDER BY count(*) DESC LIMIT 1`, table)).Scan(&tid)
+	if err != nil {
+		return 0
+	}
+	return tid
+}
+
+// TestBatch1_TenantScopeIsolation 逐表验证 003 批次 1 的 DB 级租户隔离：
+// 正例（数据最多租户可见）> 0，反例（不存在租户 999999）== 0。
+func TestBatch1_TenantScopeIsolation(t *testing.T) {
+	db := openTestDB(t)
+	defer db.Close()
+	ensureTenantHelper(t)
+
+	for _, table := range batch1Tables {
+		table := table
+		t.Run(table, func(t *testing.T) {
+			teardown, ok := setupTablePolicyFor(t, table)
+			if !ok {
+				t.Skipf("%s 不存在，跳过", table)
+			}
+			defer teardown()
+
+			positive := pickTenantWithData(t, table)
+			if positive == 0 {
+				// 空表：无法构造正例，仍须验证反例 fail-closed。
+				if n := countTableAs(t, db, WithTenant(context.Background(), 999999), table); n != 0 {
+					t.Fatalf("%s: tenant 999999 saw %d rows", table, n)
+				}
+				t.Skipf("%s 无数据：仅验证 fail-closed", table)
+			}
+
+			n1 := countTableAs(t, db, WithTenant(context.Background(), int64(positive)), table)
+			if n1 == 0 {
+				t.Fatalf("%s: tenant %d saw 0 rows", table, positive)
+			}
+			nOther := countTableAs(t, db, WithTenant(context.Background(), 999999), table)
+			if nOther != 0 {
+				t.Fatalf("%s: tenant 999999 saw %d rows (RLS bypassed?)", table, nOther)
+			}
+			t.Logf("%s: tenant=%d visible=%d, tenant=999999 visible=%d ✓", table, positive, n1, nOther)
+		})
+	}
 }

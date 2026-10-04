@@ -105,7 +105,7 @@ go test -tags integration_rls -v ./database/rls/...
 3. ✅ **调用点收口（2026-10-03 完成）**：按 §3 残余表逐条补齐 ctx 或显式 system 作用域；`LOG_LEVEL=debug` 复跑至 **warn=0**（run15，含启动窗口与 MSP 面；带租户 192 条）。
 4. ✅ **enforce 演练（2026-10-03，含分流）**：`RLS_MODE=enforce` + 双池起服——逐请求与 `RLS_MODE=off` 基线**完全一致（diff=0；22×200 + 1×400 报表参数 + 1×404 视图 flag 关闭）**；无 `enforce mode requires tenant_id`、无 `permission denied`。**现场修复**：`Tx/BeginTx` 的 `SET LOCAL` 参数由 untyped `nil` 改为定型 `[]any{}`（否则 `dialect/sql` 报 `invalid type <nil>. expect []any for args`，「记录 last_active 租户」事务静默失败；新增单测锁定）。
 5. ✅ **监控（2026-10-03 完成）**：`Driver.Stats()` 计数器经拉取式收集器桥接 Prometheus（`/metrics` 暴露 `itsm_rls_*`：`info{mode}` / `queries_off` / `queries_shadow` / `missing_tenant` / `system_bypass` / `enforce_applied` / `app_routed` / `app_pool_configured`）；同时提供 `GET /api/v1/admin/rls/stats`（`system:read`）JSON 快照，供无 Prometheus 抓取链路的现场排障。**告警口径**：`itsm_rls_missing_tenant_total > 0` 即暂停灰度并评估回滚；`itsm_rls_app_pool_configured=0` 且 `mode=enforce` 表示分流未生效（检查 `DB_APP_ROLE_*`）。实测（enforce + 分流）：missing=0、app_routed=206、enforce=212、bypass=338，与 `/metrics` 序列一致；匿名访问端点 401。
-6. ⬜ **灰度扩展**：连接侧落地后，pilot 两表真实强制观察 → 逐步扩展策略表（R2 里程碑）。
+6. ✅ **策略扩展批次 1（2026-10-04 完成）**：`003_business_tables_policies.sql`（+回滚）将 **tickets / ticket_comments / ticket_attachments / ticket_ccs / ticket_workflow_records / user_tenant_memberships / user_tenant_membership_orgs / groups / projects / workbench_views** 十表纳入 `tenant_id = get_current_tenant_id()` 策略（只 ENABLE 不 FORCE，与 009 旧表约定一致）。`rls-apply -verify` 泛化为 12 受管表状态 + 逐表低权探针；**enforce 演练（saas_msp + 双池）全量业务验收 70/70（FAIL=0 SKIP=0）**，并修复演练暴露的 4 类阻断（见变更记录）。剩余：其余 80+ 业务表按批次推进；工具链 GUC 化后再评估 FORCE。
 
 **DB 级证据（联调库，2026-10-03）**：
 
@@ -113,6 +113,7 @@ go test -tags integration_rls -v ./database/rls/...
 - 低权探针（`SET LOCAL ROLE itsm_app`）：tenant=990001 可见 **1** 行（播种的自身探针）、无租户 **0** 行、tenant=999999 **0** 行（探针行自动清理）；
 - 集成测试 `integration_rls`（真实库）：通过——session 变量注入/发放/回收、无租户拒绝（`ErrNoTenant`）、system bypass 跳过 SET；租户可见性正例因 `changes` 表空按设计 SKIP，由 `rls-apply` 播种探针覆盖。
 - 连接侧分流证据（启动与首流量）：`rls: app pool ready user=itsm_app current_user=itsm_app`、`rls: first statement routed to app pool tenant_id=1`；`pg_stat_activity` 可见 `itsm_app` 会话。
+- 批次 1 证据（2026-10-04）：`rls-apply -verify` 12 受管表 RLS 状态 + 策略存在全绿；逐表低权探针 `tickets(tenant 4)=31 / ticket_comments=34 / ticket_attachments=15 / user_tenant_memberships=9 / groups=6` 正例>0、`none=0 / other=0`，空表（ticket_ccs / ticket_workflow_records / 组织子表 / workbench_views）fail-closed=0；enforce 全量业务验收 **70/70**。
 
 ## 6. 变更记录
 
@@ -124,3 +125,4 @@ go test -tags integration_rls -v ./database/rls/...
 | 2026-10-03 | **enforce 前置推进**：`rls-apply` 工具落地（角色/策略应用、密码注入、状态校验与低权探针）；DB 侧完成（roles + pilot 策略 + 探针实证）；集成测试 `integration_rls` 通过；`RLS_MODE=enforce` 演练与 `off` 基线逐请求一致（diff=0，无 fail-closed 错误）。剩余：连接侧双池化（请求=itsm_app / 平台=itsm_admin）与监控接入 |
 | 2026-10-03 | **连接侧分流落地（enforce 全链路）**：`rls.Driver` 按作用域选池（租户→`itsm_app` / 系统绕过→管理池）；`InitDatabaseWithRLS` 开通请求池并内建启动探针（`current_user`）；`WithTenantSQL/Tx`、系统编号分配经 `requestDB` 同步分流。现场修复 `Tx/BeginTx` 的 `SET LOCAL` 参数定型缺陷（untyped `nil` → `[]any{}`，否则事务静默失败）。复核：`app pool ready(current_user=itsm_app)` + `first statement routed to app pool(tenant_id=1)`；流量与基线 diff=0；**changes/vectors 两表 DB 级强制生效**。剩余：监控接入 + 策略扩展（R2） |
 | 2026-10-03 | **监控接入（enforce 灰度观测面）**：`database/rls/metrics.go` 拉取式收集器把 `Driver.Stats()` 桥接 Prometheus（`itsm_rls_*` 八项指标，`RegisterMetrics` 幂等）；新增 `GET /api/v1/admin/rls/stats`（`system:read`，认证组内，匿名 401）+ 预检映射再生成（`cmd/authz-gen`）。实测 enforce 运行态：missing=0 / app_routed=206 / enforce=212 / bypass=338，`/metrics` 序列一致。告警口径：`itsm_rls_missing_tenant_total>0` → 暂停灰度并评估回滚。剩余：策略扩展（R2） |
+| 2026-10-04 | **策略扩展批次 1（R2）落地 + enforce 全量验收 70/70**：`003_business_tables_policies.sql` 十表纳策略（工单核心/组织/成员/工作台）；`rls-apply` 受管清单与逐表低权探针；`rls_integration_test.go` 新增批次 1 逐表隔离回归。enforce 演练首轮 59/70 → 归因修复 4 类阻断后 **70/70**：① **D-11 工单号全局探针被策略收窄**（23505 建单 500）→ 探针/序列播种改 system 作用域与全表 max；② **D-12 配额计数被 RLS 静默清零**（Q2 误判 422、Q5 超限仍建号=配额可绕过）→ `TenantQuotaService` 全方法目标租户重绑定；③ **D-13 审计查询缺 ctx**（A1/A3 500）→ handler 注入租户作用域；④ **D-14 邀请 Inspect/Accept 预认证跨租户缺作用域**（C2b 500）→ system 作用域。 |

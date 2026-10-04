@@ -9,6 +9,7 @@ import (
 	"strings"
 	"time"
 
+	"itsm-backend/common/tenantctx"
 	"itsm-backend/database"
 	"itsm-backend/ent"
 	"itsm-backend/ent/ticket"
@@ -765,11 +766,16 @@ func (r *EntRepository) generateTicketNumberWithRedis(ctx context.Context, tenan
 	// S-4 对齐（D-6）：tickets.ticket_number 是**全局唯一**约束（不含 tenant_id），
 	// 而序列 key 按租户/年月分片，新租户或历史补数会让候选号与他租户已用号碰撞。
 	// 对候选号做全局存在性校验并向前跳号（≤20），把「必然失败」降级为「跳过占用号」。
+	//
+	// RLS（R2 批次 1，tickets 纳入 policy）：全局唯一探针必须走 system 作用域
+	// （管理池 BYPASSRLS），否则请求 ctx 被策略收窄为本租户，只见本租户号段，
+	// 碰撞漏检 → INSERT 23505 → 建单 500（enforce 演练 D-11 实锤）。
+	probeCtx := tenantctx.WithSystemBypass(ctx)
 	for probe := 0; probe < 20; probe++ {
 		candidate := fmt.Sprintf("TKT-%04d%02d-%06d", year, month, seq)
 		occupied, checkErr := r.Client().Ticket.Query().
 			Where(ticket.TicketNumberEQ(candidate)).
-			Exist(ctx)
+			Exist(probeCtx)
 		if checkErr != nil {
 			return "", fmt.Errorf("check ticket number %s: %w", candidate, checkErr)
 		}
@@ -855,10 +861,12 @@ func (r *EntRepository) generateTicketNumberWithDB(ctx context.Context, tenantID
 		}
 
 		// S-4 对齐（D-6）：DB 回退同样必须跨租户校验，占用则向前跳号。
+		// 与 Redis 路径同口径：全局唯一探针走 system 作用域（见上）。
+		probeCtx := tenantctx.WithSystemBypass(ctx)
 		for probe := 0; probe < 20; probe++ {
 			occupied, checkErr := r.Client().Ticket.Query().
 				Where(ticket.TicketNumberEQ(candidate)).
-				Exist(ctx)
+				Exist(probeCtx)
 			if checkErr != nil || !occupied {
 				break
 			}

@@ -74,3 +74,10 @@
 - §5-3 **核对完成**：`tenants` / `msp_allocations` 属 `TenantExemptTables`（无 policy）；`users` / `user_tenant_memberships` 含 `tenant_id` 且未纳 policy（§2 F3 清单）；`loadTenantMeta` / `loadAssigneeNames` 读路径无需重绑定，待其纳 policy 时按同口径处理。
 - §5-4 **待环境**：staging 开 `tickets` policy → `shadow` 观察 `rls: query without tenant scope` = 0 后再切 `enforce`（离线环境无法执行，留待部署批次）。
 - §5-5 维持：请求面零 bypass（`WithSystemBypass` 仍无生产调用点）。
+
+## 9. 落地进度（2026-10-04，R2 批次 1）
+
+- **`tickets` 已纳入 policy**（`003_business_tables_policies.sql`，与工单外围 5 表 + 组织/成员/工作台同批，共 10 表；`get_current_tenant_id()` 谓词、只 ENABLE 不 FORCE）。
+- §5-4 的 shadow/enforce 验证已在本地以**更强口径**完成：`rls-apply -verify` 逐表低权探针（scoped>0 / none=0 / other=0）全绿；`RLS_MODE=enforce` + 双池起服下跑**全量业务验收 70/70（FAIL=0 SKIP=0）** 与 UI 操作链 spec。
+- enforce 演练暴露并修复 4 类阻断（D-11 工单号全局探针被收窄 / D-12 配额计数清零可绕过 / D-13 审计缺 ctx / D-14 邀请预认证缺作用域）——均为「请求面零 bypass、按目标租户重绑定或显式 system 作用域」口径，无新增 B2 bypass。
+- 结论：本页 §1 决策（逐租户查询 + ctx 重绑定）在 `tickets` 纳入 policy 后成立；集合查询（B3）仍无触发条件。
