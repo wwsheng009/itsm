@@ -426,3 +426,66 @@ func TestBatch1_TenantScopeIsolation(t *testing.T) {
 		})
 	}
 }
+
+// ---------------------------------------------------------------------------
+// 004 批次 2（通知 / SLA / 知识库 / 服务请求 / 邀请 / 事件 / 工单配置）逐表隔离回归
+// ---------------------------------------------------------------------------
+
+// batch2Tables 与 database/rls/migrations/004_lifecycle_tables_policies.sql 对齐。
+var batch2Tables = []string{
+	"notifications",
+	"notification_deliveries",
+	"notification_preferences",
+	"ticket_notifications",
+	"sla_definitions",
+	"sla_metrics",
+	"sla_violations",
+	"sla_alert_histories",
+	"knowledge_articles",
+	"knowledge_article_likes",
+	"service_requests",
+	"service_request_approvals",
+	"service_catalog_items",
+	"invitations",
+	"incidents",
+	"incident_alerts",
+	"ticket_types",
+	"ticket_templates",
+}
+
+// TestBatch2_TenantScopeIsolation 逐表验证 004 批次 2 的 DB 级租户隔离：
+// 正例（数据最多租户可见）> 0，反例（不存在租户 999999）== 0；空表仅验证 fail-closed。
+func TestBatch2_TenantScopeIsolation(t *testing.T) {
+	db := openTestDB(t)
+	defer db.Close()
+	ensureTenantHelper(t)
+
+	for _, table := range batch2Tables {
+		table := table
+		t.Run(table, func(t *testing.T) {
+			teardown, ok := setupTablePolicyFor(t, table)
+			if !ok {
+				t.Skipf("%s 不存在，跳过", table)
+			}
+			defer teardown()
+
+			positive := pickTenantWithData(t, table)
+			if positive == 0 {
+				if n := countTableAs(t, db, WithTenant(context.Background(), 999999), table); n != 0 {
+					t.Fatalf("%s: tenant 999999 saw %d rows", table, n)
+				}
+				t.Skipf("%s 无数据：仅验证 fail-closed", table)
+			}
+
+			n1 := countTableAs(t, db, WithTenant(context.Background(), int64(positive)), table)
+			if n1 == 0 {
+				t.Fatalf("%s: tenant %d saw 0 rows", table, positive)
+			}
+			nOther := countTableAs(t, db, WithTenant(context.Background(), 999999), table)
+			if nOther != 0 {
+				t.Fatalf("%s: tenant 999999 saw %d rows (RLS bypassed?)", table, nOther)
+			}
+			t.Logf("%s: tenant=%d visible=%d, tenant=999999 visible=%d ✓", table, positive, n1, nOther)
+		})
+	}
+}

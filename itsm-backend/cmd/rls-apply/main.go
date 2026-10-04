@@ -37,19 +37,32 @@ import (
 	_ "github.com/lib/pq"
 )
 
-// rlsManagedTables — -verify 的受管表清单（与 database/rls/migrations 002/003 对齐）。
-// 002 试点表在前、003 批次 1 在后；存在的表必须已启用 RLS 且有策略，否则 -verify 非零退出。
+// rlsManagedTables — -verify 的受管表清单（与 database/rls/migrations 002/003/004 对齐）。
+// 002 试点表在前、003 批次 1、004 批次 2 依次在后；存在的表必须已启用 RLS 且有策略，否则 -verify 非零退出。
 var rlsManagedTables = []string{
 	"changes", "vectors", // 002 试点
 	"tickets", "ticket_comments", "ticket_attachments", "ticket_ccs", "ticket_workflow_records", // 003 工单核心
 	"user_tenant_memberships", "user_tenant_membership_orgs", // 003 成员
 	"groups", "projects", "workbench_views", // 003 组织/工作台
+	"notifications", "notification_deliveries", "notification_preferences", "ticket_notifications", // 004 通知
+	"sla_definitions", "sla_metrics", "sla_violations", "sla_alert_histories", // 004 SLA
+	"knowledge_articles", "knowledge_article_likes", // 004 知识库
+	"service_requests", "service_request_approvals", "service_catalog_items", // 004 服务请求
+	"invitations",                   // 004 邀请
+	"incidents", "incident_alerts",  // 004 事件
+	"ticket_types", "ticket_templates", // 004 工单配置
 }
 
-// rlsProbeTables — 逐表低权探针清单（003 批次 1；changes 走带播种的特殊探针）。
+// rlsProbeTables — 逐表低权探针清单（003 批次 1 + 004 批次 2；changes 走带播种的特殊探针）。
 var rlsProbeTables = []string{
 	"tickets", "ticket_comments", "ticket_attachments", "ticket_ccs", "ticket_workflow_records",
 	"user_tenant_memberships", "user_tenant_membership_orgs", "groups", "projects", "workbench_views",
+	"notifications", "notification_deliveries", "notification_preferences", "ticket_notifications",
+	"sla_definitions", "sla_metrics", "sla_violations", "sla_alert_histories",
+	"knowledge_articles", "knowledge_article_likes",
+	"service_requests", "service_request_approvals", "service_catalog_items",
+	"invitations", "incidents", "incident_alerts",
+	"ticket_types", "ticket_templates",
 }
 
 func main() {
@@ -89,7 +102,7 @@ func main() {
 		}
 	}
 	if *rollback {
-		for _, name := range []string{"003_business_tables_policies_rollback.sql", "002_pilot_policies_rollback.sql", "001_roles_rollback.sql"} {
+		for _, name := range []string{"004_lifecycle_tables_policies_rollback.sql", "003_business_tables_policies_rollback.sql", "002_pilot_policies_rollback.sql", "001_roles_rollback.sql"} {
 			runFile(ctx, db, filepath.Join(*dir, name))
 		}
 	}
@@ -368,8 +381,8 @@ func verifyAll(ctx context.Context, db *sql.DB) bool {
 		fmt.Println("  ✓ 租户隔离生效（无租户与其他租户均 0 行）")
 	}
 
-	// ---- 003 批次 1：逐表低权探针（正例=数据最多租户；反例=无租户/不存在租户） ----
-	fmt.Println("== batch-1 低权探针（逐表） ==")
+	// ---- 003/004 批次 1+2：逐表低权探针（正例=数据最多租户；反例=无租户/不存在租户） ----
+	fmt.Println("== batch-1/2 低权探针（逐表） ==")
 	for _, tn := range rlsProbeTables {
 		if !rlsOn[tn] {
 			fmt.Printf("  %-26s RLS 未启用，跳过探针\n", tn)

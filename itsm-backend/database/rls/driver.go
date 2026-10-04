@@ -291,7 +291,10 @@ func (d *Driver) enforceContext(ctx context.Context, op, firstTok string) (conte
 	tid, ok := tenantctx.TenantID(ctx)
 	if !ok {
 		d.nMissingTenant.Add(1)
-		d.log.Warnw("rls: statement without tenant scope", "op", op, "stmt", firstTok, "mode", string(d.mode))
+		// caller 归因与 shadow 告警对齐：enforce 缺租户的告警必须可直接定位调用点
+		// （启动期/后台路径排查；历史缺口见 rls-shadow-observation §5-7）。
+		d.log.Warnw("rls: statement without tenant scope", "op", op, "stmt", firstTok,
+			"mode", string(d.mode), "caller", callerFrame())
 		return nil, fmt.Errorf("rls: enforce mode requires tenant_id in context")
 	}
 	d.nEnforceApplied.Add(1)
