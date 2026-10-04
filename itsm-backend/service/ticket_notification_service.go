@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"time"
 
+	"itsm-backend/common/tenantctx"
 	"itsm-backend/dto"
 	"itsm-backend/ent"
 	"itsm-backend/ent/notificationpreference"
@@ -1044,7 +1045,14 @@ func (s *TicketNotificationService) SendAssignmentNotification(ticketID, assigne
 	ctx := context.Background()
 	content := fmt.Sprintf("您被分配了工单 #%d", ticketID)
 
-	tenantID := s.resolveTenantID(ctx, ticketID)
+	// RLS：遗留无 ctx 入口——先平台作用域解析工单租户，再按该租户重绑定投递。
+	lookupCtx := tenantctx.SystemContext(ctx, "ticket-notification:resolve-tenant", "resolve ticket tenant for detached notification")
+	tenantID := s.resolveTenantID(lookupCtx, ticketID)
+	if tenantID <= 0 {
+		s.logger.Warnw("skip assignment notification: tenant unresolved", "ticket_id", ticketID)
+		return
+	}
+	ctx = tenantctx.WithTenantID(ctx, tenantID)
 	if err := s.SendNotification(ctx, ticketID, &dto.SendTicketNotificationRequest{
 		UserIDs: []int{assigneeID},
 		Type:    "assigned",
@@ -1063,7 +1071,13 @@ func (s *TicketNotificationService) SendEscalationNotification(ticketID, newAssi
 	ctx := context.Background()
 	content := fmt.Sprintf("工单 #%d 已被升级，新处理人: %d", ticketID, newAssignee)
 
-	tenantID := s.resolveTenantID(ctx, ticketID)
+	lookupCtx := tenantctx.SystemContext(ctx, "ticket-notification:resolve-tenant", "resolve ticket tenant for detached notification")
+	tenantID := s.resolveTenantID(lookupCtx, ticketID)
+	if tenantID <= 0 {
+		s.logger.Warnw("skip escalation notification: tenant unresolved", "ticket_id", ticketID)
+		return
+	}
+	ctx = tenantctx.WithTenantID(ctx, tenantID)
 	if err := s.SendNotification(ctx, ticketID, &dto.SendTicketNotificationRequest{
 		UserIDs: []int{newAssignee},
 		Type:    "escalated",
@@ -1082,7 +1096,13 @@ func (s *TicketNotificationService) SendResolutionNotification(ticketID, request
 	ctx := context.Background()
 	content := fmt.Sprintf("工单 #%d 已被解决", ticketID)
 
-	tenantID := s.resolveTenantID(ctx, ticketID)
+	lookupCtx := tenantctx.SystemContext(ctx, "ticket-notification:resolve-tenant", "resolve ticket tenant for detached notification")
+	tenantID := s.resolveTenantID(lookupCtx, ticketID)
+	if tenantID <= 0 {
+		s.logger.Warnw("skip resolution notification: tenant unresolved", "ticket_id", ticketID)
+		return
+	}
+	ctx = tenantctx.WithTenantID(ctx, tenantID)
 	if err := s.SendNotification(ctx, ticketID, &dto.SendTicketNotificationRequest{
 		UserIDs: []int{requesterID},
 		Type:    "resolved",

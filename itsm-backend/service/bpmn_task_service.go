@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"itsm-backend/common"
+	"itsm-backend/common/tenantctx"
 	"itsm-backend/dto"
 	"itsm-backend/ent"
 	"itsm-backend/ent/predicate"
@@ -1343,6 +1344,8 @@ func (s *bpmnTaskService) Vote(ctx context.Context, taskID string, req *VoteRequ
 			SetStatus("cancelled").SetCompletedTime(time.Now()).Save(ctx)
 		engine := NewCustomProcessEngine(s.client, s.logger)
 		systemCtx := context.WithValue(context.Background(), bpmn.BPMNTenantIDContextKey, tenantID)
+		// RLS：推进会签父任务为后台收尾路径，除 BPMN 专用 key 外同时注入租户上下文。
+		systemCtx = tenantctx.WithTenantID(systemCtx, tenantID)
 		if err := engine.CompleteTask(systemCtx, parentTask.TaskID, map[string]interface{}{"approvalResult": status.Status, "approved": status.Status == "approved"}); err != nil {
 			return fmt.Errorf("推进会签父任务失败: %w", err)
 		}

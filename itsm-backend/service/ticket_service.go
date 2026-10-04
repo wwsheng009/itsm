@@ -203,6 +203,8 @@ func (s *TicketService) syncTicketToFeishuLegacyAsync(tkt *ticket.Ticket, tenant
 	go func() {
 		ctx2, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 		defer cancel()
+		// RLS：无请求 ctx 的异步同步按工单租户重绑定。
+		ctx2 = tenantctx.WithTenantID(ctx2, tenantID)
 		conn, ok := s.connectorManager.Get(tenantID, "feishu")
 		if !ok {
 			// 飞书连接器未配置，忽略
@@ -534,6 +536,7 @@ func (s *TicketService) CreateTicket(ctx context.Context, req *dto.CreateTicketR
 		go func() {
 			ctx2, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 			defer cancel()
+			ctx2 = tenantctx.WithTenantID(ctx2, tenantID)
 			if err := s.automationRuleSvc.ExecuteRulesForTicket(ctx2, tkt.ID, tenantID); err != nil {
 				s.logger.Warnw("Automation rules failed", "error", err)
 			}
@@ -547,6 +550,7 @@ func (s *TicketService) CreateTicket(ctx context.Context, req *dto.CreateTicketR
 		go func() {
 			ctx2, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 			defer cancel()
+			ctx2 = tenantctx.WithTenantID(ctx2, tenantID)
 			if err := s.triggerWorkflowForTicket(ctx2, tkt, tenantID, workflowDefinitionKey); err != nil {
 				s.logger.Warnw("Workflow trigger failed", "error", err, "ticket_id", tkt.ID)
 			}
@@ -2647,6 +2651,7 @@ func (s *TicketService) AssignMSPTechnician(ctx context.Context, ticketID, custo
 		go func() {
 			ctx2, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 			defer cancel()
+			ctx2 = tenantctx.WithTenantID(ctx2, customerTenantID)
 			// 获取Feishu连接器
 			conn, ok := s.connectorManager.Get(customerTenantID, "feishu")
 			if !ok {

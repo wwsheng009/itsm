@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"itsm-backend/common"
+	"itsm-backend/common/tenantctx"
 	"itsm-backend/dto"
 	"itsm-backend/ent"
 	"itsm-backend/pkg/redact"
@@ -69,6 +70,10 @@ func (q *ToolQueue) Enqueue(job ToolJob) error {
 func (q *ToolQueue) worker() {
 	for job := range q.jobs {
 		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+		// RLS：队列消费无请求 ctx，按任务租户重绑定（tool_invocations 已纳管）。
+		if job.TenantID > 0 {
+			ctx = tenantctx.WithTenantID(ctx, job.TenantID)
+		}
 		startedAt := time.Now()
 		inv, err := q.client.ToolInvocation.Get(ctx, job.InvocationID)
 		if err != nil {
@@ -258,7 +263,7 @@ func (q *ToolQueue) finalize(ctx context.Context, invocationID int, res interfac
 	verifyState, verifyNote := VerifyStateSkipped, ""
 	if q.verifier != nil {
 		// B1-06：回读校验。失败只影响 verify_state（业务执行已成功），不改变终态语义。
-		verifyState, verifyNote = q.verifyResult(invocationID, res)
+		verifyState, verifyNote = q.verifyResult(ctx, invocationID, res)
 	}
 	if _, updateErr := applySource(q.client.ToolInvocation.UpdateOneID(invocationID).
 		SetStatus("done").
@@ -277,8 +282,8 @@ func (q *ToolQueue) finalize(ctx context.Context, invocationID int, res interfac
 //
 // 说明：参数以 `tool_invocations.arguments` **落库快照**为准（审批后模型不可改参），
 // 校验器只看执行真源，避免与请求侧内存参数漂移。
-func (q *ToolQueue) verifyResult(invocationID int, result interface{}) (string, string) {
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+func (q *ToolQueue) verifyResult(ctx context.Context, invocationID int, result interface{}) (string, string) {
+	ctx, cancel := context.WithTimeout(ctx, 10*time.Second)
 	defer cancel()
 	inv, err := q.client.ToolInvocation.Get(ctx, invocationID)
 	if err != nil {

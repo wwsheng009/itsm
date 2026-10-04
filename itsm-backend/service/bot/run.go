@@ -160,6 +160,7 @@ func (s *RunStore) FinishRun(ctx context.Context, tenantID, runID int, status, e
 	if s == nil || s.client == nil {
 		return fmt.Errorf("bot: run store 未初始化")
 	}
+	ctx = tenantctx.WithTenantID(ctx, tenantID)
 	update := s.client.BotRun.Update().
 		Where(botrun.ID(runID), botrun.TenantID(tenantID)).
 		SetStatus(status).

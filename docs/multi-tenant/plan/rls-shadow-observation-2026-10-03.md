@@ -119,6 +119,24 @@ go test -tags integration_rls -v ./database/rls/...
 
 13. ✅ **策略扩展批次 8（平台面收口 2 表 + RLS 豁免定案，2026-10-04 完成）**：`010_platform_scope_tables_policies.sql`（+回滚）纳入 `bootstrap_tokens`（租户级一次性首管引导令牌；预认证 HTTP `/bootstrap/*` 与 `cmd/initialize` CLI）与 `tenant_installations`（市场组件安装记录）→ 受管 **150 表**。**本批次修复**：`router/bootstrap_routes.go` 预认证平台面按目标租户显式绑定 ctx（status/create-admin）；`service/marketplace` 7 个入口补齐 ctx 重绑定。**平台级 RLS 豁免定案（有 tenant_id 但不纳管，见 `msp-exempt-tables-quarterly-review.md` §6）**：`users`（身份根表：登录/注册/找回/刷新等预认证路径天然跨租户查询；`tenant_id` 为 home 租户，切换后按 `user_id` 读取自身身份与租户过滤不等价）、`roles`（平台 RBAC 词表，ADR-0001 同源；角色解析跨 home/target 作用域）、`permission_definitions`（平台权限字典，`tenant_id` 全 0/NULL，当前无运行时读者）。**enforce 演练 70/70（FAIL=0 SKIP=0，77.2s）且 `missing_tenant=0`**。**终局口径**：153 张 tenant_id 表 = **150 纳管 + 3 豁免**（豁免项带补偿控制与 2026-12-31 复核期）。
 
+14. ✅ **异步 Background ctx 遗留清单核查与收口（2026-10-04 完成）**：批次 3（第 8 条遗留）登记的「受 outbox 开关保护的异步路径清单」（incident 规则 / 工单自动化 / 飞书同步 / 工具队列 worker / job_audit）逐条核查；并顺带全仓 `context.Background()/TODO()` 扫描（约 30 文件）分类处置。
+
+    **修复（10 文件）**：
+    - `service/tool_queue.go`：worker 按 `job.TenantID` 重绑定（`ToolInvocation.Get` / 抢占 / 终态落库），`verifyResult` 改传租户 ctx —— 修复 enforce 下审批写工具「消费即跳过」隐患；
+    - `service/job_audit.go`：后台任务审计按 `e.TenantID` 重绑定（否则 `audit_logs` 写入被 fail-closed 丢失）；
+    - `service/ticket_service.go`×4：遗留飞书同步（含 MSP 指派分支，按 `customerTenantID`）与 outbox 关闭兼容路径（自动化规则 / BPMN 触发）按租户重绑定；
+    - `service/incident_service.go`×2：outbox 关闭兼容路径（事件规则 / 流程触发）按租户重绑定；
+    - `service/ticket_notification_service.go`×3：无 ctx 通知助手改为「system 解析工单租户 → 租户 ctx 投递」，租户不可解析时不投递并告警；
+    - `service/bpmn_task_service.go`：会签父任务推进在 BPMN key 之外同时注入租户 ctx；
+    - `service/bot/run.go`：`FinishRun` 补租户重绑定（与 `StartRun/AppendStep/AppendEvent` 对齐）；
+    - `service/approval_chain_evaluation.go`：`usersByRole` 使用租户 ctx；
+    - `handlers/wecom`、`handlers/dingtalk`：验签失败审计按租户绑定（未知租户时显式 system，审计不丢）；
+    - `handlers/connector/handler.go`：全租户健康巡检改 system 作用域。
+
+    **核查为良性（登记不修改）**：Redis-only（token blacklist / 事件总线 / 权限缓存广播）、HTTP/纯渲染（embedder、报表导出）、平台级（`ai_llm_calls` 豁免表、启动期 bootstrap、tenant guard 走 owner）、已收口（`middleware/audit.go`、`handlers/incident`、bot RunStore、`msp_allocation.toDTO`）。
+
+    **证据（2026-10-04）**：`go build ./...` 绿；`service/...`（427s）与 `handlers/connector|ai|incident` 包测试通过；enforce 业务验收 **70/70（FAIL=0 SKIP=0，138.5s）**；`/api/v1/admin/rls/stats` 实测 **`missing_tenant=0`、enforce_applied=1772、app_routed=1676、system_bypass=761**。
+
 **DB 级证据（联调库，2026-10-03）**：
 
 - `rls-apply -verify`：`changes`/`vectors` RLS+FORCE 开启、`tenant_isolation` 策略存在；

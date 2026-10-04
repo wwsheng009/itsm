@@ -390,6 +390,8 @@ func (s *IncidentService) createIncident(ctx context.Context, req *dto.CreateInc
 		go func() {
 			ruleCtx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 			defer cancel()
+			// RLS：outbox 关闭时的兼容异步路径，按事件租户重绑定。
+			ruleCtx = tenantctx.WithTenantID(ruleCtx, tenantID)
 			if s.ruleEngine != nil {
 				if err := s.ruleEngine.ExecuteRulesForIncident(ruleCtx, incidentEntity.ID, tenantID); err != nil {
 					s.logger.Errorw("Incident rule execution completed with failures", "error", err, "incident_id", incidentEntity.ID)
@@ -405,6 +407,7 @@ func (s *IncidentService) createIncident(ctx context.Context, req *dto.CreateInc
 		go func() {
 			workflowCtx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 			defer cancel()
+			workflowCtx = tenantctx.WithTenantID(workflowCtx, tenantID)
 			if err := s.triggerWorkflowForIncident(workflowCtx, incidentEntity.ID, tenantID); err != nil {
 				s.logger.Warnw("Failed to trigger workflow for incident", "error", err, "incident_id", incidentEntity.ID)
 			}

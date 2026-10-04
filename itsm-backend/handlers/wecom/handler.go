@@ -7,6 +7,7 @@ import (
 	"fmt"
 
 	"itsm-backend/common"
+	"itsm-backend/common/tenantctx"
 	"itsm-backend/connector"
 	"itsm-backend/ent"
 
@@ -95,6 +96,12 @@ func (h *Handler) recordAuditFailure(tenantID int, action, reason string, header
 	}
 	body, _ := json.Marshal(map[string]interface{}{"reason": reason, "headers": headers})
 	bodyStr := string(body)
+	auditCtx := callerContext()
+	if tenantID > 0 {
+		auditCtx = tenantctx.WithTenantID(auditCtx, tenantID)
+	} else {
+		auditCtx = tenantctx.SystemContext(auditCtx, "connector:wecom:audit", "signature failure audit without tenant")
+	}
 	if err := h.client.AuditLog.Create().
 		SetTenantID(tenantID).
 		SetAction(action).
@@ -103,7 +110,7 @@ func (h *Handler) recordAuditFailure(tenantID int, action, reason string, header
 		SetPath(fmt.Sprintf("/wecom/webhook/%d", tenantID)).
 		SetStatusCode(401).
 		SetRequestBody(bodyStr).
-		Exec(callerContext()); err != nil {
+		Exec(auditCtx); err != nil {
 		h.logger.Warnw("wecom audit failure log failed", "error", err)
 	}
 }

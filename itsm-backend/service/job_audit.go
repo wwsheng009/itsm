@@ -7,6 +7,7 @@ import (
 
 	"go.uber.org/zap"
 
+	"itsm-backend/common/tenantctx"
 	"itsm-backend/ent"
 	"itsm-backend/middleware"
 )
@@ -34,6 +35,8 @@ func RecordJobAudit(ctx context.Context, client *ent.Client, logger *zap.Sugared
 	payload, _ := json.Marshal(detail)
 	auditCtx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 	defer cancel()
+	// RLS：后台任务审计必须携带任务租户上下文（audit_logs 已纳管），否则 enforce 下被 fail-closed。
+	auditCtx = tenantctx.WithTenantID(auditCtx, e.TenantID)
 	if _, err := client.AuditLog.Create().
 		SetCreatedAt(time.Now()).
 		SetTenantID(e.TenantID).

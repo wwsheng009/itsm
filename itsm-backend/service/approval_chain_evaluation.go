@@ -7,6 +7,7 @@ import (
 	"strconv"
 	"strings"
 
+	"itsm-backend/common/tenantctx"
 	"itsm-backend/ent"
 	"itsm-backend/ent/approvalchain"
 	"itsm-backend/ent/cabmember"
@@ -406,9 +407,10 @@ func resolveCABMembers(ctx context.Context, client *ent.Client, tenantID int, bo
 
 // usersByRole 返回租户内某角色的全部有效用户（会签需要全量）。
 func usersByRole(client *ent.Client, tenantID int, role string) ([]int, []string, error) {
+	ctx := tenantctx.WithTenantID(context.Background(), tenantID)
 	users, err := client.User.Query().
 		Where(user.RoleEQ(user.Role(role)), user.TenantIDEQ(tenantID), user.Active(true)).
-		All(context.Background())
+		All(ctx)
 	if err != nil {
 		return nil, nil, err
 	}

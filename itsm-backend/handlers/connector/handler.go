@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"itsm-backend/common"
+	"itsm-backend/common/tenantctx"
 	"itsm-backend/connector"
 	"itsm-backend/connector/marketplace"
 	"itsm-backend/dto"
@@ -268,7 +269,8 @@ func (h *Handler) Test(ctx *gin.Context) {
 
 // Health 所有运行实例健康检查
 func (h *Handler) Health(ctx *gin.Context) {
-	res := h.manager.HealthCheckAll(context.Background())
+	// 平台级全租户健康巡检：显式 system 作用域（RLS enforce 下不因缺租户被拦）。
+	res := h.manager.HealthCheckAll(tenantctx.SystemContext(context.Background(), "connector:health", "platform-wide connector health check"))
 	out := make(map[string]dto.ConnectorHealthDTO, len(res))
 	for k, v := range res {
 		out[k] = dto.ConnectorHealthDTO{
