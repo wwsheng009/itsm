@@ -583,6 +583,16 @@ func (s *MenuService) buildMenuTree(menus []*ent.Menu) (mainMenus, adminMenus []
 		}
 	}
 
+	// 契约（2026-10-04 UI 验收实锤）：main/admin 恒为数组——无管理菜单时也必须序列化为
+	// `[]` 而非 `null`。前端 Header 面包屑按数组消费该字段，`null` 会抛
+	// `TypeError: items is not iterable` → 整页 ErrorBoundary（provider 用户全站白屏）。
+	if mainMenus == nil {
+		mainMenus = []dto.MenuDTO{}
+	}
+	if adminMenus == nil {
+		adminMenus = []dto.MenuDTO{}
+	}
+
 	return mainMenus, adminMenus
 }
 

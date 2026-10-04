@@ -186,6 +186,7 @@ pwsh scripts/msp/acceptance/run-msp-business-acceptance.ps1 -Base http://127.0.0
 | v1.0 | 2026-10-03 | 首版：G0–G7 场景目录、判据、脚本入口与证据约定（本机 saas_msp 实测基线） |
 | v1.1 | 2026-10-03 | 首轮实测校准：P3 分配真值改用 `/msp/customers`；I3/I6 反例改用「未分配客户B」；P9 改为状态机合法终局 `pending` + 新增 C6 客户确认解决；C2b 明确 token 在 `/invite/<token>` 路径段 |
 | v1.2 | 2026-10-04 | 第二波「操作链与规则逻辑」：新增 G8–G12（L 生命周期链 9 项 / W 批量逐条 3 项 / R 分配回收 6 项 / Q 硬配额 6 项 / T 暂停恢复 7 项）；实测 **70/70 全绿**（FAIL=0 SKIP=0，88s）。同期修复 D-2（重复分配 409）与 D-6（工单号跨租户碰撞）、D-7（状态机绕过），登记 D-5/D-8 |
+| v1.3 | 2026-10-04 | 新增 §11 **UI 操作层验收**（Playwright `flow-msp-workbench-ui.spec.ts`，U1–U6 两连跑全绿）；发现并修复 **D-9（阻断级）**：provider 用户 `/auth/menus` 返回 `admin:null` → Header 面包屑崩溃 → 整页 ErrorBoundary（服务商无法进入工作台）；固化三条 UI 稳定性经验 |
 
 ## 9. 首轮实测发现（2026-10-03，本机 saas_msp）
 
@@ -269,3 +270,34 @@ pwsh scripts/msp/acceptance/run-msp-business-acceptance.ps1 -Base http://127.0.0
 | D-6 | **工单号跨租户碰撞（500）**：`tickets.ticket_number` 全局唯一，而 Redis 序列按「租户+年月」分片、DB 同步也只取本租户最大值——新租户从空序列出号，必然撞他租户已用号段；重试 3 次烧尽后 500（实测租户6 建单全部失败）。 | **已修复**：① Redis 候选号**全局存在性探针 + 向前跳号（≤20）**，序列推进失败自动回退 DB 路径；② DB 回退同样跨租户跳号；③ `queryMaxTicketSeqFromDB` 改取**全表当月最大号**作为序列起点。回归：`TestGenerateTicketNumber_SkipsGloballyOccupied`、`TestRepository_CreateWithTx_SkipsOccupiedSequenceNumber`（+ 哨兵判定 `TestIsTicketNumberCollision_DetectsUniqueViolations`）。 |
 | D-7 | **状态机绕过（`PUT /tickets/:id/status`）**：`closed→open` 实测 200 且状态被改写（`handlers/ticket.Service.UpdateStatus` 未走状态机；旧兜底把 4xx 吞成 500 或直接放行）。 | **已修复**：`UpdateStatus` 收口 `common.IsValidTicketStatusTransition` + `resolved` 需解决方案（指向 `ResolveTicket`）；`failTicketOperation` 统一按 AppError 语义分流 4xx。回归：`TestUpdateTicketStatus_StateMachineAndProtectedResolved`。 |
 | D-8 | **观察（非缺陷）**：`/auth/me` 不挂租户状态门禁，暂停租户下仍 200（仅身份读取、无租户数据；业务路由已验证 403 fail-closed）。 | 已登记；如需统一「暂停=全端点拒绝」口径，可将身份端点纳入状态校验（待定，避免影响刷新令牌链路）。 |
+
+## 11. UI 操作层验收（Playwright，2026-10-04）
+
+> 承接 G0–G12（HTTP 层）：把判据平移到**浏览器操作层**，覆盖只有真实点击才能暴露的链路
+> （顶栏客户过滤器 / 行内操作 / 批量确认弹窗 / 看板与分组视图）。
+> Spec：`itsm-frontend/tests/e2e/flows/flow-msp-workbench-ui.spec.ts`（标签 `@multi-tenant`）。
+
+**环境与前置**：后端 `DEPLOYMENT_MODE=saas_msp`（私有/缺省模式自动 skip，不假红）；vite dev server（`/api` 代理 8090，`ITSM_BACKEND_URL` 可覆盖）；API 前置（分配/建单）统一 **Bearer**（免 CSRF，与验收脚本一致）；浏览器会话走 **Cookie + `/auth/me` 引导**（权限、mspRole 均由后端下发）。
+
+| ID | 链路 | 判据 | 实测 |
+|---|---|---|---|
+| U1 | mspadmin 会话进入 `/msp/workbench` | 工作台渲染；两条 API 新建样本行可见（默认全部客户） | ✅ |
+| U2 | 顶栏 CustomerFilter：勾选客户A | URL 同步 `customerTenantIds=<A>`；过滤后样本仍可见 | ✅ |
+| U3 | 行内回复 | 弹窗 → 填写 → 发送 → 「回复已发送」 | ✅ |
+| U4 | 行内改状态 | 下拉「处理中」→「状态已更新」→ 行内徽标=处理中 | ✅ |
+| U5 | 批量回复 | 勾选 2 条 → 下一步 → 客户分布确认（含客户名/条数）→ 提交（2 条）→ 逐条结果「成功 2」 | ✅ |
+| U6 | 看板/分组 | SlaRiskBoard、CustomerUsageBoard 渲染；「按客户分组」→ 分组计数可见 | ✅ |
+
+**运行**：`npx playwright test tests/e2e/flows/flow-msp-workbench-ui.spec.ts --project=chromium`（本机两连跑全绿，单次 ~1.8m）。
+
+**已固化的稳定性经验**（均写在 spec 注释中，避免后续踩坑）：
+
+1. AntD 对**两字中文按钮**自动插空格——可访问名是「发 送」而非「发送」，定位用 `/发\s*送/`；
+2. 行内“改状态”是 **hover 触发**的下拉且被表格固定列/表头遮挡，Playwright 真实点击会被判「拦截/不稳定」——对菜单项用 DOM 级 `element.click()`（仍走 React 合成事件）；
+3. 导航显式携带 `customerTenantIds=all` **跳过服务端偏好水合**分支，否则上一轮保存的 subset 偏好会与本用例的勾选点击竞态。
+
+### 第二波-UI 发现与修复
+
+| # | 发现 | 处置 |
+|---|---|---|
+| D-9 | **provider 用户整站白屏（阻断级）**：`/api/v1/auth/menus` 对 mspadmin 返回 `admin: null`；`useBuildBreadcrumb → collectMenuLabels` 直接 `for...of null` 抛 `TypeError: items is not iterable`，Header 触发整页 ErrorBoundary——**MSP 目标用户（服务商）无法进入工作台**。API 层验收 70 项全绿也无法暴露（纯前端运行时缺陷）。 | **两端修复**：① 后端 `buildMenuTree` 契约化——`main/admin` 恒为非 nil 数组（空则 `[]`），JSON 不再出现 `null`；回归 `TestBuildMenuTreeReturnsEmptySlicesNotNull`。② 前端 `collectMenuLabels` 增加 `Array.isArray` 防御、`Sidebar` 空菜单判定容错（双保险）；回归 `breadcrumb-utils.test.tsx`（2 例：admin=null / 全部为 null 均不崩页）。 |

@@ -99,7 +99,14 @@ const SEGMENT_LABELS: Record<string, string> = {
 };
 
 // 递归收集菜单配置中 path → label 的映射（label 为字符串时）
-function collectMenuLabels(items: ApiMenuItem[], map: Map<string, string>) {
+function collectMenuLabels(
+  items: ApiMenuItem[] | null | undefined,
+  map: Map<string, string>
+) {
+  // 防御（2026-10-04 UI 验收实锤）：provider 用户的 /auth/menus admin 组为 null，
+  // 原实现直接 `for...of null` 抛 TypeError → Header 崩溃 → 整页 ErrorBoundary。
+  // 后端已修正为恒返回 []（service/menu_service.go buildMenuTree），此处双保险。
+  if (!Array.isArray(items)) return;
   for (const item of items) {
     if (item.path && item.name) {
       map.set(item.path, item.name);

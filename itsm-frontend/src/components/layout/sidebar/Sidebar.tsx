@@ -135,7 +135,9 @@ export const Sidebar: React.FC<SidebarProps> = ({ collapsed, onCollapse, mobile 
   const menuLoading = menusQuery.isLoading;
   const menuError =
     menusQuery.error ||
-    (menusQuery.data && menusQuery.data.main.length === 0 && menusQuery.data.admin.length === 0
+    (menusQuery.data &&
+    (menusQuery.data.main?.length ?? 0) === 0 &&
+    (menusQuery.data.admin?.length ?? 0) === 0
       ? new Error('菜单为空，请检查角色权限或刷新页面重试')
       : null);
 
