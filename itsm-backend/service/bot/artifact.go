@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 
+	"itsm-backend/common/tenantctx"
 	"itsm-backend/ent"
 	"itsm-backend/ent/botartifact"
 )
@@ -55,6 +56,8 @@ func (s *ArtifactStore) Create(ctx context.Context, in ArtifactInput) (*ent.BotA
 	if in.TenantID <= 0 || in.OwnerUserID <= 0 {
 		return nil, fmt.Errorf("bot: artifact 需要租户与归属发起人")
 	}
+	// RLS 批次 6（008）：产物写入可能来自异步运行末尾，按产物租户重绑定 ctx。
+	ctx = tenantctx.WithTenantID(ctx, in.TenantID)
 	kind := in.Kind
 	switch kind {
 	case ArtifactKindPlan, ArtifactKindAnalysis, ArtifactKindDraft:
@@ -96,6 +99,7 @@ func (s *ArtifactStore) Get(ctx context.Context, tenantID, ownerUserID, id int) 
 	if s == nil || s.client == nil {
 		return nil, fmt.Errorf("bot: artifact store 未初始化")
 	}
+	ctx = tenantctx.WithTenantID(ctx, tenantID)
 	return s.client.BotArtifact.Query().
 		Where(
 			botartifact.ID(id),
@@ -110,6 +114,7 @@ func (s *ArtifactStore) List(ctx context.Context, tenantID, ownerUserID int, kin
 	if s == nil || s.client == nil {
 		return nil, fmt.Errorf("bot: artifact store 未初始化")
 	}
+	ctx = tenantctx.WithTenantID(ctx, tenantID)
 	if limit <= 0 || limit > 100 {
 		limit = 20
 	}

@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"time"
 
+	"itsm-backend/common/tenantctx"
 	"itsm-backend/ent"
 	"itsm-backend/ent/botevent"
 	"itsm-backend/ent/botrun"
@@ -50,6 +51,9 @@ func (s *RunStore) StartRun(ctx context.Context, in StartRunInput) (*ent.BotRun,
 	if s == nil || s.client == nil {
 		return nil, fmt.Errorf("bot: run store 未初始化")
 	}
+	// RLS 批次 6（008）：运行面可能由入口异步触发（chat/任务），一律按运行租户重绑定
+	// ctx，避免调用方 Background/其他租户作用域导致 bot_* 策略 fail-closed。
+	ctx = tenantctx.WithTenantID(ctx, in.TenantID)
 	entrypoint := in.Entrypoint
 	if entrypoint == "" {
 		entrypoint = "chat"
@@ -81,6 +85,7 @@ func (s *RunStore) AppendStep(ctx context.Context, tenantID, runID, stepIndex in
 	if s == nil || s.client == nil {
 		return nil, fmt.Errorf("bot: run store 未初始化")
 	}
+	ctx = tenantctx.WithTenantID(ctx, tenantID)
 	create := s.client.BotStep.Create().
 		SetTenantID(tenantID).
 		SetRunID(runID).
@@ -100,6 +105,7 @@ func (s *RunStore) AppendEvent(ctx context.Context, tenantID, runID int, eventTy
 	if s == nil || s.client == nil {
 		return nil, fmt.Errorf("bot: run store 未初始化")
 	}
+	ctx = tenantctx.WithTenantID(ctx, tenantID)
 	encoded := "{}"
 	if payload != nil {
 		raw, err := json.Marshal(payload)

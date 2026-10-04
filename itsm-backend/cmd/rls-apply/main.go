@@ -67,6 +67,11 @@ var rlsManagedTables = []string{
 	// 007 批次 5 鉴权/菜单/配置/审计
 	"role_permissions", "permissions", "menus", "system_configs",
 	"audit_logs", "endpoint_acls",
+	// 008 批次 6 自动化/机器人与运维命令
+	"bot_runs", "bot_steps", "bot_events", "bot_artifacts",
+	"bot_templates", "bot_tool_grants",
+	"ai_analysis_results", "ai_feedbacks", "llm_user_preferences",
+	"operational_commands",
 }
 
 // rlsProbeTables — 逐表低权探针清单（003 批次 1 + 004 批次 2 + 005 批次 3；changes 走带播种的特殊探针）。
@@ -93,6 +98,10 @@ var rlsProbeTables = []string{
 	"bpmn_permissions",
 	"role_permissions", "permissions", "menus", "system_configs",
 	"audit_logs", "endpoint_acls",
+	"bot_runs", "bot_steps", "bot_events", "bot_artifacts",
+	"bot_templates", "bot_tool_grants",
+	"ai_analysis_results", "ai_feedbacks", "llm_user_preferences",
+	"operational_commands",
 }
 
 func main() {

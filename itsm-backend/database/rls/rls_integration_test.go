@@ -660,3 +660,58 @@ func TestBatch5_TenantScopeIsolation(t *testing.T) {
 		})
 	}
 }
+
+// ---------------------------------------------------------------------------
+// 008 批次 6（自动化/机器人与运维命令）逐表隔离回归
+// ---------------------------------------------------------------------------
+
+// batch6Tables 与 database/rls/migrations/008_automation_tables_policies.sql 对齐。
+var batch6Tables = []string{
+	"bot_runs",
+	"bot_steps",
+	"bot_events",
+	"bot_artifacts",
+	"bot_templates",
+	"bot_tool_grants",
+	"ai_analysis_results",
+	"ai_feedbacks",
+	"llm_user_preferences",
+	"operational_commands",
+}
+
+// TestBatch6_TenantScopeIsolation 逐表验证 008 批次 6 的 DB 级租户隔离：
+// 正例（数据最多租户可见）> 0，反例（不存在租户 999999）== 0；空表仅验证 fail-closed。
+func TestBatch6_TenantScopeIsolation(t *testing.T) {
+	db := openTestDB(t)
+	defer db.Close()
+	ensureTenantHelper(t)
+
+	for _, table := range batch6Tables {
+		table := table
+		t.Run(table, func(t *testing.T) {
+			teardown, ok := setupTablePolicyFor(t, table)
+			if !ok {
+				t.Skipf("%s 不存在，跳过", table)
+			}
+			defer teardown()
+
+			positive := pickTenantWithData(t, table)
+			if positive == 0 {
+				if n := countTableAs(t, db, WithTenant(context.Background(), 999999), table); n != 0 {
+					t.Fatalf("%s: tenant 999999 saw %d rows", table, n)
+				}
+				t.Skipf("%s 无数据：仅验证 fail-closed", table)
+			}
+
+			n1 := countTableAs(t, db, WithTenant(context.Background(), int64(positive)), table)
+			if n1 == 0 {
+				t.Fatalf("%s: tenant %d saw 0 rows", table, positive)
+			}
+			nOther := countTableAs(t, db, WithTenant(context.Background(), 999999), table)
+			if nOther != 0 {
+				t.Fatalf("%s: tenant 999999 saw %d rows (RLS bypassed?)", table, nOther)
+			}
+			t.Logf("%s: tenant=%d visible=%d, tenant=999999 visible=%d ✓", table, positive, n1, nOther)
+		})
+	}
+}
