@@ -14,8 +14,9 @@ import (
 
 // Handler HTTP handler for tenant domain
 type Handler struct {
-	svc    Service
-	logger *zap.SugaredLogger
+	svc          Service
+	provisioning ProvisioningService
+	logger       *zap.SugaredLogger
 }
 
 // NewHandler creates a new tenant handler

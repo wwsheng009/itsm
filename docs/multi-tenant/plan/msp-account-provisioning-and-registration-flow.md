@@ -68,8 +68,8 @@
 ```text
 [平台] POST /tenants (type=msp_provider)              ← platform 通道建租户（canon §7.3）
    ↓
-[平台] POST /tenants/:id/users                        ← platform 通道建首个管理员
-       身份：admin-<tenantCode>；must_change_password=true
+[平台] POST /tenants/:id/bootstrap-admin              ← 首管 HTTP 通道（v1.66；缺省一次性密码）
+       或 POST /tenants/:id/users（platform 通道，显式指定账号，must_change_password=true）
    ↓
 [provider 管理员] 首登 → 强制改密                      ← 登录落 provider 家
    ↓
@@ -91,9 +91,10 @@
 ```text
 [平台] POST /tenants (type=msp_customer, provider_tenant_id)     ← platform 通道建租户（归属唯一 provider）
    ↓
-首个客户管理员（二选一）：
-   A. [平台] POST /tenants/:id/users                              ← platform 通道
-   B. [provider_admin] POST /msp/customers/:id/users              ← msp 通道（allocation + msp_customer:write）
+首个客户管理员（三选一）：
+   A. [平台] POST /tenants/:id/bootstrap-admin                    ← 首管 HTTP 通道（v1.66；缺省一次性密码）
+   B. [平台] POST /tenants/:id/users                              ← platform 通道（显式指定账号）
+   C. [provider_admin] POST /msp/customers/:id/users              ← msp 通道（allocation + msp_customer:write）
    ↓
 [客户管理员] 首登 → 强制改密（本租户 admin）
    ↓
@@ -148,6 +149,8 @@
 | 邀请 | ✅ | ✅（本租户/分配客户） | ✅（本租户） | ❌ |
 
 **授权公式（三权分立，canon §7.3）**：跨客户操作 = **provider 租户 RBAC ∩ Allocation ∩ 客户租户内权限**；建号（msp 通道）额外要求目标租户 `active`。
+
+> **v1.66 补充**：平台还可经 `POST /api/v1/tenants/:id/bootstrap-admin` 一次性开通首个管理员（服务端生成一次性密码、仅回显一次、首登强制改密；已存在首管 409），与 `POST /:id/users` 同权限 `tenant.write`；租户模板供给与就绪度经 `POST /:id/provision` / `GET /:id/readiness`（见 [03](../03-customer-dimension.md) §3）。
 
 ---
 

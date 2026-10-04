@@ -64,6 +64,12 @@ export interface Tenant {
   name: string;
   code: string;
   domain?: string;
+  /** 所属 MSP 服务商（仅 msp_customer 有值；msp_provider 自身为空）。 */
+  mspProviderId?: number | null;
+  /** 上级租户（MSP 客户指向服务商；平台租户为空）。 */
+  parentTenantId?: number | null;
+  /** 套餐编码（展示/筛选用，合同字段）。 */
+  planCode?: string;
   type:
     | 'standard'
     | 'internal'
@@ -96,6 +102,8 @@ export interface CreateTenantRequest {
   code: string;
   domain?: string;
   type: string;
+  /** 仅 type='msp_customer' 时提交，指向 MSP 服务商租户。 */
+  mspProviderId?: number;
   expiresAt?: string;
   settings?: Record<string, unknown>;
   quota?: TenantQuota;
@@ -105,6 +113,8 @@ export interface UpdateTenantRequest {
   name?: string;
   domain?: string;
   type?: string;
+  /** 仅 type='msp_customer' 时提交，指向 MSP 服务商租户。 */
+  mspProviderId?: number;
   status?: string;
   expiresAt?: string;
   settings?: Record<string, unknown>;
@@ -117,6 +127,48 @@ export interface GetTenantsParams {
   status?: string;
   type?: string;
   search?: string;
+}
+
+// ---------------------------------------------------------------------------
+// 租户开通闭环（模板供给 / 首个管理员）契约。
+// GET  /api/v1/tenants/:id/readiness       → TenantReadinessResponse
+// POST /api/v1/tenants/:id/provision       → TenantReadinessResponse（幂等）
+// POST /api/v1/tenants/:id/bootstrap-admin → BootstrapAdminResponse
+// ---------------------------------------------------------------------------
+
+/** readiness.items 单项：required=true 且 count=0 视为模板缺失。 */
+export interface TenantReadinessItem {
+  key: string;
+  label: string;
+  count: number;
+  required: boolean;
+}
+
+export interface TenantReadinessResponse {
+  tenantId: number;
+  templateVersion?: string;
+  ready: boolean;
+  /** 已存在首个管理员的数量（0 表示未创建）。 */
+  bootstrapAdmins: number;
+  items: TenantReadinessItem[];
+}
+
+export interface BootstrapAdminRequest {
+  /** 留空则服务端生成（响应中一次性回传）。 */
+  password?: string;
+  /** 留空则使用服务端默认（admin-<code>）。 */
+  username?: string;
+  email?: string;
+}
+
+export interface BootstrapAdminResponse {
+  userId: number;
+  username: string;
+  email: string;
+  /** 仅服务端生成密码时回传一次（generated=true）。 */
+  password?: string;
+  generated: boolean;
+  mustChangePassword: boolean;
 }
 
 // 重新导出标准Ticket类型，并扩展租户相关字段

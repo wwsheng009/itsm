@@ -53,7 +53,9 @@ go run ./cmd/provision_tenant -tenant-id <客户租户ID> \
 
 （`itsm-backend/cmd/provision_tenant/main.go:17-58`；幂等，可重复执行且保留客户自定义。）
 
-**readiness 校验**（任一为 0 即失败，`pkg/seeder/tenant_provisioner.go:345-373`）：roles、permissions、role permissions、menus、groups、SLA definitions、CI types。
+**HTTP 通道（v1.66 起，平台页/自动化同源）**：`GET /api/v1/tenants/:id/readiness`（7 项 items + `bootstrapAdmins`，需 `tenant.read`）、`POST /api/v1/tenants/:id/provision`（幂等，返回同构 readiness，需 `tenant.write`）、`POST /api/v1/tenants/:id/bootstrap-admin`（创建首个管理员；`password` 缺省时服务端生成一次性强密码、仅本次响应回传，首登强制改密）。平台管理页 `/admin/tenants` 的「开通」向导即该通道 UI；CLI `provision_tenant -create-admin` 仍等价可用。
+
+**readiness 校验**（任一为 0 即失败，`pkg/seeder/tenant_readiness.go:24-121`）：roles、permissions、role permissions、menus、groups、SLA definitions、CI types。
 
 ## 4. 客户用户与 RBAC
 
@@ -104,7 +106,7 @@ go run ./cmd/provision_tenant -tenant-id <客户租户ID> \
 ## 10. 证据索引
 
 - `dto/tenant_dto.go:5-53`、`docs/acl-manifest.yaml:1729-1761`
-- `cmd/provision_tenant/main.go:17-58`、`pkg/seeder/tenant_provisioner.go:341-374`
+- `cmd/provision_tenant/main.go:17-58`、`pkg/seeder/tenant_readiness.go:24-121`、`service/tenant_provisioning_service.go`、`handlers/tenant/provisioning.go`
 - `ent/schema/tenant.go`、`ent/schema/user.go:59-72`、`ent/schema/service_customer.go:12-42`
 - `middleware/tenant.go:138-169`、`dto/auth_dto.go:13`
 - `handlers/email_intake/service.go:136-158, 400-421`、`pkg/seeder/seeder.go:1739-1742`

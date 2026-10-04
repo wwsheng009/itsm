@@ -192,6 +192,10 @@ func SetupCommonSystemRoutes(r *gin.Engine, tenant *gin.RouterGroup, config *Rou
 				tenants.PUT("/:id", middleware.RequirePermission("tenant", "write"), config.TenantHandler.UpdateTenant)
 				tenants.DELETE("/:id", middleware.RequirePermission("tenant", "write"), config.TenantHandler.DeleteTenant)
 				tenants.PUT("/:id/status", middleware.RequirePermission("tenant", "write"), config.TenantHandler.UpdateTenantStatus)
+				// 租户激活通道：readiness（只读）+ 模板供给 + 首个管理员。
+				tenants.GET("/:id/readiness", middleware.RequirePermission("tenant", "read"), config.TenantHandler.GetTenantReadiness)
+				tenants.POST("/:id/provision", middleware.RequirePermission("tenant", "write"), config.TenantHandler.ProvisionTenant)
+				tenants.POST("/:id/bootstrap-admin", middleware.RequirePermission("tenant", "write"), config.TenantHandler.CreateBootstrapAdmin)
 				// 建号通道（IP-P0-5）：平台通道为任意 active 租户建号；通道授权与角色白名单由 service 收口。
 				if config.UserHandler != nil {
 					tenants.POST("/:id/users", middleware.RequirePermission("tenant", "write"), config.UserHandler.ProvisionUserToTenant)

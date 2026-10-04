@@ -8,6 +8,7 @@ jest.mock('@/lib/api/http-client', () => ({
     put: jest.fn(),
     delete: jest.fn(),
     patch: jest.fn(),
+    request: jest.fn(),
   },
 }));
 
@@ -15,6 +16,7 @@ const mockGet = httpClient.get as jest.Mock;
 const mockPost = httpClient.post as jest.Mock;
 const mockPut = httpClient.put as jest.Mock;
 const mockDelete = httpClient.delete as jest.Mock;
+const mockRequest = httpClient.request as jest.Mock;
 
 describe('TenantAPI', () => {
   beforeEach(() => { jest.clearAllMocks(); });
@@ -70,6 +72,100 @@ describe('TenantAPI', () => {
       mockPut.mockClear();
       await TenantAPI.updateTenant(1, { quota: {} } as any);
       expect(mockPut).toHaveBeenCalledWith('/api/v1/tenants/1', { quota: {} });
+    });
+  });
+
+  describe('getTenantReadiness', () => {
+    it('reads GET /api/v1/tenants/:id/readiness', async () => {
+      const expected = {
+        tenantId: 1,
+        templateVersion: 'v1',
+        ready: false,
+        bootstrapAdmins: 0,
+        items: [{ key: 'roles', label: '角色', count: 0, required: true }],
+      };
+      mockGet.mockResolvedValue(expected);
+
+      const res = await TenantAPI.getTenantReadiness(1);
+
+      expect(mockGet).toHaveBeenCalledWith('/api/v1/tenants/1/readiness');
+      expect(res).toEqual(expected);
+    });
+  });
+
+  describe('provisionTenant', () => {
+    it('POSTs templateVersion with a 120s timeout', async () => {
+      const expected = {
+        tenantId: 1,
+        templateVersion: 'v2',
+        ready: true,
+        bootstrapAdmins: 0,
+        items: [],
+      };
+      mockRequest.mockResolvedValue(expected);
+
+      const res = await TenantAPI.provisionTenant(1, 'v2');
+
+      expect(mockRequest).toHaveBeenCalledWith('/api/v1/tenants/1/provision', {
+        method: 'POST',
+        body: JSON.stringify({ templateVersion: 'v2' }),
+        timeout: 120000,
+      });
+      expect(res).toEqual(expected);
+    });
+
+    it('omits templateVersion when not provided (backend default template)', async () => {
+      mockRequest.mockResolvedValue({ tenantId: 2, ready: true, bootstrapAdmins: 0, items: [] });
+
+      await TenantAPI.provisionTenant(2);
+
+      expect(mockRequest).toHaveBeenCalledWith('/api/v1/tenants/2/provision', {
+        method: 'POST',
+        body: JSON.stringify({}),
+        timeout: 120000,
+      });
+    });
+  });
+
+  describe('createBootstrapAdmin', () => {
+    it('POSTs payload with a 60s timeout', async () => {
+      const payload = { username: 'admin-acme', email: 'admin@acme.test' };
+      const expected = {
+        userId: 9,
+        username: 'admin-acme',
+        email: 'admin@acme.test',
+        generated: false,
+        mustChangePassword: true,
+      };
+      mockRequest.mockResolvedValue(expected);
+
+      const res = await TenantAPI.createBootstrapAdmin(1, payload);
+
+      expect(mockRequest).toHaveBeenCalledWith('/api/v1/tenants/1/bootstrap-admin', {
+        method: 'POST',
+        body: JSON.stringify(payload),
+        timeout: 60000,
+      });
+      expect(res).toEqual(expected);
+    });
+
+    it('defaults to an empty payload (server generates password / default username)', async () => {
+      mockRequest.mockResolvedValue({
+        userId: 9,
+        username: 'admin-acme',
+        email: '',
+        password: 'generated-once',
+        generated: true,
+        mustChangePassword: true,
+      });
+
+      await TenantAPI.createBootstrapAdmin(3);
+
+      expect(mockRequest).toHaveBeenCalledWith('/api/v1/tenants/3/bootstrap-admin', {
+        method: 'POST',
+        body: JSON.stringify({}),
+        timeout: 60000,
+      });
     });
   });
 

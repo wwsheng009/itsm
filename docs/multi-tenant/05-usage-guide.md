@@ -1,7 +1,7 @@
 # 05 · 使用指南：客户端、服务商端与平台端
 
 > **状态**：当前
-> **更新日期**：2026-09-28
+> **更新日期**：2026-10-04
 > **适用**：全体使用者；前置阅读 [03](./03-customer-dimension.md)、[04](./04-provider-dimension.md)
 
 > **定位（as-is）**：本文为**现状使用指南**（2026-09-28 实测）；其中"连续操作走切换"的表述已被[工作台方案](./plan/msp-cross-customer-workbench-and-filter-plan.md)（`REV-1`/`WB2`）修订——日常跨客户操作用工作台+过滤器，切换仅深度操作。目标口径以 [canon](./plan/msp-concept-model-and-architecture-canon.md) 为准（见[一致性审计](./plan/msp-docs-consistency-audit.md) C2）。
@@ -64,16 +64,18 @@
 | 任务 | 接口/入口 |
 |---|---|
 | 租户列表/详情 | `GET /api/v1/tenants`、`GET /api/v1/tenants/:id`（`tenant.read`） |
-| 创建/更新租户 | `POST /api/v1/tenants`、`PUT /api/v1/tenants/:id`（`tenant.write`） |
+| 创建/更新租户 | `POST /api/v1/tenants`、`PUT /api/v1/tenants/:id`（`tenant.write`）；`type=msp_customer` 必须带 `mspProviderId`（页面下拉仅列 active 服务商） |
 | 状态变更（暂停/恢复） | `PUT /api/v1/tenants/:id/status` |
-| 模板开通 | `go run ./cmd/provision_tenant -tenant-id <ID>` |
-| 管理页 | `/admin/tenants` |
+| 就绪度 / 模板开通 | `GET /api/v1/tenants/:id/readiness`（`tenant.read`）、`POST /api/v1/tenants/:id/provision`（`tenant.write`；幂等） |
+| 首个管理员 | `POST /api/v1/tenants/:id/bootstrap-admin`（`tenant.write`；缺省密码服务端生成、仅回显一次，首登强制改密） |
+| 命令行通道（等价，运维/离线） | `go run ./cmd/provision_tenant -tenant-id <ID>`、`-create-admin` |
+| 管理页 | `/admin/tenants`（「开通」向导：模板供给 → 首个管理员 → 完成） |
 
 ## 5. 典型流程 A：新客户接入（8 步）
 
 1. 平台/服务商创建租户：`POST /api/v1/tenants`，`type=msp_customer`，填 `parentTenantId`/`mspProviderId`/`planCode`/`expiresAt` 等；
-2. 执行模板开通：`go run ./cmd/provision_tenant -tenant-id <ID>`；
-3. 校验 readiness（roles/permissions/role permissions/menus/groups/SLA/CI types 均非 0）；
+2. 执行模板开通并创建首个管理员：页面「开通」向导，或依次调 `POST /api/v1/tenants/:id/provision` 与 `POST /api/v1/tenants/:id/bootstrap-admin`（CLI 等价：`go run ./cmd/provision_tenant -tenant-id <ID>`、`-create-admin`）；
+3. 校验 readiness：`GET /api/v1/tenants/:id/readiness`（roles/permissions/role permissions/menus/groups/SLA/CI types 7 项均非 0；向导内以“已就绪/待供给”呈现）；
 4. 在客户租户内创建客户用户并分配客户侧角色；
 5. 为服务商工程师创建 `MSPAllocation`（`POST /api/v1/msp/allocations`）；
 6. 验证：客户用户登录可见本租户数据；服务商工程师 `GET /msp/customers` 能看到该客户；

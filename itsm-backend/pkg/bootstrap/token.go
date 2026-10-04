@@ -32,6 +32,7 @@ type consumeOptions struct {
 	username           string
 	email              string
 	mustChangePassword bool
+	auditPath          string
 }
 
 // WithAdminIdentity 显式覆盖默认 `admin-<tenantCode>` 用户名/邮箱（运维指定）。
@@ -50,6 +51,16 @@ func WithAdminIdentity(username, email string) ConsumeOption {
 func WithMustChangePassword(v bool) ConsumeOption {
 	return func(o *consumeOptions) {
 		o.mustChangePassword = v
+	}
+}
+
+// WithAuditPath 覆盖首管创建审计记录的来源路径（CreateFirstAdmin 默认 "cmd:provision_tenant"，
+// 传入空值时保持默认不变，兼容既有 CLI/运维脚本口径）。
+func WithAuditPath(path string) ConsumeOption {
+	return func(o *consumeOptions) {
+		if v := strings.TrimSpace(path); v != "" {
+			o.auditPath = v
+		}
 	}
 }
 

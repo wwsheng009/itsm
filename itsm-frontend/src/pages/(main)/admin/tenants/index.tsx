@@ -14,6 +14,7 @@ import {
   PauseCircle,
   PlayCircle,
   BarChart3,
+  Rocket,
 } from 'lucide-react';
 
 import React, { useState, useEffect } from 'react';
@@ -41,8 +42,9 @@ import {
 } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
 import { TenantAPI } from '@/lib/api/tenant-api';
-import type { TenantQuota } from '@/lib/api/api-config';
+import type { TenantQuota, UpdateTenantRequest } from '@/lib/api/api-config';
 import TenantUsageModal from './components/TenantUsageModal';
+import TenantOnboardingModal from './components/TenantOnboardingModal';
 
 const { Title, Text } = Typography;
 
@@ -62,15 +64,15 @@ const TENANT_STATUS = {
   deleted: { label: '已删除', color: 'default', icon: AlertCircle },
 };
 
-// 租户类型配置
-const TENANT_TYPES = {
-  standard: { label: '标准租户', color: 'blue' },
+// 租户类型配置（后端 snake_case；msp/customer 为 legacy 兼容值，仅展示）
+const TENANT_TYPES: Record<string, { label: string; color: string }> = {
+  standard: { label: '标准租户(兼容)', color: 'blue' },
   internal: { label: '内部组织', color: 'cyan' },
-  saasCustomer: { label: 'SaaS客户', color: 'green' },
-  mspProvider: { label: 'MSP服务商', color: 'gold' },
-  mspCustomer: { label: 'MSP客户', color: 'purple' },
-  msp: { label: 'MSP兼容', color: 'orange' },
-  customer: { label: '客户兼容', color: 'default' },
+  saas_customer: { label: 'SaaS客户', color: 'green' },
+  msp_provider: { label: 'MSP服务商', color: 'gold' },
+  msp_customer: { label: 'MSP客户', color: 'purple' },
+  msp: { label: 'MSP(兼容)', color: 'orange' },
+  customer: { label: '客户(兼容)', color: 'default' },
 };
 
 type Tenant = {
@@ -78,19 +80,21 @@ type Tenant = {
   name: string;
   code: string;
   domain?: string;
-  type: keyof typeof TENANT_TYPES;
+  type: string;
   status: keyof typeof TENANT_STATUS;
+  mspProviderId?: number | null;
   userCount?: number;
   ticketCount?: number;
   expiresAt?: string;
   quota?: TenantQuota;
 };
 
-type TenantFormValues = {
+export type TenantFormValues = {
   name: string;
   code: string;
   domain?: string;
   type: string;
+  mspProviderId?: number;
   status: string;
   expiresAt?: Dayjs;
   // IP-P2-6 硬配额（0/空 = 不限）
@@ -98,6 +102,42 @@ type TenantFormValues = {
   maxTicketsPerMonth?: number;
   maxStorageMB?: number;
 };
+
+/** 仅 MSP 客户需要选择所属 MSP 服务商（表单显隐 / 校验 / 载荷共用同一判定）。 */
+export const isMspProviderRequired = (type?: string): boolean => type === 'msp_customer';
+
+/** MSP 服务商必填规则（Form.Item rules）。 */
+export const mspProviderRules = [{ required: true, message: '请选择 MSP 服务商' }];
+
+/**
+ * 组装创建/更新租户载荷：
+ * - quota 仅收敛 >0 的键（空对象 = 清空 → 不限）；
+ * - mspProviderId 仅在 type='msp_customer' 时携带。
+ */
+export function buildTenantPayload(
+  values: TenantFormValues
+): UpdateTenantRequest & { name: string; type: string } {
+  // IP-P2-6：显式提交 quota 对象（全空 = {} 清空 → 不限）；仅收敛 >0 的键。
+  const quota: TenantQuota = {};
+  if (values.maxUsers && values.maxUsers > 0) quota.maxUsers = values.maxUsers;
+  if (values.maxTicketsPerMonth && values.maxTicketsPerMonth > 0)
+    quota.maxTicketsPerMonth = values.maxTicketsPerMonth;
+  if (values.maxStorageMB && values.maxStorageMB > 0) quota.maxStorageMB = values.maxStorageMB;
+
+  const payload: UpdateTenantRequest & { name: string; type: string } = {
+    name: values.name,
+    domain: values.domain,
+    type: values.type,
+    status: values.status,
+    expiresAt: values.expiresAt ? values.expiresAt.toISOString() : undefined,
+    quota,
+  };
+  // 仅 MSP 客户携带所属服务商；其他类型不带该字段。
+  if (isMspProviderRequired(values.type) && values.mspProviderId !== undefined) {
+    payload.mspProviderId = values.mspProviderId;
+  }
+  return payload;
+}
 
 export default function TenantManagement() {
   const { message } = App.useApp();
@@ -108,6 +148,10 @@ export default function TenantManagement() {
   const [viewOnly, setViewOnly] = useState(false);
   // IP-P2-6 收尾：打开用量弹窗的目标租户（null = 关闭）。
   const [usageTenant, setUsageTenant] = useState<Tenant | null>(null);
+  // 开通闭环：打开开通弹窗的目标租户（null = 关闭）。
+  const [onboardingTenant, setOnboardingTenant] = useState<Tenant | null>(null);
+  // MSP 客户表单的服务商候选（仅 active 的 msp_provider）。
+  const [mspProviders, setMspProviders] = useState<Tenant[]>([]);
   const [form] = Form.useForm();
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
@@ -161,24 +205,30 @@ export default function TenantManagement() {
     loadTenants();
   }, [searchTerm, statusFilter, typeFilter]);
 
+  // 新建/编辑弹窗打开时加载 MSP 服务商候选（网络失败降级为空列表，不阻塞表单）。
+  useEffect(() => {
+    if (!showModal) return;
+    let alive = true;
+    TenantAPI.getTenants({ type: 'msp_provider', size: 100 })
+      .then(response => {
+        if (!alive) return;
+        setMspProviders(
+          (response.tenants as Tenant[]).filter(tenant => tenant.status === 'active')
+        );
+      })
+      .catch(() => {
+        if (alive) setMspProviders([]);
+      });
+    return () => {
+      alive = false;
+    };
+  }, [showModal]);
+
   // 处理保存租户
   const handleSaveTenant = async () => {
     try {
       const values = (await form.validateFields()) as TenantFormValues;
-      // IP-P2-6：显式提交 quota 对象（全空 = {} 清空 → 不限）；仅收敛 >0 的键。
-      const quota: TenantQuota = {};
-      if (values.maxUsers && values.maxUsers > 0) quota.maxUsers = values.maxUsers;
-      if (values.maxTicketsPerMonth && values.maxTicketsPerMonth > 0)
-        quota.maxTicketsPerMonth = values.maxTicketsPerMonth;
-      if (values.maxStorageMB && values.maxStorageMB > 0) quota.maxStorageMB = values.maxStorageMB;
-      const payload = {
-        name: values.name,
-        domain: values.domain,
-        type: values.type,
-        status: values.status,
-        expiresAt: values.expiresAt ? values.expiresAt.toISOString() : undefined,
-        quota,
-      };
+      const payload = buildTenantPayload(values);
 
       if (selectedTenant) {
         // 更新租户
@@ -208,6 +258,7 @@ export default function TenantManagement() {
     if (tenant) {
       form.setFieldsValue({
         ...tenant,
+        mspProviderId: tenant.mspProviderId ?? undefined,
         expiresAt: tenant.expiresAt ? dayjs(tenant.expiresAt) : undefined,
         // IP-P2-6：quota 对象摊平为三个表单字段（缺省留空 = 不限）。
         maxUsers: tenant.quota?.maxUsers,
@@ -345,6 +396,13 @@ export default function TenantManagement() {
               type="text"
               icon={<BarChart3 className="w-4 h-4" />}
               onClick={() => setUsageTenant(record)}
+            />
+          </Tooltip>
+          <Tooltip title="开通/供给">
+            <Button
+              type="text"
+              icon={<Rocket className="w-4 h-4" />}
+              onClick={() => setOnboardingTenant(record)}
             />
           </Tooltip>
           {record.status === 'active' ? (
@@ -568,7 +626,19 @@ export default function TenantManagement() {
             : undefined
         }
       >
-        <Form form={form} layout="vertical" className="mt-4" disabled={viewOnly} initialValues={{ type: 'standard', status: 'active' }}>
+        <Form
+          form={form}
+          layout="vertical"
+          className="mt-4"
+          disabled={viewOnly}
+          initialValues={{ status: 'active' }}
+          onValuesChange={changed => {
+            // 类型切走 msp_customer 时清空服务商，避免提交脏字段。
+            if ('type' in changed && !isMspProviderRequired(changed.type)) {
+              form.setFieldValue('mspProviderId', undefined);
+            }
+          }}
+        >
           <Form.Item
             label="租户名称"
             name="name"
@@ -606,7 +676,6 @@ export default function TenantManagement() {
                 rules={[{ required: true, message: '请选择租户类型' }]}
               >
                 <Select placeholder="请选择租户类型" options={[
-                  { value: 'standard', label: '标准租户' },
                   { value: 'internal', label: '内部组织' },
                   { value: 'saas_customer', label: 'SaaS客户' },
                   { value: 'msp_provider', label: 'MSP服务商' },
@@ -630,6 +699,29 @@ export default function TenantManagement() {
               </Form.Item>
             </Col>
           </Row>
+
+          {/* MSP 客户必选所属服务商；其他类型不展示、不提交。 */}
+          <Form.Item noStyle shouldUpdate={(prev, cur) => prev.type !== cur.type}>
+            {({ getFieldValue }) =>
+              isMspProviderRequired(getFieldValue('type')) ? (
+                <Form.Item
+                  label="MSP 服务商"
+                  name="mspProviderId"
+                  rules={mspProviderRules}
+                >
+                  <Select
+                    placeholder="请选择 MSP 服务商"
+                    showSearch
+                    optionFilterProp="label"
+                    options={mspProviders.map(provider => ({
+                      value: provider.id,
+                      label: `${provider.name}（${provider.code}）`,
+                    }))}
+                  />
+                </Form.Item>
+              ) : null
+            }
+          </Form.Item>
 
           <Form.Item label="到期时间" name="expiresAt">
             <DatePicker style={{ width: '100%' }} placeholder="选择到期时间" />
@@ -662,6 +754,13 @@ export default function TenantManagement() {
         tenantId={usageTenant?.id}
         tenantName={usageTenant?.name}
         onClose={() => setUsageTenant(null)}
+      />
+
+      {/* 开通闭环：模板供给 → 首个管理员 → 可用。 */}
+      <TenantOnboardingModal
+        open={!!onboardingTenant}
+        tenant={onboardingTenant ?? undefined}
+        onClose={() => setOnboardingTenant(null)}
       />
     </div>
   );

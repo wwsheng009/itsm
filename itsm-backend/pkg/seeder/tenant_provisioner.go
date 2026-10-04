@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 
+	"itsm-backend/dto"
 	"itsm-backend/ent"
 	"itsm-backend/ent/approvalworkflow"
 	"itsm-backend/ent/bottemplate"
@@ -22,7 +23,9 @@ import (
 	"itsm-backend/ent/tenant"
 )
 
-const CurrentTenantTemplateVersion = "1.0.0"
+// CurrentTenantTemplateVersion 单一事实来源在 dto：service 层不能 import 本包
+// （本包反向依赖 service），共享常量避免版本字符串两处维护。
+const CurrentTenantTemplateVersion = dto.DefaultTenantTemplateVersion
 
 // ProvisionTenant installs the tenant-scoped operating baseline from the
 // verified default tenant. The operation is transactional and idempotent.
@@ -390,37 +393,6 @@ func cloneTenantTemplates(ctx context.Context, c *ent.Client, sourceID, tenantID
 
 func (s *Seeder) validateTenantReadiness(ctx context.Context, tenantID int) error {
 	return validateTenantReadinessWithClient(ctx, s.client, tenantID)
-}
-
-func validateTenantReadinessWithClient(ctx context.Context, client *ent.Client, tenantID int) error {
-	checks := []struct {
-		name  string
-		count func() (int, error)
-	}{
-		{"roles", func() (int, error) { return client.Role.Query().Where(role.TenantIDEQ(tenantID)).Count(ctx) }},
-		{"permissions", func() (int, error) {
-			return client.Permission.Query().Where(permission.TenantIDEQ(tenantID)).Count(ctx)
-		}},
-		{"role permissions", func() (int, error) {
-			return client.RolePermission.Query().Where(rolepermission.TenantIDEQ(tenantID)).Count(ctx)
-		}},
-		{"menus", func() (int, error) { return client.Menu.Query().Where(menu.TenantIDEQ(tenantID)).Count(ctx) }},
-		{"groups", func() (int, error) { return client.Group.Query().Where(group.TenantIDEQ(tenantID)).Count(ctx) }},
-		{"SLA definitions", func() (int, error) {
-			return client.SLADefinition.Query().Where(sladefinition.TenantIDEQ(tenantID)).Count(ctx)
-		}},
-		{"CI types", func() (int, error) { return client.CIType.Query().Where(citype.TenantIDEQ(tenantID)).Count(ctx) }},
-	}
-	for _, check := range checks {
-		count, err := check.count()
-		if err != nil {
-			return fmt.Errorf("validate tenant %s: %w", check.name, err)
-		}
-		if count == 0 {
-			return fmt.Errorf("validate tenant %s: no records installed", check.name)
-		}
-	}
-	return nil
 }
 
 func validateTenantClone(ctx context.Context, client *ent.Client, sourceID, targetID int) error {

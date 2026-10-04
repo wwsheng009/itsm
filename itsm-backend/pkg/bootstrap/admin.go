@@ -33,6 +33,11 @@ func CreateFirstAdmin(ctx context.Context, client *ent.Client, sugar *zap.Sugare
 	for _, opt := range opts {
 		opt(&options)
 	}
+	// 审计来源路径默认保持既有 CLI 口径；HTTP 通道用 WithAuditPath 覆盖。
+	auditPath := "cmd:provision_tenant"
+	if options.auditPath != "" {
+		auditPath = options.auditPath
+	}
 
 	tx, err := client.Tx(ctx)
 	if err != nil {
@@ -84,7 +89,7 @@ func CreateFirstAdmin(ctx context.Context, client *ent.Client, sugar *zap.Sugare
 		SetUserID(admin.ID).
 		SetResource("bootstrap_admin").
 		SetAction("BOOTSTRAP_ADMIN_CREATED").
-		SetPath("cmd:provision_tenant").
+		SetPath(auditPath).
 		SetMethod("CLI").
 		SetStatusCode(200).
 		Save(ctx); err != nil {

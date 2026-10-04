@@ -1303,6 +1303,9 @@ func NewApplication() *Application {
 	// IP-P2-6 收尾：治理页用量展示（与写入校验同一 quota 服务与口径）。
 	tenantService.SetTenantQuotaService(tenantQuotaService)
 	tenantHTTPHandler := tenantHandler.NewHandler(tenantService, sugar)
+	// 租户激活通道（模板供给 + readiness + 首管）：HTTP 版 cmd:provision_tenant。
+	tenantProvisioningService := service.NewTenantProvisioningService(client, seeder.NewSeeder(client, sugar, cfg), sugar)
+	tenantHTTPHandler.SetProvisioningService(tenantProvisioningService)
 
 	// System Config Handler（2026-09-02 迁移至 handlers/systemconfig）
 	systemConfigService := service.NewSystemConfigService(client, sugar)
