@@ -4,6 +4,7 @@ import (
 	"strings"
 
 	"itsm-backend/common"
+	"itsm-backend/common/tenantctx"
 	"itsm-backend/ent/tenant"
 	bootstrapauth "itsm-backend/pkg/bootstrap"
 
@@ -31,7 +32,9 @@ func registerBootstrapRoutes(public *gin.RouterGroup, config *RouterConfig) {
 			common.Fail(c, common.BadRequestCode, "bootstrap status unavailable")
 			return
 		}
-		required, tokenAvailable, expiresAt, err := manager.Status(c.Request.Context(), rootTenant.ID)
+		// RLS 批次 8（010）：bootstrap 为预认证平台面，按目标租户显式绑定后读取。
+		tenantCtx := tenantctx.WithTenantID(c.Request.Context(), rootTenant.ID)
+		required, tokenAvailable, expiresAt, err := manager.Status(tenantCtx, rootTenant.ID)
 		if err != nil {
 			common.Fail(c, common.InternalErrorCode, "bootstrap status unavailable")
 			return
@@ -65,7 +68,8 @@ func registerBootstrapRoutes(public *gin.RouterGroup, config *RouterConfig) {
 			common.Fail(c, common.AuthFailedCode, "invalid or unavailable bootstrap token")
 			return
 		}
-		userID, err := manager.ConsumeToken(c.Request.Context(), strings.TrimSpace(req.Token), rootTenant.ID, req.Password)
+		tenantCtx := tenantctx.WithTenantID(c.Request.Context(), rootTenant.ID)
+		userID, err := manager.ConsumeToken(tenantCtx, strings.TrimSpace(req.Token), rootTenant.ID, req.Password)
 		if err != nil {
 			common.Fail(c, common.AuthFailedCode, "invalid or unavailable bootstrap token")
 			return

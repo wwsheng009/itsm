@@ -13,6 +13,7 @@
 | **租户化落地** | `messages` | 加 `tenant_id`（可空过渡）+ 会话回填 + 索引；写入由请求 ctx 派生；移出豁免清单（迁移 `20260930_messages_tenant_id.sql`；巡检 `scripts/msp/verify-messages-tenant-backfill.sql`） |
 | **显式共享（保留）** | `marketplace_items`、`prompt_templates` | 全局模板/市场资源，跨租户共享为产品语义；owner/reason/复核期齐备（2026-09-30 刷新） |
 | **无需租户列（保留）** | tags 系列、RBAC 关系（`user_roles` 等）、`ai_llm_calls`、knowledge 会话/版本、`msp_allocations`、initialization 系、纯关联表、`password_reset_tokens`、`tenants`、`schema_migrations` | 依据不变（§3），本轮复核确认无新增读写点引入租户语义 |
+| **RLS 平台保留（本轮新增，§6）** | `users`、`roles`、`permission_definitions` | 有 `tenant_id` 但**不纳入租户 RLS 策略**；身份/RBAC 平面语义，带补偿控制与复核期 |
 
 ## 2. `messages` 租户化决策（IP-P2-3）
 
@@ -48,3 +49,19 @@
 | 版本 | 日期 | 变更 |
 |---|---|---|
 | v1.0 | 2026-09-30 | 首轮季度复核：`messages` 租户化；`marketplace_items` / `prompt_templates` 保留显式共享并刷新复核期 |
+| v1.1 | 2026-10-04 | 新增 §6「RLS 平台保留项」：`users` / `roles` / `permission_definitions` 定案不纳入租户 RLS 策略（RLS 批次 8 收口；补偿控制与 2026-12-31 复核期见 §6） |
+
+---
+
+## 6. RLS 平台保留项（含 `tenant_id`，不纳入租户策略）· 2026-10-04 定案
+
+> 范围说明：§1–§4 面向无 `tenant_id` 的 `TenantExemptTables` 豁免；本节处理**有 `tenant_id` 但语义上不应套用「`tenant_id = get_current_tenant_id()`」单租户策略**的表（RLS 批次 8 收口结论，单一治理留档）。
+> 背景：RLS 策略扩展 001–010 已纳管 **150/153** 张 `tenant_id` 表；以下 3 张为终局豁免（150 纳管 + 3 豁免 = 153 全覆盖决策）。
+
+| 表 | 语义 | 不纳管理由（2026-10-04 复核） | 补偿控制 | 复核期 / 后续 |
+|---|---|---|---|---|
+| `users` | 身份根表（`tenant_id` = home 租户） | ① 预认证路径（登录/注册/找回/刷新）天然跨租户查询用户名/邮箱；② 切换租户后按 `user_id` 读取自身身份（RBAC/MSP/GetMe）与 `tenant_id` 过滤**不等价**，单租户策略会阻断合法身份读取；③ 租户守卫（tenant guard）与 CLI 引导依赖平台范围查询 | 关系表 `user_tenant_memberships`、`user_tenant_membership_orgs` 已 RLS；应用层读写均带租户过滤或自有身份（`userID` 来自签名 token）；登录/切换/建号路径保持审计留痕 | 2026-12-31 前评估 `user-scope GUC`（`app.current_user_id`）策略可行性；若落地需覆盖身份读取路径的 GUC 注入 |
+| `roles` | 平台 RBAC 词表 | ADR-0001 / `TenantExemptTables`「RBAC 关系为平台级」同源语义；角色解析跨 home/target 作用域（membership → `role_id` → `role_permissions`），单租户策略语义不成立 | `role_permissions`（RLS 批次 5）、memberships（RLS 批次 1）均已纳管；权限判定 fail-closed（无 membership → 空集） | 2026-12-31 |
+| `permission_definitions` | 平台权限字典 | `tenant_id` 全 0/NULL（平台词表）；当前**无运行时代码读取**（权限清单真源为 `permissions` + `role_permissions`，均已 RLS） | 平台级只读字典；若未来启用读取须显式 `SystemContext` 并回写本页 | 2026-12-31（若仍无读者，评估直接归档/下线） |
+
+**长期路线**：若身份面需要 DB 级隔离，方案是引入第二 GUC（`app.current_user_id`）与 `users` 专属策略 `tenant_id = get_current_tenant_id() OR id = get_current_user_id()`，并逐一改造身份读取路径；在完成前维持本节豁免与补偿控制。

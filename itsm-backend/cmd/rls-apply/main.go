@@ -99,6 +99,8 @@ var rlsManagedTables = []string{
 	"llm_provider_configs",
 	"attachments",
 	"alerts", "ai_analysis_result", "endpoint_ac_ls",
+	// 010 批次 8 平台面收口
+	"bootstrap_tokens", "tenant_installations",
 }
 
 // rlsProbeTables — 逐表低权探针清单（003 批次 1 + 004 批次 2 + 005 批次 3；changes 走带播种的特殊探针）。
@@ -132,6 +134,7 @@ var rlsProbeTables = []string{
 	"configuration_items", "change_risk_assessments", "approval_workflows",
 	"incident_events", "problems", "teams", "ticket_categories", "tags",
 	"sla_policies", "process_definitions", "llm_provider_configs", "attachments",
+	"bootstrap_tokens", "tenant_installations",
 }
 
 func main() {

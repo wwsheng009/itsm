@@ -786,3 +786,50 @@ func TestBatch7_TenantScopeIsolation(t *testing.T) {
 		})
 	}
 }
+
+// ---------------------------------------------------------------------------
+// 010 批次 8（平台面：bootstrap / marketplace 安装域）逐表隔离回归
+// ---------------------------------------------------------------------------
+
+// batch8Tables 与 database/rls/migrations/010_platform_scope_tables_policies.sql 对齐。
+// 平台级 RLS 豁免（users / roles / permission_definitions）不在此列，
+// 依据与复核期见 docs/multi-tenant/plan/msp-exempt-tables-quarterly-review.md §6。
+var batch8Tables = []string{
+	"bootstrap_tokens",
+	"tenant_installations",
+}
+
+// TestBatch8_TenantScopeIsolation 验证批次 8 两表的 DB 级租户隔离（当前为空表，fail-closed 基线）。
+func TestBatch8_TenantScopeIsolation(t *testing.T) {
+	db := openTestDB(t)
+	defer db.Close()
+	ensureTenantHelper(t)
+
+	for _, table := range batch8Tables {
+		table := table
+		t.Run(table, func(t *testing.T) {
+			teardown, ok := setupTablePolicyFor(t, table)
+			if !ok {
+				t.Skipf("%s 不存在，跳过", table)
+			}
+			defer teardown()
+
+			positive := pickTenantWithData(t, table)
+			if positive == 0 {
+				if n := countTableAs(t, db, WithTenant(context.Background(), 999999), table); n != 0 {
+					t.Fatalf("%s: tenant 999999 saw %d rows", table, n)
+				}
+				t.Skipf("%s 无数据：仅验证 fail-closed", table)
+			}
+			n1 := countTableAs(t, db, WithTenant(context.Background(), int64(positive)), table)
+			if n1 == 0 {
+				t.Fatalf("%s: tenant %d saw 0 rows", table, positive)
+			}
+			nOther := countTableAs(t, db, WithTenant(context.Background(), 999999), table)
+			if nOther != 0 {
+				t.Fatalf("%s: tenant 999999 saw %d rows (RLS bypassed?)", table, nOther)
+			}
+			t.Logf("%s: tenant=%d visible=%d, tenant=999999 visible=%d ✓", table, positive, n1, nOther)
+		})
+	}
+}

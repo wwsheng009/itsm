@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"time"
 
+	"itsm-backend/common/tenantctx"
 	"itsm-backend/connector"
 	"itsm-backend/ent"
 	"itsm-backend/ent/marketplaceitem"
@@ -162,6 +163,8 @@ func (s *Service) reactivateUninstalledInstallation(
 
 // InstallItem 租户安装商品
 func (s *Service) InstallItem(ctx context.Context, tenantID, itemID int, installedBy string) (*ent.TenantInstallation, error) {
+	// RLS 批次 8（010）：按目标租户重绑定 ctx（调用方可能先于租户中间件/后台触发）。
+	ctx = tenantctx.WithTenantID(ctx, tenantID)
 	// P2-04 修复：业务保护四道闸
 	// 1) 商品必须存在
 	item, err := s.db.MarketplaceItem.Get(ctx, itemID)
@@ -241,6 +244,7 @@ func (s *Service) InstallItem(ctx context.Context, tenantID, itemID int, install
 
 // UninstallItem 租户卸载商品
 func (s *Service) UninstallItem(ctx context.Context, tenantID, itemID int) error {
+	ctx = tenantctx.WithTenantID(ctx, tenantID)
 	// 查找安装记录
 	installation, err := s.db.TenantInstallation.Query().
 		Where(
@@ -283,6 +287,7 @@ func (s *Service) UninstallItem(ctx context.Context, tenantID, itemID int) error
 
 // GetInstallation 获取租户的安装信息
 func (s *Service) GetInstallation(ctx context.Context, tenantID, itemID int) (*ent.TenantInstallation, error) {
+	ctx = tenantctx.WithTenantID(ctx, tenantID)
 	installation, err := s.db.TenantInstallation.Query().
 		Where(
 			tenantinstallation.TenantID(tenantID),
@@ -302,6 +307,7 @@ func (s *Service) GetInstallation(ctx context.Context, tenantID, itemID int) (*e
 
 // ListInstallations 列出租户的所有已安装组件
 func (s *Service) ListInstallations(ctx context.Context, tenantID int, status string) ([]*ent.TenantInstallation, error) {
+	ctx = tenantctx.WithTenantID(ctx, tenantID)
 	query := s.db.TenantInstallation.Query().
 		Where(tenantinstallation.TenantID(tenantID)).
 		WithItem()
@@ -321,6 +327,7 @@ func (s *Service) ListInstallations(ctx context.Context, tenantID int, status st
 
 // UpdateInstallationConfig 更新组件配置
 func (s *Service) UpdateInstallationConfig(ctx context.Context, tenantID, itemID int, config map[string]interface{}) (*ent.TenantInstallation, error) {
+	ctx = tenantctx.WithTenantID(ctx, tenantID)
 	installation, err := s.GetInstallation(ctx, tenantID, itemID)
 	if err != nil {
 		return nil, err
@@ -357,6 +364,7 @@ func (s *Service) UpdateInstallationConfig(ctx context.Context, tenantID, itemID
 // Built-in connector runtime names are short (for example "feishu") while marketplace item names
 // may use a display slug (for example "feishu-connector"), so both are accepted.
 func (s *Service) GetConnectorInstallation(ctx context.Context, tenantID int, connectorName string) (*ent.TenantInstallation, error) {
+	ctx = tenantctx.WithTenantID(ctx, tenantID)
 	installation, err := s.db.TenantInstallation.Query().
 		Where(
 			tenantinstallation.TenantID(tenantID),
@@ -382,6 +390,7 @@ func (s *Service) GetConnectorInstallation(ctx context.Context, tenantID int, co
 
 // MergeConnectorInstallationConfig merges a partial connector config into the tenant installation.
 func (s *Service) MergeConnectorInstallationConfig(ctx context.Context, tenantID int, connectorName string, patch map[string]interface{}) (*ent.TenantInstallation, error) {
+	ctx = tenantctx.WithTenantID(ctx, tenantID)
 	installation, err := s.GetConnectorInstallation(ctx, tenantID, connectorName)
 	if err != nil {
 		return nil, err
