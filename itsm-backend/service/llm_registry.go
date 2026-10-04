@@ -20,6 +20,7 @@ import (
 	"go.uber.org/zap"
 
 	"itsm-backend/common"
+	"itsm-backend/common/tenantctx"
 	"itsm-backend/ent"
 	"itsm-backend/ent/llmproviderconfig"
 	"itsm-backend/ent/llmuserpreference"
@@ -783,6 +784,8 @@ func (r *LLMProviderRegistry) loadSnapshot(ctx context.Context, tenantID int) (*
 	if r.client == nil || tenantID <= 0 {
 		return snap, nil
 	}
+	// RLS 批次 7（009）：注册表快照可能由非请求作用域触发（缓存刷新等），按目标租户重绑定。
+	ctx = tenantctx.WithTenantID(ctx, tenantID)
 	records, err := r.client.LLMProviderConfig.Query().
 		Where(
 			llmproviderconfig.TenantIDEQ(tenantID),
@@ -817,6 +820,7 @@ func (r *LLMProviderRegistry) resolveOverride(ctx context.Context, tenantID int,
 	if r.client == nil || tenantID <= 0 {
 		return ProviderSlot{}, fmt.Errorf("%w: provider %q", ErrProviderNotFound, providerKey)
 	}
+	ctx = tenantctx.WithTenantID(ctx, tenantID)
 	record, err := r.client.LLMProviderConfig.Query().
 		Where(
 			llmproviderconfig.TenantIDEQ(tenantID),

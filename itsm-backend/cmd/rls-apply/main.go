@@ -72,6 +72,33 @@ var rlsManagedTables = []string{
 	"bot_templates", "bot_tool_grants",
 	"ai_analysis_results", "ai_feedbacks", "llm_user_preferences",
 	"operational_commands",
+	// 009 批次 7 长尾业务域
+	"configuration_items", "configuration_item_histories", "ci_attribute_definitions",
+	"ci_relationships", "ci_tags", "ci_types", "applications", "microservices",
+	"cloud_accounts", "cloud_resources", "cloud_services",
+	"discovery_jobs", "discovery_results", "discovery_sources",
+	"cmdb_export_tasks", "cmdb_import_tasks", "cmdb_identity_migration_conflicts",
+	"cmdb_saved_views", "assets", "asset_licenses",
+	"change_approval_chains", "change_approvals", "change_implementation_plans",
+	"change_pi_rs", "change_risk_assessments", "change_rollback_executions",
+	"change_rollback_plans", "standard_changes", "cab_members",
+	"approval_workflows", "approval_chains", "approval_records", "ticket_approvals",
+	"incident_rules", "incident_escalation_rules", "incident_rule_executions",
+	"incident_metrics", "incident_events",
+	"problems", "root_cause_analyses", "known_errors", "releases",
+	"teams", "departments", "customer_branches", "source_organizations",
+	"relationship_types", "service_customers", "contracts", "support_contracts",
+	"external_contract_references", "vendors", "on_call_schedules", "on_call_shifts",
+	"engineer_skills",
+	"ticket_categories", "ticket_assignment_rules", "ticket_automation_rules",
+	"ticket_views", "ticket_tags", "tags",
+	"surveys", "survey_responses",
+	"sla_policies", "sla_alert_rules",
+	"service_catalogs",
+	"process_definitions", "process_deployments", "process_bindings",
+	"llm_provider_configs",
+	"attachments",
+	"alerts", "ai_analysis_result", "endpoint_ac_ls",
 }
 
 // rlsProbeTables — 逐表低权探针清单（003 批次 1 + 004 批次 2 + 005 批次 3；changes 走带播种的特殊探针）。
@@ -102,6 +129,9 @@ var rlsProbeTables = []string{
 	"bot_templates", "bot_tool_grants",
 	"ai_analysis_results", "ai_feedbacks", "llm_user_preferences",
 	"operational_commands",
+	"configuration_items", "change_risk_assessments", "approval_workflows",
+	"incident_events", "problems", "teams", "ticket_categories", "tags",
+	"sla_policies", "process_definitions", "llm_provider_configs", "attachments",
 }
 
 func main() {

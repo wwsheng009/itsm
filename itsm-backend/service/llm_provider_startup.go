@@ -11,6 +11,7 @@ import (
 	"strings"
 
 	"itsm-backend/common"
+	"itsm-backend/common/tenantctx"
 	"itsm-backend/ent"
 	"itsm-backend/ent/llmproviderconfig"
 )
@@ -77,6 +78,9 @@ func CountUsableLLMProviderInstances(ctx context.Context, client *ent.Client, de
 	if client == nil || decrypter == nil {
 		return 0, nil
 	}
+	// RLS 批次 7（009）：启动探针需跨租户统计可用实例（无请求作用域），显式以 system 运行。
+	ctx = tenantctx.SystemContext(ctx, "llm-provider:startup-probe",
+		"count usable provider instances across tenants at startup")
 	records, err := client.LLMProviderConfig.Query().
 		Where(
 			llmproviderconfig.EnabledEQ(true),
