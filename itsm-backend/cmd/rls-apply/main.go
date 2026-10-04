@@ -48,8 +48,8 @@ var rlsManagedTables = []string{
 	"sla_definitions", "sla_metrics", "sla_violations", "sla_alert_histories", // 004 SLA
 	"knowledge_articles", "knowledge_article_likes", // 004 知识库
 	"service_requests", "service_request_approvals", "service_catalog_items", // 004 服务请求
-	"invitations",                   // 004 邀请
-	"incidents", "incident_alerts",  // 004 事件
+	"invitations",                  // 004 邀请
+	"incidents", "incident_alerts", // 004 事件
 	"ticket_types", "ticket_templates", // 004 工单配置
 	"conversations", "messages", // 005 AI 会话
 	"mcp_servers", "mcp_server_tools", "tool_invocations", // 005 AI 工具/MCP
@@ -57,6 +57,13 @@ var rlsManagedTables = []string{
 	"email_conversations", "email_intake_analyses", "email_outbound_messages", // 005 邮件
 	"inbound_email_messages", "feishu_ticket_syncs", // 005 邮件/飞书
 	"domain_configs", "provisioning_tasks", // 005 域名/供给
+	// 006 批次 4 流程/工作流/审批引擎
+	"process_instances", "process_tasks", "process_audit_logs", "process_variables",
+	"process_timers", "process_version_changelogs", "process_approval_decisions",
+	"process_execution_histories",
+	"workflow_instances", "workflow_tasks", "workflow_templates", "workflow_versions",
+	"workflows",
+	"bpmn_permissions",
 }
 
 // rlsProbeTables — 逐表低权探针清单（003 批次 1 + 004 批次 2 + 005 批次 3；changes 走带播种的特殊探针）。
@@ -75,6 +82,12 @@ var rlsProbeTables = []string{
 	"email_conversations", "email_intake_analyses", "email_outbound_messages",
 	"inbound_email_messages", "feishu_ticket_syncs",
 	"domain_configs", "provisioning_tasks",
+	"process_instances", "process_tasks", "process_audit_logs", "process_variables",
+	"process_timers", "process_version_changelogs", "process_approval_decisions",
+	"process_execution_histories",
+	"workflow_instances", "workflow_tasks", "workflow_templates", "workflow_versions",
+	"workflows",
+	"bpmn_permissions",
 }
 
 func main() {

@@ -550,3 +550,62 @@ func TestBatch3_TenantScopeIsolation(t *testing.T) {
 		})
 	}
 }
+
+// ---------------------------------------------------------------------------
+// 006 批次 4（流程引擎 / 工作流 / BPMN 权限）逐表隔离回归
+// ---------------------------------------------------------------------------
+
+// batch4Tables 与 database/rls/migrations/006_process_workflow_tables_policies.sql 对齐。
+var batch4Tables = []string{
+	"process_instances",
+	"process_tasks",
+	"process_audit_logs",
+	"process_variables",
+	"process_timers",
+	"process_version_changelogs",
+	"process_approval_decisions",
+	"process_execution_histories",
+	"workflow_instances",
+	"workflow_tasks",
+	"workflow_templates",
+	"workflow_versions",
+	"workflows",
+	"bpmn_permissions",
+}
+
+// TestBatch4_TenantScopeIsolation 逐表验证 006 批次 4 的 DB 级租户隔离：
+// 正例（数据最多租户可见）> 0，反例（不存在租户 999999）== 0；空表仅验证 fail-closed。
+func TestBatch4_TenantScopeIsolation(t *testing.T) {
+	db := openTestDB(t)
+	defer db.Close()
+	ensureTenantHelper(t)
+
+	for _, table := range batch4Tables {
+		table := table
+		t.Run(table, func(t *testing.T) {
+			teardown, ok := setupTablePolicyFor(t, table)
+			if !ok {
+				t.Skipf("%s 不存在，跳过", table)
+			}
+			defer teardown()
+
+			positive := pickTenantWithData(t, table)
+			if positive == 0 {
+				if n := countTableAs(t, db, WithTenant(context.Background(), 999999), table); n != 0 {
+					t.Fatalf("%s: tenant 999999 saw %d rows", table, n)
+				}
+				t.Skipf("%s 无数据：仅验证 fail-closed", table)
+			}
+
+			n1 := countTableAs(t, db, WithTenant(context.Background(), int64(positive)), table)
+			if n1 == 0 {
+				t.Fatalf("%s: tenant %d saw 0 rows", table, positive)
+			}
+			nOther := countTableAs(t, db, WithTenant(context.Background(), 999999), table)
+			if nOther != 0 {
+				t.Fatalf("%s: tenant 999999 saw %d rows (RLS bypassed?)", table, nOther)
+			}
+			t.Logf("%s: tenant=%d visible=%d, tenant=999999 visible=%d ✓", table, positive, n1, nOther)
+		})
+	}
+}

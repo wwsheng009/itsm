@@ -7,6 +7,7 @@ import (
 	"strings"
 	"time"
 
+	"itsm-backend/common/tenantctx"
 	"itsm-backend/connector"
 	"itsm-backend/ent"
 	"itsm-backend/ent/processtask"
@@ -111,6 +112,9 @@ func classifyWorkflowTasks(ctx context.Context, client *ent.Client, cutoff time.
 	if client == nil {
 		return workflowTaskHealth{}
 	}
+	// RLS 批次 4（006）：本函数是平台级诊断，设计上跨租户统计逾期/孤儿任务；
+	// enforce 下显式使用 system 作用域，避免被 tenant_isolation 策略收窄为 0。
+	ctx = tenantctx.WithSystemBypass(ctx)
 	tasks, err := client.ProcessTask.Query().Where(
 		processtask.StatusEQ("created"),
 		processtask.CreatedTimeLT(cutoff),
