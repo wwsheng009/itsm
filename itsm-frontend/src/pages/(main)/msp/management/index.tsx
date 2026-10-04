@@ -48,22 +48,6 @@ export default function MSPManagementPage() {
     }
   };
 
-  if (accessError) {
-    return (
-      <div style={{ padding: 24 }}>
-        <Alert message={accessError} type="error" showIcon />
-      </div>
-    );
-  }
-
-  if (!hasAccess) {
-    return (
-      <div style={{ padding: 24, textAlign: 'center' }}>
-        <Spin size="large" />
-      </div>
-    );
-  }
-
   const loadData = async () => {
     setLoading(true);
     try {
@@ -98,6 +82,26 @@ export default function MSPManagementPage() {
       setLoading(false);
     }
   };
+
+  // D-10b：提前 return 必须放在所有被 effect 闭包引用的函数（loadData）之后——
+  // 否则首帧 `hasAccess=false` 提前返回，loadData 的 const 绑定未初始化，
+  // effect 里的 checkAccess() 再调用它即触发 TDZ：
+  // "Cannot access 'loadData' before initialization"（E1 验收实锤）。
+  if (accessError) {
+    return (
+      <div style={{ padding: 24 }}>
+        <Alert message={accessError} type="error" showIcon />
+      </div>
+    );
+  }
+
+  if (!hasAccess) {
+    return (
+      <div style={{ padding: 24, textAlign: 'center' }}>
+        <Spin size="large" />
+      </div>
+    );
+  }
 
   const handleCreate = async (values: CreateAllocationRequest) => {
     try {

@@ -23,34 +23,25 @@ export class MSPService {
     total: number;
   }> {
     const res = await MSPAPI.getAllocations(params);
-    if (res.data) {
-      return {
-        allocations: res.data.allocations,
-        total: res.data.total,
-      };
-    }
-    return { allocations: [], total: 0 };
+    return {
+      allocations: res?.allocations ?? [],
+      total: res?.total ?? 0,
+    };
   }
 
   /**
    * 创建分配（MSP Manager）
    */
   static async createAllocation(data: CreateAllocationRequest): Promise<MSPAllocation> {
-    const res = await MSPAPI.createAllocation(data);
-    if (res.code !== 0) {
-      throw new Error(res.message || '创建分配失败');
-    }
-    return res.data;
+    // 业务失败由 httpClient 直接 throw（含后端 message），此处只做透传。
+    return MSPAPI.createAllocation(data);
   }
 
   /**
    * 解除分配
    */
   static async deallocate(mspUserId: number, customerTenantId: number, reason?: string): Promise<void> {
-    const res = await MSPAPI.deallocate(mspUserId, customerTenantId, reason);
-    if (res.code !== 0) {
-      throw new Error(res.message || '解除分配失败');
-    }
+    await MSPAPI.deallocate(mspUserId, customerTenantId, reason);
   }
 
   /**
@@ -61,13 +52,10 @@ export class MSPService {
     total: number;
   }> {
     const res = await MSPAPI.getCustomers();
-    if (res.data) {
-      return {
-        customers: res.data.customers,
-        total: res.data.total,
-      };
-    }
-    return { customers: [], total: 0 };
+    return {
+      customers: res?.customers ?? [],
+      total: res?.total ?? 0,
+    };
   }
 
   /**
@@ -89,14 +77,12 @@ export class MSPService {
     total: number;
   }> {
     const res = await MSPAPI.getCustomerTickets(customerTenantId, params);
-    if (res.data && res.data.tickets) {
-      const tickets = Array.isArray(res.data.tickets) ? res.data.tickets : [res.data.tickets];
-      return {
-        tickets,
-        total: res.data.total || 0,
-      };
-    }
-    return { tickets: [], total: 0 };
+    const raw = res?.tickets;
+    const tickets = Array.isArray(raw) ? raw : raw ? [raw] : [];
+    return {
+      tickets,
+      total: res?.total || 0,
+    };
   }
 
   /**
@@ -107,11 +93,7 @@ export class MSPService {
     customerTenantId: number,
     assignerUserId?: number
   ): Promise<{ id: number; status: string }> {
-    const res = await MSPAPI.assignTechnician(ticketId, customerTenantId, assignerUserId);
-    if (res.code !== 0) {
-      throw new Error(res.message || '分配技术员失败');
-    }
-    return res.data;
+    return MSPAPI.assignTechnician(ticketId, customerTenantId, assignerUserId);
   }
 
   /**
@@ -123,7 +105,7 @@ export class MSPService {
     customerTenantId?: number;
   }): Promise<MSPCustomerReport[]> {
     const res = await MSPAPI.getCustomerReports(params);
-    return res.data || [];
+    return res || [];
   }
 
   /**
@@ -145,8 +127,8 @@ export class MSPService {
       return this.mspContext;
     }
     const res = await MSPAPI.getMSPContext();
-    if (res.code === 0 && res.data) {
-      this.mspContext = res.data;
+    if (res) {
+      this.mspContext = res;
       return this.mspContext;
     }
     return null;
@@ -170,7 +152,7 @@ export class MSPService {
     endDate?: string;
   }): Promise<MSPAllocationHistory[]> {
     const res = await MSPAPI.getAllocationHistory(params);
-    return res.data || [];
+    return res || [];
   }
 }
 

@@ -28,6 +28,7 @@ import {
 import { useI18n } from '@/lib/i18n';
 import { httpClient } from '@/lib/api/http-client';
 import { TicketTypeApi } from '@/lib/api/ticketTypeApi';
+import { mapTicketCreateError } from '@/lib/utils/ticket-create-error';
 import type { CustomFieldDefinition } from '@/types/ticket-type';
 import { htmlToPlainText, isRichTextEmpty, isRichTextEnabled } from '@/lib/rich-text/sanitize';
 import {
@@ -501,10 +502,8 @@ export default function CreateTicketPage() {
     } catch (e: unknown) {
       message.destroy(uploadKey);
       console.error('Create ticket error:', e);
-      const errorObj = e as { message?: string; error?: { message?: string } };
-      const errorMsg =
-        errorObj?.message || errorObj?.error?.message || '创建工单失败，请检查输入或重新登录';
-      message.error(errorMsg);
+      // IP-P2-6：租户硬配额 422 的英文技术文案在此统一转为用户可读提示（单测锁定）。
+      message.error(mapTicketCreateError(e));
     } finally {
       setLoading(false);
     }

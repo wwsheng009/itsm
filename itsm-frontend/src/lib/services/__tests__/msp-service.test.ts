@@ -36,7 +36,7 @@ describe('MSPService', () => {
   describe('getAllocations', () => {
     it('should return allocations when data exists', async () => {
       const allocations = [{ id: 1, mspUserId: 10, customerTenantId: 20 }];
-      mockGetAllocations.mockResolvedValue({ data: { allocations, total: 1 } });
+      mockGetAllocations.mockResolvedValue({ allocations, total: 1 });
 
       const result = await MSPService.getAllocations({ page: 1, pageSize: 10 });
 
@@ -46,7 +46,7 @@ describe('MSPService', () => {
     });
 
     it('should return empty when no data', async () => {
-      mockGetAllocations.mockResolvedValue({ data: null });
+      mockGetAllocations.mockResolvedValue(undefined);
 
       const result = await MSPService.getAllocations();
 
@@ -57,7 +57,7 @@ describe('MSPService', () => {
   describe('createAllocation', () => {
     it('should create allocation successfully', async () => {
       const allocation = { id: 1, mspUserId: 10, customerTenantId: 20 };
-      mockCreateAllocation.mockResolvedValue({ code: 0, data: allocation });
+      mockCreateAllocation.mockResolvedValue(allocation);
 
       const result = await MSPService.createAllocation({ mspUserId: 10, customerTenantId: 20 } as any);
 
@@ -65,7 +65,7 @@ describe('MSPService', () => {
     });
 
     it('should throw error on failure', async () => {
-      mockCreateAllocation.mockResolvedValue({ code: 1, message: 'Allocation failed' });
+      mockCreateAllocation.mockRejectedValue(new Error('Allocation failed'));
 
       await expect(MSPService.createAllocation({} as any)).rejects.toThrow('Allocation failed');
     });
@@ -73,7 +73,7 @@ describe('MSPService', () => {
 
   describe('deallocate', () => {
     it('should deallocate successfully', async () => {
-      mockDeallocate.mockResolvedValue({ code: 0 });
+      mockDeallocate.mockResolvedValue(undefined);
 
       await MSPService.deallocate(10, 20, 'No longer needed');
 
@@ -81,7 +81,7 @@ describe('MSPService', () => {
     });
 
     it('should throw error on failure', async () => {
-      mockDeallocate.mockResolvedValue({ code: 1, message: 'Deallocate failed' });
+      mockDeallocate.mockRejectedValue(new Error('Deallocate failed'));
 
       await expect(MSPService.deallocate(10, 20)).rejects.toThrow('Deallocate failed');
     });
@@ -90,7 +90,7 @@ describe('MSPService', () => {
   describe('getCustomers', () => {
     it('should return customers when data exists', async () => {
       const customers = [{ id: 1, code: 'C1', name: 'Customer 1' }];
-      mockGetCustomers.mockResolvedValue({ data: { customers, total: 1 } });
+      mockGetCustomers.mockResolvedValue({ customers, total: 1 });
 
       const result = await MSPService.getCustomers();
 
@@ -99,7 +99,7 @@ describe('MSPService', () => {
     });
 
     it('should return empty when no data', async () => {
-      mockGetCustomers.mockResolvedValue({ data: null });
+      mockGetCustomers.mockResolvedValue(undefined);
 
       const result = await MSPService.getCustomers();
 
@@ -110,7 +110,7 @@ describe('MSPService', () => {
   describe('getCustomerTickets', () => {
     it('should return customer tickets', async () => {
       const tickets = [{ id: 1, title: 'Ticket 1', status: 'open' }];
-      mockGetCustomerTickets.mockResolvedValue({ data: { tickets, total: 1 } });
+      mockGetCustomerTickets.mockResolvedValue({ tickets, total: 1 });
 
       const result = await MSPService.getCustomerTickets(20, { status: 'open' });
 
@@ -121,7 +121,7 @@ describe('MSPService', () => {
 
     it('should handle non-array tickets response', async () => {
       const ticket = { id: 1, title: 'Single Ticket', status: 'open' };
-      mockGetCustomerTickets.mockResolvedValue({ data: { tickets: ticket, total: 1 } });
+      mockGetCustomerTickets.mockResolvedValue({ tickets: ticket, total: 1 });
 
       const result = await MSPService.getCustomerTickets(20);
 
@@ -129,7 +129,7 @@ describe('MSPService', () => {
     });
 
     it('should return empty when no data', async () => {
-      mockGetCustomerTickets.mockResolvedValue({ data: null });
+      mockGetCustomerTickets.mockResolvedValue(undefined);
 
       const result = await MSPService.getCustomerTickets(20);
 
@@ -139,7 +139,7 @@ describe('MSPService', () => {
 
   describe('assignTechnician', () => {
     it('should assign technician successfully', async () => {
-      mockAssignTechnician.mockResolvedValue({ code: 0, data: { id: 1, status: 'assigned' } });
+      mockAssignTechnician.mockResolvedValue({ id: 1, status: 'assigned' });
 
       const result = await MSPService.assignTechnician(100, 20, 5);
 
@@ -148,7 +148,7 @@ describe('MSPService', () => {
     });
 
     it('should throw error on failure', async () => {
-      mockAssignTechnician.mockResolvedValue({ code: 1, message: 'Assignment failed' });
+      mockAssignTechnician.mockRejectedValue(new Error('Assignment failed'));
 
       await expect(MSPService.assignTechnician(100, 20)).rejects.toThrow('Assignment failed');
     });
@@ -157,7 +157,7 @@ describe('MSPService', () => {
   describe('getCustomerReports', () => {
     it('should return customer reports', async () => {
       const reports = [{ customerId: 1, ticketCount: 5 }];
-      mockGetCustomerReports.mockResolvedValue({ data: reports });
+      mockGetCustomerReports.mockResolvedValue(reports);
 
       const result = await MSPService.getCustomerReports({ startDate: '2024-01-01', endDate: '2024-01-31' });
 
@@ -165,7 +165,7 @@ describe('MSPService', () => {
     });
 
     it('should return empty array when no data', async () => {
-      mockGetCustomerReports.mockResolvedValue({ data: null });
+      mockGetCustomerReports.mockResolvedValue(undefined);
 
       const result = await MSPService.getCustomerReports({ startDate: '2024-01-01', endDate: '2024-01-31' });
 
@@ -197,24 +197,22 @@ describe('MSPService', () => {
   describe('getMSPContext', () => {
     it('should fetch and cache MSP context', async () => {
       const context = { tenantId: 1, role: 'admin' };
-      mockGetMSPContext.mockResolvedValue({ code: 0, data: context });
+      mockGetMSPContext.mockResolvedValue(context);
 
       const result = await MSPService.getMSPContext();
 
       expect(result).toEqual(context);
     });
 
-    it('should return null when API returns error code', async () => {
-      mockGetMSPContext.mockResolvedValue({ code: 1, data: null });
+    it('should propagate business error', async () => {
+      mockGetMSPContext.mockRejectedValue(new Error('forbidden'));
 
-      const result = await MSPService.getMSPContext();
-
-      expect(result).toBeNull();
+      await expect(MSPService.getMSPContext()).rejects.toThrow('forbidden');
     });
 
     it('should return cached context on subsequent calls', async () => {
       const context = { tenantId: 1, role: 'admin' };
-      mockGetMSPContext.mockResolvedValue({ code: 0, data: context });
+      mockGetMSPContext.mockResolvedValue(context);
 
       await MSPService.getMSPContext();
       const result = await MSPService.getMSPContext();
@@ -242,7 +240,7 @@ describe('MSPService', () => {
   describe('getAllocationHistory', () => {
     it('should return allocation history', async () => {
       const history = [{ id: 1, action: 'allocated' }];
-      mockGetAllocationHistory.mockResolvedValue({ data: history });
+      mockGetAllocationHistory.mockResolvedValue(history);
 
       const result = await MSPService.getAllocationHistory({ mspUserId: 10 });
 
@@ -251,7 +249,7 @@ describe('MSPService', () => {
     });
 
     it('should return empty array when no data', async () => {
-      mockGetAllocationHistory.mockResolvedValue({ data: null });
+      mockGetAllocationHistory.mockResolvedValue(undefined);
 
       const result = await MSPService.getAllocationHistory({});
 

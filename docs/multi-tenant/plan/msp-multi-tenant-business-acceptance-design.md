@@ -187,6 +187,7 @@ pwsh scripts/msp/acceptance/run-msp-business-acceptance.ps1 -Base http://127.0.0
 | v1.1 | 2026-10-03 | 首轮实测校准：P3 分配真值改用 `/msp/customers`；I3/I6 反例改用「未分配客户B」；P9 改为状态机合法终局 `pending` + 新增 C6 客户确认解决；C2b 明确 token 在 `/invite/<token>` 路径段 |
 | v1.2 | 2026-10-04 | 第二波「操作链与规则逻辑」：新增 G8–G12（L 生命周期链 9 项 / W 批量逐条 3 项 / R 分配回收 6 项 / Q 硬配额 6 项 / T 暂停恢复 7 项）；实测 **70/70 全绿**（FAIL=0 SKIP=0，88s）。同期修复 D-2（重复分配 409）与 D-6（工单号跨租户碰撞）、D-7（状态机绕过），登记 D-5/D-8 |
 | v1.3 | 2026-10-04 | 新增 §11 **UI 操作层验收**（Playwright `flow-msp-workbench-ui.spec.ts`，U1–U6 两连跑全绿）；发现并修复 **D-9（阻断级）**：provider 用户 `/auth/menus` 返回 `admin:null` → Header 面包屑崩溃 → 整页 ErrorBoundary（服务商无法进入工作台）；固化三条 UI 稳定性经验 |
+| v1.4 | 2026-10-04 | 新增 §12 **UI 错误态呈现验收**（`flow-msp-error-presentation.spec.ts`：E1 重复分配 409 / E2 超配额 422，两连跑全绿）；发现并修复 **D-10/D-10b（阻断级）**：`msp-api` envelope 解包契约错位 → /msp/management 全角色「无权限」；management 页 TDZ（`loadData` before initialization）。 |
 
 ## 9. 首轮实测发现（2026-10-03，本机 saas_msp）
 
@@ -301,3 +302,24 @@ pwsh scripts/msp/acceptance/run-msp-business-acceptance.ps1 -Base http://127.0.0
 | # | 发现 | 处置 |
 |---|---|---|
 | D-9 | **provider 用户整站白屏（阻断级）**：`/api/v1/auth/menus` 对 mspadmin 返回 `admin: null`；`useBuildBreadcrumb → collectMenuLabels` 直接 `for...of null` 抛 `TypeError: items is not iterable`，Header 触发整页 ErrorBoundary——**MSP 目标用户（服务商）无法进入工作台**。API 层验收 70 项全绿也无法暴露（纯前端运行时缺陷）。 | **两端修复**：① 后端 `buildMenuTree` 契约化——`main/admin` 恒为非 nil 数组（空则 `[]`），JSON 不再出现 `null`；回归 `TestBuildMenuTreeReturnsEmptySlicesNotNull`。② 前端 `collectMenuLabels` 增加 `Array.isArray` 防御、`Sidebar` 空菜单判定容错（双保险）；回归 `breadcrumb-utils.test.tsx`（2 例：admin=null / 全部为 null 均不崩页）。 |
+| D-10 | **`/msp/management`（分配管理）全角色不可用（阻断级）**：`MSPAPI` 仍按「envelope」消费 `httpClient.get` 返回值（`res.data?.isMsp`），而 `httpClient` 早已做**通用解包**（返回 `envelope.data`、业务错误 throw）——`isMsp` 恒 false → 页面永远显示「您没有权限访问此页面」；分配/客户列表同理读空。同类错位还波及 `/msp` 概览页。 | **已修复**：`msp-api.ts` 全量改为「解包后数据」契约（含 `isMSPUser/getAllocations/getCustomers/...`）；`msp-service.ts` 适配解包语义（空值兜底、错误交由 httpClient throw）；单测/mock 同步（42 例）。E1 验收锁定。 |
+| D-10b | **D-10 修复后暴露的第二层阻断**：`management/index.tsx` 的两个提前 `return`（accessError / !hasAccess）位于 `const loadData = ...` **之前**——首帧提前返回使 `loadData` 的 TDZ 绑定未初始化，effect 闭包内 `checkAccess() → loadData()` 抛 `Cannot access 'loadData' before initialization`（错误被 catch 后显示为 Alert 文案）。 | **已修复**：提前 `return` 移至所有被 effect 引用的函数定义之后（含注释说明）；E1 验收锁定。 |
+
+## 12. UI 错误态呈现验收（Playwright，2026-10-04）
+
+> 目标：把 R6（重复分配 409）/ Q（超配额 422）等**错误态**从 HTTP 判定平移到浏览器呈现层——
+> 错误必须**可见、可读、不崩页、表单可继续使用**。
+> Spec：`itsm-frontend/tests/e2e/flows/flow-msp-error-presentation.spec.ts`（标签 `@multi-tenant`）。
+
+| ID | 链路 | 判据 | 实测 |
+|---|---|---|---|
+| E1 | mspadmin 在 **/msp/management** 新建已存在的（员工, 客户）分配 | 后端 409 + `MSP_ALLOCATION_EXISTS`；弹窗内出现「该员工已分配至该客户」；弹窗不关闭、提交按钮仍可用；关闭后可再次打开 | ✅ 34.2s |
+| E2 | 客户 A `maxTicketsPerMonth` 设为本月已用量后，客户管理员在 **/tickets/create** 提交 | 后端 422；页面出现**用户可读中文**提示（「本月工单数量已达租户配额上限…」）；标题保留、提交按钮仍可用 | ✅ 33.3s |
+
+**期间发现与修复（D-10 系列，阻断级）**：
+
+| # | 发现 | 处置 |
+|---|---|---|
+| D-10 | `msp-api.ts` 把 `httpClient` 的解包结果当 envelope 读取（`res.data?.isMsp` 恒 undefined）→ `/msp/management` 对**所有角色**显示「您没有权限访问此页面」；`/msp` 概览数据读空。API 层与既有单测均绿（测试 mock 了错误形状）。 | **已修复**：`msp-api` 全量改为「解包后数据」契约（成功=business data、失败=httpClient throw）；`msp-service` 同步适配；单测/mock 对齐（42 例）。 |
+| D-10b | D-10 修复后暴露第二层：management 页两个提前 `return` 位于 `const loadData` **之前**——首帧未初始化即被 effect 闭包调用 → `Cannot access 'loadData' before initialization`（Alert 显示该文案）。 | **已修复**：提前 `return` 移至所有被 effect 引用函数定义之后。 |
+| — | 配额 422 的 envelope.message 为英文技术文案。 | **已修复**：新增 `mapTicketCreateError`（按 `httpStatus===422` 判定，不依赖文案；单测 4 例），页面提示改为中文。 |
