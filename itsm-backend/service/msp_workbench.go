@@ -126,7 +126,7 @@ func (s *MSPWorkbenchService) ListTickets(ctx context.Context, actor MSPWorkbenc
 	tenantIDs, err := s.normalizeTenantSet(req.CustomerTenantIDs, actor.AllowedCustomers)
 	if err != nil {
 		if ae, ok := AsCustomerAccessError(err); ok && ae.Code == CodeMSPAllocationRequired {
-			s.recordScopeDenied(actor, req.CustomerTenantIDs)
+			s.recordScopeDenied(ctx, actor, req.CustomerTenantIDs)
 		}
 		return nil, err
 	}
@@ -559,10 +559,10 @@ func (s *MSPWorkbenchService) Reply(ctx context.Context, actor MSPWorkbenchActor
 		Content: req.Content,
 	}, actor.UserID, t.TenantID)
 	if err != nil {
-		s.recordWorkbenchAudit(actor, "reply", t.TenantID, ticketID, "failed")
+		s.recordWorkbenchAudit(ctx, actor, "reply", t.TenantID, ticketID, "failed")
 		return nil, err
 	}
-	s.recordWorkbenchAudit(actor, "reply", t.TenantID, ticketID, "success")
+	s.recordWorkbenchAudit(ctx, actor, "reply", t.TenantID, ticketID, "success")
 	return comment, nil
 }
 
@@ -577,10 +577,10 @@ func (s *MSPWorkbenchService) ChangeStatus(ctx context.Context, actor MSPWorkben
 	}
 	updated, err := s.ticketSvc.UpdateTicketStatus(tenantctx.WithTenantID(ctx, t.TenantID), ticketID, strings.TrimSpace(req.Status), t.TenantID, actor.UserID)
 	if err != nil {
-		s.recordWorkbenchAudit(actor, "status", t.TenantID, ticketID, "failed")
+		s.recordWorkbenchAudit(ctx, actor, "status", t.TenantID, ticketID, "failed")
 		return nil, err
 	}
-	s.recordWorkbenchAudit(actor, "status", t.TenantID, ticketID, "success")
+	s.recordWorkbenchAudit(ctx, actor, "status", t.TenantID, ticketID, "success")
 	// A12 通知双投递：工作台条目级改状态触发状态通知（客户侧 requester/assignee + provider 侧）。
 	s.ticketSvc.NotifyTicketStatusChanged(tenantctx.WithTenantID(ctx, t.TenantID), ticketID, t.Status, strings.TrimSpace(req.Status), t.TenantID)
 	return updated, nil
@@ -631,7 +631,8 @@ func (s *MSPWorkbenchService) ensureAllocated(actor MSPWorkbenchActor, tenantID 
 }
 
 // recordWorkbenchAudit 跨租户写逐条审计（事件 workbench.action；source/target_tenant_id/actor_account 落列）。
-func (s *MSPWorkbenchService) recordWorkbenchAudit(actor MSPWorkbenchActor, op string, tenantID, ticketID int, outcome string) {
+// ctx 必须携带 actor 家租户（enforce 下审计行 tenant_id = 当前租户作用域，fail-closed）。
+func (s *MSPWorkbenchService) recordWorkbenchAudit(ctx context.Context, actor MSPWorkbenchActor, op string, tenantID, ticketID int, outcome string) {
 	if s.client == nil {
 		return
 	}
@@ -649,7 +650,7 @@ func (s *MSPWorkbenchService) recordWorkbenchAudit(actor MSPWorkbenchActor, op s
 	if rowTenant <= 0 {
 		rowTenant = tenantID
 	}
-	auditCtx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	auditCtx, cancel := context.WithTimeout(ctx, 2*time.Second)
 	defer cancel()
 	if _, err := s.client.AuditLog.Create().
 		SetCreatedAt(time.Now()).
@@ -670,7 +671,8 @@ func (s *MSPWorkbenchService) recordWorkbenchAudit(actor MSPWorkbenchActor, op s
 }
 
 // recordScopeDenied 显式请求未分配客户 → 审计 tenant.scope_denied（防枚举：逐租户记录，不泄露存在性）。
-func (s *MSPWorkbenchService) recordScopeDenied(actor MSPWorkbenchActor, requested []int) {
+// ctx 必须携带 actor 家租户（enforce 下审计行 tenant_id = 当前租户作用域，fail-closed）。
+func (s *MSPWorkbenchService) recordScopeDenied(ctx context.Context, actor MSPWorkbenchActor, requested []int) {
 	if s.client == nil || len(requested) == 0 {
 		return
 	}
@@ -689,7 +691,7 @@ func (s *MSPWorkbenchService) recordScopeDenied(actor MSPWorkbenchActor, request
 			"actor_home_tenant_id": actor.HomeTenantID,
 			"target_tenant_id":     tid,
 		})
-		auditCtx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+		auditCtx, cancel := context.WithTimeout(ctx, 2*time.Second)
 		_, err := s.client.AuditLog.Create().
 			SetCreatedAt(time.Now()).
 			SetTenantID(actor.HomeTenantID).
@@ -757,7 +759,7 @@ func (s *MSPWorkbenchService) Batch(ctx context.Context, actor MSPWorkbenchActor
 			} else if _, aerr := s.ticketSvc.AssignMSPTechnician(ctx, item.TicketID, item.CustomerTenantID, actor.UserID); aerr != nil {
 				err = aerr
 			} else {
-				s.recordWorkbenchAudit(actor, "assign", item.CustomerTenantID, item.TicketID, "success")
+				s.recordWorkbenchAudit(ctx, actor, "assign", item.CustomerTenantID, item.TicketID, "success")
 			}
 		}
 		if err != nil {

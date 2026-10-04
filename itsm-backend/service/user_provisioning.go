@@ -189,13 +189,14 @@ func (s *UserProvisioningService) ProvisionUser(ctx context.Context, actor Provi
 		"user_id", created.ID,
 		"role", created.Role,
 	)
-	s.recordProvisionAudit(actor, channel, target.ID, created.ID)
+	s.recordProvisionAudit(ctx, actor, channel, target.ID, created.ID)
 	return created, nil
 }
 
 // recordProvisionAudit 审计事件 user.provision（IP-P0-10）：source 按通道映射，
 // 审计行归属 actor 家租户，target_tenant_id 指向目标租户。
-func (s *UserProvisioningService) recordProvisionAudit(actor ProvisionActor, channel string, targetTenantID, createdUserID int) {
+// ctx 必须携带 actor 家租户（enforce 下审计行 tenant_id = 当前租户作用域，fail-closed）。
+func (s *UserProvisioningService) recordProvisionAudit(ctx context.Context, actor ProvisionActor, channel string, targetTenantID, createdUserID int) {
 	if s.client == nil {
 		return
 	}
@@ -217,7 +218,7 @@ func (s *UserProvisioningService) recordProvisionAudit(actor ProvisionActor, cha
 		"target_tenant_id":     targetTenantID,
 		"created_user_id":      createdUserID,
 	})
-	auditCtx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	auditCtx, cancel := context.WithTimeout(ctx, 2*time.Second)
 	defer cancel()
 	if _, err := s.client.AuditLog.Create().
 		SetCreatedAt(time.Now()).

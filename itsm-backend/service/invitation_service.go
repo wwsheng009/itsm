@@ -299,7 +299,7 @@ func (s *InvitationService) Create(ctx context.Context, actor InvitationActor, r
 		}
 	}
 
-	s.recordInvitationAudit(actor, channel, target.ID, "user.invite", http.StatusCreated, map[string]any{
+	s.recordInvitationAudit(ctx, actor, channel, target.ID, "user.invite", http.StatusCreated, map[string]any{
 		"invitation_id": created.ID,
 		"channel":       channel,
 		"role_id":       roleEntity.ID,
@@ -339,7 +339,8 @@ func validInvitationEmail(email string) bool {
 }
 
 // recordInvitationAudit 审计 user.invite / user.invite_accept（行归属 actor 家租户，target 指向目标租户）。
-func (s *InvitationService) recordInvitationAudit(actor InvitationActor, channel string, targetTenantID int, action string, status int, payload map[string]any) {
+// ctx 必须携带与行 tenant_id 一致的租户作用域（enforce 下 fail-closed；accept 走带租户的 acceptCtx）。
+func (s *InvitationService) recordInvitationAudit(ctx context.Context, actor InvitationActor, channel string, targetTenantID int, action string, status int, payload map[string]any) {
 	if s == nil || s.client == nil {
 		return
 	}
@@ -364,7 +365,7 @@ func (s *InvitationService) recordInvitationAudit(actor InvitationActor, channel
 		source = middleware.AuditSourceSystem
 	}
 
-	auditCtx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	auditCtx, cancel := context.WithTimeout(ctx, 2*time.Second)
 	defer cancel()
 	path := "/api/v1/users/invitations"
 	method := http.MethodPost
@@ -677,7 +678,7 @@ func (s *InvitationService) Accept(ctx context.Context, token string, req *Accep
 	committed = true
 
 	auditActor := InvitationActor{UserID: userID, HomeTenantID: inv.TenantID, Username: createdOrBound.Username}
-	s.recordInvitationAudit(auditActor, "invite", inv.TenantID, "user.invite_accept", http.StatusCreated, map[string]any{
+	s.recordInvitationAudit(acceptCtx, auditActor, "invite", inv.TenantID, "user.invite_accept", http.StatusCreated, map[string]any{
 		"invitation_id": inv.ID,
 		"user_id":       userID,
 		"bound":         !newUser,

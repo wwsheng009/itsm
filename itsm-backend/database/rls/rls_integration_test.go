@@ -375,14 +375,15 @@ func countTableAs(t *testing.T, db *sql.DB, ctx context.Context, table string) i
 	return n
 }
 
-// pickTenantWithData 返回 table 中行数最多的租户；空表返回 0（owner 连接）。
+// pickTenantWithData 返回 table 中行数最多的租户（忽略 NULL 租户行，如 conversations 历史系统会话）；
+// 空表返回 0（owner 连接）。
 func pickTenantWithData(t *testing.T, table string) int {
 	t.Helper()
 	owner := openOwnerDB(t)
 	defer owner.Close()
 	var tid int
 	err := owner.QueryRowContext(context.Background(),
-		fmt.Sprintf(`SELECT tenant_id FROM %s GROUP BY tenant_id ORDER BY count(*) DESC LIMIT 1`, table)).Scan(&tid)
+		fmt.Sprintf(`SELECT tenant_id FROM %s WHERE tenant_id IS NOT NULL GROUP BY tenant_id ORDER BY count(*) DESC LIMIT 1`, table)).Scan(&tid)
 	if err != nil {
 		return 0
 	}
@@ -461,6 +462,66 @@ func TestBatch2_TenantScopeIsolation(t *testing.T) {
 	ensureTenantHelper(t)
 
 	for _, table := range batch2Tables {
+		table := table
+		t.Run(table, func(t *testing.T) {
+			teardown, ok := setupTablePolicyFor(t, table)
+			if !ok {
+				t.Skipf("%s 不存在，跳过", table)
+			}
+			defer teardown()
+
+			positive := pickTenantWithData(t, table)
+			if positive == 0 {
+				if n := countTableAs(t, db, WithTenant(context.Background(), 999999), table); n != 0 {
+					t.Fatalf("%s: tenant 999999 saw %d rows", table, n)
+				}
+				t.Skipf("%s 无数据：仅验证 fail-closed", table)
+			}
+
+			n1 := countTableAs(t, db, WithTenant(context.Background(), int64(positive)), table)
+			if n1 == 0 {
+				t.Fatalf("%s: tenant %d saw 0 rows", table, positive)
+			}
+			nOther := countTableAs(t, db, WithTenant(context.Background(), 999999), table)
+			if nOther != 0 {
+				t.Fatalf("%s: tenant 999999 saw %d rows (RLS bypassed?)", table, nOther)
+			}
+			t.Logf("%s: tenant=%d visible=%d, tenant=999999 visible=%d ✓", table, positive, n1, nOther)
+		})
+	}
+}
+
+// ---------------------------------------------------------------------------
+// 005 批次 3（AI 会话/工具、MCP、连接器、邮件摄取、域名/供给）逐表隔离回归
+// ---------------------------------------------------------------------------
+
+// batch3Tables 与 database/rls/migrations/005_ai_connector_tables_policies.sql 对齐。
+var batch3Tables = []string{
+	"conversations",
+	"messages",
+	"mcp_servers",
+	"mcp_server_tools",
+	"tool_invocations",
+	"connector_configs",
+	"connector_inbound_dedups",
+	"email_conversations",
+	"email_intake_analyses",
+	"email_outbound_messages",
+	"inbound_email_messages",
+	"feishu_ticket_syncs",
+	"domain_configs",
+	"provisioning_tasks",
+}
+
+// TestBatch3_TenantScopeIsolation 逐表验证 005 批次 3 的 DB 级租户隔离：
+// 正例（数据最多租户可见）> 0，反例（不存在租户 999999）== 0；空表仅验证 fail-closed。
+// conversations 为可空列：仅统计 NOT NULL 租户行（NULL 行对租户 fail-closed）。
+func TestBatch3_TenantScopeIsolation(t *testing.T) {
+	db := openTestDB(t)
+	defer db.Close()
+	ensureTenantHelper(t)
+
+	for _, table := range batch3Tables {
 		table := table
 		t.Run(table, func(t *testing.T) {
 			teardown, ok := setupTablePolicyFor(t, table)
