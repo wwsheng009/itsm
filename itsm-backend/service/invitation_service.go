@@ -129,6 +129,41 @@ type InvitationInfo struct {
 	HasTargetUser bool      `json:"hasTargetUser"`
 }
 
+// ListInvitationsRequest 邀请列表查询（管理面；tenantId 省略时 handler 取当前租户）。
+type ListInvitationsRequest struct {
+	TenantID int
+	Status   string
+	Limit    int
+	Offset   int
+}
+
+// InvitationListItem 邀请列表项（不含 token；含角色/邀请人展示字段）。
+type InvitationListItem struct {
+	ID           int        `json:"id"`
+	TenantID     int        `json:"tenantId"`
+	Email        string     `json:"email"`
+	RoleID       int        `json:"roleId"`
+	RoleCode     string     `json:"roleCode"`
+	RoleName     string     `json:"roleName,omitempty"`
+	MSPRole      string     `json:"mspRole,omitempty"`
+	Status       string     `json:"status"`
+	InvitedBy    int        `json:"invitedBy"`
+	InviterName  string     `json:"inviterName,omitempty"`
+	TargetUserID int        `json:"targetUserId,omitempty"`
+	ExpiresAt    time.Time  `json:"expiresAt"`
+	CreatedAt    time.Time  `json:"createdAt"`
+	AcceptedAt   *time.Time `json:"acceptedAt,omitempty"`
+	RevokedAt    *time.Time `json:"revokedAt,omitempty"`
+}
+
+// ListInvitationsResult 邀请列表结果（分页元信息）。
+type ListInvitationsResult struct {
+	Items  []*InvitationListItem `json:"invitations"`
+	Total  int                   `json:"total"`
+	Limit  int                   `json:"limit"`
+	Offset int                   `json:"offset"`
+}
+
 // InvitationMailer 邀请投递接口；平台 SMTP 未配置时保持 nil，返回 emailSent=false + inviteUrl。
 type InvitationMailer interface {
 	SendInvitation(ctx context.Context, inv *ent.Invitation, token, inviteURL string) (bool, error)
@@ -736,6 +771,146 @@ func (s *InvitationService) Revoke(ctx context.Context, actor InvitationActor, i
 		s.logger.Infow("invitation revoked", "invitation_id", inv.ID, "tenant_id", inv.TenantID, "actor_user_id", actor.UserID)
 	}
 	return updated, nil
+}
+
+// List 邀请列表（管理面）：tenantId 省略取当前租户；status 过滤；惰性过期归一。
+//
+// 授权与创建/撤销同口径（platform/tenant/msp 三通道），保证“能看到的就是能管的”。
+// 列表不含 token / token_hash 等敏感字段。
+func (s *InvitationService) List(ctx context.Context, actor InvitationActor, req *ListInvitationsRequest) (*ListInvitationsResult, error) {
+	if s == nil || s.client == nil {
+		return nil, fmt.Errorf("invitation service unavailable")
+	}
+	if req == nil {
+		return nil, newInvitationError("BAD_REQUEST", http.StatusBadRequest, "请求参数不能为空")
+	}
+	target, err := s.client.Tenant.Query().Where(tenant.IDEQ(req.TenantID)).Only(ctx)
+	if err != nil {
+		if ent.IsNotFound(err) {
+			return nil, newInvitationError(InvitationCodeTenantNotFound, http.StatusNotFound, "目标租户不存在: %d", req.TenantID)
+		}
+		return nil, fmt.Errorf("查询目标租户失败: %w", err)
+	}
+	channel, _, err := s.authorizeInviter(ctx, actor, target)
+	if err != nil {
+		return nil, err
+	}
+
+	status := strings.ToLower(strings.TrimSpace(req.Status))
+	switch status {
+	case "", "pending", "accepted", "revoked", "expired":
+	default:
+		return nil, newInvitationError("BAD_REQUEST", http.StatusBadRequest, "无效的 status 过滤值: %s", req.Status)
+	}
+
+	limit := req.Limit
+	if limit <= 0 {
+		limit = 50
+	}
+	if limit > 200 {
+		limit = 200
+	}
+	offset := req.Offset
+	if offset < 0 {
+		offset = 0
+	}
+
+	listCtx := tenantctx.WithTenantID(ctx, target.ID)
+	if channel != ProvisionChannelTenant {
+		actorLabel := strings.TrimSpace(actor.Username)
+		if actorLabel == "" {
+			actorLabel = fmt.Sprintf("user:%d", actor.UserID)
+		}
+		listCtx = tenantctx.WithProvisioningBypass(listCtx, actorLabel, channel, target.ID)
+	}
+
+	// 惰性过期：pending ∧ now()>expires_at → expired（与 Inspect 同口径，避免列表假 pending）。
+	if _, err := s.client.Invitation.Update().
+		Where(
+			invitation.TenantIDEQ(target.ID),
+			invitation.StatusEQ(invitation.StatusPending),
+			invitation.ExpiresAtLT(time.Now()),
+		).
+		SetStatus(invitation.StatusExpired).
+		Save(listCtx); err != nil {
+		return nil, fmt.Errorf("过期归一失败: %w", err)
+	}
+
+	query := s.client.Invitation.Query().Where(invitation.TenantIDEQ(target.ID))
+	if status != "" {
+		query = query.Where(invitation.StatusEQ(invitation.Status(status)))
+	}
+	total, err := query.Clone().Count(listCtx)
+	if err != nil {
+		return nil, fmt.Errorf("统计邀请失败: %w", err)
+	}
+	rows, err := query.
+		Order(ent.Desc(invitation.FieldCreatedAt), ent.Desc(invitation.FieldID)).
+		Limit(limit).
+		Offset(offset).
+		All(listCtx)
+	if err != nil {
+		return nil, fmt.Errorf("查询邀请失败: %w", err)
+	}
+
+	roleIDs := make([]int, 0, len(rows))
+	inviterIDs := make([]int, 0, len(rows))
+	for _, row := range rows {
+		roleIDs = append(roleIDs, row.RoleID)
+		if row.InvitedBy > 0 {
+			inviterIDs = append(inviterIDs, row.InvitedBy)
+		}
+	}
+	roleMeta := map[int]*ent.Role{}
+	if len(roleIDs) > 0 {
+		if roles, rerr := s.client.Role.Query().Where(role.IDIn(roleIDs...)).All(listCtx); rerr == nil {
+			for _, r := range roles {
+				roleMeta[r.ID] = r
+			}
+		}
+	}
+	inviterNames := map[int]string{}
+	if len(inviterIDs) > 0 {
+		if users, uerr := s.client.User.Query().Where(user.IDIn(inviterIDs...)).All(listCtx); uerr == nil {
+			for _, u := range users {
+				inviterNames[u.ID] = u.Username
+			}
+		}
+	}
+
+	items := make([]*InvitationListItem, 0, len(rows))
+	for _, row := range rows {
+		item := &InvitationListItem{
+			ID:         row.ID,
+			TenantID:   row.TenantID,
+			Email:      row.Email,
+			RoleID:     row.RoleID,
+			Status:     string(row.Status),
+			InvitedBy:  row.InvitedBy,
+			ExpiresAt:  row.ExpiresAt,
+			CreatedAt:  row.CreatedAt,
+			AcceptedAt: row.AcceptedAt,
+			RevokedAt:  row.RevokedAt,
+		}
+		if r, ok := roleMeta[row.RoleID]; ok {
+			item.RoleCode = r.Code
+			item.RoleName = r.Name
+		}
+		if row.MspRole != nil {
+			item.MSPRole = *row.MspRole
+		}
+		if row.TargetUserID != nil {
+			item.TargetUserID = *row.TargetUserID
+		}
+		if name, ok := inviterNames[row.InvitedBy]; ok {
+			item.InviterName = name
+		} else if row.InvitedBy == actor.UserID {
+			item.InviterName = actor.Username
+		}
+		items = append(items, item)
+	}
+
+	return &ListInvitationsResult{Items: items, Total: total, Limit: limit, Offset: offset}, nil
 }
 
 // Inspect 邀请最小回显（GET 落地页）：邮箱脱敏；过期即置 expired。

@@ -38,6 +38,7 @@ func TestSetupRoutes_InvitationRoutes(t *testing.T) {
 		registered[route.Method+" "+route.Path] = true
 	}
 	for _, want := range []string{
+		"GET /api/v1/users/invitations",
 		"POST /api/v1/users/invitations",
 		"POST /api/v1/users/invitations/:id/revoke",
 		"GET /api/v1/auth/invitations/:token",

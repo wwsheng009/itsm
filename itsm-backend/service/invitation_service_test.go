@@ -231,3 +231,90 @@ func TestInvitationService_CrossTenantForbidden(t *testing.T) {
 	})
 	require.NoError(t, err)
 }
+
+// TestInvitationService_List IP-P1-4c：管理面列表（分页/过滤/惰性过期/授权收窄）。
+func TestInvitationService_List(t *testing.T) {
+	f := newInvitationFixture(t)
+	svc := f.service(t)
+
+	// 1) 初始为空。
+	empty, err := svc.List(f.ctx, f.actor, &ListInvitationsRequest{TenantID: f.tenantA.ID})
+	require.NoError(t, err)
+	assert.Equal(t, 0, empty.Total)
+	assert.Empty(t, empty.Items)
+
+	// 2) 创建 3 条，覆盖 pending / revoked / accepted 三态。
+	pending1, err := svc.Create(f.ctx, f.actor, &CreateInvitationRequest{
+		TenantID: f.tenantA.ID, Email: "pending1@example.com", RoleID: f.role.ID,
+	})
+	require.NoError(t, err)
+	toRevoke, err := svc.Create(f.ctx, f.actor, &CreateInvitationRequest{
+		TenantID: f.tenantA.ID, Email: "revoked@example.com", RoleID: f.role.ID,
+	})
+	require.NoError(t, err)
+	_, err = svc.Revoke(f.ctx, f.actor, toRevoke.Invitation.ID)
+	require.NoError(t, err)
+	toAccept, err := svc.Create(f.ctx, f.actor, &CreateInvitationRequest{
+		TenantID: f.tenantA.ID, Email: "accepted@example.com", RoleID: f.role.ID,
+	})
+	require.NoError(t, err)
+	_, err = svc.Accept(f.ctx, toAccept.Token, &AcceptInvitationRequest{Password: "Str0ng!Pass2026"})
+	require.NoError(t, err)
+
+	all, err := svc.List(f.ctx, f.actor, &ListInvitationsRequest{TenantID: f.tenantA.ID})
+	require.NoError(t, err)
+	assert.Equal(t, 3, all.Total)
+	require.Len(t, all.Items, 3)
+	assert.Equal(t, toAccept.Invitation.ID, all.Items[0].ID, "created_at desc / id desc：最新在前")
+	assert.Equal(t, f.role.Code, all.Items[0].RoleCode)
+	assert.Equal(t, f.role.Name, all.Items[0].RoleName)
+	assert.Equal(t, f.actor.UserID, all.Items[0].InvitedBy)
+	assert.Equal(t, "inviter", all.Items[0].InviterName, "邀请人展示名以 users 表为准")
+
+	pendingOnly, err := svc.List(f.ctx, f.actor, &ListInvitationsRequest{TenantID: f.tenantA.ID, Status: "pending"})
+	require.NoError(t, err)
+	assert.Equal(t, 1, pendingOnly.Total)
+	assert.Equal(t, pending1.Invitation.ID, pendingOnly.Items[0].ID)
+
+	acceptedOnly, err := svc.List(f.ctx, f.actor, &ListInvitationsRequest{TenantID: f.tenantA.ID, Status: "accepted"})
+	require.NoError(t, err)
+	assert.Equal(t, 1, acceptedOnly.Total)
+	assert.Equal(t, string(invitation.StatusAccepted), acceptedOnly.Items[0].Status)
+
+	// 3) 分页 + 上限收敛。
+	page1, err := svc.List(f.ctx, f.actor, &ListInvitationsRequest{TenantID: f.tenantA.ID, Limit: 2})
+	require.NoError(t, err)
+	assert.Len(t, page1.Items, 2)
+	assert.Equal(t, 2, page1.Limit)
+	page2, err := svc.List(f.ctx, f.actor, &ListInvitationsRequest{TenantID: f.tenantA.ID, Limit: 2, Offset: 2})
+	require.NoError(t, err)
+	assert.Len(t, page2.Items, 1)
+
+	// 4) 惰性过期：pending 但已过 expiry → 列表归一为 expired 并落库。
+	_, err = f.client.Invitation.UpdateOneID(pending1.Invitation.ID).
+		SetExpiresAt(time.Now().Add(-time.Hour)).
+		Save(f.ctx)
+	require.NoError(t, err)
+	expiredOnly, err := svc.List(f.ctx, f.actor, &ListInvitationsRequest{TenantID: f.tenantA.ID, Status: "expired"})
+	require.NoError(t, err)
+	require.Equal(t, 1, expiredOnly.Total)
+	assert.Equal(t, string(invitation.StatusExpired), expiredOnly.Items[0].Status)
+	persisted, err := f.client.Invitation.Get(f.ctx, pending1.Invitation.ID)
+	require.NoError(t, err)
+	assert.Equal(t, invitation.StatusExpired, persisted.Status, "列表惰性过期已落库")
+
+	// 5) 授权收窄：非平台、非同租户、无分配 → 拒绝。
+	outsider, err := f.client.User.Create().
+		SetUsername("outsider").SetEmail("outsider@example.com").SetName("Outsider").
+		SetPasswordHash("x").SetActive(true).SetTenantID(f.tenantB.ID).SetRole("end_user").Save(f.ctx)
+	require.NoError(t, err)
+	_, err = svc.List(f.ctx, InvitationActor{UserID: outsider.ID, HomeTenantID: f.tenantB.ID, Role: "end_user"},
+		&ListInvitationsRequest{TenantID: f.tenantA.ID})
+	requireInvitationCode(t, err, InvitationCodeForbidden)
+
+	// 6) 非法 status / 租户不存在。
+	_, err = svc.List(f.ctx, f.actor, &ListInvitationsRequest{TenantID: f.tenantA.ID, Status: "bogus"})
+	requireInvitationCode(t, err, "BAD_REQUEST")
+	_, err = svc.List(f.ctx, f.actor, &ListInvitationsRequest{TenantID: 999999})
+	requireInvitationCode(t, err, InvitationCodeTenantNotFound)
+}

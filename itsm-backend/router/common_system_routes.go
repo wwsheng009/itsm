@@ -62,10 +62,11 @@ func SetupCommonSystemRoutes(r *gin.Engine, tenant *gin.RouterGroup, config *Rou
 			}
 		}
 
-		// 邀请创建/撤销（IP-P1-4b §4.0-C；独立于 UserHandler 接线）
+		// 邀请创建/列表/撤销（IP-P1-4b/4c §4.0-C；独立于 UserHandler 接线）
 		if config.InvitationHandler != nil {
 			invitations := tenant.Group("/users/invitations")
 			{
+				invitations.GET("", middleware.RequirePermission("user", "write"), config.InvitationHandler.List)
 				invitations.POST("", middleware.RequirePermission("user", "write"), config.InvitationHandler.Create)
 				invitations.POST("/:id/revoke", middleware.RequirePermission("user", "write"), config.InvitationHandler.Revoke)
 			}

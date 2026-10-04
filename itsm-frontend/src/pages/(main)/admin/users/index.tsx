@@ -9,6 +9,7 @@ import {
   Download,
   Key,
   UserX,
+  MailPlus,
 } from 'lucide-react';
 
 import React, { useState, useEffect } from 'react';
@@ -38,6 +39,7 @@ import type { Role } from '@/lib/api/api-config';
 import { useAuthStore, useAuthStoreHydration } from '@/lib/store/auth-store';
 import { useI18n } from '@/lib/i18n/useI18n';
 import { usePasswordPolicy } from '@/lib/hooks/usePasswordPolicy';
+import InvitationManagementModal from './components/InvitationManagementModal';
 
 const { Title, Text } = Typography;
 const { Search: AntSearch } = Input;
@@ -74,6 +76,7 @@ const UserManagement: React.FC = () => {
   const [isCreateModalVisible, setIsCreateModalVisible] = useState(false);
   const [isEditModalVisible, setIsEditModalVisible] = useState(false);
   const [isPasswordModalVisible, setIsPasswordModalVisible] = useState(false);
+  const [isInviteModalVisible, setIsInviteModalVisible] = useState(false);
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
 
   // 表单
@@ -452,6 +455,13 @@ const UserManagement: React.FC = () => {
 {t('users.createUser')}
               </Button>
               <Button
+                icon={<MailPlus size={16} />}
+                onClick={() => setIsInviteModalVisible(true)}
+                data-testid="open-invitation-management"
+              >
+                邀请用户
+              </Button>
+              <Button
                 icon={<Download size={16} />}
                 onClick={() => {
                   // 导出用户数据
@@ -757,6 +767,14 @@ const UserManagement: React.FC = () => {
           </Form.Item>
         </Form>
       </Modal>
+
+      {/* 邀请管理（IP-P1-4c 管理侧：列表/创建/撤销） */}
+      <InvitationManagementModal
+        open={isInviteModalVisible}
+        onClose={() => setIsInviteModalVisible(false)}
+        tenantId={currentTenant?.id}
+        roles={rbacRoles.map(role => ({ id: role.id, name: role.name, code: role.code ?? '' }))}
+      />
     </div>
   );
 };

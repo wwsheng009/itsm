@@ -15,6 +15,7 @@ import (
 // Handler 邀请生命周期 HTTP 入口（IP-P1-4b；契约 §4.0-C）。
 //
 // 路由：
+//   - GET  /api/v1/users/invitations               邀请列表（认证 + user:write；IP-P1-4c）
 //   - POST /api/v1/users/invitations                创建邀请（认证 + user:write）
 //   - POST /api/v1/users/invitations/:id/revoke     撤销邀请（认证 + user:write）
 //   - GET  /api/v1/auth/invitations/:token          落地页最小回显（公开）
@@ -146,6 +147,35 @@ func (h *Handler) Revoke(c *gin.Context) {
 		"status":    inv.Status,
 		"revokedAt": inv.RevokedAt,
 	})
+}
+
+// List 邀请列表（认证 + user:write）：tenantId 省略取当前租户；status/limit/offset 可选。
+func (h *Handler) List(c *gin.Context) {
+	if h.svc == nil {
+		common.Fail(c, common.ServiceUnavailableCode, "邀请服务未启用")
+		return
+	}
+	tenantID, _ := strconv.Atoi(c.Query("tenantId"))
+	if tenantID <= 0 {
+		tenantID = c.GetInt("tenant_id")
+	}
+	if tenantID <= 0 {
+		common.Fail(c, common.UnauthorizedCode, "租户信息缺失")
+		return
+	}
+	limit, _ := strconv.Atoi(c.Query("limit"))
+	offset, _ := strconv.Atoi(c.Query("offset"))
+	result, err := h.svc.List(c.Request.Context(), actorFromContext(c), &service.ListInvitationsRequest{
+		TenantID: tenantID,
+		Status:   c.Query("status"),
+		Limit:    limit,
+		Offset:   offset,
+	})
+	if err != nil {
+		respondInvitationError(c, err)
+		return
+	}
+	common.Success(c, result)
 }
 
 // actorFromContext 从 gin context 提取邀请人身份（JWT claims 派生）。

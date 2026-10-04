@@ -68,15 +68,17 @@
 | 状态变更（暂停/恢复） | `PUT /api/v1/tenants/:id/status` |
 | 就绪度 / 模板开通 | `GET /api/v1/tenants/:id/readiness`（`tenant.read`）、`POST /api/v1/tenants/:id/provision`（`tenant.write`；幂等） |
 | 首个管理员 | `POST /api/v1/tenants/:id/bootstrap-admin`（`tenant.write`；缺省密码服务端生成、仅回显一次，首登强制改密） |
+| 邀请成员（含管理侧） | `GET/POST /api/v1/users/invitations`、`POST /api/v1/users/invitations/:id/revoke`（`user.write`）；SMTP 未配置时返回 `inviteUrl` 线下传递 |
 | 命令行通道（等价，运维/离线） | `go run ./cmd/provision_tenant -tenant-id <ID>`、`-create-admin` |
 | 管理页 | `/admin/tenants`（「开通」向导：模板供给 → 首个管理员 → 完成） |
+| 邀请入口 | `/admin/users` → 「邀请用户」（列表/创建/撤销/复制链接） |
 
 ## 5. 典型流程 A：新客户接入（8 步）
 
 1. 平台/服务商创建租户：`POST /api/v1/tenants`，`type=msp_customer`，填 `parentTenantId`/`mspProviderId`/`planCode`/`expiresAt` 等；
 2. 执行模板开通并创建首个管理员：页面「开通」向导，或依次调 `POST /api/v1/tenants/:id/provision` 与 `POST /api/v1/tenants/:id/bootstrap-admin`（CLI 等价：`go run ./cmd/provision_tenant -tenant-id <ID>`、`-create-admin`）；
 3. 校验 readiness：`GET /api/v1/tenants/:id/readiness`（roles/permissions/role permissions/menus/groups/SLA/CI types 7 项均非 0；向导内以“已就绪/待供给”呈现）；
-4. 在客户租户内创建客户用户并分配客户侧角色；
+4. 在客户租户内创建客户用户（直接创建或「邀请用户」发链接）并分配客户侧角色；
 5. 为服务商工程师创建 `MSPAllocation`（`POST /api/v1/msp/allocations`）；
 6. 验证：客户用户登录可见本租户数据；服务商工程师 `GET /msp/customers` 能看到该客户；
 7. 验证隔离：客户 token 访问其他客户数据被拒（401/403）；

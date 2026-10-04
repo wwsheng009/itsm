@@ -524,7 +524,7 @@ CREATE INDEX idx_invitations_expiry ON invitations (expires_at) WHERE status = '
 ```
 
 - **生命周期**：创建（角色白名单 + `msp_role` 通道校验）→ 投递（SMTP 或 `inviteUrl`）→ 接受（一次性：`status=pending ∧ now()<expires_at`，事务内置 `accepted` + 建号/绑定）→ 撤销（仅 pending，`revoked_at`）→ 过期由巡检置 `expired`；重发 = 新 token 且旧 token 失效。
-- **API**：`GET /api/v1/auth/invitations/:token`（最小回显）、`POST /api/v1/auth/invitations/:token/accept`、`POST /api/v1/users/invitations/:id/revoke`；审计 `user.invite` / `user.invite_accept`。
+- **API**：`GET /api/v1/users/invitations`（管理侧列表，`user:write`；2026-10-04 补）、`POST /api/v1/users/invitations`（创建）、`POST /api/v1/users/invitations/:id/revoke`、`GET /api/v1/auth/invitations/:token`（最小回显）、`POST /api/v1/auth/invitations/:token/accept`；审计 `user.invite` / `user.invite_accept`。
 - **安全**：token 128-bit 随机 + sha256 存储 + 日志脱敏；`super_admin/sysadmin/admin` 不可被邀请（F3）。
 - **租户列必带**：`tenant_id` 纳入 RLS/guard（同 4.0-A）。
 
@@ -572,7 +572,7 @@ CREATE INDEX idx_invitations_expiry ON invitations (expires_at) WHERE status = '
 - 表：`invitations`（§4.0-C 契约冻结）+ `migrations/20260507_create_invitations(.sql/_down.sql)`（token_hash UNIQUE、`uq_invitation_pending` 按 `lower(email)` 部分唯一、tenant/status 与 expiry 索引）。
 - 服务：`service/invitation_service.go`——`Create`（platform/tenant/msp 三通道授权 + rank 上限；`super_admin/sysadmin` 不可被邀请；msp_role 白名单；重发 = 旧邀请置 revoked；token 128-bit 随机仅存 sha256；SMTP 未配置返回 `inviteUrl` + `emailSent=false`；审计 `user.invite`）、`Accept`（一次性：pending ∧ 未过期；事务内建号/绑定已有账号 + membership `source=invite` + 置 accepted；`channel=invite` 显式建号通道；审计 `user.invite_accept`）、`Revoke`（仅 pending）、`Inspect`（邮箱脱敏最小回显）。
 - 测试：`TestInvitationService_*` 5 组（创建+接受全链路与审计、白名单/rank/msp_role 守卫、过期/撤销/重发失效、绑定已有账号、跨租户禁止）；`go generate ./ent`、`go build ./...`、`cmd/migration-lint`、docs-gate 全绿。
-- IP-P1-4b（API 层）：`handlers/invitation/handler.go` 四端点——`POST /api/v1/users/invitations`（认证 + `user:write`；`tenantId` 省略取当前租户）、`POST /api/v1/users/invitations/:id/revoke`（认证 + `user:write`）、`GET /api/v1/auth/invitations/:token`（公开，最小回显）、`POST /api/v1/auth/invitations/:token/accept`（公开 + 登录限流）；邀请域错误码映射（`INVITATION_*` → 404/409/410/422/403）；`inviteUrl` 直返调用方（SMTP 未配置）。装配于 `internal/bootstrap/app.go`，路由注册独立于 UserHandler 接线。测试：`handlers/invitation` 全链路 HTTP 契约（创建→回显→接受→重放 409→撤销→410→非法 token 404）+ `router` 路由契约各 1 组。
+- IP-P1-4b（API 层）：`handlers/invitation/handler.go` 五端点——`GET /api/v1/users/invitations`（认证 + `user:write`；tenantId 缺省取当前租户，status 过滤 + limit/offset 分页，2026-10-04 补）、`POST /api/v1/users/invitations`（认证 + `user:write`；`tenantId` 省略取当前租户）、`POST /api/v1/users/invitations/:id/revoke`（认证 + `user:write`）、`GET /api/v1/auth/invitations/:token`（公开，最小回显）、`POST /api/v1/auth/invitations/:token/accept`（公开 + 登录限流）；邀请域错误码映射（`INVITATION_*` → 404/409/410/422/403）；`inviteUrl` 直返调用方（SMTP 未配置）。装配于 `internal/bootstrap/app.go`，路由注册独立于 UserHandler 接线。测试：`handlers/invitation` 全链路 HTTP 契约（创建→回显→接受→重放 409→撤销→410→非法 token 404；列表契约 2026-10-04 补）+ `router` 路由契约各 1 组。
 - 边界：前端邀请落地页/设置密码页 + e2e 邀请→首登链路归 IP-P1-4c（依赖 IP-P1-5 首登契约）；invitations RLS policy 归 IP-P1-7。
 
 **进度（2026-09-30）**：✅ **IP-P1-5 首登与 bootstrap 租户化（后端闭环）**（`07:G2` 关闭）。
@@ -591,6 +591,11 @@ CREATE INDEX idx_invitations_expiry ON invitations (expires_at) WHERE status = '
 - 路由：`vite-route-map.csv` 增 `/invite`（(auth)）与 `/change-password`（(main)），`gen_routes.py` 重生成 `route-paths.ts`；`routes/index.tsx` 手工增量（保留 IP-P0-8 分组守卫结构）。
 - 测试：`guards-must-change-password.test.tsx` 3 用例（收敛/自锁豁免/放行）；`tsc --noEmit` 0 错误；`guards`、`auth-service` 既有套件回归通过。
 - 边界：浏览器级 invite→首登 e2e 与个人中心改密入口待环境联跑（Playwright 需后端+DB）。
+
+**进度（2026-10-04）**：✅ **IP-P1-4c 管理侧补全（邀请列表/创建/撤销 UI）**。
+
+- 后端：`InvitationService.List` + `GET /api/v1/users/invitations`（授权与创建/撤销同口径；pending 过期惰性归一为 expired；列表不含 token；服务/HTTP/路由契约测试）。
+- 前端：`/admin/users` → 「邀请用户」→ `InvitationManagementModal`（列表 + 状态过滤 + 分页、创建后回显 `inviteUrl` 并可复制、撤销 Popconfirm、SMTP 未配置提示）；`lib/api/invitation-api.ts` 契约层 + 组件/API 用例。
 
 **进度（2026-09-30）**：✅ **IP-P1-8 审计看板落地**（治理可观测；顺带复核并真正关闭 `07:G9`）。
 
@@ -874,3 +879,4 @@ CREATE INDEX idx_invitations_expiry ON invitations (expires_at) WHERE status = '
 | v1.64 | 2026-10-04 | **RLS 策略扩展批次 8（平台面收口 2 表 + 豁免定案）**：新增 `010_platform_scope_tables_policies.sql`（+回滚）——`bootstrap_tokens`（租户级首管引导令牌）与 `tenant_installations`（市场组件安装记录）纳入 `tenant_id = get_current_tenant_id()` 策略（只 ENABLE 不 FORCE）；`rls-apply` 受管 148→**150 表**；`TestBatch8_TenantScopeIsolation`（2 表 fail-closed 基线）。本批次修复：`router/bootstrap_routes.go` 预认证平台面按目标租户显式绑定 ctx；`service/marketplace` 7 个入口 ctx 重绑定。**enforce 验收 70/70（FAIL=0 SKIP=0，77.2s）且 `missing_tenant=0`**。**RLS 平台保留项定案（有 tenant_id 不纳管，见 `msp-exempt-tables-quarterly-review.md` §6）**：`users`（身份根表；预认证跨租户与切换后按 user_id 读取自身身份）、`roles`（平台 RBAC 词表，ADR-0001 同源）、`permission_definitions`（平台权限字典，全 0/NULL 无读者）——带补偿控制与 2026-12-31 复核期。**终局口径：153 张 tenant_id 表 = 150 纳管 + 3 豁免。** |
 | v1.65 | 2026-10-04 | **异步 Background ctx 遗留收口（10 文件）+ enforce 复核**：批次 3 登记的异步路径清单（incident 规则 / 工单自动化 / 飞书同步 / 工具队列 worker / job_audit）逐条核查修复——`tool_queue` worker/`verifyResult` 租户重绑定、`job_audit` 审计 ctx、ticket/incident 异步兼容路径、通知助手（system 解析 → 租户投递）、BPMN 会签推进、bot `FinishRun`、`usersByRole`、wecom/dingtalk 验签审计、connector 全租户健康巡检（system）；Redis/HTTP/平台级/已收口类登记为良性。证据：`go build` 绿；`service/...`（427s）与相关 handlers 包测试通过；enforce 验收 **70/70（138.5s）**、`missing_tenant=0`（enforce_applied=1772、app_routed=1676、system_bypass=761）。详见 `rls-shadow-observation-2026-10-03.md` 第 14 条。 |
 | v1.66 | 2026-10-04 | **IP-P2 收尾：租户开通闭环 HTTP 化（供给/就绪/首管）**：新增 `GET /api/v1/tenants/:id/readiness`（7 项 required 模板基线 + `bootstrapAdmins`；`tenant.read`）、`POST /api/v1/tenants/:id/provision`（幂等，`tenant.write`，返回同构 readiness）、`POST /api/v1/tenants/:id/bootstrap-admin`（服务端生成 16 位一次性强密码、仅回显一次、首登强制改密；已存在首管 409）。实现：`service.TenantProvisioningService`（系统旁路 `tenant:provisioning`；以接口 + `dto` 共享类型解开 seeder↔service import cycle）、`pkg/seeder/tenant_readiness.go`（7 项检查与 CLI 校验同源，原校验错误文案保留）、`pkg/bootstrap` 新增 `WithAuditPath` 选项并复用既有 `WithMustChangePassword`（CLI 审计与策略口径不变）。前端：平台页 `/admin/tenants` 新增「开通」向导（readiness 展现 / 一键开通 / 首管表单 / 一次性密码 / 完成页）+ `msp_customer` 建租户必选 `mspProviderId`。证据：后端 `pkg/seeder`、`service`（TenantProvisioning）、`handlers/tenant`、`router`、`handlers/common` 定向测试通过；前端 `tsc`/`eslint`/目标 jest 通过。 |
+| v1.67 | 2026-10-04 | **邀请管理侧补全（IP-P1-4c 扩展）**：后端新增 `GET /api/v1/users/invitations`（认证 + `user:write`；tenantId 缺省取当前租户；status 过滤 + limit/offset 分页；授权与创建/撤销同口径；pending 过期惰性归一为 expired；列表不含 token）；前端 `/admin/users` 新增「邀请用户」入口 → `InvitationManagementModal`（列表/状态过滤/分页、创建后回显 `inviteUrl` 并可复制、撤销 Popconfirm、SMTP 未配置提示）+ `lib/api/invitation-api.ts` 契约层。测试：service 列表用例（过滤/分页/惰性过期/授权收窄）、handler 列表 HTTP 契约（含越权 403）、router 路由契约、组件 4 用例、API 契约 3 用例；tsc/eslint 绿。 |
