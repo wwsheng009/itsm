@@ -16,6 +16,7 @@
 | 编号（R/K/G/F/WB/REV/D/E/I/A/IP…）是什么意思 | [canon 附录 C](./plan/msp-concept-model-and-architecture-canon.md#附录-c跨文档一致性登记权威层级--编号注册表)（权威）＋本索引 §4（速查） |
 | 文档为什么改过、冲突怎么裁的 | [一致性审计](./plan/msp-docs-consistency-audit.md) |
 | 实测现状/缺口/排障 | [01–07](./README.md)（as-is）｜[三角色演练剧本](./plan/msp-three-persona-operation-simulation.md) |
+| 想在浏览器一步步重现全链路业务 | [scenarios/ 场景目录](./scenarios/README.md)（建租户→开通→建号→分配→建单→协作→审计与反例，含验证命令） |
 
 ---
 
@@ -27,7 +28,7 @@
 | 架构评审 | canon（全篇）→ [目标架构](./plan/msp-target-architecture.md) → [集成分析](./plan/msp-integration-with-rbac-org-workflow-analysis.md) → 一致性审计 §1/§2 |
 | 后端研发 | 实施方案 §3 → 目标架构 §3–§8 → 集成分析 → canon §6（不变量） |
 | 前端研发 | [前端分析](./plan/msp-frontend-pages-and-permissions-analysis.md) → 工作台方案 §2 → [用户交互流程](./plan/msp-user-interaction-flows.md) → 实施方案 `IP-P0-8` |
-| 测试/QA | [06 验证与排障](./06-verification-and-troubleshooting.md) → 三角色演练剧本 → 实施方案 §6（DoD/反例/映射） |
+| 测试/QA | [scenarios/ 场景目录（浏览器实操）](./scenarios/README.md) → [06 验证与排障](./06-verification-and-troubleshooting.md) → 三角色演练剧本 → 实施方案 §6（DoD/反例/映射） |
 | 运维/部署 | [02 部署与配置](./02-deployment-and-configuration.md) → [07 已知缺口](./07-known-gaps.md) → `scripts/msp/*` → 06 §7 |
 
 ---
@@ -63,6 +64,23 @@
 | [msp-account-provisioning-and-registration-flow.md](./plan/msp-account-provisioning-and-registration-flow.md) | L4 | Draft v0.3（决策同步） | **建号与注册流程**（四通道/邀请/首登/过渡期） | — |
 | [msp-business-closure-review-and-refactor-plan.md](./plan/msp-business-closure-review-and-refactor-plan.md) | 治理/落地 | Draft v0.4（决策同步） | **业务闭环审查 + 现有功能改造计划**（13 链路/波次/深度分级） | `CL-01–CL-13` |
 
+### 2.1 场景目录（scenarios/，L6 浏览器实操剧本）
+
+> 从**操作者视角**的浏览器逐步剧本：每一步含界面反馈预期与独立验证命令；2026-10-05 全链路实测通过（详见 [README](./scenarios/README.md) §5 证据基线）。
+
+| 文档 | 状态 | 定位 |
+|---|---|---|
+| [scenarios/README.md](./scenarios/README.md) | 当前（2026-10-05） | 场景总览/角色与账号矩阵/证据基线/已知限制/维护约定 |
+| [00-environment-and-accounts.md](./scenarios/00-environment-and-accounts.md) | 当前 | 环境准备、账号矩阵、通用验证手法、重置与排错 |
+| [01-platform-create-provider-tenant.md](./scenarios/01-platform-create-provider-tenant.md) | 当前 | 场景 1：平台新建服务商租户 |
+| [02-platform-create-customer-tenant.md](./scenarios/02-platform-create-customer-tenant.md) | 当前 | 场景 2：平台新建客户租户并绑定服务商 |
+| [03-tenant-provisioning-first-admin.md](./scenarios/03-tenant-provisioning-first-admin.md) | 当前 | 场景 3：开通向导（模板供给/首管/首登改密） |
+| [04-user-provisioning.md](./scenarios/04-user-provisioning.md) | 当前 | 场景 4：建号三通道 + 邀请扩展 |
+| [05-msp-allocation-management.md](./scenarios/05-msp-allocation-management.md) | 当前 | 场景 5：分配管理与跨客户授权 |
+| [06-customer-ticket-type-and-ticket.md](./scenarios/06-customer-ticket-type-and-ticket.md) | 当前 | 场景 6：客户建类型与工单 |
+| [07-msp-workbench-collaboration.md](./scenarios/07-msp-workbench-collaboration.md) | 当前 | 场景 7：工作台协作（回复/状态/指派/批量） |
+| [08-audit-and-isolation-verification.md](./scenarios/08-audit-and-isolation-verification.md) | 当前 | 场景 8：审计看板 + 隔离负向验证 |
+
 **上位与关联（本目录之外）**：
 
 | 文档 | 关系 |
@@ -85,7 +103,7 @@
 | L3 | 目标架构 | membership/上下文/权限矩阵/迁移的详细设计 |
 | L4 | 主方案、scope-model、user-flows、frontend、集成分析 | 领域实现计划（局部编号，引用加前缀） |
 | L5 | 01–07 | 实测现状与运维手册（**不得作为目标口径**） |
-| L6 | 三角色演练剧本 | 操作剧本（验收载体） |
+| L6 | 三角色演练剧本、[scenarios/ 场景目录](./scenarios/README.md) | 操作剧本（验收载体）：前者为设计期演练，后者为**浏览器逐步实操**（可重现/可验证） |
 
 **裁决规则**：概念冲突 → canon 胜；实现/交互冲突 → **最新修订源（L2）胜**，但必须回填被修订文档；现状冲突 → 01–07 + 代码为准，canon 必须"现状/目标"分列；引用编号必须带前缀；文档状态行与修订记录一致。
 
@@ -132,6 +150,7 @@
 | 集成分析 | v0.4（回填 + P1 同步） | 文末 |
 | 建号流程 | v0.3（决策同步） | 文末 |
 | 三角色剧本 | v0.3（复核） | 文末 |
+| scenarios/（场景目录） | 当前（2026-10-05 实测） | 各场景头部日期 |
 | 一致性审计 | v0.3（C1–C19 全闭环） | 文末 |
 | 实施方案 / 闭环审查 | v1.1 / v0.4 | 文末 |
 | ADR-004 | Accepted（2026-09-30） | 状态段 |
@@ -165,6 +184,17 @@ docs/multi-tenant/
 ├── 05-usage-guide.md
 ├── 06-verification-and-troubleshooting.md
 ├── 07-known-gaps.md
+├── scenarios/                  L6 浏览器实操剧本（场景 0–8）
+│   ├── README.md
+│   ├── 00-environment-and-accounts.md
+│   ├── 01-platform-create-provider-tenant.md
+│   ├── 02-platform-create-customer-tenant.md
+│   ├── 03-tenant-provisioning-first-admin.md
+│   ├── 04-user-provisioning.md
+│   ├── 05-msp-allocation-management.md
+│   ├── 06-customer-ticket-type-and-ticket.md
+│   ├── 07-msp-workbench-collaboration.md
+│   └── 08-audit-and-isolation-verification.md
 └── plan/
     ├── msp-concept-model-and-architecture-canon.md      L1 概念权威（附录 C 注册表）
     ├── msp-cross-customer-workbench-and-filter-plan.md  L2 修订源

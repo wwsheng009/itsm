@@ -32,8 +32,11 @@
 | [05-usage-guide.md](./05-usage-guide.md) | 使用指南：客户端与 MSP 端操作路径（控制台/接口/CLI）与典型流程 | 全体使用者 |
 | [06-verification-and-troubleshooting.md](./06-verification-and-troubleshooting.md) | 验证与排障：验收清单、常见问题、错误码与定位方法 | 运维 / 测试 |
 | [07-known-gaps.md](./07-known-gaps.md) | 已确认产品缺口：实测现象、运维规避、建议修复与优先级 | 产品 / 研发 / 运维 |
+| [scenarios/](./scenarios/README.md) | **浏览器实操剧本（场景目录）**：从操作者视角逐步重现全链路业务（建租户→开通→建号→分配→建单→协作→审计/反例），每步含界面反馈预期与独立验证命令 | 测试/QA / 实施 / 全体使用者 |
 
 > **说明**：01–07 为**现状/运营（as-is）**文档（更新于 2026-09-28，描述实测行为）；**目标口径一律以 [canon](./plan/msp-concept-model-and-architecture-canon.md) 为准**。两者已知差异与整改记录见[一致性审计](./plan/msp-docs-consistency-audit.md) §3。
+>
+> **想直接动手（浏览器全流程）**：从 [scenarios/00 环境与账号](./scenarios/00-environment-and-accounts.md) 开始，按场景 01→08 依次执行；总览与账号矩阵见 [scenarios/README](./scenarios/README.md)。
 
 ## 角色与术语
 
