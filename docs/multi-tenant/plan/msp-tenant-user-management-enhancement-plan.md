@@ -1,6 +1,6 @@
 # 平台侧租户用户管理增强方案（/admin/tenants · 跨租户账号治理）
 
-> 状态：**v0.6（TUM-1–TUM-5 落地 + C5 通知；live e2e 待联调环境）**｜日期：2026-10-05｜基准：仓库 HEAD `51dd8ed3`（TUM-4 落地后）
+> 状态：**v0.7（TUM-1–TUM-7 收口；live e2e 待联调环境）**｜日期：2026-10-05｜基准：仓库 HEAD `8bc8f7b9`（TUM-5 落地后）
 > 上位：[canon v1.0](./msp-concept-model-and-architecture-canon.md)（canon D5/D8/D11、附录 C）→ [目标架构](./msp-target-architecture.md)（§6 权限矩阵/建号）→ [实施方案](./msp-implementation-plan.md)（IP-P0-5 建号通道、IP-P2-6 硬配额）
 > 定位：**L4 方案**（局部编号 `TUM-#`，跨文档引用必须带前缀）。范围：平台管理员在租户治理页（`/admin/tenants`）对**任意租户**用户的查看与账号治理（重置密码 / 启用停用 / 强制下线 / 审计）；不含 MSP 服务商面工作台（其可复用同一服务能力，另行接线）。
 
@@ -301,7 +301,9 @@
 - ✅ **依赖修复（本批）**：重建 `(main)/change-password` 强制改密页与 `guards-must-change-password.test.tsx`（IP-P1-5 文件同因 `.gitignore` 的 `*password*` 规则漏提交，`routes/index.tsx` lazy import 悬空致干净检出 `tsc` 失败）；`.gitignore` 增补前端两处源码例外。
 - ✅ **C5 通知触达（本批）**：`TenantUserAdminService` 新增通知端口（`SetNotifier`，bootstrap 注入 `NotificationService`）；重置/启停/强制下线向目标租户**启用中的管理员**发站内通知（类型 `user_admin_action`，排除被操作用户、不含口令；best-effort，失败仅告警不回滚）。用例 `NotifiesTenantAdmins` / `NotifierFailureDoesNotBlock`。
 - ✅ **TUM-5（离线部分）**：S1–S3 闭环用例 `ClosureS1S2S3`（旧口令失效/新口令可验/强制改密/双吊销/通知/审计 5 行按 `target_user_id` 复核）；浏览器剧本 `scenarios/09-tenant-user-management.md`；API 通道验收脚本 `scripts/msp/acceptance/run-tenant-user-admin-acceptance.ps1`（TUM-A1–A8 + 反例，默认新建隔离租户可重跑，PowerShell 语法校验通过）。
-- ⏳ **TUM-5（live 部分）**：API 通道 run-summary 与浏览器实测待联调环境执行（本机 Docker 守护进程不可用、PostgreSQL 未运行）；**TUM-6/7** 维持原状态。
+- ⏳ **TUM-5（live 部分）**：API 通道 run-summary 与浏览器实测待联调环境执行（本机 Docker 守护进程不可用、PostgreSQL 未运行）。
+- ✅ **TUM-6 灰度与文档回填（本批收口）**：`TENANT_USER_ADMIN_ENABLED` 装配（默认关、可即时回滚）已在 TUM-1/2 落地并登记部署文档；README/INDEX/canon 附录 C.2 已登记；实施方案新增承接映射（`msp-implementation-plan.md` §3.0-G，修订 v1.71）。
+- ✅ **TUM-7 P2 评估（本批）**：删除用户 / 跨租户角色调整 / 导出用户清单三项均**不做实现**（依据与触发条件见 §10）。
 
 **验证命令（建议）**
 
@@ -390,6 +392,20 @@ bash scripts/docs-gate/check-multi-tenant-consistency.sh
 
 ---
 
+## 10. TUM-7 P2 评估纪要（2026-10-05）
+
+> 结论：**三项均不做实现**（与 TUM-D8 一致）；登记触发条件，需求出现时另立方案评审。
+
+| 项 | 结论 | 依据 | 触发条件（出现时另案） |
+|---|---|---|---|
+| 删除用户（U9） | 不做物理删除 | 引用完整性（工单/审计/资产等多表引用）+ 合规删除应走离线评估与数据主体流程；停用为唯一移出手段（TUM-D8） | 合规要求明确（如数据主体删除请求）+ 引用清理/匿名化工具就绪 |
+| 跨租户角色调整 | 不做 | 平台面角色调整放大越权面；需先收敛到平台级角色词表与变更审批流 | RBAC 作用域模型支持平台级角色指派 + 变更审批/双人复核 |
+| 导出用户清单（U8） | 暂缓（设计已预留：脱敏 + 审计水印，见 §3.1） | 当前对账可用列表/用量接口满足；导出面易成数据外带通道 | 合规/对账需求明确 + 脱敏与水印方案评审通过 |
+
+**完成判据**：本纪要随方案 v0.7 评审确认；无代码变更。
+
+---
+
 ## 修订记录
 
 | 版本 | 日期 | 变更 |
@@ -400,3 +416,4 @@ bash scripts/docs-gate/check-multi-tenant-consistency.sh
 | v0.4 | 2026-10-05 | **TUM-3 落地 + 复核补强**：审计 `target_user_id` 列/索引/查询过滤与断言用例（`4d2a40f2`）；复核发现 camelCase `newPassword` 未被掩码，本批修复 `middleware/mask.go` 并补测试，TUM-3 DoD 掩码项闭环 |
 | v0.5 | 2026-10-05 | **TUM-4 前端落地**：抽屉（深链/防抖筛选/乐观回滚/批量重试/空态三分/无障碍）+ 共享组件抽取 + API 客户端与契约用例；同批修复 `(main)/change-password` 页与守卫用例的漏提交（`*password*` 规则第三/四例），前端 `tsc`/eslint/目标 jest 全绿 |
 | v0.6 | 2026-10-05 | **TUM-5 离线落地 + C5 通知**：治理动作站内通知目标租户管理员（best-effort、不含口令）；S1–S3 闭环用例与通知用例；`scenarios/09` 浏览器剧本；API 通道验收脚本（TUM-A1–A8 + 反例，隔离租户）；live run-summary 待联调环境 |
+| v0.7 | 2026-10-05 | **TUM-6/TUM-7 收口**：实施方案新增 TUM 承接映射（§3.0-G / v1.71）；P2 评估纪要（删除/角色调整/导出均不做实现 + 触发条件，§10）；至此 TUM-1–TUM-7 全部收口（仅 TUM-5 live 部分待联调环境） |
