@@ -31,6 +31,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **平台侧租户用户管理掩码补强（TUM-3 复核）** — `middleware/mask.go` 密码族掩码规则补齐 camelCase 键名（`newPassword`/`currentPassword`/`confirmPassword`/`oldPassword`，兼容 snake_case），修复 `mode=specified` 重置密码时审计 `request_body` 可能落明文的问题（既有 `/users/*` 重置路径同受益）；新增 `middleware/mask_test.go` 与审计中间件 camelCase 断言（`middleware/audit_test.go`）。方案见 `docs/multi-tenant/plan/msp-tenant-user-management-enhancement-plan.md` v0.4
+
 - **AI 会话标题恢复按首条用户 prompt 生成（跨分支回归修复）** — `ensureConversation`（B2-04 单一创建入口）新建会话时标题由固定 `"AI 对话"` 改为 `deriveConversationTitle(query)`：空白（含换行 / 全角空格）折叠单行、Unicode 码点截断 30 字并追加省略号、空输入兜底「AI 会话」（`handlers/ai/conversation_title.go`）。背景：该能力此前只在 `feat/vite-migration` 分支（`d3471221`）落地、未合并进当前分支 `feat/bot-mcp-integration`，后端二进制从当前分支重建后标题退回固定占位（库中历史会话全部同名）。已有历史会话标题不变；`Chat` / `ChatStream` 共用同一创建入口，`done` 事件后前端 `loadConversations()` 刷新即得新标题。证据：`gofmt -l handlers/ai` 无输出、`go build ./...` exit 0、`go test ./handlers/ai/ -run 'TestDeriveConversationTitle|TestEnsureConversation' -count=1` 全绿（含 `ensureConversation` 标题推导断言）
 
 ### Changed

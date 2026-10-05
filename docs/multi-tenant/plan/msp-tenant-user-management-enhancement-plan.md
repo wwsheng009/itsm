@@ -1,6 +1,6 @@
 # 平台侧租户用户管理增强方案（/admin/tenants · 跨租户账号治理）
 
-> 状态：**v0.4（决策冻结 + TUM-1/TUM-2/TUM-3 后端落地）**｜日期：2026-10-05｜基准：仓库 HEAD `039371ef`
+> 状态：**v0.4（决策冻结 + TUM-1/TUM-2/TUM-3 后端落地 + 掩码复核修复）**｜日期：2026-10-05｜基准：仓库 HEAD `4d2a40f2`（TUM-3 落地）
 > 上位：[canon v1.0](./msp-concept-model-and-architecture-canon.md)（canon D5/D8/D11、附录 C）→ [目标架构](./msp-target-architecture.md)（§6 权限矩阵/建号）→ [实施方案](./msp-implementation-plan.md)（IP-P0-5 建号通道、IP-P2-6 硬配额）
 > 定位：**L4 方案**（局部编号 `TUM-#`，跨文档引用必须带前缀）。范围：平台管理员在租户治理页（`/admin/tenants`）对**任意租户**用户的查看与账号治理（重置密码 / 启用停用 / 强制下线 / 审计）；不含 MSP 服务商面工作台（其可复用同一服务能力，另行接线）。
 
@@ -295,6 +295,7 @@
 - ✅ **TUM-2 后端账号治理**：重置（generated/specified，按目标租户密码策略）、启停（最后管理员 409 / `default` 二次确认 / 禁止自停用）、强制下线；**TUM-D6 会话双吊销**落地（access `minIssuedAt` + refresh 按用户最低签发时间、续签路径校验，`middleware/token_revocation.go`）。
 - ✅ **审计**：`user.admin_password_reset` / `user.admin_status` / `user.admin_force_logout`；行归属 actor 家租户、`target_tenant_id`=目标租户、`source=platform_selected`；一次性口令不落审计（掩码沿用既有）。
 - ✅ **TUM-3 审计与用户时间线**：三类治理动作显式审计补齐 `target_user_id`（中间件 `audit_target_user_id` + service 显式行）；迁移 `20261005_audit_target_user_id.sql`（列 + 索引 `(target_tenant_id, target_user_id, created_at)`）；审计查询新增 `targetUserId` 过滤；断言用例（掩码 + target_user_id）落地。
+- ✅ **TUM-3 复核补强（本批）**：掩码规则补齐 camelCase 密码键（`newPassword`/`currentPassword`/`confirmPassword`/`oldPassword`，兼容 snake_case）——修复 `mode=specified` 重置密码时审计请求体可能落明文的问题；新增 `middleware/mask_test.go` + 审计中间件 camelCase 断言。
 - ⏳ **TUM-4** 前端抽屉（下一批）；**TUM-5** 集成/e2e 剧本随前端批次补齐。
 
 **验证命令（建议）**
@@ -330,7 +331,7 @@ bash scripts/docs-gate/check-multi-tenant-consistency.sh
 1. 租户管理员持 `tenant:write` 调用 `/tenants/:id/users/*` → 403 `PLATFORM_SCOPE_REQUIRED`；
 2. 用 A 租户用 `uid` 拼 B 租户路径（IDOR）→ 404 `USER_NOT_IN_TENANT`；
 3. 停用目标租户唯一管理员 → 409 `LAST_ADMIN_PROTECTED`；
-4. 未开开关时调用写操作 → 404 `TENANT_USER_ADMIN_DISABLED`；
+4. 未开开关时调用写操作 → 403 `TENANT_USER_ADMIN_DISABLED`（与 §3.5 错误码表一致）；
 5. 指定模式弱口令（违反目标租户策略）→ 400；
 6. 平台管理员停用自己（当其为目标用户时）→ 409/400；
 7. 并发两次 `generated` 重置：后一次口令生效、前一次失效（响应不泄漏前值）。
@@ -391,3 +392,4 @@ bash scripts/docs-gate/check-multi-tenant-consistency.sh
 | v0.1 | 2026-10-05 | 首版：现状基线（跨租户建号已有/账号治理缺失）、差距 TUM-G1–G4、需求 U1–U9、契约 TUM-D1–D5 + API/权限/审计/错误码、前端抽屉设计、分期 TUM-1–TUM-7、验收 TUM-A1–A6 与反例、风险回滚、治理登记 |
 | v0.2 | 2026-10-05 | **决策冻结（按最佳实践）**：TUM-D1–TUM-D10 定稿并收口原 Q1–Q5（会话双吊销/批量语义/不删除/权限统一/MSP 另案）；新增 §2.3 业务逻辑闭环（场景 S1–S3 + 闭环点 C1–C6）与 §4.4/§4.5 操作便利性/被操作用户体验；审计新增 `target_user_id` 迁移计划；验收新增 TUM-A7/A8 与两类反例 |
 | v0.3 | 2026-10-05 | **TUM-1/TUM-2 后端落地**：读通道（列表/详情，双层平台面判定）+ 账号治理（重置两模式/启停护栏/强制下线）+ TUM-D6 refresh 按用户双吊销（含续签路径校验）+ 路由与装配 + 定向测试；`target_user_id` 列（TUM-3）与前端抽屉（TUM-4）顺延下一批 |
+| v0.4 | 2026-10-05 | **TUM-3 落地 + 复核补强**：审计 `target_user_id` 列/索引/查询过滤与断言用例（`4d2a40f2`）；复核发现 camelCase `newPassword` 未被掩码，本批修复 `middleware/mask.go` 并补测试，TUM-3 DoD 掩码项闭环 |

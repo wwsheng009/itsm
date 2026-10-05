@@ -13,7 +13,8 @@ var maskRules = []struct {
 	re   *regexp.Regexp
 	repl string
 }{
-	{regexp.MustCompile(`(?i)"(password|passwd|pwd|current_password|new_password|confirm_password)"\s*:\s*"[^"]*"`), `"$1":"***"`},
+	// 密码族键名同时覆盖 snake_case 与 camelCase（如 newPassword/currentPassword/confirmPassword/oldPassword）。
+	{regexp.MustCompile(`(?i)"(password|passwd|pwd|current[_-]?password|new[_-]?password|confirm[_-]?password|old[_-]?password)"\s*:\s*"[^"]*"`), `"$1":"***"`},
 	{regexp.MustCompile(`(?i)"(api[_-]?key|apikey|x-api-key)"\s*:\s*"[^"]*"`), `"$1":"***"`},
 	{regexp.MustCompile(`(?i)"(access[_-]?token|refresh[_-]?token|id[_-]?token|auth[_-]?token|bearer[_-]?token|jwt|session[_-]?token|csrf[_-]?token)"\s*:\s*"[^"]*"`), `"$1":"***"`},
 	{regexp.MustCompile(`(?i)"(secret|client[_-]?secret|app[_-]?secret|private[_-]?key|signing[_-]?key|hmac[_-]?key)"\s*:\s*"[^"]*"`), `"$1":"***"`},

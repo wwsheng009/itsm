@@ -38,6 +38,7 @@
 | RLS 配置（`rls.mode`） | 起步 `off`，合规场景灰度 | `off`/`shadow`/`enforce`（`config/config.go:107-114`） |
 | `rls.app_role_user/password` | 切 `enforce` 前配置 | 请求路径改用不带 BYPASSRLS 的低权角色（`config/config.go:153-157`） |
 | `ITSM_AUTO_MIGRATE` / `ITSM_AUTO_SEED` | `false` | 初始化职责在 `itsm-init`，应用进程不自动迁移 |
+| `TENANT_USER_ADMIN_ENABLED` | `false`（按需开启） | 平台侧租户用户管理写通道灰度开关（重置密码/启停/强制下线，TUM-D3）；读列表/详情不受限；关闭时写操作 403 `TENANT_USER_ADMIN_DISABLED`；与 `USER_PROVISIONING_CHANNELS_ENABLED` 独立回滚 |
 
 ## 4. 部署拓扑与初始化顺序
 

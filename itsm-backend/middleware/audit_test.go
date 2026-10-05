@@ -110,6 +110,23 @@ func TestAuditMiddleware_UserCRUD(t *testing.T) {
 		}
 	})
 
+	// TUM-3 复核：平台侧重置密码契约字段为 camelCase `newPassword`，审计请求体同样必须掩码。
+	t.Run("ResetPassword camelCase Body Masked", func(t *testing.T) {
+		run("PUT", "/api/v1/tenants/9/users/42/reset-password", `{"mode":"specified","newPassword":"NewPass456!"}`)
+
+		logs, err := client.AuditLog.Query().
+			Where(auditlog.PathEQ("/api/v1/tenants/9/users/42/reset-password")).
+			All(context.Background())
+		assert.NoError(t, err)
+		if assert.Len(t, logs, 1) {
+			assert.NotNil(t, logs[0].RequestBody)
+			if logs[0].RequestBody != nil {
+				assert.NotContains(t, *logs[0].RequestBody, "NewPass456!")
+				assert.Contains(t, *logs[0].RequestBody, `"newPassword":"***"`)
+			}
+		}
+	})
+
 	t.Run("Source Derived From Context", func(t *testing.T) {
 		// 显式切换：tenant_source=switch + audit_target_tenant_id。
 		runCtx("POST", "/api/v1/auth/switch-tenant", `{}`, func(c *gin.Context, _ *http.Request) {
