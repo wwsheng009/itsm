@@ -9,6 +9,8 @@ import type {
   TenantReadinessResponse,
   BootstrapAdminRequest,
   BootstrapAdminResponse,
+  ProvisionUserRequest,
+  ProvisionUserResponse,
 } from './api-config';
 
 /** 模板供给是逐项落库的幂等长事务，默认 30s 不够，单独放宽到 120s。 */
@@ -78,6 +80,14 @@ export class TenantAPI {
       body: JSON.stringify(payload),
       timeout: BOOTSTRAP_ADMIN_TIMEOUT_MS,
     });
+  }
+
+  // 平台建号通道（IP-P0-5）：为任意 active 租户创建用户；角色白名单与通道授权由服务端收口。
+  static async provisionTenantUser(
+    id: number,
+    payload: ProvisionUserRequest
+  ): Promise<ProvisionUserResponse> {
+    return httpClient.post<ProvisionUserResponse>(`/api/v1/tenants/${id}/users`, payload);
   }
 
   // 删除租户

@@ -1,5 +1,5 @@
 import { httpClient } from './http-client';
-import type { GetTenantsParams } from './api-config';
+import type { GetTenantsParams, ProvisionUserRequest, ProvisionUserResponse } from './api-config';
 import type {
   MSPAllocation,
   CreateAllocationRequest,
@@ -57,6 +57,17 @@ export class MSPAPI {
     return httpClient.get<MSPCustomerTicketsResponse>(
       `/api/v1/msp/customers/${customerTenantId}/tickets`,
       params
+    );
+  }
+
+  /** 为客户建号（MSP 通道）：服务端二次校验 allocation 与角色白名单。 */
+  static async provisionCustomerUser(
+    customerTenantId: number,
+    payload: ProvisionUserRequest
+  ): Promise<ProvisionUserResponse> {
+    return httpClient.post<ProvisionUserResponse>(
+      `/api/v1/msp/customers/${customerTenantId}/users`,
+      payload
     );
   }
 

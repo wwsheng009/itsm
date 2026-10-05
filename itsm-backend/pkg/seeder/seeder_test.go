@@ -671,3 +671,26 @@ func TestSeedRolePermissionsCoverTicketLifecycle(t *testing.T) {
 		}
 	}
 }
+
+// TestSeedProductionMSPMenuEntries（2026-10-04）：MSP 三个子入口必须入默认租户菜单，
+// 且权限码与 C1 读集对齐（菜单可见性依赖权限码过滤，漂移会导致入口从侧栏消失）。
+func TestSeedProductionMSPMenuEntries(t *testing.T) {
+	seeder, ctx := newTestSeeder(t, tenantmode.DeploymentModePrivate)
+	require.NoError(t, seeder.SeedProduction(ctx))
+
+	rootTenant, err := seeder.client.Tenant.Query().Where(tenant.CodeEQ("default")).Only(ctx)
+	require.NoError(t, err)
+
+	want := map[string]string{
+		"/msp/workbench":  "msp_ticket:read",
+		"/msp/management": "msp_allocation:read",
+		"/msp/audit":      "msp_report:read",
+	}
+	for path, code := range want {
+		m, err := seeder.client.Menu.Query().
+			Where(menu.PathEQ(path), menu.TenantIDEQ(rootTenant.ID)).
+			Only(ctx)
+		require.NoError(t, err, "菜单缺失: %s", path)
+		assert.Equal(t, code, m.PermissionCode, "菜单权限码漂移: %s", path)
+	}
+}

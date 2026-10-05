@@ -12,8 +12,8 @@
 |---|---|---|---|
 | 客户用户 | 自己的客户租户 | Web 客户端（工单/知识库/CMDB/服务目录） | 提交与处理本租户业务 |
 | 客户管理员 | 自己的客户租户 | 客户端管理页 | 管理本租户用户/角色/配置 |
-| 服务商管理员 | provider 租户 | `/msp`、`/msp/management` | 客户列表、分配管理、报表 |
-| 服务商工程师 | provider 租户 | `/msp`、客户工单视图 | 处理被分配客户的工单 |
+| 服务商管理员 | provider 租户 | `/msp/workbench`、`/msp/management`、`/msp/audit` | 跨客户工作台、分配管理、审计看板 |
+| 服务商工程师 | provider 租户 | `/msp/workbench`、客户工单视图 | 处理被分配客户的工单 |
 | 平台运维 | 任意（通常 super_admin） | `/admin/tenants`、运维接口 | 租户开通/状态/平台配置 |
 
 ## 2. 客户用户：日常使用
@@ -32,7 +32,7 @@
 
 **第二步：查看可访问客户**
 
-- `GET /api/v1/msp/customers`（`msp_customer.read`）——只列出被分配（`MSPAllocation`）的客户；管理页对应 `/msp`。
+- `GET /api/v1/msp/customers`（`msp_customer.read`）——只列出被分配（`MSPAllocation`）的客户；前端入口：跨客户工作台 `/msp/workbench`。
 
 **第三步：跨客户处理**
 
@@ -72,6 +72,7 @@
 | 命令行通道（等价，运维/离线） | `go run ./cmd/provision_tenant -tenant-id <ID>`、`-create-admin` |
 | 管理页 | `/admin/tenants`（「开通」向导：模板供给 → 首个管理员 → 完成） |
 | 邀请入口 | `/admin/users` → 「邀请用户」（列表/创建/撤销/复制链接） |
+| 建号入口（平台/MSP 通道） | `/admin/tenants` 行内「建号」（平台通道，`tenant.write`）；`/msp/management`「为客户建号」（MSP 通道，`msp_customer.write`；服务端校验分配） |
 
 ## 5. 典型流程 A：新客户接入（8 步）
 

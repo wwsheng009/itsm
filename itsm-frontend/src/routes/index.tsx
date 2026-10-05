@@ -28,6 +28,8 @@ function lazyElement(Component: LazyExoticComponent<ComponentType>): ReactElemen
 // IP-P0-8 分组守卫权限集（与 Sidebar 管理区可见性口径一致；admin 角色语义由守卫保留）。
 const ADMIN_AREA_PERMISSIONS = ['user:write', 'role:write', 'system_config:write', 'ticket_type:manage'];
 const MSP_AREA_PERMISSIONS = ['msp:read', 'msp_ticket:read', 'msp_customer:read', 'msp_allocation:read', 'msp_report:read'];
+// 租户管理：菜单口径 = system:write；同时放行 tenant:* 专职运营角色（与页面 API 权限码一致）。
+const TENANT_ADMIN_PERMISSIONS = ['system:write', 'tenant:read', 'tenant:write'];
 
 const Forbidden = lazy(() => import('@/pages/403'));
 const Admin = lazy(() => import('@/pages/(main)/admin/index'));
@@ -269,7 +271,6 @@ export const routes: RouteObject[] = [
           { path: 'admin/sla-templates', element: lazyElement(AdminSlaTemplates) },
           { path: 'admin/system-config', element: lazyElement(AdminSystemConfig) },
           { path: 'admin/teams', element: lazyElement(AdminTeams) },
-          { path: 'admin/tenants', element: lazyElement(AdminTenants) },
           { path: 'admin/ticket-categories', element: lazyElement(AdminTicketCategories) },
           { path: 'admin/tickets/assignment-rules', element: lazyElement(AdminTicketsAssignmentRules) },
           { path: 'admin/tickets/automation-rules', element: lazyElement(AdminTicketsAutomationRules) },
@@ -277,6 +278,10 @@ export const routes: RouteObject[] = [
           { path: 'admin/vector-store', element: lazyElement(AdminVectorStore) },
           { path: 'admin/workflows', element: lazyElement(AdminWorkflows) },
             ],
+          },
+          {
+            element: <RequireCapability anyOf={TENANT_ADMIN_PERMISSIONS} />,
+            children: [{ path: 'admin/tenants', element: lazyElement(AdminTenants) }],
           },
           { path: 'ai/approval', element: lazyElement(AiApproval) },
           { path: 'ai/audit', element: lazyElement(AiAudit) },

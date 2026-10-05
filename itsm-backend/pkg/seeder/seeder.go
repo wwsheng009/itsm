@@ -1784,8 +1784,10 @@ func (s *Seeder) seedMenus(ctx context.Context) {
 		// Bot 运行看板（B4-02）：菜单挂载点评审结论 = 挂 AI 助手子项（与 AI 评估/审批同域，ai:read 可读）。
 		{Name: "Bot 运行看板", Path: "/ai/bot-metrics", Icon: "Activity", ParentPath: "/ai/chat", PermissionCode: "ai:read", SortOrder: 116},
 
-		// ===== 子菜单：MSP 客户管理 =====
-		{Name: "客户管理子页", Path: "/msp/management", Icon: "Settings", ParentPath: "/msp", PermissionCode: "msp:write", SortOrder: 122},
+		// ===== 子菜单：MSP 客户管理（菜单权限码与 C1 矩阵对齐：全部 MSP 角色可见读入口，写权限由页面/接口二次校验）=====
+		{Name: "跨客户工作台", Path: "/msp/workbench", Icon: "Activity", ParentPath: "/msp", PermissionCode: "msp_ticket:read", SortOrder: 121},
+		{Name: "分配管理", Path: "/msp/management", Icon: "Settings", ParentPath: "/msp", PermissionCode: "msp_allocation:read", SortOrder: 122},
+		{Name: "审计看板", Path: "/msp/audit", Icon: "Shield", ParentPath: "/msp", PermissionCode: "msp_report:read", SortOrder: 123},
 
 		// ===== 子菜单：发布管理 =====
 		{Name: "新建发布", Path: "/releases/new", Icon: "Plus", ParentPath: "/releases", PermissionCode: "release:write", SortOrder: 132},

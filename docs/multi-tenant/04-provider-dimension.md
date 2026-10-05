@@ -44,7 +44,7 @@
 | 创建分配 | `POST /api/v1/msp/allocations` | `msp_allocation.write` |
 | 解除分配 | `POST /api/v1/msp/allocations/deallocate` | `msp_allocation.write` |
 
-（路由来源：`docs/acl-manifest.yaml:2605-2620`，实现在 `router/msp_routes.go`、`handlers/msp/handler.go`；前端管理页 `/msp/management` 与 `itsm-frontend/src/lib/services/msp-service.ts` 提供对应操作。）
+（路由来源：`docs/acl-manifest.yaml:2605-2620`，实现在 `router/msp_routes.go`、`handlers/msp/handler.go`；前端页面 `/msp/workbench`（跨客户工作台）、`/msp/management`（分配管理，含「为客户建号」）与 `/msp/audit`（审计看板）提供对应操作；三入口已入菜单 seed，见 `pkg/seeder/seeder.go`。）
 
 **人员变更/离场流程（建议）**：
 
@@ -92,4 +92,4 @@
 - `middleware/msp_middleware.go:19-27, 133`、`middleware/msp_rbac.go:125-127`、`middleware/msp_gate.go:21-33`
 - `handlers/msp/handler.go:100-308`、`handlers/auth/service.go:114`
 - `router/msp_routes.go`、`docs/acl-manifest.yaml:2593-2650`
-- `itsm-frontend/src/lib/services/msp-service.ts`、前端页面 `/msp`、`/msp/management`
+- `itsm-frontend/src/lib/services/msp-service.ts`、前端页面 `/msp`、`/msp/workbench`、`/msp/management`、`/msp/audit`

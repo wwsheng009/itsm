@@ -15,6 +15,7 @@ import {
   PlayCircle,
   BarChart3,
   Rocket,
+  UserPlus,
 } from 'lucide-react';
 
 import React, { useState, useEffect } from 'react';
@@ -45,6 +46,7 @@ import { TenantAPI } from '@/lib/api/tenant-api';
 import type { TenantQuota, UpdateTenantRequest } from '@/lib/api/api-config';
 import TenantUsageModal from './components/TenantUsageModal';
 import TenantOnboardingModal from './components/TenantOnboardingModal';
+import ProvisionUserModal from '@/components/provisioning/ProvisionUserModal';
 
 const { Title, Text } = Typography;
 
@@ -150,6 +152,8 @@ export default function TenantManagement() {
   const [usageTenant, setUsageTenant] = useState<Tenant | null>(null);
   // 开通闭环：打开开通弹窗的目标租户（null = 关闭）。
   const [onboardingTenant, setOnboardingTenant] = useState<Tenant | null>(null);
+  // 平台建号通道：打开建号弹窗的目标租户（null = 关闭）。
+  const [provisionTenant, setProvisionTenant] = useState<Tenant | null>(null);
   // MSP 客户表单的服务商候选（仅 active 的 msp_provider）。
   const [mspProviders, setMspProviders] = useState<Tenant[]>([]);
   const [form] = Form.useForm();
@@ -374,7 +378,7 @@ export default function TenantManagement() {
     {
       title: '操作',
       key: 'actions',
-      width: 150,
+      width: 230,
       render: (_: unknown, record: Tenant) => (
         <Space size="small">
           <Tooltip title="编辑">
@@ -398,13 +402,20 @@ export default function TenantManagement() {
               onClick={() => setUsageTenant(record)}
             />
           </Tooltip>
-          <Tooltip title="开通/供给">
-            <Button
-              type="text"
-              icon={<Rocket className="w-4 h-4" />}
-              onClick={() => setOnboardingTenant(record)}
-            />
-          </Tooltip>
+          <Button
+            size="small"
+            icon={<Rocket className="w-4 h-4" />}
+            onClick={() => setOnboardingTenant(record)}
+          >
+            开通
+          </Button>
+          <Button
+            size="small"
+            icon={<UserPlus className="w-4 h-4" />}
+            onClick={() => setProvisionTenant(record)}
+          >
+            建号
+          </Button>
           {record.status === 'active' ? (
             record.code === 'default' ? (
               <Tooltip title="系统默认租户不可暂停（会导致整站无法访问）">
@@ -761,6 +772,15 @@ export default function TenantManagement() {
         open={!!onboardingTenant}
         tenant={onboardingTenant ?? undefined}
         onClose={() => setOnboardingTenant(null)}
+      />
+
+      {/* 平台建号通道（IP-P0-5）：为任意 active 租户创建用户。 */}
+      <ProvisionUserModal
+        open={!!provisionTenant}
+        title="平台建号"
+        targetLabel={provisionTenant ? `${provisionTenant.name}（${provisionTenant.code}）` : undefined}
+        onClose={() => setProvisionTenant(null)}
+        submit={payload => TenantAPI.provisionTenantUser(provisionTenant!.id, payload)}
       />
     </div>
   );

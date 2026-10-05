@@ -14,10 +14,11 @@ import {
   Alert,
   Spin,
 } from 'antd';
-import { Plus } from 'lucide-react';
+import { Plus, UserPlus } from 'lucide-react';
 import MSPService from '@/lib/services/msp-service';
 import { UserApi } from '@/lib/api/user-api';
 import type { MSPAllocation, CreateAllocationRequest } from '@/types/msp';
+import ProvisionUserModal from '@/components/provisioning/ProvisionUserModal';
 export default function MSPManagementPage() {
   const [form] = Form.useForm();
   const [loading, setLoading] = useState(false);
@@ -29,6 +30,8 @@ export default function MSPManagementPage() {
   const [selectedAllocation, setSelectedAllocation] = useState<MSPAllocation | null>(null);
   const [deallocateLoading, setDeallocateLoading] = useState(false);
   const [accessError, setAccessError] = useState<string | null>(null);
+  // MSP 建号通道：为客户建号弹窗（IP-P0-5）。
+  const [provisionVisible, setProvisionVisible] = useState(false);
 
   useEffect(() => {
     checkAccess();
@@ -183,9 +186,14 @@ export default function MSPManagementPage() {
       <Card
         title="MSP 分配管理"
         extra={
-          <Button type="primary" icon={<Plus />} onClick={() => setModalVisible(true)}>
-            新建分配
-          </Button>
+          <Space>
+            <Button icon={<UserPlus />} onClick={() => setProvisionVisible(true)}>
+              为客户建号
+            </Button>
+            <Button type="primary" icon={<Plus />} onClick={() => setModalVisible(true)}>
+              新建分配
+            </Button>
+          </Space>
         }
       >
         <Alert
@@ -252,6 +260,15 @@ export default function MSPManagementPage() {
           </Form.Item>
         </Form>
       </Modal>
+
+      {/* MSP 建号通道（IP-P0-5）：仅在已分配客户内建号；服务端二次校验 allocation。 */}
+      <ProvisionUserModal
+        open={provisionVisible}
+        title="为客户建号"
+        customerOptions={customers}
+        onClose={() => setProvisionVisible(false)}
+        submit={(payload, customerId) => MSPService.provisionCustomerUser(customerId!, payload)}
+      />
     </div>
   );
 }

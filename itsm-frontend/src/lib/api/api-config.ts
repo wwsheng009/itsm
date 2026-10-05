@@ -171,6 +171,22 @@ export interface BootstrapAdminResponse {
   mustChangePassword: boolean;
 }
 
+/** 建号通道（平台 / MSP 共用）请求体：CreateUserRequest 的 UI 子集。 */
+export interface ProvisionUserRequest {
+  username: string;
+  name: string;
+  email: string;
+  password: string;
+}
+
+/** 建号响应（UserDetailResponse 的最小子集）。 */
+export interface ProvisionUserResponse {
+  id: number;
+  username: string;
+  email: string;
+  name?: string;
+}
+
 // 重新导出标准Ticket类型，并扩展租户相关字段
 import type { Ticket as BaseTicket } from './types';
 

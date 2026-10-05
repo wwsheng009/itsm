@@ -121,6 +121,7 @@
 | 仪表盘 | `MSPService.isMSPUser()` 定权（`msp/index.tsx:60-73`）；并发拉 allocations/customers/context/reports（`:75-100`）；按页内 `selectedCustomerId` 拉客户工单（`:103-115`）；展示服务端上下文（`:470`） | 🟡 局部 state |
 | 分配管理 | `isMSP||isAdmin` 放行（`msp/management/index.tsx:37-49`）；建分配选 `customerTenantId`（`:222-230`） | ✅ 基础 |
 | 全局上下文 | ❌ 两页 `currentTenant` 零引用；无顶栏切换器/全局指示；`X-Customer-Tenant-ID` 前端从未注入 | ❌ F5/F6/F10 |
+| 菜单入口（2026-10-04 补全） | 子菜单三条：跨客户工作台 `/msp/workbench`（`msp_ticket:read`）、分配管理 `/msp/management`（原“客户管理子页”更名，`msp_allocation:read`）、审计看板 `/msp/audit`（`msp_report:read`）；权限码按 C1 矩阵收口（读入口全员可见，写由页面/接口二次校验）——`pkg/seeder/seeder.go` | ✅ |
 
 ---
 
@@ -241,3 +242,4 @@ switch-tenant 成功
 |---|---|---|
 | v0.1 | 2026-09-29 | 首版：前端路由/页面/权限/菜单/租户上下文现状盘点（HEAD `99eb4074`）+ 目标细化（上下文 v2、切换器、切换后刷新链路、路由守卫、页面改造清单、分期与验收、风险） |
 | v0.2 | 2026-09-30 | **回填与冻结**：§6.2/§6.5/§7 按工作台 `REV-5` 改为 `CustomerFilter` 主控件 + 深度切换入口 + `/msp/workbench` 页（P0）；`pages/(main)/msp/**` 收敛上调 P0；用户管理目标租户 UI 标注 P1（后端 `IP-P0-5` 为 P0）；FE 验收补"客户账号无过滤器/工作台"；基准 HEAD 重钉 `337558e3` |
+| v0.3 | 2026-10-04 | **入口补全回填**：MSP 三子菜单入 seed（工作台/分配管理/审计看板，权限码对齐 C1 读集）；平台建号（`/admin/tenants` 行内）与 MSP 客户建号（`/msp/management`）UI 落地（`ProvisionUserModal` 复用）；`/admin/tenants` 路由守卫独立组（`system:write`/`tenant:read`/`tenant:write`）与菜单口径对齐 |

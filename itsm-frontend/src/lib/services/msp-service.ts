@@ -9,6 +9,7 @@ import type {
   MSPContext,
   TicketMSPInfo,
 } from '@/types/msp';
+import type { ProvisionUserRequest, ProvisionUserResponse } from '@/lib/api/api-config';
 
 export class MSPService {
   // 缓存当前用户 MSP 状态
@@ -56,6 +57,16 @@ export class MSPService {
       customers: res?.customers ?? [],
       total: res?.total ?? 0,
     };
+  }
+
+  /**
+   * 为客户建号（MSP 通道；业务失败由 httpClient 直接 throw）。
+   */
+  static async provisionCustomerUser(
+    customerTenantId: number,
+    payload: ProvisionUserRequest
+  ): Promise<ProvisionUserResponse> {
+    return MSPAPI.provisionCustomerUser(customerTenantId, payload);
   }
 
   /**
