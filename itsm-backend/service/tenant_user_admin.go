@@ -496,8 +496,8 @@ func (s *TenantUserAdminService) revokeUserRefresh(ctx context.Context, userID i
 }
 
 // recordAudit 平台治理动作显式审计：
-// 行归属 actor 家租户（tenant_id），target_tenant_id=目标租户，source=platform_selected；
-// 一次性口令绝不入审计（payload 不含明文）。
+// 行归属 actor 家租户（tenant_id），target_tenant_id=目标租户，target_user_id=目标用户（TUM-3），
+// source=platform_selected；一次性口令绝不入审计（payload 不含明文）。
 func (s *TenantUserAdminService) recordAudit(ctx context.Context, actor TenantAdminActor, action string, tenantID, userID int, payload map[string]any, statusCode int) {
 	if s.client == nil {
 		return
@@ -513,6 +513,7 @@ func (s *TenantUserAdminService) recordAudit(ctx context.Context, actor TenantAd
 		SetCreatedAt(time.Now()).
 		SetTenantID(rowTenant).
 		SetTargetTenantID(tenantID).
+		SetTargetUserID(userID).
 		SetSource(middleware.AuditSourcePlatformSelected).
 		SetResource("tenant_user").
 		SetAction(action).

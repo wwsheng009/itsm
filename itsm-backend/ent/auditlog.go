@@ -45,6 +45,8 @@ type AuditLog struct {
 	MembershipID int `json:"membership_id,omitempty"`
 	// 跨租户操作的目标租户；同租户时等于 tenant_id
 	TargetTenantID int `json:"target_tenant_id,omitempty"`
+	// 跨租户账号治理的目标用户（TUM-3）；NULL=legacy/非用户维度
+	TargetUserID int `json:"target_user_id,omitempty"`
 	// login|switch|header|workbench|platform_selected|job|system；NULL=legacy
 	Source       string `json:"source,omitempty"`
 	selectValues sql.SelectValues
@@ -55,7 +57,7 @@ func (*AuditLog) scanValues(columns []string) ([]any, error) {
 	values := make([]any, len(columns))
 	for i := range columns {
 		switch columns[i] {
-		case auditlog.FieldID, auditlog.FieldTenantID, auditlog.FieldUserID, auditlog.FieldStatusCode, auditlog.FieldMembershipID, auditlog.FieldTargetTenantID:
+		case auditlog.FieldID, auditlog.FieldTenantID, auditlog.FieldUserID, auditlog.FieldStatusCode, auditlog.FieldMembershipID, auditlog.FieldTargetTenantID, auditlog.FieldTargetUserID:
 			values[i] = new(sql.NullInt64)
 		case auditlog.FieldRequestID, auditlog.FieldIP, auditlog.FieldResource, auditlog.FieldAction, auditlog.FieldPath, auditlog.FieldMethod, auditlog.FieldRequestBody, auditlog.FieldActorAccount, auditlog.FieldSource:
 			values[i] = new(sql.NullString)
@@ -167,6 +169,12 @@ func (_m *AuditLog) assignValues(columns []string, values []any) error {
 			} else if value.Valid {
 				_m.TargetTenantID = int(value.Int64)
 			}
+		case auditlog.FieldTargetUserID:
+			if value, ok := values[i].(*sql.NullInt64); !ok {
+				return fmt.Errorf("unexpected type %T for field target_user_id", values[i])
+			} else if value.Valid {
+				_m.TargetUserID = int(value.Int64)
+			}
 		case auditlog.FieldSource:
 			if value, ok := values[i].(*sql.NullString); !ok {
 				return fmt.Errorf("unexpected type %T for field source", values[i])
@@ -252,6 +260,9 @@ func (_m *AuditLog) String() string {
 	builder.WriteString(", ")
 	builder.WriteString("target_tenant_id=")
 	builder.WriteString(fmt.Sprintf("%v", _m.TargetTenantID))
+	builder.WriteString(", ")
+	builder.WriteString("target_user_id=")
+	builder.WriteString(fmt.Sprintf("%v", _m.TargetUserID))
 	builder.WriteString(", ")
 	builder.WriteString("source=")
 	builder.WriteString(_m.Source)

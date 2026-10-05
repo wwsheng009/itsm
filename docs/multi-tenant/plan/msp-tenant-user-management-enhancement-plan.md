@@ -1,6 +1,6 @@
 # 平台侧租户用户管理增强方案（/admin/tenants · 跨租户账号治理）
 
-> 状态：**v0.3（决策冻结 + TUM-1/TUM-2 后端落地）**｜日期：2026-10-05｜基准：仓库 HEAD `9736a14f`
+> 状态：**v0.4（决策冻结 + TUM-1/TUM-2/TUM-3 后端落地）**｜日期：2026-10-05｜基准：仓库 HEAD `039371ef`
 > 上位：[canon v1.0](./msp-concept-model-and-architecture-canon.md)（canon D5/D8/D11、附录 C）→ [目标架构](./msp-target-architecture.md)（§6 权限矩阵/建号）→ [实施方案](./msp-implementation-plan.md)（IP-P0-5 建号通道、IP-P2-6 硬配额）
 > 定位：**L4 方案**（局部编号 `TUM-#`，跨文档引用必须带前缀）。范围：平台管理员在租户治理页（`/admin/tenants`）对**任意租户**用户的查看与账号治理（重置密码 / 启用停用 / 强制下线 / 审计）；不含 MSP 服务商面工作台（其可复用同一服务能力，另行接线）。
 
@@ -195,24 +195,29 @@
 
 | 动作 | 审计 action（建议） | 关键字段 | 备注 |
 |---|---|---|---|
-| 重置密码 | `user.admin_reset_password` | actor_user_id、target_tenant_id、target_user_id、mode、sessions_revoked | 中间件自动审计（`audit.go:243-281`）+ service 显式审计补齐 target_user_id；`newPassword`/`password` 由 `mask.go` 掩码，**一次性口令不写审计** |
-| 启停 | `user.admin_status_change` | 同上 + active/to | 复用中间件资源识别（`user` + PUT）并补充目标字段 |
-| 强制下线 | `user.admin_revoke_sessions` | 同上 | P1 |
-| 批量启停 | `user.admin_batch_status` | 批量计数 + 逐条失败码 | P1，逐条结果写审计摘要 |
+| 重置密码 | `user.admin_password_reset` | actor_user_id、target_tenant_id、target_user_id、mode、sessions_revoked | service 显式审计（`TenantUserAdminService.recordAudit`）；`newPassword`/`password` 由 `mask.go` 掩码，**一次性口令不写审计**；中间件自动行同时携带 target 标记（handler `c.Set`） |
+| 启停 | `user.admin_status` | 同上 + active/to | 同上 |
+| 强制下线 | `user.admin_force_logout` | 同上 | 同上 |
+| 批量启停 | `user.admin_batch_status` | 批量计数 + 逐条失败码 | P1（未实现），逐条结果写审计摘要 |
 
 > 行归属保持 actor home 租户（`tenant_id`），目标租户落 `target_tenant_id`（IP-P0-10 既有字段），确保「平台动作」在审计看板可按目标租户过滤。
-> v0.2 补充：`audit_logs` 新增可空列 `target_user_id` + 索引 `(target_tenant_id, target_user_id, created_at)`，用于「按用户」治理时间线（TUM-3 迁移；历史行 NULL 按 legacy 处理）。
+> ✅ v0.4（TUM-3）：`audit_logs.target_user_id` 可空列 + 索引 `(target_tenant_id, target_user_id, created_at)` 已落地（迁移 `20261005_audit_target_user_id.sql`）；审计查询支持 `targetUserId` 过滤；历史行 NULL 按 legacy 处理。
 
 ### 3.5 错误码（稳定，前端映射文案）
 
 | 码 | HTTP | 触发 |
 |---|---|---|
-| `PLATFORM_SCOPE_REQUIRED` | 403 | 非 `super_admin` 调用平台面通道 |
-| `USER_NOT_IN_TENANT` | 404 | `(tenant_id, user_id)` 双键未命中（含 IDOR 尝试） |
-| `LAST_ADMIN_PROTECTED` | 409 | 停用目标租户最后一个可用管理员 |
+| `PLATFORM_SCOPE_REQUIRED` | 403 | 非 `super_admin` 调用平台面通道（TUM-D1） |
+| `TENANT_USER_ADMIN_DISABLED` | 403 | 写通道灰度开关 `TENANT_USER_ADMIN_ENABLED` 关闭（默认关；读通道不受限） |
+| `TENANT_NOT_FOUND` | 404 | `:id` 目标租户不存在 |
+| `TENANT_USER_NOT_FOUND` | 404 | `(tenant_id, user_id)` 双键未命中（含 IDOR 尝试） |
+| `INVALID_PARAM` | 400 | 参数非法（ID/分页/状态过滤值/缺 `active`） |
+| `PASSWORD_POLICY_VIOLATION` | 400 | `specified` 新密码不满足目标租户策略（透出规则） |
 | `INVALID_RESET_MODE` | 400 | `mode` 非 `generated/specified`；或 `specified` 缺 `newPassword` |
-| `TENANT_USER_ADMIN_DISABLED` | 404 | 写操作灰度开关关闭（对齐建号 `PROVISIONING_CHANNELS_DISABLED` 的 404 口径） |
-| 复用 | 400/404/422 | 密码策略失败（400，透出规则）、`TENANT_NOT_FOUND`（404）、配额 `TENANT_QUOTA_EXCEEDED`（422，仅建号路径） |
+| `LAST_ADMIN_PROTECTED` | 409 | 停用目标租户最后一个可用管理员 |
+| `SELF_OPERATION_FORBIDDEN` | 409 | 停用调用者自身 |
+| `TENANT_CONFIRM_REQUIRED` | 409 | `default` 平台租户启停需 `confirmCode=default`（TUM-D5） |
+| 复用 | 400/422 | 通用参数错误（400）；`TENANT_QUOTA_EXCEEDED`（422，仅建号路径复用） |
 
 ---
 
@@ -289,7 +294,8 @@
 - ✅ **TUM-1 后端读通道**：`GET /api/v1/tenants/:id/users[/:userId]`；`TenantUserAdminService`；双层平台面判定（路由 `tenant:read` 粗筛 + 服务层 `super_admin` 硬校验，TUM-D1）；分页/关键字/状态/角色过滤；目标租户 RLS 重绑定 + `(tenant_id,user_id)` 双键。
 - ✅ **TUM-2 后端账号治理**：重置（generated/specified，按目标租户密码策略）、启停（最后管理员 409 / `default` 二次确认 / 禁止自停用）、强制下线；**TUM-D6 会话双吊销**落地（access `minIssuedAt` + refresh 按用户最低签发时间、续签路径校验，`middleware/token_revocation.go`）。
 - ✅ **审计**：`user.admin_password_reset` / `user.admin_status` / `user.admin_force_logout`；行归属 actor 家租户、`target_tenant_id`=目标租户、`source=platform_selected`；一次性口令不落审计（掩码沿用既有）。
-- ⏳ **TUM-3 剩余**：`audit_logs.target_user_id` 列 + 索引（迁移并入下一批）；TUM-4 前端抽屉（下一批）；TUM-5 集成/e2e 剧本随前端批次补齐。
+- ✅ **TUM-3 审计与用户时间线**：三类治理动作显式审计补齐 `target_user_id`（中间件 `audit_target_user_id` + service 显式行）；迁移 `20261005_audit_target_user_id.sql`（列 + 索引 `(target_tenant_id, target_user_id, created_at)`）；审计查询新增 `targetUserId` 过滤；断言用例（掩码 + target_user_id）落地。
+- ⏳ **TUM-4** 前端抽屉（下一批）；**TUM-5** 集成/e2e 剧本随前端批次补齐。
 
 **验证命令（建议）**
 

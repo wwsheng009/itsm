@@ -200,6 +200,20 @@ func (_c *AuditLogCreate) SetNillableTargetTenantID(v *int) *AuditLogCreate {
 	return _c
 }
 
+// SetTargetUserID sets the "target_user_id" field.
+func (_c *AuditLogCreate) SetTargetUserID(v int) *AuditLogCreate {
+	_c.mutation.SetTargetUserID(v)
+	return _c
+}
+
+// SetNillableTargetUserID sets the "target_user_id" field if the given value is not nil.
+func (_c *AuditLogCreate) SetNillableTargetUserID(v *int) *AuditLogCreate {
+	if v != nil {
+		_c.SetTargetUserID(*v)
+	}
+	return _c
+}
+
 // SetSource sets the "source" field.
 func (_c *AuditLogCreate) SetSource(v string) *AuditLogCreate {
 	_c.mutation.SetSource(v)
@@ -385,6 +399,10 @@ func (_c *AuditLogCreate) createSpec() (*AuditLog, *sqlgraph.CreateSpec) {
 	if value, ok := _c.mutation.TargetTenantID(); ok {
 		_spec.SetField(auditlog.FieldTargetTenantID, field.TypeInt, value)
 		_node.TargetTenantID = value
+	}
+	if value, ok := _c.mutation.TargetUserID(); ok {
+		_spec.SetField(auditlog.FieldTargetUserID, field.TypeInt, value)
+		_node.TargetUserID = value
 	}
 	if value, ok := _c.mutation.Source(); ok {
 		_spec.SetField(auditlog.FieldSource, field.TypeString, value)

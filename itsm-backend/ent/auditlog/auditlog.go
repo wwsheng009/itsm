@@ -41,6 +41,8 @@ const (
 	FieldMembershipID = "membership_id"
 	// FieldTargetTenantID holds the string denoting the target_tenant_id field in the database.
 	FieldTargetTenantID = "target_tenant_id"
+	// FieldTargetUserID holds the string denoting the target_user_id field in the database.
+	FieldTargetUserID = "target_user_id"
 	// FieldSource holds the string denoting the source field in the database.
 	FieldSource = "source"
 	// Table holds the table name of the auditlog in the database.
@@ -64,6 +66,7 @@ var Columns = []string{
 	FieldActorAccount,
 	FieldMembershipID,
 	FieldTargetTenantID,
+	FieldTargetUserID,
 	FieldSource,
 }
 
@@ -170,6 +173,11 @@ func ByMembershipID(opts ...sql.OrderTermOption) OrderOption {
 // ByTargetTenantID orders the results by the target_tenant_id field.
 func ByTargetTenantID(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldTargetTenantID, opts...).ToFunc()
+}
+
+// ByTargetUserID orders the results by the target_user_id field.
+func ByTargetUserID(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldTargetUserID, opts...).ToFunc()
 }
 
 // BySource orders the results by the source field.

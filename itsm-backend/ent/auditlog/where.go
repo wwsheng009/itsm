@@ -124,6 +124,11 @@ func TargetTenantID(v int) predicate.AuditLog {
 	return predicate.AuditLog(sql.FieldEQ(FieldTargetTenantID, v))
 }
 
+// TargetUserID applies equality check predicate on the "target_user_id" field. It's identical to TargetUserIDEQ.
+func TargetUserID(v int) predicate.AuditLog {
+	return predicate.AuditLog(sql.FieldEQ(FieldTargetUserID, v))
+}
+
 // Source applies equality check predicate on the "source" field. It's identical to SourceEQ.
 func Source(v string) predicate.AuditLog {
 	return predicate.AuditLog(sql.FieldEQ(FieldSource, v))
@@ -957,6 +962,56 @@ func TargetTenantIDIsNil() predicate.AuditLog {
 // TargetTenantIDNotNil applies the NotNil predicate on the "target_tenant_id" field.
 func TargetTenantIDNotNil() predicate.AuditLog {
 	return predicate.AuditLog(sql.FieldNotNull(FieldTargetTenantID))
+}
+
+// TargetUserIDEQ applies the EQ predicate on the "target_user_id" field.
+func TargetUserIDEQ(v int) predicate.AuditLog {
+	return predicate.AuditLog(sql.FieldEQ(FieldTargetUserID, v))
+}
+
+// TargetUserIDNEQ applies the NEQ predicate on the "target_user_id" field.
+func TargetUserIDNEQ(v int) predicate.AuditLog {
+	return predicate.AuditLog(sql.FieldNEQ(FieldTargetUserID, v))
+}
+
+// TargetUserIDIn applies the In predicate on the "target_user_id" field.
+func TargetUserIDIn(vs ...int) predicate.AuditLog {
+	return predicate.AuditLog(sql.FieldIn(FieldTargetUserID, vs...))
+}
+
+// TargetUserIDNotIn applies the NotIn predicate on the "target_user_id" field.
+func TargetUserIDNotIn(vs ...int) predicate.AuditLog {
+	return predicate.AuditLog(sql.FieldNotIn(FieldTargetUserID, vs...))
+}
+
+// TargetUserIDGT applies the GT predicate on the "target_user_id" field.
+func TargetUserIDGT(v int) predicate.AuditLog {
+	return predicate.AuditLog(sql.FieldGT(FieldTargetUserID, v))
+}
+
+// TargetUserIDGTE applies the GTE predicate on the "target_user_id" field.
+func TargetUserIDGTE(v int) predicate.AuditLog {
+	return predicate.AuditLog(sql.FieldGTE(FieldTargetUserID, v))
+}
+
+// TargetUserIDLT applies the LT predicate on the "target_user_id" field.
+func TargetUserIDLT(v int) predicate.AuditLog {
+	return predicate.AuditLog(sql.FieldLT(FieldTargetUserID, v))
+}
+
+// TargetUserIDLTE applies the LTE predicate on the "target_user_id" field.
+func TargetUserIDLTE(v int) predicate.AuditLog {
+	return predicate.AuditLog(sql.FieldLTE(FieldTargetUserID, v))
+}
+
+// TargetUserIDIsNil applies the IsNil predicate on the "target_user_id" field.
+func TargetUserIDIsNil() predicate.AuditLog {
+	return predicate.AuditLog(sql.FieldIsNull(FieldTargetUserID))
+}
+
+// TargetUserIDNotNil applies the NotNil predicate on the "target_user_id" field.
+func TargetUserIDNotNil() predicate.AuditLog {
+	return predicate.AuditLog(sql.FieldNotNull(FieldTargetUserID))
 }
 
 // SourceEQ applies the EQ predicate on the "source" field.

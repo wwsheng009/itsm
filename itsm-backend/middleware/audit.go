@@ -250,11 +250,13 @@ func AuditMiddleware(client *ent.Client) gin.HandlerFunc {
 		isSensitive := isSensitiveOperation(action, resource, status)
 
 		// IP-P0-10：作用域字段（source / target_tenant_id / actor_account）。
+		// TUM-3：target_user_id 由业务 handler 显式标记（账号治理类动作的目标用户）。
 		source := auditSourceForRequest(c)
 		targetTenantID := c.GetInt("audit_target_tenant_id")
 		if targetTenantID <= 0 {
 			targetTenantID = tenantID
 		}
+		targetUserID := c.GetInt("audit_target_user_id")
 
 		// 审计记录是企业合规数据，不能使用无确认的 goroutine（进程退出时会静默丢失）。
 		auditCtx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
@@ -281,6 +283,9 @@ func AuditMiddleware(client *ent.Client) gin.HandlerFunc {
 			SetSource(source)
 		if targetTenantID > 0 {
 			auditCreate = auditCreate.SetTargetTenantID(targetTenantID)
+		}
+		if targetUserID > 0 {
+			auditCreate = auditCreate.SetTargetUserID(targetUserID)
 		}
 		if username != "" {
 			auditCreate = auditCreate.SetActorAccount(username)
@@ -310,6 +315,7 @@ func AuditMiddleware(client *ent.Client) gin.HandlerFunc {
 			"sensitive", isSensitive,
 			"audit_source", source,
 			"target_tenant_id", targetTenantID,
+			"target_user_id", targetUserID,
 		}
 
 		if globalLogger != nil {

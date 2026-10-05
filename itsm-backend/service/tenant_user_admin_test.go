@@ -12,6 +12,7 @@ import (
 
 	"itsm-backend/dto"
 	"itsm-backend/ent"
+	"itsm-backend/ent/auditlog"
 	"itsm-backend/ent/enttest"
 	"itsm-backend/ent/user"
 	"itsm-backend/middleware"
@@ -214,4 +215,54 @@ func TestTenantUserAdmin_DisabledFlagAndForceLogout(t *testing.T) {
 	revoked, err := middleware.IsUserRefreshRevoked(f.ctx, f.normalA, time.Now().Add(-time.Minute))
 	require.NoError(t, err)
 	assert.True(t, revoked)
+}
+
+// TestTenantUserAdmin_AuditRows TUM-3：三类治理动作显式审计行必须携带 target_user_id，
+// 行归属 actor 家租户 + target_tenant_id=目标租户 + source=platform_selected；
+// 一次性口令绝不落审计（RequestBody 不含明文）。
+func TestTenantUserAdmin_AuditRows(t *testing.T) {
+	f := newTenantUserAdminFixture(t)
+
+	resetResp, err := f.svc.ResetPassword(f.ctx, f.actor, f.tenantA, f.normalA, &dto.ResetTenantUserPasswordRequest{Mode: dto.TenantUserResetModeGenerated})
+	require.NoError(t, err)
+
+	disable := false
+	require.NoError(t, f.svc.SetActive(f.ctx, f.actor, f.tenantA, f.adminA2, &dto.SetTenantUserStatusRequest{Active: &disable}))
+
+	_, err = f.svc.ForceLogout(f.ctx, f.actor, f.tenantA, f.normalA)
+	require.NoError(t, err)
+
+	logs, err := f.client.AuditLog.Query().
+		Where(
+			auditlog.TenantIDEQ(f.tenantB),
+			auditlog.ActionIn("user.admin_password_reset", "user.admin_status", "user.admin_force_logout"),
+		).
+		All(f.ctx)
+	require.NoError(t, err)
+	require.Len(t, logs, 3, "三类治理动作各 1 行显式审计")
+
+	byAction := map[string]*ent.AuditLog{}
+	for _, l := range logs {
+		byAction[l.Action] = l
+		assert.Equal(t, f.tenantA, l.TargetTenantID, "target_tenant_id=目标租户")
+		assert.Equal(t, f.tenantB, l.TenantID, "行归属 actor 家租户")
+		assert.Equal(t, f.actor.UserID, l.UserID)
+		assert.Equal(t, "platform-admin", l.ActorAccount)
+		assert.Equal(t, middleware.AuditSourcePlatformSelected, l.Source)
+	}
+
+	resetRow := byAction["user.admin_password_reset"]
+	require.NotNil(t, resetRow)
+	assert.Equal(t, f.normalA, resetRow.TargetUserID)
+	if resetRow.RequestBody != nil {
+		assert.NotContains(t, *resetRow.RequestBody, resetResp.GeneratedPassword, "一次性口令不落审计")
+	}
+
+	statusRow := byAction["user.admin_status"]
+	require.NotNil(t, statusRow)
+	assert.Equal(t, f.adminA2, statusRow.TargetUserID)
+
+	logoutRow := byAction["user.admin_force_logout"]
+	require.NotNil(t, logoutRow)
+	assert.Equal(t, f.normalA, logoutRow.TargetUserID)
 }

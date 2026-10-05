@@ -13935,6 +13935,8 @@ type AuditLogMutation struct {
 	addmembership_id    *int
 	target_tenant_id    *int
 	addtarget_tenant_id *int
+	target_user_id      *int
+	addtarget_user_id   *int
 	source              *string
 	clearedFields       map[string]struct{}
 	done                bool
@@ -14739,6 +14741,76 @@ func (m *AuditLogMutation) ResetTargetTenantID() {
 	delete(m.clearedFields, auditlog.FieldTargetTenantID)
 }
 
+// SetTargetUserID sets the "target_user_id" field.
+func (m *AuditLogMutation) SetTargetUserID(i int) {
+	m.target_user_id = &i
+	m.addtarget_user_id = nil
+}
+
+// TargetUserID returns the value of the "target_user_id" field in the mutation.
+func (m *AuditLogMutation) TargetUserID() (r int, exists bool) {
+	v := m.target_user_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldTargetUserID returns the old "target_user_id" field's value of the AuditLog entity.
+// If the AuditLog object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *AuditLogMutation) OldTargetUserID(ctx context.Context) (v int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldTargetUserID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldTargetUserID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldTargetUserID: %w", err)
+	}
+	return oldValue.TargetUserID, nil
+}
+
+// AddTargetUserID adds i to the "target_user_id" field.
+func (m *AuditLogMutation) AddTargetUserID(i int) {
+	if m.addtarget_user_id != nil {
+		*m.addtarget_user_id += i
+	} else {
+		m.addtarget_user_id = &i
+	}
+}
+
+// AddedTargetUserID returns the value that was added to the "target_user_id" field in this mutation.
+func (m *AuditLogMutation) AddedTargetUserID() (r int, exists bool) {
+	v := m.addtarget_user_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ClearTargetUserID clears the value of the "target_user_id" field.
+func (m *AuditLogMutation) ClearTargetUserID() {
+	m.target_user_id = nil
+	m.addtarget_user_id = nil
+	m.clearedFields[auditlog.FieldTargetUserID] = struct{}{}
+}
+
+// TargetUserIDCleared returns if the "target_user_id" field was cleared in this mutation.
+func (m *AuditLogMutation) TargetUserIDCleared() bool {
+	_, ok := m.clearedFields[auditlog.FieldTargetUserID]
+	return ok
+}
+
+// ResetTargetUserID resets all changes to the "target_user_id" field.
+func (m *AuditLogMutation) ResetTargetUserID() {
+	m.target_user_id = nil
+	m.addtarget_user_id = nil
+	delete(m.clearedFields, auditlog.FieldTargetUserID)
+}
+
 // SetSource sets the "source" field.
 func (m *AuditLogMutation) SetSource(s string) {
 	m.source = &s
@@ -14822,7 +14894,7 @@ func (m *AuditLogMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *AuditLogMutation) Fields() []string {
-	fields := make([]string, 0, 15)
+	fields := make([]string, 0, 16)
 	if m.created_at != nil {
 		fields = append(fields, auditlog.FieldCreatedAt)
 	}
@@ -14865,6 +14937,9 @@ func (m *AuditLogMutation) Fields() []string {
 	if m.target_tenant_id != nil {
 		fields = append(fields, auditlog.FieldTargetTenantID)
 	}
+	if m.target_user_id != nil {
+		fields = append(fields, auditlog.FieldTargetUserID)
+	}
 	if m.source != nil {
 		fields = append(fields, auditlog.FieldSource)
 	}
@@ -14904,6 +14979,8 @@ func (m *AuditLogMutation) Field(name string) (ent.Value, bool) {
 		return m.MembershipID()
 	case auditlog.FieldTargetTenantID:
 		return m.TargetTenantID()
+	case auditlog.FieldTargetUserID:
+		return m.TargetUserID()
 	case auditlog.FieldSource:
 		return m.Source()
 	}
@@ -14943,6 +15020,8 @@ func (m *AuditLogMutation) OldField(ctx context.Context, name string) (ent.Value
 		return m.OldMembershipID(ctx)
 	case auditlog.FieldTargetTenantID:
 		return m.OldTargetTenantID(ctx)
+	case auditlog.FieldTargetUserID:
+		return m.OldTargetUserID(ctx)
 	case auditlog.FieldSource:
 		return m.OldSource(ctx)
 	}
@@ -15052,6 +15131,13 @@ func (m *AuditLogMutation) SetField(name string, value ent.Value) error {
 		}
 		m.SetTargetTenantID(v)
 		return nil
+	case auditlog.FieldTargetUserID:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetTargetUserID(v)
+		return nil
 	case auditlog.FieldSource:
 		v, ok := value.(string)
 		if !ok {
@@ -15082,6 +15168,9 @@ func (m *AuditLogMutation) AddedFields() []string {
 	if m.addtarget_tenant_id != nil {
 		fields = append(fields, auditlog.FieldTargetTenantID)
 	}
+	if m.addtarget_user_id != nil {
+		fields = append(fields, auditlog.FieldTargetUserID)
+	}
 	return fields
 }
 
@@ -15100,6 +15189,8 @@ func (m *AuditLogMutation) AddedField(name string) (ent.Value, bool) {
 		return m.AddedMembershipID()
 	case auditlog.FieldTargetTenantID:
 		return m.AddedTargetTenantID()
+	case auditlog.FieldTargetUserID:
+		return m.AddedTargetUserID()
 	}
 	return nil, false
 }
@@ -15144,6 +15235,13 @@ func (m *AuditLogMutation) AddField(name string, value ent.Value) error {
 		}
 		m.AddTargetTenantID(v)
 		return nil
+	case auditlog.FieldTargetUserID:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddTargetUserID(v)
+		return nil
 	}
 	return fmt.Errorf("unknown AuditLog numeric field %s", name)
 }
@@ -15172,6 +15270,9 @@ func (m *AuditLogMutation) ClearedFields() []string {
 	}
 	if m.FieldCleared(auditlog.FieldTargetTenantID) {
 		fields = append(fields, auditlog.FieldTargetTenantID)
+	}
+	if m.FieldCleared(auditlog.FieldTargetUserID) {
+		fields = append(fields, auditlog.FieldTargetUserID)
 	}
 	if m.FieldCleared(auditlog.FieldSource) {
 		fields = append(fields, auditlog.FieldSource)
@@ -15210,6 +15311,9 @@ func (m *AuditLogMutation) ClearField(name string) error {
 		return nil
 	case auditlog.FieldTargetTenantID:
 		m.ClearTargetTenantID()
+		return nil
+	case auditlog.FieldTargetUserID:
+		m.ClearTargetUserID()
 		return nil
 	case auditlog.FieldSource:
 		m.ClearSource()
@@ -15263,6 +15367,9 @@ func (m *AuditLogMutation) ResetField(name string) error {
 		return nil
 	case auditlog.FieldTargetTenantID:
 		m.ResetTargetTenantID()
+		return nil
+	case auditlog.FieldTargetUserID:
+		m.ResetTargetUserID()
 		return nil
 	case auditlog.FieldSource:
 		m.ResetSource()

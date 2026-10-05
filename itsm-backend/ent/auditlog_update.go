@@ -301,6 +301,33 @@ func (_u *AuditLogUpdate) ClearTargetTenantID() *AuditLogUpdate {
 	return _u
 }
 
+// SetTargetUserID sets the "target_user_id" field.
+func (_u *AuditLogUpdate) SetTargetUserID(v int) *AuditLogUpdate {
+	_u.mutation.ResetTargetUserID()
+	_u.mutation.SetTargetUserID(v)
+	return _u
+}
+
+// SetNillableTargetUserID sets the "target_user_id" field if the given value is not nil.
+func (_u *AuditLogUpdate) SetNillableTargetUserID(v *int) *AuditLogUpdate {
+	if v != nil {
+		_u.SetTargetUserID(*v)
+	}
+	return _u
+}
+
+// AddTargetUserID adds value to the "target_user_id" field.
+func (_u *AuditLogUpdate) AddTargetUserID(v int) *AuditLogUpdate {
+	_u.mutation.AddTargetUserID(v)
+	return _u
+}
+
+// ClearTargetUserID clears the value of the "target_user_id" field.
+func (_u *AuditLogUpdate) ClearTargetUserID() *AuditLogUpdate {
+	_u.mutation.ClearTargetUserID()
+	return _u
+}
+
 // SetSource sets the "source" field.
 func (_u *AuditLogUpdate) SetSource(v string) *AuditLogUpdate {
 	_u.mutation.SetSource(v)
@@ -457,6 +484,15 @@ func (_u *AuditLogUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 	}
 	if _u.mutation.TargetTenantIDCleared() {
 		_spec.ClearField(auditlog.FieldTargetTenantID, field.TypeInt)
+	}
+	if value, ok := _u.mutation.TargetUserID(); ok {
+		_spec.SetField(auditlog.FieldTargetUserID, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.AddedTargetUserID(); ok {
+		_spec.AddField(auditlog.FieldTargetUserID, field.TypeInt, value)
+	}
+	if _u.mutation.TargetUserIDCleared() {
+		_spec.ClearField(auditlog.FieldTargetUserID, field.TypeInt)
 	}
 	if value, ok := _u.mutation.Source(); ok {
 		_spec.SetField(auditlog.FieldSource, field.TypeString, value)
@@ -757,6 +793,33 @@ func (_u *AuditLogUpdateOne) ClearTargetTenantID() *AuditLogUpdateOne {
 	return _u
 }
 
+// SetTargetUserID sets the "target_user_id" field.
+func (_u *AuditLogUpdateOne) SetTargetUserID(v int) *AuditLogUpdateOne {
+	_u.mutation.ResetTargetUserID()
+	_u.mutation.SetTargetUserID(v)
+	return _u
+}
+
+// SetNillableTargetUserID sets the "target_user_id" field if the given value is not nil.
+func (_u *AuditLogUpdateOne) SetNillableTargetUserID(v *int) *AuditLogUpdateOne {
+	if v != nil {
+		_u.SetTargetUserID(*v)
+	}
+	return _u
+}
+
+// AddTargetUserID adds value to the "target_user_id" field.
+func (_u *AuditLogUpdateOne) AddTargetUserID(v int) *AuditLogUpdateOne {
+	_u.mutation.AddTargetUserID(v)
+	return _u
+}
+
+// ClearTargetUserID clears the value of the "target_user_id" field.
+func (_u *AuditLogUpdateOne) ClearTargetUserID() *AuditLogUpdateOne {
+	_u.mutation.ClearTargetUserID()
+	return _u
+}
+
 // SetSource sets the "source" field.
 func (_u *AuditLogUpdateOne) SetSource(v string) *AuditLogUpdateOne {
 	_u.mutation.SetSource(v)
@@ -943,6 +1006,15 @@ func (_u *AuditLogUpdateOne) sqlSave(ctx context.Context) (_node *AuditLog, err 
 	}
 	if _u.mutation.TargetTenantIDCleared() {
 		_spec.ClearField(auditlog.FieldTargetTenantID, field.TypeInt)
+	}
+	if value, ok := _u.mutation.TargetUserID(); ok {
+		_spec.SetField(auditlog.FieldTargetUserID, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.AddedTargetUserID(); ok {
+		_spec.AddField(auditlog.FieldTargetUserID, field.TypeInt, value)
+	}
+	if _u.mutation.TargetUserIDCleared() {
+		_spec.ClearField(auditlog.FieldTargetUserID, field.TypeInt)
 	}
 	if value, ok := _u.mutation.Source(); ok {
 		_spec.SetField(auditlog.FieldSource, field.TypeString, value)

@@ -583,4 +583,20 @@ func TestAuditLogService_ScopeFilters(t *testing.T) {
 	require.Len(t, resp.Logs, 1)
 	assert.Equal(t, "view", resp.Logs[0].Action)
 	assert.Equal(t, "legacy", resp.Logs[0].Source, "NULL source 读侧映射 legacy")
+
+	// TUM-3：按目标用户过滤（平台账号治理时间线）。
+	targetUser := 66
+	_, err = client.AuditLog.Create().
+		SetTenantID(tenant.ID).SetPath("/api/v1/tenants/55/users/66").
+		SetMethod("POST").SetAction("user.admin_password_reset").
+		SetTargetTenantID(55).SetTargetUserID(targetUser).SetSource("platform_selected").
+		Save(ctx)
+	require.NoError(t, err)
+
+	respByUser, err := service.ListAuditLogs(ctx, &dto.ListAuditLogsRequest{TargetUserID: &targetUser}, tenant.ID)
+	require.NoError(t, err)
+	require.Len(t, respByUser.Logs, 1)
+	require.NotNil(t, respByUser.Logs[0].TargetUserID)
+	assert.Equal(t, targetUser, *respByUser.Logs[0].TargetUserID)
+	assert.Equal(t, "user.admin_password_reset", respByUser.Logs[0].Action)
 }

@@ -141,4 +141,20 @@ func TestAuditMiddleware_UserCRUD(t *testing.T) {
 			}
 		}
 	})
+
+	t.Run("TargetUserID Persisted From Context (TUM-3)", func(t *testing.T) {
+		runCtx("PUT", "/api/v1/tenants/9/users/42/status", `{"active":false}`, func(c *gin.Context, _ *http.Request) {
+			c.Set("audit_target_tenant_id", 9)
+			c.Set("audit_target_user_id", 42)
+		})
+
+		logs, err := client.AuditLog.Query().
+			Where(auditlog.PathEQ("/api/v1/tenants/9/users/42/status")).
+			All(context.Background())
+		assert.NoError(t, err)
+		if assert.Len(t, logs, 1) {
+			assert.Equal(t, 9, logs[0].TargetTenantID)
+			assert.Equal(t, 42, logs[0].TargetUserID)
+		}
+	})
 }

@@ -93,6 +93,7 @@ func (h *Handler) ResetTenantUserPassword(c *gin.Context) {
 		return
 	}
 	c.Set("audit_target_tenant_id", tenantID)
+	c.Set("audit_target_user_id", userID)
 	resp, err := svc.ResetPassword(c.Request.Context(), tenantUserAdminActorFromContext(c), tenantID, userID, &req)
 	if err != nil {
 		h.logger.Errorf("重置租户用户密码失败: %v", err)
@@ -118,6 +119,7 @@ func (h *Handler) SetTenantUserStatus(c *gin.Context) {
 		return
 	}
 	c.Set("audit_target_tenant_id", tenantID)
+	c.Set("audit_target_user_id", userID)
 	if err := svc.SetActive(c.Request.Context(), tenantUserAdminActorFromContext(c), tenantID, userID, &req); err != nil {
 		h.logger.Errorf("更改租户用户状态失败: %v", err)
 		respondTenantUserAdminError(c, err)
@@ -137,6 +139,7 @@ func (h *Handler) ForceLogoutTenantUser(c *gin.Context) {
 		return
 	}
 	c.Set("audit_target_tenant_id", tenantID)
+	c.Set("audit_target_user_id", userID)
 	resp, err := svc.ForceLogout(c.Request.Context(), tenantUserAdminActorFromContext(c), tenantID, userID)
 	if err != nil {
 		h.logger.Errorf("强制下线租户用户失败: %v", err)

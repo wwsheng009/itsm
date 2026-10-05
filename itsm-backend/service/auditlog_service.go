@@ -64,6 +64,10 @@ func (s *AuditLogService) ListAuditLogs(ctx context.Context, req *dto.ListAuditL
 	if req.TargetTenantID != nil {
 		q = q.Where(auditlog.TargetTenantIDEQ(*req.TargetTenantID))
 	}
+	// TUM-3：按目标用户过滤（平台账号治理时间线）。
+	if req.TargetUserID != nil {
+		q = q.Where(auditlog.TargetUserIDEQ(*req.TargetUserID))
+	}
 	if req.Source != "" {
 		if req.Source == "legacy" {
 			q = q.Where(auditlog.SourceIsNil())
@@ -151,6 +155,10 @@ func (s *AuditLogService) ListAuditLogs(ctx context.Context, req *dto.ListAuditL
 		if it.TargetTenantID > 0 {
 			target := it.TargetTenantID
 			log.TargetTenantID = &target
+		}
+		if it.TargetUserID > 0 {
+			target := it.TargetUserID
+			log.TargetUserID = &target
 		}
 		if it.UserID > 0 {
 			if name, ok := userNameMap[it.UserID]; ok {

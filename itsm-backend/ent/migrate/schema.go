@@ -372,6 +372,7 @@ var (
 		{Name: "actor_account", Type: field.TypeString, Nullable: true, Size: 64},
 		{Name: "membership_id", Type: field.TypeInt, Nullable: true},
 		{Name: "target_tenant_id", Type: field.TypeInt, Nullable: true},
+		{Name: "target_user_id", Type: field.TypeInt, Nullable: true},
 		{Name: "source", Type: field.TypeString, Nullable: true, Size: 32},
 	}
 	// AuditLogsTable holds the schema information for the "audit_logs" table.
