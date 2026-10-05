@@ -1,6 +1,6 @@
 # 平台侧租户用户管理增强方案（/admin/tenants · 跨租户账号治理）
 
-> 状态：**v0.7（TUM-1–TUM-7 收口；live e2e 待联调环境）**｜日期：2026-10-05｜基准：仓库 HEAD `8bc8f7b9`（TUM-5 落地后）
+> 状态：**v0.8（TUM-1–TUM-7 收口 + 路由器级 API e2e 实跑；联调实例补强可选）**｜日期：2026-10-05｜基准：仓库 HEAD `eada0235`（TUM-6/7 后）
 > 上位：[canon v1.0](./msp-concept-model-and-architecture-canon.md)（canon D5/D8/D11、附录 C）→ [目标架构](./msp-target-architecture.md)（§6 权限矩阵/建号）→ [实施方案](./msp-implementation-plan.md)（IP-P0-5 建号通道、IP-P2-6 硬配额）
 > 定位：**L4 方案**（局部编号 `TUM-#`，跨文档引用必须带前缀）。范围：平台管理员在租户治理页（`/admin/tenants`）对**任意租户**用户的查看与账号治理（重置密码 / 启用停用 / 强制下线 / 审计）；不含 MSP 服务商面工作台（其可复用同一服务能力，另行接线）。
 
@@ -301,7 +301,8 @@
 - ✅ **依赖修复（本批）**：重建 `(main)/change-password` 强制改密页与 `guards-must-change-password.test.tsx`（IP-P1-5 文件同因 `.gitignore` 的 `*password*` 规则漏提交，`routes/index.tsx` lazy import 悬空致干净检出 `tsc` 失败）；`.gitignore` 增补前端两处源码例外。
 - ✅ **C5 通知触达（本批）**：`TenantUserAdminService` 新增通知端口（`SetNotifier`，bootstrap 注入 `NotificationService`）；重置/启停/强制下线向目标租户**启用中的管理员**发站内通知（类型 `user_admin_action`，排除被操作用户、不含口令；best-effort，失败仅告警不回滚）。用例 `NotifiesTenantAdmins` / `NotifierFailureDoesNotBlock`。
 - ✅ **TUM-5（离线部分）**：S1–S3 闭环用例 `ClosureS1S2S3`（旧口令失效/新口令可验/强制改密/双吊销/通知/审计 5 行按 `target_user_id` 复核）；浏览器剧本 `scenarios/09-tenant-user-management.md`；API 通道验收脚本 `scripts/msp/acceptance/run-tenant-user-admin-acceptance.ps1`（TUM-A1–A8 + 反例，默认新建隔离租户可重跑，PowerShell 语法校验通过）。
-- ⏳ **TUM-5（live 部分）**：API 通道 run-summary 与浏览器实测待联调环境执行（本机 Docker 守护进程不可用、PostgreSQL 未运行）。
+- ✅ **TUM-5（API 通道 e2e，本批）**：路由器级全中间件链 e2e `router/tenant_user_admin_e2e_test.go`（ent/sqlite 内存库、无外部环境）：A1 列表/检索/详情、A2 一次性重置（旧口令失效/新口令可验/强制改密/refresh 双吊销/二次生成前值失效）、A3 指定重置（400 策略 + 审计掩码）、A4 启停与护栏（409 LAST_ADMIN/SELF_OPERATION）、S3 强制下线、A5 审计按 `target_tenant_id/target_user_id` 复核、A8 通知触达（不含口令）与用量对账；`go test -p 1 ./router -run TestTUM` 全绿。
+- ⏳ **TUM-5（联调实例补强，可选）**：真实登录/CSRF/多实例的 run-summary 与浏览器逐步截图待联调环境执行（脚本已就绪；本机 Docker 守护进程不可用、PostgreSQL 未运行）。
 - ✅ **TUM-6 灰度与文档回填（本批收口）**：`TENANT_USER_ADMIN_ENABLED` 装配（默认关、可即时回滚）已在 TUM-1/2 落地并登记部署文档；README/INDEX/canon 附录 C.2 已登记；实施方案新增承接映射（`msp-implementation-plan.md` §3.0-G，修订 v1.71）。
 - ✅ **TUM-7 P2 评估（本批）**：删除用户 / 跨租户角色调整 / 导出用户清单三项均**不做实现**（依据与触发条件见 §10）。
 
@@ -417,3 +418,4 @@ bash scripts/docs-gate/check-multi-tenant-consistency.sh
 | v0.5 | 2026-10-05 | **TUM-4 前端落地**：抽屉（深链/防抖筛选/乐观回滚/批量重试/空态三分/无障碍）+ 共享组件抽取 + API 客户端与契约用例；同批修复 `(main)/change-password` 页与守卫用例的漏提交（`*password*` 规则第三/四例），前端 `tsc`/eslint/目标 jest 全绿 |
 | v0.6 | 2026-10-05 | **TUM-5 离线落地 + C5 通知**：治理动作站内通知目标租户管理员（best-effort、不含口令）；S1–S3 闭环用例与通知用例；`scenarios/09` 浏览器剧本；API 通道验收脚本（TUM-A1–A8 + 反例，隔离租户）；live run-summary 待联调环境 |
 | v0.7 | 2026-10-05 | **TUM-6/TUM-7 收口**：实施方案新增 TUM 承接映射（§3.0-G / v1.71）；P2 评估纪要（删除/角色调整/导出均不做实现 + 触发条件，§10）；至此 TUM-1–TUM-7 全部收口（仅 TUM-5 live 部分待联调环境） |
+| v0.8 | 2026-10-05 | **路由器级 API e2e 落地（TUM-5 收口）**：新增 `router/tenant_user_admin_e2e_test.go`（全中间件链、ent/sqlite、无外部环境）——TUM-A1–A8 正向 + 反例（403/404/409×3/400）全绿；`./router` 全包回归绿；联调实例 run-summary/浏览器截图降级为可选补强 |

@@ -3,7 +3,7 @@
 > **状态**：2026-10-05 落地（TUM-1–TUM-5）｜**定位**：平台管理员在 `/admin/tenants` 对**任意租户**用户执行账号治理（S1–S3 闭环）的浏览器实操剧本
 > **前置**：[00 环境与账号](./00-environment-and-accounts.md)；实例开启 `TENANT_USER_ADMIN_ENABLED=true`；平台 `super_admin` 账号（本地开发缺省 `admin`）
 > **上位口径**：[增强方案 §4/§6](../plan/msp-tenant-user-management-enhancement-plan.md)（TUM-A1–A8 + 反例）｜**API 通道自动化**：[run-tenant-user-admin-acceptance.ps1](../../../scripts/msp/acceptance/run-tenant-user-admin-acceptance.ps1)
-> **证据**：Go 定向用例 9 条（含 S1–S3 闭环、C5 通知、审计掩码）+ 前端 jest（抽屉 5 / API 契约 9 / 守卫 4）已全绿；**浏览器实测与 API 通道 run-summary 待联调环境执行**（脚本已就绪，见 §9）
+> **证据**：路由器级 API e2e（TUM-A1–A8 + 反例，全中间件链）已实跑全绿；Go 定向用例 9 条（含 S1–S3 闭环、C5 通知、审计掩码）+ 前端 jest（抽屉 5 / API 契约 9 / 守卫 4）全绿；**联调实例 run-summary 与浏览器逐步截图**为可选补强（脚本已就绪，见 §9）
 
 ---
 
@@ -127,9 +127,10 @@ pwsh scripts/msp/acceptance/run-tenant-user-admin-acceptance.ps1 -TenantId 8 -Te
 
 - 覆盖：`TUM-A1–A8` 正向 + 反例（403/404/409×3/400）；产物 `docs/multi-tenant/evidence/tenant-user-admin-acceptance/run-summary-<ts>.md`；
 - 离线回归（无需实例）：
-  - 后端 `go test -p 1 ./service -run TestTenantUserAdmin -count=1`（9 条，含 `ClosureS1S2S3`、`NotifiesTenantAdmins`）；
+  - 后端**路由器级 API e2e**（全中间件链 Auth→RBAC→Tenant→handler→service；ent/sqlite 内存库）：`go test -p 1 ./router -run TestTUM -count=1` —— `router/tenant_user_admin_e2e_test.go` 覆盖 TUM-A1–A8 + 反例（403/404/409×3/400）与副作用（哈希/双吊销/审计掩码/通知/对账），已实跑全绿；
+  - 后端服务用例 `go test -p 1 ./service -run TestTenantUserAdmin -count=1`（9 条，含 `ClosureS1S2S3`、`NotifiesTenantAdmins`）；
   - 前端 `npx jest TenantUsersDrawer tenant-user-admin-api guards-must-change-password --coverage=false`（18 条）；
-- **环境说明**：本仓库当前工作机未启动实例（Docker 守护进程不可用、PostgreSQL 未运行），故 API 通道 run-summary 与浏览器逐步截图待联调环境执行；脚本与用例已就绪。
+- **环境说明**：本工作机未启动实例（Docker 守护进程不可用、PostgreSQL 未运行）；路由器级 e2e 已覆盖接口契约与副作用，**联调实例的 run-summary（真实登录/CSRF/多实例）与浏览器逐步截图**为可选补强，待联调环境执行。
 
 ## 10. 已知限制
 
