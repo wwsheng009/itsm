@@ -1306,6 +1306,10 @@ func NewApplication() *Application {
 	// 租户激活通道（模板供给 + readiness + 首管）：HTTP 版 cmd:provision_tenant。
 	tenantProvisioningService := service.NewTenantProvisioningService(client, seeder.NewSeeder(client, sugar, cfg), sugar)
 	tenantHTTPHandler.SetProvisioningService(tenantProvisioningService)
+	// TUM-1/TUM-2 平台侧租户用户管理（读通道 + 账号治理）；
+	// 写通道灰度开关 TENANT_USER_ADMIN_ENABLED（默认关，可即时回滚）。
+	tenantUserAdminService := service.NewTenantUserAdminService(client, userService, sugar)
+	tenantHTTPHandler.SetTenantUserAdminService(tenantUserAdminService)
 
 	// System Config Handler（2026-09-02 迁移至 handlers/systemconfig）
 	systemConfigService := service.NewSystemConfigService(client, sugar)

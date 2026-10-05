@@ -87,6 +87,7 @@
 | [msp-implementation-plan.md](./plan/msp-implementation-plan.md) | **实施方案（P0 → P1 → P2）**：结合现有项目的可执行步骤（工作流 `IP-P*-*`）、分阶段出口 DoD、A1–A12 验收映射、发布/灰度/回滚、风险依赖与里程碑 |
 | [msp-account-provisioning-and-registration-flow.md](./plan/msp-account-provisioning-and-registration-flow.md) | **建号与注册流程**：四通道矩阵（platform/msp/tenant/invite）、provider/customer 双场景时序、邀请与首登、授权边界、审计字段、过渡期 SQL 兜底操作与专项验收 |
 | [msp-business-closure-review-and-refactor-plan.md](./plan/msp-business-closure-review-and-refactor-plan.md) | **业务闭环审查与现有功能改造计划**：13 条端到端链路 × 五段判定（现状 ⛔5/🟡8）、P0 后 10/13 与 P1 后 12/13 结论、模块级改造映射（后端/前端/脚本/迁移）、发布波次 W1–W8、链路级 DoD |
+| [msp-tenant-user-management-enhancement-plan.md](./plan/msp-tenant-user-management-enhancement-plan.md) | **平台侧租户用户管理增强（/admin/tenants）**：跨租户用户列表/详情、重置密码（一次性口令 / 指定新密码）、启用停用（最后管理员护栏）、强制下线、审计与稳定错误码；本地编号 `TUM-#`（canon 附录 C.2 已登记） |
 
 ## 维护约定
 

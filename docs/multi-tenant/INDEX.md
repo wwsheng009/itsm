@@ -63,6 +63,7 @@
 | [msp-implementation-plan.md](./plan/msp-implementation-plan.md) | 落地 | **v1.1（P0/P1 契约冻结）** | **实施方案 P0→P1→P2**（步骤/DoD/回滚） | `IP-P0-#` `IP-P1-#` `IP-P2-#` |
 | [msp-account-provisioning-and-registration-flow.md](./plan/msp-account-provisioning-and-registration-flow.md) | L4 | Draft v0.3（决策同步） | **建号与注册流程**（四通道/邀请/首登/过渡期） | — |
 | [msp-business-closure-review-and-refactor-plan.md](./plan/msp-business-closure-review-and-refactor-plan.md) | 治理/落地 | Draft v0.4（决策同步） | **业务闭环审查 + 现有功能改造计划**（13 链路/波次/深度分级） | `CL-01–CL-13` |
+| [msp-tenant-user-management-enhancement-plan.md](./plan/msp-tenant-user-management-enhancement-plan.md) | L4 | v0.3（后端落地） | **平台侧租户用户管理增强**（跨租户用户列表/重置密码/启停/强制下线/审计；含操作便利性与业务闭环设计） | `TUM-#` |
 
 ### 2.1 场景目录（scenarios/，L6 浏览器实操剧本）
 

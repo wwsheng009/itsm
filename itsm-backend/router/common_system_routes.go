@@ -201,6 +201,13 @@ func SetupCommonSystemRoutes(r *gin.Engine, tenant *gin.RouterGroup, config *Rou
 				if config.UserHandler != nil {
 					tenants.POST("/:id/users", middleware.RequirePermission("tenant", "write"), config.UserHandler.ProvisionUserToTenant)
 				}
+				// 平台侧租户用户管理（TUM-1/TUM-2）：读列表/详情 + 账号治理（重置密码/启停/强制下线）。
+				// 路由权限仅粗筛；平台面硬判定（super_admin）由 service 收口（TUM-D1）。
+				tenants.GET("/:id/users", middleware.RequirePermission("tenant", "read"), config.TenantHandler.ListTenantUsers)
+				tenants.GET("/:id/users/:userId", middleware.RequirePermission("tenant", "read"), config.TenantHandler.GetTenantUser)
+				tenants.POST("/:id/users/:userId/reset-password", middleware.RequirePermission("tenant", "write"), config.TenantHandler.ResetTenantUserPassword)
+				tenants.PUT("/:id/users/:userId/status", middleware.RequirePermission("tenant", "write"), config.TenantHandler.SetTenantUserStatus)
+				tenants.POST("/:id/users/:userId/force-logout", middleware.RequirePermission("tenant", "write"), config.TenantHandler.ForceLogoutTenantUser)
 			}
 		}
 

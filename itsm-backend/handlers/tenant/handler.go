@@ -16,6 +16,7 @@ import (
 type Handler struct {
 	svc          Service
 	provisioning ProvisioningService
+	userAdmin    TenantUserAdminService
 	logger       *zap.SugaredLogger
 }
 

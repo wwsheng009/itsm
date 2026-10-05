@@ -622,6 +622,7 @@ sequenceDiagram
 | `INT-D#` | [集成分析](./msp-integration-with-rbac-org-workflow-analysis.md) §10 | 开放问题（局部编号，必须带前缀，避免与本文 D# 混淆） | `INT-D2` |
 | `LOGIN-A#`/`LOGIN-R#`/`LOGIN-D#`/`LOGIN-B#`/`LOGIN-F#` | 登录细化 | 文档局部编号（必须带前缀） | `LOGIN-R3` |
 | `FE-A#` | 前端分析 | 文档局部验收（必须带前缀） | `FE-A1` |
+| `TUM-#` / `TUM-D#` / `TUM-A#` | [租户用户管理增强方案](./msp-tenant-user-management-enhancement-plan.md) | 平台侧租户用户管理增强（列表/重置密码/启停/审计）工作流/决策/验收（局部编号，必须带前缀） | `TUM-2` |
 
 ### C.3 A/B/C 字母消歧（禁止裸用）
 
@@ -649,3 +650,4 @@ sequenceDiagram
 | v1.2 | 2026-09-30 | **IP-P0-3 快照写入口落地**：建单派生 `is_managed_by_msp`/`msp_provider_id`（无效归属按普通工单）、指派补写 `managed_by_user_id`、回填脚本交付；R11 由"零写入"降级为"部分修复"（`msp_ticket_id` 待 E4） |
 | v1.3 | 2026-09-30 | **IP-P0-4 类型/归属收敛落地**：写入集合收敛（legacy `standard`/`msp`/`customer` 只读）、归属校验（A2/D2）、`parent_tenant_id` 停止双写、列表过滤兼容、存量巡检脚本 |
 | v1.4 | 2026-09-30 | **IP-P0-5 建号通道收口落地（K4 关闭）**：`service/user_provisioning.go`（platform/msp/tenant 三通道 + 角色白名单 + rank 上限）、`WithProvisioningBypass`、写守卫放行、三个端点接线与灰度开关 `USER_PROVISIONING_CHANNELS_ENABLED` |
+| v1.5 | 2026-10-05 | 附录 C.2 登记 `TUM-#`：平台侧租户用户管理增强方案（Draft v0.1，`/admin/tenants` 跨租户账号治理：用户列表/重置密码/启停/强制下线/审计） |

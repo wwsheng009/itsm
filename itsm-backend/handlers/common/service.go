@@ -246,6 +246,20 @@ func (s *Service) RefreshToken(ctx context.Context, refreshToken string) (*AuthR
 		return nil, fmt.Errorf("refresh token has been revoked")
 	}
 
+	// TUM-D6：按用户 refresh 吊销（停用/重置密码/强制下线后，历史 refresh 一律拒绝续签）。
+	// 与按 token 黑名单互补：黑名单覆盖单 token 轮换，本检查覆盖“该用户全部存量 refresh”。
+	var refreshIssuedAt time.Time
+	if claims.IssuedAt != nil {
+		refreshIssuedAt = claims.IssuedAt.Time
+	}
+	if revoked, rErr := middleware.IsUserRefreshRevoked(ctx, claims.UserID, refreshIssuedAt); rErr != nil {
+		s.logger.Warnw("refresh user-level revocation check failed, deny by default", "error", rErr)
+		return nil, fmt.Errorf("refresh token validation failed")
+	} else if revoked {
+		s.logger.Warnw("refresh token revoked by user-level invalidation", "user_id", claims.UserID)
+		return nil, fmt.Errorf("refresh token has been revoked")
+	}
+
 	user, err := s.repo.GetUserByID(ctx, claims.UserID)
 	if err != nil {
 		return nil, fmt.Errorf("user not found")
