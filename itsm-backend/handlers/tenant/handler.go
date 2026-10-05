@@ -86,7 +86,13 @@ func (h *Handler) ListTenants(c *gin.Context) {
 		return
 	}
 
-	tenants, total, err := h.svc.ListTenants(c.Request.Context(), &req)
+	// 2026-10-05 越权修复：非平台管理员（role != super_admin）目录收敛为
+	// 本租户 + 直属客户；平台管理路由（ListTenantsAdmin）保持全量。
+	scope := 0
+	if c.GetString("role") != "super_admin" {
+		scope = c.GetInt("tenant_id")
+	}
+	tenants, total, err := h.svc.ListTenantsScoped(c.Request.Context(), &req, scope)
 	if err != nil {
 		h.logger.Errorf("获取租户列表失败: %v", err)
 		common.FailWithErr(c, err, "操作失败")
@@ -111,6 +117,23 @@ func (h *Handler) ListTenants(c *gin.Context) {
 	}
 
 	common.Success(c, response)
+}
+
+// tenantInCallerScope 判定目标租户是否在调用方读取作用域内（2026-10-05 越权修复）：
+// 平台管理员（super_admin）不受限；其余调用方仅可读本租户与其直属客户。
+// fail-closed：缺少调用方租户上下文（scope<=0）时拒绝。
+func (h *Handler) tenantInCallerScope(c *gin.Context, targetID, providerID int) bool {
+	if c.GetString("role") == "super_admin" {
+		return true
+	}
+	scope := c.GetInt("tenant_id")
+	if scope <= 0 {
+		return false
+	}
+	if targetID == scope {
+		return true
+	}
+	return providerID == scope
 }
 
 // UpdateTenantStatus updates a tenant's status
@@ -165,6 +188,10 @@ func (h *Handler) GetTenant(c *gin.Context) {
 		common.FailWithErr(c, err, "操作失败")
 		return
 	}
+	if !h.tenantInCallerScope(c, tenant.ID, tenant.MspProviderID) {
+		common.Fail(c, common.NotFoundCode, "租户不存在")
+		return
+	}
 
 	common.Success(c, dto.ToTenantResponse(tenant))
 }
@@ -176,6 +203,17 @@ func (h *Handler) GetTenantUsage(c *gin.Context) {
 	id, err := strconv.Atoi(idStr)
 	if err != nil {
 		common.Fail(c, 1001, "无效的租户ID")
+		return
+	}
+
+	target, err := h.svc.GetTenant(c.Request.Context(), id)
+	if err != nil {
+		h.logger.Errorf("获取租户详情失败: %v", err)
+		common.FailWithErr(c, err, "操作失败")
+		return
+	}
+	if !h.tenantInCallerScope(c, target.ID, target.MspProviderID) {
+		common.Fail(c, common.NotFoundCode, "租户不存在")
 		return
 	}
 

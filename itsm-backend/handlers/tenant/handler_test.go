@@ -40,6 +40,14 @@ func (m *mockTenantService) ListTenants(ctx context.Context, req *dto.ListTenant
 	return nil, 0, args.Error(2)
 }
 
+func (m *mockTenantService) ListTenantsScoped(ctx context.Context, req *dto.ListTenantsRequest, scopeTenantID int) ([]*ent.Tenant, int, error) {
+	args := m.Called(ctx, req, scopeTenantID)
+	if l, ok := args.Get(0).([]*ent.Tenant); ok {
+		return l, args.Int(1), args.Error(2)
+	}
+	return nil, 0, args.Error(2)
+}
+
 func (m *mockTenantService) GetTenant(ctx context.Context, tenantID int) (*ent.Tenant, error) {
 	args := m.Called(ctx, tenantID)
 	if t, ok := args.Get(0).(*ent.Tenant); ok {
@@ -172,7 +180,8 @@ func TestCreateTenant_RejectsInvalidCode(t *testing.T) {
 func TestListTenants_Success(t *testing.T) {
 	m := &mockTenantService{}
 	h := newTenantHandler(m)
-	m.On("ListTenants", mock.Anything, mock.Anything).Return([]*ent.Tenant{sampleTenant()}, 1, nil)
+	// super_admin → 平台全量（scope=0）。
+	m.On("ListTenantsScoped", mock.Anything, mock.Anything, 0).Return([]*ent.Tenant{sampleTenant()}, 1, nil)
 
 	w, c := doJSON(h, http.MethodGet, "/api/v1/tenants", "")
 	h.ListTenants(c)
@@ -183,6 +192,43 @@ func TestListTenants_Success(t *testing.T) {
 	data, ok := resp.Data.(map[string]interface{})
 	assert.True(t, ok)
 	assert.Equal(t, float64(1), data["total"])
+	m.AssertExpectations(t)
+}
+
+// 2026-10-05 越权修复：租户管理员目录收敛为 scope=本租户（服务商另含其直属客户，
+// 由 service 层 Where 收敛）。
+func TestListTenants_TenantAdminScoped(t *testing.T) {
+	m := &mockTenantService{}
+	h := newTenantHandler(m)
+	m.On("ListTenantsScoped", mock.Anything, mock.Anything, 7).
+		Return([]*ent.Tenant{sampleTenant()}, 1, nil)
+
+	w, c := doJSON(h, http.MethodGet, "/api/v1/tenants", "")
+	c.Set("role", "admin")
+	c.Set("tenant_id", 7)
+	h.ListTenants(c)
+
+	assert.Equal(t, http.StatusOK, w.Code)
+	m.AssertExpectations(t)
+}
+
+// 越权修复：跨作用域详情读取按“不存在”处理（不泄露存在性）。
+func TestGetTenant_OutOfScopeHidden(t *testing.T) {
+	m := &mockTenantService{}
+	h := newTenantHandler(m)
+	other := sampleTenant()
+	other.MspProviderID = 9
+	m.On("GetTenant", mock.Anything, 1).Return(other, nil)
+
+	w, c := doJSON(h, http.MethodGet, "/api/v1/tenants/1", "")
+	c.Set("role", "admin")
+	c.Set("tenant_id", 7)
+	h.GetTenant(c)
+
+	assert.Equal(t, http.StatusNotFound, w.Code)
+	var resp common.Response
+	assert.NoError(t, json.Unmarshal(w.Body.Bytes(), &resp))
+	assert.Equal(t, common.NotFoundCode, resp.Code)
 	m.AssertExpectations(t)
 }
 
@@ -260,6 +306,7 @@ func TestGetTenant_InvalidID(t *testing.T) {
 func TestGetTenantUsage_Success(t *testing.T) {
 	m := &mockTenantService{}
 	h := newTenantHandler(m)
+	m.On("GetTenant", mock.Anything, 1).Return(sampleTenant(), nil)
 	m.On("QuotaUsage", mock.Anything, 1).Return(&dto.TenantQuotaUsageResponse{
 		TenantID: 1,
 		Limits:   dto.TenantQuotaLimits{MaxUsers: 5, MaxTicketsPerMonth: 100, MaxStorageMB: 2048},

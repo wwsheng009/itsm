@@ -112,4 +112,39 @@ describe('ProvisionUserModal', () => {
     );
     expect(onClose).not.toHaveBeenCalled();
   });
+
+  it('服务商租户：展示 MSP 角色下拉，选中后随载荷提交 mspRole', async () => {
+    const submit = jest.fn().mockResolvedValue({ id: 31, username: 'prov.tech' });
+
+    render(
+      <ProvisionUserModal
+        open
+        title="平台建号"
+        onClose={jest.fn()}
+        submit={submit}
+        mspRoleOptions={[
+          { value: 'provider_admin', label: '服务商管理员（provider_admin）' },
+          { value: 'provider_agent', label: '服务商技术员（provider_agent）' },
+        ]}
+      />
+    );
+
+    expect(screen.getByTestId('provision-msp-role-select')).toBeInTheDocument();
+    fillBase({ username: 'prov.tech' });
+
+    // 打开 antd Select：mouseDown 落在组合框输入元素上（antd v6 内部结构以 content 替代 selector）。
+    const selectInput = document.getElementById('mspRole');
+    expect(selectInput).not.toBeNull();
+    fireEvent.mouseDown(selectInput!);
+    const option = await screen.findByText('服务商技术员（provider_agent）');
+    fireEvent.click(option);
+
+    fireEvent.click(screen.getByRole('button', { name: /建\s*号/ }));
+    await waitFor(() =>
+      expect(submit).toHaveBeenCalledWith(
+        expect.objectContaining({ username: 'prov.tech', mspRole: 'provider_agent' }),
+        undefined
+      )
+    );
+  });
 });

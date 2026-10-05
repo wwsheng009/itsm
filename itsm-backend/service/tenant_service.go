@@ -129,9 +129,30 @@ func (s *TenantService) UpdateTenantStatus(ctx context.Context, tenantID int, st
 	return nil
 }
 
-// ListTenants 获取租户列表
+// ListTenants 获取租户列表（平台全量；仅限平台管理路由使用）。
 func (s *TenantService) ListTenants(ctx context.Context, req *dto.ListTenantsRequest) ([]*ent.Tenant, int, error) {
+	return s.listTenants(ctx, req, 0)
+}
+
+// ListTenantsScoped 非平台调用方的租户目录读取（2026-10-05 越权修复）：
+// 仅返回本租户 + 直属客户（msp_provider_id = scopeTenantID），避免 provider
+// 管理员通过 GET /tenants 看到其他服务商的客户与平台租户目录。
+func (s *TenantService) ListTenantsScoped(ctx context.Context, req *dto.ListTenantsRequest, scopeTenantID int) ([]*ent.Tenant, int, error) {
+	return s.listTenants(ctx, req, scopeTenantID)
+}
+
+func (s *TenantService) listTenants(ctx context.Context, req *dto.ListTenantsRequest, scopeTenantID int) ([]*ent.Tenant, int, error) {
 	query := s.client.Tenant.Query()
+
+	// 作用域收敛：scope>0 时仅本租户 + 其直属客户。
+	if scopeTenantID > 0 {
+		query = query.Where(
+			tenant.Or(
+				tenant.IDEQ(scopeTenantID),
+				tenant.MspProviderIDEQ(scopeTenantID),
+			),
+		)
+	}
 
 	// 状态过滤
 	if req.Status != "" {

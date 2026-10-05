@@ -14,6 +14,8 @@ import (
 type Service interface {
 	CreateTenant(ctx context.Context, req *dto.CreateTenantRequest) (*ent.Tenant, error)
 	ListTenants(ctx context.Context, req *dto.ListTenantsRequest) ([]*ent.Tenant, int, error)
+	// ListTenantsScoped 非平台调用方的目录读取（本租户 + 直属客户；scope<=0 等价全量）。
+	ListTenantsScoped(ctx context.Context, req *dto.ListTenantsRequest, scopeTenantID int) ([]*ent.Tenant, int, error)
 	GetTenant(ctx context.Context, tenantID int) (*ent.Tenant, error)
 	UpdateTenant(ctx context.Context, tenantID int, req *dto.UpdateTenantRequest) (*ent.Tenant, error)
 	UpdateTenantStatus(ctx context.Context, tenantID int, status string) error

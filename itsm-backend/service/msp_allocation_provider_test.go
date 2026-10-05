@@ -97,4 +97,38 @@ func TestMSPAllocationService_ProviderDimension(t *testing.T) {
 			assert.NotEqual(t, custB.ID, r.CustomerTenantID, "他 provider 的分配不得返回")
 		}
 	})
+
+	// 2026-10-05 浏览器 E2E 修复：provider_admin 管理面可见本服务商全部客户目录
+	// （否则首次分配不可达）；仍不得看到其他 provider 客户或直客。
+	t.Run("provider admin sees own provider customers without allocation", func(t *testing.T) {
+		adminA := client.User.Create().SetUsername("admin-a").SetEmail("admin-a@example.com").
+			SetName("Admin A").SetPasswordHash("h").SetTenantID(provA.ID).
+			SetMspRole(user.MspRole("provider_admin")).SaveX(ctx)
+
+		customers, err := svc.GetMSPCustomers(ctx, adminA.ID)
+		require.NoError(t, err)
+		ids := make([]int, 0, len(customers))
+		for _, c := range customers {
+			ids = append(ids, c.ID)
+		}
+		assert.Contains(t, ids, custA.ID)
+		assert.NotContains(t, ids, custB.ID, "他 provider 的客户不得出现")
+		assert.NotContains(t, ids, direct.ID, "直客不属于 MSP 客户目录")
+		assert.NotContains(t, ids, provA.ID, "目录仅客户，不含服务商自身")
+
+		// 管理面分配列表：provider_admin 可见团队分配（agentA→custA），agent 仍只见本人。
+		team, err := svc.ListForCaller(ctx, adminA.ID)
+		require.NoError(t, err)
+		require.NotEmpty(t, team, "provider_admin 应看到本服务商团队分配")
+		for _, item := range team {
+			assert.Equal(t, provA.ID, item.ProviderTenantID)
+			assert.NotEqual(t, custB.ID, item.CustomerTenantID, "他 provider 的分配不得出现")
+		}
+		own, err := svc.ListForCaller(ctx, agentA.ID)
+		require.NoError(t, err)
+		require.NotEmpty(t, own)
+		for _, item := range own {
+			assert.Equal(t, agentA.ID, item.MSPUserID, "普通员工只见本人分配")
+		}
+	})
 }

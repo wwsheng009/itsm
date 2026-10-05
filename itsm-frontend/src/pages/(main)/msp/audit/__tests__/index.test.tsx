@@ -138,4 +138,19 @@ describe('MSPAuditBoardPage', () => {
 
     expect(await screen.findByText('审计聚合失败')).toBeInTheDocument();
   });
+
+  // 2026-10-05 浏览器 E2E 回归：后端无告警时下发 recentDenials: null，
+  // 页面此前在 `summary?.recentDenials.length` 上抛 TypeError（整页崩溃）。
+  it('recentDenials 为 null（后端空集语义）时不崩溃且计数为 0', async () => {
+    mockedGet.mockResolvedValue(
+      summaryFixture({
+        recentDenials: null as unknown as MspAuditSummary['recentDenials'],
+      })
+    );
+
+    render(<MSPAuditBoardPage />);
+
+    await waitFor(() => expect(mockedGet).toHaveBeenCalledWith(30));
+    expect(await screen.findByText(/最近 0 条/)).toBeInTheDocument();
+  });
 });

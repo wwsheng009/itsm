@@ -17,6 +17,8 @@ export interface ProvisionUserPayload {
   name: string;
   email: string;
   password: string;
+  /** MSP 角色（users.msp_role 词表）；仅服务商租户建号需要。 */
+  mspRole?: string;
 }
 
 export interface ProvisionCustomerOption {
@@ -31,6 +33,8 @@ interface ProvisionUserModalProps {
   title: string;
   /** 目标描述（租户/客户），用于弹窗内提示。 */
   targetLabel?: string;
+  /** 提供时表单出现「MSP 角色」下拉（服务商租户建号必须携带）。 */
+  mspRoleOptions?: { value: string; label: string }[];
   /** 提供时表单出现「客户」下拉（MSP 通道）。 */
   customerOptions?: ProvisionCustomerOption[];
   submit: (payload: ProvisionUserPayload, customerId: number | undefined) => Promise<unknown>;
@@ -45,6 +49,7 @@ export default function ProvisionUserModal({
   onClose,
   title,
   targetLabel,
+  mspRoleOptions,
   customerOptions,
   submit,
   onSuccess,
@@ -77,6 +82,7 @@ export default function ProvisionUserModal({
           name: values.name,
           email: values.email,
           password: values.password,
+          ...(mspRoleOptions && values.mspRole ? { mspRole: values.mspRole } : {}),
         },
         values.customerId
       );
@@ -166,6 +172,18 @@ export default function ProvisionUserModal({
         >
           <Input.Password placeholder="初始密码" data-testid="provision-password-input" />
         </Form.Item>
+        {mspRoleOptions && mspRoleOptions.length > 0 ? (
+          <span data-testid="provision-msp-role-select">
+            <Form.Item
+              name="mspRole"
+              label="MSP 角色"
+              rules={[{ required: true, message: '请选择 MSP 角色' }]}
+              extra="服务商租户员工必须带 MSP 角色，否则无法进入服务商工作台。"
+            >
+              <Select placeholder="选择 MSP 角色" options={mspRoleOptions} />
+            </Form.Item>
+          </span>
+        ) : null}
       </Form>
     </Modal>
   );

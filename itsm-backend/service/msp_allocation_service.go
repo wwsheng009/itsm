@@ -187,6 +187,46 @@ func (s *MSPAllocationService) ListByMSPUser(ctx context.Context, mspUserID int)
 	return dtos, nil
 }
 
+// ListByProviderTenant 服务商管理面：返回本 provider 的全部有效分配
+// （2026-10-05 浏览器 E2E 修复：管理页此前只列“本人”分配，provider_admin
+// 创建团队分配后看不到、无法核对/解除）。
+func (s *MSPAllocationService) ListByProviderTenant(ctx context.Context, providerTenantID int) ([]*dto.MSPAllocationDTO, error) {
+	if providerTenantID <= 0 {
+		return nil, fmt.Errorf("provider tenant id must be positive")
+	}
+	allocations, err := s.client.MSPAllocation.Query().
+		Where(
+			mspallocation.ProviderTenantIDEQ(providerTenantID),
+			mspallocation.DeassignedAtIsNil(),
+		).
+		WithCustomerTenant().
+		All(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("查询分配失败: %w", err)
+	}
+	dtos := make([]*dto.MSPAllocationDTO, 0, len(allocations))
+	for _, a := range allocations {
+		item, err := s.toDTO(a)
+		if err != nil {
+			s.logger.Warnw("转换DTO失败", "error", err)
+			continue
+		}
+		dtos = append(dtos, item)
+	}
+	return dtos, nil
+}
+
+// ListForCaller 管理面读取入口：provider_admin 返回本服务商全部有效分配，
+// 其余 MSP 员工仍只看本人分配（无权限提升语义）。
+func (s *MSPAllocationService) ListForCaller(ctx context.Context, userID int) ([]*dto.MSPAllocationDTO, error) {
+	if actor, err := s.client.User.Query().Where(user.IDEQ(userID)).Only(ctx); err == nil {
+		if string(actor.MspRole) == "provider_admin" {
+			return s.ListByProviderTenant(ctx, actor.TenantID)
+		}
+	}
+	return s.ListByMSPUser(ctx, userID)
+}
+
 // ListByCustomer 根据客户租户 ID 获取所有分配
 func (s *MSPAllocationService) ListByCustomer(ctx context.Context, customerTenantID int) ([]*dto.MSPAllocationDTO, error) {
 	allocations, err := s.client.MSPAllocation.Query().
@@ -270,7 +310,25 @@ func (s *MSPAllocationService) GetActiveAllocations(ctx context.Context) ([]*dto
 }
 
 // GetMSPCustomers 获取指定 MSP 用户可访问的客户列表（IP-P2-1：统一走 mspguard 收窄，fail-closed）。
+//
+// 例外（2026-10-05 浏览器 E2E 修复）：provider_admin（users.msp_role）是服务商管理角色，
+// 管理面必须能看到本服务商全部客户目录——否则“首次分配”因客户列表为空而不可达。
+// provider_agent 仍严格按有效分配收窄。
 func (s *MSPAllocationService) GetMSPCustomers(ctx context.Context, mspUserID int) ([]*ent.Tenant, error) {
+	if actor, aErr := s.client.User.Query().Where(user.IDEQ(mspUserID)).Only(ctx); aErr == nil {
+		if string(actor.MspRole) == "provider_admin" {
+			return s.client.Tenant.Query().
+				Where(
+					tenant.MspProviderIDEQ(actor.TenantID),
+					tenant.TypeIn(
+						tenant.Type(tenantmode.TenantTypeMSPCustomer),
+						tenant.Type(tenantmode.TenantTypeLegacyCustomer),
+					),
+				).
+				Order(ent.Asc(tenant.FieldID)).
+				All(ctx)
+		}
+	}
 	ids, err := mspguard.New(s.client).ListAccessibleCustomerIDs(ctx, mspUserID)
 	if err != nil {
 		return nil, err

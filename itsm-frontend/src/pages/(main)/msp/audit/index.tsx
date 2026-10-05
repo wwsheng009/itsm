@@ -184,7 +184,10 @@ const MSPAuditBoardPage: React.FC = () => {
         title='越权尝试 / 冲突告警'
         loading={loading && !summary}
         size='small'
-        extra={<Text type='secondary'>最近 {summary?.recentDenials.length ?? 0} 条</Text>}
+        extra={
+          // 后端在无告警时下发 recentDenials: null（E2E 实测崩溃点），此处按空数组兜底。
+          <Text type='secondary'>最近 {summary?.recentDenials?.length ?? 0} 条</Text>
+        }
       >
         <Table<MspAuditDenialRow>
           rowKey='id'

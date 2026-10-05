@@ -183,7 +183,15 @@ func scanDeclaredPermissionRoutesFrom(base string) ([]DeclaredRoute, error) {
 				if err != nil {
 					return true
 				}
-				full := normalizeRoutePath(groupPath[recv.Name] + seg)
+				// 组变量未在函数体内由 .Group() 创建时（典型：Setup*(tenant *gin.RouterGroup)
+				// 直接扁平注册），按组根约定视为 /api/v1——否则该文件所有路由被静默跳过，
+				// 预检映射缺条目 → RBACMiddleware 对非 super_admin fail-closed 403
+				// （2026-10-05 实测：/api/v1/ticket-types 家族）。
+				base := groupPath[recv.Name]
+				if base == "" {
+					base = "/api/v1"
+				}
+				full := normalizeRoutePath(base + seg)
 				if !strings.HasPrefix(full, "/api/v1/") && full != "/api/v1" {
 					return true
 				}

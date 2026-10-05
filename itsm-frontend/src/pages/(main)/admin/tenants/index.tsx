@@ -779,6 +779,14 @@ export default function TenantManagement() {
         open={!!provisionTenant}
         title="平台建号"
         targetLabel={provisionTenant ? `${provisionTenant.name}（${provisionTenant.code}）` : undefined}
+        mspRoleOptions={
+          provisionTenant?.type === 'msp_provider'
+            ? [
+                { value: 'provider_admin', label: '服务商管理员（provider_admin）' },
+                { value: 'provider_agent', label: '服务商技术员（provider_agent）' },
+              ]
+            : undefined
+        }
         onClose={() => setProvisionTenant(null)}
         submit={payload => TenantAPI.provisionTenantUser(provisionTenant!.id, payload)}
       />

@@ -177,6 +177,9 @@ export interface ProvisionUserRequest {
   name: string;
   email: string;
   password: string;
+  /** MSP 角色（users.msp_role 词表：provider_admin|provider_agent|customer_user）；
+   * 服务商租户建号必须携带，否则员工无法进入服务商工作台。 */
+  mspRole?: string;
 }
 
 /** 建号响应（UserDetailResponse 的最小子集）。 */

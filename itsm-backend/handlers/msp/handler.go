@@ -142,7 +142,9 @@ func (h *Handler) GetAllocations(c *gin.Context) {
 		return
 	}
 
-	allocations, err := h.mspAllocationService.ListByMSPUser(c.Request.Context(), userID)
+	// provider_admin 管理面：返回本服务商全部有效分配；普通员工仍只看本人
+	// （2026-10-05 浏览器 E2E 修复：管理页创建团队分配后不可见）。
+	allocations, err := h.mspAllocationService.ListForCaller(c.Request.Context(), userID)
 	if err != nil {
 		h.logger.Errorw("Failed to list allocations", "error", err, "user_id", userID)
 		common.Fail(c, common.InternalErrorCode, "查询分配列表失败")

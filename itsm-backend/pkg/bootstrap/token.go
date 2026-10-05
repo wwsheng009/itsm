@@ -222,6 +222,7 @@ func (m *BootstrapTokenManager) ConsumeToken(ctx context.Context, rawToken strin
 	if err != nil {
 		return 0, fmt.Errorf("resolve tenant for admin identity: %w", err)
 	}
+	policy := resolveBootstrapAdminPolicy(tenantRecord.Code, string(tenantRecord.Type))
 	username, email := bootstrapAdminIdentity(tenantRecord.Code, tenantID)
 	if options.username != "" {
 		username = options.username
@@ -236,9 +237,9 @@ func (m *BootstrapTokenManager) ConsumeToken(ctx context.Context, rawToken strin
 		return 0, fmt.Errorf("hash admin password: %w", err)
 	}
 
-	admin, err := tx.User.Create().
+	createBuilder := tx.User.Create().
 		SetUsername(username).
-		SetRole("super_admin").
+		SetRole(user.Role(policy.LegacyRole)).
 		SetPasswordHash(string(passHash)).
 		SetEmail(email).
 		SetName("系统管理员").
@@ -246,10 +247,18 @@ func (m *BootstrapTokenManager) ConsumeToken(ctx context.Context, rawToken strin
 		SetActive(true).
 		SetTenantID(tenantID).
 		SetIsBootstrapAdmin(true).
-		SetMustChangePassword(options.mustChangePassword).
-		Save(ctx)
+		SetMustChangePassword(options.mustChangePassword)
+	if policy.UserMSPRole != "" {
+		createBuilder = createBuilder.SetMspRole(user.MspRole(policy.UserMSPRole))
+	}
+	admin, err := createBuilder.Save(ctx)
 	if err != nil {
 		return 0, fmt.Errorf("create admin user: %w", err)
+	}
+	if policy.Scoped {
+		if err := attachScopedBootstrapIdentity(ctx, tx, tenantID, admin.ID, policy, m.sugar); err != nil {
+			return 0, err
+		}
 	}
 
 	// Mark token as used.
@@ -348,6 +357,7 @@ func (m *BootstrapTokenManager) BreakGlassCreateAdmin(ctx context.Context, tenan
 	if err != nil {
 		return 0, fmt.Errorf("resolve tenant for emergency admin identity: %w", err)
 	}
+	policy := resolveBootstrapAdminPolicy(tenantRecord.Code, string(tenantRecord.Type))
 	username, email := bootstrapAdminIdentity(tenantRecord.Code, tenantID)
 
 	// Create admin user.
@@ -356,9 +366,9 @@ func (m *BootstrapTokenManager) BreakGlassCreateAdmin(ctx context.Context, tenan
 		return 0, fmt.Errorf("hash admin password: %w", err)
 	}
 
-	admin, err := tx.User.Create().
+	createBuilder := tx.User.Create().
 		SetUsername(username).
-		SetRole("super_admin").
+		SetRole(user.Role(policy.LegacyRole)).
 		SetPasswordHash(string(passHash)).
 		SetEmail(email).
 		SetName("系统管理员 (emergency)").
@@ -366,10 +376,18 @@ func (m *BootstrapTokenManager) BreakGlassCreateAdmin(ctx context.Context, tenan
 		SetActive(true).
 		SetTenantID(tenantID).
 		SetIsBootstrapAdmin(true).
-		SetMustChangePassword(defaultMustChangePassword()).
-		Save(ctx)
+		SetMustChangePassword(defaultMustChangePassword())
+	if policy.UserMSPRole != "" {
+		createBuilder = createBuilder.SetMspRole(user.MspRole(policy.UserMSPRole))
+	}
+	admin, err := createBuilder.Save(ctx)
 	if err != nil {
 		return 0, fmt.Errorf("create emergency admin user: %w", err)
+	}
+	if policy.Scoped {
+		if err := attachScopedBootstrapIdentity(ctx, tx, tenantID, admin.ID, policy, m.sugar); err != nil {
+			return 0, err
+		}
 	}
 
 	if err := tx.Commit(); err != nil {
