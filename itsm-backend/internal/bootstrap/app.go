@@ -1321,6 +1321,8 @@ func NewApplication() *Application {
 	// 使 /admin/system-config 保存的 passwordMinLength 等配置立即生效。
 	userService.SetSystemConfigService(systemConfigService)
 	authService.SetSystemConfigService(systemConfigService)
+	// IP-P1-5 自助改密（/auth/change-password）同样按租户策略校验。
+	commonServiceDomain.SetSystemConfigService(systemConfigService)
 
 	// Vendor Controller
 

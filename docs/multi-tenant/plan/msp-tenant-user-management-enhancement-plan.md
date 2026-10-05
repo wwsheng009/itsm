@@ -296,6 +296,7 @@
 - ✅ **审计**：`user.admin_password_reset` / `user.admin_status` / `user.admin_force_logout`；行归属 actor 家租户、`target_tenant_id`=目标租户、`source=platform_selected`；一次性口令不落审计（掩码沿用既有）。
 - ✅ **TUM-3 审计与用户时间线**：三类治理动作显式审计补齐 `target_user_id`（中间件 `audit_target_user_id` + service 显式行）；迁移 `20261005_audit_target_user_id.sql`（列 + 索引 `(target_tenant_id, target_user_id, created_at)`）；审计查询新增 `targetUserId` 过滤；断言用例（掩码 + target_user_id）落地。
 - ✅ **TUM-3 复核补强（本批）**：掩码规则补齐 camelCase 密码键（`newPassword`/`currentPassword`/`confirmPassword`/`oldPassword`，兼容 snake_case）——修复 `mode=specified` 重置密码时审计请求体可能落明文的问题；新增 `middleware/mask_test.go` + 审计中间件 camelCase 断言。
+- ✅ **依赖修复（本批）**：`/api/v1/auth/change-password` 服务端实现补齐（IP-P1-5 实现文件因 `.gitignore` 的 `*password*` 规则漏提交，导致 `handlers/common`/`router` 干净检出编译失败）；TUM-2 的「首登强制改密」闭环链路恢复可用，`go build ./...` exit 0。
 - ⏳ **TUM-4** 前端抽屉（下一批）；**TUM-5** 集成/e2e 剧本随前端批次补齐。
 
 **验证命令（建议）**

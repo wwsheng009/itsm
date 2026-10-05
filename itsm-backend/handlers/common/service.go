@@ -13,6 +13,7 @@ import (
 	entuser "itsm-backend/ent/user"
 	"itsm-backend/middleware"
 	"itsm-backend/pkg/tenantmode"
+	"itsm-backend/service"
 
 	"github.com/redis/go-redis/v9"
 	"go.uber.org/zap"
@@ -23,12 +24,22 @@ import (
 // （allocation/归属撤销、租户停用）——确定性拒绝，不回退 home（IP-P0-6）。
 var ErrTenantAccessRevoked = errors.New("TENANT_ACCESS_REVOKED")
 
+// ErrOldPasswordMismatch 自助改密时旧密码不匹配（handler 映射为参数错误文案）。
+var ErrOldPasswordMismatch = errors.New("old password mismatch")
+
+// PasswordPolicyViolationError 新密码不满足目标租户密码策略；Reason 为可直接透出的规则文案。
+type PasswordPolicyViolationError struct{ Reason string }
+
+func (e *PasswordPolicyViolationError) Error() string { return e.Reason }
+
 type Service struct {
 	repo      Repository
 	jwtSecret string
 	logger    *zap.SugaredLogger
 	client    *ent.Client // For legacy integrations if needed
 	redis     *redis.Client
+	// configService 提供租户生效的密码策略（system_configs 驱动；IP-P1-5 自助改密）。
+	configService *service.SystemConfigService
 }
 
 func NewService(repo Repository, jwtSecret string, logger *zap.SugaredLogger, client *ent.Client) *Service {
@@ -43,6 +54,11 @@ func NewService(repo Repository, jwtSecret string, logger *zap.SugaredLogger, cl
 // SetRedis 注入 Redis 客户端；启用 refresh token 黑名单（token rotation 后旧值失效）
 func (s *Service) SetRedis(r *redis.Client) {
 	s.redis = r
+}
+
+// SetSystemConfigService 注入系统配置服务，使自助改密遵循配置页的密码策略（IP-P1-5）。
+func (s *Service) SetSystemConfigService(configService *service.SystemConfigService) {
+	s.configService = configService
 }
 
 // refreshBlacklistKey Redis key for refresh token blacklist
@@ -83,6 +99,72 @@ func (s *Service) resolvePermissions(ctx context.Context, userID, tenantID int) 
 			"user_id", userID, "tenant_id", tenantID, "source", source, "error", err)
 	}
 	return permissions
+}
+
+// ChangePassword 自助改密（IP-P1-5 首登强制改密闭环）：
+// 旧密码校验 → 目标租户密码策略 → bcrypt 落库并清除 must_change_password → 显式审计 auth.change_password。
+// 明文密码与哈希绝不写入审计/日志。
+func (s *Service) ChangePassword(ctx context.Context, userID, tenantID int, oldPassword, newPassword string) error {
+	if userID <= 0 || tenantID <= 0 {
+		return fmt.Errorf("用户信息缺失")
+	}
+
+	entUser, err := s.client.User.Query().
+		Where(entuser.ID(userID), entuser.TenantID(tenantID)).
+		Only(ctx)
+	if err != nil {
+		if ent.IsNotFound(err) {
+			return fmt.Errorf("用户不存在")
+		}
+		return fmt.Errorf("加载用户失败: %w", err)
+	}
+
+	if err := bcrypt.CompareHashAndPassword([]byte(entUser.PasswordHash), []byte(oldPassword)); err != nil {
+		s.recordChangePasswordAudit(ctx, entUser, 400, "旧密码不正确")
+		return ErrOldPasswordMismatch
+	}
+
+	policy := service.DefaultPasswordPolicy()
+	if s.configService != nil {
+		policy = s.configService.GetPasswordPolicy(ctx, tenantID)
+	}
+	if err := policy.Validate(newPassword); err != nil {
+		return &PasswordPolicyViolationError{Reason: err.Error()}
+	}
+
+	hash, err := bcrypt.GenerateFromPassword([]byte(newPassword), bcrypt.DefaultCost)
+	if err != nil {
+		return fmt.Errorf("密码加密失败: %w", err)
+	}
+
+	if err := s.client.User.UpdateOneID(userID).
+		Where(entuser.TenantID(tenantID)).
+		SetPasswordHash(string(hash)).
+		SetMustChangePassword(false).
+		Exec(ctx); err != nil {
+		return fmt.Errorf("更新密码失败: %w", err)
+	}
+
+	s.recordChangePasswordAudit(ctx, entUser, 200, "")
+	return nil
+}
+
+// recordChangePasswordAudit 显式审计改密动作（仅元数据；密码/哈希不入审计）。
+func (s *Service) recordChangePasswordAudit(ctx context.Context, u *ent.User, status int, failureReason string) {
+	if u == nil {
+		return
+	}
+	middleware.RecordAuthAudit(ctx, s.client, middleware.AuthAuditEntry{
+		UserID:        u.ID,
+		TenantID:      u.TenantID,
+		ActorAccount:  u.Username,
+		Source:        middleware.AuditSourceLogin,
+		Action:        "auth.change_password",
+		Path:          "/api/v1/auth/change-password",
+		Method:        "POST",
+		StatusCode:    status,
+		FailureReason: failureReason,
+	})
 }
 
 func (s *Service) Login(ctx context.Context, username, password string, tenantID int, tenantCode string) (*AuthResult, error) {

@@ -95,6 +95,11 @@ func (h *Handler) ChangePassword(c *gin.Context) {
 			common.Fail(c, common.ParamErrorCode, "旧密码不正确")
 			return
 		}
+		var policyErr *PasswordPolicyViolationError
+		if errors.As(err, &policyErr) {
+			common.Fail(c, common.ParamErrorCode, policyErr.Reason)
+			return
+		}
 		common.FailWithErr(c, err, "修改密码失败")
 		return
 	}

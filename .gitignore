@@ -154,6 +154,12 @@ output/
 !itsm-frontend/src/pages/(auth)/forgot-password/**
 !itsm-frontend/src/lib/api/password-policy-api.ts
 !itsm-frontend/src/lib/hooks/usePasswordPolicy.ts
+# Exception: backend handlers/common source (IP-P1-5 change-password impl) was
+# silently excluded by the blanket *password* rule and never committed, breaking
+# `go build ./...` on clean checkouts while the Windows dev box still compiled
+# (ignored file present on disk). Re-include the source directory (code, not secrets).
+!itsm-backend/handlers/common/
+!itsm-backend/handlers/common/**
 *.key
 credentials*
 
