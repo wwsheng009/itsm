@@ -1,6 +1,6 @@
 # 平台侧租户用户管理增强方案（/admin/tenants · 跨租户账号治理）
 
-> 状态：**v0.4（决策冻结 + TUM-1/TUM-2/TUM-3 后端落地 + 掩码复核修复）**｜日期：2026-10-05｜基准：仓库 HEAD `4d2a40f2`（TUM-3 落地）
+> 状态：**v0.5（TUM-1–TUM-4 落地 + 漏提交修复）**｜日期：2026-10-05｜基准：仓库 HEAD `cb757575`（TUM-3 修复后）
 > 上位：[canon v1.0](./msp-concept-model-and-architecture-canon.md)（canon D5/D8/D11、附录 C）→ [目标架构](./msp-target-architecture.md)（§6 权限矩阵/建号）→ [实施方案](./msp-implementation-plan.md)（IP-P0-5 建号通道、IP-P2-6 硬配额）
 > 定位：**L4 方案**（局部编号 `TUM-#`，跨文档引用必须带前缀）。范围：平台管理员在租户治理页（`/admin/tenants`）对**任意租户**用户的查看与账号治理（重置密码 / 启用停用 / 强制下线 / 审计）；不含 MSP 服务商面工作台（其可复用同一服务能力，另行接线）。
 
@@ -297,7 +297,9 @@
 - ✅ **TUM-3 审计与用户时间线**：三类治理动作显式审计补齐 `target_user_id`（中间件 `audit_target_user_id` + service 显式行）；迁移 `20261005_audit_target_user_id.sql`（列 + 索引 `(target_tenant_id, target_user_id, created_at)`）；审计查询新增 `targetUserId` 过滤；断言用例（掩码 + target_user_id）落地。
 - ✅ **TUM-3 复核补强（本批）**：掩码规则补齐 camelCase 密码键（`newPassword`/`currentPassword`/`confirmPassword`/`oldPassword`，兼容 snake_case）——修复 `mode=specified` 重置密码时审计请求体可能落明文的问题；新增 `middleware/mask_test.go` + 审计中间件 camelCase 断言。
 - ✅ **依赖修复（本批）**：`/api/v1/auth/change-password` 服务端实现补齐（IP-P1-5 实现文件因 `.gitignore` 的 `*password*` 规则漏提交，导致 `handlers/common`/`router` 干净检出编译失败）；TUM-2 的「首登强制改密」闭环链路恢复可用，`go build ./...` exit 0。
-- ⏳ **TUM-4** 前端抽屉（下一批）；**TUM-5** 集成/e2e 剧本随前端批次补齐。
+- ✅ **TUM-4 前端抽屉与共享组件**：`TenantUsersDrawer`（宽 920；搜索 300ms 防抖 + 状态/角色筛选 + 分页；深链 `?tenantUsers=<id>` 与 `tu*` 筛选参数 URL 同步；启停乐观更新 + 失败回滚；最后管理员前端禁用 + 后端 409 兜底；`default` 租户停用二次确认；强制下线；本页批量 ≤50 + 逐条结果 + 失败重试；空态三分；403 平台面说明）；抽取共享组件 `UserStatusToggle`/`ResetPasswordModal`（`admin/users` 改为复用，行为不变）；新增 API 客户端 `tenant-user-admin-api.ts`（契约锁定 URL/载荷/§3.5 错误码文案）。测试：抽屉 5 用例 + API 9 用例 + 守卫 4 用例；`tsc --noEmit` exit 0、eslint 0 error、目标 jest 全绿（含既有 4 套件 31 用例回归）。
+- ✅ **依赖修复（本批）**：重建 `(main)/change-password` 强制改密页与 `guards-must-change-password.test.tsx`（IP-P1-5 文件同因 `.gitignore` 的 `*password*` 规则漏提交，`routes/index.tsx` lazy import 悬空致干净检出 `tsc` 失败）；`.gitignore` 增补前端两处源码例外。
+- ⏳ **TUM-5** 集成/e2e 剧本（`scenarios/09-*`：S1–S3 闭环）随下一批补齐；**TUM-6/7** 维持原状态。
 
 **验证命令（建议）**
 
@@ -394,3 +396,4 @@ bash scripts/docs-gate/check-multi-tenant-consistency.sh
 | v0.2 | 2026-10-05 | **决策冻结（按最佳实践）**：TUM-D1–TUM-D10 定稿并收口原 Q1–Q5（会话双吊销/批量语义/不删除/权限统一/MSP 另案）；新增 §2.3 业务逻辑闭环（场景 S1–S3 + 闭环点 C1–C6）与 §4.4/§4.5 操作便利性/被操作用户体验；审计新增 `target_user_id` 迁移计划；验收新增 TUM-A7/A8 与两类反例 |
 | v0.3 | 2026-10-05 | **TUM-1/TUM-2 后端落地**：读通道（列表/详情，双层平台面判定）+ 账号治理（重置两模式/启停护栏/强制下线）+ TUM-D6 refresh 按用户双吊销（含续签路径校验）+ 路由与装配 + 定向测试；`target_user_id` 列（TUM-3）与前端抽屉（TUM-4）顺延下一批 |
 | v0.4 | 2026-10-05 | **TUM-3 落地 + 复核补强**：审计 `target_user_id` 列/索引/查询过滤与断言用例（`4d2a40f2`）；复核发现 camelCase `newPassword` 未被掩码，本批修复 `middleware/mask.go` 并补测试，TUM-3 DoD 掩码项闭环 |
+| v0.5 | 2026-10-05 | **TUM-4 前端落地**：抽屉（深链/防抖筛选/乐观回滚/批量重试/空态三分/无障碍）+ 共享组件抽取 + API 客户端与契约用例；同批修复 `(main)/change-password` 页与守卫用例的漏提交（`*password*` 规则第三/四例），前端 `tsc`/eslint/目标 jest 全绿 |

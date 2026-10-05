@@ -28,7 +28,6 @@ import {
   Statistic,
   Typography,
   theme,
-  Switch,
   App,
   Tag,
   Empty,
@@ -40,6 +39,8 @@ import { useAuthStore, useAuthStoreHydration } from '@/lib/store/auth-store';
 import { useI18n } from '@/lib/i18n/useI18n';
 import { usePasswordPolicy } from '@/lib/hooks/usePasswordPolicy';
 import InvitationManagementModal from './components/InvitationManagementModal';
+import UserStatusToggle from '@/components/user/UserStatusToggle';
+import ResetPasswordModal from '@/components/user/ResetPasswordModal';
 
 const { Title, Text } = Typography;
 const { Search: AntSearch } = Input;
@@ -82,7 +83,6 @@ const UserManagement: React.FC = () => {
   // 表单
   const [createForm] = Form.useForm();
   const [editForm] = Form.useForm();
-  const [passwordForm] = Form.useForm();
 
   // 加载用户列表
   const loadUsers = async () => {
@@ -199,10 +199,9 @@ const UserManagement: React.FC = () => {
   };
 
   // 切换用户状态
-  const handleToggleUserStatus = async (userId: number, currentStatus: boolean) => {
+  const handleToggleUserStatus = async (userId: number, newStatus: boolean) => {
     setLoading(true);
     try {
-      const newStatus = !currentStatus;
       await UserApi.changeUserStatus(userId, newStatus);
       setUsers(prev =>
         prev.map(user => (user.id === userId ? { ...user, active: newStatus } : user))
@@ -217,21 +216,11 @@ const UserManagement: React.FC = () => {
     }
   };
 
-  // 重置密码
-  const handleResetPassword = async (values: { newPassword: string }) => {
-    if (!selectedUser) return;
-    setLoading(true);
-    try {
-      await UserApi.resetPassword(selectedUser.id, values.newPassword);
-      message.success(t('users.messages.passwordResetSuccess'));
-      setIsPasswordModalVisible(false);
-      passwordForm.resetFields();
-      setSelectedUser(null);
-    } catch (error) {
-      message.error(error instanceof Error ? error.message : t('users.messages.passwordResetFailed'));
-    } finally {
-      setLoading(false);
-    }
+  // 重置密码（共享 ResetPasswordModal；本面仅「指定新密码」模式）
+  const handleResetPasswordSubmit = async ({ newPassword }: { newPassword?: string }) => {
+    if (!selectedUser || !newPassword) return;
+    await UserApi.resetPassword(selectedUser.id, newPassword);
+    message.success(t('users.messages.passwordResetSuccess'));
   };
 
   // 搜索和筛选逻辑
@@ -300,12 +289,12 @@ const UserManagement: React.FC = () => {
       dataIndex: 'active',
       key: 'active',
       render: (active: boolean, record: User) => (
-        <Switch
+        <UserStatusToggle
           checked={active}
           loading={loading}
-          onChange={() => handleToggleUserStatus(record.id, active)}
           checkedChildren={t('users.statusTag.active')}
           unCheckedChildren={t('users.statusTag.deactivated')}
+          onToggle={next => handleToggleUserStatus(record.id, next)}
         />
       ),
     },
@@ -729,44 +718,23 @@ const UserManagement: React.FC = () => {
       </Modal>
 
       {/* 重置密码模态框 */}
-      <Modal
-        title={t('users.actions.resetPassword')}
+      <ResetPasswordModal
         open={isPasswordModalVisible}
-        onCancel={() => {
+        user={
+          selectedUser
+            ? { id: selectedUser.id, username: selectedUser.username, name: selectedUser.name }
+            : null
+        }
+        modes={['specified']}
+        policyHint={passwordHint}
+        buildRules={buildPasswordRules}
+        title={t('users.actions.resetPassword')}
+        onSubmit={handleResetPasswordSubmit}
+        onClose={() => {
           setIsPasswordModalVisible(false);
-          passwordForm.resetFields();
           setSelectedUser(null);
         }}
-        footer={null}
-      >
-        <Form form={passwordForm} layout="vertical" onFinish={handleResetPassword}>
-          <Form.Item
-            name="newPassword"
-            label={t('users.form.newPassword')}
-            // 管理员重置密码同样受当前租户密码策略约束（与后端 ResetPassword 一致）
-            rules={buildPasswordRules(t('users.form.requiredNewPassword'))}
-            extra={passwordHint}
-          >
-            <Input.Password placeholder={t('users.form.newPasswordPlaceholder')} />
-          </Form.Item>
-          <Form.Item>
-            <Space>
-              <Button type="primary" htmlType="submit" loading={loading}>
-{t('users.actions.resetPassword')}
-              </Button>
-              <Button
-                onClick={() => {
-                  setIsPasswordModalVisible(false);
-                  passwordForm.resetFields();
-                  setSelectedUser(null);
-                }}
-              >
-                取消
-              </Button>
-            </Space>
-          </Form.Item>
-        </Form>
-      </Modal>
+      />
 
       {/* 邀请管理（IP-P1-4c 管理侧：列表/创建/撤销） */}
       <InvitationManagementModal

@@ -46,7 +46,10 @@ import { TenantAPI } from '@/lib/api/tenant-api';
 import type { TenantQuota, UpdateTenantRequest } from '@/lib/api/api-config';
 import TenantUsageModal from './components/TenantUsageModal';
 import TenantOnboardingModal from './components/TenantOnboardingModal';
+import TenantUsersDrawer from './components/TenantUsersDrawer';
 import ProvisionUserModal from '@/components/provisioning/ProvisionUserModal';
+import { useSearchParams } from 'react-router';
+import { usePermissions } from '@/lib/hooks/use-permissions';
 
 const { Title, Text } = Typography;
 
@@ -154,6 +157,11 @@ export default function TenantManagement() {
   const [onboardingTenant, setOnboardingTenant] = useState<Tenant | null>(null);
   // 平台建号通道：打开建号弹窗的目标租户（null = 关闭）。
   const [provisionTenant, setProvisionTenant] = useState<Tenant | null>(null);
+  // TUM-4：平台侧租户用户管理抽屉（深链 ?tenantUsers=<id>）。
+  const [tenantUsersTenant, setTenantUsersTenant] = useState<Tenant | null>(null);
+  const [searchParams, setSearchParams] = useSearchParams();
+  const { hasPermission, hasRole } = usePermissions();
+  const canManageTenantUsers = hasPermission('tenant', 'write') && hasRole('super_admin');
   // MSP 客户表单的服务商候选（仅 active 的 msp_provider）。
   const [mspProviders, setMspProviders] = useState<Tenant[]>([]);
   const [form] = Form.useForm();
@@ -208,6 +216,34 @@ export default function TenantManagement() {
   useEffect(() => {
     loadTenants();
   }, [searchTerm, statusFilter, typeFilter]);
+
+  // 深链恢复：?tenantUsers=<id> 打开抽屉（刷新/分享可复现；TUM-A7）。
+  useEffect(() => {
+    const raw = searchParams.get('tenantUsers');
+    if (!raw) return;
+    const id = Number(raw);
+    if (!Number.isFinite(id) || id <= 0) return;
+    if (tenantUsersTenant?.id === id) return;
+    const target = tenants.find(t => t.id === id);
+    if (target) setTenantUsersTenant(target);
+  }, [searchParams, tenants, tenantUsersTenant?.id]);
+
+  const openTenantUsers = (tenant: Tenant) => {
+    setTenantUsersTenant(tenant);
+    const params = new URLSearchParams(window.location.search);
+    params.set('tenantUsers', String(tenant.id));
+    setSearchParams(params);
+  };
+
+  const closeTenantUsers = () => {
+    setTenantUsersTenant(null);
+    const params = new URLSearchParams(window.location.search);
+    params.delete('tenantUsers');
+    ['tuKeyword', 'tuStatus', 'tuRole', 'tuPage', 'tuPageSize'].forEach(key =>
+      params.delete(key)
+    );
+    setSearchParams(params, { replace: true });
+  };
 
   // 新建/编辑弹窗打开时加载 MSP 服务商候选（网络失败降级为空列表，不阻塞表单）。
   useEffect(() => {
@@ -378,7 +414,7 @@ export default function TenantManagement() {
     {
       title: '操作',
       key: 'actions',
-      width: 230,
+      width: 310,
       render: (_: unknown, record: Tenant) => (
         <Space size="small">
           <Tooltip title="编辑">
@@ -416,6 +452,15 @@ export default function TenantManagement() {
           >
             建号
           </Button>
+          {canManageTenantUsers && (
+            <Button
+              size="small"
+              icon={<Users className="w-4 h-4" />}
+              onClick={() => openTenantUsers(record)}
+            >
+              用户管理
+            </Button>
+          )}
           {record.status === 'active' ? (
             record.code === 'default' ? (
               <Tooltip title="系统默认租户不可暂停（会导致整站无法访问）">
@@ -789,6 +834,19 @@ export default function TenantManagement() {
         }
         onClose={() => setProvisionTenant(null)}
         submit={payload => TenantAPI.provisionTenantUser(provisionTenant!.id, payload)}
+      />
+
+      {/* TUM-4：平台侧租户用户管理抽屉（深链 ?tenantUsers=<id>）。 */}
+      <TenantUsersDrawer
+        open={!!tenantUsersTenant}
+        tenant={tenantUsersTenant}
+        canWrite={canManageTenantUsers}
+        onProvision={() => {
+          const target = tenantUsersTenant;
+          closeTenantUsers();
+          if (target) setProvisionTenant(target);
+        }}
+        onClose={closeTenantUsers}
       />
     </div>
   );

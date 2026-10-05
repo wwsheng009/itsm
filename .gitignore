@@ -160,6 +160,15 @@ output/
 # (ignored file present on disk). Re-include the source directory (code, not secrets).
 !itsm-backend/handlers/common/
 !itsm-backend/handlers/common/**
+# Exception: 首登强制改密页（IP-P1-5，(main)/change-password）同样被 *password*
+# 规则漏提交，导致 routes/index.tsx 的 lazy import 悬空、tsc 在干净检出失败。
+!itsm-frontend/src/pages/(main)/change-password/
+!itsm-frontend/src/pages/(main)/change-password/**
+# Exception: 强制改密守卫测试（IP-P1-5，方案引用文件名含 password）
+!itsm-frontend/src/routes/__tests__/guards-must-change-password.test.tsx
+# Exception: 共享改密组件（TUM-4，components/user 源码；ResetPasswordModal 名称含 password）
+!itsm-frontend/src/components/user/
+!itsm-frontend/src/components/user/**
 *.key
 credentials*
 
