@@ -23,7 +23,8 @@
 [平台管理员]
    ├─ 场景01：建租户 MSPB2C（msp_provider）
    ├─ 场景02：建租户 B2CCUST（msp_customer，绑定 MSPB2C）
-   └─ 场景03：开通向导（模板供给 → 首管 b2cprov_admin / b2ccust_admin → 首登改密）
+   ├─ 场景03：开通向导（模板供给 → 首管 b2cprov_admin / b2ccust_admin → 首登改密）
+   └─ 场景09：租户用户管理（重置/启停/强制下线/审计；S1–S3 闭环）
 
 [服务商管理员 b2cprov_admin]
    ├─ 场景04：建号 b2c_tech（provider_agent）
@@ -53,8 +54,9 @@
 | 06 | [06-customer-ticket-type-and-ticket.md](./06-customer-ticket-type-and-ticket.md) | 客户方管理员 | 建工单类型 → 新建工单 | 工单号生成、列表可见 |
 | 07 | [07-msp-workbench-collaboration.md](./07-msp-workbench-collaboration.md) | 服务商员工 | 跨客户工作台：筛选、回复、改状态、指派、批量 | 客户侧同步可见 |
 | 08 | [08-audit-and-isolation-verification.md](./08-audit-and-isolation-verification.md) | 服务商管理员/测试 | 审计看板 + 隔离负向验证（403/401/404） | 错误码与审计留痕 |
+| 09 | [09-tenant-user-management.md](./09-tenant-user-management.md) | 平台管理员 | 跨租户用户治理：重置（一次性/指定）/启停/强制下线/审计 | 即时 401、护栏 409、通知与审计留痕 |
 
-> **依赖链**：01 → 02 → 03（两个租户都需要开通）→ 04 → 05 → 06 → 07 → 08。
+> **依赖链**：01 → 02 → 03（两个租户都需要开通）→ 04 → 05 → 06 → 07 → 08；**09 独立**（平台面治理，可在任一租户上执行）。
 > **可重入**：每个场景独立成篇；重跑建议**换一批新编码**（如 `MSPB2C02`/`B2CCUST02`），避免与既有数据混淆。
 
 ## 3. 角色与账号矩阵

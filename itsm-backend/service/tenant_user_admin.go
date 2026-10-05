@@ -87,12 +87,18 @@ type TenantAdminActor struct {
 	Username     string
 }
 
+// tenantAdminNotifier 站内通知端口（闭环 C5）：由 NotificationService 实现；nil = 通知关闭。
+type tenantAdminNotifier interface {
+	CreateSystemNotification(ctx context.Context, title, message, notificationType string, userIDs []int, tenantID int) error
+}
+
 // TenantUserAdminService 收口平台侧租户用户读通道与账号治理。零值不可用。
 type TenantUserAdminService struct {
-	client  *ent.Client
-	users   *UserService
-	logger  *zap.SugaredLogger
-	enabled bool
+	client   *ent.Client
+	users    *UserService
+	logger   *zap.SugaredLogger
+	enabled  bool
+	notifier tenantAdminNotifier
 }
 
 // NewTenantUserAdminService 构造服务。
@@ -114,6 +120,47 @@ func (s *TenantUserAdminService) SetEnabled(enabled bool) { s.enabled = enabled 
 
 // Enabled 报告写通道是否开启。
 func (s *TenantUserAdminService) Enabled() bool { return s != nil && s.enabled }
+
+// SetNotifier 注入通知端口（治理动作触达目标租户管理员；best-effort，不阻断动作）。
+func (s *TenantUserAdminService) SetNotifier(notifier tenantAdminNotifier) {
+	if s != nil {
+		s.notifier = notifier
+	}
+}
+
+const tenantAdminNotifyType = "user_admin_action"
+
+// notifyTenantAdmins 向目标租户全部启用中的管理员发站内通知（排除被操作用户自身）。
+// 通知内容不含口令/会话材料；发送失败仅告警，不影响治理动作结果（闭环 C5）。
+func (s *TenantUserAdminService) notifyTenantAdmins(ctx context.Context, tenantID int, title, message string, excludeUserID int) {
+	if s == nil || s.notifier == nil || tenantID <= 0 {
+		return
+	}
+	ids, err := s.client.User.Query().
+		Where(
+			user.TenantIDEQ(tenantID),
+			user.RoleEQ(user.RoleAdmin),
+			user.ActiveEQ(true),
+		).
+		IDs(ctx)
+	if err != nil {
+		s.logger.Warnw("query tenant admins for notification failed", "error", err, "tenant_id", tenantID)
+		return
+	}
+	recipients := make([]int, 0, len(ids))
+	for _, id := range ids {
+		if id == excludeUserID {
+			continue
+		}
+		recipients = append(recipients, id)
+	}
+	if len(recipients) == 0 {
+		return
+	}
+	if err := s.notifier.CreateSystemNotification(ctx, title, message, tenantAdminNotifyType, recipients, tenantID); err != nil {
+		s.logger.Warnw("notify tenant admins failed", "error", err, "tenant_id", tenantID)
+	}
+}
 
 func (s *TenantUserAdminService) ensureConfigured() error {
 	if s == nil || s.client == nil || s.users == nil {
@@ -316,7 +363,8 @@ func (s *TenantUserAdminService) ResetPassword(ctx context.Context, actor Tenant
 	if _, err := s.loadTenant(qctx, tenantID); err != nil {
 		return nil, err
 	}
-	if _, err := s.loadTenantUser(qctx, tenantID, userID); err != nil {
+	targetUser, err := s.loadTenantUser(qctx, tenantID, userID)
+	if err != nil {
 		return nil, err
 	}
 
@@ -360,6 +408,8 @@ func (s *TenantUserAdminService) ResetPassword(ctx context.Context, actor Tenant
 		"mode":                 mode,
 		"must_change_password": mustChange,
 	}, revocationFailures), 200)
+	s.notifyTenantAdmins(qctx, tenantID, "用户密码已被平台重置",
+		fmt.Sprintf("用户 %s 的登录密码已被平台管理员重置（通知不含口令内容）。如非预期，请立即联系平台管理员。", targetUser.Username), userID)
 
 	resp := &dto.ResetTenantUserPasswordResponse{
 		UserID:             userID,
@@ -443,6 +493,13 @@ func (s *TenantUserAdminService) SetActive(ctx context.Context, actor TenantAdmi
 	s.recordAudit(ctx, actor, "user.admin_status", tenantID, userID, withRevocationFailures(map[string]any{
 		"active": active,
 	}, revocationFailures), 200)
+	if active {
+		s.notifyTenantAdmins(qctx, tenantID, "用户已被平台启用",
+			fmt.Sprintf("用户 %s 已被平台管理员启用。", target.Username), userID)
+	} else {
+		s.notifyTenantAdmins(qctx, tenantID, "用户已被平台停用",
+			fmt.Sprintf("用户 %s 已被平台管理员停用，其全部会话已失效。", target.Username), userID)
+	}
 	return nil
 }
 
@@ -464,7 +521,8 @@ func (s *TenantUserAdminService) ForceLogout(ctx context.Context, actor TenantAd
 	if _, err := s.loadTenant(qctx, tenantID); err != nil {
 		return nil, err
 	}
-	if _, err := s.loadTenantUser(qctx, tenantID, userID); err != nil {
+	targetUser, err := s.loadTenantUser(qctx, tenantID, userID)
+	if err != nil {
 		return nil, err
 	}
 	now := time.Now()
@@ -472,6 +530,8 @@ func (s *TenantUserAdminService) ForceLogout(ctx context.Context, actor TenantAd
 	s.recordAudit(ctx, actor, "user.admin_force_logout", tenantID, userID, withRevocationFailures(map[string]any{
 		"revoked_at": now.UTC().Format(time.RFC3339),
 	}, revocationFailures), 200)
+	s.notifyTenantAdmins(qctx, tenantID, "用户会话已被强制下线",
+		fmt.Sprintf("用户 %s 的会话已被平台管理员强制下线，需重新登录。", targetUser.Username), userID)
 	return &dto.ForceLogoutTenantUserResponse{UserID: userID, RevokedAt: now}, nil
 }
 

@@ -1309,6 +1309,8 @@ func NewApplication() *Application {
 	// TUM-1/TUM-2 平台侧租户用户管理（读通道 + 账号治理）；
 	// 写通道灰度开关 TENANT_USER_ADMIN_ENABLED（默认关，可即时回滚）。
 	tenantUserAdminService := service.NewTenantUserAdminService(client, userService, sugar)
+	// 闭环 C5：治理动作站内通知目标租户管理员（best-effort，不含口令）。
+	tenantUserAdminService.SetNotifier(notificationService)
 	tenantHTTPHandler.SetTenantUserAdminService(tenantUserAdminService)
 
 	// System Config Handler（2026-09-02 迁移至 handlers/systemconfig）

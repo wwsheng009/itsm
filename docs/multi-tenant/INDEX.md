@@ -63,7 +63,7 @@
 | [msp-implementation-plan.md](./plan/msp-implementation-plan.md) | 落地 | **v1.1（P0/P1 契约冻结）** | **实施方案 P0→P1→P2**（步骤/DoD/回滚） | `IP-P0-#` `IP-P1-#` `IP-P2-#` |
 | [msp-account-provisioning-and-registration-flow.md](./plan/msp-account-provisioning-and-registration-flow.md) | L4 | Draft v0.3（决策同步） | **建号与注册流程**（四通道/邀请/首登/过渡期） | — |
 | [msp-business-closure-review-and-refactor-plan.md](./plan/msp-business-closure-review-and-refactor-plan.md) | 治理/落地 | Draft v0.4（决策同步） | **业务闭环审查 + 现有功能改造计划**（13 链路/波次/深度分级） | `CL-01–CL-13` |
-  | [msp-tenant-user-management-enhancement-plan.md](./plan/msp-tenant-user-management-enhancement-plan.md) | L4 | v0.5（TUM-1–TUM-4 落地 + 漏提交修复） | **平台侧租户用户管理增强**（跨租户用户列表/重置密码/启停/强制下线/审计；含操作便利性与业务闭环设计） | `TUM-#` |
+  | [msp-tenant-user-management-enhancement-plan.md](./plan/msp-tenant-user-management-enhancement-plan.md) | L4 | v0.6（TUM-1–TUM-5 落地 + C5 通知；live e2e 待环境） | **平台侧租户用户管理增强**（跨租户用户列表/重置密码/启停/强制下线/审计；含操作便利性与业务闭环设计） | `TUM-#` |
 
 ### 2.1 场景目录（scenarios/，L6 浏览器实操剧本）
 
@@ -81,6 +81,7 @@
 | [06-customer-ticket-type-and-ticket.md](./scenarios/06-customer-ticket-type-and-ticket.md) | 当前 | 场景 6：客户建类型与工单 |
 | [07-msp-workbench-collaboration.md](./scenarios/07-msp-workbench-collaboration.md) | 当前 | 场景 7：工作台协作（回复/状态/指派/批量） |
 | [08-audit-and-isolation-verification.md](./scenarios/08-audit-and-isolation-verification.md) | 当前 | 场景 8：审计看板 + 隔离负向验证 |
+| [09-tenant-user-management.md](./scenarios/09-tenant-user-management.md) | 当前（TUM 落地，实测待环境） | 场景 9：平台侧租户用户管理（重置/启停/强制下线/审计；S1–S3） |
 
 **上位与关联（本目录之外）**：
 
@@ -185,7 +186,7 @@ docs/multi-tenant/
 ├── 05-usage-guide.md
 ├── 06-verification-and-troubleshooting.md
 ├── 07-known-gaps.md
-├── scenarios/                  L6 浏览器实操剧本（场景 0–8）
+├── scenarios/                  L6 浏览器实操剧本（场景 0–9）
 │   ├── README.md
 │   ├── 00-environment-and-accounts.md
 │   ├── 01-platform-create-provider-tenant.md
@@ -195,7 +196,8 @@ docs/multi-tenant/
 │   ├── 05-msp-allocation-management.md
 │   ├── 06-customer-ticket-type-and-ticket.md
 │   ├── 07-msp-workbench-collaboration.md
-│   └── 08-audit-and-isolation-verification.md
+│   ├── 08-audit-and-isolation-verification.md
+│   └── 09-tenant-user-management.md
 └── plan/
     ├── msp-concept-model-and-architecture-canon.md      L1 概念权威（附录 C 注册表）
     ├── msp-cross-customer-workbench-and-filter-plan.md  L2 修订源

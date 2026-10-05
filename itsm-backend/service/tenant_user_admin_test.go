@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"errors"
 	"testing"
 	"time"
 
@@ -9,6 +10,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/zap/zaptest"
+	"golang.org/x/crypto/bcrypt"
 
 	"itsm-backend/dto"
 	"itsm-backend/ent"
@@ -265,4 +267,142 @@ func TestTenantUserAdmin_AuditRows(t *testing.T) {
 	logoutRow := byAction["user.admin_force_logout"]
 	require.NotNil(t, logoutRow)
 	assert.Equal(t, f.normalA, logoutRow.TargetUserID)
+}
+
+// fakeTenantAdminNotifier 记录 C5 通知调用（断言收件人/文案/租户，验证不含口令）。
+type fakeTenantAdminNotifier struct {
+	calls []tenantAdminNotifyCall
+	err   error
+}
+
+type tenantAdminNotifyCall struct {
+	Title    string
+	Message  string
+	Type     string
+	UserIDs  []int
+	TenantID int
+}
+
+func (f *fakeTenantAdminNotifier) CreateSystemNotification(_ context.Context, title, message, notificationType string, userIDs []int, tenantID int) error {
+	f.calls = append(f.calls, tenantAdminNotifyCall{
+		Title:    title,
+		Message:  message,
+		Type:     notificationType,
+		UserIDs:  append([]int(nil), userIDs...),
+		TenantID: tenantID,
+	})
+	return f.err
+}
+
+// TestTenantUserAdmin_NotifiesTenantAdmins C5/S2：停用/重置/下线通知目标租户启用中的管理员，
+// 排除被操作用户自身与其它租户；一次性口令绝不进入通知文案。
+func TestTenantUserAdmin_NotifiesTenantAdmins(t *testing.T) {
+	f := newTenantUserAdminFixture(t)
+	notifier := &fakeTenantAdminNotifier{}
+	f.svc.SetNotifier(notifier)
+
+	disable := false
+	require.NoError(t, f.svc.SetActive(f.ctx, f.actor, f.tenantA, f.normalA, &dto.SetTenantUserStatusRequest{Active: &disable}))
+	require.Len(t, notifier.calls, 1)
+	call := notifier.calls[0]
+	assert.Equal(t, f.tenantA, call.TenantID, "通知归属目标租户")
+	assert.Equal(t, "user_admin_action", call.Type)
+	assert.ElementsMatch(t, []int{f.adminA1, f.adminA2}, call.UserIDs, "收件人=目标租户管理员，排除被操作用户与其它租户")
+	assert.NotContains(t, call.UserIDs, f.normalA)
+	assert.NotContains(t, call.UserIDs, f.adminB)
+	assert.Contains(t, call.Message, "tua-a-user1")
+
+	resp, err := f.svc.ResetPassword(f.ctx, f.actor, f.tenantA, f.normalA, &dto.ResetTenantUserPasswordRequest{Mode: dto.TenantUserResetModeGenerated})
+	require.NoError(t, err)
+	require.NotEmpty(t, resp.GeneratedPassword)
+	require.Len(t, notifier.calls, 2)
+	resetCall := notifier.calls[1]
+	assert.NotContains(t, resetCall.Message, resp.GeneratedPassword, "通知绝不能携带一次性口令")
+	assert.NotContains(t, resetCall.Title, resp.GeneratedPassword)
+
+	_, err = f.svc.ForceLogout(f.ctx, f.actor, f.tenantA, f.normalA)
+	require.NoError(t, err)
+	require.Len(t, notifier.calls, 3)
+	assert.Contains(t, notifier.calls[2].Message, "tua-a-user1")
+}
+
+// TestTenantUserAdmin_NotifierFailureDoesNotBlock：通知失败仅告警，治理动作仍成功且不回滚。
+func TestTenantUserAdmin_NotifierFailureDoesNotBlock(t *testing.T) {
+	f := newTenantUserAdminFixture(t)
+	f.svc.SetNotifier(&fakeTenantAdminNotifier{err: errors.New("notification backend down")})
+
+	disable := false
+	require.NoError(t, f.svc.SetActive(f.ctx, f.actor, f.tenantA, f.normalA, &dto.SetTenantUserStatusRequest{Active: &disable}))
+	u, err := f.client.User.Get(f.ctx, f.normalA)
+	require.NoError(t, err)
+	assert.False(t, u.Active, "通知失败不得回滚停用")
+}
+
+// TestTenantUserAdmin_ClosureS1S2S3 S1–S3 端到端剧本（离线可复现，对齐 scenarios/09）：
+// S1 排障重置：旧口令失效 / 新口令可验 / 强制改密 / refresh 双吊销 / 通知触达；
+// S2 离职停用：立即不可用 + 双吊销 + 通知目标租户管理员；
+// S3 安全事件：强制下线 + 指定重置 + 审计按 target_user_id 可复核。
+func TestTenantUserAdmin_ClosureS1S2S3(t *testing.T) {
+	f := newTenantUserAdminFixture(t)
+	notifier := &fakeTenantAdminNotifier{}
+	f.svc.SetNotifier(notifier)
+
+	oldHash, err := bcrypt.GenerateFromPassword([]byte("OldPass123"), bcrypt.MinCost)
+	require.NoError(t, err)
+	require.NoError(t, f.client.User.UpdateOneID(f.normalA).SetPasswordHash(string(oldHash)).Exec(f.ctx))
+
+	// S1：一次性重置（用户锁死排障）。
+	s1, err := f.svc.ResetPassword(f.ctx, f.actor, f.tenantA, f.normalA, &dto.ResetTenantUserPasswordRequest{Mode: dto.TenantUserResetModeGenerated})
+	require.NoError(t, err)
+	require.NotEmpty(t, s1.GeneratedPassword)
+	u, err := f.client.User.Get(f.ctx, f.normalA)
+	require.NoError(t, err)
+	assert.True(t, u.MustChangePassword, "首登强制改密生效")
+	assert.Error(t, bcrypt.CompareHashAndPassword([]byte(u.PasswordHash), []byte("OldPass123")), "旧口令必须失效")
+	assert.NoError(t, bcrypt.CompareHashAndPassword([]byte(u.PasswordHash), []byte(s1.GeneratedPassword)), "新一次性口令可验")
+	revoked, err := middleware.IsUserRefreshRevoked(f.ctx, f.normalA, time.Now().Add(-time.Minute))
+	require.NoError(t, err)
+	assert.True(t, revoked, "S1 历史 refresh 双吊销")
+	require.Len(t, notifier.calls, 1)
+
+	// S2：停用（离职），通知目标租户管理员。
+	disable := false
+	require.NoError(t, f.svc.SetActive(f.ctx, f.actor, f.tenantA, f.normalA, &dto.SetTenantUserStatusRequest{Active: &disable}))
+	u, err = f.client.User.Get(f.ctx, f.normalA)
+	require.NoError(t, err)
+	assert.False(t, u.Active)
+	revoked, err = middleware.IsUserRefreshRevoked(f.ctx, f.normalA, time.Now().Add(-time.Minute))
+	require.NoError(t, err)
+	assert.True(t, revoked, "S2 停用后历史 refresh 双吊销")
+	require.Len(t, notifier.calls, 2)
+	assert.Equal(t, f.tenantA, notifier.calls[1].TenantID)
+	assert.Contains(t, notifier.calls[1].Message, "tua-a-user1")
+
+	// S3：安全事件——强制下线 + 指定重置 + 启用恢复。
+	_, err = f.svc.ForceLogout(f.ctx, f.actor, f.tenantA, f.normalA)
+	require.NoError(t, err)
+	s3, err := f.svc.ResetPassword(f.ctx, f.actor, f.tenantA, f.normalA, &dto.ResetTenantUserPasswordRequest{
+		Mode: dto.TenantUserResetModeSpecified, NewPassword: "StrongPass456",
+	})
+	require.NoError(t, err)
+	assert.False(t, s3.MustChangePassword)
+	u, err = f.client.User.Get(f.ctx, f.normalA)
+	require.NoError(t, err)
+	assert.NoError(t, bcrypt.CompareHashAndPassword([]byte(u.PasswordHash), []byte("StrongPass456")))
+	enable := true
+	require.NoError(t, f.svc.SetActive(f.ctx, f.actor, f.tenantA, f.normalA, &dto.SetTenantUserStatusRequest{Active: &enable}))
+	u, err = f.client.User.Get(f.ctx, f.normalA)
+	require.NoError(t, err)
+	assert.True(t, u.Active)
+
+	// 审计复核：S1–S3 共 5 行（reset×2 / status×2 / force_logout×1），均可按 target_user_id 过滤。
+	logs, err := f.client.AuditLog.Query().
+		Where(
+			auditlog.TenantIDEQ(f.tenantB),
+			auditlog.TargetUserIDEQ(f.normalA),
+			auditlog.ActionIn("user.admin_password_reset", "user.admin_status", "user.admin_force_logout"),
+		).
+		All(f.ctx)
+	require.NoError(t, err)
+	assert.Len(t, logs, 5, "S1–S3 审计按 target_user_id 可复核")
 }

@@ -1,6 +1,6 @@
 # 平台侧租户用户管理增强方案（/admin/tenants · 跨租户账号治理）
 
-> 状态：**v0.5（TUM-1–TUM-4 落地 + 漏提交修复）**｜日期：2026-10-05｜基准：仓库 HEAD `cb757575`（TUM-3 修复后）
+> 状态：**v0.6（TUM-1–TUM-5 落地 + C5 通知；live e2e 待联调环境）**｜日期：2026-10-05｜基准：仓库 HEAD `51dd8ed3`（TUM-4 落地后）
 > 上位：[canon v1.0](./msp-concept-model-and-architecture-canon.md)（canon D5/D8/D11、附录 C）→ [目标架构](./msp-target-architecture.md)（§6 权限矩阵/建号）→ [实施方案](./msp-implementation-plan.md)（IP-P0-5 建号通道、IP-P2-6 硬配额）
 > 定位：**L4 方案**（局部编号 `TUM-#`，跨文档引用必须带前缀）。范围：平台管理员在租户治理页（`/admin/tenants`）对**任意租户**用户的查看与账号治理（重置密码 / 启用停用 / 强制下线 / 审计）；不含 MSP 服务商面工作台（其可复用同一服务能力，另行接线）。
 
@@ -299,7 +299,9 @@
 - ✅ **依赖修复（本批）**：`/api/v1/auth/change-password` 服务端实现补齐（IP-P1-5 实现文件因 `.gitignore` 的 `*password*` 规则漏提交，导致 `handlers/common`/`router` 干净检出编译失败）；TUM-2 的「首登强制改密」闭环链路恢复可用，`go build ./...` exit 0。
 - ✅ **TUM-4 前端抽屉与共享组件**：`TenantUsersDrawer`（宽 920；搜索 300ms 防抖 + 状态/角色筛选 + 分页；深链 `?tenantUsers=<id>` 与 `tu*` 筛选参数 URL 同步；启停乐观更新 + 失败回滚；最后管理员前端禁用 + 后端 409 兜底；`default` 租户停用二次确认；强制下线；本页批量 ≤50 + 逐条结果 + 失败重试；空态三分；403 平台面说明）；抽取共享组件 `UserStatusToggle`/`ResetPasswordModal`（`admin/users` 改为复用，行为不变）；新增 API 客户端 `tenant-user-admin-api.ts`（契约锁定 URL/载荷/§3.5 错误码文案）。测试：抽屉 5 用例 + API 9 用例 + 守卫 4 用例；`tsc --noEmit` exit 0、eslint 0 error、目标 jest 全绿（含既有 4 套件 31 用例回归）。
 - ✅ **依赖修复（本批）**：重建 `(main)/change-password` 强制改密页与 `guards-must-change-password.test.tsx`（IP-P1-5 文件同因 `.gitignore` 的 `*password*` 规则漏提交，`routes/index.tsx` lazy import 悬空致干净检出 `tsc` 失败）；`.gitignore` 增补前端两处源码例外。
-- ⏳ **TUM-5** 集成/e2e 剧本（`scenarios/09-*`：S1–S3 闭环）随下一批补齐；**TUM-6/7** 维持原状态。
+- ✅ **C5 通知触达（本批）**：`TenantUserAdminService` 新增通知端口（`SetNotifier`，bootstrap 注入 `NotificationService`）；重置/启停/强制下线向目标租户**启用中的管理员**发站内通知（类型 `user_admin_action`，排除被操作用户、不含口令；best-effort，失败仅告警不回滚）。用例 `NotifiesTenantAdmins` / `NotifierFailureDoesNotBlock`。
+- ✅ **TUM-5（离线部分）**：S1–S3 闭环用例 `ClosureS1S2S3`（旧口令失效/新口令可验/强制改密/双吊销/通知/审计 5 行按 `target_user_id` 复核）；浏览器剧本 `scenarios/09-tenant-user-management.md`；API 通道验收脚本 `scripts/msp/acceptance/run-tenant-user-admin-acceptance.ps1`（TUM-A1–A8 + 反例，默认新建隔离租户可重跑，PowerShell 语法校验通过）。
+- ⏳ **TUM-5（live 部分）**：API 通道 run-summary 与浏览器实测待联调环境执行（本机 Docker 守护进程不可用、PostgreSQL 未运行）；**TUM-6/7** 维持原状态。
 
 **验证命令（建议）**
 
@@ -397,3 +399,4 @@ bash scripts/docs-gate/check-multi-tenant-consistency.sh
 | v0.3 | 2026-10-05 | **TUM-1/TUM-2 后端落地**：读通道（列表/详情，双层平台面判定）+ 账号治理（重置两模式/启停护栏/强制下线）+ TUM-D6 refresh 按用户双吊销（含续签路径校验）+ 路由与装配 + 定向测试；`target_user_id` 列（TUM-3）与前端抽屉（TUM-4）顺延下一批 |
 | v0.4 | 2026-10-05 | **TUM-3 落地 + 复核补强**：审计 `target_user_id` 列/索引/查询过滤与断言用例（`4d2a40f2`）；复核发现 camelCase `newPassword` 未被掩码，本批修复 `middleware/mask.go` 并补测试，TUM-3 DoD 掩码项闭环 |
 | v0.5 | 2026-10-05 | **TUM-4 前端落地**：抽屉（深链/防抖筛选/乐观回滚/批量重试/空态三分/无障碍）+ 共享组件抽取 + API 客户端与契约用例；同批修复 `(main)/change-password` 页与守卫用例的漏提交（`*password*` 规则第三/四例），前端 `tsc`/eslint/目标 jest 全绿 |
+| v0.6 | 2026-10-05 | **TUM-5 离线落地 + C5 通知**：治理动作站内通知目标租户管理员（best-effort、不含口令）；S1–S3 闭环用例与通知用例；`scenarios/09` 浏览器剧本；API 通道验收脚本（TUM-A1–A8 + 反例，隔离租户）；live run-summary 待联调环境 |
