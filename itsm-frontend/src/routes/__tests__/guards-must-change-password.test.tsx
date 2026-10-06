@@ -42,7 +42,8 @@ import { bootstrapSession } from '@/lib/auth/session-bootstrap';
 import { RequireAuth } from '../guards';
 
 const setSession = (opts: { authenticated: boolean; user?: Record<string, unknown> | null }) => {
-  (useAuthStore as unknown as jest.Mock).getState = jest.fn(() => ({
+  // 具名形状断言：jest.Mock 类型本身不含 getState 属性（TS2339）。
+  (useAuthStore as unknown as { getState: jest.Mock }).getState = jest.fn(() => ({
     isAuthenticated: opts.authenticated,
     user: opts.user ?? null,
   }));
