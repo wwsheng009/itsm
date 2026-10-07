@@ -41,6 +41,7 @@ import { usePasswordPolicy } from '@/lib/hooks/usePasswordPolicy';
 import InvitationManagementModal from './components/InvitationManagementModal';
 import UserStatusToggle from '@/components/user/UserStatusToggle';
 import ResetPasswordModal from '@/components/user/ResetPasswordModal';
+import ProviderMembersCard from '@/components/user/ProviderMembersCard';
 
 const { Title, Text } = Typography;
 const { Search: AntSearch } = Input;
@@ -55,6 +56,8 @@ const UserManagement: React.FC = () => {
 
   // 状态管理
   const [users, setUsers] = useState<User[]>([]);
+  // Q2=B / MSW-2：服务方成员（只读区块；后端仅客户租户返回）
+  const [providerMembers, setProviderMembers] = useState<User[]>([]);
   const [loading, setLoading] = useState(false);
   const [stats, setStats] = useState({ total: 0, active: 0, inactive: 0 });
   const [pagination, setPagination] = useState({
@@ -97,6 +100,7 @@ const UserManagement: React.FC = () => {
       };
       const response = await UserApi.getUsers(params);
       setUsers(response.users);
+      setProviderMembers(response.providerMembers ?? []);
       setPagination(prev => ({ ...prev, total: response.pagination.total }));
 
       // 从用户数据派生部门列表（去重+排序）
@@ -517,6 +521,9 @@ const UserManagement: React.FC = () => {
           />
         )}
       </Card>
+
+      {/* Q2=B / MSW-2：服务方成员只读展示（空集合自动不渲染） */}
+      <ProviderMembersCard members={providerMembers} />
 
       {/* 创建用户模态框 */}
       <Modal

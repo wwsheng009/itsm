@@ -45,6 +45,8 @@ type LoginUserResponse struct {
 	CreatedAt    time.Time `json:"createdAt"`
 	UpdatedAt    time.Time `json:"updatedAt"`
 	Permissions  []string  `json:"permissions"` // 用户权限列表
+	// HomeTenantID 账号归属租户（MSW-4：切换会话后"返回工作台"切回 provider 作用域的依据）。
+	HomeTenantID int `json:"homeTenantId,omitempty"`
 }
 
 type RefreshTokenRequest struct {

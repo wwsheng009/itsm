@@ -55,6 +55,9 @@ export interface User {
   roleNames?: string[];
   createdAt: string;
   updatedAt: string;
+  /** Q2=B / MSW-2：客户侧成员列表的服务方成员标记（provider + readOnly=true）。 */
+  accountKind?: string;
+  readOnly?: boolean;
 }
 
 export interface CreateUserRequest {
@@ -94,6 +97,8 @@ export interface ListUsersParams {
 
 export interface PagedUsersResponse {
   users: User[];
+  /** 客户租户内服务方成员（只读区块；独立字段，不计入分页 total）。 */
+  providerMembers?: User[];
   pagination: {
     page: number;
     pageSize: number;

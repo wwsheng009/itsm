@@ -17,11 +17,13 @@ type User struct {
 	Phone        string  `json:"phone"`
 	Active       bool    `json:"active"`
 	// MustChangePassword 首登强制改密标志（IP-P1-5）：前端据此进入改密流程。
-	MustChangePassword bool      `json:"mustChangePassword"`
-	TenantID           int       `json:"tenantId"`
-	CreatedAt          time.Time `json:"createdAt"`
-	UpdatedAt          time.Time `json:"updatedAt"`
-	Permissions        []string  `json:"permissions,omitempty"` // 用户权限列表
+	MustChangePassword bool `json:"mustChangePassword"`
+	TenantID           int  `json:"tenantId"`
+	// HomeTenantID 账号归属租户（MSW-4：/auth/me 在深度切换后仍可据此切回 provider 作用域）。
+	HomeTenantID int       `json:"homeTenantId,omitempty"`
+	CreatedAt    time.Time `json:"createdAt"`
+	UpdatedAt    time.Time `json:"updatedAt"`
+	Permissions  []string  `json:"permissions,omitempty"` // 用户权限列表
 }
 
 // Department represents a spatial or organizational unit

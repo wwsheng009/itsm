@@ -195,6 +195,36 @@ describe('useAuthStore', () => {
       expect(state.isSwitching).toBe(false);
       expect(queryProvider.__clear).toHaveBeenCalled();
     });
+
+    it('切换失败：保留原会话（user/currentTenant 不变）并向上抛错（MSW-A5）', async () => {
+      const { useAuthStore } = await import('../auth-store');
+      const { TenantAPI } = await import('@/lib/api/tenant-api');
+
+      // 预置 provider 作用域会话（深度切换前）。
+      act(() => {
+        useAuthStore.getState().login(
+          {
+            id: 1, username: 'msp', email: 'msp@example.com', name: 'MSP User',
+            role: 'agent', tenantId: 7, homeTenantId: 7,
+          },
+          'token',
+          { id: 7, name: 'Provider', code: 'prov', type: 'msp_provider', status: 'active', createdAt: '', updatedAt: '' }
+        );
+      });
+
+      (TenantAPI.switchTenant as jest.Mock).mockRejectedValue(new Error('租户已被暂停'));
+
+      await act(async () => {
+        await expect(useAuthStore.getState().switchTenant(9)).rejects.toThrow('租户已被暂停');
+      });
+
+      const state = useAuthStore.getState();
+      expect(state.currentTenant?.id).toBe(7);
+      expect(state.user?.tenantId).toBe(7);
+      expect(state.isAuthenticated).toBe(true);
+      expect(state.isSwitching).toBe(false);
+      expect(state.isLoading).toBe(false);
+    });
   });
 
   describe('updateUser', () => {

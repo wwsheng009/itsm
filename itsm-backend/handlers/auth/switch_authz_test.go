@@ -92,6 +92,7 @@ func TestSwitchTenant_InviteBasisAndDenyAudits(t *testing.T) {
 	require.NoError(t, err)
 	require.NotNil(t, resp.User)
 	assert.Equal(t, customer.ID, resp.User.TenantID)
+	assert.Equal(t, provider.ID, resp.User.HomeTenantID, "MSW-4：切换响应携带归属租户，供前端切回 provider 作用域")
 	assert.Equal(t, []string{"incident:read"}, resp.User.Permissions)
 	switchCount, err := client.AuditLog.Query().Where(auditlog.ActionEQ("tenant.switch")).Count(ctx)
 	require.NoError(t, err)

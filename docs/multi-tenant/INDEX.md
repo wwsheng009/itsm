@@ -66,7 +66,7 @@
 | [msp-business-closure-review-and-refactor-plan.md](./plan/msp-business-closure-review-and-refactor-plan.md) | 治理/落地 | Draft v0.4（决策同步） | **业务闭环审查 + 现有功能改造计划**（13 链路/波次/深度分级） | `CL-01–CL-13` |
   | [msp-tenant-user-management-enhancement-plan.md](./plan/msp-tenant-user-management-enhancement-plan.md) | L4 | v0.8（TUM-1–TUM-7 收口 + 路由器级 API e2e 实跑） | **平台侧租户用户管理增强**（跨租户用户列表/重置密码/启停/强制下线/审计；含操作便利性与业务闭环设计） | `TUM-#` |
 | [msp-cross-tenant-record-flow-architecture.md](./plan/msp-cross-tenant-record-flow-architecture.md) | L3 | Draft v0.6（**P0 全落地 + P1/P2 首批实跑**） | **多租户单据流转交互架构**：把工单泛化为全部单据的跨租户流转（五通道/条目级授权/操作矩阵/**端到端流转**/**路由与交接**/**信息互通矩阵**/流程集成/审计与验收）；P0：终态契约/快照回填/默认分配/类型路由/`workflow:*`；P1：跨租户详情 + 前端抽屉；P2：通知深链直达详情 | `XF1–XF10` `XFD1–XFD8` `XFR1–XFR4` `XFA1–XFA6` |
-| [msp-membership-switch-consolidation-plan.md](./plan/msp-membership-switch-consolidation-plan.md) | L4 | Draft v0.4（M1/M2 已落地：写路径闭环 + 切换授权/撤销联动） | **映射式多租户切换收口**：账号≠成员身份（Membership）+ 作用域切换（Switch）现状核对 S1–S6、差距 MSW-1–6（含审查修订）、切换授权矩阵、"切换面 vs 跨租户面"边界决策表、批次 M1–M4、验收 MSW-A1–A6 | `MSW-#` `MSW-A#` `MSW-Q#` |
+| [msp-membership-switch-consolidation-plan.md](./plan/msp-membership-switch-consolidation-plan.md) | L4 | Draft v0.5（M1–M3 已落地：写路径闭环 + 授权/撤销联动 + 切换体验） | **映射式多租户切换收口**：账号≠成员身份（Membership）+ 作用域切换（Switch）现状核对 S1–S6、差距 MSW-1–6（含审查修订）、切换授权矩阵、"切换面 vs 跨租户面"边界决策表、批次 M1–M4、验收 MSW-A1–A6 | `MSW-#` `MSW-A#` `MSW-Q#` |
 
 ### 2.1 场景目录（scenarios/，L6 浏览器实操剧本）
 

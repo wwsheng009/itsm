@@ -450,6 +450,7 @@ func (s *Service) GetUser(ctx context.Context, id int) (*User, error) {
 	// IP-P1-2：权限统一经解析器按 home 租户计算（GetMe 的 token 作用域优先走
 	// GetUserScoped；保留本方法作为未传租户的兼容入口）。
 	u.Permissions = s.resolvePermissions(ctx, u.ID, u.TenantID)
+	u.HomeTenantID = u.TenantID
 	return u, nil
 }
 
@@ -469,6 +470,7 @@ func (s *Service) GetUserScoped(ctx context.Context, id, tenantID int) (*User, e
 		tenantID = u.TenantID
 	}
 	u.Permissions = s.resolvePermissions(tenantctx.WithTenantID(ctx, tenantID), u.ID, tenantID)
+	u.HomeTenantID = u.TenantID
 	return u, nil
 }
 

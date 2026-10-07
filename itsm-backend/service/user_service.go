@@ -10,7 +10,9 @@ import (
 	"itsm-backend/ent"
 	entrole "itsm-backend/ent/role"
 	"itsm-backend/ent/user"
+	"itsm-backend/ent/usertenantmembership"
 	"itsm-backend/middleware"
+	"itsm-backend/pkg/tenantmode"
 
 	"go.uber.org/zap"
 	"golang.org/x/crypto/bcrypt"
@@ -268,8 +270,28 @@ func (s *UserService) ListUsers(ctx context.Context, req *dto.ListUsersRequest, 
 		})
 	}
 
+	// Q2=B / MSW-2：客户侧成员列表只读展示服务方成员（独立区块；失败降级不阻断主列表）。
+	providerMembers, pmErr := s.listProviderMembers(ctx, req, tenantID)
+	if pmErr != nil {
+		s.logger.Warnw("查询服务方成员失败（读通道降级：主列表不受影响）", "tenant_id", tenantID, "error", pmErr)
+		providerMembers = nil
+	} else if len(providerMembers) > 0 {
+		seen := make(map[int]bool, len(userResponses))
+		for _, u := range userResponses {
+			seen[u.ID] = true
+		}
+		filtered := providerMembers[:0]
+		for _, m := range providerMembers {
+			if !seen[m.ID] {
+				filtered = append(filtered, m)
+			}
+		}
+		providerMembers = filtered
+	}
+
 	response := &dto.PagedUsersResponse{
-		Users: userResponses,
+		Users:           userResponses,
+		ProviderMembers: providerMembers,
 		Pagination: dto.PaginationResponse{
 			Page:       req.Page,
 			PageSize:   req.PageSize,
@@ -280,6 +302,83 @@ func (s *UserService) ListUsers(ctx context.Context, req *dto.ListUsersRequest, 
 
 	s.logger.Infof("用户列表查询成功: total=%d, returned=%d", total, len(users))
 	return response, nil
+}
+
+// listProviderMembers 客户租户内服务方成员的只读展示数据（MSW-Q2=B：标注"服务方"，不可管理）。
+//
+// 口径：
+//   - 仅客户类型租户返回（provider/platform 租户无此区块）；
+//   - 仅存活（deleted_at IS NULL）、status=active、account_kind=provider 的映射；
+//   - 复用列表的 status/search/department 过滤语义（作用于账号维度）；
+//   - 独立字段返回，不计入分页 total（避免与 users 表的跨表分页口径漂移）。
+func (s *UserService) listProviderMembers(ctx context.Context, req *dto.ListUsersRequest, tenantID int) ([]*dto.UserDetailResponse, error) {
+	t, err := s.client.Tenant.Get(ctx, tenantID)
+	if err != nil {
+		return nil, fmt.Errorf("读取租户失败: %w", err)
+	}
+	if !tenantmode.IsCustomerTenantType(string(t.Type)) {
+		return nil, nil
+	}
+
+	q := s.client.UserTenantMembership.Query().
+		Where(
+			usertenantmembership.TenantIDEQ(tenantID),
+			usertenantmembership.AccountKindEQ(usertenantmembership.AccountKindProvider),
+			usertenantmembership.StatusEQ(usertenantmembership.StatusActive),
+			usertenantmembership.DeletedAtIsNil(),
+		)
+	if req.Status != "" {
+		q = q.Where(usertenantmembership.HasUserWith(user.ActiveEQ(req.Status == "active")))
+	}
+	if req.Search != "" {
+		search := strings.TrimSpace(req.Search)
+		q = q.Where(usertenantmembership.HasUserWith(user.Or(
+			user.UsernameContainsFold(search),
+			user.NameContainsFold(search),
+			user.EmailContainsFold(search),
+		)))
+	}
+	if req.Department != "" {
+		q = q.Where(usertenantmembership.HasUserWith(user.DepartmentContainsFold(req.Department)))
+	}
+
+	rows, err := q.WithUser().Order(ent.Desc(usertenantmembership.FieldCreatedAt)).All(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("查询服务方成员失败: %w", err)
+	}
+	out := make([]*dto.UserDetailResponse, 0, len(rows))
+	for _, m := range rows {
+		u := m.Edges.User
+		if u == nil {
+			continue
+		}
+		mspRole := m.MspRole
+		if mspRole == nil && u.MspRole != "" {
+			role := string(u.MspRole)
+			mspRole = &role
+		}
+		roleLabel := "服务方成员"
+		if mspRole != nil && *mspRole != "" {
+			roleLabel = *mspRole
+		}
+		out = append(out, &dto.UserDetailResponse{
+			ID:          u.ID,
+			Username:    u.Username,
+			Email:       u.Email,
+			Name:        u.Name,
+			Department:  u.Department,
+			Phone:       u.Phone,
+			Active:      u.Active,
+			TenantID:    tenantID,
+			Role:        roleLabel,
+			MSPRole:     mspRole,
+			CreatedAt:   m.CreatedAt,
+			UpdatedAt:   m.UpdatedAt,
+			AccountKind: string(usertenantmembership.AccountKindProvider),
+			ReadOnly:    true,
+		})
+	}
+	return out, nil
 }
 
 // GetUserByID 根据ID获取用户

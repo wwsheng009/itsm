@@ -13,8 +13,8 @@ type CreateUserRequest struct {
 	Phone      string `json:"phone"`
 	// 长度下限只做兜底；真实强度由 service 层按租户 system_configs 的密码策略校验，
 	// 使 /admin/system-config 的 passwordMinLength 等配置真正生效。
-	Password   string `json:"password" binding:"required,min=6,max=128"`
-	TenantID   int    `json:"tenantId"`
+	Password string `json:"password" binding:"required,min=6,max=128"`
+	TenantID int    `json:"tenantId"`
 	// 角色，可选；不提供时使用后端默认值（end_user）
 	// 词表单一源=domain/role（security 为存量 legacy 值，user 为前端别名归一为 end_user）
 	Role string `json:"role,omitempty" binding:"omitempty,oneof=super_admin admin manager it_admin security_admin sysadmin agent technician security end_user user"`
@@ -66,12 +66,17 @@ type UserDetailResponse struct {
 	MSPRole   *string   `json:"mspRole,omitempty"`
 	CreatedAt time.Time `json:"createdAt"`
 	UpdatedAt time.Time `json:"updatedAt"`
+	// Q2=B / MSW-2：客户侧成员列表的服务方成员只读展示（accountKind=provider, readOnly=true）。
+	AccountKind string `json:"accountKind,omitempty"`
+	ReadOnly    bool   `json:"readOnly,omitempty"`
 }
 
 // PagedUsersResponse 分页用户响应
 type PagedUsersResponse struct {
 	Users      []*UserDetailResponse `json:"users"`
 	Pagination PaginationResponse    `json:"pagination"`
+	// ProviderMembers 客户租户内服务方成员（独立只读区块，不计入分页 total；MSW-Q2=B）。
+	ProviderMembers []*UserDetailResponse `json:"providerMembers,omitempty"`
 }
 
 // PaginationResponse 分页响应

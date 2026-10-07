@@ -285,6 +285,8 @@ export interface User {
   email: string;
   name: string;
   tenantId?: number;
+  /** MSW-4：账号归属租户（深度切换后 /auth/me 下发；"返回工作台"据此切回 provider 作用域）。 */
+  homeTenantId?: number;
   role?: string;
   /** MSP 身份角色（provider_admin/provider_agent；客户账号为空）。 */
   mspRole?: string;

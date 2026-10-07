@@ -1,6 +1,6 @@
 # 映射式多租户切换收口方案（Membership + Switch）
 
-> 状态：**v0.4（M1/M2 已落地）**｜日期：2026-10-07｜基准：仓库 HEAD `78157476`（代码证据同 `ee9180e5`；M1/M2 于后续提交落地）
+> 状态：**v0.5（M1–M3 已落地）**｜日期：2026-10-07｜基准：仓库 HEAD `78157476`（代码证据同 `ee9180e5`；M1–M3 于后续提交落地）
 > 上位：[canon v1.0](./msp-concept-model-and-architecture-canon.md)（I3/I5/B3/B5/D5/D10）→ [目标架构](./msp-target-architecture.md)（§3.2 Membership / §5.3 服务方在客户作用域内的有效权限 / §6.1 建号通道矩阵）→ [主方案](./msp-user-lifecycle-and-tenant-switching-plan.md)（F7/F14/F15）→ [实施方案](./msp-implementation-plan.md)
 > 定位：**L4 收口方案**（局部编号 `MSW-#`；落地建议在实施方案登记为 `IP-P#`，本文件不占用全局编号）。范围：把"账号≠成员身份 + 映射式切换"从**已选定的目标架构**收口到落地——核对现状、登记差距、划定"切换面 vs 跨租户面"边界、给出批次与验收。**不新增目标模型、不新造映射表**。
 
@@ -155,6 +155,7 @@
 
 - **范围**：MSW-4 语义落地（**MSW-Q4 已决 A：返回=切回 provider 作用域**，依据 V3 403）；深度态指示补全（目标租户/来源/退出入口）；切换失败回滚与提示；客户侧成员列表对 `account_kind=provider` 的只读展示（按 MSW-Q2）。
 - **验收**：MSW-A5；前端用例 + 浏览器实测。
+- **实施记录（2026-10-07，v0.5 回填）**：✅ 已落地。①**MSW-4/Q4=A**："返回工作台"改为**切回 provider 作用域**（`switchTenant(homeTenantId)` 成功后再导航；失败不导航、保留会话并提示）；后端补齐归属租户契约——切换响应 `user.homeTenantId` 与 `/auth/me.homeTenantId`（前端 `mapServerUser` 映射；旧会话回退 `user.tenantId`）；②深度态指示保留"当前客户：X（深度操作中）"+"返回工作台"（语义升级为切回作用域，按钮 title/loading 完善）；③**切换失败回滚**：`switchTenant` 失败仅复位 loading，user/currentTenant 不变（新增用例断言）；④**Q2=B**：客户侧成员列表（`/admin/users`）新增"服务方成员（只读）"区块——后端 `GET /api/v1/users` 对客户类型租户返回 `providerMembers`（`account_kind=provider ∧ status=active ∧ 未软删`；复用 status/search/department 过滤；独立字段不计入分页 total；读通道失败降级不阻断主列表），行含 `accountKind=provider`/`readOnly=true`；前端只读卡片（服务方标签、无任何管理动作）。测试：后端 service 用例 + 前端 3 套件（CustomerFilter 深度态两例、auth-store 回滚一例、ProviderMembersCard 两例）；实跑（8090）：切换响应/`/auth/me` home=10 ✓、客户管理员列表 `providerMembers=[admin-demo01 readOnly=true role=msp_tech]` ✓。浏览器 MCP 不可用（Chrome 403），以 API 实跑 + 组件用例替代，登记为残余项。
 
 ### M4 边界文档 + 巡检 + 开关登记
 
@@ -226,3 +227,4 @@
 | v0.2 | 2026-10-07 | **独立审查修订（F-01–F-13 全处置，判定 ready-to-implement）**：M1 `account_kind` 口径改按账号类型（blocker）；MSW-1/3/5 按代码重写（写入点清单、无撤销面、真实双源）；切换失败审计口径修正 + M2 补全分支；M2 增补撤销面与账号停用校验；MSW-4 回填 V3 结论（403）并定 Q4=A；A1/A3/A4/A6 判据具体化；§2.3 回填 V1–V5 结论；新增 §8 审查记录 |
 | v0.3 | 2026-10-07 | **M1 实施回填**：membership 写路径闭环落地（建号 `source=home` / 分配与撤销 / bootstrap 自动分配 + 审计 + 测试全绿）；source 由 platform 修正为 home；新增 MSW-Q5（分配角色映射口径差）；M1 实施记录入 §4 |
 | v0.4 | 2026-10-07 | **M2 实施回填**：切换授权单一入口 `authz.DecideTenantSwitch`（Q1=C invite 依据、账号停用校验、全分支审计）；撤销面 API（TUM）+ allocation 级联 + 缓存/租户级 refresh 吊销（Q3=A）；Q1/Q3/Q5 决议回填 |
+| v0.5 | 2026-10-07 | **M3 实施回填**：MSW-4 返回=切回 provider 作用域（homeTenantId 契约 + 失败回滚）；Q2=B 客户侧"服务方成员（只读）"区块；测试与 API 实跑证据入 §4 |

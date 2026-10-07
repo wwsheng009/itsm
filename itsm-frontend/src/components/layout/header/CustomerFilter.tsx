@@ -48,6 +48,7 @@ export const CustomerFilter: React.FC<CustomerFilterProps> = ({ className }) => 
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const currentTenant = useAuthStore(state => state.currentTenant);
+  const user = useAuthStore(state => state.user);
   const switchTenant = useAuthStore(state => state.switchTenant);
 
   const [customers, setCustomers] = useState<MspCustomer[]>([]);
@@ -58,6 +59,7 @@ export const CustomerFilter: React.FC<CustomerFilterProps> = ({ className }) => 
   const [open, setOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [enteringId, setEnteringId] = useState<number | null>(null);
+  const [backLoading, setBackLoading] = useState(false);
   const saveTimerRef = useRef<number | null>(null);
   const prefHydratedRef = useRef(false);
 
@@ -196,6 +198,26 @@ export const CustomerFilter: React.FC<CustomerFilterProps> = ({ className }) => 
     },
     [navigate, switchTenant]
   );
+
+  // MSW-4 / Q4=A："返回工作台"必须把会话切回 provider 作用域——仅导航会让
+  // /msp/workbench 在客户作用域下被 RBAC 拒绝（V3 实测 403）。
+  const handleBackToWorkbench = useCallback(async () => {
+    // homeTenantId 为权威字段；旧会话回退 user.tenantId（/auth/me 的 tenantId 即归属租户）。
+    const homeTenantId = user?.homeTenantId ?? user?.tenantId;
+    if (!homeTenantId) {
+      message.error('无法确定服务商租户，请重新登录后再试');
+      return;
+    }
+    setBackLoading(true);
+    try {
+      await switchTenant(homeTenantId);
+      navigate(MSP_WORKBENCH_PATH);
+    } catch (error) {
+      message.error(error instanceof Error ? error.message : '返回工作台失败');
+    } finally {
+      setBackLoading(false);
+    }
+  }, [navigate, switchTenant, user?.homeTenantId, user?.tenantId]);
 
   const displayCustomers = useMemo(() => {
     const keyword = searchTerm.trim().toLowerCase();
@@ -374,8 +396,10 @@ export const CustomerFilter: React.FC<CustomerFilterProps> = ({ className }) => 
           <Button
             size="small"
             icon={<Undo2 size={14} />}
-            onClick={() => navigate(MSP_WORKBENCH_PATH)}
+            loading={backLoading}
+            onClick={handleBackToWorkbench}
             data-testid="back-to-workbench"
+            title="切回服务商作用域并打开工作台"
           >
             返回工作台
           </Button>
