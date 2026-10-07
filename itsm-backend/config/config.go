@@ -330,8 +330,9 @@ type DeploymentConfig struct {
 // AuthzConfig 授权域开关（IP-P1-2 权限单源）。
 //
 // StaticFallback: 静态 RolePermissions 回退开关，对应环境变量 AUTHZ_STATIC_FALLBACK。
-// 默认 false —— membership 缺失/role_id 为空时 fail-closed；仅 IP-P1-1 回填窗口内
-// 显式置 true 才回退编译期静态表，且每次回退都会记 Warn 日志。
+// 默认 false —— membership 缺失/role_id 为空时 fail-closed；仅登记的迁移窗口内
+// 显式置 true 才回退编译期静态表，且每次回退都会记 Warn 日志
+// （开关登记与到期：docs/multi-tenant/02-deployment-and-configuration.md §3.1）。
 type AuthzConfig struct {
 	StaticFallback bool `mapstructure:"static_fallback"`
 }

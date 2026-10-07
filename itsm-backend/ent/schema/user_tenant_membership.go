@@ -14,7 +14,9 @@ import (
 //
 // 权威定义：目标架构 §3.2 / 主方案 §6.1（IP-P1-1 契约冻结）。
 // 「账号（users）≠ 成员身份」：本表是账号在某租户内的角色/组织/生效期唯一载体；
-// IP-P1-1 只建表 + 回填（读路径仍回退 home+allocation 计算），切换读取归 IP-P1-2。
+// IP-P1-1 建表 + 回填；IP-P1-2 起读路径为 membership 单源（fail-closed，切换/菜单/权限清单
+// 均按目标租户解析）。静态表回退仅剩 AUTHZ_STATIC_FALLBACK 迁移窗口开关（登记见
+// docs/multi-tenant/02-deployment-and-configuration.md §3.1）。
 type UserTenantMembership struct {
 	ent.Schema
 }

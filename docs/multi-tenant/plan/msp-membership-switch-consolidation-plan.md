@@ -1,6 +1,6 @@
 # 映射式多租户切换收口方案（Membership + Switch）
 
-> 状态：**v0.5（M1–M3 已落地）**｜日期：2026-10-07｜基准：仓库 HEAD `78157476`（代码证据同 `ee9180e5`；M1–M3 于后续提交落地）
+> 状态：**v0.6（M1–M4 已落地）**｜日期：2026-10-07｜基准：仓库 HEAD `78157476`（代码证据同 `ee9180e5`；M1–M4 于后续提交落地）
 > 上位：[canon v1.0](./msp-concept-model-and-architecture-canon.md)（I3/I5/B3/B5/D5/D10）→ [目标架构](./msp-target-architecture.md)（§3.2 Membership / §5.3 服务方在客户作用域内的有效权限 / §6.1 建号通道矩阵）→ [主方案](./msp-user-lifecycle-and-tenant-switching-plan.md)（F7/F14/F15）→ [实施方案](./msp-implementation-plan.md)
 > 定位：**L4 收口方案**（局部编号 `MSW-#`；落地建议在实施方案登记为 `IP-P#`，本文件不占用全局编号）。范围：把"账号≠成员身份 + 映射式切换"从**已选定的目标架构**收口到落地——核对现状、登记差距、划定"切换面 vs 跨租户面"边界、给出批次与验收。**不新增目标模型、不新造映射表**。
 
@@ -161,6 +161,8 @@
 
 - **范围**：§3.4 决策表入 canon/工作台方案；scenarios 增补"切换 vs 工作台"剧本；**membership vs 请求期 RBAC 巡检脚本**（缺失 / `role_id` 空 / `status` 不一致 / `account_kind` 快照过期 / JWT 角色 vs 权限码），定义夹具与漂移分类阈值；`AUTHZ_STATIC_FALLBACK` 等过渡开关的 owner/到期登记；IP-P1-1 遗留注释（"读路径仍回退 home+allocation"）清理。
 - **验收**：MSW-A6；docs-gate 通过；巡检报告样本入档。
+- **实施记录（2026-10-07，v0.6 回填）**：✅ 已落地。①**边界表入档**：canon 新增 §2.3"切换面 vs 跨租户面（边界决策表，MSW-6）"（含 Q4=A 返回语义），工作台方案 §2.2 增补指针；新增剧本 [scenarios/10](../scenarios/10-membership-switch-and-workbench-boundary.md)（深度切换→返回=切回 provider→客户侧只读成员→撤销反例）+ scenarios README 登记；②**巡检**：新增 `internal/membershipcheck`（纯函数：missing_membership / role_id_null / status_mismatch / customer_scope_conflict 为 FAIL；account_kind_snapshot / jwt_role_mismatch 为 WARN；与写入路径 `accountKindForHome` 同口径 + D10 角色映射）与 `cmd/membership-drift-check`（只读；`-json`/`-strict`；FAIL>0 退出码 1）；夹具＝scenarios 种子投影（0 漂移）+ 人工构造 6 类漂移分类断言（单测）；**实跑样本（demo DB）**：`users=68 memberships=38 active_allocations=9 roles=351 tenants=11` → **FAIL=36（全部 missing_membership：M1 前创建的验收用户/历史分配未回填）WARN=3（tenant 1 类型=msp_provider 异常引发的 account_kind 快照）**；报告 artifact：`.dev/membership-drift-report.txt`（本机）；③**开关登记**：[02 §3.1](../02-deployment-and-configuration.md) 登记 6 组过渡开关（owner/默认/退出计划），并声明"巡检 FAIL=0 是关闭 `AUTHZ_STATIC_FALLBACK` 前置"；④**IP-P1-1 遗留注释清理**：Ent schema / config / middleware 三处"读路径仍回退 home+allocation"改为 membership 单源口径 + 开关登记指引。
+  **巡检发现（登记为后续项）**：a) **MSW-FU-1**：M1 前存量用户/分配的 membership 回填修复器（重放 20260504 回填 1/2 或提供 backfill CLI；修完复跑巡检至 FAIL=0）；b) **MSW-FU-2**：demo DB `default` 租户类型=`msp_provider` 与平台语义冲突（数据治理，canon §2.2 R7 同源；巡检已按 super_admin 覆盖规则降噪）。
 
 **依赖**：M1 → M2/M3 → M4（M3 可与 M2 并行）。
 
@@ -174,7 +176,7 @@
 | MSW-A3 | 拒绝路径与审计 | **全拒绝分支**均 403 + `tenant.switch_denied` 审计：无授权、目标不存在、目标 suspended/expired；被停用账号（`users.active=false`）拒绝换发令牌 |
 | MSW-A4 | 撤销即时生效 | 按 MSW-Q3=A：撤销映射（membership 停用/软删）后权限缓存失效、该 user×tenant 在途 refresh 吊销、再次切换被拒；账号停用同理 |
 | MSW-A5 | 作用域体验正确 | "返回工作台"后会话回到 provider 作用域（MSW-Q4 已决 A）；深度态指示与退出入口可用；切换失败不破坏当前会话 |
-| MSW-A6 | 巡检与边界 | 巡检夹具＝scenarios 种子集：对种子数据 0 漂移；对人工构造漂移（缺失/`role_id` 空/`status` 不一致/`account_kind` 快照/JWT 角色 vs 权限码）能分类报出；§3.4 边界表与 scenarios 剧本落档 |
+| MSW-A6 | 巡检与边界 | 巡检夹具＝scenarios 种子集：对种子数据 0 漂移；对人工构造漂移（缺失/`role_id` 空/`status` 不一致/`account_kind` 快照/JWT 角色 vs 权限码）能分类报出；§3.4 边界表与 scenarios 剧本落档。**✅ 2026-10-07 落地**：夹具 0 漂移 + 构造 6 类分类断言；边界表入 canon §2.3；scenarios/10 落档；demo 实跑样本入 M4 实施记录 |
 
 ## 6. 风险与缓解
 
@@ -228,3 +230,4 @@
 | v0.3 | 2026-10-07 | **M1 实施回填**：membership 写路径闭环落地（建号 `source=home` / 分配与撤销 / bootstrap 自动分配 + 审计 + 测试全绿）；source 由 platform 修正为 home；新增 MSW-Q5（分配角色映射口径差）；M1 实施记录入 §4 |
 | v0.4 | 2026-10-07 | **M2 实施回填**：切换授权单一入口 `authz.DecideTenantSwitch`（Q1=C invite 依据、账号停用校验、全分支审计）；撤销面 API（TUM）+ allocation 级联 + 缓存/租户级 refresh 吊销（Q3=A）；Q1/Q3/Q5 决议回填 |
 | v0.5 | 2026-10-07 | **M3 实施回填**：MSW-4 返回=切回 provider 作用域（homeTenantId 契约 + 失败回滚）；Q2=B 客户侧"服务方成员（只读）"区块；测试与 API 实跑证据入 §4 |
+| v0.6 | 2026-10-07 | **M4 实施回填**：边界决策表入 canon §2.3 + 工作台方案指针 + scenarios/10 剧本；membership vs 请求期事实巡检（`internal/membershipcheck` + `cmd/membership-drift-check`，5 类漂移 FAIL/WARN 分级 + 夹具/实跑样本）；过渡开关登记（02 §3.1，owner/到期）；IP-P1-1 遗留注释清理；巡检发现登记 MSW-FU-1/2 |

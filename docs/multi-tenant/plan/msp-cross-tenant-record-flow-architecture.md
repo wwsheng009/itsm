@@ -86,6 +86,8 @@ Customer（msp_customer 租户，单据 owner）
 
 > 关系不匹配的组合一律 fail-closed：客户账号访问 `/msp/*` → 403；provider 未分配客户 → 403 `MSP_ALLOCATION_REQUIRED`；跨 provider 访问 → 403；暂停/过期租户写 → 403。
 
+> **切换面 vs 跨租户面边界（MSW-6 收口，2026-10-07）**：跨客户分诊/报表/批量走本方案工作台（不切换）；单客户深度操作走"深度切换"（会话按目标租户 membership）；"返回工作台"= **切回 provider 作用域**（`switch-tenant` 响应与 `/auth/me` 的 `user.homeTenantId` 契约），不是留在客户作用域打开 `/msp/workbench`。完整决策表见 [canon §2.3](./msp-concept-model-and-architecture-canon.md)；剧本见 [scenarios/10](../scenarios/10-membership-switch-and-workbench-boundary.md)。
+
 ### 2.3 现状基线（2026-10-07 实测，作为本文证据）
 
 | 事实 | 证据 |
@@ -702,3 +704,4 @@ cancelled   → 终态（禁止转换）
 | v0.7 | 2026-10-07 | **P2 评论只读面 + 前端复用收敛决策**：新增 `GET /api/v1/msp/tickets/:id/comments`（XFD8：公开评论双向互通、客户内部备注不下发；声明租户 + allocation 双重校验；作者名/归属按客户/provider 双作用域解析；时间正序 + total + limit）；工作台详情抽屉评论只读区（与详情解耦、失败仅降级区块）；首个共享渲染件 `TicketCommentTimeline`（纯展示、无写入口、缺省作者侧标签 → 客户侧可复用）；新增 §13.1 前端复用收敛清单（呈现层共享；授权/数据获取/写路径刻意不收敛）。测试：服务层评论用例 + A11/A12 路由 e2e 评论断言 + 前端 3 套件 16 用例 |
 | v0.8 | 2026-10-07 | **前端复用收敛 #1 收尾（评论条目渲染单源）**：抽取 `CommentItemBody`（身份行/侧标签/内部标签/时间/已编辑标记/正文 + 头像/附加标签/底部/操作四槽位），`TicketCommentTimeline`（工作台只读）与客户侧 `CommentPanel`（工单/事件详情 Tab）共用同一渲染源；客户侧头像、@提及、附件、编辑/删除与编辑态经槽位注入，交互与 i18n 不变。测试：新增 `CommentItemBody` 用例 + 7 套件 35 用例全绿；`tsc --noEmit`/eslint 0 |
 | v0.9 | 2026-10-07 | **前端复用收敛 #2（工单列表壳）**：抽取 `TicketListShell`（antd Table 默认项/空态/错误态+重试/行点击守卫/分页透传 + 游标「加载更多」页脚）；工作台平铺、分组与空组视图改接壳（平铺页脚迁入壳内，分组保留页级游标按钮），客户侧 `TicketList` 接入（页码分页/onChange/键盘导航/行悬停高亮/弹层容器透传不变）。测试：新增壳用例 4 例 + 工作台/评论件 4 套件 20 用例全绿；`tsc --noEmit`/eslint 0；浏览器实测 `/tickets` 与 `/msp/workbench`（平铺/分组）渲染正常、无新增控制台错误 |
+| v0.10 | 2026-10-07 | **MSW-6 边界指针**：§2.2 增补"切换面 vs 跨租户面"指针（工作台=跨客户批量；深度切换=单客户；返回=切回 provider 作用域，`homeTenantId` 契约）；链接 canon §2.3 与 scenarios/10 剧本 |

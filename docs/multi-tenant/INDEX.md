@@ -49,7 +49,7 @@
 | [05-usage-guide.md](./05-usage-guide.md) | L5 | 现状（2026-09-28） | 使用指南（as-is） | — |
 | [06-verification-and-troubleshooting.md](./06-verification-and-troubleshooting.md) | L5 | 现状（2026-09-28） | 验证与排障、验收清单 | — |
 | [07-known-gaps.md](./07-known-gaps.md) | L5 | 现状（2026-09-28） | 生产实测缺口（唯一 G 空间） | `G1–G10` |
-| [msp-concept-model-and-architecture-canon.md](./plan/msp-concept-model-and-architecture-canon.md) | **L1** | **v1.0（定稿）** | **概念与架构单一权威**：定义/边界/不变量/风险/验收/决策 | `R1–R12` `K1–K5` `D1–D11` `E1–E6` `I1–I13` `A1–A12` `B1–B6` |
+| [msp-concept-model-and-architecture-canon.md](./plan/msp-concept-model-and-architecture-canon.md) | **L1** | **v1.0（定稿，增量修订至 v1.7）** | **概念与架构单一权威**：定义/边界/不变量/风险/验收/决策（v1.7：§2.3 切换面 vs 跨租户面边界表，MSW-6） | `R1–R12` `K1–K5` `D1–D11` `E1–E6` `I1–I13` `A1–A12` `B1–B6` |
 | [msp-target-architecture.md](./plan/msp-target-architecture.md) | L3 | Draft v0.3（P0/P1 契约冻结） | 目标态详细设计（membership/上下文/权限/建号/迁移） | — |
 | [msp-cross-customer-workbench-and-filter-plan.md](./plan/msp-cross-customer-workbench-and-filter-plan.md) | **L2** | Draft v0.2（P0 契约冻结） | 跨客户工作台 + 过滤器（**决策修订源**） | `WB1–WB6` `WB-R1–6` `WB-A1–6` `REV-1–5` |
 | [msp-login-and-switching-refinement-plan.md](./plan/msp-login-and-switching-refinement-plan.md) | **L2** | Draft v0.3（决策确认） | 登录落地/隐私/切换（**决策修订源**） | `LOGIN-*` |
@@ -65,8 +65,8 @@
 | [msp-account-provisioning-and-registration-flow.md](./plan/msp-account-provisioning-and-registration-flow.md) | L4 | Draft v0.3（决策同步） | **建号与注册流程**（四通道/邀请/首登/过渡期） | — |
 | [msp-business-closure-review-and-refactor-plan.md](./plan/msp-business-closure-review-and-refactor-plan.md) | 治理/落地 | Draft v0.4（决策同步） | **业务闭环审查 + 现有功能改造计划**（13 链路/波次/深度分级） | `CL-01–CL-13` |
   | [msp-tenant-user-management-enhancement-plan.md](./plan/msp-tenant-user-management-enhancement-plan.md) | L4 | v0.8（TUM-1–TUM-7 收口 + 路由器级 API e2e 实跑） | **平台侧租户用户管理增强**（跨租户用户列表/重置密码/启停/强制下线/审计；含操作便利性与业务闭环设计） | `TUM-#` |
-| [msp-cross-tenant-record-flow-architecture.md](./plan/msp-cross-tenant-record-flow-architecture.md) | L3 | Draft v0.6（**P0 全落地 + P1/P2 首批实跑**） | **多租户单据流转交互架构**：把工单泛化为全部单据的跨租户流转（五通道/条目级授权/操作矩阵/**端到端流转**/**路由与交接**/**信息互通矩阵**/流程集成/审计与验收）；P0：终态契约/快照回填/默认分配/类型路由/`workflow:*`；P1：跨租户详情 + 前端抽屉；P2：通知深链直达详情 | `XF1–XF10` `XFD1–XFD8` `XFR1–XFR4` `XFA1–XFA6` |
-| [msp-membership-switch-consolidation-plan.md](./plan/msp-membership-switch-consolidation-plan.md) | L4 | Draft v0.5（M1–M3 已落地：写路径闭环 + 授权/撤销联动 + 切换体验） | **映射式多租户切换收口**：账号≠成员身份（Membership）+ 作用域切换（Switch）现状核对 S1–S6、差距 MSW-1–6（含审查修订）、切换授权矩阵、"切换面 vs 跨租户面"边界决策表、批次 M1–M4、验收 MSW-A1–A6 | `MSW-#` `MSW-A#` `MSW-Q#` |
+| [msp-cross-tenant-record-flow-architecture.md](./plan/msp-cross-tenant-record-flow-architecture.md) | L3 | Draft v0.10（**P0–P2 落地 + 前端复用收敛 + MSW-6 边界指针**） | **多租户单据流转交互架构**：把工单泛化为全部单据的跨租户流转（五通道/条目级授权/操作矩阵/**端到端流转**/**路由与交接**/**信息互通矩阵**/流程集成/审计与验收）；P0：终态契约/快照回填/默认分配/类型路由/`workflow:*`；P1：跨租户详情 + 前端抽屉；P2：通知深链/评论只读面/复用收敛（`CommentItemBody`/`TicketListShell`） | `XF1–XF10` `XFD1–XFD8` `XFR1–XFR4` `XFA1–XFA6` |
+| [msp-membership-switch-consolidation-plan.md](./plan/msp-membership-switch-consolidation-plan.md) | L4 | Draft v0.6（M1–M4 已落地：写路径闭环 + 授权/撤销联动 + 切换体验 + 边界/巡检/开关登记） | **映射式多租户切换收口**：账号≠成员身份（Membership）+ 作用域切换（Switch）现状核对 S1–S6、差距 MSW-1–6（含审查修订）、切换授权矩阵、"切换面 vs 跨租户面"边界决策表、批次 M1–M4、验收 MSW-A1–A6；巡检 `cmd/membership-drift-check` | `MSW-#` `MSW-A#` `MSW-Q#` |
 
 ### 2.1 场景目录（scenarios/，L6 浏览器实操剧本）
 
@@ -85,6 +85,7 @@
 | [07-msp-workbench-collaboration.md](./scenarios/07-msp-workbench-collaboration.md) | 当前 | 场景 7：工作台协作（回复/状态/指派/批量） |
 | [08-audit-and-isolation-verification.md](./scenarios/08-audit-and-isolation-verification.md) | 当前 | 场景 8：审计看板 + 隔离负向验证 |
 | [09-tenant-user-management.md](./scenarios/09-tenant-user-management.md) | 当前（TUM 落地，实测待环境） | 场景 9：平台侧租户用户管理（重置/启停/强制下线/审计；S1–S3） |
+| [10-membership-switch-and-workbench-boundary.md](./scenarios/10-membership-switch-and-workbench-boundary.md) | 当前（API 实跑 + 组件用例；浏览器待环境） | 场景 10：切换 vs 工作台边界（深度切换→返回=切回 provider；客户侧只读服务方成员） |
 
 **上位与关联（本目录之外）**：
 

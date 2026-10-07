@@ -194,6 +194,19 @@
 - **部署预设 A（默认，P0 起）**：单 provider 快速初始化——初始化 1 个 provider 租户；legacy `default=provider` 仅只读兼容 + 一次性迁移脚本；加启动自检（模式与租户形态一致、provider 归属一致）；**模型/代码按选项 B（多 provider）统一，禁止按 provider 数量分支**（I13）；
 - **模型选项 B（P2 扩展）**：多 provider 时显式拆分"平台租户（internal）+ N 个 provider 租户"；平台管理员以**平台租户 membership**（D5：必须有 membership，不保留 `users.role` 特例）治理 provider；default 租户不再兼任双角色。
 
+### 2.3 切换面 vs 跨租户面（边界决策表，MSW-6 收口 2026-10-07）
+
+> 单一权威：本表为 canon 口径；提炼自[《映射式多租户切换收口方案》§3.4](./msp-membership-switch-consolidation-plan.md)，两处冲突以本节为准。
+
+| 操作类型 | 走哪条路径 | 理由 |
+|---|---|---|
+| 多客户分诊、跨客户报表、通知中心、批量回复/指派 | **`/msp` 工作台（不切换）** | 跨租户只读 + 批量；唯一跨租户写面，已收窄 + 审计 |
+| 单客户深度操作（工单/CMDB/流程/知识/组织/角色/用户管理） | **深度切换（会话按目标租户 membership）** | 复用客户侧完整页面与权限模型，避免第二套 UI/权限 |
+| 平台治理（租户/账号/配置） | **治理面（显式目标租户 + 审计，D11）** | 与业务面隔离，防混权 |
+| provider 自身业务（无客户上下文） | **Home 作用域** | provider 同时是普通 ITSM 租户（I3） |
+
+**返回语义（MSW-Q4=A）**：深度切换的"返回工作台"= **切回 provider（home）作用域**，而不是留在客户作用域打开 `/msp/workbench`（后者在客户作用域必 403）；实现依据 `switch-tenant` 响应与 `/auth/me` 的 `user.homeTenantId`（归属租户契约）。
+
 ---
 
 ## 3. 关系模型（Canonical ER）
@@ -653,3 +666,4 @@ sequenceDiagram
 | v1.4 | 2026-09-30 | **IP-P0-5 建号通道收口落地（K4 关闭）**：`service/user_provisioning.go`（platform/msp/tenant 三通道 + 角色白名单 + rank 上限）、`WithProvisioningBypass`、写守卫放行、三个端点接线与灰度开关 `USER_PROVISIONING_CHANNELS_ENABLED` |
 | v1.5 | 2026-10-05 | 附录 C.2 登记 `TUM-#`：平台侧租户用户管理增强方案（Draft v0.1，`/admin/tenants` 跨租户账号治理：用户列表/重置密码/启停/强制下线/审计） |
 | v1.6 | 2026-10-07 | 附录 C.2 登记 XF 编号空间：多租户单据流转交互架构（Draft v0.1；`XF/XFD/XFR/XFA`，L3 泛化设计——五通道/条目级授权/操作矩阵/流程集成/审计与验收） |
+| v1.7 | 2026-10-07 | **MSW-6 收口**：新增 §2.3"切换面 vs 跨租户面"边界决策表（工作台不切换 / 单客户深度切换 / 平台治理面 / Home 作用域）+ Q4=A 返回语义（`homeTenantId` 契约）；承接《映射式多租户切换收口方案》§3.4 |

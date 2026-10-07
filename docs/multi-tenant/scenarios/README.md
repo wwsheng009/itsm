@@ -36,6 +36,7 @@
 [服务商员工（b2cprov_admin / b2c_tech）]
    └─ 场景07：工作台（跨客户筛选 → 回复 → 改状态=处理中 → 指派/批量）
              └─ 客户侧刷新可见回复与状态
+   └─ 场景10：切换 vs 工作台边界（深度切换 → 返回=切回 provider → 客户侧只读成员）
 
 [服务商管理员]
    └─ 场景08：审计看板（操作/拒绝留痕）+ 隔离反例（403 / 401 / 404）
@@ -55,8 +56,9 @@
 | 07 | [07-msp-workbench-collaboration.md](./07-msp-workbench-collaboration.md) | 服务商员工 | 跨客户工作台：筛选、回复、改状态、指派、批量 | 客户侧同步可见 |
 | 08 | [08-audit-and-isolation-verification.md](./08-audit-and-isolation-verification.md) | 服务商管理员/测试 | 审计看板 + 隔离负向验证（403/401/404） | 错误码与审计留痕 |
 | 09 | [09-tenant-user-management.md](./09-tenant-user-management.md) | 平台管理员 | 跨租户用户治理：重置（一次性/指定）/启停/强制下线/审计 | 即时 401、护栏 409、通知与审计留痕 |
+| 10 | [10-membership-switch-and-workbench-boundary.md](./10-membership-switch-and-workbench-boundary.md) | 服务商员工 + 客户管理员 | 深度切换单客户 → 返回=切回 provider；客户侧只读服务方成员 | `homeTenantId` 保留、工作台恢复可用、`providerMembers` 只读 |
 
-> **依赖链**：01 → 02 → 03（两个租户都需要开通）→ 04 → 05 → 06 → 07 → 08；**09 独立**（平台面治理，可在任一租户上执行）。
+> **依赖链**：01 → 02 → 03（两个租户都需要开通）→ 04 → 05 → 06 → 07 → 08；**09 独立**（平台面治理，可在任一租户上执行）；**10 依赖 05**（需要有效分配），建议紧跟 07 执行。
 > **可重入**：每个场景独立成篇；重跑建议**换一批新编码**（如 `MSPB2C02`/`B2CCUST02`），避免与既有数据混淆。
 
 ## 3. 角色与账号矩阵

@@ -54,7 +54,8 @@ const (
 //
 // 关闭（默认）：membership 缺失 / role_id 为空 / 角色行无法解析时 fail-closed；
 // 开启：上述场景回退到编译期 RolePermissions（按 users.role 与 msp_role 映射），
-// 仅用于 IP-P1-1 回填尚未覆盖的迁移窗口，并在每次回退时记 Warn 日志。
+// 仅限登记的迁移窗口（默认关闭，开关登记与到期见 docs/multi-tenant/02-deployment-and-configuration.md §3.1），
+// 并在每次回退时记 Warn 日志。
 var authzStaticFallback atomic.Bool
 
 // SetAuthzStaticFallback 设置静态权限表回退开关（启动期由 config 注入；测试可直接调用）。

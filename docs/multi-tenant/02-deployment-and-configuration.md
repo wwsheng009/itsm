@@ -40,6 +40,19 @@
 | `ITSM_AUTO_MIGRATE` / `ITSM_AUTO_SEED` | `false` | 初始化职责在 `itsm-init`，应用进程不自动迁移 |
 | `TENANT_USER_ADMIN_ENABLED` | `false`（按需开启） | 平台侧租户用户管理写通道灰度开关（重置密码/启停/强制下线，TUM-D3）；读列表/详情不受限；关闭时写操作 403 `TENANT_USER_ADMIN_DISABLED`；**例外：首管（`is_bootstrap_admin`）重置密码为兜底恢复通道，默认可用、不受开关约束（TUM-D3 修订，防租户锁死）**；服务器侧兜底 `cmd/reset_password`；与 `USER_PROVISIONING_CHANNELS_ENABLED` 独立回滚 |
 
+### 3.1 过渡开关登记（owner/到期，MSW-6 收口）
+
+> 原则：每个过渡开关必须有 **owner + 默认值 + 退出计划**；到期未退出的须在 [07-known-gaps](./07-known-gaps.md) 登记。巡检联动：`cmd/membership-drift-check` 的 FAIL=0 是关闭 `AUTHZ_STATIC_FALLBACK` 的前置条件之一。
+
+| 开关 | 默认 | 作用 | Owner | 退出/到期计划 |
+|---|---|---|---|---|
+| `AUTHZ_STATIC_FALLBACK` | `false` | membership 缺失 / `role_id` 空时回退编译期静态 RolePermissions（迁移窗口专用；每次回退记 Warn） | 权限域（W6 Membership 批次） | IP-P1 收敛后删除：全量回填 + 巡检 FAIL=0 + 观察窗后移除代码路径（M4 登记） |
+| `USER_PROVISIONING_CHANNELS_ENABLED` | `false` | 平台/MSP 建号写通道灰度；关闭时回退 legacy 建号逻辑 | 账号域（W6） | 通道稳定（含 membership 同步）后默认开启并删除开关 |
+| `TENANT_USER_ADMIN_ENABLED` | `false` | 平台侧租户用户管理写通道灰度（重置/启停/强制下线；首管重置豁免） | 平台治理域（TUM） | TUM-7 收口后评估默认开启（审计+通知闭环已就绪） |
+| `WORKBENCH_VIEWS_ENABLED` | `false` | 工作台自定义视图（保存过滤器组合 + 同 provider 分享）灰度 | MSP 工作台域（IP-P2-4a） | 视图稳定后默认开启 |
+| `MCP_ENABLED` / `MCP_WRITE_ENABLED` | `false` | MCP 读/写通道灰度（写通道另行审计与白名单） | AI/MCP 域 | 见 MCP 安全评估（独立登记，不随多租户批次） |
+| `ITSM_AUTO_MIGRATE` / `ITSM_AUTO_SEED` | `false` | 应用进程自动迁移/播种（初始化职责在 `itsm-init`） | 运维 | 保持 `false`（生产禁止自动迁移；非过渡项） |
+
 ## 4. 部署拓扑与初始化顺序
 
 **拓扑**：一套 `itsm-api` / `itsm-worker` / Web + 单 PostgreSQL + Redis，服务全部租户（客户 A/B/C 与服务商）。生产 compose 固定项目名（`docker-compose.prod.yml:1-3`），避免与 dev 栈互相顶掉容器。
