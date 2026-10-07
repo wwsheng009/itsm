@@ -43,6 +43,7 @@ jest.mock('@/lib/api/msp-workbench-api', () => {
     batchWorkbenchItems: jest.fn(),
     assignWorkbenchTicket: jest.fn(),
     getWorkbenchTicket: jest.fn(),
+    listWorkbenchTicketComments: jest.fn(),
     // IP-P2-4a：默认按"服务端灰度未开启"处理，现有用例不受视图控件影响。
     listWorkbenchViews: jest.fn().mockResolvedValue({ views: [], total: 0, enabled: false }),
     // IP-P2-4b：SLA 风险看板默认空数据，避免真实请求。
@@ -59,6 +60,7 @@ import {
   assignWorkbenchTicket,
   batchWorkbenchItems,
   getWorkbenchTicket,
+  listWorkbenchTicketComments,
   listWorkbenchTickets,
   type WorkbenchTicketItem,
 } from '@/lib/api/msp-workbench-api';
@@ -112,6 +114,7 @@ describe('MSPWorkbenchPage', () => {
       results: [],
     });
     (assignWorkbenchTicket as jest.Mock).mockResolvedValue(undefined);
+    (listWorkbenchTicketComments as jest.Mock).mockResolvedValue({ items: [], total: 0 });
   });
 
   it('渲染跨客户列表并带客户列', async () => {
@@ -305,6 +308,31 @@ describe('MSPWorkbenchPage', () => {
       isManagedByMsp: true,
       allowedActions: [{ action: 'reply', allowed: true }],
     });
+    (listWorkbenchTicketComments as jest.Mock).mockResolvedValue({
+      items: [
+        {
+          id: 11,
+          userId: 3,
+          authorName: '李四',
+          authorSide: 'customer',
+          content: '问题依旧存在',
+          isInternal: false,
+          createdAt: '2026-09-30T07:00:00Z',
+          updatedAt: '2026-09-30T07:00:00Z',
+        },
+        {
+          id: 12,
+          userId: 9,
+          authorName: '张三',
+          authorSide: 'provider',
+          content: '已安排远程排查',
+          isInternal: false,
+          createdAt: '2026-09-30T07:30:00Z',
+          updatedAt: '2026-09-30T07:30:00Z',
+        },
+      ],
+      total: 2,
+    });
 
     render(<MSPWorkbenchPage />);
     fireEvent.click(await screen.findByText('ACME-1'));
@@ -315,6 +343,15 @@ describe('MSPWorkbenchPage', () => {
       '分支机构 VPN 隧道频繁断开'
     );
     expect(screen.getByTestId('workbench-detail-actions')).toHaveTextContent('可回复');
+
+    // P2 评论只读面：公开评论双向展示（客户/服务商标签），区块内无写入口。
+    const commentsSection = await screen.findByTestId('workbench-comments');
+    expect(within(commentsSection).getByText('问题依旧存在')).toBeInTheDocument();
+    expect(within(commentsSection).getByText('已安排远程排查')).toBeInTheDocument();
+    expect(within(commentsSection).getByText('客户')).toBeInTheDocument();
+    expect(within(commentsSection).getByText('服务商')).toBeInTheDocument();
+    expect(listWorkbenchTicketComments).toHaveBeenCalledWith(1, 1);
+    expect(within(commentsSection).queryByRole('textbox')).toBeNull();
   });
 
   it('通知深链：URL 带 ticket/customerTenantId 自动打开详情抽屉（P2）', async () => {

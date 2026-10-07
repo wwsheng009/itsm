@@ -164,6 +164,43 @@ func (h *Handler) GetWorkbenchTicket(c *gin.Context) {
 	common.Success(c, resp)
 }
 
+// GetWorkbenchTicketComments GET /api/v1/msp/tickets/:id/comments?customerTenantId=NN（P2 评论只读面）
+// 可见性：公开评论（双向）；客户内部备注不下发（XFD8）。
+func (h *Handler) GetWorkbenchTicketComments(c *gin.Context) {
+	ticketID, err := strconv.Atoi(c.Param("id"))
+	if err != nil || ticketID <= 0 {
+		common.Fail(c, common.ParamErrorCode, "工单ID无效")
+		return
+	}
+	tenantID, err := strconv.Atoi(strings.TrimSpace(c.Query("customerTenantId")))
+	if err != nil || tenantID <= 0 {
+		common.Fail(c, common.ParamErrorCode, "customerTenantId 必填且为数字")
+		return
+	}
+	limit := 0
+	if raw := strings.TrimSpace(c.Query("limit")); raw != "" {
+		if v, convErr := strconv.Atoi(raw); convErr == nil {
+			limit = v
+		}
+	}
+	actor, ok := workbenchActorFrom(c)
+	if !ok {
+		common.Fail(c, common.ForbiddenCode, "非MSP用户")
+		return
+	}
+	if h.workbench == nil {
+		common.Fail(c, common.InternalErrorCode, "工作台服务未启用")
+		return
+	}
+	resp, err := h.workbench.ListTicketComments(c.Request.Context(), actor, ticketID, tenantID, limit)
+	if err != nil {
+		h.logger.Errorw("workbench ticket comments failed", "error", err, "ticket_id", ticketID, "tenant_id", tenantID)
+		failMSPAccess(c, err, "查询工单评论失败")
+		return
+	}
+	common.Success(c, resp)
+}
+
 // ReplyWorkbenchTicket POST /api/v1/msp/tickets/:id/reply
 func (h *Handler) ReplyWorkbenchTicket(c *gin.Context) {
 	ticketID, err := strconv.Atoi(c.Param("id"))

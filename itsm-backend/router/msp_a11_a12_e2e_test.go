@@ -59,6 +59,8 @@ type mspE2EOutcome struct {
 	SummaryStatus       int
 	SummaryCustomers    int
 	AssignStatus        int
+	CommentsStatus      int
+	CommentsCount       int
 }
 
 type mspE2EEnv struct {
@@ -302,7 +304,24 @@ func runScenario(t *testing.T, nProviders int) *mspE2EOutcome {
 	require.NoError(t, err)
 	assert.Empty(t, agentSelf, "评论者本人不应收到 provider 侧评论通知")
 
-	// 7.2) 改状态：客户侧 requester 收状态通知 + provider 侧再投递一份。
+	// 7.2) P2 评论只读面：provider 可见公开评论流（回复在列）；客户内部备注不下发（XFD8）。
+	_, err = client.TicketComment.Create().
+		SetTicketID(env.ticket.ID).SetUserID(requester.ID).
+		SetContent("客户内部备注（provider 不可见）").SetIsInternal(true).SetTenantID(env.customer.ID).
+		Save(ctx)
+	require.NoError(t, err)
+	commentsStatus, commentsBody := mspE2ERequest(t, engine, http.MethodGet,
+		fmt.Sprintf("/api/v1/msp/tickets/%d/comments?customerTenantId=%d", env.ticket.ID, env.customer.ID), agentToken, nil)
+	require.Equal(t, http.StatusOK, commentsStatus, commentsBody)
+	commentsData := decodeData(t, commentsBody)
+	commentItems, _ := commentsData["items"].([]interface{})
+	require.Len(t, commentItems, 1, "评论只读面应只下发公开评论（内部备注租户内隔离）")
+	firstComment, _ := commentItems[0].(map[string]interface{})
+	assert.Equal(t, "A12 e2e 回复", firstComment["content"])
+	assert.Equal(t, "provider", firstComment["authorSide"])
+	assert.Equal(t, float64(1), commentsData["total"])
+
+	// 7.3) 改状态：客户侧 requester 收状态通知 + provider 侧再投递一份。
 	statusStatus, statusBody := mspE2ERequest(t, engine, http.MethodPost,
 		fmt.Sprintf("/api/v1/msp/tickets/%d/status", env.ticket.ID), agentToken,
 		map[string]interface{}{"customerTenantId": env.customer.ID, "status": "in_progress"})
@@ -358,6 +377,8 @@ func runScenario(t *testing.T, nProviders int) *mspE2EOutcome {
 		SummaryStatus:       summaryStatus,
 		SummaryCustomers:    len(summaryCustomers),
 		AssignStatus:        assignStatus,
+		CommentsStatus:      commentsStatus,
+		CommentsCount:       len(commentItems),
 	}
 }
 

@@ -46,6 +46,7 @@ import {
   getWorkbenchTicket,
   isCustomerInactive,
   isTicketReadOnly,
+  listWorkbenchTicketComments,
   listWorkbenchViews,
   listWorkbenchTickets,
   parseCustomerTenantIds,
@@ -56,6 +57,7 @@ import {
   type WorkbenchBatchAction,
   type WorkbenchBatchPayload,
   type WorkbenchBatchResponse,
+  type WorkbenchTicketComment,
   type WorkbenchTicketDetail,
   type WorkbenchTicketItem,
   type WorkbenchTicketQuery,
@@ -65,6 +67,7 @@ import {
 import SavedViews from './components/SavedViews';
 import SlaRiskBoard from './components/SlaRiskBoard';
 import CustomerUsageBoard from './components/CustomerUsageBoard';
+import TicketCommentTimeline from '@/components/business/TicketCommentTimeline';
 
 const PAGE_SIZE = 50;
 
@@ -213,6 +216,10 @@ export default function MSPWorkbenchPage() {
   const [detail, setDetail] = useState<WorkbenchTicketDetail | null>(null);
   const [detailLoading, setDetailLoading] = useState(false);
   const [detailError, setDetailError] = useState<string | null>(null);
+  // P2 评论只读面：与详情解耦加载（评论失败只降级该区块，不阻断详情）。
+  const [comments, setComments] = useState<WorkbenchTicketComment[]>([]);
+  const [commentsLoading, setCommentsLoading] = useState(false);
+  const [commentsError, setCommentsError] = useState<string | null>(null);
 
   const openDetail = useCallback(
     async (record: { id: number; customerTenantId: number; ticketNumber?: string }) => {
@@ -220,6 +227,9 @@ export default function MSPWorkbenchPage() {
     setDetail(null);
     setDetailError(null);
     setDetailLoading(true);
+    setComments([]);
+    setCommentsError(null);
+    setCommentsLoading(true);
     try {
       const response = await getWorkbenchTicket(record.id, record.customerTenantId);
       setDetail(response);
@@ -228,12 +238,23 @@ export default function MSPWorkbenchPage() {
     } finally {
       setDetailLoading(false);
     }
+    try {
+      const commentsResponse = await listWorkbenchTicketComments(record.id, record.customerTenantId);
+      setComments(commentsResponse?.items ?? []);
+    } catch (err) {
+      setCommentsError(errorMessage(err, '加载评论失败'));
+    } finally {
+      setCommentsLoading(false);
+    }
   }, []);
 
   const closeDetail = useCallback(() => {
     setDetailTarget(null);
     setDetail(null);
     setDetailError(null);
+    setComments([]);
+    setCommentsError(null);
+    setCommentsLoading(false);
   }, []);
 
   // 通知深链：URL 带 ticket/customerTenantId 时自动打开详情抽屉（可分享、可刷新）。
@@ -1068,6 +1089,15 @@ export default function MSPWorkbenchPage() {
                 {detail.description || '（无描述）'}
               </Typography.Paragraph>
             </div>
+            {/* P2 评论只读面：公开评论双向互通；客户内部备注由服务端过滤（XFD8） */}
+            <TicketCommentTimeline
+              items={comments}
+              loading={commentsLoading}
+              error={commentsError}
+              title="评论（只读）"
+              emptyText="暂无公开评论"
+              testIdPrefix="workbench-comments"
+            />
             <Space size={8} wrap data-testid="workbench-detail-actions">
               {isTicketReadOnly(detail) ? (
                 <Tag>只读</Tag>

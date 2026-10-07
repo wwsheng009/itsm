@@ -237,6 +237,44 @@ export async function getWorkbenchTicket(
   );
 }
 
+// ==================== 评论只读面（GET /api/v1/msp/tickets/:id/comments，P2） ====================
+
+/** 跨租户评论只读项（XFD8：公开评论双向互通；客户内部备注不下发）。 */
+export interface WorkbenchTicketComment {
+  id: number;
+  userId: number;
+  authorName?: string;
+  /** customer | provider（按作者归属租户判定） */
+  authorSide: 'customer' | 'provider';
+  content: string;
+  /** 本通道恒 false（服务端已过滤内部备注；保留字段供渲染契约稳定）。 */
+  isInternal: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface WorkbenchTicketCommentsResponse {
+  items: WorkbenchTicketComment[];
+  total: number;
+}
+
+/**
+ * GET /api/v1/msp/tickets/:id/comments?customerTenantId=NN —— 评论只读面。
+ * 时间正序；limit 可选（服务端默认 200、上限 500）。
+ */
+export async function listWorkbenchTicketComments(
+  ticketId: number,
+  customerTenantId: number,
+  limit?: number
+): Promise<WorkbenchTicketCommentsResponse> {
+  const params = new URLSearchParams();
+  params.set('customerTenantId', String(customerTenantId));
+  if (limit !== undefined && limit > 0) params.set('limit', String(limit));
+  return httpClient.get<WorkbenchTicketCommentsResponse>(
+    `/api/v1/msp/tickets/${ticketId}/comments?${params.toString()}`
+  );
+}
+
 export interface WorkbenchReplyBody {
   customerTenantId: number;
   content: string;

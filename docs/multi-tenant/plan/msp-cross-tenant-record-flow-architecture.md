@@ -623,9 +623,23 @@ cancelled   → 终态（禁止转换）
 | 阶段 | 交付物 | 依赖 | 验收 |
 |---|---|---|---|
 | **P0（修正与体验）✅ 2026-10-07 全部落地** | ① ✅ 快照存量回填（SQL + `cmd/backfill_ticket_snapshot`，联调 0 候选）；② ✅ provider 首管默认分配（provision/bootstrap 钩子 + `cmd/backfill_msp_allocations`）；③ ✅ 终态 reply 契约修复；④ ✅ 类型级自动路由（`msp_route_enabled`/`msp_routed_at`/`routedOnly`）；⑤ ✅ `workflow:*` 权限缺口修复（admin 补 `workflow:read/write`，provider_tenant_admin 派生继承；工单流程端点实测 200） | 无 | 单测全绿；S1 实跑：类型 14 开启路由 → #224 → provider 工作台 all=2 / routedOnly=1 |
-| **P1（跨租户详情）🟡 部分落地 2026-10-07** | ① ✅ `GET /api/v1/msp/tickets/:id`（工单只读详情：描述/SLA/发起人/处理人/`allowedActions`；声明租户 + allocation 双重校验）；② ✅ 前端工作台详情抽屉（行点击 + 只读动作展示）；③ ✅ 通知深链直达详情（provider 侧 `action_url` 深链 + 铃铛点击直达 + 工作台参数自动打开）；④ ⏳ `ticket-api` 接入头通道；评论/时间线/CI/附件留 P2 | P0 | XFA3/XFA4 |
+| **P1（跨租户详情）🟡 部分落地 2026-10-07** | ① ✅ `GET /api/v1/msp/tickets/:id`（工单只读详情：描述/SLA/发起人/处理人/`allowedActions`；声明租户 + allocation 双重校验）；② ✅ 前端工作台详情抽屉（行点击 + 只读动作展示）；③ ✅ 通知深链直达详情（provider 侧 `action_url` 深链 + 铃铛点击直达 + 工作台参数自动打开）；④ ✅ 评论只读面（`GET /api/v1/msp/tickets/:id/comments`，XFD8：公开评论双向互通/客户内部备注不下发；抽屉只读区 + 首个共享渲染件 `TicketCommentTimeline`）；⑤ ⏳ `ticket-api` 头通道；状态变更时间线（无历史表）/CI/附件留后续 | P0 | XFA3/XFA4 |
 | **P2（流程集成）** | ① 模板分发端点与来源追踪；② 客户流程中的 provider 任务投影（待办面 + 写回）；③ 变更/问题/服务请求接入工作台 | XFD5 定稿 | XFA5；接入五件套 XFA1 |
-| **P3（泛化收尾）** | CMDB/CI 只读投影、导出、跨租户报表扩展 | P1/P2 | XFA6 |
+| **P3（泛化收尾）** | CMDB/CI 只读投影、导出、跨租户报表扩展 + 前端复用收敛（§13.1：列表壳/标签单源/筛选 DSL/详情投影） | P1/P2 | XFA6 |
+
+### 13.1 前端复用收敛清单（P3 前置；2026-10-07）
+
+**决策**：跨租户**授权边界保持独立**（`/api/v1/msp/*` 与客户端点双通道，不合并——权限面/RLS 作用域/写路径审计不同）；**呈现层收敛复用**——工作台与 `/tickets` 共享展示组件，工作台只注入「客户列 + provider 动作集」。
+
+| # | 复用件 | 现状 | 抽取目标 | 状态 |
+|---|---|---|---|---|
+| 1 | 只读评论时间线 `components/business/TicketCommentTimeline.tsx` | 工作台详情抽屉已接入（P2） | 客户侧 `CommentPanel` 列表区接入（同一渲染件；缺省 `authorSide` 时不渲染侧标签） | ✅ 组件已建/工作台已接；客户侧接入待做 |
+| 2 | 工单列表壳（表格 + 游标分页 + 空态/错误态 + 列配置） | 工作台与 `/tickets` 各自维护 | 抽 `TicketListShell`：列定义/行操作/数据源由调用方注入 | 待做 |
+| 3 | 状态/优先级标签映射 | 两处各自维护 `STATUS_LABEL`/`PRIORITY_LABEL` | 抽 `ticket-labels.ts` 单源（含颜色） | 待做 |
+| 4 | 筛选条（状态/优先级/处理人/关键词 + URL 同步） | 两处形态不同 | 抽筛选 DSL + URL 同步 hook（跨租户附加客户维度） | 待做 |
+| 5 | 详情只读投影（Descriptions 区块） | 工作台抽屉自有 | 与客户侧详情共享"只读字段渲染"（字段清单由调用方给定） | 待做 |
+
+**刻意不收敛**：授权中间件（`RequireMSPPermission` vs `RequirePermission`）、数据获取层（单租户查询 vs 逐租户查询+合并）、写路径（条目级 `allowedActions` + 跨租户逐条审计）——合并会把跨租户分支扩散到 40+ 个客户端点，破坏 fail-closed 边界。
 
 **迁移与回滚**：
 
@@ -685,3 +699,4 @@ cancelled   → 终态（禁止转换）
 | v0.4 | 2026-10-07 | **P0 落地**：终态 reply 契约修复（`workbenchAllowedActions` 与 `authorizeTicketAction` 同口径 + 回归用例）；快照回填 Go 版（`service.BackfillTicketMSPSnapshots` + `cmd/backfill_ticket_snapshot`）；provider 首管默认分配（`EnsureBootstrapAllocationsFor*` + provision/bootstrap 钩子 + `cmd/backfill_msp_allocations`，bootstrap ∪ admin/super_admin）；类型级自动路由（`ticket_types.msp_route_enabled` + `tickets.msp_routed_at` + 建单标记 + `routedOnly` 过滤 + 迁移 024 + 前端类型表单开关）；联调实跑 S1（类型 14 → #224 → 工作台 all=2/routedOnly=1）与回填 dry-run；`workflow:*` 权限缺口顺延 P1 |
 | v0.5 | 2026-10-07 | **P1 首批落地**：① `workflow:*` 权限缺口修复（admin 补 `workflow:read/write`，provider_tenant_admin 由 admin ∪ msp_admin 派生继承；新增 `cmd/sync_role_permissions` 跨租户幂等同步——联调 11 租户补 112 条、复跑 0/0；工单流程端点 403→200 实测）；② 跨租户工单详情 `GET /api/v1/msp/tickets/:id?customerTenantId=NN`（声明租户绑定 RLS + allocation 二次校验 + 与列表同口径 `allowedActions`，暂停客户可读只读；未分配/不存在同码防枚举）+ 服务层/路由级回归用例；③ 前端工作台详情抽屉（行点击打开、只读投影、动作可用性展示）+ API 契约测试。剩余：通知深链、评论/时间线只读面（P2） |
 | v0.6 | 2026-10-07 | **P2 首批落地（通知深链）**：provider 侧双投递 `Notification.action_url` 由 `/msp/workbench` 升级为条目深链 `/msp/workbench?ticket=<id>&customerTenantId=<tid>`（非事务/Tx 两路径同源）；**修复存量缺陷**：双投递未重绑 provider 上下文，被写路径租户守卫拦截（客户 ctx 写 provider 行 → `cross-tenant insert blocked`，provider 侧通知实际未落库）——现按 `tenantctx.WithTenantID(ctx, provider)` 重绑后再查询/写入（联调实测修复）；前端铃铛 `NotificationDrawer` 点击按 `actionUrl` 直达（仅站内路径），工作台按深链参数自动打开详情抽屉（参数不参与列表过滤键）；测试：双投递守卫在线校验 + 深链断言 + A12 路由 e2e 断言 + 工作台深链用例；**浏览器实测**：打开深链自动弹出 #224 详情抽屉（字段 + 动作可用性完整）。剩余：评论/时间线只读面、`ticket-api` 头通道、流程驱动路由 |
+| v0.7 | 2026-10-07 | **P2 评论只读面 + 前端复用收敛决策**：新增 `GET /api/v1/msp/tickets/:id/comments`（XFD8：公开评论双向互通、客户内部备注不下发；声明租户 + allocation 双重校验；作者名/归属按客户/provider 双作用域解析；时间正序 + total + limit）；工作台详情抽屉评论只读区（与详情解耦、失败仅降级区块）；首个共享渲染件 `TicketCommentTimeline`（纯展示、无写入口、缺省作者侧标签 → 客户侧可复用）；新增 §13.1 前端复用收敛清单（呈现层共享；授权/数据获取/写路径刻意不收敛）。测试：服务层评论用例 + A11/A12 路由 e2e 评论断言 + 前端 3 套件 16 用例 |

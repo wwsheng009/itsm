@@ -375,3 +375,60 @@ func TestWorkbenchTicketDetail(t *testing.T) {
 	_, err = env.svc.GetTicketDetail(ctx, env.actor, env.tA.ID, 0)
 	requireWorkbenchCode(t, err, CodeCustomerTenantNotFound)
 }
+
+// TestWorkbenchTicketComments 锁定 P2 评论只读面（XFD8）：
+// 公开评论双向互通（客户 + provider 作者均下发）；客户内部备注不下发；
+// 时间正序 + limit 截断（total 为全量可见计数）；授权链与详情同口径。
+func TestWorkbenchTicketComments(t *testing.T) {
+	env := newWorkbenchEnv(t)
+	ctx := context.Background()
+
+	userA, err := env.client.User.Query().Where(entUser.TenantIDEQ(env.a.ID)).Only(ctx)
+	require.NoError(t, err)
+
+	base := time.Now().Add(-2 * time.Hour)
+	public, err := env.client.TicketComment.Create().
+		SetTicketID(env.tA2.ID).SetUserID(userA.ID).
+		SetContent("客户公开评论").SetIsInternal(false).SetTenantID(env.a.ID).
+		SetCreatedAt(base).Save(ctx)
+	require.NoError(t, err)
+	internal, err := env.client.TicketComment.Create().
+		SetTicketID(env.tA2.ID).SetUserID(userA.ID).
+		SetContent("客户内部备注").SetIsInternal(true).SetTenantID(env.a.ID).
+		SetCreatedAt(base.Add(time.Minute)).Save(ctx)
+	require.NoError(t, err)
+	reply, err := env.svc.Reply(ctx, env.actor, env.tA2.ID, dto.WorkbenchReplyRequest{
+		CustomerTenantID: env.a.ID, Content: "服务商回复",
+	})
+	require.NoError(t, err)
+
+	resp, err := env.svc.ListTicketComments(ctx, env.actor, env.tA2.ID, env.a.ID, 0)
+	require.NoError(t, err)
+	require.Equal(t, 2, resp.Total, "可见评论 = 客户公开评论 + 服务商回复")
+	require.Len(t, resp.Items, 2)
+	assert.Equal(t, public.ID, resp.Items[0].ID, "时间正序：客户评论在前")
+	assert.Equal(t, "customer", resp.Items[0].AuthorSide)
+	assert.Equal(t, userA.Name, resp.Items[0].AuthorName)
+	assert.Equal(t, "客户公开评论", resp.Items[0].Content)
+	assert.Equal(t, reply.ID, resp.Items[1].ID, "时间正序：服务商回复在后")
+	assert.Equal(t, "provider", resp.Items[1].AuthorSide)
+	assert.Equal(t, env.actor.Username, resp.Items[1].AuthorName)
+	for _, item := range resp.Items {
+		assert.False(t, item.IsInternal)
+		assert.NotEqual(t, internal.ID, item.ID, "客户内部备注不得下发（XFD8）")
+	}
+
+	// limit 截断：total 仍为全量可见计数。
+	limited, err := env.svc.ListTicketComments(ctx, env.actor, env.tA2.ID, env.a.ID, 1)
+	require.NoError(t, err)
+	assert.Equal(t, 2, limited.Total)
+	assert.Len(t, limited.Items, 1)
+
+	// 授权链负例：与详情同口径（未分配 / 声明不一致 / 不存在）。
+	_, err = env.svc.ListTicketComments(ctx, env.actor, env.tC.ID, env.c.ID, 0)
+	requireWorkbenchCode(t, err, CodeMSPAllocationRequired)
+	_, err = env.svc.ListTicketComments(ctx, env.actor, env.tA.ID, env.b.ID, 0)
+	requireWorkbenchCode(t, err, CodeResourceTenantMismatch)
+	_, err = env.svc.ListTicketComments(ctx, env.actor, 999999, env.a.ID, 0)
+	requireWorkbenchCode(t, err, CodeCustomerTenantNotFound)
+}

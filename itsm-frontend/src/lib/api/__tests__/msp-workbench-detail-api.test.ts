@@ -4,7 +4,7 @@
  * 锁定 URL 形状与声明租户参数：后端以 customerTenantId 绑定 RLS GUC 并二次校验 allocation，
  * 前端不得省略该参数（缺省 → 400 参数错误）。
  */
-import { getWorkbenchTicket } from '../msp-workbench-api';
+import { getWorkbenchTicket, listWorkbenchTicketComments } from '../msp-workbench-api';
 import { httpClient } from '../http-client';
 
 jest.mock('../http-client', () => ({
@@ -33,5 +33,27 @@ describe('msp-workbench-api · 跨租户详情（P1）', () => {
 
     expect(mockGet).toHaveBeenCalledWith('/api/v1/msp/tickets/224?customerTenantId=11');
     expect(result).toBe(detail);
+  });
+
+  it('listWorkbenchTicketComments 锁定 URL、声明租户与可选 limit（P2）', async () => {
+    const resp = { items: [], total: 0 } as never;
+    mockGet.mockResolvedValue(resp);
+
+    const result = await listWorkbenchTicketComments(224, 11, 50);
+
+    expect(mockGet).toHaveBeenCalledWith(
+      '/api/v1/msp/tickets/224/comments?customerTenantId=11&limit=50'
+    );
+    expect(result).toBe(resp);
+  });
+
+  it('listWorkbenchTicketComments 省略 limit 时不带该参数', async () => {
+    mockGet.mockResolvedValue({ items: [], total: 0 } as never);
+
+    await listWorkbenchTicketComments(224, 11);
+
+    expect(mockGet).toHaveBeenCalledWith(
+      '/api/v1/msp/tickets/224/comments?customerTenantId=11'
+    );
   });
 });

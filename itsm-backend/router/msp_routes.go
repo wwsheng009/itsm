@@ -47,6 +47,8 @@ func SetupMSPRoutes(r *gin.Engine, config *RouterConfig) {
 		msp.POST("/tickets/:id/status", middleware.RequireMSPPermission("msp_ticket", "write"), config.MSPHandler.ChangeWorkbenchTicketStatus)
 		// 跨租户详情（P1）：只读；声明租户 + allocation 双重校验，镜像列表可见范围。
 		msp.GET("/tickets/:id", middleware.RequireMSPPermission("msp_ticket", "read"), config.MSPHandler.GetWorkbenchTicket)
+		// 评论只读面（P2）：公开评论双向互通；客户内部备注不下发（XFD8）。
+		msp.GET("/tickets/:id/comments", middleware.RequireMSPPermission("msp_ticket", "read"), config.MSPHandler.GetWorkbenchTicketComments)
 		// 自定义视图（IP-P2-4a）：保存过滤器组合 + 同 provider 分享（灰度 WORKBENCH_VIEWS_ENABLED，默认关）。
 		msp.GET("/workbench/views", middleware.RequireMSPPermission("msp_ticket", "read"), config.MSPHandler.ListWorkbenchViews)
 		msp.POST("/workbench/views", middleware.RequireMSPPermission("msp_ticket", "write"), config.MSPHandler.CreateWorkbenchView)

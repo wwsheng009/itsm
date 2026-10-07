@@ -26,6 +26,7 @@ import (
 	"itsm-backend/ent/predicate"
 	entTenant "itsm-backend/ent/tenant"
 	entTicket "itsm-backend/ent/ticket"
+	ticketcomment "itsm-backend/ent/ticketcomment"
 	entTicketType "itsm-backend/ent/tickettype"
 	"itsm-backend/ent/user"
 	usertenantmembership "itsm-backend/ent/usertenantmembership"
@@ -56,6 +57,9 @@ const (
 	workbenchSLADueSoonWindow = 24 * time.Hour
 	// IP-P2-4c：用量窗口（近 N 天新建工单）——硬配额无数据源，先交付 usage-only 口径。
 	workbenchUsageWindowDays = 30
+	// P2 评论只读面：单次返回上限（时间正序截断 + total 全量计数）。
+	workbenchCommentDefaultLimit = 200
+	workbenchCommentMaxLimit     = 500
 )
 
 // MSPWorkbenchActor 工作台调用方身份快照（由 handler 从 MSPContext 转换）。
@@ -371,6 +375,99 @@ func (s *MSPWorkbenchService) GetTicketDetail(ctx context.Context, actor MSPWork
 		resp.SLADeadline = &deadline
 	}
 	return resp, nil
+}
+
+// ListTicketComments 跨租户工单评论只读面（P2；工作台详情抽屉）。
+//
+// 可见性遵循 XFD8：公开评论双向互通（同一评论流，客户与 provider 作者均下发）；
+// 客户内部备注租户内隔离（is_internal=true 一律不下发；provider 侧内部备注未来存 provider 侧）。
+// 授权链与 GetTicketDetail 同口径：资源租户一致性 → allocation；作者名按租户分作用域解析。
+func (s *MSPWorkbenchService) ListTicketComments(ctx context.Context, actor MSPWorkbenchActor, ticketID, declaredTenantID, limit int) (*dto.WorkbenchTicketCommentsResponse, error) {
+	if s.client == nil {
+		return nil, fmt.Errorf("ent client not available for msp workbench")
+	}
+	if declaredTenantID <= 0 {
+		return nil, NewCustomerAccessError(CodeCustomerTenantNotFound, "缺少目标客户租户声明")
+	}
+	readCtx := tenantctx.WithTenantID(ctx, declaredTenantID)
+	t, err := s.client.Ticket.Get(readCtx, ticketID)
+	if err != nil {
+		if ent.IsNotFound(err) {
+			return nil, NewCustomerAccessError(CodeCustomerTenantNotFound, "工单不存在")
+		}
+		return nil, err
+	}
+	if t.TenantID != declaredTenantID {
+		return nil, NewCustomerAccessError(CodeResourceTenantMismatch, "工单租户与请求声明不一致")
+	}
+	if err := s.ensureAllocated(actor, t.TenantID); err != nil {
+		return nil, err
+	}
+	if limit <= 0 {
+		limit = workbenchCommentDefaultLimit
+	}
+	if limit > workbenchCommentMaxLimit {
+		limit = workbenchCommentMaxLimit
+	}
+	where := []predicate.TicketComment{
+		ticketcomment.TicketID(ticketID),
+		ticketcomment.TenantID(t.TenantID),
+		ticketcomment.IsInternal(false),
+	}
+	total, err := s.client.TicketComment.Query().Where(where...).Count(readCtx)
+	if err != nil {
+		return nil, fmt.Errorf("workbench comments count: %w", err)
+	}
+	comments, err := s.client.TicketComment.Query().
+		Where(where...).
+		Order(ent.Asc(ticketcomment.FieldCreatedAt), ent.Asc(ticketcomment.FieldID)).
+		Limit(limit).
+		All(readCtx)
+	if err != nil {
+		return nil, fmt.Errorf("workbench comments query: %w", err)
+	}
+
+	// 作者名与归属租户：按客户/服务商两个作用域分别读取（enforce 下各自 fail-closed）。
+	type authorMeta struct {
+		name     string
+		tenantID int
+	}
+	authors := make(map[int]authorMeta)
+	scopes := []int{t.TenantID}
+	if actor.HomeTenantID > 0 && actor.HomeTenantID != t.TenantID {
+		scopes = append(scopes, actor.HomeTenantID)
+	}
+	for _, scope := range scopes {
+		rows, err := s.client.User.Query().
+			Where(user.TenantIDEQ(scope)).
+			All(tenantctx.WithTenantID(ctx, scope))
+		if err != nil {
+			return nil, fmt.Errorf("workbench comments load users tenant %d: %w", scope, err)
+		}
+		for _, u := range rows {
+			authors[u.ID] = authorMeta{name: u.Name, tenantID: u.TenantID}
+		}
+	}
+
+	items := make([]dto.WorkbenchTicketCommentItem, 0, len(comments))
+	for _, c := range comments {
+		am := authors[c.UserID]
+		side := "customer"
+		if actor.HomeTenantID > 0 && am.tenantID == actor.HomeTenantID && am.tenantID != t.TenantID {
+			side = "provider"
+		}
+		items = append(items, dto.WorkbenchTicketCommentItem{
+			ID:         c.ID,
+			UserID:     c.UserID,
+			AuthorName: am.name,
+			AuthorSide: side,
+			Content:    c.Content,
+			IsInternal: c.IsInternal,
+			CreatedAt:  c.CreatedAt,
+			UpdatedAt:  c.UpdatedAt,
+		})
+	}
+	return &dto.WorkbenchTicketCommentsResponse{Items: items, Total: total}, nil
 }
 
 // normalizeTenantSet 校验请求集合 ⊆ 服务端允许集合；显式请求未分配租户 → 403（防枚举：不区分"不存在"）。
