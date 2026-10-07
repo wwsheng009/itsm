@@ -14,6 +14,7 @@ import {
   Alert,
 } from 'antd';
 import { UserSelect } from '@/components/common/UserSelect';
+import CommentItemBody from '@/components/business/CommentItemBody';
 import {
   CommentAttachmentField,
   CommentAttachmentList,
@@ -27,7 +28,7 @@ import type {
   TargetType,
 } from './types';
 
-const { Text, Paragraph } = Typography;
+const { Text } = Typography;
 const { TextArea } = Input;
 
 /** BE-11 展示元数据 → 附件字段条目（编辑态回填：已是完成态，无需再上传） */
@@ -357,37 +358,35 @@ export const CommentPanel: React.FC<CommentPanelProps> = ({
                 </div>
               </div>
             ) : (
-              <div className="flex items-start space-x-3">
-                <Avatar size="small" icon={<User size={14} />}>
-                  {comment.user?.name?.[0] || comment.user?.username?.[0]}
-                </Avatar>
-                <div className="flex-1">
-                  <div className="flex items-center space-x-2 mb-2 flex-wrap">
-                    <Text strong>
-                      {comment.user?.name || comment.user?.username || t('detailTabs.unknownUser')}
-                    </Text>
-                    {comment.isInternal && <AntTag color="orange">{t('detailTabs.internalOnly')}</AntTag>}
-                    {comment.mentions && comment.mentions.length > 0 && (
-                      <AntTag color="blue" icon={<AtSign className="w-3 h-3" />}>
-                        {t('detailTabs.mentionCount', { count: comment.mentions.length })}
-                      </AntTag>
-                    )}
-                    <Text type="secondary" className="text-sm">
-                      {fmt(comment.createdAt)}
-                    </Text>
-                    {comment.updatedAt && comment.updatedAt !== comment.createdAt && (
-                      <Text type="secondary" className="text-xs">
-                        （{t('detailTabs.edited')}）
-                      </Text>
-                    )}
-                  </div>
-                  <Paragraph className="mb-2 whitespace-pre-wrap">
-                    {comment.content}
-                  </Paragraph>
+              <CommentItemBody
+                item={{
+                  id: comment.id,
+                  userId: comment.userId,
+                  authorName: comment.user?.name || comment.user?.username,
+                  content: comment.content,
+                  isInternal: comment.isInternal,
+                  createdAt: comment.createdAt,
+                  updatedAt: comment.updatedAt,
+                }}
+                avatar={
+                  <Avatar size="small" icon={<User size={14} />}>
+                    {comment.user?.name?.[0] || comment.user?.username?.[0]}
+                  </Avatar>
+                }
+                metaExtra={
+                  comment.mentions && comment.mentions.length > 0 ? (
+                    <AntTag color="blue" icon={<AtSign className="w-3 h-3" />}>
+                      {t('detailTabs.mentionCount', { count: comment.mentions.length })}
+                    </AntTag>
+                  ) : null
+                }
+                footer={
                   <CommentAttachmentList
                     refs={comment.attachmentRefs}
                     totalCount={comment.attachments?.length}
                   />
+                }
+                actions={
                   <div className="flex items-center space-x-2">
                     {canEditByAdapter && canEditByUser(comment) && (
                       <Button
@@ -420,8 +419,12 @@ export const CommentPanel: React.FC<CommentPanelProps> = ({
                       </Button>
                     )}
                   </div>
-                </div>
-              </div>
+                }
+                internalLabel={t('detailTabs.internalOnly')}
+                editedLabel={t('detailTabs.edited')}
+                unknownUserLabel={t('detailTabs.unknownUser')}
+                formatDateTime={fmt}
+              />
             )}
           </Card>
         ))}
