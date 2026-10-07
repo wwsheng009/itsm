@@ -29,6 +29,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **《映射式多租户切换收口方案》（Membership + Switch，L4，v0.1 待审查）** — 把"账号≠成员身份 + 映射式切换"从既有目标架构（canon I3/I5、目标架构 §3.2/§5.3、主方案 F7/F14/F15）收口到落地：现状核对 S1–S6（membership 表/权限单源/switch 会话/allocation/前端深度切换/跨租户面）；差距 MSW-1–6（**P0：建号与分配通道不写/不同步 membership → 切换后权限空窗**；切换授权仅 allocation；撤销与令牌/缓存联动未定义；"返回工作台"不切回作用域；双源无巡检；切换面/跨租户面边界未成文）；切换授权矩阵与边界决策表；批次 M1–M4 与验收 MSW-A1–A6；待决 MSW-Q1–Q4。审查结论与修订见方案 §8/§9。
+
 ### Changed
 
 - **前端复用收敛 #2：工单列表壳（`TicketListShell`）** — 抽取共享列表壳：antd Table 默认项（rowKey/loading/scroll/size/弹层容器）、空态文案、错误态（Alert + 重试）、行点击守卫（自动忽略按钮/链接/下拉/勾选区域）、页码分页透传与游标「加载更多」页脚；工作台平铺/分组/空组视图与客户侧 `TicketList` 改接同一壳——列定义、选择态、筛选、行内操作与数据获取仍由调用方注入。行为差异：工作台平铺视图的「加载更多」页脚由壳渲染（分组视图保留页级按钮）。测试：新增 `TicketListShell` 用例 4 例 + 相关 4 套件 20 用例全绿；`tsc --noEmit`/eslint 0；浏览器实测 `/tickets` 与 `/msp/workbench`（平铺/分组）正常渲染、无新增控制台错误。
