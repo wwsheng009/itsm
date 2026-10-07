@@ -37,6 +37,10 @@ type accessTokenRevocationStore interface {
 	MinRefreshIssuedAt(ctx context.Context, userID int) (time.Time, error)
 	// SetMinRefreshIssuedAt 将该用户 refresh token 的最低签发时间提升到 t（只增不减）。
 	SetMinRefreshIssuedAt(ctx context.Context, userID int, t time.Time) error
+	// MinRefreshIssuedAtForTenant 返回该用户在指定租户的 refresh token 最低可接受签发时间；零值表示无约束。
+	MinRefreshIssuedAtForTenant(ctx context.Context, userID, tenantID int) (time.Time, error)
+	// SetMinRefreshIssuedAtForTenant 将该用户在指定租户的 refresh 最低签发时间提升到 t（只增不减）。
+	SetMinRefreshIssuedAtForTenant(ctx context.Context, userID, tenantID int, t time.Time) error
 }
 
 var (
@@ -113,6 +117,40 @@ func IsUserRefreshRevoked(ctx context.Context, userID int, issuedAt time.Time) (
 // userRefreshMinIATKey 返回用户 refresh 最低签发时间的存储键。
 func userRefreshMinIATKey(userID int) string {
 	return fmt.Sprintf("%s%d", userRefreshMinIATPrefix, userID)
+}
+
+// userRefreshMinIATTenantKey 返回 (user, tenant) 作用域 refresh 最低签发时间的存储键（MSW-3 / Q3=A）。
+func userRefreshMinIATTenantKey(userID, tenantID int) string {
+	return fmt.Sprintf("%s%d:%d", userRefreshMinIATPrefix, userID, tenantID)
+}
+
+// InvalidateUserRefreshTokensForTenant 将 (userID, tenantID) 作用域内的存量 refresh 置为失效（MSW-3 / Q3=A）：
+// 撤销映射（membership 软删）后，该 user×tenant 的在途 refresh 一律拒绝续签；不影响该用户其它作用域。
+func InvalidateUserRefreshTokensForTenant(ctx context.Context, userID, tenantID int, t time.Time) error {
+	return currentAccessTokenRevocationStore().SetMinRefreshIssuedAtForTenant(ctx, userID, tenantID, t)
+}
+
+// IsUserRefreshRevokedForTenant 判定 (userID, tenantID) 的 refresh 是否被吊销（fail-closed）：
+// 用户级或租户级任一命中即吊销；issuedAt 缺失（零值）视为吊销（无法证明晚于吊销时刻）。
+func IsUserRefreshRevokedForTenant(ctx context.Context, userID, tenantID int, issuedAt time.Time) (bool, error) {
+	userRevoked, err := IsUserRefreshRevoked(ctx, userID, issuedAt)
+	if err != nil {
+		return false, err
+	}
+	if userRevoked {
+		return true, nil
+	}
+	minIAT, err := currentAccessTokenRevocationStore().MinRefreshIssuedAtForTenant(ctx, userID, tenantID)
+	if err != nil {
+		return false, err
+	}
+	if minIAT.IsZero() {
+		return false, nil
+	}
+	if issuedAt.IsZero() {
+		return true, nil
+	}
+	return issuedAt.Before(minIAT), nil
 }
 
 func accessTokenRevocationKey(token string) string {
@@ -193,6 +231,34 @@ return 1`
 		t.Unix(), int(userRefreshMinIATTTL.Seconds())).Err()
 }
 
+func (s *redisAccessTokenRevocationStore) MinRefreshIssuedAtForTenant(ctx context.Context, userID, tenantID int) (time.Time, error) {
+	val, err := s.client.Get(ctx, userRefreshMinIATTenantKey(userID, tenantID)).Result()
+	if err == redis.Nil {
+		return time.Time{}, nil
+	}
+	if err != nil {
+		return time.Time{}, err
+	}
+	ts, err := strconv.ParseInt(val, 10, 64)
+	if err != nil {
+		return time.Time{}, nil // 脏数据按无约束处理
+	}
+	return time.Unix(ts, 0), nil
+}
+
+func (s *redisAccessTokenRevocationStore) SetMinRefreshIssuedAtForTenant(ctx context.Context, userID, tenantID int, t time.Time) error {
+	// 只增不减（与用户级同款 Lua）。
+	const luaScript = `local cur = redis.call('GET', KEYS[1])
+local curTs = tonumber(cur) or 0
+local newTs = tonumber(ARGV[1])
+if newTs > curTs then
+  redis.call('SET', KEYS[1], tostring(newTs), 'EX', tonumber(ARGV[2]))
+end
+return 1`
+	return s.client.Eval(ctx, luaScript, []string{userRefreshMinIATTenantKey(userID, tenantID)},
+		t.Unix(), int(userRefreshMinIATTTL.Seconds())).Err()
+}
+
 type memoryAccessTokenRevocationStore struct {
 	mu      sync.Mutex
 	expires map[string]time.Time
@@ -200,13 +266,16 @@ type memoryAccessTokenRevocationStore struct {
 	userMinIAT map[int]time.Time
 	// userRefreshMinIAT 记录每用户 refresh token 最低可接受签发时间（内存实现）。
 	userRefreshMinIAT map[int]time.Time
+	// userRefreshMinIATByTenant 记录 (user, tenant) 作用域 refresh 最低可接受签发时间（内存实现）。
+	userRefreshMinIATByTenant map[string]time.Time
 }
 
 func newMemoryAccessTokenRevocationStore() *memoryAccessTokenRevocationStore {
 	return &memoryAccessTokenRevocationStore{
-		expires:           make(map[string]time.Time),
-		userMinIAT:        make(map[int]time.Time),
-		userRefreshMinIAT: make(map[int]time.Time),
+		expires:                   make(map[string]time.Time),
+		userMinIAT:                make(map[int]time.Time),
+		userRefreshMinIAT:         make(map[int]time.Time),
+		userRefreshMinIATByTenant: make(map[string]time.Time),
 	}
 }
 
@@ -259,6 +328,24 @@ func (s *memoryAccessTokenRevocationStore) SetMinRefreshIssuedAt(_ context.Conte
 	defer s.mu.Unlock()
 	if cur, ok := s.userRefreshMinIAT[userID]; !ok || t.After(cur) {
 		s.userRefreshMinIAT[userID] = t
+	}
+	return nil
+}
+
+func (s *memoryAccessTokenRevocationStore) MinRefreshIssuedAtForTenant(_ context.Context, userID, tenantID int) (time.Time, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.userRefreshMinIATByTenant[userRefreshMinIATTenantKey(userID, tenantID)], nil
+}
+
+func (s *memoryAccessTokenRevocationStore) SetMinRefreshIssuedAtForTenant(_ context.Context, userID, tenantID int, t time.Time) error {
+	// 与 Redis 路径（t.Unix()）对齐：JWT iat 为秒级，cutoff 截断到秒避免同秒新签 token 被误判吊销。
+	t = t.Truncate(time.Second)
+	key := userRefreshMinIATTenantKey(userID, tenantID)
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if cur, ok := s.userRefreshMinIATByTenant[key]; !ok || t.After(cur) {
+		s.userRefreshMinIATByTenant[key] = t
 	}
 	return nil
 }

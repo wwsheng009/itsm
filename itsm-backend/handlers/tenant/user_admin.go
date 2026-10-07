@@ -25,6 +25,8 @@ type TenantUserAdminService interface {
 	ResetPassword(ctx context.Context, actor service.TenantAdminActor, tenantID, userID int, req *dto.ResetTenantUserPasswordRequest) (*dto.ResetTenantUserPasswordResponse, error)
 	SetActive(ctx context.Context, actor service.TenantAdminActor, tenantID, userID int, req *dto.SetTenantUserStatusRequest) error
 	ForceLogout(ctx context.Context, actor service.TenantAdminActor, tenantID, userID int) (*dto.ForceLogoutTenantUserResponse, error)
+	// MSW-3：撤销映射（软删 + 缓存失效 + 在途 refresh 吊销）。
+	RevokeMembership(ctx context.Context, actor service.TenantAdminActor, tenantID, userID int) error
 }
 
 // SetTenantUserAdminService 注入平台侧租户用户管理服务（app 装配调用）；未注入时相关端点返回 503。
@@ -147,6 +149,27 @@ func (h *Handler) ForceLogoutTenantUser(c *gin.Context) {
 		return
 	}
 	common.Success(c, resp)
+}
+
+// RevokeTenantUserMembership POST /api/v1/tenants/:id/users/:userId/membership/revoke
+// MSW-3：撤销该用户在目标租户的成员映射（home 不可撤销；allocation 级联解除分配）。
+func (h *Handler) RevokeTenantUserMembership(c *gin.Context) {
+	tenantID, userID, ok := h.parseTenantUserAdminIDs(c)
+	if !ok {
+		return
+	}
+	svc, ok := h.requireTenantUserAdmin(c)
+	if !ok {
+		return
+	}
+	c.Set("audit_target_tenant_id", tenantID)
+	c.Set("audit_target_user_id", userID)
+	if err := svc.RevokeMembership(c.Request.Context(), tenantUserAdminActorFromContext(c), tenantID, userID); err != nil {
+		h.logger.Errorf("撤销租户用户成员映射失败: %v", err)
+		respondTenantUserAdminError(c, err)
+		return
+	}
+	common.Success(c, nil)
 }
 
 func (h *Handler) requireTenantUserAdmin(c *gin.Context) (TenantUserAdminService, bool) {

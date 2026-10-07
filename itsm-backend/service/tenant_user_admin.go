@@ -45,6 +45,9 @@ const (
 	TenantUserAdminCodePasswordPolicy  = "PASSWORD_POLICY_VIOLATION"
 	TenantUserAdminCodeInvalidMode     = "INVALID_RESET_MODE"
 	TenantUserAdminCodeInvalidParam    = "INVALID_PARAM"
+	// MSW-3：映射撤销面错误码。
+	TenantUserAdminCodeMembershipNotFound = "TENANT_USER_MEMBERSHIP_NOT_FOUND"
+	TenantUserAdminCodeHomeMembership     = "HOME_MEMBERSHIP_IMMUTABLE"
 )
 
 const (
@@ -94,11 +97,12 @@ type tenantAdminNotifier interface {
 
 // TenantUserAdminService 收口平台侧租户用户读通道与账号治理。零值不可用。
 type TenantUserAdminService struct {
-	client   *ent.Client
-	users    *UserService
-	logger   *zap.SugaredLogger
-	enabled  bool
-	notifier tenantAdminNotifier
+	client         *ent.Client
+	users          *UserService
+	logger         *zap.SugaredLogger
+	enabled        bool
+	notifier       tenantAdminNotifier
+	membershipSync *MembershipSyncService // MSW-3：映射撤销（软删 + 缓存失效 + refresh 吊销）
 }
 
 // NewTenantUserAdminService 构造服务。
@@ -108,10 +112,11 @@ func NewTenantUserAdminService(client *ent.Client, users *UserService, logger *z
 		logger = zap.NewNop().Sugar()
 	}
 	return &TenantUserAdminService{
-		client:  client,
-		users:   users,
-		logger:  logger,
-		enabled: strings.EqualFold(os.Getenv("TENANT_USER_ADMIN_ENABLED"), "true"),
+		client:         client,
+		users:          users,
+		logger:         logger,
+		enabled:        strings.EqualFold(os.Getenv("TENANT_USER_ADMIN_ENABLED"), "true"),
+		membershipSync: NewMembershipSyncService(client, logger),
 	}
 }
 
@@ -550,6 +555,62 @@ func (s *TenantUserAdminService) ForceLogout(ctx context.Context, actor TenantAd
 	s.notifyTenantAdmins(qctx, tenantID, "用户会话已被强制下线",
 		fmt.Sprintf("用户 %s 的会话已被平台管理员强制下线，需重新登录。", targetUser.Username), userID)
 	return &dto.ForceLogoutTenantUserResponse{UserID: userID, RevokedAt: now}, nil
+}
+
+// RevokeMembership 撤销目标用户在目标租户的映射（MSW-3）：
+//   - 平台面硬判定（super_admin）+ 写通道灰度开关；
+//   - home 映射不可撤销（账号级语义，走账号停用；409 HOME_MEMBERSHIP_IMMUTABLE）；
+//   - allocation 来源级联解除分配；软删 + membership.revoke 审计；
+//   - 立即生效：权限缓存单点失效 + 该 user×tenant 在途 refresh 吊销（Q3=A）。
+func (s *TenantUserAdminService) RevokeMembership(ctx context.Context, actor TenantAdminActor, tenantID, userID int) error {
+	if err := s.ensureConfigured(); err != nil {
+		return err
+	}
+	if err := s.requireGovernanceEnabled(); err != nil {
+		return err
+	}
+	if err := s.requirePlatformScope(actor); err != nil {
+		return err
+	}
+	if tenantID <= 0 || userID <= 0 {
+		return newTenantUserAdminError(TenantUserAdminCodeInvalidParam, 400, "无效的租户或用户ID")
+	}
+	qctx := targetScopedContext(ctx, tenantID)
+	if _, err := s.loadTenant(qctx, tenantID); err != nil {
+		return err
+	}
+	targetUser, err := s.loadTenantUser(qctx, tenantID, userID)
+	if err != nil {
+		return err
+	}
+	if s.membershipSync == nil {
+		return fmt.Errorf("membership sync service unavailable")
+	}
+	meta := MembershipAuditMeta{
+		RowTenantID:  actor.HomeTenantID,
+		ActorUserID:  actor.UserID,
+		ActorAccount: actor.Username,
+		Source:       middleware.AuditSourcePlatformSelected,
+		Trigger:      "tenant_admin.revoke_membership",
+	}
+	if err := s.membershipSync.DeactivateMembership(qctx, userID, tenantID, meta); err != nil {
+		switch {
+		case errors.Is(err, ErrMembershipHomeImmutable):
+			return newTenantUserAdminError(TenantUserAdminCodeHomeMembership, 409,
+				"home 映射不可撤销（账号级语义，请使用账号停用）")
+		case errors.Is(err, ErrMembershipNotFound):
+			return newTenantUserAdminError(TenantUserAdminCodeMembershipNotFound, 404,
+				"该用户在此租户无存活成员映射")
+		default:
+			return err
+		}
+	}
+	s.recordAudit(ctx, actor, "user.admin_membership_revoke", tenantID, userID, map[string]any{
+		"outcome": "success",
+	}, 200)
+	s.notifyTenantAdmins(qctx, tenantID, "成员映射已被平台撤销",
+		fmt.Sprintf("用户 %s 在本租户的成员映射已被平台管理员撤销，其在该租户的在途会话续签已失效。", targetUser.Username), userID)
+	return nil
 }
 
 // revokeUserSessions 双吊销（access + refresh）并返回失败明细；

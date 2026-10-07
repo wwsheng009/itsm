@@ -334,11 +334,12 @@ func (s *Service) RefreshToken(ctx context.Context, refreshToken string) (*AuthR
 	if claims.IssuedAt != nil {
 		refreshIssuedAt = claims.IssuedAt.Time
 	}
-	if revoked, rErr := middleware.IsUserRefreshRevoked(ctx, claims.UserID, refreshIssuedAt); rErr != nil {
-		s.logger.Warnw("refresh user-level revocation check failed, deny by default", "error", rErr)
+	// MSW-3 / Q3=A：用户级 + (user×tenant) 作用域双吊销检查（撤销映射立即生效于目标租户在途 refresh）。
+	if revoked, rErr := middleware.IsUserRefreshRevokedForTenant(ctx, claims.UserID, claims.TenantID, refreshIssuedAt); rErr != nil {
+		s.logger.Warnw("refresh revocation check failed, deny by default", "error", rErr)
 		return nil, fmt.Errorf("refresh token validation failed")
 	} else if revoked {
-		s.logger.Warnw("refresh token revoked by user-level invalidation", "user_id", claims.UserID)
+		s.logger.Warnw("refresh token revoked by user/tenant-level invalidation", "user_id", claims.UserID, "tenant_id", claims.TenantID)
 		return nil, fmt.Errorf("refresh token has been revoked")
 	}
 

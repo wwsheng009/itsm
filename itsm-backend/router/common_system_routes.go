@@ -208,6 +208,8 @@ func SetupCommonSystemRoutes(r *gin.Engine, tenant *gin.RouterGroup, config *Rou
 				tenants.POST("/:id/users/:userId/reset-password", middleware.RequirePermission("tenant", "write"), config.TenantHandler.ResetTenantUserPassword)
 				tenants.PUT("/:id/users/:userId/status", middleware.RequirePermission("tenant", "write"), config.TenantHandler.SetTenantUserStatus)
 				tenants.POST("/:id/users/:userId/force-logout", middleware.RequirePermission("tenant", "write"), config.TenantHandler.ForceLogoutTenantUser)
+				// MSW-3：映射撤销面（home 不可撤销；allocation 级联解除分配；缓存失效 + 在途 refresh 吊销）。
+				tenants.POST("/:id/users/:userId/membership/revoke", middleware.RequirePermission("tenant", "write"), config.TenantHandler.RevokeTenantUserMembership)
 			}
 		}
 

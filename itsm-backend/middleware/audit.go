@@ -46,6 +46,10 @@ type AuthAuditEntry struct {
 	Method         string
 	StatusCode     int
 	FailureReason  string
+	// ReasonCode 机器可读拒绝码（deny 分支；与 FailureReason 文案并存）。
+	ReasonCode string
+	// Basis 授权依据（allow 分支：native/super_admin/allocation/invite）。
+	Basis string
 }
 
 // RecordAuthAudit writes only explicitly allow-listed authentication metadata.
@@ -55,7 +59,10 @@ func RecordAuthAudit(ctx context.Context, client *ent.Client, e AuthAuditEntry) 
 		return
 	}
 	req, _ := ctx.Value(loginAuditRequestKey{}).(LoginAuditRequest)
-	payload, _ := json.Marshal(map[string]string{"username": e.ActorAccount, "userAgent": req.UserAgent, "failureReason": e.FailureReason})
+	payload, _ := json.Marshal(map[string]string{
+		"username": e.ActorAccount, "userAgent": req.UserAgent,
+		"failureReason": e.FailureReason, "reasonCode": e.ReasonCode, "basis": e.Basis,
+	})
 	auditCtx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 	defer cancel()
 	// R2B 阴影观察（2026-10-03）：审计写入是跨切面路径，登录阶段尚无租户上下文；

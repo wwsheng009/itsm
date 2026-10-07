@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"testing"
+	"time"
 
 	_ "github.com/mattn/go-sqlite3"
 	"github.com/stretchr/testify/assert"
@@ -172,21 +173,121 @@ func TestMembershipSyncService_AllocationLifecycle(t *testing.T) {
 	assert.Contains(t, codes, "incident:write")
 
 	// 撤销：软删 + deassigned_at；权限 fail-closed（缓存联动归 M2，此处显式失效）。
+	probe := time.Now().Add(-time.Minute)
+	homeBefore, rErr := middleware.IsUserRefreshRevokedForTenant(ctx, u.ID, provider.ID, probe)
+	require.NoError(t, rErr)
 	require.NoError(t, allocSvc.Deactivate(ctx, u.ID, customer.ID))
 	revoked, err := client.UserTenantMembership.Get(ctx, mb.ID)
 	require.NoError(t, err)
 	require.NotNil(t, revoked.DeletedAt, "撤销后必须软删（回收即失效）")
 	require.NotNil(t, revoked.DeassignedAt)
 
-	middleware.InvalidateAllPermissionCaches()
+	// MSW-3/Q3=A：撤销立即生效——缓存已由撤销路径失效（无需手工干预）。
 	codesAfter, sourceAfter, err := middleware.ResolvePermissions(ctx, client, u.ID, customer.ID)
 	require.NoError(t, err)
 	assert.Empty(t, codesAfter)
 	assert.Equal(t, middleware.PermissionSourceNone, sourceAfter)
 
+	// 该 user×tenant 在途 refresh 吊销；其它作用域不受影响（作用域隔离）。
+	tenantRevoked, rErr := middleware.IsUserRefreshRevokedForTenant(ctx, u.ID, customer.ID, probe)
+	require.NoError(t, rErr)
+	assert.True(t, tenantRevoked, "撤销后目标作用域在途 refresh 必须被吊销")
+	homeAfter, rErr := middleware.IsUserRefreshRevokedForTenant(ctx, u.ID, provider.ID, probe)
+	require.NoError(t, rErr)
+	assert.Equal(t, homeBefore, homeAfter, "撤销不得影响其它作用域")
+
 	// 幂等撤销 + 审计
 	require.NoError(t, allocSvc.Deactivate(ctx, u.ID, customer.ID))
 	assert.Equal(t, 1, msAuditCount(t, ctx, client, MembershipAuditActionRevoke))
+}
+
+func TestMembershipSyncService_DeactivateMembership_Invite(t *testing.T) {
+	client := enttest.Open(t, "sqlite3", testDSN())
+	defer client.Close()
+	ctx := context.Background()
+	logger := zaptest.NewLogger(t).Sugar()
+	middleware.SetAuthzStaticFallback(false)
+	t.Cleanup(func() { middleware.SetAuthzStaticFallback(false) })
+	middleware.InvalidateAllPermissionCaches()
+
+	provider := msTenant(t, ctx, client, "Provider", "ms-prov6", "msp_provider", 0)
+	customer := msTenant(t, ctx, client, "Customer", "ms-cust6", "msp_customer", provider.ID)
+	roleRow := msRoleWithPerm(t, ctx, client, customer.ID, "agent", "incident", "read")
+	inviter := msUser(t, ctx, client, "cust-admin-y", customer.ID, "admin", "")
+	staff := msUser(t, ctx, client, "invited-staff", provider.ID, "end_user", "provider_agent")
+
+	// 邀请流产物：source=invite ∧ invited_by 非空（Q1=C 的"客户侧显式确认"载体）。
+	mb, err := client.UserTenantMembership.Create().
+		SetUserID(staff.ID).SetTenantID(customer.ID).
+		SetAccountKind(usertenantmembership.AccountKindProvider).
+		SetSource(usertenantmembership.SourceInvite).
+		SetRoleID(roleRow.ID).SetInvitedBy(inviter.ID).
+		SetStatus(usertenantmembership.StatusActive).SetIsDefault(false).
+		Save(ctx)
+	require.NoError(t, err)
+
+	// 预热权限缓存：撤销后应无需手工失效即 fail-closed。
+	codes, _, err := middleware.ResolvePermissions(ctx, client, staff.ID, customer.ID)
+	require.NoError(t, err)
+	require.NotEmpty(t, codes)
+
+	svc := NewMembershipSyncService(client, logger)
+	meta := MembershipAuditMeta{
+		RowTenantID: customer.ID, ActorUserID: inviter.ID, ActorAccount: "cust-admin-y",
+		Source: middleware.AuditSourcePlatformSelected, Trigger: "tenant_admin.revoke_membership",
+	}
+	require.NoError(t, svc.DeactivateMembership(ctx, staff.ID, customer.ID, meta))
+
+	got, err := client.UserTenantMembership.Get(ctx, mb.ID)
+	require.NoError(t, err)
+	require.NotNil(t, got.DeletedAt)
+	require.NotNil(t, got.DeassignedAt)
+	assert.Equal(t, usertenantmembership.StatusSuspended, got.Status)
+
+	codesAfter, sourceAfter, err := middleware.ResolvePermissions(ctx, client, staff.ID, customer.ID)
+	require.NoError(t, err)
+	assert.Empty(t, codesAfter, "撤销后权限缓存必须立即失效")
+	assert.Equal(t, middleware.PermissionSourceNone, sourceAfter)
+
+	tenantRevoked, err := middleware.IsUserRefreshRevokedForTenant(ctx, staff.ID, customer.ID, time.Now().Add(-time.Minute))
+	require.NoError(t, err)
+	assert.True(t, tenantRevoked, "撤销后目标作用域在途 refresh 必须被吊销")
+	assert.Equal(t, 1, msAuditCount(t, ctx, client, MembershipAuditActionRevoke))
+
+	// 已无存活映射 → 治理面显式反馈（非静默）。
+	err = svc.DeactivateMembership(ctx, staff.ID, customer.ID, meta)
+	require.ErrorIs(t, err, ErrMembershipNotFound)
+
+	// home 映射不可撤销（账号级语义）。
+	homeMB, err := svc.SyncHomeMembership(ctx, inviter.ID, customer.ID, "admin", "", MembershipAuditMeta{RowTenantID: customer.ID})
+	require.NoError(t, err)
+	require.NotNil(t, homeMB)
+	err = svc.DeactivateMembership(ctx, inviter.ID, customer.ID, meta)
+	require.ErrorIs(t, err, ErrMembershipHomeImmutable)
+}
+
+func TestMembershipSyncService_DeactivateMembership_AllocationCascade(t *testing.T) {
+	client := enttest.Open(t, "sqlite3", testDSN())
+	defer client.Close()
+	ctx := context.Background()
+	logger := zaptest.NewLogger(t).Sugar()
+
+	provider := msTenant(t, ctx, client, "Provider", "ms-prov7", "msp_provider", 0)
+	customer := msTenant(t, ctx, client, "Customer", "ms-cust7", "msp_customer", provider.ID)
+	msRoleWithPerm(t, ctx, client, customer.ID, "msp_tech", "ticket", "read")
+	u := msUser(t, ctx, client, "cascade-tech", provider.ID, "end_user", "provider_agent")
+
+	allocSvc := NewMSPAllocationService(client, logger)
+	allocDTO, err := allocSvc.Create(ctx, u.ID, customer.ID, "primary")
+	require.NoError(t, err)
+
+	// 治理面撤销 allocation 来源映射 → 级联解除分配，避免"映射已撤销但 allocation 仍可切换"。
+	svc := NewMembershipSyncService(client, logger)
+	require.NoError(t, svc.DeactivateMembership(ctx, u.ID, customer.ID, MembershipAuditMeta{RowTenantID: provider.ID}))
+
+	alloc, err := client.MSPAllocation.Get(ctx, allocDTO.ID)
+	require.NoError(t, err)
+	require.NotNil(t, alloc.DeassignedAt, "allocation 来源撤销必须级联解除分配")
 }
 
 func TestMembershipSyncService_SourceConflict_NotOverwritten(t *testing.T) {

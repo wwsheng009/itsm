@@ -15,6 +15,8 @@ import (
 	"itsm-backend/ent/passwordresettoken"
 	"itsm-backend/ent/tenant"
 	"itsm-backend/ent/user"
+	"itsm-backend/ent/usertenantmembership"
+	"itsm-backend/internal/authz"
 	"itsm-backend/middleware"
 	"itsm-backend/pkg/tenantmode"
 	"itsm-backend/service"
@@ -95,8 +97,13 @@ func (s *Service) SwitchTenant(ctx context.Context, userID, tenantID int) (*dto.
 	return s.SwitchTenantWithRevoke(ctx, userID, tenantID, "")
 }
 
-// SwitchTenantWithRevoke 显式切换作用域（IP-P0-6）：
-// 目标校验 → 重签 JWT（tenant_source=switch）→ 撤销旧 refresh → 审计 tenant.switch。
+// SwitchTenantWithRevoke 显式切换作用域（IP-P0-6 / MSW-2）：
+// 授权判定（authz.DecideTenantSwitch 单一入口）→ 目标校验（全分支审计）→
+// 重签 JWT（tenant_source=switch）→ 撤销旧 refresh → 审计 tenant.switch（basis）。
+//
+// 授权依据（Q1=C）：native / super_admin / provider+msp_role+（active allocation 或
+// 客户侧显式确认的 invite membership：source=invite ∧ active ∧ invited_by 非空）。
+// 拒绝分支一律 tenant.switch_denied（reasonCode）；未授权者不暴露目标存在性（no_grant）。
 func (s *Service) SwitchTenantWithRevoke(ctx context.Context, userID, tenantID int, oldRefreshToken string) (*dto.LoginResponse, error) {
 	userEntity, err := s.client.User.Get(ctx, userID)
 	if err != nil {
@@ -106,39 +113,79 @@ func (s *Service) SwitchTenantWithRevoke(ctx context.Context, userID, tenantID i
 		s.logger.Errorw("Failed to load user for tenant switch", "user_id", userID, "error", err)
 		return nil, fmt.Errorf("无权限访问该租户")
 	}
-	nativeSwitch := userEntity.TenantID == tenantID
-	superAdmin := userEntity.Role == user.RoleSuperAdmin
-	mspAllowed := false
-	if !nativeSwitch && !superAdmin && string(userEntity.MspRole) != "" {
-		origin, originErr := s.client.Tenant.Get(ctx, userEntity.TenantID)
-		if originErr == nil && tenantmode.IsMSPProviderTenantType(string(origin.Type)) {
-			target, targetErr := s.client.Tenant.Get(ctx, tenantID)
-			if targetErr == nil && tenantmode.IsCustomerTenantType(string(target.Type)) {
-				count, queryErr := s.client.MSPAllocation.Query().Where(mspallocation.MspUserIDEQ(userID), mspallocation.CustomerTenantIDEQ(tenantID), mspallocation.DeassignedAtIsNil()).Count(ctx)
-				mspAllowed = queryErr == nil && count > 0
+
+	// 目标租户事实：缺失不直接报错（判定按 TargetFound=false；防枚举）。
+	targetTenant, targetErr := s.client.Tenant.Get(ctx, tenantID)
+	targetFound := targetErr == nil
+	if targetErr != nil && !ent.IsNotFound(targetErr) {
+		s.logger.Errorw("Failed to load target tenant for switch", "user_id", userID, "tenant_id", tenantID, "error", targetErr)
+		return nil, fmt.Errorf("无权限访问该租户")
+	}
+
+	// 授权依据事实（仅 provider→客户租户场景需要）。
+	facts := authz.SwitchFacts{}
+	homeTenantType := ""
+	if string(userEntity.MspRole) != "" && userEntity.TenantID != tenantID && userEntity.Role != user.RoleSuperAdmin {
+		if origin, oErr := s.client.Tenant.Get(ctx, userEntity.TenantID); oErr == nil {
+			homeTenantType = string(origin.Type)
+		} else {
+			s.logger.Warnw("switch origin tenant load failed, deny by default", "user_id", userID, "home_tenant_id", userEntity.TenantID, "error", oErr)
+		}
+		if targetFound && tenantmode.IsCustomerTenantType(string(targetTenant.Type)) {
+			count, qErr := s.client.MSPAllocation.Query().
+				Where(mspallocation.MspUserIDEQ(userID), mspallocation.CustomerTenantIDEQ(tenantID), mspallocation.DeassignedAtIsNil()).
+				Count(ctx)
+			if qErr != nil {
+				s.logger.Warnw("switch allocation fact query failed, deny by default", "user_id", userID, "tenant_id", tenantID, "error", qErr)
+			} else {
+				facts.HasActiveAllocation = count > 0
+			}
+			// Q1=C：客户侧显式确认的邀请（目标租户作用域读；invited_by 非空=邀请流产物）。
+			targetCtx := tenantctx.WithTenantID(ctx, tenantID)
+			inviteExists, mErr := s.client.UserTenantMembership.Query().
+				Where(
+					usertenantmembership.UserIDEQ(userID),
+					usertenantmembership.TenantIDEQ(tenantID),
+					usertenantmembership.SourceEQ(usertenantmembership.SourceInvite),
+					usertenantmembership.StatusEQ(usertenantmembership.StatusActive),
+					usertenantmembership.DeletedAtIsNil(),
+					usertenantmembership.InvitedByNotNil(),
+				).Exist(targetCtx)
+			if mErr != nil {
+				s.logger.Warnw("switch invite fact query failed, deny by default", "user_id", userID, "tenant_id", tenantID, "error", mErr)
+			} else {
+				facts.HasActiveInvite = inviteExists
 			}
 		}
 	}
-	if !nativeSwitch && !superAdmin && !mspAllowed {
-		s.logger.Warnw("Switch tenant denied", "user_id", userID, "tenant_id", tenantID, "native_switch", nativeSwitch, "super_admin", superAdmin, "msp_role", string(userEntity.MspRole))
+
+	scope := authz.SwitchScope{TargetTenantID: tenantID, TargetFound: targetFound}
+	if targetFound {
+		scope.TargetType = string(targetTenant.Type)
+		scope.TargetStatus = targetTenant.Status
+		scope.TargetExpired = !targetTenant.ExpiresAt.IsZero() && targetTenant.ExpiresAt.Before(time.Now())
+	}
+	decision := authz.DecideTenantSwitch(authz.SwitchActor{
+		HomeTenantID:   userEntity.TenantID,
+		HomeTenantType: homeTenantType,
+		Role:           string(userEntity.Role),
+		MSPRole:        string(userEntity.MspRole),
+		Active:         userEntity.Active,
+	}, scope, facts)
+	if !decision.Allowed {
+		msg := switchDenyMessage(decision.Reason)
+		s.logger.Warnw("Switch tenant denied",
+			"user_id", userID, "tenant_id", tenantID, "home_tenant_id", userEntity.TenantID,
+			"reason", decision.Reason, "has_allocation", facts.HasActiveAllocation, "has_invite", facts.HasActiveInvite)
 		middleware.RecordAuthAudit(ctx, s.client, middleware.AuthAuditEntry{
 			UserID: userID, TenantID: userEntity.TenantID, TargetTenantID: tenantID,
 			ActorAccount: userEntity.Username, Source: middleware.AuditSourceSwitch,
 			Action: "tenant.switch_denied", Path: "/api/v1/auth/switch-tenant", Method: "POST",
-			StatusCode: 403, FailureReason: "无权限访问该租户",
+			StatusCode: 403, FailureReason: msg, ReasonCode: decision.Reason,
 		})
-		return nil, fmt.Errorf("无权限访问该租户")
+		return nil, fmt.Errorf("%s", msg)
 	}
-	tenantEntity, err := s.client.Tenant.Get(ctx, tenantID)
-	if err != nil {
-		return nil, fmt.Errorf("租户不存在")
-	}
-	if tenantEntity.Status != "active" {
-		return nil, fmt.Errorf("租户已被暂停")
-	}
-	if !tenantEntity.ExpiresAt.IsZero() && tenantEntity.ExpiresAt.Before(time.Now()) {
-		return nil, fmt.Errorf("租户已过期")
-	}
+	tenantEntity := targetTenant
 	accessToken, err := middleware.GenerateAccessTokenWithSource(userEntity.ID, userEntity.Username, string(userEntity.Role), tenantID, "switch", s.jwtSecret, 15*time.Minute)
 	if err != nil {
 		return nil, fmt.Errorf("生成token失败")
@@ -156,11 +203,12 @@ func (s *Service) SwitchTenantWithRevoke(ctx context.Context, userID, tenantID i
 			}
 		}
 	}
-	// 审计：tenant.switch（target_tenant 维度可查）。
+	// 审计：tenant.switch（target_tenant 维度可查；basis 标注授权依据）。
 	middleware.RecordAuthAudit(ctx, s.client, middleware.AuthAuditEntry{
 		UserID: userID, TenantID: userEntity.TenantID, TargetTenantID: tenantID,
 		ActorAccount: userEntity.Username, Source: middleware.AuditSourceSwitch,
 		Action: "tenant.switch", Path: "/api/v1/auth/switch-tenant", Method: "POST", StatusCode: 200,
+		Basis: decision.Basis,
 	})
 	s.logger.Infow("tenant switched",
 		"user_id", userID,
@@ -185,6 +233,22 @@ func (s *Service) SwitchTenantWithRevoke(ctx context.Context, userID, tenantID i
 		mspRolePtr = &mspRole
 	}
 	return &dto.LoginResponse{AccessToken: accessToken, RefreshToken: refreshToken, User: &dto.LoginUserResponse{ID: userEntity.ID, Username: userEntity.Username, Email: userEntity.Email, Name: userEntity.Name, Role: string(userEntity.Role), MSPRole: mspRolePtr, Department: userEntity.Department, DepartmentID: userEntity.DepartmentID, Phone: userEntity.Phone, Active: userEntity.Active, TenantID: tenantID, CreatedAt: userEntity.CreatedAt, UpdatedAt: userEntity.UpdatedAt, Permissions: permissions}, Tenant: tenantEntity, TenantSelection: &dto.TenantSelection{Mode: switchTenantMode(userEntity, tenantEntity)}}, nil
+}
+
+// switchDenyMessage 切换拒绝的用户可见文案（保持既有口径；机器码走审计 reasonCode）。
+func switchDenyMessage(reason string) string {
+	switch reason {
+	case authz.SwitchDenyUserInactive:
+		return "账号已被停用"
+	case authz.SwitchDenyTargetNotFound:
+		return "租户不存在"
+	case authz.SwitchDenyTargetSuspended:
+		return "租户已被暂停"
+	case authz.SwitchDenyTargetExpired:
+		return "租户已过期"
+	default:
+		return "无权限访问该租户"
+	}
 }
 
 // switchTenantMode 派生切换后的作用域模式（平台控制台/provider 家/单一租户）。

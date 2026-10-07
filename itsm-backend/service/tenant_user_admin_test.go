@@ -17,6 +17,7 @@ import (
 	"itsm-backend/ent/auditlog"
 	"itsm-backend/ent/enttest"
 	"itsm-backend/ent/user"
+	"itsm-backend/ent/usertenantmembership"
 	"itsm-backend/middleware"
 )
 
@@ -441,4 +442,83 @@ func TestTenantUserAdmin_ClosureS1S2S3(t *testing.T) {
 		All(f.ctx)
 	require.NoError(t, err)
 	assert.Len(t, logs, 5, "S1–S3 审计按 target_user_id 可复核")
+}
+
+// MSW-3：映射撤销面（治理通道）——软删 + 缓存立即失效 + (user×tenant) 在途 refresh 吊销 +
+// allocation 级联；home 不可撤销；幂等反馈 404；开关关闭拒绝。
+func TestTenantUserAdmin_RevokeMembership(t *testing.T) {
+	f := newTenantUserAdminFixture(t)
+	middleware.SetAuthzStaticFallback(false)
+	t.Cleanup(func() { middleware.SetAuthzStaticFallback(false) })
+	middleware.InvalidateAllPermissionCaches()
+
+	// A 租户内的邀请映射 + 角色权限（用于验证缓存失效真实生效）。
+	roleRow, err := f.client.Role.Create().SetName("agent").SetCode("agent").SetTenantID(f.tenantA).Save(f.ctx)
+	require.NoError(t, err)
+	perm, err := f.client.Permission.Create().
+		SetCode("incident:read").SetName("incident:read").
+		SetResource("incident").SetAction("read").SetTenantID(f.tenantA).
+		Save(f.ctx)
+	require.NoError(t, err)
+	_, err = f.client.RolePermission.Create().SetRoleID(roleRow.ID).SetPermissionID(perm.ID).SetTenantID(f.tenantA).Save(f.ctx)
+	require.NoError(t, err)
+	mb, err := f.client.UserTenantMembership.Create().
+		SetUserID(f.normalA).SetTenantID(f.tenantA).
+		SetAccountKind(usertenantmembership.AccountKindCustomer).
+		SetSource(usertenantmembership.SourceInvite).
+		SetRoleID(roleRow.ID).SetInvitedBy(f.adminA1).
+		SetStatus(usertenantmembership.StatusActive).SetIsDefault(false).
+		Save(f.ctx)
+	require.NoError(t, err)
+
+	codes, _, err := middleware.ResolvePermissions(f.ctx, f.client, f.normalA, f.tenantA)
+	require.NoError(t, err)
+	require.NotEmpty(t, codes, "预热：撤销前权限非空")
+
+	require.NoError(t, f.svc.RevokeMembership(f.ctx, f.actor, f.tenantA, f.normalA))
+
+	got, err := f.client.UserTenantMembership.Get(f.ctx, mb.ID)
+	require.NoError(t, err)
+	require.NotNil(t, got.DeletedAt)
+	assert.Equal(t, usertenantmembership.StatusSuspended, got.Status)
+
+	// 缓存立即失效（无需手工干预）+ refresh 作用域吊销。
+	codesAfter, sourceAfter, err := middleware.ResolvePermissions(f.ctx, f.client, f.normalA, f.tenantA)
+	require.NoError(t, err)
+	assert.Empty(t, codesAfter)
+	assert.Equal(t, middleware.PermissionSourceNone, sourceAfter)
+	revoked, err := middleware.IsUserRefreshRevokedForTenant(f.ctx, f.normalA, f.tenantA, time.Now().Add(-time.Minute))
+	require.NoError(t, err)
+	assert.True(t, revoked, "撤销后该 user×tenant 在途 refresh 必须被吊销")
+
+	// 双审计：membership.revoke（收口服务）+ user.admin_membership_revoke（治理动作）。
+	revokeAudits, err := f.client.AuditLog.Query().Where(auditlog.ActionEQ("membership.revoke")).Count(f.ctx)
+	require.NoError(t, err)
+	assert.Equal(t, 1, revokeAudits)
+	tumAudits, err := f.client.AuditLog.Query().Where(auditlog.ActionEQ("user.admin_membership_revoke")).Count(f.ctx)
+	require.NoError(t, err)
+	assert.Equal(t, 1, tumAudits)
+
+	// 已无存活映射 → 404 稳定码（治理面显式反馈）。
+	err = f.svc.RevokeMembership(f.ctx, f.actor, f.tenantA, f.normalA)
+	ae, ok := AsTenantUserAdminError(err)
+	require.True(t, ok)
+	assert.Equal(t, TenantUserAdminCodeMembershipNotFound, ae.Code)
+	assert.Equal(t, 404, ae.Status)
+
+	// home 映射不可撤销（账号级语义）→ 409。
+	_, err = f.svc.membershipSync.SyncHomeMembership(f.ctx, f.adminA1, f.tenantA, "admin", "", MembershipAuditMeta{RowTenantID: f.tenantA})
+	require.NoError(t, err)
+	err = f.svc.RevokeMembership(f.ctx, f.actor, f.tenantA, f.adminA1)
+	ae, ok = AsTenantUserAdminError(err)
+	require.True(t, ok)
+	assert.Equal(t, TenantUserAdminCodeHomeMembership, ae.Code)
+	assert.Equal(t, 409, ae.Status)
+
+	// 写通道关闭 → 稳定码拒绝（可即时回滚）。
+	f.svc.SetEnabled(false)
+	err = f.svc.RevokeMembership(f.ctx, f.actor, f.tenantA, f.normalA)
+	ae, ok = AsTenantUserAdminError(err)
+	require.True(t, ok)
+	assert.Equal(t, TenantUserAdminCodeDisabled, ae.Code)
 }

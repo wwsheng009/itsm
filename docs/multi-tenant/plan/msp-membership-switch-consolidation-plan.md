@@ -1,6 +1,6 @@
 # 映射式多租户切换收口方案（Membership + Switch）
 
-> 状态：**v0.2（独立审查修订完成；判定 ready-to-implement）**｜日期：2026-10-07｜基准：仓库 HEAD `78157476`（v0.1 提交；代码证据同 `ee9180e5`，审查后无代码变更）
+> 状态：**v0.4（M1/M2 已落地）**｜日期：2026-10-07｜基准：仓库 HEAD `78157476`（代码证据同 `ee9180e5`；M1/M2 于后续提交落地）
 > 上位：[canon v1.0](./msp-concept-model-and-architecture-canon.md)（I3/I5/B3/B5/D5/D10）→ [目标架构](./msp-target-architecture.md)（§3.2 Membership / §5.3 服务方在客户作用域内的有效权限 / §6.1 建号通道矩阵）→ [主方案](./msp-user-lifecycle-and-tenant-switching-plan.md)（F7/F14/F15）→ [实施方案](./msp-implementation-plan.md)
 > 定位：**L4 收口方案**（局部编号 `MSW-#`；落地建议在实施方案登记为 `IP-P#`，本文件不占用全局编号）。范围：把"账号≠成员身份 + 映射式切换"从**已选定的目标架构**收口到落地——核对现状、登记差距、划定"切换面 vs 跨租户面"边界、给出批次与验收。**不新增目标模型、不新造映射表**。
 
@@ -149,6 +149,7 @@
 
 - **范围**：`authz.Decide(actor, scope, action)` 单一入口承载 `tenant.switch`（并逐步承接其它判定）；纳入 `source=invite`（按 MSW-Q1）；**增补撤销面**（管理入口/API：membership 停用/软删 + 审计 + 缓存失效 + 按 user×tenant 吊销在途 refresh，策略按 MSW-Q3）；**切换前置校验补 `userEntity.Active`**（当前不检查，被停用账号仍可换发令牌，`handlers/auth/service.go:100-188`）；**切换失败全分支审计**（授权拒绝 + 目标不存在/suspended/expired）。
 - **验收**：MSW-A3/A4；`tenant.switch_denied` 全分支审计断言；账号停用场景断言。
+- **实施记录（2026-10-07，v0.4 回填）**：✅ 已落地。①授权判定抽为 `internal/authz.DecideTenantSwitch` 纯函数单一入口（决策表 14 例；泛化 `Decide(actor, scope, action)` 签名留待后续批次）；②**Q1=C 落地**：`source=invite ∧ active ∧ invited_by 非空` 的客户侧确认邀请纳入放行（basis=invite；普通客户用户跨租户仍拒绝，不泛化）；③**全分支审计**：allow→`tenant.switch`（basis）/ deny→`tenant.switch_denied`（reasonCode：user_inactive/no_grant/target_not_found/target_suspended/target_expired），未授权者不进入目标存在性分支（防枚举）；④**账号停用校验**：停用账号拒绝换发令牌；⑤**撤销面**：新增 `POST /api/v1/tenants/:id/users/:userId/membership/revoke`（TUM 通道：`tenant:write` 粗筛 + super_admin 硬判定 + 写通道开关；home 不可撤销 409；allocation 来源级联解除分配；软删 `deleted_at+deassigned_at+status=suspended` + 双审计）；⑥**Q3=A 落地**：撤销即 `InvalidateMembershipPermissionCache(user,tenant)` + `InvalidateUserRefreshTokensForTenant(user,tenant)`（新增租户级 refresh cutoff，refresh 校验 user 级/租户级并联 fail-closed、作用域隔离；M1 allocation 撤销路径同步挂接）。测试：authz 决策表、middleware 租户级吊销、service 撤销/级联/缓存/refresh、handlers/auth 全分支审计、TUM service+handler+路由契约全绿（回归清单见 CHANGELOG）。
 
 ### M3 切换体验收尾（可与 M2 并行）
 
@@ -189,11 +190,11 @@
 
 | # | 问题 | 备选 | 建议 |
 |---|---|---|---|
-| MSW-Q1 | 邀请来源（`source=invite`）是否可作为切换依据？ | A. 默认放行；B. 需 allocation；C. 需客户侧显式确认 | C（客户同意后落 invite membership 并可切换） |
+| MSW-Q1 | 邀请来源（`source=invite`）是否可作为切换依据？ | A. 默认放行；B. 需 allocation；C. 需客户侧显式确认 | **已决 C（2026-10-07 落地）**：客户侧显式确认的 invite membership（`invited_by` 非空）可切换 |
 | MSW-Q2 | 客户侧成员列表是否展示服务方成员？ | A. 不展示；B. 只读展示（标注"服务方"）；C. 可管理 | B |
-| MSW-Q3 | 撤销映射的令牌处理？ | A. 立即吊销 refresh；B. 宽限至 access 过期（≤15min） | A（安全优先；如需宽限须登记） |
+| MSW-Q3 | 撤销映射的令牌处理？ | A. 立即吊销 refresh；B. 宽限至 access 过期（≤15min） | **已决 A（2026-10-07 落地）**：撤销即吊销 (user×tenant) 在途 refresh；如需宽限须登记 |
 | MSW-Q4 | "返回工作台"语义？ | A. 切回 provider 作用域；B. 仅导航 | **已决 A**（V3 已查明：仅导航时 `/msp/workbench/*` 必 403） |
-| MSW-Q5 | 分配角色映射口径：目标架构 §5.3（primary→`msp_manager`）vs 20260504 回填/实现（primary/backup→`msp_tech`） | A. 维持回填口径（最小权限）；B. 改按 §5.3；C. 分阶段 | A（当前实现口径；如需 B 需评审客户租户权限面与存量数据迁移） |
+| MSW-Q5 | 分配角色映射口径：目标架构 §5.3（primary→`msp_manager`）vs 20260504 回填/实现（primary/backup→`msp_tech`） | A. 维持回填口径（最小权限）；B. 改按 §5.3；C. 分阶段 | **已决 A（2026-10-07 确认）**：维持回填口径；如需 B 需评审客户租户权限面与存量数据迁移 |
 
 ## 8. 审查记录
 
@@ -224,3 +225,4 @@
 | v0.1 | 2026-10-07 | 首版：提案映射（§1）、现状核对 S1–S6 / MSW-1–6 / 待核 V1–V5（§2）、目标模型与边界决策表（§3）、批次 M1–M4（§4）、验收/风险/待决（§5–§7） |
 | v0.2 | 2026-10-07 | **独立审查修订（F-01–F-13 全处置，判定 ready-to-implement）**：M1 `account_kind` 口径改按账号类型（blocker）；MSW-1/3/5 按代码重写（写入点清单、无撤销面、真实双源）；切换失败审计口径修正 + M2 补全分支；M2 增补撤销面与账号停用校验；MSW-4 回填 V3 结论（403）并定 Q4=A；A1/A3/A4/A6 判据具体化；§2.3 回填 V1–V5 结论；新增 §8 审查记录 |
 | v0.3 | 2026-10-07 | **M1 实施回填**：membership 写路径闭环落地（建号 `source=home` / 分配与撤销 / bootstrap 自动分配 + 审计 + 测试全绿）；source 由 platform 修正为 home；新增 MSW-Q5（分配角色映射口径差）；M1 实施记录入 §4 |
+| v0.4 | 2026-10-07 | **M2 实施回填**：切换授权单一入口 `authz.DecideTenantSwitch`（Q1=C invite 依据、账号停用校验、全分支审计）；撤销面 API（TUM）+ allocation 级联 + 缓存/租户级 refresh 吊销（Q3=A）；Q1/Q3/Q5 决议回填 |

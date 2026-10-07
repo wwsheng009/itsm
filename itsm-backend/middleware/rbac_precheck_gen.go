@@ -785,6 +785,7 @@ func precheckRoutePermissions() map[string]map[string]Permission {
 			"/api/v1/tenants/*/provision":                       {Resource: "tenant", Action: "write"},
 			"/api/v1/tenants/*/users":                           {Resource: "tenant", Action: "write"},
 			"/api/v1/tenants/*/users/*/force-logout":            {Resource: "tenant", Action: "write"},
+			"/api/v1/tenants/*/users/*/membership/revoke":       {Resource: "tenant", Action: "write"},
 			"/api/v1/tenants/*/users/*/reset-password":          {Resource: "tenant", Action: "write"},
 			"/api/v1/ticket-categories":                         {Resource: "ticket_category", Action: "create"},
 			"/api/v1/ticket-categories/import":                  {Resource: "ticket_category", Action: "create"},

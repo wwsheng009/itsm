@@ -33,6 +33,8 @@ type fakeTenantUserAdmin struct {
 	forceResp *dto.ForceLogoutTenantUserResponse
 	forceErr  error
 
+	revokeErr error
+
 	gotActor  service.TenantAdminActor
 	gotTenant int
 	gotUser   int
@@ -64,6 +66,11 @@ func (f *fakeTenantUserAdmin) SetActive(_ context.Context, actor service.TenantA
 func (f *fakeTenantUserAdmin) ForceLogout(_ context.Context, actor service.TenantAdminActor, tenantID, userID int) (*dto.ForceLogoutTenantUserResponse, error) {
 	f.gotActor, f.gotTenant, f.gotUser = actor, tenantID, userID
 	return f.forceResp, f.forceErr
+}
+
+func (f *fakeTenantUserAdmin) RevokeMembership(_ context.Context, actor service.TenantAdminActor, tenantID, userID int) error {
+	f.gotActor, f.gotTenant, f.gotUser = actor, tenantID, userID
+	return f.revokeErr
 }
 
 func newTUAHandler(svc TenantUserAdminService) *Handler {
@@ -184,4 +191,27 @@ func TestTenantUserAdmin_InvalidPathAndNotConfigured(t *testing.T) {
 	h2.ListTenantUsers(c2)
 	assert.NotEqual(t, http.StatusOK, w2.Code)
 	assert.Contains(t, w2.Body.String(), "未启用")
+}
+
+// MSW-3：映射撤销端点（成功透传 + 稳定错误码映射）。
+func TestRevokeTenantUserMembership_SuccessAndErrorMapping(t *testing.T) {
+	fake := &fakeTenantUserAdmin{}
+	h := newTUAHandler(fake)
+	w, c := doTUARequest(h, http.MethodPost, "/api/v1/tenants/7/users/11/membership/revoke",
+		"", gin.Params{{Key: "id", Value: "7"}, {Key: "userId", Value: "11"}})
+	h.RevokeTenantUserMembership(c)
+	assert.Equal(t, http.StatusOK, w.Code)
+	assert.Equal(t, 7, fake.gotTenant)
+	assert.Equal(t, 11, fake.gotUser)
+	assert.Equal(t, 42, fake.gotActor.UserID)
+
+	fake2 := &fakeTenantUserAdmin{revokeErr: &service.TenantUserAdminError{
+		Code: service.TenantUserAdminCodeMembershipNotFound, Message: "该用户在此租户无存活成员映射", Status: http.StatusNotFound,
+	}}
+	h2 := newTUAHandler(fake2)
+	w2, c2 := doTUARequest(h2, http.MethodPost, "/api/v1/tenants/7/users/11/membership/revoke",
+		"", gin.Params{{Key: "id", Value: "7"}, {Key: "userId", Value: "11"}})
+	h2.RevokeTenantUserMembership(c2)
+	assert.Equal(t, http.StatusNotFound, w2.Code)
+	assert.Equal(t, service.TenantUserAdminCodeMembershipNotFound, decodeTUABody(t, w2)["code"])
 }

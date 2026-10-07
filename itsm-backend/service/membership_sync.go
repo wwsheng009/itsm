@@ -12,6 +12,7 @@ import (
 
 	"itsm-backend/common/tenantctx"
 	"itsm-backend/ent"
+	"itsm-backend/ent/mspallocation"
 	"itsm-backend/ent/role"
 	"itsm-backend/ent/tenant"
 	"itsm-backend/ent/usertenantmembership"
@@ -39,6 +40,12 @@ const (
 
 // ErrMembershipSourceConflict 同租户已存在不同来源的存活成员行（不覆盖）。
 var ErrMembershipSourceConflict = errors.New("live membership with different source exists")
+
+// ErrMembershipHomeImmutable home 映射不可经治理面撤销（账号级语义，走账号停用）。
+var ErrMembershipHomeImmutable = errors.New("home membership cannot be deactivated via governance")
+
+// ErrMembershipNotFound 目标 (user, tenant) 无存活映射（治理面撤销显式反馈）。
+var ErrMembershipNotFound = errors.New("live membership not found")
 
 // MembershipSyncService 账号↔租户关系（membership）写路径收口服务。
 type MembershipSyncService struct {
@@ -278,7 +285,67 @@ func (s *MembershipSyncService) RevokeAllocationMembership(
 		return fmt.Errorf("revoke allocation membership user=%d tenant=%d: %w", mspUserID, customerTenantID, err)
 	}
 	s.writeSyncAudit(scopeCtx, meta, MembershipAuditActionRevoke, "revoked", saved, "")
+	// MSW-3 / Q3=A：撤销立即生效（权限缓存单点失效 + 该 user×tenant 在途 refresh 吊销）。
+	s.applyRevokeEffects(ctx, mspUserID, customerTenantID)
 	return nil
+}
+
+// DeactivateMembership 治理面撤销/停用映射（MSW-3）：
+//   - 仅非 home 来源（home=账号级语义，走账号停用；命中返回 ErrMembershipHomeImmutable）；
+//   - source=allocation 级联解除分配（deassigned_at），避免"映射已撤销但 allocation 仍可切换"；
+//   - 软删（status=suspended + deassigned_at + deleted_at）+ 审计 membership.revoke；
+//   - 立即生效：权限缓存单点失效 + (user×tenant) 在途 refresh 吊销（Q3=A）。
+func (s *MembershipSyncService) DeactivateMembership(ctx context.Context, userID, tenantID int, meta MembershipAuditMeta) error {
+	if s == nil || s.client == nil {
+		return errors.New("membership sync service unavailable")
+	}
+	if userID <= 0 || tenantID <= 0 {
+		return fmt.Errorf("invalid revoke scope: user=%d tenant=%d", userID, tenantID)
+	}
+	scopeCtx := tenantctx.WithTenantID(ctx, tenantID)
+	live, err := s.liveMembership(scopeCtx, userID, tenantID)
+	if err != nil {
+		return err
+	}
+	if live == nil {
+		return fmt.Errorf("%w: user=%d tenant=%d", ErrMembershipNotFound, userID, tenantID)
+	}
+	if live.Source == usertenantmembership.SourceHome {
+		return fmt.Errorf("%w: user=%d tenant=%d", ErrMembershipHomeImmutable, userID, tenantID)
+	}
+	if live.Source == usertenantmembership.SourceAllocation {
+		if _, err := s.client.MSPAllocation.Update().
+			Where(
+				mspallocation.MspUserIDEQ(userID),
+				mspallocation.CustomerTenantIDEQ(tenantID),
+				mspallocation.DeassignedAtIsNil(),
+			).
+			SetDeassignedAt(time.Now()).
+			Save(scopeCtx); err != nil {
+			return fmt.Errorf("cascade deallocate on membership revoke user=%d tenant=%d: %w", userID, tenantID, err)
+		}
+	}
+	now := time.Now()
+	saved, err := live.Update().
+		SetStatus(usertenantmembership.StatusSuspended).
+		SetDeassignedAt(now).
+		SetDeletedAt(now).
+		Save(scopeCtx)
+	if err != nil {
+		return fmt.Errorf("deactivate membership user=%d tenant=%d: %w", userID, tenantID, err)
+	}
+	s.writeSyncAudit(scopeCtx, meta, MembershipAuditActionRevoke, "deactivated", saved, "")
+	s.applyRevokeEffects(ctx, userID, tenantID)
+	return nil
+}
+
+// applyRevokeEffects 撤销后的立即生效面：权限缓存单点失效 + (user×tenant) 在途 refresh 吊销（Q3=A）。
+func (s *MembershipSyncService) applyRevokeEffects(ctx context.Context, userID, tenantID int) {
+	middleware.InvalidateMembershipPermissionCache(userID, tenantID)
+	if err := middleware.InvalidateUserRefreshTokensForTenant(ctx, userID, tenantID, time.Now()); err != nil {
+		s.logger.Warnw("membership revoke: tenant-scoped refresh invalidation failed",
+			"error", err, "user_id", userID, "tenant_id", tenantID)
+	}
 }
 
 // liveMembership 读取 (user, tenant) 的存活成员行（deleted_at IS NULL）。

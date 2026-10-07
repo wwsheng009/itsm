@@ -129,6 +129,15 @@ func invalidateMembershipPermissionCacheForTenant(tenantID int) {
 	membershipPermissionCacheLock.Unlock()
 }
 
+// InvalidateMembershipPermissionCache 清理 (userID, tenantID) 单点权限缓存（MSW-3 / Q3=A）：
+// 撤销/停用映射后立即生效，避免"已撤销仍命中旧权限缓存"的窗口。
+func InvalidateMembershipPermissionCache(userID, tenantID int) {
+	key := membershipPermissionCacheKey(userID, tenantID)
+	membershipPermissionCacheLock.Lock()
+	delete(membershipPermissionCache, key)
+	membershipPermissionCacheLock.Unlock()
+}
+
 // clearMembershipPermissionCache 清理全部用户级权限缓存。
 func clearMembershipPermissionCache() {
 	membershipPermissionCacheLock.Lock()
