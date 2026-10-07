@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"itsm-backend/ent"
+	"itsm-backend/ent/auditlog"
 	"itsm-backend/ent/enttest"
 	entTenant "itsm-backend/ent/tenant"
 	entUser "itsm-backend/ent/user"
@@ -112,8 +113,8 @@ func TestEnsureBootstrapAllocations(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, 0, n)
 
-	// 审计：每次创建一行 msp.allocation_auto_assigned。
-	logs, err := client.AuditLog.Query().All(ctx)
+	// 审计：每次创建一行 msp.allocation_auto_assigned（MSW-1 的 membership.sync 审计另记，不在此断言范围）。
+	logs, err := client.AuditLog.Query().Where(auditlog.ActionEQ("msp.allocation_auto_assigned")).All(ctx)
 	require.NoError(t, err)
 	require.Len(t, logs, 4)
 	assert.Equal(t, "msp.allocation_auto_assigned", logs[0].Action)

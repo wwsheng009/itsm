@@ -151,7 +151,7 @@ func ensureBootstrapAllocationPair(ctx context.Context, client *ent.Client, logg
 			created++
 			continue
 		}
-		_, err = client.MSPAllocation.Create().
+		alloc, err := client.MSPAllocation.Create().
 			SetMspUserID(admin.ID).
 			SetCustomerTenantID(cust.ID).
 			SetProviderTenantID(providerTenantID).
@@ -166,6 +166,17 @@ func ensureBootstrapAllocationPair(ctx context.Context, client *ent.Client, logg
 		}
 		created++
 		writeBootstrapAllocationAudit(ctx, client, logger, provider, admin, cust)
+		// MSW-1：自动分配同样同步客户作用域 membership（source=allocation；失败仅告警）。
+		if _, err := NewMembershipSyncService(client, logger).SyncAllocationMembership(ctx, alloc, MembershipAuditMeta{
+			RowTenantID:  providerTenantID,
+			ActorUserID:  admin.ID,
+			ActorAccount: admin.Username,
+			Source:       middleware.AuditSourceSystem,
+			Trigger:      "msp.allocation_auto_assigned",
+		}); err != nil && logger != nil {
+			logger.Warnw("membership sync for bootstrap allocation failed",
+				"error", err, "allocation_id", alloc.ID, "user_id", admin.ID, "customer_tenant_id", cust.ID)
+		}
 	}
 	return created, nil
 }

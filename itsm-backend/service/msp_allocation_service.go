@@ -12,6 +12,7 @@ import (
 	"itsm-backend/ent/mspallocation"
 	"itsm-backend/ent/tenant"
 	"itsm-backend/ent/user"
+	"itsm-backend/middleware"
 	"itsm-backend/pkg/mspguard"
 	"itsm-backend/pkg/tenantmode"
 
@@ -24,15 +25,17 @@ import (
 var ErrAllocationExists = errors.New("allocation already exists")
 
 type MSPAllocationService struct {
-	client *ent.Client
-	logger *zap.SugaredLogger
+	client         *ent.Client
+	logger         *zap.SugaredLogger
+	membershipSync *MembershipSyncService // MSW-1：分配/撤销同步 membership（幂等）
 }
 
 // NewMSPAllocationService 创建 MSP 分配服务实例
 func NewMSPAllocationService(client *ent.Client, logger *zap.SugaredLogger) *MSPAllocationService {
 	return &MSPAllocationService{
-		client: client,
-		logger: logger,
+		client:         client,
+		logger:         logger,
+		membershipSync: NewMembershipSyncService(client, logger),
 	}
 }
 
@@ -117,7 +120,26 @@ func (s *MSPAllocationService) Create(
 		return nil, fmt.Errorf("创建分配记录失败: %w", err)
 	}
 
+	// MSW-1：分配即同步客户作用域 membership（source=allocation；失败不阻断分配，靠巡检兜底）。
+	s.syncMembershipForAllocation(ctx, alloc, providerTenantID)
 	return s.toDTO(alloc)
+}
+
+// syncMembershipForAllocation 分配 → membership 同步（幂等；冲突/失败仅告警不阻断）。
+func (s *MSPAllocationService) syncMembershipForAllocation(ctx context.Context, alloc *ent.MSPAllocation, providerTenantID int) {
+	if s.membershipSync == nil || alloc == nil {
+		return
+	}
+	meta := MembershipAuditMeta{
+		RowTenantID:  providerTenantID,
+		ActorAccount: fmt.Sprintf("allocation:user:%d", alloc.MspUserID),
+		Source:       middleware.AuditSourceHeader,
+		Trigger:      "msp.allocation.assign",
+	}
+	if _, err := s.membershipSync.SyncAllocationMembership(ctx, alloc, meta); err != nil {
+		s.logger.Warnw("membership sync after allocation failed (allocation created; repair via inspection)",
+			"error", err, "allocation_id", alloc.ID, "user_id", alloc.MspUserID, "customer_tenant_id", alloc.CustomerTenantID)
+	}
 }
 
 // toDTO 转换为 DTO
@@ -249,18 +271,39 @@ func (s *MSPAllocationService) ListByCustomer(ctx context.Context, customerTenan
 	return dtos, nil
 }
 
-// Deactivate 解除分配
+// Deactivate 解除分配；MSW-1：同步软删客户作用域 membership（deassigned_at + deleted_at）。
+// 幂等：无有效分配时静默返回 nil。
 func (s *MSPAllocationService) Deactivate(ctx context.Context, mspUserID int, customerTenantID int) error {
-	_, err := s.client.MSPAllocation.Update().
+	alloc, err := s.client.MSPAllocation.Query().
 		Where(
 			mspallocation.MspUserIDEQ(mspUserID),
 			mspallocation.HasCustomerTenantWith(tenant.IDEQ(customerTenantID)),
 			mspallocation.DeassignedAtIsNil(),
 		).
-		SetDeassignedAt(time.Now()).
-		Save(ctx)
+		Order(ent.Desc(mspallocation.FieldID)).
+		First(ctx)
 	if err != nil {
+		if ent.IsNotFound(err) {
+			return nil
+		}
+		return fmt.Errorf("查询分配失败: %w", err)
+	}
+	if _, err := s.client.MSPAllocation.UpdateOneID(alloc.ID).
+		SetDeassignedAt(time.Now()).
+		Save(ctx); err != nil {
 		return fmt.Errorf("解除分配失败: %w", err)
+	}
+	if s.membershipSync != nil {
+		meta := MembershipAuditMeta{
+			RowTenantID:  alloc.ProviderTenantID,
+			ActorAccount: fmt.Sprintf("allocation:user:%d", mspUserID),
+			Source:       middleware.AuditSourceHeader,
+			Trigger:      "msp.allocation.deassign",
+		}
+		if err := s.membershipSync.RevokeAllocationMembership(ctx, mspUserID, customerTenantID, meta); err != nil {
+			s.logger.Warnw("membership revoke after deallocation failed (allocation deassigned; repair via inspection)",
+				"error", err, "user_id", mspUserID, "customer_tenant_id", customerTenantID)
+		}
 	}
 	return nil
 }

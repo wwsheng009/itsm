@@ -91,7 +91,8 @@ type UserProvisioningService struct {
 	checker         *mspguard.Checker
 	logger          *zap.SugaredLogger
 	channelsEnabled bool
-	quotaSvc        *TenantQuotaService // IP-P2-6：租户硬配额（maxUsers），nil 时跳过
+	quotaSvc        *TenantQuotaService    // IP-P2-6：租户硬配额（maxUsers），nil 时跳过
+	membershipSync  *MembershipSyncService // MSW-1：建号后补齐 home membership（幂等）
 }
 
 // NewUserProvisioningService 构造建号收口服务。
@@ -104,6 +105,7 @@ func NewUserProvisioningService(client *ent.Client, users *UserService, logger *
 		checker:         mspguard.New(client),
 		logger:          logger,
 		channelsEnabled: strings.EqualFold(os.Getenv("USER_PROVISIONING_CHANNELS_ENABLED"), "true"),
+		membershipSync:  NewMembershipSyncService(client, logger),
 	}
 }
 
@@ -189,8 +191,59 @@ func (s *UserProvisioningService) ProvisionUser(ctx context.Context, actor Provi
 		"user_id", created.ID,
 		"role", created.Role,
 	)
+	// MSW-1：建号即写 home membership（幂等；失败不阻断建号，靠巡检兜底修复）。
+	s.syncHomeMembershipAfterProvision(provisionCtx, actor, actorLabel, channel, target, created)
 	s.recordProvisionAudit(ctx, actor, channel, target.ID, created.ID)
 	return created, nil
+}
+
+// syncHomeMembershipAfterProvision 建号后补齐 home membership（MSW-1）。
+// account_kind 按账号类型快照（provider/customer/platform）；角色 code 按
+// msp_role 映射（provider_admin→msp_manager、provider_agent→msp_tech），否则取 users.role。
+func (s *UserProvisioningService) syncHomeMembershipAfterProvision(
+	ctx context.Context,
+	actor ProvisionActor,
+	actorLabel, channel string,
+	target *ent.Tenant,
+	created *ent.User,
+) {
+	if s.membershipSync == nil || target == nil || created == nil {
+		return
+	}
+	roleCode, mspRole := provisionMembershipRoles(created)
+	rowTenant := actor.HomeTenantID
+	if rowTenant <= 0 {
+		rowTenant = target.ID
+	}
+	source := middleware.AuditSourceHeader
+	switch channel {
+	case ProvisionChannelPlatform:
+		source = middleware.AuditSourcePlatformSelected
+	case ProvisionChannelTenant:
+		source = middleware.AuditSourceLogin
+	}
+	meta := MembershipAuditMeta{
+		RowTenantID:  rowTenant,
+		ActorUserID:  actor.UserID,
+		ActorAccount: actorLabel,
+		Source:       source,
+		Trigger:      "user.provision:" + channel,
+	}
+	if _, err := s.membershipSync.SyncHomeMembership(ctx, created.ID, target.ID, roleCode, mspRole, meta); err != nil {
+		s.logger.Warnw("membership sync after provision failed (account created; repair via inspection)",
+			"error", err, "user_id", created.ID, "target_tenant_id", target.ID)
+	}
+}
+
+// provisionMembershipRoles 账号 → membership 词表（home 作用域；迁移 20260504 回填 1 同口径）。
+func provisionMembershipRoles(u *ent.User) (roleCode, mspRole string) {
+	switch strings.ToLower(strings.TrimSpace(string(u.MspRole))) {
+	case "provider_admin":
+		return "msp_manager", "msp_manager"
+	case "provider_agent":
+		return "msp_tech", "msp_tech"
+	}
+	return strings.ToLower(strings.TrimSpace(string(u.Role))), ""
 }
 
 // recordProvisionAudit 审计事件 user.provision（IP-P0-10）：source 按通道映射，

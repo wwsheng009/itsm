@@ -10,7 +10,7 @@
 
 - **结论**：提案（provider 用户在 customer 租户建立"映射"→ 授权后切换 → 切换后以该租户成员身份使用**全部单租户功能**；provider 侧保留 `/msp` 跨租户能力）= 本仓库**已选定的目标架构**（canon I3：Membership 是账号↔租户关系的唯一载体；I5：provider 员工访问客户 = provider membership + allocation + customer active + 目标租户 RBAC；目标架构 §3.2/§5.3；主方案 F7/F14/F15）。本方案**不做新架构设计，做收口**。
 - **已就绪（代码证据，2026-10-07）**：`user_tenant_memberships` 表（IP-P1-1）；权限单源 `membership → role → role_permissions`（IP-P1-2，默认 fail-closed）；`POST /api/v1/auth/switch-tenant`（重签 JWT `tenant_source=switch` + 旧 refresh 轮换 + 审计 + **按目标租户重算权限**）；MSP 授权依据 `msp_allocations`（已补 `provider_tenant_id`）；前端深度切换（abort 在途请求 + `/auth/me` 重拉 + 查询缓存清空 + 深度态指示）。
-- **未闭环（本方案要解决的，详见 §2.2）**：① 建号与分配通道不写/不同步 membership → 切换后权限为空（**MSW-1/P0**）；② 切换授权仅认 allocation，邀请来源未纳入（MSW-2/待决）；③ **生产无 membership 撤销面**，令牌/缓存未与映射绑定（MSW-3）；④"返回工作台"不切回 provider 作用域——审查已查明客户作用域下工作台 403，"仅导航"不可行（MSW-4，Q4 取 A）；⑤ 真实双源＝请求期 RBAC（JWT 角色码回退链）与 membership 单源的口径差，无巡检对账（MSW-5）；⑥ 切换面/跨租户面边界未成文（MSW-6）。
+- **未闭环（本方案要解决的，详见 §2.2）**：① 建号与分配通道不写/不同步 membership → 切换后权限为空（**MSW-1/P0，✅ 2026-10-07 已闭环，见 §4 M1 实施记录**）；② 切换授权仅认 allocation，邀请来源未纳入（MSW-2/待决）；③ **生产无 membership 撤销面**，令牌/缓存未与映射绑定（MSW-3，撤销面随 M2）；④"返回工作台"不切回 provider 作用域——审查已查明客户作用域下工作台 403，"仅导航"不可行（MSW-4，Q4 取 A）；⑤ 真实双源＝请求期 RBAC（JWT 角色码回退链）与 membership 单源的口径差，无巡检对账（MSW-5）；⑥ 切换面/跨租户面边界未成文（MSW-6）。
 - **批次**：**M1 写路径闭环（P0）** → M2 授权判定与撤销联动 → M3 切换体验收尾（可与 M2 并行）→ M4 边界文档与巡检。
 - **独立审查（2026-10-07）**：判定 needs-revision；1 blocker + 7 major + 5 minor/nit 已全部处置（F-01–F-13，见 §8），修正后判定 **ready-to-implement**。
 - **价值**：把"深度单租户操作"从跨租户路径里移出来——跨租户能力做减法（只保留 `/msp` 显式面），单租户能力靠切换复用（零改造），从根上停止"为每个功能造跨租户变体"的例外面增长。
@@ -138,11 +138,12 @@
 ### M1（P0）写路径闭环：三通道 → membership 单源
 
 - **范围**：
-  1. 建号通道（`UserProvisioningService.ProvisionUser`）在目标租户内写入 membership：`source=platform`（平台通道）/ 由 actor 来源决定；`role_id` 由 `req.RoleIDs/Role` 映射；`account_kind` 按**账号类型**快照——provider 员工在客户租户=`provider`、客户账号=`customer`、平台账号=`platform`（**禁止按目标租户类型快照**：会与 `uq_customer_single_scope` 冲突并破坏快照语义，证据 `ent/schema/user_tenant_membership.go:29-32,102-106`、`migrations/20260504:96-107`）；`allocation.role → role_id` 映射按目标架构 §5.3（specialist→`msp_specialist`，primary/backup→`msp_tech`），目标角色未就绪按"NULL + 巡检"显式登记，不得静默；
+  1. 建号通道（`UserProvisioningService.ProvisionUser`）在目标租户内写入 membership：`source=home`（建号即账号 home 作用域，与 20260504 回填 1 / bootstrap 同口径；通道可追溯性由 `user.provision` 审计承载）；`role_id` 由 `req.RoleIDs/Role` 映射；`account_kind` 按**账号类型**快照——provider 员工在客户租户=`provider`、客户账号=`customer`、平台账号=`platform`（**禁止按目标租户类型快照**：会与 `uq_customer_single_scope` 冲突并破坏快照语义，证据 `ent/schema/user_tenant_membership.go:29-32,102-106`、`migrations/20260504:96-107`）；`allocation.role → role_id` 映射按 20260504 回填预设（specialist→`msp_specialist`，primary/backup→`msp_tech`；与目标架构 §5.3 的 primary→`msp_manager` 口径差登记为 MSW-Q5），目标角色未就绪按"NULL + 巡检"显式登记，不得静默；
   2. allocation 分配/撤销（`msp_allocation_service.go`）同步 membership：`source=allocation`、`allocation_id`；分配行 `is_default=false`；撤销写 `deassigned_at`/状态；幂等 upsert 明确"复活/更新既有行"策略（约束 `uq_membership_live`/`uq_membership_default`，`ent/schema/user_tenant_membership.go:93-101`）；
   3. 抽公共 `membership_sync`（幂等 upsert + 冲突策略）+ **同步审计**（`membership.sync` 或等价）。
 - **验收**：MSW-A1/A2/A6；新增测试覆盖"建号 → 分配 → 切换 → 目标租户权限非空"与同步审计断言。
 - **回滚**：同步逻辑置于独立服务；**当前不存在 per-channel membership-sync 开关**（仅全局 `USER_PROVISIONING_CHANNELS_ENABLED`，`service/user_provisioning.go:98-111`）——如需按通道回退须随 M1 实现，否则以 revert 回滚（回退后仍 fail-closed，不产生越权）。
+- **实施记录（2026-10-07，v0.3 回填）**：✅ 已落地。新增 `service/membership_sync.go`（幂等 upsert / 冲突不覆盖异源行 / 审计 `membership.sync`、`membership.revoke`）；接入 `ProvisionUser`（`source=home`、account_kind 账号类型、msp_role→词表映射、NULL 告警）、`MSPAllocationService.Create/Deactivate`（`source=allocation`、`allocation_id`、`is_default=false`、撤销软删 `deassigned_at+deleted_at`）、`EnsureBootstrapAllocationsFor*`（自动分配同样同步）。测试：`service/membership_sync_test.go` 5 例（home 幂等 / 分配生命周期 / 冲突不覆盖 / 写守卫兼容 / 建号通道）+ `handlers/auth/membership_switch_closure_test.go` 端到端（建号→登录→分配→切换权限非空且与 home 独立→撤销后切换被拒）。回归：`./service ./middleware ./handlers/auth ./handlers/user ./router` 全绿（另修复 P2 提交漏跑 `authz-gen` 的生成物过期，独立提交 `bb7dc1f7`）。偏差：① source 由计划文本的 platform 修正为 `home`（对齐既有语义）；② 分配角色映射按回填口径（见 MSW-Q5）；③ 撤销的缓存失效 / 在途 refresh 联动仍归 M2（本批测试内显式失效缓存验证 fail-closed 底层语义）。
 
 ### M2 授权判定归一 + 撤销联动
 
@@ -192,6 +193,7 @@
 | MSW-Q2 | 客户侧成员列表是否展示服务方成员？ | A. 不展示；B. 只读展示（标注"服务方"）；C. 可管理 | B |
 | MSW-Q3 | 撤销映射的令牌处理？ | A. 立即吊销 refresh；B. 宽限至 access 过期（≤15min） | A（安全优先；如需宽限须登记） |
 | MSW-Q4 | "返回工作台"语义？ | A. 切回 provider 作用域；B. 仅导航 | **已决 A**（V3 已查明：仅导航时 `/msp/workbench/*` 必 403） |
+| MSW-Q5 | 分配角色映射口径：目标架构 §5.3（primary→`msp_manager`）vs 20260504 回填/实现（primary/backup→`msp_tech`） | A. 维持回填口径（最小权限）；B. 改按 §5.3；C. 分阶段 | A（当前实现口径；如需 B 需评审客户租户权限面与存量数据迁移） |
 
 ## 8. 审查记录
 
@@ -221,3 +223,4 @@
 |---|---|---|
 | v0.1 | 2026-10-07 | 首版：提案映射（§1）、现状核对 S1–S6 / MSW-1–6 / 待核 V1–V5（§2）、目标模型与边界决策表（§3）、批次 M1–M4（§4）、验收/风险/待决（§5–§7） |
 | v0.2 | 2026-10-07 | **独立审查修订（F-01–F-13 全处置，判定 ready-to-implement）**：M1 `account_kind` 口径改按账号类型（blocker）；MSW-1/3/5 按代码重写（写入点清单、无撤销面、真实双源）；切换失败审计口径修正 + M2 补全分支；M2 增补撤销面与账号停用校验；MSW-4 回填 V3 结论（403）并定 Q4=A；A1/A3/A4/A6 判据具体化；§2.3 回填 V1–V5 结论；新增 §8 审查记录 |
+| v0.3 | 2026-10-07 | **M1 实施回填**：membership 写路径闭环落地（建号 `source=home` / 分配与撤销 / bootstrap 自动分配 + 审计 + 测试全绿）；source 由 platform 修正为 home；新增 MSW-Q5（分配角色映射口径差）；M1 实施记录入 §4 |
