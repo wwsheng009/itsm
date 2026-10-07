@@ -31,6 +31,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **前端复用收敛 #2：工单列表壳（`TicketListShell`）** — 抽取共享列表壳：antd Table 默认项（rowKey/loading/scroll/size/弹层容器）、空态文案、错误态（Alert + 重试）、行点击守卫（自动忽略按钮/链接/下拉/勾选区域）、页码分页透传与游标「加载更多」页脚；工作台平铺/分组/空组视图与客户侧 `TicketList` 改接同一壳——列定义、选择态、筛选、行内操作与数据获取仍由调用方注入。行为差异：工作台平铺视图的「加载更多」页脚由壳渲染（分组视图保留页级按钮）。测试：新增 `TicketListShell` 用例 4 例 + 相关 4 套件 20 用例全绿；`tsc --noEmit`/eslint 0；浏览器实测 `/tickets` 与 `/msp/workbench`（平铺/分组）正常渲染、无新增控制台错误。
+
 - **前端复用收敛 #1 收尾：评论条目渲染单源（`CommentItemBody`）** — 从 `TicketCommentTimeline` 抽取评论条目通用渲染件（身份行/侧标签/内部标签/时间/已编辑标记/正文 + 头像/附加标签/底部/操作四槽位），工作台只读时间线与客户侧 `CommentPanel`（工单/事件详情 Tab）共用同一渲染源；客户侧头像、@提及计数、附件列表、编辑/删除按钮与编辑态经槽位注入，交互与 i18n 不变（`Paragraph` 内联渲染收敛到共享件）。测试：新增 `CommentItemBody` 用例（槽位/缺省标签/未知用户回退）+ 相关 7 套件 35 用例全绿（工作台/时间线/detail-tabs/TicketDetail）；`tsc --noEmit`/eslint 0；方案 v0.8 与 §13.1 状态同步。
 
 - **单据流转 P2 评论只读面（XFD8）+ 前端复用收敛首件** — ①后端新增 `GET /api/v1/msp/tickets/:id/comments?customerTenantId=NN`（`MSPWorkbenchService.ListTicketComments`）：授权链与详情同口径（声明租户绑定 RLS + 资源租户一致性 + allocation 二次校验），可见性遵循 XFD8——公开评论双向互通（客户/服务商作者同一评论流），客户内部备注（`is_internal=true`）一律不下发；作者名与归属按客户/provider 双作用域解析（`authorSide`）；时间正序 + `total` 全量计数 + limit（默认 200/上限 500）。②前端：工作台详情抽屉新增「评论（只读）」区（与详情解耦加载、失败仅降级区块）；首个共享渲染件 `components/business/TicketCommentTimeline.tsx`（纯展示、无写入口、缺省作者侧标签 → 客户侧可复用）。③测试：服务层 `TestWorkbenchTicketComments`（公开/内部隔离/正序/limit/负例三连）+ A11/A12 路由级 e2e 评论断言（内部备注不下发）+ 前端 3 套件 16 用例（API 契约/组件/页面）全绿；`tsc --noEmit`/eslint 0。④方案 §13.1 新增「前端复用收敛清单」（授权与数据获取层刻意不收敛，呈现层共享）。

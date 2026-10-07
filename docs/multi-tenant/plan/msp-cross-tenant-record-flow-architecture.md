@@ -634,7 +634,7 @@ cancelled   → 终态（禁止转换）
 | # | 复用件 | 现状 | 抽取目标 | 状态 |
 |---|---|---|---|---|
 | 1 | 评论条目渲染单源 `components/business/CommentItemBody.tsx`（只读时间线 `TicketCommentTimeline` 底层复用） | 工作台详情抽屉 + 客户侧 `CommentPanel`（工单/事件详情 Tab）均已接入 | 客户侧头像/@提及/附件/编辑删除经槽位注入（交互与 i18n 不变） | ✅ 已完成（2026-10-07） |
-| 2 | 工单列表壳（表格 + 游标分页 + 空态/错误态 + 列配置） | 工作台与 `/tickets` 各自维护 | 抽 `TicketListShell`：列定义/行操作/数据源由调用方注入 | 待做 |
+| 2 | 工单列表壳 `components/business/TicketListShell.tsx` | 工作台（平铺/分组）+ 客户侧 `TicketList` 均已接入 | 列/选择/筛选/数据源由调用方注入；页码分页透传 + 游标「加载更多」；错误态 + 重试 + 行点击守卫 | ✅ 已完成（2026-10-07） |
 | 3 | 状态/优先级标签映射 | 两处各自维护 `STATUS_LABEL`/`PRIORITY_LABEL` | 抽 `ticket-labels.ts` 单源（含颜色） | 待做 |
 | 4 | 筛选条（状态/优先级/处理人/关键词 + URL 同步） | 两处形态不同 | 抽筛选 DSL + URL 同步 hook（跨租户附加客户维度） | 待做 |
 | 5 | 详情只读投影（Descriptions 区块） | 工作台抽屉自有 | 与客户侧详情共享"只读字段渲染"（字段清单由调用方给定） | 待做 |
@@ -701,3 +701,4 @@ cancelled   → 终态（禁止转换）
 | v0.6 | 2026-10-07 | **P2 首批落地（通知深链）**：provider 侧双投递 `Notification.action_url` 由 `/msp/workbench` 升级为条目深链 `/msp/workbench?ticket=<id>&customerTenantId=<tid>`（非事务/Tx 两路径同源）；**修复存量缺陷**：双投递未重绑 provider 上下文，被写路径租户守卫拦截（客户 ctx 写 provider 行 → `cross-tenant insert blocked`，provider 侧通知实际未落库）——现按 `tenantctx.WithTenantID(ctx, provider)` 重绑后再查询/写入（联调实测修复）；前端铃铛 `NotificationDrawer` 点击按 `actionUrl` 直达（仅站内路径），工作台按深链参数自动打开详情抽屉（参数不参与列表过滤键）；测试：双投递守卫在线校验 + 深链断言 + A12 路由 e2e 断言 + 工作台深链用例；**浏览器实测**：打开深链自动弹出 #224 详情抽屉（字段 + 动作可用性完整）。剩余：评论/时间线只读面、`ticket-api` 头通道、流程驱动路由 |
 | v0.7 | 2026-10-07 | **P2 评论只读面 + 前端复用收敛决策**：新增 `GET /api/v1/msp/tickets/:id/comments`（XFD8：公开评论双向互通、客户内部备注不下发；声明租户 + allocation 双重校验；作者名/归属按客户/provider 双作用域解析；时间正序 + total + limit）；工作台详情抽屉评论只读区（与详情解耦、失败仅降级区块）；首个共享渲染件 `TicketCommentTimeline`（纯展示、无写入口、缺省作者侧标签 → 客户侧可复用）；新增 §13.1 前端复用收敛清单（呈现层共享；授权/数据获取/写路径刻意不收敛）。测试：服务层评论用例 + A11/A12 路由 e2e 评论断言 + 前端 3 套件 16 用例 |
 | v0.8 | 2026-10-07 | **前端复用收敛 #1 收尾（评论条目渲染单源）**：抽取 `CommentItemBody`（身份行/侧标签/内部标签/时间/已编辑标记/正文 + 头像/附加标签/底部/操作四槽位），`TicketCommentTimeline`（工作台只读）与客户侧 `CommentPanel`（工单/事件详情 Tab）共用同一渲染源；客户侧头像、@提及、附件、编辑/删除与编辑态经槽位注入，交互与 i18n 不变。测试：新增 `CommentItemBody` 用例 + 7 套件 35 用例全绿；`tsc --noEmit`/eslint 0 |
+| v0.9 | 2026-10-07 | **前端复用收敛 #2（工单列表壳）**：抽取 `TicketListShell`（antd Table 默认项/空态/错误态+重试/行点击守卫/分页透传 + 游标「加载更多」页脚）；工作台平铺、分组与空组视图改接壳（平铺页脚迁入壳内，分组保留页级游标按钮），客户侧 `TicketList` 接入（页码分页/onChange/键盘导航/行悬停高亮/弹层容器透传不变）。测试：新增壳用例 4 例 + 工作台/评论件 4 套件 20 用例全绿；`tsc --noEmit`/eslint 0；浏览器实测 `/tickets` 与 `/msp/workbench`（平铺/分组）渲染正常、无新增控制台错误 |

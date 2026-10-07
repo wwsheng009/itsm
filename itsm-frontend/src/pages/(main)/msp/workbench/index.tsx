@@ -24,7 +24,6 @@ import {
   Select,
   Space,
   Spin,
-  Table,
   Tag,
   Tooltip,
   Typography,
@@ -33,6 +32,7 @@ import {
 import type { TableColumnsType } from 'antd';
 import { RefreshCw } from 'lucide-react';
 import { DESIGN } from '@/design-system/tokens';
+import TicketListShell from '@/components/business/TicketListShell';
 import {
   MAX_BATCH_ITEMS,
   CUSTOMER_TENANT_IDS_PARAM,
@@ -935,45 +935,33 @@ export default function MSPWorkbenchPage() {
         </Card>
       )}
 
-      {error && (
-        <Alert
-          type="error"
-          showIcon
-          message={error}
-          style={{ marginBottom: 16 }}
-          action={
-            <Button size="small" onClick={() => void loadFirstPage()}>
-              重试
-            </Button>
-          }
-        />
-      )}
-
       {viewMode === 'flat' ? (
-        <Table<WorkbenchTicketItem>
-          rowKey="id"
+        <TicketListShell<WorkbenchTicketItem>
+          testId="workbench-flat-list"
           rowSelection={rowSelection}
           columns={columns}
           dataSource={tickets}
           loading={loading}
-          pagination={false}
+          error={error}
+          onRetry={() => void loadFirstPage()}
           scroll={{ x: 1280 }}
-          locale={{ emptyText: '当前过滤条件下暂无工单' }}
-          onRow={record => ({
-            onClick: event => {
-              const target = event.target as HTMLElement;
-              if (target.closest('button,a,.ant-dropdown-trigger,.ant-checkbox-wrapper')) return;
-              void openDetail(record);
-            },
-          })}
+          emptyText="当前过滤条件下暂无工单"
+          onRowClick={record => void openDetail(record)}
+          cursor={{
+            hasMore: !!nextCursor,
+            loading: loadingMore,
+            onLoadMore: () => void loadMore(),
+            testId: 'workbench-load-more',
+          }}
         />
       ) : groups.length === 0 ? (
-        <Table<WorkbenchTicketItem>
+        <TicketListShell<WorkbenchTicketItem>
           columns={groupColumns}
           dataSource={[]}
           loading={loading}
-          pagination={false}
-          locale={{ emptyText: '当前过滤条件下暂无工单' }}
+          error={error}
+          onRetry={() => void loadFirstPage()}
+          emptyText="当前过滤条件下暂无工单"
         />
       ) : (
         <div data-testid="workbench-group-view">
@@ -1002,21 +990,13 @@ export default function MSPWorkbenchPage() {
               ),
               children: (
                 <div data-testid={`group-body-${group.key}`}>
-                  <Table<WorkbenchTicketItem>
-                    rowKey="id"
+                  <TicketListShell<WorkbenchTicketItem>
                     rowSelection={rowSelection}
                     columns={groupColumns}
                     dataSource={group.items}
-                    pagination={false}
                     size="small"
                     scroll={{ x: 1120 }}
-                    onRow={record => ({
-                      onClick: event => {
-                        const target = event.target as HTMLElement;
-                        if (target.closest('button,a,.ant-dropdown-trigger,.ant-checkbox-wrapper')) return;
-                        void openDetail(record);
-                      },
-                    })}
+                    onRowClick={record => void openDetail(record)}
                   />
                 </div>
               ),
@@ -1025,7 +1005,7 @@ export default function MSPWorkbenchPage() {
         </div>
       )}
 
-      {nextCursor && (
+      {viewMode !== 'flat' && nextCursor && (
         <div style={{ textAlign: 'center', marginTop: 16 }}>
           <Button
             onClick={() => void loadMore()}

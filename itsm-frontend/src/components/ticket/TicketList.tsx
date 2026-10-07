@@ -2,13 +2,14 @@ import { useNavigate } from 'react-router';
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { Dayjs } from 'dayjs';
-import { App, Card, Divider, Table } from 'antd';
+import { App, Card, Divider } from 'antd';
 import type { FilterValue, TablePaginationConfig, SorterResult, TableCurrentDataSource } from 'antd/es/table/interface';
 import type { TableProps } from 'antd/es/table';
 import dayjs from 'dayjs';
 
 import { TicketApi } from '@/lib/api/ticket-api';
 import type { Ticket } from '@/lib/api/types';
+import TicketListShell from '@/components/business/TicketListShell';
 import { useTickets } from '@/lib/hooks/useTickets';
 import type { TicketQueryFilters } from '@/lib/hooks/useTickets';
 import { useRowSelection } from '@/lib/hooks/useRowSelection';
@@ -337,10 +338,9 @@ const TicketList: React.FC<TicketListProps> = ({
           <kbd className='mx-1 rounded border bg-gray-50 px-1.5'>k</kbd> 导航，
           <kbd className='mx-1 rounded border bg-gray-50 px-1.5'>o</kbd> 打开
         </div>
-        <Table<Ticket>
+        <TicketListShell<Ticket>
           columns={columns}
           dataSource={tickets}
-          rowKey='id'
           rowSelection={embedded ? undefined : rowSelection}
           loading={loading}
           pagination={{
