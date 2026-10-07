@@ -180,6 +180,7 @@ export const TicketTypeFormModal: React.FC<TicketTypeFormModalProps> = ({
         slaEnabled: editingType.slaEnabled,
         defaultSlaId: editingType.defaultSlaId,
         autoAssignEnabled: editingType.autoAssignEnabled,
+        mspRouteEnabled: editingType.mspRouteEnabled,
         categoryId: editingType.categoryId,
         defaultPriority: editingType.defaultPriority,
         sortOrder: editingType.sortOrder,
@@ -380,6 +381,7 @@ export const TicketTypeFormModal: React.FC<TicketTypeFormModalProps> = ({
           sortOrder: 0,
           slaEnabled: false,
           autoAssignEnabled: false,
+          mspRouteEnabled: false,
         }}
       >
         <Tabs
@@ -884,6 +886,15 @@ export const TicketTypeFormModal: React.FC<TicketTypeFormModalProps> = ({
                     label={t('ticketTypeForm.enableAutoAssign')}
                     name="autoAssignEnabled"
                     valuePropName="checked"
+                  >
+                    <Switch />
+                  </Form.Item>
+
+                  <Form.Item
+                    label={t('ticketTypeForm.enableMspRoute')}
+                    name="mspRouteEnabled"
+                    valuePropName="checked"
+                    tooltip={t('ticketTypeForm.mspRouteHint')}
                   >
                     <Switch />
                   </Form.Item>

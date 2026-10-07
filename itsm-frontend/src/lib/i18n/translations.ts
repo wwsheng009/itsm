@@ -2916,6 +2916,8 @@ export const translations = {
       selectDefaultSla: '请选择默认 SLA',
       enableAutoAssign: '启用自动分派',
       autoAssignHint: '根据技能匹配与工作量自动分派工单',
+      enableMspRoute: '服务商跨租户路由',
+      mspRouteHint: '开启后，该类型的工单在托管客户租户建单时标记路由，进入服务商工作台（routedOnly 过滤）',
       addAssignmentRule: '新增分派规则',
     },
     sla: {
@@ -7973,6 +7975,8 @@ export const translations = {
       selectDefaultSla: 'Please select default SLA',
       enableAutoAssign: 'Enable auto assignment',
       autoAssignHint: 'Auto-assign tickets by skill match and workload',
+      enableMspRoute: 'Cross-tenant MSP routing',
+      mspRouteHint: 'When enabled, tickets of this type are marked as routed for managed customer tenants and appear in the MSP workbench (routedOnly filter)',
       addAssignmentRule: 'Add assignment rule',
     },
     sla: {

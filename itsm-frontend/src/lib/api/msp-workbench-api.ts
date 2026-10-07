@@ -197,6 +197,46 @@ export async function listWorkbenchTickets(
   );
 }
 
+// ==================== 跨租户详情（GET /api/v1/msp/tickets/:id，P1） ====================
+
+/** 详情投影（后端 dto.WorkbenchTicketDetailResponse；动作可用性只读消费 allowedActions）。 */
+export interface WorkbenchTicketDetail {
+  id: number;
+  customerTenantId: number;
+  customerName: string;
+  ticketNumber: string;
+  title: string;
+  description: string;
+  status: string;
+  priority: string;
+  type?: string;
+  typeName?: string;
+  requesterId?: number;
+  requesterName?: string;
+  assigneeId?: number;
+  assigneeName?: string;
+  createdAt: string;
+  updatedAt: string;
+  slaDeadline?: string;
+  isManagedByMsp: boolean;
+  allowedActions: WorkbenchAllowedAction[];
+}
+
+/**
+ * GET /api/v1/msp/tickets/:id?customerTenantId=NN —— 跨租户工单详情。
+ * 声明租户必填：服务端以声明租户绑定 RLS 并二次校验 allocation（与写路径同源）。
+ */
+export async function getWorkbenchTicket(
+  ticketId: number,
+  customerTenantId: number
+): Promise<WorkbenchTicketDetail> {
+  const params = new URLSearchParams();
+  params.set('customerTenantId', String(customerTenantId));
+  return httpClient.get<WorkbenchTicketDetail>(
+    `/api/v1/msp/tickets/${ticketId}?${params.toString()}`
+  );
+}
+
 export interface WorkbenchReplyBody {
   customerTenantId: number;
   content: string;

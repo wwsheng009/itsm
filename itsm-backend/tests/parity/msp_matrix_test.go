@@ -86,3 +86,56 @@ func TestRoleRankSingleSource(t *testing.T) {
 			middleware.RoleRank("msp_manager"), middleware.RoleRank("agent"))
 	}
 }
+
+// TestProviderTenantAdminParity 组合角色三处单一源（2026-10-06 / 07:G11）：
+// seeder 角色种子 = authz 词表 = middleware 硬编码兜底（= admin ∪ msp_admin）。
+func TestProviderTenantAdminParity(t *testing.T) {
+	const role = "provider_tenant_admin"
+
+	seeded := false
+	for _, r := range seeder.BuiltinRoles() {
+		if r.Code == role {
+			seeded = true
+		}
+	}
+	if !seeded {
+		t.Fatalf("seeder.BuiltinRoles 缺少 %s：常规 seed 不会创建该角色行", role)
+	}
+
+	authzCodes := map[string]bool{}
+	for _, c := range authz.BuiltinRolePermissionCodes()[role] {
+		authzCodes[c] = true
+	}
+	if len(authzCodes) == 0 {
+		t.Fatalf("authz 词表缺少 %s：role_permissions 无法生成", role)
+	}
+
+	hardcoded := map[string]bool{}
+	for _, p := range middleware.RolePermissions[role] {
+		hardcoded[p.Resource+":"+p.Action] = true
+	}
+	if len(hardcoded) == 0 {
+		t.Fatalf("middleware.RolePermissions 缺少 %s（硬编码兜底矩阵被破坏）", role)
+	}
+	// 兜底矩阵必须覆盖两个源角色的每一对 (resource,action)。
+	for _, src := range []string{"admin", "msp_admin"} {
+		for _, p := range middleware.RolePermissions[src] {
+			pair := p.Resource + ":" + p.Action
+			if !hardcoded[pair] {
+				t.Errorf("%s 硬编码兜底缺少 %s 的 (%s, %s)", role, src, p.Resource, p.Action)
+			}
+		}
+	}
+	// authz 词表必须覆盖兜底矩阵展开后的每个码（`*` 展开为 read/write）。
+	for _, p := range middleware.RolePermissions[role] {
+		if p.Action == "*" {
+			if !authzCodes[p.Resource+":read"] || !authzCodes[p.Resource+":write"] {
+				t.Errorf("%s authz 词表缺少 %s:* 展开码", role, p.Resource)
+			}
+			continue
+		}
+		if !authzCodes[p.Resource+":"+p.Action] {
+			t.Errorf("%s authz 词表缺少 %s:%s", role, p.Resource, p.Action)
+		}
+	}
+}

@@ -15,6 +15,7 @@ import (
 	"itsm-backend/ent/tenant"
 	"itsm-backend/ent/user"
 	"itsm-backend/pkg/bootstrap"
+	"itsm-backend/pkg/tenantmode"
 
 	"go.uber.org/zap"
 )
@@ -124,6 +125,12 @@ func (s *TenantProvisioningService) Provision(ctx context.Context, tenantID int,
 	if err := s.provisioner.ProvisionTenant(sysCtx, tenantID, templateVersion); err != nil {
 		return nil, fmt.Errorf("provision tenant %d: %w", tenantID, err)
 	}
+	// 客户租户供给完成后：幂等补齐 provider 首管的 primary allocation（首体验防断点）。
+	if created, allocErr := EnsureBootstrapAllocationsForCustomer(sysCtx, s.client, s.logger, true, tenantID); allocErr != nil {
+		s.logger.Warnw("ensure bootstrap allocations after provision failed", "tenant_id", tenantID, "error", allocErr)
+	} else if created > 0 {
+		s.logger.Infow("bootstrap allocations created after provision", "tenant_id", tenantID, "created", created)
+	}
 	return s.readiness(sysCtx, tenantID)
 }
 
@@ -199,6 +206,15 @@ func (s *TenantProvisioningService) CreateBootstrapAdmin(ctx context.Context, te
 	}
 	s.logger.Infow("tenant bootstrap admin created via http",
 		"tenant_id", tenantID, "user_id", record.ID, "username", record.Username, "generated", generated)
+	// provider 首管：幂等补齐其存量客户的 primary allocation（客户首管不涉及 MSP 分配）。
+	if tn, tErr := s.client.Tenant.Query().Where(tenant.IDEQ(tenantID)).Only(sysCtx); tErr == nil && tn != nil &&
+		tenantmode.IsMSPProviderTenantType(string(tn.Type)) {
+		if created, allocErr := EnsureBootstrapAllocationsForProvider(sysCtx, s.client, s.logger, true, tenantID); allocErr != nil {
+			s.logger.Warnw("ensure bootstrap allocations after admin creation failed", "tenant_id", tenantID, "error", allocErr)
+		} else if created > 0 {
+			s.logger.Infow("bootstrap allocations created after admin creation", "tenant_id", tenantID, "created", created)
+		}
+	}
 	return resp, nil
 }
 

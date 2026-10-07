@@ -8,7 +8,9 @@
 
 > **复核（2026-09-30）**：G1–G10 的承接工作流见[实施方案 §3.0-F](./plan/msp-implementation-plan.md)。G8 优先级上调为 **P0**（并入 `IP-P0-2` 缓存审查）；G1/G3/G8 在 P0 关闭；**G9 的 P0 关闭（IP-P0-6）经 2026-09-30 复核未生效（JWT 已锁定时 Header 被跳过），已由 IP-P1-8 真正关闭**（401 + `tenant.probe_denied` 落库审计，见 §10 实现复核）；G2/G4/G5/G6 在 P1 关闭，G7 接受现状（P2 提升为通用约定），G10 文档/脚本已规避（P0 收尾）。
 
-> **编号（2026-09-29 一致性整改）**：本页 `G1–G10` 是**生产实测缺口**的唯一 G 空间；canon §7.3 的能力供给缺口已更名 `K1–K5`；工作台规则已更名 `WB1–WB6`。跨文档引用本页写作 `07:G4`（注册表见 canon 附录 C）。
+> **新增（2026-10-06）**：**G11 · provider 首管只绑纯 MSP 角色（自身 ITSM 面不可见）** 已关闭（组合角色 `provider_tenant_admin` + 首管策略改绑 + `cmd/backfill_provider_admin` 存量回填，见 §12）。
+
+> **编号（2026-09-29 一致性整改）**：本页 `G1–G11` 是**生产实测缺口**的唯一 G 空间；canon §7.3 的能力供给缺口已更名 `K1–K5`；工作台规则已更名 `WB1–WB6`。跨文档引用本页写作 `07:G4`（注册表见 canon 附录 C）。
 
 ## 1. 缺口清单（按影响排序）
 
@@ -24,6 +26,7 @@
 | G8 | 缓存 key 无租户维度 | 多客户场景存在串数据风险 | **✅ 已审查并关闭（2026-09-30）** | 逐 key 审查完成：租户分区缓存/序列均含 `tenant_id`；全局编号序列登记豁免（见 §9）；承接 `IP-P0-2` 步骤 6 | **P0** |
 | G9 | `X-Tenant-Code` 与 JWT 冲突被静默忽略 | 调用方误以为切换了租户；无冲突告警，排障困难（不越权） | 依赖 JWT 租户；探针按实测标注 | Header 与 JWT 冲突时返回 401/400 并记录告警（§10）；**→ ✅ 真正关闭（2026-09-30 复核 + IP-P1-8 v1.29）**：IP-P0-6 声明的关闭未生效（JWT 已锁定时 Header 被跳过，冲突分支不可达）；现为 401 + `reasonCode=TENANT_MISMATCH_REJECTED` + `tenant.probe_denied` 落库审计（一致时正常放行） | P2 |
 | G10 | snap 版 docker 下宿主 `/tmp` 对守护进程不可见 | `docker cp` 静默复制旧文件；`docker run -v /tmp/...` 产物"写丢"，构建/供给莫名失败 | 产物与暂存目录放 `$HOME` 非隐藏目录 + sha256 校验（§11） | 文档/脚本固化路径约定；容器化部署优先用 bind 到 `$HOME` 或非 snap docker | P1 |
+| G11 | provider 首管只绑纯 MSP 角色，自身 ITSM 面不可见 | 服务商租户管理员登录后只见 4+1 个 MSP 菜单（工单/事件/变更/SLA/知识库/CMDB 全被权限过滤），与 canon §2.1「provider 同时是普通 ITSM 租户」冲突 | 无（权限驱动菜单按 membership 角色收敛，无提示） | 新增组合角色 `provider_tenant_admin`（= `admin` ∪ `msp_admin`）+ 首管策略改绑 + `cmd/backfill_provider_admin` 回填存量（§12）；**→ ✅ 已关闭（2026-10-06）** | P1 |
 
 ## 2. G1 · 跨租户创建用户被 tenant guard 拦截
 
@@ -181,7 +184,30 @@
 
 **验收标准**：在 snap docker 环境下按文档路径执行构建与注入，容器内文件与宿主 sha256 一致；文档不再出现"把二进制/构建产物放 `/tmp` 再 docker cp/-v"的指引。
 
-## 12. 与 ADR-004 行动项的关系
+## 12. G11 · provider 首管只绑纯 MSP 角色（自身 ITSM 面不可见）
+
+**现象（2026-10-06 反馈 + 实测）**：`msp_provider` 租户首管登录后左侧只有 5 个菜单（服务台 + 客户管理 + 跨客户工作台 + 分配管理 + 审计看板）；租户内工单/事件/变更/SLA/知识库/CMDB 等菜单全部不可见，使用者提出"作为 msp_provider 租户怎么只有 4 个功能，如何承接业务功能"。
+
+**根因**：菜单按权限过滤（`service/menu_service.go`），而 `pkg/bootstrap/admin.go` 的 provider 首管策略把租户内 RBAC 角色固定为纯 MSP 角色 `msp_admin`（权限仅 10 个 `msp_*` 码 + task 基线）；`admin` 角色虽含全量 ITSM 权限但只有 `msp:read`——**两角色权限矩阵不重叠**，单角色无法同时覆盖「自身 ITSM + 跨客户 MSP」，与 canon §2.1 provider 双重定位（自身普通 ITSM 租户 + 跨客户 MSP 运营方）冲突。
+
+**影响**：服务商租户无法在自有租户内开展内部 ITSM（自有工单/CMDB/知识/变更/服务目录）；且无任何提示说明如何获得这些菜单，造成"服务商只有 4 个功能"的产品误解。
+
+**修复（2026-10-06）**：
+
+1. 新增租户内组合角色 `provider_tenant_admin`（名称「服务商租户管理员」）：权限 = `admin` ∪ `msp_admin` 并集，由 `internal/authz.BuiltinRolePermissionCodes()` 显式派生（继承 task 基线/同义补齐/admin 显式补齐，避免双份清单漂移；不含平台通配符）；
+2. `pkg/bootstrap` provider 首管策略改绑该角色（`RBACRoleCode`）；账号仍 `users.role=admin` + `users.msp_role=provider_admin`，membership 仍记 `msp_role=msp_admin`；
+3. 三处单一源同步：`pkg/seeder.BuiltinRoles()` 角色种子、`middleware.RolePermissions` 硬编码兜底（`init` 派生 = admin ∪ msp_admin）、`RoleRank`（rank 4）与菜单提权名单（`isElevatedMenuRole`）；
+4. 存量租户回填：新增 `cmd/backfill_provider_admin`（幂等；dry-run 默认开启）——补角色行 + 权限并集 + 首管 membership 重绑 + `user_roles` 边 + 审计 `rbac.provider_tenant_admin_backfill`，并内置「首管可见菜单」探针（与 `/auth/menus` 同一服务）。
+
+**验收标准**：provider 租户首管可见菜单包含自身 ITSM 全量（工单/事件/问题/变更/知识库/CMDB/SLA/AI）与 MSP 四菜单；客户租户首管不受影响（仍 `admin`）；无平台通配符；回填幂等（复跑零变更）。
+
+**关闭记录（2026-10-06）**：代码 + 测试 + 回填 + 实测完成——
+
+- 回归：`go test ./internal/authz ./pkg/bootstrap ./tests/parity ./middleware ./pkg/seeder ./service ./handlers/user ./handlers/tenant` 全绿（新增组合角色并集 / 三源 parity / 首管策略 / 菜单提权 / MCP 兜底面用例）；
+- 存量回填实测：provider 租户 1/3/7/10 角色补齐，租户 7、10 首管 membership 重绑；幂等复跑 `perms_added=0, admins_rebound=0`；
+- 菜单实测（与 `/auth/menus` 同一服务）：demo01 首管 **42 主菜单 + 35 管理菜单**，`main_names` 含「工单管理/事件管理/问题管理/变更管理/知识库/CMDB/SLA 管理/AI 助手」与「客户管理/跨客户工作台/分配管理/审计看板」双面。
+
+## 13. 与 ADR-004 行动项的关系
 
 | 本页缺口 | ADR-004 行动项 | 状态 |
 |---|---|---|
@@ -192,9 +218,11 @@
 | G8 | A8（缓存租户维度） | **P0**；承接 `IP-P0-2` 步骤 6（2026-09-30 上调） |
 | G9 | A10（隔离回归） | ✅ 已关闭（IP-P1-8 v1.29；IP-P0-6 漏覆盖 header 冲突路径，复核后修复并落审计） |
 | G10 | 部署/工具链（非 ADR 行动项） | 已文档化 + sha256 校验；P0 收尾（随 `IP-P0-1` 自检复核） |
+| G11 | 非 ADR-004 行动项（canon §2.1 provider 双重定位的落地缺口） | **✅ 已关闭（2026-10-06）**：组合角色 + 首管策略 + 存量回填 |
 
-## 13. 证据索引
+## 14. 证据索引
 
 - 脚本与复现步骤：[02 文档 §10](./02-deployment-and-configuration.md)、[06 文档 §7](./06-verification-and-troubleshooting.md)；
 - 代码位置：`middleware/tenant.go`、`middleware/msp_middleware.go`、`handlers/user/handler.go:516`、`pkg/seeder/tenant_provisioner.go:27-43`、`cmd/initialize`、`cmd/provision_tenant/main.go`；
+- G11 代码位置：`internal/authz/roles.go`（组合角色派生）、`pkg/bootstrap/admin.go`（首管策略）、`pkg/seeder/seeder.go`（角色种子）、`middleware/rbac.go`（兜底 + rank）、`service/menu_service.go`（提权名单）、`cmd/backfill_provider_admin/main.go`（存量回填）；
 - 生产实测数据：租户 3/4/5 供给计数、`msp_allocations` 三条分配、隔离性探针输出（06 文档 §7）。

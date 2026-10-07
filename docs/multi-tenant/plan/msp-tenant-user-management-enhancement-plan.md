@@ -1,6 +1,6 @@
 # 平台侧租户用户管理增强方案（/admin/tenants · 跨租户账号治理）
 
-> 状态：**v0.8（TUM-1–TUM-7 收口 + 路由器级 API e2e 实跑；联调实例补强可选）**｜日期：2026-10-05｜基准：仓库 HEAD `eada0235`（TUM-6/7 后）
+> 状态：**v0.9（TUM-4 抽屉布局优化：身份优先列布局 + 断点自适应）**｜日期：2026-10-06｜基准：仓库 HEAD `eada0235`（TUM-6/7 后）
 > 上位：[canon v1.0](./msp-concept-model-and-architecture-canon.md)（canon D5/D8/D11、附录 C）→ [目标架构](./msp-target-architecture.md)（§6 权限矩阵/建号）→ [实施方案](./msp-implementation-plan.md)（IP-P0-5 建号通道、IP-P2-6 硬配额）
 > 定位：**L4 方案**（局部编号 `TUM-#`，跨文档引用必须带前缀）。范围：平台管理员在租户治理页（`/admin/tenants`）对**任意租户**用户的查看与账号治理（重置密码 / 启用停用 / 强制下线 / 审计）；不含 MSP 服务商面工作台（其可复用同一服务能力，另行接线）。
 
@@ -120,7 +120,7 @@
 |---|---|---|---|
 | TUM-D1 | 平台面判定 | 路由权限 `tenant:write` 仅作粗筛；**服务层必须叠加 `role == super_admin`**，不满足 → 403 `PLATFORM_SCOPE_REQUIRED` | `tenant:write` 租户管理员同样持有（`internal/authz/roles.go:243`），仅凭它无法区分平台面；沿用 2026-10-05 修复范式 |
 | TUM-D2 | 服务归属 | 新建 `TenantUserAdminService`（读 + 账号治理），复用 `tenantctx` 旁路与 `mspguard` 校验；**不并入** `UserProvisioningService`（建号 vs 治理的审计语义不同） | 职责分离；旁路入口仍保持「每类动作单一 service 入口」 |
-| TUM-D3 | 灰度开关 | 新增 `TENANT_USER_ADMIN_ENABLED`（默认 `false`），与 `USER_PROVISIONING_CHANNELS_ENABLED` 独立；读列表随路由上线（仍受 TUM-D1 判定） | 独立回滚；避免与建号灰度耦合 |
+| TUM-D3 | 灰度开关 | 新增 `TENANT_USER_ADMIN_ENABLED`（默认 `false`），与 `USER_PROVISIONING_CHANNELS_ENABLED` 独立；读列表随路由上线（仍受 TUM-D1 判定）；**修订（v0.10）：首管（`is_bootstrap_admin`）重置密码拆为兜底恢复通道、默认可用（不受开关约束），防「唯一管理员口令丢失 → 租户锁死」；服务器侧兜底 `cmd/reset_password`** | 独立回滚；避免与建号灰度耦合；首管恢复通道保留（仅重置，不含启停/强退） |
 | TUM-D4 | 重置默认模式 | 默认「一次性口令 + 强制改密」（`mode=generated`）；「指定新密码」为次选（`mode=specified`）；两者都触发会话双吊销 | 安全优先；与首管一次性口令基线一致 |
 | TUM-D5 | 停用护栏 | 硬约束：**目标租户最后一个可用管理员不可停用**（409 `LAST_ADMIN_PROTECTED`）；`default` 平台租户额外要求 `confirmCode=default`；禁止停用调用者自身 | 防呆：避免租户管理面锁死；平台根租户是全局兜底 |
 | TUM-D6 | 会话吊销范围（原 Q1） | **access + refresh 双吊销**。access 复用按用户 `minIssuedAt`（`InvalidateUserAccessTokens`，`middleware/token_revocation.go:67-72`）；refresh 在同一 revocation store 扩展**按用户最低签发时间**（`refresh:user_min_iat:<uid>`）并在 RefreshToken 路径校验；现有按 token 黑名单（`service/token_blacklist_service.go:75-131`）保留为轮换/切换防护。Redis 不可用时沿用现有内存降级（单实例语义），写入部署前提 | refresh 仅按 token 拉黑，无法覆盖「用户所有历史 refresh」；停用/重置必须全量断链，否则可用旧 refresh 续签绕过 |
@@ -226,10 +226,11 @@
 ### 4.1 入口与结构
 
 - 租户行操作新增 **「用户管理」**（`Users` 图标，与既有「建号」并列；`index.tsx:411-418` 同区域）；
-- 打开 `TenantUsersDrawer`（`itsm-frontend/src/pages/(main)/admin/tenants/components/TenantUsersDrawer.tsx`，宽 920）：
+- 打开 `TenantUsersDrawer`（`itsm-frontend/src/pages/(main)/admin/tenants/components/TenantUsersDrawer.tsx`，宽 1160/1080/960/100% 断点自适应）：
   - 头部：租户名称/编码/类型标签 + 用户总数；
   - 工具条：搜索框（300ms 防抖）、状态筛选、角色筛选、刷新；
-  - 表格列：用户名、姓名、邮箱、角色（Tag）、MSP 角色（Tag，可空）、部门、状态（Switch）、首登待改密（Badge）、创建时间、操作；
+  - 表格列（v0.9 身份优先布局）：**用户**（用户名固定左列 250px + 「首管」标记；姓名/邮箱为次级行，超长省略 + Tooltip 全文）、**角色**（主角色 Tag + MSP 角色次级 Tag）、**部门**、**状态**（Switch + 「待改密」徽标）、**创建时间**（紧凑到分钟）、**操作**（重置密码 / 强制下线，固定右列）；
+  - 表格 `tableLayout="fixed"` + `scroll.x=1024`：宽屏（≥1600）无横向滚动；窄屏用户名/操作列固定可见、中间列横向滚动；
   - 操作：重置密码、启用/停用（Popconfirm）、强制下线（P1）、批量选择条（P1）。
 
 ### 4.2 关键交互
@@ -419,3 +420,5 @@ bash scripts/docs-gate/check-multi-tenant-consistency.sh
 | v0.6 | 2026-10-05 | **TUM-5 离线落地 + C5 通知**：治理动作站内通知目标租户管理员（best-effort、不含口令）；S1–S3 闭环用例与通知用例；`scenarios/09` 浏览器剧本；API 通道验收脚本（TUM-A1–A8 + 反例，隔离租户）；live run-summary 待联调环境 |
 | v0.7 | 2026-10-05 | **TUM-6/TUM-7 收口**：实施方案新增 TUM 承接映射（§3.0-G / v1.71）；P2 评估纪要（删除/角色调整/导出均不做实现 + 触发条件，§10）；至此 TUM-1–TUM-7 全部收口（仅 TUM-5 live 部分待联调环境） |
 | v0.8 | 2026-10-05 | **路由器级 API e2e 落地（TUM-5 收口）**：新增 `router/tenant_user_admin_e2e_test.go`（全中间件链、ent/sqlite、无外部环境）——TUM-A1–A8 正向 + 反例（403/404/409×3/400）全绿；`./router` 全包回归绿；联调实例 run-summary/浏览器截图降级为可选补强 |
+| v0.9 | 2026-10-06 | **TUM-4 抽屉布局优化（反馈：用户名列过窄）**：原 10 列挤入 920px（用户名仅 78px、姓名/部门 29px）→ 身份优先布局（用户名固定左列 250px + 姓名/邮箱次级行；角色合并 MSP 角色；状态合并「待改密」；操作固定右列；紧凑时间），列数 10→6；抽屉宽 920→1160 断点自适应（1160/1080/960/100%）；`tableLayout="fixed"` + `scroll.x=1024`。证据：`tsc --noEmit`/eslint exit 0；`admin/tenants` 4 套件 24 用例全绿；浏览器实测（1486px：无横向滚动、用户列 254px；1101px：抽屉 960、固定列生效、中间列横向滚动） |
+| v0.10 | 2026-10-06 | **TUM-D3 修订：首管口令恢复默认可用 + CLI 兜底**：`ResetPassword` 对 `is_bootstrap_admin` 拆出窄通道——不受 `TENANT_USER_ADMIN_ENABLED` 约束（非首管仍 403 `TENANT_USER_ADMIN_DISABLED`；仍要求 `super_admin` 硬校验），审计在开关关闭时标注 `channel=bootstrap_recovery`；新增 `cmd/reset_password`（目标租户密码策略校验 + bcrypt + 会话双吊销尽力 + 审计 `user.admin_password_reset`/`cmd:reset_password`）；部署文档与场景 09 回填。证据：`go test -p 1 -gcflags=all=-c=1 ./service -run TestTenantUserAdmin` 全绿（新增 `TestTenantUserAdmin_ResetPassword_BootstrapRecovery`）；CLI 构建通过 |

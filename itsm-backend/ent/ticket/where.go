@@ -255,6 +255,11 @@ func MspTicketID(v string) predicate.Ticket {
 	return predicate.Ticket(sql.FieldEQ(FieldMspTicketID, v))
 }
 
+// MspRoutedAt applies equality check predicate on the "msp_routed_at" field. It's identical to MspRoutedAtEQ.
+func MspRoutedAt(v time.Time) predicate.Ticket {
+	return predicate.Ticket(sql.FieldEQ(FieldMspRoutedAt, v))
+}
+
 // DeletedAt applies equality check predicate on the "deleted_at" field. It's identical to DeletedAtEQ.
 func DeletedAt(v time.Time) predicate.Ticket {
 	return predicate.Ticket(sql.FieldEQ(FieldDeletedAt, v))
@@ -2438,6 +2443,56 @@ func MspTicketIDEqualFold(v string) predicate.Ticket {
 // MspTicketIDContainsFold applies the ContainsFold predicate on the "msp_ticket_id" field.
 func MspTicketIDContainsFold(v string) predicate.Ticket {
 	return predicate.Ticket(sql.FieldContainsFold(FieldMspTicketID, v))
+}
+
+// MspRoutedAtEQ applies the EQ predicate on the "msp_routed_at" field.
+func MspRoutedAtEQ(v time.Time) predicate.Ticket {
+	return predicate.Ticket(sql.FieldEQ(FieldMspRoutedAt, v))
+}
+
+// MspRoutedAtNEQ applies the NEQ predicate on the "msp_routed_at" field.
+func MspRoutedAtNEQ(v time.Time) predicate.Ticket {
+	return predicate.Ticket(sql.FieldNEQ(FieldMspRoutedAt, v))
+}
+
+// MspRoutedAtIn applies the In predicate on the "msp_routed_at" field.
+func MspRoutedAtIn(vs ...time.Time) predicate.Ticket {
+	return predicate.Ticket(sql.FieldIn(FieldMspRoutedAt, vs...))
+}
+
+// MspRoutedAtNotIn applies the NotIn predicate on the "msp_routed_at" field.
+func MspRoutedAtNotIn(vs ...time.Time) predicate.Ticket {
+	return predicate.Ticket(sql.FieldNotIn(FieldMspRoutedAt, vs...))
+}
+
+// MspRoutedAtGT applies the GT predicate on the "msp_routed_at" field.
+func MspRoutedAtGT(v time.Time) predicate.Ticket {
+	return predicate.Ticket(sql.FieldGT(FieldMspRoutedAt, v))
+}
+
+// MspRoutedAtGTE applies the GTE predicate on the "msp_routed_at" field.
+func MspRoutedAtGTE(v time.Time) predicate.Ticket {
+	return predicate.Ticket(sql.FieldGTE(FieldMspRoutedAt, v))
+}
+
+// MspRoutedAtLT applies the LT predicate on the "msp_routed_at" field.
+func MspRoutedAtLT(v time.Time) predicate.Ticket {
+	return predicate.Ticket(sql.FieldLT(FieldMspRoutedAt, v))
+}
+
+// MspRoutedAtLTE applies the LTE predicate on the "msp_routed_at" field.
+func MspRoutedAtLTE(v time.Time) predicate.Ticket {
+	return predicate.Ticket(sql.FieldLTE(FieldMspRoutedAt, v))
+}
+
+// MspRoutedAtIsNil applies the IsNil predicate on the "msp_routed_at" field.
+func MspRoutedAtIsNil() predicate.Ticket {
+	return predicate.Ticket(sql.FieldIsNull(FieldMspRoutedAt))
+}
+
+// MspRoutedAtNotNil applies the NotNil predicate on the "msp_routed_at" field.
+func MspRoutedAtNotNil() predicate.Ticket {
+	return predicate.Ticket(sql.FieldNotNull(FieldMspRoutedAt))
 }
 
 // DeletedAtEQ applies the EQ predicate on the "deleted_at" field.

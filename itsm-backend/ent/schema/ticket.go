@@ -139,6 +139,10 @@ func (Ticket) Fields() []ent.Field {
 		field.String("msp_ticket_id").
 			Comment("MSP工单ID(跨租户)").
 			Optional(),
+		field.Time("msp_routed_at").
+			Comment("服务商路由时间（类型级自动路由标记；nil=未路由，客户内闭环）").
+			Optional().
+			Nillable(),
 		field.Time("deleted_at").
 			Comment("删除时间").
 			Optional().

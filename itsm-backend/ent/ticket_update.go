@@ -840,6 +840,26 @@ func (_u *TicketUpdate) ClearMspTicketID() *TicketUpdate {
 	return _u
 }
 
+// SetMspRoutedAt sets the "msp_routed_at" field.
+func (_u *TicketUpdate) SetMspRoutedAt(v time.Time) *TicketUpdate {
+	_u.mutation.SetMspRoutedAt(v)
+	return _u
+}
+
+// SetNillableMspRoutedAt sets the "msp_routed_at" field if the given value is not nil.
+func (_u *TicketUpdate) SetNillableMspRoutedAt(v *time.Time) *TicketUpdate {
+	if v != nil {
+		_u.SetMspRoutedAt(*v)
+	}
+	return _u
+}
+
+// ClearMspRoutedAt clears the value of the "msp_routed_at" field.
+func (_u *TicketUpdate) ClearMspRoutedAt() *TicketUpdate {
+	_u.mutation.ClearMspRoutedAt()
+	return _u
+}
+
 // SetDeletedAt sets the "deleted_at" field.
 func (_u *TicketUpdate) SetDeletedAt(v time.Time) *TicketUpdate {
 	_u.mutation.SetDeletedAt(v)
@@ -1738,6 +1758,12 @@ func (_u *TicketUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 	}
 	if _u.mutation.MspTicketIDCleared() {
 		_spec.ClearField(ticket.FieldMspTicketID, field.TypeString)
+	}
+	if value, ok := _u.mutation.MspRoutedAt(); ok {
+		_spec.SetField(ticket.FieldMspRoutedAt, field.TypeTime, value)
+	}
+	if _u.mutation.MspRoutedAtCleared() {
+		_spec.ClearField(ticket.FieldMspRoutedAt, field.TypeTime)
 	}
 	if value, ok := _u.mutation.DeletedAt(); ok {
 		_spec.SetField(ticket.FieldDeletedAt, field.TypeTime, value)
@@ -3279,6 +3305,26 @@ func (_u *TicketUpdateOne) ClearMspTicketID() *TicketUpdateOne {
 	return _u
 }
 
+// SetMspRoutedAt sets the "msp_routed_at" field.
+func (_u *TicketUpdateOne) SetMspRoutedAt(v time.Time) *TicketUpdateOne {
+	_u.mutation.SetMspRoutedAt(v)
+	return _u
+}
+
+// SetNillableMspRoutedAt sets the "msp_routed_at" field if the given value is not nil.
+func (_u *TicketUpdateOne) SetNillableMspRoutedAt(v *time.Time) *TicketUpdateOne {
+	if v != nil {
+		_u.SetMspRoutedAt(*v)
+	}
+	return _u
+}
+
+// ClearMspRoutedAt clears the value of the "msp_routed_at" field.
+func (_u *TicketUpdateOne) ClearMspRoutedAt() *TicketUpdateOne {
+	_u.mutation.ClearMspRoutedAt()
+	return _u
+}
+
 // SetDeletedAt sets the "deleted_at" field.
 func (_u *TicketUpdateOne) SetDeletedAt(v time.Time) *TicketUpdateOne {
 	_u.mutation.SetDeletedAt(v)
@@ -4207,6 +4253,12 @@ func (_u *TicketUpdateOne) sqlSave(ctx context.Context) (_node *Ticket, err erro
 	}
 	if _u.mutation.MspTicketIDCleared() {
 		_spec.ClearField(ticket.FieldMspTicketID, field.TypeString)
+	}
+	if value, ok := _u.mutation.MspRoutedAt(); ok {
+		_spec.SetField(ticket.FieldMspRoutedAt, field.TypeTime, value)
+	}
+	if _u.mutation.MspRoutedAtCleared() {
+		_spec.ClearField(ticket.FieldMspRoutedAt, field.TypeTime)
 	}
 	if value, ok := _u.mutation.DeletedAt(); ok {
 		_spec.SetField(ticket.FieldDeletedAt, field.TypeTime, value)

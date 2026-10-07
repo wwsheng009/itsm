@@ -13,8 +13,12 @@ import type {
   ProvisionUserResponse,
 } from './api-config';
 
-/** 模板供给是逐项落库的幂等长事务，默认 30s 不够，单独放宽到 120s。 */
-const PROVISION_TIMEOUT_MS = 120_000;
+/**
+ * 模板供给是幂等长事务：2026-10-06 批量化后查询数从 ~4–5k 降到 <100，
+ * 隧道环境实测 ~11s（服务端 ~10s）。仍保留 300s 上限兜底跨网抖动，
+ * 超时由 http-client 显式抛错（可见、可重试）。
+ */
+const PROVISION_TIMEOUT_MS = 300_000;
 /** 首管创建含密码策略与默认角色装配，放宽到 60s。 */
 const BOOTSTRAP_ADMIN_TIMEOUT_MS = 60_000;
 

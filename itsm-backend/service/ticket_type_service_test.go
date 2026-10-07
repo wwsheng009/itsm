@@ -2,9 +2,12 @@ package service
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"net/http"
 	"testing"
 
+	"itsm-backend/common"
 	"itsm-backend/dto"
 	"itsm-backend/ent/auditlog"
 	"itsm-backend/ent/enttest"
@@ -101,6 +104,29 @@ func TestTicketTypePresetInstallIsTenantScoped(t *testing.T) {
 	require.Len(t, logs, 1)
 	assert.Equal(t, 1, logs[0].UserID)
 	assert.Contains(t, *logs[0].RequestBody, `"presetId":"pacs-incident"`)
+}
+
+// TestTicketTypePresetInstall_DuplicateIsConflict 锁定重复安装的语义：
+// 第二次安装同码预设返回 409（Conflict）而非 400「请求参数错误」——
+// handler 经 common.RespondError 分流后，前端可区分「已存在」与参数错误（2026-10-06 实测 400 误报修复）。
+func TestTicketTypePresetInstall_DuplicateIsConflict(t *testing.T) {
+	client := enttest.Open(t, "sqlite3", testDSN())
+	defer client.Close()
+	ctx := context.Background()
+	svc := NewTicketTypeService(client, zap.NewNop().Sugar())
+	tenant, err := client.Tenant.Create().SetName("PresetDup").SetCode("preset-dup").SetDomain("preset.dup").SetStatus("active").Save(ctx)
+	require.NoError(t, err)
+
+	_, err = svc.InstallPreset(ctx, "general-incident", &dto.InstallTicketTypePresetRequest{}, tenant.ID, 1)
+	require.NoError(t, err)
+
+	_, err = svc.InstallPreset(ctx, "general-incident", &dto.InstallTicketTypePresetRequest{}, tenant.ID, 1)
+	require.Error(t, err)
+	var appErr *common.AppError
+	require.True(t, errors.As(err, &appErr), "重复安装应返回 AppError（可被 RespondError 分流），实际: %v", err)
+	assert.Equal(t, http.StatusConflict, appErr.HTTPStatus)
+	assert.Equal(t, common.ErrCodeConflict, appErr.Code)
+	assert.Contains(t, appErr.Detail, "general_incident")
 }
 
 func TestTicketTypeArchiveAndBindingChangesAreAudited(t *testing.T) {

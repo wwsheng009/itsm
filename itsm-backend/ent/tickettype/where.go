@@ -145,6 +145,11 @@ func AutoAssignEnabled(v bool) predicate.TicketType {
 	return predicate.TicketType(sql.FieldEQ(FieldAutoAssignEnabled, v))
 }
 
+// MspRouteEnabled applies equality check predicate on the "msp_route_enabled" field. It's identical to MspRouteEnabledEQ.
+func MspRouteEnabled(v bool) predicate.TicketType {
+	return predicate.TicketType(sql.FieldEQ(FieldMspRouteEnabled, v))
+}
+
 // TenantID applies equality check predicate on the "tenant_id" field. It's identical to TenantIDEQ.
 func TenantID(v int64) predicate.TicketType {
 	return predicate.TicketType(sql.FieldEQ(FieldTenantID, v))
@@ -1073,6 +1078,16 @@ func AutoAssignEnabledEQ(v bool) predicate.TicketType {
 // AutoAssignEnabledNEQ applies the NEQ predicate on the "auto_assign_enabled" field.
 func AutoAssignEnabledNEQ(v bool) predicate.TicketType {
 	return predicate.TicketType(sql.FieldNEQ(FieldAutoAssignEnabled, v))
+}
+
+// MspRouteEnabledEQ applies the EQ predicate on the "msp_route_enabled" field.
+func MspRouteEnabledEQ(v bool) predicate.TicketType {
+	return predicate.TicketType(sql.FieldEQ(FieldMspRouteEnabled, v))
+}
+
+// MspRouteEnabledNEQ applies the NEQ predicate on the "msp_route_enabled" field.
+func MspRouteEnabledNEQ(v bool) predicate.TicketType {
+	return predicate.TicketType(sql.FieldNEQ(FieldMspRouteEnabled, v))
 }
 
 // TenantIDEQ applies the EQ predicate on the "tenant_id" field.

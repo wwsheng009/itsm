@@ -1043,6 +1043,9 @@ func BuiltinRoles() []RoleSeed {
 		{Code: "msp_specialist", Name: "MSP专家", Description: "MSP 专项（含客户信息写）"},
 		{Code: "msp_manager", Name: "MSP经理", Description: "provider 管理（分配/报表）"},
 		{Code: "msp_admin", Name: "MSP管理员", Description: "全托管（默认不分配）"},
+		// 服务商租户管理员（provider 首管默认角色，2026-10-06 / 07:G11）：
+		// 自身 ITSM 全量（= admin）∪ MSP 全矩阵（= msp_admin），双面菜单开箱可见。
+		{Code: "provider_tenant_admin", Name: "服务商租户管理员", Description: "服务商自有 ITSM + 跨客户 MSP（首管默认）"},
 	}
 }
 

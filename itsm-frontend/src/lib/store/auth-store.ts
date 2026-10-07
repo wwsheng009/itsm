@@ -80,6 +80,15 @@ export const useAuthStore = create<AuthState>()(
         if (tenant) {
           httpClient.setTenantId(tenant.id);
           httpClient.setTenantCode(tenant.code);
+        } else {
+          // 无租户上下文时同步清空：否则旧租户头残留，会与新会话的 JWT 作用域冲突
+          // （后端 fail-closed 401「租户不匹配」，2026-10-07 实测）。
+          httpClient.setTenantId(null);
+          httpClient.setTenantCode(null);
+          if (typeof window !== 'undefined') {
+            localStorage.removeItem('current_tenant_id');
+            localStorage.removeItem('current_tenant_code');
+          }
         }
       },
 

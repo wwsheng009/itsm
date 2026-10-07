@@ -384,9 +384,14 @@ func (s *TicketService) CreateTicket(ctx context.Context, req *dto.CreateTicketR
 	}
 
 	// IP-P0-3 / R11：按客户租户归属派生 MSP 快照；客户停用/provider 无效 → 按普通工单处理。
+	// P0-d：类型开启 msp_route_enabled 时标记路由时间（工作台 routedOnly 过滤与追溯）。
 	if providerID := resolveTicketMSPProvider(ctx, s.client, tenantID); providerID != nil {
 		params.IsManagedByMSP = true
 		params.MSPProviderID = providerID
+		if configuredType != nil && configuredType.MspRouteEnabled {
+			routedAt := time.Now()
+			params.MSPRoutedAt = &routedAt
+		}
 	}
 
 	// IP-P2-6：租户硬配额（maxTicketsPerMonth）在进入事务前校验；超限 → 422 TENANT_QUOTA_EXCEEDED。

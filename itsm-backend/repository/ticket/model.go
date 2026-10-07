@@ -80,6 +80,7 @@ type Ticket struct {
 	MSPProviderID         *int
 	ManagedByUserID       *int
 	MSPTicketID           *string
+	MSPRoutedAt           *time.Time
 	CreatedAt             time.Time
 	UpdatedAt             time.Time
 	DeletedAt             *time.Time
@@ -221,6 +222,8 @@ type CreateParams struct {
 	MSPProviderID   *int
 	ManagedByUserID *int
 	MSPTicketID     *string
+	// MSPRoutedAt 类型级自动路由标记（msp_route_enabled 命中时写入；nil=未路由）。
+	MSPRoutedAt *time.Time
 }
 
 // UpdateParams 工单更新参数
@@ -242,5 +245,7 @@ type UpdateParams struct {
 	IsManagedByMSP  *bool
 	MSPProviderID   *int
 	ManagedByUserID *int
-	Version         int // 乐观锁版本号
+	// MSPRoutedAt nil=不修改；非 nil 写入路由时间。
+	MSPRoutedAt *time.Time
+	Version     int // 乐观锁版本号
 }

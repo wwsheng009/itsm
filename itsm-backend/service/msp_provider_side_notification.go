@@ -21,13 +21,17 @@ import (
 	"fmt"
 	"time"
 
+	"itsm-backend/common/tenantctx"
 	"itsm-backend/ent"
 	"itsm-backend/ent/user"
 	"itsm-backend/pkg/tenantmode"
 )
 
-// mspWorkbenchActionURL provider 侧通知的深链（工作台入口）。
-const mspWorkbenchActionURL = "/msp/workbench"
+// mspWorkbenchActionURL provider 侧通知的深链：工作台自动打开该工单详情抽屉（P2 通知深链）。
+// 形如 /msp/workbench?ticket=224&customerTenantId=11；前端工作台按参数自动拉取详情。
+func mspWorkbenchActionURL(ticket *ent.Ticket) string {
+	return fmt.Sprintf("/msp/workbench?ticket=%d&customerTenantId=%d", ticket.ID, ticket.TenantID)
+}
 
 // mspProviderSideRecipients 计算 provider 侧收件人（已去重、排除 actor）。
 // 仅返回 provider 租户内 active 的用户；managed_by_user_id / assignee 必须
@@ -97,16 +101,20 @@ func (s *TicketNotificationService) notifyMSPProviderSide(
 			"ticket_id", ticket.ID, "provider_tenant_id", ticket.MspProviderID, "error", err)
 		return
 	}
-	recipients := mspProviderSideRecipients(ctx, s.client.User, ticket, excludeUserID)
+	// 跨租户写 provider 行：把上下文租户重绑到 provider 租户（写守卫 + RLS GUC 同口径），
+	// 否则客户请求上下文（tenant=客户）写 tenant_id=provider 会被守卫 fail-closed 拒绝。
+	providerCtx := tenantctx.WithTenantID(ctx, pt.ID)
+	recipients := mspProviderSideRecipients(providerCtx, s.client.User, ticket, excludeUserID)
 	if len(recipients) == 0 {
 		return
 	}
 	now := time.Now()
+	deepLink := mspWorkbenchActionURL(ticket)
 	for _, uid := range recipients {
 		if _, err := s.client.TicketNotification.Create().
 			SetTicketID(ticket.ID).SetUserID(uid).SetType(eventType).SetChannel("in_app").
 			SetContent(content).SetTenantID(pt.ID).SetStatus("sent").SetNillableSentAt(&now).
-			Save(ctx); err != nil {
+			Save(providerCtx); err != nil {
 			s.logger.Warnw("msp dual delivery: create ticket notification failed",
 				"ticket_id", ticket.ID, "user_id", uid, "error", err)
 			continue
@@ -114,8 +122,8 @@ func (s *TicketNotificationService) notifyMSPProviderSide(
 		if _, err := s.client.Notification.Create().
 			SetTitle(eventType).SetMessage(content).SetType("info").
 			SetUserID(uid).SetTenantID(pt.ID).
-			SetActionURL(mspWorkbenchActionURL).SetActionText("打开工作台").
-			Save(ctx); err != nil {
+			SetActionURL(deepLink).SetActionText("打开工单详情").
+			Save(providerCtx); err != nil {
 			s.logger.Warnw("msp dual delivery: create notification failed",
 				"ticket_id", ticket.ID, "user_id", uid, "error", err)
 		}
@@ -139,23 +147,26 @@ func (s *TicketNotificationService) notifyMSPProviderSideTx(
 			"ticket_id", ticket.ID, "provider_tenant_id", ticket.MspProviderID, "error", err)
 		return nil
 	}
-	recipients := mspProviderSideRecipients(ctx, tx.User, ticket, excludeUserID)
+	// 同非事务路径：重绑到 provider 租户上下文后再写（Tx 内 GUC 同样生效）。
+	providerCtx := tenantctx.WithTenantID(ctx, pt.ID)
+	recipients := mspProviderSideRecipients(providerCtx, tx.User, ticket, excludeUserID)
 	if len(recipients) == 0 {
 		return nil
 	}
 	now := time.Now()
+	deepLink := mspWorkbenchActionURL(ticket)
 	for _, uid := range recipients {
 		if _, err := tx.TicketNotification.Create().
 			SetTicketID(ticket.ID).SetUserID(uid).SetType(eventType).SetChannel("in_app").
 			SetContent(content).SetTenantID(pt.ID).SetStatus("sent").SetNillableSentAt(&now).
-			Save(ctx); err != nil {
+			Save(providerCtx); err != nil {
 			return fmt.Errorf("msp dual delivery(tx): create ticket notification: %w", err)
 		}
 		if _, err := tx.Notification.Create().
 			SetTitle(eventType).SetMessage(content).SetType("info").
 			SetUserID(uid).SetTenantID(pt.ID).
-			SetActionURL(mspWorkbenchActionURL).SetActionText("打开工作台").
-			Save(ctx); err != nil {
+			SetActionURL(deepLink).SetActionText("打开工单详情").
+			Save(providerCtx); err != nil {
 			return fmt.Errorf("msp dual delivery(tx): create notification: %w", err)
 		}
 	}

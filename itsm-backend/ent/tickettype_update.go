@@ -384,6 +384,20 @@ func (_u *TicketTypeUpdate) SetNillableAutoAssignEnabled(v *bool) *TicketTypeUpd
 	return _u
 }
 
+// SetMspRouteEnabled sets the "msp_route_enabled" field.
+func (_u *TicketTypeUpdate) SetMspRouteEnabled(v bool) *TicketTypeUpdate {
+	_u.mutation.SetMspRouteEnabled(v)
+	return _u
+}
+
+// SetNillableMspRouteEnabled sets the "msp_route_enabled" field if the given value is not nil.
+func (_u *TicketTypeUpdate) SetNillableMspRouteEnabled(v *bool) *TicketTypeUpdate {
+	if v != nil {
+		_u.SetMspRouteEnabled(*v)
+	}
+	return _u
+}
+
 // SetAssignmentRules sets the "assignment_rules" field.
 func (_u *TicketTypeUpdate) SetAssignmentRules(v []interface{}) *TicketTypeUpdate {
 	_u.mutation.SetAssignmentRules(v)
@@ -744,6 +758,9 @@ func (_u *TicketTypeUpdate) sqlSave(ctx context.Context) (_node int, err error) 
 	}
 	if value, ok := _u.mutation.AutoAssignEnabled(); ok {
 		_spec.SetField(tickettype.FieldAutoAssignEnabled, field.TypeBool, value)
+	}
+	if value, ok := _u.mutation.MspRouteEnabled(); ok {
+		_spec.SetField(tickettype.FieldMspRouteEnabled, field.TypeBool, value)
 	}
 	if value, ok := _u.mutation.AssignmentRules(); ok {
 		_spec.SetField(tickettype.FieldAssignmentRules, field.TypeJSON, value)
@@ -1211,6 +1228,20 @@ func (_u *TicketTypeUpdateOne) SetNillableAutoAssignEnabled(v *bool) *TicketType
 	return _u
 }
 
+// SetMspRouteEnabled sets the "msp_route_enabled" field.
+func (_u *TicketTypeUpdateOne) SetMspRouteEnabled(v bool) *TicketTypeUpdateOne {
+	_u.mutation.SetMspRouteEnabled(v)
+	return _u
+}
+
+// SetNillableMspRouteEnabled sets the "msp_route_enabled" field if the given value is not nil.
+func (_u *TicketTypeUpdateOne) SetNillableMspRouteEnabled(v *bool) *TicketTypeUpdateOne {
+	if v != nil {
+		_u.SetMspRouteEnabled(*v)
+	}
+	return _u
+}
+
 // SetAssignmentRules sets the "assignment_rules" field.
 func (_u *TicketTypeUpdateOne) SetAssignmentRules(v []interface{}) *TicketTypeUpdateOne {
 	_u.mutation.SetAssignmentRules(v)
@@ -1601,6 +1632,9 @@ func (_u *TicketTypeUpdateOne) sqlSave(ctx context.Context) (_node *TicketType, 
 	}
 	if value, ok := _u.mutation.AutoAssignEnabled(); ok {
 		_spec.SetField(tickettype.FieldAutoAssignEnabled, field.TypeBool, value)
+	}
+	if value, ok := _u.mutation.MspRouteEnabled(); ok {
+		_spec.SetField(tickettype.FieldMspRouteEnabled, field.TypeBool, value)
 	}
 	if value, ok := _u.mutation.AssignmentRules(); ok {
 		_spec.SetField(tickettype.FieldAssignmentRules, field.TypeJSON, value)

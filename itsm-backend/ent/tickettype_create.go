@@ -245,6 +245,20 @@ func (_c *TicketTypeCreate) SetNillableAutoAssignEnabled(v *bool) *TicketTypeCre
 	return _c
 }
 
+// SetMspRouteEnabled sets the "msp_route_enabled" field.
+func (_c *TicketTypeCreate) SetMspRouteEnabled(v bool) *TicketTypeCreate {
+	_c.mutation.SetMspRouteEnabled(v)
+	return _c
+}
+
+// SetNillableMspRouteEnabled sets the "msp_route_enabled" field if the given value is not nil.
+func (_c *TicketTypeCreate) SetNillableMspRouteEnabled(v *bool) *TicketTypeCreate {
+	if v != nil {
+		_c.SetMspRouteEnabled(*v)
+	}
+	return _c
+}
+
 // SetAssignmentRules sets the "assignment_rules" field.
 func (_c *TicketTypeCreate) SetAssignmentRules(v []interface{}) *TicketTypeCreate {
 	_c.mutation.SetAssignmentRules(v)
@@ -389,6 +403,10 @@ func (_c *TicketTypeCreate) defaults() {
 		v := tickettype.DefaultAutoAssignEnabled
 		_c.mutation.SetAutoAssignEnabled(v)
 	}
+	if _, ok := _c.mutation.MspRouteEnabled(); !ok {
+		v := tickettype.DefaultMspRouteEnabled
+		_c.mutation.SetMspRouteEnabled(v)
+	}
 	if _, ok := _c.mutation.UsageCount(); !ok {
 		v := tickettype.DefaultUsageCount
 		_c.mutation.SetUsageCount(v)
@@ -465,6 +483,9 @@ func (_c *TicketTypeCreate) check() error {
 	}
 	if _, ok := _c.mutation.AutoAssignEnabled(); !ok {
 		return &ValidationError{Name: "auto_assign_enabled", err: errors.New(`ent: missing required field "TicketType.auto_assign_enabled"`)}
+	}
+	if _, ok := _c.mutation.MspRouteEnabled(); !ok {
+		return &ValidationError{Name: "msp_route_enabled", err: errors.New(`ent: missing required field "TicketType.msp_route_enabled"`)}
 	}
 	if _, ok := _c.mutation.AssignmentRules(); !ok {
 		return &ValidationError{Name: "assignment_rules", err: errors.New(`ent: missing required field "TicketType.assignment_rules"`)}
@@ -595,6 +616,10 @@ func (_c *TicketTypeCreate) createSpec() (*TicketType, *sqlgraph.CreateSpec) {
 	if value, ok := _c.mutation.AutoAssignEnabled(); ok {
 		_spec.SetField(tickettype.FieldAutoAssignEnabled, field.TypeBool, value)
 		_node.AutoAssignEnabled = value
+	}
+	if value, ok := _c.mutation.MspRouteEnabled(); ok {
+		_spec.SetField(tickettype.FieldMspRouteEnabled, field.TypeBool, value)
+		_node.MspRouteEnabled = value
 	}
 	if value, ok := _c.mutation.AssignmentRules(); ok {
 		_spec.SetField(tickettype.FieldAssignmentRules, field.TypeJSON, value)

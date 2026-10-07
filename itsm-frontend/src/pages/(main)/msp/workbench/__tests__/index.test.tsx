@@ -16,6 +16,8 @@ import userEvent from '@testing-library/user-event';
 jest.setTimeout(300000);
 
 const mockSetSearchParams = jest.fn();
+// 可变的 useSearchParams 输入：深链用例在 render 前改写（jest.mock 工厂仅允许 mock* 前缀引用）。
+let mockSearchParams = 'customerTenantIds=all';
 
 jest.mock('react-router', () => ({
   ...jest.requireActual('react-router'),
@@ -28,7 +30,7 @@ jest.mock('react-router', () => ({
     key: 'test',
   }),
   useSearchParams: () => [
-    new URLSearchParams('customerTenantIds=all'),
+    new URLSearchParams(mockSearchParams),
     mockSetSearchParams,
   ],
 }));
@@ -40,6 +42,7 @@ jest.mock('@/lib/api/msp-workbench-api', () => {
     listWorkbenchTickets: jest.fn(),
     batchWorkbenchItems: jest.fn(),
     assignWorkbenchTicket: jest.fn(),
+    getWorkbenchTicket: jest.fn(),
     // IP-P2-4a：默认按"服务端灰度未开启"处理，现有用例不受视图控件影响。
     listWorkbenchViews: jest.fn().mockResolvedValue({ views: [], total: 0, enabled: false }),
     // IP-P2-4b：SLA 风险看板默认空数据，避免真实请求。
@@ -55,6 +58,7 @@ jest.mock('@/lib/api/msp-workbench-api', () => {
 import {
   assignWorkbenchTicket,
   batchWorkbenchItems,
+  getWorkbenchTicket,
   listWorkbenchTickets,
   type WorkbenchTicketItem,
 } from '@/lib/api/msp-workbench-api';
@@ -96,6 +100,7 @@ const readOnlyTicket: WorkbenchTicketItem = {
 
 describe('MSPWorkbenchPage', () => {
   beforeEach(() => {
+    mockSearchParams = 'customerTenantIds=all';
     (listWorkbenchTickets as jest.Mock).mockResolvedValue({
       items: [ticketWithActions, readOnlyTicket],
       total: 2,
@@ -280,5 +285,62 @@ describe('MSPWorkbenchPage', () => {
     const body2 = screen.getByTestId('group-body-2');
     const row2 = within(body2).getByText('BETA-2').closest('tr') as HTMLElement;
     expect(within(row2).getByRole('checkbox')).toBeDisabled();
+  });
+
+  it('行点击打开跨租户详情抽屉（P1）', async () => {
+    (getWorkbenchTicket as jest.Mock).mockResolvedValue({
+      id: 1,
+      customerTenantId: 1,
+      customerName: 'Acme Corp',
+      ticketNumber: 'ACME-1',
+      title: 'VPN 无法连接',
+      description: '分支机构 VPN 隧道频繁断开',
+      status: 'open',
+      priority: 'high',
+      typeName: '通用事件',
+      requesterName: '李四',
+      assigneeName: '张三',
+      createdAt: '2026-09-30T06:00:00Z',
+      updatedAt: '2026-09-30T08:00:00Z',
+      isManagedByMsp: true,
+      allowedActions: [{ action: 'reply', allowed: true }],
+    });
+
+    render(<MSPWorkbenchPage />);
+    fireEvent.click(await screen.findByText('ACME-1'));
+
+    expect(await screen.findByText('工单详情 ACME-1')).toBeInTheDocument();
+    expect(getWorkbenchTicket).toHaveBeenCalledWith(1, 1);
+    expect(screen.getByTestId('workbench-detail-description')).toHaveTextContent(
+      '分支机构 VPN 隧道频繁断开'
+    );
+    expect(screen.getByTestId('workbench-detail-actions')).toHaveTextContent('可回复');
+  });
+
+  it('通知深链：URL 带 ticket/customerTenantId 自动打开详情抽屉（P2）', async () => {
+    mockSearchParams = 'customerTenantIds=all&ticket=7&customerTenantId=2';
+    (getWorkbenchTicket as jest.Mock).mockResolvedValue({
+      id: 7,
+      customerTenantId: 2,
+      customerName: 'Beta LLC',
+      ticketNumber: 'BETA-7',
+      title: '打印机离线',
+      description: '深链直达详情',
+      status: 'open',
+      priority: 'medium',
+      createdAt: '2026-09-30T06:00:00Z',
+      updatedAt: '2026-09-30T08:00:00Z',
+      isManagedByMsp: true,
+      allowedActions: [],
+    });
+
+    render(<MSPWorkbenchPage />);
+
+    expect(await screen.findByText('工单详情 BETA-7')).toBeInTheDocument();
+    expect(getWorkbenchTicket).toHaveBeenCalledWith(7, 2);
+    // 深链参数不得污染列表过滤键（仍按 customerTenantIds=all 拉取）。
+    expect(listWorkbenchTickets).toHaveBeenCalledWith(
+      expect.objectContaining({ customerTenantIds: 'all' })
+    );
   });
 });

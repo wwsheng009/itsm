@@ -22,8 +22,8 @@ var ErrAdminExists = errors.New("bootstrap admin already exists for tenant")
 //
 //   - 平台根租户（code=default）与 internal/standard 租户：保持 super_admin
 //     （私有化单组织语义，私有部署下其即平台管理员）；
-//   - msp_provider：租户内 msp_admin + users.msp_role=provider_admin，
-//     禁止平台通配符（否则可读全租户目录，跨服务商信息泄露）；
+//   - msp_provider：租户内 provider_tenant_admin（= admin ∪ msp_admin，自身 ITSM + 跨客户 MSP）；
+//     账号 users.msp_role=provider_admin；禁止平台通配符（否则可读全租户目录，跨服务商信息泄露）；
 //   - msp_customer / saas_customer：租户内 admin + users.msp_role=customer_user。
 //
 // Scoped=true 时调用方必须已执行模板供给（roles 表含目标角色），随后写入
@@ -46,7 +46,7 @@ func resolveBootstrapAdminPolicy(tenantCode, tenantType string) bootstrapAdminPo
 		return bootstrapAdminPolicy{
 			LegacyRole:        "admin",
 			UserMSPRole:       "provider_admin",
-			RBACRoleCode:      "msp_admin",
+			RBACRoleCode:      "provider_tenant_admin",
 			MembershipMSPRole: "msp_admin",
 			AccountKind:       usertenantmembership.AccountKindProvider,
 			Scoped:            true,

@@ -623,6 +623,7 @@ sequenceDiagram
 | `LOGIN-A#`/`LOGIN-R#`/`LOGIN-D#`/`LOGIN-B#`/`LOGIN-F#` | 登录细化 | 文档局部编号（必须带前缀） | `LOGIN-R3` |
 | `FE-A#` | 前端分析 | 文档局部验收（必须带前缀） | `FE-A1` |
 | `TUM-#` / `TUM-D#` / `TUM-A#` | [租户用户管理增强方案](./msp-tenant-user-management-enhancement-plan.md) | 平台侧租户用户管理增强（列表/重置密码/启停/审计）工作流/决策/验收（局部编号，必须带前缀） | `TUM-2` |
+| `XF1–XF10` / `XFD1–XFD8` / `XFR1–XFR4` / `XFA1–XFA6` | [单据流转交互架构](./msp-cross-tenant-record-flow-architecture.md) | 跨租户单据流转规则/决策/风险/验收（L3 泛化设计；局部编号，必须带前缀） | `XF4`、`XFD2` |
 
 ### C.3 A/B/C 字母消歧（禁止裸用）
 
@@ -651,3 +652,4 @@ sequenceDiagram
 | v1.3 | 2026-09-30 | **IP-P0-4 类型/归属收敛落地**：写入集合收敛（legacy `standard`/`msp`/`customer` 只读）、归属校验（A2/D2）、`parent_tenant_id` 停止双写、列表过滤兼容、存量巡检脚本 |
 | v1.4 | 2026-09-30 | **IP-P0-5 建号通道收口落地（K4 关闭）**：`service/user_provisioning.go`（platform/msp/tenant 三通道 + 角色白名单 + rank 上限）、`WithProvisioningBypass`、写守卫放行、三个端点接线与灰度开关 `USER_PROVISIONING_CHANNELS_ENABLED` |
 | v1.5 | 2026-10-05 | 附录 C.2 登记 `TUM-#`：平台侧租户用户管理增强方案（Draft v0.1，`/admin/tenants` 跨租户账号治理：用户列表/重置密码/启停/强制下线/审计） |
+| v1.6 | 2026-10-07 | 附录 C.2 登记 XF 编号空间：多租户单据流转交互架构（Draft v0.1；`XF/XFD/XFR/XFA`，L3 泛化设计——五通道/条目级授权/操作矩阵/流程集成/审计与验收） |

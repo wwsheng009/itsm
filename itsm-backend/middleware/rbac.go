@@ -235,6 +235,7 @@ var RolePermissions = map[string][]Permission{
 		{Resource: "ticket_type", Action: "update"},
 		{Resource: "ticket_type", Action: "delete"},
 		{Resource: "ticket_type", Action: "manage"},
+		{Resource: "ticket_type", Action: "install_preset"},
 		{Resource: "ticket_type", Action: "archive"},
 	},
 	"manager": {
@@ -481,6 +482,30 @@ var RolePermissions = map[string][]Permission{
 	},
 }
 
+// provider_tenant_admin（服务商租户管理员，2026-10-06 / 07:G11）：
+// 硬编码兜底镜像 = admin ∪ msp_admin（按 resource:action 去重）。
+// 权威 DB 绑定见 internal/authz.BuiltinRolePermissionCodes()；此处保证
+// unconfigured / merge / hardcode-only 模式与 smart_permission 回退口径一致。
+func init() {
+	RolePermissions["provider_tenant_admin"] = mergePermissionPairs(RolePermissions["admin"], RolePermissions["msp_admin"])
+}
+
+func mergePermissionPairs(sets ...[]Permission) []Permission {
+	seen := make(map[string]bool)
+	out := make([]Permission, 0)
+	for _, set := range sets {
+		for _, p := range set {
+			key := p.Resource + ":" + p.Action
+			if seen[key] {
+				continue
+			}
+			seen[key] = true
+			out = append(out, p)
+		}
+	}
+	return out
+}
+
 // RoleRank 返回角色权限层级（数值越大权限越高）。
 //
 // 单一词表（IP-P0-9 / 07:G3）：handler/user、service、登录（handlers/common）共用，
@@ -489,7 +514,7 @@ func RoleRank(role string) int {
 	switch strings.ToLower(strings.TrimSpace(role)) {
 	case "super_admin", "sysadmin":
 		return 5
-	case "msp_admin", "admin":
+	case "provider_tenant_admin", "msp_admin", "admin":
 		return 4
 	case "msp_manager", "manager":
 		return 3
@@ -1132,6 +1157,14 @@ func hasPermission(client *ent.Client, role, method, path string, userID, tenant
 	// allowing discovery prevents a circular dependency where the UI needs a
 	// capability permission before it can learn which capabilities are usable.
 	if method == "GET" && path == "/api/v1/capabilities" {
+		return true
+	}
+	// 身份自省面（与 router/route_permission_guard_test.go 白名单同源）：
+	// POST /api/v1/ws/ticket 仅颁发「调用者本人会话」的一次性 WebSocket 票据，
+	// 授权依据是已认证身份（AuthMiddleware 先行校验）而非资源动作权限，因此
+	// 预检映射无条目时不得对非 super_admin 角色 fail-closed——否则 provider/
+	// customer/end_user 等全部普通角色的通知 WS 都会 403（仅 super_admin 直通掩盖）。
+	if method == "POST" && path == "/api/v1/ws/ticket" {
 		return true
 	}
 

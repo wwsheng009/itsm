@@ -15,12 +15,15 @@ import {
   Button,
   Card,
   Collapse,
+  Descriptions,
   Dropdown,
+  Drawer,
   Input,
   Modal,
   Segmented,
   Select,
   Space,
+  Spin,
   Table,
   Tag,
   Tooltip,
@@ -40,6 +43,7 @@ import {
   createWorkbenchView,
   deleteWorkbenchView,
   findAllowedAction,
+  getWorkbenchTicket,
   isCustomerInactive,
   isTicketReadOnly,
   listWorkbenchViews,
@@ -52,6 +56,7 @@ import {
   type WorkbenchBatchAction,
   type WorkbenchBatchPayload,
   type WorkbenchBatchResponse,
+  type WorkbenchTicketDetail,
   type WorkbenchTicketItem,
   type WorkbenchTicketQuery,
   type WorkbenchView,
@@ -62,6 +67,10 @@ import SlaRiskBoard from './components/SlaRiskBoard';
 import CustomerUsageBoard from './components/CustomerUsageBoard';
 
 const PAGE_SIZE = 50;
+
+/** 通知深链参数：/msp/workbench?ticket=<id>&customerTenantId=<tid> 自动打开详情抽屉（P2）。 */
+export const DEEPLINK_TICKET_PARAM = 'ticket';
+export const DEEPLINK_CUSTOMER_TENANT_PARAM = 'customerTenantId';
 
 export const WORKBENCH_STATUS_OPTIONS = [
   { value: 'open', label: '待处理' },
@@ -162,6 +171,9 @@ export default function MSPWorkbenchPage() {
     params.delete('view');
     // 视图选中态（viewId）不参与数据过滤键：其过滤器已展开为 query 参数。
     params.delete(WORKBENCH_VIEW_ID_PARAM);
+    // 通知深链参数不参与数据过滤键（仅驱动详情抽屉）。
+    params.delete(DEEPLINK_TICKET_PARAM);
+    params.delete(DEEPLINK_CUSTOMER_TENANT_PARAM);
     return params.toString();
   }, [queryString]);
 
@@ -191,6 +203,47 @@ export default function MSPWorkbenchPage() {
   const [batchConfirmOpen, setBatchConfirmOpen] = useState(false);
   const [batchSubmitting, setBatchSubmitting] = useState(false);
   const [batchResult, setBatchResult] = useState<WorkbenchBatchResponse | null>(null);
+
+  // ==================== 详情抽屉（P1 跨租户详情） ====================
+  const [detailTarget, setDetailTarget] = useState<{
+    id: number;
+    customerTenantId: number;
+    ticketNumber?: string;
+  } | null>(null);
+  const [detail, setDetail] = useState<WorkbenchTicketDetail | null>(null);
+  const [detailLoading, setDetailLoading] = useState(false);
+  const [detailError, setDetailError] = useState<string | null>(null);
+
+  const openDetail = useCallback(
+    async (record: { id: number; customerTenantId: number; ticketNumber?: string }) => {
+    setDetailTarget(record);
+    setDetail(null);
+    setDetailError(null);
+    setDetailLoading(true);
+    try {
+      const response = await getWorkbenchTicket(record.id, record.customerTenantId);
+      setDetail(response);
+    } catch (err) {
+      setDetailError(errorMessage(err, '加载工单详情失败'));
+    } finally {
+      setDetailLoading(false);
+    }
+  }, []);
+
+  const closeDetail = useCallback(() => {
+    setDetailTarget(null);
+    setDetail(null);
+    setDetailError(null);
+  }, []);
+
+  // 通知深链：URL 带 ticket/customerTenantId 时自动打开详情抽屉（可分享、可刷新）。
+  const deepLinkTicketId = Number(searchParams.get(DEEPLINK_TICKET_PARAM) ?? 0);
+  const deepLinkCustomerTenantId = Number(searchParams.get(DEEPLINK_CUSTOMER_TENANT_PARAM) ?? 0);
+  useEffect(() => {
+    if (deepLinkTicketId > 0 && deepLinkCustomerTenantId > 0) {
+      void openDetail({ id: deepLinkTicketId, customerTenantId: deepLinkCustomerTenantId });
+    }
+  }, [deepLinkTicketId, deepLinkCustomerTenantId, openDetail]);
 
   const loadFirstPage = useCallback(async () => {
     const seq = ++requestSeq.current;
@@ -885,6 +938,13 @@ export default function MSPWorkbenchPage() {
           pagination={false}
           scroll={{ x: 1280 }}
           locale={{ emptyText: '当前过滤条件下暂无工单' }}
+          onRow={record => ({
+            onClick: event => {
+              const target = event.target as HTMLElement;
+              if (target.closest('button,a,.ant-dropdown-trigger,.ant-checkbox-wrapper')) return;
+              void openDetail(record);
+            },
+          })}
         />
       ) : groups.length === 0 ? (
         <Table<WorkbenchTicketItem>
@@ -929,6 +989,13 @@ export default function MSPWorkbenchPage() {
                     pagination={false}
                     size="small"
                     scroll={{ x: 1120 }}
+                    onRow={record => ({
+                      onClick: event => {
+                        const target = event.target as HTMLElement;
+                        if (target.closest('button,a,.ant-dropdown-trigger,.ant-checkbox-wrapper')) return;
+                        void openDetail(record);
+                      },
+                    })}
                   />
                 </div>
               ),
@@ -948,6 +1015,80 @@ export default function MSPWorkbenchPage() {
           </Button>
         </div>
       )}
+
+      {/* 跨租户详情抽屉（P1）：只读投影 + allowedActions 只读展示 */}
+      <Drawer
+        open={!!detailTarget}
+        onClose={closeDetail}
+        width={560}
+        title={
+          detailTarget
+            ? `工单详情 ${detail?.ticketNumber ?? detailTarget.ticketNumber ?? detailTarget.id}`
+            : '工单详情'
+        }
+        destroyOnHidden
+      >
+        {detailLoading ? (
+          <Spin />
+        ) : detailError ? (
+          <Alert type="error" showIcon message={detailError} />
+        ) : detail ? (
+          <Space direction="vertical" size={16} style={{ width: '100%' }}>
+            <Descriptions column={1} size="small" bordered>
+              <Descriptions.Item label="客户">{detail.customerName || '未知客户'}</Descriptions.Item>
+              <Descriptions.Item label="编号">{detail.ticketNumber}</Descriptions.Item>
+              <Descriptions.Item label="标题">{detail.title}</Descriptions.Item>
+              <Descriptions.Item label="状态">
+                <Tag style={{ margin: 0 }}>{STATUS_LABEL.get(detail.status) ?? detail.status}</Tag>
+              </Descriptions.Item>
+              <Descriptions.Item label="优先级">
+                <Tag color={PRIORITY_COLOR[detail.priority]} style={{ margin: 0 }}>
+                  {PRIORITY_LABEL.get(detail.priority) ?? detail.priority}
+                </Tag>
+              </Descriptions.Item>
+              <Descriptions.Item label="类型">{detail.typeName || detail.type || '-'}</Descriptions.Item>
+              <Descriptions.Item label="发起人">
+                {detail.requesterName || (detail.requesterId ? `#${detail.requesterId}` : '-')}
+              </Descriptions.Item>
+              <Descriptions.Item label="处理人">
+                {detail.assigneeName || (detail.assigneeId ? `#${detail.assigneeId}` : '未指派')}
+              </Descriptions.Item>
+              <Descriptions.Item label="创建时间">{formatDateTime(detail.createdAt)}</Descriptions.Item>
+              <Descriptions.Item label="更新时间">{formatDateTime(detail.updatedAt)}</Descriptions.Item>
+              <Descriptions.Item label="SLA 截止">
+                {detail.slaDeadline ? formatDateTime(detail.slaDeadline) : '-'}
+              </Descriptions.Item>
+            </Descriptions>
+            <div>
+              <Typography.Text type="secondary">描述</Typography.Text>
+              <Typography.Paragraph
+                style={{ whiteSpace: 'pre-wrap', marginBottom: 0 }}
+                data-testid="workbench-detail-description"
+              >
+                {detail.description || '（无描述）'}
+              </Typography.Paragraph>
+            </div>
+            <Space size={8} wrap data-testid="workbench-detail-actions">
+              {isTicketReadOnly(detail) ? (
+                <Tag>只读</Tag>
+              ) : (
+                detail.allowedActions.map(action => (
+                  <Tag key={action.action} color={action.allowed ? 'green' : 'default'}>
+                    {action.allowed ? '可' : '不可'}
+                    {action.action === 'reply'
+                      ? '回复'
+                      : action.action === 'status'
+                        ? '改状态'
+                        : action.action === 'assign'
+                          ? '指派'
+                          : action.action}
+                  </Tag>
+                ))
+              )}
+            </Space>
+          </Space>
+        ) : null}
+      </Drawer>
 
       <Modal
         open={!!replyTarget}

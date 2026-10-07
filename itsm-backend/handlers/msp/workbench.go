@@ -75,6 +75,7 @@ func (h *Handler) ListWorkbenchTickets(c *gin.Context) {
 		CustomerTenantIDs: tenantIDs,
 		Status:            c.Query("status"),
 		Priority:          c.Query("priority"),
+		RoutedOnly:        c.Query("routedOnly") == "true" || c.Query("routedOnly") == "1",
 		Q:                 c.Query("q"),
 		Sort:              c.Query("sort"),
 		Cursor:            c.Query("cursor"),
@@ -128,6 +129,36 @@ func (h *Handler) GetWorkbenchSummary(c *gin.Context) {
 	if err != nil {
 		h.logger.Errorw("workbench summary failed", "error", err, "user_id", actor.UserID)
 		failMSPAccess(c, err, "查询工作台计数失败")
+		return
+	}
+	common.Success(c, resp)
+}
+
+// GetWorkbenchTicket GET /api/v1/msp/tickets/:id?customerTenantId=NN（P1 跨租户详情）
+func (h *Handler) GetWorkbenchTicket(c *gin.Context) {
+	ticketID, err := strconv.Atoi(c.Param("id"))
+	if err != nil || ticketID <= 0 {
+		common.Fail(c, common.ParamErrorCode, "工单ID无效")
+		return
+	}
+	tenantID, err := strconv.Atoi(strings.TrimSpace(c.Query("customerTenantId")))
+	if err != nil || tenantID <= 0 {
+		common.Fail(c, common.ParamErrorCode, "customerTenantId 必填且为数字")
+		return
+	}
+	actor, ok := workbenchActorFrom(c)
+	if !ok {
+		common.Fail(c, common.ForbiddenCode, "非MSP用户")
+		return
+	}
+	if h.workbench == nil {
+		common.Fail(c, common.InternalErrorCode, "工作台服务未启用")
+		return
+	}
+	resp, err := h.workbench.GetTicketDetail(c.Request.Context(), actor, ticketID, tenantID)
+	if err != nil {
+		h.logger.Errorw("workbench ticket detail failed", "error", err, "ticket_id", ticketID, "tenant_id", tenantID)
+		failMSPAccess(c, err, "查询工单详情失败")
 		return
 	}
 	common.Success(c, resp)

@@ -13,7 +13,7 @@
  * - 服务端生成的密码仅在响应中回传一次，弹窗内显著提示“仅显示一次，请立即保存”。
  */
 import { useCallback, useEffect, useState } from 'react';
-import { Alert, Button, Form, Input, Modal, Space, Steps, Tag, Typography } from 'antd';
+import { Alert, App, Button, Form, Input, Modal, Space, Steps, Tag, Typography } from 'antd';
 import { Copy, Rocket } from 'lucide-react';
 import { TenantAPI } from '@/lib/api/tenant-api';
 import type {
@@ -55,6 +55,21 @@ export function isBootstrapConflict(error: unknown): boolean {
   return err?.code === 4090 || err?.httpStatus === 409;
 }
 
+/**
+ * 默认管理员用户名，与后端 `bootstrap.sanitizeTenantCodeForUsername` 对齐：
+ * 小写；`.`/空格 → `-`；其余非法字符丢弃；编码为空时回退租户 ID（与后端一致）。
+ * 预览必须与真实建号结果一致，避免「提示 admin-TURECOV010055、实际 admin-turecov010055」类偏差。
+ */
+export function defaultAdminUsername(code?: string, tenantId?: number): string {
+  let normalized = (code ?? '')
+    .trim()
+    .toLowerCase()
+    .replace(/[. ]/g, '-')
+    .replace(/[^a-z0-9_-]/g, '');
+  if (!normalized && tenantId) normalized = String(tenantId);
+  return `admin-${normalized}`;
+}
+
 export default function TenantOnboardingModal({
   open,
   tenant,
@@ -65,6 +80,7 @@ export default function TenantOnboardingModal({
 }: TenantOnboardingModalProps) {
   const tenantId = tenant?.id;
   const [form] = Form.useForm<AdminFormValues>();
+  const { message } = App.useApp();
 
   const [step, setStep] = useState(0);
   const [loading, setLoading] = useState(false);
@@ -116,8 +132,14 @@ export default function TenantOnboardingModal({
     setProvisionError(null);
     try {
       const res = await (provision ?? TenantAPI.provisionTenant)(tenantId);
+      if (!res) {
+        // 页面级中止（切租户/登出）时 http-client 静默返回 null：给出可恢复提示，不清空清单。
+        setProvisionError('开通请求已中止，请重试');
+        return;
+      }
       // provision 与 readiness 同构：直接用返回结构刷新 items / ready / templateVersion。
       setReadiness(res);
+      message.success('模板供给完成');
     } catch (err: unknown) {
       setProvisionError(err instanceof Error && err.message ? err.message : '模板开通失败');
     } finally {
@@ -275,15 +297,20 @@ export default function TenantOnboardingModal({
                 <Alert type="error" showIcon message={provisionError} data-testid="provision-error" />
               ) : null}
 
-              <Button
-                type="primary"
-                icon={<Rocket className="w-4 h-4" />}
-                loading={provisionLoading}
-                onClick={handleProvision}
-                data-testid="provision-button"
-              >
-                开通模板
-              </Button>
+              <Space direction="vertical" size={4}>
+                <Button
+                  type="primary"
+                  icon={<Rocket className="w-4 h-4" />}
+                  loading={provisionLoading}
+                  onClick={handleProvision}
+                  data-testid="provision-button"
+                >
+                  {provisionLoading ? '开通中…' : '开通模板'}
+                </Button>
+                <Text type="secondary">
+                  供给为幂等长事务（基线批量克隆），通常数十秒内完成；提交后请保持弹窗打开，失败会显式提示且可安全重试。
+                </Text>
+              </Space>
             </Space>
           ) : null}
         </div>
@@ -335,7 +362,7 @@ export default function TenantOnboardingModal({
             <Form form={form} layout="vertical">
               <Form.Item label="用户名" name="username">
                 <Input
-                  placeholder={`admin-${tenant?.code ?? ''}`}
+                  placeholder={defaultAdminUsername(tenant?.code, tenant?.id)}
                   data-testid="bootstrap-username"
                   autoComplete="off"
                 />
@@ -400,7 +427,10 @@ export default function TenantOnboardingModal({
             </Title>
             <Text>
               管理员账号：
-              {createdAdmin?.username || (adminConflict ? '沿用已存在账号' : `admin-${tenant?.code ?? ''}`)}
+              {createdAdmin?.username ||
+                (adminConflict || (readiness?.bootstrapAdmins ?? 0) > 0
+                  ? '沿用已存在账号（见「用户管理」列表）'
+                  : defaultAdminUsername(tenant?.code, tenant?.id))}
             </Text>
             <br />
             <Text type="secondary">首次登录必须修改密码（mustChangePassword）。</Text>

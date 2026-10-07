@@ -97,7 +97,7 @@
 ## 6. 已知限制（执行前必读）
 
 1. **建号通道未写 home membership / RBAC 角色边**：通过平台/MSP 通道新建的**员工**账号权限为空——能登录、MSP 数据面（有分配时）可调用，但菜单与前端路由守卫会拒绝（表现为 403 页/菜单缺失）。规避：临时用目标租户**首管**账号完成角色配置，或按 [04 §7](./04-user-provisioning.md) 的说明先行知悉。
-2. **租户模板 7 项不含工单类型**：新客户租户「新建工单」类型选择器为空。规避：按 [06](./06-customer-ticket-type-and-ticket.md) 步骤先在 `/tickets/types` 建类型（或用「从预设安装」，需相应权限）。
+2. **租户模板 7 项不含工单类型**：新客户租户「新建工单」类型选择器为空。规避：按 [06](./06-customer-ticket-type-and-ticket.md) 步骤先在 `/tickets/types` 建类型（或用「从预设安装」；2026-10-06 起租户管理员默认含 `install_preset`）。
 3. **一键供给在低配机器上可能超过前端 120s 超时**：超时后模板可能仍在服务端完成。规避：重开向导查看 readiness；或使用 CLI 供给（见 [03 §6](./03-tenant-provisioning-first-admin.md)）。
 
 以上均已在 [实施方案修订记录 v1.69](../plan/msp-implementation-plan.md) 登记，修复后请回填本页。

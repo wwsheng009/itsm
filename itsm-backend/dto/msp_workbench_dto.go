@@ -7,6 +7,7 @@ type WorkbenchTicketQuery struct {
 	CustomerTenantIDs []int      // 已解析并校验的目标租户集合（"all" 已展开为服务端允许集合）
 	Status            string     // 可选：精确状态
 	Priority          string     // 可选：精确优先级
+	RoutedOnly        bool       // 可选：仅看已路由（msp_routed_at 非空）单据
 	AssigneeID        int        // 可选：处理人
 	Q                 string     // 可选：编号/标题模糊
 	UpdatedAfter      *time.Time // 可选：更新时间下界
@@ -44,6 +45,30 @@ type WorkbenchTicketListResponse struct {
 	Items      []WorkbenchTicketItem `json:"items"`
 	NextCursor string                `json:"nextCursor,omitempty"`
 	Total      int                   `json:"total"`
+}
+
+// WorkbenchTicketDetailResponse 跨租户工单详情（P1；工作台详情抽屉）。
+// 只读投影：不携带租户配置/内部审计等跨租户敏感面；动作可用性一律由 allowedActions 表达。
+type WorkbenchTicketDetailResponse struct {
+	ID               int                      `json:"id"`
+	CustomerTenantID int                      `json:"customerTenantId"`
+	CustomerName     string                   `json:"customerName"`
+	TicketNumber     string                   `json:"ticketNumber"`
+	Title            string                   `json:"title"`
+	Description      string                   `json:"description"`
+	Status           string                   `json:"status"`
+	Priority         string                   `json:"priority"`
+	Type             string                   `json:"type,omitempty"`
+	TypeName         string                   `json:"typeName,omitempty"`
+	RequesterID      int                      `json:"requesterId,omitempty"`
+	RequesterName    string                   `json:"requesterName,omitempty"`
+	AssigneeID       int                      `json:"assigneeId,omitempty"`
+	AssigneeName     string                   `json:"assigneeName,omitempty"`
+	CreatedAt        time.Time                `json:"createdAt"`
+	UpdatedAt        time.Time                `json:"updatedAt"`
+	SLADeadline      *time.Time               `json:"slaDeadline,omitempty"`
+	IsManagedByMSP   bool                     `json:"isManagedByMsp"`
+	AllowedActions   []WorkbenchAllowedAction `json:"allowedActions"`
 }
 
 // WorkbenchSummaryCustomer 单客户徽标计数。

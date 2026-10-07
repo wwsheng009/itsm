@@ -83,18 +83,22 @@ func TestMCPUseAndGovernanceSeparation_Matcher(t *testing.T) {
 	assert.False(t, checkPermissionMatch(governanceOnly, "mcp", "read"), "admin 不得蕴含读取（显式授予）")
 }
 
-// TestMCPAdminGrantSurfaceIsExplicit 授予面断言：兜底表里 admin 显式持有 read+admin、**不**持 write。
+// TestMCPAdminGrantSurfaceIsExplicit 授予面断言：兜底表里租户管理面角色（admin 与
+// provider_tenant_admin——后者 = admin ∪ msp_admin，2026-10-06 / 07:G11）显式持有
+// read+admin、**不**持 write。
 func TestMCPAdminGrantSurfaceIsExplicit(t *testing.T) {
-	adminPermissions := RolePermissions["admin"]
-	assert.True(t, mcpPairPresent(adminPermissions, "mcp", "read"), "admin 必须能读 MCP 服务器/工具清单")
-	assert.True(t, mcpPairPresent(adminPermissions, "mcp", "admin"), "admin 必须能治理 MCP 服务器")
-	assert.False(t, mcpPairPresent(adminPermissions, "mcp", "write"),
-		"admin 不得显式持有 mcp:write（M1-02 起按需授予，写工具仍需 Gate3 审批）")
+	for _, role := range []string{"admin", "provider_tenant_admin"} {
+		permissions := RolePermissions[role]
+		assert.True(t, mcpPairPresent(permissions, "mcp", "read"), "%s 必须能读 MCP 服务器/工具清单", role)
+		assert.True(t, mcpPairPresent(permissions, "mcp", "admin"), "%s 必须能治理 MCP 服务器", role)
+		assert.False(t, mcpPairPresent(permissions, "mcp", "write"),
+			"%s 不得显式持有 mcp:write（M1-02 起按需授予，写工具仍需 Gate3 审批）", role)
+	}
 
 	// 兜底表其余角色不得出现任何 mcp 授权（默认拒绝）。
 	for role, permissions := range RolePermissions {
-		if role == "super_admin" || role == "sysadmin" || role == "admin" {
-			continue // 通配角色与治理主，见上
+		if role == "super_admin" || role == "sysadmin" || role == "admin" || role == "provider_tenant_admin" {
+			continue // 通配角色与租户管理面角色，见上
 		}
 		assert.False(t, mcpPairPresent(permissions, "mcp", "read"), "%s 不得默认持有 mcp:read", role)
 		assert.False(t, mcpPairPresent(permissions, "mcp", "write"), "%s 不得默认持有 mcp:write", role)

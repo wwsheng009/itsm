@@ -7,6 +7,7 @@ import {
   Button,
   Drawer,
   Empty,
+  Grid,
   Input,
   Modal,
   Result,
@@ -59,6 +60,15 @@ const TENANT_TYPE_LABEL: Record<string, string> = {
   standard: '标准租户',
 };
 
+/** 紧凑时间：列表列宽有限，去掉秒；无效值原样返回。 */
+const formatDateTime = (value?: string) => {
+  if (!value) return '-';
+  const d = new Date(value);
+  if (Number.isNaN(d.getTime())) return value;
+  const pad = (n: number) => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
+};
+
 /**
  * 平台侧租户用户管理抽屉（TUM-4）。
  * 契约：docs/multi-tenant/plan/msp-tenant-user-management-enhancement-plan.md §4.1–§4.5。
@@ -76,6 +86,9 @@ const TenantUsersDrawer: React.FC<TenantUsersDrawerProps> = ({
   const { message } = App.useApp();
   const [searchParams, setSearchParams] = useSearchParams();
   const { hint: passwordHint, buildRules } = usePasswordPolicy();
+  const screens = Grid.useBreakpoint();
+  /** 桌面优先：宽屏 1160，随断点收敛；窄屏整屏，表格横向滚动由 scroll.x 承接。 */
+  const drawerWidth = screens.xxl ? 1160 : screens.xl ? 1080 : screens.lg ? 960 : '100%';
 
   const [items, setItems] = useState<TenantUserItem[]>([]);
   const [total, setTotal] = useState(0);
@@ -286,70 +299,122 @@ const TenantUsersDrawer: React.FC<TenantUsersDrawerProps> = ({
     void runBatch(targets, false);
   };
 
+  // 列布局（2026-10-06 优化；业务场景：平台管理员「找人 → 治理」动线）：
+  // 身份优先 —— 用户名固定左列（首管标记随行）+ 姓名/邮箱次级行；
+  // 角色合并 MSP 角色、状态合并「待改密」，压缩列数；操作固定右列始终可达。
+  // 列宽合计 990 + 选择列 ≈ scroll.x；宽屏抽屉（1160）内不产生横向滚动。
   const columns: ColumnsType<TenantUserItem> = [
     {
-      title: '用户名',
+      title: '用户',
       dataIndex: 'username',
       key: 'username',
-      render: (value: string, record) => (
-        <Space size={4}>
-          <Text strong>{value}</Text>
-          {record.isBootstrapAdmin && <Tag color="gold">首管</Tag>}
-        </Space>
-      ),
-    },
-    { title: '姓名', dataIndex: 'name', key: 'name' },
-    { title: '邮箱', dataIndex: 'email', key: 'email' },
-    {
-      title: '角色',
-      dataIndex: 'role',
-      key: 'role',
-      render: (value: string) => <Tag color="blue">{PRIMARY_ROLE_LABEL[value] ?? value ?? '-'}</Tag>,
-    },
-    {
-      title: 'MSP 角色',
-      dataIndex: 'mspRole',
-      key: 'mspRole',
-      render: (value?: string) => (value ? <Tag color="purple">{value}</Tag> : '-'),
-    },
-    { title: '部门', dataIndex: 'department', key: 'department', render: (v?: string) => v || '-' },
-    {
-      title: '状态',
-      dataIndex: 'active',
-      key: 'active',
-      render: (active: boolean, record) => {
-        const lastAdmin = isLastAdmin(record);
+      width: 250,
+      fixed: 'left',
+      render: (value: string, record) => {
+        const secondary = [record.name, record.email].filter(Boolean).join(' · ');
         return (
-          <UserStatusToggle
-            checked={active}
-            loading={statusLoadingId === record.id}
-            disabled={!canWrite || lastAdmin}
-            disabledReason={lastAdmin ? '该租户最后一个管理员不可停用' : undefined}
-            checkedChildren="启用"
-            unCheckedChildren="停用"
-            disableConfirmDescription="该用户将立即掉线，且无法登录；存量会话全部吊销。"
-            onToggle={next => handleRequestToggle(record, next)}
-          />
+          <div style={{ minWidth: 0 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 4, minWidth: 0 }}>
+              <Tooltip title={value} mouseEnterDelay={0.4}>
+                <span
+                  style={{
+                    fontWeight: 600,
+                    overflow: 'hidden',
+                    textOverflow: 'ellipsis',
+                    whiteSpace: 'nowrap',
+                  }}
+                >
+                  {value}
+                </span>
+              </Tooltip>
+              {record.isBootstrapAdmin && (
+                <Tag color="gold" style={{ marginInlineEnd: 0, flexShrink: 0 }}>
+                  首管
+                </Tag>
+              )}
+            </div>
+            {secondary && (
+              <Tooltip title={secondary} mouseEnterDelay={0.4}>
+                <span
+                  style={{
+                    display: 'block',
+                    fontSize: 12,
+                    color: 'rgba(0, 0, 0, 0.45)',
+                    overflow: 'hidden',
+                    textOverflow: 'ellipsis',
+                    whiteSpace: 'nowrap',
+                  }}
+                >
+                  {secondary}
+                </span>
+              </Tooltip>
+            )}
+          </div>
         );
       },
     },
     {
-      title: '首登待改密',
-      dataIndex: 'mustChangePassword',
-      key: 'mustChangePassword',
-      render: (value: boolean) =>
-        value ? <Badge status="warning" text="待改密" /> : <Text type="secondary">-</Text>,
+      title: '角色',
+      dataIndex: 'role',
+      key: 'role',
+      width: 140,
+      render: (value: string, record) => (
+        <Space direction="vertical" size={2}>
+          <Tag color="blue" style={{ marginInlineEnd: 0 }}>
+            {PRIMARY_ROLE_LABEL[value] ?? value ?? '-'}
+          </Tag>
+          {record.mspRole && (
+            <Tag color="purple" style={{ marginInlineEnd: 0 }}>
+              {record.mspRole}
+            </Tag>
+          )}
+        </Space>
+      ),
+    },
+    {
+      title: '部门',
+      dataIndex: 'department',
+      key: 'department',
+      width: 130,
+      ellipsis: true,
+      render: (v?: string) => v || '-',
+    },
+    {
+      title: '状态',
+      dataIndex: 'active',
+      key: 'active',
+      width: 120,
+      render: (active: boolean, record) => {
+        const lastAdmin = isLastAdmin(record);
+        return (
+          <Space direction="vertical" size={2}>
+            <UserStatusToggle
+              checked={active}
+              loading={statusLoadingId === record.id}
+              disabled={!canWrite || lastAdmin}
+              disabledReason={lastAdmin ? '该租户最后一个管理员不可停用' : undefined}
+              checkedChildren="启用"
+              unCheckedChildren="停用"
+              disableConfirmDescription="该用户将立即掉线，且无法登录；存量会话全部吊销。"
+              onToggle={next => handleRequestToggle(record, next)}
+            />
+            {record.mustChangePassword ? <Badge status="warning" text="待改密" /> : null}
+          </Space>
+        );
+      },
     },
     {
       title: '创建时间',
       dataIndex: 'createdAt',
       key: 'createdAt',
-      render: (value: string) => (value ? new Date(value).toLocaleString('zh-CN') : '-'),
+      width: 150,
+      render: (value?: string) => formatDateTime(value),
     },
     {
       title: '操作',
       key: 'actions',
       width: 200,
+      fixed: 'right',
       render: (_, record) => (
         <Space size="small">
           <Button size="small" disabled={!canWrite} onClick={() => setResetTarget(record)}>
@@ -424,7 +489,7 @@ const TenantUsersDrawer: React.FC<TenantUsersDrawerProps> = ({
             '租户用户管理'
           )
         }
-        width={920}
+        width={drawerWidth}
         open={open}
         onClose={onClose}
         destroyOnHidden
@@ -533,6 +598,8 @@ const TenantUsersDrawer: React.FC<TenantUsersDrawerProps> = ({
             <Table<TenantUserItem>
               rowKey="id"
               size="small"
+              tableLayout="fixed"
+              scroll={{ x: 1024 }}
               loading={loading}
               columns={columns}
               dataSource={items}

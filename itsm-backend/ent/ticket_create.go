@@ -569,6 +569,20 @@ func (_c *TicketCreate) SetNillableMspTicketID(v *string) *TicketCreate {
 	return _c
 }
 
+// SetMspRoutedAt sets the "msp_routed_at" field.
+func (_c *TicketCreate) SetMspRoutedAt(v time.Time) *TicketCreate {
+	_c.mutation.SetMspRoutedAt(v)
+	return _c
+}
+
+// SetNillableMspRoutedAt sets the "msp_routed_at" field if the given value is not nil.
+func (_c *TicketCreate) SetNillableMspRoutedAt(v *time.Time) *TicketCreate {
+	if v != nil {
+		_c.SetMspRoutedAt(*v)
+	}
+	return _c
+}
+
 // SetDeletedAt sets the "deleted_at" field.
 func (_c *TicketCreate) SetDeletedAt(v time.Time) *TicketCreate {
 	_c.mutation.SetDeletedAt(v)
@@ -1168,6 +1182,10 @@ func (_c *TicketCreate) createSpec() (*Ticket, *sqlgraph.CreateSpec) {
 	if value, ok := _c.mutation.MspTicketID(); ok {
 		_spec.SetField(ticket.FieldMspTicketID, field.TypeString, value)
 		_node.MspTicketID = value
+	}
+	if value, ok := _c.mutation.MspRoutedAt(); ok {
+		_spec.SetField(ticket.FieldMspRoutedAt, field.TypeTime, value)
+		_node.MspRoutedAt = &value
 	}
 	if value, ok := _c.mutation.DeletedAt(); ok {
 		_spec.SetField(ticket.FieldDeletedAt, field.TypeTime, value)

@@ -235,7 +235,7 @@ func BuiltinRolePermissionCodes() map[string][]string {
 			"ticket_category:read", "ticket_category:write", "ticket_category:delete",
 			"ticket_tag:read", "ticket_tag:write", "ticket_tag:delete",
 			"ticket_template:read", "ticket_template:write", "ticket_template:delete",
-			"ticket_type:read", "ticket_type:write", "ticket_type:create", "ticket_type:update", "ticket_type:delete", "ticket_type:manage", "ticket_type:archive",
+			"ticket_type:read", "ticket_type:write", "ticket_type:create", "ticket_type:update", "ticket_type:delete", "ticket_type:manage", "ticket_type:install_preset", "ticket_type:archive",
 			"user:read", "user:write", "user:delete",
 			"dashboard:read", "dashboard:admin",
 			"knowledge:read", "knowledge:write", "knowledge:admin",
@@ -263,6 +263,10 @@ func BuiltinRolePermissionCodes() map[string][]string {
 			"project:read", "project:write", "project:delete",
 			"application:read", "application:write",
 			"group:read", "group:write",
+			// 工单流程端点（/tickets/:id/workflow/*、accept/resolve/close 等）走 workflow:* 码；
+			// 此前 admin 仅有 bpmn:* → 工单"流程"页 403（2026-10-07 P1 修复）。
+			// provider_tenant_admin 由 admin ∪ msp_admin 派生，自动继承本修复。
+			"workflow:read", "workflow:write",
 			"bpmn:read", "bpmn:write", "bpmn:delete",
 			"task:read", "task:update", "task:admin",
 			"asset:read", "asset:write", "asset:delete",
@@ -392,6 +396,16 @@ func BuiltinRolePermissionCodes() map[string][]string {
 			"service_request:approve",
 			"incident:delete", "knowledge:delete",
 		)
+	}
+
+	// 服务商租户管理员（provider 首管默认角色，2026-10-06 / 07:G11）：
+	// 租户自有 ITSM 全量（admin 最终码集）∪ MSP 全矩阵（msp_admin 最终码集）。
+	// 派生放在全部规则之后，直接继承两角色的最终形态（task 基线/同义补齐/admin 显式补齐），
+	// 避免双份清单漂移；修复 provider 首管只绑纯 MSP 角色导致自身 ITSM 菜单全被过滤的缺口。
+	if adminCodes, ok := m["admin"]; ok {
+		if mspAdminCodes, ok := m["msp_admin"]; ok {
+			m["provider_tenant_admin"] = appendMissingCodes(adminCodes, mspAdminCodes...)
+		}
 	}
 
 	return m

@@ -100,6 +100,8 @@ export interface TicketTypeDefinition {
 
   // 分配规则
   autoAssignEnabled: boolean;
+  /** 类型级服务商跨租户路由（P0-d）：建单派生 MSP 快照并标记 msp_routed_at */
+  mspRouteEnabled: boolean;
   assignmentRules?: AssignmentRule[];
 
   // 通知配置
@@ -226,6 +228,7 @@ export interface CreateTicketTypeRequest {
   slaEnabled: boolean;
   defaultSlaId?: number;
   autoAssignEnabled: boolean;
+  mspRouteEnabled: boolean;
   assignmentRules?: AssignmentRule[];
   notificationConfig?: NotificationConfig;
   permissionConfig?: PermissionConfig;
@@ -252,6 +255,7 @@ export interface UpdateTicketTypeRequest {
   slaEnabled?: boolean;
   defaultSlaId?: number;
   autoAssignEnabled?: boolean;
+  mspRouteEnabled?: boolean;
   assignmentRules?: AssignmentRule[];
   notificationConfig?: NotificationConfig;
   permissionConfig?: PermissionConfig;

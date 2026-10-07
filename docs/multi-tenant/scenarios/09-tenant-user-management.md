@@ -1,7 +1,7 @@
 # 场景 09：平台侧租户用户管理（重置 / 启停 / 强制下线 / 审计）
 
 > **状态**：2026-10-05 落地（TUM-1–TUM-5）｜**定位**：平台管理员在 `/admin/tenants` 对**任意租户**用户执行账号治理（S1–S3 闭环）的浏览器实操剧本
-> **前置**：[00 环境与账号](./00-environment-and-accounts.md)；实例开启 `TENANT_USER_ADMIN_ENABLED=true`；平台 `super_admin` 账号（本地开发缺省 `admin`）
+> **前置**：[00 环境与账号](./00-environment-and-accounts.md)；实例开启 `TENANT_USER_ADMIN_ENABLED=true`（**首管口令恢复默认可用，不受该开关约束**，见 §3.1）；平台 `super_admin` 账号（本地开发缺省 `admin`）
 > **上位口径**：[增强方案 §4/§6](../plan/msp-tenant-user-management-enhancement-plan.md)（TUM-A1–A8 + 反例）｜**API 通道自动化**：[run-tenant-user-admin-acceptance.ps1](../../../scripts/msp/acceptance/run-tenant-user-admin-acceptance.ps1)
 > **证据**：路由器级 API e2e（TUM-A1–A8 + 反例，全中间件链）已实跑全绿；Go 定向用例 9 条（含 S1–S3 闭环、C5 通知、审计掩码）+ 前端 jest（抽屉 5 / API 契约 9 / 守卫 4）全绿；**联调实例 run-summary 与浏览器逐步截图**为可选补强（脚本已就绪，见 §9）
 
@@ -15,7 +15,7 @@
 | 入口 | `/admin/tenants` → 目标租户行「**用户管理**」（`Users` 图标，与「建号」并列） |
 | 权限 | 路由 `tenant:write` 粗筛 + 服务层 `super_admin` 硬校验（TUM-D1，fail-closed）；租户管理员调用一律 `403 PLATFORM_SCOPE_REQUIRED` |
 | 深链 | `?tenantUsers=<tenantId>` 直接打开抽屉；筛选/分页同步 `tuKeyword/tuStatus/tuRole/tuPage/tuPageSize`（刷新/分享可复现，TUM-A7） |
-| 灰度 | 写操作受 `TENANT_USER_ADMIN_ENABLED` 控制；关闭时 `403 TENANT_USER_ADMIN_DISABLED`（读通道不受限） |
+| 灰度 | 写操作受 `TENANT_USER_ADMIN_ENABLED` 控制；关闭时 `403 TENANT_USER_ADMIN_DISABLED`（读通道不受限）；**例外：首管（`is_bootstrap_admin`）重置密码为兜底恢复通道，默认可用**（TUM-D3 修订，见 §3.1） |
 
 > **安全边界**：抽屉只做 UX 收敛，真正的平台面判定在服务端；不要以「按钮可见」推断权限。
 
@@ -23,7 +23,7 @@
 
 1. **头部**：租户名称 / 编码 / 类型标签 / 用户总数（`total` 与配额用量同源，见 §8）。
 2. **工具条**：搜索（300ms 防抖，用户名/姓名/邮箱）、状态筛选、角色筛选、刷新。
-3. **表格列**：用户名（首管带「首管」标记）、姓名、邮箱、角色、MSP 角色、部门、状态（开关）、首登待改密（`待改密` 徽标）、创建时间、操作（重置密码 / 强制下线）。
+3. **表格列**（身份优先）：用户（用户名固定左列 + 「首管」标记；姓名/邮箱次级行，超长省略 + Tooltip）、角色（主角色 + MSP 角色）、部门、状态（开关 + `待改密` 徽标）、创建时间（紧凑到分钟）、操作（重置密码 / 强制下线，固定右列）；宽屏无横向滚动，窄屏用户名/操作列固定可见、中间列横向滚动。
 4. **批量条**（写权限）：本页勾选（上限 50）→ 批量启用/停用；失败项展示逐条原因并可「重试失败项」。
 5. **空态三分**：该租户暂无用户（附「去建号」）／搜索无结果（附「清空筛选」）／403 平台面说明。
 6. **无障碍**：Esc 关闭、焦点陷阱；禁用开关有 Tooltip 说明原因（如「该租户最后一个管理员不可停用」）。
@@ -54,6 +54,29 @@ curl.exe -X POST -H "Authorization: Bearer <platform-token>" -H "Content-Type: a
 ```
 
 **闭环判据（C1/C2/C3）**：旧口令/旧会话全失效；`must_change_password=true` 生效；审计含 `target_tenant_id`/`target_user_id`（§5）；口令转交责任链见方案 §4.5（线下/工单渠道，通知不含口令）。
+
+## 3.1 首管口令恢复（默认可用，不受写通道开关约束）
+
+> 场景：租户**唯一**管理员（bootstrap 首管 `admin-<tenantCode>`）口令丢失，且该租户内无第二个管理员可代为重置——
+> 这是「防租户锁死」的平台兜底恢复通道（TUM-D3 修订），**不依赖 `TENANT_USER_ADMIN_ENABLED`**。
+
+| # | 操作（浏览器） | 预期界面反馈 |
+|---|---|---|
+| 1 | `/admin/tenants` → 目标租户行「用户管理」→ 首管行（「首管」标记）点「重置密码」 | 开关未开启时：普通用户重置返回 `403 TENANT_USER_ADMIN_DISABLED`；**首管照常可用** |
+| 2 | 选「一次性口令」确认 | 返回口令（仅显示一次）；`must_change_password=true`；该用户存量 access+refresh 双吊销 |
+| 3 | 用一次性口令登录 | 进入 `/change-password` 强制改密后恢复访问 |
+
+**服务器侧兜底（无控制台 / 无 `super_admin` 会话）**
+
+```powershell
+cd itsm-backend
+go run ./cmd/reset_password -tenant-code B2CCUST -password '<NewStrongPass>'          # 默认目标 = 该租户首管
+go run ./cmd/reset_password -tenant-code B2CCUST -username b2ccust_admin -password '<NewStrongPass>' -must-change=false
+```
+
+- 口令须通过**目标租户密码策略**；`-must-change` 默认 `true`；
+- 会话双吊销为尽力而为：多实例部署需共享 Redis（CLI 会尝试连接 `REDIS_*` 配置；不可用时告警，旧会话可能存活至过期）；
+- 审计：`user.admin_password_reset`（HTTP 窄通道在开关关闭时 `channel=bootstrap_recovery`；CLI 通道 `path=cmd:reset_password`、`source=system`）。
 
 ## 4. S2 员工离职（停用 + 租户管理员通知）
 

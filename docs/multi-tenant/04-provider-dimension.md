@@ -1,7 +1,7 @@
 # 04 · 服务商维度：provider 租户、分配与跨客户运营
 
 > **状态**：当前
-> **更新日期**：2026-09-28
+> **更新日期**：2026-09-28（2026-10-06 修订：§1 首管角色，07:G11）
 > **适用**：服务商管理员；前置阅读 [01-architecture.md](./01-architecture.md)
 
 > **定位（as-is）**：本文为**现状/运营快照**（2026-09-28 实测），**不是目标口径**；目标以 [canon](./plan/msp-concept-model-and-architecture-canon.md) 为准，差异与整改见[一致性审计](./plan/msp-docs-consistency-audit.md) §3（C11）。
@@ -12,6 +12,7 @@
 - 服务商员工必须满足：`users.msp_role` 非空（`ent/schema/user.go:69-72`），且租户类型为 `msp_provider`（`pkg/tenantmode/tenantmode.go`）；
 - 创建方式：`POST /api/v1/tenants`（`tenant.write`，`docs/acl-manifest.yaml:1735-1737`），`type` 填 `msp_provider`；
 - **注意**：普通 `admin` 角色不会自动获得 MSP 访问权，必须有真实的 `msp_role` 与分配（`middleware/msp_middleware.go:25-26`）。
+- **首管角色（2026-10-06，07:G11）**：provider 租户首个管理员绑定租户内**组合角色** `provider_tenant_admin`（= `admin` ∪ `msp_admin`，即「自身 ITSM 全量 + MSP 全矩阵」），因此服务商租户**同时**具备自有 ITSM 菜单（工单/事件/变更/SLA/知识库/CMDB 等）与 MSP 四菜单；存量租户用 `cmd/backfill_provider_admin` 幂等回填（dry-run 默认开启，回填后输出首管可见菜单自证）。
 
 ## 2. `msp_role` 枚举与语义
 

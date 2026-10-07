@@ -175,6 +175,7 @@ type TicketTypeDefinition struct {
 	SLAEnabled            bool                      `json:"slaEnabled"`
 	DefaultSLAID          *int                      `json:"defaultSlaId,omitempty"`
 	AutoAssignEnabled     bool                      `json:"autoAssignEnabled"`
+	MspRouteEnabled       bool                      `json:"mspRouteEnabled"`
 	AssignmentRules       []AssignmentRule          `json:"assignmentRules,omitempty"`
 	NotificationConfig    *NotificationConfig       `json:"notificationConfig,omitempty"`
 	PermissionConfig      *PermissionConfig         `json:"permissionConfig,omitempty"`
@@ -206,6 +207,7 @@ type CreateTicketTypeRequest struct {
 	SLAEnabled            bool                      `json:"slaEnabled"`
 	DefaultSLAID          *int                      `json:"defaultSlaId,omitempty"`
 	AutoAssignEnabled     bool                      `json:"autoAssignEnabled"`
+	MspRouteEnabled       bool                      `json:"mspRouteEnabled"`
 	AssignmentRules       []AssignmentRule          `json:"assignmentRules,omitempty"`
 	NotificationConfig    *NotificationConfig       `json:"notificationConfig,omitempty"`
 	PermissionConfig      *PermissionConfig         `json:"permissionConfig,omitempty"`
@@ -229,6 +231,7 @@ type UpdateTicketTypeRequest struct {
 	SLAEnabled            *bool                      `json:"slaEnabled"`
 	DefaultSLAID          *int                       `json:"defaultSlaId"`
 	AutoAssignEnabled     *bool                      `json:"autoAssignEnabled"`
+	MspRouteEnabled       *bool                      `json:"mspRouteEnabled"`
 	AssignmentRules       *[]AssignmentRule          `json:"assignmentRules"`
 	NotificationConfig    *NotificationConfig        `json:"notificationConfig"`
 	PermissionConfig      *PermissionConfig          `json:"permissionConfig"`

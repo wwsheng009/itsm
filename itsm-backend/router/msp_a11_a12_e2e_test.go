@@ -292,7 +292,9 @@ func runScenario(t *testing.T, nProviders int) *mspE2EOutcome {
 		All(ctx)
 	require.NoError(t, err)
 	require.NotEmpty(t, providerSide, "provider 侧通知应落 provider 租户（A12 双投递）")
-	assert.Equal(t, "/msp/workbench", providerSide[0].ActionURL)
+	assert.Equal(t,
+		fmt.Sprintf("/msp/workbench?ticket=%d&customerTenantId=%d", env.ticket.ID, env.customer.ID),
+		providerSide[0].ActionURL, "provider 侧通知深链应直达该工单详情（P2）")
 	// 回复者即托管处理人 → provider 侧不给自己发（actor 排除）。
 	agentSelf, err := client.Notification.Query().
 		Where(entNotification.TenantIDEQ(env.provider.ID), entNotification.UserIDEQ(env.agent.ID)).

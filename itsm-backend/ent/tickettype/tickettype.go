@@ -52,6 +52,8 @@ const (
 	FieldDefaultSLAID = "default_sla_id"
 	// FieldAutoAssignEnabled holds the string denoting the auto_assign_enabled field in the database.
 	FieldAutoAssignEnabled = "auto_assign_enabled"
+	// FieldMspRouteEnabled holds the string denoting the msp_route_enabled field in the database.
+	FieldMspRouteEnabled = "msp_route_enabled"
 	// FieldAssignmentRules holds the string denoting the assignment_rules field in the database.
 	FieldAssignmentRules = "assignment_rules"
 	// FieldNotificationConfig holds the string denoting the notification_config field in the database.
@@ -106,6 +108,7 @@ var Columns = []string{
 	FieldSLAEnabled,
 	FieldDefaultSLAID,
 	FieldAutoAssignEnabled,
+	FieldMspRouteEnabled,
 	FieldAssignmentRules,
 	FieldNotificationConfig,
 	FieldPermissionConfig,
@@ -152,6 +155,8 @@ var (
 	DefaultSLAEnabled bool
 	// DefaultAutoAssignEnabled holds the default value on creation for the "auto_assign_enabled" field.
 	DefaultAutoAssignEnabled bool
+	// DefaultMspRouteEnabled holds the default value on creation for the "msp_route_enabled" field.
+	DefaultMspRouteEnabled bool
 	// DefaultUsageCount holds the default value on creation for the "usage_count" field.
 	DefaultUsageCount int
 )
@@ -252,6 +257,11 @@ func ByDefaultSLAID(opts ...sql.OrderTermOption) OrderOption {
 // ByAutoAssignEnabled orders the results by the auto_assign_enabled field.
 func ByAutoAssignEnabled(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldAutoAssignEnabled, opts...).ToFunc()
+}
+
+// ByMspRouteEnabled orders the results by the msp_route_enabled field.
+func ByMspRouteEnabled(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldMspRouteEnabled, opts...).ToFunc()
 }
 
 // ByTenantID orders the results by the tenant_id field.

@@ -98,6 +98,9 @@ func applyMSPCreateSnapshot(builder *ent.TicketCreate, params *CreateParams) {
 	if params.MSPTicketID != nil && *params.MSPTicketID != "" {
 		builder.SetMspTicketID(*params.MSPTicketID)
 	}
+	if params.MSPRoutedAt != nil {
+		builder.SetMspRoutedAt(*params.MSPRoutedAt)
+	}
 }
 
 // applyMSPUpdateSnapshot 在更新（含乐观锁路径）时补齐/变更 MSP 快照字段；nil = 不修改。
@@ -110,6 +113,9 @@ func applyMSPUpdateSnapshot(builder *ent.TicketUpdateOne, params *UpdateParams) 
 	}
 	if params.ManagedByUserID != nil {
 		builder.SetManagedByUserID(*params.ManagedByUserID)
+	}
+	if params.MSPRoutedAt != nil {
+		builder.SetMspRoutedAt(*params.MSPRoutedAt)
 	}
 }
 
@@ -1053,6 +1059,9 @@ func toDomainModel(e *ent.Ticket) *Ticket {
 	}
 	if e.MspTicketID != "" {
 		t.MSPTicketID = &e.MspTicketID
+	}
+	if e.MspRoutedAt != nil {
+		t.MSPRoutedAt = e.MspRoutedAt
 	}
 
 	return t

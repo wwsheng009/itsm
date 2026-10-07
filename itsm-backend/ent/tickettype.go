@@ -58,6 +58,8 @@ type TicketType struct {
 	DefaultSLAID int64 `json:"default_sla_id,omitempty"`
 	// AutoAssignEnabled holds the value of the "auto_assign_enabled" field.
 	AutoAssignEnabled bool `json:"auto_assign_enabled,omitempty"`
+	// 是否启用服务商跨租户路由（类型级自动路由：建单派生 MSP 快照并标记路由）
+	MspRouteEnabled bool `json:"msp_route_enabled,omitempty"`
 	// AssignmentRules holds the value of the "assignment_rules" field.
 	AssignmentRules []interface{} `json:"assignment_rules,omitempty"`
 	// NotificationConfig holds the value of the "notification_config" field.
@@ -107,7 +109,7 @@ func (*TicketType) scanValues(columns []string) ([]any, error) {
 		switch columns[i] {
 		case tickettype.FieldCustomFields, tickettype.FieldApprovalChain, tickettype.FieldAssignmentRules, tickettype.FieldNotificationConfig, tickettype.FieldPermissionConfig:
 			values[i] = new([]byte)
-		case tickettype.FieldApprovalEnabled, tickettype.FieldSLAEnabled, tickettype.FieldAutoAssignEnabled:
+		case tickettype.FieldApprovalEnabled, tickettype.FieldSLAEnabled, tickettype.FieldAutoAssignEnabled, tickettype.FieldMspRouteEnabled:
 			values[i] = new(sql.NullBool)
 		case tickettype.FieldID, tickettype.FieldCategoryID, tickettype.FieldSortOrder, tickettype.FieldAssignmentRuleID, tickettype.FieldArchivedBy, tickettype.FieldApprovalWorkflowID, tickettype.FieldDefaultSLAID, tickettype.FieldTenantID, tickettype.FieldCreatedBy, tickettype.FieldUpdatedBy, tickettype.FieldUsageCount:
 			values[i] = new(sql.NullInt64)
@@ -260,6 +262,12 @@ func (_m *TicketType) assignValues(columns []string, values []any) error {
 				return fmt.Errorf("unexpected type %T for field auto_assign_enabled", values[i])
 			} else if value.Valid {
 				_m.AutoAssignEnabled = value.Bool
+			}
+		case tickettype.FieldMspRouteEnabled:
+			if value, ok := values[i].(*sql.NullBool); !ok {
+				return fmt.Errorf("unexpected type %T for field msp_route_enabled", values[i])
+			} else if value.Valid {
+				_m.MspRouteEnabled = value.Bool
 			}
 		case tickettype.FieldAssignmentRules:
 			if value, ok := values[i].(*[]byte); !ok {
@@ -423,6 +431,9 @@ func (_m *TicketType) String() string {
 	builder.WriteString(", ")
 	builder.WriteString("auto_assign_enabled=")
 	builder.WriteString(fmt.Sprintf("%v", _m.AutoAssignEnabled))
+	builder.WriteString(", ")
+	builder.WriteString("msp_route_enabled=")
+	builder.WriteString(fmt.Sprintf("%v", _m.MspRouteEnabled))
 	builder.WriteString(", ")
 	builder.WriteString("assignment_rules=")
 	builder.WriteString(fmt.Sprintf("%v", _m.AssignmentRules))

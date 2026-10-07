@@ -5997,8 +5997,12 @@ func init() {
 	tickettypeDescAutoAssignEnabled := tickettypeFields[19].Descriptor()
 	// tickettype.DefaultAutoAssignEnabled holds the default value on creation for the auto_assign_enabled field.
 	tickettype.DefaultAutoAssignEnabled = tickettypeDescAutoAssignEnabled.Default.(bool)
+	// tickettypeDescMspRouteEnabled is the schema descriptor for msp_route_enabled field.
+	tickettypeDescMspRouteEnabled := tickettypeFields[20].Descriptor()
+	// tickettype.DefaultMspRouteEnabled holds the default value on creation for the msp_route_enabled field.
+	tickettype.DefaultMspRouteEnabled = tickettypeDescMspRouteEnabled.Default.(bool)
 	// tickettypeDescUsageCount is the schema descriptor for usage_count field.
-	tickettypeDescUsageCount := tickettypeFields[28].Descriptor()
+	tickettypeDescUsageCount := tickettypeFields[29].Descriptor()
 	// tickettype.DefaultUsageCount holds the default value on creation for the usage_count field.
 	tickettype.DefaultUsageCount = tickettypeDescUsageCount.Default.(int)
 	ticketviewFields := schema.TicketView{}.Fields()

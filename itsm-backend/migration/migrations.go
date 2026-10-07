@@ -119,6 +119,16 @@ var RegisteredMigrations = []Migration{
 		Description: "Enforce one active MSP allocation per (msp_user_id, customer_tenant_id); deactivate historical duplicates first (IP-P0-2 §3.0-B2)",
 		RollbackSQL: "DROP INDEX IF EXISTS uk_msp_allocation_active;",
 	},
+	{
+		Version:     "023_grant_ticket_type_install_preset_to_admin",
+		Description: "Grant ticket_type:install_preset to the tenant admin role (016 omitted admin, so /tickets/types 预设安装对租户管理员 403)",
+		RollbackSQL: "",
+	},
+	{
+		Version:     "024_add_msp_route_enabled_and_routed_at",
+		Description: "Add ticket_types.msp_route_enabled and tickets.msp_routed_at for type-level MSP routing (P0-d)",
+		RollbackSQL: `ALTER TABLE ticket_types DROP COLUMN IF EXISTS msp_route_enabled; ALTER TABLE tickets DROP COLUMN IF EXISTS msp_routed_at;`,
+	},
 }
 
 // PostSchemaMigrations returns a defensive copy of the canonical active stream.
@@ -881,6 +891,43 @@ UPDATE msp_allocations
 CREATE UNIQUE INDEX IF NOT EXISTS uk_msp_allocation_active
     ON msp_allocations (msp_user_id, customer_tenant_id)
     WHERE deassigned_at IS NULL;
+`
+	case "023_grant_ticket_type_install_preset_to_admin":
+		return `
+-- 补齐 ticket_type:install_preset 权限点对租户管理员（role.code=admin）的授权。
+-- 背景：016 迁移的授权名单（sysadmin/it_director/ops_director/ops_manager/sd_manager/
+-- service_catalog_admin）遗漏了 admin，且角色模板（internal/authz/roles.go）同样缺该码，
+-- 导致租户管理员在 /tickets/types 点「从预设安装」→ POST /ticket-type-presets/:id/install
+-- 被 RequirePermission("ticket_type","install_preset") 拒绝 403「权限不足」。
+-- 幂等：权限行与授权行均按 NOT EXISTS 去重，可重复执行。
+INSERT INTO permissions (code, name, description, resource, action, tenant_id, created_at, updated_at)
+SELECT 'ticket_type:install_preset', '安装工单类型预设', '从预设库安装工单类型', 'ticket_type', 'install_preset', tenant.id, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
+FROM tenants tenant
+WHERE NOT EXISTS (
+  SELECT 1 FROM permissions existing
+  WHERE existing.tenant_id = tenant.id AND existing.code = 'ticket_type:install_preset'
+);
+
+INSERT INTO role_permissions (role_id, permission_id, tenant_id)
+SELECT role.id, permission.id, role.tenant_id
+FROM roles role
+JOIN permissions permission ON permission.tenant_id = role.tenant_id
+WHERE role.code = 'admin'
+  AND permission.code = 'ticket_type:install_preset'
+  AND NOT EXISTS (
+    SELECT 1 FROM role_permissions existing
+    WHERE existing.role_id = role.id AND existing.permission_id = permission.id AND existing.tenant_id = role.tenant_id
+  );
+`
+	case "024_add_msp_route_enabled_and_routed_at":
+		return `
+-- P0-d 类型级自动路由：类型开关 + 工单路由标记。
+-- 幂等：列与索引均 IF NOT EXISTS；存量工单 msp_routed_at 保持 NULL（未路由，客户内闭环）。
+ALTER TABLE ticket_types ADD COLUMN IF NOT EXISTS msp_route_enabled BOOLEAN NOT NULL DEFAULT false;
+ALTER TABLE tickets ADD COLUMN IF NOT EXISTS msp_routed_at TIMESTAMPTZ;
+CREATE INDEX IF NOT EXISTS idx_tickets_msp_routed_at
+    ON tickets (msp_routed_at)
+    WHERE msp_routed_at IS NOT NULL;
 `
 	default:
 		return ""

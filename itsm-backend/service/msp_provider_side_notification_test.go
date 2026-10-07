@@ -17,6 +17,8 @@ import (
 	"github.com/stretchr/testify/require"
 	"go.uber.org/zap/zaptest"
 
+	"itsm-backend/common/tenantctx"
+	"itsm-backend/database"
 	"itsm-backend/ent"
 	"itsm-backend/ent/enttest"
 	entNotification "itsm-backend/ent/notification"
@@ -92,6 +94,8 @@ func newDualDeliveryEnv(t *testing.T) *dualDeliveryEnv {
 		Save(ctx)
 	require.NoError(t, err)
 	env.svc = NewTicketNotificationService(client, zaptest.NewLogger(t).Sugar())
+	// 注册生产同款写路径租户守卫：锁定"客户上下文触发 provider 侧写入"的跨租户场景。
+	database.RegisterSecurityInterceptors(client, "off")
 	return env
 }
 
@@ -101,7 +105,8 @@ func (e *dualDeliveryEnv) providerRecipientIDs(t *testing.T) map[int]bool {
 	rows, err := e.client.Notification.Query().
 		Where(
 			entNotification.TenantIDEQ(e.provider.ID),
-			entNotification.ActionURLEQ(mspWorkbenchActionURL),
+			// 深链前缀（Tx 用例的工单在事务内新建，ID 与 e.ticket 不同）。
+			entNotification.ActionURLHasPrefix("/msp/workbench?ticket="),
 		).
 		All(context.Background())
 	require.NoError(t, err)
@@ -114,7 +119,15 @@ func (e *dualDeliveryEnv) providerRecipientIDs(t *testing.T) map[int]bool {
 
 func TestMSPDualDelivery_Commented(t *testing.T) {
 	env := newDualDeliveryEnv(t)
-	ctx := context.Background()
+	// 模拟真实请求：上下文租户 = 客户租户（评论发起方）。
+	ctx := tenantctx.WithTenantID(context.Background(), env.customer.ID)
+
+	// 守卫在线校验：客户上下文直接写 provider 行必须被拒绝（fail-closed）。
+	_, err := env.client.Notification.Create().
+		SetTitle("guard-probe").SetMessage("probe").SetType("info").
+		SetUserID(env.providerAdmin.ID).SetTenantID(env.provider.ID).
+		Save(ctx)
+	require.Error(t, err, "租户守卫应拦截跨租户写入（回归保护前提）")
 
 	require.NoError(t, env.svc.NotifyTicketCommented(ctx, env.ticket.ID, env.requester.ID, nil, env.customer.ID))
 
@@ -171,7 +184,7 @@ func TestMSPDualDelivery_AssignedAndStatusChanged(t *testing.T) {
 	require.NoError(t, err)
 	assert.Len(t, providerRows, 2, "provider 侧应收到 tech + provider_admin 两份状态通知")
 	for _, row := range providerRows {
-		assert.Equal(t, mspWorkbenchActionURL, row.ActionURL)
+		assert.Equal(t, mspWorkbenchActionURL(env.ticket), row.ActionURL)
 	}
 }
 

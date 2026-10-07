@@ -169,6 +169,9 @@ output/
 # Exception: 共享改密组件（TUM-4，components/user 源码；ResetPasswordModal 名称含 password）
 !itsm-frontend/src/components/user/
 !itsm-frontend/src/components/user/**
+# Exception: 首管口令恢复 CLI（TUM-D3 修订，cmd/reset_password 名称含 password；源码非密钥）
+!itsm-backend/cmd/reset_password/
+!itsm-backend/cmd/reset_password/**
 *.key
 credentials*
 

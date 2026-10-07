@@ -186,6 +186,25 @@ func TestWorkbenchListScopesAndAllowedActions(t *testing.T) {
 	requireWorkbenchCode(t, err, CodeInvalidCursor)
 }
 
+// TestWorkbenchAllowedActionsTerminalReplyDisabled 锁定终态契约一致性：
+// allowedActions 与写路径 authorizeTicketAction 同口径——resolved/closed/cancelled
+// 对全部动作（含 reply）一律 allowed=false + ACTION_NOT_ALLOWED。
+func TestWorkbenchAllowedActionsTerminalReplyDisabled(t *testing.T) {
+	perms := map[string]bool{"reply": true, "status": true, "assign": true}
+	for _, status := range []string{"resolved", "closed", "cancelled"} {
+		acts := workbenchAllowedActions(&ent.Ticket{Status: status}, true, perms)
+		require.Len(t, acts, 3)
+		for _, act := range acts {
+			assert.False(t, act.Allowed, "%s 终态 %s 必须拒绝", status, act.Action)
+			assert.Equal(t, CodeActionNotAllowed, act.ReasonCode)
+		}
+	}
+	// 非终态不受影响。
+	for _, act := range workbenchAllowedActions(&ent.Ticket{Status: "open"}, true, perms) {
+		assert.True(t, act.Allowed, "open 状态 %s 应放行", act.Action)
+	}
+}
+
 // TestWorkbenchSummaryCounts 徽标计数：open/slaRisk/slaDueSoon/unassigned 与列表一致（WB-A2 / IP-P2-4b）。
 func TestWorkbenchSummaryCounts(t *testing.T) {
 	env := newWorkbenchEnv(t)
@@ -301,4 +320,58 @@ func TestWorkbenchCursorPagination(t *testing.T) {
 		require.LessOrEqual(t, page, 5, "游标未收敛，疑似死循环")
 	}
 	assert.Len(t, seen, 3, "A×2 + B×1 共 3 条全部返回")
+}
+
+// TestWorkbenchTicketDetail 跨租户详情（P1）：只读授权链与列表同口径——
+// 分配校验（未分配 → MSP_ALLOCATION_REQUIRED）、暂停只读、声明租户一致性、404 防枚举。
+func TestWorkbenchTicketDetail(t *testing.T) {
+	env := newWorkbenchEnv(t)
+	ctx := context.Background()
+
+	// active + 已分配：详情字段与 allowedActions 全放行。
+	detail, err := env.svc.GetTicketDetail(ctx, env.actor, env.tA2.ID, env.a.ID)
+	require.NoError(t, err)
+	require.NotNil(t, detail)
+	assert.Equal(t, env.tA2.ID, detail.ID)
+	assert.Equal(t, env.a.ID, detail.CustomerTenantID)
+	assert.Equal(t, "Customer A", detail.CustomerName)
+	assert.Equal(t, "WB-A-2", detail.TicketNumber)
+	assert.Equal(t, "in_progress", detail.Status)
+	assert.Equal(t, "high", detail.Priority)
+	assert.Equal(t, "wb-user-a", detail.RequesterName)
+	assert.Equal(t, "wb-msp", detail.AssigneeName)
+	require.Len(t, detail.AllowedActions, 3)
+	for _, act := range detail.AllowedActions {
+		assert.True(t, act.Allowed, "active 租户 + msp 写权限：%s 应放行", act.Action)
+	}
+
+	// SLA 截止时间随详情返回（tA 已超期）。
+	overdue, err := env.svc.GetTicketDetail(ctx, env.actor, env.tA.ID, env.a.ID)
+	require.NoError(t, err)
+	require.NotNil(t, overdue.SLADeadline)
+
+	// 暂停客户：可读但全只读（与列表 WB-A5 一致）。
+	suspended, err := env.svc.GetTicketDetail(ctx, env.actor, env.tB.ID, env.b.ID)
+	require.NoError(t, err)
+	assert.Equal(t, "Customer B", suspended.CustomerName)
+	for _, act := range suspended.AllowedActions {
+		assert.False(t, act.Allowed, "暂停租户详情必须只读")
+		assert.Equal(t, CodeCustomerInactive, act.ReasonCode)
+	}
+
+	// 未分配客户 → MSP_ALLOCATION_REQUIRED（防枚举，不返回"不存在"）。
+	_, err = env.svc.GetTicketDetail(ctx, env.actor, env.tC.ID, env.c.ID)
+	requireWorkbenchCode(t, err, CodeMSPAllocationRequired)
+
+	// 声明租户与资源租户不一致 → RESOURCE_TENANT_MISMATCH。
+	_, err = env.svc.GetTicketDetail(ctx, env.actor, env.tA.ID, env.b.ID)
+	requireWorkbenchCode(t, err, CodeResourceTenantMismatch)
+
+	// 不存在的工单 → CUSTOMER_TENANT_NOT_FOUND。
+	_, err = env.svc.GetTicketDetail(ctx, env.actor, 999999, env.a.ID)
+	requireWorkbenchCode(t, err, CodeCustomerTenantNotFound)
+
+	// 缺失声明租户 → 同码 fail-closed。
+	_, err = env.svc.GetTicketDetail(ctx, env.actor, env.tA.ID, 0)
+	requireWorkbenchCode(t, err, CodeCustomerTenantNotFound)
 }

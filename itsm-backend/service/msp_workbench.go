@@ -26,6 +26,7 @@ import (
 	"itsm-backend/ent/predicate"
 	entTenant "itsm-backend/ent/tenant"
 	entTicket "itsm-backend/ent/ticket"
+	entTicketType "itsm-backend/ent/tickettype"
 	"itsm-backend/ent/user"
 	usertenantmembership "itsm-backend/ent/usertenantmembership"
 	"itsm-backend/middleware"
@@ -285,6 +286,93 @@ func (s *MSPWorkbenchService) ListTickets(ctx context.Context, actor MSPWorkbenc
 	return &dto.WorkbenchTicketListResponse{Items: items, NextCursor: nextCursor, Total: len(items)}, nil
 }
 
+// GetTicketDetail 跨租户工单详情（P1；工作台详情抽屉）：
+// 只读条目级授权链 = 资源租户一致性 → 分配校验 → 名称解析 → allowedActions（与列表同口径）。
+// 暂停/过期客户仍可读（与列表一致）；不做托管标记过滤（镜像列表可见范围）。
+func (s *MSPWorkbenchService) GetTicketDetail(ctx context.Context, actor MSPWorkbenchActor, ticketID, declaredTenantID int) (*dto.WorkbenchTicketDetailResponse, error) {
+	if s.client == nil {
+		return nil, fmt.Errorf("ent client not available for msp workbench")
+	}
+	if declaredTenantID <= 0 {
+		return nil, NewCustomerAccessError(CodeCustomerTenantNotFound, "缺少目标客户租户声明")
+	}
+	// IP-P2-2：以声明租户为 RLS GUC 读取（enforce 下跨租户探测 fail-closed → not-found）。
+	t, err := s.client.Ticket.Get(tenantctx.WithTenantID(ctx, declaredTenantID), ticketID)
+	if err != nil {
+		if ent.IsNotFound(err) {
+			return nil, NewCustomerAccessError(CodeCustomerTenantNotFound, "工单不存在")
+		}
+		return nil, err
+	}
+	if t.TenantID != declaredTenantID {
+		return nil, NewCustomerAccessError(CodeResourceTenantMismatch, "工单租户与请求声明不一致")
+	}
+	if err := s.ensureAllocated(actor, t.TenantID); err != nil {
+		return nil, err
+	}
+	meta, err := s.loadTenantMeta(ctx, []int{t.TenantID})
+	if err != nil {
+		return nil, err
+	}
+	tm := meta[t.TenantID]
+	perms := s.tenantActionPermissions(ctx, actor, t.TenantID, tm.active())
+
+	// 处理人/发起人姓名：发起人在客户租户、处理人可能在 provider 租户，
+	// 按租户分别绑定 RLS GUC 读取（enforce 下各自作用域内 fail-closed）。
+	names := make(map[int]string)
+	tenantScopes := []int{t.TenantID}
+	if actor.HomeTenantID > 0 && actor.HomeTenantID != t.TenantID {
+		tenantScopes = append(tenantScopes, actor.HomeTenantID)
+	}
+	for _, scope := range tenantScopes {
+		rows, err := s.client.User.Query().
+			Where(user.TenantIDEQ(scope)).
+			All(tenantctx.WithTenantID(ctx, scope))
+		if err != nil {
+			return nil, fmt.Errorf("workbench detail load users tenant %d: %w", scope, err)
+		}
+		for _, u := range rows {
+			names[u.ID] = u.Name
+		}
+	}
+
+	typeName := t.Type
+	if t.TicketTypeID > 0 {
+		if tt, err := s.client.TicketType.Query().
+			Where(entTicketType.IDEQ(t.TicketTypeID)).
+			Only(tenantctx.WithTenantID(ctx, t.TenantID)); err == nil && tt != nil {
+			typeName = tt.Name
+		}
+		// 类型缺失/不可读不阻断详情（回退 t.Type）。
+	}
+
+	resp := &dto.WorkbenchTicketDetailResponse{
+		ID:               t.ID,
+		CustomerTenantID: t.TenantID,
+		CustomerName:     tm.name,
+		TicketNumber:     t.TicketNumber,
+		Title:            t.Title,
+		Description:      t.Description,
+		Status:           t.Status,
+		Priority:         t.Priority,
+		Type:             t.Type,
+		TypeName:         typeName,
+		RequesterID:      t.RequesterID,
+		RequesterName:    names[t.RequesterID],
+		AssigneeID:       t.AssigneeID,
+		AssigneeName:     names[t.AssigneeID],
+		CreatedAt:        t.CreatedAt,
+		UpdatedAt:        t.UpdatedAt,
+		IsManagedByMSP:   t.IsManagedByMsp,
+		AllowedActions:   workbenchAllowedActions(t, tm.active(), perms),
+	}
+	if !t.SLAResolutionDeadline.IsZero() {
+		deadline := t.SLAResolutionDeadline
+		resp.SLADeadline = &deadline
+	}
+	return resp, nil
+}
+
 // normalizeTenantSet 校验请求集合 ⊆ 服务端允许集合；显式请求未分配租户 → 403（防枚举：不区分"不存在"）。
 func (s *MSPWorkbenchService) normalizeTenantSet(requested, allowed []int) ([]int, error) {
 	allowedSet := make(map[int]bool, len(allowed))
@@ -361,6 +449,9 @@ func applyWorkbenchFilters(q *ent.TicketQuery, req dto.WorkbenchTicketQuery) *en
 	if strings.TrimSpace(req.Priority) != "" {
 		q = q.Where(entTicket.PriorityEQ(strings.TrimSpace(req.Priority)))
 	}
+	if req.RoutedOnly {
+		q = q.Where(entTicket.MspRoutedAtNotNil())
+	}
 	if req.AssigneeID > 0 {
 		q = q.Where(entTicket.AssigneeIDEQ(req.AssigneeID))
 	}
@@ -435,7 +526,9 @@ func workbenchAllowedActions(t *ent.Ticket, tenantActive bool, perms map[string]
 		if !perms[name] {
 			return dto.WorkbenchAllowedAction{Action: name, Allowed: false, ReasonCode: CodeActionNotAllowed, ReasonText: "当前角色在该客户租户无对应权限"}
 		}
-		if terminal && name != "reply" {
+		// 契约对齐 authorizeTicketAction：终态对全部动作（含 reply）一律拒绝，
+		// 避免 allowedActions 下发可点但写路径必失败的 reply 按钮。
+		if terminal {
 			return dto.WorkbenchAllowedAction{Action: name, Allowed: false, ReasonCode: CodeActionNotAllowed, ReasonText: "工单处于终态，不支持该操作"}
 		}
 		return dto.WorkbenchAllowedAction{Action: name, Allowed: true}

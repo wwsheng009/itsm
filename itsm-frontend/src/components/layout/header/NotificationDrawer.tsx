@@ -1,6 +1,7 @@
 
 import React from 'react';
 import { Drawer, Typography, Button } from 'antd';
+import { useNavigate } from 'react-router';
 import { Bell, CheckCheck, ArrowRight, Ticket, AlertTriangle, Zap } from 'lucide-react';
 import type { TicketNotification } from '@/lib/api/ticket-notification-api';
 import { DESIGN } from '@/design-system/tokens';
@@ -29,6 +30,18 @@ export const NotificationDrawer: React.FC<NotificationDrawerProps> = ({
   onViewAll,
 }) => {
   const { t } = useI18n();
+  const navigate = useNavigate();
+
+  // 点击通知：标记已读 + 按 actionUrl 直达（仅允许站内路径，防开放重定向）。
+  // provider 侧深链形如 /msp/workbench?ticket=<id>&customerTenantId=<tid> → 工作台自动打开详情。
+  const handleItemClick = (item: TicketNotification) => {
+    onMarkAsRead(item.id);
+    const url = item.actionUrl;
+    if (url && url.startsWith('/') && !url.startsWith('//')) {
+      onClose();
+      navigate(url);
+    }
+  };
 
   const getPriorityColor = (priority: string) => {
     switch (priority) {
@@ -82,7 +95,7 @@ export const NotificationDrawer: React.FC<NotificationDrawerProps> = ({
 
     return (
       <div
-        onClick={() => onMarkAsRead(item.id)}
+        onClick={() => handleItemClick(item)}
         style={{
           padding: '16px',
           borderBottom: `1px solid ${DESIGN.colors.border}`,

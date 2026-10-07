@@ -134,6 +134,7 @@ func (s *TicketTypeService) CreateTicketType(ctx context.Context, req *dto.Creat
 		SetApprovalChain(approvalChainSlice).
 		SetSLAEnabled(req.SLAEnabled).
 		SetAutoAssignEnabled(req.AutoAssignEnabled).
+		SetMspRouteEnabled(req.MspRouteEnabled).
 		SetAssignmentRules(assignmentRulesMap).
 		SetNotificationConfig(notificationConfigMap).
 		SetPermissionConfig(permissionConfigMap).
@@ -281,6 +282,9 @@ func (s *TicketTypeService) updateTicketType(ctx context.Context, id int, req *d
 	}
 	if req.AutoAssignEnabled != nil {
 		update.SetAutoAssignEnabled(*req.AutoAssignEnabled)
+	}
+	if req.MspRouteEnabled != nil {
+		update.SetMspRouteEnabled(*req.MspRouteEnabled)
 	}
 	if req.AssignmentRules != nil {
 		update.SetAssignmentRules(toAssignmentRulesMap(*req.AssignmentRules))
@@ -480,6 +484,9 @@ func ticketTypeBindingChanges(before, after *ent.TicketType) map[string]interfac
 	if before.AssignmentRuleID != after.AssignmentRuleID || before.AutoAssignEnabled != after.AutoAssignEnabled {
 		changes["assignment"] = map[string]interface{}{"beforeId": before.AssignmentRuleID, "afterId": after.AssignmentRuleID, "beforeEnabled": before.AutoAssignEnabled, "afterEnabled": after.AutoAssignEnabled}
 	}
+	if before.MspRouteEnabled != after.MspRouteEnabled {
+		changes["mspRoute"] = map[string]interface{}{"before": before.MspRouteEnabled, "after": after.MspRouteEnabled}
+	}
 	return changes
 }
 
@@ -501,6 +508,7 @@ func (s *TicketTypeService) CloneTicketType(ctx context.Context, id, tenantID, u
 		CustomFields: source.CustomFields, ApprovalEnabled: source.ApprovalEnabled, ApprovalChain: source.ApprovalChain,
 		SLAEnabled: source.SLAEnabled, DefaultSLAID: source.DefaultSLAID,
 		AutoAssignEnabled: source.AutoAssignEnabled, AssignmentRules: source.AssignmentRules,
+		MspRouteEnabled:    source.MspRouteEnabled,
 		NotificationConfig: source.NotificationConfig, PermissionConfig: source.PermissionConfig,
 	}, tenantID, userID)
 }
@@ -569,6 +577,7 @@ func (s *TicketTypeService) toDefinition(t *ent.TicketType) *dto.TicketTypeDefin
 		SLAEnabled:            t.SLAEnabled,
 		DefaultSLAID:          intPtrFromInt64(t.DefaultSLAID),
 		AutoAssignEnabled:     t.AutoAssignEnabled,
+		MspRouteEnabled:       t.MspRouteEnabled,
 		AssignmentRules:       convertAssignmentRules(t.AssignmentRules),
 		NotificationConfig:    ptrNotificationConfig(t.NotificationConfig),
 		PermissionConfig:      ptrPermissionConfig(t.PermissionConfig),

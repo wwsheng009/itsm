@@ -96,6 +96,8 @@ const (
 	FieldManagedByUserID = "managed_by_user_id"
 	// FieldMspTicketID holds the string denoting the msp_ticket_id field in the database.
 	FieldMspTicketID = "msp_ticket_id"
+	// FieldMspRoutedAt holds the string denoting the msp_routed_at field in the database.
+	FieldMspRoutedAt = "msp_routed_at"
 	// FieldDeletedAt holds the string denoting the deleted_at field in the database.
 	FieldDeletedAt = "deleted_at"
 	// EdgeComments holds the string denoting the comments edge name in mutations.
@@ -292,6 +294,7 @@ var Columns = []string{
 	FieldMspProviderID,
 	FieldManagedByUserID,
 	FieldMspTicketID,
+	FieldMspRoutedAt,
 	FieldDeletedAt,
 }
 
@@ -580,6 +583,11 @@ func ByManagedByUserID(opts ...sql.OrderTermOption) OrderOption {
 // ByMspTicketID orders the results by the msp_ticket_id field.
 func ByMspTicketID(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldMspTicketID, opts...).ToFunc()
+}
+
+// ByMspRoutedAt orders the results by the msp_routed_at field.
+func ByMspRoutedAt(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldMspRoutedAt, opts...).ToFunc()
 }
 
 // ByDeletedAt orders the results by the deleted_at field.

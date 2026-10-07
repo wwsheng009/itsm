@@ -465,6 +465,9 @@ func isElevatedMenuRole(roleCodes map[string]bool) bool {
 		"super_admin",
 		"admin",
 		"manager",
+		// 服务商租户管理员（2026-10-06 / 07:G11）：provider 首管默认角色，
+		// 自身 ITSM 全量权限，与 admin 同级放行 /admin、/workflow 等受限前缀。
+		"provider_tenant_admin",
 	}
 
 	for _, roleCode := range elevatedRoles {

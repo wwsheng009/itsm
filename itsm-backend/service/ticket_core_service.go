@@ -18,6 +18,7 @@ import (
 	"itsm-backend/ent/ticketcategory"
 	"itsm-backend/ent/tickettag"
 	"itsm-backend/ent/tickettemplate"
+	"itsm-backend/ent/tickettype"
 	"itsm-backend/ent/user"
 
 	"go.uber.org/zap"
@@ -124,6 +125,15 @@ func (s *TicketCoreService) CreateTicketBasic(ctx context.Context, req *dto.Crea
 
 	// IP-P0-3：建单快照（与 TicketService.CreateTicket 同一派生规则；无效归属按普通工单处理）。
 	mspProviderID := resolveTicketMSPProvider(ctx, s.client, tenantID)
+	// P0-d 类型级自动路由：类型开启 msp_route_enabled 且归属有效时标记路由时间。
+	routeEnabled := false
+	if req.TicketTypeID != nil && *req.TicketTypeID > 0 {
+		if tt, ttErr := s.client.TicketType.Query().
+			Where(tickettype.IDEQ(*req.TicketTypeID), tickettype.TenantID(int64(tenantID))).
+			Only(ctx); ttErr == nil && tt != nil {
+			routeEnabled = tt.MspRouteEnabled
+		}
+	}
 	newCreateBuilder := func(number string) *ent.TicketCreate {
 		builder := s.client.Ticket.Create().
 			SetTitle(req.Title).
@@ -151,6 +161,9 @@ func (s *TicketCoreService) CreateTicketBasic(ctx context.Context, req *dto.Crea
 		}
 		if mspProviderID != nil {
 			builder.SetIsManagedByMsp(true).SetMspProviderID(*mspProviderID)
+			if routeEnabled {
+				builder.SetMspRoutedAt(time.Now())
+			}
 		}
 		return builder
 	}

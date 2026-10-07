@@ -102,6 +102,8 @@ type Ticket struct {
 	ManagedByUserID int `json:"managed_by_user_id,omitempty"`
 	// MSP工单ID(跨租户)
 	MspTicketID string `json:"msp_ticket_id,omitempty"`
+	// 服务商路由时间（类型级自动路由标记；nil=未路由，客户内闭环）
+	MspRoutedAt *time.Time `json:"msp_routed_at,omitempty"`
 	// 删除时间
 	DeletedAt *time.Time `json:"deleted_at,omitempty"`
 	// Edges holds the relations/edges for other nodes in the graph.
@@ -330,7 +332,7 @@ func (*Ticket) scanValues(columns []string) ([]any, error) {
 			values[i] = new(sql.NullInt64)
 		case ticket.FieldTitle, ticket.FieldDescription, ticket.FieldDescriptionHTML, ticket.FieldDescriptionFormat, ticket.FieldStatus, ticket.FieldType, ticket.FieldTicketTypeCodeSnapshot, ticket.FieldTicketTypeNameSnapshot, ticket.FieldPriority, ticket.FieldTicketNumber, ticket.FieldSLAStatus, ticket.FieldSLAPauseReason, ticket.FieldResolution, ticket.FieldResolutionCategory, ticket.FieldRatingComment, ticket.FieldMspTicketID:
 			values[i] = new(sql.NullString)
-		case ticket.FieldSLAResponseDeadline, ticket.FieldSLAResolutionDeadline, ticket.FieldSLAPausedAt, ticket.FieldFirstResponseAt, ticket.FieldResolvedAt, ticket.FieldClosedAt, ticket.FieldRatedAt, ticket.FieldCreatedAt, ticket.FieldUpdatedAt, ticket.FieldDeletedAt:
+		case ticket.FieldSLAResponseDeadline, ticket.FieldSLAResolutionDeadline, ticket.FieldSLAPausedAt, ticket.FieldFirstResponseAt, ticket.FieldResolvedAt, ticket.FieldClosedAt, ticket.FieldRatedAt, ticket.FieldCreatedAt, ticket.FieldUpdatedAt, ticket.FieldMspRoutedAt, ticket.FieldDeletedAt:
 			values[i] = new(sql.NullTime)
 		case ticket.ForeignKeys[0]: // configuration_item_tickets
 			values[i] = new(sql.NullInt64)
@@ -615,6 +617,13 @@ func (_m *Ticket) assignValues(columns []string, values []any) error {
 				return fmt.Errorf("unexpected type %T for field msp_ticket_id", values[i])
 			} else if value.Valid {
 				_m.MspTicketID = value.String
+			}
+		case ticket.FieldMspRoutedAt:
+			if value, ok := values[i].(*sql.NullTime); !ok {
+				return fmt.Errorf("unexpected type %T for field msp_routed_at", values[i])
+			} else if value.Valid {
+				_m.MspRoutedAt = new(time.Time)
+				*_m.MspRoutedAt = value.Time
 			}
 		case ticket.FieldDeletedAt:
 			if value, ok := values[i].(*sql.NullTime); !ok {
@@ -917,6 +926,11 @@ func (_m *Ticket) String() string {
 	builder.WriteString(", ")
 	builder.WriteString("msp_ticket_id=")
 	builder.WriteString(_m.MspTicketID)
+	builder.WriteString(", ")
+	if v := _m.MspRoutedAt; v != nil {
+		builder.WriteString("msp_routed_at=")
+		builder.WriteString(v.Format(time.ANSIC))
+	}
 	builder.WriteString(", ")
 	if v := _m.DeletedAt; v != nil {
 		builder.WriteString("deleted_at=")

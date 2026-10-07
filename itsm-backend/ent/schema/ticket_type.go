@@ -35,6 +35,9 @@ func (TicketType) Fields() []ent.Field {
 		field.Bool("sla_enabled").Default(false),
 		field.Int64("default_sla_id").Optional(),
 		field.Bool("auto_assign_enabled").Default(false),
+		field.Bool("msp_route_enabled").
+			Comment("是否启用服务商跨租户路由（类型级自动路由：建单派生 MSP 快照并标记路由）").
+			Default(false),
 		field.JSON("assignment_rules", []interface{}{}),
 		field.JSON("notification_config", map[string]interface{}{}),
 		field.JSON("permission_config", map[string]interface{}{}),

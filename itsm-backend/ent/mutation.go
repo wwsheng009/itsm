@@ -170004,6 +170004,7 @@ type TicketMutation struct {
 	managed_by_user_id         *int
 	addmanaged_by_user_id      *int
 	msp_ticket_id              *string
+	msp_routed_at              *time.Time
 	deleted_at                 *time.Time
 	clearedFields              map[string]struct{}
 	comments                   map[int]struct{}
@@ -172213,6 +172214,55 @@ func (m *TicketMutation) ResetMspTicketID() {
 	delete(m.clearedFields, ticket.FieldMspTicketID)
 }
 
+// SetMspRoutedAt sets the "msp_routed_at" field.
+func (m *TicketMutation) SetMspRoutedAt(t time.Time) {
+	m.msp_routed_at = &t
+}
+
+// MspRoutedAt returns the value of the "msp_routed_at" field in the mutation.
+func (m *TicketMutation) MspRoutedAt() (r time.Time, exists bool) {
+	v := m.msp_routed_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldMspRoutedAt returns the old "msp_routed_at" field's value of the Ticket entity.
+// If the Ticket object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *TicketMutation) OldMspRoutedAt(ctx context.Context) (v *time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldMspRoutedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldMspRoutedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldMspRoutedAt: %w", err)
+	}
+	return oldValue.MspRoutedAt, nil
+}
+
+// ClearMspRoutedAt clears the value of the "msp_routed_at" field.
+func (m *TicketMutation) ClearMspRoutedAt() {
+	m.msp_routed_at = nil
+	m.clearedFields[ticket.FieldMspRoutedAt] = struct{}{}
+}
+
+// MspRoutedAtCleared returns if the "msp_routed_at" field was cleared in this mutation.
+func (m *TicketMutation) MspRoutedAtCleared() bool {
+	_, ok := m.clearedFields[ticket.FieldMspRoutedAt]
+	return ok
+}
+
+// ResetMspRoutedAt resets all changes to the "msp_routed_at" field.
+func (m *TicketMutation) ResetMspRoutedAt() {
+	m.msp_routed_at = nil
+	delete(m.clearedFields, ticket.FieldMspRoutedAt)
+}
+
 // SetDeletedAt sets the "deleted_at" field.
 func (m *TicketMutation) SetDeletedAt(t time.Time) {
 	m.deleted_at = &t
@@ -173146,7 +173196,7 @@ func (m *TicketMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *TicketMutation) Fields() []string {
-	fields := make([]string, 0, 42)
+	fields := make([]string, 0, 43)
 	if m.title != nil {
 		fields = append(fields, ticket.FieldTitle)
 	}
@@ -173270,6 +173320,9 @@ func (m *TicketMutation) Fields() []string {
 	if m.msp_ticket_id != nil {
 		fields = append(fields, ticket.FieldMspTicketID)
 	}
+	if m.msp_routed_at != nil {
+		fields = append(fields, ticket.FieldMspRoutedAt)
+	}
 	if m.deleted_at != nil {
 		fields = append(fields, ticket.FieldDeletedAt)
 	}
@@ -173363,6 +173416,8 @@ func (m *TicketMutation) Field(name string) (ent.Value, bool) {
 		return m.ManagedByUserID()
 	case ticket.FieldMspTicketID:
 		return m.MspTicketID()
+	case ticket.FieldMspRoutedAt:
+		return m.MspRoutedAt()
 	case ticket.FieldDeletedAt:
 		return m.DeletedAt()
 	}
@@ -173456,6 +173511,8 @@ func (m *TicketMutation) OldField(ctx context.Context, name string) (ent.Value, 
 		return m.OldManagedByUserID(ctx)
 	case ticket.FieldMspTicketID:
 		return m.OldMspTicketID(ctx)
+	case ticket.FieldMspRoutedAt:
+		return m.OldMspRoutedAt(ctx)
 	case ticket.FieldDeletedAt:
 		return m.OldDeletedAt(ctx)
 	}
@@ -173754,6 +173811,13 @@ func (m *TicketMutation) SetField(name string, value ent.Value) error {
 		}
 		m.SetMspTicketID(v)
 		return nil
+	case ticket.FieldMspRoutedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetMspRoutedAt(v)
+		return nil
 	case ticket.FieldDeletedAt:
 		v, ok := value.(time.Time)
 		if !ok {
@@ -174007,6 +174071,9 @@ func (m *TicketMutation) ClearedFields() []string {
 	if m.FieldCleared(ticket.FieldMspTicketID) {
 		fields = append(fields, ticket.FieldMspTicketID)
 	}
+	if m.FieldCleared(ticket.FieldMspRoutedAt) {
+		fields = append(fields, ticket.FieldMspRoutedAt)
+	}
 	if m.FieldCleared(ticket.FieldDeletedAt) {
 		fields = append(fields, ticket.FieldDeletedAt)
 	}
@@ -174104,6 +174171,9 @@ func (m *TicketMutation) ClearField(name string) error {
 		return nil
 	case ticket.FieldMspTicketID:
 		m.ClearMspTicketID()
+		return nil
+	case ticket.FieldMspRoutedAt:
+		m.ClearMspRoutedAt()
 		return nil
 	case ticket.FieldDeletedAt:
 		m.ClearDeletedAt()
@@ -174238,6 +174308,9 @@ func (m *TicketMutation) ResetField(name string) error {
 		return nil
 	case ticket.FieldMspTicketID:
 		m.ResetMspTicketID()
+		return nil
+	case ticket.FieldMspRoutedAt:
+		m.ResetMspRoutedAt()
 		return nil
 	case ticket.FieldDeletedAt:
 		m.ResetDeletedAt()
@@ -185206,6 +185279,7 @@ type TicketTypeMutation struct {
 	default_sla_id          *int64
 	adddefault_sla_id       *int64
 	auto_assign_enabled     *bool
+	msp_route_enabled       *bool
 	assignment_rules        *[]interface{}
 	appendassignment_rules  []interface{}
 	notification_config     *map[string]interface{}
@@ -186278,6 +186352,42 @@ func (m *TicketTypeMutation) ResetAutoAssignEnabled() {
 	m.auto_assign_enabled = nil
 }
 
+// SetMspRouteEnabled sets the "msp_route_enabled" field.
+func (m *TicketTypeMutation) SetMspRouteEnabled(b bool) {
+	m.msp_route_enabled = &b
+}
+
+// MspRouteEnabled returns the value of the "msp_route_enabled" field in the mutation.
+func (m *TicketTypeMutation) MspRouteEnabled() (r bool, exists bool) {
+	v := m.msp_route_enabled
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldMspRouteEnabled returns the old "msp_route_enabled" field's value of the TicketType entity.
+// If the TicketType object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *TicketTypeMutation) OldMspRouteEnabled(ctx context.Context) (v bool, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldMspRouteEnabled is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldMspRouteEnabled requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldMspRouteEnabled: %w", err)
+	}
+	return oldValue.MspRouteEnabled, nil
+}
+
+// ResetMspRouteEnabled resets all changes to the "msp_route_enabled" field.
+func (m *TicketTypeMutation) ResetMspRouteEnabled() {
+	m.msp_route_enabled = nil
+}
+
 // SetAssignmentRules sets the "assignment_rules" field.
 func (m *TicketTypeMutation) SetAssignmentRules(i []interface{}) {
 	m.assignment_rules = &i
@@ -186799,7 +186909,7 @@ func (m *TicketTypeMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *TicketTypeMutation) Fields() []string {
-	fields := make([]string, 0, 29)
+	fields := make([]string, 0, 30)
 	if m.code != nil {
 		fields = append(fields, tickettype.FieldCode)
 	}
@@ -186859,6 +186969,9 @@ func (m *TicketTypeMutation) Fields() []string {
 	}
 	if m.auto_assign_enabled != nil {
 		fields = append(fields, tickettype.FieldAutoAssignEnabled)
+	}
+	if m.msp_route_enabled != nil {
+		fields = append(fields, tickettype.FieldMspRouteEnabled)
 	}
 	if m.assignment_rules != nil {
 		fields = append(fields, tickettype.FieldAssignmentRules)
@@ -186935,6 +187048,8 @@ func (m *TicketTypeMutation) Field(name string) (ent.Value, bool) {
 		return m.DefaultSLAID()
 	case tickettype.FieldAutoAssignEnabled:
 		return m.AutoAssignEnabled()
+	case tickettype.FieldMspRouteEnabled:
+		return m.MspRouteEnabled()
 	case tickettype.FieldAssignmentRules:
 		return m.AssignmentRules()
 	case tickettype.FieldNotificationConfig:
@@ -187002,6 +187117,8 @@ func (m *TicketTypeMutation) OldField(ctx context.Context, name string) (ent.Val
 		return m.OldDefaultSLAID(ctx)
 	case tickettype.FieldAutoAssignEnabled:
 		return m.OldAutoAssignEnabled(ctx)
+	case tickettype.FieldMspRouteEnabled:
+		return m.OldMspRouteEnabled(ctx)
 	case tickettype.FieldAssignmentRules:
 		return m.OldAssignmentRules(ctx)
 	case tickettype.FieldNotificationConfig:
@@ -187168,6 +187285,13 @@ func (m *TicketTypeMutation) SetField(name string, value ent.Value) error {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.SetAutoAssignEnabled(v)
+		return nil
+	case tickettype.FieldMspRouteEnabled:
+		v, ok := value.(bool)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetMspRouteEnabled(v)
 		return nil
 	case tickettype.FieldAssignmentRules:
 		v, ok := value.([]interface{})
@@ -187514,6 +187638,9 @@ func (m *TicketTypeMutation) ResetField(name string) error {
 		return nil
 	case tickettype.FieldAutoAssignEnabled:
 		m.ResetAutoAssignEnabled()
+		return nil
+	case tickettype.FieldMspRouteEnabled:
+		m.ResetMspRouteEnabled()
 		return nil
 	case tickettype.FieldAssignmentRules:
 		m.ResetAssignmentRules()

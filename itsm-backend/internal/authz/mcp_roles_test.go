@@ -47,6 +47,9 @@ func TestMCPRoleMatrix(t *testing.T) {
 		"sysadmin": {"mcp:read": true, "mcp:write": true, "mcp:admin": true},
 		// 租户管理员：唯一默认治理者；不给 mcp:write（写工具执行属使用面，M1-02 起按需显式授予）。
 		"admin": {"mcp:read": true, "mcp:write": false, "mcp:admin": true},
+		// 服务商租户管理员（G11：admin ∪ msp_admin 派生）：provider 租户的 admin，
+		// 治理面与 admin 一致（read+admin，不含 write）。
+		"provider_tenant_admin": {"mcp:read": true, "mcp:write": false, "mcp:admin": true},
 		// 其余角色（含总监/经理/坐席/技术员/访客）：默认零授予。
 		"it_director":  {"mcp:read": false, "mcp:write": false, "mcp:admin": false},
 		"ops_director": {"mcp:read": false, "mcp:write": false, "mcp:admin": false},
@@ -79,6 +82,8 @@ func TestMCPRoleMatrix_Exhaustive(t *testing.T) {
 	allowed := map[string]map[string]bool{
 		"sysadmin": {"mcp:read": true, "mcp:write": true, "mcp:admin": true},
 		"admin":    {"mcp:read": true, "mcp:write": true, "mcp:admin": true}, // 上限白名单：admin 实际只持 read+admin（由 TestMCPRoleMatrix 锁定）
+		// provider_tenant_admin 派生自 admin ∪ msp_admin，继承 admin 的 read+admin（无 write）。
+		"provider_tenant_admin": {"mcp:read": true, "mcp:write": false, "mcp:admin": true},
 	}
 
 	codeSet := make(map[string]bool, len(mcpCodes))

@@ -148,6 +148,42 @@ func TestTenantUserAdmin_ResetPassword(t *testing.T) {
 	assert.Empty(t, resp.GeneratedPassword)
 }
 
+// TestTenantUserAdmin_ResetPassword_BootstrapRecovery 锁定 TUM-D3 修订：
+// 写通道关闭时，首管（is_bootstrap_admin）口令恢复仍默认可用；非首管一律 403 DISABLED。
+func TestTenantUserAdmin_ResetPassword_BootstrapRecovery(t *testing.T) {
+	f := newTenantUserAdminFixture(t)
+	f.svc.SetEnabled(false)
+
+	// 非首管：仍受写通道开关约束。
+	_, err := f.svc.ResetPassword(f.ctx, f.actor, f.tenantA, f.normalA, &dto.ResetTenantUserPasswordRequest{Mode: dto.TenantUserResetModeGenerated})
+	ae, ok := AsTenantUserAdminError(err)
+	require.True(t, ok)
+	assert.Equal(t, TenantUserAdminCodeDisabled, ae.Code)
+	assert.Equal(t, 403, ae.Status)
+
+	// 首管：兜底恢复通道默认可用，且同样双吊销会话。
+	bootstrapAdmin := createTUAUser(t, f.client, f.tenantA, "tua-a-bootstrap", user.RoleAdmin)
+	_, err = f.client.User.UpdateOneID(bootstrapAdmin.ID).SetIsBootstrapAdmin(true).Save(f.ctx)
+	require.NoError(t, err)
+
+	resp, err := f.svc.ResetPassword(f.ctx, f.actor, f.tenantA, bootstrapAdmin.ID, &dto.ResetTenantUserPasswordRequest{Mode: dto.TenantUserResetModeGenerated})
+	require.NoError(t, err)
+	assert.Equal(t, dto.TenantUserResetModeGenerated, resp.Mode)
+	assert.True(t, resp.MustChangePassword)
+	assert.NotEmpty(t, resp.GeneratedPassword)
+
+	revoked, err := middleware.IsUserRefreshRevoked(f.ctx, bootstrapAdmin.ID, time.Now().Add(-time.Minute))
+	require.NoError(t, err)
+	assert.True(t, revoked, "首管恢复同样必须吊销历史 refresh")
+
+	// 审计标注兜底来源，便于复核（channel=bootstrap_recovery）。
+	rows, err := f.client.AuditLog.Query().Where(auditlog.ActionEQ("user.admin_password_reset")).All(f.ctx)
+	require.NoError(t, err)
+	require.Len(t, rows, 1)
+	require.NotNil(t, rows[0].RequestBody)
+	assert.Contains(t, *rows[0].RequestBody, "bootstrap_recovery")
+}
+
 func TestTenantUserAdmin_SetActiveGuards(t *testing.T) {
 	f := newTenantUserAdminFixture(t)
 	enable := true

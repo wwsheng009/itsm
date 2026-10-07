@@ -220,7 +220,10 @@ func (h *Handler) InstallPreset(c *gin.Context) {
 	}
 	result, err := h.ticketTypeService.InstallPreset(c.Request.Context(), c.Param("presetId"), &req, c.GetInt("tenant_id"), c.GetInt("user_id"))
 	if err != nil {
-		common.ParamErrorWithErr(c, err, "请求参数错误")
+		// 服务错误按 AppError 分流：重复安装=409（Conflict）、未知预设=404、校验失败=400。
+		// 不能统一压成 400「请求参数错误」——会把「该类型已存在」误报为参数问题（2026-10-06 实测）。
+		h.logger.Errorw("Failed to install ticket type preset", "error", err, "preset_id", c.Param("presetId"), "tenant_id", c.GetInt("tenant_id"))
+		common.RespondError(c, err, "安装预设失败")
 		return
 	}
 	common.Success(c, result)

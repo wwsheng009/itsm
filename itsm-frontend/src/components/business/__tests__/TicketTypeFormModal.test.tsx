@@ -61,6 +61,7 @@ const renderModalWithBoundWorkflow = () => {
     approvalEnabled: false,
     slaEnabled: false,
     autoAssignEnabled: false,
+    mspRouteEnabled: false,
     createdBy: 1,
     createdByName: 'admin',
     createdAt: '2026-01-01T00:00:00Z',

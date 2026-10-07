@@ -55,6 +55,8 @@ go run ./cmd/provision_tenant -tenant-id <客户租户ID> \
 
 **HTTP 通道（v1.66 起，平台页/自动化同源）**：`GET /api/v1/tenants/:id/readiness`（7 项 items + `bootstrapAdmins`，需 `tenant.read`）、`POST /api/v1/tenants/:id/provision`（幂等，返回同构 readiness，需 `tenant.write`）、`POST /api/v1/tenants/:id/bootstrap-admin`（创建首个管理员；`password` 缺省时服务端生成一次性强密码、仅本次响应回传，首登强制改密）。平台管理页 `/admin/tenants` 的「开通」向导即该通道 UI；CLI `provision_tenant -create-admin` 仍等价可用。
 
+> **供给性能（2026-10-06）**：`provision` 为幂等批量克隆（批量加载 + 内存差集 + 批量写入）；实测查询数：全新租户 **75** 次、幂等复跑 **59** 次（批量化前逐行查询约 4–5k 次），隧道环境 HTTP 通道实测 **10.7s** 完成。回归守护：`pkg/seeder` `TestProvisionTenantQueryBudgetStaysBatched`（预算 <300 次）。前端超时 300s，超时/失败会**显式报错**且可安全重试（修复前 `http-client` 将超时中止静默吞掉并返回 null，向导表现为「点击无反应」）。
+
 **readiness 校验**（任一为 0 即失败，`pkg/seeder/tenant_readiness.go:24-121`）：roles、permissions、role permissions、menus、groups、SLA definitions、CI types。
 
 ## 4. 客户用户与 RBAC

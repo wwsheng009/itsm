@@ -11,6 +11,7 @@
 |---|---|
 | 概念/口径/边界有疑问 | [canon](./plan/msp-concept-model-and-architecture-canon.md)（**唯一概念权威**；编号注册表见其附录 C） |
 | 跨客户怎么设计（看+做、过滤器、切换） | [工作台方案](./plan/msp-cross-customer-workbench-and-filter-plan.md) + [目标架构 §9](./plan/msp-target-architecture.md) |
+| 单据跨租户怎么流转（工单/变更/问题/审批/流程设计器） | [单据流转交互架构（L3）](./plan/msp-cross-tenant-record-flow-architecture.md) |
 | 登录落哪、切换/刷新契约、隐私红线 | [登录与切换细化](./plan/msp-login-and-switching-refinement-plan.md) + [主方案](./plan/msp-user-lifecycle-and-tenant-switching-plan.md) |
 | 怎么落地（步骤/验收/回滚） | [实施方案（P0→P1→P2）](./plan/msp-implementation-plan.md) |
 | 编号（R/K/G/F/WB/REV/D/E/I/A/IP…）是什么意思 | [canon 附录 C](./plan/msp-concept-model-and-architecture-canon.md#附录-c跨文档一致性登记权威层级--编号注册表)（权威）＋本索引 §4（速查） |
@@ -64,6 +65,7 @@
 | [msp-account-provisioning-and-registration-flow.md](./plan/msp-account-provisioning-and-registration-flow.md) | L4 | Draft v0.3（决策同步） | **建号与注册流程**（四通道/邀请/首登/过渡期） | — |
 | [msp-business-closure-review-and-refactor-plan.md](./plan/msp-business-closure-review-and-refactor-plan.md) | 治理/落地 | Draft v0.4（决策同步） | **业务闭环审查 + 现有功能改造计划**（13 链路/波次/深度分级） | `CL-01–CL-13` |
   | [msp-tenant-user-management-enhancement-plan.md](./plan/msp-tenant-user-management-enhancement-plan.md) | L4 | v0.8（TUM-1–TUM-7 收口 + 路由器级 API e2e 实跑） | **平台侧租户用户管理增强**（跨租户用户列表/重置密码/启停/强制下线/审计；含操作便利性与业务闭环设计） | `TUM-#` |
+| [msp-cross-tenant-record-flow-architecture.md](./plan/msp-cross-tenant-record-flow-architecture.md) | L3 | Draft v0.6（**P0 全落地 + P1/P2 首批实跑**） | **多租户单据流转交互架构**：把工单泛化为全部单据的跨租户流转（五通道/条目级授权/操作矩阵/**端到端流转**/**路由与交接**/**信息互通矩阵**/流程集成/审计与验收）；P0：终态契约/快照回填/默认分配/类型路由/`workflow:*`；P1：跨租户详情 + 前端抽屉；P2：通知深链直达详情 | `XF1–XF10` `XFD1–XFD8` `XFR1–XFR4` `XFA1–XFA6` |
 
 ### 2.1 场景目录（scenarios/，L6 浏览器实操剧本）
 

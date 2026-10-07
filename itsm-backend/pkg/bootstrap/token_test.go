@@ -126,9 +126,9 @@ func mustCountBootstrapAudits(t *testing.T, client *ent.Client) int {
 	return count
 }
 
-// IP-P1-5 + C1（2026-10-05 浏览器 E2E 修复）：首管身份策略——
-// provider 租户落 msp_admin/provider_admin + home membership；客户租户落
-// admin/customer_user；平台根租户（code=default）保持 super_admin；
+// IP-P1-5 + C1（2026-10-05 浏览器 E2E 修复，07:G11 修订）：首管身份策略——
+// provider 租户落 provider_tenant_admin（= admin ∪ msp_admin）/provider_admin + home
+// membership；客户租户落 admin/customer_user；平台根租户（code=default）保持 super_admin；
 // 供给未完成（目标角色缺失）时 fail-fast（错误信息指导先跑模板供给）。
 func TestCreateFirstAdmin_MSPTenantScopedIdentity(t *testing.T) {
 	client := enttest.Open(t, "sqlite3", "file:bootstrap-msp-identity?mode=memory&cache=shared&_fk=1")
@@ -140,8 +140,8 @@ func TestCreateFirstAdmin_MSPTenantScopedIdentity(t *testing.T) {
 		SetName("Prov").SetCode("prov-scope").SetDomain("prov-scope.local").SetStatus("active").
 		SetType("msp_provider").Save(ctx)
 	require.NoError(t, err)
-	mspAdminRole, err := client.Role.Create().
-		SetName("MSP管理员").SetCode("msp_admin").SetTenantID(prov.ID).Save(ctx)
+	providerAdminRole, err := client.Role.Create().
+		SetName("服务商租户管理员").SetCode("provider_tenant_admin").SetTenantID(prov.ID).Save(ctx)
 	require.NoError(t, err)
 
 	adminID, err := CreateFirstAdmin(ctx, client, sugar, prov.ID, "A-secure-admin-password-2026!")
@@ -159,14 +159,14 @@ func TestCreateFirstAdmin_MSPTenantScopedIdentity(t *testing.T) {
 	require.Equal(t, usertenantmembership.SourceHome, mb.Source)
 	require.True(t, mb.IsDefault)
 	require.NotNil(t, mb.RoleID)
-	require.Equal(t, mspAdminRole.ID, *mb.RoleID)
+	require.Equal(t, providerAdminRole.ID, *mb.RoleID)
 	require.NotNil(t, mb.MspRole)
 	require.Equal(t, "msp_admin", *mb.MspRole)
 
 	roles, err := client.User.Query().Where(user.IDEQ(adminID)).QueryRoles().All(ctx)
 	require.NoError(t, err)
 	require.Len(t, roles, 1)
-	require.Equal(t, "msp_admin", roles[0].Code)
+	require.Equal(t, "provider_tenant_admin", roles[0].Code)
 
 	// 客户租户：admin + customer_user + customer 作用域。
 	cust, err := client.Tenant.Create().
@@ -206,5 +206,5 @@ func TestCreateFirstAdmin_MSPTenantScopedIdentity(t *testing.T) {
 		SetType("msp_provider").Save(ctx)
 	require.NoError(t, err)
 	_, err = CreateFirstAdmin(ctx, client, sugar, orphan.ID, "A-secure-admin-password-2026!")
-	require.ErrorContains(t, err, "msp_admin")
+	require.ErrorContains(t, err, "provider_tenant_admin")
 }

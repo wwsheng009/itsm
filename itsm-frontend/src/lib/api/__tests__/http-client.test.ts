@@ -355,6 +355,31 @@ describe('httpClient', () => {
       expect(init.headers['X-Tenant-Code']).toBeUndefined();
     });
 
+    it('clears stale tenant headers and retries once on TENANT_MISMATCH_REJECTED', async () => {
+      setTenantId(11);
+      setTenantCode('demo_customer');
+      fetchMock
+        .mockResolvedValueOnce(
+          jsonResponse(
+            { code: 2002, message: '租户不匹配', reasonCode: 'TENANT_MISMATCH_REJECTED' },
+            { status: 401 }
+          )
+        )
+        .mockResolvedValueOnce(jsonResponse({ code: 0, message: 'ok', data: { id: 223 } }));
+
+      const result = await httpClient.get<{ id: number }>('/api/v1/tickets/223');
+
+      expect(result).toEqual({ id: 223 });
+      expect(fetchMock).toHaveBeenCalledTimes(2);
+      const firstHeaders = fetchMock.mock.calls[0][1].headers;
+      const secondHeaders = fetchMock.mock.calls[1][1].headers;
+      expect(firstHeaders['X-Tenant-Code']).toBe('demo_customer');
+      expect(secondHeaders['X-Tenant-Code']).toBeUndefined();
+      expect(secondHeaders['X-Tenant-ID']).toBeUndefined();
+      expect(httpClient.getTenantCode()).toBeNull();
+      expect(httpClient.getTenantId()).toBeNull();
+    });
+
     it('injects X-Customer-Tenant-ID only for the explicit header-channel request', async () => {
       fetchMock.mockResolvedValueOnce(jsonResponse({ code: 0, message: 'ok', data: {} }));
 
@@ -397,6 +422,32 @@ describe('httpClient', () => {
       abortAllRequests();
 
       await expect(pending).resolves.toBeNull();
+    });
+
+    it('timeout 中止显式抛错（长事务可见失败，不再静默返回 null）', async () => {
+      fetchMock.mockImplementationOnce(
+        (_url: string, init: RequestInit) =>
+          new Promise((_resolve, reject) => {
+            const rejectAborted = () => {
+              const err = new Error('aborted');
+              err.name = 'AbortError';
+              reject(err);
+            };
+            if (init.signal?.aborted) {
+              rejectAborted();
+            } else {
+              init.signal?.addEventListener('abort', rejectAborted);
+            }
+          })
+      );
+
+      const pending = httpClient.request('/api/v1/tenants/8/provision', {
+        method: 'POST',
+        timeout: 10,
+      });
+
+      await expect(pending).rejects.toMatchObject({ errorCode: 'CLIENT_TIMEOUT' });
+      await expect(pending).rejects.toThrow('请求超时');
     });
   });
 

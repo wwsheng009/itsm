@@ -177,6 +177,16 @@ func (s *TenantUserAdminService) requireGovernanceEnabled() error {
 	return nil
 }
 
+// requireGovernanceEnabledForReset 重置密码的窄通道判定（TUM-D3 修订）：
+// 首管（is_bootstrap_admin）口令恢复默认可用，避免「唯一管理员口令丢失 → 租户锁死」；
+// 非首管用户仍受写通道灰度开关约束。
+func (s *TenantUserAdminService) requireGovernanceEnabledForReset(target *ent.User) error {
+	if s.enabled || (target != nil && target.IsBootstrapAdmin) {
+		return nil
+	}
+	return newTenantUserAdminError(TenantUserAdminCodeDisabled, 403, "平台侧用户治理未启用")
+}
+
 // requirePlatformScope 平台面硬校验（TUM-D1）：super_admin 之外一律拒绝（fail-closed）。
 func (s *TenantUserAdminService) requirePlatformScope(actor TenantAdminActor) error {
 	if actor.Role != "super_admin" {
@@ -337,12 +347,11 @@ func toTenantUserItem(u *ent.User) dto.TenantUserItem {
 // ResetPassword 重置目标租户用户密码（TUM-D4）：
 //   - mode=generated：服务端按目标租户密码策略生成一次性口令，must_change_password=true，明文仅本次回传；
 //   - mode=specified：管理员指定新密码，需通过目标租户密码策略，must_change_password=false；
-//   - 两种模式均触发会话双吊销（access+refresh）。
+//   - 两种模式均触发会话双吊销（access+refresh）；
+//   - 灰度例外（TUM-D3 修订）：is_bootstrap_admin 首管的重置密码是平台兜底恢复通道，
+//     默认可用、不受 TENANT_USER_ADMIN_ENABLED 约束；非首管用户仍受写通道开关控制。
 func (s *TenantUserAdminService) ResetPassword(ctx context.Context, actor TenantAdminActor, tenantID, userID int, req *dto.ResetTenantUserPasswordRequest) (*dto.ResetTenantUserPasswordResponse, error) {
 	if err := s.ensureConfigured(); err != nil {
-		return nil, err
-	}
-	if err := s.requireGovernanceEnabled(); err != nil {
 		return nil, err
 	}
 	if err := s.requirePlatformScope(actor); err != nil {
@@ -365,6 +374,9 @@ func (s *TenantUserAdminService) ResetPassword(ctx context.Context, actor Tenant
 	}
 	targetUser, err := s.loadTenantUser(qctx, tenantID, userID)
 	if err != nil {
+		return nil, err
+	}
+	if err := s.requireGovernanceEnabledForReset(targetUser); err != nil {
 		return nil, err
 	}
 
@@ -404,10 +416,15 @@ func (s *TenantUserAdminService) ResetPassword(ctx context.Context, actor Tenant
 	}
 
 	revocationFailures := s.revokeUserSessions(qctx, userID)
-	s.recordAudit(ctx, actor, "user.admin_password_reset", tenantID, userID, withRevocationFailures(map[string]any{
+	auditPayload := map[string]any{
 		"mode":                 mode,
 		"must_change_password": mustChange,
-	}, revocationFailures), 200)
+	}
+	if !s.enabled {
+		// 开关关闭时仅首管可达（窄通道）：标注兜底来源，便于审计复核（TUM-D3 修订）。
+		auditPayload["channel"] = "bootstrap_recovery"
+	}
+	s.recordAudit(ctx, actor, "user.admin_password_reset", tenantID, userID, withRevocationFailures(auditPayload, revocationFailures), 200)
 	s.notifyTenantAdmins(qctx, tenantID, "用户密码已被平台重置",
 		fmt.Sprintf("用户 %s 的登录密码已被平台管理员重置（通知不含口令内容）。如非预期，请立即联系平台管理员。", targetUser.Username), userID)
 

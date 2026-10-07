@@ -77,6 +77,32 @@ describe('TenantOnboardingModal', () => {
     expect(createAdmin).not.toHaveBeenCalled();
   });
 
+  it('provision 失败（超时等）：展示错误 Alert 且清单保留、按钮可重试', async () => {
+    const fetchReadiness = jest.fn().mockResolvedValue(readiness());
+    const provision = jest.fn().mockRejectedValue(new Error('请求超时（300s），请稍后重试'));
+
+    render(
+      <TenantOnboardingModal
+        open
+        tenant={tenant}
+        onClose={jest.fn()}
+        fetchReadiness={fetchReadiness}
+        provision={provision}
+        createAdmin={jest.fn()}
+      />
+    );
+
+    await screen.findByTestId('readiness-item-roles');
+    fireEvent.click(screen.getByTestId('provision-button'));
+
+    const alert = await screen.findByTestId('provision-error');
+    expect(alert).toHaveTextContent('请求超时');
+    // 回归守护：超时曾因 http-client 静默吞掉 AbortError 而被当作“成功返回 null”，
+    // 导致步骤内容整体清空且无任何提示；修复后清单保留、错误可见、按钮可重试。
+    expect(screen.getByTestId('readiness-item-roles')).toBeInTheDocument();
+    expect(screen.getByTestId('provision-button')).toBeEnabled();
+  });
+
   it('创建首管成功且 generated=true：展示一次性密码与“仅显示一次”提示', async () => {
     const fetchReadiness = jest
       .fn()
@@ -128,6 +154,7 @@ describe('TenantOnboardingModal', () => {
     const done = await screen.findByTestId('onboarding-step-done');
     expect(done).toHaveTextContent('acme');
     expect(done).toHaveTextContent('acme.example.com');
+    expect(done).toHaveTextContent('admin-acme');
     expect(done).toHaveTextContent('首次登录必须修改密码');
   });
 
@@ -152,6 +179,34 @@ describe('TenantOnboardingModal', () => {
 
     expect(await screen.findByTestId('admin-created')).toHaveTextContent('首个管理员已创建');
     expect(screen.queryByTestId('create-admin-button')).not.toBeInTheDocument();
+
+    // 已完成态登录提示：已存在首管但非本次创建 → 不猜测用户名，指向用户管理列表。
+    fireEvent.click(screen.getByTestId('next-step'));
+    const done = await screen.findByTestId('onboarding-step-done');
+    expect(done).toHaveTextContent('沿用已存在账号');
+    expect(done).not.toHaveTextContent('admin-acme');
+  });
+
+  it('默认用户名预览与后端口径一致（小写 + “.”/空格 → “-”）', async () => {
+    const fetchReadiness = jest.fn().mockResolvedValue(readiness({ ready: true }, 1));
+
+    render(
+      <TenantOnboardingModal
+        open
+        tenant={{ ...tenant, code: 'ACME.01' }}
+        onClose={jest.fn()}
+        fetchReadiness={fetchReadiness}
+        provision={jest.fn()}
+        createAdmin={jest.fn()}
+      />
+    );
+
+    await screen.findByTestId('readiness-item-roles');
+    fireEvent.click(screen.getByTestId('next-step'));
+    expect(await screen.findByTestId('bootstrap-username')).toHaveAttribute(
+      'placeholder',
+      'admin-acme-01'
+    );
   });
 
   it('createAdmin 抛 409：降级为已创建态（不阻塞进入下一步）', async () => {

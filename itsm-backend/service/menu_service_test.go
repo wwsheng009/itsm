@@ -32,6 +32,12 @@ func TestShouldRestrictMenuForRole(t *testing.T) {
 			want:      false,
 		},
 		{
+			name:      "provider tenant admin is elevated (07:G11)",
+			path:      "/admin/users",
+			roleCodes: map[string]bool{"provider_tenant_admin": true},
+			want:      false,
+		},
+		{
 			name:      "main menu stays visible for end user",
 			path:      "/incidents",
 			roleCodes: map[string]bool{"end_user": true},

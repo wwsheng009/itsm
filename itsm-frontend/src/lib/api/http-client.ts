@@ -1,7 +1,7 @@
 import { API_BASE_URL } from '@/lib/api/api-config';
 import { security } from '@/lib/security';
 import { logger } from '@/lib/env';
-import { getTenantId, getTenantCode, setTenantId as setContextTenantId, setTenantCode as setContextTenantCode, subscribe } from '@/lib/auth/tenant-context';
+import { getTenantId, getTenantCode, setTenantId as setContextTenantId, setTenantCode as setContextTenantCode, clearTenant as clearContextTenant, subscribe } from '@/lib/auth/tenant-context';
 
 // 递归将对象的 key 从 snake_case 转换为 camelCase
 const toCamelCase = (obj: unknown): unknown => {
@@ -93,6 +93,8 @@ export interface HttpClientError extends Error {
   errorCode?: string;
   /** 真实 HTTP 状态码（后端 Fail() 会把 61xx 映射为 4xx） */
   httpStatus?: number;
+  /** 后端包络内的 reasonCode（如 TENANT_MISMATCH_REJECTED / TENANT_ACCESS_REVOKED） */
+  reasonCode?: string;
   /** 响应头 `X-Request-Id`，便于日志排查 */
   requestId?: string;
 }
@@ -103,6 +105,7 @@ const createHttpClientError = (
     code?: number | null;
     errorCode?: string | null;
     httpStatus?: number | null;
+    reasonCode?: string | null;
     requestId?: string | null;
   } = {}
 ): HttpClientError => {
@@ -112,27 +115,31 @@ const createHttpClientError = (
   if (typeof meta.httpStatus === 'number' && Number.isFinite(meta.httpStatus)) {
     error.httpStatus = meta.httpStatus;
   }
+  if (typeof meta.reasonCode === 'string' && meta.reasonCode) error.reasonCode = meta.reasonCode;
   if (meta.requestId) error.requestId = meta.requestId;
   return error;
 };
 
 const readErrorEnvelope = async (
   response: Response | undefined
-): Promise<{ code?: number; errorCode?: string; message?: string } | null> => {
+): Promise<{ code?: number; errorCode?: string; reasonCode?: string; message?: string } | null> => {
   if (!response) return null;
   try {
     const payload = (await response.json()) as {
       code?: unknown;
       errorCode?: unknown;
+      reasonCode?: unknown;
       message?: unknown;
     } | null;
     if (!payload || typeof payload !== 'object') return null;
     const code = typeof payload.code === 'number' ? payload.code : undefined;
     const errorCode =
       typeof payload.errorCode === 'string' && payload.errorCode ? payload.errorCode : undefined;
+    const reasonCode =
+      typeof payload.reasonCode === 'string' && payload.reasonCode ? payload.reasonCode : undefined;
     const message = typeof payload.message === 'string' && payload.message ? payload.message : undefined;
-    if (code === undefined && errorCode === undefined && message === undefined) return null;
-    return { code, errorCode, message };
+    if (code === undefined && errorCode === undefined && reasonCode === undefined && message === undefined) return null;
+    return { code, errorCode, reasonCode, message };
   } catch {
     // 非 JSON 响应体（网关 HTML / 空体）→ 回落到通用 HTTP 错误文案
     return null;
@@ -431,9 +438,15 @@ class HttpClient {
       logger.warn('开发模式：正在连接到后端服务，如果后端服务未运行，将显示错误');
     }
 
+    const timeoutMs = config.timeout ?? this.timeout;
+    // 区分「内部超时中止」与「调用方主动中止（页面导航/切租户）」：
+    // 前者必须显式抛错（调用方需要可见失败），后者保持静默 null 语义。
+    let timedOut = false;
     try {
-      const timeoutMs = config.timeout ?? this.timeout;
-      abortTimeoutId = setTimeout(() => controller.abort(), timeoutMs);
+      abortTimeoutId = setTimeout(() => {
+        timedOut = true;
+        controller.abort();
+      }, timeoutMs);
 
       let response = await fetch(url, {
         ...requestConfig,
@@ -458,6 +471,24 @@ class HttpClient {
           credentials: 'include',
           headers: this.mergeRequestHeaders(retryHeaders, config.headers, isFormData),
         });
+      }
+
+      // 租户头与 JWT 作用域冲突（后端 fail-closed 401 TENANT_MISMATCH_REJECTED）：
+      // 典型场景是前端残留旧租户头（切换/登录竞态），而 JWT 才是权威作用域。
+      // 这里清理租户上下文并重试一次，让请求回到 JWT 作用域；否则整页会持续
+      // 401「租户不匹配」（2026-10-07 实测：工单编辑页三连请求全被拒）。
+      if (response?.status === 401) {
+        const conflictEnvelope = await readErrorEnvelope(response);
+        if (conflictEnvelope?.reasonCode === 'TENANT_MISMATCH_REJECTED') {
+          logger.warn('[HttpClient] tenant scope conflict: stale tenant headers cleared, retrying with JWT scope');
+          clearContextTenant();
+          const conflictRetryHeaders = await this.addCSRFHeader(this.getHeaders(), config.method || 'GET');
+          response = await fetch(url, {
+            ...requestConfig,
+            credentials: 'include',
+            headers: this.mergeRequestHeaders(conflictRetryHeaders, config.headers, isFormData),
+          });
+        }
       }
 
       if (response?.ok && this.isMutatingMethod(config.method)) {
@@ -493,6 +524,7 @@ class HttpClient {
                 code: envelope?.code ?? null,
                 errorCode: envelope?.errorCode ?? null,
                 httpStatus: retryResponse.status,
+                reasonCode: envelope?.reasonCode ?? null,
                 requestId: rid,
               }
             );
@@ -542,6 +574,7 @@ class HttpClient {
             code: envelope?.code ?? null,
             errorCode: envelope?.errorCode ?? null,
             httpStatus: response?.status ?? null,
+            reasonCode: envelope?.reasonCode ?? null,
             requestId: rid,
           }
         );
@@ -575,8 +608,16 @@ class HttpClient {
       // 自动转换响应数据 key 为 camelCase（rawKeys=true 时保持后端原始 key）
       return (config.rawKeys ? responseData.data : toCamelCase(responseData.data)) as T;
     } catch (error: unknown) {
-      // AbortError 是正常的中止请求，不记录错误日志
       if (error instanceof Error && error.name === 'AbortError') {
+        // 超时不能静默：否则长事务（如租户开通模板供给）会表现为「点击无反应」——
+        // 请求被中止、调用方收到 null、界面既不报错也不刷新。
+        if (timedOut) {
+          throw createHttpClientError(
+            `请求超时（${Math.round(timeoutMs / 1000)}s），请稍后重试`,
+            { errorCode: 'CLIENT_TIMEOUT' }
+          );
+        }
+        // 页面导航/切租户/登出触发的主动中止：保持静默（不记录错误日志）。
         logger.debug('Request aborted (page navigation)');
         return null as T;
       }
