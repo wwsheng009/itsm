@@ -1,6 +1,6 @@
 # 映射式多租户切换收口方案（Membership + Switch）
 
-> 状态：**v0.1（待审查）**｜日期：2026-10-07｜基准：仓库 HEAD `ee9180e5`
+> 状态：**v0.2（独立审查修订完成；判定 ready-to-implement）**｜日期：2026-10-07｜基准：仓库 HEAD `78157476`（v0.1 提交；代码证据同 `ee9180e5`，审查后无代码变更）
 > 上位：[canon v1.0](./msp-concept-model-and-architecture-canon.md)（I3/I5/B3/B5/D5/D10）→ [目标架构](./msp-target-architecture.md)（§3.2 Membership / §5.3 服务方在客户作用域内的有效权限 / §6.1 建号通道矩阵）→ [主方案](./msp-user-lifecycle-and-tenant-switching-plan.md)（F7/F14/F15）→ [实施方案](./msp-implementation-plan.md)
 > 定位：**L4 收口方案**（局部编号 `MSW-#`；落地建议在实施方案登记为 `IP-P#`，本文件不占用全局编号）。范围：把"账号≠成员身份 + 映射式切换"从**已选定的目标架构**收口到落地——核对现状、登记差距、划定"切换面 vs 跨租户面"边界、给出批次与验收。**不新增目标模型、不新造映射表**。
 
@@ -10,8 +10,9 @@
 
 - **结论**：提案（provider 用户在 customer 租户建立"映射"→ 授权后切换 → 切换后以该租户成员身份使用**全部单租户功能**；provider 侧保留 `/msp` 跨租户能力）= 本仓库**已选定的目标架构**（canon I3：Membership 是账号↔租户关系的唯一载体；I5：provider 员工访问客户 = provider membership + allocation + customer active + 目标租户 RBAC；目标架构 §3.2/§5.3；主方案 F7/F14/F15）。本方案**不做新架构设计，做收口**。
 - **已就绪（代码证据，2026-10-07）**：`user_tenant_memberships` 表（IP-P1-1）；权限单源 `membership → role → role_permissions`（IP-P1-2，默认 fail-closed）；`POST /api/v1/auth/switch-tenant`（重签 JWT `tenant_source=switch` + 旧 refresh 轮换 + 审计 + **按目标租户重算权限**）；MSP 授权依据 `msp_allocations`（已补 `provider_tenant_id`）；前端深度切换（abort 在途请求 + `/auth/me` 重拉 + 查询缓存清空 + 深度态指示）。
-- **未闭环（本方案要解决的，详见 §2.2）**：① 建号通道不写 membership → 切换后权限为空（**MSW-1/P0**）；② 切换授权仅认 allocation，邀请来源未纳入（MSW-2/待决）；③ 撤销映射与令牌/缓存联动未定义（MSW-3）；④"返回工作台"不切回 provider 作用域（MSW-4/待核）；⑤ 双源（legacy 回退 vs membership）无巡检对账（MSW-5）；⑥ 切换面/跨租户面边界未成文（MSW-6）。
+- **未闭环（本方案要解决的，详见 §2.2）**：① 建号与分配通道不写/不同步 membership → 切换后权限为空（**MSW-1/P0**）；② 切换授权仅认 allocation，邀请来源未纳入（MSW-2/待决）；③ **生产无 membership 撤销面**，令牌/缓存未与映射绑定（MSW-3）；④"返回工作台"不切回 provider 作用域——审查已查明客户作用域下工作台 403，"仅导航"不可行（MSW-4，Q4 取 A）；⑤ 真实双源＝请求期 RBAC（JWT 角色码回退链）与 membership 单源的口径差，无巡检对账（MSW-5）；⑥ 切换面/跨租户面边界未成文（MSW-6）。
 - **批次**：**M1 写路径闭环（P0）** → M2 授权判定与撤销联动 → M3 切换体验收尾（可与 M2 并行）→ M4 边界文档与巡检。
+- **独立审查（2026-10-07）**：判定 needs-revision；1 blocker + 7 major + 5 minor/nit 已全部处置（F-01–F-13，见 §8），修正后判定 **ready-to-implement**。
 - **价值**：把"深度单租户操作"从跨租户路径里移出来——跨租户能力做减法（只保留 `/msp` 显式面），单租户能力靠切换复用（零改造），从根上停止"为每个功能造跨租户变体"的例外面增长。
 
 ---
@@ -46,7 +47,7 @@
 |---|---|---|---|
 | S1 | 成员身份表（账号≠成员身份） | `itsm-backend/ent/schema/user_tenant_membership.go`：`user_id × tenant_id`、`account_kind`、`source(home/allocation/platform/invite/migration)`、`role_id`、`msp_role`、`allocation_id`、`status(active/suspended)`、`is_default`、`expires_at`、`deleted_at` | IP-P1-1 建表；软删=回收即失效 |
 | S2 | 权限单源（membership→role→role_permissions） | `itsm-backend/middleware/membership_permission.go`：按 `user_id+tenant_id` 解析与缓存；`AUTHZ_STATIC_FALLBACK` 默认 **false**（无 membership = fail-closed）；`invalidateMembershipPermissionCacheForTenant` | IP-P1-2 |
-| S3 | 切换作用域会话 | `itsm-backend/handlers/auth/service.go:100` `SwitchTenantWithRevoke`：native / super_admin / provider(`msp_role`)+active allocation；重签 JWT（`tenant_source=switch`，scope=目标租户）；旧 refresh 黑名单轮换；审计 `tenant.switch` / `tenant.switch_denied`；**权限按目标租户重算** | 测试：`TestService_SwitchTenant_MSPProviderScope`、`DeniedWithoutAllocation`、`permission_single_source_test.go`（A/B 租户权限独立） |
+| S3 | 切换作用域会话 | `itsm-backend/handlers/auth/service.go:100` `SwitchTenantWithRevoke`：native / super_admin / provider(`msp_role`)+active allocation；provider 判定含 `origin.type=provider` 且 `target.type=customer` 门槛（`:112-121`）；重签 JWT（`tenant_source=switch`，scope=目标租户）；旧 refresh 黑名单轮换（仅 handler 传入旧 cookie 时，`:151-158`）；审计 `tenant.switch` + **仅授权拒绝分支** `tenant.switch_denied`；目标不存在/suspended/expired 在授权之后校验（`:136-141`，当前不落审计，M2 补齐）；**权限按目标租户重算** | 测试：`TestService_SwitchTenant_MSPProviderScope`、`DeniedWithoutAllocation`、`permission_single_source_test.go`（A/B 租户权限独立） |
 | S4 | MSP 授权依据（allocation） | `itsm-backend/ent/schema/msp_allocation.go`：`msp_user_id/customer_tenant_id/provider_tenant_id/role/assigned_at/deassigned_at`（IP-P2-1 已补 provider 维度） | 切换与工作台共用 |
 | S5 | 前端深度切换 | `itsm-frontend/src/lib/store/auth-store.ts` `switchTenant`：`abortAllRequests()`（防旧作用域响应覆盖）+ `/auth/me` 重拉 + `queryClient.clear()`；`components/layout/header/CustomerFilter.tsx`：深度态指示（`deep-tenant-indicator`）+ 进入客户（`enter-customer-*`） | IP-P0-8 链路 |
 | S6 | 跨租户面（与切换并存） | `/msp/*` 路由族 + 工作台（多客户分诊/报表/批量）+ 通知双投递（provider/customer 两侧） | 见单据流转方案 XF/XFD |
@@ -55,44 +56,44 @@
 
 **MSW-1（P0）建号与分配通道不写/不同步 membership → 切换后权限空窗**
 - 现象：经平台/MSP 通道新建的 provider 员工，即使完成客户分配，切换进客户租户后权限集合为空（fail-closed），表现为菜单缺失/403。
-- 根因（代码检索）：生产代码中 membership 写入点仅 `pkg/bootstrap/admin.go`（首管）、`service/invitation_service.go`（邀请）、`service/membership_org_service.go`（组织）；**`service/user_provisioning.go`、`service/user_service.go`、`handlers/user/*` 无 membership 写入**；**`service/msp_allocation_service.go`、`service/msp_bootstrap_allocation.go` 无 membership 同步**；`cmd/` 无 membership 回填命令（存量回填机制待核，见 §2.3 V1）。
+- 根因（代码检索，审查修订）：生产写入点＝`pkg/bootstrap/admin.go`（首管创建）、`service/invitation_service.go`（邀请接受创建）、`cmd/backfill_provider_admin/main.go:251-255`（存量首管角色重绑）；存量回填＝`migrations/20260504_create_user_tenant_memberships.sql:47-141`（home + active allocation + `audit_logs.membership_id`），**未覆盖 platform/invite/migration**。`service/membership_org_service.go` 仅写 `user_tenant_membership_orgs` 子表（无生产调用方，仅测试）。**`service/user_provisioning.go`、`service/user_service.go`、`handlers/user/*`、`service/msp_allocation_service.go`、`service/msp_bootstrap_allocation.go` 经检索无 membership 写入**。
 - 影响：提案的核心体验（"切过去就是那个租户的用户"）在新建数据上不成立；亦与 canon I3（membership 为唯一载体）相悖。
-- 建议：三通道统一 membership 同步（建号 → `source=platform`；MSP 分配/撤销 → `source=allocation` + `allocation_id` + `deassigned_at`；邀请已就绪），抽公共同步函数 + 对账巡检（MSW-5）。
+- 建议：三通道统一 membership 同步（建号 → `source=platform`；MSP 分配 → `source=allocation` + `allocation_id`；**分配撤销 → `deassigned_at`/状态**；邀请已就绪），抽公共同步函数 + **同步审计**（`membership.sync` 或等价）+ 对账巡检（MSW-5）。
 
 **MSW-2（P1）切换授权仅认 allocation，"邀请来源"未纳入**
 - 现状：`SwitchTenantWithRevoke` 放行条件为 native / super_admin / provider+msp_role+active allocation；`source=invite` 的 membership 存在但**不能**作为切换依据。
 - 影响：客户邀请 provider 人员协作（无分配关系）时无法切换；授权语义与"映射存在即可切换"的提案口径存在偏差。
 - 建议：授权判定抽为单一入口 `authz.Decide(actor, scope, "tenant.switch")`，把 invite 来源纳入（是否默认开放见 MSW-Q1）；同时消除三套权限解析路径的重复租户解析。
 
-**MSW-3（P1）撤销映射与令牌/缓存联动未定义**
-- 现状：membership 有 `status/expires_at/deleted_at`，权限缓存有失效函数；但**撤销路径是否调用缓存失效、是否吊销该 user×tenant 的在途 refresh（最长 7 天）未接线**（见 §2.3 V2）。
-- 影响：撤销映射后存在"已撤销仍可续签/命中旧权限缓存"的窗口。
-- 建议：撤销即失效缓存 + 吊销在途 refresh（或按 MSW-Q3 的宽限策略），并纳入验收 MSW-A4。
+**MSW-3（P1）生产无 membership 撤销面，令牌/缓存未与映射绑定**
+- 现状（审查修订）：**生产代码中不存在 membership 撤销/停用/删除入口**（检索仅测试与 backfill 角色重绑）；`MSPAllocationService.Deactivate` 只写 `msp_allocations.deassigned_at`（`service/msp_allocation_service.go:252-266`），**不同步 membership、无审计**；`invalidateMembershipPermissionCacheForTenant` 唯一调用者＝角色权限变更链路（`middleware/rbac.go:642`）；refresh 未与 membership 绑定（legacy `SwitchTenant` 不撤旧 refresh，`handlers/auth/service.go:93-96`；仅 handler 传入旧 cookie 时黑名单）。
+- 影响：撤销不存在 + 即使撤销也不联动 → "已撤销仍可续签/命中旧权限缓存"的窗口。
+- 建议：M2 增补**撤销面**（管理入口/API：membership 停用/软删 + 审计 + 缓存失效 + 按 user×tenant 吊销在途 refresh，策略按 MSW-Q3），并纳入验收 MSW-A4。
 
-**MSW-4（P1，待核）"返回工作台"不切回 provider 作用域**
+**MSW-4（P1，V3 已查明）"返回工作台"不切回 provider 作用域**
 - 现状：`CustomerFilter.tsx:377` 的"返回工作台"仅 `navigate(MSP_WORKBENCH_PATH)`，**不调用 `switchTenant` 切回 provider**；会话仍停留在客户作用域。
-- 待核：客户作用域下访问 `/msp/workbench` 的可用性（403？数据口径？）——见 §2.3 V3。
-- 建议：语义二选一并落测：① 返回=切回 home provider（推荐，显式"退出客户作用域"）；② 保持作用域仅导航（需证明工作台在该作用域下语义正确）。
+- V3 结论（静态推演，高置信；建议浏览器 E2E 复核）：客户作用域下 `/api/v1/msp/workbench/*` 在 `RBACMiddleware` 预检即 **403**——要求 `msp_ticket:read`，而 switch JWT 主角色=`users.role`（`handlers/auth/service.go:142`），客户租户内无 msp 权限码；MSP 身份中间件按 home 租户判定本可通过，但先被 RBAC 拒。证据：`router/msp_routes.go:16-19`、`middleware/rbac_precheck_gen.go:369`、`middleware/rbac.go:961-971,1328-1344`、`middleware/msp_middleware.go:55-95`。
+- 结论：选项②"保持作用域仅导航"不可行；MSW-Q4 取 A（返回=切回 provider 作用域）。"switch JWT 角色 vs 请求期 RBAC 角色"口径差登记为 MSW-5 巡检/收敛项（影响客户作用域下所有 `/msp/*` 访问）。
 
 **MSW-5（P2）双源并存无巡检对账**
-- 现状：读路径保留 legacy 回退（home + allocation 计算，`handlers/common/service.go` 等），与 membership 单源并存；代码库中未见 membership reconcile/巡检（检索无命中）。
-- 影响：漂移（membership 缺失 / `role_id` 空 / `status` 与 `users` 不一致 / `account_kind` 快照过期）只能靠用户报障发现。
-- 建议：巡检脚本 + 报告（纳入 M4），漂移分类与修复动作明示。
+- 现状（审查修订）：读路径已是 membership 单源（`handlers/common/service.go:95` 委托 `middleware.ResolvePermissions`）。**真实双源**＝① 展示/菜单权限（membership 单源）与**请求期 RBACMiddleware**（JWT 角色码 + DB/hardcode 4 层回退链，`middleware/rbac.go`）并存；② `AUTHZ_STATIC_FALLBACK=true` 时回退编译期静态表（默认关）。代码中不存在 "home+allocation 计算" 权限路径；`SourceHome/SourceAllocation` 仅为枚举值（仅测试使用），schema/migration 相关注释为 IP-P1-1 遗留（应清理）。
+- 影响：漂移＝`membership.role_id` 与请求期 RBAC（JWT 角色/`role_permissions`）不一致 → 菜单可见但接口 403（或反之）；切换会话的 JWT 主角色与目标租户权限码也可能不一致（见 MSW-4）。
+- 建议：巡检目标改为"membership vs 请求期 RBAC 漂移"（缺失 / `role_id` 空 / `status` 不一致 / `account_kind` 快照过期 / JWT 角色 vs 权限码）；纳入 M4。
 
 **MSW-6（P2）"切换面 vs 跨租户面"边界未成文**
 - 现状：哪些操作走"切换进客户"、哪些走"/msp 工作台不切换"没有权威决策表；scenarios 亦无对应剧本。
 - 影响：新功能默认再长一条跨租户路径（例外面增长复发）。
 - 建议：§3.4 决策表入 canon/工作台方案；scenarios 增补"切换 vs 工作台"剧本（含反例）。
 
-### 2.3 待核项（交独立审查，v0.2 回填结论）
+### 2.3 待核项结论（独立审查回填，2026-10-07）
 
-| # | 待核问题 | 涉及位置 |
+| # | 结论 | 证据 |
 |---|---|---|
-| V1 | 存量 membership 回填机制（IP-P1-1 声称"建表 + 回填"）在哪实现、覆盖哪些来源？`membership_org_service.go` 的写入触发与字段完整性（是否含 `role_id`） | `service/membership_org_service.go`、migration/脚本 |
-| V2 | 撤销/停用/删除 membership 的调用点是否失效权限缓存、是否吊销 refresh；`invalidateMembershipPermissionCacheForTenant` 的实际调用者 | 全仓检索 |
-| V3 | 客户作用域（未切回 provider）下 `/msp/workbench` 的实际行为：403、空列表还是正确数据？（决定 MSW-4 的语义） | `middleware/msp_*`、`service/msp_workbench.go`、路由守卫 |
-| V4 | login 的权限解析在 legacy 回退与 membership 单源之间的切换条件；`SourceHome/SourceAllocation` 的遗留口径 | `handlers/common/service.go`、`middleware/membership_permission.go` |
-| V5 | 登录期是否允许出现租户选择/切换器（`login-no-tenant-source.test.ts` 约束），与切换面 UX 的边界 | `pages/(auth)/login/__tests__/login-no-tenant-source.test.ts` |
+| V1 | **已查明**：存量回填＝`migrations/20260504`（1 home membership + 2 active allocation→`source=allocation`，role_id 取客户租户同名角色、未 seed 则 NULL + 巡检清单 + 3 `audit_logs.membership_id`），**未覆盖 platform/invite/migration**；`membership_org_service.go` 只写 orgs 子表、无生产调用方；`cmd/backfill_provider_admin` 是首管角色重绑（非全量回填） | `migrations/20260504_create_user_tenant_memberships.sql:47-141`；`service/membership_org_service.go:104-203`；`cmd/backfill_provider_admin/main.go:251-255` |
+| V2 | **已查明**：`invalidateMembershipPermissionCacheForTenant` 唯一调用者＝`middleware/rbac.go:642`（角色权限变更链路）；生产无 membership 撤销/停用/删除调用点；无按 user×tenant 吊销 refresh 的机制 | `middleware/rbac.go:642,1301-1305`；`service/role_service.go:287/391/479` |
+| V3 | **已查明（静态推演，高置信）**：客户作用域访问 `/api/v1/msp/workbench/*` → **403**（RBAC 预检 `msp_ticket:read`；switch JWT 主角色=`users.role`；MSP 身份按 home 租户判定本可通过但先被 RBAC 拒）；建议浏览器 E2E 复核 | 见 MSW-4 |
+| V4 | **已查明**：Login/Refresh/GetMe/菜单统一走 `middleware.ResolvePermissions`；legacy 回退仅 `AUTHZ_STATIC_FALLBACK=true` 时的编译期静态表（默认关）；`SourceHome/SourceAllocation` 无运行时分支 | `handlers/common/service.go:95`；`middleware/membership_permission.go:147-150`；`config/config.go:566` |
+| V5 | **已查明**：登录页锁定"无租户列表/选择器、不请求 `/auth/tenants`"；作用域变更仅存在于切换面 | `pages/(auth)/login/__tests__/login-no-tenant-source.test.ts:9-24`；`lib/store/auth-store.ts:155-183` |
 
 ---
 ## 3. 目标模型（承接既有权威，不新增）
@@ -116,7 +117,7 @@
 ### 3.3 权限与失败语义
 
 - **权限只在目标租户内算**：`membership.role_id → role_permissions`（fail-closed；`AUTHZ_STATIC_FALLBACK` 仅过渡，需在 M4 登记关闭计划）。
-- **切换失败**：403 + `tenant.switch_denied` 审计（含 home/target/source），不做目标存在性枚举；目标租户 suspended/expired 拒绝。
+- **切换失败审计**：授权拒绝分支 403 + `tenant.switch_denied`（含 home/target/source）；**目标不存在/suspended/expired 分支当前未落审计**（`handlers/auth/service.go:132-141`），M2 补齐（MSW-A3 断言全分支）；对未授权者不做目标存在性枚举。
 - **无 membership = 空权限**：这是设计（fail-closed），但必须靠 MSW-1 保证"合法映射一定有 membership"，否则表现为"切得过去、没有权限"的体验事故。
 
 ### 3.4 边界决策表（MSW-6 的核心产出，建议入 canon/工作台方案）
@@ -137,25 +138,25 @@
 ### M1（P0）写路径闭环：三通道 → membership 单源
 
 - **范围**：
-  1. 建号通道（`UserProvisioningService.ProvisionUser`）在目标租户内写入 membership：`source=platform`（平台通道）/ 由 actor 来源决定；`role_id` 由 `req.RoleIDs/Role` 映射；`account_kind` 按目标租户类型快照；
-  2. allocation 分配/撤销（`msp_allocation_service.go`）同步 membership：`source=allocation`、`allocation_id`、`deassigned_at`；
-  3. 抽公共 `membership_sync`（幂等 upsert + 冲突策略），供三通道与后续场景复用。
-- **验收**：MSW-A1/A2/A6；新增测试覆盖"建号 → 分配 → 切换 → 目标租户权限非空"。
-- **回滚**：同步逻辑置于独立服务，可按通道开关回退（回退后仍 fail-closed，不产生越权）。
+  1. 建号通道（`UserProvisioningService.ProvisionUser`）在目标租户内写入 membership：`source=platform`（平台通道）/ 由 actor 来源决定；`role_id` 由 `req.RoleIDs/Role` 映射；`account_kind` 按**账号类型**快照——provider 员工在客户租户=`provider`、客户账号=`customer`、平台账号=`platform`（**禁止按目标租户类型快照**：会与 `uq_customer_single_scope` 冲突并破坏快照语义，证据 `ent/schema/user_tenant_membership.go:29-32,102-106`、`migrations/20260504:96-107`）；`allocation.role → role_id` 映射按目标架构 §5.3（specialist→`msp_specialist`，primary/backup→`msp_tech`），目标角色未就绪按"NULL + 巡检"显式登记，不得静默；
+  2. allocation 分配/撤销（`msp_allocation_service.go`）同步 membership：`source=allocation`、`allocation_id`；分配行 `is_default=false`；撤销写 `deassigned_at`/状态；幂等 upsert 明确"复活/更新既有行"策略（约束 `uq_membership_live`/`uq_membership_default`，`ent/schema/user_tenant_membership.go:93-101`）；
+  3. 抽公共 `membership_sync`（幂等 upsert + 冲突策略）+ **同步审计**（`membership.sync` 或等价）。
+- **验收**：MSW-A1/A2/A6；新增测试覆盖"建号 → 分配 → 切换 → 目标租户权限非空"与同步审计断言。
+- **回滚**：同步逻辑置于独立服务；**当前不存在 per-channel membership-sync 开关**（仅全局 `USER_PROVISIONING_CHANNELS_ENABLED`，`service/user_provisioning.go:98-111`）——如需按通道回退须随 M1 实现，否则以 revert 回滚（回退后仍 fail-closed，不产生越权）。
 
 ### M2 授权判定归一 + 撤销联动
 
-- **范围**：`authz.Decide(actor, scope, action)` 单一入口承载 `tenant.switch`（并逐步承接其它判定）；纳入 `source=invite`（按 MSW-Q1）；撤销/停用/删除 membership → 失效权限缓存 + 吊销在途 refresh（或宽限，按 MSW-Q3）。
-- **验收**：MSW-A3/A4；`tenant.switch_denied` 审计断言。
+- **范围**：`authz.Decide(actor, scope, action)` 单一入口承载 `tenant.switch`（并逐步承接其它判定）；纳入 `source=invite`（按 MSW-Q1）；**增补撤销面**（管理入口/API：membership 停用/软删 + 审计 + 缓存失效 + 按 user×tenant 吊销在途 refresh，策略按 MSW-Q3）；**切换前置校验补 `userEntity.Active`**（当前不检查，被停用账号仍可换发令牌，`handlers/auth/service.go:100-188`）；**切换失败全分支审计**（授权拒绝 + 目标不存在/suspended/expired）。
+- **验收**：MSW-A3/A4；`tenant.switch_denied` 全分支审计断言；账号停用场景断言。
 
 ### M3 切换体验收尾（可与 M2 并行）
 
-- **范围**：MSW-4 语义落地（返回=切回 provider，或按决策）；深度态指示补全（目标租户/来源/退出入口）；切换失败回滚与提示；客户侧成员列表对 `account_kind=provider` 的只读展示（按 MSW-Q2）。
+- **范围**：MSW-4 语义落地（**MSW-Q4 已决 A：返回=切回 provider 作用域**，依据 V3 403）；深度态指示补全（目标租户/来源/退出入口）；切换失败回滚与提示；客户侧成员列表对 `account_kind=provider` 的只读展示（按 MSW-Q2）。
 - **验收**：MSW-A5；前端用例 + 浏览器实测。
 
 ### M4 边界文档 + 巡检 + 开关登记
 
-- **范围**：§3.4 决策表入 canon/工作台方案；scenarios 增补"切换 vs 工作台"剧本；membership 巡检脚本（缺失/漂移/快照不一致）；`AUTHZ_STATIC_FALLBACK` 等过渡开关的 owner/到期登记。
+- **范围**：§3.4 决策表入 canon/工作台方案；scenarios 增补"切换 vs 工作台"剧本；**membership vs 请求期 RBAC 巡检脚本**（缺失 / `role_id` 空 / `status` 不一致 / `account_kind` 快照过期 / JWT 角色 vs 权限码），定义夹具与漂移分类阈值；`AUTHZ_STATIC_FALLBACK` 等过渡开关的 owner/到期登记；IP-P1-1 遗留注释（"读路径仍回退 home+allocation"）清理。
 - **验收**：MSW-A6；docs-gate 通过；巡检报告样本入档。
 
 **依赖**：M1 → M2/M3 → M4（M3 可与 M2 并行）。
@@ -165,21 +166,21 @@
 
 | # | 验收 | 判据 |
 |---|---|---|
-| MSW-A1 | 建号→分配→切换闭环 | 经平台/MSP 通道新建的 provider 员工，完成客户分配后切换：目标租户菜单/权限**非空**且与目标租户角色一致；无 403 误伤 |
+| MSW-A1 | 建号→分配→切换闭环 | 经平台/MSP 通道新建的 provider 员工，完成客户分配后切换：目标租户菜单/权限**非空**且与目标租户角色一致；无 403 误伤。前置：目标租户角色已就绪（`msp_tech/msp_specialist` 等已 seed）；未就绪按 NULL→巡检清单显式登记（不得静默） |
 | MSW-A2 | 双作用域权限独立 | 同一账号在 provider 与 customer 两作用域的权限集合各自独立（不沿用 home 权限）；扩展 `permission_single_source_test.go` 至建号通道场景 |
-| MSW-A3 | 拒绝路径与审计 | 无 allocation/无邀请的切换仍拒绝（403）+ `tenant.switch_denied` 审计；目标 suspended/expired 拒绝 |
-| MSW-A4 | 撤销即时生效 | 撤销映射后：权限缓存失效、在途 refresh 失效（或按宽限策略）、再次切换被拒 |
-| MSW-A5 | 作用域体验正确 | "返回工作台"后会话回到 provider 作用域（或按 MSW-Q4 决策的语义）；深度态指示与退出入口可用；切换失败不破坏当前会话 |
-| MSW-A6 | 巡检与边界 | membership 巡检对种子数据 0 漂移、对人工构造漂移能报出；§3.4 边界表与 scenarios 剧本落档 |
+| MSW-A3 | 拒绝路径与审计 | **全拒绝分支**均 403 + `tenant.switch_denied` 审计：无授权、目标不存在、目标 suspended/expired；被停用账号（`users.active=false`）拒绝换发令牌 |
+| MSW-A4 | 撤销即时生效 | 按 MSW-Q3=A：撤销映射（membership 停用/软删）后权限缓存失效、该 user×tenant 在途 refresh 吊销、再次切换被拒；账号停用同理 |
+| MSW-A5 | 作用域体验正确 | "返回工作台"后会话回到 provider 作用域（MSW-Q4 已决 A）；深度态指示与退出入口可用；切换失败不破坏当前会话 |
+| MSW-A6 | 巡检与边界 | 巡检夹具＝scenarios 种子集：对种子数据 0 漂移；对人工构造漂移（缺失/`role_id` 空/`status` 不一致/`account_kind` 快照/JWT 角色 vs 权限码）能分类报出；§3.4 边界表与 scenarios 剧本落档 |
 
 ## 6. 风险与缓解
 
 | 风险 | 说明 | 缓解 |
 |---|---|---|
-| 双源漂移 | legacy 回退（home+allocation）与 membership 并存期数据不一致 | M1 同步 + M4 巡检；回退开关登记到期 |
+| 双源漂移 | 展示权限（membership 单源）与请求期 RBAC（JWT 角色码回退链）口径不一致 → 菜单可见但接口 403（或反之） | M1 同步 + M4 巡检（membership vs 请求期 RBAC）；`AUTHZ_STATIC_FALLBACK` 回退开关登记到期 |
 | 权限空窗被放大 | MSW-1 不补时，"切过去没权限"随切换面扩大成为体验事故 | M1 列为 P0 前置；切换失败/空权限给出可诊断提示 |
 | 体验混淆 | 同一人两种身份（provider 员工/客户成员），用户分不清当前作用域 | 深度态指示 + 返回入口 + 客户侧成员标识（M3） |
-| 撤销时延 | refresh 最长 7 天 | MSW-3 联动吊销/宽限策略 |
+| 撤销面缺失/时延 | 生产无 membership 撤销入口；即使撤销，refresh 最长 7 天未与映射绑定 | M2 增补撤销面 + 按 user×tenant 吊销（Q3=A）；MSW-A4 验收 |
 | 开关债务 | `AUTHZ_STATIC_FALLBACK`、灰度开关永久化 | M4 开关登记（owner/到期/默认开计划） |
 | 与既有方案的重复 | 本文与目标架构/主方案存在承接关系，若各自演化会产生冲突 | 本文只做收口与差距登记，冲突以 canon/目标架构为准；编号 `MSW-#` 不占用全局空间 |
 
@@ -190,14 +191,33 @@
 | MSW-Q1 | 邀请来源（`source=invite`）是否可作为切换依据？ | A. 默认放行；B. 需 allocation；C. 需客户侧显式确认 | C（客户同意后落 invite membership 并可切换） |
 | MSW-Q2 | 客户侧成员列表是否展示服务方成员？ | A. 不展示；B. 只读展示（标注"服务方"）；C. 可管理 | B |
 | MSW-Q3 | 撤销映射的令牌处理？ | A. 立即吊销 refresh；B. 宽限至 access 过期（≤15min） | A（安全优先；如需宽限须登记） |
-| MSW-Q4 | "返回工作台"语义？ | A. 切回 provider 作用域；B. 仅导航 | A（避免"带着客户作用域逛工作台"的歧义） |
+| MSW-Q4 | "返回工作台"语义？ | A. 切回 provider 作用域；B. 仅导航 | **已决 A**（V3 已查明：仅导航时 `/msp/workbench/*` 必 403） |
 
 ## 8. 审查记录
 
-> 待独立审查（v0.2 回填）：审查范围、结论、逐条处置（接受/驳回/转待决）。
+**独立审查（2026-10-07，只读子代理，基准 HEAD `78157476`）**：结论 **needs-revision**（方向正确、差距清单有价值）；1 blocker + 7 major + 5 minor/nit，全部处置如下（F 编号为审查编号，不入全局编号空间）。
+
+| # | 严重度 | 审查发现 | 处置 |
+|---|---|---|---|
+| F-01 | blocker | M1 `account_kind` 按"目标租户类型"快照会与 `uq_customer_single_scope` 冲突（provider 员工多客户场景） | **接受**：改为按账号类型快照（provider/customer/platform），M1 已修订 |
+| F-02 | major | MSW-1 写入点清单不准确（`membership_org_service` 不写 membership；`cmd/backfill_provider_admin` 写；存量回填在 `migrations/20260504`） | **接受**：MSW-1 根因段重写；核心结论（建号/分配无写入）保留 |
+| F-03 | major | MSW-5 "legacy home+allocation 回退"与代码不符；真实双源＝请求期 RBAC 口径差 | **接受**：MSW-5 重写；M4 巡检目标改为 membership vs 请求期 RBAC |
+| F-04 | major | 切换失败仅授权拒绝分支落审计（目标不存在/suspended/expired 未落） | **接受**：§3.3 口径修正 + M2 补代码 + A3 全分支断言 |
+| F-05 | major | M2/M3 预设的 membership 撤销路径不存在；allocation 撤销不同步 membership、无审计 | **接受**：M2 增补"撤销面"；M1 增补分配撤销同步 + 审计 |
+| F-06 | major | V3 查明客户作用域 `/msp/workbench` 403；MSW-4"仅导航"不可行 | **接受**：MSW-4 回填结论；Q4 取 A；口径差登记为 MSW-5 项 |
+| F-07 | major | 遗漏：账号停用未校验、目标角色未就绪、`is_default`/upsert 策略、M1 回滚开关不存在 | **接受**：M1/M2 范围与 A1/A3/A4 判据补齐 |
+| F-08 | minor | S3 条件描述缺类型门槛与校验顺序 | **接受**：S3 已补 |
+| F-09 | minor | MSW-3 低估（无撤销面 + refresh 未绑定） | **接受**：MSW-3 重写并与 F-05 合并推进 |
+| F-10 | minor | M1 缺同步审计要求 | **接受**：M1 增补 `membership.sync` 审计 |
+| F-11 | minor | A4/A6 判据模糊 | **接受**：A4 定 Q3=A；A6 定义夹具与漂移分类 |
+| F-12 | nit | 基准 HEAD 注记过期 | **接受**：头部基准更新为 `78157476` |
+| F-13 | nit | 治理合规（R1/R4/R7/编号登记）通过 | 保持 |
+
+**V1–V5**：全部查明，结论见 §2.3。**判定**：修订后 ready-to-implement（待办：M1 前置确认 MSW-Q1/Q3 决议）。
 
 ## 9. 修订记录
 
 | 版本 | 日期 | 变更 |
 |---|---|---|
 | v0.1 | 2026-10-07 | 首版：提案映射（§1）、现状核对 S1–S6 / MSW-1–6 / 待核 V1–V5（§2）、目标模型与边界决策表（§3）、批次 M1–M4（§4）、验收/风险/待决（§5–§7） |
+| v0.2 | 2026-10-07 | **独立审查修订（F-01–F-13 全处置，判定 ready-to-implement）**：M1 `account_kind` 口径改按账号类型（blocker）；MSW-1/3/5 按代码重写（写入点清单、无撤销面、真实双源）；切换失败审计口径修正 + M2 补全分支；M2 增补撤销面与账号停用校验；MSW-4 回填 V3 结论（403）并定 Q4=A；A1/A3/A4/A6 判据具体化；§2.3 回填 V1–V5 结论；新增 §8 审查记录 |

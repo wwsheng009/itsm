@@ -31,7 +31,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- **《映射式多租户切换收口方案》（Membership + Switch，L4，v0.1 待审查）** — 把"账号≠成员身份 + 映射式切换"从既有目标架构（canon I3/I5、目标架构 §3.2/§5.3、主方案 F7/F14/F15）收口到落地：现状核对 S1–S6（membership 表/权限单源/switch 会话/allocation/前端深度切换/跨租户面）；差距 MSW-1–6（**P0：建号与分配通道不写/不同步 membership → 切换后权限空窗**；切换授权仅 allocation；撤销与令牌/缓存联动未定义；"返回工作台"不切回作用域；双源无巡检；切换面/跨租户面边界未成文）；切换授权矩阵与边界决策表；批次 M1–M4 与验收 MSW-A1–A6；待决 MSW-Q1–Q4。审查结论与修订见方案 §8/§9。
+- **《映射式多租户切换收口方案》（Membership + Switch，L4，v0.2 独立审查修订完成）** — 把"账号≠成员身份 + 映射式切换"从既有目标架构（canon I3/I5、目标架构 §3.2/§5.3、主方案 F7/F14/F15）收口到落地：现状核对 S1–S6（membership 表/权限单源/switch 会话/allocation/前端深度切换/跨租户面）；差距 MSW-1–6（**P0：建号与分配通道不写/不同步 membership → 切换后权限空窗**；切换授权仅 allocation；**生产无 membership 撤销面**；"返回工作台"不切回作用域且客户作用域下工作台必 403；真实双源＝请求期 RBAC 口径差；切换面/跨租户面边界未成文）；切换授权矩阵与边界决策表；批次 M1–M4 与验收 MSW-A1–A6；待决 MSW-Q1–Q4（Q4 已决）。独立审查（只读子代理）：needs-revision → 1 blocker + 7 major + 5 minor/nit 全处置（F-01–F-13，见方案 §8），修订后判定 ready-to-implement。
 
 ### Changed
 
