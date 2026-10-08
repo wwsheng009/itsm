@@ -177,6 +177,42 @@ func provisionActorFromContext(c *gin.Context) service.ProvisionActor {
 	}
 }
 
+// ListTenantGrantableRoles GET /api/v1/tenants/:id/roles（IP-P2-7）：
+// 平台建号表单的「可授予角色」候选（数据驱动，替代前端硬编码）。
+func (h *UserHandler) ListTenantGrantableRoles(c *gin.Context) {
+	tenantID, err := strconv.Atoi(c.Param("id"))
+	if err != nil || tenantID <= 0 {
+		common.ParamError(c, "无效的租户ID")
+		return
+	}
+	h.listGrantableRoles(c, tenantID)
+}
+
+// ListCustomerGrantableRoles GET /api/v1/msp/customers/:customer_tenant_id/roles（IP-P2-7）：
+// MSP 通道建号表单的角色候选（allocation 二次校验与 MSP 建号同源）。
+func (h *UserHandler) ListCustomerGrantableRoles(c *gin.Context) {
+	tenantID, err := strconv.Atoi(c.Param("customer_tenant_id"))
+	if err != nil || tenantID <= 0 {
+		common.ParamError(c, "无效的客户租户ID")
+		return
+	}
+	h.listGrantableRoles(c, tenantID)
+}
+
+// listGrantableRoles 共用读取面：通道授权与 rank/白名单过滤由 service 收口（单一源）。
+func (h *UserHandler) listGrantableRoles(c *gin.Context, targetTenantID int) {
+	if h.provisioning == nil {
+		common.Fail(c, common.ServiceUnavailableCode, "建号通道未启用")
+		return
+	}
+	roles, err := h.provisioning.GrantableRoles(c.Request.Context(), provisionActorFromContext(c), targetTenantID)
+	if err != nil {
+		respondProvisionError(c, err)
+		return
+	}
+	common.Success(c, roles)
+}
+
 // respondProvisionError 将建号通道的稳定错误码映射为响应（对齐 MSP 中间件风格）。
 func respondProvisionError(c *gin.Context, err error) {
 	if pe, ok := service.AsProvisionError(err); ok {

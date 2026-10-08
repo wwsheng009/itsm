@@ -147,4 +147,65 @@ describe('ProvisionUserModal', () => {
       )
     );
   });
+
+  it('角色多选（IP-P2-7）：加载目标租户候选并随载荷提交 roleIds', async () => {
+    const submit = jest.fn().mockResolvedValue({ id: 41, username: 'multi.role' });
+    const loadRoleOptions = jest.fn().mockResolvedValue([
+      { id: 8, code: 'agent', name: '服务台坐席', rank: 2 },
+      { id: 7, code: 'admin', name: '系统管理员', rank: 4 },
+    ]);
+
+    render(
+      <ProvisionUserModal
+        open
+        title="平台建号"
+        onClose={jest.fn()}
+        submit={submit}
+        loadRoleOptions={loadRoleOptions}
+      />
+    );
+
+    await waitFor(() => expect(loadRoleOptions).toHaveBeenCalled());
+    fillBase({ username: 'multi.role' });
+
+    const roleSelect = document.getElementById('roleIds');
+    expect(roleSelect).not.toBeNull();
+    fireEvent.mouseDown(roleSelect!);
+    fireEvent.click(await screen.findByText('系统管理员（admin）'));
+
+    fireEvent.click(screen.getByRole('button', { name: /建\s*号/ }));
+    await waitFor(() =>
+      expect(submit).toHaveBeenCalledWith(
+        expect.objectContaining({ username: 'multi.role', roleIds: [7] }),
+        undefined
+      )
+    );
+  });
+
+  it('角色候选加载失败：显示告警且不阻断基础字段提交', async () => {
+    const submit = jest.fn().mockResolvedValue({ id: 42, username: 'fallback.user' });
+
+    render(
+      <ProvisionUserModal
+        open
+        title="平台建号"
+        onClose={jest.fn()}
+        submit={submit}
+        loadRoleOptions={jest.fn().mockRejectedValue(new Error('网络异常'))}
+      />
+    );
+
+    expect(await screen.findByTestId('provision-role-error')).toHaveTextContent('角色列表加载失败');
+    fillBase({ username: 'fallback.user' });
+    fireEvent.click(screen.getByRole('button', { name: /建\s*号/ }));
+
+    await waitFor(() =>
+      expect(submit).toHaveBeenCalledWith(
+        expect.objectContaining({ username: 'fallback.user' }),
+        undefined
+      )
+    );
+    const payload = submit.mock.calls[0][0] as Record<string, unknown>;
+    expect(payload.roleIds).toBeUndefined();
+  });
 });

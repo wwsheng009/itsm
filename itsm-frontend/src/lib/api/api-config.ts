@@ -171,6 +171,17 @@ export interface BootstrapAdminResponse {
   mustChangePassword: boolean;
 }
 
+/** 建号表单「可授予角色」候选（IP-P2-7）：由目标租户角色列表接口下发，前端不得自行兜底过滤。 */
+export interface ProvisionRoleOption {
+  id: number;
+  code: string;
+  name: string;
+  description?: string;
+  isSystem?: boolean;
+  /** 角色层级（服务端 middleware.RoleRank 单一源），仅展示/排序用。 */
+  rank: number;
+}
+
 /** 建号通道（平台 / MSP 共用）请求体：CreateUserRequest 的 UI 子集。 */
 export interface ProvisionUserRequest {
   username: string;
@@ -180,6 +191,8 @@ export interface ProvisionUserRequest {
   /** MSP 角色（users.msp_role 词表：provider_admin|provider_agent|customer_user）；
    * 服务商租户建号必须携带，否则员工无法进入服务商工作台。 */
   mspRole?: string;
+  /** RBAC 多角色（roles.id，必须属于目标租户）；IP-P2-7：候选来自目标租户角色列表接口。 */
+  roleIds?: number[];
 }
 
 /** 建号响应（UserDetailResponse 的最小子集）。 */

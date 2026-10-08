@@ -8,9 +8,13 @@
  * 请求体 = CreateUserRequest 的 UI 子集（username/name/email/password 必填；
  * 密码强度由目标租户 system_configs 的密码策略在服务端校验）。
  * 调用方通过 `submit` 注入具体 API（便于测试替身与两处复用）。
+ *
+ * IP-P2-7：`loadRoleOptions` 提供时表单出现「角色（可多选）」，
+ * 候选来自目标租户角色列表接口（服务端按通道/rank 收口），提交为 `roleIds`。
  */
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Alert, Form, Input, Modal, Select } from 'antd';
+import type { ProvisionRoleOption } from '@/lib/api/api-config';
 
 export interface ProvisionUserPayload {
   username: string;
@@ -19,6 +23,8 @@ export interface ProvisionUserPayload {
   password: string;
   /** MSP 角色（users.msp_role 词表）；仅服务商租户建号需要。 */
   mspRole?: string;
+  /** RBAC 多角色（roles.id，属于目标租户）；IP-P2-7：留空默认 end_user。 */
+  roleIds?: number[];
 }
 
 export interface ProvisionCustomerOption {
@@ -37,6 +43,12 @@ interface ProvisionUserModalProps {
   mspRoleOptions?: { value: string; label: string }[];
   /** 提供时表单出现「客户」下拉（MSP 通道）。 */
   customerOptions?: ProvisionCustomerOption[];
+  /**
+   * 提供时表单出现「角色（可多选）」（IP-P2-7）。
+   * 平台通道：customerId 恒为 undefined（目标租户由调用方闭包固定）；
+   * MSP 通道：随「客户」选择回调，用于按目标客户加载角色候选。
+   */
+  loadRoleOptions?: (customerId: number | undefined) => Promise<ProvisionRoleOption[]>;
   submit: (payload: ProvisionUserPayload, customerId: number | undefined) => Promise<unknown>;
   /** 提交成功后回调（例如刷新列表）。 */
   onSuccess?: () => void;
@@ -51,22 +63,65 @@ export default function ProvisionUserModal({
   targetLabel,
   mspRoleOptions,
   customerOptions,
+  loadRoleOptions,
   submit,
   onSuccess,
 }: ProvisionUserModalProps) {
   const [form] = Form.useForm<FormValues>();
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // IP-P2-7：角色候选（异步；MSP 模式下随「客户」选择刷新）。
+  const [roleOptions, setRoleOptions] = useState<ProvisionRoleOption[]>([]);
+  const [roleLoading, setRoleLoading] = useState(false);
+  const [roleLoadError, setRoleLoadError] = useState<string | null>(null);
+  const loadRoleOptionsRef = useRef(loadRoleOptions);
+  loadRoleOptionsRef.current = loadRoleOptions;
+  const watchedCustomerId = Form.useWatch('customerId', form);
 
   useEffect(() => {
     if (!open) return;
     setError(null);
+    setRoleLoadError(null);
+    setRoleOptions([]);
     form.resetFields();
     // 单客户时默认选中，减少操作步数。
     if (customerOptions && customerOptions.length === 1) {
       form.setFieldValue('customerId', customerOptions[0].id);
     }
   }, [open, customerOptions, form]);
+
+  // 角色候选加载：平台模式一次加载；MSP 模式随客户选择刷新（未选客户 = 空候选）。
+  useEffect(() => {
+    if (!open || !loadRoleOptionsRef.current) return;
+    const hasCustomerSelect = !!customerOptions;
+    const effectiveCustomerId =
+      (watchedCustomerId as number | undefined) ??
+      (customerOptions && customerOptions.length === 1 ? customerOptions[0].id : undefined);
+    if (hasCustomerSelect && effectiveCustomerId === undefined) {
+      setRoleOptions([]);
+      setRoleLoading(false);
+      return;
+    }
+    let alive = true;
+    setRoleLoading(true);
+    setRoleLoadError(null);
+    loadRoleOptionsRef
+      .current(effectiveCustomerId)
+      .then(opts => {
+        if (!alive) return;
+        setRoleOptions(Array.isArray(opts) ? opts : []);
+        setRoleLoading(false);
+      })
+      .catch((err: unknown) => {
+        if (!alive) return;
+        setRoleOptions([]);
+        setRoleLoadError((err as { message?: string } | null)?.message || '角色列表加载失败');
+        setRoleLoading(false);
+      });
+    return () => {
+      alive = false;
+    };
+  }, [open, watchedCustomerId, customerOptions]);
 
   const handleSubmit = async (values: FormValues) => {
     if (customerOptions && !values.customerId) {
@@ -83,6 +138,7 @@ export default function ProvisionUserModal({
           email: values.email,
           password: values.password,
           ...(mspRoleOptions && values.mspRole ? { mspRole: values.mspRole } : {}),
+          ...(values.roleIds && values.roleIds.length > 0 ? { roleIds: values.roleIds } : {}),
         },
         values.customerId
       );
@@ -172,6 +228,36 @@ export default function ProvisionUserModal({
         >
           <Input.Password placeholder="初始密码" data-testid="provision-password-input" />
         </Form.Item>
+        {loadRoleOptions ? (
+          <span data-testid="provision-role-select">
+            <Form.Item
+              name="roleIds"
+              label="角色（可多选）"
+              extra="候选来自目标租户角色列表；留空默认最终用户（end_user）。"
+            >
+              <Select
+                mode="multiple"
+                allowClear
+                showSearch
+                optionFilterProp="label"
+                placeholder="选择角色（可多选）"
+                loading={roleLoading}
+                disabled={!!roleLoadError}
+                notFoundContent={roleLoading ? '加载中…' : '该租户暂无可授予角色'}
+                options={roleOptions.map(o => ({ value: o.id, label: `${o.name}（${o.code}）` }))}
+              />
+            </Form.Item>
+            {roleLoadError ? (
+              <Alert
+                type="warning"
+                showIcon
+                message={`角色列表加载失败：${roleLoadError}`}
+                style={{ marginTop: -8, marginBottom: 12 }}
+                data-testid="provision-role-error"
+              />
+            ) : null}
+          </span>
+        ) : null}
         {mspRoleOptions && mspRoleOptions.length > 0 ? (
           <span data-testid="provision-msp-role-select">
             <Form.Item

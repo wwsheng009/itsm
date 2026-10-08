@@ -33,6 +33,8 @@ func SetupMSPRoutes(r *gin.Engine, config *RouterConfig) {
 		// 建号通道（IP-P0-5）：MSP 管理员为分配客户建号；服务端二次校验 allocation（mspguard 唯一入口）。
 		if config.UserHandler != nil {
 			msp.POST("/customers/:customer_tenant_id/users", middleware.RequireMSPPermission("msp_customer", "write"), config.UserHandler.ProvisionUserToCustomer)
+			// IP-P2-7：MSP 建号表单角色候选（目标客户角色列表，数据驱动多选）。
+			msp.GET("/customers/:customer_tenant_id/roles", middleware.RequireMSPPermission("msp_customer", "write"), config.UserHandler.ListCustomerGrantableRoles)
 		}
 
 		// 工单分配 - 需要 msp_ticket:write 权限

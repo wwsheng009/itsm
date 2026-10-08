@@ -152,6 +152,8 @@ func TestCreateUser_TableDriven(t *testing.T) {
 				SetCode("TEST").
 				SetDomain("test.com").
 				SetStatus("active").
+				// msp_role 仅服务商租户可写（IP-P2-7 收口）：本表含 “create user with MSP role” 用例。
+				SetType("msp_provider").
 				Save(ctx)
 			require.NoError(t, err)
 

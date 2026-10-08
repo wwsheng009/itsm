@@ -9,7 +9,11 @@ import type {
   MSPContext,
   TicketMSPInfo,
 } from '@/types/msp';
-import type { ProvisionUserRequest, ProvisionUserResponse } from '@/lib/api/api-config';
+import type {
+  ProvisionRoleOption,
+  ProvisionUserRequest,
+  ProvisionUserResponse,
+} from '@/lib/api/api-config';
 
 export class MSPService {
   // 缓存当前用户 MSP 状态
@@ -67,6 +71,13 @@ export class MSPService {
     payload: ProvisionUserRequest
   ): Promise<ProvisionUserResponse> {
     return MSPAPI.provisionCustomerUser(customerTenantId, payload);
+  }
+
+  /**
+   * 为客户建号表单的角色候选（IP-P2-7；候选范围由服务端按通道/allocation 收口）。
+   */
+  static async listCustomerGrantableRoles(customerTenantId: number): Promise<ProvisionRoleOption[]> {
+    return MSPAPI.listCustomerGrantableRoles(customerTenantId);
   }
 
   /**

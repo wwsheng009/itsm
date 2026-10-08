@@ -111,6 +111,19 @@ type PermissionInfo struct {
 	Name string `json:"name"`
 }
 
+// RoleOption 建号表单的「可授予角色」候选项（IP-P2-7）。
+// 仅用于读取面展示；能否授予的权威判定在后端（UserProvisioningService.validateRole /
+// CanGrantRoles），前端不得据此自行放行。
+type RoleOption struct {
+	ID          int    `json:"id"`
+	Code        string `json:"code"`
+	Name        string `json:"name"`
+	Description string `json:"description,omitempty"`
+	IsSystem    bool   `json:"isSystem"`
+	// Rank 角色层级（middleware.RoleRank 单一源），前端只读展示/排序。
+	Rank int `json:"rank"`
+}
+
 // AssignPermissionsRequest 分配权限请求
 type AssignPermissionsRequest struct {
 	PermissionIDs []int `json:"permissionIds" binding:"required"`

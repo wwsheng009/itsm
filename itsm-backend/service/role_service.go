@@ -35,6 +35,20 @@ func NewRoleService(client *ent.Client, logger *zap.SugaredLogger) *RoleService 
 	}
 }
 
+// roleBaseQuery 返回租户内角色基础查询；按租户类型隐藏"非本作用域"角色（IP-P2-7 收口：
+// 客户/服务商租户隐藏平台角色，客户租户另隐藏 MSP 专属角色；命中按"不存在"处理，不泄露存在性）。
+func (s *RoleService) roleBaseQuery(ctx context.Context, tenantID int) (*ent.RoleQuery, error) {
+	kind, err := tenantTypeOf(ctx, s.client, tenantID)
+	if err != nil {
+		return nil, err
+	}
+	q := s.client.Role.Query().Where(role.TenantID(tenantID))
+	if hidden := hiddenRoleCodesForTenantType(kind); len(hidden) > 0 {
+		q = q.Where(role.CodeNotIn(hidden...))
+	}
+	return q, nil
+}
+
 // getRolePermissionsByIDs 批量查询多个角色的权限（按roleID分组，tenantID隔离）
 func (s *RoleService) getRolePermissionsByIDs(ctx context.Context, roleIDs []int, tenantID int) (map[int][]dto.PermissionInfo, error) {
 	result := make(map[int][]dto.PermissionInfo, len(roleIDs))
@@ -121,6 +135,9 @@ func (s *RoleService) CreateRole(ctx context.Context, req *dto.CreateRoleRequest
 	if code == "" {
 		code = generateCodeFromName(req.Name)
 	}
+	if isReservedRoleCode(code) {
+		return nil, fmt.Errorf("%w: %s", ErrReservedRoleCode, strings.TrimSpace(code))
+	}
 
 	roleEntity, err := s.client.Role.Create().
 		SetName(req.Name).
@@ -149,11 +166,12 @@ func (s *RoleService) CreateRole(ctx context.Context, req *dto.CreateRoleRequest
 
 // GetRole 获取角色详情
 func (s *RoleService) GetRole(ctx context.Context, id int, tenantID int) (*dto.RoleResponse, error) {
-	roleEntity, err := s.client.Role.Query().
-		Where(
-			role.IDEQ(id),
-			role.TenantID(tenantID),
-		).
+	query, err := s.roleBaseQuery(ctx, tenantID)
+	if err != nil {
+		return nil, err
+	}
+	roleEntity, err := query.
+		Where(role.IDEQ(id)).
 		Only(ctx)
 	if err != nil {
 		if ent.IsNotFound(err) {
@@ -178,8 +196,10 @@ func (s *RoleService) GetRole(ctx context.Context, id int, tenantID int) (*dto.R
 func (s *RoleService) ListRoles(ctx context.Context, tenantID int, params *dto.GetRolesParams) ([]*dto.RoleResponse, int, error) {
 	page, pageSize := common.ValidatePagination(params.Page, params.PageSize)
 
-	query := s.client.Role.Query().
-		Where(role.TenantID(tenantID))
+	query, err := s.roleBaseQuery(ctx, tenantID)
+	if err != nil {
+		return nil, 0, err
+	}
 
 	if strings.TrimSpace(params.Search) != "" {
 		keyword := strings.TrimSpace(params.Search)
@@ -235,17 +255,23 @@ func (s *RoleService) ListRoles(ctx context.Context, tenantID int, params *dto.G
 func (s *RoleService) UpdateRole(ctx context.Context, id int, req *dto.UpdateRoleRequest, tenantID int) (*dto.RoleResponse, error) {
 	s.logger.Infow("Updating role", "id", id, "tenant_id", tenantID)
 
-	roleEntity, err := s.client.Role.Query().
-		Where(
-			role.IDEQ(id),
-			role.TenantID(tenantID),
-		).
+	query, err := s.roleBaseQuery(ctx, tenantID)
+	if err != nil {
+		return nil, err
+	}
+	roleEntity, err := query.
+		Where(role.IDEQ(id)).
 		Only(ctx)
 	if err != nil {
 		if ent.IsNotFound(err) {
 			return nil, fmt.Errorf("角色不存在或无权访问")
 		}
 		return nil, fmt.Errorf("查询角色失败: %w", err)
+	}
+
+	// 保留角色码护栏（IP-P2-7 收口）：防止把自有角色重命名为 super_admin 等获取 RBAC 直通。
+	if req.Code != nil && strings.TrimSpace(*req.Code) != "" && isReservedRoleCode(*req.Code) {
+		return nil, fmt.Errorf("%w: %s", ErrReservedRoleCode, strings.TrimSpace(*req.Code))
 	}
 
 	update := s.client.Role.Update().
@@ -289,6 +315,35 @@ func (s *RoleService) UpdateRole(ctx context.Context, id int, req *dto.UpdateRol
 	return s.GetRole(ctx, id, tenantID)
 }
 
+// isReservedRoleCode 保留角色码（平台治理角色 + MSP 专属角色）：不可经角色配置面创建或重命名。
+// 作用：防止把自有角色改名成 super_admin 获取 RBAC 直通（IP-P2-7 收口）。
+func isReservedRoleCode(code string) bool {
+	return middleware.IsPlatformRole(code) || middleware.IsMSPOnlyRole(code)
+}
+
+// ensureNoWildcardPermissionForNonPlatformRoot 通配权限（resource/action 含 *）仅平台根租户可分配。
+// 作用：防止非平台租户自造 `*:*` 并挂到自有角色，绕过全部权限判定。
+func (s *RoleService) ensureNoWildcardPermissionForNonPlatformRoot(ctx context.Context, tenantID int, perms []*ent.Permission) error {
+	wildcard := ""
+	for _, p := range perms {
+		if p.Resource == "*" || p.Action == "*" {
+			wildcard = fmt.Sprintf("%s:%s", p.Resource, p.Action)
+			break
+		}
+	}
+	if wildcard == "" {
+		return nil
+	}
+	kind, err := tenantTypeOf(ctx, s.client, tenantID)
+	if err != nil {
+		return err
+	}
+	if !isPlatformRootTenantKind(kind) {
+		return fmt.Errorf("%w（%s）", ErrWildcardPermissionForbidden, wildcard)
+	}
+	return nil
+}
+
 func (s *RoleService) permissionIDsByCodes(ctx context.Context, permissionCodes []string, tenantID int) ([]int, error) {
 	normalizedCodes := make([]string, 0, len(permissionCodes))
 	seen := make(map[string]struct{}, len(permissionCodes))
@@ -329,6 +384,9 @@ func (s *RoleService) permissionIDsByCodes(ctx context.Context, permissionCodes 
 		}
 		return nil, fmt.Errorf("权限不存在，请先初始化权限字典: %s", strings.Join(missing, ", "))
 	}
+	if err := s.ensureNoWildcardPermissionForNonPlatformRoot(ctx, tenantID, perms); err != nil {
+		return nil, err
+	}
 
 	ids := make([]int, 0, len(perms))
 	for _, permEntity := range perms {
@@ -341,11 +399,12 @@ func (s *RoleService) permissionIDsByCodes(ctx context.Context, permissionCodes 
 func (s *RoleService) DeleteRole(ctx context.Context, id int, tenantID int) error {
 	s.logger.Infow("Deleting role", "id", id, "tenant_id", tenantID)
 
-	roleEntity, err := s.client.Role.Query().
-		Where(
-			role.IDEQ(id),
-			role.TenantID(tenantID),
-		).
+	query, err := s.roleBaseQuery(ctx, tenantID)
+	if err != nil {
+		return err
+	}
+	roleEntity, err := query.
+		Where(role.IDEQ(id)).
 		Only(ctx)
 	if err != nil {
 		return fmt.Errorf("角色不存在: %w", err)
@@ -400,14 +459,21 @@ func (s *RoleService) DeleteRole(ctx context.Context, id int, tenantID int) erro
 // 属于调用方输入错误（应映射为 400），而非服务端内部错误（500）。
 var ErrPermissionNotInTenant = errors.New("部分权限不存在或不属于当前租户")
 
+// ErrReservedRoleCode 保留角色码（平台治理角色 + MSP 专属角色）不可创建或重命名（IP-P2-7 收口）。
+var ErrReservedRoleCode = errors.New("角色码为系统保留（平台/MSP 专属），不可创建或重命名")
+
+// ErrWildcardPermissionForbidden 通配权限（resource/action 含 *）仅平台根租户可用（IP-P2-7 收口）。
+var ErrWildcardPermissionForbidden = errors.New("通配权限仅平台根租户可用")
+
 func (s *RoleService) AssignPermissions(ctx context.Context, roleID int, permissionIDs []int, tenantID int) error {
 	s.logger.Infow("Assigning permissions to role", "role_id", roleID, "permission_count", len(permissionIDs))
 
-	roleEntity, err := s.client.Role.Query().
-		Where(
-			role.IDEQ(roleID),
-			role.TenantID(tenantID),
-		).
+	query, err := s.roleBaseQuery(ctx, tenantID)
+	if err != nil {
+		return err
+	}
+	roleEntity, err := query.
+		Where(role.IDEQ(roleID)).
 		Only(ctx)
 	if err != nil {
 		return fmt.Errorf("角色不存在: %w", err)
@@ -435,6 +501,9 @@ func (s *RoleService) AssignPermissions(ctx context.Context, roleID int, permiss
 		}
 		if len(perms) != len(permissionIDs) {
 			return ErrPermissionNotInTenant
+		}
+		if err := s.ensureNoWildcardPermissionForNonPlatformRoot(ctx, tenantID, perms); err != nil {
+			return err
 		}
 	}
 
@@ -570,6 +639,17 @@ func NewPermissionService(client *ent.Client, logger *zap.SugaredLogger) *Permis
 // CreatePermission 创建权限
 func (s *PermissionService) CreatePermission(ctx context.Context, req *dto.CreatePermissionRequest, tenantID int) (*dto.PermissionResponse, error) {
 	s.logger.Infow("Creating permission", "code", req.Code, "tenant_id", tenantID)
+
+	// 通配权限仅平台根租户可创建（IP-P2-7 收口：防止非平台租户自造 `*:*` 绕过权限判定）。
+	if req.Resource == "*" || req.Action == "*" {
+		kind, err := tenantTypeOf(ctx, s.client, tenantID)
+		if err != nil {
+			return nil, err
+		}
+		if !isPlatformRootTenantKind(kind) {
+			return nil, ErrWildcardPermissionForbidden
+		}
+	}
 
 	permEntity, err := s.client.Permission.Create().
 		SetCode(req.Code).

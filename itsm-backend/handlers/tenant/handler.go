@@ -4,9 +4,11 @@ import (
 	"context"
 	"errors"
 	"strconv"
+	"strings"
 
 	"itsm-backend/common"
 	"itsm-backend/dto"
+	"itsm-backend/middleware"
 	"itsm-backend/pkg/tenantquota"
 
 	"github.com/gin-gonic/gin"
@@ -54,8 +56,25 @@ func (h *Handler) blockIfLockingSystemTenant(c *gin.Context, tenantID int, statu
 	return false
 }
 
+// requirePlatformAdmin 平台治理面硬校验（IP-P2-7 收口）：
+// 路由权限（tenant:write）仅粗筛——权限目录克隆会让客户/服务商角色也持有该权限码；
+// 租户治理写操作（创建/更新/删除/停启/供给/首管）仅平台管理员（super_admin/sysadmin，
+// 主角色 + m2m 附加角色并集）可执行；校验失败写入 403 并返回 false。
+func (h *Handler) requirePlatformAdmin(c *gin.Context) bool {
+	for _, role := range middleware.GetContextRoles(c) {
+		if middleware.IsPlatformRole(strings.TrimSpace(role)) {
+			return true
+		}
+	}
+	common.Fail(c, common.ForbiddenCode, "仅平台管理员可执行租户治理操作")
+	return false
+}
+
 // CreateTenant creates a new tenant
 func (h *Handler) CreateTenant(c *gin.Context) {
+	if !h.requirePlatformAdmin(c) {
+		return
+	}
 	var req dto.CreateTenantRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		h.logger.Errorf("参数绑定失败: %v", err)
@@ -142,6 +161,9 @@ func (h *Handler) tenantInCallerScope(c *gin.Context, targetID, providerID int) 
 
 // UpdateTenantStatus updates a tenant's status
 func (h *Handler) UpdateTenantStatus(c *gin.Context) {
+	if !h.requirePlatformAdmin(c) {
+		return
+	}
 	idStr := c.Param("id")
 	id, err := strconv.Atoi(idStr)
 	if err != nil {
@@ -233,6 +255,9 @@ func (h *Handler) GetTenantUsage(c *gin.Context) {
 
 // UpdateTenant updates a tenant
 func (h *Handler) UpdateTenant(c *gin.Context) {
+	if !h.requirePlatformAdmin(c) {
+		return
+	}
 	idStr := c.Param("id")
 	id, err := strconv.Atoi(idStr)
 	if err != nil {
@@ -264,6 +289,9 @@ func (h *Handler) UpdateTenant(c *gin.Context) {
 
 // DeleteTenant deletes a tenant
 func (h *Handler) DeleteTenant(c *gin.Context) {
+	if !h.requirePlatformAdmin(c) {
+		return
+	}
 	idStr := c.Param("id")
 	id, err := strconv.Atoi(idStr)
 	if err != nil {

@@ -103,11 +103,30 @@ func (s *UserService) CreateUser(ctx context.Context, req *dto.CreateUserRequest
 		if primaryRole == "user" {
 			primaryRole = "end_user"
 		}
+		// IP-P2-7 收口：平台角色（super_admin/sysadmin）仅平台根租户可设置，
+		// 防止客户/服务商租户经用户接口直填主角色获取 RBAC 直通。
+		if middleware.IsPlatformRole(primaryRole) {
+			kind, err := tenantTypeOf(ctx, s.client, tenantID)
+			if err != nil {
+				return nil, err
+			}
+			if !isPlatformRootTenantKind(kind) {
+				return nil, fmt.Errorf("非平台租户不得设置平台角色: %s", primaryRole)
+			}
+		}
 		uc = uc.SetRole(user.Role(primaryRole))
 
 	}
-	// 如果请求中提供了MSP角色，则设置MSP角色
+	// MSP 角色仅服务商租户可写（IP-P2-7 收口：客户租户不得出现 MSP 概念，
+	// 服务商员工身份应经建号通道/MSP 治理面维护）。
 	if strings.TrimSpace(req.MSPRole) != "" {
+		kind, err := tenantTypeOf(ctx, s.client, tenantID)
+		if err != nil {
+			return nil, err
+		}
+		if !tenantmode.IsMSPProviderTenantType(kind) {
+			return nil, fmt.Errorf("仅服务商租户可设置 MSP 角色")
+		}
 		uc = uc.SetMspRole(user.MspRole(strings.ToLower(strings.TrimSpace(req.MSPRole))))
 	}
 	userEntity, err := uc.Save(ctx)
@@ -184,10 +203,40 @@ func (s *UserService) CanGrantRoles(ctx context.Context, tenantID int, roleIDs [
 		return fmt.Errorf("存在不属于当前租户的角色: 期望 %d 个，匹配 %d 个", len(roleIDs), len(roles))
 	}
 	callerRank := serviceRoleRank(callerRole)
+	var tenantKind string
+	var tenantKindLoaded bool
+	loadKind := func() (string, error) {
+		if !tenantKindLoaded {
+			kind, err := tenantTypeOf(ctx, s.client, tenantID)
+			if err != nil {
+				return "", err
+			}
+			tenantKind = kind
+			tenantKindLoaded = true
+		}
+		return tenantKind, nil
+	}
 	for _, r := range roles {
 		if serviceRoleRank(r.Code) > callerRank {
 			return fmt.Errorf("无权限分配高于自身角色的用户角色: %s", r.Code)
 		}
+		// 客户/服务商租户的角色边界（IP-P2-7 收口）：平台角色仅平台根可授予；MSP 专属角色仅服务商侧。
+		// 租户类型懒加载：无命中角色码场景不查库。
+		code := strings.ToLower(strings.TrimSpace(r.Code))
+		if !middleware.IsMSPOnlyRole(code) && !middleware.IsPlatformRole(code) {
+			continue
+		}
+		kind, err := loadKind()
+		if err != nil {
+			return err
+		}
+		if !isHiddenRoleForTenantType(kind, code) {
+			continue
+		}
+		if middleware.IsPlatformRole(code) {
+			return fmt.Errorf("非平台租户不得授予平台角色: %s", r.Code)
+		}
+		return fmt.Errorf("客户租户不得授予 MSP 专属角色: %s", r.Code)
 	}
 	return nil
 }
@@ -472,6 +521,16 @@ func (s *UserService) UpdateUser(ctx context.Context, id int, req *dto.UpdateUse
 		// 兼容前端传的"user"角色，自动转换为"end_user"
 		if role == "user" {
 			role = "end_user"
+		}
+		// IP-P2-7 收口：平台角色仅平台根租户可设置（与 CreateUser 同口径）。
+		if middleware.IsPlatformRole(role) {
+			kind, err := tenantTypeOf(ctx, s.client, tenantID)
+			if err != nil {
+				return nil, err
+			}
+			if !isPlatformRootTenantKind(kind) {
+				return nil, fmt.Errorf("非平台租户不得设置平台角色: %s", role)
+			}
 		}
 		if role != string(existingUser.Role) {
 			update = update.SetRole(user.Role(role))

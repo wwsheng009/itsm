@@ -200,6 +200,8 @@ func SetupCommonSystemRoutes(r *gin.Engine, tenant *gin.RouterGroup, config *Rou
 				// 建号通道（IP-P0-5）：平台通道为任意 active 租户建号；通道授权与角色白名单由 service 收口。
 				if config.UserHandler != nil {
 					tenants.POST("/:id/users", middleware.RequirePermission("tenant", "write"), config.UserHandler.ProvisionUserToTenant)
+					// IP-P2-7：建号表单角色候选（目标租户角色列表，数据驱动多选）。
+					tenants.GET("/:id/roles", middleware.RequirePermission("tenant", "write"), config.UserHandler.ListTenantGrantableRoles)
 				}
 				// 平台侧租户用户管理（TUM-1/TUM-2）：读列表/详情 + 账号治理（重置密码/启停/强制下线）。
 				// 路由权限仅粗筛；平台面硬判定（super_admin）由 service 收口（TUM-D1）。

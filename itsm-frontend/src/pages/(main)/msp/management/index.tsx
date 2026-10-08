@@ -267,6 +267,9 @@ export default function MSPManagementPage() {
         open={provisionVisible}
         title="为客户建号"
         customerOptions={customers}
+        loadRoleOptions={customerId =>
+          customerId ? MSPService.listCustomerGrantableRoles(customerId) : Promise.resolve([])
+        }
         onClose={() => setProvisionVisible(false)}
         submit={(payload, customerId) => MSPService.provisionCustomerUser(customerId!, payload)}
       />

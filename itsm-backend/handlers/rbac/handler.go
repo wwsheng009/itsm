@@ -34,6 +34,17 @@ func NewHandler(roleService RoleService, permissionService PermissionService, me
 	}
 }
 
+// mapRoleConfigPolicyError 角色配置面的策略拒绝映射（IP-P2-7 收口）：
+// 保留角色码 / 通配权限越界属于调用方输入错误，映射为稳定的 400；
+// 其余错误返回 false，交由调用方默认处理（500）。
+func mapRoleConfigPolicyError(c *gin.Context, err error) bool {
+	if errors.Is(err, service.ErrReservedRoleCode) || errors.Is(err, service.ErrWildcardPermissionForbidden) {
+		common.ParamErrorWithErr(c, err, "请求参数错误")
+		return true
+	}
+	return false
+}
+
 // =============================================================================
 // Role Handlers
 // =============================================================================
@@ -75,6 +86,9 @@ func (h *Handler) CreateRole(c *gin.Context) {
 
 	role, err := h.roleService.CreateRole(c.Request.Context(), &req, tenantID)
 	if err != nil {
+		if mapRoleConfigPolicyError(c, err) {
+			return
+		}
 		common.FailWithErr(c, err, "操作失败")
 		return
 	}
@@ -205,6 +219,9 @@ func (h *Handler) UpdateRole(c *gin.Context) {
 
 	role, err := h.roleService.UpdateRole(c.Request.Context(), id, &req, tenantID)
 	if err != nil {
+		if mapRoleConfigPolicyError(c, err) {
+			return
+		}
 		common.FailWithErr(c, err, "操作失败")
 		return
 	}
@@ -264,6 +281,9 @@ func (h *Handler) AssignPermissions(c *gin.Context) {
 			common.ParamErrorWithErr(c, err, "请求参数错误")
 			return
 		}
+		if mapRoleConfigPolicyError(c, err) {
+			return
+		}
 		common.FailWithErr(c, err, "操作失败")
 		return
 	}
@@ -291,6 +311,9 @@ func (h *Handler) CreatePermission(c *gin.Context) {
 
 	perm, err := h.permissionService.CreatePermission(c.Request.Context(), &req, tenantID)
 	if err != nil {
+		if mapRoleConfigPolicyError(c, err) {
+			return
+		}
 		common.FailWithErr(c, err, "操作失败")
 		return
 	}

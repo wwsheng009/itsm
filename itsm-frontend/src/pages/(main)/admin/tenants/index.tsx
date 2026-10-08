@@ -80,6 +80,16 @@ const TENANT_TYPES: Record<string, { label: string; color: string }> = {
   customer: { label: '客户(兼容)', color: 'default' },
 };
 
+/**
+ * MSP 员工身份词表（users.msp_role 白名单，单一源在后端：
+ * service/user_provisioning.go validateRole 仅接受 provider_admin/provider_agent）。
+ * RBAC 角色多选（roleIds）与本职身份独立，见 loadRoleOptions。
+ */
+const MSP_ROLE_OPTIONS = [
+  { value: 'provider_admin', label: '服务商管理员（provider_admin）' },
+  { value: 'provider_agent', label: '服务商技术员（provider_agent）' },
+];
+
 type Tenant = {
   id: number;
   name: string;
@@ -824,13 +834,9 @@ export default function TenantManagement() {
         open={!!provisionTenant}
         title="平台建号"
         targetLabel={provisionTenant ? `${provisionTenant.name}（${provisionTenant.code}）` : undefined}
-        mspRoleOptions={
-          provisionTenant?.type === 'msp_provider'
-            ? [
-                { value: 'provider_admin', label: '服务商管理员（provider_admin）' },
-                { value: 'provider_agent', label: '服务商技术员（provider_agent）' },
-              ]
-            : undefined
+        mspRoleOptions={provisionTenant?.type === 'msp_provider' ? MSP_ROLE_OPTIONS : undefined}
+        loadRoleOptions={
+          provisionTenant ? () => TenantAPI.listGrantableRoles(provisionTenant.id) : undefined
         }
         onClose={() => setProvisionTenant(null)}
         submit={payload => TenantAPI.provisionTenantUser(provisionTenant!.id, payload)}

@@ -527,6 +527,54 @@ func RoleRank(role string) int {
 	}
 }
 
+// mspOnlyRoleCodes MSP 专属角色码（IP-P2-7 收口：客户租户侧不得出现、持有或管理）。
+// 与 internal/authz 的 C2 基线同词表——这 5 个 msp_* 角色与 provider_tenant_admin
+// 只用于服务商员工身份（provider 租户 home 或其客户作用域 membership），不属于客户 RBAC 词表。
+var mspOnlyRoleCodes = []string{
+	"msp_viewer", "msp_tech", "msp_specialist", "msp_manager", "msp_admin",
+	"provider_tenant_admin",
+}
+
+// MSPOnlyRoleCodes 返回 MSP 专属角色码副本（供列表过滤/授予校验复用，避免调用方修改底层词表）。
+func MSPOnlyRoleCodes() []string {
+	out := make([]string, len(mspOnlyRoleCodes))
+	copy(out, mspOnlyRoleCodes)
+	return out
+}
+
+// IsMSPOnlyRole 判断角色码是否为 MSP 专属角色（客户租户不得授予/可见）。
+func IsMSPOnlyRole(code string) bool {
+	c := strings.ToLower(strings.TrimSpace(code))
+	for _, candidate := range mspOnlyRoleCodes {
+		if c == candidate {
+			return true
+		}
+	}
+	return false
+}
+
+// platformRoleCodes 平台治理角色码（IP-P2-7 收口：仅平台根租户 internal/standard 可见/可授予；
+// 客户与服务商租户的角色面一律隐藏、写入一律拒绝——"非平台租户不该有超级管理员/平台管理员"）。
+var platformRoleCodes = []string{"super_admin", "sysadmin"}
+
+// PlatformRoleCodes 返回平台治理角色码副本（供隐藏过滤/授予校验复用）。
+func PlatformRoleCodes() []string {
+	out := make([]string, len(platformRoleCodes))
+	copy(out, platformRoleCodes)
+	return out
+}
+
+// IsPlatformRole 判断角色码是否为平台治理角色。
+func IsPlatformRole(code string) bool {
+	c := strings.ToLower(strings.TrimSpace(code))
+	for _, candidate := range platformRoleCodes {
+		if c == candidate {
+			return true
+		}
+	}
+	return false
+}
+
 // PermissionConfigMode 权限配置模式
 type PermissionConfigMode int
 

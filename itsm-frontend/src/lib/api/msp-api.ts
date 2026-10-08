@@ -1,5 +1,10 @@
 import { httpClient } from './http-client';
-import type { GetTenantsParams, ProvisionUserRequest, ProvisionUserResponse } from './api-config';
+import type {
+  GetTenantsParams,
+  ProvisionRoleOption,
+  ProvisionUserRequest,
+  ProvisionUserResponse,
+} from './api-config';
 import type {
   MSPAllocation,
   CreateAllocationRequest,
@@ -68,6 +73,13 @@ export class MSPAPI {
     return httpClient.post<ProvisionUserResponse>(
       `/api/v1/msp/customers/${customerTenantId}/users`,
       payload
+    );
+  }
+
+  /** 为客户建号表单的角色候选（IP-P2-7）：目标客户租户可授予角色，allocation 二次校验与建号同源。 */
+  static async listCustomerGrantableRoles(customerTenantId: number): Promise<ProvisionRoleOption[]> {
+    return httpClient.get<ProvisionRoleOption[]>(
+      `/api/v1/msp/customers/${customerTenantId}/roles`
     );
   }
 

@@ -9,6 +9,7 @@ import type {
   TenantReadinessResponse,
   BootstrapAdminRequest,
   BootstrapAdminResponse,
+  ProvisionRoleOption,
   ProvisionUserRequest,
   ProvisionUserResponse,
 } from './api-config';
@@ -92,6 +93,11 @@ export class TenantAPI {
     payload: ProvisionUserRequest
   ): Promise<ProvisionUserResponse> {
     return httpClient.post<ProvisionUserResponse>(`/api/v1/tenants/${id}/users`, payload);
+  }
+
+  // 建号表单角色候选（IP-P2-7）：目标租户的可授予角色列表（过滤/rank 由服务端收口）。
+  static async listGrantableRoles(id: number): Promise<ProvisionRoleOption[]> {
+    return httpClient.get<ProvisionRoleOption[]>(`/api/v1/tenants/${id}/roles`);
   }
 
   // 删除租户

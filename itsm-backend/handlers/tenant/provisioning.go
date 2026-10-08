@@ -51,6 +51,9 @@ func (h *Handler) GetTenantReadiness(c *gin.Context) {
 
 // ProvisionTenant 安装租户产品模板，返回供给完成后的就绪度报告；重复执行幂等。
 func (h *Handler) ProvisionTenant(c *gin.Context) {
+	if !h.requirePlatformAdmin(c) {
+		return
+	}
 	tenantID, ok := h.parseProvisioningTenantID(c)
 	if !ok {
 		return
@@ -82,6 +85,9 @@ func (h *Handler) ProvisionTenant(c *gin.Context) {
 
 // CreateBootstrapAdmin 创建租户首个管理员；未传 password 时服务端生成并仅本次回传明文。
 func (h *Handler) CreateBootstrapAdmin(c *gin.Context) {
+	if !h.requirePlatformAdmin(c) {
+		return
+	}
 	tenantID, ok := h.parseProvisioningTenantID(c)
 	if !ok {
 		return
