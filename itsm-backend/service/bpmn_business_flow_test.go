@@ -113,7 +113,8 @@ const bizBPMNRejectionToRequester = `<?xml version="1.0" encoding="UTF-8"?>
 
 func bizTestClient(t *testing.T, name string) *ent.Client {
 	t.Helper()
-	dsn := "file:biz_" + name + "?mode=memory&cache=shared&_fk=1"
+	// 唯一 DSN：同名夹具（同进程多测试 / -count>1）共用固定库会触发 tenants.code 等偶发唯一约束冲突。
+	dsn := uniqueTestDSN("biz_" + name)
 	return enttest.Open(t, dialect.SQLite, dsn)
 }
 
