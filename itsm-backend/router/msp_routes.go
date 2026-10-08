@@ -24,6 +24,8 @@ func SetupMSPRoutes(r *gin.Engine, config *RouterConfig) {
 
 		// 分配管理 - 需要 msp_allocation 权限
 		msp.GET("/allocations", middleware.RequireMSPPermission("msp_allocation", "read"), config.MSPHandler.GetAllocations)
+		// 分配历史（含已解除记录）：补齐前端 /msp 页已调用端点（target-architecture P1 契约漂移修复）。
+		msp.GET("/allocations/history", middleware.RequireMSPPermission("msp_allocation", "read"), config.MSPHandler.GetAllocationHistory)
 		msp.POST("/allocations", middleware.RequireMSPPermission("msp_allocation", "write"), config.MSPHandler.CreateAllocation)
 		msp.POST("/allocations/deallocate", middleware.RequireMSPPermission("msp_allocation", "write"), config.MSPHandler.Deallocate)
 

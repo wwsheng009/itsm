@@ -297,3 +297,99 @@ func TestCreateAllocation_DuplicateReturns409(t *testing.T) {
 	require.NotNil(t, data, "重复分配必须带 data.reasonCode，实际 %v", body)
 	assert.Equal(t, "MSP_ALLOCATION_EXISTS", data["reasonCode"])
 }
+
+// TestGetAllocationHistory_ScopeAndFilters（契约漂移修复）：/allocations/history 含已解除记录；
+// 作用域与 ListForCaller 同口径（员工仅本人 / provider_admin 全 provider）；customerTenantId 与
+// assignedAt 日期区间过滤（endDate 含当日）；非法日期 400。
+func TestGetAllocationHistory_ScopeAndFilters(t *testing.T) {
+	client := enttest.Open(t, "sqlite3", "file:msp_alloc_history?mode=memory&cache=shared&_fk=1")
+	defer client.Close()
+	ctx := context.Background()
+
+	provider, err := client.Tenant.Create().SetName("MSP-H").SetCode("msp-h").
+		SetType("msp_provider").SetStatus("active").Save(ctx)
+	require.NoError(t, err)
+	custA, err := client.Tenant.Create().SetName("Cust-A").SetCode("cust-ha").
+		SetType("msp_customer").SetMspProviderID(provider.ID).SetStatus("active").Save(ctx)
+	require.NoError(t, err)
+	custB, err := client.Tenant.Create().SetName("Cust-B").SetCode("cust-hb").
+		SetType("msp_customer").SetMspProviderID(provider.ID).SetStatus("active").Save(ctx)
+	require.NoError(t, err)
+
+	agent, err := client.User.Create().SetUsername("hist_agent").SetEmail("hist-a@example.com").
+		SetName("Hist Agent").SetPasswordHash("hash").SetTenantID(provider.ID).
+		SetMspRole("provider_agent").Save(ctx)
+	require.NoError(t, err)
+	admin, err := client.User.Create().SetUsername("hist_admin").SetEmail("hist-admin@example.com").
+		SetName("Hist Admin").SetPasswordHash("hash").SetTenantID(provider.ID).
+		SetMspRole("provider_admin").Save(ctx)
+	require.NoError(t, err)
+
+	// agent：custA 已解除（assigned 2024-01-10）→ 保留为历史；custB 有效（2024-03-05）。
+	_, err = client.MSPAllocation.Create().
+		SetMspUserID(agent.ID).SetCustomerTenantID(custA.ID).SetProviderTenantID(provider.ID).
+		SetRole("primary").SetAssignedAt(time.Date(2024, 1, 10, 10, 0, 0, 0, time.UTC)).
+		SetDeassignedAt(time.Date(2024, 2, 1, 9, 0, 0, 0, time.UTC)).Save(ctx)
+	require.NoError(t, err)
+	_, err = client.MSPAllocation.Create().
+		SetMspUserID(agent.ID).SetCustomerTenantID(custB.ID).SetProviderTenantID(provider.ID).
+		SetRole("backup").SetAssignedAt(time.Date(2024, 3, 5, 10, 0, 0, 0, time.UTC)).Save(ctx)
+	require.NoError(t, err)
+	_, err = client.MSPAllocation.Create().
+		SetMspUserID(admin.ID).SetCustomerTenantID(custA.ID).SetProviderTenantID(provider.ID).
+		SetRole("primary").SetAssignedAt(time.Date(2024, 3, 8, 10, 0, 0, 0, time.UTC)).Save(ctx)
+	require.NoError(t, err)
+
+	logger := zaptest.NewLogger(t).Sugar()
+	h := NewHandler(service.NewMSPAllocationService(client, logger), nil, nil, nil, nil, logger)
+
+	routerFor := func(userID int) *gin.Engine {
+		r := gin.New()
+		r.Use(gin.Recovery())
+		r.Use(func(c *gin.Context) {
+			c.Set("user_id", userID)
+			c.Next()
+		})
+		group := r.Group("/api/v1/msp")
+		group.GET("/allocations/history", h.GetAllocationHistory)
+		return r
+	}
+	itemsOf := func(body map[string]interface{}) []interface{} {
+		data, ok := body["data"].([]interface{})
+		require.True(t, ok, "data 必须是数组，实际 %v", body)
+		return data
+	}
+
+	// 1) 员工视角：仅本人 2 条（含已解除），按 assignedAt 倒序。
+	code, body := doMSPRequest(t, routerFor(agent.ID), "/api/v1/msp/allocations/history")
+	require.Equal(t, http.StatusOK, code, body)
+	items := itemsOf(body)
+	require.Len(t, items, 2, "员工应看到本人全部历史（含已解除）")
+	first, _ := items[0].(map[string]interface{})
+	require.Equal(t, "Cust-B", first["customerName"], "应按 assignedAt 倒序")
+	second, _ := items[1].(map[string]interface{})
+	require.NotNil(t, second["deassignedAt"], "已解除记录必须保留 deassignedAt")
+	require.Equal(t, "Hist Agent", second["mspUsername"], "展示名应批量解析")
+
+	// 2) customerTenantId 过滤。
+	code, body = doMSPRequest(t, routerFor(agent.ID), "/api/v1/msp/allocations/history?customerTenantId="+strconv.Itoa(custB.ID))
+	require.Equal(t, http.StatusOK, code, body)
+	require.Len(t, itemsOf(body), 1)
+
+	// 3) 日期区间：endDate 含当日（assignedAt=2024-01-10T10:00 命中 endDate=2024-01-10）。
+	code, body = doMSPRequest(t, routerFor(agent.ID), "/api/v1/msp/allocations/history?startDate=2024-01-10&endDate=2024-01-10")
+	require.Equal(t, http.StatusOK, code, body)
+	require.Len(t, itemsOf(body), 1, "endDate 应含当日")
+
+	// 4) provider_admin：全 provider 3 条；mspUserId 过滤收敛到指定员工。
+	code, body = doMSPRequest(t, routerFor(admin.ID), "/api/v1/msp/allocations/history")
+	require.Equal(t, http.StatusOK, code, body)
+	require.Len(t, itemsOf(body), 3, "provider_admin 应看到本 provider 全部历史")
+	code, body = doMSPRequest(t, routerFor(admin.ID), "/api/v1/msp/allocations/history?mspUserId="+strconv.Itoa(agent.ID))
+	require.Equal(t, http.StatusOK, code, body)
+	require.Len(t, itemsOf(body), 2)
+
+	// 5) 非法日期：400（显式拒绝，不静默忽略）。
+	code, _ = doMSPRequest(t, routerFor(agent.ID), "/api/v1/msp/allocations/history?startDate=2024-1-1x")
+	require.Equal(t, http.StatusBadRequest, code)
+}

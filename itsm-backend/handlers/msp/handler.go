@@ -157,6 +157,49 @@ func (h *Handler) GetAllocations(c *gin.Context) {
 	})
 }
 
+// GetAllocationHistory 获取 MSP 分配历史（含已解除记录；补齐前端 /msp 页已调用端点）。
+func (h *Handler) GetAllocationHistory(c *gin.Context) {
+	userID := c.GetInt("user_id")
+	if userID == 0 {
+		common.Fail(c, common.UnauthorizedCode, "用户未认证")
+		return
+	}
+
+	start, err := parseDateOrZero(c.Query("startDate"))
+	if err != nil {
+		common.ParamError(c, "startDate 需为 YYYY-MM-DD 格式")
+		return
+	}
+	end, err := parseDateOrZero(c.Query("endDate"))
+	if err != nil {
+		common.ParamError(c, "endDate 需为 YYYY-MM-DD 格式")
+		return
+	}
+	mspUserID, _ := strconv.Atoi(c.Query("mspUserId"))
+	customerTenantID, _ := strconv.Atoi(c.Query("customerTenantId"))
+
+	q := service.AllocationHistoryQuery{
+		MSPUserID:        mspUserID,
+		CustomerTenantID: customerTenantID,
+	}
+	if !start.IsZero() {
+		q.StartDate = &start
+	}
+	if !end.IsZero() {
+		endExclusive := end.AddDate(0, 0, 1) // 含当日：endDate 当天仍命中
+		q.EndDateExclusive = &endExclusive
+	}
+
+	history, err := h.mspAllocationService.ListHistoryForCaller(c.Request.Context(), userID, q)
+	if err != nil {
+		h.logger.Errorw("Failed to list allocation history", "error", err, "user_id", userID)
+		common.Fail(c, common.InternalErrorCode, "查询分配历史失败")
+		return
+	}
+
+	common.Success(c, history)
+}
+
 // CreateAllocation 创建 MSP 分配
 func (h *Handler) CreateAllocation(c *gin.Context) {
 	var req dto.CreateAllocationRequest

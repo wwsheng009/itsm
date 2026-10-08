@@ -249,6 +249,111 @@ func (s *MSPAllocationService) ListForCaller(ctx context.Context, userID int) ([
 	return s.ListByMSPUser(ctx, userID)
 }
 
+// AllocationHistoryQuery 分配历史过滤条件（handler 解析；零值 = 不过滤）。
+type AllocationHistoryQuery struct {
+	MSPUserID        int
+	CustomerTenantID int
+	// StartDate/EndDateExclusive 按 assigned_at 过滤（[start, end) 半开区间；handler 负责把
+	// YYYY-MM-DD 的 endDate 转成次日零点，保证「含当日」语义）。
+	StartDate        *time.Time
+	EndDateExclusive *time.Time
+}
+
+// ListHistoryForCaller 分配历史（含已解除记录；补齐前端 /msp 页已调用端点，target-architecture P1）。
+//
+// 作用域与 ListForCaller 同口径（无权限提升语义）：provider_admin 看本 provider 全部历史；
+// 其余员工仅看本人历史（忽略传入 mspUserId）。展示名批量解析并显式 system 作用域（与 toDTO 同口径，避免 N+1）。
+func (s *MSPAllocationService) ListHistoryForCaller(ctx context.Context, callerUserID int, q AllocationHistoryQuery) ([]*dto.MSPAllocationHistory, error) {
+	actor, err := s.client.User.Query().Where(user.IDEQ(callerUserID)).Only(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("查询调用者失败: %w", err)
+	}
+
+	query := s.client.MSPAllocation.Query()
+	if string(actor.MspRole) == "provider_admin" {
+		query = query.Where(mspallocation.ProviderTenantIDEQ(actor.TenantID))
+		if q.MSPUserID > 0 {
+			query = query.Where(mspallocation.MspUserIDEQ(q.MSPUserID))
+		}
+	} else {
+		query = query.Where(mspallocation.MspUserIDEQ(callerUserID))
+	}
+	if q.CustomerTenantID > 0 {
+		query = query.Where(mspallocation.CustomerTenantIDEQ(q.CustomerTenantID))
+	}
+	if q.StartDate != nil {
+		query = query.Where(mspallocation.AssignedAtGTE(*q.StartDate))
+	}
+	if q.EndDateExclusive != nil {
+		query = query.Where(mspallocation.AssignedAtLT(*q.EndDateExclusive))
+	}
+
+	// 历史读取允许含已解除记录；上限兜底防无界扫描。
+	allocations, err := query.
+		Order(ent.Desc(mspallocation.FieldAssignedAt), ent.Desc(mspallocation.FieldID)).
+		Limit(500).
+		All(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("查询分配历史失败: %w", err)
+	}
+
+	// 展示名批量解析：跨 provider/客户两侧，属平台范围读取 → 显式 system 作用域（与 toDTO 同口径）。
+	sysCtx := tenantctx.SystemContext(context.Background(), "msp:allocation:history", "resolve allocation history display names (cross-tenant, platform scope)")
+	userIDs := make([]int, 0, len(allocations))
+	tenantIDs := make([]int, 0, len(allocations))
+	seenUser := map[int]struct{}{}
+	seenTenant := map[int]struct{}{}
+	for _, a := range allocations {
+		if _, ok := seenUser[a.MspUserID]; !ok {
+			seenUser[a.MspUserID] = struct{}{}
+			userIDs = append(userIDs, a.MspUserID)
+		}
+		if _, ok := seenTenant[a.CustomerTenantID]; !ok {
+			seenTenant[a.CustomerTenantID] = struct{}{}
+			tenantIDs = append(tenantIDs, a.CustomerTenantID)
+		}
+	}
+	usernameByID := map[int]string{}
+	if len(userIDs) > 0 {
+		users, err := s.client.User.Query().Where(user.IDIn(userIDs...)).All(sysCtx)
+		if err != nil {
+			return nil, fmt.Errorf("解析员工姓名失败: %w", err)
+		}
+		for _, u := range users {
+			usernameByID[u.ID] = u.Name
+		}
+	}
+	nameByTenantID := map[int]string{}
+	if len(tenantIDs) > 0 {
+		tenants, err := s.client.Tenant.Query().Where(tenant.IDIn(tenantIDs...)).All(sysCtx)
+		if err != nil {
+			return nil, fmt.Errorf("解析客户名称失败: %w", err)
+		}
+		for _, tn := range tenants {
+			nameByTenantID[tn.ID] = tn.Name
+		}
+	}
+
+	history := make([]*dto.MSPAllocationHistory, 0, len(allocations))
+	for _, a := range allocations {
+		item := &dto.MSPAllocationHistory{
+			ID:               a.ID,
+			MSPUserID:        a.MspUserID,
+			MSPUsername:      usernameByID[a.MspUserID],
+			CustomerTenantID: a.CustomerTenantID,
+			CustomerName:     nameByTenantID[a.CustomerTenantID],
+			Role:             a.Role,
+			AssignedAt:       a.AssignedAt,
+		}
+		if !a.DeassignedAt.IsZero() {
+			deassigned := a.DeassignedAt
+			item.DeassignedAt = &deassigned
+		}
+		history = append(history, item)
+	}
+	return history, nil
+}
+
 // ListByCustomer 根据客户租户 ID 获取所有分配
 func (s *MSPAllocationService) ListByCustomer(ctx context.Context, customerTenantID int) ([]*dto.MSPAllocationDTO, error) {
 	allocations, err := s.client.MSPAllocation.Query().
