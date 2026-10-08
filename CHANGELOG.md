@@ -35,6 +35,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **深度切换菜单不变化（客户租户 msp 角色基线 C2 未落库）** — 根因：实施计划 §3.0-C2「客户租户内 msp 角色基线 → 客户侧业务权限」未实现——客户租户的 `msp_*` 角色随 default 租户克隆落入的是 C1 跨租户码（`msp:*`），深度切换后菜单投影与 provider 作用域一致（admin-demo01 两侧均 5 个 MSP 项），表现为"切换后菜单没有变化"。修复：①`internal/authz` 新增 `MSPCustomerScopeRolePermissionCodes()`（C2 基线：`ticket:read/create/update/write、knowledge:read、cmdb:read、service_catalog:read` + 任务基线；manager +`user:write/report:read`；admin +`cmdb:write/change:write`；文档 "ticket:read/write" 按客户侧路由守卫展开为 create/update）；②`pkg/seeder.ProvisionTenant` 对客户类型租户（`msp_customer`/`saas_customer`）执行 C1→C2 对账（移除 C1 残留、补齐 C2、保留自定义；幂等），`validateTenantClone` 按 C2 验收。实跑：`provision_tenant -tenant-id 11` 后 admin-demo01 深度切换菜单由 5 个 MSP 项变为 15 个客户侧项（工单/知识库/CMDB/服务目录等），客户作用域下 `/msp/workbench` 403（符合 canon §2.3 边界）；测试 `internal/authz` + `tests/parity` + `pkg/seeder` 全绿。
+
 - **深度切换体验（MSW-A5）回归修复** — ①后端 `/auth/me` 归属租户契约（scenarios/10 §2）：`tenantId` 改为当前 JWT 作用域（切换后=目标租户）、`homeTenantId` 恒为归属租户；此前两者均取 `users.tenant_id`，刷新/会话引导后作用域被回退到 home，表现为深度态指示消失、目标域菜单不出现；②前端「进入客户」切换成功后落点由公开落地页 `/` 修复为登录后主页 `/dashboard`（此前切换成功但界面看不到深度态）。测试：`handlers/auth`（MSW-4 契约断言：`tenantId=目标租户/homeTenantId=归属租户`）、`CustomerFilter`（进入客户导航回归）全绿；浏览器实测：进入客户→`/dashboard` 深度态指示 + 目标域菜单 + `/auth/me` = `tenantId:11 / homeTenantId:10`。
 
 ### Changed

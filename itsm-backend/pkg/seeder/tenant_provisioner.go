@@ -3,6 +3,7 @@ package seeder
 import (
 	"context"
 	"fmt"
+	"sort"
 
 	"itsm-backend/dto"
 	"itsm-backend/ent"
@@ -21,6 +22,8 @@ import (
 	"itsm-backend/ent/sladefinition"
 	"itsm-backend/ent/systemconfig"
 	"itsm-backend/ent/tenant"
+	"itsm-backend/internal/authz"
+	"itsm-backend/pkg/tenantmode"
 )
 
 // CurrentTenantTemplateVersion 单一事实来源在 dto：service 层不能 import 本包
@@ -49,12 +52,16 @@ func (s *Seeder) ProvisionTenant(ctx context.Context, tenantID int, templateVers
 	if err != nil {
 		return fmt.Errorf("load product template tenant: %w", err)
 	}
-	if _, err := s.client.Tenant.Get(ctx, tenantID); err != nil {
+	target, err := s.client.Tenant.Get(ctx, tenantID)
+	if err != nil {
 		return fmt.Errorf("load target tenant: %w", err)
 	}
 	if source.ID == tenantID {
 		return s.validateTenantReadiness(ctx, tenantID)
 	}
+	// 客户类型租户内的 msp_* 角色按 C2 客户侧基线供给（实施计划 §3.0-C2），
+	// 与 provider 租户的 C1 跨租户矩阵区分（canon §2.3：深度切换复用客户侧页面与权限模型）。
+	customerScope := tenantmode.IsCustomerTenantType(string(target.Type))
 
 	tx, err := s.client.Tx(ctx)
 	if err != nil {
@@ -66,10 +73,15 @@ func (s *Seeder) ProvisionTenant(ctx context.Context, tenantID int, templateVers
 	if err := cloneTenantBaseline(ctx, c, source.ID, tenantID); err != nil {
 		return err
 	}
+	if customerScope {
+		if err := applyCustomerScopeMSPRoleBaseline(ctx, c, tenantID); err != nil {
+			return err
+		}
+	}
 	if err := cloneTenantTemplates(ctx, c, source.ID, tenantID); err != nil {
 		return err
 	}
-	if err := validateTenantClone(ctx, c, source.ID, tenantID); err != nil {
+	if err := validateTenantClone(ctx, c, source.ID, tenantID, customerScope); err != nil {
 		return fmt.Errorf("validate tenant template before commit: %w", err)
 	}
 	versionKey := fmt.Sprintf("tenant.bootstrap.version.%d", tenantID)
@@ -288,6 +300,107 @@ func cloneRolePermissions(
 		}
 		if _, err := c.RolePermission.CreateBulk(builders...).Save(ctx); err != nil {
 			return fmt.Errorf("provision role permission: %w", err)
+		}
+	}
+	return nil
+}
+
+// applyCustomerScopeMSPRoleBaseline 把客户类型租户内 msp_* 角色的授权从 C1（跨租户 msp_* 码，
+// 随 default 租户克隆落入）对账到 C2 客户侧基线（实施计划 §3.0-C2；canon §2.3 深度切换）：
+//   - 移除「C1 有、C2 无」的码（错误基线残留），保留其它自定义扩展；
+//   - 补齐 C2 缺失码；批量加载 + 内存差集 + 批量写入（幂等）。
+func applyCustomerScopeMSPRoleBaseline(ctx context.Context, c *ent.Client, tenantID int) error {
+	desired := authz.MSPCustomerScopeRolePermissionCodes()
+	builtin := authz.BuiltinRolePermissionCodes()
+
+	roleCodes := make([]string, 0, len(desired))
+	for code := range desired {
+		roleCodes = append(roleCodes, code)
+	}
+	sort.Strings(roleCodes)
+	roles, err := c.Role.Query().Where(role.TenantIDEQ(tenantID), role.CodeIn(roleCodes...)).All(ctx)
+	if err != nil {
+		return fmt.Errorf("load customer-scope MSP roles: %w", err)
+	}
+	if len(roles) == 0 {
+		return nil
+	}
+	permissions, err := c.Permission.Query().Where(permission.TenantIDEQ(tenantID)).All(ctx)
+	if err != nil {
+		return fmt.Errorf("load customer-scope permissions: %w", err)
+	}
+	permissionIDByCode := make(map[string]int, len(permissions))
+	permissionCodeByID := make(map[int]string, len(permissions))
+	for _, item := range permissions {
+		permissionIDByCode[item.Code] = item.ID
+		permissionCodeByID[item.ID] = item.Code
+	}
+	grants, err := c.RolePermission.Query().Where(rolepermission.TenantIDEQ(tenantID)).All(ctx)
+	if err != nil {
+		return fmt.Errorf("load customer-scope grants: %w", err)
+	}
+	roleCodeByID := make(map[int]string, len(roles))
+	for _, item := range roles {
+		roleCodeByID[item.ID] = item.Code
+	}
+	have := make(map[int]map[string]struct{}, len(roles))
+	for _, item := range grants {
+		if _, ok := roleCodeByID[item.RoleID]; !ok {
+			continue
+		}
+		code, ok := permissionCodeByID[item.PermissionID]
+		if !ok {
+			continue
+		}
+		if have[item.RoleID] == nil {
+			have[item.RoleID] = make(map[string]struct{})
+		}
+		have[item.RoleID][code] = struct{}{}
+	}
+
+	adds := make([]*ent.RolePermissionCreate, 0, len(roleCodes)*4)
+	for _, item := range roles {
+		want, ok := desired[item.Code]
+		if !ok {
+			continue
+		}
+		wantSet := make(map[string]struct{}, len(want))
+		for _, code := range want {
+			wantSet[code] = struct{}{}
+			if _, exists := have[item.ID][code]; exists {
+				continue
+			}
+			permissionID, ok := permissionIDByCode[code]
+			if !ok {
+				return fmt.Errorf("customer-scope baseline permission %s missing in tenant %d", code, tenantID)
+			}
+			adds = append(adds, c.RolePermission.Create().
+				SetRoleID(item.ID).SetPermissionID(permissionID).SetTenantID(tenantID))
+		}
+		// 移除 C1 残留（C1 有、C2 无）：跨租户 msp_* 码不应出现在客户租户 msp 角色上。
+		removeIDs := make([]int, 0, len(builtin[item.Code]))
+		for _, code := range builtin[item.Code] {
+			if _, inWant := wantSet[code]; inWant {
+				continue
+			}
+			if _, exists := have[item.ID][code]; !exists {
+				continue
+			}
+			if permissionID, ok := permissionIDByCode[code]; ok {
+				removeIDs = append(removeIDs, permissionID)
+			}
+		}
+		if len(removeIDs) > 0 {
+			if _, err := c.RolePermission.Delete().
+				Where(rolepermission.RoleIDEQ(item.ID), rolepermission.PermissionIDIn(removeIDs...)).
+				Exec(ctx); err != nil {
+				return fmt.Errorf("strip C1 baseline from %s: %w", item.Code, err)
+			}
+		}
+	}
+	for _, batch := range chunkSlice(adds, provisionBulkChunkSize) {
+		if _, err := c.RolePermission.CreateBulk(batch...).Save(ctx); err != nil {
+			return fmt.Errorf("provision customer-scope MSP baseline: %w", err)
 		}
 	}
 	return nil
@@ -811,7 +924,7 @@ func (s *Seeder) validateTenantReadiness(ctx context.Context, tenantID int) erro
 // validateTenantClone 在提交前做等价完整性校验（批量加载 + 内存比对，无逐行查询）：
 // 角色/权限/授权/菜单/组/流程定义/流程绑定必须齐全，且激活绑定必须有激活流程定义。
 // 错误顺序与文案保持与旧实现一致（"managed role/permission/grant/..."）。
-func validateTenantClone(ctx context.Context, client *ent.Client, sourceID, targetID int) error {
+func validateTenantClone(ctx context.Context, client *ent.Client, sourceID, targetID int, customerScope bool) error {
 	sourceRoles, err := client.Role.Query().Where(role.TenantIDEQ(sourceID)).All(ctx)
 	if err != nil {
 		return err
@@ -852,10 +965,28 @@ func validateTenantClone(ctx context.Context, client *ent.Client, sourceID, targ
 		targetGrantSet[grantPair{item.RoleID, item.PermissionID}] = struct{}{}
 	}
 
+	customerBaseline := map[string][]string(nil)
+	if customerScope {
+		customerBaseline = authz.MSPCustomerScopeRolePermissionCodes()
+	}
 	for _, sourceRole := range sourceRoles {
 		targetRole, ok := targetRoleByCode[sourceRole.Code]
 		if !ok {
 			return fmt.Errorf("managed role %s missing: %w", sourceRole.Code, provisionNotFoundError("role"))
+		}
+		if override, ok := customerBaseline[sourceRole.Code]; ok {
+			// 客户租户内 msp_* 角色按 C2 基线验收：C1 跨租户码已被
+			// applyCustomerScopeMSPRoleBaseline 替换，不要求与源租户同名授权一致。
+			for _, permissionCode := range override {
+				targetPermission, ok := targetPermissionByCode[permissionCode]
+				if !ok {
+					return fmt.Errorf("managed permission %s missing: %w", permissionCode, provisionNotFoundError("permission"))
+				}
+				if _, ok := targetGrantSet[grantPair{targetRole.ID, targetPermission.ID}]; !ok {
+					return fmt.Errorf("managed grant %s -> %s missing", sourceRole.Code, permissionCode)
+				}
+			}
+			continue
 		}
 		for _, permissionID := range grantsByRole[sourceRole.ID] {
 			permissionCode, ok := sourcePermissionCodeByID[permissionID]

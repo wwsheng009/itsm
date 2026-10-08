@@ -143,6 +143,7 @@ C2 · 客户租户内 msp 角色基线（Q7 合同形态 → 客户侧业务权�
 | `msp_admin` | msp_manager + cmdb:write、change:write | full（全托管；默认不分配） |
 
 - 落库：`internal/authz/roles.go` 内置词表新增 5 角色 → `pkg/seeder` 为 provider 租户幂等生成 `roles` + `role_permissions`；迁移 `20260501_enable_rbac_from_db.sql:33-77`（id 108–112）保留兼容；`scripts/msp/setup-msp-tenants.sh` 的 SQL 直写降级为兜底（并补 `msp_admin`）。DBOnly 三态（unavailable / unconfigured / configured）语义不变。
+- **C2 落库（2026-10-08）**：`internal/authz.MSPCustomerScopeRolePermissionCodes()` 新增 C2 基线；`pkg/seeder.ProvisionTenant` 对客户类型租户（`msp_customer`/`saas_customer`）执行 C1→C2 对账（客户租户 `msp_*` 角色按客户侧权限供给，provider 租户保持 C1），`validateTenantClone` 同口径验收；口径展开：C2 原文 `ticket:read/write` 按客户侧路由守卫落为 `ticket:create`（评论/建单）+`ticket:update`（编辑/状态/解决），viewer「+评论」= `ticket:create`。实跑 `provision_tenant -tenant-id 11`：深度切换菜单 5→15 项（工单/知识库/CMDB/服务目录等），客户作用域下 `/msp/workbench` 403（canon §2.3）。测试：`internal/authz`、`tests/parity`、`pkg/seeder` 全绿。
 - `msp_role` 收敛（IP-P0-9）：`provider_admin→msp_manager`、`provider_agent→msp_tech`；`customer_user` 仅 legacy 读映射。
 
 **D. 工作台 API Schema（P0 冻结；端点全量见[工作台方案 §4](./msp-cross-customer-workbench-and-filter-plan.md)）**

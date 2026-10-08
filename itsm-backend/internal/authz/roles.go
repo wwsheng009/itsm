@@ -411,6 +411,39 @@ func BuiltinRolePermissionCodes() map[string][]string {
 	return m
 }
 
+// MSPCustomerScopeRolePermissionCodes 返回「客户租户内 msp_* 角色基线」（实施计划 §3.0-C2 / Q7 合同形态）：
+// provider 员工被分配进客户租户后（membership.role = msp_*），深度切换（canon §2.3）复用**客户侧**
+// 页面与权限模型，故客户租户内的 msp_* 角色按客户侧业务权限供给；provider 租户内同名角色仍用
+// C1（BuiltinRolePermissionCodes，跨租户 msp_* 码）。客户 admin 可在此基础上按需扩展（变更审计）。
+//
+// 口径展开（C2 文档 "ticket:read/write" → 客户侧路由实际守卫码，见 router/ticket_routes.go）：
+//   - 工单评论/建单 = ticket:create；工单编辑/状态/解决 = ticket:update
+//     （middleware.checkPermissionMatch 无 write→create/update 蕴含）；
+//   - viewer 的「+ 评论」按评论路由守卫落 ticket:create（无 comment 专用码，登记为词表待收敛项）；
+//   - service_catalog:read 为 C2 原文；客户侧 /service-catalog 菜单守卫 service:read 经菜单侧
+//     Resource 别名（service→service_catalog）映射到同一码集。
+//
+// 落库：pkg/seeder 供给客户类型租户时对 5 个 msp_* 角色做 C1→C2 对账（幂等，保留非 C1 自定义）。
+func MSPCustomerScopeRolePermissionCodes() map[string][]string {
+	// 任务面基线与内置词表同口径（任何角色都可能被指派流程任务）。
+	withBaseline := func(codes ...string) []string {
+		return appendMissingCodes(codes, "task:read", "task:update")
+	}
+	tech := withBaseline(
+		"ticket:read", "ticket:create", "ticket:update", "ticket:write",
+		"knowledge:read", "cmdb:read", "service_catalog:read",
+	)
+	manager := appendMissingCodes(tech, "user:write", "report:read")
+	admin := appendMissingCodes(manager, "cmdb:write", "change:write")
+	return map[string][]string{
+		"msp_viewer":     withBaseline("ticket:read", "ticket:create"),
+		"msp_tech":       tech,
+		"msp_specialist": append([]string(nil), tech...),
+		"msp_manager":    manager,
+		"msp_admin":      admin,
+	}
+}
+
 func appendMissingCodes(codes []string, extra ...string) []string {
 	seen := make(map[string]bool, len(codes)+len(extra))
 	out := make([]string, 0, len(codes)+len(extra))
