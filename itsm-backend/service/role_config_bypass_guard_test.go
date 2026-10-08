@@ -126,6 +126,44 @@ func TestRoleConfig_WildcardPermissionOnlyPlatformRoot(t *testing.T) {
 	require.NoError(t, roleSvc.AssignPermissions(ctx, rootSysRole.ID, []int{rootSysWrite.ID}, internal.ID))
 }
 
+// TestPlatformGovernedResources_FamilyEvaluationLock（补丁 6 / R3）：护栏集合 = {system}
+// （评估结论见 docs/multi-tenant/plan/role-permission-extension-checklist.md §2.2）——
+// system_config / mcp / connector 为租户面（可分配）；menu / federation 码空间不存在。
+// 新增家族必须先完成评估并更新清单文档，再改 platformGovernedPermissionResources（本用例是决策锁）。
+func TestPlatformGovernedResources_FamilyEvaluationLock(t *testing.T) {
+	client := enttest.Open(t, "sqlite3", testDSN())
+	t.Cleanup(func() { client.Close() })
+	ctx := context.Background()
+	roleSvc := NewRoleService(client, zaptest.NewLogger(t).Sugar())
+
+	customer := mkProvTenant(t, client, ctx, "Cust", "cust-r3-lock", "msp_customer", "active")
+	role, err := roleSvc.CreateRole(ctx, &dto.CreateRoleRequest{Name: "TenantOps", Code: "tenant_ops"}, customer.ID)
+	require.NoError(t, err)
+
+	// ① 评估为「租户面」的家族：可分配（不得进入护栏集合）。
+	for _, c := range []struct{ code, resource, action string }{
+		{"system_config:read", "system_config", "read"},
+		{"mcp:read", "mcp", "read"},
+		{"connector:read", "connector", "read"},
+	} {
+		p, err := client.Permission.Create().
+			SetCode(c.code).SetName(c.code).SetResource(c.resource).SetAction(c.action).
+			SetTenantID(customer.ID).Save(ctx)
+		require.NoError(t, err)
+		require.NoError(t, roleSvc.AssignPermissions(ctx, role.ID, []int{p.ID}, customer.ID),
+			"%s 为租户面家族（评估结论），应可分配", c.code)
+	}
+
+	// ② 平台治理家族（{system}）：拒绝。
+	sys, err := client.Permission.Create().
+		SetCode("system:read").SetName("系统读").SetResource("system").SetAction("read").
+		SetTenantID(customer.ID).Save(ctx)
+	require.NoError(t, err)
+	err = roleSvc.AssignPermissions(ctx, role.ID, []int{sys.ID}, customer.ID)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "平台治理")
+}
+
 func TestUserCreateUpdate_PlatformRoleGuard(t *testing.T) {
 	client := enttest.Open(t, "sqlite3", testDSN())
 	t.Cleanup(func() { client.Close() })

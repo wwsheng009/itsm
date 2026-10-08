@@ -44,18 +44,27 @@ var writeRouteExemptions = map[string]string{
 	"common_system_routes.go POST /logout":          "登出，凭会话自身即可失效",
 	"common_system_routes.go POST /switch-tenant":   "切换至该用户已归属的租户，授权依据是租户成员关系而非资源动作",
 	"common_system_routes.go POST /change-password": "自助改密：授权依据是「已认证身份 + 持有旧密码」，不走资源动作权限",
-	"common_system_routes.go PUT /me/preferences": "本人偏好（IP-P1-6c）：授权依据是已认证身份 + 仅写本人 users.preferences，不接受路径参数",
+	"common_system_routes.go PUT /me/preferences":   "本人偏好（IP-P1-6c）：授权依据是已认证身份 + 仅写本人 users.preferences，不接受路径参数",
 	"router.go POST /ws/ticket":                     "颁发一次性 WebSocket 票据，凭已认证身份且仅限本人会话",
 }
 
 type scannedRoute struct {
-	file    string
-	line    int
-	method  string
-	path    string
-	recv    string
-	hasPerm bool
+	file             string
+	line             int
+	method           string
+	path             string
+	recv             string
+	hasPerm          bool
+	hasPlatformAdmin bool
 }
+
+// httpMethods 扫描的路由方法集合（含读方法；写路由过滤由各守卫自行负责）。
+var httpMethods = map[string]bool{
+	"GET": true, "POST": true, "PUT": true, "PATCH": true, "DELETE": true, "HEAD": true, "OPTIONS": true,
+}
+
+// writeHTTPMethods 写方法集合（写路由守卫用）。
+var writeHTTPMethods = map[string]bool{"POST": true, "PUT": true, "PATCH": true, "DELETE": true}
 
 // TestWriteRoutesRequirePermission 守卫：所有写方法路由必须显式挂权限中间件。
 //
@@ -69,6 +78,9 @@ func TestWriteRoutesRequirePermission(t *testing.T) {
 
 	var unprotected []scannedRoute
 	for _, r := range routes {
+		if !writeHTTPMethods[r.method] {
+			continue
+		}
 		if r.hasPerm {
 			continue
 		}
@@ -138,8 +150,6 @@ func scanRouteRegistrations(t *testing.T) []scannedRoute {
 	}
 	sort.Strings(files)
 
-	writeMethods := map[string]bool{"POST": true, "PUT": true, "PATCH": true, "DELETE": true}
-
 	var out []scannedRoute
 	for _, file := range files {
 		src, err := os.ReadFile(file)
@@ -153,8 +163,9 @@ func scanRouteRegistrations(t *testing.T) []scannedRoute {
 		}
 		rel := filepath.ToSlash(file)
 
-		// 第一遍：收集「已挂权限中间件的分组变量」
+		// 第一遍：收集「已挂权限中间件的分组变量」与「已挂平台身份校验的分组变量」
 		protectedGroups := map[string]bool{}
+		platformAdminGroups := map[string]bool{}
 		ast.Inspect(f, func(n ast.Node) bool {
 			switch node := n.(type) {
 			case *ast.AssignStmt:
@@ -172,6 +183,9 @@ func scanRouteRegistrations(t *testing.T) []scannedRoute {
 				if hasPermissionArg(call.Args) {
 					protectedGroups[ident.Name] = true
 				}
+				if hasPlatformAdminArg(call.Args) {
+					platformAdminGroups[ident.Name] = true
+				}
 			case *ast.ExprStmt:
 				call, ok := node.X.(*ast.CallExpr)
 				if !ok || !isSelectorCall(call, "Use") {
@@ -182,18 +196,21 @@ func scanRouteRegistrations(t *testing.T) []scannedRoute {
 				if ok && hasPermissionArg(call.Args) {
 					protectedGroups[recv.Name] = true
 				}
+				if ok && hasPlatformAdminArg(call.Args) {
+					platformAdminGroups[recv.Name] = true
+				}
 			}
 			return true
 		})
 
-		// 第二遍：收集写路由调用
+		// 第二遍：收集全部路由调用（含读方法；写路由过滤由调用方负责）
 		ast.Inspect(f, func(n ast.Node) bool {
 			call, ok := n.(*ast.CallExpr)
 			if !ok {
 				return true
 			}
 			sel, ok := call.Fun.(*ast.SelectorExpr)
-			if !ok || !writeMethods[sel.Sel.Name] {
+			if !ok || !httpMethods[sel.Sel.Name] {
 				return true
 			}
 			recvIdent, ok := sel.X.(*ast.Ident)
@@ -209,13 +226,15 @@ func scanRouteRegistrations(t *testing.T) []scannedRoute {
 				}
 			}
 			hasPerm := hasPermissionArg(call.Args) || protectedGroups[recv]
+			hasPlatformAdmin := hasPlatformAdminArg(call.Args) || platformAdminGroups[recv]
 			out = append(out, scannedRoute{
-				file:    rel,
-				line:    fset.Position(call.Pos()).Line,
-				method:  sel.Sel.Name,
-				path:    path,
-				recv:    recv,
-				hasPerm: hasPerm,
+				file:             rel,
+				line:             fset.Position(call.Pos()).Line,
+				method:           sel.Sel.Name,
+				path:             path,
+				recv:             recv,
+				hasPerm:          hasPerm,
+				hasPlatformAdmin: hasPlatformAdmin,
 			})
 			return true
 		})
@@ -236,6 +255,24 @@ func hasPermissionArg(args []ast.Expr) bool {
 		}
 		switch sel.Sel.Name {
 		case "RequirePermission", "RequirePermissionAny", "RequireMSPPermission":
+			return true
+		}
+	}
+	return false
+}
+
+// hasPlatformAdminArg 判断参数列表中是否出现 RequirePlatformAdmin 调用。
+func hasPlatformAdminArg(args []ast.Expr) bool {
+	for _, a := range args {
+		call, ok := a.(*ast.CallExpr)
+		if !ok {
+			continue
+		}
+		sel, ok := call.Fun.(*ast.SelectorExpr)
+		if !ok {
+			continue
+		}
+		if sel.Sel.Name == "RequirePlatformAdmin" {
 			return true
 		}
 	}

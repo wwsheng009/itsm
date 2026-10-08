@@ -324,7 +324,7 @@ func isReservedRoleCode(code string) bool {
 
 // ensureAssignablePermissionsForNonPlatformRoot 非平台根租户的「可分配权限」护栏（IP-P2-7 收口）：
 //  1. 通配权限（resource/action 含 *）——挂到自有角色即可绕过全部权限判定；
-//  2. 平台治理权限（resource=system，如 system:write 掌管 LLM 实例/运维命令/RLS/定时器）——
+//  2. 平台治理权限（platformGovernedPermissionResources 集合，如 system:write 掌管 LLM 实例/运维命令/RLS/定时器）——
 //     权限码可被克隆目录带到租户，若允许再分配，租户即以其为能力穿过仅按码粗筛的平台路由。
 //
 // 覆盖创建角色（Permissions 码路径）/更新角色（码路径）/AssignPermissions（ID 路径）三条路径。
@@ -338,7 +338,7 @@ func (s *RoleService) ensureAssignablePermissionsForNonPlatformRoot(ctx context.
 			violation = fmt.Sprintf("%s:%s", p.Resource, p.Action)
 			break
 		}
-		if strings.TrimSpace(p.Resource) == platformGovernedPermissionResource {
+		if _, governed := platformGovernedPermissionResources[strings.TrimSpace(p.Resource)]; governed {
 			violationErr = ErrPlatformPermissionForbidden
 			violation = fmt.Sprintf("%s:%s", p.Resource, p.Action)
 			break
@@ -360,8 +360,19 @@ func (s *RoleService) ensureAssignablePermissionsForNonPlatformRoot(ctx context.
 	return nil
 }
 
-// platformGovernedPermissionResource 平台治理权限资源段（非平台根租户不可分配，IP-P2-7 收口补丁 4）。
-const platformGovernedPermissionResource = "system"
+// platformGovernedPermissionResources 平台治理权限资源段集合（非平台根租户不可分配，IP-P2-7 收口补丁 4；
+// 补丁 6 由单常量改为显式集合）。
+//
+// 逐家族评估结论（2026-10-08，补丁 6）——判定标准"是否被平台面（L1 路由 / 全局资源）独占依赖"：
+//   - system：纳入（LLM 实例管理/运维命令/RLS 指标/定时器均挂 L1，租户无合法用途）；
+//   - system_config / mcp / connector：租户管理面显式依赖（角色基线与租户路由），不纳入——
+//     其平台面（若有）由 L1 身份校验承载；
+//   - menu / federation：码空间不存在该家族（菜单管理复用 system_config；federation 无引用）。
+//
+// 新增/调整家族必须先完成评估并更新《新增角色/权限/路由评审清单》§2.2，再改此处。
+var platformGovernedPermissionResources = map[string]struct{}{
+	"system": {},
+}
 
 func (s *RoleService) permissionIDsByCodes(ctx context.Context, permissionCodes []string, tenantID int) ([]int, error) {
 	normalizedCodes := make([]string, 0, len(permissionCodes))
