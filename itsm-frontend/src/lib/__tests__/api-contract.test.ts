@@ -46,6 +46,16 @@ interface SkipEntry {
   reason: string;
 }
 const KNOWN_UNMATCHED_FRONTEND_PATHS: ReadonlyArray<SkipEntry> = [
+  // 解析器缺口（非真实漂移）：动态 base `${this.base(tenantId)}` 无法静态解析；
+  // 对应后端路由已存在（router/common_system_routes.go:211/213）。
+  {
+    path: '${this.base(tenantId)}/${userId}',
+    reason: 'parser gap: dynamic base; backend GET /api/v1/tenants/:id/users/:userId exists',
+  },
+  {
+    path: '${this.base(tenantId)}/${userId}/status',
+    reason: 'parser gap: dynamic base; backend PUT /api/v1/tenants/:id/users/:userId/status exists',
+  },
   // Add entries as: { path: '/api/v1/...', reason: 'TODO: backend not implemented' }
 ];
 
