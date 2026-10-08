@@ -192,7 +192,7 @@ switch-tenant 成功
 | `lib/store/auth-store.ts` | 切换后重拉 `/auth/me`；登出清 queryClient + reset bootstrap | P0 |
 | `useUserMenusQuery.ts` / `useCapabilities.ts` | queryKey 按租户分键 + invalidate | P0 |
 | `pages/(main)/msp/**` | 工作台/过滤器主路径接入；客户维度收敛到全局上下文/头通道；去除局部 state 双源 | P0 |
-| `pages/(main)/admin/users/index.tsx` + `user-api.ts` | 目标租户选择（按通道）+ 角色白名单（Q7/F3，去 super_admin/admin 可选项）；后端通道 P0=`IP-P0-5`，本 UI 随 P1 上线 | P1 |
+| `pages/(main)/admin/users/index.tsx` + `user-api.ts` | 目标租户选择（按通道）+ 角色白名单（Q7/F3，去 super_admin/admin 可选项）；后端通道 P0=`IP-P0-5`，本 UI 随 P1 上线。**✅ 已交付（2026-10-08，`IP-P2-7`）：建号弹窗改目标租户角色列表驱动多选（`GET /tenants/:id/roles`，rank/平台角色/客户作用域过滤在服务端），见 [建号角色多选方案](./msp-provision-user-roles-multiselect-plan.md)** | P1 |
 | `pages/(auth)/register/index.tsx` | 角色选项走白名单接口（默认 end_user）；错误透传 | P1 |
 | `routes/*` | 独立 403 路由；路由元数据接入或清理遗留；admin/msp 分组守卫 | P1 |
 | `menu-config.ts` / `Sidebar.tsx` | `capabilityPathRules` 去重（单一来源） | P1 |

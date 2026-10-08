@@ -88,6 +88,7 @@
 | [msp-account-provisioning-and-registration-flow.md](./plan/msp-account-provisioning-and-registration-flow.md) | **建号与注册流程**：四通道矩阵（platform/msp/tenant/invite）、provider/customer 双场景时序、邀请与首登、授权边界、审计字段、过渡期 SQL 兜底操作与专项验收 |
 | [msp-business-closure-review-and-refactor-plan.md](./plan/msp-business-closure-review-and-refactor-plan.md) | **业务闭环审查与现有功能改造计划**：13 条端到端链路 × 五段判定（现状 ⛔5/🟡8）、P0 后 10/13 与 P1 后 12/13 结论、模块级改造映射（后端/前端/脚本/迁移）、发布波次 W1–W8、链路级 DoD |
 | [msp-tenant-user-management-enhancement-plan.md](./plan/msp-tenant-user-management-enhancement-plan.md) | **平台侧租户用户管理增强（/admin/tenants）**：跨租户用户列表/详情、重置密码（一次性口令 / 指定新密码）、启用停用（最后管理员护栏）、强制下线、审计与稳定错误码；本地编号 `TUM-#`（canon 附录 C.2 已登记） |
+| [msp-provision-user-roles-multiselect-plan.md](./plan/msp-provision-user-roles-multiselect-plan.md) | **建号角色多选与目标租户角色列表（IP-P2-7）**：建号弹窗角色选择由硬编码改为数据驱动多选（目标租户 `roles` 表）；平台/MSP 双端点、通道/rank/客户作用域过滤、`roleIds` 主角色派生与 membership 一致性、平台角色越权防护；含实施记录与联调实测证据 |
 
 ## 维护约定
 

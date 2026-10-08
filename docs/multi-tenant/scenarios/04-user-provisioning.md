@@ -76,10 +76,7 @@ FROM users u WHERE u.username = 'b2c_tech';
 
 ## 7. ⚠️ 已知限制（务必先读）
 
-1. **建号通道不写 home membership / RBAC 角色边**（实施方案 v1.69 登记，待后续批次修复）：通道 A/B/C 新建的**普通员工**账号会出现"能登录、但菜单为空/路由守卫 403"的现象；MSP 员工若已被分配客户，**MSP 数据面接口仍可用**（分配即授权）。
-   **本阶段规避**：
-   - 演示 MSP 工作台请使用**服务商首管**（`provider_admin`，自带 `msp_admin` 角色）或为其建号后由授权流程补角色；
-   - 需要普通员工完整菜单时，先在目标租户用首管账号于**角色管理**里给该员工绑定角色（本目录不展开，属 RBAC 既有能力）。
+1. **建号通道不写 home membership / RBAC 角色边**（v1.69 登记）——**✅ 已关闭（2026-10-08，`IP-P2-7`）**：MSW-1 已补 home membership 写入；本批次建号弹窗支持「目标租户角色列表驱动多选」（`roleIds`），服务端按所选最高 rank 派生主角色并解析 membership 角色——普通员工建号时即可授予 RBAC 角色（不勾选 = 默认 `end_user`，与旧行为一致）。历史现象（通道 A/B/C 新建普通员工"能登录、但菜单为空/路由守卫 403"）不再复现；演示 MSP 工作台仍建议使用**服务商首管**（`provider_admin`，自带 `msp_admin` 角色）或经分配链路授权。详见 [建号角色多选方案](../plan/msp-provision-user-roles-multiselect-plan.md)。
 2. **服务商租户建号必须带 MSP 角色**：否则 `isMSP=false`，MSP 页面与接口全部不可达。
 
 ## 8. 下一步
