@@ -82,6 +82,14 @@ func (m *mockTenantService) QuotaUsage(ctx context.Context, tenantID int) (*dto.
 	return nil, args.Error(1)
 }
 
+func (m *mockTenantService) UsageCounts(ctx context.Context, tenantIDs []int) (map[int]dto.TenantUsageCount, error) {
+	args := m.Called(ctx, tenantIDs)
+	if c, ok := args.Get(0).(map[int]dto.TenantUsageCount); ok {
+		return c, args.Error(1)
+	}
+	return nil, args.Error(1)
+}
+
 func newTenantHandler(m *mockTenantService) *Handler {
 	gin.SetMode(gin.TestMode)
 	return NewHandler(m, zap.NewNop().Sugar())
@@ -182,6 +190,8 @@ func TestListTenants_Success(t *testing.T) {
 	h := newTenantHandler(m)
 	// super_admin → 平台全量（scope=0）。
 	m.On("ListTenantsScoped", mock.Anything, mock.Anything, 0).Return([]*ent.Tenant{sampleTenant()}, 1, nil)
+	m.On("UsageCounts", mock.Anything, []int{1}).
+		Return(map[int]dto.TenantUsageCount{1: {Users: 3, TicketsThisMonth: 12}}, nil)
 
 	w, c := doJSON(h, http.MethodGet, "/api/v1/tenants", "")
 	h.ListTenants(c)
@@ -192,6 +202,14 @@ func TestListTenants_Success(t *testing.T) {
 	data, ok := resp.Data.(map[string]interface{})
 	assert.True(t, ok)
 	assert.Equal(t, float64(1), data["total"])
+	// 资源使用列：列表响应内嵌用量计数（口径同 /usage）。
+	tenants, ok := data["tenants"].([]interface{})
+	assert.True(t, ok)
+	assert.Len(t, tenants, 1)
+	first, ok := tenants[0].(map[string]interface{})
+	assert.True(t, ok)
+	assert.Equal(t, float64(3), first["userCount"])
+	assert.Equal(t, float64(12), first["ticketCount"])
 	m.AssertExpectations(t)
 }
 
@@ -202,6 +220,7 @@ func TestListTenants_TenantAdminScoped(t *testing.T) {
 	h := newTenantHandler(m)
 	m.On("ListTenantsScoped", mock.Anything, mock.Anything, 7).
 		Return([]*ent.Tenant{sampleTenant()}, 1, nil)
+	m.On("UsageCounts", mock.Anything, []int{1}).Return(map[int]dto.TenantUsageCount{}, nil)
 
 	w, c := doJSON(h, http.MethodGet, "/api/v1/tenants", "")
 	c.Set("role", "admin")

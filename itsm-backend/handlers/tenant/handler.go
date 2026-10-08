@@ -1,6 +1,7 @@
 package tenant
 
 import (
+	"context"
 	"errors"
 	"strconv"
 
@@ -109,6 +110,8 @@ func (h *Handler) ListTenants(c *gin.Context) {
 		}
 		tenantResponses[i] = *response
 	}
+	// 资源使用列：批量补用户数 / 本月工单（口径同 /usage）。
+	h.fillUsageCounts(c.Request.Context(), tenantResponses)
 
 	response := &dto.TenantListResponse{
 		Tenants:  tenantResponses,
@@ -283,6 +286,31 @@ func (h *Handler) DeleteTenant(c *gin.Context) {
 	common.Success(c, nil)
 }
 
+// fillUsageCounts 为租户列表行补「资源使用」列（用户数 / 本月工单；口径同 /usage）。
+// 计数失败不阻断列表（列表可用性优先）：值守日志留痕，字段保持 0 值。
+func (h *Handler) fillUsageCounts(ctx context.Context, responses []dto.TenantResponse) {
+	ids := make([]int, 0, len(responses))
+	for i := range responses {
+		if responses[i].ID > 0 {
+			ids = append(ids, responses[i].ID)
+		}
+	}
+	if len(ids) == 0 {
+		return
+	}
+	counts, err := h.svc.UsageCounts(ctx, ids)
+	if err != nil {
+		h.logger.Warnw("租户列表用量计数失败（降级为 0）", "error", err, "tenant_count", len(ids))
+		return
+	}
+	for i := range responses {
+		if c, ok := counts[responses[i].ID]; ok {
+			responses[i].UserCount = c.Users
+			responses[i].TicketCount = c.TicketsThisMonth
+		}
+	}
+}
+
 // respondTenantWriteError 租户写路径统一错误出口：配额非法 → 400（其余兜底保持原行为）。
 func respondTenantWriteError(c *gin.Context, err error) {
 	var invalid *tenantquota.InvalidError
@@ -330,6 +358,8 @@ func (h *Handler) ListTenantsAdmin(c *gin.Context) {
 		}
 		tenantResponses[i] = *response
 	}
+	// 资源使用列：批量补用户数 / 本月工单（口径同 /usage）。
+	h.fillUsageCounts(c.Request.Context(), tenantResponses)
 
 	response := &dto.TenantListResponse{
 		Tenants:  tenantResponses,

@@ -60,18 +60,19 @@ func (s *TenantQuotaService) LimitsOf(ctx context.Context, tenantID int) (tenant
 	return row.Quota, nil
 }
 
-// Usage 汇总当前用量：用户数 / 本自然月新建工单数（未删除）/ 有效附件字节数。
-func (s *TenantQuotaService) Usage(ctx context.Context, tenantID int) (*TenantQuotaUsage, error) {
+// Counts 轻量用量计数：用户数 / 本自然月新建未删工单数（列表页「资源使用」列专用；
+// 口径同 Usage，不含存储汇总，避免列表加载逐行扫描附件表）。
+func (s *TenantQuotaService) Counts(ctx context.Context, tenantID int) (users, ticketsThisMonth int64, err error) {
 	if s == nil || s.client == nil {
-		return &TenantQuotaUsage{}, nil
+		return 0, 0, nil
 	}
-	// 同 LimitsOf：用量计数以目标租户为作用域（RLS enforce 下缺此绑定会静默清零）。
+	// 同 LimitsOf：计数以目标租户为作用域（RLS enforce 下缺此绑定会静默清零）。
 	ctx = tenantctx.WithTenantID(ctx, tenantID)
-	users, err := s.client.User.Query().Where(user.TenantID(tenantID)).Count(ctx)
+	u, err := s.client.User.Query().Where(user.TenantID(tenantID)).Count(ctx)
 	if err != nil {
-		return nil, fmt.Errorf("count tenant users: %w", err)
+		return 0, 0, fmt.Errorf("count tenant users: %w", err)
 	}
-	ticketsThisMonth, err := s.client.Ticket.Query().
+	t, err := s.client.Ticket.Query().
 		Where(
 			ticket.TenantID(tenantID),
 			ticket.CreatedAtGTE(monthStart(time.Now())),
@@ -79,15 +80,29 @@ func (s *TenantQuotaService) Usage(ctx context.Context, tenantID int) (*TenantQu
 		).
 		Count(ctx)
 	if err != nil {
-		return nil, fmt.Errorf("count tenant tickets: %w", err)
+		return 0, 0, fmt.Errorf("count tenant tickets: %w", err)
 	}
+	return int64(u), int64(t), nil
+}
+
+// Usage 汇总当前用量：用户数 / 本自然月新建工单数（未删除）/ 有效附件字节数。
+func (s *TenantQuotaService) Usage(ctx context.Context, tenantID int) (*TenantQuotaUsage, error) {
+	if s == nil || s.client == nil {
+		return &TenantQuotaUsage{}, nil
+	}
+	users, ticketsThisMonth, err := s.Counts(ctx, tenantID)
+	if err != nil {
+		return nil, err
+	}
+	// 附件汇总同样以目标租户为作用域（RLS enforce；见 LimitsOf 注释）。
+	ctx = tenantctx.WithTenantID(ctx, tenantID)
 	storage, err := s.storageBytes(ctx, tenantID)
 	if err != nil {
 		return nil, err
 	}
 	return &TenantQuotaUsage{
-		Users:            int64(users),
-		TicketsThisMonth: int64(ticketsThisMonth),
+		Users:            users,
+		TicketsThisMonth: ticketsThisMonth,
 		StorageBytes:     storage,
 	}, nil
 }

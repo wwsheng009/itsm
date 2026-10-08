@@ -22,4 +22,6 @@ type Service interface {
 	DeleteTenant(ctx context.Context, tenantID int) error
 	// QuotaUsage 汇总租户硬配额的“上限 vs 当前用量”（IP-P2-6 收尾，治理页展示）。
 	QuotaUsage(ctx context.Context, tenantID int) (*dto.TenantQuotaUsageResponse, error)
+	// UsageCounts 批量汇总列表页「资源使用」列用量（用户数 / 本月工单；口径同 QuotaUsage）。
+	UsageCounts(ctx context.Context, tenantIDs []int) (map[int]dto.TenantUsageCount, error)
 }

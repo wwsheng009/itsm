@@ -75,6 +75,9 @@ type TenantResponse struct {
 	Timezone        string                 `json:"timezone"`
 	CreatedAt       time.Time              `json:"createdAt"`
 	UpdatedAt       time.Time              `json:"updatedAt"`
+	// 列表页「资源使用」列（口径同 GET /tenants/:id/usage 的 used）。
+	UserCount   int64 `json:"userCount"`
+	TicketCount int64 `json:"ticketCount"`
 }
 
 // TenantListResponse 租户列表响应
@@ -104,4 +107,10 @@ type TenantQuotaUsageResponse struct {
 	TenantID int               `json:"tenantId"`
 	Limits   TenantQuotaLimits `json:"limits"`
 	Used     TenantQuotaUsage  `json:"used"`
+}
+
+// TenantUsageCount 列表页「资源使用」列的最小用量快照（口径同 TenantQuotaUsage）。
+type TenantUsageCount struct {
+	Users            int64 `json:"users"`
+	TicketsThisMonth int64 `json:"ticketsThisMonth"`
 }

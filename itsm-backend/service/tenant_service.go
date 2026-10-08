@@ -352,6 +352,24 @@ func (s *TenantService) QuotaUsage(ctx context.Context, tenantID int) (*dto.Tena
 	return resp, nil
 }
 
+// UsageCounts 批量汇总列表页「资源使用」列用量（用户数 / 本月工单；口径同 QuotaUsage）。
+// 逐租户经 quotaSvc 重绑定 RLS 作用域（平台/服务商跨租户读取）；quotaSvc 未注入
+// （nil）时返回空映射、不报错——列表可用性优先，装配顺序保持宽松。
+func (s *TenantService) UsageCounts(ctx context.Context, tenantIDs []int) (map[int]dto.TenantUsageCount, error) {
+	counts := make(map[int]dto.TenantUsageCount, len(tenantIDs))
+	if s == nil || s.quotaSvc == nil {
+		return counts, nil
+	}
+	for _, id := range tenantIDs {
+		users, ticketsThisMonth, err := s.quotaSvc.Counts(ctx, id)
+		if err != nil {
+			return nil, err
+		}
+		counts[id] = dto.TenantUsageCount{Users: users, TicketsThisMonth: ticketsThisMonth}
+	}
+	return counts, nil
+}
+
 // DeleteTenant 删除租户
 // 安全约束：走软删除以保留审计痕迹，状态置为 deleted。下游数据由后台清理任务接管，
 // 业务要求 上层调用在执行前必须确保租户已处于无活跃用户的状态，否则拒绝。

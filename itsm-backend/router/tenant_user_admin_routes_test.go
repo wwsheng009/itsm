@@ -41,6 +41,9 @@ func (stubTenantServiceForRoutes) DeleteTenant(context.Context, int) error      
 func (stubTenantServiceForRoutes) QuotaUsage(context.Context, int) (*dto.TenantQuotaUsageResponse, error) {
 	return nil, nil
 }
+func (stubTenantServiceForRoutes) UsageCounts(context.Context, []int) (map[int]dto.TenantUsageCount, error) {
+	return map[int]dto.TenantUsageCount{}, nil
+}
 
 // TestSetupRoutes_TenantUserAdminRoutes 路由契约（TUM-1/TUM-2）：
 // 读列表/详情（tenant:read） + 重置密码/启停/强制下线（tenant:write），挂 /tenants 组。

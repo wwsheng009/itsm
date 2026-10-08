@@ -379,7 +379,7 @@ export default function TenantManagement() {
             <Users className="w-4 h-4 mr-1 text-gray-400" />
             <span>{record.userCount || 0} 用户</span>
           </div>
-          <div className="text-xs text-gray-500">{record.ticketCount || 0} 工单</div>
+          <div className="text-xs text-gray-500">{record.ticketCount || 0} 本月工单</div>
         </div>
       ),
     },
