@@ -17,6 +17,7 @@
 | 编号（R/K/G/F/WB/REV/D/E/I/A/IP…）是什么意思 | [canon 附录 C](./plan/msp-concept-model-and-architecture-canon.md#附录-c跨文档一致性登记权威层级--编号注册表)（权威）＋本索引 §4（速查） |
 | 文档为什么改过、冲突怎么裁的 | [一致性审计](./plan/msp-docs-consistency-audit.md) |
 | 实测现状/缺口/排障 | [01–07](./README.md)（as-is）｜[三角色演练剧本](./plan/msp-three-persona-operation-simulation.md) |
+| 想按界面一步步操作（建服务商账号/分配到客户/进入客户） | [08 服务商账号与客户授权操作手册（用户级）](./08-msp-user-operations-manual.md) |
 | 想在浏览器一步步重现全链路业务 | [scenarios/ 场景目录](./scenarios/README.md)（建租户→开通→建号→分配→建单→协作→审计与反例，含验证命令） |
 
 ---
@@ -49,6 +50,7 @@
 | [05-usage-guide.md](./05-usage-guide.md) | L5 | 现状（2026-09-28） | 使用指南（as-is） | — |
 | [06-verification-and-troubleshooting.md](./06-verification-and-troubleshooting.md) | L5 | 现状（2026-09-28） | 验证与排障、验收清单 | — |
 | [07-known-gaps.md](./07-known-gaps.md) | L5 | 现状（2026-09-28） | 生产实测缺口（唯一 G 空间） | `G1–G10` |
+| [08-msp-user-operations-manual.md](./08-msp-user-operations-manual.md) | L5 | 当前（2026-10-08 实测） | **用户级操作手册**：建号→分配→深度切换→解除（界面逐步 + FAQ + C1/C2 附录） | — |
 | [msp-concept-model-and-architecture-canon.md](./plan/msp-concept-model-and-architecture-canon.md) | **L1** | **v1.0（定稿，增量修订至 v1.7）** | **概念与架构单一权威**：定义/边界/不变量/风险/验收/决策（v1.7：§2.3 切换面 vs 跨租户面边界表，MSW-6） | `R1–R12` `K1–K5` `D1–D11` `E1–E6` `I1–I13` `A1–A12` `B1–B6` |
 | [msp-target-architecture.md](./plan/msp-target-architecture.md) | L3 | Draft v0.3（P0/P1 契约冻结） | 目标态详细设计（membership/上下文/权限/建号/迁移） | — |
 | [msp-cross-customer-workbench-and-filter-plan.md](./plan/msp-cross-customer-workbench-and-filter-plan.md) | **L2** | Draft v0.2（P0 契约冻结） | 跨客户工作台 + 过滤器（**决策修订源**） | `WB1–WB6` `WB-R1–6` `WB-A1–6` `REV-1–5` |

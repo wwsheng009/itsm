@@ -31,9 +31,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **《08 · 服务商账号与客户授权操作手册（用户级）》（`docs/multi-tenant/08-msp-user-operations-manual.md`）** — 面向界面操作的逐步手册：平台建号（含 MSP 角色）→ 分配到客户（客户域 membership/C2 自动落地）→ 员工「进入客户」深度切换与菜单/边界验证 → 解除分配（fail-closed）；含联调账号表、菜单对照实测、审计自查命令、C1/C2 角色映射附录与 FAQ。INDEX §0/§2 已登记。
+
 - **《映射式多租户切换收口方案》（Membership + Switch，L4，v0.2 独立审查修订完成）** — 把"账号≠成员身份 + 映射式切换"从既有目标架构（canon I3/I5、目标架构 §3.2/§5.3、主方案 F7/F14/F15）收口到落地：现状核对 S1–S6（membership 表/权限单源/switch 会话/allocation/前端深度切换/跨租户面）；差距 MSW-1–6（**P0：建号与分配通道不写/不同步 membership → 切换后权限空窗**；切换授权仅 allocation；**生产无 membership 撤销面**；"返回工作台"不切回作用域且客户作用域下工作台必 403；真实双源＝请求期 RBAC 口径差；切换面/跨租户面边界未成文）；切换授权矩阵与边界决策表；批次 M1–M4 与验收 MSW-A1–A6；待决 MSW-Q1–Q4（Q4 已决）。独立审查（只读子代理）：needs-revision → 1 blocker + 7 major + 5 minor/nit 全处置（F-01–F-13，见方案 §8），修订后判定 ready-to-implement。
 
 ### Fixed
+
+- **分配管理「客户」列/解除确认显示为空（字段错配）** — 前端读取 `allocation.customerName`，而后端分配列表 DTO 字段为 `customerTenantName`，导致客户列为空、解除确认显示"对客户 undefined 的分配"；改为 `customerTenantName`（保留 `customerName` 兼容回退），类型定义同步（`itsm-frontend/src/types/msp.ts`）。浏览器实测：客户列=测试-客户、解除确认文案正确（2026-10-08 用户级手册全流程演练附带修复）。
 
 - **深度切换菜单不变化（客户租户 msp 角色基线 C2 未落库）** — 根因：实施计划 §3.0-C2「客户租户内 msp 角色基线 → 客户侧业务权限」未实现——客户租户的 `msp_*` 角色随 default 租户克隆落入的是 C1 跨租户码（`msp:*`），深度切换后菜单投影与 provider 作用域一致（admin-demo01 两侧均 5 个 MSP 项），表现为"切换后菜单没有变化"。修复：①`internal/authz` 新增 `MSPCustomerScopeRolePermissionCodes()`（C2 基线：`ticket:read/create/update/write、knowledge:read、cmdb:read、service_catalog:read` + 任务基线；manager +`user:write/report:read`；admin +`cmdb:write/change:write`；文档 "ticket:read/write" 按客户侧路由守卫展开为 create/update）；②`pkg/seeder.ProvisionTenant` 对客户类型租户（`msp_customer`/`saas_customer`）执行 C1→C2 对账（移除 C1 残留、补齐 C2、保留自定义；幂等），`validateTenantClone` 按 C2 验收。实跑：`provision_tenant -tenant-id 11` 后 admin-demo01 深度切换菜单由 5 个 MSP 项变为 15 个客户侧项（工单/知识库/CMDB/服务目录等），客户作用域下 `/msp/workbench` 403（符合 canon §2.3 边界）；测试 `internal/authz` + `tests/parity` + `pkg/seeder` 全绿。
 

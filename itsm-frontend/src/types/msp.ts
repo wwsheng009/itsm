@@ -17,6 +17,8 @@ export interface MSPAllocation {
   mspUserId: number;
   mspUsername?: string;
   customerTenantId: number;
+  // 后端 DTO 字段为 customerTenantName（customerName 为历史遗留，兼容读取）。
+  customerTenantName?: string;
   customerName?: string;
   role: AllocationRole;
   assignedAt: string;
