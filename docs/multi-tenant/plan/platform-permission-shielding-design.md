@@ -1,6 +1,6 @@
 # 平台面权限屏蔽与角色架构设计（Platform Permission Shielding & Role Architecture）
 
-> **状态**：v0.2（2026-10-08）——基于 IP-P2-7 收口补丁 1–4 的实施事实归纳与实弹验证回填（§7）；待办项与决策点见 §5/§6（新增 D4/R6：`saas_msp` 根租户类型与平台根判定冲突）
+> **状态**：v0.3（2026-10-08）——基于 IP-P2-7 收口补丁 1–5 的实施事实归纳与实弹验证回填（§7）；D4=B 已随补丁 5 落地、R6 收口（复测见 §7.4）；剩余待办与决策点见 §5/§6
 >
 > **上位（权威顺序）**：[canon](./msp-concept-model-and-architecture-canon.md)（D5/D8/D10/D11、§2.3）→ [目标架构 §6](./msp-target-architecture.md)（权限矩阵）→ [实施方案](./msp-implementation-plan.md)（IP-P2-7 批次）→ 本设计
 >
@@ -28,7 +28,7 @@
 
 ---
 
-## 2. 现状机制（已落地事实，截至补丁 4）
+## 2. 现状机制（已落地事实，截至补丁 5）
 
 ### 2.1 判定链
 
@@ -46,13 +46,14 @@
 |------|------|------|
 | 平台角色码 `super_admin` / `sysadmin` | `middleware.PlatformRoleCodes()/IsPlatformRole()` | 平台治理身份 |
 | MSP 专属角色码（`msp_*`、`provider_*` 等） | `middleware.MSPOnlyRoleCodes()/IsMSPOnlyRole()` | 服务商面角色 |
-| 租户类型 | `service/tenant_scope.go`（`tenantTypeOf`） | platform root（internal/standard）/ msp_provider / msp_customer |
+| 租户类型 | `service/tenant_scope.go`（`tenantTypeOf`） | platform root（internal/standard，或 `code=default` 根租户兜底）/ msp_provider / msp_customer |
 | 平台治理权限资源（`system`） | `service.role_service.go:platformGovernedPermissionResource` | 非平台根不可分配 |
 
-### 2.3 已收口的面（补丁 1–4）
+### 2.3 已收口的面（补丁 1–5）
 
 | 层 | 机制 | 落点 |
 |----|------|------|
+| 平台根判定 | 根租户标识叠加：`code=default` 兜底判为平台根（provider 语义仍按类型，不放大） | `service/tenant_scope.go`（`isPlatformRootTenant`，`platform_root_tenant_test.go`） |
 | 角色·可见性 | 按租户类型过滤列表/详情（客户隐平台+MSP、服务商隐平台、平台根不过滤；命中按"不存在"处理、`total` 收敛） | `RoleService`（`msp_role_visibility_test.go`） |
 | 角色·可授予 | 同口径拒绝（用户建号/编辑 + 建号通道 `roleIds`，422 `ROLE_NOT_GRANTABLE`） | `CanGrantRoles` / `GrantableRoles` |
 | 角色·可写 | 保留码全局拒绝（创建/改名；`ErrReservedRoleCode`→400） | `CreateRole/UpdateRole` |
@@ -153,7 +154,7 @@
 
 ## 5. 落地状态与待办
 
-### 5.1 已落地（补丁 1–4 + 守卫）
+### 5.1 已落地（补丁 1–5 + 守卫）
 
 | 项 | 内容 | 测试/守卫 |
 |----|------|-----------|
@@ -161,6 +162,7 @@
 | 补丁 2 | 用户建号/编辑通道拒绝不可授予角色（422 `ROLE_NOT_GRANTABLE`） | `service/user_provisioning_*_test.go`（角色校验子用例） |
 | 补丁 3 | 租户治理写面平台身份硬校验（handler 层）+ 通配权限三路径拒绝 | `handlers/tenant/*_test.go`、`role_config_bypass_guard_test.go` |
 | 补丁 4 | `middleware.RequirePlatformAdmin()`；`/ai` 管理组、运维命令、RLS 指标、定时器、权限词表写面挂 L1；`resource=system` 不可分配（`ErrPlatformPermissionForbidden`→400） | `middleware/require_platform_admin_test.go`（6 子用例）、`service/role_config_bypass_guard_test.go`（步骤 ⑤） |
+| 补丁 5 | 平台根判定叠加根租户标识（D4=B）：`code=default` 兜底判为平台根；拆分平台语义与 provider 语义调用点（`role_service`/`user_service`） | `service/platform_root_tenant_test.go`（谓词矩阵 + 调用点差分）、`tenant_scope.go` |
 | 防回退 | 写路由必须挂权限中间件（AST）；权限码必须在目录 | `router/route_permission_guard_test.go`、`router/permission_code_catalog_guard_test.go` |
 
 ### 5.2 待办
@@ -170,7 +172,6 @@
 | P0 | 存量租户权限目录处置 | 方向待决策（§6.1 D1）；本补丁后短期风险已由 L1+L2 覆盖 |
 | P1 | 前端展示层联动 | 角色权限选择器/用户角色下拉隐藏"不可分配项"，与后端 400 语义对齐（减少无谓失败） |
 | P1 | 平台家族码逐家族评估 | 当前仅 `resource=system` 硬拦截；`menu`/`system_config`/`mcp`/`federation`/`connector` 等家族逐个确认"是否任一平台面依赖该码"并纳入清单 |
-| P1 | 平台根判定口径收口（D4） | `saas_msp` 根租户（`code=default`，type=`msp_provider`）被类型判定当作服务商：平台角色不可见、`system:*` 分配 400（§7.3 F1/F2）；按 D4=B 实施"根租户标识叠加判定"，拆分平台语义与 provider 语义的调用点 |
 | P2 | 平台面路由自动化守卫 | 现有守卫覆盖"写路由必须有权限中间件"；建议扩展 AST 规则：平台面路由（前缀清单）必须同时挂 `RequirePlatformAdmin`，新增路由漏挂即 CI 失败 |
 | P2 | L3 数据面复核 | membership/allocation/RLS 的剩余缺口见对应专文（不在本设计范围） |
 
@@ -185,7 +186,7 @@
 | D1 | 存量权限目录中的平台码（`system:*` 等）如何处置 | A. 裁剪（逐租户删除平台家族码行）；B. 保留但不可分配（现状） | **B 先行、观察期后评估 A**：裁剪会改变历史角色→权限映射与审计可读性，且回滚成本高；保留+护栏已阻断攻击链 | 裁剪影响 `permissions` 表存量行、角色权限 m2m、前端目录展示 |
 | D2 | 平台治理判定是否下沉到 service（而非仅路由） | A. 维持路由层 L1；B. service 层再加身份校验 | **A**：service 层无调用者身份语义（且 `CreatePermission` 被 `InitDefaultPermissions` 内部调用），路由层是正确收口点；service 层只做分配护栏（按作用域租户类型） | 若未来出现非 HTTP 调用路径需单独评审 |
 | D3 | `RequirePlatformAdmin` 的判定口径 | A. 仅主角色；B. 主角色 + m2m 并集 | **B（已实现）**：与 `AuthorizeResource` 的 `GetContextRoles` 口径一致，避免切换/附加角色场景绕过 | — |
-| D4 | 平台根判定口径：仅类型判定（`internal`/`standard`）是否足够 | A. 维持类型判定；B. 叠加根租户标识（`tenants.code=default`）兜底，provider 语义仍按类型；C. 改 seeder 使 `saas_msp` 根租户保持 `internal` | **B**：`saas_msp` 模式根租户由 seeder 固定为 `msp_provider`（部署形态自检要求存在 provider 租户，且根租户即 MSP 服务商主体），类型判定使平台根丧失平台面（§7.3 实测）；B 不动 provider 语义，改动收敛在平台根谓词及其调用点 | 补丁 5：`tenant_scope.go` 谓词拆分 + `role_service`/`user_service` 调用点 + 测试；选 A 则 `saas_msp` 平台根功能降级为"仅 `super_admin` 直通" |
+| D4 | 平台根判定口径：仅类型判定（`internal`/`standard`）是否足够 | A. 维持类型判定；B. 叠加根租户标识（`tenants.code=default`）兜底，provider 语义仍按类型；C. 改 seeder 使 `saas_msp` 根租户保持 `internal` | **B（已实施，补丁 5，2026-10-08）**：`saas_msp` 模式根租户由 seeder 固定为 `msp_provider`（部署形态自检要求存在 provider 租户，且根租户即 MSP 服务商主体），类型判定使平台根丧失平台面（§7.3 实测）；B 不动 provider 语义，改动收敛在平台根谓词及其调用点 | 补丁 5（已落地）：`tenant_scope.go` 谓词拆分（`isPlatformRootTenant`/`tenantScopeOf`/`hiddenRoleCodesForTenant`）+ `role_service`/`user_service` 调用点 + `platform_root_tenant_test.go`；实弹复测见 §7.4；选 A 则 `saas_msp` 平台根功能降级为"仅 `super_admin` 直通" |
 
 ### 6.2 残余风险
 
@@ -196,7 +197,7 @@
 | R3 | `resource != system` 的平台家族码（`menu`/`system_config`/`mcp`/…）仍可分配 | 存在 | 逐家族评估（P1）；当前这些码对应的平台面路由均已挂 L1 或尚未服务于全局资源 |
 | R4 | 内部调用（`InitDefaultPermissions` 等）不经路由 | 已确认 | service 层不做身份拦截（D2）；仅分配护栏生效，内部调用默认可信（平台初始化路径） |
 | R5 | 前端角色页可勾选不可分配权限，提交后 400 | 存在 | P1 展示层联动 |
-| R6 | `saas_msp` 根租户被类型判定当作服务商租户 | 存在（§7.3 实测：根租户平台角色不可见、`system:*` 分配 400；`super_admin` 直通与 L1 不受影响，无越权扩大） | D4=B 补丁 5；期间平台码授予在 `internal`/`standard` 租户完成或经 `super_admin` 直通 |
+| R6 | `saas_msp` 根租户被类型判定当作服务商租户 | 已收口（补丁 5 落地 + §7.4 复测：平台角色可见、`system:write` 分配 200；补丁 4 时点观测见 §7.3） | D4=B 已实施：`isPlatformRootTenant` 根租户标识叠加判定；provider 语义仍按类型（不放大） |
 
 ---
 
@@ -222,17 +223,31 @@
 | 分配物 | 客户 11 | 平台根 1 |
 |--------|---------|----------|
 | 普通权限码 | ✅ 200 | ✅ 200 |
-| `system:write`（id=2194） | ⛔ 400（`ErrPlatformPermissionForbidden`） | ⛔ 400 ⚠️（预期 200，见 7.3 F1） |
+| `system:write`（id=2194） | ⛔ 400（`ErrPlatformPermissionForbidden`） | ⛔ 400 ⚠️（补丁 4 时点；补丁 5 复测转正 200，见 §7.4） |
 | 临时角色建/删 | ✅ 200 / ✅ 200 | ✅ 200 / ✅ 200 |
 | 残留 | 0 | 0 |
 
 客户权限目录 206 条（含 `system:write`），印证 §1.1「码＝能力」前提：目录含平台码，靠 L2 分配护栏阻断挂载。
 
-### 7.3 发现（登记 D4/R6，非本批次修复）
+### 7.3 发现（补丁 4 批次登记 D4/R6；已由补丁 5 修复，复测见 §7.4）
 
 - **F1**：平台根租户分配 `system:write` 被 400 拒绝（预期平台根放行）。
 - **F2**：平台根租户角色列表（total=34）不显示 `super_admin`/`sysadmin`（平台角色被隐藏）。
 - **根因**：`saas_msp` 模式 seeder 把根租户（`code=default`）类型固定为 `msp_provider`（`pkg/seeder/seeder.go:795`）；平台根谓词 `isPlatformRootTenantKind` 仅认 `internal`/`standard`（`service/tenant_scope.go:60`），根租户被判为服务商租户。
 - **影响面**：平台根的角色管理面（平台角色可见性、平台码授予）降级；`super_admin` 直通（L2 `*:*`）与 L1 身份判定不受影响，无越权扩大。
-- **处置**：D4 建议 B（根租户标识叠加判定），列入 §5.2 P1（补丁 5 候选）。
+- **处置**：D4 建议 B（根租户标识叠加判定）→ 补丁 5 已落地（§5.1），实弹复测转正见 §7.4。
+
+### 7.4 复测（补丁 5 后，2026-10-08，8090 重启二进制）
+
+> 脚本：`.dev/probe-root-tenant1-diff.ps1`（根租户差分：真实账号、临时角色用后即删、探测零残留）。
+
+| 探测项 | 结果（平台根 1：`code=default`/type=`msp_provider`） | 对应发现 |
+|--------|----------------------------------------------------------|----------|
+| 平台角色可见性（角色列表） | ✅ 显示 `100:super_admin`、`101:sysadmin` | F2 转正 |
+| `system:write`（id=2194）分配 | ✅ 200 | F1 转正 |
+| 普通权限码分配 | ✅ 200（未回归） | — |
+| 临时角色建 / 删 | ✅ 200 / ✅ 200 | — |
+| 残留 | 0 | — |
+
+判定：D4=B 生效——根租户（`code=default`）按平台根作用域恢复平台治理面（F1/F2 转正）；provider 语义仍按类型判定（不放大）；R6 关闭。
 
