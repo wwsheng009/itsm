@@ -311,7 +311,7 @@ flowchart TD
     F --> G[巡检: 无孤儿作用域<br/>客户单作用域约束保持]
 ```
 
-- **当前状态**：🟡 `Deactivate` 置 `deassigned_at`（`service/msp_allocation_service.go:196-209`），但**无审计、无用户停用/离职编排**；前端调用的 `/api/v1/msp/allocations/history` 后端不存在。
+- **当前状态**：🟡 `Deactivate` 置 `deassigned_at`（`service/msp_allocation_service.go`），但**无审计、无用户停用/离职编排**；`/api/v1/msp/allocations/history` **已补齐（2026-10-08）**（含已解除记录；员工仅本人 / provider_admin 全 provider）。
 - **异常**：回收后旧会话仍有效 → 由每次请求的 membership 复核拦截（R2）；退租期数据导出/保留 → 按合规策略。
 
 ---

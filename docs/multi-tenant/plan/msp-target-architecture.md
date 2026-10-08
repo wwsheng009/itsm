@@ -318,7 +318,7 @@ Allow = AuthN
 | `POST /api/v1/auth/register` | 角色白名单（修 F3） | P0 |
 | `POST /api/v1/users`（扩展）/ `POST /api/v1/tenants/:id/users` / `POST /api/v1/msp/customers/:id/users` | 建号三通道（§6.1），走 `ProvisionUser` 收口 | P0 |
 | `POST /api/v1/users/invitations`、`GET/POST /api/v1/auth/invitations/:token` | 邀请创建/落地页（P1-1） | P1 |
-| `GET /api/v1/msp/allocations/history` | 补齐前端已调用但后端缺失的端点 | P1 |
+| `GET /api/v1/msp/allocations/history` | **已补齐（2026-10-08）**：`ListHistoryForCaller`（含已解除记录；员工仅本人 / provider_admin 全 provider；`mspUserId`/`customerTenantId`/assignedAt 日期区间，endDate 含当日）+ 路由（`msp_allocation:read`）；`api-contract` 测试转绿 | P1 ✅ |
 | 事件目录/通知 | 邀请/密码重置/安全告警走平台 SMTP（见通知方案） | P0/P1 |
 
 ---
