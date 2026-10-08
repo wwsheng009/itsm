@@ -6,7 +6,7 @@
 >
 > **关联**：守卫矩阵见 §5；`CHANGELOG.md`；[建号角色多选方案](./msp-provision-user-roles-multiselect-plan.md)（建号通道过滤）
 >
-> **状态**：v0.1（2026-10-08）——扩展纪律与平台家族码评估结论（§2.2）落定；平台面守卫 / 清单化随补丁 6 落地（§5）
+> **状态**：v0.2（2026-10-08）——扩展纪律与平台家族码评估结论（§2.2）落定；R2 守卫与 R3 清单化已随补丁 6 落地（§5）
 
 ---
 
@@ -99,8 +99,8 @@
 | 角色三一致矩阵 | `service/msp_role_visibility_test.go` | ✅ |
 | 保留码 / 通配 / 平台码三路径拒绝 | `service/role_config_bypass_guard_test.go` | ✅ |
 | 平台根谓词 + 调用点 | `service/platform_root_tenant_test.go` | ✅ |
-| 平台面路由必须挂 L1 | `router/platform_face_guard_test.go`（补丁 6） | 🚧 |
-| 平台家族码清单锁 | `service` 集合 + 本清单 §2.2（补丁 6） | 🚧 |
+| 平台面路由必须挂 L1 | `router/platform_face_guard_test.go`（补丁 6：注册表 + 反向前缀 + handler 级登记） | ✅ |
+| 平台家族码清单锁 | `service/role_service.go` 集合 + 决策锁用例 + 本清单 §2.2（补丁 6） | ✅ |
 | 角色码归类完整性（如 `msp_` 前缀 ⊆ MSP 词表） | 建议新增（扫描角色码定义源） | ⏳ 建议 |
 
 ## 6. 评审流程（怎么用本清单）
