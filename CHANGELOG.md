@@ -37,6 +37,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **`service` 包 BPMN 业务流夹具固定 DSN（测试基建）** — `bizTestClient` 使用固定 DSN（`file:biz_<name>?mode=memory&cache=shared`），同进程同名夹具/`-count>1` 复跑时命中残留内存库，偶发 `tenants.code` 冲突（`TestBiz_ListProcessInstancesByTenant` 等）。改为复用既有唯一 DSN 范式（`uniqueTestDSN`，与 `svc_test` 共用原子计数），消除跨用例/跨复跑的库共享；全量 `./service/` 通过。注：同用例内 `process_instances.process_instance_id` 偶发同 tick 撞号（纳秒 ID 生成）为独立问题，另行观察（`-count>1` 可复现）。
+
 - **分配管理「客户」列/解除确认显示为空（字段错配）** — 前端读取 `allocation.customerName`，而后端分配列表 DTO 字段为 `customerTenantName`，导致客户列为空、解除确认显示"对客户 undefined 的分配"；改为 `customerTenantName`（保留 `customerName` 兼容回退），类型定义同步（`itsm-frontend/src/types/msp.ts`）。浏览器实测：客户列=测试-客户、解除确认文案正确（2026-10-08 用户级手册全流程演练附带修复）。
 
 - **深度切换菜单不变化（客户租户 msp 角色基线 C2 未落库）** — 根因：实施计划 §3.0-C2「客户租户内 msp 角色基线 → 客户侧业务权限」未实现——客户租户的 `msp_*` 角色随 default 租户克隆落入的是 C1 跨租户码（`msp:*`），深度切换后菜单投影与 provider 作用域一致（admin-demo01 两侧均 5 个 MSP 项），表现为"切换后菜单没有变化"。修复：①`internal/authz` 新增 `MSPCustomerScopeRolePermissionCodes()`（C2 基线：`ticket:read/create/update/write、knowledge:read、cmdb:read、service_catalog:read` + 任务基线；manager +`user:write/report:read`；admin +`cmdb:write/change:write`；文档 "ticket:read/write" 按客户侧路由守卫展开为 create/update）；②`pkg/seeder.ProvisionTenant` 对客户类型租户（`msp_customer`/`saas_customer`）执行 C1→C2 对账（移除 C1 残留、补齐 C2、保留自定义；幂等），`validateTenantClone` 按 C2 验收。实跑：`provision_tenant -tenant-id 11` 后 admin-demo01 深度切换菜单由 5 个 MSP 项变为 15 个客户侧项（工单/知识库/CMDB/服务目录等），客户作用域下 `/msp/workbench` 403（符合 canon §2.3 边界）；测试 `internal/authz` + `tests/parity` + `pkg/seeder` 全绿。
@@ -44,6 +46,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **深度切换体验（MSW-A5）回归修复** — ①后端 `/auth/me` 归属租户契约（scenarios/10 §2）：`tenantId` 改为当前 JWT 作用域（切换后=目标租户）、`homeTenantId` 恒为归属租户；此前两者均取 `users.tenant_id`，刷新/会话引导后作用域被回退到 home，表现为深度态指示消失、目标域菜单不出现；②前端「进入客户」切换成功后落点由公开落地页 `/` 修复为登录后主页 `/dashboard`（此前切换成功但界面看不到深度态）。测试：`handlers/auth`（MSW-4 契约断言：`tenantId=目标租户/homeTenantId=归属租户`）、`CustomerFilter`（进入客户导航回归）全绿；浏览器实测：进入客户→`/dashboard` 深度态指示 + 目标域菜单 + `/auth/me` = `tenantId:11 / homeTenantId:10`。
 
 ### Changed
+
+- **建号通道开关 `USER_PROVISIONING_CHANNELS_ENABLED` 默认开启（2026-10-08）** — 由"默认关（灰度）"改为"未设置/空/无法识别即开启；显式 `false/0/no/off`（大小写/空白容忍）才关闭回滚"（`service/user_provisioning.go` 新增 `channelsEnabledFromEnv` + 单测 `TestChannelsEnabledFromEnv`；`SetChannelsEnabled` 覆盖语义不变）。**联调实测（用户级手册 §3 通道）**：`.env` 注释显式行（进程内无此变量）重启 → 平台建号通道开放（重名建号 `409 USERNAME_EXISTS`，非 404）；显式 `false` 重启 → `404 PROVISIONING_CHANNELS_DISABLED`（回滚有效）；恢复默认后 `409` 复绿。文档同步：02 §3.1 开关登记默认值与 §10.2 初始化步骤、scenarios 00/04 前置、08 用户手册 §3 前置、MSP 验收脚本注释。
 
 - **MSW-FU-1 实施：存量 membership 回填修复器（重放 20260504 回填 1/2 语义）** — 新增 `service/membership_backfill.go` + `cmd/backfill_membership`：活跃账号缺 home / 活跃分配缺客户作用域 → 复用 `MembershipSyncService` 幂等创建（`source=home`/`allocation` + `membership.sync` 审计）；异源存活行不覆盖（记 conflicts）；默认 dry-run，`-apply` 写库，`-reconcile` 校正同源 `role_id`/`account_kind`/`status` 漂移，`-json` 报告，Errors>0 退出码 1。口径修正：`accountKindForHome` 对 super_admin 固定 platform（canon D5，与巡检 `expectedKind` 同口径）。测试：`service/membership_backfill_test.go` 3 例（dry-run 零写入 / apply 补齐 / reconcile 校正 / 二次执行幂等无重复审计 / 异源不覆盖 / super_admin 口径），含"构造缺失 + `role_id` 空漂移 → 回填 → `membershipcheck` 0 漂移"闭环。**联调库实跑（.dev SSH 隧道 → `itsm_prod`）**：dry-run 31 home + 5 allocation → `-apply`（memberships 38→74，+36 审计）→ `cmd/provision_tenant -tenant-id 2` 供给缺失角色字典（36 角色）→ `-reconcile` 校正 → 巡检 **FAIL 36→0**（WARN 3→2，tenant 1 E2E 遗留 invite 账号为接受观察项）；报告刷新 `.dev/membership-drift-report.{txt,json}`。方案 v0.8。
 

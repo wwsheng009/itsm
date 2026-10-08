@@ -171,3 +171,29 @@ func TestProvisioningService_Channels(t *testing.T) {
 		assert.Equal(t, 404, pe.Status)
 	})
 }
+
+// TestChannelsEnabledFromEnv 锁定 USER_PROVISIONING_CHANNELS_ENABLED 解析（2026-10-08 起默认开）：
+// 未设置/空/无法识别 → 开；显式 false/0/no/off（含大小写与空白）→ 关。
+func TestChannelsEnabledFromEnv(t *testing.T) {
+	cases := []struct {
+		raw  string
+		want bool
+	}{
+		{"", true},
+		{"true", true},
+		{"TRUE", true},
+		{"1", true},
+		{"yes", true},
+		{"on", true},
+		{"whatever", true},
+		{"false", false},
+		{"False", false},
+		{"0", false},
+		{"no", false},
+		{"off", false},
+		{" OFF ", false},
+	}
+	for _, c := range cases {
+		assert.Equal(t, c.want, channelsEnabledFromEnv(c.raw), "raw=%q", c.raw)
+	}
+}

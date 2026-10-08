@@ -15,7 +15,7 @@
 | C 租户通道 | `/admin/users` → **「新建用户」** | 租户内管理员 | 本租户 | 扩展（按 §5 执行） |
 | D 邀请通道 | `/admin/users` → **「邀请用户」** | 租户内管理员 | 本租户（邀请受理） | 扩展（按 §6 执行） |
 
-> 前置开关：后端需 `USER_PROVISIONING_CHANNELS_ENABLED=true`（见 [00 §2](./00-environment-and-accounts.md)），否则跨租户通道不可用。
+> 前置开关：后端建号通道**默认开启**（2026-10-08 起；未设置/空即开，见 [00 §2](./00-environment-and-accounts.md)）；显式 `USER_PROVISIONING_CHANNELS_ENABLED=false` 才关闭，关闭时跨租户通道返回 404。
 
 ## 2. 通道 A · 平台建号（含服务商员工 MSP 角色）
 

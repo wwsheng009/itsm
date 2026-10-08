@@ -1277,7 +1277,7 @@ func NewApplication() *Application {
 	userService := service.NewUserService(client, sugar)
 	userHTTPHandler := userHandler.NewHandler(userService, sugar)
 	// IP-P0-5 建号通道收口：ProvisioningService 注入 user handler；
-	// 灰度开关 USER_PROVISIONING_CHANNELS_ENABLED（默认关，关闭时可回退 legacy 建号逻辑）。
+	// 开关 USER_PROVISIONING_CHANNELS_ENABLED（默认开；显式 false/0/no/off 回退 legacy 建号逻辑）。
 	userProvisioningService := service.NewUserProvisioningService(client, userService, sugar)
 	userHTTPHandler.SetProvisioningService(userProvisioningService)
 	// IP-P2-6：三通道建号纳入租户硬配额（maxUsers）。

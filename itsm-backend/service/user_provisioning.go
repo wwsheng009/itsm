@@ -96,7 +96,8 @@ type UserProvisioningService struct {
 }
 
 // NewUserProvisioningService 构造建号收口服务。
-// 灰度开关：环境变量 USER_PROVISIONING_CHANNELS_ENABLED=true 时开启（默认关，可回退）；
+// 开关：USER_PROVISIONING_CHANNELS_ENABLED **默认开启**（未设置/空/无法识别视为开启，
+// 2026-10-08 起与手册/部署文档一致）；显式 false/0/no/off 可回滚关闭；
 // 也可用 SetChannelsEnabled 显式覆盖（测试/按租户灰度）。
 func NewUserProvisioningService(client *ent.Client, users *UserService, logger *zap.SugaredLogger) *UserProvisioningService {
 	return &UserProvisioningService{
@@ -104,8 +105,20 @@ func NewUserProvisioningService(client *ent.Client, users *UserService, logger *
 		users:           users,
 		checker:         mspguard.New(client),
 		logger:          logger,
-		channelsEnabled: strings.EqualFold(os.Getenv("USER_PROVISIONING_CHANNELS_ENABLED"), "true"),
+		channelsEnabled: channelsEnabledFromEnv(os.Getenv("USER_PROVISIONING_CHANNELS_ENABLED")),
 		membershipSync:  NewMembershipSyncService(client, logger),
+	}
+}
+
+// channelsEnabledFromEnv 解析建号通道开关（默认开）：
+//   - 未设置 / 空 / 无法识别 → true（开箱可用）；
+//   - false / 0 / no / off（大小写不敏感，容忍空白）→ false（显式回滚关闭）。
+func channelsEnabledFromEnv(raw string) bool {
+	switch strings.ToLower(strings.TrimSpace(raw)) {
+	case "false", "0", "no", "off":
+		return false
+	default:
+		return true
 	}
 }
 

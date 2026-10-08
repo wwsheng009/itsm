@@ -3,7 +3,7 @@
 # MSP 多租户业务验收脚本（本机实际业务闭环，从操作者出发）
 #
 # 设计文档：docs/multi-tenant/plan/msp-multi-tenant-business-acceptance-design.md
-# 运行前置：saas_msp 实例（:8090）+ USER_PROVISIONING_CHANNELS_ENABLED=true
+# 运行前置：saas_msp 实例（:8090）；建号通道默认开启（仅显式 USER_PROVISIONING_CHANNELS_ENABLED=false 时关闭）
 #
 # 场景组（执行顺序见注释，非文档分组顺序）：
 #   E  环境与拓扑

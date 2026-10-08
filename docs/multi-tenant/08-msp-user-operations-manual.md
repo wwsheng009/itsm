@@ -46,7 +46,7 @@ provider 租户内建员工账号      →    把员工分配到客户租户    
 
 ## 3. 场景 A：创建服务商员工账号（平台建号）
 
-**前置**：平台 `super_admin` 账号（接口要求 `tenant:write`）；后端需开启建号通道 `USER_PROVISIONING_CHANNELS_ENABLED=true`（默认关，未开启时建号报"建号通道未开启（USER_PROVISIONING_CHANNELS_ENABLED）"）。
+**前置**：平台 `super_admin` 账号（接口要求 `tenant:write`）；建号通道 `USER_PROVISIONING_CHANNELS_ENABLED` **默认开启**（2026-10-08 起，无需设置；仅显式 `false/0/no/off` 时关闭，关闭后建号报"建号通道未开启（USER_PROVISIONING_CHANNELS_ENABLED）"）。
 
 | # | 操作 | 预期反馈 |
 |---|---|---|

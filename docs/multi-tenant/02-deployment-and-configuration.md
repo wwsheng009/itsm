@@ -47,7 +47,7 @@
 | 开关 | 默认 | 作用 | Owner | 退出/到期计划 |
 |---|---|---|---|---|
 | `AUTHZ_STATIC_FALLBACK` | `false` | membership 缺失 / `role_id` 空时回退编译期静态 RolePermissions（迁移窗口专用；每次回退记 Warn） | 权限域（W6 Membership 批次） | IP-P1 收敛后删除：全量回填 + 巡检 FAIL=0 + 观察窗后移除代码路径（M4 登记） |
-| `USER_PROVISIONING_CHANNELS_ENABLED` | `false` | 平台/MSP 建号写通道灰度；关闭时回退 legacy 建号逻辑 | 账号域（W6） | 通道稳定（含 membership 同步）后默认开启并删除开关 |
+| `USER_PROVISIONING_CHANNELS_ENABLED` | `true`（2026-10-08 起默认开） | 平台/MSP 建号写通道；未设置/空即开启，显式 `false`/`0`/`no`/`off` 回退 legacy 建号逻辑（404 通道未开启） | 账号域（W6） | 通道已默认开启（含 membership 同步）；后续删除开关 |
 | `TENANT_USER_ADMIN_ENABLED` | `false` | 平台侧租户用户管理写通道灰度（重置/启停/强制下线；首管重置豁免） | 平台治理域（TUM） | TUM-7 收口后评估默认开启（审计+通知闭环已就绪） |
 | `WORKBENCH_VIEWS_ENABLED` | `false` | 工作台自定义视图（保存过滤器组合 + 同 provider 分享）灰度 | MSP 工作台域（IP-P2-4a） | 视图稳定后默认开启 |
 | `MCP_ENABLED` / `MCP_WRITE_ENABLED` | `false` | MCP 读/写通道灰度（写通道另行审计与白名单） | AI/MCP 域 | 见 MCP 安全评估（独立登记，不随多租户批次） |
@@ -157,7 +157,7 @@ bash setup-msp-tenants.sh
 | 3 | 创建 `msp_provider` + `msp_customer` 租户（含 `parentTenantId` / `mspProviderId` 绑定） | 场景骨架 |
 | 4 | 对每个新租户执行 `provision_tenant -tenant-id <ID> -template-version 1.0.0` | 克隆 roles/permissions/menus/groups/SLA/CI 类型等模板 |
 | 5 | 为 provider 租户 `msp_manager` / `msp_tech` / `msp_viewer` / `msp_specialist` 写 `role_permissions` | DB 权威模式下角色无权限行即 fail-closed（G6） |
-| 6 | 用 SQL + pgcrypto 创建各租户首个用户 | **`07:G1`/`07:G2` 均已关闭（2026-09-30）**：平台/MSP 可经 API 建号（`POST /api/v1/tenants/:id/users`、`POST /api/v1/msp/customers/:id/users`，需开启 `USER_PROVISIONING_CHANNELS_ENABLED`）；首个管理员走 `cmd/initialize -tenant-id/-tenant-code`（bootstrap token，账号策略 `admin-<tenantCode>`）或 `provision_tenant -create-admin`；首登强制改密经 `/api/v1/auth/change-password` |
+| 6 | 用 SQL + pgcrypto 创建各租户首个用户 | **`07:G1`/`07:G2` 均已关闭（2026-09-30）**：平台/MSP 可经 API 建号（`POST /api/v1/tenants/:id/users`、`POST /api/v1/msp/customers/:id/users`；建号通道默认开启，显式 `USER_PROVISIONING_CHANNELS_ENABLED=false` 才关闭）；首个管理员走 `cmd/initialize -tenant-id/-tenant-code`（bootstrap token，账号策略 `admin-<tenantCode>`）或 `provision_tenant -create-admin`；首登强制改密经 `/api/v1/auth/change-password` |
 | 7 | 由 mspadmin 的 MSP token 调 `POST /api/v1/msp/allocations` 建立分配 | 验证 MSP 分配链路 |
 | 8 | 隔离性探针（06 文档 §7.2） | 验收证据 |
 

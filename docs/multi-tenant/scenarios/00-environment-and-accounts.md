@@ -20,7 +20,7 @@
 cd E:\projects\itsm\itsm-backend
 go build -o main.exe .
 $env:DEPLOYMENT_MODE = 'saas_msp'                 # 必须：否则 /api/v1/msp/* 整族 404
-$env:USER_PROVISIONING_CHANNELS_ENABLED = 'true'  # 跨租户建号通道开关
+# $env:USER_PROVISIONING_CHANNELS_ENABLED = 'false'  # 如需回滚关闭建号通道（默认已开启，无需设置）
 $env:RLS_MODE = 'off'                             # 演练用；灰度期可为 shadow / enforce
 $env:LOG_LEVEL = 'info'
 .\main.exe
