@@ -1,6 +1,6 @@
 # 平台面权限屏蔽与角色架构设计（Platform Permission Shielding & Role Architecture）
 
-> **状态**：v0.4（2026-10-08）——基于 IP-P2-7 收口补丁 1–6 的实施事实归纳与实弹验证回填（§7）；D4=B/R6 与 R2/R3 均已收口（补丁 5/6）；剩余待办与决策点见 §5/§6
+> **状态**：v0.5（2026-10-08）——基于 IP-P2-7 收口补丁 1–7 的实施事实归纳与实弹验证回填（§7）；D4=B/R6、R2/R3 与角色码归类守卫均已收口（补丁 5/6/7）；剩余待办与决策点见 §5/§6
 >
 > **上位（权威顺序）**：[canon](./msp-concept-model-and-architecture-canon.md)（D5/D8/D10/D11、§2.3）→ [目标架构 §6](./msp-target-architecture.md)（权限矩阵）→ [实施方案](./msp-implementation-plan.md)（IP-P2-7 批次）→ 本设计
 >
@@ -61,7 +61,7 @@
 | 权限·平台码 | `platformGovernedPermissionResources`（评估结论 `{system}`）不可分配（`ErrPlatformPermissionForbidden`→400） | `ensureAssignablePermissionsForNonPlatformRoot` |
 | 权限·词表所有权 | 权限创建/init 路由仅平台（`RequirePlatformAdmin` + `role:write`） | `common_system_routes.go` |
 | 平台面硬校验 | `middleware.RequirePlatformAdmin()`：身份层判定（主角色+m2m 并集），与码无关 | 租户治理写面、LLM 实例管理、运维命令、RLS 指标、定时器 |
-| 防回退守卫 | 写路由必须挂权限中间件（AST 扫描）；权限码必须在目录；平台守卫单测；平台面路由 L1 注册表（补丁 6） | `route_permission_guard_test.go`、`permission_code_catalog_guard_test.go`、`require_platform_admin_test.go`、`platform_face_guard_test.go` |
+| 防回退守卫 | 写路由必须挂权限中间件（AST 扫描）；权限码必须在目录；平台守卫单测；平台面路由 L1 注册表（补丁 6）；角色码归类（补丁 7） | `route_permission_guard_test.go`、`permission_code_catalog_guard_test.go`、`require_platform_admin_test.go`、`platform_face_guard_test.go`、`role_code_classification_guard_test.go` |
 
 
 ---
@@ -156,7 +156,7 @@
 
 ## 5. 落地状态与待办
 
-### 5.1 已落地（补丁 1–6 + 守卫）
+### 5.1 已落地（补丁 1–7 + 守卫）
 
 | 项 | 内容 | 测试/守卫 |
 |----|------|-----------|
@@ -166,6 +166,7 @@
 | 补丁 4 | `middleware.RequirePlatformAdmin()`；`/ai` 管理组、运维命令、RLS 指标、定时器、权限词表写面挂 L1；`resource=system` 不可分配（`ErrPlatformPermissionForbidden`→400） | `middleware/require_platform_admin_test.go`（6 子用例）、`service/role_config_bypass_guard_test.go`（步骤 ⑤） |
 | 补丁 5 | 平台根判定叠加根租户标识（D4=B）：`code=default` 兜底判为平台根；拆分平台语义与 provider 语义调用点（`role_service`/`user_service`） | `service/platform_root_tenant_test.go`（谓词矩阵 + 调用点差分）、`tenant_scope.go` |
 | 补丁 6 | 扩展护栏（R2/R3 收口）：平台面路由 L1 注册表守卫（AST：注册表 + 反向前缀 + handler 级登记）；平台家族码逐家族评估（仅 `system` 纳入；机制改显式集合 + 决策锁） | `router/platform_face_guard_test.go`、`service/role_config_bypass_guard_test.go`（决策锁）、[扩展评审清单](./role-permission-extension-checklist.md) §2.2 |
+| 补丁 7 | 角色码归类完整性守卫（P2 收口）：`msp_`/`provider_` 前缀 ⊆ MSP 词表、平台保留码、词表反防腐化、兜底表键归类（遗留白名单 `security` 登记为待收敛） | `pkg/seeder/role_code_classification_guard_test.go`（可失败性已验证） |
 | 防回退 | 写路由必须挂权限中间件（AST）；权限码必须在目录 | `router/route_permission_guard_test.go`、`router/permission_code_catalog_guard_test.go` |
 
 ### 5.2 待办
@@ -174,7 +175,6 @@
 |--------|------|------|
 | P0 | 存量租户权限目录处置 | 方向待决策（§6.1 D1）；本补丁后短期风险已由 L1+L2 覆盖 |
 | P1 | 前端展示层联动 | 角色权限选择器/用户角色下拉隐藏"不可分配项"，与后端 400 语义对齐（减少无谓失败） |
-| P2 | 角色码归类完整性守卫（建议） | 新增角色码"漏登记词表 → 按租户本地角色放行"暂无自动守卫；建议扫描角色码定义源（如 `msp_` 前缀 ⊆ MSP 词表），见扩展评审清单 §5 |
 | P2 | L3 数据面复核 | membership/allocation/RLS 的剩余缺口见对应专文（不在本设计范围） |
 
 ---

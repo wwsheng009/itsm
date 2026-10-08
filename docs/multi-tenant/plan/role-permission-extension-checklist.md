@@ -6,7 +6,7 @@
 >
 > **关联**：守卫矩阵见 §5；`CHANGELOG.md`；[建号角色多选方案](./msp-provision-user-roles-multiselect-plan.md)（建号通道过滤）
 >
-> **状态**：v0.2（2026-10-08）——扩展纪律与平台家族码评估结论（§2.2）落定；R2 守卫与 R3 清单化已随补丁 6 落地（§5）
+> **状态**：v0.3（2026-10-08）——扩展纪律与平台家族码评估结论（§2.2）落定；R2 守卫、R3 清单化与角色码归类守卫（补丁 6/7）均已落地（§5）
 
 ---
 
@@ -43,7 +43,7 @@
 
 - 漏登记平台/MSP 词表 → 按"租户本地角色"默认放行：客户侧可见、可授（**扩张**）。
 - 漏 rank 映射 → 建号 rank 上限与主角色派生按 0 处理（行为异常）。
-- ⚠️ **现状缺口**："新角色码未归类"暂无自动守卫（建议见 §5 待办）；靠评审 + 用例覆盖。
+- ✅ **守卫（补丁 7）**：`pkg/seeder/role_code_classification_guard_test.go`——`msp_`/`provider_` 前缀 ⊆ MSP 词表、平台保留码、词表反防腐化、兜底表键归类（含遗留白名单 `legacyFallbackRoleKeys`；历史键 `security` 登记为待收敛项）。
 
 ## 2. 新增权限（Permission Code）
 
@@ -101,7 +101,7 @@
 | 平台根谓词 + 调用点 | `service/platform_root_tenant_test.go` | ✅ |
 | 平台面路由必须挂 L1 | `router/platform_face_guard_test.go`（补丁 6：注册表 + 反向前缀 + handler 级登记） | ✅ |
 | 平台家族码清单锁 | `service/role_service.go` 集合 + 决策锁用例 + 本清单 §2.2（补丁 6） | ✅ |
-| 角色码归类完整性（如 `msp_` 前缀 ⊆ MSP 词表） | 建议新增（扫描角色码定义源） | ⏳ 建议 |
+| 角色码归类完整性（`msp_`/`provider_` 前缀 ⊆ MSP 词表；兜底表键归类） | `pkg/seeder/role_code_classification_guard_test.go`（补丁 7，可失败性已验证） | ✅ |
 
 ## 6. 评审流程（怎么用本清单）
 
