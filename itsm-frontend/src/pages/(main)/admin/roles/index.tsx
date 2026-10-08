@@ -173,7 +173,10 @@ export default function RoleManagement() {
       const catalog = await RoleAPI.getPermissionCatalog();
       setPermissionCatalog(catalog);
       setAvailablePermissions(catalog.map(p => p.code));
-      const modules = derivePermissionModules(catalog, t);
+      // 不可分配项（通配/平台治理家族，后端 assignable=false）不进入选择矩阵——与写面护栏同口径，
+      // 避免“勾选即 400”；已授予的不可分配码由权限配置页提示（保存时不保留）。
+      const assignableCatalog = catalog.filter(p => p.assignable !== false);
+      const modules = derivePermissionModules(assignableCatalog, t);
       setPermissionModules(modules);
       if (modules.length === 0) {
         setPermissionsError(t('roles.permissionsEmpty'));
@@ -395,6 +398,12 @@ export default function RoleManagement() {
     },
   ];
 
+  // 已授予但当前租户不可分配的权限码（平台治理/通配；补丁 8）：不在矩阵中提供勾选，保存时不保留。
+  const catalogByCode = new Map(permissionCatalog.map(p => [p.code, p]));
+  const lockedPermissionCodes = (selectedRole?.permissions || []).filter(
+    code => catalogByCode.get(code)?.assignable === false
+  );
+
   // 权限配置标签页
   const PermissionConfigTab = () => (
     <div className="space-y-6">
@@ -404,6 +413,15 @@ export default function RoleManagement() {
         type="info"
         showIcon
       />
+
+      {lockedPermissionCodes.length > 0 && (
+        <Alert
+          message={t('roles.platformGovernedNotice', { n: lockedPermissionCodes.length })}
+          description={lockedPermissionCodes.join('、')}
+          type="warning"
+          showIcon
+        />
+      )}
 
       {permissionsError && (
         <Alert

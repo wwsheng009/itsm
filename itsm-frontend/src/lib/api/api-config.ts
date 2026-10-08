@@ -440,6 +440,8 @@ export interface PermissionCatalogItem {
   description?: string;
   resource: string;
   action: string;
+  /** 当前租户是否可分配该权限码（通配/平台治理家族在非平台根为 false；IP-P2-7 收口补丁 8）。 */
+  assignable?: boolean;
   tenantId?: number;
   createdAt?: string;
   updatedAt?: string;
