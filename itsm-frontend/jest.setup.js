@@ -1,3 +1,10 @@
+// 测试确定性（2026-10-08）：仓库假定 jest 运行于 NODE_ENV=test（env.test.ts 注释与
+// tools/babel-plugin-import-meta-env.cjs 的 `import.meta.env.MODE → NODE_ENV` 映射均以此为前提）。
+// jest 只在变量未设置时才默认 test；本地 shell 若预置 NODE_ENV=development（dev 工具链导出），
+// MODE 解析会错位（isTest=false / isDevelopment=true）并诱发环境性红。这里统一收敛，与 CI 一致；
+// 需要切换分支的用例仍可按迁移说明在测试内动态改写 process.env.NODE_ENV。
+process.env.NODE_ENV = 'test';
+
 import '@testing-library/jest-dom';
 
 // Mock dayjs - required for Ant Design DatePicker

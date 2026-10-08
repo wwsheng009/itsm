@@ -220,7 +220,11 @@ export const devTools = {
 
   // 开发环境性能标记
   mark: (name: string) => {
-    if (env.isDevelopment && typeof window !== 'undefined' && window.performance) {
+    if (
+      env.isDevelopment &&
+      typeof window !== 'undefined' &&
+      typeof window.performance?.mark === 'function'
+    ) {
       window.performance.mark(name);
     }
   },

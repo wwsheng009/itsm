@@ -39,6 +39,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **前端测试环境收敛：2 个环境诱发存量红清零（前端全量 4118 通过 / 0 失败）** — 根因：本地 shell 预置 `NODE_ENV=development`（jest 不覆盖已设置值），经 `tools/babel-plugin-import-meta-env.cjs` 的 `import.meta.env.MODE → NODE_ENV` 映射错位为 `isTest=false`/`isDevelopment=true`，诱发 `unified-config`（isTest 断言）与 `env`（jsdom 无 `performance.mark`）两套件红；CI（NODE_ENV 未设置 → jest 默认 test）本不受影响。修复：`jest.setup.js` 统一收敛 `process.env.NODE_ENV='test'`（与 CI 一致；测试内动态改写分支仍可用）；`devTools.mark` 增加 `typeof performance.mark === 'function'` 防御。验证：全量 jest 4118 通过、`tsc -b` 0、eslint 0。
+
 - **MSP 分配历史端点补齐：`GET /api/v1/msp/allocations/history`（契约漂移修复；target-architecture §8 P1）** — 前端 `/msp` 页分配历史此前调用后端不存在的端点（仓库 `api-contract` 测试报 1 real contract drift）。补齐：service `ListHistoryForCaller`（含已解除记录；作用域与 `ListForCaller` 同口径：provider_admin 全 provider、员工仅本人；支持 `mspUserId`/`customerTenantId`/assignedAt 日期区间过滤，endDate 含当日；展示名批量 system 作用域解析避免 N+1）+ handler `GetAllocationHistory` + 路由（`msp_allocation:read`）。测试：`TestGetAllocationHistory_ScopeAndFilters`（作用域/过滤/含已解除/400）；`api-contract` 转绿（0 mismatches；2 条动态 base 解析器缺口按约定登记 `KNOWN_UNMATCHED_FRONTEND_PATHS`）。前端全量 jest 4116 通过（剩余 2 个存量失败：env/unified-config 环境项）。
 
 - **用户角色下拉 rank 收口：`GET /roles` `grantable` 标注（IP-P2-7 收口补丁 9；§5.2 P1 剩余项）** — ① 后端：角色列表每项新增 `grantable`（rank ≤ 调用者；与写面 `CanGrantRoles` 同口径，缺省调用者角色按空角色收敛 fail closed），handler 注入调用者角色、service 计算、`RoleDTO` 透传；新增 `TestListRoles_GrantableFlagByCallerRank`（service）与 `TestListRoles_GrantableReflectsCallerRank`（handler）。② 前端：用户页创建下拉隐藏不可授予项；编辑下拉保留"用户当前持有但不可授予"项（禁选，防裸 ID 标签、不允许追加）；邀请弹窗同源过滤。验证：`./service`、`./handlers/rbac` 全量绿、`tsc -b` 0、eslint 0、前端全量 jest 4115 通过（3 个存量失败套件与本次无关：env/unified-config 环境项、msp-api `allocations/history` 契约漂移）。
