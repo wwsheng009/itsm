@@ -606,12 +606,13 @@ const UserManagement: React.FC = () => {
             </Col>
             <Col span={12}>
               <Form.Item name="roleIds" label="RBAC 角色（可多选）">
+                {/* 不可授予项（rank 高于调用者；补丁 9）不进入候选，与写面 CanGrantRoles 同口径 */}
                 <Select
                   mode="multiple"
                   allowClear
                   placeholder="请选择 RBAC 角色"
                   optionFilterProp="label"
-                  options={rbacRoles.map(r => ({ value: r.id, label: r.name }))}
+                  options={rbacRoles.filter(r => r.grantable !== false).map(r => ({ value: r.id, label: r.name }))}
                 />
               </Form.Item>
             </Col>
@@ -687,12 +688,15 @@ const UserManagement: React.FC = () => {
             </Col>
             <Col span={12}>
               <Form.Item name="roleIds" label="RBAC 角色（可多选）">
+                {/* 不可授予项隐藏（补丁 9）；但用户当前持有项保留展示且禁选（防裸 ID 标签，且不允许追加） */}
                 <Select
                   mode="multiple"
                   allowClear
                   placeholder="请选择 RBAC 角色"
                   optionFilterProp="label"
-                  options={rbacRoles.map(r => ({ value: r.id, label: r.name }))}
+                  options={rbacRoles
+                    .filter(r => r.grantable !== false || (selectedUser?.roleIds ?? []).includes(r.id))
+                    .map(r => ({ value: r.id, label: r.name, disabled: r.grantable === false }))}
                 />
               </Form.Item>
             </Col>
@@ -748,7 +752,7 @@ const UserManagement: React.FC = () => {
         open={isInviteModalVisible}
         onClose={() => setIsInviteModalVisible(false)}
         tenantId={currentTenant?.id}
-        roles={rbacRoles.map(role => ({ id: role.id, name: role.name, code: role.code ?? '' }))}
+        roles={rbacRoles.filter(role => role.grantable !== false).map(role => ({ id: role.id, name: role.name, code: role.code ?? '' }))}
       />
     </div>
   );

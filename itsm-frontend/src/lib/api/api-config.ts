@@ -396,6 +396,8 @@ export interface Role {
   userCount?: number;
   /** 数据范围：all / department / owner */
   dataScope?: string;
+  /** 调用者能否把该角色授予用户（rank ≤ 调用者；IP-P2-7 收口补丁 9）。 */
+  grantable?: boolean;
   tenantId?: number;
   createdAt: string;
   updatedAt: string;
