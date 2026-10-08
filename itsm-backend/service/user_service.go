@@ -103,14 +103,14 @@ func (s *UserService) CreateUser(ctx context.Context, req *dto.CreateUserRequest
 		if primaryRole == "user" {
 			primaryRole = "end_user"
 		}
-		// IP-P2-7 收口：平台角色（super_admin/sysadmin）仅平台根租户可设置，
-		// 防止客户/服务商租户经用户接口直填主角色获取 RBAC 直通。
+		// IP-P2-7 收口：平台角色（super_admin/sysadmin）仅平台根作用域可设置（D4=B：含根租户
+		// code=default 兜底），防止客户/服务商租户经用户接口直填主角色获取 RBAC 直通。
 		if middleware.IsPlatformRole(primaryRole) {
-			kind, err := tenantTypeOf(ctx, s.client, tenantID)
+			kind, code, err := tenantScopeOf(ctx, s.client, tenantID)
 			if err != nil {
 				return nil, err
 			}
-			if !isPlatformRootTenantKind(kind) {
+			if !isPlatformRootTenant(kind, code) {
 				return nil, fmt.Errorf("非平台租户不得设置平台角色: %s", primaryRole)
 			}
 		}
@@ -203,34 +203,34 @@ func (s *UserService) CanGrantRoles(ctx context.Context, tenantID int, roleIDs [
 		return fmt.Errorf("存在不属于当前租户的角色: 期望 %d 个，匹配 %d 个", len(roleIDs), len(roles))
 	}
 	callerRank := serviceRoleRank(callerRole)
-	var tenantKind string
-	var tenantKindLoaded bool
-	loadKind := func() (string, error) {
-		if !tenantKindLoaded {
-			kind, err := tenantTypeOf(ctx, s.client, tenantID)
+	var tenantKind, tenantCode string
+	var tenantScopeLoaded bool
+	loadTenantScope := func() (string, string, error) {
+		if !tenantScopeLoaded {
+			kind, code, err := tenantScopeOf(ctx, s.client, tenantID)
 			if err != nil {
-				return "", err
+				return "", "", err
 			}
-			tenantKind = kind
-			tenantKindLoaded = true
+			tenantKind, tenantCode = kind, code
+			tenantScopeLoaded = true
 		}
-		return tenantKind, nil
+		return tenantKind, tenantCode, nil
 	}
 	for _, r := range roles {
 		if serviceRoleRank(r.Code) > callerRank {
 			return fmt.Errorf("无权限分配高于自身角色的用户角色: %s", r.Code)
 		}
 		// 客户/服务商租户的角色边界（IP-P2-7 收口）：平台角色仅平台根可授予；MSP 专属角色仅服务商侧。
-		// 租户类型懒加载：无命中角色码场景不查库。
+		// 租户作用域懒加载：无命中角色码场景不查库。
 		code := strings.ToLower(strings.TrimSpace(r.Code))
 		if !middleware.IsMSPOnlyRole(code) && !middleware.IsPlatformRole(code) {
 			continue
 		}
-		kind, err := loadKind()
+		kind, tenantCode, err := loadTenantScope()
 		if err != nil {
 			return err
 		}
-		if !isHiddenRoleForTenantType(kind, code) {
+		if !isHiddenRoleForTenant(kind, tenantCode, code) {
 			continue
 		}
 		if middleware.IsPlatformRole(code) {
@@ -522,13 +522,13 @@ func (s *UserService) UpdateUser(ctx context.Context, id int, req *dto.UpdateUse
 		if role == "user" {
 			role = "end_user"
 		}
-		// IP-P2-7 收口：平台角色仅平台根租户可设置（与 CreateUser 同口径）。
+		// IP-P2-7 收口：平台角色仅平台根作用域可设置（与 CreateUser 同口径；D4=B 含 code=default 兜底）。
 		if middleware.IsPlatformRole(role) {
-			kind, err := tenantTypeOf(ctx, s.client, tenantID)
+			kind, code, err := tenantScopeOf(ctx, s.client, tenantID)
 			if err != nil {
 				return nil, err
 			}
-			if !isPlatformRootTenantKind(kind) {
+			if !isPlatformRootTenant(kind, code) {
 				return nil, fmt.Errorf("非平台租户不得设置平台角色: %s", role)
 			}
 		}

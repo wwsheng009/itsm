@@ -35,15 +35,16 @@ func NewRoleService(client *ent.Client, logger *zap.SugaredLogger) *RoleService 
 	}
 }
 
-// roleBaseQuery 返回租户内角色基础查询；按租户类型隐藏"非本作用域"角色（IP-P2-7 收口：
-// 客户/服务商租户隐藏平台角色，客户租户另隐藏 MSP 专属角色；命中按"不存在"处理，不泄露存在性）。
+// roleBaseQuery 返回租户内角色基础查询；按租户作用域隐藏"非本作用域"角色（IP-P2-7 收口：
+// 客户/服务商租户隐藏平台角色，客户租户另隐藏 MSP 专属角色；平台根（含 code=default 兜底，
+// D4=B）不隐藏；命中按"不存在"处理，不泄露存在性）。
 func (s *RoleService) roleBaseQuery(ctx context.Context, tenantID int) (*ent.RoleQuery, error) {
-	kind, err := tenantTypeOf(ctx, s.client, tenantID)
+	kind, code, err := tenantScopeOf(ctx, s.client, tenantID)
 	if err != nil {
 		return nil, err
 	}
 	q := s.client.Role.Query().Where(role.TenantID(tenantID))
-	if hidden := hiddenRoleCodesForTenantType(kind); len(hidden) > 0 {
+	if hidden := hiddenRoleCodesForTenant(kind, code); len(hidden) > 0 {
 		q = q.Where(role.CodeNotIn(hidden...))
 	}
 	return q, nil
@@ -327,7 +328,7 @@ func isReservedRoleCode(code string) bool {
 //     权限码可被克隆目录带到租户，若允许再分配，租户即以其为能力穿过仅按码粗筛的平台路由。
 //
 // 覆盖创建角色（Permissions 码路径）/更新角色（码路径）/AssignPermissions（ID 路径）三条路径。
-// 平台根（internal/standard）不受限。
+// 平台根（internal/standard 或根租户 code=default 兜底，D4=B）不受限。
 func (s *RoleService) ensureAssignablePermissionsForNonPlatformRoot(ctx context.Context, tenantID int, perms []*ent.Permission) error {
 	violationErr := error(nil)
 	violation := ""
@@ -346,11 +347,11 @@ func (s *RoleService) ensureAssignablePermissionsForNonPlatformRoot(ctx context.
 	if violationErr == nil {
 		return nil
 	}
-	kind, err := tenantTypeOf(ctx, s.client, tenantID)
+	kind, code, err := tenantScopeOf(ctx, s.client, tenantID)
 	if err != nil {
 		return err
 	}
-	if !isPlatformRootTenantKind(kind) {
+	if !isPlatformRootTenant(kind, code) {
 		if errors.Is(violationErr, ErrWildcardPermissionForbidden) {
 			return fmt.Errorf("%w（%s）", violationErr, violation)
 		}
@@ -661,13 +662,14 @@ func NewPermissionService(client *ent.Client, logger *zap.SugaredLogger) *Permis
 func (s *PermissionService) CreatePermission(ctx context.Context, req *dto.CreatePermissionRequest, tenantID int) (*dto.PermissionResponse, error) {
 	s.logger.Infow("Creating permission", "code", req.Code, "tenant_id", tenantID)
 
-	// 通配权限仅平台根租户可创建（IP-P2-7 收口：防止非平台租户自造 `*:*` 绕过权限判定）。
+	// 通配权限仅平台根作用域可创建（IP-P2-7 收口：防止非平台租户自造 `*:*` 绕过权限判定；
+	// D4=B：平台根含根租户 code=default 兜底）。
 	if req.Resource == "*" || req.Action == "*" {
-		kind, err := tenantTypeOf(ctx, s.client, tenantID)
+		kind, code, err := tenantScopeOf(ctx, s.client, tenantID)
 		if err != nil {
 			return nil, err
 		}
-		if !isPlatformRootTenantKind(kind) {
+		if !isPlatformRootTenant(kind, code) {
 			return nil, ErrWildcardPermissionForbidden
 		}
 	}
