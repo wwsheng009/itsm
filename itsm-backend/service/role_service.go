@@ -333,12 +333,12 @@ func (s *RoleService) ensureAssignablePermissionsForNonPlatformRoot(ctx context.
 	violationErr := error(nil)
 	violation := ""
 	for _, p := range perms {
-		if p.Resource == "*" || p.Action == "*" {
+		if isWildcardPermission(p.Resource, p.Action) {
 			violationErr = ErrWildcardPermissionForbidden
 			violation = fmt.Sprintf("%s:%s", p.Resource, p.Action)
 			break
 		}
-		if _, governed := platformGovernedPermissionResources[strings.TrimSpace(p.Resource)]; governed {
+		if isPlatformGovernedPermissionResource(p.Resource) {
 			violationErr = ErrPlatformPermissionForbidden
 			violation = fmt.Sprintf("%s:%s", p.Resource, p.Action)
 			break
@@ -372,6 +372,21 @@ func (s *RoleService) ensureAssignablePermissionsForNonPlatformRoot(ctx context.
 // 新增/调整家族必须先完成评估并更新《新增角色/权限/路由评审清单》§2.2，再改此处。
 var platformGovernedPermissionResources = map[string]struct{}{
 	"system": {},
+}
+
+// isWildcardPermission 通配权限（resource/action 含 *）——写面护栏与目录标注共用的单一源。
+func isWildcardPermission(resource, action string) bool { return resource == "*" || action == "*" }
+
+// isPlatformGovernedPermissionResource 平台治理家族成员判定。
+func isPlatformGovernedPermissionResource(resource string) bool {
+	_, governed := platformGovernedPermissionResources[strings.TrimSpace(resource)]
+	return governed
+}
+
+// isNonAssignablePermission 非平台根不可分配（通配 + 平台治理家族）——与写面护栏同口径，
+// 供权限目录 assignable 标注使用（IP-P2-7 收口补丁 8 / R5）。
+func isNonAssignablePermission(resource, action string) bool {
+	return isWildcardPermission(resource, action) || isPlatformGovernedPermissionResource(resource)
 }
 
 func (s *RoleService) permissionIDsByCodes(ctx context.Context, permissionCodes []string, tenantID int) ([]int, error) {
@@ -714,9 +729,19 @@ func (s *PermissionService) ListPermissions(ctx context.Context, tenantID int, r
 		return nil, fmt.Errorf("查询权限列表失败: %w", err)
 	}
 
+	// assignable 标注（IP-P2-7 收口补丁 8 / R5）：与写面护栏 ensureAssignablePermissionsForNonPlatformRoot
+	// 同口径——非平台根租户的通配/平台治理家族码标注为不可分配，供前端隐藏选择项（减少无谓 400）。
+	kind, code, err := tenantScopeOf(ctx, s.client, tenantID)
+	if err != nil {
+		return nil, fmt.Errorf("查询租户作用域失败: %w", err)
+	}
+	platformRoot := isPlatformRootTenant(kind, code)
+
 	responses := make([]*dto.PermissionResponse, len(perms))
 	for i, p := range perms {
-		responses[i] = s.toPermissionResponse(p)
+		resp := s.toPermissionResponse(p)
+		resp.Assignable = platformRoot || !isNonAssignablePermission(p.Resource, p.Action)
+		responses[i] = resp
 	}
 
 	return responses, nil
@@ -799,6 +824,7 @@ func (s *PermissionService) toPermissionResponse(permEntity *ent.Permission) *dt
 		Description: permEntity.Description,
 		Resource:    permEntity.Resource,
 		Action:      permEntity.Action,
+		Assignable:  true, // 默认可分配；ListPermissions 按租户作用域覆写（补丁 8）
 		TenantID:    permEntity.TenantID,
 		CreatedAt:   permEntity.CreatedAt,
 		UpdatedAt:   permEntity.UpdatedAt,
