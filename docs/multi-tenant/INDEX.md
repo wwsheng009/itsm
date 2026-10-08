@@ -19,6 +19,7 @@
 | 实测现状/缺口/排障 | [01–07](./README.md)（as-is）｜[三角色演练剧本](./plan/msp-three-persona-operation-simulation.md) |
 | 想按界面一步步操作（建服务商账号/分配到客户/进入客户） | [08 服务商账号与客户授权操作手册（用户级）](./08-msp-user-operations-manual.md) |
 | 想在浏览器一步步重现全链路业务 | [scenarios/ 场景目录](./scenarios/README.md)（建租户→开通→建号→分配→建单→协作→审计与反例，含验证命令） |
+| 新增角色/权限/路由前要做什么 | [扩展评审清单](./plan/role-permission-extension-checklist.md)（归类/登记/守卫/平台家族码评估表） |
 
 ---
 
@@ -69,6 +70,8 @@
   | [msp-tenant-user-management-enhancement-plan.md](./plan/msp-tenant-user-management-enhancement-plan.md) | L4 | v0.8（TUM-1–TUM-7 收口 + 路由器级 API e2e 实跑） | **平台侧租户用户管理增强**（跨租户用户列表/重置密码/启停/强制下线/审计；含操作便利性与业务闭环设计） | `TUM-#` |
 | [msp-cross-tenant-record-flow-architecture.md](./plan/msp-cross-tenant-record-flow-architecture.md) | L3 | Draft v0.10（**P0–P2 落地 + 前端复用收敛 + MSW-6 边界指针**） | **多租户单据流转交互架构**：把工单泛化为全部单据的跨租户流转（五通道/条目级授权/操作矩阵/**端到端流转**/**路由与交接**/**信息互通矩阵**/流程集成/审计与验收）；P0：终态契约/快照回填/默认分配/类型路由/`workflow:*`；P1：跨租户详情 + 前端抽屉；P2：通知深链/评论只读面/复用收敛（`CommentItemBody`/`TicketListShell`） | `XF1–XF10` `XFD1–XFD8` `XFR1–XFR4` `XFA1–XFA6` |
 | [msp-membership-switch-consolidation-plan.md](./plan/msp-membership-switch-consolidation-plan.md) | L4 | Draft v0.6（M1–M4 已落地：写路径闭环 + 授权/撤销联动 + 切换体验 + 边界/巡检/开关登记） | **映射式多租户切换收口**：账号≠成员身份（Membership）+ 作用域切换（Switch）现状核对 S1–S6、差距 MSW-1–6（含审查修订）、切换授权矩阵、"切换面 vs 跨租户面"边界决策表、批次 M1–M4、验收 MSW-A1–A6；巡检 `cmd/membership-drift-check` | `MSW-#` `MSW-A#` `MSW-Q#` |
+| [platform-permission-shielding-design.md](./plan/platform-permission-shielding-design.md) | L4 | v0.3（补丁 1–5） | **平台面权限屏蔽与角色架构设计**：三层防线（L1/L2/L3）、词表所有权、角色三一致矩阵、决策点与残余风险（本地编号）、实弹验证证据 | D1–D4（本地） R1–R6（本地） |
+| [role-permission-extension-checklist.md](./plan/role-permission-extension-checklist.md) | 治理 | v0.1（2026-10-08） | **新增角色/权限/路由评审清单**：扩展纪律、平台家族码评估结论（§2.2）、守卫矩阵与评审流程 | — |
 
 ### 2.1 场景目录（scenarios/，L6 浏览器实操剧本）
 

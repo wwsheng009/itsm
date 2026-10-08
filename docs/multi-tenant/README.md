@@ -90,6 +90,7 @@
 | [msp-tenant-user-management-enhancement-plan.md](./plan/msp-tenant-user-management-enhancement-plan.md) | **平台侧租户用户管理增强（/admin/tenants）**：跨租户用户列表/详情、重置密码（一次性口令 / 指定新密码）、启用停用（最后管理员护栏）、强制下线、审计与稳定错误码；本地编号 `TUM-#`（canon 附录 C.2 已登记） |
 | [msp-provision-user-roles-multiselect-plan.md](./plan/msp-provision-user-roles-multiselect-plan.md) | **建号角色多选与目标租户角色列表（IP-P2-7）**：建号弹窗角色选择由硬编码改为数据驱动多选（目标租户 `roles` 表）；平台/MSP 双端点、通道/rank/客户作用域过滤、`roleIds` 主角色派生与 membership 一致性、平台角色越权防护；含实施记录与联调实测证据 |
 | [platform-permission-shielding-design.md](./plan/platform-permission-shielding-design.md) | **平台面权限屏蔽与角色架构设计（IP-P2-7 收口补丁 1–5）**：根因（码=能力 / 角色码=身份）、L1 身份 + L2 能力 + L3 数据三层防线、平台治理面清单与评审规则、角色三一致矩阵、权限分配护栏、决策点 D1–D4 与残余风险 R1–R6（D4/R6 已随补丁 5 收口）、实弹验证证据（§7） |
+| [role-permission-extension-checklist.md](./plan/role-permission-extension-checklist.md) | **新增角色/权限/路由评审清单（IP-P2-7 配套扩展纪律）**：归类决策（平台/MSP/租户本地）、登记与三处同步、平台家族码评估结论（system/system_config/mcp/connector/menu/federation）、守卫矩阵与评审流程 |
 
 ## 维护约定
 

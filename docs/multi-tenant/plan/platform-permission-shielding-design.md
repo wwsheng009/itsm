@@ -106,6 +106,8 @@
 | 权限词表写面 | `POST /permissions`、`POST /permissions/init` | L1 + `role:write` | 词表所有权 |
 
 > **新增平台面路由的评审规则**：凡作用于全局/跨租户资源、或写平台词表/平台身份的路由，必须同时挂 L1 与 L2，并在 `route_permission_guard_test.go` 可审计（写路由缺权限中间件即失败）。
+>
+> **扩展纪律（配套清单）**：新增角色/权限/路由的归类、登记与验证步骤见《[新增角色/权限/路由评审清单](./role-permission-extension-checklist.md)》（§2.2 平台家族码评估、§5 守卫矩阵）；平台面路由的 L1 挂载由 `router/platform_face_guard_test.go` 注册表守卫锁定（补丁 6）。
 
 ### 3.4 角色三一致
 
