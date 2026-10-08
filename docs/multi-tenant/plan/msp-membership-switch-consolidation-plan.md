@@ -1,6 +1,6 @@
 # 映射式多租户切换收口方案（Membership + Switch）
 
-> 状态：**v0.8（M1–M4 已落地；MSW-FU-1 已闭环：联调库巡检 FAIL=0；WARN=2 为接受观察项）**｜日期：2026-10-08｜基准：仓库 HEAD `78157476`（代码证据同 `ee9180e5`；M1–M4 于后续提交落地）
+> 状态：**v0.9（M1–M4 已落地；MSW-FU-1 闭环：联调库巡检 FAIL=0；MSW-A5 深度切换体验修复）**｜日期：2026-10-08｜基准：仓库 HEAD `78157476`（代码证据同 `ee9180e5`；M1–M4 于后续提交落地）
 > 上位：[canon v1.0](./msp-concept-model-and-architecture-canon.md)（I3/I5/B3/B5/D5/D10）→ [目标架构](./msp-target-architecture.md)（§3.2 Membership / §5.3 服务方在客户作用域内的有效权限 / §6.1 建号通道矩阵）→ [主方案](./msp-user-lifecycle-and-tenant-switching-plan.md)（F7/F14/F15）→ [实施方案](./msp-implementation-plan.md)
 > 定位：**L4 收口方案**（局部编号 `MSW-#`；落地建议在实施方案登记为 `IP-P#`，本文件不占用全局编号）。范围：把"账号≠成员身份 + 映射式切换"从**已选定的目标架构**收口到落地——核对现状、登记差距、划定"切换面 vs 跨租户面"边界、给出批次与验收。**不新增目标模型、不新造映射表**。
 
@@ -235,3 +235,4 @@
 | v0.6 | 2026-10-07 | **M4 实施回填**：边界决策表入 canon §2.3 + 工作台方案指针 + scenarios/10 剧本；membership vs 请求期事实巡检（`internal/membershipcheck` + `cmd/membership-drift-check`，5 类漂移 FAIL/WARN 分级 + 夹具/实跑样本）；过渡开关登记（02 §3.1，owner/到期）；IP-P1-1 遗留注释清理；巡检发现登记 MSW-FU-1/2 |
 | v0.7 | 2026-10-07 | **MSW-FU-1 实施回填**：新增存量 membership 回填修复器（`service/membership_backfill.go` + `cmd/backfill_membership`：dry-run/apply/reconcile、幂等、`membership.sync` 审计、巡检 0 漂移闭环单测）；demo 复跑因本机 DB 引擎未启动待执行；MSW-FU-2 维持登记 |
 | v0.8 | 2026-10-08 | **MSW-FU-1 联调库收口**：经 .dev SSH 隧道实跑回填（+31 home/+5 allocation）→ tenant 2 基线供给（36 角色）→ reconcile 校正 → 巡检 **FAIL=0**；`accountKindForHome` super_admin→platform 口径对齐（canon D5）；WARN=2 登记为接受观察项（FU-2 处置：E2E 遗留 invite 账号） |
+| v0.9 | 2026-10-08 | **MSW-A5 深度切换体验回归修复**：`/auth/me` 契约修复（`tenantId`=当前 JWT 作用域、`homeTenantId`=归属租户；此前两者均为 home → 刷新后作用域回退、深度态指示/目标域菜单丢失）；「进入客户」落点由公开落地页 `/` 修复为 `/dashboard`；浏览器实测通过（进入客户→深度态指示+目标域菜单；`/auth/me tenantId=11/homeTenantId=10`） |

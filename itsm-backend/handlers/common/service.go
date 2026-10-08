@@ -456,6 +456,7 @@ func (s *Service) GetUser(ctx context.Context, id int) (*User, error) {
 
 // GetUserScoped 获取用户信息，并按指定租户（token 作用域）计算 permissions。
 // /auth/me 在切换租户后必须返回目标租户的权限，故由 handler 传入 context 中的 tenant_id。
+// MSW-4 归属租户契约（scenarios/10 §2）：tenantId=当前 JWT 作用域，homeTenantId=归属租户。
 func (s *Service) GetUserScoped(ctx context.Context, id, tenantID int) (*User, error) {
 	// R2B 阴影观察（2026-10-03）：/auth/me 为 auth-scoped 路由（只挂 Auth 中间件），
 	// token 作用域租户已知时显式补齐 ctx（用户行/权限解析归因；enforce 前置）。
@@ -466,11 +467,15 @@ func (s *Service) GetUserScoped(ctx context.Context, id, tenantID int) (*User, e
 	if err != nil {
 		return nil, err
 	}
+	// MSW-4 归属租户契约（scenarios/10 §2）：tenantId=当前 JWT 作用域（切换后=目标租户），
+	// homeTenantId 恒为账号归属租户（users.tenant_id，切换后不变），"返回工作台"据此切回。
+	homeTenantID := u.TenantID
 	if tenantID <= 0 {
-		tenantID = u.TenantID
+		tenantID = homeTenantID
 	}
 	u.Permissions = s.resolvePermissions(tenantctx.WithTenantID(ctx, tenantID), u.ID, tenantID)
-	u.HomeTenantID = u.TenantID
+	u.HomeTenantID = homeTenantID
+	u.TenantID = tenantID
 	return u, nil
 }
 

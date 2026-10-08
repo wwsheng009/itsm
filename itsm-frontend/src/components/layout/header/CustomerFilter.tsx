@@ -188,8 +188,10 @@ export const CustomerFilter: React.FC<CustomerFilterProps> = ({ className }) => 
       setEnteringId(customer.id);
       try {
         // IP-P0-8 切换链路：取消在途 → 重签 JWT → 重拉 /auth/me → 清空缓存 → 目标首页。
+        // 目标首页必须是登录后主页 /dashboard；'/' 是公开落地页（无布局/无菜单），
+        // 曾导致切换成功但界面看不到深度态（MSW-A5 体验回归）。
         await switchTenant(customer.id);
-        navigate('/');
+        navigate('/dashboard');
       } catch (error) {
         message.error(error instanceof Error ? error.message : '进入客户失败');
       } finally {
@@ -202,7 +204,8 @@ export const CustomerFilter: React.FC<CustomerFilterProps> = ({ className }) => 
   // MSW-4 / Q4=A："返回工作台"必须把会话切回 provider 作用域——仅导航会让
   // /msp/workbench 在客户作用域下被 RBAC 拒绝（V3 实测 403）。
   const handleBackToWorkbench = useCallback(async () => {
-    // homeTenantId 为权威字段；旧会话回退 user.tenantId（/auth/me 的 tenantId 即归属租户）。
+    // homeTenantId 为权威字段（MSW-4 契约：/auth/me 的 homeTenantId=归属租户；
+    // 旧会话缺省时回退 user.tenantId）。
     const homeTenantId = user?.homeTenantId ?? user?.tenantId;
     if (!homeTenantId) {
       message.error('无法确定服务商租户，请重新登录后再试');

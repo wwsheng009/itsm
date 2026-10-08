@@ -208,4 +208,24 @@ describe('CustomerFilter', () => {
     expect(await screen.findByText('租户已被暂停')).toBeInTheDocument();
     useAuthStore.setState({ currentTenant: null, user: null } as never);
   });
+
+  it('"进入客户"切换会话后落到登录后主页 /dashboard（不落公开落地页，MSW-A5 回归）', async () => {
+    const switchTenant = jest.fn().mockResolvedValue(undefined);
+    useAuthStore.setState({
+      currentTenant: { id: 1, name: 'Acme Corp', code: 'ACME', type: 'msp_provider', status: 'active', createdAt: '', updatedAt: '' },
+      user: { id: 1, username: 'msp', email: '', name: '', tenantId: 1, homeTenantId: 1, createdAt: '', updatedAt: '' },
+      switchTenant,
+    } as never);
+
+    render(<CustomerFilter />);
+    await userEvent.click(screen.getByTestId('customer-filter-trigger'));
+    await userEvent.click(await screen.findByTestId('enter-customer-2'));
+
+    const confirm = await screen.findByRole('button', { name: /^进\s*入$/ });
+    await userEvent.click(confirm);
+
+    await waitFor(() => expect(switchTenant).toHaveBeenCalledWith(2));
+    await waitFor(() => expect(mockNavigate).toHaveBeenCalledWith('/dashboard'));
+    useAuthStore.setState({ currentTenant: null, user: null } as never);
+  });
 });

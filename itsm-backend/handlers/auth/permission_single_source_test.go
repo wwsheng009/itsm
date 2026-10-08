@@ -130,6 +130,9 @@ func TestPermissionEndpoints_ShareMembershipSingleSource(t *testing.T) {
 	meRes, err := commonSvc.GetUserScoped(ctx, userEntity.ID, customerTenant.ID)
 	require.NoError(t, err)
 	assert.Equal(t, []string{"incident:write"}, meRes.Permissions, "/auth/me 必须按 token 目标租户计算")
+	// MSW-4 归属租户契约（scenarios/10 §2）：tenantId=当前作用域，homeTenantId=归属租户不变。
+	assert.Equal(t, customerTenant.ID, meRes.TenantID, "/auth/me 的 tenantId 即当前 JWT 作用域")
+	assert.Equal(t, providerTenant.ID, meRes.HomeTenantID, "/auth/me 的 homeTenantId 恒为归属租户")
 
 	// 3) SwitchTenant：响应权限按目标租户 C 计算（A6 核心断言）。
 	switchRes, err := authSvc.SwitchTenant(ctx, userEntity.ID, customerTenant.ID)

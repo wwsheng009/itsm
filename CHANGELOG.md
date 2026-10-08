@@ -33,6 +33,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **《映射式多租户切换收口方案》（Membership + Switch，L4，v0.2 独立审查修订完成）** — 把"账号≠成员身份 + 映射式切换"从既有目标架构（canon I3/I5、目标架构 §3.2/§5.3、主方案 F7/F14/F15）收口到落地：现状核对 S1–S6（membership 表/权限单源/switch 会话/allocation/前端深度切换/跨租户面）；差距 MSW-1–6（**P0：建号与分配通道不写/不同步 membership → 切换后权限空窗**；切换授权仅 allocation；**生产无 membership 撤销面**；"返回工作台"不切回作用域且客户作用域下工作台必 403；真实双源＝请求期 RBAC 口径差；切换面/跨租户面边界未成文）；切换授权矩阵与边界决策表；批次 M1–M4 与验收 MSW-A1–A6；待决 MSW-Q1–Q4（Q4 已决）。独立审查（只读子代理）：needs-revision → 1 blocker + 7 major + 5 minor/nit 全处置（F-01–F-13，见方案 §8），修订后判定 ready-to-implement。
 
+### Fixed
+
+- **深度切换体验（MSW-A5）回归修复** — ①后端 `/auth/me` 归属租户契约（scenarios/10 §2）：`tenantId` 改为当前 JWT 作用域（切换后=目标租户）、`homeTenantId` 恒为归属租户；此前两者均取 `users.tenant_id`，刷新/会话引导后作用域被回退到 home，表现为深度态指示消失、目标域菜单不出现；②前端「进入客户」切换成功后落点由公开落地页 `/` 修复为登录后主页 `/dashboard`（此前切换成功但界面看不到深度态）。测试：`handlers/auth`（MSW-4 契约断言：`tenantId=目标租户/homeTenantId=归属租户`）、`CustomerFilter`（进入客户导航回归）全绿；浏览器实测：进入客户→`/dashboard` 深度态指示 + 目标域菜单 + `/auth/me` = `tenantId:11 / homeTenantId:10`。
+
 ### Changed
 
 - **MSW-FU-1 实施：存量 membership 回填修复器（重放 20260504 回填 1/2 语义）** — 新增 `service/membership_backfill.go` + `cmd/backfill_membership`：活跃账号缺 home / 活跃分配缺客户作用域 → 复用 `MembershipSyncService` 幂等创建（`source=home`/`allocation` + `membership.sync` 审计）；异源存活行不覆盖（记 conflicts）；默认 dry-run，`-apply` 写库，`-reconcile` 校正同源 `role_id`/`account_kind`/`status` 漂移，`-json` 报告，Errors>0 退出码 1。口径修正：`accountKindForHome` 对 super_admin 固定 platform（canon D5，与巡检 `expectedKind` 同口径）。测试：`service/membership_backfill_test.go` 3 例（dry-run 零写入 / apply 补齐 / reconcile 校正 / 二次执行幂等无重复审计 / 异源不覆盖 / super_admin 口径），含"构造缺失 + `role_id` 空漂移 → 回填 → `membershipcheck` 0 漂移"闭环。**联调库实跑（.dev SSH 隧道 → `itsm_prod`）**：dry-run 31 home + 5 allocation → `-apply`（memberships 38→74，+36 审计）→ `cmd/provision_tenant -tenant-id 2` 供给缺失角色字典（36 角色）→ `-reconcile` 校正 → 巡检 **FAIL 36→0**（WARN 3→2，tenant 1 E2E 遗留 invite 账号为接受观察项）；报告刷新 `.dev/membership-drift-report.{txt,json}`。方案 v0.8。
