@@ -109,7 +109,7 @@ describe('TenantAPI', () => {
       expect(mockRequest).toHaveBeenCalledWith('/api/v1/tenants/1/provision', {
         method: 'POST',
         body: JSON.stringify({ templateVersion: 'v2' }),
-        timeout: 120000,
+        timeout: 300000,
       });
       expect(res).toEqual(expected);
     });
@@ -122,7 +122,7 @@ describe('TenantAPI', () => {
       expect(mockRequest).toHaveBeenCalledWith('/api/v1/tenants/2/provision', {
         method: 'POST',
         body: JSON.stringify({}),
-        timeout: 120000,
+        timeout: 300000,
       });
     });
   });
