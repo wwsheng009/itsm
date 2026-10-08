@@ -222,3 +222,42 @@ func TestMembershipBackfill_SourceConflictNotOverwritten(t *testing.T) {
 	homeE := msLiveMembership(t, ctx, client, userE.ID, provider.ID)
 	assert.Equal(t, usertenantmembership.SourceHome, homeE.Source)
 }
+
+// TestMembershipBackfill_SuperAdminKindPlatform 验证 canon D5 口径：
+// 平台根账号（super_admin）即使挂靠客户/存量租户，home membership 的 account_kind 也必须是
+// platform（与巡检 expectedKind 同口径），且巡检 0 漂移。
+func TestMembershipBackfill_SuperAdminKindPlatform(t *testing.T) {
+	client := enttest.Open(t, "sqlite3", testDSN())
+	defer client.Close()
+	ctx := context.Background()
+	logger := zaptest.NewLogger(t).Sugar()
+	middleware.SetAuthzStaticFallback(false)
+	t.Cleanup(func() { middleware.SetAuthzStaticFallback(false) })
+	middleware.InvalidateAllPermissionCaches()
+
+	customer := msTenant(t, ctx, client, "BFS Customer", "bfs-cust", "msp_customer", 0)
+	msRoleWithPerm(t, ctx, client, customer.ID, "super_admin", "ticket", "read")
+
+	// saas_msp 存量形态：super_admin 挂靠客户租户（如联调库 admin-mspacpt@MSPACPT）。
+	userS := msUser(t, ctx, client, "bfs-super", customer.ID, "super_admin", "")
+
+	svc := NewMembershipSyncService(client, logger)
+	rep, err := svc.BackfillMemberships(ctx, MembershipAuditMeta{ActorAccount: "system", Trigger: "membership.backfill"},
+		MembershipBackfillOptions{Apply: true})
+	require.NoError(t, err)
+	assert.Equal(t, 1, rep.HomeCreated)
+
+	mb := msLiveMembership(t, ctx, client, userS.ID, customer.ID)
+	assert.Equal(t, usertenantmembership.AccountKindPlatform, mb.AccountKind,
+		"super_admin 固定 platform（canon D5），不得按租户类型倒置")
+
+	// 幂等：reconcile 复跑不改口径；巡检 0 漂移。
+	_, err = svc.BackfillMemberships(ctx, MembershipAuditMeta{ActorAccount: "system"},
+		MembershipBackfillOptions{Apply: true, Reconcile: true})
+	require.NoError(t, err)
+	mb2 := msLiveMembership(t, ctx, client, userS.ID, customer.ID)
+	assert.Equal(t, usertenantmembership.AccountKindPlatform, mb2.AccountKind)
+
+	findings := membershipcheck.Check(backfillFacts(t, ctx, client))
+	assert.Empty(t, findings, "super_admin 口径对齐后巡检应 0 漂移，实际: %+v", findings)
+}

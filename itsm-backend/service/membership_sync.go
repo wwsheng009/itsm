@@ -94,7 +94,7 @@ func (s *MembershipSyncService) SyncHomeMembership(
 		s.logger.Warnw("membership sync: role code unresolved, role_id stays NULL (巡检清单)",
 			"user_id", userID, "tenant_id", tenantID, "role_code", roleCode)
 	}
-	accountKind, err := s.accountKindForHome(scopeCtx, tenantID, mspRole)
+	accountKind, err := s.accountKindForHome(scopeCtx, tenantID, roleCode, mspRole)
 	if err != nil {
 		return nil, err
 	}
@@ -387,7 +387,12 @@ func (s *MembershipSyncService) resolveRoleID(ctx context.Context, tenantID int,
 }
 
 // accountKindForHome 账号类型快照（迁移 20260504 回填 1 同口径，不按目标租户类型倒置）。
-func (s *MembershipSyncService) accountKindForHome(ctx context.Context, tenantID int, mspRole string) (usertenantmembership.AccountKind, error) {
+// 唯一覆盖：super_admin 固定 platform（canon D5 平台根账号；与巡检 expectedKind 同口径，
+// 避免 saas_msp 存量数据（default/客户租户承载平台根账号）被误判为 provider/customer）。
+func (s *MembershipSyncService) accountKindForHome(ctx context.Context, tenantID int, roleCode, mspRole string) (usertenantmembership.AccountKind, error) {
+	if strings.EqualFold(strings.TrimSpace(roleCode), "super_admin") {
+		return usertenantmembership.AccountKindPlatform, nil
+	}
 	t, err := s.client.Tenant.Query().Where(tenant.IDEQ(tenantID)).Only(ctx)
 	if err != nil {
 		return "", fmt.Errorf("load tenant %d for account_kind: %w", tenantID, err)

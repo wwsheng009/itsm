@@ -228,10 +228,9 @@ func Summary(findings []Finding) (fail, warn int) {
 	return fail, warn
 }
 
-// expectedKind 账号当前类型（与写入路径 accountKindForHome 同口径：home 租户类型优先，
-// 其次 users.msp_role 词表；不按目标租户类型倒置）。
-// 唯一覆盖：super_admin 固定 platform（canon D5 平台根账号；同时兼容存量
-// default 租户类型被标为 msp_provider 的数据异常，避免平台管理员被误判为 provider）。
+// expectedKind 账号当前类型（与写入路径 accountKindForHome 同口径：super_admin 固定 platform
+// （canon D5 平台根账号），其次 home 租户类型 + users.msp_role 词表；不按目标租户类型倒置）。
+// 该覆盖同时兼容存量 default 租户类型被标为 msp_provider 的数据异常，避免平台管理员被误判为 provider。
 func expectedKind(u UserFact, homeTenantType string) string {
 	if u.Role == "super_admin" {
 		return "platform"
