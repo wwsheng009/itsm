@@ -39,7 +39,7 @@ provider 租户内建员工账号      →    把员工分配到客户租户    
 |---|---|---|---|
 | `admin-mspacpt` | `Acpt@2026Admin2!` | `super_admin`（平台） | 平台建号（§3） |
 | `admin-demo01` | `Passw0rd@1234` | provider 管理员（tenant 10「测试」，`msp_manager`） | 分配管理（§4/§7） |
-| `prov.agent1`（演练新建） | 建号时设置 | `provider_agent`（tenant 10） | 员工侧演练（§5） |
+| `prov.agent1`（2026-10-08 演练账号） | `Agent@2026Pw1!` | `provider_agent`（tenant 10） | 员工侧演练（§5）；当前无分配，回放前先按 §4 分配 |
 | `admin_demo_customer` | `Passw0rd@1234` | 客户管理员（tenant 11「测试-客户」） | 客户侧查看（§6） |
 
 > 口令为联调环境实测值（同 `.dev/connection-guide.md`）；生产环境一律走首管一次性口令与强制改密（见 [scenarios/00](./scenarios/00-environment-and-accounts.md)）。
