@@ -99,6 +99,31 @@ func TestRoleConfig_WildcardPermissionOnlyPlatformRoot(t *testing.T) {
 	rootRole, err := roleSvc.CreateRole(ctx, &dto.CreateRoleRequest{Name: "RootOps", Code: "root_ops"}, internal.ID)
 	require.NoError(t, err)
 	require.NoError(t, roleSvc.AssignPermissions(ctx, rootRole.ID, []int{rootPerm.ID}, internal.ID))
+
+	// ⑤ 平台治理权限码（resource=system，管 LLM 实例/运维命令/RLS/定时器）：客户租户不可分配。
+	sysWrite, err := client.Permission.Create().
+		SetCode("system:write").SetName("系统写").SetResource("system").SetAction("write").
+		SetTenantID(customer.ID).Save(ctx)
+	require.NoError(t, err)
+	sysRole, err := roleSvc.CreateRole(ctx, &dto.CreateRoleRequest{Name: "SysOps", Code: "ops_sys"}, customer.ID)
+	require.NoError(t, err)
+
+	err = roleSvc.AssignPermissions(ctx, sysRole.ID, []int{sysWrite.ID}, customer.ID)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "平台治理")
+
+	_, err = roleSvc.UpdateRole(ctx, sysRole.ID, &dto.UpdateRoleRequest{Permissions: []string{"system:write"}}, customer.ID)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "平台治理")
+
+	// 平台根：system:write 可分配（平台治理语义保留）。
+	rootSysWrite, err := client.Permission.Create().
+		SetCode("system:write").SetName("系统写").SetResource("system").SetAction("write").
+		SetTenantID(internal.ID).Save(ctx)
+	require.NoError(t, err)
+	rootSysRole, err := roleSvc.CreateRole(ctx, &dto.CreateRoleRequest{Name: "RootSys", Code: "root_sys"}, internal.ID)
+	require.NoError(t, err)
+	require.NoError(t, roleSvc.AssignPermissions(ctx, rootSysRole.ID, []int{rootSysWrite.ID}, internal.ID))
 }
 
 func TestUserCreateUpdate_PlatformRoleGuard(t *testing.T) {

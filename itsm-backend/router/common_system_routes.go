@@ -163,8 +163,10 @@ func SetupCommonSystemRoutes(r *gin.Engine, tenant *gin.RouterGroup, config *Rou
 			permissions := tenant.Group("/permissions")
 			{
 				permissions.GET("", middleware.RequirePermission("permission", "read"), config.RBACHandler.ListPermissions)
-				permissions.POST("", middleware.RequirePermission("role", "write"), config.RBACHandler.CreatePermission)
-				permissions.POST("/init", middleware.RequirePermission("role", "write"), config.RBACHandler.InitDefaultPermissions)
+				// IP-P2-7 收口补丁 4：权限词表归平台治理——租户只读目录并分配既有码；
+				// 若允许租户自造权限定义，即可铸出 system:* 等平台码并经角色授权穿过平台路由。
+				permissions.POST("", middleware.RequirePlatformAdmin(), middleware.RequirePermission("role", "write"), config.RBACHandler.CreatePermission)
+				permissions.POST("/init", middleware.RequirePlatformAdmin(), middleware.RequirePermission("role", "write"), config.RBACHandler.InitDefaultPermissions)
 			}
 		}
 

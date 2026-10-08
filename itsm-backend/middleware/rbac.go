@@ -1159,6 +1159,29 @@ func RequirePermission(resource, action string) gin.HandlerFunc {
 	}
 }
 
+// RequirePlatformAdmin 平台治理面硬校验（IP-P2-7 收口补丁 4）：
+// 仅平台角色（super_admin/sysadmin，词表单一源）可通行，其余角色（含客户/服务商管理员）一律 403。
+//
+// 适用面：无法用「权限码」自证治理边界的平台资源——权限码会被目录克隆/角色授权带到
+// 非平台租户（码=能力），此时仅 RequirePermission 不足以守住平台面，需要身份硬校验。
+func RequirePlatformAdmin() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		for _, role := range GetContextRoles(c) {
+			if IsPlatformRole(strings.TrimSpace(role)) {
+				c.Next()
+				return
+			}
+		}
+		zap.S().Warnw("RequirePlatformAdmin: denied",
+			"path", c.Request.URL.Path,
+			"method", c.Request.Method,
+			"roles", GetContextRoles(c),
+		)
+		common.Fail(c, common.ForbiddenCode, "仅平台管理员可执行该操作")
+		c.Abort()
+	}
+}
+
 // RequireRole enforces that the authenticated user role is one of the allowed roles
 func RequireRole(allowedRoles ...string) gin.HandlerFunc {
 	normalized := make([]string, 0, len(allowedRoles))

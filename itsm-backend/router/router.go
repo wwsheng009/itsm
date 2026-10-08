@@ -405,6 +405,8 @@ func SetupRoutes(r *gin.Engine, config *RouterConfig) {
 	if config.Client != nil {
 		operationHandler := operations.NewHandler(operations.NewService(config.Client))
 		operationRoutes := auth.Group("/admin/operations/commands")
+		// IP-P2-7 收口补丁 4：运维命令为平台面（system:write 可被租户目录克隆持有），加平台身份硬校验。
+		operationRoutes.Use(middleware.RequirePlatformAdmin())
 		operationRoutes.Use(middleware.RequirePermission("system", "write"))
 		operationRoutes.GET("", operationHandler.List)
 		operationRoutes.GET("/:id", operationHandler.Get)
@@ -417,7 +419,8 @@ func SetupRoutes(r *gin.Engine, config *RouterConfig) {
 	// RLS 运行指标端点（enforce 灰度观测面，报告 §5）：
 	// itsm_rls_missing_tenant_total > 0 即暂停灰度并评估回滚；此端点输出同一快照，
 	// 供没有 Prometheus 抓取链路的现场排障使用。
-	auth.GET("/admin/rls/stats", middleware.RequirePermission("system", "read"), func(c *gin.Context) {
+	// IP-P2-7 收口补丁 4：RLS 指标为平台运维面，加平台身份硬校验。
+	auth.GET("/admin/rls/stats", middleware.RequirePlatformAdmin(), middleware.RequirePermission("system", "read"), func(c *gin.Context) {
 		drv := database.GetRLSDriver()
 		if drv == nil {
 			common.Success(c, gin.H{"enabled": false})
@@ -436,6 +439,8 @@ func SetupRoutes(r *gin.Engine, config *RouterConfig) {
 		timerSvc := timerHandler.NewService(timerStore)
 		timerH := timerHandler.NewHandler(timerSvc)
 		timerRoutes := auth.Group("/timers")
+		// IP-P2-7 收口补丁 4：定时器为平台调度面，加平台身份硬校验。
+		timerRoutes.Use(middleware.RequirePlatformAdmin())
 		timerRoutes.Use(middleware.RequirePermission("system", "read"))
 		timerRoutes.GET("", timerH.List)
 		timerRoutes.GET("/stats", timerH.Stats)

@@ -12,6 +12,9 @@ import (
 //
 // 门禁：
 //   - h 为 nil（灰度开关关闭）时整组不注册——端点不可达即回滚语义（§3.5）；
+//   - 管理面加挂 RequirePlatformAdmin 身份硬校验（IP-P2-7 收口补丁 4）：实例为全局资源
+//     （llm_provider 无租户字段），仅凭 system:write 权限码不足以守住——该码可被租户目录
+//     克隆并经角色授权带到非平台租户；
 //   - 管理端点挂 RequirePermission("system","write")（分组级挂载，D12）：
 //     super_admin 走既有旁路，sysadmin 持 *:* 数据授权，其余角色一律拒绝；
 //   - 选择器读端点（GET /providers/available、GET /user-preference）降为
@@ -36,7 +39,8 @@ func SetupLLMProviderAdminRoutes(tenant *gin.RouterGroup, h *aiHandler.LLMProvid
 	}
 
 	// 管理面（D12）：实例 CRUD / 连通性测试 / 设默认 / 静态导入 / 个人默认写入。
-	admin := tenant.Group("/ai", middleware.RequirePermission("system", "write"))
+	// IP-P2-7 收口补丁 4：平台身份硬校验 + 权限码双保险。
+	admin := tenant.Group("/ai", middleware.RequirePlatformAdmin(), middleware.RequirePermission("system", "write"))
 	{
 		// 实例 CRUD
 		admin.GET("/providers", h.ListProviders)

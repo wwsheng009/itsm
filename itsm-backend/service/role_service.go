@@ -321,17 +321,29 @@ func isReservedRoleCode(code string) bool {
 	return middleware.IsPlatformRole(code) || middleware.IsMSPOnlyRole(code)
 }
 
-// ensureNoWildcardPermissionForNonPlatformRoot 通配权限（resource/action 含 *）仅平台根租户可分配。
-// 作用：防止非平台租户自造 `*:*` 并挂到自有角色，绕过全部权限判定。
-func (s *RoleService) ensureNoWildcardPermissionForNonPlatformRoot(ctx context.Context, tenantID int, perms []*ent.Permission) error {
-	wildcard := ""
+// ensureAssignablePermissionsForNonPlatformRoot 非平台根租户的「可分配权限」护栏（IP-P2-7 收口）：
+//  1. 通配权限（resource/action 含 *）——挂到自有角色即可绕过全部权限判定；
+//  2. 平台治理权限（resource=system，如 system:write 掌管 LLM 实例/运维命令/RLS/定时器）——
+//     权限码可被克隆目录带到租户，若允许再分配，租户即以其为能力穿过仅按码粗筛的平台路由。
+//
+// 覆盖创建角色（Permissions 码路径）/更新角色（码路径）/AssignPermissions（ID 路径）三条路径。
+// 平台根（internal/standard）不受限。
+func (s *RoleService) ensureAssignablePermissionsForNonPlatformRoot(ctx context.Context, tenantID int, perms []*ent.Permission) error {
+	violationErr := error(nil)
+	violation := ""
 	for _, p := range perms {
 		if p.Resource == "*" || p.Action == "*" {
-			wildcard = fmt.Sprintf("%s:%s", p.Resource, p.Action)
+			violationErr = ErrWildcardPermissionForbidden
+			violation = fmt.Sprintf("%s:%s", p.Resource, p.Action)
+			break
+		}
+		if strings.TrimSpace(p.Resource) == platformGovernedPermissionResource {
+			violationErr = ErrPlatformPermissionForbidden
+			violation = fmt.Sprintf("%s:%s", p.Resource, p.Action)
 			break
 		}
 	}
-	if wildcard == "" {
+	if violationErr == nil {
 		return nil
 	}
 	kind, err := tenantTypeOf(ctx, s.client, tenantID)
@@ -339,10 +351,16 @@ func (s *RoleService) ensureNoWildcardPermissionForNonPlatformRoot(ctx context.C
 		return err
 	}
 	if !isPlatformRootTenantKind(kind) {
-		return fmt.Errorf("%w（%s）", ErrWildcardPermissionForbidden, wildcard)
+		if errors.Is(violationErr, ErrWildcardPermissionForbidden) {
+			return fmt.Errorf("%w（%s）", violationErr, violation)
+		}
+		return fmt.Errorf("%w: %s", violationErr, violation)
 	}
 	return nil
 }
+
+// platformGovernedPermissionResource 平台治理权限资源段（非平台根租户不可分配，IP-P2-7 收口补丁 4）。
+const platformGovernedPermissionResource = "system"
 
 func (s *RoleService) permissionIDsByCodes(ctx context.Context, permissionCodes []string, tenantID int) ([]int, error) {
 	normalizedCodes := make([]string, 0, len(permissionCodes))
@@ -384,7 +402,7 @@ func (s *RoleService) permissionIDsByCodes(ctx context.Context, permissionCodes 
 		}
 		return nil, fmt.Errorf("权限不存在，请先初始化权限字典: %s", strings.Join(missing, ", "))
 	}
-	if err := s.ensureNoWildcardPermissionForNonPlatformRoot(ctx, tenantID, perms); err != nil {
+	if err := s.ensureAssignablePermissionsForNonPlatformRoot(ctx, tenantID, perms); err != nil {
 		return nil, err
 	}
 
@@ -465,6 +483,9 @@ var ErrReservedRoleCode = errors.New("角色码为系统保留（平台/MSP 专�
 // ErrWildcardPermissionForbidden 通配权限（resource/action 含 *）仅平台根租户可用（IP-P2-7 收口）。
 var ErrWildcardPermissionForbidden = errors.New("通配权限仅平台根租户可用")
 
+// ErrPlatformPermissionForbidden 平台治理权限码（resource=system）仅平台根租户可分配（IP-P2-7 收口补丁 4）。
+var ErrPlatformPermissionForbidden = errors.New("平台治理权限码仅平台根租户可分配")
+
 func (s *RoleService) AssignPermissions(ctx context.Context, roleID int, permissionIDs []int, tenantID int) error {
 	s.logger.Infow("Assigning permissions to role", "role_id", roleID, "permission_count", len(permissionIDs))
 
@@ -502,7 +523,7 @@ func (s *RoleService) AssignPermissions(ctx context.Context, roleID int, permiss
 		if len(perms) != len(permissionIDs) {
 			return ErrPermissionNotInTenant
 		}
-		if err := s.ensureNoWildcardPermissionForNonPlatformRoot(ctx, tenantID, perms); err != nil {
+		if err := s.ensureAssignablePermissionsForNonPlatformRoot(ctx, tenantID, perms); err != nil {
 			return err
 		}
 	}

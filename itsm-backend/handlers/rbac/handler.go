@@ -38,7 +38,9 @@ func NewHandler(roleService RoleService, permissionService PermissionService, me
 // 保留角色码 / 通配权限越界属于调用方输入错误，映射为稳定的 400；
 // 其余错误返回 false，交由调用方默认处理（500）。
 func mapRoleConfigPolicyError(c *gin.Context, err error) bool {
-	if errors.Is(err, service.ErrReservedRoleCode) || errors.Is(err, service.ErrWildcardPermissionForbidden) {
+	if errors.Is(err, service.ErrReservedRoleCode) ||
+		errors.Is(err, service.ErrWildcardPermissionForbidden) ||
+		errors.Is(err, service.ErrPlatformPermissionForbidden) {
 		common.ParamErrorWithErr(c, err, "请求参数错误")
 		return true
 	}
