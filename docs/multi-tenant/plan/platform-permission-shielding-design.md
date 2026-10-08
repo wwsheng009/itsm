@@ -1,6 +1,6 @@
 # 平台面权限屏蔽与角色架构设计（Platform Permission Shielding & Role Architecture）
 
-> **状态**：v0.6（2026-10-08）——基于 IP-P2-7 收口补丁 1–8 的实施事实归纳与实弹验证回填（§7）；D4=B/R6、R2/R3、角色码归类与前端展示层（R5）均已收口（补丁 5/6/7/8）；剩余待办与决策点见 §5/§6
+> **状态**：v0.7（2026-10-08）——基于 IP-P2-7 收口补丁 1–9 的实施事实归纳与实弹验证回填（§7）；D4=B/R6、R2/R3、角色码归类与前端展示层（R5/P1）均已收口（补丁 5/6/7/8/9）；剩余待办与决策点见 §5/§6
 >
 > **上位（权威顺序）**：[canon](./msp-concept-model-and-architecture-canon.md)（D5/D8/D10/D11、§2.3）→ [目标架构 §6](./msp-target-architecture.md)（权限矩阵）→ [实施方案](./msp-implementation-plan.md)（IP-P2-7 批次）→ 本设计
 >
@@ -55,7 +55,7 @@
 |----|------|------|
 | 平台根判定 | 根租户标识叠加：`code=default` 兜底判为平台根（provider 语义仍按类型，不放大） | `service/tenant_scope.go`（`isPlatformRootTenant`，`platform_root_tenant_test.go`） |
 | 角色·可见性 | 按租户类型过滤列表/详情（客户隐平台+MSP、服务商隐平台、平台根不过滤；命中按"不存在"处理、`total` 收敛） | `RoleService`（`msp_role_visibility_test.go`） |
-| 角色·可授予 | 同口径拒绝（用户建号/编辑 + 建号通道 `roleIds`，422 `ROLE_NOT_GRANTABLE`） | `CanGrantRoles` / `GrantableRoles` |
+| 角色·可授予 | 列表候选标注 `grantable`（rank ≤ 调用者，前端隐藏/禁选）+ 写面同口径拒绝（用户建号/编辑 + 建号通道 `roleIds`，422 `ROLE_NOT_GRANTABLE`） | `CanGrantRoles` / `GrantableRoles` / `ListRoles`（补丁 9） |
 | 角色·可写 | 保留码全局拒绝（创建/改名；`ErrReservedRoleCode`→400） | `CreateRole/UpdateRole` |
 | 权限·通配 | 非平台根禁创建/分配 `*:*`（`ErrWildcardPermissionForbidden`→400，覆盖 Create/Assign/Update 三路径） | `role_service.go` |
 | 权限·平台码 | `platformGovernedPermissionResources`（评估结论 `{system}`）不可分配（`ErrPlatformPermissionForbidden`→400） | `ensureAssignablePermissionsForNonPlatformRoot` |
@@ -169,6 +169,7 @@
 | 补丁 6 | 扩展护栏（R2/R3 收口）：平台面路由 L1 注册表守卫（AST：注册表 + 反向前缀 + handler 级登记）；平台家族码逐家族评估（仅 `system` 纳入；机制改显式集合 + 决策锁） | `router/platform_face_guard_test.go`、`service/role_config_bypass_guard_test.go`（决策锁）、[扩展评审清单](./role-permission-extension-checklist.md) §2.2 |
 | 补丁 7 | 角色码归类完整性守卫（P2 收口）：`msp_`/`provider_` 前缀 ⊆ MSP 词表、平台保留码、词表反防腐化、兜底表键归类（遗留白名单 `security` 登记为待收敛） | `pkg/seeder/role_code_classification_guard_test.go`（可失败性已验证） |
 | 补丁 8 | 前端展示层联动（R5 收口）：权限目录 `assignable` 标注（后端，与写面护栏同口径）+ 角色页权限矩阵隐藏不可分配项 + 已授予锁定码警示（保存不保留） | `service/permission_assignable_test.go`、`roles/index.tsx`（tsc/eslint 绿） |
+| 补丁 9 | 用户角色下拉 rank 收口（§5.2 P1 剩余项）：`GET /roles` 每项 `grantable`（rank ≤ 调用者；缺省按空角色收敛）+ 用户页创建下拉过滤、编辑下拉保留当前持有项禁选、邀请弹窗同源过滤 | `service/role_grantable_test.go`、`handlers/rbac/handler_test.go`（补丁 9 用例） |
 | 防回退 | 写路由必须挂权限中间件（AST）；权限码必须在目录 | `router/route_permission_guard_test.go`、`router/permission_code_catalog_guard_test.go` |
 
 ### 5.2 待办
@@ -176,7 +177,7 @@
 | 优先级 | 事项 | 说明 |
 |--------|------|------|
 | P0 | 存量租户权限目录处置 | 方向待决策（§6.1 D1）；本补丁后短期风险已由 L1+L2 覆盖 |
-| P1 | 前端展示层联动 | 角色权限选择器已收口（补丁 8：`assignable` 标注 + 隐藏 + 锁定码警示）；剩余：用户角色下拉按调用者 rank 过滤（provider 场景，422 `ROLE_NOT_GRANTABLE` 面） |
+| P1 | 前端展示层联动 | 已收口（补丁 8：权限选择器 `assignable`；补丁 9：用户角色下拉 `grantable` rank 面） |
 | P2 | L3 数据面复核 | membership/allocation/RLS 的剩余缺口见对应专文（不在本设计范围） |
 
 ---
@@ -200,7 +201,7 @@
 | R2 | 平台面新增路由漏挂 L1 | 已收口（补丁 6：注册表 + 反向前缀守卫，`router/platform_face_guard_test.go`） | 新增平台面路由必须同步注册表（§3.3 评审规则 + 扩展评审清单 §3） |
 | R3 | `resource != system` 的平台家族码（`menu`/`system_config`/`mcp`/…）仍可分配 | 已收口（补丁 6 逐家族评估：`system_config`/`mcp`/`connector` 为租户面不纳入；`menu`/`federation` 码空间不存在；结论见扩展评审清单 §2.2） | 护栏集合维持 `{system}`；新增/调整家族须先完成评估并更新清单 |
 | R4 | 内部调用（`InitDefaultPermissions` 等）不经路由 | 已确认 | service 层不做身份拦截（D2）；仅分配护栏生效，内部调用默认可信（平台初始化路径） |
-| R5 | 前端角色页可勾选不可分配权限，提交后 400 | 已收口（补丁 8：选择器按 `assignable` 隐藏 + 锁定码警示；写面护栏不变） | 用户角色下拉的 rank 面见 §5.2 P1 剩余项 |
+| R5 | 前端角色页可勾选不可分配权限，提交后 400 | 已收口（补丁 8：选择器按 `assignable` 隐藏 + 锁定码警示；写面护栏不变） | 用户角色下拉 rank 面已随补丁 9 收口 |
 | R6 | `saas_msp` 根租户被类型判定当作服务商租户 | 已收口（补丁 5 落地 + §7.4 复测：平台角色可见、`system:write` 分配 200；补丁 4 时点观测见 §7.3） | D4=B 已实施：`isPlatformRootTenant` 根租户标识叠加判定；provider 语义仍按类型（不放大） |
 
 ---

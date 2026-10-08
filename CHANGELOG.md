@@ -39,6 +39,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **用户角色下拉 rank 收口：`GET /roles` `grantable` 标注（IP-P2-7 收口补丁 9；§5.2 P1 剩余项）** — ① 后端：角色列表每项新增 `grantable`（rank ≤ 调用者；与写面 `CanGrantRoles` 同口径，缺省调用者角色按空角色收敛 fail closed），handler 注入调用者角色、service 计算、`RoleDTO` 透传；新增 `TestListRoles_GrantableFlagByCallerRank`（service）与 `TestListRoles_GrantableReflectsCallerRank`（handler）。② 前端：用户页创建下拉隐藏不可授予项；编辑下拉保留"用户当前持有但不可授予"项（禁选，防裸 ID 标签、不允许追加）；邀请弹窗同源过滤。验证：`./service`、`./handlers/rbac` 全量绿、`tsc -b` 0、eslint 0、前端全量 jest 4115 通过（3 个存量失败套件与本次无关：env/unified-config 环境项、msp-api `allocations/history` 契约漂移）。
+
 - **前端展示层联动：权限目录 `assignable` 标注 + 角色页隐藏不可分配项（IP-P2-7 收口补丁 8；R5 收口）** — ① 后端：`GET /permissions` 的 `items` 新增 `assignable`（与写面护栏 `ensureAssignablePermissionsForNonPlatformRoot` 同口径：非平台根租户的通配/平台治理家族码为 `false`；平台根含 `code=default` 兜底全为 `true`），护栏谓词抽为 `isWildcardPermission`/`isPlatformGovernedPermissionResource` 单一源；新增 `TestListPermissions_AssignableFlag`。② 前端：角色页权限矩阵按 `assignable` 过滤（不可分配项不进选择矩阵），编辑含锁定码的角色时展示警示（保存不保留）；`PermissionCatalogItem` 类型同步；i18n 中英双语。验证：`./service` 全量绿（跳过已登记偶发 bpmn 用例）、handlers/rbac 绿、`tsc -b` 0、eslint 0、i18n 用例 8/8。
 
 - **角色码归类完整性守卫（IP-P2-7 收口补丁 7；§5.2 P2 收口）** — 新增 `pkg/seeder/role_code_classification_guard_test.go`：扫描五路角色码定义源（`domainrole.All`、`middleware.RolePermissions`、`authz.BuiltinRolePermissionCodes`、`authz.MSPCustomerScopeRolePermissionCodes`、`seeder.BuiltinRoles`）并锁四条契约——① `msp_`/`provider_` 前缀 ⊆ MSP 词表（防"漏登记词表 → 客户侧按租户本地角色默认放行"）；② 平台保留码 ⊆ 平台词表；③ 词表条目反防腐化（必须存在于定义源）；④ 兜底表键归类（`domainrole.All` ∪ 平台 ∪ MSP ∪ 显式遗留白名单；历史键 `security` 登记为待收敛项）。可失败性已用临时探针验证（注入陈旧白名单 → CI 红 → 移除）。回归：`./pkg/seeder` 全量绿。

@@ -6,7 +6,7 @@
 >
 > **关联**：守卫矩阵见 §5；`CHANGELOG.md`；[建号角色多选方案](./msp-provision-user-roles-multiselect-plan.md)（建号通道过滤）
 >
-> **状态**：v0.4（2026-10-08）——扩展纪律与平台家族码评估结论（§2.2）落定；R2/R3、角色码归类（补丁 6/7）与目录标注前端联动（补丁 8）均已落地（§5）
+> **状态**：v0.5（2026-10-08）——扩展纪律与平台家族码评估结论（§2.2）落定；R2/R3、角色码归类（补丁 6/7）、目录标注（补丁 8）与用户角色下拉 rank 收口（补丁 9）均已落地（§5）
 
 ---
 
@@ -103,6 +103,7 @@
 | 平台面路由必须挂 L1 | `router/platform_face_guard_test.go`（补丁 6：注册表 + 反向前缀 + handler 级登记） | ✅ |
 | 平台家族码清单锁 | `service/role_service.go` 集合 + 决策锁用例 + 本清单 §2.2（补丁 6） | ✅ |
 | 目录 assignable 标注与写面护栏同口径 | `service/permission_assignable_test.go`（补丁 8） | ✅ |
+| 可授予候选标注与写面同口径（rank ≤ 调用者） | `service/role_grantable_test.go` + `handlers/rbac` 用例（补丁 9） | ✅ |
 | 角色码归类完整性（`msp_`/`provider_` 前缀 ⊆ MSP 词表；兜底表键归类） | `pkg/seeder/role_code_classification_guard_test.go`（补丁 7，可失败性已验证） | ✅ |
 
 ## 6. 评审流程（怎么用本清单）
