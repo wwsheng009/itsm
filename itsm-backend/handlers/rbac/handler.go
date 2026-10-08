@@ -141,6 +141,8 @@ func (h *Handler) ListRoles(c *gin.Context) {
 		PageSize: pagination.PageSize,
 		Status:   status,
 		Search:   c.Query("search"),
+		// 调用者角色（grantable 标注用；缺失时按空角色 rank 收敛，fail closed）。
+		CallerRole: c.GetString("role"),
 	}
 
 	roles, total, err := h.roleService.ListRoles(c.Request.Context(), tenantID, params)
@@ -173,6 +175,7 @@ func (h *Handler) ListRoles(c *gin.Context) {
 			UpdatedAt:   role.UpdatedAt.Format(time.RFC3339),
 			TenantID:    role.TenantID,
 			DataScope:   role.DataScope,
+			Grantable:   role.Grantable,
 		})
 	}
 

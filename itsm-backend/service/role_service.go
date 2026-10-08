@@ -243,9 +243,12 @@ func (s *RoleService) ListRoles(ctx context.Context, tenantID int, params *dto.G
 	}
 
 	responses := make([]*dto.RoleResponse, len(roles))
+	callerRank := serviceRoleRank(params.CallerRole)
 	for i, r := range roles {
 		resp := s.buildRoleResponse(r)
 		resp.Permissions = permMap[r.ID]
+		// Grantable：调用者能否把该角色授予用户（rank ≤ 调用者；与写面 CanGrantRoles 同口径，IP-P2-7 补丁 9）。
+		resp.Grantable = serviceRoleRank(r.Code) <= callerRank
 		responses[i] = resp
 	}
 

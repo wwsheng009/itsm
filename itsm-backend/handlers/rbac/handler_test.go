@@ -223,6 +223,40 @@ func TestListRoles_RequiresTenantContext(t *testing.T) {
 	assert.NotEqual(t, 0, env.Code, "失败响应业务码不应为 0")
 }
 
+// TestListRoles_GrantableReflectsCallerRank（IP-P2-7 收口补丁 9）：grantable 标注由 handler 注入的调用者角色驱动，
+// 并经 RoleDTO 透传到响应 JSON——用户页角色下拉隐藏不可授予项的依据。
+func TestListRoles_GrantableReflectsCallerRank(t *testing.T) {
+	h, client := setupRBACTest(t)
+	ctx := context.Background()
+	tn, err := client.Tenant.Create().
+		SetName("grantable").SetCode("sp-grantable").SetType("msp_provider").SetStatus("active").
+		Save(ctx)
+	require.NoError(t, err)
+	mkRBACRole(t, client, tn.ID, "MSP 管理员", "msp_admin", entrole.DataScopeAll, true)
+	mkRBACRole(t, client, tn.ID, "MSP 主管", "msp_manager", entrole.DataScopeAll, true)
+
+	router := gin.New()
+	router.Use(func(c *gin.Context) {
+		c.Set(middleware.TenantContextKey, &middleware.TenantContext{TenantID: tn.ID})
+		c.Set("role", "msp_manager")
+		c.Next()
+	})
+	router.GET("/roles", h.ListRoles)
+
+	w := httptest.NewRecorder()
+	router.ServeHTTP(w, httptest.NewRequest(http.MethodGet, "/roles?page=1&pageSize=20", nil))
+	require.Equal(t, http.StatusOK, w.Code)
+	list := parseRoleList(t, w)
+
+	require.Equal(t, 2, list.Total)
+	got := map[string]bool{}
+	for _, r := range list.Roles {
+		got[r.Code] = r.Grantable
+	}
+	require.False(t, got["msp_admin"], "rank 高于调用者（msp_manager rank 3）的角色不得标为可授予")
+	require.True(t, got["msp_manager"], "同级角色可授予")
+}
+
 func TestListRoles_SearchFiltersWithinTenant(t *testing.T) {
 	h, client := setupRBACTest(t)
 	tenantA := mkRBACTenant(t, client, "a")

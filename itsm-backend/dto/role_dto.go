@@ -47,6 +47,8 @@ type RoleDTO struct {
 	UpdatedAt   string   `json:"updatedAt"`
 	TenantID    int      `json:"tenantId"`
 	DataScope   string   `json:"dataScope"` // all/department/owner
+	// Grantable 调用者能否把该角色授予用户（rank ≤ 调用者；补丁 9）。
+	Grantable bool `json:"grantable"`
 }
 
 // RoleListResponse represents the response for listing roles
@@ -86,18 +88,22 @@ type GetRolesParams struct {
 	PageSize int    `form:"pageSize"`
 	Status   string `form:"status"`
 	Search   string `form:"search"`
+	// CallerRole 调用者角色码（handler 注入；用于 RoleResponse.Grantable 标注，IP-P2-7 收口补丁 9）。
+	CallerRole string `form:"-"`
 }
 
 // RoleResponse 角色响应（用于新角色服务）
 type RoleResponse struct {
-	ID          int              `json:"id"`
-	Name        string           `json:"name"`
-	Code        string           `json:"code"`
-	Description string           `json:"description"`
-	IsSystem    bool             `json:"isSystem"`
-	Status      string           `json:"status"`    // active/inactive，启用状态的唯一线上契约
-	IsActive    bool             `json:"-"`         // 内部字段：Status 的来源，不单独出 JSON，避免同义双字段
-	DataScope   string           `json:"dataScope"` // all/department/owner
+	ID          int    `json:"id"`
+	Name        string `json:"name"`
+	Code        string `json:"code"`
+	Description string `json:"description"`
+	IsSystem    bool   `json:"isSystem"`
+	Status      string `json:"status"`    // active/inactive，启用状态的唯一线上契约
+	IsActive    bool   `json:"-"`         // 内部字段：Status 的来源，不单独出 JSON，避免同义双字段
+	DataScope   string `json:"dataScope"` // all/department/owner
+	// Grantable 调用者能否把该角色授予用户（rank ≤ 调用者；与写面 CanGrantRoles 同口径，补丁 9）。
+	Grantable   bool             `json:"grantable"`
 	Permissions []PermissionInfo `json:"permissions"`
 	TenantID    int              `json:"tenantId"`
 	CreatedAt   time.Time        `json:"createdAt"`
