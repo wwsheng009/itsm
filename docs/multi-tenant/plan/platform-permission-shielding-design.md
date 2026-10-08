@@ -1,6 +1,6 @@
 # 平台面权限屏蔽与角色架构设计（Platform Permission Shielding & Role Architecture）
 
-> **状态**：v0.7（2026-10-08）——基于 IP-P2-7 收口补丁 1–9 的实施事实归纳与实弹验证回填（§7）；D4=B/R6、R2/R3、角色码归类与前端展示层（R5/P1）均已收口（补丁 5/6/7/8/9）；剩余待办与决策点见 §5/§6
+> **状态**：v0.8（2026-10-08）——基于 IP-P2-7 收口补丁 1–9 + D1 决策的实施事实归纳与实弹验证回填（§7）；D4=B/R6、R2/R3、角色码归类、前端展示层（R5/P1）与存量目录处置（D1=B）均已收口（补丁 5/6/7/8/9 + [D1 决策材料](./platform-permission-shielding-d1-decision.md)）；剩余：§5.2 P2（L3 数据面复核，属其他专文）
 >
 > **上位（权威顺序）**：[canon](./msp-concept-model-and-architecture-canon.md)（D5/D8/D10/D11、§2.3）→ [目标架构 §6](./msp-target-architecture.md)（权限矩阵）→ [实施方案](./msp-implementation-plan.md)（IP-P2-7 批次）→ 本设计
 >
@@ -170,13 +170,14 @@
 | 补丁 7 | 角色码归类完整性守卫（P2 收口）：`msp_`/`provider_` 前缀 ⊆ MSP 词表、平台保留码、词表反防腐化、兜底表键归类（遗留白名单 `security` 登记为待收敛） | `pkg/seeder/role_code_classification_guard_test.go`（可失败性已验证） |
 | 补丁 8 | 前端展示层联动（R5 收口）：权限目录 `assignable` 标注（后端，与写面护栏同口径）+ 角色页权限矩阵隐藏不可分配项 + 已授予锁定码警示（保存不保留） | `service/permission_assignable_test.go`、`roles/index.tsx`（tsc/eslint 绿） |
 | 补丁 9 | 用户角色下拉 rank 收口（§5.2 P1 剩余项）：`GET /roles` 每项 `grantable`（rank ≤ 调用者；缺省按空角色收敛）+ 用户页创建下拉过滤、编辑下拉保留当前持有项禁选、邀请弹窗同源过滤 | `service/role_grantable_test.go`、`handlers/rbac/handler_test.go`（补丁 9 用例） |
+| D1 收口 | 存量租户权限目录处置决策（**B 定案** + A 预置预案与触发条件）：只读 SQL 实测（非根 10 租户 × 2 平台家族码、零通配符、零非根持有面；克隆供给链 `ProvisionTenant` 持续引入） | [决策材料](./platform-permission-shielding-d1-decision.md)（含复验 SQL 与口径） |
 | 防回退 | 写路由必须挂权限中间件（AST）；权限码必须在目录 | `router/route_permission_guard_test.go`、`router/permission_code_catalog_guard_test.go` |
 
 ### 5.2 待办
 
 | 优先级 | 事项 | 说明 |
 |--------|------|------|
-| P0 | 存量租户权限目录处置 | 方向待决策（§6.1 D1）；本补丁后短期风险已由 L1+L2 覆盖 |
+| P0 | 存量租户权限目录处置 | **已决（D1=B，2026-10-08）**：保留 + 不可分配定案；实测零持有面，A 预案与触发条件见[决策材料](./platform-permission-shielding-d1-decision.md) |
 | P1 | 前端展示层联动 | 已收口（补丁 8：权限选择器 `assignable`；补丁 9：用户角色下拉 `grantable` rank 面） |
 | P2 | L3 数据面复核 | membership/allocation/RLS 的剩余缺口见对应专文（不在本设计范围） |
 
@@ -188,7 +189,7 @@
 
 | 编号 | 决策 | 选项 | 建议 | 影响 |
 |------|------|------|------|------|
-| D1 | 存量权限目录中的平台码（`system:*` 等）如何处置 | A. 裁剪（逐租户删除平台家族码行）；B. 保留但不可分配（现状） | **B 先行、观察期后评估 A**：裁剪会改变历史角色→权限映射与审计可读性，且回滚成本高；保留+护栏已阻断攻击链 | 裁剪影响 `permissions` 表存量行、角色权限 m2m、前端目录展示 |
+| D1 | 存量权限目录中的平台码（`system:*` 等）如何处置 | A. 裁剪（逐租户删除平台家族码行）；B. 保留但不可分配（现状） | **已决：B（2026-10-08）**——实测非根租户零持有面，残余纯数据卫生；A 预案（含 `ProvisionTenant` 克隆链连带改动）与触发条件见[决策材料](./platform-permission-shielding-d1-decision.md) | 裁剪影响 `permissions` 表存量行、角色权限 m2m、前端目录展示 |
 | D2 | 平台治理判定是否下沉到 service（而非仅路由） | A. 维持路由层 L1；B. service 层再加身份校验 | **A**：service 层无调用者身份语义（且 `CreatePermission` 被 `InitDefaultPermissions` 内部调用），路由层是正确收口点；service 层只做分配护栏（按作用域租户类型） | 若未来出现非 HTTP 调用路径需单独评审 |
 | D3 | `RequirePlatformAdmin` 的判定口径 | A. 仅主角色；B. 主角色 + m2m 并集 | **B（已实现）**：与 `AuthorizeResource` 的 `GetContextRoles` 口径一致，避免切换/附加角色场景绕过 | — |
 | D4 | 平台根判定口径：仅类型判定（`internal`/`standard`）是否足够 | A. 维持类型判定；B. 叠加根租户标识（`tenants.code=default`）兜底，provider 语义仍按类型；C. 改 seeder 使 `saas_msp` 根租户保持 `internal` | **B（已实施，补丁 5，2026-10-08）**：`saas_msp` 模式根租户由 seeder 固定为 `msp_provider`（部署形态自检要求存在 provider 租户，且根租户即 MSP 服务商主体），类型判定使平台根丧失平台面（§7.3 实测）；B 不动 provider 语义，改动收敛在平台根谓词及其调用点 | 补丁 5（已落地）：`tenant_scope.go` 谓词拆分（`isPlatformRootTenant`/`tenantScopeOf`/`hiddenRoleCodesForTenant`）+ `role_service`/`user_service` 调用点 + `platform_root_tenant_test.go`；实弹复测见 §7.4；选 A 则 `saas_msp` 平台根功能降级为"仅 `super_admin` 直通" |
@@ -197,7 +198,7 @@
 
 | 编号 | 风险 | 现状 | 缓解 |
 |------|------|------|------|
-| R1 | 克隆目录仍含平台码，用户界面可见 | 存在 | L1 使持码不可穿过平台面；P1 前端过滤；D1 决策后再清 |
+| R1 | 克隆目录仍含平台码，用户界面可见 | 已决（D1=B，2026-10-08；实测非根零持有面） | L1 使持码不可穿过平台面；P1 前端过滤；A 触发条件见[决策材料](./platform-permission-shielding-d1-decision.md) §5 |
 | R2 | 平台面新增路由漏挂 L1 | 已收口（补丁 6：注册表 + 反向前缀守卫，`router/platform_face_guard_test.go`） | 新增平台面路由必须同步注册表（§3.3 评审规则 + 扩展评审清单 §3） |
 | R3 | `resource != system` 的平台家族码（`menu`/`system_config`/`mcp`/…）仍可分配 | 已收口（补丁 6 逐家族评估：`system_config`/`mcp`/`connector` 为租户面不纳入；`menu`/`federation` 码空间不存在；结论见扩展评审清单 §2.2） | 护栏集合维持 `{system}`；新增/调整家族须先完成评估并更新清单 |
 | R4 | 内部调用（`InitDefaultPermissions` 等）不经路由 | 已确认 | service 层不做身份拦截（D2）；仅分配护栏生效，内部调用默认可信（平台初始化路径） |

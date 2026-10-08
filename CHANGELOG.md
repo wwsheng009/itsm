@@ -31,6 +31,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **存量租户权限目录处置（D1）决策材料落盘（IP-P2-7 §5.2 P0 收口）** — 实测证据（dev 只读 SQL：11 租户；非根 10 租户 × 2 平台家族码 `system:read/write`；全库零通配符；非平台根**零用户持有**，仅平台根 t1 有 3 用户属正当）；A/B 对比（A=裁剪须连带改 `ProvisionTenant` 克隆链 + 守卫 + 迁移，B=现状三重防线闭环）；**D1=B 定案**，A 预置预案与触发条件入档（[决策材料](docs/multi-tenant/plan/platform-permission-shielding-d1-decision.md)）；设计文档 v0.8 回填（§5.1/§5.2/§6.1/R1）。
+
 - **建号角色多选与目标租户角色列表（IP-P2-7）** — 平台/MSP 建号弹窗的角色选择由**硬编码常量改为数据驱动多选**：新增 `GET /api/v1/tenants/:id/roles` 与 `GET /api/v1/msp/customers/:id/roles`（与建号写入同源的通道/rank 过滤：排除 `super_admin`/`sysadmin`、rank 上限、客户类型租户排除 `provider_tenant_admin`/`msp_*`、仅 active；RLS 按目标租户读取）。写入沿用既有 `roleIds` 通道（`CanGrantRoles` 校验）；`roleIds` 非空且未显式指定 `role` 时，服务端按最高 rank 的**枚举兼容**角色派生 `users.role`，home membership 角色按所选最高 rank 解析（`msp_role` 映射优先不变）；补齐 `roleIds` 平台角色越权防护（`super_admin`/`sysadmin` → 422 `ROLE_NOT_GRANTABLE`）。前端 `ProvisionUserModal` 新增「角色（可多选）」异步候选（加载失败告警、不阻断基础字段），`/admin/tenants` 与 `/msp/management` 两处接线（移除 provider 常量硬编码，`msp_role` 白名单保留单一源注释）。验证：service/handlers/user/middleware 预检/router 定向回归全绿；弹窗 7/7、租户页 4 套件 26 用例、tsc/eslint 0；联调实测客户租户返回 27 个候选（含租户自定义角色）、服务商租户含 `msp_*` + `provider_tenant_admin`，客户弹窗仅「角色（可多选）」、服务商弹窗「角色（可多选）+ MSP 角色」。方案：`docs/multi-tenant/plan/msp-provision-user-roles-multiselect-plan.md`。
 
 - **《08 · 服务商账号与客户授权操作手册（用户级）》（`docs/multi-tenant/08-msp-user-operations-manual.md`）** — 面向界面操作的逐步手册：平台建号（含 MSP 角色）→ 分配到客户（客户域 membership/C2 自动落地）→ 员工「进入客户」深度切换与菜单/边界验证 → 解除分配（fail-closed）；含联调账号表、菜单对照实测、审计自查命令、C1/C2 角色映射附录与 FAQ。INDEX §0/§2 已登记。
