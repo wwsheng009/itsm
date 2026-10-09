@@ -1,0 +1,329 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>MSP 多租户平台 · 阶段进展汇报（通俗版）2026-10-01 ~ 10-09</title>
+<style>
+  :root{
+    --ink:#111827; --sub:#4b5563; --faint:#6b7280; --line:#e5e7eb; --bg:#f3f6fb; --card:#ffffff;
+    --blue:#1d4ed8; --blue-d:#0f2557; --cyan:#0e7490; --green:#047857; --amber:#b45309; --violet:#6d28d9; --rose:#be123c;
+  }
+  *{box-sizing:border-box; margin:0; padding:0;}
+  body{
+    width:1440px; background:var(--bg); color:var(--ink);
+    font-family:"Microsoft YaHei","PingFang SC","Segoe UI",-apple-system,sans-serif;
+    -webkit-font-smoothing:antialiased;
+  }
+  .page{padding:0 0 40px;}
+
+  /* ---------- hero ---------- */
+  .hero{background:linear-gradient(118deg,#0b1e4b 0%,#123a8f 46%,#1d4ed8 80%,#3b82f6 100%);
+    color:#fff; padding:44px 56px 36px; position:relative; overflow:hidden;}
+  .hero::after{content:""; position:absolute; right:-120px; top:-150px; width:540px; height:540px;
+    background:radial-gradient(circle,rgba(255,255,255,.16),transparent 65%); border-radius:50%;}
+  .hero-tag{display:inline-block; font-size:13px; letter-spacing:2px; color:#bfdbfe;
+    border:1px solid rgba(191,219,254,.45); padding:4px 12px; border-radius:999px; margin-bottom:14px;}
+  .hero h1{font-size:36px; line-height:1.3; letter-spacing:.5px;}
+  .hero h1 em{font-style:normal; color:#93c5fd; font-size:26px;}
+  .hero .lead{margin-top:14px; font-size:15.5px; color:#dbeafe; line-height:1.85; max-width:1120px;}
+  .hero .lead b{color:#fff;}
+  .hero-stats{display:flex; gap:14px; margin-top:26px; flex-wrap:wrap; position:relative; z-index:2;}
+  .hstat{background:rgba(255,255,255,.12); border:1px solid rgba(255,255,255,.22); border-radius:12px;
+    padding:12px 20px; min-width:160px;}
+  .hstat b{display:block; font-size:25px; line-height:1.2; color:#fff;}
+  .hstat span{font-size:12px; color:#bfdbfe;}
+
+  /* ---------- layout ---------- */
+  .section{padding:32px 56px 0;}
+  .sec-head{display:flex; align-items:baseline; gap:12px; margin-bottom:16px;}
+  .sec-head .no{font-size:13px; font-weight:700; color:#fff; background:var(--blue); border-radius:6px; padding:2px 9px; letter-spacing:1px;}
+  .sec-head h2{font-size:21px; letter-spacing:.5px;}
+  .sec-head .note{margin-left:auto; font-size:12.5px; color:var(--faint);}
+
+  /* ---------- glance cards ---------- */
+  .glance{display:grid; grid-template-columns:repeat(3,1fr); gap:16px;}
+  .g-card{background:var(--card); border:1px solid var(--line); border-radius:14px; padding:20px 22px;}
+  .g-card .icon{font-size:22px; margin-bottom:8px;}
+  .g-card h3{font-size:16px; margin-bottom:8px; letter-spacing:.3px;}
+  .g-card p{font-size:13.5px; color:#374151; line-height:1.8;}
+  .g-card p b{color:var(--blue);}
+
+  /* ---------- before / after ---------- */
+  .compare{background:var(--card); border:1px solid var(--line); border-radius:14px; overflow:hidden;}
+  .cmp-row{display:grid; grid-template-columns:190px 1fr 1fr; gap:0; border-bottom:1px solid var(--line);}
+  .cmp-row:last-child{border-bottom:none;}
+  .cmp-row > div{padding:14px 18px; font-size:13.5px; line-height:1.7;}
+  .cmp-head > div{font-size:12.5px; font-weight:700; color:var(--sub); background:#f8fafc; letter-spacing:.5px;}
+  .cmp-scene{font-weight:700; color:#111827; background:#fbfcfe;}
+  .cmp-before{color:#6b7280; border-left:1px solid var(--line);}
+  .cmp-before s{text-decoration-thickness:1px;}
+  .cmp-after{color:#065f46; background:#f0fdf9; border-left:1px solid var(--line);}
+  .cmp-after b{color:#047857;}
+  .cmp-after .arrow{color:#059669; font-weight:700; margin-right:4px;}
+
+  /* ---------- kpis ---------- */
+  .kpis{display:grid; grid-template-columns:repeat(3,1fr); gap:14px;}
+  .kpi{background:var(--card); border:1px solid var(--line); border-radius:12px; padding:18px 20px;}
+  .kpi b{font-size:26px; letter-spacing:.5px; color:var(--blue);}
+  .kpi b.green{color:var(--green);} .kpi b.amber{color:var(--amber);} .kpi b.violet{color:var(--violet);}
+  .kpi .what{font-size:13.5px; font-weight:700; margin:6px 0 4px;}
+  .kpi .mean{font-size:12.5px; color:var(--faint); line-height:1.65;}
+
+  /* ---------- modules ---------- */
+  .modules{display:grid; grid-template-columns:1fr 1fr; gap:14px;}
+  .mod{background:var(--card); border:1px solid var(--line); border-radius:14px; padding:16px 20px 15px; position:relative;}
+  .mod .top{display:flex; align-items:center; gap:10px; margin-bottom:6px;}
+  .mod h3{font-size:15.5px; letter-spacing:.3px; flex:1;}
+  .pill{font-size:11.5px; font-weight:700; border-radius:999px; padding:3px 10px; flex:none;}
+  .p-done{background:#ecfdf5; color:#047857; border:1px solid #a7f3d0;}
+  .p-wip{background:#fffbeb; color:#b45309; border:1px solid #fde68a;}
+  .mod p{font-size:13px; color:#374151; line-height:1.75;}
+  .mod p b{color:var(--blue);}
+  .bar{height:6px; border-radius:999px; background:#eef2f7; margin-top:10px; overflow:hidden;}
+  .bar i{display:block; height:100%; border-radius:999px; background:linear-gradient(90deg,#34d399,#059669);}
+  .bar i.b85{background:linear-gradient(90deg,#fbbf24,#d97706);}
+
+  /* ---------- architecture (in-report) ---------- */
+  .arch-wrap{background:var(--card); border:1px solid var(--line); border-radius:14px; padding:18px 20px;}
+  .arch-svg{width:100%; height:auto; display:block;}
+  .a-users{display:grid; grid-template-columns:repeat(3,1fr); gap:10px;}
+  .a-user{border:1.5px solid var(--line); border-radius:10px; padding:10px 14px;}
+  .a-user .w{font-size:13.5px; font-weight:700; margin-bottom:3px;}
+  .a-user .d{font-size:11.8px; color:var(--sub); line-height:1.55;}
+  .a-user.c1{border-color:#bfdbfe; background:#f8fbff;}
+  .a-user.c2{border-color:#ddd6fe; background:#faf9ff;}
+  .a-user.c3{border-color:#a5f3fc; background:#f5feff;}
+  .a-arrow{display:flex; align-items:center; gap:10px; margin:10px 0;}
+  .a-arrow .box{flex:1; background:#eef2f7; border:1px dashed #cbd5e1; border-radius:9px; padding:8px 14px; font-size:12px; color:#334155; text-align:center; line-height:1.6;}
+  .a-arrow .box b{color:var(--blue);}
+  .a-arrow .v{color:#94a3b8; font-size:13px;}
+  .a-apps{display:grid; grid-template-columns:repeat(3,1fr); gap:10px;}
+  .a-app{border:1.5px solid var(--line); border-radius:10px; padding:10px 14px; font-size:12px; color:#374151; line-height:1.6;}
+  .a-app h4{font-size:12.8px; margin-bottom:5px;}
+  .a-app.k1{border-color:#bfdbfe; background:#f8fbff;}
+  .a-app.k2{border-color:#ddd6fe; background:#faf9ff;}
+  .a-app.k3{border-color:#a5f3fc; background:#f5feff;}
+  .a-shared{margin-top:10px; border:1px solid #fde68a; background:#fffdf3; border-radius:10px; padding:8px 14px; font-size:12px; color:#78350f; line-height:1.6;}
+  .a-shared b{color:#b45309;}
+  .a-defs{display:grid; grid-template-columns:repeat(4,1fr); gap:10px;}
+  .a-def{border:1.5px solid #fecdd3; background:#fff7f8; border-radius:10px; padding:12px 12px 10px; position:relative;}
+  .a-def .no{position:absolute; top:-9px; left:12px; width:20px; height:20px; border-radius:50%; background:var(--rose); color:#fff; font-size:11px; font-weight:700; display:flex; align-items:center; justify-content:center;}
+  .a-def h4{font-size:12.6px; margin:4px 0 4px; color:#881337;}
+  .a-def p{font-size:11.6px; color:#4c0519; line-height:1.55;}
+  .a-db{border:2px solid #a7f3d0; background:#f2fdf8; border-radius:12px; padding:12px 16px; display:grid; grid-template-columns:1.5fr 1fr 1fr; gap:12px;}
+  .a-db .cell{font-size:12px; color:#374151; line-height:1.6;}
+  .a-db .cell h4{font-size:12.4px; color:#065f46; margin-bottom:4px;}
+  .a-db .cell.w h4{color:#92400e;}
+  .a-flows{display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-top:12px;}
+  .a-flow{background:#f8fafc; border:1px solid var(--line); border-radius:10px; padding:10px 14px; font-size:12px; color:#374151; line-height:1.65;}
+  .a-flow h4{font-size:12.6px; margin-bottom:5px; color:#1e293b;}
+  .a-flow b{color:#111827;}
+  .a-note{margin-top:12px; background:#eef2f7; border:1px dashed #cbd5e1; border-radius:10px; padding:9px 14px; font-size:11.8px; color:#475569; line-height:1.7;}
+  .a-note b{color:var(--blue);}
+
+  /* ---------- next steps ---------- */
+  .next{display:grid; grid-template-columns:1.35fr 1fr; gap:16px;}
+  .panel{background:var(--card); border:1px solid var(--line); border-radius:14px; padding:20px 24px;}
+  .panel h3{font-size:15px; margin-bottom:12px; letter-spacing:.3px;}
+  .step{display:flex; gap:12px; margin-bottom:12px;}
+  .step .num{width:24px; height:24px; flex:none; border-radius:50%; background:var(--blue); color:#fff;
+    font-size:13px; font-weight:700; display:flex; align-items:center; justify-content:center; margin-top:1px;}
+  .step .txt{font-size:13.5px; color:#374151; line-height:1.7;}
+  .step .txt b{color:#111827;}
+  .risk{background:#f0f9ff; border:1px solid #bae6fd; border-radius:12px; padding:16px 20px;}
+  .risk h4{font-size:14px; color:#0c4a6e; margin-bottom:8px;}
+  .risk li{font-size:12.8px; color:#155e75; line-height:1.75; list-style:none; padding-left:16px; position:relative;}
+  .risk li::before{content:"✓"; position:absolute; left:0; color:#0284c7; font-weight:700;}
+
+  /* ---------- glossary + footer ---------- */
+  .glossary{margin:32px 56px 0; background:#eef2f7; border:1px dashed #cbd5e1; border-radius:12px;
+    padding:14px 22px; display:flex; flex-wrap:wrap; gap:8px 22px; align-items:center;}
+  .glossary .t{font-size:12.5px; font-weight:700; color:var(--sub); margin-right:4px;}
+  .glossary .g{font-size:12.5px; color:#334155;}
+  .glossary .g b{color:var(--blue);}
+  .footer{margin:16px 56px 0; background:#0f172a; color:#cbd5e1; border-radius:14px; padding:18px 26px;
+    display:flex; justify-content:space-between; gap:24px; align-items:center;}
+  .footer .left{font-size:13px; color:#e2e8f0; line-height:1.7;}
+  .footer .left b{color:#93c5fd;}
+  .footer .right{font-size:11.5px; color:#94a3b8; line-height:1.7; text-align:right;}
+</style>
+</head>
+<body>
+<div class="page">
+<!-- ============ HERO ============ -->
+<header class="hero">
+  <span class="hero-tag">阶段进展汇报 · 面向全员</span>
+  <h1>MSP 多租户平台 · 开发进展汇报<br><em>2026 年 10 月 1 日 – 10 月 9 日</em></h1>
+  <p class="lead">用一句话说：本期把系统从「一家公司自己用」升级为 <b>「一套系统、多个客户、服务商跨客户运营」</b> 的模式——
+  客户之间的数据互相看不见；IT 服务商可以在一个工作台上同时服务多个客户；员工从入职到离职的账号管理、以及平台级安全防护也一并补齐。
+  新能力全部经过实机验收，关键流程 100% 通过。</p>
+  <div class="hero-stats">
+    <div class="hstat"><b>9 天</b><span>连续冲刺（10-01 ~ 10-09）</span></div>
+    <div class="hstat"><b>131 次</b><span>代码提交（平均每天约 15 次）</span></div>
+    <div class="hstat"><b>6 大模块</b><span>全部完成或进入收尾</span></div>
+    <div class="hstat"><b>110 项</b><span>关键流程验收全部通过</span></div>
+  </div>
+</header>
+
+<!-- ============ 白话速览 ============ -->
+<section class="section">
+  <div class="sec-head"><span class="no">01</span><h2>30 秒速览</h2><span class="note">给不熟悉技术的同事</span></div>
+  <div class="glance">
+    <div class="g-card">
+      <div class="icon">🎯</div>
+      <h3>我们在做什么</h3>
+      <p>让这套 IT 服务管理系统支持 <b>「服务商模式」</b>：一家 IT 服务公司可以只用一套平台，同时为很多家客户提供报修、工单、运维服务。每个客户的数据严格隔离、互不可见，服务商员工可以跨客户统一处理。</p>
+    </div>
+    <div class="g-card">
+      <div class="icon">📦</div>
+      <h3>本期交付了什么</h3>
+      <p>六块能力：多客户底座、跨客户工单协作、账号与权限体系、员工入职到离职管理、数据隔离加固、客户开通提速（<b>5 分钟超时 → 10.7 秒</b>）。全部经过实机验证并有记录可查。</p>
+    </div>
+    <div class="g-card">
+      <div class="icon">🛡️</div>
+      <h3>质量与风险</h3>
+      <p>关键业务流程验收 <b>全部通过</b>（110 项通过、2 项按设计跳过、0 失败）；自动化测试覆盖率 80.33% 过线。所有新能力都带<b>开关</b>，出问题可一键回滚，不影响现有使用。</p>
+    </div>
+  </div>
+</section>
+
+<!-- ============ 以前 → 现在 ============ -->
+<section class="section">
+  <div class="sec-head"><span class="no">02</span><h2>本期变化：以前做不到，现在可以了</h2><span class="note">用业务场景说明，不含技术术语</span></div>
+  <div class="compare">
+    <div class="cmp-row cmp-head">
+      <div>业务场景</div><div>以前</div><div>现在</div>
+    </div>
+    <div class="cmp-row">
+      <div class="cmp-scene">一套系统服务多个客户</div>
+      <div class="cmp-before">每个客户要单独部署，成本高；数据放在一起又有泄露风险</div>
+      <div class="cmp-after"><span class="arrow">→</span>一套系统同时服务多个客户，数据按客户严格隔离（<b>153 张数据表完成隔离梳理，150 张已启用隔离策略</b>）</div>
+    </div>
+    <div class="cmp-row">
+      <div class="cmp-scene">服务商跨客户处理工单</div>
+      <div class="cmp-before">要来回切换账号，看不到客户工单全貌，处理结果靠人工同步</div>
+      <div class="cmp-after"><span class="arrow">→</span>服务商工作台统一查看所有客户工单：自动派单、跨客户查看详情、评论互通、处理结果自动回写客户侧</div>
+    </div>
+    <div class="cmp-row">
+      <div class="cmp-scene">账号与权限管理</div>
+      <div class="cmp-before">权限配置分散、容易配错；平台级敏感操作防护较弱</div>
+      <div class="cmp-after"><span class="arrow">→</span>权限由系统统一自动下发；平台敏感操作加<b>「双重门禁」</b>（仅平台管理员可用），越权操作被拦截并留痕</div>
+    </div>
+    <div class="cmp-row">
+      <div class="cmp-scene">员工从入职到离职</div>
+      <div class="cmp-before">邀请入职流程不完整；离职靠手工清理，容易遗漏登录会话和工单分配</div>
+      <div class="cmp-after"><span class="arrow">→</span>邀请 → 首登强制改密 → 日常管理 → <b>一键离职</b>：账号停用 + 强制下线 + 工单分配全部回收 + 全程审计记录</div>
+    </div>
+    <div class="cmp-row">
+      <div class="cmp-scene">新客户开通</div>
+      <div class="cmp-before">开通一个新客户需要等待超过 5 分钟，经常超时失败</div>
+      <div class="cmp-after"><span class="arrow">→</span><b>10.7 秒</b>完成开通（实测），提速约 30 倍，浏览器端一次成功</div>
+    </div>
+    <div class="cmp-row">
+      <div class="cmp-scene">数据安全兜底</div>
+      <div class="cmp-before">只有应用层防护，一旦程序有疏漏，存在看到别家数据的风险</div>
+      <div class="cmp-after"><span class="arrow">→</span>数据库层再加一道「租户隔离锁」，<b>150 张表全量验证通过</b>，并接入实时监控告警</div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ 关键数字 ============ -->
+<section class="section">
+  <div class="sec-head"><span class="no">03</span><h2>关键数字（每个数字意味着什么）</h2><span class="note">均为实机跑通结果，有验收记录可查</span></div>
+  <div class="kpis">
+    <div class="kpi"><b class="green">110 / 110</b><div class="what">关键流程验收全部通过</div><div class="mean">业务规则 70 项 + 用户管理 30 项 + 离职流程 10 项；另有 2 项按设计跳过，0 项失败</div></div>
+    <div class="kpi"><b class="green">153 张</b><div class="what">数据表完成隔离梳理</div><div class="mean">150 张已启用「租户隔离锁」，3 张按业务规则豁免；隔离演练 70 项全部通过、零遗漏</div></div>
+    <div class="kpi"><b class="amber">10.7 秒</b><div class="what">新客户开通耗时</div><div class="mean">从「超过 5 分钟超时」优化到 10.7 秒，开通效率提升约 30 倍</div></div>
+    <div class="kpi"><b class="violet">80.33%</b><div class="what">自动化测试覆盖率</div><div class="mean">超过 80% 的团队标准线；核心流程都有自动化用例守着，改动不易引入故障</div></div>
+    <div class="kpi"><b>0 失败</b><div class="what">存量数据修复</div><div class="mean">对老数据做了一次全量体检与修复（账号与客户关系），实跑 0 失败</div></div>
+    <div class="kpi"><b>131 次</b><div class="what">9 天代码提交</div><div class="mean">平均每天约 15 次小步交付，功能、修复、文档同步推进</div></div>
+  </div>
+</section>
+
+<!-- ============ 模块进度 ============ -->
+<section class="section">
+  <div class="sec-head"><span class="no">04</span><h2>六大模块进度一览</h2><span class="note">✅ = 已完成　🟡 = 收尾/深化中</span></div>
+  <div class="modules">
+    <div class="mod">
+      <div class="top"><h3>① 多租户基础底座</h3><span class="pill p-done">✅ 已完成</span></div>
+      <p>多客户身份、权限、审计、数据隔离等基础能力全部打通，是后续所有功能的地基。</p>
+      <div class="bar"><i style="width:100%"></i></div>
+    </div>
+    <div class="mod">
+      <div class="top"><h3>② 跨客户工单协作</h3><span class="pill p-wip">🟡 主体完成</span></div>
+      <p>自动派单、跨客户查看与处理、评论互通、通知直达工单已上线；与服务商内部流程的深度集成按计划推进。</p>
+      <div class="bar"><i class="b85" style="width:85%"></i></div>
+    </div>
+    <div class="mod">
+      <div class="top"><h3>③ 账号权限与平台安全</h3><span class="pill p-done">✅ 本期收口</span></div>
+      <p>经过 9 轮加固：角色权限清晰可见、平台敏感操作双重门禁、越权尝试全部拦截并留痕。</p>
+      <div class="bar"><i style="width:100%"></i></div>
+    </div>
+    <div class="mod">
+      <div class="top"><h3>④ 员工全生命周期管理</h3><span class="pill p-wip">🟡 接近完成</span></div>
+      <p>邀请入职、首登改密、日常账号管理、离职一键回收已上线；「账号到期自动回收」已开发完成、测试通过，正在收尾。</p>
+      <div class="bar"><i class="b85" style="width:90%"></i></div>
+    </div>
+    <div class="mod">
+      <div class="top"><h3>⑤ 数据隔离（数据库层）</h3><span class="pill p-done">✅ 已完成</span></div>
+      <p>从试运行观察切换到全量启用：150 张数据表加上「租户隔离锁」，验证全部通过，监控告警已接入。</p>
+      <div class="bar"><i style="width:100%"></i></div>
+    </div>
+    <div class="mod">
+      <div class="top"><h3>⑥ 质量与验收体系</h3><span class="pill p-done">✅ 持续运行</span></div>
+      <p>验收脚本 + 浏览器实操走查 + 自动化测试常态化；每个版本都有可复查的验收记录。</p>
+      <div class="bar"><i style="width:100%"></i></div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ 系统架构图（图形版） ============ -->
+<section class="section">
+  <div class="sec-head"><span class="no">05</span><h2>系统架构一图看懂（图形版）</h2><span class="note">图 2 · 阅读顺序自上而下：谁在用 → 入口 → 能力 → 防线 → 数据</span></div>
+  <div class="arch-wrap">
+    <img class="arch-svg" src="2026-10-09-msp-architecture.svg" alt="MSP 多租户平台系统架构图（图形版）">
+    <div class="a-note">📌 <b>图表说明</b>：方框＝系统组成部分；箭头＝请求与流程走向；蓝＝客户侧、紫＝服务商侧、青＝平台治理、红＝安全防线、绿＝数据与隔离；①–④＝安全防线顺序。本图为总览示意，准确设计以 docs/multi-tenant/01-architecture.md 为准；数字为 2026-10-09 口径。</div>
+  </div>
+</section>
+
+<!-- ============ 下一步 ============ -->
+<section class="section">
+  <div class="sec-head"><span class="no">06</span><h2>下一步计划与风险说明</h2><span class="note">未来 1–2 周</span></div>
+  <div class="next">
+    <div class="panel">
+      <h3>接下来做什么</h3>
+      <div class="step"><span class="num">1</span><div class="txt"><b>账号到期自动回收上线</b> —— 开发与测试已完成，收尾提交后即可使用（到期账号自动失效、权限自动回收）。</div></div>
+      <div class="step"><span class="num">2</span><div class="txt"><b>跨客户工单流程深度集成</b> —— 让客户报的工单能自动进入服务商的内部处理流程，完成后闭环回到客户。</div></div>
+      <div class="step"><span class="num">3</span><div class="txt"><b>权限评审清单剩余项复评</b> —— 对新增角色/权限/入口做最后一轮安全复评。</div></div>
+      <div class="step"><span class="num">4</span><div class="txt"><b>持续回归测试与文档同步</b> —— 保持每周回归，操作手册随功能同步更新。</div></div>
+    </div>
+    <div class="panel">
+      <div class="risk">
+        <h4>风险与保障（领导最关心的三点）</h4>
+        <ul>
+          <li>所有新能力默认带开关，出现异常可一键回滚，不影响现有客户正常使用</li>
+          <li>关键操作全部有审计记录，谁在什么时间做了什么可随时追溯</li>
+          <li>数据隔离有「应用层 + 数据库层」双保险，并接入实时监控告警</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ 术语对照 ============ -->
+<div class="glossary">
+  <span class="t">术语小抄：</span>
+  <span class="g"><b>租户</b> = 一个客户/公司的独立数据空间</span>
+  <span class="g"><b>MSP</b> = IT 服务商（为多家客户提供 IT 服务）</span>
+  <span class="g"><b>工单</b> = 报修/服务请求的处理单</span>
+  <span class="g"><b>审计</b> = 操作记录，事后可追溯</span>
+</div>
+
+<!-- ============ 页脚 ============ -->
+<footer class="footer">
+  <div class="left">📎 <b>数据来源可查证</b>：本页所有数字来自 2026-10-01 ~ 10-09 的代码提交记录、变更日志与实机验收留档（验收报告已归档，可随时调阅）。</div>
+  <div class="right">MSP 多租户平台 · 阶段进展汇报<br>生成日期：2026-10-09</div>
+</footer>
+</div>
+</body>
+</html>

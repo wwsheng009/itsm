@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>MSP 多租户平台 · 架构图（图形版）</title>
+<style>
+  :root{
+    --ink:#111827; --sub:#4b5563; --faint:#6b7280; --line:#e5e7eb; --bg:#f3f6fb; --card:#ffffff;
+    --blue:#1d4ed8; --cyan:#0e7490; --green:#047857; --amber:#b45309; --violet:#6d28d9; --rose:#be123c;
+  }
+  *{box-sizing:border-box; margin:0; padding:0;}
+  body{
+    width:1440px; background:var(--bg); color:var(--ink);
+    font-family:"Microsoft YaHei","PingFang SC","Segoe UI",-apple-system,sans-serif;
+    -webkit-font-smoothing:antialiased;
+  }
+  .page{padding:0 0 40px;}
+
+  .hero{background:linear-gradient(118deg,#0b1e4b 0%,#123a8f 46%,#1d4ed8 80%,#3b82f6 100%);
+    color:#fff; padding:36px 56px 30px; position:relative; overflow:hidden;}
+  .hero::after{content:""; position:absolute; right:-120px; top:-150px; width:520px; height:520px;
+    background:radial-gradient(circle,rgba(255,255,255,.16),transparent 65%); border-radius:50%;}
+  .hero-tag{display:inline-block; font-size:13px; letter-spacing:2px; color:#bfdbfe;
+    border:1px solid rgba(191,219,254,.45); padding:4px 12px; border-radius:999px; margin-bottom:12px;}
+  .hero h1{font-size:32px; letter-spacing:.5px; line-height:1.3;}
+  .hero h1 em{font-style:normal; color:#93c5fd; font-size:22px;}
+  .hero .lead{margin-top:12px; font-size:14.5px; color:#dbeafe; line-height:1.8; max-width:1150px;}
+  .hero .lead b{color:#fff;}
+  .legend{display:flex; gap:18px; margin-top:18px; flex-wrap:wrap;}
+  .lg{display:flex; align-items:center; gap:7px; font-size:12.5px; color:#dbeafe;}
+  .lg i{width:12px; height:12px; border-radius:4px; display:inline-block;}
+
+  .section{padding:26px 56px 0;}
+  .band{background:var(--card); border:1px solid var(--line); border-radius:16px; padding:18px 22px 20px;}
+  .band-title{display:flex; align-items:center; gap:10px; margin-bottom:14px;}
+  .band-title .tag{font-size:11.5px; font-weight:700; letter-spacing:1px; border-radius:6px; padding:3px 9px; color:#fff;}
+  .band-title h2{font-size:17px; letter-spacing:.3px;}
+  .band-title .hint{margin-left:auto; font-size:12px; color:var(--faint);}
+  .arch-img{width:100%; height:auto; display:block;}
+
+  .fig-notes{display:grid; grid-template-columns:repeat(4,1fr); gap:14px;}
+  .fn-item{background:#f8fafc; border:1px solid var(--line); border-radius:12px; padding:13px 16px;}
+  .fn-item h4{font-size:13px; color:#1e293b; margin-bottom:8px; display:flex; align-items:center; gap:6px;}
+  .fn-item p{font-size:12.2px; color:#374151; line-height:1.68;}
+  .fn-item ul{list-style:none;}
+  .fn-item li{font-size:12.2px; color:#374151; line-height:1.68; padding-left:12px; position:relative; margin-bottom:3px;}
+  .fn-item li::before{content:"·"; position:absolute; left:2px; color:#94a3b8; font-weight:700;}
+  .fn-item b{color:#111827;}
+  .sym{display:inline-block; min-width:16px; text-align:center; font-weight:700; color:var(--blue);}
+
+  .footer{margin:26px 56px 0; background:#0f172a; color:#cbd5e1; border-radius:14px; padding:16px 26px;
+    display:flex; justify-content:space-between; gap:24px; align-items:center;}
+  .footer .left{font-size:12.8px; color:#e2e8f0; line-height:1.7;}
+  .footer .left b{color:#93c5fd;}
+  .footer .right{font-size:11.5px; color:#94a3b8; line-height:1.7; text-align:right;}
+</style>
+</head>
+<body>
+<div class="page">
+<!-- ============ HERO ============ -->
+<header class="hero">
+  <span class="hero-tag">图 1 · MSP 多租户平台总体架构（图形版）</span>
+  <h1>MSP 多租户平台架构 <em>· 一套系统，多个客户，服务商跨客户运营</em></h1>
+  <p class="lead">整体只有<b>一套部署、一个数据库</b>：所有客户共用同一套程序，靠「客户标识」把数据互相隔开；
+  服务商员工经过<b>身份 + 权限 + 分配</b>三重检查后，可以跨客户处理工单。下图自上而下：谁在用 → 统一入口 → 应用能力 → 安全防线 → 数据底座。</p>
+  <div class="legend">
+    <span class="lg"><i style="background:#3b82f6"></i>客户侧</span>
+    <span class="lg"><i style="background:#7c3aed"></i>服务商侧</span>
+    <span class="lg"><i style="background:#0891b2"></i>平台治理侧</span>
+    <span class="lg"><i style="background:#e11d48"></i>安全防线</span>
+    <span class="lg"><i style="background:#10b981"></i>数据与隔离</span>
+  </div>
+</header>
+
+<!-- ============ 架构总览（图形） ============ -->
+<section class="section">
+  <div class="band">
+    <div class="band-title"><span class="tag" style="background:#1d4ed8">01</span><h2>架构总览</h2><span class="hint">方框＝系统组成部分 · 箭头＝请求 / 流程方向</span></div>
+    <img class="arch-img" src="2026-10-09-msp-architecture.svg" alt="MSP 多租户平台系统架构图（图形版）">
+  </div>
+</section>
+
+<!-- ============ 图表说明 ============ -->
+<section class="section">
+  <div class="band">
+    <div class="band-title"><span class="tag" style="background:#475569">02</span><h2>图表说明：如何读懂这张架构图</h2><span class="hint">图 1 · MSP 多租户平台总体架构（图形版）</span></div>
+    <div class="fig-notes">
+      <div class="fn-item">
+        <h4>📖 阅读顺序</h4>
+        <p>自上而下共五层：<b>谁在用 → 统一入口 → 应用能力 → 安全防线 → 数据底座</b>。上层是使用场景，下层是支撑与保障；蓝色箭头表示请求自上而下经过的路径。</p>
+      </div>
+      <div class="fn-item">
+        <h4>🎨 颜色与符号</h4>
+        <ul>
+          <li><b>蓝</b>＝客户侧　<b>紫</b>＝服务商侧　<b>青</b>＝平台治理</li>
+          <li><b>红</b>＝安全防线　<b>绿</b>＝数据与隔离</li>
+          <li><span class="sym">→</span>箭头＝请求 / 流程方向　<span class="sym">①–④</span>＝防线顺序</li>
+          <li>底部两条链路：跨客户授权（四步）与工单旅程（四步）</li>
+        </ul>
+      </div>
+      <div class="fn-item">
+        <h4>📚 关键术语</h4>
+        <ul>
+          <li><b>租户</b>：一家客户（或服务商）独立的数据空间</li>
+          <li><b>分配关系</b>：服务商员工与客户的绑定，决定能服务哪些客户</li>
+          <li><b>隔离锁</b>：数据库层强制按客户过滤，程序有疏漏也拿不到别家数据</li>
+          <li><b>fail-closed</b>：识别不到身份或权限就拒绝，不猜测、不兜底</li>
+        </ul>
+      </div>
+      <div class="fn-item">
+        <h4>📌 范围与出处</h4>
+        <p>本图为面向全员的<b>总览示意</b>，省略了具体组件名与部署细节；准确设计以 <b>docs/multi-tenant/01-architecture.md</b> 与目标架构方案为准。图中数字为 2026-10-09 实际落地口径。</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ 页脚 ============ -->
+<footer class="footer">
+  <div class="left">📎 <b>设计依据</b>：docs/multi-tenant 架构文档与 2026-10-01 ~ 10-09 实际落地能力（隔离演练 70 项全部通过、验收 110 项全部通过）。</div>
+  <div class="right">MSP 多租户平台 · 架构图（图形版）<br>2026-10-09</div>
+</footer>
+</div>
+</body>
+</html>
