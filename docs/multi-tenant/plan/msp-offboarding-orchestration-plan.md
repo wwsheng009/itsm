@@ -1,6 +1,6 @@
 # MSP 离职编排与分配回收方案（Offboarding Orchestration）
 
-> **状态**：v0.5（2026-10-09）——**P0 + P1 全部落地并实弹验证**（前端入口 + 平台 TUM 面 + F-08 剧本 + 验收脚本，见 §6 实施记录）；决策点 D1–D4 按 §3.7 推荐值落定（D1=A / D2=A / D3=B / D4=A）；剩余：P2（`expires_at` 到期自动回收，另行立项）
+> **状态**：v0.6（2026-10-09）——**P0 + P1 + P2 全部落地并实弹验证**（前端入口 + 平台 TUM 面 + F-08 剧本 + 验收脚本 + 到期自动回收，见 §6 实施记录）；决策点 D1–D4 按 §3.7 推荐值落定（D1=A / D2=A / D3=B / D4=A）；P2 独立立项收口于 [membership 到期回收方案](./msp-membership-expiry-recycle-plan.md)（IP-P2-9）
 >
 > **批次建议**：`IP-P2-8`（落库前对照《[实施方案](./msp-implementation-plan.md)》§3.0 总表登记，未登记前本方案不视为冻结）
 >
@@ -102,7 +102,7 @@ F-08「回收 / 离职 / 退租」的目标动作是「**员工离职 → 停用
 
 - **P0**：`OffboardingService` + `RevokeAllForUser` + provider 路由 + `user.offboard` 审计 + service/handler 测试。
 - **P1**：前端入口（§3.5）+ 平台 TUM 面 + 场景剧本补充（F-08 实操）+ F-08 文档回填（S7）。
-- **P2**：`expires_at` 到期自动回收（后台任务）——另行立项（[scope-model §5](./msp-scope-model-analysis-and-ai-gateway-reference.md) 已登记）。
+- **P2（已完成，IP-P2-9）**：`expires_at` 到期自动回收——惰性判定（5 处读路径 fail-closed）+ 后台回收任务（启动一轮 + 定时；软删 + allocation 级联解除 + `membership.revoke` 审计 + 立即生效）；home 豁免。独立方案：[membership 到期回收方案](./msp-membership-expiry-recycle-plan.md)（scope-model §5 登记项收口）。
 
 ## 5. 回滚
 
@@ -123,7 +123,9 @@ F-08「回收 / 离职 / 退租」的目标动作是「**员工离职 → 停用
 | F-08 剧本 + 实弹（P1） | [scenarios/11-offboarding.md](../scenarios/11-offboarding.md)（双通道步骤表 + 反例 + 开关前置 + 实测记录）；`scripts/msp/acceptance/run-offboarding-acceptance.ps1`（OFF-0–OFF-7，隔离探针用户，可重复执行） | 实弹 10/10 PASS（建号→分配→403 反例→offboard 200 revoked=1→停用/清零→幂等→审计 2 行）；浏览器实操（平台 TUM 抽屉离职 → 提示「撤销 1 个分配」→ 行刷新停用）；开关未开 fail-closed 实测留证 |
 | UX 修复（实弹发现） | TUM 抽屉 `Modal.confirm` 静态调用不消费主题上下文 → 改 `App.useApp().modal` | 控制台告警消除；抽屉 jest 6/6、`tsc -b`/eslint 绿 |
 
-剩余：P2（`expires_at` 到期自动回收，另行立项，见 §4）。
+| P2 到期自动回收（IP-P2-9） | 惰性判定 + 后台任务（`membership-expiry-recycler`；开关/间隔登记见部署文档）；读路径 5 处收口 + 回收核心条件软删守卫 | service 3 用例 + middleware 2 用例全绿；回归全绿；实弹两轮（`scanned=1 recycled=1`；审计 `trigger=membership.expired`；惰性判定复算 fail-closed）——详见[到期回收方案 §5](./msp-membership-expiry-recycle-plan.md) |
+
+剩余：无（P0–P2 全部完成；P2 实弹记录见[到期回收方案 §5](./msp-membership-expiry-recycle-plan.md)）。
 
 ## 7. 修订记录
 
@@ -134,3 +136,4 @@ F-08「回收 / 离职 / 退租」的目标动作是「**员工离职 → 停用
 | v0.3 | 2026-10-08 | **前端入口（P1 部分）落地**（§6）+ 停用/删除路径会话缺口补齐（S2/S3）；剩余：平台 TUM 面 + 剧本 |
 | v0.4 | 2026-10-08 | **平台 TUM 面落地**（§3.3 契约：端点 + 服务复用 + 双审计 + 抽屉行操作）；P1 剩余：F-08 剧本 |
 | v0.5 | 2026-10-09 | **F-08 剧本 + 实弹验证收口**：scenarios/11 + 验收脚本（OFF-0–OFF-7 全 PASS）+ 浏览器实操 + 开关 fail-closed 留证 + 实弹发现的 modal 上下文修复；P1 全部完成，仅剩 P2 另案 |
+| v0.6 | 2026-10-09 | **P2 收口（IP-P2-9）**：`expires_at` 到期自动回收落地（惰性判定 + 后台任务 + home 豁免 + 条件更新去重）；独立方案 `msp-membership-expiry-recycle-plan.md`；单测/回归/两轮实弹全绿；P0–P2 全部完成 |

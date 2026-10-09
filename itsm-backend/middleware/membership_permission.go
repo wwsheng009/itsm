@@ -151,7 +151,7 @@ func clearMembershipPermissionCache() {
 //
 // 解析顺序（IP-P1-2 单一真源）：
 //  1. super_admin 硬编码直通 → ["*"]（保持既有语义）；
-//  2. 存活 membership（deleted_at IS NULL 且 status=active 且 tenant_id=目标租户）
+//  2. 存活 membership（deleted_at IS NULL 且 status=active 且 tenant_id=目标租户 且未到期）
 //     → role_id → roles(id=role_id 且 tenant_id=目标租户) → role_permissions
 //     → permissions（同租户）→ 权限码；
 //  3. membership 缺失 / role_id 为空 / 角色行无法解析：
@@ -200,6 +200,8 @@ func ResolvePermissions(ctx context.Context, client *ent.Client, userID, tenantI
 			usertenantmembership.TenantID(tenantID),
 			usertenantmembership.DeletedAtIsNil(),
 			usertenantmembership.StatusEQ(usertenantmembership.StatusActive),
+			// IP-P2-9 惰性判定：expires_at 已过视为不存在（fail-closed），与后台回收同判定。
+			MembershipNotExpired(),
 		).
 		Only(ctx)
 	if err != nil && !ent.IsNotFound(err) {

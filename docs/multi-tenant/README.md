@@ -91,6 +91,7 @@
 | [msp-provision-user-roles-multiselect-plan.md](./plan/msp-provision-user-roles-multiselect-plan.md) | **建号角色多选与目标租户角色列表（IP-P2-7）**：建号弹窗角色选择由硬编码改为数据驱动多选（目标租户 `roles` 表）；平台/MSP 双端点、通道/rank/客户作用域过滤、`roleIds` 主角色派生与 membership 一致性、平台角色越权防护；含实施记录与联调实测证据 |
 | [platform-permission-shielding-design.md](./plan/platform-permission-shielding-design.md) | **平台面权限屏蔽与角色架构设计（IP-P2-7 收口补丁 1–9 + D1 决策）**：根因（码=能力 / 角色码=身份）、L1 身份 + L2 能力 + L3 数据三层防线、平台治理面清单与评审规则、角色三一致矩阵、权限分配护栏、决策点 D1–D4 与残余风险 R1–R6（D4/R6/R1 已收口）、实弹验证证据（§7） |
 | [msp-offboarding-orchestration-plan.md](./plan/msp-offboarding-orchestration-plan.md) | **MSP 离职编排与分配回收方案（IP-P2-8）**：现状核对 S1–S7（单点能力齐备、编排缺失；批量停用/删除 token 缺口；F-08「无审计」过期）、设计（停用先行 + 全量回收 + 幂等重跑 + `user.offboard` 审计；`POST /users/:id/offboard`）、决策点 D1–D4、分期 P0–P2 |
+| [msp-membership-expiry-recycle-plan.md](./plan/msp-membership-expiry-recycle-plan.md) | **Membership 到期回收方案（IP-P2-9）**：`expires_at` 执行点缺失收口——惰性判定（5 处读路径 fail-closed 谓词）+ 后台回收任务（启动一轮 + 定时；软删 + allocation 级联解除 + `membership.revoke` 审计 + 立即生效）+ home 豁免 + 条件更新去重；开关/回滚/实弹记录（offboarding P2 收口） |
 | [role-permission-extension-checklist.md](./plan/role-permission-extension-checklist.md) | **新增角色/权限/路由评审清单（IP-P2-7 配套扩展纪律）**：归类决策（平台/MSP/租户本地）、登记与三处同步、平台家族码评估结论（system/system_config/mcp/connector/menu/federation）、守卫矩阵与评审流程 |
 | [platform-permission-shielding-d1-decision.md](./plan/platform-permission-shielding-d1-decision.md) | **存量租户权限目录处置（D1）决策材料**：实测证据（11 租户只读 SQL：非根 10 租户 × 2 平台家族码、零通配符、零非根持有面）、A/B 选项对比、A 预置预案（含开通克隆链连带改动）、触发条件与决策登记（B 定案） |
 

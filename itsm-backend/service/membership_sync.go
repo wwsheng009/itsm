@@ -313,29 +313,48 @@ func (s *MembershipSyncService) DeactivateMembership(ctx context.Context, userID
 	if live.Source == usertenantmembership.SourceHome {
 		return fmt.Errorf("%w: user=%d tenant=%d", ErrMembershipHomeImmutable, userID, tenantID)
 	}
+	return s.revokeMembershipCore(ctx, live, meta, "deactivated")
+}
+
+// revokeMembershipCore 回收共享核心（DeactivateMembership / MembershipExpiryService 到期回收复用）：
+// allocation 级联解除 + 条件软删（DeletedAtIsNil 守卫：多实例/重跑安全，n=0 视为已被并发回收）
+// + membership.revoke 审计 + 立即生效（权限缓存单点失效 + (user×tenant) 在途 refresh 吊销）。
+func (s *MembershipSyncService) revokeMembershipCore(ctx context.Context, live *ent.UserTenantMembership, meta MembershipAuditMeta, outcome string) error {
+	if s == nil || s.client == nil || live == nil {
+		return nil
+	}
+	scopeCtx := tenantctx.WithTenantID(ctx, live.TenantID)
 	if live.Source == usertenantmembership.SourceAllocation {
 		if _, err := s.client.MSPAllocation.Update().
 			Where(
-				mspallocation.MspUserIDEQ(userID),
-				mspallocation.CustomerTenantIDEQ(tenantID),
+				mspallocation.MspUserIDEQ(live.UserID),
+				mspallocation.CustomerTenantIDEQ(live.TenantID),
 				mspallocation.DeassignedAtIsNil(),
 			).
 			SetDeassignedAt(time.Now()).
 			Save(scopeCtx); err != nil {
-			return fmt.Errorf("cascade deallocate on membership revoke user=%d tenant=%d: %w", userID, tenantID, err)
+			return fmt.Errorf("cascade deallocate on membership revoke user=%d tenant=%d: %w", live.UserID, live.TenantID, err)
 		}
 	}
 	now := time.Now()
-	saved, err := live.Update().
+	updated, err := s.client.UserTenantMembership.Update().
+		Where(
+			usertenantmembership.IDEQ(live.ID),
+			usertenantmembership.DeletedAtIsNil(),
+		).
 		SetStatus(usertenantmembership.StatusSuspended).
 		SetDeassignedAt(now).
 		SetDeletedAt(now).
 		Save(scopeCtx)
 	if err != nil {
-		return fmt.Errorf("deactivate membership user=%d tenant=%d: %w", userID, tenantID, err)
+		return fmt.Errorf("deactivate membership user=%d tenant=%d: %w", live.UserID, live.TenantID, err)
 	}
-	s.writeSyncAudit(scopeCtx, meta, MembershipAuditActionRevoke, "deactivated", saved, "")
-	s.applyRevokeEffects(ctx, userID, tenantID)
+	if updated == 0 {
+		// 已被并发执行者（多实例/重跑）回收：不重复审计与副作用。
+		return nil
+	}
+	s.writeSyncAudit(scopeCtx, meta, MembershipAuditActionRevoke, outcome, live, "")
+	s.applyRevokeEffects(ctx, live.UserID, live.TenantID)
 	return nil
 }
 

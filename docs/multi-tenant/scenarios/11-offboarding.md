@@ -95,6 +95,6 @@ go test -p 1 ./service ./handlers/tenant ./handlers/user ./router -count=1
 
 ## 8. 已知限制与未覆盖
 
-1. **P2 未实现**：`expires_at` 到期自动回收（后台任务）另案立项，见[方案 §4](../plan/msp-offboarding-orchestration-plan.md)。
+1. **P2 已实现（IP-P2-9，2026-10-09）**：`expires_at` 到期自动回收（惰性判定 + 后台任务）见[membership 到期回收方案](../plan/msp-membership-expiry-recycle-plan.md)；本剧本的 offboard 为「主动回收」，到期回收为「被动回收」，两者共用 MSW-3 回收核心与 `membership.revoke` 审计（trigger 区分 `tenant_admin.offboard` / `membership.expired`）。
 2. 验收脚本在指定 provider 租户内新建探针用户并停用（不触碰既有用户/分配）；重复执行会累积已停用探针用户，属预期。
 3. 浏览器实操依赖 Chrome 调试端口可用；不可用时按 §5.1 API 验收 + 抽屉组件用例（jest）替代复核。

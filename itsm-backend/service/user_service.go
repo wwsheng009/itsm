@@ -375,6 +375,8 @@ func (s *UserService) listProviderMembers(ctx context.Context, req *dto.ListUser
 			usertenantmembership.AccountKindEQ(usertenantmembership.AccountKindProvider),
 			usertenantmembership.StatusEQ(usertenantmembership.StatusActive),
 			usertenantmembership.DeletedAtIsNil(),
+			// IP-P2-9：到期服务方成员不再展示（惰性判定）。
+			middleware.MembershipNotExpired(),
 		)
 	if req.Status != "" {
 		q = q.Where(usertenantmembership.HasUserWith(user.ActiveEQ(req.Status == "active")))

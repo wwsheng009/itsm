@@ -9,6 +9,7 @@ import (
 	"itsm-backend/ent"
 	"itsm-backend/ent/usertenantmembership"
 	"itsm-backend/ent/usertenantmembershiporg"
+	"itsm-backend/middleware"
 
 	"go.uber.org/zap"
 )
@@ -114,6 +115,8 @@ func (s *MembershipOrgService) Attach(ctx context.Context, membershipID int, org
 			usertenantmembership.IDEQ(membershipID),
 			usertenantmembership.DeletedAtIsNil(),
 			usertenantmembership.StatusEQ(usertenantmembership.StatusActive),
+			// IP-P2-9：到期成员不可再挂靠组织（惰性判定，与回收同判定）。
+			middleware.MembershipNotExpired(),
 		).
 		Only(ctx)
 	if err != nil {

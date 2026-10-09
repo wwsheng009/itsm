@@ -150,6 +150,8 @@ func (s *Service) SwitchTenantWithRevoke(ctx context.Context, userID, tenantID i
 					usertenantmembership.StatusEQ(usertenantmembership.StatusActive),
 					usertenantmembership.DeletedAtIsNil(),
 					usertenantmembership.InvitedByNotNil(),
+					// IP-P2-9：到期邀请不再构成切换依据（惰性判定）。
+					middleware.MembershipNotExpired(),
 				).Exist(targetCtx)
 			if mErr != nil {
 				s.logger.Warnw("switch invite fact query failed, deny by default", "user_id", userID, "tenant_id", tenantID, "error", mErr)

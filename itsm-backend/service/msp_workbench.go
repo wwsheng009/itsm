@@ -686,6 +686,8 @@ func (s *MSPWorkbenchService) Summary(ctx context.Context, actor MSPWorkbenchAct
 				usertenantmembership.TenantIDEQ(tid),
 				usertenantmembership.StatusEQ(usertenantmembership.StatusActive),
 				usertenantmembership.DeletedAtIsNil(),
+				// IP-P2-9：到期成员不计入用量口径。
+				middleware.MembershipNotExpired(),
 			).
 			Count(qctx)
 		if err != nil {

@@ -2008,6 +2008,47 @@ func (app *Application) startBackgroundTasks(ctx context.Context) {
 		})
 	}
 
+	// membership 到期回收（IP-P2-9）：扫描 expires_at 已过的存活 membership，
+	// 逐条执行 MSW-3 等价回收（软删 + allocation 级联解除 + membership.revoke 审计 + 立即生效）。
+	// 开关 MEMBERSHIP_EXPIRY_RECYCLE_ENABLED（默认开；显式 false/0/no/off 关闭回滚）；
+	// 间隔 MEMBERSHIP_EXPIRY_RECYCLE_INTERVAL_MINUTES（默认 10）。读路径惰性判定已即时失效，
+	// 本任务负责状态收敛与审计留痕。
+	if service.MembershipExpiryRecycleEnabledFromEnv(os.Getenv("MEMBERSHIP_EXPIRY_RECYCLE_ENABLED")) {
+		safeGo("membership-expiry-recycler", func() {
+			recycler := service.NewMembershipExpiryService(app.DBClient, nil, app.Logger)
+			interval := service.MembershipExpiryRecycleIntervalFromEnv(
+				os.Getenv("MEMBERSHIP_EXPIRY_RECYCLE_INTERVAL_MINUTES"), 10*time.Minute)
+			ticker := time.NewTicker(interval)
+			defer ticker.Stop()
+			app.Logger.Infow("membership expiry recycler started", "interval_minutes", interval.Minutes())
+			// 启动即跑一轮：收敛停机期间到期的存量（幂等；与附件清理等任务同口径）。
+			if res, err := recycler.RecycleExpired(ctx, 200); err != nil {
+				app.Logger.Warnw("membership expiry recycle failed", "error", err, "phase", "startup")
+			} else if res.Recycled > 0 || res.SkippedHome > 0 || res.Failed > 0 {
+				app.Logger.Infow("membership expiry recycle completed",
+					"scanned", res.Scanned, "recycled", res.Recycled,
+					"skipped_home", res.SkippedHome, "failed", res.Failed, "phase", "startup")
+			}
+			for {
+				select {
+				case <-ctx.Done():
+					return
+				case <-ticker.C:
+					res, err := recycler.RecycleExpired(ctx, 200)
+					if err != nil {
+						app.Logger.Warnw("membership expiry recycle failed", "error", err)
+						continue
+					}
+					if res.Recycled > 0 || res.SkippedHome > 0 || res.Failed > 0 {
+						app.Logger.Infow("membership expiry recycle completed",
+							"scanned", res.Scanned, "recycled", res.Recycled,
+							"skipped_home", res.SkippedHome, "failed", res.Failed)
+					}
+				}
+			}
+		})
+	}
+
 	// Embedding pipeline 后台任务
 	safeGo("embedding-pipeline", func() {
 		pipeline := service.NewEmbeddingPipeline(app.DBClient, app.Embedder, app.Logger, app.LegacyVectorStore)
