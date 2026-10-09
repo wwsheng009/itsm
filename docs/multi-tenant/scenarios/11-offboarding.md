@@ -60,7 +60,7 @@ API 等价：`POST /api/v1/tenants/:id/users/:userId/offboard`（`tenant:write` 
 [PASS] OFF-7b 治理审计留痕 — rows=2 source=platform_selected targetTenantId=10
 ```
 
-产物：[run-summary-20261009-095122.md](../evidence/offboarding-acceptance/run-summary-20261009-095122.md)。
+产物：[run-summary-20261009-095400.md](../evidence/offboarding-acceptance/run-summary-20261009-095400.md)。
 
 ### 5.2 开关 fail-closed 实测（先失败后放行）
 
