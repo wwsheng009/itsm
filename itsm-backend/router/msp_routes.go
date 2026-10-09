@@ -63,6 +63,13 @@ func SetupMSPRoutes(r *gin.Engine, config *RouterConfig) {
 		msp.DELETE("/workbench/views/:id", middleware.RequireMSPPermission("msp_ticket", "write"), config.MSPHandler.DeleteWorkbenchView)
 		msp.POST("/workbench/views/:id/default", middleware.RequireMSPPermission("msp_ticket", "write"), config.MSPHandler.SetDefaultWorkbenchView)
 
+		// 跨租户任务投影（P2-② / IP-P2-11）：待办面 + 写回。
+		// 授权链 = allocation（服务端允许集合）∩ 客户租户 RBAC task:read/update（C2 基线）∩ 分配规则；
+		// 写回在客户租户内执行（engine + tenantctx=客户），逐条审计 source=workbench。
+		msp.GET("/workbench/tasks", middleware.RequireMSPPermission("msp_ticket", "read"), config.MSPHandler.ListWorkbenchTasks)
+		msp.POST("/workbench/tasks/:taskId/claim", middleware.RequireMSPPermission("msp_ticket", "write"), config.MSPHandler.ClaimWorkbenchTask)
+		msp.POST("/workbench/tasks/:taskId/complete", middleware.RequireMSPPermission("msp_ticket", "write"), config.MSPHandler.CompleteWorkbenchTask)
+
 		// 报表 - 需要 msp_report 权限
 		msp.GET("/reports/customers", middleware.RequireMSPPermission("msp_report", "read"), config.MSPHandler.GetCustomerReports)
 		msp.GET("/reports/performance", middleware.RequireMSPPermission("msp_report", "read"), config.MSPHandler.GetPerformanceReports)

@@ -26,6 +26,7 @@ type Handler struct {
 	views                *service.MSPWorkbenchViewService
 	audit                *service.MSPAuditService
 	workflowDistribution workflowDistributionService
+	taskProjection       taskProjectionService
 	logger               *zap.SugaredLogger
 }
 
@@ -37,6 +38,7 @@ func NewHandler(
 	views *service.MSPWorkbenchViewService,
 	audit *service.MSPAuditService,
 	workflowDistribution workflowDistributionService,
+	taskProjection taskProjectionService,
 	logger *zap.SugaredLogger,
 ) *Handler {
 	return &Handler{
@@ -46,6 +48,7 @@ func NewHandler(
 		views:                views,
 		audit:                audit,
 		workflowDistribution: workflowDistribution,
+		taskProjection:       taskProjection,
 		logger:               logger,
 	}
 }

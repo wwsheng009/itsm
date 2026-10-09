@@ -718,11 +718,39 @@ func (e *CustomProcessEngine) createUserTask(ctx context.Context, txc *ent.Clien
 		}
 	}
 
+	// 跨租户单据流转 P2-②（§7.3/§8.5）：保留标记 msp_provider = "服务商处理"节点。
+	// 命中时在客户租户内按 allocation（primary→backup→specialist）解析 provider 员工为
+	// assignee；未解析到保持未分配（provider 待办池兜底）。显式 assignee 优先，不覆盖。
+	mspMeta := map[string]interface{}{}
+	mspMarker := csvTokenContains(task.CandidateGroups, MSPProviderTaskMarker)
+	if mspMarker {
+		mspMeta["mspProjected"] = true
+		if assignee == "" {
+			if uid, providerID, role, ok := resolveProviderTaskAssignee(ctx, txc, instance.TenantID); ok {
+				assignee = uid
+				mspMeta["mspProviderTenantId"] = providerID
+				mspMeta["mspProjectionRole"] = role
+				e.logger.Infow("服务商任务已按 allocation 解析负责人",
+					"taskID", task.ID, "assignee", assignee, "providerTenantId", providerID, "allocationRole", role)
+			} else {
+				mspMeta["mspUnresolved"] = true
+				e.logger.Warnw("服务商任务未解析到有效分配，保持未分配（待办池兜底）",
+					"taskID", task.ID, "tenantID", instance.TenantID)
+			}
+		}
+	}
+
 	// 展开 candidateGroups 为具体用户，合并到 candidate_users。
 	// 这样「我的待办」接口才有可能查到分配给我的任务。
+	// 保留标记 msp_provider 不是真实组名：展开前剔除，避免误查/误展开（标记本身保留在
+	// candidate_groups 上，供 provider 待办池投影识别）。
+	groupsForExpansion := task.CandidateGroups
+	if mspMarker {
+		groupsForExpansion = csvTokenRemove(task.CandidateGroups, MSPProviderTaskMarker)
+	}
 	expandedCandidateUsers := task.CandidateUsers
-	if e.groupResolver != nil && strings.TrimSpace(task.CandidateGroups) != "" {
-		_, groupUsernames, err := e.groupResolver.ExpandGroupsToUsers(ctx, instance.TenantID, task.CandidateGroups)
+	if e.groupResolver != nil && strings.TrimSpace(groupsForExpansion) != "" {
+		_, groupUsernames, err := e.groupResolver.ExpandGroupsToUsers(ctx, instance.TenantID, groupsForExpansion)
 		if err != nil {
 			// 解析失败：记录警告但不阻塞流程，以免审批组配置漂移导致整个流程中断
 			e.logger.Warnw(
@@ -749,6 +777,9 @@ func (e *CustomProcessEngine) createUserTask(ctx context.Context, txc *ent.Clien
 		"timeoutAction": task.TimeoutAction, "allowDelegate": task.AllowDelegate,
 		"allowAddApprover":        task.AllowAddApprover,
 		"commentRequiredOnReject": task.CommentRequiredOnReject,
+	}
+	for k, v := range mspMeta {
+		taskConfig[k] = v
 	}
 	createdTask, err := txc.ProcessTask.Create().
 		SetTaskID(fmt.Sprintf("TASK-%s-%d", task.ID, time.Now().UnixNano())).

@@ -44,7 +44,7 @@ func newDistributionTestRouter(t *testing.T, stub *stubWorkflowDistribution, msp
 	t.Helper()
 	gin.SetMode(gin.TestMode)
 	logger := zaptest.NewLogger(t).Sugar()
-	h := NewHandler(nil, nil, nil, nil, nil, stub, logger)
+	h := NewHandler(nil, nil, nil, nil, nil, stub, nil, logger)
 	r := gin.New()
 	r.Use(gin.Recovery())
 	r.Use(func(c *gin.Context) {
