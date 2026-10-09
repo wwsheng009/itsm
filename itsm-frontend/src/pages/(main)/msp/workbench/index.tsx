@@ -67,6 +67,7 @@ import {
 import SavedViews from './components/SavedViews';
 import SlaRiskBoard from './components/SlaRiskBoard';
 import CustomerUsageBoard from './components/CustomerUsageBoard';
+import CrossTenantBoard, { type CrossTenantBoardKind } from './components/CrossTenantBoard';
 import TicketCommentTimeline from '@/components/business/TicketCommentTimeline';
 
 const PAGE_SIZE = 50;
@@ -177,6 +178,8 @@ export default function MSPWorkbenchPage() {
     // 通知深链参数不参与数据过滤键（仅驱动详情抽屉）。
     params.delete(DEEPLINK_TICKET_PARAM);
     params.delete(DEEPLINK_CUSTOMER_TENANT_PARAM);
+    // 面板切换（board）不影响工单数据查询，避免切换面板触发重拉。
+    params.delete('board');
     return params.toString();
   }, [queryString]);
 
@@ -189,6 +192,25 @@ export default function MSPWorkbenchPage() {
   // 视图模式（P1 分组视图）：URL 持久化（view=group），本地 state 驱动渲染。
   const [viewMode, setViewMode] = useState<'flat' | 'group'>(
     new URLSearchParams(queryString).get('view') === 'group' ? 'group' : 'flat'
+  );
+
+  // 工作台面板（P2-②/P2-③ 前端入口）：tickets=工单（现有全功能）；tasks=待办任务投影；records=跨租户单据。
+  const [board, setBoard] = useState<CrossTenantBoardKind | 'tickets'>(() => {
+    const raw = new URLSearchParams(queryString).get('board');
+    return raw === 'tasks' || raw === 'records' ? raw : 'tickets';
+  });
+  const changeBoard = useCallback(
+    (next: CrossTenantBoardKind | 'tickets') => {
+      setBoard(next);
+      const params = new URLSearchParams(queryString);
+      if (next === 'tickets') {
+        params.delete('board');
+      } else {
+        params.set('board', next);
+      }
+      setSearchParams(params, { replace: true });
+    },
+    [queryString, setSearchParams]
   );
 
   const [tickets, setTickets] = useState<WorkbenchTicketItem[]>([]);
@@ -849,6 +871,21 @@ export default function MSPWorkbenchPage() {
         </Button>
       </div>
 
+      <Card size="small" style={{ marginBottom: 16 }} data-testid="workbench-board-switch">
+        <Segmented
+          value={board}
+          options={[
+            { label: '工单', value: 'tickets' },
+            { label: '待办任务', value: 'tasks' },
+            { label: '跨租户单据', value: 'records' },
+          ]}
+          onChange={value => changeBoard(value as CrossTenantBoardKind | 'tickets')}
+          data-testid="workbench-board-segmented"
+        />
+      </Card>
+
+      {board === 'tickets' ? (
+        <>
       <Card size="small" style={{ marginBottom: 16 }}>
         <Space wrap size={8}>
           <Input.Search
@@ -1268,6 +1305,10 @@ export default function MSPWorkbenchPage() {
           </div>
         )}
       </Modal>
+        </>
+      ) : (
+        <CrossTenantBoard kind={board} />
+      )}
     </div>
   );
 }
