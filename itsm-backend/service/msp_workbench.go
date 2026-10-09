@@ -81,8 +81,8 @@ type MSPWorkbenchService struct {
 	logger     *zap.SugaredLogger
 	// problemWriter 问题状态写入器（P2-③ 写面首批 / IP-P2-13；nil 时写面 fail-closed）。
 	problemWriter MSPProblemStatusWriter
-	batchMu    sync.Mutex
-	batchHits  map[int][]time.Time
+	batchMu       sync.Mutex
+	batchHits     map[int][]time.Time
 }
 
 // NewMSPWorkbenchService 构造工作台服务（依赖均可为 nil，方法内 fail-closed）。
@@ -600,6 +600,15 @@ func workbenchOrderKey(t *ent.Ticket, sortKey string) time.Time {
 }
 
 // tenantActionPermissions 计算目标租户内工作台动作权限（RBAC 按目标租户的 DB 权限判定）。
+//
+// 口径（IP-P2-14）：按目标租户的**客户侧业务码**逐动作判定——与客户侧路由守卫/深切换同码
+// （canon I2/I5：权限在目标租户内计算）：
+//   - reply  = ticket:create（客户侧评论路由守卫，router/ticket_routes.go:165）
+//   - status = ticket:update（客户侧状态路由守卫，:66）
+//   - assign = ticket:assign（客户侧指派路由守卫，:68）
+//
+// 修复背景：原实现对三个动作统一判定跨租户 msp_ticket:write，但 C2 对账后客户租户 msp_*
+// 角色不含该码 → DB-only RBAC（企业交付默认）下写门禁恒 false（工单写面同样受影响）。
 func (s *MSPWorkbenchService) tenantActionPermissions(ctx context.Context, actor MSPWorkbenchActor, tenantID int, tenantActive bool) map[string]bool {
 	out := map[string]bool{"reply": false, "status": false, "assign": false}
 	if !tenantActive {
@@ -609,10 +618,9 @@ func (s *MSPWorkbenchService) tenantActionPermissions(ctx context.Context, actor
 	if !strings.HasPrefix(rbacRole, "msp_") {
 		rbacRole = middleware.GetMSPRBACRole(rbacRole)
 	}
-	writable := middleware.HasResourcePermission(ctx, s.client, rbacRole, "msp_ticket", "write", tenantID)
-	out["reply"] = writable
-	out["status"] = writable
-	out["assign"] = writable
+	out["reply"] = middleware.HasResourcePermission(ctx, s.client, rbacRole, "ticket", "create", tenantID)
+	out["status"] = middleware.HasResourcePermission(ctx, s.client, rbacRole, "ticket", "update", tenantID)
+	out["assign"] = middleware.HasResourcePermission(ctx, s.client, rbacRole, "ticket", "assign", tenantID)
 	return out
 }
 
@@ -739,9 +747,9 @@ func openTicketPredicate() predicate.Ticket {
 	)
 }
 
-// Reply 条目级回复：资源租户一致 → 分配 → 租户 active → 目标租户 RBAC → 写评论 + 审计。
+// Reply 条目级回复：资源租户一致 → 分配 → 租户 active → 目标租户 RBAC（ticket:create）→ 写评论 + 审计。
 func (s *MSPWorkbenchService) Reply(ctx context.Context, actor MSPWorkbenchActor, ticketID int, req dto.WorkbenchReplyRequest) (*dto.TicketCommentResponse, error) {
-	t, err := s.authorizeTicketAction(ctx, actor, ticketID, req.CustomerTenantID)
+	t, err := s.authorizeTicketAction(ctx, actor, ticketID, req.CustomerTenantID, "reply")
 	if err != nil {
 		return nil, err
 	}
@@ -760,9 +768,9 @@ func (s *MSPWorkbenchService) Reply(ctx context.Context, actor MSPWorkbenchActor
 	return comment, nil
 }
 
-// ChangeStatus 条目级改状态：授权链 + 状态机（委托 TicketService.UpdateTicketStatus）。
+// ChangeStatus 条目级改状态：授权链（目标租户 ticket:update）+ 状态机（委托 TicketService.UpdateTicketStatus）。
 func (s *MSPWorkbenchService) ChangeStatus(ctx context.Context, actor MSPWorkbenchActor, ticketID int, req dto.WorkbenchStatusRequest) (*ticket.Ticket, error) {
-	t, err := s.authorizeTicketAction(ctx, actor, ticketID, req.CustomerTenantID)
+	t, err := s.authorizeTicketAction(ctx, actor, ticketID, req.CustomerTenantID, "status")
 	if err != nil {
 		return nil, err
 	}
@@ -780,8 +788,8 @@ func (s *MSPWorkbenchService) ChangeStatus(ctx context.Context, actor MSPWorkben
 	return updated, nil
 }
 
-// authorizeTicketAction 条目级授权链（§3.1）：资源租户一致性 → 分配 → 租户 active → 目标租户 RBAC → 资源状态。
-func (s *MSPWorkbenchService) authorizeTicketAction(ctx context.Context, actor MSPWorkbenchActor, ticketID, declaredTenantID int) (*ent.Ticket, error) {
+// authorizeTicketAction 条目级授权链（§3.1）：资源租户一致性 → 分配 → 租户 active → 目标租户 RBAC（按动作码）→ 资源状态。
+func (s *MSPWorkbenchService) authorizeTicketAction(ctx context.Context, actor MSPWorkbenchActor, ticketID, declaredTenantID int, action string) (*ent.Ticket, error) {
 	if s.client == nil {
 		return nil, fmt.Errorf("ent client not available for msp workbench")
 	}
@@ -809,7 +817,7 @@ func (s *MSPWorkbenchService) authorizeTicketAction(ctx context.Context, actor M
 	if t.Status == string(ticket.StatusResolved) || t.Status == string(ticket.StatusClosed) || t.Status == "cancelled" {
 		return nil, NewCustomerAccessError(CodeActionNotAllowed, "工单处于终态，不支持该操作")
 	}
-	if !s.tenantActionPermissions(ctx, actor, t.TenantID, true)["reply"] {
+	if !s.tenantActionPermissions(ctx, actor, t.TenantID, true)[action] {
 		return nil, NewCustomerAccessError(CodeActionNotAllowed, "当前角色在该客户租户无工单写权限")
 	}
 	return t, nil

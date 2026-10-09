@@ -173,7 +173,7 @@ Invoke-RestMethod "$base/api/v1/auth/me" -WebSession $s                 # 看 te
 | 角色 | provider 租户（C1，跨租户码） | 客户租户（C2，客户侧码） |
 |---|---|---|
 | `msp_viewer` | `msp:read`、`msp_customer:read`、`msp_ticket:read`、`msp_allocation:read`、`msp_report:read` + 任务基线 | `ticket:read`、`ticket:create` |
-| `msp_tech` | viewer + `msp_ticket:write` | `ticket:read/create/update/write`、`knowledge:read`、`cmdb:read`、`service_catalog:read` + 任务基线 |
+| `msp_tech` | viewer + `msp_ticket:write` | `ticket:read/create/update/write/assign`、`problem:write`、`knowledge:read`、`cmdb:read`、`service_catalog:read` + 任务基线 |
 | `msp_specialist` | `msp_tech` + `msp_customer:write` | 同 `msp_tech` |
 | `msp_manager` | `msp_tech` + `msp:write`、`msp_customer:write`、`msp_allocation:write`、`msp_report:write` | `msp_tech` + `user:write`、`report:read` |
 | `msp_admin` | 同 `msp_manager`（语义等价全动作） | `msp_manager` + `cmdb:write`、`change:write` |

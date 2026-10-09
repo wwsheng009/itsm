@@ -102,7 +102,7 @@ func (s *MSPWorkbenchService) UpdateProblemStatus(ctx context.Context, actor MSP
 		return nil, NewCustomerAccessError(CodeCustomerInactive, "客户租户已暂停或过期，仅可查看")
 	}
 
-	// 5. provider 侧写门禁（目标租户 msp_ticket:write）。
+	// 5. 目标租户写门禁（客户侧业务码 problem:write；IP-P2-14 口径修复，与客户侧问题路由守卫同码）。
 	if !s.recordWriteAllowed(ctx, actor, row.TenantID) {
 		s.recordRecordAudit(ctx, actor, "problem.status", MSPRecordProblem, row.TenantID, row.ID, "denied")
 		return nil, NewCustomerAccessError(CodeActionNotAllowed, "当前角色在该客户租户无处理权限")
@@ -136,7 +136,8 @@ func (s *MSPWorkbenchService) UpdateProblemStatus(ctx context.Context, actor MSP
 	return s.GetRecord(ctx, actor, MSPRecordProblem, row.ID, row.TenantID)
 }
 
-// recordWriteAllowed provider 侧写门禁：映射 MSP 角色 ∩ 目标租户 msp_ticket:write（与工单写路径同源）。
+// recordWriteAllowed 目标租户写门禁：映射 MSP 角色 ∩ 目标租户客户侧业务码 problem:write
+// （与客户侧问题路由守卫同码；IP-P2-14 起与工单写面口径一致——目标租户内计算、客户侧词表）。
 func (s *MSPWorkbenchService) recordWriteAllowed(ctx context.Context, actor MSPWorkbenchActor, tenantID int) bool {
 	if s.client == nil {
 		return false
@@ -145,7 +146,7 @@ func (s *MSPWorkbenchService) recordWriteAllowed(ctx context.Context, actor MSPW
 	if !strings.HasPrefix(rbacRole, "msp_") {
 		rbacRole = middleware.GetMSPRBACRole(rbacRole)
 	}
-	return middleware.HasResourcePermission(ctx, s.client, rbacRole, "msp_ticket", "write", tenantID)
+	return middleware.HasResourcePermission(ctx, s.client, rbacRole, "problem", "write", tenantID)
 }
 
 // loadActorHomeRole 读取调用方家租户 users.role（深切换下 JWT 主角色=users.role；

@@ -417,11 +417,18 @@ func BuiltinRolePermissionCodes() map[string][]string {
 // C1（BuiltinRolePermissionCodes，跨租户 msp_* 码）。客户 admin 可在此基础上按需扩展（变更审计）。
 //
 // 口径展开（C2 文档 "ticket:read/write" → 客户侧路由实际守卫码，见 router/ticket_routes.go）：
-//   - 工单评论/建单 = ticket:create；工单编辑/状态/解决 = ticket:update
+//   - 工单评论/建单 = ticket:create；工单编辑/状态/解决 = ticket:update；指派 = ticket:assign
 //     （middleware.checkPermissionMatch 无 write→create/update 蕴含）；
 //   - viewer 的「+ 评论」按评论路由守卫落 ticket:create（无 comment 专用码，登记为词表待收敛项）；
 //   - service_catalog:read 为 C2 原文；客户侧 /service-catalog 菜单守卫 service:read 经菜单侧
-//     Resource 别名（service→service_catalog）映射到同一码集。
+//     Resource 别名（service→service_catalog）映射到同一码集；
+//   - problem:write 为客户侧问题路由守卫码（router/problem_routes.go：PUT /problems/:id、
+//     /:id/investigate、/:id/close 等），工作台问题状态推进门禁与之同码（IP-P2-14）。
+//
+// 写门禁口径（IP-P2-14 修复）：工作台跨租户写（工单 reply/status/assign、问题状态推进）按
+// **目标租户的客户侧业务码**判定（canon I2/I5：权限在目标租户内计算；与深切换同码），
+// 不再使用跨租户 msp_ticket:write——C2 对账后客户租户 msp_* 角色不含该码，
+// DB-only RBAC（企业交付默认）下曾导致写门禁恒 false（工单写面同样受影响）。
 //
 // 落库：pkg/seeder 供给客户类型租户时对 5 个 msp_* 角色做 C1→C2 对账（幂等，保留非 C1 自定义）。
 func MSPCustomerScopeRolePermissionCodes() map[string][]string {
@@ -431,6 +438,7 @@ func MSPCustomerScopeRolePermissionCodes() map[string][]string {
 	}
 	tech := withBaseline(
 		"ticket:read", "ticket:create", "ticket:update", "ticket:write",
+		"ticket:assign", "problem:write",
 		"knowledge:read", "cmdb:read", "service_catalog:read",
 	)
 	manager := appendMissingCodes(tech, "user:write", "report:read")

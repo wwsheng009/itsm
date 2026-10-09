@@ -72,6 +72,11 @@ func newRecordProjEnv(t *testing.T) *recordProjEnv {
 		SetPasswordHash("hash").SetTenantID(custA.ID).Save(ctx)
 	require.NoError(t, err)
 
+	// 目标租户 RBAC（C2 同构最小子集）：问题状态推进门禁 problem:write（IP-P2-14 起按目标租户判定）。
+	seedTenantRolePermissions(t, client, custA.ID, "msp_manager", "problem:write")
+	middleware.InvalidateAllPermissionCaches()
+	t.Cleanup(middleware.InvalidateAllPermissionCaches)
+
 	base := time.Date(2026, 10, 9, 8, 0, 0, 0, time.UTC)
 	// 变更：A 两条（时间序 1/2），B 一条（时间序 3）。
 	for i, spec := range []struct {

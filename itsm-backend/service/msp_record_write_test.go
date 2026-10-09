@@ -3,17 +3,39 @@ package service
 import (
 	"context"
 	"errors"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
 	"itsm-backend/common"
+	"itsm-backend/ent"
 	"itsm-backend/ent/auditlog"
 	"itsm-backend/handlers/common/datascope"
+	"itsm-backend/middleware"
 )
 
 // 跨租户单据流转 P2-③ 写面首批 / IP-P2-13：问题状态推进（授权链 + 审计 + 平移一致性）。
+
+// seedTenantRolePermissions 在目标租户内建角色 + 权限 + 授权（sqlite 夹具；C2 基线同构最小子集）。
+// 生产语义：权限只在目标租户内计算（canon I2/I5），故写门禁用例必须落 DB 行（DB-only 亦可通过）。
+func seedTenantRolePermissions(t *testing.T, client *ent.Client, tenantID int, roleCode string, codes ...string) {
+	t.Helper()
+	ctx := context.Background()
+	role, err := client.Role.Create().SetCode(roleCode).SetName(roleCode).SetTenantID(tenantID).Save(ctx)
+	require.NoError(t, err)
+	for _, code := range codes {
+		parts := strings.SplitN(code, ":", 2)
+		require.Len(t, parts, 2, "permission code must be resource:action")
+		perm, err := client.Permission.Create().
+			SetCode(code).SetName(code).SetResource(parts[0]).SetAction(parts[1]).SetTenantID(tenantID).Save(ctx)
+		require.NoError(t, err)
+		_, err = client.RolePermission.Create().
+			SetRoleID(role.ID).SetPermissionID(perm.ID).SetTenantID(tenantID).Save(ctx)
+		require.NoError(t, err)
+	}
+}
 
 type stubProblemWriter struct {
 	calls          int
@@ -77,6 +99,16 @@ func TestMSPProblemWrite_SuccessChainAndAudit(t *testing.T) {
 	require.NotNil(t, rows[len(rows)-1].RequestBody)
 	assert.Contains(t, *rows[len(rows)-1].RequestBody, `"outcome":"success"`)
 	assert.Contains(t, *rows[len(rows)-1].RequestBody, `"op":"problem.status"`)
+
+	// 撤掉目标租户 problem:write 授权 → 门禁拒绝（证明门禁在目标租户内计算，非 provider 侧）。
+	_, err = env.client.RolePermission.Delete().Exec(context.Background())
+	require.NoError(t, err)
+	middleware.InvalidateAllPermissionCaches()
+	_, err = svc.UpdateProblemStatus(context.Background(), env.actor, problemIDOf(t, env), env.custA.ID, "investigating", "")
+	require.Error(t, err)
+	ae, ok := AsCustomerAccessError(err)
+	require.True(t, ok)
+	assert.Equal(t, CodeActionNotAllowed, ae.Code)
 }
 
 func TestMSPProblemWrite_GuardChainFailClosed(t *testing.T) {

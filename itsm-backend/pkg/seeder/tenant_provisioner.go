@@ -309,6 +309,14 @@ func cloneRolePermissions(
 // 随 default 租户克隆落入）对账到 C2 客户侧基线（实施计划 §3.0-C2；canon §2.3 深度切换）：
 //   - 移除「C1 有、C2 无」的码（错误基线残留），保留其它自定义扩展；
 //   - 补齐 C2 缺失码；批量加载 + 内存差集 + 批量写入（幂等）。
+//
+// ReconcileCustomerScopeMSPRoles 为导出包装：存量客户租户回填入口（cmd/reconcile_customer_scope_roles），
+// 与供给期同一实现（幂等）。C2 基线演进（如 IP-P2-14 新增 ticket:assign/problem:write）后，
+// 存量租户需重跑本对账。
+func ReconcileCustomerScopeMSPRoles(ctx context.Context, c *ent.Client, tenantID int) error {
+	return applyCustomerScopeMSPRoleBaseline(ctx, c, tenantID)
+}
+
 func applyCustomerScopeMSPRoleBaseline(ctx context.Context, c *ent.Client, tenantID int) error {
 	desired := authz.MSPCustomerScopeRolePermissionCodes()
 	builtin := authz.BuiltinRolePermissionCodes()

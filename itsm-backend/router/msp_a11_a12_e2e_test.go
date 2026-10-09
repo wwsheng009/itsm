@@ -190,6 +190,15 @@ func runScenario(t *testing.T, nProviders int) *mspE2EOutcome {
 	if nProviders == 2 {
 		role2 = seedMSPRole(t, ctx, client, env.provider2.ID, "msp_tech", agentPerms)
 	}
+	// 2.1) 目标租户 RBAC（C2 同构最小子集；IP-P2-14：写门禁按客户侧业务码在目标租户内判定）。
+	customerScopePerms := []string{"ticket:create", "ticket:update", "ticket:assign", "problem:write"}
+	seedMSPRole(t, ctx, client, env.customer.ID, "msp_tech", customerScopePerms)
+	seedMSPRole(t, ctx, client, env.customer2.ID, "msp_tech", customerScopePerms)
+	if nProviders == 2 {
+		seedMSPRole(t, ctx, client, env.customer3.ID, "msp_tech", customerScopePerms)
+	}
+	middleware.InvalidateAllPermissionCaches()
+	t.Cleanup(middleware.InvalidateAllPermissionCaches)
 
 	// 3) 员工与分配（provider ∩ allocation 是唯一授权来源）。
 	env.agent = mustMSPUser(t, client, "e2e-agent-1", env.provider.ID, role1.ID)

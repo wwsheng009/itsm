@@ -88,6 +88,12 @@ func newWorkbenchEnv(t *testing.T) *workbenchEnv {
 		require.NoError(t, err)
 	}
 
+	// 目标租户 RBAC（C2 同构最小子集；IP-P2-14 起工单写门禁按客户侧业务码在目标租户内判定）。
+	seedTenantRolePermissions(t, client, a.ID, "msp_tech", "ticket:create", "ticket:update", "ticket:assign")
+	seedTenantRolePermissions(t, client, b.ID, "msp_tech", "ticket:create", "ticket:update", "ticket:assign")
+	middleware.InvalidateAllPermissionCaches()
+	t.Cleanup(middleware.InvalidateAllPermissionCaches)
+
 	now := time.Now()
 	past := now.Add(-2 * time.Hour)
 	mkTicket := func(number, title, status string, tenantID, requesterID, assigneeID int, deadline *time.Time) *ent.Ticket {

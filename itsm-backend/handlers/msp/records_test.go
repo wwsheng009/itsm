@@ -77,7 +77,30 @@ func newRecordsHandlerEnv(t *testing.T) *recordsHandlerEnv {
 		SetProblemNumber("PRB-HC").SetTitle("handler 问题C").SetStatus("open").
 		SetCreatedBy(1).SetTenantID(custC.ID).Save(ctx)
 	require.NoError(t, err)
+
+	// 目标租户 RBAC（C2 同构最小子集；IP-P2-14：写门禁按目标租户 problem:write 判定）。
+	seedCustomerScopeRole(t, client, custA.ID, "msp_manager", "problem:write")
+	middleware.InvalidateAllPermissionCaches()
+	t.Cleanup(middleware.InvalidateAllPermissionCaches)
 	return &recordsHandlerEnv{client: client, provider: provider, custA: custA, custC: custC, problemC: cProblem}
+}
+
+// seedCustomerScopeRole 在目标租户内建角色 + 权限 + 授权（handler 契约夹具；C2 基线同构最小子集）。
+func seedCustomerScopeRole(t *testing.T, client *ent.Client, tenantID int, roleCode string, codes ...string) {
+	t.Helper()
+	ctx := context.Background()
+	role, err := client.Role.Create().SetCode(roleCode).SetName(roleCode).SetTenantID(tenantID).Save(ctx)
+	require.NoError(t, err)
+	for _, code := range codes {
+		parts := strings.SplitN(code, ":", 2)
+		require.Len(t, parts, 2, "permission code must be resource:action")
+		perm, err := client.Permission.Create().
+			SetCode(code).SetName(code).SetResource(parts[0]).SetAction(parts[1]).SetTenantID(tenantID).Save(ctx)
+		require.NoError(t, err)
+		_, err = client.RolePermission.Create().
+			SetRoleID(role.ID).SetPermissionID(perm.ID).SetTenantID(tenantID).Save(ctx)
+		require.NoError(t, err)
+	}
 }
 
 func recordsActorCtx(allowed []int) *middleware.MSPContext {
