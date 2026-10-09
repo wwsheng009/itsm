@@ -65,7 +65,7 @@ func newRecordProjEnv(t *testing.T) *recordProjEnv {
 
 	userP, err := client.User.Create().
 		SetUsername("rec-provider").SetEmail("rec-provider@example.com").SetName("服务商员工").
-		SetPasswordHash("hash").SetTenantID(provider.ID).SetMspRole("provider_admin").Save(ctx)
+		SetPasswordHash("hash").SetTenantID(provider.ID).SetMspRole("provider_admin").SetRole("admin").Save(ctx)
 	require.NoError(t, err)
 	userA, err := client.User.Create().
 		SetUsername("rec-a-user").SetEmail("rec-a@example.com").SetName("客户A员工").

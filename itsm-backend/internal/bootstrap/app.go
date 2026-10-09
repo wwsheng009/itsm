@@ -1407,6 +1407,10 @@ func NewApplication() *Application {
 		sugar.Warn("Redis not configured, rate limiter will use in-memory fallback (not suitable for distributed deployment)")
 	}
 
+	// MSP 工作台服务：写面首批（IP-P2-13）注入问题状态写入器（域服务裁决，fail-closed）。
+	mspWorkbenchService := service.NewMSPWorkbenchService(client, ticketService, ticketCommentService, sugar)
+	mspWorkbenchService.SetProblemStatusWriter(mspHandler.NewProblemStatusWriter(problemServiceDomain))
+
 	routerConfig := &router.RouterConfig{
 		JWTSecret:                    cfg.JWT.Secret,
 		Logger:                       sugar,
@@ -1438,7 +1442,7 @@ func NewApplication() *Application {
 		EscalationMatrixHandler:      escalationMatrixHandler.NewHandler(sugar, escalationMatrixService),
 		AuditLogHandler:              auditlogHandler.NewHandler(auditLogService, sugar),
 		MSPHandler: mspHandler.NewHandler(mspAllocationService, ticketService,
-			service.NewMSPWorkbenchService(client, ticketService, ticketCommentService, sugar),
+			mspWorkbenchService,
 			service.NewMSPWorkbenchViewService(client, sugar),
 			service.NewMSPAuditService(client, sugar),
 			service.NewMSPWorkflowDistributionService(database.GetRawDB(), bpmnTemplateCatalog, service.NewMSPAccessValidator(client), client, sugar),

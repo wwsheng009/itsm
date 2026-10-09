@@ -48,6 +48,7 @@ type mspRecordRow struct {
 	title       string
 	status      string
 	priority    string
+	ownerID     int
 	assigneeID  int
 	requesterID int
 	createdAt   time.Time
@@ -132,6 +133,19 @@ func (s *MSPWorkbenchService) ListRecords(ctx context.Context, actor MSPWorkbenc
 
 	items := make([]dto.MSPRecordItem, 0, len(merged))
 	lastReturned := make(map[int]workbenchCursorPos)
+	// 问题写面动作（P2-③ 写面首批）：家租户角色 + 逐租户写门禁各计算一次。
+	homeRole := ""
+	writeByTenant := map[int]bool{}
+	if recordType == MSPRecordProblem {
+		if role, roleErr := s.loadActorHomeRole(ctx, actor); roleErr == nil {
+			homeRole = role
+		} else if s.logger != nil {
+			s.logger.Warnw("msp records load actor role failed", "error", roleErr, "user_id", actor.UserID)
+		}
+		for _, tid := range tenantIDs {
+			writeByTenant[tid] = s.problemTenantWriteAllowed(ctx, actor, tid)
+		}
+	}
 	for _, row := range merged {
 		item := dto.MSPRecordItem{
 			RecordType:       recordType,
@@ -144,6 +158,9 @@ func (s *MSPWorkbenchService) ListRecords(ctx context.Context, actor MSPWorkbenc
 			Priority:         row.priority,
 			UpdatedAt:        row.updatedAt,
 			AllowedActions:   mspRecordViewActions(),
+		}
+		if recordType == MSPRecordProblem {
+			item.AllowedActions = problemAllowedActions(actor, meta[row.tenantID].active(), writeByTenant[row.tenantID], homeRole, row)
 		}
 		if row.assigneeID > 0 {
 			item.AssigneeID = row.assigneeID
@@ -232,7 +249,7 @@ func (s *MSPWorkbenchService) listRecordRows(ctx context.Context, recordType str
 		for _, r := range rows {
 			out = append(out, mspRecordRow{
 				tenantID: tenantID, id: r.ID, number: r.ChangeNumber, title: r.Title,
-				status: r.Status, priority: r.Priority, assigneeID: r.AssigneeID,
+				status: r.Status, priority: r.Priority, ownerID: r.CreatedBy, assigneeID: r.AssigneeID,
 				createdAt: r.CreatedAt, updatedAt: r.UpdatedAt,
 			})
 		}
@@ -264,7 +281,7 @@ func (s *MSPWorkbenchService) listRecordRows(ctx context.Context, recordType str
 		for _, r := range rows {
 			out = append(out, mspRecordRow{
 				tenantID: tenantID, id: r.ID, number: r.ProblemNumber, title: r.Title,
-				status: r.Status, priority: r.Priority, assigneeID: r.AssigneeID,
+				status: r.Status, priority: r.Priority, ownerID: r.CreatedBy, assigneeID: r.AssigneeID,
 				createdAt: r.CreatedAt, updatedAt: r.UpdatedAt,
 			})
 		}
@@ -320,6 +337,7 @@ func (s *MSPWorkbenchService) GetRecord(ctx context.Context, actor MSPWorkbenchA
 	}
 
 	var resp *dto.MSPRecordDetailResponse
+	ownerID := 0
 	switch recordType {
 	case MSPRecordChange:
 		row, err := s.client.Change.Get(tenantctx.WithTenantID(ctx, declaredTenantID), id)
@@ -348,6 +366,7 @@ func (s *MSPWorkbenchService) GetRecord(ctx context.Context, actor MSPWorkbenchA
 		if row.DeletedAt != nil {
 			return nil, NewCustomerAccessError(CodeCustomerTenantNotFound, "问题不存在")
 		}
+		ownerID = row.CreatedBy
 		resp = problemRecordDetail(row)
 
 	case MSPRecordServiceRequest:
@@ -382,6 +401,15 @@ func (s *MSPWorkbenchService) GetRecord(ctx context.Context, actor MSPWorkbenchA
 	resp.AssigneeName = names[resp.AssigneeID]
 	resp.RequesterName = names[resp.RequesterID]
 	resp.AllowedActions = mspRecordViewActions()
+	if recordType == MSPRecordProblem {
+		homeRole := ""
+		if role, roleErr := s.loadActorHomeRole(ctx, actor); roleErr == nil {
+			homeRole = role
+		}
+		resp.AllowedActions = problemAllowedActions(actor, meta[resp.CustomerTenantID].active(),
+			s.problemTenantWriteAllowed(ctx, actor, resp.CustomerTenantID), homeRole,
+			mspRecordRow{status: resp.Status, ownerID: ownerID, assigneeID: resp.AssigneeID})
+	}
 	return resp, nil
 }
 

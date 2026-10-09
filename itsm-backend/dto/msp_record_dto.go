@@ -79,3 +79,10 @@ type MSPRecordDetailResponse struct {
 	CompletedAt     *time.Time `json:"completedAt,omitempty"`
 	CompletionNote  string     `json:"completionNote,omitempty"`
 }
+
+// UpdateMSPProblemStatusRequest 跨租户问题状态推进请求（P2-③ 写面首批 / IP-P2-13）。
+type UpdateMSPProblemStatusRequest struct {
+	CustomerTenantID int    `json:"customerTenantId"`
+	Status           string `json:"status"`
+	Resolution       string `json:"resolution"`
+}

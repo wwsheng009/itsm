@@ -734,6 +734,7 @@ func precheckRoutePermissions() map[string]map[string]Permission {
 			"/api/v1/msp/allocations/deallocate":                      {Resource: "msp_allocation", Action: "write"},
 			"/api/v1/msp/customers/*/users":                           {Resource: "msp_customer", Action: "write"},
 			"/api/v1/msp/customers/*/workflow-templates/*/distribute": {Resource: "msp_customer", Action: "write"},
+			"/api/v1/msp/problems/*/status":                           {Resource: "msp_ticket", Action: "write"},
 			"/api/v1/msp/tickets/*/assign":                            {Resource: "msp_ticket", Action: "write"},
 			"/api/v1/msp/tickets/*/reply":                             {Resource: "msp_ticket", Action: "write"},
 			"/api/v1/msp/tickets/*/status":                            {Resource: "msp_ticket", Action: "write"},

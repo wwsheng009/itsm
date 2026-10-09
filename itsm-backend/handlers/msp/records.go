@@ -119,3 +119,39 @@ func (h *Handler) GetWorkbenchProblem(c *gin.Context) {
 func (h *Handler) GetWorkbenchServiceRequest(c *gin.Context) {
 	h.getWorkbenchRecord(c, service.MSPRecordServiceRequest)
 }
+
+// UpdateWorkbenchProblemStatus POST /api/v1/msp/problems/:id/status
+// 跨租户问题状态推进（P2-③ 写面首批 / IP-P2-13）：处理类动作 investigating|identified|resolved|closed。
+func (h *Handler) UpdateWorkbenchProblemStatus(c *gin.Context) {
+	actor, ok := workbenchActorFrom(c)
+	if !ok {
+		common.Fail(c, common.ForbiddenCode, "非MSP用户")
+		return
+	}
+	if h.workbench == nil {
+		common.Fail(c, common.InternalErrorCode, "工作台服务未启用")
+		return
+	}
+	id, err := strconv.Atoi(c.Param("id"))
+	if err != nil || id <= 0 {
+		common.Fail(c, common.ParamErrorCode, "单据ID无效")
+		return
+	}
+	var req dto.UpdateMSPProblemStatusRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		common.ParamErrorWithErr(c, err, "请求参数错误")
+		return
+	}
+	if req.CustomerTenantID <= 0 {
+		common.Fail(c, common.ParamErrorCode, "缺少 customerTenantId（目标客户租户声明）")
+		return
+	}
+
+	resp, err := h.workbench.UpdateProblemStatus(c.Request.Context(), actor, id, req.CustomerTenantID, req.Status, req.Resolution)
+	if err != nil {
+		h.logger.Errorw("msp problem status update failed", "error", err, "problem_id", id, "user_id", actor.UserID)
+		failMSPAccess(c, err, "推进问题状态失败")
+		return
+	}
+	common.Success(c, resp)
+}

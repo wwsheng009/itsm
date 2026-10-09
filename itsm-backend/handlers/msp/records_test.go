@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -19,6 +20,7 @@ import (
 	"itsm-backend/dto"
 	"itsm-backend/ent"
 	"itsm-backend/ent/enttest"
+	entProblem "itsm-backend/ent/problem"
 	entTenant "itsm-backend/ent/tenant"
 	"itsm-backend/middleware"
 	"itsm-backend/service"
@@ -33,10 +35,15 @@ type recordsHandlerEnv struct {
 	provider *ent.Tenant
 	custA    *ent.Tenant
 	custC    *ent.Tenant
+	problemC *ent.Problem
 }
 
 func newRecordsHandlerEnv(t *testing.T) *recordsHandlerEnv {
 	t.Helper()
+	prevMode := middleware.PermissionConfig.Mode
+	middleware.PermissionConfig.Mode = middleware.PermissionConfigModeMerge
+	t.Cleanup(func() { middleware.PermissionConfig.Mode = prevMode })
+
 	dsn := fmt.Sprintf("file:records_handler_%d?mode=memory&cache=shared&_fk=1", atomic.AddInt64(&recordsHandlerDBCounter, 1))
 	client := enttest.Open(t, "sqlite3", dsn)
 	t.Cleanup(func() { client.Close() })
@@ -61,7 +68,16 @@ func newRecordsHandlerEnv(t *testing.T) *recordsHandlerEnv {
 		SetCreatedAt(time.Now()).SetUpdatedAt(time.Now()).Save(ctx)
 	require.NoError(t, err)
 
-	return &recordsHandlerEnv{client: client, provider: provider, custA: custA, custC: custC}
+	_, err = client.Problem.Create().
+		SetProblemNumber("PRB-H1").SetTitle("handler 问题").SetStatus("investigating").
+		SetPriority("high").SetCreatedBy(1).SetTenantID(custA.ID).Save(ctx)
+	require.NoError(t, err)
+
+	cProblem, err := client.Problem.Create().
+		SetProblemNumber("PRB-HC").SetTitle("handler 问题C").SetStatus("open").
+		SetCreatedBy(1).SetTenantID(custC.ID).Save(ctx)
+	require.NoError(t, err)
+	return &recordsHandlerEnv{client: client, provider: provider, custA: custA, custC: custC, problemC: cProblem}
 }
 
 func recordsActorCtx(allowed []int) *middleware.MSPContext {
@@ -93,6 +109,7 @@ func newRecordsTestRouter(t *testing.T, env *recordsHandlerEnv, mspCtx *middlewa
 	group.GET("/changes/:id", h.GetWorkbenchChange)
 	group.GET("/problems/:id", h.GetWorkbenchProblem)
 	group.GET("/service-requests/:id", h.GetWorkbenchServiceRequest)
+	group.POST("/problems/:id/status", h.UpdateWorkbenchProblemStatus)
 	return r
 }
 
@@ -181,4 +198,106 @@ func TestWorkbenchRecords_NotFoundAndDenied(t *testing.T) {
 	r.ServeHTTP(w, req)
 	assert.Equal(t, http.StatusForbidden, w.Code)
 	assert.Contains(t, w.Body.String(), service.CodeMSPAllocationRequired)
+}
+
+// stubRecordProblemWriter 记录问题状态写面调用（handler 契约）。
+type stubRecordProblemWriter struct {
+	calls        int
+	lastTenantID int
+	lastID       int
+	lastActorID  int
+	lastStatus   string
+	err          error
+}
+
+func (w *stubRecordProblemWriter) UpdateProblemStatus(_ context.Context, tenantID, id, actorID int, _, status, _ string) error {
+	w.calls++
+	w.lastTenantID, w.lastID, w.lastActorID, w.lastStatus = tenantID, id, actorID, status
+	return w.err
+}
+
+func TestWorkbenchProblemStatus_Update(t *testing.T) {
+	env := newRecordsHandlerEnv(t)
+	logger := zaptest.NewLogger(t).Sugar()
+	workbench := service.NewMSPWorkbenchService(env.client, nil, nil, logger)
+	writer := &stubRecordProblemWriter{}
+	workbench.SetProblemStatusWriter(writer)
+
+	gin.SetMode(gin.TestMode)
+	h := NewHandler(nil, nil, workbench, nil, nil, nil, nil, logger)
+	r := gin.New()
+	r.Use(gin.Recovery())
+	r.Use(func(c *gin.Context) {
+		c.Set("user_id", 7)
+		c.Set("username", "msp-agent")
+		c.Set("tenant_id", env.provider.ID)
+		c.Set(middleware.MSPContextKey, recordsActorCtx([]int{env.custA.ID}))
+		c.Next()
+	})
+	r.POST("/api/v1/msp/problems/:id/status", h.UpdateWorkbenchProblemStatus)
+
+	problem, err := env.client.Problem.Query().Where(entProblem.TenantIDEQ(env.custA.ID)).Only(context.Background())
+	require.NoError(t, err)
+
+	body := fmt.Sprintf(`{"customerTenantId":%d,"status":"identified"}`, env.custA.ID)
+	req := httptest.NewRequest(http.MethodPost, fmt.Sprintf("/api/v1/msp/problems/%d/status", problem.ID), strings.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+	require.Equal(t, http.StatusOK, w.Code, w.Body.String())
+	assert.Equal(t, 1, writer.calls)
+	assert.Equal(t, env.custA.ID, writer.lastTenantID)
+	assert.Equal(t, problem.ID, writer.lastID)
+	assert.Equal(t, "identified", writer.lastStatus)
+
+	// 缺 customerTenantId → 400。
+	req = httptest.NewRequest(http.MethodPost, fmt.Sprintf("/api/v1/msp/problems/%d/status", problem.ID), strings.NewReader(`{"status":"identified"}`))
+	req.Header.Set("Content-Type", "application/json")
+	w = httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+	assert.Equal(t, http.StatusBadRequest, w.Code)
+	assert.Equal(t, 1, writer.calls)
+
+	// 未分配客户（问题在 C 租户）→ 403 + reasonCode。
+	body = fmt.Sprintf(`{"customerTenantId":%d,"status":"identified"}`, env.custC.ID)
+	req = httptest.NewRequest(http.MethodPost, fmt.Sprintf("/api/v1/msp/problems/%d/status", env.problemC.ID), strings.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	w = httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+	assert.Equal(t, http.StatusForbidden, w.Code)
+	assert.Contains(t, w.Body.String(), service.CodeMSPAllocationRequired)
+	assert.Equal(t, 1, writer.calls)
+
+	// 域状态机拒绝（409 语义）→ ConflictCode + reasonCode。
+	writer.err = service.NewCustomerAccessError(service.CodeInvalidTransition, "当前问题状态不允许此操作")
+	body = fmt.Sprintf(`{"customerTenantId":%d,"status":"identified"}`, env.custA.ID)
+	req = httptest.NewRequest(http.MethodPost, fmt.Sprintf("/api/v1/msp/problems/%d/status", problem.ID), strings.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	w = httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+	assert.Equal(t, http.StatusConflict, w.Code)
+	assert.Contains(t, w.Body.String(), service.CodeInvalidTransition)
+}
+
+func TestWorkbenchProblemStatus_NoMSPContextFailsClosed(t *testing.T) {
+	env := newRecordsHandlerEnv(t)
+	logger := zaptest.NewLogger(t).Sugar()
+	workbench := service.NewMSPWorkbenchService(env.client, nil, nil, logger)
+	writer := &stubRecordProblemWriter{}
+	workbench.SetProblemStatusWriter(writer)
+
+	gin.SetMode(gin.TestMode)
+	h := NewHandler(nil, nil, workbench, nil, nil, nil, nil, logger)
+	r := gin.New()
+	r.Use(gin.Recovery())
+	r.POST("/api/v1/msp/problems/:id/status", h.UpdateWorkbenchProblemStatus)
+
+	problem, err := env.client.Problem.Query().Where(entProblem.TenantIDEQ(env.custA.ID)).Only(context.Background())
+	require.NoError(t, err)
+	req := httptest.NewRequest(http.MethodPost, fmt.Sprintf("/api/v1/msp/problems/%d/status", problem.ID), strings.NewReader(`{"customerTenantId":1,"status":"identified"}`))
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+	assert.Equal(t, http.StatusForbidden, w.Code)
+	assert.Zero(t, writer.calls)
 }

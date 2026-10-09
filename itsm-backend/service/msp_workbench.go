@@ -79,6 +79,8 @@ type MSPWorkbenchService struct {
 	ticketSvc  *TicketService
 	commentSvc *TicketCommentService
 	logger     *zap.SugaredLogger
+	// problemWriter 问题状态写入器（P2-③ 写面首批 / IP-P2-13；nil 时写面 fail-closed）。
+	problemWriter MSPProblemStatusWriter
 	batchMu    sync.Mutex
 	batchHits  map[int][]time.Time
 }
