@@ -509,7 +509,7 @@ func TestServiceRequestHandler_RequesterCannotSelfApprove(t *testing.T) {
 	assert.EqualValues(t, common.ForbiddenErrorCode, resp.Code, "body=%s", srStr(resp))
 }
 
-func TestServiceRequestPendingApprovalsAreDepartmentScopedAndUnknownRoleDenied(t *testing.T) {
+func TestServiceRequestPendingApprovalsAreDepartmentScopedAndNonApproverReturnsEmpty(t *testing.T) {
 	_, client, tenantID, managerID, catID := srSetup(t)
 	ctx := context.Background()
 	logger := zaptest.NewLogger(t).Sugar()
@@ -538,8 +538,53 @@ func TestServiceRequestPendingApprovalsAreDepartmentScopedAndUnknownRoleDenied(t
 	require.Len(t, pending, 1)
 	assert.Equal(t, itRequester.ID, pending[0].RequesterID)
 
-	_, _, err = service.ListPendingApprovals(ctx, tenantID, managerID, "viewer", 1, 10)
-	require.Error(t, err)
+	// 非审批人角色（viewer）：读列表语义为「没有待办」→ 空集合，不再 403。
+	viewerPending, viewerTotal, err := service.ListPendingApprovals(ctx, tenantID, managerID, "viewer", 1, 10)
+	require.NoError(t, err)
+	assert.Equal(t, 0, viewerTotal)
+	assert.Empty(t, viewerPending)
+
+	// 当前作用域内无该用户记录（跨租户代操作/深度切换场景）：同样返回空集合而非 403。
+	otherTenant, err := client.Tenant.Create().
+		SetName("SRTenantOther").
+		SetCode("SRO" + srUID()).
+		SetDomain("sro.test").
+		SetStatus("active").
+		Save(ctx)
+	require.NoError(t, err)
+	scopedPending, scopedTotal, err := service.ListPendingApprovals(ctx, otherTenant.ID, managerID, "manager", 1, 10)
+	require.NoError(t, err)
+	assert.Equal(t, 0, scopedTotal)
+	assert.Empty(t, scopedPending)
+}
+
+// 契约回归：作用域内无用户记录（跨租户代操作/深度切换）时，HTTP 层必须是 200 + 空数组，
+// 而不是 403（曾为 {"code":2003,"message":"Approver not found or inactive"}）。
+func TestServiceRequestHandler_ListPendingScopeWithoutUserReturnsEmpty200(t *testing.T) {
+	_, client, _, managerID, _ := srSetup(t)
+	ctx := context.Background()
+	svc := NewService(NewEntRepository(client), service_catalog.NewEntRepository(client), cmdb.NewEntRepository(client), client, zaptest.NewLogger(t).Sugar(), nil)
+
+	otherTenant, err := client.Tenant.Create().
+		SetName("SRPendingOther").
+		SetCode("SRPO" + srUID()).
+		SetDomain("srpo.test").
+		SetStatus("active").
+		Save(ctx)
+	require.NoError(t, err)
+
+	router := gin.New()
+	router.Use(srAuth(otherTenant.ID, managerID))
+	router.GET("/api/v1/service-requests/approvals/pending", NewHandler(svc).ListPending)
+
+	resp := srDoReq(t, router, "GET", "/api/v1/service-requests/approvals/pending?page=1&size=10", nil)
+	assert.EqualValues(t, 0, resp.Code, "body=%s", srStr(resp))
+	data, ok := resp.Data.(map[string]interface{})
+	require.True(t, ok, "body=%s", srStr(resp))
+	assert.EqualValues(t, 0, data["total"])
+	requests, ok := data["requests"].([]interface{})
+	require.True(t, ok, "requests must serialize as array, got %T (body=%s)", data["requests"], srStr(resp))
+	assert.Empty(t, requests)
 }
 
 func TestServiceRequestHandler_ApplyApproval_FullProgression(t *testing.T) {

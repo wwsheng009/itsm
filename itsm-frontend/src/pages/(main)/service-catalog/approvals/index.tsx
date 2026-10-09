@@ -1,6 +1,6 @@
 
 import React, { useEffect, useRef, useState } from 'react';
-import { Table, Tag, Button, Card, App, Space, Modal, Input } from 'antd';
+import { Table, Tag, Button, Card, App, Space, Modal, Input, Alert } from 'antd';
 import { ServiceCatalogApi } from '@/lib/api/service-catalog-api';
 import { useI18n } from '@/lib/i18n';
 import { ServiceRequestStatus } from '@/types/service-catalog';
@@ -14,11 +14,23 @@ interface ServiceRequestRecord {
   reason?: string;
 }
 
+/**
+ * 待审批列表加载失败的分类：403/2003 = 当前作用域无审批权限（RBAC 拒绝）→ 页内提示，
+ * 不弹「获取失败」；其余错误保留 toast。与后端空集合语义（作用域内无审批人身份返回
+ * 200 空列表）互补：真无权限时给出可读提示，而不是红色报错。
+ */
+export function isApprovalsForbidden(error: unknown): boolean {
+  const e = error as { httpStatus?: number; code?: number } | null | undefined;
+  if (!e || typeof e !== 'object') return false;
+  return e.httpStatus === 403 || e.code === 403 || e.code === 2003;
+}
+
 export default function ServiceApprovalsPage() {
   const { message } = App.useApp();
   const { t } = useI18n();
   const [requests, setRequests] = useState<ServiceRequestRecord[]>([]);
   const [loading, setLoading] = useState(false);
+  const [forbidden, setForbidden] = useState(false);
   const [detailModalVisible, setDetailModalVisible] = useState(false);
   const [rejectModalVisible, setRejectModalVisible] = useState(false);
   const [selectedRequest, setSelectedRequest] = useState<ServiceRequestRecord | null>(null);
@@ -39,9 +51,15 @@ export default function ServiceApprovalsPage() {
       const data = await ServiceCatalogApi.getServiceRequests({
         status: ServiceRequestStatus.PENDING_APPROVAL,
       });
+      setForbidden(false);
       setRequests((data.requests || []) as ServiceRequestRecord[]);
     } catch (error) {
-      message.error(t('common.getFailed'));
+      if (isApprovalsForbidden(error)) {
+        setForbidden(true);
+        setRequests([]);
+      } else {
+        message.error(t('common.getFailed'));
+      }
     } finally {
       setLoading(false);
     }
@@ -132,6 +150,14 @@ export default function ServiceApprovalsPage() {
   return (
     <div className="p-6">
       <Card title={t('service.pendingApprovals')}>
+        {forbidden && (
+          <Alert
+            type="warning"
+            showIcon
+            message={t('service.approvalsNoPermission')}
+            style={{ marginBottom: 16 }}
+          />
+        )}
         <Table columns={columns} dataSource={requests} loading={loading} rowKey="id" />
       </Card>
 

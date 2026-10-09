@@ -617,6 +617,16 @@ func stringsToIfaces(in []string) []interface{} {
 }
 
 // ListPendingApprovals lists pending approvals for current user
+//
+// 读列表语义（2026-10-09 收口）：「我有什么待办」对以下两种状态等价于「没有待办」，
+// 一律返回空集合（200），不再返回 403：
+//   - 当前作用域内不存在该用户的审批人身份（GetUserContext 查无此人）——典型场景是
+//     MSP 深度切换到客户租户后，provider 员工在客户租户没有 users 行，属设计内正常态；
+//   - 角色不承担审批（viewer/end_user 等）。
+//
+// 访问控制边界仍由路由层 RequirePermission("service_request","read") + RBACMiddleware
+// 把守（无权限仍 401/403）；写动作（ApplyApproval）保留 403「Approver not found or
+// inactive」——审批动作必须有明确的操作者身份，不能降级为空结果。
 func (s *Service) ListPendingApprovals(ctx context.Context, tenantID, userID int, role string, page, size int) ([]*ServiceRequest, int, error) {
 	role = strings.ToLower(role)
 	var targetLevel int
@@ -624,7 +634,11 @@ func (s *Service) ListPendingApprovals(ctx context.Context, tenantID, userID int
 	var requesterDept string
 	actorDept, _, err := s.repo.GetUserContext(ctx, userID, tenantID)
 	if err != nil {
-		return nil, 0, common.NewForbiddenError("Approver not found or inactive")
+		if s.logger != nil {
+			s.logger.Warnw("list pending approvals: actor has no user record in scope tenant, return empty",
+				"user_id", userID, "tenant_id", tenantID, "role", role, "error", err)
+		}
+		return []*ServiceRequest{}, 0, nil
 	}
 
 	switch role {
@@ -641,7 +655,11 @@ func (s *Service) ListPendingApprovals(ctx context.Context, tenantID, userID int
 	case RoleAdmin, RoleSuperAdmin:
 		targetLevel = 0
 	default:
-		return nil, 0, common.NewForbiddenError("Role is not eligible to approve service requests")
+		if s.logger != nil {
+			s.logger.Warnw("list pending approvals: role not eligible for approval, return empty",
+				"user_id", userID, "tenant_id", tenantID, "role", role)
+		}
+		return []*ServiceRequest{}, 0, nil
 	}
 
 	return s.repo.ListPendingApprovals(ctx, tenantID, targetLevel, requiredStatus, requesterDept, page, size)
