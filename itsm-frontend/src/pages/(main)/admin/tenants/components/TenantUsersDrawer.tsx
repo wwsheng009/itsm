@@ -83,7 +83,7 @@ const TenantUsersDrawer: React.FC<TenantUsersDrawerProps> = ({
   onProvision,
   onClose,
 }) => {
-  const { message } = App.useApp();
+  const { message, modal } = App.useApp();
   const [searchParams, setSearchParams] = useSearchParams();
   const { hint: passwordHint, buildRules } = usePasswordPolicy();
   const screens = Grid.useBreakpoint();
@@ -255,7 +255,8 @@ const TenantUsersDrawer: React.FC<TenantUsersDrawerProps> = ({
 
   // IP-P2-8 D3=B：平台侧离职编排（停用 + 全量会话失效 + 撤销全部分配；二次确认，幂等可重跑）。
   const handleOffboard = (record: TenantUserItem) => {
-    Modal.confirm({
+    // 走 App 上下文的 modal（静态 Modal.confirm 不消费主题/语言上下文，antd 会告警）。
+    modal.confirm({
       title: '确认离职',
       content: `确定要让「${record.username}」离职吗？将停用账号、立即吊销全部会话并撤销其全部分配（可安全重跑）。`,
       okText: '确认离职',

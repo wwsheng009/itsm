@@ -31,6 +31,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **IP-P2-8 收口：F-08 剧本 + 实弹验证（P1 完成）** — 新增 `scenarios/11-offboarding.md`（provider 自服务 / 平台治理双通道步骤表 + 反例 + 开关前置 + 实测记录）与 `scripts/msp/acceptance/run-offboarding-acceptance.ps1`（OFF-0–OFF-7：建号→分配→非平台面 403→offboard→停用/清零→幂等→审计，隔离探针可重复执行，run-summary 入档）。实弹结果：API 10/10 PASS、浏览器实操（TUM 抽屉离职 → 「撤销 1 个分配」→ 行刷新停用）通过；写通道开关未开时 403 `TENANT_USER_ADMIN_DISABLED` fail-closed 留证。实弹发现并修复：TUM 抽屉 `Modal.confirm` 静态调用不消费主题上下文 → 改 `App.useApp().modal`（控制台告警消除；抽屉 jest 6/6、tsc/eslint 绿）。IP-P2-8 仅剩 P2（`expires_at` 自动回收，另案）。
+
 - **IP-P2-8 P1 完成：平台 TUM 面离职编排** — `POST /api/v1/tenants/:id/users/:userId/offboard`（`tenant:write` + super_admin 硬校验 + 最后管理员护栏；复用 `OffboardingService`：停用 + 全量会话失效 + 撤销全部分配；`user.admin_offboard` 治理审计（`target_tenant_id` 标注）+ 租户通知）；TUM 抽屉行操作「离职」（二次确认 + 撤销计数提示）+ `TenantUserAdminApi.offboardUser`。验证：service（护栏/双审计/幂等）、handler 契约、路由契约、e2e（幂等 + 非平台面 403 + 审计 2 行）、抽屉 jest 6 通过、tsc/eslint 绿；`go test -p 1 ./service ./handlers/tenant ./handlers/user ./router` 全绿。剩余：F-08 剧本补充。
 
 - **IP-P2-8 P1 部分：前端「离职」入口 + 停用/删除路径会话缺口补齐** — ① 前端：`admin/users` 用户行操作新增「离职（停用并撤销全部分配）」（仅服务商租户展示，二次确认 + 已撤销分配计数提示），`UserApi.offboardUser` + i18n 双语；② 后端：`DeleteUser`（软删）与 `BatchUpdateUsers(deactivate)` 补全存量 access+refresh 吊销（与单条停用口径一致，方案 §2 S2/S3 缺口）。验证：jest `user-api`（16 通过）+ i18n（8 通过）+ `tsc -b`/eslint 绿；`go test -p 1 ./service ./handlers/user ./router` 全绿。剩余：平台 TUM 面 + F-08 剧本。

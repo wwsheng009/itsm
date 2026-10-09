@@ -36,7 +36,7 @@
 
 > **说明**：01–07 为**现状/运营（as-is）**文档（更新于 2026-09-28，描述实测行为）；**目标口径一律以 [canon](./plan/msp-concept-model-and-architecture-canon.md) 为准**。两者已知差异与整改记录见[一致性审计](./plan/msp-docs-consistency-audit.md) §3。
 >
-> **想直接动手（浏览器全流程）**：从 [scenarios/00 环境与账号](./scenarios/00-environment-and-accounts.md) 开始，按场景 01→08 依次执行；总览与账号矩阵见 [scenarios/README](./scenarios/README.md)。
+> **想直接动手（浏览器全流程）**：从 [scenarios/00 环境与账号](./scenarios/00-environment-and-accounts.md) 开始，按场景 01→11 依次执行；总览与账号矩阵见 [scenarios/README](./scenarios/README.md)。
 
 ## 角色与术语
 

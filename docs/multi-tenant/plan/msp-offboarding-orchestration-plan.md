@@ -1,6 +1,6 @@
 # MSP 离职编排与分配回收方案（Offboarding Orchestration）
 
-> **状态**：v0.4（2026-10-08）——**P0 + P1 全部落地**（前端入口 + 平台 TUM 面，见 §6 实施记录）；决策点 D1–D4 按 §3.7 推荐值落定（D1=A / D2=A / D3=B / D4=A）；剩余：F-08 剧本补充（实操记录）
+> **状态**：v0.5（2026-10-09）——**P0 + P1 全部落地并实弹验证**（前端入口 + 平台 TUM 面 + F-08 剧本 + 验收脚本，见 §6 实施记录）；决策点 D1–D4 按 §3.7 推荐值落定（D1=A / D2=A / D3=B / D4=A）；剩余：P2（`expires_at` 到期自动回收，另行立项）
 >
 > **批次建议**：`IP-P2-8`（落库前对照《[实施方案](./msp-implementation-plan.md)》§3.0 总表登记，未登记前本方案不视为冻结）
 >
@@ -120,8 +120,10 @@ F-08「回收 / 离职 / 退租」的目标动作是「**员工离职 → 停用
 | 前端（P1 部分） | `admin/users` 用户行操作「离职」：仅服务商租户（D4=A）展示、二次确认 + 已撤销分配计数提示 + 刷新；`UserApi.offboardUser` + i18n 双语 | jest `user-api`（含 offboard 用例）、i18n 套件；`tsc -b` / eslint 绿 |
 | 会话缺口（S2/S3） | `DeleteUser`（软删）与 `BatchUpdateUsers(deactivate)` 补全 access+refresh 吊销（与单条停用口径一致） | `user_session_revocation_test.go`（删除/批量停用吊销 + 未涉及隔离 + department 不吊销）；后端回归全绿 |
 | 平台 TUM 面（P1） | `POST /api/v1/tenants/:id/users/:userId/offboard`（`tenant:write` + super_admin 硬校验 + 最后管理员护栏）：复用 `OffboardingService` + `user.admin_offboard` 治理审计（`target_tenant_id` 标注）+ 租户通知；TUM 抽屉行操作「离职」+ `TenantUserAdminApi.offboardUser` | e2e（幂等重跑/非平台面 403/审计 2 行）、service 用例（护栏 + 域/治理双审计 + 幂等）、handler 契约、路由契约；抽屉 jest（6 通过）、`tsc`/eslint 绿 |
+| F-08 剧本 + 实弹（P1） | [scenarios/11-offboarding.md](../scenarios/11-offboarding.md)（双通道步骤表 + 反例 + 开关前置 + 实测记录）；`scripts/msp/acceptance/run-offboarding-acceptance.ps1`（OFF-0–OFF-7，隔离探针用户，可重复执行） | 实弹 10/10 PASS（建号→分配→403 反例→offboard 200 revoked=1→停用/清零→幂等→审计 2 行）；浏览器实操（平台 TUM 抽屉离职 → 提示「撤销 1 个分配」→ 行刷新停用）；开关未开 fail-closed 实测留证 |
+| UX 修复（实弹发现） | TUM 抽屉 `Modal.confirm` 静态调用不消费主题上下文 → 改 `App.useApp().modal` | 控制台告警消除；抽屉 jest 6/6、`tsc -b`/eslint 绿 |
 
-剩余（P1）：F-08 剧本补充（实操记录）。
+剩余：P2（`expires_at` 到期自动回收，另行立项，见 §4）。
 
 ## 7. 修订记录
 
@@ -131,3 +133,4 @@ F-08「回收 / 离职 / 退租」的目标动作是「**员工离职 → 停用
 | v0.2 | 2026-10-08 | **P0 落地**（§6 实施记录）；决策点 D1–D4 按 §3.7 推荐值落定；P1 待实施 |
 | v0.3 | 2026-10-08 | **前端入口（P1 部分）落地**（§6）+ 停用/删除路径会话缺口补齐（S2/S3）；剩余：平台 TUM 面 + 剧本 |
 | v0.4 | 2026-10-08 | **平台 TUM 面落地**（§3.3 契约：端点 + 服务复用 + 双审计 + 抽屉行操作）；P1 剩余：F-08 剧本 |
+| v0.5 | 2026-10-09 | **F-08 剧本 + 实弹验证收口**：scenarios/11 + 验收脚本（OFF-0–OFF-7 全 PASS）+ 浏览器实操 + 开关 fail-closed 留证 + 实弹发现的 modal 上下文修复；P1 全部完成，仅剩 P2 另案 |

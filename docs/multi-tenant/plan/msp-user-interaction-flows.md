@@ -311,7 +311,7 @@ flowchart TD
     F --> G[巡检: 无孤儿作用域<br/>客户单作用域约束保持]
 ```
 
-- **当前状态**：🟡→**后端 P0 已落地（2026-10-08，IP-P2-8）**：`POST /api/v1/users/:id/offboard` = 停用账号 + 全量会话失效 + 撤销全部分配（逐条幂等、失败可续）+ `user.offboard` 审计；单对撤销 `Deactivate` 与分配历史 `/api/v1/msp/allocations/history` 均已就绪（分配侧审计 `membership.revoke` 由既有通道产生）。剩余 P1：F-08 剧本补充；前端入口与平台 TUM 面均已落地（2026-10-08：provider `admin/users` 行操作「离职」+ 平台 TUM 抽屉「离职」；平台端点 `POST /api/v1/tenants/:id/users/:userId/offboard`）。
+- **当前状态**：🟡→**后端 P0 已落地（2026-10-08，IP-P2-8）**：`POST /api/v1/users/:id/offboard` = 停用账号 + 全量会话失效 + 撤销全部分配（逐条幂等、失败可续）+ `user.offboard` 审计；单对撤销 `Deactivate` 与分配历史 `/api/v1/msp/allocations/history` 均已就绪（分配侧审计 `membership.revoke` 由既有通道产生）。剩余 P1：无（剧本已落地：`scenarios/11-offboarding.md` + 验收脚本 OFF-0–OFF-7 实弹 10/10 PASS，2026-10-09）；前端入口与平台 TUM 面均已落地（provider `admin/users` 行操作「离职」+ 平台 TUM 抽屉「离职」；平台端点 `POST /api/v1/tenants/:id/users/:userId/offboard`）。
 - **异常**：回收后旧会话仍有效 → 由每次请求的 membership 复核拦截（R2）；退租期数据导出/保留 → 按合规策略。
 
 ---
