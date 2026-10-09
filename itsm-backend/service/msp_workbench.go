@@ -81,6 +81,10 @@ type MSPWorkbenchService struct {
 	logger     *zap.SugaredLogger
 	// problemWriter 问题状态写入器（P2-③ 写面首批 / IP-P2-13；nil 时写面 fail-closed）。
 	problemWriter MSPProblemStatusWriter
+	// changeWriter 变更状态写入器（P2-③ 写面扩展 / IP-P2-15；nil 时写面 fail-closed）。
+	changeWriter MSPChangeStatusWriter
+	// requestWriter 服务请求履约状态写入器（P2-③ 写面扩展 / IP-P2-15；nil 时写面 fail-closed）。
+	requestWriter MSPRequestStatusWriter
 	batchMu       sync.Mutex
 	batchHits     map[int][]time.Time
 }

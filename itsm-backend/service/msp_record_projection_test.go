@@ -72,8 +72,9 @@ func newRecordProjEnv(t *testing.T) *recordProjEnv {
 		SetPasswordHash("hash").SetTenantID(custA.ID).Save(ctx)
 	require.NoError(t, err)
 
-	// 目标租户 RBAC（C2 同构最小子集）：问题状态推进门禁 problem:write（IP-P2-14 起按目标租户判定）。
-	seedTenantRolePermissions(t, client, custA.ID, "msp_manager", "problem:write")
+	// 目标租户 RBAC（C2 同构最小子集）：三类写面门禁 problem:write / change:write / service_request:write
+	// （IP-P2-14 起按目标租户判定；IP-P2-15 扩展变更/服务请求）。
+	seedTenantRolePermissions(t, client, custA.ID, "msp_manager", "problem:write", "change:write", "service_request:write")
 	middleware.InvalidateAllPermissionCaches()
 	t.Cleanup(middleware.InvalidateAllPermissionCaches)
 
@@ -143,9 +144,11 @@ func TestMSPRecordProjection_ListChangesMergedSortedAndFiltered(t *testing.T) {
 	assert.Equal(t, env.custB.ID, resp.Items[0].CustomerTenantID)
 	assert.Equal(t, "客户B", resp.Items[0].CustomerName)
 	assert.Equal(t, MSPRecordChange, resp.Items[0].RecordType)
-	require.Len(t, resp.Items[0].AllowedActions, 1)
+	require.Len(t, resp.Items[0].AllowedActions, 2)
 	assert.Equal(t, "view", resp.Items[0].AllowedActions[0].Action)
 	assert.True(t, resp.Items[0].AllowedActions[0].Allowed)
+	assert.Equal(t, "status", resp.Items[0].AllowedActions[1].Action)
+	assert.False(t, resp.Items[0].AllowedActions[1].Allowed, "custB 无 change:write 授权 → 动作收回")
 
 	// 状态筛选。
 	resp, err = svc.ListRecords(context.Background(), env.actor, MSPRecordChange, dto.MSPRecordQuery{Status: "approved"})
@@ -247,8 +250,10 @@ func TestMSPRecordProjection_Detail(t *testing.T) {
 	assert.Equal(t, "描述-CHG-1", resp.Description)
 	assert.Equal(t, env.custA.ID, resp.CustomerTenantID)
 	assert.Equal(t, "客户A", resp.CustomerName)
-	require.Len(t, resp.AllowedActions, 1)
+	require.Len(t, resp.AllowedActions, 2)
 	assert.True(t, resp.AllowedActions[0].Allowed)
+	assert.Equal(t, "status", resp.AllowedActions[1].Action)
+	assert.True(t, resp.AllowedActions[1].Allowed, "custA 具备 change:write + 非终态 → 动作开放")
 
 	// 未知 id → 404 口径。
 	_, err = svc.GetRecord(ctx, env.actor, MSPRecordChange, 999999, env.custA.ID)

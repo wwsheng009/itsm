@@ -439,6 +439,7 @@ func MSPCustomerScopeRolePermissionCodes() map[string][]string {
 	tech := withBaseline(
 		"ticket:read", "ticket:create", "ticket:update", "ticket:write",
 		"ticket:assign", "problem:write",
+		"change:write", "service_request:write",
 		"knowledge:read", "cmdb:read", "service_catalog:read",
 	)
 	manager := appendMissingCodes(tech, "user:write", "report:read")

@@ -1,6 +1,6 @@
 # 多租户单据流转交互架构（Cross-Tenant Record Flow Architecture）
 
-> 状态：**Draft v0.15（P0–P1 落地 + P2①② 落地 + P2③ 读面/写面首批落地 + 写门禁口径修复；待评审）**｜日期：2026-10-09｜基准：仓库 HEAD `677b94da`（工作树含 P2-14 写门禁口径修复未提交改动）
+> 状态：**Draft v0.16（P0–P1 落地 + P2①② 落地 + P2③ 读面/写面全量落地（问题/变更/服务请求）+ 写门禁口径修复；待评审）**｜日期：2026-10-09｜基准：仓库 HEAD `c2df2194`（工作树含 P2-15 写面扩展未提交改动）
 > 定位：**L3 架构级交互设计**——把"工单跨租户可见/可操作"泛化为**全部单据类型**（工单/变更/问题/服务请求/审批任务/CMDB 变更单…）的跨租户流转交互模型：参与方与关系、通道与授权链、通用操作矩阵、**端到端流转（建单→可见→处理→回写）**、**路由与交接（自动/手动/流程驱动）**、**信息互通矩阵**、流程/工作流集成、审计与不变量、分期落地。
 > 上位：[canon](./msp-concept-model-and-architecture-canon.md)（L1，概念/边界/不变量，冲突时 canon 胜）＞ [工作台方案](./msp-cross-customer-workbench-and-filter-plan.md)（L2，跨客户交互修订源）＞ 本文件（L3，对 L2 的泛化与补充；冲突时 L2 胜并回填本文件）。关联：[集成分析](./msp-integration-with-rbac-org-workflow-analysis.md)、[目标架构](./msp-target-architecture.md)、[实施方案](./msp-implementation-plan.md)、[闭环审查](./msp-business-closure-review-and-refactor-plan.md)。
 > 局部编号（引用必须带前缀，登记见 canon 附录 C.2）：`XF1–XF10`（交互规则）、`XFD1–XFD8`（设计决策）、`XFR1–XFR4`（风险）、`XFA1–XFA6`（验收）。
@@ -188,9 +188,9 @@ Customer（msp_customer 租户，单据 owner）
 | 单据类型 | owner 字段 | 关系派生 | 现有跨租户能力 | 需补齐（按 XF10 五件套） | 建议优先级 |
 |---|---|---|---|---|---|
 | 工单 `tickets` | `tenant_id` ✅ | 快照 ✅（建单/指派） | 列表+回复+状态+指派（部分） | 详情/评论/时间线/SLA/CI/附件；指派他人；批量扩展 | **P1** |
-| 变更 `changes` | `tenant_id` ✅ | ❌ 无快照（读面不依赖） | ✅ 读面（v0.13 / IP-P2-12：聚合列表 + 单条详情 + 游标 + 审计反例） | 条目级写（状态迁移/审批）+ 快照派生 | P2（写面 P2-13） |
+| 变更 `changes` | `tenant_id` ✅ | ❌ 无快照（读面不依赖） | ✅ 读面（v0.13 / IP-P2-12）+ ✅ **写面**（v0.16 / IP-P2-15：非审批流转 scheduled\|in_progress\|completed\|closed\|cancelled + 动作契约 + 审计；审批/回滚保留客户治理面） | 快照派生、审批类动作（须审批链含 provider 员工再评估） | P2（写面已交付） |
 | 问题 `problems` | `tenant_id` ✅ | ❌（读面不依赖） | ✅ 读面（v0.13 / IP-P2-12）+ ✅ **写面首批**（v0.14 / IP-P2-13：状态推进 investigating\|identified\|resolved\|closed + 动作契约联动 + 审计） | 回复/评论（域内暂无评论表，登记）、快照派生 | P2（写面后续：变更/服务请求） |
-| 服务请求 `service_requests` | `tenant_id` ✅ | 独立实体（**D7=A：独立面接入，不并入工单面**） | ✅ 读面（v0.13 / IP-P2-12：同上） | 条目级写（状态/审批动作） | P2（写面 P2-13） |
+| 服务请求 `service_requests` | `tenant_id` ✅ | 独立实体（**D7=A：独立面接入，不并入工单面**） | ✅ 读面（v0.13 / IP-P2-12）+ ✅ **写面**（v0.16 / IP-P2-15：履约状态 provisioning\|delivered\|failed；审批 approval 保留客户治理面） | 审批类动作（同上，须审批链含 provider 员工） | P2（写面已交付） |
 | 审批/BPMN 任务 | `tenant_id` ✅ | ❌ | ❌ | 任务投影（§7.3）+ 跨租户待办面 | P2 |
 | CMDB/CI | `tenant_id` ✅ | ❌ | ❌ | 只读投影（详情页嵌入） | P3 |
 | 通知 | 收件人租户 ✅ | 工单双投递 ✅ | ✅（工单） | 泛化到全部单据类型；深链直达详情 | P1 |
@@ -358,6 +358,9 @@ cancelled   → 终态（禁止转换）
 | 改状态 | provider 员工 | 同上 | 客户租户 `ticket:update` + 状态机 | ✅ |
 | 指派（自己） | provider 员工 | 同上 | 客户租户 `ticket:assign` | ✅ |
 | 指派（他人）/转派 | provider 员工 | 同上 + 目标 assignee 属 provider 且有分配 | 客户租户 `ticket:assign` + 目标校验 | ❌ |
+| 变更非审批流转 | provider 员工 | allocation + 客户 active | 客户租户 `change:write` + 状态机（终态/审批类排除） | ✅（v0.16 / IP-P2-15） |
+| 服务请求履约推进 | provider 员工 | 同上 | 客户租户 `service_request:write` + 履约窗口 + 操作人角色 | ✅（v0.16 / IP-P2-15） |
+| 问题状态推进 | provider 员工 | 同上 | 客户租户 `problem:write` + 状态机 | ✅（v0.14 / IP-P2-13） |
 | 流程分发 | provider 管理员 | allocation + 客户 active | provider `bpmn:write` + 客户 `bpmn:write` | ❌（P2） |
 | 客户流程任务处理 | provider 员工 | allocation + 任务分配规则 | 客户租户 `task:update` | ❌（P2） |
 | 治理（重置密码/启停） | 平台管理员 | 治理通道（显式目标租户） | 平台角色 | ✅（TUM 方案） |
@@ -503,7 +506,7 @@ cancelled   → 终态（禁止转换）
 
 **结论**：主链路（建单 → 可见 → 处理 → 状态回写 → 通知/审计）已适配实际业务流程；差距集中在**接单确认、转派、详情协作、关单验收、provider 内部协作**五处，分别对应 P0/P1/P2 承接（§8.7 / §13）。
 
-### 8.10 非工单类型写面（v0.14 首批：问题状态推进 / IP-P2-13）
+### 8.10 非工单类型写面（v0.14 问题状态推进 / IP-P2-13；v0.16 变更·服务请求 / IP-P2-15）
 
 **范围与端点**：`POST /api/v1/msp/problems/:id/status`（body：`{customerTenantId, status, resolution?}`；`status ∈ investigating|identified|resolved|closed`）。变更/服务请求写面按 D8 动作二分承接后续批次。
 
@@ -524,6 +527,16 @@ cancelled   → 终态（禁止转换）
 **审计**：通过 allocation 之后的一切写尝试逐条 `workbench.action`（`resource=problem`，op=`problem.status`，`outcome=success|denied`，含 `target_tenant_id`）；未分配客户走 `tenant.scope_denied`（不泄露存在性）。
 
 **实弹证据（2026-10-09，10/10 PASS）**：读面动作契约 → investigating→identified→resolved→closed 全链推进（含终态动作收回 `ACTION_NOT_ALLOWED`）；反例：终态再流转 403 / 非法目标状态 403 / 跨租户声明 400 / 未分配客户写面 403 / 缺声明 400；零残留（审计保留）。
+
+**v0.16 扩展（IP-P2-15：变更非审批流转 / 服务请求履约状态）**：
+
+- **端点**：`POST /api/v1/msp/changes/:id/status`（body：`{customerTenantId, status, comment?}`；`status ∈ scheduled|in_progress|completed|closed|cancelled`）；`POST /api/v1/msp/service-requests/:id/status`（body：`{customerTenantId, status}`；`status ∈ provisioning|delivered|failed`）。
+- **授权链**：与问题同构 7 步；写门禁 = 目标租户客户侧业务码（变更 `change:write`＝客户侧非审批流转路由守卫；服务请求 `service_request:write`＝状态路由守卫）。前置校验：变更终态 {closed,cancelled,rejected,rolled_back} 拒绝；服务请求**履约窗口** {security_approved,provisioning,failed} 外拒绝（审批中不可由 provider 推进）。
+- **D8 动作二分落地**：审批类（变更 approve/reject、服务请求 approval）**不注册 MSP 端点**（实弹：目标 approved → 403 `ACTION_NOT_ALLOWED`）；变更 rollback 保留客户侧 `change:rollback` 授权面（不在 MSP 面）。
+- **域裁决**：变更 `TransitionStatus`（`IsValidChangeStatusTransition` 状态机 + 行级 `datascope` + BPMN 桥接推进）；服务请求 `UpdateStatus`（`isValidServiceRequestOperationalTransition` + 操作人角色 admin/agent/technician）；域哨兵错误在适配器分流（`ErrInvalidTransition`/`ErrConcurrentModification` → 409、`ErrNotApprover` → 403、`ErrChangeNotFound` → 404），未知错误不伪装 4xx（500 原样）。
+- **动作契约（XF5）**：读面变更/服务请求条目 `allowedActions` 升级 `[view, status]`——变更 = 客户 active ∩ `change:write` ∩ 非终态 ∩ 行级守卫；服务请求 = 客户 active ∩ `service_request:write` ∩ 履约窗口 ∩ 操作人角色（与写路径前置校验逐条同口径）。
+- **C2 基线**：tech 及以上补 `change:write`/`service_request:write`（与 `problem:write` 梯度一致；审批类码不进 C2）；存量对账复用 `cmd/reconcile_customer_scope_roles`（幂等）。
+- **实弹证据（2026-10-09，16/16 PASS）**：变更 approved→scheduled→in_progress→completed→closed（含终态动作收回）；服务请求 security_approved→provisioning→delivered（含终态动作收回）；反例：域状态机拒绝 409 / 审批类状态 403×2 / 未分配客户 403×2 / 跨租户声明 400×2；零残留（审计保留）。
 
 > **口径修复（IP-P2-14，v0.15 已闭环）**：DB-only RBAC（企业交付默认模式）下，客户租户 `msp_*` 角色经 C2 对账后不含 `msp_ticket:write`（含的是 `ticket:write`），故原写门禁（统一判 `msp_ticket:write`）对全部 provider 角色 fail-closed——**工单写面同样受影响**（实弹：`reply/status/assign` 均 `allowed=false`）。修复：写门禁改**目标租户客户侧业务码**（canon I2/I5：权限在目标租户内计算；与深切换/客户侧路由守卫同码）——reply=`ticket:create`、status=`ticket:update`、assign=`ticket:assign`、问题状态=`problem:write`；C2 基线补 `ticket:assign`/`problem:write`（tech 及以上；viewer 保持只读+评论）；存量客户租户经 `cmd/reconcile_customer_scope_roles` 幂等对账（供给期自动生效）。守卫：`internal/authz` C2×写门禁码一致性用例 + 门禁依赖目标租户授权的反例用例（撤权即 403）。实弹（tenant 11）：工单 reply/status/assign 与问题全链推进全部通过（见 CHANGELOG 2026-10-09）。
 
@@ -643,7 +656,7 @@ cancelled   → 终态（禁止转换）
 2. ~~模板分发的版本治理：强制升级 / 提示升级 / 仅一次性分发？~~ → **已定稿 D6=A（提示升级，不强制覆盖；重复分发生成新草稿版本，客户有同 key 草稿时 409 由客户先处理）**
 3. ~~服务请求是否并入工单面聚合（现状同源）？变更/问题的优先级排序？~~ → **已定稿 D7=A**：`service_requests` 为独立实体（独立权限码 `service_request`），**独立面接入工作台**（不并入工单面，`GET /api/v1/msp/workbench/service-requests`）；变更/问题列表按各自 `priority` 字段原样下发，默认排序 = `updated_at` 降序（优先级仅展示，不作默认排序键）。
 4. 跨租户只读详情的最小字段集（描述/评论/时间线/SLA/CI/附件哪些必须）？
-5. ~~非工单类型的写面边界：哪些动作由 provider 执行、以什么权限码、与域行级守卫如何协同？~~ → **已定稿 D8（写面授权矩阵 v1.1；v0.15）**：①**动作二分**——「处理类动作」（问题状态推进、变更非审批流转 schedule/start/complete/close/cancel、服务请求履约状态）由 provider 执行；「审批类动作」（变更 approve/reject、服务请求 approval）**保留客户治理面**，不纳入 MSP 面（如需支持须以审批链显式包含 provider 员工为前提再评估）；②**权限码口径（v0.15 修订）**——写门禁 = **目标租户的客户侧业务码**（reply=`ticket:create`、status=`ticket:update`、assign=`ticket:assign`、问题状态=`problem:write`；与客户侧路由守卫/深切换同码），域状态机/行级守卫为最终裁决（fail-closed）；**不再使用** `msp_ticket:write`（跨租户码不进客户租户词表；C2 对账后该码不存在 → DB-only 下曾 fail-closed）；③**actorRole 口径**——域行级守卫（`datascope`）以**家租户 `users.role`** 判定（与深切换「JWT 主角色=users.role」语义一致；平移实现由 parity 用例锁定）；④~~已知口径缺口~~ → **已修复（IP-P2-14）**：C2 基线补 `ticket:assign`/`problem:write` + 存量对账 CLI（`cmd/reconcile_customer_scope_roles`）+ 一致性守卫用例（`internal/authz`）。
+5. ~~非工单类型的写面边界：哪些动作由 provider 执行、以什么权限码、与域行级守卫如何协同？~~ → **已定稿 D8（写面授权矩阵 v1.1；v0.15 定稿，v0.16 补两码）**：①**动作二分**——「处理类动作」（问题状态推进、变更非审批流转 schedule/start/complete/close/cancel、服务请求履约状态 provisioning/delivered/failed）由 provider 执行；「审批类动作」（变更 approve/reject、服务请求 approval）**保留客户治理面**，不纳入 MSP 面（如需支持须以审批链显式包含 provider 员工为前提再评估）；②**权限码口径（v0.15 修订；v0.16 补 `change:write`/`service_request:write`）**——写门禁 = **目标租户的客户侧业务码**（reply=`ticket:create`、status=`ticket:update`、assign=`ticket:assign`、问题=`problem:write`、变更=`change:write`、服务请求=`service_request:write`；与客户侧路由守卫/深切换同码），域状态机/行级守卫为最终裁决（fail-closed）；**不再使用** `msp_ticket:write`（跨租户码不进客户租户词表；C2 对账后该码不存在 → DB-only 下曾 fail-closed）；③**actorRole 口径**——域行级守卫（`datascope`）以**家租户 `users.role`** 判定（与深切换「JWT 主角色=users.role」语义一致；平移实现由 parity 用例锁定）；④~~已知口径缺口~~ → **已修复（IP-P2-14）**：C2 基线补 `ticket:assign`/`problem:write` + 存量对账 CLI（`cmd/reconcile_customer_scope_roles`）+ 一致性守卫用例（`internal/authz`）；**IP-P2-15 起** C2 再补 `change:write`/`service_request:write`（tech 及以上），四类写面口径完全统一。
 
 ---
 
@@ -745,3 +758,4 @@ cancelled   → 终态（禁止转换）
 | v0.13 | 2026-10-09 | **P2-③ 读面落地（IP-P2-12：变更/问题/服务请求接入工作台）**：§5 聚合读 + §6 接入——`GET /api/v1/msp/workbench/{changes,problems,service-requests}`（逐租户查询 + 内存合并；`updated_at` 降序 + 逐租户游标；`status`/`q` 筛选；条目含 `recordType`/`customerTenantId`/`customerName`/`allowedActions[view]`）+ `GET /api/v1/msp/{changes,problems,service-requests}/:id?customerTenantId=…`（声明租户一致性 400 → allocation 403 → 名称解析）；授权 = 端点级 `msp_ticket:read` ∩ 服务端允许集合（越界 403 + `tenant.scope_denied`）；暂停客户只读；服务请求软删不投影；**D7=A 定稿**（服务请求独立面）；实弹 11/11 PASS（三类列表/详情 + 反例 403×3/400/404），零残留；残留：条目级写面（状态迁移/回复/审批）P2-13、前端入口待接 |
 | v0.14 | 2026-10-09 | **P2-③ 写面首批落地（IP-P2-13：问题状态推进）**：§8.10 新增——`POST /api/v1/msp/problems/:id/status`（`{customerTenantId,status,resolution?}`；investigating\|identified\|resolved\|closed）；7 步授权链（声明租户读取 → 租户一致 400 → allocation 403 → 客户 active 403 → 写门禁 `msp_ticket:write` → 终态/目标校验 → 域服务裁决：状态机 + 行级守卫（actorRole=家租户 `users.role`）+ 时间戳派生）；域错误统一翻译 403/409/400；读面 `allowedActions` 升级为 `[view,status]` 逐条精确计算（XF5 同口径）；审计 `workbench.action`（success/denied）+ `tenant.scope_denied`；**D8 定稿**（写面授权矩阵 v1：处理类 vs 审批类、权限码口径、actorRole 口径）；实弹 10/10 PASS（全链推进 + 反例 403×3/400×2），零残留；**口径发现**：DB-only RBAC 下写门禁对全部 provider 角色 fail-closed（工单写面同样受影响），修复登记残余 4 |
 | v0.15 | 2026-10-09 | **写门禁口径修复（IP-P2-14，四类写面统一）**：写门禁由「目标租户 `msp_ticket:write`」改为「**目标租户客户侧业务码**」（canon I2/I5 目标租户内计算；与深切换/客户侧路由守卫同码）——工单 reply=`ticket:create`、status=`ticket:update`、assign=`ticket:assign`（`tenantActionPermissions` 逐动作判定 + `authorizeTicketAction` 按动作码校验）、问题状态=`problem:write`；C2 基线补 `ticket:assign`/`problem:write`（tech 及以上；viewer 只读+评论），**客户租户不引入跨租户 msp_* 码**（词表所有权）；存量客户租户回填：`pkg/seeder.ReconcileCustomerScopeMSPRoles` 导出 + `cmd/reconcile_customer_scope_roles`（dry-run/`-apply`/`-tenant-id`，幂等，供给期对新租户自动生效）；守卫：`internal/authz` C2×写门禁码一致性用例（tech+ 必须覆盖四码 / viewer 无写码 / 无 msp_* 码）+ service 反例（撤目标租户授权 → 403，锁定目标租户内计算）；**D8 修订为 v1.1**；实弹（tenant 11，经 CLI 对账）：工单 reply/status/assign + 问题 investigating→identified→resolved→closed 全通过，零残留 |
+| v0.16 | 2026-10-09 | **P2-③ 写面全量落地（IP-P2-15：变更非审批流转 / 服务请求履约状态）**：`service/msp_record_write.go` 写门禁泛化为 `<resource>:write` + `UpdateChangeStatus`/`UpdateRequestStatus`（同构 7 步授权链）；变更 `scheduled\|in_progress\|completed\|closed\|cancelled`（终态 {closed,cancelled,rejected,rolled_back} 前置拒绝；审批/回滚不在 MSP 面）、服务请求 `provisioning\|delivered\|failed`（履约窗口 {security_approved,provisioning,failed} 前置校验）；适配器分流域哨兵错误（`ErrInvalidTransition`/`ErrConcurrentModification`→409、`ErrNotApprover`→403、`ErrChangeNotFound`→404；首轮实弹发现状态机拒绝掉 500，修复后 409）；读面 `allowedActions` 升级 `[view,status]`（变更=行级守卫口径；服务请求=操作人角色口径，`canOperateServiceRequest` parity 锁定）；C2 补 `change:write`/`service_request:write`（tech+）；路由 2 条 + 预检重生 + bootstrap 注入；测试：service 6 新用例 + handler 3 用例（含哨兵分流）+ 夹具补目标租户 RBAC；实弹 16/16 PASS（变更全链 + 服务请求全链 + 反例 409/403×2/403×2/400×2），零残留 |

@@ -86,3 +86,18 @@ type UpdateMSPProblemStatusRequest struct {
 	Status           string `json:"status"`
 	Resolution       string `json:"resolution"`
 }
+
+// UpdateMSPChangeStatusRequest 跨租户变更非审批流转请求（P2-③ 写面扩展 / IP-P2-15）。
+// status ∈ scheduled|in_progress|completed|closed|cancelled（approve/reject/rollback 不在 MSP 面）。
+type UpdateMSPChangeStatusRequest struct {
+	CustomerTenantID int    `json:"customerTenantId"`
+	Status           string `json:"status"`
+	Comment          string `json:"comment"`
+}
+
+// UpdateMSPRequestStatusRequest 跨租户服务请求履约状态请求（P2-③ 写面扩展 / IP-P2-15）。
+// status ∈ provisioning|delivered|failed（approval 保留客户治理面）。
+type UpdateMSPRequestStatusRequest struct {
+	CustomerTenantID int    `json:"customerTenantId"`
+	Status           string `json:"status"`
+}

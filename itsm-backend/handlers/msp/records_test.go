@@ -3,6 +3,7 @@ package msp
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
@@ -17,11 +18,15 @@ import (
 	"github.com/stretchr/testify/require"
 	"go.uber.org/zap/zaptest"
 
+	"itsm-backend/common"
 	"itsm-backend/dto"
 	"itsm-backend/ent"
+	entChange "itsm-backend/ent/change"
 	"itsm-backend/ent/enttest"
 	entProblem "itsm-backend/ent/problem"
+	entSR "itsm-backend/ent/servicerequest"
 	entTenant "itsm-backend/ent/tenant"
+	changeDomain "itsm-backend/handlers/change"
 	"itsm-backend/middleware"
 	"itsm-backend/service"
 )
@@ -31,11 +36,13 @@ import (
 var recordsHandlerDBCounter int64
 
 type recordsHandlerEnv struct {
-	client   *ent.Client
-	provider *ent.Tenant
-	custA    *ent.Tenant
-	custC    *ent.Tenant
-	problemC *ent.Problem
+	client          *ent.Client
+	provider        *ent.Tenant
+	custA           *ent.Tenant
+	custC           *ent.Tenant
+	problemC        *ent.Problem
+	changeC         *ent.Change
+	serviceRequestC *ent.ServiceRequest
 }
 
 func newRecordsHandlerEnv(t *testing.T) *recordsHandlerEnv {
@@ -78,11 +85,28 @@ func newRecordsHandlerEnv(t *testing.T) *recordsHandlerEnv {
 		SetCreatedBy(1).SetTenantID(custC.ID).Save(ctx)
 	require.NoError(t, err)
 
-	// 目标租户 RBAC（C2 同构最小子集；IP-P2-14：写门禁按目标租户 problem:write 判定）。
-	seedCustomerScopeRole(t, client, custA.ID, "msp_manager", "problem:write")
+	cChange, err := client.Change.Create().
+		SetChangeNumber("CHG-HC").SetTitle("handler 变更C").SetStatus("approved").
+		SetPriority("low").SetDescription("C 描述").SetCreatedBy(1).SetTenantID(custC.ID).Save(ctx)
+	require.NoError(t, err)
+
+	cSR, err := client.ServiceRequest.Create().
+		SetTenantID(custC.ID).SetCatalogID(1).SetRequesterID(1).
+		SetTitle("handler 服务请求C").SetStatus("security_approved").SetReason("C 申请").Save(ctx)
+	require.NoError(t, err)
+
+	// 服务请求（客户 A；履约窗口内 security_approved，供写面契约用）。
+	_, err = client.ServiceRequest.Create().
+		SetTenantID(custA.ID).SetCatalogID(1).SetRequesterID(1).
+		SetTitle("handler 服务请求").SetStatus("security_approved").SetReason("handler 申请").
+		SetCurrentLevel(2).SetTotalLevels(2).SetProcessorID(7).Save(ctx)
+	require.NoError(t, err)
+
+	// 目标租户 RBAC（C2 同构最小子集；IP-P2-14/15：写门禁按目标租户客户侧业务码判定）。
+	seedCustomerScopeRole(t, client, custA.ID, "msp_manager", "problem:write", "change:write", "service_request:write")
 	middleware.InvalidateAllPermissionCaches()
 	t.Cleanup(middleware.InvalidateAllPermissionCaches)
-	return &recordsHandlerEnv{client: client, provider: provider, custA: custA, custC: custC, problemC: cProblem}
+	return &recordsHandlerEnv{client: client, provider: provider, custA: custA, custC: custC, problemC: cProblem, changeC: cChange, serviceRequestC: cSR}
 }
 
 // seedCustomerScopeRole 在目标租户内建角色 + 权限 + 授权（handler 契约夹具；C2 基线同构最小子集）。
@@ -133,6 +157,8 @@ func newRecordsTestRouter(t *testing.T, env *recordsHandlerEnv, mspCtx *middlewa
 	group.GET("/problems/:id", h.GetWorkbenchProblem)
 	group.GET("/service-requests/:id", h.GetWorkbenchServiceRequest)
 	group.POST("/problems/:id/status", h.UpdateWorkbenchProblemStatus)
+	group.POST("/changes/:id/status", h.UpdateWorkbenchChangeStatus)
+	group.POST("/service-requests/:id/status", h.UpdateWorkbenchServiceRequestStatus)
 	return r
 }
 
@@ -157,7 +183,7 @@ func TestWorkbenchRecords_ListAndDetail(t *testing.T) {
 	assert.Equal(t, env.custA.ID, listEnv.Data.Items[0].CustomerTenantID)
 
 	// 详情。
-	change, err := env.client.Change.Query().Only(context.Background())
+	change, err := env.client.Change.Query().Where(entChange.TenantIDEQ(env.custA.ID)).Only(context.Background())
 	require.NoError(t, err)
 	req = httptest.NewRequest(http.MethodGet,
 		fmt.Sprintf("/api/v1/msp/changes/%d?customerTenantId=%d", change.ID, env.custA.ID), nil)
@@ -171,8 +197,9 @@ func TestWorkbenchRecords_ListAndDetail(t *testing.T) {
 	require.NoError(t, json.Unmarshal(w.Body.Bytes(), &detailEnv))
 	assert.Equal(t, "handler 描述", detailEnv.Data.Description)
 	assert.Equal(t, "CHG-H1", detailEnv.Data.Number)
-	require.Len(t, detailEnv.Data.AllowedActions, 1)
+	require.Len(t, detailEnv.Data.AllowedActions, 2)
 	assert.True(t, detailEnv.Data.AllowedActions[0].Allowed)
+	assert.Equal(t, "status", detailEnv.Data.AllowedActions[1].Action)
 }
 
 func TestWorkbenchRecords_BadParams(t *testing.T) {
@@ -323,4 +350,203 @@ func TestWorkbenchProblemStatus_NoMSPContextFailsClosed(t *testing.T) {
 	r.ServeHTTP(w, req)
 	assert.Equal(t, http.StatusForbidden, w.Code)
 	assert.Zero(t, writer.calls)
+}
+
+// stubRecordChangeWriter 记录变更写面调用（handler 契约）。
+type stubRecordChangeWriter struct {
+	calls        int
+	lastTenantID int
+	lastID       int
+	lastActorID  int
+	lastTarget   string
+	lastComment  string
+	err          error
+}
+
+func (w *stubRecordChangeWriter) TransitionChangeStatus(_ context.Context, tenantID, id, actorID int, targetStatus, comment, _ string) error {
+	w.calls++
+	w.lastTenantID, w.lastID, w.lastActorID = tenantID, id, actorID
+	w.lastTarget, w.lastComment = targetStatus, comment
+	return w.err
+}
+
+// stubRecordRequestWriter 记录服务请求写面调用（handler 契约）。
+type stubRecordRequestWriter struct {
+	calls        int
+	lastTenantID int
+	lastID       int
+	lastActorID  int
+	lastStatus   string
+	err          error
+}
+
+func (w *stubRecordRequestWriter) UpdateRequestStatus(_ context.Context, tenantID, id, actorID int, _, status string) error {
+	w.calls++
+	w.lastTenantID, w.lastID, w.lastActorID, w.lastStatus = tenantID, id, actorID, status
+	return w.err
+}
+
+func TestWorkbenchChangeStatus_Update(t *testing.T) {
+	env := newRecordsHandlerEnv(t)
+	logger := zaptest.NewLogger(t).Sugar()
+	workbench := service.NewMSPWorkbenchService(env.client, nil, nil, logger)
+	writer := &stubRecordChangeWriter{}
+	workbench.SetChangeStatusWriter(writer)
+
+	gin.SetMode(gin.TestMode)
+	h := NewHandler(nil, nil, workbench, nil, nil, nil, nil, logger)
+	r := gin.New()
+	r.Use(gin.Recovery())
+	r.Use(func(c *gin.Context) {
+		c.Set("user_id", 7)
+		c.Set("username", "msp-agent")
+		c.Set("tenant_id", env.provider.ID)
+		c.Set(middleware.MSPContextKey, recordsActorCtx([]int{env.custA.ID}))
+		c.Next()
+	})
+	r.POST("/api/v1/msp/changes/:id/status", h.UpdateWorkbenchChangeStatus)
+
+	change, err := env.client.Change.Query().Where(entChange.TenantIDEQ(env.custA.ID)).Only(context.Background())
+	require.NoError(t, err)
+
+	body := fmt.Sprintf(`{"customerTenantId":%d,"status":"scheduled","comment":"排期"}`, env.custA.ID)
+	req := httptest.NewRequest(http.MethodPost, fmt.Sprintf("/api/v1/msp/changes/%d/status", change.ID), strings.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+	require.Equal(t, http.StatusOK, w.Code, w.Body.String())
+	assert.Equal(t, 1, writer.calls)
+	assert.Equal(t, env.custA.ID, writer.lastTenantID)
+	assert.Equal(t, change.ID, writer.lastID)
+	assert.Equal(t, "scheduled", writer.lastTarget)
+	assert.Equal(t, "排期", writer.lastComment)
+
+	// 缺 customerTenantId → 400。
+	req = httptest.NewRequest(http.MethodPost, fmt.Sprintf("/api/v1/msp/changes/%d/status", change.ID), strings.NewReader(`{"status":"scheduled"}`))
+	req.Header.Set("Content-Type", "application/json")
+	w = httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+	assert.Equal(t, http.StatusBadRequest, w.Code)
+	assert.Equal(t, 1, writer.calls)
+
+	// 审批类状态（不在 MSP 面）→ 403 + reasonCode。
+	body = fmt.Sprintf(`{"customerTenantId":%d,"status":"approved"}`, env.custA.ID)
+	req = httptest.NewRequest(http.MethodPost, fmt.Sprintf("/api/v1/msp/changes/%d/status", change.ID), strings.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	w = httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+	assert.Equal(t, http.StatusForbidden, w.Code)
+	assert.Contains(t, w.Body.String(), service.CodeActionNotAllowed)
+	assert.Equal(t, 1, writer.calls)
+
+	// 未分配客户（变更在 C 租户）→ 403 + reasonCode。
+	body = fmt.Sprintf(`{"customerTenantId":%d,"status":"scheduled"}`, env.custC.ID)
+	req = httptest.NewRequest(http.MethodPost, fmt.Sprintf("/api/v1/msp/changes/%d/status", env.changeC.ID), strings.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	w = httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+	assert.Equal(t, http.StatusForbidden, w.Code)
+	assert.Contains(t, w.Body.String(), service.CodeMSPAllocationRequired)
+	assert.Equal(t, 1, writer.calls)
+
+	// 域状态机拒绝（409 语义）→ ConflictCode + reasonCode。
+	writer.err = service.NewCustomerAccessError(service.CodeInvalidTransition, "从 'submitted' 到 'scheduled'")
+	body = fmt.Sprintf(`{"customerTenantId":%d,"status":"scheduled"}`, env.custA.ID)
+	req = httptest.NewRequest(http.MethodPost, fmt.Sprintf("/api/v1/msp/changes/%d/status", change.ID), strings.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	w = httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+	assert.Equal(t, http.StatusConflict, w.Code)
+	assert.Contains(t, w.Body.String(), service.CodeInvalidTransition)
+}
+
+func TestWorkbenchServiceRequestStatus_Update(t *testing.T) {
+	env := newRecordsHandlerEnv(t)
+	logger := zaptest.NewLogger(t).Sugar()
+	workbench := service.NewMSPWorkbenchService(env.client, nil, nil, logger)
+	writer := &stubRecordRequestWriter{}
+	workbench.SetRequestStatusWriter(writer)
+
+	gin.SetMode(gin.TestMode)
+	h := NewHandler(nil, nil, workbench, nil, nil, nil, nil, logger)
+	r := gin.New()
+	r.Use(gin.Recovery())
+	r.Use(func(c *gin.Context) {
+		c.Set("user_id", 7)
+		c.Set("username", "msp-agent")
+		c.Set("tenant_id", env.provider.ID)
+		c.Set(middleware.MSPContextKey, recordsActorCtx([]int{env.custA.ID}))
+		c.Next()
+	})
+	r.POST("/api/v1/msp/service-requests/:id/status", h.UpdateWorkbenchServiceRequestStatus)
+
+	sr, err := env.client.ServiceRequest.Query().Where(entSR.TenantIDEQ(env.custA.ID)).Only(context.Background())
+	require.NoError(t, err)
+
+	body := fmt.Sprintf(`{"customerTenantId":%d,"status":"provisioning"}`, env.custA.ID)
+	req := httptest.NewRequest(http.MethodPost, fmt.Sprintf("/api/v1/msp/service-requests/%d/status", sr.ID), strings.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+	require.Equal(t, http.StatusOK, w.Code, w.Body.String())
+	assert.Equal(t, 1, writer.calls)
+	assert.Equal(t, env.custA.ID, writer.lastTenantID)
+	assert.Equal(t, sr.ID, writer.lastID)
+	assert.Equal(t, "provisioning", writer.lastStatus)
+
+	// 审批类状态（不在 MSP 面）→ 403 + reasonCode。
+	body = fmt.Sprintf(`{"customerTenantId":%d,"status":"approved"}`, env.custA.ID)
+	req = httptest.NewRequest(http.MethodPost, fmt.Sprintf("/api/v1/msp/service-requests/%d/status", sr.ID), strings.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	w = httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+	assert.Equal(t, http.StatusForbidden, w.Code)
+	assert.Contains(t, w.Body.String(), service.CodeActionNotAllowed)
+	assert.Equal(t, 1, writer.calls)
+
+	// 未分配客户（SR 在 C 租户）→ 403 + reasonCode。
+	body = fmt.Sprintf(`{"customerTenantId":%d,"status":"provisioning"}`, env.custC.ID)
+	req = httptest.NewRequest(http.MethodPost, fmt.Sprintf("/api/v1/msp/service-requests/%d/status", env.serviceRequestC.ID), strings.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	w = httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+	assert.Equal(t, http.StatusForbidden, w.Code)
+	assert.Contains(t, w.Body.String(), service.CodeMSPAllocationRequired)
+	assert.Equal(t, 1, writer.calls)
+
+	// 缺 customerTenantId → 400。
+	req = httptest.NewRequest(http.MethodPost, fmt.Sprintf("/api/v1/msp/service-requests/%d/status", sr.ID), strings.NewReader(`{"status":"provisioning"}`))
+	req.Header.Set("Content-Type", "application/json")
+	w = httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+	assert.Equal(t, http.StatusBadRequest, w.Code)
+	assert.Equal(t, 1, writer.calls)
+}
+
+// TestTranslateChangeDomainError 锁定变更域哨兵错误的分流口径（与客户侧 handler 一致）：
+// 状态机/并发 → 409 语义（BusinessError Conflict）；非审批人 → 403；不存在 → 404；未知错误原样上抛。
+func TestTranslateChangeDomainError(t *testing.T) {
+	conflict := translateChangeDomainError(changeDomain.ErrInvalidTransition)
+	biz, ok := conflict.(*common.BusinessError)
+	require.True(t, ok)
+	assert.Equal(t, common.ConflictCode, biz.Code)
+
+	conflict = translateChangeDomainError(fmt.Errorf("wrap: %w", changeDomain.ErrConcurrentModification))
+	biz, ok = conflict.(*common.BusinessError)
+	require.True(t, ok)
+	assert.Equal(t, common.ConflictCode, biz.Code)
+
+	forbidden := translateChangeDomainError(changeDomain.ErrNotApprover)
+	biz, ok = forbidden.(*common.BusinessError)
+	require.True(t, ok)
+	assert.Equal(t, common.ForbiddenCode, biz.Code)
+
+	notFound := translateChangeDomainError(changeDomain.ErrChangeNotFound)
+	biz, ok = notFound.(*common.BusinessError)
+	require.True(t, ok)
+	assert.Equal(t, common.NotFoundErrorCode, biz.Code)
+
+	raw := errors.New("boom")
+	assert.Equal(t, raw, translateChangeDomainError(raw))
+	assert.NoError(t, translateChangeDomainError(nil))
 }

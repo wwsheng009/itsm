@@ -80,8 +80,11 @@ func SetupMSPRoutes(r *gin.Engine, config *RouterConfig) {
 		msp.GET("/problems/:id", middleware.RequireMSPPermission("msp_ticket", "read"), config.MSPHandler.GetWorkbenchProblem)
 		msp.GET("/service-requests/:id", middleware.RequireMSPPermission("msp_ticket", "read"), config.MSPHandler.GetWorkbenchServiceRequest)
 
-		// 写面首批（IP-P2-13）：问题状态推进（处理类动作；变更/服务请求动作后续批次）。
+		// 写面（IP-P2-13 问题 / IP-P2-15 变更·服务请求）：处理类动作（D8）；
+		// 审批类（变更 approve/reject、服务请求 approval）保留客户治理面，不注册 MSP 端点。
 		msp.POST("/problems/:id/status", middleware.RequireMSPPermission("msp_ticket", "write"), config.MSPHandler.UpdateWorkbenchProblemStatus)
+		msp.POST("/changes/:id/status", middleware.RequireMSPPermission("msp_ticket", "write"), config.MSPHandler.UpdateWorkbenchChangeStatus)
+		msp.POST("/service-requests/:id/status", middleware.RequireMSPPermission("msp_ticket", "write"), config.MSPHandler.UpdateWorkbenchServiceRequestStatus)
 
 		// 报表 - 需要 msp_report 权限
 		msp.GET("/reports/customers", middleware.RequireMSPPermission("msp_report", "read"), config.MSPHandler.GetCustomerReports)

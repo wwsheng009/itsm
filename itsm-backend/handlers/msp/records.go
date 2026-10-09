@@ -155,3 +155,75 @@ func (h *Handler) UpdateWorkbenchProblemStatus(c *gin.Context) {
 	}
 	common.Success(c, resp)
 }
+
+// UpdateWorkbenchChangeStatus POST /api/v1/msp/changes/:id/status
+// 跨租户变更非审批流转（P2-③ 写面扩展 / IP-P2-15）：scheduled|in_progress|completed|closed|cancelled。
+func (h *Handler) UpdateWorkbenchChangeStatus(c *gin.Context) {
+	actor, ok := workbenchActorFrom(c)
+	if !ok {
+		common.Fail(c, common.ForbiddenCode, "非MSP用户")
+		return
+	}
+	if h.workbench == nil {
+		common.Fail(c, common.InternalErrorCode, "工作台服务未启用")
+		return
+	}
+	id, err := strconv.Atoi(c.Param("id"))
+	if err != nil || id <= 0 {
+		common.Fail(c, common.ParamErrorCode, "单据ID无效")
+		return
+	}
+	var req dto.UpdateMSPChangeStatusRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		common.ParamErrorWithErr(c, err, "请求参数错误")
+		return
+	}
+	if req.CustomerTenantID <= 0 {
+		common.Fail(c, common.ParamErrorCode, "缺少 customerTenantId（目标客户租户声明）")
+		return
+	}
+
+	resp, err := h.workbench.UpdateChangeStatus(c.Request.Context(), actor, id, req.CustomerTenantID, req.Status, req.Comment)
+	if err != nil {
+		h.logger.Errorw("msp change status update failed", "error", err, "change_id", id, "user_id", actor.UserID)
+		failMSPAccess(c, err, "推进变更状态失败")
+		return
+	}
+	common.Success(c, resp)
+}
+
+// UpdateWorkbenchServiceRequestStatus POST /api/v1/msp/service-requests/:id/status
+// 跨租户服务请求履约状态（P2-③ 写面扩展 / IP-P2-15）：provisioning|delivered|failed。
+func (h *Handler) UpdateWorkbenchServiceRequestStatus(c *gin.Context) {
+	actor, ok := workbenchActorFrom(c)
+	if !ok {
+		common.Fail(c, common.ForbiddenCode, "非MSP用户")
+		return
+	}
+	if h.workbench == nil {
+		common.Fail(c, common.InternalErrorCode, "工作台服务未启用")
+		return
+	}
+	id, err := strconv.Atoi(c.Param("id"))
+	if err != nil || id <= 0 {
+		common.Fail(c, common.ParamErrorCode, "单据ID无效")
+		return
+	}
+	var req dto.UpdateMSPRequestStatusRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		common.ParamErrorWithErr(c, err, "请求参数错误")
+		return
+	}
+	if req.CustomerTenantID <= 0 {
+		common.Fail(c, common.ParamErrorCode, "缺少 customerTenantId（目标客户租户声明）")
+		return
+	}
+
+	resp, err := h.workbench.UpdateRequestStatus(c.Request.Context(), actor, id, req.CustomerTenantID, req.Status)
+	if err != nil {
+		h.logger.Errorw("msp service request status update failed", "error", err, "request_id", id, "user_id", actor.UserID)
+		failMSPAccess(c, err, "推进服务请求状态失败")
+		return
+	}
+	common.Success(c, resp)
+}
