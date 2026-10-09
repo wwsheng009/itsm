@@ -9,6 +9,7 @@ import (
 	"itsm-backend/ent"
 	"itsm-backend/ent/tenant"
 	"itsm-backend/ent/user"
+	"itsm-backend/middleware"
 	"itsm-backend/pkg/tenantmode"
 	"itsm-backend/pkg/tenantquota"
 
@@ -19,13 +20,26 @@ type TenantService struct {
 	client   *ent.Client
 	logger   *zap.SugaredLogger
 	quotaSvc *TenantQuotaService // IP-P2-6 收尾：治理页用量展示（nil 时返回空用量）
+	// deploymentMode 返回当前部署模式（单一来源 middleware.DeploymentMode，bootstrap 启动时应用；
+	// 测试可覆盖以锁定模式 × 类型矩阵）。
+	deploymentMode func() string
 }
 
 func NewTenantService(client *ent.Client, logger *zap.SugaredLogger) *TenantService {
 	return &TenantService{
-		client: client,
-		logger: logger,
+		client:         client,
+		logger:         logger,
+		deploymentMode: middleware.DeploymentMode,
 	}
+}
+
+// currentDeploymentMode 返回部署模式；空值 = 门控未装配（单元测试/独立工具），
+// 调用方据此跳过部署一致性校验（生产启动已强制 ApplyDeploymentMode，空值 fatal）。
+func (s *TenantService) currentDeploymentMode() string {
+	if s == nil || s.deploymentMode == nil {
+		return ""
+	}
+	return s.deploymentMode()
 }
 
 // SetTenantQuotaService 注入租户配额服务（IP-P2-6 收尾；nil 关闭用量汇总）。
@@ -50,6 +64,13 @@ func (s *TenantService) CreateTenant(ctx context.Context, req *dto.CreateTenantR
 	// IP-P0-4 / A1：写入拒绝 legacy 类型（msp/customer/standard），只接受目标集合。
 	if err := tenantmode.ValidateTenantTypeForWrite(req.Type); err != nil {
 		return nil, err
+	}
+	// 部署模式 × 类型一致性（canon §2.2）：saas_msp 拒绝直客 saas_customer；
+	// private/saas 拒绝 msp_provider/msp_customer（MSP 路由整族关闭）。
+	if mode := s.currentDeploymentMode(); mode != "" {
+		if err := tenantmode.ValidateTenantTypeForDeployment(mode, req.Type); err != nil {
+			return nil, err
+		}
 	}
 	// IP-P0-4 / A2（D2/R3）：归属形状 + 目标必须是有效 msp_provider。
 	// P0 起停止 parent_tenant_id 双写：旧字段仅作为兼容输入，统一落 msp_provider_id。
@@ -237,6 +258,15 @@ func (s *TenantService) UpdateTenant(ctx context.Context, tenantID int, req *dto
 	if req.Type != nil && *req.Type != "" {
 		if err := tenantmode.ValidateTenantTypeForWrite(*req.Type); err != nil {
 			return nil, err
+		}
+	}
+	// 部署模式 × 类型一致性（仅类型实际变更时校验）：存量不一致租户保留改名/状态等
+	// 非类型修复通道，但禁止再改成模式不允许的类型（canon §2.2）。
+	if req.Type != nil && *req.Type != "" && *req.Type != string(current.Type) {
+		if mode := s.currentDeploymentMode(); mode != "" {
+			if err := tenantmode.ValidateTenantTypeForDeployment(mode, *req.Type); err != nil {
+				return nil, err
+			}
 		}
 	}
 	// IP-P0-4 / A2：仅在类型或归属被触碰时校验；有效值 = 现状 + 本次变更。

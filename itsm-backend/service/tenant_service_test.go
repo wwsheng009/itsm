@@ -12,6 +12,7 @@ import (
 	"itsm-backend/ent"
 	"itsm-backend/ent/enttest"
 	"itsm-backend/ent/tenant"
+	"itsm-backend/pkg/tenantmode"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -559,6 +560,50 @@ func TestTenantService_UpdateTenant_OwnershipGuards(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, "saas_customer", string(updated.Type))
 	assert.Zero(t, updated.MspProviderID)
+}
+
+// TestTenantService_DeploymentModeGatesTenantType 锁定缺口修复（canon §2.2 部署模式矩阵）：
+// saas_msp 拒绝直客 saas_customer；saas/private 拒绝 MSP 租户；存量不一致租户保留非类型修复通道。
+func TestTenantService_DeploymentModeGatesTenantType(t *testing.T) {
+	client, service, ctx := setupTenantTest(t)
+	defer client.Close()
+
+	// 模式未装配（空）：保持旧行为（仅测试/独立工具会出现，生产启动已强制应用模式）。
+	_, err := service.CreateTenant(ctx, &dto.CreateTenantRequest{Name: "直客", Code: "GATE-NOMODE", Type: "saas_customer"})
+	require.NoError(t, err)
+
+	// saas_msp：拒绝直客，允许 provider + customer 闭环。
+	service.deploymentMode = func() string { return tenantmode.DeploymentModeSaaSMSP }
+
+	_, err = service.CreateTenant(ctx, &dto.CreateTenantRequest{Name: "直客2", Code: "GATE-DIRECT", Type: "saas_customer"})
+	require.Error(t, err, "saas_msp 下不得新增无 provider 归属的直客")
+	var mismatch *tenantmode.DeploymentTypeMismatchError
+	require.ErrorAs(t, err, &mismatch)
+
+	provider, err := service.CreateTenant(ctx, &dto.CreateTenantRequest{Name: "服务商", Code: "GATE-PROV", Type: "msp_provider"})
+	require.NoError(t, err)
+	customer, err := service.CreateTenant(ctx, &dto.CreateTenantRequest{
+		Name: "客户", Code: "GATE-CUST", Type: "msp_customer", MSPProviderID: &provider.ID,
+	})
+	require.NoError(t, err)
+
+	// saas_msp 下把 msp_customer 变更为 saas_customer：类型变更被拦截。
+	direct := "saas_customer"
+	_, err = service.UpdateTenant(ctx, customer.ID, &dto.UpdateTenantRequest{Type: &direct})
+	require.Error(t, err, "saas_msp 下类型变更为直客必须被拦截")
+
+	// saas：拒绝 MSP 租户，允许直客。
+	service.deploymentMode = func() string { return tenantmode.DeploymentModeSaaS }
+	_, err = service.CreateTenant(ctx, &dto.CreateTenantRequest{Name: "服务商2", Code: "GATE-PROV2", Type: "msp_provider"})
+	require.Error(t, err, "saas 下不得新增 MSP 租户")
+	_, err = service.CreateTenant(ctx, &dto.CreateTenantRequest{Name: "直客3", Code: "GATE-DIRECT3", Type: "saas_customer"})
+	require.NoError(t, err)
+
+	// 存量不一致租户（saas_msp 建的 msp_customer）在 saas 下的非类型变更仍可执行（保留修复通道）。
+	name := "存量客户改名"
+	updated, err := service.UpdateTenant(ctx, customer.ID, &dto.UpdateTenantRequest{Name: &name})
+	require.NoError(t, err)
+	assert.Equal(t, name, updated.Name)
 }
 
 // TestTenantService_ListTenants_LegacyTypeFilterCompat 锁定 A1 读取兼容：

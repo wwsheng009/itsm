@@ -2,6 +2,7 @@ package bootstrap
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
 	"itsm-backend/ent"
@@ -40,5 +41,47 @@ func verifyDeploymentTenantShape(ctx context.Context, client *ent.Client, mode s
 	if err != nil {
 		return 0, fmt.Errorf("统计 provider 租户失败: %w", err)
 	}
-	return count, deploymentShapeMismatch(mode, count, mspEnabled)
+
+	// 存量孤儿形态（模式 × 类型校验落地前的遗留数据）：仅告警，不阻断启动。
+	saasCustomers, err := client.Tenant.Query().
+		Where(tenant.TypeEQ(tenantmode.TenantTypeSaaSCustomer)).
+		Count(ctx)
+	if err != nil {
+		return count, fmt.Errorf("统计 saas_customer 租户失败: %w", err)
+	}
+	mspCustomers, err := client.Tenant.Query().
+		Where(tenant.Or(
+			tenant.TypeEQ(tenantmode.TenantTypeMSPCustomer),
+			tenant.TypeEQ(tenantmode.TenantTypeLegacyCustomer),
+		)).
+		Count(ctx)
+	if err != nil {
+		return count, fmt.Errorf("统计 msp_customer 租户失败: %w", err)
+	}
+
+	return count, errors.Join(
+		deploymentShapeMismatch(mode, count, mspEnabled),
+		deploymentOrphanTenantWarning(mode, saasCustomers, mspCustomers),
+	)
+}
+
+// deploymentOrphanTenantWarning 检查模式与存量租户类型的"孤儿"形态（warning-only）：
+//   - saas_msp 下的 saas_customer：无 provider 归属、MSP 侧不可见（写路径校验落地前的遗留）；
+//   - 非 saas_msp 下的 msp_customer：MSP 路由整族关闭，托管能力不可用。
+//
+// 写路径（TenantService）已阻止新增；本检查负责把存量不一致暴露给运维。
+func deploymentOrphanTenantWarning(mode string, saasCustomerCount, mspCustomerCount int) error {
+	switch {
+	case mode == tenantmode.DeploymentModeSaaSMSP && saasCustomerCount > 0:
+		return fmt.Errorf(
+			"saas_msp 部署存在 %d 个 saas_customer 直客租户（无 provider 归属、MSP 侧不可见）；请将其改为 msp_customer 或迁移",
+			saasCustomerCount,
+		)
+	case mode != tenantmode.DeploymentModeSaaSMSP && mspCustomerCount > 0:
+		return fmt.Errorf(
+			"非 saas_msp 模式但已存在 %d 个 msp_customer 租户（MSP 路由关闭，托管能力不可用）",
+			mspCustomerCount,
+		)
+	}
+	return nil
 }

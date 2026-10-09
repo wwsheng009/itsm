@@ -55,3 +55,53 @@ func TestValidateTenantOwnership(t *testing.T) {
 	assert.NoError(t, ValidateTenantOwnership(TenantTypeInternal, nil, 0))
 	assert.NoError(t, ValidateTenantOwnership(TenantTypeMSPProvider, nil, 0))
 }
+
+// TestValidateTenantTypeForDeployment 锁定部署模式 × 租户类型矩阵（canon §2.2）：
+// saas_msp 拒绝直客 saas_customer；private/saas 拒绝 MSP 租户；未知模式 fail-closed。
+func TestValidateTenantTypeForDeployment(t *testing.T) {
+	t.Run("saas_msp 允许 provider/customer 拒绝直客", func(t *testing.T) {
+		for _, ok := range []string{TenantTypeInternal, TenantTypeMSPProvider, TenantTypeMSPCustomer} {
+			assert.NoError(t, ValidateTenantTypeForDeployment(DeploymentModeSaaSMSP, ok), ok)
+		}
+		err := ValidateTenantTypeForDeployment(DeploymentModeSaaSMSP, TenantTypeSaaSCustomer)
+		require.Error(t, err, "saas_msp 不得创建无 provider 归属的直客")
+		var mismatch *DeploymentTypeMismatchError
+		require.ErrorAs(t, err, &mismatch)
+		assert.Equal(t, DeploymentModeSaaSMSP, mismatch.Mode)
+		assert.Equal(t, TenantTypeSaaSCustomer, mismatch.Kind)
+		assert.Contains(t, err.Error(), "internal|msp_provider|msp_customer")
+	})
+
+	for _, mode := range []string{DeploymentModeSaaS, DeploymentModePrivate} {
+		t.Run(mode+" 允许直客拒绝 MSP 租户", func(t *testing.T) {
+			for _, ok := range []string{TenantTypeInternal, TenantTypeSaaSCustomer} {
+				assert.NoError(t, ValidateTenantTypeForDeployment(mode, ok), ok)
+			}
+			for _, bad := range []string{TenantTypeMSPProvider, TenantTypeMSPCustomer} {
+				require.Error(t, ValidateTenantTypeForDeployment(mode, bad), bad)
+			}
+		})
+	}
+
+	t.Run("未知模式 fail-closed", func(t *testing.T) {
+		require.Error(t, ValidateTenantTypeForDeployment("", TenantTypeInternal))
+		require.Error(t, ValidateTenantTypeForDeployment("owner", TenantTypeInternal))
+	})
+
+	t.Run("legacy/未知类型拒绝", func(t *testing.T) {
+		require.Error(t, ValidateTenantTypeForDeployment(DeploymentModeSaaSMSP, TenantTypeLegacyCustomer))
+		require.Error(t, ValidateTenantTypeForDeployment(DeploymentModeSaaSMSP, "platform"))
+	})
+}
+
+// TestDeploymentAllowsTenantType 锁定纯判定函数与写入集合的一致性。
+func TestDeploymentAllowsTenantType(t *testing.T) {
+	assert.True(t, DeploymentAllowsTenantType(DeploymentModeSaaSMSP, TenantTypeMSPProvider))
+	assert.True(t, DeploymentAllowsTenantType(DeploymentModeSaaS, TenantTypeSaaSCustomer))
+	assert.True(t, DeploymentAllowsTenantType(DeploymentModePrivate, TenantTypeInternal))
+	assert.False(t, DeploymentAllowsTenantType(DeploymentModeSaaSMSP, TenantTypeSaaSCustomer))
+	assert.False(t, DeploymentAllowsTenantType(DeploymentModeSaaS, TenantTypeMSPCustomer))
+	assert.False(t, DeploymentAllowsTenantType(DeploymentModePrivate, TenantTypeMSPProvider))
+	// legacy 值永不通过（写入集合之外）。
+	assert.False(t, DeploymentAllowsTenantType(DeploymentModeSaaSMSP, TenantTypeLegacyMSP))
+}

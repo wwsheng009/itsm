@@ -9,6 +9,7 @@ import (
 	"itsm-backend/common"
 	"itsm-backend/dto"
 	"itsm-backend/middleware"
+	"itsm-backend/pkg/tenantmode"
 	"itsm-backend/pkg/tenantquota"
 
 	"github.com/gin-gonic/gin"
@@ -339,10 +340,16 @@ func (h *Handler) fillUsageCounts(ctx context.Context, responses []dto.TenantRes
 	}
 }
 
-// respondTenantWriteError 租户写路径统一错误出口：配额非法 → 400（其余兜底保持原行为）。
+// respondTenantWriteError 租户写路径统一错误出口：配额非法 / 部署模式与类型不一致 → 400
+// （其余兜底保持原行为）。
 func respondTenantWriteError(c *gin.Context, err error) {
 	var invalid *tenantquota.InvalidError
 	if errors.As(err, &invalid) {
+		common.Fail(c, common.ParamErrorCode, err.Error())
+		return
+	}
+	var mismatch *tenantmode.DeploymentTypeMismatchError
+	if errors.As(err, &mismatch) {
 		common.Fail(c, common.ParamErrorCode, err.Error())
 		return
 	}

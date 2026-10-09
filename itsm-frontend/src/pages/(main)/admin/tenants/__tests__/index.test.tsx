@@ -12,6 +12,7 @@ import React from 'react';
 import { Button, Form, Input } from 'antd';
 import { fireEvent, render, screen } from '@/lib/test-utils';
 import {
+  allowedTenantTypesForMode,
   buildTenantPayload,
   isMspProviderRequired,
   mspProviderRules,
@@ -87,5 +88,30 @@ describe('TenantManagement · MSP 客户服务商规则', () => {
 
     expect(await screen.findByText('请选择 MSP 服务商')).toBeInTheDocument();
     expect(onFinish).not.toHaveBeenCalled();
+  });
+});
+
+/**
+ * 缺口修复（2026-10-09）：租户类型选项随部署模式收敛，与后端
+ * tenantmode.DeploymentAllowsTenantType 同口径（canon §2.2 部署模式矩阵）。
+ */
+describe('TenantManagement · 部署模式 × 租户类型选项', () => {
+  it('saas_msp：隐藏 SaaS 直客，仅 internal/msp_provider/msp_customer', () => {
+    expect(allowedTenantTypesForMode('saas_msp')).toEqual([
+      'internal',
+      'msp_provider',
+      'msp_customer',
+    ]);
+  });
+
+  it('saas/private：隐藏 MSP 租户，仅 internal/saas_customer', () => {
+    expect(allowedTenantTypesForMode('saas')).toEqual(['internal', 'saas_customer']);
+    expect(allowedTenantTypesForMode('private')).toEqual(['internal', 'saas_customer']);
+  });
+
+  it('未知/未加载：返回 null（不隐藏，后端写入强校验兜底）', () => {
+    expect(allowedTenantTypesForMode(undefined)).toBeNull();
+    expect(allowedTenantTypesForMode(null)).toBeNull();
+    expect(allowedTenantTypesForMode('')).toBeNull();
   });
 });

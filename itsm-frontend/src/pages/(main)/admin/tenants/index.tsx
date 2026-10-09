@@ -44,6 +44,7 @@ import {
 import type { ColumnsType } from 'antd/es/table';
 import { TenantAPI } from '@/lib/api/tenant-api';
 import type { TenantQuota, UpdateTenantRequest } from '@/lib/api/api-config';
+import { getCapabilities } from '@/lib/api/capability-api';
 import TenantUsageModal from './components/TenantUsageModal';
 import TenantOnboardingModal from './components/TenantOnboardingModal';
 import TenantUsersDrawer from './components/TenantUsersDrawer';
@@ -78,6 +79,27 @@ const TENANT_TYPES: Record<string, { label: string; color: string }> = {
   msp_customer: { label: 'MSP客户', color: 'purple' },
   msp: { label: 'MSP(兼容)', color: 'orange' },
   customer: { label: '客户(兼容)', color: 'default' },
+};
+
+// 租户类型选项（表单/筛选共用；顺序与后端写入集合一致）。
+const TENANT_TYPE_OPTIONS = [
+  { value: 'internal', label: '内部组织' },
+  { value: 'saas_customer', label: 'SaaS客户' },
+  { value: 'msp_provider', label: 'MSP服务商' },
+  { value: 'msp_customer', label: 'MSP客户' },
+];
+
+/**
+ * 部署模式允许的租户类型（与后端 tenantmode.DeploymentAllowsTenantType 同口径，
+ * canon §2.2 部署模式矩阵）：
+ * - saas_msp：internal / msp_provider / msp_customer（拒绝无 provider 归属的直客）；
+ * - private / saas：internal / saas_customer（MSP 路由整族关闭，拒绝 MSP 租户）；
+ * - 未知/未加载（null）：不隐藏（后端写入强校验兜底，避免前端误伤）。
+ */
+export const allowedTenantTypesForMode = (mode?: string | null): string[] | null => {
+  if (mode === 'saas_msp') return ['internal', 'msp_provider', 'msp_customer'];
+  if (mode === 'saas' || mode === 'private') return ['internal', 'saas_customer'];
+  return null;
 };
 
 /**
@@ -178,6 +200,8 @@ export default function TenantManagement() {
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [typeFilter, setTypeFilter] = useState('all');
+  // 部署模式（/capabilities 下发；用于收敛租户类型选项，未加载 = 不隐藏）。
+  const [deploymentMode, setDeploymentMode] = useState<string | null>(null);
   const [stats, setStats] = useState({
     total: 0,
     active: 0,
@@ -273,6 +297,36 @@ export default function TenantManagement() {
       alive = false;
     };
   }, [showModal]);
+
+  // 部署模式一次性加载（失败/未装配 = null，保持全量选项，由后端写入强校验兜底）。
+  useEffect(() => {
+    let alive = true;
+    getCapabilities()
+      .then(response => {
+        if (alive) setDeploymentMode(response?.deploymentMode ?? null);
+      })
+      .catch(() => {
+        if (alive) setDeploymentMode(null);
+      });
+    return () => {
+      alive = false;
+    };
+  }, []);
+
+  // 模式收敛后的类型选项；编辑存量租户时保留其现有类型（模式校验落地前的遗留数据仍可改名等）。
+  const allowedTenantTypes = allowedTenantTypesForMode(deploymentMode);
+  const tenantTypeOptions = TENANT_TYPE_OPTIONS.filter(
+    option => !allowedTenantTypes || allowedTenantTypes.includes(option.value)
+  );
+  const formTenantTypeOptions =
+    selectedTenant &&
+    !tenantTypeOptions.some(option => option.value === selectedTenant.type) &&
+    TENANT_TYPES[selectedTenant.type]
+      ? [
+          ...tenantTypeOptions,
+          { value: selectedTenant.type, label: TENANT_TYPES[selectedTenant.type].label },
+        ]
+      : tenantTypeOptions;
 
   // 处理保存租户
   const handleSaveTenant = async () => {
@@ -605,10 +659,7 @@ export default function TenantManagement() {
               options={[
                 { value: 'all', label: '全部类型' },
                 { value: 'standard', label: '标准租户' },
-                { value: 'internal', label: '内部组织' },
-                { value: 'saas_customer', label: 'SaaS客户' },
-                { value: 'msp_provider', label: 'MSP服务商' },
-                { value: 'msp_customer', label: 'MSP客户' },
+                ...tenantTypeOptions,
               ]}
             />
           </Col>
@@ -741,12 +792,7 @@ export default function TenantManagement() {
                 name="type"
                 rules={[{ required: true, message: '请选择租户类型' }]}
               >
-                <Select placeholder="请选择租户类型" options={[
-                  { value: 'internal', label: '内部组织' },
-                  { value: 'saas_customer', label: 'SaaS客户' },
-                  { value: 'msp_provider', label: 'MSP服务商' },
-                  { value: 'msp_customer', label: 'MSP客户' },
-                ]} />
+                <Select placeholder="请选择租户类型" options={formTenantTypeOptions} />
               </Form.Item>
             </Col>
 

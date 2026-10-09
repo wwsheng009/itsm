@@ -18,6 +18,10 @@ export interface ProductCapabilityState {
 export interface CapabilityResponse {
   items: ProductCapabilityState[];
   acceptanceVersion: string;
+  /** 部署模式（后端 DEPLOYMENT_MODE：private|saas|saas_msp；未装配时为空） */
+  deploymentMode?: string;
+  /** /api/v1/msp/* 路由族是否开放（仅 saas_msp 为 true） */
+  mspRoutesEnabled?: boolean;
 }
 
 export const getCapabilities = (): Promise<CapabilityResponse> =>

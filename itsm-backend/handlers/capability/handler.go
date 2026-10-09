@@ -8,6 +8,7 @@ import (
 
 	"itsm-backend/common"
 	"itsm-backend/domain/role"
+	"itsm-backend/middleware"
 
 	"github.com/gin-gonic/gin"
 )
@@ -116,7 +117,14 @@ func Handler(c *gin.Context) {
 		})
 	}
 
-	common.Success(c, gin.H{"items": items, "acceptanceVersion": acceptanceVersion})
+	// 部署模式与 MSP 门控随能力清单下发（IP-P0-1 单一来源）：前端据此收敛租户类型等
+	// 与部署模式相关的选项；/api/v1/msp/status 在非 saas_msp 部署整族 404，不可依赖。
+	common.Success(c, gin.H{
+		"items":             items,
+		"acceptanceVersion": acceptanceVersion,
+		"deploymentMode":    middleware.DeploymentMode(),
+		"mspRoutesEnabled":  middleware.IsMSPEnabled(),
+	})
 }
 
 func envEnabled(key string) bool {

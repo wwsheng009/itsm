@@ -126,3 +126,69 @@ func ValidateTenantOwnership(kind string, providerID *int, selfID int) error {
 	}
 	return nil
 }
+
+// ===== 部署模式 × 租户类型一致性（canon §2.2 部署模式矩阵；与 IP-P0-1 门控同源）=====
+
+// DeploymentAllowsTenantType 报告部署模式是否允许写入某租户类型：
+//   - saas_msp：internal / msp_provider / msp_customer
+//     （拒绝 saas_customer——MSP 部署下的直客无 provider 归属，MSP 侧永不可见，形成"孤儿直客"）；
+//   - private / saas：internal / saas_customer
+//     （拒绝 msp_provider / msp_customer——MSP 路由整族关闭，MSP 租户形态无运行能力）；
+//   - 未知模式：false（fail-closed；调用方应先经 ValidateDeploymentMode 保证模式合法）。
+func DeploymentAllowsTenantType(mode, kind string) bool {
+	switch mode {
+	case DeploymentModeSaaSMSP:
+		switch kind {
+		case TenantTypeInternal, TenantTypeMSPProvider, TenantTypeMSPCustomer:
+			return true
+		}
+	case DeploymentModePrivate, DeploymentModeSaaS:
+		switch kind {
+		case TenantTypeInternal, TenantTypeSaaSCustomer:
+			return true
+		}
+	}
+	return false
+}
+
+// allowedTenantTypesHint 返回模式允许的类型清单（仅用于错误消息，与 DeploymentAllowsTenantType 同源）。
+func allowedTenantTypesHint(mode string) string {
+	switch mode {
+	case DeploymentModeSaaSMSP:
+		return "internal|msp_provider|msp_customer"
+	case DeploymentModePrivate, DeploymentModeSaaS:
+		return "internal|saas_customer"
+	default:
+		return ""
+	}
+}
+
+// DeploymentTypeMismatchError 部署模式与租户类型不一致（写路径 4xx，不落库）。
+// 单独的 error 类型供 handler 映射为参数错误（而非 500）。
+type DeploymentTypeMismatchError struct {
+	Mode string
+	Kind string
+}
+
+func (e *DeploymentTypeMismatchError) Error() string {
+	return fmt.Sprintf(
+		"deployment mode %q does not allow tenant type %q (allowed: %s)",
+		e.Mode, e.Kind, allowedTenantTypesHint(e.Mode),
+	)
+}
+
+// ValidateTenantTypeForDeployment 写路径联合校验：模式合法 + 类型可写 + 模式允许该类型。
+// 调用方在模式未装配（空值，仅测试/独立工具）时应显式跳过本校验：
+// 生产进程启动时已强制 ApplyDeploymentMode（空/未知值 fatal），服务期不会出现空模式。
+func ValidateTenantTypeForDeployment(mode, kind string) error {
+	if err := ValidateDeploymentMode(mode); err != nil {
+		return err
+	}
+	if err := ValidateTenantTypeForWrite(kind); err != nil {
+		return err
+	}
+	if !DeploymentAllowsTenantType(mode, kind) {
+		return &DeploymentTypeMismatchError{Mode: mode, Kind: kind}
+	}
+	return nil
+}
