@@ -70,6 +70,16 @@ func SetupMSPRoutes(r *gin.Engine, config *RouterConfig) {
 		msp.POST("/workbench/tasks/:taskId/claim", middleware.RequireMSPPermission("msp_ticket", "write"), config.MSPHandler.ClaimWorkbenchTask)
 		msp.POST("/workbench/tasks/:taskId/complete", middleware.RequireMSPPermission("msp_ticket", "write"), config.MSPHandler.CompleteWorkbenchTask)
 
+		// 变更/问题/服务请求接入工作台（P2-③ / IP-P2-12）：读面（聚合列表 + 单条详情）。
+		// 授权链 = 端点级 msp_ticket:read ∩ 服务端允许集合（allocation）∩ 声明租户一致性；
+		// 条目级写面（状态迁移/回复/审批）随 IP-P2-13。
+		msp.GET("/workbench/changes", middleware.RequireMSPPermission("msp_ticket", "read"), config.MSPHandler.ListWorkbenchChanges)
+		msp.GET("/workbench/problems", middleware.RequireMSPPermission("msp_ticket", "read"), config.MSPHandler.ListWorkbenchProblems)
+		msp.GET("/workbench/service-requests", middleware.RequireMSPPermission("msp_ticket", "read"), config.MSPHandler.ListWorkbenchServiceRequests)
+		msp.GET("/changes/:id", middleware.RequireMSPPermission("msp_ticket", "read"), config.MSPHandler.GetWorkbenchChange)
+		msp.GET("/problems/:id", middleware.RequireMSPPermission("msp_ticket", "read"), config.MSPHandler.GetWorkbenchProblem)
+		msp.GET("/service-requests/:id", middleware.RequireMSPPermission("msp_ticket", "read"), config.MSPHandler.GetWorkbenchServiceRequest)
+
 		// 报表 - 需要 msp_report 权限
 		msp.GET("/reports/customers", middleware.RequireMSPPermission("msp_report", "read"), config.MSPHandler.GetCustomerReports)
 		msp.GET("/reports/performance", middleware.RequireMSPPermission("msp_report", "read"), config.MSPHandler.GetPerformanceReports)

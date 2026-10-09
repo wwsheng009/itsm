@@ -1,6 +1,6 @@
 # 多租户单据流转交互架构（Cross-Tenant Record Flow Architecture）
 
-> 状态：**Draft v0.12（P0–P1 落地 + P2①② 落地；待评审）**｜日期：2026-10-09｜基准：仓库 HEAD `f5719dec`（工作树含 P2-② 未提交改动）
+> 状态：**Draft v0.13（P0–P1 落地 + P2①② 落地 + P2③ 读面落地；待评审）**｜日期：2026-10-09｜基准：仓库 HEAD `586697a7`（工作树含 P2-③ 读面未提交改动）
 > 定位：**L3 架构级交互设计**——把"工单跨租户可见/可操作"泛化为**全部单据类型**（工单/变更/问题/服务请求/审批任务/CMDB 变更单…）的跨租户流转交互模型：参与方与关系、通道与授权链、通用操作矩阵、**端到端流转（建单→可见→处理→回写）**、**路由与交接（自动/手动/流程驱动）**、**信息互通矩阵**、流程/工作流集成、审计与不变量、分期落地。
 > 上位：[canon](./msp-concept-model-and-architecture-canon.md)（L1，概念/边界/不变量，冲突时 canon 胜）＞ [工作台方案](./msp-cross-customer-workbench-and-filter-plan.md)（L2，跨客户交互修订源）＞ 本文件（L3，对 L2 的泛化与补充；冲突时 L2 胜并回填本文件）。关联：[集成分析](./msp-integration-with-rbac-org-workflow-analysis.md)、[目标架构](./msp-target-architecture.md)、[实施方案](./msp-implementation-plan.md)、[闭环审查](./msp-business-closure-review-and-refactor-plan.md)。
 > 局部编号（引用必须带前缀，登记见 canon 附录 C.2）：`XF1–XF10`（交互规则）、`XFD1–XFD8`（设计决策）、`XFR1–XFR4`（风险）、`XFA1–XFA6`（验收）。
@@ -160,7 +160,7 @@ Customer（msp_customer 租户，单据 owner）
 
 | 操作 | ② 工作台 | ③ 过滤器 | ④ 头通道 | ⑤ 切换 | ⑥ 治理面 | 现状与缺口 |
 |---|---|---|---|---|---|---|
-| 聚合列表 | ✅（工单） | ✅ | — | — | 🟡（租户列表） | ❌ 变更/问题/服务请求未接入；游标分页已备 |
+| 聚合列表 | ✅（工单；变更/问题/服务请求读面 v0.13） | ✅ | — | — | 🟡（租户列表） | ✅ 三类读面已接入（IP-P2-12）；条目级写面待 P2-13；游标分页已备 |
 | 单条详情（描述/字段） | ❌ | — | 🟡（客户工单列表有全字段） | ✅ | 🟡 | **缺 `GET /msp/tickets/:id`**；前端无法打开详情 |
 | 评论/时间线（只读） | ❌ | — | ❌ | ✅ | ❌ | 缺口 |
 | 回复/评论（写） | ✅（工单） | — | ❌（只读） | ✅ | ❌ | 语义=写入客户可见评论 |
@@ -188,9 +188,9 @@ Customer（msp_customer 租户，单据 owner）
 | 单据类型 | owner 字段 | 关系派生 | 现有跨租户能力 | 需补齐（按 XF10 五件套） | 建议优先级 |
 |---|---|---|---|---|---|
 | 工单 `tickets` | `tenant_id` ✅ | 快照 ✅（建单/指派） | 列表+回复+状态+指派（部分） | 详情/评论/时间线/SLA/CI/附件；指派他人；批量扩展 | **P1** |
-| 变更 `changes` | `tenant_id` ✅ | ❌ 无快照 | ❌ | 快照派生 + 工作台接入 + 条目级写 + 审计 | P2 |
-| 问题 `problems` | `tenant_id` ✅ | ❌ | ❌ | 同上 | P2 |
-| 服务请求 `service_requests` | `tenant_id` ✅ | 与工单同源 | 🟡 | 明确聚合口径（是否并入工单面） | P2 |
+| 变更 `changes` | `tenant_id` ✅ | ❌ 无快照（读面不依赖） | ✅ 读面（v0.13 / IP-P2-12：聚合列表 + 单条详情 + 游标 + 审计反例） | 条目级写（状态迁移/审批）+ 快照派生 | P2（写面 P2-13） |
+| 问题 `problems` | `tenant_id` ✅ | ❌（读面不依赖） | ✅ 读面（v0.13 / IP-P2-12：同上） | 条目级写（回复/关闭）+ 快照派生 | P2（写面 P2-13） |
+| 服务请求 `service_requests` | `tenant_id` ✅ | 独立实体（**D7=A：独立面接入，不并入工单面**） | ✅ 读面（v0.13 / IP-P2-12：同上） | 条目级写（状态/审批动作） | P2（写面 P2-13） |
 | 审批/BPMN 任务 | `tenant_id` ✅ | ❌ | ❌ | 任务投影（§7.3）+ 跨租户待办面 | P2 |
 | CMDB/CI | `tenant_id` ✅ | ❌ | ❌ | 只读投影（详情页嵌入） | P3 |
 | 通知 | 收件人租户 ✅ | 工单双投递 ✅ | ✅（工单） | 泛化到全部单据类型；深链直达详情 | P1 |
@@ -617,7 +617,7 @@ cancelled   → 终态（禁止转换）
 
 1. provider 首管默认分配策略：自动为"归属客户"建 primary allocation，还是仅提供"一键分配"按钮？（体验 vs 最小权限）
 2. ~~模板分发的版本治理：强制升级 / 提示升级 / 仅一次性分发？~~ → **已定稿 D6=A（提示升级，不强制覆盖；重复分发生成新草稿版本，客户有同 key 草稿时 409 由客户先处理）**
-3. 服务请求是否并入工单面聚合（现状同源）？变更/问题的优先级排序？
+3. ~~服务请求是否并入工单面聚合（现状同源）？变更/问题的优先级排序？~~ → **已定稿 D7=A**：`service_requests` 为独立实体（独立权限码 `service_request`），**独立面接入工作台**（不并入工单面，`GET /api/v1/msp/workbench/service-requests`）；变更/问题列表按各自 `priority` 字段原样下发，默认排序 = `updated_at` 降序（优先级仅展示，不作默认排序键）。
 4. 跨租户只读详情的最小字段集（描述/评论/时间线/SLA/CI/附件哪些必须）？
 
 ---
@@ -630,7 +630,7 @@ cancelled   → 终态（禁止转换）
 |---|---|---|---|
 | **P0（修正与体验）✅ 2026-10-07 全部落地** | ① ✅ 快照存量回填（SQL + `cmd/backfill_ticket_snapshot`，联调 0 候选）；② ✅ provider 首管默认分配（provision/bootstrap 钩子 + `cmd/backfill_msp_allocations`）；③ ✅ 终态 reply 契约修复；④ ✅ 类型级自动路由（`msp_route_enabled`/`msp_routed_at`/`routedOnly`）；⑤ ✅ `workflow:*` 权限缺口修复（admin 补 `workflow:read/write`，provider_tenant_admin 派生继承；工单流程端点实测 200） | 无 | 单测全绿；S1 实跑：类型 14 开启路由 → #224 → provider 工作台 all=2 / routedOnly=1 |
 | **P1（跨租户详情）🟡 部分落地 2026-10-07** | ① ✅ `GET /api/v1/msp/tickets/:id`（工单只读详情：描述/SLA/发起人/处理人/`allowedActions`；声明租户 + allocation 双重校验）；② ✅ 前端工作台详情抽屉（行点击 + 只读动作展示）；③ ✅ 通知深链直达详情（provider 侧 `action_url` 深链 + 铃铛点击直达 + 工作台参数自动打开）；④ ✅ 评论只读面（`GET /api/v1/msp/tickets/:id/comments`，XFD8：公开评论双向互通/客户内部备注不下发；抽屉只读区 + 首个共享渲染件 `TicketCommentTimeline`）；⑤ ⏳ `ticket-api` 头通道；状态变更时间线（无历史表）/CI/附件留后续 | P0 | XFA3/XFA4 |
-| **P2（流程集成）** | ① ✅ 模板分发端点与来源追踪（v0.11 / IP-P2-10）；② ✅ 客户流程中的 provider 任务投影（v0.12 / IP-P2-11：`msp_provider` 标记解析 + `GET /msp/workbench/tasks` 投影 + 认领/完成写回 + 审计；实弹 7/7 PASS）；③ ⏳ 变更/问题/服务请求接入工作台 | XFD5 已定稿（D5=A/D6=A） | XFA5；接入五件套 XFA1（①② 已验） |
+| **P2（流程集成）** | ① ✅ 模板分发端点与来源追踪（v0.11 / IP-P2-10）；② ✅ 客户流程中的 provider 任务投影（v0.12 / IP-P2-11）；③ 🟡 变更/问题/服务请求接入工作台：**读面 ✅（v0.13 / IP-P2-12：三类聚合列表 + 单条详情 + 逐租户游标 + 反例/审计；实弹 11/11 PASS）**，条目级写面 ⏳ P2-13 | XFD5 已定稿（D5=A/D6=A）；D7=A（服务请求独立面） | XFA5；接入五件套 XFA1（①② 已验；③ 读面已验、写面待验） |
 | **P3（泛化收尾）** | CMDB/CI 只读投影、导出、跨租户报表扩展 + 前端复用收敛（§13.1：列表壳/标签单源/筛选 DSL/详情投影） | P1/P2 | XFA6 |
 
 ### 13.1 前端复用收敛清单（P3 前置；2026-10-07）
@@ -668,7 +668,7 @@ cancelled   → 终态（禁止转换）
 > **残余（v0.11 实弹发现，2026-10-09）**：
 > 1. **provider 首管 membership 角色漂移**：存量 provider 租户首管（`is_bootstrap_admin=true`）的 home membership 角色可能仍为纯 MSP 角色（实弹：tenant 10 首管 membership 角色 `msp_manager`）→ `cmd/backfill_provider_admin` 仅覆盖 `msp_admin → provider_tenant_admin`，不覆盖其他历史角色；表现为 `/auth/me` 权限面缺 `workflow:*`（前端菜单/入口缺失）而路由守卫经角色回退仍放行（读写面不一致）。建议扩展回填 CLI 覆盖条件或登记 [07-known-gaps](../07-known-gaps.md)（另批）。
 > 2. **前端入口未接**：分发/状态查询目前为后端 + API 实弹；provider 工作流设计器「分发到客户」入口与客户侧「来源/升级提示」展示待前端批次。
-> 3. 任务投影主动通知（§8.6「任务待办」行）与变更/问题/服务请求接入（③）待后续批次（依赖同上）。
+> 3. 任务投影主动通知（§8.6「任务待办」行）与变更/问题/服务请求**条目级写面**（③ 写面：变更状态迁移/审批、问题回复/关闭、服务请求状态动作）待后续批次（依赖同上；读面已随 v0.13 落地）。
 
 ---
 
@@ -716,3 +716,4 @@ cancelled   → 终态（禁止转换）
 | v0.10 | 2026-10-07 | **MSW-6 边界指针**：§2.2 增补"切换面 vs 跨租户面"指针（工作台=跨客户批量；深度切换=单客户；返回=切回 provider 作用域，`homeTenantId` 契约）；链接 canon §2.3 与 scenarios/10 剧本 |
 | v0.11 | 2026-10-09 | **P2-① 模板分发（copy-in）落地（IP-P2-10）**：§7.2 端点实施（分发 + 状态查询）、来源表 `workflow_template_distributions`（迁移 `20261009_workflow_template_distribution`）、D5=A/D6=A 定稿、审计 `workflow_template.distribute`、实弹 9/9 PASS（含反例）与残余登记（provider 首管 membership 角色漂移 / 前端入口待接）；顺带修复 `workflow_templates` 存量库 `created_at/updated_at` 无默认值导致创建 500 的缺陷 |
 | v0.12 | 2026-10-09 | **P2-② 任务投影落地（IP-P2-11）**：§7.3/§8.5 实施——保留标记 `msp_provider` + 引擎内 allocation 解析（primary→backup→specialist，未解析池兜底）；`GET /api/v1/msp/workbench/tasks` 投影（source/ allowedActions）+ `POST .../claim`（条件更新防并发）/`POST .../complete`（客户租户 tenantctx + BPMN ctx 内推进实例）；授权链 = allocation ∩ 客户租户 `task:update`（C2 基线）∩ 分配规则；审计 `workbench.action`（task.claim/complete）+ `tenant.scope_denied`；实弹 7/7 PASS（列表→认领→完成→反例 403/404；实例推进 `EndEvent_1`/completed），零残留；残留：任务待办主动通知待接、前端入口待接 |
+| v0.13 | 2026-10-09 | **P2-③ 读面落地（IP-P2-12：变更/问题/服务请求接入工作台）**：§5 聚合读 + §6 接入——`GET /api/v1/msp/workbench/{changes,problems,service-requests}`（逐租户查询 + 内存合并；`updated_at` 降序 + 逐租户游标；`status`/`q` 筛选；条目含 `recordType`/`customerTenantId`/`customerName`/`allowedActions[view]`）+ `GET /api/v1/msp/{changes,problems,service-requests}/:id?customerTenantId=…`（声明租户一致性 400 → allocation 403 → 名称解析）；授权 = 端点级 `msp_ticket:read` ∩ 服务端允许集合（越界 403 + `tenant.scope_denied`）；暂停客户只读；服务请求软删不投影；**D7=A 定稿**（服务请求独立面）；实弹 11/11 PASS（三类列表/详情 + 反例 403×3/400/404），零残留；残留：条目级写面（状态迁移/回复/审批）P2-13、前端入口待接 |
