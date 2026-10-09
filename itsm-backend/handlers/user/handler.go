@@ -1,6 +1,7 @@
 package user
 
 import (
+	"errors"
 	"strconv"
 	"strings"
 
@@ -17,6 +18,7 @@ import (
 type UserHandler struct {
 	userService  Service
 	provisioning *service.UserProvisioningService
+	offboarding  *service.OffboardingService
 	logger       *zap.SugaredLogger
 }
 
@@ -32,6 +34,12 @@ func NewHandler(userService Service, logger *zap.SugaredLogger) *UserHandler {
 // 未接线时创建用户回退既有逻辑（测试/灰度回滚）。
 func (h *UserHandler) SetProvisioningService(p *service.UserProvisioningService) {
 	h.provisioning = p
+}
+
+// SetOffboardingService 注入离职编排服务（IP-P2-8）。
+// 未接线时 /users/:id/offboard 返回服务不可用（测试/灰度回滚）。
+func (h *UserHandler) SetOffboardingService(s *service.OffboardingService) {
+	h.offboarding = s
 }
 
 // CreateUser 创建用户
@@ -465,6 +473,58 @@ func (h *UserHandler) ChangeUserStatus(c *gin.Context) {
 	}
 
 	common.Success(c, nil)
+}
+
+// OffboardUser 离职编排（IP-P2-8）：停用账号 + 全量会话失效 + 撤销全部分配 + 审计。
+// 权限：user:write（租户作用域）；防自离职（409 SELF_OPERATION_FORBIDDEN 语义）。
+// @Summary 离职编排（停用账号并撤销全部分配）
+// @Description 停用用户 + 吊销全部会话 + 撤销该用户全部有效 MSP 分配（幂等可重跑）
+// @Tags 用户管理
+// @Accept json
+// @Produce json
+// @Param id path int true "用户ID"
+// @Success 200 {object} common.Response{data=service.OffboardResult}
+// @Failure 404 {object} common.Response
+// @Failure 409 {object} common.Response
+// @Router /api/v1/users/{id}/offboard [post]
+func (h *UserHandler) OffboardUser(c *gin.Context) {
+	id, err := strconv.Atoi(c.Param("id"))
+	if err != nil {
+		common.Fail(c, 1001, "用户ID格式错误")
+		return
+	}
+
+	tenantID := c.GetInt("tenant_id")
+	if tenantID == 0 {
+		common.Fail(c, common.UnauthorizedCode, "租户信息缺失")
+		return
+	}
+	if h.offboarding == nil {
+		common.FailWithErr(c, errors.New("offboarding service unavailable"), "离职编排服务不可用")
+		return
+	}
+
+	meta := service.OffboardMeta{
+		ActorUserID:  c.GetInt("user_id"),
+		ActorAccount: c.GetString("username"),
+		Source:       middleware.AuditSourceHeader,
+		Trigger:      "user.offboard",
+	}
+	res, err := h.offboarding.OffboardUser(c.Request.Context(), id, tenantID, meta)
+	if err != nil {
+		h.logger.Errorf("离职编排失败: %v", err)
+		switch {
+		case errors.Is(err, service.ErrOffboardUserNotFound):
+			common.NotFound(c, "用户不存在")
+		case errors.Is(err, service.ErrSelfOffboard):
+			common.Conflict(c, "不能对当前登录用户执行离职", nil)
+		default:
+			common.FailWithErr(c, err, "操作失败")
+		}
+		return
+	}
+
+	common.Success(c, res)
 }
 
 // ResetPassword 重置用户密码

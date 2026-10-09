@@ -393,21 +393,55 @@ func (s *MSPAllocationService) Deactivate(ctx context.Context, mspUserID int, cu
 		}
 		return fmt.Errorf("查询分配失败: %w", err)
 	}
+	return s.revokeAllocationCore(ctx, alloc, MembershipAuditMeta{
+		RowTenantID:  alloc.ProviderTenantID,
+		ActorAccount: fmt.Sprintf("allocation:user:%d", mspUserID),
+		Source:       middleware.AuditSourceHeader,
+		Trigger:      "msp.allocation.deassign",
+	})
+}
+
+// RevokeAllForUser 撤销某用户的全部有效分配（IP-P2-8 离职编排）。
+// 批量加载有效分配（1 查询）+ 逐条复用撤销核心（幂等）；单条失败计入 pending 并告警，不阻断。
+func (s *MSPAllocationService) RevokeAllForUser(ctx context.Context, mspUserID int, baseMeta MembershipAuditMeta) (revoked []int, pending []int, err error) {
+	if mspUserID <= 0 {
+		return nil, nil, fmt.Errorf("invalid user id: %d", mspUserID)
+	}
+	allocs, err := s.client.MSPAllocation.Query().
+		Where(
+			mspallocation.MspUserIDEQ(mspUserID),
+			mspallocation.DeassignedAtIsNil(),
+		).
+		Order(ent.Asc(mspallocation.FieldID)).
+		All(ctx)
+	if err != nil {
+		return nil, nil, fmt.Errorf("查询有效分配失败: %w", err)
+	}
+	for _, alloc := range allocs {
+		meta := baseMeta
+		meta.RowTenantID = alloc.ProviderTenantID
+		if err := s.revokeAllocationCore(ctx, alloc, meta); err != nil {
+			pending = append(pending, alloc.ID)
+			s.logger.Warnw("revoke allocation failed (offboarding continues; repair via inspection)",
+				"error", err, "allocation_id", alloc.ID, "user_id", mspUserID)
+			continue
+		}
+		revoked = append(revoked, alloc.ID)
+	}
+	return revoked, pending, nil
+}
+
+// revokeAllocationCore 单条撤销核心（Deactivate / RevokeAllForUser 共用；幂等）。
+func (s *MSPAllocationService) revokeAllocationCore(ctx context.Context, alloc *ent.MSPAllocation, meta MembershipAuditMeta) error {
 	if _, err := s.client.MSPAllocation.UpdateOneID(alloc.ID).
 		SetDeassignedAt(time.Now()).
 		Save(ctx); err != nil {
 		return fmt.Errorf("解除分配失败: %w", err)
 	}
 	if s.membershipSync != nil {
-		meta := MembershipAuditMeta{
-			RowTenantID:  alloc.ProviderTenantID,
-			ActorAccount: fmt.Sprintf("allocation:user:%d", mspUserID),
-			Source:       middleware.AuditSourceHeader,
-			Trigger:      "msp.allocation.deassign",
-		}
-		if err := s.membershipSync.RevokeAllocationMembership(ctx, mspUserID, customerTenantID, meta); err != nil {
+		if err := s.membershipSync.RevokeAllocationMembership(ctx, alloc.MspUserID, alloc.CustomerTenantID, meta); err != nil {
 			s.logger.Warnw("membership revoke after deallocation failed (allocation deassigned; repair via inspection)",
-				"error", err, "user_id", mspUserID, "customer_tenant_id", customerTenantID)
+				"error", err, "user_id", alloc.MspUserID, "customer_tenant_id", alloc.CustomerTenantID)
 		}
 	}
 	return nil

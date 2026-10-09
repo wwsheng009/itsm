@@ -31,6 +31,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **IP-P2-8 离职编排 P0 落地（分配回收单一动作）** — 新增 `POST /api/v1/users/:id/offboard`（`user:write`）：停用账号 + 全量会话失效（access 下限 + refresh 用户级）+ 撤销全部分配（`MSPAllocationService.RevokeAllForUser` 批量加载 + 逐条复用撤销核心，幂等、失败计入 pending 由巡检兜底）+ `user.offboard` 审计（1+N）。防自离职 409；跨租户/不存在 404；幂等重跑 alreadyInactive+0 回收仍留痕。测试：service 编排全量（2 分配回收 + membership 软删 + 审计 + refresh 吊销 + 幂等 + 防自离职）、handler 映射（200/404/409/1001）、router 守卫；回归 `-p 1 ./service ./handlers/user ./router` 全绿。方案 [msp-offboarding-orchestration-plan.md](docs/multi-tenant/plan/msp-offboarding-orchestration-plan.md)（P1：前端入口 + 平台 TUM 面）。
+
 - **MSP 离职编排方案落盘（IP-P2-8；P1 剩余项「分配回收编排」）** — 现状核对 S1–S7：单点能力齐备（停用+token 吊销、单对撤销+membership 联动+审计+立即生效），缺编排；发现批量停用/删除路径 token 缺口与 F-08「无审计」过期表述。设计：停用先行（安全优先）+ 全量分配回收（逐条幂等、失败可续）+ `user.offboard` 审计；`POST /api/v1/users/:id/offboard`（provider 自服务，`user:write`）；决策点 D1–D4；分期 P0（服务+路由+测试）→ P1（前端+TUM 面+剧本回填）。批次登记 §5 P2 总表（[方案](docs/multi-tenant/plan/msp-offboarding-orchestration-plan.md)）。
 
 - **存量租户权限目录处置（D1）决策材料落盘（IP-P2-7 §5.2 P0 收口）** — 实测证据（dev 只读 SQL：11 租户；非根 10 租户 × 2 平台家族码 `system:read/write`；全库零通配符；非平台根**零用户持有**，仅平台根 t1 有 3 用户属正当）；A/B 对比（A=裁剪须连带改 `ProvisionTenant` 克隆链 + 守卫 + 迁移，B=现状三重防线闭环）；**D1=B 定案**，A 预置预案与触发条件入档（[决策材料](docs/multi-tenant/plan/platform-permission-shielding-d1-decision.md)）；设计文档 v0.8 回填（§5.1/§5.2/§6.1/R1）。

@@ -1276,6 +1276,8 @@ func NewApplication() *Application {
 	// User Handler
 	userService := service.NewUserService(client, sugar)
 	userHTTPHandler := userHandler.NewHandler(userService, sugar)
+	// 离职编排（IP-P2-8）：停用账号 + 全量会话失效 + 撤销全部分配 + 审计。
+	userHTTPHandler.SetOffboardingService(service.NewOffboardingService(client, mspAllocationService, sugar))
 	// IP-P0-5 建号通道收口：ProvisioningService 注入 user handler；
 	// 开关 USER_PROVISIONING_CHANNELS_ENABLED（默认开；显式 false/0/no/off 回退 legacy 建号逻辑）。
 	userProvisioningService := service.NewUserProvisioningService(client, userService, sugar)

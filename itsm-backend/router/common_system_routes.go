@@ -51,6 +51,8 @@ func SetupCommonSystemRoutes(r *gin.Engine, tenant *gin.RouterGroup, config *Rou
 				users.PUT("/:id", middleware.RequirePermission("user", "write"), config.UserHandler.UpdateUser)
 				users.DELETE("/:id", middleware.RequirePermission("user", "delete"), config.UserHandler.DeleteUser)
 				users.PUT("/:id/status", middleware.RequirePermission("user", "write"), config.UserHandler.ChangeUserStatus)
+				// 离职编排（IP-P2-8）：停用 + 全量会话失效 + 撤销全部分配 + 审计（幂等）。
+				users.POST("/:id/offboard", middleware.RequirePermission("user", "write"), config.UserHandler.OffboardUser)
 				users.PUT("/:id/reset-password", middleware.RequirePermission("user", "write"), config.UserHandler.ResetPassword)
 				users.GET("/stats", middleware.RequirePermission("user", "read"), config.UserHandler.GetUserStats)
 				users.POST("/batch", middleware.RequirePermission("user", "write"), config.UserHandler.BatchUpdateUsers)

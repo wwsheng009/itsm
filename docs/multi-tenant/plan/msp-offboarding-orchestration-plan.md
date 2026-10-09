@@ -1,6 +1,6 @@
 # MSP 离职编排与分配回收方案（Offboarding Orchestration）
 
-> **状态**：v0.1（2026-10-08）——现状核对与设计落盘；决策点 D1–D4 待评审（§3.7），评审通过后按 §4 分期实施
+> **状态**：v0.2（2026-10-08）——**P0 已落地**（§6 实施记录）；决策点 D1–D4 按 §3.7 推荐值落定（D1=A / D2=A / D3=B / D4=A）；P1 待实施
 >
 > **批次建议**：`IP-P2-8`（落库前对照《[实施方案](./msp-implementation-plan.md)》§3.0 总表登记，未登记前本方案不视为冻结）
 >
@@ -108,8 +108,21 @@ F-08「回收 / 离职 / 退租」的目标动作是「**员工离职 → 停用
 
 - 无 DDL、无 schema 变更；路由下线 / 前端隐藏即回退；已置位数据（`active=false`/`deassigned_at`）不回滚（登记变更单）。
 
-## 6. 修订记录
+## 6. 实施记录（P0，2026-10-08）
+
+| 项 | 落地 | 测试/验证 |
+|----|------|-----------|
+| 服务 | `service/offboarding_service.go`：`OffboardUser`（停用先行 + access/refresh 全量吊销 + 全量回收 + `user.offboard` 审计；幂等；哨兵错误 `ErrOffboardUserNotFound`/`ErrSelfOffboard`） | `offboarding_service_test.go`：编排全量（2 分配回收 + membership 软删 + 审计 1+N + refresh 吊销）、幂等重跑、防自离职、跨租户 404 |
+| 回收 | `MSPAllocationService.RevokeAllForUser`（批量加载 + 逐条复用 `revokeAllocationCore`；`Deactivate` 同源重构） | `membership_sync_test.go` 既有 Deactivate 用例回归全绿 |
+| 路由 | `POST /api/v1/users/:id/offboard`（`user:write`） | `offboard_handler_test.go`（200/404/409/非法 ID 1001）；router 守卫测试全绿 |
+| 装配 | `internal/bootstrap/app.go` 注入 `SetOffboardingService` | `go build ./internal/bootstrap` 通过 |
+| 回归 | —— | `go test -p 1 ./service/ ./handlers/user/ ./router/` 全绿（跳过已登记偶发 bpmn 用例） |
+
+剩余（P1）：前端「离职」入口（§3.5）、平台 TUM 面（D3=B）、F-08 剧本补充。
+
+## 7. 修订记录
 
 | 版本 | 日期 | 说明 |
 |------|------|------|
 | v0.1 | 2026-10-08 | 首版：现状核对 S1–S7、差距（编排缺失/批量与删除路径 token 缺口/文档过期）、设计（编排语义/服务落点/契约/审计/前端/测试）、决策点 D1–D4、分期与回滚 |
+| v0.2 | 2026-10-08 | **P0 落地**（§6 实施记录）；决策点 D1–D4 按 §3.7 推荐值落定；P1 待实施 |
