@@ -31,6 +31,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **TUM-5 联调实例补强收口（TUM 全项完成）** — `run-tenant-user-admin-acceptance.ps1` 联调实跑 **PASS=30 / FAIL=0 / SKIP=2**（A4d/R4 设计内 SKIP；run-summary 入档）+ 浏览器逐步走查（S1 一次性重置+「待改密」徽标 → S2 强制下线 → S3 停用+立即下线；首管行开关禁用=最后管理员护栏）。**实跑修复脚本两处缺口**：① PowerShell 变量名大小写不敏感——解析后的 `$tenantId` 覆盖参数 `$TenantId`，首管/护栏分支误判为「复用租户」（引入 `$requestedTenantId` 快照）；② 新租户缺「模板开通」前置，`bootstrap-admin` 解析模板角色失败（500）——补 `POST /tenants/:id/provision` 步骤。验收前置登记：`LOGIN_RATE_LIMIT_PER_MIN≥30`（默认 10/分钟会误伤脚本单轮 10+ 次登录）。场景 09 与 TUM 方案同步回填。
+
 - **IP-P2-8 收口：F-08 剧本 + 实弹验证（P1 完成）** — 新增 `scenarios/11-offboarding.md`（provider 自服务 / 平台治理双通道步骤表 + 反例 + 开关前置 + 实测记录）与 `scripts/msp/acceptance/run-offboarding-acceptance.ps1`（OFF-0–OFF-7：建号→分配→非平台面 403→offboard→停用/清零→幂等→审计，隔离探针可重复执行，run-summary 入档）。实弹结果：API 10/10 PASS、浏览器实操（TUM 抽屉离职 → 「撤销 1 个分配」→ 行刷新停用）通过；写通道开关未开时 403 `TENANT_USER_ADMIN_DISABLED` fail-closed 留证。实弹发现并修复：TUM 抽屉 `Modal.confirm` 静态调用不消费主题上下文 → 改 `App.useApp().modal`（控制台告警消除；抽屉 jest 6/6、tsc/eslint 绿）。IP-P2-8 仅剩 P2（`expires_at` 自动回收，另案）。
 
 - **IP-P2-8 P1 完成：平台 TUM 面离职编排** — `POST /api/v1/tenants/:id/users/:userId/offboard`（`tenant:write` + super_admin 硬校验 + 最后管理员护栏；复用 `OffboardingService`：停用 + 全量会话失效 + 撤销全部分配；`user.admin_offboard` 治理审计（`target_tenant_id` 标注）+ 租户通知）；TUM 抽屉行操作「离职」（二次确认 + 撤销计数提示）+ `TenantUserAdminApi.offboardUser`。验证：service（护栏/双审计/幂等）、handler 契约、路由契约、e2e（幂等 + 非平台面 403 + 审计 2 行）、抽屉 jest 6 通过、tsc/eslint 绿；`go test -p 1 ./service ./handlers/tenant ./handlers/user ./router` 全绿。剩余：F-08 剧本补充。

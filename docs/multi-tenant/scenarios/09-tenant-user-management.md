@@ -1,9 +1,9 @@
 # 场景 09：平台侧租户用户管理（重置 / 启停 / 强制下线 / 审计）
 
-> **状态**：2026-10-05 落地（TUM-1–TUM-5）｜**定位**：平台管理员在 `/admin/tenants` 对**任意租户**用户执行账号治理（S1–S3 闭环）的浏览器实操剧本
+> **状态**：2026-10-05 落地（TUM-1–TUM-5）；**2026-10-09 联调实例实测收口**（API 验收 30/0/2 + 浏览器逐步走查，见 §9）｜**定位**：平台管理员在 `/admin/tenants` 对**任意租户**用户执行账号治理（S1–S3 闭环）的浏览器实操剧本
 > **前置**：[00 环境与账号](./00-environment-and-accounts.md)；实例开启 `TENANT_USER_ADMIN_ENABLED=true`（**首管口令恢复默认可用，不受该开关约束**，见 §3.1）；平台 `super_admin` 账号（本地开发缺省 `admin`）
 > **上位口径**：[增强方案 §4/§6](../plan/msp-tenant-user-management-enhancement-plan.md)（TUM-A1–A8 + 反例）｜**API 通道自动化**：[run-tenant-user-admin-acceptance.ps1](../../../scripts/msp/acceptance/run-tenant-user-admin-acceptance.ps1)
-> **证据**：路由器级 API e2e（TUM-A1–A8 + 反例，全中间件链）已实跑全绿；Go 定向用例 9 条（含 S1–S3 闭环、C5 通知、审计掩码）+ 前端 jest（抽屉 5 / API 契约 9 / 守卫 4）全绿；**联调实例 run-summary 与浏览器逐步截图**为可选补强（脚本已就绪，见 §9）
+> **证据**：路由器级 API e2e（TUM-A1–A8 + 反例，全中间件链）已实跑全绿；Go 定向用例 9 条（含 S1–S3 闭环、C5 通知、审计掩码）+ 前端 jest（抽屉 5 / API 契约 9 / 守卫 4）全绿；**联调实例 run-summary 已入档 + 浏览器逐步走查通过**（2026-10-09，见 §9）
 
 ---
 
@@ -153,7 +153,10 @@ pwsh scripts/msp/acceptance/run-tenant-user-admin-acceptance.ps1 -TenantId 8 -Te
   - 后端**路由器级 API e2e**（全中间件链 Auth→RBAC→Tenant→handler→service；ent/sqlite 内存库）：`go test -p 1 ./router -run TestTUM -count=1` —— `router/tenant_user_admin_e2e_test.go` 覆盖 TUM-A1–A8 + 反例（403/404/409×3/400）与副作用（哈希/双吊销/审计掩码/通知/对账），已实跑全绿；
   - 后端服务用例 `go test -p 1 ./service -run TestTenantUserAdmin -count=1`（9 条，含 `ClosureS1S2S3`、`NotifiesTenantAdmins`）；
   - 前端 `npx jest TenantUsersDrawer tenant-user-admin-api guards-must-change-password --coverage=false`（18 条）；
-- **环境说明**：本工作机未启动实例（Docker 守护进程不可用、PostgreSQL 未运行）；路由器级 e2e 已覆盖接口契约与副作用，**联调实例的 run-summary（真实登录/CSRF/多实例）与浏览器逐步截图**为可选补强，待联调环境执行。
+- **联调实例实测（2026-10-09）**：`PASS=30 / FAIL=0 / SKIP=2`（A4d/R4 为设计内 SKIP——default 租户与关开关场景），run-summary 入档 `docs/multi-tenant/evidence/tenant-user-admin-acceptance/run-summary-20261009-100744.md`；
+  - **浏览器逐步走查**（Chrome DevTools MCP，`/admin/tenants?tenantUsers=16`）：抽屉（2 用户，首管徽标「首管」+ 最后管理员开关**禁用**）→ **S1** 一次性重置（16 位口令卡片「仅显示一次」+ 复制 + 勾选后关闭；行出现「待改密」徽标）→ **S2** 强制下线（「已强制下线…」+ 行提示「仅吊销会话」）→ **S3** 停用（确认弹窗「立即掉线/会话全部吊销」→「已停用…该用户已立即下线」，开关转停用、强制下线置灰）；
+  - 截图说明：MCP 工作区根限制导致截图无法落盘，以上述 a11y 快照（可复现步骤 + 界面文案断言）为证据；
+  - 实跑暴露并修复脚本两处缺口（详见方案 §5 进度）：PowerShell 变量名大小写不敏感（`$tenantId` 覆盖参数 `$TenantId`）→ `$requestedTenantId` 快照；新租户需先「模板开通」再 `bootstrap-admin`；另需 `LOGIN_RATE_LIMIT_PER_MIN≥30`（脚本单轮 10+ 次登录）。
 
 ## 10. 已知限制
 

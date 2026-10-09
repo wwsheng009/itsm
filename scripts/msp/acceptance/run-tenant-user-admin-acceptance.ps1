@@ -3,7 +3,8 @@
 # TUM 平台侧租户用户管理验收脚本（API 通道；TUM-A1–A8 + 反例）
 #
 # 设计：docs/multi-tenant/plan/msp-tenant-user-management-enhancement-plan.md §6
-# 运行前置：saas_msp 实例（默认 :8090）+ TENANT_USER_ADMIN_ENABLED=true + 平台 admin 账号
+# 运行前置：saas_msp 实例（默认 :8090）+ TENANT_USER_ADMIN_ENABLED=true + 平台 admin 账号；
+#          登录限流放宽（LOGIN_RATE_LIMIT_PER_MIN≥30——脚本单轮 10+ 次登录，默认 10/分钟会误伤）
 #
 # 安全性：默认**新建隔离租户**（TUAACPT<ts>）并在其中执行破坏性动作，不触碰既有租户；
 #         -TenantId 显式指定时复用既有租户（需自行承担数据影响）。
@@ -23,6 +24,10 @@ param(
 )
 
 $ErrorActionPreference = "Stop"
+
+# 参数语义快照：PowerShell 变量名大小写不敏感，后续 `$tenantId`（解析后的目标租户 ID）会覆盖
+# 参数 `$TenantId`；先固化「请求参数」语义，供复用/新建分支与汇总文案判断。
+$requestedTenantId = $TenantId
 
 # ---------- 路径与全局 ----------
 $RepoRoot = Resolve-Path (Join-Path $PSScriptRoot "..\..\..")
@@ -113,7 +118,7 @@ function Write-Summary {
     $lines.Add("# TUM 平台侧租户用户管理验收 run-summary")
     $lines.Add("")
     $lines.Add("- 时间：$(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')")
-    $lines.Add("- 环境：$Base｜租户：$tenantDesc｜隔离模式：$(if ($TenantId -gt 0) { '复用既有租户' } else { '新建隔离租户' })")
+    $lines.Add("- 环境：$Base｜租户：$tenantDesc｜隔离模式：$(if ($requestedTenantId -gt 0) { '复用既有租户' } else { '新建隔离租户' })")
     $lines.Add("- 结果：**PASS=$passCount / FAIL=$failCount / SKIP=$skipCount**（耗时 $([math]::Round($swAll.Elapsed.TotalSeconds,1))s）")
     $lines.Add("- 设计：docs/multi-tenant/plan/msp-tenant-user-management-enhancement-plan.md §6（TUM-A1–A8 + 反例）")
     $lines.Add("")
@@ -148,11 +153,11 @@ $actorUserId = [int]$admin.Login.data.user.id
 $actorTenantId = [int]$admin.Login.data.user.tenantId
 
 $tenant = $null
-if ($TenantId -gt 0) {
-    $tr = Invoke-Api -Method Get -Path "/api/v1/tenants/$TenantId" -Sess $admin
+if ($requestedTenantId -gt 0) {
+    $tr = Invoke-Api -Method Get -Path "/api/v1/tenants/$requestedTenantId" -Sess $admin
     if ($tr.Status -ge 200 -and $tr.Status -lt 300) {
         $tenant = $tr.Json.data
-        Pass "P1" "复用既有租户" "id=$TenantId code=$($tenant.code)（-TenantId 显式指定）"
+        Pass "P1" "复用既有租户" "id=$requestedTenantId code=$($tenant.code)（-TenantId 显式指定）"
     } else {
         Fail "P1" "复用既有租户" "status=$($tr.Status) body=$(Short $tr.Raw)"
     }
@@ -179,7 +184,11 @@ $tenantId = [int]$tenant.id
 
 # 首管（仅新建租户时）：bootstrap 一个专用管理员，用于通知触达与租户侧越权反例。
 $tenantAdmin = $null
-if ($TenantId -eq 0 -and -not $SkipCreateTenant) {
+if ($requestedTenantId -eq 0 -and -not $SkipCreateTenant) {
+    # 开通（模板供给）是 bootstrap-admin 的前置：未供给租户没有模板角色，首管解析 RBAC "admin" 角色会失败。
+    $pv = Invoke-Api -Method Post -Path "/api/v1/tenants/$tenantId/provision" -Sess $admin -Body @{}
+    $pvOk = ($pv.Status -ge 200) -and ($pv.Status -lt 300)
+    Assert-Case "P2a" "租户模板开通（首管前置）" $pvOk "status=$($pv.Status) ready=$($pv.Json.data.ready) body=$(Short $pv.Raw 120)"
     $admUser = "tua-acpt-admin-$ts"
     $admPass = "Acpt@2026Admin!"
     $br = Invoke-Api -Method Post -Path "/api/v1/tenants/$tenantId/bootstrap-admin" -Sess $admin -Body @{
@@ -306,7 +315,7 @@ $en = Invoke-Api -Method Put -Path "/api/v1/tenants/$tenantId/users/$userId/stat
 $enOk = ($en.Status -eq 200) -and (Login-Status $userName $strongPass)
 Assert-Case "A4b" "启用恢复登录" $enOk "status=$($en.Status)"
 
-if ($TenantId -eq 0 -and $null -ne $tenantAdmin -and $admUserId -gt 0) {
+if ($requestedTenantId -eq 0 -and $null -ne $tenantAdmin -and $admUserId -gt 0) {
     $la = Invoke-Api -Method Put -Path "/api/v1/tenants/$tenantId/users/$admUserId/status" -Sess $admin -Body @{ active = $false }
     $laOk = ($la.Status -eq 409) -and ($la.Raw -match "LAST_ADMIN_PROTECTED")
     Assert-Case "A4c" "最后管理员停用被拒（409）" $laOk "status=$($la.Status) body=$(Short $la.Raw 120)"
