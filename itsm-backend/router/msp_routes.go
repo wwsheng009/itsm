@@ -38,6 +38,9 @@ func SetupMSPRoutes(r *gin.Engine, config *RouterConfig) {
 			// IP-P2-7：MSP 建号表单角色候选（目标客户角色列表，数据驱动多选）。
 			msp.GET("/customers/:customer_tenant_id/roles", middleware.RequireMSPPermission("msp_customer", "write"), config.UserHandler.ListCustomerGrantableRoles)
 		}
+		// 模板分发（P2-①）：provider 已发布模板 → 客户租户草稿副本（copy-in + 来源追踪 + 升级提示）。
+		msp.GET("/customers/:customer_tenant_id/workflow-templates", middleware.RequireMSPPermission("msp_customer", "read"), config.MSPHandler.ListCustomerWorkflowTemplates)
+		msp.POST("/customers/:customer_tenant_id/workflow-templates/:key/distribute", middleware.RequireMSPPermission("msp_customer", "write"), config.MSPHandler.DistributeWorkflowTemplate)
 
 		// 工单分配 - 需要 msp_ticket:write 权限
 		msp.POST("/tickets/:id/assign", middleware.RequireMSPPermission("msp_ticket", "write"), config.MSPHandler.AssignMSPTechnician)

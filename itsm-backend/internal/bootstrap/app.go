@@ -1440,7 +1440,9 @@ func NewApplication() *Application {
 		MSPHandler: mspHandler.NewHandler(mspAllocationService, ticketService,
 			service.NewMSPWorkbenchService(client, ticketService, ticketCommentService, sugar),
 			service.NewMSPWorkbenchViewService(client, sugar),
-			service.NewMSPAuditService(client, sugar), sugar),
+			service.NewMSPAuditService(client, sugar),
+			service.NewMSPWorkflowDistributionService(database.GetRawDB(), bpmnTemplateCatalog, service.NewMSPAccessValidator(client), client, sugar),
+			sugar),
 		SystemConfigHandler:  systemConfigHandler,
 		ApprovalChainHandler: approvalChainHandler.NewHandler(approvalChainService, sugar),
 

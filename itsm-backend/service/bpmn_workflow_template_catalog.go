@@ -118,7 +118,8 @@ func (s *BPMNWorkflowTemplateCatalog) CreateDraft(ctx context.Context, tenantID,
 	if err != nil {
 		return nil, err
 	}
-	_, err = s.db.ExecContext(ctx, `INSERT INTO workflow_templates (key,name,description,domain,form_schema,approval_policy,ontology_bindings,sla_config,bpmn_xml,version,status,is_public,tenant_id,created_by) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,to_jsonb($9::text),$10,'draft',$11,$12,$13)`, req.Key, req.Name, req.Description, req.Domain, form, approval, bindings, sla, req.BPMNXML, version, req.IsPublic, tenantID, userID)
+	// created_at/updated_at 显式 NOW()：存量库（migration 021 建表）无列默认值，省略会触发 NOT NULL（2026-10-09 实弹发现）。
+	_, err = s.db.ExecContext(ctx, `INSERT INTO workflow_templates (key,name,description,domain,form_schema,approval_policy,ontology_bindings,sla_config,bpmn_xml,version,status,is_public,tenant_id,created_by,created_at,updated_at) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,to_jsonb($9::text),$10,'draft',$11,$12,$13,NOW(),NOW())`, req.Key, req.Name, req.Description, req.Domain, form, approval, bindings, sla, req.BPMNXML, version, req.IsPublic, tenantID, userID)
 	if err != nil {
 		if strings.Contains(strings.ToLower(err.Error()), "unique") {
 			return nil, ErrWorkflowTemplateConflict

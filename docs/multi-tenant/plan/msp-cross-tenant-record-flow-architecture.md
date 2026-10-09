@@ -1,6 +1,6 @@
 # 多租户单据流转交互架构（Cross-Tenant Record Flow Architecture）
 
-> 状态：**Draft v0.6（P0 全部落地 + P1/P2 首批实跑；待评审）**｜日期：2026-10-07｜基准：仓库 HEAD `4aba4e4d`（工作树含未提交改动）
+> 状态：**Draft v0.11（P0–P1 落地 + P2① 模板分发落地；待评审）**｜日期：2026-10-09｜基准：仓库 HEAD `377036bb`（工作树含 P2-① 未提交改动）
 > 定位：**L3 架构级交互设计**——把"工单跨租户可见/可操作"泛化为**全部单据类型**（工单/变更/问题/服务请求/审批任务/CMDB 变更单…）的跨租户流转交互模型：参与方与关系、通道与授权链、通用操作矩阵、**端到端流转（建单→可见→处理→回写）**、**路由与交接（自动/手动/流程驱动）**、**信息互通矩阵**、流程/工作流集成、审计与不变量、分期落地。
 > 上位：[canon](./msp-concept-model-and-architecture-canon.md)（L1，概念/边界/不变量，冲突时 canon 胜）＞ [工作台方案](./msp-cross-customer-workbench-and-filter-plan.md)（L2，跨客户交互修订源）＞ 本文件（L3，对 L2 的泛化与补充；冲突时 L2 胜并回填本文件）。关联：[集成分析](./msp-integration-with-rbac-org-workflow-analysis.md)、[目标架构](./msp-target-architecture.md)、[实施方案](./msp-implementation-plan.md)、[闭环审查](./msp-business-closure-review-and-refactor-plan.md)。
 > 局部编号（引用必须带前缀，登记见 canon 附录 C.2）：`XF1–XF10`（交互规则）、`XFD1–XFD8`（设计决策）、`XFR1–XFR4`（风险）、`XFA1–XFA6`（验收）。
@@ -234,6 +234,8 @@ provider 设计器 ──发布"分发模板"──▶ 分发服务（新端点�
 - **漂移治理**：provider 更新模板 → 生成"可升级"提示，客户管理员确认后升级（不强制覆盖客户本地修改）；
 - **权限**：provider 侧要求 `msp:write` + allocation；客户侧要求目标租户 `bpmn:write`（条目级授权链）；
 - **验收**：分发→客户部署→绑定→工单触发→实例运行全程租户内；反例：未分配 provider 分发 403；客户无 `bpmn:write` 403。
+
+> **落地（v0.11 / IP-P2-10，2026-10-09）**：① 端点已实施——`POST /api/v1/msp/customers/:id/workflow-templates/:key/distribute`（在客户租户创建**草稿副本** + 来源追踪行）、`GET /api/v1/msp/customers/:id/workflow-templates`（分发状态 + 升级提示）；② 语义按 **D5=A**（草稿副本 copy-in，发布/绑定由客户租户内既有流程完成）与 **D6=A**（提示升级、不强制覆盖客户本地修改）；③ 来源表 `workflow_template_distributions`（迁移 `20261009_workflow_template_distribution`，owner 方向=客户租户 + provider 来源 + 版本）；④ 授权 = `msp_customer:read/write` 路由 + `mspguard`（allocation + 客户 active）唯一入口，写入按客户租户重绑定 ctx（RLS GUC 同源），审计 `workflow_template.distribute`（XF8：target_tenant + source=workbench）；⑤ 实弹 9/9 PASS（创建→发布→分发→状态→反例：重复分发 409 / 未分配客户 403 / 跨 provider 403），零残留（仅保留审计行）。
 
 ### 7.3 集成模式 B：跨租户任务投影（客户流程中的 provider 任务）
 
@@ -604,7 +606,7 @@ cancelled   → 终态（禁止转换）
 | **XFD2** | 跨租户交互采用五通道模型（Home/工作台/过滤器/头通道/切换）+ 独立治理面；日常看+做走工作台，深度配置走切换 | 与 L2 工作台方案一致；泛化到全部单据 | 建议定稿 |
 | **XFD3** | `allowedActions[]` 为唯一 UI 契约；快照字段不参与授权 | 防前端推断与历史快照误用 | 建议定稿 |
 | **XFD4** | 快照策略：建单派生 + 归属变更保留历史 + 幂等回填（显式操作）；快照仅用于追溯/通知/统计 | E2 口径；修复 #223 类缺口 | 建议定稿 |
-| **XFD5** | 流程集成 = 模板分发（copy-in）+ 任务投影；禁止运行时跨租户引用 | 保 B4/I6；复用既有模板/部署机制 | 待评审（需产品确认分发语义） |
+| **XFD5** | 流程集成 = 模板分发（copy-in）+ 任务投影；禁止运行时跨租户引用 | 保 B4/I6；复用既有模板/部署机制 | **已定稿：D5=A（草稿副本 copy-in）+ D6=A（提示升级）**；① 模板分发已落地（v0.11 / IP-P2-10），② 任务投影待落地 |
 | **XFD6** | 审计与反枚举策略：跨租户全审计；未授权资源用 404 防枚举；冲突探针落库 | I11；安全基线 | 建议定稿 |
 | **XFD7** | 路由默认策略：按**服务范围**自动路由（三级：租户/类型/工单级；复用 `auto_assign` 规则引擎扩展 `provider_queue`/`provider_user` 动作）+ 手动兜底 + 流程驱动；未托管单据不外送、工作台默认按范围过滤 | 业务适配；复用既有引擎；幂等单归属 | **已实施 MVP**（类型级 `msp_route_enabled` + `msp_routed_at` + `routedOnly`）；手动/流程驱动待 P1/P2 |
 | **XFD8** | 评论可见性：公开评论双向互通（同一评论流）；内部备注租户内隔离（MSP 跨租户员工禁写客户内部备注，保持现状）；provider 内部备注存 provider 侧 | 隐私与协作平衡（现状 `is_internal` 字段已具备） | 待评审 |
@@ -612,7 +614,7 @@ cancelled   → 终态（禁止转换）
 **开放问题**（待评审确认）：
 
 1. provider 首管默认分配策略：自动为"归属客户"建 primary allocation，还是仅提供"一键分配"按钮？（体验 vs 最小权限）
-2. 模板分发的版本治理：强制升级 / 提示升级 / 仅一次性分发？（XFD5 落地前确认）
+2. ~~模板分发的版本治理：强制升级 / 提示升级 / 仅一次性分发？~~ → **已定稿 D6=A（提示升级，不强制覆盖；重复分发生成新草稿版本，客户有同 key 草稿时 409 由客户先处理）**
 3. 服务请求是否并入工单面聚合（现状同源）？变更/问题的优先级排序？
 4. 跨租户只读详情的最小字段集（描述/评论/时间线/SLA/CI/附件哪些必须）？
 
@@ -626,7 +628,7 @@ cancelled   → 终态（禁止转换）
 |---|---|---|---|
 | **P0（修正与体验）✅ 2026-10-07 全部落地** | ① ✅ 快照存量回填（SQL + `cmd/backfill_ticket_snapshot`，联调 0 候选）；② ✅ provider 首管默认分配（provision/bootstrap 钩子 + `cmd/backfill_msp_allocations`）；③ ✅ 终态 reply 契约修复；④ ✅ 类型级自动路由（`msp_route_enabled`/`msp_routed_at`/`routedOnly`）；⑤ ✅ `workflow:*` 权限缺口修复（admin 补 `workflow:read/write`，provider_tenant_admin 派生继承；工单流程端点实测 200） | 无 | 单测全绿；S1 实跑：类型 14 开启路由 → #224 → provider 工作台 all=2 / routedOnly=1 |
 | **P1（跨租户详情）🟡 部分落地 2026-10-07** | ① ✅ `GET /api/v1/msp/tickets/:id`（工单只读详情：描述/SLA/发起人/处理人/`allowedActions`；声明租户 + allocation 双重校验）；② ✅ 前端工作台详情抽屉（行点击 + 只读动作展示）；③ ✅ 通知深链直达详情（provider 侧 `action_url` 深链 + 铃铛点击直达 + 工作台参数自动打开）；④ ✅ 评论只读面（`GET /api/v1/msp/tickets/:id/comments`，XFD8：公开评论双向互通/客户内部备注不下发；抽屉只读区 + 首个共享渲染件 `TicketCommentTimeline`）；⑤ ⏳ `ticket-api` 头通道；状态变更时间线（无历史表）/CI/附件留后续 | P0 | XFA3/XFA4 |
-| **P2（流程集成）** | ① 模板分发端点与来源追踪；② 客户流程中的 provider 任务投影（待办面 + 写回）；③ 变更/问题/服务请求接入工作台 | XFD5 定稿 | XFA5；接入五件套 XFA1 |
+| **P2（流程集成）** | ① ✅ 模板分发端点与来源追踪（v0.11 / IP-P2-10：分发 + 状态查询 + 来源/升级提示；重复分发 409；反例 403）；② ⏳ 客户流程中的 provider 任务投影（待办面 + 写回）；③ ⏳ 变更/问题/服务请求接入工作台 | XFD5 已定稿（D5=A/D6=A） | XFA5；接入五件套 XFA1（① 已验） |
 | **P3（泛化收尾）** | CMDB/CI 只读投影、导出、跨租户报表扩展 + 前端复用收敛（§13.1：列表壳/标签单源/筛选 DSL/详情投影） | P1/P2 | XFA6 |
 
 ### 13.1 前端复用收敛清单（P3 前置；2026-10-07）
@@ -660,6 +662,11 @@ cancelled   → 终态（禁止转换）
 | **XFR2** | 历史快照缺失导致 provider 侧通知/统计漏投 | 通知不一致、考核失真 | P0-② 回填 + XF9 规则化 |
 | **XFR3** | 详情缺位迫使切换代偿 → 会话污染/漏单 | 违反 I9/WB2 的根因回归 | P1 详情端点；工作台空态引导切换仅用于配置 |
 | **XFR4** | 模板分发引入配置漂移（provider 版本 vs 客户副本） | 客户流程与预期不一致 | 来源/版本追踪 + 升级提示（XFD5 开放问题 2） |
+
+> **残余（v0.11 实弹发现，2026-10-09）**：
+> 1. **provider 首管 membership 角色漂移**：存量 provider 租户首管（`is_bootstrap_admin=true`）的 home membership 角色可能仍为纯 MSP 角色（实弹：tenant 10 首管 membership 角色 `msp_manager`）→ `cmd/backfill_provider_admin` 仅覆盖 `msp_admin → provider_tenant_admin`，不覆盖其他历史角色；表现为 `/auth/me` 权限面缺 `workflow:*`（前端菜单/入口缺失）而路由守卫经角色回退仍放行（读写面不一致）。建议扩展回填 CLI 覆盖条件或登记 [07-known-gaps](../07-known-gaps.md)（另批）。
+> 2. **前端入口未接**：分发/状态查询目前为后端 + API 实弹；provider 工作流设计器「分发到客户」入口与客户侧「来源/升级提示」展示待前端批次。
+> 3. 任务投影（②）与变更/问题/服务请求接入（③）待后续批次（依赖同上）。
 
 ---
 
@@ -705,3 +712,4 @@ cancelled   → 终态（禁止转换）
 | v0.8 | 2026-10-07 | **前端复用收敛 #1 收尾（评论条目渲染单源）**：抽取 `CommentItemBody`（身份行/侧标签/内部标签/时间/已编辑标记/正文 + 头像/附加标签/底部/操作四槽位），`TicketCommentTimeline`（工作台只读）与客户侧 `CommentPanel`（工单/事件详情 Tab）共用同一渲染源；客户侧头像、@提及、附件、编辑/删除与编辑态经槽位注入，交互与 i18n 不变。测试：新增 `CommentItemBody` 用例 + 7 套件 35 用例全绿；`tsc --noEmit`/eslint 0 |
 | v0.9 | 2026-10-07 | **前端复用收敛 #2（工单列表壳）**：抽取 `TicketListShell`（antd Table 默认项/空态/错误态+重试/行点击守卫/分页透传 + 游标「加载更多」页脚）；工作台平铺、分组与空组视图改接壳（平铺页脚迁入壳内，分组保留页级游标按钮），客户侧 `TicketList` 接入（页码分页/onChange/键盘导航/行悬停高亮/弹层容器透传不变）。测试：新增壳用例 4 例 + 工作台/评论件 4 套件 20 用例全绿；`tsc --noEmit`/eslint 0；浏览器实测 `/tickets` 与 `/msp/workbench`（平铺/分组）渲染正常、无新增控制台错误 |
 | v0.10 | 2026-10-07 | **MSW-6 边界指针**：§2.2 增补"切换面 vs 跨租户面"指针（工作台=跨客户批量；深度切换=单客户；返回=切回 provider 作用域，`homeTenantId` 契约）；链接 canon §2.3 与 scenarios/10 剧本 |
+| v0.11 | 2026-10-09 | **P2-① 模板分发（copy-in）落地（IP-P2-10）**：§7.2 端点实施（分发 + 状态查询）、来源表 `workflow_template_distributions`（迁移 `20261009_workflow_template_distribution`）、D5=A/D6=A 定稿、审计 `workflow_template.distribute`、实弹 9/9 PASS（含反例）与残余登记（provider 首管 membership 角色漂移 / 前端入口待接）；顺带修复 `workflow_templates` 存量库 `created_at/updated_at` 无默认值导致创建 500 的缺陷 |
