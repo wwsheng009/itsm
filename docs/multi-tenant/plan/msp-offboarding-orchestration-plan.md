@@ -1,0 +1,115 @@
+# MSP 离职编排与分配回收方案（Offboarding Orchestration）
+
+> **状态**：v0.1（2026-10-08）——现状核对与设计落盘；决策点 D1–D4 待评审（§3.7），评审通过后按 §4 分期实施
+>
+> **批次建议**：`IP-P2-8`（落库前对照《[实施方案](./msp-implementation-plan.md)》§3.0 总表登记，未登记前本方案不视为冻结）
+>
+> **上位（权威顺序）**：[canon](./msp-concept-model-and-architecture-canon.md)（I3/I5/B3/B5/D5/D10/D11）→ [目标架构](./msp-target-architecture.md)（P1 剩余项「分配回收编排 + 历史接口」，历史接口已于 2026-10-08 补齐）→ [用户交互流程 F-07/F-08](./msp-user-interaction-flows.md) → [MSW 收口方案](./msp-membership-switch-consolidation-plan.md)（MSW-1/MSW-3、Q3=A 立即生效口径）→ [TUM 方案](./msp-tenant-user-management-enhancement-plan.md)（平台面 `user.admin_*` 审计与错误码复用）
+
+---
+
+## 1. 背景与目标
+
+F-08「回收 / 离职 / 退租」的目标动作是「**员工离职 → 停用账号 + 撤销全部分配 + 会话失效 + 审计**」。现状核对（§2）显示各**单点能力齐备**（停用+token 吊销、单对分配撤销、membership 审计、立即生效），缺的是**编排**：没有单一动作把「停用 + 全量回收 + 审计」串起来，provider 管理员需手工逐个回收分配，漏回收即残留。
+
+**目标**：
+1. 一条「离职」动作完成：停用账号 + 全量会话失效 + 撤销该员工全部分配（含 membership 联动与立即生效）+ 审计留痕；
+2. provider 自服务可用，平台面可复用同一服务（分期，见 D3）；
+3. **幂等可重跑**、失败可续、巡检兜底（与 MSW-1 既有口径一致）。
+
+---
+
+## 2. 现状核对（S1–S7）
+
+| # | 能力 | 现状 | 证据 |
+|---|------|------|------|
+| S1 | 停用账号（单条） | ✅ `active=false` + **吊销全部 access token**（P1-2 延伸）；防自停用 | `service/user_service.go:596-629`（`ChangeUserStatus`） |
+| S2 | 批量停用 | ⚠️ 仅置 `active=false`，**未吊销 token**；防批量含本人 | `service/user_service.go:718-763`（`BatchUpdateUsers`） |
+| S3 | 删除用户 | ⚠️ 软删=置 `active=false`，**未吊销 token**、无审计 | `service/user_service.go:572-592`（`DeleteUser`） |
+| S4 | 单对分配撤销 | ✅ 置 `deassigned_at` + membership 软删（`membership.revoke` 审计）+ **立即生效**（权限缓存单点失效 + (user×tenant) 在途 refresh 吊销） | `service/msp_allocation_service.go:379-414`（`Deactivate`）、`service/membership_sync.go:251-349` |
+| S5 | 全量 token 基建 | ✅ `InvalidateUserAccessTokens` / `InvalidateUserRefreshTokens`（全局）/ `...ForTenant` | `middleware/token_revocation.go:83/95/129` |
+| S6 | 审计基建 | ✅ `audit_logs` 含 `target_user_id`/`source`/`target_tenant_id`；membership 通道 `writeSyncAudit` 模式可复用 | `ent/schema/auditlog.go`、`service/membership_sync.go:413-462` |
+| S7 | 文档口径 | ⚠️ F-08 标注「无审计」为**过期表述**——membership 层审计（`membership.sync`/`membership.revoke`）已随 MSW-1/MSW-3 落地 | `docs/.../msp-user-interaction-flows.md:314` vs 上述 S4 |
+
+---
+
+## 3. 设计
+
+### 3.1 编排语义（顺序与失败策略）
+
+**顺序**（安全优先）：
+
+1. **停用账号 + 全量会话失效**：`active=false` → `InvalidateUserAccessTokens` + `InvalidateUserRefreshTokens`（全局）；此步失败 = 整体失败（安全面不可妥协）。
+2. **撤销全部分配**（逐条幂等）：对每条有效分配执行与 `Deactivate` 等价的核心（`deassigned_at` + membership 软删 + `membership.revoke` 审计 + 缓存失效 + 租户 refresh 吊销）；**逐条失败不阻断**，计入 `pending` 并告警（巡检兜底，与 MSW-1 口径一致）。
+3. **汇总审计**：`user.offboard`（含 outcome/计数/trigger）。
+
+**幂等**：重复调用返回相同结果（第二次 `alreadyInactive=true`、`allocationsRevoked=0`）；`pending` 项可重跑收敛。
+
+### 3.2 服务落点
+
+- 新增 `service/offboarding_service.go`：`OffboardUser(ctx, userID, homeTenantID int, meta OffboardMeta) (*OffboardResult, error)`，依赖 `*ent.Client` + `*MSPAllocationService`（组合）。
+- 新增 `MSPAllocationService.RevokeAllForUser(ctx, userID int) (revoked []int, pending []int, err error)`：
+  - **批量加载**有效分配（1 查询）+ 相关 membership（1 查询），逐条复用撤销核心（抽出 `revokeOne` 供 `Deactivate` 复用）；
+  - 遵守仓库性能约定（禁 N+1 逐条查询；审计行 N 条为预期），加查询预算测试（参照 `TestProvisionTenantQueryBudgetStaysBatched`）。
+
+### 3.3 API 契约
+
+| 面 | 端点 | 权限 | 语义 |
+|----|------|------|------|
+| Provider 自服务（P0） | `POST /api/v1/users/:id/offboard` | `user:write`（租户作用域） | 停用 + 全量回收 + 审计；409 `SELF_OPERATION_FORBIDDEN`（防自离职，复用 TUM 错误码）；404 用户不存在 |
+| 平台治理面（P1） | `POST /api/v1/tenants/:id/users/:userId/offboard` | `tenant:write` + L1 平台身份（补丁 4/6 口径） | 复用同一服务；审计 `target_tenant_id` 标注 |
+
+响应（200）：
+```json
+{ "userId": 123, "deactivated": true, "alreadyInactive": false,
+  "allocationsRevoked": 3, "allocationsPending": 0 }
+```
+
+### 3.4 审计
+
+- **新事件 `user.offboard`**：`resource=user`、`target_user_id`、`target_tenant_id`（=被停用用户 home 租户）、payload 含 `outcome/allocations_revoked/allocations_pending/trigger/source`；
+- 登记：实施方案 §3.0-E 事件目录（canonical）追加 + TUM 方案 §3.4 对齐说明（provider 自服务面事件；平台面如落则同事件名、`source` 区分）；
+- 分配侧 N×`membership.revoke` 由既有通道产生（trigger=`msp.allocation.deassign`），无需重复审计。
+
+### 3.5 前端（P1）
+
+- 租户用户管理页（provider 租户）行操作新增「离职（停用并撤销全部分配）」：二次确认（提示将撤销的有效分配数）、成功后刷新；
+- customer 租户不展示该动作（避免与普通停用重复；customer 用户无分配语义）；
+- 落点：`itsm-frontend/src/pages/(main)/system/users/index.tsx`（租户面；实现时按现状确认入口；`admin/users` 为平台面）。
+
+### 3.6 测试与验收
+
+| 层 | 用例 |
+|----|------|
+| service | 编排全量（N 分配撤销 + membership 软删 + access/refresh 失效断言 + `user.offboard`×1 + `membership.revoke`×N）；幂等重跑；self 拒绝；无分配用户（纯停用）；撤销失败注入（停用仍完成 + pending 计数 + 告警）；查询预算 |
+| handler/router | 路由注册 + `user:write` 门禁 + 404/409 |
+| 前端 | 动作渲染/确认弹窗/调用/刷新（jest） |
+
+**验收**：A1 离职后 0 有效分配、A2 会话立即失效（access+refresh）、A3 审计完整（1+N）、A4 幂等重跑 0 变更、A5 巡检 0 漂移。
+
+### 3.7 决策点（待评审）
+
+| 编号 | 决策 | 选项 | 建议 |
+|------|------|------|------|
+| D1 | 入口面 | A. provider 自服务；B. 仅平台 TUM；C. 双面同批 | **A 先行、平台面 P1**（D3） |
+| D2 | 失败语义 | A. 停用先行 + 分配回收尽力而为（可重跑）；B. 全有或全无（单事务） | **A**：与 MSW-1「失败不阻断、巡检兜底」口径一致；单事务跨多资源锁风险高 |
+| D3 | 平台面批次 | A. 同批；B. P1 | **B**（平台面 TUM 停用已可用，编排为增量） |
+| D4 | 前端可见性 | A. 仅 provider 租户；B. 全租户 | **A** |
+
+---
+
+## 4. 分期
+
+- **P0**：`OffboardingService` + `RevokeAllForUser` + provider 路由 + `user.offboard` 审计 + service/handler 测试。
+- **P1**：前端入口（§3.5）+ 平台 TUM 面 + 场景剧本补充（F-08 实操）+ F-08 文档回填（S7）。
+- **P2**：`expires_at` 到期自动回收（后台任务）——另行立项（[scope-model §5](./msp-scope-model-analysis-and-ai-gateway-reference.md) 已登记）。
+
+## 5. 回滚
+
+- 无 DDL、无 schema 变更；路由下线 / 前端隐藏即回退；已置位数据（`active=false`/`deassigned_at`）不回滚（登记变更单）。
+
+## 6. 修订记录
+
+| 版本 | 日期 | 说明 |
+|------|------|------|
+| v0.1 | 2026-10-08 | 首版：现状核对 S1–S7、差距（编排缺失/批量与删除路径 token 缺口/文档过期）、设计（编排语义/服务落点/契约/审计/前端/测试）、决策点 D1–D4、分期与回滚 |
