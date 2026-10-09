@@ -1,6 +1,6 @@
 # MSP 离职编排与分配回收方案（Offboarding Orchestration）
 
-> **状态**：v0.3（2026-10-08）——**P0 + 前端入口（P1 部分）已落地**（§6 实施记录）；决策点 D1–D4 按 §3.7 推荐值落定（D1=A / D2=A / D3=B / D4=A）；剩余：平台 TUM 面 + F-08 剧本补充
+> **状态**：v0.4（2026-10-08）——**P0 + P1 全部落地**（前端入口 + 平台 TUM 面，见 §6 实施记录）；决策点 D1–D4 按 §3.7 推荐值落定（D1=A / D2=A / D3=B / D4=A）；剩余：F-08 剧本补充（实操记录）
 >
 > **批次建议**：`IP-P2-8`（落库前对照《[实施方案](./msp-implementation-plan.md)》§3.0 总表登记，未登记前本方案不视为冻结）
 >
@@ -119,8 +119,9 @@ F-08「回收 / 离职 / 退租」的目标动作是「**员工离职 → 停用
 | 回归 | —— | `go test -p 1 ./service/ ./handlers/user/ ./router/` 全绿（跳过已登记偶发 bpmn 用例） |
 | 前端（P1 部分） | `admin/users` 用户行操作「离职」：仅服务商租户（D4=A）展示、二次确认 + 已撤销分配计数提示 + 刷新；`UserApi.offboardUser` + i18n 双语 | jest `user-api`（含 offboard 用例）、i18n 套件；`tsc -b` / eslint 绿 |
 | 会话缺口（S2/S3） | `DeleteUser`（软删）与 `BatchUpdateUsers(deactivate)` 补全 access+refresh 吊销（与单条停用口径一致） | `user_session_revocation_test.go`（删除/批量停用吊销 + 未涉及隔离 + department 不吊销）；后端回归全绿 |
+| 平台 TUM 面（P1） | `POST /api/v1/tenants/:id/users/:userId/offboard`（`tenant:write` + super_admin 硬校验 + 最后管理员护栏）：复用 `OffboardingService` + `user.admin_offboard` 治理审计（`target_tenant_id` 标注）+ 租户通知；TUM 抽屉行操作「离职」+ `TenantUserAdminApi.offboardUser` | e2e（幂等重跑/非平台面 403/审计 2 行）、service 用例（护栏 + 域/治理双审计 + 幂等）、handler 契约、路由契约；抽屉 jest（6 通过）、`tsc`/eslint 绿 |
 
-剩余（P1）：平台 TUM 面（D3=B）、F-08 剧本补充。
+剩余（P1）：F-08 剧本补充（实操记录）。
 
 ## 7. 修订记录
 
@@ -129,3 +130,4 @@ F-08「回收 / 离职 / 退租」的目标动作是「**员工离职 → 停用
 | v0.1 | 2026-10-08 | 首版：现状核对 S1–S7、差距（编排缺失/批量与删除路径 token 缺口/文档过期）、设计（编排语义/服务落点/契约/审计/前端/测试）、决策点 D1–D4、分期与回滚 |
 | v0.2 | 2026-10-08 | **P0 落地**（§6 实施记录）；决策点 D1–D4 按 §3.7 推荐值落定；P1 待实施 |
 | v0.3 | 2026-10-08 | **前端入口（P1 部分）落地**（§6）+ 停用/删除路径会话缺口补齐（S2/S3）；剩余：平台 TUM 面 + 剧本 |
+| v0.4 | 2026-10-08 | **平台 TUM 面落地**（§3.3 契约：端点 + 服务复用 + 双审计 + 抽屉行操作）；P1 剩余：F-08 剧本 |

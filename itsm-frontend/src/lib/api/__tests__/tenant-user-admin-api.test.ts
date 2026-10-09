@@ -101,6 +101,19 @@ describe('TenantUserAdminApi（TUM-4 契约锁定）', () => {
     expect(mockPost).toHaveBeenCalledWith('/api/v1/tenants/9/users/42/force-logout', {});
     expect(result.userId).toBe(42);
   });
+
+  it('offboardUser 锁定 POST 路径并回传撤销计数（IP-P2-8 D3=B）', async () => {
+    mockPost.mockResolvedValue({
+      userId: 42,
+      deactivated: true,
+      alreadyInactive: false,
+      allocationsRevoked: 2,
+      allocationsPending: 0,
+    });
+    const result = await TenantUserAdminApi.offboardUser(9, 42);
+    expect(mockPost).toHaveBeenCalledWith('/api/v1/tenants/9/users/42/offboard', {});
+    expect(result.allocationsRevoked).toBe(2);
+  });
 });
 
 describe('tenantUserAdminErrorMessage（§3.5 错误码映射）', () => {

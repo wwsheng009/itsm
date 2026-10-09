@@ -31,6 +31,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **IP-P2-8 P1 完成：平台 TUM 面离职编排** — `POST /api/v1/tenants/:id/users/:userId/offboard`（`tenant:write` + super_admin 硬校验 + 最后管理员护栏；复用 `OffboardingService`：停用 + 全量会话失效 + 撤销全部分配；`user.admin_offboard` 治理审计（`target_tenant_id` 标注）+ 租户通知）；TUM 抽屉行操作「离职」（二次确认 + 撤销计数提示）+ `TenantUserAdminApi.offboardUser`。验证：service（护栏/双审计/幂等）、handler 契约、路由契约、e2e（幂等 + 非平台面 403 + 审计 2 行）、抽屉 jest 6 通过、tsc/eslint 绿；`go test -p 1 ./service ./handlers/tenant ./handlers/user ./router` 全绿。剩余：F-08 剧本补充。
+
 - **IP-P2-8 P1 部分：前端「离职」入口 + 停用/删除路径会话缺口补齐** — ① 前端：`admin/users` 用户行操作新增「离职（停用并撤销全部分配）」（仅服务商租户展示，二次确认 + 已撤销分配计数提示），`UserApi.offboardUser` + i18n 双语；② 后端：`DeleteUser`（软删）与 `BatchUpdateUsers(deactivate)` 补全存量 access+refresh 吊销（与单条停用口径一致，方案 §2 S2/S3 缺口）。验证：jest `user-api`（16 通过）+ i18n（8 通过）+ `tsc -b`/eslint 绿；`go test -p 1 ./service ./handlers/user ./router` 全绿。剩余：平台 TUM 面 + F-08 剧本。
 
 - **IP-P2-8 离职编排 P0 落地（分配回收单一动作）** — 新增 `POST /api/v1/users/:id/offboard`（`user:write`）：停用账号 + 全量会话失效（access 下限 + refresh 用户级）+ 撤销全部分配（`MSPAllocationService.RevokeAllForUser` 批量加载 + 逐条复用撤销核心，幂等、失败计入 pending 由巡检兜底）+ `user.offboard` 审计（1+N）。防自离职 409；跨租户/不存在 404；幂等重跑 alreadyInactive+0 回收仍留痕。测试：service 编排全量（2 分配回收 + membership 软删 + 审计 + refresh 吊销 + 幂等 + 防自离职）、handler 映射（200/404/409/1001）、router 守卫；回归 `-p 1 ./service ./handlers/user ./router` 全绿。方案 [msp-offboarding-orchestration-plan.md](docs/multi-tenant/plan/msp-offboarding-orchestration-plan.md)（P1：前端入口 + 平台 TUM 面）。

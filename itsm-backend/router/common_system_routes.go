@@ -216,6 +216,8 @@ func SetupCommonSystemRoutes(r *gin.Engine, tenant *gin.RouterGroup, config *Rou
 				tenants.POST("/:id/users/:userId/force-logout", middleware.RequirePermission("tenant", "write"), config.TenantHandler.ForceLogoutTenantUser)
 				// MSW-3：映射撤销面（home 不可撤销；allocation 级联解除分配；缓存失效 + 在途 refresh 吊销）。
 				tenants.POST("/:id/users/:userId/membership/revoke", middleware.RequirePermission("tenant", "write"), config.TenantHandler.RevokeTenantUserMembership)
+				// IP-P2-8 D3=B：平台侧离职编排（停用 + 全量会话失效 + 撤销全部分配；幂等可重跑）。
+				tenants.POST("/:id/users/:userId/offboard", middleware.RequirePermission("tenant", "write"), config.TenantHandler.OffboardTenantUser)
 			}
 		}
 

@@ -19,7 +19,7 @@ import {
   Typography,
 } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
-import { LogOut, RefreshCw, RotateCcw, Search, UserPlus } from 'lucide-react';
+import { LogOut, RefreshCw, RotateCcw, Search, UserMinus, UserPlus } from 'lucide-react';
 import {
   TenantUserAdminApi,
   tenantUserAdminErrorMessage,
@@ -105,6 +105,7 @@ const TenantUsersDrawer: React.FC<TenantUsersDrawerProps> = ({
   const [resetTarget, setResetTarget] = useState<TenantUserItem | null>(null);
   const [statusLoadingId, setStatusLoadingId] = useState<number | null>(null);
   const [forceLoadingId, setForceLoadingId] = useState<number | null>(null);
+  const [offboardLoadingId, setOffboardLoadingId] = useState<number | null>(null);
   const [defaultConfirm, setDefaultConfirm] = useState<{ record: TenantUserItem } | null>(null);
   const [confirmCodeInput, setConfirmCodeInput] = useState('');
   const [selectedKeys, setSelectedKeys] = useState<React.Key[]>([]);
@@ -250,6 +251,31 @@ const TenantUsersDrawer: React.FC<TenantUsersDrawerProps> = ({
     } finally {
       setForceLoadingId(null);
     }
+  };
+
+  // IP-P2-8 D3=B：平台侧离职编排（停用 + 全量会话失效 + 撤销全部分配；二次确认，幂等可重跑）。
+  const handleOffboard = (record: TenantUserItem) => {
+    Modal.confirm({
+      title: '确认离职',
+      content: `确定要让「${record.username}」离职吗？将停用账号、立即吊销全部会话并撤销其全部分配（可安全重跑）。`,
+      okText: '确认离职',
+      okButtonProps: { danger: true },
+      onOk: async () => {
+        setOffboardLoadingId(record.id);
+        try {
+          const res = await TenantUserAdminApi.offboardUser(tenantId, record.id);
+          message.success(
+            `已离职「${record.username}」：撤销 ${res.allocationsRevoked} 个分配` +
+              (res.allocationsPending > 0 ? `，${res.allocationsPending} 个待重试` : '')
+          );
+          void load();
+        } catch (error) {
+          message.error(tenantUserAdminErrorMessage(error));
+        } finally {
+          setOffboardLoadingId(null);
+        }
+      },
+    });
   };
 
   const runBatch = async (targets: TenantUserItem[], next: boolean) => {
@@ -413,7 +439,7 @@ const TenantUsersDrawer: React.FC<TenantUsersDrawerProps> = ({
     {
       title: '操作',
       key: 'actions',
-      width: 200,
+      width: 270,
       fixed: 'right',
       render: (_, record) => (
         <Space size="small">
@@ -429,6 +455,18 @@ const TenantUsersDrawer: React.FC<TenantUsersDrawerProps> = ({
               onClick={() => void handleForceLogout(record)}
             >
               强制下线
+            </Button>
+          </Tooltip>
+          <Tooltip title="停用账号 + 全量会话失效 + 撤销全部分配">
+            <Button
+              size="small"
+              danger
+              icon={<UserMinus size={14} />}
+              loading={offboardLoadingId === record.id}
+              disabled={!canWrite}
+              onClick={() => handleOffboard(record)}
+            >
+              离职
             </Button>
           </Tooltip>
         </Space>

@@ -22,6 +22,7 @@ jest.mock('@/lib/api/tenant-user-admin-api', () => ({
     resetPassword: jest.fn(),
     setStatus: jest.fn(),
     forceLogout: jest.fn(),
+    offboardUser: jest.fn(),
   },
   tenantUserAdminErrorMessage: jest.fn((error: unknown) => {
     const e = error as { errorCode?: string; message?: string };
@@ -43,6 +44,7 @@ jest.mock('@/lib/hooks/usePasswordPolicy', () => ({
 const mockListUsers = TenantUserAdminApi.listUsers as jest.Mock;
 const mockSetStatus = TenantUserAdminApi.setStatus as jest.Mock;
 const mockResetPassword = TenantUserAdminApi.resetPassword as jest.Mock;
+const mockOffboard = TenantUserAdminApi.offboardUser as jest.Mock;
 
 const tenant = { id: 9, name: '客户A', code: 'cust-a', type: 'saas_customer' };
 
@@ -171,5 +173,25 @@ describe('TenantUsersDrawer', () => {
       expect(screen.getByRole('switch')).toHaveAttribute('aria-checked', 'true')
     );
     expect(await screen.findByText('该租户最后一个管理员不可停用，请先指派新管理员')).toBeInTheDocument();
+  });
+
+  it('离职（IP-P2-8 D3=B）：二次确认后调用 offboard 并提示撤销计数', async () => {
+    mockListUsers.mockResolvedValue({ items: [baseItem], total: 1, page: 1, pageSize: 20 });
+    mockOffboard.mockResolvedValue({
+      userId: 42,
+      deactivated: true,
+      alreadyInactive: false,
+      allocationsRevoked: 2,
+      allocationsPending: 0,
+    });
+
+    renderDrawer();
+    await screen.findByText('alice');
+
+    fireEvent.click(screen.getByRole('button', { name: '离职' }));
+    fireEvent.click(await screen.findByRole('button', { name: '确认离职' }));
+
+    await waitFor(() => expect(mockOffboard).toHaveBeenCalledWith(9, 42));
+    expect(await screen.findByText(/已离职「alice」：撤销 2 个分配/)).toBeInTheDocument();
   });
 });

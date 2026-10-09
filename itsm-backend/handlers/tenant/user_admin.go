@@ -27,6 +27,8 @@ type TenantUserAdminService interface {
 	ForceLogout(ctx context.Context, actor service.TenantAdminActor, tenantID, userID int) (*dto.ForceLogoutTenantUserResponse, error)
 	// MSW-3：撤销映射（软删 + 缓存失效 + 在途 refresh 吊销）。
 	RevokeMembership(ctx context.Context, actor service.TenantAdminActor, tenantID, userID int) error
+	// IP-P2-8 D3=B：离职编排（停用 + 全量会话失效 + 撤销全部分配）。
+	Offboard(ctx context.Context, actor service.TenantAdminActor, tenantID, userID int) (*service.OffboardResult, error)
 }
 
 // SetTenantUserAdminService 注入平台侧租户用户管理服务（app 装配调用）；未注入时相关端点返回 503。
@@ -170,6 +172,28 @@ func (h *Handler) RevokeTenantUserMembership(c *gin.Context) {
 		return
 	}
 	common.Success(c, nil)
+}
+
+// OffboardTenantUser POST /api/v1/tenants/:id/users/:userId/offboard
+// IP-P2-8 D3=B：平台侧离职编排（停用账号 + 全量会话失效 + 撤销全部分配；幂等可重跑）。
+func (h *Handler) OffboardTenantUser(c *gin.Context) {
+	tenantID, userID, ok := h.parseTenantUserAdminIDs(c)
+	if !ok {
+		return
+	}
+	svc, ok := h.requireTenantUserAdmin(c)
+	if !ok {
+		return
+	}
+	c.Set("audit_target_tenant_id", tenantID)
+	c.Set("audit_target_user_id", userID)
+	resp, err := svc.Offboard(c.Request.Context(), tenantUserAdminActorFromContext(c), tenantID, userID)
+	if err != nil {
+		h.logger.Errorf("平台侧离职编排失败: %v", err)
+		respondTenantUserAdminError(c, err)
+		return
+	}
+	common.Success(c, resp)
 }
 
 func (h *Handler) requireTenantUserAdmin(c *gin.Context) (TenantUserAdminService, bool) {

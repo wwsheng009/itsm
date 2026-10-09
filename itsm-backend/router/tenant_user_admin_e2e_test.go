@@ -275,4 +275,37 @@ func TestTUM_A1_A8_APIE2E(t *testing.T) {
 	used, _ := decodeData(t, usageBody)["used"].(map[string]interface{})
 	require.NotNil(t, used)
 	assert.Equal(t, float64(3), used["users"], "用量 users 与列表 total 同源（3 用户）")
+
+	// ---------- IP-P2-8 D3=B 平台侧离职编排（offboard）----------
+	offStatus, offBody := mspE2ERequest(t, env.engine, http.MethodPost,
+		fmt.Sprintf("%s/%d/offboard", base, env.normalA.ID), env.platformToken, map[string]interface{}{})
+	require.Equal(t, http.StatusOK, offStatus, offBody)
+	offData := decodeData(t, offBody)
+	assert.Equal(t, true, offData["deactivated"])
+	assert.Equal(t, float64(0), offData["allocationsRevoked"], "e2e 环境无分配 → 0 回收")
+	u, err = env.client.User.Get(ctx, env.normalA.ID)
+	require.NoError(t, err)
+	assert.False(t, u.Active, "离职后账号停用")
+	revoked, err = middleware.IsUserRefreshRevoked(ctx, env.normalA.ID, time.Now().Add(-time.Minute))
+	require.NoError(t, err)
+	assert.True(t, revoked, "离职后存量 refresh 被拒")
+
+	// 幂等重跑：alreadyInactive=true、0 回收。
+	off2Status, off2Body := mspE2ERequest(t, env.engine, http.MethodPost,
+		fmt.Sprintf("%s/%d/offboard", base, env.normalA.ID), env.platformToken, map[string]interface{}{})
+	require.Equal(t, http.StatusOK, off2Status, off2Body)
+	assert.Equal(t, true, decodeData(t, off2Body)["alreadyInactive"])
+
+	// 反例：租户管理员（非平台面）→ 403 PLATFORM_SCOPE_REQUIRED。
+	offRStatus, offRBody := mspE2ERequest(t, env.engine, http.MethodPost,
+		fmt.Sprintf("%s/%d/offboard", base, env.adminA1.ID), env.tenantAdminToken, map[string]interface{}{})
+	assert.Equal(t, http.StatusForbidden, offRStatus, offRBody)
+	assert.Contains(t, offRBody, "PLATFORM_SCOPE_REQUIRED")
+
+	// 治理审计留痕（行归属 actor 家租户、target=目标租户；幂等两次各 1 行）。
+	offAudits, err := env.client.AuditLog.Query().
+		Where(entAudit.ActionEQ("user.admin_offboard"), entAudit.TargetUserIDEQ(env.normalA.ID)).
+		Count(ctx)
+	require.NoError(t, err)
+	assert.Equal(t, 2, offAudits)
 }

@@ -66,6 +66,15 @@ export interface ForceLogoutTenantUserResponse {
   revokedAt: string;
 }
 
+/** IP-P2-8 D3=B：平台侧离职编排结果（与 provider 自服务面同形）。 */
+export interface OffboardTenantUserResponse {
+  userId: number;
+  deactivated: boolean;
+  alreadyInactive: boolean;
+  allocationsRevoked: number;
+  allocationsPending: number;
+}
+
 /** §3.5 稳定错误码 → 可读文案；未知码回落后端 message。 */
 export const TENANT_USER_ADMIN_ERROR_MESSAGES: Record<string, string> = {
   PLATFORM_SCOPE_REQUIRED: '仅平台管理员可执行该操作',
@@ -135,6 +144,17 @@ export class TenantUserAdminApi {
   ): Promise<ForceLogoutTenantUserResponse> {
     return httpClient.post<ForceLogoutTenantUserResponse>(
       `${this.base(tenantId)}/${userId}/force-logout`,
+      {}
+    );
+  }
+
+  /** POST /tenants/:id/users/:userId/offboard（停用 + 全量会话失效 + 撤销全部分配；幂等可重跑） */
+  static async offboardUser(
+    tenantId: number,
+    userId: number
+  ): Promise<OffboardTenantUserResponse> {
+    return httpClient.post<OffboardTenantUserResponse>(
+      `${this.base(tenantId)}/${userId}/offboard`,
       {}
     );
   }

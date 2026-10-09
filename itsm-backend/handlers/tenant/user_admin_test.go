@@ -35,6 +35,9 @@ type fakeTenantUserAdmin struct {
 
 	revokeErr error
 
+	offboardResp *service.OffboardResult
+	offboardErr  error
+
 	gotActor  service.TenantAdminActor
 	gotTenant int
 	gotUser   int
@@ -71,6 +74,11 @@ func (f *fakeTenantUserAdmin) ForceLogout(_ context.Context, actor service.Tenan
 func (f *fakeTenantUserAdmin) RevokeMembership(_ context.Context, actor service.TenantAdminActor, tenantID, userID int) error {
 	f.gotActor, f.gotTenant, f.gotUser = actor, tenantID, userID
 	return f.revokeErr
+}
+
+func (f *fakeTenantUserAdmin) Offboard(_ context.Context, actor service.TenantAdminActor, tenantID, userID int) (*service.OffboardResult, error) {
+	f.gotActor, f.gotTenant, f.gotUser = actor, tenantID, userID
+	return f.offboardResp, f.offboardErr
 }
 
 func newTUAHandler(svc TenantUserAdminService) *Handler {
@@ -214,4 +222,32 @@ func TestRevokeTenantUserMembership_SuccessAndErrorMapping(t *testing.T) {
 	h2.RevokeTenantUserMembership(c2)
 	assert.Equal(t, http.StatusNotFound, w2.Code)
 	assert.Equal(t, service.TenantUserAdminCodeMembershipNotFound, decodeTUABody(t, w2)["code"])
+}
+
+// IP-P2-8 D3=B：平台侧离职编排端点（成功透传计数 + 稳定错误码映射）。
+func TestOffboardTenantUser_SuccessAndErrorMapping(t *testing.T) {
+	fake := &fakeTenantUserAdmin{offboardResp: &service.OffboardResult{
+		UserID: 11, Deactivated: true, AllocationsRevoked: 2, AllocationsPending: 0,
+	}}
+	h := newTUAHandler(fake)
+	w, c := doTUARequest(h, http.MethodPost, "/api/v1/tenants/7/users/11/offboard",
+		"", gin.Params{{Key: "id", Value: "7"}, {Key: "userId", Value: "11"}})
+	h.OffboardTenantUser(c)
+	assert.Equal(t, http.StatusOK, w.Code)
+	assert.Equal(t, 7, fake.gotTenant)
+	assert.Equal(t, 11, fake.gotUser)
+	assert.Equal(t, 42, fake.gotActor.UserID)
+	data, _ := decodeTUABody(t, w)["data"].(map[string]any)
+	assert.Equal(t, float64(2), data["allocationsRevoked"])
+	assert.Equal(t, true, data["deactivated"])
+
+	fake2 := &fakeTenantUserAdmin{offboardErr: &service.TenantUserAdminError{
+		Code: service.TenantUserAdminCodeLastAdmin, Message: "该用户是租户最后一个可用管理员，不能执行离职", Status: http.StatusConflict,
+	}}
+	h2 := newTUAHandler(fake2)
+	w2, c2 := doTUARequest(h2, http.MethodPost, "/api/v1/tenants/7/users/11/offboard",
+		"", gin.Params{{Key: "id", Value: "7"}, {Key: "userId", Value: "11"}})
+	h2.OffboardTenantUser(c2)
+	assert.Equal(t, http.StatusConflict, w2.Code)
+	assert.Equal(t, service.TenantUserAdminCodeLastAdmin, decodeTUABody(t, w2)["code"])
 }

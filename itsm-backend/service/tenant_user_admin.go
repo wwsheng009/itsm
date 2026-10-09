@@ -103,6 +103,7 @@ type TenantUserAdminService struct {
 	enabled        bool
 	notifier       tenantAdminNotifier
 	membershipSync *MembershipSyncService // MSW-3：映射撤销（软删 + 缓存失效 + refresh 吊销）
+	offboarding    *OffboardingService    // IP-P2-8：离职编排（停用 + 全量会话失效 + 全量分配回收）
 }
 
 // NewTenantUserAdminService 构造服务。
@@ -117,6 +118,7 @@ func NewTenantUserAdminService(client *ent.Client, users *UserService, logger *z
 		logger:         logger,
 		enabled:        strings.EqualFold(os.Getenv("TENANT_USER_ADMIN_ENABLED"), "true"),
 		membershipSync: NewMembershipSyncService(client, logger),
+		offboarding:    NewOffboardingService(client, NewMSPAllocationService(client, logger), logger),
 	}
 }
 
@@ -611,6 +613,81 @@ func (s *TenantUserAdminService) RevokeMembership(ctx context.Context, actor Ten
 	s.notifyTenantAdmins(qctx, tenantID, "成员映射已被平台撤销",
 		fmt.Sprintf("用户 %s 在本租户的成员映射已被平台管理员撤销，其在该租户的在途会话续签已失效。", targetUser.Username), userID)
 	return nil
+}
+
+// Offboard 平台侧离职编排（IP-P2-8 D3=B）：复用 OffboardingService
+// （停用账号 + 全量会话失效 + 撤销全部分配 + 域审计），并叠加平台治理审计与租户通知。
+//
+// 护栏：平台面硬判定（super_admin）+ 写通道灰度开关 + 最后管理员保护（与 SetActive 停用同口径）。
+func (s *TenantUserAdminService) Offboard(ctx context.Context, actor TenantAdminActor, tenantID, userID int) (*OffboardResult, error) {
+	if err := s.ensureConfigured(); err != nil {
+		return nil, err
+	}
+	if err := s.requireGovernanceEnabled(); err != nil {
+		return nil, err
+	}
+	if err := s.requirePlatformScope(actor); err != nil {
+		return nil, err
+	}
+	if tenantID <= 0 || userID <= 0 {
+		return nil, newTenantUserAdminError(TenantUserAdminCodeInvalidParam, 400, "无效的租户或用户ID")
+	}
+	if actor.UserID > 0 && actor.UserID == userID {
+		return nil, newTenantUserAdminError(TenantUserAdminCodeSelfOperation, 409, "不能对当前登录用户执行离职")
+	}
+	qctx := targetScopedContext(ctx, tenantID)
+	if _, err := s.loadTenant(qctx, tenantID); err != nil {
+		return nil, err
+	}
+	target, err := s.loadTenantUser(qctx, tenantID, userID)
+	if err != nil {
+		return nil, err
+	}
+	// 最后管理员护栏（与 SetActive 停用同口径）：目标是当前激活 admin 且无其他可用 admin 时拒绝。
+	if target.Active && target.Role == user.RoleAdmin {
+		others, cErr := s.client.User.Query().
+			Where(
+				user.TenantIDEQ(tenantID),
+				user.RoleEQ(user.RoleAdmin),
+				user.ActiveEQ(true),
+				user.IDNEQ(userID),
+			).
+			Count(qctx)
+		if cErr != nil {
+			return nil, fmt.Errorf("count tenant admins: %w", cErr)
+		}
+		if others == 0 {
+			return nil, newTenantUserAdminError(TenantUserAdminCodeLastAdmin, 409, "该用户是租户最后一个可用管理员，不能执行离职")
+		}
+	}
+	if s.offboarding == nil {
+		return nil, fmt.Errorf("offboarding service unavailable")
+	}
+	res, err := s.offboarding.OffboardUser(qctx, userID, tenantID, OffboardMeta{
+		ActorUserID:  actor.UserID,
+		ActorAccount: actor.Username,
+		Source:       middleware.AuditSourcePlatformSelected,
+		Trigger:      "tenant_admin.offboard",
+	})
+	if err != nil {
+		switch {
+		case errors.Is(err, ErrOffboardUserNotFound):
+			return nil, newTenantUserAdminError(TenantUserAdminCodeUserNotFound, 404, "用户不存在")
+		case errors.Is(err, ErrSelfOffboard):
+			return nil, newTenantUserAdminError(TenantUserAdminCodeSelfOperation, 409, "不能对当前登录用户执行离职")
+		default:
+			return nil, err
+		}
+	}
+	s.recordAudit(ctx, actor, "user.admin_offboard", tenantID, userID, map[string]any{
+		"outcome":             "success",
+		"already_inactive":    res.AlreadyInactive,
+		"allocations_revoked": res.AllocationsRevoked,
+		"allocations_pending": res.AllocationsPending,
+	}, 200)
+	s.notifyTenantAdmins(qctx, tenantID, "用户已被平台离职",
+		fmt.Sprintf("用户 %s 已被平台管理员离职：账号已停用、全部会话已失效、全部分配已撤销。", target.Username), userID)
+	return res, nil
 }
 
 // revokeUserSessions 双吊销（access + refresh）并返回失败明细；

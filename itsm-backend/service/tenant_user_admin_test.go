@@ -522,3 +522,91 @@ func TestTenantUserAdmin_RevokeMembership(t *testing.T) {
 	require.True(t, ok)
 	assert.Equal(t, TenantUserAdminCodeDisabled, ae.Code)
 }
+
+// TestTenantUserAdmin_Offboard IP-P2-8 D3=B：平台侧离职编排
+// （停用 + 全量会话失效 + 撤销全部分配 + 域/治理双审计 + 幂等重跑）。
+func TestTenantUserAdmin_Offboard(t *testing.T) {
+	f := newTenantUserAdminFixture(t)
+
+	// 目标用户挂一条分配（provider=tenantB、customer=tenantA）。
+	_, err := f.client.MSPAllocation.Create().
+		SetMspUserID(f.normalA).
+		SetCustomerTenantID(f.tenantA).
+		SetProviderTenantID(f.tenantB).
+		SetRole("backup").
+		SetAssignedAt(time.Now()).
+		Save(f.ctx)
+	require.NoError(t, err)
+
+	probe := time.Now().Add(-time.Minute)
+	res, err := f.svc.Offboard(f.ctx, f.actor, f.tenantA, f.normalA)
+	require.NoError(t, err)
+	assert.True(t, res.Deactivated)
+	assert.False(t, res.AlreadyInactive)
+	assert.Equal(t, 1, res.AllocationsRevoked, "全部分配必须被撤销")
+
+	u, err := f.client.User.Get(f.ctx, f.normalA)
+	require.NoError(t, err)
+	assert.False(t, u.Active)
+
+	revoked, err := middleware.IsUserRefreshRevoked(f.ctx, f.normalA, probe)
+	require.NoError(t, err)
+	assert.True(t, revoked, "离职后存量 refresh 必须被吊销")
+
+	// 幂等重跑：alreadyInactive + 0 回收，仍留痕。
+	res2, err := f.svc.Offboard(f.ctx, f.actor, f.tenantA, f.normalA)
+	require.NoError(t, err)
+	assert.True(t, res2.AlreadyInactive)
+	assert.Equal(t, 0, res2.AllocationsRevoked)
+
+	// 双审计：域审计 user.offboard（行归属目标租户）+ 平台治理审计 user.admin_offboard（行归属 actor 家租户）。
+	domainRows, err := f.client.AuditLog.Query().
+		Where(auditlog.ActionEQ("user.offboard"), auditlog.TargetUserIDEQ(f.normalA)).
+		All(f.ctx)
+	require.NoError(t, err)
+	assert.Len(t, domainRows, 2, "幂等两次调用各留痕 1 行域审计")
+
+	adminRows, err := f.client.AuditLog.Query().
+		Where(auditlog.ActionEQ("user.admin_offboard"), auditlog.TargetUserIDEQ(f.normalA)).
+		All(f.ctx)
+	require.NoError(t, err)
+	require.Len(t, adminRows, 2)
+	assert.Equal(t, f.tenantB, adminRows[0].TenantID, "行归属 actor 家租户")
+	assert.Equal(t, f.tenantA, adminRows[0].TargetTenantID, "target_tenant_id=目标租户")
+	assert.Equal(t, middleware.AuditSourcePlatformSelected, adminRows[0].Source)
+	assert.Equal(t, f.actor.UserID, adminRows[0].UserID)
+}
+
+// TestTenantUserAdmin_OffboardGuards：平台面硬判定 + 跨租户 404 + 最后管理员护栏 + 灰度开关 fail-closed。
+func TestTenantUserAdmin_OffboardGuards(t *testing.T) {
+	f := newTenantUserAdminFixture(t)
+
+	// 非 super_admin fail-closed（TUM-D1）。
+	_, err := f.svc.Offboard(f.ctx, TenantAdminActor{UserID: 1, Role: "admin"}, f.tenantA, f.normalA)
+	ae, ok := AsTenantUserAdminError(err)
+	require.True(t, ok)
+	assert.Equal(t, TenantUserAdminCodePlatformScope, ae.Code)
+	assert.Equal(t, 403, ae.Status)
+
+	// 跨租户（B 用户经 A 作用域）→ 404。
+	_, err = f.svc.Offboard(f.ctx, f.actor, f.tenantA, f.adminB)
+	ae, ok = AsTenantUserAdminError(err)
+	require.True(t, ok)
+	assert.Equal(t, TenantUserAdminCodeUserNotFound, ae.Code)
+
+	// 最后管理员护栏：adminA1 离职时 adminA2 仍在 → 放行；此后 adminA2 成为最后 admin → 409。
+	_, err = f.svc.Offboard(f.ctx, f.actor, f.tenantA, f.adminA1)
+	require.NoError(t, err)
+	_, err = f.svc.Offboard(f.ctx, f.actor, f.tenantA, f.adminA2)
+	ae, ok = AsTenantUserAdminError(err)
+	require.True(t, ok)
+	assert.Equal(t, TenantUserAdminCodeLastAdmin, ae.Code)
+	assert.Equal(t, 409, ae.Status)
+
+	// 灰度开关关闭 → 403（写通道 fail-closed）。
+	f.svc.SetEnabled(false)
+	_, err = f.svc.Offboard(f.ctx, f.actor, f.tenantA, f.normalA)
+	ae, ok = AsTenantUserAdminError(err)
+	require.True(t, ok)
+	assert.Equal(t, TenantUserAdminCodeDisabled, ae.Code)
+}

@@ -74,6 +74,7 @@ func TestSetupRoutes_TenantUserAdminRoutes(t *testing.T) {
 		"PUT /api/v1/tenants/:id/users/:userId/status",
 		"POST /api/v1/tenants/:id/users/:userId/force-logout",
 		"POST /api/v1/tenants/:id/users/:userId/membership/revoke",
+		"POST /api/v1/tenants/:id/users/:userId/offboard",
 	} {
 		assert.True(t, registered[want], "缺少路由 %s", want)
 	}
