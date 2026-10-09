@@ -31,6 +31,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **IP-P2-8 P1 部分：前端「离职」入口 + 停用/删除路径会话缺口补齐** — ① 前端：`admin/users` 用户行操作新增「离职（停用并撤销全部分配）」（仅服务商租户展示，二次确认 + 已撤销分配计数提示），`UserApi.offboardUser` + i18n 双语；② 后端：`DeleteUser`（软删）与 `BatchUpdateUsers(deactivate)` 补全存量 access+refresh 吊销（与单条停用口径一致，方案 §2 S2/S3 缺口）。验证：jest `user-api`（16 通过）+ i18n（8 通过）+ `tsc -b`/eslint 绿；`go test -p 1 ./service ./handlers/user ./router` 全绿。剩余：平台 TUM 面 + F-08 剧本。
+
 - **IP-P2-8 离职编排 P0 落地（分配回收单一动作）** — 新增 `POST /api/v1/users/:id/offboard`（`user:write`）：停用账号 + 全量会话失效（access 下限 + refresh 用户级）+ 撤销全部分配（`MSPAllocationService.RevokeAllForUser` 批量加载 + 逐条复用撤销核心，幂等、失败计入 pending 由巡检兜底）+ `user.offboard` 审计（1+N）。防自离职 409；跨租户/不存在 404；幂等重跑 alreadyInactive+0 回收仍留痕。测试：service 编排全量（2 分配回收 + membership 软删 + 审计 + refresh 吊销 + 幂等 + 防自离职）、handler 映射（200/404/409/1001）、router 守卫；回归 `-p 1 ./service ./handlers/user ./router` 全绿。方案 [msp-offboarding-orchestration-plan.md](docs/multi-tenant/plan/msp-offboarding-orchestration-plan.md)（P1：前端入口 + 平台 TUM 面）。
 
 - **MSP 离职编排方案落盘（IP-P2-8；P1 剩余项「分配回收编排」）** — 现状核对 S1–S7：单点能力齐备（停用+token 吊销、单对撤销+membership 联动+审计+立即生效），缺编排；发现批量停用/删除路径 token 缺口与 F-08「无审计」过期表述。设计：停用先行（安全优先）+ 全量分配回收（逐条幂等、失败可续）+ `user.offboard` 审计；`POST /api/v1/users/:id/offboard`（provider 自服务，`user:write`）；决策点 D1–D4；分期 P0（服务+路由+测试）→ P1（前端+TUM 面+剧本回填）。批次登记 §5 P2 总表（[方案](docs/multi-tenant/plan/msp-offboarding-orchestration-plan.md)）。

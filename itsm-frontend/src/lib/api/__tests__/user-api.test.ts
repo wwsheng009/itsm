@@ -89,6 +89,17 @@ describe('UserApi', () => {
     });
   });
 
+  describe('offboardUser', () => {
+    it('should offboard user and return allocation counts', async () => {
+      const resp = { userId: 1, deactivated: true, alreadyInactive: false, allocationsRevoked: 2, allocationsPending: 0 };
+      mockPost.mockResolvedValue(resp);
+      const result = await UserApi.offboardUser(1);
+      expect(mockPost).toHaveBeenCalledWith('/api/v1/users/1/offboard');
+      expect(result.allocationsRevoked).toBe(2);
+      expect(result.deactivated).toBe(true);
+    });
+  });
+
   describe('getUserStats', () => {
     it('should get stats without tenantId', async () => {
       mockGet.mockResolvedValue({ total: 10, active: 8, inactive: 2 });

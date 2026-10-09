@@ -9,6 +9,7 @@ import {
   Download,
   Key,
   UserX,
+  UserMinus,
   MailPlus,
 } from 'lucide-react';
 
@@ -227,6 +228,20 @@ const UserManagement: React.FC = () => {
     message.success(t('users.messages.passwordResetSuccess'));
   };
 
+  // 离职编排（IP-P2-8）：停用账号 + 全量会话失效 + 撤销全部分配（幂等可重跑；仅服务商租户入口）。
+  const handleOffboardUser = async (userId: number) => {
+    setLoading(true);
+    try {
+      const res = await UserApi.offboardUser(userId);
+      message.success(t('users.messages.offboardSuccess', { count: res.allocationsRevoked }));
+      await loadUsers();
+    } catch (error) {
+      message.error(error instanceof Error ? error.message : t('users.messages.offboardFailed'));
+    } finally {
+      setLoading(false);
+    }
+  };
+
   // 搜索和筛选逻辑
   const handleSearch = (value: string) => {
     setFilters(prev => ({ ...prev, search: value }));
@@ -341,6 +356,25 @@ const UserManagement: React.FC = () => {
               {
                 type: 'divider',
               },
+              // IP-P2-8：离职编排（仅服务商租户展示；客户租户无分配语义，隐藏避免与普通停用重复）。
+              ...(currentTenant?.type === 'msp_provider'
+                ? [
+                    {
+                      key: 'offboard',
+                      label: t('users.actions.offboard'),
+                      icon: <UserMinus size={16} />,
+                      danger: true,
+                      onClick: () => {
+                        Modal.confirm({
+                          title: t('users.confirmOffboard'),
+                          content: t('users.confirmOffboardContent', { name: record.name }),
+                          okButtonProps: { danger: true },
+                          onOk: () => handleOffboardUser(record.id),
+                        });
+                      },
+                    },
+                  ]
+                : []),
               {
                 key: 'delete',
                 label: t('common.delete'),

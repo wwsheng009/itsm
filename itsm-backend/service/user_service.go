@@ -587,6 +587,15 @@ func (s *UserService) DeleteUser(ctx context.Context, id int, tenantID int) erro
 		return fmt.Errorf("删除用户失败: %w", err)
 	}
 
+	// IP-P2-8：软删=停用，同样立即吊销存量会话（与 ChangeUserStatus 口径一致）。
+	now := time.Now()
+	if revokeErr := middleware.InvalidateUserAccessTokens(ctx, id, now); revokeErr != nil {
+		s.logger.Errorw("删除用户后吊销存量access token失败", "user_id", id, "error", revokeErr)
+	}
+	if revokeErr := middleware.InvalidateUserRefreshTokens(ctx, id, now); revokeErr != nil {
+		s.logger.Errorw("删除用户后吊销存量refresh token失败", "user_id", id, "error", revokeErr)
+	}
+
 	s.logger.Infof("用户删除成功: ID=%d", id)
 	return nil
 }
@@ -757,6 +766,19 @@ func (s *UserService) BatchUpdateUsers(ctx context.Context, req *dto.BatchUpdate
 	count, err := update.Save(ctx)
 	if err != nil {
 		return fmt.Errorf("批量更新用户失败: %w", err)
+	}
+
+	// IP-P2-8：批量停用同样立即吊销存量会话（与单条停用口径一致）。
+	if req.Action == "deactivate" {
+		now := time.Now()
+		for _, id := range ids {
+			if revokeErr := middleware.InvalidateUserAccessTokens(ctx, id, now); revokeErr != nil {
+				s.logger.Errorw("批量停用后吊销存量access token失败", "user_id", id, "error", revokeErr)
+			}
+			if revokeErr := middleware.InvalidateUserRefreshTokens(ctx, id, now); revokeErr != nil {
+				s.logger.Errorw("批量停用后吊销存量refresh token失败", "user_id", id, "error", revokeErr)
+			}
+		}
 	}
 
 	s.logger.Infof("批量更新用户成功: updated=%d", count)

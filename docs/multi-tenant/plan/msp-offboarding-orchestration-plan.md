@@ -1,6 +1,6 @@
 # MSP 离职编排与分配回收方案（Offboarding Orchestration）
 
-> **状态**：v0.2（2026-10-08）——**P0 已落地**（§6 实施记录）；决策点 D1–D4 按 §3.7 推荐值落定（D1=A / D2=A / D3=B / D4=A）；P1 待实施
+> **状态**：v0.3（2026-10-08）——**P0 + 前端入口（P1 部分）已落地**（§6 实施记录）；决策点 D1–D4 按 §3.7 推荐值落定（D1=A / D2=A / D3=B / D4=A）；剩余：平台 TUM 面 + F-08 剧本补充
 >
 > **批次建议**：`IP-P2-8`（落库前对照《[实施方案](./msp-implementation-plan.md)》§3.0 总表登记，未登记前本方案不视为冻结）
 >
@@ -24,8 +24,8 @@ F-08「回收 / 离职 / 退租」的目标动作是「**员工离职 → 停用
 | # | 能力 | 现状 | 证据 |
 |---|------|------|------|
 | S1 | 停用账号（单条） | ✅ `active=false` + **吊销全部 access token**（P1-2 延伸）；防自停用 | `service/user_service.go:596-629`（`ChangeUserStatus`） |
-| S2 | 批量停用 | ⚠️ 仅置 `active=false`，**未吊销 token**；防批量含本人 | `service/user_service.go:718-763`（`BatchUpdateUsers`） |
-| S3 | 删除用户 | ⚠️ 软删=置 `active=false`，**未吊销 token**、无审计 | `service/user_service.go:572-592`（`DeleteUser`） |
+| S2 | 批量停用 | ✅ 置 `active=false` + **全量 token 吊销**（IP-P2-8 补齐，2026-10-08；原缺口：仅置位未吊销）；防批量含本人 | `service/user_service.go`（`BatchUpdateUsers`） |
+| S3 | 删除用户 | ✅ 软删=置 `active=false` + **全量 token 吊销**（IP-P2-8 补齐，2026-10-08；原缺口：未吊销） | `service/user_service.go`（`DeleteUser`） |
 | S4 | 单对分配撤销 | ✅ 置 `deassigned_at` + membership 软删（`membership.revoke` 审计）+ **立即生效**（权限缓存单点失效 + (user×tenant) 在途 refresh 吊销） | `service/msp_allocation_service.go:379-414`（`Deactivate`）、`service/membership_sync.go:251-349` |
 | S5 | 全量 token 基建 | ✅ `InvalidateUserAccessTokens` / `InvalidateUserRefreshTokens`（全局）/ `...ForTenant` | `middleware/token_revocation.go:83/95/129` |
 | S6 | 审计基建 | ✅ `audit_logs` 含 `target_user_id`/`source`/`target_tenant_id`；membership 通道 `writeSyncAudit` 模式可复用 | `ent/schema/auditlog.go`、`service/membership_sync.go:413-462` |
@@ -117,8 +117,10 @@ F-08「回收 / 离职 / 退租」的目标动作是「**员工离职 → 停用
 | 路由 | `POST /api/v1/users/:id/offboard`（`user:write`） | `offboard_handler_test.go`（200/404/409/非法 ID 1001）；router 守卫测试全绿 |
 | 装配 | `internal/bootstrap/app.go` 注入 `SetOffboardingService` | `go build ./internal/bootstrap` 通过 |
 | 回归 | —— | `go test -p 1 ./service/ ./handlers/user/ ./router/` 全绿（跳过已登记偶发 bpmn 用例） |
+| 前端（P1 部分） | `admin/users` 用户行操作「离职」：仅服务商租户（D4=A）展示、二次确认 + 已撤销分配计数提示 + 刷新；`UserApi.offboardUser` + i18n 双语 | jest `user-api`（含 offboard 用例）、i18n 套件；`tsc -b` / eslint 绿 |
+| 会话缺口（S2/S3） | `DeleteUser`（软删）与 `BatchUpdateUsers(deactivate)` 补全 access+refresh 吊销（与单条停用口径一致） | `user_session_revocation_test.go`（删除/批量停用吊销 + 未涉及隔离 + department 不吊销）；后端回归全绿 |
 
-剩余（P1）：前端「离职」入口（§3.5）、平台 TUM 面（D3=B）、F-08 剧本补充。
+剩余（P1）：平台 TUM 面（D3=B）、F-08 剧本补充。
 
 ## 7. 修订记录
 
@@ -126,3 +128,4 @@ F-08「回收 / 离职 / 退租」的目标动作是「**员工离职 → 停用
 |------|------|------|
 | v0.1 | 2026-10-08 | 首版：现状核对 S1–S7、差距（编排缺失/批量与删除路径 token 缺口/文档过期）、设计（编排语义/服务落点/契约/审计/前端/测试）、决策点 D1–D4、分期与回滚 |
 | v0.2 | 2026-10-08 | **P0 落地**（§6 实施记录）；决策点 D1–D4 按 §3.7 推荐值落定；P1 待实施 |
+| v0.3 | 2026-10-08 | **前端入口（P1 部分）落地**（§6）+ 停用/删除路径会话缺口补齐（S2/S3）；剩余：平台 TUM 面 + 剧本 |

@@ -125,6 +125,15 @@ export interface SearchUsersParams {
   limit?: number;
 }
 
+/** IP-P2-8：离职编排结果（停用 + 全量会话失效 + 撤销全部分配计数）。 */
+export interface OffboardUserResponse {
+  userId: number;
+  deactivated: boolean;
+  alreadyInactive: boolean;
+  allocationsRevoked: number;
+  allocationsPending: number;
+}
+
 export class UserApi {
   private static baseURL = '/api/v1/users';
 
@@ -161,6 +170,11 @@ export class UserApi {
   // 重置用户密码
   static async resetPassword(id: number, newPassword: string): Promise<void> {
     await httpClient.put(`${this.baseURL}/${id}/reset-password`, { newPassword: newPassword });
+  }
+
+  // 离职编排（IP-P2-8）：停用账号 + 全量会话失效 + 撤销全部分配（幂等可重跑）。
+  static async offboardUser(id: number): Promise<OffboardUserResponse> {
+    return httpClient.post<OffboardUserResponse>(`${this.baseURL}/${id}/offboard`);
   }
 
   // 获取用户统计

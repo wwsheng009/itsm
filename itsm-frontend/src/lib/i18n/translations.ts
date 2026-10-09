@@ -3297,6 +3297,8 @@ export const translations = {
       resetPasswordFailed: '密码重置失败',
       confirmDelete: '确认删除',
       confirmDeleteContent: '确定要删除用户 {name} 吗？',
+      confirmOffboard: '确认离职',
+      confirmOffboardContent: '确定要让「{name}」离职吗？将停用账号、立即吊销全部会话并撤销其全部分配。',
       newPassword: '新密码',
       passwordHint: '密码长度至少 8 位',
       minPasswordLength: '密码至少 8 个字符',
@@ -3332,6 +3334,7 @@ export const translations = {
         edit: '编辑',
         delete: '删除',
         resetPassword: '重置密码',
+        offboard: '离职（停用并撤销全部分配）',
         more: '更多操作',
       },
       messages: {
@@ -3348,6 +3351,8 @@ export const translations = {
         statusUpdateFailed: '状态更新失败',
         passwordResetSuccess: '密码重置成功',
         passwordResetFailed: '密码重置失败',
+        offboardSuccess: '离职完成：已撤销 {count} 个分配',
+        offboardFailed: '离职失败',
         exportSuccess: '导出成功',
       },
       departments: {
@@ -8358,6 +8363,8 @@ export const translations = {
       resetPasswordFailed: 'Failed to reset password',
       confirmDelete: 'Confirm Delete',
       confirmDeleteContent: 'Are you sure you want to delete user {name}?',
+      confirmOffboard: 'Confirm Offboard',
+      confirmOffboardContent: 'Offboard "{name}"? The account will be deactivated, all sessions revoked immediately, and all allocations released.',
       newPassword: 'New Password',
       passwordHint: 'Password must be at least 8 characters',
       minPasswordLength: 'Password must be at least 8 characters',
@@ -8392,6 +8399,7 @@ export const translations = {
         edit: 'Edit',
         delete: 'Delete',
         resetPassword: 'Reset Password',
+        offboard: 'Offboard (deactivate & revoke allocations)',
         more: 'More actions',
       },
       messages: {
@@ -8408,6 +8416,8 @@ export const translations = {
         statusUpdateFailed: 'Failed to update status',
         passwordResetSuccess: 'Password reset successfully',
         passwordResetFailed: 'Failed to reset password',
+        offboardSuccess: 'Offboarded: {count} allocation(s) revoked',
+        offboardFailed: 'Offboarding failed',
         exportSuccess: 'Export successful',
       },
       departments: {
