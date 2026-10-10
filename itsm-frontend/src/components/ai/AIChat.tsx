@@ -272,6 +272,9 @@ const ChatMessageItem: React.FC<ChatMessageItemProps> = ({
   onConfirmed,
 }) => {
   const { token } = theme.useToken();
+  // 入口级门禁：消息级「补充为知识文章」→ knowledge:write（落点 /knowledge/articles/new 路由级同码）。
+  const { hasPermission: hasMessagePermission } = usePermissions();
+  const canPromoteKnowledge = hasMessagePermission('knowledge', 'write');
   const [copied, setCopied] = useState(false);
   const copyTimerRef = useRef<number | null>(null);
   // B1-07：对话内确认抽屉（仅在 BusinessBot 注入 onRequestConfirm 时启用）。
@@ -486,7 +489,7 @@ const ChatMessageItem: React.FC<ChatMessageItemProps> = ({
                 </span>
               </Tooltip>
             ) : null}
-            {canPromoteToArticle(message) ? (
+            {canPromoteToArticle(message) && canPromoteKnowledge ? (
               <Tooltip title="未引用知识库文章，可沉淀为知识">
                 <Button
                   type="text"
@@ -583,6 +586,9 @@ const AIChat: React.FC = () => {
   // 「设为我的默认 / 清除默认」写的是 PUT /ai/user-preference，仍是 system:write（P1 只放开读端点）
   // → 条件渲染，避免普通用户点击后 403 报错。
   const canManageProviderPreference = hasPermission('system', 'write');
+  // 「补充为知识文章 / 保存成文章」落点为 /knowledge/articles/new（路由级 knowledge:write 已覆盖），
+  // 入口级同步收敛，避免无权限用户点击后被 403 拦截。
+  const canPromoteKnowledge = hasPermission('knowledge', 'write');
 
   // <768px 默认收起侧栏（不做 overlay，仅初始值）。
   const [sidebarOpen, setSidebarOpen] = useState(() =>
@@ -1332,22 +1338,24 @@ const AIChat: React.FC = () => {
                 停止生成
               </Button>
             ) : null}
-            <Tooltip
-              title={
-                convId
-                  ? '把整段会话整理成一篇知识文章草稿'
-                  : '完成一轮问答后可将整段会话保存为文章'
-              }
-            >
-              <Button
-                size="small"
-                icon={<FileText size={14} />}
-                onClick={handleSaveConversationAsArticle}
-                disabled={!convId || streaming || isEmpty}
+            {canPromoteKnowledge && (
+              <Tooltip
+                title={
+                  convId
+                    ? '把整段会话整理成一篇知识文章草稿'
+                    : '完成一轮问答后可将整段会话保存为文章'
+                }
               >
-                保存成文章
-              </Button>
-            </Tooltip>
+                <Button
+                  size="small"
+                  icon={<FileText size={14} />}
+                  onClick={handleSaveConversationAsArticle}
+                  disabled={!convId || streaming || isEmpty}
+                >
+                  保存成文章
+                </Button>
+              </Tooltip>
+            )}
             <Tooltip title="清空当前对话">
               <Button size="small" icon={<Eraser size={14} />} onClick={handleClear} disabled={streaming}>
                 清空对话

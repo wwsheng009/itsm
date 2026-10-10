@@ -30,6 +30,7 @@ import {
   useRelationStatsQuery,
 } from '@/lib/hooks/useTicketRelations';
 import { TicketRelationType } from '@/types/ticket-relations';
+import { usePermissions } from '@/lib/hooks/use-permissions';
 const { TextArea } = Input;
 
 export interface RelationPanelProps {
@@ -45,6 +46,11 @@ export const RelationPanel: React.FC<RelationPanelProps> = ({
 }) => {
   const [modalVisible, setModalVisible] = useState(false);
   const [form] = Form.useForm();
+  // 入口级门禁：新建/删除工单关联 → ticket:update（计划建议码）。
+  // 注意：POST/DELETE /api/v1/tickets/relations* 当前未注册（product-capabilities: advancedTicketRelations=false），
+  // 入口保留但按权限过滤（与批次 4 批量操作先例一致）。
+  const { hasPermission } = usePermissions();
+  const canManageRelation = hasPermission('ticket', 'update');
 
   // Queries
   const { data: rawRelations, isLoading } = useTicketRelationsQuery(ticketId, {
@@ -126,9 +132,11 @@ export const RelationPanel: React.FC<RelationPanelProps> = ({
     if (!relations || relations.length === 0) {
       return (
         <Empty description="暂无关联工单" image={Empty.PRESENTED_IMAGE_SIMPLE}>
-          <Button type="primary" icon={<Plus />} onClick={() => setModalVisible(true)}>
-            添加关联
-          </Button>
+          {canManageRelation && (
+            <Button type="primary" icon={<Plus />} onClick={() => setModalVisible(true)}>
+              添加关联
+            </Button>
+          )}
         </Empty>
       );
     }
@@ -156,17 +164,19 @@ export const RelationPanel: React.FC<RelationPanelProps> = ({
                     查看
                   </Button>
                 </Tooltip>,
-                <Popconfirm
-                  key="delete"
-                  title="确认删除此关联？"
-                  onConfirm={() => handleDeleteRelation(relation.id)}
-                  okText="确认"
-                  cancelText="取消"
-                >
-                  <Button type="link" danger size="small" icon={<Trash2 />}>
-                    删除
-                  </Button>
-                </Popconfirm>,
+                canManageRelation ? (
+                  <Popconfirm
+                    key="delete"
+                    title="确认删除此关联？"
+                    onConfirm={() => handleDeleteRelation(relation.id)}
+                    okText="确认"
+                    cancelText="取消"
+                  >
+                    <Button type="link" danger size="small" icon={<Trash2 />}>
+                      删除
+                    </Button>
+                  </Popconfirm>
+                ) : null,
               ]}
             >
               <List.Item.Meta
@@ -233,14 +243,16 @@ export const RelationPanel: React.FC<RelationPanelProps> = ({
         </Space>
       }
       extra={
-        <Button
-          type="primary"
-          icon={<Plus />}
-          onClick={() => setModalVisible(true)}
-          size="small"
-        >
-          添加关联
-        </Button>
+        canManageRelation ? (
+          <Button
+            type="primary"
+            icon={<Plus />}
+            onClick={() => setModalVisible(true)}
+            size="small"
+          >
+            添加关联
+          </Button>
+        ) : null
       }
     >
       <Tabs items={tabItems} />

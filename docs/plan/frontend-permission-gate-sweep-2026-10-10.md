@@ -106,21 +106,23 @@
 
 | 页面/文件 | 入口（行号） | 动作 | 权限码 | 路由级 | 状态 |
 |---|---|---|---|---|---|
-| `pages/(main)/tags/index.tsx` | 90 + 新建 | 新建 / 编辑 / 删除标签 | `ticket_tag:create / update / delete` | — | ⬜ |
-| `pages/(main)/applications/index.tsx` | 184 / 246 | 删除 / 新建 | `application:write` | — | ⬜ |
-| `pages/(main)/projects/index.tsx` | 158 | 删除（含新建） | `project:write` | — | ⬜ |
-| `pages/(main)/enterprise/departments/index.tsx`、`pages/(main)/enterprise/teams/index.tsx`、`pages/(main)/teams/**` | 133 / 132 | 部门/团队增删改 | `department:create/update/delete`、`team:write` | — | ⬜ |
-| `pages/(main)/tickets/templates/index.tsx` | 297 / 428 / 453 / 575 | 删除 / 新建模板 | `ticket_template:write / delete` | — | ⬜ |
-| `components/templates/TemplateList.tsx` | Modal.confirm ×2 | 删除模板 | `ticket_template:delete` | — | ⬜ |
-| `pages/(main)/tickets/types/index.tsx` | 96 / 117 | 新建类型 / 编辑 / 启停 / 归档 | `ticket_type:manage`（归档/删除 `:archive`、安装预设 `:install_preset`） | — | 🟡 仅预设入口已门禁 |
+| `pages/(main)/tags/index.tsx` | 74 / 144 | 编辑 / 删除标签；新建 | `ticket_tag:update` / `:delete` / `:create` | — | ✅（批次 11） |
+| `pages/(main)/applications/index.tsx` | 93 / 147 / 254 | 应用·微服务 编辑/删除；新建 | `application:write` | — | ✅（批次 11） |
+| `pages/(main)/projects/index.tsx` | 139 / 212 | 编辑/删除（删除亦 write）；新建 | `project:write` | — | ✅（批次 11） |
+| `pages/(main)/enterprise/departments/index.tsx`、`pages/(main)/enterprise/teams/index.tsx`、`pages/(main)/teams/**` | 96 / 113 / 175 / 192 | 部门增删改（create/update/delete 三码）、团队增删改（`team:write`）；`/teams` 为跳转 `/admin/teams` 的空壳页 | `department:create/update/delete`、`team:write` | — | ✅（批次 11） |
+| `pages/(main)/tickets/templates/index.tsx` | 277 / 419 / 465 / 592 | 编辑 / 复制 / 删除 / 新建模板（含空态） | `ticket_template:update` / `:create` / `:delete`（**勘误**：端点细分 create/update/delete，非 `:write`） | — | ✅（批次 11） |
+| `components/templates/TemplateList.tsx` | 批量菜单 / 创建 | 批量删除（`:delete`）/ 批量启停（`:update`）/ 创建（`:create`） | `ticket_template:create/update/delete` | — | ✅（批次 11，防御性；组件当前未被路由引用） |
+| `pages/(main)/tickets/types/index.tsx` | 96 / 117 | 新建 / 编辑 / 复制 / 启停 / 恢复 | `ticket_type:manage`（归档/删除 `:archive`、安装预设 `:install_preset`） | — | ✅（批次 11；manage 全量收口） |
 | `pages/(main)/standard-changes/index.tsx` | 332 / 348 / 415 | 删除 / 新建 / 实例化 | `change:write / delete` | — | ✅（批次 4） |
 | `pages/(main)/problems/known-errors/index.tsx` | 463 / 580 | 删除 / 新增 | `problem:write / delete` | — | ✅（批次 4） |
 | `pages/(main)/notifications/index.tsx` | 510 / 666 / 790 | 删除 / 批量删除 / 保存偏好 | `notification:write`（发送 → `:create`） | — | ✅（批次 5） |
 | `pages/(main)/dashboard/index.tsx` | 299 | 快捷「创建工单」 | `ticket:create` | ✅ | ✅（批次 5） |
 | `pages/(main)/ai/approval/index.tsx` | 337 / 341 | 批准 / 拒绝工具调用 | `ai:write` | — | ✅（批次 5） |
-| `components/ai/AIChat.tsx` | 659 / 669 | 「补充为知识文章」→ `/knowledge/articles/new` | `knowledge:write` | ✅ | ⬜ |
-| `components/problem/ProblemInvestigationTab.tsx` | 282 / 1006 | 「沉淀为知识文章」 | `knowledge:write` | ✅ | ⬜ |
-| `components/ticket-relations/RelationPanel.tsx` | 93 / 256 | 新建工单关系 | `ticket:update`（待核） | — | ⬜ |
+| `components/ai/AIChat.tsx` | 489 / 1335 | 消息级「补充为知识文章」+ 标题栏「保存成文章」→ `/knowledge/articles/new` | `knowledge:write` | ✅ | ✅（批次 11） |
+| `components/problem/ProblemInvestigationTab.tsx` | 709 | 「沉淀到知识库」（Modal 提交） | **勘误**：端点 `POST /problem-knowledge-articles` 实为 `problem:write`（非 `knowledge:write`）；既有 `PermissionGate anyOf={['problem:write']}` 已正确 | ✅ | ✅（批次 11，无需改造） |
+| `components/ticket-relations/RelationPanel.tsx` | 132 / 164 / 243 | 新建/删除工单关联 | `ticket:update`（已核） | — | ✅（批次 11）；⚠️ 端点 `POST/DELETE /api/v1/tickets/relations*` 后端未注册（capability `advancedTicketRelations=false`），入口保留但受权限过滤（与批次 4 先例一致） |
+
+> 进度（2026-10-10，批次 11）：§2.5 组织与配置（主区）收口 ✅——标签（create/update/delete 三码）、应用/微服务、项目（删除亦 `project:write`）、部门（三码）/团队、工单模板（create/update/delete 细分 + 死组件 TemplateList 防御性门禁）、工单类型（`ticket_type:manage` 全量）、知识入口（AIChat 双入口 `knowledge:write`；ProblemInvestigationTab 勘误为 `problem:write` 已正确）、工单关系面板（`ticket:update`，端点缺失登记）。剩余：§3 附件/评论面板（行 161）。
 
 ### 2.6 全局入口（P3）
 
@@ -192,7 +194,7 @@
 | 5 | `GlobalShortcutProvider` → `/tickets/new` | **旧别名非路由**（ctrl+n 会 404） | 改指 `/tickets/create`（已有路由级门禁），并包 `ticket:create` |
 | 6 | `reports/*` 导出 | 读端点 `dashboard:read`；**生成/导出** `POST /dashboard/reports/:type`、`POST /dashboard/export` = `dashboard:admin`（`dashboard_routes.go:243/259`）；前端 `report:export` 常量未对后端生效 | 导出入口按端点实际码（`dashboard:admin`）收敛 |
 | 7 | `/service-catalog/request/:id` | 提交申请写面（路径无 `new/create/edit` 段，未覆盖） | 补规则 `service_request:write`；三处申请入口（`service-catalog/index.tsx:200`、`components/ServiceItemCard.tsx:183`、`detail/$id/index.tsx:71`）同步入口门禁 |
-| 8 | `/enterprise/departments`、`/enterprise/teams` | 无区域守卫且路径无写入口段 | 入口门禁 `department:create/update/delete`、`team:write`（或补区域规则） |
+| 8 | `/enterprise/departments`、`/enterprise/teams` | 无区域守卫且路径无写入口段 | 入口门禁 `department:create/update/delete`、`team:write` ✅ 已落地（批次 11） |
 | 9 | 只读确认（经扫描无写入口，登记备查） | `/noc`、`/sla-monitor`、`/cmdb/registry、topology、relationships`、`/audit-logs`、`/system/users`（只读展示组件 `UserList`）、`/system/organization`（`DepartmentTree`） | 无需处理 |
 | 10 | 遗留重定向（`templates`→`/tickets/templates` 等） | 目标路由已有门禁 | 无需处理 |
 

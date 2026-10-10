@@ -21,11 +21,14 @@ import { departmentService } from '@/lib/services/department-service';
 import type { Department } from '@/lib/services/department-service';
 import { UserApi } from '@/lib/api/user-api';
 import { useI18n } from '@/lib/i18n';
+import { useCan } from '@/components/auth/PermissionGate';
 
 const { RangePicker } = DatePicker;
 
 export default function ProjectsPage() {
   const { t } = useI18n();
+  // 入口级门禁：项目增删改 → project:write（rbac_precheck_gen.go /api/v1/projects*；删除亦为 write）。
+  const canWrite = useCan(['project:write']);
   const [isModalVisible, setIsModalVisible] = useState(false);
   const [editingProject, setEditingProject] = useState<Project | null>(null);
   const [form] = Form.useForm();
@@ -136,13 +139,17 @@ export default function ProjectsPage() {
       key: 'action',
       render: (_: unknown, record: Project) => (
         <Space size="middle">
-          <Button type="text" icon={<Pencil />} onClick={() => handleEdit(record)} />
-          <Button
-            type="text"
-            danger
-            icon={<Trash2 />}
-            onClick={() => handleDelete(record)}
-          />
+          {canWrite && (
+            <>
+              <Button type="text" icon={<Pencil />} onClick={() => handleEdit(record)} />
+              <Button
+                type="text"
+                danger
+                icon={<Trash2 />}
+                onClick={() => handleDelete(record)}
+              />
+            </>
+          )}
         </Space>
       ),
     },
@@ -205,18 +212,20 @@ export default function ProjectsPage() {
         <Button key="refresh" icon={<RefreshCw />} onClick={fetchProjects} loading={fetching}>
           刷新
         </Button>,
-        <Button
-          key="create"
-          type="primary"
-          icon={<Plus />}
-          onClick={() => {
-            setEditingProject(null);
-            form.resetFields();
-            setIsModalVisible(true);
-          }}
-        >
-          新建项目
-        </Button>,
+        canWrite ? (
+          <Button
+            key="create"
+            type="primary"
+            icon={<Plus />}
+            onClick={() => {
+              setEditingProject(null);
+              form.resetFields();
+              setIsModalVisible(true);
+            }}
+          >
+            新建项目
+          </Button>
+        ) : null,
       ]}
     >
       <Table columns={columns} dataSource={projects} rowKey="id" loading={fetching} />

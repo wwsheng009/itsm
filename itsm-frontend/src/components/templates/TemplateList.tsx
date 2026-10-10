@@ -36,6 +36,7 @@ import {
   useUnfavoriteTemplateMutation,
   useDuplicateTemplateMutation,
 } from '@/lib/hooks/useTemplateQuery';
+import { usePermissions } from '@/lib/hooks/use-permissions';
 const { Search } = Input;
 
 export interface TemplateListProps {
@@ -211,20 +212,26 @@ export const TemplateList: React.FC<TemplateListProps> = ({
     }
   };
 
+  // 入口级门禁（防御性）：模板批量操作/创建 → ticket_template:create / update / delete。
+  // 说明：本组件当前未被路由引用（死组件），门禁先落地避免将来接入时裸露。
+  const { hasPermission } = usePermissions();
+  const canCreateTemplate = hasPermission('ticket_template', 'create');
+  const canUpdateTemplate = hasPermission('ticket_template', 'update');
+  const canDeleteTemplate = hasPermission('ticket_template', 'delete');
   const batchMenuItems: MenuProps['items'] = [
     {
       key: 'enable',
       label: '批量启用',
       icon: <Check />,
       onClick: () => handleBatchToggle(true),
-      disabled: selectedIds.length === 0,
+      disabled: selectedIds.length === 0 || !canUpdateTemplate,
     },
     {
       key: 'disable',
       label: '批量禁用',
       icon: <X />,
       onClick: () => handleBatchToggle(false),
-      disabled: selectedIds.length === 0,
+      disabled: selectedIds.length === 0 || !canUpdateTemplate,
     },
     {
       type: 'divider',
@@ -244,7 +251,7 @@ export const TemplateList: React.FC<TemplateListProps> = ({
       icon: <Trash2 />,
       danger: true,
       onClick: handleBatchDelete,
-      disabled: selectedIds.length === 0,
+      disabled: selectedIds.length === 0 || !canDeleteTemplate,
     },
   ];
 
@@ -316,7 +323,7 @@ export const TemplateList: React.FC<TemplateListProps> = ({
                 刷新
               </Button>
 
-              {showActions && (
+              {showActions && canCreateTemplate && (
                 <Button type="primary" icon={<Plus />} onClick={onCreateClick}>
                   创建模板
                 </Button>

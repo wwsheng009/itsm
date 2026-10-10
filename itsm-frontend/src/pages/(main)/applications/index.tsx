@@ -7,10 +7,13 @@ import type { Application, Microservice } from '@/lib/services/application-servi
 import { applicationService } from '@/lib/services/application-service';
 import { projectService } from '@/lib/services/project-service';
 import { useI18n } from '@/lib/i18n';
+import { useCan } from '@/components/auth/PermissionGate';
 
 
 export default function ApplicationsPage() {
   const { t } = useI18n();
+  // 入口级门禁：应用/微服务增删改 → application:write（rbac_precheck_gen.go /api/v1/applications*）。
+  const canWrite = useCan(['application:write']);
   const [activeTab, setActiveTab] = useState('applications');
   const [isModalVisible, setIsModalVisible] = useState(false);
   const [modalType, setModalType] = useState<'application' | 'microservice'>('application');
@@ -90,17 +93,21 @@ export default function ApplicationsPage() {
       key: 'action',
       render: (_: unknown, record: Application & { id: number }) => (
         <Space size="middle">
-          <Button
-            type="text"
-            icon={<Pencil />}
-            onClick={() => handleEdit(record as ApplicationRecord, 'application')}
-          />
-          <Button
-            type="text"
-            danger
-            icon={<Trash2 />}
-            onClick={() => handleDelete(record as ApplicationRecord)}
-          />
+          {canWrite && (
+            <>
+              <Button
+                type="text"
+                icon={<Pencil />}
+                onClick={() => handleEdit(record as ApplicationRecord, 'application')}
+              />
+              <Button
+                type="text"
+                danger
+                icon={<Trash2 />}
+                onClick={() => handleDelete(record as ApplicationRecord)}
+              />
+            </>
+          )}
         </Space>
       ),
     },
@@ -140,17 +147,21 @@ export default function ApplicationsPage() {
       key: 'action',
       render: (_: unknown, record: Microservice & { id: number }) => (
         <Space size="middle">
-          <Button
-            type="text"
-            icon={<Pencil />}
-            onClick={() => handleEdit(record as MicroserviceRecord, 'microservice')}
-          />
-          <Button
-            type="text"
-            danger
-            icon={<Trash2 />}
-            onClick={() => handleDelete(record as MicroserviceRecord)}
-          />
+          {canWrite && (
+            <>
+              <Button
+                type="text"
+                icon={<Pencil />}
+                onClick={() => handleEdit(record as MicroserviceRecord, 'microservice')}
+              />
+              <Button
+                type="text"
+                danger
+                icon={<Trash2 />}
+                onClick={() => handleDelete(record as MicroserviceRecord)}
+              />
+            </>
+          )}
         </Space>
       ),
     },
@@ -243,9 +254,11 @@ const handleDelete = (record: RecordData) => {
         <Button key="refresh" icon={<RefreshCw />} onClick={fetchData} loading={fetching}>
           刷新
         </Button>,
-        <Button key="create" type="primary" icon={<Plus />} onClick={handleCreate}>
-          新建{activeTab === 'applications' ? '应用' : '微服务'}
-        </Button>,
+        canWrite ? (
+          <Button key="create" type="primary" icon={<Plus />} onClick={handleCreate}>
+            新建{activeTab === 'applications' ? '应用' : '微服务'}
+          </Button>
+        ) : null,
       ]}
     >
       <Tabs

@@ -39,6 +39,7 @@ import {
   Tag as TagIcon,
 } from 'lucide-react';
 import { TicketApi } from '@/lib/api/ticket-api';
+import { useCan } from '@/components/auth/PermissionGate';
 // AppLayout is handled by layout.tsx
 
 const { Title, Text } = Typography;
@@ -117,6 +118,11 @@ const templateCategories = [
 
 const TicketTemplatesPage = () => {
   const navigate = useNavigate();
+  // 入口级门禁：模板增删改 → ticket_template:create / update / delete
+  // （rbac_precheck_gen.go：POST /tickets/templates、PUT/DELETE /tickets/templates/*、copy→create）。
+  const canCreateTemplate = useCan(['ticket_template:create']);
+  const canUpdateTemplate = useCan(['ticket_template:update']);
+  const canDeleteTemplate = useCan(['ticket_template:delete']);
   const [templates, setTemplates] = useState<TicketTemplate[]>([]);
   const [loading, setLoading] = useState(false);
   const [modalVisible, setModalVisible] = useState(false);
@@ -271,32 +277,38 @@ const TicketTemplatesPage = () => {
             aria-label="查看模板详情"
           />
         </Tooltip>,
-        <Tooltip title="编辑模板" key="edit">
-          <Button
-            type="text"
-            icon={<Edit size={16} />}
-            onClick={() => handleEditTemplate(template)}
-            aria-label="编辑模板"
-          />
-        </Tooltip>,
-        <Tooltip title="复制模板" key="copy">
-          <Button
-            type="text"
-            icon={<Copy size={16} />}
-            onClick={() => handleCopyTemplate(template)}
-            aria-label="复制模板"
-          />
-        </Tooltip>,
-        <Tooltip title="删除模板" key="delete">
-          <Popconfirm
-            title="确定删除这个模板吗？"
-            onConfirm={() => handleDeleteTemplate(template.id)}
-            okText="确定"
-            cancelText="取消"
-          >
-            <Button type="text" danger icon={<Delete size={16} />} aria-label="删除模板" />
-          </Popconfirm>
-        </Tooltip>,
+        canUpdateTemplate ? (
+          <Tooltip title="编辑模板" key="edit">
+            <Button
+              type="text"
+              icon={<Edit size={16} />}
+              onClick={() => handleEditTemplate(template)}
+              aria-label="编辑模板"
+            />
+          </Tooltip>
+        ) : null,
+        canCreateTemplate ? (
+          <Tooltip title="复制模板" key="copy">
+            <Button
+              type="text"
+              icon={<Copy size={16} />}
+              onClick={() => handleCopyTemplate(template)}
+              aria-label="复制模板"
+            />
+          </Tooltip>
+        ) : null,
+        canDeleteTemplate ? (
+          <Tooltip title="删除模板" key="delete">
+            <Popconfirm
+              title="确定删除这个模板吗？"
+              onConfirm={() => handleDeleteTemplate(template.id)}
+              okText="确定"
+              cancelText="取消"
+            >
+              <Button type="text" danger icon={<Delete size={16} />} aria-label="删除模板" />
+            </Popconfirm>
+          </Tooltip>
+        ) : null,
       ]}
     >
       <div className="flex items-start mb-3">
@@ -407,26 +419,32 @@ const TicketTemplatesPage = () => {
               onClick={() => navigate(`/tickets/templates/${template.id}`)}
               aria-label="查看模板详情"
             />
-            <Button
-              type="text"
-              icon={<Edit size={16} />}
-              onClick={() => handleEditTemplate(template)}
-              aria-label="编辑模板"
-            />
-            <Button
-              type="text"
-              icon={<Copy size={16} />}
-              onClick={() => handleCopyTemplate(template)}
-              aria-label="复制模板"
-            />
-            <Popconfirm
-              title="确定删除这个模板吗？"
-              onConfirm={() => handleDeleteTemplate(template.id)}
-              okText="确定"
-              cancelText="取消"
-            >
-              <Button type="text" danger icon={<Delete size={16} />} aria-label="删除模板" />
-            </Popconfirm>
+            {canUpdateTemplate && (
+              <Button
+                type="text"
+                icon={<Edit size={16} />}
+                onClick={() => handleEditTemplate(template)}
+                aria-label="编辑模板"
+              />
+            )}
+            {canCreateTemplate && (
+              <Button
+                type="text"
+                icon={<Copy size={16} />}
+                onClick={() => handleCopyTemplate(template)}
+                aria-label="复制模板"
+              />
+            )}
+            {canDeleteTemplate && (
+              <Popconfirm
+                title="确定删除这个模板吗？"
+                onConfirm={() => handleDeleteTemplate(template.id)}
+                okText="确定"
+                cancelText="取消"
+              >
+                <Button type="text" danger icon={<Delete size={16} />} aria-label="删除模板" />
+              </Popconfirm>
+            )}
           </Space>
         </div>
       </div>
@@ -447,14 +465,16 @@ const TicketTemplatesPage = () => {
           <Button icon={<RefreshCw size={16} />} onClick={loadTemplates} aria-label="刷新模板列表">
             刷新
           </Button>
-          <Button
-            type="primary"
-            icon={<Plus size={16} />}
-            onClick={handleCreateTemplate}
-            aria-label="新建模板"
-          >
-            新建模板
-          </Button>
+          {canCreateTemplate && (
+            <Button
+              type="primary"
+              icon={<Plus size={16} />}
+              onClick={handleCreateTemplate}
+              aria-label="新建模板"
+            >
+              新建模板
+            </Button>
+          )}
         </Space>
       </div>
       {/* Statistics */}
@@ -572,9 +592,11 @@ const TicketTemplatesPage = () => {
               暂无模板
             </Title>
             <p className="text-gray-500 mb-4">未找到匹配的工单模板</p>
-            <Button type="primary" onClick={() => setModalVisible(true)}>
-              创建第一个模板
-            </Button>
+            {canCreateTemplate && (
+              <Button type="primary" onClick={() => setModalVisible(true)}>
+                创建第一个模板
+              </Button>
+            )}
           </div>
         </Card>
       ) : (

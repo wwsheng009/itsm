@@ -15,6 +15,9 @@ export default function TicketTypesPage() {
   // 预设安装是独立权限点（ticket_type:install_preset）；无权限角色不渲染入口，
   // 避免点击后落 403「权限不足」（服务端 RequirePermission 仍为最终闸门）。
   const canInstallPreset = hasPermission('ticket_type', 'install_preset');
+  // 入口级门禁：新建/编辑/复制/启停/恢复 → ticket_type:manage
+  // （rbac_precheck_gen.go：POST /ticket-types、PUT /ticket-types/*、clone/enable/disable/restore 均 manage）。
+  const canManage = hasPermission('ticket_type', 'manage');
   const [items, setItems] = useState<TicketTypeDefinition[]>([]);
   const [loading, setLoading] = useState(true);
   const [keyword, setKeyword] = useState('');
@@ -93,7 +96,7 @@ export default function TicketTypesPage() {
   };
 
   return <div className="p-6"><Card>
-    <div className="mb-5 flex items-start justify-between gap-4"><div><Title level={2} className="!mb-1">工单类型</Title><Text type="secondary">租户级类型、动态表单及流程策略配置</Text></div><Space>{canInstallPreset && <Button onClick={() => void openPresets()}>从预设安装</Button>}<Button type="primary" icon={<Plus className="h-4 w-4" />} onClick={() => { setEditing(null); setOpen(true); }}>新建类型</Button></Space></div>
+    <div className="mb-5 flex items-start justify-between gap-4"><div><Title level={2} className="!mb-1">工单类型</Title><Text type="secondary">租户级类型、动态表单及流程策略配置</Text></div><Space>{canInstallPreset && <Button onClick={() => void openPresets()}>从预设安装</Button>}{canManage && <Button type="primary" icon={<Plus className="h-4 w-4" />} onClick={() => { setEditing(null); setOpen(true); }}>新建类型</Button>}</Space></div>
     <Alert
       className="mb-4"
       type="info"
@@ -114,7 +117,7 @@ export default function TicketTypesPage() {
 	  { title: '排序', dataIndex: 'sortOrder', width: 64 },
       { title: '状态', dataIndex: 'status', width: 96, render: (value: string, item) => item.archivedAt ? <Tag color="default">已归档</Tag> : <Tag color={value === 'active' ? 'green' : 'default'}>{value === 'active' ? '启用' : '停用'}</Tag> },
       { title: '更新时间', dataIndex: 'updatedAt', width: 170, render: (value: string) => value ? new Date(value).toLocaleString() : '-' },
-      { title: '操作', width: 240, fixed: 'right', render: (_, item) => item.archivedAt ? <Space><Button size="small" type="primary" ghost icon={<RotateCcw className="h-3.5 w-3.5" />} onClick={() => restore(item)}>恢复</Button></Space> : <Space><Button size="small" icon={<Pencil className="h-3.5 w-3.5" />} onClick={() => { setEditing(item); setOpen(true); }}>编辑</Button><Button size="small" icon={<Copy className="h-3.5 w-3.5" />} onClick={() => clone(item)}>复制</Button><Switch size="small" checked={item.status === 'active'} onChange={async enabled => { try { await TicketTypeApi.setEnabled(item.id, enabled); message.success(enabled ? '工单类型已启用' : '工单类型已停用'); await load(); } catch (error) { message.error(error instanceof Error ? error.message : '操作失败'); } }} /></Space> },
+      { title: '操作', width: 240, fixed: 'right', render: (_, item) => item.archivedAt ? <Space>{canManage && <Button size="small" type="primary" ghost icon={<RotateCcw className="h-3.5 w-3.5" />} onClick={() => restore(item)}>恢复</Button>}</Space> : <Space>{canManage && (<><Button size="small" icon={<Pencil className="h-3.5 w-3.5" />} onClick={() => { setEditing(item); setOpen(true); }}>编辑</Button><Button size="small" icon={<Copy className="h-3.5 w-3.5" />} onClick={() => clone(item)}>复制</Button><Switch size="small" checked={item.status === 'active'} onChange={async enabled => { try { await TicketTypeApi.setEnabled(item.id, enabled); message.success(enabled ? '工单类型已启用' : '工单类型已停用'); await load(); } catch (error) { message.error(error instanceof Error ? error.message : '操作失败'); } }} /></>)}</Space> },
     ]} />
   </Card><TicketTypeFormModal visible={open} editingType={editing} onCancel={() => { setOpen(false); setEditing(null); }} onSubmit={save} /><Modal title="工单类型预设库" open={presetOpen} footer={null} onCancel={() => setPresetOpen(false)}><div className="flex flex-col gap-3">{presets.map(preset => { const installed = installedCodes.has(preset.definition?.code); return <div key={preset.id} className="flex items-start justify-between gap-4 border-b border-gray-100 pb-3 last:border-b-0"><div><div className="font-medium">{preset.name}</div><div className="text-sm text-gray-500">{preset.category} · {preset.description}</div></div><Button type="link" disabled={installed} onClick={async () => { try { const created = await TicketTypeApi.installPreset(preset.id); setInstalledCodes(prev => new Set(prev).add(created.code)); message.success('预设已安装'); setPresetOpen(false); await load(); } catch (error) { message.error(error instanceof Error ? error.message : '安装预设失败'); } }}>{installed ? '已安装' : '安装'}</Button></div>; })}</div></Modal></div>;
 }

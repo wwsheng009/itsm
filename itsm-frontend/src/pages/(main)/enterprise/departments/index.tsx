@@ -8,10 +8,15 @@ import { departmentService } from '@/lib/services/department-service';
 
 import { UserApi } from '@/lib/api/user-api';
 import { useI18n } from '@/lib/i18n';
+import { useCan } from '@/components/auth/PermissionGate';
 
 export default function DepartmentsPage() {
   const { message, modal } = App.useApp();
   const { t } = useI18n();
+  // 入口级门禁：部门增删改 → department:create / update / delete（rbac_precheck_gen.go /api/v1/org/departments*）。
+  const canCreateDept = useCan(['department:create']);
+  const canUpdateDept = useCan(['department:update']);
+  const canDeleteDept = useCan(['department:delete']);
   const [isModalVisible, setIsModalVisible] = useState(false);
   const [editingDepartment, setEditingDepartment] = useState<Department | null>(null);
   const [form] = Form.useForm();
@@ -91,13 +96,17 @@ export default function DepartmentsPage() {
       key: 'action',
       render: (_: unknown, record: Department) => (
         <Space size="middle">
-          <Button type="text" icon={<Pencil />} onClick={() => handleEdit(record)} />
-          <Button
-            type="text"
-            danger
-            icon={<Trash2 />}
-            onClick={() => handleDelete(record)}
-          />
+          {canUpdateDept && (
+            <Button type="text" icon={<Pencil />} onClick={() => handleEdit(record)} />
+          )}
+          {canDeleteDept && (
+            <Button
+              type="text"
+              danger
+              icon={<Trash2 />}
+              onClick={() => handleDelete(record)}
+            />
+          )}
         </Space>
       ),
     },
@@ -166,18 +175,20 @@ export default function DepartmentsPage() {
         <Button key="refresh" icon={<RefreshCw />} onClick={fetchDepartments} loading={fetching}>
           {t('common.refresh')}
         </Button>,
-        <Button
-          key="create"
-          type="primary"
-          icon={<Plus />}
-          onClick={() => {
-            setEditingDepartment(null);
-            form.resetFields();
-            setIsModalVisible(true);
-          }}
-        >
-          {t('departments.create')}
-        </Button>,
+        canCreateDept ? (
+          <Button
+            key="create"
+            type="primary"
+            icon={<Plus />}
+            onClick={() => {
+              setEditingDepartment(null);
+              form.resetFields();
+              setIsModalVisible(true);
+            }}
+          >
+            {t('departments.create')}
+          </Button>
+        ) : null,
       ]}
     >
       <Table

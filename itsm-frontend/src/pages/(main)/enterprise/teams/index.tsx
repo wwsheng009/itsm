@@ -20,9 +20,12 @@ import { teamService } from '@/lib/services/team-service';
 
 import { UserApi } from '@/lib/api/user-api';
 import { useI18n } from '@/lib/i18n';
+import { useCan } from '@/components/auth/PermissionGate';
 
 export default function TeamsPage() {
   const { t } = useI18n();
+  // 入口级门禁：团队增删改 → team:write（rbac_precheck_gen.go /api/v1/org/teams*）。
+  const canWrite = useCan(['team:write']);
   const [isModalVisible, setIsModalVisible] = useState(false);
   const [editingTeam, setEditingTeam] = useState<Team | null>(null);
   const [form] = Form.useForm();
@@ -110,13 +113,17 @@ export default function TeamsPage() {
       key: 'action',
       render: (_: unknown, record: Team) => (
         <Space size="middle">
-          <Button type="text" icon={<Pencil />} onClick={() => handleEdit(record)} />
-          <Button
-            type="text"
-            danger
-            icon={<Trash2 />}
-            onClick={() => handleDelete(record)}
-          />
+          {canWrite && (
+            <>
+              <Button type="text" icon={<Pencil />} onClick={() => handleEdit(record)} />
+              <Button
+                type="text"
+                danger
+                icon={<Trash2 />}
+                onClick={() => handleDelete(record)}
+              />
+            </>
+          )}
         </Space>
       ),
     },
@@ -185,18 +192,20 @@ export default function TeamsPage() {
         <Button key="refresh" icon={<RefreshCw />} onClick={fetchTeams} loading={fetching}>
           {t('common.refresh')}
         </Button>,
-        <Button
-          key="create"
-          type="primary"
-          icon={<Plus />}
-          onClick={() => {
-            setEditingTeam(null);
-            form.resetFields();
-            setIsModalVisible(true);
-          }}
-        >
-          {t('enterprise.teams.create')}
-        </Button>,
+        canWrite ? (
+          <Button
+            key="create"
+            type="primary"
+            icon={<Plus />}
+            onClick={() => {
+              setEditingTeam(null);
+              form.resetFields();
+              setIsModalVisible(true);
+            }}
+          >
+            {t('enterprise.teams.create')}
+          </Button>
+        ) : null,
       ]}
     >
       <Table columns={columns} dataSource={teams} rowKey="id" loading={fetching} />

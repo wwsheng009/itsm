@@ -6,9 +6,14 @@ import { PageContainer } from '@/components/common/PageContainer';
 import type { Tag as ITag } from '@/lib/services/tag-service';
 import { tagService } from '@/lib/services/tag-service';
 import { useI18n } from '@/lib/i18n';
+import { useCan } from '@/components/auth/PermissionGate';
 
 export default function TagsPage() {
   const { t } = useI18n();
+  // 入口级门禁：标签增删改 → ticket_tag:create / update / delete（rbac_precheck_gen.go /api/v1/ticket-tags*）。
+  const canCreateTag = useCan(['ticket_tag:create']);
+  const canUpdateTag = useCan(['ticket_tag:update']);
+  const canDeleteTag = useCan(['ticket_tag:delete']);
   const [isModalVisible, setIsModalVisible] = useState(false);
   const [form] = Form.useForm();
   const [loading, setLoading] = useState(false);
@@ -69,13 +74,17 @@ export default function TagsPage() {
       key: 'action',
       render: (_: unknown, record: ITag) => (
         <Space size="middle">
-          <Button type="text" icon={<Pencil />} onClick={() => handleEdit(record)} />
-          <Button
-            type="text"
-            danger
-            icon={<Trash2 />}
-            onClick={() => handleDelete(record)}
-          />
+          {canUpdateTag && (
+            <Button type="text" icon={<Pencil />} onClick={() => handleEdit(record)} />
+          )}
+          {canDeleteTag && (
+            <Button
+              type="text"
+              danger
+              icon={<Trash2 />}
+              onClick={() => handleDelete(record)}
+            />
+          )}
         </Space>
       ),
     },
@@ -135,14 +144,16 @@ export default function TagsPage() {
         <Button key="refresh" icon={<RefreshCw />} onClick={fetchTags} loading={fetching}>
           刷新
         </Button>,
-        <Button
-          key="create"
-          type="primary"
-          icon={<Plus />}
-          onClick={() => setIsModalVisible(true)}
-        >
-          新建标签
-        </Button>,
+        canCreateTag ? (
+          <Button
+            key="create"
+            type="primary"
+            icon={<Plus />}
+            onClick={() => setIsModalVisible(true)}
+          >
+            新建标签
+          </Button>
+        ) : null,
       ]}
     >
       <Table columns={columns} dataSource={tags} rowKey="id" loading={fetching} />
