@@ -6,7 +6,7 @@
 >
 > **关联**：守卫矩阵见 §5；`CHANGELOG.md`；[建号角色多选方案](./msp-provision-user-roles-multiselect-plan.md)（建号通道过滤）
 >
-> **状态**：v0.5（2026-10-08）——扩展纪律与平台家族码评估结论（§2.2）落定；R2/R3、角色码归类（补丁 6/7）、目录标注（补丁 8）与用户角色下拉 rank 收口（补丁 9）均已落地（§5）
+> **状态**：v0.6（2026-10-10）——**§2.2 家族评估重估**：`mcp` 由"租户面"改判**平台资产**并纳入（D7），新增 `tenant` 家族（租户治理属性）纳入；护栏集合 `{system, tenant, mcp}`（治理域收口轮，设计文档 §8）。v0.5（2026-10-08）——扩展纪律与平台家族码评估结论（§2.2）落定；R2/R3、角色码归类（补丁 6/7）、目录标注（补丁 8）与用户角色下拉 rank 收口（补丁 9）均已落地（§5）
 
 ---
 
@@ -64,15 +64,16 @@
 
 | 家族 | 码空间 | 路由面 | 角色基线 | 结论 |
 |------|--------|--------|----------|------|
-| `system` | 存在 | LLM 实例管理 / 运维命令 / RLS 指标 / 定时器（均挂 L1） | sysadmin | ✅ **纳入**（唯一平台治理家族） |
-| `system_config` | 存在 | `/system-configs`、`/configs`、`/menus`、工单自动化（租户组，无 L1） | admin、directors | ⛔ 不纳入（租户管理面显式依赖） |
-| `mcp` | 存在 | `/ai/mcp-servers`（租户组，无 L1） | admin / provider_tenant_admin 持 read+admin；sysadmin 全量 | ⛔ 不纳入（租户治理面；使用与治理分离） |
+| `system` | 存在 | LLM 实例管理 / 运维命令 / RLS 指标 / 定时器 / **向量库（§8 D7，均挂 L1）** | sysadmin | ✅ **纳入** |
+| `system_config` | 存在 | `/system-configs`、`/configs`、工单自动化（租户组，无 L1；**`/menus` 已随 §8 D5 迁出为平台面**） | admin、directors | ⛔ 不纳入（租户管理面显式依赖） |
+| `mcp` | 存在 | `/ai/mcp-servers`（**§8 D7 起挂 L1**） | sysadmin（租户角色已收回） | ✅ **纳入**（2026-10-10 D7 重估：MCP 为平台资产，覆盖原"使用与治理分离"结论） |
+| `tenant` | 存在 | 租户治理（`/tenants*`、`/admin/tenants`）+ 租户设置 `/system/settings`（**§8 D7 起均挂 L1**） | 仅平台根 | ✅ **纳入**（2026-10-10：租户治理属性/plan/billing，平台管理） |
 | `connector` | 存在 | `/connectors`（租户组，无 L1；handler 按 ctx tenant 作用域） | directors / sysadmin | ⛔ 不纳入（租户面） |
-| `menu` | **不存在**（菜单管理复用 `system_config` 码） | — | — | ⛔ 无码可拦；若未来建码，按本节重新评估 |
+| `menu` | **不存在**（菜单管理复用 `system_config` 码；**§8 D5 起改挂 `system:*`** 并挂 L1） | `/menus*`（平台面，挂 L1） | 仅平台根 | ⛔ 无独立码可拦（由 `system` 家族 + L1 承载）；若未来建码，按本节重新评估 |
 | `federation` | **不存在**（码空间与路由均无引用） | — | — | ⛔ 同上 |
 | `msp:*`（备注） | 存在 | 服务商面（allocation / membership 数据面收口） | MSP 五角色 | ⛔ 不适用本护栏（服务商自管面）；客户侧目录展示面为已登记残余（补丁 3） |
 
-> 结论：护栏集合维持 `{system}`；机制为显式集合（补丁 6 起 `platformGovernedPermissionResources`）。**新增/调整家族必须先完成本表评估并更新本清单**，再改代码。
+> 结论：护栏集合 = `{system, tenant, mcp}`（2026-10-10 治理域收口轮扩集）；机制为显式集合（补丁 6 起 `platformGovernedPermissionResources`）。**新增/调整家族必须先完成本表评估并更新本清单**，再改代码。
 
 ## 3. 新增路由（Route）
 

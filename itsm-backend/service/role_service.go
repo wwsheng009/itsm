@@ -375,6 +375,11 @@ func (s *RoleService) ensureAssignablePermissionsForNonPlatformRoot(ctx context.
 // 新增/调整家族必须先完成评估并更新《新增角色/权限/路由评审清单》§2.2，再改此处。
 var platformGovernedPermissionResources = map[string]struct{}{
 	"system": {},
+	// 2026-10-10 治理域收口（设计 §8 D7）：tenant 家族=租户治理属性（plan/billing/status，
+	// 路由均挂 L1）；mcp 家族由"租户面"改判平台资产（覆盖补丁 6 评估）。评估结论与
+	// 变更纪律见 docs/multi-tenant/plan/role-permission-extension-checklist.md §2.2。
+	"tenant": {},
+	"mcp":    {},
 }
 
 // isWildcardPermission 通配权限（resource/action 含 *）——写面护栏与目录标注共用的单一源。
@@ -384,6 +389,12 @@ func isWildcardPermission(resource, action string) bool { return resource == "*"
 func isPlatformGovernedPermissionResource(resource string) bool {
 	_, governed := platformGovernedPermissionResources[strings.TrimSpace(resource)]
 	return governed
+}
+
+// IsPlatformGovernedPermissionResource 平台治理家族判定的导出包装：供开通克隆链
+// （pkg/seeder tenant_provisioner）等消费方复用单一源（设计 §8 D1=A 防再生）。
+func IsPlatformGovernedPermissionResource(resource string) bool {
+	return isPlatformGovernedPermissionResource(resource)
 }
 
 // isNonAssignablePermission 非平台根不可分配（通配 + 平台治理家族）——与写面护栏同口径，
@@ -740,11 +751,16 @@ func (s *PermissionService) ListPermissions(ctx context.Context, tenantID int, r
 	}
 	platformRoot := isPlatformRootTenant(kind, code)
 
-	responses := make([]*dto.PermissionResponse, len(perms))
-	for i, p := range perms {
+	responses := make([]*dto.PermissionResponse, 0, len(perms))
+	for _, p := range perms {
 		resp := s.toPermissionResponse(p)
 		resp.Assignable = platformRoot || !isNonAssignablePermission(p.Resource, p.Action)
-		responses[i] = resp
+		// 2026-10-10 治理域收口（设计 §8 D6）：非平台根目录不下发平台治理家族码——
+		// 前端"租户域授权"只见租户面码；存量已收回 + 开通克隆链跳过（防再生），本过滤为兜底。
+		if !platformRoot && isPlatformGovernedPermissionResource(p.Resource) {
+			continue
+		}
+		responses = append(responses, resp)
 	}
 
 	return responses, nil

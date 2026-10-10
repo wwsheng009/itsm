@@ -54,6 +54,37 @@ var platformFaceRoutes = map[routeKey]string{
 	// —— 权限词表写面（行内 L1 + role:write；读面租户开放，不在本表）——
 	{"common_system_routes.go", "permissions", "POST", ""}:      "权限词表写面：词表所有权",
 	{"common_system_routes.go", "permissions", "POST", "/init"}: "权限词表写面：词表所有权",
+	// —— 菜单管理（2026-10-10 §8 D5：菜单目录=平台结构资产，整组 L1 + system:write）——
+	{"common_system_routes.go", "menus", "GET", ""}:        "菜单管理平台面：列表",
+	{"common_system_routes.go", "menus", "POST", ""}:       "菜单管理平台面：创建",
+	{"common_system_routes.go", "menus", "GET", "/:id"}:    "菜单管理平台面：详情",
+	{"common_system_routes.go", "menus", "PUT", "/:id"}:    "菜单管理平台面：更新",
+	{"common_system_routes.go", "menus", "DELETE", "/:id"}: "菜单管理平台面：删除",
+	{"common_system_routes.go", "menus", "POST", "/init"}:  "菜单管理平台面：初始化",
+	// —— MCP 外部工具管理（2026-10-10 §8 D7：MCP 为平台资产）——
+	{"mcp_routes.go", "read", "GET", "/mcp-servers"}:            "MCP 平台面：列表",
+	{"mcp_routes.go", "read", "GET", "/mcp-servers/health"}:     "MCP 平台面：健康",
+	{"mcp_routes.go", "read", "GET", "/mcp-servers/:id"}:        "MCP 平台面：详情",
+	{"mcp_routes.go", "read", "GET", "/mcp-servers/:id/tools"}:  "MCP 平台面：工具",
+	{"mcp_routes.go", "read", "GET", "/mcp-servers/:id/events"}: "MCP 平台面：事件",
+	{"mcp_routes.go", "admin", "POST", "/mcp-servers"}:                                     "MCP 平台面：创建",
+	{"mcp_routes.go", "admin", "PUT", "/mcp-servers/:id"}:                                  "MCP 平台面：更新",
+	{"mcp_routes.go", "admin", "DELETE", "/mcp-servers/:id"}:                               "MCP 平台面：删除",
+	{"mcp_routes.go", "admin", "POST", "/mcp-servers/:id/test"}:                            "MCP 平台面：连通性测试",
+	{"mcp_routes.go", "admin", "POST", "/mcp-servers/:id/enable"}:                          "MCP 平台面：启用",
+	{"mcp_routes.go", "admin", "POST", "/mcp-servers/:id/disable"}:                         "MCP 平台面：停用",
+	{"mcp_routes.go", "admin", "POST", "/mcp-servers/:id/reload"}:                          "MCP 平台面：重载",
+	{"mcp_routes.go", "admin", "POST", "/mcp-servers/:id/tools/bulk"}:                      "MCP 平台面：工具批量治理",
+	{"mcp_routes.go", "admin", "POST", "/mcp-servers/:id/tools/:callable/enable"}:          "MCP 平台面：工具启用",
+	{"mcp_routes.go", "admin", "POST", "/mcp-servers/:id/tools/:callable/disable"}:         "MCP 平台面：工具停用",
+	{"mcp_routes.go", "admin", "PUT", "/mcp-servers/:id/tools/:callable/classification"}:   "MCP 平台面：工具分级",
+	{"mcp_routes.go", "admin", "POST", "/mcp-servers/:id/rotate-credential"}:               "MCP 平台面：凭据轮换",
+	// —— 向量库诊断（2026-10-10 §8 D7：向量库为平台资产；handler 包自注册，扫描 ../handlers/*/*.go）——
+	{"../handlers/vector_store/handler.go", "root", "GET", ""}:       "向量库平台面：状态",
+	{"../handlers/vector_store/handler.go", "root", "POST", "/test"}: "向量库平台面：连通性测试",
+	// —— 租户设置（2026-10-10 §8 D7：tenant 家族平台治理，plan/billing/status 平台管理）——
+	{"system_config_routes.go", "sysRoot", "GET", "/settings"}: "租户治理设置面：读",
+	{"system_config_routes.go", "sysRoot", "PUT", "/settings"}: "租户治理设置面：写",
 }
 
 // platformFaceExemptions 反向前缀检查豁免（直接注册在平台前缀下、但按设计不需中间件级 L1 的路由）。

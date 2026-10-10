@@ -14,6 +14,7 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"strings"
 	"testing"
 	"time"
 
@@ -141,11 +142,10 @@ func TestTUM_A1_A8_APIE2E(t *testing.T) {
 	require.Equal(t, http.StatusOK, detailStatus, detailBody)
 	assert.Equal(t, float64(env.normalA.ID), decodeData(t, detailBody)["id"])
 
-	// 反例 1：租户管理员（admin + tenant:read/write 走静态兜底）→ 路由层平台身份硬校验 403
+	// 反例 1：租户管理员（admin；2026-10-10 治理域收口后不再持有 tenant 家族码）→ 平台面 403
 	//（2026-10-10 收口；服务层 TUM-D1 PLATFORM_SCOPE_REQUIRED 保留为兜底，见 service 单测）。
 	r1Status, r1Body := mspE2ERequest(t, env.engine, http.MethodGet, base, env.tenantAdminToken, nil)
-	assert.Equal(t, http.StatusForbidden, r1Status, r1Body)
-	assert.Contains(t, r1Body, "仅平台管理员")
+	expectPlatformFaceDenied(t, r1Status, r1Body)
 
 	// 反例 2：跨租户 IDOR（用 B 租户路径拼 A 用户）→ 404。
 	r2Status, r2Body := mspE2ERequest(t, env.engine, http.MethodGet,
@@ -297,11 +297,11 @@ func TestTUM_A1_A8_APIE2E(t *testing.T) {
 	require.Equal(t, http.StatusOK, off2Status, off2Body)
 	assert.Equal(t, true, decodeData(t, off2Body)["alreadyInactive"])
 
-	// 反例：租户管理员（非平台面）→ 路由层平台身份硬校验 403（2026-10-10 收口）。
+	// 反例：租户管理员（非平台面）→ 403（2026-10-10 收口）。注意：tenant 家族收回后，
+	// 写路由预检（RBAC precheck）先以「权限不足」拒绝；L1「仅平台管理员」在无预检场景兜底。
 	offRStatus, offRBody := mspE2ERequest(t, env.engine, http.MethodPost,
 		fmt.Sprintf("%s/%d/offboard", base, env.adminA1.ID), env.tenantAdminToken, map[string]interface{}{})
-	assert.Equal(t, http.StatusForbidden, offRStatus, offRBody)
-	assert.Contains(t, offRBody, "仅平台管理员")
+	expectPlatformFaceDenied(t, offRStatus, offRBody)
 
 	// 治理审计留痕（行归属 actor 家租户、target=目标租户；幂等两次各 1 行）。
 	offAudits, err := env.client.AuditLog.Query().
@@ -309,4 +309,15 @@ func TestTUM_A1_A8_APIE2E(t *testing.T) {
 		Count(ctx)
 	require.NoError(t, err)
 	assert.Equal(t, 2, offAudits)
+}
+
+// expectPlatformFaceDenied 平台面反例断言（2026-10-10 治理域收口）：
+// tenant 家族收回后，租户管理员可能在**写路由预检**（RBAC precheck）先以「权限不足」被拒；
+// L1「仅平台管理员」在无预检/持码场景兜底——两种拒绝均为设计内 fail-closed（L1/L2 双层）。
+func expectPlatformFaceDenied(t *testing.T, status int, body string) {
+	t.Helper()
+	assert.Equal(t, http.StatusForbidden, status, body)
+	if !strings.Contains(body, "仅平台管理员") && !strings.Contains(body, "权限不足") {
+		t.Errorf("平台面反例应被守卫/预检拒绝（仅平台管理员/权限不足），实际: %s", body)
+	}
 }

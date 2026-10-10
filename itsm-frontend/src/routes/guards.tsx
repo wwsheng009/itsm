@@ -69,18 +69,19 @@ interface RequireCapabilityProps {
 }
 
 /**
- * 分组能力守卫（IP-P0-8 / FE-A7-A8）：
+ * 分组能力守卫（IP-P0-8 / FE-A7-A8；2026-10-10 治理域收口）：
  * - 单一权限模型：hasPermission()（store 单源，后端权限集下发）；
- * - 管理员角色（admin/super_admin）保留既有访问语义；
+ * - **无角色名旁路**：此前 admin/super_admin 直接放行（isAdmin()）会掩盖"码不对齐"的页面
+ *   （如租户管理员缺 department:write 仍可进，进页后接口 403）；super_admin 的 `*`
+ *   由 hasPermission 全局通配覆盖，租户 admin 走显式码——前端门禁与后端 L2 同源；
  * - 不满足 → 独立 /403 路由（不再内联 Result 白屏）。
  *
  * 作为 pathless layout route 使用时可不传 children，命中后渲染 <Outlet />。
  */
 export function RequireCapability({ anyOf, children }: RequireCapabilityProps): ReactElement {
   const hasPermission = useAuthStore(state => state.hasPermission);
-  const isAdmin = useAuthStore(state => state.isAdmin);
 
-  const allowed = isAdmin() || anyOf.some(permission => hasPermission(permission));
+  const allowed = anyOf.some(permission => hasPermission(permission));
   if (!allowed) {
     return <Navigate to="/403" replace />;
   }

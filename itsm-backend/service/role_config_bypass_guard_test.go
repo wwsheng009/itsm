@@ -126,9 +126,10 @@ func TestRoleConfig_WildcardPermissionOnlyPlatformRoot(t *testing.T) {
 	require.NoError(t, roleSvc.AssignPermissions(ctx, rootSysRole.ID, []int{rootSysWrite.ID}, internal.ID))
 }
 
-// TestPlatformGovernedResources_FamilyEvaluationLock（补丁 6 / R3）：护栏集合 = {system}
-// （评估结论见 docs/multi-tenant/plan/role-permission-extension-checklist.md §2.2）——
-// system_config / mcp / connector 为租户面（可分配）；menu / federation 码空间不存在。
+// TestPlatformGovernedResources_FamilyEvaluationLock（补丁 6 / R3；2026-10-10 治理域收口轮扩集）：
+// 护栏集合 = {system, tenant, mcp}（评估结论见 docs/multi-tenant/plan/role-permission-extension-checklist.md §2.2）——
+// system_config / connector 为租户面（可分配）；tenant/mcp 已按设计 §8 D7 改判平台资产纳入；
+// menu / federation 码空间不存在（菜单管理由 system 家族 + L1 承载）。
 // 新增家族必须先完成评估并更新清单文档，再改 platformGovernedPermissionResources（本用例是决策锁）。
 func TestPlatformGovernedResources_FamilyEvaluationLock(t *testing.T) {
 	client := enttest.Open(t, "sqlite3", testDSN())
@@ -143,7 +144,6 @@ func TestPlatformGovernedResources_FamilyEvaluationLock(t *testing.T) {
 	// ① 评估为「租户面」的家族：可分配（不得进入护栏集合）。
 	for _, c := range []struct{ code, resource, action string }{
 		{"system_config:read", "system_config", "read"},
-		{"mcp:read", "mcp", "read"},
 		{"connector:read", "connector", "read"},
 	} {
 		p, err := client.Permission.Create().
@@ -154,14 +154,20 @@ func TestPlatformGovernedResources_FamilyEvaluationLock(t *testing.T) {
 			"%s 为租户面家族（评估结论），应可分配", c.code)
 	}
 
-	// ② 平台治理家族（{system}）：拒绝。
-	sys, err := client.Permission.Create().
-		SetCode("system:read").SetName("系统读").SetResource("system").SetAction("read").
-		SetTenantID(customer.ID).Save(ctx)
-	require.NoError(t, err)
-	err = roleSvc.AssignPermissions(ctx, role.ID, []int{sys.ID}, customer.ID)
-	require.Error(t, err)
-	assert.Contains(t, err.Error(), "平台治理")
+	// ② 平台治理家族（{system, tenant, mcp}）：拒绝。
+	for _, c := range []struct{ code, resource, action string }{
+		{"system:read", "system", "read"},
+		{"tenant:read", "tenant", "read"},
+		{"mcp:read", "mcp", "read"},
+	} {
+		p, err := client.Permission.Create().
+			SetCode(c.code).SetName(c.code).SetResource(c.resource).SetAction(c.action).
+			SetTenantID(customer.ID).Save(ctx)
+		require.NoError(t, err)
+		err = roleSvc.AssignPermissions(ctx, role.ID, []int{p.ID}, customer.ID)
+		require.Error(t, err, "%s 为平台治理家族（§2.2），应拒绝分配", c.code)
+		assert.Contains(t, err.Error(), "平台治理")
+	}
 }
 
 func TestUserCreateUpdate_PlatformRoleGuard(t *testing.T) {

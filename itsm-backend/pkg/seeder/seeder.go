@@ -1817,14 +1817,16 @@ func (s *Seeder) seedMenus(ctx context.Context) {
 		{Name: "审批链", Path: "/admin/approval-chains", Icon: "Link", ParentPath: "/admin", PermissionCode: "approval:write", SortOrder: 275},
 		{Name: "权限管理", Path: "/admin/permissions", Icon: "Lock", ParentPath: "/admin", PermissionCode: "role:write", SortOrder: 280},
 		{Name: "连接器/插件市场", Path: "/admin/connectors", Icon: "Plug", ParentPath: "/admin", PermissionCode: "connector:write", SortOrder: 285},
-		// MCP 外部工具（M0-12，Q3 独立页）：工具执行面 = mcp:read/write，治理面 = mcp:admin（默认仅 sysadmin/admin）。
+		// MCP 外部工具（M0-12，Q3 独立页；2026-10-10 治理域收口 §8 D7）：MCP 为平台资产——
+		// 路由已挂 L1，菜单码 mcp:admin 仅平台角色（sysadmin）持有，租户侧不挂载。
 		{Name: "MCP 外部工具", Path: "/admin/mcp-servers", Icon: "Plug", ParentPath: "/admin", PermissionCode: "mcp:admin", SortOrder: 286},
 		// Bot 模板与工具授权（B2-03）：读开放给 ai:read（页面只读可浏览），写动作由后端 ai:write 拦截。
 		{Name: "Bot 管理与授权", Path: "/admin/bots", Icon: "Bot", ParentPath: "/admin", PermissionCode: "ai:read", SortOrder: 287},
 		// 工具目录（查询内置 + MCP 外部工具；与 Bot 授权选择器同源，均按 ai:read 开放）。
 		{Name: "工具目录", Path: "/admin/tools", Icon: "Wrench", ParentPath: "/admin", PermissionCode: "ai:read", SortOrder: 288},
-		// 2026-10-10：菜单码对齐页面入口守卫（system_config:write），不再依赖 system→system_config 别名。
-		{Name: "向量存储配置", Path: "/admin/vector-store", Icon: "Database", ParentPath: "/admin", PermissionCode: "system_config:write", SortOrder: 290},
+		// 2026-10-10 治理域收口 §8 D7：向量库为平台资产——路由挂 L1，菜单码改挂平台码
+		// system:read（仅平台角色持有，租户侧不挂载）。
+		{Name: "向量存储配置", Path: "/admin/vector-store", Icon: "Database", ParentPath: "/admin", PermissionCode: "system:read", SortOrder: 290},
 		{Name: "系统配置", Path: "/admin/system-config", Icon: "Settings", ParentPath: "/admin", PermissionCode: "system_config:write", SortOrder: 295},
 		// 通知配置 / 审计日志 / 操作日志：2026-08-30 归位后已移出 /admin，详见顶级菜单与 /workflow 子菜单。
 		{Name: "CMDB 类型", Path: "/admin/cmdb-types", Icon: "Database", ParentPath: "/admin", PermissionCode: "cmdb:write", SortOrder: 315},
@@ -1833,8 +1835,9 @@ func (s *Seeder) seedMenus(ctx context.Context) {
 		{Name: "SLA 模板", Path: "/admin/sla-templates", Icon: "Layers", ParentPath: "/admin", PermissionCode: "sla:write", SortOrder: 330},
 		{Name: "服务目录管理", Path: "/admin/service-catalogs", Icon: "Boxes", ParentPath: "/admin", PermissionCode: "service_catalog:read", SortOrder: 335},
 		{Name: "SLA 定义", Path: "/admin/sla-definitions", Icon: "Clock", ParentPath: "/admin", PermissionCode: "sla:write", SortOrder: 340},
-		// 2026-10-10：菜单管理页守卫/接口均为 system_config:*，菜单码对齐（此前 system:write 靠别名误放行）。
-		{Name: "菜单管理", Path: "/admin/menus", Icon: "Menu", ParentPath: "/admin", PermissionCode: "system_config:write", SortOrder: 345},
+		// 2026-10-10 治理域收口 §8 D5：菜单管理为平台专属——路由整组挂 L1 + system:write，
+		// 菜单码同步改挂 system:write（仅平台角色持有，租户侧不挂载）。
+		{Name: "菜单管理", Path: "/admin/menus", Icon: "Menu", ParentPath: "/admin", PermissionCode: "system:write", SortOrder: 345},
 		{Name: "工作流配置", Path: "/admin/workflows", Icon: "GitBranch", ParentPath: "/admin", PermissionCode: "workflow:write", SortOrder: 350},
 	}
 

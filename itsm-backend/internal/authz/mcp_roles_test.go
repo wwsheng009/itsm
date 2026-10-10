@@ -1,9 +1,10 @@
 // Package authz M0-10 角色矩阵守卫：mcp:read / mcp:write / mcp:admin 的默认授予面。
 //
-// 决策依据（实施方案 §4.1 M0-10 + D5/D7 + Q2 拍板）：
+// 决策依据（实施方案 §4.1 M0-10 + D5/D7 + Q2 拍板；2026-10-10 治理域收口重估）：
 //   - 使用与治理分离：read/write 管工具执行，admin 管服务器与工具治理；read/write 不隐含 admin；
 //   - 默认拒绝（D7）：新增权限码默认不授予任何角色；
-//   - 例外仅为「治理主」：sysadmin 全量持有（含 mcp:write），admin（租户管理员）持 read + admin。
+//   - 2026-10-10 设计 §8 D7 重估：MCP 为平台资产——唯一例外为 sysadmin（平台角色）全量持有；
+//     admin/provider_tenant_admin（租户角色）零持有（路由已叠加 L1，码亦不可分配/不下发）。
 package authz
 
 import (
@@ -43,13 +44,12 @@ func TestMCPPermissionCodes_Defaults(t *testing.T) {
 // TestMCPRoleMatrix 锁定「默认授予面」：任何角色变动的沉默扩权都会让本测试红。
 func TestMCPRoleMatrix(t *testing.T) {
 	want := map[string]map[string]bool{
-		// 系统管理员：全量（含写工具执行，仍需 Gate3 审批）。
+		// 系统管理员（平台角色）：全量（含写工具执行，仍需 Gate3 审批）。
 		"sysadmin": {"mcp:read": true, "mcp:write": true, "mcp:admin": true},
-		// 租户管理员：唯一默认治理者；不给 mcp:write（写工具执行属使用面，M1-02 起按需显式授予）。
-		"admin": {"mcp:read": true, "mcp:write": false, "mcp:admin": true},
-		// 服务商租户管理员（G11：admin ∪ msp_admin 派生）：provider 租户的 admin，
-		// 治理面与 admin 一致（read+admin，不含 write）。
-		"provider_tenant_admin": {"mcp:read": true, "mcp:write": false, "mcp:admin": true},
+		// 租户管理员：2026-10-10 治理域收口（§8 D7）后零持有（MCP 为平台资产）。
+		"admin": {"mcp:read": false, "mcp:write": false, "mcp:admin": false},
+		// 服务商租户管理员（G11：admin ∪ msp_admin 派生）：随 admin 零持有。
+		"provider_tenant_admin": {"mcp:read": false, "mcp:write": false, "mcp:admin": false},
 		// 其余角色（含总监/经理/坐席/技术员/访客）：默认零授予。
 		"it_director":  {"mcp:read": false, "mcp:write": false, "mcp:admin": false},
 		"ops_director": {"mcp:read": false, "mcp:write": false, "mcp:admin": false},
@@ -77,13 +77,10 @@ func TestMCPRoleMatrix(t *testing.T) {
 	}
 }
 
-// TestMCPRoleMatrix_Exhaustive 反向哨兵：除白名单角色外，任何角色都不得持有 mcp 码。
+// TestMCPRoleMatrix_Exhaustive 反向哨兵：除平台角色（sysadmin）外，任何角色都不得持有 mcp 码。
 func TestMCPRoleMatrix_Exhaustive(t *testing.T) {
 	allowed := map[string]map[string]bool{
 		"sysadmin": {"mcp:read": true, "mcp:write": true, "mcp:admin": true},
-		"admin":    {"mcp:read": true, "mcp:write": true, "mcp:admin": true}, // 上限白名单：admin 实际只持 read+admin（由 TestMCPRoleMatrix 锁定）
-		// provider_tenant_admin 派生自 admin ∪ msp_admin，继承 admin 的 read+admin（无 write）。
-		"provider_tenant_admin": {"mcp:read": true, "mcp:write": false, "mcp:admin": true},
 	}
 
 	codeSet := make(map[string]bool, len(mcpCodes))
@@ -108,16 +105,24 @@ func TestMCPRoleMatrix_Exhaustive(t *testing.T) {
 	}
 }
 
-// TestMCPUseAndGovernanceSeparation 语义守卫：read/write/admin 三码在机制上互不蕴含。
-// （middleware.checkPermissionMatch 只做精确匹配或 `*` 通配，不存在前缀蕴含——
-// 本测试把该事实固化，防止未来引入「read 蕴含 admin」这类宽松匹配。）
-func TestMCPUseAndGovernanceSeparation(t *testing.T) {
-	adminSet := roleCodeSet(t, "admin")
-	if !adminSet["mcp:admin"] || !adminSet["mcp:read"] {
-		t.Fatal("admin 应持 mcp:read + mcp:admin（治理可用）")
+// TestMCPRoleMatrix_PlatformOnly 语义守卫（2026-10-10 §8 D7）：mcp 家族为平台资产——
+// 仅平台角色（sysadmin）持有；租户角色（admin/provider_tenant_admin）零持有。
+// （read/write/admin 三码互不蕴含的事实由 middleware.checkPermissionMatch 的匹配测试与
+// 前端 permissionGranted 测试固化，本用例只锁"默认授予面=平台独占"。）
+func TestMCPRoleMatrix_PlatformOnly(t *testing.T) {
+	for _, role := range []string{"admin", "provider_tenant_admin"} {
+		set := roleCodeSet(t, role)
+		for _, code := range mcpCodes {
+			if set[code] {
+				t.Errorf("%s 不应持有 %s：MCP 为平台资产（§8 D7 重估）", role, code)
+			}
+		}
 	}
-	if adminSet["mcp:write"] {
-		t.Fatal("admin 不应默认持有 mcp:write：使用与治理分离，写工具执行需显式授权")
+	sysSet := roleCodeSet(t, "sysadmin")
+	for _, code := range mcpCodes {
+		if !sysSet[code] {
+			t.Errorf("sysadmin 应持 %s（平台治理面）", code)
+		}
 	}
 }
 

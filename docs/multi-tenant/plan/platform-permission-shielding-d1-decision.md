@@ -1,6 +1,6 @@
 # 存量租户权限目录处置（D1）决策材料
 
-> **状态**：v0.1（2026-10-08）——实测证据回填完成；**建议 D1=B（保留 + 不可分配）定案**，A（裁剪）作为预置预案（触发条件见 §5，不排期）
+> **状态**：v0.2（2026-10-10）——**修订：D1=A 执行**（开发环境直接收回）。触发条件 §5-3/§5-4 成立：平台治理家族扩集为 `{system, tenant, mcp}`（治理域收口轮，设计文档 §8）——扩容即意味着 B 的"保留"面从 2 行/租户扩大到 7+ 行/租户，且用户已授权开发环境直接收回。执行记录与复验见 §8。v0.1（2026-10-08）——实测证据回填完成；原建议 D1=B（保留 + 不可分配）定案，A 作为预置预案（触发条件见 §5，不排期）
 >
 > **上位（权威顺序）**：[平台面权限屏蔽与角色架构设计](./platform-permission-shielding-design.md)（§5.2 P0 / §6.1 D1 / R1）→ [canon](./msp-concept-model-and-architecture-canon.md)（D4=B：平台根 = 类型判定叠加 `tenants.code=default` 兜底）
 
@@ -77,6 +77,7 @@
 - **建议：D1=B 定案**。理由：① 实测零持有面 → 残余纯卫生；② A 的成本横跨「迁移 + 开通链路 + 守卫 + 跨环境复验」，收益不成比例；③ 三重防线已闭环（实弹证据见设计文档 §7）。
 - **A 预案保留**（§4），触发即执行；执行时须同步登记本文件的「决策变更」。
 - 决策登记（回填设计文档）：§6.1 D1 → **已决（B，2026-10-08）**；§5.2 P0 → **关闭**；R1 → 更新为「已决（B）；触发条件见本文件 §5」。
+- **决策变更（2026-10-10）**：D1 → **修订为 A 并执行**（见 §8）；设计文档 §6.1 D1 行、§6.2 R1 行已同步；§5.2 P0 重新打开并随治理域收口轮关闭。
 
 ---
 
@@ -111,3 +112,19 @@ GROUP BY u.tenant_id, r.code ORDER BY u.tenant_id, r.code;
 ```
 
 > 复验口径（无论 B/A）：非平台根租户目录 `resource='system'` 行数、`role_permissions` 平台家族授权数、`user_roles` 持有面三项均可由上述 SQL 直接输出；A 执行后期望为 `0 / 0 / 0`，B 维持现状 `2 / 6 / 0`（每租户）。
+
+---
+
+## 8. 修订执行记录（2026-10-10，D1=A）
+
+**范围扩展**：原 §2 只统计 `resource='system'`；本轮平台治理家族扩集为 `{system, tenant, mcp}`，收回范围同步扩展（含 `tenant:read/write`、`mcp:read/write/admin`）。
+
+**执行动作**（开发环境 `itsm_prod`，平台根 t1 `code=default` 排除）：
+
+1. 删除非平台根租户 `role_permissions` 中引用平台家族码的授权行；
+2. 删除非平台根租户 `permissions` 中平台家族码行（`resource ∈ {system, tenant, mcp}`）；
+3. 开通克隆链（`ProvisionTenant` → `createMissingPermissions` / `cloneRolePermissions` / `cloneMenus`）对非平台根目标跳过平台家族（防再生）；
+4. 菜单行 `/admin/menus`、`/admin/vector-store` 改挂平台码（`system:write` / `system:read`）；
+5. 新增防再生守卫：非平台根克隆产物零平台家族行/授权（`pkg/seeder` 用例）。
+
+**复验（SQL 口径同 §7）**：执行后实测 **目录行 0 / 授权 0**（非平台根全租户合计，范围含 `{system, tenant, mcp}` 三家族）；平台根（`code=default`）保留 7 行；菜单码改挂 24 行（`/admin/menus=system:write`、`/admin/vector-store=system:read`）。实弹与浏览器证据见设计文档 §8.4。

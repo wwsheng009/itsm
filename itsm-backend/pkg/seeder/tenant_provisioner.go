@@ -24,6 +24,7 @@ import (
 	"itsm-backend/ent/tenant"
 	"itsm-backend/internal/authz"
 	"itsm-backend/pkg/tenantmode"
+	"itsm-backend/service"
 )
 
 // CurrentTenantTemplateVersion 单一事实来源在 dto：service 层不能 import 本包
@@ -210,6 +211,11 @@ func createMissingRoles(ctx context.Context, c *ent.Client, source []*ent.Role, 
 func createMissingPermissions(ctx context.Context, c *ent.Client, source []*ent.Permission, target map[string]*ent.Permission, tenantID int) error {
 	missing := make([]*ent.Permission, 0, len(source))
 	for _, item := range source {
+		// 2026-10-10 治理域收口（设计 §8 D1=A 防再生）：非平台根租户目录不下发平台治理家族
+		// （system/tenant/mcp）——收回后不得被开通克隆重新引入。
+		if service.IsPlatformGovernedPermissionResource(item.Resource) {
+			continue
+		}
 		if _, ok := target[item.Code]; !ok {
 			missing = append(missing, item)
 		}
@@ -251,6 +257,11 @@ func cloneRolePermissions(
 	for _, item := range sourcePermissions {
 		sourcePermissionCodeByID[item.ID] = item.Code
 	}
+	// 平台治理家族（system/tenant/mcp）不下发非平台根租户（设计 §8 D1=A）——授权同步跳过。
+	sourcePermissionGovernedByID := make(map[int]bool, len(sourcePermissions))
+	for _, item := range sourcePermissions {
+		sourcePermissionGovernedByID[item.ID] = service.IsPlatformGovernedPermissionResource(item.Resource)
+	}
 
 	sourceGrants, err := c.RolePermission.Query().Where(rolepermission.TenantIDEQ(sourceID)).All(ctx)
 	if err != nil {
@@ -275,6 +286,9 @@ func cloneRolePermissions(
 		permissionCode, ok := sourcePermissionCodeByID[item.PermissionID]
 		if !ok {
 			return fmt.Errorf("provision role permission: source permission %d not found", item.PermissionID)
+		}
+		if sourcePermissionGovernedByID[item.PermissionID] {
+			continue
 		}
 		targetRole, ok := targetRoleByCode[roleCode]
 		if !ok {
@@ -950,6 +964,11 @@ func validateTenantClone(ctx context.Context, client *ent.Client, sourceID, targ
 	for _, item := range sourcePermissions {
 		sourcePermissionCodeByID[item.ID] = item.Code
 	}
+	// 平台治理家族不下发（cloneRolePermissions 同步跳过）——完整性校验同口径跳过（设计 §8 D1=A）。
+	sourcePermissionGovernedByID := make(map[int]bool, len(sourcePermissions))
+	for _, item := range sourcePermissions {
+		sourcePermissionGovernedByID[item.ID] = service.IsPlatformGovernedPermissionResource(item.Resource)
+	}
 	targetPermissionByCode, err := loadPermissionsByCode(ctx, client, targetID)
 	if err != nil {
 		return err
@@ -1000,6 +1019,9 @@ func validateTenantClone(ctx context.Context, client *ent.Client, sourceID, targ
 			permissionCode, ok := sourcePermissionCodeByID[permissionID]
 			if !ok {
 				return fmt.Errorf("managed permission %d missing: %w", permissionID, provisionNotFoundError("permission"))
+			}
+			if sourcePermissionGovernedByID[permissionID] {
+				continue
 			}
 			targetPermission, ok := targetPermissionByCode[permissionCode]
 			if !ok {

@@ -219,7 +219,9 @@ func (h *Handler) TestConnection(c *gin.Context) {
 
 // RegisterRoutes 注册路由
 func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
-	root := rg.Group("/system/vector-store")
+	// 2026-10-10 治理域收口（设计 §8 D7）：向量库为平台资产——整组叠加 L1（RequirePlatformAdmin），
+	// 仅平台角色可诊断/连通性测试；L2 维持 system:read（状态）/ system:write（测试）。
+	root := rg.Group("/system/vector-store", middleware.RequirePlatformAdmin())
 	root.GET("", middleware.RequirePermission("system", "read"), h.GetStatus)
 	root.POST("/test", middleware.RequirePermission("system", "write"), h.TestConnection)
 }

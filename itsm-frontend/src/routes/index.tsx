@@ -255,15 +255,22 @@ export const routes: RouteObject[] = [
           { path: 'admin/config-inheritance', element: <RequireCapability anyOf={['cmdb:write', 'system_config:write']}>{lazyElement(AdminConfigInheritance)}</RequireCapability> },
           { path: 'admin/connectors', element: <RequireCapability anyOf={['connector:write']}>{lazyElement(AdminConnectors)}</RequireCapability> },
           { path: 'admin/department-processes', element: lazyElement(AdminDepartmentProcesses) },
-          { path: 'admin/departments', element: <RequireCapability anyOf={['department:write']}>{lazyElement(AdminDepartments)}</RequireCapability> },
+          // 2026-10-10 治理域收口：入口码对齐后端（department:create/update/delete；此前 department:write
+          // 靠 isAdmin 旁路掩盖，旁路移除后必须同码）。
+          { path: 'admin/departments', element: <RequireCapability anyOf={['department:create', 'department:update', 'department:delete']}>{lazyElement(AdminDepartments)}</RequireCapability> },
           { path: 'admin/escalation-matrices', element: <RequireCapability anyOf={['sla:write']}>{lazyElement(AdminEscalationMatrices)}</RequireCapability> },
           { path: 'admin/escalation-rules', element: <RequireCapability anyOf={['sla:write']}>{lazyElement(AdminEscalationRules)}</RequireCapability> },
           { path: 'admin/groups', element: <RequireCapability anyOf={['group:write']}>{lazyElement(AdminGroups)}</RequireCapability> },
           { path: 'admin/bots', element: <RequireCapability anyOf={['ai:write']}>{lazyElement(AdminBots)}</RequireCapability> },
-          { path: 'admin/mcp-servers', element: <RequireCapability anyOf={['mcp:admin']}>{lazyElement(AdminMcpServers)}</RequireCapability> },
-          { path: 'admin/tools', element: <RequireCapability anyOf={['mcp:admin']}>{lazyElement(AdminTools)}</RequireCapability> },
-          { path: 'admin/menus', element: <RequireCapability anyOf={['system_config:write']}>{lazyElement(AdminMenus)}</RequireCapability> },
-          { path: 'admin/permissions', element: <RequireCapability anyOf={['permission:read']}>{lazyElement(AdminPermissions)}</RequireCapability> },
+          // 2026-10-10 治理域收口（§8 D7）：MCP 为平台资产——平台角色专属（后端路由挂 L1）。
+          { path: 'admin/mcp-servers', element: <RequirePlatformRole>{lazyElement(AdminMcpServers)}</RequirePlatformRole> },
+          // 工具目录（Bot 授权选择器同源，接口 GET /agent/tools/catalog=ai:read）：入口码对齐 ai:read
+          // （2026-10-10：mcp:admin 收回后不再作为租户面入口码）。
+          { path: 'admin/tools', element: <RequireCapability anyOf={['ai:read']}>{lazyElement(AdminTools)}</RequireCapability> },
+          // 2026-10-10 治理域收口（§8 D5）：菜单目录为平台结构资产——平台角色专属（后端 /menus 挂 L1）。
+          { path: 'admin/menus', element: <RequirePlatformRole>{lazyElement(AdminMenus)}</RequirePlatformRole> },
+          // 2026-10-10 治理域收口（§8 D6）：保留租户但收窄为"租户域授权"——入口码 role:write（与菜单行同码）。
+          { path: 'admin/permissions', element: <RequireCapability anyOf={['role:write']}>{lazyElement(AdminPermissions)}</RequireCapability> },
           { path: 'admin/process-routing', element: lazyElement(AdminProcessRouting) },
           { path: 'admin/roles', element: <RequireCapability anyOf={['role:write']}>{lazyElement(AdminRoles)}</RequireCapability> },
           { path: 'admin/service-catalogs', element: <RequireCapability anyOf={['service_catalog:write']}>{lazyElement(AdminServiceCatalogs)}</RequireCapability> },
@@ -275,7 +282,8 @@ export const routes: RouteObject[] = [
           { path: 'admin/tickets/assignment-rules', element: <RequireCapability anyOf={['system_config:write']}>{lazyElement(AdminTicketsAssignmentRules)}</RequireCapability> },
           { path: 'admin/tickets/automation-rules', element: <RequireCapability anyOf={['system_config:write']}>{lazyElement(AdminTicketsAutomationRules)}</RequireCapability> },
           { path: 'admin/users', element: <RequireCapability anyOf={['user:write']}>{lazyElement(AdminUsers)}</RequireCapability> },
-          { path: 'admin/vector-store', element: <RequireCapability anyOf={['system_config:write']}>{lazyElement(AdminVectorStore)}</RequireCapability> },
+          // 2026-10-10 治理域收口（§8 D7）：向量库为平台资产——平台角色专属（后端 /system/vector-store 挂 L1）。
+          { path: 'admin/vector-store', element: <RequirePlatformRole>{lazyElement(AdminVectorStore)}</RequirePlatformRole> },
           { path: 'admin/workflows', element: <RequireCapability anyOf={['workflow:write', 'bpmn:write']}>{lazyElement(AdminWorkflows)}</RequireCapability> },
             ],
           },

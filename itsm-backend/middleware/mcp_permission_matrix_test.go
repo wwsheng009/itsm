@@ -20,6 +20,10 @@ import (
 // 外部工具的使用与治理必须严格分离（D7 + Q2 拍板）：mcp:admin 只授予治理能力，不蕴含
 // mcp:read / mcp:write；写工具执行必须显式授予 mcp:write，且仍受 Gate3 审批（M1-02）约束。
 //
+// 2026-10-10 治理域收口（设计 §8 D7）：MCP 改判**平台资产**——默认授予面=仅平台角色
+// （super_admin/sysadmin）；租户管理面角色（admin/provider_tenant_admin）收回 read+admin
+// （路由侧另由 L1 RequirePlatformAdmin 兜底，见 router/mcp_routes.go 与平台面守卫）。
+//
 // 历史（真实缺陷，2026-09-27 由 M1-01 集成用例发现）：该通用规则曾让持 mcp:admin 的租户管理员
 // 静默获得 mcp:write（Gate2 直通），与授权面（authz.mcp_roles_test 断言 admin 不持 mcp:write）矛盾。
 
@@ -44,8 +48,8 @@ func TestMCPPermissionMatrix_HardcodeFallback(t *testing.T) {
 	}{
 		{role: "super_admin", read: true, write: true, admin: true},
 		{role: "sysadmin", read: true, write: true, admin: true},
-		// 租户管理员：显式授予 read+admin；**不含** write（mcp:write 需显式授予，见 M1-01 收口说明）。
-		{role: "admin", read: true, write: false, admin: true},
+		// 租户管理员：2026-10-10 §8 D7 后零持有（MCP 为平台资产，read+admin 已收回）。
+		{role: "admin", read: false, write: false, admin: false},
 		// 其余角色默认零授予（D7）：含坐席/技术员/经理/最终用户。
 		{role: "manager", read: false, write: false, admin: false},
 		{role: "agent", read: false, write: false, admin: false},
@@ -83,26 +87,24 @@ func TestMCPUseAndGovernanceSeparation_Matcher(t *testing.T) {
 	assert.False(t, checkPermissionMatch(governanceOnly, "mcp", "read"), "admin 不得蕴含读取（显式授予）")
 }
 
-// TestMCPAdminGrantSurfaceIsExplicit 授予面断言：兜底表里租户管理面角色（admin 与
-// provider_tenant_admin——后者 = admin ∪ msp_admin，2026-10-06 / 07:G11）显式持有
-// read+admin、**不**持 write。
-func TestMCPAdminGrantSurfaceIsExplicit(t *testing.T) {
-	for _, role := range []string{"admin", "provider_tenant_admin"} {
-		permissions := RolePermissions[role]
-		assert.True(t, mcpPairPresent(permissions, "mcp", "read"), "%s 必须能读 MCP 服务器/工具清单", role)
-		assert.True(t, mcpPairPresent(permissions, "mcp", "admin"), "%s 必须能治理 MCP 服务器", role)
-		assert.False(t, mcpPairPresent(permissions, "mcp", "write"),
-			"%s 不得显式持有 mcp:write（M1-02 起按需授予，写工具仍需 Gate3 审批）", role)
-	}
-
-	// 兜底表其余角色不得出现任何 mcp 授权（默认拒绝）。
+// TestMCPGrantSurfaceIsPlatformOnly 授予面断言（2026-10-10 §8 D7 重估）：MCP 为平台资产——
+// 兜底表中仅通配角色（super_admin/sysadmin，{*,*}）覆盖 mcp 码；租户管理面角色
+// （admin/provider_tenant_admin）与其他角色零持有。
+func TestMCPGrantSurfaceIsPlatformOnly(t *testing.T) {
 	for role, permissions := range RolePermissions {
-		if role == "super_admin" || role == "sysadmin" || role == "admin" || role == "provider_tenant_admin" {
-			continue // 通配角色与租户管理面角色，见上
+		if role == "super_admin" || role == "sysadmin" {
+			continue // 通配角色：{*,*} 覆盖 mcp 码（平台治理面）
 		}
-		assert.False(t, mcpPairPresent(permissions, "mcp", "read"), "%s 不得默认持有 mcp:read", role)
+		assert.False(t, mcpPairPresent(permissions, "mcp", "read"), "%s 不得默认持有 mcp:read（MCP 为平台资产）", role)
 		assert.False(t, mcpPairPresent(permissions, "mcp", "write"), "%s 不得默认持有 mcp:write", role)
 		assert.False(t, mcpPairPresent(permissions, "mcp", "admin"), "%s 不得默认持有 mcp:admin", role)
+	}
+	// 显式核对：租户管理面角色零持有（旧口径 read+admin 已收回）。
+	for _, role := range []string{"admin", "provider_tenant_admin"} {
+		for _, action := range []string{"read", "write", "admin"} {
+			assert.Falsef(t, mcpPairPresent(RolePermissions[role], "mcp", action),
+				"%s 不应持有 mcp:%s（§8 D7：MCP 为平台资产）", role, action)
+		}
 	}
 }
 
@@ -131,6 +133,8 @@ func TestMCPRoutes_HTTPStatusByRole(t *testing.T) {
 	engine.GET("/admin", withRole("technician"), RequirePermission("mcp", "admin"), okHandler)
 	engine.GET("/read-admin-role", withRole("admin"), RequirePermission("mcp", "read"), okHandler)
 	engine.GET("/admin-role", withRole("admin"), RequirePermission("mcp", "admin"), okHandler)
+	engine.GET("/read-sysadmin", withRole("sysadmin"), RequirePermission("mcp", "read"), okHandler)
+	engine.GET("/admin-sysadmin", withRole("sysadmin"), RequirePermission("mcp", "admin"), okHandler)
 
 	cases := []struct {
 		path string
@@ -139,8 +143,10 @@ func TestMCPRoutes_HTTPStatusByRole(t *testing.T) {
 	}{
 		{"/read", http.StatusForbidden, "坐席无 mcp:read"},
 		{"/admin", http.StatusForbidden, "坐席无 mcp:admin"},
-		{"/read-admin-role", http.StatusOK, "租户管理员可读（mcp:read）"},
-		{"/admin-role", http.StatusOK, "租户管理员可治理（mcp:admin）"},
+		{"/read-admin-role", http.StatusForbidden, "租户管理员已收回 mcp:read（§8 D7）"},
+		{"/admin-role", http.StatusForbidden, "租户管理员已收回 mcp:admin（§8 D7）"},
+		{"/read-sysadmin", http.StatusOK, "平台角色（sysadmin）通配放行"},
+		{"/admin-sysadmin", http.StatusOK, "平台角色（sysadmin）通配放行"},
 	}
 	for _, tc := range cases {
 		recorder := httptest.NewRecorder()

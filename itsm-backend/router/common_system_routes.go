@@ -179,15 +179,17 @@ func SetupCommonSystemRoutes(r *gin.Engine, tenant *gin.RouterGroup, config *Rou
 		}
 
 		// Menu Controllers (database-backed with tenant isolation)
+		// 2026-10-10 治理域收口（设计 §8 D5）：菜单目录为平台结构资产（含 /admin/*、/msp 行）——
+		// 整组挂 L1 + system:write；租户侧个性化菜单仍经 /auth/menus 按权限过滤下发，不受影响。
 		if config.RBACHandler != nil {
-			menus := tenant.Group("/menus")
+			menus := tenant.Group("/menus", middleware.RequirePlatformAdmin(), middleware.RequirePermission("system", "write"))
 			{
-				menus.GET("", middleware.RequirePermission("system_config", "read"), config.RBACHandler.ListMenus)
-				menus.POST("", middleware.RequirePermission("system_config", "write"), config.RBACHandler.CreateMenu)
-				menus.GET("/:id", middleware.RequirePermission("system_config", "read"), config.RBACHandler.GetMenu)
-				menus.PUT("/:id", middleware.RequirePermission("system_config", "write"), config.RBACHandler.UpdateMenu)
-				menus.DELETE("/:id", middleware.RequirePermission("system_config", "write"), config.RBACHandler.DeleteMenu)
-				menus.POST("/init", middleware.RequirePermission("system_config", "write"), config.RBACHandler.InitDefaultMenus)
+				menus.GET("", config.RBACHandler.ListMenus)
+				menus.POST("", config.RBACHandler.CreateMenu)
+				menus.GET("/:id", config.RBACHandler.GetMenu)
+				menus.PUT("/:id", config.RBACHandler.UpdateMenu)
+				menus.DELETE("/:id", config.RBACHandler.DeleteMenu)
+				menus.POST("/init", config.RBACHandler.InitDefaultMenus)
 			}
 		}
 

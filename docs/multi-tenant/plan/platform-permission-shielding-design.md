@@ -1,6 +1,6 @@
 # 平台面权限屏蔽与角色架构设计（Platform Permission Shielding & Role Architecture）
 
-> **状态**：v0.8（2026-10-08）——基于 IP-P2-7 收口补丁 1–9 + D1 决策的实施事实归纳与实弹验证回填（§7）；D4=B/R6、R2/R3、角色码归类、前端展示层（R5/P1）与存量目录处置（D1=B）均已收口（补丁 5/6/7/8/9 + [D1 决策材料](./platform-permission-shielding-d1-decision.md)）；剩余：§5.2 P2（L3 数据面复核，属其他专文）
+> **状态**：v0.9（2026-10-10）——**治理域收口轮（§8）**：菜单管理平台化（D5）、权限目录租户域收窄（D6）、MCP/向量库平台化（D7）、存量平台码收回（D1 修订：开发环境执行 A）；平台治理家族集合扩为 `{system, tenant, mcp}`，三处消费（路由 L1 / 授予与目录护栏 / 菜单与前端下发）同源。v0.8（2026-10-08）——基于 IP-P2-7 收口补丁 1–9 + D1 决策的实施事实归纳与实弹验证回填（§7）；D4=B/R6、R2/R3、角色码归类、前端展示层（R5/P1）与存量目录处置（D1=B→§8 修订）均已收口（补丁 5/6/7/8/9 + [D1 决策材料](./platform-permission-shielding-d1-decision.md)）；剩余：§5.2 P2（L3 数据面复核，属其他专文）
 >
 > **上位（权威顺序）**：[canon](./msp-concept-model-and-architecture-canon.md)（D5/D8/D10/D11、§2.3）→ [目标架构 §6](./msp-target-architecture.md)（权限矩阵）→ [实施方案](./msp-implementation-plan.md)（IP-P2-7 批次）→ 本设计
 >
@@ -88,7 +88,7 @@
 | 词表 | 拥有者 | 租户侧权限 |
 |------|--------|------------|
 | 权限定义（`permissions` 表）：码集合与语义 | 平台 | **只读**（`GET /permissions` 列目录）；创建/初始化仅平台（`POST /permissions`、`/permissions/init` 已收口） |
-| 平台治理码（`resource=system` 等） | 平台 | 可见（目录现状）但**不可分配**（`ErrPlatformPermissionForbidden`） |
+| 平台治理码（`resource ∈ {system, tenant, mcp}`，§8 扩集） | 平台 | **不下发**（非平台根目录不含该家族；D1=A 收回）+ **不可分配**（`ErrPlatformPermissionForbidden`）；目录 API 兜底过滤（§8 D6） |
 | 通配码 `*:*` | 平台 | 非平台根**不可创建/分配**（`ErrWildcardPermissionForbidden`） |
 | 保留角色码（`super_admin`/`sysadmin`） | 平台 | 全局**不可创建/改名**（`ErrReservedRoleCode`） |
 | 角色定义（`roles` 表） | 各租户 | 租户自管（可见性/可授予按租户类型收口） |
@@ -105,6 +105,10 @@
 | 定时器 | `/timers*` | L1 + `system:read` | 平台调度面 |
 | 租户治理写面 | 租户创建/更新/删除、状态、配额等（补丁 3：handler 内 `requirePlatformAdmin`） | L1 + `tenant:write` | 平台独占管理面 |
 | 权限词表写面 | `POST /permissions`、`POST /permissions/init` | L1 + `role:write` | 词表所有权 |
+| 菜单管理（§8 D5） | `/menus*`（列表 / CRUD / init） | L1 + `system:write` | 菜单目录 = 产品结构资产，租户不可改 |
+| MCP 外部工具管理（§8 D7） | `/ai/mcp-servers*`（读 + 治理写） | L1 + `mcp:read` / `mcp:admin` | MCP 为平台资产（覆盖补丁 6 评估） |
+| 向量库（RAG）诊断（§8 D7） | `/system/vector-store*` | L1 + `system:read` / `system:write` | 向量库为平台资产 |
+| 租户设置（plan/billing/status）（§8 D7） | `/system/settings`（GET/PUT） | L1 + `tenant:read` / `tenant:write` | 租户治理属性，平台管理 |
 
 > **新增平台面路由的评审规则**：凡作用于全局/跨租户资源、或写平台词表/平台身份的路由，必须同时挂 L1 与 L2，并在 `route_permission_guard_test.go` 可审计（写路由缺权限中间件即失败）。
 >
@@ -189,7 +193,10 @@
 
 | 编号 | 决策 | 选项 | 建议 | 影响 |
 |------|------|------|------|------|
-| D1 | 存量权限目录中的平台码（`system:*` 等）如何处置 | A. 裁剪（逐租户删除平台家族码行）；B. 保留但不可分配（现状） | **已决：B（2026-10-08）**——实测非根租户零持有面，残余纯数据卫生；A 预案（含 `ProvisionTenant` 克隆链连带改动）与触发条件见[决策材料](./platform-permission-shielding-d1-decision.md) | 裁剪影响 `permissions` 表存量行、角色权限 m2m、前端目录展示 |
+| D1 | 存量权限目录中的平台码（`system:*` 等）如何处置 | A. 裁剪（逐租户删除平台家族码行）；B. 保留但不可分配（现状） | **已决：B（2026-10-08）→ 2026-10-10 修订为 A 并执行**（开发环境，触发条件 §5-3/5-4；含 `ProvisionTenant` 克隆链连带改动 + 防再生守卫，见 §8） | 裁剪影响 `permissions` 表存量行、角色权限 m2m、前端目录展示 |
+| D5 | 菜单管理（`/menus*`、`/admin/menus`）归属 | A. 租户自管（行级 scope）；B. 平台专属 | **已决：B（2026-10-10）**：菜单目录是产品结构资产（含 `/admin/*`、`/msp` 行），写读面挂 L1；菜单行改挂平台码，租户侧不再挂载（§8） | 路由 L1、菜单行 `permission_code`、seeder、前端路由守卫 |
+| D6 | 权限目录页（`/admin/permissions`）归属 | A. 平台专属；B. 保留租户、收窄为"租户域授权" | **已决：B（2026-10-10）**：租户管理自有角色是合法职能；收窄手段=目录不下发平台家族码（D1=A）+ 入口码 `permission:read`→`role:write` + 初始化按钮仅平台可见（§8） | 目录 API、前端页面、角色矩阵 |
+| D7 | MCP（`/ai/mcp-servers*`）与向量库（`/system/vector-store*`）归属 | A. 租户面（补丁 6 评估）；B. 平台资产 | **已决：B（2026-10-10）**：两族均为平台资产——路由挂 L1、`mcp` 纳入平台治理家族、租户角色收回 `mcp:*`；向量库路由本就声明 `system:*`，补 L1 即可（§8） | 路由、护栏集合、角色矩阵、数据收回 |
 | D2 | 平台治理判定是否下沉到 service（而非仅路由） | A. 维持路由层 L1；B. service 层再加身份校验 | **A**：service 层无调用者身份语义（且 `CreatePermission` 被 `InitDefaultPermissions` 内部调用），路由层是正确收口点；service 层只做分配护栏（按作用域租户类型） | 若未来出现非 HTTP 调用路径需单独评审 |
 | D3 | `RequirePlatformAdmin` 的判定口径 | A. 仅主角色；B. 主角色 + m2m 并集 | **B（已实现）**：与 `AuthorizeResource` 的 `GetContextRoles` 口径一致，避免切换/附加角色场景绕过 | — |
 | D4 | 平台根判定口径：仅类型判定（`internal`/`standard`）是否足够 | A. 维持类型判定；B. 叠加根租户标识（`tenants.code=default`）兜底，provider 语义仍按类型；C. 改 seeder 使 `saas_msp` 根租户保持 `internal` | **B（已实施，补丁 5，2026-10-08）**：`saas_msp` 模式根租户由 seeder 固定为 `msp_provider`（部署形态自检要求存在 provider 租户，且根租户即 MSP 服务商主体），类型判定使平台根丧失平台面（§7.3 实测）；B 不动 provider 语义，改动收敛在平台根谓词及其调用点 | 补丁 5（已落地）：`tenant_scope.go` 谓词拆分（`isPlatformRootTenant`/`tenantScopeOf`/`hiddenRoleCodesForTenant`）+ `role_service`/`user_service` 调用点 + `platform_root_tenant_test.go`；实弹复测见 §7.4；选 A 则 `saas_msp` 平台根功能降级为"仅 `super_admin` 直通" |
@@ -198,9 +205,9 @@
 
 | 编号 | 风险 | 现状 | 缓解 |
 |------|------|------|------|
-| R1 | 克隆目录仍含平台码，用户界面可见 | 已决（D1=B，2026-10-08；实测非根零持有面） | L1 使持码不可穿过平台面；P1 前端过滤；A 触发条件见[决策材料](./platform-permission-shielding-d1-decision.md) §5 |
+| R1 | 克隆目录仍含平台码，用户界面可见 | **关闭（§8 D1 修订：开发环境执行 A）**：非平台根目录行与授权均已收回，克隆链同步跳过（防再生）；复验口径见[决策材料](./platform-permission-shielding-d1-decision.md) §7（期望 0/0/0） | 防再生守卫：非平台根目录零平台家族行 + 零授权（§8） |
 | R2 | 平台面新增路由漏挂 L1 | 已收口（补丁 6：注册表 + 反向前缀守卫，`router/platform_face_guard_test.go`） | 新增平台面路由必须同步注册表（§3.3 评审规则 + 扩展评审清单 §3） |
-| R3 | `resource != system` 的平台家族码（`menu`/`system_config`/`mcp`/…）仍可分配 | 已收口（补丁 6 逐家族评估：`system_config`/`mcp`/`connector` 为租户面不纳入；`menu`/`federation` 码空间不存在；结论见扩展评审清单 §2.2） | 护栏集合维持 `{system}`；新增/调整家族须先完成评估并更新清单 |
+| R3 | `resource != system` 的平台家族码（`menu`/`system_config`/`mcp`/…）仍可分配 | **已重估（§8 D7）**：`mcp` 由"租户面"改判**平台资产**并纳入；`tenant` 家族（租户治理属性）同轮纳入；`system_config`/`connector` 维持租户面（评估见扩展评审清单 §2.2） | 护栏集合 `{system, tenant, mcp}`；新增/调整家族须先完成评估并更新清单 |
 | R4 | 内部调用（`InitDefaultPermissions` 等）不经路由 | 已确认 | service 层不做身份拦截（D2）；仅分配护栏生效，内部调用默认可信（平台初始化路径） |
 | R5 | 前端角色页可勾选不可分配权限，提交后 400 | 已收口（补丁 8：选择器按 `assignable` 隐藏 + 锁定码警示；写面护栏不变） | 用户角色下拉 rank 面已随补丁 9 收口 |
 | R6 | `saas_msp` 根租户被类型判定当作服务商租户 | 已收口（补丁 5 落地 + §7.4 复测：平台角色可见、`system:write` 分配 200；补丁 4 时点观测见 §7.3） | D4=B 已实施：`isPlatformRootTenant` 根租户标识叠加判定；provider 语义仍按类型（不放大） |
@@ -257,3 +264,68 @@
 
 判定：D4=B 生效——根租户（`code=default`）按平台根作用域恢复平台治理面（F1/F2 转正）；provider 语义仍按类型判定（不放大）；R6 关闭。
 
+
+---
+
+## 8. 治理域收口轮（2026-10-10，D5–D7 + D1 修订；v0.9）
+
+> **触发**：租户管理员实测可接触平台级配置——`admin` 内置角色持有 `permission:read` / `role:write` / `system_config:write` / `tenant:read+write` / `mcp:read+admin`；菜单行 `/admin/menus`=`system_config:write`、`/admin/permissions`=`role:write` 对其挂载；`/menus*`、`/ai/mcp-servers*`、`/system/vector-store*` 均无 L1。
+>
+> **决策**：D5 菜单管理平台专属；D6 权限目录页保留租户但收窄为"租户域授权"；D7 MCP/向量库为平台资产；D1 修订为 A（开发环境直接收回）。
+
+### 8.1 机制：治理域（scope）单一来源 × 三处消费
+
+```
+资源/权限码 ──► 平台治理家族集合（service.platformGovernedPermissionResources）
+                  ├─ 路由层：平台面必须挂 L1（platform_face_guard_test 注册表）
+                  ├─ 授予层：非平台根不可分配（ErrPlatformPermissionForbidden）
+                  └─ 下发层：非平台根目录不下发该家族（GET /permissions 过滤）+ 菜单行改挂平台码
+```
+
+**不变式（守卫化）**：
+
+1. 非平台根租户：目录零平台家族行、角色授权零平台家族码（防再生：开通克隆链跳过）；
+2. 平台治理家族集合 = `{system, tenant, mcp}`（显式集合 + 决策锁用例 + 评审清单 §2.2）；
+3. 平台面路由（含本轮新增：`/menus*`、`/ai/mcp-servers*`、`/system/vector-store*`、`/system/settings`）必须挂 L1；
+4. 平台页面前端路由必须挂 `RequirePlatformRole`（后端标记单一源）。
+
+### 8.2 落地清单
+
+| 层 | 变更 | 落点 |
+|----|------|------|
+| 护栏集合 | `{system}` → `{system, tenant, mcp}`（决策锁用例同步） | `service/role_service.go`、`service/role_config_bypass_guard_test.go` |
+| 路由 L1 | `/menus*`（L1 + `system:write`）、`/ai/mcp-servers*`（L1 + `mcp:read`/`mcp:admin`）、`/system/vector-store*`（L1 + `system:*`）、`/system/settings`（L1 + `tenant:*`） | `router/common_system_routes.go`、`router/mcp_routes.go`、`handlers/vector_store`、`router/system_config_routes.go` |
+| 平台面守卫 | 新路由入注册表/前缀；`/menus` 行内参数可审计 | `router/platform_face_guard_test.go` |
+| 目录收窄 | 非平台根 `GET /permissions` 过滤平台家族（兜底）+ 存量收回（见下） | `service/permission_service.go` |
+| 防再生 | `ProvisionTenant` 克隆链（权限行/角色授权/菜单）对非平台根跳过平台家族 | `pkg/seeder/tenant_provisioner.go` |
+| 角色矩阵 | `admin` 收回 `tenant:read+write`、`mcp:read+admin`；directors 收回 `system:read`；`provider_tenant_admin` 派生自动跟随 | `internal/authz/roles.go`、`middleware/rbac.go`（兜底表对拍） |
+| 前端 | 移除 `RequireCapability` 的 `isAdmin()` 旁路；`/admin/menus`、`/admin/mcp-servers`、`/admin/vector-store` 挂 `RequirePlatformRole`；`/admin/permissions` 入口码 `permission:read`→`role:write`；初始化按钮仅平台可见；`department` 入口码对齐后端 | `routes/guards.tsx`、`routes/index.tsx`、`pages/(main)/admin/permissions` |
+| 菜单数据 | `/admin/menus`、`/admin/vector-store` 行 `permission_code` 改挂平台码（`system:write`/`system:read`）；seeder + 存量迁移同步 | `pkg/seeder`、`database/*.sql` |
+| 存量收回 | 删除非平台根租户的平台家族授权（`role_permissions`）与目录行（`permissions`）；排除平台根（`code=default`） | `database/platform_scope_cleanup_20261010.sql` |
+
+### 8.3 复验口径
+
+- SQL（同 [D1 决策材料](./platform-permission-shielding-d1-decision.md) §7）：非平台根租户 `permissions` 平台家族行数 / `role_permissions` 平台家族授权数 / `user_roles` 持有面 = `0 / 0 / 0`；
+- 实弹矩阵：客户 11 / 服务商 10 对 `/menus`（写）、`/ai/mcp-servers`、`/system/vector-store`、`/system/settings` 全 403（L1）；`GET /permissions` 目录零平台家族码；`/admin/menus` 不再挂载；平台根 1 全通；
+- 守卫：`go test ./router ./service ./pkg/seeder ./middleware` 定向 + 前端 jest/tsc/eslint。
+
+### 8.4 实弹验证证据（2026-10-10，8090 联调环境）
+
+> 脚本：`.tmp/apply_platform_scope_cleanup.py`（备份 + 事务执行 + SQL 复验）、`.tmp/verify_governance_scope*.py`（三身份矩阵/菜单挂载）、浏览器双隔离会话（租户 10 / 平台根 1）。探测零残留（未创建任何数据；`POST /menus` 空体仅触发参数校验）。
+
+**SQL 复验（D1=A 执行后）**：非平台根租户平台家族目录行 **0**、授权 **0**；平台根（`code=default`）保留 **7** 行；菜单码改挂 `/admin/menus=system:write` ×12、`/admin/vector-store=system:read` ×12。
+
+**平台面矩阵（登录实测）**：
+
+| 探测项 | 平台根 1（super_admin） | 服务商 10（admin） | 客户 11（admin） |
+|--------|--------------------------|---------------------|-------------------|
+| `GET /permissions` 目录 | 206 条（含 system/tenant/mcp 家族） | **199 条，平台家族 0** | **199 条，平台家族 0** |
+| `POST /menus`（空体 + CSRF） | 400 参数校验（通过 L1+L2，抵达 handler） | 403 权限不足 | 403 权限不足 |
+| `GET /ai/mcp-servers` | 200 | 403 仅平台管理员（L1） | 403 仅平台管理员（L1） |
+| `GET /system/vector-store` | 200 | 403 | 403 |
+| `GET /system/settings` | 200 | 403 | 403 |
+| `/auth/menus` admin 区挂载 | menus/vector-store/mcp-servers/permissions/system-config/roles/tenants/tools 全挂 | **menus/vector-store/mcp-servers/tenants 不挂**；permissions/system-config/roles/tools 保留 | 同服务商 |
+
+**浏览器复核**：租户 10 访问 `/admin/menus` → `/403`；`/admin/permissions` 正常渲染且「初始化默认权限」按钮**不渲染**（平台词表写面）；平台根 1 访问 `/admin/menus` 正常渲染。
+
+**测试**：后端 `go test ./middleware ./internal/authz ./tests/parity ./pkg/seeder ./service ./router ./handlers/rbac ./handlers/ai ./handlers/tenant` 全绿（含新守卫：`TestMenuRoleRestrictionGuards`、`TestProvisionTenant_NoPlatformGovernedFamilies`、`TestPlatformGovernedResources_FamilyEvaluationLock` 扩集、`TestMCPRoleMatrix*` 平台独占）；前端 jest 8 套件 81 用例、`tsc`/`eslint` 0。

@@ -23,9 +23,11 @@ func BuiltinRolePermissionCodes() map[string][]string {
 		// 系统管理员：所有权限
 		"sysadmin": allPermissionCodes(),
 		// IT总监：全局读写（不含系统管理）
-		"it_director": allExcept([]string{"system:write", "msp:write", "msp_allocation:write", "mcp:read", "mcp:write", "mcp:admin"}),
+		// 2026-10-10 治理域收口：平台家族码（system/tenant/mcp）不得落入租户角色——
+		// system:read 此前经 allExcept 漏入总监角色；tenant/mcp 同步排除。
+		"it_director": allExcept([]string{"system:read", "system:write", "tenant:read", "tenant:write", "msp:write", "msp_allocation:write", "mcp:read", "mcp:write", "mcp:admin"}),
 		// 运维总监：运维相关读写
-		"ops_director": allExcept([]string{"system:write", "msp:write", "msp_allocation:write", "msp_report:write", "mcp:read", "mcp:write", "mcp:admin"}),
+		"ops_director": allExcept([]string{"system:read", "system:write", "tenant:read", "tenant:write", "msp:write", "msp_allocation:write", "msp_report:write", "mcp:read", "mcp:write", "mcp:admin"}),
 		// 运维经理：运维相关读写
 		"ops_manager": {
 			"ticket:read", "ticket:write", "ticket:create", "ticket:update",
@@ -165,7 +167,8 @@ func BuiltinRolePermissionCodes() map[string][]string {
 		// 安全管理员
 		"security_admin": {
 			"ticket:read", "ticket_type:read", "incident:read", "problem:read",
-			"system:read", "user:read", "role:read",
+			// 2026-10-10 治理域收口：system 家族为平台治理码，租户角色不再持有。
+			"user:read", "role:read",
 			"knowledge:read", "report:read",
 			// 服务请求审批（2026-09-07 P1-B：审批角色权限补齐）
 			"service_request:read", "service_request:write", "service_request:approve",
@@ -173,7 +176,8 @@ func BuiltinRolePermissionCodes() map[string][]string {
 		// 审计管理员
 		"audit_admin": {
 			"ticket:read", "ticket_type:read", "incident:read", "problem:read", "change:read",
-			"system:read", "user:read", "role:read", "report:read",
+			// 2026-10-10 治理域收口：system 家族为平台治理码，租户角色不再持有。
+			"user:read", "role:read", "report:read",
 		},
 		// 部门经理（users.role=manager 对齐；服务请求 L1 审批角色）
 		"manager": {
@@ -240,7 +244,8 @@ func BuiltinRolePermissionCodes() map[string][]string {
 			"dashboard:read", "dashboard:admin",
 			"knowledge:read", "knowledge:write", "knowledge:admin",
 			"cmdb:read", "cmdb:write", "cmdb:delete",
-			"tenant:read", "tenant:write",
+			// 2026-10-10 治理域收口（设计 §8 D7）：tenant 家族=平台治理（仅平台根/平台角色），
+			// 租户管理员不再持有（租户设置路由已挂 L1）。
 			"incident:read", "incident:write", "incident:force-update", "incident:admin",
 			"service_catalog:read", "service_catalog:write", "service_catalog:delete",
 			"service_request:read", "service_request:write",
@@ -252,9 +257,8 @@ func BuiltinRolePermissionCodes() map[string][]string {
 			"alerts:read", "alerts:write",
 			"audit:read",
 			"ai:read", "ai:write",
-			// MCP（M0-10，D7）：租户管理员是唯一默认治理者；不给 mcp:write
-			// （写工具执行权属使用面，M1-02 起按需显式授予），体现「read/write 不隐含管理」的反向同样成立。
-			"mcp:read", "mcp:admin",
+			// 2026-10-10 治理域收口（设计 §8 D7）：MCP 为平台资产——mcp 家族仅平台角色持有
+			// （sysadmin 全量），租户管理员不再持有 read/admin。
 			"role:read", "role:write", "role:delete",
 			"permission:read",
 			"system_config:read", "system_config:write",
@@ -505,6 +509,9 @@ func allPermissionCodes() []string {
 		"task:read", "task:update", "task:admin",
 		"knowledge:read", "knowledge:write", "knowledge:delete",
 		"system:read", "system:write",
+		// 2026-10-10 治理域收口（设计 §8 D7）：tenant 家族为平台治理码——sysadmin（平台角色）
+		// 需持码以通过租户治理面 L2；租户角色经 allExcept 排除（it_director/ops_director）。
+		"tenant:read", "tenant:write",
 		"org:read", "org:write",
 		"project:read", "project:write",
 		"application:read", "application:write",

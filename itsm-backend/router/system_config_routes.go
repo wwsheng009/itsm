@@ -63,9 +63,10 @@ func SetupSystemConfigRoutes(tenant *gin.RouterGroup, h *systemConfigHandler.Han
 			})
 		})
 
-		// Tenant settings (current tenant — uses auth context)
-		sysRoot.GET("/settings", middleware.RequirePermission("tenant", "read"), tenantHandler.GetTenantSettings)
-		sysRoot.PUT("/settings", middleware.RequirePermission("tenant", "write"), tenantHandler.UpdateTenantSettings)
+		// Tenant settings（plan/billing/status 等治理属性）：2026-10-10 治理域收口（设计 §8 D7）——
+		// tenant 家族纳入平台治理（不可分配/不下发），路由同步叠加 L1：仅平台角色可读改。
+		sysRoot.GET("/settings", middleware.RequirePlatformAdmin(), middleware.RequirePermission("tenant", "read"), tenantHandler.GetTenantSettings)
+		sysRoot.PUT("/settings", middleware.RequirePlatformAdmin(), middleware.RequirePermission("tenant", "write"), tenantHandler.UpdateTenantSettings)
 	}
 
 	// 向量存储（RAG）状态与连通性诊断：/api/v1/system/vector-store

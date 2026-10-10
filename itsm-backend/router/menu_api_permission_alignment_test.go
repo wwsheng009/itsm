@@ -64,8 +64,6 @@ var menuRouteMismatchAllowlist = map[string]string{
 		"无「可见却 403」；待入口守卫与接口读码统一后移除（2026-10-10 登记）。",
 	"/admin/system-config": "菜单码=页面入口守卫 system_config:write，主接口读通道为 system_config:read：菜单更严 → " +
 		"只读角色不挂载；待入口守卫与接口读码统一后移除（2026-10-10 登记）。",
-	"/admin/menus": "菜单码=页面入口守卫 system_config:write，主接口读通道为 system_config:read：菜单更严 → " +
-		"只读角色不挂载；待入口守卫与接口读码统一后移除（2026-10-10 登记）。",
 }
 
 // TestMenuPermissionAlignsWithRouteDeclarations 守卫：配对页面的「菜单 permission_code」

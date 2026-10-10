@@ -171,18 +171,16 @@ var RolePermissions = map[string][]Permission{
 		{Resource: "audit", Action: "read"},
 		{Resource: "ai", Action: "read"},
 		{Resource: "ai", Action: "write"},
-		// MCP 外部工具（M0-10，D7）：治理（admin）+ 使用读取（read）默认仅管理员；
-		// mcp:write（写工具执行）默认不授予，M1-02 接入审批链路后按需显式授权。
-		{Resource: "mcp", Action: "read"},
-		{Resource: "mcp", Action: "admin"},
+		// 2026-10-10 治理域收口（设计 §8 D7）：MCP 为平台资产——租户管理员不再持有 mcp 码
+		// （sysadmin 兜底为通配；本兜底表与 internal/authz/roles.go 保持全等）。
 		{Resource: "role", Action: "read"},
 		{Resource: "role", Action: "write"},
 		{Resource: "role", Action: "delete"},
 		{Resource: "permission", Action: "read"},
 		{Resource: "system_config", Action: "read"},
 		{Resource: "system_config", Action: "write"},
-		{Resource: "tenant", Action: "read"},
-		{Resource: "tenant", Action: "write"},
+		// 2026-10-10 治理域收口（设计 §8 D7）：tenant 家族为平台治理码——租户管理员不再持有
+		// （租户治理/设置路由已挂 L1；sysadmin 兜底为通配）。
 		{Resource: "org", Action: "read"},
 		{Resource: "org", Action: "write"},
 		// 部门管理权限：路由层使用 ("department", read/create/update/delete)；

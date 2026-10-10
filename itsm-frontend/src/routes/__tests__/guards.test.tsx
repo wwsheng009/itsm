@@ -78,10 +78,11 @@ describe('RequireCapability（FE-A7 分组守卫）', () => {
     expect(screen.queryByTestId('msp-page')).not.toBeInTheDocument();
   });
 
-  it('管理员保留既有访问语义', () => {
+  it('管理员不再旁路：无码即 403（2026-10-10 治理域收口，前端门禁与后端 L2 同源）', () => {
     setAuth({ hasPermission: () => false, isAdmin: true });
     renderGuarded();
-    expect(screen.getByTestId('msp-page')).toBeInTheDocument();
+    expect(screen.getByTestId('navigate-to')).toHaveAttribute('data-to', '/403');
+    expect(screen.queryByTestId('msp-page')).not.toBeInTheDocument();
   });
 });
 

@@ -53,6 +53,7 @@ import {
 } from 'antd';
 import { RoleAPI } from '@/lib/api/role-api';
 import type { Role } from '@/lib/api/api-config';
+import { useAuthStore } from '@/lib/store/auth-store';
 import { useI18n } from '@/lib/i18n/useI18n';
 const { Title, Text } = Typography;
 
@@ -232,6 +233,9 @@ const ACTION_COLOR: Record<string, string> = {
 const PermissionConfiguration = () => {
   const { t } = useI18n();
   const { message } = App.useApp();
+  // 2026-10-10 治理域收口（设计 §8 D6）：本页保留租户（收窄为"租户域授权"）——
+  // 「初始化默认权限」为平台词表写面（后端 L1），仅平台角色可见/可用。
+  const isPlatformRole = useAuthStore(state => state.user?.isPlatformRole);
   const [roles, setRoles] = useState<Role[]>([]);
   const [selectedRoleId, setSelectedRoleId] = useState<number | null>(null);
   const [permissionState, setPermissionState] = useState<PermissionState>(createEmptyPermissionState());
@@ -658,9 +662,12 @@ const PermissionConfiguration = () => {
           </Col>
           <Col xs={24} md={4} className="text-right">
             <Space>
-              <Button onClick={handleInitPermissions} loading={saving}>
-                {t('permissions.buttons.init')}
-              </Button>
+              {/* 平台词表写面：仅平台角色渲染（租户域授权不含词表所有权，见 §8 D6）。 */}
+              {isPlatformRole && (
+                <Button onClick={handleInitPermissions} loading={saving}>
+                  {t('permissions.buttons.init')}
+                </Button>
+              )}
               <Button icon={<RefreshCw className="w-4 h-4" />} onClick={handleReset}>
                 {t('permissions.buttons.reset')}
               </Button>
