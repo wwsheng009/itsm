@@ -85,7 +85,8 @@ export const ServiceCatalogFilters: React.FC<ServiceCatalogFiltersProps> = ({
             }))}
           />
         </Col>
-        {onCreateService && <Col xs={24} sm={12} md={2}>
+        {/* 刷新为只读操作：恒显示，不随创建权限隐藏（权限门禁只管写操作）。 */}
+        <Col xs={24} sm={12} md={2}>
           <Tooltip title="刷新列表">
             <Button
               icon={<RefreshCw size={20} />}
@@ -97,18 +98,22 @@ export const ServiceCatalogFilters: React.FC<ServiceCatalogFiltersProps> = ({
               {t('serviceCatalog.refresh')}
             </Button>
           </Tooltip>
-        </Col>}
-        <Col xs={24} sm={12} md={2}>
-          <Button
-            type="primary"
-            icon={<PlusCircle size={20} />}
-            size="large"
-            style={{ width: '100%' }}
-            onClick={onCreateService}
-          >
-            {t('serviceCatalog.newService')}
-          </Button>
         </Col>
+        {/* 创建服务需 service_catalog:write：无权限不渲染，避免「可见但点击无反应」的死按钮
+            （与页面空态「请联系服务目录管理员」及仓库内 canManageXxx && <Button/> 惯例同口径）。 */}
+        {onCreateService && (
+          <Col xs={24} sm={12} md={2}>
+            <Button
+              type="primary"
+              icon={<PlusCircle size={20} />}
+              size="large"
+              style={{ width: '100%' }}
+              onClick={onCreateService}
+            >
+              {t('serviceCatalog.newService')}
+            </Button>
+          </Col>
+        )}
       </Row>
     </Card>
   );
