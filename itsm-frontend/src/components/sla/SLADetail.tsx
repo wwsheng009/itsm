@@ -22,10 +22,13 @@ import { ArrowLeft, Pencil } from 'lucide-react';
 import { SLAApi } from '@/lib/api/';
 import { SLAPriorityLabels, SLAPriorityColors } from '@/constants/sla';
 import type { SLADefinition } from '@/types/biz/sla';
+import { useCan } from '@/components/auth/PermissionGate';
 
 const SLADetail: React.FC = () => {
   const { id } = useParams() as { id: string };
   const navigate = useNavigate();
+  // 入口级门禁：编辑 → sla:write。
+  const canWriteSla = useCan(['sla:write']);
   const [loading, setLoading] = useState(true);
   const [data, setData] = useState<SLADefinition | null>(null);
 
@@ -88,15 +91,17 @@ const SLADetail: React.FC = () => {
         className="rounded-lg shadow-sm border border-gray-200"
        
         title={<span className="text-lg font-bold">{data.name}</span>}
-        extra={
-          <Button
-            type="primary"
-            icon={<Pencil />}
-            onClick={() => navigate(`/sla/definitions/${data.id}/edit`)}
-          >
-            编辑
-          </Button>
-        }
+          extra={
+            canWriteSla && (
+              <Button
+                type="primary"
+                icon={<Pencil />}
+                onClick={() => navigate(`/sla/definitions/${data.id}/edit`)}
+              >
+                编辑
+              </Button>
+            )
+          }
       >
         <Descriptions bordered column={2} className="mb-6">
           <Descriptions.Item label="名称">{data.name}</Descriptions.Item>

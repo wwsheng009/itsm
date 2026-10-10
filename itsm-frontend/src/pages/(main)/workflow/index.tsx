@@ -60,6 +60,7 @@ import { StatsOverview } from '@/components/ui/StatsOverview';
 import { WorkflowAPI } from '@/lib/api/workflow-api';
 import { WorkflowType, CreateWorkflowRequest, UpdateWorkflowRequest } from '@/types/workflow';
 import { BatchActionBar } from '@/components/business/BatchActionBar';
+import { useCan } from '@/components/auth/PermissionGate';
 
 import { useI18n } from '@/lib/i18n';
 const { Text } = Typography;
@@ -83,6 +84,9 @@ const WorkflowManagementPage = () => {
   const { t } = useI18n();
   const navigate = useNavigate();
   const { modal } = App.useApp();
+  // 入口级门禁：工作流（BPMN 流程定义）写面 → bpmn:write；删除 → bpmn:delete（handlers/bpmn/workflow.go）。
+  const canBpmnWrite = useCan(['bpmn:write']);
+  const canBpmnDelete = useCan(['bpmn:delete']);
   const [workflows, setWorkflows] = useState<Workflow[]>([]);
   const [loading, setLoading] = useState(false);
   const [modalVisible, setModalVisible] = useState(false);
@@ -758,7 +762,7 @@ const WorkflowManagementPage = () => {
       render: (record: Workflow) => (
         <Space>
           {/* 快捷部署按钮 - 直接显示在操作栏 */}
-          {record.status !== 'active' && (
+          {canBpmnWrite && record.status !== 'active' && (
             <Tooltip title={record.status === 'draft' ? '部署' : '重新部署'}>
               <Button
                 type="primary"
@@ -770,14 +774,16 @@ const WorkflowManagementPage = () => {
               </Button>
             </Tooltip>
           )}
-          <Tooltip title={t('workflow.designWorkflow')}>
-            <Button
-              type="text"
-              icon={<GitBranch className="w-4 h-4" />}
-              onClick={() => handleDesignWorkflow(record)}
-              aria-label="设计工作流"
-            />
-          </Tooltip>
+          {canBpmnWrite && (
+            <Tooltip title={t('workflow.designWorkflow')}>
+              <Button
+                type="text"
+                icon={<GitBranch className="w-4 h-4" />}
+                onClick={() => handleDesignWorkflow(record)}
+                aria-label="设计工作流"
+              />
+            </Tooltip>
+          )}
           <Tooltip title={t('workflow.viewDetails')}>
             <Button
               type="text"
@@ -867,7 +873,17 @@ const WorkflowManagementPage = () => {
                   onClick: () => handleDeleteWorkflow(record.id),
                   disabled: record.status === 'active' && record.runningInstances > 0,
                 },
-              ].filter(item => item.style?.display !== 'none'), // 过滤隐藏项目
+              ].filter(item => {
+                if (item.style?.display === 'none') return false;
+                if (
+                  ['edit', 'deploy', 'activate', 'stop', 'copy'].includes(String(item.key)) &&
+                  !canBpmnWrite
+                ) {
+                  return false;
+                }
+                if (item.key === 'delete' && !canBpmnDelete) return false;
+                return true;
+              }), // 过滤隐藏项目 + 入口级权限门禁（bpmn:write / bpmn:delete）
             }}
           >
             <Button
@@ -937,52 +953,58 @@ const WorkflowManagementPage = () => {
 
   const headerActions = (
     <>
-      <Dropdown
-        menu={{
-          items: [
-            {
-              key:'ticketApproval',
-              label: t('workflow.ticketApprovalProcess'),
-              icon: <GitBranch className="w-4 h-4" />,
-              onClick: () => navigate('/workflow/designer'),
-            },
-            {
-              key: 'general',
-              label: t('workflow.generalWorkflow'),
-              icon: <GitBranch className="w-4 h-4" />,
-              onClick: handleCreateWorkflow,
-            },
-            {
-              key: 'bpmn',
-              label: t('workflow.bpmnWorkflow'),
-              icon: <Code className="w-4 h-4" />,
-              onClick: () => {
-                setEditingWorkflow(null);
-                setDesignerVisible(true);
+      {canBpmnWrite && (
+        <Dropdown
+          menu={{
+            items: [
+              {
+                key:'ticketApproval',
+                label: t('workflow.ticketApprovalProcess'),
+                icon: <GitBranch className="w-4 h-4" />,
+                onClick: () => navigate('/workflow/designer'),
               },
-            },
-          ],
-        }}
-        trigger={['click']}
-      >
-        <Button type="primary" icon={<Plus className="w-4 h-4" />}>
-          {t('workflow.newWorkflow')} <MoreHorizontal className="w-3 h-3 ml-1" />
-        </Button>
-      </Dropdown>
-      <Button
-        type="default"
-        icon={<PlayCircle className="w-4 h-4" />}
-        onClick={() => setStartModalVisible(true)}
-      >
-        发起流程
-      </Button>
-      <Button
-        icon={<Upload className="w-4 h-4" />}
-        onClick={handleImportWorkflow}
-        aria-label="导入工作流"
-      >
-        {t('workflow.import')}
-      </Button>
+              {
+                key: 'general',
+                label: t('workflow.generalWorkflow'),
+                icon: <GitBranch className="w-4 h-4" />,
+                onClick: handleCreateWorkflow,
+              },
+              {
+                key: 'bpmn',
+                label: t('workflow.bpmnWorkflow'),
+                icon: <Code className="w-4 h-4" />,
+                onClick: () => {
+                  setEditingWorkflow(null);
+                  setDesignerVisible(true);
+                },
+              },
+            ],
+          }}
+          trigger={['click']}
+        >
+          <Button type="primary" icon={<Plus className="w-4 h-4" />}>
+            {t('workflow.newWorkflow')} <MoreHorizontal className="w-3 h-3 ml-1" />
+          </Button>
+        </Dropdown>
+      )}
+      {canBpmnWrite && (
+        <>
+          <Button
+            type="default"
+            icon={<PlayCircle className="w-4 h-4" />}
+            onClick={() => setStartModalVisible(true)}
+          >
+            发起流程
+          </Button>
+          <Button
+            icon={<Upload className="w-4 h-4" />}
+            onClick={handleImportWorkflow}
+            aria-label="导入工作流"
+          >
+            {t('workflow.import')}
+          </Button>
+        </>
+      )}
       <Button
         icon={<RefreshCw className="w-4 h-4" />}
         onClick={() => loadWorkflows(pagination.current, pagination.pageSize)}
@@ -1088,7 +1110,7 @@ const WorkflowManagementPage = () => {
           {
             key: 'activate',
             label: t('workflow.batchActivate'),
-            type: 'primary',
+            type: 'primary' as const,
             onClick: handleBatchActivate,
           },
           {
@@ -1108,7 +1130,11 @@ const WorkflowManagementPage = () => {
             // 已有 Modal.confirm 二次确认，工具栏无需再次弹 Popconfirm
             onClick: handleBatchDelete,
           },
-        ]}
+        ].filter(action => {
+          if ((action.key === 'activate' || action.key === 'stop') && !canBpmnWrite) return false;
+          if (action.key === 'delete' && !canBpmnDelete) return false;
+          return true;
+        })}
       />
 
       {/* 工作流表格 */}

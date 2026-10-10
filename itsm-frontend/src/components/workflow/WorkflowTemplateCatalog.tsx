@@ -7,6 +7,7 @@ import {
   type WorkflowTemplate,
   type CreateWorkflowTemplateRequest,
 } from '@/lib/api/bpmn-workflow-template-api';
+import { useCan } from '@/components/auth/PermissionGate';
 
 const { Text } = Typography;
 
@@ -29,8 +30,10 @@ const STATUS_LABELS: Record<string, { label: string; color: string }> = {
   archived: { label: '已停用', color: 'default' },
 };
 
-export default function WorkflowTemplateCatalog() {
-  const { message } = App.useApp();
+  export default function WorkflowTemplateCatalog() {
+    const { message } = App.useApp();
+    // 入口级门禁：创建/编辑/发布/停用/新版本 → workflow:write（handlers/bpmn/workflow_template.go）。
+    const canWriteWorkflow = useCan(['workflow:write']);
   const [items, setItems] = useState<WorkflowTemplate[]>([]);
   const [loading, setLoading] = useState(false);
   const [filters, setFilters] = useState({ keyword: '', domain: '', status: '' });
@@ -168,7 +171,7 @@ export default function WorkflowTemplateCatalog() {
   return (
     <Card
       title="AI 工作流模板目录"
-      extra={<Button type="primary" icon={<Plus size={16} />} onClick={openCreate}>创建模板草稿</Button>}
+        extra={canWriteWorkflow ? <Button type="primary" icon={<Plus size={16} />} onClick={openCreate}>创建模板草稿</Button> : null}
     >
       <Space wrap className="mb-4">
         <Input.Search placeholder="搜索 key、名称或描述" allowClear value={filters.keyword} onChange={e => setFilters({ ...filters, keyword: e.target.value })} onSearch={value => setFilters({ ...filters, keyword: value })} />
@@ -188,10 +191,10 @@ export default function WorkflowTemplateCatalog() {
           { title: '更新时间', dataIndex: 'updatedAt' },
           { title: '操作', key: 'actions', render: (_: unknown, item: WorkflowTemplate) => <Space>
             <Button type="text" icon={<Eye size={16} />} aria-label="查看详情" onClick={() => showDetail(item)} />
-            {item.status === 'draft' && <Button type="text" icon={<Edit size={16} />} aria-label="编辑草稿" onClick={() => openEdit(item)} />}
-            {item.status === 'draft' && <Button type="text" icon={<Upload size={16} />} aria-label="发布模板" onClick={() => publish(item)} />}
-            {item.status === 'published' && <Button type="text" icon={<Copy size={16} />} aria-label="创建新版本" onClick={() => createNewVersion(item)} />}
-            {item.status === 'published' && <Button type="text" danger icon={<Archive size={16} />} aria-label="停用模板" onClick={() => archive(item)} />}
+              {canWriteWorkflow && item.status === 'draft' && <Button type="text" icon={<Edit size={16} />} aria-label="编辑草稿" onClick={() => openEdit(item)} />}
+              {canWriteWorkflow && item.status === 'draft' && <Button type="text" icon={<Upload size={16} />} aria-label="发布模板" onClick={() => publish(item)} />}
+              {canWriteWorkflow && item.status === 'published' && <Button type="text" icon={<Copy size={16} />} aria-label="创建新版本" onClick={() => createNewVersion(item)} />}
+              {canWriteWorkflow && item.status === 'published' && <Button type="text" danger icon={<Archive size={16} />} aria-label="停用模板" onClick={() => archive(item)} />}
             <Button type="text" icon={<History size={16} />} aria-label="查看历史版本" onClick={() => void showVersions(item)} />
           </Space> },
         ]}

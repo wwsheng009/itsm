@@ -84,19 +84,21 @@
 
 | 页面/文件 | 入口（行号） | 动作 | 权限码 | 路由级 | 状态 |
 |---|---|---|---|---|---|
-| `components/sla/SLAList.tsx` | 136 / 172 / 194 | 编辑 / 新建 / 空态新建 | `sla:write` | ⚠️ 路由不存在（§5） | ⬜ |
-| `components/sla/SLADetail.tsx` | 95 | 编辑 | `sla:write` | — | ⬜ |
-| `pages/(main)/sla/index.tsx` | 132 / 160 | 导出报告 / 监控 | `sla:read`（导出待核） | — | ⬜ |
-| `pages/(main)/workflow/index.tsx` | 968 / 981 / 1422 | 新建 / 导入 / 设计 | `workflow:write` | ⚠️ designer（§5） | ⬜ |
-| `pages/(main)/workflow/automation/index.tsx` | 319 / 216 | 新建规则 / 删除 | `workflow:write`（待核） | — | ⬜ |
-| `pages/(main)/workflow/instances/index.tsx` | 384 | 启动实例 | `bpmn:write` | — | ⬜ |
-| `components/workflow/WorkflowTemplateCatalog.tsx` | Modal.confirm ×2 | 发布 / 归档模板 | `workflow:write` | — | ⬜ |
-| `components/workflow/designer/WorkflowDesigner.tsx` | 673+ | 保存 / 创建版本 | `workflow:write`（待核） | ⚠️ §5 | ⬜ |
+| `components/sla/SLAList.tsx` | 132 / 146 / 174 / 201 / Switch | 编辑/新建/空态新建/启停；删除 | `sla:write` / `sla:delete` | ⚠️ 组件当前未被路由引用（防御性门禁） | ✅（批次 9） |
+| `components/sla/SLADetail.tsx` | 92 | 编辑 | `sla:write` | — | ✅（批次 9） |
+| `pages/(main)/sla/index.tsx` | 132 / 160 | 导出报告 / 监控（均读面；监控跳 `/sla-monitor`） | `sla:read` | — | ✅（读面无需写门禁） |
+| `pages/(main)/workflow/index.tsx` | 954–1013 / 763 / 789 / 1082 | 新建/导入/发起/设计/编辑/部署/启停/克隆（**勘误：`bpmn:write`**）；删除/批量删除 `bpmn:delete` | `bpmn:write` / `bpmn:delete` | ⚠️ designer（§5） | ✅（批次 9） |
+| `pages/(main)/workflow/automation/index.tsx` | 179 / 197 / 207 / 323 | 新建规则 / 编辑 / 删除 / 启停（**勘误：`system_config:write`**，端点 `/tickets/automation-rules`） | `system_config:write` | — | ✅（批次 9） |
+| `pages/(main)/workflow/instances/index.tsx` | 384 / 247 / 301 | 发起 / 暂停 / 恢复 / 终止实例 | `bpmn:write` | — | ✅（批次 9） |
+| `components/workflow/WorkflowTemplateCatalog.tsx` | 171 / 191–194 | 创建草稿 / 编辑 / 发布 / 新版本 / 停用 | `workflow:write` | — | ✅（批次 9） |
+| `components/workflow/designer/WorkflowToolbar.tsx`（`WorkflowDesigner` 工具栏） | 170 / 179 / 191 | 保存 / 保存并部署 / 重新部署 | `bpmn:write`（**勘误**） | ⚠️ §5 | ✅（批次 9） |
 | `pages/(main)/email-intake/index.tsx` | Modal.confirm ×3 | 确认/驳回/纠正/重试/覆盖 | `email_intake:review` / `:retry` / `:override` | — | ⬜ |
 | `pages/(main)/email-intake/customers、sources/**` | — | 客户/来源组织增删改 | `customer_master:write` | — | ⬜ |
 | `pages/(main)/email-intake/contracts/**` | — | 支持合同增删改 | `support_contract:write` | — | ⬜ |
 | `pages/(main)/email-intake/on-call/**` | — | 值班排班增删改 | `on_call:write` | — | ⬜ |
-| `pages/(main)/marketplace/$id/index.tsx` | 227 / 338 / 223 | 安装 / 卸载 | `marketplace:write` | — | ⬜ |
+| `pages/(main)/marketplace/$id/index.tsx` | 226 / 227 / 232 | 安装 / 卸载（能力位 + RBAC 双闸） | `marketplace:write` | — | ✅（批次 9） |
+
+> 进度（2026-10-10，批次 9）：§2.4 前半收口 ✅——SLA 定义（列表/详情/启停/删除）、工作流管理页（新建/导入/发起/设计/部署/启停/克隆/删除/批量，`bpmn:write/delete`）、BPMN 实例（发起/暂停/恢复/终止）、工作流模板目录（创建/编辑/发布/新版本/停用）、设计器工具栏（保存/保存并部署/重新部署）、自动化规则（新建/编辑/删除/启停，`system_config:write`）、应用市场（安装/卸载）。剩余：邮件接入族（conversations 审核 + customers/sources/contracts/on-call）。
 
 ### 2.5 组织与配置（主区）
 

@@ -25,7 +25,8 @@ import type {
   TenantInstallation,
 } from '@/lib/services/marketplace-service';
 import marketplaceService from '@/lib/services/marketplace-service';
-import { useCapabilities } from '@/lib/hooks/useCapabilities';
+  import { useCapabilities } from '@/lib/hooks/useCapabilities';
+  import { useCan } from '@/components/auth/PermissionGate';
 
 const typeNames = {
   connector: '连接器',
@@ -45,6 +46,8 @@ const MarketplaceDetailPage = () => {
   const { message, modal } = App.useApp();
   const { allows, find: findCapability } = useCapabilities();
   const canManageMarketplace = allows('marketplace', 'manage');
+  // 入口级门禁：安装/卸载 → marketplace:write（handlers/marketplace/handler.go）。
+  const canWriteMarketplace = useCan(['marketplace:write']);
 
   const [item, setItem] = useState<MarketplaceItem | null>(null);
   const [installation, setInstallation] = useState<TenantInstallation | null>(null);
@@ -220,14 +223,16 @@ const MarketplaceDetailPage = () => {
                       </div>
                       <div className="flex gap-2">
                         <Button onClick={() => navigate('/installations')}>管理</Button>
-                        <Button variant="destructive" onClick={handleUninstall}>卸载</Button>
+                        {canWriteMarketplace && (
+                          <Button variant="destructive" onClick={handleUninstall}>卸载</Button>
+                        )}
                       </div>
                     </div>
-                  ) : (
+                  ) : canWriteMarketplace ? (
                     <Button size="lg" onClick={handleInstall} disabled={installing}>
                       {installing ? '安装中...' : '立即安装'}
                     </Button>
-                  )}
+                  ) : null}
                   <p className="text-xs text-gray-500 mt-2">版本 {item.latestVersion || '1.0.0'}</p>
                 </div>
               </div>

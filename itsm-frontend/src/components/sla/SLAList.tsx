@@ -20,6 +20,7 @@ import {
 import { Plus, Pencil, Trash2, RotateCcw, Bell } from 'lucide-react';
 import dayjs from 'dayjs';
 import LoadingEmptyError from '@/components/ui/LoadingEmptyError';
+import { useCan } from '@/components/auth/PermissionGate';
 
 import { SLAApi } from '@/lib/api/sla-api';
 import type { SLADefinition } from '@/lib/api/sla-api';
@@ -28,6 +29,9 @@ import { SLAPriorityLabels, SLAPriorityColors } from '@/constants/sla';
 const SLAList: React.FC = () => {
   const navigate = useNavigate();
   const { message } = App.useApp();
+  // 入口级门禁：新建/编辑/启停 → sla:write；删除 → sla:delete（sla_routes.go）。
+  const canWriteSla = useCan(['sla:write']);
+  const canDeleteSla = useCan(['sla:delete']);
   const [loading, setLoading] = useState(false);
   const [data, setData] = useState<SLADefinition[]>([]);
   const [total, setTotal] = useState(0);
@@ -113,6 +117,7 @@ const SLAList: React.FC = () => {
         <Switch
           size="small"
           checked={active}
+          disabled={!canWriteSla}
           onChange={checked => handleToggleActive(record, checked)}
         />
       ),
@@ -129,13 +134,15 @@ const SLAList: React.FC = () => {
       width: 160,
       render: (_: unknown, record: SLADefinition) => (
         <Space size="small">
-          <Tooltip title="编辑">
-            <Button
-              type="text"
-              icon={<Pencil />}
-              onClick={() => navigate(`/sla/definitions/${record.id}/edit`)}
-            />
-          </Tooltip>
+          {canWriteSla && (
+            <Tooltip title="编辑">
+              <Button
+                type="text"
+                icon={<Pencil />}
+                onClick={() => navigate(`/sla/definitions/${record.id}/edit`)}
+              />
+            </Tooltip>
+          )}
           <Tooltip title="预警规则">
             <Button
               type="text"
@@ -143,14 +150,16 @@ const SLAList: React.FC = () => {
               onClick={() => navigate(`/sla/definitions/${record.id}/alerts`)}
             />
           </Tooltip>
-          <Tooltip title="删除">
-            <Button
-              type="text"
-              danger
-              icon={<Trash2 />}
-              onClick={() => handleDelete(record.id)}
-            />
-          </Tooltip>
+          {canDeleteSla && (
+            <Tooltip title="删除">
+              <Button
+                type="text"
+                danger
+                icon={<Trash2 />}
+                onClick={() => handleDelete(record.id)}
+              />
+            </Tooltip>
+          )}
         </Space>
       ),
     },
@@ -165,15 +174,17 @@ const SLAList: React.FC = () => {
       </Breadcrumb>
 
       <div className="flex justify-between mb-4">
-        <Space>
-          <Button
-            type="primary"
-            icon={<Plus />}
-            onClick={() => navigate('/sla/definitions/new')}
-          >
-            新建 SLA
-          </Button>
-        </Space>
+          <Space>
+            {canWriteSla && (
+              <Button
+                type="primary"
+                icon={<Plus />}
+                onClick={() => navigate('/sla/definitions/new')}
+              >
+                新建 SLA
+              </Button>
+            )}
+          </Space>
         <Button icon={<RotateCcw />} onClick={loadData} />
       </div>
 
@@ -190,10 +201,10 @@ const SLAList: React.FC = () => {
               empty={{
                 title: '暂无 SLA 定义',
                 description: '当前没有 SLA 策略，点击下方按钮创建第一个 SLA 定义',
-                actionText: '新建 SLA',
-                onAction: () => navigate('/sla/definitions/new'),
-                showAction: true,
-                icon: <Bell size={48} />,
+                  actionText: '新建 SLA',
+                  onAction: canWriteSla ? () => navigate('/sla/definitions/new') : undefined,
+                  showAction: canWriteSla,
+                  icon: <Bell size={48} />,
               }}
             />
           ),

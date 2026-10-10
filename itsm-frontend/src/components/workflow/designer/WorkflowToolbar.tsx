@@ -8,6 +8,7 @@ import { Button, Space, Tag, Breadcrumb, Typography, Dropdown, Tooltip } from 'a
 import { Save, Download, Settings, History, Bug, Rocket, PlayCircle, CloudUpload, Bot } from 'lucide-react';
 import { useI18n } from '@/lib/i18n/useI18n';
 import type { WorkflowDefinition } from './WorkflowTypes';
+import { useCan } from '@/components/auth/PermissionGate';
 
 const { Text } = Typography;
 
@@ -44,6 +45,8 @@ export default function WorkflowToolbar({
   onTabChange,
 }: WorkflowToolbarProps) {
   const { t } = useI18n();
+  // 入口级门禁：保存/保存并部署/重新部署 → bpmn:write（handlers/bpmn/workflow.go）。
+  const canBpmnWrite = useCan(['bpmn:write']);
 
   // 导出XML
   const handleExportXML = () => {
@@ -167,16 +170,18 @@ export default function WorkflowToolbar({
           </Button>
         </Dropdown>
 
-        <Button
-          icon={<Save />}
-          loading={saving}
-          disabled={serializeBlocked}
-          onClick={() => onSave()}
-        >
-          {t('workflow.designer.toolbarSave')}
-        </Button>
+        {canBpmnWrite && (
+          <Button
+            icon={<Save />}
+            loading={saving}
+            disabled={serializeBlocked}
+            onClick={() => onSave()}
+          >
+            {t('workflow.designer.toolbarSave')}
+          </Button>
+        )}
 
-        {workflow?.status !== 'active' && (
+        {canBpmnWrite && workflow?.status !== 'active' && (
           <Button
             type="primary"
             icon={<CloudUpload />}
@@ -188,7 +193,7 @@ export default function WorkflowToolbar({
           </Button>
         )}
 
-        {workflow?.status === 'active' && (
+        {canBpmnWrite && workflow?.status === 'active' && (
           <Button
             type="primary"
             icon={<PlayCircle />}

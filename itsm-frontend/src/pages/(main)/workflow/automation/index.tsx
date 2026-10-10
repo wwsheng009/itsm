@@ -42,13 +42,16 @@ import type {
   CreateAutomationRuleRequest,
   UpdateAutomationRuleRequest,
 } from '@/lib/api/ticket-automation-rule-api';
-import { TicketAutomationRuleApi } from '@/lib/api/ticket-automation-rule-api';
-import { useI18n } from '@/lib/i18n';
+  import { TicketAutomationRuleApi } from '@/lib/api/ticket-automation-rule-api';
+  import { useI18n } from '@/lib/i18n';
+  import { useCan } from '@/components/auth/PermissionGate';
 
 const { Title, Text } = Typography;
 const WorkflowAutomationPage = () => {
   const { message } = App.useApp();
   const { t } = useI18n();
+  // 入口级门禁：自动化规则增删改/启停 → system_config:write（router/ticket_routes.go 的 /tickets/automation-rules）。
+  const canManageAutomation = useCan(['system_config:write']);
   const [rules, setRules] = useState<AutomationRule[]>([]);
   const [loading, setLoading] = useState(false);
   const [modalVisible, setModalVisible] = useState(false);
@@ -176,7 +179,7 @@ const WorkflowAutomationPage = () => {
       key: 'isActive',
       width: 100,
       render: (isActive: boolean, record: AutomationRule) => (
-        <Switch checked={isActive} onChange={() => handleToggleRule(record)} size='small' />
+        <Switch checked={isActive} onChange={() => handleToggleRule(record)} size='small' disabled={!canManageAutomation} />
       ),
     },
     {
@@ -194,28 +197,32 @@ const WorkflowAutomationPage = () => {
       width: 150,
       render: (record: AutomationRule) => (
         <Space>
-          <Tooltip title='编辑'>
-            <Button
-              type='text'
-              icon={<Edit className='w-4 h-4' />}
-              onClick={() => handleEditRule(record)}
-            />
-          </Tooltip>
+          {canManageAutomation && (
+            <Tooltip title='编辑'>
+              <Button
+                type='text'
+                icon={<Edit className='w-4 h-4' />}
+                onClick={() => handleEditRule(record)}
+              />
+            </Tooltip>
+          )}
           <Tooltip title='复制'>
             <Button type='text' icon={<Copy className='w-4 h-4' />} />
           </Tooltip>
-          <Popconfirm
-            title='确认删除该自动化规则？'
-            description='删除后规则将立即停止执行，且无法恢复。'
-            okText='删除'
-            okButtonProps={{ danger: true }}
-            cancelText='取消'
-            onConfirm={() => handleDeleteRule(record.id)}
-          >
-            <Tooltip title='删除'>
-              <Button type='text' danger icon={<Trash2 className='w-4 h-4' />} />
-            </Tooltip>
-          </Popconfirm>
+          {canManageAutomation && (
+            <Popconfirm
+              title='确认删除该自动化规则？'
+              description='删除后规则将立即停止执行，且无法恢复。'
+              okText='删除'
+              okButtonProps={{ danger: true }}
+              cancelText='取消'
+              onConfirm={() => handleDeleteRule(record.id)}
+            >
+              <Tooltip title='删除'>
+                <Button type='text' danger icon={<Trash2 className='w-4 h-4' />} />
+              </Tooltip>
+            </Popconfirm>
+          )}
         </Space>
       ),
     },
@@ -316,9 +323,11 @@ const WorkflowAutomationPage = () => {
       <Card className='rounded-lg shadow-sm border border-gray-200'>
         <div className='flex items-center justify-between mb-4'>
           <Title level={5}>自动化规则</Title>
-          <Button type='primary' icon={<Plus className='w-4 h-4' />} onClick={handleCreateRule}>
-            新建规则
-          </Button>
+            {canManageAutomation && (
+              <Button type='primary' icon={<Plus className='w-4 h-4' />} onClick={handleCreateRule}>
+                新建规则
+              </Button>
+            )}
         </div>
 
         <Tabs

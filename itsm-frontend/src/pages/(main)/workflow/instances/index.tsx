@@ -11,6 +11,7 @@ import { StatsOverview } from '@/components/ui/StatsOverview';
 import { WorkflowApi } from '@/lib/api/workflow-api';
 import { WorkflowInstanceDetail } from '@/components/workflow/WorkflowInstanceDetail';
 import type { WorkflowDefinition } from '@/types/workflow';
+import { useCan } from '@/components/auth/PermissionGate';
 
 type InstanceRow = {
   id: string;
@@ -55,8 +56,10 @@ export default function WorkflowInstancesPage() {
   );
 }
 
-function WorkflowInstancesContent() {
-  const { message, modal } = App.useApp();
+  function WorkflowInstancesContent() {
+    const { message, modal } = App.useApp();
+    // 入口级门禁：发起/暂停/恢复/终止实例 → bpmn:write（handlers/bpmn/workflow.go）。
+    const canBpmnWrite = useCan(['bpmn:write']);
   const [searchParams] = useSearchParams();
   const urlWorkflowId = searchParams.get('workflowId') || searchParams.get('processDefinitionKey') || '';
   const [loading, setLoading] = useState(false);
@@ -76,7 +79,7 @@ function WorkflowInstancesContent() {
     if (urlWorkflowId && urlWorkflowId !== keyword) {
       setKeyword(urlWorkflowId);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+     
   }, [urlWorkflowId]);
 
   // 详情弹窗状态
@@ -244,7 +247,7 @@ function WorkflowInstancesContent() {
             >
               详情
             </Button>
-            {record.status === 'running' && (
+            {canBpmnWrite && record.status === 'running' && (
               <>
                 <Button
                   type="text"
@@ -298,7 +301,7 @@ function WorkflowInstancesContent() {
                 </Button>
               </>
             )}
-            {record.status === 'suspended' && (
+            {canBpmnWrite && record.status === 'suspended' && (
               <Button
                 type="text"
                 icon={<PlayCircle className="h-4 w-4" />}
@@ -381,9 +384,11 @@ function WorkflowInstancesContent() {
         }
         actions={
           <Space>
-            <Button type="primary" icon={<Rocket className="h-4 w-4" />} onClick={openStartModal}>
-              发起流程
-            </Button>
+            {canBpmnWrite && (
+              <Button type="primary" icon={<Rocket className="h-4 w-4" />} onClick={openStartModal}>
+                发起流程
+              </Button>
+            )}
             <Button icon={<RefreshCw className="h-4 w-4" />} onClick={loadData}>
               刷新
             </Button>
