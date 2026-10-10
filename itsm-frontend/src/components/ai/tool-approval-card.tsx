@@ -17,6 +17,7 @@ import { Button, Space, Tag, Tooltip, Typography, theme } from 'antd';
 import { AlertTriangle, CheckCircle2, ExternalLink, RefreshCw, ShieldAlert, XCircle } from 'lucide-react';
 
 import { aiGetToolInvocation, type ToolInvocationDetail } from '@/lib/api/ai-api';
+import { useCan } from '@/components/auth/PermissionGate';
 
 /** 待审批保留期（天）：仅用于前端「可能已过期」提示，不代表后端有过期状态机。 */
 export const PENDING_TTL_DAYS = 7;
@@ -136,9 +137,11 @@ export const ToolApprovalCard: React.FC<ToolApprovalCardProps> = ({
   const detail = view.detail;
   const risk = detail?.risk;
   const canAct = view.state === 'pending';
+  // 入口级门禁：内联「确认/拒绝」决策走 POST /agent/tools/:id/approve（ai:write）。
+  const hasAiWrite = useCan(['ai:write']);
   // B1-07：内联确认入口（仅 pending 且后端给出 confirmationState=pending 时可用）。
   const canConfirmInline =
-    canAct && !!onRequestConfirm && (detail?.confirmationState ?? 'pending') === 'pending';
+    canAct && hasAiWrite && !!onRequestConfirm && (detail?.confirmationState ?? 'pending') === 'pending';
 
   return (
     <div

@@ -118,7 +118,13 @@
 
 | 文件 | 入口 | 动作 | 权限码 | 状态 |
 |---|---|---|---|---|
-| `components/common/GlobalShortcutProvider.tsx` | 72 | ctrl+n → `/tickets/new`（旧别名，§5） | `ticket:create` | ⬜ |
+| `components/common/GlobalShortcutProvider.tsx` | 72 | ctrl+n → `/tickets/new`（旧别名，§5） | `ticket:create` | ✅ |
+| `pages/(main)/notifications/index.tsx` | 491/504/655/660/722/789 | 标记已读/删除/全部已读/清空/偏好保存/重置默认 | `notification:write` | ✅ |
+| `pages/(main)/ai/approval/index.tsx` | 331 | 通过/驳回工具调用审批（POST /agent/tools/:id/approve） | `ai:write` | ✅ |
+| `components/ai/tool-approval-card.tsx` | 140 | 对话内确认（内联「确认/拒绝」；当前注入未启用，防御性） | `ai:write` | ✅ |
+| `pages/(main)/dashboard/index.tsx` | 299 | 空态「去创建」→ `/tickets/create` | `ticket:create` | ✅ |
+
+> 进度（2026-10-10，批次 5）：全局快捷键 ctrl+n（`ticket:create`）、通知写面（`notification:write`）、AI 审批「通过/驳回」与对话内确认卡（`ai:write`）、dashboard 空态创建入口（`ticket:create`）✅。
 
 ## 3. P1：详情页动作（破坏性 / 状态流转 / 审批）
 
@@ -140,7 +146,7 @@
 | 发布 | rollback | `release:rollback` | 同上 |
 | 发布 | status 流转 / 删除 | `release:write` / `release:delete` | 同上 |
 | 工单 | accept / reject / approve / resolve / close / reopen / forward / cc / withdraw | `workflow:write` | `components/business/TicketWorkflowActions.tsx`、`TicketDetail.tsx`、`TicketMultiLevelApproval.tsx` |
-| 工单 | 批量操作（删除/关闭/指派等） | `ticket:batch_*`（`batch_delete` 等） | `components/ticket/TicketBatchOperations.tsx` |
+| 工单 | 批量操作（分配/状态/标签/优先级/通知/导出/删除） | `ticket:assign` / `ticket:update` / `workflow:write` / `ticket:export` / `ticket:delete`（✅ 批次 4；勘误：`ticket:batch_*` 词表实际不存在） | `components/ticket/TicketBatchOperations.tsx` |
 | 工单 | 编辑模式入口 `/tickets/:id?mode=edit` | `ticket:update` | `components/ticket/TicketList.tsx:115` |
 | 服务请求 | approval / provision / status | `service_request:approve` / `service_request:write` | `components/service-request/ServiceRequestDetail.tsx`（已有 canApprove 局部判定，建议换成 `useCan`） |
 | 知识库 | 发布/归档/编辑/删除 | `knowledge:write` / `knowledge:delete` | ✅ 已改造 |

@@ -42,6 +42,7 @@ import { useDashboardData } from './hooks/useDashboardData';
 import type { QuickAction } from './types/dashboard.types';
 import { useTheme } from '@/lib/design-system/theme';
 import { userPreferences } from '@/lib/user-preferences';
+import { PermissionGate } from '@/components/auth/PermissionGate';
 
 type DashboardUserPreferences = ReturnType<typeof userPreferences.get>;
 
@@ -296,9 +297,11 @@ export default function DashboardPage() {
                       </div>
                       <h3 className='text-base font-semibold text-gray-900 mb-1'>创建第一个工单</h3>
                       <p className='text-sm text-gray-500 mb-4'>提交 IT 服务请求或报告问题</p>
-                      <Button type='primary' onClick={() => navigate('/tickets/create')}>
-                        去创建
-                      </Button>
+                      <PermissionGate anyOf={['ticket:create']}>
+                        <Button type='primary' onClick={() => navigate('/tickets/create')}>
+                          去创建
+                        </Button>
+                      </PermissionGate>
                     </div>
                   </Card>
                 </Col>

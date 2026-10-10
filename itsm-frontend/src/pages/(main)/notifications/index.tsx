@@ -50,6 +50,7 @@ import {
   toTicketNotification
 } from '@/lib/api/ticket-notification-api';
 import { useAuthStore } from '@/lib/store/auth-store';
+import { usePermissions } from '@/lib/hooks/use-permissions';
 import { notificationWS } from '@/lib/services/notification-ws';
 import { checkNotificationTarget } from '@/lib/utils/notification-target';
 import { useI18n } from '@/lib/i18n';
@@ -135,6 +136,9 @@ export default function NotificationsPage() {
   const { t } = useI18n();
   const navigate = useNavigate();
   const { user, token } = useAuthStore();
+  const { hasPermission } = usePermissions();
+  // 通知写面（标记已读/全部已读/删除/清空/偏好保存与重置）统一走 notification:write。
+  const canWriteNotifications = hasPermission('notification', 'write');
   const { message } = App.useApp();
   const [notifications, setNotifications] = useState<TicketNotification[]>([]);
   const [unreadNotifications, setUnreadNotifications] = useState<TicketNotification[]>([]);
@@ -488,7 +492,7 @@ export default function NotificationsPage() {
                   {notification.actionText || '查看详情'}
                 </Button>
               ),
-              notification.status !== 'read' && (
+              canWriteNotifications && notification.status !== 'read' && (
                 <Button
                   key="read"
                   type="link"
@@ -501,16 +505,18 @@ export default function NotificationsPage() {
                   {t('notifications.markRead')}
                 </Button>
               ),
-              <Popconfirm
-                key="delete"
-                title={t('notifications.delete')}
-                description={t('notifications.deleteRead')}
-                onConfirm={() => handleDeleteNotification(notification.id)}
-              >
-                <Button type="link" size="small" danger icon={<Delete className="w-4 h-4" />}>
-                  {t('notifications.delete')}
-                </Button>
-              </Popconfirm>,
+              canWriteNotifications && (
+                <Popconfirm
+                  key="delete"
+                  title={t('notifications.delete')}
+                  description={t('notifications.deleteRead')}
+                  onConfirm={() => handleDeleteNotification(notification.id)}
+                >
+                  <Button type="link" size="small" danger icon={<Delete className="w-4 h-4" />}>
+                    {t('notifications.delete')}
+                  </Button>
+                </Popconfirm>
+              ),
             ].filter(Boolean)}
           >
             <List.Item.Meta
@@ -652,12 +658,12 @@ export default function NotificationsPage() {
               {t('notifications.unreadCount', { count: filteredUnreadNotifications.length })}
             </Text>
             <Space>
-              {filteredUnreadNotifications.length > 0 && (
+              {canWriteNotifications && filteredUnreadNotifications.length > 0 && (
                 <Button onClick={handleMarkAllRead} loading={actionKey === 'read-all'}>
                   {t('notifications.markAllRead')}
                 </Button>
               )}
-              {filteredNotifications.length > 0 && (
+              {canWriteNotifications && filteredNotifications.length > 0 && (
                 <Popconfirm
                   title={t('notifications.clearAll')}
                   description={t('notifications.deleteRead')}
@@ -719,9 +725,11 @@ export default function NotificationsPage() {
         <Card>
           <div className="mb-4 flex items-center justify-between">
             <Title level={4}>{t('notifications.preferences')}</Title>
-            <Button icon={<RotateCcw className="h-4 w-4" />} onClick={handleResetPreferences}>
-              {t('notifications.resetDefault')}
-            </Button>
+            {canWriteNotifications && (
+              <Button icon={<RotateCcw className="h-4 w-4" />} onClick={handleResetPreferences}>
+                {t('notifications.resetDefault')}
+              </Button>
+            )}
           </div>
           <Spin spinning={preferencesLoading}>
             <Form form={form} layout="vertical" onFinish={handleSavePreferences}>
@@ -787,9 +795,11 @@ export default function NotificationsPage() {
               <Divider />
 
               <Form.Item>
-                <Button type="primary" htmlType="submit" loading={actionKey === 'save-preferences'}>
-                  {t('notifications.saveSettings')}
-                </Button>
+                {canWriteNotifications && (
+                  <Button type="primary" htmlType="submit" loading={actionKey === 'save-preferences'}>
+                    {t('notifications.saveSettings')}
+                  </Button>
+                )}
               </Form.Item>
             </Form>
           </Spin>

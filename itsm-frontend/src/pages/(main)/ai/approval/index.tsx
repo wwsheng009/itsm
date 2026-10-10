@@ -152,6 +152,8 @@ const AIApprovalQueue: React.FC = () => {
 
   // 治理跳转入口：无 mcp:admin 的用户不显示（后端路由亦有 RBAC 兜底）。
   const canGovernTools = hasPermission('mcp', 'admin');
+  // 审批决策入口：POST /agent/tools/:id/approve 需要 ai:write（无权限时只读展示）。
+  const canApproveTools = hasPermission('ai', 'write');
 
   const handleApprove = async (id: number) => {
     try {
@@ -329,19 +331,23 @@ const AIApprovalQueue: React.FC = () => {
             </Space>
           </Tooltip>
         ) : r.approvalState === 'pending' ? (
-          <Space>
-            <Button
-              type="primary"
-              size="small"
-              icon={<CheckCircle2 size={14} />}
-              onClick={() => handleApprove(r.id)}
-            >
-              通过
-            </Button>
-            <Button danger size="small" icon={<XCircle size={14} />} onClick={() => setRejectId(r.id)}>
-              驳回
-            </Button>
-          </Space>
+          canApproveTools ? (
+            <Space>
+              <Button
+                type="primary"
+                size="small"
+                icon={<CheckCircle2 size={14} />}
+                onClick={() => handleApprove(r.id)}
+              >
+                通过
+              </Button>
+              <Button danger size="small" icon={<XCircle size={14} />} onClick={() => setRejectId(r.id)}>
+                驳回
+              </Button>
+            </Space>
+          ) : (
+            <Text type="secondary">无审批权限</Text>
+          )
         ) : (
           <Text type="secondary">已处理</Text>
         ),

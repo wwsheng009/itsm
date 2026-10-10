@@ -4,6 +4,7 @@ import React, { useState, useCallback } from 'react';
 import { useHotkeys } from 'react-hotkeys-hook';
 import { Modal, List, Tag, Typography } from 'antd';
 import { useLayoutStore } from '@/lib/store/layout-store';
+import { useCan } from '@/components/auth/PermissionGate';
 
 const { Title, Text } = Typography;
 
@@ -46,6 +47,8 @@ export default function GlobalShortcutProvider({ children }: GlobalShortcutProvi
   const [searchVisible, setSearchVisible] = useState(false);
   const navigate = useNavigate();
   const { collapsed, setCollapsed } = useLayoutStore();
+  // 入口级门禁：/tickets/new 属写路由，无 ticket:create 时快捷键不导航（避免落入 403 页）。
+  const canCreateTicket = useCan(['ticket:create']);
 
   // 打开帮助
   const openHelp = useCallback(() => {
@@ -63,13 +66,18 @@ export default function GlobalShortcutProvider({ children }: GlobalShortcutProvi
     setCollapsed(!collapsed);
   }, [collapsed, setCollapsed]);
 
+  // 新建工单（受 ticket:create 门禁）
+  const openCreateTicket = useCallback(() => {
+    if (canCreateTicket) navigate('/tickets/new');
+  }, [canCreateTicket, navigate]);
+
   // 注册快捷键
   useHotkeys('g d', () => navigate('/dashboard'), { preventDefault: true });
   useHotkeys('g t', () => navigate('/tickets'), { preventDefault: true });
   useHotkeys('g c', () => navigate('/cmdb'), { preventDefault: true });
   useHotkeys('g k', () => navigate('/knowledge'), { preventDefault: true });
   useHotkeys('g w', () => navigate('/workflows'), { preventDefault: true });
-  useHotkeys('ctrl+n, cmd+n', () => navigate('/tickets/new'), { preventDefault: true });
+  useHotkeys('ctrl+n, cmd+n', openCreateTicket, { preventDefault: true });
   useHotkeys('ctrl+k, cmd+k', openSearch, { preventDefault: true });
   useHotkeys('ctrl+b, cmd+b', toggleSidebar, { preventDefault: true });
   useHotkeys('ctrl+/, cmd+/, ?', openHelp, { preventDefault: true });
