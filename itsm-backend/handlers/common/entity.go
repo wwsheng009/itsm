@@ -24,6 +24,12 @@ type User struct {
 	CreatedAt    time.Time `json:"createdAt"`
 	UpdatedAt    time.Time `json:"updatedAt"`
 	Permissions  []string  `json:"permissions,omitempty"` // 用户权限列表
+	// IsPlatformRole 平台治理角色标记（super_admin/sysadmin；词表单一源=middleware.PlatformRoleCodes）。
+	// 前端平台面守卫（/admin/tenants 等）据此判定，替代前端手写角色名比对（2026-10-10 收口）。
+	IsPlatformRole bool `json:"isPlatformRole"`
+	// IsElevatedMenuRole 菜单域治理角色标记（词表单一源=middleware.ElevatedMenuRoles；
+	// 与后端菜单过滤「非 elevated 角色剔除受限前缀」同口径）。
+	IsElevatedMenuRole bool `json:"isElevatedMenuRole"`
 }
 
 // Department represents a spatial or organizational unit

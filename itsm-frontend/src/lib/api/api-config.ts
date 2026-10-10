@@ -303,6 +303,10 @@ export interface User {
   role?: string;
   /** MSP 身份角色（provider_admin/provider_agent；客户账号为空）。 */
   mspRole?: string;
+  /** 平台治理角色标记（/auth/me 下发；词表单一源=后端 middleware.PlatformRoleCodes）。 */
+  isPlatformRole?: boolean;
+  /** 菜单域治理角色标记（/auth/me 下发；词表单一源=后端 middleware.ElevatedMenuRoles）。 */
+  isElevatedMenuRole?: boolean;
   department?: string;
   permissions?: string[];
   /** IP-P1-5：首登强制改密标志（登录/`/auth/me` 下发；改密成功后清除）。 */

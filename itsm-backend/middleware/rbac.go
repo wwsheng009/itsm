@@ -575,6 +575,42 @@ func IsPlatformRole(code string) bool {
 	return false
 }
 
+// elevatedMenuRoleCodes 菜单域治理角色码（「非 elevated 角色整段剔除受限前缀」的单一来源）：
+// 只有这些角色能看到 /admin、/enterprise、/system、/workflow 前缀下的菜单；
+// 其余角色（end_user/technician/auditor 等）在这些前缀下无论持码与否一律不挂载。
+//
+// 不变式（router/menu_role_restriction_guard_test.go 锁定）：平台治理角色（PlatformRoleCodes）
+// 必须是本词表的子集——平台角色若不在 elevated 内，会连自己租户的管理菜单都看不到。
+// 组成 = 平台治理角色（platformRoleCodes，自动跟随，防「新增平台角色漏进 elevated」）
+//      ∪ 租户治理角色（admin/manager/provider_tenant_admin）。
+// 注：sysadmin 经平台词表带入——此前 elevated 手写名单遗漏 sysadmin，会导致
+// sysadmin 用户被菜单域限制挡在管理菜单外（2026-10-10 守卫测试发现并修复）。
+var elevatedMenuRoleCodes = append(append([]string{}, platformRoleCodes...),
+	"admin",
+	"manager",
+	// 服务商租户管理员（2026-10-06 / 07:G11）：provider 首管默认角色，
+	// 自身 ITSM 全量权限，与 admin 同级放行 /admin、/workflow 等受限前缀。
+	"provider_tenant_admin",
+)
+
+// ElevatedMenuRoles 返回菜单域治理角色码副本（菜单过滤 / /auth/me 角色能力标记 / 守卫测试共用）。
+func ElevatedMenuRoles() []string {
+	out := make([]string, len(elevatedMenuRoleCodes))
+	copy(out, elevatedMenuRoleCodes)
+	return out
+}
+
+// IsElevatedMenuRole 判断角色码是否为菜单域治理角色。
+func IsElevatedMenuRole(code string) bool {
+	c := strings.ToLower(strings.TrimSpace(code))
+	for _, candidate := range elevatedMenuRoleCodes {
+		if c == candidate {
+			return true
+		}
+	}
+	return false
+}
+
 // PermissionConfigMode 权限配置模式
 type PermissionConfigMode int
 

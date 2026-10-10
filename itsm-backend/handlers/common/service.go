@@ -101,6 +101,16 @@ func (s *Service) resolvePermissions(ctx context.Context, userID, tenantID int) 
 	return permissions
 }
 
+// applyRoleFlags 填充角色能力标记（/auth/me、登录、刷新响应共用；词表单一源=middleware）。
+// 角色被覆盖（如登录时 MSP 映射角色提级）后需重新调用，确保标记与最终角色一致。
+func applyRoleFlags(u *User) {
+	if u == nil {
+		return
+	}
+	u.IsPlatformRole = middleware.IsPlatformRole(u.Role)
+	u.IsElevatedMenuRole = middleware.IsElevatedMenuRole(u.Role)
+}
+
 // ChangePassword 自助改密（IP-P1-5 首登强制改密闭环）：
 // 旧密码校验 → 目标租户密码策略 → bcrypt 落库并清除 must_change_password → 显式审计 auth.change_password。
 // 明文密码与哈希绝不写入审计/日志。
@@ -254,6 +264,9 @@ func (s *Service) Login(ctx context.Context, username, password string, tenantID
 		}
 	}
 
+	// 角色最终值确定后再计算能力标记（前端守卫用；不得在提级覆盖前计算）。
+	applyRoleFlags(u)
+
 	// 登录落 home（IP-P0-6）：token 作用域 = users.tenant_id；tenantCode 仅参与身份定位，
 	// 不改变签发作用域（不因 last_active/tenantCode 直签客户）。
 	// R2B 阴影观察（2026-10-03）：登录落 home 后加载租户视图（home 租户已知）→ 补租户 ctx。
@@ -389,6 +402,7 @@ func (s *Service) RefreshToken(ctx context.Context, refreshToken string) (*AuthR
 	// IP-P1-2：刷新响应权限按当前 token 作用域（目标租户）重算，
 	// 保证切换租户后续签不会把权限解析回 home 租户。
 	user.Permissions = s.resolvePermissions(ctx, user.ID, scopeTenantID)
+	applyRoleFlags(user)
 
 	return &AuthResult{
 		AccessToken:     accessToken,
@@ -451,6 +465,7 @@ func (s *Service) GetUser(ctx context.Context, id int) (*User, error) {
 	// GetUserScoped；保留本方法作为未传租户的兼容入口）。
 	u.Permissions = s.resolvePermissions(ctx, u.ID, u.TenantID)
 	u.HomeTenantID = u.TenantID
+	applyRoleFlags(u)
 	return u, nil
 }
 
@@ -476,6 +491,7 @@ func (s *Service) GetUserScoped(ctx context.Context, id, tenantID int) (*User, e
 	u.Permissions = s.resolvePermissions(tenantctx.WithTenantID(ctx, tenantID), u.ID, tenantID)
 	u.HomeTenantID = homeTenantID
 	u.TenantID = tenantID
+	applyRoleFlags(u)
 	return u, nil
 }
 

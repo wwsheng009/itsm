@@ -89,13 +89,14 @@ export function RequireCapability({ anyOf, children }: RequireCapabilityProps): 
 
 /**
  * 平台治理面守卫（2026-10-10 收口）：租户管理（/admin/tenants）为平台专属面，
- * 仅平台角色（super_admin/sysadmin，与后端 middleware.RequirePlatformAdmin 同词表）
- * 可进入；其余角色（含租户内 admin、msp_provider/msp_customer/saas_* 管理员）
- * 一律 /403（fail-closed；后端另有平台身份硬校验兜底）。
+ *
+ * 判定依据 = 后端 /auth/me 下发的 `isPlatformRole` 标记（词表单一源=middleware.PlatformRoleCodes，
+ * 与后端 RequirePlatformAdmin 同词表）——前端不再手写角色名比对，避免双份词表漂移；
+ * 标记缺失一律 /403（fail-closed；后端另有平台身份硬校验兜底）。
  */
 export function RequirePlatformRole({ children }: { children?: ReactElement }): ReactElement {
-  const role = useAuthStore(state => state.user?.role);
-  if (role !== 'super_admin' && role !== 'sysadmin') {
+  const isPlatformRole = useAuthStore(state => state.user?.isPlatformRole);
+  if (!isPlatformRole) {
     return <Navigate to="/403" replace />;
   }
   return children ?? <Outlet />;

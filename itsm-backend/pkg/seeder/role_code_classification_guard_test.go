@@ -108,7 +108,9 @@ func TestRoleCodeClassificationGuard(t *testing.T) {
 	}
 
 	// ③ 反防腐化：词表条目必须存在于定义源。
-	for _, code := range append(middleware.PlatformRoleCodes(), middleware.MSPOnlyRoleCodes()...) {
+	wordlistCodes := append(middleware.PlatformRoleCodes(), middleware.MSPOnlyRoleCodes()...)
+	wordlistCodes = append(wordlistCodes, middleware.ElevatedMenuRoles()...)
+	for _, code := range wordlistCodes {
 		if _, ok := sources[code]; !ok {
 			t.Errorf("词表角色码 %q 未出现在任何定义源（domainrole.All / RolePermissions / 内置绑定 / C2 基线 / BuiltinRoles）：词表挂着已删除或从未定义的角色", code)
 		}

@@ -162,16 +162,17 @@ describe('RequireCapability（B6 admin 区并集 + 页级细化）', () => {
 
 /**
  * 2026-10-10 收口：租户管理（/admin/tenants）为平台专属面。
- * 仅 super_admin/sysadmin 可进入；租户内 admin（含 msp_provider/msp_customer/saas_*）
- * 一律 /403（与后端 middleware.RequirePlatformAdmin 同词表；后端另有身份硬校验兜底）。
+ * 判定依据 = 后端 /auth/me 下发的 isPlatformRole 标记（词表单一源=middleware.PlatformRoleCodes）；
+ * 租户内 admin（含 msp_provider/msp_customer/saas_*）标记为 false，一律 /403；
+ * 仅角色名（无后端标记）不放行——防前端回退到手写角色名比对（后端另有身份硬校验兜底）。
  */
 describe('RequirePlatformRole（租户治理面平台守卫）', () => {
   beforeEach(() => jest.clearAllMocks());
 
-  const setRole = (role: string | undefined) => {
+  const setUser = (user: Record<string, unknown> | undefined) => {
     (useAuthStore as unknown as jest.Mock).mockImplementation(
       (selector: (s: Record<string, unknown>) => unknown) =>
-        selector({ user: role ? { role } : undefined })
+        selector({ user })
     );
   };
 
@@ -192,27 +193,28 @@ describe('RequirePlatformRole（租户治理面平台守卫）', () => {
       </MemoryRouter>
     );
 
-  it('super_admin 放行', () => {
-    setRole('super_admin');
+  it('平台标记为 true（super_admin/sysadmin 由后端词表判定）放行', () => {
+    setUser({ role: 'super_admin', isPlatformRole: true });
     renderTenantAdmin();
     expect(screen.getByTestId('tenant-admin-page')).toBeInTheDocument();
   });
 
-  it('sysadmin 放行', () => {
-    setRole('sysadmin');
-    renderTenantAdmin();
-    expect(screen.getByTestId('tenant-admin-page')).toBeInTheDocument();
-  });
-
-  it('租户内 admin（msp_provider 等）拒绝并跳 /403', () => {
-    setRole('admin');
+  it('租户内 admin（isPlatformRole=false）拒绝并跳 /403', () => {
+    setUser({ role: 'admin', isPlatformRole: false });
     renderTenantAdmin();
     expect(screen.getByTestId('navigate-to')).toHaveAttribute('data-to', '/403');
     expect(screen.queryByTestId('tenant-admin-page')).not.toBeInTheDocument();
   });
 
-  it('无角色信息 fail-closed 拒绝', () => {
-    setRole(undefined);
+  it('无用户信息 fail-closed 拒绝', () => {
+    setUser(undefined);
+    renderTenantAdmin();
+    expect(screen.getByTestId('navigate-to')).toHaveAttribute('data-to', '/403');
+    expect(screen.queryByTestId('tenant-admin-page')).not.toBeInTheDocument();
+  });
+
+  it('回归：仅角色名（无后端标记）不放行——前端不得按角色名比对', () => {
+    setUser({ role: 'super_admin' });
     renderTenantAdmin();
     expect(screen.getByTestId('navigate-to')).toHaveAttribute('data-to', '/403');
     expect(screen.queryByTestId('tenant-admin-page')).not.toBeInTheDocument();

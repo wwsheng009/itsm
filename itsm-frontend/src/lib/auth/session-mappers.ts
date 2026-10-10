@@ -16,6 +16,9 @@ export function mapServerUser(raw: unknown): User {
     role: String(src.role || 'end_user'),
     mustChangePassword: Boolean(src.mustChangePassword),
     mspRole: typeof src.mspRole === 'string' ? src.mspRole : undefined,
+    // 角色能力标记（后端词表单一源；缺失=false → 平台面守卫 fail-closed）。
+    isPlatformRole: Boolean(src.isPlatformRole),
+    isElevatedMenuRole: Boolean(src.isElevatedMenuRole),
     department: typeof src.department === 'string' ? src.department : undefined,
     permissions: Array.isArray(src.permissions) ? (src.permissions as string[]) : undefined,
     createdAt: (src.createdAt as string) ?? new Date().toISOString(),

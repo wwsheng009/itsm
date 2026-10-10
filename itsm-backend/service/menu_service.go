@@ -485,19 +485,26 @@ func collectUserRoleCodes(userEntity *ent.User) map[string]bool {
 	return roleCodes
 }
 
-func shouldRestrictMenuForRole(path string, roleCodes map[string]bool) bool {
-	if path == "" || isElevatedMenuRole(roleCodes) {
-		return false
-	}
-
-	restrictedPrefixes := []string{
+// RestrictedMenuPrefixes 返回「非 elevated 角色不可见」的菜单路径前缀（单一来源，守卫测试锁定）。
+//
+// 语义：非 elevated 角色（不在 middleware.ElevatedMenuRoles）对以下前缀下的菜单一律不挂载——
+// 这是身份面粗粒度限制，与 permission_code 细粒度判定叠加（先粗后细，fail-closed）。
+// 新增受限域需同步 router/menu_role_restriction_guard_test.go 的期望集合与理由。
+func RestrictedMenuPrefixes() []string {
+	return []string{
 		"/admin",
 		"/enterprise",
 		"/system",
 		"/workflow",
 	}
+}
 
-	for _, prefix := range restrictedPrefixes {
+func shouldRestrictMenuForRole(path string, roleCodes map[string]bool) bool {
+	if path == "" || isElevatedMenuRole(roleCodes) {
+		return false
+	}
+
+	for _, prefix := range RestrictedMenuPrefixes() {
 		if strings.HasPrefix(path, prefix) {
 			return true
 		}
@@ -506,17 +513,9 @@ func shouldRestrictMenuForRole(path string, roleCodes map[string]bool) bool {
 	return false
 }
 
+// isElevatedMenuRole 判定角色集合是否含菜单域治理角色（词表单一源=middleware.ElevatedMenuRoles）。
 func isElevatedMenuRole(roleCodes map[string]bool) bool {
-	elevatedRoles := []string{
-		"super_admin",
-		"admin",
-		"manager",
-		// 服务商租户管理员（2026-10-06 / 07:G11）：provider 首管默认角色，
-		// 自身 ITSM 全量权限，与 admin 同级放行 /admin、/workflow 等受限前缀。
-		"provider_tenant_admin",
-	}
-
-	for _, roleCode := range elevatedRoles {
+	for _, roleCode := range middleware.ElevatedMenuRoles() {
 		if roleCodes[roleCode] {
 			return true
 		}
