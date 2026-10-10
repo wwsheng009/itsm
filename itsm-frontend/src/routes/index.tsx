@@ -13,12 +13,11 @@ import RouteLoading from '@/components/common/RouteLoading';
 import Home from '@/pages/home/index';
 import NotFound from '@/pages/not-found';
 import RootProviders from '@/App';
-import { RequireAuth, RequireCapability } from './guards';
+import { RequireAuth, RequireCapability, RequirePlatformRole } from './guards';
 import { LegacyRedirectGate } from './legacy-redirects';
 import {
   ADMIN_AREA_PERMISSIONS,
   MSP_AREA_PERMISSIONS,
-  TENANT_ADMIN_PERMISSIONS,
 } from './area-permissions';
 
 
@@ -280,8 +279,10 @@ export const routes: RouteObject[] = [
           { path: 'admin/workflows', element: <RequireCapability anyOf={['workflow:write', 'bpmn:write']}>{lazyElement(AdminWorkflows)}</RequireCapability> },
             ],
           },
+          // 2026-10-10 收口：租户管理为平台专属（super_admin/sysadmin）——
+          // tenant:read/write 会随内置角色克隆被租户管理员持有，不能再作为准入依据。
           {
-            element: <RequireCapability anyOf={TENANT_ADMIN_PERMISSIONS} />,
+            element: <RequirePlatformRole />,
             children: [{ path: 'admin/tenants', element: lazyElement(AdminTenants) }],
           },
           { path: 'ai/approval', element: lazyElement(AiApproval) },

@@ -141,10 +141,11 @@ func TestTUM_A1_A8_APIE2E(t *testing.T) {
 	require.Equal(t, http.StatusOK, detailStatus, detailBody)
 	assert.Equal(t, float64(env.normalA.ID), decodeData(t, detailBody)["id"])
 
-	// 反例 1：租户管理员（admin + tenant:read/write 走静态兜底）→ 服务层平台面判定 403。
+	// 反例 1：租户管理员（admin + tenant:read/write 走静态兜底）→ 路由层平台身份硬校验 403
+	//（2026-10-10 收口；服务层 TUM-D1 PLATFORM_SCOPE_REQUIRED 保留为兜底，见 service 单测）。
 	r1Status, r1Body := mspE2ERequest(t, env.engine, http.MethodGet, base, env.tenantAdminToken, nil)
 	assert.Equal(t, http.StatusForbidden, r1Status, r1Body)
-	assert.Contains(t, r1Body, "PLATFORM_SCOPE_REQUIRED")
+	assert.Contains(t, r1Body, "仅平台管理员")
 
 	// 反例 2：跨租户 IDOR（用 B 租户路径拼 A 用户）→ 404。
 	r2Status, r2Body := mspE2ERequest(t, env.engine, http.MethodGet,
@@ -296,11 +297,11 @@ func TestTUM_A1_A8_APIE2E(t *testing.T) {
 	require.Equal(t, http.StatusOK, off2Status, off2Body)
 	assert.Equal(t, true, decodeData(t, off2Body)["alreadyInactive"])
 
-	// 反例：租户管理员（非平台面）→ 403 PLATFORM_SCOPE_REQUIRED。
+	// 反例：租户管理员（非平台面）→ 路由层平台身份硬校验 403（2026-10-10 收口）。
 	offRStatus, offRBody := mspE2ERequest(t, env.engine, http.MethodPost,
 		fmt.Sprintf("%s/%d/offboard", base, env.adminA1.ID), env.tenantAdminToken, map[string]interface{}{})
 	assert.Equal(t, http.StatusForbidden, offRStatus, offRBody)
-	assert.Contains(t, offRBody, "PLATFORM_SCOPE_REQUIRED")
+	assert.Contains(t, offRBody, "仅平台管理员")
 
 	// 治理审计留痕（行归属 actor 家租户、target=目标租户；幂等两次各 1 行）。
 	offAudits, err := env.client.AuditLog.Query().

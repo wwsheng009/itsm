@@ -86,3 +86,17 @@ export function RequireCapability({ anyOf, children }: RequireCapabilityProps): 
   }
   return children ?? <Outlet />;
 }
+
+/**
+ * 平台治理面守卫（2026-10-10 收口）：租户管理（/admin/tenants）为平台专属面，
+ * 仅平台角色（super_admin/sysadmin，与后端 middleware.RequirePlatformAdmin 同词表）
+ * 可进入；其余角色（含租户内 admin、msp_provider/msp_customer/saas_* 管理员）
+ * 一律 /403（fail-closed；后端另有平台身份硬校验兜底）。
+ */
+export function RequirePlatformRole({ children }: { children?: ReactElement }): ReactElement {
+  const role = useAuthStore(state => state.user?.role);
+  if (role !== 'super_admin' && role !== 'sysadmin') {
+    return <Navigate to="/403" replace />;
+  }
+  return children ?? <Outlet />;
+}

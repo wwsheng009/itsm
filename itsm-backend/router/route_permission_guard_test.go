@@ -300,3 +300,30 @@ func exprString(e ast.Expr) string {
 	}
 	return "<expr>"
 }
+
+// TestTenantManagementRoutesRequirePlatformAdmin 守卫（2026-10-10 收口）：
+// 租户治理面（/tenants 全组 + /admin/tenants 别名）必须挂平台身份硬校验——
+// tenant:read/write 会随内置角色/目录克隆被租户管理员持有（authz 内置 admin 角色
+// 即含 tenant:*），仅权限码不足以守住平台面（msp_provider/msp_customer/saas_* 需 403）。
+func TestTenantManagementRoutesRequirePlatformAdmin(t *testing.T) {
+	routes := scanRouteRegistrations(t)
+
+	checked := 0
+	for _, r := range routes {
+		if r.file != "common_system_routes.go" {
+			continue
+		}
+		isTenantManagement := r.recv == "tenants" || (r.recv == "admin" && r.path == "/tenants")
+		if !isTenantManagement {
+			continue
+		}
+		checked++
+		if !r.hasPlatformAdmin {
+			t.Errorf("%s:%d  %s %s   (接收者: %s) 缺少 middleware.RequirePlatformAdmin()",
+				r.file, r.line, r.method, r.path, r.recv)
+		}
+	}
+	if checked == 0 {
+		t.Fatal("未扫描到租户治理路由；路由改名后请同步本守卫")
+	}
+}

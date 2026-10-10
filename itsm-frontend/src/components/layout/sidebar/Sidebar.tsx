@@ -16,7 +16,7 @@ import { MenuItems } from './MenuItems';
 import { useUserMenusQuery } from '@/lib/hooks/useUserMenusQuery';
 import { useCapabilities } from '@/lib/hooks/useCapabilities';
 import type { MenuItem as MenuItemType } from '@/lib/api/menu-api';
-import { ADMIN_AREA_PERMISSIONS, TENANT_ADMIN_PERMISSIONS } from '@/routes/area-permissions';
+import { ADMIN_AREA_PERMISSIONS } from '@/routes/area-permissions';
 
 const { Sider } = Layout;
 
@@ -220,11 +220,10 @@ export const Sidebar: React.FC<SidebarProps> = ({ collapsed, onCollapse, mobile 
   const adminMenus = deduplicateMenus(filterByCapability(rawAdminMenus));
 
   const { hasPermission } = useAuthStore.getState();
-  // 与 routes/area-permissions 单源同步（B6）：任一细码可见管理区（含专职管理员）；
-  // 租户管理专职角色（system:write / tenant:*）一并放行（admin/tenants 独立守卫）。
-  const isAdmin = [...ADMIN_AREA_PERMISSIONS, ...TENANT_ADMIN_PERMISSIONS].some(code =>
-    hasPermission(code)
-  );
+  // 与 routes/area-permissions 单源同步（B6）：任一细码可见管理区（含专职管理员）。
+  // 2026-10-10 收口：租户管理（admin/tenants）改为平台角色守卫，tenant:* 不再并入本判定
+  //（避免租户管理员因目录克隆码看到管理区入口）。
+  const isAdmin = ADMIN_AREA_PERMISSIONS.some(code => hasPermission(code));
 
   return (
     <Sider

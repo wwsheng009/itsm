@@ -43,9 +43,6 @@ export const ADMIN_AREA_PERMISSIONS: string[] = [
   'service_catalog:write',
 ];
 
-/** 租户管理（admin/tenants）：菜单口径 = system:write；同时放行 tenant:* 专职运营角色。 */
-export const TENANT_ADMIN_PERMISSIONS: string[] = ['system:write', 'tenant:read', 'tenant:write'];
-
 /** MSP 区（/msp/*）区域守卫权限集。 */
 export const MSP_AREA_PERMISSIONS: string[] = [
   'msp:read',

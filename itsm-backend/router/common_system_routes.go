@@ -145,9 +145,12 @@ func SetupCommonSystemRoutes(r *gin.Engine, tenant *gin.RouterGroup, config *Rou
 			tenant.GET("/tags", middleware.RequirePermission("ticket_tag", "read"), config.CommonHandler.ListTags)
 		}
 		if config.TenantHandler != nil {
+			// 2026-10-10 收口：租户治理面为平台专属（同 IP-P2-7 口径）——tenant:read/write 会随
+			// 内置角色/目录克隆被租户管理员（msp_provider/msp_customer/saas_* 的 admin）持有，
+			// 仅靠 RequirePermission 无法守住平台面，需平台身份硬校验（super_admin/sysadmin）。
 			admin := tenant.Group("/admin")
 			{
-				admin.GET("/tenants", middleware.RequirePermission("tenant", "read"), config.TenantHandler.ListTenants)
+				admin.GET("/tenants", middleware.RequirePlatformAdmin(), middleware.RequirePermission("tenant", "read"), config.TenantHandler.ListTenants)
 			}
 		}
 
@@ -188,9 +191,9 @@ func SetupCommonSystemRoutes(r *gin.Engine, tenant *gin.RouterGroup, config *Rou
 			}
 		}
 
-		// Tenant Management (admin only)
+		// Tenant Management（平台专属，2026-10-10 收口：非平台租户一律 403，含列表/详情/供给/建号）
 		if config.TenantHandler != nil {
-			tenants := tenant.Group("/tenants")
+			tenants := tenant.Group("/tenants", middleware.RequirePlatformAdmin())
 			{
 				tenants.GET("", middleware.RequirePermission("tenant", "read"), config.TenantHandler.ListTenants)
 				tenants.POST("", middleware.RequirePermission("tenant", "write"), config.TenantHandler.CreateTenant)
