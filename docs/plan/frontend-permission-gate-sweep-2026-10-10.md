@@ -122,7 +122,7 @@
 | `components/problem/ProblemInvestigationTab.tsx` | 709 | 「沉淀到知识库」（Modal 提交） | **勘误**：端点 `POST /problem-knowledge-articles` 实为 `problem:write`（非 `knowledge:write`）；既有 `PermissionGate anyOf={['problem:write']}` 已正确 | ✅ | ✅（批次 11，无需改造） |
 | `components/ticket-relations/RelationPanel.tsx` | 132 / 164 / 243 | 新建/删除工单关联 | `ticket:update`（已核） | — | ✅（批次 11）；⚠️ 端点 `POST/DELETE /api/v1/tickets/relations*` 后端未注册（capability `advancedTicketRelations=false`），入口保留但受权限过滤（与批次 4 先例一致） |
 
-> 进度（2026-10-10，批次 11）：§2.5 组织与配置（主区）收口 ✅——标签（create/update/delete 三码）、应用/微服务、项目（删除亦 `project:write`）、部门（三码）/团队、工单模板（create/update/delete 细分 + 死组件 TemplateList 防御性门禁）、工单类型（`ticket_type:manage` 全量）、知识入口（AIChat 双入口 `knowledge:write`；ProblemInvestigationTab 勘误为 `problem:write` 已正确）、工单关系面板（`ticket:update`，端点缺失登记）。剩余：§3 附件/评论面板（行 161）。
+> 进度（2026-10-10，批次 11）：§2.5 组织与配置（主区）收口 ✅——标签（create/update/delete 三码）、应用/微服务、项目（删除亦 `project:write`）、部门（三码）/团队、工单模板（create/update/delete 细分 + 死组件 TemplateList 防御性门禁）、工单类型（`ticket_type:manage` 全量）、知识入口（AIChat 双入口 `knowledge:write`；ProblemInvestigationTab 勘误为 `problem:write` 已正确）、工单关系面板（`ticket:update`，端点缺失登记）。
 
 ### 2.6 全局入口（P3）
 
@@ -142,6 +142,8 @@
 
 > 进度（2026-10-10）：批次 2 落地事件动作栏/变更生命周期/问题 KEDB/状态流转/PIR/工单看板；**批次 3** 落地发布域动作（approve/reject=`release:approve`；rollback=`release:rollback`；status=`release:write`）、工单详情动作栏（批准/拒绝=`approval:write`、分配=`ticket:assign`、编辑=`ticket:update`、抄送=`workflow:write`、删除=`ticket:delete`；AI 建议采纳随 `ticket:update`）、服务请求审批（状态 + `service_request:approve` 双条件）与新建入口、问题调查 Tab（`problem:write`）✅；**批次 4** 落地工单列表行内编辑/关闭（`ticket:update`）、批量操作按实际后端码逐项过滤（删除=`ticket:delete`、导出=`ticket:export`、分配=`ticket:assign`、状态/优先级/标签=`ticket:update`、通知=`workflow:write`；勘误：`ticket:batch_*` 词表实际不存在）、已知错误（`problem:write`/`problem:delete`）、标准变更模板（`change:write`/`change:delete`）、改进新建（`ticket:create`）✅；剩余：服务请求状态流转、发布余项、批量操作端点缺失（`batch-assign`/`batch-notify` 后端未实现，前端入口保留但受权限过滤）等。
 
+> 进度（2026-10-10，批次 12）：§3 附件/评论面板按域内码收口 ✅——`AttachmentPanel` 新增 `canUpload`/`canDelete`、`CommentPanel` 新增 `canCreate`/`canEdit`/`canDelete`（缺省 true 保持兼容）；工单详情按 `ticket:create/update/delete`、事件详情按 `incident:write` 传入。§3 全部完成。
+
 | 域 | 动作 | 权限码 | 代表文件 |
 |---|---|---|---|
 | 事件 | escalate / acknowledge / resolve / close / reopen / assign / SLA 暂停恢复 / convert-to-problem | `incident:write` | `components/incident/IncidentDetail.tsx` |
@@ -160,7 +162,7 @@
 | 工单 | 编辑模式入口 `/tickets/:id?mode=edit` | `ticket:update` | `components/ticket/TicketList.tsx:115` |
 | 服务请求 | approval（通过/拒绝，状态+权限双条件）/ provision（启动交付/执行任务）| `service_request:approve` / `service_request:write` | `components/service-request/ServiceRequestDetail.tsx`（`useCan` 已落地）、`pages/(main)/my-requests/$requestId/index.tsx`（批次 8） |
 | 知识库 | 发布/归档/编辑/删除 | `knowledge:write` / `knowledge:delete` | ✅ 已改造 |
-| 通用 | 附件上传/删除、评论删除 | 域内 `:write` / `:delete`（如 `ticket:write`） | `components/business/detail-tabs/AttachmentPanel.tsx`、`CommentPanel.tsx` |
+| 通用 | 附件上传/删除、评论发表/编辑/删除 | 域内码：ticket——上传 `ticket:create`、附件删除 `ticket:delete`、评论创建 `ticket:create`/编辑 `ticket:update`/删除 `ticket:delete`；incident——评论创建/编辑/删除 `incident:write` | `components/business/detail-tabs/AttachmentPanel.tsx`（新增 `canUpload`/`canDelete`）、`CommentPanel.tsx`（新增 `canCreate`/`canEdit`/`canDelete`，缺省 true 保持兼容）；调用点 `components/ticket/TicketDetail.tsx:1534/1555`、`pages/(main)/incidents/$id/index.tsx:245` | ✅（批次 12） |
 
 ## 4. P2：admin 区（区域守卫已覆盖，按需细化）
 
@@ -187,16 +189,18 @@
 
 | # | 路径 | 问题 | 建议 |
 |---|---|---|---|
-| 1 | `/workflow/designer` | 写面（设计器保存/发布）无路由级规则 | 补规则 `workflow:write`（按保存端点核对 bpmn/workflow 词表） |
-| 2 | `/cmdb/reconciliation` | 写面（对账落库/建 CI）无路由级规则 | 补规则 `cmdb:write` |
-| 3 | `/tickets/:id?mode=edit` | 编辑态经 query 进入，`matchPath` 不覆盖 | 详情页内按 `ticket:update` 控制编辑态（入口级） |
-| 4 | `/sla/definitions/new`、`/sla/definitions/:id/edit` | **路由不存在**（`SLAList.tsx:136/172/194` 指向，点击 404） | 清理死链，或补路由 + `sla:write` 规则 |
-| 5 | `GlobalShortcutProvider` → `/tickets/new` | **旧别名非路由**（ctrl+n 会 404） | 改指 `/tickets/create`（已有路由级门禁），并包 `ticket:create` |
-| 6 | `reports/*` 导出 | 读端点 `dashboard:read`；**生成/导出** `POST /dashboard/reports/:type`、`POST /dashboard/export` = `dashboard:admin`（`dashboard_routes.go:243/259`）；前端 `report:export` 常量未对后端生效 | 导出入口按端点实际码（`dashboard:admin`）收敛 |
-| 7 | `/service-catalog/request/:id` | 提交申请写面（路径无 `new/create/edit` 段，未覆盖） | 补规则 `service_request:write`；三处申请入口（`service-catalog/index.tsx:200`、`components/ServiceItemCard.tsx:183`、`detail/$id/index.tsx:71`）同步入口门禁 |
+| 1 | `/workflow/designer` | 写面（设计器保存/发布）无路由级规则 | 补规则 **`bpmn:write`**（按保存端点核对为 bpmn 词表）✅ 已落地（批次 12） |
+| 2 | `/cmdb/reconciliation` | 写面（对账落库/建 CI）无路由级规则 | 补规则 `cmdb:write` ✅ 已落地（批次 12） |
+| 3 | `/tickets/:id?mode=edit` | 编辑态经 query 进入，`matchPath` 不覆盖 | 已核：`TicketDetail` 无 `mode=edit` 消费逻辑；编辑入口在 `TicketList.tsx:115` 已按 `ticket:update` 门禁（批次 4）✅ 无需处理 |
+| 4 | `/sla/definitions/new`、`/sla/definitions/:id/edit` | **路由不存在**（`SLAList.tsx:136/172/194` 指向，点击 404；`SLADetail` 编辑按钮同样指向） | 清理死链：`SLADetail` 编辑按钮改禁用；`SLAList` 为死组件（未被路由引用，未接入）；**SLA 新建/编辑页面缺失登记为产品缺口** ✅ 清理完成（批次 12，页面待补） |
+| 5 | `GlobalShortcutProvider` → `/tickets/new` | **旧别名非路由**（ctrl+n 会 404） | 改指 `/tickets/create`（已有路由级门禁），并包 `ticket:create` ✅ 已落地（批次 12） |
+| 6 | `reports/*` 导出 | 读端点 `dashboard:read`；**生成/导出** `POST /dashboard/reports/:type`、`POST /dashboard/export` = `dashboard:admin`（`dashboard_routes.go:243/259`）；前端 `report:export` 常量未对后端生效 | 已核：上述两个端点**无前端调用方**；各导出均为本地 CSV 生成（无后端端点）；`report:export` 常量未被使用 ✅ 无需处理（批次 12） |
+| 7 | `/service-catalog/request/:id` | 提交申请写面（路径无 `new/create/edit` 段，未覆盖） | 补规则 `service_request:write` + 三处申请入口同步门禁（`service-catalog/index.tsx`、`components/service-catalog/ServiceItemCard.tsx`、`detail/$id/index.tsx`；勘误：ServiceItemCard 实际路径含 `service-catalog/components/` 前缀）✅ 已落地（批次 12） |
 | 8 | `/enterprise/departments`、`/enterprise/teams` | 无区域守卫且路径无写入口段 | 入口门禁 `department:create/update/delete`、`team:write` ✅ 已落地（批次 11） |
 | 9 | 只读确认（经扫描无写入口，登记备查） | `/noc`、`/sla-monitor`、`/cmdb/registry、topology、relationships`、`/audit-logs`、`/system/users`（只读展示组件 `UserList`）、`/system/organization`（`DepartmentTree`） | 无需处理 |
 | 10 | 遗留重定向（`templates`→`/tickets/templates` 等） | 目标路由已有门禁 | 无需处理 |
+
+> 进度（2026-10-10，批次 12）：§5 收口——缺口 1/2/5/7 已修复（新增路由规则 ×3 + ctrl+n 改指 + 三处申请入口门禁），3/6 经核无需处理，4 已清理死链（页面待补），8 已于批次 11 落地。
 
 ## 6. 旧守卫收编（一致性，防止双源漂移）
 

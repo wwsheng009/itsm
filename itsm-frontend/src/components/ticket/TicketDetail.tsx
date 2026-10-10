@@ -1516,6 +1516,8 @@ const TicketDetailTabs: React.FC<TicketDetailTabsProps> = ({
   onRefresh,
   t,
 }) => {
+  // 详情 Tabs 子组件内的入口级门禁（与主组件同源：auth-store hasPermission 单码语义）。
+  const { hasPermission } = useAuthStore();
   const items = [
     {
       key: 'comments',
@@ -1532,6 +1534,9 @@ const TicketDetailTabs: React.FC<TicketDetailTabsProps> = ({
           adapter={ticketCommentAdapter}
           currentUserId={currentUserId}
           formatDateTime={formatDateTime}
+          canCreate={hasPermission('ticket:create')}
+          canEdit={hasPermission('ticket:update')}
+          canDelete={hasPermission('ticket:delete')}
         />
       ),
     },
@@ -1550,6 +1555,8 @@ const TicketDetailTabs: React.FC<TicketDetailTabsProps> = ({
           adapter={ticketAttachmentAdapter}
           currentUserId={currentUserId}
           formatDateTime={formatDateTime}
+          canUpload={hasPermission('ticket:create')}
+          canDelete={hasPermission('ticket:delete')}
         />
       ),
     },

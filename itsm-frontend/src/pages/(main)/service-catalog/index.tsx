@@ -43,6 +43,9 @@ export default function ServiceCatalogPage() {
   const { t } = useI18n();
   const { hasPermission } = usePermissions();
   const canManageCatalog = hasPermission('service_catalog', 'write');
+  // 入口级门禁：提交服务申请 → service_request:write（router/service_request_routes.go POST /service-requests；
+  // 路由级规则 /service-catalog/request/:id 同码，§5-7）。
+  const canRequest = hasPermission('service_request', 'write');
   const [activeCategory, setActiveCategory] = useState('all');
   const [creating, setCreating] = useState(false);
 
@@ -196,8 +199,11 @@ export default function ServiceCatalogPage() {
               <Col key={catalog.id} xs={24} md={8}>
                 <button
                   type="button"
+                  disabled={!canRequest}
                   className="flex w-full items-center justify-between rounded-lg border border-gray-200 bg-white p-4 text-left transition-colors hover:border-blue-400 hover:bg-blue-50"
-                  onClick={() => window.location.assign(`/service-catalog/request/${catalog.id}`)}
+                  onClick={() => {
+                    if (canRequest) window.location.assign(`/service-catalog/request/${catalog.id}`);
+                  }}
                 >
                   <span><span className="block font-medium">{catalog.name}</span><span className="text-xs text-gray-500">{catalog.category}</span></span>
                   <Tag color={index === 0 ? 'volcano' : 'blue'}>{catalog.requestCount ?? 0} {t('serviceCatalog.requestsCount')}</Tag>

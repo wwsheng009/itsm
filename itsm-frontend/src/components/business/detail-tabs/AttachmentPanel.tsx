@@ -40,6 +40,10 @@ export interface AttachmentPanelProps {
   accept?: string;
   currentUserId?: number;
   formatDateTime?: (dateString: string) => string;
+  /** 入口级门禁：上传附件（域内 :create/:write，缺省不限制；调用方按宿主域传入）。 */
+  canUpload?: boolean;
+  /** 入口级门禁：删除附件（域内 :delete，缺省不限制）。 */
+  canDelete?: boolean;
 }
 
 interface AttachmentPreviewState {
@@ -77,6 +81,8 @@ export const AttachmentPanel: React.FC<AttachmentPanelProps> = ({
   accept,
   currentUserId,
   formatDateTime,
+  canUpload = true,
+  canDelete = true,
 }) => {
   const { t, language } = useI18n();
   const { message } = App.useApp();
@@ -268,27 +274,29 @@ export const AttachmentPanel: React.FC<AttachmentPanelProps> = ({
         />
       )}
 
-      <div className="mb-6">
-        <Upload
-          multiple
-          showUploadList={false}
-          beforeUpload={beforeUpload}
-          customRequest={customRequest as never}
-          accept={accept}
-        >
-          <Button icon={<UploadIcon size={14} />} loading={uploading}>
-            {t('attachments.upload')}
-          </Button>
-        </Upload>
-        {uploading && (
-          <div className="mt-3">
-            <Progress percent={Math.round(uploadProgress)} size="small" />
-          </div>
-        )}
-        <Text type="secondary" className="ml-3 text-xs">
-          {t('attachments.maxSize', { size: formatFileSize(maxSize) })}
-        </Text>
-      </div>
+      {canUpload && (
+        <div className="mb-6">
+          <Upload
+            multiple
+            showUploadList={false}
+            beforeUpload={beforeUpload}
+            customRequest={customRequest as never}
+            accept={accept}
+          >
+            <Button icon={<UploadIcon size={14} />} loading={uploading}>
+              {t('attachments.upload')}
+            </Button>
+          </Upload>
+          {uploading && (
+            <div className="mt-3">
+              <Progress percent={Math.round(uploadProgress)} size="small" />
+            </div>
+          )}
+          <Text type="secondary" className="ml-3 text-xs">
+            {t('attachments.maxSize', { size: formatFileSize(maxSize) })}
+          </Text>
+        </div>
+      )}
 
       {items.length === 0 ? (
         <Empty description={t('attachments.empty')} />
@@ -319,7 +327,7 @@ export const AttachmentPanel: React.FC<AttachmentPanelProps> = ({
                 >
                   {t('attachments.download')}
                 </Button>,
-                canManage(item) ? (
+                canManage(item) && canDelete ? (
                   <Button
                     key="delete"
                     type="link"

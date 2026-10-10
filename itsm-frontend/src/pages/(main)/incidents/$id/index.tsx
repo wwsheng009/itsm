@@ -242,6 +242,9 @@ export default function IncidentDetailPage() {
                       currentUserId={user?.id}
                       formatDateTime={formatDateTime}
                       showInternalToggle={false}
+                      canCreate={hasPermission('incident:write')}
+                      canEdit={hasPermission('incident:write')}
+                      canDelete={hasPermission('incident:write')}
                     />
                   ),
                 },

@@ -25,7 +25,7 @@ export interface RoutePermissionRule {
 }
 
 /**
- * 写入口路由 → 权限码映射（21 条写入口 + 知识库复核面）。
+ * 写入口路由 → 权限码映射（含知识库复核面、设计器/对账/服务申请写面）。
  *
  * 说明：
  * - 区域级守卫（/admin、租户管理、/msp）仍由 routes/index.tsx 的 RequireCapability 承担，
@@ -56,6 +56,10 @@ export const ROUTE_PERMISSIONS: RoutePermissionRule[] = [
   { pattern: '/cmdb/cis/:id/edit', anyOf: ['cmdb:write'], reason: 'router/cmdb_routes.go PUT /cmdb/configuration-items/:id' },
   { pattern: '/service-catalog/edit/:id', anyOf: ['service_catalog:write'], reason: 'router/service_catalog_routes.go PUT /service-catalogs/:id' },
   { pattern: '/service-requests/new', anyOf: ['service_request:write'], reason: 'router/service_request_routes.go POST /service-requests' },
+  // §5 路由缺口补漏（批次 12）：无 new/create/edit 段但属写面的路径。
+  { pattern: '/workflow/designer', anyOf: ['bpmn:write'], reason: 'components/workflow/designer/WorkflowToolbar.tsx 保存/部署（bpmn:write；批次 9 已收口入口）' },
+  { pattern: '/cmdb/reconciliation', anyOf: ['cmdb:write'], reason: '对账落库/建 CI 写面（cmdb:write）' },
+  { pattern: '/service-catalog/request/:id', anyOf: ['service_request:write'], reason: 'router/service_request_routes.go POST /service-requests' },
 ];
 
 export type RoutePermissionDecision = 'allow' | 'deny' | 'none';

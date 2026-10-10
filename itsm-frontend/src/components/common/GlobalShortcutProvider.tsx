@@ -47,7 +47,8 @@ export default function GlobalShortcutProvider({ children }: GlobalShortcutProvi
   const [searchVisible, setSearchVisible] = useState(false);
   const navigate = useNavigate();
   const { collapsed, setCollapsed } = useLayoutStore();
-  // 入口级门禁：/tickets/new 属写路由，无 ticket:create 时快捷键不导航（避免落入 403 页）。
+  // 入口级门禁：新建工单写路由为 /tickets/create（旧别名 /tickets/new 会 404，§5-5 已修正）；
+  // 无 ticket:create 时快捷键不导航（避免落入 403 页）。
   const canCreateTicket = useCan(['ticket:create']);
 
   // 打开帮助
@@ -68,7 +69,7 @@ export default function GlobalShortcutProvider({ children }: GlobalShortcutProvi
 
   // 新建工单（受 ticket:create 门禁）
   const openCreateTicket = useCallback(() => {
-    if (canCreateTicket) navigate('/tickets/new');
+    if (canCreateTicket) navigate('/tickets/create');
   }, [canCreateTicket, navigate]);
 
   // 注册快捷键

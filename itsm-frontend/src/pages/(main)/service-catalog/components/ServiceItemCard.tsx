@@ -58,6 +58,8 @@ export const ServiceItemCard: React.FC<ServiceItemCardProps> = ({ catalog }) => 
   const { message } = App.useApp();
   const { hasPermission } = usePermissions();
   const canManageCatalog = hasPermission('service_catalog', 'write');
+  // 入口级门禁：提交服务申请 → service_request:write（POST /service-requests，§5-7）。
+  const canRequest = hasPermission('service_request', 'write');
   const [deleting, setDeleting] = useState(false);
   const categoryKey = String(catalog.category);
   const IconComponent = categoryIcons[categoryKey] || HardDrive;
@@ -178,9 +180,10 @@ export const ServiceItemCard: React.FC<ServiceItemCardProps> = ({ catalog }) => 
             type="primary"
             block
             icon={<ArrowRight size={16} />}
+            disabled={!canRequest}
             onClick={e => {
               e.stopPropagation();
-              navigate(`/service-catalog/request/${catalog.id}`);
+              if (canRequest) navigate(`/service-catalog/request/${catalog.id}`);
             }}
           >
             {t('serviceCatalog.applyService')}

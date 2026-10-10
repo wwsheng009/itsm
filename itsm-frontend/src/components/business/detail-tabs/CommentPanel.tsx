@@ -61,6 +61,12 @@ export interface CommentPanelProps {
   showMentions?: boolean;
   currentUserId?: number;
   formatDateTime?: (dateString: string) => string;
+  /** 入口级门禁：发表评论（域内 :create/:write，缺省不限制）。 */
+  canCreate?: boolean;
+  /** 入口级门禁：编辑评论（域内 :update，缺省不限制）。 */
+  canEdit?: boolean;
+  /** 入口级门禁：删除评论（域内 :delete/:write，缺省不限制）。 */
+  canDelete?: boolean;
 }
 
 export const CommentPanel: React.FC<CommentPanelProps> = ({
@@ -70,6 +76,9 @@ export const CommentPanel: React.FC<CommentPanelProps> = ({
   showMentions = true,
   currentUserId,
   formatDateTime,
+  canCreate = true,
+  canEdit = true,
+  canDelete = true,
 }) => {
   const { t, language } = useI18n();
   const { message } = App.useApp();
@@ -280,7 +289,7 @@ export const CommentPanel: React.FC<CommentPanelProps> = ({
               placeholder={t('detailTabs.commentPlaceholder')}
               rows={4}
             />
-            {canAttachComments && (
+            {canAttachComments && canCreate && (
               <CommentAttachmentField
                 value={newAttachments}
                 onChange={setNewAttachments}
@@ -296,15 +305,17 @@ export const CommentPanel: React.FC<CommentPanelProps> = ({
               />
             )}
             <div className="flex justify-end">
-              <Button
-                type="primary"
-                icon={<Send size={14} />}
-                onClick={handleAddComment}
-                disabled={!newComment.trim()}
-                loading={submitting}
-              >
-                {t('detailTabs.postComment')}
-              </Button>
+              {canCreate && (
+                <Button
+                  type="primary"
+                  icon={<Send size={14} />}
+                  onClick={handleAddComment}
+                  disabled={!newComment.trim()}
+                  loading={submitting}
+                >
+                  {t('detailTabs.postComment')}
+                </Button>
+              )}
             </div>
           </div>
         </Card>
@@ -330,7 +341,7 @@ export const CommentPanel: React.FC<CommentPanelProps> = ({
                   rows={3}
                   placeholder={t('detailTabs.commentPlaceholder')}
                 />
-                {canAttachComments && (
+                {canAttachComments && canEdit && (
                   <CommentAttachmentField
                     value={editingAttachments}
                     onChange={(items) => {
@@ -388,7 +399,7 @@ export const CommentPanel: React.FC<CommentPanelProps> = ({
                 }
                 actions={
                   <div className="flex items-center space-x-2">
-                    {canEditByAdapter && canEditByUser(comment) && (
+                    {canEditByAdapter && canEditByUser(comment) && canEdit && (
                       <Button
                         type="link"
                         size="small"
@@ -398,7 +409,7 @@ export const CommentPanel: React.FC<CommentPanelProps> = ({
                         {t('common.edit')}
                       </Button>
                     )}
-                    {canEditByUser(comment) && (
+                    {canEditByUser(comment) && canDelete && (
                       <Button
                         type="link"
                         size="small"

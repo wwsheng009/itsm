@@ -5,6 +5,7 @@ import { Card, Descriptions, Tag, Button, Row, Col, App, Spin, Empty } from 'ant
 import { ServiceCatalogApi } from '@/lib/api/service-catalog-api';
 import type { ServiceItem } from '@/types/service-catalog';
 import { useI18n } from '@/lib/i18n';
+import { usePermissions } from '@/lib/hooks/use-permissions';
 
 // 服务目录状态映射
 const serviceStatusMap: Record<string, { text: string; color: string }> = {
@@ -18,6 +19,9 @@ export default function ServiceDetailPage() {
   const navigate = useNavigate();
   const { message } = App.useApp();
   const { t } = useI18n();
+  // 入口级门禁：提交服务申请 → service_request:write（POST /service-requests，§5-7）。
+  const { hasPermission } = usePermissions();
+  const canRequest = hasPermission('service_request', 'write');
   const [service, setService] = useState<ServiceItem | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -66,12 +70,14 @@ export default function ServiceDetailPage() {
         </Descriptions>
 
         <div className="mt-6 flex gap-4">
-          <Button
-            type="primary"
-            onClick={() => navigate(`/service-catalog/request/${serviceId}`)}
-          >
-            {t('service.request')}
-          </Button>
+          {canRequest && (
+            <Button
+              type="primary"
+              onClick={() => navigate(`/service-catalog/request/${serviceId}`)}
+            >
+              {t('service.request')}
+            </Button>
+          )}
           <Button onClick={() => navigate('/service-catalog')}>{t('common.back')}</Button>
         </div>
       </Card>
