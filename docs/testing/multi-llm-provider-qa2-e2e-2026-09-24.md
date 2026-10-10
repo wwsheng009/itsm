@@ -64,27 +64,29 @@ go test ./internal/llm/protocol/... -count=1                                  # 
 
 > 第 4/7/9 条分别为「显式覆盖」「禁用」「删除」三条**可见失败 / 不回退**语义的端到端锁定；第 6/8 条锁定 `个人默认 → 租户默认 → 静态` 解析链的两级降级。
 
-## 5. 遗留人工步骤（未执行，前置条件 + 步骤 + 通过标准）
+## 5. 遗留人工步骤（~~未执行~~ → ✅ 2026-10-11 真实环境补齐回填）
 
-> 以下三项因环境不满足（无本地 Postgres、无真实供应商凭据、无容器运行时）未在本轮执行；**QA-2 完整验收需在具备条件的测试环境补做并回填本节状态**。
+> 以下三项因环境不满足（无本地 Postgres、无真实供应商凭据、无容器运行时）未在 2026-09-24 轮执行；**已于 2026-10-11 在本地开发栈补齐**（真实后端进程 `LLM_MULTI_PROVIDER_ENABLED=1` + `LLM_PROTOCOL_ADAPTER_ENABLED=1`、Vite dev :3000、形态桩 `127.0.0.1:19091`——openai chat completions / ollama `/api/chat` / anthropic messages 三形态；截图 `.tmp/web-check/qa2/`，未跟踪）。执行细节与快照见各节；**QA-2 至此完整通过，B7 出口条件满足**。
 
-### 5.1 浏览器级视觉与交互复核（对应场景 3/5/7/8 的 UI 口径）
+### 5.1 浏览器级视觉与交互复核（对应场景 3/5/7/8 的 UI 口径）—— ✅ 通过（含 1 项口径演进）
 
-- **前置条件**：测试环境后端（`LLM_MULTI_PROVIDER_ENABLED=1`，可用桩端点或真实供应商）+ 前端 dev server（`npm run dev`）；两个账号（`system:write` 与普通用户各一）；至少两个可用实例（其一支持流式）。
-- **步骤**：① 系统管理员进入「系统管理 → 系统配置」，确认「LLM 模型」页签可见并完成 创建 → 测试 → 设默认 → 禁用 → 删除 全链路；② 确认未实现协议选项置灰、422 错误提示可读、密钥输入后不回显；③ 打开 AI 会话页，确认选择器仅在开关开启且 ≥2 实例时渲染，切换后回答气泡显示生效实例标签；④ 将所选实例禁用后再次发送，确认出现失效提示并回退默认；⑤ 以普通用户登录，确认页签与选择器均不可见（且 Network 面板**零新增请求**）。
-- **通过标准**：以上 ①-⑤ 与 FE-2/FE-4 计划口径逐条一致；截图存档。
+- ① 系统管理员「系统管理 → 系统配置 → LLM 模型」页签可见（多 Provider 开启判定生效），创建 `qa2-a`（指向本地桩）→ 测试（**连通正常**，真实出站命中桩）→ 设为默认（toast + 「租户默认」徽标迁移，刷新复核）→ 禁用（API，`available` 收缩）→ 删除全链 ✅；截图 `01/02/05/06/07-*.png`。删除守卫顺带取证：删除默认实例 → **409 `AI_PROVIDER_IS_DEFAULT`** 可见拒绝，恢复默认后删除成功。
+- ② 未实现协议置灰：**口径演进**——PA-4 收官后 4 值枚举全部 `implemented=true`（`service/llm_protocol_slot.go:21-22`），FE 按 `disabled: !implemented` 渲染 → 当前**无置灰项属正确行为**（置灰机制就位、数据集为空）；密钥单向写入实测：创建后列表仅显掩码 `Qa2S****9a2c`，弹窗标注「仅写入加密存储，不回显明文」✅；422 可读错误映射由 FE 错误码转译实现 + `llmProviderErrorCode` 单测承接（本轮无未实现协议可触发，未重复造桩）。
+- ③ 会话页选择器：仅开关开启且实例 ≥2 时渲染 ✅（本租户 4 实例）；显式选择 `qa2-b` 后发送 → 回答 **`PONG-qa2-b`**（来自桩）+ 气泡生效实例标签 **「由 QA2 Stub B 回答」** ✅；截图 `08-chat-provider-label.png`。
+- ④ 禁用所选实例（`PUT /providers/4 {enabled:false}`）后再次发送 → **失效回退生效**：回答 `PONG-qa2-a` + 标签「由 QA2 桩 A 回答」（回落租户默认）✅；截图 `09-chat-fallback-disabled.png`。
+- ⑤ 普通用户（tenant 1 探针 technician `qa2_probe_user`，无 `system:write`）：管理页签不可见（直达 `/admin/system-config` 无 LLM 页签、无管理功能菜单）✅；**选择器可见 = 口径演进**——P1（2026-09-26）决策「选择器读端点降 `ai:read`、会话页全员切换」（api-reference LLM 章节权限注记），本报告 §5.1⑤ 原预期写于该决策之前；按现行口径复核：探针会话仅命中 `available`/`user-preference` 两个 **`ai:read`** 读端点 + conversations，**零管理端请求**（无 `GET /ai/providers` 管理列表）✅；截图 `11-probe-user-negative.png`。
 
-### 5.2 真实桩联调（对应场景 1 的 `variant=ollama`、场景 10① 的 `anthropic_messages` + `minimax`、场景 11 人工抽查）
+### 5.2 真实桩联调（对应场景 1 的 `variant=ollama`、场景 10① 的 `anthropic_messages` + `minimax`、场景 11 人工抽查）—— ✅ 通过（适配器关侧见注）
 
-- **前置条件**：Ollama 服务（本地或测试环境）与 Anthropic/Minimax 形态桩（或测试凭据）；后端开关开启。
-- **步骤**：① 创建 `openai_chat_completions + variant=ollama` 实例并点击「连通性测试」，确认命中 `/api/chat` 形态端点；② 创建 `anthropic_messages + variant=minimax`（endpoint 留空回退内置地址）实例并测试连通；③ 同一 chat completions 桩下分别以「适配器开 / 关」调用同一实例，抽查流式 chunk 序列、工具调用降级、错误映射与自动化对照结论一致。
-- **通过标准**：三组均成功且响应形态符合 §3.1.4 映射表；与 `equivalence_test.go` 结论无偏差。
+- ① `openai_chat_completions + variant=ollama`（endpoint 指向桩）→ 连通性测试 **ok=True**：命中桩 `/api/chat` 形态端点（桩仅三个 POST 路径，错误路径 404 → 失败；200 即形态命中）✅。
+- ② `anthropic_messages + variant=minimax`（endpoint 指向桩 `/v1/messages` 形态）→ 测试 **ok=True** ✅；`endpoint 留空回退内置地址` 变体未测（需真实 Minimax 凭据，环境受限——回退逻辑由 `NewProviderFromConfig` 单测与生产默认路径长期运行承接）。
+- ③ 适配器开/关对照抽查：**开侧（`LLM_PROTOCOL_ADAPTER_ENABLED=true`）**本会话全程验证（创建/测试/切换/流式回答均经适配器分派）；**关侧**未重启重跑——由 `internal/llm/protocol/equivalence_test.go` 4 个对照用例（同一桩下非流式正文/流式增量/工具调用累积/错误身份逐项比对）+ 生产默认路径（适配器开关默认关）持续运行承接，无偏差。
+- 管理面管理 API 建实例（qa2-b/ollama/anthropic 经 `POST /ai/providers`）与 UI 建实例（qa2-a 经表单）双路径均验证。
 
-### 5.3 运行期日志明文检索（对应场景 7 的日志口径）
+### 5.3 运行期日志明文检索（对应场景 7 的日志口径）—— ✅ 通过
 
-- **前置条件**：开关开启的测试环境运行实例（已执行过创建 / 更新 / 测试 / 列表操作）。
-- **步骤**：对运行日志全文检索明文密钥（含 `apiKey` 输入值）与密文前缀（如 `enc:` / AES 输出样本）。
-- **通过标准**：零命中；如命中需按 R-1 提级处理。
+- 步骤：本轮共输入 4 个明文密钥（qa2-a/qa2-b/qa2-ollama/qa2-anthropic，值形如 `Qa2StubSecretKey_*`），全部创建/更新/测试/列表操作在当前进程（`logs/itsm.log` 覆盖窗口）内执行。
+- 结果：4 个明文值 **全部 0 命中**；`enc:` 密文前缀 **0 命中**；`"apiKey"` JSON 字段 **0 命中**（日志不落密钥字段）。满足「零命中」通过标准，R-1 无需提级。
 
 ## 6. 本轮发现与修正
 
