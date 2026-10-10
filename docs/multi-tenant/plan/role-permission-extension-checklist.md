@@ -66,7 +66,7 @@
 |------|--------|--------|----------|------|
 | `system` | 存在 | LLM 实例管理 / 运维命令 / RLS 指标 / 定时器 / **向量库（§8 D7，均挂 L1）** | sysadmin | ✅ **纳入** |
 | `system_config` | 存在 | `/system-configs`、`/configs`、工单自动化（租户组，无 L1；**`/menus` 已随 §8 D5 迁出为平台面**） | admin、directors | ⛔ 不纳入（租户管理面显式依赖） |
-| `mcp` | 存在 | `/ai/mcp-servers`（**§8 D7 起挂 L1**） | sysadmin（租户角色已收回） | ✅ **纳入**（2026-10-10 D7 重估：MCP 为平台资产，覆盖原"使用与治理分离"结论） |
+| `mcp` | 存在 | `/ai/mcp-servers`（**§8 D7 起挂 L1**）；**目录读面** `/agent/tools/catalog` 对非平台角色显式排除 mcp 条目（不依赖码过滤） | sysadmin（租户角色已收回） | ✅ **纳入**（2026-10-10 D7 重估：MCP 为平台资产，覆盖原"使用与治理分离"结论） |
 | `tenant` | 存在 | 租户治理（`/tenants*`、`/admin/tenants`）+ 租户设置 `/system/settings`（**§8 D7 起均挂 L1**） | 仅平台根 | ✅ **纳入**（2026-10-10：租户治理属性/plan/billing，平台管理） |
 | `connector` | 存在 | `/connectors`（租户组，无 L1；handler 按 ctx tenant 作用域） | directors / sysadmin | ⛔ 不纳入（租户面） |
 | `menu` | **不存在**（菜单管理复用 `system_config` 码；**§8 D5 起改挂 `system:*`** 并挂 L1） | `/menus*`（平台面，挂 L1） | 仅平台根 | ⛔ 无独立码可拦（由 `system` 家族 + L1 承载）；若未来建码，按本节重新评估 |

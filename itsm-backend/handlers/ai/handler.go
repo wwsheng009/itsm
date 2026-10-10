@@ -142,7 +142,14 @@ func (h *Handler) ListToolCatalog(c *gin.Context) {
 
 	allTools := h.svc.ListToolsForTenant(c.Request.Context(), tenantID)
 	items := make([]toolCatalogItem, 0, len(allTools))
+	// 2026-10-10 治理域收口（设计 §8 D7 补丁）：MCP 条目为平台资产——非平台角色一律不下发。
+	// 显式规则，不依赖 mcp 码的间接过滤：码可能被未来重新授予（或经自定义角色克隆），
+	// 目录须与「MCP=平台资产」同口径；能力块同步隐藏 MCP 位。
+	platformCaller := isPlatformCaller(c)
 	for _, t := range allTools {
+		if !platformCaller && t.Provider == "mcp" {
+			continue
+		}
 		if !middleware.HasResourcePermission(c.Request.Context(), h.svc.entClient, role, t.Resource, t.Action, tenantID) {
 			continue
 		}
@@ -198,20 +205,34 @@ func (h *Handler) ListToolCatalog(c *gin.Context) {
 		items = items[:limit]
 	}
 	// M2 能力开关：目录页与对话工具面板据此渲染「全局已关闭」状态（与门禁同源）。
-	common.Success(c, gin.H{"items": items, "total": total, "capabilities": h.capabilitiesView(c, tenantID)})
+	common.Success(c, gin.H{"items": items, "total": total, "capabilities": h.capabilitiesView(c, tenantID, platformCaller)})
 }
 
 // capabilitiesView 返回展示用能力块（M2 能力开关；未注入能力源时为默认值）。
-func (h *Handler) capabilitiesView(c *gin.Context, tenantID int) gin.H {
+// 2026-10-10 治理域收口（§8 D7 补丁）：MCP 位仅平台角色可见——租户面目录不含 MCP 条目，
+// 能力块也不再暴露 MCP 开关状态（前端对缺省位按"未管控"渲染，行为兼容）。
+func (h *Handler) capabilitiesView(c *gin.Context, tenantID int, platformCaller bool) gin.H {
 	view := gin.H{"mcpEnabled": true, "mcpWriteEnabled": false, "botEnabled": true}
-	if h == nil || h.svc == nil || h.svc.capability == nil {
-		return view
+	if h != nil && h.svc != nil && h.svc.capability != nil {
+		snap := h.svc.capability.For(c.Request.Context(), tenantID)
+		view["mcpEnabled"] = snap.MCPEnabled
+		view["mcpWriteEnabled"] = snap.MCPWriteEnabled
+		view["botEnabled"] = snap.BotEnabled
 	}
-	snap := h.svc.capability.For(c.Request.Context(), tenantID)
-	view["mcpEnabled"] = snap.MCPEnabled
-	view["mcpWriteEnabled"] = snap.MCPWriteEnabled
-	view["botEnabled"] = snap.BotEnabled
+	if !platformCaller {
+		return gin.H{"botEnabled": view["botEnabled"]}
+	}
 	return view
+}
+
+// isPlatformCaller 判定调用方是否平台角色（主角色 + m2m 附加角色并集，口径同 middleware.RequirePlatformAdmin）。
+func isPlatformCaller(c *gin.Context) bool {
+	for _, role := range middleware.GetContextRoles(c) {
+		if middleware.IsPlatformRole(strings.TrimSpace(role)) {
+			return true
+		}
+	}
+	return false
 }
 
 // toolCatalogMatches 关键词匹配：名称/描述/原始工具名/服务器名（大小写不敏感，q 已小写）。

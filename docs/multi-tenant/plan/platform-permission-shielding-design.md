@@ -298,6 +298,7 @@
 | 平台面守卫 | 新路由入注册表/前缀；`/menus` 行内参数可审计 | `router/platform_face_guard_test.go` |
 | 目录收窄 | 非平台根 `GET /permissions` 过滤平台家族（兜底）+ 存量收回（见下） | `service/permission_service.go` |
 | 防再生 | `ProvisionTenant` 克隆链（权限行/角色授权/菜单）对非平台根跳过平台家族 | `pkg/seeder/tenant_provisioner.go` |
+| 目录读面（工具目录补丁） | `/agent/tools/catalog` 对非平台角色**显式排除 `provider=mcp` 条目** + 能力块隐藏 MCP 位（不依赖 mcp 码过滤） | `handlers/ai/handler.go`、`handlers/ai/handler_tool_catalog_platform_test.go` |
 | 角色矩阵 | `admin` 收回 `tenant:read+write`、`mcp:read+admin`；directors 收回 `system:read`；`provider_tenant_admin` 派生自动跟随 | `internal/authz/roles.go`、`middleware/rbac.go`（兜底表对拍） |
 | 前端 | 移除 `RequireCapability` 的 `isAdmin()` 旁路；`/admin/menus`、`/admin/mcp-servers`、`/admin/vector-store` 挂 `RequirePlatformRole`；`/admin/permissions` 入口码 `permission:read`→`role:write`；初始化按钮仅平台可见；`department` 入口码对齐后端 | `routes/guards.tsx`、`routes/index.tsx`、`pages/(main)/admin/permissions` |
 | 菜单数据 | `/admin/menus`、`/admin/vector-store` 行 `permission_code` 改挂平台码（`system:write`/`system:read`）；seeder + 存量迁移同步 | `pkg/seeder`、`database/*.sql` |
@@ -328,4 +329,6 @@
 
 **浏览器复核**：租户 10 访问 `/admin/menus` → `/403`；`/admin/permissions` 正常渲染且「初始化默认权限」按钮**不渲染**（平台词表写面）；平台根 1 访问 `/admin/menus` 正常渲染。
 
-**测试**：后端 `go test ./middleware ./internal/authz ./tests/parity ./pkg/seeder ./service ./router ./handlers/rbac ./handlers/ai ./handlers/tenant` 全绿（含新守卫：`TestMenuRoleRestrictionGuards`、`TestProvisionTenant_NoPlatformGovernedFamilies`、`TestPlatformGovernedResources_FamilyEvaluationLock` 扩集、`TestMCPRoleMatrix*` 平台独占）；前端 jest 8 套件 81 用例、`tsc`/`eslint` 0。
+**测试**：后端 `go test ./middleware ./internal/authz ./tests/parity ./pkg/seeder ./service ./router ./handlers/rbac ./handlers/ai ./handlers/tenant` 全绿（含新守卫：`TestMenuRoleRestrictionGuards`、`TestProvisionTenant_NoPlatformGovernedFamilies`、`TestPlatformGovernedResources_FamilyEvaluationLock` 扩集、`TestMCPRoleMatrix*` 平台独占、`TestListToolCatalog_MCPItemsPlatformOnly`）；前端 jest 8 套件 81 用例、`tsc`/`eslint` 0。
+
+**工具目录读面补丁（§8 收口同轮）**：`GET /agent/tools/catalog` 对非平台角色显式排除 MCP 条目并隐藏能力块 MCP 位（此前仅靠"租户无 mcp 码"间接过滤，属隐式保护）；内置工具目录保留租户面（Bot 授权工作流参考面，按调用者 RBAC 过滤、只读、无执行面）。实弹：租户 10/11 能力块仅 `botEnabled`、平台根含 `mcpEnabled/mcpWriteEnabled`。
