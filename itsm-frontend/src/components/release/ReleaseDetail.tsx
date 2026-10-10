@@ -27,6 +27,7 @@ import dayjs from 'dayjs';
 import type { Release } from '@/lib/api/release-api';
 import { ReleaseApi } from '@/lib/api/release-api';
 import RichTextContent from '@/components/common/rich-text/RichTextContent';
+import { PermissionGate } from '@/components/auth/PermissionGate';
 
 const { Title, Text } = Typography;
 
@@ -305,74 +306,86 @@ const ReleaseDetail: React.FC = () => {
             编辑
           </Button>
           {release.status === 'draft' && (
-            <Button
-              type="primary"
-              icon={<CheckCircle />}
-              onClick={async () => {
-                try {
-                  await ReleaseApi.approveRelease(release.id);
-                  message.success('发布已批准');
-                  await loadDetail();
-                } catch (error) {
-                  message.error('批准发布失败');
-                }
-              }}
-            >
-              批准
-            </Button>
+            <PermissionGate anyOf={['release:approve']}>
+              <Button
+                type="primary"
+                icon={<CheckCircle />}
+                onClick={async () => {
+                  try {
+                    await ReleaseApi.approveRelease(release.id);
+                    message.success('发布已批准');
+                    await loadDetail();
+                  } catch (error) {
+                    message.error('批准发布失败');
+                  }
+                }}
+              >
+                批准
+              </Button>
+            </PermissionGate>
           )}
           {release.status === 'draft' && (
-            <Button danger icon={<XCircle />} onClick={() => requestReason('reject')}>
-              拒绝
-            </Button>
+            <PermissionGate anyOf={['release:approve']}>
+              <Button danger icon={<XCircle />} onClick={() => requestReason('reject')}>
+                拒绝
+              </Button>
+            </PermissionGate>
           )}
           {release.status === 'draft' && !release.requiresApproval && (
-            <Button
-              onClick={async () => {
-                try {
-                  await ReleaseApi.updateReleaseStatus(release.id, 'scheduled');
-                  loadDetail();
-                } catch (error) {
-                  message.error('更新状态失败');
-                }
-              }}
-            >
-              提交计划
-            </Button>
+            <PermissionGate anyOf={['release:write']}>
+              <Button
+                onClick={async () => {
+                  try {
+                    await ReleaseApi.updateReleaseStatus(release.id, 'scheduled');
+                    loadDetail();
+                  } catch (error) {
+                    message.error('更新状态失败');
+                  }
+                }}
+              >
+                提交计划
+              </Button>
+            </PermissionGate>
           )}
           {release.status === 'scheduled' && (
-            <Button
-              onClick={async () => {
-                try {
-                  await ReleaseApi.updateReleaseStatus(release.id, 'in-progress');
-                  loadDetail();
-                } catch (error) {
-                  message.error('更新状态失败');
-                }
-              }}
-            >
-              开始发布
-            </Button>
+            <PermissionGate anyOf={['release:write']}>
+              <Button
+                onClick={async () => {
+                  try {
+                    await ReleaseApi.updateReleaseStatus(release.id, 'in-progress');
+                    loadDetail();
+                  } catch (error) {
+                    message.error('更新状态失败');
+                  }
+                }}
+              >
+                开始发布
+              </Button>
+            </PermissionGate>
           )}
           {release.status === 'in-progress' && (
-            <Button
-              type="primary"
-              onClick={async () => {
-                try {
-                  await ReleaseApi.updateReleaseStatus(release.id, 'completed');
-                  loadDetail();
-                } catch (error) {
-                  message.error('更新状态失败');
-                }
-              }}
-            >
-              完成发布
-            </Button>
+            <PermissionGate anyOf={['release:write']}>
+              <Button
+                type="primary"
+                onClick={async () => {
+                  try {
+                    await ReleaseApi.updateReleaseStatus(release.id, 'completed');
+                    loadDetail();
+                  } catch (error) {
+                    message.error('更新状态失败');
+                  }
+                }}
+              >
+                完成发布
+              </Button>
+            </PermissionGate>
           )}
           {['in-progress', 'completed', 'failed'].includes(release.status) && (
-            <Button danger icon={<RotateCcw />} onClick={() => requestReason('rollback')}>
-              回滚
-            </Button>
+            <PermissionGate anyOf={['release:rollback']}>
+              <Button danger icon={<RotateCcw />} onClick={() => requestReason('rollback')}>
+                回滚
+              </Button>
+            </PermissionGate>
           )}
         </Space>
       </Card>

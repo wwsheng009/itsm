@@ -30,7 +30,7 @@
 
 ### 2.1 ITIL 核心（事件 / 变更 / 问题 / 发布 / 改进）
 
-> 进度（2026-10-10）：**批次 1** 列表入口/空态/行内编辑删除/详情「编辑」✅；**批次 2** 详情生命周期动作（变更 approve/reject/rollback 独立码、事件动作栏与根因/影响/分类入口、问题状态流转/KEDB）、PIR（增改删）、工单看板新建/删除 ✅；剩余：发布、改进、已知错误页、标准变更、问题调查 Tab 内写面、工单详情动作等。
+> 进度（2026-10-10）：**批次 1** 列表入口/空态/行内编辑删除/详情「编辑」✅；**批次 2** 详情生命周期动作（变更 approve/reject/rollback 独立码、事件动作栏与根因/影响/分类入口、问题状态流转/KEDB）、PIR（增改删）、工单看板新建/删除 ✅；**批次 3** 发布域（详情 approve/reject/rollback/status + 列表新建）、工单详情动作栏（批准/拒绝=`approval:write`、分配/编辑/抄送/删除）、服务请求审批与新建入口、问题调查 Tab 写面 ✅；剩余：改进、已知错误页、标准变更、工单列表行内编辑/关闭、批量操作等。
 
 | 页面/文件 | 入口（行号） | 动作 | 权限码 | 路由级 | 状态 |
 |---|---|---|---|---|---|
@@ -124,7 +124,7 @@
 
 > 特征：不在路由级覆盖范围（无 `new/create/edit` 路径段），入口级是唯一防线；多为不可逆动作。
 
-> 进度（2026-10-10，批次 2 已落地）：事件动作栏 + 根因/影响/分类卡片入口、变更生命周期动作（approve/reject=`change:approve`；rollback=`change:rollback`；其余=`change:write`）、问题 KEDB/状态流转、PIR 增改删、工单看板新建/删除 ✅；发布、工单详情动作、服务请求详情、问题调查 Tab、批量操作待后续批次。
+> 进度（2026-10-10）：批次 2 落地事件动作栏/变更生命周期/问题 KEDB/状态流转/PIR/工单看板；**批次 3** 落地发布域动作（approve/reject=`release:approve`；rollback=`release:rollback`；status=`release:write`）、工单详情动作栏（批准/拒绝=`approval:write`、分配=`ticket:assign`、编辑=`ticket:update`、抄送=`workflow:write`、删除=`ticket:delete`；AI 建议采纳随 `ticket:update`）、服务请求审批（状态 + `service_request:approve` 双条件）与新建入口、问题调查 Tab（`problem:write`）✅；剩余：工单列表行内编辑/关闭、批量操作（`ticket:batch_*`）、工单流转动作（`TicketWorkflowActions` 当前未挂载，已防御性门禁）等。
 
 | 域 | 动作 | 权限码 | 代表文件 |
 |---|---|---|---|

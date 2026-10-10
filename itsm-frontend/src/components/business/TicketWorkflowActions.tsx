@@ -31,6 +31,7 @@ import {
   ApproveTicketRequest,
 } from '@/types/ticket-workflow';
 import type { Ticket } from '@/types/ticket';
+import { useCan } from '@/components/auth/PermissionGate';
 
 const { TextArea } = Input;
 
@@ -49,6 +50,8 @@ export const TicketWorkflowActions: React.FC<TicketWorkflowActionsProps> = ({
 }) => {
   const [modalVisible, setModalVisible] = useState(false);
   const [currentAction, setCurrentAction] = useState<TicketWorkflowAction | null>(null);
+  const canWorkflowWrite = useCan(['workflow:write']);
+  const canEscalateTicket = useCan(['ticket:escalate']);
   const [form] = Form.useForm();
   const [loading, setLoading] = useState(false);
   const [users, setUsers] = useState<any[]>([]); // User type from API
@@ -335,7 +338,7 @@ export const TicketWorkflowActions: React.FC<TicketWorkflowActionsProps> = ({
 
   // 主要操作按钮
   const mainActions = [];
-  if (workflowState.canAccept) {
+  if (canWorkflowWrite && workflowState.canAccept) {
     mainActions.push(
       <Button
         key="accept"
@@ -348,7 +351,7 @@ export const TicketWorkflowActions: React.FC<TicketWorkflowActionsProps> = ({
     );
   }
 
-  if (workflowState.canApprove) {
+  if (canWorkflowWrite && workflowState.canApprove) {
     mainActions.push(
       <Space key="approval">
         <Button
@@ -369,7 +372,7 @@ export const TicketWorkflowActions: React.FC<TicketWorkflowActionsProps> = ({
     );
   }
 
-  if (workflowState.canResolve) {
+  if (canWorkflowWrite && workflowState.canResolve) {
     mainActions.push(
       <Button
         key="resolve"
@@ -382,7 +385,7 @@ export const TicketWorkflowActions: React.FC<TicketWorkflowActionsProps> = ({
     );
   }
 
-  if (workflowState.canClose) {
+  if (canWorkflowWrite && workflowState.canClose) {
     mainActions.push(
       <Button
         key="close"
@@ -396,7 +399,7 @@ export const TicketWorkflowActions: React.FC<TicketWorkflowActionsProps> = ({
 
   // 更多操作菜单
   const moreActions: MenuProps['items'] = [];
-  if (workflowState.canReject) {
+  if (canWorkflowWrite && workflowState.canReject) {
     moreActions.push({
       key: 'reject',
       label: '驳回',
@@ -405,7 +408,7 @@ export const TicketWorkflowActions: React.FC<TicketWorkflowActionsProps> = ({
     });
   }
 
-  if (workflowState.canWithdraw) {
+  if (canWorkflowWrite && workflowState.canWithdraw) {
     moreActions.push({
       key: 'withdraw',
       label: '撤回',
@@ -414,7 +417,7 @@ export const TicketWorkflowActions: React.FC<TicketWorkflowActionsProps> = ({
     });
   }
 
-  if (workflowState.canForward) {
+  if (canWorkflowWrite && workflowState.canForward) {
     moreActions.push({
       key: 'forward',
       label: '转发',
@@ -423,7 +426,7 @@ export const TicketWorkflowActions: React.FC<TicketWorkflowActionsProps> = ({
     });
   }
 
-  if (workflowState.canCC) {
+  if (canWorkflowWrite && workflowState.canCC) {
     moreActions.push({
       key: 'cc',
       label: '抄送',
@@ -432,23 +435,29 @@ export const TicketWorkflowActions: React.FC<TicketWorkflowActionsProps> = ({
     });
   }
 
-  moreActions.push(
-    {
-      type: 'divider',
-    },
-    {
+  const tailActions: MenuProps['items'] = [];
+  if (canEscalateTicket) {
+    tailActions.push({
       key: 'escalate',
       label: '升级',
       icon: <ArrowUp />,
       onClick: () => openActionModal(TicketWorkflowAction.ESCALATE),
-    },
-    {
+    });
+  }
+  if (canWorkflowWrite) {
+    tailActions.push({
       key: 'reopen',
       label: '重开',
       icon: <Undo />,
       onClick: () => openActionModal(TicketWorkflowAction.REOPEN),
+    });
+  }
+  if (tailActions.length > 0) {
+    if (moreActions.length > 0) {
+      moreActions.push({ type: 'divider' });
     }
-  );
+    moreActions.push(...tailActions);
+  }
 
   return (
     <>

@@ -26,6 +26,7 @@ import {
 } from 'antd';
 import { Plus, FileText, ClipboardCheck, FlaskConical, CheckCircle, BookOpen, Link } from 'lucide-react';
 import dayjs from 'dayjs';
+import { PermissionGate } from '@/components/auth/PermissionGate';
 
 import {
   ProblemInvestigationAPI,
@@ -173,7 +174,7 @@ const ProblemInvestigationTab: React.FC<ProblemInvestigationTabProps> = ({
 
   useEffect(() => {
     loadSummary();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+     
   }, [id, problemId]);
 
   const handleCreateInvestigation = async () => {
@@ -344,7 +345,7 @@ const ProblemInvestigationTab: React.FC<ProblemInvestigationTabProps> = ({
         ),
       },
     ],
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+     
     [statusColors]
   );
 
@@ -403,7 +404,7 @@ const ProblemInvestigationTab: React.FC<ProblemInvestigationTabProps> = ({
       },
       { title: t('problemInvestigation.columns.proposedBy'), dataIndex: 'proposedByName', key: 'proposedByName' },
     ],
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+     
     [priorityColors]
   );
 
@@ -517,9 +518,11 @@ const ProblemInvestigationTab: React.FC<ProblemInvestigationTabProps> = ({
               description={t('problemInvestigation.overview.noInvestigation')}
               image={Empty.PRESENTED_IMAGE_SIMPLE}
             >
-              <Button type="primary" onClick={handleCreateInvestigation}>
-                {t('problemInvestigation.overview.startInvestigation')}
-              </Button>
+              <PermissionGate anyOf={['problem:write']}>
+                <Button type="primary" onClick={handleCreateInvestigation}>
+                  {t('problemInvestigation.overview.startInvestigation')}
+                </Button>
+              </PermissionGate>
             </Empty>
           )}
         </Card>
@@ -538,9 +541,11 @@ const ProblemInvestigationTab: React.FC<ProblemInvestigationTabProps> = ({
           title={t('problemInvestigation.steps.title')}
           extra={
             summary?.investigation && (
-              <Button type="primary" icon={<Plus />} onClick={() => setStepModalOpen(true)}>
-                {t('problemInvestigation.steps.addStep')}
-              </Button>
+              <PermissionGate anyOf={['problem:write']}>
+                <Button type="primary" icon={<Plus />} onClick={() => setStepModalOpen(true)}>
+                  {t('problemInvestigation.steps.addStep')}
+                </Button>
+              </PermissionGate>
             )
           }
         >
@@ -578,13 +583,15 @@ const ProblemInvestigationTab: React.FC<ProblemInvestigationTabProps> = ({
           extra={
             summary?.investigation &&
             !summary?.rootCauseAnalysis && (
-              <Button
-                type="primary"
-                icon={<Plus />}
-                onClick={() => setRootCauseModalOpen(true)}
-              >
-                {t('problemInvestigation.rootCause.startAnalysis')}
-              </Button>
+              <PermissionGate anyOf={['problem:write']}>
+                <Button
+                  type="primary"
+                  icon={<Plus />}
+                  onClick={() => setRootCauseModalOpen(true)}
+                >
+                  {t('problemInvestigation.rootCause.startAnalysis')}
+                </Button>
+              </PermissionGate>
             )
           }
         >
@@ -652,13 +659,15 @@ const ProblemInvestigationTab: React.FC<ProblemInvestigationTabProps> = ({
           title={t('problemInvestigation.solutions.title')}
           extra={
             summary?.investigation && (
-              <Button
-                type="primary"
-                icon={<Plus />}
-                onClick={() => setSolutionModalOpen(true)}
-              >
-                {t('problemInvestigation.solutions.addSolution')}
-              </Button>
+              <PermissionGate anyOf={['problem:write']}>
+                <Button
+                  type="primary"
+                  icon={<Plus />}
+                  onClick={() => setSolutionModalOpen(true)}
+                >
+                  {t('problemInvestigation.solutions.addSolution')}
+                </Button>
+              </PermissionGate>
             )
           }
         >
@@ -697,13 +706,15 @@ const ProblemInvestigationTab: React.FC<ProblemInvestigationTabProps> = ({
           extra={
             (summary?.rootCauseAnalysis ||
               (summary?.solutions && summary.solutions.length > 0)) && (
-              <Button
-                type="primary"
-                icon={<BookOpen />}
-                onClick={() => setKnowledgeModalOpen(true)}
-              >
-                {t('problemInvestigation.knowledge.depositToKb')}
-              </Button>
+              <PermissionGate anyOf={['problem:write']}>
+                <Button
+                  type="primary"
+                  icon={<BookOpen />}
+                  onClick={() => setKnowledgeModalOpen(true)}
+                >
+                  {t('problemInvestigation.knowledge.depositToKb')}
+                </Button>
+              </PermissionGate>
             )
           }
         >

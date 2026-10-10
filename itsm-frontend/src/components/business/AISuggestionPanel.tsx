@@ -301,14 +301,17 @@ export function AISuggestionPanel({
             <Button size="small" icon={<X className="w-3 h-3" />} onClick={handleDismiss}>
               忽略
             </Button>
-            <Button
-              type="primary"
-              size="small"
-              icon={<Check className="w-3 h-3" />}
-              onClick={handleAccept}
-            >
-              采纳建议
-            </Button>
+            {/* 无 onAccept（调用方无写权限）时不渲染采纳入口，避免死按钮 */}
+            {onAccept && (
+              <Button
+                type="primary"
+                size="small"
+                icon={<Check className="w-3 h-3" />}
+                onClick={handleAccept}
+              >
+                采纳建议
+              </Button>
+            )}
           </div>
         </>
       )}

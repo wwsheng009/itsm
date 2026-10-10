@@ -25,6 +25,7 @@ import {
 } from 'antd';
 import { Search, Plus, Pencil, Eye, Rocket } from 'lucide-react';
 import dayjs from 'dayjs';
+import { PermissionGate } from '@/components/auth/PermissionGate';
 
 import {
   ReleaseApi,
@@ -250,13 +251,15 @@ const ReleaseList: React.FC = () => {
         title="发布管理"
         description="规划、跟踪并审计软件和基础设施发布活动"
         actions={
-          <Button
-            type="primary"
-            icon={<Plus />}
-            onClick={() => navigate('/releases/new')}
-          >
-            创建发布
-          </Button>
+          <PermissionGate anyOf={['release:write']}>
+            <Button
+              type="primary"
+              icon={<Plus />}
+              onClick={() => navigate('/releases/new')}
+            >
+              创建发布
+            </Button>
+          </PermissionGate>
         }
         className="mb-4"
       />
@@ -352,9 +355,11 @@ const ReleaseList: React.FC = () => {
           locale={{
             emptyText: (
               <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="暂无发布数据">
-                <Button type="primary" onClick={() => navigate('/releases/new')}>
-                  创建第一个发布
-                </Button>
+                <PermissionGate anyOf={['release:write']}>
+                  <Button type="primary" onClick={() => navigate('/releases/new')}>
+                    创建第一个发布
+                  </Button>
+                </PermissionGate>
               </Empty>
             ),
           }}

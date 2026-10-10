@@ -193,6 +193,15 @@ const TicketDetail: React.FC<{ id?: string }> = ({ id: propId }) => {
   const { t } = useI18n();
   const { user: currentUser, hasPermission } = useAuthStore();
   const { handleError } = useErrorHandler();
+  // 入口级权限门禁（与后端端点逐条对齐）：
+  // 批准/拒绝 → tickets POST /approval/submit（approval:write）；
+  // 分配 → POST /tickets/:id/assign（ticket:assign）；编辑 → PUT /tickets/:id（ticket:update）；
+  // 抄送 → POST /tickets/workflow/cc（workflow:write）；删除 → DELETE /tickets/:id（ticket:delete）。
+  const canApproveTicket = hasPermission('approval:write');
+  const canAssignTicket = hasPermission('ticket:assign');
+  const canUpdateTicket = hasPermission('ticket:update');
+  const canCcTicket = hasPermission('workflow:write');
+  const canDeleteTicket = hasPermission('ticket:delete');
 
   // 创建基于翻译的状态和优先级映射
   const statusMap = createStatusMap(t);
@@ -788,7 +797,7 @@ const TicketDetail: React.FC<{ id?: string }> = ({ id: propId }) => {
         <AISuggestionPanel
           title={ticket.title}
           description={ticket.description}
-          onAccept={async suggestion => {
+          onAccept={canUpdateTicket ? async suggestion => {
             // Bug 11 修复：onAccept 之前只打开编辑弹窗没有真正落库
             // 现在直接调 updateTicket 写入 AI 建议的 category + priority
             if (
@@ -815,7 +824,7 @@ const TicketDetail: React.FC<{ id?: string }> = ({ id: propId }) => {
             } catch (err) {
               handleError(err, 'applyAISuggestion', '采纳建议失败');
             }
-          }}
+          } : undefined}
         />
       )}
 
@@ -959,58 +968,70 @@ const TicketDetail: React.FC<{ id?: string }> = ({ id: propId }) => {
           )}
 
           <Space>
-            <Button
-              type="primary"
-              icon={<Check size={16} />}
-              onClick={handleApprove}
-              loading={approving}
-              disabled={isRequester || isTicketFinal}
-              title={
-                isRequester ? t('ticketDetail.cannotApproveOwnTicket') : isTicketFinal ? t('ticketDetail.ticketFinalNoAction') : ''
-              }
-            >
-              {t('ticketDetail.approve')}
-            </Button>
-            <Button
-              danger
-              icon={<XIcon size={16} />}
-              onClick={handleReject}
-              loading={rejecting}
-              disabled={isRequester || isTicketFinal}
-              title={
-                isRequester ? t('ticketDetail.cannotApproveOwnTicket') : isTicketFinal ? t('ticketDetail.ticketFinalNoAction') : ''
-              }
-            >
-              {t('ticketDetail.reject')}
-            </Button>
-            <Button
-              icon={<UserCheck size={16} />}
-              onClick={handleAssign}
-              loading={loadingUsers}
-              disabled={isTicketFinal}
-              title={isTicketFinal ? t('ticketDetail.ticketFinalNoAssign') : ''}
-            >
-              {t('ticketDetail.assign')}
-            </Button>
-            <Button
-              icon={<Edit size={16} />}
-              onClick={handleUpdate}
-              disabled={isTicketFinal}
-              title={isTicketFinal ? t('ticketDetail.ticketFinalNoEdit') : ''}
-            >
-              {t('common.edit')}
-            </Button>
-            <Button
-              icon={<Users size={16} />}
-              onClick={() => setCCModalVisible(true)}
-              disabled={isTicketFinal}
-              title={isTicketFinal ? t('ticketDetail.ticketFinalNoCc') : ''}
-            >
-              {t('ticketDetail.cc')}
-            </Button>
-            <Button danger icon={<Trash2 size={16} />} onClick={handleDeleteClick}>
-              {t('common.delete')}
-            </Button>
+            {canApproveTicket && (
+              <Button
+                type="primary"
+                icon={<Check size={16} />}
+                onClick={handleApprove}
+                loading={approving}
+                disabled={isRequester || isTicketFinal}
+                title={
+                  isRequester ? t('ticketDetail.cannotApproveOwnTicket') : isTicketFinal ? t('ticketDetail.ticketFinalNoAction') : ''
+                }
+              >
+                {t('ticketDetail.approve')}
+              </Button>
+            )}
+            {canApproveTicket && (
+              <Button
+                danger
+                icon={<XIcon size={16} />}
+                onClick={handleReject}
+                loading={rejecting}
+                disabled={isRequester || isTicketFinal}
+                title={
+                  isRequester ? t('ticketDetail.cannotApproveOwnTicket') : isTicketFinal ? t('ticketDetail.ticketFinalNoAction') : ''
+                }
+              >
+                {t('ticketDetail.reject')}
+              </Button>
+            )}
+            {canAssignTicket && (
+              <Button
+                icon={<UserCheck size={16} />}
+                onClick={handleAssign}
+                loading={loadingUsers}
+                disabled={isTicketFinal}
+                title={isTicketFinal ? t('ticketDetail.ticketFinalNoAssign') : ''}
+              >
+                {t('ticketDetail.assign')}
+              </Button>
+            )}
+            {canUpdateTicket && (
+              <Button
+                icon={<Edit size={16} />}
+                onClick={handleUpdate}
+                disabled={isTicketFinal}
+                title={isTicketFinal ? t('ticketDetail.ticketFinalNoEdit') : ''}
+              >
+                {t('common.edit')}
+              </Button>
+            )}
+            {canCcTicket && (
+              <Button
+                icon={<Users size={16} />}
+                onClick={() => setCCModalVisible(true)}
+                disabled={isTicketFinal}
+                title={isTicketFinal ? t('ticketDetail.ticketFinalNoCc') : ''}
+              >
+                {t('ticketDetail.cc')}
+              </Button>
+            )}
+            {canDeleteTicket && (
+              <Button danger icon={<Trash2 size={16} />} onClick={handleDeleteClick}>
+                {t('common.delete')}
+              </Button>
+            )}
           </Space>
 
           {isTicketFinal && (

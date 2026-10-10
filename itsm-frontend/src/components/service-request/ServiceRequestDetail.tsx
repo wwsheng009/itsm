@@ -28,6 +28,7 @@ import { ServiceRequestStatus, ApprovalStatus, ApprovalAction } from '@/constant
 import type { ServiceRequest, ServiceRequestApproval } from '@/types/biz/service-request';
 import { useI18n } from '@/lib/i18n/useI18n';
 import RichTextContent from '@/components/common/rich-text/RichTextContent';
+import { PermissionGate, useCan } from '@/components/auth/PermissionGate';
 
 const { Title, Text } = Typography;
 const { TextArea } = Input;
@@ -170,11 +171,11 @@ const ServiceRequestDetail: React.FC = () => {
     );
   };
 
-  // 判断当前用户是否可以审批 (简化逻辑：只要有 pending 状态且页面显示了按钮，前端暂不深度校验 user role，依赖后端拦截)
-  // 实际生产中应结合当前 userInfo 判断
+  // 判断当前用户是否可以审批（状态级 + 权限级双条件；权限码与后端 service_request:approve 对齐）
   const canApprove = approvals.some(
     a => a.status === ApprovalStatus.PENDING && a.level === request?.currentLevel
   );
+  const canApprovePermission = useCan(['service_request:approve']);
 
   if (loading) return <Spin size="large" style={{ display: 'block', margin: '50px auto' }} />;
   if (!hasValidId || !request) {
@@ -184,15 +185,17 @@ const ServiceRequestDetail: React.FC = () => {
           status="warning"
           title="未找到服务请求"
           subTitle="请求的地址无效或该服务请求不存在。新建服务请求请先从服务目录中选择服务。"
-          extra={[
-            <Button
-              key="new"
-              type="primary"
-              icon={<Plus />}
-              onClick={() => navigate('/service-requests/new')}
-            >
-              新建服务请求
-            </Button>,
+            extra={[
+              <PermissionGate key="new" anyOf={['service_request:write']}>
+                <Button
+                  key="new"
+                  type="primary"
+                  icon={<Plus />}
+                  onClick={() => navigate('/service-requests/new')}
+                >
+                  新建服务请求
+                </Button>
+              </PermissionGate>,
             <Button key="back" onClick={() => navigate('/service-requests')}>
               返回服务请求列表
             </Button>,
@@ -259,8 +262,9 @@ const ServiceRequestDetail: React.FC = () => {
               {renderApprovalTimeline()}
 
               {/* 审批操作区 */}
-              {canApprove &&
-                request.status !== ServiceRequestStatus.REJECTED &&
+                {canApprove &&
+                  canApprovePermission &&
+                  request.status !== ServiceRequestStatus.REJECTED &&
                 request.status !== ServiceRequestStatus.CANCELLED && (
                   <>
                     <Divider />
