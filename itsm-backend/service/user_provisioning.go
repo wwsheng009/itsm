@@ -241,7 +241,8 @@ func (s *UserProvisioningService) syncHomeMembershipAfterProvision(
 	}
 	roleCode, mspRole := provisionMembershipRoles(created)
 	// IP-P2-7/D3：roleIds 场景按所选最高 rank 角色解析 membership 角色（含自定义/MSP 角色）；
-	// msp_role 映射优先级不变（provider_admin/provider_agent → msp_manager/msp_tech）。
+	// msp_role 映射优先级不变（provider_agent → msp_tech；provider_admin 员工 → msp_manager；
+	// provider 首管例外 → provider_tenant_admin/msp_admin，见 provisionMembershipRoles）。
 	if mspRole == "" && strings.TrimSpace(roleIDsTopCode) != "" {
 		roleCode = roleIDsTopCode
 	}
@@ -270,9 +271,18 @@ func (s *UserProvisioningService) syncHomeMembershipAfterProvision(
 }
 
 // provisionMembershipRoles 账号 → membership 词表（home 作用域；迁移 20260504 回填 1 同口径）。
+//
+// 07:G11 例外（2026-10-10 回归修复）：provider 首管（is_bootstrap_admin）绑定组合角色
+// provider_tenant_admin + msp_admin，与 pkg/bootstrap 首管策略（RBACRoleCode=
+// provider_tenant_admin / MembershipMSPRole=msp_admin）单源对齐。否则建号/回填/对账
+// 会把首管 membership 校正回纯 MSP 角色 msp_manager，再次触发「自身 ITSM 菜单全被
+// 权限过滤」（只见 MSP 菜单）。
 func provisionMembershipRoles(u *ent.User) (roleCode, mspRole string) {
 	switch strings.ToLower(strings.TrimSpace(string(u.MspRole))) {
 	case "provider_admin":
+		if u.IsBootstrapAdmin {
+			return "provider_tenant_admin", "msp_admin"
+		}
 		return "msp_manager", "msp_manager"
 	case "provider_agent":
 		return "msp_tech", "msp_tech"
