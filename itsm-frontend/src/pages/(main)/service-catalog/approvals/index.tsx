@@ -5,6 +5,7 @@ import { ServiceCatalogApi } from '@/lib/api/service-catalog-api';
 import { useI18n } from '@/lib/i18n';
 import { ServiceRequestStatus } from '@/types/service-catalog';
 import { htmlToPlainText } from '@/lib/rich-text/sanitize';
+import { useCan } from '@/components/auth/PermissionGate';
 
 interface ServiceRequestRecord {
   id: number;
@@ -28,6 +29,8 @@ export function isApprovalsForbidden(error: unknown): boolean {
 export default function ServiceApprovalsPage() {
   const { message } = App.useApp();
   const { t } = useI18n();
+  // 入口级门禁：通过/驳回 → service_request:approve（与后端 service_request_routes.go 对齐）。
+  const canApproveRequest = useCan(['service_request:approve']);
   const [requests, setRequests] = useState<ServiceRequestRecord[]>([]);
   const [loading, setLoading] = useState(false);
   const [forbidden, setForbidden] = useState(false);
@@ -115,14 +118,16 @@ export default function ServiceApprovalsPage() {
       title: t('common.actions'),
       render: (_: unknown, record: ServiceRequestRecord) => (
         <Space>
-          <Button
-            size="small"
-            type="primary"
-            loading={actionLoadingId === record.id}
-            onClick={() => handleApprove(record.id)}
-          >
-            {t('service.approve')}
-          </Button>
+          {canApproveRequest && (
+            <Button
+              size="small"
+              type="primary"
+              loading={actionLoadingId === record.id}
+              onClick={() => handleApprove(record.id)}
+            >
+              {t('service.approve')}
+            </Button>
+          )}
           <Button
             size="small"
             onClick={() => {
@@ -132,16 +137,18 @@ export default function ServiceApprovalsPage() {
           >
             {t('common.view')}
           </Button>
-          <Button
-            size="small"
-            danger
-            onClick={() => {
-              setSelectedRequest(record);
-              setRejectModalVisible(true);
-            }}
-          >
-            {t('service.reject')}
-          </Button>
+          {canApproveRequest && (
+            <Button
+              size="small"
+              danger
+              onClick={() => {
+                setSelectedRequest(record);
+                setRejectModalVisible(true);
+              }}
+            >
+              {t('service.reject')}
+            </Button>
+          )}
         </Space>
       ),
     },
@@ -150,7 +157,7 @@ export default function ServiceApprovalsPage() {
   return (
     <div className="p-6">
       <Card title={t('service.pendingApprovals')}>
-        {forbidden && (
+        {(forbidden || !canApproveRequest) && (
           <Alert
             type="warning"
             showIcon

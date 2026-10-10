@@ -44,6 +44,7 @@ import { httpClient } from '@/lib/api/http-client';
 import { WorkflowApi, type BpmnMyTask } from '@/lib/api/workflow-api';
 import { UserApi, type User } from '@/lib/api/user-api';
 import { useAuthStore } from '@/lib/store/auth-store';
+import { useCan } from '@/components/auth/PermissionGate';
 import dayjs from 'dayjs';
 import relativeTime from 'dayjs/plugin/relativeTime';
 
@@ -111,6 +112,8 @@ const priorityColorMap: Record<string, string> = {
 export default function ApprovalsCenterPage() {
   const { message, modal } = App.useApp();
   const { user } = useAuthStore();
+  // 入口级门禁：BPMN 任务领取/决策/委托/加签 → task:update（handlers/bpmn/workflow.go）。
+  const canUpdateTask = useCan(['task:update']);
 
   // BPMN 待办
   const [taskLoading, setTaskLoading] = useState(false);
@@ -397,7 +400,7 @@ export default function ApprovalsCenterPage() {
       width: 280,
       render: (_: unknown, record: BpmnMyTask) => (
         <Space size="small">
-          {!record.assignee && (
+          {canUpdateTask && !record.assignee && (
             <Button
               size="small"
               icon={<Hand className="w-3 h-3" />}
@@ -407,24 +410,28 @@ export default function ApprovalsCenterPage() {
               领取
             </Button>
           )}
-          <Button
-            type="primary"
-            size="small"
-            icon={<Check className="w-3 h-3" />}
-            onClick={() => openDecision(record, 'approve')}
-            className="!bg-green-500 !border-green-500 hover:!bg-green-600 hover:!border-green-600"
-          >
-            批准
-          </Button>
-          <Button
-            danger
-            size="small"
-            icon={<X className="w-3 h-3" />}
-            onClick={() => openDecision(record, 'reject')}
-          >
-            拒绝
-          </Button>
-          {!!((record.taskVariables as Record<string, unknown>)?.allowDelegate) && (
+          {canUpdateTask && (
+            <Button
+              type="primary"
+              size="small"
+              icon={<Check className="w-3 h-3" />}
+              onClick={() => openDecision(record, 'approve')}
+              className="!bg-green-500 !border-green-500 hover:!bg-green-600 hover:!border-green-600"
+            >
+              批准
+            </Button>
+          )}
+          {canUpdateTask && (
+            <Button
+              danger
+              size="small"
+              icon={<X className="w-3 h-3" />}
+              onClick={() => openDecision(record, 'reject')}
+            >
+              拒绝
+            </Button>
+          )}
+          {canUpdateTask && !!((record.taskVariables as Record<string, unknown>)?.allowDelegate) && (
             <Button
               size="small"
               icon={<ArrowRightLeft className="w-3 h-3" />}
@@ -433,7 +440,7 @@ export default function ApprovalsCenterPage() {
               委托
             </Button>
           )}
-          {!!((record.taskVariables as Record<string, unknown>)?.allowAddApprover) && (
+          {canUpdateTask && !!((record.taskVariables as Record<string, unknown>)?.allowAddApprover) && (
             <Button
               size="small"
               icon={<UserPlus className="w-3 h-3" />}

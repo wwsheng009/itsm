@@ -19,6 +19,7 @@ import { ServiceCatalogApi } from '@/lib/api/service-catalog-api';
 import type { ProvisioningTask } from '@/lib/api/service-request-api';
 import { serviceRequestAPI } from '@/lib/api/service-request-api';
 import RichTextContent from '@/components/common/rich-text/RichTextContent';
+import { useCan } from '@/components/auth/PermissionGate';
 
 const { Title, Text } = Typography;
 
@@ -64,6 +65,9 @@ export default function MyRequestDetailPage() {
   const params = useParams();
   const navigate = useNavigate();
   const requestId = Number(params.requestId);
+  // 入口级门禁：通过/拒绝 → service_request:approve；交付/执行 → service_request:write。
+  const canApproveRequest = useCan(['service_request:approve']);
+  const canWriteRequest = useCan(['service_request:write']);
 
   const [loading, setLoading] = useState(true);
   const [detail, setDetail] = useState<any>(null);
@@ -280,9 +284,10 @@ export default function MyRequestDetailPage() {
           <Divider />
 
           {/* 审批操作 - 仅在待审批状态显示 */}
-          {(detail?.status === 'submitted' ||
-            detail?.status === 'manager_approved' ||
-            detail?.status === 'it_approved') && (
+          {canApproveRequest &&
+            (detail?.status === 'submitted' ||
+              detail?.status === 'manager_approved' ||
+              detail?.status === 'it_approved') && (
             <>
               <Title level={4}>审批操作</Title>
               <Space orientation="vertical" style={{ width: '100%' }}>
@@ -316,15 +321,17 @@ export default function MyRequestDetailPage() {
                 showIcon
                 style={{ marginBottom: 16 }}
               />
-              <Button
-                type="primary"
-                icon={<PlayCircle />}
-                onClick={handleStartProvisioning}
-                loading={executing}
-                size="large"
-              >
-                启动交付
-              </Button>
+              {canWriteRequest && (
+                <Button
+                  type="primary"
+                  icon={<PlayCircle />}
+                  onClick={handleStartProvisioning}
+                  loading={executing}
+                  size="large"
+                >
+                  启动交付
+                </Button>
+              )}
               <Divider />
             </>
           )}
@@ -395,7 +402,7 @@ export default function MyRequestDetailPage() {
                       width: 120,
                       render: (_, task) => (
                         <Space>
-                          {task.status === 'pending' && (
+                          {task.status === 'pending' && canWriteRequest && (
                             <Button
                               type="link"
                               size="small"
@@ -425,19 +432,21 @@ export default function MyRequestDetailPage() {
               {detail?.status === 'provisioning' &&
                 provisioningTasks.some(t => t.status === 'pending') && (
                   <div style={{ marginTop: 16 }}>
-                    <Button
-                      type="primary"
-                      icon={<PlayCircle />}
-                      onClick={() => {
-                        const pendingTask = provisioningTasks.find(t => t.status === 'pending');
-                        if (pendingTask) {
-                          handleExecuteTask(pendingTask.id);
-                        }
-                      }}
-                      loading={executing}
-                    >
-                      执行待处理任务
-                    </Button>
+                    {canWriteRequest && (
+                      <Button
+                        type="primary"
+                        icon={<PlayCircle />}
+                        onClick={() => {
+                          const pendingTask = provisioningTasks.find(t => t.status === 'pending');
+                          if (pendingTask) {
+                            handleExecuteTask(pendingTask.id);
+                          }
+                        }}
+                        loading={executing}
+                      >
+                        执行待处理任务
+                      </Button>
+                    )}
                   </div>
                 )}
             </>

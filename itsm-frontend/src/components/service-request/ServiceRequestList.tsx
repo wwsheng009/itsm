@@ -10,6 +10,7 @@ import { Table, Tag, Button, Tabs, Card, Space, Tooltip, message } from 'antd';
 import { Eye, RefreshCw, CheckCircle } from 'lucide-react';
 import dayjs from 'dayjs';
 import LoadingEmptyError from '@/components/ui/LoadingEmptyError';
+import { useCan } from '@/components/auth/PermissionGate';
 
 import { ServiceRequestApi } from '@/lib/api/';
 import { ServiceRequestStatus } from '@/constants/service-request';
@@ -30,6 +31,8 @@ const statusColors: Record<string, string> = {
 
 const ServiceRequestList: React.FC = () => {
   const navigate = useNavigate();
+  // 入口级门禁：新建服务请求 → service_request:write。
+  const canWriteRequest = useCan(['service_request:write']);
   const [activeTab, setActiveTab] = useState('my-requests');
   const [loading, setLoading] = useState(false);
   const [data, setData] = useState<ServiceRequest[]>([]);
@@ -182,10 +185,10 @@ const ServiceRequestList: React.FC = () => {
               empty={{
                 title: '暂无服务请求数据',
                 description: '当前没有服务请求记录，点击下方按钮创建第一个服务请求',
-                actionText: '新建服务请求',
-                onAction: () => navigate('/service-requests/new'),
-                showAction: true,
-                icon: <CheckCircle size={48} />,
+                  actionText: '新建服务请求',
+                  onAction: canWriteRequest ? () => navigate('/service-requests/new') : undefined,
+                  showAction: canWriteRequest,
+                  icon: <CheckCircle size={48} />,
               }}
             />
           ),

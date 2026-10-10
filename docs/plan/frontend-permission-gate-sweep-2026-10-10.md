@@ -70,13 +70,15 @@
 | 页面/文件 | 入口（行号） | 动作 | 权限码 | 路由级 | 状态 |
 |---|---|---|---|---|---|
 | `pages/(main)/service-catalog/index.tsx` | 269 | 新建服务（`canManageCatalog`，模态框直提） | `service_catalog:write` | —（无创建路由；编辑路由已覆盖） | ✅（页面级 `hasPermission`） |
-| `pages/(main)/service-catalog/components/ServiceItemCard.tsx` | 117 | 编辑 → `/service-catalog/edit/:id` | `service_catalog:write` | ✅ | ⬜ |
-| `components/service-request/ServiceRequestList.tsx` | 186 | 空态新建 → `/service-requests/new` | `service_request:write` | ✅ | ⬜ |
-| `components/service-request/ServiceRequestDetail.tsx` | 192 | 再次申请 → `/service-requests/new` | `service_request:write` | ✅ | ⬜ |
-| `pages/(main)/my-requests/$requestId/index.tsx` | 296 / 299 | 通过 / 驳回 | `service_request:approve` | — | ⬜ |
-| `pages/(main)/service-catalog/approvals/**` | — | 审批动作 | `service_request:approve` | — | ⬜ |
-| `pages/(main)/approvals/index.tsx` | 401–443 | 通过/驳回/转派/加签 | `workflow:write`（工单）/ `service_request:approve`（请求） | — | ⬜ |
+| `pages/(main)/service-catalog/components/ServiceItemCard.tsx` | 117 | 编辑 → `/service-catalog/edit/:id`（`canManageCatalog` 控制 `onEdit` 注入） | `service_catalog:write` | ✅ | ✅（批次 8） |
+| `components/service-request/ServiceRequestList.tsx` | 186 | 空态新建 → `/service-requests/new` | `service_request:write` | ✅ | ✅（批次 8） |
+| `components/service-request/ServiceRequestDetail.tsx` | 189 | 404 空态「新建服务请求」（PermissionGate 既有；无「再次申请」入口） | `service_request:write` | ✅ | ✅（既有） |
+| `pages/(main)/my-requests/$requestId/index.tsx` | 296 / 299 / 319 / 402 / 435 | 通过/驳回；启动交付；执行任务 | `service_request:approve` / `service_request:write` | — | ✅（批次 8） |
+| `pages/(main)/service-catalog/approvals/**` | 118 / 135 | 通过 / 驳回（无权限时页内告警 + 隐藏按钮） | `service_request:approve` | — | ✅（批次 8） |
+| `pages/(main)/approvals/index.tsx` | 400–443 | 领取/批准/拒绝/委托/加签（权限码修正为 `task:update`，对齐 `handlers/bpmn/workflow.go`） | `task:update` | — | ✅（批次 8） |
 | `pages/(main)/settings/approvals/index.tsx` | 14 | **重定向页**（→ `/admin/workflows`），非写面 | 无需门禁 | — | ✅ |
+
+> 进度（2026-10-10，批次 8）：§2.3 全部收口 ✅——服务目录「新建服务/编辑」（页面级 `canManageCatalog` 既有）、服务请求空态新建、服务请求详情审批（通过/驳回）+ 交付（启动交付/执行任务）、待我审批-目录（通过/驳回 + 无权限告警）、审批中心 BPMN 任务动作（领取/批准/拒绝/委托/加签，`task:update`）。
 
 ### 2.4 SLA / 工作流 / 邮件接入 / 市场
 
@@ -150,7 +152,7 @@
 | 工单 | accept / reject / approve / resolve / close / reopen / forward / cc / withdraw | `workflow:write` | `components/business/TicketWorkflowActions.tsx`、`TicketDetail.tsx`、`TicketMultiLevelApproval.tsx` |
 | 工单 | 批量操作（分配/状态/标签/优先级/通知/导出/删除） | `ticket:assign` / `ticket:update` / `workflow:write` / `ticket:export` / `ticket:delete`（✅ 批次 4；勘误：`ticket:batch_*` 词表实际不存在） | `components/ticket/TicketBatchOperations.tsx` |
 | 工单 | 编辑模式入口 `/tickets/:id?mode=edit` | `ticket:update` | `components/ticket/TicketList.tsx:115` |
-| 服务请求 | approval / provision / status | `service_request:approve` / `service_request:write` | `components/service-request/ServiceRequestDetail.tsx`（已有 canApprove 局部判定，建议换成 `useCan`） |
+| 服务请求 | approval（通过/拒绝，状态+权限双条件）/ provision（启动交付/执行任务）| `service_request:approve` / `service_request:write` | `components/service-request/ServiceRequestDetail.tsx`（`useCan` 已落地）、`pages/(main)/my-requests/$requestId/index.tsx`（批次 8） |
 | 知识库 | 发布/归档/编辑/删除 | `knowledge:write` / `knowledge:delete` | ✅ 已改造 |
 | 通用 | 附件上传/删除、评论删除 | 域内 `:write` / `:delete`（如 `ticket:write`） | `components/business/detail-tabs/AttachmentPanel.tsx`、`CommentPanel.tsx` |
 
