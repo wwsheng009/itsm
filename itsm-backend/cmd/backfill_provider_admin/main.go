@@ -2,13 +2,14 @@
 // （= admin ∪ msp_admin，2026-10-06 / 07:G11）。
 //
 // 背景：provider 首管策略改为绑定组合角色之前创建的租户，其首管 membership 仍指向
-// 纯 MSP 角色（msp_admin）→ 自身 ITSM 菜单被权限过滤（只见 MSP 菜单）。本 CLI 幂等地：
+// 纯 MSP 角色（msp_admin / msp_manager 等）→ 自身 ITSM 菜单被权限过滤（只见 MSP 菜单）。本 CLI 幂等地：
 //
 //  1. 为每个 provider 租户补齐 provider_tenant_admin 角色行（default 模板租户一并补齐，
 //     保证后续 ProvisionTenant 克隆包含该角色）；
 //  2. 绑定权限 = 该租户 admin ∪ msp_admin 的权限并集（只增不减，不触碰其它角色）；
-//  3. 把 bootstrap 管理员（is_bootstrap_admin）的 home membership 从 msp_admin 重绑到
-//     新角色，并补 user_roles 边（不删除历史边）；每次重绑写审计。
+//  3. 把 bootstrap 管理员（is_bootstrap_admin）的 home membership 从纯 MSP 角色
+//     （msp_admin / msp_manager / msp_tech 等，经 middleware.IsMSPOnlyRole 判定）
+//     重绑到新角色，并补 user_roles 边（不删除历史边）；每次重绑写审计。
 //
 // 用法：
 //
@@ -115,6 +116,14 @@ func resolveProviderTenants(ctx context.Context, client *ent.Client, tenantID in
 		matched = append(matched, t)
 	}
 	return matched, nil
+}
+
+// isRebindableMSPRole 判定 bootstrap 管理员当前 membership 角色是否属于可重绑的
+// "纯 MSP 专属角色"：msp_viewer / msp_tech / msp_specialist / msp_manager / msp_admin
+// （middleware.IsMSPOnlyRole 词表）。目标组合角色 provider_tenant_admin 自身由调用方
+// alreadyDone 分支处理，此处显式排除，避免误判。
+func isRebindableMSPRole(code string) bool {
+	return middleware.IsMSPOnlyRole(code) && code != targetRoleCode
 }
 
 // backfillTenant 对单个 provider 租户执行幂等回填；dryRun 时只统计不写库。
@@ -239,8 +248,11 @@ func backfillTenant(ctx context.Context, client *ent.Client, sugar *zap.SugaredL
 		}
 		alreadyDone := currentCode == targetRoleCode
 		if !alreadyDone {
-			if currentCode != "msp_admin" {
-				sugar.Warnw("skip admin: membership role is not msp_admin", "tenant_id", t.ID, "user_id", admin.ID, "role", currentCode)
+			// 2026-10-10 扩展：存量漂移除 msp_admin 外还出现 msp_manager 变体（demo01/MSPB2C
+			// 首管），凡"纯 MSP 专属角色"（IsMSPOnlyRole，排除目标角色自身）一律重绑到组合角色；
+			// 非 MSP 角色（admin/agent 等）不属于本 CLI 修复面，保持跳过。
+			if !isRebindableMSPRole(currentCode) {
+				sugar.Warnw("skip admin: membership role is not a rebindable MSP-only role", "tenant_id", t.ID, "user_id", admin.ID, "role", currentCode)
 				continue
 			}
 			rebound++
