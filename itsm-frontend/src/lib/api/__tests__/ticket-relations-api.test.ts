@@ -62,10 +62,12 @@ describe('TicketRelationsApi', () => {
   });
 
   describe('deleteRelation', () => {
-    it('should delete relation', async () => {
+    it('should delete relation by ticket pair (B4 contract)', async () => {
       mockDelete.mockResolvedValue(undefined);
-      await TicketRelationsApi.deleteRelation('r1', 'not needed');
-      expect(mockDelete).toHaveBeenCalledWith('/api/v1/tickets/relations/r1', { reason: 'not needed' });
+      await TicketRelationsApi.deleteRelation(1, 2);
+      expect(mockDelete).toHaveBeenCalledWith(
+        '/api/v1/tickets/relations?sourceTicketId=1&targetTicketId=2'
+      );
     });
   });
 

@@ -46,9 +46,8 @@ export const RelationPanel: React.FC<RelationPanelProps> = ({
 }) => {
   const [modalVisible, setModalVisible] = useState(false);
   const [form] = Form.useForm();
-  // 入口级门禁：新建/删除工单关联 → ticket:update（计划建议码）。
-  // 注意：POST/DELETE /api/v1/tickets/relations* 当前未注册（product-capabilities: advancedTicketRelations=false），
-  // 入口保留但按权限过滤（与批次 4 批量操作先例一致）。
+  // 入口级门禁：新建/删除工单关联 → ticket:update（router/ticket_routes.go 关联写面，B4 已注册）。
+  // 说明：仅「相关」关系已落地（M2M 双向边）；类型化关系/批量/图谱为 roadmap。
   const { hasPermission } = usePermissions();
   const canManageRelation = hasPermission('ticket', 'update');
 
@@ -112,9 +111,9 @@ export const RelationPanel: React.FC<RelationPanelProps> = ({
     }
   };
 
-  const handleDeleteRelation = async (relationId: string) => {
+  const handleDeleteRelation = async (relatedTicketId: number) => {
     try {
-      await deleteMutation.mutateAsync({ relationId });
+      await deleteMutation.mutateAsync({ sourceTicketId: ticketId, targetTicketId: relatedTicketId });
     } catch (error) {
       message.error('删除关联失败');
     }
@@ -145,8 +144,14 @@ export const RelationPanel: React.FC<RelationPanelProps> = ({
       <List
         dataSource={relations}
         renderItem={relation => {
+          // 后端 GET 当前返回工单对象（relatedTickets）；兼容关系对象两种形态。
           const isSource = relation.sourceTicketId === ticketId;
           const relatedTicket = isSource ? relation.targetTicket : relation.sourceTicket;
+          const relatedTicketId = Number(
+            isSource
+              ? (relation.targetTicketId ?? relation.targetTicket?.id ?? relation.id)
+              : (relation.sourceTicketId ?? relation.sourceTicket?.id ?? relation.id)
+          );
 
           return (
             <List.Item
@@ -168,7 +173,7 @@ export const RelationPanel: React.FC<RelationPanelProps> = ({
                   <Popconfirm
                     key="delete"
                     title="确认删除此关联？"
-                    onConfirm={() => handleDeleteRelation(relation.id)}
+                    onConfirm={() => handleDeleteRelation(relatedTicketId)}
                     okText="确认"
                     cancelText="取消"
                   >
@@ -273,8 +278,12 @@ export const RelationPanel: React.FC<RelationPanelProps> = ({
             label="关联类型"
             name="relationType"
             rules={[{ required: true, message: '请选择关联类型' }]}
+            extra="当前仅支持「相关」关系（阻塞/依赖/重复等类型为 roadmap）"
           >
-            <Select placeholder="选择关联类型" options={[{ value: TicketRelationType.RELATES_TO, label: "相关" }, { value: TicketRelationType.BLOCKS, label: "阻塞" }, { value: TicketRelationType.DEPENDS_ON, label: "依赖于" }, { value: TicketRelationType.DUPLICATES, label: "重复" }, { value: TicketRelationType.PARENT_CHILD, label: "父子关系" }]} />
+            <Select
+              placeholder="选择关联类型"
+              options={[{ value: TicketRelationType.RELATES_TO, label: '相关' }]}
+            />
           </Form.Item>
 
           <Form.Item

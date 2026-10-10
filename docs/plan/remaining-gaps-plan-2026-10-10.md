@@ -12,7 +12,7 @@
 | G2 | 验证 | 批次 13–15 门禁项缺浏览器双账号实测（§7 清单第 1/2/5 项） | 证据链缺口 | **B7** | ⏳ 待浏览器环境 |
 | G3 | 产品-前端 | SLA 新建/编辑页面缺失（路由不存在；详情编辑按钮已禁用） | 无法创建/编辑 SLA 定义 | **B2** | ✅ 已落地（2026-10-10） |
 | G4 | 产品-全栈 | `/profile` 自助面：改密应走 `POST /auth/change-password`（需旧密码字段）；资料自更新缺 `PUT /users/me` | 非 `user:write` 用户无法自助 | **B3** | ✅ 已落地（2026-10-10） |
-| G5 | 产品-后端 | `POST/DELETE /tickets/:id/relations` 未注册（仅 GET 桩） | RelationPanel 写动作 404 | **B4** | ⏳ 待执行（Service 已就绪） |
+| G5 | 产品-后端 | `POST/DELETE /tickets/:id/relations` 未注册（仅 GET 桩） | RelationPanel 写动作 404 | **B4** | ✅ 已落地（2026-10-10；契约勘误：前端实为 `/tickets/relations` 工单对契约） |
 | G6 | 产品-后端 | `/tickets/batch-assign`、`batch/assign*`、`batch-notify` 未注册（TicketList 批量工具栏入口存活，受权限过滤） | 批量分配/通知 404 | **B5** | ⏳ 待决策（补端点 or 下线入口） |
 | G7 | 门禁粒度 | `/admin/*`、`/msp/*` 区域守卫粗粒度（`ADMIN_AREA_PERMISSIONS` 4 码） | 跨权限管理员可见不可用入口 | **B6** | ⏳ 待执行（Sweep §4 表） |
 | G8 | 能力面 | `rootCauseWorkflowActions`、`priorityMatrix`、`advancedReporting`、`genericTemplateMarketplace` 关闭 | 对应 UI/API 为 roadmap-only（已登记） | — | 保持登记 |
@@ -59,9 +59,9 @@
 
 **背景**：`TicketAssociationService` 已接入（`ticket_routes.go:81-141`），仅注册了 GET。
 
-**范围**：后端注册 `POST /tickets/:id/relations`（add，`ticket:update`）与 `DELETE /tickets/:id/relations/:relationId`（remove，`ticket:update`），与前端 `ticket-relations-api.ts` 契约对齐（含 `advancedTicketRelations` capability 开关注释更新）；前端 `RelationPanel` 写动作恢复可用（已按 `ticket:update` 门禁）。
+**范围（执行中勘误）**：前端实际契约为**工单对**（非 `:id` 路径）——`POST /tickets/relations` `{sourceTicketId,targetTicketId,relationType?,description?}` 与 `DELETE /tickets/relations?sourceTicketId=&targetTicketId=`，均为 `ticket:update`。数据模型为 `tickets.related_tickets` M2M 双向边（无类型化关系实体）→ 仅支持「相关」（relates_to，空值默认），blocks/duplicates 等显式 400；全部按 tenantID 收口 + 幂等。前端 `deleteRelation` 改为工单对签名（hook/RelationPanel 同步，面板行兼容工单对象/关系对象两形态，模态仅保留「相关」选项）。
 
-**验收**：关联增删端到端；`api-contract.test` 通过（若契约从 disabled 转正，同步 `DISABLED_API_CONTRACTS` 移除对应项）。
+**验收（已达成）**：`service` 新用例（双向边/幂等/自身拒绝/类型白名单/跨租户 fail-closed/删除双向清除）全绿；`go test ./router` 全绿（写路由挂 `RequirePermission`，守卫测试 0 豁免新增）；前端 tsc/eslint 0；jest ticket-relations-api + useTicketRelations + api-contract 67/67。
 
 ## B5：批量分配/通知端点（P3，待产品决策）
 
@@ -100,4 +100,5 @@
 | 2026-10-10 | B2 | ✅ SLA 新建/编辑页面落地：`components/sla/SLADefinitionForm.tsx`（共享表单，对齐 `dto.CreateSLADefinitionRequest`）+ `pages/(main)/sla/definitions/new`、`$id/edit` 两页（组件级 `sla:write` 双保险 + 路由级规则 ×2）；`SLADetail` 编辑按钮解禁接路由；`/sla` 工作台加「新建 SLA 定义」门禁入口。验证：tsc/eslint 0；`route-permissions`+`guards` 18/18；`go test ./handlers/sla` 全绿 |
 | 2026-10-10 | B8 | ✅ Windows 测试基建修复：`setupSLAHandler` 显式 `t.Cleanup(Close)`；`go test ./handlers/sla` 全绿（3.2s，此前 24+ 用例因文件锁清理失败） |
 | 2026-10-10 | B3 | ✅ `/profile` 自助面闭环：后端 `PUT /users/me`（`handlers/common/user_profile.go`，name/email/phone 白名单 + 邮箱唯一性 + 跨租户 fail-closed；路由挂 `AuthMiddleware` 并登记守卫豁免）+ 前端切换 `updateMyProfile` / `AuthService.changePassword`（旧密码字段已存在）；三处 `user:write` 禁用移除，部门改只读。验证：`go test ./handlers/common ./router` 全绿；前端 tsc/eslint 0；jest user-api/api-contract/auth-service 51/51（契约 0 失配） |
-| — | B4–B7 | ⏳ 待执行 |
+| 2026-10-10 | B4 | ✅ 工单关联写面：后端 `service/ticket_relation_write.go`（Add/Remove，租户收口 + 幂等 + 类型白名单）+ `POST/DELETE /tickets/relations`（`ticket:update`）+ 新 service 用例；前端 `deleteRelation` 工单对契约 + hook/RelationPanel 同步（模态仅「相关」）。验证：`go test ./service ./router` 全绿；tsc/eslint 0；jest 67/67 |
+| — | B5–B7 | ⏳ 待执行 |

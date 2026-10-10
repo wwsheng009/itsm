@@ -335,10 +335,10 @@ describe('useTicketRelations hooks', () => {
         wrapper: createWrapper(),
       });
 
-      result.current.mutate({ relationId: 'rel-1', reason: 'No longer needed' });
+      result.current.mutate({ sourceTicketId: 1, targetTicketId: 2 });
 
       await waitFor(() => expect(result.current.isSuccess).toBe(true));
-      expect(mockApi.deleteRelation).toHaveBeenCalledWith('rel-1', 'No longer needed');
+      expect(mockApi.deleteRelation).toHaveBeenCalledWith(1, 2);
     });
 
     it('should handle delete error', async () => {
@@ -348,7 +348,7 @@ describe('useTicketRelations hooks', () => {
         wrapper: createWrapper(),
       });
 
-      result.current.mutate({ relationId: 'rel-1' });
+      result.current.mutate({ sourceTicketId: 1, targetTicketId: 2 });
 
       await waitFor(() => expect(result.current.isError).toBe(true));
     });

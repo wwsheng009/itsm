@@ -254,11 +254,16 @@ export function useDeleteRelationMutation() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: ({ relationId, reason }: { relationId: string; reason?: string }) =>
-      TicketRelationsApi.deleteRelation(relationId, reason),
-    onSuccess: () => {
+    mutationFn: ({ sourceTicketId, targetTicketId }: { sourceTicketId: number; targetTicketId: number }) =>
+      TicketRelationsApi.deleteRelation(sourceTicketId, targetTicketId),
+    onSuccess: (_, variables) => {
       message.success('关联已删除');
-      queryClient.invalidateQueries({ queryKey: TICKET_RELATION_KEYS.lists() });
+      queryClient.invalidateQueries({
+        queryKey: TICKET_RELATION_KEYS.list(variables.sourceTicketId),
+      });
+      queryClient.invalidateQueries({
+        queryKey: TICKET_RELATION_KEYS.list(variables.targetTicketId),
+      });
       queryClient.invalidateQueries({ queryKey: ['tickets'] });
     },
     onError: (error: unknown) => {

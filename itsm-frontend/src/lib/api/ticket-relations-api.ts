@@ -29,7 +29,8 @@ export class TicketRelationsApi {
   // ==================== 基础CRUD操作 ====================
 
   /**
-   * 创建工单关联
+   * 创建工单关联（B4：source↔target「相关」双向边；relationType 仅支持 relates_to，
+   * 其他类型后端显式 400，见 service/ticket_relation_write.go）
    */
   static async createRelation(request: CreateRelationRequest): Promise<TicketRelation> {
     return httpClient.post<TicketRelation>('/api/v1/tickets/relations', request);
@@ -90,12 +91,12 @@ export class TicketRelationsApi {
   }
 
   /**
-   * 删除关联
+   * 删除关联（B4 契约：以工单对定位 M2M 边；后端幂等）
    */
-  static async deleteRelation(relationId: string, reason?: string): Promise<void> {
-    return httpClient.delete(`/api/v1/tickets/relations/${relationId}`, {
-      reason,
-    });
+  static async deleteRelation(sourceTicketId: number, targetTicketId: number): Promise<void> {
+    return httpClient.delete(
+      `/api/v1/tickets/relations?sourceTicketId=${sourceTicketId}&targetTicketId=${targetTicketId}`
+    );
   }
 
   /**

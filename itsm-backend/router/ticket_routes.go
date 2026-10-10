@@ -1,10 +1,12 @@
 package router
 
 import (
+	"errors"
 	"strconv"
 
 	"itsm-backend/common"
 	"itsm-backend/middleware"
+	"itsm-backend/service"
 
 	"github.com/gin-gonic/gin"
 )
@@ -122,6 +124,51 @@ func SetupTicketRoutes(tenant *gin.RouterGroup, config *RouterConfig) {
 					"relatedCount":    len(deps.RelatedTickets),
 					"duplicateCount":  0,
 				})
+			})
+			// 工单关联写面（B4）：source↔target「相关」双向边（M2M），幂等；
+			// 类型化关系（blocks/duplicates 等）为 roadmap，service 层显式拒绝。
+			tickets.POST("/relations", middleware.RequirePermission("ticket", "update"), func(c *gin.Context) {
+				tenantID := c.GetInt("tenant_id")
+				if tenantID <= 0 {
+					common.Fail(c, common.AuthFailedCode, "租户信息缺失")
+					return
+				}
+				var req struct {
+					SourceTicketID int    `json:"sourceTicketId" binding:"required"`
+					TargetTicketID int    `json:"targetTicketId" binding:"required"`
+					RelationType   string `json:"relationType"`
+					Description    string `json:"description"`
+				}
+				if err := c.ShouldBindJSON(&req); err != nil {
+					common.ParamError(c, "参数错误: "+err.Error())
+					return
+				}
+				view, err := config.TicketAssociationService.AddTicketRelation(
+					c.Request.Context(), tenantID, req.SourceTicketID, req.TargetTicketID, req.RelationType, req.Description,
+				)
+				if err != nil {
+					writeRelationError(c, err, "创建关联失败")
+					return
+				}
+				common.Success(c, view)
+			})
+			tickets.DELETE("/relations", middleware.RequirePermission("ticket", "update"), func(c *gin.Context) {
+				tenantID := c.GetInt("tenant_id")
+				if tenantID <= 0 {
+					common.Fail(c, common.AuthFailedCode, "租户信息缺失")
+					return
+				}
+				sourceID, errSource := strconv.Atoi(c.Query("sourceTicketId"))
+				targetID, errTarget := strconv.Atoi(c.Query("targetTicketId"))
+				if errSource != nil || errTarget != nil || sourceID <= 0 || targetID <= 0 {
+					common.ParamError(c, "参数错误: sourceTicketId/targetTicketId 必填")
+					return
+				}
+				if err := config.TicketAssociationService.RemoveTicketRelation(c.Request.Context(), tenantID, sourceID, targetID); err != nil {
+					writeRelationError(c, err, "删除关联失败")
+					return
+				}
+				common.Success(c, gin.H{"removed": true})
 			})
 			// 工单→配置项反向查询：复用 TicketAssociationService.GetConfigurationItems
 			// （AI 本体链路落地后，工单详情页可展示其影响的配置项）
@@ -295,7 +342,10 @@ func SetupTicketRoutes(tenant *gin.RouterGroup, config *RouterConfig) {
 	}
 
 	if config.AnalyticsHandler != nil {
-		tenant.GET("/analytics/tickets", middleware.RequirePermission("report", "read"), config.AnalyticsHandler.GetTicketAnalytics)
+		// 2026-10-10：门禁从 report:read 收敛到 ticket:read——与菜单 permission_code
+		// （pkg/seeder/seeder.go 工单统计=ticket:read）、同页 /tickets/stats（ticket:read）
+		// 三层同码；深度分析 /analytics/deep 仍保持 report:read 的更严口径。
+		tenant.GET("/analytics/tickets", middleware.RequirePermission("ticket", "read"), config.AnalyticsHandler.GetTicketAnalytics)
 	}
 
 	aiGroup := tenant.Group("/ai")
@@ -303,5 +353,22 @@ func SetupTicketRoutes(tenant *gin.RouterGroup, config *RouterConfig) {
 		// 权限与 /ai/tickets/:id/analyze 对齐（ai.read）：两者同属 AI 能力面，
 		// 避免同组端点一个走 ticket.read 一个走 ai.read 的对称性漂移。
 		aiGroup.GET("/tickets/:id/summary", middleware.RequirePermission("ai", "read"), config.AIHandler.SummarizeTicket)
+	}
+}
+
+// writeRelationError 将工单关联写面错误映射为稳定响应（B4）：
+// 校验类错误 → 400（中文文案）；其余 → 500 兜底。
+func writeRelationError(c *gin.Context, err error, fallback string) {
+	switch {
+	case errors.Is(err, service.ErrRelationSelf):
+		common.Fail(c, common.ParamErrorCode, "不能关联工单自身")
+	case errors.Is(err, service.ErrRelationUnsupportedType):
+		common.Fail(c, common.ParamErrorCode, "当前仅支持「相关」关系类型（其他类型为 roadmap）")
+	case errors.Is(err, service.ErrRelationInvalidIDs):
+		common.Fail(c, common.ParamErrorCode, "工单ID无效")
+	case errors.Is(err, service.ErrRelationNotFound):
+		common.Fail(c, common.ParamErrorCode, "工单不存在或不可访问")
+	default:
+		common.FailWithErr(c, err, fallback)
 	}
 }
