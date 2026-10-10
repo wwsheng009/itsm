@@ -35,6 +35,7 @@ import {
   type OnCallSchedule,
 } from '@/lib/services/emailIntakeService';
 import { UserApi } from '@/lib/api/user-api';
+import { useCan } from '@/components/auth/PermissionGate';
 
 interface User {
   id: number;
@@ -59,6 +60,13 @@ const formatTime = (value?: string): string =>
 
 export default function EmailIntakePage() {
   const { message } = App.useApp();
+  // 入口级门禁（handlers/email_intake/handler.go + rbac_precheck_gen.go）：
+  const canReviewIntake = useCan(['email_intake:review']);
+  const canRetryIntake = useCan(['email_intake:retry']);
+  const canOverrideIntake = useCan(['email_intake:override']);
+  const canWriteCustomer = useCan(['customer_master:write']);
+  const canWriteContract = useCan(['support_contract:write']);
+  const canWriteOnCall = useCan(['on_call:write']);
   const [loading, setLoading] = useState(false);
   const [status, setStatus] = useState<string>();
   const [conversations, setConversations] = useState<EmailConversation[]>([]);
@@ -355,13 +363,21 @@ export default function EmailIntakePage() {
   const masterData = (
     <div className='space-y-4'>
       <Space wrap>
-        <Button type='primary' onClick={() => setEntityModal('customer')}>
-          新增客户
-        </Button>
-        <Button onClick={() => setEntityModal('branch')}>新增分部</Button>
-        <Button onClick={() => setEntityModal('contract')}>新增支持合同</Button>
-        <Button onClick={() => setEntityModal('source')}>新增来源组织</Button>
-        <Button onClick={() => setEntityModal('externalReference')}>新增外部合同映射</Button>
+        {canWriteCustomer && (
+          <>
+            <Button type='primary' onClick={() => setEntityModal('customer')}>
+              新增客户
+            </Button>
+            <Button onClick={() => setEntityModal('branch')}>新增分部</Button>
+            <Button onClick={() => setEntityModal('source')}>新增来源组织</Button>
+          </>
+        )}
+        {canWriteContract && (
+          <>
+            <Button onClick={() => setEntityModal('contract')}>新增支持合同</Button>
+            <Button onClick={() => setEntityModal('externalReference')}>新增外部合同映射</Button>
+          </>
+        )}
       </Space>
       <Card title='服务客户'>
         <Table
@@ -382,6 +398,8 @@ export default function EmailIntakePage() {
               title: '操作',
               render: (_: unknown, record: ServiceCustomer) => (
                 <Space>
+                  {canWriteCustomer && (
+                    <>
                   <Button
                     type='link'
                     onClick={() => {
@@ -408,6 +426,8 @@ export default function EmailIntakePage() {
                   >
                     停用
                   </Button>
+                    </>
+                  )}
                 </Space>
               ),
             },
@@ -441,6 +461,8 @@ export default function EmailIntakePage() {
               title: '操作',
               render: (_: unknown, record: SupportContract) => (
                 <Space>
+                  {canWriteContract && (
+                    <>
                   <Button
                     type='link'
                     onClick={() => {
@@ -477,6 +499,8 @@ export default function EmailIntakePage() {
                   >
                     终止
                   </Button>
+                    </>
+                  )}
                 </Space>
               ),
             },
@@ -525,21 +549,23 @@ export default function EmailIntakePage() {
             {
               title: '操作',
               render: (_: unknown, record: ExternalContractReference) => (
-                <Button
-                  type='link'
-                  danger
-                  onClick={() =>
-                    Modal.confirm({
-                      title: '删除该映射？',
-                      onOk: async () => {
-                        await emailIntakeService.deleteExternalContractReference(record.id);
-                        await loadMasterData();
-                      },
-                    })
-                  }
-                >
-                  删除
-                </Button>
+                canWriteContract && (
+                  <Button
+                    type='link'
+                    danger
+                    onClick={() =>
+                      Modal.confirm({
+                        title: '删除该映射？',
+                        onOk: async () => {
+                          await emailIntakeService.deleteExternalContractReference(record.id);
+                          await loadMasterData();
+                        },
+                      })
+                    }
+                  >
+                    删除
+                  </Button>
+                )
               ),
             },
           ]}
@@ -572,10 +598,14 @@ export default function EmailIntakePage() {
             children: (
               <Card>
                 <Space>
-                  <Button type='primary' onClick={() => setEntityModal('schedule')}>
-                    新增排班
-                  </Button>
-                  <Button onClick={() => setEntityModal('shift')}>新增班次</Button>
+                  {canWriteOnCall && (
+                    <>
+                      <Button type='primary' onClick={() => setEntityModal('schedule')}>
+                        新增排班
+                      </Button>
+                      <Button onClick={() => setEntityModal('shift')}>新增班次</Button>
+                    </>
+                  )}
                 </Space>
                 <Paragraph type='secondary' className='!mt-4'>
                   PoC 使用显式起止时间班次；值班用户必须是对应支持组的启用成员。
@@ -642,6 +672,8 @@ export default function EmailIntakePage() {
                   <Input.TextArea rows={4} maxLength={5000} />
                 </Form.Item>
                 <Space wrap>
+                  {canReviewIntake && (
+                    <>
                   <Button
                     loading={actionLoading}
                     disabled={actionLoading}
@@ -663,9 +695,14 @@ export default function EmailIntakePage() {
                   <Button danger disabled={actionLoading} onClick={() => runAction('reject')}>
                     拒绝
                   </Button>
+                    </>
+                  )}
+                  {canRetryIntake && (
                   <Button disabled={actionLoading} onClick={() => runAction('retry')}>
                     重试
                   </Button>
+                  )}
+                  {canOverrideIntake && (
                   <Button
                     danger
                     disabled={actionLoading}
@@ -674,6 +711,7 @@ export default function EmailIntakePage() {
                   >
                     强制开单
                   </Button>
+                  )}
                 </Space>
               </Form>
             </Card>

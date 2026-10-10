@@ -92,13 +92,15 @@
 | `pages/(main)/workflow/instances/index.tsx` | 384 / 247 / 301 | 发起 / 暂停 / 恢复 / 终止实例 | `bpmn:write` | — | ✅（批次 9） |
 | `components/workflow/WorkflowTemplateCatalog.tsx` | 171 / 191–194 | 创建草稿 / 编辑 / 发布 / 新版本 / 停用 | `workflow:write` | — | ✅（批次 9） |
 | `components/workflow/designer/WorkflowToolbar.tsx`（`WorkflowDesigner` 工具栏） | 170 / 179 / 191 | 保存 / 保存并部署 / 重新部署 | `bpmn:write`（**勘误**） | ⚠️ §5 | ✅（批次 9） |
-| `pages/(main)/email-intake/index.tsx` | Modal.confirm ×3 | 确认/驳回/纠正/重试/覆盖 | `email_intake:review` / `:retry` / `:override` | — | ⬜ |
-| `pages/(main)/email-intake/customers、sources/**` | — | 客户/来源组织增删改 | `customer_master:write` | — | ⬜ |
-| `pages/(main)/email-intake/contracts/**` | — | 支持合同增删改 | `support_contract:write` | — | ⬜ |
-| `pages/(main)/email-intake/on-call/**` | — | 值班排班增删改 | `on_call:write` | — | ⬜ |
+| `pages/(main)/email-intake/index.tsx` | 363–376 / 398 / 461 / 549 / 598 / 672–716 | 会话动作：纠正（保存并重新核验）/仅重新核验/确认开单/拒绝 `email_intake:review`、重试 `:retry`、强制开单 `:override`；主数据区新增/编辑/停用客户·分部·来源 `customer_master:write`、合同·外部映射 `support_contract:write`、排班·班次 `on_call:write` | 见左 | — | ✅（批次 10） |
+| `pages/(main)/email-intake/customers、sources/**` | 88 / 110 / 132（customers）；65 / 87（sources） | 客户/分部/来源组织增删改 | `customer_master:write` | — | ✅（批次 10） |
+| `pages/(main)/email-intake/contracts/**` | 139 / 165 / 181 / 193 | 支持合同增删改 + 外部合同映射 | `support_contract:write` | — | ✅（批次 10） |
+| `pages/(main)/email-intake/on-call/**` | 217 / 259 / 283 | 排班/班次增删改 | `on_call:write` | — | ✅（批次 10） |
 | `pages/(main)/marketplace/$id/index.tsx` | 226 / 227 / 232 | 安装 / 卸载（能力位 + RBAC 双闸） | `marketplace:write` | — | ✅（批次 9） |
 
-> 进度（2026-10-10，批次 9）：§2.4 前半收口 ✅——SLA 定义（列表/详情/启停/删除）、工作流管理页（新建/导入/发起/设计/部署/启停/克隆/删除/批量，`bpmn:write/delete`）、BPMN 实例（发起/暂停/恢复/终止）、工作流模板目录（创建/编辑/发布/新版本/停用）、设计器工具栏（保存/保存并部署/重新部署）、自动化规则（新建/编辑/删除/启停，`system_config:write`）、应用市场（安装/卸载）。剩余：邮件接入族（conversations 审核 + customers/sources/contracts/on-call）。
+> 进度（2026-10-10，批次 9）：§2.4 前半收口 ✅——SLA 定义（列表/详情/启停/删除）、工作流管理页（新建/导入/发起/设计/部署/启停/克隆/删除/批量，`bpmn:write/delete`）、BPMN 实例（发起/暂停/恢复/终止）、工作流模板目录（创建/编辑/发布/新版本/停用）、设计器工具栏（保存/保存并部署/重新部署）、自动化规则（新建/编辑/删除/启停，`system_config:write`）、应用市场（安装/卸载）。
+>
+> 进度（2026-10-10，批次 10）：§2.4 后半（邮件接入族）收口 ✅——会话详情动作按 `handler.go` 三码分离（review/retry/override），主数据区与 4 个子页（customers/sources/contracts/on-call）按 `customer_master:write` / `support_contract:write` / `on_call:write` 门禁。§2.4 全部完成。剩余：§2.5 组织与配置（主区）与 §3 附件/评论面板、§5 路由缺口。
 
 ### 2.5 组织与配置（主区）
 

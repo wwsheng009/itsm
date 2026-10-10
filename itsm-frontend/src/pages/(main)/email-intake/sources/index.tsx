@@ -7,11 +7,14 @@ import { PlusOutlined, ReloadOutlined, EditOutlined, DeleteOutlined } from '@ant
 import {
   emailIntakeService, type SourceOrganization,
 } from '@/lib/services/emailIntakeService';
+import { useCan } from '@/components/auth/PermissionGate';
 
 const { Title, Text } = Typography;
 
 export default function SourcesPage() {
   const { message } = App.useApp();
+  // 入口级门禁：来源组织增删改 → customer_master:write（handlers/email_intake/handler.go）。
+  const canWrite = useCan(['customer_master:write']);
   const [items, setItems] = useState<SourceOrganization[]>([]);
   const [loading, setLoading] = useState(false);
   const [modal, setModal] = useState(false);
@@ -61,18 +64,22 @@ export default function SourcesPage() {
     { title: '状态', dataIndex: 'status', render: (s: string) => <Tag color={s === 'active' ? 'green' : 'default'}>{s === 'active' ? '活跃' : '停用'}</Tag> },
     {
       title: '操作', width: 160, render: (_: unknown, r: SourceOrganization) => (
-        <Space>
-          <Button size="small" icon={<EditOutlined />} onClick={() => {
-            setEditing(r);
-            form.setFieldsValue({ ...r, emailAddresses: r.emailAddresses?.join(', '), emailDomains: r.emailDomains?.join(', ') });
+          <Space>
+            {canWrite && (
+              <>
+            <Button size="small" icon={<EditOutlined />} onClick={() => {
+              setEditing(r);
+              form.setFieldsValue({ ...r, emailAddresses: r.emailAddresses?.join(', '), emailDomains: r.emailDomains?.join(', ') });
             setModal(true);
           }}>编辑</Button>
           {r.status === 'active' && (
             <Popconfirm title="确定停用？" onConfirm={() => disable(r.id)}>
-              <Button size="small" danger icon={<DeleteOutlined />}>停用</Button>
-            </Popconfirm>
-          )}
-        </Space>
+                <Button size="small" danger icon={<DeleteOutlined />}>停用</Button>
+              </Popconfirm>
+            )}
+              </>
+            )}
+          </Space>
       ),
     },
   ];
@@ -84,9 +91,11 @@ export default function SourcesPage() {
           <Title level={4} className="!mb-0">来源组织管理</Title>
           <Space>
             <Button icon={<ReloadOutlined />} onClick={load}>刷新</Button>
-            <Button type="primary" icon={<PlusOutlined />} onClick={() => {
-              setEditing(null); form.resetFields(); setModal(true);
-            }}>新增组织</Button>
+            {canWrite && (
+              <Button type="primary" icon={<PlusOutlined />} onClick={() => {
+                setEditing(null); form.resetFields(); setModal(true);
+              }}>新增组织</Button>
+            )}
           </Space>
         </div>
         <Text type="secondary" className="block mb-3">

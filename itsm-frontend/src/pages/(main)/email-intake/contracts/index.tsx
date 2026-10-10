@@ -10,6 +10,7 @@ import {
   type SupportContract, type ServiceCustomer, type CustomerBranch,
   type SourceOrganization, type ExternalContractReference,
 } from '@/lib/services/emailIntakeService';
+import { useCan } from '@/components/auth/PermissionGate';
 
 const { Title } = Typography;
 
@@ -18,6 +19,8 @@ const statusLabel: Record<string, string> = { active: '有效', terminated: '已
 
 export default function ContractsPage() {
   const { message } = App.useApp();
+  // 入口级门禁：支持合同/外部合同映射增删改 → support_contract:write（handlers/email_intake/handler.go）。
+  const canWrite = useCan(['support_contract:write']);
   const [contracts, setContracts] = useState<SupportContract[]>([]);
   const [customers, setCustomers] = useState<ServiceCustomer[]>([]);
   const [branches, setBranches] = useState<CustomerBranch[]>([]);
@@ -136,11 +139,15 @@ export default function ContractsPage() {
       title: '操作', width: 120,
       render: (_: unknown, r: SupportContract) => (
         <Space>
+          {canWrite && (
+            <>
           <Button size="small" icon={<EditOutlined />} onClick={() => openEditModal(r)}>编辑</Button>
           {r.status === 'active' && (
             <Popconfirm title="确定终止该合同？" onConfirm={() => terminate(r.id)}>
               <Button size="small" danger>终止</Button>
             </Popconfirm>
+          )}
+            </>
           )}
         </Space>
       ),
@@ -158,9 +165,11 @@ export default function ContractsPage() {
     {
       title: '操作', width: 80,
       render: (_: unknown, r: ExternalContractReference) => (
-        <Popconfirm title="删除该映射？" onConfirm={() => deleteRef(r.id)}>
-          <Button size="small" danger>删除</Button>
-        </Popconfirm>
+        canWrite && (
+          <Popconfirm title="删除该映射？" onConfirm={() => deleteRef(r.id)}>
+            <Button size="small" danger>删除</Button>
+          </Popconfirm>
+        )
       ),
     },
   ];
@@ -172,9 +181,11 @@ export default function ContractsPage() {
           <Title level={4} className="!mb-0">支持合同管理</Title>
           <Space>
             <Button icon={<ReloadOutlined />} onClick={load}>刷新</Button>
-            <Button type="primary" icon={<PlusOutlined />} onClick={() => { form.resetFields(); setSelectedCustomer(undefined); setEditingContract(null); setModal(true); }}>
-              新增合同
-            </Button>
+              {canWrite && (
+                <Button type="primary" icon={<PlusOutlined />} onClick={() => { form.resetFields(); setSelectedCustomer(undefined); setEditingContract(null); setModal(true); }}>
+                  新增合同
+                </Button>
+              )}
           </Space>
         </div>
         <Table rowKey="id" loading={loading} columns={columns} dataSource={contracts} pagination={{ pageSize: 20 }} />
@@ -182,9 +193,11 @@ export default function ContractsPage() {
 
       <Card title="外部合同号映射">
         <div className="mb-3">
-          <Button icon={<PlusOutlined />} onClick={() => { refForm.resetFields(); setRefModal(true); }}>
-            添加映射
-          </Button>
+            {canWrite && (
+              <Button icon={<PlusOutlined />} onClick={() => { refForm.resetFields(); setRefModal(true); }}>
+                添加映射
+              </Button>
+            )}
         </div>
         <Table rowKey="id" size="small" columns={refColumns} dataSource={refs} pagination={false} />
       </Card>

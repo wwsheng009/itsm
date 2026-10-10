@@ -7,11 +7,14 @@ import { PlusOutlined, ReloadOutlined, EditOutlined, DeleteOutlined } from '@ant
 import {
   emailIntakeService, type ServiceCustomer, type CustomerBranch,
 } from '@/lib/services/emailIntakeService';
+import { useCan } from '@/components/auth/PermissionGate';
 
 const { Title, Text } = Typography;
 
 export default function CustomersPage() {
   const { message } = App.useApp();
+  // 入口级门禁：客户/分部增删改 → customer_master:write（handlers/email_intake/handler.go）。
+  const canWrite = useCan(['customer_master:write']);
   const [customers, setCustomers] = useState<ServiceCustomer[]>([]);
   const [branches, setBranches] = useState<CustomerBranch[]>([]);
   const [loading, setLoading] = useState(false);
@@ -84,11 +87,13 @@ export default function CustomersPage() {
     const customerBranches = branches.filter(b => b.customerId === record.id);
     return (
       <div className="pl-8">
-        <Space className="mb-2">
-          <Button size="small" icon={<PlusOutlined />} onClick={() => { setSelectedCustomer(record); setBranchModal(true); }}>
-            添加分支
-          </Button>
-        </Space>
+          <Space className="mb-2">
+            {canWrite && (
+              <Button size="small" icon={<PlusOutlined />} onClick={() => { setSelectedCustomer(record); setBranchModal(true); }}>
+                添加分支
+              </Button>
+            )}
+          </Space>
         <Table
           rowKey="id" size="small" columns={branchColumns} dataSource={customerBranches}
           pagination={false}
@@ -106,18 +111,22 @@ export default function CustomersPage() {
     { title: '状态', dataIndex: 'status', render: (s: string) => <Tag color={s === 'active' ? 'green' : 'default'}>{s === 'active' ? '活跃' : '停用'}</Tag> },
     {
       title: '操作', width: 160, render: (_: unknown, r: ServiceCustomer) => (
-        <Space>
-          <Button size="small" icon={<EditOutlined />} onClick={() => {
-            setEditingCustomer(r);
-            customerForm.setFieldsValue(r);
+          <Space>
+            {canWrite && (
+              <>
+            <Button size="small" icon={<EditOutlined />} onClick={() => {
+              setEditingCustomer(r);
+              customerForm.setFieldsValue(r);
             setCustomerModal(true);
           }}>编辑</Button>
           {r.status === 'active' && (
             <Popconfirm title="确定停用该客户？" onConfirm={() => disableCustomer(r.id)}>
-              <Button size="small" danger icon={<DeleteOutlined />}>停用</Button>
-            </Popconfirm>
-          )}
-        </Space>
+                <Button size="small" danger icon={<DeleteOutlined />}>停用</Button>
+              </Popconfirm>
+            )}
+              </>
+            )}
+          </Space>
       ),
     },
   ];
@@ -129,11 +138,13 @@ export default function CustomersPage() {
           <Title level={4} className="!mb-0">客户资料管理</Title>
           <Space>
             <Button icon={<ReloadOutlined />} onClick={load}>刷新</Button>
-            <Button type="primary" icon={<PlusOutlined />} onClick={() => {
-              setEditingCustomer(null);
-              customerForm.resetFields();
-              setCustomerModal(true);
-            }}>新增客户</Button>
+              {canWrite && (
+                <Button type="primary" icon={<PlusOutlined />} onClick={() => {
+                  setEditingCustomer(null);
+                  customerForm.resetFields();
+                  setCustomerModal(true);
+                }}>新增客户</Button>
+              )}
           </Space>
         </div>
         <Table

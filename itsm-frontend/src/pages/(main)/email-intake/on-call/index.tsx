@@ -32,6 +32,7 @@ import {
 } from '@/lib/services/emailIntakeService';
 import { GroupAPI } from '@/lib/api/group-api';
 import { UserApi } from '@/lib/api/user-api';
+import { useCan } from '@/components/auth/PermissionGate';
 
 const { Title, Text } = Typography;
 
@@ -47,6 +48,8 @@ interface User {
 
 export default function OnCallPage() {
   const { message } = App.useApp();
+  // 入口级门禁：排班/班次增删改 → on_call:write（handlers/email_intake/handler.go）。
+  const canWrite = useCan(['on_call:write']);
   const [schedules, setSchedules] = useState<OnCallSchedule[]>([]);
   const [shifts, setShifts] = useState<OnCallShift[]>([]);
   const [groups, setGroups] = useState<Group[]>([]);
@@ -214,16 +217,18 @@ export default function OnCallPage() {
       title: '操作',
       width: 120,
       render: (_: unknown, r: OnCallSchedule) => (
-        <Button
-          size='small'
-          icon={<PlusOutlined />}
-          onClick={() => {
-            setSelectedSchedule(r);
-            setShiftModal(true);
-          }}
-        >
-          安排班次
-        </Button>
+        canWrite && (
+          <Button
+            size='small'
+            icon={<PlusOutlined />}
+            onClick={() => {
+              setSelectedSchedule(r);
+              setShiftModal(true);
+            }}
+          >
+            安排班次
+          </Button>
+        )
       ),
     },
   ];
@@ -254,10 +259,14 @@ export default function OnCallPage() {
       width: 120,
       render: (_: unknown, r: OnCallShift) => (
         <Space size='small'>
-          <Button size='small' icon={<EditOutlined />} onClick={() => openEditShift(r)} />
-          <Popconfirm title='确定删除此班次？' onConfirm={() => removeShift(r.id)}>
-            <Button size='small' danger icon={<DeleteOutlined />} />
-          </Popconfirm>
+          {canWrite && (
+            <>
+              <Button size='small' icon={<EditOutlined />} onClick={() => openEditShift(r)} />
+              <Popconfirm title='确定删除此班次？' onConfirm={() => removeShift(r.id)}>
+                <Button size='small' danger icon={<DeleteOutlined />} />
+              </Popconfirm>
+            </>
+          )}
         </Space>
       ),
     },
@@ -274,16 +283,18 @@ export default function OnCallPage() {
             <Button icon={<ReloadOutlined />} onClick={load}>
               刷新
             </Button>
-            <Button
-              type='primary'
-              icon={<PlusOutlined />}
-              onClick={() => {
-                scheduleForm.resetFields();
-                setScheduleModal(true);
-              }}
-            >
-              新建排班
-            </Button>
+            {canWrite && (
+              <Button
+                type='primary'
+                icon={<PlusOutlined />}
+                onClick={() => {
+                  scheduleForm.resetFields();
+                  setScheduleModal(true);
+                }}
+              >
+                新建排班
+              </Button>
+            )}
           </Space>
         </div>
         <Table
