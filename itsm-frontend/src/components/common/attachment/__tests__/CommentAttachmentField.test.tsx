@@ -22,7 +22,7 @@ jest.mock('@/lib/i18n/useI18n', () => ({
 }));
 
 // 字段壳层只负责「契约转接」，因此这里替换掉真正的 AttachmentField（其行为由
-// 原生 attachment-api / TicketAttachmentSection 用例覆盖），捕获被注入的 props。
+// 原生 attachment-api 用例覆盖），捕获被注入的 props。
 let capturedProps: Record<string, unknown> = {};
 
 jest.mock('../AttachmentField', () => ({

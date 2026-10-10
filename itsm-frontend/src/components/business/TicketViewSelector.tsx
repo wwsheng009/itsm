@@ -19,9 +19,9 @@ import {
   Divider,
   Tag,
 } from 'antd';
-import { Plus, Save, Pencil, Trash2, Eye, Settings, Share2 } from 'lucide-react';
+import { Pencil, Trash2, Eye, Settings, Share2 } from 'lucide-react';
 import type { MenuProps } from 'antd';
-import type { TicketView, CreateTicketViewRequest } from '@/lib/api/ticket-view-api';
+import type { TicketView } from '@/lib/api/ticket-view-api';
 import { TicketViewApi } from '@/lib/api/ticket-view-api';
 import type { TicketFilterState } from './TicketFilters';
 
@@ -46,7 +46,6 @@ export const TicketViewSelector: React.FC<TicketViewSelectorProps> = ({
   const canWriteView = hasPermission('ticket', 'write');
   const [views, setViews] = useState<TicketView[]>([]);
   const [loading, setLoading] = useState(false);
-  const [saveModalVisible, setSaveModalVisible] = useState(false);
   const [editModalVisible, setEditModalVisible] = useState(false);
   const [editingView, setEditingView] = useState<TicketView | null>(null);
   const [form] = Form.useForm();
@@ -95,36 +94,6 @@ export const TicketViewSelector: React.FC<TicketViewSelectorProps> = ({
     } catch (error) {
       console.error('Failed to load view:', error);
       message.error('加载视图失败');
-    }
-  };
-
-  // 保存当前筛选条件为视图
-  const handleSaveView = async (values: {
-    name: string;
-    description?: string;
-    isShared: boolean;
-  }) => {
-    try {
-      const viewData: CreateTicketViewRequest = {
-        name: values.name,
-        description: values.description,
-        filters: filters as any,
-        columns: [], // 默认列，后续可以从表格配置中获取
-        sortConfig: {
-          field: filters.sortBy?.split('_')[0] || 'createdAt',
-          order: (filters.sortBy?.split('_')[1] as 'asc' | 'desc') || 'desc',
-        },
-        isShared: values.isShared,
-      };
-
-      await TicketViewApi.createView(viewData);
-      message.success('视图保存成功');
-      setSaveModalVisible(false);
-      form.resetFields();
-      loadViews();
-    } catch (error) {
-      console.error('Failed to save view:', error);
-      message.error('保存视图失败');
     }
   };
 
@@ -254,43 +223,6 @@ export const TicketViewSelector: React.FC<TicketViewSelectorProps> = ({
           </Dropdown>
         )}
       </Space>
-
-      {/* 保存视图模态框 */}
-      <Modal
-        title="保存视图"
-        open={saveModalVisible}
-        onOk={() => form.submit()}
-        onCancel={() => {
-          setSaveModalVisible(false);
-          form.resetFields();
-        }}
-        okText="保存"
-        cancelText="取消"
-      >
-        <Form
-          form={form}
-          layout="vertical"
-          onFinish={handleSaveView}
-          initialValues={{ isShared: false }}
-        >
-          <Form.Item
-            name="name"
-            label="视图名称"
-            rules={[{ required: true, message: '请输入视图名称' }]}
-          >
-            <Input placeholder="例如：我的待处理工单" />
-          </Form.Item>
-          <Form.Item name="description" label="描述">
-            <TextArea rows={3} placeholder="视图描述（可选）" />
-          </Form.Item>
-          <Form.Item name="isShared" valuePropName="checked">
-            <Switch checkedChildren="共享" unCheckedChildren="私有" />
-            <div style={{ marginTop: 8, color: '#999', fontSize: 12 }}>
-              共享后，团队成员可以看到并使用此视图
-            </div>
-          </Form.Item>
-        </Form>
-      </Modal>
 
       {/* 编辑视图模态框 */}
       <Modal

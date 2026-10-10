@@ -604,19 +604,6 @@ export class TicketApi {
     return response as Blob;
   }
 
-  // Batch update tickets
-  static async batchUpdateTickets(
-    ticketIds: number[],
-    action: string,
-    data?: Record<string, unknown>
-  ): Promise<void> {
-    return httpClient.post('/api/v1/tickets/batch-assign', {
-      ticketIds: ticketIds,
-      action,
-      data,
-    });
-  }
-
   // Get ticket templates
   static async getTemplates(params?: {
     page?: number;

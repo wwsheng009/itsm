@@ -61,7 +61,7 @@ const PRIORITY_CONFIG = {
 
 const TicketKanban: React.FC<TicketKanbanProps> = ({ onTicketSelect }) => {
   const navigate = useNavigate();
-  const { tickets, loading, fetchTickets, updateTicket, deleteTicket } = useTickets();
+  const { tickets, loading, fetchTickets, deleteTicket } = useTickets();
   const canDeleteTicket = useCan(['ticket:delete']);
   const { message, modal } = App.useApp();
 
@@ -193,19 +193,6 @@ const TicketKanban: React.FC<TicketKanbanProps> = ({ onTicketSelect }) => {
     [deleteTicket]
   );
 
-  // 拖拽状态更新
-  const handleStatusChange = useCallback(
-    async (ticket: Ticket, newStatus: string) => {
-      try {
-        await updateTicket(ticket.id, { status: newStatus });
-        message.success('状态更新成功');
-      } catch (error) {
-        message.error('状态更新失败');
-      }
-    },
-    [updateTicket]
-  );
-
   // 工单卡片组件
   const TicketCard = ({ ticket }: { ticket: Ticket }) => {
     // 未知优先级兼容：避免 PRIORITY_CONFIG 查不到时读 undefined.color 崩溃
@@ -217,7 +204,7 @@ const TicketKanban: React.FC<TicketKanbanProps> = ({ onTicketSelect }) => {
       <Card
         size="small"
         hoverable
-        className="mb-3 cursor-move"
+        className="mb-3"
         style={{
           borderLeft: `4px solid ${priorityConfig.color}`,
           margin: '0 0 12px 0',

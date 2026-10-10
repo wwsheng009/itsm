@@ -14,7 +14,7 @@
  *     纯函数侧的 `translateOrFallback` 在 t 回显 key 时会回落到内置中文兜底文案，
  *     用例据此同时钉住「key 契约」与「无 i18n 上下文时的中文兜底」。
  *   - 文件选择通过 native `input[type=file]` 的 change 事件驱动（与 antd Upload 的
- *     `beforeUpload` 链路一致，见 TicketAttachmentSection 用例的既有做法）。
+ *     `beforeUpload` 链路一致）。
  */
 
 import React from 'react';

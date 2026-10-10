@@ -441,14 +441,6 @@ describe('TicketApi', () => {
     });
   });
 
-  describe('batchUpdateTickets', () => {
-    it('should batch update', async () => {
-      mockPost.mockResolvedValue(undefined);
-      await TicketApi.batchUpdateTickets([1, 2], 'assign', { assigneeId: 5 });
-      expect(mockPost).toHaveBeenCalledWith('/api/v1/tickets/batch-assign', { ticketIds: [1, 2], action: 'assign', data: { assigneeId: 5 } });
-    });
-  });
-
   describe('getTemplates', () => {
     it('should get templates', async () => {
       mockGet.mockResolvedValue({ items: [], total: 0 });
