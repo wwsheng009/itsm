@@ -1709,7 +1709,9 @@ func (s *Seeder) seedMenus(ctx context.Context) {
 		{Name: "变更管理", Path: "/changes", Icon: "BarChart3", ParentPath: "", PermissionCode: "change:read", SortOrder: 50, Description: "变更管理"},
 		{Name: "知识库", Path: "/knowledge", Icon: "Book", ParentPath: "", PermissionCode: "knowledge:read", SortOrder: 60, Description: "知识库管理"},
 		{Name: "邮件报障", Path: "/email-intake", Icon: "Inbox", ParentPath: "", PermissionCode: "email_intake:read", SortOrder: 65, Description: "AI 邮件智能报障"},
-		{Name: "服务目录", Path: "/service-catalog", Icon: "BookOpen", ParentPath: "", PermissionCode: "service:read", SortOrder: 70, Description: "服务目录"},
+		// 2026-10-10 菜单挂载收口：permission_code 对齐页面主接口（GET /api/v1/service-catalogs = service_catalog:read），
+		// 不再依赖菜单侧 Resource 别名（service→service_catalog）做宽松匹配。
+		{Name: "服务目录", Path: "/service-catalog", Icon: "BookOpen", ParentPath: "", PermissionCode: "service_catalog:read", SortOrder: 70, Description: "服务目录"},
 		{Name: "CMDB", Path: "/cmdb", Icon: "Database", ParentPath: "", PermissionCode: "cmdb:read", SortOrder: 75, Description: "配置管理数据库"},
 		{Name: "资产管理", Path: "/assets", Icon: "Monitor", ParentPath: "", PermissionCode: "asset:read", SortOrder: 80, Description: "IT 资产管理"},
 		{Name: "SLA 管理", Path: "/sla", Icon: "Calendar", ParentPath: "", PermissionCode: "sla:read", SortOrder: 90, Description: "SLA 监控与配置"},
@@ -1753,7 +1755,7 @@ func (s *Seeder) seedMenus(ctx context.Context) {
 		{Name: "值班排班", Path: "/email-intake/on-call", Icon: "Clock", ParentPath: "/email-intake", PermissionCode: "on_call:read", SortOrder: 655},
 
 		// ===== 子菜单：服务目录 =====
-		{Name: "待我审批-目录", Path: "/service-catalog/approvals", Icon: "CheckCircle", ParentPath: "/service-catalog", PermissionCode: "service:read", SortOrder: 72},
+		{Name: "待我审批-目录", Path: "/service-catalog/approvals", Icon: "CheckCircle", ParentPath: "/service-catalog", PermissionCode: "service_catalog:read", SortOrder: 72},
 
 		// ===== 子菜单：CMDB =====
 		{Name: "配置项列表", Path: "/cmdb/cis", Icon: "Server", ParentPath: "/cmdb", PermissionCode: "cmdb:read", SortOrder: 751},
@@ -1805,7 +1807,9 @@ func (s *Seeder) seedMenus(ctx context.Context) {
 		{Name: "组管理", Path: "/admin/groups", Icon: "Users", ParentPath: "/admin", PermissionCode: "group:read", SortOrder: 230},
 		{Name: "租户管理", Path: "/admin/tenants", Icon: "Building", ParentPath: "/admin", PermissionCode: "system:write", SortOrder: 235},
 		{Name: "部门管理", Path: "/admin/departments", Icon: "Building", ParentPath: "/admin", PermissionCode: "department:read", SortOrder: 240},
-		{Name: "团队管理", Path: "/admin/teams", Icon: "Users", ParentPath: "/admin", PermissionCode: "team:read", SortOrder: 250},
+		// 2026-10-10：入口守卫为 team:write（routes/index.tsx），菜单码对齐入口（此前 team:read 会让只读角色
+		// 看到入口但进页 403）。
+		{Name: "团队管理", Path: "/admin/teams", Icon: "Users", ParentPath: "/admin", PermissionCode: "team:write", SortOrder: 250},
 		{Name: "CAB 成员管理", Path: "/admin/cab", Icon: "Users", ParentPath: "/admin", PermissionCode: "change:read", SortOrder: 255},
 		{Name: "工单分类", Path: "/admin/ticket-categories", Icon: "Tag", ParentPath: "/admin", PermissionCode: "ticket_category:update", SortOrder: 260},
 		{Name: "工单分配规则", Path: "/admin/tickets/assignment-rules", Icon: "GitBranch", ParentPath: "/admin", PermissionCode: "ticket:read", SortOrder: 265},
@@ -1819,8 +1823,9 @@ func (s *Seeder) seedMenus(ctx context.Context) {
 		{Name: "Bot 管理与授权", Path: "/admin/bots", Icon: "Bot", ParentPath: "/admin", PermissionCode: "ai:read", SortOrder: 287},
 		// 工具目录（查询内置 + MCP 外部工具；与 Bot 授权选择器同源，均按 ai:read 开放）。
 		{Name: "工具目录", Path: "/admin/tools", Icon: "Wrench", ParentPath: "/admin", PermissionCode: "ai:read", SortOrder: 288},
-		{Name: "向量存储配置", Path: "/admin/vector-store", Icon: "Database", ParentPath: "/admin", PermissionCode: "system:read", SortOrder: 290},
-		{Name: "系统配置", Path: "/admin/system-config", Icon: "Settings", ParentPath: "/admin", PermissionCode: "system:read", SortOrder: 295},
+		// 2026-10-10：菜单码对齐页面入口守卫（system_config:write），不再依赖 system→system_config 别名。
+		{Name: "向量存储配置", Path: "/admin/vector-store", Icon: "Database", ParentPath: "/admin", PermissionCode: "system_config:write", SortOrder: 290},
+		{Name: "系统配置", Path: "/admin/system-config", Icon: "Settings", ParentPath: "/admin", PermissionCode: "system_config:write", SortOrder: 295},
 		// 通知配置 / 审计日志 / 操作日志：2026-08-30 归位后已移出 /admin，详见顶级菜单与 /workflow 子菜单。
 		{Name: "CMDB 类型", Path: "/admin/cmdb-types", Icon: "Database", ParentPath: "/admin", PermissionCode: "cmdb:write", SortOrder: 315},
 		{Name: "升级规则", Path: "/admin/escalation-rules", Icon: "AlertTriangle", ParentPath: "/admin", PermissionCode: "sla:write", SortOrder: 320},
@@ -1828,7 +1833,8 @@ func (s *Seeder) seedMenus(ctx context.Context) {
 		{Name: "SLA 模板", Path: "/admin/sla-templates", Icon: "Layers", ParentPath: "/admin", PermissionCode: "sla:write", SortOrder: 330},
 		{Name: "服务目录管理", Path: "/admin/service-catalogs", Icon: "Boxes", ParentPath: "/admin", PermissionCode: "service_catalog:read", SortOrder: 335},
 		{Name: "SLA 定义", Path: "/admin/sla-definitions", Icon: "Clock", ParentPath: "/admin", PermissionCode: "sla:write", SortOrder: 340},
-		{Name: "菜单管理", Path: "/admin/menus", Icon: "Menu", ParentPath: "/admin", PermissionCode: "system:write", SortOrder: 345},
+		// 2026-10-10：菜单管理页守卫/接口均为 system_config:*，菜单码对齐（此前 system:write 靠别名误放行）。
+		{Name: "菜单管理", Path: "/admin/menus", Icon: "Menu", ParentPath: "/admin", PermissionCode: "system_config:write", SortOrder: 345},
 		{Name: "工作流配置", Path: "/admin/workflows", Icon: "GitBranch", ParentPath: "/admin", PermissionCode: "workflow:write", SortOrder: 350},
 	}
 

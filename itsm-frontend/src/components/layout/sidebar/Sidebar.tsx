@@ -17,6 +17,7 @@ import { useUserMenusQuery } from '@/lib/hooks/useUserMenusQuery';
 import { useCapabilities } from '@/lib/hooks/useCapabilities';
 import type { MenuItem as MenuItemType } from '@/lib/api/menu-api';
 import { ADMIN_AREA_PERMISSIONS } from '@/routes/area-permissions';
+import { filterMenusByPermission } from './menu-permission-filter';
 
 const { Sider } = Layout;
 
@@ -121,6 +122,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ collapsed, onCollapse, mobile 
   const navigate = useNavigate();
   const pathname = useLocation().pathname;
   const { user } = useAuthStore();
+  const permissions = useAuthStore(state => state.user?.permissions);
   const { capabilities, isLoading: capabilitiesLoading } = useCapabilities();
 
   // 菜单跳转去重（见 handleMenuClick）
@@ -179,8 +181,14 @@ export const Sidebar: React.FC<SidebarProps> = ({ collapsed, onCollapse, mobile 
 
   // 菜单全部来源于后端 /api/v1/auth/menus（seedMenus 写入 DB），不再使用前端静态 fallback。
   // /api/v1/auth/menus 返回空时会通过 menuError 提示用户刷新，避免静默吃失败。
-  const rawMainMenus = dynamicMenus ? convertApiMenuToSidebar(dynamicMenus.main) : [];
-  const rawAdminMenus = dynamicMenus ? convertApiMenuToSidebar(dynamicMenus.admin) : [];
+  // 2026-10-10 收口：挂载点再做一次权限复核（filterMenusByPermission，判定与路由守卫同源）——
+  // 无入口权限的菜单项不挂载（如 tenant 管理员不得见 /admin/tenants）。
+  const rawMainMenus = dynamicMenus
+    ? filterMenusByPermission(convertApiMenuToSidebar(dynamicMenus.main), permissions)
+    : [];
+  const rawAdminMenus = dynamicMenus
+    ? filterMenusByPermission(convertApiMenuToSidebar(dynamicMenus.admin), permissions)
+    : [];
 
   // 菜单 key 去重逻辑 — 避免后端返回重复 key 导致 React 警告
   const deduplicateMenus = (menus: MenuItem[]): MenuItem[] => {

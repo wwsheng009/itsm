@@ -109,3 +109,81 @@ func TestBuildMenuTreeReturnsEmptySlicesNotNull(t *testing.T) {
 		t.Fatalf("分组错误：main=%d admin=%d", len(mainOnlyAdmin), len(adminOnlyAdmin))
 	}
 }
+
+// TestFilterMenusByPermissionStrictSemantics（2026-10-10 菜单挂载收口）：
+// 菜单匹配收紧为与 middleware.checkPermissionMatch 同语义——不再做 action/resource 别名映射。
+// 回归案例：admin 角色持 system_config:write，不得因此看到 permission_code=system:write 的
+// /admin/tenants 菜单（此前靠 system→system_config 别名误挂载，点进去 403）。
+func TestFilterMenusByPermissionStrictSemantics(t *testing.T) {
+	svc := &MenuService{}
+	tenantsMenu := &ent.Menu{Name: "租户管理", Path: "/admin/tenants", PermissionCode: "system:write"}
+	teamsMenu := &ent.Menu{Name: "团队管理", Path: "/admin/teams", PermissionCode: "team:write"}
+	mcpReadMenu := &ent.Menu{Name: "MCP 外部工具", Path: "/admin/mcp-servers", PermissionCode: "mcp:read"}
+
+	tests := []struct {
+		name        string
+		menu        *ent.Menu
+		permissions map[string]bool
+		want        bool
+	}{
+		{"别名不泄漏：system_config:write 不授予 system:write", tenantsMenu, map[string]bool{"system_config:write": true}, false},
+		{"别名不泄漏：org:read 不授予 team:write", teamsMenu, map[string]bool{"org:read": true}, false},
+		{"精确匹配授予", tenantsMenu, map[string]bool{"system:write": true}, true},
+		{"资源通配授予", tenantsMenu, map[string]bool{"system:*": true}, true},
+		{"全局通配授予", tenantsMenu, map[string]bool{"*": true}, true},
+		{"资源 admin 蕴含具体动作", tenantsMenu, map[string]bool{"system:admin": true}, true},
+		{"mcp:admin 不蕴含 mcp:read（与 middleware 一致）", mcpReadMenu, map[string]bool{"mcp:admin": true}, false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			filtered := svc.filterMenusByPermission(
+				[]*ent.Menu{tt.menu},
+				tt.permissions,
+				map[string]bool{"admin": true},
+			)
+			got := len(filtered) == 1
+			if got != tt.want {
+				t.Fatalf("菜单 %s + 权限 %v：可见=%v，期望 %v", tt.menu.Path, tt.permissions, got, tt.want)
+			}
+		})
+	}
+}
+
+// TestFilterMenusByPermissionKeepsAncestorsOfVisibleChildren（容器节点语义）：
+// 父菜单自身权限未命中、任一子菜单命中时，父节点保留（否则层级菜单子项整体孤儿化）；
+// 无任何命中时父节点照常剔除。
+func TestFilterMenusByPermissionKeepsAncestorsOfVisibleChildren(t *testing.T) {
+	svc := &MenuService{}
+	parent := &ent.Menu{ID: 1, Name: "系统管理", Path: "/admin", PermissionCode: "system:write"}
+	child := &ent.Menu{ID: 2, Name: "用户管理", Path: "/admin/users", PermissionCode: "user:read", ParentID: &parent.ID}
+	hiddenChild := &ent.Menu{ID: 3, Name: "租户管理", Path: "/admin/tenants", PermissionCode: "system:write", ParentID: &parent.ID}
+
+	// 仅 user:read：父（system:write 未命中）因可见子项保留；system:write 子项剔除。
+	filtered := svc.filterMenusByPermission(
+		[]*ent.Menu{parent, child, hiddenChild},
+		map[string]bool{"user:read": true},
+		map[string]bool{"admin": true},
+	)
+	if len(filtered) != 2 || filtered[0].Path != "/admin" || filtered[1].Path != "/admin/users" {
+		t.Fatalf("容器保留语义失败：%v", menuPaths(filtered))
+	}
+
+	// 无任何命中：父与子全部剔除（不做空容器保留）。
+	filtered = svc.filterMenusByPermission(
+		[]*ent.Menu{parent, child, hiddenChild},
+		map[string]bool{"ticket:read": true},
+		map[string]bool{"admin": true},
+	)
+	if len(filtered) != 0 {
+		t.Fatalf("无命中时不应保留容器：%v", menuPaths(filtered))
+	}
+}
+
+func menuPaths(menus []*ent.Menu) []string {
+	paths := make([]string, 0, len(menus))
+	for _, m := range menus {
+		paths = append(paths, m.Path)
+	}
+	return paths
+}

@@ -47,6 +47,12 @@ var menuRouteAlignment = []struct {
 	{"/releases", "GET", "/api/v1/releases"},
 	{"/audit-logs", "GET", "/api/v1/audit-logs"},
 	{"/notifications", "GET", "/api/v1/notifications"},
+	// 2026-10-10 菜单挂载收口：菜单码与页面主接口同码（严格匹配，不再依赖别名映射）。
+	{"/service-catalog", "GET", "/api/v1/service-catalogs"},
+	// 入口守卫比主接口读码更严的三例（菜单按「入口守卫码」挂载，见 menuRouteMismatchAllowlist）。
+	{"/admin/teams", "GET", "/api/v1/org/teams"},
+	{"/admin/system-config", "GET", "/api/v1/system-configs"},
+	{"/admin/menus", "GET", "/api/v1/menus"},
 }
 
 // menuRouteMismatchAllowlist 已知未对齐配对（key=MenuPath），必须写明理由与去向。
@@ -54,6 +60,12 @@ var menuRouteAlignment = []struct {
 var menuRouteMismatchAllowlist = map[string]string{
 	"/tickets/types": "菜单码 ticket_type:read 比接口 GET /api/v1/ticket-types（ticket:read）更严：" +
 		"无「可见却 403」的 UX 破坏，但属口径漂移；待产品确认工单类型可见范围后统一（2026-10-10 登记）。",
+	"/admin/teams": "菜单码=页面入口守卫 team:write，主接口读通道为 team:read：菜单更严 → 只读角色不挂载、" +
+		"无「可见却 403」；待入口守卫与接口读码统一后移除（2026-10-10 登记）。",
+	"/admin/system-config": "菜单码=页面入口守卫 system_config:write，主接口读通道为 system_config:read：菜单更严 → " +
+		"只读角色不挂载；待入口守卫与接口读码统一后移除（2026-10-10 登记）。",
+	"/admin/menus": "菜单码=页面入口守卫 system_config:write，主接口读通道为 system_config:read：菜单更严 → " +
+		"只读角色不挂载；待入口守卫与接口读码统一后移除（2026-10-10 登记）。",
 }
 
 // TestMenuPermissionAlignsWithRouteDeclarations 守卫：配对页面的「菜单 permission_code」
@@ -127,6 +139,45 @@ func TestMenuPermissionAlignsWithRouteDeclarations(t *testing.T) {
 	}
 	if len(staleAllowlist) > 0 {
 		t.Errorf("menuRouteMismatchAllowlist 存在失效条目（已对齐或不在配对表）:\n  %s", strings.Join(staleAllowlist, "\n  "))
+	}
+}
+
+// TestMenuSpecsWithoutPermissionCodeAreAllowlisted 守卫（2026-10-10 菜单挂载收口）：
+// 无 permission_code 的菜单项 = 对全部登录用户可见（后端 filterMenusByPermission 无条件保留），
+// 必须显式登记并写明理由；当前仅服务台 /dashboard。新增无码菜单需在此说明理由。
+func TestMenuSpecsWithoutPermissionCodeAreAllowlisted(t *testing.T) {
+	menus := loadSeederMenuPermissions(t)
+
+	allowed := map[string]string{
+		"/dashboard": "服务台为所有登录用户默认落地页（无业务数据权限要求）",
+	}
+
+	var undeclared []string
+	for path, perm := range menus {
+		if perm != "" {
+			continue
+		}
+		if _, ok := allowed[path]; !ok {
+			undeclared = append(undeclared, path)
+		}
+	}
+	sort.Strings(undeclared)
+	if len(undeclared) > 0 {
+		t.Errorf("存在未登记的无 permission_code 菜单（对所有登录用户可见）：\n  %s\n\n"+
+			"修复方式：为菜单补 permission_code，或在 allowed 白名单登记并写明理由。",
+			strings.Join(undeclared, "\n  "))
+	}
+
+	// 白名单防腐化：登记的路径必须仍是无码菜单，且写明理由。
+	for path, reason := range allowed {
+		if strings.TrimSpace(reason) == "" {
+			t.Errorf("白名单 %s 缺少理由", path)
+		}
+		if perm, ok := menus[path]; !ok {
+			t.Errorf("白名单 %s 未命中任何 seeder 菜单（改名/删除后请同步）", path)
+		} else if perm != "" {
+			t.Errorf("白名单 %s 已补 permission_code=%s，请从白名单移除", path, perm)
+		}
 	}
 }
 

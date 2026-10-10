@@ -320,7 +320,23 @@ func (s *MenuService) getUserPermissions(ctx context.Context, userEntity *ent.Us
 	return permissions
 }
 
-// filterMenusByPermission 根据权限过滤菜单
+// filterMenusByPermission 根据权限过滤菜单（2026-10-10 收口：严格匹配，与 middleware.checkPermissionMatch 同语义）。
+//
+// 背景：此前用 action/resource 别名做宽松映射（如 system:write→system_config:write、
+// team:read→org:read、service:read→service_catalog:read），导致「菜单码未授予 → 菜单仍挂载」：
+// tenant 管理员（admin/provider_tenant_admin）靠 system_config:write 别名看到 /admin/tenants
+//（自身并无 system:write），点进去才被路由/接口 403——与「无入口权限不挂载」相悖。
+//
+// 现收紧为与后端路由鉴权同语义的严格匹配：
+//   - `*` 全通配；`resource:*`；`*:action`；
+//   - `resource:admin` 蕴含该资源下具体动作（mcp 例外，与 middleware.checkPermissionMatch 一致）；
+//   - 精确匹配。
+//
+// 菜单 permission_code 必须与页面入口守卫/主接口同码（三层同码约定；守卫见
+// router/menu_api_permission_alignment_test.go 与前端 routes/route-permissions.ts）。
+//
+// 容器节点语义：有子节点的菜单自身权限未命中时，只要任一后代命中即保留
+//（避免层级菜单（父 /admin + 子 /admin/users）把可见子项整体孤儿化）。
 func (s *MenuService) filterMenusByPermission(menus []*ent.Menu, permissions map[string]bool, roleCodes map[string]bool) []*ent.Menu {
 	filtered := make([]*ent.Menu, 0)
 
@@ -346,71 +362,101 @@ func (s *MenuService) filterMenusByPermission(menus []*ent.Menu, permissions map
 			continue
 		}
 
-		// 如果没有权限要求，或者用户有权限，则包含
+		// 无 permission_code = 公共项（守卫测试限制仅 /dashboard 允许无码）。
 		if m.PermissionCode == "" {
 			filtered = append(filtered, m)
 			continue
 		}
 
-		permCode := m.PermissionCode
-		// 检查精确权限
-		if permissions[permCode] {
+		if permissionMatch(permissions, m.PermissionCode) {
 			filtered = append(filtered, m)
 			continue
 		}
 
-		// 检查通配符权限（如 ticket:* 可以访问 ticket:read）
-		parts := splitPermission(permCode)
-		if len(parts) == 2 {
-			wildcard := parts[0] + ":*"
-			if permissions[wildcard] || permissions["*"] {
-				filtered = append(filtered, m)
-				continue
-			}
+		debugLog("DEBUG menu excluded",
+			"id", m.ID, "name", m.Name, "path", m.Path, "perm", m.PermissionCode, "reason", "no-permission-match")
+	}
 
-			// 尝试 Action 别名映射（如 dashboard:view → dashboard:read）
-			resolvedAction := resolveActionAliases(parts[1])
-			if resolvedAction != parts[1] {
-				// 使用别名后的权限代码进行精确匹配
-				aliasPermCode := parts[0] + ":" + resolvedAction
-				if permissions[aliasPermCode] {
-					filtered = append(filtered, m)
-					continue
-				}
-				// 尝试别名后的通配符权限
-				aliasWildcard := parts[0] + ":*"
-				if permissions[aliasWildcard] {
-					filtered = append(filtered, m)
-					continue
-				}
-			}
+	// 容器节点语义：任一后代存活 → 祖先保留（自身未命中也不孤儿化子项）。
+	return retainMenuAncestors(menus, filtered)
+}
 
-			// 尝试 Resource 别名映射（如 service:read → service_catalog:read）
-			resolvedResource := resolveResourceAliases(parts[0])
-			resolvedActionForResource := resolveActionAliases(parts[1])
-			if resolvedResource != parts[0] || resolvedActionForResource != parts[1] {
-				// 使用别名后的权限代码进行精确匹配
-				finalPermCode := resolvedResource + ":" + resolvedActionForResource
-				if permissions[finalPermCode] {
-					filtered = append(filtered, m)
-					continue
-				}
-				// 尝试别名后的通配符权限
-				finalWildcard := resolvedResource + ":*"
-				if permissions[finalWildcard] || permissions["*"] {
-					filtered = append(filtered, m)
-					continue
-				}
+// permissionMatch 菜单权限匹配：语义与 middleware.checkPermissionMatch 完全一致
+//（含 mcp:admin 不蕴含 mcp:read/write 的例外）。
+func permissionMatch(permissions map[string]bool, code string) bool {
+	parts := splitPermission(code)
+	if len(parts) != 2 {
+		return false
+	}
+	resource, action := parts[0], parts[1]
+
+	for raw := range permissions {
+		if raw == "*" {
+			return true
+		}
+		p := splitPermission(raw)
+		if len(p) != 2 {
+			continue
+		}
+		r, a := p[0], p[1]
+		if r == "*" && a == "*" {
+			return true
+		}
+		if r == "*" && a == action {
+			return true
+		}
+		if r == resource && a == "*" {
+			return true
+		}
+		if r == resource && a == "admin" && resource != "mcp" {
+			return true
+		}
+		if r == resource && a == action {
+			return true
+		}
+	}
+	return false
+}
+
+// retainMenuAncestors 保留存活菜单的全部祖先（容器节点语义）：
+// 父节点自身权限未命中时，只要任一后代命中就保留父节点，避免层级菜单整体孤儿化。
+// 返回顺序与入参 all 的 sort_order 顺序一致（buildMenuTree 依赖该顺序）。
+func retainMenuAncestors(all, filtered []*ent.Menu) []*ent.Menu {
+	if len(filtered) == 0 {
+		return filtered
+	}
+
+	// 指针键：避免测试/异常数据中 ID 缺省（全为 0）时不同菜单互相误保留；
+	// 祖先反查仅依赖 ID>0 的节点。
+	byID := make(map[int]*ent.Menu, len(all))
+	for _, m := range all {
+		if m.ID > 0 {
+			byID[m.ID] = m
+		}
+	}
+	keep := make(map[*ent.Menu]bool, len(filtered))
+	for _, m := range filtered {
+		keep[m] = true
+	}
+	for _, m := range filtered {
+		parentID := m.ParentID
+		for parentID != nil {
+			parent, ok := byID[*parentID]
+			if !ok || keep[parent] {
+				break
 			}
-			debugLog("DEBUG menu excluded",
-				"id", m.ID, "name", m.Name, "path", m.Path, "perm", m.PermissionCode, "reason", "no-permission-match")
-		} else {
-			debugLog("DEBUG menu excluded",
-				"id", m.ID, "name", m.Name, "path", m.Path, "perm", m.PermissionCode, "reason", "split-not-2")
+			keep[parent] = true
+			parentID = parent.ParentID
 		}
 	}
 
-	return filtered
+	out := make([]*ent.Menu, 0, len(keep))
+	for _, m := range all {
+		if keep[m] {
+			out = append(out, m)
+		}
+	}
+	return out
 }
 
 func keysOfMap(m map[string]bool) []string {
@@ -477,54 +523,6 @@ func isElevatedMenuRole(roleCodes map[string]bool) bool {
 	}
 
 	return false
-}
-
-// actionAliasMap 权限 Action 别名映射：前端使用的 action → 后端定义的 action
-var actionAliasMap = map[string]string{
-	// 基础别名
-	"view":   "read",  // view 是 read 的别名
-	"use":    "read",  // use 是 read 的别名
-	"manage": "admin", // manage 是 admin 的别名
-	"create": "write", // create 是 write 的别名
-	"update": "write", // update 是 write 的别名
-	// 扩展别名（数据库中使用的权限action）
-	"approve": "admin", // approve 审批权限等同于 admin
-	"analyze": "read",  // analyze 分析权限等同于 read
-	"audit":   "read",  // audit 审计权限等同于 read
-	"config":  "write", // config 配置权限等同于 write
-	"request": "read",  // request 请求权限等同于 read
-	"access":  "read",  // access 访问权限等同于 read
-}
-
-// resourceAliasMap 权限 Resource 别名映射：前端使用的 resource → 后端定义的 resource
-var resourceAliasMap = map[string]string{
-	// 基础别名
-	"service":  "service_catalog", // service 是 service_catalog 的别名
-	"workflow": "bpmn",            // workflow 是 bpmn 的别名
-	"report":   "report",          // report 没有对应资源，保持不变
-	// 扩展别名（数据库中使用的权限resource）
-	"helpdesk":   "ticket",        // helpdesk 等同于 ticket
-	"approval":   "permission",    // approval 等同于 permission
-	"department": "org",           // department 等同于 org
-	"team":       "org",           // team 等同于 org
-	"system":     "system_config", // system 等同于 system_config
-	"tenant":     "org",           // tenant 等同于 org
-}
-
-// resolveActionAliases 解析 Action 别名，返回后端定义的 Action
-func resolveActionAliases(action string) string {
-	if resolved, ok := actionAliasMap[action]; ok {
-		return resolved
-	}
-	return action
-}
-
-// resolveResourceAliases 解析 Resource 别名，返回后端定义的 Resource
-func resolveResourceAliases(resource string) string {
-	if resolved, ok := resourceAliasMap[resource]; ok {
-		return resolved
-	}
-	return resource
 }
 
 // splitPermission 拆分权限代码
