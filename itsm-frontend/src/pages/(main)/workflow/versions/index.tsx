@@ -9,6 +9,7 @@ import { LoadingEmptyError } from '@/components/ui/LoadingEmptyError';
 import { ManagementNotice, ManagementPageHeader } from '@/components/ui/ManagementPageHeader';
 import { StatsOverview } from '@/components/ui/StatsOverview';
 import { WorkflowAPI } from '@/lib/api/workflow-api';
+import { usePermissions } from '@/lib/hooks/use-permissions';
 
 type VersionRow = {
   id: string;
@@ -36,6 +37,10 @@ const getVersionStatusText = (status: string): string => {
 
 export default function WorkflowVersionsPage() {
   const { message, modal } = App.useApp();
+  const { hasPermission } = usePermissions();
+  // 版本写面（handlers/bpmn/workflow.go:111-114）：激活/回滚 → bpmn:write；删除 → bpmn:delete。
+  const canBpmnWrite = hasPermission('bpmn', 'write');
+  const canBpmnDelete = hasPermission('bpmn', 'delete');
   const [searchParams] = useSearchParams();
   const initialProcessKey = searchParams.get('workflowId') || '';
   const [processKey, setProcessKey] = useState(initialProcessKey);
@@ -123,6 +128,7 @@ export default function WorkflowVersionsPage() {
             <Button
               type="text"
               icon={<PlayCircle className="h-4 w-4" />}
+              disabled={!canBpmnWrite}
               aria-label={`激活版本 v${record.version}`}
               onClick={() => {
                 modal.confirm({
@@ -145,6 +151,7 @@ export default function WorkflowVersionsPage() {
             <Button
               type="text"
               icon={<RotateCcw className="h-4 w-4" />}
+              disabled={!canBpmnWrite}
               aria-label={`回滚到版本 v${record.version}`}
               onClick={() => {
                 modal.confirm({
@@ -192,6 +199,7 @@ export default function WorkflowVersionsPage() {
             <Button
               type="text"
               danger
+              disabled={!canBpmnDelete}
               icon={<Trash2 className="h-4 w-4" />}
               aria-label={`删除版本 v${record.version}`}
               onClick={() => {

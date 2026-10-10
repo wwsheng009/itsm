@@ -1,6 +1,7 @@
 import { useNavigate } from 'react-router';
 
 import React, { useState, useEffect, useCallback } from 'react';
+import { usePermissions } from '@/lib/hooks/use-permissions';
 import {
   Card,
   Table,
@@ -71,6 +72,9 @@ const isPendingReview = (status?: string): boolean =>
 export default function KnowledgeReviewListPage() {
   const navigate = useNavigate();
   const { t } = useI18n();
+  const { hasPermission } = usePermissions();
+  // 审核写面 → POST /knowledge/articles/:id/review（router/knowledge_routes.go:30，knowledge:write）。
+  const canReviewKnowledge = hasPermission('knowledge', 'write');
 
   const [loading, setLoading] = useState(false);
   const [articles, setArticles] = useState<ArticleItem[]>([]);
@@ -209,6 +213,7 @@ export default function KnowledgeReviewListPage() {
               <Button
                 type="link"
                 icon={<CheckCircle />}
+                disabled={!canReviewKnowledge}
                 onClick={() => {
                   setSelectedArticle(record);
                   setReviewAction('approve');
@@ -221,6 +226,7 @@ export default function KnowledgeReviewListPage() {
                 type="link"
                 danger
                 icon={<XCircle />}
+                disabled={!canReviewKnowledge}
                 onClick={() => {
                   setSelectedArticle(record);
                   setReviewAction('reject');
@@ -303,7 +309,7 @@ export default function KnowledgeReviewListPage() {
           <Button key="close" onClick={() => setDetailModalVisible(false)}>
             关闭
           </Button>,
-          selectedArticle?.status && isPendingReview(selectedArticle.status) && (
+          canReviewKnowledge && selectedArticle?.status && isPendingReview(selectedArticle.status) && (
             <Button
               key="reject"
               danger
@@ -317,7 +323,7 @@ export default function KnowledgeReviewListPage() {
               拒绝
             </Button>
           ),
-          selectedArticle?.status && isPendingReview(selectedArticle.status) && (
+          canReviewKnowledge && selectedArticle?.status && isPendingReview(selectedArticle.status) && (
             <Button
               key="approve"
               type="primary"

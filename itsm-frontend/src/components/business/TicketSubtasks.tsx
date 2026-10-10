@@ -47,6 +47,10 @@ interface TicketSubtasksProps {
   onDeleteSubtask?: (id: number) => Promise<void>;
   onViewSubtask?: (subtask: Ticket) => void;
   canEdit?: boolean;
+  /** 入口级门禁：创建子任务（ticket:create，缺省同 canEdit）。 */
+  canCreate?: boolean;
+  /** 入口级门禁：删除子任务（ticket:delete，缺省同 canEdit）。 */
+  canDelete?: boolean;
 }
 
 type ViewMode = 'list' | 'gantt' | 'timeline';
@@ -60,6 +64,8 @@ export const TicketSubtasks: React.FC<TicketSubtasksProps> = ({
   onDeleteSubtask,
   onViewSubtask,
   canEdit = true,
+  canCreate = canEdit,
+  canDelete = canEdit,
 }) => {
   const { message: antMessage } = App.useApp();
   const [modalVisible, setModalVisible] = useState(false);
@@ -250,14 +256,16 @@ export const TicketSubtasks: React.FC<TicketSubtasksProps> = ({
               >
                 编辑
               </Button>
-              <Popconfirm
-                title="确定要删除这个子任务吗？"
-                onConfirm={() => handleDelete(record.id)}
-              >
-                <Button type="link" size="small" danger icon={<Trash2 />}>
-                  删除
-                </Button>
-              </Popconfirm>
+              {canDelete && (
+                <Popconfirm
+                  title="确定要删除这个子任务吗？"
+                  onConfirm={() => handleDelete(record.id)}
+                >
+                  <Button type="link" size="small" danger icon={<Trash2 />}>
+                    删除
+                  </Button>
+                </Popconfirm>
+              )}
             </>
           )}
         </Space>
@@ -415,7 +423,7 @@ export const TicketSubtasks: React.FC<TicketSubtasksProps> = ({
                 时间线
               </Button>
             </Button.Group>
-            {canEdit && (
+            {canCreate && (
               <Button type="primary" icon={<Plus />} onClick={() => handleOpenModal()}>
                 创建子任务
               </Button>

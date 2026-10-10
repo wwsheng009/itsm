@@ -4,6 +4,7 @@
  */
 
 import React, { useState, useEffect } from 'react';
+import { usePermissions } from '@/lib/hooks/use-permissions';
 import {
   Select,
   Button,
@@ -40,6 +41,9 @@ export const TicketViewSelector: React.FC<TicketViewSelectorProps> = ({
   onFiltersChange,
 }) => {
   const { message } = App.useApp();
+  const { hasPermission } = usePermissions();
+  // 视图写面（router/ticket_routes.go:23-26）：保存/编辑/删除/共享 → ticket:write。
+  const canWriteView = hasPermission('ticket', 'write');
   const [views, setViews] = useState<TicketView[]>([]);
   const [loading, setLoading] = useState(false);
   const [saveModalVisible, setSaveModalVisible] = useState(false);
@@ -244,7 +248,7 @@ export const TicketViewSelector: React.FC<TicketViewSelectorProps> = ({
           }))}
         />
 
-        {currentView && (
+        {currentView && canWriteView && (
           <Dropdown menu={{ items: getViewMenuItems(currentView) }} trigger={['click']}>
             <Button icon={<Settings />}>管理</Button>
           </Dropdown>

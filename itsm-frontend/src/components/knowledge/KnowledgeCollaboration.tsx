@@ -1,5 +1,6 @@
 
 import React, { useState, useEffect, useRef } from 'react';
+import { usePermissions } from '@/lib/hooks/use-permissions';
 import {
   Card,
   Avatar,
@@ -86,6 +87,9 @@ const KnowledgeCollaboration: React.FC<KnowledgeCollaborationProps> = ({
   onSave,
   readOnly = false,
 }) => {
+  const { hasPermission } = usePermissions();
+  // 协作写面（评论 POST /knowledge/articles/:id/comments、保存文档回调）→ knowledge:write。
+  const canWriteKnowledge = hasPermission('knowledge', 'write');
   const [session, setSession] = useState<CollaborationSession | null>(null);
   const [participants, setParticipants] = useState<UserPresence[]>([]);
   const [comments, setComments] = useState<Comment[]>([]);
@@ -303,13 +307,15 @@ const KnowledgeCollaboration: React.FC<KnowledgeCollaborationProps> = ({
             />
           </Tooltip>
 
-          <Tooltip title="保存文档">
-            <Button
-              type="primary"
-              icon={<Save className="w-4 h-4" />}
-              onClick={() => onSave?.('document content')}
-            />
-          </Tooltip>
+          {canWriteKnowledge && (
+            <Tooltip title="保存文档">
+              <Button
+                type="primary"
+                icon={<Save className="w-4 h-4" />}
+                onClick={() => onSave?.('document content')}
+              />
+            </Tooltip>
+          )}
         </Space>
       </Card>
 
@@ -351,14 +357,16 @@ const KnowledgeCollaboration: React.FC<KnowledgeCollaborationProps> = ({
                 rows={2}
                 maxLength={500}
               />
-              <Button
-                type="primary"
-                icon={<Send className="w-4 h-4" />}
-                onClick={handleAddComment}
-                disabled={!newComment.trim()}
-              >
-                发送
-              </Button>
+              {canWriteKnowledge && (
+                <Button
+                  type="primary"
+                  icon={<Send className="w-4 h-4" />}
+                  onClick={handleAddComment}
+                  disabled={!newComment.trim()}
+                >
+                  发送
+                </Button>
+              )}
             </div>
           </div>
 

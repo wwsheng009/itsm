@@ -1,5 +1,6 @@
 
 import React, { useState, useEffect, useRef } from 'react';
+import { usePermissions } from '@/lib/hooks/use-permissions';
 import {
   Card,
   Table,
@@ -51,6 +52,10 @@ const ArticleVersionControl: React.FC<ArticleVersionControlProps> = ({
   currentVersion = 1,
   onVersionChange,
 }) => {
+  const { hasPermission } = usePermissions();
+  // 恢复版本 → POST /knowledge/articles/:id/versions/:version/restore
+  // （router/knowledge_routes.go:35，knowledge:write）。
+  const canRestoreVersion = hasPermission('knowledge', 'write');
   const [versions, setVersions] = useState<ArticleVersion[]>([]);
   const [loading, setLoading] = useState(false);
   const [compareModalVisible, setCompareModalVisible] = useState(false);
@@ -209,7 +214,7 @@ const ArticleVersionControl: React.FC<ArticleVersionControlProps> = ({
             />
           </Tooltip>
 
-          {record.version !== latestVersion && (
+          {canRestoreVersion && record.version !== latestVersion && (
             <Tooltip title="恢复到此版本">
               <Button
                 type="text"
@@ -435,7 +440,7 @@ const ArticleVersionControl: React.FC<ArticleVersionControlProps> = ({
           <Button key="close" onClick={() => setPreviewModalVisible(false)}>
             关闭
           </Button>,
-          previewVersion && previewVersion.version !== latestVersion && (
+          canRestoreVersion && previewVersion && previewVersion.version !== latestVersion && (
             <Button
               key="restore"
               type="primary"

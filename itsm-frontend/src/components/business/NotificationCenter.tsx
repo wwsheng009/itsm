@@ -1,5 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
+import { usePermissions } from '@/lib/hooks/use-permissions';
 import {
   Drawer,
   Badge,
@@ -82,6 +83,9 @@ const NotificationCenter: React.FC<{
   onClose: () => void;
 }> = ({ open, onClose }) => {
   const { t } = useI18n();
+  const { hasPermission } = usePermissions();
+  // 通知写面（router/common_system_routes.go:247-251）：已读/删除 → notification:write。
+  const canNotificationWrite = hasPermission('notification', 'write');
   const [activeTab, setActiveTab] = useState('notifications');
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [templates, setTemplates] = useState<NotificationTemplate[]>([]);
@@ -408,7 +412,7 @@ const NotificationCenter: React.FC<{
       width: 120,
       render: (_, record) => (
         <Space size="small">
-          {record.status === 'pending' && (
+          {record.status === 'pending' && canNotificationWrite && (
             <Button size="small" onClick={() => handleMarkRead(record.id)}>
               {t('notificationCenter.actions.markRead')}
             </Button>
@@ -420,20 +424,22 @@ const NotificationCenter: React.FC<{
           >
             {null}
           </Modal>
-          <Button
-            size="small"
-            danger
-            icon={<Trash2 className="w-3 h-3" />}
-            onClick={() => {
-              Modal.confirm({
-                title: t('notificationCenter.actions.delete'),
-                content: t('notificationCenter.messages.deleteConfirm'),
-                okText: t('common.confirm'),
-                cancelText: t('common.cancel'),
-                onOk: () => handleDeleteNotification(record.id),
-              });
-            }}
-          />
+          {canNotificationWrite && (
+            <Button
+              size="small"
+              danger
+              icon={<Trash2 className="w-3 h-3" />}
+              onClick={() => {
+                Modal.confirm({
+                  title: t('notificationCenter.actions.delete'),
+                  content: t('notificationCenter.messages.deleteConfirm'),
+                  okText: t('common.confirm'),
+                  cancelText: t('common.cancel'),
+                  onOk: () => handleDeleteNotification(record.id),
+                });
+              }}
+            />
+          )}
         </Space>
       ),
     },
@@ -693,26 +699,28 @@ const NotificationCenter: React.FC<{
                             {getStatusIcon(n.status)} {getStatusText(n.status)}
                           </Tag>
                           <Space size="small">
-                            {n.status === 'pending' && (
+                            {n.status === 'pending' && canNotificationWrite && (
                               <Button size="small" type="link" onClick={() => handleMarkRead(n.id)}>
                                 {t('notificationCenter.actions.markRead')}
                               </Button>
                             )}
-                            <Button
-                              size="small"
-                              danger
-                              type="link"
-                              icon={<Trash2 className="w-3 h-3" />}
-                              onClick={() => {
-                                Modal.confirm({
-                                  title: t('notificationCenter.actions.delete'),
-                                  content: t('notificationCenter.messages.deleteConfirm'),
-                                  okText: t('common.confirm'),
-                                  cancelText: t('common.cancel'),
-                                  onOk: () => handleDeleteNotification(n.id),
-                                });
-                              }}
-                            />
+                            {canNotificationWrite && (
+                              <Button
+                                size="small"
+                                danger
+                                type="link"
+                                icon={<Trash2 className="w-3 h-3" />}
+                                onClick={() => {
+                                  Modal.confirm({
+                                    title: t('notificationCenter.actions.delete'),
+                                    content: t('notificationCenter.messages.deleteConfirm'),
+                                    okText: t('common.confirm'),
+                                    cancelText: t('common.cancel'),
+                                    onOk: () => handleDeleteNotification(n.id),
+                                  });
+                                }}
+                              />
+                            )}
                           </Space>
                         </div>
                       </div>

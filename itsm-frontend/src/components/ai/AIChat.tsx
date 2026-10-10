@@ -589,6 +589,8 @@ const AIChat: React.FC = () => {
   // 「补充为知识文章 / 保存成文章」落点为 /knowledge/articles/new（路由级 knowledge:write 已覆盖），
   // 入口级同步收敛，避免无权限用户点击后被 403 拦截。
   const canPromoteKnowledge = hasPermission('knowledge', 'write');
+  // 删除会话 → DELETE /ai/conversations/:id（router/ai_routes.go:19，ai:write）。
+  const canDeleteConversation = hasPermission('ai', 'write');
 
   // <768px 默认收起侧栏（不做 overlay，仅初始值）。
   const [sidebarOpen, setSidebarOpen] = useState(() =>
@@ -1168,22 +1170,24 @@ const AIChat: React.FC = () => {
                       </Text>
                     </div>
                   </div>
-                  <Popconfirm
-                    title="删除此会话？"
-                    onConfirm={e => handleDeleteConversation(e as React.MouseEvent, conv.id)}
-                    okText="删除"
-                    cancelText="取消"
-                    okButtonProps={{ danger: true, size: 'small' }}
-                  >
-                    <Button
-                      type="text"
-                      size="small"
-                      danger
-                      icon={<Trash2 size={12} />}
-                      onClick={e => e.stopPropagation()}
-                      style={{ opacity: 0.6 }}
-                    />
-                  </Popconfirm>
+                  {canDeleteConversation && (
+                    <Popconfirm
+                      title="删除此会话？"
+                      onConfirm={e => handleDeleteConversation(e as React.MouseEvent, conv.id)}
+                      okText="删除"
+                      cancelText="取消"
+                      okButtonProps={{ danger: true, size: 'small' }}
+                    >
+                      <Button
+                        type="text"
+                        size="small"
+                        danger
+                        icon={<Trash2 size={12} />}
+                        onClick={e => e.stopPropagation()}
+                        style={{ opacity: 0.6 }}
+                      />
+                    </Popconfirm>
+                  )}
                 </div>
               ))
             )}

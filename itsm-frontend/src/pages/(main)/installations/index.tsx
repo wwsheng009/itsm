@@ -111,7 +111,11 @@ const InstallationsPage = () => {
   const [loadError, setLoadError] = useState<string | null>(null);
   const { message, modal } = App.useApp();
   const { allows } = useCapabilities();
-  const canManageMarketplace = allows('marketplace', 'manage');
+  // 勘误（批次 13）：后端词表为 marketplace:write（internal/authz/catalog.go:233），
+  // 原 `marketplace:manage` 不存在 → 非超管永远为 false，入口被误藏。
+  const canManageMarketplace = allows('marketplace', 'write');
+  // 飞书 OAuth 授权 URL → GET /feishu/oauth/auth-url（router/feishu_routes.go:20，connector:write）。
+  const canConnectorWrite = allows('connector', 'write');
 
   const loadInstallations = async () => {
     setLoading(true);
@@ -407,7 +411,7 @@ const InstallationsPage = () => {
                         <Save className="h-4 w-4 mr-2" />
                         {savingId === installation.id ? '保存中...' : '保存配置'}
                       </Button>
-                      {isFeishu && (
+                      {isFeishu && canConnectorWrite && (
                         <Button variant="secondary" onClick={handleFeishuOAuth}>
                           <ExternalLink className="h-4 w-4 mr-2" />
                           飞书 OAuth 授权

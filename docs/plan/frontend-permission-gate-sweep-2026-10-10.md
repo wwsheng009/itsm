@@ -275,6 +275,8 @@ rg -n 'RequirePermission\("' itsm-backend/router itsm-backend/handlers
 | 17 | `components/knowledge/KnowledgeCollaboration.tsx:136-157 / 306` | 添加评论 / 保存文档 | 协作写面 | `knowledge:write`（保存端点待核） |
 | 18 | `components/ai/AIChat.tsx:1166-1169` | 删除此会话 | AI 会话写面 | `ai:write` |
 
+> 进度（2026-10-10，批次 13）：§8.2 十八项全部闭环 ✅——#1 Kanban（批次 2）、#2/#14 installations（批次 13：**勘误** `marketplace:manage`→`marketplace:write`，飞书 OAuth 加 `connector:write`）、#3 PIR（批次 2）、#4 实例（批次 9）、#5 版本（批次 13：激活/回滚 `bpmn:write`、删除 `bpmn:delete`；端点实存于 `handlers/bpmn/workflow.go:111-114`）、#6 AI 审批（批次 5）、#7 RelationPanel（批次 11）、#8 子任务（批次 13：`canCreate/canEdit/canDelete` 防御性，组件当前未被引用）、#9 视图（批次 13：管理下拉 `ticket:write`；保存模态为未接线死 UI）、#10 通知中心（批次 13：已读/删除 `notification:write`）、#11 服务申请（批次 12）、#12 departments（批次 11）、#13 版本恢复（批次 13：`knowledge:write`）、#15 my-requests（批次 8）、#16 审核（批次 13：行内批准/拒绝禁用 + 详情页脚条件渲染 `knowledge:write`）、#17 协作（批次 13：评论/保存 `knowledge:write`）、#18 删除会话（批次 13：`ai:write`）。
+
 ### 8.3 断言核验（抽查）
 
 - 「✅ 已改造」知识库：列表（`ArticleList`）/ 详情写操作组 / 新建页 / 空态 属实；**唯一反例 = §8.2 #13 版本历史**。
@@ -319,3 +321,5 @@ rg -n 'RequirePermission\("' itsm-backend/router itsm-backend/handlers
 | `components/workflow/BPMNDesigner.tsx`、`workflow/designer/WorkflowToolbar.tsx` | 设计器保存/发布 | `workflow:write` / `bpmn:write`（按端点） |
 | `components/templates/TemplateEditor.tsx`、`templates/FieldDesigner.tsx` | 模板编辑 | `ticket_template:write` |
 | `components/reports/ReportGenerator.tsx` | 报表生成/导出 | `dashboard:admin`（生成/导出） |
+
+> 进度（2026-10-10，批次 13 已核）：`TicketKanbanBoard` 已有 `canEdit` 门控拖拽（:296，随看板调用方传入）；`BPMNDesigner` 已有 `readOnly` 门控全部编辑动作（保存/部署/撤销/删除/复制粘贴/对齐），待核调用方是否按 `bpmn:write` 传入。**批次 14 待办**：逐项核 SmartAssignmentModal（`ticket:assign`）、SLAAlertSystem（`sla:write`）、TemplateEditor/FieldDesigner（`ticket_template:*`）、ReportGenerator（`dashboard:admin`，能力未开放）、TicketTypeFormModal 与 TicketCategoryImport/Export/DragSort（`ticket_type:manage`）。
