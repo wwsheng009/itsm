@@ -46,6 +46,10 @@ func setupSLAHandler(t *testing.T) (*gin.Engine, *ent.Client, int) {
 	gin.SetMode(gin.TestMode)
 	dsn := "file:" + filepath.Join(t.TempDir(), "sla_test.db") + "?_fk=1"
 	client := enttest.Open(t, "sqlite3", dsn)
+	// Windows 兼容：enttest.Open 不注册清理，sqlite 文件句柄会阻塞 t.TempDir 的
+	// RemoveAll（unlinkat: file is being used by another process）。显式 Close，
+	// 且因 Cleanup LIFO 在 TempDir 清理之前执行。
+	t.Cleanup(func() { _ = client.Close() })
 	logger := zaptest.NewLogger(t).Sugar()
 
 	// 播种租户以满足 SLA 定义的外键约束

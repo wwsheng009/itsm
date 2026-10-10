@@ -192,7 +192,7 @@
 | 1 | `/workflow/designer` | 写面（设计器保存/发布）无路由级规则 | 补规则 **`bpmn:write`**（按保存端点核对为 bpmn 词表）✅ 已落地（批次 12） |
 | 2 | `/cmdb/reconciliation` | 写面（对账落库/建 CI）无路由级规则 | 补规则 `cmdb:write` ✅ 已落地（批次 12） |
 | 3 | `/tickets/:id?mode=edit` | 编辑态经 query 进入，`matchPath` 不覆盖 | 已核：`TicketDetail` 无 `mode=edit` 消费逻辑；编辑入口在 `TicketList.tsx:115` 已按 `ticket:update` 门禁（批次 4）✅ 无需处理 |
-| 4 | `/sla/definitions/new`、`/sla/definitions/:id/edit` | **路由不存在**（`SLAList.tsx:136/172/194` 指向，点击 404；`SLADetail` 编辑按钮同样指向） | 清理死链：`SLADetail` 编辑按钮改禁用；`SLAList` 为死组件（未被路由引用，未接入）；**SLA 新建/编辑页面缺失登记为产品缺口** ✅ 清理完成（批次 12，页面待补） |
+| 4 | `/sla/definitions/new`、`/sla/definitions/:id/edit` | **路由不存在**（`SLAList.tsx:136/172/194` 指向，点击 404；`SLADetail` 编辑按钮同样指向） | 清理死链：`SLADetail` 编辑按钮改禁用；`SLAList` 为死组件（未被路由引用，未接入）；**SLA 新建/编辑页面缺失登记为产品缺口** ✅ 清理完成（批次 12）；**页面已补**（剩余缺口治理 B2，2026-10-10：新建/编辑页 + 路由规则 + 入口） |
 | 5 | `GlobalShortcutProvider` → `/tickets/new` | **旧别名非路由**（ctrl+n 会 404） | 改指 `/tickets/create`（已有路由级门禁），并包 `ticket:create` ✅ 已落地（批次 12） |
 | 6 | `reports/*` 导出 | 读端点 `dashboard:read`；**生成/导出** `POST /dashboard/reports/:type`、`POST /dashboard/export` = `dashboard:admin`（`dashboard_routes.go:243/259`）；前端 `report:export` 常量未对后端生效 | 已核：上述两个端点**无前端调用方**；各导出均为本地 CSV 生成（无后端端点）；`report:export` 常量未被使用 ✅ 无需处理（批次 12） |
 | 7 | `/service-catalog/request/:id` | 提交申请写面（路径无 `new/create/edit` 段，未覆盖） | 补规则 `service_request:write` + 三处申请入口同步门禁（`service-catalog/index.tsx`、`components/service-catalog/ServiceItemCard.tsx`、`detail/$id/index.tsx`；勘误：ServiceItemCard 实际路径含 `service-catalog/components/` 前缀）✅ 已落地（批次 12） |

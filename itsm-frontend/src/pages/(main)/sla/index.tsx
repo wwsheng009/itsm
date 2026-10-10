@@ -2,10 +2,11 @@ import { useNavigate } from 'react-router';
 
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { Alert, Button, Card, Col, Empty, Row, Space, Spin, Statistic, Tag, Tooltip } from 'antd';
-import { AlertTriangle, Download, RefreshCw } from 'lucide-react';
+import { AlertTriangle, Download, Plus, RefreshCw } from 'lucide-react';
 import dayjs from 'dayjs';
 import { SLAApi, type SLAComplianceReport } from '@/lib/api/sla-api';
 import SLATrendPredictionCard from '@/components/business/sla/SLATrendPredictionCard';
+import { useCan } from '@/components/auth/PermissionGate';
 import { useI18n } from '@/lib/i18n/useI18n';
 
 interface SLAStats {
@@ -23,6 +24,8 @@ const priorityKeys: PriorityKey[] = ['critical', 'urgent', 'high', 'medium', 'no
 export default function SLAPage() {
   const navigate = useNavigate();
   const { t } = useI18n();
+  // SLA 定义写面（router/sla_routes.go:20）：新建入口按 sla:write 门禁。
+  const canWriteSla = useCan(['sla:write']);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [refreshedAt, setRefreshedAt] = useState<Date>();
@@ -121,6 +124,11 @@ export default function SLAPage() {
           <p className="m-0 text-sm text-gray-500">{t('sla.dashboardSubtitle')}</p>
         </div>
         <Space wrap>
+          {canWriteSla && (
+            <Button icon={<Plus size={16} />} onClick={() => navigate('/sla/definitions/new')}>
+              新建 SLA 定义
+            </Button>
+          )}
           {refreshedAt && (
             <span className="text-xs text-gray-500">
               {t('sla.refreshedAt', { time: dayjs(refreshedAt).format('HH:mm:ss') })}

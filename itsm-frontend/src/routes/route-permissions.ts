@@ -60,6 +60,9 @@ export const ROUTE_PERMISSIONS: RoutePermissionRule[] = [
   { pattern: '/workflow/designer', anyOf: ['bpmn:write'], reason: 'components/workflow/designer/WorkflowToolbar.tsx 保存/部署（bpmn:write；批次 9 已收口入口）' },
   { pattern: '/cmdb/reconciliation', anyOf: ['cmdb:write'], reason: '对账落库/建 CI 写面（cmdb:write）' },
   { pattern: '/service-catalog/request/:id', anyOf: ['service_request:write'], reason: 'router/service_request_routes.go POST /service-requests' },
+  // SLA 定义写面（剩余缺口治理 B2）：新建/编辑页面路由。
+  { pattern: '/sla/definitions/new', anyOf: ['sla:write'], reason: 'router/sla_routes.go:20 POST /sla/definitions' },
+  { pattern: '/sla/definitions/:id/edit', anyOf: ['sla:write'], reason: 'router/sla_routes.go:32 PUT /sla/definitions/:id' },
 ];
 
 export type RoutePermissionDecision = 'allow' | 'deny' | 'none';

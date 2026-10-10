@@ -16,6 +16,7 @@
 | G6 | 产品-后端 | `/tickets/batch-assign`、`batch/assign*`、`batch-notify` 未注册（TicketList 批量工具栏入口存活，受权限过滤） | 批量分配/通知 404 | **B5** | ⏳ 待决策（补端点 or 下线入口） |
 | G7 | 门禁粒度 | `/admin/*`、`/msp/*` 区域守卫粗粒度（`ADMIN_AREA_PERMISSIONS` 4 码） | 跨权限管理员可见不可用入口 | **B6** | ⏳ 待执行（Sweep §4 表） |
 | G8 | 能力面 | `rootCauseWorkflowActions`、`priorityMatrix`、`advancedReporting`、`genericTemplateMarketplace` 关闭 | 对应 UI/API 为 roadmap-only（已登记） | — | 保持登记 |
+| G9 | 测试基建 | `handlers/sla` 等 sqlite 用例在 Windows 下 `t.TempDir` 清理锁失败（`enttest.Open` 不注册 Close，文件句柄阻塞 RemoveAll） | 本地验证噪音（断言实际全过） | **B8** | ✅ 已修复（2026-10-10） |
 
 ## B1：死代码集中清理（P1，✅ 已执行）
 
@@ -83,9 +84,19 @@
 **范围**：批次 13–15 新增门禁项（工作流版本、知识审核/协作、通知中心、AI 审批、AIChat、问题关联、审批面板、profile、Header 通知抽屉）逐项双账号（admin + 低权/无码）实测；留痕截图/断言。
 **验收**：无码入口不可见/禁用；直达 URL 落 403（路由级）；管理员功能回归。
 
+## B8：测试基建 Windows 兼容（P1，✅ 已执行）
+
+**背景**：`go test ./handlers/sla` 在 Windows 上 24+ 用例全部因 `TempDir RemoveAll cleanup: unlinkat ... file is being used by another process` 失败（断言本身全过）。根因：`enttest.Open` 不注册清理，sqlite 句柄在 `t.TempDir` 删除时仍打开。
+
+**修复**：`handlers/sla/handler_test.go` setup 后显式 `t.Cleanup(func() { _ = client.Close() })`（Cleanup LIFO → Close 先于 TempDir 清理）。同类 setup（其他 handlers/repository 测试包）如复用 `enttest.Open` 且有 TempDir，可按同一模式治理。
+
+**验收**：`go test ./handlers/sla -count=1` 全绿（3.2s）。
+
 ## 执行记录
 
 | 日期 | 批次 | 结果 |
 |---|---|---|
 | 2026-10-10 | B1 | ✅ 30 个死文件删除 + 4 处代码残留清理（`ticket-api.batchUpdateTickets`、`TicketKanban.handleStatusChange/cursor-move`、`TicketViewSelector` 保存模态、2 处陈旧注释）；tsc/eslint 0；jest 136 套件 / 2054 用例全绿（含 `api-contract`）；提交见 CHANGELOG |
-| — | B2–B7 | ⏳ 待执行 |
+| 2026-10-10 | B2 | ✅ SLA 新建/编辑页面落地：`components/sla/SLADefinitionForm.tsx`（共享表单，对齐 `dto.CreateSLADefinitionRequest`）+ `pages/(main)/sla/definitions/new`、`$id/edit` 两页（组件级 `sla:write` 双保险 + 路由级规则 ×2）；`SLADetail` 编辑按钮解禁接路由；`/sla` 工作台加「新建 SLA 定义」门禁入口。验证：tsc/eslint 0；`route-permissions`+`guards` 18/18；`go test ./handlers/sla` 全绿 |
+| 2026-10-10 | B8 | ✅ Windows 测试基建修复：`setupSLAHandler` 显式 `t.Cleanup(Close)`；`go test ./handlers/sla` 全绿（3.2s，此前 24+ 用例因文件锁清理失败） |
+| — | B3–B7 | ⏳ 待执行 |

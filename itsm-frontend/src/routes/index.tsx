@@ -169,6 +169,8 @@ const SettingsApprovals = lazy(() => import('@/pages/(main)/settings/approvals/i
 const Sla = lazy(() => import('@/pages/(main)/sla/index'));
 const SlaMonitor = lazy(() => import('@/pages/(main)/sla-monitor/index'));
 const SlaDefinitionsId = lazy(() => import('@/pages/(main)/sla/definitions/$id/index'));
+const SlaDefinitionsNew = lazy(() => import('@/pages/(main)/sla/definitions/new/index'));
+const SlaDefinitionsEdit = lazy(() => import('@/pages/(main)/sla/definitions/$id/edit/index'));
 const SsoCallback = lazy(() => import('@/pages/(auth)/sso/callback/index'));
 const StandardChanges = lazy(() => import('@/pages/(main)/standard-changes/index'));
 const SystemOrganization = lazy(() => import('@/pages/(main)/system/organization/index'));
@@ -384,6 +386,8 @@ export const routes: RouteObject[] = [
           { path: 'settings/approvals', element: lazyElement(SettingsApprovals) },
           { path: 'sla', element: lazyElement(Sla) },
           { path: 'sla-monitor', element: lazyElement(SlaMonitor) },
+          { path: 'sla/definitions/new', element: lazyElement(SlaDefinitionsNew) },
+          { path: 'sla/definitions/:id/edit', element: lazyElement(SlaDefinitionsEdit) },
           { path: 'sla/definitions/:id', element: lazyElement(SlaDefinitionsId) },
           { path: 'standard-changes', element: lazyElement(StandardChanges) },
           { path: 'system/organization', element: lazyElement(SystemOrganization) },

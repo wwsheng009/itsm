@@ -96,7 +96,7 @@ const SLADetail: React.FC = () => {
               <Button
                 type="primary"
                 icon={<Pencil />}
-                disabled
+                onClick={() => navigate(`/sla/definitions/${data.id}/edit`)}
               >
                 编辑
               </Button>
