@@ -2055,6 +2055,10 @@ html:not(.dark) .ant-input-affix-wrapper > .ant-input {
   min-height: 0 !important;
   height: auto !important;
   line-height: 1.5715 !important;
+  /* 内部 input 本身无边框/背景，圆角只会在 overflow: clip 下裁剪
+     左/右边缘的光标与首尾字符（光标顶到上下边框、看起来被"倒角"盖住），
+     这里恢复 antd 的 0 圆角，圆角统一由外层 wrapper 承担。 */
+  border-radius: 0 !important;
   background: transparent !important;
 }
 
@@ -2114,6 +2118,22 @@ html:not(.dark) .ant-picker-focused,
 html:not(.dark) .ant-mentions-focused {
   border-color: #2563eb !important;
   box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12) !important;
+}
+
+/*
+ * 复合输入框（前后缀图标/密码/搜索/字数统计等）的内部 input/textarea
+ * 不再重复绘制高亮边框与光晕，聚焦高亮只保留在外层 .ant-input-affix-wrapper 上，
+ * 避免出现"内部 + 外部"双重高亮边框。
+ */
+html:not(.dark) .ant-input-affix-wrapper > .ant-input,
+html:not(.dark) .ant-input-affix-wrapper > .ant-input:hover,
+html:not(.dark) .ant-input-affix-wrapper > .ant-input:focus,
+html:not(.dark) .ant-input-affix-wrapper > .ant-input-focused,
+html:not(.dark) .ant-input-affix-wrapper > textarea.ant-input,
+html:not(.dark) .ant-input-affix-wrapper > textarea.ant-input:hover,
+html:not(.dark) .ant-input-affix-wrapper > textarea.ant-input:focus {
+  border-color: transparent !important;
+  box-shadow: none !important;
 }
 
 html:not(.dark) .ant-btn {
