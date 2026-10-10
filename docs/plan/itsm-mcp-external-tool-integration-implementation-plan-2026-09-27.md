@@ -783,7 +783,7 @@ MCP：         ▼                    ▼                     ▼
 | # | 状态更新 | 证据 / 处置 |
 | --- | --- | --- |
 | R-09 | **由【未核实】转为「部分确认」**：SQLite 侧迁移已验证通过；Postgres 侧尚未执行（本机无 Docker/Postgres） | 新增门控用例 `ent/schema/mcp_migration_postgres_test.go`（`MCP_TEST_POSTGRES_DSN` 提供时执行，否则 SKIP）；CI 需补该 steps，见 §2.3 CI 条目与 `docs/plan/evidence/mcp-m1/gap-register-2026-09-27.md` A1 |
-| R-12 | **由【未核实】转为「已确认为真实缺口」**：ToolQueue 为内存队列（容量 100），重启丢失 pending 写调用 | 已在 M1-02 证据登记；处置依赖阶段一 B1；过渡期按故障降级矩阵（§8.3）人工核对 pending 列表 |
+| R-12 | **由【未核实】转为「已确认为真实缺口」**：ToolQueue 为内存队列（容量 100），重启丢失 pending 写调用；**→ 2026-10-10 已关闭**：阶段一 B1-06 落地持久队列——不另立队列表，以 `tool_invocations` 状态机（`approval_state=approved ∧ status=pending`）为持久事实，启动 `RecoverPending(200)` 恢复 + 消费端 `claimForExecution` 条件状态迁移抢占（重复恢复/并发消费只执行一次），失败终态落 `last_error_code` | 已在 M1-02 证据登记；落地证据 `docs/plan/evidence/bot-b1/B1-06-queue-durability-evidence.md`（`integration_verified`）；2026-10-10 本分支复核：交付物在位（`service/tool_queue_durable.go`、`service/tool_verify.go`、`internal/bootstrap/app.go:782` 启动恢复接线），`go test ./tests/botintegration/ -run 'TestB1QueueRecovery|TestB1QueueVerifier' -count=1` **PASS ×5** |
 | R-13 | **由「依赖 G3」转为「已确认为真实缺口」**：后端无审批过期状态机，前端卡片仅提示「可能已过期」 | M1-05 证据已固化语义；处置依赖阶段一 G3；过渡期由审批人自查积压 |
 | R-14（新增） | **治理位翻转与异步工具重发现存在竞争窗口**（`SetToolEnabled` 与重发现写工具缓存竞争，可致治理位短期回退） | 来源：M1-10 证据 O-1；方向为更严格（不越权）。集成用例以幂等重放 + 有界等待吸收；建议 M2 加固：工具缓存写入时保留既有 `enabled/risk/quarantine` |
 | R-15（新增） | **mock HTTP 关闭可能被长连接阻塞**（`httptest.Server.Close` 等待活跃 SSE 连接），表现为测试偶发挂起 | 来源：M1-10 证据 O-2；夹具按「先禁服务器（关会话）→ 再关 mock」收尾缓解；M2-05 浏览器 E2E 夹具需沿用该顺序 |
@@ -809,7 +809,7 @@ MCP：         ▼                    ▼                     ▼
 1. **发布**：① 部署含迁移版本（`Schema.Create` 只增表/列，向前兼容）；② 开关保持关闭；③ 单租户灰度开启 → 验证只读链路；④ 开启写链路（`mcp.write_enabled` 灰度）→ 验证审批；⑤ 全量。
 2. **问题止血**：优先用开关降级（L1.5 关写 → L2 关服务器 → L1 全局关），**无需回滚代码即可恢复安全状态**。
 3. **代码回滚**：回滚到上一版本；新增表/字段保留（不执行破坏性迁移）；`tool_invocations` 旧版本读取忽略新列（默认值/nullable 保证）。
-4. **在途调用**：禁用/删除期间按 M1-08 宽限期处理（停止新调用 → ≤30s 或服务器 timeout 等待 → 强断并审计）；队列中待审批任务按 R-12 缺口评估人工处置。
+4. **在途调用**：禁用/删除期间按 M1-08 宽限期处理（停止新调用 → ≤30s 或服务器 timeout 等待 → 强断并审计）；队列中待审批任务已随 `tool_invocations` 持久化（R-12 已关闭，阶段一 B1-06），重启后由启动恢复扫描 `RecoverPending` 继续执行，无需人工处置。
 5. **数据处置**：审计与事件数据只增不删；quarantine 记录保留供诊断；凭据在删除服务器时级联清理并审计。
 
 ### 8.3 故障降级矩阵
@@ -961,7 +961,7 @@ M2-06 交付《MCP 运维手册》——**已落盘 `docs/ops/mcp-runbook.md`**�
 | U-1 | 官方 Go SDK 在 ITSM go 1.25.13 的编译与运行兼容性 | **已关闭**（2026-09-27：编译 + initialize/tools/list 握手 + 全链路集成均通过） | P2 已闭环（`mcp/client/sdk_handshake_test.go`；证据 M0-01/M0-04） |
 | U-2 | SQLite 与 Postgres 的迁移行为差异 | 【未核实】 | P3 迁移评审 + CI 双驱动（A0-03 硬性） |
 | U-3 | CI 是否具备 Postgres/Docker 环境 | 【未核实】 | P3 确认；过渡方案见 §6.2-5 |
-| U-4 | 现队列（内存态）重启恢复行为 | **已确认**（2026-09-27：ToolQueue 为内存队列，重启丢失 pending 写调用；不做隐藏，见 M1-02 证据） | 缺口已登记 R-12，处置依赖阶段一 B1 |
+| U-4 | 现队列（内存态）重启恢复行为 | **已确认 → 已关闭**（2026-09-27 确认 ToolQueue 为内存队列、重启丢失 pending 写调用，不做隐藏，见 M1-02 证据；2026-10-10 关闭：阶段一 B1-06 持久队列落地——`tool_invocations` 状态机 + 启动恢复 + 条件抢占，证据 `docs/plan/evidence/bot-b1/B1-06-queue-durability-evidence.md`） | 缺口已登记 R-12 → **R-12 已关闭**（2026-10-10 复核恢复/幂等用例 PASS ×5） |
 | U-5 | 阶段一 B0–B4 的实际排期 | 未定 | 影响 R1–R3；建议 MCP 立项时同步确认 |
 | U-6 | 预留新增开关 `mcp.write_enabled` 的配置落位 | **已关闭**（2026-09-27：落在 `itsm-backend/config/config.go:112-117`，bootstrap 接线 `internal/bootstrap/app.go:1051-1065`，默认 false） | M1-02 已实现（L1.5 回滚开关） |
 
@@ -1015,3 +1015,4 @@ M2-06 交付《MCP 运维手册》——**已落盘 `docs/ops/mcp-runbook.md`**�
 | 2026-09-30 | AI 辅助执行 | **跨线缺陷修复（提示词与工具面同源）+ 守卫测试同步**：Bot×MCP 运行验证暴露出——选中只授权 MCP 工具的 Bot 时，模型会声称具备 `create_ticket` 等内置工具能力，并把缺失误归因为"MCP 服务未挂载"。根因在 ITSM 聊天系统提示词硬编码内置工具名（`service/rag_service.go:919-928`），与 B2-02/M0-09 之后的策略化工具面（授权 ∩ RBAC ∩ 风险上限 ∩ 入口）脱钩。修复：`service.ToolFaceEntry` + `AskWithLLMStreamWithTools(face)` 同源派生函数 schema 与提示词 + `buildToolAwareSystemPrompt`（只列实际下发工具、写工具有无分档、CMDB 闭环指引按面裁剪、显式禁止 MCP 误归因）；单测 5 例 + `handlers/ai` 全包绿；实测 bot 9（MCP-only）与默认助手两条链路（证据见 `docs/plan/evidence/mcp-m2/bot-mcp-runtime-evidence.md` §8）。同时修复 `service/tool_metadata_test.go` 的 `builtinToolCount` 漂移（14→17，B3-06 遗留，`TestBuiltinToolMetadataComplete` 此前恒失败）。 |
 | 2026-09-30 | AI 辅助执行 | **缺陷修复（缺口 A9/EX-10）：MCP 管理页字段契约**——用户报告 `/admin/mcp-servers`「工具（启用/总数）」= `undefined/undefined`、工具治理「生效状态/投影名」异常。定位（真实浏览器 + 应用自身 `httpClient` 直调）：`http-client.ts` 对所有请求体/响应体做 camelCase 归一化（:377-381 / :537-538），而 MCP 管理 API 契约是 snake_case（`mcp/admin/service_types.go:136-138/:218`）→ 页面全部 snake_case 字段读为 `undefined`、写操作 URL 中的投影名亦为 `undefined`。修复：`RequestConfig.rawKeys` + 公开方法 `requestRaw()`（:617-619）；`lib/api/mcp-api.ts` 13 个端点统一改走 `requestRaw`（请求/响应保持后端原始 key）；新增 3 例守护测试（snake_case 双向保持 + 默认路径回归守护），`mcp-api.test.ts` 断言同步。验证：`tsc`/`eslint` exit 0；`jest` 4 套件 54 用例全绿；真实浏览器复验「3/6」「生效工具 3」「投影名 6 行齐全」「开关与接口一致」+ 写路径（分类/启停/重载）直调成功。**后端契约零变更**；A0-12 的「+冒烟」部分闭环（截图与验收级 E2E 仍归 M2-05/CI）。证据 `docs/plan/evidence/mcp-m2/mcp-admin-page-contract-fix-2026-09-30.md`；台账 `evidence/mcp-m1/gap-register-2026-09-27.md` §2 A9 / §6.9。 |
 | 2026-09-30 | AI 辅助执行 | **运行时能力开关（M0-08/M1-02/L1.5 的管理面化）**：新增 `capability` 包（租户级运行时源：缺行=跟随环境默认、30s TTL、写路径立即失效）+ 管理端点 `GET/PUT /api/v1/system-configs/ai-capabilities`（`system_config:read|write`，未新增权限码）+ 5 处门禁（工具面 / Gate 0 执行入口 / 审批后队列 G2 / MCP 治理写端 403 / Bot 管理写端与选择器），`mcp.enabled`、`mcp.write_enabled`、`bot.enabled` 自此可在管理后台开关、**免重启生效**；前端 MCP 管理页新增「能力开关」卡，Bot/工具/对话页按生效值显示横幅与禁用态。真实进程验证：写面开启后目录 2→3（`mcp__mock__create_issue` 立即出现），`reset` 后 3→2，`mcp.enabled=false` 时目录 0 且治理写端 403。详见 `docs/plan/mcp-ai-capability-switches-plan-2026-09-30.md` 与 `docs/plan/evidence/mcp-m2/capability-switches-evidence.md`；四级回滚开关（L1→L1.5→L2→L3）口径不变，静态关仍是最高优先级短路。 |
+| 2026-10-10 | AI 辅助执行 | **R-12 复核关闭**：阶段一 B1-06 持久队列在本分支（`feat/msp-p0-hardening`）复核——①交付物在位：`service/tool_queue_durable.go`（`RecoverPending`/`claimForExecution`）、`service/tool_verify.go`（`ToolVerifier` + 工单类回读校验）、`internal/bootstrap/app.go:782` 启动恢复接线、`tests/botintegration/b1_queue_recovery_test.go`；②窄测试复跑 `go test ./tests/botintegration/ -run 'TestB1QueueRecovery|TestB1QueueVerifier' -count=1` **PASS ×5**（恢复执行/重复恢复不双执行/失败终态/verify 两态/待审批不受影响）；③文档同步：§7.1 R-12、§8.2 发布步骤第 4 条（待审批任务不再依赖人工处置）、§11.4 U-4、台账 `evidence/mcp-m1/gap-register-2026-09-27.md` C1。遗留面不变：进程级 kill-restart 演练归 M2-05 类 CI/E2E；verify 覆盖扩展与恢复指标按 B1-06 证据 §6 归属登记 |

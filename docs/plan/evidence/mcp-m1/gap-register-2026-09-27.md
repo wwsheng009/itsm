@@ -16,7 +16,7 @@
 | --- | --- | --- |
 | A 类：已交付部分未满足方案判据（§5.2/§5.3/§5.4） | 9 | 其中 6 项本轮可补，2 项需真实浏览器会话（归 M2-05）；A9 为 2026-09-30 追加（管理页真实栈不可用） |
 | B 类：文档回写缺口 | 6 | 本轮全部回写 |
-| C 类：方案内已登记、待 M2/阶段一承接的技术缺口 | 6 | 状态更新与责任归属 |
+| C 类：方案内已登记、待 M2/阶段一承接的技术缺口 | 6 | 状态更新与责任归属；**C1 已于 2026-10-10 关闭**（阶段一 B1-06 持久队列落地并复核，见 §4），剩余 5 项开放 |
 | D 类：M2 未开工 | 7 任务 / 8 验收项 | 属计划内后续范围，非缺陷 |
 
 **核心结论**：M0/M1 功能交付属实（`integration_verified` / `flow_verified` 的**功能面**成立）；但按本方案 §5.4 规则 7，A 类 9 项均属「豁免」情形，而 §10 决策日志此前**无任何豁免登记**——本轮已补齐登记（见 §6、本方案 §10）。**2026-09-30 追加 A9**：MCP 管理页在真实栈上字段全部脱靶（见 §2 A9 与 §6.9），已修复并复验。
@@ -56,7 +56,7 @@
 
 | # | 缺口 | 现状 | 归属 |
 | --- | --- | --- | --- |
-| C1 | **R-12 队列内存态**：ToolQueue 重启丢 pending 写调用 | 已确认（实现为内存队列；M1-02 证据 :70 注明） | 阶段一 B1（未落地时按 R-12 预案人工处置） |
+| C1 | **R-12 队列内存态**：ToolQueue 重启丢 pending 写调用 | ~~已确认（实现为内存队列；M1-02 证据 :70 注明）~~ **已关闭（2026-10-10）**：阶段一 B1-06 落地持久队列（`tool_invocations` 状态机 + 启动 `RecoverPending` 恢复 + `claimForExecution` 条件抢占），本分支复核 5 例恢复/幂等用例 PASS | ~~阶段一 B1~~ 已闭环：证据 `docs/plan/evidence/bot-b1/B1-06-queue-durability-evidence.md`（`integration_verified`）；方案 §7.1/§8.2/§11.4 U-4 已同步 |
 | C2 | **R-13 审批无过期状态机**：前端仅提示「可能已过期」 | 已确认（M1-05 证据 :51-53） | 阶段一 G3 |
 | C3 | 生命周期事件不落库（仅内存环形缓冲） | 已确认（M1-08 证据 :54） | M2-06 或阶段一 |
 | C4 | 审批/审计页无 URL query、invocation 无深链；审计页与 AI 场景审计无跨表联动 | 已确认（M1-06 证据 :50-52、M1-07 证据 :46/:48） | 建议 M2 单开小任务 |
@@ -186,4 +186,5 @@
 | 2026-09-27 | 本轮整改：方案回写（§2.3/§3.3.1/§5.2.1/§7.1/§9/§10/§11.4）；新增 Postgres 门控用例；全量后端+前端回归并分类；`-race` 核心面通过；CI 等价质量门（staticcheck/gofumpt/800 行硬门）发现并修复 9 处问题；修复 3 处负载敏感用例 |
 | 2026-09-27 | 二次整改（CI 接线）：`-race` 全量 8 包绿（A6/EX-06 闭环）；`backend-ci.yml` 新增 `mcp-race`（阻断）与 `mcp-postgres-migrations`（service container，首轮 `continue-on-error` 观察）两个 job、Test job 增 `-timeout 20m`（S1/S2/S3 落地，新增 EX-09） |
 | 2026-09-30 | 追加 A9：MCP 管理页真实栈不可用（camelCase 归一化 × snake_case 契约）→ 已修复（`requestRaw` 通道 + `mcp-api.ts` 13 端点 + 3 例守护测试）并在真实浏览器复验；新增 §6.9 与证据 `evidence/mcp-m2/mcp-admin-page-contract-fix-2026-09-30.md` |
+| 2026-10-10 | **C1（R-12）复核关闭**：阶段一 B1-06 持久队列在分支 `feat/msp-p0-hardening` 复核——交付物在位（`service/tool_queue_durable.go`、`service/tool_verify.go`、bootstrap 启动恢复、`tests/botintegration/b1_queue_recovery_test.go`），`go test ./tests/botintegration/ -run 'TestB1QueueRecovery|TestB1QueueVerifier' -count=1` PASS ×5；方案 §7.1 R-12 / §8.2 发布步骤 4 / §11.4 U-4 已同步关闭。进程级 kill-restart 演练仍归 M2-05 类 CI/E2E（B1-06 证据 §4/§6 已登记） |
 
