@@ -40,6 +40,7 @@ import type { TicketAnalyticsResponse } from '@/lib/services/analytics-service';
 import { ticketAnalyticsService } from '@/lib/services/analytics-service';
 import { ticketService, TicketStatsResponse } from '@/lib/services/ticket-service';
 import { TicketDeepAnalytics } from '@/components/business/TicketDeepAnalytics';
+import type { HttpClientError } from '@/lib/api/http-client';
 
 const { Title, Text } = Typography;
 const { RangePicker } = DatePicker;
@@ -110,7 +111,11 @@ const TicketAnalytics: React.FC = () => {
       setAnalyticsData(adaptedData);
     } catch (error) {
       console.error('Failed to fetch analytics data:', error);
-      message.error('获取分析数据失败');
+      // 403 是权限问题而非数据问题（http-client 在 HTTP 层错误上挂 httpStatus，
+      // 见 lib/api/http-client.ts HttpClientError）：提示分层，避免把 RBAC 拒绝
+      // 误导成"数据加载失败"。
+      const httpStatus = (error as HttpClientError | undefined)?.httpStatus;
+      message.error(httpStatus === 403 ? '没有权限查看工单统计' : '获取分析数据失败');
       setAnalyticsData(getInitialData());
     } finally {
       setLoading(false);

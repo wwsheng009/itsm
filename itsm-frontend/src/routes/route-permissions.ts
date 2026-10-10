@@ -12,6 +12,8 @@
  * - 新增写入口路由（路径含 new/create/edit）必须在 ROUTE_PERMISSIONS 登记，否则
  *   `__tests__/route-permissions.test.tsx` 的守卫测试会失败（对标后端
  *   router/route_permission_guard_test.go）。
+ * - 2026-10-10 起：有专属数据面权限码的只读页面（如 /tickets/analytics）也应登记，
+ *   避免「菜单可见 → 进入页面后才发现 403」的权限码漂移在页面内才暴露。
  */
 import { matchPath } from 'react-router';
 
@@ -63,6 +65,10 @@ export const ROUTE_PERMISSIONS: RoutePermissionRule[] = [
   // SLA 定义写面（剩余缺口治理 B2）：新建/编辑页面路由。
   { pattern: '/sla/definitions/new', anyOf: ['sla:write'], reason: 'router/sla_routes.go:20 POST /sla/definitions' },
   { pattern: '/sla/definitions/:id/edit', anyOf: ['sla:write'], reason: 'router/sla_routes.go:32 PUT /sla/definitions/:id' },
+  // 读页面门禁（2026-10-10）：工单统计三层同码——菜单 permission_code=ticket:read
+  // （pkg/seeder/seeder.go 工单统计）、页面主接口 GET /api/v1/analytics/tickets=ticket:read
+  // （2026-10-10 由 report:read 收敛）、同页 GET /api/v1/tickets/stats=ticket:read。
+  { pattern: '/tickets/analytics', anyOf: ['ticket:read'], reason: 'router/ticket_routes.go GET /analytics/tickets' },
 ];
 
 export type RoutePermissionDecision = 'allow' | 'deny' | 'none';
