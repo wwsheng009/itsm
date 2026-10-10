@@ -9,7 +9,7 @@
 | # | 类别 | 缺口 | 影响 | 批次 | 状态 |
 |---|---|---|---|---|---|
 | G1 | 死代码 | 30 个未接线组件/测试/桶文件（含 templates、batch-operations UI、14 个 business 组件等） | 维护噪音、误引用风险 | **B1** | ✅ 已清理（2026-10-10） |
-| G2 | 验证 | 批次 13–15 门禁项缺浏览器双账号实测（§7 清单第 1/2/5 项） | 证据链缺口 | **B7** | ⏳ 待浏览器环境 |
+| G2 | 验证 | 批次 13–15 门禁项缺浏览器双账号实测（§7 清单第 1/2/5 项） | 证据链缺口 | **B7** | ✅ 已落地（2026-10-10；脚本化 Playwright 双账号实测，证据见 docs/plan/evidence/） |
 | G3 | 产品-前端 | SLA 新建/编辑页面缺失（路由不存在；详情编辑按钮已禁用） | 无法创建/编辑 SLA 定义 | **B2** | ✅ 已落地（2026-10-10） |
 | G4 | 产品-全栈 | `/profile` 自助面：改密应走 `POST /auth/change-password`（需旧密码字段）；资料自更新缺 `PUT /users/me` | 非 `user:write` 用户无法自助 | **B3** | ✅ 已落地（2026-10-10） |
 | G5 | 产品-后端 | `POST/DELETE /tickets/:id/relations` 未注册（仅 GET 桩） | RelationPanel 写动作 404 | **B4** | ✅ 已落地（2026-10-10；契约勘误：前端实为 `/tickets/relations` 工单对契约） |
@@ -92,6 +92,8 @@
 **范围**：批次 13–15 新增门禁项（工作流版本、知识审核/协作、通知中心、AI 审批、AIChat、问题关联、审批面板、profile、Header 通知抽屉）逐项双账号（admin + 低权/无码）实测；留痕截图/断言。
 **验收**：无码入口不可见/禁用；直达 URL 落 403（路由级）；管理员功能回归。
 
+**执行（2026-10-10，✅ 已达成）**：本会话无浏览器 MCP 工具，改用本地 Playwright（`playwright-core` + ms-playwright Chromium）脚本化实测——正例 `admin_demo_customer`（租户 11）vs 反例探针 `b7_probe_tech`（technician，用后即删），隔离上下文逐项采集 URL/主内容/按钮集 + 截图；覆盖 B6 admin 区（sla-definitions/bots → 反例 403）、工作流版本、知识审核（反例直达 `/403`）、通知中心+偏好、AI 审批、AIChat、问题关联、工单审批面板、profile（B3 自助面正反例均可用）、Header 通知抽屉，共 11 项。证据与 3 条观察项见 `docs/plan/evidence/b7-dual-account-2026-10-10.md`；探针问题/用户已清理复核。
+
 ## B8：测试基建 Windows 兼容（P1，✅ 已执行）
 
 **背景**：`go test ./handlers/sla` 在 Windows 上 24+ 用例全部因 `TempDir RemoveAll cleanup: unlinkat ... file is being used by another process` 失败（断言本身全过）。根因：`enttest.Open` 不注册清理，sqlite 句柄在 `t.TempDir` 删除时仍打开。
@@ -111,4 +113,4 @@
 | 2026-10-10 | B4 | ✅ 工单关联写面：后端 `service/ticket_relation_write.go`（Add/Remove，租户收口 + 幂等 + 类型白名单）+ `POST/DELETE /tickets/relations`（`ticket:update`）+ 新 service 用例；前端 `deleteRelation` 工单对契约 + hook/RelationPanel 同步（模态仅「相关」）。验证：`go test ./service ./router` 全绿；tsc/eslint 0；jest 67/67 |
 | 2026-10-10 | B5 | ✅ 前提证伪关闭：活跃 UI（TicketBatchOperations）逐条调用单票端点，batch 路径仅存在于无 UI 引用的 `batch-operations-api.ts`（roadmap 禁用契约）；不实现端点、不下线入口，维持登记 |
 | 2026-10-10 | B6 | ✅ admin 区守卫细化：单源 `routes/area-permissions.ts`（并集 20 码）+ 24 页级 `RequireCapability` + Sidebar `isAdmin` 同源；专职管理员（仅 sla:write/approval:write 等）可入对应页面。验证：tsc/eslint 0；jest routes 22/22 + sidebar 1/1 |
-| — | B7 | ⏳ 浏览器双账号实测（本会话无浏览器工具；拟脚本化 Playwright 留痕） |
+| 2026-10-10 | B7 | ✅ 脚本化浏览器双账号实测（Playwright；正例 admin_demo_customer vs 反例探针 b7_probe_tech）：B6 admin 区/工作流版本/知识审核/通知中心/AI 审批/AIChat/问题关联/审批面板/profile/Header 抽屉共 11 项；反例直达知识审核落 403、治理写入口全部不可见；证据 docs/plan/evidence/b7-dual-account-2026-10-10.md，探针数据已清理 |
