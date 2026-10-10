@@ -16,6 +16,7 @@ import { MenuItems } from './MenuItems';
 import { useUserMenusQuery } from '@/lib/hooks/useUserMenusQuery';
 import { useCapabilities } from '@/lib/hooks/useCapabilities';
 import type { MenuItem as MenuItemType } from '@/lib/api/menu-api';
+import { ADMIN_AREA_PERMISSIONS, TENANT_ADMIN_PERMISSIONS } from '@/routes/area-permissions';
 
 const { Sider } = Layout;
 
@@ -219,11 +220,11 @@ export const Sidebar: React.FC<SidebarProps> = ({ collapsed, onCollapse, mobile 
   const adminMenus = deduplicateMenus(filterByCapability(rawAdminMenus));
 
   const { hasPermission } = useAuthStore.getState();
-  const isAdmin =
-    hasPermission('user:write') ||
-    hasPermission('role:write') ||
-    hasPermission('system_config:write') ||
-    hasPermission('ticket_type:manage');
+  // 与 routes/area-permissions 单源同步（B6）：任一细码可见管理区（含专职管理员）；
+  // 租户管理专职角色（system:write / tenant:*）一并放行（admin/tenants 独立守卫）。
+  const isAdmin = [...ADMIN_AREA_PERMISSIONS, ...TENANT_ADMIN_PERMISSIONS].some(code =>
+    hasPermission(code)
+  );
 
   return (
     <Sider

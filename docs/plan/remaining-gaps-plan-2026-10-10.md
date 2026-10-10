@@ -13,8 +13,8 @@
 | G3 | 产品-前端 | SLA 新建/编辑页面缺失（路由不存在；详情编辑按钮已禁用） | 无法创建/编辑 SLA 定义 | **B2** | ✅ 已落地（2026-10-10） |
 | G4 | 产品-全栈 | `/profile` 自助面：改密应走 `POST /auth/change-password`（需旧密码字段）；资料自更新缺 `PUT /users/me` | 非 `user:write` 用户无法自助 | **B3** | ✅ 已落地（2026-10-10） |
 | G5 | 产品-后端 | `POST/DELETE /tickets/:id/relations` 未注册（仅 GET 桩） | RelationPanel 写动作 404 | **B4** | ✅ 已落地（2026-10-10；契约勘误：前端实为 `/tickets/relations` 工单对契约） |
-| G6 | 产品-后端 | `/tickets/batch-assign`、`batch/assign*`、`batch-notify` 未注册（TicketList 批量工具栏入口存活，受权限过滤） | 批量分配/通知 404 | **B5** | ⏳ 待决策（补端点 or 下线入口） |
-| G7 | 门禁粒度 | `/admin/*`、`/msp/*` 区域守卫粗粒度（`ADMIN_AREA_PERMISSIONS` 4 码） | 跨权限管理员可见不可用入口 | **B6** | ⏳ 待执行（Sweep §4 表） |
+| G6 | 产品-后端 | `/tickets/batch-assign`、`batch/assign*`、`batch-notify` 未注册（TicketList 批量工具栏入口存活，受权限过滤） | 批量分配/通知 404 | **B5** | ✅ 已核实关闭（2026-10-10；前提证伪：无活跃 404 面） |
+| G7 | 门禁粒度 | `/admin/*`、`/msp/*` 区域守卫粗粒度（`ADMIN_AREA_PERMISSIONS` 4 码） | 跨权限管理员可见不可用入口 | **B6** | ✅ 已落地（2026-10-10） |
 | G8 | 能力面 | `rootCauseWorkflowActions`、`priorityMatrix`、`advancedReporting`、`genericTemplateMarketplace` 关闭 | 对应 UI/API 为 roadmap-only（已登记） | — | 保持登记 |
 | G9 | 测试基建 | `handlers/sla` 等 sqlite 用例在 Windows 下 `t.TempDir` 清理锁失败（`enttest.Open` 不注册 Close，文件句柄阻塞 RemoveAll） | 本地验证噪音（断言实际全过） | **B8** | ✅ 已修复（2026-10-10） |
 
@@ -67,17 +67,25 @@
 
 **背景**：TicketList 批量工具栏入口存活且按权限过滤（分配 `ticket:assign`、通知 `workflow:write`），但 `/tickets/batch-assign`、`batch/assign*`、`batch-notify` 未注册。
 
-**方案（二选一）**：
-- A：后端实现 batch-assign/batch-notify（推荐：复用现有单条分配/通知 service，事务批处理 + 部分失败报告）；
-- B：前端下线批量分配/通知入口（保留批量删除/导出/状态/优先级/标签）。
+**核实（2026-10-10，✅ 前提证伪——两项方案均无需执行）**：
+- `components/ticket/TicketBatchOperations.tsx`（TicketList 在用）逐条调用单票端点（`assignTicket`/`updateTicket`/`addTicketTags`/`deleteTicket`/`exportTickets`，全部已注册）——无 batch 404 面；
+- `/tickets/batch-assign`、`batch/assign*`、`batch-notify` 仅存在于 `lib/api/batch-operations-api.ts`——该文件无任何 UI 引用（仅 barrel `lib/api/index.ts` + 自身测试），已列 `DISABLED_API_CONTRACTS`（capability `advancedBatchOperations` = roadmap-only）；
+- MSP 工作台「批量指派」走 `/msp/workbench` 专用端点（已注册），与工单域 batch 无关。
 
-**验收**：选定方案后端到端；`ticket-api.batchUpdateTickets` 残留已随 B1 删除。
+**结论**：不实现 roadmap 批量编排端点、也不下线任何活跃入口；维持禁用契约登记。未来启用 `advancedBatchOperations` 时，按该契约一次性补齐端点并同步审计清单转正。
 
 ## B6：admin/msp 区域守卫细化（P3）
 
 **范围**：按 Sweep §4 表逐页细化（bots/mcp-servers/sla-definitions/cab 等 → `ai:write`/`mcp:admin`/`sla:write`/`change:approve`）；区域守卫从 4 码改为「任一细码可入 + 页内门禁」；`ADMIN_AREA_PERMISSIONS`/`MSP_AREA_PERMISSIONS` 与 Sidebar 可见性口径同步。
 
 **验收**：专职管理员（仅 `approval:write`/`sla:write`）可入对应页面且只见自己可用的写入口；`route-permissions` 测试扩展。
+
+**执行（2026-10-10）**：
+- 新增单源 `routes/area-permissions.ts`：`ADMIN_AREA_PERMISSIONS` 并集 20 码（码表实测 backend `RequirePermission` 词表：user/group/department/team:write、role:write、permission:read、system_config:write、connector:write、ticket_type:manage、ticket_category:update、workflow:write、bpmn:write、approval:write、sla:write、cmdb:write、ai:write、mcp:admin、change:approve、service_catalog:write）；`TENANT_ADMIN_PERMISSIONS`/`MSP_AREA_PERMISSIONS` 同源导出；
+- `routes/index.tsx`：区域守卫改用并集 + 24 个 admin 页面级 `RequireCapability` 细化（bots=`ai:write`；mcp-servers/tools=`mcp:admin`；sla-*/escalation-*=`sla:write`；cab=`change:approve`；approvals/approval-chains=`approval:write|workflow:write`；users/groups/departments/teams/roles=`*:write`；permissions=`permission:read`；menus/vector-store/assignment-rules/automation-rules=`system_config:write`；connectors=`connector:write`；cmdb-types/config-inheritance=`cmdb:write|system_config:write`；service-catalogs=`service_catalog:write`；ticket-categories=`ticket_category:update|ticket_type:manage`；workflows=`workflow:write|bpmn:write`）；department-processes/process-routing 无实测码，维持区域并集兜底；
+- `Sidebar.tsx`：`isAdmin` 改并集判定（admin 并集 + tenant 管理码），消除硬编码 4 码双源。
+
+**验收（已达成）**：guards.test 新增 4 用例（并集含细码/不含读码；仅 `sla:write` 可入区域并达 SLA 页；同用户被 bots 页级门禁拒绝；无码用户拒绝）；tsc/eslint 0；jest routes 22/22 + sidebar 1/1。
 
 ## B7：浏览器双账号实测（P1，需浏览器环境）
 
@@ -101,4 +109,6 @@
 | 2026-10-10 | B8 | ✅ Windows 测试基建修复：`setupSLAHandler` 显式 `t.Cleanup(Close)`；`go test ./handlers/sla` 全绿（3.2s，此前 24+ 用例因文件锁清理失败） |
 | 2026-10-10 | B3 | ✅ `/profile` 自助面闭环：后端 `PUT /users/me`（`handlers/common/user_profile.go`，name/email/phone 白名单 + 邮箱唯一性 + 跨租户 fail-closed；路由挂 `AuthMiddleware` 并登记守卫豁免）+ 前端切换 `updateMyProfile` / `AuthService.changePassword`（旧密码字段已存在）；三处 `user:write` 禁用移除，部门改只读。验证：`go test ./handlers/common ./router` 全绿；前端 tsc/eslint 0；jest user-api/api-contract/auth-service 51/51（契约 0 失配） |
 | 2026-10-10 | B4 | ✅ 工单关联写面：后端 `service/ticket_relation_write.go`（Add/Remove，租户收口 + 幂等 + 类型白名单）+ `POST/DELETE /tickets/relations`（`ticket:update`）+ 新 service 用例；前端 `deleteRelation` 工单对契约 + hook/RelationPanel 同步（模态仅「相关」）。验证：`go test ./service ./router` 全绿；tsc/eslint 0；jest 67/67 |
-| — | B5–B7 | ⏳ 待执行 |
+| 2026-10-10 | B5 | ✅ 前提证伪关闭：活跃 UI（TicketBatchOperations）逐条调用单票端点，batch 路径仅存在于无 UI 引用的 `batch-operations-api.ts`（roadmap 禁用契约）；不实现端点、不下线入口，维持登记 |
+| 2026-10-10 | B6 | ✅ admin 区守卫细化：单源 `routes/area-permissions.ts`（并集 20 码）+ 24 页级 `RequireCapability` + Sidebar `isAdmin` 同源；专职管理员（仅 sla:write/approval:write 等）可入对应页面。验证：tsc/eslint 0；jest routes 22/22 + sidebar 1/1 |
+| — | B7 | ⏳ 浏览器双账号实测（本会话无浏览器工具；拟脚本化 Playwright 留痕） |

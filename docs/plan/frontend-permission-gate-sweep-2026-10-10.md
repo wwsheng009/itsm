@@ -140,7 +140,7 @@
 
 > 特征：不在路由级覆盖范围（无 `new/create/edit` 路径段），入口级是唯一防线；多为不可逆动作。
 
-> 进度（2026-10-10）：批次 2 落地事件动作栏/变更生命周期/问题 KEDB/状态流转/PIR/工单看板；**批次 3** 落地发布域动作（approve/reject=`release:approve`；rollback=`release:rollback`；status=`release:write`）、工单详情动作栏（批准/拒绝=`approval:write`、分配=`ticket:assign`、编辑=`ticket:update`、抄送=`workflow:write`、删除=`ticket:delete`；AI 建议采纳随 `ticket:update`）、服务请求审批（状态 + `service_request:approve` 双条件）与新建入口、问题调查 Tab（`problem:write`）✅；**批次 4** 落地工单列表行内编辑/关闭（`ticket:update`）、批量操作按实际后端码逐项过滤（删除=`ticket:delete`、导出=`ticket:export`、分配=`ticket:assign`、状态/优先级/标签=`ticket:update`、通知=`workflow:write`；勘误：`ticket:batch_*` 词表实际不存在）、已知错误（`problem:write`/`problem:delete`）、标准变更模板（`change:write`/`change:delete`）、改进新建（`ticket:create`）✅；剩余：服务请求状态流转、发布余项、批量操作端点缺失（`batch-assign`/`batch-notify` 后端未实现，前端入口保留但受权限过滤）等。
+> 进度（2026-10-10）：批次 2 落地事件动作栏/变更生命周期/问题 KEDB/状态流转/PIR/工单看板；**批次 3** 落地发布域动作（approve/reject=`release:approve`；rollback=`release:rollback`；status=`release:write`）、工单详情动作栏（批准/拒绝=`approval:write`、分配=`ticket:assign`、编辑=`ticket:update`、抄送=`workflow:write`、删除=`ticket:delete`；AI 建议采纳随 `ticket:update`）、服务请求审批（状态 + `service_request:approve` 双条件）与新建入口、问题调查 Tab（`problem:write`）✅；**批次 4** 落地工单列表行内编辑/关闭（`ticket:update`）、批量操作按实际后端码逐项过滤（删除=`ticket:delete`、导出=`ticket:export`、分配=`ticket:assign`、状态/优先级/标签=`ticket:update`、通知=`workflow:write`；勘误：`ticket:batch_*` 词表实际不存在）、已知错误（`problem:write`/`problem:delete`）、标准变更模板（`change:write`/`change:delete`）、改进新建（`ticket:create`）✅；剩余：服务请求状态流转、发布余项、批量操作端点缺失（`batch-assign`/`batch-notify` 后端未实现，前端入口保留但受权限过滤；**2026-10-10 B5 核实：活跃 UI 无 batch 端点调用，该项关闭**）等。
 
 > 进度（2026-10-10，批次 12）：§3 附件/评论面板按域内码收口 ✅——`AttachmentPanel` 新增 `canUpload`/`canDelete`、`CommentPanel` 新增 `canCreate`/`canEdit`/`canDelete`（缺省 true 保持兼容）；工单详情按 `ticket:create/update/delete`、事件详情按 `incident:write` 传入。§3 全部完成。
 
@@ -167,7 +167,7 @@
 ## 4. P2：admin 区（区域守卫已覆盖，按需细化）
 
 - 现状：`routes/index.tsx` 中 `/admin/*`、租户管理、`/msp/*` 已由 `RequireCapability`（`ADMIN_AREA_PERMISSIONS`）整区拦截，**fail-closed 已达成**；页面内按钮未按更细权限码收敛。
-- 区域守卫码（`routes/index.tsx:29-32`）：`ADMIN_AREA_PERMISSIONS=['user:write','role:write','system_config:write','ticket_type:manage']`；`TENANT_ADMIN_PERMISSIONS=['system:write','tenant:read','tenant:write']`；`MSP_AREA_PERMISSIONS=['msp:read','msp_ticket:read','msp_customer:read','msp_allocation:read','msp_report:read']`。**粗粒度偏差**：仅有 `approval:write`/`sla:write` 的专职管理员会被 admin 区整体拦下（与后端细粒度不一致），登记为下轮优化。
+- 区域守卫码（`routes/index.tsx:29-32`）：`ADMIN_AREA_PERMISSIONS=['user:write','role:write','system_config:write','ticket_type:manage']`；`TENANT_ADMIN_PERMISSIONS=['system:write','tenant:read','tenant:write']`；`MSP_AREA_PERMISSIONS=['msp:read','msp_ticket:read','msp_customer:read','msp_allocation:read','msp_report:read']`。**粗粒度偏差**：仅有 `approval:write`/`sla:write` 的专职管理员会被 admin 区整体拦下（与后端细粒度不一致），登记为下轮优化（**2026-10-10 B6 已落地**：并集 20 码 + 页级细化，见文末进度）。
 - 建议：本轮不逐页改造；下轮按下表细化（页面 → 建议码）：
 
 | 页面 | 建议权限码 |
@@ -184,6 +184,8 @@
 | `admin/cab`、`admin/process-routing`、`admin/escalation-matrices` | `change:approve` / `workflow:write` / `escalation:write` |
 
 > 标注「待核」的码在改造前需用 `rg 'RequirePermission\("' itsm-backend/router itsm-backend/handlers` 对照端点确认。
+
+> 进度（2026-10-10，剩余缺口治理 B6）：admin 区守卫从 4 码改为并集 20 码（单源 `routes/area-permissions.ts`，码表实测 backend `RequirePermission` 词表）+ 24 个页面级 `RequireCapability` 细化 + `Sidebar.isAdmin` 同源；专职管理员（仅 `sla:write`/`approval:write` 等）可入对应页面，不匹配页面落 403。验证：tsc/eslint 0；jest routes 22/22 + sidebar 1/1。
 
 ## 5. 路由级（L1）补漏
 
@@ -336,6 +338,6 @@ rg -n 'RequirePermission\("' itsm-backend/router itsm-backend/handlers
   5. `components/layout/header/Header.tsx` + `NotificationDrawer.tsx`（标记已读/全部已读/点击自动已读）→ `notification:write`（`:247-248`）；新增 `canMarkRead` 开关。
 - **产品缺口（已闭环，B3/2026-10-10）**：`/profile` 自助面已补——后端新增 `PUT /users/me`（`handlers/common/user_profile.go`，name/email/phone 白名单 + 邮箱唯一性 + 跨租户 fail-closed）；改密改走 `POST /auth/change-password`（模态旧密码字段已存在）；三处 `user:write` 禁用移除，部门字段改只读（治理字段由管理员维护）。
 - **死组件补充清单（清理候选）**：`TicketRatingSection`、`TicketNotificationSection`、`TicketMultiLevelApproval`、`TicketTrendPrediction`、`TicketRootCauseAnalysis`、`AutomationRuleForm`、`TicketAttachmentSection`、`SLAViolationMonitor`、`batch-operations/*`（`BatchOperationBar/Modal/ProgressModal` + `useBatchOperations`）、`ticket-api.batchUpdateTickets`。
-- **已登记缺口复核（状态更新，2026-10-10）**：①`tickets/relations` 写端点未注册（仅 GET，`ticket_routes.go:83/102/143/146`）；②`/tickets/batch-assign`、`batch/assign*`、`batch-notify` 未注册（仅 `/export`、`/batch-delete`，`:32-33`）；③SLA 新建/编辑页面缺失 ✅ 已补（B2）；④admin/msp 区域守卫粗粒度（`ADMIN_AREA_PERMISSIONS` 4 码）延期；⑤`TicketViewSelector` 保存模态未接线 ✅ 已清理（B1 删除死 UI）。
+- **已登记缺口复核（状态更新，2026-10-10）**：①`tickets/relations` 写端点未注册（仅 GET，`ticket_routes.go:83/102/143/146`）；②`/tickets/batch-assign`、`batch/assign*`、`batch-notify` 未注册（仅 `/export`、`/batch-delete`，`:32-33`；**B5 核实：无活跃 UI 调用面，roadmap 禁用契约维持**）；③SLA 新建/编辑页面缺失 ✅ 已补（B2）；④admin/msp 区域守卫粗粒度（`ADMIN_AREA_PERMISSIONS` 4 码）延期；⑤`TicketViewSelector` 保存模态未接线 ✅ 已清理（B1 删除死 UI）。
 - **验证缺口（待补）**：批次 13–15 未做浏览器双账号实测（§7 清单第 1/2/5 项）；以 tsc/eslint/jest + 后端守卫测试替代，双账号实测登记待补。
 - 验证：`tsc -b` 0、eslint 0；jest detail-tabs/header/problem/profile 39/39。

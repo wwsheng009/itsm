@@ -15,6 +15,11 @@ import NotFound from '@/pages/not-found';
 import RootProviders from '@/App';
 import { RequireAuth, RequireCapability } from './guards';
 import { LegacyRedirectGate } from './legacy-redirects';
+import {
+  ADMIN_AREA_PERMISSIONS,
+  MSP_AREA_PERMISSIONS,
+  TENANT_ADMIN_PERMISSIONS,
+} from './area-permissions';
 
 
 function lazyElement(Component: LazyExoticComponent<ComponentType>): ReactElement {
@@ -24,12 +29,6 @@ function lazyElement(Component: LazyExoticComponent<ComponentType>): ReactElemen
     </Suspense>
   );
 }
-
-// IP-P0-8 分组守卫权限集（与 Sidebar 管理区可见性口径一致；admin 角色语义由守卫保留）。
-const ADMIN_AREA_PERMISSIONS = ['user:write', 'role:write', 'system_config:write', 'ticket_type:manage'];
-const MSP_AREA_PERMISSIONS = ['msp:read', 'msp_ticket:read', 'msp_customer:read', 'msp_allocation:read', 'msp_report:read'];
-// 租户管理：菜单口径 = system:write；同时放行 tenant:* 专职运营角色（与页面 API 权限码一致）。
-const TENANT_ADMIN_PERMISSIONS = ['system:write', 'tenant:read', 'tenant:write'];
 
 const Forbidden = lazy(() => import('@/pages/403'));
 const Admin = lazy(() => import('@/pages/(main)/admin/index'));
@@ -250,35 +249,35 @@ export const routes: RouteObject[] = [
             element: <RequireCapability anyOf={ADMIN_AREA_PERMISSIONS} />,
             children: [
           { path: 'admin', element: lazyElement(Admin) },
-          { path: 'admin/approval-chains', element: lazyElement(AdminApprovalChains) },
-          { path: 'admin/approvals', element: lazyElement(AdminApprovals) },
-          { path: 'admin/cab', element: lazyElement(AdminCab) },
-          { path: 'admin/cmdb-types', element: lazyElement(AdminCmdbTypes) },
-          { path: 'admin/config-inheritance', element: lazyElement(AdminConfigInheritance) },
-          { path: 'admin/connectors', element: lazyElement(AdminConnectors) },
+          { path: 'admin/approval-chains', element: <RequireCapability anyOf={['approval:write', 'workflow:write']}>{lazyElement(AdminApprovalChains)}</RequireCapability> },
+          { path: 'admin/approvals', element: <RequireCapability anyOf={['approval:write', 'workflow:write']}>{lazyElement(AdminApprovals)}</RequireCapability> },
+          { path: 'admin/cab', element: <RequireCapability anyOf={['change:approve']}>{lazyElement(AdminCab)}</RequireCapability> },
+          { path: 'admin/cmdb-types', element: <RequireCapability anyOf={['cmdb:write']}>{lazyElement(AdminCmdbTypes)}</RequireCapability> },
+          { path: 'admin/config-inheritance', element: <RequireCapability anyOf={['cmdb:write', 'system_config:write']}>{lazyElement(AdminConfigInheritance)}</RequireCapability> },
+          { path: 'admin/connectors', element: <RequireCapability anyOf={['connector:write']}>{lazyElement(AdminConnectors)}</RequireCapability> },
           { path: 'admin/department-processes', element: lazyElement(AdminDepartmentProcesses) },
-          { path: 'admin/departments', element: lazyElement(AdminDepartments) },
-          { path: 'admin/escalation-matrices', element: lazyElement(AdminEscalationMatrices) },
-          { path: 'admin/escalation-rules', element: lazyElement(AdminEscalationRules) },
-          { path: 'admin/groups', element: lazyElement(AdminGroups) },
-          { path: 'admin/bots', element: lazyElement(AdminBots) },
-          { path: 'admin/mcp-servers', element: lazyElement(AdminMcpServers) },
-          { path: 'admin/tools', element: lazyElement(AdminTools) },
-          { path: 'admin/menus', element: lazyElement(AdminMenus) },
-          { path: 'admin/permissions', element: lazyElement(AdminPermissions) },
+          { path: 'admin/departments', element: <RequireCapability anyOf={['department:write']}>{lazyElement(AdminDepartments)}</RequireCapability> },
+          { path: 'admin/escalation-matrices', element: <RequireCapability anyOf={['sla:write']}>{lazyElement(AdminEscalationMatrices)}</RequireCapability> },
+          { path: 'admin/escalation-rules', element: <RequireCapability anyOf={['sla:write']}>{lazyElement(AdminEscalationRules)}</RequireCapability> },
+          { path: 'admin/groups', element: <RequireCapability anyOf={['group:write']}>{lazyElement(AdminGroups)}</RequireCapability> },
+          { path: 'admin/bots', element: <RequireCapability anyOf={['ai:write']}>{lazyElement(AdminBots)}</RequireCapability> },
+          { path: 'admin/mcp-servers', element: <RequireCapability anyOf={['mcp:admin']}>{lazyElement(AdminMcpServers)}</RequireCapability> },
+          { path: 'admin/tools', element: <RequireCapability anyOf={['mcp:admin']}>{lazyElement(AdminTools)}</RequireCapability> },
+          { path: 'admin/menus', element: <RequireCapability anyOf={['system_config:write']}>{lazyElement(AdminMenus)}</RequireCapability> },
+          { path: 'admin/permissions', element: <RequireCapability anyOf={['permission:read']}>{lazyElement(AdminPermissions)}</RequireCapability> },
           { path: 'admin/process-routing', element: lazyElement(AdminProcessRouting) },
-          { path: 'admin/roles', element: lazyElement(AdminRoles) },
-          { path: 'admin/service-catalogs', element: lazyElement(AdminServiceCatalogs) },
-          { path: 'admin/sla-definitions', element: lazyElement(AdminSlaDefinitions) },
-          { path: 'admin/sla-templates', element: lazyElement(AdminSlaTemplates) },
-          { path: 'admin/system-config', element: lazyElement(AdminSystemConfig) },
-          { path: 'admin/teams', element: lazyElement(AdminTeams) },
-          { path: 'admin/ticket-categories', element: lazyElement(AdminTicketCategories) },
-          { path: 'admin/tickets/assignment-rules', element: lazyElement(AdminTicketsAssignmentRules) },
-          { path: 'admin/tickets/automation-rules', element: lazyElement(AdminTicketsAutomationRules) },
-          { path: 'admin/users', element: lazyElement(AdminUsers) },
-          { path: 'admin/vector-store', element: lazyElement(AdminVectorStore) },
-          { path: 'admin/workflows', element: lazyElement(AdminWorkflows) },
+          { path: 'admin/roles', element: <RequireCapability anyOf={['role:write']}>{lazyElement(AdminRoles)}</RequireCapability> },
+          { path: 'admin/service-catalogs', element: <RequireCapability anyOf={['service_catalog:write']}>{lazyElement(AdminServiceCatalogs)}</RequireCapability> },
+          { path: 'admin/sla-definitions', element: <RequireCapability anyOf={['sla:write']}>{lazyElement(AdminSlaDefinitions)}</RequireCapability> },
+          { path: 'admin/sla-templates', element: <RequireCapability anyOf={['sla:write']}>{lazyElement(AdminSlaTemplates)}</RequireCapability> },
+          { path: 'admin/system-config', element: <RequireCapability anyOf={['system_config:write']}>{lazyElement(AdminSystemConfig)}</RequireCapability> },
+          { path: 'admin/teams', element: <RequireCapability anyOf={['team:write']}>{lazyElement(AdminTeams)}</RequireCapability> },
+          { path: 'admin/ticket-categories', element: <RequireCapability anyOf={['ticket_category:update', 'ticket_type:manage']}>{lazyElement(AdminTicketCategories)}</RequireCapability> },
+          { path: 'admin/tickets/assignment-rules', element: <RequireCapability anyOf={['system_config:write']}>{lazyElement(AdminTicketsAssignmentRules)}</RequireCapability> },
+          { path: 'admin/tickets/automation-rules', element: <RequireCapability anyOf={['system_config:write']}>{lazyElement(AdminTicketsAutomationRules)}</RequireCapability> },
+          { path: 'admin/users', element: <RequireCapability anyOf={['user:write']}>{lazyElement(AdminUsers)}</RequireCapability> },
+          { path: 'admin/vector-store', element: <RequireCapability anyOf={['system_config:write']}>{lazyElement(AdminVectorStore)}</RequireCapability> },
+          { path: 'admin/workflows', element: <RequireCapability anyOf={['workflow:write', 'bpmn:write']}>{lazyElement(AdminWorkflows)}</RequireCapability> },
             ],
           },
           {
