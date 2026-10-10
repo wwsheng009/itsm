@@ -172,18 +172,18 @@
 
 | 页面 | 建议权限码 |
 |---|---|
-| `admin/users`、`admin/groups`、`admin/departments`、`admin/teams` | `user:write` / `group:write`（待核）/ `department:write`（待核）/ `team:write` |
+| `admin/users`、`admin/groups`、`admin/departments`、`admin/teams` | `user:write` / `group:write`（已核：`common_system_routes.go:84-91`）/ `department:create/update/delete`（已核：§8.1 #1）/ `team:write` |
 | `admin/roles`、`admin/permissions`、`admin/menus` | `role:write` / `permission:write` / `menu:write` |
 | `admin/tenants` | `tenant:write`（平台角色限定） |
 | `admin/workflows`、`admin/approval-chains`、`admin/approvals` | `workflow:write` / `approval:write` |
 | `admin/sla-definitions`、`admin/sla-templates`、`admin/escalation-rules`、`admin/escalation-matrices` | `sla:write`（escalation_matrix handler + seeder 菜单码；**无 `escalation:*` 词表**） |
 | `admin/cmdb-types`、`admin/config-inheritance` | `cmdb:write` / `system_config:write` |
-| `admin/ticket-categories`、`admin/tickets/*-rules` | `ticket_type:manage`（待核）/ `ticket:admin` |
+| `admin/ticket-categories`、`admin/tickets/*-rules` | `ticket_category:create/update/delete`（已核：`ticket_category_routes.go:15-23`）/ `system_config:write`（已核：`ticket_routes.go:285-301`） |
 | `admin/system-config`、`admin/connectors`、`admin/vector-store` | `system_config:write` / `connector:write` / `system_config:write` |
 | `admin/bots`、`admin/mcp-servers`、`admin/tools` | `ai:write` / `mcp:admin` / `mcp:admin` |
 | `admin/cab`、`admin/process-routing`、`admin/escalation-matrices` | `change:approve` / `workflow:write` / `escalation:write` |
 
-> 标注「待核」的码在改造前需用 `rg 'RequirePermission\("' itsm-backend/router itsm-backend/handlers` 对照端点确认。
+> 标注「待核」的码在改造前需用 `rg 'RequirePermission\("' itsm-backend/router itsm-backend/handlers` 对照端点确认。**（2026-10-10 收口：本表「待核」码已全部按端点核实并更新为核实值——`group:write`（`common_system_routes.go:84-91`）、`department:create/update/delete`（§8.1 #1）、`ticket_category:create/update/delete`（`ticket_category_routes.go:15-23`）、rules=`system_config:write`（`ticket_routes.go:285-301`）；页级细化已由 B6 落地，见下方进度。）**
 
 > 进度（2026-10-10，剩余缺口治理 B6）：admin 区守卫从 4 码改为并集 20 码（单源 `routes/area-permissions.ts`，码表实测 backend `RequirePermission` 词表）+ 24 个页面级 `RequireCapability` 细化 + `Sidebar.isAdmin` 同源；专职管理员（仅 `sla:write`/`approval:write` 等）可入对应页面，不匹配页面落 403。验证：tsc/eslint 0；jest routes 22/22 + sidebar 1/1。
 
@@ -262,7 +262,7 @@ rg -n 'RequirePermission\("' itsm-backend/router itsm-backend/handlers
 | 2 | `pages/(main)/installations/index.tsx:161 / 346 / 244` | 卸载 / 安装应用 | 市场安装管理面 | `marketplace:write` |
 | 3 | `pages/(main)/changes/pirs/index.tsx:65-179`、`pages/(main)/changes/$id/pir/index.tsx:114-343` | PIR 创建 / 更新 / 删除 | 实施后审查写面 | `change:write` / `change:delete` |
 | 4 | `pages/(main)/workflow/instances/index.tsx:255-324` | 暂停 / 恢复 / 终止实例 | 流程实例状态操作 | `bpmn:write` |
-| 5 | `pages/(main)/workflow/versions/index.tsx:148-210 / 277` | 回滚 / 激活 / 创建版本 | 流程版本写面 | `bpmn:write`（`handlers/bpmn/workflow.go:111-113`）；**删除版本**后端未见 DELETE 端点（疑死功能，待核）；导出为 `bpmn:read` |
+| 5 | `pages/(main)/workflow/versions/index.tsx:148-210 / 277` | 回滚 / 激活 / 创建版本 | 流程版本写面 | `bpmn:write`（`handlers/bpmn/workflow.go:111-113`）；**删除版本**（✅ 已核，批次 13：实走 `DELETE /bpmn/process-definitions/:key?version=`，`bpmn:delete`，`workflow.go:73`）；导出为 `bpmn:read` |
 | 6 | `components/ai/tool-approval-card.tsx`、`components/ai/AIChat.tsx:452` | 工具调用批准 / 拒绝（会话内） | AI 治理动作（与 `/ai/approval` 页同码） | `ai:write` |
 | 7 | `components/business/TicketDependencyManager.tsx:140-192 / 510`、`components/ticket-relations/RelationPanel.tsx:93` | 依赖/关联关系增删 | **后端无写端点**（仅 GET 桩：`router/ticket_routes.go:83-149,288`；前端 `ticket-relations-api.ts` 的 POST/PUT/DELETE 会 404）→ 死功能，登记清理；未来补端点按 `ticket:write` |
 | 8 | `components/business/TicketSubtasks.tsx:110-148 / 420` | 子任务创建 / 更新 / 删除 | 工单子任务写面 | `ticket:create` / `ticket:update` / `ticket:delete`（`router/ticket_routes.go:76-79`） |
@@ -274,7 +274,7 @@ rg -n 'RequirePermission\("' itsm-backend/router itsm-backend/handlers
 | 14 | `pages/(main)/installations/index.tsx:406 / 411` | 保存配置 / 飞书授权 | 安装配置写面 / OAuth 链接 | `marketplace:write` / `connector:write` |
 | 15 | `pages/(main)/my-requests/$requestId/index.tsx:308-313` | 「执行交付」 | 履约动作 | `service_request:write`（`service_request_routes.go:53`） |
 | 16 | `pages/(main)/knowledge/reviews/index.tsx:331 / 394-426` | 批准发布 / 拒绝发布 | 文章审核（仅路由级兜底，入口未 gate） | `knowledge:write` |
-| 17 | `components/knowledge/KnowledgeCollaboration.tsx:136-157 / 306` | 添加评论 / 保存文档 | 协作写面 | `knowledge:write`（保存端点待核） |
+| 17 | `components/knowledge/KnowledgeCollaboration.tsx:136-157 / 306` | 添加评论 / 保存文档 | 协作写面 | `knowledge:write`（✅ 已核：组件未被任何页面引用（死组件），保存走宿主注入 `onSave`、无自有端点；批次 13 已加防御门禁） |
 | 18 | `components/ai/AIChat.tsx:1166-1169` | 删除此会话 | AI 会话写面 | `ai:write` |
 
 > 进度（2026-10-10，批次 13）：§8.2 十八项全部闭环 ✅——#1 Kanban（批次 2）、#2/#14 installations（批次 13：**勘误** `marketplace:manage`→`marketplace:write`，飞书 OAuth 加 `connector:write`）、#3 PIR（批次 2）、#4 实例（批次 9）、#5 版本（批次 13：激活/回滚 `bpmn:write`、删除 `bpmn:delete`；端点实存于 `handlers/bpmn/workflow.go:111-114`）、#6 AI 审批（批次 5）、#7 RelationPanel（批次 11）、#8 子任务（批次 13：`canCreate/canEdit/canDelete` 防御性，组件当前未被引用）、#9 视图（批次 13：管理下拉 `ticket:write`；保存模态为未接线死 UI）、#10 通知中心（批次 13：已读/删除 `notification:write`）、#11 服务申请（批次 12）、#12 departments（批次 11）、#13 版本恢复（批次 13：`knowledge:write`）、#15 my-requests（批次 8）、#16 审核（批次 13：行内批准/拒绝禁用 + 详情页脚条件渲染 `knowledge:write`）、#17 协作（批次 13：评论/保存 `knowledge:write`）、#18 删除会话（批次 13：`ai:write`）。
@@ -309,7 +309,7 @@ rg -n 'RequirePermission\("' itsm-backend/router itsm-backend/handlers
 - 「`email_intake:*` 权限码不存在」→ **不成立**：`handlers/email_intake/handler.go:29-38` 注册 `RequirePermission("email_intake","read|review|retry|override")`，`middleware/rbac_precheck_gen.go:678-690` 预检表同码；文档原码正确；
 - 「enterprise/departments 无写入口」→ **不成立**：`index.tsx:94-95/169-180` 有编辑/删除/新建 + 表单 Modal；§8.2 #12 保留。
 
-**遗留待核（执行对应域时按端点即时核对）**：workflow/versions 删除端点、KnowledgeCollaboration 保存端点、notifications「清空全部」、admin 区细粒度码（assignment-rules/automation-rules/categories 等）、`ticket:update`（关系）。
+**遗留待核（2026-10-10 注记刷新：5 项已全部按端点核毕闭环）**：①workflow/versions 删除端点——实走 `DELETE /bpmn/process-definitions/:key?version=`（`handlers/bpmn/workflow.go:73`，`bpmn:delete`），前端版本页删除已按 `bpmn:delete` 门禁（批次 13）；②KnowledgeCollaboration 保存端点——组件未被任何页面引用（死组件，`onSave` 由宿主注入、无自有端点），批次 13 已加 `knowledge:write` 防御门禁，列清理候选；③notifications「清空全部」——前端实现为逐条 `DELETE /notifications/:id`（`common_system_routes.go:258`，`notification:write`），入口已按 `canWriteNotifications` 门禁（批次 5）；④admin 区细粒度码（assignment-rules/automation-rules/categories 等）——B6 已落地并集 20 码 + 24 页级门禁（码表实测：assignment/automation rules=`system_config:read/write`、ticket-categories=`ticket_category:*`，见 §4 收口注记）；⑤`ticket:update`（关系）——批次 11 已核（端点未注册，B5 复核：capability `advancedTicketRelations=false`，见 §8.7 复核①）。
 
 ### 8.6 组件级写入口候选（改造对应页面时一并门禁）
 
@@ -339,5 +339,5 @@ rg -n 'RequirePermission\("' itsm-backend/router itsm-backend/handlers
 - **产品缺口（已闭环，B3/2026-10-10）**：`/profile` 自助面已补——后端新增 `PUT /users/me`（`handlers/common/user_profile.go`，name/email/phone 白名单 + 邮箱唯一性 + 跨租户 fail-closed）；改密改走 `POST /auth/change-password`（模态旧密码字段已存在）；三处 `user:write` 禁用移除，部门字段改只读（治理字段由管理员维护）。
 - **死组件补充清单（清理候选）**：`TicketRatingSection`、`TicketNotificationSection`、`TicketMultiLevelApproval`、`TicketTrendPrediction`、`TicketRootCauseAnalysis`、`AutomationRuleForm`、`TicketAttachmentSection`、`SLAViolationMonitor`、`batch-operations/*`（`BatchOperationBar/Modal/ProgressModal` + `useBatchOperations`）、`ticket-api.batchUpdateTickets`。
 - **已登记缺口复核（状态更新，2026-10-10）**：①`tickets/relations` 写端点未注册（仅 GET，`ticket_routes.go:83/102/143/146`）；②`/tickets/batch-assign`、`batch/assign*`、`batch-notify` 未注册（仅 `/export`、`/batch-delete`，`:32-33`；**B5 核实：无活跃 UI 调用面，roadmap 禁用契约维持**）；③SLA 新建/编辑页面缺失 ✅ 已补（B2）；④admin 区区域守卫粗粒度（`ADMIN_AREA_PERMISSIONS` 4 码）✅ 已细化（B6：并集 20 码 + 24 页级门禁）；msp 区维持现并集（无专职细码需求）；⑤`TicketViewSelector` 保存模态未接线 ✅ 已清理（B1 删除死 UI）。
-- **验证缺口（✅ 已补，2026-10-10）**：批次 13–15 + B6 门禁项已做脚本化浏览器双账号实测（正例 `admin_demo_customer` / 反例探针 `b7_probe_tech`(technician)，隔离上下文；Playwright 脚本 + 24 张截图留痕）；证据见 `docs/plan/evidence/b7-dual-account-2026-10-10.md`，原始 JSON/截图在 `.tmp/web-check/b7/`（未跟踪）。观察项：①AI 审批队列无 pending 数据，行级通过/驳回沿用批次 5 证据；②工单 224 正例为申请人身份，「批准/拒绝」按申请人规则隐藏（非权限缺口）；③无 `notification:write` 用户偏好开关可点但无保存入口（体验项，无 API 写入面）。
+- **验证缺口（✅ 已补，2026-10-10）**：批次 13–15 + B6 门禁项已做脚本化浏览器双账号实测（正例 `admin_demo_customer` / 反例探针 `b7_probe_tech`(technician)，隔离上下文；Playwright 脚本 + 24 张截图留痕）；证据见 `docs/plan/evidence/b7-dual-account-2026-10-10.md`，原始 JSON/截图在 `.tmp/web-check/b7/`（未跟踪）。观察项：①AI 审批队列无 pending 数据，行级通过/驳回沿用批次 5 证据；②工单 224 正例为申请人身份，「批准/拒绝」按申请人规则隐藏（非权限缺口）；③无 `notification:write` 用户偏好开关可点但无保存入口（体验项，无 API 写入面）。**（观察③ ✅ 已修，2026-10-10：偏好开关按 `canWriteNotifications` 置 disabled + 只读提示，回归测试 `src/pages/(main)/notifications/__tests__/index.test.tsx`。）**
 - 验证：`tsc -b` 0、eslint 0；jest detail-tabs/header/problem/profile 39/39。
