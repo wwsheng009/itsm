@@ -30,6 +30,7 @@ import {
 } from 'antd';
 import { Plus, Trash2, Link, Network } from 'lucide-react';
 import dayjs from 'dayjs';
+import { useCan } from '@/components/auth/PermissionGate';
 
 import { type CIRelationship, type TopologyEdge } from '@/lib/api/cmdb-relationship';
 import {
@@ -111,8 +112,11 @@ const CIRelationshipManager: React.FC<CIRelationshipManagerProps> = ({
   const topologyQuery = useTopologyGraphQuery(ciId, 5, topologyEnabled);
 
   // React Query mutations
-  const createMutation = useCreateRelationshipMutation();
-  const deleteMutation = useDeleteRelationshipMutation();
+    const createMutation = useCreateRelationshipMutation();
+    const deleteMutation = useDeleteRelationshipMutation();
+    // 入口级门禁：添加关系 → cmdb:write；删除关系 → cmdb:delete。
+    const canWriteRelations = useCan(['cmdb:write']);
+    const canDeleteRelations = useCan(['cmdb:delete']);
 
   const [createModalOpen, setCreateModalOpen] = useState(false);
   const [createType, setCreateType] = useState<'outgoing' | 'incoming'>('outgoing');
@@ -251,22 +255,24 @@ const CIRelationshipManager: React.FC<CIRelationshipManagerProps> = ({
       width: 100,
       render: (_: unknown, record: CIRelationship) => (
         <Space>
-          <Tooltip title='删除'>
-            <Popconfirm
-              title='确认删除'
-              description='确定要删除此关系吗？'
-              onConfirm={() => handleDelete(record.id)}
-            >
-              <Button
-                type='text'
-                danger
-                icon={<Trash2 />}
-                size='small'
-                loading={deleteMutation.isPending && deleteMutation.variables === record.id}
-                aria-label='删除关系'
-              />
-            </Popconfirm>
-          </Tooltip>
+          {canDeleteRelations && (
+            <Tooltip title='删除'>
+              <Popconfirm
+                title='确认删除'
+                description='确定要删除此关系吗？'
+                onConfirm={() => handleDelete(record.id)}
+              >
+                <Button
+                  type='text'
+                  danger
+                  icon={<Trash2 />}
+                  size='small'
+                  loading={deleteMutation.isPending && deleteMutation.variables === record.id}
+                  aria-label='删除关系'
+                />
+              </Popconfirm>
+            </Tooltip>
+          )}
         </Space>
       ),
     },
@@ -325,12 +331,16 @@ const CIRelationshipManager: React.FC<CIRelationshipManagerProps> = ({
         }
         extra={
           <Space>
-            <Button type='primary' icon={<Plus />} onClick={() => handleOpenCreate('outgoing')}>
-              添加出向关系
-            </Button>
-            <Button icon={<Plus />} onClick={() => handleOpenCreate('incoming')}>
-              添加入向关系
-            </Button>
+            {canWriteRelations && (
+              <Button type='primary' icon={<Plus />} onClick={() => handleOpenCreate('outgoing')}>
+                添加出向关系
+              </Button>
+            )}
+            {canWriteRelations && (
+              <Button icon={<Plus />} onClick={() => handleOpenCreate('incoming')}>
+                添加入向关系
+              </Button>
+            )}
           </Space>
         }
       >

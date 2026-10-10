@@ -55,13 +55,15 @@
 | `components/asset/AssetDetail.tsx` | 243 / Modal.confirm | 编辑 / 删除 | `asset:write` / `asset:delete`（待核） | ✅/— | ⬜ |
 | `components/license/LicenseList.tsx` | 329 / 346 / 231 | 新建 / 空态新建 / 编辑 | `license:write` | ✅ | ⬜ |
 | `components/license/LicenseDetail.tsx` | 271 | 编辑 | `license:write` | ✅ | ⬜ |
-| `components/cmdb/CSDMHub.tsx`、`CIList.tsx` | 125 / 314 / 370 / 255 | 新建 CI / 编辑 CI | `cmdb:write` | ✅ | ⬜ |
-| `components/cmdb/CIList.tsx` | Modal.confirm ×2 | 删除 / 批量删除 CI | `cmdb:delete` | — | ⬜ |
-| `components/cmdb/CIRelationshipManager.tsx` | 144+ | 新建/编辑/删除关系 | `cmdb:write` / `cmdb:delete` | — | ⬜ |
-| `pages/(main)/cmdb/reconciliation/index.tsx` | 142 | 从云资源建 CI | `cmdb:write` | ⚠️ §5 | ⬜ |
+| `components/cmdb/CSDMHub.tsx`、`CIList.tsx` | 125 / 314 / 370 / 255 | 新建 CI / 编辑 CI | `cmdb:write` | ✅ | ✅（批次 6） |
+| `components/cmdb/CIList.tsx` | Modal.confirm ×2 | 删除 / 批量删除 CI | `cmdb:delete` | — | ✅（批次 6） |
+| `components/cmdb/CIRelationshipManager.tsx` | 144+ | 新建/删除关系（编辑关系无独立入口） | `cmdb:write` / `cmdb:delete` | — | ✅（批次 6） |
+| `pages/(main)/cmdb/reconciliation/index.tsx` | 142 | 从云资源建 CI / 绑定已有 | `cmdb:write` | ⚠️ §5 | ✅（批次 6） |
 | `pages/(main)/cmdb/cloud-resources/index.tsx` | 261 / 419 | 建 CI / 批量建 CI | `cmdb:write` | ✅/— | ⬜ |
 | `pages/(main)/cmdb/cloud-accounts/index.tsx` | 296 | 新建云账号（删除 → `cmdb:delete`） | `cmdb:write` | — | ⬜ |
 | `pages/(main)/cmdb/cloud-services/index.tsx` | 286 | 新建云服务 | `cmdb:write` | — | ⬜ |
+
+> 进度（2026-10-10，批次 6）：CMDB 核心——CI 列表（录入/编辑/删除/批量删除/空态创建）、CSDM Hub「新建CI」、关系管理（添加出向/入向、删除关系）、对账中心（新建CI/绑定已有）✅；剩余：云账号/云服务/云资源页 CRUD、资产（AssetList/AssetDetail）、许可证（LicenseList/LicenseDetail）。
 
 ### 2.3 服务目录 / 服务请求 / 审批
 
@@ -105,11 +107,11 @@
 | `pages/(main)/tickets/templates/index.tsx` | 297 / 428 / 453 / 575 | 删除 / 新建模板 | `ticket_template:write / delete` | — | ⬜ |
 | `components/templates/TemplateList.tsx` | Modal.confirm ×2 | 删除模板 | `ticket_template:delete` | — | ⬜ |
 | `pages/(main)/tickets/types/index.tsx` | 96 / 117 | 新建类型 / 编辑 / 启停 / 归档 | `ticket_type:manage`（归档/删除 `:archive`、安装预设 `:install_preset`） | — | 🟡 仅预设入口已门禁 |
-| `pages/(main)/standard-changes/index.tsx` | 332 / 348 / 415 | 删除 / 新建 / 实例化 | `change:write / delete` | — | ⬜ |
-| `pages/(main)/problems/known-errors/index.tsx` | 463 / 580 | 删除 / 新增 | `problem:write / delete` | — | ⬜ |
-| `pages/(main)/notifications/index.tsx` | 510 / 666 / 790 | 删除 / 批量删除 / 保存偏好 | `notification:write`（发送 → `:create`） | — | ⬜ |
-| `pages/(main)/dashboard/index.tsx` | 299 | 快捷「创建工单」 | `ticket:create` | ✅ | ⬜ |
-| `pages/(main)/ai/approval/index.tsx` | 337 / 341 | 批准 / 拒绝工具调用 | `ai:write` | — | ⬜ |
+| `pages/(main)/standard-changes/index.tsx` | 332 / 348 / 415 | 删除 / 新建 / 实例化 | `change:write / delete` | — | ✅（批次 4） |
+| `pages/(main)/problems/known-errors/index.tsx` | 463 / 580 | 删除 / 新增 | `problem:write / delete` | — | ✅（批次 4） |
+| `pages/(main)/notifications/index.tsx` | 510 / 666 / 790 | 删除 / 批量删除 / 保存偏好 | `notification:write`（发送 → `:create`） | — | ✅（批次 5） |
+| `pages/(main)/dashboard/index.tsx` | 299 | 快捷「创建工单」 | `ticket:create` | ✅ | ✅（批次 5） |
+| `pages/(main)/ai/approval/index.tsx` | 337 / 341 | 批准 / 拒绝工具调用 | `ai:write` | — | ✅（批次 5） |
 | `components/ai/AIChat.tsx` | 659 / 669 | 「补充为知识文章」→ `/knowledge/articles/new` | `knowledge:write` | ✅ | ⬜ |
 | `components/problem/ProblemInvestigationTab.tsx` | 282 / 1006 | 「沉淀为知识文章」 | `knowledge:write` | ✅ | ⬜ |
 | `components/ticket-relations/RelationPanel.tsx` | 93 / 256 | 新建工单关系 | `ticket:update`（待核） | — | ⬜ |

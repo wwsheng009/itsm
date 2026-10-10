@@ -26,6 +26,7 @@ import type { ColumnsType } from 'antd/es/table';
 import { Search, Plus, Pencil, Trash2, Download, Eye, RotateCcw, Database } from 'lucide-react';
 import dayjs from 'dayjs';
 import LoadingEmptyError from '@/components/ui/LoadingEmptyError';
+import { useCan } from '@/components/auth/PermissionGate';
 
 import { CIStatus, CIStatusLabels } from '@/constants/cmdb';
 import type { ConfigurationItem, CIType } from '@/types/biz/cmdb';
@@ -100,6 +101,9 @@ const CIList: React.FC = () => {
 
   // 删除走 useDeleteCIMutation，自动 invalidate + onSuccess 提示
   const deleteMutation = useDeleteCIMutation();
+  // 入口级门禁：录入/编辑 → cmdb:write；删除/批量删除 → cmdb:delete。
+  const canWriteCI = useCan(['cmdb:write']);
+  const canDeleteCI = useCan(['cmdb:delete']);
   const handleDelete = (id: number) => {
     Modal.confirm({
       title: '确认删除',
@@ -247,23 +251,27 @@ const CIList: React.FC = () => {
       width: 120,
       render: (_: unknown, record: ConfigurationItem) => (
         <Space size="small">
-          <Tooltip title="编辑">
-            <Button
-              type="text"
-              icon={<Pencil />}
-              aria-label="编辑"
-              onClick={() => navigate(`/cmdb/cis/${record.id}/edit`)}
-            />
-          </Tooltip>
-          <Tooltip title="删除">
-            <Button
-              type="text"
-              danger
-              icon={<Trash2 />}
-              aria-label="删除"
-              onClick={() => handleDelete(record.id)}
-            />
-          </Tooltip>
+          {canWriteCI && (
+            <Tooltip title="编辑">
+              <Button
+                type="text"
+                icon={<Pencil />}
+                aria-label="编辑"
+                onClick={() => navigate(`/cmdb/cis/${record.id}/edit`)}
+              />
+            </Tooltip>
+          )}
+          {canDeleteCI && (
+            <Tooltip title="删除">
+              <Button
+                type="text"
+                danger
+                icon={<Trash2 />}
+                aria-label="删除"
+                onClick={() => handleDelete(record.id)}
+              />
+            </Tooltip>
+          )}
         </Space>
       ),
     },
@@ -307,14 +315,16 @@ const CIList: React.FC = () => {
               刷新
             </Button>
           </Space>
-          <Button
-            type="primary"
-            icon={<Plus />}
-            className="ml-auto"
-            onClick={() => navigate('/cmdb/cis/create')}
-          >
-            录入资产
-          </Button>
+          {canWriteCI && (
+            <Button
+              type="primary"
+              icon={<Plus />}
+              className="ml-auto"
+              onClick={() => navigate('/cmdb/cis/create')}
+            >
+              录入资产
+            </Button>
+          )}
         </div>
 
         {/* 批量操作工具栏 */}
@@ -327,9 +337,11 @@ const CIList: React.FC = () => {
               <Button size="small" icon={<Download />} onClick={handleExport}>
                 导出
               </Button>
-              <Button size="small" danger icon={<Trash2 />} onClick={handleBatchDelete}>
-                批量删除
-              </Button>
+              {canDeleteCI && (
+                <Button size="small" danger icon={<Trash2 />} onClick={handleBatchDelete}>
+                  批量删除
+                </Button>
+              )}
             </Space>
             <Button size="small" type="link" onClick={() => setSelectedRowKeys([])}>
               取消选择
@@ -367,7 +379,7 @@ const CIList: React.FC = () => {
                     description: '当前没有配置项数据',
                     icon: <Database size={48} />,
                     actionText: '创建第一个配置项',
-                    onAction: () => navigate('/cmdb/cis/create'),
+                    onAction: canWriteCI ? () => navigate('/cmdb/cis/create') : undefined,
                   }}
                 />
               ),

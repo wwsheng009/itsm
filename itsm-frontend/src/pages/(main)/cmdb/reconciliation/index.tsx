@@ -20,6 +20,7 @@ import CISearchSelect, { type CISelectOption } from '@/components/cmdb/CISearchS
 import { CMDBApi } from '@/lib/api/cmdb-api';
 import { CMDB_KEYS, useCloudServicesQuery, useReconciliationQuery } from '@/lib/hooks/useCMDB';
 import type { CloudResource, ConfigurationItem } from '@/types/biz/cmdb';
+import { useCan } from '@/components/auth/PermissionGate';
 
 const summaryLabels = [
   { key: 'resourceTotal', label: '资源总数' },
@@ -32,6 +33,8 @@ const summaryLabels = [
 export default function ReconciliationPage() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+  // 入口级门禁：新建 CI / 绑定已有配置项均为写面（cmdb:write）。
+  const canWriteCI = useCan(['cmdb:write']);
 
   // React Query：对账结果 + 云服务目录（替代手写 loadData + setState）
   const reconQuery = useReconciliationQuery();
@@ -137,23 +140,27 @@ export default function ReconciliationPage() {
       width: 160,
       render: (_: unknown, record: CloudResource) => (
         <Space>
-          <Button
-            type="link"
-            onClick={() => navigate(`/cmdb/cis/create?cloudResourceRefId=${record.id}`)}
-          >
-            新建CI
-          </Button>
-          <Button
-            type="link"
-            onClick={() => {
-              setBindResource(record);
-              setBindCIID(undefined);
-              setBindCIOption(undefined);
-              setBindOpen(true);
-            }}
-          >
-            绑定已有
-          </Button>
+          {canWriteCI && (
+            <Button
+              type="link"
+              onClick={() => navigate(`/cmdb/cis/create?cloudResourceRefId=${record.id}`)}
+            >
+              新建CI
+            </Button>
+          )}
+          {canWriteCI && (
+            <Button
+              type="link"
+              onClick={() => {
+                setBindResource(record);
+                setBindCIID(undefined);
+                setBindCIOption(undefined);
+                setBindOpen(true);
+              }}
+            >
+              绑定已有
+            </Button>
+          )}
         </Space>
       ),
     },

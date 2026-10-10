@@ -10,6 +10,7 @@ import { CMDBApi } from '@/lib/api/cmdb-api';
 import { CMDB_CAPABILITIES } from '@/lib/cmdb/cmdb-capabilities';
 import { useCapabilities } from '@/lib/hooks/useCapabilities';
 import { useI18n } from '@/lib/i18n/useI18n';
+import { useCan } from '@/components/auth/PermissionGate';
 
 const { Paragraph, Text, Title } = Typography;
 
@@ -48,6 +49,8 @@ export function CSDMHub() {
   const navigate = useNavigate();
   const { message } = App.useApp();
   const { t } = useI18n();
+  // 入口级门禁：新建 CI → cmdb:write。
+  const canWriteCI = useCan(['cmdb:write']);
   const { capabilities, allows } = useCapabilities();
   const availableCapabilities = CMDB_CAPABILITIES.filter(item => allows(item.capabilityKey));
   const [overview, setOverview] = React.useState<CMDBOverview>({
@@ -122,9 +125,11 @@ export function CSDMHub() {
             <Button icon={<RefreshCw className="h-4 w-4" />} loading={overview.loading} onClick={load}>
               {t('cmdb.refresh')}
             </Button>
-            <Button type="primary" icon={<Plus className="h-4 w-4" />} onClick={() => navigate('/cmdb/cis/create')}>
-              {t('cmdb.newCI')}
-            </Button>
+            {canWriteCI && (
+              <Button type="primary" icon={<Plus className="h-4 w-4" />} onClick={() => navigate('/cmdb/cis/create')}>
+                {t('cmdb.newCI')}
+              </Button>
+            )}
           </Space>
         }
       />
