@@ -39,6 +39,7 @@ jest.mock('dayjs', () => {
 // Import after mocks
 import { ChangeApi } from '@/lib/api/';
 import { ChangeStatus, ChangeType, ChangePriority } from '@/constants/change';
+import { useAuthStore } from '@/lib/store/auth-store';
 
 // Test data
 const mockChanges = [
@@ -109,6 +110,22 @@ const mockChangeListResponse = {
   total: 3,
 };
 
+// 权限门禁（PermissionGate）测试基线：默认给足写权限，门禁用例内可覆盖为空。
+const baseUser = {
+  id: 1,
+  username: 'admin',
+  email: '',
+  name: '',
+  tenantId: 1,
+  homeTenantId: 1,
+  createdAt: '',
+  updatedAt: '',
+};
+
+function setUserPermissions(permissions: string[]) {
+  useAuthStore.setState({ user: { ...baseUser, permissions } } as never);
+}
+
 // Dynamic import to ensure mocks are applied before component loads
 let ChangeList: React.FC<any>;
 
@@ -135,6 +152,7 @@ function renderChangeList(ui: React.ReactElement) {
 describe('ChangeList', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    setUserPermissions(['change:write', 'change:delete']);
     (ChangeApi.getChanges as jest.Mock).mockResolvedValue(mockChangeListResponse);
   });
 
@@ -506,6 +524,29 @@ describe('ChangeList', () => {
         fireEvent.click(newButton);
 
         expect(mockPush).toHaveBeenCalledWith('/changes/new');
+      } finally {
+        spy.mockRestore();
+      }
+    });
+  });
+
+  describe('权限门禁（PermissionGate）', () => {
+    it('无 change:write/change:delete：新建与行内编辑入口不渲染', async () => {
+      const spy = jest.spyOn(console, 'error').mockImplementation(() => {});
+
+      try {
+        setUserPermissions([]);
+        renderChangeList(<ChangeList />);
+
+        await waitFor(
+          () => {
+            expect(screen.getByText('Server Upgrade')).toBeInTheDocument();
+          },
+          { timeout: 5000 }
+        );
+
+        expect(screen.queryByText('新建变更')).not.toBeInTheDocument();
+        expect(screen.queryByLabelText(/编辑变更/)).not.toBeInTheDocument();
       } finally {
         spy.mockRestore();
       }

@@ -16,6 +16,7 @@ import {
   type PageStats,
 } from '@/components/layout/BusinessPageTemplate';
 import ProblemList from '@/components/problem/ProblemList';
+import { useCan } from '@/components/auth/PermissionGate';
 import { ProblemApi, type Problem } from '@/lib/api/problem-api';
 import { useI18n } from '@/lib/i18n/useI18n';
 import { htmlToPlainText } from '@/lib/rich-text/sanitize';
@@ -29,6 +30,7 @@ type View = 'list' | 'kanban';
 export default function ProblemListPage() {
   const navigate = useNavigate();
   const { t } = useI18n();
+  const canCreateProblem = useCan(['problem:write']);
 
   const kanbanColumns = useMemo<KanbanColumnConfig<Problem>[]>(
     () => [
@@ -318,11 +320,15 @@ export default function ProblemListPage() {
       showViewSwitch={true}
       activeView={activeView}
       onViewChange={view => setActiveView(view as View)}
-      primaryAction={{
-        label: t('problems.create'),
-        onClick: handleCreate,
-        icon: <Plus className="w-4 h-4" />,
-      }}
+      primaryAction={
+        canCreateProblem
+          ? {
+              label: t('problems.create'),
+              onClick: handleCreate,
+              icon: <Plus className="w-4 h-4" />,
+            }
+          : undefined
+      }
       extraActions={[
         {
           key: 'refresh',
@@ -343,10 +349,14 @@ export default function ProblemListPage() {
       onRetry={handleRefresh}
       empty={problems.length === 0 && !loading}
       emptyDescription={t('problems.emptyText')}
-      emptyAction={{
-        label: t('problems.createFirst'),
-        onClick: handleCreate,
-      }}
+      emptyAction={
+        canCreateProblem
+          ? {
+              label: t('problems.createFirst'),
+              onClick: handleCreate,
+            }
+          : undefined
+      }
     >
       {activeView === 'list' ? renderListContent() : renderKanbanContent()}
 

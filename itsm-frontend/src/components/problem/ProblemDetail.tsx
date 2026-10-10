@@ -15,6 +15,7 @@ import { ProblemStatus, ProblemStatusLabels } from '@/constants/problem';
 import type { Problem } from '@/types/biz/problem';
 import ProblemInvestigationTab from './ProblemInvestigationTab';
 import BasicInfoCard from './BasicInfoCard';
+import { PermissionGate } from '@/components/auth/PermissionGate';
 
 const { Title } = Typography;
 const { TextArea } = Input;
@@ -171,12 +172,14 @@ const ProblemDetail: React.FC<{ id?: string }> = ({ id: propId }) => {
             </Tag>
           </Space>
           <Space>
-            <Button
-              icon={<Pencil />}
-              onClick={() => navigate(`/problems/${data.id}/edit`)}
-            >
-              {t('problemDetail.edit')}
-            </Button>
+            <PermissionGate anyOf={['problem:write']}>
+              <Button
+                icon={<Pencil />}
+                onClick={() => navigate(`/problems/${data.id}/edit`)}
+              >
+                {t('problemDetail.edit')}
+              </Button>
+            </PermissionGate>
             {/* 启动 RCA：进入问题调查根因分析 */}
             {(data.status === ProblemStatus.OPEN ||
               data.status === ProblemStatus.INVESTIGATING ||

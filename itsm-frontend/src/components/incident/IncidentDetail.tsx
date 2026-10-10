@@ -28,6 +28,7 @@ import {
 import { ArrowUp, Plus, Save, Pencil, FileText, Clock, AlertCircle, CheckCircle, Plug, AreaChart, UserCheck, Siren, Play } from 'lucide-react';
 import dayjs from 'dayjs';
 
+import { PermissionGate } from '@/components/auth/PermissionGate';
 import { IncidentAPI } from '@/lib/api/';
 import type { CreateIncidentClassificationRequest } from '@/lib/api/incident-api';
 import { UserApi } from '@/lib/api/user-api';
@@ -558,12 +559,14 @@ const IncidentDetail: React.FC<{ id?: string }> = ({ id: propId }) => {
               </Tag>
             </div>
             <Space wrap>
-              <Button
-                icon={<Pencil />}
-                onClick={() => navigate(`/incidents/${data.id}/edit`)}
-              >
-                编辑
-              </Button>
+              <PermissionGate anyOf={['incident:write']}>
+                <Button
+                  icon={<Pencil />}
+                  onClick={() => navigate(`/incidents/${data.id}/edit`)}
+                >
+                  编辑
+                </Button>
+              </PermissionGate>
               <Button icon={<ArrowUp />} onClick={handleEscalate} loading={escalating}>
                 升级
               </Button>

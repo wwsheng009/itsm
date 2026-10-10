@@ -45,6 +45,7 @@ import { ProblemStatus, ProblemStatusLabels } from '@/constants/problem';
 import ProblemInvestigationTab from './ProblemInvestigationTab';
 import BasicInfoCard from './BasicInfoCard';
 import { SafeTextBlock } from '@/components/common/SafeContent';
+import { PermissionGate } from '@/components/auth/PermissionGate';
 
 const { Title, Text, Paragraph } = Typography;
 const { TextArea } = Input;
@@ -597,9 +598,11 @@ const EnhancedProblemDetail: React.FC<EnhancedProblemDetailProps> = ({ id: propI
             </Tag>
           </Space>
           <Space>
-            <Button icon={<Pencil />} onClick={() => navigate(`/problems/${data.id}/edit`)}>
-              编辑
-            </Button>
+            <PermissionGate anyOf={['problem:write']}>
+              <Button icon={<Pencil />} onClick={() => navigate(`/problems/${data.id}/edit`)}>
+                编辑
+              </Button>
+            </PermissionGate>
             {data.status === ProblemStatus.OPEN && (
               <Button
                 type="primary"

@@ -24,6 +24,7 @@ import dayjs from 'dayjs';
 
 import { ChangeApi } from '@/lib/api/';
 import { notify } from '@/lib/notify';
+import { PermissionGate } from '@/components/auth/PermissionGate';
 import type {
   ChangeType,
   ChangePriority} from '@/constants/change';
@@ -202,22 +203,26 @@ const ChangeList: React.FC<ChangeListProps> = ({ showHeader = true, search, stat
               aria-label={`查看变更 ${record.title}`}
             />
           </Tooltip>
-          <Tooltip title="编辑">
-            <Button
-              type="text"
-              icon={<Pencil />}
-              onClick={() => navigate(`/changes/${record.id}/edit`)}
-              aria-label={`编辑变更 ${record.title}`}
-            />
-          </Tooltip>
-          <Tooltip title="删除">
-            <Button
-              type="text"
-              danger
-              icon={<Trash2 />}
-              onClick={() => handleDelete(record.id, record.title)}
-            />
-          </Tooltip>
+          <PermissionGate anyOf={['change:write']}>
+            <Tooltip title="编辑">
+              <Button
+                type="text"
+                icon={<Pencil />}
+                onClick={() => navigate(`/changes/${record.id}/edit`)}
+                aria-label={`编辑变更 ${record.title}`}
+              />
+            </Tooltip>
+          </PermissionGate>
+          <PermissionGate anyOf={['change:delete']}>
+            <Tooltip title="删除">
+              <Button
+                type="text"
+                danger
+                icon={<Trash2 />}
+                onClick={() => handleDelete(record.id, record.title)}
+              />
+            </Tooltip>
+          </PermissionGate>
         </Space>
       ),
     },
@@ -246,14 +251,16 @@ const ChangeList: React.FC<ChangeListProps> = ({ showHeader = true, search, stat
           <h1 className="text-2xl font-bold text-gray-900">变更管理</h1>
           <p className="text-gray-500 mt-1">管理IT基础架构和服务的变更请求，最小化变更风险</p>
         </div>
-        <Button
-          type="primary"
-          icon={<Plus />}
-          onClick={() => navigate('/changes/new')}
-          size="large"
-        >
-          新建变更
-        </Button>
+        <PermissionGate anyOf={['change:write']}>
+          <Button
+            type="primary"
+            icon={<Plus />}
+            onClick={() => navigate('/changes/new')}
+            size="large"
+          >
+            新建变更
+          </Button>
+        </PermissionGate>
       </div>
 
       <Card className="rounded-lg shadow-sm border border-[var(--color-border-primary)]">
@@ -290,9 +297,11 @@ const ChangeList: React.FC<ChangeListProps> = ({ showHeader = true, search, stat
 
         {data.length === 0 && !loading ? (
           <Empty description="暂无变更记录" image={Empty.PRESENTED_IMAGE_SIMPLE}>
-            <Button type="primary" onClick={() => navigate('/changes/new')}>
-              创建第一个变更
-            </Button>
+            <PermissionGate anyOf={['change:write']}>
+              <Button type="primary" onClick={() => navigate('/changes/new')}>
+                创建第一个变更
+              </Button>
+            </PermissionGate>
           </Empty>
         ) : (
           <Table

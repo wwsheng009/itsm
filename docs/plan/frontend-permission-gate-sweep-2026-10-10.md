@@ -30,6 +30,8 @@
 
 ### 2.1 ITIL 核心（事件 / 变更 / 问题 / 发布 / 改进）
 
+> 进度（2026-10-10，批次 1 已落地）：事件/变更/问题三域的**列表入口、空态、行内编辑/删除、详情「编辑」**已门禁 ✅（`incident:write`/`incident:delete`、`change:write`/`change:delete`、`problem:write`/`problem:delete`）；详情状态流转按钮、发布、改进、PIR 待后续批次。
+
 | 页面/文件 | 入口（行号） | 动作 | 权限码 | 路由级 | 状态 |
 |---|---|---|---|---|---|
 | `pages/(main)/incidents/index.tsx` | 88 | 新建事件 → `/incidents/create` | `incident:write` | ✅ | ⬜ |

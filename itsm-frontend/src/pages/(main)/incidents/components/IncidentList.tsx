@@ -7,6 +7,7 @@ import dayjs from 'dayjs';
 import type { Incident } from '@/lib/api/types';
 import { IncidentAPI } from '@/lib/api/incident-api';
 import { useI18n } from '@/lib/i18n';
+import { PermissionGate, useCan } from '@/components/auth/PermissionGate';
 
 interface IncidentListProps {
   incidents: Incident[];
@@ -28,6 +29,7 @@ export const IncidentList: React.FC<IncidentListProps> = ({
   onRefresh,
 }) => {
   const { t } = useI18n();
+  const canDeleteIncident = useCan(['incident:delete']);
 
   const statusConfig: Record<string, { color: string; text: string; backgroundColor: string }> = {
     // 新建/待处理状态
@@ -298,15 +300,17 @@ export const IncidentList: React.FC<IncidentListProps> = ({
           });
         };
 
-        const items: MenuProps['items'] = [
-          {
-            key: 'delete',
-            label: t('common.delete') || '删除',
-            icon: <Trash2 size={14} />,
-            danger: true,
-            onClick: handleDelete,
-          },
-        ];
+        const items: MenuProps['items'] = canDeleteIncident
+          ? [
+              {
+                key: 'delete',
+                label: t('common.delete') || '删除',
+                icon: <Trash2 size={14} />,
+                danger: true,
+                onClick: handleDelete,
+              },
+            ]
+          : [];
 
         return (
           <Space size="small">
@@ -319,25 +323,29 @@ export const IncidentList: React.FC<IncidentListProps> = ({
               className="text-blue-600 hover:text-blue-700 hover:bg-blue-50 border-0 rounded-lg transition-all duration-200 p-2"
               title={t('incidents.viewDetails')}
             />
-            <Button
-              type="text"
-              size="small"
-              icon={<Edit size={16} />}
-              onClick={() => onEdit(record)}
-              aria-label={`编辑事件 ${record.title}`}
-              className="text-green-600 hover:text-green-700 hover:bg-green-50 border-0 rounded-lg transition-all duration-200 p-2"
-              title={t('incidents.editIncident')}
-            />
-            <Dropdown menu={{ items }} trigger={['click']} placement="bottomRight">
+            <PermissionGate anyOf={['incident:write']}>
               <Button
                 type="text"
                 size="small"
-                icon={<MoreHorizontal size={16} />}
-                className="text-gray-600 hover:text-gray-700 hover:bg-gray-50 border-0 rounded-lg transition-all duration-200 p-2"
-                title={t('incidents.moreActions')}
-                onClick={e => e.preventDefault()}
+                icon={<Edit size={16} />}
+                onClick={() => onEdit(record)}
+                aria-label={`编辑事件 ${record.title}`}
+                className="text-green-600 hover:text-green-700 hover:bg-green-50 border-0 rounded-lg transition-all duration-200 p-2"
+                title={t('incidents.editIncident')}
               />
-            </Dropdown>
+            </PermissionGate>
+            {items.length > 0 && (
+              <Dropdown menu={{ items }} trigger={['click']} placement="bottomRight">
+                <Button
+                  type="text"
+                  size="small"
+                  icon={<MoreHorizontal size={16} />}
+                  className="text-gray-600 hover:text-gray-700 hover:bg-gray-50 border-0 rounded-lg transition-all duration-200 p-2"
+                  title={t('incidents.moreActions')}
+                  onClick={e => e.preventDefault()}
+                />
+              </Dropdown>
+            )}
           </Space>
         );
       },

@@ -21,6 +21,7 @@ import {
   type PageStats,
 } from '@/components/layout/BusinessPageTemplate';
 import ChangeList from '@/components/change/ChangeList';
+import { useCan } from '@/components/auth/PermissionGate';
 import { ChangeApi, type Change, type ChangeCalendarItem } from '@/lib/api/change-api';
 import { htmlToPlainText } from '@/lib/rich-text/sanitize';
 import { useI18n } from '@/lib/i18n/useI18n';
@@ -34,6 +35,7 @@ type View = 'list' | 'kanban' | 'calendar';
 export default function ChangesPage() {
   const navigate = useNavigate();
   const { t } = useI18n();
+  const canCreateChange = useCan(['change:write']);
 
   const kanbanColumns = useMemo<KanbanColumnConfig<Change>[]>(
     () => [
@@ -472,11 +474,15 @@ export default function ChangesPage() {
         content: renderFilters(),
       }}
       showViewSwitch={false}
-      primaryAction={{
-        label: t('changes.create'),
-        onClick: handleCreate,
-        icon: <Plus className="w-4 h-4" />,
-      }}
+      primaryAction={
+        canCreateChange
+          ? {
+              label: t('changes.create'),
+              onClick: handleCreate,
+              icon: <Plus className="w-4 h-4" />,
+            }
+          : undefined
+      }
       extraActions={[
         {
           key: 'refresh',
@@ -497,10 +503,14 @@ export default function ChangesPage() {
       onRetry={handleRefresh}
       empty={activeView !== 'calendar' && changes.length === 0 && !loading}
       emptyDescription={t('changes.emptyText')}
-      emptyAction={{
-        label: t('changes.createFirst'),
-        onClick: handleCreate,
-      }}
+      emptyAction={
+        canCreateChange
+          ? {
+              label: t('changes.createFirst'),
+              onClick: handleCreate,
+            }
+          : undefined
+      }
     >
       <div className="flex gap-2 mb-4">
         <Button

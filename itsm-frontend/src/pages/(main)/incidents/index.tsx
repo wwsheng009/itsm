@@ -7,6 +7,7 @@ import { Plus, RotateCcw, Download } from 'lucide-react';
 
 import { BusinessPageTemplate } from '@/components/layout/BusinessPageTemplate';
 import { BatchActionBar } from '@/components/business/BatchActionBar';
+import { PermissionGate, useCan } from '@/components/auth/PermissionGate';
 import {
   UnifiedKanbanBoard,
   type KanbanColumnConfig,
@@ -63,6 +64,7 @@ export default function IncidentsPage() {
     errorMessage: t('incidents.getFailed'),
   });
   const stats = useIncidentStats();
+  const canCreateIncident = useCan(['incident:write']);
 
   const batch = useIncidentBatchOps({
     onAfterBatch: async () => {
@@ -134,10 +136,12 @@ export default function IncidentsPage() {
     if (query.incidents.length === 0 && !query.loading) {
       return (
         <div className='py-12 text-center'>
-          <div className='text-gray-400 mb-4'>{t('incidents.emptyText')}</div>
-          <Button type='primary' onClick={handleCreate}>
-            {t('incidents.createFirst')}
-          </Button>
+            <div className='text-gray-400 mb-4'>{t('incidents.emptyText')}</div>
+            <PermissionGate anyOf={['incident:write']}>
+              <Button type='primary' onClick={handleCreate}>
+                {t('incidents.createFirst')}
+              </Button>
+            </PermissionGate>
         </div>
       );
     }
@@ -222,11 +226,15 @@ export default function IncidentsPage() {
       showViewSwitch={true}
       activeView={activeView}
       onViewChange={view => setActiveView(view as View)}
-      primaryAction={{
-        label: t('incidents.create'),
-        onClick: handleCreate,
-        icon: <Plus className='w-4 h-4' />,
-      }}
+      primaryAction={
+        canCreateIncident
+          ? {
+              label: t('incidents.create'),
+              onClick: handleCreate,
+              icon: <Plus className='w-4 h-4' />,
+            }
+          : undefined
+      }
       extraActions={[
         {
           key: 'refresh',
@@ -247,10 +255,14 @@ export default function IncidentsPage() {
       onRetry={handleRefresh}
       empty={query.incidents.length === 0 && !query.loading}
       emptyDescription={t('incidents.emptyText')}
-      emptyAction={{
-        label: t('incidents.createFirst'),
-        onClick: handleCreate,
-      }}
+      emptyAction={
+        canCreateIncident
+          ? {
+              label: t('incidents.createFirst'),
+              onClick: handleCreate,
+            }
+          : undefined
+      }
     >
       {activeView === 'list' ? renderListContent() : renderKanbanContent()}
 

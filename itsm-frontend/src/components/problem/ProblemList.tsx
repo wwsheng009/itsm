@@ -24,6 +24,7 @@ import { Search, Plus, Pencil, Trash2, Eye, RefreshCw } from 'lucide-react';
 import dayjs from 'dayjs';
 
 import { ProblemApi } from '@/lib/api/';
+import { PermissionGate } from '@/components/auth/PermissionGate';
 import {
   ProblemStatus,
   ProblemPriority,
@@ -195,21 +196,25 @@ const ProblemList: React.FC<ProblemListProps> = ({
               onClick={() => navigate(`/problems/${record.id}`)}
             />
           </Tooltip>
-          <Tooltip title="编辑">
-            <Button
-              type="text"
-              icon={<Pencil />}
-              onClick={() => navigate(`/problems/${record.id}/edit`)}
-            />
-          </Tooltip>
-          <Tooltip title="删除">
-            <Button
-              type="text"
-              danger
-              icon={<Trash2 />}
-              onClick={() => handleDelete(record.id)}
-            />
-          </Tooltip>
+          <PermissionGate anyOf={['problem:write']}>
+            <Tooltip title="编辑">
+              <Button
+                type="text"
+                icon={<Pencil />}
+                onClick={() => navigate(`/problems/${record.id}/edit`)}
+              />
+            </Tooltip>
+          </PermissionGate>
+          <PermissionGate anyOf={['problem:delete']}>
+            <Tooltip title="删除">
+              <Button
+                type="text"
+                danger
+                icon={<Trash2 />}
+                onClick={() => handleDelete(record.id)}
+              />
+            </Tooltip>
+          </PermissionGate>
         </Space>
       ),
     },
@@ -239,14 +244,16 @@ const ProblemList: React.FC<ProblemListProps> = ({
           <h1 className="text-2xl font-bold text-gray-900">问题管理</h1>
           <p className="text-gray-500 mt-1">识别、分析和消除事件发生的根本原因</p>
         </div>
-        <Button
-          type="primary"
-          icon={<Plus />}
-          onClick={() => navigate('/problems/new')}
-          size="large"
-        >
-          新建问题
-        </Button>
+        <PermissionGate anyOf={['problem:write']}>
+          <Button
+            type="primary"
+            icon={<Plus />}
+            onClick={() => navigate('/problems/new')}
+            size="large"
+          >
+            新建问题
+          </Button>
+        </PermissionGate>
       </div>
 
       <Card className="rounded-lg shadow-sm border border-[var(--color-border-primary)]">
@@ -293,9 +300,11 @@ const ProblemList: React.FC<ProblemListProps> = ({
 
         {data.length === 0 && !loading ? (
           <Empty description="暂无问题记录" image={Empty.PRESENTED_IMAGE_SIMPLE}>
-            <Button type="primary" onClick={() => navigate('/problems/new')}>
-              创建第一个问题
-            </Button>
+            <PermissionGate anyOf={['problem:write']}>
+              <Button type="primary" onClick={() => navigate('/problems/new')}>
+                创建第一个问题
+              </Button>
+            </PermissionGate>
           </Empty>
         ) : (
           <Table
