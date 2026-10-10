@@ -30,7 +30,7 @@
 
 ### 2.1 ITIL 核心（事件 / 变更 / 问题 / 发布 / 改进）
 
-> 进度（2026-10-10，批次 1 已落地）：事件/变更/问题三域的**列表入口、空态、行内编辑/删除、详情「编辑」**已门禁 ✅（`incident:write`/`incident:delete`、`change:write`/`change:delete`、`problem:write`/`problem:delete`）；详情状态流转按钮、发布、改进、PIR 待后续批次。
+> 进度（2026-10-10）：**批次 1** 列表入口/空态/行内编辑删除/详情「编辑」✅；**批次 2** 详情生命周期动作（变更 approve/reject/rollback 独立码、事件动作栏与根因/影响/分类入口、问题状态流转/KEDB）、PIR（增改删）、工单看板新建/删除 ✅；剩余：发布、改进、已知错误页、标准变更、问题调查 Tab 内写面、工单详情动作等。
 
 | 页面/文件 | 入口（行号） | 动作 | 权限码 | 路由级 | 状态 |
 |---|---|---|---|---|---|
@@ -124,12 +124,15 @@
 
 > 特征：不在路由级覆盖范围（无 `new/create/edit` 路径段），入口级是唯一防线；多为不可逆动作。
 
+> 进度（2026-10-10，批次 2 已落地）：事件动作栏 + 根因/影响/分类卡片入口、变更生命周期动作（approve/reject=`change:approve`；rollback=`change:rollback`；其余=`change:write`）、问题 KEDB/状态流转、PIR 增改删、工单看板新建/删除 ✅；发布、工单详情动作、服务请求详情、问题调查 Tab、批量操作待后续批次。
+
 | 域 | 动作 | 权限码 | 代表文件 |
 |---|---|---|---|
 | 事件 | escalate / acknowledge / resolve / close / reopen / assign / SLA 暂停恢复 / convert-to-problem | `incident:write` | `components/incident/IncidentDetail.tsx` |
 | 事件 | 删除 | `incident:delete` | `pages/(main)/incidents/**` |
 | 变更 | approve / reject | `change:approve` | `components/change/**`（详情） |
-| 变更 | schedule / start / complete / close / cancel / rollback | `change:write` | 同上 |
+| 变更 | schedule / start / complete / close / cancel | `change:write` | 同上 |
+| 变更 | rollback | `change:rollback` | 同上 |
 | 变更 | 删除 | `change:delete` | 同上 |
 | 问题 | investigate / root-cause / solution / close / associations | `problem:write` | `components/problem/**` |
 | 问题 | 删除 | `problem:delete` | 同上 |

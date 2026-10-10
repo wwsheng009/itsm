@@ -28,7 +28,7 @@ import {
 import { ArrowUp, Plus, Save, Pencil, FileText, Clock, AlertCircle, CheckCircle, Plug, AreaChart, UserCheck, Siren, Play } from 'lucide-react';
 import dayjs from 'dayjs';
 
-import { PermissionGate } from '@/components/auth/PermissionGate';
+import { PermissionGate, useCan } from '@/components/auth/PermissionGate';
 import { IncidentAPI } from '@/lib/api/';
 import type { CreateIncidentClassificationRequest } from '@/lib/api/incident-api';
 import { UserApi } from '@/lib/api/user-api';
@@ -118,6 +118,7 @@ const IncidentDetail: React.FC<{ id?: string }> = ({ id: propId }) => {
   // ===== 升级为重大事件：弹窗状态 =====
   const [majorModalVisible, setMajorModalVisible] = useState(false);
   const [escalatingMajor, setEscalatingMajor] = useState(false);
+  const canWriteIncident = useCan(['incident:write']);
   const [majorForm] = Form.useForm<{
     impactScope: 'low' | 'medium' | 'high' | 'critical';
     businessImpact: string;
@@ -567,15 +568,18 @@ const IncidentDetail: React.FC<{ id?: string }> = ({ id: propId }) => {
                   编辑
                 </Button>
               </PermissionGate>
-              <Button icon={<ArrowUp />} onClick={handleEscalate} loading={escalating}>
-                升级
-              </Button>
-              {data.status !== IncidentStatus.RESOLVED && data.status !== IncidentStatus.CLOSED && (
+              {canWriteIncident && (
+                <Button icon={<ArrowUp />} onClick={handleEscalate} loading={escalating}>
+                  升级
+                </Button>
+              )}
+              {canWriteIncident && data.status !== IncidentStatus.RESOLVED && data.status !== IncidentStatus.CLOSED && (
                 <Button icon={<UserCheck />} onClick={handleAssignClick} loading={loadingUsers}>
                   指派
                 </Button>
               )}
-              {!data.isMajorIncident &&
+              {canWriteIncident &&
+                !data.isMajorIncident &&
                 data.status !== IncidentStatus.RESOLVED &&
                 data.status !== IncidentStatus.CLOSED && (
                   <Button danger icon={<Siren />} onClick={() => setMajorModalVisible(true)}>
@@ -583,12 +587,12 @@ const IncidentDetail: React.FC<{ id?: string }> = ({ id: propId }) => {
                   </Button>
                 )}
               {/* 开始处理：new/acknowledged/assigned/on_hold → in_progress（解决前置步骤） */}
-              {isValidIncidentTransition(data.status, IncidentStatus.IN_PROGRESS) && (
+              {canWriteIncident && isValidIncidentTransition(data.status, IncidentStatus.IN_PROGRESS) && (
                 <Button icon={<Play />} onClick={handleStartProcessing} loading={starting}>
                   开始处理
                 </Button>
               )}
-              {data.status !== IncidentStatus.RESOLVED && data.status !== IncidentStatus.CLOSED && (
+              {canWriteIncident && data.status !== IncidentStatus.RESOLVED && data.status !== IncidentStatus.CLOSED && (
                 <Button
                   type="primary"
                   icon={<CheckCircle />}
@@ -598,7 +602,7 @@ const IncidentDetail: React.FC<{ id?: string }> = ({ id: propId }) => {
                   解决
                 </Button>
               )}
-              {(data.status === IncidentStatus.RESOLVED || data.status === IncidentStatus.CLOSED) && (
+              {canWriteIncident && (data.status === IncidentStatus.RESOLVED || data.status === IncidentStatus.CLOSED) && (
                 <Button onClick={handleReopen} loading={reopening}>
                   重新打开
                 </Button>
@@ -612,7 +616,7 @@ const IncidentDetail: React.FC<{ id?: string }> = ({ id: propId }) => {
         </Card>
 
         {/* 基本信息 */}
-        <Card title="基本信息" extra={<Button type="link" icon={<Pencil />} onClick={handleEditCategory}>编辑分类</Button>}>
+        <Card title="基本信息" extra={canWriteIncident ? (<Button type="link" icon={<Pencil />} onClick={handleEditCategory}>编辑分类</Button>) : null}>
           <Descriptions column={{ xs: 1, sm: 2 }}>
             <Descriptions.Item label="报告人">{getUserName(data.reporterId)}</Descriptions.Item>
             <Descriptions.Item label="负责人">{getUserName(data.assigneeId)}</Descriptions.Item>
@@ -673,9 +677,11 @@ const IncidentDetail: React.FC<{ id?: string }> = ({ id: propId }) => {
                 </Space>
               }
               extra={
-                <Button type="link" icon={<Pencil />} onClick={handleEditRootCause}>
-                  {rootCauseData?.id ? '编辑' : '添加'}
-                </Button>
+                canWriteIncident ? (
+                  <Button type="link" icon={<Pencil />} onClick={handleEditRootCause}>
+                    {rootCauseData?.id ? '编辑' : '添加'}
+                  </Button>
+                ) : null
               }
             >
               {rootCauseData ? (
@@ -709,9 +715,11 @@ const IncidentDetail: React.FC<{ id?: string }> = ({ id: propId }) => {
                 </Descriptions>
               ) : (
                 <Empty description="暂无根因分析" image={Empty.PRESENTED_IMAGE_SIMPLE}>
-                  <Button type="primary" icon={<Plus />} onClick={handleEditRootCause}>
-                    添加根因分析
-                  </Button>
+                  {canWriteIncident && (
+                    <Button type="primary" icon={<Plus />} onClick={handleEditRootCause}>
+                      添加根因分析
+                    </Button>
+                  )}
                 </Empty>
               )}
             </Card>
@@ -736,9 +744,11 @@ const IncidentDetail: React.FC<{ id?: string }> = ({ id: propId }) => {
                 </Space>
               }
               extra={
-                <Button type="link" icon={<Pencil />} onClick={handleEditImpact}>
-                  {impactData?.id ? '编辑' : '添加'}
-                </Button>
+                canWriteIncident ? (
+                  <Button type="link" icon={<Pencil />} onClick={handleEditImpact}>
+                    {impactData?.id ? '编辑' : '添加'}
+                  </Button>
+                ) : null
               }
             >
               {impactData ? (
@@ -771,9 +781,11 @@ const IncidentDetail: React.FC<{ id?: string }> = ({ id: propId }) => {
                 </Descriptions>
               ) : (
                 <Empty description="暂无影响评估" image={Empty.PRESENTED_IMAGE_SIMPLE}>
-                  <Button type="primary" icon={<Plus />} onClick={handleEditImpact}>
-                    添加影响评估
-                  </Button>
+                  {canWriteIncident && (
+                    <Button type="primary" icon={<Plus />} onClick={handleEditImpact}>
+                      添加影响评估
+                    </Button>
+                  )}
                 </Empty>
               )}
             </Card>
@@ -792,9 +804,11 @@ const IncidentDetail: React.FC<{ id?: string }> = ({ id: propId }) => {
                 </Space>
               }
               extra={
-                <Button type="link" icon={<Pencil />} onClick={handleEditCategory}>
-                  {classificationData?.id ? '编辑' : '添加'}
-                </Button>
+                canWriteIncident ? (
+                  <Button type="link" icon={<Pencil />} onClick={handleEditCategory}>
+                    {classificationData?.id ? '编辑' : '添加'}
+                  </Button>
+                ) : null
               }
             >
               {classificationData ? (
@@ -811,9 +825,11 @@ const IncidentDetail: React.FC<{ id?: string }> = ({ id: propId }) => {
                 </Descriptions>
               ) : (
                 <Empty description="暂无事件分类" image={Empty.PRESENTED_IMAGE_SIMPLE}>
-                  <Button type="primary" icon={<Plus />} onClick={handleEditCategory}>
-                    添加事件分类
-                  </Button>
+                  {canWriteIncident && (
+                    <Button type="primary" icon={<Plus />} onClick={handleEditCategory}>
+                      添加事件分类
+                    </Button>
+                  )}
                 </Empty>
               )}
             </Card>

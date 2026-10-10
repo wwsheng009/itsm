@@ -17,6 +17,7 @@ import { Trash2, Eye, AlertTriangle, AlertCircle, CheckCircle, XCircle } from 'l
 import { PageContainer } from '@/components/layout/PageContainer';
 import { ChangeApi, type PIRResponse, type PIROverallResult } from '@/lib/api/change-api';
 import { useI18n } from '@/lib/i18n/useI18n';
+import { PermissionGate } from '@/components/auth/PermissionGate';
 import dayjs from 'dayjs';
 import type { ColumnsType } from 'antd/es/table';
 
@@ -167,17 +168,19 @@ export default function PIRListPage() {
           >
             查看
           </Button>
-          <Button
-            type="link"
-            danger
-            icon={<Trash2 />}
-            onClick={() => {
-              setSelectedPIR(record);
-              setDeleteModalVisible(true);
-            }}
-          >
-            删除
-          </Button>
+          <PermissionGate anyOf={['change:delete']}>
+            <Button
+              type="link"
+              danger
+              icon={<Trash2 />}
+              onClick={() => {
+                setSelectedPIR(record);
+                setDeleteModalVisible(true);
+              }}
+            >
+              删除
+            </Button>
+          </PermissionGate>
         </Space>
       ),
     },
@@ -238,18 +241,20 @@ export default function PIRListPage() {
           <Button key="close" onClick={() => setDetailModalVisible(false)}>
             关闭
           </Button>,
-          <Button
-            key="edit"
-            type="primary"
-            onClick={() => {
-              setDetailModalVisible(false);
-              if (selectedPIR) {
-                navigate(`/changes/${selectedPIR.changeId}/pir`);
-              }
-            }}
-          >
-            编辑
-          </Button>,
+          <PermissionGate key="edit" anyOf={['change:write']}>
+            <Button
+              key="edit"
+              type="primary"
+              onClick={() => {
+                setDetailModalVisible(false);
+                if (selectedPIR) {
+                  navigate(`/changes/${selectedPIR.changeId}/pir`);
+                }
+              }}
+            >
+              编辑
+            </Button>
+          </PermissionGate>,
         ]}
         width={700}
       >

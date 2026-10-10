@@ -192,49 +192,57 @@ const ProblemDetail: React.FC<{ id?: string }> = ({ id: propId }) => {
             {(data.status === ProblemStatus.INVESTIGATING ||
               data.status === ProblemStatus.IN_PROGRESS ||
               data.status === ProblemStatus.RESOLVED) && (
-              <Button
-                icon={<ShieldAlert />}
-                onClick={() => {
-                  knownErrorForm.setFieldsValue({
-                    title: data.title,
-                    rootCause: data.rootCause || '',
-                    description: data.description || '',
-                  });
-                  setKnownErrorModalOpen(true);
-                }}
-              >
-                {t('problemDetail.toKnownError')}
-              </Button>
+              <PermissionGate anyOf={['problem:write']}>
+                <Button
+                  icon={<ShieldAlert />}
+                  onClick={() => {
+                    knownErrorForm.setFieldsValue({
+                      title: data.title,
+                      rootCause: data.rootCause || '',
+                      description: data.description || '',
+                    });
+                    setKnownErrorModalOpen(true);
+                  }}
+                >
+                  {t('problemDetail.toKnownError')}
+                </Button>
+              </PermissionGate>
             )}
             {data.status === ProblemStatus.OPEN && (
-              <Button
-                type="primary"
-                loading={updatingStatus === ProblemStatus.INVESTIGATING}
-                disabled={updatingStatus !== null}
-                onClick={() => handleUpdateStatus(ProblemStatus.INVESTIGATING)}
-              >
-                {t('problemDetail.startProcessing')}
-              </Button>
+              <PermissionGate anyOf={['problem:write']}>
+                <Button
+                  type="primary"
+                  loading={updatingStatus === ProblemStatus.INVESTIGATING}
+                  disabled={updatingStatus !== null}
+                  onClick={() => handleUpdateStatus(ProblemStatus.INVESTIGATING)}
+                >
+                  {t('problemDetail.startProcessing')}
+                </Button>
+              </PermissionGate>
             )}
             {(data.status === ProblemStatus.IN_PROGRESS ||
               data.status === ProblemStatus.INVESTIGATING) && (
-              <Button
-                type="primary"
-                loading={updatingStatus === ProblemStatus.RESOLVED}
-                disabled={updatingStatus !== null}
-                onClick={() => handleUpdateStatus(ProblemStatus.RESOLVED)}
-              >
-                {t('problemDetail.markResolved')}
-              </Button>
+              <PermissionGate anyOf={['problem:write']}>
+                <Button
+                  type="primary"
+                  loading={updatingStatus === ProblemStatus.RESOLVED}
+                  disabled={updatingStatus !== null}
+                  onClick={() => handleUpdateStatus(ProblemStatus.RESOLVED)}
+                >
+                  {t('problemDetail.markResolved')}
+                </Button>
+              </PermissionGate>
             )}
             {data.status === ProblemStatus.RESOLVED && (
-              <Button
-                loading={updatingStatus === ProblemStatus.CLOSED}
-                disabled={updatingStatus !== null}
-                onClick={handleCloseProblem}
-              >
-                {t('problemDetail.closeProblem')}
-              </Button>
+              <PermissionGate anyOf={['problem:write']}>
+                <Button
+                  loading={updatingStatus === ProblemStatus.CLOSED}
+                  disabled={updatingStatus !== null}
+                  onClick={handleCloseProblem}
+                >
+                  {t('problemDetail.closeProblem')}
+                </Button>
+              </PermissionGate>
             )}
           </Space>
         </div>

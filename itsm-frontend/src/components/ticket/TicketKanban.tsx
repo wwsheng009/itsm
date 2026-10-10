@@ -28,6 +28,7 @@ import 'dayjs/locale/zh-cn';
 import type { Ticket } from '@/lib/api/types';
 import { useTickets } from '@/lib/hooks/useTickets';
 import { useDebounce } from '@/lib/component-utils';
+import { PermissionGate, useCan } from '@/components/auth/PermissionGate';
 
 dayjs.extend(relativeTime);
 dayjs.locale('zh-cn');
@@ -61,6 +62,7 @@ const PRIORITY_CONFIG = {
 const TicketKanban: React.FC<TicketKanbanProps> = ({ onTicketSelect }) => {
   const navigate = useNavigate();
   const { tickets, loading, fetchTickets, updateTicket, deleteTicket } = useTickets();
+  const canDeleteTicket = useCan(['ticket:delete']);
   const { message, modal } = App.useApp();
 
   const [searchValue, setSearchValue] = useState('');
@@ -153,16 +155,20 @@ const TicketKanban: React.FC<TicketKanbanProps> = ({ onTicketSelect }) => {
       label: '编辑',
       onClick: () => navigate(`/tickets/${ticket.id}`),
     },
-    {
-      type: 'divider',
-    },
-    {
-      key: 'delete',
-      icon: <Trash2 />,
-      label: '删除',
-      danger: true,
-      onClick: () => handleDeleteTicket(ticket),
-    },
+    ...(canDeleteTicket
+      ? [
+          {
+            type: 'divider' as const,
+          },
+          {
+            key: 'delete',
+            icon: <Trash2 />,
+            label: '删除',
+            danger: true,
+            onClick: () => handleDeleteTicket(ticket),
+          },
+        ]
+      : []),
   ];
 
   // 删除工单
@@ -360,13 +366,15 @@ const TicketKanban: React.FC<TicketKanbanProps> = ({ onTicketSelect }) => {
           </Col>
           <Col>
             <Space>
-              <Button
-                type="primary"
-                icon={<Plus />}
-                onClick={() => navigate('/tickets/create')}
-              >
-                新建工单
-              </Button>
+              <PermissionGate anyOf={['ticket:create']}>
+                <Button
+                  type="primary"
+                  icon={<Plus />}
+                  onClick={() => navigate('/tickets/create')}
+                >
+                  新建工单
+                </Button>
+              </PermissionGate>
             </Space>
           </Col>
         </Row>

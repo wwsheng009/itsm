@@ -604,26 +604,34 @@ const EnhancedProblemDetail: React.FC<EnhancedProblemDetailProps> = ({ id: propI
               </Button>
             </PermissionGate>
             {data.status === ProblemStatus.OPEN && (
-              <Button
-                type="primary"
-                onClick={() => handleUpdateStatus(ProblemStatus.INVESTIGATING)}
-              >
-                开始处理
-              </Button>
+              <PermissionGate anyOf={['problem:write']}>
+                <Button
+                  type="primary"
+                  onClick={() => handleUpdateStatus(ProblemStatus.INVESTIGATING)}
+                >
+                  开始处理
+                </Button>
+              </PermissionGate>
             )}
             {(data.status === ProblemStatus.IN_PROGRESS ||
               data.status === ProblemStatus.INVESTIGATING) && (
-              <Button type="primary" onClick={() => handleUpdateStatus(ProblemStatus.IDENTIFIED)}>
-                标记已识别
-              </Button>
+              <PermissionGate anyOf={['problem:write']}>
+                <Button type="primary" onClick={() => handleUpdateStatus(ProblemStatus.IDENTIFIED)}>
+                  标记已识别
+                </Button>
+              </PermissionGate>
             )}
             {data.status === ProblemStatus.IDENTIFIED && (
-              <Button type="primary" onClick={() => handleUpdateStatus(ProblemStatus.RESOLVED)}>
-                标记解决
-              </Button>
+              <PermissionGate anyOf={['problem:write']}>
+                <Button type="primary" onClick={() => handleUpdateStatus(ProblemStatus.RESOLVED)}>
+                  标记解决
+                </Button>
+              </PermissionGate>
             )}
             {data.status === ProblemStatus.RESOLVED && (
-              <Button onClick={() => handleUpdateStatus(ProblemStatus.CLOSED)}>关闭问题</Button>
+              <PermissionGate anyOf={['problem:write']}>
+                <Button onClick={() => handleUpdateStatus(ProblemStatus.CLOSED)}>关闭问题</Button>
+              </PermissionGate>
             )}
           </Space>
         </div>

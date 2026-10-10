@@ -43,6 +43,7 @@ import ChangeCMDBImpactPanel from './ChangeCMDBImpactPanel';
 import ChangeImpactAnalysis from './ChangeImpactAnalysis';
 import ChangeRollbackPlan from './ChangeRollbackPlan';
 import { SafeTextBlock } from '@/components/common/SafeContent';
+import { useCan } from '@/components/auth/PermissionGate';
 import RichTextContent from '@/components/common/rich-text/RichTextContent';
 import { formatDateTime } from '@/lib/formatters';
 
@@ -77,6 +78,9 @@ const ChangeDetail: React.FC = () => {
   // 快速连续点击存在重复提交窗口（实测批准发 3 次、提交审批发 2 次）。
   // 用 ref 做同步重入拦截，同一时刻只允许一个写请求在飞。
   const inFlightRef = useRef(false);
+  const canWriteChange = useCan(['change:write']);
+  const canApproveChange = useCan(['change:approve']);
+  const canRollbackChange = useCan(['change:rollback']);
 
   useEffect(() => {
     if (id) {
@@ -399,12 +403,12 @@ const ChangeDetail: React.FC = () => {
             </Tag>
             {!isTerminal && (
               <Space>
-                {canSubmit && (
+                {canSubmit && canWriteChange && (
                   <Button type="primary" loading={processing} onClick={handleSubmit}>
                     {t('changeDetail.submit')}
                   </Button>
                 )}
-                {canApprove && (
+                {canApprove && canApproveChange && (
                   <>
                     <Button
                       type="primary"
@@ -424,34 +428,34 @@ const ChangeDetail: React.FC = () => {
                     </Button>
                   </>
                 )}
-                {canSchedule && (
+                {canSchedule && canWriteChange && (
                   <Button type="primary" loading={processing} onClick={handleSchedule}>
                     {t('changeDetail.schedule')}
                   </Button>
                 )}
-                {canStart && (
+                {canStart && canWriteChange && (
                   <Button type="primary" loading={processing} onClick={handleStart}>
                     {t('changeDetail.startImplementation')}
                   </Button>
                 )}
-                {canComplete && (
-                  <>
-                    <Button type="primary" loading={processing} onClick={handleComplete}>
-                      {t('changeDetail.complete')}
-                    </Button>
-                    <Button danger loading={processing} onClick={handleRollback}>
-                      {t('changeDetail.rollback')}
-                    </Button>
-                  </>
+                {canComplete && canWriteChange && (
+                  <Button type="primary" loading={processing} onClick={handleComplete}>
+                    {t('changeDetail.complete')}
+                  </Button>
                 )}
-                {canCancel && (
+                {canComplete && canRollbackChange && (
+                  <Button danger loading={processing} onClick={handleRollback}>
+                    {t('changeDetail.rollback')}
+                  </Button>
+                )}
+                {canCancel && canWriteChange && (
                   <Button danger loading={processing} onClick={handleCancel}>
                     {t('changeDetail.cancelChange')}
                   </Button>
                 )}
               </Space>
             )}
-            {canClose && (
+            {canClose && canWriteChange && (
               <Button type="primary" loading={processing} onClick={handleClose} style={{ marginLeft: 12 }}>
                 {t('changeDetail.close')}
               </Button>

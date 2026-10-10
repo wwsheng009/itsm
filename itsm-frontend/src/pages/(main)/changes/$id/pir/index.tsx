@@ -27,6 +27,7 @@ import {
   type PIROverallResult,
 } from '@/lib/api/change-api';
 import { useI18n } from '@/lib/i18n/useI18n';
+import { PermissionGate } from '@/components/auth/PermissionGate';
 import dayjs from 'dayjs';
 
 const { TextArea } = Input;
@@ -334,15 +335,19 @@ export default function PIRPage() {
 
             <Form.Item>
               <Space>
-                <Button type="primary" htmlType="submit" loading={submitting}>
-                  {existingPIR ? '更新 PIR' : '创建 PIR'}
-                </Button>
+                  <PermissionGate anyOf={['change:write']}>
+                    <Button type="primary" htmlType="submit" loading={submitting}>
+                      {existingPIR ? '更新 PIR' : '创建 PIR'}
+                    </Button>
+                  </PermissionGate>
                 <Button onClick={() => navigate(`/changes/${changeId}`)}>取消</Button>
-                {existingPIR && (
-                  <Button danger onClick={() => setDeleteModalVisible(true)}>
-                    删除 PIR
-                  </Button>
-                )}
+                  {existingPIR && (
+                    <PermissionGate anyOf={['change:delete']}>
+                      <Button danger onClick={() => setDeleteModalVisible(true)}>
+                        删除 PIR
+                      </Button>
+                    </PermissionGate>
+                  )}
               </Space>
             </Form.Item>
           </Form>
