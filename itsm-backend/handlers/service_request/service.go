@@ -65,6 +65,7 @@ type Service struct {
 	repo           Repository
 	scRepo         service_catalog.Repository
 	cmdbRepo       cmdb.Repository
+	client         *ent.Client
 	logger         *zap.SugaredLogger
 	approvalBridge *service.BPMNApprovalBridge
 	// approvalChain 审批链求值引擎：驱动服务请求的分级/会签/或签/fallback 审批。
@@ -78,6 +79,7 @@ func NewService(repo Repository, scRepo service_catalog.Repository, cmdbRepo cmd
 		repo:          repo,
 		scRepo:        scRepo,
 		cmdbRepo:      cmdbRepo,
+		client:        entClient,
 		logger:        logger,
 		approvalChain: approvalChain,
 	}
@@ -786,6 +788,8 @@ func (s *Service) Delete(ctx context.Context, id, tenantID, actorID int, actorRo
 		return common.NewInternalError("Failed to delete service request", err)
 	}
 
+	// 通知联动清理：服务请求删除（软删）后清理指向它的站内通知，避免通知中心死链。
+	service.CleanupResourceNotificationsLogged(ctx, s.client, s.logger, service.NotificationResourceServiceRequest, id)
 	return nil
 }
 

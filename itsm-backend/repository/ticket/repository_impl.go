@@ -13,6 +13,7 @@ import (
 	"itsm-backend/database"
 	"itsm-backend/ent"
 	"itsm-backend/ent/ticket"
+	"itsm-backend/internal/notificationcleanup"
 	"itsm-backend/repository/base"
 
 	"go.uber.org/zap"
@@ -493,6 +494,10 @@ func (r *EntRepository) Delete(ctx context.Context, id int, tenantID int) error 
 	if affected == 0 {
 		return fmt.Errorf("ticket not found")
 	}
+	// 通知联动清理：notifications.action_url 与工单无外键，软删后仍会出现在通知中心
+	// 并指向 404 详情页。删除成功后清理指向该工单的站内通知（含服务商侧 MSP 深链），
+	// best-effort 不阻断主链路。
+	notificationcleanup.CleanupResourceNotificationsLogged(ctx, r.Client(), r.logger, notificationcleanup.NotificationResourceTicket, id)
 	return nil
 }
 
@@ -618,6 +623,10 @@ func (r *EntRepository) BatchDelete(ctx context.Context, ids []int, tenantID int
 		Save(ctx)
 	if err != nil {
 		return fmt.Errorf("batch delete tickets: %w", err)
+	}
+	// 通知联动清理：与单删同口径（best-effort）。
+	for _, id := range ids {
+		notificationcleanup.CleanupResourceNotificationsLogged(ctx, r.Client(), r.logger, notificationcleanup.NotificationResourceTicket, id)
 	}
 	return nil
 }

@@ -371,6 +371,8 @@ func (s *TicketCoreService) DeleteTicket(ctx context.Context, ticketID int, tena
 	if err != nil {
 		return fmt.Errorf("删除失败: %w", err)
 	}
+	// 通知联动清理：避免通知中心保留指向已删除工单的死链（含服务商侧深链）。
+	CleanupResourceNotificationsLogged(ctx, s.client, s.logger, NotificationResourceTicket, ticketID)
 	return nil
 }
 

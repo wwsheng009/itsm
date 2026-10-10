@@ -1,10 +1,11 @@
 
 import React from 'react';
-import { Drawer, Typography, Button } from 'antd';
+import { App, Drawer, Typography, Button } from 'antd';
 import { useNavigate } from 'react-router';
 import { Bell, CheckCheck, ArrowRight, Ticket, AlertTriangle, Zap } from 'lucide-react';
 import type { TicketNotification } from '@/lib/api/ticket-notification-api';
 import { DESIGN } from '@/design-system/tokens';
+import { checkNotificationTarget } from '@/lib/utils/notification-target';
 import { useI18n } from '@/lib/i18n/useI18n';
 
 const { Text, Title } = Typography;
@@ -30,17 +31,24 @@ export const NotificationDrawer: React.FC<NotificationDrawerProps> = ({
   onViewAll,
 }) => {
   const { t } = useI18n();
+  const { message } = App.useApp();
   const navigate = useNavigate();
 
-  // 点击通知：标记已读 + 按 actionUrl 直达（仅允许站内路径，防开放重定向）。
+  // 点击通知：删除单据兜底（目标 404 时提示不跳转）+ 标记已读 + 按 actionUrl 直达
+  //（仅允许站内路径，防开放重定向）。
   // provider 侧深链形如 /msp/workbench?ticket=<id>&customerTenantId=<tid> → 工作台自动打开详情。
-  const handleItemClick = (item: TicketNotification) => {
-    onMarkAsRead(item.id);
+  const handleItemClick = async (item: TicketNotification) => {
     const url = item.actionUrl;
-    if (url && url.startsWith('/') && !url.startsWith('//')) {
-      onClose();
-      navigate(url);
+    if (!url || !url.startsWith('/') || url.startsWith('//')) return;
+    const targetStatus = await checkNotificationTarget(url);
+    if (targetStatus === 'missing') {
+      onMarkAsRead(item.id);
+      message.warning(t('notificationDrawer.targetMissing'));
+      return;
     }
+    onMarkAsRead(item.id);
+    onClose();
+    navigate(url);
   };
 
   const getPriorityColor = (priority: string) => {
@@ -95,7 +103,7 @@ export const NotificationDrawer: React.FC<NotificationDrawerProps> = ({
 
     return (
       <div
-        onClick={() => handleItemClick(item)}
+        onClick={() => void handleItemClick(item)}
         style={{
           padding: '16px',
           borderBottom: `1px solid ${DESIGN.colors.border}`,

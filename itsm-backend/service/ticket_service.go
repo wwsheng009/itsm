@@ -1300,6 +1300,9 @@ func (s *TicketService) DeleteTicket(ctx context.Context, id int, tenantID int, 
 				"ticket_id", id, "tenant_id", tenantID, "cascaded", n)
 		}
 	}
+	// 通知联动清理：通知 action_url 与工单无外键，软删后仍会出现在通知中心并指向
+	// 404 详情页。删除成功后清理指向该工单的站内通知（含服务商侧 MSP 工作台深链）。
+	CleanupResourceNotificationsLogged(ctx, s.client, s.logger, NotificationResourceTicket, id)
 	return nil
 }
 

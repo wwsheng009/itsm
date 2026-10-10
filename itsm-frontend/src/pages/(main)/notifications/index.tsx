@@ -51,6 +51,7 @@ import {
 } from '@/lib/api/ticket-notification-api';
 import { useAuthStore } from '@/lib/store/auth-store';
 import { notificationWS } from '@/lib/services/notification-ws';
+import { checkNotificationTarget } from '@/lib/utils/notification-target';
 import { useI18n } from '@/lib/i18n';
 
 const { Title, Text } = Typography;
@@ -444,6 +445,15 @@ export default function NotificationsPage() {
   const openNotificationAction = async (notification: TicketNotification) => {
     const actionUrl = notification.actionUrl;
     if (!actionUrl || !actionUrl.startsWith('/') || actionUrl.startsWith('//')) return;
+    // 删除单据兜底：目标详情已不存在（404）时提示并留在列表，不进入空白详情页。
+    const targetStatus = await checkNotificationTarget(actionUrl);
+    if (targetStatus === 'missing') {
+      message.warning(t('notifications.targetMissing'));
+      if (notification.status !== 'read') {
+        await handleMarkRead(notification.id);
+      }
+      return;
+    }
     if (notification.status !== 'read') {
       await handleMarkRead(notification.id);
     }

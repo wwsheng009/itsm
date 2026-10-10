@@ -8,6 +8,7 @@ import { Link, useParams } from 'react-router';
 
 import React, { useState, useEffect, useCallback, useMemo, useRef, lazy, Suspense } from 'react';
 import { TicketApi, type TicketConfigurationItem } from '@/lib/api/ticket-api';
+import type { HttpClientError } from '@/lib/api/http-client';
 import { TicketApprovalApi } from '@/lib/api/ticket-approval-api';
 import { AttachmentApi, ticketAttachmentPreviewUrl } from '@/lib/api/attachment-api';
 import type { Ticket } from '@/lib/api/api-config';
@@ -290,7 +291,14 @@ const TicketDetail: React.FC<{ id?: string }> = ({ id: propId }) => {
       const data = await TicketApi.getTicket(ticketKey);
       setTicket(data as Ticket);
     } catch (error) {
-      setError(error instanceof Error ? error.message : 'Network error');
+      // 工单不存在/已删除（404）：走 notFound 态，而不是通用「加载失败」。
+      const status = (error as HttpClientError | undefined)?.httpStatus;
+      if (status === 404) {
+        setTicket(null);
+        setError(null);
+      } else {
+        setError(error instanceof Error ? error.message : 'Network error');
+      }
     } finally {
       setLoading(false);
     }

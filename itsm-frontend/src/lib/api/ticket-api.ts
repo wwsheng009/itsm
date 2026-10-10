@@ -42,6 +42,9 @@ export class TicketApi {
   static async getTicket(id: number | string): Promise<Ticket> {
     return handleApiRequest(httpClient.get<Ticket>(`/api/v1/tickets/${id}`), {
       errorMessage: 'Failed to fetch ticket details',
+      // 详情页自带 notFound/加载失败态（含通知深链的删除单据兜底），
+      // 静默全局 toast，避免 404 时「未找到工单」与错误提示叠加。
+      silent: true,
     });
   }
 

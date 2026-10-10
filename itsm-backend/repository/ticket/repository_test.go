@@ -10,6 +10,7 @@ import (
 	"itsm-backend/common"
 	"itsm-backend/ent"
 	"itsm-backend/ent/enttest"
+	"itsm-backend/ent/notification"
 	"itsm-backend/repository/base"
 
 	"github.com/stretchr/testify/assert"
@@ -401,6 +402,55 @@ func TestRepository_Delete_WrongTenant(t *testing.T) {
 
 	_, err := fx.repo.GetByID(fx.ctx, created.ID, fx.tenant.ID)
 	require.NoError(t, err)
+}
+
+// TestRepository_Delete_CleansLinkedNotifications 锁定仓库层删除钩子（真实单删路径）：
+// 软删工单后，指向它的通知（含服务商侧 MSP 深链）被清理，其它工单通知保留。
+func TestRepository_Delete_CleansLinkedNotifications(t *testing.T) {
+	fx := newRepoFixture(t)
+	defer fx.client.Close()
+
+	created, _ := fx.repo.Create(fx.ctx, &CreateParams{
+		Title:       "Delete With Notifications",
+		Description: "",
+		Priority:    PriorityLow,
+		Type:        TypeIncident,
+		RequesterID: fx.user.ID,
+	}, fx.tenant.ID)
+	other, _ := fx.repo.Create(fx.ctx, &CreateParams{
+		Title:       "Keep Notifications",
+		Description: "",
+		Priority:    PriorityLow,
+		Type:        TypeIncident,
+		RequesterID: fx.user.ID,
+	}, fx.tenant.ID)
+
+	mk := func(url string) {
+		t.Helper()
+		_, err := fx.client.Notification.Create().
+			SetTitle("t").SetMessage("m").SetType("info").
+			SetUserID(fx.user.ID).SetTenantID(fx.tenant.ID).
+			SetActionURL(url).SetActionText("查看").
+			Save(fx.ctx)
+		require.NoError(t, err)
+	}
+	targetURL := fmt.Sprintf("/tickets/%d", created.ID)
+	mspURL := fmt.Sprintf("/msp/workbench?ticket=%d&customerTenantId=%d", created.ID, fx.tenant.ID)
+	keepURL := fmt.Sprintf("/tickets/%d", other.ID)
+	for _, u := range []string{targetURL, mspURL, keepURL} {
+		mk(u)
+	}
+
+	require.NoError(t, fx.repo.Delete(fx.ctx, created.ID, fx.tenant.ID))
+
+	for _, u := range []string{targetURL, mspURL} {
+		ok, err := fx.client.Notification.Query().Where(notification.ActionURLEQ(u)).Exist(fx.ctx)
+		require.NoError(t, err)
+		assert.False(t, ok, "应已清理: %s", u)
+	}
+	ok, err := fx.client.Notification.Query().Where(notification.ActionURLEQ(keepURL)).Exist(fx.ctx)
+	require.NoError(t, err)
+	assert.True(t, ok, "其它工单通知应保留")
 }
 
 // =====================================================================

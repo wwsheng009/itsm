@@ -629,6 +629,8 @@ func (s *ChangeService) DeleteChange(ctx context.Context, id int, tenantID int) 
 		return fmt.Errorf("change not found")
 	}
 
+	// 通知联动清理：变更删除后清理指向它的站内通知，避免通知中心死链。
+	CleanupResourceNotificationsLogged(ctx, s.client, s.logger, NotificationResourceChange, id)
 	s.logger.Infow("Change deleted successfully", "change_id", id, "tenant_id", tenantID)
 	return nil
 }

@@ -92,6 +92,7 @@ export const translations = {
       typeResolved: '工单已解决',
       typeClosed: '工单已关闭',
       typeDefault: '新通知',
+      targetMissing: '单据已删除或不可访问',
     },
     common: {
       // 按钮和操作
@@ -3054,6 +3055,7 @@ export const translations = {
       resetDefault: '重置为默认',
       saveSettings: '保存设置',
       loadFailed: '加载失败',
+      targetMissing: '单据已删除或不可访问',
       saveSuccess: '保存成功',
       saveFailed: '保存失败',
       markSuccess: '标记成功',
@@ -5352,6 +5354,7 @@ export const translations = {
       typeResolved: 'Ticket Resolved',
       typeClosed: 'Ticket Closed',
       typeDefault: 'New Notification',
+      targetMissing: 'The item has been deleted or is unavailable',
     },
     common: {
       // Buttons and Actions
@@ -8120,6 +8123,7 @@ export const translations = {
       resetDefault: 'Reset to Default',
       saveSettings: 'Save Settings',
       loadFailed: 'Load failed',
+      targetMissing: 'The item has been deleted or is unavailable',
       saveSuccess: 'Saved successfully',
       saveFailed: 'Save failed',
       markSuccess: 'Marked successfully',
