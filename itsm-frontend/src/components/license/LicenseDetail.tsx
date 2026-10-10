@@ -26,6 +26,7 @@ import type { License } from '@/lib/api/asset-api';
 import { AssetApi } from '@/lib/api/asset-api';
 import type { User as UserType } from '@/lib/api/user-api';
 import { UserApi } from '@/lib/api/user-api';
+import { useCan } from '@/components/auth/PermissionGate';
 
 const { Title, Text } = Typography;
 
@@ -55,6 +56,8 @@ const typeLabels: Record<string, string> = {
 const LicenseDetail: React.FC = () => {
   const { id } = useParams() as { id: string };
   const navigate = useNavigate();
+  // 入口级门禁：编辑/分配许可证 → license:write。
+  const canWriteLicense = useCan(['license:write']);
   const [loading, setLoading] = useState(true);
   const [license, setLicense] = useState<License | null>(null);
   const [assignModalVisible, setAssignModalVisible] = useState(false);
@@ -268,10 +271,12 @@ const LicenseDetail: React.FC = () => {
 
       <Card>
         <Space>
-          <Button type="primary" onClick={() => navigate(`/licenses/${license.id}/edit`)}>
-            编辑
-          </Button>
-          {license.status === 'active' && license.availableQuantity > 0 && (
+            {canWriteLicense && (
+              <Button type="primary" onClick={() => navigate(`/licenses/${license.id}/edit`)}>
+                编辑
+              </Button>
+            )}
+          {license.status === 'active' && license.availableQuantity > 0 && canWriteLicense && (
             <Button
               icon={<UserIcon />}
               onClick={() => {

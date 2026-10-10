@@ -21,6 +21,7 @@ import { CMDBApi } from '@/lib/api/cmdb-api';
 import { CMDB_KEYS, useCloudServicesQuery } from '@/lib/hooks/useCMDB';
 import type { CloudService } from '@/types/biz/cmdb';
 import { useI18n } from '@/lib/i18n';
+import { useCan } from '@/components/auth/PermissionGate';
 
 const { TextArea } = Input;
 
@@ -37,6 +38,9 @@ export default function CloudServicePage() {
   const { t } = useI18n();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+  // 入口级门禁：新增/编辑 → cmdb:write；删除 → cmdb:delete。
+  const canWriteCloud = useCan(['cmdb:write']);
+  const canDeleteCloud = useCan(['cmdb:delete']);
   const [form] = Form.useForm();
   const [createForm] = Form.useForm();
 
@@ -239,26 +243,30 @@ export default function CloudServicePage() {
       width: 140,
       render: (_: unknown, record: CloudService) => (
         <Space size='small'>
-          <Button type='link' size='small' onClick={() => handleEdit(record)}>
-            编辑
-          </Button>
-          <Popconfirm
-            title='确认删除该云服务？'
-            description='删除后无法恢复。'
-            okText='删除'
-            cancelText='取消'
-            onConfirm={() => deleteMutation.mutate(record)}
-          >
-            <Button
-              type='link'
-              danger
-              size='small'
-              loading={deleteMutation.isPending && deleteMutation.variables?.id === record.id}
-              aria-label={`删除云服务 ${record.serviceName}`}
-            >
-              删除
+          {canWriteCloud && (
+            <Button type='link' size='small' onClick={() => handleEdit(record)}>
+              编辑
             </Button>
-          </Popconfirm>
+          )}
+          {canDeleteCloud && (
+            <Popconfirm
+              title='确认删除该云服务？'
+              description='删除后无法恢复。'
+              okText='删除'
+              cancelText='取消'
+              onConfirm={() => deleteMutation.mutate(record)}
+            >
+              <Button
+                type='link'
+                danger
+                size='small'
+                loading={deleteMutation.isPending && deleteMutation.variables?.id === record.id}
+                aria-label={`删除云服务 ${record.serviceName}`}
+              >
+                删除
+              </Button>
+            </Popconfirm>
+          )}
         </Space>
       ),
     },
@@ -283,9 +291,11 @@ export default function CloudServicePage() {
         <Form.Item>
           <Space>
             <Button onClick={handleSearch}>查询</Button>
-            <Button type='primary' onClick={() => setCreateOpen(true)}>
-              新增云服务
-            </Button>
+              {canWriteCloud && (
+                <Button type='primary' onClick={() => setCreateOpen(true)}>
+                  新增云服务
+                </Button>
+              )}
           </Space>
         </Form.Item>
       </Form>

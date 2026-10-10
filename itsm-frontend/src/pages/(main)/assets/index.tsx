@@ -6,10 +6,13 @@ import { Package, CheckCircle, Clock, Plus } from 'lucide-react';
 import AssetList from '@/components/asset/AssetList';
 import { AssetApi } from '@/lib/api/asset-api';
 import BusinessPageTemplate from '@/components/layout/BusinessPageTemplate';
+import { useCan } from '@/components/auth/PermissionGate';
 
 export default function AssetsPage() {
   const navigate = useNavigate();
   const { message } = App.useApp();
+  // 入口级门禁：新增资产 → asset:write。
+  const canWriteAsset = useCan(['asset:write']);
   const [loading, setLoading] = useState(true);
   const [searchValue, setSearchValue] = useState('');
   const [stats, setStats] = useState({
@@ -77,11 +80,15 @@ export default function AssetsPage() {
       searchPlaceholder="搜索资产名称、编号、型号..."
       searchValue={searchValue}
       onSearch={setSearchValue}
-      primaryAction={{
-        label: '新增资产',
-        icon: <Plus className="h-4 w-4" />,
-        onClick: () => navigate('/assets/new'),
-      }}
+      primaryAction={
+        canWriteAsset
+          ? {
+              label: '新增资产',
+              icon: <Plus className="h-4 w-4" />,
+              onClick: () => navigate('/assets/new'),
+            }
+          : undefined
+      }
       showViewSwitch={false}
     >
       <AssetList showActions={false} />

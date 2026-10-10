@@ -20,6 +20,7 @@ import {
 import { Search, Plus, Pencil, Eye, Monitor } from 'lucide-react';
 import dayjs from 'dayjs';
 import LoadingEmptyError from '@/components/ui/LoadingEmptyError';
+import { useCan } from '@/components/auth/PermissionGate';
 
 import { AssetApi, AssetStatus, AssetType } from '@/lib/api/asset-api';
 
@@ -44,9 +45,11 @@ interface AssetListProps {
   showActions?: boolean;
 }
 
-const AssetList: React.FC<AssetListProps> = ({ showActions = true }) => {
-  const navigate = useNavigate();
-  const { message } = App.useApp();
+  const AssetList: React.FC<AssetListProps> = ({ showActions = true }) => {
+    const navigate = useNavigate();
+    const { message } = App.useApp();
+    // 入口级门禁：创建/编辑资产 → asset:write。
+    const canWriteAsset = useCan(['asset:write']);
   const [loading, setLoading] = useState(false);
   const [loadError, setLoadError] = useState(false);
   const [data, setData] = useState<any[]>([]);
@@ -219,14 +222,16 @@ const AssetList: React.FC<AssetListProps> = ({ showActions = true }) => {
               aria-label={`查看资产 ${record.name || record.assetNumber}`}
             />
           </Tooltip>
-          <Tooltip title="编辑资产信息">
-            <Button
-              type="text"
-              icon={<Pencil />}
-              onClick={() => navigate(`/assets/${record.id}/edit`)}
-              aria-label={`编辑资产 ${record.name || record.assetNumber}`}
-            />
-          </Tooltip>
+            <Tooltip title="编辑资产信息">
+              {canWriteAsset && (
+                <Button
+                  type="text"
+                  icon={<Pencil />}
+                  onClick={() => navigate(`/assets/${record.id}/edit`)}
+                  aria-label={`编辑资产 ${record.name || record.assetNumber}`}
+                />
+              )}
+            </Tooltip>
         </Space>
       ),
     },
@@ -274,7 +279,7 @@ const AssetList: React.FC<AssetListProps> = ({ showActions = true }) => {
                 搜索
               </Button>
               <Button onClick={handleReset}>重置</Button>
-              {showActions && (
+              {showActions && canWriteAsset && (
                 <Button
                   type="primary"
                   icon={<Plus />}
@@ -301,8 +306,8 @@ const AssetList: React.FC<AssetListProps> = ({ showActions = true }) => {
                   title: '暂无资产数据',
                   description: '当前没有资产记录，点击下方按钮创建第一个资产',
                   actionText: '新增资产',
-                  onAction: () => navigate('/assets/new'),
-                  showAction: true,
+                  onAction: canWriteAsset ? () => navigate('/assets/new') : undefined,
+                  showAction: canWriteAsset,
                   icon: <Monitor size={48} />,
                 }}
               />

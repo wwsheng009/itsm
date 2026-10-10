@@ -23,6 +23,7 @@ import { Search, Plus, Pencil, Trash2, RotateCcw } from 'lucide-react';
 import { CMDBApi } from '@/lib/api/cmdb-api';
 import { CMDB_KEYS, useCloudAccountsQuery } from '@/lib/hooks/useCMDB';
 import type { CloudAccount } from '@/types/biz/cmdb';
+import { useCan } from '@/components/auth/PermissionGate';
 
 const providerOptions = [
   { value: 'aliyun', label: '阿里云' },
@@ -36,6 +37,9 @@ const providerOptions = [
 export default function CloudAccountPage() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+  // 入口级门禁：新增/编辑 → cmdb:write；删除 → cmdb:delete。
+  const canWriteCloud = useCan(['cmdb:write']);
+  const canDeleteCloud = useCan(['cmdb:delete']);
   const [createForm] = Form.useForm();
   const [editForm] = Form.useForm();
 
@@ -218,33 +222,37 @@ export default function CloudAccountPage() {
       width: 120,
       render: (_: unknown, record: CloudAccount) => (
         <Space>
-          <Tooltip title='编辑'>
-            <Button
-              type='text'
-              icon={<Pencil />}
-              onClick={() => handleEdit(record)}
-              size='small'
-              aria-label={`编辑云账号 ${record.accountName}`}
-            />
-          </Tooltip>
-          <Popconfirm
-            title='确定删除此云账号？'
-            description='删除后无法恢复'
-            onConfirm={() => handleDelete(record.id)}
-            okText='确定'
-            cancelText='取消'
-          >
-            <Tooltip title='删除'>
+          {canWriteCloud && (
+            <Tooltip title='编辑'>
               <Button
                 type='text'
-                danger
-                icon={<Trash2 />}
+                icon={<Pencil />}
+                onClick={() => handleEdit(record)}
                 size='small'
-                loading={deleteMutation.isPending && deleteMutation.variables === record.id}
-                aria-label={`删除云账号 ${record.accountName}`}
+                aria-label={`编辑云账号 ${record.accountName}`}
               />
             </Tooltip>
-          </Popconfirm>
+          )}
+          {canDeleteCloud && (
+            <Popconfirm
+              title='确定删除此云账号？'
+              description='删除后无法恢复'
+              onConfirm={() => handleDelete(record.id)}
+              okText='确定'
+              cancelText='取消'
+            >
+              <Tooltip title='删除'>
+                <Button
+                  type='text'
+                  danger
+                  icon={<Trash2 />}
+                  size='small'
+                  loading={deleteMutation.isPending && deleteMutation.variables === record.id}
+                  aria-label={`删除云账号 ${record.accountName}`}
+                />
+              </Tooltip>
+            </Popconfirm>
+          )}
         </Space>
       ),
     },
@@ -293,9 +301,11 @@ export default function CloudAccountPage() {
           >
             刷新
           </Button>
-          <Button type='primary' icon={<Plus />} onClick={() => setCreateOpen(true)}>
-            新增云账号
-          </Button>
+            {canWriteCloud && (
+              <Button type='primary' icon={<Plus />} onClick={() => setCreateOpen(true)}>
+                新增云账号
+              </Button>
+            )}
         </Space>
         <span className='ml-auto text-sm text-gray-500'>共 {filteredData.length} 个账号</span>
       </div>

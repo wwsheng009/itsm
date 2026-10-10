@@ -51,19 +51,19 @@
 
 | 页面/文件 | 入口（行号） | 动作 | 权限码 | 路由级 | 状态 |
 |---|---|---|---|---|---|
-| `components/asset/AssetList.tsx` | 281 / 304 / 226 | 新建 / 空态新建 / 编辑 | `asset:write` | ✅ | ⬜ |
-| `components/asset/AssetDetail.tsx` | 243 / Modal.confirm | 编辑 / 删除 | `asset:write` / `asset:delete`（待核） | ✅/— | ⬜ |
-| `components/license/LicenseList.tsx` | 329 / 346 / 231 | 新建 / 空态新建 / 编辑 | `license:write` | ✅ | ⬜ |
-| `components/license/LicenseDetail.tsx` | 271 | 编辑 | `license:write` | ✅ | ⬜ |
+| `components/asset/AssetList.tsx`、`pages/(main)/assets/index.tsx` | 281 / 304 / 226 / 80 | 新建（页头 + 空态）/ 编辑 | `asset:write` | ✅ | ✅（批次 7） |
+| `components/asset/AssetDetail.tsx` | 243 / 246 / 257 | 编辑 / 分配 / 退役（UI 无删除入口） | `asset:write`（`asset:delete` 后端保留） | ✅/— | ✅（批次 7） |
+| `components/license/LicenseList.tsx` | 329 / 346 / 231 | 新建 / 空态新建 / 编辑 | `license:write` | ✅ | ✅（批次 7） |
+| `components/license/LicenseDetail.tsx` | 271 / 274 | 编辑 / 分配用户 | `license:write` | ✅ | ✅（批次 7） |
 | `components/cmdb/CSDMHub.tsx`、`CIList.tsx` | 125 / 314 / 370 / 255 | 新建 CI / 编辑 CI | `cmdb:write` | ✅ | ✅（批次 6） |
 | `components/cmdb/CIList.tsx` | Modal.confirm ×2 | 删除 / 批量删除 CI | `cmdb:delete` | — | ✅（批次 6） |
 | `components/cmdb/CIRelationshipManager.tsx` | 144+ | 新建/删除关系（编辑关系无独立入口） | `cmdb:write` / `cmdb:delete` | — | ✅（批次 6） |
 | `pages/(main)/cmdb/reconciliation/index.tsx` | 142 | 从云资源建 CI / 绑定已有 | `cmdb:write` | ⚠️ §5 | ✅（批次 6） |
-| `pages/(main)/cmdb/cloud-resources/index.tsx` | 261 / 419 | 建 CI / 批量建 CI | `cmdb:write` | ✅/— | ⬜ |
-| `pages/(main)/cmdb/cloud-accounts/index.tsx` | 296 | 新建云账号（删除 → `cmdb:delete`） | `cmdb:write` | — | ⬜ |
-| `pages/(main)/cmdb/cloud-services/index.tsx` | 286 | 新建云服务 | `cmdb:write` | — | ⬜ |
+| `pages/(main)/cmdb/cloud-resources/index.tsx` | 261 / 274 / 419 | 建 CI / 绑定已有 / 详情弹窗建 CI | `cmdb:write` | ✅/— | ✅（批次 7） |
+| `pages/(main)/cmdb/cloud-accounts/index.tsx` | 296 / 221 | 新建云账号 / 编辑（删除 → `cmdb:delete`） | `cmdb:write` / `cmdb:delete` | — | ✅（批次 7） |
+| `pages/(main)/cmdb/cloud-services/index.tsx` | 286 / 242 | 新建云服务 / 编辑（删除 → `cmdb:delete`） | `cmdb:write` / `cmdb:delete` | — | ✅（批次 7） |
 
-> 进度（2026-10-10，批次 6）：CMDB 核心——CI 列表（录入/编辑/删除/批量删除/空态创建）、CSDM Hub「新建CI」、关系管理（添加出向/入向、删除关系）、对账中心（新建CI/绑定已有）✅；剩余：云账号/云服务/云资源页 CRUD、资产（AssetList/AssetDetail）、许可证（LicenseList/LicenseDetail）。
+> 进度（2026-10-10，批次 6/7）：§2.2 全部收口 ✅——批次 6：CI 列表/CSDM Hub/关系管理/对账中心；批次 7：云账号（新增/编辑/删除）、云服务（新增/编辑/删除）、云资源（新建CI/绑定）、资产（页头+空态新增/行内编辑/详情编辑·分配·退役）、许可证（新增/空态新增/行内编辑/详情编辑·分配）。
 
 ### 2.3 服务目录 / 服务请求 / 审批
 

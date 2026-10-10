@@ -26,6 +26,7 @@ import { Search, Plus, Pencil, Eye, Key } from 'lucide-react';
 import dayjs from 'dayjs';
 
 import { AssetApi, LicenseStatus, LicenseType } from '@/lib/api/asset-api';
+import { useCan } from '@/components/auth/PermissionGate';
 
 // 状态颜色映射
 const statusColors: Record<string, string> = {
@@ -44,9 +45,11 @@ const typeColors: Record<string, string> = {
   site: 'green',
 };
 
-const LicenseList: React.FC = () => {
-  const navigate = useNavigate();
-  const { message } = App.useApp();
+  const LicenseList: React.FC = () => {
+    const navigate = useNavigate();
+    const { message } = App.useApp();
+    // 入口级门禁：创建/编辑许可证 → license:write。
+    const canWriteLicense = useCan(['license:write']);
   const [loading, setLoading] = useState(false);
   const [data, setData] = useState<any[]>([]);
   const [total, setTotal] = useState(0);
@@ -224,14 +227,16 @@ const LicenseList: React.FC = () => {
               aria-label={`查看许可证 ${record.name || '详情'}`}
             />
           </Tooltip>
-          <Tooltip title="编辑许可证信息">
-            <Button
-              type="text"
-              icon={<Pencil />}
-              onClick={() => navigate(`/licenses/${record.id}/edit`)}
-              aria-label={`编辑许可证 ${record.name || '详情'}`}
-            />
-          </Tooltip>
+            <Tooltip title="编辑许可证信息">
+              {canWriteLicense && (
+                <Button
+                  type="text"
+                  icon={<Pencil />}
+                  onClick={() => navigate(`/licenses/${record.id}/edit`)}
+                  aria-label={`编辑许可证 ${record.name || '详情'}`}
+                />
+              )}
+            </Tooltip>
         </Space>
       ),
     },
@@ -323,13 +328,15 @@ const LicenseList: React.FC = () => {
                 搜索
               </Button>
               <Button onClick={handleReset}>重置</Button>
-              <Button
-                type="primary"
-                icon={<Plus />}
-                onClick={() => navigate('/licenses/new')}
-              >
-                创建许可证
-              </Button>
+              {canWriteLicense && (
+                <Button
+                  type="primary"
+                  icon={<Plus />}
+                  onClick={() => navigate('/licenses/new')}
+                >
+                  创建许可证
+                </Button>
+              )}
             </Space>
           </Form.Item>
         </Form>
@@ -343,9 +350,11 @@ const LicenseList: React.FC = () => {
           locale={{
             emptyText: (
               <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="暂无许可证数据">
-                <Button type="primary" onClick={() => navigate('/licenses/new')}>
-                  创建第一个许可证
-                </Button>
+                {canWriteLicense && (
+                  <Button type="primary" onClick={() => navigate('/licenses/new')}>
+                    创建第一个许可证
+                  </Button>
+                )}
               </Empty>
             ),
           }}

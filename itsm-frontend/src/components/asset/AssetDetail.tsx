@@ -27,6 +27,7 @@ import type { Asset } from '@/lib/api/asset-api';
 import { AssetApi } from '@/lib/api/asset-api';
 import type { User as UserType } from '@/lib/api/user-api';
 import { UserApi } from '@/lib/api/user-api';
+import { useCan } from '@/components/auth/PermissionGate';
 
 const { Title, Text } = Typography;
 
@@ -57,6 +58,8 @@ const typeLabels: Record<string, string> = {
 const AssetDetail: React.FC = () => {
   const { id } = useParams() as { id: string };
   const navigate = useNavigate();
+  // 入口级门禁：编辑/分配/退役 → asset:write。
+  const canWriteAsset = useCan(['asset:write']);
   const [loading, setLoading] = useState(true);
   const [asset, setAsset] = useState<Asset | null>(null);
   const [assignModalVisible, setAssignModalVisible] = useState(false);
@@ -240,10 +243,12 @@ const AssetDetail: React.FC = () => {
 
       <Card>
         <Space>
-          <Button type="primary" onClick={() => navigate(`/assets/${asset.id}/edit`)}>
-            编辑
-          </Button>
-          {asset.status === 'available' && (
+            {canWriteAsset && (
+              <Button type="primary" onClick={() => navigate(`/assets/${asset.id}/edit`)}>
+                编辑
+              </Button>
+            )}
+          {asset.status === 'available' && canWriteAsset && (
             <Button
               icon={<UserIcon />}
               onClick={() => {
@@ -254,7 +259,7 @@ const AssetDetail: React.FC = () => {
               分配资产
             </Button>
           )}
-          {asset.status !== 'retired' && asset.status !== 'disposed' && (
+          {asset.status !== 'retired' && asset.status !== 'disposed' && canWriteAsset && (
             <Button danger onClick={handleRetire}>
               退役资产
             </Button>

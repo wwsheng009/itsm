@@ -23,6 +23,7 @@ import { CMDBApi } from '@/lib/api/cmdb-api';
 import CISearchSelect, { type CISelectOption } from '@/components/cmdb/CISearchSelect';
 import { CMDB_KEYS, useCloudResourcesQuery, useCloudServicesQuery } from '@/lib/hooks/useCMDB';
 import type { CloudResource } from '@/types/biz/cmdb';
+import { useCan } from '@/components/auth/PermissionGate';
 
 const providerOptions = [
   { value: 'aliyun', label: '阿里云' },
@@ -64,6 +65,8 @@ export default function CloudResourcePage() {
   const navigate = useNavigate();
   const { message } = App.useApp();
   const queryClient = useQueryClient();
+  // 入口级门禁：新建CI / 绑定已有 CI 均为写面（cmdb:write）。
+  const canWriteCI = useCan(['cmdb:write']);
   const [form] = Form.useForm();
   const [bindForm] = Form.useForm();
 
@@ -255,23 +258,27 @@ export default function CloudResourcePage() {
               size='small'
             />
           </Tooltip>
-          <Button
-            type='link'
-            size='small'
-            onClick={() => navigate(`/cmdb/cis/create?cloudResourceRefId=${record.id}`)}
-          >
-            新建CI
-          </Button>
-          <Button
-            type="link"
-            size="small"
-            onClick={() => {
-              setBinding(record);
-              setBindCIOption(undefined);
-            }}
-          >
-            绑定
-          </Button>
+          {canWriteCI && (
+            <Button
+              type='link'
+              size='small'
+              onClick={() => navigate(`/cmdb/cis/create?cloudResourceRefId=${record.id}`)}
+            >
+              新建CI
+            </Button>
+          )}
+          {canWriteCI && (
+            <Button
+              type="link"
+              size="small"
+              onClick={() => {
+                setBinding(record);
+                setBindCIOption(undefined);
+              }}
+            >
+              绑定
+            </Button>
+          )}
         </Space>
       ),
     },
@@ -410,18 +417,20 @@ export default function CloudResourcePage() {
           <Button key='close' onClick={() => setDetailOpen(false)}>
             关闭
           </Button>,
-          <Button
-            key='create'
-            type='primary'
-            icon={<Plus />}
-            onClick={() => {
-              if (selectedRow) {
-                navigate(`/cmdb/cis/create?cloudResourceRefId=${selectedRow.id}`);
-              }
-            }}
-          >
-            新建CI
-          </Button>,
+          canWriteCI && (
+            <Button
+              key='create'
+              type='primary'
+              icon={<Plus />}
+              onClick={() => {
+                if (selectedRow) {
+                  navigate(`/cmdb/cis/create?cloudResourceRefId=${selectedRow.id}`);
+                }
+              }}
+            >
+              新建CI
+            </Button>
+          ),
         ]}
         width={560}
       >
