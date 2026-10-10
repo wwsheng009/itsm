@@ -65,6 +65,24 @@ describe('UserApi', () => {
     });
   });
 
+  describe('updateMyProfile', () => {
+    it('should PUT /users/me with whitelist fields only', async () => {
+      const resp = { id: 1, username: 'alice', name: 'Alice', email: 'alice@example.com', phone: '13800000000' };
+      mockPut.mockResolvedValue(resp);
+      const result = await UserApi.updateMyProfile({
+        name: 'Alice',
+        email: 'alice@example.com',
+        phone: '13800000000',
+      });
+      expect(mockPut).toHaveBeenCalledWith('/api/v1/users/me', {
+        name: 'Alice',
+        email: 'alice@example.com',
+        phone: '13800000000',
+      });
+      expect(result.email).toBe('alice@example.com');
+    });
+  });
+
   describe('deleteUser', () => {
     it('should delete user', async () => {
       mockDelete.mockResolvedValue(undefined);

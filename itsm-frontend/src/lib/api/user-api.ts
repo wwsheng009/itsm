@@ -157,6 +157,16 @@ export class UserApi {
     return httpClient.put<User>(`${this.baseURL}/${id}`, userData);
   }
 
+  // 自助资料更新（剩余缺口治理 B3）：PUT /api/v1/users/me —— 仅本人；
+  // 字段白名单 name/email/phone（部门/角色等治理字段由管理员维护），无需 user:write。
+  static async updateMyProfile(data: {
+    name?: string;
+    email?: string;
+    phone?: string;
+  }): Promise<{ id: number; username: string; name: string; email: string; phone: string }> {
+    return httpClient.put(`${this.baseURL}/me`, data);
+  }
+
   // 删除用户（软删除）
   static async deleteUser(id: number): Promise<void> {
     await httpClient.delete(`${this.baseURL}/${id}`);

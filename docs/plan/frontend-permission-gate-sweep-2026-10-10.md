@@ -331,11 +331,11 @@ rg -n 'RequirePermission\("' itsm-backend/router itsm-backend/handlers
 - **新增 GAP 5 处（已修复）**：
   1. `components/problem/ProblemAssociationsTab.tsx:192/222`（移除/添加问题关联）→ `problem:write`（`problem_routes.go:35-36`）；组件级 `useCan` 门禁（宿主 `problems/$id` 原无门禁）。
   2. `components/business/detail-tabs/ApprovalWorkflowPanel.tsx:576`（批准/拒绝/委托）→ `workflow:write`（`ticket_routes.go:219-226`）；`canApprove` 追加 `canWorkflowWrite`。
-  3. `pages/(main)/profile/index.tsx:391`（编辑资料）→ `user:write`（`PUT /users/:id`，`common_system_routes.go:51`）；入口禁用。
-  4. `pages/(main)/profile/index.tsx:630/813`（保存修改/修改密码）→ `user:write`（`PUT /users/:id`、`PUT /users/:id/reset-password`，`:51/56`）；入口禁用。
+  3. `pages/(main)/profile/index.tsx:391`（编辑资料）→ `user:write`（`PUT /users/:id`，`common_system_routes.go:51`）；入口禁用。（**已被 B3 自助面取代**：改走 `PUT /users/me`，禁用移除）
+  4. `pages/(main)/profile/index.tsx:630/813`（保存修改/修改密码）→ `user:write`（`PUT /users/:id`、`PUT /users/:id/reset-password`，`:51/56`）；入口禁用。（**已被 B3 自助面取代**：`PUT /users/me` + `POST /auth/change-password`，禁用移除）
   5. `components/layout/header/Header.tsx` + `NotificationDrawer.tsx`（标记已读/全部已读/点击自动已读）→ `notification:write`（`:247-248`）；新增 `canMarkRead` 开关。
-- **产品缺口（登记）**：`/profile` 应走自助端点——改密 `POST /auth/change-password`（需旧密码字段，当前模态缺失）、资料自更新后端无 `/users/me` 写端点；当前以 `user:write` 禁用收口，待后端补自助面后切换。
+- **产品缺口（已闭环，B3/2026-10-10）**：`/profile` 自助面已补——后端新增 `PUT /users/me`（`handlers/common/user_profile.go`，name/email/phone 白名单 + 邮箱唯一性 + 跨租户 fail-closed）；改密改走 `POST /auth/change-password`（模态旧密码字段已存在）；三处 `user:write` 禁用移除，部门字段改只读（治理字段由管理员维护）。
 - **死组件补充清单（清理候选）**：`TicketRatingSection`、`TicketNotificationSection`、`TicketMultiLevelApproval`、`TicketTrendPrediction`、`TicketRootCauseAnalysis`、`AutomationRuleForm`、`TicketAttachmentSection`、`SLAViolationMonitor`、`batch-operations/*`（`BatchOperationBar/Modal/ProgressModal` + `useBatchOperations`）、`ticket-api.batchUpdateTickets`。
-- **已登记缺口复核（仍有效）**：①`tickets/relations` 写端点未注册（仅 GET，`ticket_routes.go:83/102/143/146`）；②`/tickets/batch-assign`、`batch/assign*`、`batch-notify` 未注册（仅 `/export`、`/batch-delete`，`:32-33`）；③SLA 新建/编辑页面缺失（路由仅 `sla`、`sla/definitions/:id`）；④admin/msp 区域守卫粗粒度（`ADMIN_AREA_PERMISSIONS` 4 码）延期；⑤`TicketViewSelector` 保存模态未接线（复核：`setSaveModalVisible(true)` 无调用点）。
+- **已登记缺口复核（状态更新，2026-10-10）**：①`tickets/relations` 写端点未注册（仅 GET，`ticket_routes.go:83/102/143/146`）；②`/tickets/batch-assign`、`batch/assign*`、`batch-notify` 未注册（仅 `/export`、`/batch-delete`，`:32-33`）；③SLA 新建/编辑页面缺失 ✅ 已补（B2）；④admin/msp 区域守卫粗粒度（`ADMIN_AREA_PERMISSIONS` 4 码）延期；⑤`TicketViewSelector` 保存模态未接线 ✅ 已清理（B1 删除死 UI）。
 - **验证缺口（待补）**：批次 13–15 未做浏览器双账号实测（§7 清单第 1/2/5 项）；以 tsc/eslint/jest + 后端守卫测试替代，双账号实测登记待补。
 - 验证：`tsc -b` 0、eslint 0；jest detail-tabs/header/problem/profile 39/39。

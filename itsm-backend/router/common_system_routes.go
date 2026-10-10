@@ -44,6 +44,9 @@ func SetupCommonSystemRoutes(r *gin.Engine, tenant *gin.RouterGroup, config *Rou
 				users.POST("", middleware.RequirePermission("user", "write"), config.UserHandler.CreateUser)
 				users.GET("/profile", middleware.AuthMiddleware(config.JWTSecret), config.CommonHandler.GetMe) // 获取当前用户信息（需认证）
 				users.GET("/me", middleware.AuthMiddleware(config.JWTSecret), config.CommonHandler.GetMe)      // alias of /profile
+				// 自助资料更新（IP-P1-6 补口，B3）：授权依据=已认证身份 + 仅写本人 users 行；
+				// 字段白名单（name/email/phone）与邮箱唯一性由 handlers/common 收口。
+				users.PUT("/me", middleware.AuthMiddleware(config.JWTSecret), config.CommonHandler.UpdateMe)
 				// 本人偏好（IP-P1-6c）：白名单键（workbenchFilter 等）；仅本人可读写。
 				users.GET("/me/preferences", middleware.AuthMiddleware(config.JWTSecret), config.CommonHandler.GetMyPreferences)
 				users.PUT("/me/preferences", middleware.AuthMiddleware(config.JWTSecret), config.CommonHandler.UpdateMyPreferences)

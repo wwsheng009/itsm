@@ -10,8 +10,8 @@
 |---|---|---|---|---|---|
 | G1 | 死代码 | 30 个未接线组件/测试/桶文件（含 templates、batch-operations UI、14 个 business 组件等） | 维护噪音、误引用风险 | **B1** | ✅ 已清理（2026-10-10） |
 | G2 | 验证 | 批次 13–15 门禁项缺浏览器双账号实测（§7 清单第 1/2/5 项） | 证据链缺口 | **B7** | ⏳ 待浏览器环境 |
-| G3 | 产品-前端 | SLA 新建/编辑页面缺失（路由不存在；详情编辑按钮已禁用） | 无法创建/编辑 SLA 定义 | **B2** | ⏳ 待执行（后端端点齐备） |
-| G4 | 产品-全栈 | `/profile` 自助面：改密应走 `POST /auth/change-password`（需旧密码字段）；资料自更新缺 `PUT /users/me` | 非 `user:write` 用户无法自助 | **B3** | ⏳ 待执行 |
+| G3 | 产品-前端 | SLA 新建/编辑页面缺失（路由不存在；详情编辑按钮已禁用） | 无法创建/编辑 SLA 定义 | **B2** | ✅ 已落地（2026-10-10） |
+| G4 | 产品-全栈 | `/profile` 自助面：改密应走 `POST /auth/change-password`（需旧密码字段）；资料自更新缺 `PUT /users/me` | 非 `user:write` 用户无法自助 | **B3** | ✅ 已落地（2026-10-10） |
 | G5 | 产品-后端 | `POST/DELETE /tickets/:id/relations` 未注册（仅 GET 桩） | RelationPanel 写动作 404 | **B4** | ⏳ 待执行（Service 已就绪） |
 | G6 | 产品-后端 | `/tickets/batch-assign`、`batch/assign*`、`batch-notify` 未注册（TicketList 批量工具栏入口存活，受权限过滤） | 批量分配/通知 404 | **B5** | ⏳ 待决策（补端点 or 下线入口） |
 | G7 | 门禁粒度 | `/admin/*`、`/msp/*` 区域守卫粗粒度（`ADMIN_AREA_PERMISSIONS` 4 码） | 跨权限管理员可见不可用入口 | **B6** | ⏳ 待执行（Sweep §4 表） |
@@ -99,4 +99,5 @@
 | 2026-10-10 | B1 | ✅ 30 个死文件删除 + 4 处代码残留清理（`ticket-api.batchUpdateTickets`、`TicketKanban.handleStatusChange/cursor-move`、`TicketViewSelector` 保存模态、2 处陈旧注释）；tsc/eslint 0；jest 136 套件 / 2054 用例全绿（含 `api-contract`）；提交见 CHANGELOG |
 | 2026-10-10 | B2 | ✅ SLA 新建/编辑页面落地：`components/sla/SLADefinitionForm.tsx`（共享表单，对齐 `dto.CreateSLADefinitionRequest`）+ `pages/(main)/sla/definitions/new`、`$id/edit` 两页（组件级 `sla:write` 双保险 + 路由级规则 ×2）；`SLADetail` 编辑按钮解禁接路由；`/sla` 工作台加「新建 SLA 定义」门禁入口。验证：tsc/eslint 0；`route-permissions`+`guards` 18/18；`go test ./handlers/sla` 全绿 |
 | 2026-10-10 | B8 | ✅ Windows 测试基建修复：`setupSLAHandler` 显式 `t.Cleanup(Close)`；`go test ./handlers/sla` 全绿（3.2s，此前 24+ 用例因文件锁清理失败） |
-| — | B3–B7 | ⏳ 待执行 |
+| 2026-10-10 | B3 | ✅ `/profile` 自助面闭环：后端 `PUT /users/me`（`handlers/common/user_profile.go`，name/email/phone 白名单 + 邮箱唯一性 + 跨租户 fail-closed；路由挂 `AuthMiddleware` 并登记守卫豁免）+ 前端切换 `updateMyProfile` / `AuthService.changePassword`（旧密码字段已存在）；三处 `user:write` 禁用移除，部门改只读。验证：`go test ./handlers/common ./router` 全绿；前端 tsc/eslint 0；jest user-api/api-contract/auth-service 51/51（契约 0 失配） |
+| — | B4–B7 | ⏳ 待执行 |
