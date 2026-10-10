@@ -731,6 +731,11 @@ export default function NotificationsPage() {
               </Button>
             )}
           </div>
+          {!canWriteNotifications && (
+            <Text type="secondary" className="mb-4 block text-xs">
+              {t('notifications.preferencesReadOnlyHint')}
+            </Text>
+          )}
           <Spin spinning={preferencesLoading}>
             <Form form={form} layout="vertical" onFinish={handleSavePreferences}>
               <Row gutter={[16, 16]}>
@@ -768,6 +773,7 @@ export default function NotificationsPage() {
                   <Col xs={24} md={5}>
                     <Form.Item name={`${event.type}_email`} valuePropName="checked" noStyle>
                       <Switch
+                        disabled={!canWriteNotifications}
                         checkedChildren={t('workflow.statusEnabled')}
                         unCheckedChildren={t('workflow.statusDisabled')}
                       />
@@ -776,6 +782,7 @@ export default function NotificationsPage() {
                   <Col xs={24} md={5}>
                     <Form.Item name={`${event.type}_in_app`} valuePropName="checked" noStyle>
                       <Switch
+                        disabled={!canWriteNotifications}
                         checkedChildren={t('workflow.statusEnabled')}
                         unCheckedChildren={t('workflow.statusDisabled')}
                       />
@@ -784,6 +791,7 @@ export default function NotificationsPage() {
                   <Col xs={24} md={6}>
                     <Form.Item name={`${event.type}_sms`} valuePropName="checked" noStyle>
                       <Switch
+                        disabled={!canWriteNotifications}
                         checkedChildren={t('workflow.statusEnabled')}
                         unCheckedChildren={t('workflow.statusDisabled')}
                       />
