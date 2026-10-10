@@ -33,6 +33,7 @@ import { KnowledgeBaseApi } from '@/lib/api/knowledge-base-api';
 import { ArticleStatus } from '@/types/knowledge-base';
 import { httpClient } from '@/lib/api/http-client';
 import { useI18n } from '@/lib/i18n/useI18n';
+import { PermissionGate } from '@/components/auth/PermissionGate';
 
 const { Title, Text } = Typography;
 
@@ -367,14 +368,17 @@ export default function KnowledgePage() {
             style={{ width: 300 }}
             onPressEnter={handleAISearch}
           />
-          <Button
-            type="primary"
-            icon={<Plus className="w-4 h-4" />}
-            size="large"
-            onClick={() => navigate('/knowledge/articles/new')}
-          >
-            {t('knowledgeBase.createArticle')}
-          </Button>
+          {/* 创建文章需 knowledge:write：无权限不渲染入口（路由级门禁兜底直达 URL）。 */}
+          <PermissionGate anyOf={['knowledge:write']}>
+            <Button
+              type="primary"
+              icon={<Plus className="w-4 h-4" />}
+              size="large"
+              onClick={() => navigate('/knowledge/articles/new')}
+            >
+              {t('knowledgeBase.createArticle')}
+            </Button>
+          </PermissionGate>
         </div>
       </div>
 

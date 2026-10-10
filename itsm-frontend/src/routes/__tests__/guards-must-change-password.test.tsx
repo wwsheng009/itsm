@@ -4,6 +4,7 @@
  * - 自锁豁免：改密页本身放行（否则用户无法完成改密）；
  * - 放行：标志清除后正常渲染；
  * - 未登录：引导登录（既有行为回归）。
+ * - 路由级权限门禁（route-permissions）：写入口缺权限 → /403，具备权限 → 放行。
  */
 import React from 'react';
 import { render, screen, waitFor } from '@testing-library/react';
@@ -59,6 +60,9 @@ function renderAuth(initialPath: string) {
         <Route path="/dashboard" element={<RequireAuth />}>
           <Route index element={<div data-testid="dashboard-page" />} />
         </Route>
+        <Route path="/knowledge/articles/new" element={<RequireAuth />}>
+          <Route index element={<div data-testid="knowledge-new-page" />} />
+        </Route>
       </Routes>
     </MemoryRouter>
   );
@@ -103,5 +107,27 @@ describe('RequireAuth 首登强制改密（IP-P1-5）', () => {
         '/login?redirect=%2Fdashboard'
       )
     );
+  });
+
+  it('写入口路由缺权限 → /403（FE 路由级权限门禁）', () => {
+    setSession({
+      authenticated: true,
+      user: { mustChangePassword: false, permissions: ['knowledge:read'] },
+    });
+    renderAuth('/knowledge/articles/new');
+
+    expect(screen.getByTestId('navigate-to')).toHaveAttribute('data-to', '/403');
+    expect(screen.queryByTestId('knowledge-new-page')).not.toBeInTheDocument();
+  });
+
+  it('写入口路由具备权限 → 正常渲染（门禁不误伤）', () => {
+    setSession({
+      authenticated: true,
+      user: { mustChangePassword: false, permissions: ['knowledge:write'] },
+    });
+    renderAuth('/knowledge/articles/new');
+
+    expect(screen.getByTestId('knowledge-new-page')).toBeInTheDocument();
+    expect(screen.queryByTestId('navigate-to')).not.toBeInTheDocument();
   });
 });

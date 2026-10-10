@@ -3,6 +3,7 @@ import { Navigate, Outlet, useLocation } from 'react-router';
 import { useAuthStore } from '@/lib/store/auth-store';
 import { bootstrapSession, type SessionStatus } from '@/lib/auth/session-bootstrap';
 import RouteLoading from '@/components/common/RouteLoading';
+import { resolveRoutePermission } from './route-permissions';
 
 /**
  * 受保护路由守卫（替代 Next 中间件 `src/middleware.ts:6-48` 的 protectedRoutes 服务端 307）。
@@ -47,6 +48,15 @@ export function RequireAuth(): ReactElement {
   const mustChangePassword = useAuthStore.getState().user?.mustChangePassword === true;
   if (mustChangePassword && location.pathname !== '/change-password') {
     return <Navigate to='/change-password' replace />;
+  }
+
+  // 系统性权限门禁（FE 路由级，fail-closed）：写入口路由（new/create/edit 等）在进入页面前
+  // 按 route-permissions.ts 的映射表判定（权限码与后端 RequirePermission 逐条对齐），不通过
+  // 直接落 /403——避免「填完表单才 403」。判定语义与后端 checkPermissionMatch 一致
+  //（含 resource:admin 蕴含；super_admin 下发 `*` 直通）。
+  const permissions = useAuthStore.getState().user?.permissions;
+  if (resolveRoutePermission(location.pathname, permissions) === 'deny') {
+    return <Navigate to="/403" replace />;
   }
 
   return <Outlet />;

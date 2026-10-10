@@ -34,12 +34,14 @@ import {
 import type { KnowledgeArticle } from '@/types/biz/knowledge';
 import ArticleVersionControl from './ArticleVersionControl';
 import ArticleContentRenderer from './ArticleContentRenderer';
+import { PermissionGate } from '@/components/auth/PermissionGate';
 // 正文按「内容类型」分发渲染（text / markdown / html / rich_text），
 // 类型由后端解析后随响应返回；历史数据缺失时按内容形态兜底，口径见该模块注释。
 import {
   ARTICLE_CONTENT_TYPE_LABELS,
   resolveArticleContentType,
 } from '@/lib/knowledge/article-content-type';
+import { isForbiddenError } from '@/lib/utils/api-error';
 
 const { Title, Paragraph, Text } = Typography;
 
@@ -91,7 +93,9 @@ const ArticleDetail: React.FC = () => {
           setArticle(updated as unknown as KnowledgeArticle);
           message.success('文章已发布');
         } catch (e: any) {
-          message.error('发布失败：' + (e?.message || '未知错误'));
+          message.error(
+            isForbiddenError(e) ? '没有权限发布文章，请联系知识库管理员' : '发布失败：' + (e?.message || '未知错误')
+          );
         } finally {
           setActionLoading(null);
         }
@@ -113,7 +117,9 @@ const ArticleDetail: React.FC = () => {
           setArticle(updated as unknown as KnowledgeArticle);
           message.success('已取消发布');
         } catch (e: any) {
-          message.error('操作失败：' + (e?.message || '未知错误'));
+          message.error(
+            isForbiddenError(e) ? '没有权限执行该操作，请联系知识库管理员' : '操作失败：' + (e?.message || '未知错误')
+          );
         } finally {
           setActionLoading(null);
         }
@@ -135,7 +141,9 @@ const ArticleDetail: React.FC = () => {
           setArticle(updated as unknown as KnowledgeArticle);
           message.success('文章已归档');
         } catch (e: any) {
-          message.error('归档失败：' + (e?.message || '未知错误'));
+          message.error(
+            isForbiddenError(e) ? '没有权限归档文章，请联系知识库管理员' : '归档失败：' + (e?.message || '未知错误')
+          );
         } finally {
           setActionLoading(null);
         }
@@ -203,6 +211,8 @@ const ArticleDetail: React.FC = () => {
             <Button icon={<ArrowLeft />} onClick={() => navigate('/knowledge')}>
               返回列表
             </Button>
+            {/* 发布/取消发布/归档/编辑均需 knowledge:write：无权限不渲染写操作组。 */}
+            <PermissionGate anyOf={['knowledge:write']}>
             <Space>
               {status === KnowledgeStatus.DRAFT && (
                 <Button
@@ -238,6 +248,7 @@ const ArticleDetail: React.FC = () => {
                 编辑文章
               </Button>
             </Space>
+            </PermissionGate>
           </div>
 
           <Title level={2}>{article.title}</Title>

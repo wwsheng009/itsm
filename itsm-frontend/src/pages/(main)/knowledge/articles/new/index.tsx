@@ -37,6 +37,7 @@ import {
 import { ArrowLeft, Save } from 'lucide-react';
 import { KnowledgeBaseApi } from '@/lib/api/knowledge-base-api';
 import { AttachmentApi, knowledgeAttachmentPreviewUrl } from '@/lib/api/attachment-api';
+import { isForbiddenError } from '@/lib/utils/api-error';
 import {
   ARTICLE_CONTENT_MAX_LENGTH,
   readArticlePrefillRequest,
@@ -283,7 +284,12 @@ export default function NewKnowledgeArticlePage() {
       message.success('文章创建成功');
       navigate(`/knowledge/articles/${created.id}`);
     } catch (e: any) {
-      message.error('创建失败：' + (e?.message || '未知错误'));
+      // 兜底（路由/入口门禁之外）：会话权限被服务端收回等竞态下给语义化提示。
+      message.error(
+        isForbiddenError(e)
+          ? '没有权限创建文章，请联系知识库管理员'
+          : '创建失败：' + (e?.message || '未知错误')
+      );
     } finally {
       setLoading(false);
     }

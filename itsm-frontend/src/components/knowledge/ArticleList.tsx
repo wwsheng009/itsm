@@ -26,6 +26,7 @@ import { Search, Plus, Pencil, Trash2, Eye, RotateCcw } from 'lucide-react';
 import dayjs from 'dayjs';
 
 import { KnowledgeBaseApi } from '@/lib/api/knowledge-base-api';
+import { PermissionGate } from '@/components/auth/PermissionGate';
 import {
   KnowledgeStatus,
   KnowledgeStatusLabels,
@@ -171,20 +172,24 @@ const ArticleList: React.FC<ArticleListProps> = ({ showHeader = true }) => {
       render: (_: unknown, record: KnowledgeArticle) => (
         <Space size="small">
           <Tooltip title="编辑">
-            <Button
-              size="small"
-              icon={<Pencil />}
-              onClick={() => navigate(`/knowledge/articles/${record.id}/edit`)}
-              style={{ backgroundColor: '#3b82f6', color: '#fff', border: 'none' }}
-            />
+            <PermissionGate anyOf={['knowledge:write']}>
+              <Button
+                size="small"
+                icon={<Pencil />}
+                onClick={() => navigate(`/knowledge/articles/${record.id}/edit`)}
+                style={{ backgroundColor: '#3b82f6', color: '#fff', border: 'none' }}
+              />
+            </PermissionGate>
           </Tooltip>
           <Tooltip title="删除">
-            <Button
-              size="small"
-              icon={<Trash2 />}
-              onClick={() => handleDelete(record.id)}
-              style={{ backgroundColor: '#ef4444', color: '#fff', border: 'none' }}
-            />
+            <PermissionGate anyOf={['knowledge:delete']}>
+              <Button
+                size="small"
+                icon={<Trash2 />}
+                onClick={() => handleDelete(record.id)}
+                style={{ backgroundColor: '#ef4444', color: '#fff', border: 'none' }}
+              />
+            </PermissionGate>
           </Tooltip>
         </Space>
       ),
@@ -199,14 +204,17 @@ const ArticleList: React.FC<ArticleListProps> = ({ showHeader = true }) => {
             <h1 className="text-2xl font-bold text-gray-900">知识库</h1>
             <p className="text-gray-500 mt-1">创建、维护和分享解决方案与最佳实践</p>
           </div>
-          <Button
-            type="primary"
-            icon={<Plus />}
-            onClick={() => navigate('/knowledge/articles/new')}
-            size="large"
-          >
-            新建文章
-          </Button>
+          {/* 创建文章需 knowledge:write：无权限不渲染入口。 */}
+          <PermissionGate anyOf={['knowledge:write']}>
+            <Button
+              type="primary"
+              icon={<Plus />}
+              onClick={() => navigate('/knowledge/articles/new')}
+              size="large"
+            >
+              新建文章
+            </Button>
+          </PermissionGate>
         </div>
       )}
 
@@ -261,9 +269,11 @@ const ArticleList: React.FC<ArticleListProps> = ({ showHeader = true }) => {
           <Skeleton active paragraph={{ rows: 8 }} />
         ) : data.length === 0 ? (
           <Empty description="暂无知识库文章" image={Empty.PRESENTED_IMAGE_SIMPLE}>
-            <Button type="primary" onClick={() => navigate('/knowledge/articles/new')}>
-              创建第一篇文章
-            </Button>
+            <PermissionGate anyOf={['knowledge:write']}>
+              <Button type="primary" onClick={() => navigate('/knowledge/articles/new')}>
+                创建第一篇文章
+              </Button>
+            </PermissionGate>
           </Empty>
         ) : (
           <Table
