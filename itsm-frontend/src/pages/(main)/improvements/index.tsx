@@ -6,6 +6,7 @@ import { Plus, RotateCcw } from 'lucide-react';
 import type { ColumnsType } from 'antd/es/table';
 import { useI18n } from '@/lib/i18n';
 import type { Ticket, TicketListResponse } from '@/lib/api/api-config';
+import { PermissionGate } from '@/components/auth/PermissionGate';
 
 type ImprovementStatus = '进行中' | '待评估' | '已完成';
 
@@ -136,16 +137,18 @@ const ImprovementListPage = () => {
             <p className="text-gray-500 mt-1">识别、规划和实施IT服务和流程的改进</p>
           </div>
           <Space>
-            <Button icon={<RotateCcw />} onClick={loadImprovements} loading={loading}>
-              刷新
-            </Button>
-            <Button
-              type="primary"
-              icon={<Plus />}
-              onClick={() => navigate('/tickets/create?type=improvement')}
-            >
-              新建改进计划
-            </Button>
+              <Button icon={<RotateCcw />} onClick={loadImprovements} loading={loading}>
+                刷新
+              </Button>
+              <PermissionGate anyOf={['ticket:create']}>
+                <Button
+                  type="primary"
+                  icon={<Plus />}
+                  onClick={() => navigate('/tickets/create?type=improvement')}
+                >
+                  新建改进计划
+                </Button>
+              </PermissionGate>
           </Space>
         </div>
 
@@ -168,11 +171,13 @@ const ImprovementListPage = () => {
 
         {/* 改进计划列表 */}
         {filteredImprovements.length === 0 && !loading ? (
-          <Empty description="暂无改进计划">
-            <Button type="primary" onClick={() => navigate('/tickets/create?type=improvement')}>
-              创建第一个改进计划
-            </Button>
-          </Empty>
+            <Empty description="暂无改进计划">
+              <PermissionGate anyOf={['ticket:create']}>
+                <Button type="primary" onClick={() => navigate('/tickets/create?type=improvement')}>
+                  创建第一个改进计划
+                </Button>
+              </PermissionGate>
+            </Empty>
         ) : (
           <Table
             columns={columns}

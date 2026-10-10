@@ -35,6 +35,7 @@ import {
 } from 'lucide-react';
 import type { StandardChange } from '@/lib/api/standard-change-api';
 import { StandardChangeApi } from '@/lib/api/standard-change-api';
+import { PermissionGate } from '@/components/auth/PermissionGate';
 import { useI18n } from '@/lib/i18n';
 import { htmlToPlainText, isRichTextEmpty, isRichTextEnabled } from '@/lib/rich-text/sanitize';
 import { ChangeRiskLabels, ChangeImpactLabels } from '@/constants/change';
@@ -312,26 +313,32 @@ export default function StandardChangesPage() {
       width: 180,
       render: (_: unknown, record: StandardChange) => (
         <Space>
-          <Tooltip title='从模板创建变更'>
-            <Button
-              type='link'
-              icon={<PlayCircle size={14} />}
-              onClick={() => handleInstantiate(record)}
-            />
-          </Tooltip>
-          <Tooltip title='编辑'>
-            <Button type='link' icon={<Edit size={14} />} onClick={() => handleEdit(record)} />
-          </Tooltip>
-          <Popconfirm
-            title='确定要删除此模板吗？'
-            onConfirm={() => handleDelete(record.id)}
-            okText='确定'
-            cancelText='取消'
-          >
-            <Tooltip title='删除'>
-              <Button type='link' danger icon={<Delete size={14} />} />
+          <PermissionGate anyOf={['change:write']}>
+            <Tooltip title='从模板创建变更'>
+              <Button
+                type='link'
+                icon={<PlayCircle size={14} />}
+                onClick={() => handleInstantiate(record)}
+              />
             </Tooltip>
-          </Popconfirm>
+          </PermissionGate>
+          <PermissionGate anyOf={['change:write']}>
+            <Tooltip title='编辑'>
+              <Button type='link' icon={<Edit size={14} />} onClick={() => handleEdit(record)} />
+            </Tooltip>
+          </PermissionGate>
+          <PermissionGate anyOf={['change:delete']}>
+            <Popconfirm
+              title='确定要删除此模板吗？'
+              onConfirm={() => handleDelete(record.id)}
+              okText='确定'
+              cancelText='取消'
+            >
+              <Tooltip title='删除'>
+                <Button type='link' danger icon={<Delete size={14} />} />
+              </Tooltip>
+            </Popconfirm>
+          </PermissionGate>
         </Space>
       ),
     },
@@ -344,10 +351,12 @@ export default function StandardChangesPage() {
           <div>
             <h1 className='text-2xl font-bold text-gray-800'>标准变更库</h1>
             <p className='text-gray-500 mt-1'>管理预批准的标准变更模板</p>
-          </div>
-          <Button type='primary' icon={<Plus size={16} />} onClick={handleCreate}>
-            新建模板
-          </Button>
+            </div>
+            <PermissionGate anyOf={['change:write']}>
+              <Button type='primary' icon={<Plus size={16} />} onClick={handleCreate}>
+                新建模板
+              </Button>
+            </PermissionGate>
         </div>
 
         <Card>
@@ -412,9 +421,11 @@ export default function StandardChangesPage() {
                       <span>
                         暂无标准变更模板
                         <br />
-                        <Button type='link' onClick={handleCreate}>
-                          点击创建第一个模板
-                        </Button>
+                        <PermissionGate anyOf={['change:write']}>
+                          <Button type='link' onClick={handleCreate}>
+                            点击创建第一个模板
+                          </Button>
+                        </PermissionGate>
                       </span>
                     ) : (
                       '暂无匹配结果'

@@ -30,7 +30,7 @@
 
 ### 2.1 ITIL 核心（事件 / 变更 / 问题 / 发布 / 改进）
 
-> 进度（2026-10-10）：**批次 1** 列表入口/空态/行内编辑删除/详情「编辑」✅；**批次 2** 详情生命周期动作（变更 approve/reject/rollback 独立码、事件动作栏与根因/影响/分类入口、问题状态流转/KEDB）、PIR（增改删）、工单看板新建/删除 ✅；**批次 3** 发布域（详情 approve/reject/rollback/status + 列表新建）、工单详情动作栏（批准/拒绝=`approval:write`、分配/编辑/抄送/删除）、服务请求审批与新建入口、问题调查 Tab 写面 ✅；剩余：改进、已知错误页、标准变更、工单列表行内编辑/关闭、批量操作等。
+> 进度（2026-10-10）：**批次 1** 列表入口/空态/行内编辑删除/详情「编辑」✅；**批次 2** 详情生命周期动作（变更 approve/reject/rollback 独立码、事件动作栏与根因/影响/分类入口、问题状态流转/KEDB）、PIR（增改删）、工单看板新建/删除 ✅；**批次 3** 发布域（详情 approve/reject/rollback/status + 列表新建）、工单详情动作栏（批准/拒绝=`approval:write`、分配/编辑/抄送/删除）、服务请求审批与新建入口、问题调查 Tab 写面 ✅；**批次 4** 工单列表行内编辑/关闭（`ticket:update`）、批量操作按权限逐项过滤（分配/状态/标签/优先级/通知/导出/删除）、改进新建（`ticket:create`）、已知错误 CRUD（`problem:write`/`problem:delete`）、标准变更模板 CRUD（`change:write`/`change:delete`）✅；剩余：§2.2–2.5 主区（CMDB/资产/许可证、服务目录、SLA、工作流、市场、组织配置）、notifications/dashboard、AI 审批卡、全局快捷键等。
 
 | 页面/文件 | 入口（行号） | 动作 | 权限码 | 路由级 | 状态 |
 |---|---|---|---|---|---|
@@ -124,7 +124,7 @@
 
 > 特征：不在路由级覆盖范围（无 `new/create/edit` 路径段），入口级是唯一防线；多为不可逆动作。
 
-> 进度（2026-10-10）：批次 2 落地事件动作栏/变更生命周期/问题 KEDB/状态流转/PIR/工单看板；**批次 3** 落地发布域动作（approve/reject=`release:approve`；rollback=`release:rollback`；status=`release:write`）、工单详情动作栏（批准/拒绝=`approval:write`、分配=`ticket:assign`、编辑=`ticket:update`、抄送=`workflow:write`、删除=`ticket:delete`；AI 建议采纳随 `ticket:update`）、服务请求审批（状态 + `service_request:approve` 双条件）与新建入口、问题调查 Tab（`problem:write`）✅；剩余：工单列表行内编辑/关闭、批量操作（`ticket:batch_*`）、工单流转动作（`TicketWorkflowActions` 当前未挂载，已防御性门禁）等。
+> 进度（2026-10-10）：批次 2 落地事件动作栏/变更生命周期/问题 KEDB/状态流转/PIR/工单看板；**批次 3** 落地发布域动作（approve/reject=`release:approve`；rollback=`release:rollback`；status=`release:write`）、工单详情动作栏（批准/拒绝=`approval:write`、分配=`ticket:assign`、编辑=`ticket:update`、抄送=`workflow:write`、删除=`ticket:delete`；AI 建议采纳随 `ticket:update`）、服务请求审批（状态 + `service_request:approve` 双条件）与新建入口、问题调查 Tab（`problem:write`）✅；**批次 4** 落地工单列表行内编辑/关闭（`ticket:update`）、批量操作按实际后端码逐项过滤（删除=`ticket:delete`、导出=`ticket:export`、分配=`ticket:assign`、状态/优先级/标签=`ticket:update`、通知=`workflow:write`；勘误：`ticket:batch_*` 词表实际不存在）、已知错误（`problem:write`/`problem:delete`）、标准变更模板（`change:write`/`change:delete`）、改进新建（`ticket:create`）✅；剩余：服务请求状态流转、发布余项、批量操作端点缺失（`batch-assign`/`batch-notify` 后端未实现，前端入口保留但受权限过滤）等。
 
 | 域 | 动作 | 权限码 | 代表文件 |
 |---|---|---|---|

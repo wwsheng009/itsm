@@ -19,6 +19,7 @@ import { Trash2, Download, User as UserIcon, Bell, CheckCircle, Tag, Flag, MoreH
 import type { MenuProps } from 'antd';
 import type { Ticket, TicketStatus, TicketPriority } from '@/lib/api/types';
 import { TicketAPI } from '@/lib/api/ticket-api';
+import { useCan } from '@/components/auth/PermissionGate';
 const { TextArea } = Input;
 const { Text, Title } = Typography;
 
@@ -42,6 +43,14 @@ const TicketBatchOperations: React.FC<TicketBatchOperationsProps> = ({
   onSelectionClear,
 }) => {
   const [loading, setLoading] = useState(false);
+  // 批量操作入口级门禁（与后端端点对齐）：分配 → ticket:assign；状态/标签/优先级 →
+  // ticket:update（batch-assign 复用 update 语义）；通知 → workflow:write；
+  // 导出 → ticket:export（POST /tickets/export）；删除 → ticket:delete（DELETE /tickets/batch-delete）。
+  const canAssign = useCan(['ticket:assign']);
+  const canUpdate = useCan(['ticket:update']);
+  const canNotify = useCan(['workflow:write']);
+  const canExport = useCan(['ticket:export']);
+  const canDelete = useCan(['ticket:delete']);
   const [operationModal, setOperationModal] = useState<{
     visible: boolean;
     type: string;
@@ -115,8 +124,25 @@ const TicketBatchOperations: React.FC<TicketBatchOperationsProps> = ({
         danger: true,
         description: '删除选中的工单（不可恢复）',
       },
-    ],
-    []
+    ].filter(op => {
+      switch (op.key) {
+        case 'assign':
+          return canAssign;
+        case 'updateStatus':
+        case 'addTags':
+        case 'setPriority':
+          return canUpdate;
+        case 'notify':
+          return canNotify;
+        case 'export':
+          return canExport;
+        case 'delete':
+          return canDelete;
+        default:
+          return true; // divider1 等无权限语义项保留（menuItems 渲染时过滤分隔符）
+      }
+    }),
+    [canAssign, canUpdate, canNotify, canExport, canDelete]
   );
 
   // 定义操作参数类型
@@ -373,11 +399,13 @@ const TicketBatchOperations: React.FC<TicketBatchOperationsProps> = ({
             </Button>
           </div>
 
-          <Dropdown menu={{ items: menuItems, onClick: handleMenuClick }} placement="bottomRight">
-            <Button type="primary" icon={<MoreHorizontal />} loading={loading}>
-              批量操作
-            </Button>
-          </Dropdown>
+          {menuItems.length > 0 && (
+            <Dropdown menu={{ items: menuItems, onClick: handleMenuClick }} placement="bottomRight">
+              <Button type="primary" icon={<MoreHorizontal />} loading={loading}>
+                批量操作
+              </Button>
+            </Dropdown>
+          )}
         </div>
       </div>
 

@@ -21,6 +21,7 @@ import { TicketListToolbar } from './TicketListToolbar';
 import { TicketListFilters, type TicketFilterValues } from './TicketListFilters';
 import { TicketDeleteModal } from './TicketDeleteModal';
 import TicketBatchOperations from './TicketBatchOperations';
+import { useCan } from '@/components/auth/PermissionGate';
 
 interface TicketListProps {
   readonly embedded?: boolean;
@@ -57,6 +58,8 @@ const TicketList: React.FC<TicketListProps> = ({
 }) => {
   const navigate = useNavigate();
   const { message, modal } = App.useApp();
+  // 行内「编辑/关闭」均走 ticket:update 端点（PATCH /tickets/:id、POST /tickets/:id/close）。
+  const canUpdateTicket = useCan(['ticket:update']);
   const {
     tickets,
     loading,
@@ -238,10 +241,16 @@ const TicketList: React.FC<TicketListProps> = ({
   const columns = useMemo(
     () =>
       buildTicketListColumns(
-        { onOpen: openTicket, onEdit: editTicket, onClose: closeTicket },
+        {
+          onOpen: openTicket,
+          onEdit: editTicket,
+          onClose: closeTicket,
+          canEdit: canUpdateTicket,
+          canClose: canUpdateTicket,
+        },
         { sortBy: filters.sortBy, sortOrder: filters.sortOrder }
       ),
-    [openTicket, editTicket, closeTicket, filters.sortBy, filters.sortOrder]
+    [openTicket, editTicket, closeTicket, canUpdateTicket, filters.sortBy, filters.sortOrder]
   );
 
   const rowSelection: TableProps<Ticket>['rowSelection'] = useMemo(

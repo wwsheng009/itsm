@@ -52,6 +52,10 @@ export interface TicketListColumnActions {
   readonly onOpen: (ticket: Ticket) => void;
   readonly onEdit: (ticket: Ticket) => void;
   readonly onClose: (ticket: Ticket) => void;
+  /** 入口级门禁：无 `ticket:update` 时隐藏行内「编辑」（默认 true 兼容既有调用）。 */
+  readonly canEdit?: boolean;
+  /** 入口级门禁：无 `ticket:update` 时隐藏行内「关闭」（POST /tickets/:id/close）。 */
+  readonly canClose?: boolean;
 }
 
 /** Server-side sort state, used to keep column indicators in sync with the active query. */
@@ -70,7 +74,7 @@ export function buildTicketListColumns(
   actions: TicketListColumnActions,
   sort?: TicketListSortState
 ): ColumnsType<Ticket> {
-  const { onOpen, onEdit, onClose } = actions;
+  const { onOpen, onEdit, onClose, canEdit = true, canClose = true } = actions;
   // Controlled sortOrder keeps the header indicator in sync with the server
   // query (and lets "clear filters" reset it). null = no active sort.
   const sortOf = (field: string) =>
@@ -184,15 +188,17 @@ export function buildTicketListColumns(
                 onClick={() => onOpen(record)}
               />
             </Tooltip>
-            <Tooltip title='编辑'>
-              <Button
-                type='text'
-                aria-label='编辑工单'
-                icon={<Pencil size={16} />}
-                onClick={() => onEdit(record)}
-              />
-            </Tooltip>
-            {!isTerminal && (record.status === 'resolved' || record.status === 'approved') && (
+            {canEdit && (
+              <Tooltip title='编辑'>
+                <Button
+                  type='text'
+                  aria-label='编辑工单'
+                  icon={<Pencil size={16} />}
+                  onClick={() => onEdit(record)}
+                />
+              </Tooltip>
+            )}
+            {canClose && !isTerminal && (record.status === 'resolved' || record.status === 'approved') && (
               <Tooltip title='关闭'>
                 <Button
                   type='text'

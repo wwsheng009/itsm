@@ -27,6 +27,7 @@ import { KEDBApi } from '@/lib/api/kedb-api';
 import type { UploadedImage } from '@/components/common/rich-text/RichTextEditor';
 import RichTextContent from '@/components/common/rich-text/RichTextContent';
 import { AttachmentApi, knownErrorAttachmentPreviewUrl } from '@/lib/api/attachment-api';
+import { PermissionGate } from '@/components/auth/PermissionGate';
 import { htmlToPlainText, isRichTextEnabled } from '@/lib/rich-text/sanitize';
 import { useInlineImageUnbind } from '@/lib/rich-text/useInlineImageUnbind';
 import {
@@ -434,35 +435,41 @@ export default function KnownErrorsPage() {
               onClick={() => handleView(record)}
             />
           </Tooltip>
-          <Tooltip title="编辑">
-            <Button
-              type="link"
-              size="small"
-              icon={<Pencil />}
-              onClick={() => handleEdit(record)}
-            />
-          </Tooltip>
-          {record.status === 'draft' && (
-            <Tooltip title="晋升为正式已知错误">
-              <Button
-                type="link"
-                size="small"
-                icon={<CheckCircle />}
-                onClick={() => handlePromote(record.id)}
-              />
-            </Tooltip>
-          )}
-          <Popconfirm
-            title="确认删除"
-            description="确定要删除这条已知错误吗？"
-            onConfirm={() => handleDelete(record.id)}
-            okText="确认"
-            cancelText="取消"
-          >
-            <Tooltip title="删除">
-              <Button type="link" size="small" danger icon={<Trash2 />} />
-            </Tooltip>
-          </Popconfirm>
+            <PermissionGate anyOf={['problem:write']}>
+              <Tooltip title="编辑">
+                <Button
+                  type="link"
+                  size="small"
+                  icon={<Pencil />}
+                  onClick={() => handleEdit(record)}
+                />
+              </Tooltip>
+            </PermissionGate>
+            {record.status === 'draft' && (
+              <PermissionGate anyOf={['problem:write']}>
+                <Tooltip title="晋升为正式已知错误">
+                  <Button
+                    type="link"
+                    size="small"
+                    icon={<CheckCircle />}
+                    onClick={() => handlePromote(record.id)}
+                  />
+                </Tooltip>
+              </PermissionGate>
+            )}
+          <PermissionGate anyOf={['problem:delete']}>
+            <Popconfirm
+              title="确认删除"
+              description="确定要删除这条已知错误吗？"
+              onConfirm={() => handleDelete(record.id)}
+              okText="确认"
+              cancelText="取消"
+            >
+              <Tooltip title="删除">
+                <Button type="link" size="small" danger icon={<Trash2 />} />
+              </Tooltip>
+            </Popconfirm>
+          </PermissionGate>
         </Space>
       ),
     },
@@ -577,9 +584,11 @@ export default function KnownErrorsPage() {
         <Card
           title="已知错误列表"
           extra={
-            <Button type="primary" icon={<Plus />} onClick={handleAdd}>
-              新建已知错误
-            </Button>
+            <PermissionGate anyOf={['problem:write']}>
+              <Button type="primary" icon={<Plus />} onClick={handleAdd}>
+                新建已知错误
+              </Button>
+            </PermissionGate>
           }
         >
           <Table
