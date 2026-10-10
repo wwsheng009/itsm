@@ -19,6 +19,8 @@ interface NotificationDrawerProps {
   onMarkAllAsRead: () => void;
   onViewAll: () => void;
   loading?: boolean;
+  /** 标记已读写面（notification:write）；false 时隐藏「全部已读」并跳过点击自动已读。 */
+  canMarkRead?: boolean;
 }
 
 export const NotificationDrawer: React.FC<NotificationDrawerProps> = ({
@@ -29,6 +31,7 @@ export const NotificationDrawer: React.FC<NotificationDrawerProps> = ({
   onMarkAsRead,
   onMarkAllAsRead,
   onViewAll,
+  canMarkRead = false,
 }) => {
   const { t } = useI18n();
   const { message } = App.useApp();
@@ -42,11 +45,11 @@ export const NotificationDrawer: React.FC<NotificationDrawerProps> = ({
     if (!url || !url.startsWith('/') || url.startsWith('//')) return;
     const targetStatus = await checkNotificationTarget(url);
     if (targetStatus === 'missing') {
-      onMarkAsRead(item.id);
+      if (canMarkRead) onMarkAsRead(item.id);
       message.warning(t('notificationDrawer.targetMissing'));
       return;
     }
-    onMarkAsRead(item.id);
+    if (canMarkRead) onMarkAsRead(item.id);
     onClose();
     navigate(url);
   };
@@ -216,7 +219,7 @@ export const NotificationDrawer: React.FC<NotificationDrawerProps> = ({
               </Text>
             </div>
           </div>
-          {unreadCount > 0 && (
+          {unreadCount > 0 && canMarkRead && (
             <Button
               type="link"
               icon={<CheckCheck size={16} />}

@@ -50,6 +50,7 @@ import { NotificationPreferenceApi } from '@/lib/api/notification-preference-api
 import { useI18n } from '@/lib/i18n';
 import { useAuthStore, useAuthStoreHydration } from '@/lib/store/auth-store';
 import { usePasswordPolicy } from '@/lib/hooks/usePasswordPolicy';
+import { usePermissions } from '@/lib/hooks/use-permissions';
 
 const { Title, Text } = Typography;
 
@@ -121,6 +122,11 @@ export default function ProfilePage() {
   const { hint: passwordHint, buildRules: buildPasswordRules } = usePasswordPolicy();
   const { user } = useAuthStore();
   useAuthStoreHydration();
+  const { hasPermission } = usePermissions();
+  // 个人资料写面现状：PUT /users/:id 与 PUT /users/:id/reset-password 均需 user:write
+  // （common_system_routes.go:51/56）；无该码用户入口禁用。自助改密端点
+  // POST /auth/change-password 需携带旧密码（当前模态无旧密码字段）→ 登记为产品缺口。
+  const canManageUser = hasPermission('user', 'write');
 
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [editing, setEditing] = useState(false);
@@ -385,6 +391,7 @@ export default function ProfilePage() {
                 <Button
                   type="text"
                   icon={<Settings size={18} />}
+                  disabled={!canManageUser}
                   onClick={() => setEditing(!editing)}
                   style={{
                     position: 'absolute',
@@ -623,6 +630,7 @@ export default function ProfilePage() {
                             <Button
                               type="primary"
                               htmlType="submit"
+                              disabled={!canManageUser}
                               icon={<Save size={16} />}
                               style={{
                                 background: DESIGN.colors.gradient.primary,
@@ -805,6 +813,7 @@ export default function ProfilePage() {
                             </div>
                             <Button
                               icon={<Key size={16} />}
+                              disabled={!canManageUser}
                               onClick={() => setPasswordModalVisible(true)}
                             >
                               修改

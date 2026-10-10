@@ -59,6 +59,8 @@ export const Header: React.FC<HeaderProps> = ({
     mspRole !== 'customer_user' &&
     (hasPermission('msp_ticket:read') ||
       (typeof mspRole === 'string' && mspRole.startsWith('provider_')));
+  // 通知抽屉标记已读/全部已读（router/common_system_routes.go:247-248）：notification:write。
+  const canManageNotifications = hasPermission('notification:write');
 
   // 动态菜单驱动的面包屑：与 Sidebar 共享 useUserMenusQuery 缓存，
   // 未传入自定义 breadcrumb 时优先用 hook 版（带菜单 label），失败时回退到 segment 兜底
@@ -349,6 +351,7 @@ export const Header: React.FC<HeaderProps> = ({
         onClose={() => setNotificationsOpen(false)}
         notifications={notifications}
         unreadCount={unreadCount}
+        canMarkRead={canManageNotifications}
         onMarkAsRead={markAsRead}
         onMarkAllAsRead={markAllAsRead}
         onViewAll={() => {

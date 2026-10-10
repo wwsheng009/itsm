@@ -50,6 +50,7 @@ import type { BpmnProcessState, NextActivityInfo } from '@/types/ticket-workflow
 import { ApprovalTimeline } from './ApprovalTimeline';
 import type { ApprovalStep, ApprovalStepStatus } from './types';
 import { useI18n } from '@/lib/i18n/useI18n';
+import { useCan } from '@/components/auth/PermissionGate';
 
 const { Text } = Typography;
 
@@ -219,6 +220,8 @@ export const ApprovalWorkflowPanel: React.FC<ApprovalWorkflowPanelProps> = ({
     return pending?.level;
   }, [levelStates]);
 
+  // 审批动作写面（router/ticket_routes.go:219-226）：approve/reject/delegate → workflow:write。
+  const canWorkflowWrite = useCan(['workflow', 'write']);
   const myApprovalId = useMemo(() => {
     if (!currentUserId || isTicketFinal) return null;
     const myRec = records.find(
@@ -573,7 +576,7 @@ export const ApprovalWorkflowPanel: React.FC<ApprovalWorkflowPanelProps> = ({
             approvals={timelineSteps}
             currentLevel={currentLevel}
             workflowName={workflow?.name}
-            canApprove={!!myApprovalId && !isTicketFinal}
+            canApprove={!!myApprovalId && !isTicketFinal && canWorkflowWrite}
             showApprovalActions
             onApprove={(p) => submitApproval('approve', p)}
             onReject={(p) => submitApproval('reject', p)}

@@ -16,6 +16,7 @@ import {
 import { TicketApi } from '@/lib/api/ticket-api';
 import { IncidentAPI } from '@/lib/api/incident-api';
 import { ChangeApi } from '@/lib/api/change-api';
+import { useCan } from '@/components/auth/PermissionGate';
 
 interface ProblemAssociationsTabProps {
   problemId: number;
@@ -44,6 +45,8 @@ const STATUS_COLOR_MAP: Record<string, string> = {
 };
 
 const ProblemAssociationsTab: React.FC<ProblemAssociationsTabProps> = ({ problemId }) => {
+  // 关联写面（router/problem_routes.go:35-36）：添加/移除 → problem:write。
+  const canWriteProblem = useCan(['problem:write']);
   const [tickets, setTickets] = useState<AssociatedItem[]>([]);
   const [incidents, setIncidents] = useState<AssociatedItem[]>([]);
   const [changes, setChanges] = useState<AssociatedItem[]>([]);
@@ -189,20 +192,21 @@ const ProblemAssociationsTab: React.FC<ProblemAssociationsTabProps> = ({ problem
         title: '操作',
         key: 'action',
         width: 80,
-        render: (_: unknown, record: AssociatedItem) => (
-          <Popconfirm
-            title="确认移除该关联？"
-            description="移除后可重新添加关联。"
-            okText="移除"
-            okButtonProps={{ danger: true }}
-            cancelText="取消"
-            onConfirm={() => handleRemove(type, record.id)}
-          >
-            <Button type="link" danger size="small" icon={<Trash2 />}>
-              移除
-            </Button>
-          </Popconfirm>
-        ),
+        render: (_: unknown, record: AssociatedItem) =>
+          canWriteProblem ? (
+            <Popconfirm
+              title="确认移除该关联？"
+              description="移除后可重新添加关联。"
+              okText="移除"
+              okButtonProps={{ danger: true }}
+              cancelText="取消"
+              onConfirm={() => handleRemove(type, record.id)}
+            >
+              <Button type="link" danger size="small" icon={<Trash2 />}>
+                移除
+              </Button>
+            </Popconfirm>
+          ) : null,
       },
     ];
 
@@ -218,14 +222,16 @@ const ProblemAssociationsTab: React.FC<ProblemAssociationsTabProps> = ({ problem
         size="small"
         style={{ marginBottom: 16 }}
         extra={
-          <Button
-            type="dashed"
-            size="small"
-            icon={<Plus />}
-            onClick={() => openAddModal(type)}
-          >
-            添加{config.label}
-          </Button>
+          canWriteProblem ? (
+            <Button
+              type="dashed"
+              size="small"
+              icon={<Plus />}
+              onClick={() => openAddModal(type)}
+            >
+              添加{config.label}
+            </Button>
+          ) : undefined
         }
       >
         {items.length === 0 ? (
