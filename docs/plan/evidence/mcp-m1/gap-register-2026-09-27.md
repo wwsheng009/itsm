@@ -16,7 +16,7 @@
 | --- | --- | --- |
 | A 类：已交付部分未满足方案判据（§5.2/§5.3/§5.4） | 9 | 其中 6 项本轮可补，2 项需真实浏览器会话（归 M2-05）；A9 为 2026-09-30 追加（管理页真实栈不可用） |
 | B 类：文档回写缺口 | 6 | 本轮全部回写 |
-| C 类：方案内已登记、待 M2/阶段一承接的技术缺口 | 6 | 状态更新与责任归属；**C1 已于 2026-10-10 关闭**（阶段一 B1-06 持久队列落地并复核，见 §4），剩余 5 项开放 |
+| C 类：方案内已登记、待 M2/阶段一承接的技术缺口 | 7 | 状态更新与责任归属；**C1 已于 2026-10-10 关闭**（阶段一 B1-06 持久队列落地并复核）、**C7 为 2026-10-10 联调新增**（直执行 Bot 解析落空，登记未修），剩余 6 项开放 |
 | D 类：M2 未开工 | 7 任务 / 8 验收项 | 属计划内后续范围，非缺陷 |
 
 **核心结论**：M0/M1 功能交付属实（`integration_verified` / `flow_verified` 的**功能面**成立）；但按本方案 §5.4 规则 7，A 类 9 项均属「豁免」情形，而 §10 决策日志此前**无任何豁免登记**——本轮已补齐登记（见 §6、本方案 §10）。**2026-09-30 追加 A9**：MCP 管理页在真实栈上字段全部脱靶（见 §2 A9 与 §6.9），已修复并复验。
@@ -28,9 +28,9 @@
 | # | 缺口 | 方案依据 | 核查证据 | 影响 | 本轮处置 |
 | --- | --- | --- | --- | --- | --- |
 | A1 | **Postgres 双驱动迁移未验证**（A0-03 明写「SQLite 与 Postgres 双驱动」） | 本方案 §5.2 A0-03（:571）、§7 R-09（:696）、§11.4 U-2 | `itsm-backend/ent/schema/mcp_migration_test.go:13` 仅引 `go-sqlite3`；M0-03 证据 :40 自述「本地无 Docker/Postgres，须 CI 覆盖」 | A0-03 实际仅达 SQLite 单驱动；生产迁移风险未闭环 | **部分补**：门控用例已就位（§6.4），本机无 Postgres/Docker（已实测 5432 不可达）；**待外因**（CI service container，建议 S1） |
-| A2 | **管理页人工冒烟 + 截图未做**（A0-12 目标级别含「+冒烟」） | §5.2 A0-12（:580）、§5.5 证据规范 | M0-12 证据 :5/:70、M0-14 证据 :7/:71/:75 | A0-12/A0-14 证据集不完整 | 归 M2-05（需真实后端 + 登录会话 + 浏览器；本轮登记为豁免） |
+| A2 | **管理页人工冒烟 + 截图未做**（A0-12 目标级别含「+冒烟」） | §5.2 A0-12（:580）、§5.5 证据规范 | M0-12 证据 :5/:70、M0-14 证据 :7/:71/:75 | A0-12/A0-14 证据集不完整 | **部分闭环（2026-10-10 真实栈联调）**：真实栈 + 平台管理员登录会话 + 真实浏览器完成管理页冒烟（列表/统计/能力开关卡/工具治理表全部正确，A9 修复维持有效）+ 6 张截图（`.tmp/web-check/m1-10/`）；证据 `evidence/mcp-m1/M1-10-runtime-joint-debug-2026-10-10.md` §2.4；验收级 E2E（CI `e2e-mcp.yml` 首绿）仍归 M2-05 |
 | A3 | **全量回归未执行**（`go test ./...` 从未跑通；前端此前仅定向套件） | §5.1 D-2（:557）、§5.4 规则 2 | M0-01 证据 :34 自述未执行 | M0/M1 出口「回归全绿」无证据 | **已补**：本轮执行全量后端 + 全量前端并逐类定性（§6.1/§6.2）；MCP 范围绿，非 MCP 红为既有/环境问题 |
-| A4 | **A1-05「手工」、A1-06「E2E」部分未做** | §5.2 A1-05（:592）、A1-06（:593） | M1-10 证据 :20 声明浏览器 E2E 归 M2-05 | 两项 `flow_verified` 属部分达成 | 归 M2-05（本轮登记为豁免） |
+| A4 | **A1-05「手工」、A1-06「E2E」部分未做** | §5.2 A1-05（:592）、A1-06（:593） | M1-10 证据 :20 声明浏览器 E2E 归 M2-05 | 两项 `flow_verified` 属部分达成 | **部分闭环（2026-10-10 真实栈联调）**：A1-05「手工」✅（真实浏览器对话内待审批卡片实时渲染 + 前往审批跳转）；A1-06 浏览器面 ✅（审批队列列表/详情三元组/治理跳转可见）；CI E2E 归 M2-05 不变；证据同上 §2.3-2.4 |
 | A5 | **T-09 的 Playwright 未在 M1 出口执行**（§5.3 原则：E2E 走 nightly + 里程碑出口） | §5.3（:624、:626） | `itsm-frontend/tests/e2e/mcp/` 目录不存在 | 与 A4 同源；M1 出口条件不齐 | 归 M2-05 |
 | A6 | **`-race` 从未执行** | §5.1 D-2 精神 + 各任务卡「测试与证据」 | M0-07 证据 :43、M0-08 证据 :67、M0-14 证据 :79 三处自认待补 | 并发正确性无机器验证（O-1 恰为并发面） | **已补（核心面）**：`registry`/`transport`/`tests/mcpintegration` race 全绿、无 DATA RACE（§6.3/§6.7）；其余包建议 CI 常态化（S3） |
 | A7 | **lint 未执行**；且本方案 §5.1 D-2 写的 `.golangci.yml` 与仓库实际 `.golangci-lint.yml` 不符 | §5.1 D-2（:557） | 仓库有 `.golangci-lint.yml`；`golangci-lint` 本机未安装；CI 实际为 gofumpt + staticcheck（`backend-ci.yml:8-11/:111/:132`） | D-2 未满足（或需改口径为「CI 既有质量门」） | **已补（并发现 9 处 CI 阻断项，全部修复）**：staticcheck 6 + gofumpt 2 + 800 行硬门 1（`service.go` 拆分）→ 复验 exit 0（§6.5）；D-2 口径已回写 |
@@ -62,6 +62,7 @@
 | C4 | 审批/审计页无 URL query、invocation 无深链；审计页与 AI 场景审计无跨表联动 | 已确认（M1-06 证据 :50-52、M1-07 证据 :46/:48） | 建议 M2 单开小任务 |
 | C5 | `risk` 为实时解析，服务器不可达时退化为空 | 已确认（M1-02 证据 :70） | 可并入 M2 加固 |
 | C6 | R1「一次迁移」尚未与阶段一 B0 对齐（U-5 排期未定） | 开放 | 研发负责人 / 阶段一 |
+| C7 | **Bot 开启后无会话上下文的直执行入口 Bot 解析落空**（2026-10-10 联调新增，登记未修）：`BOT_ENABLED=true`（botPolicy 已装配）时 `POST /agent/tools/execute`（无 conversation/botId，如脚本/CLI/目录页试跑）→ Gate 2.5 `CheckTool(bot 0)` → 一律 `tool_not_granted`（invocation 146/147 实证）；需产品决策直执行入口的 Bot 归属（默认助手模板 / 显式 botId 参数 / 无上下文跳过 Gate 2.5） | 已确认（fail-closed 方向，非越权） | 后端 + 产品 |
 
 ---
 
@@ -156,13 +157,19 @@
 - `-race` 集成复跑：`go test -race ./tests/mcpintegration/ -count=1` → **ok 19.9s，无 DATA RACE**（总耗时 1292s，主要是 race 插桩重编译）；加上 `./mcp/registry/`、`./mcp/transport/` 的 race 结果，**A6 的 MCP 核心面已闭环**；其余包建议 CI 常态化覆盖。
 - 缺陷修复顺带产出：本轮修复 3 处负载敏感用例 + 6 处 staticcheck 问题 + 2 处格式问题 + 1 处 CI 行数硬门（`service.go` 拆分），详见 §6.1/§6.5。
 
-### 6.9 管理页字段契约缺陷修复（A9，2026-09-30 追加）
-
-- **触发**：用户报告 `/admin/mcp-servers` 工具列显示 `undefined/undefined`、工具治理「生效状态」与投影名异常。
+### 6.9 管理页字段契约缺陷修复（A9，2026-09-30 追加）- **触发**：用户报告 `/admin/mcp-servers` 工具列显示 `undefined/undefined`、工具治理「生效状态」与投影名异常。
 - **定位**（真实浏览器 + 应用自身模块直调）：`http-client.ts` 对所有响应/请求体做 camelCase 归一化，而 MCP 管理 API 契约是 snake_case → 页面全部 snake_case 字段读到 `undefined`。修复前实测 `httpClient.get('/api/v1/ai/mcp-servers')` 返回 key 全为 camelCase、无一下划线。
 - **修复**：`http-client.ts` 增 `RequestConfig.rawKeys` 与公开方法 `requestRaw()`（:617-619）；`mcp-api.ts` 13 端点改走 `requestRaw`；新增 3 例守护测试（snake_case 双向保持 + 默认路径回归守护），`mcp-api.test.ts` 断言同步。
 - **验证**：`tsc` / `eslint` exit 0；`jest` 4 套件 54 用例全绿；浏览器复验「工具（启用/总数）= 3/6」「生效工具 3」「投影名 6 行齐全」「开关与接口一致」；写路径（分类/启停/重载）经应用模块直调成功（详见 `evidence/mcp-m2/mcp-admin-page-contract-fix-2026-09-30.md`）。
 - **残留**：A2-05 的验收级 E2E 仍以 CI `e2e-mcp.yml` 首绿为准；截图归 CI trace/video。
+
+### 6.10 真实栈联调（M1-10 补充，2026-10-10）
+
+- 真实后端进程 + 真实 mock MCP + 真实浏览器完成 API 全链路、对话链路（mock LLM + Bot9 授权 → SSE `approval_pending`）与管理页/审批页浏览器冒烟（喂 A2/A4）；完整执行记录、截图清单与环境处置见 `evidence/mcp-m1/M1-10-runtime-joint-debug-2026-10-10.md`。
+- **D-3（本轮修复）**：ChatStream 工具执行丢失会话归属（`ExecuteTool` 薄封装 → `ConversationID` 恒 0）→ 工具审计 `conversation_id` 断链 + 执行期 Bot 策略与下发面失配（Bot 绑定会话的已授权写工具被 `tool_not_granted` 拒）；修复为 `ExecuteToolWithConversation(..., convID)`，实栈 before/after（131-135 denied/None → 141-145 pending/conv=17）。`handlers/ai` 窄测试全绿；ChatStream 级自动化回归缺口随 C7 一并登记。
+- **C7（登记未修）**：`BOT_ENABLED=true` 时无会话上下文的直执行入口 Bot 解析落空（fail-closed），见 §4 C7。
+- **脚本工件定性**：v2 脚本 1 处 403 = CSRF 头缺失（脚本工件，非产品门；curl 同路径 200 pending 反证）。
+- 存量失败登记：`go test ./tests/mcpintegration/` 中 `TestM1Annotation_Gate2ReadVsWrite`/`TestM0Flow_EndToEnd` 与本轮改动无关（stash 基线同败：夹具 admin 角色缺 `mcp:read`，未跟上平台治理收口码表，归属测试维护者）。
 
 ---
 
@@ -187,4 +194,5 @@
 | 2026-09-27 | 二次整改（CI 接线）：`-race` 全量 8 包绿（A6/EX-06 闭环）；`backend-ci.yml` 新增 `mcp-race`（阻断）与 `mcp-postgres-migrations`（service container，首轮 `continue-on-error` 观察）两个 job、Test job 增 `-timeout 20m`（S1/S2/S3 落地，新增 EX-09） |
 | 2026-09-30 | 追加 A9：MCP 管理页真实栈不可用（camelCase 归一化 × snake_case 契约）→ 已修复（`requestRaw` 通道 + `mcp-api.ts` 13 端点 + 3 例守护测试）并在真实浏览器复验；新增 §6.9 与证据 `evidence/mcp-m2/mcp-admin-page-contract-fix-2026-09-30.md` |
 | 2026-10-10 | **C1（R-12）复核关闭**：阶段一 B1-06 持久队列在分支 `feat/msp-p0-hardening` 复核——交付物在位（`service/tool_queue_durable.go`、`service/tool_verify.go`、bootstrap 启动恢复、`tests/botintegration/b1_queue_recovery_test.go`），`go test ./tests/botintegration/ -run 'TestB1QueueRecovery|TestB1QueueVerifier' -count=1` PASS ×5；方案 §7.1 R-12 / §8.2 发布步骤 4 / §11.4 U-4 已同步关闭。进程级 kill-restart 演练仍归 M2-05 类 CI/E2E（B1-06 证据 §4/§6 已登记） |
+| 2026-10-10 | **真实栈联调（M1-10 补充）+ A2/A4 部分闭环 + D-3 修复 + C7 登记**：真实进程 API 全链路 / 对话链路 / 浏览器冒烟全通过（证据 `evidence/mcp-m1/M1-10-runtime-joint-debug-2026-10-10.md`）；A2 冒烟部分与 A4 的 A1-05 手工、A1-06 浏览器面闭环（验收级 CI E2E 仍归 M2-05）；发现并修复 D-3（ChatStream 会话归属断链，见 §6.10）；登记 C7（直执行 Bot 解析落空）；1 处脚本 403 定性为 CSRF 工件；`tests/mcpintegration` 2 例存量失败与本轮无关（stash 基线同败） |
 

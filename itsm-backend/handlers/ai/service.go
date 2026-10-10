@@ -1498,7 +1498,13 @@ func (s *Service) chatStreamInner(
 			emit(out)
 		}
 
-		res, invID, err := s.ExecuteTool(ctx, userID, tenantID, role, name, args)
+		// B0-03：聊天路径必须携带会话归属（ExecuteToolWithConversation）——否则
+		// 工具审计 conversation_id 恒空，且执行期 Bot 策略解析（resolveBotID 依赖
+		// conversation 绑定）与下发面失配：Bot 绑定会话的已授权写工具会被
+		// tool_not_granted 拒绝（联调 2026-10-10 实测：run#14 五连拒）。
+		// 既有会话在流式请求中带 conversationId；新会话在流结束后才落库，
+		// convID=0 时行为与既有版本一致（解析回落到请求级 WithBotID）。
+		res, invID, err := s.ExecuteToolWithConversation(ctx, userID, tenantID, role, name, args, convID)
 		if err != nil {
 			finish(ToolEventStatusFailed, "", toolEventErrorCode(err), 0)
 			return nil, err
