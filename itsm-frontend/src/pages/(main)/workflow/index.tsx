@@ -1336,6 +1336,7 @@ const WorkflowManagementPage = () => {
       >
         <BPMNDesigner
           xml={editingWorkflow?.bpmnXml || ''}
+          readOnly={!canBpmnWrite}
           onSave={async (xml: string) => {
             try {
               if (editingWorkflow) {
