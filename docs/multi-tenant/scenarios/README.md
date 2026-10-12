@@ -61,9 +61,12 @@
 | 09 | [09-tenant-user-management.md](./09-tenant-user-management.md) | 平台管理员 | 跨租户用户治理：重置（一次性/指定）/启停/强制下线/审计 | 即时 401、护栏 409、通知与审计留痕 |
 | 10 | [10-membership-switch-and-workbench-boundary.md](./10-membership-switch-and-workbench-boundary.md) | 服务商员工 + 客户管理员 | 深度切换单客户 → 返回=切回 provider；客户侧只读服务方成员 | `homeTenantId` 保留、工作台恢复可用、`providerMembers` 只读 |
 | 11 | [11-offboarding.md](./11-offboarding.md) | 平台管理员 + 服务商管理员 | 离职编排：一条动作停用 + 全量会话失效 + 撤销全部分配（双通道） | 幂等重跑、分配清零、双审计留痕、403/409 反例 |
+| 12 | [12-fresh-db-multi-tenant-browser-test-plan.md](./12-fresh-db-multi-tenant-browser-test-plan.md) | 测试负责人 | **全新库多租户浏览器验收测试计划**：需求丰富（阶段 0–7）、角色/账号/权限矩阵、测试数据、环境方案、证据规范、出口条件、风险与里程碑 | 出口条件与一页检查单 |
+| 13 | [13-fresh-db-multi-tenant-browser-operations-manual.md](./13-fresh-db-multi-tenant-browser-operations-manual.md) | 执行人（全角色） | **全新库多租户浏览器操作手册**：新库准备（方案 A/B）→ 建租户 → 建号（三通道）→ 业务操作 → 权限/负向验证 → 跨租户闭环 → 其它操作 → 证据/排错/重置 | 逐步界面预期 + 验证 + 排错 |
 
 > **依赖链**：01 → 02 → 03（两个租户都需要开通）→ 04 → 05 → 06 → 07 → 08；**09 独立**（平台面治理，可在任一租户上执行）；**10 依赖 05**（需要有效分配），建议紧跟 07 执行；**11 依赖 05**（需要有效分配演示），平台面通道需开启 `TENANT_USER_ADMIN_ENABLED`。
 > **可重入**：每个场景独立成篇；重跑建议**换一批新编码**（如 `MSPB2C02`/`B2CCUST02`），避免与既有数据混淆。
+> **12/13 说明**：这是一次**独立测试战役**（全新数据库 + `saas_msp`，全流程浏览器操作）；步骤与 00–11 场景互为引用（12/13 给出战役化的阶段编排与证据规范），不改变 01–11 的既有口径。
 
 ## 3. 角色与账号矩阵
 
