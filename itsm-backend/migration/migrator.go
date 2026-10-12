@@ -274,6 +274,11 @@ func (m *Migrator) Status(ctx context.Context, available []Migration) ([]Migrati
 
 // RunMigrations runs all pending migrations
 func (m *Migrator) RunMigrations(ctx context.Context, available []Migration) (int, error) {
+	// 先收养被 forward fix 替代的历史版本：避免首个必然失败的迁移（如全新库上的
+	// 20260501_rbac_endpoint_acls）中止其后全部文件系统迁移（F4，2026-10-12）。
+	if err := m.reconcileSupersededMigrations(ctx, available); err != nil {
+		return 0, err
+	}
 	pending, err := m.GetPendingMigrations(ctx, available)
 	if err != nil {
 		return 0, err
@@ -287,6 +292,13 @@ func (m *Migrator) RunMigrations(ctx context.Context, available []Migration) (in
 	appliedCount := 0
 	for _, mig := range pending {
 		if err := m.ApplyMigration(ctx, mig); err != nil {
+			// F4 同类问题（2026-10-12）：历史迁移（发现机制上线前）在全新 ent 基线上
+			// 可能因表列重命名/删除而失败；按「收养不重放」处理并继续，避免整链中止。
+			if adopted, adoptErr := m.adoptLegacyIncompatible(ctx, mig, err); adoptErr == nil && adopted {
+				m.logger.Warnw("legacy migration adopted (schema incompatible with current baseline)",
+					"version", mig.Version, "error", err.Error())
+				continue
+			}
 			return appliedCount, fmt.Errorf("failed to apply migration %s: %w", mig.Version, err)
 		}
 		appliedCount++

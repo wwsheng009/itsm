@@ -70,11 +70,18 @@ func ProductionInitializers(seeder *Seeder) ([]initialization.Initializer, error
 			transactional.seedDepartments(ctx)
 			transactional.seedTeams(ctx)
 			transactional.seedRoles(ctx)
+			// G4 修复（2026-10-12）：内置审批组此前仅在 SeedAll（dev 便捷路径）播种，
+			// production 组件路径漏配，导致全新库 default 租户 groups=0、租户开通校验
+			// 失败（FDB-B1 实测）。seedGroups 幂等，存量库重复执行安全。
+			transactional.seedGroups(ctx)
 			transactional.seedPermissions(ctx)
 			transactional.seedMenus(ctx)
 			transactional.seedAdmin(ctx)
 			transactional.seedMenuAndPermissionFixes(ctx)
 			transactional.seedRolePermissions(ctx)
+			// G5 修复（2026-10-12）：显式 ID 播种后校正序列，避免后续租户供给
+			// 触发 duplicate key（FDB-B1 实测）。
+			transactional.FixSeedIDSequences(ctx)
 			return nil
 		},
 		verify: func(ctx context.Context, target *Seeder) error {

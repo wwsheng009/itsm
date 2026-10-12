@@ -1022,6 +1022,36 @@ func (s *Seeder) seedGroups(ctx context.Context) {
 	}
 }
 
+// FixSeedIDSequences 校正显式 ID 播种后的自增序列（G5 防御，2026-10-12）。
+//
+// 背景：历史迁移会以显式 id 写入 roles/permissions/menus 等表（例如
+// 20260501_enable_rbac_from_db 的 roles id 100–112），但对应序列不会随之推进；
+// 之后租户模板供给（provision_tenant）通过 nextval 插入时会触发
+// `roles_pkey duplicate key`（FDB-B1 全新库实测复现，见 run-summary）。
+//
+// 幂等：setval 到 max(id)，使下一次 nextval = max(id)+1；单表失败仅告警不阻断。
+func (s *Seeder) FixSeedIDSequences(ctx context.Context) {
+	rawDB := database.GetRawDB()
+	if rawDB == nil {
+		s.sugar.Warnw("rawDB not available; skip seed id sequence fix")
+		return
+	}
+	tables := []string{
+		"roles", "permissions", "menus", "groups", "role_permissions",
+		"sla_definitions", "ci_types", "approval_workflows", "system_configs",
+	}
+	for _, table := range tables {
+		query := fmt.Sprintf(
+			"SELECT setval(pg_get_serial_sequence('%s','id'), greatest((SELECT coalesce(max(id),0) FROM %s),1))",
+			table, table,
+		)
+		if _, err := rawDB.ExecContext(ctx, query); err != nil {
+			s.sugar.Warnw("fix seed id sequence failed", "table", table, "error", err)
+			continue
+		}
+	}
+}
+
 // BuiltinRoles 返回 domain/role 词表的内置角色种子。
 // 契约：users.role 枚举值必须都能在 roles 表找到对应实体——
 // MigrateUserRolesBackfill 与按角色解析审批人（M2M 边）都依赖这一点。
