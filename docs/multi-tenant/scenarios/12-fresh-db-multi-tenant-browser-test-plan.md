@@ -440,8 +440,8 @@
 | 8 | 平台治理写通道默认关 | 阶段 7 平台重置/启停不可用 | 如需执行，显式开启 `TENANT_USER_ADMIN_ENABLED` 并记录开关证据 |
 | 9 | 浏览器自动化工具可用性 | 自动化复跑失败 | 以人工浏览器操作为主证据；自动化仅作可选 |
 | 10 | 口令与敏感信息 | 泄露风险 | 口令不入文档/仓库；本地凭据清单；执行后轮换 |
-| 11 | 客户确认解决的 UI 入口与受保护 `resolve` 不一致 | 可能经 `PUT /tickets/:id` 直改状态、绕过解决方案前置 | 执行时记录实际端点并作为发现登记；受保护口径用 `POST /tickets/:id/resolve`（接口复核）；不阻断闭环主线判定 |
-| 12 | 工作台状态下拉可能含 `resolved/closed` | 服务商点击必然失败 | 服务商步骤只用 `处理中/等待中`；该现象作为契约不一致记录 |
+| 11 | ~~客户确认解决的 UI 入口与受保护 `resolve` 不一致~~ **已修复（F2 + OB-3，2026-10-12）** | 曾可能经 `PUT /tickets/:id` 直改状态、绕过解决方案前置 | 现 PUT 对终态返回 400 `TICKET_TERMINAL_STATUS_REQUIRES_DEDICATED_ENDPOINT`；前端提供专用「提交解决方案」入口；回归测试 `handlers/ticket::TestHandler_Update_TerminalStatusGuard` 锁定 |
+| 12 | ~~工作台状态下拉可能含 `resolved/closed`~~ **已修复（OB-1，2026-10-12）** | 服务商点击曾必然失败 | 工作台行内/批量下拉已收敛为非终态（`WORKBENCH_WRITABLE_STATUS_OPTIONS`，`workbench` 组件测试锁定） |
 | 13 | 租户通道建 provider 员工无 `msp_role` | 无法进入 MSP 工作台 | 工作台员工一律走平台通道（可选 MSP 角色）或邀请通道；租户通道仅验证通道本身 |
 | 14 | 文档与代码口径漂移（`07:G4`/`07:G5`/`07:G6` 关闭状态、组件数 6 vs 7、`db-reset` 缺失等） | 按旧文档操作会失败/误判 | 以实测与代码为准；执行前复核操作手册命令；漂移登记到发现清单 |
 | 15 | 宿主环境变量覆盖 `.env`（godotenv 不覆盖已有 env） | 改了 `.env` 仍连旧库/旧模式 | 启动会话显式设置 `DB_*`/`REDIS_*`/`DEPLOYMENT_MODE`（手册 §0 方式）；不依赖 `.env` 自动生效 |

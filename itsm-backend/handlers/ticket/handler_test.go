@@ -500,6 +500,43 @@ func TestHandler_Update_TableDriven(t *testing.T) {
 	}
 }
 
+// F2 契约锁定（OB-3）：终态（resolved/closed）不允许经编辑直改状态，
+// 必须走专用入口（POST /tickets/:id/resolve 或 /close），避免绕过解决方案前置。
+func TestHandler_Update_TerminalStatusGuard(t *testing.T) {
+	r, repo := newTestHarness(t)
+
+	w := doJSON(t, r, http.MethodPost, "/api/v1/tickets",
+		dto.CreateTicketRequest{Title: "Terminal guard", Priority: "low"},
+		map[string]string{"X-Test-TenantID": "1", "X-Test-UserID": "7"},
+	)
+	require.Equal(t, 200, w.Code, w.Body.String())
+
+	var id int
+	for id = range repo.tickets {
+		break
+	}
+
+	for _, status := range []string{"resolved", "closed"} {
+		t.Run("reject_"+status, func(t *testing.T) {
+			w := doJSON(t, r, http.MethodPut,
+				"/api/v1/tickets/"+strconv.Itoa(id),
+				dto.UpdateTicketRequest{Status: status},
+				map[string]string{"X-Test-TenantID": "1", "X-Test-UserID": "7"},
+			)
+			assert.Equal(t, 400, w.Code, w.Body.String())
+			assert.Contains(t, w.Body.String(), "TICKET_TERMINAL_STATUS_REQUIRES_DEDICATED_ENDPOINT")
+		})
+	}
+
+	// 非终态编辑仍放行（回归保护）
+	w = doJSON(t, r, http.MethodPut,
+		"/api/v1/tickets/"+strconv.Itoa(id),
+		dto.UpdateTicketRequest{Status: "in_progress"},
+		map[string]string{"X-Test-TenantID": "1", "X-Test-UserID": "7"},
+	)
+	assert.Equal(t, 200, w.Code, w.Body.String())
+}
+
 func TestHandler_Delete_TableDriven(t *testing.T) {
 	r, repo := newTestHarness(t)
 
