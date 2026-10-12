@@ -55,6 +55,17 @@
 | 反例：平台通道建 `customer_user` MSP 角色 | `MSP_ROLE_NOT_ALLOWED`（白名单仅 provider_admin/provider_agent，设计内 fail-closed） |
 | 单测/回归 | `middleware/msp_precheck_fallback_test.go` 5/5；`middleware`、`router`（MSP）包回归通过 |
 
+## 3.3 v3 UI 全链路复验（浏览器，2026-10-13 07:1x CST）
+
+账号 `prov.ui.op21013071836`（`admin` + `provider_admin`，平台通道建号后**自分配**客户 3；自分配直接成功——兜底对 `/msp/allocations` 同样生效，OB-13 手工绕行不再需要）：
+
+| 验证项 | 结果 |
+|---|---|
+| 工作台 `跨租户单据 → 问题` 行内「推进状态」 | 弹窗正常（当前状态「调查中」）；下拉 已定位/已解决/已关闭；选「已定位」后「推 进」转可点，提交成功 |
+| 行状态变化 | 「调查中」→「**已定位**」；行更新时间 `2026/10/13 07:21:10` |
+| API 读回（同会话） | `GET /msp/problems/1?customerTenantId=3` → `status=identified`、`updatedAt=2026-10-12T23:21:10Z`、`allowedActions=[view:true,status:true]` |
+| 口令卫生 | 复验账号口令已轮换作废（旧口令登录 → `2001`；新口令未回显）；详见 [smoke-records-writeface.md](./smoke-records-writeface.md) §6 |
+
 ## 4. 验证证据（公网入口 `http://172.18.3.238:8088`）
 
 | 检查 | 结果 |
