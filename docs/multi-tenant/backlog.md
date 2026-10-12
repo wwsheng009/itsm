@@ -1,6 +1,6 @@
 # 多租户优化待办（Backlog）
 
-> 状态：**已完成（2026-10-12 收口）**｜定位：FDB-B1 批次发现/观察项与评估结论的**优化任务清单**（OB-1–OB-10，P1–P4），含状态跟踪与验收口径。
+> 状态：**进行中（OB-1–OB-10 已完成；OB-11/OB-12 开放）**｜定位：FDB-B1 批次发现/观察项与部署期发现的**优化任务清单**（OB-1–OB-12，P1–P4），含状态跟踪与验收口径。
 > 关联：[FDB-B1 run-summary](./evidence/fresh-db-browser-B1/run-summary-20261012-1925.md)｜[12 测试计划](./scenarios/12-fresh-db-multi-tenant-browser-test-plan.md)｜[13 操作手册](./scenarios/13-fresh-db-multi-tenant-browser-operations-manual.md)｜[INDEX](./INDEX.md)
 
 ---
@@ -25,6 +25,8 @@
 | OB-8 | P3 | 性能冒烟基线 | 本批次未测 | 本地冒烟：登录/工作台列表/单据读面/批量拒绝路径延迟 p50/p95 | 基线数据入库（注明环境局限） | **已完成** |
 | OB-9 | P4 | 截图证据策略收口 | 截图工具受工作区根限制；PNG 不入库（`.gitignore:122`） | 手册 §8.1 固化「本地留存 + CDP 直采兜底」约定 | 手册更新 | **已完成** |
 | OB-10 | P4 | 登录限流指引 | 默认 10/min 误伤密集验收（脚本前置已注） | 部署文档/手册补 `LOGIN_RATE_LIMIT_PER_MIN` 验收建议值与示例 | 文档更新 | **已完成** |
+| OB-11 | P1 | 全新库 init 被「无模板的示例绑定」阻断（F8，238 部署发现） | 迁移 `20260620_process_routing_enhancement.sql` 示例绑定引用 4 个不存在的模板 key（`change_emergency_flow`/`incident_general_flow`/`release_test_flow`/`expense_approval_flow`）→ `verifyWorkflowTemplates` 失败 → workflow-core 事务回滚 → compose 依赖链中止（站点 502） | 迁移对全新库跳过该示例 INSERT（或 seeder 校验忽略无模板绑定；或补齐模板文件） | 全新库 init 直通；回归用例覆盖 | 待处理 |
+| OB-12 | P2 | nginx:alpine 入口脚本在 snap-docker 挂起（F9，238 部署发现） | `10-listen-on-ipv6-by-default.sh` 卡在 `apk manifest nginx`（实测 8s 超时不返回）；前端容器 nginx 不启动（3000 拒绝）→ 站点 502 | 前端 Dockerfile 生产阶段移除该入口脚本（或固定基础镜像 digest）；重建镜像验证 | 重建后前端容器免 override 直接 healthy | 待处理 |
 
 ## 3. 执行记录
 
@@ -41,6 +43,7 @@
 | 2026-10-12 | OB-7 批量护栏边界端到端 | 已完成：B1 101 条→400 `BATCH_LIMIT_EXCEEDED`；B2 失效条目逐条失败（`CUSTOMER_TENANT_NOT_FOUND`）；B3 `delete`→403 `ACTION_NOT_ALLOWED`；B4 未分配客户→`MSP_ALLOCATION_REQUIRED` | 提交 `05326382` |
 | 2026-10-12 | OB-8 性能冒烟基线 | 已完成：登录 p50≈1123ms / 列表 p50≈1501ms / 单据读面 p50≈1626ms / 批量拒绝路径 p50≈1218ms（本地 dev 基线，非生产压测） | 提交 `480d83f6`；`evidence/perf-smoke/run-summary-20261012-222130.md` |
 | 2026-10-12 | OB-9/OB-10 文档收口 | 已完成：手册 §8.1 截图约定（本地留存 + CDP 兜底）；部署文档补 `LOGIN_RATE_LIMIT_PER_MIN` 验收指引 | 提交 `3c69f017` |
+| 2026-10-12 | **238 生产部署（新版程序 + 新库）** | 已上线：`2d00a52e` 镜像 + 新库 `itsm_prod_v2`（saas_msp），7/7 healthy，公网 8088 验证通过；部署期发现并现场处置 F8/F9（→ OB-11/OB-12） | `evidence/238-deploy-20261012/run-summary.md` |
 
 ## 4. 变更记录
 
@@ -48,3 +51,4 @@
 |---|---|---|
 | v0.1 | 2026-10-12 | 建立：FDB-B1 发现/观察项 → OB-1–OB-10（P1–P4）任务清单 |
 | v0.2 | 2026-10-12 | **执行回填：OB-1–OB-10 全部完成**；执行中新发现 F7（refresh/switch 角色漂移 → MSP 续签后 403）已修复并回归；各任务提交与证据见 §3 |
+| v0.3 | 2026-10-12 | **238 生产部署回填**：新增 OB-11（全新库 init 被无模板示例绑定阻断，F8）与 OB-12（nginx 入口脚本挂起，F9）；部署运行摘要见 `evidence/238-deploy-20261012/` |
