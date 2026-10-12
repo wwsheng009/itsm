@@ -252,6 +252,15 @@ func (h *Handler) UpdateTicket(c *gin.Context) {
 		return
 	}
 
+	// F2 修复（2026-10-12）：终态（resolved/closed）必须走专用端点，
+	// 避免编辑直改状态绕过 resolve/close 的解决方案前置与生命周期守卫。
+	if req.Status == "resolved" || req.Status == "closed" {
+		common.FailWithData(c, common.ValidationError,
+			"终态变更请使用专用入口（提交解决方案 / 关闭），不允许经编辑直改状态",
+			gin.H{"reasonCode": "TICKET_TERMINAL_STATUS_REQUIRES_DEDICATED_ENDPOINT"})
+		return
+	}
+
 	tenantID, ok := handlerctx.ResolveTenantID(c)
 	if !ok {
 		return

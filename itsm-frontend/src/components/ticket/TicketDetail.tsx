@@ -217,7 +217,9 @@ const TicketDetail: React.FC<{ id?: string }> = ({ id: propId }) => {
   const [editModalVisible, setEditModalVisible] = useState(false);
   const [ccModalVisible, setCCModalVisible] = useState(false);
   const [deleteModalVisible, setDeleteModalVisible] = useState(false);
+  const [resolveModalVisible, setResolveModalVisible] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [resolving, setResolving] = useState(false);
   const [assigning, setAssigning] = useState(false);
   const [ccing, setCCing] = useState(false);
   const [approving, setApproving] = useState(false);
@@ -242,6 +244,7 @@ const TicketDetail: React.FC<{ id?: string }> = ({ id: propId }) => {
   } | null>(null);
   const [assignForm] = Form.useForm();
   const [editForm] = Form.useForm();
+  const [resolveForm] = Form.useForm();
   const [ccForm] = Form.useForm();
   const [approvalForm] = Form.useForm();
 
@@ -640,6 +643,32 @@ const TicketDetail: React.FC<{ id?: string }> = ({ id: propId }) => {
     }
   };
 
+  // F2 修复（2026-10-12）：终态走专用 resolve 端点并携带解决方案，
+  // 不再经 PUT 直改状态（后端已同步拦截 PUT 写 resolved/closed）。
+  const handleResolveSubmit = async () => {
+    if (!resolvedTicketId) return;
+    let values: { resolution?: string };
+    try {
+      values = await resolveForm.validateFields();
+    } catch {
+      return; // 校验失败，保持弹窗
+    }
+    setResolving(true);
+    try {
+      await TicketApi.resolveTicket(resolvedTicketId, {
+        solution: (values.resolution || '').trim(),
+      });
+      antMessage.success(t('ticketDetail.resolveSuccess'));
+      setResolveModalVisible(false);
+      resolveForm.resetFields();
+      fetchTicket();
+    } catch (error) {
+      handleError(error, 'resolveTicket', t('ticketDetail.resolveFailed'));
+    } finally {
+      setResolving(false);
+    }
+  };
+
   // Handle delete click
   const handleDeleteClick = () => {
     setDeleteModalVisible(true);
@@ -1017,6 +1046,15 @@ const TicketDetail: React.FC<{ id?: string }> = ({ id: propId }) => {
                 {t('common.edit')}
               </Button>
             )}
+            {canUpdateTicket && !isTicketFinal && (
+              <Button
+                icon={<Check size={16} />}
+                onClick={() => setResolveModalVisible(true)}
+                loading={resolving}
+              >
+                {t('ticketDetail.resolve')}
+              </Button>
+            )}
             {canCcTicket && (
               <Button
                 icon={<Users size={16} />}
@@ -1241,10 +1279,12 @@ const TicketDetail: React.FC<{ id?: string }> = ({ id: propId }) => {
               >
                 <Select
                   placeholder={t('ticketDetail.selectStatus')}
-                  options={Object.entries(statusMap).map(([value, cfg]) => ({
-                    value,
-                    label: cfg.text,
-                  }))}
+                  options={Object.entries(statusMap)
+                    .filter(([value]) => value !== 'resolved' && value !== 'closed')
+                    .map(([value, cfg]) => ({
+                      value,
+                      label: cfg.text,
+                    }))}
                 />
               </Form.Item>
             </div>
@@ -1260,6 +1300,33 @@ const TicketDetail: React.FC<{ id?: string }> = ({ id: propId }) => {
                   {t('ticketDetail.saveChanges')}
                 </Button>
               </Space>
+            </Form.Item>
+          </Form>
+        </Modal>
+
+        {/* 提交解决方案（F2：受保护终局入口，POST /tickets/:id/resolve） */}
+        <Modal
+          title={t('ticketDetail.resolveTitle')}
+          open={resolveModalVisible}
+          onCancel={() => setResolveModalVisible(false)}
+          onOk={handleResolveSubmit}
+          confirmLoading={resolving}
+          okText={t('ticketDetail.resolveSubmit')}
+          cancelText={t('common.cancel')}
+          destroyOnClose
+        >
+          <Form form={resolveForm} layout="vertical" preserve={false}>
+            <Form.Item
+              label={t('ticketDetail.resolutionLabel')}
+              name="resolution"
+              rules={[{ required: true, message: t('ticketDetail.resolutionRequired') }]}
+            >
+              <Input.TextArea
+                rows={4}
+                maxLength={2000}
+                showCount
+                placeholder={t('ticketDetail.resolutionPlaceholder')}
+              />
             </Form.Item>
           </Form>
         </Modal>
