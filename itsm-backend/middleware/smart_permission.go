@@ -106,14 +106,20 @@ func InvalidateTenantACLCache(tenantID int) {
 // P0-4 修复：移除 raw DB 通道，ACL 与角色权限统一走 Ent（保留租户过滤与 RLS），
 // 并使用请求 context（超时/取消随请求传播），不再使用 context.Background()。
 func SmartCheckPermission(c *gin.Context, client *ent.Client, role string, method, path string, tenantID int) bool {
-	ctx := c.Request.Context()
-
 	// Phase 1 多角色：优先取 gin 上下文中物化的全部生效角色（主角色+m2m附加角色），
 	// 未注入时退化为单角色（兼容旧链路与单测）。
 	roles := GetContextRoles(c)
 	if len(roles) == 0 && role != "" {
 		roles = []string{role}
 	}
+	return smartCheckPermissionWithRoles(c, client, roles, method, path, tenantID)
+}
+
+// smartCheckPermissionWithRoles 按显式角色列表执行四层判定（L1 白名单 → L2 ACL → L3 URL 推断 → L4 角色权限）。
+// 抽出自 SmartCheckPermission 主体，供 MSP 映射角色兜底复用（OB-14，2026-10-12）：
+// MSP 路由族预检失败时以 msp_role 的映射角色再判一次，避免 context 角色并集屏蔽映射角色。
+func smartCheckPermissionWithRoles(c *gin.Context, client *ent.Client, roles []string, method, path string, tenantID int) bool {
+	ctx := c.Request.Context()
 
 	// super_admin 任一角色命中即直通（与 AuthorizeResource 语义一致）。
 	for _, r := range roles {

@@ -1275,7 +1275,50 @@ func hasPermission(client *ent.Client, role, method, path string, userID, tenant
 
 	// 使用智能权限检查器（4层兜底架构）
 	// P0-4 修复：移除 database.GetRawDB() 直连，ACL 查询统一走 Ent 客户端
-	return SmartCheckPermission(c, client, role, method, path, tenantID)
+	if SmartCheckPermission(c, client, role, method, path, tenantID) {
+		return true
+	}
+
+	// OB-14（2026-10-12）：MSP 路由族预检兜底。
+	// token 角色按 07:G3 取「主角色 ∪ MSP 映射角色」rank 更高者：主角色 admin(rank 4) 会遮蔽
+	// provider_admin→msp_manager(rank 3)，使 /api/v1/msp/* 被通用预检 403，而 RequireMSPPermission
+	// 与工作台读面 allowedActions 均按 msp_role 判定为允许 → 读面/写路径口径不一致。
+	// 修复：仅对 /api/v1/msp/* 在 token 角色判定失败时，以 DB msp_role 的映射角色再判一次
+	// （与 RequireMSPPermission 同口径）；非 MSP 路径不受影响，customer_user→end_user 仍会拒绝。
+	if strings.HasPrefix(path, "/api/v1/msp/") {
+		if mapped := mspMappedRoleForUser(c, client, userID); mapped != "" && !containsString(GetContextRoles(c), mapped) {
+			if smartCheckPermissionWithRoles(c, client, []string{mapped}, method, path, tenantID) {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+// mspMappedRoleForUser 解析用户 DB msp_role 并映射为 RBAC 角色（OB-14 兜底用）。
+// 优先复用已物化的 MSP 上下文（MSPMiddleware 先行时），否则查库，避免与中间件顺序耦合。
+func mspMappedRoleForUser(c *gin.Context, client *ent.Client, userID int) string {
+	if mspCtx, ok := GetMSPContext(c); ok && mspCtx != nil && strings.TrimSpace(mspCtx.Role) != "" {
+		return GetMSPRBACRole(mspCtx.Role)
+	}
+	if client == nil || userID <= 0 {
+		return ""
+	}
+	u, err := client.User.Query().Where(user.ID(userID)).Only(c.Request.Context())
+	if err != nil || u == nil || strings.TrimSpace(string(u.MspRole)) == "" {
+		return ""
+	}
+	return GetMSPRBACRole(string(u.MspRole))
+}
+
+// containsString 判断字符串切片是否包含目标值（本地小工具，避免为单点引入依赖）。
+func containsString(list []string, target string) bool {
+	for _, item := range list {
+		if item == target {
+			return true
+		}
+	}
+	return false
 }
 
 // HasResourcePermission 检查角色是否有指定资源的操作权限（导出供 AI 工具 RBAC 校验复用）
