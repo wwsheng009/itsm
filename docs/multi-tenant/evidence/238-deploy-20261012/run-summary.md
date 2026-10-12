@@ -42,6 +42,19 @@
 | HTTP（公网 8088） | `/`、`/login`、`healthz`、`readyz` 均 200；`/api/v1/version = 1.8.0-dev.7c90af22` |
 | **全新库探针**（`itsm_fresh_probe`，零人工干预跑完整 init） | **`probe_run_exit=0`**；ledger=75；`process_definitions=18`；**`unbacked_bindings=0`**；admin=1；探针库已删除（OB-11 修复生效） |
 
+## 3.2 v3 修复部署与回归（OB-14，2026-10-12 23:1x）
+
+> 版本标签升级：`1.8.0-dev.b50e7c7a`（来源提交 `b50e7c7a`；后端重建，前端/ai-service retag）。
+
+| 验证项 | 结果 |
+|---|---|
+| 部署 | 7/7 容器 healthy；`/api/v1/version = 1.8.0-dev.b50e7c7a`；itsm-init exit 0 |
+| 写路径（admin+provider_admin，已分配客户 3） | `POST /api/v1/msp/problems/1/status → investigating` **200**，复读状态 = `investigating`（修复前 403 权限不足） |
+| 读面口径 | `allowedActions.status=true` 与写路径一致 |
+| 反例：未分配客户写路径 | 403 `MSP_ALLOCATION_REQUIRED`（fail-closed，较早门拒绝） |
+| 反例：平台通道建 `customer_user` MSP 角色 | `MSP_ROLE_NOT_ALLOWED`（白名单仅 provider_admin/provider_agent，设计内 fail-closed） |
+| 单测/回归 | `middleware/msp_precheck_fallback_test.go` 5/5；`middleware`、`router`（MSP）包回归通过 |
+
 ## 4. 验证证据（公网入口 `http://172.18.3.238:8088`）
 
 | 检查 | 结果 |

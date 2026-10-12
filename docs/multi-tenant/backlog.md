@@ -1,6 +1,6 @@
 # 多租户优化待办（Backlog）
 
-> 状态：**进行中（OB-1–OB-13 已完成；OB-14 开放）**｜定位：FDB-B1 批次与 238 部署/冒烟的**优化任务清单**（OB-1–OB-14，P1–P4），含状态跟踪与验收口径。
+> 状态：**已完成（2026-10-12 收口，OB-1–OB-14）**｜定位：FDB-B1 批次与 238 部署/冒烟的**优化任务清单**（OB-1–OB-14，P1–P4），含状态跟踪与验收口径。
 > 关联：[FDB-B1 run-summary](./evidence/fresh-db-browser-B1/run-summary-20261012-1925.md)｜[12 测试计划](./scenarios/12-fresh-db-multi-tenant-browser-test-plan.md)｜[13 操作手册](./scenarios/13-fresh-db-multi-tenant-browser-operations-manual.md)｜[INDEX](./INDEX.md)
 
 ---
@@ -28,7 +28,7 @@
 | OB-11 | P1 | 全新库 init 被「无模板的示例绑定」阻断（F8，238 部署发现） | 迁移 `20260620_process_routing_enhancement.sql` 示例绑定引用 4 个不存在的模板 key（`change_emergency_flow`/`incident_general_flow`/`release_test_flow`/`expense_approval_flow`）→ `verifyWorkflowTemplates` 失败 → workflow-core 事务回滚 → compose 依赖链中止（站点 502） | 已修复：前向迁移 `20261013_prune_unbacked_process_bindings.sql`（幂等删除无模板绑定；不改历史迁移避免 checksum 漂移）+ 静态回归测试 | 全新库 init 直通；回归用例覆盖 | **已完成（2026-10-12）**：238 全新库探针 `init exit 0`（ledger=75/defs=18/unbacked=0）；测试 `migration/process_bindings_consistency_test.go` PASS；提交 `7c90af22` |
 | OB-12 | P2 | nginx:alpine 入口脚本在 snap-docker 挂起（F9，238 部署发现） | `10-listen-on-ipv6-by-default.sh` 卡在 `apk manifest nginx`（实测 8s 超时不返回）；前端容器 nginx 不启动（3000 拒绝）→ 站点 502 | 已修复：前端 Dockerfile 生产阶段 `RUN rm -f /docker-entrypoint.d/10-listen-on-ipv6-by-default.sh` | 重建后前端容器免 override 直接 healthy | **已完成（2026-10-12）**：移除服务端 override 后重建，前端 t=5s healthy；提交 `7c90af22` |
 | OB-13 | P3 | 分配管理身份口径提示（238 冒烟观察） | `POST /msp/allocations` 需 `msp_allocation:write`；`role=admin`（rank 4）按 07:G3 遮蔽 `provider_admin→msp_manager`（rank 3）→ 平台通道建的 provider 管理员做分配会 403 权限不足 | 文档口径已固化（手册 §2.1/§6.1）；建号表单提示/自动提级评估留待后续（如需） | 口径固化（手册/部署文档或表单提示） | **已完成（2026-10-12）** |
-| OB-14 | P1 | 三类单据「推进状态」写面契约不一致/不可达（F10，238 UI 写面验证） | 读面 `allowedActions.status=true`（按 `msp_role` 映射 ∩ 客户租户业务码计算），但提交被**路由通用预检**拒绝 `403 权限不足`（预检按 token 角色，`admin` 遮蔽 `msp_manager` 后无 `msp_ticket:write`）；且平台可授予角色与 `canWriteRecord`/预检白名单交集为空（仅 `sysadmin` 同时满足且禁授）→ 平台通道 MSP 用户对 record 写面事实上不可达 | ① 预检对 `/msp/*` 改用 MSP 映射角色（与 RequireMSPPermission 同口径）；② `canWriteRecord` 接受 MSP 管理角色；③ 或为 record 写面定义 MSP 授权矩阵并补 parity 回归 | 读面 allowedActions 与写路径一致；平台通道 MSP 用户可完成 record 推进（含反例 fail-closed） | **待处理** |
+| OB-14 | P1 | 三类单据「推进状态」写面契约不一致/不可达（F10，238 UI 写面验证） | 读面 `allowedActions.status=true`（按 `msp_role` 映射 ∩ 客户租户业务码计算），但提交被**路由通用预检**拒绝 `403 权限不足`（预检按 token 角色，`admin` 遮蔽 `msp_manager` 后无 `msp_ticket:write`） | 已修复：`/api/v1/msp/*` 预检兜底——token 角色失败时按 DB `msp_role` 映射角色复用四层判定再判一次（`smartCheckPermissionWithRoles`）；非 MSP 路径不受影响；补回归测试 | 读面 allowedActions 与写路径一致；平台通道 MSP 用户可完成 record 推进（含反例 fail-closed） | **已完成（2026-10-12）**：单测 5/5；238 v3（`1.8.0-dev.b50e7c7a`）实测 admin+provider_admin 写路径 **200**（problem→investigating），未分配/白名单外场景仍 fail-closed；提交 `b50e7c7a` |
 
 ## 3. 执行记录
 
@@ -51,6 +51,7 @@
 | 2026-10-12 | **OB-11/OB-12 修复部署与回归（238 v2）** | 已完成：版本升级 `1.8.0-dev.7c90af22`；init exit 0 + 新迁移入账 + 前端免 override healthy + 7/7 容器 healthy + HTTP 全 200；**全新库探针零人工干预 init 直通** | 提交 `7c90af22`；`evidence/238-deploy-20261012/run-summary.md` §3.1 |
 | 2026-10-12 | **238 UI 级冒烟（浏览器）** | 4/4 PASS：UI 登录（MSP 菜单）→ 工作台工单列表（2 单）→ 跨租户单据三类读面 → 行内回复（toast + 评论落库 `[UI-238]`）；演示账号口令已轮换作废 | `evidence/238-deploy-20261012/smoke-ui.md` |
 | 2026-10-12 | **238 单据写面 UI 验证（发现 F10）** | 读面按设计收敛（普通角色禁用 + 明确 reasonText）；管理账号提交 403 与读面 `allowedActions=true` 不一致；授权矩阵核实「平台可授予角色 ∩ 双门禁白名单 = 空（仅 sysadmin 且禁授）」→ 登记 OB-14；演示账号口令轮换 | `evidence/238-deploy-20261012/smoke-records-writeface.md` |
+| 2026-10-12 | **OB-14 修复与 238 v3 回归** | 已完成：预检按 msp_role 映射兜底；单测 5/5；版本升级 `1.8.0-dev.b50e7c7a`，7/7 容器 healthy；实测写路径 200 + 状态推进 investigating，反例（未分配→`MSP_ALLOCATION_REQUIRED`；customer_user 建号→`MSP_ROLE_NOT_ALLOWED`）均 fail-closed | 提交 `b50e7c7a`；`evidence/238-deploy-20261012/smoke-records-writeface.md` §5 |
 
 ## 4. 变更记录
 
@@ -64,3 +65,4 @@
 | v0.6 | 2026-10-12 | **OB-11/OB-12 修复收口（提交 `7c90af22`）并完成 238 v2 部署回归**：版本 `1.8.0-dev.7c90af22`，init exit 0、前端免 override healthy、全新库探针 init 直通（ledger=75/defs=18/unbacked=0） |
 | v0.7 | 2026-10-12 | **238 UI 级冒烟回填（4/4）**：浏览器完成登录/工作台/跨租户读面/行内回复写路径；演示账号口令即时轮换作废 |
 | v0.8 | 2026-10-12 | **单据写面 UI 验证回填：新增 OB-14（F10：推进状态写面契约不一致/不可达）**；含双层门禁根因矩阵与修复方向；证据见 `smoke-records-writeface.md` |
+| v0.9 | 2026-10-12 | **OB-14 修复收口（提交 `b50e7c7a`）+ 238 v3 回归通过**：预检按 msp_role 映射兜底；写路径 200/状态推进成功；反例 fail-closed；演示账号口令轮换 |

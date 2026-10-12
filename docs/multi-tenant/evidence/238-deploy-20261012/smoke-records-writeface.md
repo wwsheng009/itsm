@@ -1,6 +1,6 @@
 # 238 三类单据「推进状态」UI 写面验证摘要（2026-10-12）
 
-> 状态：**已执行 · 发现 F10（读面契约不一致 + 写面不可达路径）**｜定位：238 公网站「跨租户单据 → 推进状态」的 **UI 写面**验证（浏览器实测 + 授权矩阵核验），并做演示账号口令轮换。
+> 状态：**已修复并回归（OB-14 关闭，提交 `b50e7c7a` + 238 v3 实测）**｜定位：238 公网站「跨租户单据 → 推进状态」的 **UI 写面**验证（浏览器实测 + 授权矩阵核验）、修复与回归，并做演示账号口令轮换。
 > 关联：[238 部署运行摘要](./run-summary.md)｜[smoke-ui.md](./smoke-ui.md)｜[backlog OB-14](../../backlog.md)
 
 ## 1. 执行与结果
@@ -29,3 +29,18 @@
 
 - 账号：`prov.ui.demo1012235726`（id=14）、`prov.ui.mgr1013000422`（id=15），均分配客户 3；用后口令已轮换（当前口令不可知，可按需重置）。
 - 结论边界：本轮为**新库+平台通道建号**口径；`sysadmin` 若由运维直接授予（非平台通道）可绕开交集问题，但不应作为常规路径。
+
+## 5. 修复与回归（v3 部署 · 版本 `1.8.0-dev.b50e7c7a`，2026-10-12 23:1x）
+
+**修复（提交 `b50e7c7a`）**：`middleware/rbac.go` 为 `/api/v1/msp/*` 增加预检兜底——token 角色判定失败时，按用户 DB `msp_role` 的映射角色（`provider_admin→msp_manager`）复用四层判定再判一次（四层主体抽为 `smartCheckPermissionWithRoles`，供单/多角色复用）；非 MSP 路径不受影响；`customer_user` 映射回 `end_user` 且与 context 角色重合，不触发兜底。回归测试：`middleware/msp_precheck_fallback_test.go`（5/5 子用例：兜底放行 / 映射解析 / customer_user 仍拒 / token 已具备不受影响 / 非 MSP 路径不受影响）。
+
+**238 回归（新版镜像 `1.8.0-dev.b50e7c7a` 上线后实测）**：
+
+| # | 用例 | 结果 |
+|---|---|---|
+| R1 | `admin + provider_admin`（平台通道建号，已分配）提交 `POST /msp/problems/1/status → investigating` | **200**（响应含记录详情）；复读状态 = `investigating` ✅（修复前为 403 权限不足，读面/写路径口径一致） |
+| R2 | 同账号读面 `allowedActions.status=true` | ✅ |
+| R3 | 未分配客户的 `msp_manager` 提交写路径 | 403 `MSP_ALLOCATION_REQUIRED`（较早门拒绝，fail-closed）✅ |
+| R4 | 平台通道建 `customer_user` MSP 角色账号 | 明确拒绝 `MSP_ROLE_NOT_ALLOWED`（白名单仅 `provider_admin/provider_agent`，设计内 fail-closed）✅ |
+
+- 部署侧：后端重建为新镜像、7/7 容器 healthy、HTTP/版本验证通过（`/api/v1/version = 1.8.0-dev.b50e7c7a`）；回归用演示账号口令均轮换作废。
