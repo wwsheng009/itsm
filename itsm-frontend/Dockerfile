@@ -75,6 +75,12 @@ FROM nginx:alpine AS production
 COPY nginx/default.conf /etc/nginx/conf.d/default.conf
 COPY --from=builder /app/dist /usr/share/nginx/html
 
+# OB-12（2026-10-12，238 生产部署实测发现）：nginx:alpine 的
+#   10-listen-on-ipv6-by-default.sh 在部分宿主（本机为 snap-docker）会卡在
+#   `apk manifest nginx`（实测 8s 超时不返回）→ 容器 nginx 永不启动（3000 拒绝连接）。
+# 本镜像的 default.conf 自带完整 server 块（含 listen 3000），无需该脚本改写：
+RUN rm -f /docker-entrypoint.d/10-listen-on-ipv6-by-default.sh
+
 # Matches the upstream port used by nginx/conf.d/default.conf and compose.
 EXPOSE 3000
 
