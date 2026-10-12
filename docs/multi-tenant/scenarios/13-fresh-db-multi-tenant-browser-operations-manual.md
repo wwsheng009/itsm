@@ -1,6 +1,6 @@
 # 13 · 全新库多租户浏览器操作手册
 
-> **状态**：v0.3（2026-10-12，已评审 + 批次 FDB-B1 首跑实测；证据见 [run-summary](../evidence/fresh-db-browser-B1/run-summary-20261012-1925.md)）｜**定位**：与[测试计划 12](./12-fresh-db-multi-tenant-browser-test-plan.md)配套的**逐步操作手册**——从新库准备（§0，运维）到阶段 1–7 的**浏览器操作**（模拟真实用户），每步给出操作路径、输入、预期界面反馈与验证手法。
+> **状态**：v0.4（2026-10-12，已评审 + 批次 FDB-B1 首跑实测 + 阶段 7 实测完成；证据见 [run-summary](../evidence/fresh-db-browser-B1/run-summary-20261012-1925.md)）｜**定位**：与[测试计划 12](./12-fresh-db-multi-tenant-browser-test-plan.md)配套的**逐步操作手册**——从新库准备（§0，运维）到阶段 1–7 的**浏览器操作**（模拟真实用户），每步给出操作路径、输入、预期界面反馈与验证手法。
 > **读者**：执行测试的测试/QA、实施交付、平台/服务商/客户管理员
 > **关联**：[12 测试计划](./12-fresh-db-multi-tenant-browser-test-plan.md)｜[00 环境与账号](./00-environment-and-accounts.md)｜[07 工作台协作](./07-msp-workbench-collaboration.md)｜[08 审计与隔离](./08-audit-and-isolation-verification.md)｜[10 切换边界](./10-membership-switch-and-workbench-boundary.md)｜[11 离职编排](./11-offboarding.md)
 > **前置**：已读测试计划 §2–§4；本手册中的口令一律用占位符 `<口令>`，执行人自行按规则生成并本地保存，**不得写入本文件或提交到仓库**。
@@ -521,6 +521,8 @@ fetch('/api/v1/auth/menus',{ credentials:'include' }).then(r=>r.json()).then(d=>
 
 ## 7. 阶段 7 · 其它模拟操作（选做）
 
+> **执行状态（2026-10-12）**：§7.1–§7.3 已实测（TUM 30 PASS/2 SKIP + 浏览器写路径；离职编排 10 PASS；邀请受理通道浏览器 E2E）。执行注记：① TUM 验收脚本在 `saas_msp` 下自动以 `msp_customer` + `mspProviderId` 建隔离租户；② 邀请链接 host/端口取前端配置（本地 dev 需把 `5173` 改为 `3000`）；③ 受邀用户登录名为邮箱本地部分（如 `custa.invitee1`），非邮箱全称；④ 平台审计视图不含租户域邀请审计行（行归属 actor 家租户），请在租户管理员视图查看。详见 [run-summary §R3](../evidence/fresh-db-browser-B1/run-summary-20261012-1925.md)。
+
 ### 7.1 平台侧租户用户治理（TUM；需 `TENANT_USER_ADMIN_ENABLED=true`）
 
 | # | 操作 | 预期 |
@@ -616,3 +618,4 @@ docs/multi-tenant/evidence/fresh-db-browser-<批次>/
 | v0.1 | 2026-10-12 | 首版草案：新库准备（方案 A/B）、阶段 1–7 浏览器逐步操作、权限三层与负向清单、证据归档、排错与重置；配套计划文档（12） |
 | v0.2 | 2026-10-12 | 评审修订：`end_user` 权限与解决路径口径修正（本人单据可改状态/解决）；界面文案对齐（最终用户 / 服务商技术员）；ssh 首次连接加 `StrictHostKeyChecking=accept-new`；新增远程主机可达性检查；补「其它业务单据」可选步骤（§4.5） |
 | v0.3 | 2026-10-12 | **首跑执行回填（批次 FDB-B1）**：§0–§6 逐步可执行性实测；MSP 通道 B 实测 403（F1）；确认解决实际走 `PUT /tickets/:id`（F2）；G4/G5 规避命令有效性验证；详见 run-summary |
+| v0.4 | 2026-10-12 | **阶段 7 执行回填**：§7.1–§7.3 实测记录（TUM/离职/邀请通道 + TUM 浏览器写路径）；补执行注记（saas_msp 租户类型自适应、邀请链接端口配置、受邀用户名形态、租户域审计视图）；观察项 O1–O3 见 run-summary §R3 |

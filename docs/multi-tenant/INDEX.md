@@ -94,8 +94,8 @@
 | [09-tenant-user-management.md](./scenarios/09-tenant-user-management.md) | 当前（TUM 落地，实测待环境） | 场景 9：平台侧租户用户管理（重置/启停/强制下线/审计；S1–S3） |
 | [10-membership-switch-and-workbench-boundary.md](./scenarios/10-membership-switch-and-workbench-boundary.md) | 当前（API 实跑 + 组件用例；浏览器待环境） | 场景 10：切换 vs 工作台边界（深度切换→返回=切回 provider；客户侧只读服务方成员） |
 | [11-offboarding.md](./scenarios/11-offboarding.md) | 当前（2026-10-09，API 验收 + 浏览器复核） | 场景 11：离职编排（停用 + 全量会话失效 + 撤销全部分配；幂等/审计/反例） |
-| [12-fresh-db-multi-tenant-browser-test-plan.md](./scenarios/12-fresh-db-multi-tenant-browser-test-plan.md) | v0.3（2026-10-12，已评审 + FDB-B1 首跑实测） | **全新库多租户浏览器验收测试计划**：需求丰富（阶段 0–7）、角色/账号/权限矩阵、测试数据、环境方案、证据规范、出口条件、风险与里程碑（配套手册 13；首跑证据见 `evidence/fresh-db-browser-B1/`） |
-| [13-fresh-db-multi-tenant-browser-operations-manual.md](./scenarios/13-fresh-db-multi-tenant-browser-operations-manual.md) | v0.3（2026-10-12，已评审 + FDB-B1 首跑实测） | **全新库多租户浏览器操作手册**：新库准备（方案 A/B）→ 建租户 → 建号（三通道）→ 业务操作 → 权限/负向验证 → 跨租户闭环 → 其它操作 → 证据/排错/重置 |
+| [12-fresh-db-multi-tenant-browser-test-plan.md](./scenarios/12-fresh-db-multi-tenant-browser-test-plan.md) | v0.4（2026-10-12，已评审 + FDB-B1 首跑实测 + 阶段 7 实测完成） | **全新库多租户浏览器验收测试计划**：需求丰富（阶段 0–7）、角色/账号/权限矩阵、测试数据、环境方案、证据规范、出口条件、风险与里程碑（配套手册 13；首跑与阶段 7 证据见 `evidence/fresh-db-browser-B1/`） |
+| [13-fresh-db-multi-tenant-browser-operations-manual.md](./scenarios/13-fresh-db-multi-tenant-browser-operations-manual.md) | v0.4（2026-10-12，已评审 + FDB-B1 首跑实测 + 阶段 7 实测完成） | **全新库多租户浏览器操作手册**：新库准备（方案 A/B）→ 建租户 → 建号（三通道）→ 业务操作 → 权限/负向验证 → 跨租户闭环 → 其它操作 → 证据/排错/重置 |
 
 **上位与关联（本目录之外）**：
 

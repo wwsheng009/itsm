@@ -1,6 +1,6 @@
 # 12 · 全新库多租户浏览器验收测试计划
 
-> **状态**：v0.3（2026-10-12，已评审 + 批次 FDB-B1 首跑实测；证据见 [run-summary](../evidence/fresh-db-browser-B1/run-summary-20261012-1925.md)）｜**定位**：在**全新数据库**上以 `saas_msp` 模式从零部署，用**浏览器操作**（模拟真实用户）完成"建租户 → 建用户 → 业务操作 → 权限验证 → 跨租户协作闭环 → 审计与反例"全链路的**测试计划**（含丰富后的需求与验收判据）。
+> **状态**：v0.4（2026-10-12，已评审 + 批次 FDB-B1 首跑实测 + R2 修复复验 + 阶段 7 实测完成；证据见 [run-summary](../evidence/fresh-db-browser-B1/run-summary-20261012-1925.md)）｜**定位**：在**全新数据库**上以 `saas_msp` 模式从零部署，用**浏览器操作**（模拟真实用户）完成"建租户 → 建用户 → 业务操作 → 权限验证 → 跨租户协作闭环 → 审计与反例"全链路的**测试计划**（含丰富后的需求与验收判据）。
 > **读者**：测试/QA、实施交付、平台管理员、服务商管理员、客户管理员、研发联调
 > **配套手册**：[13 · 全新库多租户浏览器操作手册](./13-fresh-db-multi-tenant-browser-operations-manual.md)（逐步操作、界面预期、验证命令、排错）
 > **关联**：[scenarios/README](./README.md)｜[00 环境与账号](./00-environment-and-accounts.md)｜[业务验收设计](../plan/msp-multi-tenant-business-acceptance-design.md)｜[跨租户单据流转架构](../plan/msp-cross-tenant-record-flow-architecture.md)｜[canon §7.2 业务流转](../plan/msp-concept-model-and-architecture-canon.md)｜[部署与配置 02](../02-deployment-and-configuration.md)
@@ -228,6 +228,8 @@
 | 批量护栏与限流 | [场景 07 §2.3](./07-msp-workbench-collaboration.md) | 客户分布确认、逐条结果、批量上限 |
 | 其它单据读面 | [跨租户单据流转架构](../plan/msp-cross-tenant-record-flow-architecture.md) | 事件/问题/变更/服务请求的跨租户读面与状态推进（按已落地范围） |
 
+> **执行状态（2026-10-12）**：阶段 7 已执行——TUM 30 PASS/2 SKIP（脚本 `saas_msp` 适配后）、离职编排 10 PASS、邀请受理通道浏览器端到端通过、TUM 浏览器写路径（停用/启用）通过；详见 [run-summary §R3](../evidence/fresh-db-browser-B1/run-summary-20261012-1925.md)。
+
 ### 2.9 补充性需求（贯穿全程）
 
 | 项 | 要求 |
@@ -418,7 +420,7 @@
 - [ ] **阶段 4**：客户 A 类型 + 工单创建成功；客户 B 样本单创建；编号/列表/详情正确；
 - [ ] **阶段 5**：五角色三层权限矩阵全对；负向场景全拒绝（403/401 + 稳定错误码）且留痕；
 - [ ] **阶段 6**：工作台可见/回复/状态/指派正确；客户回看一致；客户 resolve 闭环；审计可查；
-- [ ] **阶段 7（选做）**：勾选项完成并记录；
+- [x] **阶段 7（选做）**：已执行（2026-10-12）——TUM 30 PASS/2 SKIP、离职编排 10 PASS、邀请通道浏览器 E2E 通过、TUM 浏览器写路径通过；证据见 run-summary §R3；
 - [ ] **证据归档**：截图 + Network + run-summary + 环境指纹齐备；
 - [ ] **遗留问题**：FAIL/已知限制均已登记（含复现步骤与影响）。
 
@@ -481,3 +483,4 @@
 | v0.1 | 2026-10-12 | 首版草案：需求丰富（阶段 0–7）、角色/账号/权限矩阵、测试数据、环境方案、证据规范、出口条件、风险与里程碑；配套操作手册（13） |
 | v0.2 | 2026-10-12 | 评审修订：`end_user` 权限口径修正（含 `ticket:update`，`write` 同义补齐到 `create/update`）；编号前缀规范（`07:G#`、canon `D11`）；新增远程主机可达性前置（方案 A）与风险；补充评审发现记录 |
 | v0.3 | 2026-10-12 | **首跑执行回填（批次 FDB-B1）**：阶段 0–6 实跑；阶段 3 MSP 建号通道 FAIL（F1：`CROSS_TENANT_FORBIDDEN`）；G4/G5 在全新库复现（已按规避处理）；确认解决走 `PUT`（F2）；证据与发现清单见 run-summary |
+| v0.4 | 2026-10-12 | **阶段 7 执行回填**：TUM（API 30 PASS/2 SKIP + 浏览器写路径）、离职编排（10 PASS）、邀请受理通道（浏览器 E2E：创建→落地页→激活→登录→业务可见→审计）；测试资产修复（TUM 脚本 `saas_msp` 租户类型自适应 + R1 期望对齐收口）；观察项 O1–O3 见 run-summary §R3 |

@@ -5,6 +5,8 @@
 # 设计：docs/multi-tenant/plan/msp-tenant-user-management-enhancement-plan.md §6
 # 运行前置：saas_msp 实例（默认 :8090）+ TENANT_USER_ADMIN_ENABLED=true + 平台 admin 账号；
 #          登录限流放宽（LOGIN_RATE_LIMIT_PER_MIN≥30——脚本单轮 10+ 次登录，默认 10/分钟会误伤）
+#          验收租户类型按部署模式自适应：saas_msp → msp_customer，其余模式 → saas_customer
+#          （2026-10-12，FDB-B1 阶段 7 实测修复：saas_msp 不允许 saas_customer 类型）。
 #
 # 安全性：默认**新建隔离租户**（TUAACPT<ts>）并在其中执行破坏性动作，不触碰既有租户；
 #         -TenantId 显式指定时复用既有租户（需自行承担数据影响）。
@@ -163,10 +165,27 @@ if ($requestedTenantId -gt 0) {
     }
 } else {
     $code = "TUAACPT" + (Get-Date -Format "MMddHHmmss")
+    # 部署模式自适应（2026-10-12）：saas_msp 仅允许 internal|msp_provider|msp_customer；
+    # 默认 saas_customer 在 saas_msp 下 400（does not allow tenant type），失败时回退 msp_customer。
+    $tenantType = "saas_customer"
     $cr = Invoke-Api -Method Post -Path "/api/v1/tenants" -Sess $admin -Body @{
-        name = "TUM验收租户"; code = $code; type = "saas_customer"
+        name = "TUM验收租户"; code = $code; type = $tenantType
     }
-    Assert-Case "P1" "新建隔离验收租户" (($cr.Status -ge 200) -and ($cr.Status -lt 300)) "status=$($cr.Status) code=$code body=$(Short $cr.Raw 120)"
+    if ((($cr.Status -lt 200) -or ($cr.Status -ge 300)) -and ($cr.Raw -match "does not allow tenant type")) {
+        # msp_customer 必须绑定 mspProviderId（指向 msp_provider 租户）；先列出既有租户定位 provider。
+        $lr0 = Invoke-Api -Method Get -Path "/api/v1/tenants?page=1&pageSize=100" -Sess $admin
+        $tl0 = @()
+        if ($null -ne $lr0.Json -and $null -ne $lr0.Json.data) {
+            if ($null -ne $lr0.Json.data.tenants) { $tl0 = @($lr0.Json.data.tenants) }
+            elseif ($null -ne $lr0.Json.data.items) { $tl0 = @($lr0.Json.data.items) }
+        }
+        $prov0 = $tl0 | Where-Object { $_.type -eq 'msp_provider' } | Select-Object -First 1
+        $tenantType = "msp_customer"
+        $body = @{ name = "TUM验收租户"; code = $code; type = $tenantType }
+        if ($null -ne $prov0) { $body.mspProviderId = [int]$prov0.id }
+        $cr = Invoke-Api -Method Post -Path "/api/v1/tenants" -Sess $admin -Body $body
+    }
+    Assert-Case "P1" "新建隔离验收租户" (($cr.Status -ge 200) -and ($cr.Status -lt 300)) "status=$($cr.Status) code=$code type=$tenantType providerId=$($body.mspProviderId) body=$(Short $cr.Raw 120)"
     $lr = Invoke-Api -Method Get -Path "/api/v1/tenants?page=1&pageSize=100" -Sess $admin
     $tenantList = @()
     if ($null -ne $lr.Json -and $null -ne $lr.Json.data) {
@@ -396,8 +415,11 @@ if ($null -ne $tenantAdmin) {
 # =============================================================================
 if ($null -ne $tenantAdmin) {
     $r1 = Invoke-Api -Method Get -Path "/api/v1/tenants/$tenantId/users" -Sess $tenantAdmin
-    $r1ok = ($r1.Status -eq 403) -and ($r1.Raw -match "PLATFORM_SCOPE_REQUIRED")
-    Assert-Case "R1" "租户管理员调用平台面被拒（403 PLATFORM_SCOPE_REQUIRED）" $r1ok "status=$($r1.Status) body=$(Short $r1.Raw 120)"
+    # 2026-10-10 治理域收口：tenant 家族码收回后，写路由预检先以「权限不足」拒绝；
+    # 服务层 L1 兜底才返回 PLATFORM_SCOPE_REQUIRED。两种均为设计内 fail-closed
+    #（对齐 itsm-backend/router/tenant_user_admin_e2e_test.go:expectPlatformFaceDenied）。
+    $r1ok = ($r1.Status -eq 403) -and (($r1.Raw -match "PLATFORM_SCOPE_REQUIRED") -or ($r1.Raw -match "权限不足"))
+    Assert-Case "R1" "租户管理员调用平台面被拒（403；预检或 L1 兜底）" $r1ok "status=$($r1.Status) body=$(Short $r1.Raw 120)"
 } else {
     Skip "R1" "租户管理员越权反例" "无租户管理员会话"
 }
