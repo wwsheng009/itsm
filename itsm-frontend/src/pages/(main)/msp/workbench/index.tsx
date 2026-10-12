@@ -85,6 +85,15 @@ export const WORKBENCH_STATUS_OPTIONS = [
   { value: 'cancelled', label: '已取消' },
 ] as const;
 
+/**
+ * 工作台可写状态（OB-1）：终态（已解决/已关闭/已取消）由客户治理面确认，
+ * 不进入服务商工作台的行内/批量改状态选项（避免必然失败的契约不一致操作）。
+ * 注：状态「筛选器」仍使用完整 WORKBENCH_STATUS_OPTIONS（只读过滤需要终态）。
+ */
+export const WORKBENCH_WRITABLE_STATUS_OPTIONS = WORKBENCH_STATUS_OPTIONS.filter(
+  option => option.value !== 'resolved' && option.value !== 'closed' && option.value !== 'cancelled'
+);
+
 const STATUS_LABEL = new Map<string, string>(
   WORKBENCH_STATUS_OPTIONS.map(item => [item.value, item.label])
 );
@@ -679,7 +688,7 @@ export default function MSPWorkbenchPage() {
               <Dropdown
                 disabled={!status.allowed}
                 menu={{
-                  items: WORKBENCH_STATUS_OPTIONS.filter(
+                  items: WORKBENCH_WRITABLE_STATUS_OPTIONS.filter(
                     option => option.value !== record.status
                   ).map(option => ({ key: option.value, label: option.label })),
                   onClick: ({ key }) => {
@@ -1202,7 +1211,7 @@ export default function MSPWorkbenchPage() {
             style={{ width: '100%' }}
             placeholder="选择目标状态"
             value={batchStatus || undefined}
-            options={WORKBENCH_STATUS_OPTIONS.map(option => ({ ...option }))}
+            options={WORKBENCH_WRITABLE_STATUS_OPTIONS.map(option => ({ ...option }))}
             onChange={setBatchStatus}
             data-testid="batch-status-select"
           />

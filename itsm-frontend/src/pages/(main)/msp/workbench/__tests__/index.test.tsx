@@ -64,7 +64,7 @@ import {
   listWorkbenchTickets,
   type WorkbenchTicketItem,
 } from '@/lib/api/msp-workbench-api';
-import MSPWorkbenchPage from '../index';
+import MSPWorkbenchPage, { WORKBENCH_WRITABLE_STATUS_OPTIONS } from '../index';
 
 const ticketWithActions: WorkbenchTicketItem = {
   id: 1,
@@ -246,6 +246,50 @@ describe('MSPWorkbenchPage', () => {
     expect(result).toHaveTextContent('成功 1');
     expect(result).toHaveTextContent('失败 1');
     expect(result).toHaveTextContent('ACTION_NOT_ALLOWED');
+  });
+
+  it('工作台可写状态不含终态（OB-1：终态由客户治理面确认）', () => {
+    const values = WORKBENCH_WRITABLE_STATUS_OPTIONS.map(option => option.value);
+    expect(values).toEqual(['open', 'in_progress', 'pending']);
+    expect(values).not.toContain('resolved');
+    expect(values).not.toContain('closed');
+    expect(values).not.toContain('cancelled');
+  });
+
+  it('行内「改状态」下拉不含终态选项（OB-1）', async () => {
+    (listWorkbenchTickets as jest.Mock).mockResolvedValue({
+      items: [{ ...ticketWithActions, allowedActions: [{ action: 'status', allowed: true }] }],
+      total: 1,
+    });
+    render(<MSPWorkbenchPage />);
+
+    const btn = await screen.findByTestId('action-status-1');
+    fireEvent.mouseEnter(btn);
+
+    expect(await screen.findByText('处理中')).toBeInTheDocument();
+    expect(screen.queryByText('已解决')).not.toBeInTheDocument();
+    expect(screen.queryByText('已关闭')).not.toBeInTheDocument();
+    expect(screen.queryByText('已取消')).not.toBeInTheDocument();
+  });
+
+  it('批量「改状态」下拉不含终态选项（OB-1）', async () => {
+    (listWorkbenchTickets as jest.Mock).mockResolvedValue({
+      items: [{ ...ticketWithActions, allowedActions: [{ action: 'status', allowed: true }] }],
+      total: 1,
+    });
+    render(<MSPWorkbenchPage />);
+
+    const row = (await screen.findByText('VPN 无法连接')).closest('tr') as HTMLElement;
+    fireEvent.click(within(row).getByRole('checkbox'));
+    fireEvent.click(screen.getByTestId('batch-status'));
+
+    const select = await screen.findByTestId('batch-status-select');
+    fireEvent.mouseDown(within(select).getByRole('combobox'));
+
+    expect(await screen.findByTitle('处理中')).toBeInTheDocument();
+    expect(screen.queryByTitle('已解决')).not.toBeInTheDocument();
+    expect(screen.queryByTitle('已关闭')).not.toBeInTheDocument();
+    expect(screen.queryByTitle('已取消')).not.toBeInTheDocument();
   });
 
   it('行内指派：assign 动作 allowed=true 时确认后指派给当前技术员', async () => {
