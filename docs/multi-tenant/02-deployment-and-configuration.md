@@ -53,7 +53,7 @@
 |---|---|---|---|---|
 | `AUTHZ_STATIC_FALLBACK` | `false` | membership 缺失 / `role_id` 空时回退编译期静态 RolePermissions（迁移窗口专用；每次回退记 Warn） | 权限域（W6 Membership 批次） | IP-P1 收敛后删除：全量回填 + 巡检 FAIL=0 + 观察窗后移除代码路径（M4 登记） |
 | `USER_PROVISIONING_CHANNELS_ENABLED` | `true`（2026-10-08 起默认开） | 平台/MSP 建号写通道；未设置/空即开启，显式 `false`/`0`/`no`/`off` 回退 legacy 建号逻辑（404 通道未开启） | 账号域（W6） | 通道已默认开启（含 membership 同步）；后续删除开关 |
-| `TENANT_USER_ADMIN_ENABLED` | `false` | 平台侧租户用户管理写通道灰度（重置/启停/强制下线；首管重置豁免） | 平台治理域（TUM） | TUM-7 收口后评估默认开启（审计+通知闭环已就绪） |
+| `TENANT_USER_ADMIN_ENABLED` | `false` | 平台侧租户用户管理写通道灰度（重置/启停/强制下线；首管重置豁免） | 平台治理域（TUM） | TUM-7 收口后评估默认开启（审计+通知闭环已就绪）→ **2026-10-12 评估结论：生产保持默认关，按环境灰度开启（前置：TUM 回归 + R4 回滚演练 + CLI 兜底确认；见 TUM 计划 §7）** |
 | `MEMBERSHIP_EXPIRY_RECYCLE_ENABLED` | `true`（2026-10-09 起默认开） | membership 到期回收后台任务（惰性判定不受影响；关闭仅停止状态收敛） | 账号域（W6） | 保持默认开启（「到期回收有效」为 RLS enforce 前置验证项，见 user-lifecycle §7）；非过渡项，长期保留 |
 | `WORKBENCH_VIEWS_ENABLED` | `false` | 工作台自定义视图（保存过滤器组合 + 同 provider 分享）灰度 | MSP 工作台域（IP-P2-4a） | 视图稳定后默认开启 |
 | `MCP_ENABLED` / `MCP_WRITE_ENABLED` | `false` | MCP 读/写通道灰度（写通道另行审计与白名单） | AI/MCP 域 | 见 MCP 安全评估（独立登记，不随多租户批次） |

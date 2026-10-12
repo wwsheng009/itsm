@@ -362,6 +362,12 @@ bash scripts/docs-gate/check-multi-tenant-consistency.sh
 
 **回滚**：关闭 `TENANT_USER_ADMIN_ENABLED`（写操作即刻 404）→ 前端隐藏入口 → 需要时摘除路由。无数据迁移，回滚零风险。
 
+**默认开启评估（TUM-7 收口后，2026-10-12；FDB-B1 实测输入）**：
+
+- **证据**：开关开启态 TUM 验收 30 PASS/0 FAIL/2 SKIP（隔离租户）；关闭态 R4 探针 10/10 PASS（读通道 200、非首管写 403 `TENANT_USER_ADMIN_DISABLED`、首管兜底重置 200 + `channel=bootstrap_recovery` 审计）；写路径审计 + 站内通知闭环（A5/A5b/A8b/S3c）；双吊销与护栏（A2d/S3b/A4c/R3）全绿。
+- **结论**：**生产保持默认关**（灰度策略不变）。按环境/租户灰度开启的前置：① 目标环境完成 TUM 验收脚本回归（含反例）；② R4 回滚演练通过；③ 运维确认 `cmd/reset_password` 兜底可用；④ 变更窗口内显式设置 `TENANT_USER_ADMIN_ENABLED=true` 并重启（零数据迁移、可即时回滚）。
+- **后续增强（非本批）**：per-tenant 白名单灰度（避免一刀切全租户开启）。
+
 **依赖**：TUM-1..3 无外部依赖；浏览器场景依赖联调环境（`saas_msp` + 建号开关，见 `scenarios/00`）。
 
 ---
@@ -423,3 +429,4 @@ bash scripts/docs-gate/check-multi-tenant-consistency.sh
 | v0.9 | 2026-10-06 | **TUM-4 抽屉布局优化（反馈：用户名列过窄）**：原 10 列挤入 920px（用户名仅 78px、姓名/部门 29px）→ 身份优先布局（用户名固定左列 250px + 姓名/邮箱次级行；角色合并 MSP 角色；状态合并「待改密」；操作固定右列；紧凑时间），列数 10→6；抽屉宽 920→1160 断点自适应（1160/1080/960/100%）；`tableLayout="fixed"` + `scroll.x=1024`。证据：`tsc --noEmit`/eslint exit 0；`admin/tenants` 4 套件 24 用例全绿；浏览器实测（1486px：无横向滚动、用户列 254px；1101px：抽屉 960、固定列生效、中间列横向滚动） |
 | v0.10 | 2026-10-06 | **TUM-D3 修订：首管口令恢复默认可用 + CLI 兜底**：`ResetPassword` 对 `is_bootstrap_admin` 拆出窄通道——不受 `TENANT_USER_ADMIN_ENABLED` 约束（非首管仍 403 `TENANT_USER_ADMIN_DISABLED`；仍要求 `super_admin` 硬校验），审计在开关关闭时标注 `channel=bootstrap_recovery`；新增 `cmd/reset_password`（目标租户密码策略校验 + bcrypt + 会话双吊销尽力 + 审计 `user.admin_password_reset`/`cmd:reset_password`）；部署文档与场景 09 回填。证据：`go test -p 1 -gcflags=all=-c=1 ./service -run TestTenantUserAdmin` 全绿（新增 `TestTenantUserAdmin_ResetPassword_BootstrapRecovery`）；CLI 构建通过 |
 | v0.11 | 2026-10-08 | **IP-P2-8 D3=B 平台面离职编排接入**：`POST /tenants/:id/users/:userId/offboard`（`tenant:write` + super_admin 硬校验 + 最后管理员护栏；复用 `OffboardingService`：停用 + 全量会话失效 + 撤销全部分配；`user.admin_offboard` 治理审计 `target_tenant_id` 标注 + 租户通知）+ TUM 抽屉行操作「离职」（二次确认 + 撤销计数提示）；契约/路由/e2e/抽屉用例补齐 |
+| v0.12 | 2026-10-12 | **TUM-7 默认开启评估（FDB-B1 实测输入）**：保持生产默认关；灰度开启前置（TUM 回归 + R4 回滚演练 + CLI 兜底确认 + 显式开关重启）；证据：TUM 30 PASS/2 SKIP、R4 10/10 + restore 6/6（`evidence/tenant-user-admin-acceptance/r4-channel-off-*.md`） |
