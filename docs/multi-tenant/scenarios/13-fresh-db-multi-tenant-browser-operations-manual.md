@@ -250,6 +250,8 @@ fetch('/api/v1/tenants?page=1&pageSize=50', { credentials:'include' })
 
 > 可选：同样方式创建 `prov.admin1`（`provider_admin`），用于对照"管理员 vs 技术员"的工作台能力差异。
 
+> **分配管理身份口径（OB-13，2026-10-12）**：若该账号要**执行分配管理**（`POST /msp/allocations` 需 `msp_allocation:write`），**不要**把主角色设为 `admin`——JWT 角色按 07:G3 取「主角色 ∪ MSP 映射角色 rank 更高者」，`admin`(rank 4) 会遮蔽 `provider_admin→msp_manager`(rank 3)，分配写操作将 403「权限不足」。正确做法：主角色留 `end_user` + MSP 角色选 `provider_admin`（有效角色 `msp_manager`，含分配写权限）；或直接使用开通首管（`provider_tenant_admin` = admin ∪ msp_admin）。
+
 ### 2.2 （可选）平台通道为客户租户建号 `custa.plt1`
 
 | # | 操作 | 预期界面反馈 |
@@ -448,6 +450,8 @@ fetch('/api/v1/auth/menus',{ credentials:'include' }).then(r=>r.json()).then(d=>
 | 3 | 再建一条：员工 `admin-mspt1` → `CUSTA1`（主支持） | 列表共 2 行 |
 | 4 | 反例：同一员工+客户重复创建 | 409 `MSP_ALLOCATION_EXISTS`（幂等提示） |
 
+> **前置口径（OB-13）**：本节账号应为**开通首管**（`provider_tenant_admin`，具备 `msp_allocation:write`）；若改用平台通道新建的账号，请按 §2.1 的「分配管理身份口径」处理（`end_user + provider_admin`），否则分配写操作会 403。
+
 ### 6.2 工作台可见性
 
 | # | 操作 | 预期界面反馈 |
@@ -630,3 +634,4 @@ docs/multi-tenant/evidence/fresh-db-browser-<批次>/
 | v0.3 | 2026-10-12 | **首跑执行回填（批次 FDB-B1）**：§0–§6 逐步可执行性实测；MSP 通道 B 实测 403（F1）；确认解决实际走 `PUT /tickets/:id`（F2）；G4/G5 规避命令有效性验证；详见 run-summary |
 | v0.4 | 2026-10-12 | **阶段 7 执行回填**：§7.1–§7.3 实测记录（TUM/离职/邀请通道 + TUM 浏览器写路径）；补执行注记（saas_msp 租户类型自适应、邀请链接端口配置、受邀用户名形态、租户域审计视图）；观察项 O1–O3 见 run-summary §R3 |
 | v0.5 | 2026-10-12 | **R4 + §7.3/§7.4 执行回填**：TUM R4（写通道关闭）单跑 PASS（探针脚本 `run-tenant-user-admin-r4-probe.ps1` disabled/restore 双模式）；§7.3 批量护栏浏览器实测（自动排除无权限条目 + 逐条结果）；§7.4 跨租户读面记录；O4 观察项（平台审计 API 与 MSP 看板口径差异） |
+| v0.6 | 2026-10-12 | **分配管理身份口径（OB-13）**：§2.1/§6.1 补注记（`admin` 角色遮蔽 `provider_admin→msp_manager` → 分配写 403；正确用 `end_user+provider_admin` 或开通首管）；238 新库冒烟（建租户 9/9、建号+建单+协同 14/14、三类单据读面 15/15）证据见 `evidence/238-deploy-20261012/` |

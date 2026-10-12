@@ -43,6 +43,7 @@
 | 外部可达（本机 → 172.18.3.238:8088） | `/`、`/tickets`、healthz、readyz、version 均 200 |
 | 建租户冒烟（API，9/9 PASS） | 服务商+客户租户创建 → 模板开通 ready=true → 首管创建/首登强制改密 → 列表/用量对账；详见 [smoke-tenants.md](./smoke-tenants.md) |
 | 建号+建单+协同冒烟（API，14/14 PASS） | 三账号建号（provider_admin/provider_agent/客户）→ 客户建单 → 分配 → 工作台回复/改状态 → 客户侧回看；详见 [smoke-users-tickets.md](./smoke-users-tickets.md) |
+| 三类单据读面冒烟（API，15/15 PASS） | 建号 → 分配 → 客户侧造样本（目录项/变更/问题/SR）→ 工作台 changes/problems/service-requests 读面可见；详见 [smoke-records-readface.md](./smoke-records-readface.md) |
 
 ## 5. 回滚方案（旧栈完整保留）
 
