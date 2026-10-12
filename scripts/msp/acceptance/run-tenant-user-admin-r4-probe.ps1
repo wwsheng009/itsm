@@ -102,7 +102,7 @@ function Write-Summary {
     $lines.Add("- 时间：$(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')")
     $lines.Add("- 模式：$Mode｜环境：$Base｜租户：$tenantDesc｜开关：$(if ($Mode -eq 'disabled') { 'TENANT_USER_ADMIN_ENABLED=false' } else { '已恢复 true' })")
     $lines.Add("- 结果：**PASS=$passCount / FAIL=$failCount / SKIP=$skipCount**")
-    $lines.Add("- 设计：docs/multi-tenant/plan/msp-tenant-user-management-enhancement-plan.md §7（回滚演练）；TUM-D3 修订（首管兜底恢复通道）")
+    $lines.Add("- 状态：**实测**｜定位：TUM R4 回滚演练（设计见 TUM 计划 §7；TUM-D3 首管兜底恢复通道）")
     $lines.Add("")
     $lines.Add("| # | 用例 | 状态 | 证据 |")
     $lines.Add("|---|---|---|---|")

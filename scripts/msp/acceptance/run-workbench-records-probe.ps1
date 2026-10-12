@@ -101,7 +101,7 @@ function Write-Summary {
     $lines.Add("- 时间：$(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')")
     $lines.Add("- 模式：$Mode｜环境：$Base｜目标租户：id=$TenantId（$TenantCode）")
     $lines.Add("- 结果：**PASS=$passCount / FAIL=$failCount**")
-    $lines.Add("- 设计：backlog OB-6（三类单据跨租户读面）/ OB-7（批量护栏边界端到端）")
+    $lines.Add("- 状态：**实测**｜定位：OB-6/OB-7 探针（三类单据跨租户读面 + 批量护栏边界端到端；设计见 backlog）")
     $lines.Add("")
     $lines.Add("| # | 用例 | 状态 | 证据 |")
     $lines.Add("|---|---|---|---|")

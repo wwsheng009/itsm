@@ -93,7 +93,7 @@ $lines = New-Object System.Collections.Generic.List[string]
 $lines.Add("# MSP 性能冒烟基线 run-summary（OB-8）")
 $lines.Add("")
 $lines.Add("- 时间：$(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')｜环境：$Base（本地 dev；saas_msp；经 Vite 无关的直连后端）")
-$lines.Add("- 说明：**非生产压测**，仅建立可重复基线（单进程串行请求、本机回环）；生产容量评估需独立批次。")
+$lines.Add("- 状态：**基线（本地 dev）**｜定位：OB-8 性能冒烟（非生产压测，仅建立可重复基线；单进程串行请求、本机回环；生产容量评估需独立批次）。")
 $lines.Add("")
 $lines.Add("| 目标 | N | min (ms) | p50 (ms) | p95 (ms) | max (ms) |")
 $lines.Add("|---|---|---|---|---|---|")
