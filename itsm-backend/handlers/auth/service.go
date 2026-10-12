@@ -188,11 +188,18 @@ func (s *Service) SwitchTenantWithRevoke(ctx context.Context, userID, tenantID i
 		return nil, fmt.Errorf("%s", msg)
 	}
 	tenantEntity := targetTenant
-	accessToken, err := middleware.GenerateAccessTokenWithSource(userEntity.ID, userEntity.Username, string(userEntity.Role), tenantID, "switch", s.jwtSecret, 15*time.Minute)
+	// F7 修复（2026-10-12）：切回 home/provider 作用域时按 07:G3 提级角色（与登录一致），
+	// 否则 MSP 用户从客户作用域切回 provider 后令牌 role=end_user → MSP 端点 403；
+	// 切入客户租户保持主角色（客户上下文，不继承 MSP 提级）。
+	tokenRole := string(userEntity.Role)
+	if tenantID == userEntity.TenantID || tenantmode.IsMSPProviderTenantType(string(tenantEntity.Type)) {
+		tokenRole = middleware.EffectiveTokenRole(tokenRole, string(userEntity.MspRole))
+	}
+	accessToken, err := middleware.GenerateAccessTokenWithSource(userEntity.ID, userEntity.Username, tokenRole, tenantID, "switch", s.jwtSecret, 15*time.Minute)
 	if err != nil {
 		return nil, fmt.Errorf("生成token失败")
 	}
-	refreshToken, err := middleware.GenerateRefreshTokenWithSource(userEntity.ID, userEntity.Username, string(userEntity.Role), tenantID, "switch", s.jwtSecret, 7*24*time.Hour)
+	refreshToken, err := middleware.GenerateRefreshTokenWithSource(userEntity.ID, userEntity.Username, tokenRole, tenantID, "switch", s.jwtSecret, 7*24*time.Hour)
 	if err != nil {
 		return nil, fmt.Errorf("生成刷新令牌失败")
 	}
@@ -234,7 +241,7 @@ func (s *Service) SwitchTenantWithRevoke(ctx context.Context, userID, tenantID i
 	if mspRole != "" {
 		mspRolePtr = &mspRole
 	}
-	return &dto.LoginResponse{AccessToken: accessToken, RefreshToken: refreshToken, User: &dto.LoginUserResponse{ID: userEntity.ID, Username: userEntity.Username, Email: userEntity.Email, Name: userEntity.Name, Role: string(userEntity.Role), MSPRole: mspRolePtr, Department: userEntity.Department, DepartmentID: userEntity.DepartmentID, Phone: userEntity.Phone, Active: userEntity.Active, TenantID: tenantID, HomeTenantID: userEntity.TenantID, CreatedAt: userEntity.CreatedAt, UpdatedAt: userEntity.UpdatedAt, Permissions: permissions}, Tenant: tenantEntity, TenantSelection: &dto.TenantSelection{Mode: switchTenantMode(userEntity, tenantEntity)}}, nil
+	return &dto.LoginResponse{AccessToken: accessToken, RefreshToken: refreshToken, User: &dto.LoginUserResponse{ID: userEntity.ID, Username: userEntity.Username, Email: userEntity.Email, Name: userEntity.Name, Role: tokenRole, MSPRole: mspRolePtr, Department: userEntity.Department, DepartmentID: userEntity.DepartmentID, Phone: userEntity.Phone, Active: userEntity.Active, TenantID: tenantID, HomeTenantID: userEntity.TenantID, CreatedAt: userEntity.CreatedAt, UpdatedAt: userEntity.UpdatedAt, Permissions: permissions}, Tenant: tenantEntity, TenantSelection: &dto.TenantSelection{Mode: switchTenantMode(userEntity, tenantEntity)}}, nil
 }
 
 // switchDenyMessage 切换拒绝的用户可见文案（保持既有口径；机器码走审计 reasonCode）。

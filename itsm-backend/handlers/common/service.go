@@ -258,11 +258,7 @@ func (s *Service) Login(ctx context.Context, username, password string, tenantID
 	// 同租户建号/管理能力不再被 msp_manager 遮蔽；MSP 路由鉴权仍按 msp_role 映射
 	// （RequireMSPPermission 独立解析 msp_role，不受本处影响）。
 	// 反例：users.role=end_user + msp_role=provider_admin → 映射 msp_manager(3) 更高，取 msp_manager。
-	if mspRoleStr != "" {
-		if mappedRole := middleware.GetMSPRBACRole(mspRoleStr); mappedRole != "" && middleware.RoleRank(mappedRole) > middleware.RoleRank(u.Role) {
-			u.Role = mappedRole
-		}
-	}
+	u.Role = middleware.EffectiveTokenRole(u.Role, mspRoleStr)
 
 	// 角色最终值确定后再计算能力标记（前端守卫用；不得在提级覆盖前计算）。
 	applyRoleFlags(u)
@@ -379,6 +375,17 @@ func (s *Service) RefreshToken(ctx context.Context, refreshToken string) (*AuthR
 	source := claims.TenantSource
 	if source == "" {
 		source = "home" // 兼容旧 token
+	}
+
+	// F7 修复（2026-10-12）：provider/home 作用域续签须与登录同规则提级角色
+	// （此前用原始 users.role 重签，MSP 用户首次续签后丢失 msp_tech/msp_manager → MSP 端点 403）；
+	// 客户作用域保持主角色（客户上下文不继承 MSP 提级）。
+	if scopeTenantID == user.TenantID || tenantmode.IsMSPProviderTenantType(string(targetTenant.Type)) {
+		mspRoleStr := ""
+		if user.MSPRole != nil {
+			mspRoleStr = *user.MSPRole
+		}
+		user.Role = middleware.EffectiveTokenRole(user.Role, mspRoleStr)
 	}
 
 	// regenerate tokens（作用域与来源保持）

@@ -29,6 +29,19 @@ func GetMSPRBACRole(mspRole string) string {
 	return "msp_viewer"
 }
 
+// EffectiveTokenRole 计算 JWT 承载角色（07:G3 单一规则）：主角色 ∪ MSP 映射角色取 rank 更高者。
+// Login / RefreshToken / SwitchTenant 必须共用，避免续签或切回 provider 时角色漂移导致
+// MSP 端点 403（F7 修复，2026-10-12；浏览器实测：refresh 后 role 掉回 end_user → 403）。
+func EffectiveTokenRole(role, mspRole string) string {
+	if strings.TrimSpace(mspRole) == "" {
+		return role
+	}
+	if mapped := GetMSPRBACRole(mspRole); mapped != "" && RoleRank(mapped) > RoleRank(role) {
+		return mapped
+	}
+	return role
+}
+
 // RequireMSPAccess 阻挡非 MSP 用户的访问。仅在 MSP 路由族内挂载。
 func RequireMSPAccess() gin.HandlerFunc {
 	return func(c *gin.Context) {
