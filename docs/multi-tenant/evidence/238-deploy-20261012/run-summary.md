@@ -56,6 +56,7 @@
 | 建租户冒烟（API，9/9 PASS） | 服务商+客户租户创建 → 模板开通 ready=true → 首管创建/首登强制改密 → 列表/用量对账；详见 [smoke-tenants.md](./smoke-tenants.md) |
 | 建号+建单+协同冒烟（API，14/14 PASS） | 三账号建号（provider_admin/provider_agent/客户）→ 客户建单 → 分配 → 工作台回复/改状态 → 客户侧回看；详见 [smoke-users-tickets.md](./smoke-users-tickets.md) |
 | 三类单据读面冒烟（API，15/15 PASS） | 建号 → 分配 → 客户侧造样本（目录项/变更/问题/SR）→ 工作台 changes/problems/service-requests 读面可见；详见 [smoke-records-readface.md](./smoke-records-readface.md) |
+| UI 级冒烟（浏览器，4/4 PASS） | 238 公网站：登录（MSP 菜单）→ 工作台 2 单 → 跨租户单据三类可见 → 行内回复「回复已发送」+ 评论落库；演示账号口令已轮换作废；详见 [smoke-ui.md](./smoke-ui.md) |
 
 ## 5. 回滚方案（旧栈完整保留）
 
