@@ -1,6 +1,6 @@
 # 多租户优化待办（Backlog）
 
-> 状态：**进行中（OB-1–OB-10 已完成；OB-11/OB-12 开放）**｜定位：FDB-B1 批次发现/观察项与部署期发现的**优化任务清单**（OB-1–OB-12，P1–P4），含状态跟踪与验收口径。
+> 状态：**已完成（2026-10-12 收口，OB-1–OB-13）**｜定位：FDB-B1 批次与 238 部署/冒烟的**优化任务清单**（OB-1–OB-13，P1–P4），含状态跟踪与验收口径。
 > 关联：[FDB-B1 run-summary](./evidence/fresh-db-browser-B1/run-summary-20261012-1925.md)｜[12 测试计划](./scenarios/12-fresh-db-multi-tenant-browser-test-plan.md)｜[13 操作手册](./scenarios/13-fresh-db-multi-tenant-browser-operations-manual.md)｜[INDEX](./INDEX.md)
 
 ---
@@ -25,8 +25,8 @@
 | OB-8 | P3 | 性能冒烟基线 | 本批次未测 | 本地冒烟：登录/工作台列表/单据读面/批量拒绝路径延迟 p50/p95 | 基线数据入库（注明环境局限） | **已完成** |
 | OB-9 | P4 | 截图证据策略收口 | 截图工具受工作区根限制；PNG 不入库（`.gitignore:122`） | 手册 §8.1 固化「本地留存 + CDP 直采兜底」约定 | 手册更新 | **已完成** |
 | OB-10 | P4 | 登录限流指引 | 默认 10/min 误伤密集验收（脚本前置已注） | 部署文档/手册补 `LOGIN_RATE_LIMIT_PER_MIN` 验收建议值与示例 | 文档更新 | **已完成** |
-| OB-11 | P1 | 全新库 init 被「无模板的示例绑定」阻断（F8，238 部署发现） | 迁移 `20260620_process_routing_enhancement.sql` 示例绑定引用 4 个不存在的模板 key（`change_emergency_flow`/`incident_general_flow`/`release_test_flow`/`expense_approval_flow`）→ `verifyWorkflowTemplates` 失败 → workflow-core 事务回滚 → compose 依赖链中止（站点 502） | 迁移对全新库跳过该示例 INSERT（或 seeder 校验忽略无模板绑定；或补齐模板文件） | 全新库 init 直通；回归用例覆盖 | 待处理 |
-| OB-12 | P2 | nginx:alpine 入口脚本在 snap-docker 挂起（F9，238 部署发现） | `10-listen-on-ipv6-by-default.sh` 卡在 `apk manifest nginx`（实测 8s 超时不返回）；前端容器 nginx 不启动（3000 拒绝）→ 站点 502 | 前端 Dockerfile 生产阶段移除该入口脚本（或固定基础镜像 digest）；重建镜像验证 | 重建后前端容器免 override 直接 healthy | 待处理 |
+| OB-11 | P1 | 全新库 init 被「无模板的示例绑定」阻断（F8，238 部署发现） | 迁移 `20260620_process_routing_enhancement.sql` 示例绑定引用 4 个不存在的模板 key（`change_emergency_flow`/`incident_general_flow`/`release_test_flow`/`expense_approval_flow`）→ `verifyWorkflowTemplates` 失败 → workflow-core 事务回滚 → compose 依赖链中止（站点 502） | 已修复：前向迁移 `20261013_prune_unbacked_process_bindings.sql`（幂等删除无模板绑定；不改历史迁移避免 checksum 漂移）+ 静态回归测试 | 全新库 init 直通；回归用例覆盖 | **已完成（2026-10-12）**：238 全新库探针 `init exit 0`（ledger=75/defs=18/unbacked=0）；测试 `migration/process_bindings_consistency_test.go` PASS；提交 `7c90af22` |
+| OB-12 | P2 | nginx:alpine 入口脚本在 snap-docker 挂起（F9，238 部署发现） | `10-listen-on-ipv6-by-default.sh` 卡在 `apk manifest nginx`（实测 8s 超时不返回）；前端容器 nginx 不启动（3000 拒绝）→ 站点 502 | 已修复：前端 Dockerfile 生产阶段 `RUN rm -f /docker-entrypoint.d/10-listen-on-ipv6-by-default.sh` | 重建后前端容器免 override 直接 healthy | **已完成（2026-10-12）**：移除服务端 override 后重建，前端 t=5s healthy；提交 `7c90af22` |
 | OB-13 | P3 | 分配管理身份口径提示（238 冒烟观察） | `POST /msp/allocations` 需 `msp_allocation:write`；`role=admin`（rank 4）按 07:G3 遮蔽 `provider_admin→msp_manager`（rank 3）→ 平台通道建的 provider 管理员做分配会 403 权限不足 | 文档口径已固化（手册 §2.1/§6.1）；建号表单提示/自动提级评估留待后续（如需） | 口径固化（手册/部署文档或表单提示） | **已完成（2026-10-12）** |
 
 ## 3. 执行记录
@@ -47,6 +47,7 @@
 | 2026-10-12 | **238 生产部署（新版程序 + 新库）** | 已上线：`2d00a52e` 镜像 + 新库 `itsm_prod_v2`（saas_msp），7/7 healthy，公网 8088 验证通过；部署期发现并现场处置 F8/F9（→ OB-11/OB-12） | `evidence/238-deploy-20261012/run-summary.md` |
 | 2026-10-12 | **238 新库冒烟轮** | 建租户 9/9 PASS；建号+建单+协同 14/14 PASS（三账号建号 → 建单 → 分配 → 工作台回复/改状态 → 客户回看）；新增观察 OB-13（分配管理身份口径） | `evidence/238-deploy-20261012/smoke-tenants.md`、`smoke-users-tickets.md` |
 | 2026-10-12 | **238 三类单据读面冒烟** | 15/15 PASS：建号（mgr2/agent2/custAdmin2）→ 分配 → 客户侧造样本（目录项/变更/问题/SR）→ 工作台 changes/problems/service-requests 读面各 items=1；同时 OB-13 口径固化进手册 §2.1/§6.1 | `evidence/238-deploy-20261012/smoke-records-readface.md` |
+| 2026-10-12 | **OB-11/OB-12 修复部署与回归（238 v2）** | 已完成：版本升级 `1.8.0-dev.7c90af22`；init exit 0 + 新迁移入账 + 前端免 override healthy + 7/7 容器 healthy + HTTP 全 200；**全新库探针零人工干预 init 直通** | 提交 `7c90af22`；`evidence/238-deploy-20261012/run-summary.md` §3.1 |
 
 ## 4. 变更记录
 
@@ -57,3 +58,4 @@
 | v0.3 | 2026-10-12 | **238 生产部署回填**：新增 OB-11（全新库 init 被无模板示例绑定阻断，F8）与 OB-12（nginx 入口脚本挂起，F9）；部署运行摘要见 `evidence/238-deploy-20261012/` |
 | v0.4 | 2026-10-12 | **238 新库冒烟回填**：建租户 9/9、建号+建单+协同 14/14 通过；新增 OB-13（分配管理身份口径提示）；证据见 `evidence/238-deploy-20261012/smoke-*.md` |
 | v0.5 | 2026-10-12 | **238 三类单据读面冒烟回填（15/15）**；OB-13 口径固化到手册 → 标记完成（表单提示/自动提级评估留待如需） |
+| v0.6 | 2026-10-12 | **OB-11/OB-12 修复收口（提交 `7c90af22`）并完成 238 v2 部署回归**：版本 `1.8.0-dev.7c90af22`，init exit 0、前端免 override healthy、全新库探针 init 直通（ledger=75/defs=18/unbacked=0） |

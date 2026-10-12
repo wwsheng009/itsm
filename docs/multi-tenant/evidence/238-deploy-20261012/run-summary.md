@@ -27,8 +27,20 @@
 
 | # | 现象 | 根因 | 处置 |
 |---|---|---|---|
-| F8 | itsm-init 反复失败：`verify process definition change_emergency_flow: exists=false` → workflow-core 事务回滚 → compose 依赖链中止（站点 502） | 迁移 `20260620_process_routing_enhancement.sql` 的示例绑定引用了**内置模板目录中不存在的 4 个 key**（change_emergency_flow / incident_general_flow / release_test_flow / expense_approval_flow）；`verifyWorkflowTemplates` 对全新库必然失败 | 删除这 5 行陈旧示例绑定（对齐参考生产库 `itsm_prod` 的绑定集）→ run 4 init exit 0，`process_definitions=18`；**仓库跟进：OB-11** |
-| F9 | 前端容器 unhealthy（nginx 未启动、3000 拒绝连接），站点 `/` 502 | `nginx:alpine` 入口脚本 `10-listen-on-ipv6-by-default.sh` 在本机 snap-docker 环境卡死（`apk manifest nginx` 实测 8s 超时不返回） | 服务端 override（`docker-compose.test.yml`）为 itsm-frontend 指定 `entrypoint: sh -c "exec nginx -g 'daemon off;'"`（静态 SPA 无需入口脚本）→ healthy；**仓库跟进：OB-12** |
+| F8 | itsm-init 反复失败：`verify process definition change_emergency_flow: exists=false` → workflow-core 事务回滚 → compose 依赖链中止（站点 502） | 迁移 `20260620_process_routing_enhancement.sql` 的示例绑定引用了**内置模板目录中不存在的 4 个 key**（change_emergency_flow / incident_general_flow / release_test_flow / expense_approval_flow）；`verifyWorkflowTemplates` 对全新库必然失败 | ① 现场：删除这 5 行陈旧示例绑定 → init exit 0；② **仓库修复（OB-11，提交 `7c90af22`）**：前向迁移 `20261013_prune_unbacked_process_bindings.sql`（幂等删除 4 个无模板 key 的绑定，不改历史迁移避免 checksum 漂移）+ 静态回归测试 `migration/process_bindings_consistency_test.go`；③ 验证：238 全新库探针 `init exit 0`（见 §3.1） |
+| F9 | 前端容器 unhealthy（nginx 未启动、3000 拒绝连接），站点 `/` 502 | `nginx:alpine` 入口脚本 `10-listen-on-ipv6-by-default.sh` 在本机 snap-docker 环境卡死（`apk manifest nginx` 实测 8s 超时不返回） | ① 现场：服务端 override 指定 entrypoint 绕过；② **仓库修复（OB-12，提交 `7c90af22`）**：前端镜像生产阶段 `RUN rm -f /docker-entrypoint.d/10-listen-on-ipv6-by-default.sh`；③ 验证：移除 override 后重建前端，容器 t=5s 直接 healthy（见 §3.1） |
+
+## 3.1 v2 修复部署与回归验证（2026-10-12 23:3x–23:4x）
+
+> 版本标签升级：`1.8.0-dev.7c90af22`（来源提交 `7c90af22`；后端/ai-service 复用 retag，前端重建）。
+
+| 验证项 | 结果 |
+|---|---|
+| itsm-init（v2 库，增量迁移） | **exit 0**；ledger 新增 `20261013_prune_unbacked_process_bindings`；`unbacked_bindings=0` |
+| 前端容器（**移除 override 后**） | t=5s 直接 `healthy`（OB-12 修复生效） |
+| 全容器 | 7/7 healthy，镜像全部为 `1.8.0-dev.7c90af22` |
+| HTTP（公网 8088） | `/`、`/login`、`healthz`、`readyz` 均 200；`/api/v1/version = 1.8.0-dev.7c90af22` |
+| **全新库探针**（`itsm_fresh_probe`，零人工干预跑完整 init） | **`probe_run_exit=0`**；ledger=75；`process_definitions=18`；**`unbacked_bindings=0`**；admin=1；探针库已删除（OB-11 修复生效） |
 
 ## 4. 验证证据（公网入口 `http://172.18.3.238:8088`）
 
@@ -53,5 +65,5 @@
 
 ## 6. 备注
 
-- 前端 entrypoint 覆盖位于**服务端本地 override**（`docker-compose.test.yml`，未入库）；换机重建需同步，或按 OB-12 在镜像层修复后重建；
+- 前端 entrypoint 覆盖已**不再需要**（OB-12 已进镜像）：服务端本地 override（`docker-compose.test.yml`）现仅保留 `itsm-init` 的迁移目录挂载；换机重建时该挂载需同步（或可按需改为镜像内迁移）；
 - 部署期清理的日志/镜像/缓存均可再生；备份目录保留供回滚与审计。
