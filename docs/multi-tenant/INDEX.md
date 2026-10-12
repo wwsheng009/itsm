@@ -20,6 +20,7 @@
 | 想按界面一步步操作（建服务商账号/分配到客户/进入客户） | [08 服务商账号与客户授权操作手册（用户级）](./08-msp-user-operations-manual.md) |
 | 想在浏览器一步步重现全链路业务 | [scenarios/ 场景目录](./scenarios/README.md)（建租户→开通→建号→分配→建单→协作→审计与反例，含验证命令） |
 | 新增角色/权限/路由前要做什么 | [扩展评审清单](./plan/role-permission-extension-checklist.md)（归类/登记/守卫/平台家族码评估表） |
+| 有哪些待优化项、进展如何 | [backlog](./backlog.md)（OB-1–OB-10：来源/动作/验收/状态） |
 
 ---
 
@@ -74,6 +75,7 @@
 | [msp-offboarding-orchestration-plan.md](./plan/msp-offboarding-orchestration-plan.md) | L4 | v0.1（2026-10-08） | **MSP 离职编排与分配回收（IP-P2-8）**：现状核对 S1–S7、编排设计（停用先行 + 全量回收 + 幂等 + `user.offboard` 审计）、决策点 D1–D4、分期 P0–P2 | `IP-P2-8` |
 | [role-permission-extension-checklist.md](./plan/role-permission-extension-checklist.md) | 治理 | v0.1（2026-10-08） | **新增角色/权限/路由评审清单**：扩展纪律、平台家族码评估结论（§2.2）、守卫矩阵与评审流程 | — |
 | [platform-permission-shielding-d1-decision.md](./plan/platform-permission-shielding-d1-decision.md) | L4 | v0.1（2026-10-08；D1=B 定案） | **存量租户权限目录处置（D1）决策材料**：实测证据（只读 SQL）、A/B 对比、A 预案（开通克隆链连带改动）、触发条件 | — |
+| [backlog.md](./backlog.md) | 治理 | 进行中（2026-10-12 建立） | **多租户优化待办（OB-1–OB-10）**：FDB-B1 发现/观察项 → 优化任务、状态跟踪与验收口径 | `OB-#` |
 
 ### 2.1 场景目录（scenarios/，L6 浏览器实操剧本）
 
