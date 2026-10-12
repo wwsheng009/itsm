@@ -44,6 +44,7 @@
 | `APP_BASE_URL` | 按部署显式设置（本地 dev 默认 `http://localhost:3000`） | 邀请链接基地址（`service/invitation_service.go`）；默认值已对齐本地 dev，**生产必须设置为对外访问地址** |
 | `INVITATION_TTL_HOURS` | `72` | 邀请有效期（小时） |
 | `SMTP_ENABLED` / `SMTP_HOST` / `SMTP_USERNAME` / `SMTP_PASSWORD` / `SMTP_FROM_EMAIL` / `SMTP_FROM_NAME` | 按需 | 通用邮件配置（`config/config.go:632-638`）。**邀请邮件投递尚未接线**（`InvitationMailer` 接口已预留、未注入实现）：`emailSent=false` 时以 `inviteUrl` 线下投递（UI 已提示）；接入需实现 `InvitationMailer` 并 `SetMailer` 注入 |
+| `LOGIN_RATE_LIMIT_PER_MIN` | 生产按安全基线；**验收/联调建议 ≥600** | 登录限流（默认 10/分钟，`middleware/rate_limiter.go`）。密集验收（TUM 脚本单轮 10+ 次登录、批量探针）需显式放宽，否则 429/403「过于频繁」误伤；执行前记录实际值（OB-10，2026-10-12） |
 
 ### 3.1 过渡开关登记（owner/到期，MSW-6 收口）
 

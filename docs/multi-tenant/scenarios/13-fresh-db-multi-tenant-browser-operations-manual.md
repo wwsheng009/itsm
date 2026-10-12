@@ -577,6 +577,9 @@ docs/multi-tenant/evidence/fresh-db-browser-<批次>/
 
 命名建议：`<stage>-<seq>-<desc>.png`，例如 `stage5-03-n3-403-MSP_ALLOCATION_REQUIRED.png`。
 
+> **截图约定（OB-9，2026-10-12 收口）**：证据以**文本快照 + Network/日志 + API 回放**为主通道（全部入库）；截图按仓库约定**本地留存、不入库**（`.gitignore:122` 忽略 `*.png`，仓库无受跟踪 PNG）。
+> 自动化截图两条路径：① MCP 截图工具可用时优先（注意受工作区根限制）；② 受限时用 **CDP 直采**兜底（Edge `--remote-debugging-port` + `Page.captureScreenshot`），落盘目录自定（如 `%TEMP%\itsm-evidence\`），并在 run-summary 记录文件名与来源。
+
 ### 8.2 run-summary 模板（头部）
 
 ```markdown
