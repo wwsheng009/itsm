@@ -16,6 +16,19 @@
 
 > **回归修复（2026-10-05）**：当窗口内没有告警时，后端返回 `recentDenials: null`，旧版前端在 `null.length` 上抛异常导致**整页白屏**。现已兜底为空数组并加回归用例；空集时应显示"最近 0 条"与空态文案，页面不崩。
 
+### 1.1 审计视图口径（OB-4，2026-10-12）
+
+> 审计行**归属 = actor 家租户**（`tenant_id`），`target_tenant_id` / `target_user_id` 为过滤列。同一动作在不同视图的可见性不同，按「谁的视图」查看：
+
+| 视图 | 查询 | 可见范围 |
+|---|---|---|
+| 平台管理员（default 租户） | `GET /api/v1/audit-logs?targetTenantId=<tid>&targetUserId=<uid>&pageSize=100`（或 `/admin/audit`） | **平台租户自身**的治理/审计行（如 TUM 重置/启停、平台建号）；`targetTenantId` 精确匹配 target 列。**不含**其他租户为行归属的审计行 |
+| 租户管理员（如 CUSTA1） | `GET /api/v1/audit-logs?...`（租户作用域）或 `/admin/audit` | 本租户行：邀请 `user.invite`/`user.invite_accept`、工单/用户/配置操作等 |
+| 服务商（MSP 侧） | **审计看板** `/msp/audit`（聚合 `source=workbench` 等）或 MSPT1 租户审计视图 | 跨租户工作台写审计（`workbench.action`，行归属 provider、target=客户）与越权拒绝事件（`tenant.scope_denied`/`tenant.probe_denied`） |
+
+- API 过滤参数：`source`（`workbench`/`header`/`login`/`system`/…）、`actorAccount`、`targetTenantId`、`targetUserId`、`action`、`path`、`statusCode`、`from`/`to`；
+- 平台视图查不到 MSP 工作台行/租户域邀请行**不是缺陷**：行归属不同租户，按上表切换到对应视图（FDB-B1 观察项 O3/O4 据此收口）。
+
 ## 2. 负向验证矩阵（逐条可复现）
 
 | # | 场景 | 操作（服务商/客户账号） | 预期结果 | 独立验证 |
