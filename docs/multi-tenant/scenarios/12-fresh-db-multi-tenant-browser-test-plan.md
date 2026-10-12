@@ -420,7 +420,7 @@
 - [ ] **阶段 4**：客户 A 类型 + 工单创建成功；客户 B 样本单创建；编号/列表/详情正确；
 - [ ] **阶段 5**：五角色三层权限矩阵全对；负向场景全拒绝（403/401 + 稳定错误码）且留痕；
 - [ ] **阶段 6**：工作台可见/回复/状态/指派正确；客户回看一致；客户 resolve 闭环；审计可查；
-- [x] **阶段 7（选做）**：已执行（2026-10-12）——TUM 30 PASS/2 SKIP、离职编排 10 PASS、邀请通道浏览器 E2E 通过、TUM 浏览器写路径通过；证据见 run-summary §R3；
+- [x] **阶段 7（选做）**：已执行（2026-10-12）——TUM 30 PASS/2 SKIP + R4 写通道关闭回滚演练 PASS（10/10 + restore 6/6）、离职编排 10 PASS、邀请通道浏览器 E2E、TUM 浏览器写路径、批量护栏浏览器实测（3 选中 → 生效 2 + 自动排除 1 → 成功 2/失败 0）、跨租户读面记录；证据见 run-summary §R3/§R4；
 - [ ] **证据归档**：截图 + Network + run-summary + 环境指纹齐备；
 - [ ] **遗留问题**：FAIL/已知限制均已登记（含复现步骤与影响）。
 
@@ -472,7 +472,7 @@
 | 阶段 4 | [06](./06-customer-ticket-type-and-ticket.md) | 客户业务操作 |
 | 阶段 5 | [08](./08-audit-and-isolation-verification.md)、[10](./10-membership-switch-and-workbench-boundary.md) | 负向矩阵 N1–N6 |
 | 阶段 6 | [07](./07-msp-workbench-collaboration.md) | `flow-msp-workbench-ui.spec.ts`、`run-msp-business-acceptance.ps1` |
-| 阶段 7 | [09](./09-tenant-user-management.md)、[11](./11-offboarding.md) | TUM/离职验收脚本 |
+| 阶段 7 | [09](./09-tenant-user-management.md)、[11](./11-offboarding.md) | TUM/离职验收脚本 + `run-tenant-user-admin-r4-probe.ps1`（写通道关闭探针） |
 
 ---
 
@@ -484,3 +484,4 @@
 | v0.2 | 2026-10-12 | 评审修订：`end_user` 权限口径修正（含 `ticket:update`，`write` 同义补齐到 `create/update`）；编号前缀规范（`07:G#`、canon `D11`）；新增远程主机可达性前置（方案 A）与风险；补充评审发现记录 |
 | v0.3 | 2026-10-12 | **首跑执行回填（批次 FDB-B1）**：阶段 0–6 实跑；阶段 3 MSP 建号通道 FAIL（F1：`CROSS_TENANT_FORBIDDEN`）；G4/G5 在全新库复现（已按规避处理）；确认解决走 `PUT`（F2）；证据与发现清单见 run-summary |
 | v0.4 | 2026-10-12 | **阶段 7 执行回填**：TUM（API 30 PASS/2 SKIP + 浏览器写路径）、离职编排（10 PASS）、邀请受理通道（浏览器 E2E：创建→落地页→激活→登录→业务可见→审计）；测试资产修复（TUM 脚本 `saas_msp` 租户类型自适应 + R1 期望对齐收口）；观察项 O1–O3 见 run-summary §R3 |
+| v0.5 | 2026-10-12 | **阶段 7 遗留项与手册 §7.3/§7.4 执行回填**：TUM R4（`TENANT_USER_ADMIN_ENABLED=false` 回滚演练）单跑 PASS（10/10 + restore 6/6，探针脚本入库）；批量护栏浏览器实测 PASS；跨租户读面（待办任务/变更/问题/服务请求）记录；O4 观察项 |

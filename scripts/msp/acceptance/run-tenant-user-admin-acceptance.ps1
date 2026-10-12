@@ -447,7 +447,7 @@ if ($actorUserId -gt 0 -and $actorTenantId -gt 0) {
     Skip "R3" "自停用反例" "登录响应缺少 actor 用户/租户信息"
 }
 
-Skip "R4" "写通道未开 403（TENANT_USER_ADMIN_DISABLED）" "需以 TENANT_USER_ADMIN_ENABLED=false 重启实例后单独执行（见方案 §7 回滚）"
+Skip "R4" "写通道未开 403（TENANT_USER_ADMIN_DISABLED）" "需以 TENANT_USER_ADMIN_ENABLED=false 重启实例后单跑 run-tenant-user-admin-r4-probe.ps1 -Mode disabled（方案 §7 回滚演练；FDB-B1 已实测 PASS）"
 
 # =============================================================================
 # 汇总

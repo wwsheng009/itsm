@@ -521,7 +521,7 @@ fetch('/api/v1/auth/menus',{ credentials:'include' }).then(r=>r.json()).then(d=>
 
 ## 7. 阶段 7 · 其它模拟操作（选做）
 
-> **执行状态（2026-10-12）**：§7.1–§7.3 已实测（TUM 30 PASS/2 SKIP + 浏览器写路径；离职编排 10 PASS；邀请受理通道浏览器 E2E）。执行注记：① TUM 验收脚本在 `saas_msp` 下自动以 `msp_customer` + `mspProviderId` 建隔离租户；② 邀请链接 host/端口取前端配置（本地 dev 需把 `5173` 改为 `3000`）；③ 受邀用户登录名为邮箱本地部分（如 `custa.invitee1`），非邮箱全称；④ 平台审计视图不含租户域邀请审计行（行归属 actor 家租户），请在租户管理员视图查看。详见 [run-summary §R3](../evidence/fresh-db-browser-B1/run-summary-20261012-1925.md)。
+> **执行状态（2026-10-12）**：§7.1–§7.3 已实测（TUM 30 PASS/2 SKIP + 浏览器写路径；离职编排 10 PASS；邀请受理通道浏览器 E2E）。执行注记：① TUM 验收脚本在 `saas_msp` 下自动以 `msp_customer` + `mspProviderId` 建隔离租户；② 邀请链接 host/端口取前端配置（本地 dev 需把 `5173` 改为 `3000`）；③ 受邀用户登录名为邮箱本地部分（如 `custa.invitee1`），非邮箱全称；④ 平台审计视图不含租户域邀请审计行（行归属 actor 家租户），请在租户管理员视图查看。**追加（同日第二轮）**：§7.1 R4（写通道关闭回滚演练）单跑 PASS（10/10 + 恢复 6/6）；§7.3 批量护栏浏览器实测 PASS（勾选 3 → 生效 2 + 自动排除 1 → 逐条 成功 2/失败 0）；§7.4 跨租户读面已记录（待办任务 + 变更/问题/服务请求，空态渲染）。详见 [run-summary §R3/§R4](../evidence/fresh-db-browser-B1/run-summary-20261012-1925.md)。
 
 ### 7.1 平台侧租户用户治理（TUM；需 `TENANT_USER_ADMIN_ENABLED=true`）
 
@@ -534,6 +534,9 @@ fetch('/api/v1/auth/menus',{ credentials:'include' }).then(r=>r.json()).then(d=>
 | 5 | 行内状态开关「停用」 | 该用户无法登录；审计 `user.admin_status` |
 | 6 | 护栏反例：对租户最后一个可用管理员停用 | 开关禁用/409 `LAST_ADMIN_PROTECTED` |
 | 7 | 审计：`/admin/audit` 或 Console 按 `targetTenantId`/`targetUserId` 查询 | 可见重置/启停/强下线记录 |
+
+> R4 反例（写通道关闭）：以 `TENANT_USER_ADMIN_ENABLED=false` 重启实例后单跑
+> `scripts/msp/acceptance/run-tenant-user-admin-r4-probe.ps1 -Mode disabled`（随后 `-Mode restore` 还原口令与写通道）——2026-10-12 实测 10/10 + 6/6 PASS。
 
 ### 7.2 离职编排
 
@@ -548,9 +551,13 @@ fetch('/api/v1/auth/menus',{ credentials:'include' }).then(r=>r.json()).then(d=>
 
 勾选 ≥2 条工单 →「批量回复」→ 客户分布确认 → 提交 → 逐条结果（成功/失败分列）；含不可操作条目时，失败条目给原因，成功条目正常生效。
 
+> **执行状态（2026-10-12）**：PASS——勾选 3 条（2 新建 + 1 已解决）→ 客户分布确认「生效 2 条」+「1 条所选条目无此操作权限，已自动排除」→ 逐条结果 成功 2 / 失败 0；评论落库 + MSP 审计看板可见（详见 run-summary §R4）。
+
 ### 7.4 其它单据读面（按已落地范围）
 
 工作台切换工单/待办任务/跨租户单据页签：查看问题、变更、服务请求的读面与状态推进能力（按目标版本实际渲染为准；审批类动作保留在客户治理面）。记录实际可见范围与操作结果。
+
+> **执行状态（2026-10-12）**：读面已记录——「待办任务」与「跨租户单据（变更/问题/服务请求）」页签/列头渲染正常；本批次无问题/变更/SR 样本（空态）；审批类动作保留在客户治理面。
 
 ---
 
@@ -619,3 +626,4 @@ docs/multi-tenant/evidence/fresh-db-browser-<批次>/
 | v0.2 | 2026-10-12 | 评审修订：`end_user` 权限与解决路径口径修正（本人单据可改状态/解决）；界面文案对齐（最终用户 / 服务商技术员）；ssh 首次连接加 `StrictHostKeyChecking=accept-new`；新增远程主机可达性检查；补「其它业务单据」可选步骤（§4.5） |
 | v0.3 | 2026-10-12 | **首跑执行回填（批次 FDB-B1）**：§0–§6 逐步可执行性实测；MSP 通道 B 实测 403（F1）；确认解决实际走 `PUT /tickets/:id`（F2）；G4/G5 规避命令有效性验证；详见 run-summary |
 | v0.4 | 2026-10-12 | **阶段 7 执行回填**：§7.1–§7.3 实测记录（TUM/离职/邀请通道 + TUM 浏览器写路径）；补执行注记（saas_msp 租户类型自适应、邀请链接端口配置、受邀用户名形态、租户域审计视图）；观察项 O1–O3 见 run-summary §R3 |
+| v0.5 | 2026-10-12 | **R4 + §7.3/§7.4 执行回填**：TUM R4（写通道关闭）单跑 PASS（探针脚本 `run-tenant-user-admin-r4-probe.ps1` disabled/restore 双模式）；§7.3 批量护栏浏览器实测（自动排除无权限条目 + 逐条结果）；§7.4 跨租户读面记录；O4 观察项（平台审计 API 与 MSP 看板口径差异） |
