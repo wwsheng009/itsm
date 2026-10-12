@@ -168,10 +168,6 @@ func (s *MSPWorkbenchService) ListTickets(ctx context.Context, actor MSPWorkbenc
 	if err != nil {
 		return nil, err
 	}
-	assigneeNames, err := s.loadAssigneeNames(ctx, tenantIDs)
-	if err != nil {
-		return nil, err
-	}
 
 	type mergedRow struct {
 		ent   *ent.Ticket
@@ -220,6 +216,21 @@ func (s *MSPWorkbenchService) ListTickets(ctx context.Context, actor MSPWorkbenc
 	trimmed := len(merged) > limit
 	if trimmed {
 		merged = merged[:limit]
+	}
+
+	// F3 修复（2026-10-12）：负责人是 MSP 员工（home=provider 租户），
+	// 不能按客户租户范围取名字；按工单实际 assignee 用户 ID 解析。
+	assigneeIDs := make([]int, 0, len(merged))
+	seenAssignee := make(map[int]bool, len(merged))
+	for _, row := range merged {
+		if row.ent.AssigneeID > 0 && !seenAssignee[row.ent.AssigneeID] {
+			seenAssignee[row.ent.AssigneeID] = true
+			assigneeIDs = append(assigneeIDs, row.ent.AssigneeID)
+		}
+	}
+	assigneeNames, err := s.loadAssigneeNames(ctx, assigneeIDs)
+	if err != nil {
+		return nil, err
 	}
 
 	items := make([]dto.WorkbenchTicketItem, 0, len(merged))
@@ -535,7 +546,9 @@ func (s *MSPWorkbenchService) loadAssigneeNames(ctx context.Context, ids []int) 
 	if len(ids) == 0 {
 		return out, nil
 	}
-	rows, err := s.client.User.Query().Where(user.TenantIDIn(ids...)).All(ctx)
+	// 按用户 ID 解析（跨租户：MSP 员工 home=provider 租户，工单在客户租户）。
+	// users 为平台级 RLS 豁免表，ID 查询不引入跨租户数据泄露。
+	rows, err := s.client.User.Query().Where(user.IDIn(ids...)).All(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("workbench load assignees: %w", err)
 	}

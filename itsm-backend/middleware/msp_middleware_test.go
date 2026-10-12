@@ -163,4 +163,5 @@ func TestMSPMiddleware_ProviderNarrowing(t *testing.T) {
 	mspCtx, ok := val.(*MSPContext)
 	require.True(t, ok)
 	assert.ElementsMatch(t, []int{custA.ID}, mspCtx.AllowedCustomers)
+	assert.Equal(t, "provider_agent", c.GetString("msp_role"), "MSPMiddleware 必须写入 msp_role 上下文键（F1 回归）")
 }

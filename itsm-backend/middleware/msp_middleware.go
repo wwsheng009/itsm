@@ -130,6 +130,10 @@ func MSPMiddleware(client *ent.Client) gin.HandlerFunc {
 
 			ctx.Role = mspRole
 			ctx.AllowedCustomers = allowedCustomers
+			// 写入下游可读的 msp_role 上下文键：跨租户建号等服务层身份判定依赖它。
+			// 此前仅写入 MSPContextKey，导致 handlers/user.provisionActorFromContext
+			// 读不到 msp_role，MSP「为客户建号」被误判无权限（F1，2026-10-12 实测修复）。
+			c.Set("msp_role", mspRole)
 
 			// 4.3 头通道与路径/请求体通道统一走 mspguard.CanAccessCustomer（IP-P0-2；R9/R10），
 			// 额外校验 provider 归属（R2）与客户 active，而不是只比对 allowedCustomers。

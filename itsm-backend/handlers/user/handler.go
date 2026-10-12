@@ -176,6 +176,13 @@ func provisionActorFromContext(c *gin.Context) service.ProvisionActor {
 	if strings.TrimSpace(mspRole) == "" {
 		mspRole = c.GetString("mspRole")
 	}
+	// 回退：MSP 路由族由 MSPMiddleware 解析身份（写入 MSPContextKey）。
+	// 旧键缺失时从 MSP 上下文取 msp_role，避免跨租户建号被误判无权限（F1 防御）。
+	if strings.TrimSpace(mspRole) == "" {
+		if mspCtx, ok := middleware.GetMSPContext(c); ok && mspCtx != nil {
+			mspRole = mspCtx.Role
+		}
+	}
 	return service.ProvisionActor{
 		UserID:       c.GetInt("user_id"),
 		HomeTenantID: c.GetInt("tenant_id"),
