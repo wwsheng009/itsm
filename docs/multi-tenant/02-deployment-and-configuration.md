@@ -41,6 +41,9 @@
 | `TENANT_USER_ADMIN_ENABLED` | `false`（按需开启） | 平台侧租户用户管理写通道灰度开关（重置密码/启停/强制下线，TUM-D3）；读列表/详情不受限；关闭时写操作 403 `TENANT_USER_ADMIN_DISABLED`；**例外：首管（`is_bootstrap_admin`）重置密码为兜底恢复通道，默认可用、不受开关约束（TUM-D3 修订，防租户锁死）**；服务器侧兜底 `cmd/reset_password`；与 `USER_PROVISIONING_CHANNELS_ENABLED` 独立回滚 |
 | `MEMBERSHIP_EXPIRY_RECYCLE_ENABLED` | `true`（默认开） | membership 到期回收后台任务（IP-P2-9）：扫描 `expires_at` 已过的存活 membership（home 豁免），软删 + allocation 级联解除 + `membership.revoke` 审计 + 立即生效；显式 `false`/`0`/`no`/`off` 关闭（读路径惰性判定仍生效） |
 | `MEMBERSHIP_EXPIRY_RECYCLE_INTERVAL_MINUTES` | `10` | 到期回收扫描间隔（分钟）；非法/<=0 回退默认 |
+| `APP_BASE_URL` | 按部署显式设置（本地 dev 默认 `http://localhost:3000`） | 邀请链接基地址（`service/invitation_service.go`）；默认值已对齐本地 dev，**生产必须设置为对外访问地址** |
+| `INVITATION_TTL_HOURS` | `72` | 邀请有效期（小时） |
+| `SMTP_ENABLED` / `SMTP_HOST` / `SMTP_USERNAME` / `SMTP_PASSWORD` / `SMTP_FROM_EMAIL` / `SMTP_FROM_NAME` | 按需 | 通用邮件配置（`config/config.go:632-638`）。**邀请邮件投递尚未接线**（`InvitationMailer` 接口已预留、未注入实现）：`emailSent=false` 时以 `inviteUrl` 线下投递（UI 已提示）；接入需实现 `InvitationMailer` 并 `SetMailer` 注入 |
 
 ### 3.1 过渡开关登记（owner/到期，MSW-6 收口）
 

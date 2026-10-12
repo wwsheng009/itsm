@@ -121,6 +121,9 @@ export default function InviteLandingPage() {
         <Text className='!text-gray-500 !text-sm block !mb-6'>
           密码设置成功，即将跳转到登录页
         </Text>
+        <Text className='!text-gray-400 !text-xs block !mb-6'>
+          登录用户名 = 邮箱 @ 前的部分（如 user@corp.com → user）
+        </Text>
         <Button type='primary' size='large' className='w-full h-10' onClick={() => navigate('/login')}>
           立即登录
         </Button>
@@ -156,6 +159,9 @@ export default function InviteLandingPage() {
         </Title>
         <Text className='!text-gray-500 !text-sm'>
           邀请邮箱 {info.emailMasked} · 角色 {info.roleCode}
+        </Text>
+        <Text className='!text-gray-400 !text-xs block !mt-2'>
+          激活后登录用户名 = 邮箱 @ 前的部分（如 user@corp.com → user）
         </Text>
       </div>
 

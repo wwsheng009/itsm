@@ -388,6 +388,9 @@ const InvitationManagementModal: React.FC<InvitationManagementModalProps> = ({
             <Text type="secondary" className="mt-2 block">
               链接有效期至 {fmt(created.expiresAt)}；一次性使用，重发或撤销后即失效。
             </Text>
+            <Text type="secondary" className="mt-1 block">
+              登录名提示：被邀请人激活后，登录用户名 = 邮箱 @ 前的部分（如 user@corp.com → user）。
+            </Text>
           </>
         ) : null}
       </Modal>

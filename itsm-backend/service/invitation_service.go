@@ -181,7 +181,7 @@ type InvitationService struct {
 }
 
 // NewInvitationService 构造邀请服务。
-// 配置：INVITATION_TTL_HOURS（默认 72）、APP_BASE_URL（默认 http://localhost:5173）。
+// 配置：INVITATION_TTL_HOURS（默认 72）、APP_BASE_URL（默认 http://localhost:3000，对齐本地 dev；生产须显式设置）。
 func NewInvitationService(client *ent.Client, users *UserService, logger *zap.SugaredLogger) *InvitationService {
 	ttl := 72 * time.Hour
 	if raw := strings.TrimSpace(os.Getenv("INVITATION_TTL_HOURS")); raw != "" {
@@ -191,7 +191,7 @@ func NewInvitationService(client *ent.Client, users *UserService, logger *zap.Su
 	}
 	base := strings.TrimRight(strings.TrimSpace(os.Getenv("APP_BASE_URL")), "/")
 	if base == "" {
-		base = "http://localhost:5173"
+		base = "http://localhost:3000"
 	}
 	return &InvitationService{
 		client:     client,
