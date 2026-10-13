@@ -156,7 +156,14 @@ export default function MSPDashboardPage() {
 
   const allocationColumns = [
     { title: 'MSP 员工', dataIndex: 'mspUsername', key:'mspUsername' },
-    { title: '客户租户', dataIndex: 'customerName', key:'customerName' },
+    {
+      title: '客户租户',
+      dataIndex: 'customerTenantName',
+      key: 'customerTenantName',
+      // OB-15：后端分配 DTO 字段为 customerTenantName；customerName 为历史遗留，兼容读取。
+      render: (name: string | undefined, record: MSPAllocation) =>
+        name || record.customerName || `#${record.customerTenantId}`,
+    },
     {
       title: '角色',
       dataIndex: 'role',
