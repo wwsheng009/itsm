@@ -1,0 +1,314 @@
+# ITSM 多租户演示环境（独立演示栈）
+#
+# 目标：与主站（itsm-prod，8088）完全隔离的演示环境：
+#   - 独立数据库 itsm_demo（复用宿主已运行的 itsm-postgres-prod，通过外部网络访问）
+#   - 独立 Redis（itsm-redis-demo，避免与主站队列/缓存串扰）
+#   - 独立容器组（*-demo）与入口 http://<host>:8089
+#
+# 启动（在仓库根目录）：
+#   docker compose --env-file .env.demo -f docker-compose.demo.yml up -d
+#
+# 前置：
+#   1) 宿主已有 itsm-postgres-prod（本文件不启动 postgres）且网络
+#      itsm-prod_itsm-prod-network 存在（可在文件末尾按环境改名）；
+#   2) 已创建空库 itsm_demo（itsm-init-demo 会自动跑迁移与产品基线播种）：
+#      docker exec itsm-postgres-prod psql -U itsm -d postgres -c "CREATE DATABASE itsm_demo"
+#      docker exec itsm-postgres-prod psql -U itsm -d itsm_demo -c "CREATE EXTENSION IF NOT EXISTS vector"
+#   3) .env.demo 至少包含：VERSION、DB_USER、DB_PASSWORD、REDIS_PASSWORD、
+#      DEMO_JWT_SECRET、DEMO_ADMIN_PASSWORD（模板见 .env.demo.example）。
+name: itsm-demo
+
+services:
+  # 演示栈专用 Redis（与主站隔离；不发布宿主端口）
+  redis-demo:
+    image: redis:7-alpine
+    container_name: itsm-redis-demo
+    hostname: redis-demo
+    command: >
+      redis-server --requirepass ${REDIS_PASSWORD:?REDIS_PASSWORD must be set}
+      --maxmemory 512mb --maxmemory-policy allkeys-lru
+    volumes:
+      - redis_demo_data:/data
+    networks:
+      - itsm-demo-network
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "redis-cli",
+          "--no-auth-warning",
+          "-a",
+          "${REDIS_PASSWORD:?REDIS_PASSWORD must be set}",
+          "ping",
+        ]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+    restart: always
+
+  # 演示库初始化：迁移 + 产品基线播种 + 平台管理员（跑完即退出）
+  itsm-init-demo:
+    image: itsm-backend:${VERSION:?VERSION must be set}
+    container_name: itsm-init-demo
+    hostname: init-demo
+    command: ["./main"]
+    environment:
+      - DB_HOST=postgres
+      - DB_PORT=5432
+      - DB_USER=${DB_USER:-itsm}
+      - DB_PASSWORD=${DB_PASSWORD:?DB_PASSWORD must be set}
+      - DB_NAME=${DEMO_DB_NAME:-itsm_demo}
+      - DB_SSLMODE=${DB_SSLMODE:-disable}
+      - REDIS_URL=redis://:${REDIS_PASSWORD:?REDIS_PASSWORD must be set}@redis-demo:6379/0
+      - REDIS_HOST=redis-demo
+      - REDIS_PORT=6379
+      - REDIS_PASSWORD=${REDIS_PASSWORD:?REDIS_PASSWORD must be set}
+      - REDIS_DB=0
+      - JWT_SECRET=${DEMO_JWT_SECRET:?DEMO_JWT_SECRET must be set}
+      - LOG_LEVEL=info
+      - DEPLOYMENT_MODE=${DEPLOYMENT_MODE:-saas_msp}
+      - ADMIN_PASSWORD=${DEMO_ADMIN_PASSWORD:?DEMO_ADMIN_PASSWORD must be set}
+      - ITSM_BOOTSTRAP_ONLY=true
+      - ITSM_AUTO_MIGRATE=true
+      - ITSM_AUTO_SEED=true
+      - BOOTSTRAP_TOKEN_ENABLED=0
+      - RLS_MODE=off
+      - RLS_TENANT_VAR_NAME=app.current_tenant
+      - no_proxy=localhost,127.0.0.1
+      - NO_PROXY=localhost,127.0.0.1
+    volumes:
+      - ./deploy/demo/logs:/app/logs
+      - ./deploy/demo/uploads:/app/uploads:rw
+    networks:
+      - itsm-demo-network
+      - itsm-shared-network
+    restart: "no"
+
+  # 演示后端 API
+  itsm-backend-demo:
+    image: itsm-backend:${VERSION:?VERSION must be set}
+    container_name: itsm-backend-demo
+    hostname: backend-demo
+    environment:
+      - DB_HOST=postgres
+      - DB_PORT=5432
+      - DB_USER=${DB_USER:-itsm}
+      - DB_PASSWORD=${DB_PASSWORD:?DB_PASSWORD must be set}
+      - DB_NAME=${DEMO_DB_NAME:-itsm_demo}
+      - DB_SSLMODE=${DB_SSLMODE:-disable}
+      - REDIS_URL=redis://:${REDIS_PASSWORD:?REDIS_PASSWORD must be set}@redis-demo:6379/0
+      - REDIS_HOST=redis-demo
+      - REDIS_PORT=6379
+      - REDIS_PASSWORD=${REDIS_PASSWORD:?REDIS_PASSWORD must be set}
+      - REDIS_DB=0
+      - SERVER_ENV=production
+      - SERVER_HOST=0.0.0.0
+      - APP_VERSION=${VERSION:?VERSION must be set}
+      - ADMIN_PASSWORD=${DEMO_ADMIN_PASSWORD:?DEMO_ADMIN_PASSWORD must be set}
+      - BOOTSTRAP_TOKEN_ENABLED=1
+      - JWT_SECRET=${DEMO_JWT_SECRET:?DEMO_JWT_SECRET must be set}
+      - JWT_EXPIRE_TIME=86400
+      - JWT_REFRESH_EXPIRE_TIME=604800
+      - LOG_LEVEL=info
+      - LOG_PATH=/app/logs
+      - LOG_FORMAT=json
+      - DEPLOYMENT_MODE=${DEPLOYMENT_MODE:-saas_msp}
+      - ITSM_AUTO_MIGRATE=false
+      - ITSM_AUTO_SEED=false
+      - ITSM_PROCESS_MODE=api
+      - RLS_MODE=${RLS_MODE:-shadow}
+      - RLS_TENANT_VAR_NAME=${RLS_TENANT_VAR_NAME:-app.current_tenant}
+      - GUIDANCE_URL=${GUIDANCE_URL:-http://itsm-ai-service-demo:8000}
+      - LLM_PROVIDER=${LLM_PROVIDER:-openai}
+      - LLM_MODEL=${LLM_MODEL:-gpt-4}
+      - LLM_API_KEY=${LLM_API_KEY:-}
+      - LLM_ENDPOINT=${LLM_ENDPOINT:-}
+      - OPENAI_API_KEY=${OPENAI_API_KEY:-}
+      - OPENAI_BASE_URL=${OPENAI_BASE_URL:-}
+      - LLM_MULTI_PROVIDER_ENABLED=${LLM_MULTI_PROVIDER_ENABLED:-true}
+      - LLM_PROVIDER_ENCRYPTION_KEY=${LLM_PROVIDER_ENCRYPTION_KEY:-}
+      - ITSM_AI_READY=${ITSM_AI_READY:-1}
+      - ENABLE_CORS=true
+      - ITSM_CORS_ALLOWED_ORIGINS=${CORS_ALLOWED_ORIGINS:-*}
+      - METRICS_REQUIRE_AUTH=${METRICS_REQUIRE_AUTH:-true}
+      - no_proxy=localhost,127.0.0.1
+      - NO_PROXY=localhost,127.0.0.1
+    ports:
+      # 仅宿主本地诊断（外部流量走 itsm-nginx-demo:8089）
+      - "127.0.0.1:8091:8090"
+    depends_on:
+      redis-demo:
+        condition: service_healthy
+      itsm-init-demo:
+        condition: service_completed_successfully
+    volumes:
+      - ./deploy/demo/logs:/app/logs
+      - ./deploy/demo/uploads:/app/uploads:rw
+    networks:
+      - itsm-demo-network
+      - itsm-shared-network
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "sh",
+          "-c",
+          "http_proxy= https_proxy= HTTP_PROXY= HTTPS_PROXY= curl -fsS http://localhost:8090/api/v1/readyz",
+        ]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    restart: always
+
+  # 演示 Worker（队列/SLA/通知等后台任务；与主站隔离）
+  itsm-worker-demo:
+    image: itsm-backend:${VERSION:?VERSION must be set}
+    container_name: itsm-worker-demo
+    hostname: worker-demo
+    environment:
+      - DB_HOST=postgres
+      - DB_PORT=5432
+      - DB_USER=${DB_USER:-itsm}
+      - DB_PASSWORD=${DB_PASSWORD:?DB_PASSWORD must be set}
+      - DB_NAME=${DEMO_DB_NAME:-itsm_demo}
+      - DB_SSLMODE=${DB_SSLMODE:-disable}
+      - REDIS_URL=redis://:${REDIS_PASSWORD:?REDIS_PASSWORD must be set}@redis-demo:6379/0
+      - REDIS_HOST=redis-demo
+      - REDIS_PORT=6379
+      - REDIS_PASSWORD=${REDIS_PASSWORD:?REDIS_PASSWORD must be set}
+      - REDIS_DB=0
+      - SERVER_ENV=production
+      - JWT_SECRET=${DEMO_JWT_SECRET:?DEMO_JWT_SECRET must be set}
+      - LOG_LEVEL=info
+      - LOG_PATH=/app/logs
+      - LOG_FORMAT=json
+      - DEPLOYMENT_MODE=${DEPLOYMENT_MODE:-saas_msp}
+      - ITSM_AUTO_MIGRATE=false
+      - ITSM_AUTO_SEED=false
+      - ITSM_PROCESS_MODE=worker
+      - RLS_MODE=${RLS_MODE:-shadow}
+      - RLS_TENANT_VAR_NAME=${RLS_TENANT_VAR_NAME:-app.current_tenant}
+      - no_proxy=localhost,127.0.0.1
+      - NO_PROXY=localhost,127.0.0.1
+    depends_on:
+      redis-demo:
+        condition: service_healthy
+      itsm-init-demo:
+        condition: service_completed_successfully
+    volumes:
+      - ./deploy/demo/logs:/app/logs
+      - ./deploy/demo/uploads:/app/uploads:rw
+    networks:
+      - itsm-demo-network
+      - itsm-shared-network
+    healthcheck:
+      test: ["CMD", "sh", "-c", "kill -0 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+    stop_grace_period: 35s
+    restart: always
+
+  # Guidance sidecar（受限 JSON 生成；未配置 LLM 时自动降级）
+  itsm-ai-service-demo:
+    image: itsm-ai-service:${VERSION:?VERSION must be set}
+    container_name: itsm-ai-service-demo
+    hostname: ai-service-demo
+    environment:
+      - SERVICE_HOST=0.0.0.0
+      - SERVICE_PORT=8000
+      - LOG_LEVEL=${AI_LOG_LEVEL:-info}
+      - CORS_ORIGINS=http://itsm-frontend-demo:3000,http://itsm-nginx-demo
+      - LLM_PROVIDER=${LLM_PROVIDER:-openai}
+      - LLM_MODEL=${LLM_MODEL:-gpt-4}
+      - LLM_API_KEY=${LLM_API_KEY:-}
+      - LLM_BASE_URL=${LLM_ENDPOINT:-${OPENAI_BASE_URL:-https://api.openai.com/v1}}
+      - LLM_TIMEOUT=120
+    expose:
+      - "8000"
+    networks:
+      - itsm-demo-network
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "python",
+          "-c",
+          "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://localhost:8000/health').status==200 else 1)",
+        ]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    restart: always
+
+  # 演示前端（静态 SPA；镜像内 nginx:alpine 监听 3000）
+  itsm-frontend-demo:
+    image: itsm-frontend:${VERSION:?VERSION must be set}
+    container_name: itsm-frontend-demo
+    hostname: frontend-demo
+    expose:
+      - "3000"
+    volumes:
+      - ./deploy/demo/uploads:/usr/share/nginx/uploads:ro
+    depends_on:
+      itsm-backend-demo:
+        condition: service_healthy
+    networks:
+      - itsm-demo-network
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "sh",
+          "-c",
+          "http_proxy= https_proxy= HTTP_PROXY= HTTPS_PROXY= wget --no-verbose --tries=1 --spider http://127.0.0.1:3000/health",
+        ]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
+    restart: always
+
+  # 演示入口 Nginx（http://<host>:8089；配置见 deploy/demo/nginx/conf.d）
+  itsm-nginx-demo:
+    image: nginx:alpine
+    container_name: itsm-nginx-demo
+    hostname: nginx-demo
+    ports:
+      - "${DEMO_HTTP_PORT:-8089}:80"
+    volumes:
+      - ./nginx/demo/conf.d:/etc/nginx/conf.d:ro
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+    depends_on:
+      itsm-frontend-demo:
+        condition: service_healthy
+      itsm-backend-demo:
+        condition: service_healthy
+    networks:
+      - itsm-demo-network
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "sh",
+          "-c",
+          "http_proxy= https_proxy= HTTP_PROXY= HTTPS_PROXY= wget --no-verbose --tries=1 --spider http://127.0.0.1/health",
+        ]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+    restart: always
+
+networks:
+  itsm-demo-network:
+    name: itsm-demo-network
+  # 复用主站网络以访问 itsm-postgres-prod（勿改容器别名 redis/postgres）
+  itsm-shared-network:
+    external: true
+    name: ${DEMO_SHARED_NETWORK:-itsm-prod_itsm-prod-network}
+
+volumes:
+  redis_demo_data:

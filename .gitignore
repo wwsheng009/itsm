@@ -49,6 +49,7 @@ logs/
 .env.local
 .env.*.local
 .env.prod
+.env.demo
 config/local.yaml
 config/production.yaml
 
