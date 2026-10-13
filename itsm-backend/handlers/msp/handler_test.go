@@ -259,6 +259,7 @@ func TestGetCustomerTickets_WithMSPContext(t *testing.T) {
 		SetPriority("medium").
 		SetStatus("in_progress").
 		SetRequesterID(mspUser.ID).
+		SetAssigneeID(mspUser.ID).
 		SetTenantID(customer.ID).
 		Save(ctx)
 	require.NoError(t, err)
@@ -284,6 +285,8 @@ func TestGetCustomerTickets_WithMSPContext(t *testing.T) {
 	assert.Equal(t, "MSP-T-1", item["ticketNumber"])
 	assert.Equal(t, "客户工单标题回归", item["title"], "前端按 title 读取，缺失即列表标题空白")
 	assert.Equal(t, "in_progress", item["status"], "前端按 status 读取，缺失即列表状态空白")
+	assert.Equal(t, float64(mspUser.ID), item["assigneeId"])
+	assert.Equal(t, "MSP 42", item["assigneeName"], "负责人显示名必须回填，否则已分配工单仍显示「未分配」")
 	assert.Contains(t, item, "createdAt")
 	assert.NotContains(t, item, "Title", "不得再直出领域模型 PascalCase 键")
 	assert.NotContains(t, item, "Status")

@@ -101,6 +101,7 @@ type MSPCustomerTicketItem struct {
 	Priority     string    `json:"priority"`
 	Type         string    `json:"type"`
 	AssigneeID   *int      `json:"assigneeId,omitempty"`
+	AssigneeName string    `json:"assigneeName,omitempty"` // 负责人显示名（跨租户按用户 ID 解析）
 	CreatedAt    time.Time `json:"createdAt"`
 	UpdatedAt    time.Time `json:"updatedAt"`
 	TenantID     int       `json:"tenantId"`
@@ -108,8 +109,8 @@ type MSPCustomerTicketItem struct {
 
 // MSPCustomerTicketsResponse 客户工单列表响应（tickets/total 包装）。
 type MSPCustomerTicketsResponse struct {
-	Tickets []*MSPCustomerTicketItem `json:"tickets"`
-	Total   int                      `json:"total"`
+	Tickets []MSPCustomerTicketItem `json:"tickets"`
+	Total   int                     `json:"total"`
 }
 
 // ==================== MSP 上下文 DTO ====================

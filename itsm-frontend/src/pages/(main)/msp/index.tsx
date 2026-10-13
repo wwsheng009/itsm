@@ -119,7 +119,7 @@ export default function MSPDashboardPage() {
     if (!selectedCustomerId) return;
     try {
       await MSPService.assignTechnician(ticketId, selectedCustomerId);
-      message.success('技术员分配成功');
+      message.success('已指派给当前技术员（你）');
       loadCustomerTickets(selectedCustomerId);
     } catch (err: any) {
       message.error(err.message || '分配技术员失败');

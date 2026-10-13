@@ -2582,8 +2582,10 @@ func (s *TicketService) ensureAccessibleCustomerIDs(ctx context.Context, mspUser
 	return s.mspAccessValidator.ListAccessibleCustomerIDs(ctx, mspUserID)
 }
 
-// GetCustomerTicketsForMSP 获取 MSP 视角下的客户工单
-func (s *TicketService) GetCustomerTicketsForMSP(ctx context.Context, userID, customerTenantID int, status *string, page, pageSize int) ([]*ticket.Ticket, error) {
+// GetCustomerTicketsForMSP 获取 MSP 视角下的客户工单（camelCase DTO，含负责人显示名）。
+// 负责人解析：assignee 是 MSP 员工（home=provider 租户），不能按客户租户范围取名，
+// 按用户 ID 批量解析（users 为平台级 RLS 豁免表，ID 查询不引入跨租户数据泄露）。
+func (s *TicketService) GetCustomerTicketsForMSP(ctx context.Context, userID, customerTenantID int, status *string, page, pageSize int) ([]dto.MSPCustomerTicketItem, error) {
 	if s.client == nil {
 		return nil, fmt.Errorf("ent client not available for MSP query")
 	}
@@ -2605,11 +2607,47 @@ func (s *TicketService) GetCustomerTicketsForMSP(ctx context.Context, userID, cu
 	if err != nil {
 		return nil, fmt.Errorf("failed to get customer tickets for MSP: %w", err)
 	}
-	result := make([]*ticket.Ticket, len(ents))
-	for i, e := range ents {
-		result[i] = s.entToDomain(e)
+
+	assigneeIDs := make([]int, 0, len(ents))
+	seen := make(map[int]bool, len(ents))
+	for _, e := range ents {
+		if e.AssigneeID > 0 && !seen[e.AssigneeID] {
+			seen[e.AssigneeID] = true
+			assigneeIDs = append(assigneeIDs, e.AssigneeID)
+		}
 	}
-	return result, nil
+	assigneeNames := make(map[int]string, len(assigneeIDs))
+	if len(assigneeIDs) > 0 {
+		users, err := s.client.User.Query().Where(user.IDIn(assigneeIDs...)).All(ctx)
+		if err != nil {
+			return nil, fmt.Errorf("failed to resolve assignees for MSP tickets: %w", err)
+		}
+		for _, u := range users {
+			assigneeNames[u.ID] = u.Name
+		}
+	}
+
+	items := make([]dto.MSPCustomerTicketItem, 0, len(ents))
+	for _, e := range ents {
+		item := dto.MSPCustomerTicketItem{
+			ID:           e.ID,
+			TicketNumber: e.TicketNumber,
+			Title:        e.Title,
+			Status:       e.Status,
+			Priority:     e.Priority,
+			Type:         e.Type,
+			CreatedAt:    e.CreatedAt,
+			UpdatedAt:    e.UpdatedAt,
+			TenantID:     e.TenantID,
+		}
+		if e.AssigneeID > 0 {
+			assigneeID := e.AssigneeID
+			item.AssigneeID = &assigneeID
+			item.AssigneeName = assigneeNames[e.AssigneeID]
+		}
+		items = append(items, item)
+	}
+	return items, nil
 }
 
 // AssignMSPTechnician 为工单分配 MSP 技术员

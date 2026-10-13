@@ -57,3 +57,51 @@ func TestTicketService_MSPAccessGuard(t *testing.T) {
 		assert.Empty(t, reports)
 	})
 }
+
+// TestGetCustomerTicketsForMSP_ResolvesAssigneeName 锁定「分配技术员」可见性回归：
+// 负责人是 MSP 员工（home=provider 租户，工单在客户租户），列表必须按用户 ID 解析显示名；
+// 否则前端点「分配技术员」成功（toast）后，负责人列仍显示「未分配」。
+func TestGetCustomerTicketsForMSP_ResolvesAssigneeName(t *testing.T) {
+	client := enttest.Open(t, "sqlite3", testDSN())
+	defer client.Close()
+	ctx := context.Background()
+	svc := NewTicketServiceForTest(client, zap.NewNop().Sugar())
+
+	provider, err := client.Tenant.Create().
+		SetName("Provider-N").SetCode("prov-name").SetType("msp_provider").SetStatus("active").
+		Save(ctx)
+	require.NoError(t, err)
+	customer, err := client.Tenant.Create().
+		SetName("Customer-N").SetCode("cust-name").SetType("msp_customer").SetStatus("active").
+		SetMspProviderID(provider.ID).
+		Save(ctx)
+	require.NoError(t, err)
+	mspUser, err := client.User.Create().
+		SetUsername("msp-name").SetEmail("msp-name@example.com").SetName("MSP Name").
+		SetPasswordHash("hash").SetTenantID(provider.ID).SetMspRole("provider_agent").
+		Save(ctx)
+	require.NoError(t, err)
+	_, err = client.MSPAllocation.Create().
+		SetMspUserID(mspUser.ID).SetCustomerTenantID(customer.ID).SetProviderTenantID(provider.ID).
+		SetRole("primary").Save(ctx)
+	require.NoError(t, err)
+	_, err = client.Ticket.Create().
+		SetTicketNumber("MSP-T-NAME-1").
+		SetTitle("指派可见性回归").
+		SetDescription("用于验证负责人显示名回填").
+		SetType("incident").
+		SetPriority("medium").
+		SetStatus("open").
+		SetRequesterID(mspUser.ID).
+		SetAssigneeID(mspUser.ID).
+		SetTenantID(customer.ID).
+		Save(ctx)
+	require.NoError(t, err)
+
+	items, err := svc.GetCustomerTicketsForMSP(ctx, mspUser.ID, customer.ID, nil, 1, 10)
+	require.NoError(t, err)
+	require.Len(t, items, 1)
+	require.NotNil(t, items[0].AssigneeID)
+	assert.Equal(t, mspUser.ID, *items[0].AssigneeID)
+	assert.Equal(t, "MSP Name", items[0].AssigneeName, "跨租户负责人必须回填显示名")
+}
