@@ -1326,7 +1326,9 @@ func NewApplication() *Application {
 	configSecretBox := service.NewConfigSecretBoxFromEnv(sugar, cfg.JWT.Secret)
 	tenantConfigResolver := service.NewTenantConfigResolver(client, sugar)
 	var mailerFallback service.EmailConfig
-	if cfg.SMTP.Host != "" {
+	// 部署级回退仅在显式启用且主机有效时装配（config.yaml 默认 enabled:false + 占位主机，
+	// 不能把占位值当作可用的回退邮箱，否则未配置租户的邮件会打到 smtp.example.com）。
+	if cfg.SMTP.Enabled && cfg.SMTP.Host != "" {
 		mailerFallback = service.EmailConfig{
 			Host:     cfg.SMTP.Host,
 			Port:     cfg.SMTP.Port,

@@ -145,3 +145,24 @@ func TestMailerProvider_FailClosedOnUndecryptableSecret(t *testing.T) {
 	require.Error(t, err)
 	require.Contains(t, err.Error(), "SMTP 凭据不可用")
 }
+
+// 部署级占位主机（config.yaml 默认 smtp.example.com）必须视为未配置：
+// 否则未配置租户的邮件会被投递到假域名（238 演示环境实测回归）。
+func TestMailerProvider_PlaceholderFallbackDisabled(t *testing.T) {
+	t.Setenv("CONFIG_SECRET_KEY", strings.Repeat("78", 32))
+	t.Setenv("SERVER_ENV", "development")
+
+	client := enttest.Open(t, "sqlite3", testDSN())
+	defer client.Close()
+	ctx := context.Background()
+	logger := zaptest.NewLogger(t).Sugar()
+
+	resolver := NewTenantConfigResolver(client, logger)
+	secrets := NewConfigSecretBoxFromEnv(logger, "jwt-secret")
+	provider := NewMailerProvider(resolver, secrets, EmailConfig{
+		Host: "smtp.example.com", Port: 587, From: "noreply@example.com",
+	}, logger)
+
+	_, err := provider.ForTenant(ctx, 7)
+	require.ErrorIs(t, err, ErrMailNotConfigured)
+}

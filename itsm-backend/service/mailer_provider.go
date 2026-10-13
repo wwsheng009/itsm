@@ -39,6 +39,12 @@ type MailerProvider struct {
 
 // NewMailerProvider 创建按租户邮件服务工厂；fallback 为部署级 SMTP（Host=="" 表示无回退）。
 func NewMailerProvider(resolver *TenantConfigResolver, secrets *ConfigSecretBox, fallback EmailConfig, logger *zap.SugaredLogger) *MailerProvider {
+	// 防御：部署级占位主机（example.com 保留域名）视为未配置，避免未配置租户的邮件
+	// 被投递到假域名（历史上 config.yaml 默认 smtp.host=smtp.example.com 会触发该问题）。
+	if isPlaceholderSMTPHost(fallback.Host) {
+		logger.Warnw("deployment smtp host is a placeholder; fallback mailer disabled", "host", fallback.Host)
+		fallback.Host = ""
+	}
 	return &MailerProvider{
 		resolver: resolver,
 		secrets:  secrets,
@@ -144,7 +150,7 @@ func (p *MailerProvider) build(ctx context.Context, tenantID int) (*EmailService
 }
 
 func (p *MailerProvider) fallbackMailer() (*EmailService, error) {
-	if p.fallback.Host == "" {
+	if p.fallback.Host == "" || isPlaceholderSMTPHost(p.fallback.Host) {
 		return nil, ErrMailNotConfigured
 	}
 	return NewEmailService(p.fallback, p.logger), nil

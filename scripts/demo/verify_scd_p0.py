@@ -118,6 +118,10 @@ def me_id(client):
 
 def main():
     print("=== P0 SCD 验收 @ %s ===" % BASE)
+    # 清空 mock 日志，保证本轮断言只针对本次触发（幂等重跑）。
+    for mock in ("itsm-smtp-mock-a", "itsm-smtp-mock-b"):
+        remote("docker exec %s sh -c '> /tmp/mock_%s.log' || true" % (mock, mock[-1]))
+
     clients = {}
     for key, meta in TENANTS.items():
         client = Client(BASE)
@@ -157,25 +161,13 @@ def main():
         record("SCA3 save-then-read host [%s]" % key, host == meta["mock"], "host=%r" % host)
         record("SCA4 password masked [%s]" % key, pwd == "******", "value=%r" % pwd)
 
-    # ---------- SCA1: 触发邮件通知（A/B 各一封） ----------
-    markers = {}
+    # ---------- SCA1+SCA3: 触发邮件（找回密码 = 直连 EmailService 的租户解析路径） ----------
+    # 说明：工单通知 API 走 outbox → connector 投递（另一条链路），不经过 EmailService；
+    # 找回密码为直连发信路径，能验证「保存即生效 + 租户 SMTP 路由」。
     for key in ("mfg", "med"):
-        client = clients[key]
-        ticket = first_ticket(client)
-        uid = me_id(client)
-        if not ticket or not uid:
-            record("SCA1 trigger email [%s]" % key, False, "ticket=%s uid=%s" % (ticket, uid))
-            continue
-        body = {
-            "userIds": [uid],
-            "type": "ticket_assigned",
-            "channel": "email",
-            "content": "SCD P0 verification mail for tenant %s" % key,
-        }
-        resp = client.write("POST", "/api/v1/tickets/%s/notifications" % ticket.get("id"), body)
-        markers[key] = "ticket=%s" % ticket.get("id")
-        record("SCA1 trigger email [%s]" % key, resp.get("code") == 0,
-               "ticket=%s code=%s" % (ticket.get("id"), resp.get("code")))
+        meta = TENANTS[key]
+        resp = clients[key].write("POST", "/api/v1/auth/forgot-password", {"email": meta["user_email"]})
+        record("SCA1 trigger mail [%s]" % key, resp.get("code") == 0, "code=%s" % resp.get("code"))
 
     # ---------- SCA2: 租户 C 未配置（清空 smtpHost）→ 发信应告警跳过 ----------
     edu = clients["edu"]
@@ -187,16 +179,8 @@ def main():
                             "description": base.get("description") or ""})
     resp = batch_update(edu, edu_entries)
     record("SCA2 clear edu smtp", resp.get("code") == 0, "code=%s" % resp.get("code"))
-    edu_ticket = first_ticket(edu)
-    edu_uid = me_id(edu)
-    if edu_ticket and edu_uid:
-        resp = edu.write("POST", "/api/v1/tickets/%s/notifications" % edu_ticket.get("id"), {
-            "userIds": [edu_uid],
-            "type": "ticket_assigned",
-            "channel": "email",
-            "content": "SCD P0 edu no-smtp probe",
-        })
-        record("SCA2 edu trigger accepted", resp.get("code") == 0, "code=%s" % resp.get("code"))
+    resp = edu.write("POST", "/api/v1/auth/forgot-password", {"email": TENANTS["edu"]["user_email"]})
+    record("SCA2 edu trigger accepted", resp.get("code") == 0, "code=%s" % resp.get("code"))
 
     print("[info] waiting 6s for mail delivery ...")
     time.sleep(6)
@@ -207,10 +191,15 @@ def main():
         out = remote("docker exec %s sh -c 'cat /tmp/mock_%s.log 2>/dev/null || echo NO_MAIL_YET'" % (mock, mock[-1]))
         logs[key] = out
     a_from, b_from = TENANTS["mfg"]["from"], TENANTS["med"]["from"]
+    a_to, b_to = TENANTS["mfg"]["user_email"], TENANTS["med"]["user_email"]
+    edu_to = TENANTS["edu"]["user_email"]
     record("SCA1 mock-a got tenant A mail", a_from in logs["mfg"], "marker=%s" % a_from)
-    record("SCA1 mock-a NOT got tenant B mail", b_from not in logs["mfg"])
+    record("SCA1 mock-a To header [mfg]", a_to in logs["mfg"], "to=%s" % a_to)
+    record("SCA1 mock-a NOT got tenant B mail", b_from not in logs["mfg"] and b_to not in logs["mfg"])
     record("SCA1 mock-b got tenant B mail", b_from in logs["med"], "marker=%s" % b_from)
-    record("SCA1 mock-b NOT got tenant A mail", a_from not in logs["med"])
+    record("SCA1 mock-b To header [med]", b_to in logs["med"], "to=%s" % b_to)
+    record("SCA1 mock-b NOT got tenant A mail", a_from not in logs["med"] and a_to not in logs["med"])
+    record("SCA2 no mail for unconfigured tenant", edu_to not in logs["mfg"] and edu_to not in logs["med"])
 
     # ---------- SCA4 校验：数据库密文前缀 ----------
     sql = ("docker exec itsm-postgres-prod psql -U itsm -d itsm_demo -t -A -F'|' -c "
@@ -222,11 +211,13 @@ def main():
         parts = [p.strip() for p in line.split("|")]
         if len(parts) == 3 and parts[0].isdigit():
             rows[int(parts[0])] = (parts[1], parts[2])
-    record("SCA4 ciphertext v1: [mfg]", rows.get(3, ("", ""))[0] == "v1", "row=%s" % (rows.get(3),))
-    record("SCA4 ciphertext v1: [med]", rows.get(4, ("", ""))[0] == "v1", "row=%s" % (rows.get(4),))
+    record("SCA4 ciphertext v1: [mfg]", rows.get(3, ("", ""))[0].startswith("v1:"), "row=%s" % (rows.get(3),))
+    record("SCA4 ciphertext v1: [med]", rows.get(4, ("", ""))[0].startswith("v1:"), "row=%s" % (rows.get(4),))
 
     # ---------- SCA2 校验：后端日志出现告警跳过 ----------
-    log_out = remote("docker logs --since 15m itsm-backend-demo 2>&1 | grep -E 'mailer unavailable' | tail -4 || true")
+    log_out = remote("docker exec itsm-backend-demo sh -c \"grep -h 'password reset email skipped' /app/logs/*.log 2>/dev/null | tail -4\" || true")
+    if "mailer unavailable" not in log_out:
+        log_out = remote("docker logs --since 20m itsm-backend-demo 2>&1 | grep -E 'password reset email skipped' | tail -4 || true")
     record("SCA2 backend warn on missing smtp", "mailer unavailable" in log_out, log_out.strip()[:200])
 
     # ---------- 汇总 ----------
