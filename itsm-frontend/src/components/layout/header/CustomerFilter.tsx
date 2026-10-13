@@ -333,7 +333,7 @@ export const CustomerFilter: React.FC<CustomerFilterProps> = ({ className }) => 
                 <Tooltip
                   title={
                     counts
-                      ? `待处理 ${counts.open} · 超SLA ${counts.slaRisk} · 未指派 ${counts.unassigned}`
+                      ? `未关闭 ${counts.open} · 超期 ${counts.slaRisk} · 未指派 ${counts.unassigned}`
                       : '暂无计数'
                   }
                 >
@@ -342,11 +342,11 @@ export const CustomerFilter: React.FC<CustomerFilterProps> = ({ className }) => 
                     style={{ display: 'inline-flex', gap: 4, flexShrink: 0 }}
                   >
                     <Tag color="blue" style={{ margin: 0 }}>
-                      待处理 {counts?.open ?? 0}
+                      未关闭 {counts?.open ?? 0}
                     </Tag>
                     {(counts?.slaRisk ?? 0) > 0 && (
                       <Tag color="red" style={{ margin: 0 }}>
-                        超SLA {counts?.slaRisk}
+                        超期 {counts?.slaRisk}
                       </Tag>
                     )}
                   </span>
@@ -384,7 +384,7 @@ export const CustomerFilter: React.FC<CustomerFilterProps> = ({ className }) => 
         }}
       >
         已选 {selected === 'all' ? '全部客户' : `${selectedIds.length} 个客户`}
-        ；徽标为未关闭工单数（待处理/超SLA）。
+        ；徽标为未关闭工单数（未解决/未关闭/未取消，含挂起与处理中）。
       </div>
     </div>
   );

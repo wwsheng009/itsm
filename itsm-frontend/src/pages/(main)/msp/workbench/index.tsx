@@ -69,6 +69,7 @@ import SlaRiskBoard from './components/SlaRiskBoard';
 import CustomerUsageBoard from './components/CustomerUsageBoard';
 import CrossTenantBoard, { type CrossTenantBoardKind } from './components/CrossTenantBoard';
 import TicketCommentTimeline from '@/components/business/TicketCommentTimeline';
+import { useWorkbenchSummary } from './hooks/useWorkbenchSummary';
 
 const PAGE_SIZE = 50;
 
@@ -197,6 +198,25 @@ export default function MSPWorkbenchPage() {
     filters.customerTenantIdsParam.toLowerCase() === 'all'
       ? '全部客户'
       : `${parseCustomerTenantIds(filters.customerTenantIdsParam).length} 个客户`;
+
+  // 「当前范围摘要」：与顶栏客户徽标同源（summary；未关闭口径），
+  // 与下方列表（全部状态）并列展示，消除两处数字口径不同带来的误读（2026-10-13）。
+  const { data: summaryData, refetch: refetchSummary } = useWorkbenchSummary();
+  const scopeTotals = useMemo(() => {
+    const scope = parseCustomerTenantIds(filters.customerTenantIdsParam);
+    const customers = summaryData?.customers ?? [];
+    const scoped = scope === 'all' ? customers : customers.filter(c => scope.includes(c.customerTenantId));
+    return scoped.reduce(
+      (acc, customer) => ({
+        open: acc.open + (customer.open || 0),
+        slaRisk: acc.slaRisk + (customer.slaRisk || 0),
+        slaDueSoon: acc.slaDueSoon + (customer.slaDueSoon || 0),
+        unassigned: acc.unassigned + (customer.unassigned || 0),
+      }),
+      { open: 0, slaRisk: 0, slaDueSoon: 0, unassigned: 0 }
+    );
+  }, [summaryData, filters.customerTenantIdsParam]);
+  const hasScopeSummary = (summaryData?.customers?.length ?? 0) > 0;
 
   // 视图模式（P1 分组视图）：URL 持久化（view=group），本地 state 驱动渲染。
   const [viewMode, setViewMode] = useState<'flat' | 'group'>(
@@ -877,7 +897,10 @@ export default function MSPWorkbenchPage() {
           </Link>
           <Button
             icon={<RefreshCw size={14} />}
-            onClick={() => void loadFirstPage()}
+            onClick={() => {
+              void loadFirstPage();
+              void refetchSummary();
+            }}
             loading={loading}
             data-testid="workbench-refresh"
           >
@@ -901,6 +924,26 @@ export default function MSPWorkbenchPage() {
 
       {board === 'tickets' ? (
         <>
+      {hasScopeSummary && (
+        <Card size="small" style={{ marginBottom: 16 }} data-testid="workbench-scope-summary">
+          <Space wrap size={10}>
+            <span style={{ fontWeight: 600 }}>当前范围摘要</span>
+            <Tag color="blue" style={{ margin: 0 }}>
+              未关闭 {scopeTotals.open}
+            </Tag>
+            <Tag color="red" style={{ margin: 0 }}>
+              超期 {scopeTotals.slaRisk}
+            </Tag>
+            <Tag color="orange" style={{ margin: 0 }}>
+              临近 {scopeTotals.slaDueSoon}
+            </Tag>
+            <Tag style={{ margin: 0 }}>未指派 {scopeTotals.unassigned}</Tag>
+            <Typography.Text type="secondary" style={{ fontSize: 12 }}>
+              摘要与顶栏客户徽标同源（未关闭＝未解决/未关闭/未取消，含挂起与处理中）；下方列表含全部状态
+            </Typography.Text>
+          </Space>
+        </Card>
+      )}
       <Card size="small" style={{ marginBottom: 16 }}>
         <Space wrap size={8}>
           <Input.Search

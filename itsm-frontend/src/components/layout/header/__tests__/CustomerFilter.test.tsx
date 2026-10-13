@@ -96,8 +96,9 @@ describe('CustomerFilter', () => {
     expect(within(panel).getByText('Acme Corp')).toBeInTheDocument();
     expect(within(panel).getByText('Beta LLC')).toBeInTheDocument();
     expect(within(panel).getByText('共 2 个可访问客户')).toBeInTheDocument();
-    expect(screen.getByTestId('customer-counts-1')).toHaveTextContent('待处理 3');
-    expect(screen.getByTestId('customer-counts-2')).toHaveTextContent('待处理 5');
+    // 口径文案 2026-10-13 收口：「待处理」→「未关闭」（=未解决/未关闭/未取消，含挂起与处理中）
+    expect(screen.getByTestId('customer-counts-1')).toHaveTextContent('未关闭 3');
+    expect(screen.getByTestId('customer-counts-2')).toHaveTextContent('未关闭 5');
     // 全部客户默认勾选
     const allRow = screen.getByTestId('customer-filter-all').closest('label')!;
     expect(within(allRow).getByRole('checkbox')).toBeChecked();
