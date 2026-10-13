@@ -30,8 +30,10 @@
 | 客户·华辰智能制造 | `demo.mfg.agent` | agent（IT 服务台） |
 | 客户·华辰智能制造 | `demo.mfg.lead` | manager（生产部经理 / 审批人） |
 | 客户·华辰智能制造 | `demo.mfg.user` | end_user（车间主管） |
-| 客户·仁和医疗集团 | `demo.med.admin` / `demo.med.agent` / `demo.med.lead` / `demo.med.user` | 同上（信息科/服务台/科室主任/医生） |
-| 客户·云帆教育科技 | `demo.edu.admin` / `demo.edu.agent` / `demo.edu.lead` / `demo.edu.user` | 同上（信息中心/支持/教务主任/教师） |
+| 客户·华辰智能制造 | `demo.mfg.itadmin` | it_admin（IT 主管，L2 审批） |
+| 客户·华辰智能制造 | `demo.mfg.secadmin` | security_admin（安全管理员，L3 审批） |
+| 客户·仁和医疗集团 | `demo.med.{admin,agent,lead,user,itadmin,secadmin}` | 同上（信息科/服务台/科室主任/医生/IT 主管/安全） |
+| 客户·云帆教育科技 | `demo.edu.{admin,agent,lead,user,itadmin,secadmin}` | 同上（信息中心/支持/教务主任/教师/IT 主管/安全） |
 
 ## 3. 数据集清单
 
@@ -73,6 +75,24 @@
 - 「客户用量」看板按客户展示成员/未关闭/新增；
 - 工作台行内可对 MSP 托管单执行 **回复 / 改状态 / 指派**（演示数据中已产生真实协同记录）。
 
+**服务请求与审批（每客户租户）**
+
+- 服务目录：每租户 3 个 [DEMO] 目录项（账号开通 / 网络与访问 / 终端支持等，需审批）；
+- 服务请求：每租户 3 张，覆盖审批链路不同阶段：
+  - 「待审批」（`submitted`，L1 经理待批）；
+  - 「经理/科室主任/教务已批」（`manager_approved`）；
+  - 「两级已批」（`it_approved`，教育租户样本）。
+- **审批中心待办**：以 `demo.<tenant>.lead`（manager）登录 → 「审批中心」可见 3 条待领取的
+  工单流程任务（ticket_general_flow，含批准/拒绝入口），演示「我的待办」体验。
+- 角色配套：每租户新增 `itadmin`（it_admin，L2）与 `secadmin`（security_admin，L3）账号，
+  可按层级演示审批权限差异。
+
+**SLA 超时样本（可选，仅演示库）**
+
+- 工单创建即写入 SLA 响应/解决截止时间（实测 46/46 覆盖）；
+- 「SLA 监控 / 超时工单」需要逾期样本，正常 API 无法回填历史时间 → 提供一次性脚本
+  `scripts/demo/sla_backdate.sql`（每租户 2 张未关闭 [DEMO] 工单回填为已超时，幂等）。
+
 ## 4. 重新生成 / 重置
 
 **幂等重跑（补齐缺口，不产生重复数据）**：
@@ -81,12 +101,19 @@
 python scripts/demo/seed_demo_dataset.py \
   --base-url http://172.18.3.238:8089 \
   --admin-password 'Demo@2026!Admin'
-# 分阶段：--stages tenants,users,allocations,masterdata,topology,records,domain,cross,verify
+# 分阶段：--stages tenants,users,allocations,masterdata,topology,records,domain,service_requests,cross,verify
 ```
 
-> 实测：全阶段（9 个阶段）重复执行 `created=0 / existing=137 / failed=0`；
+> 实测：全阶段（10 个阶段）重复执行 `created=0 / existing=161 / failed=0`；
 > 幂等策略＝按租户 code、用户名去重；业务单据按标题匹配，
 > 状态与规格不符时自动删除重建（自愈），跨租户回复按标记去重。
+
+**可选补充（SLA 超时 / 服务请求标题校正，仅演示库执行一次）**：
+
+```bash
+docker exec -i itsm-postgres-prod psql -U itsm -d itsm_demo < scripts/demo/sla_backdate.sql
+docker exec -i itsm-postgres-prod psql -U itsm -d itsm_demo < scripts/demo/fix_sr_titles.sql
+```
 
 **整库重建（演示环境重置）**：
 
@@ -104,6 +131,11 @@ python scripts/demo/seed_demo_dataset.py --base-url http://172.18.3.238:8089 --a
 
 - 平台侧用户治理接口在本环境返回 `TENANT_USER_ADMIN_DISABLED`（功能未启用），
   演示账号的停用请通过「口令轮换」或重建演示库处理；
+- **服务请求层级审批的 BPMN 桥接限制（已登记）**：部分服务请求在推进到 IT/安全层级时
+  返回 500「同步流程审批任务失败」（业务侧角色满足，但流程任务操作人鉴权不匹配）；
+  同一实例重试与管理员代批均失败。演示数据因此保留在可推进到的最深层级
+  （L1 已批 / L2 已批样本可用），标题已与真实状态对齐（脚本 `fix_sr_titles.sql`）；
+- SLA「已超时」样本依赖一次性回填脚本（见上），重建演示库后需重新执行；
 - 演示账号口令统一且公开，仅用于演示环境，**请勿在真实环境复用**；
 - AI 能力取决于 `.env.demo` 是否配置 LLM 凭据，未配置时自动降级，不影响主链路演示；
 - 每次重建若使用最新镜像，请确保镜像已包含

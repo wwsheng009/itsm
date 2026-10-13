@@ -232,6 +232,10 @@ def build_users() -> Dict[str, List[UserSpec]]:
                      "manager", "", "生产部经理"),
             UserSpec("user", "demo.mfg.user", "刘洋（制造-员工）",
                      "end_user", "", "车间主管"),
+            UserSpec("itadmin", "demo.mfg.itadmin", "吴迪（制造-IT 主管）",
+                     "it_admin", "", "IT 主管（L2 审批）"),
+            UserSpec("secadmin", "demo.mfg.secadmin", "郑安（制造-安全管理员）",
+                     "security_admin", "", "安全管理员（L3 审批）"),
         ],
         "med": [
             UserSpec("admin", "demo.med.admin", "周敏（医疗-管理员）",
@@ -242,6 +246,10 @@ def build_users() -> Dict[str, List[UserSpec]]:
                      "manager", "", "门诊科室主任"),
             UserSpec("user", "demo.med.user", "李晨（医疗-医生）",
                      "end_user", "", "主治医师"),
+            UserSpec("itadmin", "demo.med.itadmin", "何静（医疗-IT 主管）",
+                     "it_admin", "", "信息科主管（L2 审批）"),
+            UserSpec("secadmin", "demo.med.secadmin", "范安（医疗-安全管理员）",
+                     "security_admin", "", "安全管理员（L3 审批）"),
         ],
         "edu": [
             UserSpec("admin", "demo.edu.admin", "黄鹤（教育-管理员）",
@@ -252,6 +260,10 @@ def build_users() -> Dict[str, List[UserSpec]]:
                      "manager", "", "教务主任"),
             UserSpec("user", "demo.edu.user", "林小满（教育-教师）",
                      "end_user", "", "任课教师"),
+            UserSpec("itadmin", "demo.edu.itadmin", "宋岩（教育-IT 主管）",
+                     "it_admin", "", "信息中心主管（L2 审批）"),
+            UserSpec("secadmin", "demo.edu.secadmin", "袁安（教育-安全管理员）",
+                     "security_admin", "", "安全管理员（L3 审批）"),
         ],
     }
     # 补默认邮箱
@@ -485,8 +497,8 @@ def parse_args(argv: Optional[List[str]] = None) -> argparse.Namespace:
     p.add_argument("--admin-password", default=os.environ.get("DEMO_ADMIN_PASSWORD", ""))
     p.add_argument("--user-password", default=os.environ.get("DEMO_USER_PASSWORD", DEMO_USER_PASSWORD_DEFAULT))
     p.add_argument("--stages",
-                   default="tenants,users,allocations,masterdata,topology,records,domain,cross,verify",
-                   help="逗号分隔：tenants,users,allocations,masterdata,topology,records,domain,cross,verify")
+                   default="tenants,users,allocations,masterdata,topology,records,domain,service_requests,cross,verify",
+                   help="逗号分隔：tenants,users,allocations,masterdata,topology,records,domain,service_requests,cross,verify")
     p.add_argument("--dry-run", action="store_true")
     p.add_argument("--verbose", action="store_true")
     p.add_argument("--report", default=os.path.join(os.path.dirname(os.path.abspath(__file__)),
@@ -1110,12 +1122,14 @@ def stage_verify(ctx: Ctx) -> None:
         inc_n = _count("/api/v1/incidents", ("items", "incidents", "list"))
         prb_n = _count("/api/v1/problems", ("items", "problems", "list"))
         chg_n = _count("/api/v1/changes", ("items", "changes", "list"))
+        sr_n = _count("/api/v1/service-requests", ("requests", "items", "list"))
         row = (f"| {spec.name} | {len(tk)} | {len(mine)} | "
                f"{', '.join(f'{k}×{v}' for k, v in sorted(by_status.items())) or '-'} | "
-               f"{len(kb)} | {len(cis)} | {inc_n} | {prb_n} | {chg_n} |")
+               f"{len(kb)} | {len(cis)} | {inc_n} | {prb_n} | {chg_n} | {sr_n} |")
         rows.append(row)
         ctx.c.note("verify", f"{spec.code}: tickets={len(tk)} my={len(mine)} by_status={by_status} "
                              f"kb={len(kb)} cis={len(cis)} incidents={inc_n} problems={prb_n} changes={chg_n} "
+                             f"service_requests={sr_n} "
                              f"incident_states=[{_status_dist('/api/v1/incidents', ('items', 'incidents', 'list'))}] "
                              f"problem_states=[{_status_dist('/api/v1/problems', ('items', 'problems', 'list'))}] "
                              f"change_states=[{_status_dist('/api/v1/changes', ('items', 'changes', 'list'))}]")
@@ -1134,8 +1148,8 @@ def stage_verify(ctx: Ctx) -> None:
     except Exception as e:  # noqa: BLE001
         ctx.c.note("fail", f"服务商视角验证失败：{e}")
 
-    print("\n| 租户 | 工单(服务台视角) | 我的工单(end_user) | 工单状态分布 | 知识 | CI | 事件 | 问题 | 变更 |")
-    print("|---|---|---|---|---|---|---|---|---|")
+    print("\n| 租户 | 工单(服务台视角) | 我的工单(end_user) | 工单状态分布 | 知识 | CI | 事件 | 问题 | 变更 | 服务请求 |")
+    print("|---|---|---|---|---|---|---|---|---|---|")
     for r in rows:
         print(r)
 
@@ -1585,6 +1599,220 @@ def stage_domain(ctx: Ctx) -> None:
 STAGES.update({
     "topology": stage_topology,
     "domain": stage_domain,
+})
+
+
+# =====================================================================
+# 12. 服务请求与审批（第三波）：目录项 + 三级审批样本
+# =====================================================================
+
+CATALOG_SPECS: Dict[str, List[dict]] = {
+    "mfg": [
+        {"name": "[DEMO] 账号开通申请", "category": "账号与权限", "serviceType": "custom",
+         "description": "新员工/转岗账号开通（域账号、邮箱、业务系统）。", "deliveryTime": "1",
+         "requiresApproval": True, "approvalLevel": 1},
+        {"name": "[DEMO] VPN 权限申请", "category": "网络与访问", "serviceType": "network",
+         "description": "开通/变更 VPN 接入权限（含源地址白名单）。", "deliveryTime": "2",
+         "requiresApproval": True, "approvalLevel": 1},
+        {"name": "[DEMO] 软件安装申请", "category": "终端支持", "serviceType": "custom",
+         "description": "办公/工程软件安装与授权申请。", "deliveryTime": "1",
+         "requiresApproval": True, "approvalLevel": 1},
+    ],
+    "med": [
+        {"name": "[DEMO] 账号开通申请", "category": "账号与权限", "serviceType": "custom",
+         "description": "医护/技师账号开通与权限分级申请。", "deliveryTime": "1",
+         "requiresApproval": True, "approvalLevel": 1},
+        {"name": "[DEMO] 医疗设备入网申请", "category": "网络与访问", "serviceType": "network",
+         "description": "新购医疗设备登记与专网接入。", "deliveryTime": "3",
+         "requiresApproval": True, "approvalLevel": 1},
+        {"name": "[DEMO] 数据导出授权申请", "category": "数据与合规", "serviceType": "security",
+         "description": "临床/运营数据导出授权（含脱敏要求）。", "deliveryTime": "2",
+         "requiresApproval": True, "approvalLevel": 1},
+    ],
+    "edu": [
+        {"name": "[DEMO] 账号开通申请", "category": "账号与权限", "serviceType": "custom",
+         "description": "教师/学生账号开通与教务系统权限。", "deliveryTime": "1",
+         "requiresApproval": True, "approvalLevel": 1},
+        {"name": "[DEMO] 教室设备借用申请", "category": "终端支持", "serviceType": "custom",
+         "description": "投影仪/笔记本/录播设备借用。", "deliveryTime": "1",
+         "requiresApproval": True, "approvalLevel": 1},
+        {"name": "[DEMO] 校园网特殊端口申请", "category": "网络与访问", "serviceType": "network",
+         "description": "教学/科研场景的端口与带宽策略申请。", "deliveryTime": "2",
+         "requiresApproval": True, "approvalLevel": 1},
+    ],
+}
+
+# approve 列表：按顺序由对应岗位完成审批（manager/it_admin/security_admin 三级）
+SR_SPECS: Dict[str, List[dict]] = {
+    "mfg": [
+        {"key": "sr_pending", "title": "[DEMO] 生产部账号开通申请（待审批）",
+         "catalog": "[DEMO] 账号开通申请", "requester": "user", "approve": []},
+        {"key": "sr_l1", "title": "[DEMO] VPN 权限申请（经理已批）",
+         "catalog": "[DEMO] VPN 权限申请", "requester": "user", "approve": ["lead"]},
+        {"key": "sr_full", "title": "[DEMO] 软件安装申请（两级已批）",
+         "legacy": "[DEMO] 软件安装申请（三级已批）",
+         "catalog": "[DEMO] 软件安装申请", "requester": "agent", "approve": ["lead", "itadmin", "secadmin"]},
+    ],
+    "med": [
+        {"key": "sr_pending", "title": "[DEMO] 检验科账号开通申请（待审批）",
+         "catalog": "[DEMO] 账号开通申请", "requester": "user", "approve": []},
+        {"key": "sr_l1", "title": "[DEMO] 监护仪入网申请（科室主任已批）",
+         "catalog": "[DEMO] 医疗设备入网申请", "requester": "user", "approve": ["lead"]},
+        {"key": "sr_full", "title": "[DEMO] 数据导出授权申请（两级已批）",
+         "legacy": "[DEMO] 数据导出授权申请（三级已批）",
+         "catalog": "[DEMO] 数据导出授权申请", "requester": "agent", "approve": ["lead", "itadmin", "secadmin"]},
+    ],
+    "edu": [
+        {"key": "sr_pending", "title": "[DEMO] 新教师账号开通申请（待审批）",
+         "catalog": "[DEMO] 账号开通申请", "requester": "user", "approve": []},
+        {"key": "sr_l1", "title": "[DEMO] 教室设备借用申请（教务已批）",
+         "catalog": "[DEMO] 教室设备借用申请", "requester": "user", "approve": ["lead"]},
+        {"key": "sr_full", "title": "[DEMO] 校园网端口申请（两级已批）",
+         "legacy": "[DEMO] 校园网端口申请（三级已批）",
+         "catalog": "[DEMO] 校园网特殊端口申请", "requester": "agent", "approve": ["lead", "itadmin", "secadmin"]},
+    ],
+}
+
+# 岗位 → 审批步骤标签
+STEP_BY_UKER = {"lead": "manager", "itadmin": "it", "secadmin": "security"}
+
+
+def stage_service_requests(ctx: Ctx) -> None:
+    ctx.log("== 阶段 5c：服务请求与三级审批 ==")
+    resolve_tenant_ids(ctx)
+    for spec in TENANTS:
+        if spec.type != "msp_customer":
+            continue
+        admin = session_as(ctx, spec.key, "admin")
+
+        # --- 目录项（客户租户默认没有目录项，按需创建） ---
+        try:
+            cats = extract_list(admin.get("/api/v1/service-catalogs?page=1&size=100"),
+                                ("catalogs", "items", "list"))
+        except ApiError:
+            cats = []
+        cat_id_by_name = {str(c.get("name")): int(c.get("id")) for c in cats if isinstance(c, dict) and c.get("id")}
+        for item in CATALOG_SPECS.get(spec.key, []):
+            if item["name"] in cat_id_by_name:
+                ctx.c.existing += 1
+                continue
+            if ctx.dry_run:
+                ctx.c.note("dry-run", f"将创建目录项《{item['name']}》@{spec.code}")
+                continue
+            try:
+                created = admin.write("POST", "/api/v1/service-catalogs", {
+                    "name": item["name"], "category": item["category"],
+                    "description": item.get("description", ""),
+                    "serviceType": item.get("serviceType", "custom"),
+                    "deliveryTime": item.get("deliveryTime", "1 个工作日"),
+                    "unit": "次",
+                    "requiresApproval": item.get("requiresApproval", True),
+                    "approvalLevel": item.get("approvalLevel", 1),
+                })
+                cid = int(((created or {}).get("id")) or ((created or {}).get("data") or {}).get("id") or 0)
+                if cid:
+                    cat_id_by_name[item["name"]] = cid
+                ctx.c.created += 1
+                ctx.c.note("created", f"目录项《{item['name']}》@{spec.code} id={cid}")
+            except ApiError as e:
+                ctx.c.note("warn", f"{spec.code} 目录项《{item['name']}》失败：{str(e.body)[:140]}")
+
+        # --- 服务请求 + 审批进度 ---
+        requesters = {"user": session_as(ctx, spec.key, "user"),
+                      "agent": session_as(ctx, spec.key, "agent"),
+                      "lead": session_as(ctx, spec.key, "lead")}
+        approvers = {u: session_as(ctx, spec.key, u) for u in STEP_BY_UKER}
+        for sr in SR_SPECS.get(spec.key, []):
+            req_cli = requesters.get(sr.get("requester", "user"), requesters["user"])
+            existing = None
+            if not ctx.dry_run:
+                try:
+                    rows = extract_list(req_cli.get("/api/v1/service-requests?page=1&size=100"),
+                                        ("requests", "items", "list"))
+                except ApiError:
+                    rows = []
+                for r in rows:
+                    if isinstance(r, dict) and r.get("title") == sr["title"]:
+                        existing = r
+                        break
+                # 历史标题（规格重命名后的旧数据）：优先原地改名；不可编辑（已审批）时删除重建，
+                # 保持演示数据标题与真实状态一致。
+                if existing is None and sr.get("legacy"):
+                    for r in rows:
+                        if isinstance(r, dict) and r.get("title") == sr["legacy"]:
+                            rid_old = int(r.get("id") or 0)
+                            renamed = False
+                            try:
+                                admin.write("PUT", f"/api/v1/service-requests/{rid_old}",
+                                            {"title": sr["title"]})
+                                ctx.c.note("repair", f"服务请求更名 →《{sr['title']}》(id={rid_old})")
+                                renamed = True
+                            except ApiError as e:
+                                if rid_old:
+                                    try:
+                                        admin.write("DELETE", f"/api/v1/service-requests/{rid_old}", None)
+                                        ctx.c.note("repair", f"删除旧标题服务请求 id={rid_old}（按新标题重建）")
+                                    except ApiError as e2:
+                                        ctx.c.note("warn", f"旧标题服务请求处置失败：{str(e2.body)[:120]}")
+                                        existing = r
+                                else:
+                                    existing = r
+                            if renamed:
+                                existing = r
+                            break
+            if existing is None and not ctx.dry_run:
+                cid = cat_id_by_name.get(sr["catalog"])
+                if not cid:
+                    ctx.c.note("warn", f"{spec.code}:{sr['key']} 目录项缺失，跳过建单")
+                    continue
+                try:
+                    created = req_cli.write("POST", "/api/v1/service-requests", {
+                        "catalogId": cid, "title": sr["title"],
+                        "reason": f"{sr['title']}（演示数据集：服务请求与三级审批链路）。",
+                        "dataClassification": "internal",
+                        "complianceAck": True,
+                    })
+                    rid = int(((created or {}).get("id")) or ((created or {}).get("data") or {}).get("id") or 0)
+                    ctx.c.created += 1
+                    ctx.c.note("created", f"服务请求《{sr['title']}》@{spec.code} id={rid}")
+                    existing = {"id": rid}
+                except ApiError as e:
+                    ctx.c.note("warn", f"{spec.code}:{sr['key']} 建单失败：{str(e.body)[:140]}")
+                    continue
+            elif existing is not None:
+                ctx.c.existing += 1
+
+            rid = int(existing.get("id") or 0)
+            if not rid or ctx.dry_run:
+                continue
+            # 审批推进（按规格逐级审批；已审批级别自动跳过）
+            try:
+                apps = extract_list(req_cli.get(f"/api/v1/service-requests/{rid}/approvals"),
+                                    ("approvals", "items", "list"))
+            except ApiError:
+                apps = []
+            pending_by_step = {str(a.get("step")): a for a in apps
+                               if isinstance(a, dict) and str(a.get("status")) == "pending"}
+            for ukey in sr.get("approve", []):
+                step = STEP_BY_UKER.get(ukey)
+                if step not in pending_by_step:
+                    continue  # 已审批或不存在
+                for attempt in (1, 2):
+                    try:
+                        approvers[ukey].write("POST", f"/api/v1/service-requests/{rid}/approval",
+                                              {"action": "approve", "comment": "演示数据：审批通过。"})
+                        ctx.c.note("created", f"审批通过 {ukey}→{step} @{sr['title']}")
+                        break
+                    except ApiError as e:
+                        body = str(e.body)
+                        if attempt == 1 and e.status >= 500:
+                            time.sleep(2)  # BPMN 任务桥接偶发失败：退避重试一次
+                            continue
+                        ctx.c.note("warn", f"{spec.code}:{sr['key']} 审批（{ukey}）失败：{body[:140]}")
+
+
+STAGES.update({
+    "service_requests": stage_service_requests,
 })
 
 
