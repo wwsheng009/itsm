@@ -43,9 +43,15 @@ export const ADMIN_AREA_PERMISSIONS: string[] = [
   'service_catalog:write',
 ];
 
-/** MSP 区（/msp/*）区域守卫权限集。 */
+/**
+ * MSP 区（/msp/*）区域守卫权限集（数据面操作码，2026-10-13 收口）。
+ *
+ * 语义：能进 /msp 区域 = 至少能消费该区域某个数据面（工作台/客户/分配/报表）。
+ * 注意**不含** `msp:read`：该码存在于客户租户角色基线（服务端 /msp/status 判其为
+ * 「非MSP用户」），只放行它会让客户进入必然 403 的 MSP 区域（页内错误态）；
+ * 数据面端点仍由后端 MSPMiddleware（IsMSP = 租户类型 + msp_role）最终裁决。
+ */
 export const MSP_AREA_PERMISSIONS: string[] = [
-  'msp:read',
   'msp_ticket:read',
   'msp_customer:read',
   'msp_allocation:read',
