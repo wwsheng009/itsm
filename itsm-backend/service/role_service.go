@@ -397,6 +397,52 @@ func IsPlatformGovernedPermissionResource(resource string) bool {
 	return isPlatformGovernedPermissionResource(resource)
 }
 
+// mspCrossTenantPermissionResources 跨租户 MSP 数据面资源族（客户租户不下发；单一源）。
+//
+// 与 platformGovernedPermissionResources 同机制、不同语义：
+//   - platformGoverned：平台资产（system/tenant/mcp）——任何非平台根租户都不下发；
+//   - mspCrossTenant：跨租户服务商数据面（工作台/客户/分配/报表）——仅 msp_provider
+//     租户可持有。客户租户没有任何合法消费面：后端 IsMSP 判定 = home tenant 为
+//     provider + msp_role（middleware/msp_middleware.go），fail-closed；下发只会造成
+//     「必然 403 的入口可见」（2026-10-13 客户可见性缺陷根因）。
+//
+// 资源族与 router/msp_routes.go 的 RequireMSPPermission(resource, …) 一一对应；
+// router/msp_resource_scope_guard_test.go 锁定一致性——新增 msp_* 资源必须在此登记，
+// 否则 CI 红（防「新资源漏剥离」的 fail-open）。
+//
+// 新增/调整家族必须先完成评估并更新《新增角色/权限/路由评审清单》§2.2，再改此处。
+var mspCrossTenantPermissionResources = map[string]struct{}{
+	"msp_ticket":     {},
+	"msp_customer":   {},
+	"msp_allocation": {},
+	"msp_report":     {},
+}
+
+// mspAreaPermissionResources MSP 区域可见性资源族：允许下发客户租户（仅承载导航/入口
+// 可见性；端点仍被 MSPMiddleware 的 IsMSP 拦截）。与数据面资源分表登记，供路由守卫
+// 测试做「路由资源必须已分类」的完整性校验。
+var mspAreaPermissionResources = map[string]struct{}{
+	"msp": {},
+}
+
+// isMSPCrossTenantPermissionResource 跨租户 MSP 数据面资源判定。
+func isMSPCrossTenantPermissionResource(resource string) bool {
+	_, crossTenant := mspCrossTenantPermissionResources[strings.TrimSpace(resource)]
+	return crossTenant
+}
+
+// IsMSPCrossTenantPermissionResource 导出包装：供开通克隆链（pkg/seeder tenant_provisioner）
+// 与路由守卫测试复用单一源，避免前缀副本漂移。
+func IsMSPCrossTenantPermissionResource(resource string) bool {
+	return isMSPCrossTenantPermissionResource(resource)
+}
+
+// IsMSPAreaPermissionResource MSP 区域可见性资源判定（见 mspAreaPermissionResources）。
+func IsMSPAreaPermissionResource(resource string) bool {
+	_, area := mspAreaPermissionResources[strings.TrimSpace(resource)]
+	return area
+}
+
 // isNonAssignablePermission 非平台根不可分配（通配 + 平台治理家族）——与写面护栏同口径，
 // 供权限目录 assignable 标注使用（IP-P2-7 收口补丁 8 / R5）。
 func isNonAssignablePermission(resource, action string) bool {

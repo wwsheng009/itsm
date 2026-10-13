@@ -71,7 +71,7 @@ func (s *Seeder) ProvisionTenant(ctx context.Context, tenantID int, templateVers
 	defer tx.Rollback()
 	c := tx.Client()
 
-	if err := cloneTenantBaseline(ctx, c, source.ID, tenantID); err != nil {
+	if err := cloneTenantBaseline(ctx, c, source.ID, tenantID, customerScope); err != nil {
 		return err
 	}
 	if customerScope {
@@ -125,7 +125,9 @@ func chunkSlice[T any](items []T, size int) [][]T {
 
 // cloneTenantBaseline 克隆租户 RBAC 与组织骨架：角色、权限、角色权限绑定、菜单、审批组。
 // 全部走「批量加载目标 + 内存差集 + 批量写入」；已存在记录跳过，保留目标租户自定义。
-func cloneTenantBaseline(ctx context.Context, c *ent.Client, sourceID, tenantID int) error {
+// customerScope=true（客户类型租户）时，跨租户 MSP 数据面资源授权从源头跳过不下发
+// （单一源 service.IsMSPCrossTenantPermissionResource；与 validateTenantClone 同口径）。
+func cloneTenantBaseline(ctx context.Context, c *ent.Client, sourceID, tenantID int, customerScope bool) error {
 	sourceRoles, err := c.Role.Query().Where(role.TenantIDEQ(sourceID)).All(ctx)
 	if err != nil {
 		return err
@@ -150,7 +152,7 @@ func cloneTenantBaseline(ctx context.Context, c *ent.Client, sourceID, tenantID 
 		return err
 	}
 
-	if err := cloneRolePermissions(ctx, c, sourceID, tenantID, sourceRoles, sourcePermissions, targetRoleByCode, targetPermissionByCode); err != nil {
+	if err := cloneRolePermissions(ctx, c, sourceID, tenantID, customerScope, sourceRoles, sourcePermissions, targetRoleByCode, targetPermissionByCode); err != nil {
 		return err
 	}
 	if err := cloneMenus(ctx, c, sourceID, tenantID); err != nil {
@@ -244,6 +246,7 @@ func cloneRolePermissions(
 	ctx context.Context,
 	c *ent.Client,
 	sourceID, tenantID int,
+	customerScope bool,
 	sourceRoles []*ent.Role,
 	sourcePermissions []*ent.Permission,
 	targetRoleByCode map[string]*ent.Role,
@@ -261,6 +264,12 @@ func cloneRolePermissions(
 	sourcePermissionGovernedByID := make(map[int]bool, len(sourcePermissions))
 	for _, item := range sourcePermissions {
 		sourcePermissionGovernedByID[item.ID] = service.IsPlatformGovernedPermissionResource(item.Resource)
+	}
+	// 跨租户 MSP 数据面资源（msp_ticket/msp_customer/msp_allocation/msp_report）不下发客户租户
+	// （2026-10-13 客户可见性缺陷治本：单一源判定，客户租户角色不产生"必然 403 的入口可见"）。
+	sourcePermissionCrossTenantByID := make(map[int]bool, len(sourcePermissions))
+	for _, item := range sourcePermissions {
+		sourcePermissionCrossTenantByID[item.ID] = service.IsMSPCrossTenantPermissionResource(item.Resource)
 	}
 
 	sourceGrants, err := c.RolePermission.Query().Where(rolepermission.TenantIDEQ(sourceID)).All(ctx)
@@ -288,6 +297,9 @@ func cloneRolePermissions(
 			return fmt.Errorf("provision role permission: source permission %d not found", item.PermissionID)
 		}
 		if sourcePermissionGovernedByID[item.PermissionID] {
+			continue
+		}
+		if customerScope && sourcePermissionCrossTenantByID[item.PermissionID] {
 			continue
 		}
 		targetRole, ok := targetRoleByCode[roleCode]
@@ -319,10 +331,12 @@ func cloneRolePermissions(
 	return nil
 }
 
-// applyCustomerScopeMSPRoleBaseline 把客户类型租户内 msp_* 角色的授权从 C1（跨租户 msp_* 码，
-// 随 default 租户克隆落入）对账到 C2 客户侧基线（实施计划 §3.0-C2；canon §2.3 深度切换）：
-//   - 移除「C1 有、C2 无」的码（错误基线残留），保留其它自定义扩展；
-//   - 补齐 C2 缺失码；批量加载 + 内存差集 + 批量写入（幂等）。
+// applyCustomerScopeMSPRoleBaseline 把客户类型租户的角色授权从 C1（跨租户 msp_* 码，
+// 随 default 租户克隆落入）对账到客户侧口径（实施计划 §3.0-C2；canon §2.3 深度切换）：
+//   - msp_* 命名角色：移除「C1 有、C2 无」的码（错误基线残留），补齐 C2 客户侧业务码；
+//   - 其余全部角色（sysadmin/provider_tenant_admin 等）：剥离跨租户 MSP 数据面码
+//     （见 stripCrossTenantMSPDataPlaneGrants 的缺陷说明）；
+//   - 批量加载 + 内存差集 + 批量写入（幂等）。
 //
 // ReconcileCustomerScopeMSPRoles 为导出包装：存量客户租户回填入口（cmd/reconcile_customer_scope_roles），
 // 与供给期同一实现（幂等）。C2 基线演进（如 IP-P2-14 新增 ticket:assign/problem:write）后，
@@ -424,6 +438,43 @@ func applyCustomerScopeMSPRoleBaseline(ctx context.Context, c *ent.Client, tenan
 		if _, err := c.RolePermission.CreateBulk(batch...).Save(ctx); err != nil {
 			return fmt.Errorf("provision customer-scope MSP baseline: %w", err)
 		}
+	}
+
+	// 扩展（2026-10-13 客户可见性缺陷收口）：非 msp_* 内置角色（sysadmin / it_director /
+	// ops_director / provider_tenant_admin 等）经 default 租户克隆落入客户租户时，
+	// allExcept 只排除了部分写码，跨租户 msp_* 读码仍随克隆进入（238 演示库实测：
+	// IT总监/系统运维/运维总监/服务商租户管理员含 msp_ticket:read 等）。这些码在客户租户
+	// 没有任何合法消费面（后端 IsMSP = home tenant 为 provider + msp_role，fail-closed），
+	// 只会让前端入口误放行，故统一剥离；`msp:read`（区域可见性码）保留。
+	if err := stripCrossTenantMSPDataPlaneGrants(ctx, c, tenantID); err != nil {
+		return err
+	}
+	return nil
+}
+
+// stripCrossTenantMSPDataPlaneGrants 剥离客户租户内全部角色的跨租户 MSP 数据面授权（幂等）。
+//
+// 判定复用单一源 service.IsMSPCrossTenantPermissionResource（资源级注册表），不维护
+// 前缀副本；仅用于**存量租户**对账——新开通租户由 cloneRolePermissions 在源头跳过下发，
+// 与 validateTenantClone 同口径。`msp:read`（区域可见性资源）不在剥离范围。
+func stripCrossTenantMSPDataPlaneGrants(ctx context.Context, c *ent.Client, tenantID int) error {
+	permissions, err := c.Permission.Query().Where(permission.TenantIDEQ(tenantID)).All(ctx)
+	if err != nil {
+		return fmt.Errorf("load permissions for cross-tenant MSP strip: %w", err)
+	}
+	ids := make([]int, 0)
+	for _, item := range permissions {
+		if service.IsMSPCrossTenantPermissionResource(item.Resource) {
+			ids = append(ids, item.ID)
+		}
+	}
+	if len(ids) == 0 {
+		return nil
+	}
+	if _, err := c.RolePermission.Delete().
+		Where(rolepermission.TenantIDEQ(tenantID), rolepermission.PermissionIDIn(ids...)).
+		Exec(ctx); err != nil {
+		return fmt.Errorf("strip cross-tenant MSP data-plane grants: %w", err)
 	}
 	return nil
 }
@@ -969,6 +1020,12 @@ func validateTenantClone(ctx context.Context, client *ent.Client, sourceID, targ
 	for _, item := range sourcePermissions {
 		sourcePermissionGovernedByID[item.ID] = service.IsPlatformGovernedPermissionResource(item.Resource)
 	}
+	// 跨租户 MSP 数据面资源对客户租户不下发（cloneRolePermissions 同口径跳过）——
+	// 校验同样跳过，避免「克隆不写、校验要求存在」的契约自相矛盾（2026-10-13）。
+	sourcePermissionCrossTenantByID := make(map[int]bool, len(sourcePermissions))
+	for _, item := range sourcePermissions {
+		sourcePermissionCrossTenantByID[item.ID] = service.IsMSPCrossTenantPermissionResource(item.Resource)
+	}
 	targetPermissionByCode, err := loadPermissionsByCode(ctx, client, targetID)
 	if err != nil {
 		return err
@@ -1021,6 +1078,9 @@ func validateTenantClone(ctx context.Context, client *ent.Client, sourceID, targ
 				return fmt.Errorf("managed permission %d missing: %w", permissionID, provisionNotFoundError("permission"))
 			}
 			if sourcePermissionGovernedByID[permissionID] {
+				continue
+			}
+			if customerScope && sourcePermissionCrossTenantByID[permissionID] {
 				continue
 			}
 			targetPermission, ok := targetPermissionByCode[permissionCode]

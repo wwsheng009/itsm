@@ -12,6 +12,7 @@ import (
 	"itsm-backend/ent/rolepermission"
 	"itsm-backend/ent/tenant"
 	"itsm-backend/pkg/tenantmode"
+	"itsm-backend/service"
 
 	entsql "entgo.io/ent/dialect/sql"
 	_ "github.com/mattn/go-sqlite3"
@@ -103,10 +104,26 @@ func TestProvisionTenant_CustomerScopeMSPBaseline(t *testing.T) {
 	assert.True(t, admin["cmdb:write"])
 	assert.True(t, admin["change:write"])
 
+	// 扩展回归（2026-10-13 客户可见性缺陷）：非 msp_* 角色（克隆自 default 的内置角色）
+	// 不得残留跨租户 MSP 数据面码（此前 sysadmin/provider_tenant_admin 等含 msp_ticket:read）。
+	for _, roleCode := range []string{"sysadmin", "provider_tenant_admin", "admin"} {
+		codes := rolePermissionCodeSet(t, ctx, client, customer.ID, roleCode)
+		for code := range codes {
+			resource := code
+			if idx := strings.Index(code, ":"); idx > 0 {
+				resource = code[:idx]
+			}
+			assert.Falsef(t, service.IsMSPCrossTenantPermissionResource(resource),
+				"客户租户 %s 残留跨租户 MSP 数据面码 %s", roleCode, code)
+		}
+	}
+
 	// provider 类型租户：保持 C1 跨租户码。
 	provider := createProvisionTarget(t, ctx, client, "provider-scope-target", tenant.TypeMspProvider)
 	require.NoError(t, s.ProvisionTenant(ctx, provider.ID, CurrentTenantTemplateVersion))
 	providerTech := rolePermissionCodeSet(t, ctx, client, provider.ID, "msp_tech")
 	assert.True(t, providerTech["msp_ticket:read"])
 	assert.False(t, providerTech["ticket:read"])
+	providerSysadmin := rolePermissionCodeSet(t, ctx, client, provider.ID, "sysadmin")
+	assert.True(t, providerSysadmin["msp_ticket:read"], "provider 租户 sysadmin 不应被剥离跨租户码")
 }
