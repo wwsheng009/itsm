@@ -84,3 +84,37 @@
   属历史缺口，非本次回归。
 - 平台侧用户治理开关未启用（`TENANT_USER_ADMIN_DISABLED`），238 上无法经平台通道停用账号，
   只能口令轮换。
+
+## 7. 追加修复（v7 · `1.8.0-dev.a29ad103`）：「分配技术员」可见性
+
+**用户反馈**：行内「分配技术员」点击后有提示（toast），但页面看不到业务变化。
+
+**业务语义**（设计口径，`plan/msp-implementation-plan.md` v1.25）：
+`POST /api/v1/msp/tickets/:id/assign` = **指派给当前 MSP 技术员（操作者本人）**，
+同时写 `managed_by_user_id`、按客户归属补齐 `is_managed_by_msp` / `msp_provider_id` 快照，
+并执行 `new → open` 状态迁移（仅此一种迁移）；写面要求 `msp_ticket:write` + 目标客户有效
+allocation（未分配 fail-closed 403 `MSP_ALLOCATION_REQUIRED`），并与飞书同步命令同事务。
+
+**不可见的根因**：客户工单 DTO 仅返回 `assigneeId`，前端「负责人」列读 `assigneeName`
+→ 指派成功后仍显示「未分配」；叠加状态多数场景不变，故看似无变化（§6 残留项）。
+
+**修复（提交 `a29ad103`）**：
+
+- `service.GetCustomerTicketsForMSP` 返回 camelCase DTO，并按用户 ID 批量解析 `assigneeName`
+  （MSP 员工 home=provider 租户，`users` 为平台级 RLS 豁免表，ID 查询不引入跨租户泄露）；
+- handler 直传 service DTO（移除重复映射）；
+- 前端成功提示改为「已指派给当前技术员（你）」；
+- 回归：service 跨租户负责人解析用例 + handler `assigneeId`/`assigneeName` 断言。
+
+**238 复验（`1.8.0-dev.a29ad103`，7/7 容器 healthy）**：
+
+- API 指派前/后（ticket 1，客户 3）：`assigneeId: 13 → 23`、
+  `assigneeName: "UI 演示账号" → "v7 回归账号"`；
+- 浏览器：列表初始即显示负责人（`UI 演示账号` / `v7 回归账号`）；点击行内「分配技术员」后
+  toast「已指派给当前技术员（你）」，该行负责人**实时刷新**为 `v7 回归账号`。
+
+**残余**：指派接口响应体仍是领域模型（PascalCase：`ID`/`Title`/…）；当前前端不消费响应体
+（仅取成功与否），不影响 UI；如后续有消费方需按 DTO 收口。
+
+**卫生**：v7 演示账号（id=23）分配已解除、口令已轮换（旧口令登录 → `2001`）；
+远端临时脚本与 cookie 已清理。
