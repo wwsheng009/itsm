@@ -79,9 +79,8 @@ func ProductionInitializers(seeder *Seeder) ([]initialization.Initializer, error
 			transactional.seedAdmin(ctx)
 			transactional.seedMenuAndPermissionFixes(ctx)
 			transactional.seedRolePermissions(ctx)
-			// G5 修复（2026-10-12）：显式 ID 播种后校正序列，避免后续租户供给
-			// 触发 duplicate key（FDB-B1 实测）。
-			transactional.FixSeedIDSequences(ctx)
+			// G5 修复（序列校正）必须在本组件事务提交后执行——见 Apply() 中
+			// FixSeedIDSequences 的调用点说明；此处不得回归为事务内调用。
 			return nil
 		},
 		verify: func(ctx context.Context, target *Seeder) error {
@@ -228,6 +227,12 @@ func (i *productionComponentInitializer) Apply(
 	if err := tx.Commit(); err != nil {
 		return initialization.Result{}, fmt.Errorf("commit %s transaction: %w", i.name, err)
 	}
+	// G5 修复（2026-10-13 修正调用时机）：显式 ID 播种后校正自增序列。
+	// 必须在事务提交后、用非事务连接执行：FixSeedIDSequences 经 database.GetRawDB()
+	// 读取 max(id)，在未提交事务内读取只能看到空表，会把序列 setval 回退，
+	// 反而造成「提交后的行 id 高于序列」→ 首次租户开通 provision 触发
+	// roles_pkey duplicate key（全新库实测复现）。
+	i.seeder.FixSeedIDSequences(ctx)
 	// Keep the immutable verification view available to Engine.Verify and the
 	// verify CLI after the transaction commits. Seed helpers currently build
 	// these catalogs from their in-code manifests.
