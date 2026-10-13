@@ -77,7 +77,7 @@
 | [msp-offboarding-orchestration-plan.md](./plan/msp-offboarding-orchestration-plan.md) | L4 | v0.1（2026-10-08） | **MSP 离职编排与分配回收（IP-P2-8）**：现状核对 S1–S7、编排设计（停用先行 + 全量回收 + 幂等 + `user.offboard` 审计）、决策点 D1–D4、分期 P0–P2 | `IP-P2-8` |
 | [role-permission-extension-checklist.md](./plan/role-permission-extension-checklist.md) | 治理 | v0.1（2026-10-08） | **新增角色/权限/路由评审清单**：扩展纪律、平台家族码评估结论（§2.2）、守卫矩阵与评审流程 | — |
 | [platform-permission-shielding-d1-decision.md](./plan/platform-permission-shielding-d1-decision.md) | L4 | v0.1（2026-10-08；D1=B 定案） | **存量租户权限目录处置（D1）决策材料**：实测证据（只读 SQL）、A/B 对比、A 预案（开通克隆链连带改动）、触发条件 | — |
-| [system-config-runtime-wiring-analysis.md](./plan/system-config-runtime-wiring-analysis.md) | L4 | Draft v0.1（2026-10-13，待评审） | **系统配置运行时接入分析**：字段组"存储→生效"落差（SMTP/会话/账户安全存而不用；EmailService 未装配；附件 flags 静态装配）、租户级邮件/会话改造方案、分期计划与验收 | `SC1–SC7` `SCD1–SCD6` `SCA1–SCA6` `SCR1–SCR4` |
+| [system-config-runtime-wiring-analysis.md](./plan/system-config-runtime-wiring-analysis.md) | L4 | Draft v0.2（2026-10-13，**决策 D1–D6 按最佳实践定案**，待评审排期） | **系统配置运行时接入分析**：字段组"存储→生效"落差（SMTP/会话/账户安全存而不用；EmailService 未装配；附件 flags 静态装配）、租户级邮件/会话改造方案、分期计划与验收 | `SC1–SC7` `SCD1–SCD6` `SCA1–SCA6` `SCR1–SCR4` `D1–D6` |
 | [backlog.md](./backlog.md) | 治理 | 进行中（2026-10-12 建立） | **多租户优化待办（OB-1–OB-10）**：FDB-B1 发现/观察项 → 优化任务、状态跟踪与验收口径 | `OB-#` |
 
 ### 2.1 场景目录（scenarios/，L6 浏览器实操剧本）

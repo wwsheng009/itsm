@@ -1,6 +1,6 @@
 # 系统配置运行时接入分析与改造方案（/admin/system-config）
 
-> 状态：**Draft v0.1（分析完成，待评审排期）**｜日期：2026-10-13｜基准：仓库 HEAD `8a7c03be`；238 演示栈 `1.8.0-dev.5e4eab85`（DB `itsm_demo`）
+> 状态：**Draft v0.2（分析完成 + 决策点按最佳实践定案（§9 D1–D6），待评审排期）**｜日期：2026-10-13｜基准：仓库 HEAD `8a7c03be`；238 演示栈 `1.8.0-dev.5e4eab85`（DB `itsm_demo`）
 > 定位：**系统配置页字段的"存储 → 运行时生效"落差分析 + 租户级邮件 / 会话 / 账户安全策略接入方案**。起因：用户提问「不同租户都设置邮件服务器，是否会同时生效」。
 > 关联：[演示环境指南](../demo-environment.md)｜[canon（L1 概念权威）](./msp-concept-model-and-architecture-canon.md)｜[多租户 INDEX](../INDEX.md)｜[backlog](../backlog.md)
 > 读者：架构评审、后端/前端研发、测试 QA、产品决策。
@@ -173,7 +173,10 @@ type TenantConfigResolver interface {
 ```
 
 - 实现复用 `system_configs` 按租户查询；**租户级缓存 + 保存即失效**（与 `password_policy.go` 同模式，避免各自造缓存）；
-- 语义：**租户配置 > 部署级 env > 内置默认**；读取失败 fail-safe（保持默认，不因配置异常放行/阻断）；
+- 语义（D5 定案）：**租户配置 > 部署级 env > 内置默认**；安全类以部署值为边界（租户只能收紧）；
+  读取失败 fail-safe（保持默认，不因配置异常放行/阻断）；
+- 失效（D6 定案）：保存后经 **Redis 发布失效事件**（backend/worker 多实例一致），进程内 TTL 5min 兜底；
+  密码策略缓存顺带迁移到同一失效通道；
 - `InvalidatePasswordPolicy(tenantID)` 泛化为 `InvalidateTenantConfig(tenantID)`（兼容旧名保留）。
 
 ### SCD2｜邮件服务改造：单例 → 按租户解析
@@ -194,8 +197,9 @@ type TenantConfigResolver interface {
 
 ### SCD4｜SMTP 凭据治理
 
-- 存储加密：`smtpPassword` 写入前 AES-GCM 加密（主密钥来源：优先 `LLM_PROVIDER_ENCRYPTION_KEY` 同源派生，
-  或新增 `CONFIG_SECRET_KEY`，二选一由决策点 D2 定）；读取解密仅在发送侧；
+- 存储加密（D2 定案）：`smtpPassword` 写入前 AES-GCM 加密，主密钥 **新增 `CONFIG_SECRET_KEY`**（32B）；
+  **生产缺失即 fail-closed**（拒绝保存敏感配置并明确报错）；开发/演示允许"JWT 派生 + WARN"回退（受 `SERVER_ENV` 控制）；
+  密文格式 `v1:<keyId>:<nonce>:<ct>`（支持轮换）；读取解密仅在发送侧；
 - API 回显掩码：`ListConfigs/GetConfig` 对 `smtpPassword` 返回 `"******"`（或空串 + `hasValue: true`），
   仅 `PUT` 可写、不回显明文；
 - 审计：SMTP 配置变更写 `audit_logs`（含 `changed_keys`，不含明文值）。
@@ -208,6 +212,11 @@ type TenantConfigResolver interface {
 - 选项 B（下线/隐藏）：未实现字段统一标注"预留（未生效）"，页面加统一提示条，避免"配置了以为生效"；
 - 推荐：**密码策略维持现状（已生效）**；`sessionTimeout` 走 A（改动小、价值明确）；
   `loginMaxAttempts/accountLockoutDuration/enable2FA` 走 B（2FA 属独立项目，先标注）。
+
+> **已定案（2026-10-13，按最佳实践）**：见 §9 D1——
+> `sessionTimeout` 租户化（P1，且以部署级 `JWT_EXPIRE_TIME` 为**上限**，租户只能收紧）；
+> `loginMaxAttempts`/`accountLockoutDuration` 租户化（P2，部署级为下限）；
+> `enable2FA` **UI 隐藏 + 标注"规划中"**（键保留，不提供误导性开关）。
 
 ### SCD6｜附件灰度接入（顺带收口）
 
@@ -240,7 +249,7 @@ type TenantConfigResolver interface {
 ### P1（下一迭代）
 
 - `SCD3` 告警邮件统一（env 兜底）；
-- `SCD5` 选项 A：`sessionTimeout` 租户化（签发/刷新读取，env 为上限）；
+- `SCD5`/D1：`sessionTimeout` 租户化（签发/刷新读取；**以部署级 `JWT_EXPIRE_TIME` 为上限**，租户只能收紧）；
 - `SCD6` 附件灰度按租户接入（替换静态 flags）；
 - 页面「测试发信」按钮（调用租户 SMTP 发送一封测试邮件，替代"保存后触发真实通知"的错误指引）。
 
@@ -281,14 +290,27 @@ type TenantConfigResolver interface {
 
 ---
 
-## 9. 开放决策点
+## 9. 决策记录（按最佳实践定案，2026-10-13）
 
-| # | 决策 | 建议 |
-|---|---|---|
-| D1 | `enable2FA` / `loginMaxAttempts` / `accountLockoutDuration`：租户化 or 标注预留 | 标注预留（2FA 独立立项）；锁定策略 P2 再做 |
-| D2 | SMTP 加密主密钥来源 | 复用 `LLM_PROVIDER_ENCRYPTION_KEY` 派生 vs 新增 `CONFIG_SECRET_KEY`（推荐新增，职责分离） |
-| D3 | 平台超管是否可代配/查看租户 SMTP | 建议：不可查看明文；可经"重置密码式"流程触发租户侧配置（或不做，保持租户自治） |
-| D4 | 系统配置 SMTP 与邮箱连接器的收敛方向 | 保持两套但文档+页面显式区分（推荐）；长期评估连接器作为唯一邮箱出入口 |
+> **定案原则**：① 安全默认拒绝（fail-closed）；② 密钥/职责分离（key separation）；
+> ③ 租户自治 + 平台治理只经受控审计通道；④ 不提供"看起来生效但实际不生效"的开关；
+> ⑤ 部署级配置作为安全边界（安全类租户只能收紧，不能放宽）。
+
+| # | 决策 | 定案 | 理由 | 落地 |
+|---|---|---|---|---|
+| D1 | 会话/账户安全字段策略 | `sessionTimeout` **租户化**（以部署级 `JWT_EXPIRE_TIME` 为**上限**，租户只能收紧）；`loginMaxAttempts`/`accountLockoutDuration` **租户化**（部署级为**下限**，P2）；`enable2FA` **UI 隐藏 + 标注"规划中"**（键保留，不提供误导开关） | 安全策略可按租户合规要求收紧；2FA 属独立项目，未实现前展示可用开关会误导并形成虚假安全预期 | P1（sessionTimeout）/ P2（锁定）/ P0（2FA 文案标注） |
+| D2 | SMTP 凭据加密主密钥 | **新增 `CONFIG_SECRET_KEY`**（32B）；生产缺失即 **fail-closed**（拒绝保存敏感配置，明确报错）；开发/演示允许"JWT 派生 + WARN"回退（受 `SERVER_ENV` 控制）；密文格式 `v1:<keyId>:<nonce>:<ct>`（带 keyId 便于轮换）；旧明文一次性加密回填 | 密钥职责分离：复用 LLM/JWT 密钥会放大影响面且轮换互相牵连；版本前缀使轮换/回滚可判定 | P0（SCD4） |
+| D3 | 平台超管跨租户访问 | **不提供跨租户直读/直写**（保持租户自治）；代配需求走独立受控运维通道（平台角色 + 二次确认 + 审计 `target_tenant_id` + 永不明文回显），单独立项 | 最小权限与租户数据隔离（现状实测平台超管读他租户配置即 404，是正确基线）；支持场景不应以"全量直读"实现 | 登记为独立需求；P0 不实现 |
+| D4 | SMTP 双轨（系统配置 vs 邮箱连接器） | **保持职责分离**：系统通知/告警邮件 = 系统配置（本方案 SCD2/SCD3）；IMAP 收件/回复 = 邮箱连接器；两者统一凭据治理规范（加密/掩码/审计）+ UI 边界提示；P2 评估"连接器可选复用系统配置 SMTP 凭据" | 出站系统身份与邮箱接入是两种职责；强行合并会把连接器生命周期与系统配置耦合，扩大爆炸半径 | P0（边界提示 + 治理规范）/ P2（复用评估） |
+| D5 | 回退链与上限语义 | **租户配置 > 部署 env > 内置默认**；安全类以部署值为边界（租户只能收紧）；邮件类无上限概念（租户优先，env 兜底） | 避免租户配置放宽部署安全基线；邮件属租户业务配置，应优先于部署默认 | P0（SCD1 实现） |
+| D6 | 多实例缓存失效 | 保存后经 **Redis 发布失效事件**（backend/worker 多实例一致失效）；进程内 TTL 5min 作兜底；**密码策略缓存顺带迁移到同一失效通道** | 现密码策略为进程内缓存，多实例存在 TTL 窗口内不一致；Redis 已在部署内可用 | P0（SCD1）/ 顺带迁移密码策略缓存 |
+
+**定案带来的一致性要求（P0 一并交付）**
+
+- 页面文案修订对齐 D1：未生效字段标注/隐藏；"全局默认值"改"本租户默认值"；删除"保存后触发真实通知"误导句（§2.5）；
+- 部署侧：`docker-compose.prod.yml` / `.env.demo.example` / 部署文档新增 `CONFIG_SECRET_KEY` 说明与生成命令（`openssl rand -hex 32`）；
+- 审计：SMTP 配置变更写 `audit_logs`（`changed_keys`，不含明文值）；代配通道（若立项）沿用 `target_tenant_id` 审计口径；
+- 若 `enable2FA` 后续立项：由"隐藏"转为"接入"，并补 SCA 用例与威胁模型评审。
 
 ---
 
