@@ -51,11 +51,19 @@
 - 每张含处理时间线与评论（客户侧 + 服务商侧）；
 - **MSP 托管单**（assignee=服务商技术员）：写入 `managed_by_user_id`/MSP 快照，
   可从服务商「跨客户工作台」回复、改状态、指派（跨租户交互演示）。
+- **领域单据（事件/问题/变更）**：
+  - 事件：每租户 6~7 张，覆盖 `new`/`acknowledged`/`in_progress`/`on_hold`/`escalated`/
+    `resolved`/`closed`（含监控来源与升级样本，按事件状态机自动推导合法流转路径）；
+  - 问题：每租户 2~3 张，`open`/`investigating`/`identified`；
+  - 变更：每租户 3 张，`draft`/`pending`（待审批）/`completed`（走 submit→approve→schedule→
+    start→complete 全链路）；其中 draft/pending 指派给服务台角色（变更列表对非管理角色按
+    「本人创建/被指派」行级收敛，指派后服务台可见，属预期权限语义）。
 
 **主数据与知识**
 
-- 每租户 2 篇已发布知识文章（按行业定制：制造/医疗/教育）；
-- 每租户 3~4 个 CMDB 配置项（应用/数据库/网络/存储等，含属性与环境/关键度）；
+- 每租户 5 篇已发布知识文章（按行业定制：制造/医疗/教育，覆盖故障排查/应急预案/规范/服务指南）；
+- 每租户 5~6 个 CMDB 配置项（应用/数据库/网络/存储等，含属性与环境/关键度）；
+- **CI 关系**：每租户 2~3 条（depends_on / connects_to / runs_on），支撑拓扑图与影响分析演示；
 - 服务目录、SLA、CI 类型、审批链等来自租户模板（开箱可用）。
 
 **跨租户协同（工作台）**
@@ -73,10 +81,10 @@
 python scripts/demo/seed_demo_dataset.py \
   --base-url http://172.18.3.238:8089 \
   --admin-password 'Demo@2026!Admin'
-# 分阶段：--stages tenants,users,allocations,masterdata,records,cross,verify
+# 分阶段：--stages tenants,users,allocations,masterdata,topology,records,domain,cross,verify
 ```
 
-> 实测：全阶段重复执行 `created=0 / existing=80 / failed=0`；
+> 实测：全阶段（9 个阶段）重复执行 `created=0 / existing=137 / failed=0`；
 > 幂等策略＝按租户 code、用户名去重；业务单据按标题匹配，
 > 状态与规格不符时自动删除重建（自愈），跨租户回复按标记去重。
 

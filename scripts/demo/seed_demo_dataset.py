@@ -37,6 +37,7 @@ import time
 import urllib.error
 import urllib.parse
 import urllib.request
+from collections import deque
 from dataclasses import dataclass, field
 from typing import Any, Callable, Dict, Iterable, List, Optional, Tuple
 
@@ -483,8 +484,9 @@ def parse_args(argv: Optional[List[str]] = None) -> argparse.Namespace:
     p.add_argument("--admin-user", default="admin")
     p.add_argument("--admin-password", default=os.environ.get("DEMO_ADMIN_PASSWORD", ""))
     p.add_argument("--user-password", default=os.environ.get("DEMO_USER_PASSWORD", DEMO_USER_PASSWORD_DEFAULT))
-    p.add_argument("--stages", default="tenants,users,allocations",
-                   help="逗号分隔：tenants,users,allocations,masterdata,records,cross,verify")
+    p.add_argument("--stages",
+                   default="tenants,users,allocations,masterdata,topology,records,domain,cross,verify",
+                   help="逗号分隔：tenants,users,allocations,masterdata,topology,records,domain,cross,verify")
     p.add_argument("--dry-run", action="store_true")
     p.add_argument("--verbose", action="store_true")
     p.add_argument("--report", default=os.path.join(os.path.dirname(os.path.abspath(__file__)),
@@ -1088,11 +1090,35 @@ def stage_verify(ctx: Ctx) -> None:
             cis = extract_list(admin.get("/api/v1/cmdb/cis?page=1&pageSize=100"), ("cis", "items", "list"))
         except ApiError:
             cis = []
+        def _count(path: str, keys: Iterable[str]) -> int:
+            try:
+                return len(extract_list(admin.get(f"{path}?page=1&pageSize=100"), keys))
+            except ApiError:
+                return -1
+
+        def _status_dist(path: str, keys: Iterable[str]) -> str:
+            try:
+                rows = extract_list(admin.get(f"{path}?page=1&pageSize=100"), keys)
+            except ApiError:
+                return "-"
+            dist: Dict[str, int] = {}
+            for r in rows:
+                if isinstance(r, dict):
+                    dist[str(r.get("status"))] = dist.get(str(r.get("status")), 0) + 1
+            return ", ".join(f"{k}×{v}" for k, v in sorted(dist.items())) or "-"
+
+        inc_n = _count("/api/v1/incidents", ("items", "incidents", "list"))
+        prb_n = _count("/api/v1/problems", ("items", "problems", "list"))
+        chg_n = _count("/api/v1/changes", ("items", "changes", "list"))
         row = (f"| {spec.name} | {len(tk)} | {len(mine)} | "
                f"{', '.join(f'{k}×{v}' for k, v in sorted(by_status.items())) or '-'} | "
-               f"{len(kb)} | {len(cis)} |")
+               f"{len(kb)} | {len(cis)} | {inc_n} | {prb_n} | {chg_n} |")
         rows.append(row)
-        ctx.c.note("verify", f"{spec.code}: tickets={len(tk)} my={len(mine)} by_status={by_status} kb={len(kb)} cis={len(cis)}")
+        ctx.c.note("verify", f"{spec.code}: tickets={len(tk)} my={len(mine)} by_status={by_status} "
+                             f"kb={len(kb)} cis={len(cis)} incidents={inc_n} problems={prb_n} changes={chg_n} "
+                             f"incident_states=[{_status_dist('/api/v1/incidents', ('items', 'incidents', 'list'))}] "
+                             f"problem_states=[{_status_dist('/api/v1/problems', ('items', 'problems', 'list'))}] "
+                             f"change_states=[{_status_dist('/api/v1/changes', ('items', 'changes', 'list'))}]")
 
     # 服务商视角
     try:
@@ -1108,8 +1134,8 @@ def stage_verify(ctx: Ctx) -> None:
     except Exception as e:  # noqa: BLE001
         ctx.c.note("fail", f"服务商视角验证失败：{e}")
 
-    print("\n| 租户 | 工单(服务台视角) | 我的工单(end_user) | 状态分布 | 知识 | CI |")
-    print("|---|---|---|---|---|---|")
+    print("\n| 租户 | 工单(服务台视角) | 我的工单(end_user) | 工单状态分布 | 知识 | CI | 事件 | 问题 | 变更 |")
+    print("|---|---|---|---|---|---|---|---|---|")
     for r in rows:
         print(r)
 
@@ -1124,6 +1150,443 @@ STAGES.update({
     "cross": stage_cross,
     "verify": stage_verify,
 })
+
+
+# =====================================================================
+# 10. 扩充数据集（第二波）：领域单据（事件/问题/变更）+ 附加主数据
+# =====================================================================
+
+# --- 追加知识库文章（每租户累计 4-5 篇） ---
+KB_ARTICLES["mfg"] += [
+    {"title": "MES 数据库慢查询应急处理", "category": "应急预案",
+     "content": "1. 值班工程师确认慢查询来源（应用/报表）；\n2. 报表类查询可临时限流；\n3. 影响产线报工时按 P1 处理并通知生产调度；\n4. 处置后复盘并登记问题跟踪。"},
+    {"title": "产线工控机补丁与重启规范", "category": "规范制度",
+     "content": "1. 补丁窗口：每周日 00:00-04:00；\n2. 重启前确认当前批次已完工；\n3. 按线体分批执行，保留回滚镜像；\n4. 完成后填写变更记录。"},
+    {"title": "仓库扫码枪常见故障速查", "category": "常见问题",
+     "content": "1. 无法扫码：清洁镜片、更换电池；\n2. 频繁断连：检查 AP 信号与漫游；\n3. 数据不上传：确认 WMS 服务连接；\n4. 仍无法解决时报服务台并附设备编号。"},
+]
+KB_ARTICLES["med"] += [
+    {"title": "HIS 账号权限分级与申请规范", "category": "规范制度",
+     "content": "1. 权限分级：医生/护士/技师/管理；\n2. 新增权限需科室主任审批；\n3. 离职当日由信息科回收；\n4. 每季度做权限复核。"},
+    {"title": "影像归档存储空间告警处置", "category": "应急预案",
+     "content": "1. 确认告警级别与剩余容量；\n2. 临时归档冷数据到对象存储；\n3. 评估扩容需求并提交变更；\n4. 复盘归档策略与保留期。"},
+    {"title": "门诊高峰期系统保障要点", "category": "服务指南",
+     "content": "1. 高峰期前完成巡检（HIS/自助机/打印）；\n2. 值守安排：门诊大厅+机房双岗；\n3. 异常优先恢复挂号与收费链路；\n4. 结束后输出保障报告。"},
+]
+KB_ARTICLES["edu"] += [
+    {"title": "教务系统选课高峰保障方案", "category": "应急预案",
+     "content": "1. 选课前扩容应用节点并压测；\n2. 开启排队与限流保护；\n3. 值班监控 DB 连接数与响应时间；\n4. 结束后回收临时资源。"},
+    {"title": "校园网 IP 与设备入网规范", "category": "规范制度",
+     "content": "1. 所有设备须实名登记 MAC/IP；\n2. 禁止私搭 DHCP/NAT；\n3. IoT 设备独立 VLAN；\n4. 违规接入将被隔离并通报。"},
+    {"title": "多媒体教室设备保养清单", "category": "服务指南",
+     "content": "1. 每月检查投影亮度与除尘；\n2. 每学期更新中控固件；\n3. 话筒电池按月更换；\n4. 故障记录纳入设备档案。"},
+]
+
+# --- 追加 CMDB 配置项（每租户累计 5-6 个） ---
+CI_SAMPLES["mfg"] += [
+    {"name": "ERP-APP-01 企业资源计划", "type_code": "application", "status": "active",
+     "environment": "production", "criticality": "high", "assetTag": "AST-MFG-0005",
+     "attributes": {"版本": "E10", "模块": "财务/采购/库存"}},
+    {"name": "BACKUP-STORAGE-01 备份存储", "type_code": "storage", "status": "active",
+     "environment": "production", "criticality": "medium", "assetTag": "AST-MFG-0006",
+     "attributes": {"容量": "80TB", "保留策略": "30天"}},
+]
+CI_SAMPLES["med"] += [
+    {"name": "LIS-APP-01 检验信息系统", "type_code": "application", "status": "active",
+     "environment": "production", "criticality": "high", "assetTag": "AST-MED-0004",
+     "attributes": {"厂商": "杏和", "接口": "HL7"}},
+    {"name": "内网核心交换机-A", "type_code": "network", "status": "active",
+     "environment": "production", "criticality": "critical", "assetTag": "AST-MED-0005",
+     "attributes": {"型号": "CE6865", "堆叠": "双机"}},
+]
+CI_SAMPLES["edu"] += [
+    {"name": "一卡通平台", "type_code": "application", "status": "active",
+     "environment": "production", "criticality": "medium", "assetTag": "AST-EDU-0004",
+     "attributes": {"终端数": "1200", "对接": "消费/门禁/图书"}},
+    {"name": "备份一体机", "type_code": "storage", "status": "maintenance",
+     "environment": "production", "criticality": "medium", "assetTag": "AST-EDU-0005",
+     "attributes": {"容量": "60TB", "厂商": "爱数"}},
+]
+
+# --- CI 关系（按名称引用；幂等：重复建关系按错误码视为已存在） ---
+CI_RELATIONS: Dict[str, List[dict]] = {
+    "mfg": [
+        {"source": "MES-APP-01 制造执行系统", "target": "MES-DB-01 生产数据库",
+         "relationshipType": "depends_on", "strength": "critical", "impactLevel": "critical",
+         "description": "MES 依赖生产数据库"},
+        {"source": "web-03 车间看板服务器", "target": "SW-CORE-01 核心交换机",
+         "relationshipType": "connects_to", "strength": "high", "impactLevel": "high",
+         "description": "看板服务器接入核心交换机"},
+        {"source": "ERP-APP-01 企业资源计划", "target": "BACKUP-STORAGE-01 备份存储",
+         "relationshipType": "runs_on", "strength": "medium", "impactLevel": "medium",
+         "description": "ERP 备份落至备份存储"},
+    ],
+    "med": [
+        {"source": "HIS-APP-01 医院信息系统", "target": "PACS-STORAGE-01 影像存储",
+         "relationshipType": "depends_on", "strength": "high", "impactLevel": "high",
+         "description": "HIS 调阅影像依赖存储"},
+        {"source": "LIS-APP-01 检验信息系统", "target": "内网核心交换机-A",
+         "relationshipType": "connects_to", "strength": "critical", "impactLevel": "critical",
+         "description": "LIS 经核心交换机组网"},
+    ],
+    "edu": [
+        {"source": "在线课堂平台", "target": "校园网出口防火墙",
+         "relationshipType": "connects_to", "strength": "high", "impactLevel": "high",
+         "description": "课堂平台经出口防火墙对外"},
+        {"source": "教务数据库主库", "target": "备份一体机",
+         "relationshipType": "runs_on", "strength": "medium", "impactLevel": "medium",
+         "description": "教务库备份落至一体机"},
+    ],
+}
+
+
+# --- 领域单据规格：事件（incident） ---
+TITLE_DEMO = "[DEMO]"
+INCIDENT_SPECS: Dict[str, List[dict]] = {
+    "mfg": [
+        {"key": "inc_new", "title": f"{TITLE_DEMO} 监控告警：注塑机网关离线", "priority": "high",
+         "severity": "high", "category": "网络", "source": "monitoring", "path": []},
+        {"key": "inc_ack", "title": f"{TITLE_DEMO} 车间网络抖动（已确认）", "priority": "medium",
+         "severity": "medium", "category": "网络", "source": "user", "path": ["acknowledged"]},
+        {"key": "inc_prog", "title": f"{TITLE_DEMO} AGV 调度系统响应缓慢", "priority": "high",
+         "severity": "high", "category": "应用服务", "source": "user", "path": ["in_progress"]},
+        {"key": "inc_onhold", "title": f"{TITLE_DEMO} 供应商系统对接超时（挂起等厂商）", "priority": "medium",
+         "severity": "medium", "category": "应用服务", "source": "manual", "path": ["on_hold"]},
+        {"key": "inc_resolved", "title": f"{TITLE_DEMO} 电子看板黑屏（已恢复）", "priority": "low",
+         "severity": "low", "category": "硬件", "source": "user", "path": ["in_progress", "resolved"]},
+        {"key": "inc_closed", "title": f"{TITLE_DEMO} 扫码枪批量离线（已闭环）", "priority": "medium",
+         "severity": "medium", "category": "硬件", "source": "user", "path": ["in_progress", "resolved", "closed"]},
+        {"key": "inc_esc", "title": f"{TITLE_DEMO} 核心交换机端口异常（已升级）", "priority": "critical",
+         "severity": "critical", "category": "网络", "source": "monitoring", "path": ["escalated"]},
+    ],
+    "med": [
+        {"key": "inc_new", "title": f"{TITLE_DEMO} 监护仪数据未上传", "priority": "high",
+         "severity": "high", "category": "设备", "source": "monitoring", "path": []},
+        {"key": "inc_ack", "title": f"{TITLE_DEMO} 住院部打印机队列堵塞（已确认）", "priority": "medium",
+         "severity": "medium", "category": "硬件", "source": "user", "path": ["acknowledged"]},
+        {"key": "inc_prog", "title": f"{TITLE_DEMO} 电子病历保存缓慢", "priority": "high",
+         "severity": "high", "category": "应用服务", "source": "user", "path": ["in_progress"]},
+        {"key": "inc_resolved", "title": f"{TITLE_DEMO} 检验报告推送延迟（已恢复）", "priority": "medium",
+         "severity": "medium", "category": "集成接口", "source": "monitoring", "path": ["in_progress", "resolved"]},
+        {"key": "inc_closed", "title": f"{TITLE_DEMO} 导医屏地图加载失败（已闭环）", "priority": "low",
+         "severity": "low", "category": "应用服务", "source": "user", "path": ["in_progress", "resolved", "closed"]},
+        {"key": "inc_esc", "title": f"{TITLE_DEMO} 门诊挂号系统不可用（重大事件）", "priority": "critical",
+         "severity": "critical", "category": "应用服务", "source": "user", "path": ["escalated"]},
+    ],
+    "edu": [
+        {"key": "inc_new", "title": f"{TITLE_DEMO} 图书馆闸机离线", "priority": "medium",
+         "severity": "medium", "category": "硬件", "source": "monitoring", "path": []},
+        {"key": "inc_ack", "title": f"{TITLE_DEMO} 宿舍区网速下降（已确认）", "priority": "medium",
+         "severity": "medium", "category": "网络", "source": "user", "path": ["acknowledged"]},
+        {"key": "inc_prog", "title": f"{TITLE_DEMO} 在线作业提交失败", "priority": "high",
+         "severity": "high", "category": "应用服务", "source": "user", "path": ["in_progress"]},
+        {"key": "inc_resolved", "title": f"{TITLE_DEMO} 校园卡充值延迟（已恢复）", "priority": "medium",
+         "severity": "medium", "category": "应用服务", "source": "user", "path": ["in_progress", "resolved"]},
+        {"key": "inc_closed", "title": f"{TITLE_DEMO} 录播教室音频无声（已闭环）", "priority": "low",
+         "severity": "low", "category": "硬件", "source": "user", "path": ["in_progress", "resolved", "closed"]},
+        {"key": "inc_esc", "title": f"{TITLE_DEMO} 出口带宽饱和（已升级）", "priority": "critical",
+         "severity": "critical", "category": "网络", "source": "monitoring", "path": ["escalated"]},
+    ],
+}
+
+# --- 领域单据规格：问题（problem） ---
+PROBLEM_SPECS: Dict[str, List[dict]] = {
+    "mfg": [
+        {"key": "prb_open", "title": f"{TITLE_DEMO} 产线网络偶发丢包根因分析", "priority": "high",
+         "category": "网络", "impact": "产线报工偶发延迟", "impactScope": "medium", "path": []},
+        {"key": "prb_inv", "title": f"{TITLE_DEMO} MES 报表查询慢的共性问题", "priority": "medium",
+         "category": "应用服务", "impact": "月度报表时间延长", "impactScope": "low", "path": ["investigating"]},
+        {"key": "prb_id", "title": f"{TITLE_DEMO} 扫码设备批量断连根因（已定位）", "priority": "medium",
+         "category": "硬件", "impact": "仓库作业效率下降", "impactScope": "medium", "path": ["investigating", "identified"]},
+    ],
+    "med": [
+        {"key": "prb_open", "title": f"{TITLE_DEMO} 医生站登录超时的共性分析", "priority": "high",
+         "category": "应用服务", "impact": "门诊高峰期体验下降", "impactScope": "high", "path": ["investigating"]},
+        {"key": "prb_id", "title": f"{TITLE_DEMO} 检验接口偶发超时（已定位）", "priority": "medium",
+         "category": "集成接口", "impact": "报告延迟推送", "impactScope": "medium", "path": ["investigating", "identified"]},
+    ],
+    "edu": [
+        {"key": "prb_open", "title": f"{TITLE_DEMO} 选课高峰数据库瓶颈分析", "priority": "high",
+         "category": "数据库", "impact": "选课体验受影响", "impactScope": "high", "path": ["investigating"]},
+        {"key": "prb_id", "title": f"{TITLE_DEMO} 无线漫游掉线共性（已定位）", "priority": "medium",
+         "category": "网络", "impact": "移动终端体验下降", "impactScope": "medium", "path": ["investigating", "identified"]},
+    ],
+}
+
+# --- 领域单据规格：变更（change），steps 为状态转换入口序列 ---
+CHANGE_SPECS: Dict[str, List[dict]] = {
+    "mfg": [
+        {"key": "chg_draft", "title": f"{TITLE_DEMO} 产线交换机固件升级（草稿）", "type": "normal",
+         "priority": "medium", "path": [], "owner": "agent"},
+        {"key": "chg_pending", "title": f"{TITLE_DEMO} MES 应用节点扩容（待审批）", "type": "normal",
+         "priority": "high", "path": ["submit"], "owner": "agent"},
+        {"key": "chg_done", "title": f"{TITLE_DEMO} 备份存储扩容实施（已完成）", "type": "normal",
+         "priority": "medium", "path": ["submit", "approve", "schedule", "start", "complete"]},
+    ],
+    "med": [
+        {"key": "chg_draft", "title": f"{TITLE_DEMO} 医疗专网 VLAN 调整（草稿）", "type": "normal",
+         "priority": "medium", "path": [], "owner": "agent"},
+        {"key": "chg_pending", "title": f"{TITLE_DEMO} PACS 存储扩容（待审批）", "type": "normal",
+         "priority": "high", "path": ["submit"], "owner": "agent"},
+        {"key": "chg_done", "title": f"{TITLE_DEMO} HIS 巡检脚本上线（已完成）", "type": "standard",
+         "priority": "low", "path": ["submit", "approve", "schedule", "start", "complete"]},
+    ],
+    "edu": [
+        {"key": "chg_draft", "title": f"{TITLE_DEMO} 出口防火墙策略梳理（草稿）", "type": "normal",
+         "priority": "medium", "path": [], "owner": "agent"},
+        {"key": "chg_pending", "title": f"{TITLE_DEMO} 一卡通平台版本升级（待审批）", "type": "normal",
+         "priority": "high", "path": ["submit"], "owner": "agent"},
+        {"key": "chg_done", "title": f"{TITLE_DEMO} 备份一体机策略调整（已完成）", "type": "standard",
+         "priority": "low", "path": ["submit", "approve", "schedule", "start", "complete"]},
+    ],
+}
+
+
+# =====================================================================
+# 11. 阶段实现：CMDB 关系 + 领域单据（事件/问题/变更）
+# =====================================================================
+
+def stage_topology(ctx: Ctx) -> None:
+    ctx.log("== 阶段 4c：CMDB 关系（拓扑/影响分析样本） ==")
+    resolve_tenant_ids(ctx)
+    for spec in TENANTS:
+        if spec.type != "msp_customer":
+            continue
+        admin = session_as(ctx, spec.key, "admin")
+        try:
+            cis = extract_list(admin.get("/api/v1/cmdb/cis?page=1&pageSize=100"), ("cis", "items", "list"))
+        except ApiError:
+            cis = []
+        name_to_id = {str(c.get("name")): int(c.get("id")) for c in cis if isinstance(c, dict) and c.get("id")}
+        try:
+            rels = extract_list(admin.get("/api/v1/cmdb/relationships?page=1&pageSize=100"),
+                                ("relationships", "items", "list"))
+        except ApiError:
+            rels = []
+        existing = {(int(r.get("sourceCiId") or 0), int(r.get("targetCiId") or 0),
+                     str(r.get("relationshipType") or "")) for r in rels if isinstance(r, dict)}
+        for rel in CI_RELATIONS.get(spec.key, []):
+            sid, tid_ = name_to_id.get(rel["source"]), name_to_id.get(rel["target"])
+            if not sid or not tid_:
+                ctx.c.note("warn", f"{spec.code} 关系端点缺失：{rel['source']} → {rel['target']}")
+                continue
+            if (sid, tid_, rel["relationshipType"]) in existing:
+                ctx.c.existing += 1
+                continue
+            if ctx.dry_run:
+                ctx.c.note("dry-run", f"将建关系 {rel['source']} →{rel['relationshipType']}→ {rel['target']}")
+                continue
+            try:
+                admin.write("POST", "/api/v1/cmdb/cis/relationships", {
+                    "sourceCiId": sid, "targetCiId": tid_,
+                    "relationshipType": rel["relationshipType"],
+                    "strength": rel.get("strength", "medium"),
+                    "impactLevel": rel.get("impactLevel", "medium"),
+                    "description": rel.get("description", ""),
+                })
+                ctx.c.created += 1
+                ctx.c.note("created", f"CI 关系 {rel['source']} →{rel['relationshipType']}→ {rel['target']} @{spec.code}")
+            except ApiError as e:
+                body = str(e.body)[:120]
+                if "exist" in body.lower() or "已存在" in body:
+                    ctx.c.existing += 1
+                else:
+                    ctx.c.note("warn", f"{spec.code} 建关系失败：{body}")
+
+
+def _find_domain_record(cli: Client, path: str, title: str, keys: Iterable[str]) -> Optional[dict]:
+    data = cli.get(f"{path}?search={urllib.parse.quote(title)}&page=1&pageSize=50")
+    for row in extract_list(data, keys):
+        if isinstance(row, dict) and row.get("title") == title:
+            return row
+    return None
+
+
+def _find_all_domain_records(cli: Client, path: str, title: str, keys: Iterable[str]) -> List[dict]:
+    data = cli.get(f"{path}?page=1&pageSize=100")
+    return [r for r in extract_list(data, keys) if isinstance(r, dict) and r.get("title") == title]
+
+
+def _ensure_singleton(ctx: Ctx, cli: Client, path: str, title: str, keys: Iterable[str]) -> Optional[dict]:
+    """同名领域记录的「唯一化」：早前运行可能因列表可见性差异产生重复，保留最早一条并删除其余。"""
+    matches = _find_all_domain_records(cli, path, title, keys)
+    if not matches:
+        return None
+    keep = matches[0]
+    if len(matches) > 1:
+        for extra in matches[1:]:
+            if ctx.dry_run:
+                continue
+            try:
+                cli.write("DELETE", f"{path}/{extra.get('id')}", None)
+                ctx.c.note("repair", f"删除重复记录 {path}#{extra.get('id')}《{title}》")
+            except ApiError as e:
+                ctx.c.note("warn", f"删除重复记录 {path}#{extra.get('id')} 失败：{str(e.body)[:100]}")
+    return keep
+
+
+# 事件状态机（common.IsValidIncidentStatusTransition 的镜像；用于推导合法流转路径）
+INCIDENT_TRANSITIONS: Dict[str, List[str]] = {
+    "new": ["acknowledged", "assigned", "in_progress", "cancelled"],
+    "acknowledged": ["in_progress", "on_hold", "cancelled"],
+    "assigned": ["in_progress", "escalated", "on_hold", "cancelled"],
+    "in_progress": ["resolved", "escalated", "on_hold", "cancelled"],
+    "triaged": ["in_progress", "escalated", "on_hold", "cancelled"],
+    "escalated": ["in_progress", "on_hold", "cancelled"],
+    "on_hold": ["in_progress", "cancelled"],
+    "resolved": ["closed", "in_progress", "cancelled"],
+}
+
+
+def incident_route(current: str, target: str) -> Optional[List[str]]:
+    """BFS 求 current→target 的合法状态路径（不含起点）。"""
+    if current == target:
+        return []
+    queue = deque([(current, [])])
+    seen = {current}
+    while queue:
+        node, path = queue.popleft()
+        for nxt in INCIDENT_TRANSITIONS.get(node, []):
+            if nxt in seen:
+                continue
+            if nxt == target:
+                return path + [nxt]
+            seen.add(nxt)
+            queue.append((nxt, path + [nxt]))
+    return None
+
+
+def _drive_incident(ctx: Ctx, cli: Client, iid: int, current: str, target: str, tag: str) -> bool:
+    route = incident_route(current, target)
+    if route is None:
+        ctx.c.note("warn", f"{tag} 无法从 {current} 到达 {target}（状态机不允许）")
+        return False
+    for st in route:
+        cli.write("PUT", f"/api/v1/incidents/{iid}/status", {"status": st})
+    return True
+
+
+def stage_domain(ctx: Ctx) -> None:
+    """领域单据：事件 / 问题 / 变更（覆盖各自状态机的主要状态）。"""
+    ctx.log("== 阶段 5b：领域单据（事件 / 问题 / 变更） ==")
+    resolve_tenant_ids(ctx)
+    for spec in TENANTS:
+        if spec.type != "msp_customer":
+            continue
+        admin = session_as(ctx, spec.key, "admin")
+        agent = session_as(ctx, spec.key, "agent")
+
+        # ---- 事件 ----
+        for inc in INCIDENT_SPECS.get(spec.key, []):
+            inc_path = inc.get("path") or []
+            target_status = inc_path[-1] if inc_path else "new"
+            existing = None if ctx.dry_run else _ensure_singleton(
+                ctx, admin, "/api/v1/incidents", inc["title"], ("items", "incidents", "list"))
+            if existing:
+                cur = str(existing.get("status") or "new")
+                if cur == target_status:
+                    ctx.c.existing += 1
+                    continue
+                if not ctx.dry_run and _drive_incident(ctx, agent, int(existing.get("id")), cur, target_status,
+                                                       f"{spec.code}:{inc['key']}"):
+                    ctx.c.note("repair", f"{spec.code}:{inc['key']} 事件状态 {cur}→{target_status}")
+                continue
+            if ctx.dry_run:
+                ctx.c.note("dry-run", f"将创建事件《{inc['title']}》@{spec.code}")
+                continue
+            try:
+                created = agent.write("POST", "/api/v1/incidents", {
+                    "title": inc["title"],
+                    "description": f"{inc['title']}（演示数据集自动生成）。",
+                    "type": "incident", "priority": inc["priority"], "severity": inc["severity"],
+                    "category": inc.get("category", ""), "source": inc.get("source", "manual"),
+                })
+                iid = int(((created or {}).get("id")) or ((created or {}).get("data") or {}).get("id") or 0)
+                if not iid:
+                    raise ApiError("POST", "/api/v1/incidents", 200, created)
+                _drive_incident(ctx, agent, iid, "new", target_status, f"{spec.code}:{inc['key']}")
+                ctx.c.created += 1
+                ctx.c.note("created", f"事件《{inc['title']}》@{spec.code} id={iid} 终态={target_status}")
+            except ApiError as e:
+                ctx.c.note("warn", f"{spec.code} 事件《{inc['title']}》失败：{str(e.body)[:140]}")
+
+        # ---- 问题 ----
+        for prb in PROBLEM_SPECS.get(spec.key, []):
+            existing = None if ctx.dry_run else _ensure_singleton(
+                ctx, admin, "/api/v1/problems", prb["title"], ("items", "problems", "list"))
+            if existing:
+                ctx.c.existing += 1
+                continue
+            if ctx.dry_run:
+                ctx.c.note("dry-run", f"将创建问题《{prb['title']}》@{spec.code}")
+                continue
+            try:
+                created = agent.write("POST", "/api/v1/problems", {
+                    "title": prb["title"],
+                    "description": f"{prb['title']}（演示数据集自动生成，关联同类事件）。",
+                    "priority": prb["priority"], "category": prb.get("category", ""),
+                    "impact": prb.get("impact", ""), "impactScope": prb.get("impactScope", ""),
+                })
+                pid = int(((created or {}).get("id")) or ((created or {}).get("data") or {}).get("id") or 0)
+                if not pid:
+                    raise ApiError("POST", "/api/v1/problems", 200, created)
+                for st in prb.get("path", []):
+                    admin.write("PUT", f"/api/v1/problems/{pid}", {"status": st})
+                ctx.c.created += 1
+                ctx.c.note("created", f"问题《{prb['title']}》@{spec.code} id={pid}")
+            except ApiError as e:
+                ctx.c.note("warn", f"{spec.code} 问题《{prb['title']}》失败：{str(e.body)[:140]}")
+
+        # ---- 变更 ----
+        agent_id = int((agent.user or {}).get("id") or 0)
+        for chg in CHANGE_SPECS.get(spec.key, []):
+            existing = None if ctx.dry_run else _ensure_singleton(
+                ctx, admin, "/api/v1/changes", chg["title"], ("items", "changes", "list"))
+            if existing:
+                cid = int(existing.get("id") or 0)
+                if chg.get("owner") == "agent" and agent_id and cid:
+                    # 变更列表对非管理角色按「本人创建/被指派」收敛：把演示单指派给服务台，
+                    # 否则 agent 视角看不到任何变更（空列表 ≠ 无数据，是行级权限）
+                    try:
+                        admin.write("POST", f"/api/v1/changes/{cid}/assign", {"assigneeId": agent_id})
+                    except ApiError as e:
+                        ctx.c.note("warn", f"{spec.code}:{chg['key']} 变更指派失败：{str(e.body)[:120]}")
+                ctx.c.existing += 1
+                continue
+            if ctx.dry_run:
+                ctx.c.note("dry-run", f"将创建变更《{chg['title']}》@{spec.code}")
+                continue
+            try:
+                created = admin.write("POST", "/api/v1/changes", {
+                    "title": chg["title"],
+                    "description": f"{chg['title']}（演示数据集自动生成）。",
+                    "justification": "演示数据：验证变更全生命周期与审批链路。",
+                    "type": chg.get("type", "normal"), "priority": chg["priority"],
+                    "impactScope": "low", "riskLevel": "medium",
+                    "implementationPlan": "按变更窗口分批执行，保留回滚点。",
+                    "rollbackPlan": "回滚至上一版本镜像并复核核心链路。",
+                })
+                cid = int(((created or {}).get("id")) or ((created or {}).get("data") or {}).get("id") or 0)
+                if not cid:
+                    raise ApiError("POST", "/api/v1/changes", 200, created)
+                for step in chg.get("path", []):
+                    admin.write("POST", f"/api/v1/changes/{cid}/{step}", {})
+                if chg.get("owner") == "agent" and agent_id:
+                    try:
+                        admin.write("POST", f"/api/v1/changes/{cid}/assign", {"assigneeId": agent_id})
+                    except ApiError as e:
+                        ctx.c.note("warn", f"{spec.code}:{chg['key']} 变更指派失败：{str(e.body)[:120]}")
+                ctx.c.created += 1
+                ctx.c.note("created", f"变更《{chg['title']}》@{spec.code} id={cid} steps={chg.get('path', [])}")
+            except ApiError as e:
+                ctx.c.note("warn", f"{spec.code} 变更《{chg['title']}》失败：{str(e.body)[:140]}")
+
+
+STAGES.update({
+    "topology": stage_topology,
+    "domain": stage_domain,
+})
+
 
 if __name__ == "__main__":
     raise SystemExit(main())
