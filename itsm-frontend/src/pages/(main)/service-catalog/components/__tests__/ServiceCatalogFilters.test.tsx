@@ -36,4 +36,24 @@ describe('ServiceCatalogFilters · 创建按钮权限门禁', () => {
     fireEvent.click(createBtn);
     expect(onCreateService).toHaveBeenCalledTimes(1);
   });
+
+  /**
+   * CMDB 依赖筛选项门禁（2026-10-13 demo.mfg.user 报障回归）：
+   * CI 类型 / 云服务 数据来自 /api/v1/cmdb/*（需 cmdb:read）；无权限用户
+   * 既不应请求（页面侧跳过）也不应渲染空下拉。
+   */
+  it('默认（有 cmdb:read）：渲染 CI类型 / 云服务 筛选项', () => {
+    render(<ServiceCatalogFilters {...baseProps} />);
+
+    expect(screen.getByText('CI类型')).toBeInTheDocument();
+    expect(screen.getByText('云服务')).toBeInTheDocument();
+  });
+
+  it('无 cmdb:read（canReadCmdb=false）：不渲染 CI类型 / 云服务 筛选项，刷新按钮仍可用', () => {
+    render(<ServiceCatalogFilters {...baseProps} canReadCmdb={false} />);
+
+    expect(screen.queryByText('CI类型')).toBeNull();
+    expect(screen.queryByText('云服务')).toBeNull();
+    expect(screen.getByRole('button', { name: '刷新服务目录' })).toBeInTheDocument();
+  });
 });

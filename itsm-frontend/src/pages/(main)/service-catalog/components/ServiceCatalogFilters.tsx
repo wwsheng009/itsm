@@ -15,6 +15,12 @@ interface ServiceCatalogFiltersProps {
   ciTypes: CIType[];
   cloudServices: CloudService[];
   optionsLoading?: boolean;
+  /**
+   * 是否渲染 CMDB 依赖筛选项（CI 类型 / 云服务）。
+   * 这两项数据来自 /api/v1/cmdb/*（需 cmdb:read）；无权限的用户（如 end_user）
+   * 不请求也不渲染，避免「空下拉」与误导性的加载失败提示。默认 true 保持兼容。
+   */
+  canReadCmdb?: boolean;
   onCreateService?: () => void;
   onRefresh: () => void;
 }
@@ -27,6 +33,7 @@ export const ServiceCatalogFilters: React.FC<ServiceCatalogFiltersProps> = ({
   ciTypes,
   cloudServices,
   optionsLoading,
+  canReadCmdb = true,
   onCreateService,
   onRefresh,
 }) => {
@@ -58,33 +65,37 @@ export const ServiceCatalogFilters: React.FC<ServiceCatalogFiltersProps> = ({
             ]}
           />
         </Col>
-        <Col xs={24} sm={12} md={3}>
-          <Select
-            placeholder="CI类型"
-            size="large"
-            allowClear
-            loading={optionsLoading}
-            onChange={onCITypeFilterChange}
-            style={{ width: '100%' }}
-            options={ciTypes.map(type => ({ value: type.id, label: type.name }))}
-          />
-        </Col>
-        <Col xs={24} sm={12} md={4}>
-          <Select
-            placeholder="云服务"
-            size="large"
-            allowClear
-            loading={optionsLoading}
-            showSearch
-            optionFilterProp="label"
-            onChange={onCloudServiceFilterChange}
-            style={{ width: '100%' }}
-            options={cloudServices.map(service => ({
-              value: service.id,
-              label: `${service.serviceName} (${service.resourceTypeName})`,
-            }))}
-          />
-        </Col>
+        {canReadCmdb && (
+          <>
+            <Col xs={24} sm={12} md={3}>
+              <Select
+                placeholder="CI类型"
+                size="large"
+                allowClear
+                loading={optionsLoading}
+                onChange={onCITypeFilterChange}
+                style={{ width: '100%' }}
+                options={ciTypes.map(type => ({ value: type.id, label: type.name }))}
+              />
+            </Col>
+            <Col xs={24} sm={12} md={4}>
+              <Select
+                placeholder="云服务"
+                size="large"
+                allowClear
+                loading={optionsLoading}
+                showSearch
+                optionFilterProp="label"
+                onChange={onCloudServiceFilterChange}
+                style={{ width: '100%' }}
+                options={cloudServices.map(service => ({
+                  value: service.id,
+                  label: `${service.serviceName} (${service.resourceTypeName})`,
+                }))}
+              />
+            </Col>
+          </>
+        )}
         {/* 刷新为只读操作：恒显示，不随创建权限隐藏（权限门禁只管写操作）。 */}
         <Col xs={24} sm={12} md={2}>
           <Tooltip title="刷新列表">

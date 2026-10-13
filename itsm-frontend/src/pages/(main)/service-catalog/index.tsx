@@ -46,6 +46,9 @@ export default function ServiceCatalogPage() {
   // 入口级门禁：提交服务申请 → service_request:write（router/service_request_routes.go POST /service-requests；
   // 路由级规则 /service-catalog/request/:id 同码，§5-7）。
   const canRequest = hasPermission('service_request', 'write');
+  // CMDB 选项（CI 类型/云服务）需 cmdb:read；end_user 等无权限用户不请求，
+  // 避免把可选项依赖的 403 误弹为「获取失败」（2026-10-13 demo.mfg.user 报障）。
+  const canReadCmdb = hasPermission('cmdb', 'read');
   const [activeCategory, setActiveCategory] = useState('all');
   const [creating, setCreating] = useState(false);
 
@@ -112,6 +115,12 @@ export default function ServiceCatalogPage() {
   // 加载选项数据
   useEffect(() => {
     const loadOptions = async () => {
+      if (!canReadCmdb) {
+        setCiTypes([]);
+        setCloudServices([]);
+        setOptionsLoading(false);
+        return;
+      }
       try {
         setOptionsLoading(true);
         const [types, services] = await Promise.all([
@@ -127,7 +136,7 @@ export default function ServiceCatalogPage() {
       }
     };
     loadOptions();
-  }, [message, t]);
+  }, [message, t, canReadCmdb]);
 
   // 处理分类标签切换
   const handleCategoryChange = (category: string) => {
@@ -260,6 +269,7 @@ export default function ServiceCatalogPage() {
         onCloudServiceFilterChange={setCloudServiceFilter}
         ciTypes={ciTypes}
         cloudServices={cloudServices}
+        canReadCmdb={canReadCmdb}
         optionsLoading={optionsLoading}
         onCreateService={canManageCatalog ? handleCreateService : undefined}
         onRefresh={loadServiceCatalogs}
