@@ -314,6 +314,8 @@ func TestWorkbenchCursorPagination(t *testing.T) {
 	for {
 		resp, err := env.svc.ListTickets(ctx, env.actor, dto.WorkbenchTicketQuery{Limit: 2, Cursor: cursor})
 		require.NoError(t, err)
+		// 2026-10-13 契约修复：Total=当前筛选全量条数（跨租户求和），不随 limit/游标变化。
+		assert.Equal(t, 3, resp.Total, "Total 应为全量条数（A×2 + B×1），而不是本页条数")
 		for _, item := range resp.Items {
 			require.False(t, seen[item.ID], "游标翻页出现重复条目 id=%d", item.ID)
 			seen[item.ID] = true

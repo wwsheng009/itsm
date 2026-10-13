@@ -41,6 +41,8 @@ type WorkbenchTicketItem struct {
 }
 
 // WorkbenchTicketListResponse 工作台列表响应。
+// Total = 当前筛选（客户范围 + status/priority/q/updatedAfter）下的全量条数（跨租户求和），
+// 与本页 Items 条数、游标位置无关（2026-10-13 契约修复：旧实现为 len(Items)）。
 type WorkbenchTicketListResponse struct {
 	Items      []WorkbenchTicketItem `json:"items"`
 	NextCursor string                `json:"nextCursor,omitempty"`

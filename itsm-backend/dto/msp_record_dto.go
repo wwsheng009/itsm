@@ -35,6 +35,8 @@ type MSPRecordItem struct {
 }
 
 // MSPRecordListResponse 聚合读响应（逐租户查询 + 内存合并；nextCursor 为逐租户位置编码）。
+// Total = 当前筛选（客户范围 + status/q）下的全量条数（跨租户求和），与本页条数/游标无关
+// （2026-10-13 契约修复：旧实现为 len(Items)）。
 type MSPRecordListResponse struct {
 	Items      []MSPRecordItem `json:"items"`
 	NextCursor string          `json:"nextCursor,omitempty"`

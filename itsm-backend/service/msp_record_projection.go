@@ -106,15 +106,17 @@ func (s *MSPWorkbenchService) ListRecords(ctx context.Context, actor MSPWorkbenc
 
 	merged := make([]mspRecordRow, 0, limit+1)
 	moreByTenant := make(map[int]bool, len(tenantIDs))
+	total := 0
 	for _, tid := range tenantIDs {
 		var pos *workbenchCursorPos
 		if p, ok := posByTenant[tid]; ok {
 			pos = &p
 		}
-		rows, more, err := s.listRecordRows(ctx, recordType, tid, req, pos, limit)
+		rows, n, more, err := s.listRecordRows(ctx, recordType, tid, req, pos, limit)
 		if err != nil {
 			return nil, err
 		}
+		total += n
 		if more {
 			moreByTenant[tid] = true
 		}
@@ -210,11 +212,13 @@ func (s *MSPWorkbenchService) ListRecords(ctx context.Context, actor MSPWorkbenc
 		}
 	}
 
-	return &dto.MSPRecordListResponse{Items: items, NextCursor: nextCursor, Total: len(items)}, nil
+	return &dto.MSPRecordListResponse{Items: items, NextCursor: nextCursor, Total: total}, nil
 }
 
 // listRecordRows 单租户查询（updated_at 降序 + 游标 + limit+1 判更多）。
-func (s *MSPWorkbenchService) listRecordRows(ctx context.Context, recordType string, tenantID int, req dto.MSPRecordQuery, pos *workbenchCursorPos, limit int) ([]mspRecordRow, bool, error) {
+// 返回 (rows, total, more, err)：total 为当前筛选（status/q，不含游标）下的全量条数，
+// 供列表响应 Total 使用（2026-10-13 契约修复：旧实现 Total=len(Items)）。
+func (s *MSPWorkbenchService) listRecordRows(ctx context.Context, recordType string, tenantID int, req dto.MSPRecordQuery, pos *workbenchCursorPos, limit int) ([]mspRecordRow, int, bool, error) {
 	qctx := tenantctx.WithTenantID(ctx, tenantID)
 	q := strings.TrimSpace(req.Q)
 	status := strings.TrimSpace(req.Status)
@@ -236,6 +240,10 @@ func (s *MSPWorkbenchService) listRecordRows(ctx context.Context, recordType str
 		if q != "" {
 			query = query.Where(entChange.Or(entChange.ChangeNumberContainsFold(q), entChange.TitleContainsFold(q)))
 		}
+		n, err := query.Clone().Count(qctx)
+		if err != nil {
+			return nil, 0, false, fmt.Errorf("msp records count change tenant %d: %w", tenantID, err)
+		}
 		if hasCursor {
 			query = query.Where(entChange.Or(
 				entChange.UpdatedAtLT(ts),
@@ -244,7 +252,7 @@ func (s *MSPWorkbenchService) listRecordRows(ctx context.Context, recordType str
 		}
 		rows, err := query.Order(ent.Desc(entChange.FieldUpdatedAt), ent.Desc(entChange.FieldID)).Limit(limit + 1).All(qctx)
 		if err != nil {
-			return nil, false, fmt.Errorf("msp records query change tenant %d: %w", tenantID, err)
+			return nil, 0, false, fmt.Errorf("msp records query change tenant %d: %w", tenantID, err)
 		}
 		more := len(rows) > limit
 		if more {
@@ -258,7 +266,7 @@ func (s *MSPWorkbenchService) listRecordRows(ctx context.Context, recordType str
 				createdAt: r.CreatedAt, updatedAt: r.UpdatedAt,
 			})
 		}
-		return out, more, nil
+		return out, n, more, nil
 
 	case MSPRecordProblem:
 		query := s.client.Problem.Query().Where(entProblem.TenantIDEQ(tenantID), entProblem.DeletedAtIsNil())
@@ -268,6 +276,10 @@ func (s *MSPWorkbenchService) listRecordRows(ctx context.Context, recordType str
 		if q != "" {
 			query = query.Where(entProblem.Or(entProblem.ProblemNumberContainsFold(q), entProblem.TitleContainsFold(q)))
 		}
+		n, err := query.Clone().Count(qctx)
+		if err != nil {
+			return nil, 0, false, fmt.Errorf("msp records count problem tenant %d: %w", tenantID, err)
+		}
 		if hasCursor {
 			query = query.Where(entProblem.Or(
 				entProblem.UpdatedAtLT(ts),
@@ -276,7 +288,7 @@ func (s *MSPWorkbenchService) listRecordRows(ctx context.Context, recordType str
 		}
 		rows, err := query.Order(ent.Desc(entProblem.FieldUpdatedAt), ent.Desc(entProblem.FieldID)).Limit(limit + 1).All(qctx)
 		if err != nil {
-			return nil, false, fmt.Errorf("msp records query problem tenant %d: %w", tenantID, err)
+			return nil, 0, false, fmt.Errorf("msp records query problem tenant %d: %w", tenantID, err)
 		}
 		more := len(rows) > limit
 		if more {
@@ -290,7 +302,7 @@ func (s *MSPWorkbenchService) listRecordRows(ctx context.Context, recordType str
 				createdAt: r.CreatedAt, updatedAt: r.UpdatedAt,
 			})
 		}
-		return out, more, nil
+		return out, n, more, nil
 
 	case MSPRecordServiceRequest:
 		query := s.client.ServiceRequest.Query().Where(entSR.TenantIDEQ(tenantID), entSR.DeletedAtIsNil())
@@ -300,6 +312,10 @@ func (s *MSPWorkbenchService) listRecordRows(ctx context.Context, recordType str
 		if q != "" {
 			query = query.Where(entSR.TitleContainsFold(q))
 		}
+		n, err := query.Clone().Count(qctx)
+		if err != nil {
+			return nil, 0, false, fmt.Errorf("msp records count service_request tenant %d: %w", tenantID, err)
+		}
 		if hasCursor {
 			query = query.Where(entSR.Or(
 				entSR.UpdatedAtLT(ts),
@@ -308,7 +324,7 @@ func (s *MSPWorkbenchService) listRecordRows(ctx context.Context, recordType str
 		}
 		rows, err := query.Order(ent.Desc(entSR.FieldUpdatedAt), ent.Desc(entSR.FieldID)).Limit(limit + 1).All(qctx)
 		if err != nil {
-			return nil, false, fmt.Errorf("msp records query service_request tenant %d: %w", tenantID, err)
+			return nil, 0, false, fmt.Errorf("msp records query service_request tenant %d: %w", tenantID, err)
 		}
 		more := len(rows) > limit
 		if more {
@@ -322,10 +338,10 @@ func (s *MSPWorkbenchService) listRecordRows(ctx context.Context, recordType str
 				createdAt: r.CreatedAt, updatedAt: r.UpdatedAt,
 			})
 		}
-		return out, more, nil
+		return out, n, more, nil
 
 	default:
-		return nil, false, NewCustomerAccessError(CodeActionNotAllowed, "不支持的单据类型: %s", recordType)
+		return nil, 0, false, NewCustomerAccessError(CodeActionNotAllowed, "不支持的单据类型: %s", recordType)
 	}
 }
 

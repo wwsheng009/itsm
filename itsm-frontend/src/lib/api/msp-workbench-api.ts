@@ -90,6 +90,8 @@ export interface WorkbenchTicketItem {
 export interface WorkbenchTicketListResponse {
   items: WorkbenchTicketItem[];
   nextCursor?: string;
+  /** 当前筛选（客户范围 + status/priority/q/updatedAfter）下的全量条数（跨租户求和），
+   * 不随本页条数/游标变化（2026-10-13 契约修复）。 */
   total: number;
 }
 

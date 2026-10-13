@@ -243,6 +243,8 @@ export default function MSPWorkbenchPage() {
   );
 
   const [tickets, setTickets] = useState<WorkbenchTicketItem[]>([]);
+  // 当前筛选下的全量条数（服务端 Total；2026-10-13 契约修复后不再等于本页条数）
+  const [total, setTotal] = useState(0);
   const [nextCursor, setNextCursor] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
@@ -325,10 +327,12 @@ export default function MSPWorkbenchPage() {
       const response = await listWorkbenchTickets(toApiQuery(filters));
       if (seq !== requestSeq.current) return;
       setTickets(response?.items ?? []);
+      setTotal(response?.total ?? 0);
       setNextCursor(response?.nextCursor || null);
     } catch (err) {
       if (seq !== requestSeq.current) return;
       setTickets([]);
+      setTotal(0);
       setNextCursor(null);
       setError(errorMessage(err, '加载工作台工单失败'));
     } finally {
@@ -346,6 +350,7 @@ export default function MSPWorkbenchPage() {
     try {
       const response = await listWorkbenchTickets(toApiQuery(filters, nextCursor));
       setTickets(prev => [...prev, ...(response?.items ?? [])]);
+      setTotal(response?.total ?? 0);
       setNextCursor(response?.nextCursor || null);
     } catch (err) {
       message.error(errorMessage(err, '加载更多失败'));
@@ -938,6 +943,7 @@ export default function MSPWorkbenchPage() {
               临近 {scopeTotals.slaDueSoon}
             </Tag>
             <Tag style={{ margin: 0 }}>未指派 {scopeTotals.unassigned}</Tag>
+            <Tag style={{ margin: 0 }}>列表 {total} 条（当前筛选）</Tag>
             <Typography.Text type="secondary" style={{ fontSize: 12 }}>
               摘要与顶栏客户徽标同源（未关闭＝未解决/未关闭/未取消，含挂起与处理中）；下方列表含全部状态
             </Typography.Text>

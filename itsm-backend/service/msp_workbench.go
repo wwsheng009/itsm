@@ -176,11 +176,20 @@ func (s *MSPWorkbenchService) ListTickets(ctx context.Context, actor MSPWorkbenc
 
 	merged := make([]mergedRow, 0, limit+1)
 	moreByTenant := make(map[int]bool, len(tenantIDs))
+	total := 0
 	for _, tid := range tenantIDs {
 		// IP-P2-2：授权边界内按目标客户租户重绑定 ctx（RLS enforce 下 GUC 单值 = 查询语义）。
 		qctx := tenantctx.WithTenantID(ctx, tid)
-		q := s.client.Ticket.Query().Where(entTicket.TenantIDEQ(tid))
-		q = applyWorkbenchFilters(q, req)
+		base := s.client.Ticket.Query().Where(entTicket.TenantIDEQ(tid))
+		base = applyWorkbenchFilters(base, req)
+		// 2026-10-13 契约修复：Total 为「当前筛选下的全量条数」（跨租户求和），
+		// 不随 limit/游标变化；旧实现 Total=len(items) 会让「共 N 条」类展示失真。
+		n, err := base.Clone().Count(qctx)
+		if err != nil {
+			return nil, fmt.Errorf("workbench count tenant %d: %w", tid, err)
+		}
+		total += n
+		q := base
 		if p, ok := posByTenant[tid]; ok {
 			q = applyWorkbenchCursor(q, sortKey, p)
 		}
@@ -304,7 +313,7 @@ func (s *MSPWorkbenchService) ListTickets(ctx context.Context, actor MSPWorkbenc
 		}
 	}
 
-	return &dto.WorkbenchTicketListResponse{Items: items, NextCursor: nextCursor, Total: len(items)}, nil
+	return &dto.WorkbenchTicketListResponse{Items: items, NextCursor: nextCursor, Total: total}, nil
 }
 
 // GetTicketDetail 跨租户工单详情（P1；工作台详情抽屉）：
