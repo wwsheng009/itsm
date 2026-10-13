@@ -1,6 +1,6 @@
 # 系统配置运行时接入分析与改造方案（/admin/system-config）
 
-> 状态：**Draft v0.2（分析完成 + 决策点按最佳实践定案（§9 D1–D6），待评审排期）**｜日期：2026-10-13｜基准：仓库 HEAD `8a7c03be`；238 演示栈 `1.8.0-dev.5e4eab85`（DB `itsm_demo`）
+> 状态：**v0.3（P0 已实施并在 238 演示栈实测验收 23/23，见 §10；P1/P2 待排期）**｜日期：2026-10-13｜基准：仓库 HEAD `c7ac0abc`；238 演示栈 `1.8.0-dev.c7ac0abc`（frontend `1.8.0-dev.118c2322`，DB `itsm_demo`）
 > 定位：**系统配置页字段的"存储 → 运行时生效"落差分析 + 租户级邮件 / 会话 / 账户安全策略接入方案**。起因：用户提问「不同租户都设置邮件服务器，是否会同时生效」。
 > 关联：[演示环境指南](../demo-environment.md)｜[canon（L1 概念权威）](./msp-concept-model-and-architecture-canon.md)｜[多租户 INDEX](../INDEX.md)｜[backlog](../backlog.md)
 > 读者：架构评审、后端/前端研发、测试 QA、产品决策。
@@ -339,3 +339,42 @@ type TenantConfigResolver interface {
 - 写入面：三租户分别批量写 `systemName`，互不影响；写入后按租户失效密码策略缓存（代码路径确认）。
 - 读取面：`smtpHost/smtpPort/smtpUsername/smtpPassword/smtpEnableSSL/emailFrom`、`sessionTimeout`、
   `loginMaxAttempts/accountLockoutDuration/enable2FA` 在全仓无业务读取方（仅默认键清单）。
+
+---
+
+## 10. 实施记录（v0.3，2026-10-13）：P0 已交付并实测验收
+
+**提交**：`118c2322`（P0 主体）→ `c7ac0abc`（占位 SMTP 回退修复，由 238 实测触发）
+**镜像**：演示栈 backend/worker `1.8.0-dev.c7ac0abc`；frontend `1.8.0-dev.118c2322`
+**验收**：`python scripts/demo/verify_scd_p0.py` → **23/23 PASS**（8089 演示栈；脚本内可重跑，含日志清理）
+
+### 10.1 交付物
+
+| 项 | 落地 | 关键文件 |
+|---|---|---|
+| SCD1 租户配置解析器 | 租户全量键值缓存（TTL 5min）+ `InvalidateTenantConfig` 保存即失效 + Redis 频道 `itsm:tenant-config:invalidate` 跨实例广播与订阅清缓存 | `itsm-backend/service/system_config_resolver.go`、`internal/bootstrap/config_invalidation.go`、`service/system_config_service.go` |
+| SCD2 按租户邮件 | `MailerProvider.ForTenant`：租户 SMTP > 部署级回退（仅 `smtp.enabled=true` 且主机有效）> `ErrMailNotConfigured`（**告警跳过，不静默**）；`EmailService` 支持隐式 TLS(465) 与匿名中继；4 个直连发信点全部按租户解析 | `service/mailer_provider.go`、`service/email_service.go`、`service/ticket_notification_service.go`、`service/sla_alert_service.go`、`handlers/auth/service.go` |
+| SCD4 凭据治理 | AES-256-GCM（`CONFIG_SECRET_KEY`；生产缺失 fail-closed，开发/演示 JWT 派生+WARN）；密文 `v1:<keyId>:<nonce>:<ct>`；API 掩码 `******` 且掩码回写=保持原值；敏感变更写 `audit_logs`（`changed_keys`，不含明文） | `service/config_crypto.go`、`service/system_config_service.go`、`handlers/systemconfig/routes.go` |
+| P0-4 前端文案 | "本租户默认值"、SMTP 留空回退说明、密码掩码语义说明、`enable2FA` 禁用+「规划中」标注、SMTP 主机/用户名/发件人改为可留空 | `itsm-frontend/src/pages/(main)/admin/system-config/index.tsx` |
+| 部署与验收工具 | `CONFIG_SECRET_KEY` / `DEMO_CONFIG_SECRET_KEY` 注入 compose 与 env 模板；238 `.env.prod`/`.env.demo` 已生成密钥；新增 mock SMTP sink 与 P0 验收脚本 | `docker-compose.prod.yml`、`docker-compose.demo.yml`、`.env.prod.example`、`.env.demo.example`、`scripts/demo/mock_smtp.py`、`scripts/demo/verify_scd_p0.py` |
+
+### 10.2 实测验收（238 演示栈 8089）
+
+- **SCA1 A/B 双 SMTP 并行**：mfg→`itsm-smtp-mock-a`（From `ops-a@tenant-a.example`）、med→`itsm-smtp-mock-b`（From `ops-b@tenant-b.example`）；各自 mock 日志不含对方 From/To → 租户隔离成立；
+- **SCA2 未配置回退**：edu 清空 SMTP 后触发找回密码 → 无邮件外发 + 后端 WARN `password reset email skipped: mailer unavailable`（tenant 5）；
+- **SCA3 保存即生效**：批量保存后立即发信成功（无需重启）；
+- **SCA4 凭据治理**：DB `smtpPassword` 前缀 `v1:`（长度 77），API 回显 `******`；掩码回写后密文长度不变（不被覆盖）；敏感变更审计已写入；
+- **D6**：`tenant config invalidation subscriber started`（Redis 订阅）已启动。
+
+**238 实测发现并修复的 P0 缺陷**：部署级 `config.yaml` 默认 `smtp.host: smtp.example.com`（`enabled: false`）曾被当作回退邮箱，导致未配置租户的邮件投递到假域名（DNS `no such host`）。修复（`c7ac0abc`）：仅 `cfg.SMTP.Enabled && 主机有效` 才装配部署级回退；`MailerProvider` 对构造与回退路径做双层占位主机防御（`example.com` 保留域视为未配置），并补单测 `TestMailerProvider_PlaceholderFallbackDisabled`。
+
+### 10.3 与方案的偏差（仍在 D1–D6 意图内）
+
+- `enable2FA` 采用「**禁用开关 + extra 标注规划中**」而非整块隐藏：保留可见性避免用户找不到字段，禁用态杜绝"看起来可用"；
+- 「测试发信」按钮/端点仍在 P1（本轮验收改用找回密码直连路径触发）；
+- 工单通知 API（outbox → connector 投递）与事件告警（`IncidentAlertingService` 读部署级 env）不在本轮改动范围：本轮接入的是 4 个**直连 EmailService** 的发信点；上述两条链路的统一在 P1（SCD3）评估。
+
+### 10.4 遗留（P1/P2，按 §6 分期）
+
+- **P1**：事件告警统一到租户解析；`sessionTimeout` 租户化（部署值为上限）；附件灰度按租户接入；页面「测试发信」按钮；
+- **P2**：送达重试/退信处理、登录锁定真接入、`loginMaxAttempts/accountLockoutDuration` 租户化、连接器复用系统 SMTP 凭据评估、旧明文 `smtpPassword` 一次性回填脚本（演示库已自然加密；生产存量需按 §5 SCD4 回填）。

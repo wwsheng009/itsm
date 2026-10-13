@@ -214,6 +214,29 @@ def main():
     record("SCA4 ciphertext v1: [mfg]", rows.get(3, ("", ""))[0].startswith("v1:"), "row=%s" % (rows.get(3),))
     record("SCA4 ciphertext v1: [med]", rows.get(4, ("", ""))[0].startswith("v1:"), "row=%s" % (rows.get(4),))
 
+    # ---------- SCA4b: 掩码回写不覆盖原值（前端回显 ****** 后原样提交的场景） ----------
+    mfg_map = get_config_map(clients["mfg"])
+    resp = batch_update(clients["mfg"], [{
+        "key": "smtpPassword",
+        "value": "******",
+        "valueType": "string",
+        "description": (mfg_map.get("smtpPassword") or {}).get("description") or "",
+    }])
+    record("SCA4b mask write accepted", resp.get("code") == 0, "code=%s" % resp.get("code"))
+    out2 = remote(sql)
+    rows2 = {}
+    for line in out2.splitlines():
+        parts = [p.strip() for p in line.split("|")]
+        if len(parts) == 3 and parts[0].isdigit():
+            rows2[int(parts[0])] = (parts[1], parts[2])
+    record("SCA4b ciphertext preserved after mask",
+           rows2.get(3, ("", ""))[1] == rows.get(3, ("", ""))[1] and rows2.get(3, ("", ""))[0].startswith("v1:"),
+           "before=%s after=%s" % (rows.get(3), rows2.get(3)))
+
+    # ---------- D6: Redis 失效订阅启动 ----------
+    sub_out = remote("docker exec itsm-backend-demo sh -c \"grep -h 'invalidation subscriber started' /app/logs/*.log 2>/dev/null | tail -2\" || true")
+    record("D6 redis invalidation subscriber started", "subscriber started" in sub_out, sub_out.strip()[:160])
+
     # ---------- SCA2 校验：后端日志出现告警跳过 ----------
     log_out = remote("docker exec itsm-backend-demo sh -c \"grep -h 'password reset email skipped' /app/logs/*.log 2>/dev/null | tail -4\" || true")
     if "mailer unavailable" not in log_out:

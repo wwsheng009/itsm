@@ -19,7 +19,7 @@
 | 实测现状/缺口/排障 | [01–07](./README.md)（as-is）｜[三角色演练剧本](./plan/msp-three-persona-operation-simulation.md) |
 | 想按界面一步步操作（建服务商账号/分配到客户/进入客户） | [08 服务商账号与客户授权操作手册（用户级）](./08-msp-user-operations-manual.md) |
 | 想直接使用**多租户演示环境与全量演示数据集**（独立栈 8089 / 账号 / 数据集 / 重置） | [演示环境指南](./demo-environment.md)（种子器 `scripts/demo/seed_demo_dataset.py`） |
-| 系统配置页（SMTP/安全设置/会话）**哪些字段真正生效**、租户级邮件如何改造 | [系统配置运行时接入分析](./plan/system-config-runtime-wiring-analysis.md)（SC1–SC7 现状 / SCD1–SCD6 方案 / SCA1–SCA6 验收） |
+| 系统配置页（SMTP/安全设置/会话）**哪些字段真正生效**、租户级邮件如何改造 | [系统配置运行时接入分析](./plan/system-config-runtime-wiring-analysis.md)（v0.3：**P0 已实施并 238 实测 23/23**，见 §10；SC1–SC7 现状 / SCD1–SCD6 方案 / SCA1–SCA6 验收） |
 | 想在浏览器一步步重现全链路业务 | [scenarios/ 场景目录](./scenarios/README.md)（建租户→开通→建号→分配→建单→协作→审计与反例，含验证命令） |
 | 新增角色/权限/路由前要做什么 | [扩展评审清单](./plan/role-permission-extension-checklist.md)（归类/登记/守卫/平台家族码评估表） |
 | 有哪些待优化项、进展如何 | [backlog](./backlog.md)（OB-1–OB-10：来源/动作/验收/状态） |
@@ -77,7 +77,7 @@
 | [msp-offboarding-orchestration-plan.md](./plan/msp-offboarding-orchestration-plan.md) | L4 | v0.1（2026-10-08） | **MSP 离职编排与分配回收（IP-P2-8）**：现状核对 S1–S7、编排设计（停用先行 + 全量回收 + 幂等 + `user.offboard` 审计）、决策点 D1–D4、分期 P0–P2 | `IP-P2-8` |
 | [role-permission-extension-checklist.md](./plan/role-permission-extension-checklist.md) | 治理 | v0.1（2026-10-08） | **新增角色/权限/路由评审清单**：扩展纪律、平台家族码评估结论（§2.2）、守卫矩阵与评审流程 | — |
 | [platform-permission-shielding-d1-decision.md](./plan/platform-permission-shielding-d1-decision.md) | L4 | v0.1（2026-10-08；D1=B 定案） | **存量租户权限目录处置（D1）决策材料**：实测证据（只读 SQL）、A/B 对比、A 预案（开通克隆链连带改动）、触发条件 | — |
-| [system-config-runtime-wiring-analysis.md](./plan/system-config-runtime-wiring-analysis.md) | L4 | Draft v0.2（2026-10-13，**决策 D1–D6 按最佳实践定案**，待评审排期） | **系统配置运行时接入分析**：字段组"存储→生效"落差（SMTP/会话/账户安全存而不用；EmailService 未装配；附件 flags 静态装配）、租户级邮件/会话改造方案、分期计划与验收 | `SC1–SC7` `SCD1–SCD6` `SCA1–SCA6` `SCR1–SCR4` `D1–D6` |
+| [system-config-runtime-wiring-analysis.md](./plan/system-config-runtime-wiring-analysis.md) | L4 | v0.3（2026-10-13，**P0 已实施 + 238 演示栈实测 23/23（§10）**；P1/P2 待排期） | **系统配置运行时接入分析**：字段组"存储→生效"落差（SMTP/会话/账户安全存而不用；EmailService 未装配；附件 flags 静态装配）、租户级邮件/会话改造方案、分期计划与验收；P0 已落地：租户配置解析器（Redis 失效）+ 按租户 Mailer + `CONFIG_SECRET_KEY` 加密掩码 + 前端文案 | `SC1–SC7` `SCD1–SCD6` `SCA1–SCA6` `SCR1–SCR4` `D1–D6` |
 | [backlog.md](./backlog.md) | 治理 | 进行中（2026-10-12 建立） | **多租户优化待办（OB-1–OB-10）**：FDB-B1 发现/观察项 → 优化任务、状态跟踪与验收口径 | `OB-#` |
 
 ### 2.1 场景目录（scenarios/，L6 浏览器实操剧本）

@@ -165,10 +165,32 @@ python scripts/demo/seed_demo_dataset.py --base-url http://172.18.3.238:8089 --a
 - 每次重建若使用最新镜像，请确保镜像已包含
   `fix(seeder): 序列校正在事务提交后执行`（提交 `5e4eab85`，修复全新库首次开通租户 500）。
 
-## 6. 相关提交
+## 6. 租户级邮件与系统配置（P0，2026-10-13）
+
+演示库三个租户已配置**各自的 SMTP**（演示栈内 mock sink），用于演示"不同租户邮件互不影响"：
+
+| 租户 | system_configs（tenant_id） | smtpHost / 端口 | 发件人 | 说明 |
+|---|---|---|---|---|
+| demo-mfg（3） | `smtpHost=itsm-smtp-mock-a` | `itsm-smtp-mock-a:2525`（无 SSL） | `ops-a@tenant-a.example` | 邮件落入容器 `/tmp/mock_a.log` |
+| demo-med（4） | `smtpHost=itsm-smtp-mock-b` | `itsm-smtp-mock-b:2525`（无 SSL） | `ops-b@tenant-b.example` | 邮件落入容器 `/tmp/mock_b.log` |
+| demo-edu（5） | 留空（未配置） | — | — | 演示"未配置 → 部署级回退；无回退则告警跳过" |
+
+- mock sink 容器（**不属于 compose 编排**，需手动维护；镜像 `python:3.12-slim-bookworm` 已在 238 本地）：
+  `docker run -d --name itsm-smtp-mock-a --network itsm-demo-network -v /home/n9e/itsm/repo/scripts/demo/mock_smtp.py:/mock_smtp.py:ro -e MOCK_LOG=/tmp/mock_a.log python:3.12-slim-bookworm python /mock_smtp.py 2525`
+  （mock-b 同理，`MOCK_LOG=/tmp/mock_b.log`）
+- 查看收到邮件：`docker exec itsm-smtp-mock-a cat /tmp/mock_a.log`
+- 端到端验收（幂等，可重跑）：`python scripts/demo/verify_scd_p0.py` → **23/23 PASS**
+  （A/B 租户隔离 / 未配置告警 / 保存即生效 / 密文+掩码 / 掩码回写不覆盖 / Redis 失效订阅）
+- 凭据：`smtpPassword` 在库中为 AES-GCM 密文（`v1:` 前缀，密钥 = 演示栈 `.env.demo` 的 `DEMO_CONFIG_SECRET_KEY`）；
+  页面/接口只回显 `******`，提交 `******` 表示保持原值。
+- 注意：`DEMO_CONFIG_SECRET_KEY` 轮换后旧密文无法解密（需重新保存邮件密码）；
+  演示栈缺失该键时（`SERVER_ENV=production`）保存敏感配置会被拒绝（fail-closed）。
+
+## 7. 相关提交
 
 | 提交 | 内容 |
 |---|---|
 | `577a40eb` | 演示栈（`docker-compose.demo.yml` + 演示 Nginx + 环境变量模板） |
 | `5e4eab85` | 序列校正时机修复（全新库首次开通租户 500） |
+| `118c2322` + `c7ac0abc` | OB-18 P0：租户配置解析器（Redis 失效）+ 按租户邮件解析 + 凭据 AES-GCM/掩码/审计 + 前端文案；238 v8 实测 23/23（含占位 SMTP 回退缺陷修复） |
 | 本批 | 演示数据集种子器 `scripts/demo/seed_demo_dataset.py` + 本指南 |
