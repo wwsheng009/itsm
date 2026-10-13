@@ -157,11 +157,28 @@ describe('MSPService', () => {
   describe('getCustomerReports', () => {
     it('should return customer reports', async () => {
       const reports = [{ customerId: 1, ticketCount: 5 }];
+      mockGetCustomerReports.mockResolvedValue({ reports, total: 1 });
+
+      const result = await MSPService.getCustomerReports({ startDate: '2024-01-01', endDate: '2024-01-31' });
+
+      expect(result).toEqual(reports);
+    });
+
+    it('should tolerate legacy bare-array payload', async () => {
+      const reports = [{ customerId: 2, ticketCount: 3 }];
       mockGetCustomerReports.mockResolvedValue(reports);
 
       const result = await MSPService.getCustomerReports({ startDate: '2024-01-01', endDate: '2024-01-31' });
 
       expect(result).toEqual(reports);
+    });
+
+    it('should converge abnormal payload to empty array', async () => {
+      mockGetCustomerReports.mockResolvedValue({ total: 1 } as any);
+
+      const result = await MSPService.getCustomerReports({ startDate: '2024-01-01', endDate: '2024-01-31' });
+
+      expect(result).toEqual([]);
     });
 
     it('should return empty array when no data', async () => {

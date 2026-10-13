@@ -127,7 +127,13 @@ export class MSPService {
     customerTenantId?: number;
   }): Promise<MSPCustomerReport[]> {
     const res = await MSPAPI.getCustomerReports(params);
-    return res || [];
+    // OB-15：后端契约为 {reports, total}（逐客户行）；兼容历史裸数组返回，异常形状一律收敛为空数组。
+    const payload: unknown = res;
+    if (Array.isArray(payload)) {
+      return payload as MSPCustomerReport[];
+    }
+    const raw = (payload as { reports?: MSPCustomerReport[] } | null | undefined)?.reports;
+    return Array.isArray(raw) ? raw : [];
   }
 
   /**

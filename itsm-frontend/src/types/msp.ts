@@ -66,7 +66,7 @@ export interface MSPCustomerReport {
   totalTickets: number;
   resolvedTickets: number;
   mspHandlingTimeAvg: number; // 小时
-  slaComplianceRate: number; // 0-1
+  slaComplianceRate?: number | null; // 0-1；缺省/nil=暂无 SLA 样本（页面展示 '-'）
 }
 
 // MSP 分配历史

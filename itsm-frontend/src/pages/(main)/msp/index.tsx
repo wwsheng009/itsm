@@ -195,13 +195,16 @@ export default function MSPDashboardPage() {
       title: '平均处理时长(小时)',
       dataIndex: 'mspHandlingTimeAvg',
       key: 'mspHandlingTimeAvg',
-      render: (val: number) => val?.toFixed(2) || '-',
+      render: (val: number) => (val && val > 0 ? val.toFixed(2) : '-'),
     },
     {
       title: 'SLA 合规率',
       key: 'slaComplianceRate',
       render: (_: any, record: MSPCustomerReport) => {
         const val = record.slaComplianceRate;
+        if (val == null || val <= 0) {
+          return <span>-</span>;
+        }
         const rate = (val * 100).toFixed(1);
         return <Tag color={val >= 0.95 ? 'green' : val >= 0.8 ? 'orange' : 'red'}>{rate}%</Tag>;
       },
@@ -324,7 +327,7 @@ export default function MSPDashboardPage() {
           <Card>
             <Statistic
               title="本月工单"
-              value={reports.reduce((sum, r) => sum + r.totalTickets, 0)}
+              value={reports.reduce((sum, r) => sum + (r.totalTickets ?? 0), 0)}
               prefix={<Clock />}
             />
           </Card>
@@ -333,7 +336,7 @@ export default function MSPDashboardPage() {
           <Card>
             <Statistic
               title="已解决"
-              value={reports.reduce((sum, r) => sum + r.resolvedTickets, 0)}
+              value={reports.reduce((sum, r) => sum + (r.resolvedTickets ?? 0), 0)}
               prefix={<CheckCircle />}
             />
           </Card>

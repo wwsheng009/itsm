@@ -100,13 +100,17 @@ export class MSPAPI {
 
   // ==================== MSP 报表 ====================
 
-  /** 获取客户服务报表 */
+  /**
+   * 获取客户服务报表（OB-15 契约：`{reports, total}`，逐客户行）。
+   * 消费方用 MSPService.getCustomerReports 解包为数组；不得再假设返回裸数组
+   * （历史缺陷：把 payload 当数组 reduce → /msp 页 ErrorBoundary 整页崩溃）。
+   */
   static async getCustomerReports(params: {
     startDate: string;
     endDate: string;
     customerTenantId?: number;
-  }): Promise<MSPCustomerReport[]> {
-    return httpClient.get<MSPCustomerReport[]>('/api/v1/msp/reports/customers', params);
+  }): Promise<{ reports: MSPCustomerReport[]; total: number }> {
+    return httpClient.get<{ reports: MSPCustomerReport[]; total: number }>('/api/v1/msp/reports/customers', params);
   }
 
   /** 获取 MSP 员工绩效报表 */

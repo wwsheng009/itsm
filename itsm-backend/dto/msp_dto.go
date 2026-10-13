@@ -112,8 +112,8 @@ type MSPCustomerReport struct {
 	Period             string  `json:"period"`
 	TotalTickets       int     `json:"totalTickets"`
 	ResolvedTickets    int     `json:"resolvedTickets"`
-	MSPHandlingTimeAvg float64 `json:"mspHandlingTimeAvg"` // 小时
-	SLAComplianceRate  float64 `json:"slaComplianceRate"`  // 0.0-1.0
+	MSPHandlingTimeAvg float64  `json:"mspHandlingTimeAvg"` // 小时（无已解决工单样本时为 0）
+	SLAComplianceRate  *float64 `json:"slaComplianceRate,omitempty"` // 0.0-1.0；nil=暂无 SLA 样本（前端展示 '-'，计算口径待跟进）
 }
 
 // MSPPerformanceReport MSP 员工绩效报表

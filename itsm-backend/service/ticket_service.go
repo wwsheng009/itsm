@@ -8,6 +8,7 @@ import (
 	"errors"
 	"fmt"
 	"regexp"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -23,6 +24,7 @@ import (
 	"itsm-backend/ent/department"
 	"itsm-backend/ent/group"
 	"itsm-backend/ent/processinstance"
+	entTenant "itsm-backend/ent/tenant"
 	entTicket "itsm-backend/ent/ticket"
 	"itsm-backend/ent/ticketcategory"
 	entTicketComment "itsm-backend/ent/ticketcomment"
@@ -2694,8 +2696,14 @@ func (s *TicketService) AssignMSPTechnician(ctx context.Context, ticketID, custo
 	return updated, nil
 }
 
-// GetMSPCustomerReports 获取 MSP 客户报告（仅统计该员工可访问的客户租户；IP-P0-2）
-func (s *TicketService) GetMSPCustomerReports(ctx context.Context, mspUserID int, dateFrom, dateTo time.Time) ([]map[string]interface{}, error) {
+// GetMSPCustomerReports 获取 MSP 客户服务报表（OB-15 收口：按员工可访问客户维度逐客户聚合）。
+//
+// 契约：每行一个客户，字段与 dto.MSPCustomerReport 对齐（前端 /msp 页与 MSPService 直接消费；
+// 历史缺陷：曾返回单条聚合 map（total_tickets/status_summary），前端当数组 reduce 导致整页崩溃）。
+// 口径：total_tickets=区间内该客户工单数；resolved_tickets=resolved/closed；msp_handling_time_avg=已解决工单
+// (updated_at-created_at) 平均小时数（无样本时为 0）；sla_compliance_rate 暂无稳定口径，保持 nil（前端展示 '-'）。
+// fail-closed：无分配员工返回空集合（IP-P0-2）。
+func (s *TicketService) GetMSPCustomerReports(ctx context.Context, mspUserID int, dateFrom, dateTo time.Time) ([]dto.MSPCustomerReport, error) {
 	if s.client == nil {
 		return nil, fmt.Errorf("ent client not available for MSP reports")
 	}
@@ -2704,8 +2712,18 @@ func (s *TicketService) GetMSPCustomerReports(ctx context.Context, mspUserID int
 		return nil, err
 	}
 	if len(allowed) == 0 {
-		return []map[string]interface{}{}, nil
+		return []dto.MSPCustomerReport{}, nil
 	}
+
+	tenants, err := s.client.Tenant.Query().Where(entTenant.IDIn(allowed...)).All(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to load MSP customer tenants: %w", err)
+	}
+	customerNames := make(map[int]string, len(tenants))
+	for _, t := range tenants {
+		customerNames[t.ID] = t.Name
+	}
+
 	query := s.client.Ticket.Query().Where(entTicket.TenantIDIn(allowed...))
 	if !dateFrom.IsZero() {
 		query = query.Where(entTicket.CreatedAtGTE(dateFrom))
@@ -2717,16 +2735,55 @@ func (s *TicketService) GetMSPCustomerReports(ctx context.Context, mspUserID int
 	if err != nil {
 		return nil, fmt.Errorf("failed to get MSP customer reports: %w", err)
 	}
-	reports := make([]map[string]interface{}, 0, len(tickets))
-	statusCount := make(map[string]int)
-	for _, t := range tickets {
-		statusCount[t.Status]++
+
+	type customerAgg struct {
+		total     int
+		resolved  int
+		handleSum time.Duration
+		handleN   int
 	}
-	reports = append(reports, map[string]interface{}{
-		"total_tickets":  len(tickets),
-		"status_summary": statusCount,
-		"date_from":      dateFrom,
-		"date_to":        dateTo,
+	aggs := make(map[int]*customerAgg, len(allowed))
+	for _, t := range tickets {
+		agg := aggs[t.TenantID]
+		if agg == nil {
+			agg = &customerAgg{}
+			aggs[t.TenantID] = agg
+		}
+		agg.total++
+		if t.Status == "resolved" || t.Status == "closed" {
+			agg.resolved++
+			if !t.UpdatedAt.IsZero() && t.UpdatedAt.After(t.CreatedAt) {
+				agg.handleSum += t.UpdatedAt.Sub(t.CreatedAt)
+				agg.handleN++
+			}
+		}
+	}
+
+	period := ""
+	if !dateFrom.IsZero() && !dateTo.IsZero() {
+		period = dateFrom.Format("2006-01-02") + " ~ " + dateTo.Format("2006-01-02")
+	}
+	reports := make([]dto.MSPCustomerReport, 0, len(allowed))
+	for _, customerID := range allowed {
+		report := dto.MSPCustomerReport{
+			CustomerTenantID: customerID,
+			CustomerName:     customerNames[customerID],
+			Period:           period,
+		}
+		if agg := aggs[customerID]; agg != nil {
+			report.TotalTickets = agg.total
+			report.ResolvedTickets = agg.resolved
+			if agg.handleN > 0 {
+				report.MSPHandlingTimeAvg = agg.handleSum.Hours() / float64(agg.handleN)
+			}
+		}
+		reports = append(reports, report)
+	}
+	sort.Slice(reports, func(i, j int) bool {
+		if reports[i].CustomerName != reports[j].CustomerName {
+			return reports[i].CustomerName < reports[j].CustomerName
+		}
+		return reports[i].CustomerTenantID < reports[j].CustomerTenantID
 	})
 	return reports, nil
 }

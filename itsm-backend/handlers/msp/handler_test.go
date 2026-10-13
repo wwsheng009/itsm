@@ -128,6 +128,20 @@ func TestGetCustomerReports_HonorsCamelCaseDateRange(t *testing.T) {
 	assert.Equal(t, float64(0), body["code"])
 	assert.NotNil(t, body["data"])
 
+	// OB-15 契约：逐客户行 + camelCase 字段（前端 MSPService 直接消费，不得再出现单条聚合 map）
+	data, ok := body["data"].(map[string]interface{})
+	require.True(t, ok)
+	reports, ok := data["reports"].([]interface{})
+	require.True(t, ok, "reports 必须是数组，实际 %v", data)
+	require.Len(t, reports, 1)
+	row, ok := reports[0].(map[string]interface{})
+	require.True(t, ok)
+	assert.Equal(t, float64(customer.ID), row["customerTenantId"])
+	assert.Equal(t, "Cust-A", row["customerName"])
+	assert.Contains(t, row, "totalTickets")
+	assert.Contains(t, row, "resolvedTickets")
+	assert.NotContains(t, row, "slaComplianceRate", "无 SLA 样本时省略，前端展示 '-'")
+
 	// 只发送 snake_case 时仍须报参数缺失——禁止新旧字段双读兼容。
 	status, body = doMSPRequest(t, r, "/api/v1/msp/reports/customers?start_date=2024-01-01&end_date=2024-12-31")
 	assert.Equal(t, http.StatusBadRequest, status)

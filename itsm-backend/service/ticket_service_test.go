@@ -1434,17 +1434,47 @@ func TestTicketService_GetMSPCustomerReports_AllocationAware(t *testing.T) {
 		SetRole("provider_agent").
 		Save(ctx)
 
-	// Test: V2 GetMSPCustomerReports 按 msp 员工可访问客户维度聚合统计
+	// 工单数据：授权客户 3 张（2 已解决 + 1 新建），非授权客户 1 张（fail-closed 不得出现）
+	seed := func(tenantID, requesterID int, number, status string, created, updated time.Time) {
+		_, seedErr := client.Ticket.Create().
+			SetTicketNumber(number).
+			SetTitle("MSP 客户报表").
+			SetDescription("GetMSPCustomerReports 逐客户聚合回归").
+			SetType("incident").
+			SetPriority("medium").
+			SetStatus(status).
+			SetRequesterID(requesterID).
+			SetTenantID(tenantID).
+			SetCreatedAt(created).
+			SetUpdatedAt(updated).
+			Save(ctx)
+		require.NoError(t, seedErr)
+	}
+	base := time.Date(2024, 6, 1, 9, 0, 0, 0, time.UTC)
+	seed(allocatedTenant.ID, mspUser.ID, "MSPC-1", "resolved", base, base.Add(2*time.Hour))
+	seed(allocatedTenant.ID, mspUser.ID, "MSPC-2", "closed", base, base.Add(4*time.Hour))
+	seed(allocatedTenant.ID, mspUser.ID, "MSPC-3", "open", base, base)
+	otherCustomer, _ := client.Tenant.Create().
+		SetName("OtherCustomer").
+		SetCode("other_cust").
+		SetType("msp_customer").
+		SetMspProviderID(mspTenant.ID).
+		Save(ctx)
+	seed(otherCustomer.ID, mspUser.ID, "MSPC-OTHER", "open", base, base)
+
+	// Test: V2 GetMSPCustomerReports 按 msp 员工可访问客户维度逐客户聚合（OB-15 契约收口）
 	dateFrom, _ := time.Parse("2006-01-02", "2024-01-01")
 	dateTo, _ := time.Parse("2006-01-02", "2024-12-31")
 	reports, err := ticketService.GetMSPCustomerReports(ctx, mspUser.ID, dateFrom, dateTo)
 	assert.NoError(t, err)
-	assert.NotNil(t, reports)
-	// V2 返回的 reports 至少包含 status_summary 等字段
-	if len(reports) > 0 {
-		assert.Contains(t, reports[0], "status_summary")
-		assert.Contains(t, reports[0], "total_tickets")
-	}
+	require.Len(t, reports, 1, "仅返回授权的客户租户，且逐客户一行")
+	assert.Equal(t, allocatedTenant.ID, reports[0].CustomerTenantID)
+	assert.Equal(t, "AllocatedCustomer", reports[0].CustomerName)
+	assert.Equal(t, 3, reports[0].TotalTickets)
+	assert.Equal(t, 2, reports[0].ResolvedTickets)
+	assert.InDelta(t, 3.0, reports[0].MSPHandlingTimeAvg, 0.001) // (2h+4h)/2
+	assert.Contains(t, reports[0].Period, "2024-01-01")
+	assert.Nil(t, reports[0].SLAComplianceRate, "暂无 SLA 样本时保持 nil，前端展示 '-'")
 
 	// Test: 无分配员工 fail-closed：返回空集合且不报错（不泄露任何客户维度）
 	reports, err = ticketService.GetMSPCustomerReports(ctx, unallocatedUser.ID, dateFrom, dateTo)
