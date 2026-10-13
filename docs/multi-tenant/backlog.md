@@ -1,6 +1,6 @@
 # 多租户优化待办（Backlog）
 
-> 状态：**已完成（2026-10-12 收口，OB-1–OB-14）**｜定位：FDB-B1 批次与 238 部署/冒烟的**优化任务清单**（OB-1–OB-14，P1–P4），含状态跟踪与验收口径。
+> 状态：**已完成（2026-10-13 收口，OB-1–OB-16）**｜定位：FDB-B1 批次与 238 部署/冒烟的**优化任务清单**（OB-1–OB-16，P1–P4），含状态跟踪与验收口径。
 > 关联：[FDB-B1 run-summary](./evidence/fresh-db-browser-B1/run-summary-20261012-1925.md)｜[12 测试计划](./scenarios/12-fresh-db-multi-tenant-browser-test-plan.md)｜[13 操作手册](./scenarios/13-fresh-db-multi-tenant-browser-operations-manual.md)｜[INDEX](./INDEX.md)
 
 ---
@@ -30,6 +30,7 @@
 | OB-13 | P3 | 分配管理身份口径提示（238 冒烟观察） | `POST /msp/allocations` 需 `msp_allocation:write`；`role=admin`（rank 4）按 07:G3 遮蔽 `provider_admin→msp_manager`（rank 3）→ 平台通道建的 provider 管理员做分配会 403 权限不足 | 文档口径已固化（手册 §2.1/§6.1）；建号表单提示/自动提级评估留待后续（如需） | 口径固化（手册/部署文档或表单提示） | **已完成（2026-10-12）**；v3 兜底（OB-14）后平台通道 provider_admin 自分配直接成功——分配 403 场景消除，手工绕行不再需要 |
 | OB-14 | P1 | 三类单据「推进状态」写面契约不一致/不可达（F10，238 UI 写面验证） | 读面 `allowedActions.status=true`（按 `msp_role` 映射 ∩ 客户租户业务码计算），但提交被**路由通用预检**拒绝 `403 权限不足`（预检按 token 角色，`admin` 遮蔽 `msp_manager` 后无 `msp_ticket:write`） | 已修复：`/api/v1/msp/*` 预检兜底——token 角色失败时按 DB `msp_role` 映射角色复用四层判定再判一次（`smartCheckPermissionWithRoles`）；非 MSP 路径不受影响；补回归测试 | 读面 allowedActions 与写路径一致；平台通道 MSP 用户可完成 record 推进（含反例 fail-closed） | **已完成（2026-10-12）**：单测 5/5；238 v3（`1.8.0-dev.b50e7c7a`）实测 admin+provider_admin 写路径 **200**（problem→investigating），未分配/白名单外场景仍 fail-closed；**UI 全链路复验通过**（2026-10-13：工作台行内「推进状态」→「已定位」，行状态/读回一致）；提交 `b50e7c7a` |
 | OB-15 | P0 | /msp 客户管理页整页崩溃（ErrorBoundary「页面出现错误」；238 浏览器实测） | ① `GET /api/v1/msp/reports/customers` 返回 `{reports:[单条聚合行],total}`（`total_tickets`/`status_summary`），前端 `MSPService.getCustomerReports` 当数组返回 → 页面 `reports.reduce` 抛 `TypeError: k.reduce is not a function` → ErrorBoundary 整页崩溃；② 聚合行字段与 UI「每客户行」语义错配（卡片 NaN/表格空列）；③ 同页分配列表「客户租户」列读 `customerName`（后端 DTO 为 `customerTenantName`）恒空 | 已修复：① 服务端按「员工可访问客户」逐客户聚合，复用 `dto.MSPCustomerReport`（camelCase：客户名/工单量/已解决/平均处理时长；SLA 无样本 → `nil` 省略）；② 前端 `MSPService` 解包 `{reports}` + 异常形状收敛空数组、卡片/解决率防 NaN、SLA/均值空值显示 `-`；③ 分配列兼容 `customerTenantName` + 兜底 `#id`；补后端 service/handler 2 测试、前端 3 测试 | 238 实测（`1.8.0-dev.788f83b7`）：/msp 正常渲染（卡片 1/8/2/0；服务报表=「冒烟客户A」行 工单2/已解决0/解决率0%/-/-；分配列表客户列可见），控制台零报错；后端定向测试 PASS | **已完成（2026-10-13）**：提交 `50cd02c5`（契约+容错）、`788f83b7`（同页列收口）；版本 `1.8.0-dev.788f83b7` 部署，7/7 容器 healthy |
+| OB-16 | P1 | /msp「客户工单」列表标题/状态空白（同页，238 浏览器实测） | `GET /api/v1/msp/customers/:customer_tenant_id/tickets` 直出领域模型 `ticket.Ticket`（无 json tag）→ 响应键 PascalCase（`Title`/`Status`/`CreatedAt`）；前端按 camelCase（`title`/`status`/`createdAt`）读取 → 标题/状态恒空、「创建时间」显示 `-`（同页其它端点均为显式 camelCase DTO） | 已修复：① 后端新增 `dto.MSPCustomerTicketItem`/`MSPCustomerTicketsResponse`，handler 经 `toCustomerTicketItem` 映射，不再序列化领域模型；② 前端 `types/msp.ts` 修正 `tickets` 为数组契约，`MSPService.getCustomerTickets` 归一化兼容 PascalCase 旧契约；③ 补后端 handler 契约断言（camelCase 键存在、PascalCase 键不得出现）与前端归一化用例 | 238 实测（`1.8.0-dev.a7972284`）：API 行键=camelCase（`title`/`status` 正常）；浏览器「客户工单」2 行标题/状态/创建时间均正确渲染 | **已完成（2026-10-13）**：提交 `a7972284`；7/7 容器 healthy；证据 `evidence/238-deploy-20261012/msp-customer-tickets-contract.md` |
 
 ## 3. 执行记录
 
@@ -56,6 +57,8 @@
 | 2026-10-13 | **OB-14 UI 全链路复验（浏览器）** | 已完成：工作台「跨租户单据 → 问题」行内「推进状态」→「已定位」成功（修复前为 403 toast）；行状态/更新时间与 API 读回一致；自分配直接成功（OB-13 绕行不再需要）；复验账号口令轮换作废 | `evidence/238-deploy-20261012/smoke-records-writeface.md` §6 |
 | 2026-10-13 | **OB-15 发现与根因定位（浏览器）** | /msp 整页 ErrorBoundary：`dashboard/overview` 403 为噪声（hook 已兜底）；真凶=客户报表契约断裂（`{reports:[聚合行]}` 被当数组 `reduce`）+ 聚合行字段与「每客户行」语义错配 + 分配列字段名错位（`customerTenantName`） | `evidence/238-deploy-20261012/ob15-msp-page-crash.md` §1–§3 |
 | 2026-10-13 | **OB-15 修复与 238 v4/v5 回归** | 已完成：后端逐客户聚合（复用 `dto.MSPCustomerReport`）+ 前端解包容错 + 分配列收口；后端定向 2 测试 PASS、前端 44/44 + tsc/eslint 0；`1.8.0-dev.50cd02c5` 全量上线（7/7 healthy）→ `1.8.0-dev.788f83b7` 增量上线；浏览器复验：卡片 1/8/2/0、服务报表「冒烟客户A」行、分配列表客户列可见、**控制台零报错** | 提交 `50cd02c5`+`788f83b7`；`evidence/238-deploy-20261012/ob15-msp-page-crash.md` §4–§5 |
+| 2026-10-13 | **OB-16 发现与根因定位** | 用户报告同页「客户工单」选择客户后标题/状态空白；根因=端点直出领域模型（PascalCase 键）与前端 camelCase 契约错配 | `evidence/238-deploy-20261012/msp-customer-tickets-contract.md` §1–§2 |
+| 2026-10-13 | **OB-16 修复与 238 v6 回归** | 已完成：后端显式 DTO + 前端契约收口/PascalCase 兜底；`go test ./handlers/msp` PASS、jest 26/26、tsc/eslint 0；`1.8.0-dev.a7972284` 上线（7/7 healthy）；API 键名= camelCase，浏览器 UI 双行标题/状态/时间正确；部署期修正仓库 root 属主残留（2379 文件）并清理演示账号分配 | 提交 `a7972284`；`evidence/238-deploy-20261012/msp-customer-tickets-contract.md` §4–§5 |
 
 ## 4. 变更记录
 
@@ -72,3 +75,4 @@
 | v0.9 | 2026-10-12 | **OB-14 修复收口（提交 `b50e7c7a`）+ 238 v3 回归通过**：预检按 msp_role 映射兜底；写路径 200/状态推进成功；反例 fail-closed；演示账号口令轮换 |
 | v0.10 | 2026-10-13 | **OB-14 UI 全链路复验通过**（浏览器实测「推进状态」问题→已定位，行状态/读回一致）；OB-13 场景随预检兜底消除（自分配直达）；复验账号口令轮换 |
 | v0.11 | 2026-10-13 | **OB-15 收口：/msp 整页崩溃修复**（客户报表契约断裂 → 后端逐客户聚合 + 前端解包容错；分配列 `customerTenantName`）；238 v4/v5（`1.8.0-dev.50cd02c5` → `1.8.0-dev.788f83b7`）上线并浏览器复验通过（控制台零报错）；证据 `evidence/238-deploy-20261012/ob15-msp-page-crash.md` |
+| v0.12 | 2026-10-13 | **OB-16 收口：/msp「客户工单」契约收口**（后端显式 camelCase DTO + 前端数组契约/旧键兜底）；238 v6（`1.8.0-dev.a7972284`）上线，API 与浏览器双重复验通过（标题/状态/时间正常渲染）；证据 `evidence/238-deploy-20261012/msp-customer-tickets-contract.md` |
