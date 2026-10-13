@@ -19,21 +19,28 @@ const mockSetSearchParams = jest.fn();
 // 可变的 useSearchParams 输入：深链用例在 render 前改写（jest.mock 工厂仅允许 mock* 前缀引用）。
 let mockSearchParams = 'customerTenantIds=all';
 
-jest.mock('react-router', () => ({
-  ...jest.requireActual('react-router'),
-  useNavigate: () => jest.fn(),
-  useLocation: () => ({
-    pathname: '/msp/workbench',
-    search: '',
-    hash: '',
-    state: null,
-    key: 'test',
-  }),
-  useSearchParams: () => [
-    new URLSearchParams(mockSearchParams),
-    mockSetSearchParams,
-  ],
-}));
+jest.mock('react-router', () => {
+  const actual = jest.requireActual('react-router');
+  const ReactLocal = require('react');
+  return {
+    ...actual,
+    useNavigate: () => jest.fn(),
+    // 组件用真实 Link 做导航入口；测试不包 Router，故替换为等价的 <a> 替身。
+    Link: ({ to, children, ...rest }: { to: string; children?: React.ReactNode }) =>
+      ReactLocal.createElement('a', { href: to, ...rest }, children),
+    useLocation: () => ({
+      pathname: '/msp/workbench',
+      search: '',
+      hash: '',
+      state: null,
+      key: 'test',
+    }),
+    useSearchParams: () => [
+      new URLSearchParams(mockSearchParams),
+      mockSetSearchParams,
+    ],
+  };
+});
 
 jest.mock('@/lib/api/msp-workbench-api', () => {
   const actual = jest.requireActual('@/lib/api/msp-workbench-api');

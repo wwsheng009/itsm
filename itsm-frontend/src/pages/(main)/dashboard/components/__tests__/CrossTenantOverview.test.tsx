@@ -1,0 +1,190 @@
+/**
+ * CrossTenantOverview 测试（跨租户缺口治理）。
+ *
+ * 覆盖：
+ * - 只读汇总口径（客户数 / 未关闭 / 超期 / 临近 / 未指派）与 Top 风险排序；
+ * - 下钻深链：客户行携带 customerTenantIds、board 入口（tasks/records/workbench）；
+ * - 刷新、空态、错误态（错误只降级本分区）；
+ * - 权限门控：非 MSP 权限不渲染且不发请求（fetchSummary 零调用）。
+ */
+import React from 'react';
+import { MemoryRouter } from 'react-router';
+import { render, screen, waitFor } from '@/lib/test-utils';
+import userEvent from '@testing-library/user-event';
+import CrossTenantOverview from '../CrossTenantOverview';
+import { PermissionGate } from '@/components/auth/PermissionGate';
+import { MSP_AREA_PERMISSIONS } from '@/routes/area-permissions';
+import type { WorkbenchSummaryCustomer } from '@/lib/api/msp-workbench-api';
+
+jest.mock('@/lib/store/auth-store', () => ({
+  useAuthStore: jest.fn(),
+}));
+
+import { useAuthStore } from '@/lib/store/auth-store';
+
+jest.setTimeout(120000);
+
+const acme: WorkbenchSummaryCustomer = {
+  customerTenantId: 1,
+  customerName: 'Acme Corp',
+  open: 4,
+  slaRisk: 2,
+  slaDueSoon: 0,
+  unassigned: 1,
+  members: 5,
+  ticketsCreated30d: 8,
+};
+
+const beta: WorkbenchSummaryCustomer = {
+  customerTenantId: 2,
+  customerName: 'Beta LLC',
+  open: 3,
+  slaRisk: 0,
+  slaDueSoon: 2,
+  unassigned: 0,
+  members: 3,
+  ticketsCreated30d: 4,
+};
+
+const gamma: WorkbenchSummaryCustomer = {
+  customerTenantId: 3,
+  customerName: 'Gamma Inc',
+  open: 1,
+  slaRisk: 0,
+  slaDueSoon: 0,
+  unassigned: 0,
+  members: 1,
+  ticketsCreated30d: 1,
+};
+
+/** 与 PermissionGate 消费方式对齐：selector 接收含 user.permissions 的状态。 */
+function setPermissions(permissions: string[]) {
+  (useAuthStore as unknown as jest.Mock).mockImplementation(
+    (selector: (state: { user: { permissions: string[] } }) => unknown) =>
+      selector({ user: { permissions } })
+  );
+}
+
+function setup(overrides: { customers?: WorkbenchSummaryCustomer[] } = {}) {
+  setPermissions(['msp_ticket:read']);
+  const fetchSummary = jest.fn().mockResolvedValue({
+    generatedAt: '2026-10-13T08:00:00Z',
+    ttlSeconds: 30,
+    slaDueSoonWindowHours: 24,
+    usageWindowDays: 30,
+    customers: overrides.customers ?? [beta, gamma, acme],
+  });
+  const onNavigate = jest.fn();
+  render(
+    <MemoryRouter>
+      <CrossTenantOverview fetchSummary={fetchSummary} onNavigate={onNavigate} />
+    </MemoryRouter>
+  );
+  return { fetchSummary, onNavigate };
+}
+
+describe('CrossTenantOverview', () => {
+  it('渲染只读汇总口径与 Top 风险排序', async () => {
+    setup();
+
+    await waitFor(() => expect(screen.getByTestId('cross-tenant-customer-1')).toBeInTheDocument());
+
+    // 汇总：客户 3 / 未关闭 8 / 超期 2 / 临近 2 / 未指派 1
+    expect(screen.getByTestId('cross-tenant-stat-customers')).toHaveTextContent('3');
+    expect(screen.getByTestId('cross-tenant-stat-open')).toHaveTextContent('8');
+    expect(screen.getByTestId('cross-tenant-stat-risk')).toHaveTextContent('2');
+    expect(screen.getByTestId('cross-tenant-stat-due-soon')).toHaveTextContent('临近到期（24h）');
+    expect(screen.getByTestId('cross-tenant-stat-due-soon')).toHaveTextContent('2');
+    expect(screen.getByTestId('cross-tenant-stat-unassigned')).toHaveTextContent('1');
+
+    // 风险排序：超期 2 → 临近 2 → 无风险
+    const rows = screen.getAllByTestId(/^cross-tenant-customer-/);
+    expect(rows.map(row => row.getAttribute('data-testid'))).toEqual([
+      'cross-tenant-customer-1',
+      'cross-tenant-customer-2',
+      'cross-tenant-customer-3',
+    ]);
+  });
+
+  it('点击客户行下钻：携带 customerTenantIds 进入工作台', async () => {
+    const { onNavigate } = setup();
+    await waitFor(() => expect(screen.getByTestId('cross-tenant-customer-2')).toBeInTheDocument());
+
+    await userEvent.click(screen.getByTestId('cross-tenant-customer-2'));
+    expect(onNavigate).toHaveBeenCalledWith('/msp/workbench?customerTenantIds=2');
+  });
+
+  it('board 深链：待办任务 / 跨租户单据 / 工作台', async () => {
+    const { onNavigate } = setup();
+    await waitFor(() => expect(screen.getByTestId('cross-tenant-goto-workbench')).toBeInTheDocument());
+
+    await userEvent.click(screen.getByTestId('cross-tenant-goto-tasks'));
+    expect(onNavigate).toHaveBeenCalledWith('/msp/workbench?board=tasks');
+
+    await userEvent.click(screen.getByTestId('cross-tenant-goto-records'));
+    expect(onNavigate).toHaveBeenCalledWith('/msp/workbench?board=records');
+
+    await userEvent.click(screen.getByTestId('cross-tenant-goto-workbench'));
+    expect(onNavigate).toHaveBeenCalledWith('/msp/workbench');
+  });
+
+  it('刷新按钮重新拉取 summary', async () => {
+    const { fetchSummary } = setup();
+    await waitFor(() => expect(fetchSummary).toHaveBeenCalledTimes(1));
+
+    await userEvent.click(screen.getByTestId('cross-tenant-refresh'));
+    await waitFor(() => expect(fetchSummary).toHaveBeenCalledTimes(2));
+  });
+
+  it('空数据渲染空态', async () => {
+    setup({ customers: [] });
+    expect(await screen.findByText('暂无已分配的客户')).toBeInTheDocument();
+  });
+
+  it('请求失败只降级本分区（错误态 + 重试入口）', async () => {
+    setPermissions(['msp_ticket:read']);
+    const fetchSummary = jest.fn().mockRejectedValue(new Error('boom'));
+    render(
+      <MemoryRouter>
+        <CrossTenantOverview fetchSummary={fetchSummary} onNavigate={jest.fn()} />
+      </MemoryRouter>
+    );
+
+    const errorBox = await screen.findByTestId('cross-tenant-error');
+    expect(errorBox).toHaveTextContent('boom');
+    expect(screen.queryByTestId('cross-tenant-customer-1')).not.toBeInTheDocument();
+  });
+});
+
+describe('CrossTenantOverview 权限门控', () => {
+  function renderGated(permissions: string[]) {
+    setPermissions(permissions);
+    const fetchSummary = jest.fn().mockResolvedValue({
+      generatedAt: '2026-10-13T08:00:00Z',
+      ttlSeconds: 30,
+      customers: [acme],
+    });
+    render(
+      <MemoryRouter>
+        <PermissionGate anyOf={MSP_AREA_PERMISSIONS}>
+          <CrossTenantOverview fetchSummary={fetchSummary} onNavigate={jest.fn()} />
+        </PermissionGate>
+      </MemoryRouter>
+    );
+    return { fetchSummary };
+  }
+
+  it('非 MSP 权限：不渲染分区且不发起请求', () => {
+    const { fetchSummary } = renderGated(['ticket:read']);
+
+    expect(screen.queryByTestId('cross-tenant-overview')).not.toBeInTheDocument();
+    expect(fetchSummary).not.toHaveBeenCalled();
+  });
+
+  it('MSP 权限：渲染分区并发起请求', async () => {
+    const { fetchSummary } = renderGated(['msp_report:read']);
+
+    expect(await screen.findByTestId('cross-tenant-overview')).toBeInTheDocument();
+    await waitFor(() => expect(fetchSummary).toHaveBeenCalledTimes(1));
+  });
+});

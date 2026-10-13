@@ -26,6 +26,7 @@ jest.mock('react-router', () => ({
 // Mock auth store hydration
 jest.mock('@/lib/store/auth-store', () => ({
   useAuthStoreHydration: jest.fn(),
+  useAuthStore: { getState: () => ({ user: { permissions: [] } }) },
 }));
 
 // Mock logger

@@ -37,12 +37,14 @@ import {
 } from 'lucide-react';
 import { KPICards } from './components/KPICards';
 import { ChartsSection } from './components/ChartsSection';
+import { CrossTenantOverview } from './components/CrossTenantOverview';
 import { QuickActions } from './components/QuickActions';
 import { useDashboardData } from './hooks/useDashboardData';
 import type { QuickAction } from './types/dashboard.types';
 import { useTheme } from '@/lib/design-system/theme';
 import { userPreferences } from '@/lib/user-preferences';
 import { PermissionGate } from '@/components/auth/PermissionGate';
+import { MSP_AREA_PERMISSIONS } from '@/routes/area-permissions';
 
 type DashboardUserPreferences = ReturnType<typeof userPreferences.get>;
 
@@ -275,6 +277,18 @@ export default function DashboardPage() {
           <div className='mb-6'>
             <KPICards metrics={data?.kpiMetrics || []} loading={loading} />
           </div>
+
+          {/*
+            跨租户总览分区（缺口治理）：
+            /dashboard 的 overview 按当前租户过滤，MSP 服务商员工的客户侧统计
+            只能从 /msp/* 授权面获取；此处复用 workbench summary 做只读摘要 + 下钻，
+            非 MSP 用户由 PermissionGate 整体隐藏（不渲染、不发请求）。
+          */}
+          <PermissionGate anyOf={MSP_AREA_PERMISSIONS}>
+            <div className='mb-6' data-testid='dashboard-cross-tenant-section'>
+              <CrossTenantOverview />
+            </div>
+          </PermissionGate>
 
           <Divider className='my-8' />
 

@@ -21,8 +21,9 @@ import {
 } from 'antd';
 import { antdTheme } from '@/lib/antd-theme';
 import { AuthService } from '@/lib/services/auth-service';
+import { resolveDefaultLanding, TENANT_LANDING_PATH } from '@/lib/auth/landing';
 import { logger } from '@/lib/env';
-import { useAuthStoreHydration } from '@/lib/store/auth-store';
+import { useAuthStore, useAuthStoreHydration } from '@/lib/store/auth-store';
 import { notify } from '@/lib/notify';
 
 const { Text, Title } = Typography;
@@ -90,7 +91,10 @@ function LoginForm() {
 
   // 检查会话过期标记
   const isExpired = searchParams.get('expired') === 'true';
-  const redirectPath = searchParams.get('redirect') || '/dashboard';
+  const explicitRedirect = searchParams.get('redirect');
+  // 无显式 redirect 时的默认落点：登录成功后按用户能力解析（MSP 员工 → 跨租户工作台）。
+  const [resolvedRedirectPath, setResolvedRedirectPath] = useState<string | null>(null);
+  const redirectPath = resolvedRedirectPath ?? explicitRedirect ?? TENANT_LANDING_PATH;
 
   /**
    * 统一的失败反馈出口。
@@ -170,13 +174,19 @@ function LoginForm() {
       authenticated = true;
       logger.info('认证信息已存储，准备跳转');
 
+      // 角色感知默认落点：显式 redirect 优先；否则 MSP 员工落跨租户工作台
+      // （/dashboard 是租户内口径，对服务商员工缺失客户侧统计）。
+      const targetPath =
+        explicitRedirect || resolveDefaultLanding(useAuthStore.getState().user?.permissions);
+      setResolvedRedirectPath(targetPath);
+
       // 成功提示必须先于跳转出现：navigate.push 是异步导航，目标页的 RSC 负载
       // 通常还要几百毫秒；这段空窗期若不给任何反馈，用户看到的就是
       // "点了登录，页面没动静"。
       setSucceeded(true);
       notify.success(t('auth.login.loginSuccess'));
 
-      navigate(redirectPath);
+      navigate(targetPath);
       logger.info('已执行跳转命令');
     } catch (err) {
       logger.error('登录错误:', err);

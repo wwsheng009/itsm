@@ -9,7 +9,7 @@
  * - 分页使用服务端 nextCursor（复合游标），不落 OFFSET。
  */
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { useSearchParams } from 'react-router';
+import { Link, useSearchParams } from 'react-router';
 import {
   Alert,
   Button,
@@ -870,14 +870,20 @@ export default function MSPWorkbenchPage() {
             顶栏客户过滤器只改视图不改会话；行内操作按客户授权实时判定
           </span>
         </Space>
-        <Button
-          icon={<RefreshCw size={14} />}
-          onClick={() => void loadFirstPage()}
-          loading={loading}
-          data-testid="workbench-refresh"
-        >
-          刷新
-        </Button>
+        <Space size={8}>
+          {/* 反向入口：/dashboard 的租户内总览（与 dashboard 的跨租户分区互为导航闭环）。 */}
+          <Link to="/dashboard" style={{ fontSize: 13 }} data-testid="workbench-back-dashboard">
+            租户内总览
+          </Link>
+          <Button
+            icon={<RefreshCw size={14} />}
+            onClick={() => void loadFirstPage()}
+            loading={loading}
+            data-testid="workbench-refresh"
+          >
+            刷新
+          </Button>
+        </Space>
       </div>
 
       <Card size="small" style={{ marginBottom: 16 }} data-testid="workbench-board-switch">
