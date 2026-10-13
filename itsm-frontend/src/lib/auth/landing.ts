@@ -8,7 +8,7 @@
  * - 无显式 redirect 参数时，按用户能力码选择默认落点；显式 redirect
  *   （守卫回跳、通知深链）始终优先，由调用方自行短路。
  */
-import { MSP_AREA_PERMISSIONS } from '@/routes/area-permissions';
+import { MSP_WORKBENCH_PERMISSIONS } from '@/routes/area-permissions';
 import { permissionGranted } from '@/routes/route-permissions';
 
 /** 租户内用户默认落点：租户内运营总览。 */
@@ -17,12 +17,19 @@ export const TENANT_LANDING_PATH = '/dashboard';
 export const MSP_LANDING_PATH = '/msp/workbench';
 
 /**
- * 按权限解析默认落点：命中任一 MSP 区域权限码 → 工作台，否则 → /dashboard。
- * 与 routes/index.tsx 的 MSP 区域守卫共用同一权限集，避免双源漂移。
+ * 按权限解析默认落点：
+ * - 平台超级管理员（permissions = ['*']）按治理视角落 /dashboard；
+ * - 显式持有工作台数据面操作码（msp_ticket:read，服务商内置角色基线）→ 工作台；
+ * - 其余（含仅持区域码 msp:read 的客户租户 admin）→ /dashboard。
+ *
+ * 注意不能宽泛到 MSP_AREA_PERMISSIONS：`msp:read` 同时存在于客户租户 admin
+ * 角色基线中（服务端 `msp/status` 判其为「非MSP用户」），会把人送进必然 403
+ * 的工作台。
  */
 export function resolveDefaultLanding(permissions?: string[] | null): string {
-  const hasMspAccess = MSP_AREA_PERMISSIONS.some(code =>
+  if (!permissions || permissions.includes('*')) return TENANT_LANDING_PATH;
+  const hasWorkbenchAccess = MSP_WORKBENCH_PERMISSIONS.some(code =>
     permissionGranted(permissions ?? undefined, code)
   );
-  return hasMspAccess ? MSP_LANDING_PATH : TENANT_LANDING_PATH;
+  return hasWorkbenchAccess ? MSP_LANDING_PATH : TENANT_LANDING_PATH;
 }

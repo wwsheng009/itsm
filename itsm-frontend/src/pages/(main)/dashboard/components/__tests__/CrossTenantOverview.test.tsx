@@ -13,7 +13,7 @@ import { render, screen, waitFor } from '@/lib/test-utils';
 import userEvent from '@testing-library/user-event';
 import CrossTenantOverview from '../CrossTenantOverview';
 import { PermissionGate } from '@/components/auth/PermissionGate';
-import { MSP_AREA_PERMISSIONS } from '@/routes/area-permissions';
+import { MSP_WORKBENCH_PERMISSIONS } from '@/routes/area-permissions';
 import type { WorkbenchSummaryCustomer } from '@/lib/api/msp-workbench-api';
 
 jest.mock('@/lib/store/auth-store', () => ({
@@ -166,7 +166,7 @@ describe('CrossTenantOverview 权限门控', () => {
     });
     render(
       <MemoryRouter>
-        <PermissionGate anyOf={MSP_AREA_PERMISSIONS}>
+        <PermissionGate anyOf={MSP_WORKBENCH_PERMISSIONS}>
           <CrossTenantOverview fetchSummary={fetchSummary} onNavigate={jest.fn()} />
         </PermissionGate>
       </MemoryRouter>
@@ -174,15 +174,22 @@ describe('CrossTenantOverview 权限门控', () => {
     return { fetchSummary };
   }
 
-  it('非 MSP 权限：不渲染分区且不发起请求', () => {
+  it('非 MSP 权限（普通租户用户）：不渲染分区且不发起请求', () => {
     const { fetchSummary } = renderGated(['ticket:read']);
 
     expect(screen.queryByTestId('cross-tenant-overview')).not.toBeInTheDocument();
     expect(fetchSummary).not.toHaveBeenCalled();
   });
 
-  it('MSP 权限：渲染分区并发起请求', async () => {
-    const { fetchSummary } = renderGated(['msp_report:read']);
+  it('客户租户 admin（仅区域码 msp:read）：同样不渲染、不发请求', () => {
+    const { fetchSummary } = renderGated(['msp:read', 'ticket:read', 'dashboard:read']);
+
+    expect(screen.queryByTestId('cross-tenant-overview')).not.toBeInTheDocument();
+    expect(fetchSummary).not.toHaveBeenCalled();
+  });
+
+  it('服务商工作台操作码 msp_ticket:read：渲染分区并发起请求', async () => {
+    const { fetchSummary } = renderGated(['msp_ticket:read']);
 
     expect(await screen.findByTestId('cross-tenant-overview')).toBeInTheDocument();
     await waitFor(() => expect(fetchSummary).toHaveBeenCalledTimes(1));

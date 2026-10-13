@@ -44,7 +44,7 @@ import type { QuickAction } from './types/dashboard.types';
 import { useTheme } from '@/lib/design-system/theme';
 import { userPreferences } from '@/lib/user-preferences';
 import { PermissionGate } from '@/components/auth/PermissionGate';
-import { MSP_AREA_PERMISSIONS } from '@/routes/area-permissions';
+import { MSP_WORKBENCH_PERMISSIONS } from '@/routes/area-permissions';
 
 type DashboardUserPreferences = ReturnType<typeof userPreferences.get>;
 
@@ -284,7 +284,7 @@ export default function DashboardPage() {
             只能从 /msp/* 授权面获取；此处复用 workbench summary 做只读摘要 + 下钻，
             非 MSP 用户由 PermissionGate 整体隐藏（不渲染、不发请求）。
           */}
-          <PermissionGate anyOf={MSP_AREA_PERMISSIONS}>
+          <PermissionGate anyOf={MSP_WORKBENCH_PERMISSIONS}>
             <div className='mb-6' data-testid='dashboard-cross-tenant-section'>
               <CrossTenantOverview />
             </div>

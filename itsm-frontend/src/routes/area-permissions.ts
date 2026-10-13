@@ -51,3 +51,16 @@ export const MSP_AREA_PERMISSIONS: string[] = [
   'msp_allocation:read',
   'msp_report:read',
 ];
+
+/**
+ * MSP 跨租户数据面入口权限（工作台 summary / tickets 的端点级守卫码）。
+ *
+ * 与 MSP_AREA_PERMISSIONS 的区别：区域放行包含 `msp:read`（客户租户 admin 的
+ * 角色基线也持有该码，但服务端 `/msp/status` 判定其为「非MSP用户」）；
+ * 数据面分区/落点必须按操作码收敛，否则会渲染出必然 403 的空数据。
+ *
+ * 码表依据（itsm-backend/internal/authz/roles.go）：
+ * - 服务商 5 个内置角色（msp_viewer/tech/specialist/manager/admin）均含 msp_ticket:read；
+ * - 客户租户内 msp_* 角色基线（MSPCustomerScopeRolePermissionCodes）不含跨租户 msp_* 码。
+ */
+export const MSP_WORKBENCH_PERMISSIONS: string[] = ['msp_ticket:read'];
