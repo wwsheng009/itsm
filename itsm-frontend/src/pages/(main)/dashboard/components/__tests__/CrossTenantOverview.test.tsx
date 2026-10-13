@@ -12,8 +12,7 @@ import { MemoryRouter } from 'react-router';
 import { render, screen, waitFor } from '@/lib/test-utils';
 import userEvent from '@testing-library/user-event';
 import CrossTenantOverview from '../CrossTenantOverview';
-import { PermissionGate } from '@/components/auth/PermissionGate';
-import { MSP_WORKBENCH_PERMISSIONS } from '@/routes/area-permissions';
+import { MspProviderGate } from '@/components/auth/MspProviderGate';
 import type { WorkbenchSummaryCustomer } from '@/lib/api/msp-workbench-api';
 
 jest.mock('@/lib/store/auth-store', () => ({
@@ -57,16 +56,20 @@ const gamma: WorkbenchSummaryCustomer = {
   ticketsCreated30d: 1,
 };
 
-/** 与 PermissionGate 消费方式对齐：selector 接收含 user.permissions 的状态。 */
-function setPermissions(permissions: string[]) {
+/** 与门禁消费方式对齐：selector 接收含 user.permissions 与 currentTenant.type 的状态。 */
+function setAuth(permissions: string[], tenantType: string | null = 'msp_provider') {
   (useAuthStore as unknown as jest.Mock).mockImplementation(
-    (selector: (state: { user: { permissions: string[] } }) => unknown) =>
-      selector({ user: { permissions } })
+    (
+      selector: (state: {
+        user: { permissions: string[] };
+        currentTenant: { type?: string } | null;
+      }) => unknown
+    ) => selector({ user: { permissions }, currentTenant: tenantType ? { type: tenantType } : null })
   );
 }
 
 function setup(overrides: { customers?: WorkbenchSummaryCustomer[] } = {}) {
-  setPermissions(['msp_ticket:read']);
+  setAuth(['msp_ticket:read']);
   const fetchSummary = jest.fn().mockResolvedValue({
     generatedAt: '2026-10-13T08:00:00Z',
     ttlSeconds: 30,
@@ -142,7 +145,7 @@ describe('CrossTenantOverview', () => {
   });
 
   it('请求失败只降级本分区（错误态 + 重试入口）', async () => {
-    setPermissions(['msp_ticket:read']);
+    setAuth(['msp_ticket:read']);
     const fetchSummary = jest.fn().mockRejectedValue(new Error('boom'));
     render(
       <MemoryRouter>
@@ -156,9 +159,9 @@ describe('CrossTenantOverview', () => {
   });
 });
 
-describe('CrossTenantOverview 权限门控', () => {
-  function renderGated(permissions: string[]) {
-    setPermissions(permissions);
+describe('CrossTenantOverview 门控（服务商上下文 + 操作码）', () => {
+  function renderGated(permissions: string[], tenantType: string | null = 'msp_provider') {
+    setAuth(permissions, tenantType);
     const fetchSummary = jest.fn().mockResolvedValue({
       generatedAt: '2026-10-13T08:00:00Z',
       ttlSeconds: 30,
@@ -166,29 +169,36 @@ describe('CrossTenantOverview 权限门控', () => {
     });
     render(
       <MemoryRouter>
-        <PermissionGate anyOf={MSP_WORKBENCH_PERMISSIONS}>
+        <MspProviderGate>
           <CrossTenantOverview fetchSummary={fetchSummary} onNavigate={jest.fn()} />
-        </PermissionGate>
+        </MspProviderGate>
       </MemoryRouter>
     );
     return { fetchSummary };
   }
 
-  it('非 MSP 权限（普通租户用户）：不渲染分区且不发起请求', () => {
-    const { fetchSummary } = renderGated(['ticket:read']);
+  it('客户租户 + 角色残留 msp_ticket:read（回归：过度授权）→ 不渲染且不发请求', () => {
+    const { fetchSummary } = renderGated(['msp_ticket:read', 'ticket:read'], 'msp_customer');
 
     expect(screen.queryByTestId('cross-tenant-overview')).not.toBeInTheDocument();
     expect(fetchSummary).not.toHaveBeenCalled();
   });
 
-  it('客户租户 admin（仅区域码 msp:read）：同样不渲染、不发请求', () => {
-    const { fetchSummary } = renderGated(['msp:read', 'ticket:read', 'dashboard:read']);
+  it('客户租户 + 仅区域码 msp:read：不渲染且不发请求', () => {
+    const { fetchSummary } = renderGated(['msp:read', 'ticket:read'], 'msp_customer');
 
     expect(screen.queryByTestId('cross-tenant-overview')).not.toBeInTheDocument();
     expect(fetchSummary).not.toHaveBeenCalled();
   });
 
-  it('服务商工作台操作码 msp_ticket:read：渲染分区并发起请求', async () => {
+  it('服务商租户 + 无操作码（仅 msp:read）：不渲染且不发请求', () => {
+    const { fetchSummary } = renderGated(['msp:read']);
+
+    expect(screen.queryByTestId('cross-tenant-overview')).not.toBeInTheDocument();
+    expect(fetchSummary).not.toHaveBeenCalled();
+  });
+
+  it('服务商租户 + msp_ticket:read：渲染分区并发起请求', async () => {
     const { fetchSummary } = renderGated(['msp_ticket:read']);
 
     expect(await screen.findByTestId('cross-tenant-overview')).toBeInTheDocument();

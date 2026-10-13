@@ -64,3 +64,18 @@ export const MSP_AREA_PERMISSIONS: string[] = [
  * - 客户租户内 msp_* 角色基线（MSPCustomerScopeRolePermissionCodes）不含跨租户 msp_* 码。
  */
 export const MSP_WORKBENCH_PERMISSIONS: string[] = ['msp_ticket:read'];
+
+/**
+ * 服务商租户类型（镜像后端 pkg/tenantmode.IsMSPProviderTenantType：
+ * `msp_provider` + 历史别名 `msp`）。
+ *
+ * 用途：跨租户数据面（工作台 summary / 分区入口）除了操作码，还必须校验
+ * 「当前租户上下文为服务商租户」——客户租户的角色克隆可能残留跨租户 msp_* 码，
+ * 仅凭权限码会误放行客户侧入口（后端 IsMSP 判定 = 租户类型 + msp_role，fail-closed）。
+ */
+export const MSP_PROVIDER_TENANT_TYPES: string[] = ['msp_provider', 'msp'];
+
+/** 当前租户上下文是否服务商租户（未知类型一律 false，fail-closed）。 */
+export function isMspProviderTenant(type?: string | null): boolean {
+  return !!type && MSP_PROVIDER_TENANT_TYPES.includes(type);
+}

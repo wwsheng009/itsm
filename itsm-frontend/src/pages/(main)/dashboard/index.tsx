@@ -44,7 +44,7 @@ import type { QuickAction } from './types/dashboard.types';
 import { useTheme } from '@/lib/design-system/theme';
 import { userPreferences } from '@/lib/user-preferences';
 import { PermissionGate } from '@/components/auth/PermissionGate';
-import { MSP_WORKBENCH_PERMISSIONS } from '@/routes/area-permissions';
+import { MspProviderGate } from '@/components/auth/MspProviderGate';
 
 type DashboardUserPreferences = ReturnType<typeof userPreferences.get>;
 
@@ -282,13 +282,14 @@ export default function DashboardPage() {
             跨租户总览分区（缺口治理）：
             /dashboard 的 overview 按当前租户过滤，MSP 服务商员工的客户侧统计
             只能从 /msp/* 授权面获取；此处复用 workbench summary 做只读摘要 + 下钻，
-            非 MSP 用户由 PermissionGate 整体隐藏（不渲染、不发请求）。
+            门控 = 服务商租户上下文 + 数据面操作码（MspProviderGate，双条件 fail-closed）；
+            客户租户（即使角色克隆残留 msp_* 码）整体隐藏，不渲染、不发请求。
           */}
-          <PermissionGate anyOf={MSP_WORKBENCH_PERMISSIONS}>
+          <MspProviderGate>
             <div className='mb-6' data-testid='dashboard-cross-tenant-section'>
               <CrossTenantOverview />
             </div>
-          </PermissionGate>
+          </MspProviderGate>
 
           <Divider className='my-8' />
 

@@ -176,8 +176,12 @@ function LoginForm() {
 
       // 角色感知默认落点：显式 redirect 优先；否则 MSP 员工落跨租户工作台
       // （/dashboard 是租户内口径，对服务商员工缺失客户侧统计）。
+      // 双条件：服务商租户上下文（currentTenant.type）+ 数据面操作码，
+      // 客户租户角色克隆残留 msp_* 码时同样落 /dashboard（fail-closed）。
+      const authState = useAuthStore.getState();
       const targetPath =
-        explicitRedirect || resolveDefaultLanding(useAuthStore.getState().user?.permissions);
+        explicitRedirect ||
+        resolveDefaultLanding(authState.user?.permissions, authState.currentTenant?.type);
       setResolvedRedirectPath(targetPath);
 
       // 成功提示必须先于跳转出现：navigate.push 是异步导航，目标页的 RSC 负载
