@@ -6,6 +6,7 @@ import (
 	"itsm-backend/common"
 	"itsm-backend/dto"
 	"itsm-backend/middleware"
+	"itsm-backend/service"
 
 	"github.com/gin-gonic/gin"
 )
@@ -47,7 +48,7 @@ func (h *Handler) ListConfigs(c *gin.Context) {
 		configResponses[i] = dto.SystemConfigResponse{
 			ID:          cfg.ID,
 			Key:         cfg.Key,
-			Value:       cfg.Value,
+			Value:       service.MaskConfigValue(cfg.Key, cfg.Value),
 			ValueType:   cfg.ValueType,
 			Category:    cfg.Category,
 			Description: cfg.Description,
@@ -89,7 +90,7 @@ func (h *Handler) GetConfig(c *gin.Context) {
 	common.Success(c, dto.SystemConfigResponse{
 		ID:          config.ID,
 		Key:         config.Key,
-		Value:       config.Value,
+		Value:       service.MaskConfigValue(config.Key, config.Value),
 		ValueType:   config.ValueType,
 		Category:    config.Category,
 		Description: config.Description,
@@ -118,7 +119,7 @@ func (h *Handler) GetConfigByKey(c *gin.Context) {
 	common.Success(c, dto.SystemConfigResponse{
 		ID:          config.ID,
 		Key:         config.Key,
-		Value:       config.Value,
+		Value:       service.MaskConfigValue(config.Key, config.Value),
 		ValueType:   config.ValueType,
 		Category:    config.Category,
 		Description: config.Description,
@@ -157,7 +158,7 @@ func (h *Handler) UpdateConfig(c *gin.Context) {
 	common.Success(c, dto.SystemConfigResponse{
 		ID:          config.ID,
 		Key:         config.Key,
-		Value:       config.Value,
+		Value:       service.MaskConfigValue(config.Key, config.Value),
 		ValueType:   config.ValueType,
 		Category:    config.Category,
 		Description: config.Description,
@@ -192,7 +193,7 @@ func (h *Handler) BatchUpdateConfigs(c *gin.Context) {
 		configResponses[i] = dto.SystemConfigResponse{
 			ID:          cfg.ID,
 			Key:         cfg.Key,
-			Value:       cfg.Value,
+			Value:       service.MaskConfigValue(cfg.Key, cfg.Value),
 			ValueType:   cfg.ValueType,
 			Category:    cfg.Category,
 			Description: cfg.Description,

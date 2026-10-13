@@ -420,8 +420,13 @@ export default function SystemConfiguration() {
           </Col>
         </Row>
 
-        <Form.Item label="启用双因素认证" name="enable2FA" valuePropName="checked">
-          <Switch />
+        <Form.Item
+          label="启用双因素认证"
+          name="enable2FA"
+          valuePropName="checked"
+          extra="规划中：该开关暂未接入登录流程，开启/关闭不影响当前登录方式；保留展示以便后续版本启用。"
+        >
+          <Switch disabled />
         </Form.Item>
       </div>
     </div>
@@ -434,14 +439,21 @@ export default function SystemConfiguration() {
         <Title level={5} className="!mb-4">
           SMTP设置
         </Title>
+        <Alert
+          type="info"
+          showIcon
+          className="!mb-4"
+          message="本租户邮件设置（租户级）"
+          description="保存后仅对当前租户生效；服务器留空表示未配置，将回退部署级邮件配置（如有）。密码保存后不回显明文：显示 ****** 表示已设置，提交 ****** 则保持原值不变。"
+        />
         <Row gutter={[16, 16]}>
           <Col span={12}>
             <Form.Item
               label="SMTP服务器"
               name="smtpHost"
-              rules={[{ required: true, message: '请输入SMTP服务器' }]}
+              extra="留空表示未配置，回退部署级邮件配置"
             >
-              <Input placeholder="smtp.example.com" />
+              <Input placeholder="smtp.example.com（可留空）" />
             </Form.Item>
           </Col>
           <Col span={12}>
@@ -457,16 +469,12 @@ export default function SystemConfiguration() {
 
         <Row gutter={[16, 16]}>
           <Col span={12}>
-            <Form.Item
-              label="SMTP用户名"
-              name="smtpUsername"
-              rules={[{ required: true, message: '请输入SMTP用户名' }]}
-            >
-              <Input placeholder="username@example.com" />
+            <Form.Item label="SMTP用户名" name="smtpUsername" extra="留空表示使用部署级配置；匿名中继可留空">
+              <Input placeholder="username@example.com（可留空）" />
             </Form.Item>
           </Col>
           <Col span={12}>
-            <Form.Item label="SMTP密码" name="smtpPassword">
+            <Form.Item label="SMTP密码" name="smtpPassword" extra="已设置时显示 ******；留空提交表示保持原值不变">
               <Password placeholder="请输入密码" />
             </Form.Item>
           </Col>
@@ -487,11 +495,10 @@ export default function SystemConfiguration() {
           label="发件人邮箱"
           name="emailFrom"
           rules={[
-            { required: true, message: '请输入发件人邮箱' },
             { type: 'email', message: '请输入有效的邮箱地址' },
           ]}
         >
-          <Input placeholder="noreply@example.com" />
+          <Input placeholder="noreply@example.com（可留空，回退部署级）" />
         </Form.Item>
 
         <Form.Item label="系统通知模板" name="systemNotificationTemplate">
@@ -546,13 +553,13 @@ export default function SystemConfiguration() {
       <UsageGuideCard
         style={{ marginBottom: 16 }}
         title="系统配置怎么用"
-        intro="本页管理全局默认值：基础信息、会话超时、密码策略、账户安全与 SMTP 邮件设置。修改会影响所有用户，请谨慎。"
+        intro="本页管理本租户默认值：基础信息、会话超时、密码策略、账户安全与 SMTP 邮件设置。修改仅对当前租户生效；SMTP 未配置时回退部署级邮件配置（如有）。"
         steps={[
           '表单按标签页分组展示；修改任意字段后页面会出现“您有未保存的配置更改”提醒，点右上角“保存配置”统一提交，点“重置”放弃修改恢复上次保存值；未保存前修改不生效，请勿直接离开页面。',
           '部署后建议先核对基础设置：系统名称与访问 URL、时区、语言与日期时间格式（影响时间展示与通知内容），以及会话超时时间。',
           '上传限制（大小与允许类型）影响工单附件等所有文件上传，按组织规范调整。',
           '密码策略与账户安全调整会作用于后续的设置与重置；收紧策略前请确认不会阻碍存量用户正常登录。',
-          '需要邮件通知时必须配好 SMTP（服务器、端口、账号、授权码）；保存后触发一条真实通知（如工单分配）验证邮件送达。',
+          '需要邮件通知时配置本租户 SMTP（服务器、端口、账号、密码）；服务器留空则回退部署级邮件配置。密码不回显明文（显示 ******，提交掩码表示保持原值）。',
           '上方“系统运行时间 / Goroutine / CPU 核心 / 内存使用率”为后端实时运行指标，仅供健康观察，无需配置。',
         ]}
       />

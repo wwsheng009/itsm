@@ -31,6 +31,8 @@ type Service struct {
 	logger         *zap.SugaredLogger
 	tokenBlacklist *service.TokenBlacklistService
 	emailService   *service.EmailService
+	// mailerProvider 按租户解析邮件服务（P0-2；优先于 emailService 单例）。
+	mailerProvider *service.MailerProvider
 	baseURL        string
 	// configService 提供租户生效的密码策略（system_configs 驱动）。
 	configService *service.SystemConfigService
@@ -42,6 +44,11 @@ func NewService(client *ent.Client, jwtSecret string, logger *zap.SugaredLogger,
 
 func (s *Service) SetEmailService(emailService *service.EmailService) { s.emailService = emailService }
 func (s *Service) SetBaseURL(baseURL string)                          { s.baseURL = baseURL }
+
+// SetMailerProvider 注入按租户解析的邮件服务工厂（bootstrap 装配；nil 时回退 emailService 单例）。
+func (s *Service) SetMailerProvider(provider *service.MailerProvider) {
+	s.mailerProvider = provider
+}
 
 // SetSystemConfigService 注入系统配置服务，使注册/找回密码也遵循配置页的密码策略。
 func (s *Service) SetSystemConfigService(configService *service.SystemConfigService) {
@@ -358,8 +365,19 @@ func (s *Service) ForgotPassword(ctx context.Context, req *dto.ForgotPasswordReq
 	if _, err = s.client.PasswordResetToken.Create().SetUserID(userEntity.ID).SetEmail(req.Email).SetToken(token).SetExpiresAt(time.Now().Add(time.Hour)).Save(ctx); err != nil {
 		return nil, fmt.Errorf("生成重置令牌失败")
 	}
-	if s.emailService != nil {
-		if err := s.emailService.SendPasswordResetEmail(ctx, []string{req.Email}, token, s.baseURL); err != nil {
+	// 按令牌所属用户租户解析邮件服务（P0-2）；未配置时告警跳过（不静默）。
+	mailer := s.emailService
+	if s.mailerProvider != nil {
+		if tenantMailer, mErr := s.mailerProvider.ForTenant(ctx, userEntity.TenantID); mErr == nil {
+			mailer = tenantMailer
+		} else {
+			s.logger.Warnw("password reset email skipped: mailer unavailable",
+				"error", mErr, "user_id", userEntity.ID, "tenant_id", userEntity.TenantID)
+			mailer = nil
+		}
+	}
+	if mailer != nil {
+		if err := mailer.SendPasswordResetEmail(ctx, []string{req.Email}, token, s.baseURL); err != nil {
 			s.logger.Errorw("Failed to send password reset email", "user_id", userEntity.ID, "error", err)
 		}
 	}

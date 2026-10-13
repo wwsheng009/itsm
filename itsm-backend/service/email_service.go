@@ -3,6 +3,7 @@ package service
 import (
 	"bytes"
 	"context"
+	"crypto/tls"
 	"encoding/base64"
 	"fmt"
 	"html/template"
@@ -23,6 +24,8 @@ type EmailConfig struct {
 	Password string // 密码
 	From     string // 发件人地址
 	FromName string // 发件人名称
+	// SSL 隐式 TLS（SMTPS，典型端口 465）；false 时使用 STARTTLS/明文（由服务器能力决定）。
+	SSL bool
 }
 
 // EmailService 邮件服务
@@ -123,13 +126,22 @@ func (s *EmailService) Send(ctx context.Context, msg *EmailMessage) error {
 
 	emailBody.WriteString(fmt.Sprintf("--%s--\r\n", boundary))
 
-	// 发送邮件
-	auth := smtp.PlainAuth("", s.config.Username, s.config.Password, s.config.Host)
+	// 发送邮件（匿名中继允许 Username 为空）
+	var auth smtp.Auth
+	if s.config.Username != "" {
+		auth = smtp.PlainAuth("", s.config.Username, s.config.Password, s.config.Host)
+	}
 	addr := fmt.Sprintf("%s:%d", s.config.Host, s.config.Port)
+	recipients := append(append([]string{}, msg.To...), msg.CC...)
 
 	var err error
 	for attempt := 0; attempt < 3; attempt++ {
-		err = smtp.SendMail(addr, auth, s.config.From, append(append([]string{}, msg.To...), msg.CC...), []byte(emailBody.String()))
+		if s.config.SSL && s.config.Port == 465 {
+			// 隐式 TLS（SMTPS）：net/smtp.SendMail 不支持 465 先握手后协商，需手动建连。
+			err = sendMailImplicitTLS(addr, s.config.Host, auth, s.config.From, recipients, []byte(emailBody.String()))
+		} else {
+			err = smtp.SendMail(addr, auth, s.config.From, recipients, []byte(emailBody.String()))
+		}
 		if err == nil {
 			break
 		}
@@ -148,6 +160,49 @@ func (s *EmailService) Send(ctx context.Context, msg *EmailMessage) error {
 
 	s.logger.Infow("Email sent successfully", "to", msg.To, "subject", msg.Subject)
 	return nil
+}
+
+// sendMailImplicitTLS 以隐式 TLS（SMTPS，端口 465）发送邮件。
+func sendMailImplicitTLS(addr, host string, auth smtp.Auth, from string, to []string, msg []byte) error {
+	conn, err := tls.Dial("tcp", addr, &tls.Config{
+		ServerName: host,
+		MinVersion: tls.VersionTLS12,
+	})
+	if err != nil {
+		return fmt.Errorf("smtps dial failed: %w", err)
+	}
+	defer conn.Close()
+
+	client, err := smtp.NewClient(conn, host)
+	if err != nil {
+		return fmt.Errorf("smtps client failed: %w", err)
+	}
+	defer client.Close()
+
+	if auth != nil {
+		if err := client.Auth(auth); err != nil {
+			return fmt.Errorf("smtps auth failed: %w", err)
+		}
+	}
+	if err := client.Mail(from); err != nil {
+		return fmt.Errorf("smtps MAIL FROM failed: %w", err)
+	}
+	for _, rcpt := range to {
+		if err := client.Rcpt(rcpt); err != nil {
+			return fmt.Errorf("smtps RCPT TO failed: %w", err)
+		}
+	}
+	writer, err := client.Data()
+	if err != nil {
+		return fmt.Errorf("smtps DATA failed: %w", err)
+	}
+	if _, err := writer.Write(msg); err != nil {
+		return fmt.Errorf("smtps write failed: %w", err)
+	}
+	if err := writer.Close(); err != nil {
+		return fmt.Errorf("smtps close failed: %w", err)
+	}
+	return client.Quit()
 }
 
 func (s *EmailService) validateMessage(msg *EmailMessage) error {

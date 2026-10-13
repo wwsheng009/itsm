@@ -1246,8 +1246,9 @@ func NewApplication() *Application {
 	commonRepo := domainCommon.NewEntRepository(client)
 	commonServiceDomain := domainCommon.NewService(commonRepo, cfg.JWT.Secret, sugar, client)
 	// 注入 Redis 客户端（如果可用），启用 refresh token 黑名单
+	var commonRedis *redis.Client
 	if cfg.Redis.Host != "" {
-		commonRedis := redis.NewClient(&redis.Options{
+		commonRedis = redis.NewClient(&redis.Options{
 			Addr:     fmt.Sprintf("%s:%d", cfg.Redis.Host, cfg.Redis.Port),
 			Password: cfg.Redis.Password,
 			DB:       cfg.Redis.DB,
@@ -1321,6 +1322,37 @@ func NewApplication() *Application {
 	// M2 能力开关：管理端点（GET/PUT /system-configs/ai-capabilities）+ 通用配置写入的缓存失效挂钩。
 	systemConfigHandler.SetCapabilitySource(capabilitySource)
 	systemConfigService.SetCapabilityInvalidator(capabilitySource.Invalidate)
+	// SCD4/D6/P0-2：租户配置运行时装配 —— 凭据加密盒 + 解析器 + 按租户 Mailer + 失效链路。
+	configSecretBox := service.NewConfigSecretBoxFromEnv(sugar, cfg.JWT.Secret)
+	tenantConfigResolver := service.NewTenantConfigResolver(client, sugar)
+	var mailerFallback service.EmailConfig
+	if cfg.SMTP.Host != "" {
+		mailerFallback = service.EmailConfig{
+			Host:     cfg.SMTP.Host,
+			Port:     cfg.SMTP.Port,
+			Username: cfg.SMTP.Username,
+			Password: cfg.SMTP.Password,
+			From:     cfg.SMTP.FromEmail,
+			FromName: cfg.SMTP.FromName,
+			SSL:      cfg.SMTP.Encryption == "ssl" || cfg.SMTP.Port == 465,
+		}
+	}
+	mailerProvider := service.NewMailerProvider(tenantConfigResolver, configSecretBox, mailerFallback, sugar)
+	systemConfigService.SetConfigSecretBox(configSecretBox)
+	systemConfigService.SetTenantConfigInvalidator(func(tid int) {
+		tenantConfigResolver.Invalidate(context.Background(), tid)
+		mailerProvider.InvalidateTenant(tid)
+	})
+	// 发信点装配：工单通知（含 SLA 违规）与找回密码按租户解析邮件服务。
+	ticketNotificationService.SetMailerProvider(mailerProvider)
+	authService.SetMailerProvider(mailerProvider)
+	// 多实例一致性：保存后经 Redis 广播失效；订阅端清本地缓存（best-effort）。
+	if commonRedis != nil {
+		tenantConfigResolver.SetInvalidator(bootstrapRedisInvalidator{rdb: commonRedis})
+		startTenantConfigInvalidationSubscriber(commonRedis, tenantConfigResolver, systemConfigService, mailerProvider, sugar)
+	} else {
+		sugar.Warn("redis unavailable; tenant config invalidation limited to this instance")
+	}
 	// 密码策略由 system_configs 驱动：注入所有设密入口（建用户/管理员重置/注册/找回密码），
 	// 使 /admin/system-config 保存的 passwordMinLength 等配置立即生效。
 	userService.SetSystemConfigService(systemConfigService)

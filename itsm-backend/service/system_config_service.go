@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"fmt"
+	"strings"
 	"sync"
 	"time"
 
@@ -23,6 +24,10 @@ type SystemConfigService struct {
 	policyCache map[int]passwordPolicyCacheEntry
 	// M2 能力开关：配置写入后失效运行时能力开关缓存（可选注入）。
 	capabilityInvalidator func(tenantID int)
+	// SCD4：敏感配置加密盒（bootstrap 注入；nil = 未装配，敏感值写入 fail-closed）。
+	secretBox *ConfigSecretBox
+	// D6：租户配置保存后的统一失效回调（bootstrap 注入：解析器 + Mailer 缓存失效 + Redis 广播）。
+	tenantConfigInvalidator func(tenantID int)
 }
 
 func NewSystemConfigService(client *ent.Client, logger *zap.SugaredLogger) *SystemConfigService {
@@ -50,6 +55,73 @@ func (s *SystemConfigService) invalidateCapability(tenantID int) {
 	}
 }
 
+// SetConfigSecretBox 注入敏感配置加密盒（SCD4；bootstrap 装配）。
+func (s *SystemConfigService) SetConfigSecretBox(box *ConfigSecretBox) {
+	if s == nil {
+		return
+	}
+	s.secretBox = box
+}
+
+// SetTenantConfigInvalidator 注入租户配置失效回调（D6；bootstrap 装配解析器与 Mailer 缓存失效）。
+func (s *SystemConfigService) SetTenantConfigInvalidator(fn func(tenantID int)) {
+	if s == nil {
+		return
+	}
+	s.tenantConfigInvalidator = fn
+}
+
+// InvalidateTenantConfig 租户配置保存后的统一失效入口（D6）：
+// 本地密码策略缓存 + 能力开关缓存 + 运行时解析器/Mailer 缓存 + Redis 跨实例广播。
+func (s *SystemConfigService) InvalidateTenantConfig(tenantID int) {
+	if s == nil || tenantID <= 0 {
+		return
+	}
+	s.InvalidatePasswordPolicy(tenantID)
+	s.invalidateCapability(tenantID)
+	if s.tenantConfigInvalidator != nil {
+		s.tenantConfigInvalidator(tenantID)
+	}
+}
+
+// encryptSensitiveValue 敏感键写入前加密（SCD4）。
+// 非敏感键、空值、已加密值原样返回；加密盒不可用时返回错误（fail-closed，绝不落明文）。
+func (s *SystemConfigService) encryptSensitiveValue(key, value string) (string, error) {
+	if !IsSensitiveConfigKey(key) || value == "" || IsEncryptedSecret(value) {
+		return value, nil
+	}
+	if s.secretBox == nil {
+		return "", fmt.Errorf("配置加密密钥未初始化，拒绝保存敏感配置: %s", key)
+	}
+	encrypted, err := s.secretBox.Encrypt(value)
+	if err != nil {
+		return "", err
+	}
+	return encrypted, nil
+}
+
+// writeSensitiveConfigAudit 敏感配置变更审计（只记录键名，不含明文/密文，SCD4）。
+func (s *SystemConfigService) writeSensitiveConfigAudit(ctx context.Context, tenantID int, action string, keys []string) {
+	if s == nil || s.client == nil || len(keys) == 0 {
+		return
+	}
+	body := "changed_keys=" + strings.Join(keys, ",")
+	if len(body) > 512 {
+		body = body[:512]
+	}
+	if _, err := s.client.AuditLog.Create().
+		SetTenantID(tenantID).
+		SetResource("system_config").
+		SetAction(action).
+		SetPath("/api/v1/system-configs").
+		SetMethod("PUT").
+		SetStatusCode(200).
+		SetRequestBody(body).
+		Save(ctx); err != nil {
+		s.logger.Warnw("failed to write system config audit", "error", err, "tenant_id", tenantID, "action", action)
+	}
+}
+
 // CreateSystemConfig 创建系统配置
 func (s *SystemConfigService) CreateSystemConfig(ctx context.Context, req *dto.SystemConfigRequest, tenantID int) (*ent.SystemConfig, error) {
 	// 检查key是否已存在
@@ -65,9 +137,15 @@ func (s *SystemConfigService) CreateSystemConfig(ctx context.Context, req *dto.S
 		return nil, fmt.Errorf("配置key已存在: %s", req.Key)
 	}
 
+	storedValue, encErr := s.encryptSensitiveValue(req.Key, req.Value)
+	if encErr != nil {
+		s.logger.Warnw("encrypt sensitive config failed", "error", encErr, "key", req.Key, "tenant_id", tenantID)
+		return nil, encErr
+	}
+
 	config, err := s.client.SystemConfig.Create().
 		SetKey(req.Key).
-		SetValue(req.Value).
+		SetValue(storedValue).
 		SetValueType(req.ValueType).
 		SetCategory(req.Category).
 		SetDescription(req.Description).
@@ -80,8 +158,10 @@ func (s *SystemConfigService) CreateSystemConfig(ctx context.Context, req *dto.S
 		return nil, fmt.Errorf("创建系统配置失败: %w", err)
 	}
 
-	s.InvalidatePasswordPolicy(tenantID)
-	s.invalidateCapability(tenantID)
+	s.InvalidateTenantConfig(tenantID)
+	if IsSensitiveConfigKey(req.Key) && req.Value != "" {
+		s.writeSensitiveConfigAudit(ctx, tenantID, "create_sensitive_config", []string{req.Key})
+	}
 	return config, nil
 }
 
@@ -162,26 +242,34 @@ func (s *SystemConfigService) ListSystemConfigs(ctx context.Context, tenantID in
 
 // UpdateSystemConfig 更新系统配置
 func (s *SystemConfigService) UpdateSystemConfig(ctx context.Context, id int, req *dto.UpdateSystemConfigRequest, tenantID int) (*ent.SystemConfig, error) {
-	// 检查配置是否存在
-	exists, err := s.client.SystemConfig.Query().
+	// 检查配置是否存在（取实体以便按 key 判定敏感键与加密）
+	existing, err := s.client.SystemConfig.Query().
 		Where(systemconfig.ID(id), systemconfig.DeletedAtIsNil()).
 		Where(systemconfig.TenantIDEQ(tenantID)).
-		Exist(ctx)
+		Only(ctx)
 	if err != nil {
+		if ent.IsNotFound(err) {
+			return nil, fmt.Errorf("配置不存在: %d", id)
+		}
 		s.logger.Errorf("检查配置失败: %v", err)
 		return nil, fmt.Errorf("检查配置失败: %w", err)
-	}
-	if !exists {
-		return nil, fmt.Errorf("配置不存在: %d", id)
 	}
 
 	update := s.client.SystemConfig.UpdateOneID(id).
 		Where(systemconfig.TenantIDEQ(tenantID), systemconfig.DeletedAtIsNil()).
 		SetUpdatedAt(time.Now())
 
-	if req.Value != "" {
-		update = update.SetValue(req.Value)
+	sensitiveChanged := false
+	if req.Value != "" && !IsMaskedSecretValue(req.Value) {
+		storedValue, encErr := s.encryptSensitiveValue(existing.Key, req.Value)
+		if encErr != nil {
+			s.logger.Warnw("encrypt sensitive config failed", "error", encErr, "key", existing.Key, "tenant_id", tenantID)
+			return nil, encErr
+		}
+		update = update.SetValue(storedValue)
+		sensitiveChanged = IsSensitiveConfigKey(existing.Key)
 	}
+	// 掩码值（******）语义：保持原值不变（前端回显掩码后原样提交的场景）。
 	if req.ValueType != "" {
 		update = update.SetValueType(req.ValueType)
 	}
@@ -195,16 +283,23 @@ func (s *SystemConfigService) UpdateSystemConfig(ctx context.Context, id int, re
 		return nil, fmt.Errorf("更新系统配置失败: %w", err)
 	}
 
-	s.InvalidatePasswordPolicy(tenantID)
-	s.invalidateCapability(tenantID)
+	s.InvalidateTenantConfig(tenantID)
+	if sensitiveChanged {
+		s.writeSensitiveConfigAudit(ctx, tenantID, "update_sensitive_config", []string{existing.Key})
+	}
 	return updated, nil
 }
 
 // BatchUpdateSystemConfigs 批量更新系统配置
 func (s *SystemConfigService) BatchUpdateSystemConfigs(ctx context.Context, configs []dto.UpdateSystemConfigRequest, tenantID int) ([]*ent.SystemConfig, error) {
 	results := make([]*ent.SystemConfig, 0, len(configs))
+	sensitiveKeys := make([]string, 0, 2)
 
 	for _, cfg := range configs {
+		sensitive := IsSensitiveConfigKey(cfg.Key)
+		// 掩码值（******）语义：保持原值不变（仅对已有键有意义）。
+		skipValue := sensitive && IsMaskedSecretValue(cfg.Value)
+
 		// 尝试查找现有配置
 		existing, err := s.client.SystemConfig.Query().
 			Where(systemconfig.KeyEQ(cfg.Key), systemconfig.DeletedAtIsNil()).
@@ -213,12 +308,19 @@ func (s *SystemConfigService) BatchUpdateSystemConfigs(ctx context.Context, conf
 
 		if err == nil && existing != nil {
 			// 更新现有配置
-			updated, err := s.client.SystemConfig.UpdateOneID(existing.ID).
-				SetValue(cfg.Value).
+			update := s.client.SystemConfig.UpdateOneID(existing.ID).
 				SetValueType(cfg.ValueType).
 				SetDescription(cfg.Description).
-				SetUpdatedAt(time.Now()).
-				Save(ctx)
+				SetUpdatedAt(time.Now())
+			if !skipValue {
+				storedValue, encErr := s.encryptSensitiveValue(cfg.Key, cfg.Value)
+				if encErr != nil {
+					s.logger.Errorw("encrypt sensitive config failed", "error", encErr, "key", cfg.Key, "tenant_id", tenantID)
+					continue
+				}
+				update = update.SetValue(storedValue)
+			}
+			updated, err := update.Save(ctx)
 			if err != nil {
 				s.logger.Errorf("更新配置失败: %v", err)
 				continue
@@ -226,9 +328,18 @@ func (s *SystemConfigService) BatchUpdateSystemConfigs(ctx context.Context, conf
 			results = append(results, updated)
 		} else {
 			// 创建新配置
+			createValue := cfg.Value
+			if skipValue {
+				createValue = ""
+			}
+			storedValue, encErr := s.encryptSensitiveValue(cfg.Key, createValue)
+			if encErr != nil {
+				s.logger.Errorw("encrypt sensitive config failed", "error", encErr, "key", cfg.Key, "tenant_id", tenantID)
+				continue
+			}
 			created, err := s.client.SystemConfig.Create().
 				SetKey(cfg.Key).
-				SetValue(cfg.Value).
+				SetValue(storedValue).
 				SetValueType(cfg.ValueType).
 				SetDescription(cfg.Description).
 				SetCategory("general").
@@ -242,25 +353,29 @@ func (s *SystemConfigService) BatchUpdateSystemConfigs(ctx context.Context, conf
 			}
 			results = append(results, created)
 		}
+		if sensitive && !skipValue {
+			sensitiveKeys = append(sensitiveKeys, cfg.Key)
+		}
 	}
 
 	// 批量保存（含安全设置页的密码策略）后立即失效缓存，保证保存即生效。
-	s.InvalidatePasswordPolicy(tenantID)
+	s.InvalidateTenantConfig(tenantID)
+	s.writeSensitiveConfigAudit(ctx, tenantID, "batch_update_sensitive_config", sensitiveKeys)
 	return results, nil
 }
 
 // DeleteSystemConfig 删除系统配置
 func (s *SystemConfigService) DeleteSystemConfig(ctx context.Context, id int, tenantID int) error {
-	exists, err := s.client.SystemConfig.Query().
+	existing, err := s.client.SystemConfig.Query().
 		Where(systemconfig.ID(id), systemconfig.DeletedAtIsNil()).
 		Where(systemconfig.TenantIDEQ(tenantID)).
-		Exist(ctx)
+		Only(ctx)
 	if err != nil {
+		if ent.IsNotFound(err) {
+			return fmt.Errorf("配置不存在: %d", id)
+		}
 		s.logger.Errorf("检查配置失败: %v", err)
 		return fmt.Errorf("检查配置失败: %w", err)
-	}
-	if !exists {
-		return fmt.Errorf("配置不存在: %d", id)
 	}
 
 	_, err = s.client.SystemConfig.UpdateOneID(id).
@@ -272,8 +387,10 @@ func (s *SystemConfigService) DeleteSystemConfig(ctx context.Context, id int, te
 		return fmt.Errorf("删除系统配置失败: %w", err)
 	}
 
-	s.InvalidatePasswordPolicy(tenantID)
-	s.invalidateCapability(tenantID)
+	s.InvalidateTenantConfig(tenantID)
+	if IsSensitiveConfigKey(existing.Key) {
+		s.writeSensitiveConfigAudit(ctx, tenantID, "delete_sensitive_config", []string{existing.Key})
+	}
 	return nil
 }
 
@@ -311,13 +428,15 @@ func (s *SystemConfigService) InitDefaultConfigs(ctx context.Context, tenantID i
 		{Key: "accountLockoutDuration", Value: "30", ValueType: "number", Category: "security", Description: "账户锁定时间(分钟)"},
 		{Key: "enable2FA", Value: "false", ValueType: "boolean", Category: "security", Description: "启用双因素认证"},
 		// —— 邮件设置：SMTP ——
-		{Key: "smtpHost", Value: "smtp.example.com", ValueType: "string", Category: "email", Description: "SMTP服务器"},
+		// 回退链（方案 D5）：租户值 > 部署级 env/config.yaml > 未配置（发信点告警跳过）。
+		// 主机/用户名/发件人默认留空，表示"未配置"；占位值（example.com）在运行时同样按未配置处理。
+		{Key: "smtpHost", Value: "", ValueType: "string", Category: "email", Description: "SMTP服务器（留空回退部署级配置）"},
 		{Key: "smtpPort", Value: "465", ValueType: "number", Category: "email", Description: "SMTP端口"},
-		{Key: "smtpUsername", Value: "noreply@example.com", ValueType: "string", Category: "email", Description: "SMTP用户名"},
+		{Key: "smtpUsername", Value: "", ValueType: "string", Category: "email", Description: "SMTP用户名（留空回退部署级配置）"},
 		{Key: "smtpPassword", Value: "", ValueType: "string", Category: "email", Description: "SMTP密码"},
 		{Key: "smtpEnableSSL", Value: "true", ValueType: "boolean", Category: "email", Description: "启用SSL/TLS"},
 		// —— 邮件设置：模板 ——
-		{Key: "emailFrom", Value: "noreply@example.com", ValueType: "string", Category: "email", Description: "发件人邮箱"},
+		{Key: "emailFrom", Value: "", ValueType: "string", Category: "email", Description: "发件人邮箱（留空回退部署级配置）"},
 		{Key: "systemNotificationTemplate", Value: "您好 {username}：\n您有一条新的系统通知：{message}\n— ITSM 团队", ValueType: "string", Category: "email", Description: "系统通知模板"},
 	}
 
@@ -335,10 +454,15 @@ func (s *SystemConfigService) InitDefaultConfigs(ctx context.Context, tenantID i
 			continue
 		}
 
-		// 创建配置
+		// 创建配置（敏感键加密，SCD4）
+		storedValue, encErr := s.encryptSensitiveValue(cfg.Key, cfg.Value)
+		if encErr != nil {
+			s.logger.Errorf("加密默认配置失败: %v", encErr)
+			continue
+		}
 		_, err = s.client.SystemConfig.Create().
 			SetKey(cfg.Key).
-			SetValue(cfg.Value).
+			SetValue(storedValue).
 			SetValueType(cfg.ValueType).
 			SetCategory(cfg.Category).
 			SetDescription(cfg.Description).
@@ -351,6 +475,6 @@ func (s *SystemConfigService) InitDefaultConfigs(ctx context.Context, tenantID i
 		}
 	}
 
-	s.InvalidatePasswordPolicy(tenantID)
+	s.InvalidateTenantConfig(tenantID)
 	return nil
 }

@@ -175,6 +175,8 @@ services:
 
       # JWT 配置（生产环境必须更改！）
       - JWT_SECRET=${JWT_SECRET:?JWT_SECRET must be set}
+      # 系统配置敏感凭据加密密钥（SCD4；64 位 hex，openssl rand -hex 32；生产缺失时拒绝保存敏感配置）
+      - CONFIG_SECRET_KEY=${CONFIG_SECRET_KEY:-}
       - JWT_EXPIRE_TIME=86400
       - JWT_REFRESH_EXPIRE_TIME=604800
 
@@ -329,6 +331,7 @@ services:
       - REDIS_DB=0
       - SERVER_ENV=production
       - JWT_SECRET=${JWT_SECRET:?JWT_SECRET must be set}
+      - CONFIG_SECRET_KEY=${CONFIG_SECRET_KEY:-}
       - LOG_LEVEL=error
       - LOG_PATH=/app/logs
       - LOG_FORMAT=json

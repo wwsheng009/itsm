@@ -28,6 +28,7 @@ type TicketNotificationService struct {
 	client          *ent.Client
 	logger          *zap.SugaredLogger
 	emailService    *EmailService
+	mailerProvider  *MailerProvider
 	smsService      *SMSService
 	outboxEnabled   bool
 	txOutboxEnabled bool
@@ -52,6 +53,24 @@ func NewTicketNotificationService(client *ent.Client, logger *zap.SugaredLogger)
 // SetEmailService 设置邮件服务
 func (s *TicketNotificationService) SetEmailService(emailService *EmailService) {
 	s.emailService = emailService
+}
+
+// SetMailerProvider 注入按租户解析的邮件服务工厂（P0-2；生产装配路径）。
+func (s *TicketNotificationService) SetMailerProvider(provider *MailerProvider) {
+	s.mailerProvider = provider
+}
+
+// mailerFor 解析租户当前生效的邮件服务：
+// 优先按租户解析（租户配置 > 部署级回退）；未注入 provider 时回退旧单例（兼容测试装配）。
+// 未配置时返回 ErrMailNotConfigured，由调用方告警跳过（不静默）。
+func (s *TicketNotificationService) mailerFor(ctx context.Context, tenantID int) (*EmailService, error) {
+	if s.mailerProvider != nil {
+		return s.mailerProvider.ForTenant(ctx, tenantID)
+	}
+	if s.emailService != nil {
+		return s.emailService, nil
+	}
+	return nil, ErrMailNotConfigured
 }
 
 // SetSMSService 设置短信服务
@@ -167,17 +186,24 @@ func (s *TicketNotificationService) SendNotification(
 
 					switch req.Channel {
 					case "email":
-						if s.emailService != nil && userEntity.Email != "" {
-							sendErr = s.emailService.SendTicketNotification(
-								ctx,
-								[]string{userEntity.Email},
-								ticketEntity.TicketNumber,
-								ticketEntity.Title,
-								req.Type,
-								req.Content,
-							)
-							if sendErr != nil {
-								s.logger.Errorw("Failed to send email notification", "error", sendErr, "user_id", userID)
+						if userEntity.Email != "" {
+							mailer, mErr := s.mailerFor(ctx, tenantID)
+							if mErr != nil {
+								// 邮件未配置：告警并跳过（不静默，方案 P0-2）。
+								s.logger.Warnw("email notification skipped: mailer unavailable",
+									"error", mErr, "user_id", userID, "tenant_id", tenantID)
+							} else {
+								sendErr = mailer.SendTicketNotification(
+									ctx,
+									[]string{userEntity.Email},
+									ticketEntity.TicketNumber,
+									ticketEntity.Title,
+									req.Type,
+									req.Content,
+								)
+								if sendErr != nil {
+									s.logger.Errorw("Failed to send email notification", "error", sendErr, "user_id", userID)
+								}
 							}
 						}
 					case "sms":
@@ -544,7 +570,10 @@ func (s *TicketNotificationService) NotifySLABreached(
 	}
 
 	// 2. 邮件通知
-	if s.emailService != nil {
+	if mailer, mErr := s.mailerFor(ctx, tenantID); mErr != nil {
+		s.logger.Warnw("SLA breach email notification skipped: mailer unavailable",
+			"error", mErr, "ticket_id", ticketID, "tenant_id", tenantID)
+	} else {
 		// 获取所有需要通知的用户邮箱
 		var emails []string
 		for _, userID := range userIDs {
@@ -554,7 +583,7 @@ func (s *TicketNotificationService) NotifySLABreached(
 			}
 		}
 		if len(emails) > 0 {
-			if err := s.emailService.SendTicketNotification(ctx, emails, ticket.TicketNumber, ticket.Title, "sla_breached", content); err != nil {
+			if err := mailer.SendTicketNotification(ctx, emails, ticket.TicketNumber, ticket.Title, "sla_breached", content); err != nil {
 				s.logger.Warnw("failed to send SLA breach email notification", "error", err, "ticket_id", ticketID)
 			}
 		}

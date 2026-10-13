@@ -107,6 +107,8 @@ services:
       - ADMIN_PASSWORD=${DEMO_ADMIN_PASSWORD:?DEMO_ADMIN_PASSWORD must be set}
       - BOOTSTRAP_TOKEN_ENABLED=1
       - JWT_SECRET=${DEMO_JWT_SECRET:?DEMO_JWT_SECRET must be set}
+      # 系统配置敏感凭据加密密钥（SCD4；64 位 hex；缺失时演示环境回退 JWT 派生并告警）
+      - CONFIG_SECRET_KEY=${DEMO_CONFIG_SECRET_KEY:-}
       - JWT_EXPIRE_TIME=86400
       - JWT_REFRESH_EXPIRE_TIME=604800
       - LOG_LEVEL=info

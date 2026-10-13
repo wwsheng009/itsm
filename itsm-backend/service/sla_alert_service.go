@@ -526,27 +526,33 @@ func (s *SLAAlertService) checkAndCreateAlert(ctx context.Context, ticketEntity 
 				}
 
 				// 邮件与 critical 渠道暂保留同步发送；与事务无关，由 worker 后续可考虑接管。
-				if alertLevel == "critical" && s.notificationSvc.emailService != nil {
-					userIDs := []int{ticketEntity.RequesterID}
-					if ticketEntity.AssigneeID > 0 {
-						userIDs = append(userIDs, ticketEntity.AssigneeID)
-					}
-
-					var emails []string
-					for _, userID := range userIDs {
-						userEntity, _ := s.client.User.Get(ctx, userID)
-						if userEntity != nil && userEntity.Email != "" {
-							emails = append(emails, userEntity.Email)
+				// 按租户解析邮件服务（P0-2）；未配置时告警跳过（不静默）。
+				if alertLevel == "critical" {
+					if mailer, mErr := s.notificationSvc.mailerFor(ctx, tenantID); mErr != nil {
+						s.logger.Warnw("SLA critical alert email skipped: mailer unavailable",
+							"error", mErr, "ticket_id", ticketEntity.ID, "tenant_id", tenantID)
+					} else {
+						userIDs := []int{ticketEntity.RequesterID}
+						if ticketEntity.AssigneeID > 0 {
+							userIDs = append(userIDs, ticketEntity.AssigneeID)
 						}
-					}
 
-					if len(emails) > 0 {
-						content := fmt.Sprintf("【严重SLA预警】工单 #%s 剩余时间不足 %.1f%%，请立即处理！",
-							ticketEntity.TicketNumber, percentage)
-						if err := s.notificationSvc.emailService.SendTicketNotification(
-							ctx, emails, ticketEntity.TicketNumber, ticketEntity.Title, "sla_alert", content,
-						); err != nil {
-							s.logger.Warnw("failed to send SLA critical alert email", "error", err, "ticket_id", ticketEntity.ID)
+						var emails []string
+						for _, userID := range userIDs {
+							userEntity, _ := s.client.User.Get(ctx, userID)
+							if userEntity != nil && userEntity.Email != "" {
+								emails = append(emails, userEntity.Email)
+							}
+						}
+
+						if len(emails) > 0 {
+							content := fmt.Sprintf("【严重SLA预警】工单 #%s 剩余时间不足 %.1f%%，请立即处理！",
+								ticketEntity.TicketNumber, percentage)
+							if err := mailer.SendTicketNotification(
+								ctx, emails, ticketEntity.TicketNumber, ticketEntity.Title, "sla_alert", content,
+							); err != nil {
+								s.logger.Warnw("failed to send SLA critical alert email", "error", err, "ticket_id", ticketEntity.ID)
+							}
 						}
 					}
 				}
