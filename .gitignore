@@ -44,6 +44,9 @@ itsm-backend/tmp/
 *.log
 logs/
 
+# Demo seeder reports
+scripts/demo/out/
+
 # Environment files (sensitive)
 .env
 .env.local

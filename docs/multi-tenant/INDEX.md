@@ -18,6 +18,7 @@
 | 文档为什么改过、冲突怎么裁的 | [一致性审计](./plan/msp-docs-consistency-audit.md) |
 | 实测现状/缺口/排障 | [01–07](./README.md)（as-is）｜[三角色演练剧本](./plan/msp-three-persona-operation-simulation.md) |
 | 想按界面一步步操作（建服务商账号/分配到客户/进入客户） | [08 服务商账号与客户授权操作手册（用户级）](./08-msp-user-operations-manual.md) |
+| 想直接使用**多租户演示环境与全量演示数据集**（独立栈 8089 / 账号 / 数据集 / 重置） | [演示环境指南](./demo-environment.md)（种子器 `scripts/demo/seed_demo_dataset.py`） |
 | 想在浏览器一步步重现全链路业务 | [scenarios/ 场景目录](./scenarios/README.md)（建租户→开通→建号→分配→建单→协作→审计与反例，含验证命令） |
 | 新增角色/权限/路由前要做什么 | [扩展评审清单](./plan/role-permission-extension-checklist.md)（归类/登记/守卫/平台家族码评估表） |
 | 有哪些待优化项、进展如何 | [backlog](./backlog.md)（OB-1–OB-10：来源/动作/验收/状态） |
