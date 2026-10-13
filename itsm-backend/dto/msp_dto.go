@@ -85,6 +85,33 @@ type AssignMSPTechnicianRequest struct {
 	AssignerUserID   int `json:"assignerUserId,omitempty"`
 }
 
+// ==================== MSP 客户工单 DTO ====================
+
+// MSPCustomerTicketItem MSP 视角客户工单列表项
+// （GET /api/v1/msp/customers/:customer_tenant_id/tickets）。
+//
+// 契约必须是 camelCase 显式 DTO：历史实现直接把领域模型 ticket.Ticket（无 json tag）
+// 交给 gin 序列化，响应键为 Title/Status/CreatedAt 等 PascalCase，
+// 前端按 title/status 读取恒为空 → /msp「客户工单」列表不显示工单标题与状态。
+type MSPCustomerTicketItem struct {
+	ID           int       `json:"id"`
+	TicketNumber string    `json:"ticketNumber"`
+	Title        string    `json:"title"`
+	Status       string    `json:"status"`
+	Priority     string    `json:"priority"`
+	Type         string    `json:"type"`
+	AssigneeID   *int      `json:"assigneeId,omitempty"`
+	CreatedAt    time.Time `json:"createdAt"`
+	UpdatedAt    time.Time `json:"updatedAt"`
+	TenantID     int       `json:"tenantId"`
+}
+
+// MSPCustomerTicketsResponse 客户工单列表响应（tickets/total 包装）。
+type MSPCustomerTicketsResponse struct {
+	Tickets []*MSPCustomerTicketItem `json:"tickets"`
+	Total   int                      `json:"total"`
+}
+
 // ==================== MSP 上下文 DTO ====================
 
 // MSPContext MSP 访问上下文
@@ -107,12 +134,12 @@ type CustomerDTO struct {
 
 // MSPCustomerReport MSP 客户服务报表
 type MSPCustomerReport struct {
-	CustomerTenantID   int     `json:"customerTenantId"`
-	CustomerName       string  `json:"customerName"`
-	Period             string  `json:"period"`
-	TotalTickets       int     `json:"totalTickets"`
-	ResolvedTickets    int     `json:"resolvedTickets"`
-	MSPHandlingTimeAvg float64  `json:"mspHandlingTimeAvg"` // 小时（无已解决工单样本时为 0）
+	CustomerTenantID   int      `json:"customerTenantId"`
+	CustomerName       string   `json:"customerName"`
+	Period             string   `json:"period"`
+	TotalTickets       int      `json:"totalTickets"`
+	ResolvedTickets    int      `json:"resolvedTickets"`
+	MSPHandlingTimeAvg float64  `json:"mspHandlingTimeAvg"`          // 小时（无已解决工单样本时为 0）
 	SLAComplianceRate  *float64 `json:"slaComplianceRate,omitempty"` // 0.0-1.0；nil=暂无 SLA 样本（前端展示 '-'，计算口径待跟进）
 }
 

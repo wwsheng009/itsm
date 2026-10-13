@@ -249,6 +249,19 @@ func TestGetCustomerTickets_WithMSPContext(t *testing.T) {
 		SetMspUserID(mspUser.ID).SetCustomerTenantID(customer.ID).SetProviderTenantID(provider.ID).
 		SetRole("primary").Save(ctx)
 	require.NoError(t, err)
+	// 契约回归：客户工单列表项必须返回 camelCase 键（title/status/...）。
+	// 修复前响应是领域模型直出（Title/Status/CreatedAt），前端按 camelCase 读 → 标题与状态空白。
+	_, err = client.Ticket.Create().
+		SetTicketNumber("MSP-T-1").
+		SetTitle("客户工单标题回归").
+		SetDescription("用于验证 MSP 客户工单 camelCase 契约").
+		SetType("incident").
+		SetPriority("medium").
+		SetStatus("in_progress").
+		SetRequesterID(mspUser.ID).
+		SetTenantID(customer.ID).
+		Save(ctx)
+	require.NoError(t, err)
 
 	r := newMSPTestRouter(t, client, 1, &middleware.MSPContext{
 		IsMSP:     true,
@@ -259,6 +272,21 @@ func TestGetCustomerTickets_WithMSPContext(t *testing.T) {
 
 	require.Equal(t, http.StatusOK, status, body["message"])
 	assert.Equal(t, float64(0), body["code"])
+
+	data, ok := body["data"].(map[string]interface{})
+	require.True(t, ok, "data 必须是 tickets/total 对象，实际 %v", body)
+	rows, ok := data["tickets"].([]interface{})
+	require.True(t, ok, "tickets 必须是数组，实际 %v", data)
+	require.Len(t, rows, 1)
+	item, ok := rows[0].(map[string]interface{})
+	require.True(t, ok)
+	assert.Equal(t, float64(1), item["id"])
+	assert.Equal(t, "MSP-T-1", item["ticketNumber"])
+	assert.Equal(t, "客户工单标题回归", item["title"], "前端按 title 读取，缺失即列表标题空白")
+	assert.Equal(t, "in_progress", item["status"], "前端按 status 读取，缺失即列表状态空白")
+	assert.Contains(t, item, "createdAt")
+	assert.NotContains(t, item, "Title", "不得再直出领域模型 PascalCase 键")
+	assert.NotContains(t, item, "Status")
 }
 
 // TestCreateAllocation_DuplicateReturns409 （D-2 回归）：

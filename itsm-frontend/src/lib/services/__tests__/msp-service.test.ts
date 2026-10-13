@@ -135,6 +135,30 @@ describe('MSPService', () => {
 
       expect(result).toEqual({ tickets: [], total: 0 });
     });
+
+    it('should normalize legacy PascalCase fields', async () => {
+      // 历史后端直出领域模型（Title/Status/CreatedAt），前端必须归一化，
+      // 否则 /msp「客户工单」列表的工单标题与状态为空白。
+      mockGetCustomerTickets.mockResolvedValue({
+        tickets: [
+          {
+            ID: 7,
+            TicketNumber: 'MSP-7',
+            Title: '旧契约标题',
+            Status: 'open',
+            CreatedAt: '2026-10-13T08:00:00Z',
+          },
+        ],
+        total: 1,
+      } as any);
+
+      const result = await MSPService.getCustomerTickets(20);
+
+      expect(result.tickets[0].id).toBe(7);
+      expect(result.tickets[0].title).toBe('旧契约标题');
+      expect(result.tickets[0].status).toBe('open');
+      expect(result.tickets[0].createdAt).toBe('2026-10-13T08:00:00Z');
+    });
   });
 
   describe('assignTechnician', () => {

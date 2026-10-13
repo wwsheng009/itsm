@@ -12,11 +12,32 @@ import (
 	"itsm-backend/common"
 	"itsm-backend/dto"
 	"itsm-backend/middleware"
+	ticketrepo "itsm-backend/repository/ticket"
 	"itsm-backend/service"
 
 	"github.com/gin-gonic/gin"
 	"go.uber.org/zap"
 )
+
+// toCustomerTicketItem 将领域工单映射为 MSP 客户工单 DTO。
+// 契约收口：不得再把领域模型直接序列化（PascalCase 键导致前端读不到 title/status）。
+func toCustomerTicketItem(t *ticketrepo.Ticket) *dto.MSPCustomerTicketItem {
+	if t == nil {
+		return nil
+	}
+	return &dto.MSPCustomerTicketItem{
+		ID:           t.ID,
+		TicketNumber: t.TicketNumber,
+		Title:        t.Title,
+		Status:       string(t.Status),
+		Priority:     string(t.Priority),
+		Type:         string(t.Type),
+		AssigneeID:   t.AssigneeID,
+		CreatedAt:    t.CreatedAt,
+		UpdatedAt:    t.UpdatedAt,
+		TenantID:     t.TenantID,
+	}
+}
 
 // Handler MSP HTTP handler
 type Handler struct {
@@ -325,9 +346,16 @@ func (h *Handler) GetCustomerTickets(c *gin.Context) {
 		return
 	}
 
-	common.Success(c, gin.H{
-		"tickets": tickets,
-		"total":   len(tickets),
+	items := make([]*dto.MSPCustomerTicketItem, 0, len(tickets))
+	for _, t := range tickets {
+		if item := toCustomerTicketItem(t); item != nil {
+			items = append(items, item)
+		}
+	}
+
+	common.Success(c, dto.MSPCustomerTicketsResponse{
+		Tickets: items,
+		Total:   len(items),
 	})
 }
 

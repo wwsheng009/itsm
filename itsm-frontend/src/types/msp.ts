@@ -99,20 +99,29 @@ export interface MSPCustomersResponse {
   total: number;
 }
 
-export interface MSPCustomerTicketsResponse {
-  tickets: TicketMSPInfo & {
+// MSP 视角客户工单列表项（GET /msp/customers/:customer_tenant_id/tickets，camelCase 契约）。
+// 历史缺陷：后端直出领域模型（PascalCase 键）导致 title/status 恒为空，列表标题与状态不显示。
+export interface MSPCustomerTicket {
+  id: number;
+  ticketNumber?: string;
+  title: string;
+  status: string;
+  priority?: string;
+  type?: string;
+  assigneeId?: number;
+  assigneeName?: string;
+  createdAt?: string;
+  updatedAt?: string;
+  tenantId?: number;
+  tenant?: {
     id: number;
-    title: string;
-    status: string;
-    assigneeId?: number;
-    assigneeName?: string;
-    createdAt: string;
-    tenant: {
-      id: number;
-      code: string;
-      name: string;
-    };
+    code: string;
+    name: string;
   };
+}
+
+export interface MSPCustomerTicketsResponse {
+  tickets: MSPCustomerTicket[];
   total: number;
 }
 

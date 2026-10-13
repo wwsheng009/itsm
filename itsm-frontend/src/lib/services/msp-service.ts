@@ -4,16 +4,59 @@ import type {
   CreateAllocationRequest,
   MSPCustomersResponse,
   MSPCustomerTicketsResponse,
+  MSPCustomerTicket,
   MSPCustomerReport,
   MSPAllocationHistory,
   MSPContext,
-  TicketMSPInfo,
 } from '@/types/msp';
 import type {
   ProvisionRoleOption,
   ProvisionUserRequest,
   ProvisionUserResponse,
 } from '@/lib/api/api-config';
+
+/**
+ * 兼容读取形状：旧后端（领域模型直出）的 PascalCase 键。
+ * 契约收口后新响应为 camelCase（types/msp.ts 的 MSPCustomerTicket）。
+ */
+type RawCustomerTicket = Partial<MSPCustomerTicket> & {
+  ID?: number;
+  TicketNumber?: string;
+  Title?: string;
+  Status?: string;
+  Priority?: string;
+  Type?: string;
+  AssigneeID?: number;
+  AssigneeName?: string;
+  CreatedAt?: string;
+  UpdatedAt?: string;
+  TenantID?: number;
+};
+
+function pick<T>(...values: (T | undefined)[]): T | undefined {
+  return values.find(value => value !== undefined);
+}
+
+/**
+ * 归一化客户工单行：新契约已是 camelCase；PascalCase 兜底保证
+ * 前后端版本偏差窗口内列表标题/状态不空白。
+ */
+function normalizeCustomerTicket(raw: RawCustomerTicket): MSPCustomerTicket {
+  return {
+    id: pick(raw.id, raw.ID) ?? 0,
+    title: pick(raw.title, raw.Title) ?? '',
+    status: pick(raw.status, raw.Status) ?? '',
+    ticketNumber: pick(raw.ticketNumber, raw.TicketNumber),
+    priority: pick(raw.priority, raw.Priority),
+    type: pick(raw.type, raw.Type),
+    assigneeId: pick(raw.assigneeId, raw.AssigneeID),
+    assigneeName: pick(raw.assigneeName, raw.AssigneeName),
+    createdAt: pick(raw.createdAt, raw.CreatedAt),
+    updatedAt: pick(raw.updatedAt, raw.UpdatedAt),
+    tenantId: pick(raw.tenantId, raw.TenantID),
+    tenant: raw.tenant,
+  };
+}
 
 export class MSPService {
   // 缓存当前用户 MSP 状态
@@ -86,23 +129,16 @@ export class MSPService {
   static async getCustomerTickets(
     customerTenantId: number,
     params?: { status?: string; page?: number; pageSize?: number }
-  ): Promise<{
-    tickets: Array<TicketMSPInfo & {
-      id: number;
-      title: string;
-      status: string;
-      assigneeId?: number;
-      assigneeName?: string;
-      createdAt: string;
-      tenant: { id: number; code: string; name: string };
-    }>;
-    total: number;
-  }> {
+  ): Promise<{ tickets: MSPCustomerTicket[]; total: number }> {
     const res = await MSPAPI.getCustomerTickets(customerTenantId, params);
-    const raw = res?.tickets;
-    const tickets = Array.isArray(raw) ? raw : raw ? [raw] : [];
+    const raw: unknown = res?.tickets;
+    const list: RawCustomerTicket[] = Array.isArray(raw)
+      ? (raw as RawCustomerTicket[])
+      : raw
+        ? [raw as RawCustomerTicket]
+        : [];
     return {
-      tickets,
+      tickets: list.map(normalizeCustomerTicket),
       total: res?.total || 0,
     };
   }
