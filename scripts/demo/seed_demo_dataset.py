@@ -276,6 +276,36 @@ def build_users() -> Dict[str, List[UserSpec]]:
 
 USERS = build_users()
 
+# 演示用户的「部门」= 真实组织部门（与岗位区分）。审批待办按
+# 「申请人部门 == 审批人部门」（manager 层级）过滤，故员工与部门经理必须同部门。
+USER_DEPARTMENTS: Dict[str, str] = {
+    "demo.msp.manager": "服务交付部",
+    "demo.msp.agent1": "服务交付部",
+    "demo.msp.agent2": "服务交付部",
+    "demo.mfg.admin": "信息技术部",
+    "demo.mfg.agent": "信息技术部",
+    "demo.mfg.itadmin": "信息技术部",
+    "demo.mfg.secadmin": "信息技术部",
+    "demo.mfg.lead": "生产部",
+    "demo.mfg.user": "生产部",
+    "demo.med.admin": "信息科",
+    "demo.med.agent": "信息科",
+    "demo.med.itadmin": "信息科",
+    "demo.med.secadmin": "信息科",
+    "demo.med.lead": "门诊部",
+    "demo.med.user": "门诊部",
+    "demo.edu.admin": "信息中心",
+    "demo.edu.agent": "信息中心",
+    "demo.edu.itadmin": "信息中心",
+    "demo.edu.secadmin": "信息中心",
+    "demo.edu.lead": "教务处",
+    "demo.edu.user": "教务处",
+}
+
+
+def user_department(u: UserSpec) -> str:
+    return USER_DEPARTMENTS.get(u.username, u.position)
+
 
 # MSP 分配（服务商员工 → 客户租户；role 为 allocation 角色）
 ALLOCATIONS: List[Tuple[str, str, str]] = [
@@ -343,7 +373,7 @@ def ensure_user(ctx: Ctx, tenant_id: int, spec: UserSpec, password: str) -> Opti
         "name": spec.name,
         "password": password,
         "role": spec.role,
-        "department": spec.position,
+        "department": user_department(spec),
     }
     if spec.msp_role:
         body["mspRole"] = spec.msp_role
@@ -497,8 +527,8 @@ def parse_args(argv: Optional[List[str]] = None) -> argparse.Namespace:
     p.add_argument("--admin-password", default=os.environ.get("DEMO_ADMIN_PASSWORD", ""))
     p.add_argument("--user-password", default=os.environ.get("DEMO_USER_PASSWORD", DEMO_USER_PASSWORD_DEFAULT))
     p.add_argument("--stages",
-                   default="tenants,users,allocations,masterdata,topology,records,domain,service_requests,cross,verify",
-                   help="逗号分隔：tenants,users,allocations,masterdata,topology,records,domain,service_requests,cross,verify")
+                   default="tenants,users,allocations,masterdata,ticket_types,rbac_grants,topology,records,domain,service_requests,kedb,cross,verify",
+                   help="逗号分隔：tenants,users,allocations,masterdata,ticket_types,rbac_grants,topology,records,domain,service_requests,kedb,cross,verify")
     p.add_argument("--dry-run", action="store_true")
     p.add_argument("--verbose", action="store_true")
     p.add_argument("--report", default=os.path.join(os.path.dirname(os.path.abspath(__file__)),
@@ -1123,13 +1153,16 @@ def stage_verify(ctx: Ctx) -> None:
         prb_n = _count("/api/v1/problems", ("items", "problems", "list"))
         chg_n = _count("/api/v1/changes", ("items", "changes", "list"))
         sr_n = _count("/api/v1/service-requests", ("requests", "items", "list"))
+        tt_n = _count("/api/v1/ticket-types", ("items", "types", "list"))
+        kedb_n = _count("/api/v1/known-errors", ("items", "knownErrors", "list"))
         row = (f"| {spec.name} | {len(tk)} | {len(mine)} | "
                f"{', '.join(f'{k}×{v}' for k, v in sorted(by_status.items())) or '-'} | "
-               f"{len(kb)} | {len(cis)} | {inc_n} | {prb_n} | {chg_n} | {sr_n} |")
+               f"{len(kb)} | {len(cis)} | {inc_n} | {prb_n} | {chg_n} | {sr_n} | {tt_n} | {kedb_n} |")
         rows.append(row)
         ctx.c.note("verify", f"{spec.code}: tickets={len(tk)} my={len(mine)} by_status={by_status} "
                              f"kb={len(kb)} cis={len(cis)} incidents={inc_n} problems={prb_n} changes={chg_n} "
                              f"service_requests={sr_n} "
+                             f"ticket_types={tt_n} known_errors={kedb_n} "
                              f"incident_states=[{_status_dist('/api/v1/incidents', ('items', 'incidents', 'list'))}] "
                              f"problem_states=[{_status_dist('/api/v1/problems', ('items', 'problems', 'list'))}] "
                              f"change_states=[{_status_dist('/api/v1/changes', ('items', 'changes', 'list'))}]")
@@ -1148,8 +1181,8 @@ def stage_verify(ctx: Ctx) -> None:
     except Exception as e:  # noqa: BLE001
         ctx.c.note("fail", f"服务商视角验证失败：{e}")
 
-    print("\n| 租户 | 工单(服务台视角) | 我的工单(end_user) | 工单状态分布 | 知识 | CI | 事件 | 问题 | 变更 | 服务请求 |")
-    print("|---|---|---|---|---|---|---|---|---|---|")
+    print("\n| 租户 | 工单(服务台视角) | 我的工单(end_user) | 工单状态分布 | 知识 | CI | 事件 | 问题 | 变更 | 服务请求 | 工单类型 | 已知错误 |")
+    print("|---|---|---|---|---|---|---|---|---|---|---|---|")
     for r in rows:
         print(r)
 
@@ -1645,36 +1678,38 @@ CATALOG_SPECS: Dict[str, List[dict]] = {
 # approve 列表：按顺序由对应岗位完成审批（manager/it_admin/security_admin 三级）
 SR_SPECS: Dict[str, List[dict]] = {
     "mfg": [
-        {"key": "sr_pending", "title": "[DEMO] 生产部账号开通申请（待审批）",
+        {"key": "sr_pending", "title": "[DEMO] 生产部账号开通申请",
          "catalog": "[DEMO] 账号开通申请", "requester": "user", "approve": []},
-        {"key": "sr_l1", "title": "[DEMO] VPN 权限申请（经理已批）",
+        {"key": "sr_l1", "title": "[DEMO] VPN 权限申请",
          "catalog": "[DEMO] VPN 权限申请", "requester": "user", "approve": ["lead"]},
-        {"key": "sr_full", "title": "[DEMO] 软件安装申请（两级已批）",
-         "legacy": "[DEMO] 软件安装申请（三级已批）",
+        {"key": "sr_full", "title": "[DEMO] 软件安装申请",
          "catalog": "[DEMO] 软件安装申请", "requester": "agent", "approve": ["lead", "itadmin", "secadmin"]},
     ],
     "med": [
-        {"key": "sr_pending", "title": "[DEMO] 检验科账号开通申请（待审批）",
+        {"key": "sr_pending", "title": "[DEMO] 检验科账号开通申请",
          "catalog": "[DEMO] 账号开通申请", "requester": "user", "approve": []},
-        {"key": "sr_l1", "title": "[DEMO] 监护仪入网申请（科室主任已批）",
+        {"key": "sr_l1", "title": "[DEMO] 监护仪入网申请",
          "catalog": "[DEMO] 医疗设备入网申请", "requester": "user", "approve": ["lead"]},
-        {"key": "sr_full", "title": "[DEMO] 数据导出授权申请（两级已批）",
-         "legacy": "[DEMO] 数据导出授权申请（三级已批）",
+        {"key": "sr_full", "title": "[DEMO] 数据导出授权申请",
          "catalog": "[DEMO] 数据导出授权申请", "requester": "agent", "approve": ["lead", "itadmin", "secadmin"]},
     ],
     "edu": [
-        {"key": "sr_pending", "title": "[DEMO] 新教师账号开通申请（待审批）",
+        {"key": "sr_pending", "title": "[DEMO] 新教师账号开通申请",
          "catalog": "[DEMO] 账号开通申请", "requester": "user", "approve": []},
-        {"key": "sr_l1", "title": "[DEMO] 教室设备借用申请（教务已批）",
+        {"key": "sr_l1", "title": "[DEMO] 教室设备借用申请",
          "catalog": "[DEMO] 教室设备借用申请", "requester": "user", "approve": ["lead"]},
-        {"key": "sr_full", "title": "[DEMO] 校园网端口申请（两级已批）",
-         "legacy": "[DEMO] 校园网端口申请（三级已批）",
+        {"key": "sr_full", "title": "[DEMO] 校园网端口申请",
          "catalog": "[DEMO] 校园网特殊端口申请", "requester": "agent", "approve": ["lead", "itadmin", "secadmin"]},
     ],
 }
 
 # 岗位 → 审批步骤标签
 STEP_BY_UKER = {"lead": "manager", "itadmin": "it", "secadmin": "security"}
+
+
+def _sr_stem(title: str) -> str:
+    """服务请求标题词干：[DEMO] 名称 部分（去掉「（…）」状态后缀），用于幂等匹配。"""
+    return title.split("（")[0].strip()
 
 
 def stage_service_requests(ctx: Ctx) -> None:
@@ -1731,35 +1766,19 @@ def stage_service_requests(ctx: Ctx) -> None:
                                         ("requests", "items", "list"))
                 except ApiError:
                     rows = []
-                for r in rows:
-                    if isinstance(r, dict) and r.get("title") == sr["title"]:
-                        existing = r
-                        break
-                # 历史标题（规格重命名后的旧数据）：优先原地改名；不可编辑（已审批）时删除重建，
-                # 保持演示数据标题与真实状态一致。
-                if existing is None and sr.get("legacy"):
-                    for r in rows:
-                        if isinstance(r, dict) and r.get("title") == sr["legacy"]:
-                            rid_old = int(r.get("id") or 0)
-                            renamed = False
-                            try:
-                                admin.write("PUT", f"/api/v1/service-requests/{rid_old}",
-                                            {"title": sr["title"]})
-                                ctx.c.note("repair", f"服务请求更名 →《{sr['title']}》(id={rid_old})")
-                                renamed = True
-                            except ApiError as e:
-                                if rid_old:
-                                    try:
-                                        admin.write("DELETE", f"/api/v1/service-requests/{rid_old}", None)
-                                        ctx.c.note("repair", f"删除旧标题服务请求 id={rid_old}（按新标题重建）")
-                                    except ApiError as e2:
-                                        ctx.c.note("warn", f"旧标题服务请求处置失败：{str(e2.body)[:120]}")
-                                        existing = r
-                                else:
-                                    existing = r
-                            if renamed:
-                                existing = r
-                            break
+                # 按「标题词干」匹配（[DEMO] 名称 部分），容忍后缀（审批层级描述）随实际状态变化：
+                # 早期实现按完整标题匹配，状态对齐脚本改写后缀后会产生重复建单。
+                stem = _sr_stem(sr["title"])
+                candidates = [r for r in rows
+                              if isinstance(r, dict) and _sr_stem(str(r.get("title") or "")) == stem]
+                existing = candidates[0] if candidates else None
+                if existing and str(existing.get("title")) != sr["title"]:
+                    try:
+                        admin.write("PUT", f"/api/v1/service-requests/{int(existing['id'])}",
+                                    {"title": sr["title"]})
+                        ctx.c.note("repair", f"服务请求更名 →《{sr['title']}》(id={existing['id']})")
+                    except ApiError:
+                        pass  # 已审批不可编辑：保留现状（标题以实际状态为准）
             if existing is None and not ctx.dry_run:
                 cid = cat_id_by_name.get(sr["catalog"])
                 if not cid:
@@ -1813,6 +1832,203 @@ def stage_service_requests(ctx: Ctx) -> None:
 
 STAGES.update({
     "service_requests": stage_service_requests,
+})
+
+
+# =====================================================================
+# 13. 工单类型（预设安装）与已知错误（KEDB）
+# =====================================================================
+
+def stage_ticket_types(ctx: Ctx) -> None:
+    ctx.log("== 阶段 4d：工单类型（预设安装） ==")
+    resolve_tenant_ids(ctx)
+    for spec in TENANTS:
+        if spec.type != "msp_customer":
+            continue
+        admin = session_as(ctx, spec.key, "admin")
+        try:
+            existing = extract_list(admin.get("/api/v1/ticket-types?page=1&pageSize=100"),
+                                    ("items", "types", "list"))
+        except ApiError:
+            existing = []
+        codes = {str(t.get("code")) for t in existing if isinstance(t, dict)}
+        try:
+            presets = extract_list(admin.get("/api/v1/ticket-type-presets"),
+                                   ("presets", "items", "list"))
+        except ApiError as e:
+            ctx.c.note("warn", f"{spec.code} 工单类型预设库读取失败：{str(e.body)[:120]}")
+            continue
+        for p in presets:
+            pid = str(p.get("id") or "")
+            pcode = str(((p.get("definition") or {}) or {}).get("code") or "")
+            if not pid:
+                continue
+            if pcode and pcode in codes:
+                ctx.c.existing += 1
+                continue
+            if ctx.dry_run:
+                ctx.c.note("dry-run", f"将安装工单类型预设 {pid} @{spec.code}")
+                continue
+            try:
+                admin.write("POST", f"/api/v1/ticket-type-presets/{pid}/install", {})
+                ctx.c.created += 1
+                ctx.c.note("created", f"工单类型预设 {pid}（{pcode}）@{spec.code}")
+            except ApiError as e:
+                body = str(e.body)
+                if "exist" in body.lower() or "已存在" in body or "CONFLICT" in body:
+                    ctx.c.existing += 1
+                else:
+                    ctx.c.note("warn", f"{spec.code} 安装预设 {pid} 失败：{body[:120]}")
+
+
+KEDB_SPECS: Dict[str, List[dict]] = {
+    "mfg": [
+        {"title": "[DEMO] VPN 网关认证超时（已定位）", "category": "网络", "severity": "high",
+         "symptoms": "工作日高峰期拨入 VPN 认证超时，约 20% 用户受影响。",
+         "rootCause": "认证服务连接池在并发高峰耗尽，缺少排队与快速失败。",
+         "workaround": "错峰拨入；紧急时切换手机热点或备用网关。",
+         "resolution": "连接池扩容 + 认证服务限流改造，已在预发验证。"},
+        {"title": "[DEMO] MES 报表查询缓慢（已知错误）", "category": "应用服务", "severity": "medium",
+         "symptoms": "月末/交接班时段报工与报表页面加载超过 10 秒。",
+         "rootCause": "报表 SQL 缺少复合索引，全表扫描高频命中。",
+         "workaround": "避开高峰查询；报表走只读副本。",
+         "resolution": "补充索引 + 慢查询治理（已列入变更窗口）。"},
+    ],
+    "med": [
+        {"title": "[DEMO] HIS 医生站登录超时（已知错误）", "category": "应用服务", "severity": "high",
+         "symptoms": "门诊高峰登录缓慢或超时，影响开单效率。",
+         "rootCause": "会话校验同步调用目录服务，瓶颈时阻塞连接。",
+         "workaround": "延长本地会话保持时间；错峰登录。",
+         "resolution": "改为异步校验 + 会话缓存（待版本发布）。"},
+        {"title": "[DEMO] 检验报告推送延迟（已知错误）", "category": "集成接口", "severity": "medium",
+         "symptoms": "LIS 报告到 HIS 的推送偶发延迟 10-30 分钟。",
+         "rootCause": "接口重试策略缺失，单次失败后等待下轮定时任务。",
+         "workaround": "手工在 LIS 侧触发重推。",
+         "resolution": "接口增加指数退避重试与告警（已排期）。"},
+    ],
+    "edu": [
+        {"title": "[DEMO] 选课高峰数据库瓶颈（已知错误）", "category": "数据库", "severity": "high",
+         "symptoms": "选课开放 5 分钟内响应时间飙升至秒级。",
+         "rootCause": "热点课程行锁竞争 + 缺少请求排队。",
+         "workaround": "开启排队页并限制并发。",
+         "resolution": "热点数据缓存 + 分时段选课（方案评审中）。"},
+        {"title": "[DEMO] 宿舍区无线漫游掉线（已知错误）", "category": "网络", "severity": "medium",
+         "symptoms": "移动终端跨 AP 漫游时偶发掉线需重连。",
+         "rootCause": "部分 AP 固件未开启 802.11r 快速漫游。",
+         "workaround": "固定连接同一 AP 或使用有线。",
+         "resolution": "AP 固件升级并统一漫游配置（变更执行中）。"},
+    ],
+}
+
+
+def stage_kedb(ctx: Ctx) -> None:
+    ctx.log("== 阶段 5d：已知错误（KEDB） ==")
+    resolve_tenant_ids(ctx)
+    for spec in TENANTS:
+        if spec.type != "msp_customer":
+            continue
+        admin = session_as(ctx, spec.key, "admin")
+        try:
+            rows = extract_list(admin.get("/api/v1/known-errors?page=1&pageSize=100"),
+                                ("items", "knownErrors", "list"))
+        except ApiError:
+            rows = []
+        titles = {str(r.get("title")) for r in rows if isinstance(r, dict)}
+        for k in KEDB_SPECS.get(spec.key, []):
+            if k["title"] in titles:
+                ctx.c.existing += 1
+                continue
+            if ctx.dry_run:
+                ctx.c.note("dry-run", f"将创建已知错误《{k['title']}》@{spec.code}")
+                continue
+            try:
+                admin.write("POST", "/api/v1/known-errors", {
+                    "title": k["title"], "category": k.get("category", ""),
+                    "severity": k.get("severity", "medium"),
+                    "symptoms": k.get("symptoms", ""), "rootCause": k.get("rootCause", ""),
+                    "workaround": k.get("workaround", ""), "resolution": k.get("resolution", ""),
+                })
+                ctx.c.created += 1
+                ctx.c.note("created", f"已知错误《{k['title']}》@{spec.code}")
+            except ApiError as e:
+                ctx.c.note("warn", f"{spec.code} 已知错误《{k['title']}》失败：{str(e.body)[:140]}")
+
+
+STAGES.update({
+    "ticket_types": stage_ticket_types,
+    "kedb": stage_kedb,
+})
+
+
+def stage_rbac_grants(ctx: Ctx) -> None:
+    """演示级权限补授：为 manager/it_admin/agent 追加 service_catalog:read。
+
+    说明：当前产品租户模板给 end_user 授了 service_catalog:read，但 manager/it_admin/agent
+    未授（管理员 admin 有）。演示场景需要管理岗能打开「服务目录」，故在演示环境补授；
+    该差异已登记，是否进产品模板由产品决策。仅追加、不删除既有权限。
+    """
+    ctx.log("== 阶段 4e：演示级权限补授（service_catalog:read） ==")
+    resolve_tenant_ids(ctx)
+    target_roles = ("manager", "it_admin", "agent")
+    for spec in TENANTS:
+        if spec.type != "msp_customer":
+            continue
+        admin = session_as(ctx, spec.key, "admin")
+        try:
+            roles = extract_list(admin.get("/api/v1/roles?page=1&pageSize=100"),
+                                 ("roles", "items", "list"))
+        except ApiError as e:
+            ctx.c.note("warn", f"{spec.code} 角色列表读取失败：{str(e.body)[:120]}")
+            continue
+        by_code = {str(r.get("code")): r for r in roles if isinstance(r, dict)}
+        # /permissions 仅返回 code 字符串列表，权限 ID 需从「已持有该码的角色」详情中取得
+        # （admin / end_user / it_director 任一持有 service_catalog:read）。
+        perm_id = None
+        for ref_code in ("admin", "end_user", "it_director"):
+            ref = by_code.get(ref_code)
+            if not ref:
+                continue
+            try:
+                detail = admin.get(f"/api/v1/roles/{int(ref['id'])}") or {}
+            except ApiError:
+                continue
+            for p in (detail.get("permissions") or []):
+                if isinstance(p, dict) and p.get("code") == "service_catalog:read" and p.get("id"):
+                    perm_id = int(p["id"])
+                    break
+            if perm_id:
+                break
+        if not perm_id:
+            ctx.c.note("warn", f"{spec.code} 未找到 service_catalog:read 权限（参考角色均未持有）")
+            continue
+        for code in target_roles:
+            role = by_code.get(code)
+            if not role:
+                continue
+            rid = int(role["id"])
+            try:
+                detail = admin.get(f"/api/v1/roles/{rid}") or {}
+                current = [int(p["id"]) for p in (detail.get("permissions") or [])
+                           if isinstance(p, dict) and p.get("id")]
+            except ApiError:
+                current = []
+            if perm_id in current:
+                ctx.c.existing += 1
+                continue
+            if ctx.dry_run:
+                ctx.c.note("dry-run", f"将补授 {code} += service_catalog:read @{spec.code}")
+                continue
+            try:
+                admin.write("POST", f"/api/v1/roles/{rid}/permissions",
+                            {"permissionIds": current + [perm_id]})
+                ctx.c.created += 1
+                ctx.c.note("created", f"补授 {code} += service_catalog:read @{spec.code}")
+            except ApiError as e:
+                ctx.c.note("warn", f"{spec.code} 补授 {code} 失败：{str(e.body)[:120]}")
+
+
+STAGES.update({
+    "rbac_grants": stage_rbac_grants,
 })
 
 

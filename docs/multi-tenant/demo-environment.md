@@ -66,7 +66,26 @@
 - 每租户 5 篇已发布知识文章（按行业定制：制造/医疗/教育，覆盖故障排查/应急预案/规范/服务指南）；
 - 每租户 5~6 个 CMDB 配置项（应用/数据库/网络/存储等，含属性与环境/关键度）；
 - **CI 关系**：每租户 2~3 条（depends_on / connects_to / runs_on），支撑拓扑图与影响分析演示；
+- **工单类型**：每租户安装 4 个产品预设（通用事件 / PACS 事件 / 数据库变更 / 账号权限申请），
+  支撑「工单类型」页与新建工单的类型选择；
+- **已知错误（KEDB）**：每租户 2 条（含症状/根因/规避/解决），支撑「问题管理 → 已知错误」页；
 - 服务目录、SLA、CI 类型、审批链等来自租户模板（开箱可用）。
+
+**组织与审批待办（部门字段）**
+
+- 演示用户 `department` 为**真实部门**（岗位在账号名后缀中体现）：如制造租户
+  `admin/agent/itadmin/secadmin` 属「信息技术部」，`lead/user` 属「生产部」；
+- 服务请求「待审批」按 `申请人部门 == 审批人部门`（manager 层级）过滤，
+  故部门经理能看到本部门员工提交的待批服务请求（演示数据：每位 lead 有 2 条）。
+
+**页面浏览权限速查（租户模板 + 演示级补授）**
+
+| 页面 | 权限码 | 模板已授权角色 | 演示说明 |
+|---|---|---|---|
+| 工单类型 `/tickets/types` | `ticket_type:read` | admin / manager / agent / it_admin（+多数管理角色） | 租户模板原本不安装工单类型数据，已由种子器按预设安装 |
+| 服务目录 `/service-catalog` | `service_catalog:read` | admin / end_user / it_director | **manager / it_admin / agent 由演示级补授**（模板未授，已登记待产品决策） |
+| 服务请求 `/service-requests` | `service_request:read` | admin / manager / agent / it_admin / end_user | 列表范围＝「我的请求」＋「我的待审批（按角色与部门）」；lead 默认无自有请求，待审批页有数据 |
+| 已知错误 `/problems/known-errors` | `problem:read`（KEDB 复用 problem 词表） | admin / manager / agent / it_admin / dba / l2_support 等 | end_user 无问题域读权限（设计内） |
 
 **跨租户协同（工作台）**
 
@@ -101,18 +120,19 @@
 python scripts/demo/seed_demo_dataset.py \
   --base-url http://172.18.3.238:8089 \
   --admin-password 'Demo@2026!Admin'
-# 分阶段：--stages tenants,users,allocations,masterdata,topology,records,domain,service_requests,cross,verify
+# 分阶段：--stages tenants,users,allocations,masterdata,ticket_types,rbac_grants,topology,records,domain,service_requests,kedb,cross,verify
 ```
 
-> 实测：全阶段（10 个阶段）重复执行 `created=0 / existing=161 / failed=0`；
+> 实测：全阶段（13 个阶段）重复执行 `created=0 / existing=188 / failed=0`；
 > 幂等策略＝按租户 code、用户名去重；业务单据按标题匹配，
 > 状态与规格不符时自动删除重建（自愈），跨租户回复按标记去重。
 
-**可选补充（SLA 超时 / 服务请求标题校正，仅演示库执行一次）**：
+**可选补充（SLA 超时 / 部门对齐 / 重复清理，仅演示库执行一次）**：
 
 ```bash
 docker exec -i itsm-postgres-prod psql -U itsm -d itsm_demo < scripts/demo/sla_backdate.sql
-docker exec -i itsm-postgres-prod psql -U itsm -d itsm_demo < scripts/demo/fix_sr_titles.sql
+docker exec -i itsm-postgres-prod psql -U itsm -d itsm_demo < scripts/demo/fix_user_departments.sql
+docker exec -i itsm-postgres-prod psql -U itsm -d itsm_demo < scripts/demo/fix_sr_duplicates.sql
 ```
 
 **整库重建（演示环境重置）**：
@@ -134,7 +154,11 @@ python scripts/demo/seed_demo_dataset.py --base-url http://172.18.3.238:8089 --a
 - **服务请求层级审批的 BPMN 桥接限制（已登记）**：部分服务请求在推进到 IT/安全层级时
   返回 500「同步流程审批任务失败」（业务侧角色满足，但流程任务操作人鉴权不匹配）；
   同一实例重试与管理员代批均失败。演示数据因此保留在可推进到的最深层级
-  （L1 已批 / L2 已批样本可用），标题已与真实状态对齐（脚本 `fix_sr_titles.sql`）；
+  （L1 已批 / L2 已批样本可用），标题后缀与真实状态对齐（种子器按「标题词干」匹配，
+  已审批实例不可改名时保留现状）；
+- **服务目录读权限模板差异（已登记）**：租户模板 `service_catalog:read` 授给了
+  admin/end_user/it_director，未授 manager/it_admin/agent；演示环境由种子器
+  `rbac_grants` 阶段补授（仅追加）。是否进产品模板待产品决策；
 - SLA「已超时」样本依赖一次性回填脚本（见上），重建演示库后需重新执行；
 - 演示账号口令统一且公开，仅用于演示环境，**请勿在真实环境复用**；
 - AI 能力取决于 `.env.demo` 是否配置 LLM 凭据，未配置时自动降级，不影响主链路演示；
