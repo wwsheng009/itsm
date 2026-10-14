@@ -981,8 +981,8 @@ flowchart TD
 1. 部署时按序执行：ent Schema.Create（自动）→ SQL 迁移 `20261014_sla_grant_ownership_and_name_unique.sql`（自动，含重名清洗）→ RLS `011`（手动：`go run -tags rlsapply ./cmd/rls-apply -files 011_sla_definition_grant_policies.sql`）；
 2. 238 演示栈端到端验收锚点：SLA-A1（下发匹配）/A2（优先级）/A3（fail-loud）/A4（customer 写保护 403/404 + RLS 跨租户断言）/A8（护栏）/A12（豁免）/A7（表单枚举）；
 3. `SLA_UNBOUND_ALERT_ENABLED` 默认关——观察一周后再开启（R-SLA-4 节奏）。
-4. **2026-10-14 部署**：P0+P1+P2-1 已部署 238 demo 栈（`1.8.0-dev.1e60efee`：backend/frontend 双镜像重建 + init 自动迁移 + RLS 011/012 注入）；证据 `.dev/deploy/DEMO-FULL-20261014-1e60efee-EVIDENCE.md`。§8 端到端验收锚点（SLA-A1…）待执行。
-5. **2026-10-14 部署（二次增量）**：P2-2+P2-3+P3 已部署（`1.8.0-dev.c700c060`：双镜像重建 + 迁移 `20261014e/f` + **RLS 013** 注入）；证据 `.dev/deploy/DEMO-FULL-20261014-c700c060-EVIDENCE.md`。§8 端到端验收 runbook：`.dev/deploy/ACCEPTANCE-RUNBOOK-c700c060.md`（待执行）。
+4. **2026-10-14 部署**：P0+P1+P2-1 已部署 238 demo 栈（`1.8.0-dev.1e60efee`：backend/frontend 双镜像重建 + init 自动迁移 + RLS 011/012 注入）；证据 `.dev/deploy/DEMO-FULL-20261014-1e60efee-EVIDENCE.md`。§8 端到端验收锚点（SLA-A1…）已于同日执行通过（见 B.16）。
+5. **2026-10-14 部署（二次增量）**：P2-2+P2-3+P3 已部署（`1.8.0-dev.c700c060`：双镜像重建 + 迁移 `20261014e/f` + **RLS 013** 注入）；证据 `.dev/deploy/DEMO-FULL-20261014-c700c060-EVIDENCE.md`。§8 端到端验收 runbook：`.dev/deploy/ACCEPTANCE-RUNBOOK-c700c060.md`（已执行；结果见 B.16 与 `.dev/deploy/ACCEPTANCE-20261014-b2b82ef6.md`）。
 
 ### B.4 实施期修正记录（P0-1，2026-10-14）
 
@@ -1194,3 +1194,21 @@ flowchart TD
 | IM-33 | `/reports/sla` 语义变更：由"sla-performance 重定向"改为**结算报表页**（provider 视角 SLA 报表，§4.6 item 3）；sla-performance 保留 `/reports/sla-performance` 独立路径直达 |
 | IM-34 | SLA 进度条为**展示层派生**（consumed/total 比例），不引入前端判定：违约/超时色仍以后端 `isBreached`/剩余分钟为准；`/tickets/:id/sla` 响应未含暂停状态字段，暂停展示（sla_status）登记为后续后端契约扩展项 |
 | IM-35 | SLA 定义 `escalationRules` 前端类型修正为"对象 ∪ 数组"（后端为 JSON map；历史数据形态容忍），`admin/sla-definitions` 展示适配两形态 |
+
+### B.16 验收执行记录（§8 SLA-A1…A17 端到端验收 + 验收修复 IM-36~38，2026-10-14）
+
+**结论**：§8 端到端验收**已执行并通过**（238 demo，最终版本 `1.8.0-dev.b2b82ef6`）。API 场景脚本 42 步 0 fail；DB 逐锚点断言齐备；UI 抽查通过。完整记录：`.dev/deploy/ACCEPTANCE-20261014-b2b82ef6.md`（执行器 `acceptance_sla_e2e.py` + 探针 `acceptance_probe*.sh` 同目录入库）。
+
+**验收期修复（3 提交，缺陷均由验收实测发现）**：
+
+| IM | 提交 | 缺陷 | 修复 |
+|---|---|---|---|
+| IM-36 | `e5bfdc94`（be） | `/sla` 路由族缺 MSPContext 装配 → grants/contracts/settlement-report 三组对所有 MSP 用户恒 403「仅MSP员工可访问」（P1-2/P2-2 接线缺陷） | `SetupSLARoutes` 接收 ent client，三组显式装配 `RequireMSPDeploymentMode + MSPMiddleware`；守卫测试 `sla_msp_context_guard_test.go` |
+| IM-37 | `fa04cd67`（fe） | `ADMIN_AREA_PERMISSIONS` 未收录 `sla:contract:read/write` → provider 被 `/admin` 区域门禁整区拦下，合同页不可达 | 区域并集按 B6 政策收录两个合同码 |
+| IM-38 | `b2b82ef6`（fe） | `AdminRouteGuard` 用 role 判定（admin/super_admin）与 B6 并集单源不一致 → 区域放行后仍内联 403 | 改用 `ADMIN_AREA_PERMISSIONS` + `store.hasPermission` |
+
+**demo 库 RBAC 数据修正**（验收准备；非代码）：新码仅存在于平台租户 → 目录克隆 t1→t2（6 行）+ `cmd/sync_role_permissions -tenant-id 2 -apply`（created=18/deleted=0）+ `cmd/backfill_provider_admin` 复核 + `user_roles(2→46)` 复合角色边 + 重启清缓存。脚本：`acceptance_rbac_fix_{dry,apply}.sh`。
+
+**锚点覆盖摘要**：A1/A4/A5/A6/A9/A11/A13/A15/A16/A17 ✅ 实测通过；A2 ✅（L1 vs L3b 变体，L2 单测锁定）；A7 ✅（代码锁定）；A8 ✅（401+单测）；A10 ✅；A14 ✅（结构+单测）；A3/A12 ⚠️ 单测锁定（demo 未自然构造 L4/exempt 样本）。
+
+**观察项（遗留）**：① incidents 无 SLA 面（载体为 tickets）——方案文案按"工单"读；② `/auth/me` 权限未并集 m2m 附加角色（FE/BE 口径差，建议后端对齐）；③ 定义 DELETE 域外 no-op 返回 200（建议 404 映射）；④ 存量租户新增权限码需"目录克隆+sync"两步（`sync_role_permissions` 不建码行，建议扩展/手册固化）。
