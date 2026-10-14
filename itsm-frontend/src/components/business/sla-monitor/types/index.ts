@@ -50,6 +50,12 @@ export interface SLAViolationDetailModalProps {
   actionLoading?: boolean;
   onResolve: (violation: SLAViolation) => void | Promise<void>;
   onAcknowledge: (violation: SLAViolation) => void | Promise<void>;
+  // D-SLA-8 归责状态机（P2-1/P3）：
+  //   onDispute      customer 侧"提出争议"（resolutionState=disputed，reason 必填）
+  //   onSettleAccepted/onSettleWaived  provider 侧裁决（sla:violation:settle；waived reason 必填）
+  onDispute?: (violation: SLAViolation, disputeReason: string) => void | Promise<void>;
+  onSettleAccepted?: (violation: SLAViolation) => void | Promise<void>;
+  onSettleWaived?: (violation: SLAViolation, waivedReason: string) => void | Promise<void>;
 }
 
 export interface SLAAlertRulesPanelProps {

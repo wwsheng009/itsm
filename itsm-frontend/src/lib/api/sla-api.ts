@@ -9,7 +9,10 @@ export interface SLADefinition {
   priority: string;
   responseTime: number;
   resolutionTime: number;
-  escalationRules?: Record<string, unknown>[];
+  /** 后端为 JSON 对象（历史数据可能是数组形态，读取方需容忍两种） */
+  escalationRules?: Record<string, unknown> | Record<string, unknown>[];
+  businessHours?: Record<string, unknown>;
+  conditions?: Record<string, unknown>;
   availabilityTarget?: number;
   availability?: number;
   complianceRate?: number;
@@ -117,6 +120,75 @@ export interface SLAViolation {
   resolvedAt?: string;
   resolutionNotes: string;
   tenantId: number;
+  // D-SLA-8 归责状态机（P2-1）：pending|accepted|disputed|waived；
+  // settledFlag=true 后随结算快照锁定（终态不可改，新争议走下一周期）。
+  resolutionState?: 'pending' | 'accepted' | 'disputed' | 'waived';
+  disputeReason?: string;
+  waivedReason?: string;
+  waivedBy?: number;
+  waivedAt?: string;
+  settledFlag?: boolean;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+// ==================== 结算报表（D-SLA-5/D-SLA-9，P2-2；provider 面） ====================
+//
+// 契约：GET /api/v1/sla/settlement-report（sla:settlement:read；RequireMSPDeploymentMode 404 gate）。
+// 口径（§13.2/§13.5/§13.6）全部由后端判定，前端只渲染、不重算：
+//   - coveredTickets = 白名单分母；exempt/uncovered 单列桶不进分母；
+//   - contractVerdict = 合同基准重算 / internalVerdict = 客户内部快照 / driftFlag = 对账差异；
+//   - fee 按合同 penalties（creditRate/cap）计算。
+
+export interface SLASettlementRow {
+  ticketId: number;
+  ticketNumber: string;
+  title: string;
+  ticketTypeId: number;
+  ticketTypeCode?: string;
+  createdAt: string;
+  firstResponseAt?: string;
+  resolvedAt?: string;
+  contractVerdict: 'met' | 'breached';
+  internalVerdict: 'met' | 'breached' | 'unknown';
+  driftFlag: boolean;
+  /** 建单时匹配层级快照（L1=合同域；L3*=客户内部域） */
+  matchedLayer?: string;
+  violationId?: number;
+  violationState?: string;
+  excludedReason?: string;
+}
+
+export interface SLASettlementCredit {
+  currency?: string;
+  creditRate: number;
+  cap: number;
+  breachUnits: number;
+  amount: number;
+  note?: string;
+}
+
+export interface SLASettlementReport {
+  customerTenantId: number;
+  customerName?: string;
+  contractId: number;
+  contractNo: string;
+  contractName: string;
+  reportPeriod: { startDate: string; endDate: string };
+  coveredTickets: number;
+  exemptTickets: number;
+  uncoveredTickets: number;
+  contractMet: number;
+  contractBreached: number;
+  settlementBreaches: number;
+  acceptedViolations: number;
+  waivedViolations: number;
+  disputedViolations: number;
+  pendingViolations: number;
+  excludedInternalViolations: number;
+  complianceRate: number;
+  credit: SLASettlementCredit;
+  rows: SLASettlementRow[];
 }
 
 // SLA 合规报告接口：所有字段统一 camelCase（包括嵌套 reportPeriod.startDate/endDate），
@@ -400,6 +472,52 @@ export class SLAApi {
     notes?: string
   ): Promise<void> {
     return httpClient.put(`/api/v1/sla/violations/${id}`, { isResolved: isResolved, notes });
+  }
+
+  // 提出争议（D-SLA-8，customer 侧；PUT /sla/violations/:id 扩展 resolutionState=disputed）
+  static async disputeSLAViolation(
+    id: number,
+    disputeReason: string
+  ): Promise<{ id: number; resolutionState: string }> {
+    return httpClient.put(`/api/v1/sla/violations/${id}`, {
+      resolutionState: 'disputed',
+      disputeReason,
+    });
+  }
+
+  // 裁决违约（D-SLA-8，provider 侧；PUT /sla/violations/:id/settle，权限 sla:violation:settle）
+  // accepted=认账（进结算）；waived=豁免（reason 必填）。
+  static async settleSLAViolation(
+    id: number,
+    decision: 'accepted' | 'waived',
+    reason?: string
+  ): Promise<{ id: number; resolutionState: string }> {
+    return httpClient.put(`/api/v1/sla/violations/${id}/settle`, { decision, reason });
+  }
+
+  // 获取 provider 视角结算报表（P2-2；白名单口径 + 双口径对账 + 信用额）
+  static async getSettlementReport(params: {
+    customerTenantId: number;
+    from?: string;
+    to?: string;
+  }): Promise<SLASettlementReport> {
+    const query: Record<string, string> = { customerTenantId: String(params.customerTenantId) };
+    if (params.from) query.from = params.from;
+    if (params.to) query.to = params.to;
+    return httpClient.get('/api/v1/sla/settlement-report', query);
+  }
+
+  // 出快照锁定（§13.3；POST /sla/violations/settlement-report/lock）：
+  // 锁定后该周期违约不可再变更（新争议走下一周期）。参数走 query string（后端契约）。
+  static async lockSettlementSnapshot(params: {
+    customerTenantId: number;
+    from?: string;
+    to?: string;
+  }): Promise<{ lockedViolations: number }> {
+    const search = new URLSearchParams({ customerTenantId: String(params.customerTenantId) });
+    if (params.from) search.set('from', params.from);
+    if (params.to) search.set('to', params.to);
+    return httpClient.post(`/api/v1/sla/settlement-report/lock?${search.toString()}`, {});
   }
 
   // 获取SLA合规报告

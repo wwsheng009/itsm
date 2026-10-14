@@ -111,6 +111,11 @@ export default function SLADefinitionEditPage() {
             responseTime: definition.responseTime,
             resolutionTime: definition.resolutionTime,
             isActive: definition.isActive ?? true,
+            businessHours: definition.businessHours ?? {},
+            escalationRules: Array.isArray(definition.escalationRules)
+              ? {}
+              : (definition.escalationRules ?? {}),
+            conditions: definition.conditions ?? {},
           }}
           onSubmit={handleSubmit}
           onCancel={() => navigate(`/sla/definitions/${id}`)}

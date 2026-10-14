@@ -155,6 +155,7 @@ const ReportsIncidentTrends = lazy(() => import('@/pages/(main)/reports/incident
 const ReportsProblemEfficiency = lazy(() => import('@/pages/(main)/reports/problem-efficiency/index'));
 const ReportsServiceCatalogUsage = lazy(() => import('@/pages/(main)/reports/service-catalog-usage/index'));
 const ReportsSlaPerformance = lazy(() => import('@/pages/(main)/reports/sla-performance/index'));
+const ReportsSlaSettlement = lazy(() => import('@/pages/(main)/reports/sla/index'));
 const ReportsTickets = lazy(() => import('@/pages/(main)/reports/tickets/index'));
 const ResetPassword = lazy(() => import('@/pages/(auth)/reset-password/index'));
 const ServiceCatalog = lazy(() => import('@/pages/(main)/service-catalog/index'));
@@ -386,6 +387,7 @@ export const routes: RouteObject[] = [
           { path: 'reports/problem-efficiency', element: lazyElement(ReportsProblemEfficiency) },
           { path: 'reports/service-catalog-usage', element: lazyElement(ReportsServiceCatalogUsage) },
           { path: 'reports/sla-performance', element: lazyElement(ReportsSlaPerformance) },
+          { path: 'reports/sla', element: lazyElement(ReportsSlaSettlement) },
           { path: 'reports/tickets', element: lazyElement(ReportsTickets) },
           { path: 'service-catalog', element: lazyElement(ServiceCatalog) },
           { path: 'service-catalog/approvals', element: lazyElement(ServiceCatalogApprovals) },
@@ -431,7 +433,6 @@ export const routes: RouteObject[] = [
           { path: 'reports/changes', element: <Navigate to="/reports/change-success" replace /> },
           { path: 'reports/incidents', element: <Navigate to="/reports/incident-trends" replace /> },
           { path: 'reports/problems', element: <Navigate to="/reports/problem-efficiency" replace /> },
-          { path: 'reports/sla', element: <Navigate to="/reports/sla-performance" replace /> },
           { path: 'sla-dashboard', element: <Navigate to="/sla" replace /> },
           { path: 'templates', element: <Navigate to="/tickets/templates" replace /> },
           { path: 'workflow/ticket-approval', element: <Navigate to="/approvals" replace /> },

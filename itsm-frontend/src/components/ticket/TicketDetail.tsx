@@ -45,6 +45,7 @@ import {
   Skeleton,
   List,
   Empty,
+  Progress,
 } from 'antd';
 import { useAuthStore } from '@/lib/store/auth-store';
 import { canWriteRow } from '@/lib/utils/row-scope';
@@ -242,6 +243,10 @@ const TicketDetail: React.FC<{ id?: string }> = ({ id: propId }) => {
     isBreached: boolean;
     responseTimeRemaining: number | null;
     resolutionTimeRemaining: number | null;
+    responseTime: number;
+    resolutionTime: number;
+    firstResponseAt: string | null;
+    resolvedAt: string | null;
   } | null>(null);
   const [assignForm] = Form.useForm();
   const [editForm] = Form.useForm();
@@ -339,6 +344,32 @@ const TicketDetail: React.FC<{ id?: string }> = ({ id: propId }) => {
       setSlaInfo(null);
     }
   }, [resolvedTicketId]);
+
+  // P3（§12.3 差距清单）：SLA 进度条——按定义时限与剩余分钟计算完成比例；
+  // 已完成=100%（success），超时=100%（exception）；判定口径随后端，前端不重算违约。
+  const formatSlaRemaining = (minutes: number | null): string => {
+    if (minutes === null) return '-';
+    if (minutes < 0) return `已超时 ${Math.abs(minutes)} 分钟`;
+    return `剩余 ${minutes} 分钟`;
+  };
+  const calcSlaProgressPercent = (
+    totalMinutes: number,
+    remainingMinutes: number | null,
+    completed: boolean
+  ): number => {
+    if (completed) return 100;
+    if (remainingMinutes === null || totalMinutes <= 0) return 0;
+    const consumed = totalMinutes - remainingMinutes;
+    return Math.max(0, Math.min(100, Math.round((consumed / totalMinutes) * 100)));
+  };
+  const slaProgressStatus = (
+    remainingMinutes: number | null,
+    completed: boolean
+  ): 'success' | 'exception' | 'active' => {
+    if (completed) return 'success';
+    if (remainingMinutes !== null && remainingMinutes < 0) return 'exception';
+    return 'active';
+  };
 
   // AI-Native：工单→配置项反向查询（受影响配置项）
   const fetchCIs = useCallback(async () => {
@@ -998,6 +1029,48 @@ const TicketDetail: React.FC<{ id?: string }> = ({ id: propId }) => {
                   </div>
                 )}
                 {slaInfo.isBreached && <Tag color="red">{t('ticketDetail.slaBreached')}</Tag>}
+                {slaInfo.responseDeadline && (
+                  <div>
+                    <div className="flex justify-between">
+                      <Text type="secondary">{t('ticketDetail.slaProgressResponse')}</Text>
+                      {slaInfo.firstResponseAt ? (
+                        <Tag color="green">{t('ticketDetail.slaCompleted')}</Tag>
+                      ) : (
+                        <Text type="secondary">{formatSlaRemaining(slaInfo.responseTimeRemaining)}</Text>
+                      )}
+                    </div>
+                    <Progress
+                      percent={calcSlaProgressPercent(
+                        slaInfo.responseTime,
+                        slaInfo.responseTimeRemaining,
+                        !!slaInfo.firstResponseAt
+                      )}
+                      status={slaProgressStatus(slaInfo.responseTimeRemaining, !!slaInfo.firstResponseAt)}
+                      size="small"
+                    />
+                  </div>
+                )}
+                {slaInfo.resolutionDeadline && (
+                  <div>
+                    <div className="flex justify-between">
+                      <Text type="secondary">{t('ticketDetail.slaProgressResolution')}</Text>
+                      {slaInfo.resolvedAt ? (
+                        <Tag color="green">{t('ticketDetail.slaCompleted')}</Tag>
+                      ) : (
+                        <Text type="secondary">{formatSlaRemaining(slaInfo.resolutionTimeRemaining)}</Text>
+                      )}
+                    </div>
+                    <Progress
+                      percent={calcSlaProgressPercent(
+                        slaInfo.resolutionTime,
+                        slaInfo.resolutionTimeRemaining,
+                        !!slaInfo.resolvedAt
+                      )}
+                      status={slaProgressStatus(slaInfo.resolutionTimeRemaining, !!slaInfo.resolvedAt)}
+                      size="small"
+                    />
+                  </div>
+                )}
               </Space>
             </Card>
           )}

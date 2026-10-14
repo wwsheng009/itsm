@@ -68,6 +68,51 @@ describe('SLAApi', () => {
     });
   });
 
+  describe('disputeSLAViolation', () => {
+    it('should PUT resolutionState=disputed with reason（D-SLA-8）', async () => {
+      mockPut.mockResolvedValue({ id: 3, resolutionState: 'disputed' });
+      const result = await SLAApi.disputeSLAViolation(3, '客户认为已按时响应');
+      expect(mockPut).toHaveBeenCalledWith('/api/v1/sla/violations/3', {
+        resolutionState: 'disputed',
+        disputeReason: '客户认为已按时响应',
+      });
+      expect(result.resolutionState).toBe('disputed');
+    });
+  });
+
+  describe('settleSLAViolation', () => {
+    it('should PUT /settle with decision and reason', async () => {
+      mockPut.mockResolvedValue({ id: 3, resolutionState: 'waived' });
+      await SLAApi.settleSLAViolation(3, 'waived', '客户侧停电');
+      expect(mockPut).toHaveBeenCalledWith('/api/v1/sla/violations/3/settle', {
+        decision: 'waived',
+        reason: '客户侧停电',
+      });
+    });
+  });
+
+  describe('settlement report（provider 面）', () => {
+    it('should GET settlement-report with customer/from/to', async () => {
+      mockGet.mockResolvedValue({ coveredTickets: 0, rows: [] });
+      await SLAApi.getSettlementReport({ customerTenantId: 6, from: 'F', to: 'T' });
+      expect(mockGet).toHaveBeenCalledWith('/api/v1/sla/settlement-report', {
+        customerTenantId: '6',
+        from: 'F',
+        to: 'T',
+      });
+    });
+
+    it('should POST lock with query string（锁定快照 §13.3）', async () => {
+      mockPost.mockResolvedValue({ lockedViolations: 2 });
+      const res = await SLAApi.lockSettlementSnapshot({ customerTenantId: 6, from: 'F', to: 'T' });
+      expect(mockPost).toHaveBeenCalledWith(
+        '/api/v1/sla/settlement-report/lock?customerTenantId=6&from=F&to=T',
+        {}
+      );
+      expect(res.lockedViolations).toBe(2);
+    });
+  });
+
   // ==================== D-SLA-4：MSP SLA 合同契约 ====================
 
   describe('listContracts', () => {

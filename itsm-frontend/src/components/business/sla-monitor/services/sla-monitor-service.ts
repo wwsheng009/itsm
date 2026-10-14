@@ -45,6 +45,27 @@ export const acknowledgeSLAViolation = async (violationId: number): Promise<void
 };
 
 /**
+ * 提出争议（D-SLA-8，customer 侧）：状态机 pending → disputed，理由必填。
+ */
+export const disputeSLAViolation = async (
+  violationId: number,
+  disputeReason: string
+): Promise<void> => {
+  await SLAApi.disputeSLAViolation(violationId, disputeReason);
+};
+
+/**
+ * 裁决违约（D-SLA-8，provider 侧）：disputed/pending → accepted|waived（权限 sla:violation:settle）。
+ */
+export const settleSLAViolation = async (
+  violationId: number,
+  decision: 'accepted' | 'waived',
+  reason?: string
+): Promise<void> => {
+  await SLAApi.settleSLAViolation(violationId, decision, reason);
+};
+
+/**
  * 获取告警规则列表
  */
 export const fetchAlertRules = async (): Promise<SLAAlertRule[]> => {

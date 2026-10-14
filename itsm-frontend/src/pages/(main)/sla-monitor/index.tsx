@@ -19,6 +19,13 @@ import { SLAMonitorDashboard } from '@/components/business/SLAMonitorDashboard';
 import { AlertTriangle, CheckCircle, Clock, RefreshCw, TrendingUp } from 'lucide-react';
 import { SLAApi } from '@/lib/api/sla-api';
 import type { SLADefinition, SLAViolation } from '@/lib/api/sla-api';
+import { SLAViolationDetailModal } from '@/components/business/sla-monitor/components/SLAViolationDetailModal';
+import {
+  acknowledgeSLAViolation,
+  disputeSLAViolation,
+  resolveSLAViolation,
+  settleSLAViolation,
+} from '@/components/business/sla-monitor/services/sla-monitor-service';
 
 const { Title, Text } = Typography;
 
@@ -42,6 +49,14 @@ const SEVERITY_META: Record<string, { color: string; label: string }> = {
 const VIOLATION_TYPE_LABELS: Record<string, string> = {
   response: '响应超时',
   resolution: '解决超时',
+};
+
+/** D-SLA-8 归责状态展示（英文枚举 → 本地化文案；未知值回退原样） */
+const RESOLUTION_STATE_META: Record<string, { color: string; label: string }> = {
+  pending: { color: 'default', label: '待处理' },
+  accepted: { color: 'red', label: '已认账' },
+  disputed: { color: 'orange', label: '争议中' },
+  waived: { color: 'green', label: '已豁免' },
 };
 
 const formatDateTime = (value?: string): string =>
@@ -74,6 +89,8 @@ const SLAMonitorPage = () => {
   });
   const [violations, setViolations] = useState<SLAViolation[]>([]);
   const [serviceSLA, setServiceSLA] = useState<ServiceSLARow[]>([]);
+  const [selectedViolation, setSelectedViolation] = useState<SLAViolation | null>(null);
+  const [violationActionLoading, setViolationActionLoading] = useState(false);
 
   const fetchStats = async () => {
     if (loading) return;
@@ -132,7 +149,6 @@ const SLAMonitorPage = () => {
 
   useEffect(() => {
     fetchStats();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const ticketColumns: ColumnsType<SLAViolation> = [
@@ -199,6 +215,31 @@ const SLAMonitorPage = () => {
       width: 90,
       render: (_, record) =>
         record.isResolved ? <Tag color="green">已解决</Tag> : <Tag color="red">未解决</Tag>,
+    },
+    {
+      title: '归责状态',
+      key: 'resolutionState',
+      width: 120,
+      render: (_, record) => {
+        const state = record.resolutionState || 'pending';
+        const meta = RESOLUTION_STATE_META[state];
+        return (
+          <Space size={4}>
+            <Tag color={meta?.color || 'default'}>{meta?.label || state}</Tag>
+            {record.settledFlag && <Tag color="purple">已锁定</Tag>}
+          </Space>
+        );
+      },
+    },
+    {
+      title: '操作',
+      key: 'actions',
+      width: 80,
+      render: (_, record) => (
+        <Button type="link" size="small" onClick={() => setSelectedViolation(record)}>
+          查看
+        </Button>
+      ),
     },
   ];
 
@@ -273,6 +314,21 @@ const SLAMonitorPage = () => {
     }),
     [serviceSLA, stats.overallComplianceRate],
   );
+
+  /** 违规状态机操作统一执行器：成功后刷新列表（口径以后端为准，前端不做状态推断）。 */
+  const runViolationAction = async (action: () => Promise<void>, successMsg: string) => {
+    setViolationActionLoading(true);
+    try {
+      await action();
+      message.success(successMsg);
+      setSelectedViolation(null);
+      await fetchStats();
+    } catch {
+      message.error('操作失败：可能无权限或该违约已被锁定/状态已变更');
+    } finally {
+      setViolationActionLoading(false);
+    }
+  };
 
   return (
     <div className="p-6 min-h-screen bg-gray-50">
@@ -448,6 +504,25 @@ const SLAMonitorPage = () => {
           ]}
         />
       </Card>
+
+      <SLAViolationDetailModal
+        violation={selectedViolation}
+        visible={!!selectedViolation}
+        onClose={() => setSelectedViolation(null)}
+        canManage
+        actionLoading={violationActionLoading}
+        onResolve={(v) => runViolationAction(() => resolveSLAViolation(v.id), '已标记解决')}
+        onAcknowledge={(v) => runViolationAction(() => acknowledgeSLAViolation(v.id), '已确认')}
+        onDispute={(v, reason) =>
+          runViolationAction(() => disputeSLAViolation(v.id, reason), '争议已提交，等待服务商裁决')
+        }
+        onSettleAccepted={(v) =>
+          runViolationAction(() => settleSLAViolation(v.id, 'accepted'), '已认账（进入结算口径）')
+        }
+        onSettleWaived={(v, reason) =>
+          runViolationAction(() => settleSLAViolation(v.id, 'waived', reason), '已豁免（不进结算）')
+        }
+      />
     </div>
   );
 };

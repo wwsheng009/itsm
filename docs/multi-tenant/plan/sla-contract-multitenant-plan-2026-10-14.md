@@ -964,7 +964,7 @@ flowchart TD
 | P2-1 | #14 违约归责状态机（D-SLA-8）：schema + 状态机 API（disputed/settle）+ 权限码 sla:violation:settle | ✅ 已提交（见 B.12） |
 | P2-2 | #15 结算口径白名单 + provider 结算报表（D-SLA-5/D-SLA-9，含 ticket.sla_matched_layer 快照） | ✅ 已提交（见 B.13） |
 | P2-3 | #20 D-TT-1 类型受控下发（前置=P0 部署验收） | ✅ 已提交（见 B.14） |
-| P3 | 前端补全（businessHours/grant 选择器/报表页/进度条） | ⬜ |
+| P3 | 前端补全（businessHours/grant 选择器/报表页/进度条） | ✅ 已提交（见 B.15） |
 
 ### B.3 实施纪律（开发期检查单）
 
@@ -1178,3 +1178,18 @@ flowchart TD
 | IM-30 | 初始物化字段范围 = 受控（name/description/sla_enabled；default_sla_id 保持空，SLA 走 binding）+ 治理（icon/color/sort_order/auto_assign_enabled/assignment_rules/notification_config）+ 表单基线（default_priority/custom_fields/sla_exempt）；**不下发** workflow_definition_key/approval_*/permission_config（客户流程自治，§4.5a"不下发"清单） |
 | IM-31 | 发布为**按副本端点**（逐副本事务、逐副本重试收敛）；源级批量编排（一次发布全部客户）归 P3 前端/编排薄层；`dirty` 标记为提交后 best-effort 钩子（发布 diff 以实时源为准，钩子失败不阻断源编辑） |
 | IM-32 | 受控锁范围：受控字段清单内差异即 403（显式置同值放行）；受控副本禁止 customer 归档；解绑后副本保留全部当前值仅解锁（不回滚任何字段） |
+
+### B.15 实施期记录（P3 前端补全 D-SLA-6，2026-10-14）
+
+**交付物**（`tsc -b` 绿；ESLint 改动文件零告警；jest 定向套件 51 passed（sla-api 新 4 用例 + 违约模态框 2 用例）；`npm run build` 绿）：
+
+- **结算报表页**（§12.3"结算报表页 + 导出"，落点 `/reports/sla`——替换原 sla-performance 重定向，dashboard "SLA报表" 菜单直达）：客户/日期筛选 + 白名单分桶统计卡 + 双口径对账表（contract/internal/drift 三列）+ 裁决/排除列 + 信用额卡 + CSV 导出（客户端快照最小实现，§13.3）+ "锁定快照"按钮（POST lock，确认后锁定并刷新）；
+- **违约争议 UI**（§12.3 B4，随 D-SLA-8 的前端面）：SLA 监控页"工单SLA" tab 增加归责状态列 + 查看入口 → 详情模态框新增"提出争议"（reason 必填）/ "裁决：认账 / 裁决：豁免"（waived reason 必填）+ 争议/豁免理由与结算锁定展示；sla-api 增加 `disputeSLAViolation`/`settleSLAViolation`；操作后刷新，权限以后端 403 为准；
+- **工单 SLA 进度条**（§12.3）：工单详情 SLA 卡片补"响应进度 / 解决进度"进度条（按定义时限与剩余分钟派生；已完成=success、超时=exception，判定口径不重算）+ 剩余/超时文案 + 已完成标签；
+- **SLA 定义表单补全**（§4.6）：新增营业时间日历编辑器（工作日/时段/时区，键名对齐后端 `parseBusinessHoursConfig`：`work_days/start_time/end_time/time_zone/is_24_7`；关闭=空对象 24×7）、conditions（适用优先级多选 → `conditions.priority`）、escalationRules（JSON 对象 + 校验）；API 形态 ↔ 控件形态双向映射；编辑页回填 businessHours/escalationRules/conditions。
+
+| IM | 说明 |
+|---|---|
+| IM-33 | `/reports/sla` 语义变更：由"sla-performance 重定向"改为**结算报表页**（provider 视角 SLA 报表，§4.6 item 3）；sla-performance 保留 `/reports/sla-performance` 独立路径直达 |
+| IM-34 | SLA 进度条为**展示层派生**（consumed/total 比例），不引入前端判定：违约/超时色仍以后端 `isBreached`/剩余分钟为准；`/tickets/:id/sla` 响应未含暂停状态字段，暂停展示（sla_status）登记为后续后端契约扩展项 |
+| IM-35 | SLA 定义 `escalationRules` 前端类型修正为"对象 ∪ 数组"（后端为 JSON map；历史数据形态容忍），`admin/sla-definitions` 展示适配两形态 |
