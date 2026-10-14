@@ -44,9 +44,11 @@ type SLADefinitionGrant struct {
 }
 
 // ProvidedDefinition customer 视角的"服务商下发定义"（D-SLA-1 只读视图）。
-// 数据经 grant 授权行 join 得出，customer 不可修改（四层写保护）。
+// P1-2 起数据源升级为合同链（active 合同 → bindings → 定义；grant 写入口已停用），
+// customer 不可修改（四层写保护）。
 type ProvidedDefinition struct {
-	GrantID          int        `json:"grantId"`
+	ContractID       int        `json:"contractId"`
+	ContractNo       string     `json:"contractNo,omitempty"`
 	SLADefinitionID  int        `json:"slaDefinitionId"`
 	Name             string     `json:"name"`
 	Description      string     `json:"description"`
@@ -57,6 +59,38 @@ type ProvidedDefinition struct {
 	TicketTypeID     int64      `json:"ticketTypeId"`
 	ProviderTenantID int        `json:"providerTenantId"`
 	ValidUntil       *time.Time `json:"validUntil,omitempty"`
+}
+
+// MSPContract MSP SLA 合同（D-SLA-4，方案 §4.4）。
+// 归属 provider 租户（TenantID=provider）；customer 端只读（RLS 012 授信）。
+type MSPContract struct {
+	ID               int                    `json:"id"`
+	ProviderTenantID int                    `json:"providerTenantId"`
+	CustomerTenantID int                    `json:"customerTenantId"`
+	ContractNo       string                 `json:"contractNo"`
+	Name             string                 `json:"name"`
+	EffectiveFrom    time.Time              `json:"effectiveFrom"`
+	EffectiveUntil   *time.Time             `json:"effectiveUntil,omitempty"`
+	Status           string                 `json:"status"`
+	Penalties        map[string]interface{} `json:"penalties,omitempty"`
+	SettlementCycle  string                 `json:"settlementCycle"`
+	Currency         string                 `json:"currency,omitempty"`
+	TenantID         int                    `json:"tenantId"`
+	CreatedAt        time.Time              `json:"createdAt"`
+	UpdatedAt        time.Time              `json:"updatedAt"`
+	// Bindings 定义绑定集：创建时作为入参（必填至少一条）；详情/列表时预加载返回。
+	Bindings []MSPContractSLABinding `json:"bindings,omitempty"`
+}
+
+// MSPContractSLABinding 合同 ↔ SLA 定义绑定（含类型维度，实施期修正 IM-13）。
+type MSPContractSLABinding struct {
+	ID              int   `json:"id"`
+	ContractID      int   `json:"contractId"`
+	SLADefinitionID int   `json:"slaDefinitionId"`
+	TicketTypeID    int64 `json:"ticketTypeId"`
+	TenantID        int   `json:"tenantId"`
+	// DefinitionName 富化展示字段（列表/详情查询时填充）。
+	DefinitionName string `json:"definitionName,omitempty"`
 }
 
 // SLAViolation represents a breach of SLA

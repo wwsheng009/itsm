@@ -10,6 +10,8 @@ import (
 
 	"itsm-backend/common"
 	"itsm-backend/ent"
+	"itsm-backend/ent/mspcontract"
+	"itsm-backend/ent/mspcontractslabinding"
 	"itsm-backend/ent/predicate"
 	"itsm-backend/ent/slaalerthistory"
 	"itsm-backend/ent/slaalertrule"
@@ -287,44 +289,317 @@ func (r *EntRepository) DeactivateGrant(ctx context.Context, id int, providerTen
 	return err
 }
 
+// ListProvidedDefinitions customer 侧只读视图（P1-2 起数据源升级为合同链）：
+// active 合同（合同期内）→ bindings → 定义（active）。grant 表不再参与读路径。
 func (r *EntRepository) ListProvidedDefinitions(ctx context.Context, customerTenantID int) ([]*ProvidedDefinition, error) {
 	now := time.Now()
-	es, err := r.client.SLADefinitionGrant.Query().
+	contracts, err := r.client.MSPContract.Query().
 		Where(
-			sladefinitiongrant.CustomerTenantIDEQ(customerTenantID),
-			sladefinitiongrant.IsActiveEQ(true),
-			sladefinitiongrant.Or(
-				sladefinitiongrant.ValidUntilIsNil(),
-				sladefinitiongrant.ValidUntilGT(now),
+			mspcontract.CustomerTenantIDEQ(customerTenantID),
+			mspcontract.StatusEQ("active"),
+			mspcontract.EffectiveFromLTE(now),
+			mspcontract.Or(
+				mspcontract.EffectiveUntilIsNil(),
+				mspcontract.EffectiveUntilGT(now),
 			),
 		).
-		WithSLADefinition().
-		Order(ent.Asc(sladefinitiongrant.FieldTicketTypeID), ent.Desc(sladefinitiongrant.FieldID)).
+		WithSLABindings(func(q *ent.MSPContractSLABindingQuery) {
+			q.WithSLADefinition()
+		}).
+		Order(ent.Desc(mspcontract.FieldEffectiveFrom), ent.Desc(mspcontract.FieldID)).
 		All(ctx)
 	if err != nil {
 		return nil, err
 	}
-	out := make([]*ProvidedDefinition, 0, len(es))
-	for _, e := range es {
-		def := e.Edges.SLADefinition
-		if def == nil || !def.IsActive {
-			continue
+	out := make([]*ProvidedDefinition, 0)
+	for _, c := range contracts {
+		for _, b := range c.Edges.SLABindings {
+			def := b.Edges.SLADefinition
+			if def == nil || !def.IsActive {
+				continue
+			}
+			out = append(out, &ProvidedDefinition{
+				ContractID:       c.ID,
+				ContractNo:       c.ContractNo,
+				SLADefinitionID:  def.ID,
+				Name:             def.Name,
+				Description:      def.Description,
+				ServiceType:      def.ServiceType,
+				Priority:         def.Priority,
+				ResponseTime:     def.ResponseTime,
+				ResolutionTime:   def.ResolutionTime,
+				TicketTypeID:     b.TicketTypeID,
+				ProviderTenantID: c.ProviderTenantID,
+				ValidUntil:       c.EffectiveUntil,
+			})
 		}
-		out = append(out, &ProvidedDefinition{
-			GrantID:          e.ID,
-			SLADefinitionID:  def.ID,
-			Name:             def.Name,
-			Description:      def.Description,
-			ServiceType:      def.ServiceType,
-			Priority:         def.Priority,
-			ResponseTime:     def.ResponseTime,
-			ResolutionTime:   def.ResolutionTime,
-			TicketTypeID:     e.TicketTypeID,
-			ProviderTenantID: e.ProviderTenantID,
-			ValidUntil:       e.ValidUntil,
-		})
 	}
 	return out, nil
+}
+
+// --- MSP SLA Contracts（D-SLA-4）---
+
+func toMSPContractDomain(e *ent.MSPContract) *MSPContract {
+	if e == nil {
+		return nil
+	}
+	c := &MSPContract{
+		ID:               e.ID,
+		ProviderTenantID: e.ProviderTenantID,
+		CustomerTenantID: e.CustomerTenantID,
+		ContractNo:       e.ContractNo,
+		Name:             e.Name,
+		EffectiveFrom:    e.EffectiveFrom,
+		EffectiveUntil:   e.EffectiveUntil,
+		Status:           e.Status,
+		Penalties:        e.Penalties,
+		SettlementCycle:  e.SettlementCycle,
+		Currency:         e.Currency,
+		TenantID:         e.TenantID,
+		CreatedAt:        e.CreatedAt,
+		UpdatedAt:        e.UpdatedAt,
+	}
+	for _, b := range e.Edges.SLABindings {
+		cb := MSPContractSLABinding{
+			ID:              b.ID,
+			ContractID:      b.ContractID,
+			SLADefinitionID: b.SLADefinitionID,
+			TicketTypeID:    b.TicketTypeID,
+			TenantID:        b.TenantID,
+		}
+		if def := b.Edges.SLADefinition; def != nil {
+			cb.DefinitionName = def.Name
+		}
+		c.Bindings = append(c.Bindings, cb)
+	}
+	return c
+}
+
+// createContractBindings 事务内批量创建绑定：每个绑定校验定义归属 provider
+// （与 grant 的归属三件套同源；owner 未标记时补写）。
+func createContractBindings(ctx context.Context, tx *ent.Tx, providerTenantID, contractID int, bindings []MSPContractSLABinding) error {
+	if len(bindings) == 0 {
+		return common.NewBusinessError(common.ParamErrorCode, "合同至少需要一条 SLA 定义绑定", "")
+	}
+	seen := make(map[int64]bool, len(bindings))
+	for _, b := range bindings {
+		if seen[b.TicketTypeID] {
+			return common.NewBusinessError(common.ParamErrorCode, "同一工单类型只能绑定一条 SLA 定义", "")
+		}
+		seen[b.TicketTypeID] = true
+
+		def, err := tx.SLADefinition.Query().
+			Where(sladefinition.IDEQ(b.SLADefinitionID), sladefinition.TenantIDEQ(providerTenantID)).
+			Only(ctx)
+		if err != nil {
+			if ent.IsNotFound(err) {
+				return common.NewBusinessError(common.NotFoundCode, "SLA 定义不存在或不属于当前服务商", "")
+			}
+			return err
+		}
+		if def.OwnerProviderTenantID == 0 {
+			if _, err := tx.SLADefinition.UpdateOneID(def.ID).
+				SetOwnerProviderTenantID(providerTenantID).Save(ctx); err != nil {
+				return err
+			}
+		}
+		if _, err := tx.MSPContractSLABinding.Create().
+			SetContractID(contractID).
+			SetSLADefinitionID(b.SLADefinitionID).
+			SetTicketTypeID(b.TicketTypeID).
+			SetTenantID(providerTenantID).
+			Save(ctx); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (r *EntRepository) CreateContract(ctx context.Context, c *MSPContract) (*MSPContract, error) {
+	if len(c.Bindings) == 0 {
+		return nil, common.NewBusinessError(common.ParamErrorCode, "合同至少需要一条 SLA 定义绑定", "")
+	}
+	tx, err := r.client.Tx(ctx)
+	if err != nil {
+		return nil, err
+	}
+	defer func() { _ = tx.Rollback() }()
+
+	// ① customer 归属校验
+	customer, err := tx.Tenant.Query().Where(tenant.IDEQ(c.CustomerTenantID)).Only(ctx)
+	if err != nil {
+		if ent.IsNotFound(err) {
+			return nil, common.NewBusinessError(common.NotFoundCode, "客户租户不存在", "")
+		}
+		return nil, err
+	}
+	if customer.MspProviderID != c.ProviderTenantID {
+		return nil, common.NewBusinessError(common.ForbiddenCode,
+			"客户租户不属于当前服务商（msp_provider_id 不匹配）", "")
+	}
+
+	// ② contract_no 租户内唯一预检（唯一索引兜底；友好错误优先）
+	exists, err := tx.MSPContract.Query().
+		Where(mspcontract.TenantIDEQ(c.ProviderTenantID), mspcontract.ContractNoEQ(c.ContractNo)).
+		Exist(ctx)
+	if err != nil {
+		return nil, err
+	}
+	if exists {
+		return nil, common.NewBusinessError(common.ParamErrorCode, "合同编号已存在", "")
+	}
+
+	// ③ 创建合同
+	builder := tx.MSPContract.Create().
+		SetProviderTenantID(c.ProviderTenantID).
+		SetCustomerTenantID(c.CustomerTenantID).
+		SetContractNo(c.ContractNo).
+		SetName(c.Name).
+		SetNillableEffectiveUntil(c.EffectiveUntil).
+		SetTenantID(c.ProviderTenantID)
+	if !c.EffectiveFrom.IsZero() {
+		builder = builder.SetEffectiveFrom(c.EffectiveFrom)
+	}
+	if c.Status != "" {
+		builder = builder.SetStatus(c.Status)
+	}
+	if c.Penalties != nil {
+		builder = builder.SetPenalties(c.Penalties)
+	}
+	if c.SettlementCycle != "" {
+		builder = builder.SetSettlementCycle(c.SettlementCycle)
+	}
+	if c.Currency != "" {
+		builder = builder.SetCurrency(c.Currency)
+	}
+	created, err := builder.Save(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	// ④ bindings 批量创建（定义归属校验）
+	if err := createContractBindings(ctx, tx, c.ProviderTenantID, created.ID, c.Bindings); err != nil {
+		return nil, err
+	}
+
+	if err := tx.Commit(); err != nil {
+		return nil, err
+	}
+	return r.GetContract(ctx, created.ID, c.ProviderTenantID)
+}
+
+func (r *EntRepository) ListContracts(ctx context.Context, providerTenantID int, filters map[string]interface{}) ([]*MSPContract, error) {
+	q := r.client.MSPContract.Query().
+		Where(mspcontract.TenantIDEQ(providerTenantID)).
+		WithSLABindings(func(q *ent.MSPContractSLABindingQuery) {
+			q.WithSLADefinition()
+		}).
+		Order(ent.Desc(mspcontract.FieldID))
+	if v, ok := filters["customerTenantId"].(int); ok && v > 0 {
+		q = q.Where(mspcontract.CustomerTenantIDEQ(v))
+	}
+	if v, ok := filters["status"].(string); ok && v != "" {
+		q = q.Where(mspcontract.StatusEQ(v))
+	}
+	es, err := q.All(ctx)
+	if err != nil {
+		return nil, err
+	}
+	out := make([]*MSPContract, 0, len(es))
+	for _, e := range es {
+		out = append(out, toMSPContractDomain(e))
+	}
+	return out, nil
+}
+
+func (r *EntRepository) GetContract(ctx context.Context, id int, providerTenantID int) (*MSPContract, error) {
+	e, err := r.client.MSPContract.Query().
+		Where(mspcontract.IDEQ(id), mspcontract.TenantIDEQ(providerTenantID)).
+		WithSLABindings(func(q *ent.MSPContractSLABindingQuery) {
+			q.WithSLADefinition()
+		}).
+		Only(ctx)
+	if err != nil {
+		return nil, err
+	}
+	return toMSPContractDomain(e), nil
+}
+
+func (r *EntRepository) UpdateContract(ctx context.Context, c *MSPContract) (*MSPContract, error) {
+	tx, err := r.client.Tx(ctx)
+	if err != nil {
+		return nil, err
+	}
+	defer func() { _ = tx.Rollback() }()
+
+	upd := tx.MSPContract.UpdateOneID(c.ID).
+		Where(mspcontract.TenantIDEQ(c.ProviderTenantID))
+	if c.Name != "" {
+		upd = upd.SetName(c.Name)
+	}
+	if c.Status != "" {
+		upd = upd.SetStatus(c.Status)
+	}
+	if c.EffectiveUntil != nil {
+		upd = upd.SetEffectiveUntil(*c.EffectiveUntil)
+	}
+	if c.Penalties != nil {
+		upd = upd.SetPenalties(c.Penalties)
+	}
+	if c.SettlementCycle != "" {
+		upd = upd.SetSettlementCycle(c.SettlementCycle)
+	}
+	if c.Currency != "" {
+		upd = upd.SetCurrency(c.Currency)
+	}
+	if _, err := upd.Save(ctx); err != nil {
+		return nil, err
+	}
+
+	// Bindings 非 nil = 全量替换意图（先删后建，同事务）
+	if c.Bindings != nil {
+		if _, err := tx.MSPContractSLABinding.Delete().
+			Where(
+				mspcontractslabinding.ContractIDEQ(c.ID),
+				mspcontractslabinding.TenantIDEQ(c.ProviderTenantID),
+			).
+			Exec(ctx); err != nil {
+			return nil, err
+		}
+		if err := createContractBindings(ctx, tx, c.ProviderTenantID, c.ID, c.Bindings); err != nil {
+			return nil, err
+		}
+	}
+
+	if err := tx.Commit(); err != nil {
+		return nil, err
+	}
+	return r.GetContract(ctx, c.ID, c.ProviderTenantID)
+}
+
+func (r *EntRepository) FindActiveContractForCustomer(ctx context.Context, customerTenantID int, now time.Time) (*MSPContract, error) {
+	e, err := r.client.MSPContract.Query().
+		Where(
+			mspcontract.CustomerTenantIDEQ(customerTenantID),
+			mspcontract.StatusEQ("active"),
+			mspcontract.EffectiveFromLTE(now),
+			mspcontract.Or(
+				mspcontract.EffectiveUntilIsNil(),
+				mspcontract.EffectiveUntilGT(now),
+			),
+		).
+		WithSLABindings(func(q *ent.MSPContractSLABindingQuery) {
+			q.WithSLADefinition()
+		}).
+		Order(ent.Desc(mspcontract.FieldEffectiveFrom), ent.Desc(mspcontract.FieldID)).
+		First(ctx)
+	if err != nil {
+		if ent.IsNotFound(err) {
+			return nil, nil
+		}
+		return nil, err
+	}
+	return toMSPContractDomain(e), nil
 }
 
 // --- Violations ---

@@ -62,19 +62,35 @@ func createProviderDefinition(t *testing.T, ctx context.Context, client *ent.Cli
 	return builder.SaveX(ctx)
 }
 
-func createGrant(t *testing.T, ctx context.Context, client *ent.Client, defID, customerTenantID, providerTenantID int, ticketTypeID int64, validUntil *time.Time) *ent.SLADefinitionGrant {
+// createActiveContract 创建一条 active 合同（P1-2：L1 数据源为合同链）。
+//
+// effectiveFrom 显式传入：测试使用固定时钟（nowFunc），若依赖 ent 默认 time.Now()
+// 会与固定时钟产生"未来生效"边界（合同生效时间晚于被测时钟）。
+func createActiveContract(t *testing.T, ctx context.Context, client *ent.Client, providerTenantID, customerTenantID int, effectiveFrom time.Time, validUntil *time.Time) *ent.MSPContract {
 	t.Helper()
-	builder := client.SLADefinitionGrant.Create().
-		SetSLADefinitionID(defID).
-		SetCustomerTenantID(customerTenantID).
+	builder := client.MSPContract.Create().
 		SetProviderTenantID(providerTenantID).
-		SetTicketTypeID(ticketTypeID).
-		SetIsActive(true).
+		SetCustomerTenantID(customerTenantID).
+		SetContractNo(fmt.Sprintf("C-%d-%d-%d", providerTenantID, customerTenantID, time.Now().UnixNano())).
+		SetName("Test Contract").
+		SetEffectiveFrom(effectiveFrom).
+		SetStatus("active").
 		SetTenantID(providerTenantID)
 	if validUntil != nil {
-		builder = builder.SetValidUntil(*validUntil)
+		builder = builder.SetEffectiveUntil(*validUntil)
 	}
 	return builder.SaveX(ctx)
+}
+
+// addContractBinding 为合同添加一条定义绑定（ticketTypeID=0 为类型无关）。
+func addContractBinding(t *testing.T, ctx context.Context, client *ent.Client, contractID, defID, providerTenantID int, ticketTypeID int64) *ent.MSPContractSLABinding {
+	t.Helper()
+	return client.MSPContractSLABinding.Create().
+		SetContractID(contractID).
+		SetSLADefinitionID(defID).
+		SetTicketTypeID(ticketTypeID).
+		SetTenantID(providerTenantID).
+		SaveX(ctx)
 }
 
 // L1：显式类型绑定优先于类型无关授权。
@@ -86,8 +102,9 @@ func TestTicketSLAMatcher_L1TypeBindingPreferred(t *testing.T) {
 
 	defBound := createProviderDefinition(t, ctx, client, provider.ID, "Contract Bound SLA", "incident", "high", 120, 480)
 	defAgnostic := createProviderDefinition(t, ctx, client, provider.ID, "Contract Agnostic SLA", "incident", "high", 240, 960)
-	createGrant(t, ctx, client, defBound.ID, customer.ID, provider.ID, 99, nil)
-	createGrant(t, ctx, client, defAgnostic.ID, customer.ID, provider.ID, 0, nil)
+	contract := createActiveContract(t, ctx, client, provider.ID, customer.ID, now.Add(-time.Hour), nil)
+	addContractBinding(t, ctx, client, contract.ID, defBound.ID, provider.ID, 99)
+	addContractBinding(t, ctx, client, contract.ID, defAgnostic.ID, provider.ID, 0)
 
 	result, err := svc.CalculateSLADeadlineFromRequest(ctx, customer.ID, "incident", "high", 99, "")
 	require.NoError(t, err)
@@ -105,7 +122,8 @@ func TestTicketSLAMatcher_L1TypeAgnostic(t *testing.T) {
 	svc = svc.withNowFunc(func() time.Time { return now })
 
 	def := createProviderDefinition(t, ctx, client, provider.ID, "Contract Agnostic SLA", "incident", "high", 90, 360)
-	createGrant(t, ctx, client, def.ID, customer.ID, provider.ID, 0, nil)
+	contract := createActiveContract(t, ctx, client, provider.ID, customer.ID, now.Add(-time.Hour), nil)
+	addContractBinding(t, ctx, client, contract.ID, def.ID, provider.ID, 0)
 
 	result, err := svc.CalculateSLADeadlineFromRequest(ctx, customer.ID, "incident", "high", 0, "")
 	require.NoError(t, err)
@@ -113,8 +131,8 @@ func TestTicketSLAMatcher_L1TypeAgnostic(t *testing.T) {
 	assert.Equal(t, "L1", result.MatchedLayer)
 }
 
-// L1：过期授权不命中（valid_until 已过），回落 L4（无其他数据）。
-func TestTicketSLAMatcher_L1ExpiredGrantFallsThrough(t *testing.T) {
+// L1：过期合同不命中（effective_until 已过），回落 L4（无其他数据）。
+func TestTicketSLAMatcher_L1ExpiredContractFallsThrough(t *testing.T) {
 	client, svc, ctx, customer, provider := setupSLAMatcherTest(t)
 	defer client.Close()
 	now := time.Date(2026, 10, 14, 3, 0, 0, 0, time.UTC)
@@ -122,11 +140,12 @@ func TestTicketSLAMatcher_L1ExpiredGrantFallsThrough(t *testing.T) {
 
 	def := createProviderDefinition(t, ctx, client, provider.ID, "Expired Contract SLA", "incident", "high", 120, 480)
 	expired := now.Add(-24 * time.Hour)
-	createGrant(t, ctx, client, def.ID, customer.ID, provider.ID, 0, &expired)
+	contract := createActiveContract(t, ctx, client, provider.ID, customer.ID, now.Add(-48*time.Hour), &expired)
+	addContractBinding(t, ctx, client, contract.ID, def.ID, provider.ID, 0)
 
 	result, err := svc.CalculateSLADeadlineFromRequest(ctx, customer.ID, "incident", "high", 0, "")
 	require.NoError(t, err)
-	assert.Equal(t, "L4", result.MatchedLayer, "过期授权必须被跳过")
+	assert.Equal(t, "L4", result.MatchedLayer, "过期合同必须被跳过")
 	assert.Equal(t, 0, result.SLADefinitionID)
 }
 
@@ -248,9 +267,10 @@ func TestTicketSLAMatcher_PriorityL1Wins(t *testing.T) {
 		SetIsActive(true).
 		SetTenantID(customer.ID).
 		SaveX(ctx)
-	// L1 下发
+	// L1 下发（合同链）
 	l1def := createProviderDefinition(t, ctx, client, provider.ID, "Contract SLA", "incident", "high", 30, 180)
-	createGrant(t, ctx, client, l1def.ID, customer.ID, provider.ID, 0, nil)
+	l1contract := createActiveContract(t, ctx, client, provider.ID, customer.ID, now.Add(-time.Hour), nil)
+	addContractBinding(t, ctx, client, l1contract.ID, l1def.ID, provider.ID, 0)
 
 	result, err := svc.CalculateSLADeadlineFromRequest(ctx, customer.ID, "incident", "high", 0, "")
 	require.NoError(t, err)

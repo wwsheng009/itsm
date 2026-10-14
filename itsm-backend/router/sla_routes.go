@@ -72,6 +72,16 @@ func SetupSLARoutes(tenant *gin.RouterGroup, h *slaHandler.Handler) {
 			grants.PUT("/:id", middleware.RequireMSPPermission("sla", "grant:write"), h.UpdateGrant)
 			grants.DELETE("/:id", middleware.RequireMSPPermission("sla", "grant:write"), h.DeactivateGrant)
 		}
+
+		// MSP SLA 合同（D-SLA-4，方案 §4.4）——provider 面（写入口自 P1-2 起唯一化到本组）：
+		// grant 写端点保留 410；合同链承载下发/条款/有效期/罚则。
+		contracts := slaGrp.Group("/contracts", middleware.RequireMSPDeploymentMode())
+		{
+			contracts.POST("", middleware.RequireMSPPermission("sla", "contract:write"), h.CreateContract)
+			contracts.GET("", middleware.RequireMSPPermission("sla", "contract:read"), h.ListContracts)
+			contracts.GET("/:id", middleware.RequireMSPPermission("sla", "contract:read"), h.GetContract)
+			contracts.PUT("/:id", middleware.RequireMSPPermission("sla", "contract:write"), h.UpdateContract)
+		}
 	}
 
 	// SLA 模板（开箱即用预置模板）- 在 router.go 中单独处理 SLATemplateHandler.RegisterRoutes

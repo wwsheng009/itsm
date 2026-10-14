@@ -578,7 +578,7 @@ const SLADefinitionManagement = () => {
           <List
             dataSource={providedDefinitions}
             renderItem={item => (
-              <List.Item key={item.grantId}>
+              <List.Item key={item.contractId}>
                 <List.Item.Meta
                   title={
                     <Space wrap>

@@ -958,7 +958,7 @@ flowchart TD
 | 批次 | 工单 | 状态 |
 |---|---|---|
 | P1-1 | #13 模型部分：msp_contract + msp_contract_sla_binding schema + codegen + 迁移 + RLS 012 | ✅ 已提交（见 B.8） |
-| P1-2 | #13 服务部分：合同 CRUD（provider 面）+ L1 匹配升级（合同链解析）+ 并轨闸门（grant 搬迁/写入口唯一化） | ⬜ 未开始 |
+| P1-2 | #13 服务部分：合同 CRUD（provider 面）+ L1 匹配升级（合同链解析）+ 并轨闸门（grant 搬迁/写入口唯一化） | ✅ 已提交（见 B.9；前端合同管理页随 P1-2b） |
 | P1/P2 | #11/#12 Pause/Resume 真实计时（P1 必做） | ⬜ |
 | P2 | #14 violation resolution_state（D-SLA-8）+ #15 白名单口径/settlement-report（D-SLA-5/9）+ #20 D-TT-1 类型下发（前置=P0 grant 验收） | ⬜ |
 | P3 | 前端补全（businessHours/grant 选择器/报表页/进度条） | ⬜ |
@@ -1059,3 +1059,25 @@ flowchart TD
 - `ent/schema/sladefinition.go`：加 `contract_bindings` 反向 edge；ent 生成物 29 文件；
 - `migrations/20261014b_msp_contract_tables_indexes.sql`（+down）：索引幂等兜底；
 - `database/rls/migrations/012_msp_contract_policies.sql`（+rollback）：四条策略（应用方式 `go run -tags rlsapply ./cmd/rls-apply -files 012_...sql`，属部署步骤）。
+
+### B.9 实施期修正记录（P1-2 合同服务 + 并轨闸门，2026-10-14）
+
+| # | 方案原文 | 实施修正 | 原因 |
+|---|---|---|---|
+| IM-16 | "解析 customer 当前生效合同"（§4.4，未定义多份并存的选择） | 生效合同选择策略：status=active + 合同期内，按 `effective_from DESC, id DESC` 取最新（1 客户 : 1 provider 不变量下为兜底确定性） | 并存合同（续签重叠窗口）需要确定性选择，"最新生效优先"对齐 v1.5 对账/白名单语义 |
+| IM-17 | grant 写入口"内部代理到合同创建或直接 410"（§4.4 闸门②） | **选 410**：POST/PUT/DELETE `/sla/grants` 返回 410 Gone + 迁移指引；GET 保留（观察期读/对账） | 代理语义不干净：单 grant 的 deactivate-then-activate 会误伤合同内其它绑定；写入口唯一化更安全清晰 |
+| IM-18 | grant 授权（定义×客户×类型）为 P1 前读路径 | `ProvidedDefinition` 契约字段 `grantId` → `contractId`（+`contractNo`），前端两段式列表与测试同步 | provided 读面数据源升级为合同链；契约字段随语义更名（P0-4 交付物小步跟进） |
+| IM-19 | — | UpdateContract 的 `effectiveUntil` 语义 = "传了才改"（不支持经此接口清空） | 区分"不传=不变"与"置空"需要额外标志位；P1 简化，清空场景需求低，后续按需扩展 |
+
+**P1-2 交付物**（`go build ./...` 绿；`go test ./service/`（70s 全包）`./handlers/sla/... ./pkg/seeder/... ./internal/authz/... ./router/... ./middleware/...` 全绿；前端 `tsc -b` + jest 35 passed）：
+
+- 权限码 `sla:contract:read/write` 四处同步（catalog/DB 词表/硬编码矩阵/C1 矩阵）+ authz-gen 预生成含 `/sla/contracts*`；
+- `handlers/sla`：合同 entity/repo/service/handler 全链（CreateContract 单事务三件套 + bindings 校验；UpdateContract 标量+全量替换；FindActiveContractForCustomer）；
+- `router/sla_routes.go`：`/sla/contracts` CRUD（RequireMSPDeploymentMode + RequireMSPPermission contract:*）；
+- `service/ticket_sla_service.go`：`matchGrantedDefinition` → `matchContractDefinition`（L1 合同链解析，grant 表退出读路径）；
+- `repository_impl.ListProvidedDefinitions`：数据源升级合同链；
+- grant 写端点 410（并轨闸门②）；
+- `migrations/20261014c_grant_to_contract_migration.sql`（+down 占位）：存量 grant → 自动迁移合同/绑定（幂等，固定编号 AUTO-MIGRATED-<customerId>）；
+- 测试：`sla_contract_test.go` 7 场景（创建/归属/编号唯一/绑定校验/更新替换/FindActive/过期排除）；matcher L1 四场景与 ProvidedFilters 改造为合同链；grant 写端点 410 断言。
+
+**P1-2b 待办（前端）**：grant 管理页替换为合同管理页（现页面对写操作将收到 410 提示）；随下轮实施。

@@ -10,8 +10,8 @@ import (
 
 	"itsm-backend/common"
 	"itsm-backend/ent"
+	"itsm-backend/ent/mspcontract"
 	"itsm-backend/ent/sladefinition"
-	"itsm-backend/ent/sladefinitiongrant"
 	"itsm-backend/ent/tenant"
 	"itsm-backend/ent/ticket"
 
@@ -640,7 +640,7 @@ func (s *TicketSLAService) CalculateSLADeadlineFromRequest(ctx context.Context, 
 	}
 
 	// L1：provider 下发定义（合同个案优先）
-	if def := s.matchGrantedDefinition(ctx, tenantID, ticketTypeID, now); def != nil {
+	if def := s.matchContractDefinition(ctx, tenantID, ticketTypeID, now); def != nil {
 		return s.buildDefinitionResult(ctx, tenantID, now, def, "L1"), nil
 	}
 
@@ -670,37 +670,44 @@ func (s *TicketSLAService) CalculateSLADeadlineFromRequest(ctx context.Context, 
 	}, nil
 }
 
-// matchGrantedDefinition L1：查询对当前租户生效的下发授权（D-SLA-1）。
-// 类型维度：显式绑定当前工单类型（ticketTypeID>0）优先于类型无关授权（ticket_type_id=0）；
-// 有效期：valid_until 为空或晚于 now；定义侧 is_active 必须为真。
-func (s *TicketSLAService) matchGrantedDefinition(ctx context.Context, tenantID, ticketTypeID int, now time.Time) *ent.SLADefinition {
-	grants, err := s.client.SLADefinitionGrant.Query().
+// matchContractDefinition L1：解析 customer 当前生效合同 → 取合同绑定定义集。
+//
+// P1-2 并轨升级（方案 §4.4 匹配升级）：L1 语义不变、实现从 grant 表替换为合同链
+// （active 合同 + 合同期内；最新生效优先——IM-16）。类型维度：显式绑定当前工单类型
+// （ticketTypeID>0）优先于类型无关绑定（ticket_type_id=0）；定义侧 is_active 必须为真。
+// customer ctx 下经 RLS 012 授信策略读取（msp_contract_customer_read）。
+func (s *TicketSLAService) matchContractDefinition(ctx context.Context, tenantID, ticketTypeID int, now time.Time) *ent.SLADefinition {
+	contract, err := s.client.MSPContract.Query().
 		Where(
-			sladefinitiongrant.CustomerTenantIDEQ(tenantID),
-			sladefinitiongrant.IsActiveEQ(true),
-			sladefinitiongrant.Or(
-				sladefinitiongrant.ValidUntilIsNil(),
-				sladefinitiongrant.ValidUntilGT(now),
+			mspcontract.CustomerTenantIDEQ(tenantID),
+			mspcontract.StatusEQ("active"),
+			mspcontract.EffectiveFromLTE(now),
+			mspcontract.Or(
+				mspcontract.EffectiveUntilIsNil(),
+				mspcontract.EffectiveUntilGT(now),
 			),
-			sladefinitiongrant.TicketTypeIDIn(0, int64(ticketTypeID)),
 		).
-		WithSLADefinition().
-		Order(ent.Asc(sladefinitiongrant.FieldTicketTypeID), ent.Asc(sladefinitiongrant.FieldID)).
-		All(ctx)
+		WithSLABindings(func(q *ent.MSPContractSLABindingQuery) {
+			q.WithSLADefinition()
+		}).
+		Order(ent.Desc(mspcontract.FieldEffectiveFrom), ent.Desc(mspcontract.FieldID)).
+		First(ctx)
 	if err != nil {
-		s.logger.Warnw("SLA grant lookup failed", "tenant_id", tenantID, "error", err)
+		if !ent.IsNotFound(err) {
+			s.logger.Warnw("SLA contract lookup failed", "tenant_id", tenantID, "error", err)
+		}
 		return nil
 	}
 	var typeAgnostic *ent.SLADefinition
-	for _, g := range grants {
-		def := g.Edges.SLADefinition
+	for _, b := range contract.Edges.SLABindings {
+		def := b.Edges.SLADefinition
 		if def == nil || !def.IsActive {
 			continue
 		}
-		if ticketTypeID > 0 && g.TicketTypeID == int64(ticketTypeID) {
+		if ticketTypeID > 0 && b.TicketTypeID == int64(ticketTypeID) {
 			return def // 显式类型绑定优先
 		}
-		if g.TicketTypeID == 0 && typeAgnostic == nil {
+		if b.TicketTypeID == 0 && typeAgnostic == nil {
 			typeAgnostic = def
 		}
 	}
@@ -730,7 +737,7 @@ func (s *TicketSLAService) matchTierPolicy(ctx context.Context, tenantID int, ti
 
 // matchTenantDefinition L3b：租户自建定义——动态类型 code（快照优先）∪ legacy 类型值，
 // 每个候选先做"类型+优先级"精确匹配、再做"同类型任意优先级"回退
-//（与 v1.11 前 FromRequest 回退宽度一致，取最早 ID 稳定化）。
+// （与 v1.11 前 FromRequest 回退宽度一致，取最早 ID 稳定化）。
 func (s *TicketSLAService) matchTenantDefinition(ctx context.Context, tenantID int, ticketType, ticketTypeCode, priority string) *ent.SLADefinition {
 	candidates := make([]string, 0, 2)
 	add := func(v string) {

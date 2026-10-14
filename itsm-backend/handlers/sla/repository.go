@@ -28,6 +28,18 @@ type Repository interface {
 	// ListProvidedDefinitions customer 侧只读视图：授权 join 定义（active 且未过期）。
 	ListProvidedDefinitions(ctx context.Context, customerTenantID int) ([]*ProvidedDefinition, error)
 
+	// MSP SLA Contracts（D-SLA-4，方案 §4.4）
+	// CreateContract 单事务：customer 归属校验 + contract_no 租户内唯一 + bindings 批量创建
+	//（每个绑定校验定义归属 provider）。
+	CreateContract(ctx context.Context, c *MSPContract) (*MSPContract, error)
+	ListContracts(ctx context.Context, providerTenantID int, filters map[string]interface{}) ([]*MSPContract, error)
+	GetContract(ctx context.Context, id int, providerTenantID int) (*MSPContract, error)
+	// UpdateContract 更新标量字段；Bindings 非 nil 时全量替换（先删后建，同事务）。
+	UpdateContract(ctx context.Context, c *MSPContract) (*MSPContract, error)
+	// FindActiveContractForCustomer 匹配/读面共用：customer 当前生效合同
+	//（status=active + 合同期内；最新生效优先），预加载 bindings 及其定义。
+	FindActiveContractForCustomer(ctx context.Context, customerTenantID int, now time.Time) (*MSPContract, error)
+
 	// Violations
 	CreateViolation(ctx context.Context, v *SLAViolation) (*SLAViolation, error)
 	ListViolations(ctx context.Context, tenantID int, page, size int, filters map[string]interface{}) ([]*SLAViolation, int, error)

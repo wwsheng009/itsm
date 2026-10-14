@@ -119,7 +119,7 @@ describe('SLAApi', () => {
 
   describe('getProvidedDefinitions', () => {
     it('should read provided definitions (customer read-only view)', async () => {
-      mockGet.mockResolvedValue({ items: [{ grantId: 1, slaDefinitionId: 2, name: 'Contract SLA' }], total: 1 });
+      mockGet.mockResolvedValue({ items: [{ contractId: 1, slaDefinitionId: 2, name: 'Contract SLA' }], total: 1 });
       const result = await SLAApi.getProvidedDefinitions();
       expect(mockGet).toHaveBeenCalledWith('/api/v1/sla/definitions/provided');
       expect(result.items[0].name).toBe('Contract SLA');

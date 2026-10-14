@@ -678,30 +678,13 @@ func (h *Handler) GetSLAComplianceReport(c *gin.Context) {
 // =============================================================================
 
 // CreateGrant handles POST /api/v1/sla/grants
-// provider 面（sla:grant:write + MSP 部署 gate）；归属校验与 deactivate-then-activate
-// 在 repository 单事务内完成。
+// P1-2 并轨闸门（方案 §4.4）：写入口唯一化——grant 写操作已迁移到合同管理（/sla/contracts），
+// 本端点保留 410 以显式拒绝旧调用方；读端点保留供观察期对账。
 func (h *Handler) CreateGrant(c *gin.Context) {
-	var req dto.CreateSLAGrantRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
-		common.ParamError(c, "参数错误: "+err.Error())
-		return
-	}
-	providerTenantID := c.GetInt("tenant_id")
-	g := &SLADefinitionGrant{
-		SLADefinitionID:  req.SLADefinitionID,
-		CustomerTenantID: req.CustomerTenantID,
-		ProviderTenantID: providerTenantID,
-		TicketTypeID:     req.TicketTypeID,
-		ValidUntil:       req.ValidUntil,
-		IsActive:         true,
-		TenantID:         providerTenantID,
-	}
-	res, err := h.svc.CreateGrant(c.Request.Context(), g)
-	if err != nil {
-		failSLAQuery(c, err, "创建SLA下发授权失败")
-		return
-	}
-	common.Success(c, res)
+	c.JSON(http.StatusGone, gin.H{
+		"code":    http.StatusGone,
+		"message": "SLA 下发授权写入口已迁移至合同管理（POST /api/v1/sla/contracts）",
+	})
 }
 
 // ListGrants handles GET /api/v1/sla/grants
@@ -744,43 +727,21 @@ func (h *Handler) GetGrant(c *gin.Context) {
 }
 
 // UpdateGrant handles PUT /api/v1/sla/grants/:id（仅有效期可变）
+// P1-2 并轨闸门：写入口已迁移（410）。
 func (h *Handler) UpdateGrant(c *gin.Context) {
-	id, ok := parseIDParam(c)
-	if !ok {
-		return
-	}
-	var req dto.UpdateSLAGrantRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
-		common.ParamError(c, "参数错误: "+err.Error())
-		return
-	}
-	if req.ValidUntil == nil && !req.ClearValidUntil {
-		common.ParamError(c, "必须提供 validUntil 或 clearValidUntil")
-		return
-	}
-	var validUntil *time.Time
-	if !req.ClearValidUntil {
-		validUntil = req.ValidUntil
-	}
-	res, err := h.svc.UpdateGrantValidUntil(c.Request.Context(), id, c.GetInt("tenant_id"), validUntil)
-	if err != nil {
-		common.NotFound(c, "SLA下发授权不存在")
-		return
-	}
-	common.Success(c, res)
+	c.JSON(http.StatusGone, gin.H{
+		"code":    http.StatusGone,
+		"message": "SLA 下发授权写入口已迁移至合同管理（PUT /api/v1/sla/contracts/:id）",
+	})
 }
 
 // DeactivateGrant handles DELETE /api/v1/sla/grants/:id（逻辑撤销，保留审计链）
+// P1-2 并轨闸门：写入口已迁移（410）；停用语义由合同 status/effective_until 承载。
 func (h *Handler) DeactivateGrant(c *gin.Context) {
-	id, ok := parseIDParam(c)
-	if !ok {
-		return
-	}
-	if err := h.svc.DeactivateGrant(c.Request.Context(), id, c.GetInt("tenant_id")); err != nil {
-		failSLAQuery(c, err, "停用SLA下发授权失败")
-		return
-	}
-	common.Success(c, gin.H{"id": id, "isActive": false})
+	c.JSON(http.StatusGone, gin.H{
+		"code":    http.StatusGone,
+		"message": "SLA 下发授权写入口已迁移至合同管理（PUT /api/v1/sla/contracts/:id 调整 status）",
+	})
 }
 
 // ListProvidedDefinitions handles GET /api/v1/sla/definitions/provided
@@ -793,4 +754,131 @@ func (h *Handler) ListProvidedDefinitions(c *gin.Context) {
 		return
 	}
 	common.Success(c, gin.H{"items": res, "total": len(res)})
+}
+
+// =============================================================================
+// MSP SLA Contracts（D-SLA-4，方案 §4.4）：provider 合同管理面
+// =============================================================================
+
+// CreateContract handles POST /api/v1/sla/contracts
+// 单事务：customer 归属校验 + contract_no 租户内唯一 + bindings 批量创建（定义归属校验）。
+func (h *Handler) CreateContract(c *gin.Context) {
+	var req dto.CreateMSPContractRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		common.ParamError(c, "参数错误: "+err.Error())
+		return
+	}
+	providerTenantID := c.GetInt("tenant_id")
+	contract := &MSPContract{
+		ProviderTenantID: providerTenantID,
+		CustomerTenantID: req.CustomerTenantID,
+		ContractNo:       req.ContractNo,
+		Name:             req.Name,
+		EffectiveUntil:   req.EffectiveUntil,
+		Status:           req.Status,
+		Penalties:        req.Penalties,
+		SettlementCycle:  req.SettlementCycle,
+		Currency:         req.Currency,
+		TenantID:         providerTenantID,
+	}
+	if req.EffectiveFrom != nil {
+		contract.EffectiveFrom = *req.EffectiveFrom
+	}
+	for _, b := range req.Bindings {
+		contract.Bindings = append(contract.Bindings, MSPContractSLABinding{
+			SLADefinitionID: b.SLADefinitionID,
+			TicketTypeID:    b.TicketTypeID,
+		})
+	}
+	res, err := h.svc.CreateContract(c.Request.Context(), contract)
+	if err != nil {
+		failSLAQuery(c, err, "创建SLA合同失败")
+		return
+	}
+	common.Success(c, res)
+}
+
+// ListContracts handles GET /api/v1/sla/contracts
+func (h *Handler) ListContracts(c *gin.Context) {
+	providerTenantID := c.GetInt("tenant_id")
+	filters := make(map[string]interface{})
+	if v := c.Query("customerTenantId"); v != "" {
+		if id, err := strconv.Atoi(v); err == nil && id > 0 {
+			filters["customerTenantId"] = id
+		}
+	}
+	if v := c.Query("status"); v != "" {
+		filters["status"] = v
+	}
+	res, err := h.svc.ListContracts(c.Request.Context(), providerTenantID, filters)
+	if err != nil {
+		failSLAQuery(c, err, "查询SLA合同列表失败")
+		return
+	}
+	common.Success(c, gin.H{"items": res, "total": len(res)})
+}
+
+// GetContract handles GET /api/v1/sla/contracts/:id
+func (h *Handler) GetContract(c *gin.Context) {
+	id, ok := parseIDParam(c)
+	if !ok {
+		return
+	}
+	res, err := h.svc.GetContract(c.Request.Context(), id, c.GetInt("tenant_id"))
+	if err != nil {
+		common.NotFound(c, "SLA合同不存在")
+		return
+	}
+	common.Success(c, res)
+}
+
+// UpdateContract handles PUT /api/v1/sla/contracts/:id
+// 仅传字段被更新；bindings 非 nil 时全量替换（至少一条，同事务先删后建）。
+func (h *Handler) UpdateContract(c *gin.Context) {
+	id, ok := parseIDParam(c)
+	if !ok {
+		return
+	}
+	var req dto.UpdateMSPContractRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		common.ParamError(c, "参数错误: "+err.Error())
+		return
+	}
+	providerTenantID := c.GetInt("tenant_id")
+	update := &MSPContract{
+		ID:               id,
+		ProviderTenantID: providerTenantID,
+		TenantID:         providerTenantID,
+	}
+	if req.Name != nil {
+		update.Name = *req.Name
+	}
+	if req.Status != nil {
+		update.Status = *req.Status
+	}
+	update.EffectiveUntil = req.EffectiveUntil
+	if req.Penalties != nil {
+		update.Penalties = req.Penalties
+	}
+	if req.SettlementCycle != nil {
+		update.SettlementCycle = *req.SettlementCycle
+	}
+	if req.Currency != nil {
+		update.Currency = *req.Currency
+	}
+	if req.Bindings != nil {
+		update.Bindings = make([]MSPContractSLABinding, 0, len(*req.Bindings))
+		for _, b := range *req.Bindings {
+			update.Bindings = append(update.Bindings, MSPContractSLABinding{
+				SLADefinitionID: b.SLADefinitionID,
+				TicketTypeID:    b.TicketTypeID,
+			})
+		}
+	}
+	res, err := h.svc.UpdateContract(c.Request.Context(), update)
+	if err != nil {
+		failSLAQuery(c, err, "更新SLA合同失败")
+		return
+	}
+	common.Success(c, res)
 }

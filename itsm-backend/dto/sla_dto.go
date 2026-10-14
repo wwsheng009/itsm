@@ -66,6 +66,37 @@ type UpdateSLAGrantRequest struct {
 	ClearValidUntil bool       `json:"clearValidUntil,omitempty"`
 }
 
+// MSPContractBindingInput 合同定义绑定入参（D-SLA-4；ticketTypeId=0 表示类型无关绑定）。
+type MSPContractBindingInput struct {
+	SLADefinitionID int   `json:"slaDefinitionId" binding:"required" example:"1"`
+	TicketTypeID    int64 `json:"ticketTypeId" example:"0"`
+}
+
+// CreateMSPContractRequest 创建 MSP SLA 合同（provider 面；至少一条定义绑定）。
+type CreateMSPContractRequest struct {
+	CustomerTenantID int                       `json:"customerTenantId" binding:"required" example:"2"`
+	ContractNo       string                    `json:"contractNo" binding:"required" example:"HT-2026-001"`
+	Name             string                    `json:"name" binding:"required" example:"年度运维合同"`
+	EffectiveFrom    *time.Time                `json:"effectiveFrom,omitempty"`
+	EffectiveUntil   *time.Time                `json:"effectiveUntil,omitempty"`
+	Status           string                    `json:"status,omitempty" example:"active"`
+	Penalties        map[string]interface{}    `json:"penalties,omitempty"`
+	SettlementCycle  string                    `json:"settlementCycle,omitempty" example:"monthly"`
+	Currency         string                    `json:"currency,omitempty" example:"CNY"`
+	Bindings         []MSPContractBindingInput `json:"bindings" binding:"required,min=1,dive"`
+}
+
+// UpdateMSPContractRequest 更新合同：仅传字段被更新；Bindings 非 nil 时全量替换（至少一条）。
+type UpdateMSPContractRequest struct {
+	Name            *string                    `json:"name,omitempty"`
+	Status          *string                    `json:"status,omitempty"`
+	EffectiveUntil  *time.Time                 `json:"effectiveUntil,omitempty"`
+	Penalties       map[string]interface{}     `json:"penalties,omitempty"`
+	SettlementCycle *string                    `json:"settlementCycle,omitempty"`
+	Currency        *string                    `json:"currency,omitempty"`
+	Bindings        *[]MSPContractBindingInput `json:"bindings,omitempty"`
+}
+
 // SLA违规相关DTO
 type CreateSLAViolationRequest struct {
 	SLADefinitionID int    `json:"slaDefinitionId" binding:"required" example:"1"`

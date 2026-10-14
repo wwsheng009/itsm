@@ -473,6 +473,9 @@ var RolePermissions = map[string][]Permission{
 		// D-SLA-1：SLA 下发授权（provider 面）
 		{Resource: "sla", Action: "grant:read"},
 		{Resource: "sla", Action: "grant:write"},
+		// D-SLA-4：MSP SLA 合同（provider 面）
+		{Resource: "sla", Action: "contract:read"},
+		{Resource: "sla", Action: "contract:write"},
 	},
 	"msp_admin": {
 		{Resource: "msp", Action: "*"},
@@ -483,6 +486,9 @@ var RolePermissions = map[string][]Permission{
 		// D-SLA-1：SLA 下发授权（与 DB 词表显式码对齐，见 internal/authz msp_admin 绑定）
 		{Resource: "sla", Action: "grant:read"},
 		{Resource: "sla", Action: "grant:write"},
+		// D-SLA-4：MSP SLA 合同（与 DB 词表显式码对齐）
+		{Resource: "sla", Action: "contract:read"},
+		{Resource: "sla", Action: "contract:write"},
 	},
 }
 

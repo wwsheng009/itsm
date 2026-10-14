@@ -23,6 +23,8 @@ var mspC1Matrix = map[string][]string{
 		"msp_report:read", "msp_report:write",
 		// D-SLA-1（SLA 合同化专项，Accepted v1.11）：SLA 下发授权（provider 面）
 		"sla:grant:read", "sla:grant:write",
+		// D-SLA-4：MSP SLA 合同
+		"sla:contract:read", "sla:contract:write",
 	},
 	"msp_admin": {
 		"msp:read", "msp:write", "msp_customer:read", "msp_customer:write",
@@ -30,6 +32,8 @@ var mspC1Matrix = map[string][]string{
 		"msp_report:read", "msp_report:write",
 		// D-SLA-1：同上（与 DB 词表/硬编码矩阵三处一致）
 		"sla:grant:read", "sla:grant:write",
+		// D-SLA-4：同上
+		"sla:contract:read", "sla:contract:write",
 	},
 }
 

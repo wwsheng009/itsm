@@ -47,9 +47,10 @@ export interface CreateSLAGrantPayload {
   validUntil?: string;
 }
 
-/** GET /api/v1/sla/definitions/provided（customer 只读视图，D-SLA-1） */
+/** GET /api/v1/sla/definitions/provided（customer 只读视图；P1-2 起数据源为合同链） */
 export interface ProvidedDefinitionItem {
-  grantId: number;
+  contractId: number;
+  contractNo?: string;
   slaDefinitionId: number;
   name: string;
   description: string;

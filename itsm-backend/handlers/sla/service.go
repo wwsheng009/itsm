@@ -134,6 +134,39 @@ func (s *Service) ListProvidedDefinitions(ctx context.Context, customerTenantID 
 	return s.repo.ListProvidedDefinitions(ctx, customerTenantID)
 }
 
+// MSP SLA Contracts（D-SLA-4）
+
+func (s *Service) CreateContract(ctx context.Context, c *MSPContract) (*MSPContract, error) {
+	if err := requireTenant(c.TenantID); err != nil {
+		return nil, err
+	}
+	s.logger.Infow("Creating MSP SLA contract",
+		"contract_no", c.ContractNo, "customer_tenant_id", c.CustomerTenantID, "bindings", len(c.Bindings))
+	return s.repo.CreateContract(ctx, c)
+}
+
+func (s *Service) ListContracts(ctx context.Context, providerTenantID int, filters map[string]interface{}) ([]*MSPContract, error) {
+	if err := requireTenant(providerTenantID); err != nil {
+		return nil, err
+	}
+	return s.repo.ListContracts(ctx, providerTenantID, filters)
+}
+
+func (s *Service) GetContract(ctx context.Context, id int, providerTenantID int) (*MSPContract, error) {
+	if err := requireTenant(providerTenantID); err != nil {
+		return nil, err
+	}
+	return s.repo.GetContract(ctx, id, providerTenantID)
+}
+
+func (s *Service) UpdateContract(ctx context.Context, c *MSPContract) (*MSPContract, error) {
+	if err := requireTenant(c.TenantID); err != nil {
+		return nil, err
+	}
+	s.logger.Infow("Updating MSP SLA contract", "id", c.ID, "status", c.Status)
+	return s.repo.UpdateContract(ctx, c)
+}
+
 // SLA Compliance and Monitoring
 
 // SLAComplianceResult 返回值

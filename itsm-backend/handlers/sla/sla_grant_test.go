@@ -27,6 +27,7 @@ import (
 type grantFixture struct {
 	client   *ent.Client
 	svc      *Service
+	repo     *EntRepository
 	ctx      context.Context
 	provider *ent.Tenant
 	other    *ent.Tenant
@@ -60,8 +61,9 @@ func setupSLAGrantFixture(t *testing.T) *grantFixture {
 		SetTenantID(provider.ID).SetOwnerProviderTenantID(provider.ID).Save(ctx)
 	require.NoError(t, err)
 
-	svc := NewService(NewEntRepository(client), logger)
-	return &grantFixture{client: client, svc: svc, ctx: ctx, provider: provider, other: other, customer: customer, def: def}
+	repo := NewEntRepository(client)
+	svc := NewService(repo, logger)
+	return &grantFixture{client: client, svc: svc, repo: repo, ctx: ctx, provider: provider, other: other, customer: customer, def: def}
 }
 
 // 三件套之一：customer 归属不匹配（msp_provider_id != provider）→ 拒绝。
@@ -111,42 +113,37 @@ func TestSLAGrant_DeactivateThenActivate(t *testing.T) {
 	assert.False(t, old.IsActive, "旧授权必须已被停用")
 }
 
-// provided 只读视图：仅 active + 未过期 + 定义 active。
-func TestSLAGrant_ProvidedFilters(t *testing.T) {
+// provided 只读视图（P1-2 起数据源为合同链）：仅 active + 未过期合同进入。
+func TestProvidedFilters_ContractChain(t *testing.T) {
 	f := setupSLAGrantFixture(t)
+	now := time.Now()
 
-	// 有效授权
-	_, err := f.svc.CreateGrant(f.ctx, &SLADefinitionGrant{
-		SLADefinitionID: f.def.ID, CustomerTenantID: f.customer.ID,
-		ProviderTenantID: f.provider.ID, TicketTypeID: 7, TenantID: f.provider.ID,
-	})
-	require.NoError(t, err)
-
-	// 过期授权（不同类型，避免 deactivate 干扰）
-	expired := time.Now().Add(-time.Hour)
-	_, err = f.svc.CreateGrant(f.ctx, &SLADefinitionGrant{
-		SLADefinitionID: f.def.ID, CustomerTenantID: f.customer.ID,
-		ProviderTenantID: f.provider.ID, TicketTypeID: 8, ValidUntil: &expired, TenantID: f.provider.ID,
-	})
+	// 有效合同（binding type=7）
+	valid, err := f.svc.CreateContract(f.ctx, newTestContract(f, "有效视图",
+		MSPContractSLABinding{SLADefinitionID: f.def.ID, TicketTypeID: 7}))
 	require.NoError(t, err)
 
-	// 已停用授权的定义
-	defC, err := f.client.SLADefinition.Create().
-		SetName("Grant Def C").SetResponseTime(10).SetResolutionTime(20).SetIsActive(true).
-		SetTenantID(f.provider.ID).Save(f.ctx)
+	// 过期合同（binding type=8）
+	expired := now.Add(-time.Hour)
+	expiredContract := newTestContract(f, "过期视图",
+		MSPContractSLABinding{SLADefinitionID: f.def.ID, TicketTypeID: 8})
+	expiredContract.EffectiveUntil = &expired
+	_, err = f.svc.CreateContract(f.ctx, expiredContract)
 	require.NoError(t, err)
-	g3, err := f.svc.CreateGrant(f.ctx, &SLADefinitionGrant{
-		SLADefinitionID: defC.ID, CustomerTenantID: f.customer.ID,
-		ProviderTenantID: f.provider.ID, TicketTypeID: 9, TenantID: f.provider.ID,
-	})
+
+	// terminated 合同（binding type=9）
+	termContract := newTestContract(f, "终止视图",
+		MSPContractSLABinding{SLADefinitionID: f.def.ID, TicketTypeID: 9})
+	termContract.Status = "terminated"
+	_, err = f.svc.CreateContract(f.ctx, termContract)
 	require.NoError(t, err)
-	require.NoError(t, f.svc.DeactivateGrant(f.ctx, g3.ID, f.provider.ID))
 
 	provided, err := f.svc.ListProvidedDefinitions(f.ctx, f.customer.ID)
 	require.NoError(t, err)
-	require.Len(t, provided, 1, "仅 active 且未过期的授权进入 provided 视图")
+	require.Len(t, provided, 1, "仅 active 且未过期合同进入 provided 视图")
 	assert.Equal(t, int64(7), provided[0].TicketTypeID)
 	assert.Equal(t, f.def.ID, provided[0].SLADefinitionID)
+	assert.Equal(t, valid.ID, provided[0].ContractID)
 }
 
 // 有效期更新与清空。
@@ -206,5 +203,6 @@ func TestSLAHandler_InvalidIDReturns400(t *testing.T) {
 	w2 := httptest.NewRecorder()
 	req2, _ := http.NewRequest("DELETE", "/grants/0", nil)
 	r.ServeHTTP(w2, req2)
-	require.Equal(t, http.StatusBadRequest, w2.Code, "id<=0 同样拒绝")
+	// P1-2 并轨闸门：grant 写入口已迁移（410 先于参数校验）——写操作统一走合同管理。
+	require.Equal(t, http.StatusGone, w2.Code, "grant 写入口应返回 410 Gone")
 }
