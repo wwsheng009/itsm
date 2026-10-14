@@ -1212,3 +1212,5 @@ flowchart TD
 **锚点覆盖摘要**：A1/A4/A5/A6/A9/A11/A13/A15/A16/A17 ✅ 实测通过；A2 ✅（L1 vs L3b 变体，L2 单测锁定）；A7 ✅（代码锁定）；A8 ✅（401+单测）；A10 ✅；A14 ✅（结构+单测）；A3/A12 ⚠️ 单测锁定（demo 未自然构造 L4/exempt 样本）。
 
 **观察项（遗留）**：① incidents 无 SLA 面（载体为 tickets）——方案文案按"工单"读；② `/auth/me` 权限未并集 m2m 附加角色（FE/BE 口径差，建议后端对齐）；③ 定义 DELETE 域外 no-op 返回 200（建议 404 映射）；④ 存量租户新增权限码需"目录克隆+sync"两步（`sync_role_permissions` 不建码行，建议扩展/手册固化）。
+
+**验收后遗留修复（2026-10-14 深夜批次，`d3a4d2a4`）**：IM-39 `ResolvePermissions` 并集 m2m 附加角色（me/登录/切租户口径对齐运行时判定；238 实测 manager 18→134 码）；IM-40 定义域外删除 404 映射（failSLAQuery 业务码透传）。测试：middleware +2 用例 / handlers-sla +1 用例，相关包全绿；已部署 `1.8.0-dev.d3a4d2a4` 并复跑验收（42 步 0 fail，含真实违约样本 covered=2/breached=1）。观察项 ④（RBAC 目录同步两步走）仍建议后续固化到部署手册/工具。

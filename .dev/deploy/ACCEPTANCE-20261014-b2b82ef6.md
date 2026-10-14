@@ -109,3 +109,16 @@ python .dev/deploy/remote.py --sudo 'bash /tmp/acceptance_probe8.sh'
 - 本记录 +（前序）`ACCEPTANCE-RUNBOOK-c700c060.md`、`DEMO-FULL-20261014-c700c060-EVIDENCE.md`
 
 > 详细运行输出见会话日志；关键步骤以 `RESULT:` JSON 行记录（42 步）并已回填本文档。
+
+## 9. 验收后遗留项修复（IM-39/40，2026-10-14 深夜批次）
+
+观察项 ②③ 已实施并部署（`1.8.0-dev.d3a4d2a4`，backend `sha256:0293ea8a…`）：
+
+| IM | 内容 | 验证（238 实测） |
+|---|---|---|
+| IM-39 | `ResolvePermissions`（Login/RefreshToken/SwitchTenant/GetMe/菜单 单一真源）并集「启用且同租户」的 `user_roles` 附加角色；super_admin/通配直通；附加角色失败保留主结果 | `demo.msp.manager` `/auth/me` 由 **18 码 → 134 码**（含 sla:write/user:write/system_config:write 等，与运行时判定口径一致）；middleware 新增 2 用例、既有 6 用例无回归 |
+| IM-40 | SLA 定义域外删除 200 no-op → **404**（repository rows==0 → BusinessError NotFound；`failSLAQuery` 增加业务码透传） | mfg 删 def 9/10 → `404 SLA Definition not found`，defs 完整；验收脚本 `A4-del` 由 WARN→PASS；handlers/sla 新增守卫用例 |
+
+**复跑**：验收脚本 **42 步 0 fail**；出现真实违约样本（`covered=2 / breached=1 / settlementBreaches=1 / compliance=50`，A13 行 `contractVerdict:breached / internalVerdict:breached / violationState:pending`）——双口径对账列在真实违约下进一步坐实。
+
+> 说明：浏览器协议层超时导致最后一次可选 UI 抽查（`/sla/definitions/new` 渲染）未执行；核心 UI 抽查（合同页/结算页/工作台）已在前文完成。
