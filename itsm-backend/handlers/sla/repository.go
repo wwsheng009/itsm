@@ -14,6 +14,20 @@ type Repository interface {
 	UpdateDefinition(ctx context.Context, s *SLADefinition) (*SLADefinition, error)
 	DeleteDefinition(ctx context.Context, id int, tenantID int) error
 
+	// SLA Definition Grants（D-SLA-1：provider → customer 下发授权；方案 §4.1）
+	// CreateGrant 在单事务内完成：customer 归属校验（msp_provider_id == provider）
+	// + deactivate-then-activate（同 customer+type 旧授权先停用，partial unique 约束配套）。
+	CreateGrant(ctx context.Context, g *SLADefinitionGrant) (*SLADefinitionGrant, error)
+	// ListGrants 按 provider 租户（=授权归属租户）列出授权。
+	ListGrants(ctx context.Context, providerTenantID int, filters map[string]interface{}) ([]*SLADefinitionGrant, error)
+	GetGrant(ctx context.Context, id int, providerTenantID int) (*SLADefinitionGrant, error)
+	// UpdateGrantValidUntil 仅允许更新有效期（ticket_type_id/归属不可变，变更走停用后重建）。
+	UpdateGrantValidUntil(ctx context.Context, id int, providerTenantID int, validUntil *time.Time) (*SLADefinitionGrant, error)
+	// DeactivateGrant 停用授权（逻辑撤销；不物理删除，保留审计链）。
+	DeactivateGrant(ctx context.Context, id int, providerTenantID int) error
+	// ListProvidedDefinitions customer 侧只读视图：授权 join 定义（active 且未过期）。
+	ListProvidedDefinitions(ctx context.Context, customerTenantID int) ([]*ProvidedDefinition, error)
+
 	// Violations
 	CreateViolation(ctx context.Context, v *SLAViolation) (*SLAViolation, error)
 	ListViolations(ctx context.Context, tenantID int, page, size int, filters map[string]interface{}) ([]*SLAViolation, int, error)

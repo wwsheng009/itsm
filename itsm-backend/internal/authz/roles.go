@@ -316,6 +316,7 @@ func BuiltinRolePermissionCodes() map[string][]string {
 			"msp:read", "msp:write", "msp_customer:read", "msp_customer:write",
 			"msp_ticket:read", "msp_ticket:write", "msp_allocation:read", "msp_allocation:write",
 			"msp_report:read", "msp_report:write",
+			"sla:grant:read", "sla:grant:write",
 		},
 		// msp_admin：硬编码矩阵为 msp_* 全资源 `*`；DB 词表只登记 read/write 显式码
 		// （catalog 无通配码），语义等价于全动作（见 parity 对拍）。
@@ -323,6 +324,7 @@ func BuiltinRolePermissionCodes() map[string][]string {
 			"msp:read", "msp:write", "msp_customer:read", "msp_customer:write",
 			"msp_ticket:read", "msp_ticket:write", "msp_allocation:read", "msp_allocation:write",
 			"msp_report:read", "msp_report:write",
+			"sla:grant:read", "sla:grant:write",
 		},
 	}
 

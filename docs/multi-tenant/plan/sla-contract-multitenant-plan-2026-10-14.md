@@ -950,7 +950,7 @@ flowchart TD
 |---|---|---|---|---|---|
 | P0-1 模型包 | #3 owner_provider_tenant_id + #4 sla_definition_grant + #19 unique(tenant_id,name)（同迁移）+ RLS policy（#9）+ 随包 #18 模型字段 sla_exempt | SLA-A4/A8 | feat/sla-p0-model | d541f97e + 68824c19 | ✅ 已提交 |
 | P0-2 匹配引擎 | #1 L1/L2 插入 + L4 告警 + MatchedLayer（§13.6 依赖）+ #17 动态类型解析 + #18 匹配链重排/豁免/L3c | SLA-A1/A2/A3/A12 | feat/sla-p0-matcher | 待合并（本地已实施+编译/service 全包/相关 handlers 全绿） | 🟡 已实施待提交 |
-| P0-3 API 包 | #5 grant/provided 路由 + #10 grant handler 三件套 + #6 CRUD 护栏 + #7 Atoi 修复 | SLA-A4/A8/A9 | — | — | ⬜ 未开始 |
+| P0-3 API 包 | #5 grant/provided 路由 + #10 grant handler 三件套 + #6 CRUD 护栏 + #7 Atoi 修复 | SLA-A4/A8/A9 | feat/sla-p0-api | 待合并（本地已实施+编译/守卫测试/handler 测试全绿） | 🟡 已实施待提交 |
 | P0-4 前端包 | #8 serviceType 动态枚举 + grant 管理页 + 两段式列表 | SLA-A7 | — | — | ⬜ 未开始 |
 
 ### B.2 P1 / P2 / P3（工单 11–16、20——批次启动时展开）
@@ -1002,3 +1002,19 @@ flowchart TD
 - `service/ticket_service.go`：`SLAExempt` 前置豁免分支（零回归：豁免=跳过绑定，不入未绑定告警）+ 新签名传参；
 - `service/incident_service.go`：调用点适配（incident 无类型维度，传 0/""）；
 - `service/ticket_sla_matcher_test.go`（新）：8 场景（L1 类型绑定优先/L1 类型无关/L1 过期回落/L2 策略/L3b 快照 code/L3c 兜底/L4 fail-loud/L1 全链优先级）；`ticket_sla_service_test.go` 1 用例期望更新（缺陷修复锁定）；`sla_timezone_e2e_test.go` 8 处调用适配。
+
+### B.6 实施期修正记录（P0-3，2026-10-14）
+
+| # | 方案原文 | 实施修正 | 原因 |
+|---|---|---|---|
+| IM-10 | "事务内 `SELECT ... FOR UPDATE` customer 租户行"（§4.1 三件套之二） | 事务内普通查询校验（归属比对）+ 定义所有权校验 + deactivate-then-activate 同事务；FOR UPDATE 行锁延后（随 P1 解绑编排评估 PG 行锁） | ent 无 `ForUpdate()` API 且无公开方言判断入口（sqlite 测试不支持该语法）；P0 以"事务内校验 + 解绑级联停用"双保险承载，PG 行锁在 P1 与解绑编排同批加固 |
+| IM-11 | `sla:grant:read/write` 权限码"登记进 role-permission-extension-checklist"（§4.1 三件套之一） | 四处同步落地：`internal/authz/catalog.go`（码清单）+ `internal/authz/roles.go`（DB 词表 msp_manager/msp_admin）+ `middleware/rbac.go` RolePermissions 硬编码 + `internal/authz/msp_roles_test.go` C1 矩阵（守卫测试显式评审点）+ authz-gen 预检重生成；provided 端点复用既有 `sla:read`（customer 侧） | 权限码权威体系（2026-09-17 批次 5/6）要求"码清单/角色绑定/预检映射/守卫矩阵"四处同步，登录即从 DB 词表物化；未登记码对非 super_admin 永久 403 |
+
+**P0-3 交付物**（编译 `go build ./...` 绿；`go test ./handlers/sla/... ./router/... ./middleware/... ./internal/authz/... ./pkg/seeder/...` 全绿）：
+
+- `handlers/sla`：entity/repository/repository_impl/service 四层 grant 支持（CreateGrant 事务三件套、List/Get/UpdateValidUntil/Deactivate、ListProvidedDefinitions 只读视图）+ `requireTenant` 定义 CRUD fail-closed 护栏（D-SLA-7）+ `parseIDParam` 统一 400（Atoi 修复，8 处替换）；
+- `router/sla_routes.go`：`/sla/grants` CRUD（RequireMSPDeploymentMode 404 gate + RequireMSPPermission 联合校验）+ `/sla/definitions/provided`（customer 只读，sla:read）；
+- `middleware`：新增 `RequireMSPDeploymentMode`（非 MSP 部署 404，canon §7 R12/I12 端点级收口）；msp_manager/msp_admin 硬编码矩阵加 grant 码；
+- `internal/authz`：catalog 两码登记 + DB 词表绑定 + C1 矩阵登记；`cmd/authz-gen` 预检重生成（含 `/api/v1/sla/grants*` 与 provided 映射）；
+- `dto/sla_dto.go`：CreateSLAGrantRequest/UpdateSLAGrantRequest + SLADefinitionResponse.ownerProviderTenantId；
+- `handlers/sla/sla_grant_test.go`（新）：归属不符拒绝/deactivate-then-activate 连发/Provided 三重过滤/有效期更新与清空/护栏 fail-closed/Atoi 400 六场景。

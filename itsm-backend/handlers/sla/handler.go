@@ -28,20 +28,21 @@ func toSLADefinitionDTO(s *SLADefinition) *dto.SLADefinitionResponse {
 		return nil
 	}
 	return &dto.SLADefinitionResponse{
-		ID:              s.ID,
-		Name:            s.Name,
-		Description:     s.Description,
-		ServiceType:     s.ServiceType,
-		Priority:        s.Priority,
-		ResponseTime:    s.ResponseTime,
-		ResolutionTime:  s.ResolutionTime,
-		BusinessHours:   s.BusinessHours,
-		EscalationRules: s.EscalationRules,
-		Conditions:      s.Conditions,
-		IsActive:        s.IsActive,
-		TenantID:        s.TenantID,
-		CreatedAt:       s.CreatedAt,
-		UpdatedAt:       s.UpdatedAt,
+		ID:                    s.ID,
+		Name:                  s.Name,
+		Description:           s.Description,
+		ServiceType:           s.ServiceType,
+		Priority:              s.Priority,
+		ResponseTime:          s.ResponseTime,
+		ResolutionTime:        s.ResolutionTime,
+		BusinessHours:         s.BusinessHours,
+		EscalationRules:       s.EscalationRules,
+		Conditions:            s.Conditions,
+		IsActive:              s.IsActive,
+		TenantID:              s.TenantID,
+		OwnerProviderTenantID: s.OwnerProviderTenantID,
+		CreatedAt:             s.CreatedAt,
+		UpdatedAt:             s.UpdatedAt,
 	}
 }
 
@@ -79,8 +80,10 @@ func (h *Handler) CreateSLADefinition(c *gin.Context) {
 
 // GetSLADefinition handles GET /api/v1/sla/definitions/:id
 func (h *Handler) GetSLADefinition(c *gin.Context) {
-	idStr := c.Param("id")
-	id, _ := strconv.Atoi(idStr)
+	id, ok := parseIDParam(c)
+	if !ok {
+		return
+	}
 	tenantIDVal := c.GetInt("tenant_id")
 
 	res, err := h.svc.GetDefinition(c.Request.Context(), id, tenantIDVal)
@@ -119,8 +122,10 @@ func (h *Handler) ListSLADefinitions(c *gin.Context) {
 
 // UpdateSLADefinition handles PUT /api/v1/sla/definitions/:id
 func (h *Handler) UpdateSLADefinition(c *gin.Context) {
-	idStr := c.Param("id")
-	id, _ := strconv.Atoi(idStr)
+	id, ok := parseIDParam(c)
+	if !ok {
+		return
+	}
 	tenantIDVal := c.GetInt("tenant_id")
 
 	var req dto.UpdateSLADefinitionRequest
@@ -177,8 +182,10 @@ func (h *Handler) UpdateSLADefinition(c *gin.Context) {
 
 // DeleteSLADefinition handles DELETE /api/v1/sla/definitions/:id
 func (h *Handler) DeleteSLADefinition(c *gin.Context) {
-	idStr := c.Param("id")
-	id, _ := strconv.Atoi(idStr)
+	id, ok := parseIDParam(c)
+	if !ok {
+		return
+	}
 	tenantIDVal := c.GetInt("tenant_id")
 
 	if err := h.svc.DeleteDefinition(c.Request.Context(), id, tenantIDVal); err != nil {
@@ -232,8 +239,10 @@ func (h *Handler) ListAlertRules(c *gin.Context) {
 
 // GetAlertRule handles GET /api/v1/sla/alert-rules/:id
 func (h *Handler) GetAlertRule(c *gin.Context) {
-	idStr := c.Param("id")
-	id, _ := strconv.Atoi(idStr)
+	id, ok := parseIDParam(c)
+	if !ok {
+		return
+	}
 	tenantIDVal := c.GetInt("tenant_id")
 
 	res, err := h.svc.GetAlertRule(c.Request.Context(), id, tenantIDVal)
@@ -246,8 +255,10 @@ func (h *Handler) GetAlertRule(c *gin.Context) {
 
 // UpdateAlertRule handles PUT /api/v1/sla/alert-rules/:id
 func (h *Handler) UpdateAlertRule(c *gin.Context) {
-	idStr := c.Param("id")
-	id, _ := strconv.Atoi(idStr)
+	id, ok := parseIDParam(c)
+	if !ok {
+		return
+	}
 	tenantIDVal := c.GetInt("tenant_id")
 
 	var req dto.UpdateSLAAlertRuleRequest
@@ -288,8 +299,10 @@ func (h *Handler) UpdateAlertRule(c *gin.Context) {
 
 // DeleteAlertRule handles DELETE /api/v1/sla/alert-rules/:id
 func (h *Handler) DeleteAlertRule(c *gin.Context) {
-	idStr := c.Param("id")
-	id, _ := strconv.Atoi(idStr)
+	id, ok := parseIDParam(c)
+	if !ok {
+		return
+	}
 	tenantIDVal := c.GetInt("tenant_id")
 
 	if err := h.svc.DeleteAlertRule(c.Request.Context(), id, tenantIDVal); err != nil {
@@ -381,8 +394,10 @@ func (h *Handler) GetSLAViolations(c *gin.Context) {
 
 // UpdateViolationStatus handles PUT /api/v1/sla/violations/:id
 func (h *Handler) UpdateViolationStatus(c *gin.Context) {
-	idStr := c.Param("id")
-	id, _ := strconv.Atoi(idStr)
+	id, ok := parseIDParam(c)
+	if !ok {
+		return
+	}
 	tenantIDVal := c.GetInt("tenant_id")
 
 	var req struct {
@@ -530,6 +545,16 @@ func defaultString(value, fallback string) string {
 	return value
 }
 
+// parseIDParam 解析 :id 路径参数；非法时写 400 并返回 false（D-SLA-7：Atoi 错误不再静默忽略）。
+func parseIDParam(c *gin.Context) (int, bool) {
+	id, err := strconv.Atoi(c.Param("id"))
+	if err != nil || id <= 0 {
+		common.ParamError(c, "无效的ID参数")
+		return 0, false
+	}
+	return id, true
+}
+
 // failSLAQuery 把 service 层的稳定错误映射为 HTTP status 与业务 code，
 // 并把原始错误只写日志、不外泄给客户端。
 func failSLAQuery(c *gin.Context, err error, publicMsg string) {
@@ -549,8 +574,11 @@ func failSLAQuery(c *gin.Context, err error, publicMsg string) {
 // P1-07 修复：直接把 Service 返回的 *SLAComplianceResult（含 actual_response_minutes）
 // 透传给前端，而不是仅返回占位 message。
 func (h *Handler) CheckSLACompliance(c *gin.Context) {
-	ticketIDStr := c.Param("ticketId")
-	ticketID, _ := strconv.Atoi(ticketIDStr)
+	ticketID, err := strconv.Atoi(c.Param("ticketId"))
+	if err != nil || ticketID <= 0 {
+		common.ParamError(c, "无效的工单ID参数")
+		return
+	}
 	tenantIDVal := c.GetInt("tenant_id")
 
 	res, err := h.svc.CheckSLACompliance(c.Request.Context(), ticketID, tenantIDVal)
@@ -643,4 +671,126 @@ func (h *Handler) GetSLAComplianceReport(c *gin.Context) {
 	}
 
 	common.Success(c, report)
+}
+
+// =============================================================================
+// SLA Definition Grants（D-SLA-1，方案 §4.1）：provider 下发 / customer 只读
+// =============================================================================
+
+// CreateGrant handles POST /api/v1/sla/grants
+// provider 面（sla:grant:write + MSP 部署 gate）；归属校验与 deactivate-then-activate
+// 在 repository 单事务内完成。
+func (h *Handler) CreateGrant(c *gin.Context) {
+	var req dto.CreateSLAGrantRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		common.ParamError(c, "参数错误: "+err.Error())
+		return
+	}
+	providerTenantID := c.GetInt("tenant_id")
+	g := &SLADefinitionGrant{
+		SLADefinitionID:  req.SLADefinitionID,
+		CustomerTenantID: req.CustomerTenantID,
+		ProviderTenantID: providerTenantID,
+		TicketTypeID:     req.TicketTypeID,
+		ValidUntil:       req.ValidUntil,
+		IsActive:         true,
+		TenantID:         providerTenantID,
+	}
+	res, err := h.svc.CreateGrant(c.Request.Context(), g)
+	if err != nil {
+		failSLAQuery(c, err, "创建SLA下发授权失败")
+		return
+	}
+	common.Success(c, res)
+}
+
+// ListGrants handles GET /api/v1/sla/grants
+func (h *Handler) ListGrants(c *gin.Context) {
+	providerTenantID := c.GetInt("tenant_id")
+	filters := make(map[string]interface{})
+	if v := c.Query("customerTenantId"); v != "" {
+		if id, err := strconv.Atoi(v); err == nil && id > 0 {
+			filters["customerTenantId"] = id
+		}
+	}
+	if v := c.Query("slaDefinitionId"); v != "" {
+		if id, err := strconv.Atoi(v); err == nil && id > 0 {
+			filters["slaDefinitionId"] = id
+		}
+	}
+	if v := c.Query("isActive"); v != "" {
+		filters["isActive"] = v == "true" || v == "1"
+	}
+	res, err := h.svc.ListGrants(c.Request.Context(), providerTenantID, filters)
+	if err != nil {
+		failSLAQuery(c, err, "查询SLA下发授权列表失败")
+		return
+	}
+	common.Success(c, gin.H{"items": res, "total": len(res)})
+}
+
+// GetGrant handles GET /api/v1/sla/grants/:id
+func (h *Handler) GetGrant(c *gin.Context) {
+	id, ok := parseIDParam(c)
+	if !ok {
+		return
+	}
+	res, err := h.svc.GetGrant(c.Request.Context(), id, c.GetInt("tenant_id"))
+	if err != nil {
+		common.NotFound(c, "SLA下发授权不存在")
+		return
+	}
+	common.Success(c, res)
+}
+
+// UpdateGrant handles PUT /api/v1/sla/grants/:id（仅有效期可变）
+func (h *Handler) UpdateGrant(c *gin.Context) {
+	id, ok := parseIDParam(c)
+	if !ok {
+		return
+	}
+	var req dto.UpdateSLAGrantRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		common.ParamError(c, "参数错误: "+err.Error())
+		return
+	}
+	if req.ValidUntil == nil && !req.ClearValidUntil {
+		common.ParamError(c, "必须提供 validUntil 或 clearValidUntil")
+		return
+	}
+	var validUntil *time.Time
+	if !req.ClearValidUntil {
+		validUntil = req.ValidUntil
+	}
+	res, err := h.svc.UpdateGrantValidUntil(c.Request.Context(), id, c.GetInt("tenant_id"), validUntil)
+	if err != nil {
+		common.NotFound(c, "SLA下发授权不存在")
+		return
+	}
+	common.Success(c, res)
+}
+
+// DeactivateGrant handles DELETE /api/v1/sla/grants/:id（逻辑撤销，保留审计链）
+func (h *Handler) DeactivateGrant(c *gin.Context) {
+	id, ok := parseIDParam(c)
+	if !ok {
+		return
+	}
+	if err := h.svc.DeactivateGrant(c.Request.Context(), id, c.GetInt("tenant_id")); err != nil {
+		failSLAQuery(c, err, "停用SLA下发授权失败")
+		return
+	}
+	common.Success(c, gin.H{"id": id, "isActive": false})
+}
+
+// ListProvidedDefinitions handles GET /api/v1/sla/definitions/provided
+// customer 面只读：返回经 grant 授权下发给当前租户的定义（四层写保护之读面）。
+func (h *Handler) ListProvidedDefinitions(c *gin.Context) {
+	tenantIDVal := c.GetInt("tenant_id")
+	res, err := h.svc.ListProvidedDefinitions(c.Request.Context(), tenantIDVal)
+	if err != nil {
+		failSLAQuery(c, err, "查询服务商下发SLA失败")
+		return
+	}
+	common.Success(c, gin.H{"items": res, "total": len(res)})
 }

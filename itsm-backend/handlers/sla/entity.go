@@ -18,8 +18,45 @@ type SLADefinition struct {
 	Conditions      map[string]interface{} `json:"conditions"`
 	IsActive        bool                   `json:"isActive"`
 	TenantID        int                    `json:"tenantId"`
-	CreatedAt       time.Time              `json:"createdAt"`
-	UpdatedAt       time.Time              `json:"updatedAt"`
+	// OwnerProviderTenantID 归属服务商租户（方案 §4.1）：
+	// 0=租户自用；非0=provider 合同 SLA（经 sla_definition_grants 下发，customer 只读）。
+	OwnerProviderTenantID int       `json:"ownerProviderTenantId"`
+	CreatedAt             time.Time `json:"createdAt"`
+	UpdatedAt             time.Time `json:"updatedAt"`
+}
+
+// SLADefinitionGrant SLA 定义下发授权（D-SLA-1，方案 §4.1）。
+// 授权行归属 provider 租户（TenantID=provider）；customer 端只读（RLS 授信通道）。
+type SLADefinitionGrant struct {
+	ID               int `json:"id"`
+	SLADefinitionID  int `json:"slaDefinitionId"`
+	CustomerTenantID int `json:"customerTenantId"`
+	ProviderTenantID int `json:"providerTenantId"`
+	// TicketTypeID：customer 租户内的工单类型 ID；0=类型无关授权（匹配低优先级）。
+	TicketTypeID int64      `json:"ticketTypeId"`
+	ValidUntil   *time.Time `json:"validUntil,omitempty"`
+	IsActive     bool       `json:"isActive"`
+	TenantID     int        `json:"tenantId"`
+	CreatedAt    time.Time  `json:"createdAt"`
+	UpdatedAt    time.Time  `json:"updatedAt"`
+	// DefinitionName 由列表/详情查询富化（可选展示字段）。
+	DefinitionName string `json:"definitionName,omitempty"`
+}
+
+// ProvidedDefinition customer 视角的"服务商下发定义"（D-SLA-1 只读视图）。
+// 数据经 grant 授权行 join 得出，customer 不可修改（四层写保护）。
+type ProvidedDefinition struct {
+	GrantID          int        `json:"grantId"`
+	SLADefinitionID  int        `json:"slaDefinitionId"`
+	Name             string     `json:"name"`
+	Description      string     `json:"description"`
+	ServiceType      string     `json:"serviceType"`
+	Priority         string     `json:"priority"`
+	ResponseTime     int        `json:"responseTime"`
+	ResolutionTime   int        `json:"resolutionTime"`
+	TicketTypeID     int64      `json:"ticketTypeId"`
+	ProviderTenantID int        `json:"providerTenantId"`
+	ValidUntil       *time.Time `json:"validUntil,omitempty"`
 }
 
 // SLAViolation represents a breach of SLA

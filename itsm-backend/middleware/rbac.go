@@ -470,6 +470,9 @@ var RolePermissions = map[string][]Permission{
 		{Resource: "msp_allocation", Action: "write"},
 		{Resource: "msp_report", Action: "read"},
 		{Resource: "msp_report", Action: "write"},
+		// D-SLA-1：SLA 下发授权（provider 面）
+		{Resource: "sla", Action: "grant:read"},
+		{Resource: "sla", Action: "grant:write"},
 	},
 	"msp_admin": {
 		{Resource: "msp", Action: "*"},
@@ -477,6 +480,9 @@ var RolePermissions = map[string][]Permission{
 		{Resource: "msp_ticket", Action: "*"},
 		{Resource: "msp_allocation", Action: "*"},
 		{Resource: "msp_report", Action: "*"},
+		// D-SLA-1：SLA 下发授权（与 DB 词表显式码对齐，见 internal/authz msp_admin 绑定）
+		{Resource: "sla", Action: "grant:read"},
+		{Resource: "sla", Action: "grant:write"},
 	},
 }
 
@@ -580,7 +586,9 @@ func IsPlatformRole(code string) bool {
 // 不变式（router/menu_role_restriction_guard_test.go 锁定）：平台治理角色（PlatformRoleCodes）
 // 必须是本词表的子集——平台角色若不在 elevated 内，会连自己租户的管理菜单都看不到。
 // 组成 = 平台治理角色（platformRoleCodes，自动跟随，防「新增平台角色漏进 elevated」）
-//      ∪ 租户治理角色（admin/manager/provider_tenant_admin）。
+//
+//	∪ 租户治理角色（admin/manager/provider_tenant_admin）。
+//
 // 注：sysadmin 经平台词表带入——此前 elevated 手写名单遗漏 sysadmin，会导致
 // sysadmin 用户被菜单域限制挡在管理菜单外（2026-10-10 守卫测试发现并修复）。
 var elevatedMenuRoleCodes = append(append([]string{}, platformRoleCodes...),

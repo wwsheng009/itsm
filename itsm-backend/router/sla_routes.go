@@ -18,6 +18,8 @@ func SetupSLARoutes(tenant *gin.RouterGroup, h *slaHandler.Handler) {
 		slaGrp.GET("/stats", middleware.RequirePermission("sla", "read"), h.GetSLAStats)
 		slaGrp.GET("/definitions", middleware.RequirePermission("sla", "read"), h.ListSLADefinitions)
 		slaGrp.POST("/definitions", middleware.RequirePermission("sla", "write"), h.CreateSLADefinition)
+		// customer 面只读：服务商下发定义（D-SLA-1；独立端点，不开列表跨租户读洞——方案 §4.1）
+		slaGrp.GET("/definitions/provided", middleware.RequirePermission("sla", "read"), h.ListProvidedDefinitions)
 		// 兼容旧路径：/sla/policies → /sla/definitions
 		slaGrp.GET("/policies", middleware.RequirePermission("sla", "read"), h.ListSLADefinitions)
 		slaGrp.POST("/policies", middleware.RequirePermission("sla", "write"), h.CreateSLADefinition)
@@ -57,6 +59,19 @@ func SetupSLARoutes(tenant *gin.RouterGroup, h *slaHandler.Handler) {
 		// SLA Alert History
 		slaGrp.GET("/alert-history", middleware.RequirePermission("sla", "read"), h.GetAlertHistory)
 		slaGrp.GET("/compliance-report", middleware.RequirePermission("sla", "read"), h.GetSLAComplianceReport)
+
+		// SLA 定义下发授权（D-SLA-1，方案 §4.1）——provider 面：
+		// 非 MSP 部署 404（RequireMSPDeploymentMode，canon §7 R12/I12）；MSP 身份 +
+		// RBAC（sla:grant:read/write）+ 客户分配由 RequireMSPPermission 联合校验；
+		// 归属一致性（customer.msp_provider_id == provider）在 repository 单事务内复核。
+		grants := slaGrp.Group("/grants", middleware.RequireMSPDeploymentMode())
+		{
+			grants.POST("", middleware.RequireMSPPermission("sla", "grant:write"), h.CreateGrant)
+			grants.GET("", middleware.RequireMSPPermission("sla", "grant:read"), h.ListGrants)
+			grants.GET("/:id", middleware.RequireMSPPermission("sla", "grant:read"), h.GetGrant)
+			grants.PUT("/:id", middleware.RequireMSPPermission("sla", "grant:write"), h.UpdateGrant)
+			grants.DELETE("/:id", middleware.RequireMSPPermission("sla", "grant:write"), h.DeactivateGrant)
+		}
 	}
 
 	// SLA 模板（开箱即用预置模板）- 在 router.go 中单独处理 SLATemplateHandler.RegisterRoutes

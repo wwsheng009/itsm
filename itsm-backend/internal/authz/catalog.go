@@ -122,6 +122,9 @@ func Definitions() []PermissionDef {
 		{"sla:read", "查看SLA", "sla", "read", "查看SLA定义"},
 		{"sla:write", "管理SLA", "sla", "write", "管理SLA定义"},
 		{"sla:delete", "删除SLA", "sla", "delete", "删除SLA定义"},
+		// SLA 下发授权（D-SLA-1，方案 §4.1；provider 面，仅 MSP 部署）
+		{"sla:grant:read", "查看SLA下发授权", "sla", "grant:read", "查看服务商下发的SLA授权记录"},
+		{"sla:grant:write", "管理SLA下发授权", "sla", "grant:write", "服务商下发/停用SLA定义授权"},
 		// 用户权限
 		{"user:read", "查看用户", "user", "read", "查看用户列表"},
 		{"user:write", "管理用户", "user", "write", "创建、编辑用户"},

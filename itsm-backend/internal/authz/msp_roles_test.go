@@ -21,11 +21,15 @@ var mspC1Matrix = map[string][]string{
 		"msp:read", "msp:write", "msp_customer:read", "msp_customer:write",
 		"msp_ticket:read", "msp_ticket:write", "msp_allocation:read", "msp_allocation:write",
 		"msp_report:read", "msp_report:write",
+		// D-SLA-1（SLA 合同化专项，Accepted v1.11）：SLA 下发授权（provider 面）
+		"sla:grant:read", "sla:grant:write",
 	},
 	"msp_admin": {
 		"msp:read", "msp:write", "msp_customer:read", "msp_customer:write",
 		"msp_ticket:read", "msp_ticket:write", "msp_allocation:read", "msp_allocation:write",
 		"msp_report:read", "msp_report:write",
+		// D-SLA-1：同上（与 DB 词表/硬编码矩阵三处一致）
+		"sla:grant:read", "sla:grant:write",
 	},
 }
 

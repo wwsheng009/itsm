@@ -38,29 +38,100 @@ func NewService(repo Repository, logger *zap.SugaredLogger) *Service {
 	}
 }
 
+// requireTenant 定义 CRUD 的统一 fail-closed 护栏（D-SLA-7，方案 §4.7）：
+// 缺少租户上下文（<=0）时拒绝，禁止写入 tenant_id=0 行（依赖 DB RLS 兜底之外的应用层防线）。
+func requireTenant(tenantID int) error {
+	if tenantID <= 0 {
+		return ErrTenantRequired
+	}
+	return nil
+}
+
 // SLADefinition CRUD
 
 func (s *Service) CreateDefinition(ctx context.Context, def *SLADefinition) (*SLADefinition, error) {
+	if err := requireTenant(def.TenantID); err != nil {
+		return nil, err
+	}
 	s.logger.Infow("Creating SLA Definition", "name", def.Name)
 	return s.repo.CreateDefinition(ctx, def)
 }
 
 func (s *Service) GetDefinition(ctx context.Context, id int, tenantID int) (*SLADefinition, error) {
+	if err := requireTenant(tenantID); err != nil {
+		return nil, err
+	}
 	return s.repo.GetDefinition(ctx, id, tenantID)
 }
 
 func (s *Service) ListDefinitions(ctx context.Context, tenantID int, page, size int) ([]*SLADefinition, int, error) {
+	if err := requireTenant(tenantID); err != nil {
+		return nil, 0, err
+	}
 	return s.repo.ListDefinitions(ctx, tenantID, page, size)
 }
 
 func (s *Service) UpdateDefinition(ctx context.Context, def *SLADefinition) (*SLADefinition, error) {
+	if err := requireTenant(def.TenantID); err != nil {
+		return nil, err
+	}
 	s.logger.Infow("Updating SLA Definition", "id", def.ID)
 	return s.repo.UpdateDefinition(ctx, def)
 }
 
 func (s *Service) DeleteDefinition(ctx context.Context, id int, tenantID int) error {
+	if err := requireTenant(tenantID); err != nil {
+		return err
+	}
 	s.logger.Infow("Deleting SLA Definition", "id", id)
 	return s.repo.DeleteDefinition(ctx, id, tenantID)
+}
+
+// SLA Definition Grants（D-SLA-1）
+
+func (s *Service) CreateGrant(ctx context.Context, g *SLADefinitionGrant) (*SLADefinitionGrant, error) {
+	if err := requireTenant(g.TenantID); err != nil {
+		return nil, err
+	}
+	s.logger.Infow("Creating SLA grant",
+		"definition_id", g.SLADefinitionID, "customer_tenant_id", g.CustomerTenantID, "provider_tenant_id", g.ProviderTenantID)
+	return s.repo.CreateGrant(ctx, g)
+}
+
+func (s *Service) ListGrants(ctx context.Context, providerTenantID int, filters map[string]interface{}) ([]*SLADefinitionGrant, error) {
+	if err := requireTenant(providerTenantID); err != nil {
+		return nil, err
+	}
+	return s.repo.ListGrants(ctx, providerTenantID, filters)
+}
+
+func (s *Service) GetGrant(ctx context.Context, id int, providerTenantID int) (*SLADefinitionGrant, error) {
+	if err := requireTenant(providerTenantID); err != nil {
+		return nil, err
+	}
+	return s.repo.GetGrant(ctx, id, providerTenantID)
+}
+
+func (s *Service) UpdateGrantValidUntil(ctx context.Context, id int, providerTenantID int, validUntil *time.Time) (*SLADefinitionGrant, error) {
+	if err := requireTenant(providerTenantID); err != nil {
+		return nil, err
+	}
+	return s.repo.UpdateGrantValidUntil(ctx, id, providerTenantID, validUntil)
+}
+
+func (s *Service) DeactivateGrant(ctx context.Context, id int, providerTenantID int) error {
+	if err := requireTenant(providerTenantID); err != nil {
+		return err
+	}
+	s.logger.Infow("Deactivating SLA grant", "grant_id", id, "provider_tenant_id", providerTenantID)
+	return s.repo.DeactivateGrant(ctx, id, providerTenantID)
+}
+
+func (s *Service) ListProvidedDefinitions(ctx context.Context, customerTenantID int) ([]*ProvidedDefinition, error) {
+	if err := requireTenant(customerTenantID); err != nil {
+		return nil, err
+	}
+	return s.repo.ListProvidedDefinitions(ctx, customerTenantID)
 }
 
 // SLA Compliance and Monitoring

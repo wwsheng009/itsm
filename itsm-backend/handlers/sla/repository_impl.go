@@ -14,8 +14,10 @@ import (
 	"itsm-backend/ent/slaalerthistory"
 	"itsm-backend/ent/slaalertrule"
 	"itsm-backend/ent/sladefinition"
+	"itsm-backend/ent/sladefinitiongrant"
 	"itsm-backend/ent/slametric"
 	"itsm-backend/ent/slaviolation"
+	"itsm-backend/ent/tenant"
 	"itsm-backend/ent/ticket"
 )
 
@@ -33,20 +35,21 @@ func toSLADefinitionDomain(e *ent.SLADefinition) *SLADefinition {
 		return nil
 	}
 	return &SLADefinition{
-		ID:              e.ID,
-		Name:            e.Name,
-		Description:     e.Description,
-		ServiceType:     e.ServiceType,
-		Priority:        e.Priority,
-		ResponseTime:    e.ResponseTime,
-		ResolutionTime:  e.ResolutionTime,
-		BusinessHours:   e.BusinessHours,
-		EscalationRules: e.EscalationRules,
-		Conditions:      e.Conditions,
-		IsActive:        e.IsActive,
-		TenantID:        e.TenantID,
-		CreatedAt:       e.CreatedAt,
-		UpdatedAt:       e.UpdatedAt,
+		ID:                    e.ID,
+		Name:                  e.Name,
+		Description:           e.Description,
+		ServiceType:           e.ServiceType,
+		Priority:              e.Priority,
+		ResponseTime:          e.ResponseTime,
+		ResolutionTime:        e.ResolutionTime,
+		BusinessHours:         e.BusinessHours,
+		EscalationRules:       e.EscalationRules,
+		Conditions:            e.Conditions,
+		IsActive:              e.IsActive,
+		TenantID:              e.TenantID,
+		OwnerProviderTenantID: e.OwnerProviderTenantID,
+		CreatedAt:             e.CreatedAt,
+		UpdatedAt:             e.UpdatedAt,
 	}
 }
 
@@ -62,6 +65,7 @@ func (r *EntRepository) CreateDefinition(ctx context.Context, s *SLADefinition) 
 		SetEscalationRules(s.EscalationRules).
 		SetConditions(s.Conditions).
 		SetIsActive(s.IsActive).
+		SetOwnerProviderTenantID(s.OwnerProviderTenantID).
 		SetTenantID(s.TenantID).
 		Save(ctx)
 	if err != nil {
@@ -124,6 +128,203 @@ func (r *EntRepository) DeleteDefinition(ctx context.Context, id int, tenantID i
 		Where(sladefinition.ID(id), sladefinition.TenantID(tenantID)).
 		Exec(ctx)
 	return err
+}
+
+// --- SLA Definition Grants（D-SLA-1）---
+
+func toSLADefinitionGrantDomain(e *ent.SLADefinitionGrant) *SLADefinitionGrant {
+	if e == nil {
+		return nil
+	}
+	g := &SLADefinitionGrant{
+		ID:               e.ID,
+		SLADefinitionID:  e.SLADefinitionID,
+		CustomerTenantID: e.CustomerTenantID,
+		ProviderTenantID: e.ProviderTenantID,
+		TicketTypeID:     e.TicketTypeID,
+		ValidUntil:       e.ValidUntil,
+		IsActive:         e.IsActive,
+		TenantID:         e.TenantID,
+		CreatedAt:        e.CreatedAt,
+		UpdatedAt:        e.UpdatedAt,
+	}
+	if def := e.Edges.SLADefinition; def != nil {
+		g.DefinitionName = def.Name
+	}
+	return g
+}
+
+// CreateGrant 事务内：① customer 归属校验（msp_provider_id == provider）；
+// ② 定义所有权校验（属于 provider）；③ deactivate-then-activate（同 customer+type 旧授权先停用）。
+//
+// 实施期修正 IM-10：FOR UPDATE 行锁因 ent 无方言判断入口暂缓（sqlite 测试不支持该语法），
+// 以"事务内校验 + 解绑级联停用"双保险承载；PG 行锁加固随 P1 解绑编排同批评估。
+func (r *EntRepository) CreateGrant(ctx context.Context, g *SLADefinitionGrant) (*SLADefinitionGrant, error) {
+	tx, err := r.client.Tx(ctx)
+	if err != nil {
+		return nil, err
+	}
+	defer func() { _ = tx.Rollback() }()
+
+	// ① customer 归属校验
+	customer, err := tx.Tenant.Query().Where(tenant.IDEQ(g.CustomerTenantID)).Only(ctx)
+	if err != nil {
+		if ent.IsNotFound(err) {
+			return nil, common.NewBusinessError(common.NotFoundCode, "客户租户不存在", "")
+		}
+		return nil, err
+	}
+	if customer.MspProviderID != g.ProviderTenantID {
+		return nil, common.NewBusinessError(common.ForbiddenCode,
+			"客户租户不属于当前服务商（msp_provider_id 不匹配）", "")
+	}
+
+	// ② 定义所有权校验：定义必须归属 provider（tenant_id 或 owner_provider_tenant_id）
+	def, err := tx.SLADefinition.Query().
+		Where(sladefinition.IDEQ(g.SLADefinitionID), sladefinition.TenantIDEQ(g.ProviderTenantID)).
+		Only(ctx)
+	if err != nil {
+		if ent.IsNotFound(err) {
+			return nil, common.NewBusinessError(common.NotFoundCode, "SLA 定义不存在或不属于当前服务商", "")
+		}
+		return nil, err
+	}
+	if def.OwnerProviderTenantID == 0 {
+		// 兼容：provider 租户自建（owner 未显式标记）的定义同样可下发，但显式标记为佳。
+		if _, err := tx.SLADefinition.UpdateOneID(def.ID).
+			SetOwnerProviderTenantID(g.ProviderTenantID).Save(ctx); err != nil {
+			return nil, err
+		}
+	}
+
+	// ③ deactivate-then-activate：同 customer + 同 type（0=类型无关）的旧授权先停用
+	if _, err := tx.SLADefinitionGrant.Update().
+		Where(
+			sladefinitiongrant.CustomerTenantIDEQ(g.CustomerTenantID),
+			sladefinitiongrant.TicketTypeIDEQ(g.TicketTypeID),
+			sladefinitiongrant.IsActiveEQ(true),
+		).
+		SetIsActive(false).
+		Save(ctx); err != nil {
+		return nil, err
+	}
+
+	created, err := tx.SLADefinitionGrant.Create().
+		SetSLADefinitionID(g.SLADefinitionID).
+		SetCustomerTenantID(g.CustomerTenantID).
+		SetProviderTenantID(g.ProviderTenantID).
+		SetTicketTypeID(g.TicketTypeID).
+		SetNillableValidUntil(g.ValidUntil).
+		SetIsActive(true).
+		SetTenantID(g.TenantID).
+		Save(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	if err := tx.Commit(); err != nil {
+		return nil, err
+	}
+	return toSLADefinitionGrantDomain(created), nil
+}
+
+func (r *EntRepository) ListGrants(ctx context.Context, providerTenantID int, filters map[string]interface{}) ([]*SLADefinitionGrant, error) {
+	q := r.client.SLADefinitionGrant.Query().
+		Where(sladefinitiongrant.TenantIDEQ(providerTenantID)).
+		WithSLADefinition().
+		Order(ent.Desc(sladefinitiongrant.FieldID))
+	if v, ok := filters["customerTenantId"].(int); ok && v > 0 {
+		q = q.Where(sladefinitiongrant.CustomerTenantIDEQ(v))
+	}
+	if v, ok := filters["isActive"].(bool); ok {
+		q = q.Where(sladefinitiongrant.IsActiveEQ(v))
+	}
+	if v, ok := filters["slaDefinitionId"].(int); ok && v > 0 {
+		q = q.Where(sladefinitiongrant.SLADefinitionIDEQ(v))
+	}
+	es, err := q.All(ctx)
+	if err != nil {
+		return nil, err
+	}
+	out := make([]*SLADefinitionGrant, 0, len(es))
+	for _, e := range es {
+		out = append(out, toSLADefinitionGrantDomain(e))
+	}
+	return out, nil
+}
+
+func (r *EntRepository) GetGrant(ctx context.Context, id int, providerTenantID int) (*SLADefinitionGrant, error) {
+	e, err := r.client.SLADefinitionGrant.Query().
+		Where(sladefinitiongrant.IDEQ(id), sladefinitiongrant.TenantIDEQ(providerTenantID)).
+		WithSLADefinition().
+		Only(ctx)
+	if err != nil {
+		return nil, err
+	}
+	return toSLADefinitionGrantDomain(e), nil
+}
+
+func (r *EntRepository) UpdateGrantValidUntil(ctx context.Context, id int, providerTenantID int, validUntil *time.Time) (*SLADefinitionGrant, error) {
+	upd := r.client.SLADefinitionGrant.UpdateOneID(id).
+		Where(sladefinitiongrant.TenantIDEQ(providerTenantID))
+	if validUntil != nil {
+		upd = upd.SetValidUntil(*validUntil)
+	} else {
+		upd = upd.ClearValidUntil()
+	}
+	e, err := upd.Save(ctx)
+	if err != nil {
+		return nil, err
+	}
+	return toSLADefinitionGrantDomain(e), nil
+}
+
+func (r *EntRepository) DeactivateGrant(ctx context.Context, id int, providerTenantID int) error {
+	_, err := r.client.SLADefinitionGrant.Update().
+		Where(sladefinitiongrant.IDEQ(id), sladefinitiongrant.TenantIDEQ(providerTenantID)).
+		SetIsActive(false).
+		Save(ctx)
+	return err
+}
+
+func (r *EntRepository) ListProvidedDefinitions(ctx context.Context, customerTenantID int) ([]*ProvidedDefinition, error) {
+	now := time.Now()
+	es, err := r.client.SLADefinitionGrant.Query().
+		Where(
+			sladefinitiongrant.CustomerTenantIDEQ(customerTenantID),
+			sladefinitiongrant.IsActiveEQ(true),
+			sladefinitiongrant.Or(
+				sladefinitiongrant.ValidUntilIsNil(),
+				sladefinitiongrant.ValidUntilGT(now),
+			),
+		).
+		WithSLADefinition().
+		Order(ent.Asc(sladefinitiongrant.FieldTicketTypeID), ent.Desc(sladefinitiongrant.FieldID)).
+		All(ctx)
+	if err != nil {
+		return nil, err
+	}
+	out := make([]*ProvidedDefinition, 0, len(es))
+	for _, e := range es {
+		def := e.Edges.SLADefinition
+		if def == nil || !def.IsActive {
+			continue
+		}
+		out = append(out, &ProvidedDefinition{
+			GrantID:          e.ID,
+			SLADefinitionID:  def.ID,
+			Name:             def.Name,
+			Description:      def.Description,
+			ServiceType:      def.ServiceType,
+			Priority:         def.Priority,
+			ResponseTime:     def.ResponseTime,
+			ResolutionTime:   def.ResolutionTime,
+			TicketTypeID:     e.TicketTypeID,
+			ProviderTenantID: e.ProviderTenantID,
+			ValidUntil:       e.ValidUntil,
+		})
+	}
+	return out, nil
 }
 
 // --- Violations ---

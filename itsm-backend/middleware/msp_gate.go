@@ -1,6 +1,12 @@
 package middleware
 
-import "itsm-backend/pkg/tenantmode"
+import (
+	"net/http"
+
+	"github.com/gin-gonic/gin"
+
+	"itsm-backend/pkg/tenantmode"
+)
 
 // mspEnabled gates the entire /api/v1/msp/* route family. The bootstrap layer
 // sets it from cfg.Deployment.Mode (single source: config ← DEPLOYMENT_MODE,
@@ -19,6 +25,23 @@ func SetMSPEnabled(b bool) { mspEnabled = b }
 // health endpoint to surface a warning when a non-MSP deployment accidentally
 // exposes the routes.
 func IsMSPEnabled() bool { return mspEnabled }
+
+// RequireMSPDeploymentMode 非 MSP 部署（IsMSPEnabled=false）时按 404 屏蔽路由。
+// 用于挂载在租户面、但语义上属于 MSP 能力的端点（如 SLA 下发授权，方案 §4.1）：
+// private/saas 部署下 404（canon §7 目标口径 R12/I12 收口）。
+func RequireMSPDeploymentMode() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		if !IsMSPEnabled() {
+			c.JSON(http.StatusNotFound, gin.H{
+				"code":    http.StatusNotFound,
+				"message": "MSP routes are disabled",
+			})
+			c.Abort()
+			return
+		}
+		c.Next()
+	}
+}
 
 // DeploymentMode reports the mode applied by ApplyDeploymentMode ("" before the
 // first successful call). Used by startup logs and self-checks.

@@ -44,8 +44,26 @@ type SLADefinitionResponse struct {
 	Conditions      map[string]interface{} `json:"conditions"`
 	IsActive        bool                   `json:"isActive" example:"true"`
 	TenantID        int                    `json:"tenantId" example:"1"`
-	CreatedAt       time.Time              `json:"createdAt" example:"2024-01-01T00:00:00Z"`
-	UpdatedAt       time.Time              `json:"updatedAt" example:"2024-01-01T00:00:00Z"`
+	// OwnerProviderTenantID 归属服务商租户（0=租户自用；非0=provider 合同 SLA，方案 §4.1）。
+	OwnerProviderTenantID int       `json:"ownerProviderTenantId" example:"0"`
+	CreatedAt             time.Time `json:"createdAt" example:"2024-01-01T00:00:00Z"`
+	UpdatedAt             time.Time `json:"updatedAt" example:"2024-01-01T00:00:00Z"`
+}
+
+// CreateSLAGrantRequest provider 下发 SLA 定义给客户的授权请求（D-SLA-1，方案 §4.1）。
+// customerTenantId 必须是当前服务商归属客户（handle 内校验 msp_provider_id）；
+// ticketTypeId=0 表示类型无关授权，非 0 时为客户租户内的工单类型 ID。
+type CreateSLAGrantRequest struct {
+	SLADefinitionID  int        `json:"slaDefinitionId" binding:"required" example:"1"`
+	CustomerTenantID int        `json:"customerTenantId" binding:"required" example:"2"`
+	TicketTypeID     int64      `json:"ticketTypeId" example:"0"`
+	ValidUntil       *time.Time `json:"validUntil,omitempty"`
+}
+
+// UpdateSLAGrantRequest 仅允许调整授权有效期（类型/归属/定义不可变，变更走停用后重建）。
+type UpdateSLAGrantRequest struct {
+	ValidUntil      *time.Time `json:"validUntil,omitempty"`
+	ClearValidUntil bool       `json:"clearValidUntil,omitempty"`
 }
 
 // SLA违规相关DTO
