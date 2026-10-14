@@ -957,7 +957,8 @@ flowchart TD
 
 | 批次 | 工单 | 状态 |
 |---|---|---|
-| P1 | #13 msp_contract + bindings + RLS + grant 并轨（§4.4 闸门） | ⬜ |
+| P1-1 | #13 模型部分：msp_contract + msp_contract_sla_binding schema + codegen + 迁移 + RLS 012 | ✅ 已提交（见 B.8） |
+| P1-2 | #13 服务部分：合同 CRUD（provider 面）+ L1 匹配升级（合同链解析）+ 并轨闸门（grant 搬迁/写入口唯一化） | ⬜ 未开始 |
 | P1/P2 | #11/#12 Pause/Resume 真实计时（P1 必做） | ⬜ |
 | P2 | #14 violation resolution_state（D-SLA-8）+ #15 白名单口径/settlement-report（D-SLA-5/9）+ #20 D-TT-1 类型下发（前置=P0 grant 验收） | ⬜ |
 | P3 | 前端补全（businessHours/grant 选择器/报表页/进度条） | ⬜ |
@@ -1042,3 +1043,19 @@ flowchart TD
 - `pages/(main)/admin/sla-definitions/index.tsx`：**两段式列表**——原自建列表 + "服务商下发"只读段（List 渲染，仅当有下发数据时显示）；
 - `routes/index.tsx` + `route-paths.ts` + `route-permissions.ts`：新路由三件登记；
 - `lib/api/__tests__/sla-api.test.ts`：grant 契约 6 用例（含空响应容错与 clearValidUntil 语义）。
+
+### B.8 实施期修正记录（P1-1 合同模型包，2026-10-14）
+
+| # | 方案原文 | 实施修正 | 原因 |
+|---|---|---|---|
+| IM-13 | bindings = `(contract_id, sla_definition_id)` 二列（§4.4 v1.1） | 扩展为 `(contract_id, sla_definition_id, ticket_type_id)`，唯一约束改 `(contract_id, ticket_type_id)`（0=类型无关） | v1.3 引入类型维度后（grant.ticket_type_id），合同绑定需承载 P0 grant 的完整语义；(contract_id, sla_definition_id) 唯一无法表达"同定义绑多类型" |
+| IM-14 | bindings 字段清单未列 tenant_id（§4.4 v1.1） | 补 `tenant_id`（=provider，NOT NULL） | RLS 收窄依据 + 对齐仓库全表 tenant_id 惯例（workflow_template_distributions 先例） |
+| IM-15 | RLS 通道"登记说明" | 落成 012 迁移四条策略：合同/bindings 各 provider FOR ALL（tenant_id=ctx）+ customer FOR SELECT 授信（customer_tenant_id=ctx / EXISTS 合同归属） | customer 读面（provided 视图、P2 结算报表）需要合同链可见；写路径 provider-only 保持 |
+
+**P1-1 交付物**（编译 `go build ./...` 绿；`go test ./migration/... ./handlers/sla/...` 绿；codegen ENTC_EXIT=0）：
+
+- `ent/schema/msp_contract.go`（新）：provider/customer/contract_no/合同期/status/penalties/结算周期/币种 + 双索引（uk_msp_contracts_tenant_no + customer_status）；
+- `ent/schema/msp_contract_sla_binding.go`（新）：contract_id/sla_definition_id/ticket_type_id/tenant_id + uk_msp_contract_bindings_type（同合同同类型唯一）+ 反查索引；
+- `ent/schema/sladefinition.go`：加 `contract_bindings` 反向 edge；ent 生成物 29 文件；
+- `migrations/20261014b_msp_contract_tables_indexes.sql`（+down）：索引幂等兜底；
+- `database/rls/migrations/012_msp_contract_policies.sql`（+rollback）：四条策略（应用方式 `go run -tags rlsapply ./cmd/rls-apply -files 012_...sql`，属部署步骤）。
