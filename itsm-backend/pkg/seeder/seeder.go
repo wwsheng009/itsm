@@ -1820,6 +1820,7 @@ func (s *Seeder) seedMenus(ctx context.Context) {
 		{Name: "Bot 运行看板", Path: "/ai/bot-metrics", Icon: "Activity", ParentPath: "/ai/chat", PermissionCode: "ai:read", SortOrder: 116},
 
 		// ===== 子菜单：MSP 客户管理（菜单权限码与 C1 矩阵对齐：全部 MSP 角色可见读入口，写权限由页面/接口二次校验）=====
+		{Name: "服务台仪表盘", Path: "/msp/dashboard", Icon: "LayoutDashboard", ParentPath: "/msp", PermissionCode: "msp_ticket:read", SortOrder: 120},
 		{Name: "跨客户工作台", Path: "/msp/workbench", Icon: "Activity", ParentPath: "/msp", PermissionCode: "msp_ticket:read", SortOrder: 121},
 		{Name: "分配管理", Path: "/msp/management", Icon: "Settings", ParentPath: "/msp", PermissionCode: "msp_allocation:read", SortOrder: 122},
 		{Name: "审计看板", Path: "/msp/audit", Icon: "Shield", ParentPath: "/msp", PermissionCode: "msp_report:read", SortOrder: 123},

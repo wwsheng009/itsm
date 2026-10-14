@@ -78,6 +78,7 @@ export const ROUTE_PATHS: ReadonlySet<string> = new Set([
   '/login',
   '/marketplace',
   '/msp',
+  '/msp/dashboard',
   '/msp/management',
   '/my-requests',
   '/noc',

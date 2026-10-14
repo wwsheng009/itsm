@@ -96,6 +96,7 @@
 /licenses,src/app/(main)/licenses/page.tsx,/licenses,@/pages/(main)/licenses/index,(main),,,,/licenses
 /marketplace/[id],src/app/(main)/marketplace/[id]/page.tsx,/marketplace/:id,@/pages/(main)/marketplace/$id/index,(main),:id,,,/marketplace/1
 /marketplace,src/app/(main)/marketplace/page.tsx,/marketplace,@/pages/(main)/marketplace/index,(main),,,,/marketplace
+/msp/dashboard,src/app/(main)/msp/dashboard/page.tsx,/msp/dashboard,@/pages/(main)/msp/dashboard/index,(main),,,,/msp/dashboard
 /msp/management,src/app/(main)/msp/management/page.tsx,/msp/management,@/pages/(main)/msp/management/index,(main),,,,/msp/management
 /msp,src/app/(main)/msp/page.tsx,/msp,@/pages/(main)/msp/index,(main),,,,/msp
 /my-requests/[requestId],src/app/(main)/my-requests/[requestId]/page.tsx,/my-requests/:requestId,@/pages/(main)/my-requests/$requestId/index,(main),:requestId,,,/my-requests/1

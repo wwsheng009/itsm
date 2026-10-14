@@ -682,6 +682,7 @@ func TestSeedProductionMSPMenuEntries(t *testing.T) {
 	require.NoError(t, err)
 
 	want := map[string]string{
+		"/msp/dashboard":  "msp_ticket:read",
 		"/msp/workbench":  "msp_ticket:read",
 		"/msp/management": "msp_allocation:read",
 		"/msp/audit":      "msp_report:read",

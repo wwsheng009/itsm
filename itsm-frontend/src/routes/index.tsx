@@ -126,6 +126,7 @@ const Marketplace = lazy(() => import('@/pages/(main)/marketplace/index'));
 const MarketplaceId = lazy(() => import('@/pages/(main)/marketplace/$id/index'));
 const Msp = lazy(() => import('@/pages/(main)/msp/index'));
 const MspAudit = lazy(() => import('@/pages/(main)/msp/audit/index'));
+const MspDashboard = lazy(() => import('@/pages/(main)/msp/dashboard/index'));
 const MspManagement = lazy(() => import('@/pages/(main)/msp/management/index'));
 const MspWorkbench = lazy(() => import('@/pages/(main)/msp/workbench/index'));
 const MyRequests = lazy(() => import('@/pages/(main)/my-requests/index'));
@@ -355,6 +356,7 @@ export const routes: RouteObject[] = [
             children: [
           { path: 'msp', element: lazyElement(Msp) },
           { path: 'msp/audit', element: lazyElement(MspAudit) },
+          { path: 'msp/dashboard', element: lazyElement(MspDashboard) },
           { path: 'msp/management', element: lazyElement(MspManagement) },
           { path: 'msp/workbench', element: lazyElement(MspWorkbench) },
             ],
