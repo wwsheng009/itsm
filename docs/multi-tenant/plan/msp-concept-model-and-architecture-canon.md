@@ -637,6 +637,8 @@ sequenceDiagram
 | `FE-A#` | 前端分析 | 文档局部验收（必须带前缀） | `FE-A1` |
 | `TUM-#` / `TUM-D#` / `TUM-A#` | [租户用户管理增强方案](./msp-tenant-user-management-enhancement-plan.md) | 平台侧租户用户管理增强（列表/重置密码/启停/审计）工作流/决策/验收（局部编号，必须带前缀） | `TUM-2` |
 | `XF1–XF10` / `XFD1–XFD8` / `XFR1–XFR4` / `XFA1–XFA6` | [单据流转交互架构](./msp-cross-tenant-record-flow-architecture.md) | 跨租户单据流转规则/决策/风险/验收（L3 泛化设计；局部编号，必须带前缀） | `XF4`、`XFD2` |
+| `D-SLA-1~9` / `R-SLA-1~5` / `O-SLA-1~3` / `SLA-A1~A17` / `INV-1~5` | [SLA 合同化与多租户归属专项方案](./sla-contract-multitenant-plan-2026-10-14.md) | SLA 设计决策/风险/开放问题/验收/下发不覆盖不变量（Accepted v1.11，2026-10-14 终审通过；局部编号，必须带前缀） | `D-SLA-2`、`SLA-A11`、`INV-2` |
+| `D-TT-1` | [SLA 合同化与多租户归属专项方案](./sla-contract-multitenant-plan-2026-10-14.md) §4.5a | 工单类型受控下发决策（P2；局部编号，必须带前缀） | `D-TT-1` |
 
 ### C.3 A/B/C 字母消歧（禁止裸用）
 
@@ -667,3 +669,4 @@ sequenceDiagram
 | v1.5 | 2026-10-05 | 附录 C.2 登记 `TUM-#`：平台侧租户用户管理增强方案（Draft v0.1，`/admin/tenants` 跨租户账号治理：用户列表/重置密码/启停/强制下线/审计） |
 | v1.6 | 2026-10-07 | 附录 C.2 登记 XF 编号空间：多租户单据流转交互架构（Draft v0.1；`XF/XFD/XFR/XFA`，L3 泛化设计——五通道/条目级授权/操作矩阵/流程集成/审计与验收） |
 | v1.7 | 2026-10-07 | **MSW-6 收口**：新增 §2.3"切换面 vs 跨租户面"边界决策表（工作台不切换 / 单客户深度切换 / 平台治理面 / Home 作用域）+ Q4=A 返回语义（`homeTenantId` 契约）；承接《映射式多租户切换收口方案》§3.4 |
+| v1.8 | 2026-10-14 | 附录 C.2 登记 SLA 专项编号空间：[SLA 合同化与多租户归属专项方案](./sla-contract-multitenant-plan-2026-10-14.md)（**Accepted v1.11，2026-10-14 终审通过**；`D-SLA-1~9`/`D-TT-1`/`R-SLA-*`/`O-SLA-*`/`SLA-A1~A17`/`INV-1~5`——SLA 定义归属与 grant 下发、四级匹配链、下发机制二分法（SLA 引用/类型副本）、D-TT-1 类型受控下发、结算双口径对账与违约基准过滤） |
