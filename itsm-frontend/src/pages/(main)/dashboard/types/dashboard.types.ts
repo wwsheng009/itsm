@@ -13,6 +13,7 @@ export interface KPIMetric {
   description?: string;
   target?: number; // 目标值
   alert?: 'success' | 'warning' | 'error' | null; // 警告状态
+  targetPath?: string; // 点击磁贴下转的目标处理界面路由
 }
 
 // 工单趋势数据（扩展版）

@@ -104,6 +104,7 @@ function getInitialData(): DashboardData {
         change: 0,
         changeType: 'increase' as const,
         description: '加载中...',
+        targetPath: '/tickets?tab=list',
       },
       {
         id: 'pending-tickets',
@@ -116,6 +117,7 @@ function getInitialData(): DashboardData {
         changeType: 'decrease' as const,
         description: '加载中...',
         alert: null,
+        targetPath: '/tickets?tab=list&status=open',
       },
       {
         id: 'in-progress-tickets',
@@ -127,6 +129,7 @@ function getInitialData(): DashboardData {
         change: 0,
         changeType: 'increase' as const,
         description: '加载中...',
+        targetPath: '/tickets?tab=list&status=in_progress',
       },
       {
         id: 'completed-tickets',
@@ -138,6 +141,7 @@ function getInitialData(): DashboardData {
         change: 0,
         changeType: 'increase' as const,
         description: '加载中...',
+        targetPath: '/tickets?tab=list&status=resolved',
       },
       // 第2行：时间与质量指标
       {
@@ -151,6 +155,7 @@ function getInitialData(): DashboardData {
         changeType: 'decrease' as const,
         description: '暂无数据',
         target: 4,
+        targetPath: '/reports',
       },
       {
         id: 'avg-resolution',
@@ -163,6 +168,7 @@ function getInitialData(): DashboardData {
         changeType: 'decrease' as const,
         description: '暂无数据',
         target: 8,
+        targetPath: '/reports',
       },
       {
         id: 'sla-compliance',
@@ -176,6 +182,7 @@ function getInitialData(): DashboardData {
         description: '暂无数据',
         target: 95,
         alert: 'warning',
+        targetPath: '/sla-monitor',
       },
       {
         id: 'overdue-tickets',
@@ -188,6 +195,7 @@ function getInitialData(): DashboardData {
         changeType: 'increase' as const,
         description: '实时超时工单',
         alert: 'error',
+        targetPath: '/tickets?tab=list&overdue=true',
       },
     ],
     // 工单趋势

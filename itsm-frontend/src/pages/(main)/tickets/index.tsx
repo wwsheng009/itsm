@@ -9,6 +9,7 @@ import TicketAdvancedSearch, {
   type AdvancedSearchFilters,
 } from '@/components/ticket/TicketAdvancedSearch';
 import type { TicketQueryFilters } from '@/lib/hooks/useTickets';
+import { TicketStatus } from '@/lib/services/ticket-service';
 import {
   saveFilters,
   restoreFilters,
@@ -61,6 +62,15 @@ function TicketsPageContent() {
     const search = searchParams.get('search');
     if (search === 'advanced') {
       setShowAdvancedSearch(true);
+    }
+    // 支持 Dashboard KPI 磁贴下转：/tickets?status=xxx 直接按状态过滤列表
+    const statusParam = searchParams.get('status');
+    if (statusParam) {
+      const validStatuses = Object.values(TicketStatus);
+      if (validStatuses.includes(statusParam as TicketStatus)) {
+        setAdvancedFilters(prev => ({ ...prev, status: statusParam as TicketStatus }));
+        setActiveTab('list');
+      }
     }
     if (searchParams.get('overdue') === 'true') {
       setAdvancedFilters({ isOverdue: true });

@@ -1,6 +1,8 @@
 
 import React from 'react';
-import { Card, Row, Col, Statistic, Tooltip, Spin, Progress } from 'antd';
+import { useNavigate } from 'react-router';
+
+import { App, Card, Row, Col, Tooltip, Spin } from 'antd';
 import {
   ArrowUp,
   ArrowDown,
@@ -10,6 +12,7 @@ import {
   CheckCircle,
   AlertTriangle,
   User,
+  ArrowUpRight,
 } from 'lucide-react';
 import type { KPIMetric } from '../types/dashboard.types';
 
@@ -38,6 +41,8 @@ const getMetricPolarity = (id: string): MetricPolarity => {
 
 // 企业级KPI卡片组件
 const EnterpriseKPICard: React.FC<{ metric: KPIMetric }> = React.memo(({ metric }) => {
+  const navigate = useNavigate();
+  const { message } = App.useApp();
   const polarity = getMetricPolarity(metric.id);
 
   // 根据业务极性判断趋势颜色：
@@ -95,11 +100,40 @@ const EnterpriseKPICard: React.FC<{ metric: KPIMetric }> = React.memo(({ metric 
     return 75; // 默认值
   };
 
+  // 点击磁贴下转到对应的处理界面
+  const isClickable = Boolean(metric.targetPath);
+
+  const handleCardClick = () => {
+    if (!metric.targetPath) return;
+    try {
+      navigate(metric.targetPath);
+    } catch (error) {
+      console.error('KPI card navigation error:', error);
+      message.error('导航失败，请稍后重试');
+    }
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (!isClickable) return;
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault();
+      handleCardClick();
+    }
+  };
+
   return (
     <Col xs={24} sm={12} md={12} lg={8} xl={6} xxl={6}>
       <Card
-        className="h-full transition-all duration-200 hover:border-blue-500 hover:shadow-md group rounded-lg bg-white shadow-sm border border-gray-200"
-       
+        className={`h-full transition-all duration-200 rounded-lg bg-white shadow-sm border border-gray-200 group ${
+          isClickable
+            ? 'cursor-pointer hover:border-blue-500 hover:shadow-md focus:outline-none focus:ring-2 focus:ring-blue-400'
+            : ''
+        }`}
+        role={isClickable ? 'button' : undefined}
+        tabIndex={isClickable ? 0 : undefined}
+        aria-label={isClickable ? `${metric.title}，点击查看详情` : undefined}
+        onClick={isClickable ? handleCardClick : undefined}
+        onKeyDown={isClickable ? handleKeyDown : undefined}
         styles={{
           body: {
             padding: '20px',
@@ -137,14 +171,17 @@ const EnterpriseKPICard: React.FC<{ metric: KPIMetric }> = React.memo(({ metric 
           </div>
 
           {/* 标题 */}
-          <div className="mb-3">
+          <div className="mb-3 flex items-start justify-between gap-2">
             <Tooltip title={metric.description || metric.title}>
               <h3 className="text-base font-semibold text-gray-800 leading-tight line-clamp-2">
-                {' '}
-                {/* Changed text size and color */}
                 {metric.title}
               </h3>
             </Tooltip>
+            {isClickable && (
+              <Tooltip title="点击下转查看详情">
+                <ArrowUpRight className="w-4 h-4 text-gray-300 group-hover:text-blue-500 transition-colors shrink-0" />
+              </Tooltip>
+            )}
           </div>
 
           {/* 数值显示 */}
