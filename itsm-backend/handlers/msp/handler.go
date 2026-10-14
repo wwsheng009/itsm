@@ -20,14 +20,15 @@ import (
 
 // Handler MSP HTTP handler
 type Handler struct {
-	mspAllocationService *service.MSPAllocationService
-	ticketService        *service.TicketService
-	workbench            *service.MSPWorkbenchService
-	views                *service.MSPWorkbenchViewService
-	audit                *service.MSPAuditService
-	workflowDistribution workflowDistributionService
-	taskProjection       taskProjectionService
-	logger               *zap.SugaredLogger
+	mspAllocationService   *service.MSPAllocationService
+	ticketService          *service.TicketService
+	workbench              *service.MSPWorkbenchService
+	views                  *service.MSPWorkbenchViewService
+	audit                  *service.MSPAuditService
+	workflowDistribution   workflowDistributionService
+	ticketTypeDistribution ticketTypeDistributionService
+	taskProjection         taskProjectionService
+	logger                 *zap.SugaredLogger
 }
 
 // NewHandler 创建 MSP handler 实例
@@ -38,18 +39,20 @@ func NewHandler(
 	views *service.MSPWorkbenchViewService,
 	audit *service.MSPAuditService,
 	workflowDistribution workflowDistributionService,
+	ticketTypeDistribution ticketTypeDistributionService,
 	taskProjection taskProjectionService,
 	logger *zap.SugaredLogger,
 ) *Handler {
 	return &Handler{
-		mspAllocationService: mspAllocationService,
-		ticketService:        ticketService,
-		workbench:            workbench,
-		views:                views,
-		audit:                audit,
-		workflowDistribution: workflowDistribution,
-		taskProjection:       taskProjection,
-		logger:               logger,
+		mspAllocationService:   mspAllocationService,
+		ticketService:          ticketService,
+		workbench:              workbench,
+		views:                  views,
+		audit:                  audit,
+		workflowDistribution:   workflowDistribution,
+		ticketTypeDistribution: ticketTypeDistribution,
+		taskProjection:         taskProjection,
+		logger:                 logger,
 	}
 }
 

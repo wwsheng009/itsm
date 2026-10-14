@@ -41,6 +41,13 @@ func SetupMSPRoutes(r *gin.Engine, config *RouterConfig) {
 		// 模板分发（P2-①）：provider 已发布模板 → 客户租户草稿副本（copy-in + 来源追踪 + 升级提示）。
 		msp.GET("/customers/:customer_tenant_id/workflow-templates", middleware.RequireMSPPermission("msp_customer", "read"), config.MSPHandler.ListCustomerWorkflowTemplates)
 		msp.POST("/customers/:customer_tenant_id/workflow-templates/:key/distribute", middleware.RequireMSPPermission("msp_customer", "write"), config.MSPHandler.DistributeWorkflowTemplate)
+		// 工单类型受控下发（D-TT-1，方案 §4.5a，P2-3）：copy-in + 受控锁 + 发布同步 + 解绑转 native。
+		// 授权 = msp_customer read/write ∩ mspguard（分配 + 客户 active，服务端二次校验）。
+		msp.POST("/customers/:customer_tenant_id/ticket-types/:id/distribute", middleware.RequireMSPPermission("msp_customer", "write"), config.MSPHandler.DistributeTicketType)
+		msp.GET("/customers/:customer_tenant_id/ticket-types/distributions", middleware.RequireMSPPermission("msp_customer", "read"), config.MSPHandler.ListTicketTypeDistributions)
+		msp.GET("/customers/:customer_tenant_id/ticket-types/distributions/:distId/preview", middleware.RequireMSPPermission("msp_customer", "read"), config.MSPHandler.PreviewTicketTypeDistribution)
+		msp.POST("/customers/:customer_tenant_id/ticket-types/distributions/:distId/publish", middleware.RequireMSPPermission("msp_customer", "write"), config.MSPHandler.PublishTicketTypeDistribution)
+		msp.POST("/customers/:customer_tenant_id/ticket-types/distributions/:distId/unbind", middleware.RequireMSPPermission("msp_customer", "write"), config.MSPHandler.UnbindTicketTypeDistribution)
 
 		// 工单分配 - 需要 msp_ticket:write 权限
 		msp.POST("/tickets/:id/assign", middleware.RequireMSPPermission("msp_ticket", "write"), config.MSPHandler.AssignMSPTechnician)

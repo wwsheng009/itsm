@@ -388,6 +388,9 @@ func NewApplication() *Application {
 	ticketSLAService := service.NewTicketSLAService(client, sugar)
 	auditLogService := service.NewAuditLogService(client, sugar)
 	ticketTypeService := service.NewTicketTypeService(client, sugar)
+	// D-TT-1 受控下发（P2-3）：装配分发服务为 TicketTypeService 钩子（源变更→副本 dirty；源归档→orphaned）。
+	ttDistributionService := service.NewTicketTypeDistributionService(client, service.NewMSPAccessValidator(client), sugar)
+	ticketTypeService.SetDistributionHooks(ttDistributionService)
 	ticketTagService := service.NewTicketTagService(client)
 	surveyService := service.NewSurveyService(client, sugar)
 	cloudService := service.NewCloudService(client, sugar)
@@ -1488,6 +1491,7 @@ func NewApplication() *Application {
 			service.NewMSPWorkbenchViewService(client, sugar),
 			service.NewMSPAuditService(client, sugar),
 			service.NewMSPWorkflowDistributionService(database.GetRawDB(), bpmnTemplateCatalog, service.NewMSPAccessValidator(client), client, sugar),
+			ttDistributionService,
 			service.NewMSPTaskProjectionService(client, sugar),
 			sugar),
 		SystemConfigHandler:  systemConfigHandler,

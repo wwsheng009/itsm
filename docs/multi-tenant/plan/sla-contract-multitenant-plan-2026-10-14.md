@@ -963,7 +963,7 @@ flowchart TD
 | P1-3 | #11/#12 Pause/Resume 真实计时接线（incident + ticket 两路径共用 SLAMonitorService） | ✅ 已提交（见 B.11） |
 | P2-1 | #14 违约归责状态机（D-SLA-8）：schema + 状态机 API（disputed/settle）+ 权限码 sla:violation:settle | ✅ 已提交（见 B.12） |
 | P2-2 | #15 结算口径白名单 + provider 结算报表（D-SLA-5/D-SLA-9，含 ticket.sla_matched_layer 快照） | ✅ 已提交（见 B.13） |
-| P2-3 | #20 D-TT-1 类型受控下发（前置=P0 部署验收） | ⬜ |
+| P2-3 | #20 D-TT-1 类型受控下发（前置=P0 部署验收） | ✅ 已提交（见 B.14） |
 | P3 | 前端补全（businessHours/grant 选择器/报表页/进度条） | ⬜ |
 
 ### B.3 实施纪律（开发期检查单）
@@ -1158,3 +1158,23 @@ flowchart TD
 | IM-25 | 口径工程化落点：合规率=合同基准重算计违约之外占比；`pending`（未处置）按重算计违约（快照锁定后走下一周期争议处置）；`accepted` 单列"认账违约"计数；信用额基数=计违约数。与 §13.2 ⑤/§13.3 表述的细化，真实合同条款（rate/cap 语义）待业务校准 |
 | IM-26 | 出快照锁定复用 `sla:violation:settle` 权限（裁决与锁定同属 provider 结算动作域），不新增权限码 |
 | IM-27 | 锁定为显式 POST 动作（GET 报表保持只读无副作用）；周期末由 provider 确认后调用，锁定后新争议走下一周期（§13.3） |
+
+### B.14 实施期记录（P2-3 工单类型受控下发 D-TT-1，2026-10-14）
+
+**交付物**（service + handlers/msp + handlers/ticket_type + router + authz 编译绿；`go test ./service/`（全包，含 9 个下发测试）、`./handlers/msp`、`./handlers/ticket`、`./router`、`./middleware`、`./internal/authz`、`./pkg/seeder` 全绿；codegen ENTC_EXIT=0；authz-gen 预检重生成）：
+
+- **schema**：`ticket_types` 增 6 列（origin / origin_provider_tenant_id / origin_type_id / controlled_by_provider / sync_status / last_synced_at）+ 新实体 `ticket_type_distribution`（分发追踪表，行归属 customer 租户——对齐 workflow_template_distributions 先例）+ 迁移 `20261014f`（+down）+ **RLS `013`**（追踪表 tenant 隔离策略，只 ENABLE 不 FORCE）；
+- **下发**（`POST /api/v1/msp/customers/:cid/ticket-types/:id/distribute`）：mspguard 授权 + copy-in 物化（INSERT-only，code 撞车机械后缀 `-p<providerID>`）+ 溯源行 + **SLA 联动合同 binding**（v1.11"自动创建 grant"的并轨升级，见 IM-28）；
+- **受控锁**：`UpdateTicketType` 对 `controlled_by_provider` 副本拦截受控字段修改（403 + 字段清单）；治理字段可改；`DeleteTicketType` 拦截受控副本删除（INV-4）；
+- **发布流程**（列表/预览/发布/解绑四端点）：源编辑→副本 `dirty`（"有可用更新"）→ `GET .../preview` 受控字段 diff + SLA 变更 → `POST .../publish` 逐副本事务（**INV-2 origin 三元组守卫 UPDATE** + **INV-3 白名单 name/description/sla_enabled**）+ binding 联动 + `synced/failed` 收敛可重试 → `POST .../unbind` 副本转 native + 级联移除 binding；
+- **源归档**：`DeleteTicketType`（归档）钩子把副本/记录标 `orphaned` 保留（INV-4 零 DELETE）；
+- **授权/审计**：端点复用 `msp_customer:read|write` + mspguard 唯一入口（对齐 P2-① 先例，不新增权限码）；写路径审计 `source=workbench` + `target_tenant`；
+- **测试**（9 场景）：物化/冲突/后缀去重与 native 零改动（INV-1/5）/受控锁/源编辑 dirty/预览与发布/INV-2 守卫 failed/解绑与级联/无合同暂缓/归档 orphaned（INV-4）。
+
+| IM | 说明 |
+|---|---|
+| IM-28 | SLA 联动通道修正：§4.5a 原文"下发时自动创建对应 grant"随 P1-2 并轨闸门升级为**客户生效合同的 binding upsert**（L1 权威通道 = 合同链；grant 写入口已 410）。无生效合同 → 联动标注 `skipped_no_contract`，发布时再尝试 |
+| IM-29 | 分发追踪表行归属 **customer 租户**（tenant_id=副本租户）+ provider_tenant_id 列，对齐 workflow_template_distributions 先例；跨租户写事务走 `tenantctx.WithSystemBypass`（§4.1b"副本写入走系统特权上下文"），行数据显式 tenant_id；单客户读面沿用客户作用域 ctx |
+| IM-30 | 初始物化字段范围 = 受控（name/description/sla_enabled；default_sla_id 保持空，SLA 走 binding）+ 治理（icon/color/sort_order/auto_assign_enabled/assignment_rules/notification_config）+ 表单基线（default_priority/custom_fields/sla_exempt）；**不下发** workflow_definition_key/approval_*/permission_config（客户流程自治，§4.5a"不下发"清单） |
+| IM-31 | 发布为**按副本端点**（逐副本事务、逐副本重试收敛）；源级批量编排（一次发布全部客户）归 P3 前端/编排薄层；`dirty` 标记为提交后 best-effort 钩子（发布 diff 以实时源为准，钩子失败不阻断源编辑） |
+| IM-32 | 受控锁范围：受控字段清单内差异即 403（显式置同值放行）；受控副本禁止 customer 归档；解绑后副本保留全部当前值仅解锁（不回滚任何字段） |

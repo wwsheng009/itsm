@@ -23,8 +23,21 @@ import (
 )
 
 type TicketTypeService struct {
-	client *ent.Client
-	logger *zap.SugaredLogger
+	client    *ent.Client
+	logger    *zap.SugaredLogger
+	distHooks ticketTypeDistributionHooks
+}
+
+// ticketTypeDistributionHooks 受控下发钩子（D-TT-1）：源类型受控字段变更→副本 dirty；
+// 源归档→副本/记录 orphaned。未装配（测试/私有部署）时为空操作——零影响原生单租户行为。
+type ticketTypeDistributionHooks interface {
+	MarkDistributedCopiesDirty(ctx context.Context, providerTenantID, sourceTypeID int) (int, error)
+	MarkSourceOrphaned(ctx context.Context, providerTenantID, sourceTypeID int) (int, error)
+}
+
+// SetDistributionHooks 装配受控下发钩子（app 启动时注入；可选）。
+func (s *TicketTypeService) SetDistributionHooks(h ticketTypeDistributionHooks) {
+	s.distHooks = h
 }
 
 var ticketTypePresets = []dto.TicketTypePreset{
@@ -168,6 +181,8 @@ func (s *TicketTypeService) CreateTicketType(ctx context.Context, req *dto.Creat
 
 // UpdateTicketType updates an existing ticket type using ent
 func (s *TicketTypeService) UpdateTicketType(ctx context.Context, id int, req *dto.UpdateTicketTypeRequest, tenantID, userID int) (*dto.TicketTypeDefinition, error) {
+	// D-TT-1 钩子比较基准（best-effort 快照；读取失败不阻断更新）。
+	pre, _ := s.client.TicketType.Get(ctx, id)
 	tx, err := s.client.Tx(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("开启工单类型更新事务失败: %w", err)
@@ -181,6 +196,22 @@ func (s *TicketTypeService) UpdateTicketType(ctx context.Context, id int, req *d
 	if err := tx.Commit(); err != nil {
 		return nil, fmt.Errorf("提交工单类型更新事务失败: %w", err)
 	}
+
+	// D-TT-1（提交后 best-effort）：源类型受控字段变更 → 全部下发副本标 dirty（"有可用更新"；无副本时空操作）。
+	if s.distHooks != nil && pre != nil && updated != nil {
+		updatedSLA := int64(0)
+		if updated.DefaultSLAID != nil {
+			updatedSLA = int64(*updated.DefaultSLAID)
+		}
+		if pre.Name != updated.Name || pre.Description != updated.Description ||
+			pre.SLAEnabled != updated.SLAEnabled || pre.DefaultSLAID != updatedSLA {
+			if n, err := s.distHooks.MarkDistributedCopiesDirty(ctx, tenantID, updated.ID); err != nil {
+				s.logger.Warnw("mark distributed copies dirty failed", "error", err, "source_type_id", updated.ID)
+			} else if n > 0 {
+				s.logger.Infow("distributed copies marked dirty", "source_type_id", updated.ID, "copies", n)
+			}
+		}
+	}
 	return updated, nil
 }
 
@@ -193,6 +224,14 @@ func (s *TicketTypeService) updateTicketType(ctx context.Context, id int, req *d
 	}
 	if int(existing.TenantID) != tenantID {
 		return nil, common.NewNotFoundError("工单类型")
+	}
+
+	// D-TT-1 受控锁（§4.5a）：受控副本的受控字段仅服务商发布可改（handler 校验 + 此处兜底）。
+	if existing.Origin == "controlled" && existing.ControlledByProvider {
+		if violated := controlledFieldViolations(existing, req); len(violated) > 0 {
+			return nil, common.NewBusinessError(common.ForbiddenCode,
+				"受控字段由服务商管理，不可本地修改："+strings.Join(violated, "、"), "")
+		}
 	}
 
 	// Check code uniqueness if being changed (code is immutable; skip for updates)
@@ -399,6 +438,13 @@ func (s *TicketTypeService) DeleteTicketType(ctx context.Context, id, tenantID, 
 		return common.NewNotFoundError("工单类型")
 	}
 
+	// D-TT-1：受控副本不可删除（解绑/停用由服务商侧完成；INV-4 不删类型避免存量工单类型悬挂）。
+	if existing.Origin == "controlled" && existing.ControlledByProvider {
+		_ = tx.Rollback()
+		return common.NewBusinessError(common.ForbiddenCode,
+			"服务商下发类型不可删除；如需移除请联系服务商解绑或先停用", "")
+	}
+
 	_, err = txc.TicketType.UpdateOne(existing).SetStatus(string(dto.TicketTypeStatusInactive)).SetArchivedAt(time.Now()).SetArchivedBy(int64(userID)).SetUpdatedBy(int64(userID)).SetUpdatedAt(time.Now()).Save(ctx)
 	if err != nil {
 		_ = tx.Rollback()
@@ -411,6 +457,15 @@ func (s *TicketTypeService) DeleteTicketType(ctx context.Context, id, tenantID, 
 	}
 	if err := tx.Commit(); err != nil {
 		return fmt.Errorf("提交归档事务失败: %w", err)
+	}
+
+	// D-TT-1：源类型归档 → 下发副本/记录标 orphaned 保留（INV-4 零 DELETE；无副本时空操作）。
+	if s.distHooks != nil {
+		if n, err := s.distHooks.MarkSourceOrphaned(ctx, tenantID, id); err != nil {
+			s.logger.Warnw("mark distributed copies orphaned failed", "error", err, "source_type_id", id)
+		} else if n > 0 {
+			s.logger.Infow("distributed copies marked orphaned", "source_type_id", id, "count", n)
+		}
 	}
 	return nil
 }
@@ -553,6 +608,25 @@ func (s *TicketTypeService) validateBindings(ctx context.Context, tenantID int, 
 		}
 	}
 	return nil
+}
+
+// controlledFieldViolations 返回请求中试图修改受控字段的字段名清单
+// （D-TT-1 §4.5a INV-3：受控字段 name/description/sla_enabled/default_sla_id 仅服务商发布可写）。
+func controlledFieldViolations(existing *ent.TicketType, req *dto.UpdateTicketTypeRequest) []string {
+	out := make([]string, 0, 4)
+	if req.Name != nil && *req.Name != existing.Name {
+		out = append(out, "name")
+	}
+	if req.Description != nil && *req.Description != existing.Description {
+		out = append(out, "description")
+	}
+	if req.SLAEnabled != nil && *req.SLAEnabled != existing.SLAEnabled {
+		out = append(out, "slaEnabled")
+	}
+	if req.DefaultSLAID != nil && int64(*req.DefaultSLAID) != existing.DefaultSLAID {
+		out = append(out, "defaultSlaId")
+	}
+	return out
 }
 
 // toDefinition converts an ent TicketType to DTO

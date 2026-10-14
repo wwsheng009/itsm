@@ -35,7 +35,7 @@ func newMSPTestRouter(t *testing.T, client *ent.Client, userID int, mspCtx *midd
 	gin.SetMode(gin.TestMode)
 	logger := zaptest.NewLogger(t).Sugar()
 	h := NewHandler(nil, service.NewTicketServiceForTest(client, logger), nil, nil,
-		service.NewMSPAuditService(client, logger), nil, nil, logger)
+		service.NewMSPAuditService(client, logger), nil, nil, nil, logger)
 
 	r := gin.New()
 	r.Use(gin.Recovery())
@@ -312,7 +312,7 @@ func TestCreateAllocation_DuplicateReturns409(t *testing.T) {
 	require.NoError(t, err)
 
 	logger := zaptest.NewLogger(t).Sugar()
-	h := NewHandler(service.NewMSPAllocationService(client, logger), nil, nil, nil, nil, nil, nil, logger)
+	h := NewHandler(service.NewMSPAllocationService(client, logger), nil, nil, nil, nil, nil, nil, nil, logger)
 	gin.SetMode(gin.TestMode)
 	r := gin.New()
 	r.POST("/api/v1/msp/allocations", func(c *gin.Context) {
@@ -386,7 +386,7 @@ func TestGetAllocationHistory_ScopeAndFilters(t *testing.T) {
 	require.NoError(t, err)
 
 	logger := zaptest.NewLogger(t).Sugar()
-	h := NewHandler(service.NewMSPAllocationService(client, logger), nil, nil, nil, nil, nil, nil, logger)
+	h := NewHandler(service.NewMSPAllocationService(client, logger), nil, nil, nil, nil, nil, nil, nil, logger)
 
 	routerFor := func(userID int) *gin.Engine {
 		r := gin.New()

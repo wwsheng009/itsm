@@ -95,6 +95,7 @@ func newMSPE2EEngine(t *testing.T, client *ent.Client) *gin.Engine {
 		nil, // views：本剧本不覆盖（IP-P2-4a 另有单测）
 		service.NewMSPAuditService(client, logger),
 		nil, // workflowDistribution：本剧本不覆盖（P2-① 另有 service/handler 单测）
+		nil, // ticketTypeDistribution：本剧本不覆盖（P2-3 另有 service 单测）
 		nil, // taskProjection：本剧本不覆盖（P2-② 另有 service/handler 单测）
 		logger,
 	)

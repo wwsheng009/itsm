@@ -135,7 +135,7 @@ func newRecordsTestRouter(t *testing.T, env *recordsHandlerEnv, mspCtx *middlewa
 	t.Helper()
 	gin.SetMode(gin.TestMode)
 	logger := zaptest.NewLogger(t).Sugar()
-	h := NewHandler(nil, nil, service.NewMSPWorkbenchService(env.client, nil, nil, logger), nil, nil, nil, nil, logger)
+	h := NewHandler(nil, nil, service.NewMSPWorkbenchService(env.client, nil, nil, logger), nil, nil, nil, nil, nil, logger)
 
 	r := gin.New()
 	r.Use(gin.Recovery())
@@ -274,7 +274,7 @@ func TestWorkbenchProblemStatus_Update(t *testing.T) {
 	workbench.SetProblemStatusWriter(writer)
 
 	gin.SetMode(gin.TestMode)
-	h := NewHandler(nil, nil, workbench, nil, nil, nil, nil, logger)
+	h := NewHandler(nil, nil, workbench, nil, nil, nil, nil, nil, logger)
 	r := gin.New()
 	r.Use(gin.Recovery())
 	r.Use(func(c *gin.Context) {
@@ -337,7 +337,7 @@ func TestWorkbenchProblemStatus_NoMSPContextFailsClosed(t *testing.T) {
 	workbench.SetProblemStatusWriter(writer)
 
 	gin.SetMode(gin.TestMode)
-	h := NewHandler(nil, nil, workbench, nil, nil, nil, nil, logger)
+	h := NewHandler(nil, nil, workbench, nil, nil, nil, nil, nil, logger)
 	r := gin.New()
 	r.Use(gin.Recovery())
 	r.POST("/api/v1/msp/problems/:id/status", h.UpdateWorkbenchProblemStatus)
@@ -394,7 +394,7 @@ func TestWorkbenchChangeStatus_Update(t *testing.T) {
 	workbench.SetChangeStatusWriter(writer)
 
 	gin.SetMode(gin.TestMode)
-	h := NewHandler(nil, nil, workbench, nil, nil, nil, nil, logger)
+	h := NewHandler(nil, nil, workbench, nil, nil, nil, nil, nil, logger)
 	r := gin.New()
 	r.Use(gin.Recovery())
 	r.Use(func(c *gin.Context) {
@@ -468,7 +468,7 @@ func TestWorkbenchServiceRequestStatus_Update(t *testing.T) {
 	workbench.SetRequestStatusWriter(writer)
 
 	gin.SetMode(gin.TestMode)
-	h := NewHandler(nil, nil, workbench, nil, nil, nil, nil, logger)
+	h := NewHandler(nil, nil, workbench, nil, nil, nil, nil, nil, logger)
 	r := gin.New()
 	r.Use(gin.Recovery())
 	r.Use(func(c *gin.Context) {

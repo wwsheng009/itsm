@@ -51,7 +51,7 @@ func newTaskProjectionTestRouter(t *testing.T, stub *stubTaskProjection, mspCtx 
 	t.Helper()
 	gin.SetMode(gin.TestMode)
 	logger := zaptest.NewLogger(t).Sugar()
-	h := NewHandler(nil, nil, nil, nil, nil, nil, stub, logger)
+	h := NewHandler(nil, nil, nil, nil, nil, nil, nil, stub, logger)
 	r := gin.New()
 	r.Use(gin.Recovery())
 	r.Use(func(c *gin.Context) {
@@ -82,8 +82,8 @@ func TestListWorkbenchTasks_Success(t *testing.T) {
 
 	require.Equal(t, http.StatusOK, w.Code)
 	var env struct {
-		Code int                      `json:"code"`
-		Data dto.MSPTaskListResponse  `json:"data"`
+		Code int                     `json:"code"`
+		Data dto.MSPTaskListResponse `json:"data"`
 	}
 	require.NoError(t, json.Unmarshal(w.Body.Bytes(), &env))
 	assert.Equal(t, 1, env.Data.Total)
