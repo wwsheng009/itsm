@@ -68,6 +68,64 @@ describe('SLAApi', () => {
     });
   });
 
+  // ==================== D-SLA-1：下发授权（grant）契约 ====================
+
+  describe('listGrants', () => {
+    it('should list grants with filters', async () => {
+      mockGet.mockResolvedValue({ items: [], total: 0 });
+      const result = await SLAApi.listGrants({ customerTenantId: 5, isActive: true });
+      expect(mockGet).toHaveBeenCalledWith('/api/v1/sla/grants', { customerTenantId: '5', isActive: 'true' });
+      expect(result.items).toEqual([]);
+    });
+
+    it('should tolerate missing envelope fields', async () => {
+      mockGet.mockResolvedValue(undefined);
+      const result = await SLAApi.listGrants();
+      expect(result).toEqual({ items: [], total: 0 });
+    });
+  });
+
+  describe('createGrant', () => {
+    it('should create grant', async () => {
+      const payload = { slaDefinitionId: 1, customerTenantId: 5, ticketTypeId: 0 };
+      mockPost.mockResolvedValue({ id: 9, ...payload });
+      const result = await SLAApi.createGrant(payload);
+      expect(mockPost).toHaveBeenCalledWith('/api/v1/sla/grants', payload);
+      expect(result.id).toBe(9);
+    });
+  });
+
+  describe('updateGrant', () => {
+    it('should update validUntil', async () => {
+      mockPut.mockResolvedValue({ id: 9 });
+      await SLAApi.updateGrant(9, { validUntil: '2027-01-01T00:00:00Z' });
+      expect(mockPut).toHaveBeenCalledWith('/api/v1/sla/grants/9', { validUntil: '2027-01-01T00:00:00Z' });
+    });
+
+    it('should clear validUntil explicitly', async () => {
+      mockPut.mockResolvedValue({ id: 9 });
+      await SLAApi.updateGrant(9, { clearValidUntil: true });
+      expect(mockPut).toHaveBeenCalledWith('/api/v1/sla/grants/9', { clearValidUntil: true });
+    });
+  });
+
+  describe('deactivateGrant', () => {
+    it('should deactivate grant', async () => {
+      mockDelete.mockResolvedValue(undefined);
+      await SLAApi.deactivateGrant(9);
+      expect(mockDelete).toHaveBeenCalledWith('/api/v1/sla/grants/9');
+    });
+  });
+
+  describe('getProvidedDefinitions', () => {
+    it('should read provided definitions (customer read-only view)', async () => {
+      mockGet.mockResolvedValue({ items: [{ grantId: 1, slaDefinitionId: 2, name: 'Contract SLA' }], total: 1 });
+      const result = await SLAApi.getProvidedDefinitions();
+      expect(mockGet).toHaveBeenCalledWith('/api/v1/sla/definitions/provided');
+      expect(result.items[0].name).toBe('Contract SLA');
+    });
+  });
+
   describe('checkTicketCompliance', () => {
     it('should check compliance', async () => {
       mockPost.mockResolvedValue({ isCompliant: true, violations: [] });

@@ -51,6 +51,7 @@ const AdminProcessRouting = lazy(() => import('@/pages/(main)/admin/process-rout
 const AdminRoles = lazy(() => import('@/pages/(main)/admin/roles/index'));
 const AdminServiceCatalogs = lazy(() => import('@/pages/(main)/admin/service-catalogs/index'));
 const AdminSlaDefinitions = lazy(() => import('@/pages/(main)/admin/sla-definitions/index'));
+const AdminSlaGrants = lazy(() => import('@/pages/(main)/admin/sla-grants/index'));
 const AdminSlaTemplates = lazy(() => import('@/pages/(main)/admin/sla-templates/index'));
 const AdminSystemConfig = lazy(() => import('@/pages/(main)/admin/system-config/index'));
 const AdminTeams = lazy(() => import('@/pages/(main)/admin/teams/index'));
@@ -276,6 +277,7 @@ export const routes: RouteObject[] = [
           { path: 'admin/roles', element: <RequireCapability anyOf={['role:write']}>{lazyElement(AdminRoles)}</RequireCapability> },
           { path: 'admin/service-catalogs', element: <RequireCapability anyOf={['service_catalog:write']}>{lazyElement(AdminServiceCatalogs)}</RequireCapability> },
           { path: 'admin/sla-definitions', element: <RequireCapability anyOf={['sla:write']}>{lazyElement(AdminSlaDefinitions)}</RequireCapability> },
+          { path: 'admin/sla-grants', element: <RequireCapability anyOf={['sla:grant:read', 'sla:grant:write']}>{lazyElement(AdminSlaGrants)}</RequireCapability> },
           { path: 'admin/sla-templates', element: <RequireCapability anyOf={['sla:write']}>{lazyElement(AdminSlaTemplates)}</RequireCapability> },
           { path: 'admin/system-config', element: <RequireCapability anyOf={['system_config:write']}>{lazyElement(AdminSystemConfig)}</RequireCapability> },
           { path: 'admin/teams', element: <RequireCapability anyOf={['team:write']}>{lazyElement(AdminTeams)}</RequireCapability> },

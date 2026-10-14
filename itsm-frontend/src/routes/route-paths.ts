@@ -22,6 +22,7 @@ export const ROUTE_PATHS: ReadonlySet<string> = new Set([
   '/admin/roles',
   '/admin/service-catalogs',
   '/admin/sla-definitions',
+  '/admin/sla-grants',
   '/admin/sla-templates',
   '/admin/system-config',
   '/admin/teams',

@@ -65,6 +65,8 @@ export const ROUTE_PERMISSIONS: RoutePermissionRule[] = [
   // SLA 定义写面（剩余缺口治理 B2）：新建/编辑页面路由。
   { pattern: '/sla/definitions/new', anyOf: ['sla:write'], reason: 'router/sla_routes.go:20 POST /sla/definitions' },
   { pattern: '/sla/definitions/:id/edit', anyOf: ['sla:write'], reason: 'router/sla_routes.go:32 PUT /sla/definitions/:id' },
+  // SLA 下发授权（D-SLA-1）：provider 管理页（RequireMSPPermission sla:grant:*；非 MSP 部署后端 404）。
+  { pattern: '/admin/sla-grants', anyOf: ['sla:grant:read', 'sla:grant:write'], reason: 'router/sla_routes.go:63-67 POST/GET/PUT/DELETE /sla/grants' },
   // 读页面门禁（2026-10-10）：工单统计三层同码——菜单 permission_code=ticket:read
   // （pkg/seeder/seeder.go 工单统计）、页面主接口 GET /api/v1/analytics/tickets=ticket:read
   // （2026-10-10 由 report:read 收敛）、同页 GET /api/v1/tickets/stats=ticket:read。

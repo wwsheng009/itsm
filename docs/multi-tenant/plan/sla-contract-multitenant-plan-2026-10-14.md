@@ -951,7 +951,7 @@ flowchart TD
 | P0-1 模型包 | #3 owner_provider_tenant_id + #4 sla_definition_grant + #19 unique(tenant_id,name)（同迁移）+ RLS policy（#9）+ 随包 #18 模型字段 sla_exempt | SLA-A4/A8 | feat/sla-p0-model | d541f97e + 68824c19 | ✅ 已提交 |
 | P0-2 匹配引擎 | #1 L1/L2 插入 + L4 告警 + MatchedLayer（§13.6 依赖）+ #17 动态类型解析 + #18 匹配链重排/豁免/L3c | SLA-A1/A2/A3/A12 | feat/sla-p0-matcher | 待合并（本地已实施+编译/service 全包/相关 handlers 全绿） | 🟡 已实施待提交 |
 | P0-3 API 包 | #5 grant/provided 路由 + #10 grant handler 三件套 + #6 CRUD 护栏 + #7 Atoi 修复 | SLA-A4/A8/A9 | feat/sla-p0-api | 待合并（本地已实施+编译/守卫测试/handler 测试全绿） | 🟡 已实施待提交 |
-| P0-4 前端包 | #8 serviceType 动态枚举 + grant 管理页 + 两段式列表 | SLA-A7 | — | — | ⬜ 未开始 |
+| P0-4 前端包 | #8 serviceType 动态枚举 + grant 管理页 + 两段式列表 | SLA-A7 | feat/sla-p0-frontend | 待合并（本地已实施+tsc/eslint/build/测试全绿） | 🟡 已实施待提交 |
 
 ### B.2 P1 / P2 / P3（工单 11–16、20——批次启动时展开）
 
@@ -1018,3 +1018,18 @@ flowchart TD
 - `internal/authz`：catalog 两码登记 + DB 词表绑定 + C1 矩阵登记；`cmd/authz-gen` 预检重生成（含 `/api/v1/sla/grants*` 与 provided 映射）；
 - `dto/sla_dto.go`：CreateSLAGrantRequest/UpdateSLAGrantRequest + SLADefinitionResponse.ownerProviderTenantId；
 - `handlers/sla/sla_grant_test.go`（新）：归属不符拒绝/deactivate-then-activate 连发/Provided 三重过滤/有效期更新与清空/护栏 fail-closed/Atoi 400 六场景。
+
+### B.7 实施期修正记录（P0-4，2026-10-14）
+
+| # | 方案原文 | 实施修正 | 原因 |
+|---|---|---|---|
+| IM-12 | "grant 管理页（列表/新建/停用）"（§12.3 差距清单，未指定落点） | 落点 `/admin/sla-grants`（admin 域），门禁 `RequireCapability anyOf ['sla:grant:read','sla:grant:write']` + `route-permissions.ts` 登记；路由三件同步 = routes/index.tsx（手工追加，生成骨架含人工门禁不得重跑覆盖）+ route-paths.ts + route-permissions.ts | 前端路由体系为"CSV 生成骨架 + 人工门禁 + 集中登记表"混合模式；grant 页属 provider 管理面，放 admin 域与 sla-definitions 相邻 |
+
+**P0-4 交付物**（tsc -b 绿；eslint 改动文件零告警；jest 55 passed（sla-api 新 6 用例 + route-permissions 守卫 + guards）；`npm run build` 绿）：
+
+- `lib/api/sla-api.ts`：SLADefinitionGrantItem/ProvidedDefinitionItem/CreateSLAGrantPayload 类型 + listGrants/createGrant/updateGrant/deactivateGrant/getProvidedDefinitions 五方法 + SLADefinition.ownerProviderTenantId；
+- `components/sla/SLADefinitionForm.tsx`：serviceType 自由文本 → **动态工单类型受控枚举**（TicketTypeApi.list 数据源；加载失败退化自由输入；历史不匹配值告警提示；留空=类型无关默认 L3c）；
+- `pages/(main)/admin/sla-grants/index.tsx`（新）：provider 授权管理（列表/新建 Modal/停用 Popconfirm；404 渲染"未启用"空态；客户下拉 MSPAPI.getCustomers；类型ID 0=类型无关）；
+- `pages/(main)/admin/sla-definitions/index.tsx`：**两段式列表**——原自建列表 + "服务商下发"只读段（List 渲染，仅当有下发数据时显示）；
+- `routes/index.tsx` + `route-paths.ts` + `route-permissions.ts`：新路由三件登记；
+- `lib/api/__tests__/sla-api.test.ts`：grant 契约 6 用例（含空响应容错与 clearValidUntil 语义）。

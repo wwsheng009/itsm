@@ -13,7 +13,11 @@ import {
 } from 'lucide-react';
 
 import React, { useState, useEffect } from 'react';
-import { SLAApi, SLADefinition as APISLADefinition } from '@/lib/api/sla-api';
+import {
+  SLAApi,
+  SLADefinition as APISLADefinition,
+  type ProvidedDefinitionItem,
+} from '@/lib/api/sla-api';
 import {
   Card,
   Table,
@@ -91,6 +95,8 @@ const SLADefinitionManagement = () => {
   const [selectedSLA, setSelectedSLA] = useState<SLADefinition | null>(null);
   const [showDetailModal, setShowDetailModal] = useState(false);
   const [loading, setLoading] = useState(false);
+  // 服务商下发定义（只读段，D-SLA-1；两段式列表"自建 / 下发"）
+  const [providedDefinitions, setProvidedDefinitions] = useState<ProvidedDefinitionItem[]>([]);
   const [form] = Form.useForm();
 
   // 加载SLA定义列表
@@ -109,6 +115,15 @@ const SLADefinitionManagement = () => {
 
   useEffect(() => {
     loadSLADefinitions();
+    // 下发段：customer 只读视图；无下发或部署未启用（404/403）时静默为空段。
+    (async () => {
+      try {
+        const res = await SLAApi.getProvidedDefinitions();
+        setProvidedDefinitions(res.items);
+      } catch {
+        /* 空段 */
+      }
+    })();
   }, []);
 
   // 统计信息
@@ -545,6 +560,48 @@ const SLADefinitionManagement = () => {
           />
         )}
       </Card>
+
+      {/* 服务商下发（只读段，D-SLA-1；两段式列表："自建"上段 + "下发"下段） */}
+      {providedDefinitions.length > 0 && (
+        <Card
+          className="enterprise-card mt-4"
+          title={
+            <Space>
+              <span>服务商下发</span>
+              <Tag color="blue">只读</Tag>
+            </Space>
+          }
+        >
+          <Text type="secondary" className="block mb-3 text-sm">
+            由服务商统一配置并按合同下发，本租户不可修改；合同覆盖类型的工单按此基准计时。
+          </Text>
+          <List
+            dataSource={providedDefinitions}
+            renderItem={item => (
+              <List.Item key={item.grantId}>
+                <List.Item.Meta
+                  title={
+                    <Space wrap>
+                      <Text strong>{item.name}</Text>
+                      <Tag>{item.priority || '默认'}</Tag>
+                      {item.ticketTypeId === 0 ? (
+                        <Tag>类型无关</Tag>
+                      ) : (
+                        <Tag color="blue">类型 #{item.ticketTypeId}</Tag>
+                      )}
+                    </Space>
+                  }
+                  description={`响应 ${item.responseTime} 分钟 / 解决 ${item.resolutionTime} 分钟${
+                    item.validUntil
+                      ? ` · 有效期至 ${new Date(item.validUntil).toLocaleDateString()}`
+                      : ''
+                  }`}
+                />
+              </List.Item>
+            )}
+          />
+        </Card>
+      )}
 
       {/* 创建/编辑模态框 */}
       <Modal

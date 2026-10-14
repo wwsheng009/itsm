@@ -15,8 +15,51 @@ export interface SLADefinition {
   complianceRate?: number;
   isActive?: boolean;
   tenantId?: number;
+  /** 归属服务商租户（0=租户自用；非0=provider 合同 SLA，D-SLA-1） */
+  ownerProviderTenantId?: number;
   createdAt?: string;
   updatedAt?: string;
+}
+
+// ==================== SLA 下发授权（D-SLA-1，provider 面） ====================
+
+/** GET/POST /api/v1/sla/grants 契约（handlers/sla/entity.go SLADefinitionGrant） */
+export interface SLADefinitionGrantItem {
+  id: number;
+  slaDefinitionId: number;
+  customerTenantId: number;
+  providerTenantId: number;
+  /** 客户租户内的工单类型 ID；0=类型无关授权 */
+  ticketTypeId: number;
+  validUntil?: string;
+  isActive: boolean;
+  tenantId: number;
+  createdAt: string;
+  updatedAt: string;
+  /** 列表查询富化的定义名称 */
+  definitionName?: string;
+}
+
+export interface CreateSLAGrantPayload {
+  slaDefinitionId: number;
+  customerTenantId: number;
+  ticketTypeId?: number;
+  validUntil?: string;
+}
+
+/** GET /api/v1/sla/definitions/provided（customer 只读视图，D-SLA-1） */
+export interface ProvidedDefinitionItem {
+  grantId: number;
+  slaDefinitionId: number;
+  name: string;
+  description: string;
+  serviceType: string;
+  priority: string;
+  responseTime: number;
+  resolutionTime: number;
+  ticketTypeId: number;
+  providerTenantId: number;
+  validUntil?: string;
 }
 
 // SLA违规接口 (camelCase - httpClient 自动转换)
@@ -212,6 +255,57 @@ export class SLAApi {
   // 获取SLA定义详情
   static async getSLADefinition(id: number): Promise<SLADefinition> {
     return httpClient.get(`/api/v1/sla/definitions/${id}`);
+  }
+
+  // ==================== SLA 下发授权（D-SLA-1，provider 面） ====================
+  // 契约：/api/v1/sla/grants（RequireMSPDeploymentMode 404 gate + sla:grant:*）；
+  // 非 MSP 部署下返回 404，调用方需渲染"未启用"空态而非报错。
+
+  /** 获取下发授权列表（provider 视角） */
+  static async listGrants(params?: {
+    customerTenantId?: number;
+    slaDefinitionId?: number;
+    isActive?: boolean;
+  }): Promise<{ items: SLADefinitionGrantItem[]; total: number }> {
+    const query: Record<string, string> = {};
+    if (params?.customerTenantId) query.customerTenantId = String(params.customerTenantId);
+    if (params?.slaDefinitionId) query.slaDefinitionId = String(params.slaDefinitionId);
+    if (params?.isActive !== undefined) query.isActive = String(params.isActive);
+    const response = await httpClient.get<{ items?: SLADefinitionGrantItem[]; total?: number }>(
+      '/api/v1/sla/grants',
+      query
+    );
+    return { items: response?.items ?? [], total: response?.total ?? 0 };
+  }
+
+  /** 创建下发授权（同客户同类型旧授权由后端自动停用） */
+  static async createGrant(data: CreateSLAGrantPayload): Promise<SLADefinitionGrantItem> {
+    return httpClient.post('/api/v1/sla/grants', data);
+  }
+
+  /** 更新授权有效期（validUntil 置空用 clearValidUntil=true） */
+  static async updateGrant(
+    id: number,
+    data: { validUntil?: string; clearValidUntil?: boolean }
+  ): Promise<SLADefinitionGrantItem> {
+    return httpClient.put(`/api/v1/sla/grants/${id}`, data);
+  }
+
+  /** 停用授权（逻辑撤销，保留审计链） */
+  static async deactivateGrant(id: number): Promise<void> {
+    return httpClient.delete(`/api/v1/sla/grants/${id}`);
+  }
+
+  /** 获取当前租户的服务商下发定义（customer 只读；四层写保护之读面） */
+  static async getProvidedDefinitions(): Promise<{
+    items: ProvidedDefinitionItem[];
+    total: number;
+  }> {
+    const response = await httpClient.get<{
+      items?: ProvidedDefinitionItem[];
+      total?: number;
+    }>('/api/v1/sla/definitions/provided');
+    return { items: response?.items ?? [], total: response?.total ?? 0 };
   }
 
   // 创建SLA定义
