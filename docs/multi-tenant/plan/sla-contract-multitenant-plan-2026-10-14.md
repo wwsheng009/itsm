@@ -982,6 +982,7 @@ flowchart TD
 2. 238 演示栈端到端验收锚点：SLA-A1（下发匹配）/A2（优先级）/A3（fail-loud）/A4（customer 写保护 403/404 + RLS 跨租户断言）/A8（护栏）/A12（豁免）/A7（表单枚举）；
 3. `SLA_UNBOUND_ALERT_ENABLED` 默认关——观察一周后再开启（R-SLA-4 节奏）。
 4. **2026-10-14 部署**：P0+P1+P2-1 已部署 238 demo 栈（`1.8.0-dev.1e60efee`：backend/frontend 双镜像重建 + init 自动迁移 + RLS 011/012 注入）；证据 `.dev/deploy/DEMO-FULL-20261014-1e60efee-EVIDENCE.md`。§8 端到端验收锚点（SLA-A1…）待执行。
+5. **2026-10-14 部署（二次增量）**：P2-2+P2-3+P3 已部署（`1.8.0-dev.c700c060`：双镜像重建 + 迁移 `20261014e/f` + **RLS 013** 注入）；证据 `.dev/deploy/DEMO-FULL-20261014-c700c060-EVIDENCE.md`。§8 端到端验收 runbook：`.dev/deploy/ACCEPTANCE-RUNBOOK-c700c060.md`（待执行）。
 
 ### B.4 实施期修正记录（P0-1，2026-10-14）
 
