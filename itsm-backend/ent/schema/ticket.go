@@ -87,6 +87,11 @@ func (Ticket) Fields() []ent.Field {
 		field.String("sla_pause_reason").
 			Comment("SLA暂停原因").
 			Optional(),
+		// D-SLA-9（方案 §13.6，P2-2）：匹配层级快照（建单时一次性写入；结算过滤依据）。
+		field.String("sla_matched_layer").
+			Comment("SLA匹配层级快照: L1/L2/L3a/L3b/L3c/L4").
+			Optional().
+			MaxLen(8),
 		field.Time("first_response_at").
 			Comment("首次响应时间").
 			Optional(),

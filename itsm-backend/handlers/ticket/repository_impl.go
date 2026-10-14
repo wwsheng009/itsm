@@ -369,8 +369,8 @@ func (r *EntRepository) EscalateTicket(ctx context.Context, id int, reason strin
 	return r.toDomain(t), nil
 }
 
-func (r *EntRepository) UpdateSLADeadlines(ctx context.Context, id int, responseDeadline, resolutionDeadline *time.Time, slaDefinitionID *int, tenantID int) error {
-	return r.repo.UpdateSLADeadlines(ctx, id, responseDeadline, resolutionDeadline, slaDefinitionID, tenantID)
+func (r *EntRepository) UpdateSLADeadlines(ctx context.Context, id int, responseDeadline, resolutionDeadline *time.Time, slaDefinitionID *int, matchedLayer string, tenantID int) error {
+	return r.repo.UpdateSLADeadlines(ctx, id, responseDeadline, resolutionDeadline, slaDefinitionID, matchedLayer, tenantID)
 }
 
 // Template operations

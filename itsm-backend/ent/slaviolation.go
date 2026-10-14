@@ -65,6 +65,8 @@ type SLAViolation struct {
 	WaivedAt time.Time `json:"waived_at,omitempty"`
 	// 已进结算快照（终态锁定；D-SLA-9 §13.3）
 	SettledFlag bool `json:"settled_flag,omitempty"`
+	// 匹配层级快照: L1/L2/L3a/L3b/L3c/L4（来源=工单）
+	MatchedLayer string `json:"matched_layer,omitempty"`
 	// 租户ID
 	TenantID int `json:"tenant_id,omitempty"`
 	// 创建时间
@@ -120,7 +122,7 @@ func (*SLAViolation) scanValues(columns []string) ([]any, error) {
 			values[i] = new(sql.NullBool)
 		case slaviolation.FieldID, slaviolation.FieldCreatedBy, slaviolation.FieldSLADefinitionID, slaviolation.FieldTicketID, slaviolation.FieldExpectedTime, slaviolation.FieldActualTime, slaviolation.FieldOverdueMinutes, slaviolation.FieldWaivedBy, slaviolation.FieldTenantID:
 			values[i] = new(sql.NullInt64)
-		case slaviolation.FieldTicketType, slaviolation.FieldSLAName, slaviolation.FieldViolationType, slaviolation.FieldStatus, slaviolation.FieldDescription, slaviolation.FieldSeverity, slaviolation.FieldResolutionNotes, slaviolation.FieldResolutionState, slaviolation.FieldDisputeReason, slaviolation.FieldWaivedReason:
+		case slaviolation.FieldTicketType, slaviolation.FieldSLAName, slaviolation.FieldViolationType, slaviolation.FieldStatus, slaviolation.FieldDescription, slaviolation.FieldSeverity, slaviolation.FieldResolutionNotes, slaviolation.FieldResolutionState, slaviolation.FieldDisputeReason, slaviolation.FieldWaivedReason, slaviolation.FieldMatchedLayer:
 			values[i] = new(sql.NullString)
 		case slaviolation.FieldViolationTime, slaviolation.FieldViolationOccurredAt, slaviolation.FieldResolvedAt, slaviolation.FieldWaivedAt, slaviolation.FieldCreatedAt, slaviolation.FieldUpdatedAt:
 			values[i] = new(sql.NullTime)
@@ -285,6 +287,12 @@ func (_m *SLAViolation) assignValues(columns []string, values []any) error {
 			} else if value.Valid {
 				_m.SettledFlag = value.Bool
 			}
+		case slaviolation.FieldMatchedLayer:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field matched_layer", values[i])
+			} else if value.Valid {
+				_m.MatchedLayer = value.String
+			}
 		case slaviolation.FieldTenantID:
 			if value, ok := values[i].(*sql.NullInt64); !ok {
 				return fmt.Errorf("unexpected type %T for field tenant_id", values[i])
@@ -424,6 +432,9 @@ func (_m *SLAViolation) String() string {
 	builder.WriteString(", ")
 	builder.WriteString("settled_flag=")
 	builder.WriteString(fmt.Sprintf("%v", _m.SettledFlag))
+	builder.WriteString(", ")
+	builder.WriteString("matched_layer=")
+	builder.WriteString(_m.MatchedLayer)
 	builder.WriteString(", ")
 	builder.WriteString("tenant_id=")
 	builder.WriteString(fmt.Sprintf("%v", _m.TenantID))

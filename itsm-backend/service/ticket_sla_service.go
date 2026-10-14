@@ -348,12 +348,21 @@ func (s *TicketSLAService) getSLADefinition(ctx context.Context, tenantID int, t
 // R4-b 2026-09-16：接受 ctx + tenantID，按租户时区注入 loc（覆盖 SLA 配置里的 time_zone 缺省值），
 // 与 timer_cron 的 LoadTenantLocation 口径一致；上下文不可用时回退 ResolveLocation("")=Asia/Shanghai。
 func (s *TicketSLAService) calculateDeadlineWithBusinessHours(ctx context.Context, tenantID int, startTime time.Time, durationMinutes int, businessHours map[string]interface{}) time.Time {
+	return ComputeDeadlineWithBusinessHours(ctx, s.client, tenantID, startTime, durationMinutes, businessHours)
+}
+
+// ComputeDeadlineWithBusinessHours 计算"以 startTime 为起点、durationMinutes 时长"的截止时间，
+// 应用定义配置的营业时间日历（空日历=24x7 连续计时）。
+//
+// P2-2 结算重算复用（方案 §13.5 判定基准）：结算按合同定义 × 工单客观时间重算，
+// 与建单路径共用同一实现，保证"结算重算与建单快照同口径"（L1 命中时两者天然一致）。
+func ComputeDeadlineWithBusinessHours(ctx context.Context, client *ent.Client, tenantID int, startTime time.Time, durationMinutes int, businessHours map[string]interface{}) time.Time {
 	if len(businessHours) == 0 || durationMinutes <= 0 {
 		return startTime.Add(time.Duration(durationMinutes) * time.Minute)
 	}
 	cfg := parseBusinessHoursConfig(businessHours)
 	if cfg.loc == nil {
-		cfg.loc = LoadTenantLocation(ctx, s.client, tenantID)
+		cfg.loc = LoadTenantLocation(ctx, client, tenantID)
 	}
 	return addBusinessMinutes(startTime, durationMinutes, cfg)
 }
@@ -876,7 +885,8 @@ func (s *TicketSLAService) CalculateSLADeadlineByDefinition(ctx context.Context,
 	now := s.nowFunc()
 	responseDeadline := s.calculateDeadlineWithBusinessHours(ctx, tenantID, now, sla.ResponseTime, sla.BusinessHours)
 	resolutionDeadline := s.calculateDeadlineWithBusinessHours(ctx, tenantID, now, sla.ResolutionTime, sla.BusinessHours)
-	return &SLADeadlineResult{SLADefinitionID: sla.ID, ResponseDeadline: &responseDeadline, ResolutionDeadline: &resolutionDeadline, BusinessHoursOnly: len(sla.BusinessHours) > 0}, nil
+	// MatchedLayer=L3a：类型直绑路径（调用方先行处理，不经四级匹配链）。
+	return &SLADeadlineResult{SLADefinitionID: sla.ID, MatchedLayer: "L3a", ResponseDeadline: &responseDeadline, ResolutionDeadline: &resolutionDeadline, BusinessHoursOnly: len(sla.BusinessHours) > 0}, nil
 }
 
 // toPointer 返回指针（辅助函数）

@@ -238,7 +238,7 @@ func (m *mockRepository) EscalateTicket(ctx context.Context, id int, reason stri
 	return m.UpdateStatus(ctx, id, "in_progress", tenantID)
 }
 
-func (m *mockRepository) UpdateSLADeadlines(ctx context.Context, id int, responseDeadline, resolutionDeadline *time.Time, slaDefinitionID *int, tenantID int) error {
+func (m *mockRepository) UpdateSLADeadlines(ctx context.Context, id int, responseDeadline, resolutionDeadline *time.Time, slaDefinitionID *int, matchedLayer string, tenantID int) error {
 	return nil
 }
 

@@ -27,6 +27,8 @@ var mspC1Matrix = map[string][]string{
 		"sla:contract:read", "sla:contract:write",
 		// D-SLA-8：违约裁决
 		"sla:violation:settle",
+		// D-SLA-5/D-SLA-9：结算报表（provider 面）
+		"sla:settlement:read",
 	},
 	"msp_admin": {
 		"msp:read", "msp:write", "msp_customer:read", "msp_customer:write",
@@ -38,6 +40,8 @@ var mspC1Matrix = map[string][]string{
 		"sla:contract:read", "sla:contract:write",
 		// D-SLA-8：同上
 		"sla:violation:settle",
+		// D-SLA-5/D-SLA-9：同上
+		"sla:settlement:read",
 	},
 }
 

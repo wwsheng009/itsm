@@ -441,6 +441,26 @@ func (_u *SLAViolationUpdate) SetNillableSettledFlag(v *bool) *SLAViolationUpdat
 	return _u
 }
 
+// SetMatchedLayer sets the "matched_layer" field.
+func (_u *SLAViolationUpdate) SetMatchedLayer(v string) *SLAViolationUpdate {
+	_u.mutation.SetMatchedLayer(v)
+	return _u
+}
+
+// SetNillableMatchedLayer sets the "matched_layer" field if the given value is not nil.
+func (_u *SLAViolationUpdate) SetNillableMatchedLayer(v *string) *SLAViolationUpdate {
+	if v != nil {
+		_u.SetMatchedLayer(*v)
+	}
+	return _u
+}
+
+// ClearMatchedLayer clears the value of the "matched_layer" field.
+func (_u *SLAViolationUpdate) ClearMatchedLayer() *SLAViolationUpdate {
+	_u.mutation.ClearMatchedLayer()
+	return _u
+}
+
 // SetTenantID sets the "tenant_id" field.
 func (_u *SLAViolationUpdate) SetTenantID(v int) *SLAViolationUpdate {
 	_u.mutation.ResetTenantID()
@@ -565,6 +585,11 @@ func (_u *SLAViolationUpdate) check() error {
 	if v, ok := _u.mutation.ResolutionState(); ok {
 		if err := slaviolation.ResolutionStateValidator(v); err != nil {
 			return &ValidationError{Name: "resolution_state", err: fmt.Errorf(`ent: validator failed for field "SLAViolation.resolution_state": %w`, err)}
+		}
+	}
+	if v, ok := _u.mutation.MatchedLayer(); ok {
+		if err := slaviolation.MatchedLayerValidator(v); err != nil {
+			return &ValidationError{Name: "matched_layer", err: fmt.Errorf(`ent: validator failed for field "SLAViolation.matched_layer": %w`, err)}
 		}
 	}
 	if v, ok := _u.mutation.TenantID(); ok {
@@ -697,6 +722,12 @@ func (_u *SLAViolationUpdate) sqlSave(ctx context.Context) (_node int, err error
 	}
 	if value, ok := _u.mutation.SettledFlag(); ok {
 		_spec.SetField(slaviolation.FieldSettledFlag, field.TypeBool, value)
+	}
+	if value, ok := _u.mutation.MatchedLayer(); ok {
+		_spec.SetField(slaviolation.FieldMatchedLayer, field.TypeString, value)
+	}
+	if _u.mutation.MatchedLayerCleared() {
+		_spec.ClearField(slaviolation.FieldMatchedLayer, field.TypeString)
 	}
 	if value, ok := _u.mutation.TenantID(); ok {
 		_spec.SetField(slaviolation.FieldTenantID, field.TypeInt, value)
@@ -1199,6 +1230,26 @@ func (_u *SLAViolationUpdateOne) SetNillableSettledFlag(v *bool) *SLAViolationUp
 	return _u
 }
 
+// SetMatchedLayer sets the "matched_layer" field.
+func (_u *SLAViolationUpdateOne) SetMatchedLayer(v string) *SLAViolationUpdateOne {
+	_u.mutation.SetMatchedLayer(v)
+	return _u
+}
+
+// SetNillableMatchedLayer sets the "matched_layer" field if the given value is not nil.
+func (_u *SLAViolationUpdateOne) SetNillableMatchedLayer(v *string) *SLAViolationUpdateOne {
+	if v != nil {
+		_u.SetMatchedLayer(*v)
+	}
+	return _u
+}
+
+// ClearMatchedLayer clears the value of the "matched_layer" field.
+func (_u *SLAViolationUpdateOne) ClearMatchedLayer() *SLAViolationUpdateOne {
+	_u.mutation.ClearMatchedLayer()
+	return _u
+}
+
 // SetTenantID sets the "tenant_id" field.
 func (_u *SLAViolationUpdateOne) SetTenantID(v int) *SLAViolationUpdateOne {
 	_u.mutation.ResetTenantID()
@@ -1336,6 +1387,11 @@ func (_u *SLAViolationUpdateOne) check() error {
 	if v, ok := _u.mutation.ResolutionState(); ok {
 		if err := slaviolation.ResolutionStateValidator(v); err != nil {
 			return &ValidationError{Name: "resolution_state", err: fmt.Errorf(`ent: validator failed for field "SLAViolation.resolution_state": %w`, err)}
+		}
+	}
+	if v, ok := _u.mutation.MatchedLayer(); ok {
+		if err := slaviolation.MatchedLayerValidator(v); err != nil {
+			return &ValidationError{Name: "matched_layer", err: fmt.Errorf(`ent: validator failed for field "SLAViolation.matched_layer": %w`, err)}
 		}
 	}
 	if v, ok := _u.mutation.TenantID(); ok {
@@ -1485,6 +1541,12 @@ func (_u *SLAViolationUpdateOne) sqlSave(ctx context.Context) (_node *SLAViolati
 	}
 	if value, ok := _u.mutation.SettledFlag(); ok {
 		_spec.SetField(slaviolation.FieldSettledFlag, field.TypeBool, value)
+	}
+	if value, ok := _u.mutation.MatchedLayer(); ok {
+		_spec.SetField(slaviolation.FieldMatchedLayer, field.TypeString, value)
+	}
+	if _u.mutation.MatchedLayerCleared() {
+		_spec.ClearField(slaviolation.FieldMatchedLayer, field.TypeString)
 	}
 	if value, ok := _u.mutation.TenantID(); ok {
 		_spec.SetField(slaviolation.FieldTenantID, field.TypeInt, value)

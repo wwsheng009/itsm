@@ -175,6 +175,11 @@ func SLAPauseReason(v string) predicate.Ticket {
 	return predicate.Ticket(sql.FieldEQ(FieldSLAPauseReason, v))
 }
 
+// SLAMatchedLayer applies equality check predicate on the "sla_matched_layer" field. It's identical to SLAMatchedLayerEQ.
+func SLAMatchedLayer(v string) predicate.Ticket {
+	return predicate.Ticket(sql.FieldEQ(FieldSLAMatchedLayer, v))
+}
+
 // FirstResponseAt applies equality check predicate on the "first_response_at" field. It's identical to FirstResponseAtEQ.
 func FirstResponseAt(v time.Time) predicate.Ticket {
 	return predicate.Ticket(sql.FieldEQ(FieldFirstResponseAt, v))
@@ -1613,6 +1618,81 @@ func SLAPauseReasonEqualFold(v string) predicate.Ticket {
 // SLAPauseReasonContainsFold applies the ContainsFold predicate on the "sla_pause_reason" field.
 func SLAPauseReasonContainsFold(v string) predicate.Ticket {
 	return predicate.Ticket(sql.FieldContainsFold(FieldSLAPauseReason, v))
+}
+
+// SLAMatchedLayerEQ applies the EQ predicate on the "sla_matched_layer" field.
+func SLAMatchedLayerEQ(v string) predicate.Ticket {
+	return predicate.Ticket(sql.FieldEQ(FieldSLAMatchedLayer, v))
+}
+
+// SLAMatchedLayerNEQ applies the NEQ predicate on the "sla_matched_layer" field.
+func SLAMatchedLayerNEQ(v string) predicate.Ticket {
+	return predicate.Ticket(sql.FieldNEQ(FieldSLAMatchedLayer, v))
+}
+
+// SLAMatchedLayerIn applies the In predicate on the "sla_matched_layer" field.
+func SLAMatchedLayerIn(vs ...string) predicate.Ticket {
+	return predicate.Ticket(sql.FieldIn(FieldSLAMatchedLayer, vs...))
+}
+
+// SLAMatchedLayerNotIn applies the NotIn predicate on the "sla_matched_layer" field.
+func SLAMatchedLayerNotIn(vs ...string) predicate.Ticket {
+	return predicate.Ticket(sql.FieldNotIn(FieldSLAMatchedLayer, vs...))
+}
+
+// SLAMatchedLayerGT applies the GT predicate on the "sla_matched_layer" field.
+func SLAMatchedLayerGT(v string) predicate.Ticket {
+	return predicate.Ticket(sql.FieldGT(FieldSLAMatchedLayer, v))
+}
+
+// SLAMatchedLayerGTE applies the GTE predicate on the "sla_matched_layer" field.
+func SLAMatchedLayerGTE(v string) predicate.Ticket {
+	return predicate.Ticket(sql.FieldGTE(FieldSLAMatchedLayer, v))
+}
+
+// SLAMatchedLayerLT applies the LT predicate on the "sla_matched_layer" field.
+func SLAMatchedLayerLT(v string) predicate.Ticket {
+	return predicate.Ticket(sql.FieldLT(FieldSLAMatchedLayer, v))
+}
+
+// SLAMatchedLayerLTE applies the LTE predicate on the "sla_matched_layer" field.
+func SLAMatchedLayerLTE(v string) predicate.Ticket {
+	return predicate.Ticket(sql.FieldLTE(FieldSLAMatchedLayer, v))
+}
+
+// SLAMatchedLayerContains applies the Contains predicate on the "sla_matched_layer" field.
+func SLAMatchedLayerContains(v string) predicate.Ticket {
+	return predicate.Ticket(sql.FieldContains(FieldSLAMatchedLayer, v))
+}
+
+// SLAMatchedLayerHasPrefix applies the HasPrefix predicate on the "sla_matched_layer" field.
+func SLAMatchedLayerHasPrefix(v string) predicate.Ticket {
+	return predicate.Ticket(sql.FieldHasPrefix(FieldSLAMatchedLayer, v))
+}
+
+// SLAMatchedLayerHasSuffix applies the HasSuffix predicate on the "sla_matched_layer" field.
+func SLAMatchedLayerHasSuffix(v string) predicate.Ticket {
+	return predicate.Ticket(sql.FieldHasSuffix(FieldSLAMatchedLayer, v))
+}
+
+// SLAMatchedLayerIsNil applies the IsNil predicate on the "sla_matched_layer" field.
+func SLAMatchedLayerIsNil() predicate.Ticket {
+	return predicate.Ticket(sql.FieldIsNull(FieldSLAMatchedLayer))
+}
+
+// SLAMatchedLayerNotNil applies the NotNil predicate on the "sla_matched_layer" field.
+func SLAMatchedLayerNotNil() predicate.Ticket {
+	return predicate.Ticket(sql.FieldNotNull(FieldSLAMatchedLayer))
+}
+
+// SLAMatchedLayerEqualFold applies the EqualFold predicate on the "sla_matched_layer" field.
+func SLAMatchedLayerEqualFold(v string) predicate.Ticket {
+	return predicate.Ticket(sql.FieldEqualFold(FieldSLAMatchedLayer, v))
+}
+
+// SLAMatchedLayerContainsFold applies the ContainsFold predicate on the "sla_matched_layer" field.
+func SLAMatchedLayerContainsFold(v string) predicate.Ticket {
+	return predicate.Ticket(sql.FieldContainsFold(FieldSLAMatchedLayer, v))
 }
 
 // FirstResponseAtEQ applies the EQ predicate on the "first_response_at" field.

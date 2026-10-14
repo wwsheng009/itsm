@@ -320,6 +320,20 @@ func (_c *SLAViolationCreate) SetNillableSettledFlag(v *bool) *SLAViolationCreat
 	return _c
 }
 
+// SetMatchedLayer sets the "matched_layer" field.
+func (_c *SLAViolationCreate) SetMatchedLayer(v string) *SLAViolationCreate {
+	_c.mutation.SetMatchedLayer(v)
+	return _c
+}
+
+// SetNillableMatchedLayer sets the "matched_layer" field if the given value is not nil.
+func (_c *SLAViolationCreate) SetNillableMatchedLayer(v *string) *SLAViolationCreate {
+	if v != nil {
+		_c.SetMatchedLayer(*v)
+	}
+	return _c
+}
+
 // SetTenantID sets the "tenant_id" field.
 func (_c *SLAViolationCreate) SetTenantID(v int) *SLAViolationCreate {
 	_c.mutation.SetTenantID(v)
@@ -517,6 +531,11 @@ func (_c *SLAViolationCreate) check() error {
 	if _, ok := _c.mutation.SettledFlag(); !ok {
 		return &ValidationError{Name: "settled_flag", err: errors.New(`ent: missing required field "SLAViolation.settled_flag"`)}
 	}
+	if v, ok := _c.mutation.MatchedLayer(); ok {
+		if err := slaviolation.MatchedLayerValidator(v); err != nil {
+			return &ValidationError{Name: "matched_layer", err: fmt.Errorf(`ent: validator failed for field "SLAViolation.matched_layer": %w`, err)}
+		}
+	}
 	if _, ok := _c.mutation.TenantID(); !ok {
 		return &ValidationError{Name: "tenant_id", err: errors.New(`ent: missing required field "SLAViolation.tenant_id"`)}
 	}
@@ -646,6 +665,10 @@ func (_c *SLAViolationCreate) createSpec() (*SLAViolation, *sqlgraph.CreateSpec)
 	if value, ok := _c.mutation.SettledFlag(); ok {
 		_spec.SetField(slaviolation.FieldSettledFlag, field.TypeBool, value)
 		_node.SettledFlag = value
+	}
+	if value, ok := _c.mutation.MatchedLayer(); ok {
+		_spec.SetField(slaviolation.FieldMatchedLayer, field.TypeString, value)
+		_node.MatchedLayer = value
 	}
 	if value, ok := _c.mutation.TenantID(); ok {
 		_spec.SetField(slaviolation.FieldTenantID, field.TypeInt, value)

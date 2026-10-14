@@ -5126,16 +5126,20 @@ func init() {
 	slaviolationDescSettledFlag := slaviolationFields[22].Descriptor()
 	// slaviolation.DefaultSettledFlag holds the default value on creation for the settled_flag field.
 	slaviolation.DefaultSettledFlag = slaviolationDescSettledFlag.Default.(bool)
+	// slaviolationDescMatchedLayer is the schema descriptor for matched_layer field.
+	slaviolationDescMatchedLayer := slaviolationFields[23].Descriptor()
+	// slaviolation.MatchedLayerValidator is a validator for the "matched_layer" field. It is called by the builders before save.
+	slaviolation.MatchedLayerValidator = slaviolationDescMatchedLayer.Validators[0].(func(string) error)
 	// slaviolationDescTenantID is the schema descriptor for tenant_id field.
-	slaviolationDescTenantID := slaviolationFields[23].Descriptor()
+	slaviolationDescTenantID := slaviolationFields[24].Descriptor()
 	// slaviolation.TenantIDValidator is a validator for the "tenant_id" field. It is called by the builders before save.
 	slaviolation.TenantIDValidator = slaviolationDescTenantID.Validators[0].(func(int) error)
 	// slaviolationDescCreatedAt is the schema descriptor for created_at field.
-	slaviolationDescCreatedAt := slaviolationFields[24].Descriptor()
+	slaviolationDescCreatedAt := slaviolationFields[25].Descriptor()
 	// slaviolation.DefaultCreatedAt holds the default value on creation for the created_at field.
 	slaviolation.DefaultCreatedAt = slaviolationDescCreatedAt.Default.(func() time.Time)
 	// slaviolationDescUpdatedAt is the schema descriptor for updated_at field.
-	slaviolationDescUpdatedAt := slaviolationFields[25].Descriptor()
+	slaviolationDescUpdatedAt := slaviolationFields[26].Descriptor()
 	// slaviolation.DefaultUpdatedAt holds the default value on creation for the updated_at field.
 	slaviolation.DefaultUpdatedAt = slaviolationDescUpdatedAt.Default.(func() time.Time)
 	// slaviolation.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
@@ -5768,28 +5772,32 @@ func init() {
 	ticketDescSLAStatus := ticketFields[22].Descriptor()
 	// ticket.DefaultSLAStatus holds the default value on creation for the sla_status field.
 	ticket.DefaultSLAStatus = ticketDescSLAStatus.Default.(string)
+	// ticketDescSLAMatchedLayer is the schema descriptor for sla_matched_layer field.
+	ticketDescSLAMatchedLayer := ticketFields[25].Descriptor()
+	// ticket.SLAMatchedLayerValidator is a validator for the "sla_matched_layer" field. It is called by the builders before save.
+	ticket.SLAMatchedLayerValidator = ticketDescSLAMatchedLayer.Validators[0].(func(string) error)
 	// ticketDescRating is the schema descriptor for rating field.
-	ticketDescRating := ticketFields[30].Descriptor()
+	ticketDescRating := ticketFields[31].Descriptor()
 	// ticket.RatingValidator is a validator for the "rating" field. It is called by the builders before save.
 	ticket.RatingValidator = ticketDescRating.Validators[0].(func(int) error)
 	// ticketDescVersion is the schema descriptor for version field.
-	ticketDescVersion := ticketFields[34].Descriptor()
+	ticketDescVersion := ticketFields[35].Descriptor()
 	// ticket.DefaultVersion holds the default value on creation for the version field.
 	ticket.DefaultVersion = ticketDescVersion.Default.(int)
 	// ticket.VersionValidator is a validator for the "version" field. It is called by the builders before save.
 	ticket.VersionValidator = ticketDescVersion.Validators[0].(func(int) error)
 	// ticketDescCreatedAt is the schema descriptor for created_at field.
-	ticketDescCreatedAt := ticketFields[35].Descriptor()
+	ticketDescCreatedAt := ticketFields[36].Descriptor()
 	// ticket.DefaultCreatedAt holds the default value on creation for the created_at field.
 	ticket.DefaultCreatedAt = ticketDescCreatedAt.Default.(func() time.Time)
 	// ticketDescUpdatedAt is the schema descriptor for updated_at field.
-	ticketDescUpdatedAt := ticketFields[36].Descriptor()
+	ticketDescUpdatedAt := ticketFields[37].Descriptor()
 	// ticket.DefaultUpdatedAt holds the default value on creation for the updated_at field.
 	ticket.DefaultUpdatedAt = ticketDescUpdatedAt.Default.(func() time.Time)
 	// ticket.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
 	ticket.UpdateDefaultUpdatedAt = ticketDescUpdatedAt.UpdateDefault.(func() time.Time)
 	// ticketDescIsManagedByMsp is the schema descriptor for is_managed_by_msp field.
-	ticketDescIsManagedByMsp := ticketFields[37].Descriptor()
+	ticketDescIsManagedByMsp := ticketFields[38].Descriptor()
 	// ticket.DefaultIsManagedByMsp holds the default value on creation for the is_managed_by_msp field.
 	ticket.DefaultIsManagedByMsp = ticketDescIsManagedByMsp.Default.(bool)
 	ticketapprovalFields := schema.TicketApproval{}.Fields()

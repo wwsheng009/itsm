@@ -40,6 +40,12 @@ func (SLAViolation) Fields() []ent.Field {
 		field.Int("waived_by").Comment("豁免操作人ID").Optional(),
 		field.Time("waived_at").Comment("豁免时间").Optional(),
 		field.Bool("settled_flag").Comment("已进结算快照（终态锁定；D-SLA-9 §13.3）").Default(false),
+		// D-SLA-9（方案 §13.6，P2-2）：匹配层级快照（来自工单建单时快照；L1=合同域 / L3*=客户内部域）。
+		// 结算查询按 matched_layer 过滤 + 合同基准重算双保险（客户自建违约不进合同结算）。
+		field.String("matched_layer").
+			Comment("匹配层级快照: L1/L2/L3a/L3b/L3c/L4（来源=工单）").
+			Optional().
+			MaxLen(8),
 		field.Int("tenant_id").Comment("租户ID").Positive(),
 		field.Time("created_at").Comment("创建时间").Default(time.Now),
 		field.Time("updated_at").Comment("更新时间").Default(time.Now).UpdateDefault(time.Now),

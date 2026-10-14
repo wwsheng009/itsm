@@ -480,6 +480,7 @@ func (s *SLAMonitorService) createViolation(ctx context.Context, t *ent.Ticket, 
 		SetTicketID(t.ID).
 		SetTicketType("ticket").
 		SetSLADefinitionID(t.SLADefinitionID).
+		SetMatchedLayer(t.SLAMatchedLayer).
 		SetSLAName(slaName).
 		SetViolationType(violationType).
 		SetViolationTime(now).

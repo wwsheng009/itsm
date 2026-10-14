@@ -319,6 +319,7 @@ func BuiltinRolePermissionCodes() map[string][]string {
 			"sla:grant:read", "sla:grant:write",
 			"sla:contract:read", "sla:contract:write",
 			"sla:violation:settle",
+			"sla:settlement:read",
 		},
 		// msp_admin：硬编码矩阵为 msp_* 全资源 `*`；DB 词表只登记 read/write 显式码
 		// （catalog 无通配码），语义等价于全动作（见 parity 对拍）。
@@ -329,6 +330,7 @@ func BuiltinRolePermissionCodes() map[string][]string {
 			"sla:grant:read", "sla:grant:write",
 			"sla:contract:read", "sla:contract:write",
 			"sla:violation:settle",
+			"sla:settlement:read",
 		},
 	}
 

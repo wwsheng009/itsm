@@ -932,7 +932,7 @@ func (r *EntRepository) AssignTicket(ctx context.Context, id int, assigneeID int
 }
 
 // UpdateSLADeadlines 更新 SLA 截止时间
-func (r *EntRepository) UpdateSLADeadlines(ctx context.Context, id int, responseDeadline, resolutionDeadline *time.Time, slaDefinitionID *int, tenantID int) error {
+func (r *EntRepository) UpdateSLADeadlines(ctx context.Context, id int, responseDeadline, resolutionDeadline *time.Time, slaDefinitionID *int, matchedLayer string, tenantID int) error {
 	builder := r.Client().Ticket.UpdateOneID(id).
 		Where(ticket.TenantID(tenantID), ticket.DeletedAtIsNil())
 
@@ -944,6 +944,10 @@ func (r *EntRepository) UpdateSLADeadlines(ctx context.Context, id int, response
 	}
 	if slaDefinitionID != nil {
 		builder.SetSLADefinitionID(*slaDefinitionID)
+	}
+	// P2-2：匹配层级快照（L1/L2/L3a/L3b/L3c/L4；结算过滤依据，§13.6）
+	if matchedLayer != "" {
+		builder.SetSLAMatchedLayer(matchedLayer)
 	}
 
 	_, err := builder.Save(ctx)

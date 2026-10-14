@@ -713,6 +713,125 @@ func (h *Handler) GetSLAComplianceReport(c *gin.Context) {
 }
 
 // =============================================================================
+// P2-2 结算报表（D-SLA-5/D-SLA-9，方案 §4.5/§13）：provider 面
+// =============================================================================
+
+// GetSLASettlementReport handles GET /api/v1/sla/settlement-report
+// 白名单口径 + 双口径对账 + matched_layer 过滤（归属校验在取数前完成，§4.5/§13.2）。
+func (h *Handler) GetSLASettlementReport(c *gin.Context) {
+	providerTenantID := c.GetInt("tenant_id")
+	customerID, ok := parsePositiveIntQuery(c, "customerTenantId", "customer_tenant_id")
+	if !ok {
+		common.ParamError(c, "customerTenantId is required")
+		return
+	}
+	from, to, ok := parseSettlementWindow(c)
+	if !ok {
+		return
+	}
+	report, err := h.svc.GetSettlementReport(c.Request.Context(), providerTenantID, customerID, from, to)
+	if err != nil {
+		failSettlementQuery(c, err)
+		return
+	}
+	common.Success(c, report)
+}
+
+// LockSettlementSnapshot handles POST /api/v1/sla/settlement-report/lock
+// 出快照锁定（§13.3）：锁定后该周期违约不可再变更（新争议走下一周期）。
+func (h *Handler) LockSettlementSnapshot(c *gin.Context) {
+	providerTenantID := c.GetInt("tenant_id")
+	customerID, ok := parsePositiveIntQuery(c, "customerTenantId", "customer_tenant_id")
+	if !ok {
+		common.ParamError(c, "customerTenantId is required")
+		return
+	}
+	from, to, ok := parseSettlementWindow(c)
+	if !ok {
+		return
+	}
+	locked, err := h.svc.LockSettlementSnapshot(c.Request.Context(), providerTenantID, customerID, from, to)
+	if err != nil {
+		failSettlementQuery(c, err)
+		return
+	}
+	common.Success(c, gin.H{"lockedViolations": locked})
+}
+
+// parsePositiveIntQuery 读取正整数查询参数（多别名按序尝试）。
+func parsePositiveIntQuery(c *gin.Context, keys ...string) (int, bool) {
+	for _, k := range keys {
+		if v := c.Query(k); v != "" {
+			if id, err := strconv.Atoi(v); err == nil && id > 0 {
+				return id, true
+			}
+		}
+	}
+	return 0, false
+}
+
+// parseSettlementWindow 解析 from/to（RFC3339 或 YYYY-MM-DD；缺省=最近 30 天）。
+// YYYY-MM-DD 的 to 视为当日 23:59:59.999…（自然日语义）。
+func parseSettlementWindow(c *gin.Context) (time.Time, time.Time, bool) {
+	now := time.Now()
+	from := now.Add(-DefaultMonitoringWindow)
+	to := now
+	parseLoose := func(s string) (time.Time, bool) {
+		if t, err := time.Parse(time.RFC3339, s); err == nil {
+			return t, true
+		}
+		if t, err := time.Parse("2006-01-02", s); err == nil {
+			return t, true
+		}
+		return time.Time{}, false
+	}
+	if v := queryParam(c, "from", "start_date"); v != "" {
+		t, ok := parseLoose(v)
+		if !ok {
+			common.ParamError(c, "from 需为 RFC3339 或 YYYY-MM-DD")
+			return time.Time{}, time.Time{}, false
+		}
+		from = t
+	}
+	if v := queryParam(c, "to", "end_date"); v != "" {
+		t, ok := parseLoose(v)
+		if !ok {
+			common.ParamError(c, "to 需为 RFC3339 或 YYYY-MM-DD")
+			return time.Time{}, time.Time{}, false
+		}
+		if len(v) == len("2006-01-02") {
+			t = t.Add(24*time.Hour - time.Nanosecond)
+		}
+		to = t
+	}
+	if !to.After(from) {
+		common.ParamError(c, "to 必须晚于 from")
+		return time.Time{}, time.Time{}, false
+	}
+	return from, to, true
+}
+
+// failSettlementQuery 结算报表错误映射：归属越权（403）/合同缺失（404）在取数前 fail-closed，
+// 响应仅 code+message、不携带任何计数（SLA-A6/A10）。
+func failSettlementQuery(c *gin.Context, err error) {
+	var be *common.BusinessError
+	if errors.As(err, &be) {
+		switch be.Code {
+		case common.ForbiddenCode:
+			common.Forbidden(c, be.Message)
+			return
+		case common.NotFoundCode:
+			common.NotFound(c, be.Message)
+			return
+		case common.ParamErrorCode:
+			common.ParamError(c, be.Message)
+			return
+		}
+	}
+	failSLAQuery(c, err, "生成结算报表失败")
+}
+
+// =============================================================================
 // SLA Definition Grants（D-SLA-1，方案 §4.1）：provider 下发 / customer 只读
 // =============================================================================
 

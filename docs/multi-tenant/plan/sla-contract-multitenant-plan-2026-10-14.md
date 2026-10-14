@@ -962,7 +962,7 @@ flowchart TD
 | P1-2b | #13 前端：grant 管理页 → 合同管理页替换（列表/新建含 bindings/状态操作）；sla-api 合同化 | ✅ 已提交（见 B.10） |
 | P1-3 | #11/#12 Pause/Resume 真实计时接线（incident + ticket 两路径共用 SLAMonitorService） | ✅ 已提交（见 B.11） |
 | P2-1 | #14 违约归责状态机（D-SLA-8）：schema + 状态机 API（disputed/settle）+ 权限码 sla:violation:settle | ✅ 已提交（见 B.12） |
-| P2-2 | #15 结算口径白名单 + provider 结算报表（D-SLA-5/D-SLA-9，含 ticket.sla_matched_layer 快照） | ⬜ |
+| P2-2 | #15 结算口径白名单 + provider 结算报表（D-SLA-5/D-SLA-9，含 ticket.sla_matched_layer 快照） | ✅ 已提交（见 B.13） |
 | P2-3 | #20 D-TT-1 类型受控下发（前置=P0 部署验收） | ⬜ |
 | P3 | 前端补全（businessHours/grant 选择器/报表页/进度条） | ⬜ |
 
@@ -981,6 +981,7 @@ flowchart TD
 1. 部署时按序执行：ent Schema.Create（自动）→ SQL 迁移 `20261014_sla_grant_ownership_and_name_unique.sql`（自动，含重名清洗）→ RLS `011`（手动：`go run -tags rlsapply ./cmd/rls-apply -files 011_sla_definition_grant_policies.sql`）；
 2. 238 演示栈端到端验收锚点：SLA-A1（下发匹配）/A2（优先级）/A3（fail-loud）/A4（customer 写保护 403/404 + RLS 跨租户断言）/A8（护栏）/A12（豁免）/A7（表单枚举）；
 3. `SLA_UNBOUND_ALERT_ENABLED` 默认关——观察一周后再开启（R-SLA-4 节奏）。
+4. **2026-10-14 部署**：P0+P1+P2-1 已部署 238 demo 栈（`1.8.0-dev.1e60efee`：backend/frontend 双镜像重建 + init 自动迁移 + RLS 011/012 注入）；证据 `.dev/deploy/DEMO-FULL-20261014-1e60efee-EVIDENCE.md`。§8 端到端验收锚点（SLA-A1…）待执行。
 
 ### B.4 实施期修正记录（P0-1，2026-10-14）
 
@@ -1134,3 +1135,26 @@ flowchart TD
 | IM-22 | 分离式端点设计：`disputed` 走原 PUT（sla:write，客户可发起）；`accepted/waived` 走 /settle（sla:violation:settle，provider 裁决）——权限与业务角色对齐，避免单一端点内做角色分支 |
 
 **P2-2 前置已就绪**：settled_flag 防线 + resolution_state 白名单字段（§13.2 判定⑤）均已落库，结算报表可直接引用。
+
+### B.13 实施期记录（P2-2 结算报表，2026-10-14）
+
+**交付物**（handlers/sla + service + repository/ticket + router + middleware + authz 编译绿；`go test ./handlers/sla/...`（含 7 个结算测试）、`./service/`（全包）、`./handlers/ticket/`、`./handlers/incident/`、守卫四包全绿；codegen ENTC_EXIT=0）：
+
+- **schema**：`tickets.sla_matched_layer` + `sla_violations.matched_layer`（匹配层级快照：L1=合同域 / L2、L3*=客户内部域；§13.6 结算过滤依据）+ 迁移 `20261014e`（+down 兜底）；
+- **快照写入链**：建单路径（`UpdateSLADeadlines` 扩展 matchedLayer 参数，ticket 接口/实现/mock 同步）→ `CalculateSLADeadlineByDefinition` 补 L3a 标签 → SLA 监控创建违约行时复制工单快照（`SetMatchedLayer`）；
+- **结算报表**（provider 面，§4.5/§13）：`GET /sla/settlement-report?customerTenantId=&from=&to=`（权限 **sla:settlement:read**）：
+  - 白名单口径（§13.2）：分母=合同覆盖类型工单（customer 归属校验在取数前 fail-closed + 合同期内 + `msp_provider_id` 收窄 + 非 `sla_exempt`）；未覆盖/豁免单列桶不进分母；
+  - 双口径对账（§13.5）：每工单 `contract_verdict`（按合同定义 × 客观时间重算，营业时间与建单共用 `ComputeDeadlineWithBusinessHours` 同实现）/ `internal_verdict`（快照）/ `drift_flag`；
+  - 违约过滤（§13.6）：L2/L3* 客户内部域排除 + 合同基准重算双保险；`waived` / 未裁决 `disputed` 不计违约（§13.2 ⑤）；
+  - 信用额（§13.3）：`credit_rate × 计违约数`，`cap` 上限约束；
+- **出快照锁定**（§13.3）：`POST /sla/settlement-report/lock`（复用 `sla:violation:settle`；幂等；仅合同域违约置 settled_flag，锁定后状态机拒绝对其变更）；
+- **权限码** `sla:settlement:read` 四处同步（catalog/roles/rbac/C1 矩阵）+ authz-gen 预检重生成（绑定 msp_manager/msp_admin）；
+- **测试**（7 场景）：白名单分桶 / 双口径漂移（有害+良性）/ 域过滤与归责排除 / 归属越权 Forbidden（BusinessError，无计数）/ 出快照锁定与幂等 / 信用额 cap / 无生效合同 404。
+
+| IM | 说明 |
+|---|---|
+| IM-23 | matched_layer 快照落点：工单行（建单时写入）+ 违约行（监控创建时复制）。incident 域（incidents 表）不引入该列——结算面只覆盖工单域；违约查询按 `ticket_type != 'incident'` 排除，防 incident.id 与 ticket.id 数字碰撞污染结算 |
+| IM-24 | 绑定覆盖解析实现为「按 contract_id 直查 binding + 逐条取活跃定义」——与 L1 `matchContractDefinition` 同语义（显式类型 > 类型无关；定义需 active）；规避 eager-load Edges 链在本地工具链暴露的字段解析异常（复核后模型层可用，直查实现保留为等价路径） |
+| IM-25 | 口径工程化落点：合规率=合同基准重算计违约之外占比；`pending`（未处置）按重算计违约（快照锁定后走下一周期争议处置）；`accepted` 单列"认账违约"计数；信用额基数=计违约数。与 §13.2 ⑤/§13.3 表述的细化，真实合同条款（rate/cap 语义）待业务校准 |
+| IM-26 | 出快照锁定复用 `sla:violation:settle` 权限（裁决与锁定同属 provider 结算动作域），不新增权限码 |
+| IM-27 | 锁定为显式 POST 动作（GET 报表保持只读无副作用）；周期末由 provider 确认后调用，锁定后新争议走下一周期（§13.3） |

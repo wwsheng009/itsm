@@ -150106,6 +150106,7 @@ type SLAViolationMutation struct {
 	addwaived_by          *int
 	waived_at             *time.Time
 	settled_flag          *bool
+	matched_layer         *string
 	tenant_id             *int
 	addtenant_id          *int
 	created_at            *time.Time
@@ -151266,6 +151267,55 @@ func (m *SLAViolationMutation) ResetSettledFlag() {
 	m.settled_flag = nil
 }
 
+// SetMatchedLayer sets the "matched_layer" field.
+func (m *SLAViolationMutation) SetMatchedLayer(s string) {
+	m.matched_layer = &s
+}
+
+// MatchedLayer returns the value of the "matched_layer" field in the mutation.
+func (m *SLAViolationMutation) MatchedLayer() (r string, exists bool) {
+	v := m.matched_layer
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldMatchedLayer returns the old "matched_layer" field's value of the SLAViolation entity.
+// If the SLAViolation object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *SLAViolationMutation) OldMatchedLayer(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldMatchedLayer is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldMatchedLayer requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldMatchedLayer: %w", err)
+	}
+	return oldValue.MatchedLayer, nil
+}
+
+// ClearMatchedLayer clears the value of the "matched_layer" field.
+func (m *SLAViolationMutation) ClearMatchedLayer() {
+	m.matched_layer = nil
+	m.clearedFields[slaviolation.FieldMatchedLayer] = struct{}{}
+}
+
+// MatchedLayerCleared returns if the "matched_layer" field was cleared in this mutation.
+func (m *SLAViolationMutation) MatchedLayerCleared() bool {
+	_, ok := m.clearedFields[slaviolation.FieldMatchedLayer]
+	return ok
+}
+
+// ResetMatchedLayer resets all changes to the "matched_layer" field.
+func (m *SLAViolationMutation) ResetMatchedLayer() {
+	m.matched_layer = nil
+	delete(m.clearedFields, slaviolation.FieldMatchedLayer)
+}
+
 // SetTenantID sets the "tenant_id" field.
 func (m *SLAViolationMutation) SetTenantID(i int) {
 	m.tenant_id = &i
@@ -151482,7 +151532,7 @@ func (m *SLAViolationMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *SLAViolationMutation) Fields() []string {
-	fields := make([]string, 0, 26)
+	fields := make([]string, 0, 27)
 	if m.created_by != nil {
 		fields = append(fields, slaviolation.FieldCreatedBy)
 	}
@@ -151552,6 +151602,9 @@ func (m *SLAViolationMutation) Fields() []string {
 	if m.settled_flag != nil {
 		fields = append(fields, slaviolation.FieldSettledFlag)
 	}
+	if m.matched_layer != nil {
+		fields = append(fields, slaviolation.FieldMatchedLayer)
+	}
 	if m.tenant_id != nil {
 		fields = append(fields, slaviolation.FieldTenantID)
 	}
@@ -151615,6 +151668,8 @@ func (m *SLAViolationMutation) Field(name string) (ent.Value, bool) {
 		return m.WaivedAt()
 	case slaviolation.FieldSettledFlag:
 		return m.SettledFlag()
+	case slaviolation.FieldMatchedLayer:
+		return m.MatchedLayer()
 	case slaviolation.FieldTenantID:
 		return m.TenantID()
 	case slaviolation.FieldCreatedAt:
@@ -151676,6 +151731,8 @@ func (m *SLAViolationMutation) OldField(ctx context.Context, name string) (ent.V
 		return m.OldWaivedAt(ctx)
 	case slaviolation.FieldSettledFlag:
 		return m.OldSettledFlag(ctx)
+	case slaviolation.FieldMatchedLayer:
+		return m.OldMatchedLayer(ctx)
 	case slaviolation.FieldTenantID:
 		return m.OldTenantID(ctx)
 	case slaviolation.FieldCreatedAt:
@@ -151852,6 +151909,13 @@ func (m *SLAViolationMutation) SetField(name string, value ent.Value) error {
 		}
 		m.SetSettledFlag(v)
 		return nil
+	case slaviolation.FieldMatchedLayer:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetMatchedLayer(v)
+		return nil
 	case slaviolation.FieldTenantID:
 		v, ok := value.(int)
 		if !ok {
@@ -152005,6 +152069,9 @@ func (m *SLAViolationMutation) ClearedFields() []string {
 	if m.FieldCleared(slaviolation.FieldWaivedAt) {
 		fields = append(fields, slaviolation.FieldWaivedAt)
 	}
+	if m.FieldCleared(slaviolation.FieldMatchedLayer) {
+		fields = append(fields, slaviolation.FieldMatchedLayer)
+	}
 	return fields
 }
 
@@ -152045,6 +152112,9 @@ func (m *SLAViolationMutation) ClearField(name string) error {
 		return nil
 	case slaviolation.FieldWaivedAt:
 		m.ClearWaivedAt()
+		return nil
+	case slaviolation.FieldMatchedLayer:
+		m.ClearMatchedLayer()
 		return nil
 	}
 	return fmt.Errorf("unknown SLAViolation nullable field %s", name)
@@ -152122,6 +152192,9 @@ func (m *SLAViolationMutation) ResetField(name string) error {
 		return nil
 	case slaviolation.FieldSettledFlag:
 		m.ResetSettledFlag()
+		return nil
+	case slaviolation.FieldMatchedLayer:
+		m.ResetMatchedLayer()
 		return nil
 	case slaviolation.FieldTenantID:
 		m.ResetTenantID()
@@ -173639,6 +173712,7 @@ type TicketMutation struct {
 	sla_status                 *string
 	sla_paused_at              *time.Time
 	sla_pause_reason           *string
+	sla_matched_layer          *string
 	first_response_at          *time.Time
 	resolved_at                *time.Time
 	resolution                 *string
@@ -175032,6 +175106,55 @@ func (m *TicketMutation) SLAPauseReasonCleared() bool {
 func (m *TicketMutation) ResetSLAPauseReason() {
 	m.sla_pause_reason = nil
 	delete(m.clearedFields, ticket.FieldSLAPauseReason)
+}
+
+// SetSLAMatchedLayer sets the "sla_matched_layer" field.
+func (m *TicketMutation) SetSLAMatchedLayer(s string) {
+	m.sla_matched_layer = &s
+}
+
+// SLAMatchedLayer returns the value of the "sla_matched_layer" field in the mutation.
+func (m *TicketMutation) SLAMatchedLayer() (r string, exists bool) {
+	v := m.sla_matched_layer
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldSLAMatchedLayer returns the old "sla_matched_layer" field's value of the Ticket entity.
+// If the Ticket object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *TicketMutation) OldSLAMatchedLayer(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldSLAMatchedLayer is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldSLAMatchedLayer requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldSLAMatchedLayer: %w", err)
+	}
+	return oldValue.SLAMatchedLayer, nil
+}
+
+// ClearSLAMatchedLayer clears the value of the "sla_matched_layer" field.
+func (m *TicketMutation) ClearSLAMatchedLayer() {
+	m.sla_matched_layer = nil
+	m.clearedFields[ticket.FieldSLAMatchedLayer] = struct{}{}
+}
+
+// SLAMatchedLayerCleared returns if the "sla_matched_layer" field was cleared in this mutation.
+func (m *TicketMutation) SLAMatchedLayerCleared() bool {
+	_, ok := m.clearedFields[ticket.FieldSLAMatchedLayer]
+	return ok
+}
+
+// ResetSLAMatchedLayer resets all changes to the "sla_matched_layer" field.
+func (m *TicketMutation) ResetSLAMatchedLayer() {
+	m.sla_matched_layer = nil
+	delete(m.clearedFields, ticket.FieldSLAMatchedLayer)
 }
 
 // SetFirstResponseAt sets the "first_response_at" field.
@@ -176852,7 +176975,7 @@ func (m *TicketMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *TicketMutation) Fields() []string {
-	fields := make([]string, 0, 43)
+	fields := make([]string, 0, 44)
 	if m.title != nil {
 		fields = append(fields, ticket.FieldTitle)
 	}
@@ -176927,6 +177050,9 @@ func (m *TicketMutation) Fields() []string {
 	}
 	if m.sla_pause_reason != nil {
 		fields = append(fields, ticket.FieldSLAPauseReason)
+	}
+	if m.sla_matched_layer != nil {
+		fields = append(fields, ticket.FieldSLAMatchedLayer)
 	}
 	if m.first_response_at != nil {
 		fields = append(fields, ticket.FieldFirstResponseAt)
@@ -177040,6 +177166,8 @@ func (m *TicketMutation) Field(name string) (ent.Value, bool) {
 		return m.SLAPausedAt()
 	case ticket.FieldSLAPauseReason:
 		return m.SLAPauseReason()
+	case ticket.FieldSLAMatchedLayer:
+		return m.SLAMatchedLayer()
 	case ticket.FieldFirstResponseAt:
 		return m.FirstResponseAt()
 	case ticket.FieldResolvedAt:
@@ -177135,6 +177263,8 @@ func (m *TicketMutation) OldField(ctx context.Context, name string) (ent.Value, 
 		return m.OldSLAPausedAt(ctx)
 	case ticket.FieldSLAPauseReason:
 		return m.OldSLAPauseReason(ctx)
+	case ticket.FieldSLAMatchedLayer:
+		return m.OldSLAMatchedLayer(ctx)
 	case ticket.FieldFirstResponseAt:
 		return m.OldFirstResponseAt(ctx)
 	case ticket.FieldResolvedAt:
@@ -177354,6 +177484,13 @@ func (m *TicketMutation) SetField(name string, value ent.Value) error {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.SetSLAPauseReason(v)
+		return nil
+	case ticket.FieldSLAMatchedLayer:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetSLAMatchedLayer(v)
 		return nil
 	case ticket.FieldFirstResponseAt:
 		v, ok := value.(time.Time)
@@ -177691,6 +177828,9 @@ func (m *TicketMutation) ClearedFields() []string {
 	if m.FieldCleared(ticket.FieldSLAPauseReason) {
 		fields = append(fields, ticket.FieldSLAPauseReason)
 	}
+	if m.FieldCleared(ticket.FieldSLAMatchedLayer) {
+		fields = append(fields, ticket.FieldSLAMatchedLayer)
+	}
 	if m.FieldCleared(ticket.FieldFirstResponseAt) {
 		fields = append(fields, ticket.FieldFirstResponseAt)
 	}
@@ -177791,6 +177931,9 @@ func (m *TicketMutation) ClearField(name string) error {
 		return nil
 	case ticket.FieldSLAPauseReason:
 		m.ClearSLAPauseReason()
+		return nil
+	case ticket.FieldSLAMatchedLayer:
+		m.ClearSLAMatchedLayer()
 		return nil
 	case ticket.FieldFirstResponseAt:
 		m.ClearFirstResponseAt()
@@ -177916,6 +178059,9 @@ func (m *TicketMutation) ResetField(name string) error {
 		return nil
 	case ticket.FieldSLAPauseReason:
 		m.ResetSLAPauseReason()
+		return nil
+	case ticket.FieldSLAMatchedLayer:
+		m.ResetSLAMatchedLayer()
 		return nil
 	case ticket.FieldFirstResponseAt:
 		m.ResetFirstResponseAt()

@@ -64,6 +64,8 @@ const (
 	FieldSLAPausedAt = "sla_paused_at"
 	// FieldSLAPauseReason holds the string denoting the sla_pause_reason field in the database.
 	FieldSLAPauseReason = "sla_pause_reason"
+	// FieldSLAMatchedLayer holds the string denoting the sla_matched_layer field in the database.
+	FieldSLAMatchedLayer = "sla_matched_layer"
 	// FieldFirstResponseAt holds the string denoting the first_response_at field in the database.
 	FieldFirstResponseAt = "first_response_at"
 	// FieldResolvedAt holds the string denoting the resolved_at field in the database.
@@ -278,6 +280,7 @@ var Columns = []string{
 	FieldSLAStatus,
 	FieldSLAPausedAt,
 	FieldSLAPauseReason,
+	FieldSLAMatchedLayer,
 	FieldFirstResponseAt,
 	FieldResolvedAt,
 	FieldResolution,
@@ -361,6 +364,8 @@ var (
 	TenantIDValidator func(int) error
 	// DefaultSLAStatus holds the default value on creation for the "sla_status" field.
 	DefaultSLAStatus string
+	// SLAMatchedLayerValidator is a validator for the "sla_matched_layer" field. It is called by the builders before save.
+	SLAMatchedLayerValidator func(string) error
 	// RatingValidator is a validator for the "rating" field. It is called by the builders before save.
 	RatingValidator func(int) error
 	// DefaultVersion holds the default value on creation for the "version" field.
@@ -503,6 +508,11 @@ func BySLAPausedAt(opts ...sql.OrderTermOption) OrderOption {
 // BySLAPauseReason orders the results by the sla_pause_reason field.
 func BySLAPauseReason(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldSLAPauseReason, opts...).ToFunc()
+}
+
+// BySLAMatchedLayer orders the results by the sla_matched_layer field.
+func BySLAMatchedLayer(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldSLAMatchedLayer, opts...).ToFunc()
 }
 
 // ByFirstResponseAt orders the results by the first_response_at field.

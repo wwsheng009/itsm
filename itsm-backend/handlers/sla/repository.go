@@ -84,4 +84,17 @@ type Repository interface {
 	// 阻断3 修复：返回 SLA 截止时间，让 Service 层基于 deadline 判断合规，
 	// 而非仅检查"是否已首次响应"。
 	GetTicketSLA(ctx context.Context, ticketID int, tenantID int) (createdAt, firstResponseAt, resolvedAt, slaResponseDeadline, slaResolutionDeadline time.Time, found bool, err error)
+
+	// ===== P2-2 结算报表（D-SLA-5/D-SLA-9，方案 §4.5/§13）=====
+
+	// GetSettlementScope 结算取数：① customer 归属校验（先于任何数据读取，越权 fail-closed）；
+	// ② 报告期内生效合同与绑定覆盖（白名单条件③）；③ 窗口内工单分桶（覆盖/豁免/未覆盖）；
+	// ④ 覆盖工单的违约行（matched_layer/resolution_state 供结算过滤）。
+	GetSettlementScope(ctx context.Context, providerTenantID, customerTenantID int, from, to time.Time) (*SettlementScope, error)
+	// ComputeSLADeadlines 按定义参数从 baseTime 起算响应/解决截止时间
+	// （结算重算与建单路径同口径，§13.5 判定基准）。
+	ComputeSLADeadlines(ctx context.Context, tenantID int, responseMinutes, resolutionMinutes int, businessHours map[string]interface{}, baseTime time.Time) (time.Time, time.Time)
+	// LockSettlementViolations 出快照锁定（§13.3）：范围内合同域违约置 settled_flag=true，
+	// 锁定后状态机拒绝变更；幂等（仅影响未锁定行），返回受影响行数。
+	LockSettlementViolations(ctx context.Context, providerTenantID, customerTenantID int, from, to time.Time) (int, error)
 }

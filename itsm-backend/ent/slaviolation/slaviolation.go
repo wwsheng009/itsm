@@ -60,6 +60,8 @@ const (
 	FieldWaivedAt = "waived_at"
 	// FieldSettledFlag holds the string denoting the settled_flag field in the database.
 	FieldSettledFlag = "settled_flag"
+	// FieldMatchedLayer holds the string denoting the matched_layer field in the database.
+	FieldMatchedLayer = "matched_layer"
 	// FieldTenantID holds the string denoting the tenant_id field in the database.
 	FieldTenantID = "tenant_id"
 	// FieldCreatedAt holds the string denoting the created_at field in the database.
@@ -114,6 +116,7 @@ var Columns = []string{
 	FieldWaivedBy,
 	FieldWaivedAt,
 	FieldSettledFlag,
+	FieldMatchedLayer,
 	FieldTenantID,
 	FieldCreatedAt,
 	FieldUpdatedAt,
@@ -171,6 +174,8 @@ var (
 	ResolutionStateValidator func(string) error
 	// DefaultSettledFlag holds the default value on creation for the "settled_flag" field.
 	DefaultSettledFlag bool
+	// MatchedLayerValidator is a validator for the "matched_layer" field. It is called by the builders before save.
+	MatchedLayerValidator func(string) error
 	// TenantIDValidator is a validator for the "tenant_id" field. It is called by the builders before save.
 	TenantIDValidator func(int) error
 	// DefaultCreatedAt holds the default value on creation for the "created_at" field.
@@ -302,6 +307,11 @@ func ByWaivedAt(opts ...sql.OrderTermOption) OrderOption {
 // BySettledFlag orders the results by the settled_flag field.
 func BySettledFlag(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldSettledFlag, opts...).ToFunc()
+}
+
+// ByMatchedLayer orders the results by the matched_layer field.
+func ByMatchedLayer(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldMatchedLayer, opts...).ToFunc()
 }
 
 // ByTenantID orders the results by the tenant_id field.

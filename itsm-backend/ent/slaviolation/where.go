@@ -170,6 +170,11 @@ func SettledFlag(v bool) predicate.SLAViolation {
 	return predicate.SLAViolation(sql.FieldEQ(FieldSettledFlag, v))
 }
 
+// MatchedLayer applies equality check predicate on the "matched_layer" field. It's identical to MatchedLayerEQ.
+func MatchedLayer(v string) predicate.SLAViolation {
+	return predicate.SLAViolation(sql.FieldEQ(FieldMatchedLayer, v))
+}
+
 // TenantID applies equality check predicate on the "tenant_id" field. It's identical to TenantIDEQ.
 func TenantID(v int) predicate.SLAViolation {
 	return predicate.SLAViolation(sql.FieldEQ(FieldTenantID, v))
@@ -1343,6 +1348,81 @@ func SettledFlagEQ(v bool) predicate.SLAViolation {
 // SettledFlagNEQ applies the NEQ predicate on the "settled_flag" field.
 func SettledFlagNEQ(v bool) predicate.SLAViolation {
 	return predicate.SLAViolation(sql.FieldNEQ(FieldSettledFlag, v))
+}
+
+// MatchedLayerEQ applies the EQ predicate on the "matched_layer" field.
+func MatchedLayerEQ(v string) predicate.SLAViolation {
+	return predicate.SLAViolation(sql.FieldEQ(FieldMatchedLayer, v))
+}
+
+// MatchedLayerNEQ applies the NEQ predicate on the "matched_layer" field.
+func MatchedLayerNEQ(v string) predicate.SLAViolation {
+	return predicate.SLAViolation(sql.FieldNEQ(FieldMatchedLayer, v))
+}
+
+// MatchedLayerIn applies the In predicate on the "matched_layer" field.
+func MatchedLayerIn(vs ...string) predicate.SLAViolation {
+	return predicate.SLAViolation(sql.FieldIn(FieldMatchedLayer, vs...))
+}
+
+// MatchedLayerNotIn applies the NotIn predicate on the "matched_layer" field.
+func MatchedLayerNotIn(vs ...string) predicate.SLAViolation {
+	return predicate.SLAViolation(sql.FieldNotIn(FieldMatchedLayer, vs...))
+}
+
+// MatchedLayerGT applies the GT predicate on the "matched_layer" field.
+func MatchedLayerGT(v string) predicate.SLAViolation {
+	return predicate.SLAViolation(sql.FieldGT(FieldMatchedLayer, v))
+}
+
+// MatchedLayerGTE applies the GTE predicate on the "matched_layer" field.
+func MatchedLayerGTE(v string) predicate.SLAViolation {
+	return predicate.SLAViolation(sql.FieldGTE(FieldMatchedLayer, v))
+}
+
+// MatchedLayerLT applies the LT predicate on the "matched_layer" field.
+func MatchedLayerLT(v string) predicate.SLAViolation {
+	return predicate.SLAViolation(sql.FieldLT(FieldMatchedLayer, v))
+}
+
+// MatchedLayerLTE applies the LTE predicate on the "matched_layer" field.
+func MatchedLayerLTE(v string) predicate.SLAViolation {
+	return predicate.SLAViolation(sql.FieldLTE(FieldMatchedLayer, v))
+}
+
+// MatchedLayerContains applies the Contains predicate on the "matched_layer" field.
+func MatchedLayerContains(v string) predicate.SLAViolation {
+	return predicate.SLAViolation(sql.FieldContains(FieldMatchedLayer, v))
+}
+
+// MatchedLayerHasPrefix applies the HasPrefix predicate on the "matched_layer" field.
+func MatchedLayerHasPrefix(v string) predicate.SLAViolation {
+	return predicate.SLAViolation(sql.FieldHasPrefix(FieldMatchedLayer, v))
+}
+
+// MatchedLayerHasSuffix applies the HasSuffix predicate on the "matched_layer" field.
+func MatchedLayerHasSuffix(v string) predicate.SLAViolation {
+	return predicate.SLAViolation(sql.FieldHasSuffix(FieldMatchedLayer, v))
+}
+
+// MatchedLayerIsNil applies the IsNil predicate on the "matched_layer" field.
+func MatchedLayerIsNil() predicate.SLAViolation {
+	return predicate.SLAViolation(sql.FieldIsNull(FieldMatchedLayer))
+}
+
+// MatchedLayerNotNil applies the NotNil predicate on the "matched_layer" field.
+func MatchedLayerNotNil() predicate.SLAViolation {
+	return predicate.SLAViolation(sql.FieldNotNull(FieldMatchedLayer))
+}
+
+// MatchedLayerEqualFold applies the EqualFold predicate on the "matched_layer" field.
+func MatchedLayerEqualFold(v string) predicate.SLAViolation {
+	return predicate.SLAViolation(sql.FieldEqualFold(FieldMatchedLayer, v))
+}
+
+// MatchedLayerContainsFold applies the ContainsFold predicate on the "matched_layer" field.
+func MatchedLayerContainsFold(v string) predicate.SLAViolation {
+	return predicate.SLAViolation(sql.FieldContainsFold(FieldMatchedLayer, v))
 }
 
 // TenantIDEQ applies the EQ predicate on the "tenant_id" field.

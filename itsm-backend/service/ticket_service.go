@@ -517,7 +517,7 @@ func (s *TicketService) CreateTicket(ctx context.Context, req *dto.CreateTicketR
 		if err != nil {
 			s.logger.Warnw("Failed to calculate SLA", "error", err)
 		} else if slaResult != nil {
-			err = s.repo.UpdateSLADeadlines(ctx, tkt.ID, slaResult.ResponseDeadline, slaResult.ResolutionDeadline, &slaResult.SLADefinitionID, tenantID)
+			err = s.repo.UpdateSLADeadlines(ctx, tkt.ID, slaResult.ResponseDeadline, slaResult.ResolutionDeadline, &slaResult.SLADefinitionID, slaResult.MatchedLayer, tenantID)
 			if err != nil {
 				s.logger.Warnw("Failed to update SLA deadlines", "error", err)
 			}

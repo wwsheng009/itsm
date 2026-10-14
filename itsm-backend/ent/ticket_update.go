@@ -517,6 +517,26 @@ func (_u *TicketUpdate) ClearSLAPauseReason() *TicketUpdate {
 	return _u
 }
 
+// SetSLAMatchedLayer sets the "sla_matched_layer" field.
+func (_u *TicketUpdate) SetSLAMatchedLayer(v string) *TicketUpdate {
+	_u.mutation.SetSLAMatchedLayer(v)
+	return _u
+}
+
+// SetNillableSLAMatchedLayer sets the "sla_matched_layer" field if the given value is not nil.
+func (_u *TicketUpdate) SetNillableSLAMatchedLayer(v *string) *TicketUpdate {
+	if v != nil {
+		_u.SetSLAMatchedLayer(*v)
+	}
+	return _u
+}
+
+// ClearSLAMatchedLayer clears the value of the "sla_matched_layer" field.
+func (_u *TicketUpdate) ClearSLAMatchedLayer() *TicketUpdate {
+	_u.mutation.ClearSLAMatchedLayer()
+	return _u
+}
+
 // SetFirstResponseAt sets the "first_response_at" field.
 func (_u *TicketUpdate) SetFirstResponseAt(v time.Time) *TicketUpdate {
 	_u.mutation.SetFirstResponseAt(v)
@@ -1509,6 +1529,11 @@ func (_u *TicketUpdate) check() error {
 			return &ValidationError{Name: "tenant_id", err: fmt.Errorf(`ent: validator failed for field "Ticket.tenant_id": %w`, err)}
 		}
 	}
+	if v, ok := _u.mutation.SLAMatchedLayer(); ok {
+		if err := ticket.SLAMatchedLayerValidator(v); err != nil {
+			return &ValidationError{Name: "sla_matched_layer", err: fmt.Errorf(`ent: validator failed for field "Ticket.sla_matched_layer": %w`, err)}
+		}
+	}
 	if v, ok := _u.mutation.Rating(); ok {
 		if err := ticket.RatingValidator(v); err != nil {
 			return &ValidationError{Name: "rating", err: fmt.Errorf(`ent: validator failed for field "Ticket.rating": %w`, err)}
@@ -1659,6 +1684,12 @@ func (_u *TicketUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 	}
 	if _u.mutation.SLAPauseReasonCleared() {
 		_spec.ClearField(ticket.FieldSLAPauseReason, field.TypeString)
+	}
+	if value, ok := _u.mutation.SLAMatchedLayer(); ok {
+		_spec.SetField(ticket.FieldSLAMatchedLayer, field.TypeString, value)
+	}
+	if _u.mutation.SLAMatchedLayerCleared() {
+		_spec.ClearField(ticket.FieldSLAMatchedLayer, field.TypeString)
 	}
 	if value, ok := _u.mutation.FirstResponseAt(); ok {
 		_spec.SetField(ticket.FieldFirstResponseAt, field.TypeTime, value)
@@ -2982,6 +3013,26 @@ func (_u *TicketUpdateOne) ClearSLAPauseReason() *TicketUpdateOne {
 	return _u
 }
 
+// SetSLAMatchedLayer sets the "sla_matched_layer" field.
+func (_u *TicketUpdateOne) SetSLAMatchedLayer(v string) *TicketUpdateOne {
+	_u.mutation.SetSLAMatchedLayer(v)
+	return _u
+}
+
+// SetNillableSLAMatchedLayer sets the "sla_matched_layer" field if the given value is not nil.
+func (_u *TicketUpdateOne) SetNillableSLAMatchedLayer(v *string) *TicketUpdateOne {
+	if v != nil {
+		_u.SetSLAMatchedLayer(*v)
+	}
+	return _u
+}
+
+// ClearSLAMatchedLayer clears the value of the "sla_matched_layer" field.
+func (_u *TicketUpdateOne) ClearSLAMatchedLayer() *TicketUpdateOne {
+	_u.mutation.ClearSLAMatchedLayer()
+	return _u
+}
+
 // SetFirstResponseAt sets the "first_response_at" field.
 func (_u *TicketUpdateOne) SetFirstResponseAt(v time.Time) *TicketUpdateOne {
 	_u.mutation.SetFirstResponseAt(v)
@@ -3987,6 +4038,11 @@ func (_u *TicketUpdateOne) check() error {
 			return &ValidationError{Name: "tenant_id", err: fmt.Errorf(`ent: validator failed for field "Ticket.tenant_id": %w`, err)}
 		}
 	}
+	if v, ok := _u.mutation.SLAMatchedLayer(); ok {
+		if err := ticket.SLAMatchedLayerValidator(v); err != nil {
+			return &ValidationError{Name: "sla_matched_layer", err: fmt.Errorf(`ent: validator failed for field "Ticket.sla_matched_layer": %w`, err)}
+		}
+	}
 	if v, ok := _u.mutation.Rating(); ok {
 		if err := ticket.RatingValidator(v); err != nil {
 			return &ValidationError{Name: "rating", err: fmt.Errorf(`ent: validator failed for field "Ticket.rating": %w`, err)}
@@ -4154,6 +4210,12 @@ func (_u *TicketUpdateOne) sqlSave(ctx context.Context) (_node *Ticket, err erro
 	}
 	if _u.mutation.SLAPauseReasonCleared() {
 		_spec.ClearField(ticket.FieldSLAPauseReason, field.TypeString)
+	}
+	if value, ok := _u.mutation.SLAMatchedLayer(); ok {
+		_spec.SetField(ticket.FieldSLAMatchedLayer, field.TypeString, value)
+	}
+	if _u.mutation.SLAMatchedLayerCleared() {
+		_spec.ClearField(ticket.FieldSLAMatchedLayer, field.TypeString)
 	}
 	if value, ok := _u.mutation.FirstResponseAt(); ok {
 		_spec.SetField(ticket.FieldFirstResponseAt, field.TypeTime, value)

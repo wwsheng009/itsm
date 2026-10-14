@@ -21,6 +21,8 @@ import (
 	"itsm-backend/ent/slaviolation"
 	"itsm-backend/ent/tenant"
 	"itsm-backend/ent/ticket"
+	"itsm-backend/ent/tickettype"
+	"itsm-backend/service"
 )
 
 type EntRepository struct {
@@ -1425,6 +1427,230 @@ func (r *EntRepository) ListSLAPerformance(
 	})
 
 	return rows, cohort.truncated, nil
+}
+
+// ===== P2-2 结算报表（D-SLA-5/D-SLA-9，方案 §4.5/§13）=====
+
+// GetSettlementScope 结算取数。归属校验先于任何数据读取（越权 fail-closed，
+// 响应不携带任何计数——SLA-A6）；工单窗口 = 报告窗口 ∩ 合同有效期（白名单条件④）。
+func (r *EntRepository) GetSettlementScope(ctx context.Context, providerTenantID, customerTenantID int, from, to time.Time) (*SettlementScope, error) {
+	// ① customer 归属校验（取数前）
+	customer, err := r.client.Tenant.Query().Where(tenant.IDEQ(customerTenantID)).Only(ctx)
+	if err != nil {
+		if ent.IsNotFound(err) {
+			return nil, common.NewBusinessError(common.NotFoundCode, "客户租户不存在", "")
+		}
+		return nil, err
+	}
+	if customer.MspProviderID != providerTenantID {
+		return nil, common.NewBusinessError(common.ForbiddenCode,
+			"客户租户不属于当前服务商（msp_provider_id 不匹配）", "")
+	}
+
+	// ② 报告期内生效合同（最新生效优先；与 L1 匹配同序）
+	contract, err := r.client.MSPContract.Query().
+		Where(
+			mspcontract.TenantIDEQ(providerTenantID),
+			mspcontract.CustomerTenantIDEQ(customerTenantID),
+			mspcontract.StatusEQ("active"),
+			mspcontract.EffectiveFromLTE(to),
+			mspcontract.Or(
+				mspcontract.EffectiveUntilIsNil(),
+				mspcontract.EffectiveUntilGT(from),
+			),
+		).
+		WithSLABindings(func(q *ent.MSPContractSLABindingQuery) {
+			q.WithSLADefinition()
+		}).
+		Order(ent.Desc(mspcontract.FieldEffectiveFrom), ent.Desc(mspcontract.FieldID)).
+		First(ctx)
+	if err != nil {
+		if ent.IsNotFound(err) {
+			return nil, common.NewBusinessError(common.NotFoundCode, "该客户在报告期内没有生效合同", "")
+		}
+		return nil, err
+	}
+
+	scope := &SettlementScope{
+		CustomerName: customer.Name,
+		Contract: &MSPContract{
+			ID:               contract.ID,
+			ProviderTenantID: contract.ProviderTenantID,
+			CustomerTenantID: contract.CustomerTenantID,
+			ContractNo:       contract.ContractNo,
+			Name:             contract.Name,
+			EffectiveFrom:    contract.EffectiveFrom,
+			EffectiveUntil:   contract.EffectiveUntil,
+			Status:           contract.Status,
+			Penalties:        contract.Penalties,
+			SettlementCycle:  contract.SettlementCycle,
+			Currency:         contract.Currency,
+			TenantID:         contract.TenantID,
+			CreatedAt:        contract.CreatedAt,
+			UpdatedAt:        contract.UpdatedAt,
+		},
+		Bindings: make(map[int64]*SettlementDefinitionRef),
+	}
+
+	// 绑定覆盖（白名单条件③的"合同覆盖范围"；仅活跃定义，与 L1 同语义）
+	bindingRows, err := r.client.MSPContractSLABinding.Query().
+		Where(mspcontractslabinding.ContractIDEQ(contract.ID)).
+		All(ctx)
+	if err != nil {
+		return nil, err
+	}
+	for _, b := range bindingRows {
+		def, err := r.client.SLADefinition.Query().
+			Where(sladefinition.IDEQ(b.SLADefinitionID), sladefinition.IsActive(true)).
+			Only(ctx)
+		if err != nil {
+			if ent.IsNotFound(err) {
+				continue // 定义不存在/未激活：与 L1 跳过语义一致
+			}
+			return nil, err
+		}
+		ref := &SettlementDefinitionRef{
+			ID:             def.ID,
+			Name:           def.Name,
+			ResponseTime:   def.ResponseTime,
+			ResolutionTime: def.ResolutionTime,
+			BusinessHours:  def.BusinessHours,
+			IsActive:       def.IsActive,
+		}
+		if b.TicketTypeID == 0 {
+			if scope.TypeAgnostic == nil {
+				scope.TypeAgnostic = ref
+			}
+		} else if _, exists := scope.Bindings[b.TicketTypeID]; !exists {
+			scope.Bindings[b.TicketTypeID] = ref
+		}
+	}
+
+	// ③ 工单窗口 ∩ 合同有效期；豁免类型集（sla_exempt=true 不进分母，单列豁免桶）
+	windowFrom, windowTo := from, to
+	if contract.EffectiveFrom.After(windowFrom) {
+		windowFrom = contract.EffectiveFrom
+	}
+	if contract.EffectiveUntil != nil && contract.EffectiveUntil.Before(windowTo) {
+		windowTo = *contract.EffectiveUntil
+	}
+
+	exemptIDs := make(map[int]struct{})
+	exemptRows, err := r.client.TicketType.Query().
+		Where(tickettype.TenantIDEQ(int64(customerTenantID)), tickettype.SLAExempt(true)).
+		Select(tickettype.FieldID).
+		All(ctx)
+	if err != nil {
+		return nil, err
+	}
+	for _, tt := range exemptRows {
+		exemptIDs[tt.ID] = struct{}{}
+	}
+
+	tickets, err := r.client.Ticket.Query().
+		Where(
+			ticket.TenantIDEQ(customerTenantID),
+			ticket.MspProviderIDEQ(providerTenantID),
+			ticket.CreatedAtGTE(windowFrom),
+			ticket.CreatedAtLTE(windowTo),
+		).
+		All(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	for _, t := range tickets {
+		ttID := int64(t.TicketTypeID)
+		if _, exempt := exemptIDs[int(ttID)]; exempt {
+			scope.ExemptCount++
+			continue
+		}
+		// 覆盖判定：显式类型绑定优先；类型无关绑定兜底（白名单条件③）
+		if _, ok := scope.Bindings[ttID]; !ok && scope.TypeAgnostic == nil {
+			scope.UncoveredCount++
+			continue
+		}
+		st := &SettlementTicket{
+			ID:                    t.ID,
+			TicketNumber:          t.TicketNumber,
+			Title:                 t.Title,
+			TicketTypeID:          ttID,
+			TicketTypeCode:        t.TicketTypeCodeSnapshot,
+			CreatedAt:             t.CreatedAt,
+			FirstResponseAt:       t.FirstResponseAt,
+			ResolvedAt:            t.ResolvedAt,
+			SLAResponseDeadline:   t.SLAResponseDeadline,
+			SLAResolutionDeadline: t.SLAResolutionDeadline,
+			SLADefinitionID:       t.SLADefinitionID,
+			SLAMatchedLayer:       t.SLAMatchedLayer,
+		}
+		scope.CoveredTickets = append(scope.CoveredTickets, st)
+		scope.CoveredIDs = append(scope.CoveredIDs, t.ID)
+	}
+
+	// ④ 覆盖工单的违约行（matched_layer/resolution_state 供结算过滤，§13.6）
+	if len(scope.CoveredIDs) > 0 {
+		vrows, err := r.client.SLAViolation.Query().
+			Where(
+				slaviolation.TenantIDEQ(customerTenantID),
+				slaviolation.TicketIDIn(scope.CoveredIDs...),
+				slaviolation.TicketTypeNEQ("incident"),
+			).
+			All(ctx)
+		if err != nil {
+			return nil, err
+		}
+		for _, v := range vrows {
+			scope.Violations = append(scope.Violations, &SettlementViolation{
+				ID:              v.ID,
+				TicketID:        v.TicketID,
+				SLADefinitionID: v.SLADefinitionID,
+				ViolationType:   v.ViolationType,
+				ResolutionState: v.ResolutionState,
+				MatchedLayer:    v.MatchedLayer,
+				SettledFlag:     v.SettledFlag,
+				ViolationTime:   v.ViolationTime,
+			})
+		}
+	}
+
+	return scope, nil
+}
+
+// ComputeSLADeadlines 按定义参数从 baseTime 起算截止时间（结算重算与建单路径同口径）。
+func (r *EntRepository) ComputeSLADeadlines(ctx context.Context, tenantID int, responseMinutes, resolutionMinutes int, businessHours map[string]interface{}, baseTime time.Time) (time.Time, time.Time) {
+	resp := service.ComputeDeadlineWithBusinessHours(ctx, r.client, tenantID, baseTime, responseMinutes, businessHours)
+	res := service.ComputeDeadlineWithBusinessHours(ctx, r.client, tenantID, baseTime, resolutionMinutes, businessHours)
+	return resp, res
+}
+
+// LockSettlementViolations 出快照锁定（§13.3）：范围内合同域违约置 settled_flag=true。
+// 幂等：仅影响未锁定行；客户内部域违约（L2/L3*）不属结算快照范围，保持原状。
+func (r *EntRepository) LockSettlementViolations(ctx context.Context, providerTenantID, customerTenantID int, from, to time.Time) (int, error) {
+	scope, err := r.GetSettlementScope(ctx, providerTenantID, customerTenantID, from, to)
+	if err != nil {
+		return 0, err
+	}
+	if len(scope.CoveredIDs) == 0 {
+		return 0, nil
+	}
+	n, err := r.client.SLAViolation.Update().
+		Where(
+			slaviolation.TenantIDEQ(customerTenantID),
+			slaviolation.TicketIDIn(scope.CoveredIDs...),
+			slaviolation.TicketTypeNEQ("incident"),
+			slaviolation.SettledFlagEQ(false),
+			slaviolation.Or(
+				slaviolation.MatchedLayerEQ("L1"),
+				slaviolation.MatchedLayerEQ(""),
+			),
+		).
+		SetSettledFlag(true).
+		Save(ctx)
+	if err != nil {
+		return 0, err
+	}
+	return n, nil
 }
 
 // GetComplianceReportData retrieves data for SLA compliance report

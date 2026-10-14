@@ -70,6 +70,8 @@ type Ticket struct {
 	SLAPausedAt time.Time `json:"sla_paused_at,omitempty"`
 	// SLA暂停原因
 	SLAPauseReason string `json:"sla_pause_reason,omitempty"`
+	// SLA匹配层级快照: L1/L2/L3a/L3b/L3c/L4
+	SLAMatchedLayer string `json:"sla_matched_layer,omitempty"`
 	// 首次响应时间
 	FirstResponseAt time.Time `json:"first_response_at,omitempty"`
 	// 解决时间
@@ -330,7 +332,7 @@ func (*Ticket) scanValues(columns []string) ([]any, error) {
 			values[i] = new(sql.NullBool)
 		case ticket.FieldID, ticket.FieldTicketTypeID, ticket.FieldRequesterID, ticket.FieldAssigneeID, ticket.FieldTenantID, ticket.FieldTemplateID, ticket.FieldCategoryID, ticket.FieldDepartmentID, ticket.FieldParentTicketID, ticket.FieldSLADefinitionID, ticket.FieldRating, ticket.FieldRatedBy, ticket.FieldVersion, ticket.FieldMspProviderID, ticket.FieldManagedByUserID:
 			values[i] = new(sql.NullInt64)
-		case ticket.FieldTitle, ticket.FieldDescription, ticket.FieldDescriptionHTML, ticket.FieldDescriptionFormat, ticket.FieldStatus, ticket.FieldType, ticket.FieldTicketTypeCodeSnapshot, ticket.FieldTicketTypeNameSnapshot, ticket.FieldPriority, ticket.FieldTicketNumber, ticket.FieldSLAStatus, ticket.FieldSLAPauseReason, ticket.FieldResolution, ticket.FieldResolutionCategory, ticket.FieldRatingComment, ticket.FieldMspTicketID:
+		case ticket.FieldTitle, ticket.FieldDescription, ticket.FieldDescriptionHTML, ticket.FieldDescriptionFormat, ticket.FieldStatus, ticket.FieldType, ticket.FieldTicketTypeCodeSnapshot, ticket.FieldTicketTypeNameSnapshot, ticket.FieldPriority, ticket.FieldTicketNumber, ticket.FieldSLAStatus, ticket.FieldSLAPauseReason, ticket.FieldSLAMatchedLayer, ticket.FieldResolution, ticket.FieldResolutionCategory, ticket.FieldRatingComment, ticket.FieldMspTicketID:
 			values[i] = new(sql.NullString)
 		case ticket.FieldSLAResponseDeadline, ticket.FieldSLAResolutionDeadline, ticket.FieldSLAPausedAt, ticket.FieldFirstResponseAt, ticket.FieldResolvedAt, ticket.FieldClosedAt, ticket.FieldRatedAt, ticket.FieldCreatedAt, ticket.FieldUpdatedAt, ticket.FieldMspRoutedAt, ticket.FieldDeletedAt:
 			values[i] = new(sql.NullTime)
@@ -520,6 +522,12 @@ func (_m *Ticket) assignValues(columns []string, values []any) error {
 				return fmt.Errorf("unexpected type %T for field sla_pause_reason", values[i])
 			} else if value.Valid {
 				_m.SLAPauseReason = value.String
+			}
+		case ticket.FieldSLAMatchedLayer:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field sla_matched_layer", values[i])
+			} else if value.Valid {
+				_m.SLAMatchedLayer = value.String
 			}
 		case ticket.FieldFirstResponseAt:
 			if value, ok := values[i].(*sql.NullTime); !ok {
@@ -876,6 +884,9 @@ func (_m *Ticket) String() string {
 	builder.WriteString(", ")
 	builder.WriteString("sla_pause_reason=")
 	builder.WriteString(_m.SLAPauseReason)
+	builder.WriteString(", ")
+	builder.WriteString("sla_matched_layer=")
+	builder.WriteString(_m.SLAMatchedLayer)
 	builder.WriteString(", ")
 	builder.WriteString("first_response_at=")
 	builder.WriteString(_m.FirstResponseAt.Format(time.ANSIC))

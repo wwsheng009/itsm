@@ -84,6 +84,15 @@ func SetupSLARoutes(tenant *gin.RouterGroup, h *slaHandler.Handler) {
 			contracts.GET("/:id", middleware.RequireMSPPermission("sla", "contract:read"), h.GetContract)
 			contracts.PUT("/:id", middleware.RequireMSPPermission("sla", "contract:write"), h.UpdateContract)
 		}
+
+		// MSP SLA 结算报表（D-SLA-5/D-SLA-9，方案 §4.5/§13）——provider 面：
+		// 白名单口径 + 双口径对账；客户归属校验在 service 取数前 fail-closed（SLA-A6）。
+		settlement := slaGrp.Group("/settlement-report", middleware.RequireMSPDeploymentMode())
+		{
+			settlement.GET("", middleware.RequireMSPPermission("sla", "settlement:read"), h.GetSLASettlementReport)
+			// 出快照锁定（§13.3）：锁定后该周期违约不可再变更（新争议走下一周期）。
+			settlement.POST("/lock", middleware.RequireMSPPermission("sla", "violation:settle"), h.LockSettlementSnapshot)
+		}
 	}
 
 	// SLA 模板（开箱即用预置模板）- 在 router.go 中单独处理 SLATemplateHandler.RegisterRoutes

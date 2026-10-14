@@ -345,6 +345,20 @@ func (_c *TicketCreate) SetNillableSLAPauseReason(v *string) *TicketCreate {
 	return _c
 }
 
+// SetSLAMatchedLayer sets the "sla_matched_layer" field.
+func (_c *TicketCreate) SetSLAMatchedLayer(v string) *TicketCreate {
+	_c.mutation.SetSLAMatchedLayer(v)
+	return _c
+}
+
+// SetNillableSLAMatchedLayer sets the "sla_matched_layer" field if the given value is not nil.
+func (_c *TicketCreate) SetNillableSLAMatchedLayer(v *string) *TicketCreate {
+	if v != nil {
+		_c.SetSLAMatchedLayer(*v)
+	}
+	return _c
+}
+
 // SetFirstResponseAt sets the "first_response_at" field.
 func (_c *TicketCreate) SetFirstResponseAt(v time.Time) *TicketCreate {
 	_c.mutation.SetFirstResponseAt(v)
@@ -980,6 +994,11 @@ func (_c *TicketCreate) check() error {
 	if _, ok := _c.mutation.SLAStatus(); !ok {
 		return &ValidationError{Name: "sla_status", err: errors.New(`ent: missing required field "Ticket.sla_status"`)}
 	}
+	if v, ok := _c.mutation.SLAMatchedLayer(); ok {
+		if err := ticket.SLAMatchedLayerValidator(v); err != nil {
+			return &ValidationError{Name: "sla_matched_layer", err: fmt.Errorf(`ent: validator failed for field "Ticket.sla_matched_layer": %w`, err)}
+		}
+	}
 	if v, ok := _c.mutation.Rating(); ok {
 		if err := ticket.RatingValidator(v); err != nil {
 			return &ValidationError{Name: "rating", err: fmt.Errorf(`ent: validator failed for field "Ticket.rating": %w`, err)}
@@ -1118,6 +1137,10 @@ func (_c *TicketCreate) createSpec() (*Ticket, *sqlgraph.CreateSpec) {
 	if value, ok := _c.mutation.SLAPauseReason(); ok {
 		_spec.SetField(ticket.FieldSLAPauseReason, field.TypeString, value)
 		_node.SLAPauseReason = value
+	}
+	if value, ok := _c.mutation.SLAMatchedLayer(); ok {
+		_spec.SetField(ticket.FieldSLAMatchedLayer, field.TypeString, value)
+		_node.SLAMatchedLayer = value
 	}
 	if value, ok := _c.mutation.FirstResponseAt(); ok {
 		_spec.SetField(ticket.FieldFirstResponseAt, field.TypeTime, value)

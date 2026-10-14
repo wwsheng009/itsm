@@ -191,6 +191,78 @@ type SLAComplianceReport struct {
 	ReportPeriod      SLAReportPeriod `json:"reportPeriod"`
 }
 
+// ===== P2-2 结算报表（D-SLA-5/D-SLA-9，方案 §4.5/§13）=====
+
+// SLASettlementRow 双口径对账行（§13.5：每工单一行，合同判定 vs 客户内部判定，
+// 差异行（driftFlag）即对账焦点）。
+type SLASettlementRow struct {
+	TicketID   int    `json:"ticketId"`
+	TicketNumber string `json:"ticketNumber"`
+	Title      string `json:"title"`
+	TicketTypeID   int64  `json:"ticketTypeId"`
+	TicketTypeCode string `json:"ticketTypeCode,omitempty"`
+	CreatedAt      string `json:"createdAt"`
+	FirstResponseAt string `json:"firstResponseAt,omitempty"`
+	ResolvedAt      string `json:"resolvedAt,omitempty"`
+	// ContractVerdict 合同基准重算判定：met|breached（§13.2 判定基准，不用快照）。
+	ContractVerdict string `json:"contractVerdict"`
+	// InternalVerdict 客户内部快照判定：met|breached|unknown（快照缺失时 unknown）。
+	InternalVerdict string `json:"internalVerdict"`
+	// DriftFlag 双口径不一致（绑定漂移行；§13.5/§13.6 对账核心差异来源）。
+	DriftFlag bool `json:"driftFlag"`
+	// MatchedLayer 工单建单时匹配层级快照（L1=合同域；L3*=客户内部域）。
+	MatchedLayer string `json:"matchedLayer,omitempty"`
+	// ViolationID/ViolationState 合同域违约引用（客户内部域违约不在结算面列出，§13.6）。
+	ViolationID    int    `json:"violationId,omitempty"`
+	ViolationState string `json:"violationState,omitempty"`
+	// ExcludedReason 合同基准违约但被裁决排除（waived|disputed，不计违约的原因）。
+	ExcludedReason string `json:"excludedReason,omitempty"`
+}
+
+// SLASettlementCredit 按合同 penalties 计算的信用额（§13.3 快照字段之一）。
+type SLASettlementCredit struct {
+	Currency    string  `json:"currency,omitempty"`
+	CreditRate  float64 `json:"creditRate"`
+	Cap         float64 `json:"cap"`
+	BreachUnits int     `json:"breachUnits"`
+	Amount      float64 `json:"amount"`
+	Note        string  `json:"note,omitempty"`
+}
+
+// SLASettlementReport provider 视角结算报表（GET /api/v1/sla/settlement-report）。
+//
+// 口径（§13.2 白名单）：分母=合同覆盖类型工单（合同期内、归属一致、非 sla_exempt）；
+// 未覆盖/豁免工单单列桶、不进分母；waived/未裁决 disputed 不计违约（§13.2 ⑤）。
+type SLASettlementReport struct {
+	CustomerTenantID int    `json:"customerTenantId"`
+	CustomerName     string `json:"customerName,omitempty"`
+	ContractID       int    `json:"contractId"`
+	ContractNo       string `json:"contractNo"`
+	ContractName     string `json:"contractName"`
+	Period           SLAReportPeriod `json:"reportPeriod"`
+	// CoveredTickets 白名单分母（合同覆盖类型工单）。
+	CoveredTickets int `json:"coveredTickets"`
+	// ExemptTickets/UncoveredTickets 豁免桶 / 未覆盖桶（均不进分母）。
+	ExemptTickets    int `json:"exemptTickets"`
+	UncoveredTickets int `json:"uncoveredTickets"`
+	ContractMet      int `json:"contractMet"`
+	// ContractBreached 按合同基准重算判定的违约工单数（§13.5 判定基准）。
+	ContractBreached int `json:"contractBreached"`
+	// SettlementBreaches 计违约工单数 = 重算违约 − waived/未裁决 disputed（§13.2 ⑤）。
+	SettlementBreaches int `json:"settlementBreaches"`
+	// 违约明细计数（合同域；客户内部域违约见 ExcludedInternalViolations）。
+	AcceptedViolations int `json:"acceptedViolations"`
+	WaivedViolations   int `json:"waivedViolations"`
+	DisputedViolations int `json:"disputedViolations"`
+	PendingViolations  int `json:"pendingViolations"`
+	// ExcludedInternalViolations 客户内部域违约数（L2/L3*；§13.6 违约基准过滤，不进结算）。
+	ExcludedInternalViolations int `json:"excludedInternalViolations"`
+	// ComplianceRate 合规率 =（分母 − 计违约）/ 分母 × 100，保留一位小数。
+	ComplianceRate float64             `json:"complianceRate"`
+	Credit         SLASettlementCredit `json:"credit"`
+	Rows           []SLASettlementRow  `json:"rows"`
+}
+
 // Existing SLA report DTOs remain unchanged...
 
 type SLASummary struct {

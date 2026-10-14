@@ -43,7 +43,7 @@ type Repository interface {
 	AssignTicket(ctx context.Context, id int, assigneeID int, tenantID int) (*Ticket, error)
 
 	// SLA 相关
-	UpdateSLADeadlines(ctx context.Context, id int, responseDeadline, resolutionDeadline *time.Time, slaDefinitionID *int, tenantID int) error
+	UpdateSLADeadlines(ctx context.Context, id int, responseDeadline, resolutionDeadline *time.Time, slaDefinitionID *int, matchedLayer string, tenantID int) error
 	MarkFirstResponse(ctx context.Context, id int, tenantID int) error
 
 	// 版本控制

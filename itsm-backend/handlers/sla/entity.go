@@ -93,6 +93,61 @@ type MSPContractSLABinding struct {
 	DefinitionName string `json:"definitionName,omitempty"`
 }
 
+// ===== P2-2 结算报表（D-SLA-5/D-SLA-9，方案 §4.5/§13）=====
+
+// SettlementDefinitionRef 结算重算所需的定义引用（来自合同绑定，仅取活跃定义）。
+type SettlementDefinitionRef struct {
+	ID             int
+	Name           string
+	ResponseTime   int
+	ResolutionTime int
+	BusinessHours  map[string]interface{}
+	IsActive       bool
+}
+
+// SettlementTicket 结算范围内的工单事实行（客观时间 + 快照字段，§13.5 事实层）。
+type SettlementTicket struct {
+	ID                    int
+	TicketNumber          string
+	Title                 string
+	TicketTypeID          int64
+	TicketTypeCode        string
+	CreatedAt             time.Time
+	FirstResponseAt       time.Time
+	ResolvedAt            time.Time
+	SLAResponseDeadline   time.Time
+	SLAResolutionDeadline time.Time
+	SLADefinitionID       int
+	SLAMatchedLayer       string
+}
+
+// SettlementViolation 结算报表引用的违约行（含归责状态与来源层级快照）。
+type SettlementViolation struct {
+	ID              int
+	TicketID        int
+	SLADefinitionID int
+	ViolationType   string
+	ResolutionState string
+	MatchedLayer    string
+	SettledFlag     bool
+	ViolationTime   time.Time
+}
+
+// SettlementScope 结算取数结果：
+// ① customer 归属校验（取数前，fail-closed）；② 报告期生效合同 + 绑定覆盖（白名单条件③）；
+// ③ 窗口内工单分类（覆盖/豁免/未覆盖，条件①②④）；④ 覆盖工单的违约行。
+type SettlementScope struct {
+	CustomerName   string
+	Contract       *MSPContract
+	Bindings       map[int64]*SettlementDefinitionRef // ticket_type_id(>0) -> 定义
+	TypeAgnostic   *SettlementDefinitionRef           // 类型无关绑定（ticket_type_id=0）
+	CoveredTickets []*SettlementTicket
+	CoveredIDs     []int
+	ExemptCount    int
+	UncoveredCount int
+	Violations     []*SettlementViolation
+}
+
 // SLAViolation represents a breach of SLA
 type SLAViolation struct {
 	ID        int `json:"id"`
