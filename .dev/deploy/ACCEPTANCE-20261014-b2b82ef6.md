@@ -1,6 +1,6 @@
 # §8 端到端验收执行记录 —— SLA 合同化专项（2026-10-14，238 demo）
 
-> 环境：`172.18.3.238` demo 栈（`http://172.18.3.238:8089/`）｜最终版本：**`1.8.0-dev.b2b82ef6`**
+> 环境：`172.18.3.238` demo 栈（`http://172.18.3.238:8089/`）｜验收版本：**`1.8.0-dev.b2b82ef6`**（其后修复部署 `1.8.0-dev.d3a4d2a4`，见 §9）
 > 范围：方案 §8 SLA-A1…A17 + §5 反例清单 + P1-2 并轨闸门｜执行人：主 agent（API/DB/UI 实测）
 > 关联：`ACCEPTANCE-RUNBOOK-c700c060.md`（本记录为其执行结果与偏差说明）
 
@@ -122,3 +122,11 @@ python .dev/deploy/remote.py --sudo 'bash /tmp/acceptance_probe8.sh'
 **复跑**：验收脚本 **42 步 0 fail**；出现真实违约样本（`covered=2 / breached=1 / settlementBreaches=1 / compliance=50`，A13 行 `contractVerdict:breached / internalVerdict:breached / violationState:pending`）——双口径对账列在真实违约下进一步坐实。
 
 > 说明：浏览器协议层超时导致最后一次可选 UI 抽查（`/sla/definitions/new` 渲染）未执行；核心 UI 抽查（合同页/结算页/工作台）已在前文完成。
+
+## 10. 实施与文档一致性核查（2026-10-14 末次）
+
+- **docs-gate（仓库自检门禁，`.github/workflows/docs-gate.yml` → `scripts/docs-gate/run-all.sh`）**：首次运行 = 6 门 5 过 / **C.6 多租户一致性 4 条历史违例**（`demo-environment.md` 头部缺日期；3 份 evidence 头部缺"状态/定位"）→ 已修复（并顺带修正 `demo-environment.md` 过期版本号 `5e4eab85` → `d3a4d2a4`）→ **复跑全绿：`Docs Gates Summary: 6 total, 0 failed` / `All docs gates passed.`**
+- **代码 ↔ 文档**：IM-36~40 对应提交（`e5bfdc94`/`fa04cd67`/`b2b82ef6`/`d3a4d2a4`）与守卫测试（`router/sla_msp_context_guard_test.go`、`handlers/sla/repository_delete_guard_test.go`）均在库；INDEX 版本列 / 方案 B.16 / 本记录三方口径一致（d3a4d2a4）。
+- **238 线上态**：backend/worker/frontend = `1.8.0-dev.d3a4d2a4`（healthy，init exit=0）；迁移 `20261014*` 6 行；四条新路由探针 401、`readyz=200`；远端仓库 HEAD=`d3a4d2a4`、`.env.demo VERSION` 一致。
+- **验收复跑（第 4 次）**：42 步 0 fail；`A4-del` 现 **PASS（404）**；结算 `covered=3 / breached=1 / settlementBreaches=1 / compliance=66.7`（真实违约在案）。留痕：`accept-run-d3a4d2a4.log`。
+- **非阻塞遗留**：服务器 `repo/.env.demo.bak-*` 历史备份 3 份（运维冗余，可清理）；broken-links 门禁 84 条 advisory（历史存量、非门禁失败项）。

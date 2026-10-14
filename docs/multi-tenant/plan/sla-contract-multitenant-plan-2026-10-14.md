@@ -1195,9 +1195,9 @@ flowchart TD
 | IM-34 | SLA 进度条为**展示层派生**（consumed/total 比例），不引入前端判定：违约/超时色仍以后端 `isBreached`/剩余分钟为准；`/tickets/:id/sla` 响应未含暂停状态字段，暂停展示（sla_status）登记为后续后端契约扩展项 |
 | IM-35 | SLA 定义 `escalationRules` 前端类型修正为"对象 ∪ 数组"（后端为 JSON map；历史数据形态容忍），`admin/sla-definitions` 展示适配两形态 |
 
-### B.16 验收执行记录（§8 SLA-A1…A17 端到端验收 + 验收修复 IM-36~38，2026-10-14）
+### B.16 验收执行记录（§8 SLA-A1…A17 端到端验收 + 验收修复 IM-36~40，2026-10-14）
 
-**结论**：§8 端到端验收**已执行并通过**（238 demo，最终版本 `1.8.0-dev.b2b82ef6`）。API 场景脚本 42 步 0 fail；DB 逐锚点断言齐备；UI 抽查通过。完整记录：`.dev/deploy/ACCEPTANCE-20261014-b2b82ef6.md`（执行器 `acceptance_sla_e2e.py` + 探针 `acceptance_probe*.sh` 同目录入库）。
+**结论**：§8 端到端验收**已执行并通过**（238 demo，验收版本 `1.8.0-dev.b2b82ef6`；其后修复部署 `1.8.0-dev.d3a4d2a4`，见文末追记）。API 场景脚本 42 步 0 fail；DB 逐锚点断言齐备；UI 抽查通过。完整记录：`.dev/deploy/ACCEPTANCE-20261014-b2b82ef6.md`（执行器 `acceptance_sla_e2e.py` + 探针 `acceptance_probe*.sh` 同目录入库）。
 
 **验收期修复（3 提交，缺陷均由验收实测发现）**：
 

@@ -1,5 +1,7 @@
 # OB-15：/msp 客户管理页整页崩溃 —— 修复与 238 复验记录
 
+> 状态：已完成（238 复验通过）｜定位：OB-15 缺陷修复证据（238 部署批次）
+
 - 日期：2026-10-13（CST）
 - 环境：238 生产（`172.18.3.238:8088`，DB `itsm_prod_v2`，模式 `saas_msp`）
 - 账号：`prov.ui.demo1012234321`（role=end_user，mspRole=provider_admin，tenant 2「冒烟服务商」）

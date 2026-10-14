@@ -1,0 +1,43 @@
+RESULT: {"step": "DISC-msp-defs", "status": "OK", "total": 7, "provider_defs": 7, "sample": [{"id": 10, "name": "Incident-P1-高", "serviceType": "incident", "priority": "high", "responseTime": 30, "resolutionTime": 240, "isActive": true, "ownerProviderTenantId": 0}, {"id": 11, "name": "Incident-P2-中", "serviceType": "incident", "priority": "medium", "responseTime": 120, "resolutionTime": 480, "isActive": true, "ownerProviderTenantId": 0}, {"id": 12, "name": "Incident-P3-低", "serviceType": "incident", "priority": "low", "responseTime": 240, "resolutionTime": 1440, "isActive": true, "ownerProviderTenantId": 0}, {"id": 13, "name": "ServiceRequest-标准", "serviceType": "service_request", "priority": "medium", "responseTime": 480, "resolutionTime": 4320, "isActive": true, "ownerProviderTenantId": 0}, {"id": 14, "name": "Change-普通", "serviceType": "change", "priority": "medium", "responseTime": 480, "resolutionTime": 10080, "isActive": true, "ownerProviderTenantId": 0}, {"id": 15, "name": "Change-紧急", "serviceType": "change", "priority": "high", "responseTime": 60, "resolutionTime": 1440, "isActive": true, "ownerProviderTenantId": 0}, {"id": 9, "name": "Incident-P0-紧急", "serviceType": "incident", "priority": "urgent", "responseTime": 15, "resolutionTime": 120, "isActive": true, "ownerProviderTenantId": 2}], "err": null}
+RESULT: {"step": "DISC-msp-types", "status": "OK", "total": 1, "sample": [{"id": 25, "code": "acc_pacs_incident", "name": "[ACC] PACS incident (source)", "slaEnabled": true, "slaExempt": null, "defaultSlaId": 10, "origin": null, "tenantId": 2}], "err": null}
+RESULT: {"step": "DISC-mfg-types", "status": "OK", "total": 8, "sample": [{"id": 13, "code": "general_incident", "name": "通用事件", "slaEnabled": false, "slaExempt": null, "defaultSlaId": null, "origin": null, "tenantId": 3}, {"id": 16, "code": "account_request", "name": "账号权限申请", "slaEnabled": false, "slaExempt": null, "defaultSlaId": null, "origin": null, "tenantId": 3}, {"id": 15, "code": "database_change", "name": "数据库变更", "slaEnabled": false, "slaExempt": null, "defaultSlaId": null, "origin": null, "tenantId": 3}, {"id": 14, "code": "pacs_incident", "name": "PACS 故障", "slaEnabled": false, "slaExempt": null, "defaultSlaId": null, "origin": null, "tenantId": 3}, {"id": 29, "code": "acc_pacs_incident-p2-3", "name": "[ACC] PACS incident (source)", "slaEnabled": true, "slaExempt": null, "defaultSlaId": null, "origin": null, "tenantId": 3}, {"id": 28, "code": "acc_pacs_incident-p2-2", "name": "[ACC] PACS incident (source)", "slaEnabled": true, "slaExempt": null, "defaultSlaId": null, "origin": null, "tenantId": 3}, {"id": 27, "code": "acc_pacs_incident-p2", "name": "[ACC] PACS incident (source)", "slaEnabled": true, "slaExempt": null, "defaultSlaId": null, "origin": null, "tenantId": 3}, {"id": 26, "code": "acc_pacs_incident", "name": "[ACC] PACS incident (source)", "slaEnabled": true, "slaExempt": null, "defaultSlaId": null, "origin": null, "tenantId": 3}], "err": null}
+RESULT: {"step": "DISC-contracts", "status": "OK", "total": 3, "sample": [{"id": 3, "contractNo": "ACC-A9-EDU", "customerTenantId": 5, "status": "terminated", "effectiveFrom": "2026-10-13T16:17:54Z", "effectiveUntil": null}, {"id": 2, "contractNo": "ACC-A5-MED-EXPIRED", "customerTenantId": 4, "status": "active", "effectiveFrom": "2026-09-14T16:17:53Z", "effectiveUntil": "2026-10-13T16:17:53Z"}, {"id": 1, "contractNo": "ACC-A1-MFG", "customerTenantId": 3, "status": "active", "effectiveFrom": "2026-10-13T16:17:52Z", "effectiveUntil": null}], "err": null}
+RESULT: {"step": "DISC-provided", "status": "OK", "total_": 2, "raw_keys": ["items", "total"], "sample": [{"slaDefinitionId": 9, "contractId": 1, "ticketTypeId": 0, "providerTenantId": 2}, {"slaDefinitionId": 9, "contractId": 1, "ticketTypeId": 13, "providerTenantId": 2}], "err": null}
+RESULT: {"step": "SEL-def", "status": "OK", "def": {"id": 10, "name": "Incident-P1-高", "responseTime": 30, "resolutionTime": 240, "serviceType": "incident", "priority": "high"}}
+RESULT: {"step": "A2-baseline", "status": "SKIP", "reason": "contract already existed; baseline unavailable"}
+RESULT: {"step": "A1-contract", "status": "REUSED", "contractId": 1, "contractNo": "ACC-A1-MFG"}
+RESULT: {"step": "A1-incident", "status": "OK", "incident": 45, "number": "INC-202610-000045", "err": null}
+RESULT: {"step": "A4-put-provided-def", "status": "PASS", "http": 404, "body": {"code": 4004, "message": "SLA Definition not found"}}
+RESULT: {"step": "A4-del-provided-def", "status": "PASS", "http": 404, "note": "=200 时为租户域外 no-op 语义，须 DB 复核目标定义未被变更"}
+RESULT: {"step": "A4-read-foreign-def", "status": "PASS", "http": 404, "defId": 11}
+RESULT: {"step": "A10-provided-count", "status": "OK", "total": 2}
+RESULT: {"step": "A10-provided-keys", "status": "PASS", "keys": ["contractId", "contractNo", "description", "name", "priority", "providerTenantId", "resolutionTime", "responseTime", "serviceType", "slaDefinitionId", "ticketTypeId"], "leaked": []}
+RESULT: {"step": "A5-contract", "status": "REUSED", "contractId": 2}
+RESULT: {"step": "A5-incident", "status": "OK", "incident": 46, "err": null}
+RESULT: {"step": "A11-binding", "status": "REUSED"}
+RESULT: {"step": "A1-ticket", "status": "OK", "ticket": 50, "err": null}
+RESULT: {"step": "A5-ticket", "status": "OK", "ticket": 51, "err": null}
+RESULT: {"step": "A9-reactivate", "status": "OK", "err": null}
+RESULT: {"step": "A9-incident-active", "status": "OK", "incident": 47, "err": null}
+RESULT: {"step": "A9-ticket-active", "status": "OK", "ticket": 52, "err": null}
+RESULT: {"step": "A9-terminate", "status": "OK", "terminatedStatus": "terminated", "err": null}
+RESULT: {"step": "A9-incident-revoked", "status": "OK", "incident": 48, "err": null}
+RESULT: {"step": "A9-ticket-revoked", "status": "OK", "ticket": 53, "err": null}
+RESULT: {"step": "A3-incident", "status": "OK", "incident": 49, "err": null}
+RESULT: {"step": "A11-settlement", "status": "OK", "covered": 3, "exempt": 0, "uncovered": 0, "breached": 1, "settlementBreaches": 1, "excludedInternal": 0, "rows": 3, "compliance": 66.7}
+RESULT: {"step": "A13-dual-verdict", "status": "PASS", "row0": {"ticketId": 42, "contractVerdict": "breached", "internalVerdict": "breached", "driftFlag": false, "matchedLayer": "L1", "violationState": "pending"}}
+RESULT: {"step": "A13-L1-in-rows", "status": "PASS", "l1Count": 3}
+RESULT: {"step": "A6-foreign-tenant", "status": "PASS", "http": 403, "no_counts": true, "body": "{'code': 2003, 'message': '客户租户不属于当前服务商（msp_provider_id 不匹配）'}"}
+RESULT: {"step": "P1-GATE-grant-410", "status": "PASS", "http": 410}
+RESULT: {"step": "P1-GATE-grant-read", "status": "OK", "err": null}
+RESULT: {"step": "SEL-source-type", "status": "REUSED", "id": 25, "code": "acc_pacs_incident"}
+RESULT: {"step": "A15-distribute", "status": "OK", "distId": 5, "copyTypeId": 30, "copyCode": "acc_pacs_incident-p2-4", "syncStatus": "synced", "slaBinding": "created"}
+RESULT: {"step": "A16-dup-guard", "status": "PASS", "http": 409}
+RESULT: {"step": "A17-preview-initial", "status": "OK", "preview": {"distributionId": 5, "changes": [], "slaAction": "none", "slaDefinitionIdFrom": 10, "slaDefinitionIdTo": 10, "upToDate": true}}
+RESULT: {"step": "A15-lock-controlled", "status": "PASS", "http": 403, "body": "{'code': 2003, 'message': '受控字段由服务商管理，不可本地修改：name'}"}
+RESULT: {"step": "A15-edit-governance", "status": "PASS", "http": 200}
+RESULT: {"step": "A17-edit-source", "status": "OK", "err": null}
+RESULT: {"step": "A17-preview-diff", "status": "OK", "preview": {"distributionId": 5, "changes": [{"field": "description", "from": "[ACC] publish probe 10150716", "to": "[ACC] publish probe 10150725"}], "slaAction": "none", "slaDefinitionIdFrom": 10, "slaDefinitionIdTo": 10, "upToDate": false}}
+RESULT: {"step": "A17-publish", "status": "OK", "resp": {"distributionId": 5, "status": "synced", "slaAction": "unchanged", "syncedAt": "2026-10-14T23:25:09.826489279Z"}}
+RESULT: {"step": "A15-unbind", "status": "OK", "resp": {"distributionId": 5, "copyTypeId": 30, "released": true, "bindingRemoved": true}}
+SUMMARY: {"mode": "run", "ts": "10150725", "steps": 42, "fail_or_blocked": 0}
