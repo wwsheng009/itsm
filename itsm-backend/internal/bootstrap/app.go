@@ -1371,6 +1371,12 @@ func NewApplication() *Application {
 	slaAlertService := service.NewSLAAlertService(client, sugar)
 	escalationService := service.NewEscalationService(client, sugar)
 
+	// P1-3 接线（SLA 合同化专项）：暂停/恢复计时委托——incident/ticket 两路径共用
+	// SLAMonitorService 真实实现（记录 sla_paused_at；恢复时暂停时长追加到 deadline）。
+	// 未装配时两路径 fail-closed 503（禁止假成功）。
+	incidentHandlerService.SetSLAMonitorService(slaMonitorService)
+	ticketHandler.SetSLAMonitorService(slaMonitorService)
+
 	// Wire up notification service
 	slaMonitorService.SetNotificationService(ticketNotificationService)
 	slaAlertService.SetNotificationService(ticketNotificationService)

@@ -960,7 +960,7 @@ flowchart TD
 | P1-1 | #13 模型部分：msp_contract + msp_contract_sla_binding schema + codegen + 迁移 + RLS 012 | ✅ 已提交（见 B.8） |
 | P1-2 | #13 服务部分：合同 CRUD（provider 面）+ L1 匹配升级（合同链解析）+ 并轨闸门（grant 搬迁/写入口唯一化） | ✅ 已提交（见 B.9；前端合同管理页随 P1-2b） |
 | P1-2b | #13 前端：grant 管理页 → 合同管理页替换（列表/新建含 bindings/状态操作）；sla-api 合同化 | ✅ 已提交（见 B.10） |
-| P1/P2 | #11/#12 Pause/Resume 真实计时（P1 必做） | ⬜ |
+| P1-3 | #11/#12 Pause/Resume 真实计时接线（incident + ticket 两路径共用 SLAMonitorService） | ✅ 已提交（见 B.11） |
 | P2 | #14 violation resolution_state（D-SLA-8）+ #15 白名单口径/settlement-report（D-SLA-5/9）+ #20 D-TT-1 类型下发（前置=P0 grant 验收） | ⬜ |
 | P3 | 前端补全（businessHours/grant 选择器/报表页/进度条） | ⬜ |
 
@@ -1095,3 +1095,23 @@ flowchart TD
 | F-4 | 测试 | sla-api 契约用例 grant → 合同（列表过滤/创建含 bindings/详情/状态更新/bindings 替换，共 7 用例） |
 
 **P1-2b 验证**：`tsc -b` 绿；eslint 改动文件零告警；jest 44 passed（sla-api + route-permissions 守卫）；`npm run build` 绿（47s）。
+
+### B.11 实施期记录（P1-3 Pause/Resume 真实计时，2026-10-14）
+
+**关键发现**：`SLAMonitorService.PauseSLA/ResumeSLA`（`sla_monitor_service.go:743/785`）**已是完整实现**（暂停记录 `sla_paused_at`/reason；恢复计算暂停时长并追加到 response/resolution deadline）——P1-3 实质是**接线**而非重写；503/假成功均为未接线问题。巡检侧核实：`CheckSLAViolations` 仅扫描 `SLAStatusEQ("active")` 实体——**暂停实体不进违约判定，"除外时间"语义在巡检层预先成立**。
+
+| # | 接线点 | 实施 |
+|---|---|---|
+| W-1 | incident（`handlers/incident`） | `Service` 加 `slaMonitor` 字段 + `SetSLAMonitorService`（bootstrap 装配）；`PauseSLA/ResumeSLA` 委托 `entityType="incident"`（monitor 业务错误 → ParamError 包装）；**未装配 fail-closed 503**（与原占位 503/5003 契约兼容，lifecycle_contract_test 保持绿） |
+| W-2 | ticket（`handlers/ticket`） | `Handler` 加 `slaMonitor` 字段 + setter；两 handler 委托 `entityType="ticket"`（Pause 透传必填 reason） |
+| W-3 | bootstrap | `app.go` SLA 服务区装配两行（`incidentHandlerService` + `ticketHandler`） |
+
+| IM | 说明 |
+|---|---|
+| IM-20 | **ticket Pause/Resume 原为"静默假成功"**（返回 200 但无任何副作用——比 incident 的 503 占位更隐蔽）；本次修为：未装配 503 fail-closed + 装配后真实计时 |
+
+**P1-3 交付物与验证**（小范围编译 `./handlers/incident ./handlers/ticket ./service ./internal/bootstrap` 全绿；测试全绿）：
+
+- 代码：incident service / ticket handler 接线 + bootstrap 装配（4 文件）；
+- 测试（3 文件）：`service/sla_pause_resume_test.go`（核心实现两分支：暂停/重复暂停错误/恢复追加 29–31min 断言/未暂停恢复错误）；`handlers/incident/sla_pause_resume_test.go`（未装配 fail-closed 不触数据 + 装配后全流程）；`handlers/ticket/sla_pause_resume_test.go`（HTTP 503→200 全流程 + deadline 追加）；
+- 回归：`handlers/incident`/`handlers/ticket` 全包 + `service -run SLA` 全绿。

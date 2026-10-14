@@ -28,6 +28,7 @@ type Service struct {
 	monitoringService     *service.IncidentMonitoringService
 	alertingSvc           *service.IncidentAlertingService
 	rootCauseSvc          *service.RootCauseAnalysisService
+	slaMonitor            *service.SLAMonitorService
 	logger                *zap.SugaredLogger
 	processTriggerService ProcessTriggerServiceInterface
 }
@@ -136,12 +137,33 @@ func (s *Service) Delete(ctx context.Context, id, tenantID int, actorID int, act
 	return lifecycleError(s.productionService.DeleteIncident(ctx, id, tenantID))
 }
 
-func (s *Service) PauseSLA(_ context.Context, _, _ int) error {
-	return common.NewBusinessError(common.ServiceUnavailableCode, "事件 SLA 暂停尚未接入计时服务", "")
+// SetSLAMonitorService 注入 SLA 计时服务（P1-3 接线；bootstrap 装配）。
+// 未装配时 Pause/Resume fail-closed 返回 503（保持既有契约）。
+func (s *Service) SetSLAMonitorService(svc *service.SLAMonitorService) {
+	s.slaMonitor = svc
 }
 
-func (s *Service) ResumeSLA(_ context.Context, _, _ int) error {
-	return common.NewBusinessError(common.ServiceUnavailableCode, "事件 SLA 恢复尚未接入计时服务", "")
+// PauseSLA 暂停事件 SLA 计时（P1-3：委托 SLAMonitorService，记录 sla_paused_at/reason）。
+func (s *Service) PauseSLA(ctx context.Context, id, tenantID int) error {
+	if s.slaMonitor == nil {
+		return common.NewBusinessError(common.ServiceUnavailableCode, "SLA 暂停服务未装配", "")
+	}
+	if err := s.slaMonitor.PauseSLA(ctx, tenantID, "incident", id, ""); err != nil {
+		return common.NewBusinessError(common.ParamErrorCode, err.Error(), "")
+	}
+	return nil
+}
+
+// ResumeSLA 恢复事件 SLA 计时：暂停时长追加到 response/resolution deadline
+// （合同"除外时间"条款的计时基础）。
+func (s *Service) ResumeSLA(ctx context.Context, id, tenantID int) error {
+	if s.slaMonitor == nil {
+		return common.NewBusinessError(common.ServiceUnavailableCode, "SLA 恢复服务未装配", "")
+	}
+	if err := s.slaMonitor.ResumeSLA(ctx, tenantID, "incident", id); err != nil {
+		return common.NewBusinessError(common.ParamErrorCode, err.Error(), "")
+	}
+	return nil
 }
 
 func (s *Service) CreateIncidentEvent(ctx context.Context, req *dto.CreateIncidentEventRequest, tenantID int) (*dto.IncidentEventResponse, error) {

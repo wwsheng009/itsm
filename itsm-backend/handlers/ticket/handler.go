@@ -9,18 +9,26 @@ import (
 	"itsm-backend/common/handlerctx"
 	"itsm-backend/dto"
 	"itsm-backend/pkg/tenantquota"
+	"itsm-backend/service"
 
 	"github.com/gin-gonic/gin"
 )
 
 // Handler handles HTTP requests for tickets.
 type Handler struct {
-	service *Service
+	service    *Service
+	slaMonitor *service.SLAMonitorService
 }
 
 // NewHandler creates a new ticket handler.
 func NewHandler(service *Service) *Handler {
 	return &Handler{service: service}
+}
+
+// SetSLAMonitorService 注入 SLA 计时服务（P1-3 接线；bootstrap 装配）。
+// 未装配时 Pause/Resume fail-closed 返回 503，禁止假成功。
+func (h *Handler) SetSLAMonitorService(svc *service.SLAMonitorService) {
+	h.slaMonitor = svc
 }
 
 // ticketToResponse converts a Ticket domain model to a TicketResponse DTO.
@@ -1137,9 +1145,8 @@ func (h *Handler) DeleteSubtask(c *gin.Context) {
 }
 
 // PauseSLA handles PUT /api/v1/tickets/:id/sla/pause
-// Note: SLA pause/resume require service.SLAMonitorService which is not part of
-// the handlers/ticket Service struct. These handlers delegate to the legacy
-// controller for now.
+// P1-3 接线：委托 SLAMonitorService 真实计时（记录 sla_paused_at/reason）；
+// 未装配时 fail-closed 503，禁止假成功。
 func (h *Handler) PauseSLA(c *gin.Context) {
 	id, err := strconv.Atoi(c.Param("id"))
 	if err != nil {
@@ -1164,12 +1171,19 @@ func (h *Handler) PauseSLA(c *gin.Context) {
 		return
 	}
 
-	// SLA pause requires the SLAMonitorService; delegate via common.Success
-	// with a note that the real implementation lives in controller layer.
+	if h.slaMonitor == nil {
+		common.Fail(c, common.ServiceUnavailableCode, "SLA 暂停服务未装配")
+		return
+	}
+	if err := h.slaMonitor.PauseSLA(c.Request.Context(), tenantID, "ticket", id, req.Reason); err != nil {
+		common.FailWithErr(c, err, "暂停SLA失败")
+		return
+	}
 	common.Success(c, gin.H{"message": "SLA已暂停", "ticketId": id})
 }
 
 // ResumeSLA handles PUT /api/v1/tickets/:id/sla/resume
+// P1-3 接线：恢复并将暂停时长追加到 response/resolution deadline。
 func (h *Handler) ResumeSLA(c *gin.Context) {
 	id, err := strconv.Atoi(c.Param("id"))
 	if err != nil {
@@ -1186,6 +1200,14 @@ func (h *Handler) ResumeSLA(c *gin.Context) {
 		return
 	}
 
+	if h.slaMonitor == nil {
+		common.Fail(c, common.ServiceUnavailableCode, "SLA 恢复服务未装配")
+		return
+	}
+	if err := h.slaMonitor.ResumeSLA(c.Request.Context(), tenantID, "ticket", id); err != nil {
+		common.FailWithErr(c, err, "恢复SLA失败")
+		return
+	}
 	common.Success(c, gin.H{"message": "SLA已恢复", "ticketId": id})
 }
 
