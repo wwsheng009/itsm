@@ -948,7 +948,7 @@ flowchart TD
 
 | 工单 | 内容（对应 §14.1 编号） | 验收锚点 | 分支/PR | commit | 状态 |
 |---|---|---|---|---|---|
-| P0-1 模型包 | #3 owner_provider_tenant_id + #4 sla_definition_grant + #19 unique(tenant_id,name)（同迁移）+ RLS policy（#9） | SLA-A4/A8 | — | — | ⬜ 未开始 |
+| P0-1 模型包 | #3 owner_provider_tenant_id + #4 sla_definition_grant + #19 unique(tenant_id,name)（同迁移）+ RLS policy（#9）+ 随包 #18 模型字段 sla_exempt | SLA-A4/A8 | feat/sla-p0-model | 待合并（本地已实施+编译/测试全绿） | 🟡 已实施待提交 |
 | P0-2 匹配引擎 | #1 L1/L2 插入 + L4 告警 + MatchedLayer（§13.6 依赖）+ #17 动态类型解析 + #18 匹配链重排/豁免/L3c | SLA-A1/A2/A3/A12 | — | — | ⬜ 未开始 |
 | P0-3 API 包 | #5 grant/provided 路由 + #10 grant handler 三件套 + #6 CRUD 护栏 + #7 Atoi 修复 | SLA-A4/A8/A9 | — | — | ⬜ 未开始 |
 | P0-4 前端包 | #8 serviceType 动态枚举 + grant 管理页 + 两段式列表 | SLA-A7 | — | — | ⬜ 未开始 |
@@ -968,3 +968,22 @@ flowchart TD
 2. ent schema 变更走 `docs/entc-codegen-runbook.md`，codegen 单独 commit；
 3. 每工单合并前：验收锚点对应测试（§8）在 CI 绿 + RLS 集成测试（`database/rls/rls_integration_test.go`）扩展项通过；
 4. P0 全部合并后回填 §5 批次表状态并更新 INDEX.md 状态列。
+
+### B.4 实施期修正记录（P0-1，2026-10-14）
+
+实施 P0-1 时发现并修正的设计细节（均为实现口径修正，不改变方案语义）：
+
+| # | 方案原文 | 实施修正 | 原因 |
+|---|---|---|---|
+| IM-1 | grant partial unique = `UNIQUE(customer_tenant_id) WHERE is_active`（§4.1 v1.1） | 修正为 `UNIQUE(customer_tenant_id, ticket_type_id) WHERE is_active` | v1.3 引入 ticket_type_id 后，一个客户可对多类型各有授权；原约束会禁掉第二类型授权 |
+| IM-2 | `ticket_type_id` NULL=类型无关 | 改为 `NOT NULL DEFAULT 0`，0=类型无关 | 对齐仓库零值惯例（ent Optional int → Go int；ticket.ticket_type_id 同款）；唯一索引无需 COALESCE |
+| IM-3 | `unique(tenant_id,name)`（工单 19） | **不声明进 ent schema**，仅在 SQL 迁移内"先清洗后建索引" | Schema.Create（AutoMigrate）先于 SQL 迁移执行（bootstrap app.go:1662→1787）；脏数据上的 unique index 会阻塞启动，清洗必须在建索引前有序完成 |
+| IM-4 | `owner_provider_tenant_id` 可空 | `NOT NULL DEFAULT 0` | 同上零值惯例；PG add column not null default 对存量表安全 |
+| IM-5 | `sla_exempt` 归 P0-2 包 | 提前随 P0-1 一并 codegen | 避免二次 4-5 分钟/4GB 内存的 codegen 窗口；P0-2 直接使用生成物 |
+| IM-6 | RLS 通道"登记说明"（§4.1b） | 落地为 011 迁移的三条具体策略：`sla_grant_provider_all`（FOR ALL）/ `sla_grant_customer_read`（FOR SELECT）/ `sla_definition_customer_read`（FOR SELECT + EXISTS 子查询） | SQL 级可复现形态；多策略 OR 语义天然满足"customer 只读、写路径 provider-only" |
+
+**P0-1 交付物**（编译 `go build ./...` 绿；`go test ./migration/... ./handlers/sla/... ./database/rls/... ./service/ -run SLA` 全绿）：
+
+- `ent/schema/sladefinition.go`（owner 列 + grants edge）、`ent/schema/sla_definition_grant.go`（新）、`ent/schema/ticket_type.go`（sla_exempt）+ ent 生成物（28 文件）；
+- `migrations/20261014_sla_grant_ownership_and_name_unique.sql` + `_down.sql`；
+- `database/rls/migrations/011_sla_definition_grant_policies.sql` + `_rollback.sql`（应用方式：`go run -tags rlsapply ./cmd/rls-apply -files 011_...sql`，属部署步骤）。
