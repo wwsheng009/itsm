@@ -1304,6 +1304,18 @@ func (f SLADefinitionFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Valu
 	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.SLADefinitionMutation", m)
 }
 
+// The SLADefinitionGrantFunc type is an adapter to allow the use of ordinary
+// function as SLADefinitionGrant mutator.
+type SLADefinitionGrantFunc func(context.Context, *ent.SLADefinitionGrantMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f SLADefinitionGrantFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.SLADefinitionGrantMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.SLADefinitionGrantMutation", m)
+}
+
 // The SLAMetricFunc type is an adapter to allow the use of ordinary
 // function as SLAMetric mutator.
 type SLAMetricFunc func(context.Context, *ent.SLAMetricMutation) (ent.Value, error)

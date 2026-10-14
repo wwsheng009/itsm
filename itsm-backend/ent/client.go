@@ -124,6 +124,7 @@ import (
 	"itsm-backend/ent/slaalerthistory"
 	"itsm-backend/ent/slaalertrule"
 	"itsm-backend/ent/sladefinition"
+	"itsm-backend/ent/sladefinitiongrant"
 	"itsm-backend/ent/slametric"
 	"itsm-backend/ent/slapolicy"
 	"itsm-backend/ent/slaviolation"
@@ -390,6 +391,8 @@ type Client struct {
 	SLAAlertRule *SLAAlertRuleClient
 	// SLADefinition is the client for interacting with the SLADefinition builders.
 	SLADefinition *SLADefinitionClient
+	// SLADefinitionGrant is the client for interacting with the SLADefinitionGrant builders.
+	SLADefinitionGrant *SLADefinitionGrantClient
 	// SLAMetric is the client for interacting with the SLAMetric builders.
 	SLAMetric *SLAMetricClient
 	// SLAPolicy is the client for interacting with the SLAPolicy builders.
@@ -595,6 +598,7 @@ func (c *Client) init() {
 	c.SLAAlertHistory = NewSLAAlertHistoryClient(c.config)
 	c.SLAAlertRule = NewSLAAlertRuleClient(c.config)
 	c.SLADefinition = NewSLADefinitionClient(c.config)
+	c.SLADefinitionGrant = NewSLADefinitionGrantClient(c.config)
 	c.SLAMetric = NewSLAMetricClient(c.config)
 	c.SLAPolicy = NewSLAPolicyClient(c.config)
 	c.SLAViolation = NewSLAViolationClient(c.config)
@@ -838,6 +842,7 @@ func (c *Client) Tx(ctx context.Context) (*Tx, error) {
 		SLAAlertHistory:             NewSLAAlertHistoryClient(cfg),
 		SLAAlertRule:                NewSLAAlertRuleClient(cfg),
 		SLADefinition:               NewSLADefinitionClient(cfg),
+		SLADefinitionGrant:          NewSLADefinitionGrantClient(cfg),
 		SLAMetric:                   NewSLAMetricClient(cfg),
 		SLAPolicy:                   NewSLAPolicyClient(cfg),
 		SLAViolation:                NewSLAViolationClient(cfg),
@@ -1008,6 +1013,7 @@ func (c *Client) BeginTx(ctx context.Context, opts *sql.TxOptions) (*Tx, error) 
 		SLAAlertHistory:             NewSLAAlertHistoryClient(cfg),
 		SLAAlertRule:                NewSLAAlertRuleClient(cfg),
 		SLADefinition:               NewSLADefinitionClient(cfg),
+		SLADefinitionGrant:          NewSLADefinitionGrantClient(cfg),
 		SLAMetric:                   NewSLAMetricClient(cfg),
 		SLAPolicy:                   NewSLAPolicyClient(cfg),
 		SLAViolation:                NewSLAViolationClient(cfg),
@@ -1107,8 +1113,8 @@ func (c *Client) Use(hooks ...Hook) {
 		c.ProcessVariable, c.ProcessVersionChangelog, c.Project, c.PromptTemplate,
 		c.ProvisioningTask, c.RelationshipType, c.Release, c.Role, c.RolePermission,
 		c.RootCauseAnalysis, c.SLAAlertHistory, c.SLAAlertRule, c.SLADefinition,
-		c.SLAMetric, c.SLAPolicy, c.SLAViolation, c.ServiceCatalog,
-		c.ServiceCatalogItem, c.ServiceCustomer, c.ServiceRequest,
+		c.SLADefinitionGrant, c.SLAMetric, c.SLAPolicy, c.SLAViolation,
+		c.ServiceCatalog, c.ServiceCatalogItem, c.ServiceCustomer, c.ServiceRequest,
 		c.ServiceRequestApproval, c.SourceOrganization, c.StandardChange,
 		c.SupportContract, c.Survey, c.SurveyResponse, c.SystemConfig, c.Tag, c.Team,
 		c.Tenant, c.TenantInstallation, c.Ticket, c.TicketApproval,
@@ -1154,8 +1160,8 @@ func (c *Client) Intercept(interceptors ...Interceptor) {
 		c.ProcessVariable, c.ProcessVersionChangelog, c.Project, c.PromptTemplate,
 		c.ProvisioningTask, c.RelationshipType, c.Release, c.Role, c.RolePermission,
 		c.RootCauseAnalysis, c.SLAAlertHistory, c.SLAAlertRule, c.SLADefinition,
-		c.SLAMetric, c.SLAPolicy, c.SLAViolation, c.ServiceCatalog,
-		c.ServiceCatalogItem, c.ServiceCustomer, c.ServiceRequest,
+		c.SLADefinitionGrant, c.SLAMetric, c.SLAPolicy, c.SLAViolation,
+		c.ServiceCatalog, c.ServiceCatalogItem, c.ServiceCustomer, c.ServiceRequest,
 		c.ServiceRequestApproval, c.SourceOrganization, c.StandardChange,
 		c.SupportContract, c.Survey, c.SurveyResponse, c.SystemConfig, c.Tag, c.Team,
 		c.Tenant, c.TenantInstallation, c.Ticket, c.TicketApproval,
@@ -1389,6 +1395,8 @@ func (c *Client) Mutate(ctx context.Context, m Mutation) (Value, error) {
 		return c.SLAAlertRule.mutate(ctx, m)
 	case *SLADefinitionMutation:
 		return c.SLADefinition.mutate(ctx, m)
+	case *SLADefinitionGrantMutation:
+		return c.SLADefinitionGrant.mutate(ctx, m)
 	case *SLAMetricMutation:
 		return c.SLAMetric.mutate(ctx, m)
 	case *SLAPolicyMutation:
@@ -18395,6 +18403,22 @@ func (c *SLADefinitionClient) QueryAlertRules(_m *SLADefinition) *SLAAlertRuleQu
 	return query
 }
 
+// QueryGrants queries the grants edge of a SLADefinition.
+func (c *SLADefinitionClient) QueryGrants(_m *SLADefinition) *SLADefinitionGrantQuery {
+	query := (&SLADefinitionGrantClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(sladefinition.Table, sladefinition.FieldID, id),
+			sqlgraph.To(sladefinitiongrant.Table, sladefinitiongrant.FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, sladefinition.GrantsTable, sladefinition.GrantsColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
 // Hooks returns the client hooks.
 func (c *SLADefinitionClient) Hooks() []Hook {
 	return c.hooks.SLADefinition
@@ -18417,6 +18441,155 @@ func (c *SLADefinitionClient) mutate(ctx context.Context, m *SLADefinitionMutati
 		return (&SLADefinitionDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
 	default:
 		return nil, fmt.Errorf("ent: unknown SLADefinition mutation op: %q", m.Op())
+	}
+}
+
+// SLADefinitionGrantClient is a client for the SLADefinitionGrant schema.
+type SLADefinitionGrantClient struct {
+	config
+}
+
+// NewSLADefinitionGrantClient returns a client for the SLADefinitionGrant from the given config.
+func NewSLADefinitionGrantClient(c config) *SLADefinitionGrantClient {
+	return &SLADefinitionGrantClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `sladefinitiongrant.Hooks(f(g(h())))`.
+func (c *SLADefinitionGrantClient) Use(hooks ...Hook) {
+	c.hooks.SLADefinitionGrant = append(c.hooks.SLADefinitionGrant, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `sladefinitiongrant.Intercept(f(g(h())))`.
+func (c *SLADefinitionGrantClient) Intercept(interceptors ...Interceptor) {
+	c.inters.SLADefinitionGrant = append(c.inters.SLADefinitionGrant, interceptors...)
+}
+
+// Create returns a builder for creating a SLADefinitionGrant entity.
+func (c *SLADefinitionGrantClient) Create() *SLADefinitionGrantCreate {
+	mutation := newSLADefinitionGrantMutation(c.config, OpCreate)
+	return &SLADefinitionGrantCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of SLADefinitionGrant entities.
+func (c *SLADefinitionGrantClient) CreateBulk(builders ...*SLADefinitionGrantCreate) *SLADefinitionGrantCreateBulk {
+	return &SLADefinitionGrantCreateBulk{config: c.config, builders: builders}
+}
+
+// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
+// a builder and applies setFunc on it.
+func (c *SLADefinitionGrantClient) MapCreateBulk(slice any, setFunc func(*SLADefinitionGrantCreate, int)) *SLADefinitionGrantCreateBulk {
+	rv := reflect.ValueOf(slice)
+	if rv.Kind() != reflect.Slice {
+		return &SLADefinitionGrantCreateBulk{err: fmt.Errorf("calling to SLADefinitionGrantClient.MapCreateBulk with wrong type %T, need slice", slice)}
+	}
+	builders := make([]*SLADefinitionGrantCreate, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		builders[i] = c.Create()
+		setFunc(builders[i], i)
+	}
+	return &SLADefinitionGrantCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for SLADefinitionGrant.
+func (c *SLADefinitionGrantClient) Update() *SLADefinitionGrantUpdate {
+	mutation := newSLADefinitionGrantMutation(c.config, OpUpdate)
+	return &SLADefinitionGrantUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *SLADefinitionGrantClient) UpdateOne(_m *SLADefinitionGrant) *SLADefinitionGrantUpdateOne {
+	mutation := newSLADefinitionGrantMutation(c.config, OpUpdateOne, withSLADefinitionGrant(_m))
+	return &SLADefinitionGrantUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *SLADefinitionGrantClient) UpdateOneID(id int) *SLADefinitionGrantUpdateOne {
+	mutation := newSLADefinitionGrantMutation(c.config, OpUpdateOne, withSLADefinitionGrantID(id))
+	return &SLADefinitionGrantUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for SLADefinitionGrant.
+func (c *SLADefinitionGrantClient) Delete() *SLADefinitionGrantDelete {
+	mutation := newSLADefinitionGrantMutation(c.config, OpDelete)
+	return &SLADefinitionGrantDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *SLADefinitionGrantClient) DeleteOne(_m *SLADefinitionGrant) *SLADefinitionGrantDeleteOne {
+	return c.DeleteOneID(_m.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *SLADefinitionGrantClient) DeleteOneID(id int) *SLADefinitionGrantDeleteOne {
+	builder := c.Delete().Where(sladefinitiongrant.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &SLADefinitionGrantDeleteOne{builder}
+}
+
+// Query returns a query builder for SLADefinitionGrant.
+func (c *SLADefinitionGrantClient) Query() *SLADefinitionGrantQuery {
+	return &SLADefinitionGrantQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypeSLADefinitionGrant},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a SLADefinitionGrant entity by its id.
+func (c *SLADefinitionGrantClient) Get(ctx context.Context, id int) (*SLADefinitionGrant, error) {
+	return c.Query().Where(sladefinitiongrant.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *SLADefinitionGrantClient) GetX(ctx context.Context, id int) *SLADefinitionGrant {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// QuerySLADefinition queries the sla_definition edge of a SLADefinitionGrant.
+func (c *SLADefinitionGrantClient) QuerySLADefinition(_m *SLADefinitionGrant) *SLADefinitionQuery {
+	query := (&SLADefinitionClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(sladefinitiongrant.Table, sladefinitiongrant.FieldID, id),
+			sqlgraph.To(sladefinition.Table, sladefinition.FieldID),
+			sqlgraph.Edge(sqlgraph.M2O, true, sladefinitiongrant.SLADefinitionTable, sladefinitiongrant.SLADefinitionColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
+// Hooks returns the client hooks.
+func (c *SLADefinitionGrantClient) Hooks() []Hook {
+	return c.hooks.SLADefinitionGrant
+}
+
+// Interceptors returns the client interceptors.
+func (c *SLADefinitionGrantClient) Interceptors() []Interceptor {
+	return c.inters.SLADefinitionGrant
+}
+
+func (c *SLADefinitionGrantClient) mutate(ctx context.Context, m *SLADefinitionGrantMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&SLADefinitionGrantCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&SLADefinitionGrantUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&SLADefinitionGrantUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&SLADefinitionGrantDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("ent: unknown SLADefinitionGrant mutation op: %q", m.Op())
 	}
 }
 
@@ -25813,15 +25986,16 @@ type (
 		ProcessTask, ProcessTimer, ProcessVariable, ProcessVersionChangelog, Project,
 		PromptTemplate, ProvisioningTask, RelationshipType, Release, Role,
 		RolePermission, RootCauseAnalysis, SLAAlertHistory, SLAAlertRule,
-		SLADefinition, SLAMetric, SLAPolicy, SLAViolation, ServiceCatalog,
-		ServiceCatalogItem, ServiceCustomer, ServiceRequest, ServiceRequestApproval,
-		SourceOrganization, StandardChange, SupportContract, Survey, SurveyResponse,
-		SystemConfig, Tag, Team, Tenant, TenantInstallation, Ticket, TicketApproval,
-		TicketAssignmentRule, TicketAttachment, TicketAutomationRule, TicketCC,
-		TicketCategory, TicketComment, TicketNotification, TicketTag, TicketTemplate,
-		TicketType, TicketView, TicketWorkflowRecord, ToolInvocation, User,
-		UserTenantMembership, UserTenantMembershipOrg, Vendor, WorkbenchView, Workflow,
-		WorkflowInstance, WorkflowTask, WorkflowTemplate, WorkflowVersion []ent.Hook
+		SLADefinition, SLADefinitionGrant, SLAMetric, SLAPolicy, SLAViolation,
+		ServiceCatalog, ServiceCatalogItem, ServiceCustomer, ServiceRequest,
+		ServiceRequestApproval, SourceOrganization, StandardChange, SupportContract,
+		Survey, SurveyResponse, SystemConfig, Tag, Team, Tenant, TenantInstallation,
+		Ticket, TicketApproval, TicketAssignmentRule, TicketAttachment,
+		TicketAutomationRule, TicketCC, TicketCategory, TicketComment,
+		TicketNotification, TicketTag, TicketTemplate, TicketType, TicketView,
+		TicketWorkflowRecord, ToolInvocation, User, UserTenantMembership,
+		UserTenantMembershipOrg, Vendor, WorkbenchView, Workflow, WorkflowInstance,
+		WorkflowTask, WorkflowTemplate, WorkflowVersion []ent.Hook
 	}
 	inters struct {
 		AIAnalysisResult, Alert, Application, ApprovalChain, ApprovalRecord,
@@ -25847,15 +26021,15 @@ type (
 		ProcessTask, ProcessTimer, ProcessVariable, ProcessVersionChangelog, Project,
 		PromptTemplate, ProvisioningTask, RelationshipType, Release, Role,
 		RolePermission, RootCauseAnalysis, SLAAlertHistory, SLAAlertRule,
-		SLADefinition, SLAMetric, SLAPolicy, SLAViolation, ServiceCatalog,
-		ServiceCatalogItem, ServiceCustomer, ServiceRequest, ServiceRequestApproval,
-		SourceOrganization, StandardChange, SupportContract, Survey, SurveyResponse,
-		SystemConfig, Tag, Team, Tenant, TenantInstallation, Ticket, TicketApproval,
-		TicketAssignmentRule, TicketAttachment, TicketAutomationRule, TicketCC,
-		TicketCategory, TicketComment, TicketNotification, TicketTag, TicketTemplate,
-		TicketType, TicketView, TicketWorkflowRecord, ToolInvocation, User,
-		UserTenantMembership, UserTenantMembershipOrg, Vendor, WorkbenchView, Workflow,
-		WorkflowInstance, WorkflowTask, WorkflowTemplate,
-		WorkflowVersion []ent.Interceptor
+		SLADefinition, SLADefinitionGrant, SLAMetric, SLAPolicy, SLAViolation,
+		ServiceCatalog, ServiceCatalogItem, ServiceCustomer, ServiceRequest,
+		ServiceRequestApproval, SourceOrganization, StandardChange, SupportContract,
+		Survey, SurveyResponse, SystemConfig, Tag, Team, Tenant, TenantInstallation,
+		Ticket, TicketApproval, TicketAssignmentRule, TicketAttachment,
+		TicketAutomationRule, TicketCC, TicketCategory, TicketComment,
+		TicketNotification, TicketTag, TicketTemplate, TicketType, TicketView,
+		TicketWorkflowRecord, ToolInvocation, User, UserTenantMembership,
+		UserTenantMembershipOrg, Vendor, WorkbenchView, Workflow, WorkflowInstance,
+		WorkflowTask, WorkflowTemplate, WorkflowVersion []ent.Interceptor
 	}
 )

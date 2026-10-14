@@ -140,6 +140,11 @@ func DefaultSLAID(v int64) predicate.TicketType {
 	return predicate.TicketType(sql.FieldEQ(FieldDefaultSLAID, v))
 }
 
+// SLAExempt applies equality check predicate on the "sla_exempt" field. It's identical to SLAExemptEQ.
+func SLAExempt(v bool) predicate.TicketType {
+	return predicate.TicketType(sql.FieldEQ(FieldSLAExempt, v))
+}
+
 // AutoAssignEnabled applies equality check predicate on the "auto_assign_enabled" field. It's identical to AutoAssignEnabledEQ.
 func AutoAssignEnabled(v bool) predicate.TicketType {
 	return predicate.TicketType(sql.FieldEQ(FieldAutoAssignEnabled, v))
@@ -1068,6 +1073,16 @@ func DefaultSLAIDIsNil() predicate.TicketType {
 // DefaultSLAIDNotNil applies the NotNil predicate on the "default_sla_id" field.
 func DefaultSLAIDNotNil() predicate.TicketType {
 	return predicate.TicketType(sql.FieldNotNull(FieldDefaultSLAID))
+}
+
+// SLAExemptEQ applies the EQ predicate on the "sla_exempt" field.
+func SLAExemptEQ(v bool) predicate.TicketType {
+	return predicate.TicketType(sql.FieldEQ(FieldSLAExempt, v))
+}
+
+// SLAExemptNEQ applies the NEQ predicate on the "sla_exempt" field.
+func SLAExemptNEQ(v bool) predicate.TicketType {
+	return predicate.TicketType(sql.FieldNEQ(FieldSLAExempt, v))
 }
 
 // AutoAssignEnabledEQ applies the EQ predicate on the "auto_assign_enabled" field.

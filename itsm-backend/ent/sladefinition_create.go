@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"itsm-backend/ent/slaalertrule"
 	"itsm-backend/ent/sladefinition"
+	"itsm-backend/ent/sladefinitiongrant"
 	"itsm-backend/ent/slametric"
 	"itsm-backend/ent/slaviolation"
 	"itsm-backend/ent/ticket"
@@ -132,6 +133,20 @@ func (_c *SLADefinitionCreate) SetNillableIsActive(v *bool) *SLADefinitionCreate
 	return _c
 }
 
+// SetOwnerProviderTenantID sets the "owner_provider_tenant_id" field.
+func (_c *SLADefinitionCreate) SetOwnerProviderTenantID(v int) *SLADefinitionCreate {
+	_c.mutation.SetOwnerProviderTenantID(v)
+	return _c
+}
+
+// SetNillableOwnerProviderTenantID sets the "owner_provider_tenant_id" field if the given value is not nil.
+func (_c *SLADefinitionCreate) SetNillableOwnerProviderTenantID(v *int) *SLADefinitionCreate {
+	if v != nil {
+		_c.SetOwnerProviderTenantID(*v)
+	}
+	return _c
+}
+
 // SetTenantID sets the "tenant_id" field.
 func (_c *SLADefinitionCreate) SetTenantID(v int) *SLADefinitionCreate {
 	_c.mutation.SetTenantID(v)
@@ -226,6 +241,21 @@ func (_c *SLADefinitionCreate) AddAlertRules(v ...*SLAAlertRule) *SLADefinitionC
 	return _c.AddAlertRuleIDs(ids...)
 }
 
+// AddGrantIDs adds the "grants" edge to the SLADefinitionGrant entity by IDs.
+func (_c *SLADefinitionCreate) AddGrantIDs(ids ...int) *SLADefinitionCreate {
+	_c.mutation.AddGrantIDs(ids...)
+	return _c
+}
+
+// AddGrants adds the "grants" edges to the SLADefinitionGrant entity.
+func (_c *SLADefinitionCreate) AddGrants(v ...*SLADefinitionGrant) *SLADefinitionCreate {
+	ids := make([]int, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _c.AddGrantIDs(ids...)
+}
+
 // Mutation returns the SLADefinitionMutation object of the builder.
 func (_c *SLADefinitionCreate) Mutation() *SLADefinitionMutation {
 	return _c.mutation
@@ -273,6 +303,10 @@ func (_c *SLADefinitionCreate) defaults() {
 		v := sladefinition.DefaultIsActive
 		_c.mutation.SetIsActive(v)
 	}
+	if _, ok := _c.mutation.OwnerProviderTenantID(); !ok {
+		v := sladefinition.DefaultOwnerProviderTenantID
+		_c.mutation.SetOwnerProviderTenantID(v)
+	}
 	if _, ok := _c.mutation.CreatedAt(); !ok {
 		v := sladefinition.DefaultCreatedAt()
 		_c.mutation.SetCreatedAt(v)
@@ -311,6 +345,9 @@ func (_c *SLADefinitionCreate) check() error {
 	}
 	if _, ok := _c.mutation.IsActive(); !ok {
 		return &ValidationError{Name: "is_active", err: errors.New(`ent: missing required field "SLADefinition.is_active"`)}
+	}
+	if _, ok := _c.mutation.OwnerProviderTenantID(); !ok {
+		return &ValidationError{Name: "owner_provider_tenant_id", err: errors.New(`ent: missing required field "SLADefinition.owner_provider_tenant_id"`)}
 	}
 	if _, ok := _c.mutation.TenantID(); !ok {
 		return &ValidationError{Name: "tenant_id", err: errors.New(`ent: missing required field "SLADefinition.tenant_id"`)}
@@ -392,6 +429,10 @@ func (_c *SLADefinitionCreate) createSpec() (*SLADefinition, *sqlgraph.CreateSpe
 		_spec.SetField(sladefinition.FieldIsActive, field.TypeBool, value)
 		_node.IsActive = value
 	}
+	if value, ok := _c.mutation.OwnerProviderTenantID(); ok {
+		_spec.SetField(sladefinition.FieldOwnerProviderTenantID, field.TypeInt, value)
+		_node.OwnerProviderTenantID = value
+	}
 	if value, ok := _c.mutation.TenantID(); ok {
 		_spec.SetField(sladefinition.FieldTenantID, field.TypeInt, value)
 		_node.TenantID = value
@@ -461,6 +502,22 @@ func (_c *SLADefinitionCreate) createSpec() (*SLADefinition, *sqlgraph.CreateSpe
 			Bidi:    false,
 			Target: &sqlgraph.EdgeTarget{
 				IDSpec: sqlgraph.NewFieldSpec(slaalertrule.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges = append(_spec.Edges, edge)
+	}
+	if nodes := _c.mutation.GrantsIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   sladefinition.GrantsTable,
+			Columns: []string{sladefinition.GrantsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(sladefinitiongrant.FieldID, field.TypeInt),
 			},
 		}
 		for _, k := range nodes {

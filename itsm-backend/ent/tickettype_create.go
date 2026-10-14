@@ -231,6 +231,20 @@ func (_c *TicketTypeCreate) SetNillableDefaultSLAID(v *int64) *TicketTypeCreate 
 	return _c
 }
 
+// SetSLAExempt sets the "sla_exempt" field.
+func (_c *TicketTypeCreate) SetSLAExempt(v bool) *TicketTypeCreate {
+	_c.mutation.SetSLAExempt(v)
+	return _c
+}
+
+// SetNillableSLAExempt sets the "sla_exempt" field if the given value is not nil.
+func (_c *TicketTypeCreate) SetNillableSLAExempt(v *bool) *TicketTypeCreate {
+	if v != nil {
+		_c.SetSLAExempt(*v)
+	}
+	return _c
+}
+
 // SetAutoAssignEnabled sets the "auto_assign_enabled" field.
 func (_c *TicketTypeCreate) SetAutoAssignEnabled(v bool) *TicketTypeCreate {
 	_c.mutation.SetAutoAssignEnabled(v)
@@ -399,6 +413,10 @@ func (_c *TicketTypeCreate) defaults() {
 		v := tickettype.DefaultSLAEnabled
 		_c.mutation.SetSLAEnabled(v)
 	}
+	if _, ok := _c.mutation.SLAExempt(); !ok {
+		v := tickettype.DefaultSLAExempt
+		_c.mutation.SetSLAExempt(v)
+	}
 	if _, ok := _c.mutation.AutoAssignEnabled(); !ok {
 		v := tickettype.DefaultAutoAssignEnabled
 		_c.mutation.SetAutoAssignEnabled(v)
@@ -480,6 +498,9 @@ func (_c *TicketTypeCreate) check() error {
 	}
 	if _, ok := _c.mutation.SLAEnabled(); !ok {
 		return &ValidationError{Name: "sla_enabled", err: errors.New(`ent: missing required field "TicketType.sla_enabled"`)}
+	}
+	if _, ok := _c.mutation.SLAExempt(); !ok {
+		return &ValidationError{Name: "sla_exempt", err: errors.New(`ent: missing required field "TicketType.sla_exempt"`)}
 	}
 	if _, ok := _c.mutation.AutoAssignEnabled(); !ok {
 		return &ValidationError{Name: "auto_assign_enabled", err: errors.New(`ent: missing required field "TicketType.auto_assign_enabled"`)}
@@ -612,6 +633,10 @@ func (_c *TicketTypeCreate) createSpec() (*TicketType, *sqlgraph.CreateSpec) {
 	if value, ok := _c.mutation.DefaultSLAID(); ok {
 		_spec.SetField(tickettype.FieldDefaultSLAID, field.TypeInt64, value)
 		_node.DefaultSLAID = value
+	}
+	if value, ok := _c.mutation.SLAExempt(); ok {
+		_spec.SetField(tickettype.FieldSLAExempt, field.TypeBool, value)
+		_node.SLAExempt = value
 	}
 	if value, ok := _c.mutation.AutoAssignEnabled(); ok {
 		_spec.SetField(tickettype.FieldAutoAssignEnabled, field.TypeBool, value)

@@ -34,6 +34,12 @@ func (TicketType) Fields() []ent.Field {
 		field.JSON("approval_chain", []interface{}{}),
 		field.Bool("sla_enabled").Default(false),
 		field.Int64("default_sla_id").Optional(),
+		// v1.4 方案 §4.2：SLA 显式豁免（默认 false 零回归）。
+		// true=该类型工单跳过全部 SLA 匹配（不进 fail-loud 告警），报表单列"豁免"桶；
+		// 语义区别于 sla_enabled=false（那只是放弃 L3a 直绑，仍走属性匹配）。
+		field.Bool("sla_exempt").
+			Comment("SLA 显式豁免：true=跳过全部匹配，报表豁免桶").
+			Default(false),
 		field.Bool("auto_assign_enabled").Default(false),
 		field.Bool("msp_route_enabled").
 			Comment("是否启用服务商跨租户路由（类型级自动路由：建单派生 MSP 快照并标记路由）").

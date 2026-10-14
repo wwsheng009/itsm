@@ -121,6 +121,7 @@ import (
 	"itsm-backend/ent/slaalerthistory"
 	"itsm-backend/ent/slaalertrule"
 	"itsm-backend/ent/sladefinition"
+	"itsm-backend/ent/sladefinitiongrant"
 	"itsm-backend/ent/slametric"
 	"itsm-backend/ent/slapolicy"
 	"itsm-backend/ent/slaviolation"
@@ -284,6 +285,7 @@ const (
 	TypeSLAAlertHistory             = "SLAAlertHistory"
 	TypeSLAAlertRule                = "SLAAlertRule"
 	TypeSLADefinition               = "SLADefinition"
+	TypeSLADefinitionGrant          = "SLADefinitionGrant"
 	TypeSLAMetric                   = "SLAMetric"
 	TypeSLAPolicy                   = "SLAPolicy"
 	TypeSLAViolation                = "SLAViolation"
@@ -142780,41 +142782,46 @@ func (m *SLAAlertRuleMutation) ResetEdge(name string) error {
 // SLADefinitionMutation represents an operation that mutates the SLADefinition nodes in the graph.
 type SLADefinitionMutation struct {
 	config
-	op                 Op
-	typ                string
-	id                 *int
-	name               *string
-	description        *string
-	service_type       *string
-	priority           *string
-	response_time      *int
-	addresponse_time   *int
-	resolution_time    *int
-	addresolution_time *int
-	business_hours     *map[string]interface{}
-	escalation_rules   *map[string]interface{}
-	conditions         *map[string]interface{}
-	is_active          *bool
-	tenant_id          *int
-	addtenant_id       *int
-	created_at         *time.Time
-	updated_at         *time.Time
-	clearedFields      map[string]struct{}
-	violations         map[int]struct{}
-	removedviolations  map[int]struct{}
-	clearedviolations  bool
-	metrics            map[int]struct{}
-	removedmetrics     map[int]struct{}
-	clearedmetrics     bool
-	tickets            map[int]struct{}
-	removedtickets     map[int]struct{}
-	clearedtickets     bool
-	alert_rules        map[int]struct{}
-	removedalert_rules map[int]struct{}
-	clearedalert_rules bool
-	done               bool
-	oldValue           func(context.Context) (*SLADefinition, error)
-	predicates         []predicate.SLADefinition
+	op                          Op
+	typ                         string
+	id                          *int
+	name                        *string
+	description                 *string
+	service_type                *string
+	priority                    *string
+	response_time               *int
+	addresponse_time            *int
+	resolution_time             *int
+	addresolution_time          *int
+	business_hours              *map[string]interface{}
+	escalation_rules            *map[string]interface{}
+	conditions                  *map[string]interface{}
+	is_active                   *bool
+	owner_provider_tenant_id    *int
+	addowner_provider_tenant_id *int
+	tenant_id                   *int
+	addtenant_id                *int
+	created_at                  *time.Time
+	updated_at                  *time.Time
+	clearedFields               map[string]struct{}
+	violations                  map[int]struct{}
+	removedviolations           map[int]struct{}
+	clearedviolations           bool
+	metrics                     map[int]struct{}
+	removedmetrics              map[int]struct{}
+	clearedmetrics              bool
+	tickets                     map[int]struct{}
+	removedtickets              map[int]struct{}
+	clearedtickets              bool
+	alert_rules                 map[int]struct{}
+	removedalert_rules          map[int]struct{}
+	clearedalert_rules          bool
+	grants                      map[int]struct{}
+	removedgrants               map[int]struct{}
+	clearedgrants               bool
+	done                        bool
+	oldValue                    func(context.Context) (*SLADefinition, error)
+	predicates                  []predicate.SLADefinition
 }
 
 var _ ent.Mutation = (*SLADefinitionMutation)(nil)
@@ -143393,6 +143400,62 @@ func (m *SLADefinitionMutation) ResetIsActive() {
 	m.is_active = nil
 }
 
+// SetOwnerProviderTenantID sets the "owner_provider_tenant_id" field.
+func (m *SLADefinitionMutation) SetOwnerProviderTenantID(i int) {
+	m.owner_provider_tenant_id = &i
+	m.addowner_provider_tenant_id = nil
+}
+
+// OwnerProviderTenantID returns the value of the "owner_provider_tenant_id" field in the mutation.
+func (m *SLADefinitionMutation) OwnerProviderTenantID() (r int, exists bool) {
+	v := m.owner_provider_tenant_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldOwnerProviderTenantID returns the old "owner_provider_tenant_id" field's value of the SLADefinition entity.
+// If the SLADefinition object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *SLADefinitionMutation) OldOwnerProviderTenantID(ctx context.Context) (v int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldOwnerProviderTenantID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldOwnerProviderTenantID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldOwnerProviderTenantID: %w", err)
+	}
+	return oldValue.OwnerProviderTenantID, nil
+}
+
+// AddOwnerProviderTenantID adds i to the "owner_provider_tenant_id" field.
+func (m *SLADefinitionMutation) AddOwnerProviderTenantID(i int) {
+	if m.addowner_provider_tenant_id != nil {
+		*m.addowner_provider_tenant_id += i
+	} else {
+		m.addowner_provider_tenant_id = &i
+	}
+}
+
+// AddedOwnerProviderTenantID returns the value that was added to the "owner_provider_tenant_id" field in this mutation.
+func (m *SLADefinitionMutation) AddedOwnerProviderTenantID() (r int, exists bool) {
+	v := m.addowner_provider_tenant_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetOwnerProviderTenantID resets all changes to the "owner_provider_tenant_id" field.
+func (m *SLADefinitionMutation) ResetOwnerProviderTenantID() {
+	m.owner_provider_tenant_id = nil
+	m.addowner_provider_tenant_id = nil
+}
+
 // SetTenantID sets the "tenant_id" field.
 func (m *SLADefinitionMutation) SetTenantID(i int) {
 	m.tenant_id = &i
@@ -143737,6 +143800,60 @@ func (m *SLADefinitionMutation) ResetAlertRules() {
 	m.removedalert_rules = nil
 }
 
+// AddGrantIDs adds the "grants" edge to the SLADefinitionGrant entity by ids.
+func (m *SLADefinitionMutation) AddGrantIDs(ids ...int) {
+	if m.grants == nil {
+		m.grants = make(map[int]struct{})
+	}
+	for i := range ids {
+		m.grants[ids[i]] = struct{}{}
+	}
+}
+
+// ClearGrants clears the "grants" edge to the SLADefinitionGrant entity.
+func (m *SLADefinitionMutation) ClearGrants() {
+	m.clearedgrants = true
+}
+
+// GrantsCleared reports if the "grants" edge to the SLADefinitionGrant entity was cleared.
+func (m *SLADefinitionMutation) GrantsCleared() bool {
+	return m.clearedgrants
+}
+
+// RemoveGrantIDs removes the "grants" edge to the SLADefinitionGrant entity by IDs.
+func (m *SLADefinitionMutation) RemoveGrantIDs(ids ...int) {
+	if m.removedgrants == nil {
+		m.removedgrants = make(map[int]struct{})
+	}
+	for i := range ids {
+		delete(m.grants, ids[i])
+		m.removedgrants[ids[i]] = struct{}{}
+	}
+}
+
+// RemovedGrants returns the removed IDs of the "grants" edge to the SLADefinitionGrant entity.
+func (m *SLADefinitionMutation) RemovedGrantsIDs() (ids []int) {
+	for id := range m.removedgrants {
+		ids = append(ids, id)
+	}
+	return
+}
+
+// GrantsIDs returns the "grants" edge IDs in the mutation.
+func (m *SLADefinitionMutation) GrantsIDs() (ids []int) {
+	for id := range m.grants {
+		ids = append(ids, id)
+	}
+	return
+}
+
+// ResetGrants resets all changes to the "grants" edge.
+func (m *SLADefinitionMutation) ResetGrants() {
+	m.grants = nil
+	m.clearedgrants = false
+	m.removedgrants = nil
+}
+
 // Where appends a list predicates to the SLADefinitionMutation builder.
 func (m *SLADefinitionMutation) Where(ps ...predicate.SLADefinition) {
 	m.predicates = append(m.predicates, ps...)
@@ -143771,7 +143888,7 @@ func (m *SLADefinitionMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *SLADefinitionMutation) Fields() []string {
-	fields := make([]string, 0, 13)
+	fields := make([]string, 0, 14)
 	if m.name != nil {
 		fields = append(fields, sladefinition.FieldName)
 	}
@@ -143801,6 +143918,9 @@ func (m *SLADefinitionMutation) Fields() []string {
 	}
 	if m.is_active != nil {
 		fields = append(fields, sladefinition.FieldIsActive)
+	}
+	if m.owner_provider_tenant_id != nil {
+		fields = append(fields, sladefinition.FieldOwnerProviderTenantID)
 	}
 	if m.tenant_id != nil {
 		fields = append(fields, sladefinition.FieldTenantID)
@@ -143839,6 +143959,8 @@ func (m *SLADefinitionMutation) Field(name string) (ent.Value, bool) {
 		return m.Conditions()
 	case sladefinition.FieldIsActive:
 		return m.IsActive()
+	case sladefinition.FieldOwnerProviderTenantID:
+		return m.OwnerProviderTenantID()
 	case sladefinition.FieldTenantID:
 		return m.TenantID()
 	case sladefinition.FieldCreatedAt:
@@ -143874,6 +143996,8 @@ func (m *SLADefinitionMutation) OldField(ctx context.Context, name string) (ent.
 		return m.OldConditions(ctx)
 	case sladefinition.FieldIsActive:
 		return m.OldIsActive(ctx)
+	case sladefinition.FieldOwnerProviderTenantID:
+		return m.OldOwnerProviderTenantID(ctx)
 	case sladefinition.FieldTenantID:
 		return m.OldTenantID(ctx)
 	case sladefinition.FieldCreatedAt:
@@ -143959,6 +144083,13 @@ func (m *SLADefinitionMutation) SetField(name string, value ent.Value) error {
 		}
 		m.SetIsActive(v)
 		return nil
+	case sladefinition.FieldOwnerProviderTenantID:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetOwnerProviderTenantID(v)
+		return nil
 	case sladefinition.FieldTenantID:
 		v, ok := value.(int)
 		if !ok {
@@ -143994,6 +144125,9 @@ func (m *SLADefinitionMutation) AddedFields() []string {
 	if m.addresolution_time != nil {
 		fields = append(fields, sladefinition.FieldResolutionTime)
 	}
+	if m.addowner_provider_tenant_id != nil {
+		fields = append(fields, sladefinition.FieldOwnerProviderTenantID)
+	}
 	if m.addtenant_id != nil {
 		fields = append(fields, sladefinition.FieldTenantID)
 	}
@@ -144009,6 +144143,8 @@ func (m *SLADefinitionMutation) AddedField(name string) (ent.Value, bool) {
 		return m.AddedResponseTime()
 	case sladefinition.FieldResolutionTime:
 		return m.AddedResolutionTime()
+	case sladefinition.FieldOwnerProviderTenantID:
+		return m.AddedOwnerProviderTenantID()
 	case sladefinition.FieldTenantID:
 		return m.AddedTenantID()
 	}
@@ -144033,6 +144169,13 @@ func (m *SLADefinitionMutation) AddField(name string, value ent.Value) error {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.AddResolutionTime(v)
+		return nil
+	case sladefinition.FieldOwnerProviderTenantID:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddOwnerProviderTenantID(v)
 		return nil
 	case sladefinition.FieldTenantID:
 		v, ok := value.(int)
@@ -144137,6 +144280,9 @@ func (m *SLADefinitionMutation) ResetField(name string) error {
 	case sladefinition.FieldIsActive:
 		m.ResetIsActive()
 		return nil
+	case sladefinition.FieldOwnerProviderTenantID:
+		m.ResetOwnerProviderTenantID()
+		return nil
 	case sladefinition.FieldTenantID:
 		m.ResetTenantID()
 		return nil
@@ -144152,7 +144298,7 @@ func (m *SLADefinitionMutation) ResetField(name string) error {
 
 // AddedEdges returns all edge names that were set/added in this mutation.
 func (m *SLADefinitionMutation) AddedEdges() []string {
-	edges := make([]string, 0, 4)
+	edges := make([]string, 0, 5)
 	if m.violations != nil {
 		edges = append(edges, sladefinition.EdgeViolations)
 	}
@@ -144164,6 +144310,9 @@ func (m *SLADefinitionMutation) AddedEdges() []string {
 	}
 	if m.alert_rules != nil {
 		edges = append(edges, sladefinition.EdgeAlertRules)
+	}
+	if m.grants != nil {
+		edges = append(edges, sladefinition.EdgeGrants)
 	}
 	return edges
 }
@@ -144196,13 +144345,19 @@ func (m *SLADefinitionMutation) AddedIDs(name string) []ent.Value {
 			ids = append(ids, id)
 		}
 		return ids
+	case sladefinition.EdgeGrants:
+		ids := make([]ent.Value, 0, len(m.grants))
+		for id := range m.grants {
+			ids = append(ids, id)
+		}
+		return ids
 	}
 	return nil
 }
 
 // RemovedEdges returns all edge names that were removed in this mutation.
 func (m *SLADefinitionMutation) RemovedEdges() []string {
-	edges := make([]string, 0, 4)
+	edges := make([]string, 0, 5)
 	if m.removedviolations != nil {
 		edges = append(edges, sladefinition.EdgeViolations)
 	}
@@ -144214,6 +144369,9 @@ func (m *SLADefinitionMutation) RemovedEdges() []string {
 	}
 	if m.removedalert_rules != nil {
 		edges = append(edges, sladefinition.EdgeAlertRules)
+	}
+	if m.removedgrants != nil {
+		edges = append(edges, sladefinition.EdgeGrants)
 	}
 	return edges
 }
@@ -144246,13 +144404,19 @@ func (m *SLADefinitionMutation) RemovedIDs(name string) []ent.Value {
 			ids = append(ids, id)
 		}
 		return ids
+	case sladefinition.EdgeGrants:
+		ids := make([]ent.Value, 0, len(m.removedgrants))
+		for id := range m.removedgrants {
+			ids = append(ids, id)
+		}
+		return ids
 	}
 	return nil
 }
 
 // ClearedEdges returns all edge names that were cleared in this mutation.
 func (m *SLADefinitionMutation) ClearedEdges() []string {
-	edges := make([]string, 0, 4)
+	edges := make([]string, 0, 5)
 	if m.clearedviolations {
 		edges = append(edges, sladefinition.EdgeViolations)
 	}
@@ -144264,6 +144428,9 @@ func (m *SLADefinitionMutation) ClearedEdges() []string {
 	}
 	if m.clearedalert_rules {
 		edges = append(edges, sladefinition.EdgeAlertRules)
+	}
+	if m.clearedgrants {
+		edges = append(edges, sladefinition.EdgeGrants)
 	}
 	return edges
 }
@@ -144280,6 +144447,8 @@ func (m *SLADefinitionMutation) EdgeCleared(name string) bool {
 		return m.clearedtickets
 	case sladefinition.EdgeAlertRules:
 		return m.clearedalert_rules
+	case sladefinition.EdgeGrants:
+		return m.clearedgrants
 	}
 	return false
 }
@@ -144308,8 +144477,980 @@ func (m *SLADefinitionMutation) ResetEdge(name string) error {
 	case sladefinition.EdgeAlertRules:
 		m.ResetAlertRules()
 		return nil
+	case sladefinition.EdgeGrants:
+		m.ResetGrants()
+		return nil
 	}
 	return fmt.Errorf("unknown SLADefinition edge %s", name)
+}
+
+// SLADefinitionGrantMutation represents an operation that mutates the SLADefinitionGrant nodes in the graph.
+type SLADefinitionGrantMutation struct {
+	config
+	op                    Op
+	typ                   string
+	id                    *int
+	customer_tenant_id    *int
+	addcustomer_tenant_id *int
+	provider_tenant_id    *int
+	addprovider_tenant_id *int
+	ticket_type_id        *int64
+	addticket_type_id     *int64
+	valid_until           *time.Time
+	is_active             *bool
+	tenant_id             *int
+	addtenant_id          *int
+	created_at            *time.Time
+	updated_at            *time.Time
+	clearedFields         map[string]struct{}
+	sla_definition        *int
+	clearedsla_definition bool
+	done                  bool
+	oldValue              func(context.Context) (*SLADefinitionGrant, error)
+	predicates            []predicate.SLADefinitionGrant
+}
+
+var _ ent.Mutation = (*SLADefinitionGrantMutation)(nil)
+
+// sladefinitiongrantOption allows management of the mutation configuration using functional options.
+type sladefinitiongrantOption func(*SLADefinitionGrantMutation)
+
+// newSLADefinitionGrantMutation creates new mutation for the SLADefinitionGrant entity.
+func newSLADefinitionGrantMutation(c config, op Op, opts ...sladefinitiongrantOption) *SLADefinitionGrantMutation {
+	m := &SLADefinitionGrantMutation{
+		config:        c,
+		op:            op,
+		typ:           TypeSLADefinitionGrant,
+		clearedFields: make(map[string]struct{}),
+	}
+	for _, opt := range opts {
+		opt(m)
+	}
+	return m
+}
+
+// withSLADefinitionGrantID sets the ID field of the mutation.
+func withSLADefinitionGrantID(id int) sladefinitiongrantOption {
+	return func(m *SLADefinitionGrantMutation) {
+		var (
+			err   error
+			once  sync.Once
+			value *SLADefinitionGrant
+		)
+		m.oldValue = func(ctx context.Context) (*SLADefinitionGrant, error) {
+			once.Do(func() {
+				if m.done {
+					err = errors.New("querying old values post mutation is not allowed")
+				} else {
+					value, err = m.Client().SLADefinitionGrant.Get(ctx, id)
+				}
+			})
+			return value, err
+		}
+		m.id = &id
+	}
+}
+
+// withSLADefinitionGrant sets the old SLADefinitionGrant of the mutation.
+func withSLADefinitionGrant(node *SLADefinitionGrant) sladefinitiongrantOption {
+	return func(m *SLADefinitionGrantMutation) {
+		m.oldValue = func(context.Context) (*SLADefinitionGrant, error) {
+			return node, nil
+		}
+		m.id = &node.ID
+	}
+}
+
+// Client returns a new `ent.Client` from the mutation. If the mutation was
+// executed in a transaction (ent.Tx), a transactional client is returned.
+func (m SLADefinitionGrantMutation) Client() *Client {
+	client := &Client{config: m.config}
+	client.init()
+	return client
+}
+
+// Tx returns an `ent.Tx` for mutations that were executed in transactions;
+// it returns an error otherwise.
+func (m SLADefinitionGrantMutation) Tx() (*Tx, error) {
+	if _, ok := m.driver.(*txDriver); !ok {
+		return nil, errors.New("ent: mutation is not running in a transaction")
+	}
+	tx := &Tx{config: m.config}
+	tx.init()
+	return tx, nil
+}
+
+// ID returns the ID value in the mutation. Note that the ID is only available
+// if it was provided to the builder or after it was returned from the database.
+func (m *SLADefinitionGrantMutation) ID() (id int, exists bool) {
+	if m.id == nil {
+		return
+	}
+	return *m.id, true
+}
+
+// IDs queries the database and returns the entity ids that match the mutation's predicate.
+// That means, if the mutation is applied within a transaction with an isolation level such
+// as sql.LevelSerializable, the returned ids match the ids of the rows that will be updated
+// or updated by the mutation.
+func (m *SLADefinitionGrantMutation) IDs(ctx context.Context) ([]int, error) {
+	switch {
+	case m.op.Is(OpUpdateOne | OpDeleteOne):
+		id, exists := m.ID()
+		if exists {
+			return []int{id}, nil
+		}
+		fallthrough
+	case m.op.Is(OpUpdate | OpDelete):
+		return m.Client().SLADefinitionGrant.Query().Where(m.predicates...).IDs(ctx)
+	default:
+		return nil, fmt.Errorf("IDs is not allowed on %s operations", m.op)
+	}
+}
+
+// SetSLADefinitionID sets the "sla_definition_id" field.
+func (m *SLADefinitionGrantMutation) SetSLADefinitionID(i int) {
+	m.sla_definition = &i
+}
+
+// SLADefinitionID returns the value of the "sla_definition_id" field in the mutation.
+func (m *SLADefinitionGrantMutation) SLADefinitionID() (r int, exists bool) {
+	v := m.sla_definition
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldSLADefinitionID returns the old "sla_definition_id" field's value of the SLADefinitionGrant entity.
+// If the SLADefinitionGrant object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *SLADefinitionGrantMutation) OldSLADefinitionID(ctx context.Context) (v int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldSLADefinitionID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldSLADefinitionID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldSLADefinitionID: %w", err)
+	}
+	return oldValue.SLADefinitionID, nil
+}
+
+// ResetSLADefinitionID resets all changes to the "sla_definition_id" field.
+func (m *SLADefinitionGrantMutation) ResetSLADefinitionID() {
+	m.sla_definition = nil
+}
+
+// SetCustomerTenantID sets the "customer_tenant_id" field.
+func (m *SLADefinitionGrantMutation) SetCustomerTenantID(i int) {
+	m.customer_tenant_id = &i
+	m.addcustomer_tenant_id = nil
+}
+
+// CustomerTenantID returns the value of the "customer_tenant_id" field in the mutation.
+func (m *SLADefinitionGrantMutation) CustomerTenantID() (r int, exists bool) {
+	v := m.customer_tenant_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldCustomerTenantID returns the old "customer_tenant_id" field's value of the SLADefinitionGrant entity.
+// If the SLADefinitionGrant object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *SLADefinitionGrantMutation) OldCustomerTenantID(ctx context.Context) (v int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldCustomerTenantID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldCustomerTenantID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldCustomerTenantID: %w", err)
+	}
+	return oldValue.CustomerTenantID, nil
+}
+
+// AddCustomerTenantID adds i to the "customer_tenant_id" field.
+func (m *SLADefinitionGrantMutation) AddCustomerTenantID(i int) {
+	if m.addcustomer_tenant_id != nil {
+		*m.addcustomer_tenant_id += i
+	} else {
+		m.addcustomer_tenant_id = &i
+	}
+}
+
+// AddedCustomerTenantID returns the value that was added to the "customer_tenant_id" field in this mutation.
+func (m *SLADefinitionGrantMutation) AddedCustomerTenantID() (r int, exists bool) {
+	v := m.addcustomer_tenant_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetCustomerTenantID resets all changes to the "customer_tenant_id" field.
+func (m *SLADefinitionGrantMutation) ResetCustomerTenantID() {
+	m.customer_tenant_id = nil
+	m.addcustomer_tenant_id = nil
+}
+
+// SetProviderTenantID sets the "provider_tenant_id" field.
+func (m *SLADefinitionGrantMutation) SetProviderTenantID(i int) {
+	m.provider_tenant_id = &i
+	m.addprovider_tenant_id = nil
+}
+
+// ProviderTenantID returns the value of the "provider_tenant_id" field in the mutation.
+func (m *SLADefinitionGrantMutation) ProviderTenantID() (r int, exists bool) {
+	v := m.provider_tenant_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldProviderTenantID returns the old "provider_tenant_id" field's value of the SLADefinitionGrant entity.
+// If the SLADefinitionGrant object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *SLADefinitionGrantMutation) OldProviderTenantID(ctx context.Context) (v int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldProviderTenantID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldProviderTenantID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldProviderTenantID: %w", err)
+	}
+	return oldValue.ProviderTenantID, nil
+}
+
+// AddProviderTenantID adds i to the "provider_tenant_id" field.
+func (m *SLADefinitionGrantMutation) AddProviderTenantID(i int) {
+	if m.addprovider_tenant_id != nil {
+		*m.addprovider_tenant_id += i
+	} else {
+		m.addprovider_tenant_id = &i
+	}
+}
+
+// AddedProviderTenantID returns the value that was added to the "provider_tenant_id" field in this mutation.
+func (m *SLADefinitionGrantMutation) AddedProviderTenantID() (r int, exists bool) {
+	v := m.addprovider_tenant_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetProviderTenantID resets all changes to the "provider_tenant_id" field.
+func (m *SLADefinitionGrantMutation) ResetProviderTenantID() {
+	m.provider_tenant_id = nil
+	m.addprovider_tenant_id = nil
+}
+
+// SetTicketTypeID sets the "ticket_type_id" field.
+func (m *SLADefinitionGrantMutation) SetTicketTypeID(i int64) {
+	m.ticket_type_id = &i
+	m.addticket_type_id = nil
+}
+
+// TicketTypeID returns the value of the "ticket_type_id" field in the mutation.
+func (m *SLADefinitionGrantMutation) TicketTypeID() (r int64, exists bool) {
+	v := m.ticket_type_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldTicketTypeID returns the old "ticket_type_id" field's value of the SLADefinitionGrant entity.
+// If the SLADefinitionGrant object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *SLADefinitionGrantMutation) OldTicketTypeID(ctx context.Context) (v int64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldTicketTypeID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldTicketTypeID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldTicketTypeID: %w", err)
+	}
+	return oldValue.TicketTypeID, nil
+}
+
+// AddTicketTypeID adds i to the "ticket_type_id" field.
+func (m *SLADefinitionGrantMutation) AddTicketTypeID(i int64) {
+	if m.addticket_type_id != nil {
+		*m.addticket_type_id += i
+	} else {
+		m.addticket_type_id = &i
+	}
+}
+
+// AddedTicketTypeID returns the value that was added to the "ticket_type_id" field in this mutation.
+func (m *SLADefinitionGrantMutation) AddedTicketTypeID() (r int64, exists bool) {
+	v := m.addticket_type_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetTicketTypeID resets all changes to the "ticket_type_id" field.
+func (m *SLADefinitionGrantMutation) ResetTicketTypeID() {
+	m.ticket_type_id = nil
+	m.addticket_type_id = nil
+}
+
+// SetValidUntil sets the "valid_until" field.
+func (m *SLADefinitionGrantMutation) SetValidUntil(t time.Time) {
+	m.valid_until = &t
+}
+
+// ValidUntil returns the value of the "valid_until" field in the mutation.
+func (m *SLADefinitionGrantMutation) ValidUntil() (r time.Time, exists bool) {
+	v := m.valid_until
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldValidUntil returns the old "valid_until" field's value of the SLADefinitionGrant entity.
+// If the SLADefinitionGrant object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *SLADefinitionGrantMutation) OldValidUntil(ctx context.Context) (v *time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldValidUntil is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldValidUntil requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldValidUntil: %w", err)
+	}
+	return oldValue.ValidUntil, nil
+}
+
+// ClearValidUntil clears the value of the "valid_until" field.
+func (m *SLADefinitionGrantMutation) ClearValidUntil() {
+	m.valid_until = nil
+	m.clearedFields[sladefinitiongrant.FieldValidUntil] = struct{}{}
+}
+
+// ValidUntilCleared returns if the "valid_until" field was cleared in this mutation.
+func (m *SLADefinitionGrantMutation) ValidUntilCleared() bool {
+	_, ok := m.clearedFields[sladefinitiongrant.FieldValidUntil]
+	return ok
+}
+
+// ResetValidUntil resets all changes to the "valid_until" field.
+func (m *SLADefinitionGrantMutation) ResetValidUntil() {
+	m.valid_until = nil
+	delete(m.clearedFields, sladefinitiongrant.FieldValidUntil)
+}
+
+// SetIsActive sets the "is_active" field.
+func (m *SLADefinitionGrantMutation) SetIsActive(b bool) {
+	m.is_active = &b
+}
+
+// IsActive returns the value of the "is_active" field in the mutation.
+func (m *SLADefinitionGrantMutation) IsActive() (r bool, exists bool) {
+	v := m.is_active
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldIsActive returns the old "is_active" field's value of the SLADefinitionGrant entity.
+// If the SLADefinitionGrant object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *SLADefinitionGrantMutation) OldIsActive(ctx context.Context) (v bool, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldIsActive is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldIsActive requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldIsActive: %w", err)
+	}
+	return oldValue.IsActive, nil
+}
+
+// ResetIsActive resets all changes to the "is_active" field.
+func (m *SLADefinitionGrantMutation) ResetIsActive() {
+	m.is_active = nil
+}
+
+// SetTenantID sets the "tenant_id" field.
+func (m *SLADefinitionGrantMutation) SetTenantID(i int) {
+	m.tenant_id = &i
+	m.addtenant_id = nil
+}
+
+// TenantID returns the value of the "tenant_id" field in the mutation.
+func (m *SLADefinitionGrantMutation) TenantID() (r int, exists bool) {
+	v := m.tenant_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldTenantID returns the old "tenant_id" field's value of the SLADefinitionGrant entity.
+// If the SLADefinitionGrant object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *SLADefinitionGrantMutation) OldTenantID(ctx context.Context) (v int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldTenantID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldTenantID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldTenantID: %w", err)
+	}
+	return oldValue.TenantID, nil
+}
+
+// AddTenantID adds i to the "tenant_id" field.
+func (m *SLADefinitionGrantMutation) AddTenantID(i int) {
+	if m.addtenant_id != nil {
+		*m.addtenant_id += i
+	} else {
+		m.addtenant_id = &i
+	}
+}
+
+// AddedTenantID returns the value that was added to the "tenant_id" field in this mutation.
+func (m *SLADefinitionGrantMutation) AddedTenantID() (r int, exists bool) {
+	v := m.addtenant_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetTenantID resets all changes to the "tenant_id" field.
+func (m *SLADefinitionGrantMutation) ResetTenantID() {
+	m.tenant_id = nil
+	m.addtenant_id = nil
+}
+
+// SetCreatedAt sets the "created_at" field.
+func (m *SLADefinitionGrantMutation) SetCreatedAt(t time.Time) {
+	m.created_at = &t
+}
+
+// CreatedAt returns the value of the "created_at" field in the mutation.
+func (m *SLADefinitionGrantMutation) CreatedAt() (r time.Time, exists bool) {
+	v := m.created_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldCreatedAt returns the old "created_at" field's value of the SLADefinitionGrant entity.
+// If the SLADefinitionGrant object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *SLADefinitionGrantMutation) OldCreatedAt(ctx context.Context) (v time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldCreatedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldCreatedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldCreatedAt: %w", err)
+	}
+	return oldValue.CreatedAt, nil
+}
+
+// ResetCreatedAt resets all changes to the "created_at" field.
+func (m *SLADefinitionGrantMutation) ResetCreatedAt() {
+	m.created_at = nil
+}
+
+// SetUpdatedAt sets the "updated_at" field.
+func (m *SLADefinitionGrantMutation) SetUpdatedAt(t time.Time) {
+	m.updated_at = &t
+}
+
+// UpdatedAt returns the value of the "updated_at" field in the mutation.
+func (m *SLADefinitionGrantMutation) UpdatedAt() (r time.Time, exists bool) {
+	v := m.updated_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldUpdatedAt returns the old "updated_at" field's value of the SLADefinitionGrant entity.
+// If the SLADefinitionGrant object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *SLADefinitionGrantMutation) OldUpdatedAt(ctx context.Context) (v time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldUpdatedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldUpdatedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldUpdatedAt: %w", err)
+	}
+	return oldValue.UpdatedAt, nil
+}
+
+// ResetUpdatedAt resets all changes to the "updated_at" field.
+func (m *SLADefinitionGrantMutation) ResetUpdatedAt() {
+	m.updated_at = nil
+}
+
+// ClearSLADefinition clears the "sla_definition" edge to the SLADefinition entity.
+func (m *SLADefinitionGrantMutation) ClearSLADefinition() {
+	m.clearedsla_definition = true
+	m.clearedFields[sladefinitiongrant.FieldSLADefinitionID] = struct{}{}
+}
+
+// SLADefinitionCleared reports if the "sla_definition" edge to the SLADefinition entity was cleared.
+func (m *SLADefinitionGrantMutation) SLADefinitionCleared() bool {
+	return m.clearedsla_definition
+}
+
+// SLADefinitionIDs returns the "sla_definition" edge IDs in the mutation.
+// Note that IDs always returns len(IDs) <= 1 for unique edges, and you should use
+// SLADefinitionID instead. It exists only for internal usage by the builders.
+func (m *SLADefinitionGrantMutation) SLADefinitionIDs() (ids []int) {
+	if id := m.sla_definition; id != nil {
+		ids = append(ids, *id)
+	}
+	return
+}
+
+// ResetSLADefinition resets all changes to the "sla_definition" edge.
+func (m *SLADefinitionGrantMutation) ResetSLADefinition() {
+	m.sla_definition = nil
+	m.clearedsla_definition = false
+}
+
+// Where appends a list predicates to the SLADefinitionGrantMutation builder.
+func (m *SLADefinitionGrantMutation) Where(ps ...predicate.SLADefinitionGrant) {
+	m.predicates = append(m.predicates, ps...)
+}
+
+// WhereP appends storage-level predicates to the SLADefinitionGrantMutation builder. Using this method,
+// users can use type-assertion to append predicates that do not depend on any generated package.
+func (m *SLADefinitionGrantMutation) WhereP(ps ...func(*sql.Selector)) {
+	p := make([]predicate.SLADefinitionGrant, len(ps))
+	for i := range ps {
+		p[i] = ps[i]
+	}
+	m.Where(p...)
+}
+
+// Op returns the operation name.
+func (m *SLADefinitionGrantMutation) Op() Op {
+	return m.op
+}
+
+// SetOp allows setting the mutation operation.
+func (m *SLADefinitionGrantMutation) SetOp(op Op) {
+	m.op = op
+}
+
+// Type returns the node type of this mutation (SLADefinitionGrant).
+func (m *SLADefinitionGrantMutation) Type() string {
+	return m.typ
+}
+
+// Fields returns all fields that were changed during this mutation. Note that in
+// order to get all numeric fields that were incremented/decremented, call
+// AddedFields().
+func (m *SLADefinitionGrantMutation) Fields() []string {
+	fields := make([]string, 0, 9)
+	if m.sla_definition != nil {
+		fields = append(fields, sladefinitiongrant.FieldSLADefinitionID)
+	}
+	if m.customer_tenant_id != nil {
+		fields = append(fields, sladefinitiongrant.FieldCustomerTenantID)
+	}
+	if m.provider_tenant_id != nil {
+		fields = append(fields, sladefinitiongrant.FieldProviderTenantID)
+	}
+	if m.ticket_type_id != nil {
+		fields = append(fields, sladefinitiongrant.FieldTicketTypeID)
+	}
+	if m.valid_until != nil {
+		fields = append(fields, sladefinitiongrant.FieldValidUntil)
+	}
+	if m.is_active != nil {
+		fields = append(fields, sladefinitiongrant.FieldIsActive)
+	}
+	if m.tenant_id != nil {
+		fields = append(fields, sladefinitiongrant.FieldTenantID)
+	}
+	if m.created_at != nil {
+		fields = append(fields, sladefinitiongrant.FieldCreatedAt)
+	}
+	if m.updated_at != nil {
+		fields = append(fields, sladefinitiongrant.FieldUpdatedAt)
+	}
+	return fields
+}
+
+// Field returns the value of a field with the given name. The second boolean
+// return value indicates that this field was not set, or was not defined in the
+// schema.
+func (m *SLADefinitionGrantMutation) Field(name string) (ent.Value, bool) {
+	switch name {
+	case sladefinitiongrant.FieldSLADefinitionID:
+		return m.SLADefinitionID()
+	case sladefinitiongrant.FieldCustomerTenantID:
+		return m.CustomerTenantID()
+	case sladefinitiongrant.FieldProviderTenantID:
+		return m.ProviderTenantID()
+	case sladefinitiongrant.FieldTicketTypeID:
+		return m.TicketTypeID()
+	case sladefinitiongrant.FieldValidUntil:
+		return m.ValidUntil()
+	case sladefinitiongrant.FieldIsActive:
+		return m.IsActive()
+	case sladefinitiongrant.FieldTenantID:
+		return m.TenantID()
+	case sladefinitiongrant.FieldCreatedAt:
+		return m.CreatedAt()
+	case sladefinitiongrant.FieldUpdatedAt:
+		return m.UpdatedAt()
+	}
+	return nil, false
+}
+
+// OldField returns the old value of the field from the database. An error is
+// returned if the mutation operation is not UpdateOne, or the query to the
+// database failed.
+func (m *SLADefinitionGrantMutation) OldField(ctx context.Context, name string) (ent.Value, error) {
+	switch name {
+	case sladefinitiongrant.FieldSLADefinitionID:
+		return m.OldSLADefinitionID(ctx)
+	case sladefinitiongrant.FieldCustomerTenantID:
+		return m.OldCustomerTenantID(ctx)
+	case sladefinitiongrant.FieldProviderTenantID:
+		return m.OldProviderTenantID(ctx)
+	case sladefinitiongrant.FieldTicketTypeID:
+		return m.OldTicketTypeID(ctx)
+	case sladefinitiongrant.FieldValidUntil:
+		return m.OldValidUntil(ctx)
+	case sladefinitiongrant.FieldIsActive:
+		return m.OldIsActive(ctx)
+	case sladefinitiongrant.FieldTenantID:
+		return m.OldTenantID(ctx)
+	case sladefinitiongrant.FieldCreatedAt:
+		return m.OldCreatedAt(ctx)
+	case sladefinitiongrant.FieldUpdatedAt:
+		return m.OldUpdatedAt(ctx)
+	}
+	return nil, fmt.Errorf("unknown SLADefinitionGrant field %s", name)
+}
+
+// SetField sets the value of a field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *SLADefinitionGrantMutation) SetField(name string, value ent.Value) error {
+	switch name {
+	case sladefinitiongrant.FieldSLADefinitionID:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetSLADefinitionID(v)
+		return nil
+	case sladefinitiongrant.FieldCustomerTenantID:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetCustomerTenantID(v)
+		return nil
+	case sladefinitiongrant.FieldProviderTenantID:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetProviderTenantID(v)
+		return nil
+	case sladefinitiongrant.FieldTicketTypeID:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetTicketTypeID(v)
+		return nil
+	case sladefinitiongrant.FieldValidUntil:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetValidUntil(v)
+		return nil
+	case sladefinitiongrant.FieldIsActive:
+		v, ok := value.(bool)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetIsActive(v)
+		return nil
+	case sladefinitiongrant.FieldTenantID:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetTenantID(v)
+		return nil
+	case sladefinitiongrant.FieldCreatedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetCreatedAt(v)
+		return nil
+	case sladefinitiongrant.FieldUpdatedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetUpdatedAt(v)
+		return nil
+	}
+	return fmt.Errorf("unknown SLADefinitionGrant field %s", name)
+}
+
+// AddedFields returns all numeric fields that were incremented/decremented during
+// this mutation.
+func (m *SLADefinitionGrantMutation) AddedFields() []string {
+	var fields []string
+	if m.addcustomer_tenant_id != nil {
+		fields = append(fields, sladefinitiongrant.FieldCustomerTenantID)
+	}
+	if m.addprovider_tenant_id != nil {
+		fields = append(fields, sladefinitiongrant.FieldProviderTenantID)
+	}
+	if m.addticket_type_id != nil {
+		fields = append(fields, sladefinitiongrant.FieldTicketTypeID)
+	}
+	if m.addtenant_id != nil {
+		fields = append(fields, sladefinitiongrant.FieldTenantID)
+	}
+	return fields
+}
+
+// AddedField returns the numeric value that was incremented/decremented on a field
+// with the given name. The second boolean return value indicates that this field
+// was not set, or was not defined in the schema.
+func (m *SLADefinitionGrantMutation) AddedField(name string) (ent.Value, bool) {
+	switch name {
+	case sladefinitiongrant.FieldCustomerTenantID:
+		return m.AddedCustomerTenantID()
+	case sladefinitiongrant.FieldProviderTenantID:
+		return m.AddedProviderTenantID()
+	case sladefinitiongrant.FieldTicketTypeID:
+		return m.AddedTicketTypeID()
+	case sladefinitiongrant.FieldTenantID:
+		return m.AddedTenantID()
+	}
+	return nil, false
+}
+
+// AddField adds the value to the field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *SLADefinitionGrantMutation) AddField(name string, value ent.Value) error {
+	switch name {
+	case sladefinitiongrant.FieldCustomerTenantID:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddCustomerTenantID(v)
+		return nil
+	case sladefinitiongrant.FieldProviderTenantID:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddProviderTenantID(v)
+		return nil
+	case sladefinitiongrant.FieldTicketTypeID:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddTicketTypeID(v)
+		return nil
+	case sladefinitiongrant.FieldTenantID:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddTenantID(v)
+		return nil
+	}
+	return fmt.Errorf("unknown SLADefinitionGrant numeric field %s", name)
+}
+
+// ClearedFields returns all nullable fields that were cleared during this
+// mutation.
+func (m *SLADefinitionGrantMutation) ClearedFields() []string {
+	var fields []string
+	if m.FieldCleared(sladefinitiongrant.FieldValidUntil) {
+		fields = append(fields, sladefinitiongrant.FieldValidUntil)
+	}
+	return fields
+}
+
+// FieldCleared returns a boolean indicating if a field with the given name was
+// cleared in this mutation.
+func (m *SLADefinitionGrantMutation) FieldCleared(name string) bool {
+	_, ok := m.clearedFields[name]
+	return ok
+}
+
+// ClearField clears the value of the field with the given name. It returns an
+// error if the field is not defined in the schema.
+func (m *SLADefinitionGrantMutation) ClearField(name string) error {
+	switch name {
+	case sladefinitiongrant.FieldValidUntil:
+		m.ClearValidUntil()
+		return nil
+	}
+	return fmt.Errorf("unknown SLADefinitionGrant nullable field %s", name)
+}
+
+// ResetField resets all changes in the mutation for the field with the given name.
+// It returns an error if the field is not defined in the schema.
+func (m *SLADefinitionGrantMutation) ResetField(name string) error {
+	switch name {
+	case sladefinitiongrant.FieldSLADefinitionID:
+		m.ResetSLADefinitionID()
+		return nil
+	case sladefinitiongrant.FieldCustomerTenantID:
+		m.ResetCustomerTenantID()
+		return nil
+	case sladefinitiongrant.FieldProviderTenantID:
+		m.ResetProviderTenantID()
+		return nil
+	case sladefinitiongrant.FieldTicketTypeID:
+		m.ResetTicketTypeID()
+		return nil
+	case sladefinitiongrant.FieldValidUntil:
+		m.ResetValidUntil()
+		return nil
+	case sladefinitiongrant.FieldIsActive:
+		m.ResetIsActive()
+		return nil
+	case sladefinitiongrant.FieldTenantID:
+		m.ResetTenantID()
+		return nil
+	case sladefinitiongrant.FieldCreatedAt:
+		m.ResetCreatedAt()
+		return nil
+	case sladefinitiongrant.FieldUpdatedAt:
+		m.ResetUpdatedAt()
+		return nil
+	}
+	return fmt.Errorf("unknown SLADefinitionGrant field %s", name)
+}
+
+// AddedEdges returns all edge names that were set/added in this mutation.
+func (m *SLADefinitionGrantMutation) AddedEdges() []string {
+	edges := make([]string, 0, 1)
+	if m.sla_definition != nil {
+		edges = append(edges, sladefinitiongrant.EdgeSLADefinition)
+	}
+	return edges
+}
+
+// AddedIDs returns all IDs (to other nodes) that were added for the given edge
+// name in this mutation.
+func (m *SLADefinitionGrantMutation) AddedIDs(name string) []ent.Value {
+	switch name {
+	case sladefinitiongrant.EdgeSLADefinition:
+		if id := m.sla_definition; id != nil {
+			return []ent.Value{*id}
+		}
+	}
+	return nil
+}
+
+// RemovedEdges returns all edge names that were removed in this mutation.
+func (m *SLADefinitionGrantMutation) RemovedEdges() []string {
+	edges := make([]string, 0, 1)
+	return edges
+}
+
+// RemovedIDs returns all IDs (to other nodes) that were removed for the edge with
+// the given name in this mutation.
+func (m *SLADefinitionGrantMutation) RemovedIDs(name string) []ent.Value {
+	return nil
+}
+
+// ClearedEdges returns all edge names that were cleared in this mutation.
+func (m *SLADefinitionGrantMutation) ClearedEdges() []string {
+	edges := make([]string, 0, 1)
+	if m.clearedsla_definition {
+		edges = append(edges, sladefinitiongrant.EdgeSLADefinition)
+	}
+	return edges
+}
+
+// EdgeCleared returns a boolean which indicates if the edge with the given name
+// was cleared in this mutation.
+func (m *SLADefinitionGrantMutation) EdgeCleared(name string) bool {
+	switch name {
+	case sladefinitiongrant.EdgeSLADefinition:
+		return m.clearedsla_definition
+	}
+	return false
+}
+
+// ClearEdge clears the value of the edge with the given name. It returns an error
+// if that edge is not defined in the schema.
+func (m *SLADefinitionGrantMutation) ClearEdge(name string) error {
+	switch name {
+	case sladefinitiongrant.EdgeSLADefinition:
+		m.ClearSLADefinition()
+		return nil
+	}
+	return fmt.Errorf("unknown SLADefinitionGrant unique edge %s", name)
+}
+
+// ResetEdge resets all changes to the edge with the given name in this mutation.
+// It returns an error if the edge is not defined in the schema.
+func (m *SLADefinitionGrantMutation) ResetEdge(name string) error {
+	switch name {
+	case sladefinitiongrant.EdgeSLADefinition:
+		m.ResetSLADefinition()
+		return nil
+	}
+	return fmt.Errorf("unknown SLADefinitionGrant edge %s", name)
 }
 
 // SLAMetricMutation represents an operation that mutates the SLAMetric nodes in the graph.
@@ -185278,6 +186419,7 @@ type TicketTypeMutation struct {
 	sla_enabled             *bool
 	default_sla_id          *int64
 	adddefault_sla_id       *int64
+	sla_exempt              *bool
 	auto_assign_enabled     *bool
 	msp_route_enabled       *bool
 	assignment_rules        *[]interface{}
@@ -186316,6 +187458,42 @@ func (m *TicketTypeMutation) ResetDefaultSLAID() {
 	delete(m.clearedFields, tickettype.FieldDefaultSLAID)
 }
 
+// SetSLAExempt sets the "sla_exempt" field.
+func (m *TicketTypeMutation) SetSLAExempt(b bool) {
+	m.sla_exempt = &b
+}
+
+// SLAExempt returns the value of the "sla_exempt" field in the mutation.
+func (m *TicketTypeMutation) SLAExempt() (r bool, exists bool) {
+	v := m.sla_exempt
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldSLAExempt returns the old "sla_exempt" field's value of the TicketType entity.
+// If the TicketType object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *TicketTypeMutation) OldSLAExempt(ctx context.Context) (v bool, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldSLAExempt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldSLAExempt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldSLAExempt: %w", err)
+	}
+	return oldValue.SLAExempt, nil
+}
+
+// ResetSLAExempt resets all changes to the "sla_exempt" field.
+func (m *TicketTypeMutation) ResetSLAExempt() {
+	m.sla_exempt = nil
+}
+
 // SetAutoAssignEnabled sets the "auto_assign_enabled" field.
 func (m *TicketTypeMutation) SetAutoAssignEnabled(b bool) {
 	m.auto_assign_enabled = &b
@@ -186909,7 +188087,7 @@ func (m *TicketTypeMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *TicketTypeMutation) Fields() []string {
-	fields := make([]string, 0, 30)
+	fields := make([]string, 0, 31)
 	if m.code != nil {
 		fields = append(fields, tickettype.FieldCode)
 	}
@@ -186966,6 +188144,9 @@ func (m *TicketTypeMutation) Fields() []string {
 	}
 	if m.default_sla_id != nil {
 		fields = append(fields, tickettype.FieldDefaultSLAID)
+	}
+	if m.sla_exempt != nil {
+		fields = append(fields, tickettype.FieldSLAExempt)
 	}
 	if m.auto_assign_enabled != nil {
 		fields = append(fields, tickettype.FieldAutoAssignEnabled)
@@ -187046,6 +188227,8 @@ func (m *TicketTypeMutation) Field(name string) (ent.Value, bool) {
 		return m.SLAEnabled()
 	case tickettype.FieldDefaultSLAID:
 		return m.DefaultSLAID()
+	case tickettype.FieldSLAExempt:
+		return m.SLAExempt()
 	case tickettype.FieldAutoAssignEnabled:
 		return m.AutoAssignEnabled()
 	case tickettype.FieldMspRouteEnabled:
@@ -187115,6 +188298,8 @@ func (m *TicketTypeMutation) OldField(ctx context.Context, name string) (ent.Val
 		return m.OldSLAEnabled(ctx)
 	case tickettype.FieldDefaultSLAID:
 		return m.OldDefaultSLAID(ctx)
+	case tickettype.FieldSLAExempt:
+		return m.OldSLAExempt(ctx)
 	case tickettype.FieldAutoAssignEnabled:
 		return m.OldAutoAssignEnabled(ctx)
 	case tickettype.FieldMspRouteEnabled:
@@ -187278,6 +188463,13 @@ func (m *TicketTypeMutation) SetField(name string, value ent.Value) error {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.SetDefaultSLAID(v)
+		return nil
+	case tickettype.FieldSLAExempt:
+		v, ok := value.(bool)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetSLAExempt(v)
 		return nil
 	case tickettype.FieldAutoAssignEnabled:
 		v, ok := value.(bool)
@@ -187635,6 +188827,9 @@ func (m *TicketTypeMutation) ResetField(name string) error {
 		return nil
 	case tickettype.FieldDefaultSLAID:
 		m.ResetDefaultSLAID()
+		return nil
+	case tickettype.FieldSLAExempt:
+		m.ResetSLAExempt()
 		return nil
 	case tickettype.FieldAutoAssignEnabled:
 		m.ResetAutoAssignEnabled()

@@ -330,6 +330,9 @@ type SLAAlertRule func(*sql.Selector)
 // SLADefinition is the predicate function for sladefinition builders.
 type SLADefinition func(*sql.Selector)
 
+// SLADefinitionGrant is the predicate function for sladefinitiongrant builders.
+type SLADefinitionGrant func(*sql.Selector)
+
 // SLAMetric is the predicate function for slametric builders.
 type SLAMetric func(*sql.Selector)
 

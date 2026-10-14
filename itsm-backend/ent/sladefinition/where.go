@@ -90,6 +90,11 @@ func IsActive(v bool) predicate.SLADefinition {
 	return predicate.SLADefinition(sql.FieldEQ(FieldIsActive, v))
 }
 
+// OwnerProviderTenantID applies equality check predicate on the "owner_provider_tenant_id" field. It's identical to OwnerProviderTenantIDEQ.
+func OwnerProviderTenantID(v int) predicate.SLADefinition {
+	return predicate.SLADefinition(sql.FieldEQ(FieldOwnerProviderTenantID, v))
+}
+
 // TenantID applies equality check predicate on the "tenant_id" field. It's identical to TenantIDEQ.
 func TenantID(v int) predicate.SLADefinition {
 	return predicate.SLADefinition(sql.FieldEQ(FieldTenantID, v))
@@ -515,6 +520,46 @@ func IsActiveNEQ(v bool) predicate.SLADefinition {
 	return predicate.SLADefinition(sql.FieldNEQ(FieldIsActive, v))
 }
 
+// OwnerProviderTenantIDEQ applies the EQ predicate on the "owner_provider_tenant_id" field.
+func OwnerProviderTenantIDEQ(v int) predicate.SLADefinition {
+	return predicate.SLADefinition(sql.FieldEQ(FieldOwnerProviderTenantID, v))
+}
+
+// OwnerProviderTenantIDNEQ applies the NEQ predicate on the "owner_provider_tenant_id" field.
+func OwnerProviderTenantIDNEQ(v int) predicate.SLADefinition {
+	return predicate.SLADefinition(sql.FieldNEQ(FieldOwnerProviderTenantID, v))
+}
+
+// OwnerProviderTenantIDIn applies the In predicate on the "owner_provider_tenant_id" field.
+func OwnerProviderTenantIDIn(vs ...int) predicate.SLADefinition {
+	return predicate.SLADefinition(sql.FieldIn(FieldOwnerProviderTenantID, vs...))
+}
+
+// OwnerProviderTenantIDNotIn applies the NotIn predicate on the "owner_provider_tenant_id" field.
+func OwnerProviderTenantIDNotIn(vs ...int) predicate.SLADefinition {
+	return predicate.SLADefinition(sql.FieldNotIn(FieldOwnerProviderTenantID, vs...))
+}
+
+// OwnerProviderTenantIDGT applies the GT predicate on the "owner_provider_tenant_id" field.
+func OwnerProviderTenantIDGT(v int) predicate.SLADefinition {
+	return predicate.SLADefinition(sql.FieldGT(FieldOwnerProviderTenantID, v))
+}
+
+// OwnerProviderTenantIDGTE applies the GTE predicate on the "owner_provider_tenant_id" field.
+func OwnerProviderTenantIDGTE(v int) predicate.SLADefinition {
+	return predicate.SLADefinition(sql.FieldGTE(FieldOwnerProviderTenantID, v))
+}
+
+// OwnerProviderTenantIDLT applies the LT predicate on the "owner_provider_tenant_id" field.
+func OwnerProviderTenantIDLT(v int) predicate.SLADefinition {
+	return predicate.SLADefinition(sql.FieldLT(FieldOwnerProviderTenantID, v))
+}
+
+// OwnerProviderTenantIDLTE applies the LTE predicate on the "owner_provider_tenant_id" field.
+func OwnerProviderTenantIDLTE(v int) predicate.SLADefinition {
+	return predicate.SLADefinition(sql.FieldLTE(FieldOwnerProviderTenantID, v))
+}
+
 // TenantIDEQ applies the EQ predicate on the "tenant_id" field.
 func TenantIDEQ(v int) predicate.SLADefinition {
 	return predicate.SLADefinition(sql.FieldEQ(FieldTenantID, v))
@@ -719,6 +764,29 @@ func HasAlertRules() predicate.SLADefinition {
 func HasAlertRulesWith(preds ...predicate.SLAAlertRule) predicate.SLADefinition {
 	return predicate.SLADefinition(func(s *sql.Selector) {
 		step := newAlertRulesStep()
+		sqlgraph.HasNeighborsWith(s, step, func(s *sql.Selector) {
+			for _, p := range preds {
+				p(s)
+			}
+		})
+	})
+}
+
+// HasGrants applies the HasEdge predicate on the "grants" edge.
+func HasGrants() predicate.SLADefinition {
+	return predicate.SLADefinition(func(s *sql.Selector) {
+		step := sqlgraph.NewStep(
+			sqlgraph.From(Table, FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, GrantsTable, GrantsColumn),
+		)
+		sqlgraph.HasNeighbors(s, step)
+	})
+}
+
+// HasGrantsWith applies the HasEdge predicate on the "grants" edge with a given conditions (other predicates).
+func HasGrantsWith(preds ...predicate.SLADefinitionGrant) predicate.SLADefinition {
+	return predicate.SLADefinition(func(s *sql.Selector) {
+		step := newGrantsStep()
 		sqlgraph.HasNeighborsWith(s, step, func(s *sql.Selector) {
 			for _, p := range preds {
 				p(s)

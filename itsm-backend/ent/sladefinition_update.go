@@ -9,6 +9,7 @@ import (
 	"itsm-backend/ent/predicate"
 	"itsm-backend/ent/slaalertrule"
 	"itsm-backend/ent/sladefinition"
+	"itsm-backend/ent/sladefinitiongrant"
 	"itsm-backend/ent/slametric"
 	"itsm-backend/ent/slaviolation"
 	"itsm-backend/ent/ticket"
@@ -198,6 +199,27 @@ func (_u *SLADefinitionUpdate) SetNillableIsActive(v *bool) *SLADefinitionUpdate
 	return _u
 }
 
+// SetOwnerProviderTenantID sets the "owner_provider_tenant_id" field.
+func (_u *SLADefinitionUpdate) SetOwnerProviderTenantID(v int) *SLADefinitionUpdate {
+	_u.mutation.ResetOwnerProviderTenantID()
+	_u.mutation.SetOwnerProviderTenantID(v)
+	return _u
+}
+
+// SetNillableOwnerProviderTenantID sets the "owner_provider_tenant_id" field if the given value is not nil.
+func (_u *SLADefinitionUpdate) SetNillableOwnerProviderTenantID(v *int) *SLADefinitionUpdate {
+	if v != nil {
+		_u.SetOwnerProviderTenantID(*v)
+	}
+	return _u
+}
+
+// AddOwnerProviderTenantID adds value to the "owner_provider_tenant_id" field.
+func (_u *SLADefinitionUpdate) AddOwnerProviderTenantID(v int) *SLADefinitionUpdate {
+	_u.mutation.AddOwnerProviderTenantID(v)
+	return _u
+}
+
 // SetTenantID sets the "tenant_id" field.
 func (_u *SLADefinitionUpdate) SetTenantID(v int) *SLADefinitionUpdate {
 	_u.mutation.ResetTenantID()
@@ -299,6 +321,21 @@ func (_u *SLADefinitionUpdate) AddAlertRules(v ...*SLAAlertRule) *SLADefinitionU
 	return _u.AddAlertRuleIDs(ids...)
 }
 
+// AddGrantIDs adds the "grants" edge to the SLADefinitionGrant entity by IDs.
+func (_u *SLADefinitionUpdate) AddGrantIDs(ids ...int) *SLADefinitionUpdate {
+	_u.mutation.AddGrantIDs(ids...)
+	return _u
+}
+
+// AddGrants adds the "grants" edges to the SLADefinitionGrant entity.
+func (_u *SLADefinitionUpdate) AddGrants(v ...*SLADefinitionGrant) *SLADefinitionUpdate {
+	ids := make([]int, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.AddGrantIDs(ids...)
+}
+
 // Mutation returns the SLADefinitionMutation object of the builder.
 func (_u *SLADefinitionUpdate) Mutation() *SLADefinitionMutation {
 	return _u.mutation
@@ -386,6 +423,27 @@ func (_u *SLADefinitionUpdate) RemoveAlertRules(v ...*SLAAlertRule) *SLADefiniti
 		ids[i] = v[i].ID
 	}
 	return _u.RemoveAlertRuleIDs(ids...)
+}
+
+// ClearGrants clears all "grants" edges to the SLADefinitionGrant entity.
+func (_u *SLADefinitionUpdate) ClearGrants() *SLADefinitionUpdate {
+	_u.mutation.ClearGrants()
+	return _u
+}
+
+// RemoveGrantIDs removes the "grants" edge to SLADefinitionGrant entities by IDs.
+func (_u *SLADefinitionUpdate) RemoveGrantIDs(ids ...int) *SLADefinitionUpdate {
+	_u.mutation.RemoveGrantIDs(ids...)
+	return _u
+}
+
+// RemoveGrants removes "grants" edges to SLADefinitionGrant entities.
+func (_u *SLADefinitionUpdate) RemoveGrants(v ...*SLADefinitionGrant) *SLADefinitionUpdate {
+	ids := make([]int, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.RemoveGrantIDs(ids...)
 }
 
 // Save executes the query and returns the number of nodes affected by the update operation.
@@ -514,6 +572,12 @@ func (_u *SLADefinitionUpdate) sqlSave(ctx context.Context) (_node int, err erro
 	}
 	if value, ok := _u.mutation.IsActive(); ok {
 		_spec.SetField(sladefinition.FieldIsActive, field.TypeBool, value)
+	}
+	if value, ok := _u.mutation.OwnerProviderTenantID(); ok {
+		_spec.SetField(sladefinition.FieldOwnerProviderTenantID, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.AddedOwnerProviderTenantID(); ok {
+		_spec.AddField(sladefinition.FieldOwnerProviderTenantID, field.TypeInt, value)
 	}
 	if value, ok := _u.mutation.TenantID(); ok {
 		_spec.SetField(sladefinition.FieldTenantID, field.TypeInt, value)
@@ -700,6 +764,51 @@ func (_u *SLADefinitionUpdate) sqlSave(ctx context.Context) (_node int, err erro
 			Bidi:    false,
 			Target: &sqlgraph.EdgeTarget{
 				IDSpec: sqlgraph.NewFieldSpec(slaalertrule.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
+	}
+	if _u.mutation.GrantsCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   sladefinition.GrantsTable,
+			Columns: []string{sladefinition.GrantsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(sladefinitiongrant.FieldID, field.TypeInt),
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.RemovedGrantsIDs(); len(nodes) > 0 && !_u.mutation.GrantsCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   sladefinition.GrantsTable,
+			Columns: []string{sladefinition.GrantsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(sladefinitiongrant.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.GrantsIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   sladefinition.GrantsTable,
+			Columns: []string{sladefinition.GrantsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(sladefinitiongrant.FieldID, field.TypeInt),
 			},
 		}
 		for _, k := range nodes {
@@ -893,6 +1002,27 @@ func (_u *SLADefinitionUpdateOne) SetNillableIsActive(v *bool) *SLADefinitionUpd
 	return _u
 }
 
+// SetOwnerProviderTenantID sets the "owner_provider_tenant_id" field.
+func (_u *SLADefinitionUpdateOne) SetOwnerProviderTenantID(v int) *SLADefinitionUpdateOne {
+	_u.mutation.ResetOwnerProviderTenantID()
+	_u.mutation.SetOwnerProviderTenantID(v)
+	return _u
+}
+
+// SetNillableOwnerProviderTenantID sets the "owner_provider_tenant_id" field if the given value is not nil.
+func (_u *SLADefinitionUpdateOne) SetNillableOwnerProviderTenantID(v *int) *SLADefinitionUpdateOne {
+	if v != nil {
+		_u.SetOwnerProviderTenantID(*v)
+	}
+	return _u
+}
+
+// AddOwnerProviderTenantID adds value to the "owner_provider_tenant_id" field.
+func (_u *SLADefinitionUpdateOne) AddOwnerProviderTenantID(v int) *SLADefinitionUpdateOne {
+	_u.mutation.AddOwnerProviderTenantID(v)
+	return _u
+}
+
 // SetTenantID sets the "tenant_id" field.
 func (_u *SLADefinitionUpdateOne) SetTenantID(v int) *SLADefinitionUpdateOne {
 	_u.mutation.ResetTenantID()
@@ -994,6 +1124,21 @@ func (_u *SLADefinitionUpdateOne) AddAlertRules(v ...*SLAAlertRule) *SLADefiniti
 	return _u.AddAlertRuleIDs(ids...)
 }
 
+// AddGrantIDs adds the "grants" edge to the SLADefinitionGrant entity by IDs.
+func (_u *SLADefinitionUpdateOne) AddGrantIDs(ids ...int) *SLADefinitionUpdateOne {
+	_u.mutation.AddGrantIDs(ids...)
+	return _u
+}
+
+// AddGrants adds the "grants" edges to the SLADefinitionGrant entity.
+func (_u *SLADefinitionUpdateOne) AddGrants(v ...*SLADefinitionGrant) *SLADefinitionUpdateOne {
+	ids := make([]int, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.AddGrantIDs(ids...)
+}
+
 // Mutation returns the SLADefinitionMutation object of the builder.
 func (_u *SLADefinitionUpdateOne) Mutation() *SLADefinitionMutation {
 	return _u.mutation
@@ -1081,6 +1226,27 @@ func (_u *SLADefinitionUpdateOne) RemoveAlertRules(v ...*SLAAlertRule) *SLADefin
 		ids[i] = v[i].ID
 	}
 	return _u.RemoveAlertRuleIDs(ids...)
+}
+
+// ClearGrants clears all "grants" edges to the SLADefinitionGrant entity.
+func (_u *SLADefinitionUpdateOne) ClearGrants() *SLADefinitionUpdateOne {
+	_u.mutation.ClearGrants()
+	return _u
+}
+
+// RemoveGrantIDs removes the "grants" edge to SLADefinitionGrant entities by IDs.
+func (_u *SLADefinitionUpdateOne) RemoveGrantIDs(ids ...int) *SLADefinitionUpdateOne {
+	_u.mutation.RemoveGrantIDs(ids...)
+	return _u
+}
+
+// RemoveGrants removes "grants" edges to SLADefinitionGrant entities.
+func (_u *SLADefinitionUpdateOne) RemoveGrants(v ...*SLADefinitionGrant) *SLADefinitionUpdateOne {
+	ids := make([]int, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.RemoveGrantIDs(ids...)
 }
 
 // Where appends a list predicates to the SLADefinitionUpdate builder.
@@ -1239,6 +1405,12 @@ func (_u *SLADefinitionUpdateOne) sqlSave(ctx context.Context) (_node *SLADefini
 	}
 	if value, ok := _u.mutation.IsActive(); ok {
 		_spec.SetField(sladefinition.FieldIsActive, field.TypeBool, value)
+	}
+	if value, ok := _u.mutation.OwnerProviderTenantID(); ok {
+		_spec.SetField(sladefinition.FieldOwnerProviderTenantID, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.AddedOwnerProviderTenantID(); ok {
+		_spec.AddField(sladefinition.FieldOwnerProviderTenantID, field.TypeInt, value)
 	}
 	if value, ok := _u.mutation.TenantID(); ok {
 		_spec.SetField(sladefinition.FieldTenantID, field.TypeInt, value)
@@ -1425,6 +1597,51 @@ func (_u *SLADefinitionUpdateOne) sqlSave(ctx context.Context) (_node *SLADefini
 			Bidi:    false,
 			Target: &sqlgraph.EdgeTarget{
 				IDSpec: sqlgraph.NewFieldSpec(slaalertrule.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
+	}
+	if _u.mutation.GrantsCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   sladefinition.GrantsTable,
+			Columns: []string{sladefinition.GrantsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(sladefinitiongrant.FieldID, field.TypeInt),
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.RemovedGrantsIDs(); len(nodes) > 0 && !_u.mutation.GrantsCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   sladefinition.GrantsTable,
+			Columns: []string{sladefinition.GrantsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(sladefinitiongrant.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.GrantsIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   sladefinition.GrantsTable,
+			Columns: []string{sladefinition.GrantsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(sladefinitiongrant.FieldID, field.TypeInt),
 			},
 		}
 		for _, k := range nodes {

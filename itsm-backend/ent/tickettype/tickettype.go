@@ -50,6 +50,8 @@ const (
 	FieldSLAEnabled = "sla_enabled"
 	// FieldDefaultSLAID holds the string denoting the default_sla_id field in the database.
 	FieldDefaultSLAID = "default_sla_id"
+	// FieldSLAExempt holds the string denoting the sla_exempt field in the database.
+	FieldSLAExempt = "sla_exempt"
 	// FieldAutoAssignEnabled holds the string denoting the auto_assign_enabled field in the database.
 	FieldAutoAssignEnabled = "auto_assign_enabled"
 	// FieldMspRouteEnabled holds the string denoting the msp_route_enabled field in the database.
@@ -107,6 +109,7 @@ var Columns = []string{
 	FieldApprovalChain,
 	FieldSLAEnabled,
 	FieldDefaultSLAID,
+	FieldSLAExempt,
 	FieldAutoAssignEnabled,
 	FieldMspRouteEnabled,
 	FieldAssignmentRules,
@@ -153,6 +156,8 @@ var (
 	DefaultApprovalEnabled bool
 	// DefaultSLAEnabled holds the default value on creation for the "sla_enabled" field.
 	DefaultSLAEnabled bool
+	// DefaultSLAExempt holds the default value on creation for the "sla_exempt" field.
+	DefaultSLAExempt bool
 	// DefaultAutoAssignEnabled holds the default value on creation for the "auto_assign_enabled" field.
 	DefaultAutoAssignEnabled bool
 	// DefaultMspRouteEnabled holds the default value on creation for the "msp_route_enabled" field.
@@ -252,6 +257,11 @@ func BySLAEnabled(opts ...sql.OrderTermOption) OrderOption {
 // ByDefaultSLAID orders the results by the default_sla_id field.
 func ByDefaultSLAID(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldDefaultSLAID, opts...).ToFunc()
+}
+
+// BySLAExempt orders the results by the sla_exempt field.
+func BySLAExempt(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldSLAExempt, opts...).ToFunc()
 }
 
 // ByAutoAssignEnabled orders the results by the auto_assign_enabled field.

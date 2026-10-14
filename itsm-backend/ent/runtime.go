@@ -116,6 +116,7 @@ import (
 	"itsm-backend/ent/slaalerthistory"
 	"itsm-backend/ent/slaalertrule"
 	"itsm-backend/ent/sladefinition"
+	"itsm-backend/ent/sladefinitiongrant"
 	"itsm-backend/ent/slametric"
 	"itsm-backend/ent/slapolicy"
 	"itsm-backend/ent/slaviolation"
@@ -4825,20 +4826,60 @@ func init() {
 	sladefinitionDescIsActive := sladefinitionFields[9].Descriptor()
 	// sladefinition.DefaultIsActive holds the default value on creation for the is_active field.
 	sladefinition.DefaultIsActive = sladefinitionDescIsActive.Default.(bool)
+	// sladefinitionDescOwnerProviderTenantID is the schema descriptor for owner_provider_tenant_id field.
+	sladefinitionDescOwnerProviderTenantID := sladefinitionFields[10].Descriptor()
+	// sladefinition.DefaultOwnerProviderTenantID holds the default value on creation for the owner_provider_tenant_id field.
+	sladefinition.DefaultOwnerProviderTenantID = sladefinitionDescOwnerProviderTenantID.Default.(int)
 	// sladefinitionDescTenantID is the schema descriptor for tenant_id field.
-	sladefinitionDescTenantID := sladefinitionFields[10].Descriptor()
+	sladefinitionDescTenantID := sladefinitionFields[11].Descriptor()
 	// sladefinition.TenantIDValidator is a validator for the "tenant_id" field. It is called by the builders before save.
 	sladefinition.TenantIDValidator = sladefinitionDescTenantID.Validators[0].(func(int) error)
 	// sladefinitionDescCreatedAt is the schema descriptor for created_at field.
-	sladefinitionDescCreatedAt := sladefinitionFields[11].Descriptor()
+	sladefinitionDescCreatedAt := sladefinitionFields[12].Descriptor()
 	// sladefinition.DefaultCreatedAt holds the default value on creation for the created_at field.
 	sladefinition.DefaultCreatedAt = sladefinitionDescCreatedAt.Default.(func() time.Time)
 	// sladefinitionDescUpdatedAt is the schema descriptor for updated_at field.
-	sladefinitionDescUpdatedAt := sladefinitionFields[12].Descriptor()
+	sladefinitionDescUpdatedAt := sladefinitionFields[13].Descriptor()
 	// sladefinition.DefaultUpdatedAt holds the default value on creation for the updated_at field.
 	sladefinition.DefaultUpdatedAt = sladefinitionDescUpdatedAt.Default.(func() time.Time)
 	// sladefinition.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
 	sladefinition.UpdateDefaultUpdatedAt = sladefinitionDescUpdatedAt.UpdateDefault.(func() time.Time)
+	sladefinitiongrantFields := schema.SLADefinitionGrant{}.Fields()
+	_ = sladefinitiongrantFields
+	// sladefinitiongrantDescSLADefinitionID is the schema descriptor for sla_definition_id field.
+	sladefinitiongrantDescSLADefinitionID := sladefinitiongrantFields[0].Descriptor()
+	// sladefinitiongrant.SLADefinitionIDValidator is a validator for the "sla_definition_id" field. It is called by the builders before save.
+	sladefinitiongrant.SLADefinitionIDValidator = sladefinitiongrantDescSLADefinitionID.Validators[0].(func(int) error)
+	// sladefinitiongrantDescCustomerTenantID is the schema descriptor for customer_tenant_id field.
+	sladefinitiongrantDescCustomerTenantID := sladefinitiongrantFields[1].Descriptor()
+	// sladefinitiongrant.CustomerTenantIDValidator is a validator for the "customer_tenant_id" field. It is called by the builders before save.
+	sladefinitiongrant.CustomerTenantIDValidator = sladefinitiongrantDescCustomerTenantID.Validators[0].(func(int) error)
+	// sladefinitiongrantDescProviderTenantID is the schema descriptor for provider_tenant_id field.
+	sladefinitiongrantDescProviderTenantID := sladefinitiongrantFields[2].Descriptor()
+	// sladefinitiongrant.ProviderTenantIDValidator is a validator for the "provider_tenant_id" field. It is called by the builders before save.
+	sladefinitiongrant.ProviderTenantIDValidator = sladefinitiongrantDescProviderTenantID.Validators[0].(func(int) error)
+	// sladefinitiongrantDescTicketTypeID is the schema descriptor for ticket_type_id field.
+	sladefinitiongrantDescTicketTypeID := sladefinitiongrantFields[3].Descriptor()
+	// sladefinitiongrant.DefaultTicketTypeID holds the default value on creation for the ticket_type_id field.
+	sladefinitiongrant.DefaultTicketTypeID = sladefinitiongrantDescTicketTypeID.Default.(int64)
+	// sladefinitiongrantDescIsActive is the schema descriptor for is_active field.
+	sladefinitiongrantDescIsActive := sladefinitiongrantFields[5].Descriptor()
+	// sladefinitiongrant.DefaultIsActive holds the default value on creation for the is_active field.
+	sladefinitiongrant.DefaultIsActive = sladefinitiongrantDescIsActive.Default.(bool)
+	// sladefinitiongrantDescTenantID is the schema descriptor for tenant_id field.
+	sladefinitiongrantDescTenantID := sladefinitiongrantFields[6].Descriptor()
+	// sladefinitiongrant.TenantIDValidator is a validator for the "tenant_id" field. It is called by the builders before save.
+	sladefinitiongrant.TenantIDValidator = sladefinitiongrantDescTenantID.Validators[0].(func(int) error)
+	// sladefinitiongrantDescCreatedAt is the schema descriptor for created_at field.
+	sladefinitiongrantDescCreatedAt := sladefinitiongrantFields[7].Descriptor()
+	// sladefinitiongrant.DefaultCreatedAt holds the default value on creation for the created_at field.
+	sladefinitiongrant.DefaultCreatedAt = sladefinitiongrantDescCreatedAt.Default.(func() time.Time)
+	// sladefinitiongrantDescUpdatedAt is the schema descriptor for updated_at field.
+	sladefinitiongrantDescUpdatedAt := sladefinitiongrantFields[8].Descriptor()
+	// sladefinitiongrant.DefaultUpdatedAt holds the default value on creation for the updated_at field.
+	sladefinitiongrant.DefaultUpdatedAt = sladefinitiongrantDescUpdatedAt.Default.(func() time.Time)
+	// sladefinitiongrant.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
+	sladefinitiongrant.UpdateDefaultUpdatedAt = sladefinitiongrantDescUpdatedAt.UpdateDefault.(func() time.Time)
 	slametricFields := schema.SLAMetric{}.Fields()
 	_ = slametricFields
 	// slametricDescSLADefinitionID is the schema descriptor for sla_definition_id field.
@@ -5993,16 +6034,20 @@ func init() {
 	tickettypeDescSLAEnabled := tickettypeFields[17].Descriptor()
 	// tickettype.DefaultSLAEnabled holds the default value on creation for the sla_enabled field.
 	tickettype.DefaultSLAEnabled = tickettypeDescSLAEnabled.Default.(bool)
+	// tickettypeDescSLAExempt is the schema descriptor for sla_exempt field.
+	tickettypeDescSLAExempt := tickettypeFields[19].Descriptor()
+	// tickettype.DefaultSLAExempt holds the default value on creation for the sla_exempt field.
+	tickettype.DefaultSLAExempt = tickettypeDescSLAExempt.Default.(bool)
 	// tickettypeDescAutoAssignEnabled is the schema descriptor for auto_assign_enabled field.
-	tickettypeDescAutoAssignEnabled := tickettypeFields[19].Descriptor()
+	tickettypeDescAutoAssignEnabled := tickettypeFields[20].Descriptor()
 	// tickettype.DefaultAutoAssignEnabled holds the default value on creation for the auto_assign_enabled field.
 	tickettype.DefaultAutoAssignEnabled = tickettypeDescAutoAssignEnabled.Default.(bool)
 	// tickettypeDescMspRouteEnabled is the schema descriptor for msp_route_enabled field.
-	tickettypeDescMspRouteEnabled := tickettypeFields[20].Descriptor()
+	tickettypeDescMspRouteEnabled := tickettypeFields[21].Descriptor()
 	// tickettype.DefaultMspRouteEnabled holds the default value on creation for the msp_route_enabled field.
 	tickettype.DefaultMspRouteEnabled = tickettypeDescMspRouteEnabled.Default.(bool)
 	// tickettypeDescUsageCount is the schema descriptor for usage_count field.
-	tickettypeDescUsageCount := tickettypeFields[29].Descriptor()
+	tickettypeDescUsageCount := tickettypeFields[30].Descriptor()
 	// tickettype.DefaultUsageCount holds the default value on creation for the usage_count field.
 	tickettype.DefaultUsageCount = tickettypeDescUsageCount.Default.(int)
 	ticketviewFields := schema.TicketView{}.Fields()

@@ -38,6 +38,8 @@ type SLADefinition struct {
 	Conditions map[string]interface{} `json:"conditions,omitempty"`
 	// 是否激活
 	IsActive bool `json:"is_active,omitempty"`
+	// 归属服务商租户ID；0=租户自用，非0=provider 合同 SLA
+	OwnerProviderTenantID int `json:"owner_provider_tenant_id,omitempty"`
 	// 租户ID
 	TenantID int `json:"tenant_id,omitempty"`
 	// 创建时间
@@ -61,9 +63,11 @@ type SLADefinitionEdges struct {
 	Tickets []*Ticket `json:"tickets,omitempty"`
 	// SLA预警规则
 	AlertRules []*SLAAlertRule `json:"alert_rules,omitempty"`
+	// 下发授权（provider 侧资产）
+	Grants []*SLADefinitionGrant `json:"grants,omitempty"`
 	// loadedTypes holds the information for reporting if a
 	// type was loaded (or requested) in eager-loading or not.
-	loadedTypes [4]bool
+	loadedTypes [5]bool
 }
 
 // ViolationsOrErr returns the Violations value or an error if the edge
@@ -102,6 +106,15 @@ func (e SLADefinitionEdges) AlertRulesOrErr() ([]*SLAAlertRule, error) {
 	return nil, &NotLoadedError{edge: "alert_rules"}
 }
 
+// GrantsOrErr returns the Grants value or an error if the edge
+// was not loaded in eager-loading.
+func (e SLADefinitionEdges) GrantsOrErr() ([]*SLADefinitionGrant, error) {
+	if e.loadedTypes[4] {
+		return e.Grants, nil
+	}
+	return nil, &NotLoadedError{edge: "grants"}
+}
+
 // scanValues returns the types for scanning values from sql.Rows.
 func (*SLADefinition) scanValues(columns []string) ([]any, error) {
 	values := make([]any, len(columns))
@@ -111,7 +124,7 @@ func (*SLADefinition) scanValues(columns []string) ([]any, error) {
 			values[i] = new([]byte)
 		case sladefinition.FieldIsActive:
 			values[i] = new(sql.NullBool)
-		case sladefinition.FieldID, sladefinition.FieldResponseTime, sladefinition.FieldResolutionTime, sladefinition.FieldTenantID:
+		case sladefinition.FieldID, sladefinition.FieldResponseTime, sladefinition.FieldResolutionTime, sladefinition.FieldOwnerProviderTenantID, sladefinition.FieldTenantID:
 			values[i] = new(sql.NullInt64)
 		case sladefinition.FieldName, sladefinition.FieldDescription, sladefinition.FieldServiceType, sladefinition.FieldPriority:
 			values[i] = new(sql.NullString)
@@ -206,6 +219,12 @@ func (_m *SLADefinition) assignValues(columns []string, values []any) error {
 			} else if value.Valid {
 				_m.IsActive = value.Bool
 			}
+		case sladefinition.FieldOwnerProviderTenantID:
+			if value, ok := values[i].(*sql.NullInt64); !ok {
+				return fmt.Errorf("unexpected type %T for field owner_provider_tenant_id", values[i])
+			} else if value.Valid {
+				_m.OwnerProviderTenantID = int(value.Int64)
+			}
 		case sladefinition.FieldTenantID:
 			if value, ok := values[i].(*sql.NullInt64); !ok {
 				return fmt.Errorf("unexpected type %T for field tenant_id", values[i])
@@ -264,6 +283,11 @@ func (_m *SLADefinition) QueryAlertRules() *SLAAlertRuleQuery {
 	return NewSLADefinitionClient(_m.config).QueryAlertRules(_m)
 }
 
+// QueryGrants queries the "grants" edge of the SLADefinition entity.
+func (_m *SLADefinition) QueryGrants() *SLADefinitionGrantQuery {
+	return NewSLADefinitionClient(_m.config).QueryGrants(_m)
+}
+
 // Update returns a builder for updating this SLADefinition.
 // Note that you need to call SLADefinition.Unwrap() before calling this method if this SLADefinition
 // was returned from a transaction, and the transaction was committed or rolled back.
@@ -316,6 +340,9 @@ func (_m *SLADefinition) String() string {
 	builder.WriteString(", ")
 	builder.WriteString("is_active=")
 	builder.WriteString(fmt.Sprintf("%v", _m.IsActive))
+	builder.WriteString(", ")
+	builder.WriteString("owner_provider_tenant_id=")
+	builder.WriteString(fmt.Sprintf("%v", _m.OwnerProviderTenantID))
 	builder.WriteString(", ")
 	builder.WriteString("tenant_id=")
 	builder.WriteString(fmt.Sprintf("%v", _m.TenantID))

@@ -370,6 +370,20 @@ func (_u *TicketTypeUpdate) ClearDefaultSLAID() *TicketTypeUpdate {
 	return _u
 }
 
+// SetSLAExempt sets the "sla_exempt" field.
+func (_u *TicketTypeUpdate) SetSLAExempt(v bool) *TicketTypeUpdate {
+	_u.mutation.SetSLAExempt(v)
+	return _u
+}
+
+// SetNillableSLAExempt sets the "sla_exempt" field if the given value is not nil.
+func (_u *TicketTypeUpdate) SetNillableSLAExempt(v *bool) *TicketTypeUpdate {
+	if v != nil {
+		_u.SetSLAExempt(*v)
+	}
+	return _u
+}
+
 // SetAutoAssignEnabled sets the "auto_assign_enabled" field.
 func (_u *TicketTypeUpdate) SetAutoAssignEnabled(v bool) *TicketTypeUpdate {
 	_u.mutation.SetAutoAssignEnabled(v)
@@ -755,6 +769,9 @@ func (_u *TicketTypeUpdate) sqlSave(ctx context.Context) (_node int, err error) 
 	}
 	if _u.mutation.DefaultSLAIDCleared() {
 		_spec.ClearField(tickettype.FieldDefaultSLAID, field.TypeInt64)
+	}
+	if value, ok := _u.mutation.SLAExempt(); ok {
+		_spec.SetField(tickettype.FieldSLAExempt, field.TypeBool, value)
 	}
 	if value, ok := _u.mutation.AutoAssignEnabled(); ok {
 		_spec.SetField(tickettype.FieldAutoAssignEnabled, field.TypeBool, value)
@@ -1214,6 +1231,20 @@ func (_u *TicketTypeUpdateOne) ClearDefaultSLAID() *TicketTypeUpdateOne {
 	return _u
 }
 
+// SetSLAExempt sets the "sla_exempt" field.
+func (_u *TicketTypeUpdateOne) SetSLAExempt(v bool) *TicketTypeUpdateOne {
+	_u.mutation.SetSLAExempt(v)
+	return _u
+}
+
+// SetNillableSLAExempt sets the "sla_exempt" field if the given value is not nil.
+func (_u *TicketTypeUpdateOne) SetNillableSLAExempt(v *bool) *TicketTypeUpdateOne {
+	if v != nil {
+		_u.SetSLAExempt(*v)
+	}
+	return _u
+}
+
 // SetAutoAssignEnabled sets the "auto_assign_enabled" field.
 func (_u *TicketTypeUpdateOne) SetAutoAssignEnabled(v bool) *TicketTypeUpdateOne {
 	_u.mutation.SetAutoAssignEnabled(v)
@@ -1629,6 +1660,9 @@ func (_u *TicketTypeUpdateOne) sqlSave(ctx context.Context) (_node *TicketType, 
 	}
 	if _u.mutation.DefaultSLAIDCleared() {
 		_spec.ClearField(tickettype.FieldDefaultSLAID, field.TypeInt64)
+	}
+	if value, ok := _u.mutation.SLAExempt(); ok {
+		_spec.SetField(tickettype.FieldSLAExempt, field.TypeBool, value)
 	}
 	if value, ok := _u.mutation.AutoAssignEnabled(); ok {
 		_spec.SetField(tickettype.FieldAutoAssignEnabled, field.TypeBool, value)

@@ -34,6 +34,8 @@ const (
 	FieldConditions = "conditions"
 	// FieldIsActive holds the string denoting the is_active field in the database.
 	FieldIsActive = "is_active"
+	// FieldOwnerProviderTenantID holds the string denoting the owner_provider_tenant_id field in the database.
+	FieldOwnerProviderTenantID = "owner_provider_tenant_id"
 	// FieldTenantID holds the string denoting the tenant_id field in the database.
 	FieldTenantID = "tenant_id"
 	// FieldCreatedAt holds the string denoting the created_at field in the database.
@@ -48,6 +50,8 @@ const (
 	EdgeTickets = "tickets"
 	// EdgeAlertRules holds the string denoting the alert_rules edge name in mutations.
 	EdgeAlertRules = "alert_rules"
+	// EdgeGrants holds the string denoting the grants edge name in mutations.
+	EdgeGrants = "grants"
 	// Table holds the table name of the sladefinition in the database.
 	Table = "sla_definitions"
 	// ViolationsTable is the table that holds the violations relation/edge.
@@ -78,6 +82,13 @@ const (
 	AlertRulesInverseTable = "sla_alert_rules"
 	// AlertRulesColumn is the table column denoting the alert_rules relation/edge.
 	AlertRulesColumn = "sla_definition_id"
+	// GrantsTable is the table that holds the grants relation/edge.
+	GrantsTable = "sla_definition_grants"
+	// GrantsInverseTable is the table name for the SLADefinitionGrant entity.
+	// It exists in this package in order to avoid circular dependency with the "sladefinitiongrant" package.
+	GrantsInverseTable = "sla_definition_grants"
+	// GrantsColumn is the table column denoting the grants relation/edge.
+	GrantsColumn = "sla_definition_id"
 )
 
 // Columns holds all SQL columns for sladefinition fields.
@@ -93,6 +104,7 @@ var Columns = []string{
 	FieldEscalationRules,
 	FieldConditions,
 	FieldIsActive,
+	FieldOwnerProviderTenantID,
 	FieldTenantID,
 	FieldCreatedAt,
 	FieldUpdatedAt,
@@ -132,6 +144,8 @@ var (
 	ResolutionTimeValidator func(int) error
 	// DefaultIsActive holds the default value on creation for the "is_active" field.
 	DefaultIsActive bool
+	// DefaultOwnerProviderTenantID holds the default value on creation for the "owner_provider_tenant_id" field.
+	DefaultOwnerProviderTenantID int
 	// TenantIDValidator is a validator for the "tenant_id" field. It is called by the builders before save.
 	TenantIDValidator func(int) error
 	// DefaultCreatedAt holds the default value on creation for the "created_at" field.
@@ -183,6 +197,11 @@ func ByResolutionTime(opts ...sql.OrderTermOption) OrderOption {
 // ByIsActive orders the results by the is_active field.
 func ByIsActive(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldIsActive, opts...).ToFunc()
+}
+
+// ByOwnerProviderTenantID orders the results by the owner_provider_tenant_id field.
+func ByOwnerProviderTenantID(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldOwnerProviderTenantID, opts...).ToFunc()
 }
 
 // ByTenantID orders the results by the tenant_id field.
@@ -255,6 +274,20 @@ func ByAlertRules(term sql.OrderTerm, terms ...sql.OrderTerm) OrderOption {
 		sqlgraph.OrderByNeighborTerms(s, newAlertRulesStep(), append([]sql.OrderTerm{term}, terms...)...)
 	}
 }
+
+// ByGrantsCount orders the results by grants count.
+func ByGrantsCount(opts ...sql.OrderTermOption) OrderOption {
+	return func(s *sql.Selector) {
+		sqlgraph.OrderByNeighborsCount(s, newGrantsStep(), opts...)
+	}
+}
+
+// ByGrants orders the results by grants terms.
+func ByGrants(term sql.OrderTerm, terms ...sql.OrderTerm) OrderOption {
+	return func(s *sql.Selector) {
+		sqlgraph.OrderByNeighborTerms(s, newGrantsStep(), append([]sql.OrderTerm{term}, terms...)...)
+	}
+}
 func newViolationsStep() *sqlgraph.Step {
 	return sqlgraph.NewStep(
 		sqlgraph.From(Table, FieldID),
@@ -281,5 +314,12 @@ func newAlertRulesStep() *sqlgraph.Step {
 		sqlgraph.From(Table, FieldID),
 		sqlgraph.To(AlertRulesInverseTable, FieldID),
 		sqlgraph.Edge(sqlgraph.O2M, false, AlertRulesTable, AlertRulesColumn),
+	)
+}
+func newGrantsStep() *sqlgraph.Step {
+	return sqlgraph.NewStep(
+		sqlgraph.From(Table, FieldID),
+		sqlgraph.To(GrantsInverseTable, FieldID),
+		sqlgraph.Edge(sqlgraph.O2M, false, GrantsTable, GrantsColumn),
 	)
 }

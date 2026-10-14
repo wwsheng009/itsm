@@ -4649,6 +4649,7 @@ var (
 		{Name: "escalation_rules", Type: field.TypeJSON, Nullable: true},
 		{Name: "conditions", Type: field.TypeJSON, Nullable: true},
 		{Name: "is_active", Type: field.TypeBool, Default: true},
+		{Name: "owner_provider_tenant_id", Type: field.TypeInt, Default: 0},
 		{Name: "tenant_id", Type: field.TypeInt},
 		{Name: "created_at", Type: field.TypeTime},
 		{Name: "updated_at", Type: field.TypeTime},
@@ -4662,9 +4663,56 @@ var (
 		ForeignKeys: []*schema.ForeignKey{
 			{
 				Symbol:     "sla_definitions_sla_policies_sla_definition",
-				Columns:    []*schema.Column{SLADefinitionsColumns[14]},
+				Columns:    []*schema.Column{SLADefinitionsColumns[15]},
 				RefColumns: []*schema.Column{SLAPoliciesColumns[0]},
 				OnDelete:   schema.SetNull,
+			},
+		},
+	}
+	// SLADefinitionGrantsColumns holds the columns for the "sla_definition_grants" table.
+	SLADefinitionGrantsColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeInt, Increment: true},
+		{Name: "customer_tenant_id", Type: field.TypeInt},
+		{Name: "provider_tenant_id", Type: field.TypeInt},
+		{Name: "ticket_type_id", Type: field.TypeInt64, Default: 0},
+		{Name: "valid_until", Type: field.TypeTime, Nullable: true},
+		{Name: "is_active", Type: field.TypeBool, Default: true},
+		{Name: "tenant_id", Type: field.TypeInt},
+		{Name: "created_at", Type: field.TypeTime},
+		{Name: "updated_at", Type: field.TypeTime},
+		{Name: "sla_definition_id", Type: field.TypeInt},
+	}
+	// SLADefinitionGrantsTable holds the schema information for the "sla_definition_grants" table.
+	SLADefinitionGrantsTable = &schema.Table{
+		Name:       "sla_definition_grants",
+		Columns:    SLADefinitionGrantsColumns,
+		PrimaryKey: []*schema.Column{SLADefinitionGrantsColumns[0]},
+		ForeignKeys: []*schema.ForeignKey{
+			{
+				Symbol:     "sla_definition_grants_sla_definitions_grants",
+				Columns:    []*schema.Column{SLADefinitionGrantsColumns[9]},
+				RefColumns: []*schema.Column{SLADefinitionsColumns[0]},
+				OnDelete:   schema.NoAction,
+			},
+		},
+		Indexes: []*schema.Index{
+			{
+				Name:    "uk_sla_definition_grants_active",
+				Unique:  true,
+				Columns: []*schema.Column{SLADefinitionGrantsColumns[1], SLADefinitionGrantsColumns[3]},
+				Annotation: &entsql.IndexAnnotation{
+					Where: "is_active",
+				},
+			},
+			{
+				Name:    "idx_sla_definition_grants_provider",
+				Unique:  false,
+				Columns: []*schema.Column{SLADefinitionGrantsColumns[2]},
+			},
+			{
+				Name:    "idx_sla_definition_grants_definition",
+				Unique:  false,
+				Columns: []*schema.Column{SLADefinitionGrantsColumns[9]},
 			},
 		},
 	}
@@ -5866,6 +5914,7 @@ var (
 		{Name: "approval_chain", Type: field.TypeJSON},
 		{Name: "sla_enabled", Type: field.TypeBool, Default: false},
 		{Name: "default_sla_id", Type: field.TypeInt64, Nullable: true},
+		{Name: "sla_exempt", Type: field.TypeBool, Default: false},
 		{Name: "auto_assign_enabled", Type: field.TypeBool, Default: false},
 		{Name: "msp_route_enabled", Type: field.TypeBool, Default: false},
 		{Name: "assignment_rules", Type: field.TypeJSON},
@@ -5887,12 +5936,12 @@ var (
 			{
 				Name:    "tickettype_code_tenant_id",
 				Unique:  true,
-				Columns: []*schema.Column{TicketTypesColumns[1], TicketTypesColumns[25]},
+				Columns: []*schema.Column{TicketTypesColumns[1], TicketTypesColumns[26]},
 			},
 			{
 				Name:    "tickettype_tenant_id",
 				Unique:  false,
-				Columns: []*schema.Column{TicketTypesColumns[25]},
+				Columns: []*schema.Column{TicketTypesColumns[26]},
 			},
 			{
 				Name:    "tickettype_status",
@@ -5902,7 +5951,7 @@ var (
 			{
 				Name:    "tickettype_tenant_id_sort_order",
 				Unique:  false,
-				Columns: []*schema.Column{TicketTypesColumns[25], TicketTypesColumns[9]},
+				Columns: []*schema.Column{TicketTypesColumns[26], TicketTypesColumns[9]},
 			},
 		},
 	}
@@ -6976,6 +7025,7 @@ var (
 		SLAAlertHistoriesTable,
 		SLAAlertRulesTable,
 		SLADefinitionsTable,
+		SLADefinitionGrantsTable,
 		SLAMetricsTable,
 		SLAPoliciesTable,
 		SLAViolationsTable,
@@ -7120,6 +7170,7 @@ func init() {
 	SLAAlertHistoriesTable.ForeignKeys[2].RefTable = TicketsTable
 	SLAAlertRulesTable.ForeignKeys[0].RefTable = SLADefinitionsTable
 	SLADefinitionsTable.ForeignKeys[0].RefTable = SLAPoliciesTable
+	SLADefinitionGrantsTable.ForeignKeys[0].RefTable = SLADefinitionsTable
 	SLAMetricsTable.ForeignKeys[0].RefTable = SLADefinitionsTable
 	SLAViolationsTable.ForeignKeys[0].RefTable = IncidentsTable
 	SLAViolationsTable.ForeignKeys[1].RefTable = SLADefinitionsTable
