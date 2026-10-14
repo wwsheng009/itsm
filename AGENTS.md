@@ -341,6 +341,19 @@ All APIs return `{ code: number, message: string, data: any }`:
 - For workflow, CMDB, connector, AI, auth, tenant, or deployment changes, include at least one regression test or a documented manual verification path.
 - For production deployment changes, validate with explicit env file usage and health checks.
 
+### Go 工具链资源边界（强制）
+
+`go build ./...`、`go test ./...`、`go vet` 会按 CPU 核数并行启动编译/链接子进程（`-p N` 默认 = 逻辑核数）；本仓库 `itsm-backend/ent/` 生成代码包极重（单个包的编译进程可达 1–2GB 内存）。全量命令叠加并行子进程容易把内存打爆，且超时被取消的命令可能残留编译进程继续占用资源。已实测：冷缓存 `go build ./...` 约 3 分钟，随后叠加 `go vet` 多包分析即触发内存尖峰与运行取消。
+
+规则：
+
+- 禁止在同一条 shell 命令里串联多个重命令（如 `go build ./... ; go vet ./...`）。`go test` 已隐式运行高置信度 vet 子集；除非正在诊断 vet 专属问题，不要单独再跑 `go vet`
+- 优先运行最窄范围：`go test ./handlers/ticket/ -run "TestXxx" -count=1`。只改动了少数包时，逐包测试 + 全量 `go build ./...`（一次性）通常已足够，不需要 `go test ./...`
+- 确需全量编译/测试时限制并行度：`go test -p 2 ./...`（或 `GOFLAGS=-p=2 go build ./...`），并放入后台任务运行，而不是用前台命令等超时取消
+- 纯格式检查用 `gofmt -l <改动的文件列表>`，零编译开销、秒级返回
+- 构建缓存有效时直接复用；不要为了"干净"而清缓存重编
+- 前端同理：`tsc --noEmit` 秒级可接受；单文件 jest 追加 `--coverage=false`，避免只跑了部分文件却触发全局覆盖率阈值（80%）把成功运行判为失败
+
 ### 回归测试与完成判定（强制）
 
 - 测试必须覆盖真实生产 Router/Handler/Worker 入口；只测试未接线 helper、mock service 或复制出的逻辑不能证明功能可用
