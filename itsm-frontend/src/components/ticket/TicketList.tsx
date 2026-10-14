@@ -15,6 +15,8 @@ import type { TicketQueryFilters } from '@/lib/hooks/useTickets';
 import { useRowSelection } from '@/lib/hooks/useRowSelection';
 import { useTableKeyboardNav } from '@/lib/hooks/useTableKeyboardNav';
 import { useDebounce } from '@/lib/component-utils';
+import { useAuthStore } from '@/lib/store/auth-store';
+import { canWriteRow } from '@/lib/utils/row-scope';
 
 import { buildTicketListColumns } from './TicketListColumns';
 import { TicketListToolbar } from './TicketListToolbar';
@@ -60,6 +62,9 @@ const TicketList: React.FC<TicketListProps> = ({
   const { message, modal } = App.useApp();
   // 行内「编辑/关闭」均走 ticket:update 端点（PATCH /tickets/:id、POST /tickets/:id/close）。
   const canUpdateTicket = useCan(['ticket:update']);
+  // 行级预判（2026-10-14 缺口③）：权限码在但行级越权的「可点必败」形态
+  // （如 MSP 经理切换客户租户后角色降级 end_user），按钮按创建人/受理人收敛。
+  const user = useAuthStore(s => s.user);
   const {
     tickets,
     loading,
@@ -238,6 +243,7 @@ const TicketList: React.FC<TicketListProps> = ({
     [deleteTicket, message]
   );
 
+  // 行级预判注入：canEdit/canClose 为按行函数，权限码 AND 行级所有权同时满足才显示。
   const columns = useMemo(
     () =>
       buildTicketListColumns(
@@ -245,12 +251,12 @@ const TicketList: React.FC<TicketListProps> = ({
           onOpen: openTicket,
           onEdit: editTicket,
           onClose: closeTicket,
-          canEdit: canUpdateTicket,
-          canClose: canUpdateTicket,
+          canEdit: t => canUpdateTicket && canWriteRow(user, t),
+          canClose: t => canUpdateTicket && canWriteRow(user, t),
         },
         { sortBy: filters.sortBy, sortOrder: filters.sortOrder }
       ),
-    [openTicket, editTicket, closeTicket, canUpdateTicket, filters.sortBy, filters.sortOrder]
+    [openTicket, editTicket, closeTicket, canUpdateTicket, user, filters.sortBy, filters.sortOrder]
   );
 
   const rowSelection: TableProps<Ticket>['rowSelection'] = useMemo(

@@ -537,6 +537,51 @@ func TestHandler_Update_TerminalStatusGuard(t *testing.T) {
 	assert.Equal(t, 200, w.Code, w.Body.String())
 }
 
+// TestHandler_Update_StateMachineGuard（2026-10-14 缺口①回归锁定）：
+// PUT 编辑链路此前绕过状态机（new→pending 静默成功），现必须经
+// common.IsValidTicketStatusTransition 校验，非法转换返回 400。
+func TestHandler_Update_StateMachineGuard(t *testing.T) {
+	r, repo := newTestHarness(t)
+	hdr := map[string]string{"X-Test-TenantID": "1", "X-Test-UserID": "7"}
+
+	// new 工单
+	w := doJSON(t, r, http.MethodPost, "/api/v1/tickets",
+		dto.CreateTicketRequest{Title: "SM guard", Priority: "low"},
+		hdr,
+	)
+	require.Equal(t, 200, w.Code, w.Body.String())
+	var id int
+	for id = range repo.tickets {
+		break
+	}
+
+	// new → pending 是状态图外的非法转换，PUT 直改必须 400。
+	w = doJSON(t, r, http.MethodPut,
+		"/api/v1/tickets/"+strconv.Itoa(id),
+		dto.UpdateTicketRequest{Status: "pending"},
+		hdr,
+	)
+	assert.Equal(t, 400, w.Code, w.Body.String())
+	assert.Contains(t, w.Body.String(), "invalid status transition")
+
+	// new → in_progress 合法，放行。
+	w = doJSON(t, r, http.MethodPut,
+		"/api/v1/tickets/"+strconv.Itoa(id),
+		dto.UpdateTicketRequest{Status: "in_progress"},
+		hdr,
+	)
+	assert.Equal(t, 200, w.Code, w.Body.String())
+
+	// in_progress → open 亦非法（状态机不允许回退），PUT 必须拒绝。
+	w = doJSON(t, r, http.MethodPut,
+		"/api/v1/tickets/"+strconv.Itoa(id),
+		dto.UpdateTicketRequest{Status: "open"},
+		hdr,
+	)
+	assert.Equal(t, 400, w.Code, w.Body.String())
+	assert.Contains(t, w.Body.String(), "invalid status transition")
+}
+
 func TestHandler_Delete_TableDriven(t *testing.T) {
 	r, repo := newTestHarness(t)
 
@@ -651,11 +696,30 @@ func TestHandler_LifecycleOps_RowLevelForbidden(t *testing.T) {
 		})
 	}
 
-	// owner（user 7）close 正常放行
+	// owner（user 7）：new 状态直接 close 必须被状态机拒绝（2026-10-14 缺口②修复，
+	// 仅 resolved 可关闭），随后 resolve（new→resolved 快速解决）+ close 正常放行。
+	w = doJSON(t, r, http.MethodPost, "/api/v1/tickets/"+idStr+"/close", dto.CloseTicketRequest{},
+		map[string]string{"X-Test-TenantID": "1", "X-Test-UserID": "7"},
+	)
+	assert.Equal(t, 400, w.Code, w.Body.String())
+	assert.Contains(t, w.Body.String(), "仅已解决的工单可关闭")
+
+	w = doJSON(t, r, http.MethodPost, "/api/v1/tickets/"+idStr+"/resolve",
+		dto.ResolveTicketRequest{Resolution: "fixed by owner"},
+		map[string]string{"X-Test-TenantID": "1", "X-Test-UserID": "7"},
+	)
+	assert.Equal(t, 200, w.Code, w.Body.String())
+
 	w = doJSON(t, r, http.MethodPost, "/api/v1/tickets/"+idStr+"/close", dto.CloseTicketRequest{},
 		map[string]string{"X-Test-TenantID": "1", "X-Test-UserID": "7"},
 	)
 	assert.Equal(t, 200, w.Code, w.Body.String())
+
+	// 终态重放拒绝（缺口②）：closed→closed 不得再返回成功。
+	w = doJSON(t, r, http.MethodPost, "/api/v1/tickets/"+idStr+"/close", dto.CloseTicketRequest{},
+		map[string]string{"X-Test-TenantID": "1", "X-Test-UserID": "7"},
+	)
+	assert.Equal(t, 400, w.Code, w.Body.String())
 }
 
 // TestHandler_LifecycleOps_AdminLikeBypass 锁定管理角色全租户可写语义：

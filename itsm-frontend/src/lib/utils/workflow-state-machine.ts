@@ -8,13 +8,27 @@ import { TicketStatus } from '@/constants/taxonomy';
 /**
  * 工单状态转换规则
  * 定义每个状态允许转换到的目标状态
+ *
+ * 2026-10-14（缺口⑤修复）：与后端 common/constants.go IsValidTicketStatusTransition
+ * 对齐（单一事实来源）。差异修正：
+ * - new 增加 assigned / in_progress / resolved（快速解决）；
+ * - open 增加 assigned（后端允许 open→assigned 供工作流回填）；
+ * - resolved 增加 in_progress（退回处理中重开）；
+ * - 增加 assigned / approved 两个后端已存在的状态。
  */
-export const VALID_TICKET_TRANSITIONS: Record<TicketStatus, TicketStatus[]> = {
-  [TicketStatus.NEW]: [TicketStatus.OPEN, TicketStatus.CANCELLED],
+export const VALID_TICKET_TRANSITIONS: Record<string, TicketStatus[]> = {
+  [TicketStatus.NEW]: [TicketStatus.OPEN, 'assigned' as TicketStatus, TicketStatus.IN_PROGRESS, TicketStatus.RESOLVED, TicketStatus.CANCELLED],
   [TicketStatus.OPEN]: [
     TicketStatus.IN_PROGRESS,
+    'assigned' as TicketStatus,
     TicketStatus.PENDING,
     TicketStatus.PENDING_APPROVAL,
+    TicketStatus.RESOLVED,
+    TicketStatus.CANCELLED,
+  ],
+  ['assigned' as TicketStatus]: [
+    TicketStatus.IN_PROGRESS,
+    TicketStatus.PENDING,
     TicketStatus.RESOLVED,
     TicketStatus.CANCELLED,
   ],
@@ -35,25 +49,29 @@ export const VALID_TICKET_TRANSITIONS: Record<TicketStatus, TicketStatus[]> = {
     TicketStatus.RESOLVED,
     TicketStatus.CANCELLED,
   ],
-  [TicketStatus.RESOLVED]: [TicketStatus.CLOSED, TicketStatus.OPEN], // 可重开
-  [TicketStatus.CLOSED]: [], // 已关闭不能转换
-  [TicketStatus.CANCELLED]: [], // 已取消不能转换
+  [TicketStatus.RESOLVED]: [TicketStatus.CLOSED, TicketStatus.IN_PROGRESS, TicketStatus.OPEN], // 可重开/退回处理中
+  [TicketStatus.CLOSED]: [], // 已关闭不能转换（含同状态重放，对齐后端终态守卫）
+  [TicketStatus.CANCELLED]: [], // 已取消不能转换（含同状态重放，对齐后端终态守卫）
   [TicketStatus.REJECTED]: [TicketStatus.OPEN, TicketStatus.CANCELLED], // 被拒绝可重新打开
-};
+  ['approved' as TicketStatus]: [TicketStatus.IN_PROGRESS, TicketStatus.RESOLVED, TicketStatus.CLOSED],
+} as const;
 
 /**
  * 状态转换动作映射
  * 定义状态转换应该使用的工作流方法，而非直接更新状态
  */
 export const STATUS_TRANSITION_ACTIONS: Record<string, string> = {
-  // 解决
+  // 解决（对齐后端：new/assigned 也可直达 resolved，统一走 resolveTicket 专用入口）
   'new:resolved': 'resolveTicket',
+  'assigned:resolved': 'resolveTicket',
   'open:resolved': 'resolveTicket',
   'in_progress:resolved': 'resolveTicket',
   'pending:resolved': 'resolveTicket',
+  'approved:resolved': 'resolveTicket',
 
-  // 关闭
+  // 关闭（approved 是后端状态机的另一合法关闭来源）
   'resolved:closed': 'closeTicket',
+  'approved:closed': 'closeTicket',
 
   // 审批
   'pending_approval:approved': 'approveTicket',

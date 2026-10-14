@@ -65,8 +65,10 @@ func (s *TicketLifecycleService) ResolveTicket(ctx context.Context, ticketID int
 		return nil, err
 	}
 
-	// 只有处于开放状态的工单才能被解决
-	if t.Status != common.TicketStatusOpen && t.Status != common.TicketStatusInProgress && t.Status != common.TicketStatusPending {
+	// 只有状态机允许的来源才能解决（2026-10-14 缺口④修复）：
+	// 此前内联白名单 {open, in_progress, pending} 与 common 状态机不一致
+	// （漏掉 new/assigned/approved）。统一委托 common.IsValidTicketStatusTransition。
+	if !common.IsValidTicketStatusTransition(t.Status, common.TicketStatusResolved) {
 		return nil, ErrInvalidTicketStatus
 	}
 

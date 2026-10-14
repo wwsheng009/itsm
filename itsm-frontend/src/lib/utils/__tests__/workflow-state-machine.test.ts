@@ -35,6 +35,27 @@ describe('isValidTransition', () => {
   it('allows RESOLVED -> OPEN (reopen)', () => {
     expect(isValidTransition(TicketStatus.RESOLVED, TicketStatus.OPEN)).toBe(true);
   });
+
+  // 2026-10-14 缺口⑤对齐后端：快速解决与终态重放守卫
+  it('allows NEW -> RESOLVED (quick resolve, aligned with backend)', () => {
+    expect(isValidTransition(TicketStatus.NEW, TicketStatus.RESOLVED)).toBe(true);
+  });
+
+  it('allows RESOLVED -> IN_PROGRESS (退回处理中重开，对齐后端)', () => {
+    expect(isValidTransition(TicketStatus.RESOLVED, TicketStatus.IN_PROGRESS)).toBe(true);
+  });
+
+  it('disallows CLOSED -> CLOSED replay (terminal guard, aligned with backend)', () => {
+    expect(isValidTransition(TicketStatus.CLOSED, TicketStatus.CLOSED)).toBe(false);
+  });
+
+  it('disallows CANCELLED -> CANCELLED replay (terminal guard, aligned with backend)', () => {
+    expect(isValidTransition(TicketStatus.CANCELLED, TicketStatus.CANCELLED)).toBe(false);
+  });
+
+  it('disallows NEW -> PENDING (out-of-graph, aligned with backend)', () => {
+    expect(isValidTransition(TicketStatus.NEW, TicketStatus.PENDING)).toBe(false);
+  });
 });
 
 describe('getTransitionAction', () => {

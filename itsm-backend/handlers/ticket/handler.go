@@ -57,6 +57,21 @@ func ticketToResponse(t *Ticket) *dto.TicketResponse {
 	if t.CategoryID != nil {
 		resp.CategoryID = *t.CategoryID
 	}
+	// 生命周期时间戳与解决方案（2026-10-14 缺口⑥修复）：resolve/close 成功后
+	// 前端拿不到 resolvedAt/closedAt/resolution，无法渲染解决时长与终态结果。
+	// 零值时间不输出（omitempty + 非 nil 判断），避免 0001-01-01 污染 JSON。
+	if t.Resolution != nil && *t.Resolution != "" {
+		resp.Resolution = *t.Resolution
+	}
+	if t.ResolvedAt != nil && !t.ResolvedAt.IsZero() {
+		resp.ResolvedAt = t.ResolvedAt
+	}
+	if t.ClosedAt != nil && !t.ClosedAt.IsZero() {
+		resp.ClosedAt = t.ClosedAt
+	}
+	if t.FirstResponseAt != nil && !t.FirstResponseAt.IsZero() {
+		resp.FirstResponseAt = t.FirstResponseAt
+	}
 	return resp
 }
 
@@ -325,6 +340,12 @@ func (h *Handler) UpdateTicket(c *gin.Context) {
 		}
 		// P1-DataScope：行级权限拒绝（403 AppError）必须按语义响应，不得兑底 500
 		if isForbiddenErr(err) {
+			common.RespondError(c, err, "操作失败")
+			return
+		}
+		// D-7（2026-10-14 缺口①修复配套）：Update 链路新增的状态机 400 AppError
+		// 必须按语义返回，不得掉入 FailWithErr 兜底被吞成 500。
+		if isAppError(err) {
 			common.RespondError(c, err, "操作失败")
 			return
 		}
@@ -1201,6 +1222,13 @@ func isForbiddenErr(err error) bool {
 		return appErr.Code == common.ErrCodeForbidden
 	}
 	return false
+}
+
+// isAppError 判断是否为任意 common.AppError（含 400 参数类）。
+// Update 链路的状态机拒绝返回 NewBadRequestError，需按语义分流为 400。
+func isAppError(err error) bool {
+	var appErr *common.AppError
+	return errors.As(err, &appErr)
 }
 
 // failTicketOperation 统一生命周期写操作（resolve/close/escalate/updateStatus）

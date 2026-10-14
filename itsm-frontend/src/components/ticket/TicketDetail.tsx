@@ -47,6 +47,7 @@ import {
   Empty,
 } from 'antd';
 import { useAuthStore } from '@/lib/store/auth-store';
+import { canWriteRow } from '@/lib/utils/row-scope';
 import { useErrorHandler } from '@/lib/hooks/useErrorHandler';
 import { formatDateTime } from '@/lib/formatters';
 import { SafeTextBlock } from '@/components/common/SafeContent';
@@ -273,6 +274,11 @@ const TicketDetail: React.FC<{ id?: string }> = ({ id: propId }) => {
 
   // 判断当前用户是否是工单申请人
   const isRequester = ticket?.requesterId === currentUser?.id;
+
+  // 行级预判（2026-10-14 缺口③）：resolve/close/escalate/PUT 更新均有行级校验
+  // （仅创建人/受理人/管理员）。权限码在但行级越权时隐藏「提交解决方案/编辑/分配」，
+  // 消除「可点必败」形态（后端仍是最终裁决）。
+  const canWriteThisTicket = canWriteRow(currentUser, ticket);
 
   // 判断工单是否处于终态（不可再操作）
   const isTicketFinal = ticket ? isFinalStatus(ticket.status as any) : false;
@@ -1025,7 +1031,7 @@ const TicketDetail: React.FC<{ id?: string }> = ({ id: propId }) => {
                 {t('ticketDetail.reject')}
               </Button>
             )}
-            {canAssignTicket && (
+            {canAssignTicket && canWriteThisTicket && (
               <Button
                 icon={<UserCheck size={16} />}
                 onClick={handleAssign}
@@ -1036,7 +1042,7 @@ const TicketDetail: React.FC<{ id?: string }> = ({ id: propId }) => {
                 {t('ticketDetail.assign')}
               </Button>
             )}
-            {canUpdateTicket && (
+            {canUpdateTicket && canWriteThisTicket && (
               <Button
                 icon={<Edit size={16} />}
                 onClick={handleUpdate}
@@ -1046,7 +1052,7 @@ const TicketDetail: React.FC<{ id?: string }> = ({ id: propId }) => {
                 {t('common.edit')}
               </Button>
             )}
-            {canUpdateTicket && !isTicketFinal && (
+            {canUpdateTicket && canWriteThisTicket && !isTicketFinal && (
               <Button
                 icon={<Check size={16} />}
                 onClick={() => setResolveModalVisible(true)}

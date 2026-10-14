@@ -52,10 +52,14 @@ export interface TicketListColumnActions {
   readonly onOpen: (ticket: Ticket) => void;
   readonly onEdit: (ticket: Ticket) => void;
   readonly onClose: (ticket: Ticket) => void;
-  /** 入口级门禁：无 `ticket:update` 时隐藏行内「编辑」（默认 true 兼容既有调用）。 */
-  readonly canEdit?: boolean;
+  /**
+   * 入口级门禁：无 `ticket:update` 时隐藏行内「编辑」（默认 true 兼容既有调用）。
+   * 支持布尔或按行函数——按行形态用于行级预判（2026-10-14 缺口③：权限码在但
+   * 行级越权，如 MSP 经理切换客户租户后）。
+   */
+  readonly canEdit?: boolean | ((ticket: Ticket) => boolean);
   /** 入口级门禁：无 `ticket:update` 时隐藏行内「关闭」（POST /tickets/:id/close）。 */
-  readonly canClose?: boolean;
+  readonly canClose?: boolean | ((ticket: Ticket) => boolean);
 }
 
 /** Server-side sort state, used to keep column indicators in sync with the active query. */
@@ -75,6 +79,8 @@ export function buildTicketListColumns(
   sort?: TicketListSortState
 ): ColumnsType<Ticket> {
   const { onOpen, onEdit, onClose, canEdit = true, canClose = true } = actions;
+  const editAllowed = (t: Ticket) => (typeof canEdit === 'function' ? canEdit(t) : canEdit);
+  const closeAllowed = (t: Ticket) => (typeof canClose === 'function' ? canClose(t) : canClose);
   // Controlled sortOrder keeps the header indicator in sync with the server
   // query (and lets "clear filters" reset it). null = no active sort.
   const sortOf = (field: string) =>
@@ -188,7 +194,7 @@ export function buildTicketListColumns(
                 onClick={() => onOpen(record)}
               />
             </Tooltip>
-            {canEdit && (
+            {editAllowed(record) && (
               <Tooltip title='编辑'>
                 <Button
                   type='text'
@@ -198,7 +204,7 @@ export function buildTicketListColumns(
                 />
               </Tooltip>
             )}
-            {canClose && !isTerminal && (record.status === 'resolved' || record.status === 'approved') && (
+            {closeAllowed(record) && !isTerminal && (record.status === 'resolved' || record.status === 'approved') && (
               <Tooltip title='关闭'>
                 <Button
                   type='text'

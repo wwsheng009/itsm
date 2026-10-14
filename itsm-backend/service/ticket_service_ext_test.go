@@ -229,12 +229,13 @@ func TestTicketService_ResolveTicket(t *testing.T) {
 	fx := newTicketFixture(t)
 	defer fx.client.Close()
 
-	t.Run("new 状态不能 resolve", func(t *testing.T) {
+	t.Run("new 状态可以 resolve（2026-10-14 快速解决合法化）", func(t *testing.T) {
 		id := fx.makeTicket(t, "r1", ticket.StatusNew)
 		tenantID := fx.tenantID()
 
-		_, err := fx.svc.ResolveTicket(fx.ctx, id, "test resolution", tenantID)
-		assert.Error(t, err, "new 状态不能 resolve")
+		updated, err := fx.svc.ResolveTicket(fx.ctx, id, "test resolution", tenantID)
+		require.NoError(t, err)
+		assert.Equal(t, ticket.StatusResolved, updated.Status)
 	})
 
 	t.Run("open 状态可以 resolve", func(t *testing.T) {

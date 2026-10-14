@@ -133,22 +133,28 @@ func IsValidIncidentStatusTransition(currentStatus, newStatus string) bool {
 // 禁止在各层内联 map 导致状态转换判定不一致。
 //
 // 规则：
-//   - new        → open / assigned / in_progress / cancelled
+//   - new        → open / assigned / in_progress / resolved（快速解决）/ cancelled
 //   - assigned   → in_progress / pending / resolved / cancelled
 //   - open       → in_progress / pending / resolved / cancelled
 //   - in_progress → resolved / pending / cancelled
 //   - pending    → in_progress / resolved / open / cancelled
 //   - resolved   → closed / in_progress / open
-//   - closed     → 终态，禁止转换
-//   - cancelled  → 终态，禁止转换
+//   - closed     → 终态，禁止转换（含同状态重放）
+//   - cancelled  → 终态，禁止转换（含同状态重放）
 //   - approved   → in_progress / resolved / closed
 //   - rejected   → open / cancelled
 func IsValidTicketStatusTransition(currentStatus, newStatus string) bool {
 	if currentStatus == newStatus {
+		// 终态幂等守卫（2026-10-14 缺口②）：closed/cancelled 是终态，即使
+		// 同状态重放（closed→closed）也不得放行——否则产生虚假审计事件与版本递增。
+		// 非终态的同状态重放仍视为幂等成功（PUT 无状态语义变更的常见形态）。
+		if currentStatus == TicketStatusClosed || currentStatus == TicketStatusCancelled {
+			return false
+		}
 		return true
 	}
 	validTransitions := map[string][]string{
-		TicketStatusNew:        {TicketStatusOpen, TicketStatusAssigned, TicketStatusInProgress, TicketStatusCancelled},
+		TicketStatusNew:        {TicketStatusOpen, TicketStatusAssigned, TicketStatusInProgress, TicketStatusResolved, TicketStatusCancelled},
 		TicketStatusAssigned:   {TicketStatusInProgress, TicketStatusPending, TicketStatusResolved, TicketStatusCancelled},
 		TicketStatusOpen:       {TicketStatusInProgress, TicketStatusPending, TicketStatusResolved, TicketStatusCancelled},
 		TicketStatusInProgress: {TicketStatusResolved, TicketStatusPending, TicketStatusCancelled},

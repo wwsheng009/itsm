@@ -137,6 +137,10 @@ func (s *Service) List(ctx context.Context, tenantID int, page, size int, filter
 // Update updates a ticket.
 // P1-DataScope：写路径行级校验——写权限 ⊆ 读权限，普通角色仅可修改
 // 本人创建或受理的工单（datascope.CanWriteResource）。
+// D-7（2026-10-14 缺口①修复）：PUT 更新链路接入统一状态机——此前本函数
+// 直接透传 params.Status 给 repo.Update，绕过 common.IsValidTicketStatusTransition，
+// 导致 new→pending 等非法转换静默成功。终态（resolved/closed）仍由 handler 层
+// 拦截（TICKET_TERMINAL_STATUS_REQUIRES_DEDICATED_ENDPOINT）。
 func (s *Service) Update(ctx context.Context, tenantID int, id int, params *UpdateParams, actorID int, actorRole string) (*Ticket, error) {
 	// Fetch current ticket to get version for optimistic locking
 	current, err := s.repo.GetByID(ctx, id, tenantID)
@@ -145,6 +149,13 @@ func (s *Service) Update(ctx context.Context, tenantID int, id int, params *Upda
 	}
 	if !datascope.CanWriteResource(actorID, actorRole, current.RequesterID, current.AssigneeID) {
 		return nil, common.NewForbiddenError("无权限修改该工单：仅创建人、受理人或管理员可操作")
+	}
+	// 状态机校验（单一事实来源）：与 UpdateStatus 同规则，禁止 PUT 链路旁路。
+	if params.Status != nil && *params.Status != "" {
+		if !common.IsValidTicketStatusTransition(current.Status, *params.Status) {
+			return nil, common.NewBadRequestError(
+				fmt.Sprintf("invalid status transition: %s -> %s（请使用提交解决方案/关闭等专用入口）", current.Status, *params.Status), nil)
+		}
 	}
 	if params.Version == 0 {
 		params.Version = current.Version
@@ -245,18 +256,40 @@ func (s *Service) EscalateTicket(ctx context.Context, ticketID int, reason strin
 
 // ResolveTicket resolves a ticket with a resolution note.
 // P1-DataScope：生命周期写操作行级校验（原先仅校验租户隔离）。
+// D-7（2026-10-14 缺口②/④修复）：显式来源状态守卫——终态（closed/cancelled）
+// 与同状态重放（resolved→resolved）拒绝；new 允许直达 resolved（快速解决，
+// 与 common 状态机对齐）。
 func (s *Service) ResolveTicket(ctx context.Context, ticketID int, resolution string, tenantID int, actorID int, actorRole string) (*Ticket, error) {
 	if err := s.lifecycleGuard(ctx, ticketID, actorID, actorRole, tenantID, "解决"); err != nil {
 		return nil, err
+	}
+	current, err := s.repo.GetByID(ctx, ticketID, tenantID)
+	if err != nil {
+		return nil, err
+	}
+	if !common.IsValidTicketStatusTransition(current.Status, string(common.TicketStatusResolved)) {
+		return nil, common.NewBadRequestError(
+			fmt.Sprintf("invalid status transition: %s -> resolved", current.Status), nil)
 	}
 	return s.repo.ResolveTicket(ctx, ticketID, resolution, tenantID)
 }
 
 // CloseTicket closes a ticket.
 // P1-DataScope：生命周期写操作行级校验（原先仅校验租户隔离）。
+// D-7（2026-10-14 缺口②修复）：显式来源状态守卫——仅 resolved 可关闭；
+// closed→closed 重放此前经状态机幂等短路返回成功（version 3→4），
+// 现由 common.IsValidTicketStatusTransition 终态守卫拒绝。
 func (s *Service) CloseTicket(ctx context.Context, ticketID int, tenantID int, actorID int, actorRole string) (*Ticket, error) {
 	if err := s.lifecycleGuard(ctx, ticketID, actorID, actorRole, tenantID, "关闭"); err != nil {
 		return nil, err
+	}
+	current, err := s.repo.GetByID(ctx, ticketID, tenantID)
+	if err != nil {
+		return nil, err
+	}
+	if current.Status != string(common.TicketStatusResolved) {
+		return nil, common.NewBadRequestError(
+			fmt.Sprintf("invalid status transition: %s -> closed（仅已解决的工单可关闭）", current.Status), nil)
 	}
 	return s.repo.CloseTicket(ctx, ticketID, tenantID)
 }

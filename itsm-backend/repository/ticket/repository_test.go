@@ -865,7 +865,10 @@ func TestTicketModel_CanTransitionTo(t *testing.T) {
 	}{
 		{StatusNew, StatusOpen, true},
 		{StatusNew, StatusCancelled, true},
-		{StatusNew, StatusResolved, false},
+		// 2026-10-14：new → resolved 已合法化（快速解决，对齐 common 状态机单一事实来源）。
+		{StatusNew, StatusResolved, true},
+		{StatusNew, StatusClosed, false},
+		{StatusClosed, StatusClosed, false}, // 终态重放拒绝（缺口②）
 		{StatusOpen, StatusInProgress, true},
 		{StatusOpen, StatusPending, true},
 		{StatusOpen, StatusResolved, true},
