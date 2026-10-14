@@ -150099,6 +150099,13 @@ type SLAViolationMutation struct {
 	is_resolved           *bool
 	resolved_at           *time.Time
 	resolution_notes      *string
+	resolution_state      *string
+	dispute_reason        *string
+	waived_reason         *string
+	waived_by             *int
+	addwaived_by          *int
+	waived_at             *time.Time
+	settled_flag          *bool
 	tenant_id             *int
 	addtenant_id          *int
 	created_at            *time.Time
@@ -150970,6 +150977,295 @@ func (m *SLAViolationMutation) ResetResolutionNotes() {
 	delete(m.clearedFields, slaviolation.FieldResolutionNotes)
 }
 
+// SetResolutionState sets the "resolution_state" field.
+func (m *SLAViolationMutation) SetResolutionState(s string) {
+	m.resolution_state = &s
+}
+
+// ResolutionState returns the value of the "resolution_state" field in the mutation.
+func (m *SLAViolationMutation) ResolutionState() (r string, exists bool) {
+	v := m.resolution_state
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldResolutionState returns the old "resolution_state" field's value of the SLAViolation entity.
+// If the SLAViolation object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *SLAViolationMutation) OldResolutionState(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldResolutionState is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldResolutionState requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldResolutionState: %w", err)
+	}
+	return oldValue.ResolutionState, nil
+}
+
+// ResetResolutionState resets all changes to the "resolution_state" field.
+func (m *SLAViolationMutation) ResetResolutionState() {
+	m.resolution_state = nil
+}
+
+// SetDisputeReason sets the "dispute_reason" field.
+func (m *SLAViolationMutation) SetDisputeReason(s string) {
+	m.dispute_reason = &s
+}
+
+// DisputeReason returns the value of the "dispute_reason" field in the mutation.
+func (m *SLAViolationMutation) DisputeReason() (r string, exists bool) {
+	v := m.dispute_reason
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldDisputeReason returns the old "dispute_reason" field's value of the SLAViolation entity.
+// If the SLAViolation object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *SLAViolationMutation) OldDisputeReason(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldDisputeReason is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldDisputeReason requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldDisputeReason: %w", err)
+	}
+	return oldValue.DisputeReason, nil
+}
+
+// ClearDisputeReason clears the value of the "dispute_reason" field.
+func (m *SLAViolationMutation) ClearDisputeReason() {
+	m.dispute_reason = nil
+	m.clearedFields[slaviolation.FieldDisputeReason] = struct{}{}
+}
+
+// DisputeReasonCleared returns if the "dispute_reason" field was cleared in this mutation.
+func (m *SLAViolationMutation) DisputeReasonCleared() bool {
+	_, ok := m.clearedFields[slaviolation.FieldDisputeReason]
+	return ok
+}
+
+// ResetDisputeReason resets all changes to the "dispute_reason" field.
+func (m *SLAViolationMutation) ResetDisputeReason() {
+	m.dispute_reason = nil
+	delete(m.clearedFields, slaviolation.FieldDisputeReason)
+}
+
+// SetWaivedReason sets the "waived_reason" field.
+func (m *SLAViolationMutation) SetWaivedReason(s string) {
+	m.waived_reason = &s
+}
+
+// WaivedReason returns the value of the "waived_reason" field in the mutation.
+func (m *SLAViolationMutation) WaivedReason() (r string, exists bool) {
+	v := m.waived_reason
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldWaivedReason returns the old "waived_reason" field's value of the SLAViolation entity.
+// If the SLAViolation object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *SLAViolationMutation) OldWaivedReason(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldWaivedReason is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldWaivedReason requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldWaivedReason: %w", err)
+	}
+	return oldValue.WaivedReason, nil
+}
+
+// ClearWaivedReason clears the value of the "waived_reason" field.
+func (m *SLAViolationMutation) ClearWaivedReason() {
+	m.waived_reason = nil
+	m.clearedFields[slaviolation.FieldWaivedReason] = struct{}{}
+}
+
+// WaivedReasonCleared returns if the "waived_reason" field was cleared in this mutation.
+func (m *SLAViolationMutation) WaivedReasonCleared() bool {
+	_, ok := m.clearedFields[slaviolation.FieldWaivedReason]
+	return ok
+}
+
+// ResetWaivedReason resets all changes to the "waived_reason" field.
+func (m *SLAViolationMutation) ResetWaivedReason() {
+	m.waived_reason = nil
+	delete(m.clearedFields, slaviolation.FieldWaivedReason)
+}
+
+// SetWaivedBy sets the "waived_by" field.
+func (m *SLAViolationMutation) SetWaivedBy(i int) {
+	m.waived_by = &i
+	m.addwaived_by = nil
+}
+
+// WaivedBy returns the value of the "waived_by" field in the mutation.
+func (m *SLAViolationMutation) WaivedBy() (r int, exists bool) {
+	v := m.waived_by
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldWaivedBy returns the old "waived_by" field's value of the SLAViolation entity.
+// If the SLAViolation object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *SLAViolationMutation) OldWaivedBy(ctx context.Context) (v int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldWaivedBy is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldWaivedBy requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldWaivedBy: %w", err)
+	}
+	return oldValue.WaivedBy, nil
+}
+
+// AddWaivedBy adds i to the "waived_by" field.
+func (m *SLAViolationMutation) AddWaivedBy(i int) {
+	if m.addwaived_by != nil {
+		*m.addwaived_by += i
+	} else {
+		m.addwaived_by = &i
+	}
+}
+
+// AddedWaivedBy returns the value that was added to the "waived_by" field in this mutation.
+func (m *SLAViolationMutation) AddedWaivedBy() (r int, exists bool) {
+	v := m.addwaived_by
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ClearWaivedBy clears the value of the "waived_by" field.
+func (m *SLAViolationMutation) ClearWaivedBy() {
+	m.waived_by = nil
+	m.addwaived_by = nil
+	m.clearedFields[slaviolation.FieldWaivedBy] = struct{}{}
+}
+
+// WaivedByCleared returns if the "waived_by" field was cleared in this mutation.
+func (m *SLAViolationMutation) WaivedByCleared() bool {
+	_, ok := m.clearedFields[slaviolation.FieldWaivedBy]
+	return ok
+}
+
+// ResetWaivedBy resets all changes to the "waived_by" field.
+func (m *SLAViolationMutation) ResetWaivedBy() {
+	m.waived_by = nil
+	m.addwaived_by = nil
+	delete(m.clearedFields, slaviolation.FieldWaivedBy)
+}
+
+// SetWaivedAt sets the "waived_at" field.
+func (m *SLAViolationMutation) SetWaivedAt(t time.Time) {
+	m.waived_at = &t
+}
+
+// WaivedAt returns the value of the "waived_at" field in the mutation.
+func (m *SLAViolationMutation) WaivedAt() (r time.Time, exists bool) {
+	v := m.waived_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldWaivedAt returns the old "waived_at" field's value of the SLAViolation entity.
+// If the SLAViolation object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *SLAViolationMutation) OldWaivedAt(ctx context.Context) (v time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldWaivedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldWaivedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldWaivedAt: %w", err)
+	}
+	return oldValue.WaivedAt, nil
+}
+
+// ClearWaivedAt clears the value of the "waived_at" field.
+func (m *SLAViolationMutation) ClearWaivedAt() {
+	m.waived_at = nil
+	m.clearedFields[slaviolation.FieldWaivedAt] = struct{}{}
+}
+
+// WaivedAtCleared returns if the "waived_at" field was cleared in this mutation.
+func (m *SLAViolationMutation) WaivedAtCleared() bool {
+	_, ok := m.clearedFields[slaviolation.FieldWaivedAt]
+	return ok
+}
+
+// ResetWaivedAt resets all changes to the "waived_at" field.
+func (m *SLAViolationMutation) ResetWaivedAt() {
+	m.waived_at = nil
+	delete(m.clearedFields, slaviolation.FieldWaivedAt)
+}
+
+// SetSettledFlag sets the "settled_flag" field.
+func (m *SLAViolationMutation) SetSettledFlag(b bool) {
+	m.settled_flag = &b
+}
+
+// SettledFlag returns the value of the "settled_flag" field in the mutation.
+func (m *SLAViolationMutation) SettledFlag() (r bool, exists bool) {
+	v := m.settled_flag
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldSettledFlag returns the old "settled_flag" field's value of the SLAViolation entity.
+// If the SLAViolation object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *SLAViolationMutation) OldSettledFlag(ctx context.Context) (v bool, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldSettledFlag is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldSettledFlag requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldSettledFlag: %w", err)
+	}
+	return oldValue.SettledFlag, nil
+}
+
+// ResetSettledFlag resets all changes to the "settled_flag" field.
+func (m *SLAViolationMutation) ResetSettledFlag() {
+	m.settled_flag = nil
+}
+
 // SetTenantID sets the "tenant_id" field.
 func (m *SLAViolationMutation) SetTenantID(i int) {
 	m.tenant_id = &i
@@ -151186,7 +151482,7 @@ func (m *SLAViolationMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *SLAViolationMutation) Fields() []string {
-	fields := make([]string, 0, 20)
+	fields := make([]string, 0, 26)
 	if m.created_by != nil {
 		fields = append(fields, slaviolation.FieldCreatedBy)
 	}
@@ -151237,6 +151533,24 @@ func (m *SLAViolationMutation) Fields() []string {
 	}
 	if m.resolution_notes != nil {
 		fields = append(fields, slaviolation.FieldResolutionNotes)
+	}
+	if m.resolution_state != nil {
+		fields = append(fields, slaviolation.FieldResolutionState)
+	}
+	if m.dispute_reason != nil {
+		fields = append(fields, slaviolation.FieldDisputeReason)
+	}
+	if m.waived_reason != nil {
+		fields = append(fields, slaviolation.FieldWaivedReason)
+	}
+	if m.waived_by != nil {
+		fields = append(fields, slaviolation.FieldWaivedBy)
+	}
+	if m.waived_at != nil {
+		fields = append(fields, slaviolation.FieldWaivedAt)
+	}
+	if m.settled_flag != nil {
+		fields = append(fields, slaviolation.FieldSettledFlag)
 	}
 	if m.tenant_id != nil {
 		fields = append(fields, slaviolation.FieldTenantID)
@@ -151289,6 +151603,18 @@ func (m *SLAViolationMutation) Field(name string) (ent.Value, bool) {
 		return m.ResolvedAt()
 	case slaviolation.FieldResolutionNotes:
 		return m.ResolutionNotes()
+	case slaviolation.FieldResolutionState:
+		return m.ResolutionState()
+	case slaviolation.FieldDisputeReason:
+		return m.DisputeReason()
+	case slaviolation.FieldWaivedReason:
+		return m.WaivedReason()
+	case slaviolation.FieldWaivedBy:
+		return m.WaivedBy()
+	case slaviolation.FieldWaivedAt:
+		return m.WaivedAt()
+	case slaviolation.FieldSettledFlag:
+		return m.SettledFlag()
 	case slaviolation.FieldTenantID:
 		return m.TenantID()
 	case slaviolation.FieldCreatedAt:
@@ -151338,6 +151664,18 @@ func (m *SLAViolationMutation) OldField(ctx context.Context, name string) (ent.V
 		return m.OldResolvedAt(ctx)
 	case slaviolation.FieldResolutionNotes:
 		return m.OldResolutionNotes(ctx)
+	case slaviolation.FieldResolutionState:
+		return m.OldResolutionState(ctx)
+	case slaviolation.FieldDisputeReason:
+		return m.OldDisputeReason(ctx)
+	case slaviolation.FieldWaivedReason:
+		return m.OldWaivedReason(ctx)
+	case slaviolation.FieldWaivedBy:
+		return m.OldWaivedBy(ctx)
+	case slaviolation.FieldWaivedAt:
+		return m.OldWaivedAt(ctx)
+	case slaviolation.FieldSettledFlag:
+		return m.OldSettledFlag(ctx)
 	case slaviolation.FieldTenantID:
 		return m.OldTenantID(ctx)
 	case slaviolation.FieldCreatedAt:
@@ -151472,6 +151810,48 @@ func (m *SLAViolationMutation) SetField(name string, value ent.Value) error {
 		}
 		m.SetResolutionNotes(v)
 		return nil
+	case slaviolation.FieldResolutionState:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetResolutionState(v)
+		return nil
+	case slaviolation.FieldDisputeReason:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetDisputeReason(v)
+		return nil
+	case slaviolation.FieldWaivedReason:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetWaivedReason(v)
+		return nil
+	case slaviolation.FieldWaivedBy:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetWaivedBy(v)
+		return nil
+	case slaviolation.FieldWaivedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetWaivedAt(v)
+		return nil
+	case slaviolation.FieldSettledFlag:
+		v, ok := value.(bool)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetSettledFlag(v)
+		return nil
 	case slaviolation.FieldTenantID:
 		v, ok := value.(int)
 		if !ok {
@@ -151513,6 +151893,9 @@ func (m *SLAViolationMutation) AddedFields() []string {
 	if m.addoverdue_minutes != nil {
 		fields = append(fields, slaviolation.FieldOverdueMinutes)
 	}
+	if m.addwaived_by != nil {
+		fields = append(fields, slaviolation.FieldWaivedBy)
+	}
 	if m.addtenant_id != nil {
 		fields = append(fields, slaviolation.FieldTenantID)
 	}
@@ -151532,6 +151915,8 @@ func (m *SLAViolationMutation) AddedField(name string) (ent.Value, bool) {
 		return m.AddedActualTime()
 	case slaviolation.FieldOverdueMinutes:
 		return m.AddedOverdueMinutes()
+	case slaviolation.FieldWaivedBy:
+		return m.AddedWaivedBy()
 	case slaviolation.FieldTenantID:
 		return m.AddedTenantID()
 	}
@@ -151571,6 +151956,13 @@ func (m *SLAViolationMutation) AddField(name string, value ent.Value) error {
 		}
 		m.AddOverdueMinutes(v)
 		return nil
+	case slaviolation.FieldWaivedBy:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddWaivedBy(v)
+		return nil
 	case slaviolation.FieldTenantID:
 		v, ok := value.(int)
 		if !ok {
@@ -151601,6 +151993,18 @@ func (m *SLAViolationMutation) ClearedFields() []string {
 	if m.FieldCleared(slaviolation.FieldResolutionNotes) {
 		fields = append(fields, slaviolation.FieldResolutionNotes)
 	}
+	if m.FieldCleared(slaviolation.FieldDisputeReason) {
+		fields = append(fields, slaviolation.FieldDisputeReason)
+	}
+	if m.FieldCleared(slaviolation.FieldWaivedReason) {
+		fields = append(fields, slaviolation.FieldWaivedReason)
+	}
+	if m.FieldCleared(slaviolation.FieldWaivedBy) {
+		fields = append(fields, slaviolation.FieldWaivedBy)
+	}
+	if m.FieldCleared(slaviolation.FieldWaivedAt) {
+		fields = append(fields, slaviolation.FieldWaivedAt)
+	}
 	return fields
 }
 
@@ -151629,6 +152033,18 @@ func (m *SLAViolationMutation) ClearField(name string) error {
 		return nil
 	case slaviolation.FieldResolutionNotes:
 		m.ClearResolutionNotes()
+		return nil
+	case slaviolation.FieldDisputeReason:
+		m.ClearDisputeReason()
+		return nil
+	case slaviolation.FieldWaivedReason:
+		m.ClearWaivedReason()
+		return nil
+	case slaviolation.FieldWaivedBy:
+		m.ClearWaivedBy()
+		return nil
+	case slaviolation.FieldWaivedAt:
+		m.ClearWaivedAt()
 		return nil
 	}
 	return fmt.Errorf("unknown SLAViolation nullable field %s", name)
@@ -151688,6 +152104,24 @@ func (m *SLAViolationMutation) ResetField(name string) error {
 		return nil
 	case slaviolation.FieldResolutionNotes:
 		m.ResetResolutionNotes()
+		return nil
+	case slaviolation.FieldResolutionState:
+		m.ResetResolutionState()
+		return nil
+	case slaviolation.FieldDisputeReason:
+		m.ResetDisputeReason()
+		return nil
+	case slaviolation.FieldWaivedReason:
+		m.ResetWaivedReason()
+		return nil
+	case slaviolation.FieldWaivedBy:
+		m.ResetWaivedBy()
+		return nil
+	case slaviolation.FieldWaivedAt:
+		m.ResetWaivedAt()
+		return nil
+	case slaviolation.FieldSettledFlag:
+		m.ResetSettledFlag()
 		return nil
 	case slaviolation.FieldTenantID:
 		m.ResetTenantID()

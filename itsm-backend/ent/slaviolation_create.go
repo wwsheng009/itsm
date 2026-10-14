@@ -236,6 +236,90 @@ func (_c *SLAViolationCreate) SetNillableResolutionNotes(v *string) *SLAViolatio
 	return _c
 }
 
+// SetResolutionState sets the "resolution_state" field.
+func (_c *SLAViolationCreate) SetResolutionState(v string) *SLAViolationCreate {
+	_c.mutation.SetResolutionState(v)
+	return _c
+}
+
+// SetNillableResolutionState sets the "resolution_state" field if the given value is not nil.
+func (_c *SLAViolationCreate) SetNillableResolutionState(v *string) *SLAViolationCreate {
+	if v != nil {
+		_c.SetResolutionState(*v)
+	}
+	return _c
+}
+
+// SetDisputeReason sets the "dispute_reason" field.
+func (_c *SLAViolationCreate) SetDisputeReason(v string) *SLAViolationCreate {
+	_c.mutation.SetDisputeReason(v)
+	return _c
+}
+
+// SetNillableDisputeReason sets the "dispute_reason" field if the given value is not nil.
+func (_c *SLAViolationCreate) SetNillableDisputeReason(v *string) *SLAViolationCreate {
+	if v != nil {
+		_c.SetDisputeReason(*v)
+	}
+	return _c
+}
+
+// SetWaivedReason sets the "waived_reason" field.
+func (_c *SLAViolationCreate) SetWaivedReason(v string) *SLAViolationCreate {
+	_c.mutation.SetWaivedReason(v)
+	return _c
+}
+
+// SetNillableWaivedReason sets the "waived_reason" field if the given value is not nil.
+func (_c *SLAViolationCreate) SetNillableWaivedReason(v *string) *SLAViolationCreate {
+	if v != nil {
+		_c.SetWaivedReason(*v)
+	}
+	return _c
+}
+
+// SetWaivedBy sets the "waived_by" field.
+func (_c *SLAViolationCreate) SetWaivedBy(v int) *SLAViolationCreate {
+	_c.mutation.SetWaivedBy(v)
+	return _c
+}
+
+// SetNillableWaivedBy sets the "waived_by" field if the given value is not nil.
+func (_c *SLAViolationCreate) SetNillableWaivedBy(v *int) *SLAViolationCreate {
+	if v != nil {
+		_c.SetWaivedBy(*v)
+	}
+	return _c
+}
+
+// SetWaivedAt sets the "waived_at" field.
+func (_c *SLAViolationCreate) SetWaivedAt(v time.Time) *SLAViolationCreate {
+	_c.mutation.SetWaivedAt(v)
+	return _c
+}
+
+// SetNillableWaivedAt sets the "waived_at" field if the given value is not nil.
+func (_c *SLAViolationCreate) SetNillableWaivedAt(v *time.Time) *SLAViolationCreate {
+	if v != nil {
+		_c.SetWaivedAt(*v)
+	}
+	return _c
+}
+
+// SetSettledFlag sets the "settled_flag" field.
+func (_c *SLAViolationCreate) SetSettledFlag(v bool) *SLAViolationCreate {
+	_c.mutation.SetSettledFlag(v)
+	return _c
+}
+
+// SetNillableSettledFlag sets the "settled_flag" field if the given value is not nil.
+func (_c *SLAViolationCreate) SetNillableSettledFlag(v *bool) *SLAViolationCreate {
+	if v != nil {
+		_c.SetSettledFlag(*v)
+	}
+	return _c
+}
+
 // SetTenantID sets the "tenant_id" field.
 func (_c *SLAViolationCreate) SetTenantID(v int) *SLAViolationCreate {
 	_c.mutation.SetTenantID(v)
@@ -351,6 +435,14 @@ func (_c *SLAViolationCreate) defaults() {
 		v := slaviolation.DefaultIsResolved
 		_c.mutation.SetIsResolved(v)
 	}
+	if _, ok := _c.mutation.ResolutionState(); !ok {
+		v := slaviolation.DefaultResolutionState
+		_c.mutation.SetResolutionState(v)
+	}
+	if _, ok := _c.mutation.SettledFlag(); !ok {
+		v := slaviolation.DefaultSettledFlag
+		_c.mutation.SetSettledFlag(v)
+	}
 	if _, ok := _c.mutation.CreatedAt(); !ok {
 		v := slaviolation.DefaultCreatedAt()
 		_c.mutation.SetCreatedAt(v)
@@ -413,6 +505,17 @@ func (_c *SLAViolationCreate) check() error {
 	}
 	if _, ok := _c.mutation.IsResolved(); !ok {
 		return &ValidationError{Name: "is_resolved", err: errors.New(`ent: missing required field "SLAViolation.is_resolved"`)}
+	}
+	if _, ok := _c.mutation.ResolutionState(); !ok {
+		return &ValidationError{Name: "resolution_state", err: errors.New(`ent: missing required field "SLAViolation.resolution_state"`)}
+	}
+	if v, ok := _c.mutation.ResolutionState(); ok {
+		if err := slaviolation.ResolutionStateValidator(v); err != nil {
+			return &ValidationError{Name: "resolution_state", err: fmt.Errorf(`ent: validator failed for field "SLAViolation.resolution_state": %w`, err)}
+		}
+	}
+	if _, ok := _c.mutation.SettledFlag(); !ok {
+		return &ValidationError{Name: "settled_flag", err: errors.New(`ent: missing required field "SLAViolation.settled_flag"`)}
 	}
 	if _, ok := _c.mutation.TenantID(); !ok {
 		return &ValidationError{Name: "tenant_id", err: errors.New(`ent: missing required field "SLAViolation.tenant_id"`)}
@@ -519,6 +622,30 @@ func (_c *SLAViolationCreate) createSpec() (*SLAViolation, *sqlgraph.CreateSpec)
 	if value, ok := _c.mutation.ResolutionNotes(); ok {
 		_spec.SetField(slaviolation.FieldResolutionNotes, field.TypeString, value)
 		_node.ResolutionNotes = value
+	}
+	if value, ok := _c.mutation.ResolutionState(); ok {
+		_spec.SetField(slaviolation.FieldResolutionState, field.TypeString, value)
+		_node.ResolutionState = value
+	}
+	if value, ok := _c.mutation.DisputeReason(); ok {
+		_spec.SetField(slaviolation.FieldDisputeReason, field.TypeString, value)
+		_node.DisputeReason = value
+	}
+	if value, ok := _c.mutation.WaivedReason(); ok {
+		_spec.SetField(slaviolation.FieldWaivedReason, field.TypeString, value)
+		_node.WaivedReason = value
+	}
+	if value, ok := _c.mutation.WaivedBy(); ok {
+		_spec.SetField(slaviolation.FieldWaivedBy, field.TypeInt, value)
+		_node.WaivedBy = value
+	}
+	if value, ok := _c.mutation.WaivedAt(); ok {
+		_spec.SetField(slaviolation.FieldWaivedAt, field.TypeTime, value)
+		_node.WaivedAt = value
+	}
+	if value, ok := _c.mutation.SettledFlag(); ok {
+		_spec.SetField(slaviolation.FieldSettledFlag, field.TypeBool, value)
+		_node.SettledFlag = value
 	}
 	if value, ok := _c.mutation.TenantID(); ok {
 		_spec.SetField(slaviolation.FieldTenantID, field.TypeInt, value)

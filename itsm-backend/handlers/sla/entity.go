@@ -112,6 +112,14 @@ type SLAViolation struct {
 	IsResolved      bool       `json:"isResolved"`
 	ResolvedAt      *time.Time `json:"resolvedAt,omitempty"`
 	ResolutionNotes string     `json:"resolutionNotes"`
+	// D-SLA-8 归责状态机（方案 §13.1）：pending|accepted|disputed|waived；
+	// 终态不可逆；settledFlag=true 后随结算快照锁定。
+	ResolutionState string     `json:"resolutionState"`
+	DisputeReason   string     `json:"disputeReason,omitempty"`
+	WaivedReason    string     `json:"waivedReason,omitempty"`
+	WaivedBy        int        `json:"waivedBy,omitempty"`
+	WaivedAt        *time.Time `json:"waivedAt,omitempty"`
+	SettledFlag     bool       `json:"settledFlag"`
 	TenantID        int        `json:"tenantId"`
 }
 

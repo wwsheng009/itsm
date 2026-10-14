@@ -44,6 +44,11 @@ type Repository interface {
 	CreateViolation(ctx context.Context, v *SLAViolation) (*SLAViolation, error)
 	ListViolations(ctx context.Context, tenantID int, page, size int, filters map[string]interface{}) ([]*SLAViolation, int, error)
 	UpdateViolationStatus(ctx context.Context, id int, isResolved bool, notes string, tenantID int) error
+	// GetViolationResolutionState 读取归责状态与结算锁定标记（D-SLA-8 状态机校验用）。
+	GetViolationResolutionState(ctx context.Context, id, tenantID int) (resolutionState string, settled bool, err error)
+	// TransitionViolationResolutionState CAS 更新（WHERE resolution_state=expected AND settled_flag=false）；
+	// 返回受影响行数（0=状态已变/已锁定，调用方按并发冲突处理）。
+	TransitionViolationResolutionState(ctx context.Context, id, tenantID int, expectedState, target, reason string, actorID int) (int, error)
 
 	// Metrics
 	CreateMetric(ctx context.Context, m *SLAMetric) (*SLAMetric, error)

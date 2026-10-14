@@ -476,6 +476,8 @@ var RolePermissions = map[string][]Permission{
 		// D-SLA-4：MSP SLA 合同（provider 面）
 		{Resource: "sla", Action: "contract:read"},
 		{Resource: "sla", Action: "contract:write"},
+		// D-SLA-8：违约裁决（provider 面）
+		{Resource: "sla", Action: "violation:settle"},
 	},
 	"msp_admin": {
 		{Resource: "msp", Action: "*"},
@@ -489,6 +491,8 @@ var RolePermissions = map[string][]Permission{
 		// D-SLA-4：MSP SLA 合同（与 DB 词表显式码对齐）
 		{Resource: "sla", Action: "contract:read"},
 		{Resource: "sla", Action: "contract:write"},
+		// D-SLA-8：违约裁决（与 DB 词表显式码对齐）
+		{Resource: "sla", Action: "violation:settle"},
 	},
 }
 

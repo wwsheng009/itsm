@@ -140,6 +140,36 @@ func ResolutionNotes(v string) predicate.SLAViolation {
 	return predicate.SLAViolation(sql.FieldEQ(FieldResolutionNotes, v))
 }
 
+// ResolutionState applies equality check predicate on the "resolution_state" field. It's identical to ResolutionStateEQ.
+func ResolutionState(v string) predicate.SLAViolation {
+	return predicate.SLAViolation(sql.FieldEQ(FieldResolutionState, v))
+}
+
+// DisputeReason applies equality check predicate on the "dispute_reason" field. It's identical to DisputeReasonEQ.
+func DisputeReason(v string) predicate.SLAViolation {
+	return predicate.SLAViolation(sql.FieldEQ(FieldDisputeReason, v))
+}
+
+// WaivedReason applies equality check predicate on the "waived_reason" field. It's identical to WaivedReasonEQ.
+func WaivedReason(v string) predicate.SLAViolation {
+	return predicate.SLAViolation(sql.FieldEQ(FieldWaivedReason, v))
+}
+
+// WaivedBy applies equality check predicate on the "waived_by" field. It's identical to WaivedByEQ.
+func WaivedBy(v int) predicate.SLAViolation {
+	return predicate.SLAViolation(sql.FieldEQ(FieldWaivedBy, v))
+}
+
+// WaivedAt applies equality check predicate on the "waived_at" field. It's identical to WaivedAtEQ.
+func WaivedAt(v time.Time) predicate.SLAViolation {
+	return predicate.SLAViolation(sql.FieldEQ(FieldWaivedAt, v))
+}
+
+// SettledFlag applies equality check predicate on the "settled_flag" field. It's identical to SettledFlagEQ.
+func SettledFlag(v bool) predicate.SLAViolation {
+	return predicate.SLAViolation(sql.FieldEQ(FieldSettledFlag, v))
+}
+
 // TenantID applies equality check predicate on the "tenant_id" field. It's identical to TenantIDEQ.
 func TenantID(v int) predicate.SLAViolation {
 	return predicate.SLAViolation(sql.FieldEQ(FieldTenantID, v))
@@ -988,6 +1018,331 @@ func ResolutionNotesEqualFold(v string) predicate.SLAViolation {
 // ResolutionNotesContainsFold applies the ContainsFold predicate on the "resolution_notes" field.
 func ResolutionNotesContainsFold(v string) predicate.SLAViolation {
 	return predicate.SLAViolation(sql.FieldContainsFold(FieldResolutionNotes, v))
+}
+
+// ResolutionStateEQ applies the EQ predicate on the "resolution_state" field.
+func ResolutionStateEQ(v string) predicate.SLAViolation {
+	return predicate.SLAViolation(sql.FieldEQ(FieldResolutionState, v))
+}
+
+// ResolutionStateNEQ applies the NEQ predicate on the "resolution_state" field.
+func ResolutionStateNEQ(v string) predicate.SLAViolation {
+	return predicate.SLAViolation(sql.FieldNEQ(FieldResolutionState, v))
+}
+
+// ResolutionStateIn applies the In predicate on the "resolution_state" field.
+func ResolutionStateIn(vs ...string) predicate.SLAViolation {
+	return predicate.SLAViolation(sql.FieldIn(FieldResolutionState, vs...))
+}
+
+// ResolutionStateNotIn applies the NotIn predicate on the "resolution_state" field.
+func ResolutionStateNotIn(vs ...string) predicate.SLAViolation {
+	return predicate.SLAViolation(sql.FieldNotIn(FieldResolutionState, vs...))
+}
+
+// ResolutionStateGT applies the GT predicate on the "resolution_state" field.
+func ResolutionStateGT(v string) predicate.SLAViolation {
+	return predicate.SLAViolation(sql.FieldGT(FieldResolutionState, v))
+}
+
+// ResolutionStateGTE applies the GTE predicate on the "resolution_state" field.
+func ResolutionStateGTE(v string) predicate.SLAViolation {
+	return predicate.SLAViolation(sql.FieldGTE(FieldResolutionState, v))
+}
+
+// ResolutionStateLT applies the LT predicate on the "resolution_state" field.
+func ResolutionStateLT(v string) predicate.SLAViolation {
+	return predicate.SLAViolation(sql.FieldLT(FieldResolutionState, v))
+}
+
+// ResolutionStateLTE applies the LTE predicate on the "resolution_state" field.
+func ResolutionStateLTE(v string) predicate.SLAViolation {
+	return predicate.SLAViolation(sql.FieldLTE(FieldResolutionState, v))
+}
+
+// ResolutionStateContains applies the Contains predicate on the "resolution_state" field.
+func ResolutionStateContains(v string) predicate.SLAViolation {
+	return predicate.SLAViolation(sql.FieldContains(FieldResolutionState, v))
+}
+
+// ResolutionStateHasPrefix applies the HasPrefix predicate on the "resolution_state" field.
+func ResolutionStateHasPrefix(v string) predicate.SLAViolation {
+	return predicate.SLAViolation(sql.FieldHasPrefix(FieldResolutionState, v))
+}
+
+// ResolutionStateHasSuffix applies the HasSuffix predicate on the "resolution_state" field.
+func ResolutionStateHasSuffix(v string) predicate.SLAViolation {
+	return predicate.SLAViolation(sql.FieldHasSuffix(FieldResolutionState, v))
+}
+
+// ResolutionStateEqualFold applies the EqualFold predicate on the "resolution_state" field.
+func ResolutionStateEqualFold(v string) predicate.SLAViolation {
+	return predicate.SLAViolation(sql.FieldEqualFold(FieldResolutionState, v))
+}
+
+// ResolutionStateContainsFold applies the ContainsFold predicate on the "resolution_state" field.
+func ResolutionStateContainsFold(v string) predicate.SLAViolation {
+	return predicate.SLAViolation(sql.FieldContainsFold(FieldResolutionState, v))
+}
+
+// DisputeReasonEQ applies the EQ predicate on the "dispute_reason" field.
+func DisputeReasonEQ(v string) predicate.SLAViolation {
+	return predicate.SLAViolation(sql.FieldEQ(FieldDisputeReason, v))
+}
+
+// DisputeReasonNEQ applies the NEQ predicate on the "dispute_reason" field.
+func DisputeReasonNEQ(v string) predicate.SLAViolation {
+	return predicate.SLAViolation(sql.FieldNEQ(FieldDisputeReason, v))
+}
+
+// DisputeReasonIn applies the In predicate on the "dispute_reason" field.
+func DisputeReasonIn(vs ...string) predicate.SLAViolation {
+	return predicate.SLAViolation(sql.FieldIn(FieldDisputeReason, vs...))
+}
+
+// DisputeReasonNotIn applies the NotIn predicate on the "dispute_reason" field.
+func DisputeReasonNotIn(vs ...string) predicate.SLAViolation {
+	return predicate.SLAViolation(sql.FieldNotIn(FieldDisputeReason, vs...))
+}
+
+// DisputeReasonGT applies the GT predicate on the "dispute_reason" field.
+func DisputeReasonGT(v string) predicate.SLAViolation {
+	return predicate.SLAViolation(sql.FieldGT(FieldDisputeReason, v))
+}
+
+// DisputeReasonGTE applies the GTE predicate on the "dispute_reason" field.
+func DisputeReasonGTE(v string) predicate.SLAViolation {
+	return predicate.SLAViolation(sql.FieldGTE(FieldDisputeReason, v))
+}
+
+// DisputeReasonLT applies the LT predicate on the "dispute_reason" field.
+func DisputeReasonLT(v string) predicate.SLAViolation {
+	return predicate.SLAViolation(sql.FieldLT(FieldDisputeReason, v))
+}
+
+// DisputeReasonLTE applies the LTE predicate on the "dispute_reason" field.
+func DisputeReasonLTE(v string) predicate.SLAViolation {
+	return predicate.SLAViolation(sql.FieldLTE(FieldDisputeReason, v))
+}
+
+// DisputeReasonContains applies the Contains predicate on the "dispute_reason" field.
+func DisputeReasonContains(v string) predicate.SLAViolation {
+	return predicate.SLAViolation(sql.FieldContains(FieldDisputeReason, v))
+}
+
+// DisputeReasonHasPrefix applies the HasPrefix predicate on the "dispute_reason" field.
+func DisputeReasonHasPrefix(v string) predicate.SLAViolation {
+	return predicate.SLAViolation(sql.FieldHasPrefix(FieldDisputeReason, v))
+}
+
+// DisputeReasonHasSuffix applies the HasSuffix predicate on the "dispute_reason" field.
+func DisputeReasonHasSuffix(v string) predicate.SLAViolation {
+	return predicate.SLAViolation(sql.FieldHasSuffix(FieldDisputeReason, v))
+}
+
+// DisputeReasonIsNil applies the IsNil predicate on the "dispute_reason" field.
+func DisputeReasonIsNil() predicate.SLAViolation {
+	return predicate.SLAViolation(sql.FieldIsNull(FieldDisputeReason))
+}
+
+// DisputeReasonNotNil applies the NotNil predicate on the "dispute_reason" field.
+func DisputeReasonNotNil() predicate.SLAViolation {
+	return predicate.SLAViolation(sql.FieldNotNull(FieldDisputeReason))
+}
+
+// DisputeReasonEqualFold applies the EqualFold predicate on the "dispute_reason" field.
+func DisputeReasonEqualFold(v string) predicate.SLAViolation {
+	return predicate.SLAViolation(sql.FieldEqualFold(FieldDisputeReason, v))
+}
+
+// DisputeReasonContainsFold applies the ContainsFold predicate on the "dispute_reason" field.
+func DisputeReasonContainsFold(v string) predicate.SLAViolation {
+	return predicate.SLAViolation(sql.FieldContainsFold(FieldDisputeReason, v))
+}
+
+// WaivedReasonEQ applies the EQ predicate on the "waived_reason" field.
+func WaivedReasonEQ(v string) predicate.SLAViolation {
+	return predicate.SLAViolation(sql.FieldEQ(FieldWaivedReason, v))
+}
+
+// WaivedReasonNEQ applies the NEQ predicate on the "waived_reason" field.
+func WaivedReasonNEQ(v string) predicate.SLAViolation {
+	return predicate.SLAViolation(sql.FieldNEQ(FieldWaivedReason, v))
+}
+
+// WaivedReasonIn applies the In predicate on the "waived_reason" field.
+func WaivedReasonIn(vs ...string) predicate.SLAViolation {
+	return predicate.SLAViolation(sql.FieldIn(FieldWaivedReason, vs...))
+}
+
+// WaivedReasonNotIn applies the NotIn predicate on the "waived_reason" field.
+func WaivedReasonNotIn(vs ...string) predicate.SLAViolation {
+	return predicate.SLAViolation(sql.FieldNotIn(FieldWaivedReason, vs...))
+}
+
+// WaivedReasonGT applies the GT predicate on the "waived_reason" field.
+func WaivedReasonGT(v string) predicate.SLAViolation {
+	return predicate.SLAViolation(sql.FieldGT(FieldWaivedReason, v))
+}
+
+// WaivedReasonGTE applies the GTE predicate on the "waived_reason" field.
+func WaivedReasonGTE(v string) predicate.SLAViolation {
+	return predicate.SLAViolation(sql.FieldGTE(FieldWaivedReason, v))
+}
+
+// WaivedReasonLT applies the LT predicate on the "waived_reason" field.
+func WaivedReasonLT(v string) predicate.SLAViolation {
+	return predicate.SLAViolation(sql.FieldLT(FieldWaivedReason, v))
+}
+
+// WaivedReasonLTE applies the LTE predicate on the "waived_reason" field.
+func WaivedReasonLTE(v string) predicate.SLAViolation {
+	return predicate.SLAViolation(sql.FieldLTE(FieldWaivedReason, v))
+}
+
+// WaivedReasonContains applies the Contains predicate on the "waived_reason" field.
+func WaivedReasonContains(v string) predicate.SLAViolation {
+	return predicate.SLAViolation(sql.FieldContains(FieldWaivedReason, v))
+}
+
+// WaivedReasonHasPrefix applies the HasPrefix predicate on the "waived_reason" field.
+func WaivedReasonHasPrefix(v string) predicate.SLAViolation {
+	return predicate.SLAViolation(sql.FieldHasPrefix(FieldWaivedReason, v))
+}
+
+// WaivedReasonHasSuffix applies the HasSuffix predicate on the "waived_reason" field.
+func WaivedReasonHasSuffix(v string) predicate.SLAViolation {
+	return predicate.SLAViolation(sql.FieldHasSuffix(FieldWaivedReason, v))
+}
+
+// WaivedReasonIsNil applies the IsNil predicate on the "waived_reason" field.
+func WaivedReasonIsNil() predicate.SLAViolation {
+	return predicate.SLAViolation(sql.FieldIsNull(FieldWaivedReason))
+}
+
+// WaivedReasonNotNil applies the NotNil predicate on the "waived_reason" field.
+func WaivedReasonNotNil() predicate.SLAViolation {
+	return predicate.SLAViolation(sql.FieldNotNull(FieldWaivedReason))
+}
+
+// WaivedReasonEqualFold applies the EqualFold predicate on the "waived_reason" field.
+func WaivedReasonEqualFold(v string) predicate.SLAViolation {
+	return predicate.SLAViolation(sql.FieldEqualFold(FieldWaivedReason, v))
+}
+
+// WaivedReasonContainsFold applies the ContainsFold predicate on the "waived_reason" field.
+func WaivedReasonContainsFold(v string) predicate.SLAViolation {
+	return predicate.SLAViolation(sql.FieldContainsFold(FieldWaivedReason, v))
+}
+
+// WaivedByEQ applies the EQ predicate on the "waived_by" field.
+func WaivedByEQ(v int) predicate.SLAViolation {
+	return predicate.SLAViolation(sql.FieldEQ(FieldWaivedBy, v))
+}
+
+// WaivedByNEQ applies the NEQ predicate on the "waived_by" field.
+func WaivedByNEQ(v int) predicate.SLAViolation {
+	return predicate.SLAViolation(sql.FieldNEQ(FieldWaivedBy, v))
+}
+
+// WaivedByIn applies the In predicate on the "waived_by" field.
+func WaivedByIn(vs ...int) predicate.SLAViolation {
+	return predicate.SLAViolation(sql.FieldIn(FieldWaivedBy, vs...))
+}
+
+// WaivedByNotIn applies the NotIn predicate on the "waived_by" field.
+func WaivedByNotIn(vs ...int) predicate.SLAViolation {
+	return predicate.SLAViolation(sql.FieldNotIn(FieldWaivedBy, vs...))
+}
+
+// WaivedByGT applies the GT predicate on the "waived_by" field.
+func WaivedByGT(v int) predicate.SLAViolation {
+	return predicate.SLAViolation(sql.FieldGT(FieldWaivedBy, v))
+}
+
+// WaivedByGTE applies the GTE predicate on the "waived_by" field.
+func WaivedByGTE(v int) predicate.SLAViolation {
+	return predicate.SLAViolation(sql.FieldGTE(FieldWaivedBy, v))
+}
+
+// WaivedByLT applies the LT predicate on the "waived_by" field.
+func WaivedByLT(v int) predicate.SLAViolation {
+	return predicate.SLAViolation(sql.FieldLT(FieldWaivedBy, v))
+}
+
+// WaivedByLTE applies the LTE predicate on the "waived_by" field.
+func WaivedByLTE(v int) predicate.SLAViolation {
+	return predicate.SLAViolation(sql.FieldLTE(FieldWaivedBy, v))
+}
+
+// WaivedByIsNil applies the IsNil predicate on the "waived_by" field.
+func WaivedByIsNil() predicate.SLAViolation {
+	return predicate.SLAViolation(sql.FieldIsNull(FieldWaivedBy))
+}
+
+// WaivedByNotNil applies the NotNil predicate on the "waived_by" field.
+func WaivedByNotNil() predicate.SLAViolation {
+	return predicate.SLAViolation(sql.FieldNotNull(FieldWaivedBy))
+}
+
+// WaivedAtEQ applies the EQ predicate on the "waived_at" field.
+func WaivedAtEQ(v time.Time) predicate.SLAViolation {
+	return predicate.SLAViolation(sql.FieldEQ(FieldWaivedAt, v))
+}
+
+// WaivedAtNEQ applies the NEQ predicate on the "waived_at" field.
+func WaivedAtNEQ(v time.Time) predicate.SLAViolation {
+	return predicate.SLAViolation(sql.FieldNEQ(FieldWaivedAt, v))
+}
+
+// WaivedAtIn applies the In predicate on the "waived_at" field.
+func WaivedAtIn(vs ...time.Time) predicate.SLAViolation {
+	return predicate.SLAViolation(sql.FieldIn(FieldWaivedAt, vs...))
+}
+
+// WaivedAtNotIn applies the NotIn predicate on the "waived_at" field.
+func WaivedAtNotIn(vs ...time.Time) predicate.SLAViolation {
+	return predicate.SLAViolation(sql.FieldNotIn(FieldWaivedAt, vs...))
+}
+
+// WaivedAtGT applies the GT predicate on the "waived_at" field.
+func WaivedAtGT(v time.Time) predicate.SLAViolation {
+	return predicate.SLAViolation(sql.FieldGT(FieldWaivedAt, v))
+}
+
+// WaivedAtGTE applies the GTE predicate on the "waived_at" field.
+func WaivedAtGTE(v time.Time) predicate.SLAViolation {
+	return predicate.SLAViolation(sql.FieldGTE(FieldWaivedAt, v))
+}
+
+// WaivedAtLT applies the LT predicate on the "waived_at" field.
+func WaivedAtLT(v time.Time) predicate.SLAViolation {
+	return predicate.SLAViolation(sql.FieldLT(FieldWaivedAt, v))
+}
+
+// WaivedAtLTE applies the LTE predicate on the "waived_at" field.
+func WaivedAtLTE(v time.Time) predicate.SLAViolation {
+	return predicate.SLAViolation(sql.FieldLTE(FieldWaivedAt, v))
+}
+
+// WaivedAtIsNil applies the IsNil predicate on the "waived_at" field.
+func WaivedAtIsNil() predicate.SLAViolation {
+	return predicate.SLAViolation(sql.FieldIsNull(FieldWaivedAt))
+}
+
+// WaivedAtNotNil applies the NotNil predicate on the "waived_at" field.
+func WaivedAtNotNil() predicate.SLAViolation {
+	return predicate.SLAViolation(sql.FieldNotNull(FieldWaivedAt))
+}
+
+// SettledFlagEQ applies the EQ predicate on the "settled_flag" field.
+func SettledFlagEQ(v bool) predicate.SLAViolation {
+	return predicate.SLAViolation(sql.FieldEQ(FieldSettledFlag, v))
+}
+
+// SettledFlagNEQ applies the NEQ predicate on the "settled_flag" field.
+func SettledFlagNEQ(v bool) predicate.SLAViolation {
+	return predicate.SLAViolation(sql.FieldNEQ(FieldSettledFlag, v))
 }
 
 // TenantIDEQ applies the EQ predicate on the "tenant_id" field.

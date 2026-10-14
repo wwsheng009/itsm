@@ -613,6 +613,11 @@ func toSLAViolationDomain(e *ent.SLAViolation) *SLAViolation {
 		t := e.ResolvedAt
 		resolvedAt = &t
 	}
+	var waivedAt *time.Time
+	if !e.WaivedAt.IsZero() {
+		t := e.WaivedAt
+		waivedAt = &t
+	}
 	return &SLAViolation{
 		ID:              e.ID,
 		CreatedBy:       e.CreatedBy,
@@ -626,6 +631,12 @@ func toSLAViolationDomain(e *ent.SLAViolation) *SLAViolation {
 		IsResolved:      e.IsResolved,
 		ResolvedAt:      resolvedAt,
 		ResolutionNotes: e.ResolutionNotes,
+		ResolutionState: e.ResolutionState,
+		DisputeReason:   e.DisputeReason,
+		WaivedReason:    e.WaivedReason,
+		WaivedBy:        e.WaivedBy,
+		WaivedAt:        waivedAt,
+		SettledFlag:     e.SettledFlag,
 		TenantID:        e.TenantID,
 	}
 }
@@ -705,6 +716,38 @@ func (r *EntRepository) UpdateViolationStatus(ctx context.Context, id int, isRes
 		update.SetResolvedAt(time.Now())
 	}
 	return update.Exec(ctx)
+}
+
+// GetViolationResolutionState 读取归责状态与结算锁定标记（D-SLA-8 状态机校验用）。
+func (r *EntRepository) GetViolationResolutionState(ctx context.Context, id, tenantID int) (string, bool, error) {
+	e, err := r.client.SLAViolation.Query().
+		Where(slaviolation.IDEQ(id), slaviolation.TenantID(tenantID)).
+		Only(ctx)
+	if err != nil {
+		return "", false, err
+	}
+	return e.ResolutionState, e.SettledFlag, nil
+}
+
+// TransitionViolationResolutionState CAS 更新（WHERE resolution_state=expected AND settled_flag=false）。
+// 返回受影响行数：0 表示状态已并发变更或已进结算快照（调用方按冲突拒绝）。
+func (r *EntRepository) TransitionViolationResolutionState(ctx context.Context, id, tenantID int, expectedState, target, reason string, actorID int) (int, error) {
+	upd := r.client.SLAViolation.Update().
+		Where(
+			slaviolation.IDEQ(id),
+			slaviolation.TenantID(tenantID),
+			slaviolation.ResolutionStateEQ(expectedState),
+			slaviolation.SettledFlagEQ(false),
+		).
+		SetResolutionState(target).
+		SetUpdatedAt(time.Now())
+	switch target {
+	case "disputed":
+		upd = upd.SetDisputeReason(reason)
+	case "waived":
+		upd = upd.SetWaivedReason(reason).SetWaivedBy(actorID).SetWaivedAt(time.Now())
+	}
+	return upd.Save(ctx)
 }
 
 // --- Alert Rules ---

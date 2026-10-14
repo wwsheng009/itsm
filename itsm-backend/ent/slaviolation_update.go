@@ -326,6 +326,121 @@ func (_u *SLAViolationUpdate) ClearResolutionNotes() *SLAViolationUpdate {
 	return _u
 }
 
+// SetResolutionState sets the "resolution_state" field.
+func (_u *SLAViolationUpdate) SetResolutionState(v string) *SLAViolationUpdate {
+	_u.mutation.SetResolutionState(v)
+	return _u
+}
+
+// SetNillableResolutionState sets the "resolution_state" field if the given value is not nil.
+func (_u *SLAViolationUpdate) SetNillableResolutionState(v *string) *SLAViolationUpdate {
+	if v != nil {
+		_u.SetResolutionState(*v)
+	}
+	return _u
+}
+
+// SetDisputeReason sets the "dispute_reason" field.
+func (_u *SLAViolationUpdate) SetDisputeReason(v string) *SLAViolationUpdate {
+	_u.mutation.SetDisputeReason(v)
+	return _u
+}
+
+// SetNillableDisputeReason sets the "dispute_reason" field if the given value is not nil.
+func (_u *SLAViolationUpdate) SetNillableDisputeReason(v *string) *SLAViolationUpdate {
+	if v != nil {
+		_u.SetDisputeReason(*v)
+	}
+	return _u
+}
+
+// ClearDisputeReason clears the value of the "dispute_reason" field.
+func (_u *SLAViolationUpdate) ClearDisputeReason() *SLAViolationUpdate {
+	_u.mutation.ClearDisputeReason()
+	return _u
+}
+
+// SetWaivedReason sets the "waived_reason" field.
+func (_u *SLAViolationUpdate) SetWaivedReason(v string) *SLAViolationUpdate {
+	_u.mutation.SetWaivedReason(v)
+	return _u
+}
+
+// SetNillableWaivedReason sets the "waived_reason" field if the given value is not nil.
+func (_u *SLAViolationUpdate) SetNillableWaivedReason(v *string) *SLAViolationUpdate {
+	if v != nil {
+		_u.SetWaivedReason(*v)
+	}
+	return _u
+}
+
+// ClearWaivedReason clears the value of the "waived_reason" field.
+func (_u *SLAViolationUpdate) ClearWaivedReason() *SLAViolationUpdate {
+	_u.mutation.ClearWaivedReason()
+	return _u
+}
+
+// SetWaivedBy sets the "waived_by" field.
+func (_u *SLAViolationUpdate) SetWaivedBy(v int) *SLAViolationUpdate {
+	_u.mutation.ResetWaivedBy()
+	_u.mutation.SetWaivedBy(v)
+	return _u
+}
+
+// SetNillableWaivedBy sets the "waived_by" field if the given value is not nil.
+func (_u *SLAViolationUpdate) SetNillableWaivedBy(v *int) *SLAViolationUpdate {
+	if v != nil {
+		_u.SetWaivedBy(*v)
+	}
+	return _u
+}
+
+// AddWaivedBy adds value to the "waived_by" field.
+func (_u *SLAViolationUpdate) AddWaivedBy(v int) *SLAViolationUpdate {
+	_u.mutation.AddWaivedBy(v)
+	return _u
+}
+
+// ClearWaivedBy clears the value of the "waived_by" field.
+func (_u *SLAViolationUpdate) ClearWaivedBy() *SLAViolationUpdate {
+	_u.mutation.ClearWaivedBy()
+	return _u
+}
+
+// SetWaivedAt sets the "waived_at" field.
+func (_u *SLAViolationUpdate) SetWaivedAt(v time.Time) *SLAViolationUpdate {
+	_u.mutation.SetWaivedAt(v)
+	return _u
+}
+
+// SetNillableWaivedAt sets the "waived_at" field if the given value is not nil.
+func (_u *SLAViolationUpdate) SetNillableWaivedAt(v *time.Time) *SLAViolationUpdate {
+	if v != nil {
+		_u.SetWaivedAt(*v)
+	}
+	return _u
+}
+
+// ClearWaivedAt clears the value of the "waived_at" field.
+func (_u *SLAViolationUpdate) ClearWaivedAt() *SLAViolationUpdate {
+	_u.mutation.ClearWaivedAt()
+	return _u
+}
+
+// SetSettledFlag sets the "settled_flag" field.
+func (_u *SLAViolationUpdate) SetSettledFlag(v bool) *SLAViolationUpdate {
+	_u.mutation.SetSettledFlag(v)
+	return _u
+}
+
+// SetNillableSettledFlag sets the "settled_flag" field if the given value is not nil.
+func (_u *SLAViolationUpdate) SetNillableSettledFlag(v *bool) *SLAViolationUpdate {
+	if v != nil {
+		_u.SetSettledFlag(*v)
+	}
+	return _u
+}
+
 // SetTenantID sets the "tenant_id" field.
 func (_u *SLAViolationUpdate) SetTenantID(v int) *SLAViolationUpdate {
 	_u.mutation.ResetTenantID()
@@ -447,6 +562,11 @@ func (_u *SLAViolationUpdate) check() error {
 			return &ValidationError{Name: "violation_type", err: fmt.Errorf(`ent: validator failed for field "SLAViolation.violation_type": %w`, err)}
 		}
 	}
+	if v, ok := _u.mutation.ResolutionState(); ok {
+		if err := slaviolation.ResolutionStateValidator(v); err != nil {
+			return &ValidationError{Name: "resolution_state", err: fmt.Errorf(`ent: validator failed for field "SLAViolation.resolution_state": %w`, err)}
+		}
+	}
 	if v, ok := _u.mutation.TenantID(); ok {
 		if err := slaviolation.TenantIDValidator(v); err != nil {
 			return &ValidationError{Name: "tenant_id", err: fmt.Errorf(`ent: validator failed for field "SLAViolation.tenant_id": %w`, err)}
@@ -544,6 +664,39 @@ func (_u *SLAViolationUpdate) sqlSave(ctx context.Context) (_node int, err error
 	}
 	if _u.mutation.ResolutionNotesCleared() {
 		_spec.ClearField(slaviolation.FieldResolutionNotes, field.TypeString)
+	}
+	if value, ok := _u.mutation.ResolutionState(); ok {
+		_spec.SetField(slaviolation.FieldResolutionState, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.DisputeReason(); ok {
+		_spec.SetField(slaviolation.FieldDisputeReason, field.TypeString, value)
+	}
+	if _u.mutation.DisputeReasonCleared() {
+		_spec.ClearField(slaviolation.FieldDisputeReason, field.TypeString)
+	}
+	if value, ok := _u.mutation.WaivedReason(); ok {
+		_spec.SetField(slaviolation.FieldWaivedReason, field.TypeString, value)
+	}
+	if _u.mutation.WaivedReasonCleared() {
+		_spec.ClearField(slaviolation.FieldWaivedReason, field.TypeString)
+	}
+	if value, ok := _u.mutation.WaivedBy(); ok {
+		_spec.SetField(slaviolation.FieldWaivedBy, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.AddedWaivedBy(); ok {
+		_spec.AddField(slaviolation.FieldWaivedBy, field.TypeInt, value)
+	}
+	if _u.mutation.WaivedByCleared() {
+		_spec.ClearField(slaviolation.FieldWaivedBy, field.TypeInt)
+	}
+	if value, ok := _u.mutation.WaivedAt(); ok {
+		_spec.SetField(slaviolation.FieldWaivedAt, field.TypeTime, value)
+	}
+	if _u.mutation.WaivedAtCleared() {
+		_spec.ClearField(slaviolation.FieldWaivedAt, field.TypeTime)
+	}
+	if value, ok := _u.mutation.SettledFlag(); ok {
+		_spec.SetField(slaviolation.FieldSettledFlag, field.TypeBool, value)
 	}
 	if value, ok := _u.mutation.TenantID(); ok {
 		_spec.SetField(slaviolation.FieldTenantID, field.TypeInt, value)
@@ -931,6 +1084,121 @@ func (_u *SLAViolationUpdateOne) ClearResolutionNotes() *SLAViolationUpdateOne {
 	return _u
 }
 
+// SetResolutionState sets the "resolution_state" field.
+func (_u *SLAViolationUpdateOne) SetResolutionState(v string) *SLAViolationUpdateOne {
+	_u.mutation.SetResolutionState(v)
+	return _u
+}
+
+// SetNillableResolutionState sets the "resolution_state" field if the given value is not nil.
+func (_u *SLAViolationUpdateOne) SetNillableResolutionState(v *string) *SLAViolationUpdateOne {
+	if v != nil {
+		_u.SetResolutionState(*v)
+	}
+	return _u
+}
+
+// SetDisputeReason sets the "dispute_reason" field.
+func (_u *SLAViolationUpdateOne) SetDisputeReason(v string) *SLAViolationUpdateOne {
+	_u.mutation.SetDisputeReason(v)
+	return _u
+}
+
+// SetNillableDisputeReason sets the "dispute_reason" field if the given value is not nil.
+func (_u *SLAViolationUpdateOne) SetNillableDisputeReason(v *string) *SLAViolationUpdateOne {
+	if v != nil {
+		_u.SetDisputeReason(*v)
+	}
+	return _u
+}
+
+// ClearDisputeReason clears the value of the "dispute_reason" field.
+func (_u *SLAViolationUpdateOne) ClearDisputeReason() *SLAViolationUpdateOne {
+	_u.mutation.ClearDisputeReason()
+	return _u
+}
+
+// SetWaivedReason sets the "waived_reason" field.
+func (_u *SLAViolationUpdateOne) SetWaivedReason(v string) *SLAViolationUpdateOne {
+	_u.mutation.SetWaivedReason(v)
+	return _u
+}
+
+// SetNillableWaivedReason sets the "waived_reason" field if the given value is not nil.
+func (_u *SLAViolationUpdateOne) SetNillableWaivedReason(v *string) *SLAViolationUpdateOne {
+	if v != nil {
+		_u.SetWaivedReason(*v)
+	}
+	return _u
+}
+
+// ClearWaivedReason clears the value of the "waived_reason" field.
+func (_u *SLAViolationUpdateOne) ClearWaivedReason() *SLAViolationUpdateOne {
+	_u.mutation.ClearWaivedReason()
+	return _u
+}
+
+// SetWaivedBy sets the "waived_by" field.
+func (_u *SLAViolationUpdateOne) SetWaivedBy(v int) *SLAViolationUpdateOne {
+	_u.mutation.ResetWaivedBy()
+	_u.mutation.SetWaivedBy(v)
+	return _u
+}
+
+// SetNillableWaivedBy sets the "waived_by" field if the given value is not nil.
+func (_u *SLAViolationUpdateOne) SetNillableWaivedBy(v *int) *SLAViolationUpdateOne {
+	if v != nil {
+		_u.SetWaivedBy(*v)
+	}
+	return _u
+}
+
+// AddWaivedBy adds value to the "waived_by" field.
+func (_u *SLAViolationUpdateOne) AddWaivedBy(v int) *SLAViolationUpdateOne {
+	_u.mutation.AddWaivedBy(v)
+	return _u
+}
+
+// ClearWaivedBy clears the value of the "waived_by" field.
+func (_u *SLAViolationUpdateOne) ClearWaivedBy() *SLAViolationUpdateOne {
+	_u.mutation.ClearWaivedBy()
+	return _u
+}
+
+// SetWaivedAt sets the "waived_at" field.
+func (_u *SLAViolationUpdateOne) SetWaivedAt(v time.Time) *SLAViolationUpdateOne {
+	_u.mutation.SetWaivedAt(v)
+	return _u
+}
+
+// SetNillableWaivedAt sets the "waived_at" field if the given value is not nil.
+func (_u *SLAViolationUpdateOne) SetNillableWaivedAt(v *time.Time) *SLAViolationUpdateOne {
+	if v != nil {
+		_u.SetWaivedAt(*v)
+	}
+	return _u
+}
+
+// ClearWaivedAt clears the value of the "waived_at" field.
+func (_u *SLAViolationUpdateOne) ClearWaivedAt() *SLAViolationUpdateOne {
+	_u.mutation.ClearWaivedAt()
+	return _u
+}
+
+// SetSettledFlag sets the "settled_flag" field.
+func (_u *SLAViolationUpdateOne) SetSettledFlag(v bool) *SLAViolationUpdateOne {
+	_u.mutation.SetSettledFlag(v)
+	return _u
+}
+
+// SetNillableSettledFlag sets the "settled_flag" field if the given value is not nil.
+func (_u *SLAViolationUpdateOne) SetNillableSettledFlag(v *bool) *SLAViolationUpdateOne {
+	if v != nil {
+		_u.SetSettledFlag(*v)
+	}
+	return _u
+}
+
 // SetTenantID sets the "tenant_id" field.
 func (_u *SLAViolationUpdateOne) SetTenantID(v int) *SLAViolationUpdateOne {
 	_u.mutation.ResetTenantID()
@@ -1065,6 +1333,11 @@ func (_u *SLAViolationUpdateOne) check() error {
 			return &ValidationError{Name: "violation_type", err: fmt.Errorf(`ent: validator failed for field "SLAViolation.violation_type": %w`, err)}
 		}
 	}
+	if v, ok := _u.mutation.ResolutionState(); ok {
+		if err := slaviolation.ResolutionStateValidator(v); err != nil {
+			return &ValidationError{Name: "resolution_state", err: fmt.Errorf(`ent: validator failed for field "SLAViolation.resolution_state": %w`, err)}
+		}
+	}
 	if v, ok := _u.mutation.TenantID(); ok {
 		if err := slaviolation.TenantIDValidator(v); err != nil {
 			return &ValidationError{Name: "tenant_id", err: fmt.Errorf(`ent: validator failed for field "SLAViolation.tenant_id": %w`, err)}
@@ -1179,6 +1452,39 @@ func (_u *SLAViolationUpdateOne) sqlSave(ctx context.Context) (_node *SLAViolati
 	}
 	if _u.mutation.ResolutionNotesCleared() {
 		_spec.ClearField(slaviolation.FieldResolutionNotes, field.TypeString)
+	}
+	if value, ok := _u.mutation.ResolutionState(); ok {
+		_spec.SetField(slaviolation.FieldResolutionState, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.DisputeReason(); ok {
+		_spec.SetField(slaviolation.FieldDisputeReason, field.TypeString, value)
+	}
+	if _u.mutation.DisputeReasonCleared() {
+		_spec.ClearField(slaviolation.FieldDisputeReason, field.TypeString)
+	}
+	if value, ok := _u.mutation.WaivedReason(); ok {
+		_spec.SetField(slaviolation.FieldWaivedReason, field.TypeString, value)
+	}
+	if _u.mutation.WaivedReasonCleared() {
+		_spec.ClearField(slaviolation.FieldWaivedReason, field.TypeString)
+	}
+	if value, ok := _u.mutation.WaivedBy(); ok {
+		_spec.SetField(slaviolation.FieldWaivedBy, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.AddedWaivedBy(); ok {
+		_spec.AddField(slaviolation.FieldWaivedBy, field.TypeInt, value)
+	}
+	if _u.mutation.WaivedByCleared() {
+		_spec.ClearField(slaviolation.FieldWaivedBy, field.TypeInt)
+	}
+	if value, ok := _u.mutation.WaivedAt(); ok {
+		_spec.SetField(slaviolation.FieldWaivedAt, field.TypeTime, value)
+	}
+	if _u.mutation.WaivedAtCleared() {
+		_spec.ClearField(slaviolation.FieldWaivedAt, field.TypeTime)
+	}
+	if value, ok := _u.mutation.SettledFlag(); ok {
+		_spec.SetField(slaviolation.FieldSettledFlag, field.TypeBool, value)
 	}
 	if value, ok := _u.mutation.TenantID(); ok {
 		_spec.SetField(slaviolation.FieldTenantID, field.TypeInt, value)

@@ -976,6 +976,7 @@ func precheckRoutePermissions() map[string]map[string]Permission {
 			"/api/v1/sla/grants/*":                                {Resource: "sla", Action: "grant:write"},
 			"/api/v1/sla/policies/*":                              {Resource: "sla", Action: "write"},
 			"/api/v1/sla/violations/*":                            {Resource: "sla", Action: "write"},
+			"/api/v1/sla/violations/*/settle":                     {Resource: "sla", Action: "violation:settle"},
 			"/api/v1/standard-changes/*":                          {Resource: "change", Action: "write"},
 			"/api/v1/surveys/*":                                   {Resource: "survey", Action: "write"},
 			"/api/v1/system-configs/*":                            {Resource: "system_config", Action: "write"},

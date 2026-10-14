@@ -48,6 +48,18 @@ const (
 	FieldResolvedAt = "resolved_at"
 	// FieldResolutionNotes holds the string denoting the resolution_notes field in the database.
 	FieldResolutionNotes = "resolution_notes"
+	// FieldResolutionState holds the string denoting the resolution_state field in the database.
+	FieldResolutionState = "resolution_state"
+	// FieldDisputeReason holds the string denoting the dispute_reason field in the database.
+	FieldDisputeReason = "dispute_reason"
+	// FieldWaivedReason holds the string denoting the waived_reason field in the database.
+	FieldWaivedReason = "waived_reason"
+	// FieldWaivedBy holds the string denoting the waived_by field in the database.
+	FieldWaivedBy = "waived_by"
+	// FieldWaivedAt holds the string denoting the waived_at field in the database.
+	FieldWaivedAt = "waived_at"
+	// FieldSettledFlag holds the string denoting the settled_flag field in the database.
+	FieldSettledFlag = "settled_flag"
 	// FieldTenantID holds the string denoting the tenant_id field in the database.
 	FieldTenantID = "tenant_id"
 	// FieldCreatedAt holds the string denoting the created_at field in the database.
@@ -96,6 +108,12 @@ var Columns = []string{
 	FieldIsResolved,
 	FieldResolvedAt,
 	FieldResolutionNotes,
+	FieldResolutionState,
+	FieldDisputeReason,
+	FieldWaivedReason,
+	FieldWaivedBy,
+	FieldWaivedAt,
+	FieldSettledFlag,
 	FieldTenantID,
 	FieldCreatedAt,
 	FieldUpdatedAt,
@@ -147,6 +165,12 @@ var (
 	DefaultSeverity string
 	// DefaultIsResolved holds the default value on creation for the "is_resolved" field.
 	DefaultIsResolved bool
+	// DefaultResolutionState holds the default value on creation for the "resolution_state" field.
+	DefaultResolutionState string
+	// ResolutionStateValidator is a validator for the "resolution_state" field. It is called by the builders before save.
+	ResolutionStateValidator func(string) error
+	// DefaultSettledFlag holds the default value on creation for the "settled_flag" field.
+	DefaultSettledFlag bool
 	// TenantIDValidator is a validator for the "tenant_id" field. It is called by the builders before save.
 	TenantIDValidator func(int) error
 	// DefaultCreatedAt holds the default value on creation for the "created_at" field.
@@ -248,6 +272,36 @@ func ByResolvedAt(opts ...sql.OrderTermOption) OrderOption {
 // ByResolutionNotes orders the results by the resolution_notes field.
 func ByResolutionNotes(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldResolutionNotes, opts...).ToFunc()
+}
+
+// ByResolutionState orders the results by the resolution_state field.
+func ByResolutionState(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldResolutionState, opts...).ToFunc()
+}
+
+// ByDisputeReason orders the results by the dispute_reason field.
+func ByDisputeReason(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldDisputeReason, opts...).ToFunc()
+}
+
+// ByWaivedReason orders the results by the waived_reason field.
+func ByWaivedReason(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldWaivedReason, opts...).ToFunc()
+}
+
+// ByWaivedBy orders the results by the waived_by field.
+func ByWaivedBy(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldWaivedBy, opts...).ToFunc()
+}
+
+// ByWaivedAt orders the results by the waived_at field.
+func ByWaivedAt(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldWaivedAt, opts...).ToFunc()
+}
+
+// BySettledFlag orders the results by the settled_flag field.
+func BySettledFlag(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldSettledFlag, opts...).ToFunc()
 }
 
 // ByTenantID orders the results by the tenant_id field.

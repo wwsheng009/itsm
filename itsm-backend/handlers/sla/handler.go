@@ -403,9 +403,27 @@ func (h *Handler) UpdateViolationStatus(c *gin.Context) {
 	var req struct {
 		IsResolved bool   `json:"isResolved"`
 		Notes      string `json:"notes"`
+		// D-SLA-8：resolutionState="disputed" 时走归责状态机（customer 提争议，reason 必填）；
+		// accepted/waived 走 PUT /sla/violations/:id/settle（sla:violation:settle 权限）。
+		ResolutionState string `json:"resolutionState,omitempty"`
+		DisputeReason   string `json:"disputeReason,omitempty"`
 	}
 	if err := c.ShouldBindJSON(&req); err != nil {
 		common.ParamError(c, "参数错误: "+err.Error())
+		return
+	}
+
+	if req.ResolutionState != "" {
+		if req.ResolutionState != "disputed" {
+			common.ParamError(c, "该端点仅支持 resolutionState=disputed；accepted/waived 请使用 /sla/violations/:id/settle")
+			return
+		}
+		if err := h.svc.TransitionViolationResolutionState(
+			c.Request.Context(), id, tenantIDVal, "disputed", req.DisputeReason, c.GetInt("user_id")); err != nil {
+			failSLAQuery(c, err, "提交SLA违约争议失败")
+			return
+		}
+		common.Success(c, gin.H{"id": id, "resolutionState": "disputed"})
 		return
 	}
 
@@ -415,6 +433,27 @@ func (h *Handler) UpdateViolationStatus(c *gin.Context) {
 		return
 	}
 	common.Success(c, res)
+}
+
+// SettleViolation handles PUT /api/v1/sla/violations/:id/settle
+// 违约裁决（D-SLA-8）：accepted=认账（进结算）；waived=豁免（不进结算）。
+// 权限码 sla:violation:settle（provider 侧裁决；方案 §13.1）。终态不可逆、settled 锁定。
+func (h *Handler) SettleViolation(c *gin.Context) {
+	id, ok := parseIDParam(c)
+	if !ok {
+		return
+	}
+	var req dto.SettleViolationRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		common.ParamError(c, "参数错误: "+err.Error())
+		return
+	}
+	if err := h.svc.TransitionViolationResolutionState(
+		c.Request.Context(), id, c.GetInt("tenant_id"), req.Decision, req.Reason, c.GetInt("user_id")); err != nil {
+		failSLAQuery(c, err, "裁决SLA违约失败")
+		return
+	}
+	common.Success(c, gin.H{"id": id, "resolutionState": req.Decision})
 }
 
 // GetSLAMonitoring handles POST /api/v1/sla/monitoring（兼容别名 /sla/monitor）

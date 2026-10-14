@@ -5116,16 +5116,26 @@ func init() {
 	slaviolationDescIsResolved := slaviolationFields[14].Descriptor()
 	// slaviolation.DefaultIsResolved holds the default value on creation for the is_resolved field.
 	slaviolation.DefaultIsResolved = slaviolationDescIsResolved.Default.(bool)
+	// slaviolationDescResolutionState is the schema descriptor for resolution_state field.
+	slaviolationDescResolutionState := slaviolationFields[17].Descriptor()
+	// slaviolation.DefaultResolutionState holds the default value on creation for the resolution_state field.
+	slaviolation.DefaultResolutionState = slaviolationDescResolutionState.Default.(string)
+	// slaviolation.ResolutionStateValidator is a validator for the "resolution_state" field. It is called by the builders before save.
+	slaviolation.ResolutionStateValidator = slaviolationDescResolutionState.Validators[0].(func(string) error)
+	// slaviolationDescSettledFlag is the schema descriptor for settled_flag field.
+	slaviolationDescSettledFlag := slaviolationFields[22].Descriptor()
+	// slaviolation.DefaultSettledFlag holds the default value on creation for the settled_flag field.
+	slaviolation.DefaultSettledFlag = slaviolationDescSettledFlag.Default.(bool)
 	// slaviolationDescTenantID is the schema descriptor for tenant_id field.
-	slaviolationDescTenantID := slaviolationFields[17].Descriptor()
+	slaviolationDescTenantID := slaviolationFields[23].Descriptor()
 	// slaviolation.TenantIDValidator is a validator for the "tenant_id" field. It is called by the builders before save.
 	slaviolation.TenantIDValidator = slaviolationDescTenantID.Validators[0].(func(int) error)
 	// slaviolationDescCreatedAt is the schema descriptor for created_at field.
-	slaviolationDescCreatedAt := slaviolationFields[18].Descriptor()
+	slaviolationDescCreatedAt := slaviolationFields[24].Descriptor()
 	// slaviolation.DefaultCreatedAt holds the default value on creation for the created_at field.
 	slaviolation.DefaultCreatedAt = slaviolationDescCreatedAt.Default.(func() time.Time)
 	// slaviolationDescUpdatedAt is the schema descriptor for updated_at field.
-	slaviolationDescUpdatedAt := slaviolationFields[19].Descriptor()
+	slaviolationDescUpdatedAt := slaviolationFields[25].Descriptor()
 	// slaviolation.DefaultUpdatedAt holds the default value on creation for the updated_at field.
 	slaviolation.DefaultUpdatedAt = slaviolationDescUpdatedAt.Default.(func() time.Time)
 	// slaviolation.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.

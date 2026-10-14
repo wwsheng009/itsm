@@ -113,6 +113,13 @@ type UpdateSLAViolationRequest struct {
 	ResolutionNotes *string `json:"resolutionNotes,omitempty"`
 }
 
+// SettleViolationRequest 违约裁决（D-SLA-8，方案 §13.1）：
+// accepted=认账进结算；waived=豁免不进结算（reason 必填）。
+type SettleViolationRequest struct {
+	Decision string `json:"decision" binding:"required,oneof=accepted waived" example:"accepted"`
+	Reason   string `json:"reason" example:"经双方确认属客户侧原因"`
+}
+
 type SLAViolationResponse struct {
 	ID              int        `json:"id" example:"1"`
 	SLADefinitionID int        `json:"slaDefinitionId" example:"1"`
@@ -124,6 +131,13 @@ type SLAViolationResponse struct {
 	IsResolved      bool       `json:"isResolved" example:"false"`
 	ResolvedAt      *time.Time `json:"resolvedAt,omitempty" example:"2024-01-01T00:00:00Z"`
 	ResolutionNotes string     `json:"resolutionNotes" example:"已解决"`
+	// D-SLA-8 归责状态机
+	ResolutionState string     `json:"resolutionState" example:"pending"`
+	DisputeReason   string     `json:"disputeReason,omitempty"`
+	WaivedReason    string     `json:"waivedReason,omitempty"`
+	WaivedBy        int        `json:"waivedBy,omitempty"`
+	WaivedAt        *time.Time `json:"waivedAt,omitempty"`
+	SettledFlag     bool       `json:"settledFlag" example:"false"`
 	TenantID        int        `json:"tenantId" example:"1"`
 	CreatedAt       time.Time  `json:"createdAt" example:"2024-01-01T00:00:00Z"`
 	UpdatedAt       time.Time  `json:"updatedAt" example:"2024-01-01T00:00:00Z"`

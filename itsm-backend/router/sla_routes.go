@@ -47,6 +47,8 @@ func SetupSLARoutes(tenant *gin.RouterGroup, h *slaHandler.Handler) {
 		// SLA Violations
 		slaGrp.GET("/violations", middleware.RequirePermission("sla", "read"), h.GetSLAViolations)
 		slaGrp.PUT("/violations/:id", middleware.RequirePermission("sla", "write"), h.UpdateViolationStatus)
+		// 违约裁决（D-SLA-8，方案 §13.1）：accepted/waived 归责终态需 sla:violation:settle
+		slaGrp.PUT("/violations/:id/settle", middleware.RequirePermission("sla", "violation:settle"), h.SettleViolation)
 
 		// SLA Monitoring
 		slaGrp.POST("/monitoring", middleware.RequirePermission("sla", "read"), h.GetSLAMonitoring)

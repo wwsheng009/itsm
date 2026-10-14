@@ -53,6 +53,18 @@ type SLAViolation struct {
 	ResolvedAt time.Time `json:"resolved_at,omitempty"`
 	// 解决说明
 	ResolutionNotes string `json:"resolution_notes,omitempty"`
+	// 归责状态: pending|accepted|disputed|waived
+	ResolutionState string `json:"resolution_state,omitempty"`
+	// 争议理由（disputed 时必填）
+	DisputeReason string `json:"dispute_reason,omitempty"`
+	// 豁免理由（waived 时必填）
+	WaivedReason string `json:"waived_reason,omitempty"`
+	// 豁免操作人ID
+	WaivedBy int `json:"waived_by,omitempty"`
+	// 豁免时间
+	WaivedAt time.Time `json:"waived_at,omitempty"`
+	// 已进结算快照（终态锁定；D-SLA-9 §13.3）
+	SettledFlag bool `json:"settled_flag,omitempty"`
 	// 租户ID
 	TenantID int `json:"tenant_id,omitempty"`
 	// 创建时间
@@ -104,13 +116,13 @@ func (*SLAViolation) scanValues(columns []string) ([]any, error) {
 	values := make([]any, len(columns))
 	for i := range columns {
 		switch columns[i] {
-		case slaviolation.FieldIsResolved:
+		case slaviolation.FieldIsResolved, slaviolation.FieldSettledFlag:
 			values[i] = new(sql.NullBool)
-		case slaviolation.FieldID, slaviolation.FieldCreatedBy, slaviolation.FieldSLADefinitionID, slaviolation.FieldTicketID, slaviolation.FieldExpectedTime, slaviolation.FieldActualTime, slaviolation.FieldOverdueMinutes, slaviolation.FieldTenantID:
+		case slaviolation.FieldID, slaviolation.FieldCreatedBy, slaviolation.FieldSLADefinitionID, slaviolation.FieldTicketID, slaviolation.FieldExpectedTime, slaviolation.FieldActualTime, slaviolation.FieldOverdueMinutes, slaviolation.FieldWaivedBy, slaviolation.FieldTenantID:
 			values[i] = new(sql.NullInt64)
-		case slaviolation.FieldTicketType, slaviolation.FieldSLAName, slaviolation.FieldViolationType, slaviolation.FieldStatus, slaviolation.FieldDescription, slaviolation.FieldSeverity, slaviolation.FieldResolutionNotes:
+		case slaviolation.FieldTicketType, slaviolation.FieldSLAName, slaviolation.FieldViolationType, slaviolation.FieldStatus, slaviolation.FieldDescription, slaviolation.FieldSeverity, slaviolation.FieldResolutionNotes, slaviolation.FieldResolutionState, slaviolation.FieldDisputeReason, slaviolation.FieldWaivedReason:
 			values[i] = new(sql.NullString)
-		case slaviolation.FieldViolationTime, slaviolation.FieldViolationOccurredAt, slaviolation.FieldResolvedAt, slaviolation.FieldCreatedAt, slaviolation.FieldUpdatedAt:
+		case slaviolation.FieldViolationTime, slaviolation.FieldViolationOccurredAt, slaviolation.FieldResolvedAt, slaviolation.FieldWaivedAt, slaviolation.FieldCreatedAt, slaviolation.FieldUpdatedAt:
 			values[i] = new(sql.NullTime)
 		case slaviolation.ForeignKeys[0]: // incident_sla_violations
 			values[i] = new(sql.NullInt64)
@@ -237,6 +249,42 @@ func (_m *SLAViolation) assignValues(columns []string, values []any) error {
 			} else if value.Valid {
 				_m.ResolutionNotes = value.String
 			}
+		case slaviolation.FieldResolutionState:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field resolution_state", values[i])
+			} else if value.Valid {
+				_m.ResolutionState = value.String
+			}
+		case slaviolation.FieldDisputeReason:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field dispute_reason", values[i])
+			} else if value.Valid {
+				_m.DisputeReason = value.String
+			}
+		case slaviolation.FieldWaivedReason:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field waived_reason", values[i])
+			} else if value.Valid {
+				_m.WaivedReason = value.String
+			}
+		case slaviolation.FieldWaivedBy:
+			if value, ok := values[i].(*sql.NullInt64); !ok {
+				return fmt.Errorf("unexpected type %T for field waived_by", values[i])
+			} else if value.Valid {
+				_m.WaivedBy = int(value.Int64)
+			}
+		case slaviolation.FieldWaivedAt:
+			if value, ok := values[i].(*sql.NullTime); !ok {
+				return fmt.Errorf("unexpected type %T for field waived_at", values[i])
+			} else if value.Valid {
+				_m.WaivedAt = value.Time
+			}
+		case slaviolation.FieldSettledFlag:
+			if value, ok := values[i].(*sql.NullBool); !ok {
+				return fmt.Errorf("unexpected type %T for field settled_flag", values[i])
+			} else if value.Valid {
+				_m.SettledFlag = value.Bool
+			}
 		case slaviolation.FieldTenantID:
 			if value, ok := values[i].(*sql.NullInt64); !ok {
 				return fmt.Errorf("unexpected type %T for field tenant_id", values[i])
@@ -358,6 +406,24 @@ func (_m *SLAViolation) String() string {
 	builder.WriteString(", ")
 	builder.WriteString("resolution_notes=")
 	builder.WriteString(_m.ResolutionNotes)
+	builder.WriteString(", ")
+	builder.WriteString("resolution_state=")
+	builder.WriteString(_m.ResolutionState)
+	builder.WriteString(", ")
+	builder.WriteString("dispute_reason=")
+	builder.WriteString(_m.DisputeReason)
+	builder.WriteString(", ")
+	builder.WriteString("waived_reason=")
+	builder.WriteString(_m.WaivedReason)
+	builder.WriteString(", ")
+	builder.WriteString("waived_by=")
+	builder.WriteString(fmt.Sprintf("%v", _m.WaivedBy))
+	builder.WriteString(", ")
+	builder.WriteString("waived_at=")
+	builder.WriteString(_m.WaivedAt.Format(time.ANSIC))
+	builder.WriteString(", ")
+	builder.WriteString("settled_flag=")
+	builder.WriteString(fmt.Sprintf("%v", _m.SettledFlag))
 	builder.WriteString(", ")
 	builder.WriteString("tenant_id=")
 	builder.WriteString(fmt.Sprintf("%v", _m.TenantID))

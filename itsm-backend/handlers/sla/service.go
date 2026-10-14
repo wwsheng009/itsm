@@ -5,10 +5,12 @@ import (
 	"errors"
 	"fmt"
 	"math"
+	"strings"
 	"time"
 
 	"go.uber.org/zap"
 
+	"itsm-backend/common"
 	"itsm-backend/dto"
 )
 
@@ -132,6 +134,60 @@ func (s *Service) ListProvidedDefinitions(ctx context.Context, customerTenantID 
 		return nil, err
 	}
 	return s.repo.ListProvidedDefinitions(ctx, customerTenantID)
+}
+
+// violationTransitionMatrix 违约归责状态机合法迁移矩阵（D-SLA-8，方案 §13.1）。
+// accepted/waived 为终态（无出边）；pending→disputed 由 customer 发起，
+// disputed→accepted/waived 裁决（权限码 sla:violation:settle）。
+var violationTransitionMatrix = map[string][]string{
+	"pending":  {"accepted", "disputed", "waived"},
+	"disputed": {"accepted", "waived"},
+}
+
+// TransitionViolationResolutionState 违约归责状态机：
+// 矩阵校验 + reason 必填校验（disputed/waived）+ settled 锁定 + CAS 并发冲突拒绝。
+func (s *Service) TransitionViolationResolutionState(ctx context.Context, id, tenantID int, target, reason string, actorID int) error {
+	if err := requireTenant(tenantID); err != nil {
+		return err
+	}
+	switch target {
+	case "accepted", "disputed", "waived":
+	default:
+		return common.NewBusinessError(common.ParamErrorCode, "无效的归责状态目标", "")
+	}
+	if (target == "disputed" || target == "waived") && strings.TrimSpace(reason) == "" {
+		return common.NewBusinessError(common.ParamErrorCode, "该状态必须提供 reason", "")
+	}
+
+	current, settled, err := s.repo.GetViolationResolutionState(ctx, id, tenantID)
+	if err != nil {
+		return err
+	}
+	if settled {
+		return common.NewBusinessError(common.ParamErrorCode, "该违约已进结算快照，状态已锁定", "")
+	}
+	allowed := false
+	for _, t := range violationTransitionMatrix[current] {
+		if t == target {
+			allowed = true
+			break
+		}
+	}
+	if !allowed {
+		return common.NewBusinessError(common.ParamErrorCode,
+			fmt.Sprintf("非法状态迁移: %s → %s（终态不可逆）", current, target), "")
+	}
+
+	affected, err := s.repo.TransitionViolationResolutionState(ctx, id, tenantID, current, target, reason, actorID)
+	if err != nil {
+		return err
+	}
+	if affected == 0 {
+		return common.NewBusinessError(common.ParamErrorCode, "状态已被并发修改，请刷新后重试", "")
+	}
+	s.logger.Infow("SLA violation resolution state transitioned",
+		"id", id, "from", current, "to", target, "actor", actorID)
+	return nil
 }
 
 // MSP SLA Contracts（D-SLA-4）

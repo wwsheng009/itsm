@@ -128,6 +128,8 @@ func Definitions() []PermissionDef {
 		// MSP SLA 合同（D-SLA-4，方案 §4.4；provider 面，仅 MSP 部署）
 		{"sla:contract:read", "查看SLA合同", "sla", "contract:read", "查看 MSP SLA 合同及定义绑定"},
 		{"sla:contract:write", "管理SLA合同", "sla", "contract:write", "创建/更新 MSP SLA 合同（含绑定与状态）"},
+		// 违约裁决（D-SLA-8，方案 §13.1）：认账/豁免归责终态
+		{"sla:violation:settle", "裁决SLA违约", "sla", "violation:settle", "对 SLA 违约作出认账/豁免裁决（结算口径）"},
 		// 用户权限
 		{"user:read", "查看用户", "user", "read", "查看用户列表"},
 		{"user:write", "管理用户", "user", "write", "创建、编辑用户"},

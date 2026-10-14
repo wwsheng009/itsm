@@ -29,6 +29,17 @@ func (SLAViolation) Fields() []ent.Field {
 		field.Bool("is_resolved").Comment("是否已解决").Default(false),
 		field.Time("resolved_at").Comment("解决时间").Optional(),
 		field.Text("resolution_notes").Comment("解决说明").Optional(),
+		// D-SLA-8（方案 §13.1）：违约归责状态机——"解决了"≠"认账了"。
+		// 终态不可逆（accepted/waived）；settled_flag=true 后随结算快照锁定，禁止任何变更。
+		field.String("resolution_state").
+			Comment("归责状态: pending|accepted|disputed|waived").
+			Default("pending").
+			MaxLen(20),
+		field.Text("dispute_reason").Comment("争议理由（disputed 时必填）").Optional(),
+		field.Text("waived_reason").Comment("豁免理由（waived 时必填）").Optional(),
+		field.Int("waived_by").Comment("豁免操作人ID").Optional(),
+		field.Time("waived_at").Comment("豁免时间").Optional(),
+		field.Bool("settled_flag").Comment("已进结算快照（终态锁定；D-SLA-9 §13.3）").Default(false),
 		field.Int("tenant_id").Comment("租户ID").Positive(),
 		field.Time("created_at").Comment("创建时间").Default(time.Now),
 		field.Time("updated_at").Comment("更新时间").Default(time.Now).UpdateDefault(time.Now),

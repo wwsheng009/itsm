@@ -961,7 +961,9 @@ flowchart TD
 | P1-2 | #13 服务部分：合同 CRUD（provider 面）+ L1 匹配升级（合同链解析）+ 并轨闸门（grant 搬迁/写入口唯一化） | ✅ 已提交（见 B.9；前端合同管理页随 P1-2b） |
 | P1-2b | #13 前端：grant 管理页 → 合同管理页替换（列表/新建含 bindings/状态操作）；sla-api 合同化 | ✅ 已提交（见 B.10） |
 | P1-3 | #11/#12 Pause/Resume 真实计时接线（incident + ticket 两路径共用 SLAMonitorService） | ✅ 已提交（见 B.11） |
-| P2 | #14 violation resolution_state（D-SLA-8）+ #15 白名单口径/settlement-report（D-SLA-5/9）+ #20 D-TT-1 类型下发（前置=P0 grant 验收） | ⬜ |
+| P2-1 | #14 违约归责状态机（D-SLA-8）：schema + 状态机 API（disputed/settle）+ 权限码 sla:violation:settle | ✅ 已提交（见 B.12） |
+| P2-2 | #15 结算口径白名单 + provider 结算报表（D-SLA-5/D-SLA-9，含 ticket.sla_matched_layer 快照） | ⬜ |
+| P2-3 | #20 D-TT-1 类型受控下发（前置=P0 部署验收） | ⬜ |
 | P3 | 前端补全（businessHours/grant 选择器/报表页/进度条） | ⬜ |
 
 ### B.3 实施纪律（开发期检查单）
@@ -1115,3 +1117,20 @@ flowchart TD
 - 代码：incident service / ticket handler 接线 + bootstrap 装配（4 文件）；
 - 测试（3 文件）：`service/sla_pause_resume_test.go`（核心实现两分支：暂停/重复暂停错误/恢复追加 29–31min 断言/未暂停恢复错误）；`handlers/incident/sla_pause_resume_test.go`（未装配 fail-closed 不触数据 + 装配后全流程）；`handlers/ticket/sla_pause_resume_test.go`（HTTP 503→200 全流程 + deadline 追加）；
 - 回归：`handlers/incident`/`handlers/ticket` 全包 + `service -run SLA` 全绿。
+
+### B.12 实施期记录（P2-1 违约归责状态机，2026-10-14）
+
+**交付物**（handlers/sla + dto + router 编译绿；`go test ./handlers/sla/...`（含 5 个状态机测试）与守卫四包全绿；codegen ENTC_EXIT=0）：
+
+- **schema**：`sla_violations` 增 6 列——`resolution_state`（pending|accepted|disputed|waived，默认 pending）/`dispute_reason`/`waived_reason`/`waived_by`/`waived_at`/`settled_flag`；ent 生成物 + 迁移 `20261014d`（+down 兜底）；
+- **状态机**（service）：`TransitionViolationResolutionState`——迁移矩阵（pending→三态；disputed→accepted|waived；accepted/waived 终态不可逆）+ reason 必填（disputed/waived）+ **settled 锁定** + **CAS 并发冲突拒绝**（repo 层 `WHERE resolution_state=expected AND settled_flag=false`，affected=0 即冲突）；
+- **API**：`PUT /sla/violations/:id` 扩展 `resolutionState=disputed`（customer 提争议，sla:write）；新 `PUT /sla/violations/:id/settle`（decision=accepted|waived，**sla:violation:settle** 权限）；
+- **权限码** `sla:violation:settle` 四处同步 + authz-gen（绑定 msp_manager/msp_admin）；
+- **测试**（5 场景）：disputed 链（含缺 reason 拒绝）/ waived 留痕（waived_by/at）/ 终态不可逆 / settled 锁定 / 无效目标与 CAS 0 行。
+
+| IM | 说明 |
+|---|---|
+| IM-21 | 裁决端点当前为**租户面语义**（provider 员工经 MSP 作用域/分配进入客户上下文操作）；provider 工作台"跨租户违约队列"集成（canon 跨租户面）列入 P2-2/P3 评估，不阻塞本包 |
+| IM-22 | 分离式端点设计：`disputed` 走原 PUT（sla:write，客户可发起）；`accepted/waived` 走 /settle（sla:violation:settle，provider 裁决）——权限与业务角色对齐，避免单一端点内做角色分支 |
+
+**P2-2 前置已就绪**：settled_flag 防线 + resolution_state 白名单字段（§13.2 判定⑤）均已落库，结算报表可直接引用。
