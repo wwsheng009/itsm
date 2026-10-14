@@ -959,6 +959,7 @@ flowchart TD
 |---|---|---|
 | P1-1 | #13 模型部分：msp_contract + msp_contract_sla_binding schema + codegen + 迁移 + RLS 012 | ✅ 已提交（见 B.8） |
 | P1-2 | #13 服务部分：合同 CRUD（provider 面）+ L1 匹配升级（合同链解析）+ 并轨闸门（grant 搬迁/写入口唯一化） | ✅ 已提交（见 B.9；前端合同管理页随 P1-2b） |
+| P1-2b | #13 前端：grant 管理页 → 合同管理页替换（列表/新建含 bindings/状态操作）；sla-api 合同化 | ✅ 已提交（见 B.10） |
 | P1/P2 | #11/#12 Pause/Resume 真实计时（P1 必做） | ⬜ |
 | P2 | #14 violation resolution_state（D-SLA-8）+ #15 白名单口径/settlement-report（D-SLA-5/9）+ #20 D-TT-1 类型下发（前置=P0 grant 验收） | ⬜ |
 | P3 | 前端补全（businessHours/grant 选择器/报表页/进度条） | ⬜ |
@@ -1081,3 +1082,16 @@ flowchart TD
 - 测试：`sla_contract_test.go` 7 场景（创建/归属/编号唯一/绑定校验/更新替换/FindActive/过期排除）；matcher L1 四场景与 ProvidedFilters 改造为合同链；grant 写端点 410 断言。
 
 **P1-2b 待办（前端）**：grant 管理页替换为合同管理页（现页面对写操作将收到 410 提示）；随下轮实施。
+
+### B.10 实施期记录（P1-2b 前端合同管理，2026-10-14）
+
+**决策**：P1-2b 按推荐顺序实施（先补前端闭环再进 P1-3）——消除"后端 grant 写 410 vs 前端 grant 页"的断裂面，使 P1 前后端可整体部署。
+
+| # | 项 | 实施 |
+|---|---|---|
+| F-1 | `sla-api.ts` 合同化 | 删除 grant 写方法与类型（`listGrants/createGrant/updateGrant/deactivateGrant/CreateSLAGrantPayload/SLADefinitionGrantItem`——无消费者，重新需要时按后端读面加回）；新增 `MSPContractItem/MSPContractBindingItem/CreateMSPContractPayload/UpdateMSPContractPayload` + `listContracts/createContract/getContract/updateContract` |
+| F-2 | 页面替换 | 删除 `admin/sla-grants/index.tsx`；新建 `admin/sla-contracts/index.tsx`（列表：编号/名称/客户/状态/合同期/绑定展开/启用终止操作；新建 Modal：编号/名称/客户下拉/合同期/结算周期/币种 + **bindings Form.List**（定义下拉 + 类型ID，至少一条）；404 空态保留） |
+| F-3 | 路由三件替换 | `routes/index.tsx`（RequireCapability `sla:contract:*`）/`route-paths.ts`/`route-permissions.ts` 由 sla-grants 改为 sla-contracts |
+| F-4 | 测试 | sla-api 契约用例 grant → 合同（列表过滤/创建含 bindings/详情/状态更新/bindings 替换，共 7 用例） |
+
+**P1-2b 验证**：`tsc -b` 绿；eslint 改动文件零告警；jest 44 passed（sla-api + route-permissions 守卫）；`npm run build` 绿（47s）。

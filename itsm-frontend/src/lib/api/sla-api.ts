@@ -22,29 +22,63 @@ export interface SLADefinition {
 }
 
 // ==================== SLA 下发授权（D-SLA-1，provider 面） ====================
+//
+// P1-2 并轨（方案 §4.4）：grant 写入口已迁移到合同管理（/sla/grants 写操作返回 410），
+// 前端不再提供 grant 写方法；下行契约统一走 MSP SLA 合同。
 
-/** GET/POST /api/v1/sla/grants 契约（handlers/sla/entity.go SLADefinitionGrant） */
-export interface SLADefinitionGrantItem {
+// ==================== MSP SLA 合同（D-SLA-4，provider 面） ====================
+
+/** 合同 ↔ SLA 定义绑定（handlers/sla/entity.go MSPContractSLABinding）。 */
+export interface MSPContractBindingItem {
   id: number;
+  contractId: number;
   slaDefinitionId: number;
-  customerTenantId: number;
-  providerTenantId: number;
-  /** 客户租户内的工单类型 ID；0=类型无关授权 */
+  /** 客户租户内的工单类型 ID；0=类型无关绑定 */
   ticketTypeId: number;
-  validUntil?: string;
-  isActive: boolean;
   tenantId: number;
-  createdAt: string;
-  updatedAt: string;
-  /** 列表查询富化的定义名称 */
+  /** 详情/列表查询富化的定义名称 */
   definitionName?: string;
 }
 
-export interface CreateSLAGrantPayload {
-  slaDefinitionId: number;
+/** GET/POST /api/v1/sla/contracts 契约（handlers/sla/entity.go MSPContract）。 */
+export interface MSPContractItem {
+  id: number;
+  providerTenantId: number;
   customerTenantId: number;
-  ticketTypeId?: number;
-  validUntil?: string;
+  contractNo: string;
+  name: string;
+  effectiveFrom: string;
+  effectiveUntil?: string;
+  /** draft | active | expired | terminated */
+  status: string;
+  penalties?: Record<string, unknown>;
+  settlementCycle: string;
+  currency?: string;
+  tenantId: number;
+  createdAt: string;
+  updatedAt: string;
+  bindings?: MSPContractBindingItem[];
+}
+
+export interface CreateMSPContractPayload {
+  customerTenantId: number;
+  contractNo: string;
+  name: string;
+  effectiveFrom?: string;
+  effectiveUntil?: string;
+  status?: string;
+  settlementCycle?: string;
+  currency?: string;
+  bindings: { slaDefinitionId: number; ticketTypeId?: number }[];
+}
+
+export interface UpdateMSPContractPayload {
+  name?: string;
+  status?: string;
+  effectiveUntil?: string;
+  settlementCycle?: string;
+  currency?: string;
+  bindings?: { slaDefinitionId: number; ticketTypeId?: number }[];
 }
 
 /** GET /api/v1/sla/definitions/provided（customer 只读视图；P1-2 起数据源为合同链） */
@@ -258,43 +292,41 @@ export class SLAApi {
     return httpClient.get(`/api/v1/sla/definitions/${id}`);
   }
 
-  // ==================== SLA 下发授权（D-SLA-1，provider 面） ====================
-  // 契约：/api/v1/sla/grants（RequireMSPDeploymentMode 404 gate + sla:grant:*）；
+  // ==================== MSP SLA 合同（D-SLA-4，provider 面） ====================
+  // 契约：/api/v1/sla/contracts（RequireMSPDeploymentMode 404 gate + sla:contract:*）；
   // 非 MSP 部署下返回 404，调用方需渲染"未启用"空态而非报错。
 
-  /** 获取下发授权列表（provider 视角） */
-  static async listGrants(params?: {
+  /** 获取合同列表（provider 视角） */
+  static async listContracts(params?: {
     customerTenantId?: number;
-    slaDefinitionId?: number;
-    isActive?: boolean;
-  }): Promise<{ items: SLADefinitionGrantItem[]; total: number }> {
+    status?: string;
+  }): Promise<{ items: MSPContractItem[]; total: number }> {
     const query: Record<string, string> = {};
     if (params?.customerTenantId) query.customerTenantId = String(params.customerTenantId);
-    if (params?.slaDefinitionId) query.slaDefinitionId = String(params.slaDefinitionId);
-    if (params?.isActive !== undefined) query.isActive = String(params.isActive);
-    const response = await httpClient.get<{ items?: SLADefinitionGrantItem[]; total?: number }>(
-      '/api/v1/sla/grants',
+    if (params?.status) query.status = params.status;
+    const response = await httpClient.get<{ items?: MSPContractItem[]; total?: number }>(
+      '/api/v1/sla/contracts',
       query
     );
     return { items: response?.items ?? [], total: response?.total ?? 0 };
   }
 
-  /** 创建下发授权（同客户同类型旧授权由后端自动停用） */
-  static async createGrant(data: CreateSLAGrantPayload): Promise<SLADefinitionGrantItem> {
-    return httpClient.post('/api/v1/sla/grants', data);
+  /** 创建合同（含定义绑定；同合同同类型绑定唯一由后端校验） */
+  static async createContract(data: CreateMSPContractPayload): Promise<MSPContractItem> {
+    return httpClient.post('/api/v1/sla/contracts', data);
   }
 
-  /** 更新授权有效期（validUntil 置空用 clearValidUntil=true） */
-  static async updateGrant(
+  /** 获取合同详情（含 bindings 富化定义名） */
+  static async getContract(id: number): Promise<MSPContractItem> {
+    return httpClient.get(`/api/v1/sla/contracts/${id}`);
+  }
+
+  /** 更新合同：仅传字段被更新；bindings 非空数组时全量替换（至少一条） */
+  static async updateContract(
     id: number,
-    data: { validUntil?: string; clearValidUntil?: boolean }
-  ): Promise<SLADefinitionGrantItem> {
-    return httpClient.put(`/api/v1/sla/grants/${id}`, data);
-  }
-
-  /** 停用授权（逻辑撤销，保留审计链） */
-  static async deactivateGrant(id: number): Promise<void> {
-    return httpClient.delete(`/api/v1/sla/grants/${id}`);
+    data: UpdateMSPContractPayload
+  ): Promise<MSPContractItem> {
+    return httpClient.put(`/api/v1/sla/contracts/${id}`, data);
   }
 
   /** 获取当前租户的服务商下发定义（customer 只读；四层写保护之读面） */

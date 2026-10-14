@@ -68,52 +68,63 @@ describe('SLAApi', () => {
     });
   });
 
-  // ==================== D-SLA-1：下发授权（grant）契约 ====================
+  // ==================== D-SLA-4：MSP SLA 合同契约 ====================
 
-  describe('listGrants', () => {
-    it('should list grants with filters', async () => {
+  describe('listContracts', () => {
+    it('should list contracts with filters', async () => {
       mockGet.mockResolvedValue({ items: [], total: 0 });
-      const result = await SLAApi.listGrants({ customerTenantId: 5, isActive: true });
-      expect(mockGet).toHaveBeenCalledWith('/api/v1/sla/grants', { customerTenantId: '5', isActive: 'true' });
+      const result = await SLAApi.listContracts({ customerTenantId: 5, status: 'active' });
+      expect(mockGet).toHaveBeenCalledWith('/api/v1/sla/contracts', {
+        customerTenantId: '5',
+        status: 'active',
+      });
       expect(result.items).toEqual([]);
     });
 
     it('should tolerate missing envelope fields', async () => {
       mockGet.mockResolvedValue(undefined);
-      const result = await SLAApi.listGrants();
+      const result = await SLAApi.listContracts();
       expect(result).toEqual({ items: [], total: 0 });
     });
   });
 
-  describe('createGrant', () => {
-    it('should create grant', async () => {
-      const payload = { slaDefinitionId: 1, customerTenantId: 5, ticketTypeId: 0 };
-      mockPost.mockResolvedValue({ id: 9, ...payload });
-      const result = await SLAApi.createGrant(payload);
-      expect(mockPost).toHaveBeenCalledWith('/api/v1/sla/grants', payload);
+  describe('createContract', () => {
+    it('should create contract with bindings', async () => {
+      const payload = {
+        contractNo: 'HT-1',
+        name: '年度合同',
+        customerTenantId: 5,
+        bindings: [{ slaDefinitionId: 1, ticketTypeId: 0 }],
+      };
+      mockPost.mockResolvedValue({ id: 9, ...payload, status: 'active' });
+      const result = await SLAApi.createContract(payload);
+      expect(mockPost).toHaveBeenCalledWith('/api/v1/sla/contracts', payload);
       expect(result.id).toBe(9);
     });
   });
 
-  describe('updateGrant', () => {
-    it('should update validUntil', async () => {
-      mockPut.mockResolvedValue({ id: 9 });
-      await SLAApi.updateGrant(9, { validUntil: '2027-01-01T00:00:00Z' });
-      expect(mockPut).toHaveBeenCalledWith('/api/v1/sla/grants/9', { validUntil: '2027-01-01T00:00:00Z' });
-    });
-
-    it('should clear validUntil explicitly', async () => {
-      mockPut.mockResolvedValue({ id: 9 });
-      await SLAApi.updateGrant(9, { clearValidUntil: true });
-      expect(mockPut).toHaveBeenCalledWith('/api/v1/sla/grants/9', { clearValidUntil: true });
+  describe('getContract', () => {
+    it('should get contract by id', async () => {
+      mockGet.mockResolvedValue({ id: 9, contractNo: 'HT-1' });
+      const result = await SLAApi.getContract(9);
+      expect(mockGet).toHaveBeenCalledWith('/api/v1/sla/contracts/9');
+      expect(result.contractNo).toBe('HT-1');
     });
   });
 
-  describe('deactivateGrant', () => {
-    it('should deactivate grant', async () => {
-      mockDelete.mockResolvedValue(undefined);
-      await SLAApi.deactivateGrant(9);
-      expect(mockDelete).toHaveBeenCalledWith('/api/v1/sla/grants/9');
+  describe('updateContract', () => {
+    it('should update status', async () => {
+      mockPut.mockResolvedValue({ id: 9, status: 'terminated' });
+      await SLAApi.updateContract(9, { status: 'terminated' });
+      expect(mockPut).toHaveBeenCalledWith('/api/v1/sla/contracts/9', { status: 'terminated' });
+    });
+
+    it('should replace bindings when provided', async () => {
+      mockPut.mockResolvedValue({ id: 9 });
+      await SLAApi.updateContract(9, { bindings: [{ slaDefinitionId: 2, ticketTypeId: 7 }] });
+      expect(mockPut).toHaveBeenCalledWith('/api/v1/sla/contracts/9', {
+        bindings: [{ slaDefinitionId: 2, ticketTypeId: 7 }],
+      });
     });
   });
 
