@@ -32,6 +32,10 @@ export const ADMIN_AREA_PERMISSIONS: string[] = [
   'approval:write',
   // SLA（escalation-rules/matrices 无 escalation:* 词表，复用 sla:write）
   'sla:write',
+  // MSP SLA 合同（D-SLA-4，P1-2 新增 /admin/sla-contracts 页；验收修复：区域并集缺此码
+  // 导致 provider（仅持 sla:contract:*）被 /admin 区域守卫整区拦下 → 页面不可达）。
+  'sla:contract:read',
+  'sla:contract:write',
   // CMDB 治理
   'cmdb:write',
   // AI 与 MCP 治理
