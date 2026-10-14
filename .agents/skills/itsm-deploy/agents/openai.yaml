@@ -1,0 +1,4 @@
+interface:
+  display_name: "ITSM 238 Deploy"
+  short_description: "Deploy ITSM builds to the 238 demo/prod stacks"
+  default_prompt: "Deploy the current branch to the 238 demo stack (frontend-only or full) and verify http://172.18.3.238:8089/"
