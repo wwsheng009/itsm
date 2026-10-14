@@ -600,7 +600,7 @@ func SetupRoutes(r *gin.Engine, config *RouterConfig) {
 		}
 
 		if config.SLAHandler != nil {
-			SetupSLARoutes(tenant.(*gin.RouterGroup), config.SLAHandler)
+			SetupSLARoutes(tenant.(*gin.RouterGroup), config.SLAHandler, config.Client)
 			// SLA 模板（开箱即用预置模板）
 			if config.SLATemplateHandler != nil {
 				SetupSLATemplateRoutes(tenant.(*gin.RouterGroup), config.SLATemplateHandler)

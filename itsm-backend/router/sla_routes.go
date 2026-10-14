@@ -1,6 +1,7 @@
 package router
 
 import (
+	"itsm-backend/ent"
 	slaHandler "itsm-backend/handlers/sla"
 	slaTemplateHandler "itsm-backend/handlers/sla_template"
 	"itsm-backend/middleware"
@@ -10,7 +11,10 @@ import (
 
 // SetupSLARoutes 注册 SLA 相关路由。
 // 从 router.go 的集中注册块抽取而来，路由路径/方法/中间件与抽取前逐行一致。
-func SetupSLARoutes(tenant *gin.RouterGroup, h *slaHandler.Handler) {
+// mspClient：MSP 子路由族（grants/contracts/settlement-report）需要装配
+// MSPContext（RequireMSPPermission 的前置），否则对 MSP 用户也返回 403
+// 「仅MSP员工可访问」（验收修复：/sla 族不经过 /api/v1/msp 的 MSPMiddleware）。
+func SetupSLARoutes(tenant *gin.RouterGroup, h *slaHandler.Handler, mspClient *ent.Client) {
 	slaGrp := tenant.Group("/sla")
 	{
 		slaGrp.GET("", middleware.RequirePermission("sla", "read"), h.ListSLADefinitions)
@@ -66,7 +70,8 @@ func SetupSLARoutes(tenant *gin.RouterGroup, h *slaHandler.Handler) {
 		// 非 MSP 部署 404（RequireMSPDeploymentMode，canon §7 R12/I12）；MSP 身份 +
 		// RBAC（sla:grant:read/write）+ 客户分配由 RequireMSPPermission 联合校验；
 		// 归属一致性（customer.msp_provider_id == provider）在 repository 单事务内复核。
-		grants := slaGrp.Group("/grants", middleware.RequireMSPDeploymentMode())
+		grants := slaGrp.Group("/grants",
+			middleware.RequireMSPDeploymentMode(), middleware.MSPMiddleware(mspClient))
 		{
 			grants.POST("", middleware.RequireMSPPermission("sla", "grant:write"), h.CreateGrant)
 			grants.GET("", middleware.RequireMSPPermission("sla", "grant:read"), h.ListGrants)
@@ -77,7 +82,8 @@ func SetupSLARoutes(tenant *gin.RouterGroup, h *slaHandler.Handler) {
 
 		// MSP SLA 合同（D-SLA-4，方案 §4.4）——provider 面（写入口自 P1-2 起唯一化到本组）：
 		// grant 写端点保留 410；合同链承载下发/条款/有效期/罚则。
-		contracts := slaGrp.Group("/contracts", middleware.RequireMSPDeploymentMode())
+		contracts := slaGrp.Group("/contracts",
+			middleware.RequireMSPDeploymentMode(), middleware.MSPMiddleware(mspClient))
 		{
 			contracts.POST("", middleware.RequireMSPPermission("sla", "contract:write"), h.CreateContract)
 			contracts.GET("", middleware.RequireMSPPermission("sla", "contract:read"), h.ListContracts)
@@ -87,7 +93,8 @@ func SetupSLARoutes(tenant *gin.RouterGroup, h *slaHandler.Handler) {
 
 		// MSP SLA 结算报表（D-SLA-5/D-SLA-9，方案 §4.5/§13）——provider 面：
 		// 白名单口径 + 双口径对账；客户归属校验在 service 取数前 fail-closed（SLA-A6）。
-		settlement := slaGrp.Group("/settlement-report", middleware.RequireMSPDeploymentMode())
+		settlement := slaGrp.Group("/settlement-report",
+			middleware.RequireMSPDeploymentMode(), middleware.MSPMiddleware(mspClient))
 		{
 			settlement.GET("", middleware.RequireMSPPermission("sla", "settlement:read"), h.GetSLASettlementReport)
 			// 出快照锁定（§13.3）：锁定后该周期违约不可再变更（新争议走下一周期）。
