@@ -82,7 +82,7 @@ func TestSLATimezone_E2E_AsiaShanghaiDeadline(t *testing.T) {
 	require.Equal(t, "Asia/Shanghai", slaDef.BusinessHours["time_zone"])
 
 	// 计算 deadline
-	result, err := service.CalculateSLADeadlineFromRequest(ctx, tenant.ID, "incident", "high")
+	result, err := service.CalculateSLADeadlineFromRequest(ctx, tenant.ID, "incident", "high", 0, "")
 	require.NoError(t, err)
 	require.NotNil(t, result)
 	require.NotNil(t, result.ResponseDeadline)
@@ -128,7 +128,7 @@ func TestSLATimezone_E2E_AmericaNewYorkDeadline(t *testing.T) {
 	// 验证小写 timezone 键名也能正确解析
 	require.NotNil(t, slaDef)
 
-	result, err := service.CalculateSLADeadlineFromRequest(ctx, tenant.ID, "incident", "critical")
+	result, err := service.CalculateSLADeadlineFromRequest(ctx, tenant.ID, "incident", "critical", 0, "")
 	require.NoError(t, err)
 	require.NotNil(t, result)
 
@@ -201,7 +201,7 @@ func TestSLATimezone_E2E_WeekendSkip(t *testing.T) {
 
 	// 2026-08-14 是周五，17:00 UTC = 上海 2026-08-15 01:00
 	// 加上 120 分钟工作时间，应该跳过周末到周一
-	result, err := service.CalculateSLADeadlineFromRequest(ctx, tenant.ID, "incident", "high")
+	result, err := service.CalculateSLADeadlineFromRequest(ctx, tenant.ID, "incident", "high", 0, "")
 	require.NoError(t, err)
 
 	// 验证 deadline 在工作日内
@@ -241,7 +241,7 @@ func TestSLATimezone_E2E_HolidaySkip(t *testing.T) {
 		Save(ctx)
 	require.NoError(t, err)
 
-	result, err := service.CalculateSLADeadlineFromRequest(ctx, tenant.ID, "incident", "high")
+	result, err := service.CalculateSLADeadlineFromRequest(ctx, tenant.ID, "incident", "high", 0, "")
 	require.NoError(t, err)
 	require.NotNil(t, result.ResponseDeadline)
 
@@ -381,10 +381,10 @@ func TestSLATimezone_E2E_MultiTenantIsolation(t *testing.T) {
 	require.NoError(t, err)
 
 	// 计算两个租户的 SLA deadline
-	resultA, err := service.CalculateSLADeadlineFromRequest(ctx, tenant.ID, "incident", "high")
+	resultA, err := service.CalculateSLADeadlineFromRequest(ctx, tenant.ID, "incident", "high", 0, "")
 	require.NoError(t, err)
 
-	resultB, err := service.CalculateSLADeadlineFromRequest(ctx, tenantB.ID, "incident", "high")
+	resultB, err := service.CalculateSLADeadlineFromRequest(ctx, tenantB.ID, "incident", "high", 0, "")
 	require.NoError(t, err)
 
 	// 验证两个租户的 deadline 不同（由于时区不同）
@@ -431,7 +431,7 @@ func TestSLATimezone_E2E_NoTimezoneDefault(t *testing.T) {
 	assert.False(t, hasTz || hasTimezone, "should not have timezone config")
 
 	// 计算 deadline，应该使用默认时区
-	result, err := service.CalculateSLADeadlineFromRequest(ctx, tenant.ID, "incident", "low")
+	result, err := service.CalculateSLADeadlineFromRequest(ctx, tenant.ID, "incident", "low", 0, "")
 	require.NoError(t, err)
 	require.NotNil(t, result.ResponseDeadline)
 
@@ -476,6 +476,6 @@ func BenchmarkSLADeadlineCalculation_CachedTimezone(b *testing.B) {
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		_, _ = service.CalculateSLADeadlineFromRequest(ctx, tenant.ID, "incident", "high")
+		_, _ = service.CalculateSLADeadlineFromRequest(ctx, tenant.ID, "incident", "high", 0, "")
 	}
 }

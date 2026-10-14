@@ -300,16 +300,19 @@ func TestTicketSLAService_CalculateSLADeadlineFromRequest(t *testing.T) {
 			priority:      "low",
 			expectedError: false,
 			checkResult: func(t *testing.T, result *SLADeadlineResult) {
-				// 找不到精确匹配时会 fallback 到类型匹配的定义（如果存在）
-				// 因为测试中创建了 service_request 类型的 SLA，会被用作 fallback
-				assert.Greater(t, result.SLADefinitionID, 0)
+				// v1.3（方案 §4.3）修复：删除 default→incident 静默兜底后，
+				// 未知类型不再误按 incident 的定义计时——落入 L4 fail-loud 默认值。
+				assert.Equal(t, "L4", result.MatchedLayer)
+				assert.Equal(t, 0, result.SLADefinitionID)
+				assert.NotNil(t, result.ResponseDeadline)
+				assert.NotNil(t, result.ResolutionDeadline)
 			},
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result, err := slaService.CalculateSLADeadlineFromRequest(ctx, tt.tenantID, tt.ticketType, tt.priority)
+			result, err := slaService.CalculateSLADeadlineFromRequest(ctx, tt.tenantID, tt.ticketType, tt.priority, 0, "")
 
 			if tt.expectedError {
 				assert.Error(t, err)

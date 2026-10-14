@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"fmt"
+	"os"
 	"strconv"
 	"strings"
 	"time"
@@ -10,6 +11,8 @@ import (
 	"itsm-backend/common"
 	"itsm-backend/ent"
 	"itsm-backend/ent/sladefinition"
+	"itsm-backend/ent/sladefinitiongrant"
+	"itsm-backend/ent/tenant"
 	"itsm-backend/ent/ticket"
 
 	"go.uber.org/zap"
@@ -26,7 +29,8 @@ type TicketSLAServiceInterface interface {
 	// CalculateSLADeadline 计算SLA截止时间
 	CalculateSLADeadline(ctx context.Context, tenantID int, ticketType, priority string) (*SLADeadlineResult, error)
 	// CalculateSLADeadlineFromRequest 根据请求参数计算SLA截止时间（包含SLADefinitionID）
-	CalculateSLADeadlineFromRequest(ctx context.Context, tenantID int, ticketType, priority string) (*SLADeadlineResult, error)
+	// v1.11 方案 §4.2：增加 ticketTypeID（grant 类型绑定匹配）与 ticketTypeCode（L3b 动态类型匹配）参数。
+	CalculateSLADeadlineFromRequest(ctx context.Context, tenantID int, ticketType, priority string, ticketTypeID int, ticketTypeCode string) (*SLADeadlineResult, error)
 	// AdjustToBusinessHours 调整时间到工作时间
 	AdjustToBusinessHours(t time.Time) time.Time
 }
@@ -52,6 +56,9 @@ type SLADeadlineResult struct {
 	ResponseDeadline   *time.Time
 	ResolutionDeadline *time.Time
 	BusinessHoursOnly  bool
+	// MatchedLayer 匹配层级（方案 §4.2 v1.11）：L1/L2/L3a/L3b/L3c/L4。
+	// 供报表区分来源基准（L1=合同域 / L2=等级策略 / L3=客户自建 / L4=未绑定）。
+	MatchedLayer string
 }
 
 // TicketStats 工单统计
@@ -67,17 +74,21 @@ type TicketStats struct {
 
 // TicketSLAService 工单SLA服务
 type TicketSLAService struct {
-	client  *ent.Client
-	logger  *zap.SugaredLogger
-	nowFunc func() time.Time
+	client              *ent.Client
+	logger              *zap.SugaredLogger
+	nowFunc             func() time.Time
+	policySvc           *SLAPolicyService
+	unboundAlertEnabled bool
 }
 
 // NewTicketSLAService 创建工单SLA服务
 func NewTicketSLAService(client *ent.Client, logger *zap.SugaredLogger) *TicketSLAService {
 	return &TicketSLAService{
-		client:  client,
-		logger:  logger,
-		nowFunc: time.Now,
+		client:              client,
+		logger:              logger,
+		nowFunc:             time.Now,
+		policySvc:           NewSLAPolicyService(client),
+		unboundAlertEnabled: slaUnboundAlertEnabledFromEnv(os.Getenv("SLA_UNBOUND_ALERT_ENABLED")),
 	}
 }
 
@@ -85,6 +96,23 @@ func NewTicketSLAService(client *ent.Client, logger *zap.SugaredLogger) *TicketS
 func (s *TicketSLAService) withNowFunc(f func() time.Time) *TicketSLAService {
 	s.nowFunc = f
 	return s
+}
+
+// SetUnboundAlertEnabled 覆盖 L4 未绑定告警开关（测试/灰度用；env 默认关，方案 §4.2）。
+func (s *TicketSLAService) SetUnboundAlertEnabled(enabled bool) *TicketSLAService {
+	s.unboundAlertEnabled = enabled
+	return s
+}
+
+// slaUnboundAlertEnabledFromEnv 解析 SLA_UNBOUND_ALERT_ENABLED：
+// 显式 true/1/yes/on 开；其余（含未设置）关——方案 §4.2 "默认 false"。
+func slaUnboundAlertEnabledFromEnv(raw string) bool {
+	switch strings.ToLower(strings.TrimSpace(raw)) {
+	case "true", "1", "yes", "on":
+		return true
+	default:
+		return false
+	}
 }
 
 // GetTicketSLAInfo 获取工单SLA信息
@@ -593,77 +621,243 @@ func addBusinessMinutes(start time.Time, minutes int, cfg businessHoursConfig) t
 	return cursor
 }
 
-// CalculateSLADeadlineFromRequest 根据请求参数计算SLA截止时间（包含SLADefinitionID）
-func (s *TicketSLAService) CalculateSLADeadlineFromRequest(ctx context.Context, tenantID int, ticketType, priority string) (*SLADeadlineResult, error) {
+// CalculateSLADeadlineFromRequest 计算工单 SLA 截止时间（四级匹配链，方案 §4.2 v1.11）：
+//
+//	L1 provider 下发定义（合同个案；显式类型绑定 > 类型无关授权）
+//	L2 等级策略（customer_tier + ticket_type + priority 特异性匹配）
+//	L3b 租户自建定义（动态类型 code 快照优先 ∪ legacy 类型值；含无优先级回退）
+//	L3c 类型无关租户默认定义（service_type 为空）
+//	L4 未绑定 → fail-loud（结构化告警 + MatchedLayer=L4；工单照常创建，保持默认值）
+//
+// L3a（TicketType 直绑 default_sla_id）由调用方在建单流程先行处理，不经本函数。
+func (s *TicketSLAService) CalculateSLADeadlineFromRequest(ctx context.Context, tenantID int, ticketType, priority string, ticketTypeID int, ticketTypeCode string) (*SLADeadlineResult, error) {
 	now := s.nowFunc()
 
-	// 确定service_type
-	var serviceType string
-	switch ticketType {
-	case "incident":
-		serviceType = "incident"
-	case "service_request":
-		serviceType = "service_request"
-	case "change":
-		serviceType = "change"
-	default:
-		// 默认为incident类型
-		serviceType = "incident"
-	}
-
-	// 标准化优先级
+	// 标准化优先级（urgent → critical，保持存量口径）
 	normalizedPriority := strings.ToLower(priority)
 	if normalizedPriority == "urgent" {
 		normalizedPriority = "critical"
 	}
 
-	// 从数据库查找匹配的SLA定义
-	sla, err := s.client.SLADefinition.Query().
-		Where(
-			sladefinition.TenantID(tenantID),
-			sladefinition.ServiceType(serviceType),
-			sladefinition.Priority(normalizedPriority),
-			sladefinition.IsActive(true),
-		).
-		First(ctx)
-	if err != nil {
-		// 如果找不到精确匹配，尝试查找默认SLA（不带优先级）
-		if ent.IsNotFound(err) {
-			sla, err = s.client.SLADefinition.Query().
-				Where(
-					sladefinition.TenantID(tenantID),
-					sladefinition.ServiceType(serviceType),
-					sladefinition.IsActive(true),
-				).
-				First(ctx)
-		}
-
-		if err != nil || sla == nil {
-			// 如果还是找不到，返回默认值
-			s.logger.Warnw("No SLA definition found, using defaults", "service_type", serviceType, "priority", normalizedPriority)
-			return &SLADeadlineResult{
-				SLADefinitionID:    0,
-				ResponseDeadline:   toPointer(s.calculateDeadlineWithBusinessHours(ctx, tenantID, now, 60, nil)),
-				ResolutionDeadline: toPointer(s.calculateDeadlineWithBusinessHours(ctx, tenantID, now, 480, nil)),
-				BusinessHoursOnly:  false,
-			}, nil
-		}
+	// L1：provider 下发定义（合同个案优先）
+	if def := s.matchGrantedDefinition(ctx, tenantID, ticketTypeID, now); def != nil {
+		return s.buildDefinitionResult(ctx, tenantID, now, def, "L1"), nil
 	}
 
-	// 计算截止时间（单位是分钟）。
-	// 阻断7/C-8 修复：统一走 SLA 配置的工作日历。
-	// 旧逻辑用 AdjustToBusinessHours 平移截止时刻，导致非工作时段被当作顺延而非排除，
-	// 且与 GetTicketSLAInfo 路径使用不同口径，造成同一工单"是否违规"两路径结论相反。
-	businessHoursOnly := len(sla.BusinessHours) > 0
-	responseDeadline := s.calculateDeadlineWithBusinessHours(ctx, tenantID, now, sla.ResponseTime, sla.BusinessHours)
-	resolutionDeadline := s.calculateDeadlineWithBusinessHours(ctx, tenantID, now, sla.ResolutionTime, sla.BusinessHours)
+	// L2：等级策略
+	if policy := s.matchTierPolicy(ctx, tenantID, ticketType, normalizedPriority); policy != nil {
+		return s.buildPolicyResult(ctx, tenantID, now, policy), nil
+	}
 
+	// L3b：租户自建定义（动态类型解析，删除 v1.11 前的 default→incident 静默兜底）
+	if def := s.matchTenantDefinition(ctx, tenantID, ticketType, ticketTypeCode, normalizedPriority); def != nil {
+		return s.buildDefinitionResult(ctx, tenantID, now, def, "L3b"), nil
+	}
+
+	// L3c：类型无关租户默认定义
+	if def := s.matchTenantDefaultDefinition(ctx, tenantID); def != nil {
+		return s.buildDefinitionResult(ctx, tenantID, now, def, "L3c"), nil
+	}
+
+	// L4：fail-loud——保持默认值（60/480 分钟），产生可观测告警信号与层级标记
+	s.emitSLABindingAlert(ctx, tenantID, ticketType, ticketTypeID, normalizedPriority)
 	return &SLADeadlineResult{
-		SLADefinitionID:    sla.ID,
+		SLADefinitionID:    0,
+		MatchedLayer:       "L4",
+		ResponseDeadline:   toPointer(s.calculateDeadlineWithBusinessHours(ctx, tenantID, now, 60, nil)),
+		ResolutionDeadline: toPointer(s.calculateDeadlineWithBusinessHours(ctx, tenantID, now, 480, nil)),
+		BusinessHoursOnly:  false,
+	}, nil
+}
+
+// matchGrantedDefinition L1：查询对当前租户生效的下发授权（D-SLA-1）。
+// 类型维度：显式绑定当前工单类型（ticketTypeID>0）优先于类型无关授权（ticket_type_id=0）；
+// 有效期：valid_until 为空或晚于 now；定义侧 is_active 必须为真。
+func (s *TicketSLAService) matchGrantedDefinition(ctx context.Context, tenantID, ticketTypeID int, now time.Time) *ent.SLADefinition {
+	grants, err := s.client.SLADefinitionGrant.Query().
+		Where(
+			sladefinitiongrant.CustomerTenantIDEQ(tenantID),
+			sladefinitiongrant.IsActiveEQ(true),
+			sladefinitiongrant.Or(
+				sladefinitiongrant.ValidUntilIsNil(),
+				sladefinitiongrant.ValidUntilGT(now),
+			),
+			sladefinitiongrant.TicketTypeIDIn(0, int64(ticketTypeID)),
+		).
+		WithSLADefinition().
+		Order(ent.Asc(sladefinitiongrant.FieldTicketTypeID), ent.Asc(sladefinitiongrant.FieldID)).
+		All(ctx)
+	if err != nil {
+		s.logger.Warnw("SLA grant lookup failed", "tenant_id", tenantID, "error", err)
+		return nil
+	}
+	var typeAgnostic *ent.SLADefinition
+	for _, g := range grants {
+		def := g.Edges.SLADefinition
+		if def == nil || !def.IsActive {
+			continue
+		}
+		if ticketTypeID > 0 && g.TicketTypeID == int64(ticketTypeID) {
+			return def // 显式类型绑定优先
+		}
+		if g.TicketTypeID == 0 && typeAgnostic == nil {
+			typeAgnostic = def
+		}
+	}
+	return typeAgnostic
+}
+
+// matchTierPolicy L2：按客户等级（Tenant.service_tier）匹配 SLA 策略。
+// 等级缺失时仍可命中"无 tier 偏好"的通用策略（MatchSLAPolicy 既有语义）。
+func (s *TicketSLAService) matchTierPolicy(ctx context.Context, tenantID int, ticketType, priority string) *ent.SLAPolicy {
+	if s.policySvc == nil {
+		return nil
+	}
+	tier := ""
+	tn, err := s.client.Tenant.Query().
+		Where(tenant.IDEQ(tenantID)).
+		Select(tenant.FieldServiceTier).
+		Only(ctx)
+	if err == nil && tn != nil {
+		tier = tn.ServiceTier
+	}
+	policy, err := s.policySvc.MatchSLAPolicy(ctx, tenantID, ticketType, priority, tier)
+	if err != nil || policy == nil {
+		return nil
+	}
+	return policy
+}
+
+// matchTenantDefinition L3b：租户自建定义——动态类型 code（快照优先）∪ legacy 类型值，
+// 每个候选先做"类型+优先级"精确匹配、再做"同类型任意优先级"回退
+//（与 v1.11 前 FromRequest 回退宽度一致，取最早 ID 稳定化）。
+func (s *TicketSLAService) matchTenantDefinition(ctx context.Context, tenantID int, ticketType, ticketTypeCode, priority string) *ent.SLADefinition {
+	candidates := make([]string, 0, 2)
+	add := func(v string) {
+		v = strings.TrimSpace(v)
+		if v == "" {
+			return
+		}
+		for _, c := range candidates {
+			if c == v {
+				return
+			}
+		}
+		candidates = append(candidates, v)
+	}
+	add(ticketTypeCode) // 动态类型 code 快照优先
+	add(ticketType)     // legacy 类型值兜底
+
+	for _, code := range candidates {
+		def, err := s.client.SLADefinition.Query().
+			Where(
+				sladefinition.TenantID(tenantID),
+				sladefinition.ServiceTypeEQ(code),
+				sladefinition.Priority(priority),
+				sladefinition.IsActive(true),
+			).
+			First(ctx)
+		if err == nil {
+			return def
+		}
+		if !ent.IsNotFound(err) {
+			s.logger.Warnw("SLA definition lookup failed", "tenant_id", tenantID, "service_type", code, "error", err)
+			return nil
+		}
+		def, err = s.client.SLADefinition.Query().
+			Where(
+				sladefinition.TenantID(tenantID),
+				sladefinition.ServiceTypeEQ(code),
+				sladefinition.IsActive(true),
+			).
+			Order(ent.Asc(sladefinition.FieldID)).
+			First(ctx)
+		if err == nil {
+			return def
+		}
+		if !ent.IsNotFound(err) {
+			s.logger.Warnw("SLA definition fallback lookup failed", "tenant_id", tenantID, "service_type", code, "error", err)
+			return nil
+		}
+	}
+	return nil
+}
+
+// matchTenantDefaultDefinition L3c：类型无关租户默认定义（service_type 为空/NULL）。
+func (s *TicketSLAService) matchTenantDefaultDefinition(ctx context.Context, tenantID int) *ent.SLADefinition {
+	def, err := s.client.SLADefinition.Query().
+		Where(
+			sladefinition.TenantID(tenantID),
+			sladefinition.IsActive(true),
+			sladefinition.Or(
+				sladefinition.ServiceTypeIsNil(),
+				sladefinition.ServiceTypeEQ(""),
+			),
+		).
+		Order(ent.Asc(sladefinition.FieldID)).
+		First(ctx)
+	if err != nil {
+		if !ent.IsNotFound(err) {
+			s.logger.Warnw("SLA tenant default lookup failed", "tenant_id", tenantID, "error", err)
+		}
+		return nil
+	}
+	return def
+}
+
+// buildDefinitionResult 由 SLA 定义（L1/L3b/L3c）计算截止时间结果。
+// 阻断7/C-8 语义保留：统一走 SLA 配置的工作日历（calculateDeadlineWithBusinessHours）。
+func (s *TicketSLAService) buildDefinitionResult(ctx context.Context, tenantID int, now time.Time, def *ent.SLADefinition, layer string) *SLADeadlineResult {
+	responseDeadline := s.calculateDeadlineWithBusinessHours(ctx, tenantID, now, def.ResponseTime, def.BusinessHours)
+	resolutionDeadline := s.calculateDeadlineWithBusinessHours(ctx, tenantID, now, def.ResolutionTime, def.BusinessHours)
+	return &SLADeadlineResult{
+		SLADefinitionID:    def.ID,
+		MatchedLayer:       layer,
 		ResponseDeadline:   &responseDeadline,
 		ResolutionDeadline: &resolutionDeadline,
-		BusinessHoursOnly:  businessHoursOnly,
-	}, nil
+		BusinessHoursOnly:  len(def.BusinessHours) > 0,
+	}
+}
+
+// buildPolicyResult 由 SLA 策略（L2）计算截止时间结果。
+// 策略未配置 business_hours 但声明排除周末/节假日时，回退"工作日全天"口径；
+// 两者均未设置时保持 24x7（与定义口径一致）。
+func (s *TicketSLAService) buildPolicyResult(ctx context.Context, tenantID int, now time.Time, p *ent.SLAPolicy) *SLADeadlineResult {
+	businessHours := p.BusinessHours
+	if len(businessHours) == 0 && (p.ExcludeWeekends || p.ExcludeHolidays) {
+		businessHours = map[string]interface{}{
+			"work_days":  []interface{}{1, 2, 3, 4, 5},
+			"start_time": "00:00",
+			"end_time":   "23:59",
+		}
+	}
+	responseDeadline := s.calculateDeadlineWithBusinessHours(ctx, tenantID, now, p.ResponseTimeMinutes, businessHours)
+	resolutionDeadline := s.calculateDeadlineWithBusinessHours(ctx, tenantID, now, p.ResolutionTimeMinutes, businessHours)
+	return &SLADeadlineResult{
+		SLADefinitionID:    0, // 策略不绑定具体定义（P2 报表以 MatchedLayer=L2 口径区分）
+		MatchedLayer:       "L2",
+		ResponseDeadline:   &responseDeadline,
+		ResolutionDeadline: &resolutionDeadline,
+		BusinessHoursOnly:  len(businessHours) > 0,
+	}
+}
+
+// emitSLABindingAlert L4 fail-loud：结构化告警信号（开关 SLA_UNBOUND_ALERT_ENABLED 控制级别）。
+// 实施期修正 IM-8：未复用 sla_alert_histories（其 alert_rule_id 为 Positive/Required，
+// 未绑定场景无对应规则）；以结构化日志承载告警，"未绑定桶"由 P2 报表按 MatchedLayer=L4 统计。
+func (s *TicketSLAService) emitSLABindingAlert(ctx context.Context, tenantID int, ticketType string, ticketTypeID int, priority string) {
+	fields := []interface{}{
+		"tenant_id", tenantID,
+		"ticket_type", ticketType,
+		"ticket_type_id", ticketTypeID,
+		"priority", priority,
+		"matched_layer", "L4",
+	}
+	if s.unboundAlertEnabled {
+		s.logger.Errorw("SLA unbound: no matching definition; default deadlines applied", fields...)
+		return
+	}
+	s.logger.Warnw("No SLA definition found, using defaults (unbound alert disabled)", fields...)
 }
 
 // CalculateSLADeadlineByDefinition applies the exact tenant-owned SLA bound to a TicketType.

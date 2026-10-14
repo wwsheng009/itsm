@@ -496,14 +496,27 @@ func (s *TicketService) CreateTicket(ctx context.Context, req *dto.CreateTicketR
 	if s.slaSvc != nil {
 		var slaResult *SLADeadlineResult
 		var err error
-		if configuredType != nil && configuredType.SLAEnabled && configuredType.DefaultSLAID != 0 {
+		switch {
+		case configuredType != nil && configuredType.SLAExempt:
+			// v1.4 方案 §4.2：类型显式豁免——跳过全部 SLA 匹配
+			//（报表"豁免桶"按 ticket_type.sla_exempt join 区分；不产生未绑定告警）。
+			s.logger.Infow("ticket type is SLA-exempt; skipping SLA binding",
+				"tenant_id", tenantID, "ticket_id", tkt.ID, "ticket_type_id", configuredType.ID)
+		case configuredType != nil && configuredType.SLAEnabled && configuredType.DefaultSLAID != 0:
 			slaResult, err = s.slaSvc.CalculateSLADeadlineByDefinition(ctx, tenantID, int(configuredType.DefaultSLAID))
-		} else {
-			slaResult, err = s.slaSvc.CalculateSLADeadlineFromRequest(ctx, tenantID, string(tkt.Type), string(tkt.Priority))
+		default:
+			ticketTypeID := 0
+			if tkt.TicketTypeID != nil {
+				ticketTypeID = *tkt.TicketTypeID
+			}
+			slaResult, err = s.slaSvc.CalculateSLADeadlineFromRequest(
+				ctx, tenantID, string(tkt.Type), string(tkt.Priority),
+				ticketTypeID, tkt.TicketTypeCode,
+			)
 		}
 		if err != nil {
 			s.logger.Warnw("Failed to calculate SLA", "error", err)
-		} else {
+		} else if slaResult != nil {
 			err = s.repo.UpdateSLADeadlines(ctx, tkt.ID, slaResult.ResponseDeadline, slaResult.ResolutionDeadline, &slaResult.SLADefinitionID, tenantID)
 			if err != nil {
 				s.logger.Warnw("Failed to update SLA deadlines", "error", err)

@@ -321,7 +321,7 @@ func (s *IncidentService) createIncident(ctx context.Context, req *dto.CreateInc
 	// 绑定SLA策略（P0-1）：创建Incident时自动匹配SLA并计算截止时间
 	if s.slaSvc != nil {
 		s.logger.Infow("SLA binding start", "slaSvc_nil", s.slaSvc == nil, "priority", priority)
-		slaResult, slaErr := s.slaSvc.CalculateSLADeadlineFromRequest(ctx, tenantID, "incident", priority)
+		slaResult, slaErr := s.slaSvc.CalculateSLADeadlineFromRequest(ctx, tenantID, "incident", priority, 0, "")
 		s.logger.Infow("SLA calculated", "definition_id", slaResult.SLADefinitionID, "response_deadline", slaResult.ResponseDeadline, "resolution_deadline", slaResult.ResolutionDeadline, "err", slaErr)
 		if slaErr != nil {
 			s.logger.Warnw("Failed to calculate SLA for incident, continuing without SLA", "error", slaErr)

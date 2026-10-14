@@ -948,8 +948,8 @@ flowchart TD
 
 | 工单 | 内容（对应 §14.1 编号） | 验收锚点 | 分支/PR | commit | 状态 |
 |---|---|---|---|---|---|
-| P0-1 模型包 | #3 owner_provider_tenant_id + #4 sla_definition_grant + #19 unique(tenant_id,name)（同迁移）+ RLS policy（#9）+ 随包 #18 模型字段 sla_exempt | SLA-A4/A8 | feat/sla-p0-model | 待合并（本地已实施+编译/测试全绿） | 🟡 已实施待提交 |
-| P0-2 匹配引擎 | #1 L1/L2 插入 + L4 告警 + MatchedLayer（§13.6 依赖）+ #17 动态类型解析 + #18 匹配链重排/豁免/L3c | SLA-A1/A2/A3/A12 | — | — | ⬜ 未开始 |
+| P0-1 模型包 | #3 owner_provider_tenant_id + #4 sla_definition_grant + #19 unique(tenant_id,name)（同迁移）+ RLS policy（#9）+ 随包 #18 模型字段 sla_exempt | SLA-A4/A8 | feat/sla-p0-model | d541f97e + 68824c19 | ✅ 已提交 |
+| P0-2 匹配引擎 | #1 L1/L2 插入 + L4 告警 + MatchedLayer（§13.6 依赖）+ #17 动态类型解析 + #18 匹配链重排/豁免/L3c | SLA-A1/A2/A3/A12 | feat/sla-p0-matcher | 待合并（本地已实施+编译/service 全包/相关 handlers 全绿） | 🟡 已实施待提交 |
 | P0-3 API 包 | #5 grant/provided 路由 + #10 grant handler 三件套 + #6 CRUD 护栏 + #7 Atoi 修复 | SLA-A4/A8/A9 | — | — | ⬜ 未开始 |
 | P0-4 前端包 | #8 serviceType 动态枚举 + grant 管理页 + 两段式列表 | SLA-A7 | — | — | ⬜ 未开始 |
 
@@ -987,3 +987,18 @@ flowchart TD
 - `ent/schema/sladefinition.go`（owner 列 + grants edge）、`ent/schema/sla_definition_grant.go`（新）、`ent/schema/ticket_type.go`（sla_exempt）+ ent 生成物（28 文件）；
 - `migrations/20261014_sla_grant_ownership_and_name_unique.sql` + `_down.sql`；
 - `database/rls/migrations/011_sla_definition_grant_policies.sql` + `_rollback.sql`（应用方式：`go run -tags rlsapply ./cmd/rls-apply -files 011_...sql`，属部署步骤）。
+
+### B.5 实施期修正记录（P0-2，2026-10-14）
+
+| # | 方案原文 | 实施修正 | 原因 |
+|---|---|---|---|
+| IM-7 | "接口签名不变"（§4.2 v1.1，针对 customerTier 来源） | `CalculateSLADeadlineFromRequest` 扩展两个参数：`ticketTypeID int` + `ticketTypeCode string`（接口同步；调用点 2 处 + 测试 9 处适配） | v1.3 引入类型维度后，L1 需要 ticket_type_id（grant 类型绑定）、L3b 需要动态类型 code 快照——两者在函数外（工单行）才可知；customerTier 仍走内部查询（原结论不变） |
+| IM-8 | "L4 告警复用 sla_alert_histories"（§4.2） | 改用结构化日志承载（字段：tenant_id/ticket_type/ticket_type_id/priority/matched_layer；`SLA_UNBOUND_ALERT_ENABLED` 显式开时升 Error 级）；"未绑定桶"由 P2 报表按 `MatchedLayer=L4` 统计 | `sla_alert_histories.alert_rule_id` 为 Positive/Required（edge 强制），未绑定场景不存在对应预警规则，无法合法写入；避免为此引入新表 |
+| IM-9 | "含无优先级回退（现状 FromRequest）"（§4.2 L3b） | 回退条件实现为"同类型任意优先级"（与 v1.11 前 FromRequest 完全一致；加 `ORDER BY id` 稳定化）——**不采用** getSLADefinition 的 PriorityIsNil 语义 | 两个旧函数回退宽度本就不同，L3b 以 FromRequest 为准（"L3 行为不变"承诺）；存量测试 "unknown_type" 用例期望同步更新为 L4（锁定 v1.3 删除 default→incident 静默兜底的修复） |
+
+**P0-2 交付物**（编译 `go build ./...` 绿；`go test ./service/` 全包绿（55s）；`./handlers/sla/... ./handlers/incident/... ./handlers/ticket/...` 绿）：
+
+- `service/ticket_sla_service.go`：四级匹配链（L1 grant→L2 tier→L3b→L3c→L4）、`SLADeadlineResult.MatchedLayer`、`SLA_UNBOUND_ALERT_ENABLED` 开关（env 构造读 + `SetUnboundAlertEnabled` 覆盖）、8 个链内 helper；
+- `service/ticket_service.go`：`SLAExempt` 前置豁免分支（零回归：豁免=跳过绑定，不入未绑定告警）+ 新签名传参；
+- `service/incident_service.go`：调用点适配（incident 无类型维度，传 0/""）；
+- `service/ticket_sla_matcher_test.go`（新）：8 场景（L1 类型绑定优先/L1 类型无关/L1 过期回落/L2 策略/L3b 快照 code/L3c 兜底/L4 fail-loud/L1 全链优先级）；`ticket_sla_service_test.go` 1 用例期望更新（缺陷修复锁定）；`sla_timezone_e2e_test.go` 8 处调用适配。
