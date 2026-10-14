@@ -185,6 +185,36 @@ func UsageCount(v int) predicate.TicketType {
 	return predicate.TicketType(sql.FieldEQ(FieldUsageCount, v))
 }
 
+// Origin applies equality check predicate on the "origin" field. It's identical to OriginEQ.
+func Origin(v string) predicate.TicketType {
+	return predicate.TicketType(sql.FieldEQ(FieldOrigin, v))
+}
+
+// OriginProviderTenantID applies equality check predicate on the "origin_provider_tenant_id" field. It's identical to OriginProviderTenantIDEQ.
+func OriginProviderTenantID(v int64) predicate.TicketType {
+	return predicate.TicketType(sql.FieldEQ(FieldOriginProviderTenantID, v))
+}
+
+// OriginTypeID applies equality check predicate on the "origin_type_id" field. It's identical to OriginTypeIDEQ.
+func OriginTypeID(v int64) predicate.TicketType {
+	return predicate.TicketType(sql.FieldEQ(FieldOriginTypeID, v))
+}
+
+// ControlledByProvider applies equality check predicate on the "controlled_by_provider" field. It's identical to ControlledByProviderEQ.
+func ControlledByProvider(v bool) predicate.TicketType {
+	return predicate.TicketType(sql.FieldEQ(FieldControlledByProvider, v))
+}
+
+// SyncStatus applies equality check predicate on the "sync_status" field. It's identical to SyncStatusEQ.
+func SyncStatus(v string) predicate.TicketType {
+	return predicate.TicketType(sql.FieldEQ(FieldSyncStatus, v))
+}
+
+// LastSyncedAt applies equality check predicate on the "last_synced_at" field. It's identical to LastSyncedAtEQ.
+func LastSyncedAt(v time.Time) predicate.TicketType {
+	return predicate.TicketType(sql.FieldEQ(FieldLastSyncedAt, v))
+}
+
 // CodeEQ applies the EQ predicate on the "code" field.
 func CodeEQ(v string) predicate.TicketType {
 	return predicate.TicketType(sql.FieldEQ(FieldCode, v))
@@ -1353,6 +1383,296 @@ func UsageCountLT(v int) predicate.TicketType {
 // UsageCountLTE applies the LTE predicate on the "usage_count" field.
 func UsageCountLTE(v int) predicate.TicketType {
 	return predicate.TicketType(sql.FieldLTE(FieldUsageCount, v))
+}
+
+// OriginEQ applies the EQ predicate on the "origin" field.
+func OriginEQ(v string) predicate.TicketType {
+	return predicate.TicketType(sql.FieldEQ(FieldOrigin, v))
+}
+
+// OriginNEQ applies the NEQ predicate on the "origin" field.
+func OriginNEQ(v string) predicate.TicketType {
+	return predicate.TicketType(sql.FieldNEQ(FieldOrigin, v))
+}
+
+// OriginIn applies the In predicate on the "origin" field.
+func OriginIn(vs ...string) predicate.TicketType {
+	return predicate.TicketType(sql.FieldIn(FieldOrigin, vs...))
+}
+
+// OriginNotIn applies the NotIn predicate on the "origin" field.
+func OriginNotIn(vs ...string) predicate.TicketType {
+	return predicate.TicketType(sql.FieldNotIn(FieldOrigin, vs...))
+}
+
+// OriginGT applies the GT predicate on the "origin" field.
+func OriginGT(v string) predicate.TicketType {
+	return predicate.TicketType(sql.FieldGT(FieldOrigin, v))
+}
+
+// OriginGTE applies the GTE predicate on the "origin" field.
+func OriginGTE(v string) predicate.TicketType {
+	return predicate.TicketType(sql.FieldGTE(FieldOrigin, v))
+}
+
+// OriginLT applies the LT predicate on the "origin" field.
+func OriginLT(v string) predicate.TicketType {
+	return predicate.TicketType(sql.FieldLT(FieldOrigin, v))
+}
+
+// OriginLTE applies the LTE predicate on the "origin" field.
+func OriginLTE(v string) predicate.TicketType {
+	return predicate.TicketType(sql.FieldLTE(FieldOrigin, v))
+}
+
+// OriginContains applies the Contains predicate on the "origin" field.
+func OriginContains(v string) predicate.TicketType {
+	return predicate.TicketType(sql.FieldContains(FieldOrigin, v))
+}
+
+// OriginHasPrefix applies the HasPrefix predicate on the "origin" field.
+func OriginHasPrefix(v string) predicate.TicketType {
+	return predicate.TicketType(sql.FieldHasPrefix(FieldOrigin, v))
+}
+
+// OriginHasSuffix applies the HasSuffix predicate on the "origin" field.
+func OriginHasSuffix(v string) predicate.TicketType {
+	return predicate.TicketType(sql.FieldHasSuffix(FieldOrigin, v))
+}
+
+// OriginEqualFold applies the EqualFold predicate on the "origin" field.
+func OriginEqualFold(v string) predicate.TicketType {
+	return predicate.TicketType(sql.FieldEqualFold(FieldOrigin, v))
+}
+
+// OriginContainsFold applies the ContainsFold predicate on the "origin" field.
+func OriginContainsFold(v string) predicate.TicketType {
+	return predicate.TicketType(sql.FieldContainsFold(FieldOrigin, v))
+}
+
+// OriginProviderTenantIDEQ applies the EQ predicate on the "origin_provider_tenant_id" field.
+func OriginProviderTenantIDEQ(v int64) predicate.TicketType {
+	return predicate.TicketType(sql.FieldEQ(FieldOriginProviderTenantID, v))
+}
+
+// OriginProviderTenantIDNEQ applies the NEQ predicate on the "origin_provider_tenant_id" field.
+func OriginProviderTenantIDNEQ(v int64) predicate.TicketType {
+	return predicate.TicketType(sql.FieldNEQ(FieldOriginProviderTenantID, v))
+}
+
+// OriginProviderTenantIDIn applies the In predicate on the "origin_provider_tenant_id" field.
+func OriginProviderTenantIDIn(vs ...int64) predicate.TicketType {
+	return predicate.TicketType(sql.FieldIn(FieldOriginProviderTenantID, vs...))
+}
+
+// OriginProviderTenantIDNotIn applies the NotIn predicate on the "origin_provider_tenant_id" field.
+func OriginProviderTenantIDNotIn(vs ...int64) predicate.TicketType {
+	return predicate.TicketType(sql.FieldNotIn(FieldOriginProviderTenantID, vs...))
+}
+
+// OriginProviderTenantIDGT applies the GT predicate on the "origin_provider_tenant_id" field.
+func OriginProviderTenantIDGT(v int64) predicate.TicketType {
+	return predicate.TicketType(sql.FieldGT(FieldOriginProviderTenantID, v))
+}
+
+// OriginProviderTenantIDGTE applies the GTE predicate on the "origin_provider_tenant_id" field.
+func OriginProviderTenantIDGTE(v int64) predicate.TicketType {
+	return predicate.TicketType(sql.FieldGTE(FieldOriginProviderTenantID, v))
+}
+
+// OriginProviderTenantIDLT applies the LT predicate on the "origin_provider_tenant_id" field.
+func OriginProviderTenantIDLT(v int64) predicate.TicketType {
+	return predicate.TicketType(sql.FieldLT(FieldOriginProviderTenantID, v))
+}
+
+// OriginProviderTenantIDLTE applies the LTE predicate on the "origin_provider_tenant_id" field.
+func OriginProviderTenantIDLTE(v int64) predicate.TicketType {
+	return predicate.TicketType(sql.FieldLTE(FieldOriginProviderTenantID, v))
+}
+
+// OriginProviderTenantIDIsNil applies the IsNil predicate on the "origin_provider_tenant_id" field.
+func OriginProviderTenantIDIsNil() predicate.TicketType {
+	return predicate.TicketType(sql.FieldIsNull(FieldOriginProviderTenantID))
+}
+
+// OriginProviderTenantIDNotNil applies the NotNil predicate on the "origin_provider_tenant_id" field.
+func OriginProviderTenantIDNotNil() predicate.TicketType {
+	return predicate.TicketType(sql.FieldNotNull(FieldOriginProviderTenantID))
+}
+
+// OriginTypeIDEQ applies the EQ predicate on the "origin_type_id" field.
+func OriginTypeIDEQ(v int64) predicate.TicketType {
+	return predicate.TicketType(sql.FieldEQ(FieldOriginTypeID, v))
+}
+
+// OriginTypeIDNEQ applies the NEQ predicate on the "origin_type_id" field.
+func OriginTypeIDNEQ(v int64) predicate.TicketType {
+	return predicate.TicketType(sql.FieldNEQ(FieldOriginTypeID, v))
+}
+
+// OriginTypeIDIn applies the In predicate on the "origin_type_id" field.
+func OriginTypeIDIn(vs ...int64) predicate.TicketType {
+	return predicate.TicketType(sql.FieldIn(FieldOriginTypeID, vs...))
+}
+
+// OriginTypeIDNotIn applies the NotIn predicate on the "origin_type_id" field.
+func OriginTypeIDNotIn(vs ...int64) predicate.TicketType {
+	return predicate.TicketType(sql.FieldNotIn(FieldOriginTypeID, vs...))
+}
+
+// OriginTypeIDGT applies the GT predicate on the "origin_type_id" field.
+func OriginTypeIDGT(v int64) predicate.TicketType {
+	return predicate.TicketType(sql.FieldGT(FieldOriginTypeID, v))
+}
+
+// OriginTypeIDGTE applies the GTE predicate on the "origin_type_id" field.
+func OriginTypeIDGTE(v int64) predicate.TicketType {
+	return predicate.TicketType(sql.FieldGTE(FieldOriginTypeID, v))
+}
+
+// OriginTypeIDLT applies the LT predicate on the "origin_type_id" field.
+func OriginTypeIDLT(v int64) predicate.TicketType {
+	return predicate.TicketType(sql.FieldLT(FieldOriginTypeID, v))
+}
+
+// OriginTypeIDLTE applies the LTE predicate on the "origin_type_id" field.
+func OriginTypeIDLTE(v int64) predicate.TicketType {
+	return predicate.TicketType(sql.FieldLTE(FieldOriginTypeID, v))
+}
+
+// OriginTypeIDIsNil applies the IsNil predicate on the "origin_type_id" field.
+func OriginTypeIDIsNil() predicate.TicketType {
+	return predicate.TicketType(sql.FieldIsNull(FieldOriginTypeID))
+}
+
+// OriginTypeIDNotNil applies the NotNil predicate on the "origin_type_id" field.
+func OriginTypeIDNotNil() predicate.TicketType {
+	return predicate.TicketType(sql.FieldNotNull(FieldOriginTypeID))
+}
+
+// ControlledByProviderEQ applies the EQ predicate on the "controlled_by_provider" field.
+func ControlledByProviderEQ(v bool) predicate.TicketType {
+	return predicate.TicketType(sql.FieldEQ(FieldControlledByProvider, v))
+}
+
+// ControlledByProviderNEQ applies the NEQ predicate on the "controlled_by_provider" field.
+func ControlledByProviderNEQ(v bool) predicate.TicketType {
+	return predicate.TicketType(sql.FieldNEQ(FieldControlledByProvider, v))
+}
+
+// SyncStatusEQ applies the EQ predicate on the "sync_status" field.
+func SyncStatusEQ(v string) predicate.TicketType {
+	return predicate.TicketType(sql.FieldEQ(FieldSyncStatus, v))
+}
+
+// SyncStatusNEQ applies the NEQ predicate on the "sync_status" field.
+func SyncStatusNEQ(v string) predicate.TicketType {
+	return predicate.TicketType(sql.FieldNEQ(FieldSyncStatus, v))
+}
+
+// SyncStatusIn applies the In predicate on the "sync_status" field.
+func SyncStatusIn(vs ...string) predicate.TicketType {
+	return predicate.TicketType(sql.FieldIn(FieldSyncStatus, vs...))
+}
+
+// SyncStatusNotIn applies the NotIn predicate on the "sync_status" field.
+func SyncStatusNotIn(vs ...string) predicate.TicketType {
+	return predicate.TicketType(sql.FieldNotIn(FieldSyncStatus, vs...))
+}
+
+// SyncStatusGT applies the GT predicate on the "sync_status" field.
+func SyncStatusGT(v string) predicate.TicketType {
+	return predicate.TicketType(sql.FieldGT(FieldSyncStatus, v))
+}
+
+// SyncStatusGTE applies the GTE predicate on the "sync_status" field.
+func SyncStatusGTE(v string) predicate.TicketType {
+	return predicate.TicketType(sql.FieldGTE(FieldSyncStatus, v))
+}
+
+// SyncStatusLT applies the LT predicate on the "sync_status" field.
+func SyncStatusLT(v string) predicate.TicketType {
+	return predicate.TicketType(sql.FieldLT(FieldSyncStatus, v))
+}
+
+// SyncStatusLTE applies the LTE predicate on the "sync_status" field.
+func SyncStatusLTE(v string) predicate.TicketType {
+	return predicate.TicketType(sql.FieldLTE(FieldSyncStatus, v))
+}
+
+// SyncStatusContains applies the Contains predicate on the "sync_status" field.
+func SyncStatusContains(v string) predicate.TicketType {
+	return predicate.TicketType(sql.FieldContains(FieldSyncStatus, v))
+}
+
+// SyncStatusHasPrefix applies the HasPrefix predicate on the "sync_status" field.
+func SyncStatusHasPrefix(v string) predicate.TicketType {
+	return predicate.TicketType(sql.FieldHasPrefix(FieldSyncStatus, v))
+}
+
+// SyncStatusHasSuffix applies the HasSuffix predicate on the "sync_status" field.
+func SyncStatusHasSuffix(v string) predicate.TicketType {
+	return predicate.TicketType(sql.FieldHasSuffix(FieldSyncStatus, v))
+}
+
+// SyncStatusEqualFold applies the EqualFold predicate on the "sync_status" field.
+func SyncStatusEqualFold(v string) predicate.TicketType {
+	return predicate.TicketType(sql.FieldEqualFold(FieldSyncStatus, v))
+}
+
+// SyncStatusContainsFold applies the ContainsFold predicate on the "sync_status" field.
+func SyncStatusContainsFold(v string) predicate.TicketType {
+	return predicate.TicketType(sql.FieldContainsFold(FieldSyncStatus, v))
+}
+
+// LastSyncedAtEQ applies the EQ predicate on the "last_synced_at" field.
+func LastSyncedAtEQ(v time.Time) predicate.TicketType {
+	return predicate.TicketType(sql.FieldEQ(FieldLastSyncedAt, v))
+}
+
+// LastSyncedAtNEQ applies the NEQ predicate on the "last_synced_at" field.
+func LastSyncedAtNEQ(v time.Time) predicate.TicketType {
+	return predicate.TicketType(sql.FieldNEQ(FieldLastSyncedAt, v))
+}
+
+// LastSyncedAtIn applies the In predicate on the "last_synced_at" field.
+func LastSyncedAtIn(vs ...time.Time) predicate.TicketType {
+	return predicate.TicketType(sql.FieldIn(FieldLastSyncedAt, vs...))
+}
+
+// LastSyncedAtNotIn applies the NotIn predicate on the "last_synced_at" field.
+func LastSyncedAtNotIn(vs ...time.Time) predicate.TicketType {
+	return predicate.TicketType(sql.FieldNotIn(FieldLastSyncedAt, vs...))
+}
+
+// LastSyncedAtGT applies the GT predicate on the "last_synced_at" field.
+func LastSyncedAtGT(v time.Time) predicate.TicketType {
+	return predicate.TicketType(sql.FieldGT(FieldLastSyncedAt, v))
+}
+
+// LastSyncedAtGTE applies the GTE predicate on the "last_synced_at" field.
+func LastSyncedAtGTE(v time.Time) predicate.TicketType {
+	return predicate.TicketType(sql.FieldGTE(FieldLastSyncedAt, v))
+}
+
+// LastSyncedAtLT applies the LT predicate on the "last_synced_at" field.
+func LastSyncedAtLT(v time.Time) predicate.TicketType {
+	return predicate.TicketType(sql.FieldLT(FieldLastSyncedAt, v))
+}
+
+// LastSyncedAtLTE applies the LTE predicate on the "last_synced_at" field.
+func LastSyncedAtLTE(v time.Time) predicate.TicketType {
+	return predicate.TicketType(sql.FieldLTE(FieldLastSyncedAt, v))
+}
+
+// LastSyncedAtIsNil applies the IsNil predicate on the "last_synced_at" field.
+func LastSyncedAtIsNil() predicate.TicketType {
+	return predicate.TicketType(sql.FieldIsNull(FieldLastSyncedAt))
+}
+
+// LastSyncedAtNotNil applies the NotNil predicate on the "last_synced_at" field.
+func LastSyncedAtNotNil() predicate.TicketType {
+	return predicate.TicketType(sql.FieldNotNull(FieldLastSyncedAt))
 }
 
 // HasTickets applies the HasEdge predicate on the "tickets" edge.

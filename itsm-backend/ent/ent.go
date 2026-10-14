@@ -147,6 +147,7 @@ import (
 	"itsm-backend/ent/tickettag"
 	"itsm-backend/ent/tickettemplate"
 	"itsm-backend/ent/tickettype"
+	"itsm-backend/ent/tickettypedistribution"
 	"itsm-backend/ent/ticketview"
 	"itsm-backend/ent/ticketworkflowrecord"
 	"itsm-backend/ent/toolinvocation"
@@ -367,6 +368,7 @@ func checkColumn(t, c string) error {
 			tickettag.Table:                   tickettag.ValidColumn,
 			tickettemplate.Table:              tickettemplate.ValidColumn,
 			tickettype.Table:                  tickettype.ValidColumn,
+			tickettypedistribution.Table:      tickettypedistribution.ValidColumn,
 			ticketview.Table:                  ticketview.ValidColumn,
 			ticketworkflowrecord.Table:        ticketworkflowrecord.ValidColumn,
 			toolinvocation.Table:              toolinvocation.ValidColumn,

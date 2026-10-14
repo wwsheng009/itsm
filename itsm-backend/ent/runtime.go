@@ -144,6 +144,7 @@ import (
 	"itsm-backend/ent/tickettag"
 	"itsm-backend/ent/tickettemplate"
 	"itsm-backend/ent/tickettype"
+	"itsm-backend/ent/tickettypedistribution"
 	"itsm-backend/ent/ticketview"
 	"itsm-backend/ent/ticketworkflowrecord"
 	"itsm-backend/ent/toolinvocation"
@@ -6178,6 +6179,44 @@ func init() {
 	tickettypeDescUsageCount := tickettypeFields[30].Descriptor()
 	// tickettype.DefaultUsageCount holds the default value on creation for the usage_count field.
 	tickettype.DefaultUsageCount = tickettypeDescUsageCount.Default.(int)
+	// tickettypeDescOrigin is the schema descriptor for origin field.
+	tickettypeDescOrigin := tickettypeFields[31].Descriptor()
+	// tickettype.DefaultOrigin holds the default value on creation for the origin field.
+	tickettype.DefaultOrigin = tickettypeDescOrigin.Default.(string)
+	// tickettype.OriginValidator is a validator for the "origin" field. It is called by the builders before save.
+	tickettype.OriginValidator = tickettypeDescOrigin.Validators[0].(func(string) error)
+	// tickettypeDescControlledByProvider is the schema descriptor for controlled_by_provider field.
+	tickettypeDescControlledByProvider := tickettypeFields[34].Descriptor()
+	// tickettype.DefaultControlledByProvider holds the default value on creation for the controlled_by_provider field.
+	tickettype.DefaultControlledByProvider = tickettypeDescControlledByProvider.Default.(bool)
+	// tickettypeDescSyncStatus is the schema descriptor for sync_status field.
+	tickettypeDescSyncStatus := tickettypeFields[35].Descriptor()
+	// tickettype.DefaultSyncStatus holds the default value on creation for the sync_status field.
+	tickettype.DefaultSyncStatus = tickettypeDescSyncStatus.Default.(string)
+	// tickettype.SyncStatusValidator is a validator for the "sync_status" field. It is called by the builders before save.
+	tickettype.SyncStatusValidator = tickettypeDescSyncStatus.Validators[0].(func(string) error)
+	tickettypedistributionFields := schema.TicketTypeDistribution{}.Fields()
+	_ = tickettypedistributionFields
+	// tickettypedistributionDescSyncStatus is the schema descriptor for sync_status field.
+	tickettypedistributionDescSyncStatus := tickettypedistributionFields[4].Descriptor()
+	// tickettypedistribution.DefaultSyncStatus holds the default value on creation for the sync_status field.
+	tickettypedistribution.DefaultSyncStatus = tickettypedistributionDescSyncStatus.Default.(string)
+	// tickettypedistribution.SyncStatusValidator is a validator for the "sync_status" field. It is called by the builders before save.
+	tickettypedistribution.SyncStatusValidator = tickettypedistributionDescSyncStatus.Validators[0].(func(string) error)
+	// tickettypedistributionDescDistributedAt is the schema descriptor for distributed_at field.
+	tickettypedistributionDescDistributedAt := tickettypedistributionFields[7].Descriptor()
+	// tickettypedistribution.DefaultDistributedAt holds the default value on creation for the distributed_at field.
+	tickettypedistribution.DefaultDistributedAt = tickettypedistributionDescDistributedAt.Default.(func() time.Time)
+	// tickettypedistributionDescCreatedAt is the schema descriptor for created_at field.
+	tickettypedistributionDescCreatedAt := tickettypedistributionFields[8].Descriptor()
+	// tickettypedistribution.DefaultCreatedAt holds the default value on creation for the created_at field.
+	tickettypedistribution.DefaultCreatedAt = tickettypedistributionDescCreatedAt.Default.(func() time.Time)
+	// tickettypedistributionDescUpdatedAt is the schema descriptor for updated_at field.
+	tickettypedistributionDescUpdatedAt := tickettypedistributionFields[9].Descriptor()
+	// tickettypedistribution.DefaultUpdatedAt holds the default value on creation for the updated_at field.
+	tickettypedistribution.DefaultUpdatedAt = tickettypedistributionDescUpdatedAt.Default.(func() time.Time)
+	// tickettypedistribution.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
+	tickettypedistribution.UpdateDefaultUpdatedAt = tickettypedistributionDescUpdatedAt.UpdateDefault.(func() time.Time)
 	ticketviewFields := schema.TicketView{}.Fields()
 	_ = ticketviewFields
 	// ticketviewDescName is the schema descriptor for name field.

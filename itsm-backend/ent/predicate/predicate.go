@@ -429,6 +429,9 @@ type TicketTemplate func(*sql.Selector)
 // TicketType is the predicate function for tickettype builders.
 type TicketType func(*sql.Selector)
 
+// TicketTypeDistribution is the predicate function for tickettypedistribution builders.
+type TicketTypeDistribution func(*sql.Selector)
+
 // TicketView is the predicate function for ticketview builders.
 type TicketView func(*sql.Selector)
 

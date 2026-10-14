@@ -294,6 +294,8 @@ type Tx struct {
 	TicketTemplate *TicketTemplateClient
 	// TicketType is the client for interacting with the TicketType builders.
 	TicketType *TicketTypeClient
+	// TicketTypeDistribution is the client for interacting with the TicketTypeDistribution builders.
+	TicketTypeDistribution *TicketTypeDistributionClient
 	// TicketView is the client for interacting with the TicketView builders.
 	TicketView *TicketViewClient
 	// TicketWorkflowRecord is the client for interacting with the TicketWorkflowRecord builders.
@@ -592,6 +594,7 @@ func (tx *Tx) init() {
 	tx.TicketTag = NewTicketTagClient(tx.config)
 	tx.TicketTemplate = NewTicketTemplateClient(tx.config)
 	tx.TicketType = NewTicketTypeClient(tx.config)
+	tx.TicketTypeDistribution = NewTicketTypeDistributionClient(tx.config)
 	tx.TicketView = NewTicketViewClient(tx.config)
 	tx.TicketWorkflowRecord = NewTicketWorkflowRecordClient(tx.config)
 	tx.ToolInvocation = NewToolInvocationClient(tx.config)

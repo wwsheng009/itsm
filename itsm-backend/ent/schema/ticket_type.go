@@ -53,6 +53,28 @@ func (TicketType) Fields() []ent.Field {
 		field.Time("updated_at"),
 		field.Int64("updated_by").Optional(),
 		field.Int("usage_count").Default(0),
+		// D-TT-1（方案 §4.5a，P2-3）：受控下发溯源 + 同步状态。
+		// 委托 origin 三元组判定归属与来源；controlled_by_provider=true 时受控字段仅服务商发布可改。
+		field.String("origin").
+			Comment("来源: native(客户自建)|controlled(服务商下发副本)").
+			Default("native").
+			MaxLen(16),
+		field.Int64("origin_provider_tenant_id").
+			Comment("下发源服务商租户ID（0=非下发）").
+			Optional(),
+		field.Int64("origin_type_id").
+			Comment("下发源类型行ID（provider 租户内；0=非下发）").
+			Optional(),
+		field.Bool("controlled_by_provider").
+			Comment("受控字段锁：true=受控字段(name/description/sla_enabled/default_sla_id)仅服务商发布可改").
+			Default(false),
+		field.String("sync_status").
+			Comment("同步状态: ''(native)|synced|dirty|failed|orphaned|unbound").
+			Default("").
+			MaxLen(16),
+		field.Time("last_synced_at").
+			Comment("最近一次发布同步时间").
+			Optional(),
 	}
 }
 

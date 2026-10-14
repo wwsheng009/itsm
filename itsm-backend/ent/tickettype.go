@@ -80,6 +80,18 @@ type TicketType struct {
 	UpdatedBy int64 `json:"updated_by,omitempty"`
 	// UsageCount holds the value of the "usage_count" field.
 	UsageCount int `json:"usage_count,omitempty"`
+	// 来源: native(客户自建)|controlled(服务商下发副本)
+	Origin string `json:"origin,omitempty"`
+	// 下发源服务商租户ID（0=非下发）
+	OriginProviderTenantID int64 `json:"origin_provider_tenant_id,omitempty"`
+	// 下发源类型行ID（provider 租户内；0=非下发）
+	OriginTypeID int64 `json:"origin_type_id,omitempty"`
+	// 受控字段锁：true=受控字段(name/description/sla_enabled/default_sla_id)仅服务商发布可改
+	ControlledByProvider bool `json:"controlled_by_provider,omitempty"`
+	// 同步状态: ''(native)|synced|dirty|failed|orphaned|unbound
+	SyncStatus string `json:"sync_status,omitempty"`
+	// 最近一次发布同步时间
+	LastSyncedAt time.Time `json:"last_synced_at,omitempty"`
 	// Edges holds the relations/edges for other nodes in the graph.
 	// The values are being populated by the TicketTypeQuery when eager-loading is set.
 	Edges        TicketTypeEdges `json:"edges"`
@@ -111,13 +123,13 @@ func (*TicketType) scanValues(columns []string) ([]any, error) {
 		switch columns[i] {
 		case tickettype.FieldCustomFields, tickettype.FieldApprovalChain, tickettype.FieldAssignmentRules, tickettype.FieldNotificationConfig, tickettype.FieldPermissionConfig:
 			values[i] = new([]byte)
-		case tickettype.FieldApprovalEnabled, tickettype.FieldSLAEnabled, tickettype.FieldSLAExempt, tickettype.FieldAutoAssignEnabled, tickettype.FieldMspRouteEnabled:
+		case tickettype.FieldApprovalEnabled, tickettype.FieldSLAEnabled, tickettype.FieldSLAExempt, tickettype.FieldAutoAssignEnabled, tickettype.FieldMspRouteEnabled, tickettype.FieldControlledByProvider:
 			values[i] = new(sql.NullBool)
-		case tickettype.FieldID, tickettype.FieldCategoryID, tickettype.FieldSortOrder, tickettype.FieldAssignmentRuleID, tickettype.FieldArchivedBy, tickettype.FieldApprovalWorkflowID, tickettype.FieldDefaultSLAID, tickettype.FieldTenantID, tickettype.FieldCreatedBy, tickettype.FieldUpdatedBy, tickettype.FieldUsageCount:
+		case tickettype.FieldID, tickettype.FieldCategoryID, tickettype.FieldSortOrder, tickettype.FieldAssignmentRuleID, tickettype.FieldArchivedBy, tickettype.FieldApprovalWorkflowID, tickettype.FieldDefaultSLAID, tickettype.FieldTenantID, tickettype.FieldCreatedBy, tickettype.FieldUpdatedBy, tickettype.FieldUsageCount, tickettype.FieldOriginProviderTenantID, tickettype.FieldOriginTypeID:
 			values[i] = new(sql.NullInt64)
-		case tickettype.FieldCode, tickettype.FieldName, tickettype.FieldDescription, tickettype.FieldIcon, tickettype.FieldColor, tickettype.FieldStatus, tickettype.FieldDefaultPriority, tickettype.FieldWorkflowDefinitionKey:
+		case tickettype.FieldCode, tickettype.FieldName, tickettype.FieldDescription, tickettype.FieldIcon, tickettype.FieldColor, tickettype.FieldStatus, tickettype.FieldDefaultPriority, tickettype.FieldWorkflowDefinitionKey, tickettype.FieldOrigin, tickettype.FieldSyncStatus:
 			values[i] = new(sql.NullString)
-		case tickettype.FieldArchivedAt, tickettype.FieldCreatedAt, tickettype.FieldUpdatedAt:
+		case tickettype.FieldArchivedAt, tickettype.FieldCreatedAt, tickettype.FieldUpdatedAt, tickettype.FieldLastSyncedAt:
 			values[i] = new(sql.NullTime)
 		default:
 			values[i] = new(sql.UnknownType)
@@ -337,6 +349,42 @@ func (_m *TicketType) assignValues(columns []string, values []any) error {
 			} else if value.Valid {
 				_m.UsageCount = int(value.Int64)
 			}
+		case tickettype.FieldOrigin:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field origin", values[i])
+			} else if value.Valid {
+				_m.Origin = value.String
+			}
+		case tickettype.FieldOriginProviderTenantID:
+			if value, ok := values[i].(*sql.NullInt64); !ok {
+				return fmt.Errorf("unexpected type %T for field origin_provider_tenant_id", values[i])
+			} else if value.Valid {
+				_m.OriginProviderTenantID = value.Int64
+			}
+		case tickettype.FieldOriginTypeID:
+			if value, ok := values[i].(*sql.NullInt64); !ok {
+				return fmt.Errorf("unexpected type %T for field origin_type_id", values[i])
+			} else if value.Valid {
+				_m.OriginTypeID = value.Int64
+			}
+		case tickettype.FieldControlledByProvider:
+			if value, ok := values[i].(*sql.NullBool); !ok {
+				return fmt.Errorf("unexpected type %T for field controlled_by_provider", values[i])
+			} else if value.Valid {
+				_m.ControlledByProvider = value.Bool
+			}
+		case tickettype.FieldSyncStatus:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field sync_status", values[i])
+			} else if value.Valid {
+				_m.SyncStatus = value.String
+			}
+		case tickettype.FieldLastSyncedAt:
+			if value, ok := values[i].(*sql.NullTime); !ok {
+				return fmt.Errorf("unexpected type %T for field last_synced_at", values[i])
+			} else if value.Valid {
+				_m.LastSyncedAt = value.Time
+			}
 		default:
 			_m.selectValues.Set(columns[i], values[i])
 		}
@@ -472,6 +520,24 @@ func (_m *TicketType) String() string {
 	builder.WriteString(", ")
 	builder.WriteString("usage_count=")
 	builder.WriteString(fmt.Sprintf("%v", _m.UsageCount))
+	builder.WriteString(", ")
+	builder.WriteString("origin=")
+	builder.WriteString(_m.Origin)
+	builder.WriteString(", ")
+	builder.WriteString("origin_provider_tenant_id=")
+	builder.WriteString(fmt.Sprintf("%v", _m.OriginProviderTenantID))
+	builder.WriteString(", ")
+	builder.WriteString("origin_type_id=")
+	builder.WriteString(fmt.Sprintf("%v", _m.OriginTypeID))
+	builder.WriteString(", ")
+	builder.WriteString("controlled_by_provider=")
+	builder.WriteString(fmt.Sprintf("%v", _m.ControlledByProvider))
+	builder.WriteString(", ")
+	builder.WriteString("sync_status=")
+	builder.WriteString(_m.SyncStatus)
+	builder.WriteString(", ")
+	builder.WriteString("last_synced_at=")
+	builder.WriteString(_m.LastSyncedAt.Format(time.ANSIC))
 	builder.WriteByte(')')
 	return builder.String()
 }

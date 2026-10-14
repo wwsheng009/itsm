@@ -6016,6 +6016,12 @@ var (
 		{Name: "updated_at", Type: field.TypeTime},
 		{Name: "updated_by", Type: field.TypeInt64, Nullable: true},
 		{Name: "usage_count", Type: field.TypeInt, Default: 0},
+		{Name: "origin", Type: field.TypeString, Size: 16, Default: "native"},
+		{Name: "origin_provider_tenant_id", Type: field.TypeInt64, Nullable: true},
+		{Name: "origin_type_id", Type: field.TypeInt64, Nullable: true},
+		{Name: "controlled_by_provider", Type: field.TypeBool, Default: false},
+		{Name: "sync_status", Type: field.TypeString, Size: 16, Default: ""},
+		{Name: "last_synced_at", Type: field.TypeTime, Nullable: true},
 	}
 	// TicketTypesTable holds the schema information for the "ticket_types" table.
 	TicketTypesTable = &schema.Table{
@@ -6042,6 +6048,43 @@ var (
 				Name:    "tickettype_tenant_id_sort_order",
 				Unique:  false,
 				Columns: []*schema.Column{TicketTypesColumns[26], TicketTypesColumns[9]},
+			},
+		},
+	}
+	// TicketTypeDistributionsColumns holds the columns for the "ticket_type_distributions" table.
+	TicketTypeDistributionsColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeInt, Increment: true},
+		{Name: "tenant_id", Type: field.TypeInt64},
+		{Name: "provider_tenant_id", Type: field.TypeInt64},
+		{Name: "source_type_id", Type: field.TypeInt64},
+		{Name: "copy_type_id", Type: field.TypeInt64},
+		{Name: "sync_status", Type: field.TypeString, Size: 16, Default: "synced"},
+		{Name: "last_synced_at", Type: field.TypeTime, Nullable: true},
+		{Name: "distributed_by", Type: field.TypeInt64},
+		{Name: "distributed_at", Type: field.TypeTime},
+		{Name: "created_at", Type: field.TypeTime},
+		{Name: "updated_at", Type: field.TypeTime},
+	}
+	// TicketTypeDistributionsTable holds the schema information for the "ticket_type_distributions" table.
+	TicketTypeDistributionsTable = &schema.Table{
+		Name:       "ticket_type_distributions",
+		Columns:    TicketTypeDistributionsColumns,
+		PrimaryKey: []*schema.Column{TicketTypeDistributionsColumns[0]},
+		Indexes: []*schema.Index{
+			{
+				Name:    "uk_ticket_type_distributions_copy",
+				Unique:  true,
+				Columns: []*schema.Column{TicketTypeDistributionsColumns[4]},
+			},
+			{
+				Name:    "idx_ticket_type_distributions_tenant_provider",
+				Unique:  false,
+				Columns: []*schema.Column{TicketTypeDistributionsColumns[1], TicketTypeDistributionsColumns[2]},
+			},
+			{
+				Name:    "idx_ticket_type_distributions_source",
+				Unique:  false,
+				Columns: []*schema.Column{TicketTypeDistributionsColumns[3]},
 			},
 		},
 	}
@@ -7148,6 +7191,7 @@ var (
 		TicketTagsTable,
 		TicketTemplatesTable,
 		TicketTypesTable,
+		TicketTypeDistributionsTable,
 		TicketViewsTable,
 		TicketWorkflowRecordsTable,
 		ToolInvocationsTable,

@@ -343,6 +343,90 @@ func (_c *TicketTypeCreate) SetNillableUsageCount(v *int) *TicketTypeCreate {
 	return _c
 }
 
+// SetOrigin sets the "origin" field.
+func (_c *TicketTypeCreate) SetOrigin(v string) *TicketTypeCreate {
+	_c.mutation.SetOrigin(v)
+	return _c
+}
+
+// SetNillableOrigin sets the "origin" field if the given value is not nil.
+func (_c *TicketTypeCreate) SetNillableOrigin(v *string) *TicketTypeCreate {
+	if v != nil {
+		_c.SetOrigin(*v)
+	}
+	return _c
+}
+
+// SetOriginProviderTenantID sets the "origin_provider_tenant_id" field.
+func (_c *TicketTypeCreate) SetOriginProviderTenantID(v int64) *TicketTypeCreate {
+	_c.mutation.SetOriginProviderTenantID(v)
+	return _c
+}
+
+// SetNillableOriginProviderTenantID sets the "origin_provider_tenant_id" field if the given value is not nil.
+func (_c *TicketTypeCreate) SetNillableOriginProviderTenantID(v *int64) *TicketTypeCreate {
+	if v != nil {
+		_c.SetOriginProviderTenantID(*v)
+	}
+	return _c
+}
+
+// SetOriginTypeID sets the "origin_type_id" field.
+func (_c *TicketTypeCreate) SetOriginTypeID(v int64) *TicketTypeCreate {
+	_c.mutation.SetOriginTypeID(v)
+	return _c
+}
+
+// SetNillableOriginTypeID sets the "origin_type_id" field if the given value is not nil.
+func (_c *TicketTypeCreate) SetNillableOriginTypeID(v *int64) *TicketTypeCreate {
+	if v != nil {
+		_c.SetOriginTypeID(*v)
+	}
+	return _c
+}
+
+// SetControlledByProvider sets the "controlled_by_provider" field.
+func (_c *TicketTypeCreate) SetControlledByProvider(v bool) *TicketTypeCreate {
+	_c.mutation.SetControlledByProvider(v)
+	return _c
+}
+
+// SetNillableControlledByProvider sets the "controlled_by_provider" field if the given value is not nil.
+func (_c *TicketTypeCreate) SetNillableControlledByProvider(v *bool) *TicketTypeCreate {
+	if v != nil {
+		_c.SetControlledByProvider(*v)
+	}
+	return _c
+}
+
+// SetSyncStatus sets the "sync_status" field.
+func (_c *TicketTypeCreate) SetSyncStatus(v string) *TicketTypeCreate {
+	_c.mutation.SetSyncStatus(v)
+	return _c
+}
+
+// SetNillableSyncStatus sets the "sync_status" field if the given value is not nil.
+func (_c *TicketTypeCreate) SetNillableSyncStatus(v *string) *TicketTypeCreate {
+	if v != nil {
+		_c.SetSyncStatus(*v)
+	}
+	return _c
+}
+
+// SetLastSyncedAt sets the "last_synced_at" field.
+func (_c *TicketTypeCreate) SetLastSyncedAt(v time.Time) *TicketTypeCreate {
+	_c.mutation.SetLastSyncedAt(v)
+	return _c
+}
+
+// SetNillableLastSyncedAt sets the "last_synced_at" field if the given value is not nil.
+func (_c *TicketTypeCreate) SetNillableLastSyncedAt(v *time.Time) *TicketTypeCreate {
+	if v != nil {
+		_c.SetLastSyncedAt(*v)
+	}
+	return _c
+}
+
 // AddTicketIDs adds the "tickets" edge to the Ticket entity by IDs.
 func (_c *TicketTypeCreate) AddTicketIDs(ids ...int) *TicketTypeCreate {
 	_c.mutation.AddTicketIDs(ids...)
@@ -428,6 +512,18 @@ func (_c *TicketTypeCreate) defaults() {
 	if _, ok := _c.mutation.UsageCount(); !ok {
 		v := tickettype.DefaultUsageCount
 		_c.mutation.SetUsageCount(v)
+	}
+	if _, ok := _c.mutation.Origin(); !ok {
+		v := tickettype.DefaultOrigin
+		_c.mutation.SetOrigin(v)
+	}
+	if _, ok := _c.mutation.ControlledByProvider(); !ok {
+		v := tickettype.DefaultControlledByProvider
+		_c.mutation.SetControlledByProvider(v)
+	}
+	if _, ok := _c.mutation.SyncStatus(); !ok {
+		v := tickettype.DefaultSyncStatus
+		_c.mutation.SetSyncStatus(v)
 	}
 }
 
@@ -531,6 +627,25 @@ func (_c *TicketTypeCreate) check() error {
 	}
 	if _, ok := _c.mutation.UsageCount(); !ok {
 		return &ValidationError{Name: "usage_count", err: errors.New(`ent: missing required field "TicketType.usage_count"`)}
+	}
+	if _, ok := _c.mutation.Origin(); !ok {
+		return &ValidationError{Name: "origin", err: errors.New(`ent: missing required field "TicketType.origin"`)}
+	}
+	if v, ok := _c.mutation.Origin(); ok {
+		if err := tickettype.OriginValidator(v); err != nil {
+			return &ValidationError{Name: "origin", err: fmt.Errorf(`ent: validator failed for field "TicketType.origin": %w`, err)}
+		}
+	}
+	if _, ok := _c.mutation.ControlledByProvider(); !ok {
+		return &ValidationError{Name: "controlled_by_provider", err: errors.New(`ent: missing required field "TicketType.controlled_by_provider"`)}
+	}
+	if _, ok := _c.mutation.SyncStatus(); !ok {
+		return &ValidationError{Name: "sync_status", err: errors.New(`ent: missing required field "TicketType.sync_status"`)}
+	}
+	if v, ok := _c.mutation.SyncStatus(); ok {
+		if err := tickettype.SyncStatusValidator(v); err != nil {
+			return &ValidationError{Name: "sync_status", err: fmt.Errorf(`ent: validator failed for field "TicketType.sync_status": %w`, err)}
+		}
 	}
 	return nil
 }
@@ -681,6 +796,30 @@ func (_c *TicketTypeCreate) createSpec() (*TicketType, *sqlgraph.CreateSpec) {
 	if value, ok := _c.mutation.UsageCount(); ok {
 		_spec.SetField(tickettype.FieldUsageCount, field.TypeInt, value)
 		_node.UsageCount = value
+	}
+	if value, ok := _c.mutation.Origin(); ok {
+		_spec.SetField(tickettype.FieldOrigin, field.TypeString, value)
+		_node.Origin = value
+	}
+	if value, ok := _c.mutation.OriginProviderTenantID(); ok {
+		_spec.SetField(tickettype.FieldOriginProviderTenantID, field.TypeInt64, value)
+		_node.OriginProviderTenantID = value
+	}
+	if value, ok := _c.mutation.OriginTypeID(); ok {
+		_spec.SetField(tickettype.FieldOriginTypeID, field.TypeInt64, value)
+		_node.OriginTypeID = value
+	}
+	if value, ok := _c.mutation.ControlledByProvider(); ok {
+		_spec.SetField(tickettype.FieldControlledByProvider, field.TypeBool, value)
+		_node.ControlledByProvider = value
+	}
+	if value, ok := _c.mutation.SyncStatus(); ok {
+		_spec.SetField(tickettype.FieldSyncStatus, field.TypeString, value)
+		_node.SyncStatus = value
+	}
+	if value, ok := _c.mutation.LastSyncedAt(); ok {
+		_spec.SetField(tickettype.FieldLastSyncedAt, field.TypeTime, value)
+		_node.LastSyncedAt = value
 	}
 	if nodes := _c.mutation.TicketsIDs(); len(nodes) > 0 {
 		edge := &sqlgraph.EdgeSpec{

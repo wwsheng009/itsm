@@ -74,6 +74,18 @@ const (
 	FieldUpdatedBy = "updated_by"
 	// FieldUsageCount holds the string denoting the usage_count field in the database.
 	FieldUsageCount = "usage_count"
+	// FieldOrigin holds the string denoting the origin field in the database.
+	FieldOrigin = "origin"
+	// FieldOriginProviderTenantID holds the string denoting the origin_provider_tenant_id field in the database.
+	FieldOriginProviderTenantID = "origin_provider_tenant_id"
+	// FieldOriginTypeID holds the string denoting the origin_type_id field in the database.
+	FieldOriginTypeID = "origin_type_id"
+	// FieldControlledByProvider holds the string denoting the controlled_by_provider field in the database.
+	FieldControlledByProvider = "controlled_by_provider"
+	// FieldSyncStatus holds the string denoting the sync_status field in the database.
+	FieldSyncStatus = "sync_status"
+	// FieldLastSyncedAt holds the string denoting the last_synced_at field in the database.
+	FieldLastSyncedAt = "last_synced_at"
 	// EdgeTickets holds the string denoting the tickets edge name in mutations.
 	EdgeTickets = "tickets"
 	// Table holds the table name of the tickettype in the database.
@@ -121,6 +133,12 @@ var Columns = []string{
 	FieldUpdatedAt,
 	FieldUpdatedBy,
 	FieldUsageCount,
+	FieldOrigin,
+	FieldOriginProviderTenantID,
+	FieldOriginTypeID,
+	FieldControlledByProvider,
+	FieldSyncStatus,
+	FieldLastSyncedAt,
 }
 
 // ValidColumn reports if the column name is valid (part of the table columns).
@@ -164,6 +182,16 @@ var (
 	DefaultMspRouteEnabled bool
 	// DefaultUsageCount holds the default value on creation for the "usage_count" field.
 	DefaultUsageCount int
+	// DefaultOrigin holds the default value on creation for the "origin" field.
+	DefaultOrigin string
+	// OriginValidator is a validator for the "origin" field. It is called by the builders before save.
+	OriginValidator func(string) error
+	// DefaultControlledByProvider holds the default value on creation for the "controlled_by_provider" field.
+	DefaultControlledByProvider bool
+	// DefaultSyncStatus holds the default value on creation for the "sync_status" field.
+	DefaultSyncStatus string
+	// SyncStatusValidator is a validator for the "sync_status" field. It is called by the builders before save.
+	SyncStatusValidator func(string) error
 )
 
 // OrderOption defines the ordering options for the TicketType queries.
@@ -302,6 +330,36 @@ func ByUpdatedBy(opts ...sql.OrderTermOption) OrderOption {
 // ByUsageCount orders the results by the usage_count field.
 func ByUsageCount(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldUsageCount, opts...).ToFunc()
+}
+
+// ByOrigin orders the results by the origin field.
+func ByOrigin(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldOrigin, opts...).ToFunc()
+}
+
+// ByOriginProviderTenantID orders the results by the origin_provider_tenant_id field.
+func ByOriginProviderTenantID(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldOriginProviderTenantID, opts...).ToFunc()
+}
+
+// ByOriginTypeID orders the results by the origin_type_id field.
+func ByOriginTypeID(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldOriginTypeID, opts...).ToFunc()
+}
+
+// ByControlledByProvider orders the results by the controlled_by_provider field.
+func ByControlledByProvider(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldControlledByProvider, opts...).ToFunc()
+}
+
+// BySyncStatus orders the results by the sync_status field.
+func BySyncStatus(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldSyncStatus, opts...).ToFunc()
+}
+
+// ByLastSyncedAt orders the results by the last_synced_at field.
+func ByLastSyncedAt(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldLastSyncedAt, opts...).ToFunc()
 }
 
 // ByTicketsCount orders the results by tickets count.
