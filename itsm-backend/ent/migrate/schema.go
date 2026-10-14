@@ -3044,6 +3044,88 @@ var (
 			},
 		},
 	}
+	// MspContractsColumns holds the columns for the "msp_contracts" table.
+	MspContractsColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeInt, Increment: true},
+		{Name: "provider_tenant_id", Type: field.TypeInt},
+		{Name: "customer_tenant_id", Type: field.TypeInt},
+		{Name: "contract_no", Type: field.TypeString, Size: 160},
+		{Name: "name", Type: field.TypeString, Size: 200},
+		{Name: "effective_from", Type: field.TypeTime},
+		{Name: "effective_until", Type: field.TypeTime, Nullable: true},
+		{Name: "status", Type: field.TypeString, Size: 32, Default: "active"},
+		{Name: "penalties", Type: field.TypeJSON, Nullable: true},
+		{Name: "settlement_cycle", Type: field.TypeString, Size: 32, Default: "monthly"},
+		{Name: "currency", Type: field.TypeString, Nullable: true, Size: 16},
+		{Name: "tenant_id", Type: field.TypeInt},
+		{Name: "created_at", Type: field.TypeTime},
+		{Name: "updated_at", Type: field.TypeTime},
+	}
+	// MspContractsTable holds the schema information for the "msp_contracts" table.
+	MspContractsTable = &schema.Table{
+		Name:       "msp_contracts",
+		Columns:    MspContractsColumns,
+		PrimaryKey: []*schema.Column{MspContractsColumns[0]},
+		Indexes: []*schema.Index{
+			{
+				Name:    "uk_msp_contracts_tenant_no",
+				Unique:  true,
+				Columns: []*schema.Column{MspContractsColumns[11], MspContractsColumns[3]},
+			},
+			{
+				Name:    "idx_msp_contracts_customer_status",
+				Unique:  false,
+				Columns: []*schema.Column{MspContractsColumns[11], MspContractsColumns[2], MspContractsColumns[7]},
+			},
+		},
+	}
+	// MspContractSLABindingsColumns holds the columns for the "msp_contract_sla_bindings" table.
+	MspContractSLABindingsColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeInt, Increment: true},
+		{Name: "ticket_type_id", Type: field.TypeInt64, Default: 0},
+		{Name: "tenant_id", Type: field.TypeInt},
+		{Name: "created_at", Type: field.TypeTime},
+		{Name: "updated_at", Type: field.TypeTime},
+		{Name: "contract_id", Type: field.TypeInt},
+		{Name: "sla_definition_id", Type: field.TypeInt},
+	}
+	// MspContractSLABindingsTable holds the schema information for the "msp_contract_sla_bindings" table.
+	MspContractSLABindingsTable = &schema.Table{
+		Name:       "msp_contract_sla_bindings",
+		Columns:    MspContractSLABindingsColumns,
+		PrimaryKey: []*schema.Column{MspContractSLABindingsColumns[0]},
+		ForeignKeys: []*schema.ForeignKey{
+			{
+				Symbol:     "msp_contract_sla_bindings_msp_contracts_sla_bindings",
+				Columns:    []*schema.Column{MspContractSLABindingsColumns[5]},
+				RefColumns: []*schema.Column{MspContractsColumns[0]},
+				OnDelete:   schema.NoAction,
+			},
+			{
+				Symbol:     "msp_contract_sla_bindings_sla_definitions_contract_bindings",
+				Columns:    []*schema.Column{MspContractSLABindingsColumns[6]},
+				RefColumns: []*schema.Column{SLADefinitionsColumns[0]},
+				OnDelete:   schema.NoAction,
+			},
+		},
+		Indexes: []*schema.Index{
+			{
+				Name:    "uk_msp_contract_bindings_type",
+				Unique:  true,
+				Columns: []*schema.Column{MspContractSLABindingsColumns[5], MspContractSLABindingsColumns[1]},
+			},
+			{
+				Name:    "idx_msp_contract_bindings_definition",
+				Unique:  false,
+				Columns: []*schema.Column{MspContractSLABindingsColumns[6]},
+			},
+			{
+				Name:    "idx_msp_contract_bindings_tenant",
+				Unique:  false,
+				Columns: []*schema.Column{MspContractSLABindingsColumns[2]},
+			},
+		},
+	}
 	// MarketplaceItemsColumns holds the columns for the "marketplace_items" table.
 	MarketplaceItemsColumns = []*schema.Column{
 		{Name: "id", Type: field.TypeInt, Increment: true},
@@ -6989,6 +7071,8 @@ var (
 		McpServersTable,
 		McpServerToolsTable,
 		MspAllocationsTable,
+		MspContractsTable,
+		MspContractSLABindingsTable,
 		MarketplaceItemsTable,
 		MenusTable,
 		MessagesTable,
@@ -7143,6 +7227,8 @@ func init() {
 	MspAllocationsTable.ForeignKeys[0].RefTable = TenantsTable
 	MspAllocationsTable.ForeignKeys[1].RefTable = TenantsTable
 	MspAllocationsTable.ForeignKeys[2].RefTable = UsersTable
+	MspContractSLABindingsTable.ForeignKeys[0].RefTable = MspContractsTable
+	MspContractSLABindingsTable.ForeignKeys[1].RefTable = SLADefinitionsTable
 	MenusTable.ForeignKeys[0].RefTable = MenusTable
 	MessagesTable.ForeignKeys[0].RefTable = ConversationsTable
 	MicroservicesTable.ForeignKeys[0].RefTable = ApplicationsTable

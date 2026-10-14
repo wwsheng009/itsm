@@ -82,6 +82,8 @@ import (
 	"itsm-backend/ent/message"
 	"itsm-backend/ent/microservice"
 	"itsm-backend/ent/mspallocation"
+	"itsm-backend/ent/mspcontract"
+	"itsm-backend/ent/mspcontractslabinding"
 	"itsm-backend/ent/notification"
 	"itsm-backend/ent/notificationdelivery"
 	"itsm-backend/ent/notificationpreference"
@@ -296,6 +298,8 @@ func checkColumn(t, c string) error {
 			mcpserver.Table:                   mcpserver.ValidColumn,
 			mcpservertool.Table:               mcpservertool.ValidColumn,
 			mspallocation.Table:               mspallocation.ValidColumn,
+			mspcontract.Table:                 mspcontract.ValidColumn,
+			mspcontractslabinding.Table:       mspcontractslabinding.ValidColumn,
 			marketplaceitem.Table:             marketplaceitem.ValidColumn,
 			menu.Table:                        menu.ValidColumn,
 			message.Table:                     message.ValidColumn,

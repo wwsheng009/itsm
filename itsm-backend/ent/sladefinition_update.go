@@ -6,6 +6,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"itsm-backend/ent/mspcontractslabinding"
 	"itsm-backend/ent/predicate"
 	"itsm-backend/ent/slaalertrule"
 	"itsm-backend/ent/sladefinition"
@@ -336,6 +337,21 @@ func (_u *SLADefinitionUpdate) AddGrants(v ...*SLADefinitionGrant) *SLADefinitio
 	return _u.AddGrantIDs(ids...)
 }
 
+// AddContractBindingIDs adds the "contract_bindings" edge to the MSPContractSLABinding entity by IDs.
+func (_u *SLADefinitionUpdate) AddContractBindingIDs(ids ...int) *SLADefinitionUpdate {
+	_u.mutation.AddContractBindingIDs(ids...)
+	return _u
+}
+
+// AddContractBindings adds the "contract_bindings" edges to the MSPContractSLABinding entity.
+func (_u *SLADefinitionUpdate) AddContractBindings(v ...*MSPContractSLABinding) *SLADefinitionUpdate {
+	ids := make([]int, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.AddContractBindingIDs(ids...)
+}
+
 // Mutation returns the SLADefinitionMutation object of the builder.
 func (_u *SLADefinitionUpdate) Mutation() *SLADefinitionMutation {
 	return _u.mutation
@@ -444,6 +460,27 @@ func (_u *SLADefinitionUpdate) RemoveGrants(v ...*SLADefinitionGrant) *SLADefini
 		ids[i] = v[i].ID
 	}
 	return _u.RemoveGrantIDs(ids...)
+}
+
+// ClearContractBindings clears all "contract_bindings" edges to the MSPContractSLABinding entity.
+func (_u *SLADefinitionUpdate) ClearContractBindings() *SLADefinitionUpdate {
+	_u.mutation.ClearContractBindings()
+	return _u
+}
+
+// RemoveContractBindingIDs removes the "contract_bindings" edge to MSPContractSLABinding entities by IDs.
+func (_u *SLADefinitionUpdate) RemoveContractBindingIDs(ids ...int) *SLADefinitionUpdate {
+	_u.mutation.RemoveContractBindingIDs(ids...)
+	return _u
+}
+
+// RemoveContractBindings removes "contract_bindings" edges to MSPContractSLABinding entities.
+func (_u *SLADefinitionUpdate) RemoveContractBindings(v ...*MSPContractSLABinding) *SLADefinitionUpdate {
+	ids := make([]int, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.RemoveContractBindingIDs(ids...)
 }
 
 // Save executes the query and returns the number of nodes affected by the update operation.
@@ -816,6 +853,51 @@ func (_u *SLADefinitionUpdate) sqlSave(ctx context.Context) (_node int, err erro
 		}
 		_spec.Edges.Add = append(_spec.Edges.Add, edge)
 	}
+	if _u.mutation.ContractBindingsCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   sladefinition.ContractBindingsTable,
+			Columns: []string{sladefinition.ContractBindingsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(mspcontractslabinding.FieldID, field.TypeInt),
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.RemovedContractBindingsIDs(); len(nodes) > 0 && !_u.mutation.ContractBindingsCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   sladefinition.ContractBindingsTable,
+			Columns: []string{sladefinition.ContractBindingsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(mspcontractslabinding.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.ContractBindingsIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   sladefinition.ContractBindingsTable,
+			Columns: []string{sladefinition.ContractBindingsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(mspcontractslabinding.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
+	}
 	if _node, err = sqlgraph.UpdateNodes(ctx, _u.driver, _spec); err != nil {
 		if _, ok := err.(*sqlgraph.NotFoundError); ok {
 			err = &NotFoundError{sladefinition.Label}
@@ -1139,6 +1221,21 @@ func (_u *SLADefinitionUpdateOne) AddGrants(v ...*SLADefinitionGrant) *SLADefini
 	return _u.AddGrantIDs(ids...)
 }
 
+// AddContractBindingIDs adds the "contract_bindings" edge to the MSPContractSLABinding entity by IDs.
+func (_u *SLADefinitionUpdateOne) AddContractBindingIDs(ids ...int) *SLADefinitionUpdateOne {
+	_u.mutation.AddContractBindingIDs(ids...)
+	return _u
+}
+
+// AddContractBindings adds the "contract_bindings" edges to the MSPContractSLABinding entity.
+func (_u *SLADefinitionUpdateOne) AddContractBindings(v ...*MSPContractSLABinding) *SLADefinitionUpdateOne {
+	ids := make([]int, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.AddContractBindingIDs(ids...)
+}
+
 // Mutation returns the SLADefinitionMutation object of the builder.
 func (_u *SLADefinitionUpdateOne) Mutation() *SLADefinitionMutation {
 	return _u.mutation
@@ -1247,6 +1344,27 @@ func (_u *SLADefinitionUpdateOne) RemoveGrants(v ...*SLADefinitionGrant) *SLADef
 		ids[i] = v[i].ID
 	}
 	return _u.RemoveGrantIDs(ids...)
+}
+
+// ClearContractBindings clears all "contract_bindings" edges to the MSPContractSLABinding entity.
+func (_u *SLADefinitionUpdateOne) ClearContractBindings() *SLADefinitionUpdateOne {
+	_u.mutation.ClearContractBindings()
+	return _u
+}
+
+// RemoveContractBindingIDs removes the "contract_bindings" edge to MSPContractSLABinding entities by IDs.
+func (_u *SLADefinitionUpdateOne) RemoveContractBindingIDs(ids ...int) *SLADefinitionUpdateOne {
+	_u.mutation.RemoveContractBindingIDs(ids...)
+	return _u
+}
+
+// RemoveContractBindings removes "contract_bindings" edges to MSPContractSLABinding entities.
+func (_u *SLADefinitionUpdateOne) RemoveContractBindings(v ...*MSPContractSLABinding) *SLADefinitionUpdateOne {
+	ids := make([]int, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.RemoveContractBindingIDs(ids...)
 }
 
 // Where appends a list predicates to the SLADefinitionUpdate builder.
@@ -1642,6 +1760,51 @@ func (_u *SLADefinitionUpdateOne) sqlSave(ctx context.Context) (_node *SLADefini
 			Bidi:    false,
 			Target: &sqlgraph.EdgeTarget{
 				IDSpec: sqlgraph.NewFieldSpec(sladefinitiongrant.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
+	}
+	if _u.mutation.ContractBindingsCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   sladefinition.ContractBindingsTable,
+			Columns: []string{sladefinition.ContractBindingsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(mspcontractslabinding.FieldID, field.TypeInt),
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.RemovedContractBindingsIDs(); len(nodes) > 0 && !_u.mutation.ContractBindingsCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   sladefinition.ContractBindingsTable,
+			Columns: []string{sladefinition.ContractBindingsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(mspcontractslabinding.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.ContractBindingsIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   sladefinition.ContractBindingsTable,
+			Columns: []string{sladefinition.ContractBindingsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(mspcontractslabinding.FieldID, field.TypeInt),
 			},
 		}
 		for _, k := range nodes {

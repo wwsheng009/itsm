@@ -6,6 +6,7 @@ import (
 	"context"
 	"database/sql/driver"
 	"fmt"
+	"itsm-backend/ent/mspcontractslabinding"
 	"itsm-backend/ent/predicate"
 	"itsm-backend/ent/slaalertrule"
 	"itsm-backend/ent/sladefinition"
@@ -24,16 +25,17 @@ import (
 // SLADefinitionQuery is the builder for querying SLADefinition entities.
 type SLADefinitionQuery struct {
 	config
-	ctx            *QueryContext
-	order          []sladefinition.OrderOption
-	inters         []Interceptor
-	predicates     []predicate.SLADefinition
-	withViolations *SLAViolationQuery
-	withMetrics    *SLAMetricQuery
-	withTickets    *TicketQuery
-	withAlertRules *SLAAlertRuleQuery
-	withGrants     *SLADefinitionGrantQuery
-	withFKs        bool
+	ctx                  *QueryContext
+	order                []sladefinition.OrderOption
+	inters               []Interceptor
+	predicates           []predicate.SLADefinition
+	withViolations       *SLAViolationQuery
+	withMetrics          *SLAMetricQuery
+	withTickets          *TicketQuery
+	withAlertRules       *SLAAlertRuleQuery
+	withGrants           *SLADefinitionGrantQuery
+	withContractBindings *MSPContractSLABindingQuery
+	withFKs              bool
 	// intermediate query (i.e. traversal path).
 	sql  *sql.Selector
 	path func(context.Context) (*sql.Selector, error)
@@ -173,6 +175,28 @@ func (_q *SLADefinitionQuery) QueryGrants() *SLADefinitionGrantQuery {
 			sqlgraph.From(sladefinition.Table, sladefinition.FieldID, selector),
 			sqlgraph.To(sladefinitiongrant.Table, sladefinitiongrant.FieldID),
 			sqlgraph.Edge(sqlgraph.O2M, false, sladefinition.GrantsTable, sladefinition.GrantsColumn),
+		)
+		fromU = sqlgraph.SetNeighbors(_q.driver.Dialect(), step)
+		return fromU, nil
+	}
+	return query
+}
+
+// QueryContractBindings chains the current query on the "contract_bindings" edge.
+func (_q *SLADefinitionQuery) QueryContractBindings() *MSPContractSLABindingQuery {
+	query := (&MSPContractSLABindingClient{config: _q.config}).Query()
+	query.path = func(ctx context.Context) (fromU *sql.Selector, err error) {
+		if err := _q.prepareQuery(ctx); err != nil {
+			return nil, err
+		}
+		selector := _q.sqlQuery(ctx)
+		if err := selector.Err(); err != nil {
+			return nil, err
+		}
+		step := sqlgraph.NewStep(
+			sqlgraph.From(sladefinition.Table, sladefinition.FieldID, selector),
+			sqlgraph.To(mspcontractslabinding.Table, mspcontractslabinding.FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, sladefinition.ContractBindingsTable, sladefinition.ContractBindingsColumn),
 		)
 		fromU = sqlgraph.SetNeighbors(_q.driver.Dialect(), step)
 		return fromU, nil
@@ -367,16 +391,17 @@ func (_q *SLADefinitionQuery) Clone() *SLADefinitionQuery {
 		return nil
 	}
 	return &SLADefinitionQuery{
-		config:         _q.config,
-		ctx:            _q.ctx.Clone(),
-		order:          append([]sladefinition.OrderOption{}, _q.order...),
-		inters:         append([]Interceptor{}, _q.inters...),
-		predicates:     append([]predicate.SLADefinition{}, _q.predicates...),
-		withViolations: _q.withViolations.Clone(),
-		withMetrics:    _q.withMetrics.Clone(),
-		withTickets:    _q.withTickets.Clone(),
-		withAlertRules: _q.withAlertRules.Clone(),
-		withGrants:     _q.withGrants.Clone(),
+		config:               _q.config,
+		ctx:                  _q.ctx.Clone(),
+		order:                append([]sladefinition.OrderOption{}, _q.order...),
+		inters:               append([]Interceptor{}, _q.inters...),
+		predicates:           append([]predicate.SLADefinition{}, _q.predicates...),
+		withViolations:       _q.withViolations.Clone(),
+		withMetrics:          _q.withMetrics.Clone(),
+		withTickets:          _q.withTickets.Clone(),
+		withAlertRules:       _q.withAlertRules.Clone(),
+		withGrants:           _q.withGrants.Clone(),
+		withContractBindings: _q.withContractBindings.Clone(),
 		// clone intermediate query.
 		sql:  _q.sql.Clone(),
 		path: _q.path,
@@ -435,6 +460,17 @@ func (_q *SLADefinitionQuery) WithGrants(opts ...func(*SLADefinitionGrantQuery))
 		opt(query)
 	}
 	_q.withGrants = query
+	return _q
+}
+
+// WithContractBindings tells the query-builder to eager-load the nodes that are connected to
+// the "contract_bindings" edge. The optional arguments are used to configure the query builder of the edge.
+func (_q *SLADefinitionQuery) WithContractBindings(opts ...func(*MSPContractSLABindingQuery)) *SLADefinitionQuery {
+	query := (&MSPContractSLABindingClient{config: _q.config}).Query()
+	for _, opt := range opts {
+		opt(query)
+	}
+	_q.withContractBindings = query
 	return _q
 }
 
@@ -517,12 +553,13 @@ func (_q *SLADefinitionQuery) sqlAll(ctx context.Context, hooks ...queryHook) ([
 		nodes       = []*SLADefinition{}
 		withFKs     = _q.withFKs
 		_spec       = _q.querySpec()
-		loadedTypes = [5]bool{
+		loadedTypes = [6]bool{
 			_q.withViolations != nil,
 			_q.withMetrics != nil,
 			_q.withTickets != nil,
 			_q.withAlertRules != nil,
 			_q.withGrants != nil,
+			_q.withContractBindings != nil,
 		}
 	)
 	if withFKs {
@@ -578,6 +615,15 @@ func (_q *SLADefinitionQuery) sqlAll(ctx context.Context, hooks ...queryHook) ([
 		if err := _q.loadGrants(ctx, query, nodes,
 			func(n *SLADefinition) { n.Edges.Grants = []*SLADefinitionGrant{} },
 			func(n *SLADefinition, e *SLADefinitionGrant) { n.Edges.Grants = append(n.Edges.Grants, e) }); err != nil {
+			return nil, err
+		}
+	}
+	if query := _q.withContractBindings; query != nil {
+		if err := _q.loadContractBindings(ctx, query, nodes,
+			func(n *SLADefinition) { n.Edges.ContractBindings = []*MSPContractSLABinding{} },
+			func(n *SLADefinition, e *MSPContractSLABinding) {
+				n.Edges.ContractBindings = append(n.Edges.ContractBindings, e)
+			}); err != nil {
 			return nil, err
 		}
 	}
@@ -721,6 +767,36 @@ func (_q *SLADefinitionQuery) loadGrants(ctx context.Context, query *SLADefiniti
 	}
 	query.Where(predicate.SLADefinitionGrant(func(s *sql.Selector) {
 		s.Where(sql.InValues(s.C(sladefinition.GrantsColumn), fks...))
+	}))
+	neighbors, err := query.All(ctx)
+	if err != nil {
+		return err
+	}
+	for _, n := range neighbors {
+		fk := n.SLADefinitionID
+		node, ok := nodeids[fk]
+		if !ok {
+			return fmt.Errorf(`unexpected referenced foreign-key "sla_definition_id" returned %v for node %v`, fk, n.ID)
+		}
+		assign(node, n)
+	}
+	return nil
+}
+func (_q *SLADefinitionQuery) loadContractBindings(ctx context.Context, query *MSPContractSLABindingQuery, nodes []*SLADefinition, init func(*SLADefinition), assign func(*SLADefinition, *MSPContractSLABinding)) error {
+	fks := make([]driver.Value, 0, len(nodes))
+	nodeids := make(map[int]*SLADefinition)
+	for i := range nodes {
+		fks = append(fks, nodes[i].ID)
+		nodeids[nodes[i].ID] = nodes[i]
+		if init != nil {
+			init(nodes[i])
+		}
+	}
+	if len(query.ctx.Fields) > 0 {
+		query.ctx.AppendFieldOnce(mspcontractslabinding.FieldSLADefinitionID)
+	}
+	query.Where(predicate.MSPContractSLABinding(func(s *sql.Selector) {
+		s.Where(sql.InValues(s.C(sladefinition.ContractBindingsColumn), fks...))
 	}))
 	neighbors, err := query.All(ctx)
 	if err != nil {

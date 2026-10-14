@@ -156,6 +156,10 @@ type Tx struct {
 	MCPServerTool *MCPServerToolClient
 	// MSPAllocation is the client for interacting with the MSPAllocation builders.
 	MSPAllocation *MSPAllocationClient
+	// MSPContract is the client for interacting with the MSPContract builders.
+	MSPContract *MSPContractClient
+	// MSPContractSLABinding is the client for interacting with the MSPContractSLABinding builders.
+	MSPContractSLABinding *MSPContractSLABindingClient
 	// MarketplaceItem is the client for interacting with the MarketplaceItem builders.
 	MarketplaceItem *MarketplaceItemClient
 	// Menu is the client for interacting with the Menu builders.
@@ -519,6 +523,8 @@ func (tx *Tx) init() {
 	tx.MCPServer = NewMCPServerClient(tx.config)
 	tx.MCPServerTool = NewMCPServerToolClient(tx.config)
 	tx.MSPAllocation = NewMSPAllocationClient(tx.config)
+	tx.MSPContract = NewMSPContractClient(tx.config)
+	tx.MSPContractSLABinding = NewMSPContractSLABindingClient(tx.config)
 	tx.MarketplaceItem = NewMarketplaceItemClient(tx.config)
 	tx.Menu = NewMenuClient(tx.config)
 	tx.Message = NewMessageClient(tx.config)

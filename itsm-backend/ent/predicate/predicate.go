@@ -222,6 +222,12 @@ type MCPServerTool func(*sql.Selector)
 // MSPAllocation is the predicate function for mspallocation builders.
 type MSPAllocation func(*sql.Selector)
 
+// MSPContract is the predicate function for mspcontract builders.
+type MSPContract func(*sql.Selector)
+
+// MSPContractSLABinding is the predicate function for mspcontractslabinding builders.
+type MSPContractSLABinding func(*sql.Selector)
+
 // MarketplaceItem is the predicate function for marketplaceitem builders.
 type MarketplaceItem func(*sql.Selector)
 

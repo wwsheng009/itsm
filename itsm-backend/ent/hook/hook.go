@@ -872,6 +872,30 @@ func (f MSPAllocationFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Valu
 	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.MSPAllocationMutation", m)
 }
 
+// The MSPContractFunc type is an adapter to allow the use of ordinary
+// function as MSPContract mutator.
+type MSPContractFunc func(context.Context, *ent.MSPContractMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f MSPContractFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.MSPContractMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.MSPContractMutation", m)
+}
+
+// The MSPContractSLABindingFunc type is an adapter to allow the use of ordinary
+// function as MSPContractSLABinding mutator.
+type MSPContractSLABindingFunc func(context.Context, *ent.MSPContractSLABindingMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f MSPContractSLABindingFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.MSPContractSLABindingMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.MSPContractSLABindingMutation", m)
+}
+
 // The MarketplaceItemFunc type is an adapter to allow the use of ordinary
 // function as MarketplaceItem mutator.
 type MarketplaceItemFunc func(context.Context, *ent.MarketplaceItemMutation) (ent.Value, error)

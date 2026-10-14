@@ -52,6 +52,8 @@ const (
 	EdgeAlertRules = "alert_rules"
 	// EdgeGrants holds the string denoting the grants edge name in mutations.
 	EdgeGrants = "grants"
+	// EdgeContractBindings holds the string denoting the contract_bindings edge name in mutations.
+	EdgeContractBindings = "contract_bindings"
 	// Table holds the table name of the sladefinition in the database.
 	Table = "sla_definitions"
 	// ViolationsTable is the table that holds the violations relation/edge.
@@ -89,6 +91,13 @@ const (
 	GrantsInverseTable = "sla_definition_grants"
 	// GrantsColumn is the table column denoting the grants relation/edge.
 	GrantsColumn = "sla_definition_id"
+	// ContractBindingsTable is the table that holds the contract_bindings relation/edge.
+	ContractBindingsTable = "msp_contract_sla_bindings"
+	// ContractBindingsInverseTable is the table name for the MSPContractSLABinding entity.
+	// It exists in this package in order to avoid circular dependency with the "mspcontractslabinding" package.
+	ContractBindingsInverseTable = "msp_contract_sla_bindings"
+	// ContractBindingsColumn is the table column denoting the contract_bindings relation/edge.
+	ContractBindingsColumn = "sla_definition_id"
 )
 
 // Columns holds all SQL columns for sladefinition fields.
@@ -288,6 +297,20 @@ func ByGrants(term sql.OrderTerm, terms ...sql.OrderTerm) OrderOption {
 		sqlgraph.OrderByNeighborTerms(s, newGrantsStep(), append([]sql.OrderTerm{term}, terms...)...)
 	}
 }
+
+// ByContractBindingsCount orders the results by contract_bindings count.
+func ByContractBindingsCount(opts ...sql.OrderTermOption) OrderOption {
+	return func(s *sql.Selector) {
+		sqlgraph.OrderByNeighborsCount(s, newContractBindingsStep(), opts...)
+	}
+}
+
+// ByContractBindings orders the results by contract_bindings terms.
+func ByContractBindings(term sql.OrderTerm, terms ...sql.OrderTerm) OrderOption {
+	return func(s *sql.Selector) {
+		sqlgraph.OrderByNeighborTerms(s, newContractBindingsStep(), append([]sql.OrderTerm{term}, terms...)...)
+	}
+}
 func newViolationsStep() *sqlgraph.Step {
 	return sqlgraph.NewStep(
 		sqlgraph.From(Table, FieldID),
@@ -321,5 +344,12 @@ func newGrantsStep() *sqlgraph.Step {
 		sqlgraph.From(Table, FieldID),
 		sqlgraph.To(GrantsInverseTable, FieldID),
 		sqlgraph.Edge(sqlgraph.O2M, false, GrantsTable, GrantsColumn),
+	)
+}
+func newContractBindingsStep() *sqlgraph.Step {
+	return sqlgraph.NewStep(
+		sqlgraph.From(Table, FieldID),
+		sqlgraph.To(ContractBindingsInverseTable, FieldID),
+		sqlgraph.Edge(sqlgraph.O2M, false, ContractBindingsTable, ContractBindingsColumn),
 	)
 }

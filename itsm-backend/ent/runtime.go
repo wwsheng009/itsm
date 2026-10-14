@@ -79,6 +79,8 @@ import (
 	"itsm-backend/ent/message"
 	"itsm-backend/ent/microservice"
 	"itsm-backend/ent/mspallocation"
+	"itsm-backend/ent/mspcontract"
+	"itsm-backend/ent/mspcontractslabinding"
 	"itsm-backend/ent/notification"
 	"itsm-backend/ent/notificationdelivery"
 	"itsm-backend/ent/notificationpreference"
@@ -3420,6 +3422,114 @@ func init() {
 	mspallocationDescCreatedAt := mspallocationFields[6].Descriptor()
 	// mspallocation.DefaultCreatedAt holds the default value on creation for the created_at field.
 	mspallocation.DefaultCreatedAt = mspallocationDescCreatedAt.Default.(func() time.Time)
+	mspcontractFields := schema.MSPContract{}.Fields()
+	_ = mspcontractFields
+	// mspcontractDescProviderTenantID is the schema descriptor for provider_tenant_id field.
+	mspcontractDescProviderTenantID := mspcontractFields[0].Descriptor()
+	// mspcontract.ProviderTenantIDValidator is a validator for the "provider_tenant_id" field. It is called by the builders before save.
+	mspcontract.ProviderTenantIDValidator = mspcontractDescProviderTenantID.Validators[0].(func(int) error)
+	// mspcontractDescCustomerTenantID is the schema descriptor for customer_tenant_id field.
+	mspcontractDescCustomerTenantID := mspcontractFields[1].Descriptor()
+	// mspcontract.CustomerTenantIDValidator is a validator for the "customer_tenant_id" field. It is called by the builders before save.
+	mspcontract.CustomerTenantIDValidator = mspcontractDescCustomerTenantID.Validators[0].(func(int) error)
+	// mspcontractDescContractNo is the schema descriptor for contract_no field.
+	mspcontractDescContractNo := mspcontractFields[2].Descriptor()
+	// mspcontract.ContractNoValidator is a validator for the "contract_no" field. It is called by the builders before save.
+	mspcontract.ContractNoValidator = func() func(string) error {
+		validators := mspcontractDescContractNo.Validators
+		fns := [...]func(string) error{
+			validators[0].(func(string) error),
+			validators[1].(func(string) error),
+		}
+		return func(contract_no string) error {
+			for _, fn := range fns {
+				if err := fn(contract_no); err != nil {
+					return err
+				}
+			}
+			return nil
+		}
+	}()
+	// mspcontractDescName is the schema descriptor for name field.
+	mspcontractDescName := mspcontractFields[3].Descriptor()
+	// mspcontract.NameValidator is a validator for the "name" field. It is called by the builders before save.
+	mspcontract.NameValidator = func() func(string) error {
+		validators := mspcontractDescName.Validators
+		fns := [...]func(string) error{
+			validators[0].(func(string) error),
+			validators[1].(func(string) error),
+		}
+		return func(name string) error {
+			for _, fn := range fns {
+				if err := fn(name); err != nil {
+					return err
+				}
+			}
+			return nil
+		}
+	}()
+	// mspcontractDescEffectiveFrom is the schema descriptor for effective_from field.
+	mspcontractDescEffectiveFrom := mspcontractFields[4].Descriptor()
+	// mspcontract.DefaultEffectiveFrom holds the default value on creation for the effective_from field.
+	mspcontract.DefaultEffectiveFrom = mspcontractDescEffectiveFrom.Default.(func() time.Time)
+	// mspcontractDescStatus is the schema descriptor for status field.
+	mspcontractDescStatus := mspcontractFields[6].Descriptor()
+	// mspcontract.DefaultStatus holds the default value on creation for the status field.
+	mspcontract.DefaultStatus = mspcontractDescStatus.Default.(string)
+	// mspcontract.StatusValidator is a validator for the "status" field. It is called by the builders before save.
+	mspcontract.StatusValidator = mspcontractDescStatus.Validators[0].(func(string) error)
+	// mspcontractDescSettlementCycle is the schema descriptor for settlement_cycle field.
+	mspcontractDescSettlementCycle := mspcontractFields[8].Descriptor()
+	// mspcontract.DefaultSettlementCycle holds the default value on creation for the settlement_cycle field.
+	mspcontract.DefaultSettlementCycle = mspcontractDescSettlementCycle.Default.(string)
+	// mspcontract.SettlementCycleValidator is a validator for the "settlement_cycle" field. It is called by the builders before save.
+	mspcontract.SettlementCycleValidator = mspcontractDescSettlementCycle.Validators[0].(func(string) error)
+	// mspcontractDescCurrency is the schema descriptor for currency field.
+	mspcontractDescCurrency := mspcontractFields[9].Descriptor()
+	// mspcontract.CurrencyValidator is a validator for the "currency" field. It is called by the builders before save.
+	mspcontract.CurrencyValidator = mspcontractDescCurrency.Validators[0].(func(string) error)
+	// mspcontractDescTenantID is the schema descriptor for tenant_id field.
+	mspcontractDescTenantID := mspcontractFields[10].Descriptor()
+	// mspcontract.TenantIDValidator is a validator for the "tenant_id" field. It is called by the builders before save.
+	mspcontract.TenantIDValidator = mspcontractDescTenantID.Validators[0].(func(int) error)
+	// mspcontractDescCreatedAt is the schema descriptor for created_at field.
+	mspcontractDescCreatedAt := mspcontractFields[11].Descriptor()
+	// mspcontract.DefaultCreatedAt holds the default value on creation for the created_at field.
+	mspcontract.DefaultCreatedAt = mspcontractDescCreatedAt.Default.(func() time.Time)
+	// mspcontractDescUpdatedAt is the schema descriptor for updated_at field.
+	mspcontractDescUpdatedAt := mspcontractFields[12].Descriptor()
+	// mspcontract.DefaultUpdatedAt holds the default value on creation for the updated_at field.
+	mspcontract.DefaultUpdatedAt = mspcontractDescUpdatedAt.Default.(func() time.Time)
+	// mspcontract.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
+	mspcontract.UpdateDefaultUpdatedAt = mspcontractDescUpdatedAt.UpdateDefault.(func() time.Time)
+	mspcontractslabindingFields := schema.MSPContractSLABinding{}.Fields()
+	_ = mspcontractslabindingFields
+	// mspcontractslabindingDescContractID is the schema descriptor for contract_id field.
+	mspcontractslabindingDescContractID := mspcontractslabindingFields[0].Descriptor()
+	// mspcontractslabinding.ContractIDValidator is a validator for the "contract_id" field. It is called by the builders before save.
+	mspcontractslabinding.ContractIDValidator = mspcontractslabindingDescContractID.Validators[0].(func(int) error)
+	// mspcontractslabindingDescSLADefinitionID is the schema descriptor for sla_definition_id field.
+	mspcontractslabindingDescSLADefinitionID := mspcontractslabindingFields[1].Descriptor()
+	// mspcontractslabinding.SLADefinitionIDValidator is a validator for the "sla_definition_id" field. It is called by the builders before save.
+	mspcontractslabinding.SLADefinitionIDValidator = mspcontractslabindingDescSLADefinitionID.Validators[0].(func(int) error)
+	// mspcontractslabindingDescTicketTypeID is the schema descriptor for ticket_type_id field.
+	mspcontractslabindingDescTicketTypeID := mspcontractslabindingFields[2].Descriptor()
+	// mspcontractslabinding.DefaultTicketTypeID holds the default value on creation for the ticket_type_id field.
+	mspcontractslabinding.DefaultTicketTypeID = mspcontractslabindingDescTicketTypeID.Default.(int64)
+	// mspcontractslabindingDescTenantID is the schema descriptor for tenant_id field.
+	mspcontractslabindingDescTenantID := mspcontractslabindingFields[3].Descriptor()
+	// mspcontractslabinding.TenantIDValidator is a validator for the "tenant_id" field. It is called by the builders before save.
+	mspcontractslabinding.TenantIDValidator = mspcontractslabindingDescTenantID.Validators[0].(func(int) error)
+	// mspcontractslabindingDescCreatedAt is the schema descriptor for created_at field.
+	mspcontractslabindingDescCreatedAt := mspcontractslabindingFields[4].Descriptor()
+	// mspcontractslabinding.DefaultCreatedAt holds the default value on creation for the created_at field.
+	mspcontractslabinding.DefaultCreatedAt = mspcontractslabindingDescCreatedAt.Default.(func() time.Time)
+	// mspcontractslabindingDescUpdatedAt is the schema descriptor for updated_at field.
+	mspcontractslabindingDescUpdatedAt := mspcontractslabindingFields[5].Descriptor()
+	// mspcontractslabinding.DefaultUpdatedAt holds the default value on creation for the updated_at field.
+	mspcontractslabinding.DefaultUpdatedAt = mspcontractslabindingDescUpdatedAt.Default.(func() time.Time)
+	// mspcontractslabinding.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
+	mspcontractslabinding.UpdateDefaultUpdatedAt = mspcontractslabindingDescUpdatedAt.UpdateDefault.(func() time.Time)
 	marketplaceitemFields := schema.MarketplaceItem{}.Fields()
 	_ = marketplaceitemFields
 	// marketplaceitemDescRating is the schema descriptor for rating field.

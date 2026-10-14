@@ -795,6 +795,29 @@ func HasGrantsWith(preds ...predicate.SLADefinitionGrant) predicate.SLADefinitio
 	})
 }
 
+// HasContractBindings applies the HasEdge predicate on the "contract_bindings" edge.
+func HasContractBindings() predicate.SLADefinition {
+	return predicate.SLADefinition(func(s *sql.Selector) {
+		step := sqlgraph.NewStep(
+			sqlgraph.From(Table, FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, ContractBindingsTable, ContractBindingsColumn),
+		)
+		sqlgraph.HasNeighbors(s, step)
+	})
+}
+
+// HasContractBindingsWith applies the HasEdge predicate on the "contract_bindings" edge with a given conditions (other predicates).
+func HasContractBindingsWith(preds ...predicate.MSPContractSLABinding) predicate.SLADefinition {
+	return predicate.SLADefinition(func(s *sql.Selector) {
+		step := newContractBindingsStep()
+		sqlgraph.HasNeighborsWith(s, step, func(s *sql.Selector) {
+			for _, p := range preds {
+				p(s)
+			}
+		})
+	})
+}
+
 // And groups predicates with the AND operator between them.
 func And(predicates ...predicate.SLADefinition) predicate.SLADefinition {
 	return predicate.SLADefinition(sql.AndPredicates(predicates...))

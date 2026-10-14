@@ -41,5 +41,6 @@ func (SLADefinition) Edges() []ent.Edge {
 		edge.To("tickets", Ticket.Type).Comment("关联工单"),
 		edge.To("alert_rules", SLAAlertRule.Type).Comment("SLA预警规则"),
 		edge.To("grants", SLADefinitionGrant.Type).Comment("下发授权（provider 侧资产）"),
+		edge.To("contract_bindings", MSPContractSLABinding.Type).Comment("合同绑定（provider 侧资产，D-SLA-4）"),
 	}
 }

@@ -87,6 +87,8 @@ import (
 	"itsm-backend/ent/message"
 	"itsm-backend/ent/microservice"
 	"itsm-backend/ent/mspallocation"
+	"itsm-backend/ent/mspcontract"
+	"itsm-backend/ent/mspcontractslabinding"
 	"itsm-backend/ent/notification"
 	"itsm-backend/ent/notificationdelivery"
 	"itsm-backend/ent/notificationpreference"
@@ -319,6 +321,10 @@ type Client struct {
 	MCPServerTool *MCPServerToolClient
 	// MSPAllocation is the client for interacting with the MSPAllocation builders.
 	MSPAllocation *MSPAllocationClient
+	// MSPContract is the client for interacting with the MSPContract builders.
+	MSPContract *MSPContractClient
+	// MSPContractSLABinding is the client for interacting with the MSPContractSLABinding builders.
+	MSPContractSLABinding *MSPContractSLABindingClient
 	// MarketplaceItem is the client for interacting with the MarketplaceItem builders.
 	MarketplaceItem *MarketplaceItemClient
 	// Menu is the client for interacting with the Menu builders.
@@ -562,6 +568,8 @@ func (c *Client) init() {
 	c.MCPServer = NewMCPServerClient(c.config)
 	c.MCPServerTool = NewMCPServerToolClient(c.config)
 	c.MSPAllocation = NewMSPAllocationClient(c.config)
+	c.MSPContract = NewMSPContractClient(c.config)
+	c.MSPContractSLABinding = NewMSPContractSLABindingClient(c.config)
 	c.MarketplaceItem = NewMarketplaceItemClient(c.config)
 	c.Menu = NewMenuClient(c.config)
 	c.Message = NewMessageClient(c.config)
@@ -806,6 +814,8 @@ func (c *Client) Tx(ctx context.Context) (*Tx, error) {
 		MCPServer:                   NewMCPServerClient(cfg),
 		MCPServerTool:               NewMCPServerToolClient(cfg),
 		MSPAllocation:               NewMSPAllocationClient(cfg),
+		MSPContract:                 NewMSPContractClient(cfg),
+		MSPContractSLABinding:       NewMSPContractSLABindingClient(cfg),
 		MarketplaceItem:             NewMarketplaceItemClient(cfg),
 		Menu:                        NewMenuClient(cfg),
 		Message:                     NewMessageClient(cfg),
@@ -977,6 +987,8 @@ func (c *Client) BeginTx(ctx context.Context, opts *sql.TxOptions) (*Tx, error) 
 		MCPServer:                   NewMCPServerClient(cfg),
 		MCPServerTool:               NewMCPServerToolClient(cfg),
 		MSPAllocation:               NewMSPAllocationClient(cfg),
+		MSPContract:                 NewMSPContractClient(cfg),
+		MSPContractSLABinding:       NewMSPContractSLABindingClient(cfg),
 		MarketplaceItem:             NewMarketplaceItemClient(cfg),
 		Menu:                        NewMenuClient(cfg),
 		Message:                     NewMessageClient(cfg),
@@ -1104,9 +1116,10 @@ func (c *Client) Use(hooks ...Hook) {
 		c.KnowledgeArticleParticipant, c.KnowledgeArticleSession,
 		c.KnowledgeArticleVersion, c.KnownError, c.LLMProviderConfig,
 		c.LLMUserPreference, c.MCPServer, c.MCPServerTool, c.MSPAllocation,
-		c.MarketplaceItem, c.Menu, c.Message, c.Microservice, c.Notification,
-		c.NotificationDelivery, c.NotificationPreference, c.OnCallSchedule,
-		c.OnCallShift, c.OperationalCommand, c.PasswordResetToken, c.Permission,
+		c.MSPContract, c.MSPContractSLABinding, c.MarketplaceItem, c.Menu, c.Message,
+		c.Microservice, c.Notification, c.NotificationDelivery,
+		c.NotificationPreference, c.OnCallSchedule, c.OnCallShift,
+		c.OperationalCommand, c.PasswordResetToken, c.Permission,
 		c.PermissionDefinition, c.Problem, c.ProcessApprovalDecision,
 		c.ProcessAuditLog, c.ProcessBinding, c.ProcessDefinition, c.ProcessDeployment,
 		c.ProcessExecutionHistory, c.ProcessInstance, c.ProcessTask, c.ProcessTimer,
@@ -1151,9 +1164,10 @@ func (c *Client) Intercept(interceptors ...Interceptor) {
 		c.KnowledgeArticleParticipant, c.KnowledgeArticleSession,
 		c.KnowledgeArticleVersion, c.KnownError, c.LLMProviderConfig,
 		c.LLMUserPreference, c.MCPServer, c.MCPServerTool, c.MSPAllocation,
-		c.MarketplaceItem, c.Menu, c.Message, c.Microservice, c.Notification,
-		c.NotificationDelivery, c.NotificationPreference, c.OnCallSchedule,
-		c.OnCallShift, c.OperationalCommand, c.PasswordResetToken, c.Permission,
+		c.MSPContract, c.MSPContractSLABinding, c.MarketplaceItem, c.Menu, c.Message,
+		c.Microservice, c.Notification, c.NotificationDelivery,
+		c.NotificationPreference, c.OnCallSchedule, c.OnCallShift,
+		c.OperationalCommand, c.PasswordResetToken, c.Permission,
 		c.PermissionDefinition, c.Problem, c.ProcessApprovalDecision,
 		c.ProcessAuditLog, c.ProcessBinding, c.ProcessDefinition, c.ProcessDeployment,
 		c.ProcessExecutionHistory, c.ProcessInstance, c.ProcessTask, c.ProcessTimer,
@@ -1323,6 +1337,10 @@ func (c *Client) Mutate(ctx context.Context, m Mutation) (Value, error) {
 		return c.MCPServerTool.mutate(ctx, m)
 	case *MSPAllocationMutation:
 		return c.MSPAllocation.mutate(ctx, m)
+	case *MSPContractMutation:
+		return c.MSPContract.mutate(ctx, m)
+	case *MSPContractSLABindingMutation:
+		return c.MSPContractSLABinding.mutate(ctx, m)
 	case *MarketplaceItemMutation:
 		return c.MarketplaceItem.mutate(ctx, m)
 	case *MenuMutation:
@@ -12872,6 +12890,320 @@ func (c *MSPAllocationClient) mutate(ctx context.Context, m *MSPAllocationMutati
 	}
 }
 
+// MSPContractClient is a client for the MSPContract schema.
+type MSPContractClient struct {
+	config
+}
+
+// NewMSPContractClient returns a client for the MSPContract from the given config.
+func NewMSPContractClient(c config) *MSPContractClient {
+	return &MSPContractClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `mspcontract.Hooks(f(g(h())))`.
+func (c *MSPContractClient) Use(hooks ...Hook) {
+	c.hooks.MSPContract = append(c.hooks.MSPContract, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `mspcontract.Intercept(f(g(h())))`.
+func (c *MSPContractClient) Intercept(interceptors ...Interceptor) {
+	c.inters.MSPContract = append(c.inters.MSPContract, interceptors...)
+}
+
+// Create returns a builder for creating a MSPContract entity.
+func (c *MSPContractClient) Create() *MSPContractCreate {
+	mutation := newMSPContractMutation(c.config, OpCreate)
+	return &MSPContractCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of MSPContract entities.
+func (c *MSPContractClient) CreateBulk(builders ...*MSPContractCreate) *MSPContractCreateBulk {
+	return &MSPContractCreateBulk{config: c.config, builders: builders}
+}
+
+// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
+// a builder and applies setFunc on it.
+func (c *MSPContractClient) MapCreateBulk(slice any, setFunc func(*MSPContractCreate, int)) *MSPContractCreateBulk {
+	rv := reflect.ValueOf(slice)
+	if rv.Kind() != reflect.Slice {
+		return &MSPContractCreateBulk{err: fmt.Errorf("calling to MSPContractClient.MapCreateBulk with wrong type %T, need slice", slice)}
+	}
+	builders := make([]*MSPContractCreate, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		builders[i] = c.Create()
+		setFunc(builders[i], i)
+	}
+	return &MSPContractCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for MSPContract.
+func (c *MSPContractClient) Update() *MSPContractUpdate {
+	mutation := newMSPContractMutation(c.config, OpUpdate)
+	return &MSPContractUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *MSPContractClient) UpdateOne(_m *MSPContract) *MSPContractUpdateOne {
+	mutation := newMSPContractMutation(c.config, OpUpdateOne, withMSPContract(_m))
+	return &MSPContractUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *MSPContractClient) UpdateOneID(id int) *MSPContractUpdateOne {
+	mutation := newMSPContractMutation(c.config, OpUpdateOne, withMSPContractID(id))
+	return &MSPContractUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for MSPContract.
+func (c *MSPContractClient) Delete() *MSPContractDelete {
+	mutation := newMSPContractMutation(c.config, OpDelete)
+	return &MSPContractDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *MSPContractClient) DeleteOne(_m *MSPContract) *MSPContractDeleteOne {
+	return c.DeleteOneID(_m.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *MSPContractClient) DeleteOneID(id int) *MSPContractDeleteOne {
+	builder := c.Delete().Where(mspcontract.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &MSPContractDeleteOne{builder}
+}
+
+// Query returns a query builder for MSPContract.
+func (c *MSPContractClient) Query() *MSPContractQuery {
+	return &MSPContractQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypeMSPContract},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a MSPContract entity by its id.
+func (c *MSPContractClient) Get(ctx context.Context, id int) (*MSPContract, error) {
+	return c.Query().Where(mspcontract.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *MSPContractClient) GetX(ctx context.Context, id int) *MSPContract {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// QuerySLABindings queries the sla_bindings edge of a MSPContract.
+func (c *MSPContractClient) QuerySLABindings(_m *MSPContract) *MSPContractSLABindingQuery {
+	query := (&MSPContractSLABindingClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(mspcontract.Table, mspcontract.FieldID, id),
+			sqlgraph.To(mspcontractslabinding.Table, mspcontractslabinding.FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, mspcontract.SLABindingsTable, mspcontract.SLABindingsColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
+// Hooks returns the client hooks.
+func (c *MSPContractClient) Hooks() []Hook {
+	return c.hooks.MSPContract
+}
+
+// Interceptors returns the client interceptors.
+func (c *MSPContractClient) Interceptors() []Interceptor {
+	return c.inters.MSPContract
+}
+
+func (c *MSPContractClient) mutate(ctx context.Context, m *MSPContractMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&MSPContractCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&MSPContractUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&MSPContractUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&MSPContractDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("ent: unknown MSPContract mutation op: %q", m.Op())
+	}
+}
+
+// MSPContractSLABindingClient is a client for the MSPContractSLABinding schema.
+type MSPContractSLABindingClient struct {
+	config
+}
+
+// NewMSPContractSLABindingClient returns a client for the MSPContractSLABinding from the given config.
+func NewMSPContractSLABindingClient(c config) *MSPContractSLABindingClient {
+	return &MSPContractSLABindingClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `mspcontractslabinding.Hooks(f(g(h())))`.
+func (c *MSPContractSLABindingClient) Use(hooks ...Hook) {
+	c.hooks.MSPContractSLABinding = append(c.hooks.MSPContractSLABinding, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `mspcontractslabinding.Intercept(f(g(h())))`.
+func (c *MSPContractSLABindingClient) Intercept(interceptors ...Interceptor) {
+	c.inters.MSPContractSLABinding = append(c.inters.MSPContractSLABinding, interceptors...)
+}
+
+// Create returns a builder for creating a MSPContractSLABinding entity.
+func (c *MSPContractSLABindingClient) Create() *MSPContractSLABindingCreate {
+	mutation := newMSPContractSLABindingMutation(c.config, OpCreate)
+	return &MSPContractSLABindingCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of MSPContractSLABinding entities.
+func (c *MSPContractSLABindingClient) CreateBulk(builders ...*MSPContractSLABindingCreate) *MSPContractSLABindingCreateBulk {
+	return &MSPContractSLABindingCreateBulk{config: c.config, builders: builders}
+}
+
+// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
+// a builder and applies setFunc on it.
+func (c *MSPContractSLABindingClient) MapCreateBulk(slice any, setFunc func(*MSPContractSLABindingCreate, int)) *MSPContractSLABindingCreateBulk {
+	rv := reflect.ValueOf(slice)
+	if rv.Kind() != reflect.Slice {
+		return &MSPContractSLABindingCreateBulk{err: fmt.Errorf("calling to MSPContractSLABindingClient.MapCreateBulk with wrong type %T, need slice", slice)}
+	}
+	builders := make([]*MSPContractSLABindingCreate, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		builders[i] = c.Create()
+		setFunc(builders[i], i)
+	}
+	return &MSPContractSLABindingCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for MSPContractSLABinding.
+func (c *MSPContractSLABindingClient) Update() *MSPContractSLABindingUpdate {
+	mutation := newMSPContractSLABindingMutation(c.config, OpUpdate)
+	return &MSPContractSLABindingUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *MSPContractSLABindingClient) UpdateOne(_m *MSPContractSLABinding) *MSPContractSLABindingUpdateOne {
+	mutation := newMSPContractSLABindingMutation(c.config, OpUpdateOne, withMSPContractSLABinding(_m))
+	return &MSPContractSLABindingUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *MSPContractSLABindingClient) UpdateOneID(id int) *MSPContractSLABindingUpdateOne {
+	mutation := newMSPContractSLABindingMutation(c.config, OpUpdateOne, withMSPContractSLABindingID(id))
+	return &MSPContractSLABindingUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for MSPContractSLABinding.
+func (c *MSPContractSLABindingClient) Delete() *MSPContractSLABindingDelete {
+	mutation := newMSPContractSLABindingMutation(c.config, OpDelete)
+	return &MSPContractSLABindingDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *MSPContractSLABindingClient) DeleteOne(_m *MSPContractSLABinding) *MSPContractSLABindingDeleteOne {
+	return c.DeleteOneID(_m.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *MSPContractSLABindingClient) DeleteOneID(id int) *MSPContractSLABindingDeleteOne {
+	builder := c.Delete().Where(mspcontractslabinding.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &MSPContractSLABindingDeleteOne{builder}
+}
+
+// Query returns a query builder for MSPContractSLABinding.
+func (c *MSPContractSLABindingClient) Query() *MSPContractSLABindingQuery {
+	return &MSPContractSLABindingQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypeMSPContractSLABinding},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a MSPContractSLABinding entity by its id.
+func (c *MSPContractSLABindingClient) Get(ctx context.Context, id int) (*MSPContractSLABinding, error) {
+	return c.Query().Where(mspcontractslabinding.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *MSPContractSLABindingClient) GetX(ctx context.Context, id int) *MSPContractSLABinding {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// QueryContract queries the contract edge of a MSPContractSLABinding.
+func (c *MSPContractSLABindingClient) QueryContract(_m *MSPContractSLABinding) *MSPContractQuery {
+	query := (&MSPContractClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(mspcontractslabinding.Table, mspcontractslabinding.FieldID, id),
+			sqlgraph.To(mspcontract.Table, mspcontract.FieldID),
+			sqlgraph.Edge(sqlgraph.M2O, true, mspcontractslabinding.ContractTable, mspcontractslabinding.ContractColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
+// QuerySLADefinition queries the sla_definition edge of a MSPContractSLABinding.
+func (c *MSPContractSLABindingClient) QuerySLADefinition(_m *MSPContractSLABinding) *SLADefinitionQuery {
+	query := (&SLADefinitionClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(mspcontractslabinding.Table, mspcontractslabinding.FieldID, id),
+			sqlgraph.To(sladefinition.Table, sladefinition.FieldID),
+			sqlgraph.Edge(sqlgraph.M2O, true, mspcontractslabinding.SLADefinitionTable, mspcontractslabinding.SLADefinitionColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
+// Hooks returns the client hooks.
+func (c *MSPContractSLABindingClient) Hooks() []Hook {
+	return c.hooks.MSPContractSLABinding
+}
+
+// Interceptors returns the client interceptors.
+func (c *MSPContractSLABindingClient) Interceptors() []Interceptor {
+	return c.inters.MSPContractSLABinding
+}
+
+func (c *MSPContractSLABindingClient) mutate(ctx context.Context, m *MSPContractSLABindingMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&MSPContractSLABindingCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&MSPContractSLABindingUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&MSPContractSLABindingUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&MSPContractSLABindingDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("ent: unknown MSPContractSLABinding mutation op: %q", m.Op())
+	}
+}
+
 // MarketplaceItemClient is a client for the MarketplaceItem schema.
 type MarketplaceItemClient struct {
 	config
@@ -18412,6 +18744,22 @@ func (c *SLADefinitionClient) QueryGrants(_m *SLADefinition) *SLADefinitionGrant
 			sqlgraph.From(sladefinition.Table, sladefinition.FieldID, id),
 			sqlgraph.To(sladefinitiongrant.Table, sladefinitiongrant.FieldID),
 			sqlgraph.Edge(sqlgraph.O2M, false, sladefinition.GrantsTable, sladefinition.GrantsColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
+// QueryContractBindings queries the contract_bindings edge of a SLADefinition.
+func (c *SLADefinitionClient) QueryContractBindings(_m *SLADefinition) *MSPContractSLABindingQuery {
+	query := (&MSPContractSLABindingClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(sladefinition.Table, sladefinition.FieldID, id),
+			sqlgraph.To(mspcontractslabinding.Table, mspcontractslabinding.FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, sladefinition.ContractBindingsTable, sladefinition.ContractBindingsColumn),
 		)
 		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
 		return fromV, nil
@@ -25978,12 +26326,13 @@ type (
 		ItemVersion, KnowledgeArticle, KnowledgeArticleLike,
 		KnowledgeArticleParticipant, KnowledgeArticleSession, KnowledgeArticleVersion,
 		KnownError, LLMProviderConfig, LLMUserPreference, MCPServer, MCPServerTool,
-		MSPAllocation, MarketplaceItem, Menu, Message, Microservice, Notification,
-		NotificationDelivery, NotificationPreference, OnCallSchedule, OnCallShift,
-		OperationalCommand, PasswordResetToken, Permission, PermissionDefinition,
-		Problem, ProcessApprovalDecision, ProcessAuditLog, ProcessBinding,
-		ProcessDefinition, ProcessDeployment, ProcessExecutionHistory, ProcessInstance,
-		ProcessTask, ProcessTimer, ProcessVariable, ProcessVersionChangelog, Project,
+		MSPAllocation, MSPContract, MSPContractSLABinding, MarketplaceItem, Menu,
+		Message, Microservice, Notification, NotificationDelivery,
+		NotificationPreference, OnCallSchedule, OnCallShift, OperationalCommand,
+		PasswordResetToken, Permission, PermissionDefinition, Problem,
+		ProcessApprovalDecision, ProcessAuditLog, ProcessBinding, ProcessDefinition,
+		ProcessDeployment, ProcessExecutionHistory, ProcessInstance, ProcessTask,
+		ProcessTimer, ProcessVariable, ProcessVersionChangelog, Project,
 		PromptTemplate, ProvisioningTask, RelationshipType, Release, Role,
 		RolePermission, RootCauseAnalysis, SLAAlertHistory, SLAAlertRule,
 		SLADefinition, SLADefinitionGrant, SLAMetric, SLAPolicy, SLAViolation,
@@ -26013,12 +26362,13 @@ type (
 		ItemVersion, KnowledgeArticle, KnowledgeArticleLike,
 		KnowledgeArticleParticipant, KnowledgeArticleSession, KnowledgeArticleVersion,
 		KnownError, LLMProviderConfig, LLMUserPreference, MCPServer, MCPServerTool,
-		MSPAllocation, MarketplaceItem, Menu, Message, Microservice, Notification,
-		NotificationDelivery, NotificationPreference, OnCallSchedule, OnCallShift,
-		OperationalCommand, PasswordResetToken, Permission, PermissionDefinition,
-		Problem, ProcessApprovalDecision, ProcessAuditLog, ProcessBinding,
-		ProcessDefinition, ProcessDeployment, ProcessExecutionHistory, ProcessInstance,
-		ProcessTask, ProcessTimer, ProcessVariable, ProcessVersionChangelog, Project,
+		MSPAllocation, MSPContract, MSPContractSLABinding, MarketplaceItem, Menu,
+		Message, Microservice, Notification, NotificationDelivery,
+		NotificationPreference, OnCallSchedule, OnCallShift, OperationalCommand,
+		PasswordResetToken, Permission, PermissionDefinition, Problem,
+		ProcessApprovalDecision, ProcessAuditLog, ProcessBinding, ProcessDefinition,
+		ProcessDeployment, ProcessExecutionHistory, ProcessInstance, ProcessTask,
+		ProcessTimer, ProcessVariable, ProcessVersionChangelog, Project,
 		PromptTemplate, ProvisioningTask, RelationshipType, Release, Role,
 		RolePermission, RootCauseAnalysis, SLAAlertHistory, SLAAlertRule,
 		SLADefinition, SLADefinitionGrant, SLAMetric, SLAPolicy, SLAViolation,

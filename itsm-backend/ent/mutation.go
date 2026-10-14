@@ -82,6 +82,8 @@ import (
 	"itsm-backend/ent/message"
 	"itsm-backend/ent/microservice"
 	"itsm-backend/ent/mspallocation"
+	"itsm-backend/ent/mspcontract"
+	"itsm-backend/ent/mspcontractslabinding"
 	"itsm-backend/ent/notification"
 	"itsm-backend/ent/notificationdelivery"
 	"itsm-backend/ent/notificationpreference"
@@ -249,6 +251,8 @@ const (
 	TypeMCPServer                   = "MCPServer"
 	TypeMCPServerTool               = "MCPServerTool"
 	TypeMSPAllocation               = "MSPAllocation"
+	TypeMSPContract                 = "MSPContract"
+	TypeMSPContractSLABinding       = "MSPContractSLABinding"
 	TypeMarketplaceItem             = "MarketplaceItem"
 	TypeMenu                        = "Menu"
 	TypeMessage                     = "Message"
@@ -98689,6 +98693,2000 @@ func (m *MSPAllocationMutation) ResetEdge(name string) error {
 	return fmt.Errorf("unknown MSPAllocation edge %s", name)
 }
 
+// MSPContractMutation represents an operation that mutates the MSPContract nodes in the graph.
+type MSPContractMutation struct {
+	config
+	op                    Op
+	typ                   string
+	id                    *int
+	provider_tenant_id    *int
+	addprovider_tenant_id *int
+	customer_tenant_id    *int
+	addcustomer_tenant_id *int
+	contract_no           *string
+	name                  *string
+	effective_from        *time.Time
+	effective_until       *time.Time
+	status                *string
+	penalties             *map[string]interface{}
+	settlement_cycle      *string
+	currency              *string
+	tenant_id             *int
+	addtenant_id          *int
+	created_at            *time.Time
+	updated_at            *time.Time
+	clearedFields         map[string]struct{}
+	sla_bindings          map[int]struct{}
+	removedsla_bindings   map[int]struct{}
+	clearedsla_bindings   bool
+	done                  bool
+	oldValue              func(context.Context) (*MSPContract, error)
+	predicates            []predicate.MSPContract
+}
+
+var _ ent.Mutation = (*MSPContractMutation)(nil)
+
+// mspcontractOption allows management of the mutation configuration using functional options.
+type mspcontractOption func(*MSPContractMutation)
+
+// newMSPContractMutation creates new mutation for the MSPContract entity.
+func newMSPContractMutation(c config, op Op, opts ...mspcontractOption) *MSPContractMutation {
+	m := &MSPContractMutation{
+		config:        c,
+		op:            op,
+		typ:           TypeMSPContract,
+		clearedFields: make(map[string]struct{}),
+	}
+	for _, opt := range opts {
+		opt(m)
+	}
+	return m
+}
+
+// withMSPContractID sets the ID field of the mutation.
+func withMSPContractID(id int) mspcontractOption {
+	return func(m *MSPContractMutation) {
+		var (
+			err   error
+			once  sync.Once
+			value *MSPContract
+		)
+		m.oldValue = func(ctx context.Context) (*MSPContract, error) {
+			once.Do(func() {
+				if m.done {
+					err = errors.New("querying old values post mutation is not allowed")
+				} else {
+					value, err = m.Client().MSPContract.Get(ctx, id)
+				}
+			})
+			return value, err
+		}
+		m.id = &id
+	}
+}
+
+// withMSPContract sets the old MSPContract of the mutation.
+func withMSPContract(node *MSPContract) mspcontractOption {
+	return func(m *MSPContractMutation) {
+		m.oldValue = func(context.Context) (*MSPContract, error) {
+			return node, nil
+		}
+		m.id = &node.ID
+	}
+}
+
+// Client returns a new `ent.Client` from the mutation. If the mutation was
+// executed in a transaction (ent.Tx), a transactional client is returned.
+func (m MSPContractMutation) Client() *Client {
+	client := &Client{config: m.config}
+	client.init()
+	return client
+}
+
+// Tx returns an `ent.Tx` for mutations that were executed in transactions;
+// it returns an error otherwise.
+func (m MSPContractMutation) Tx() (*Tx, error) {
+	if _, ok := m.driver.(*txDriver); !ok {
+		return nil, errors.New("ent: mutation is not running in a transaction")
+	}
+	tx := &Tx{config: m.config}
+	tx.init()
+	return tx, nil
+}
+
+// ID returns the ID value in the mutation. Note that the ID is only available
+// if it was provided to the builder or after it was returned from the database.
+func (m *MSPContractMutation) ID() (id int, exists bool) {
+	if m.id == nil {
+		return
+	}
+	return *m.id, true
+}
+
+// IDs queries the database and returns the entity ids that match the mutation's predicate.
+// That means, if the mutation is applied within a transaction with an isolation level such
+// as sql.LevelSerializable, the returned ids match the ids of the rows that will be updated
+// or updated by the mutation.
+func (m *MSPContractMutation) IDs(ctx context.Context) ([]int, error) {
+	switch {
+	case m.op.Is(OpUpdateOne | OpDeleteOne):
+		id, exists := m.ID()
+		if exists {
+			return []int{id}, nil
+		}
+		fallthrough
+	case m.op.Is(OpUpdate | OpDelete):
+		return m.Client().MSPContract.Query().Where(m.predicates...).IDs(ctx)
+	default:
+		return nil, fmt.Errorf("IDs is not allowed on %s operations", m.op)
+	}
+}
+
+// SetProviderTenantID sets the "provider_tenant_id" field.
+func (m *MSPContractMutation) SetProviderTenantID(i int) {
+	m.provider_tenant_id = &i
+	m.addprovider_tenant_id = nil
+}
+
+// ProviderTenantID returns the value of the "provider_tenant_id" field in the mutation.
+func (m *MSPContractMutation) ProviderTenantID() (r int, exists bool) {
+	v := m.provider_tenant_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldProviderTenantID returns the old "provider_tenant_id" field's value of the MSPContract entity.
+// If the MSPContract object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *MSPContractMutation) OldProviderTenantID(ctx context.Context) (v int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldProviderTenantID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldProviderTenantID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldProviderTenantID: %w", err)
+	}
+	return oldValue.ProviderTenantID, nil
+}
+
+// AddProviderTenantID adds i to the "provider_tenant_id" field.
+func (m *MSPContractMutation) AddProviderTenantID(i int) {
+	if m.addprovider_tenant_id != nil {
+		*m.addprovider_tenant_id += i
+	} else {
+		m.addprovider_tenant_id = &i
+	}
+}
+
+// AddedProviderTenantID returns the value that was added to the "provider_tenant_id" field in this mutation.
+func (m *MSPContractMutation) AddedProviderTenantID() (r int, exists bool) {
+	v := m.addprovider_tenant_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetProviderTenantID resets all changes to the "provider_tenant_id" field.
+func (m *MSPContractMutation) ResetProviderTenantID() {
+	m.provider_tenant_id = nil
+	m.addprovider_tenant_id = nil
+}
+
+// SetCustomerTenantID sets the "customer_tenant_id" field.
+func (m *MSPContractMutation) SetCustomerTenantID(i int) {
+	m.customer_tenant_id = &i
+	m.addcustomer_tenant_id = nil
+}
+
+// CustomerTenantID returns the value of the "customer_tenant_id" field in the mutation.
+func (m *MSPContractMutation) CustomerTenantID() (r int, exists bool) {
+	v := m.customer_tenant_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldCustomerTenantID returns the old "customer_tenant_id" field's value of the MSPContract entity.
+// If the MSPContract object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *MSPContractMutation) OldCustomerTenantID(ctx context.Context) (v int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldCustomerTenantID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldCustomerTenantID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldCustomerTenantID: %w", err)
+	}
+	return oldValue.CustomerTenantID, nil
+}
+
+// AddCustomerTenantID adds i to the "customer_tenant_id" field.
+func (m *MSPContractMutation) AddCustomerTenantID(i int) {
+	if m.addcustomer_tenant_id != nil {
+		*m.addcustomer_tenant_id += i
+	} else {
+		m.addcustomer_tenant_id = &i
+	}
+}
+
+// AddedCustomerTenantID returns the value that was added to the "customer_tenant_id" field in this mutation.
+func (m *MSPContractMutation) AddedCustomerTenantID() (r int, exists bool) {
+	v := m.addcustomer_tenant_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetCustomerTenantID resets all changes to the "customer_tenant_id" field.
+func (m *MSPContractMutation) ResetCustomerTenantID() {
+	m.customer_tenant_id = nil
+	m.addcustomer_tenant_id = nil
+}
+
+// SetContractNo sets the "contract_no" field.
+func (m *MSPContractMutation) SetContractNo(s string) {
+	m.contract_no = &s
+}
+
+// ContractNo returns the value of the "contract_no" field in the mutation.
+func (m *MSPContractMutation) ContractNo() (r string, exists bool) {
+	v := m.contract_no
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldContractNo returns the old "contract_no" field's value of the MSPContract entity.
+// If the MSPContract object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *MSPContractMutation) OldContractNo(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldContractNo is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldContractNo requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldContractNo: %w", err)
+	}
+	return oldValue.ContractNo, nil
+}
+
+// ResetContractNo resets all changes to the "contract_no" field.
+func (m *MSPContractMutation) ResetContractNo() {
+	m.contract_no = nil
+}
+
+// SetName sets the "name" field.
+func (m *MSPContractMutation) SetName(s string) {
+	m.name = &s
+}
+
+// Name returns the value of the "name" field in the mutation.
+func (m *MSPContractMutation) Name() (r string, exists bool) {
+	v := m.name
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldName returns the old "name" field's value of the MSPContract entity.
+// If the MSPContract object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *MSPContractMutation) OldName(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldName is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldName requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldName: %w", err)
+	}
+	return oldValue.Name, nil
+}
+
+// ResetName resets all changes to the "name" field.
+func (m *MSPContractMutation) ResetName() {
+	m.name = nil
+}
+
+// SetEffectiveFrom sets the "effective_from" field.
+func (m *MSPContractMutation) SetEffectiveFrom(t time.Time) {
+	m.effective_from = &t
+}
+
+// EffectiveFrom returns the value of the "effective_from" field in the mutation.
+func (m *MSPContractMutation) EffectiveFrom() (r time.Time, exists bool) {
+	v := m.effective_from
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldEffectiveFrom returns the old "effective_from" field's value of the MSPContract entity.
+// If the MSPContract object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *MSPContractMutation) OldEffectiveFrom(ctx context.Context) (v time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldEffectiveFrom is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldEffectiveFrom requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldEffectiveFrom: %w", err)
+	}
+	return oldValue.EffectiveFrom, nil
+}
+
+// ResetEffectiveFrom resets all changes to the "effective_from" field.
+func (m *MSPContractMutation) ResetEffectiveFrom() {
+	m.effective_from = nil
+}
+
+// SetEffectiveUntil sets the "effective_until" field.
+func (m *MSPContractMutation) SetEffectiveUntil(t time.Time) {
+	m.effective_until = &t
+}
+
+// EffectiveUntil returns the value of the "effective_until" field in the mutation.
+func (m *MSPContractMutation) EffectiveUntil() (r time.Time, exists bool) {
+	v := m.effective_until
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldEffectiveUntil returns the old "effective_until" field's value of the MSPContract entity.
+// If the MSPContract object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *MSPContractMutation) OldEffectiveUntil(ctx context.Context) (v *time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldEffectiveUntil is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldEffectiveUntil requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldEffectiveUntil: %w", err)
+	}
+	return oldValue.EffectiveUntil, nil
+}
+
+// ClearEffectiveUntil clears the value of the "effective_until" field.
+func (m *MSPContractMutation) ClearEffectiveUntil() {
+	m.effective_until = nil
+	m.clearedFields[mspcontract.FieldEffectiveUntil] = struct{}{}
+}
+
+// EffectiveUntilCleared returns if the "effective_until" field was cleared in this mutation.
+func (m *MSPContractMutation) EffectiveUntilCleared() bool {
+	_, ok := m.clearedFields[mspcontract.FieldEffectiveUntil]
+	return ok
+}
+
+// ResetEffectiveUntil resets all changes to the "effective_until" field.
+func (m *MSPContractMutation) ResetEffectiveUntil() {
+	m.effective_until = nil
+	delete(m.clearedFields, mspcontract.FieldEffectiveUntil)
+}
+
+// SetStatus sets the "status" field.
+func (m *MSPContractMutation) SetStatus(s string) {
+	m.status = &s
+}
+
+// Status returns the value of the "status" field in the mutation.
+func (m *MSPContractMutation) Status() (r string, exists bool) {
+	v := m.status
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldStatus returns the old "status" field's value of the MSPContract entity.
+// If the MSPContract object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *MSPContractMutation) OldStatus(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldStatus is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldStatus requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldStatus: %w", err)
+	}
+	return oldValue.Status, nil
+}
+
+// ResetStatus resets all changes to the "status" field.
+func (m *MSPContractMutation) ResetStatus() {
+	m.status = nil
+}
+
+// SetPenalties sets the "penalties" field.
+func (m *MSPContractMutation) SetPenalties(value map[string]interface{}) {
+	m.penalties = &value
+}
+
+// Penalties returns the value of the "penalties" field in the mutation.
+func (m *MSPContractMutation) Penalties() (r map[string]interface{}, exists bool) {
+	v := m.penalties
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldPenalties returns the old "penalties" field's value of the MSPContract entity.
+// If the MSPContract object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *MSPContractMutation) OldPenalties(ctx context.Context) (v map[string]interface{}, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldPenalties is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldPenalties requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldPenalties: %w", err)
+	}
+	return oldValue.Penalties, nil
+}
+
+// ClearPenalties clears the value of the "penalties" field.
+func (m *MSPContractMutation) ClearPenalties() {
+	m.penalties = nil
+	m.clearedFields[mspcontract.FieldPenalties] = struct{}{}
+}
+
+// PenaltiesCleared returns if the "penalties" field was cleared in this mutation.
+func (m *MSPContractMutation) PenaltiesCleared() bool {
+	_, ok := m.clearedFields[mspcontract.FieldPenalties]
+	return ok
+}
+
+// ResetPenalties resets all changes to the "penalties" field.
+func (m *MSPContractMutation) ResetPenalties() {
+	m.penalties = nil
+	delete(m.clearedFields, mspcontract.FieldPenalties)
+}
+
+// SetSettlementCycle sets the "settlement_cycle" field.
+func (m *MSPContractMutation) SetSettlementCycle(s string) {
+	m.settlement_cycle = &s
+}
+
+// SettlementCycle returns the value of the "settlement_cycle" field in the mutation.
+func (m *MSPContractMutation) SettlementCycle() (r string, exists bool) {
+	v := m.settlement_cycle
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldSettlementCycle returns the old "settlement_cycle" field's value of the MSPContract entity.
+// If the MSPContract object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *MSPContractMutation) OldSettlementCycle(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldSettlementCycle is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldSettlementCycle requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldSettlementCycle: %w", err)
+	}
+	return oldValue.SettlementCycle, nil
+}
+
+// ResetSettlementCycle resets all changes to the "settlement_cycle" field.
+func (m *MSPContractMutation) ResetSettlementCycle() {
+	m.settlement_cycle = nil
+}
+
+// SetCurrency sets the "currency" field.
+func (m *MSPContractMutation) SetCurrency(s string) {
+	m.currency = &s
+}
+
+// Currency returns the value of the "currency" field in the mutation.
+func (m *MSPContractMutation) Currency() (r string, exists bool) {
+	v := m.currency
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldCurrency returns the old "currency" field's value of the MSPContract entity.
+// If the MSPContract object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *MSPContractMutation) OldCurrency(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldCurrency is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldCurrency requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldCurrency: %w", err)
+	}
+	return oldValue.Currency, nil
+}
+
+// ClearCurrency clears the value of the "currency" field.
+func (m *MSPContractMutation) ClearCurrency() {
+	m.currency = nil
+	m.clearedFields[mspcontract.FieldCurrency] = struct{}{}
+}
+
+// CurrencyCleared returns if the "currency" field was cleared in this mutation.
+func (m *MSPContractMutation) CurrencyCleared() bool {
+	_, ok := m.clearedFields[mspcontract.FieldCurrency]
+	return ok
+}
+
+// ResetCurrency resets all changes to the "currency" field.
+func (m *MSPContractMutation) ResetCurrency() {
+	m.currency = nil
+	delete(m.clearedFields, mspcontract.FieldCurrency)
+}
+
+// SetTenantID sets the "tenant_id" field.
+func (m *MSPContractMutation) SetTenantID(i int) {
+	m.tenant_id = &i
+	m.addtenant_id = nil
+}
+
+// TenantID returns the value of the "tenant_id" field in the mutation.
+func (m *MSPContractMutation) TenantID() (r int, exists bool) {
+	v := m.tenant_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldTenantID returns the old "tenant_id" field's value of the MSPContract entity.
+// If the MSPContract object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *MSPContractMutation) OldTenantID(ctx context.Context) (v int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldTenantID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldTenantID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldTenantID: %w", err)
+	}
+	return oldValue.TenantID, nil
+}
+
+// AddTenantID adds i to the "tenant_id" field.
+func (m *MSPContractMutation) AddTenantID(i int) {
+	if m.addtenant_id != nil {
+		*m.addtenant_id += i
+	} else {
+		m.addtenant_id = &i
+	}
+}
+
+// AddedTenantID returns the value that was added to the "tenant_id" field in this mutation.
+func (m *MSPContractMutation) AddedTenantID() (r int, exists bool) {
+	v := m.addtenant_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetTenantID resets all changes to the "tenant_id" field.
+func (m *MSPContractMutation) ResetTenantID() {
+	m.tenant_id = nil
+	m.addtenant_id = nil
+}
+
+// SetCreatedAt sets the "created_at" field.
+func (m *MSPContractMutation) SetCreatedAt(t time.Time) {
+	m.created_at = &t
+}
+
+// CreatedAt returns the value of the "created_at" field in the mutation.
+func (m *MSPContractMutation) CreatedAt() (r time.Time, exists bool) {
+	v := m.created_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldCreatedAt returns the old "created_at" field's value of the MSPContract entity.
+// If the MSPContract object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *MSPContractMutation) OldCreatedAt(ctx context.Context) (v time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldCreatedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldCreatedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldCreatedAt: %w", err)
+	}
+	return oldValue.CreatedAt, nil
+}
+
+// ResetCreatedAt resets all changes to the "created_at" field.
+func (m *MSPContractMutation) ResetCreatedAt() {
+	m.created_at = nil
+}
+
+// SetUpdatedAt sets the "updated_at" field.
+func (m *MSPContractMutation) SetUpdatedAt(t time.Time) {
+	m.updated_at = &t
+}
+
+// UpdatedAt returns the value of the "updated_at" field in the mutation.
+func (m *MSPContractMutation) UpdatedAt() (r time.Time, exists bool) {
+	v := m.updated_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldUpdatedAt returns the old "updated_at" field's value of the MSPContract entity.
+// If the MSPContract object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *MSPContractMutation) OldUpdatedAt(ctx context.Context) (v time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldUpdatedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldUpdatedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldUpdatedAt: %w", err)
+	}
+	return oldValue.UpdatedAt, nil
+}
+
+// ResetUpdatedAt resets all changes to the "updated_at" field.
+func (m *MSPContractMutation) ResetUpdatedAt() {
+	m.updated_at = nil
+}
+
+// AddSLABindingIDs adds the "sla_bindings" edge to the MSPContractSLABinding entity by ids.
+func (m *MSPContractMutation) AddSLABindingIDs(ids ...int) {
+	if m.sla_bindings == nil {
+		m.sla_bindings = make(map[int]struct{})
+	}
+	for i := range ids {
+		m.sla_bindings[ids[i]] = struct{}{}
+	}
+}
+
+// ClearSLABindings clears the "sla_bindings" edge to the MSPContractSLABinding entity.
+func (m *MSPContractMutation) ClearSLABindings() {
+	m.clearedsla_bindings = true
+}
+
+// SLABindingsCleared reports if the "sla_bindings" edge to the MSPContractSLABinding entity was cleared.
+func (m *MSPContractMutation) SLABindingsCleared() bool {
+	return m.clearedsla_bindings
+}
+
+// RemoveSLABindingIDs removes the "sla_bindings" edge to the MSPContractSLABinding entity by IDs.
+func (m *MSPContractMutation) RemoveSLABindingIDs(ids ...int) {
+	if m.removedsla_bindings == nil {
+		m.removedsla_bindings = make(map[int]struct{})
+	}
+	for i := range ids {
+		delete(m.sla_bindings, ids[i])
+		m.removedsla_bindings[ids[i]] = struct{}{}
+	}
+}
+
+// RemovedSLABindings returns the removed IDs of the "sla_bindings" edge to the MSPContractSLABinding entity.
+func (m *MSPContractMutation) RemovedSLABindingsIDs() (ids []int) {
+	for id := range m.removedsla_bindings {
+		ids = append(ids, id)
+	}
+	return
+}
+
+// SLABindingsIDs returns the "sla_bindings" edge IDs in the mutation.
+func (m *MSPContractMutation) SLABindingsIDs() (ids []int) {
+	for id := range m.sla_bindings {
+		ids = append(ids, id)
+	}
+	return
+}
+
+// ResetSLABindings resets all changes to the "sla_bindings" edge.
+func (m *MSPContractMutation) ResetSLABindings() {
+	m.sla_bindings = nil
+	m.clearedsla_bindings = false
+	m.removedsla_bindings = nil
+}
+
+// Where appends a list predicates to the MSPContractMutation builder.
+func (m *MSPContractMutation) Where(ps ...predicate.MSPContract) {
+	m.predicates = append(m.predicates, ps...)
+}
+
+// WhereP appends storage-level predicates to the MSPContractMutation builder. Using this method,
+// users can use type-assertion to append predicates that do not depend on any generated package.
+func (m *MSPContractMutation) WhereP(ps ...func(*sql.Selector)) {
+	p := make([]predicate.MSPContract, len(ps))
+	for i := range ps {
+		p[i] = ps[i]
+	}
+	m.Where(p...)
+}
+
+// Op returns the operation name.
+func (m *MSPContractMutation) Op() Op {
+	return m.op
+}
+
+// SetOp allows setting the mutation operation.
+func (m *MSPContractMutation) SetOp(op Op) {
+	m.op = op
+}
+
+// Type returns the node type of this mutation (MSPContract).
+func (m *MSPContractMutation) Type() string {
+	return m.typ
+}
+
+// Fields returns all fields that were changed during this mutation. Note that in
+// order to get all numeric fields that were incremented/decremented, call
+// AddedFields().
+func (m *MSPContractMutation) Fields() []string {
+	fields := make([]string, 0, 13)
+	if m.provider_tenant_id != nil {
+		fields = append(fields, mspcontract.FieldProviderTenantID)
+	}
+	if m.customer_tenant_id != nil {
+		fields = append(fields, mspcontract.FieldCustomerTenantID)
+	}
+	if m.contract_no != nil {
+		fields = append(fields, mspcontract.FieldContractNo)
+	}
+	if m.name != nil {
+		fields = append(fields, mspcontract.FieldName)
+	}
+	if m.effective_from != nil {
+		fields = append(fields, mspcontract.FieldEffectiveFrom)
+	}
+	if m.effective_until != nil {
+		fields = append(fields, mspcontract.FieldEffectiveUntil)
+	}
+	if m.status != nil {
+		fields = append(fields, mspcontract.FieldStatus)
+	}
+	if m.penalties != nil {
+		fields = append(fields, mspcontract.FieldPenalties)
+	}
+	if m.settlement_cycle != nil {
+		fields = append(fields, mspcontract.FieldSettlementCycle)
+	}
+	if m.currency != nil {
+		fields = append(fields, mspcontract.FieldCurrency)
+	}
+	if m.tenant_id != nil {
+		fields = append(fields, mspcontract.FieldTenantID)
+	}
+	if m.created_at != nil {
+		fields = append(fields, mspcontract.FieldCreatedAt)
+	}
+	if m.updated_at != nil {
+		fields = append(fields, mspcontract.FieldUpdatedAt)
+	}
+	return fields
+}
+
+// Field returns the value of a field with the given name. The second boolean
+// return value indicates that this field was not set, or was not defined in the
+// schema.
+func (m *MSPContractMutation) Field(name string) (ent.Value, bool) {
+	switch name {
+	case mspcontract.FieldProviderTenantID:
+		return m.ProviderTenantID()
+	case mspcontract.FieldCustomerTenantID:
+		return m.CustomerTenantID()
+	case mspcontract.FieldContractNo:
+		return m.ContractNo()
+	case mspcontract.FieldName:
+		return m.Name()
+	case mspcontract.FieldEffectiveFrom:
+		return m.EffectiveFrom()
+	case mspcontract.FieldEffectiveUntil:
+		return m.EffectiveUntil()
+	case mspcontract.FieldStatus:
+		return m.Status()
+	case mspcontract.FieldPenalties:
+		return m.Penalties()
+	case mspcontract.FieldSettlementCycle:
+		return m.SettlementCycle()
+	case mspcontract.FieldCurrency:
+		return m.Currency()
+	case mspcontract.FieldTenantID:
+		return m.TenantID()
+	case mspcontract.FieldCreatedAt:
+		return m.CreatedAt()
+	case mspcontract.FieldUpdatedAt:
+		return m.UpdatedAt()
+	}
+	return nil, false
+}
+
+// OldField returns the old value of the field from the database. An error is
+// returned if the mutation operation is not UpdateOne, or the query to the
+// database failed.
+func (m *MSPContractMutation) OldField(ctx context.Context, name string) (ent.Value, error) {
+	switch name {
+	case mspcontract.FieldProviderTenantID:
+		return m.OldProviderTenantID(ctx)
+	case mspcontract.FieldCustomerTenantID:
+		return m.OldCustomerTenantID(ctx)
+	case mspcontract.FieldContractNo:
+		return m.OldContractNo(ctx)
+	case mspcontract.FieldName:
+		return m.OldName(ctx)
+	case mspcontract.FieldEffectiveFrom:
+		return m.OldEffectiveFrom(ctx)
+	case mspcontract.FieldEffectiveUntil:
+		return m.OldEffectiveUntil(ctx)
+	case mspcontract.FieldStatus:
+		return m.OldStatus(ctx)
+	case mspcontract.FieldPenalties:
+		return m.OldPenalties(ctx)
+	case mspcontract.FieldSettlementCycle:
+		return m.OldSettlementCycle(ctx)
+	case mspcontract.FieldCurrency:
+		return m.OldCurrency(ctx)
+	case mspcontract.FieldTenantID:
+		return m.OldTenantID(ctx)
+	case mspcontract.FieldCreatedAt:
+		return m.OldCreatedAt(ctx)
+	case mspcontract.FieldUpdatedAt:
+		return m.OldUpdatedAt(ctx)
+	}
+	return nil, fmt.Errorf("unknown MSPContract field %s", name)
+}
+
+// SetField sets the value of a field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *MSPContractMutation) SetField(name string, value ent.Value) error {
+	switch name {
+	case mspcontract.FieldProviderTenantID:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetProviderTenantID(v)
+		return nil
+	case mspcontract.FieldCustomerTenantID:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetCustomerTenantID(v)
+		return nil
+	case mspcontract.FieldContractNo:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetContractNo(v)
+		return nil
+	case mspcontract.FieldName:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetName(v)
+		return nil
+	case mspcontract.FieldEffectiveFrom:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetEffectiveFrom(v)
+		return nil
+	case mspcontract.FieldEffectiveUntil:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetEffectiveUntil(v)
+		return nil
+	case mspcontract.FieldStatus:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetStatus(v)
+		return nil
+	case mspcontract.FieldPenalties:
+		v, ok := value.(map[string]interface{})
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetPenalties(v)
+		return nil
+	case mspcontract.FieldSettlementCycle:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetSettlementCycle(v)
+		return nil
+	case mspcontract.FieldCurrency:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetCurrency(v)
+		return nil
+	case mspcontract.FieldTenantID:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetTenantID(v)
+		return nil
+	case mspcontract.FieldCreatedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetCreatedAt(v)
+		return nil
+	case mspcontract.FieldUpdatedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetUpdatedAt(v)
+		return nil
+	}
+	return fmt.Errorf("unknown MSPContract field %s", name)
+}
+
+// AddedFields returns all numeric fields that were incremented/decremented during
+// this mutation.
+func (m *MSPContractMutation) AddedFields() []string {
+	var fields []string
+	if m.addprovider_tenant_id != nil {
+		fields = append(fields, mspcontract.FieldProviderTenantID)
+	}
+	if m.addcustomer_tenant_id != nil {
+		fields = append(fields, mspcontract.FieldCustomerTenantID)
+	}
+	if m.addtenant_id != nil {
+		fields = append(fields, mspcontract.FieldTenantID)
+	}
+	return fields
+}
+
+// AddedField returns the numeric value that was incremented/decremented on a field
+// with the given name. The second boolean return value indicates that this field
+// was not set, or was not defined in the schema.
+func (m *MSPContractMutation) AddedField(name string) (ent.Value, bool) {
+	switch name {
+	case mspcontract.FieldProviderTenantID:
+		return m.AddedProviderTenantID()
+	case mspcontract.FieldCustomerTenantID:
+		return m.AddedCustomerTenantID()
+	case mspcontract.FieldTenantID:
+		return m.AddedTenantID()
+	}
+	return nil, false
+}
+
+// AddField adds the value to the field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *MSPContractMutation) AddField(name string, value ent.Value) error {
+	switch name {
+	case mspcontract.FieldProviderTenantID:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddProviderTenantID(v)
+		return nil
+	case mspcontract.FieldCustomerTenantID:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddCustomerTenantID(v)
+		return nil
+	case mspcontract.FieldTenantID:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddTenantID(v)
+		return nil
+	}
+	return fmt.Errorf("unknown MSPContract numeric field %s", name)
+}
+
+// ClearedFields returns all nullable fields that were cleared during this
+// mutation.
+func (m *MSPContractMutation) ClearedFields() []string {
+	var fields []string
+	if m.FieldCleared(mspcontract.FieldEffectiveUntil) {
+		fields = append(fields, mspcontract.FieldEffectiveUntil)
+	}
+	if m.FieldCleared(mspcontract.FieldPenalties) {
+		fields = append(fields, mspcontract.FieldPenalties)
+	}
+	if m.FieldCleared(mspcontract.FieldCurrency) {
+		fields = append(fields, mspcontract.FieldCurrency)
+	}
+	return fields
+}
+
+// FieldCleared returns a boolean indicating if a field with the given name was
+// cleared in this mutation.
+func (m *MSPContractMutation) FieldCleared(name string) bool {
+	_, ok := m.clearedFields[name]
+	return ok
+}
+
+// ClearField clears the value of the field with the given name. It returns an
+// error if the field is not defined in the schema.
+func (m *MSPContractMutation) ClearField(name string) error {
+	switch name {
+	case mspcontract.FieldEffectiveUntil:
+		m.ClearEffectiveUntil()
+		return nil
+	case mspcontract.FieldPenalties:
+		m.ClearPenalties()
+		return nil
+	case mspcontract.FieldCurrency:
+		m.ClearCurrency()
+		return nil
+	}
+	return fmt.Errorf("unknown MSPContract nullable field %s", name)
+}
+
+// ResetField resets all changes in the mutation for the field with the given name.
+// It returns an error if the field is not defined in the schema.
+func (m *MSPContractMutation) ResetField(name string) error {
+	switch name {
+	case mspcontract.FieldProviderTenantID:
+		m.ResetProviderTenantID()
+		return nil
+	case mspcontract.FieldCustomerTenantID:
+		m.ResetCustomerTenantID()
+		return nil
+	case mspcontract.FieldContractNo:
+		m.ResetContractNo()
+		return nil
+	case mspcontract.FieldName:
+		m.ResetName()
+		return nil
+	case mspcontract.FieldEffectiveFrom:
+		m.ResetEffectiveFrom()
+		return nil
+	case mspcontract.FieldEffectiveUntil:
+		m.ResetEffectiveUntil()
+		return nil
+	case mspcontract.FieldStatus:
+		m.ResetStatus()
+		return nil
+	case mspcontract.FieldPenalties:
+		m.ResetPenalties()
+		return nil
+	case mspcontract.FieldSettlementCycle:
+		m.ResetSettlementCycle()
+		return nil
+	case mspcontract.FieldCurrency:
+		m.ResetCurrency()
+		return nil
+	case mspcontract.FieldTenantID:
+		m.ResetTenantID()
+		return nil
+	case mspcontract.FieldCreatedAt:
+		m.ResetCreatedAt()
+		return nil
+	case mspcontract.FieldUpdatedAt:
+		m.ResetUpdatedAt()
+		return nil
+	}
+	return fmt.Errorf("unknown MSPContract field %s", name)
+}
+
+// AddedEdges returns all edge names that were set/added in this mutation.
+func (m *MSPContractMutation) AddedEdges() []string {
+	edges := make([]string, 0, 1)
+	if m.sla_bindings != nil {
+		edges = append(edges, mspcontract.EdgeSLABindings)
+	}
+	return edges
+}
+
+// AddedIDs returns all IDs (to other nodes) that were added for the given edge
+// name in this mutation.
+func (m *MSPContractMutation) AddedIDs(name string) []ent.Value {
+	switch name {
+	case mspcontract.EdgeSLABindings:
+		ids := make([]ent.Value, 0, len(m.sla_bindings))
+		for id := range m.sla_bindings {
+			ids = append(ids, id)
+		}
+		return ids
+	}
+	return nil
+}
+
+// RemovedEdges returns all edge names that were removed in this mutation.
+func (m *MSPContractMutation) RemovedEdges() []string {
+	edges := make([]string, 0, 1)
+	if m.removedsla_bindings != nil {
+		edges = append(edges, mspcontract.EdgeSLABindings)
+	}
+	return edges
+}
+
+// RemovedIDs returns all IDs (to other nodes) that were removed for the edge with
+// the given name in this mutation.
+func (m *MSPContractMutation) RemovedIDs(name string) []ent.Value {
+	switch name {
+	case mspcontract.EdgeSLABindings:
+		ids := make([]ent.Value, 0, len(m.removedsla_bindings))
+		for id := range m.removedsla_bindings {
+			ids = append(ids, id)
+		}
+		return ids
+	}
+	return nil
+}
+
+// ClearedEdges returns all edge names that were cleared in this mutation.
+func (m *MSPContractMutation) ClearedEdges() []string {
+	edges := make([]string, 0, 1)
+	if m.clearedsla_bindings {
+		edges = append(edges, mspcontract.EdgeSLABindings)
+	}
+	return edges
+}
+
+// EdgeCleared returns a boolean which indicates if the edge with the given name
+// was cleared in this mutation.
+func (m *MSPContractMutation) EdgeCleared(name string) bool {
+	switch name {
+	case mspcontract.EdgeSLABindings:
+		return m.clearedsla_bindings
+	}
+	return false
+}
+
+// ClearEdge clears the value of the edge with the given name. It returns an error
+// if that edge is not defined in the schema.
+func (m *MSPContractMutation) ClearEdge(name string) error {
+	switch name {
+	}
+	return fmt.Errorf("unknown MSPContract unique edge %s", name)
+}
+
+// ResetEdge resets all changes to the edge with the given name in this mutation.
+// It returns an error if the edge is not defined in the schema.
+func (m *MSPContractMutation) ResetEdge(name string) error {
+	switch name {
+	case mspcontract.EdgeSLABindings:
+		m.ResetSLABindings()
+		return nil
+	}
+	return fmt.Errorf("unknown MSPContract edge %s", name)
+}
+
+// MSPContractSLABindingMutation represents an operation that mutates the MSPContractSLABinding nodes in the graph.
+type MSPContractSLABindingMutation struct {
+	config
+	op                    Op
+	typ                   string
+	id                    *int
+	ticket_type_id        *int64
+	addticket_type_id     *int64
+	tenant_id             *int
+	addtenant_id          *int
+	created_at            *time.Time
+	updated_at            *time.Time
+	clearedFields         map[string]struct{}
+	contract              *int
+	clearedcontract       bool
+	sla_definition        *int
+	clearedsla_definition bool
+	done                  bool
+	oldValue              func(context.Context) (*MSPContractSLABinding, error)
+	predicates            []predicate.MSPContractSLABinding
+}
+
+var _ ent.Mutation = (*MSPContractSLABindingMutation)(nil)
+
+// mspcontractslabindingOption allows management of the mutation configuration using functional options.
+type mspcontractslabindingOption func(*MSPContractSLABindingMutation)
+
+// newMSPContractSLABindingMutation creates new mutation for the MSPContractSLABinding entity.
+func newMSPContractSLABindingMutation(c config, op Op, opts ...mspcontractslabindingOption) *MSPContractSLABindingMutation {
+	m := &MSPContractSLABindingMutation{
+		config:        c,
+		op:            op,
+		typ:           TypeMSPContractSLABinding,
+		clearedFields: make(map[string]struct{}),
+	}
+	for _, opt := range opts {
+		opt(m)
+	}
+	return m
+}
+
+// withMSPContractSLABindingID sets the ID field of the mutation.
+func withMSPContractSLABindingID(id int) mspcontractslabindingOption {
+	return func(m *MSPContractSLABindingMutation) {
+		var (
+			err   error
+			once  sync.Once
+			value *MSPContractSLABinding
+		)
+		m.oldValue = func(ctx context.Context) (*MSPContractSLABinding, error) {
+			once.Do(func() {
+				if m.done {
+					err = errors.New("querying old values post mutation is not allowed")
+				} else {
+					value, err = m.Client().MSPContractSLABinding.Get(ctx, id)
+				}
+			})
+			return value, err
+		}
+		m.id = &id
+	}
+}
+
+// withMSPContractSLABinding sets the old MSPContractSLABinding of the mutation.
+func withMSPContractSLABinding(node *MSPContractSLABinding) mspcontractslabindingOption {
+	return func(m *MSPContractSLABindingMutation) {
+		m.oldValue = func(context.Context) (*MSPContractSLABinding, error) {
+			return node, nil
+		}
+		m.id = &node.ID
+	}
+}
+
+// Client returns a new `ent.Client` from the mutation. If the mutation was
+// executed in a transaction (ent.Tx), a transactional client is returned.
+func (m MSPContractSLABindingMutation) Client() *Client {
+	client := &Client{config: m.config}
+	client.init()
+	return client
+}
+
+// Tx returns an `ent.Tx` for mutations that were executed in transactions;
+// it returns an error otherwise.
+func (m MSPContractSLABindingMutation) Tx() (*Tx, error) {
+	if _, ok := m.driver.(*txDriver); !ok {
+		return nil, errors.New("ent: mutation is not running in a transaction")
+	}
+	tx := &Tx{config: m.config}
+	tx.init()
+	return tx, nil
+}
+
+// ID returns the ID value in the mutation. Note that the ID is only available
+// if it was provided to the builder or after it was returned from the database.
+func (m *MSPContractSLABindingMutation) ID() (id int, exists bool) {
+	if m.id == nil {
+		return
+	}
+	return *m.id, true
+}
+
+// IDs queries the database and returns the entity ids that match the mutation's predicate.
+// That means, if the mutation is applied within a transaction with an isolation level such
+// as sql.LevelSerializable, the returned ids match the ids of the rows that will be updated
+// or updated by the mutation.
+func (m *MSPContractSLABindingMutation) IDs(ctx context.Context) ([]int, error) {
+	switch {
+	case m.op.Is(OpUpdateOne | OpDeleteOne):
+		id, exists := m.ID()
+		if exists {
+			return []int{id}, nil
+		}
+		fallthrough
+	case m.op.Is(OpUpdate | OpDelete):
+		return m.Client().MSPContractSLABinding.Query().Where(m.predicates...).IDs(ctx)
+	default:
+		return nil, fmt.Errorf("IDs is not allowed on %s operations", m.op)
+	}
+}
+
+// SetContractID sets the "contract_id" field.
+func (m *MSPContractSLABindingMutation) SetContractID(i int) {
+	m.contract = &i
+}
+
+// ContractID returns the value of the "contract_id" field in the mutation.
+func (m *MSPContractSLABindingMutation) ContractID() (r int, exists bool) {
+	v := m.contract
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldContractID returns the old "contract_id" field's value of the MSPContractSLABinding entity.
+// If the MSPContractSLABinding object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *MSPContractSLABindingMutation) OldContractID(ctx context.Context) (v int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldContractID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldContractID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldContractID: %w", err)
+	}
+	return oldValue.ContractID, nil
+}
+
+// ResetContractID resets all changes to the "contract_id" field.
+func (m *MSPContractSLABindingMutation) ResetContractID() {
+	m.contract = nil
+}
+
+// SetSLADefinitionID sets the "sla_definition_id" field.
+func (m *MSPContractSLABindingMutation) SetSLADefinitionID(i int) {
+	m.sla_definition = &i
+}
+
+// SLADefinitionID returns the value of the "sla_definition_id" field in the mutation.
+func (m *MSPContractSLABindingMutation) SLADefinitionID() (r int, exists bool) {
+	v := m.sla_definition
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldSLADefinitionID returns the old "sla_definition_id" field's value of the MSPContractSLABinding entity.
+// If the MSPContractSLABinding object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *MSPContractSLABindingMutation) OldSLADefinitionID(ctx context.Context) (v int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldSLADefinitionID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldSLADefinitionID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldSLADefinitionID: %w", err)
+	}
+	return oldValue.SLADefinitionID, nil
+}
+
+// ResetSLADefinitionID resets all changes to the "sla_definition_id" field.
+func (m *MSPContractSLABindingMutation) ResetSLADefinitionID() {
+	m.sla_definition = nil
+}
+
+// SetTicketTypeID sets the "ticket_type_id" field.
+func (m *MSPContractSLABindingMutation) SetTicketTypeID(i int64) {
+	m.ticket_type_id = &i
+	m.addticket_type_id = nil
+}
+
+// TicketTypeID returns the value of the "ticket_type_id" field in the mutation.
+func (m *MSPContractSLABindingMutation) TicketTypeID() (r int64, exists bool) {
+	v := m.ticket_type_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldTicketTypeID returns the old "ticket_type_id" field's value of the MSPContractSLABinding entity.
+// If the MSPContractSLABinding object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *MSPContractSLABindingMutation) OldTicketTypeID(ctx context.Context) (v int64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldTicketTypeID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldTicketTypeID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldTicketTypeID: %w", err)
+	}
+	return oldValue.TicketTypeID, nil
+}
+
+// AddTicketTypeID adds i to the "ticket_type_id" field.
+func (m *MSPContractSLABindingMutation) AddTicketTypeID(i int64) {
+	if m.addticket_type_id != nil {
+		*m.addticket_type_id += i
+	} else {
+		m.addticket_type_id = &i
+	}
+}
+
+// AddedTicketTypeID returns the value that was added to the "ticket_type_id" field in this mutation.
+func (m *MSPContractSLABindingMutation) AddedTicketTypeID() (r int64, exists bool) {
+	v := m.addticket_type_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetTicketTypeID resets all changes to the "ticket_type_id" field.
+func (m *MSPContractSLABindingMutation) ResetTicketTypeID() {
+	m.ticket_type_id = nil
+	m.addticket_type_id = nil
+}
+
+// SetTenantID sets the "tenant_id" field.
+func (m *MSPContractSLABindingMutation) SetTenantID(i int) {
+	m.tenant_id = &i
+	m.addtenant_id = nil
+}
+
+// TenantID returns the value of the "tenant_id" field in the mutation.
+func (m *MSPContractSLABindingMutation) TenantID() (r int, exists bool) {
+	v := m.tenant_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldTenantID returns the old "tenant_id" field's value of the MSPContractSLABinding entity.
+// If the MSPContractSLABinding object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *MSPContractSLABindingMutation) OldTenantID(ctx context.Context) (v int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldTenantID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldTenantID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldTenantID: %w", err)
+	}
+	return oldValue.TenantID, nil
+}
+
+// AddTenantID adds i to the "tenant_id" field.
+func (m *MSPContractSLABindingMutation) AddTenantID(i int) {
+	if m.addtenant_id != nil {
+		*m.addtenant_id += i
+	} else {
+		m.addtenant_id = &i
+	}
+}
+
+// AddedTenantID returns the value that was added to the "tenant_id" field in this mutation.
+func (m *MSPContractSLABindingMutation) AddedTenantID() (r int, exists bool) {
+	v := m.addtenant_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetTenantID resets all changes to the "tenant_id" field.
+func (m *MSPContractSLABindingMutation) ResetTenantID() {
+	m.tenant_id = nil
+	m.addtenant_id = nil
+}
+
+// SetCreatedAt sets the "created_at" field.
+func (m *MSPContractSLABindingMutation) SetCreatedAt(t time.Time) {
+	m.created_at = &t
+}
+
+// CreatedAt returns the value of the "created_at" field in the mutation.
+func (m *MSPContractSLABindingMutation) CreatedAt() (r time.Time, exists bool) {
+	v := m.created_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldCreatedAt returns the old "created_at" field's value of the MSPContractSLABinding entity.
+// If the MSPContractSLABinding object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *MSPContractSLABindingMutation) OldCreatedAt(ctx context.Context) (v time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldCreatedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldCreatedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldCreatedAt: %w", err)
+	}
+	return oldValue.CreatedAt, nil
+}
+
+// ResetCreatedAt resets all changes to the "created_at" field.
+func (m *MSPContractSLABindingMutation) ResetCreatedAt() {
+	m.created_at = nil
+}
+
+// SetUpdatedAt sets the "updated_at" field.
+func (m *MSPContractSLABindingMutation) SetUpdatedAt(t time.Time) {
+	m.updated_at = &t
+}
+
+// UpdatedAt returns the value of the "updated_at" field in the mutation.
+func (m *MSPContractSLABindingMutation) UpdatedAt() (r time.Time, exists bool) {
+	v := m.updated_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldUpdatedAt returns the old "updated_at" field's value of the MSPContractSLABinding entity.
+// If the MSPContractSLABinding object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *MSPContractSLABindingMutation) OldUpdatedAt(ctx context.Context) (v time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldUpdatedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldUpdatedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldUpdatedAt: %w", err)
+	}
+	return oldValue.UpdatedAt, nil
+}
+
+// ResetUpdatedAt resets all changes to the "updated_at" field.
+func (m *MSPContractSLABindingMutation) ResetUpdatedAt() {
+	m.updated_at = nil
+}
+
+// ClearContract clears the "contract" edge to the MSPContract entity.
+func (m *MSPContractSLABindingMutation) ClearContract() {
+	m.clearedcontract = true
+	m.clearedFields[mspcontractslabinding.FieldContractID] = struct{}{}
+}
+
+// ContractCleared reports if the "contract" edge to the MSPContract entity was cleared.
+func (m *MSPContractSLABindingMutation) ContractCleared() bool {
+	return m.clearedcontract
+}
+
+// ContractIDs returns the "contract" edge IDs in the mutation.
+// Note that IDs always returns len(IDs) <= 1 for unique edges, and you should use
+// ContractID instead. It exists only for internal usage by the builders.
+func (m *MSPContractSLABindingMutation) ContractIDs() (ids []int) {
+	if id := m.contract; id != nil {
+		ids = append(ids, *id)
+	}
+	return
+}
+
+// ResetContract resets all changes to the "contract" edge.
+func (m *MSPContractSLABindingMutation) ResetContract() {
+	m.contract = nil
+	m.clearedcontract = false
+}
+
+// ClearSLADefinition clears the "sla_definition" edge to the SLADefinition entity.
+func (m *MSPContractSLABindingMutation) ClearSLADefinition() {
+	m.clearedsla_definition = true
+	m.clearedFields[mspcontractslabinding.FieldSLADefinitionID] = struct{}{}
+}
+
+// SLADefinitionCleared reports if the "sla_definition" edge to the SLADefinition entity was cleared.
+func (m *MSPContractSLABindingMutation) SLADefinitionCleared() bool {
+	return m.clearedsla_definition
+}
+
+// SLADefinitionIDs returns the "sla_definition" edge IDs in the mutation.
+// Note that IDs always returns len(IDs) <= 1 for unique edges, and you should use
+// SLADefinitionID instead. It exists only for internal usage by the builders.
+func (m *MSPContractSLABindingMutation) SLADefinitionIDs() (ids []int) {
+	if id := m.sla_definition; id != nil {
+		ids = append(ids, *id)
+	}
+	return
+}
+
+// ResetSLADefinition resets all changes to the "sla_definition" edge.
+func (m *MSPContractSLABindingMutation) ResetSLADefinition() {
+	m.sla_definition = nil
+	m.clearedsla_definition = false
+}
+
+// Where appends a list predicates to the MSPContractSLABindingMutation builder.
+func (m *MSPContractSLABindingMutation) Where(ps ...predicate.MSPContractSLABinding) {
+	m.predicates = append(m.predicates, ps...)
+}
+
+// WhereP appends storage-level predicates to the MSPContractSLABindingMutation builder. Using this method,
+// users can use type-assertion to append predicates that do not depend on any generated package.
+func (m *MSPContractSLABindingMutation) WhereP(ps ...func(*sql.Selector)) {
+	p := make([]predicate.MSPContractSLABinding, len(ps))
+	for i := range ps {
+		p[i] = ps[i]
+	}
+	m.Where(p...)
+}
+
+// Op returns the operation name.
+func (m *MSPContractSLABindingMutation) Op() Op {
+	return m.op
+}
+
+// SetOp allows setting the mutation operation.
+func (m *MSPContractSLABindingMutation) SetOp(op Op) {
+	m.op = op
+}
+
+// Type returns the node type of this mutation (MSPContractSLABinding).
+func (m *MSPContractSLABindingMutation) Type() string {
+	return m.typ
+}
+
+// Fields returns all fields that were changed during this mutation. Note that in
+// order to get all numeric fields that were incremented/decremented, call
+// AddedFields().
+func (m *MSPContractSLABindingMutation) Fields() []string {
+	fields := make([]string, 0, 6)
+	if m.contract != nil {
+		fields = append(fields, mspcontractslabinding.FieldContractID)
+	}
+	if m.sla_definition != nil {
+		fields = append(fields, mspcontractslabinding.FieldSLADefinitionID)
+	}
+	if m.ticket_type_id != nil {
+		fields = append(fields, mspcontractslabinding.FieldTicketTypeID)
+	}
+	if m.tenant_id != nil {
+		fields = append(fields, mspcontractslabinding.FieldTenantID)
+	}
+	if m.created_at != nil {
+		fields = append(fields, mspcontractslabinding.FieldCreatedAt)
+	}
+	if m.updated_at != nil {
+		fields = append(fields, mspcontractslabinding.FieldUpdatedAt)
+	}
+	return fields
+}
+
+// Field returns the value of a field with the given name. The second boolean
+// return value indicates that this field was not set, or was not defined in the
+// schema.
+func (m *MSPContractSLABindingMutation) Field(name string) (ent.Value, bool) {
+	switch name {
+	case mspcontractslabinding.FieldContractID:
+		return m.ContractID()
+	case mspcontractslabinding.FieldSLADefinitionID:
+		return m.SLADefinitionID()
+	case mspcontractslabinding.FieldTicketTypeID:
+		return m.TicketTypeID()
+	case mspcontractslabinding.FieldTenantID:
+		return m.TenantID()
+	case mspcontractslabinding.FieldCreatedAt:
+		return m.CreatedAt()
+	case mspcontractslabinding.FieldUpdatedAt:
+		return m.UpdatedAt()
+	}
+	return nil, false
+}
+
+// OldField returns the old value of the field from the database. An error is
+// returned if the mutation operation is not UpdateOne, or the query to the
+// database failed.
+func (m *MSPContractSLABindingMutation) OldField(ctx context.Context, name string) (ent.Value, error) {
+	switch name {
+	case mspcontractslabinding.FieldContractID:
+		return m.OldContractID(ctx)
+	case mspcontractslabinding.FieldSLADefinitionID:
+		return m.OldSLADefinitionID(ctx)
+	case mspcontractslabinding.FieldTicketTypeID:
+		return m.OldTicketTypeID(ctx)
+	case mspcontractslabinding.FieldTenantID:
+		return m.OldTenantID(ctx)
+	case mspcontractslabinding.FieldCreatedAt:
+		return m.OldCreatedAt(ctx)
+	case mspcontractslabinding.FieldUpdatedAt:
+		return m.OldUpdatedAt(ctx)
+	}
+	return nil, fmt.Errorf("unknown MSPContractSLABinding field %s", name)
+}
+
+// SetField sets the value of a field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *MSPContractSLABindingMutation) SetField(name string, value ent.Value) error {
+	switch name {
+	case mspcontractslabinding.FieldContractID:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetContractID(v)
+		return nil
+	case mspcontractslabinding.FieldSLADefinitionID:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetSLADefinitionID(v)
+		return nil
+	case mspcontractslabinding.FieldTicketTypeID:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetTicketTypeID(v)
+		return nil
+	case mspcontractslabinding.FieldTenantID:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetTenantID(v)
+		return nil
+	case mspcontractslabinding.FieldCreatedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetCreatedAt(v)
+		return nil
+	case mspcontractslabinding.FieldUpdatedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetUpdatedAt(v)
+		return nil
+	}
+	return fmt.Errorf("unknown MSPContractSLABinding field %s", name)
+}
+
+// AddedFields returns all numeric fields that were incremented/decremented during
+// this mutation.
+func (m *MSPContractSLABindingMutation) AddedFields() []string {
+	var fields []string
+	if m.addticket_type_id != nil {
+		fields = append(fields, mspcontractslabinding.FieldTicketTypeID)
+	}
+	if m.addtenant_id != nil {
+		fields = append(fields, mspcontractslabinding.FieldTenantID)
+	}
+	return fields
+}
+
+// AddedField returns the numeric value that was incremented/decremented on a field
+// with the given name. The second boolean return value indicates that this field
+// was not set, or was not defined in the schema.
+func (m *MSPContractSLABindingMutation) AddedField(name string) (ent.Value, bool) {
+	switch name {
+	case mspcontractslabinding.FieldTicketTypeID:
+		return m.AddedTicketTypeID()
+	case mspcontractslabinding.FieldTenantID:
+		return m.AddedTenantID()
+	}
+	return nil, false
+}
+
+// AddField adds the value to the field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *MSPContractSLABindingMutation) AddField(name string, value ent.Value) error {
+	switch name {
+	case mspcontractslabinding.FieldTicketTypeID:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddTicketTypeID(v)
+		return nil
+	case mspcontractslabinding.FieldTenantID:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddTenantID(v)
+		return nil
+	}
+	return fmt.Errorf("unknown MSPContractSLABinding numeric field %s", name)
+}
+
+// ClearedFields returns all nullable fields that were cleared during this
+// mutation.
+func (m *MSPContractSLABindingMutation) ClearedFields() []string {
+	return nil
+}
+
+// FieldCleared returns a boolean indicating if a field with the given name was
+// cleared in this mutation.
+func (m *MSPContractSLABindingMutation) FieldCleared(name string) bool {
+	_, ok := m.clearedFields[name]
+	return ok
+}
+
+// ClearField clears the value of the field with the given name. It returns an
+// error if the field is not defined in the schema.
+func (m *MSPContractSLABindingMutation) ClearField(name string) error {
+	return fmt.Errorf("unknown MSPContractSLABinding nullable field %s", name)
+}
+
+// ResetField resets all changes in the mutation for the field with the given name.
+// It returns an error if the field is not defined in the schema.
+func (m *MSPContractSLABindingMutation) ResetField(name string) error {
+	switch name {
+	case mspcontractslabinding.FieldContractID:
+		m.ResetContractID()
+		return nil
+	case mspcontractslabinding.FieldSLADefinitionID:
+		m.ResetSLADefinitionID()
+		return nil
+	case mspcontractslabinding.FieldTicketTypeID:
+		m.ResetTicketTypeID()
+		return nil
+	case mspcontractslabinding.FieldTenantID:
+		m.ResetTenantID()
+		return nil
+	case mspcontractslabinding.FieldCreatedAt:
+		m.ResetCreatedAt()
+		return nil
+	case mspcontractslabinding.FieldUpdatedAt:
+		m.ResetUpdatedAt()
+		return nil
+	}
+	return fmt.Errorf("unknown MSPContractSLABinding field %s", name)
+}
+
+// AddedEdges returns all edge names that were set/added in this mutation.
+func (m *MSPContractSLABindingMutation) AddedEdges() []string {
+	edges := make([]string, 0, 2)
+	if m.contract != nil {
+		edges = append(edges, mspcontractslabinding.EdgeContract)
+	}
+	if m.sla_definition != nil {
+		edges = append(edges, mspcontractslabinding.EdgeSLADefinition)
+	}
+	return edges
+}
+
+// AddedIDs returns all IDs (to other nodes) that were added for the given edge
+// name in this mutation.
+func (m *MSPContractSLABindingMutation) AddedIDs(name string) []ent.Value {
+	switch name {
+	case mspcontractslabinding.EdgeContract:
+		if id := m.contract; id != nil {
+			return []ent.Value{*id}
+		}
+	case mspcontractslabinding.EdgeSLADefinition:
+		if id := m.sla_definition; id != nil {
+			return []ent.Value{*id}
+		}
+	}
+	return nil
+}
+
+// RemovedEdges returns all edge names that were removed in this mutation.
+func (m *MSPContractSLABindingMutation) RemovedEdges() []string {
+	edges := make([]string, 0, 2)
+	return edges
+}
+
+// RemovedIDs returns all IDs (to other nodes) that were removed for the edge with
+// the given name in this mutation.
+func (m *MSPContractSLABindingMutation) RemovedIDs(name string) []ent.Value {
+	return nil
+}
+
+// ClearedEdges returns all edge names that were cleared in this mutation.
+func (m *MSPContractSLABindingMutation) ClearedEdges() []string {
+	edges := make([]string, 0, 2)
+	if m.clearedcontract {
+		edges = append(edges, mspcontractslabinding.EdgeContract)
+	}
+	if m.clearedsla_definition {
+		edges = append(edges, mspcontractslabinding.EdgeSLADefinition)
+	}
+	return edges
+}
+
+// EdgeCleared returns a boolean which indicates if the edge with the given name
+// was cleared in this mutation.
+func (m *MSPContractSLABindingMutation) EdgeCleared(name string) bool {
+	switch name {
+	case mspcontractslabinding.EdgeContract:
+		return m.clearedcontract
+	case mspcontractslabinding.EdgeSLADefinition:
+		return m.clearedsla_definition
+	}
+	return false
+}
+
+// ClearEdge clears the value of the edge with the given name. It returns an error
+// if that edge is not defined in the schema.
+func (m *MSPContractSLABindingMutation) ClearEdge(name string) error {
+	switch name {
+	case mspcontractslabinding.EdgeContract:
+		m.ClearContract()
+		return nil
+	case mspcontractslabinding.EdgeSLADefinition:
+		m.ClearSLADefinition()
+		return nil
+	}
+	return fmt.Errorf("unknown MSPContractSLABinding unique edge %s", name)
+}
+
+// ResetEdge resets all changes to the edge with the given name in this mutation.
+// It returns an error if the edge is not defined in the schema.
+func (m *MSPContractSLABindingMutation) ResetEdge(name string) error {
+	switch name {
+	case mspcontractslabinding.EdgeContract:
+		m.ResetContract()
+		return nil
+	case mspcontractslabinding.EdgeSLADefinition:
+		m.ResetSLADefinition()
+		return nil
+	}
+	return fmt.Errorf("unknown MSPContractSLABinding edge %s", name)
+}
+
 // MarketplaceItemMutation represents an operation that mutates the MarketplaceItem nodes in the graph.
 type MarketplaceItemMutation struct {
 	config
@@ -142819,6 +144817,9 @@ type SLADefinitionMutation struct {
 	grants                      map[int]struct{}
 	removedgrants               map[int]struct{}
 	clearedgrants               bool
+	contract_bindings           map[int]struct{}
+	removedcontract_bindings    map[int]struct{}
+	clearedcontract_bindings    bool
 	done                        bool
 	oldValue                    func(context.Context) (*SLADefinition, error)
 	predicates                  []predicate.SLADefinition
@@ -143854,6 +145855,60 @@ func (m *SLADefinitionMutation) ResetGrants() {
 	m.removedgrants = nil
 }
 
+// AddContractBindingIDs adds the "contract_bindings" edge to the MSPContractSLABinding entity by ids.
+func (m *SLADefinitionMutation) AddContractBindingIDs(ids ...int) {
+	if m.contract_bindings == nil {
+		m.contract_bindings = make(map[int]struct{})
+	}
+	for i := range ids {
+		m.contract_bindings[ids[i]] = struct{}{}
+	}
+}
+
+// ClearContractBindings clears the "contract_bindings" edge to the MSPContractSLABinding entity.
+func (m *SLADefinitionMutation) ClearContractBindings() {
+	m.clearedcontract_bindings = true
+}
+
+// ContractBindingsCleared reports if the "contract_bindings" edge to the MSPContractSLABinding entity was cleared.
+func (m *SLADefinitionMutation) ContractBindingsCleared() bool {
+	return m.clearedcontract_bindings
+}
+
+// RemoveContractBindingIDs removes the "contract_bindings" edge to the MSPContractSLABinding entity by IDs.
+func (m *SLADefinitionMutation) RemoveContractBindingIDs(ids ...int) {
+	if m.removedcontract_bindings == nil {
+		m.removedcontract_bindings = make(map[int]struct{})
+	}
+	for i := range ids {
+		delete(m.contract_bindings, ids[i])
+		m.removedcontract_bindings[ids[i]] = struct{}{}
+	}
+}
+
+// RemovedContractBindings returns the removed IDs of the "contract_bindings" edge to the MSPContractSLABinding entity.
+func (m *SLADefinitionMutation) RemovedContractBindingsIDs() (ids []int) {
+	for id := range m.removedcontract_bindings {
+		ids = append(ids, id)
+	}
+	return
+}
+
+// ContractBindingsIDs returns the "contract_bindings" edge IDs in the mutation.
+func (m *SLADefinitionMutation) ContractBindingsIDs() (ids []int) {
+	for id := range m.contract_bindings {
+		ids = append(ids, id)
+	}
+	return
+}
+
+// ResetContractBindings resets all changes to the "contract_bindings" edge.
+func (m *SLADefinitionMutation) ResetContractBindings() {
+	m.contract_bindings = nil
+	m.clearedcontract_bindings = false
+	m.removedcontract_bindings = nil
+}
+
 // Where appends a list predicates to the SLADefinitionMutation builder.
 func (m *SLADefinitionMutation) Where(ps ...predicate.SLADefinition) {
 	m.predicates = append(m.predicates, ps...)
@@ -144298,7 +146353,7 @@ func (m *SLADefinitionMutation) ResetField(name string) error {
 
 // AddedEdges returns all edge names that were set/added in this mutation.
 func (m *SLADefinitionMutation) AddedEdges() []string {
-	edges := make([]string, 0, 5)
+	edges := make([]string, 0, 6)
 	if m.violations != nil {
 		edges = append(edges, sladefinition.EdgeViolations)
 	}
@@ -144313,6 +146368,9 @@ func (m *SLADefinitionMutation) AddedEdges() []string {
 	}
 	if m.grants != nil {
 		edges = append(edges, sladefinition.EdgeGrants)
+	}
+	if m.contract_bindings != nil {
+		edges = append(edges, sladefinition.EdgeContractBindings)
 	}
 	return edges
 }
@@ -144351,13 +146409,19 @@ func (m *SLADefinitionMutation) AddedIDs(name string) []ent.Value {
 			ids = append(ids, id)
 		}
 		return ids
+	case sladefinition.EdgeContractBindings:
+		ids := make([]ent.Value, 0, len(m.contract_bindings))
+		for id := range m.contract_bindings {
+			ids = append(ids, id)
+		}
+		return ids
 	}
 	return nil
 }
 
 // RemovedEdges returns all edge names that were removed in this mutation.
 func (m *SLADefinitionMutation) RemovedEdges() []string {
-	edges := make([]string, 0, 5)
+	edges := make([]string, 0, 6)
 	if m.removedviolations != nil {
 		edges = append(edges, sladefinition.EdgeViolations)
 	}
@@ -144372,6 +146436,9 @@ func (m *SLADefinitionMutation) RemovedEdges() []string {
 	}
 	if m.removedgrants != nil {
 		edges = append(edges, sladefinition.EdgeGrants)
+	}
+	if m.removedcontract_bindings != nil {
+		edges = append(edges, sladefinition.EdgeContractBindings)
 	}
 	return edges
 }
@@ -144410,13 +146477,19 @@ func (m *SLADefinitionMutation) RemovedIDs(name string) []ent.Value {
 			ids = append(ids, id)
 		}
 		return ids
+	case sladefinition.EdgeContractBindings:
+		ids := make([]ent.Value, 0, len(m.removedcontract_bindings))
+		for id := range m.removedcontract_bindings {
+			ids = append(ids, id)
+		}
+		return ids
 	}
 	return nil
 }
 
 // ClearedEdges returns all edge names that were cleared in this mutation.
 func (m *SLADefinitionMutation) ClearedEdges() []string {
-	edges := make([]string, 0, 5)
+	edges := make([]string, 0, 6)
 	if m.clearedviolations {
 		edges = append(edges, sladefinition.EdgeViolations)
 	}
@@ -144431,6 +146504,9 @@ func (m *SLADefinitionMutation) ClearedEdges() []string {
 	}
 	if m.clearedgrants {
 		edges = append(edges, sladefinition.EdgeGrants)
+	}
+	if m.clearedcontract_bindings {
+		edges = append(edges, sladefinition.EdgeContractBindings)
 	}
 	return edges
 }
@@ -144449,6 +146525,8 @@ func (m *SLADefinitionMutation) EdgeCleared(name string) bool {
 		return m.clearedalert_rules
 	case sladefinition.EdgeGrants:
 		return m.clearedgrants
+	case sladefinition.EdgeContractBindings:
+		return m.clearedcontract_bindings
 	}
 	return false
 }
@@ -144479,6 +146557,9 @@ func (m *SLADefinitionMutation) ResetEdge(name string) error {
 		return nil
 	case sladefinition.EdgeGrants:
 		m.ResetGrants()
+		return nil
+	case sladefinition.EdgeContractBindings:
+		m.ResetContractBindings()
 		return nil
 	}
 	return fmt.Errorf("unknown SLADefinition edge %s", name)

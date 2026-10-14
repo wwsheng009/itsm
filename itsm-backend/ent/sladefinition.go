@@ -65,9 +65,11 @@ type SLADefinitionEdges struct {
 	AlertRules []*SLAAlertRule `json:"alert_rules,omitempty"`
 	// 下发授权（provider 侧资产）
 	Grants []*SLADefinitionGrant `json:"grants,omitempty"`
+	// 合同绑定（provider 侧资产，D-SLA-4）
+	ContractBindings []*MSPContractSLABinding `json:"contract_bindings,omitempty"`
 	// loadedTypes holds the information for reporting if a
 	// type was loaded (or requested) in eager-loading or not.
-	loadedTypes [5]bool
+	loadedTypes [6]bool
 }
 
 // ViolationsOrErr returns the Violations value or an error if the edge
@@ -113,6 +115,15 @@ func (e SLADefinitionEdges) GrantsOrErr() ([]*SLADefinitionGrant, error) {
 		return e.Grants, nil
 	}
 	return nil, &NotLoadedError{edge: "grants"}
+}
+
+// ContractBindingsOrErr returns the ContractBindings value or an error if the edge
+// was not loaded in eager-loading.
+func (e SLADefinitionEdges) ContractBindingsOrErr() ([]*MSPContractSLABinding, error) {
+	if e.loadedTypes[5] {
+		return e.ContractBindings, nil
+	}
+	return nil, &NotLoadedError{edge: "contract_bindings"}
 }
 
 // scanValues returns the types for scanning values from sql.Rows.
@@ -286,6 +297,11 @@ func (_m *SLADefinition) QueryAlertRules() *SLAAlertRuleQuery {
 // QueryGrants queries the "grants" edge of the SLADefinition entity.
 func (_m *SLADefinition) QueryGrants() *SLADefinitionGrantQuery {
 	return NewSLADefinitionClient(_m.config).QueryGrants(_m)
+}
+
+// QueryContractBindings queries the "contract_bindings" edge of the SLADefinition entity.
+func (_m *SLADefinition) QueryContractBindings() *MSPContractSLABindingQuery {
+	return NewSLADefinitionClient(_m.config).QueryContractBindings(_m)
 }
 
 // Update returns a builder for updating this SLADefinition.
