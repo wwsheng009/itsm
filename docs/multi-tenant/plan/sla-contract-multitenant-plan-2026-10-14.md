@@ -937,3 +937,34 @@ flowchart TD
 | 未接线的策略引擎 | `itsm-backend/service/sla_policy_service.go:189-271` |
 | 前端新建页 | `itsm-frontend/src/pages/(main)/sla/definitions/new/index.tsx` |
 | 前端共享表单 | `itsm-frontend/src/components/sla/SLADefinitionForm.tsx` |
+
+---
+
+## 附录 B：实施执行记录（§14 工单的实施状态追踪——实施直接以本方案为单一事实源，不另建实施文档）
+
+> 维护规则：每张工单开工/合并时回填本表（分支/commit/验收锚点/状态）；设计与执行状态同页可见。分支命名 `feat/sla-p0-<slug>`，每工单独立 PR，验收锚点全绿方可合并。
+
+### B.1 P0（§14.1 工单 1–10、17–19）
+
+| 工单 | 内容（对应 §14.1 编号） | 验收锚点 | 分支/PR | commit | 状态 |
+|---|---|---|---|---|---|
+| P0-1 模型包 | #3 owner_provider_tenant_id + #4 sla_definition_grant + #19 unique(tenant_id,name)（同迁移）+ RLS policy（#9） | SLA-A4/A8 | — | — | ⬜ 未开始 |
+| P0-2 匹配引擎 | #1 L1/L2 插入 + L4 告警 + MatchedLayer（§13.6 依赖）+ #17 动态类型解析 + #18 匹配链重排/豁免/L3c | SLA-A1/A2/A3/A12 | — | — | ⬜ 未开始 |
+| P0-3 API 包 | #5 grant/provided 路由 + #10 grant handler 三件套 + #6 CRUD 护栏 + #7 Atoi 修复 | SLA-A4/A8/A9 | — | — | ⬜ 未开始 |
+| P0-4 前端包 | #8 serviceType 动态枚举 + grant 管理页 + 两段式列表 | SLA-A7 | — | — | ⬜ 未开始 |
+
+### B.2 P1 / P2 / P3（工单 11–16、20——批次启动时展开）
+
+| 批次 | 工单 | 状态 |
+|---|---|---|
+| P1 | #13 msp_contract + bindings + RLS + grant 并轨（§4.4 闸门） | ⬜ |
+| P1/P2 | #11/#12 Pause/Resume 真实计时（P1 必做） | ⬜ |
+| P2 | #14 violation resolution_state（D-SLA-8）+ #15 白名单口径/settlement-report（D-SLA-5/9）+ #20 D-TT-1 类型下发（前置=P0 grant 验收） | ⬜ |
+| P3 | 前端补全（businessHours/grant 选择器/报表页/进度条） | ⬜ |
+
+### B.3 实施纪律（开发期检查单）
+
+1. **INV-1~5 是 code review 强制检查单**（§4.5a）——凡涉及下发/同步/解绑路径的 PR 必须逐条核对；
+2. ent schema 变更走 `docs/entc-codegen-runbook.md`，codegen 单独 commit；
+3. 每工单合并前：验收锚点对应测试（§8）在 CI 绿 + RLS 集成测试（`database/rls/rls_integration_test.go`）扩展项通过；
+4. P0 全部合并后回填 §5 批次表状态并更新 INDEX.md 状态列。
