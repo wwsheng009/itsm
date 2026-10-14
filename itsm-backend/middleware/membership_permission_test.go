@@ -273,3 +273,62 @@ func TestResolvePermissions_ConfiguredEmptyRoleIsExplicitRevoke(t *testing.T) {
 	assert.Equal(t, PermissionSourceMembership, source, "角色已配置时不得回退静态表")
 	assert.Empty(t, codes)
 }
+
+// =============================================================================
+// IM-39（2026-10-14 验收修复）：解析器并集「附加角色」（user_roles m2m）
+// =============================================================================
+
+func TestResolvePermissionsUnionsExtraM2MRoles(t *testing.T) {
+	resetAuthzFlag(t)
+	ctx := context.Background()
+	client := membershipTestClient(t)
+	tn := membershipTestTenant(t, ctx, client, "perm-union")
+
+	primary := seedMembershipRole(t, ctx, client, tn.ID, "end_user_union", [][2]string{{"ticket", "read"}})
+	extra := seedMembershipRole(t, ctx, client, tn.ID, "provider_tenant_admin_union",
+		[][2]string{{"sla", "write"}, {"system_config", "read"}})
+
+	u := membershipTestUser(t, ctx, client, "union-user", tn.ID, user.RoleEndUser)
+	_, err := client.UserTenantMembership.Create().
+		SetUserID(u.ID).
+		SetTenantID(tn.ID).
+		SetRoleID(primary.ID).
+		SetSource(usertenantmembership.SourceHome).
+		SetIsDefault(true).
+		Save(ctx)
+	require.NoError(t, err)
+	_, err = client.User.UpdateOneID(u.ID).AddRoleIDs(extra.ID).Save(ctx)
+	require.NoError(t, err)
+
+	codes, source, err := ResolvePermissions(ctx, client, u.ID, tn.ID)
+	require.NoError(t, err)
+	assert.Equal(t, PermissionSourceMembership, source)
+	assert.Contains(t, codes, "ticket:read", "主角色权限保留")
+	assert.Contains(t, codes, "sla:write", "m2m 附加角色权限并入")
+	assert.Contains(t, codes, "system_config:read", "m2m 附加角色权限并入")
+}
+
+// 附加角色在不同租户 → 不并入（与 RBACMiddleware 的同租户过滤一致）。
+func TestResolvePermissionsExtraRoleTenantScoped(t *testing.T) {
+	resetAuthzFlag(t)
+	ctx := context.Background()
+	client := membershipTestClient(t)
+	tnA := membershipTestTenant(t, ctx, client, "union-a")
+	tnB := membershipTestTenant(t, ctx, client, "union-b")
+
+	primaryA := seedMembershipRole(t, ctx, client, tnA.ID, "end_user_a", [][2]string{{"ticket", "read"}})
+	roleB := seedMembershipRole(t, ctx, client, tnB.ID, "msp_manager_b", [][2]string{{"sla", "contract:read"}})
+
+	u := membershipTestUser(t, ctx, client, "union-scope-user", tnA.ID, user.RoleEndUser)
+	_, err := client.UserTenantMembership.Create().
+		SetUserID(u.ID).SetTenantID(tnA.ID).SetRoleID(primaryA.ID).
+		SetSource(usertenantmembership.SourceHome).SetIsDefault(true).Save(ctx)
+	require.NoError(t, err)
+	_, err = client.User.UpdateOneID(u.ID).AddRoleIDs(roleB.ID).Save(ctx)
+	require.NoError(t, err)
+
+	codes, _, err := ResolvePermissions(ctx, client, u.ID, tnA.ID)
+	require.NoError(t, err)
+	assert.Contains(t, codes, "ticket:read")
+	assert.NotContains(t, codes, "sla:contract:read", "他租户附加角色不得并入")
+}

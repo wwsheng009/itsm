@@ -189,7 +189,7 @@ func (h *Handler) DeleteSLADefinition(c *gin.Context) {
 	tenantIDVal := c.GetInt("tenant_id")
 
 	if err := h.svc.DeleteDefinition(c.Request.Context(), id, tenantIDVal); err != nil {
-		common.InternalError(c, "删除SLA定义失败: "+err.Error())
+		failSLAQuery(c, err, "删除SLA定义失败")
 		return
 	}
 
@@ -597,6 +597,21 @@ func parseIDParam(c *gin.Context) (int, bool) {
 // failSLAQuery 把 service 层的稳定错误映射为 HTTP status 与业务 code，
 // 并把原始错误只写日志、不外泄给客户端。
 func failSLAQuery(c *gin.Context, err error, publicMsg string) {
+	// 业务错误码透传（NotFound/Forbidden/Param 等稳定语义；IM-40：删除域外 id → 404）
+	var be *common.BusinessError
+	if errors.As(err, &be) {
+		switch be.Code {
+		case common.ForbiddenCode:
+			common.Forbidden(c, be.Message)
+			return
+		case common.NotFoundCode:
+			common.NotFound(c, be.Message)
+			return
+		case common.ParamErrorCode:
+			common.ParamError(c, be.Message)
+			return
+		}
+	}
 	switch {
 	case errors.Is(err, ErrTenantRequired):
 		common.AuthFailed(c, "缺少租户上下文，拒绝访问")

@@ -242,9 +242,83 @@ func ResolvePermissions(ctx context.Context, client *ent.Client, userID, tenantI
 		return nil, PermissionSourceNone, err
 	}
 
+	// 2026-10-14 验收修复（IM-39）：并集「附加角色」（user_roles m2m，启用且同租户）——
+	// 与运行时判定口径对齐（RBACMiddleware 物化 roles + GetContextRoles 并集）。
+	// 此前 me/登录响应仅回 membership 主角色，前端门禁数据源落后于后端判定
+	// （如 provider m2m 持 provider_tenant_admin 全量码、me 仅回主角色码）。
+	if extra := resolveAdditionalRolePermissionCodes(ctx, client, userID, tenantID); len(extra) > 0 {
+		if len(extra) == 1 && extra[0] == "*" {
+			codes = []string{"*"}
+		} else {
+			codes = mergePermissionCodes(codes, extra)
+		}
+	}
+
 	// 角色行存在即视为已配置：空集 = 显式撤销，保持 fail-closed，不做静态回退。
 	storeMembershipPermissionToCache(userID, tenantID, codes)
 	return codes, PermissionSourceMembership, nil
+}
+
+// mergePermissionCodes 并集两个权限码列表（排序去重）。
+func mergePermissionCodes(base, extra []string) []string {
+	seen := make(map[string]bool, len(base)+len(extra))
+	out := make([]string, 0, len(base)+len(extra))
+	for _, list := range [][]string{base, extra} {
+		for _, c := range list {
+			if c == "" || seen[c] {
+				continue
+			}
+			seen[c] = true
+			out = append(out, c)
+		}
+	}
+	sort.Strings(out)
+	return out
+}
+
+// resolveAdditionalRolePermissionCodes 读取用户在目标租户内的附加角色（user_roles m2m，
+// 启用且同租户——过滤条件与 RBACMiddleware 的 roles 物化一致），返回权限码并集。
+//
+// 语义：
+//   - 任一附加角色命中 super_admin → 返回 ["*"]（与主路径直通一致）；
+//   - 权限码按各角色的运行时权限装载（loadPermissionsByMode，含静态兜底/通配语义）；
+//   - 附加角色为空/查询失败 → 返回 nil，不影响主路径结果（失败仅记 Warn）。
+func resolveAdditionalRolePermissionCodes(ctx context.Context, client *ent.Client, userID, tenantID int) []string {
+	u, err := client.User.Query().Where(user.ID(userID)).WithRoles().Only(ctx)
+	if err != nil || u == nil || len(u.Edges.Roles) == 0 {
+		if err != nil {
+			zap.S().Warnw("ResolvePermissions: extra roles lookup failed, keep primary result",
+				"user_id", userID, "tenant_id", tenantID, "error", err)
+		}
+		return nil
+	}
+	codeSet := make(map[string]bool)
+	for _, r := range u.Edges.Roles {
+		if r == nil || !r.IsActive || r.TenantID != tenantID {
+			continue
+		}
+		if r.Code == "super_admin" {
+			return []string{"*"}
+		}
+		for _, p := range loadPermissionsByMode(ctx, client, r.Code, tenantID) {
+			if p.Resource == "" || p.Action == "" {
+				continue
+			}
+			if p.Resource == "*" && p.Action == "*" {
+				return []string{"*"}
+			}
+			codeSet[p.Resource+":"+p.Action] = true
+		}
+	}
+	if len(codeSet) == 0 {
+		return nil
+	}
+	out := make([]string, 0, len(codeSet))
+	for c := range codeSet {
+		out = append(out, c)
+	}
+	sort.Strings(out)
+	return out
 }
 
 // loadPermissionCodesByRoleID 按 role_id + tenant_id 读取 role_permissions 并联表

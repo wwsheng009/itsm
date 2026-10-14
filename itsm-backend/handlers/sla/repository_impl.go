@@ -128,10 +128,18 @@ func (r *EntRepository) UpdateDefinition(ctx context.Context, s *SLADefinition) 
 }
 
 func (r *EntRepository) DeleteDefinition(ctx context.Context, id int, tenantID int) error {
-	_, err := r.client.SLADefinition.Delete().
+	n, err := r.client.SLADefinition.Delete().
 		Where(sladefinition.ID(id), sladefinition.TenantID(tenantID)).
 		Exec(ctx)
-	return err
+	if err != nil {
+		return err
+	}
+	if n == 0 {
+		// 2026-10-14 验收修复（IM-40）：域外/不存在 id 显式 404（原 fail-quiet 200），
+		// 由 handler 经 failSLAQuery 映射为 NotFound；存在行删除路径行为不变。
+		return common.NewBusinessError(common.NotFoundCode, "SLA Definition not found", "")
+	}
+	return nil
 }
 
 // --- SLA Definition Grants（D-SLA-1）---
