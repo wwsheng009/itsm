@@ -949,9 +949,9 @@ flowchart TD
 | 工单 | 内容（对应 §14.1 编号） | 验收锚点 | 分支/PR | commit | 状态 |
 |---|---|---|---|---|---|
 | P0-1 模型包 | #3 owner_provider_tenant_id + #4 sla_definition_grant + #19 unique(tenant_id,name)（同迁移）+ RLS policy（#9）+ 随包 #18 模型字段 sla_exempt | SLA-A4/A8 | feat/sla-p0-model | d541f97e + 68824c19 | ✅ 已提交 |
-| P0-2 匹配引擎 | #1 L1/L2 插入 + L4 告警 + MatchedLayer（§13.6 依赖）+ #17 动态类型解析 + #18 匹配链重排/豁免/L3c | SLA-A1/A2/A3/A12 | feat/sla-p0-matcher | 待合并（本地已实施+编译/service 全包/相关 handlers 全绿） | 🟡 已实施待提交 |
-| P0-3 API 包 | #5 grant/provided 路由 + #10 grant handler 三件套 + #6 CRUD 护栏 + #7 Atoi 修复 | SLA-A4/A8/A9 | feat/sla-p0-api | 待合并（本地已实施+编译/守卫测试/handler 测试全绿） | 🟡 已实施待提交 |
-| P0-4 前端包 | #8 serviceType 动态枚举 + grant 管理页 + 两段式列表 | SLA-A7 | feat/sla-p0-frontend | 待合并（本地已实施+tsc/eslint/build/测试全绿） | 🟡 已实施待提交 |
+| P0-2 匹配引擎 | #1 L1/L2 插入 + L4 告警 + MatchedLayer（§13.6 依赖）+ #17 动态类型解析 + #18 匹配链重排/豁免/L3c | SLA-A1/A2/A3/A12 | feat/sla-p0-matcher | 1288fbdd | ✅ 已提交 |
+| P0-3 API 包 | #5 grant/provided 路由 + #10 grant handler 三件套 + #6 CRUD 护栏 + #7 Atoi 修复 | SLA-A4/A8/A9 | feat/sla-p0-api | defb22f6 | ✅ 已提交 |
+| P0-4 前端包 | #8 serviceType 动态枚举 + grant 管理页 + 两段式列表 | SLA-A7 | feat/sla-p0-frontend | f07df96b | ✅ 已提交 |
 
 ### B.2 P1 / P2 / P3（工单 11–16、20——批次启动时展开）
 
@@ -968,6 +968,15 @@ flowchart TD
 2. ent schema 变更走 `docs/entc-codegen-runbook.md`，codegen 单独 commit；
 3. 每工单合并前：验收锚点对应测试（§8）在 CI 绿 + RLS 集成测试（`database/rls/rls_integration_test.go`）扩展项通过；
 4. P0 全部合并后回填 §5 批次表状态并更新 INDEX.md 状态列。
+
+### B.3a P0 完成状态（2026-10-14）
+
+**P0 四包全部实施并提交**：`d541f97e`+`68824c19`（模型）、`1288fbdd`（引擎）、`defb22f6`（API）、`f07df96b`（前端），累计 7 个 commit（含文档回填）。
+
+**部署前收尾清单**（P0 验收的部署侧动作，见 §5 回滚说明）：
+1. 部署时按序执行：ent Schema.Create（自动）→ SQL 迁移 `20261014_sla_grant_ownership_and_name_unique.sql`（自动，含重名清洗）→ RLS `011`（手动：`go run -tags rlsapply ./cmd/rls-apply -files 011_sla_definition_grant_policies.sql`）；
+2. 238 演示栈端到端验收锚点：SLA-A1（下发匹配）/A2（优先级）/A3（fail-loud）/A4（customer 写保护 403/404 + RLS 跨租户断言）/A8（护栏）/A12（豁免）/A7（表单枚举）；
+3. `SLA_UNBOUND_ALERT_ENABLED` 默认关——观察一周后再开启（R-SLA-4 节奏）。
 
 ### B.4 实施期修正记录（P0-1，2026-10-14）
 
