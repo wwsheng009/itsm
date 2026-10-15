@@ -130,3 +130,10 @@ python .dev/deploy/remote.py --sudo 'bash /tmp/acceptance_probe8.sh'
 - **238 线上态**：backend/worker/frontend = `1.8.0-dev.d3a4d2a4`（healthy，init exit=0）；迁移 `20261014*` 6 行；四条新路由探针 401、`readyz=200`；远端仓库 HEAD=`d3a4d2a4`、`.env.demo VERSION` 一致。
 - **验收复跑（第 4 次）**：42 步 0 fail；`A4-del` 现 **PASS（404）**；结算 `covered=3 / breached=1 / settlementBreaches=1 / compliance=66.7`（真实违约在案）。留痕：`accept-run-d3a4d2a4.log`。
 - **非阻塞遗留**：服务器 `repo/.env.demo.bak-*` 历史备份 3 份（运维冗余，可清理）；broken-links 门禁 84 条 advisory（历史存量、非门禁失败项）。
+
+## 11. 浏览器功能验证（测试用户实测，2026-10-14）
+
+独立 Playwright 驱动（headless chromium）双 persona 复验：**11/11 PASS（0 PARTIAL / 0 FAIL）**、页面零 pageerror。
+覆盖 provider（`demo.msp.manager`：工作台 / 合同页+新建弹窗 / 结算报表查询 / 定义列表 / 新建表单（营业时间））与
+customer（`demo.mfg.admin`：落地收敛 / "服务商下发"只读段 / 类型副本 / 工单 SLA 进度 / 违约归责+争议入口）。
+详见 `UI-VERIFY-20261014-d3a4d2a4.md`；截图 `ui-shots/`（9 张）；执行器 `ui-verify-238.cjs`（可复跑）。

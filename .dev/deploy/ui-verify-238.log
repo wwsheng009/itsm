@@ -1,0 +1,12 @@
+UI-RESULT: {"step":"P1-workbench-landing","status":"PASS","detail":{"url":"http://172.18.3.238:8089/msp/workbench","accRows":15}}
+UI-RESULT: {"step":"P2-contracts-list","status":"PASS","detail":{"hasAcc":true,"no403":true}}
+UI-RESULT: {"step":"P2-contracts-create-modal","status":"PASS","detail":{"modalVisible":true}}
+UI-RESULT: {"step":"P3-settlement-query","status":"PASS","detail":{}}
+UI-RESULT: {"step":"P4-provider-definitions","status":"PASS","detail":{"def":true,"defCount":4,"no403":true}}
+UI-RESULT: {"step":"P5-definition-form","status":"PASS","detail":{"businessHours":true,"no403":true,"inputs":7}}
+UI-RESULT: {"step":"C0-customer-landing","status":"PASS","detail":{"url":"http://172.18.3.238:8089/dashboard","noMspMenu":true}}
+UI-RESULT: {"step":"C1-provided-section","status":"PASS","detail":{"provided":true,"defName":true,"bodySnippet":"跳转到主要内容 AI AI-Native ITSM 服务台 服务请求 Pilot 工单类型 工单统计 工单管理 我的请求 事件管理 新建事件 NOC工作台 问题管理 Pilot 已知错误 Pilot 变更管理 新建变更 知识库 Pilot 新建文章 Pilot 服务目录 待我审批-目录 CMDB 资产管理 新建资产 软件许可证 SLA 管理 SLA 监控 AI 助手 Pilot AI 创建工单 AI 评估与审计 Pilot AI 审批 Pilot Bot 运行看板 Pilot 客户管理 发布管理 新建发布 审计日志 通知配置 配置项列表 新建CI 关系管理 拓扑图 管理功能 SLA 配置 工作"}}
+UI-RESULT: {"step":"C2-ticket-types-copy","status":"PASS","detail":{"copy":true}}
+UI-RESULT: {"step":"C3-ticket-sla-progress","status":"PASS","detail":{"ticketId":50,"resp":true,"sla":true,"progressBars":1,"progressSnippet":["流转进度"]}}
+UI-RESULT: {"step":"C4-violation-state-ui","status":"PASS","detail":{"stateCol":true,"modalHasDispute":true}}
+UI-SUMMARY: {"total":11,"pass":11,"partial":0,"fail":0,"failedSteps":[],"pageErrors":[],"shots":"E:\\projects\\itsm\\itsm\\.dev\\deploy\\ui-shots"}
