@@ -658,8 +658,16 @@ make docs-gate
 
 **遗留（不阻断，登记跟进）**：
 - `ValidateRefreshToken` 缺 HMAC 算法校验（既有缺陷，实施纪律 §8.2 只登记不顺手改）。
-- RLS enforce 真实验证需 Postgres 环境（sqlite 契约测试已过）；238 demo Runbook 执行时一并验证（验收 AC-36/37/38）。
+- RLS enforce 真实验证需 Postgres 环境（sqlite 契约测试已过；demo 为 shadow 档）→ 待 enforce 档环境复验（AC-36/37/38）。
 - 监控指标（PAT 认证失败计数器）未接入 metrics 通道（完整性审查第 29 项，P2）。
+
+## 12. 238 demo 部署与端到端验收记录（2026-10-16）
+
+**部署**：`1.8.0-dev.829d28aa`（feat）→ 复验发现 `CreateResult` 缺 camelCase json 标签（`Token`/`PlaintextToken`，前端 httpClient 自动转换掩盖了问题，raw curl 调用方受影响）→ 修复 `6e872ce8` 重新构建部署。两轮 `BUILD_EXIT=0`，backend/worker/frontend/init 全部 healthy @ `1.8.0-dev.6e872ce8`；init Exited(0)、seed/self-check 通过。RLS 014 手工应用成功（NOTICE: policy enabled）。
+
+**端到端验收（Runbook 全绿）**：**AC-13 核心用例 PASS**——`POST /api/v1/tickets`（`Authorization: Bearer itsm_pat_…`）→ `code:0` + `ticketNumber=TKT-202610-000053`（`requesterId`=令牌所属用户）；防自我繁殖 AC-39 三写路由 403；租户越权 AC-17 401 `TENANT_MISMATCH_REJECTED`（且落 `tenant.probe_denied` 审计）；数据隔离 AC-18 仅本租户；轮换宽限 AC-08 旧/新令牌行为正确；列表零明文；DB 无明文（AC-34）。证据：`.dev/deploy/DEMO-PAT-20261016-6e872ce8-EVIDENCE.md`。
+
+**SKIP（登记待复验）**：RLS enforce 档（AC-36/37，demo 为 shadow）；过期失效 AC-11/停用改密吊销 AC-21/23（单测已覆盖，demo 未执行以免污染演示账号）。**结论：demo 栈放行**。
 
 ---
 
