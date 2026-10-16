@@ -34,8 +34,8 @@ type CreateInput struct {
 
 // CreateResult 创建/轮换结果：明文仅此一次返回。
 type CreateResult struct {
-	Token          *Item
-	PlaintextToken string
+	Token          *Item  `json:"token"`
+	PlaintextToken string `json:"plaintextToken"`
 }
 
 // UsageItem 令牌使用历史行（来自 audit_logs）。
