@@ -3,7 +3,8 @@
 
 封装知识库特有细节：
 - 登录换 JWT（httpOnly cookie 取 access_token）→ 统一 Bearer（免 CSRF）
-- 分类白名单前置校验（10 值，服务端硬校验）
+- 分类校验交给服务端（允许集合 = 静态白名单 ∪ GET /knowledge/categories 返回值），
+  脚本不做本地拦截，避免客户端规则与服务端漂移
 - 发布/下架/复核/版本对比/恢复（restore 后回草稿需重发）
 - 搜索请求体与 snake_case 响应的直通输出
 - 文章附件 multipart 上传
@@ -31,19 +32,9 @@ from pathlib import Path
 DEFAULT_BASE = os.environ.get("ITSM_BASE_URL", "http://localhost:8090/api/v1")
 DEFAULT_TIMEOUT = 30
 
-# 服务端硬校验白名单（service/knowledge_service.go allowedKnowledgeCategories）
-ALLOWED_CATEGORIES = [
-    "accountManagement",
-    "troubleshooting",
-    "network",
-    "processGuide",
-    "systemConfig",
-    "账号管理",
-    "故障排除",
-    "网络连接",
-    "流程指南",
-    "系统配置",
-]
+# 分类校验策略（2026-10-16 起）：服务端联合校验
+#   允许 = 静态白名单(12) ∪ GET /knowledge/categories（8 默认 ∪ 租户已用）
+# 未知分类由服务端返回 400「无效的知识库分类」；`categories` 子命令可查可用值。
 
 
 class ApiError(Exception):
@@ -179,14 +170,7 @@ def authed(args):
     return Client(args.base, token, args.timeout)
 
 
-def check_category(category):
-    if category not in ALLOWED_CATEGORIES:
-        fail(
-            ApiError(
-                "分类不在白名单: %s" % category,
-                hint="允许值（10）：%s" % " / ".join(ALLOWED_CATEGORIES),
-            )
-        )# ------------------------- 子命令实现 -------------------------
+# ------------------------- 子命令实现 -------------------------
 
 def _query(params):
     parts = []
@@ -245,7 +229,6 @@ def cmd_get(client, args):
 
 
 def cmd_create(client, args):
-    check_category(args.category)
     body = {"title": args.title, "content": _read_content(args), "category": args.category}
     if args.tags:
         body["tags"] = [t for t in args.tags.split(",") if t]
@@ -269,7 +252,6 @@ def cmd_update(client, args):
     elif args.content is not None:
         body["content"] = args.content
     if args.category:
-        check_category(args.category)
         body["category"] = args.category
     if args.tags is not None:
         body["tags"] = [t for t in args.tags.split(",") if t]
@@ -429,7 +411,7 @@ def build_parser():
     gt = add("get", "GET /knowledge/articles/:id")
     gt.add_argument("id")
 
-    cr = add("create", "POST /knowledge/articles（分类必须在 10 值白名单内）")
+    cr = add("create", "POST /knowledge/articles（分类由服务端联合校验：白名单 ∪ 分类接口）")
     cr.add_argument("--title", required=True)
     cr.add_argument("--content", default=None)
     cr.add_argument("--content-file", default="", help="从文件读取正文（与 --content 二选一）")

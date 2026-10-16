@@ -37,6 +37,13 @@ var allowedKnowledgeCategories = map[string]struct{}{
 	"技术文档":              {},
 }
 
+// IsWhitelistedKnowledgeCategory 暴露静态分类白名单给 handler 层统一校验（单一来源）。
+// 注意：handler 链路的真实入口在 handlers/knowledge，此函数供其做「白名单 ∪ 分类接口」联合校验。
+func IsWhitelistedKnowledgeCategory(category string) bool {
+	_, ok := allowedKnowledgeCategories[category]
+	return ok
+}
+
 func NewKnowledgeService(client *ent.Client, logger *zap.SugaredLogger) *KnowledgeService {
 	return &KnowledgeService{
 		client: client,

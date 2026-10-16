@@ -26,7 +26,7 @@ python scripts/itsm_kb.py --base $B --token-file ./itsm.token search --query 卡
 
 ## 核心流程：创建并发布一篇可检索的文章
 
-1. **创建分类白名单（10 值，仅 create 硬校验）**：`accountManagement / troubleshooting / network / processGuide / systemConfig` 或中文 `账号管理 / 故障排除 / 网络连接 / 流程指南 / 系统配置`——其他值 400。注意：`GET /knowledge/categories` 返回的是「8 个默认分类 ∪ 已用分类」（含 `最佳实践/常见问题` 等），**与白名单不是一套**，不能直接拿去创建。
+1. **分类联合校验（服务端强制，创建与更新同策略，2026-10-16 起）**：允许集合 = 白名单（12 值：`accountManagement/troubleshooting/network/processGuide/systemConfig` + `账号管理/故障排除/网络连接/流程指南/系统配置/用户指南/技术文档`）∪ `GET /knowledge/categories` 返回值（8 个默认分类 ∪ 租户已用分类）。其余值 400「无效的知识库分类」；界面下拉值因此全部可创建。
 2. **创建**：`POST /knowledge/articles`（`knowledge:write`）——`title/content/category` 必填；可选 `tags`、`contentType`（text/markdown/html/rich_text）、时效（validFrom/validUntil/reviewIntervalDays 0–3650）、权威性 `authorityLevel`（0/10/20/30）。
 3. **发布**：`POST /knowledge/articles/:id/publish`（body 可空 `{changeLog≤200}`）——**发布是版本产生的唯一入口**；内容与最近发布版本一致时幂等，不产生新版本。
 4. **检索**：`POST /knowledge/search {query, category?, limit≤50}`——默认只返回已发布且时效合格（L1 citable）；受限分类按访问者身份过滤（L0，fail-closed）。
@@ -35,7 +35,7 @@ python scripts/itsm_kb.py --base $B --token-file ./itsm.token search --query 卡
 ## 决策要点（硬规则）
 
 - **发布态不是编辑字段**：PUT 更新忽略 `status`；变更发布态只能走 publish / unpublish。
-- **PUT 更新=一次编辑**：写回后文章一律回到草稿（已发布会被下架），需重新 publish 才生效；更新路径不校验分类白名单。
+- **PUT 更新=一次编辑**：写回后文章一律回到草稿（已发布会被下架），需重新 publish 才生效；更新路径与创建同做分类联合校验。
 - `unpublish` 幂等且不产生版本；`restore` 是"编辑"：内容回滚后文章**回到草稿（已发布会被下架）**，需重新 publish 才对外生效。
 - `POST /:id/review` 刷新 lastReviewedAt（解除"逾期未复核"过滤）；PUT 不允许写该字段。
 - 评论端点 `GET/POST /:id/comments` 当前是 **stub**（恒返回假数据），勿依赖；点赞/协作会话（sessions/participants）服务存在但**未挂路由**。

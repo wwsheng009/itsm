@@ -125,6 +125,13 @@ func (h *Handler) CreateArticle(c *gin.Context) {
 		return
 	}
 
+	// 分类统一校验（2026-10-16 修复）：此前创建链路完全跳过校验，
+	// 任意分类可落库；现按「白名单 ∪ 分类接口返回值」联合校验并返回 400。
+	if err := h.svc.ValidateCategory(c.Request.Context(), tenantID, req.Category); err != nil {
+		common.ParamError(c, err.Error())
+		return
+	}
+
 	// 时效窗口自检：生效时间不早于失效时间属于配置错误，
 	// 会让文章从创建起就永远不可被引用，而界面上看不出原因，必须在入口挡住。
 	if req.ValidFrom != nil && req.ValidUntil != nil && !req.ValidFrom.Before(*req.ValidUntil) {
@@ -272,6 +279,11 @@ func (h *Handler) UpdateArticle(c *gin.Context) {
 	}
 	if req.Category != nil {
 		existing.Category = *req.Category
+	}
+	// 分类统一校验：与创建同策略（含合并后的存量分类，防止历史脏值被继续扩散）。
+	if err := h.svc.ValidateCategory(c.Request.Context(), tenantID, existing.Category); err != nil {
+		common.ParamError(c, err.Error())
+		return
 	}
 	if req.Tags != nil {
 		existing.Tags = req.Tags

@@ -161,6 +161,35 @@ func (s *Service) ListArticles(ctx context.Context, tenantID int, page, size int
 	return s.repo.List(ctx, tenantID, page, size, category, search, status)
 }
 
+// ValidateCategory 统一分类校验（2026-10-16 修复）。
+//
+// 背景：此前 handler 链路（CreateArticle→repo.Create）完全跳过分类校验，
+// ent service 的静态白名单未被生产路径引用（仅单测），任意分类都能落库；
+// 同时 GET /knowledge/categories（8 默认 ∪ 已用）与白名单是两套集合，UI 值创建必 400。
+// 现改为联合策略，使「分类接口返回的值」与「白名单值」都可创建，其余拒绝：
+//
+//	允许集合 = 静态白名单（service.IsWhitelistedKnowledgeCategory，12 值）
+//	           ∪ GET /knowledge/categories 返回值（8 个默认分类 ∪ 租户已用分类）
+func (s *Service) ValidateCategory(ctx context.Context, tenantID int, category string) error {
+	category = strings.TrimSpace(category)
+	if category == "" {
+		return fmt.Errorf("分类不能为空")
+	}
+	if service.IsWhitelistedKnowledgeCategory(category) {
+		return nil
+	}
+	allowed, err := s.repo.GetCategories(ctx, tenantID)
+	if err != nil {
+		return fmt.Errorf("校验分类失败: %w", err)
+	}
+	for _, candidate := range allowed {
+		if strings.TrimSpace(candidate) == category {
+			return nil
+		}
+	}
+	return fmt.Errorf("无效的知识库分类: %s（允许值 = 分类接口 GET /knowledge/categories 返回值 ∪ 白名单）", category)
+}
+
 func (s *Service) UpdateArticle(ctx context.Context, a *Article) (*Article, error) {
 	// XSS 消毒
 	a.Title = common.SanitizeText(a.Title)

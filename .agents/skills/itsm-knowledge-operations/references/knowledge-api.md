@@ -39,7 +39,7 @@
 | authorityLevel | int | ❌ | 0 普通 / 10 部门推荐 / 20 官方标准 / 30 唯一真相源 |
 
 响应：`KnowledgeArticleResponse`（`status=draft`）。
-> 分类注意：创建白名单（10 值）与 `GET /knowledge/categories` 返回集合是**两套不同集合**（后者含 `最佳实践/常见问题` 等，拿去创建会被 400），见 §5/§9-7。
+> 分类注意（2026-10-16 起）：创建/更新均做**联合校验**——允许集合 = 静态白名单(12) ∪ `GET /knowledge/categories` 返回值；两套集合已统一为一条策略，见 §5。
 
 ### 列表 `GET /knowledge/articles`（`knowledge:read`）
 
@@ -57,7 +57,7 @@
 - `status` 字段**被刻意忽略**——发布态只能由 publish/unpublish 变更。
 - `lastReviewedAt` 不可写（防篡改时效）；复核走 `POST /:id/review`。
 - 已设时效当前不支持改回"永久"。
-- **更新=一次编辑**：写回内容一律回到草稿态（已发布文章会被下架），需重新 publish 才生效；更新路径**不校验分类白名单**（实测可改为任意分类）。
+- **更新=一次编辑**：写回内容一律回到草稿态（已发布文章会被下架），需重新 publish 才生效；更新路径与创建同做分类联合校验（非法分类 → 400）。
 
 ### 删除 `DELETE /knowledge/articles/:id`（`knowledge:delete`）
 
@@ -92,9 +92,9 @@
 
 - `GET /knowledge/categories`（read）：返回 **8 个默认分类 ∪ 文章表中已用分类**（去重、排序）。8 个默认值为：
   `故障排查 / 操作指南 / 最佳实践 / 变更发布 / 安全合规 / 常见问题 / 工单模板 / 流程说明`。
-  ⚠️ 该集合与"创建白名单"**不是同一套**（界面下拉里的 `最佳实践` 拿去创建会被 400 拒绝）。
-- 创建白名单（10 值，仅 `POST /articles` 校验；`PUT` 不校验）：
-  `accountManagement`、`troubleshooting`、`network`、`processGuide`、`systemConfig`、`账号管理`、`故障排除`、`网络连接`、`流程指南`、`系统配置`。
+- **分类联合校验（2026-10-16 起，创建与更新同策略）**：允许集合 = 上述分类接口返回值 ∪ 静态白名单（12 值）：
+  `accountManagement`、`troubleshooting`、`network`、`processGuide`、`systemConfig`、`账号管理`、`故障排除`、`网络连接`、`流程指南`、`系统配置`、`用户指南`、`技术文档`。
+  其余值 → 400「无效的知识库分类: X」。即：**界面下拉值全部可创建**，自造分类被拒绝。
 - `GET /knowledge/categories/restricted`（write）：`{items[], total}` 已纳管（仅授权角色可读）分类。
 - `POST /knowledge/categories/restricted`（write）：`{category(必填), restricted(缺省 true)}` 纳管 / 解除。
 
@@ -125,5 +125,5 @@
 4. `/knowledge/search` item 字段 snake_case 与全站 camelCase 规范不一致（历史契约）。
 5. 版本列表无分页包络；其分页请求参数未生效。
 6. 无批量删除 / 导出端点；文章只有 published/draft 两态（无归档态）。
-7. **两套分类不一致**：`GET /categories`（8 默认 ∪ 已用，如 `最佳实践/常见问题`）里的值不能用于创建；创建必须用另一套 10 值白名单。待产品收敛为单源。
-8. **更新不校验分类**：`PUT` 可把文章分类改为白名单外任意值（实测成功，如 `最佳实践`）。
+7. （已修复 2026-10-16）分类两套集合不一致：原 create 链路**完全跳过校验**（12 值白名单是仅单测引用的死代码），`GET /categories` 下拉值与白名单互斥。现 create/update 统一为「白名单 ∪ 分类接口返回值」联合校验，非法值 400。
+8. （已修复 2026-10-16）`PUT` 原不校验分类（实测可改任意值）：现与创建同策略，非法分类 400。
