@@ -1,0 +1,4 @@
+interface:
+  display_name: "ITSM 知识库操作"
+  short_description: "通过 REST API 创建/发布/检索知识库文章，含分类与版本"
+  default_prompt: "用 ITSM API 创建一篇知识库文章（标题含 [AUTO]），发布它，并搜索标题关键字确认可检索。"
