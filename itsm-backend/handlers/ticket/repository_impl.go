@@ -231,7 +231,7 @@ func (r *EntRepository) List(ctx context.Context, tenantID int, page, size int, 
 			orderDir = "asc"
 		}
 	}
-	fp.DataScope = ticket.DataScope(dataScope)
+	fp.DataScope = toRepositoryDataScope(dataScope)
 	fp.CurrentUserID = currentUserID
 
 	result, err := r.repo.List(ctx, tenantID, fp, &base.QueryParams{Page: page, PageSize: size, OrderBy: orderBy, OrderDir: orderDir})
@@ -239,6 +239,24 @@ func (r *EntRepository) List(ctx context.Context, tenantID int, page, size int, 
 		return nil, 0, err
 	}
 	return r.toDomainList(result.Data), result.Total, nil
+}
+
+// toRepositoryDataScope 显式映射跨包 DataScope 枚举。
+//
+// 禁止直接类型转换：datascope.OwnedOrAssigned=2 而 ticket.DataScope 的
+// OwnedOrAssigned=1（枚举集合不同，数值不对齐），直接转换会让
+// repository 层的安全收窄谓词静默失效——end_user/agent 将看到全租户工单
+// （阻断8 回归，2026-10-16 修复）。Department 等工单域未支持档位按
+// 「安全收窄」处理为本人创建/被指派，与 datascope.ParseDataScope 默认策略一致。
+func toRepositoryDataScope(ds datascope.DataScope) ticket.DataScope {
+	switch ds {
+	case datascope.DataScopeAll:
+		return ticket.DataScopeAll
+	case datascope.DataScopeOwnedOrAssigned:
+		return ticket.DataScopeOwnedOrAssigned
+	default:
+		return ticket.DataScopeOwnedOrAssigned
+	}
 }
 
 func (r *EntRepository) BatchDelete(ctx context.Context, ids []int, tenantID int) error {

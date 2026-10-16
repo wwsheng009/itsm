@@ -27,11 +27,13 @@ import (
 // -----------------------------------------------------------------------------
 
 type mockRepository struct {
-	mu              sync.Mutex
-	tickets         map[int]*Ticket
-	nextID          int
-	statsCalled     bool
-	lastListFilters map[string]interface{} // 记录最近一次 List 传入的 filters（过滤补全回归用）
+	mu                sync.Mutex
+	tickets           map[int]*Ticket
+	nextID            int
+	statsCalled       bool
+	lastListFilters   map[string]interface{} // 记录最近一次 List 传入的 filters（过滤补全回归用）
+	lastListDataScope datascope.DataScope    // 记录最近一次 List 传入的行级范围（行级收窄回归用）
+	lastListUserID    int                    // 记录最近一次 List 传入的当前用户
 }
 
 func newMockRepository() *mockRepository {
@@ -127,6 +129,8 @@ func (m *mockRepository) List(ctx context.Context, tenantID int, page, size int,
 	defer m.mu.Unlock()
 	// 回归测试用：记录 handler 实际传入的 filters（列表过滤补全验证）
 	m.lastListFilters = filters
+	m.lastListDataScope = ds
+	m.lastListUserID = currentUserID
 	var out []*Ticket
 	for _, t := range m.tickets {
 		if t.TenantID != tenantID {
@@ -512,6 +516,50 @@ func TestHandler_Update_TableDriven(t *testing.T) {
 			assert.Equal(t, tc.want, w.Code, w.Body.String())
 		})
 	}
+}
+
+// TestHandler_Update_VersionConflict409 锁定乐观锁契约（2026-10-16 缺口修复）：
+// PUT 携带陈旧 version 必须返回 HTTP 409 + code=4090 +
+// {ticketId,currentVersion,serverVersion}（事故前回落为 500/5001）。
+func TestHandler_Update_VersionConflict409(t *testing.T) {
+	r, repo := newTestHarness(t)
+
+	w := doJSON(t, r, http.MethodPost, "/api/v1/tickets",
+		dto.CreateTicketRequest{Title: "Lock me", Priority: "low"},
+		map[string]string{"X-Test-TenantID": "1", "X-Test-UserID": "7"},
+	)
+	require.Equal(t, 200, w.Code, w.Body.String())
+
+	var id int
+	for id = range repo.tickets {
+		break
+	}
+
+	w = doJSON(t, r, http.MethodPut, "/api/v1/tickets/"+strconv.Itoa(id),
+		dto.UpdateTicketRequest{Title: "stale write", Version: 999},
+		map[string]string{"X-Test-TenantID": "1", "X-Test-UserID": "7"},
+	)
+	assert.Equal(t, 409, w.Code, w.Body.String())
+	assert.Contains(t, w.Body.String(), `"code":4090`)
+	assert.Contains(t, w.Body.String(), `"serverVersion"`)
+}
+
+// TestHandler_List_DataScopeNarrowing（2026-10-16 回归）：
+// end_user/agent 的列表请求必须向仓储传 OwnedOrAssigned + 当前用户；
+// 管理角色传 All。修复前跨包枚举直接转换使该收窄静默失效（阻断8 回归）。
+func TestHandler_List_DataScopeNarrowing(t *testing.T) {
+	r, repo := newTestHarness(t)
+
+	w := doJSON(t, r, http.MethodGet, "/api/v1/tickets", nil,
+		map[string]string{"X-Test-TenantID": "1", "X-Test-UserID": "8", "X-Test-Role": "end_user"})
+	require.Equal(t, 200, w.Code, w.Body.String())
+	assert.Equal(t, datascope.DataScopeOwnedOrAssigned, repo.lastListDataScope)
+	assert.Equal(t, 8, repo.lastListUserID)
+
+	w = doJSON(t, r, http.MethodGet, "/api/v1/tickets", nil,
+		map[string]string{"X-Test-TenantID": "1", "X-Test-UserID": "1", "X-Test-Role": "admin"})
+	require.Equal(t, 200, w.Code, w.Body.String())
+	assert.Equal(t, datascope.DataScopeAll, repo.lastListDataScope)
 }
 
 // F2 契约锁定（OB-3）：终态（resolved/closed）不允许经编辑直改状态，

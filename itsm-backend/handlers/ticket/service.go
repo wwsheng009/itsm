@@ -159,6 +159,10 @@ func (s *Service) Update(ctx context.Context, tenantID int, id int, params *Upda
 	}
 	if params.Version == 0 {
 		params.Version = current.Version
+	} else if params.Version != current.Version {
+		// 乐观锁预检（与 incident 域同模式）：版本不符直接返回类型化冲突（HTTP 409/4090），
+		// 不依赖 repo 错误文案；并发窗口的冲突由 repo 的类型化错误兜底。
+		return nil, common.NewVersionConflictError("工单", id, params.Version, current.Version)
 	}
 	// P2 富文本：更新为部分更新语义，仅清洗后非空时下发，避免空值覆盖已有 HTML。
 	htmlInput := ""

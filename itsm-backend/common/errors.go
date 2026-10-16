@@ -1,6 +1,7 @@
 package common
 
 import (
+	"errors"
 	"fmt"
 
 	"github.com/gin-gonic/gin"
@@ -52,10 +53,10 @@ func NewVersionConflictError(resourceName string, resourceID, currentVersion, se
 	}
 }
 
-// IsVersionConflictError 检查是否为版本冲突错误
+// IsVersionConflictError 检查是否为版本冲突错误（兼容 %w 包装链）
 func IsVersionConflictError(err error) bool {
-	_, ok := err.(*VersionConflictError)
-	return ok
+	var target *VersionConflictError
+	return errors.As(err, &target)
 }
 
 // ErrorHandler 全局错误处理中间件
@@ -68,20 +69,24 @@ func ErrorHandler(logger *zap.SugaredLogger) gin.HandlerFunc {
 			err := c.Errors.Last().Err
 			logger.Errorw("Request error", "error", err, "path", c.Request.URL.Path)
 
-			if businessErr, ok := err.(*BusinessError); ok {
+			var businessErr *BusinessError
+			var appErr *AppError
+			var conflictErr *VersionConflictError
+			switch {
+			case errors.As(err, &businessErr):
 				Fail(c, businessErr.Code, businessErr.Message)
-			} else if appErr, ok := err.(*AppError); ok {
+			case errors.As(err, &appErr):
 				// AppError 自带 HTTP 语义（400/401/403/404/409...），
 				// 映射到统一业务码，避免被兜底成 500。
 				Fail(c, statusToAppCode(appErr.HTTPStatus), appErr.Message)
-			} else if conflictErr, ok := err.(*VersionConflictError); ok {
+			case errors.As(err, &conflictErr):
 				// 处理版本冲突错误
 				Conflict(c, conflictErr.Error(), gin.H{
 					"resourceId":     conflictErr.ResourceID,
 					"currentVersion": conflictErr.CurrentVersion,
 					"serverVersion":  conflictErr.ServerVersion,
 				})
-			} else {
+			default:
 				Fail(c, InternalErrorCode, "内部服务器错误")
 			}
 		}

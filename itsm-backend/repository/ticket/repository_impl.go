@@ -9,6 +9,7 @@ import (
 	"strings"
 	"time"
 
+	"itsm-backend/common"
 	"itsm-backend/common/tenantctx"
 	"itsm-backend/database"
 	"itsm-backend/ent"
@@ -316,7 +317,7 @@ func (r *EntRepository) Update(ctx context.Context, id int, params *UpdateParams
 
 	// 乐观锁检查
 	if current.Version != params.Version {
-		return nil, fmt.Errorf("version conflict: expected %d, got %d", current.Version, params.Version)
+		return nil, common.NewVersionConflictError("工单", id, params.Version, current.Version)
 	}
 
 	builder := r.Client().Ticket.UpdateOneID(id).
@@ -379,6 +380,10 @@ func (r *EntRepository) Update(ctx context.Context, id int, params *UpdateParams
 	entity, err := builder.Save(ctx)
 	if err != nil {
 		if ent.IsNotFound(err) {
+			// CAS 未命中：多为并发版本推进。回读最新版本后返回类型化冲突（HTTP 409/4090）。
+			if latest, lookupErr := r.GetByID(ctx, id, tenantID); lookupErr == nil {
+				return nil, common.NewVersionConflictError("工单", id, params.Version, latest.Version)
+			}
 			return nil, fmt.Errorf("version conflict or ticket no longer exists")
 		}
 		return nil, fmt.Errorf("update ticket: %w", err)
@@ -402,7 +407,7 @@ func (r *EntRepository) UpdateWithTxHook(ctx context.Context, id int, params *Up
 		return nil, fmt.Errorf("get ticket for update: %w", err)
 	}
 	if currentEntity.Version != params.Version {
-		return nil, fmt.Errorf("version conflict: expected %d, got %d", currentEntity.Version, params.Version)
+		return nil, common.NewVersionConflictError("工单", id, params.Version, currentEntity.Version)
 	}
 	builder := tx.Ticket.UpdateOneID(id).
 		Where(ticket.TenantIDEQ(tenantID), ticket.DeletedAtIsNil(), ticket.VersionEQ(params.Version)).
@@ -462,6 +467,12 @@ func (r *EntRepository) UpdateWithTxHook(ctx context.Context, id int, params *Up
 	updatedEntity, err := builder.Save(ctx)
 	if err != nil {
 		if ent.IsNotFound(err) {
+			// CAS 未命中：事务内回读最新版本，返回类型化冲突（HTTP 409/4090）。
+			if latest, lookupErr := tx.Ticket.Query().
+				Where(ticket.IDEQ(id), ticket.TenantIDEQ(tenantID), ticket.DeletedAtIsNil()).
+				Only(ctx); lookupErr == nil {
+				return nil, common.NewVersionConflictError("工单", id, params.Version, latest.Version)
+			}
 			return nil, fmt.Errorf("version conflict or ticket no longer exists")
 		}
 		return nil, fmt.Errorf("update ticket: %w", err)

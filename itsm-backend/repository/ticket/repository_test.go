@@ -355,7 +355,10 @@ func TestRepository_Update_RejectsStaleVersion(t *testing.T) {
 	require.NoError(t, err)
 	title := "Must not overwrite"
 	_, err = fx.repo.Update(fx.ctx, created.ID, &UpdateParams{Title: &title, Version: created.Version + 1}, fx.tenant.ID)
-	require.ErrorContains(t, err, "version conflict")
+	var conflictErr *common.VersionConflictError
+	require.ErrorAs(t, err, &conflictErr)
+	assert.Equal(t, created.Version+1, conflictErr.CurrentVersion)
+	assert.Equal(t, created.Version, conflictErr.ServerVersion)
 	unchanged, err := fx.repo.GetByID(fx.ctx, created.ID, fx.tenant.ID)
 	require.NoError(t, err)
 	assert.Equal(t, "Original", unchanged.Title)

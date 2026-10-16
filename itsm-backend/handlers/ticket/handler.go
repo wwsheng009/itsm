@@ -355,8 +355,8 @@ func (h *Handler) UpdateTicket(c *gin.Context) {
 
 	updated, err := h.service.Update(c.Request.Context(), tenantID, id, params, actorID, actorRole)
 	if err != nil {
-		if common.IsVersionConflictError(err) {
-			conflictErr := err.(*common.VersionConflictError)
+		var conflictErr *common.VersionConflictError
+		if errors.As(err, &conflictErr) {
 			common.Conflict(c, conflictErr.Error(), gin.H{
 				"ticketId":       conflictErr.ResourceID,
 				"currentVersion": conflictErr.CurrentVersion,

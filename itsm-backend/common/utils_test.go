@@ -1,6 +1,7 @@
 package common
 
 import (
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -828,6 +829,9 @@ func TestVersionConflictError(t *testing.T) {
 
 	if !IsVersionConflictError(err) {
 		t.Error("IsVersionConflictError should return true for VersionConflictError")
+	}
+	if !IsVersionConflictError(fmt.Errorf("update ticket: %w", err)) {
+		t.Error("IsVersionConflictError should unwrap wrapped VersionConflictError")
 	}
 	if IsVersionConflictError(nil) {
 		t.Error("IsVersionConflictError(nil) should return false")
