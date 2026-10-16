@@ -107,7 +107,42 @@ func TestService_TTLLimits(t *testing.T) {
 	// 默认 90 天
 	res, err := svc.Create(ctx, userID, tenantID, CreateInput{Name: "default"}, "admin")
 	require.NoError(t, err)
-	require.WithinDuration(t, time.Now().AddDate(0, 0, 90), res.Token.ExpiresAt, 5*time.Minute)
+	require.NotNil(t, res.Token.ExpiresAt)
+	require.False(t, res.Token.NeverExpires)
+	require.WithinDuration(t, time.Now().AddDate(0, 0, 90), *res.Token.ExpiresAt, 5*time.Minute)
+}
+
+// 永不过期令牌（D-PAT-8 v2）：哨兵时间落库；DTO nil + neverExpires；状态 active；吊销仍全覆盖。
+func TestService_NeverExpires(t *testing.T) {
+	client, _, svc := patTestEnv(t)
+	userID, tenantID := seedTenantUser(t, client, "halo", "admin", true)
+	ctx := context.Background()
+
+	res, err := svc.Create(ctx, userID, tenantID, CreateInput{Name: "forever", NeverExpires: true}, "admin")
+	require.NoError(t, err)
+	require.Nil(t, res.Token.ExpiresAt)
+	require.True(t, res.Token.NeverExpires)
+	require.Equal(t, StatusActive, res.Token.Status)
+
+	// 落库为哨兵时间（清理/派生逻辑兼容）
+	items, _ := svc.List(ctx, userID, tenantID)
+	require.True(t, items[0].NeverExpires)
+	require.Nil(t, items[0].ExpiresAt)
+
+	// 互斥：neverExpires 与 expiresInDays 同传 → 永久优先（忽略天数）
+	res2, err := svc.Create(ctx, userID, tenantID, CreateInput{Name: "both", NeverExpires: true, ExpiresInDays: 7}, "admin")
+	require.NoError(t, err)
+	require.True(t, res2.Token.NeverExpires)
+
+	// 吊销全覆盖
+	_, err = svc.Revoke(ctx, userID, tenantID, res.Token.ID)
+	require.NoError(t, err)
+	items2, _ := svc.List(ctx, userID, tenantID)
+	for _, it := range items2 {
+		if it.ID == res.Token.ID {
+			require.Equal(t, StatusRevoked, it.Status)
+		}
+	}
 }
 
 func TestService_ActiveLimit(t *testing.T) {

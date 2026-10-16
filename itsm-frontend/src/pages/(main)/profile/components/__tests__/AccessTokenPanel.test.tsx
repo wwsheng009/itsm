@@ -19,6 +19,7 @@ const activeToken = (over: Partial<PersonalAccessToken> = {}): PersonalAccessTok
   maskedToken: 'itsm_pat_5Yk8mQ2v****',
   status: 'active',
   expiresAt: new Date(Date.now() + 30 * 86400000).toISOString(),
+  neverExpires: false,
   useCount: 3,
   lastUsedAt: new Date().toISOString(),
   lastUsedIp: '10.0.0.8',
@@ -68,7 +69,7 @@ describe('AccessTokenPanel', () => {
 
     const shown = await screen.findByTestId('pat-plaintext');
     await waitFor(() => expect(shown.textContent).toContain(plaintext));
-    expect(api.createToken).toHaveBeenCalledWith(expect.objectContaining({ name: '新令牌' }));
+    expect(api.createToken).toHaveBeenCalledWith(expect.objectContaining({ name: '新令牌', expiresInDays: 90, neverExpires: false }));
 
     // 关闭按钮在勾选前禁用（防误关丢失）
     expect(screen.getByTestId('pat-reveal-done')).toBeDisabled();
@@ -79,6 +80,19 @@ describe('AccessTokenPanel', () => {
     // 明文从 DOM 移除（state 清除，AC-41 前端卫生）
     await waitFor(() => expect(screen.queryByTestId('pat-plaintext')).not.toBeInTheDocument());
     expect(document.body.innerHTML).not.toContain(plaintext);
+  });
+
+  it('选择「永久有效」→ neverExpires=true 且不传天数', async () => {
+    const api = makeApi();
+    render(<AccessTokenPanel api={api} />);
+
+    fireEvent.click(await screen.findByTestId('pat-create'));
+    fireEvent.change(await screen.findByTestId('pat-name-input'), { target: { value: '永久令牌' } });
+    fireEvent.click(screen.getByRole('radio', { name: /永久有效|Never expires/ }));
+    fireEvent.click((await screen.findAllByRole('button', { name: /创建令牌|Create Token/ })).slice(-1)[0]);
+
+    await screen.findByTestId('pat-plaintext');
+    expect(api.createToken).toHaveBeenCalledWith(expect.objectContaining({ name: '永久令牌', neverExpires: true, expiresInDays: undefined }));
   });
 
   it('吊销（Popconfirm）→ 调用 revokeToken 并重取列表', async () => {

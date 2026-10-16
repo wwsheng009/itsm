@@ -15,7 +15,8 @@ type Item struct {
 	TokenPrefix   string     `json:"tokenPrefix"`
 	MaskedToken   string     `json:"maskedToken"`
 	Status        string     `json:"status"` // active | revoked | expired
-	ExpiresAt     time.Time  `json:"expiresAt"`
+	ExpiresAt     *time.Time `json:"expiresAt,omitempty"` // nil = 永不过期（9999 哨兵不外泄）
+	NeverExpires  bool       `json:"neverExpires"`
 	LastUsedAt    *time.Time `json:"lastUsedAt,omitempty"`
 	LastUsedIP    string     `json:"lastUsedIp,omitempty"`
 	UseCount      int        `json:"useCount"`
@@ -25,11 +26,14 @@ type Item struct {
 }
 
 // CreateInput 创建令牌输入。
+// NeverExpires=true 时忽略 ExpiresInDays/ExpiresAt（D-PAT-8 v2 修订：产品决策允许永久令牌，
+// 安全事件批量吊销仍全覆盖；实现为远期哨兵时间，不改表结构）。
 type CreateInput struct {
 	Name          string
 	Description   string
 	ExpiresInDays int        // 0 = 未传
 	ExpiresAt     *time.Time // 与 ExpiresInDays 互斥
+	NeverExpires  bool
 }
 
 // CreateResult 创建/轮换结果：明文仅此一次返回。
@@ -95,6 +99,16 @@ const (
 	StatusRevoked = "revoked"
 	StatusExpired = "expired"
 )
+
+// NeverExpiresAt 永久令牌的哨兵过期时间（9999-12-31 UTC）。
+// 不改表结构；派生状态、清理任务、轮换宽限逻辑天然兼容（宽限收紧=min(旧,now+24h)）。
+// 前端以 expiresAt >= 该哨兵 判定展示「永久」。
+var NeverExpiresAt = time.Date(9999, 12, 31, 0, 0, 0, 0, time.UTC)
+
+// IsNeverExpires 判断过期时间是否为永久哨兵。
+func IsNeverExpires(t time.Time) bool {
+	return t.Year() >= 9999
+}
 
 // 吊销原因。
 const (

@@ -28,6 +28,7 @@ type CreateRequest struct {
 	Description   string  `json:"description" binding:"omitempty,max=255"`
 	ExpiresInDays int     `json:"expiresInDays" binding:"omitempty,min=1,max=365"`
 	ExpiresAt     *string `json:"expiresAt" binding:"omitempty"` // RFC3339
+	NeverExpires  bool    `json:"neverExpires"`                  // true = 永不过期（D-PAT-8 v2）
 }
 
 // RotateRequest 轮换请求。
@@ -65,7 +66,7 @@ func (h *Handler) Create(c *gin.Context) {
 		common.ParamErrorWithErr(c, err, "请求参数错误")
 		return
 	}
-	in := CreateInput{Name: req.Name, Description: req.Description, ExpiresInDays: req.ExpiresInDays}
+	in := CreateInput{Name: req.Name, Description: req.Description, ExpiresInDays: req.ExpiresInDays, NeverExpires: req.NeverExpires}
 	if req.ExpiresAt != nil && *req.ExpiresAt != "" {
 		t, err := timeParseRFC3339(*req.ExpiresAt)
 		if err != nil {

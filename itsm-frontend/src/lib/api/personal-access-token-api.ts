@@ -17,7 +17,8 @@ export interface PersonalAccessToken {
   tokenPrefix: string;
   maskedToken: string;
   status: 'active' | 'revoked' | 'expired';
-  expiresAt: string;
+  expiresAt?: string; // 永不过期时缺省
+  neverExpires: boolean;
   lastUsedAt?: string;
   lastUsedIp?: string;
   useCount: number;
@@ -31,6 +32,8 @@ export interface CreateTokenRequest {
   description?: string;
   expiresInDays?: number;
   expiresAt?: string;
+  /** true = 永不过期（与 expiresInDays/expiresAt 互斥，优先生效） */
+  neverExpires?: boolean;
 }
 
 export interface CreateTokenResponse {

@@ -142,8 +142,13 @@ func (s *Service) Create(ctx context.Context, userID, tenantID int, in CreateInp
 	return &CreateResult{Token: toItem(row, time.Now()), PlaintextToken: plaintext}, nil
 }
 
-// resolveExpiry 有效期解析：ExpiresAt 与 ExpiresInDays 互斥，[1, MaxTTLDays]。
+// resolveExpiry 有效期解析：
+//   - NeverExpires=true → 哨兵时间（D-PAT-8 v2：允许永久令牌）
+//   - 否则 ExpiresAt 与 ExpiresInDays 互斥，[1, MaxTTLDays]
 func (s *Service) resolveExpiry(in CreateInput) (time.Time, error) {
+	if in.NeverExpires {
+		return NeverExpiresAt, nil
+	}
 	now := time.Now()
 	switch {
 	case in.ExpiresAt != nil:
@@ -284,7 +289,14 @@ func (s *Service) SecurityEvents(ctx context.Context, userID, tenantID, page, pa
 }
 
 // toItem ent 行 → 展示项（永不包含明文与哈希）。
+// 永久令牌：expiresAt=nil + neverExpires=true（9999 哨兵不外泄到前端）。
 func toItem(row *ent.PersonalAccessToken, now time.Time) *Item {
+	never := IsNeverExpires(row.ExpiresAt)
+	var expiresAt *time.Time
+	if !never {
+		t := row.ExpiresAt
+		expiresAt = &t
+	}
 	return &Item{
 		ID:            row.ID,
 		Name:          row.Name,
@@ -292,7 +304,8 @@ func toItem(row *ent.PersonalAccessToken, now time.Time) *Item {
 		TokenPrefix:   row.TokenPrefix,
 		MaskedToken:   MaskedToken(row.TokenPrefix),
 		Status:        deriveStatus(row.RevokedAt, row.ExpiresAt, now),
-		ExpiresAt:     row.ExpiresAt,
+		ExpiresAt:     expiresAt,
+		NeverExpires:  never,
 		LastUsedAt:    row.LastUsedAt,
 		LastUsedIP:    row.LastUsedIP,
 		UseCount:      row.UseCount,

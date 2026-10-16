@@ -97,7 +97,9 @@ export function AccessTokenPanel({ api = PersonalAccessTokenApi }: AccessTokenPa
       const res = await api.createToken({
         name: values.name,
         description: values.description,
-        expiresInDays: values.expiresInDays,
+        // neverExpires（'never'）优先；否则传天数（D-PAT-8 v2：允许永久令牌）
+        expiresInDays: values.expiryChoice === 'never' ? undefined : values.expiryChoice,
+        neverExpires: values.expiryChoice === 'never',
       });
       setCreateOpen(false);
       setReveal(res);
@@ -181,7 +183,10 @@ export function AccessTokenPanel({ api = PersonalAccessTokenApi }: AccessTokenPa
       title: t('profile.accessTokens.col.expiresAt'),
       dataIndex: 'expiresAt',
       key: 'expiresAt',
-      render: (v: string) => {
+      render: (v: string | undefined, record?: PersonalAccessToken) => {
+        if (record?.neverExpires || !v) {
+          return <Tag color="purple">{t('profile.accessTokens.neverExpires')}</Tag>;
+        }
         const days = Math.ceil((new Date(v).getTime() - Date.now()) / 86400000);
         return (
           <span>
@@ -270,19 +275,27 @@ export function AccessTokenPanel({ api = PersonalAccessTokenApi }: AccessTokenPa
         cancelText={t('common.cancel')}
         destroyOnClose
       >
-        <Form form={form} layout="vertical" initialValues={{ expiresInDays: 90 }}>
+        <Form form={form} layout="vertical" initialValues={{ expiryChoice: 90 }}>
           <Form.Item name="name" label={t('profile.accessTokens.form.name')} rules={[{ required: true, max: 64 }]}>
             <Input data-testid="pat-name-input" maxLength={64} placeholder={t('profile.accessTokens.form.namePlaceholder')} />
           </Form.Item>
           <Form.Item name="description" label={t('profile.accessTokens.form.description')}>
             <Input maxLength={255} />
           </Form.Item>
-          <Form.Item name="expiresInDays" label={t('profile.accessTokens.form.expiry')} rules={[{ required: true }]}>
+          <Form.Item name="expiryChoice" label={t('profile.accessTokens.form.expiry')} rules={[{ required: true }]}>
             <Radio.Group>
+              <Radio value="never">{t('profile.accessTokens.form.never')}</Radio>
               {DAY_OPTIONS.map((d) => (
                 <Radio key={d} value={d}>{`${d} ${t('profile.accessTokens.form.days')}`}</Radio>
               ))}
             </Radio.Group>
+          </Form.Item>
+          <Form.Item noStyle shouldUpdate={(p, c) => p.expiryChoice !== c.expiryChoice}>
+            {({ getFieldValue }) =>
+              getFieldValue('expiryChoice') === 'never' ? (
+                <Alert type="info" showIcon message={t('profile.accessTokens.form.neverWarn')} style={{ marginBottom: 12 }} />
+              ) : null
+            }
           </Form.Item>
           <Alert type="warning" showIcon message={t('profile.accessTokens.form.warn')} />
         </Form>
