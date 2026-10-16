@@ -7,11 +7,12 @@
 - 附件：multipart 上传（工单域 / 通用面 usage=comment_attachment）
 - 自定义类型：create 失败时提示必填 formFields key
 
-用法（demo 环境）：
+用法（demo 环境；token 建议存用户主目录，勿放版本库；bash 与 pwsh 等价）：
   python scripts/itsm_ticket.py login --base http://172.18.3.238:8089/api/v1 \\
-      --username demo.mfg.admin --password 'Demo@2026!'
-  python scripts/itsm_ticket.py --base http://172.18.3.238:8089/api/v1 --token <JWT> me
+      --username demo.mfg.admin --password 'Demo@2026!' --save "$HOME/.itsm/itsm.token"
+  python scripts/itsm_ticket.py --base http://172.18.3.238:8089/api/v1 --token-file "$HOME/.itsm/itsm.token" me
 
+login --save：省略路径默认 ~/.itsm/itsm.token；自动创建父目录（POSIX chmod 600），stdout 仅回显掩码。
 Token 来源优先级：--token > --token-file > 环境变量 ITSM_TOKEN / ITSM_PAT。
 输出：JSON 到 stdout；API 错误 JSON 到 stderr，退出码 1（参数错误 2）。
 """
@@ -203,8 +204,22 @@ def parse_kv(pairs):
 def cmd_login(client, args):
     result = client.login(args.username, args.password, args.tenant_code)
     if args.save:
-        Path(args.save).write_text(result["token"], encoding="utf-8")
-        result["savedTo"] = args.save
+        path = Path(args.save).expanduser()
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(result["token"], encoding="utf-8")
+        if os.name != "nt":
+            try:
+                path.chmod(0o600)
+            except OSError:
+                pass
+        print(
+            "[itsm_ticket] token 已写入 %s（含明文凭据，勿提交版本库；后续用 --token-file 引用）" % path,
+            file=sys.stderr,
+        )
+        masked = result["token"][:12] + "****"
+        result["savedTo"] = str(path)
+        result["maskedToken"] = masked
+        result["token"] = masked
     result["ok"] = True
     return result
 
@@ -217,19 +232,29 @@ def cmd_types(client, args):
     data = client.request(
         "GET", "/ticket-types?page=%d&pageSize=%d" % (args.page, args.page_size)
     )
-    if args.show_fields and isinstance(data, dict):
-        for item in data.get("items") or []:
-            required = []
-            for field in item.get("customFields") or []:
-                if field.get("required"):
-                    required.append(
-                        {
-                            "key": field.get("id") or field.get("name"),
-                            "label": field.get("label"),
-                            "type": field.get("type"),
-                        }
-                    )
-            item["requiredFormFields"] = required
+    if isinstance(data, dict):
+        items = data.get("items") or data.get("types") or []
+        if args.show_fields:
+            for item in items:
+                required = []
+                for field in item.get("customFields") or []:
+                    if field.get("required"):
+                        required.append(
+                            {
+                                "key": field.get("id") or field.get("name"),
+                                "label": field.get("label"),
+                                "type": field.get("type"),
+                            }
+                        )
+                item["requiredFormFields"] = required
+        if args.brief:
+            keys = ["id", "code", "name", "status", "defaultPriority"]
+            if args.show_fields:
+                keys.append("requiredFormFields")
+            items = [{key: item.get(key) for key in keys} for item in items]
+        # items 与 types 为同一列表的两份别名下发：只保留一份，缩小输出
+        data.pop("types", None)
+        data["items"] = items
     return data
 
 
@@ -241,11 +266,23 @@ def cmd_create(client, args):
         body["type"] = args.type
     if args.ticket_type_id:
         body["ticketTypeId"] = args.ticket_type_id
+    if args.category_id:
+        body["categoryId"] = args.category_id
+    elif args.category:
+        body["category"] = args.category
+    if args.tag:
+        body["tags"] = args.tag
+    if args.template_id:
+        body["templateId"] = args.template_id
+    if args.parent_ticket_id:
+        body["parentTicketId"] = args.parent_ticket_id
     if args.assignee_id:
         body["assigneeId"] = args.assignee_id
     form = parse_kv(args.form_field)
     if form:
         body["formFields"] = form
+    if args.dry_run:
+        return {"dryRun": True, "method": "POST", "path": "/tickets", "body": body}
     try:
         return client.request("POST", "/tickets", body)
     except ApiError as err:
@@ -432,7 +469,13 @@ def build_parser():
     lg.add_argument("--username", default=os.environ.get("ITSM_USERNAME", ""))
     lg.add_argument("--password", default=os.environ.get("ITSM_PASSWORD", ""))
     lg.add_argument("--tenant-code", default="")
-    lg.add_argument("--save", default="", help="把 token 写入文件（可配合 --token-file 复用）")
+    lg.add_argument(
+        "--save",
+        nargs="?",
+        const=str(Path.home() / ".itsm" / "itsm.token"),
+        default="",
+        help="token 写入文件；省略路径默认 ~/.itsm/itsm.token（供 --token-file 复用）",
+    )
 
     add("me", "GET /auth/me（核对身份/角色/权限码）")
 
@@ -440,6 +483,7 @@ def build_parser():
     tp.add_argument("--page", type=int, default=1)
     tp.add_argument("--page-size", type=int, default=50)
     tp.add_argument("--show-fields", action="store_true", help="附带 requiredFormFields（必填自定义字段 key）")
+    tp.add_argument("--brief", action="store_true", help="精简输出（id/code/name/status/defaultPriority，配 --show-fields 附必填字段）")
 
     cr = add("create", "POST /tickets（创建工单）")
     cr.add_argument("--title", required=True)
@@ -451,6 +495,12 @@ def build_parser():
     cr.add_argument("--ticket-type-id", type=int, default=0)
     cr.add_argument("--assignee-id", type=int, default=0)
     cr.add_argument("--form-field", action="append", default=[], help="key=value，可重复")
+    cr.add_argument("--category-id", type=int, default=0)
+    cr.add_argument("--category", default="", help="分类名（categoryId 优先；未传 --category-id 时使用）")
+    cr.add_argument("--tag", action="append", default=[], help="标签名，可重复")
+    cr.add_argument("--template-id", type=int, default=0)
+    cr.add_argument("--parent-ticket-id", type=int, default=0)
+    cr.add_argument("--dry-run", action="store_true", help="只打印请求体，不发送请求")
 
     gt = add("get", "GET /tickets/:id（数字 ID 或工单号）")
     gt.add_argument("id")
@@ -537,6 +587,9 @@ def main(argv=None):
         if args.command == "login":
             if not args.username or not args.password:
                 fail(ApiError("login 需要 --username/--password（或环境变量 ITSM_USERNAME/ITSM_PASSWORD）"), pretty)
+            client = Client(args.base, "", args.timeout)
+        elif args.command == "create" and getattr(args, "dry_run", False):
+            # dry-run 只回显请求体、不发送请求，无需令牌
             client = Client(args.base, "", args.timeout)
         else:
             client = authed(args) if needs_auth else Client(args.base, "", args.timeout)

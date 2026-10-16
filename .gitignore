@@ -145,6 +145,9 @@ output/
 !itsm-backend/ent/passwordresettoken/
 !itsm-backend/ent/passwordresettoken/**
 !itsm-backend/ent/passwordresettoken*.go
+# Local token files written by the itsm-ticket-operations skill (`login --save`)
+# are plaintext credentials. Prefer $HOME/.itsm/; never commit these.
+**/itsm.token
 # Exception: frontend application source whose *path* merely contains
 # "password" (auth pages + password-policy API/hook) is code, not a secret.
 # The blanket *password* rule above silently excluded these from commits; on a
