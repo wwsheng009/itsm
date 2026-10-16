@@ -123,4 +123,22 @@
 
 - 工具自身缺陷（实跑发现并已修）：**Python 3.13 argparse 子命令默认值会覆盖主 parser 已解析的全局参数**（`--token-file X me` 丢成空串）→ 子命令侧公共参数改用 `argparse.SUPPRESS`；前/后/混合三种参数顺序复测通过。
 - 遗留 demo 数据：`TKT-202610-000060`（id 61，closed；2 评论、2 附件，标注 [E2E工具]）。
-- 未做：未提供 Node.js 版本（同环境 Python 在部署链路已可用，零依赖即可覆盖；如后续需要 JS 分发再补）。
+- 未做：未提供 Node.js 版本（同环境 Python 在部署链路已可用，零依赖即可覆盖；如后续需要 JS 分发再补）。---
+
+## 附录 3：238 demo 发布与线上复测（2026-10-16，tag `1.8.0-dev.d01b916e`）
+
+- 通道：git bundle（基线=远端 HEAD `d8854f2f` → `d01b916e`）+ prod compose 构建 `itsm-backend`；仅 `up -d itsm-backend-demo itsm-worker-demo`（init 重建跑迁移；**未 down -v**）。
+- 步骤表：
+
+| 步骤 | 命令/脚本 | 结果 |
+|---|---|---|
+| A 取码 | `deploy238_ticketfix_a.sh`（BUNDLE=/tmp/itsm-ticketfix.bundle） | HEAD=`d01b916e407572f8bb16e7753f5cf61ffedff3cd` |
+| B 构建 | `deploy238_ticketfix_b.sh`（NEW=1.8.0-dev.d01b916e） | BUILD_EXIT=0；镜像 `itsm-backend:1.8.0-dev.d01b916e` = sha256:068114eb8d9c…（旧 d8854f2f = sha256:229aedd0b244…，镜像确已更新） |
+| C 上线 | `deploy238_ticketfix_c.sh` | frontend/ai retag 对齐；`.env.demo` VERSION=d01b916e；init 重建后 Exited(0)；backend/worker Recreated + Healthy；health=200 / root=200 |
+
+- 线上复测（`http://172.18.3.238:8089`）：
+  1. **乐观锁 409/4090**：`update 59 --version 1`（当前版本 4）→ `{"ok":false,"http":409,"code":4090,"message":"工单(ID:59) 版本冲突：客户端版本 1，服务器版本 4","data":{"currentVersion":1,"serverVersion":4,"ticketId":59}}` ✅（修复前为 500/5001）
+  2. **行级收窄**：`demo.mfg.user`(end_user) `list` total=**9**（修复前 21+；同租户管理员视角 total=23），9 条全部 `requester=8`（本人创建）✅
+  3. **冒烟链路**（新构建，`scripts/itsm_ticket.py` 通道）：create id=62 `TKT-202610-000061` → comment id=37 → update v2 → resolve → close ✅
+  4. 容器：`itsm-backend-demo`/`itsm-worker-demo` = `itsm-backend:1.8.0-dev.d01b916e`（healthy）；近 10 分钟日志无 panic/error（唯一命中为既有 `tenant_guard` warn：`user_pir_reviews` 未登记豁免，与本次变更无关）。
+- 遗留 demo 数据：`TKT-202610-000061`（id 62，[E2E复测]，已关闭）。
