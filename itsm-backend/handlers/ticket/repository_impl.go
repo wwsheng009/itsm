@@ -209,6 +209,12 @@ func (r *EntRepository) List(ctx context.Context, tenantID int, page, size int, 
 		if v, ok := filters["keyword"].(string); ok {
 			fp.Keyword = v
 		}
+		if v, ok := filters["date_from"].(time.Time); ok {
+			fp.DateFrom = &v
+		}
+		if v, ok := filters["date_to"].(time.Time); ok {
+			fp.DateTo = &v
+		}
 	}
 
 	// 排序：白名单校验，非法字段由 toEntField 回退到 created_at

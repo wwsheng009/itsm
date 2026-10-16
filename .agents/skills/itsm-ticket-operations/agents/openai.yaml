@@ -1,0 +1,4 @@
+interface:
+  display_name: "ITSM 工单操作"
+  short_description: "通过 REST API 创建/搜索/流转工单，含元数据、评论与附件"
+  default_prompt: "用 ITSM API 创建一张高优先级事件工单（标题含 [AUTO]），附一句话描述，然后列出今天的开放工单。"

@@ -27,10 +27,11 @@ import (
 // -----------------------------------------------------------------------------
 
 type mockRepository struct {
-	mu          sync.Mutex
-	tickets     map[int]*Ticket
-	nextID      int
-	statsCalled bool
+	mu              sync.Mutex
+	tickets         map[int]*Ticket
+	nextID          int
+	statsCalled     bool
+	lastListFilters map[string]interface{} // 记录最近一次 List 传入的 filters（过滤补全回归用）
 }
 
 func newMockRepository() *mockRepository {
@@ -124,11 +125,24 @@ func (m *mockRepository) Delete(ctx context.Context, id int, tenantID int) error
 func (m *mockRepository) List(ctx context.Context, tenantID int, page, size int, filters map[string]interface{}, ds datascope.DataScope, currentUserID int) ([]*Ticket, int, error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
+	// 回归测试用：记录 handler 实际传入的 filters（列表过滤补全验证）
+	m.lastListFilters = filters
 	var out []*Ticket
 	for _, t := range m.tickets {
-		if t.TenantID == tenantID {
-			out = append(out, t)
+		if t.TenantID != tenantID {
+			continue
 		}
+		// 简单按 status/priority/assignee_id 过滤（键为仓储翻译器的 snake_case 契约）
+		if v, ok := filters["status"].(string); ok && v != "" && string(t.Status) != v {
+			continue
+		}
+		if v, ok := filters["priority"].(string); ok && v != "" && string(t.Priority) != v {
+			continue
+		}
+		if v, ok := filters["assignee_id"].(int); ok && v > 0 && (t.AssigneeID == nil || *t.AssigneeID != v) {
+			continue
+		}
+		out = append(out, t)
 	}
 	return out, len(out), nil
 }
@@ -874,4 +888,30 @@ func TestUpdateTicketStatus_StateMachineAndProtectedResolved(t *testing.T) {
 	w3 := doJSON(t, r, http.MethodPut, "/api/v1/tickets/42/status",
 		map[string]string{"status": "pending"}, hdr)
 	assert.Equal(t, 200, w3.Code, w3.Body.String())
+}
+
+// TestHandler_List_FiltersPassedThrough（列表过滤补全回归）：
+// 修复前 assigneeId/requesterId/type/dateFrom 等参数被绑定但 handler 未写入 filters，
+// 自动化（PAT 调用方）按处理人/时间段筛选工单不可用。锁定这些参数必须透传到仓储层
+// （键为仓储翻译器的 snake_case 契约）。
+func TestHandler_List_FiltersPassedThrough(t *testing.T) {
+	r, repo := newTestHarness(t)
+
+	w := doJSON(t, r, http.MethodGet,
+		"/api/v1/tickets?status=open&priority=high&type=incident&assigneeId=9&requesterId=7&categoryId=3&dateFrom=2026-01-01T00:00:00Z&dateTo=2026-12-31T00:00:00Z",
+		nil,
+		map[string]string{"X-Test-TenantID": "1", "X-Test-UserID": "7"},
+	)
+	assert.Equal(t, 200, w.Code, w.Body.String())
+
+	f := repo.lastListFilters
+	assert.NotNil(t, f, "filters must reach repository")
+	assert.Equal(t, "open", f["status"])
+	assert.Equal(t, "high", f["priority"])
+	assert.Equal(t, "incident", f["type"])
+	assert.Equal(t, 9, f["assignee_id"])
+	assert.Equal(t, 7, f["requester_id"])
+	assert.Equal(t, 3, f["category_id"])
+	assert.Contains(t, f, "date_from")
+	assert.Contains(t, f, "date_to")
 }

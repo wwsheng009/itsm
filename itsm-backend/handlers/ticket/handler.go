@@ -250,6 +250,32 @@ func (h *Handler) ListTickets(c *gin.Context) {
 	if req.IsOverdue {
 		filters["is_overdue"] = true
 	}
+	// 列表过滤补全（PAT 自动化场景）：以下参数此前被绑定但未应用——
+	// 仓储层翻译器本就支持（handlers/ticket/repository_impl.go 的 snake_case 键）。
+	if req.Type != "" {
+		filters["type"] = req.Type
+	}
+	if req.AssigneeID != nil && *req.AssigneeID > 0 {
+		filters["assignee_id"] = *req.AssigneeID
+	}
+	if req.RequesterID != nil && *req.RequesterID > 0 {
+		filters["requester_id"] = *req.RequesterID
+	}
+	if req.CategoryID != nil && *req.CategoryID > 0 {
+		filters["category_id"] = *req.CategoryID
+	}
+	if req.ParentTicketID != nil && *req.ParentTicketID > 0 {
+		filters["parent_ticket_id"] = *req.ParentTicketID
+	}
+	if req.TemplateID != nil && *req.TemplateID > 0 {
+		filters["template_id"] = *req.TemplateID
+	}
+	if req.DateFrom != nil {
+		filters["date_from"] = *req.DateFrom
+	}
+	if req.DateTo != nil {
+		filters["date_to"] = *req.DateTo
+	}
 
 	tickets, total, err := h.service.List(c.Request.Context(), tenantID, req.Page, req.PageSize, filters, currentUserID, currentRole)
 	if err != nil {

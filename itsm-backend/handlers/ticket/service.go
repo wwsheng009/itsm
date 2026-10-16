@@ -474,20 +474,31 @@ func (s *Service) DeleteSubtask(ctx context.Context, subtaskID int, tenantID int
 }
 
 // GetTicketSLAInfo returns SLA info for a ticket.
+// 契约修复（camelCase 规范）：历史响应为 snake_case 键，违反「API 字段 camelCase」约定；
+// 本修复改为 camelCase，并保留旧 snake_case 键一个发布周期的向后兼容（双写下发），
+// 前端与外部调用方迁移到 camelCase 后移除 legacy 键。
 func (s *Service) GetTicketSLAInfo(ctx context.Context, ticketID int, tenantID int) (map[string]interface{}, error) {
 	t, err := s.repo.GetByID(ctx, ticketID, tenantID)
 	if err != nil {
 		return nil, err
 	}
-	return map[string]interface{}{
-		"ticket_id":                    t.ID,
-		"sla_definition_id":            t.SLADefinitionID,
-		"sla_response_deadline":        t.SLAResponseDeadline,
-		"sla_resolution_deadline":      t.SLAResolutionDeadline,
-		"first_response_at":            t.FirstResponseAt,
-		"status":                       t.Status,
-		"resolution_deadline_breached": t.SLAResolutionDeadline != nil && time.Now().After(*t.SLAResolutionDeadline),
-	}, nil
+	resp := map[string]interface{}{
+		"ticketId":                   t.ID,
+		"slaDefinitionId":            t.SLADefinitionID,
+		"slaResponseDeadline":        t.SLAResponseDeadline,
+		"slaResolutionDeadline":      t.SLAResolutionDeadline,
+		"firstResponseAt":            t.FirstResponseAt,
+		"status":                     t.Status,
+		"resolutionDeadlineBreached": t.SLAResolutionDeadline != nil && time.Now().After(*t.SLAResolutionDeadline),
+	}
+	// legacy 双写（snake_case，deprecated；下一发布周期移除）
+	resp["ticket_id"] = t.ID
+	resp["sla_definition_id"] = t.SLADefinitionID
+	resp["sla_response_deadline"] = t.SLAResponseDeadline
+	resp["sla_resolution_deadline"] = t.SLAResolutionDeadline
+	resp["first_response_at"] = t.FirstResponseAt
+	resp["resolution_deadline_breached"] = resp["resolutionDeadlineBreached"]
+	return resp, nil
 }
 
 // IsDataScopeAllRole returns true if the role has access to all tickets.
