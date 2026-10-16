@@ -31,6 +31,7 @@ import (
 	connectorVector "itsm-backend/connector/vector"
 	connectorHandler "itsm-backend/handlers/connector"
 	marketplaceHandler "itsm-backend/handlers/marketplace"
+	"itsm-backend/handlers/pat"
 	"itsm-backend/pkg/eventbus"
 	botService "itsm-backend/service/bot"
 	marketplaceService "itsm-backend/service/marketplace"
@@ -1262,6 +1263,8 @@ func NewApplication() *Application {
 		} else {
 			commonServiceDomain.SetRedis(commonRedis)
 			middleware.ConfigureAccessTokenRevocationRedis(commonRedis)
+			// PAT 使用审计/限流闸门（D-PAT-9/R-3c）
+			middleware.ConfigurePATUsageGate(commonRedis, cfg.PAT.UsageAuditWindowSeconds, cfg.PAT.RateLimitPerMinute)
 			// Phase 1 P1-4：权限缓存失效跨实例广播（多副本一致性）。
 			middleware.ConfigurePermissionCacheBroadcast(commonRedis)
 			sugar.Info("refresh token blacklist enabled via redis")
@@ -1269,6 +1272,13 @@ func NewApplication() *Application {
 		pingCancel()
 	}
 	commonHandler := domainCommon.NewHandler(commonServiceDomain)
+
+	// PAT（个人访问令牌）：认证解析器 + 管理面（docs/plan/personal-access-token-plan-2026-10-16.md）
+	patRepo := pat.NewRepository(client, sugar)
+	patSvc := pat.NewService(patRepo, patConfigView(cfg), sugar)
+	middleware.ConfigurePersonalAccessTokens(pat.NewResolver(client, sugar), cfg.PAT.Enabled)
+	middleware.ConfigurePATUsageAuditMode(cfg.PAT.UsageAuditMode)
+	patHandler := pat.NewHandler(patSvc)
 
 	// Auth handler owns account self-service and tenant session switching.
 	authService := authHandler.NewService(client, cfg.JWT.Secret, sugar, nil)
@@ -1462,6 +1472,7 @@ func NewApplication() *Application {
 		Client:                       client,
 		RawDB:                        database.GetRawDB(),
 		CSRFEnabled:                  cfg.Security.CSRFEnabled,
+		PATHandler:                   patHandler,
 		RedisRateLimiter:             redisRateLimiter,
 		AppStartTime:                 time.Now(),
 		TicketHandler:                ticketHandler,
@@ -1950,6 +1961,13 @@ func (app *Application) Run() {
 }
 
 func (app *Application) startBackgroundTasks(ctx context.Context) {
+	// PAT 令牌行清理（T13/Q8）：过期超保留期的令牌行定期回收（审计血缘在 audit_logs）。
+	// 随 PAT_ENABLED 开关启停；保留期默认 180 天。
+	if app.Cfg.PAT.Enabled && app.DBClient != nil {
+		hk := service.NewPATHousekeepingService(app.DBClient, app.Logger, app.Cfg.PAT.HousekeepingRetentionDays, 24*60)
+		hk.Start(ctx)
+	}
+
 	// safeGo 启动一个 panic-safe 的后台 goroutine：
 	// - 任务 panic 会被 recover 并记录完整堆栈，goroutine 不再静默退出
 	// - 自动通过 app.backgroundWG 跟踪生命周期，Stop() 中可等待优雅退出

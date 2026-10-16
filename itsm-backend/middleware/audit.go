@@ -32,6 +32,9 @@ const (
 	AuditSourcePlatformSelected = "platform_selected"
 	AuditSourceJob              = "job"
 	AuditSourceSystem           = "system"
+	// AuditSourcePAT 个人访问令牌请求（PAT 方案 D-PAT-9/D-PAT-13；
+	// 由 AuthMiddleware PAT 分支写 audit_source，PAT 认证先于本中间件执行）。
+	AuditSourcePAT = "pat"
 )
 
 // AuthAuditEntry 认证/会话类审计事件（login/switch 及拒绝事件；事件名以 §3.0-E 为准）。
@@ -187,6 +190,29 @@ var SensitiveResources = map[string]bool{
 	"system":         true,
 }
 
+// patUsageAuditMode PAT 使用行模式：dedupe | all | off（D-PAT-9；bootstrap 装配）。
+var patUsageAuditMode = "dedupe"
+
+// ConfigurePATUsageAuditMode 装配使用行审计模式（bootstrap 调用）。
+func ConfigurePATUsageAuditMode(mode string) {
+	switch mode {
+	case "all", "off", "dedupe":
+		patUsageAuditMode = mode
+	}
+}
+
+// authTokenID 取 PAT 归因 token id（AuthMiddleware PAT 分支写入；非 PAT 请求为 0）。
+func authTokenID(c *gin.Context) int {
+	return c.GetInt(CtxKeyAuthTokenID)
+}
+
+// auditCtx0 短超时 ctx（去重闸门用；Redis 操作不应拖慢主链路）。
+func auditCtx0(c *gin.Context) context.Context {
+	ctx, cancel := context.WithTimeout(c.Request.Context(), 200*time.Millisecond)
+	_ = cancel // 闸门调用为一次性 SETNX，超时即 fail-open（allowByGate 内部处理错误）
+	return ctx
+}
+
 // AuditMiddleware persists audit logs for operations with enhanced security tracking
 func AuditMiddleware(client *ent.Client) gin.HandlerFunc {
 	return func(c *gin.Context) {
@@ -265,6 +291,22 @@ func AuditMiddleware(client *ent.Client) gin.HandlerFunc {
 		}
 		targetUserID := c.GetInt("audit_target_user_id")
 
+		// PAT 使用行模式闸门（D-PAT-9）：
+		//   dedupe → 60s 窗口内同一 (token, method, path) 只写一行
+		//   all    → 每请求一行
+		//   off    → 不因 PAT 身份而写行（仅原有敏感操作规则生效）
+		// 注意：c.Next() 已在上方调用，此处 return 仅跳过「审计落行」。
+		if source == AuditSourcePAT && patUsageAuditMode != "all" {
+			if patUsageAuditMode == "off" {
+				// off 模式：PAT GET 类非敏感请求不落行；写方法/敏感操作仍按原有规则落。
+				if methodStr == "GET" || methodStr == "HEAD" {
+					return
+				}
+			} else if !AllowUsageRecord(auditCtx0(c), authTokenID(c), methodStr, path) {
+				return
+			}
+		}
+
 		// 审计记录是企业合规数据，不能使用无确认的 goroutine（进程退出时会静默丢失）。
 		auditCtx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 		defer cancel()
@@ -288,6 +330,10 @@ func AuditMiddleware(client *ent.Client) gin.HandlerFunc {
 			SetAction(action).
 			SetRequestBody(requestBody).
 			SetSource(source)
+		// PAT 归因（D-PAT-9）：source=pat 的请求带 token_id（由 AuthMiddleware PAT 分支写入）。
+		if authTokenID := c.GetInt(CtxKeyAuthTokenID); authTokenID > 0 && source == AuditSourcePAT {
+			auditCreate = auditCreate.SetTokenID(authTokenID)
+		}
 		if targetTenantID > 0 {
 			auditCreate = auditCreate.SetTargetTenantID(targetTenantID)
 		}
@@ -384,6 +430,12 @@ func shouldAuditRequest(c *gin.Context) bool {
 		if strings.Contains(path, resource) {
 			return true
 		}
+	}
+
+	// PAT 请求一律留痕（D-PAT-9）：使用历史以审计行为准；
+	// 真正落库前还有 AllowUsageRecord 去重闸门（dedupe 窗口）。
+	if c.GetString("audit_source") == AuditSourcePAT {
+		return true
 	}
 
 	return false

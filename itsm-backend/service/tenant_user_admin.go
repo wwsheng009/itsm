@@ -30,6 +30,7 @@ import (
 	"itsm-backend/ent"
 	"itsm-backend/ent/tenant"
 	"itsm-backend/ent/user"
+	"itsm-backend/handlers/pat"
 	"itsm-backend/middleware"
 )
 
@@ -698,6 +699,8 @@ func (s *TenantUserAdminService) revokeUserSessions(ctx context.Context, userID 
 		failures = append(failures, "access: "+err.Error())
 		s.logger.Errorw("吊销用户 access token 失败", "user_id", userID, "error", err)
 	}
+	// PAT（D-PAT-6/R3）：平台侧停用/离职 → 全部个人访问令牌吊销（security_event）。
+	pat.RevokeAllForUserByClient(ctx, s.client, s.logger, userID)
 	return failures
 }
 

@@ -11,6 +11,79 @@
 - **数据格式**: JSON
 - **字符编码**: UTF-8
 
+## 个人访问令牌（Personal Access Token，PAT）
+
+用户在「个人中心 → 安全设置 → 访问令牌」自助创建 API 访问令牌，供脚本 / CI / CLI 以 `Authorization: Bearer itsm_pat_…` 调用任意**已授权** API（含创建工单），无需交互式登录。令牌权限与所属账户**实时一致**（角色变更/停用/权限回收立即生效）。
+
+### 安全约束（务必遵守）
+
+1. **令牌明文仅显示一次**（创建/轮换响应），之后只返回 `tokenPrefix`（前 17 字符）与 `maskedToken`（前缀 + `****`）。遗失只能吊销重建。
+2. **禁止放入 URL**：令牌仅接受 `Authorization: Bearer` 请求头。放入 query string 的请求会认证失败，且明文会进入访问日志。
+3. **令牌不可调用令牌管理面写操作**（创建/轮换/吊销/全部吊销）——防泄漏令牌自我繁殖；读操作（列表/使用历史/安全事件）允许。
+4. **平台角色**（super_admin / sysadmin）不能创建 PAT（避免长期全权限旁路凭据）。
+5. 单令牌限流 `PAT_RATE_LIMIT_PER_MINUTE`（默认 120 次/分钟），超限返回 HTTP 429。
+6. 有效期必填（默认 90 天，上限 365 天，禁止永不过期）；单用户同时有效令牌默认上限 20。
+7. 改密 / 账户停用 / 删除 / 离职编排会**吊销该用户全部令牌**（`revokedReason=security_event`）；角色变更不吊销（权限实时解析已覆盖）。
+8. **适用面**：服务端 / CLI 调用。浏览器内 JS 跨域集成默认被 CORS 拦截（默认不发 `Allow-Origin`），需显式配置 CORS 白名单。
+9. 面向外部调用方不提供 CSRF 要求（Bearer 请求天然跳过 CSRF）；浏览器会话（Cookie）调用管理面写操作需 CSRF token。
+
+### 认证失败排障
+
+所有认证失败统一返回 `401 {"code":2001,"message":"token无效"}`——**刻意不区分**不存在/已吊销/已过期（防枚举）。请到「个人中心 → 访问令牌」核对令牌状态；管理端可在审计日志按 `来源=令牌` 过滤调查。
+
+### 管理端点（浏览器会话；明文一次性）
+
+```http
+GET  /api/v1/auth/personal-access-tokens                       # 本人令牌列表（掩码）
+POST /api/v1/auth/personal-access-tokens                       # 创建；响应含 plaintextToken（仅此一次）
+POST /api/v1/auth/personal-access-tokens/revoke-all            # 吊销本人全部令牌 → {revokedCount}
+POST /api/v1/auth/personal-access-tokens/{id}/rotate           # 轮换 {gracePeriodHours: 0|24}
+POST /api/v1/auth/personal-access-tokens/{id}/revoke           # 吊销（幂等）
+GET  /api/v1/auth/personal-access-tokens/{id}/usages           # 使用历史 ?page&pageSize（上限 100）
+GET  /api/v1/auth/security-events                              # 本人登录/切换/令牌事件 ?page&pageSize&kind=all|login|token
+```
+
+创建示例：
+
+```bash
+# 1. 浏览器会话登录（Cookie），如开启 CSRF 先 GET /api/v1/csrf-token
+curl -c cookies.txt -X POST http://localhost:8090/api/v1/auth/login \
+  -H 'Content-Type: application/json' -d '{"username":"alice","password":"***"}'
+
+# 2. 创建令牌
+curl -b cookies.txt -X POST http://localhost:8090/api/v1/auth/personal-access-tokens \
+  -H 'Content-Type: application/json' \
+  -d '{"name":"CI 发布脚本","expiresInDays":90}'
+# → {"code":0,"data":{"token":{"id":42,"tokenPrefix":"itsm_pat_5Yk8mQ2v",...},"plaintextToken":"itsm_pat_xxx"}}
+```
+
+### 用令牌调用业务 API（核心场景）
+
+```bash
+# 用 PAT 创建工单（无需 CSRF；权限要求与该用户登录会话完全一致：ticket:create）
+curl -X POST http://localhost:8090/api/v1/tickets \
+  -H "Authorization: Bearer itsm_pat_xxx" \
+  -H 'Content-Type: application/json' \
+  -d '{"title":"磁盘告警","description":"Web 服务器磁盘使用率 92%","priority":"high","type":"incident"}'
+# → {"code":0,"data":{"ticketNumber":"INC-1042",...}}
+```
+
+### 错误码
+
+| 场景 | HTTP | code |
+|---|---|---|
+| 认证失败（无效/已吊销/已过期/未启用） | 401 | 2001 |
+| 令牌调用管理面写操作 | 403 | 2003 |
+| 平台角色创建令牌 | 403 | 2003 |
+| 数量超上限 | 422 | 4220 |
+| 参数错误 | 400 | 1001+ |
+| 操作他人令牌 | 404 | 4004（防枚举） |
+| 单令牌限流 | 429 | — |
+
+### 配置
+
+`PAT_ENABLED`（总开关，关闭后 PAT 认证 401、管理面 404）、`PAT_DEFAULT_TTL_DAYS`、`PAT_MAX_TTL_DAYS`、`PAT_MAX_ACTIVE_PER_USER`、`PAT_USAGE_AUDIT_MODE`（dedupe/all/off）、`PAT_USAGE_AUDIT_WINDOW_SECONDS`、`PAT_RATE_LIMIT_PER_MINUTE`。完整说明见 `.env.example` 与方案文档 §3.12。
+
 ## AI 工作流生成
 
 AI 工作流接口必须携带 JWT，并且只能访问认证上下文中的租户。请求体中的 `tenantId`（如存在）不会覆盖认证租户。

@@ -51,6 +51,8 @@ import { useI18n } from '@/lib/i18n';
 import { useAuthStore, useAuthStoreHydration } from '@/lib/store/auth-store';
 import { usePasswordPolicy } from '@/lib/hooks/usePasswordPolicy';
 import { AuthService } from '@/lib/services/auth-service';
+import { AccessTokenPanel } from './components/AccessTokenPanel';
+import { SecurityEventsPanel } from './components/SecurityEventsPanel';
 
 const { Title, Text } = Typography;
 
@@ -866,15 +868,40 @@ export default function ProfilePage() {
                             }}
                           >
                             <div>
-                              <div style={{ fontWeight: 600, marginBottom: 4 }}>登录历史</div>
+                              <div style={{ fontWeight: 600, marginBottom: 4 }}>两步验证</div>
                               <div style={{ color: DESIGN.colors.textMuted, fontSize: 13 }}>
-                                查看账户的登录历史记录
+                                为账户添加额外的安全保护
                               </div>
                             </div>
                             <Tooltip title="该功能即将推出">
-                              <Button disabled>查看</Button>
+                              <Button type="primary" ghost disabled>
+                                启用
+                              </Button>
                             </Tooltip>
                           </div>
+                        </Card>
+
+                        {/* 访问令牌（PAT）：docs/plan/personal-access-token-plan-2026-10-16.md §3.10 */}
+                        <Card
+                          size="small"
+                          style={{
+                            borderRadius: DESIGN.radius.md,
+                            border: `1px solid ${DESIGN.colors.border}`,
+                          }}
+                        >
+                          <AccessTokenPanel />
+                        </Card>
+
+                        {/* 登录与令牌使用历史（原 disabled 占位的落地） */}
+                        <Card
+                          size="small"
+                          title="登录与令牌使用历史"
+                          style={{
+                            borderRadius: DESIGN.radius.md,
+                            border: `1px solid ${DESIGN.colors.border}`,
+                          }}
+                        >
+                          <SecurityEventsPanel />
                         </Card>
                       </>
                     ),

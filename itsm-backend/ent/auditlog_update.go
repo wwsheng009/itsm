@@ -348,6 +348,33 @@ func (_u *AuditLogUpdate) ClearSource() *AuditLogUpdate {
 	return _u
 }
 
+// SetTokenID sets the "token_id" field.
+func (_u *AuditLogUpdate) SetTokenID(v int) *AuditLogUpdate {
+	_u.mutation.ResetTokenID()
+	_u.mutation.SetTokenID(v)
+	return _u
+}
+
+// SetNillableTokenID sets the "token_id" field if the given value is not nil.
+func (_u *AuditLogUpdate) SetNillableTokenID(v *int) *AuditLogUpdate {
+	if v != nil {
+		_u.SetTokenID(*v)
+	}
+	return _u
+}
+
+// AddTokenID adds value to the "token_id" field.
+func (_u *AuditLogUpdate) AddTokenID(v int) *AuditLogUpdate {
+	_u.mutation.AddTokenID(v)
+	return _u
+}
+
+// ClearTokenID clears the value of the "token_id" field.
+func (_u *AuditLogUpdate) ClearTokenID() *AuditLogUpdate {
+	_u.mutation.ClearTokenID()
+	return _u
+}
+
 // Mutation returns the AuditLogMutation object of the builder.
 func (_u *AuditLogUpdate) Mutation() *AuditLogMutation {
 	return _u.mutation
@@ -499,6 +526,15 @@ func (_u *AuditLogUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 	}
 	if _u.mutation.SourceCleared() {
 		_spec.ClearField(auditlog.FieldSource, field.TypeString)
+	}
+	if value, ok := _u.mutation.TokenID(); ok {
+		_spec.SetField(auditlog.FieldTokenID, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.AddedTokenID(); ok {
+		_spec.AddField(auditlog.FieldTokenID, field.TypeInt, value)
+	}
+	if _u.mutation.TokenIDCleared() {
+		_spec.ClearField(auditlog.FieldTokenID, field.TypeInt)
 	}
 	if _node, err = sqlgraph.UpdateNodes(ctx, _u.driver, _spec); err != nil {
 		if _, ok := err.(*sqlgraph.NotFoundError); ok {
@@ -840,6 +876,33 @@ func (_u *AuditLogUpdateOne) ClearSource() *AuditLogUpdateOne {
 	return _u
 }
 
+// SetTokenID sets the "token_id" field.
+func (_u *AuditLogUpdateOne) SetTokenID(v int) *AuditLogUpdateOne {
+	_u.mutation.ResetTokenID()
+	_u.mutation.SetTokenID(v)
+	return _u
+}
+
+// SetNillableTokenID sets the "token_id" field if the given value is not nil.
+func (_u *AuditLogUpdateOne) SetNillableTokenID(v *int) *AuditLogUpdateOne {
+	if v != nil {
+		_u.SetTokenID(*v)
+	}
+	return _u
+}
+
+// AddTokenID adds value to the "token_id" field.
+func (_u *AuditLogUpdateOne) AddTokenID(v int) *AuditLogUpdateOne {
+	_u.mutation.AddTokenID(v)
+	return _u
+}
+
+// ClearTokenID clears the value of the "token_id" field.
+func (_u *AuditLogUpdateOne) ClearTokenID() *AuditLogUpdateOne {
+	_u.mutation.ClearTokenID()
+	return _u
+}
+
 // Mutation returns the AuditLogMutation object of the builder.
 func (_u *AuditLogUpdateOne) Mutation() *AuditLogMutation {
 	return _u.mutation
@@ -1021,6 +1084,15 @@ func (_u *AuditLogUpdateOne) sqlSave(ctx context.Context) (_node *AuditLog, err 
 	}
 	if _u.mutation.SourceCleared() {
 		_spec.ClearField(auditlog.FieldSource, field.TypeString)
+	}
+	if value, ok := _u.mutation.TokenID(); ok {
+		_spec.SetField(auditlog.FieldTokenID, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.AddedTokenID(); ok {
+		_spec.AddField(auditlog.FieldTokenID, field.TypeInt, value)
+	}
+	if _u.mutation.TokenIDCleared() {
+		_spec.ClearField(auditlog.FieldTokenID, field.TypeInt)
 	}
 	_node = &AuditLog{config: _u.config}
 	_spec.Assign = _node.assignValues

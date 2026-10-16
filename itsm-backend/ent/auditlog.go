@@ -47,8 +47,10 @@ type AuditLog struct {
 	TargetTenantID int `json:"target_tenant_id,omitempty"`
 	// 跨租户账号治理的目标用户（TUM-3）；NULL=legacy/非用户维度
 	TargetUserID int `json:"target_user_id,omitempty"`
-	// login|switch|header|workbench|platform_selected|job|system；NULL=legacy
-	Source       string `json:"source,omitempty"`
+	// login|switch|header|workbench|platform_selected|job|system|pat；NULL=legacy
+	Source string `json:"source,omitempty"`
+	// PAT 归因（source=pat 时非空）；NULL=非令牌请求
+	TokenID      int `json:"token_id,omitempty"`
 	selectValues sql.SelectValues
 }
 
@@ -57,7 +59,7 @@ func (*AuditLog) scanValues(columns []string) ([]any, error) {
 	values := make([]any, len(columns))
 	for i := range columns {
 		switch columns[i] {
-		case auditlog.FieldID, auditlog.FieldTenantID, auditlog.FieldUserID, auditlog.FieldStatusCode, auditlog.FieldMembershipID, auditlog.FieldTargetTenantID, auditlog.FieldTargetUserID:
+		case auditlog.FieldID, auditlog.FieldTenantID, auditlog.FieldUserID, auditlog.FieldStatusCode, auditlog.FieldMembershipID, auditlog.FieldTargetTenantID, auditlog.FieldTargetUserID, auditlog.FieldTokenID:
 			values[i] = new(sql.NullInt64)
 		case auditlog.FieldRequestID, auditlog.FieldIP, auditlog.FieldResource, auditlog.FieldAction, auditlog.FieldPath, auditlog.FieldMethod, auditlog.FieldRequestBody, auditlog.FieldActorAccount, auditlog.FieldSource:
 			values[i] = new(sql.NullString)
@@ -181,6 +183,12 @@ func (_m *AuditLog) assignValues(columns []string, values []any) error {
 			} else if value.Valid {
 				_m.Source = value.String
 			}
+		case auditlog.FieldTokenID:
+			if value, ok := values[i].(*sql.NullInt64); !ok {
+				return fmt.Errorf("unexpected type %T for field token_id", values[i])
+			} else if value.Valid {
+				_m.TokenID = int(value.Int64)
+			}
 		default:
 			_m.selectValues.Set(columns[i], values[i])
 		}
@@ -266,6 +274,9 @@ func (_m *AuditLog) String() string {
 	builder.WriteString(", ")
 	builder.WriteString("source=")
 	builder.WriteString(_m.Source)
+	builder.WriteString(", ")
+	builder.WriteString("token_id=")
+	builder.WriteString(fmt.Sprintf("%v", _m.TokenID))
 	builder.WriteByte(')')
 	return builder.String()
 }

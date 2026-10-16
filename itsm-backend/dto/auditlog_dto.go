@@ -25,6 +25,8 @@ type AuditLog struct {
 	// TUM-3：账号治理的目标用户（平台动作按用户时间线）。
 	TargetUserID *int   `json:"targetUserId,omitempty"`
 	Source       string `json:"source,omitempty"`
+	// PAT 归因（D-PAT-9）：source=pat 的行携带被使用的令牌 ID。
+	TokenID *int `json:"tokenId,omitempty"`
 }
 
 // ListAuditLogsRequest 审计日志查询请求参数
@@ -46,6 +48,8 @@ type ListAuditLogsRequest struct {
 	// TUM-3：按目标用户过滤（用户治理时间线）。
 	TargetUserID *int   `form:"targetUserId"`
 	Source       string `form:"source"`
+	// PAT 归因过滤（D-PAT-9）。
+	TokenID *int `form:"tokenId"`
 }
 
 // ListAuditLogsResponse 审计日志查询响应结构

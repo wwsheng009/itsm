@@ -98,6 +98,7 @@ import (
 	"itsm-backend/ent/passwordresettoken"
 	"itsm-backend/ent/permission"
 	"itsm-backend/ent/permissiondefinition"
+	"itsm-backend/ent/personalaccesstoken"
 	"itsm-backend/ent/problem"
 	"itsm-backend/ent/processapprovaldecision"
 	"itsm-backend/ent/processauditlog"
@@ -352,6 +353,8 @@ type Client struct {
 	Permission *PermissionClient
 	// PermissionDefinition is the client for interacting with the PermissionDefinition builders.
 	PermissionDefinition *PermissionDefinitionClient
+	// PersonalAccessToken is the client for interacting with the PersonalAccessToken builders.
+	PersonalAccessToken *PersonalAccessTokenClient
 	// Problem is the client for interacting with the Problem builders.
 	Problem *ProblemClient
 	// ProcessApprovalDecision is the client for interacting with the ProcessApprovalDecision builders.
@@ -586,6 +589,7 @@ func (c *Client) init() {
 	c.PasswordResetToken = NewPasswordResetTokenClient(c.config)
 	c.Permission = NewPermissionClient(c.config)
 	c.PermissionDefinition = NewPermissionDefinitionClient(c.config)
+	c.PersonalAccessToken = NewPersonalAccessTokenClient(c.config)
 	c.Problem = NewProblemClient(c.config)
 	c.ProcessApprovalDecision = NewProcessApprovalDecisionClient(c.config)
 	c.ProcessAuditLog = NewProcessAuditLogClient(c.config)
@@ -833,6 +837,7 @@ func (c *Client) Tx(ctx context.Context) (*Tx, error) {
 		PasswordResetToken:          NewPasswordResetTokenClient(cfg),
 		Permission:                  NewPermissionClient(cfg),
 		PermissionDefinition:        NewPermissionDefinitionClient(cfg),
+		PersonalAccessToken:         NewPersonalAccessTokenClient(cfg),
 		Problem:                     NewProblemClient(cfg),
 		ProcessApprovalDecision:     NewProcessApprovalDecisionClient(cfg),
 		ProcessAuditLog:             NewProcessAuditLogClient(cfg),
@@ -1007,6 +1012,7 @@ func (c *Client) BeginTx(ctx context.Context, opts *sql.TxOptions) (*Tx, error) 
 		PasswordResetToken:          NewPasswordResetTokenClient(cfg),
 		Permission:                  NewPermissionClient(cfg),
 		PermissionDefinition:        NewPermissionDefinitionClient(cfg),
+		PersonalAccessToken:         NewPersonalAccessTokenClient(cfg),
 		Problem:                     NewProblemClient(cfg),
 		ProcessApprovalDecision:     NewProcessApprovalDecisionClient(cfg),
 		ProcessAuditLog:             NewProcessAuditLogClient(cfg),
@@ -1126,14 +1132,15 @@ func (c *Client) Use(hooks ...Hook) {
 		c.Microservice, c.Notification, c.NotificationDelivery,
 		c.NotificationPreference, c.OnCallSchedule, c.OnCallShift,
 		c.OperationalCommand, c.PasswordResetToken, c.Permission,
-		c.PermissionDefinition, c.Problem, c.ProcessApprovalDecision,
-		c.ProcessAuditLog, c.ProcessBinding, c.ProcessDefinition, c.ProcessDeployment,
-		c.ProcessExecutionHistory, c.ProcessInstance, c.ProcessTask, c.ProcessTimer,
-		c.ProcessVariable, c.ProcessVersionChangelog, c.Project, c.PromptTemplate,
-		c.ProvisioningTask, c.RelationshipType, c.Release, c.Role, c.RolePermission,
-		c.RootCauseAnalysis, c.SLAAlertHistory, c.SLAAlertRule, c.SLADefinition,
-		c.SLADefinitionGrant, c.SLAMetric, c.SLAPolicy, c.SLAViolation,
-		c.ServiceCatalog, c.ServiceCatalogItem, c.ServiceCustomer, c.ServiceRequest,
+		c.PermissionDefinition, c.PersonalAccessToken, c.Problem,
+		c.ProcessApprovalDecision, c.ProcessAuditLog, c.ProcessBinding,
+		c.ProcessDefinition, c.ProcessDeployment, c.ProcessExecutionHistory,
+		c.ProcessInstance, c.ProcessTask, c.ProcessTimer, c.ProcessVariable,
+		c.ProcessVersionChangelog, c.Project, c.PromptTemplate, c.ProvisioningTask,
+		c.RelationshipType, c.Release, c.Role, c.RolePermission, c.RootCauseAnalysis,
+		c.SLAAlertHistory, c.SLAAlertRule, c.SLADefinition, c.SLADefinitionGrant,
+		c.SLAMetric, c.SLAPolicy, c.SLAViolation, c.ServiceCatalog,
+		c.ServiceCatalogItem, c.ServiceCustomer, c.ServiceRequest,
 		c.ServiceRequestApproval, c.SourceOrganization, c.StandardChange,
 		c.SupportContract, c.Survey, c.SurveyResponse, c.SystemConfig, c.Tag, c.Team,
 		c.Tenant, c.TenantInstallation, c.Ticket, c.TicketApproval,
@@ -1174,14 +1181,15 @@ func (c *Client) Intercept(interceptors ...Interceptor) {
 		c.Microservice, c.Notification, c.NotificationDelivery,
 		c.NotificationPreference, c.OnCallSchedule, c.OnCallShift,
 		c.OperationalCommand, c.PasswordResetToken, c.Permission,
-		c.PermissionDefinition, c.Problem, c.ProcessApprovalDecision,
-		c.ProcessAuditLog, c.ProcessBinding, c.ProcessDefinition, c.ProcessDeployment,
-		c.ProcessExecutionHistory, c.ProcessInstance, c.ProcessTask, c.ProcessTimer,
-		c.ProcessVariable, c.ProcessVersionChangelog, c.Project, c.PromptTemplate,
-		c.ProvisioningTask, c.RelationshipType, c.Release, c.Role, c.RolePermission,
-		c.RootCauseAnalysis, c.SLAAlertHistory, c.SLAAlertRule, c.SLADefinition,
-		c.SLADefinitionGrant, c.SLAMetric, c.SLAPolicy, c.SLAViolation,
-		c.ServiceCatalog, c.ServiceCatalogItem, c.ServiceCustomer, c.ServiceRequest,
+		c.PermissionDefinition, c.PersonalAccessToken, c.Problem,
+		c.ProcessApprovalDecision, c.ProcessAuditLog, c.ProcessBinding,
+		c.ProcessDefinition, c.ProcessDeployment, c.ProcessExecutionHistory,
+		c.ProcessInstance, c.ProcessTask, c.ProcessTimer, c.ProcessVariable,
+		c.ProcessVersionChangelog, c.Project, c.PromptTemplate, c.ProvisioningTask,
+		c.RelationshipType, c.Release, c.Role, c.RolePermission, c.RootCauseAnalysis,
+		c.SLAAlertHistory, c.SLAAlertRule, c.SLADefinition, c.SLADefinitionGrant,
+		c.SLAMetric, c.SLAPolicy, c.SLAViolation, c.ServiceCatalog,
+		c.ServiceCatalogItem, c.ServiceCustomer, c.ServiceRequest,
 		c.ServiceRequestApproval, c.SourceOrganization, c.StandardChange,
 		c.SupportContract, c.Survey, c.SurveyResponse, c.SystemConfig, c.Tag, c.Team,
 		c.Tenant, c.TenantInstallation, c.Ticket, c.TicketApproval,
@@ -1373,6 +1381,8 @@ func (c *Client) Mutate(ctx context.Context, m Mutation) (Value, error) {
 		return c.Permission.mutate(ctx, m)
 	case *PermissionDefinitionMutation:
 		return c.PermissionDefinition.mutate(ctx, m)
+	case *PersonalAccessTokenMutation:
+		return c.PersonalAccessToken.mutate(ctx, m)
 	case *ProblemMutation:
 		return c.Problem.mutate(ctx, m)
 	case *ProcessApprovalDecisionMutation:
@@ -15165,6 +15175,139 @@ func (c *PermissionDefinitionClient) mutate(ctx context.Context, m *PermissionDe
 	}
 }
 
+// PersonalAccessTokenClient is a client for the PersonalAccessToken schema.
+type PersonalAccessTokenClient struct {
+	config
+}
+
+// NewPersonalAccessTokenClient returns a client for the PersonalAccessToken from the given config.
+func NewPersonalAccessTokenClient(c config) *PersonalAccessTokenClient {
+	return &PersonalAccessTokenClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `personalaccesstoken.Hooks(f(g(h())))`.
+func (c *PersonalAccessTokenClient) Use(hooks ...Hook) {
+	c.hooks.PersonalAccessToken = append(c.hooks.PersonalAccessToken, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `personalaccesstoken.Intercept(f(g(h())))`.
+func (c *PersonalAccessTokenClient) Intercept(interceptors ...Interceptor) {
+	c.inters.PersonalAccessToken = append(c.inters.PersonalAccessToken, interceptors...)
+}
+
+// Create returns a builder for creating a PersonalAccessToken entity.
+func (c *PersonalAccessTokenClient) Create() *PersonalAccessTokenCreate {
+	mutation := newPersonalAccessTokenMutation(c.config, OpCreate)
+	return &PersonalAccessTokenCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of PersonalAccessToken entities.
+func (c *PersonalAccessTokenClient) CreateBulk(builders ...*PersonalAccessTokenCreate) *PersonalAccessTokenCreateBulk {
+	return &PersonalAccessTokenCreateBulk{config: c.config, builders: builders}
+}
+
+// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
+// a builder and applies setFunc on it.
+func (c *PersonalAccessTokenClient) MapCreateBulk(slice any, setFunc func(*PersonalAccessTokenCreate, int)) *PersonalAccessTokenCreateBulk {
+	rv := reflect.ValueOf(slice)
+	if rv.Kind() != reflect.Slice {
+		return &PersonalAccessTokenCreateBulk{err: fmt.Errorf("calling to PersonalAccessTokenClient.MapCreateBulk with wrong type %T, need slice", slice)}
+	}
+	builders := make([]*PersonalAccessTokenCreate, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		builders[i] = c.Create()
+		setFunc(builders[i], i)
+	}
+	return &PersonalAccessTokenCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for PersonalAccessToken.
+func (c *PersonalAccessTokenClient) Update() *PersonalAccessTokenUpdate {
+	mutation := newPersonalAccessTokenMutation(c.config, OpUpdate)
+	return &PersonalAccessTokenUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *PersonalAccessTokenClient) UpdateOne(_m *PersonalAccessToken) *PersonalAccessTokenUpdateOne {
+	mutation := newPersonalAccessTokenMutation(c.config, OpUpdateOne, withPersonalAccessToken(_m))
+	return &PersonalAccessTokenUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *PersonalAccessTokenClient) UpdateOneID(id int) *PersonalAccessTokenUpdateOne {
+	mutation := newPersonalAccessTokenMutation(c.config, OpUpdateOne, withPersonalAccessTokenID(id))
+	return &PersonalAccessTokenUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for PersonalAccessToken.
+func (c *PersonalAccessTokenClient) Delete() *PersonalAccessTokenDelete {
+	mutation := newPersonalAccessTokenMutation(c.config, OpDelete)
+	return &PersonalAccessTokenDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *PersonalAccessTokenClient) DeleteOne(_m *PersonalAccessToken) *PersonalAccessTokenDeleteOne {
+	return c.DeleteOneID(_m.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *PersonalAccessTokenClient) DeleteOneID(id int) *PersonalAccessTokenDeleteOne {
+	builder := c.Delete().Where(personalaccesstoken.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &PersonalAccessTokenDeleteOne{builder}
+}
+
+// Query returns a query builder for PersonalAccessToken.
+func (c *PersonalAccessTokenClient) Query() *PersonalAccessTokenQuery {
+	return &PersonalAccessTokenQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypePersonalAccessToken},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a PersonalAccessToken entity by its id.
+func (c *PersonalAccessTokenClient) Get(ctx context.Context, id int) (*PersonalAccessToken, error) {
+	return c.Query().Where(personalaccesstoken.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *PersonalAccessTokenClient) GetX(ctx context.Context, id int) *PersonalAccessToken {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// Hooks returns the client hooks.
+func (c *PersonalAccessTokenClient) Hooks() []Hook {
+	return c.hooks.PersonalAccessToken
+}
+
+// Interceptors returns the client interceptors.
+func (c *PersonalAccessTokenClient) Interceptors() []Interceptor {
+	return c.inters.PersonalAccessToken
+}
+
+func (c *PersonalAccessTokenClient) mutate(ctx context.Context, m *PersonalAccessTokenMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&PersonalAccessTokenCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&PersonalAccessTokenUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&PersonalAccessTokenUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&PersonalAccessTokenDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("ent: unknown PersonalAccessToken mutation op: %q", m.Op())
+	}
+}
+
 // ProblemClient is a client for the Problem schema.
 type ProblemClient struct {
 	config
@@ -26470,10 +26613,10 @@ type (
 		MSPAllocation, MSPContract, MSPContractSLABinding, MarketplaceItem, Menu,
 		Message, Microservice, Notification, NotificationDelivery,
 		NotificationPreference, OnCallSchedule, OnCallShift, OperationalCommand,
-		PasswordResetToken, Permission, PermissionDefinition, Problem,
-		ProcessApprovalDecision, ProcessAuditLog, ProcessBinding, ProcessDefinition,
-		ProcessDeployment, ProcessExecutionHistory, ProcessInstance, ProcessTask,
-		ProcessTimer, ProcessVariable, ProcessVersionChangelog, Project,
+		PasswordResetToken, Permission, PermissionDefinition, PersonalAccessToken,
+		Problem, ProcessApprovalDecision, ProcessAuditLog, ProcessBinding,
+		ProcessDefinition, ProcessDeployment, ProcessExecutionHistory, ProcessInstance,
+		ProcessTask, ProcessTimer, ProcessVariable, ProcessVersionChangelog, Project,
 		PromptTemplate, ProvisioningTask, RelationshipType, Release, Role,
 		RolePermission, RootCauseAnalysis, SLAAlertHistory, SLAAlertRule,
 		SLADefinition, SLADefinitionGrant, SLAMetric, SLAPolicy, SLAViolation,
@@ -26506,10 +26649,10 @@ type (
 		MSPAllocation, MSPContract, MSPContractSLABinding, MarketplaceItem, Menu,
 		Message, Microservice, Notification, NotificationDelivery,
 		NotificationPreference, OnCallSchedule, OnCallShift, OperationalCommand,
-		PasswordResetToken, Permission, PermissionDefinition, Problem,
-		ProcessApprovalDecision, ProcessAuditLog, ProcessBinding, ProcessDefinition,
-		ProcessDeployment, ProcessExecutionHistory, ProcessInstance, ProcessTask,
-		ProcessTimer, ProcessVariable, ProcessVersionChangelog, Project,
+		PasswordResetToken, Permission, PermissionDefinition, PersonalAccessToken,
+		Problem, ProcessApprovalDecision, ProcessAuditLog, ProcessBinding,
+		ProcessDefinition, ProcessDeployment, ProcessExecutionHistory, ProcessInstance,
+		ProcessTask, ProcessTimer, ProcessVariable, ProcessVersionChangelog, Project,
 		PromptTemplate, ProvisioningTask, RelationshipType, Release, Role,
 		RolePermission, RootCauseAnalysis, SLAAlertHistory, SLAAlertRule,
 		SLADefinition, SLADefinitionGrant, SLAMetric, SLAPolicy, SLAViolation,

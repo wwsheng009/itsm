@@ -90,6 +90,7 @@ import (
 	"itsm-backend/ent/passwordresettoken"
 	"itsm-backend/ent/permission"
 	"itsm-backend/ent/permissiondefinition"
+	"itsm-backend/ent/personalaccesstoken"
 	"itsm-backend/ent/problem"
 	"itsm-backend/ent/processapprovaldecision"
 	"itsm-backend/ent/processauditlog"
@@ -4021,6 +4022,96 @@ func init() {
 	permissiondefinitionDescAction := permissiondefinitionFields[1].Descriptor()
 	// permissiondefinition.ActionValidator is a validator for the "action" field. It is called by the builders before save.
 	permissiondefinition.ActionValidator = permissiondefinitionDescAction.Validators[0].(func(string) error)
+	personalaccesstokenFields := schema.PersonalAccessToken{}.Fields()
+	_ = personalaccesstokenFields
+	// personalaccesstokenDescUserID is the schema descriptor for user_id field.
+	personalaccesstokenDescUserID := personalaccesstokenFields[0].Descriptor()
+	// personalaccesstoken.UserIDValidator is a validator for the "user_id" field. It is called by the builders before save.
+	personalaccesstoken.UserIDValidator = personalaccesstokenDescUserID.Validators[0].(func(int) error)
+	// personalaccesstokenDescTenantID is the schema descriptor for tenant_id field.
+	personalaccesstokenDescTenantID := personalaccesstokenFields[1].Descriptor()
+	// personalaccesstoken.TenantIDValidator is a validator for the "tenant_id" field. It is called by the builders before save.
+	personalaccesstoken.TenantIDValidator = personalaccesstokenDescTenantID.Validators[0].(func(int) error)
+	// personalaccesstokenDescName is the schema descriptor for name field.
+	personalaccesstokenDescName := personalaccesstokenFields[2].Descriptor()
+	// personalaccesstoken.NameValidator is a validator for the "name" field. It is called by the builders before save.
+	personalaccesstoken.NameValidator = func() func(string) error {
+		validators := personalaccesstokenDescName.Validators
+		fns := [...]func(string) error{
+			validators[0].(func(string) error),
+			validators[1].(func(string) error),
+		}
+		return func(name string) error {
+			for _, fn := range fns {
+				if err := fn(name); err != nil {
+					return err
+				}
+			}
+			return nil
+		}
+	}()
+	// personalaccesstokenDescDescription is the schema descriptor for description field.
+	personalaccesstokenDescDescription := personalaccesstokenFields[3].Descriptor()
+	// personalaccesstoken.DescriptionValidator is a validator for the "description" field. It is called by the builders before save.
+	personalaccesstoken.DescriptionValidator = personalaccesstokenDescDescription.Validators[0].(func(string) error)
+	// personalaccesstokenDescTokenHash is the schema descriptor for token_hash field.
+	personalaccesstokenDescTokenHash := personalaccesstokenFields[4].Descriptor()
+	// personalaccesstoken.TokenHashValidator is a validator for the "token_hash" field. It is called by the builders before save.
+	personalaccesstoken.TokenHashValidator = func() func(string) error {
+		validators := personalaccesstokenDescTokenHash.Validators
+		fns := [...]func(string) error{
+			validators[0].(func(string) error),
+			validators[1].(func(string) error),
+		}
+		return func(token_hash string) error {
+			for _, fn := range fns {
+				if err := fn(token_hash); err != nil {
+					return err
+				}
+			}
+			return nil
+		}
+	}()
+	// personalaccesstokenDescTokenPrefix is the schema descriptor for token_prefix field.
+	personalaccesstokenDescTokenPrefix := personalaccesstokenFields[5].Descriptor()
+	// personalaccesstoken.TokenPrefixValidator is a validator for the "token_prefix" field. It is called by the builders before save.
+	personalaccesstoken.TokenPrefixValidator = func() func(string) error {
+		validators := personalaccesstokenDescTokenPrefix.Validators
+		fns := [...]func(string) error{
+			validators[0].(func(string) error),
+			validators[1].(func(string) error),
+		}
+		return func(token_prefix string) error {
+			for _, fn := range fns {
+				if err := fn(token_prefix); err != nil {
+					return err
+				}
+			}
+			return nil
+		}
+	}()
+	// personalaccesstokenDescLastUsedIP is the schema descriptor for last_used_ip field.
+	personalaccesstokenDescLastUsedIP := personalaccesstokenFields[8].Descriptor()
+	// personalaccesstoken.LastUsedIPValidator is a validator for the "last_used_ip" field. It is called by the builders before save.
+	personalaccesstoken.LastUsedIPValidator = personalaccesstokenDescLastUsedIP.Validators[0].(func(string) error)
+	// personalaccesstokenDescUseCount is the schema descriptor for use_count field.
+	personalaccesstokenDescUseCount := personalaccesstokenFields[9].Descriptor()
+	// personalaccesstoken.DefaultUseCount holds the default value on creation for the use_count field.
+	personalaccesstoken.DefaultUseCount = personalaccesstokenDescUseCount.Default.(int)
+	// personalaccesstokenDescRevokedReason is the schema descriptor for revoked_reason field.
+	personalaccesstokenDescRevokedReason := personalaccesstokenFields[11].Descriptor()
+	// personalaccesstoken.RevokedReasonValidator is a validator for the "revoked_reason" field. It is called by the builders before save.
+	personalaccesstoken.RevokedReasonValidator = personalaccesstokenDescRevokedReason.Validators[0].(func(string) error)
+	// personalaccesstokenDescCreatedAt is the schema descriptor for created_at field.
+	personalaccesstokenDescCreatedAt := personalaccesstokenFields[13].Descriptor()
+	// personalaccesstoken.DefaultCreatedAt holds the default value on creation for the created_at field.
+	personalaccesstoken.DefaultCreatedAt = personalaccesstokenDescCreatedAt.Default.(func() time.Time)
+	// personalaccesstokenDescUpdatedAt is the schema descriptor for updated_at field.
+	personalaccesstokenDescUpdatedAt := personalaccesstokenFields[14].Descriptor()
+	// personalaccesstoken.DefaultUpdatedAt holds the default value on creation for the updated_at field.
+	personalaccesstoken.DefaultUpdatedAt = personalaccesstokenDescUpdatedAt.Default.(func() time.Time)
+	// personalaccesstoken.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
+	personalaccesstoken.UpdateDefaultUpdatedAt = personalaccesstokenDescUpdatedAt.UpdateDefault.(func() time.Time)
 	problemFields := schema.Problem{}.Fields()
 	_ = problemFields
 	// problemDescProblemNumber is the schema descriptor for problem_number field.

@@ -228,6 +228,20 @@ func (_c *AuditLogCreate) SetNillableSource(v *string) *AuditLogCreate {
 	return _c
 }
 
+// SetTokenID sets the "token_id" field.
+func (_c *AuditLogCreate) SetTokenID(v int) *AuditLogCreate {
+	_c.mutation.SetTokenID(v)
+	return _c
+}
+
+// SetNillableTokenID sets the "token_id" field if the given value is not nil.
+func (_c *AuditLogCreate) SetNillableTokenID(v *int) *AuditLogCreate {
+	if v != nil {
+		_c.SetTokenID(*v)
+	}
+	return _c
+}
+
 // Mutation returns the AuditLogMutation object of the builder.
 func (_c *AuditLogCreate) Mutation() *AuditLogMutation {
 	return _c.mutation
@@ -407,6 +421,10 @@ func (_c *AuditLogCreate) createSpec() (*AuditLog, *sqlgraph.CreateSpec) {
 	if value, ok := _c.mutation.Source(); ok {
 		_spec.SetField(auditlog.FieldSource, field.TypeString, value)
 		_node.Source = value
+	}
+	if value, ok := _c.mutation.TokenID(); ok {
+		_spec.SetField(auditlog.FieldTokenID, field.TypeInt, value)
+		_node.TokenID = value
 	}
 	return _node, _spec
 }

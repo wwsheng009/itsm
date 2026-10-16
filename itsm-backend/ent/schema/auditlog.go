@@ -31,7 +31,8 @@ func (AuditLog) Fields() []ent.Field {
 		field.Int("membership_id").Optional().Comment("P1 membership 表落地后填充（IP-P0-1/3）"),
 		field.Int("target_tenant_id").Optional().Comment("跨租户操作的目标租户；同租户时等于 tenant_id"),
 		field.Int("target_user_id").Optional().Comment("跨租户账号治理的目标用户（TUM-3）；NULL=legacy/非用户维度"),
-		field.String("source").Optional().MaxLen(32).Comment("login|switch|header|workbench|platform_selected|job|system；NULL=legacy"),
+		field.String("source").Optional().MaxLen(32).Comment("login|switch|header|workbench|platform_selected|job|system|pat；NULL=legacy"),
+		field.Int("token_id").Optional().Comment("PAT 归因（source=pat 时非空）；NULL=非令牌请求"),
 	}
 }
 

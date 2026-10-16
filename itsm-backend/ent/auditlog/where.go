@@ -134,6 +134,11 @@ func Source(v string) predicate.AuditLog {
 	return predicate.AuditLog(sql.FieldEQ(FieldSource, v))
 }
 
+// TokenID applies equality check predicate on the "token_id" field. It's identical to TokenIDEQ.
+func TokenID(v int) predicate.AuditLog {
+	return predicate.AuditLog(sql.FieldEQ(FieldTokenID, v))
+}
+
 // CreatedAtEQ applies the EQ predicate on the "created_at" field.
 func CreatedAtEQ(v time.Time) predicate.AuditLog {
 	return predicate.AuditLog(sql.FieldEQ(FieldCreatedAt, v))
@@ -1087,6 +1092,56 @@ func SourceEqualFold(v string) predicate.AuditLog {
 // SourceContainsFold applies the ContainsFold predicate on the "source" field.
 func SourceContainsFold(v string) predicate.AuditLog {
 	return predicate.AuditLog(sql.FieldContainsFold(FieldSource, v))
+}
+
+// TokenIDEQ applies the EQ predicate on the "token_id" field.
+func TokenIDEQ(v int) predicate.AuditLog {
+	return predicate.AuditLog(sql.FieldEQ(FieldTokenID, v))
+}
+
+// TokenIDNEQ applies the NEQ predicate on the "token_id" field.
+func TokenIDNEQ(v int) predicate.AuditLog {
+	return predicate.AuditLog(sql.FieldNEQ(FieldTokenID, v))
+}
+
+// TokenIDIn applies the In predicate on the "token_id" field.
+func TokenIDIn(vs ...int) predicate.AuditLog {
+	return predicate.AuditLog(sql.FieldIn(FieldTokenID, vs...))
+}
+
+// TokenIDNotIn applies the NotIn predicate on the "token_id" field.
+func TokenIDNotIn(vs ...int) predicate.AuditLog {
+	return predicate.AuditLog(sql.FieldNotIn(FieldTokenID, vs...))
+}
+
+// TokenIDGT applies the GT predicate on the "token_id" field.
+func TokenIDGT(v int) predicate.AuditLog {
+	return predicate.AuditLog(sql.FieldGT(FieldTokenID, v))
+}
+
+// TokenIDGTE applies the GTE predicate on the "token_id" field.
+func TokenIDGTE(v int) predicate.AuditLog {
+	return predicate.AuditLog(sql.FieldGTE(FieldTokenID, v))
+}
+
+// TokenIDLT applies the LT predicate on the "token_id" field.
+func TokenIDLT(v int) predicate.AuditLog {
+	return predicate.AuditLog(sql.FieldLT(FieldTokenID, v))
+}
+
+// TokenIDLTE applies the LTE predicate on the "token_id" field.
+func TokenIDLTE(v int) predicate.AuditLog {
+	return predicate.AuditLog(sql.FieldLTE(FieldTokenID, v))
+}
+
+// TokenIDIsNil applies the IsNil predicate on the "token_id" field.
+func TokenIDIsNil() predicate.AuditLog {
+	return predicate.AuditLog(sql.FieldIsNull(FieldTokenID))
+}
+
+// TokenIDNotNil applies the NotNil predicate on the "token_id" field.
+func TokenIDNotNil() predicate.AuditLog {
+	return predicate.AuditLog(sql.FieldNotNull(FieldTokenID))
 }
 
 // And groups predicates with the AND operator between them.

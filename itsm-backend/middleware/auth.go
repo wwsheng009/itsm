@@ -2,6 +2,7 @@ package middleware
 
 import (
 	"fmt"
+	"net/http"
 	"strings"
 	"time"
 
@@ -184,6 +185,61 @@ func AuthMiddleware(jwtSecret string) gin.HandlerFunc {
 			"path", c.Request.URL.Path,
 			"token_length", len(tokenString),
 		)
+
+		// —— PAT 分支（D-PAT-1）：必须在 JWT 解析之前（否则非 JWT 串会先被判 401）——
+		// 失败统一「token无效」，不区分不存在/已吊销/已过期（防枚举）。
+		// 日志只允许前缀（SafePATPrefix），绝不打印完整明文。
+		if IsPATToken(tokenString) {
+			authn := currentPATAuthenticator()
+			if authn == nil {
+				// PAT 功能未启用：fail-closed
+				common.Fail(c, common.AuthFailedCode, "token无效")
+				c.Abort()
+				return
+			}
+			var identity *PATIdentity
+			var resolveErr error
+			if v2, isV2 := authn.(PATAuthenticatorV2); isV2 {
+				var allowed bool
+				identity, allowed, resolveErr = v2.Authenticate(c.Request.Context(), tokenString, c.ClientIP())
+				if resolveErr == nil && !allowed {
+					// 单令牌限流（R-3c）：429
+					c.AbortWithStatusJSON(http.StatusTooManyRequests, gin.H{
+						"code":    common.ParamErrorCode,
+						"message": "请求过于频繁，请稍后重试",
+					})
+					return
+				}
+			} else {
+				identity, resolveErr = authn.Resolve(c.Request.Context(), tokenString)
+			}
+			if resolveErr != nil || identity == nil {
+				zap.S().Warnw("AuthMiddleware: invalid personal access token",
+					"path", c.Request.URL.Path,
+					"token_prefix", SafePATPrefix(tokenString))
+				common.Fail(c, common.AuthFailedCode, "token无效")
+				c.Abort()
+				return
+			}
+			// 审计归因：必须在 AuditMiddleware 之前写入（读取点 middleware/audit.go auditSourceForRequest）
+			c.Set("audit_source", PATAuthSourcePAT)
+			c.Set(CtxKeyAuthTokenID, identity.TokenID)
+			c.Set(CtxKeyTokenPrefix, identity.TokenPrefix)
+			c.Set(CtxKeyTokenType, TokenTypePAT)
+			// 与 JWT 分支共用同一身份上下文契约（auth.go:269-273）
+			c.Set("user_id", identity.UserID)
+			c.Set("username", identity.Username)
+			c.Set("role", identity.Role)
+			c.Set("tenant_id", identity.TenantID)
+			c.Set("token", tokenString)
+			zap.S().Debugw("AuthMiddleware: PAT authentication successful",
+				"path", c.Request.URL.Path,
+				"user_id", identity.UserID,
+				"tenant_id", identity.TenantID,
+				"token_prefix", identity.TokenPrefix)
+			c.Next()
+			return
+		}
 
 		// 解析JWT token
 		token, err := jwt.ParseWithClaims(tokenString, &Claims{}, func(token *jwt.Token) (interface{}, error) {

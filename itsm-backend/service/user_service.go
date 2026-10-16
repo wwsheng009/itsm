@@ -11,6 +11,7 @@ import (
 	entrole "itsm-backend/ent/role"
 	"itsm-backend/ent/user"
 	"itsm-backend/ent/usertenantmembership"
+	"itsm-backend/handlers/pat"
 	"itsm-backend/middleware"
 	"itsm-backend/pkg/tenantmode"
 
@@ -597,6 +598,8 @@ func (s *UserService) DeleteUser(ctx context.Context, id int, tenantID int) erro
 	if revokeErr := middleware.InvalidateUserRefreshTokens(ctx, id, now); revokeErr != nil {
 		s.logger.Errorw("删除用户后吊销存量refresh token失败", "user_id", id, "error", revokeErr)
 	}
+	// PAT（D-PAT-6/R3）：删除用户 → 全部个人访问令牌吊销（security_event）。
+	pat.RevokeAllForUserByClient(ctx, s.client, s.logger, id)
 
 	s.logger.Infof("用户删除成功: ID=%d", id)
 	return nil
@@ -632,6 +635,8 @@ func (s *UserService) ChangeUserStatus(ctx context.Context, id int, active bool,
 			s.logger.Errorw("停用用户后吊销存量token失败", "user_id", id, "error", revokeErr)
 		} else {
 			s.logger.Infow("用户已停用，存量access token已吊销", "user_id", id)
+			// PAT（D-PAT-6/R3）：停用 → 全部个人访问令牌吊销（security_event）。
+			pat.RevokeAllForUserByClient(ctx, s.client, s.logger, id)
 		}
 	}
 
@@ -670,6 +675,8 @@ func (s *UserService) ResetPassword(ctx context.Context, id int, newPassword str
 	if revokeErr := middleware.InvalidateUserAccessTokens(ctx, id, time.Now()); revokeErr != nil {
 		s.logger.Errorw("密码重置后吊销存量token失败", "user_id", id, "error", revokeErr)
 	}
+	// PAT（D-PAT-6/R3）：密码重置 → 全部个人访问令牌吊销（security_event，Q1 决策）。
+	pat.RevokeAllForUserByClient(ctx, s.client, s.logger, id)
 
 	s.logger.Infof("用户密码重置成功: ID=%d", id)
 	return nil
@@ -777,6 +784,8 @@ func (s *UserService) BatchUpdateUsers(ctx context.Context, req *dto.BatchUpdate
 			if revokeErr := middleware.InvalidateUserAccessTokens(ctx, id, now); revokeErr != nil {
 				s.logger.Errorw("批量停用后吊销存量access token失败", "user_id", id, "error", revokeErr)
 			}
+			// PAT（D-PAT-6/R3）：批量停用 → 全部个人访问令牌吊销（security_event）。
+			pat.RevokeAllForUserByClient(ctx, s.client, s.logger, id)
 			if revokeErr := middleware.InvalidateUserRefreshTokens(ctx, id, now); revokeErr != nil {
 				s.logger.Errorw("批量停用后吊销存量refresh token失败", "user_id", id, "error", revokeErr)
 			}

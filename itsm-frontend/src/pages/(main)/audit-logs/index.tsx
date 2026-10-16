@@ -30,6 +30,23 @@ const METHOD_COLORS: Record<string, string> = {
   DELETE: 'red',
 };
 
+// 来源标签（PAT：docs/plan/personal-access-token-plan-2026-10-16.md §3.7）
+const SOURCE_META: Record<string, { color: string; label: string }> = {
+  login: { color: 'blue', label: '登录' },
+  switch: { color: 'geekblue', label: '切换' },
+  pat: { color: 'purple', label: '令牌' },
+  header: { color: 'cyan', label: '请求头' },
+  workbench: { color: 'gold', label: '工作台' },
+  job: { color: 'default', label: '后台任务' },
+  system: { color: 'default', label: '系统' },
+  legacy: { color: 'default', label: '历史' },
+};
+
+const SOURCE_OPTIONS = ['login', 'switch', 'pat', 'header', 'workbench', 'job', 'system', 'legacy'].map((s) => ({
+  value: s,
+  label: SOURCE_META[s]?.label ?? s,
+}));
+
 const statusColor = (code: number): string => {
   if (code >= 500) return 'red';
   if (code >= 400) return 'orange';
@@ -56,6 +73,7 @@ const AuditLogsPage: React.FC = () => {
     method: undefined as string | undefined,
     statusCode: undefined as number | undefined,
     path: '',
+    source: undefined as string | undefined,
   });
   // 已生效的查询条件（点击“查询”后提交）
   const [appliedFilters, setAppliedFilters] = useState(filters);
@@ -72,6 +90,7 @@ const AuditLogsPage: React.FC = () => {
           method: query.method,
           statusCode: query.statusCode,
           path: query.path || undefined,
+          source: query.source,
         };
         const res = await listAuditLogs(params);
         setLogs(res.logs ?? []);
@@ -107,6 +126,7 @@ const AuditLogsPage: React.FC = () => {
       method: undefined,
       statusCode: undefined,
       path: '',
+      source: undefined,
     };
     setFilters(empty);
     setAppliedFilters(empty);
@@ -164,6 +184,23 @@ const AuditLogsPage: React.FC = () => {
       render: (v: string) => (
         <Tag color={METHOD_COLORS[v] ?? 'default'}>{v}</Tag>
       ),
+    },
+    {
+      title: '来源',
+      dataIndex: 'source',
+      key: 'source',
+      width: 90,
+      render: (v?: string) => {
+        const meta = SOURCE_META[v ?? 'legacy'] ?? SOURCE_META.legacy;
+        return <Tag color={meta.color}>{meta.label}</Tag>;
+      },
+    },
+    {
+      title: '令牌',
+      dataIndex: 'tokenId',
+      key: 'tokenId',
+      width: 80,
+      render: (v?: number) => (v ? <Text code>{`#${v}`}</Text> : '-'),
     },
     {
       title: '状态码',
@@ -237,6 +274,14 @@ const AuditLogsPage: React.FC = () => {
               value: c,
               label: String(c),
             }))}
+          />
+          <Select
+            placeholder="来源"
+            allowClear
+            style={{ width: 110 }}
+            value={filters.source}
+            onChange={(v) => setFilters({ ...filters, source: v })}
+            options={SOURCE_OPTIONS}
           />
           <Button type="primary" icon={<Search className="w-4 h-4" />} onClick={handleSearch}>
             查询

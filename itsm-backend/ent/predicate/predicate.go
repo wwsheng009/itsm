@@ -267,6 +267,9 @@ type Permission func(*sql.Selector)
 // PermissionDefinition is the predicate function for permissiondefinition builders.
 type PermissionDefinition func(*sql.Selector)
 
+// PersonalAccessToken is the predicate function for personalaccesstoken builders.
+type PersonalAccessToken func(*sql.Selector)
+
 // Problem is the predicate function for problem builders.
 type Problem func(*sql.Selector)
 

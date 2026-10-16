@@ -25,6 +25,7 @@ import (
 	assignmentSmartHandler "itsm-backend/handlers/assignment_smart"
 	attachmentHandler "itsm-backend/handlers/attachment"
 	auditlogHandler "itsm-backend/handlers/auditlog"
+	"itsm-backend/handlers/pat"
 	authHandler "itsm-backend/handlers/auth"
 	automationRuleHandler "itsm-backend/handlers/automation_rule"
 	bpmnHandler "itsm-backend/handlers/bpmn"
@@ -133,6 +134,9 @@ type RouterConfig struct {
 
 	// CSRF configuration
 	CSRFEnabled bool
+
+	// PAT（个人访问令牌）管理面 handler；nil 时整组路由不注册（既有约定）。
+	PATHandler *pat.Handler
 
 	// Redis rate limiter (optional - uses memory fallback if nil)
 	RedisRateLimiter RateLimiterInterface
@@ -644,7 +648,9 @@ func SetupRoutes(r *gin.Engine, config *RouterConfig) {
 		}
 
 		// ==================== Common & System (DDD) ====================
-		if config.CommonHandler != nil {
+		// PAT 管理面（authGrp 自省面）在本函数内独立于 CommonHandler 注册：
+		// PATHandler 非 nil 即需调用（内部各自 nil-guard）。
+		if config.CommonHandler != nil || config.PATHandler != nil {
 			SetupCommonSystemRoutes(r, tenant.(*gin.RouterGroup), config)
 		}
 

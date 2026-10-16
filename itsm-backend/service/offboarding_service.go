@@ -13,6 +13,7 @@ import (
 	"itsm-backend/common/tenantctx"
 	"itsm-backend/ent"
 	"itsm-backend/ent/user"
+	"itsm-backend/handlers/pat"
 	"itsm-backend/middleware"
 )
 
@@ -105,6 +106,8 @@ func (s *OffboardingService) OffboardUser(ctx context.Context, userID, homeTenan
 	if err := middleware.InvalidateUserRefreshTokens(ctx, userID, now); err != nil {
 		s.logger.Warnw("offboard: refresh token invalidation failed", "error", err, "user_id", userID)
 	}
+	// PAT（D-PAT-6/R3）：离职编排 → 全部个人访问令牌吊销（security_event）。
+	pat.RevokeAllForUserByClient(ctx, s.client, s.logger, userID)
 
 	// ② 撤销全部分配（逐条幂等；失败不阻断，计入 pending 并告警——巡检兜底）。
 	if s.allocations != nil {

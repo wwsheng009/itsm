@@ -91,6 +91,19 @@ deployment:
 security:
   csrf_enabled: ${CSRF_ENABLED:false}
 
+# 个人访问令牌（PAT，Personal Access Token）
+# 见 docs/plan/personal-access-token-plan-2026-10-16.md §3.12。
+# 注意：enabled 代码默认 true，但生产/演示 env 首轮显式置 false，端到端验收通过后再开启（灰度）。
+pat:
+  enabled: ${PAT_ENABLED:true}                          # 总开关；关闭后 PAT 认证 401、管理面 404
+  default_ttl_days: ${PAT_DEFAULT_TTL_DAYS:90}          # 创建默认有效期（天）
+  max_ttl_days: ${PAT_MAX_TTL_DAYS:365}                 # 有效期上限（天）；禁止永不过期
+  max_active_per_user: ${PAT_MAX_ACTIVE_PER_USER:20}    # 单用户 active 令牌上限
+  usage_audit_mode: ${PAT_USAGE_AUDIT_MODE:dedupe}      # 使用行审计：dedupe | all | off
+  usage_audit_window_seconds: ${PAT_USAGE_AUDIT_WINDOW_SECONDS:60}  # 去重窗口（秒）
+  rate_limit_per_minute: ${PAT_RATE_LIMIT_PER_MINUTE:120} # 单令牌限流（次/分钟），0=不限
+  housekeeping_retention_days: ${PAT_HOUSEKEEPING_RETENTION_DAYS:180} # 过期令牌行清理保留期（天；0=默认180）
+
 # RLS controls PostgreSQL Row-Level Security enforcement tiers.
 # Default is "off" (zero risk — middleware still injects tenant_id into context).
 rls:

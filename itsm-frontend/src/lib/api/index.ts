@@ -153,6 +153,15 @@ export {
 export { PriorityMatrixApi } from './priority-matrix-api';
 export { TemplateApi } from './template-api';
 export { BPMNWorkflowTemplateApi } from './bpmn-workflow-template-api';
+export {
+  PersonalAccessTokenApi,
+  type PersonalAccessToken,
+  type CreateTokenRequest,
+  type CreateTokenResponse,
+  type UsagePage,
+  type SecurityEvent,
+  type EventPage,
+} from './personal-access-token-api';
 
 // ==================== 工具函数 ====================
 

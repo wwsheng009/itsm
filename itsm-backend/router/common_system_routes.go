@@ -12,10 +12,37 @@ import (
 // 从 router.go 的集中注册块抽取而来，路由路径/方法/中间件与抽取前逐行一致。
 // 需要 *gin.Engine 是因为 auth 子组挂在 /api/v1/auth（r 层）而非 tenant 层。
 func SetupCommonSystemRoutes(r *gin.Engine, tenant *gin.RouterGroup, config *RouterConfig) {
+	// PAT（个人访问令牌）管理面：身份自省面（仅 AuthMiddleware + 本人作用域）。
+	// 设计：docs/plan/personal-access-token-plan-2026-10-16.md §3.9/D-PAT-10/13。
+	// 独立注册（不依赖 CommonHandler）：PATHandler 非 nil 即注册（RouterConfig nil-guard 约定）。
+	// 必须直接以完整子路径注册（守卫扫描器以字面 path 参数构造豁免键）；
+	// 不可挂 auth 组（该组有 RBACMiddleware，自省面路径会被预检判 403）。
+	// authGrp 无组级 CSRF/Tenant 中间件 → 写路由按 CSRFEnabled 显式挂 CSRF + RejectPATAuth；
+	// 租户取值由 handler 读 c.GetInt("tenant_id")（AuthMiddleware 写入）。
+	if config.PATHandler != nil {
+		authGrp := r.Group("/api/v1/auth")
+		patAuth := middleware.AuthMiddleware(config.JWTSecret)
+		condCSRF := func() gin.HandlerFunc {
+			if config.CSRFEnabled {
+				return middleware.CSRFProtectionMiddleware(middleware.DefaultCSRFConfig())
+			}
+			return func(c *gin.Context) { c.Next() }
+		}
+		authGrp.GET("/personal-access-tokens", patAuth, config.PATHandler.List)
+		// 写路由：RejectPATAuth 防自我繁殖（D-PAT-13）；条件 CSRF（浏览器会话）。
+		authGrp.POST("/personal-access-tokens", patAuth, middleware.RejectPATAuth(), condCSRF(), config.PATHandler.Create)
+		authGrp.POST("/personal-access-tokens/revoke-all", patAuth, middleware.RejectPATAuth(), condCSRF(), config.PATHandler.RevokeAll)
+		authGrp.POST("/personal-access-tokens/:id/rotate", patAuth, middleware.RejectPATAuth(), condCSRF(), config.PATHandler.Rotate)
+		authGrp.POST("/personal-access-tokens/:id/revoke", patAuth, middleware.RejectPATAuth(), condCSRF(), config.PATHandler.Revoke)
+		authGrp.GET("/personal-access-tokens/:id/usages", patAuth, config.PATHandler.Usages)
+		authGrp.GET("/security-events", patAuth, config.PATHandler.SecurityEvents)
+	}
+
 	if config.CommonHandler != nil {
 		// Auth scoped
 		// 修复 P0：auth/me, auth/tenants, auth/menus 不应在 tenant 分组内
 		// 否则 tenant RBAC 中间件会拦截端用户，导致 layout 崩溃
+		// 注：PAT（个人访问令牌）管理面在本函数上方独立注册（PATHandler 非 nil 即注册）。
 		authGrp := r.Group("/api/v1/auth")
 		{
 			authGrp.GET("/me", middleware.AuthMiddleware(config.JWTSecret), config.CommonHandler.GetMe)

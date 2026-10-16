@@ -81,6 +81,17 @@ security:
   bcrypt_cost: 10
   csrf_enabled: true  # Enable CSRF protection (required for production)
 
+# 个人访问令牌（PAT，Personal Access Token）— docs/plan/personal-access-token-plan-2026-10-16.md §3.12
+pat:
+  enabled: ${PAT_ENABLED:true}                            # 总开关；生产/演示 env 首轮建议 false（灰度）
+  default_ttl_days: ${PAT_DEFAULT_TTL_DAYS:90}
+  max_ttl_days: ${PAT_MAX_TTL_DAYS:365}
+  max_active_per_user: ${PAT_MAX_ACTIVE_PER_USER:20}
+  usage_audit_mode: ${PAT_USAGE_AUDIT_MODE:dedupe}        # dedupe | all | off
+  usage_audit_window_seconds: ${PAT_USAGE_AUDIT_WINDOW_SECONDS:60}
+  rate_limit_per_minute: ${PAT_RATE_LIMIT_PER_MINUTE:120}
+  housekeeping_retention_days: ${PAT_HOUSEKEEPING_RETENTION_DAYS:180}
+
 # Admin user settings
 admin:
   username: "admin"

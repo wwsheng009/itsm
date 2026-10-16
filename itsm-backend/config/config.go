@@ -32,6 +32,7 @@ type Config struct {
 	MCP            MCPConfig            `mapstructure:"mcp"`
 	Bot            BotConfig            `mapstructure:"bot"`
 	Authz          AuthzConfig          `mapstructure:"authz"`
+	PAT            PATConfig            `mapstructure:"pat"`
 }
 
 // AttachmentConfig 是附件域的灰度开关（方案 §6.1 开关与回滚矩阵）。
@@ -405,6 +406,19 @@ type JWTConfig struct {
 	RefreshExpireTime int    `mapstructure:"refresh_expire_time"` // Refresh Token过期时间（如7天）
 }
 
+// PATConfig 个人访问令牌（Personal Access Token）配置。
+// 见 docs/plan/personal-access-token-plan-2026-10-16.md §3.12。
+type PATConfig struct {
+	Enabled                   bool   `mapstructure:"enabled"`                     // 总开关（env 文件首轮建议 false，验收后开启）
+	DefaultTTLDays            int    `mapstructure:"default_ttl_days"`            // 创建默认有效期（默认 90）
+	MaxTTLDays                int    `mapstructure:"max_ttl_days"`                // 有效期上限（默认 365，禁止永久）
+	MaxActivePerUser          int    `mapstructure:"max_active_per_user"`         // 单用户 active 上限（默认 20）
+	UsageAuditMode            string `mapstructure:"usage_audit_mode"`            // dedupe | all | off（默认 dedupe）
+	UsageAuditWindowSeconds   int    `mapstructure:"usage_audit_window_seconds"`  // 使用行去重窗口（默认 60）
+	RateLimitPerMinute        int    `mapstructure:"rate_limit_per_minute"`       // 单令牌限流（默认 120）
+	HousekeepingRetentionDays int    `mapstructure:"housekeeping_retention_days"` // 过期令牌行清理保留期（默认 180，T13）
+}
+
 type LogConfig struct {
 	Level                string `mapstructure:"level"`                  // 日志级别：debug, info, warn, error
 	Path                 string `mapstructure:"path"`                   // 日志文件目录
@@ -538,6 +552,7 @@ func LoadConfig() (*Config, error) {
 	viper.Set("mcp", rawConfig["mcp"])
 	viper.Set("bot", rawConfig["bot"])
 	viper.Set("authz", rawConfig["authz"])
+	viper.Set("pat", rawConfig["pat"])
 
 	// 重新绑定到 Config 结构
 	var config Config

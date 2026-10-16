@@ -16,6 +16,12 @@ export interface AuditLog {
   method: string;
   statusCode: number;
   requestBody: string;
+  // IP-P0-10 作用域扩展字段（后端 DTO 已返回，前端此前未声明）
+  source?: string; // login|switch|header|workbench|platform_selected|job|system|pat；缺失=legacy
+  actorAccount?: string;
+  targetTenantId?: number;
+  targetUserId?: number;
+  tokenId?: number; // PAT 归因（source=pat 时非空）
 }
 
 // 查询参数（对应后端 ListAuditLogsRequest）
@@ -31,6 +37,8 @@ export interface ListAuditLogsParams {
   requestId?: string;
   from?: string; // RFC3339
   to?: string; // RFC3339
+  source?: string; // 来源过滤（含 pat）
+  tokenId?: number; // PAT 归因过滤
 }
 
 // 响应结构（对应后端 ListAuditLogsResponse）
@@ -55,6 +63,8 @@ export async function listAuditLogs(params: ListAuditLogsParams): Promise<ListAu
   if (params.requestId) query.set('requestId', params.requestId);
   if (params.from) query.set('from', params.from);
   if (params.to) query.set('to', params.to);
+  if (params.source) query.set('source', params.source);
+  if (params.tokenId !== undefined) query.set('tokenId', String(params.tokenId));
 
   const endpoint = `/api/v1/audit-logs${query.toString() ? `?${query.toString()}` : ''}`;
   return await httpClient.get<ListAuditLogsResponse>(endpoint);

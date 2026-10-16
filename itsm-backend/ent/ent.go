@@ -93,6 +93,7 @@ import (
 	"itsm-backend/ent/passwordresettoken"
 	"itsm-backend/ent/permission"
 	"itsm-backend/ent/permissiondefinition"
+	"itsm-backend/ent/personalaccesstoken"
 	"itsm-backend/ent/problem"
 	"itsm-backend/ent/processapprovaldecision"
 	"itsm-backend/ent/processauditlog"
@@ -314,6 +315,7 @@ func checkColumn(t, c string) error {
 			passwordresettoken.Table:          passwordresettoken.ValidColumn,
 			permission.Table:                  permission.ValidColumn,
 			permissiondefinition.Table:        permissiondefinition.ValidColumn,
+			personalaccesstoken.Table:         personalaccesstoken.ValidColumn,
 			problem.Table:                     problem.ValidColumn,
 			processapprovaldecision.Table:     processapprovaldecision.ValidColumn,
 			processauditlog.Table:             processauditlog.ValidColumn,

@@ -46,6 +46,10 @@ var writeRouteExemptions = map[string]string{
 	"common_system_routes.go POST /change-password": "自助改密：授权依据是「已认证身份 + 持有旧密码」，不走资源动作权限",
 	"common_system_routes.go PUT /me":               "自助资料更新（IP-P1-6 补口）：授权依据是已认证身份 + 仅写本人 users 行（字段白名单），不接受路径参数",
 	"common_system_routes.go PUT /me/preferences":   "本人偏好（IP-P1-6c）：授权依据是已认证身份 + 仅写本人 users.preferences，不接受路径参数",
+	"common_system_routes.go POST /personal-access-tokens":            "个人访问令牌自助创建（PAT D-PAT-10）：授权依据=已认证身份 + 仅操作本人令牌；凭据发放动作不属资源动作权限",
+	"common_system_routes.go POST /personal-access-tokens/revoke-all": "个人访问令牌全部吊销（PAT D-PAT-10）：同上（仅本人令牌）",
+	"common_system_routes.go POST /personal-access-tokens/:id/rotate": "个人访问令牌自助轮换（PAT D-PAT-10）：同上（仅本人令牌）",
+	"common_system_routes.go POST /personal-access-tokens/:id/revoke": "个人访问令牌自助吊销（PAT D-PAT-10）：同上（仅本人令牌）",
 	"router.go POST /ws/ticket":                     "颁发一次性 WebSocket 票据，凭已认证身份且仅限本人会话",
 }
 

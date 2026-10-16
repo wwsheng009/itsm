@@ -45,6 +45,8 @@ const (
 	FieldTargetUserID = "target_user_id"
 	// FieldSource holds the string denoting the source field in the database.
 	FieldSource = "source"
+	// FieldTokenID holds the string denoting the token_id field in the database.
+	FieldTokenID = "token_id"
 	// Table holds the table name of the auditlog in the database.
 	Table = "audit_logs"
 )
@@ -68,6 +70,7 @@ var Columns = []string{
 	FieldTargetTenantID,
 	FieldTargetUserID,
 	FieldSource,
+	FieldTokenID,
 }
 
 // ValidColumn reports if the column name is valid (part of the table columns).
@@ -183,4 +186,9 @@ func ByTargetUserID(opts ...sql.OrderTermOption) OrderOption {
 // BySource orders the results by the source field.
 func BySource(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldSource, opts...).ToFunc()
+}
+
+// ByTokenID orders the results by the token_id field.
+func ByTokenID(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldTokenID, opts...).ToFunc()
 }

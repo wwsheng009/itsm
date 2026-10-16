@@ -75,6 +75,10 @@ func (s *AuditLogService) ListAuditLogs(ctx context.Context, req *dto.ListAuditL
 			q = q.Where(auditlog.SourceEQ(req.Source))
 		}
 	}
+	// PAT 归因过滤（D-PAT-9，实施 T7）。
+	if req.TokenID != nil {
+		q = q.Where(auditlog.TokenIDEQ(*req.TokenID))
+	}
 
 	// 时间范围过滤
 	if req.From != "" {
@@ -159,6 +163,10 @@ func (s *AuditLogService) ListAuditLogs(ctx context.Context, req *dto.ListAuditL
 		if it.TargetUserID > 0 {
 			target := it.TargetUserID
 			log.TargetUserID = &target
+		}
+		if it.TokenID > 0 {
+			tokenID := it.TokenID
+			log.TokenID = &tokenID
 		}
 		if it.UserID > 0 {
 			if name, ok := userNameMap[it.UserID]; ok {

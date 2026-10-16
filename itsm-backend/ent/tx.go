@@ -186,6 +186,8 @@ type Tx struct {
 	Permission *PermissionClient
 	// PermissionDefinition is the client for interacting with the PermissionDefinition builders.
 	PermissionDefinition *PermissionDefinitionClient
+	// PersonalAccessToken is the client for interacting with the PersonalAccessToken builders.
+	PersonalAccessToken *PersonalAccessTokenClient
 	// Problem is the client for interacting with the Problem builders.
 	Problem *ProblemClient
 	// ProcessApprovalDecision is the client for interacting with the ProcessApprovalDecision builders.
@@ -540,6 +542,7 @@ func (tx *Tx) init() {
 	tx.PasswordResetToken = NewPasswordResetTokenClient(tx.config)
 	tx.Permission = NewPermissionClient(tx.config)
 	tx.PermissionDefinition = NewPermissionDefinitionClient(tx.config)
+	tx.PersonalAccessToken = NewPersonalAccessTokenClient(tx.config)
 	tx.Problem = NewProblemClient(tx.config)
 	tx.ProcessApprovalDecision = NewProcessApprovalDecisionClient(tx.config)
 	tx.ProcessAuditLog = NewProcessAuditLogClient(tx.config)

@@ -374,6 +374,7 @@ var (
 		{Name: "target_tenant_id", Type: field.TypeInt, Nullable: true},
 		{Name: "target_user_id", Type: field.TypeInt, Nullable: true},
 		{Name: "source", Type: field.TypeString, Nullable: true, Size: 32},
+		{Name: "token_id", Type: field.TypeInt, Nullable: true},
 	}
 	// AuditLogsTable holds the schema information for the "audit_logs" table.
 	AuditLogsTable = &schema.Table{
@@ -3550,6 +3551,53 @@ var (
 		Name:       "permission_definitions",
 		Columns:    PermissionDefinitionsColumns,
 		PrimaryKey: []*schema.Column{PermissionDefinitionsColumns[0]},
+	}
+	// PersonalAccessTokensColumns holds the columns for the "personal_access_tokens" table.
+	PersonalAccessTokensColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeInt, Increment: true},
+		{Name: "user_id", Type: field.TypeInt},
+		{Name: "tenant_id", Type: field.TypeInt},
+		{Name: "name", Type: field.TypeString, Size: 64},
+		{Name: "description", Type: field.TypeString, Nullable: true, Size: 255},
+		{Name: "token_hash", Type: field.TypeString, Unique: true, Size: 64},
+		{Name: "token_prefix", Type: field.TypeString, Size: 24},
+		{Name: "expires_at", Type: field.TypeTime},
+		{Name: "last_used_at", Type: field.TypeTime, Nullable: true},
+		{Name: "last_used_ip", Type: field.TypeString, Nullable: true, Size: 64},
+		{Name: "use_count", Type: field.TypeInt, Default: 0},
+		{Name: "revoked_at", Type: field.TypeTime, Nullable: true},
+		{Name: "revoked_reason", Type: field.TypeString, Nullable: true, Size: 32},
+		{Name: "rotated_to_token_id", Type: field.TypeInt, Nullable: true},
+		{Name: "created_at", Type: field.TypeTime},
+		{Name: "updated_at", Type: field.TypeTime},
+	}
+	// PersonalAccessTokensTable holds the schema information for the "personal_access_tokens" table.
+	PersonalAccessTokensTable = &schema.Table{
+		Name:       "personal_access_tokens",
+		Columns:    PersonalAccessTokensColumns,
+		PrimaryKey: []*schema.Column{PersonalAccessTokensColumns[0]},
+		Indexes: []*schema.Index{
+			{
+				Name:    "personalaccesstoken_token_hash",
+				Unique:  true,
+				Columns: []*schema.Column{PersonalAccessTokensColumns[5]},
+			},
+			{
+				Name:    "personalaccesstoken_user_id_revoked_at",
+				Unique:  false,
+				Columns: []*schema.Column{PersonalAccessTokensColumns[1], PersonalAccessTokensColumns[11]},
+			},
+			{
+				Name:    "personalaccesstoken_tenant_id_revoked_at",
+				Unique:  false,
+				Columns: []*schema.Column{PersonalAccessTokensColumns[2], PersonalAccessTokensColumns[11]},
+			},
+			{
+				Name:    "personalaccesstoken_expires_at",
+				Unique:  false,
+				Columns: []*schema.Column{PersonalAccessTokensColumns[7]},
+			},
+		},
 	}
 	// ProblemsColumns holds the columns for the "problems" table.
 	ProblemsColumns = []*schema.Column{
@@ -7137,6 +7185,7 @@ var (
 		PasswordResetTokensTable,
 		PermissionsTable,
 		PermissionDefinitionsTable,
+		PersonalAccessTokensTable,
 		ProblemsTable,
 		ProcessApprovalDecisionsTable,
 		ProcessAuditLogsTable,

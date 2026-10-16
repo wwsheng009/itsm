@@ -1052,6 +1052,18 @@ func (f PermissionDefinitionFunc) Mutate(ctx context.Context, m ent.Mutation) (e
 	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.PermissionDefinitionMutation", m)
 }
 
+// The PersonalAccessTokenFunc type is an adapter to allow the use of ordinary
+// function as PersonalAccessToken mutator.
+type PersonalAccessTokenFunc func(context.Context, *ent.PersonalAccessTokenMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f PersonalAccessTokenFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.PersonalAccessTokenMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.PersonalAccessTokenMutation", m)
+}
+
 // The ProblemFunc type is an adapter to allow the use of ordinary
 // function as Problem mutator.
 type ProblemFunc func(context.Context, *ent.ProblemMutation) (ent.Value, error)
