@@ -49,7 +49,6 @@ func SetupSkillsRoutes(public *gin.RouterGroup, auth *gin.RouterGroup) {
 	auth.GET("/skills-dist/registry", skillsRegistryHandler)
 	auth.GET("/skills-dist/installer", skillsInstallerHandler)
 	auth.GET("/skills-dist/:name/download", skillsDownloadHandler)
-	auth.GET("/skills-dist/bundle/download", skillsDownloadHandler)
 }
 
 // skillsManifest 读取并解析 dist 目录的 manifest.json。
@@ -95,8 +94,11 @@ func skillsDownloadHandler(c *gin.Context) {
 	if !ok {
 		return
 	}
+	// 静态别名 /skills-dist/bundle/download 的路径参数优先级：gin 中 ":name" 静态段
+	// "bundle" 同级共存时，"/bundle/download" 命中 ":name/download"（name="bundle"）。
+	// 统一在 handler 内解析别名，路由只保留 ":name/download" 一条。
 	name := c.Param("name")
-	if name == "bundle" {
+	if name == "" || name == "bundle" {
 		name = "itsm-skills-all"
 	}
 	allowed := map[string]bool{}
@@ -116,8 +118,14 @@ func skillsDownloadHandler(c *gin.Context) {
 	}
 	fileName := name + ".zip"
 	if !allowed[fileName] {
-		common.Fail(c, common.NotFoundCode, "分发包不存在: "+fileName)
-		return
+		// bundle 经 gin 参数匹配时 ":name" 会吞掉 "bundle/download" 的斜杠前缀段之外的
+		// 静态别名路由顺序差异：直接按文件名再兜底一次 itsm-skills-all.zip
+		if fileName == "bundle.zip" && allowed["itsm-skills-all.zip"] {
+			fileName = "itsm-skills-all.zip"
+		} else {
+			common.Fail(c, common.NotFoundCode, "分发包不存在: "+fileName)
+			return
+		}
 	}
 	serveSkillsFile(c, filepath.Join(dir, fileName), "application/zip")
 }
