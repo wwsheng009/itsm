@@ -34,21 +34,24 @@ func skillsDistDir() string {
 	return strings.TrimRight(strings.TrimSpace(os.Getenv("SKILLS_DIST_DIR")), `/\`)
 }
 
-// SetupSkillsRoutes 注册资源中心路由。public 与 auth 组各挂一份读面：
-//   - public：/api/v1/skills/registry 供未登录的 agent 侧 curl 获取清单与安装器；
-//     登录态前端页复用同一路径（无需区分）。
+// SetupSkillsRoutes 注册资源中心路由（AI Skill Registry v1 已占用 /skills 与 /skills/:code，
+// 见 handlers/skill RegisterRoutes——本面是**构建产物分发面**，与运行时技能注册表是两个概念）。
+// 路径规划（避让 v1 registry）：
+//   - /skills-dist/registry    清单
+//   - /skills-dist/installer   安装器
+//   - /skills-dist/:name/download / /skills-dist/bundle/download  分发包
+// public 与 auth 组各挂一份（分发面无租户数据；auth 面供前端复用登录态）。
 func SetupSkillsRoutes(public *gin.RouterGroup, auth *gin.RouterGroup) {
 	if auth != nil {
-		auth.GET("/skills/registry", skillsRegistryHandler)
-		auth.GET("/skills/installer", skillsInstallerHandler)
-		auth.GET("/skills/:name/download", skillsDownloadHandler)
-		auth.GET("/skills/bundle/download", skillsDownloadHandler)
+		auth.GET("/skills-dist/registry", skillsRegistryHandler)
+		auth.GET("/skills-dist/installer", skillsInstallerHandler)
+		auth.GET("/skills-dist/:name/download", skillsDownloadHandler)
+		auth.GET("/skills-dist/bundle/download", skillsDownloadHandler)
 	}
-	// public 面仅开放 registry / installer / 下载（分发面无租户数据；installer/zip 均为静态构建产物）
 	if public != nil {
-		public.GET("/skills/registry", skillsRegistryHandler)
-		public.GET("/skills/installer", skillsInstallerHandler)
-		public.GET("/skills/:name/download", skillsDownloadHandler)
+		public.GET("/skills-dist/registry", skillsRegistryHandler)
+		public.GET("/skills-dist/installer", skillsInstallerHandler)
+		public.GET("/skills-dist/:name/download", skillsDownloadHandler)
 	}
 }
 
