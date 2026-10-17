@@ -9,6 +9,11 @@
 | itsm-deploy | 238/189 构建发布链路（git bundle + .dev/deploy 脚本族） | 部署脚本 | 维护中 |
 | itsm-ticket-operations | 工单 CRUD / 状态机 / 评论 / 附件 / SLA 查询 | itsm_ticket.py（20 子命令） | 维护中（2026-10-17 加固 token 落盘/掩码、types 去重、create 补参+--dry-run） |
 | itsm-knowledge-operations | 知识库 CRUD / 发布 / 版本 / 检索 / 分类可见性 | itsm_kb.py（22 子命令） | 维护中（2026-10-17 同款加固 + GAPS 9/10 登记） |
+| itsm-cmdb-operations | CMDB CI / 类型 / 关系 / 视图 / 本体 / 发现健康 / 对账 | itsm_cmdb.py（33 子命令，读+写核心） | 维护中（P0，2026-10-17；238 实测） |
+| itsm-change-operations | 变更 CRUD / 分类型状态机流转 / 审批 / 风险 / PIR / 日历 / CAB | itsm_change.py（33 子命令） | 维护中（P0，2026-10-17；238 全生命周期实测） |
+| itsm-sla-operations | SLA 定义 / 监控 / 指标 / 违约处置 / 绩效 / 合规 / MSP 子面直通 | itsm_sla.py（25 子命令） | 维护中（P1，2026-10-17；238 实测） |
+| itsm-problem-operations | 问题 CRUD / 调查/根因/方案/关闭 / 关联 / 统计趋势热点 | itsm_problem.py（19 子命令） | 维护中（P1，2026-10-17；238 全生命周期实测） |
+| itsm-msp-operations | MSP 跨租户：分配 / 客户 / 类型下发 / 工作台全族 / 报表 / 审计 | itsm_msp.py（44 子命令） | 维护中（P1，2026-10-17；238 以 demo.msp.manager 实测，非 MSP 403 门禁同验） |
 
 ## 2. 候选路线图（按路由面 + 复用价值）
 
@@ -16,9 +21,9 @@
 |---|---|---|---|
 | **P0**（✅ 已建 2026-10-17） | itsm-cmdb-operations | cmdb_routes 106 | 读面全量 20 + 写面核心 13 子命令；GAPS 见其 references §4 |
 | **P0**（✅ 已建 2026-10-17） | itsm-change-operations | change 35 + cab 4 + approval_chain 6 | 33 子命令；分类型状态机 + 审批双校验，全链 238 实测通过 |
-| P1 | itsm-sla-operations | sla 39 | 定义/监控/超时；与 ticket stats 组合可做报表自动化 |
-| P1 | itsm-msp-operations | msp 45 | MSP 多租户资源范围/客户管理，平台核心场景 |
-| P1 | itsm-problem-operations | problem 24 | 调查+知识沉淀链路与 knowledge skill 衔接 |
+| P1（✅ 已建 2026-10-17） | itsm-sla-operations | sla 39 | 25 子命令；违约处置权限分离（disputed vs settle）实测 |
+| P1（✅ 已建 2026-10-17） | itsm-msp-operations | msp 45 | 44 子命令；MSPMiddleware 门禁与双层授权链实测（demo.msp.manager） |
+| P1（✅ 已建 2026-10-17） | itsm-problem-operations | problem 24 | 19 子命令；状态机 409 守卫与全生命周期实测 |
 | P3 | itsm-incident-operations | incident 47 | 见 §7 边界结论：监控驱动场景，复用低频；先不做 |
 | P2 | itsm-service-request-operations | service_request 20 + service_catalog 10 | 目录下单/审批；优先级低于流程域能力 |
 | P2 | itsm-release-operations | release 16 | **须先与 itsm-deploy 划界**（业务发布 vs 部署操作） |
@@ -51,8 +56,9 @@
 - [x] incident(47) 与 ticket 域边界调研——结论回填 §7（P3 暂缓）
 - [x] **P0**：itsm-cmdb-operations——读面+写面核心完成（33 子命令，238 实测）
 - [x] **P0**：itsm-change-operations——SKILL.md + references + 33 子命令脚本，238 全生命周期实测
+- [x] **P1**：itsm-sla-operations / itsm-problem-operations / itsm-msp-operations（2026-10-17 三技能完成，238 实测；数量上限 8 已达 8——后续新域须先合并/归档再建）
 - [ ] CMDB 长尾：导入导出任务 / 云资源三件套 / 发现任务封装
-- [ ] P1：itsm-sla-operations / itsm-msp-operations / itsm-problem-operations
+- [ ] P2：itsm-service-request-operations / itsm-cloud-operations（需先归档或合并既有技能腾位）
 
 ## 6. 分发与安装（skills 打包下发）
 
