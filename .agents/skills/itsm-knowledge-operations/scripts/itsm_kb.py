@@ -9,11 +9,12 @@
 - 搜索请求体与 snake_case 响应的直通输出
 - 文章附件 multipart 上传
 
-用法（demo 环境）：
+用法（demo 环境；token 建议存用户主目录，勿放版本库；bash 与 pwsh 等价）：
   python scripts/itsm_kb.py login --base http://172.18.3.238:8089/api/v1 \\
-      --username demo.mfg.admin --password 'Demo@2026!' --save ./itsm.token
-  python scripts/itsm_kb.py --base http://172.18.3.238:8089/api/v1 --token-file ./itsm.token categories
+      --username demo.mfg.admin --password 'Demo@2026!' --save "$HOME/.itsm/itsm.token"
+  python scripts/itsm_kb.py --base http://172.18.3.238:8089/api/v1 --token-file "$HOME/.itsm/itsm.token" categories
 
+login --save：省略路径默认 ~/.itsm/itsm.token；自动创建父目录（POSIX chmod 600），stdout 仅回显掩码。
 Token 来源优先级：--token > --token-file > 环境变量 ITSM_TOKEN / ITSM_PAT。
 输出：JSON 到 stdout；API 错误 JSON 到 stderr，退出码 1（参数错误 2）。
 """
@@ -194,8 +195,22 @@ def cmd_login(client, args):
         fail(ApiError("login 需要 --username/--password（或环境变量 ITSM_USERNAME/ITSM_PASSWORD）"))
     result = client.login(args.username, args.password, args.tenant_code)
     if args.save:
-        Path(args.save).write_text(result["token"], encoding="utf-8")
-        result["savedTo"] = args.save
+        path = Path(args.save).expanduser()
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(result["token"], encoding="utf-8")
+        if os.name != "nt":
+            try:
+                path.chmod(0o600)
+            except OSError:
+                pass
+        print(
+            "[itsm_kb] token 已写入 %s（含明文凭据，勿提交版本库；后续用 --token-file 引用）" % path,
+            file=sys.stderr,
+        )
+        masked = result["token"][:12] + "****"
+        result["savedTo"] = str(path)
+        result["maskedToken"] = masked
+        result["token"] = masked
     result["ok"] = True
     return result
 
@@ -395,7 +410,13 @@ def build_parser():
     lg.add_argument("--username", default=os.environ.get("ITSM_USERNAME", ""))
     lg.add_argument("--password", default=os.environ.get("ITSM_PASSWORD", ""))
     lg.add_argument("--tenant-code", default="")
-    lg.add_argument("--save", default="", help="把 token 写入文件")
+    lg.add_argument(
+        "--save",
+        nargs="?",
+        const=str(Path.home() / ".itsm" / "itsm.token"),
+        default="",
+        help="token 写入文件；省略路径默认 ~/.itsm/itsm.token（供 --token-file 复用）",
+    )
 
     add("me", "GET /auth/me")
 

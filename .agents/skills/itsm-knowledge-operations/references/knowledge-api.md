@@ -35,7 +35,7 @@
 | tags | []string | ❌ | 响应回数组 |
 | contentType | string | ❌ | text/markdown/html/rich_text；缺省由服务端按内容判定 |
 | validFrom / validUntil | RFC3339 | ❌ | 时效窗口 |
-| reviewIntervalDays | int | ❌ | 0–3650；>0 且逾期未复核会被 L1 过滤 |
+| reviewIntervalDays | int | ❌ | 0–3650；>0 且逾期未复核会被 L1 过滤（**创建即 overdue**：发布后需补 review 才可检索，见 §9-9） |
 | authorityLevel | int | ❌ | 0 普通 / 10 部门推荐 / 20 官方标准 / 30 唯一真相源 |
 
 响应：`KnowledgeArticleResponse`（`status=draft`）。
@@ -70,7 +70,7 @@
   - 已发布、或下架后原样重发（内容未变）→ 幂等，**不产生版本**；
   - 响应为文章 DTO（`status=published`）。
 - `POST /knowledge/articles/:id/unpublish`（write）：只切可见性，不产生版本，重复调用幂等。
-- `POST /knowledge/articles/:id/review`（write）：刷新 `lastReviewedAt=now`（解除 L1 review_overdue）。
+- `POST /knowledge/articles/:id/review`（write）：刷新 `lastReviewedAt=now`，并重算 `reviewDueAt=now+interval`（解除 L1 review_overdue）。**注**：创建时带 `reviewIntervalDays>0` 的文章发布后即为 overdue（`citable=false`）、不进检索，需补一次 review（见 §9 GAPS-9）。
 
 ## 3. 版本
 
@@ -127,3 +127,5 @@
 6. 无批量删除 / 导出端点；文章只有 published/draft 两态（无归档态）。
 7. （已修复 2026-10-16）分类两套集合不一致：原 create 链路**完全跳过校验**（12 值白名单是仅单测引用的死代码），`GET /categories` 下拉值与白名单互斥。现 create/update 统一为「白名单 ∪ 分类接口返回值」联合校验，非法值 400。
 8. （已修复 2026-10-16）`PUT` 原不校验分类（实测可改任意值）：现与创建同策略，非法分类 400。
+9. **创建即复核逾期（2026-10-17 实测）**：创建时设置 `reviewIntervalDays>0` 且未复核的文章，创建（乃至发布）后 `freshness.verdict` 立即为 `review_overdue`（`citable=false`），**不会进入 search 结果**；需调用一次 `POST /:id/review` 后才可检索（实测 review 后 `reviewDueAt=now+interval`，且该时间在后续 update+republish 中保留）。`reviewIntervalDays=0` 不受影响。调用方如需「发布即可检索」，应在 publish 后补 review。
+10. **UGC 消毒把直引号实体化（2026-10-17 实测）**：正文中的直引号 `"`/`'` 在落库时被转成 HTML 实体 `&#34;`/`&#39;`（`&`/`<`/`>` 同理）。Markdown 正文文本渲染时实体按 CommonMark 解码、观感正常；但**代码块（fenced code）内实体不解码、会字面显示**——示例代码请避免直引号（或用「」全角引号），发布后回读 `content` 核对。

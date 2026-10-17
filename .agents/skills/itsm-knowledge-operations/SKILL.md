@@ -15,12 +15,17 @@ description: 通过 ITSM REST API 操作知识库文章（创建/更新/发布/�
 
 ```bash
 B=http://172.18.3.238:8089/api/v1
-python scripts/itsm_kb.py login --base $B --username demo.mfg.admin --password 'Demo@2026!' --save ./itsm.token
-python scripts/itsm_kb.py --base $B --token-file ./itsm.token categories
-python scripts/itsm_kb.py --base $B --token-file ./itsm.token create --title '打印机卡纸处理' --content '...' --category troubleshooting --tags 打印,硬件
-python scripts/itsm_kb.py --base $B --token-file ./itsm.token publish 12 --change-log '首版'
-python scripts/itsm_kb.py --base $B --token-file ./itsm.token search --query 卡纸
+TOKEN="$HOME/.itsm/itsm.token"
+python scripts/itsm_kb.py login --base $B --username demo.mfg.admin --password 'Demo@2026!' --save "$TOKEN"
+python scripts/itsm_kb.py --base $B --token-file "$TOKEN" categories
+python scripts/itsm_kb.py --base $B --token-file "$TOKEN" create --title '打印机卡纸处理' --content '...' --category troubleshooting --tags 打印,硬件
+python scripts/itsm_kb.py --base $B --token-file "$TOKEN" publish 12 --change-log '首版'
+python scripts/itsm_kb.py --base $B --token-file "$TOKEN" search --query 卡纸
 ```
+
+PowerShell 等价：`$Token = "$HOME\.itsm\itsm.token"`，其余参数同上（`--save $Token`、`--token-file $Token`）。
+
+`--save` 省略路径默认写 `~/.itsm/itsm.token`（自动建父目录、POSIX 下 chmod 600），stdout 只回显掩码 token；**token 勿放仓库目录**（`.gitignore` 仅兜底）。
 
 `--help` 列出 22 个子命令（login/me/categories/list/get/create/update/publish/unpublish/review/versions/versions-compare/restore/search/stats/recent/recommendations/restrict-list/restrict-set/delete/attachment-list/attachment-upload）。
 
@@ -37,10 +42,11 @@ python scripts/itsm_kb.py --base $B --token-file ./itsm.token search --query 卡
 - **发布态不是编辑字段**：PUT 更新忽略 `status`；变更发布态只能走 publish / unpublish。
 - **PUT 更新=一次编辑**：写回后文章一律回到草稿（已发布会被下架），需重新 publish 才生效；更新路径与创建同做分类联合校验。
 - `unpublish` 幂等且不产生版本；`restore` 是"编辑"：内容回滚后文章**回到草稿（已发布会被下架）**，需重新 publish 才对外生效。
-- `POST /:id/review` 刷新 lastReviewedAt（解除"逾期未复核"过滤）；PUT 不允许写该字段。
+- `POST /:id/review` 刷新 lastReviewedAt（解除"逾期未复核"过滤）；PUT 不允许写该字段。**注意**：创建时设 `reviewIntervalDays>0` 的文章发布后仍未复核 → `review_overdue` / 不可检索，需补一次 review（见 references §9-9）。
 - 评论端点 `GET/POST /:id/comments` 当前是 **stub**（恒返回假数据），勿依赖；点赞/协作会话（sessions/participants）服务存在但**未挂路由**。
 - 权限：读 `knowledge:read`（end_user 默认有）；写 `knowledge:write`（agent/工程师/管理员类角色）；删除 `knowledge:delete`（管理角色）。
 - 文章附件走域内别名 `/knowledge/articles/:id/attachments`（权限码仍用 knowledge 家族）；multipart 字段名 `file`。
+- 正文直引号会被服务端消毒为 HTML 实体（`&#34;`/`&#39;`）：正文渲染正常，但**代码块内不解码**、会字面显示——示例代码请避免直引号（见 references §9-10）。
 
 ## 排障与验证
 
