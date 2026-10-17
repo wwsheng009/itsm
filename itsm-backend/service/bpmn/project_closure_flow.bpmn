@@ -1,0 +1,57 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL"
+                 xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI"
+                 xmlns:dc="http://www.omg.org/spec/DD/20100524/DC"
+                 xmlns:di="http://www.omg.org/spec/DD/20100524/DI"
+                 targetNamespace="http://bpmn.io/schema/bpmn">
+
+  <bpmn:process id="project_closure_flow" name="项目结项审批流程" isExecutable="true">
+    <bpmn:extensionElements>
+      <bpmn:metaData name="category">project</bpmn:metaData>
+      <bpmn:metaData name="sub_category">closure</bpmn:metaData>
+      <bpmn:metaData name="version">1.0.0</bpmn:metaData>
+      <bpmn:metaData name="description">项目管理阶段门：结项门审批（→ completed 前）</bpmn:metaData>
+    </bpmn:extensionElements>
+
+    <bpmn:startEvent id="StartEvent_1" name="结项门提交">
+      <bpmn:outgoing>Flow_1</bpmn:outgoing>
+    </bpmn:startEvent>
+
+    <bpmn:userTask id="Activity_ClosureApproval" name="结项审批">
+      <bpmn:extensionElements>
+        <bpmn:metaData name="service_task_type">project_task</bpmn:metaData>
+        <bpmn:metaData name="action">approve_closure_gate</bpmn:metaData>
+      </bpmn:extensionElements>
+      <bpmn:incoming>Flow_1</bpmn:incoming>
+      <bpmn:outgoing>Flow_2</bpmn:outgoing>
+    </bpmn:userTask>
+
+    <bpmn:exclusiveGateway id="Gateway_ApprovalResult" name="审批结果?">
+      <bpmn:incoming>Flow_2</bpmn:incoming>
+      <bpmn:outgoing>Flow_Approved</bpmn:outgoing>
+      <bpmn:outgoing>Flow_Rejected</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+
+    <bpmn:endEvent id="EndEvent_Approved" name="结项通过">
+      <bpmn:incoming>Flow_Approved</bpmn:incoming>
+    </bpmn:endEvent>
+
+    <bpmn:endEvent id="EndEvent_Rejected" name="结项拒绝">
+      <bpmn:incoming>Flow_Rejected</bpmn:incoming>
+    </bpmn:endEvent>
+
+    <bpmn:sequenceFlow id="Flow_1" sourceRef="StartEvent_1" targetRef="Activity_ClosureApproval" />
+    <bpmn:sequenceFlow id="Flow_2" sourceRef="Activity_ClosureApproval" targetRef="Gateway_ApprovalResult" />
+    <bpmn:sequenceFlow id="Flow_Approved" sourceRef="Gateway_ApprovalResult" targetRef="EndEvent_Approved">
+      <bpmn:conditionExpression><![CDATA[${variables['approvalResult'] == 'approved'}]]></bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="Flow_Rejected" sourceRef="Gateway_ApprovalResult" targetRef="EndEvent_Rejected">
+      <bpmn:conditionExpression><![CDATA[${variables['approvalResult'] != 'approved'}]]></bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+  </bpmn:process>
+
+  <bpmndi:BPMNDiagram id="BPMNDiagram_1">
+    <bpmndi:BPMNPlane id="BPMNPlane_1" bpmnElement="project_closure_flow">
+    </bpmndi:BPMNPlane>
+  </bpmndi:BPMNDiagram>
+</bpmn:definitions>

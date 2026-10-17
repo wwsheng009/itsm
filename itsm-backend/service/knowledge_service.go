@@ -35,6 +35,7 @@ var allowedKnowledgeCategories = map[string]struct{}{
 	"系统配置":              {},
 	"用户指南":              {},
 	"技术文档":              {},
+	"项目复盘":              {},
 }
 
 // IsWhitelistedKnowledgeCategory 暴露静态分类白名单给 handler 层统一校验（单一来源）。

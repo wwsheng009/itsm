@@ -27,7 +27,8 @@ func NewSurveyService(client *ent.Client, logger *zap.SugaredLogger) *SurveyServ
 func (s *SurveyService) SubmitResponse(ctx context.Context, req *dto.SubmitSurveyRequest, tenantID int) error {
 	_, err := s.client.SurveyResponse.Create().
 		SetSurveyID(req.SurveyID).
-		SetTicketID(req.TicketID).
+		SetNillableTicketID(positiveOrNil(req.TicketID)).
+		SetNillableProjectID(positiveOrNil(req.ProjectID)).
 		SetRespondentID(0). // Would come from auth context
 		SetAnswers(toSchemaAnswers(req.Answers)).
 		SetScore(req.Score).
@@ -35,6 +36,14 @@ func (s *SurveyService) SubmitResponse(ctx context.Context, req *dto.SubmitSurve
 		SetTenantID(tenantID).
 		Save(ctx)
 	return err
+}
+
+// positiveOrNil 0 视为未指定（可空关联列不落 0）。
+func positiveOrNil(v int) *int {
+	if v <= 0 {
+		return nil
+	}
+	return &v
 }
 
 // GetAnalytics retrieves analytics for a survey

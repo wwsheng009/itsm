@@ -28,10 +28,12 @@ type SurveyDTO struct {
 // SubmitSurveyRequest represents a request to submit a survey response
 type SubmitSurveyRequest struct {
 	SurveyID int         `json:"surveyId" binding:"required"`
-	TicketID int         `json:"ticketId" binding:"required"`
-	Answers  []AnswerDTO `json:"answers" binding:"required"`
-	Score    int         `json:"score"`
-	Comment  string      `json:"comment"`
+	// TicketID/ProjectID 二选一（或都为空：通用调研）；工单评分与项目结项 CSAT 分链关联。
+	TicketID  int         `json:"ticketId"`
+	ProjectID int         `json:"projectId"`
+	Answers   []AnswerDTO `json:"answers" binding:"required"`
+	Score     int         `json:"score"`
+	Comment   string      `json:"comment"`
 }
 
 // AnswerDTO represents an answer to a survey question

@@ -2089,6 +2089,31 @@ const docTemplate = `{
                 }
             }
         },
+        "/api/v1/changes/{id}/project": {
+            "post": {
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "项目管理"
+                ],
+                "summary": "变更挂接项目",
+                "responses": {}
+            },
+            "delete": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "项目管理"
+                ],
+                "summary": "变更解除项目挂接",
+                "responses": {}
+            }
+        },
         "/api/v1/changes/{id}/reject": {
             "post": {
                 "security": [
@@ -6474,7 +6499,7 @@ const docTemplate = `{
         },
         "/api/v1/global-search": {
             "get": {
-                "description": "在工单、事件、问题、变更、知识库中搜索",
+                "description": "在工单、事件、问题、变更、知识库、项目、项目任务中搜索（项目/任务受可见性谓词约束）",
                 "produces": [
                     "application/json"
                 ],
@@ -8760,6 +8785,31 @@ const docTemplate = `{
                 }
             }
         },
+        "/api/v1/incidents/{id}/project": {
+            "post": {
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "项目管理"
+                ],
+                "summary": "事件挂接项目",
+                "responses": {}
+            },
+            "delete": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "项目管理"
+                ],
+                "summary": "事件解除项目挂接",
+                "responses": {}
+            }
+        },
         "/api/v1/incidents/{id}/reopen": {
             "post": {
                 "security": [
@@ -10642,6 +10692,31 @@ const docTemplate = `{
                 }
             }
         },
+        "/api/v1/problems/{id}/project": {
+            "post": {
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "项目管理"
+                ],
+                "summary": "问题挂接项目",
+                "responses": {}
+            },
+            "delete": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "项目管理"
+                ],
+                "summary": "问题解除项目挂接",
+                "responses": {}
+            }
+        },
         "/api/v1/problems/{id}/root-cause": {
             "put": {
                 "security": [
@@ -10912,7 +10987,37 @@ const docTemplate = `{
         },
         "/api/v1/projects": {
             "get": {
-                "description": "获取所有项目列表",
+                "description": "分页 + 过滤：status/type/ownerTeamId/managerId/q",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "项目管理"
+                ],
+                "summary": "项目列表",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/common.Response"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/common.ListResponse"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            },
+            "post": {
+                "description": "创建项目（code 缺省自动生成 PRJ-YYYYMMDD-XXXX；新项目从 planning 起步）",
                 "consumes": [
                     "application/json"
                 ],
@@ -10922,7 +11027,95 @@ const docTemplate = `{
                 "tags": [
                     "项目管理"
                 ],
-                "summary": "获取项目列表",
+                "summary": "创建项目",
+                "parameters": [
+                    {
+                        "description": "创建请求",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/project.CreateRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/common.Response"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/project.ProjectResponse"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/projects/metrics": {
+            "get": {
+                "description": "与 GET /projects 同过滤、同可见性；from/to 为口径日期时间窗（可选），start/weeks 为资源窗口（缺省本周/6 周，1..12）；明细上限 200/组（分子分母恒为全量）。",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "项目管理"
+                ],
+                "summary": "项目组合度量（按时交付率/里程碑达成率/阶段门一次通过率/资源利用率 + 明细）",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/common.Response"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/project.MetricsResponse"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/projects/my-milestones": {
+            "get": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "项目管理"
+                ],
+                "summary": "我的里程碑到期（跨可见项目；仅 planned；默认 30 天内含逾期）",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "只看 N 天内到期（0=不限；默认 30）",
+                        "name": "dueWithinDays",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "返回上限（≤200，默认 50）",
+                        "name": "limit",
+                        "in": "query"
+                    }
+                ],
                 "responses": {
                     "200": {
                         "description": "OK",
@@ -10937,69 +11130,8 @@ const docTemplate = `{
                                         "data": {
                                             "type": "array",
                                             "items": {
-                                                "$ref": "#/definitions/ent.Project"
+                                                "$ref": "#/definitions/project.MyMilestoneResponse"
                                             }
-                                        }
-                                    }
-                                }
-                            ]
-                        }
-                    }
-                }
-            },
-            "post": {
-                "description": "创建新的项目",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "项目管理"
-                ],
-                "summary": "创建项目",
-                "parameters": [
-                    {
-                        "type": "string",
-                        "description": "项目名称",
-                        "name": "name",
-                        "in": "query",
-                        "required": true
-                    },
-                    {
-                        "type": "string",
-                        "description": "项目代码",
-                        "name": "code",
-                        "in": "query",
-                        "required": true
-                    },
-                    {
-                        "type": "integer",
-                        "description": "部门ID",
-                        "name": "deptId",
-                        "in": "query"
-                    },
-                    {
-                        "type": "integer",
-                        "description": "项目经理ID",
-                        "name": "managerId",
-                        "in": "query"
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "allOf": [
-                                {
-                                    "$ref": "#/definitions/common.Response"
-                                },
-                                {
-                                    "type": "object",
-                                    "properties": {
-                                        "data": {
-                                            "$ref": "#/definitions/ent.Project"
                                         }
                                     }
                                 }
@@ -11009,9 +11141,151 @@ const docTemplate = `{
                 }
             }
         },
-        "/api/v1/projects/{id}": {
+        "/api/v1/projects/my-tasks": {
             "get": {
-                "description": "获取指定项目的详细信息",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "项目管理"
+                ],
+                "summary": "我的项目任务（跨可见项目；默认排除终态）",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "状态过滤",
+                        "name": "status",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "返回上限（≤200）",
+                        "name": "limit",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/common.Response"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "$ref": "#/definitions/project.MyTaskResponse"
+                                            }
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/projects/portfolio": {
+            "get": {
+                "description": "与 GET /projects 同过滤、同可见性、同行结构（口径同源，供对账）；projects 行上限 500，超过 truncated=true。",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "项目管理"
+                ],
+                "summary": "项目组合视图（按状态/健康度/负责人/部门/类型聚合 + 与列表一致的项目行）",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/common.Response"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/project.PortfolioResponse"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/projects/report-groups": {
+            "get": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "项目管理"
+                ],
+                "summary": "报表分组：按归口团队聚合项目数与健康度分布（可见性谓词收窄）",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/common.Response"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "$ref": "#/definitions/project.ReportGroupResponse"
+                                            }
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/projects/report-templates": {
+            "get": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "项目管理"
+                ],
+                "summary": "报告模板列表（status/q 过滤 + 分页）",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/common.Response"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/common.ListResponse"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            },
+            "post": {
                 "consumes": [
                     "application/json"
                 ],
@@ -11021,12 +11295,54 @@ const docTemplate = `{
                 "tags": [
                     "项目管理"
                 ],
-                "summary": "获取项目详情",
+                "summary": "创建报告模板（cadence: weekly|biweekly|monthly；sections: overview|tasks|milestones|gates|variance|team）",
+                "parameters": [
+                    {
+                        "description": "创建请求",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/project.ReportTemplateCreateRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/common.Response"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/project.ReportTemplateResponse"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/projects/report-templates/{templateId}": {
+            "get": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "项目管理"
+                ],
+                "summary": "报告模板详情",
                 "parameters": [
                     {
                         "type": "integer",
-                        "description": "项目ID",
-                        "name": "id",
+                        "description": "模板ID",
+                        "name": "templateId",
                         "in": "path",
                         "required": true
                     }
@@ -11043,7 +11359,7 @@ const docTemplate = `{
                                     "type": "object",
                                     "properties": {
                                         "data": {
-                                            "$ref": "#/definitions/ent.Project"
+                                            "$ref": "#/definitions/project.ReportTemplateResponse"
                                         }
                                     }
                                 }
@@ -11053,7 +11369,6 @@ const docTemplate = `{
                 }
             },
             "put": {
-                "description": "更新指定项目的信息",
                 "consumes": [
                     "application/json"
                 ],
@@ -11063,38 +11378,23 @@ const docTemplate = `{
                 "tags": [
                     "项目管理"
                 ],
-                "summary": "更新项目",
+                "summary": "更新报告模板（version 乐观锁；status 显式切换）",
                 "parameters": [
                     {
                         "type": "integer",
-                        "description": "项目ID",
-                        "name": "id",
+                        "description": "模板ID",
+                        "name": "templateId",
                         "in": "path",
                         "required": true
                     },
                     {
-                        "type": "string",
-                        "description": "项目名称",
-                        "name": "name",
-                        "in": "query"
-                    },
-                    {
-                        "type": "string",
-                        "description": "项目代码",
-                        "name": "code",
-                        "in": "query"
-                    },
-                    {
-                        "type": "integer",
-                        "description": "部门ID",
-                        "name": "deptId",
-                        "in": "query"
-                    },
-                    {
-                        "type": "integer",
-                        "description": "项目经理ID",
-                        "name": "managerId",
-                        "in": "query"
+                        "description": "更新请求",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/project.ReportTemplateUpdateRequest"
+                        }
                     }
                 ],
                 "responses": {
@@ -11109,7 +11409,7 @@ const docTemplate = `{
                                     "type": "object",
                                     "properties": {
                                         "data": {
-                                            "$ref": "#/definitions/ent.Project"
+                                            "$ref": "#/definitions/project.ReportTemplateResponse"
                                         }
                                     }
                                 }
@@ -11119,10 +11419,314 @@ const docTemplate = `{
                 }
             },
             "delete": {
-                "description": "删除指定项目",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "项目管理"
+                ],
+                "summary": "删除报告模板（软删；名称不释放）",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "模板ID",
+                        "name": "templateId",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/common.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/projects/templates": {
+            "get": {
+                "description": "分页 + 过滤：status/type/q（列表省略 payload，仅给计数）",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "项目管理"
+                ],
+                "summary": "模板列表",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/common.Response"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/common.ListResponse"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            },
+            "post": {
+                "description": "模板 = 阶段/任务/检查单/里程碑定义（status 缺省 draft，激活后可一键生成）",
                 "consumes": [
                     "application/json"
                 ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "项目管理"
+                ],
+                "summary": "创建模板",
+                "parameters": [
+                    {
+                        "description": "创建请求",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/project.TemplateCreateRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/common.Response"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/project.ProjectTemplateResponse"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/projects/templates/{templateId}": {
+            "get": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "项目管理"
+                ],
+                "summary": "模板详情（含定义体 payload）",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "模板ID",
+                        "name": "templateId",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/common.Response"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/project.ProjectTemplateResponse"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            },
+            "put": {
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "项目管理"
+                ],
+                "summary": "更新模板（nil 字段不改；version 可选乐观锁；status 显式切换）",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "模板ID",
+                        "name": "templateId",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "更新请求",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/project.TemplateUpdateRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/common.Response"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/project.ProjectTemplateResponse"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "项目管理"
+                ],
+                "summary": "删除模板",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "模板ID",
+                        "name": "templateId",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/common.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/projects/{id}": {
+            "get": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "项目管理"
+                ],
+                "summary": "项目详情",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "项目ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/common.Response"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/project.ProjectResponse"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            },
+            "put": {
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "项目管理"
+                ],
+                "summary": "更新项目（基础字段；不含状态）",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "项目ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "更新请求（version 可选乐观锁）",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/project.UpdateRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/common.Response"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/project.ProjectResponse"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            },
+            "delete": {
                 "produces": [
                     "application/json"
                 ],
@@ -11147,6 +11751,2619 @@ const docTemplate = `{
                         }
                     }
                 }
+            }
+        },
+        "/api/v1/projects/{id}/ai/minutes/tasks": {
+            "post": {
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "项目管理"
+                ],
+                "summary": "会议纪要转任务建议（只出建议不落库；AI 不可用时返回空提案 + 降级标记）",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "项目ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "纪要内容（content ≤20000 字符）",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/project.AIMinutesTasksRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/common.Response"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/project.AIMinutesTasksResponse"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/projects/{id}/ai/risk-warnings": {
+            "post": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "项目管理"
+                ],
+                "summary": "生成项目风险预警（规则信号恒返回；AI 判断为增强段）",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "项目ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/common.Response"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/project.AIRiskWarningsResponse"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/projects/{id}/ai/summary": {
+            "post": {
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "项目管理"
+                ],
+                "summary": "生成项目 AI 状态摘要（周报/双周报/月报；AI 不可用时降级为事实派生）",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "项目ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "摘要请求（cadence 缺省 weekly）",
+                        "name": "body",
+                        "in": "body",
+                        "schema": {
+                            "$ref": "#/definitions/project.AISummaryRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/common.Response"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/project.AISummaryResponse"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/projects/{id}/asset-link-candidates": {
+            "get": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "项目管理"
+                ],
+                "summary": "台账候选查询（type=asset|asset_license|vendor|contract；q 模糊；limit 1..50）",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "项目ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "asset|asset_license|vendor|contract",
+                        "name": "type",
+                        "in": "query",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "关键词（编号/名称/标题）",
+                        "name": "q",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "返回条数（默认 20，上限 50）",
+                        "name": "limit",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/common.Response"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/project.AssetLinkCandidateListResponse"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/projects/{id}/asset-links": {
+            "get": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "项目管理"
+                ],
+                "summary": "项目台账登记列表（asset|asset_license|vendor|contract；可见性谓词）",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "项目ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/common.Response"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/project.AssetLinkListResponse"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            },
+            "post": {
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "项目管理"
+                ],
+                "summary": "新增台账登记（同租户弱引用校验；重复 409；终态项目拒绝）",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "项目ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "登记请求",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/project.AssetLinkCreateRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/common.Response"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/project.AssetLinkListResponse"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/projects/{id}/asset-links/{linkId}": {
+            "delete": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "项目管理"
+                ],
+                "summary": "删除台账登记（软删；已删/不存在 404；终态项目拒绝）",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "项目ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "integer",
+                        "description": "登记ID",
+                        "name": "linkId",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/common.Response"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/project.AssetLinkListResponse"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/projects/{id}/baselines": {
+            "get": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "项目管理"
+                ],
+                "summary": "项目计划基线列表（version 倒序）",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "项目ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/common.Response"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "$ref": "#/definitions/project.ProjectBaselineResponse"
+                                            }
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            },
+            "post": {
+                "description": "快照当前任务计划/里程碑/项目计划面；终态项目拒绝；首版 reason 可选、后续版本必填",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "项目管理"
+                ],
+                "summary": "冻结计划基线（不可变；变更 = 新版本 + reason）",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "项目ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "冻结请求（reason 可选）",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/project.BaselineCreateRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/common.Response"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/project.ProjectBaselineResponse"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/projects/{id}/baselines/diff": {
+            "get": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "项目管理"
+                ],
+                "summary": "最新基线 vs 当前状态偏差（实时计算）",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "项目ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/common.Response"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/project.BaselineDiffResponse"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/projects/{id}/capacity": {
+            "put": {
+                "description": "成员须为项目存活成员；取值 (0,168] 小时；审计 capacity_update（未变化不留痕）",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "项目管理"
+                ],
+                "summary": "周容量配置（项目默认 + 成员覆盖；缺省=不修改，null/0=清空）",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "项目ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "容量请求",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/project.CapacityUpdateRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/common.Response"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/project.CapacityResponse"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/projects/{id}/closure": {
+            "get": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "项目管理"
+                ],
+                "summary": "结项清单（任务/单据/结项门/复盘 KB/资产登记/成员回收/CSAT）",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "项目ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/common.Response"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/project.ProjectClosureResponse"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/projects/{id}/closure/assets": {
+            "post": {
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "项目管理"
+                ],
+                "summary": "资产/许可登记确认（confirm）或豁免（waive，必填原因）",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "项目ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "确认/豁免请求",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/project.ClosureAssetsRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/common.Response"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/project.ProjectClosureResponse"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/projects/{id}/closure/csat": {
+            "post": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "项目管理"
+                ],
+                "summary": "触发结项 CSAT 调研（幂等；结项时自动触发，失败可手动重试）",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "项目ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/common.Response"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/project.ProjectClosureResponse"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/projects/{id}/closure/members/recycle": {
+            "post": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "项目管理"
+                ],
+                "summary": "成员回收（回收 member 角色活跃成员；保留 PM 与干系人）",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "项目ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/common.Response"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/project.ProjectClosureResponse"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/projects/{id}/closure/retro": {
+            "post": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "项目管理"
+                ],
+                "summary": "生成复盘 KB 草稿（幂等；草稿态不自动发布）",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "项目ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/common.Response"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/project.ProjectClosureResponse"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/projects/{id}/dependencies": {
+            "get": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "项目管理"
+                ],
+                "summary": "项目任务依赖列表",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "项目ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/common.Response"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "$ref": "#/definitions/project.ProjectTaskDependencyResponse"
+                                            }
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/projects/{id}/gates": {
+            "get": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "项目管理"
+                ],
+                "summary": "项目阶段门列表（四道门 + 状态/阻塞明细）",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "项目ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/common.Response"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "$ref": "#/definitions/project.ProjectGateResponse"
+                                            }
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/projects/{id}/gates/{gate}/decision": {
+            "post": {
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "项目管理"
+                ],
+                "summary": "裁决阶段门（approve 在流程结束/无流程后放行；reject 必须带原因）",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "项目ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "initiation|plan|acceptance|closure",
+                        "name": "gate",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "裁决请求",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/project.GateDecisionRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/common.Response"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/project.ProjectGateResponse"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/projects/{id}/gates/{gate}/submit": {
+            "post": {
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "项目管理"
+                ],
+                "summary": "提交阶段门（门禁规则校验；通过后触发 BPMN 审批或降级自动通过）",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "项目ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "initiation|plan|acceptance|closure",
+                        "name": "gate",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/common.Response"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/project.ProjectGateResponse"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/projects/{id}/hours-summary": {
+            "get": {
+                "description": "口径：项目全部未删任务的 estimate_hours/actual_hours 求和（不做状态过滤）；可见性同项目详情（不可见 404）",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "项目管理"
+                ],
+                "summary": "项目任务工时汇总",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "项目ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/common.Response"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/project.HoursSummaryResponse"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/projects/{id}/member-candidates": {
+            "get": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "项目管理"
+                ],
+                "summary": "成员候选（目标租户活跃 membership，排除在册成员；最小字段）",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "项目ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "姓名/用户名关键字",
+                        "name": "q",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "返回上限（≤50）",
+                        "name": "limit",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/common.Response"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "$ref": "#/definitions/project.MemberCandidate"
+                                            }
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/projects/{id}/members": {
+            "get": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "项目管理"
+                ],
+                "summary": "项目成员列表（含失效历史与派生标签 memberOrigin/expiresAt）",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "项目ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/common.Response"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "$ref": "#/definitions/project.MemberView"
+                                            }
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            },
+            "post": {
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "项目管理"
+                ],
+                "summary": "添加项目成员（校验目标租户活跃 membership）",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "项目ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "成员请求",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/project.MemberAddRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/common.Response"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/project.MemberView"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/projects/{id}/members/{userId}": {
+            "delete": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "项目管理"
+                ],
+                "summary": "移除项目成员（软失效；项目经理不可移除）",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "项目ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "integer",
+                        "description": "用户ID",
+                        "name": "userId",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/common.Response"
+                        }
+                    }
+                }
+            },
+            "patch": {
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "项目管理"
+                ],
+                "summary": "调整成员角色（pm|member|stakeholder）",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "项目ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "integer",
+                        "description": "用户ID",
+                        "name": "userId",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "角色请求",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/project.MemberRoleUpdateRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/common.Response"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/project.MemberView"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/projects/{id}/milestones": {
+            "get": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "项目管理"
+                ],
+                "summary": "项目里程碑列表（可见性谓词）",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "项目ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "planned|reached|missed",
+                        "name": "status",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/common.Response"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "$ref": "#/definitions/project.ProjectMilestoneResponse"
+                                            }
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            },
+            "post": {
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "项目管理"
+                ],
+                "summary": "创建里程碑（负责人须为项目活跃成员）",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "项目ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "里程碑请求",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/project.MilestoneCreateRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/common.Response"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/project.ProjectMilestoneResponse"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/projects/{id}/milestones/{milestoneId}": {
+            "put": {
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "项目管理"
+                ],
+                "summary": "更新里程碑（不含状态）",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "项目ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "integer",
+                        "description": "里程碑ID",
+                        "name": "milestoneId",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "更新请求",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/project.MilestoneUpdateRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/common.Response"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/project.ProjectMilestoneResponse"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "项目管理"
+                ],
+                "summary": "删除里程碑",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "项目ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "integer",
+                        "description": "里程碑ID",
+                        "name": "milestoneId",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/common.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/projects/{id}/milestones/{milestoneId}/status": {
+            "post": {
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "项目管理"
+                ],
+                "summary": "里程碑状态流转（reach|miss）",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "项目ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "integer",
+                        "description": "里程碑ID",
+                        "name": "milestoneId",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "流转请求",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/project.MilestoneStatusRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/common.Response"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/project.ProjectMilestoneResponse"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/projects/{id}/records": {
+            "get": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "项目管理"
+                ],
+                "summary": "项目关联单据（五域聚合；type 可选，空=合并）",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "项目ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "ticket|incident|problem|change|service_request",
+                        "name": "type",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "状态过滤",
+                        "name": "status",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/common.Response"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/common.ListResponse"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/projects/{id}/reports/generate": {
+            "post": {
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "项目管理"
+                ],
+                "summary": "生成项目状态报告（markdown + data；templateId 缺省用默认章节）",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "项目ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "生成请求",
+                        "name": "body",
+                        "in": "body",
+                        "schema": {
+                            "$ref": "#/definitions/project.GenerateReportRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/common.Response"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/project.ReportResponse"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/projects/{id}/resource-heatmap": {
+            "get": {
+                "description": "口径：任务估算按计划日期自然日均摊、剩余=estimate−actual 均摊（逾期落本周）；周对齐 ISO 周；可见性同详情（不可见 404）",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "项目管理"
+                ],
+                "summary": "资源负荷只读热图（周维度）",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "项目ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "窗口起始（YYYY-MM-DD 或 RFC3339；缺省=本周，snap 到周一）",
+                        "name": "start",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "窗口周数 1..12（缺省 6）",
+                        "name": "weeks",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/common.Response"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/project.ResourceHeatmap"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/projects/{id}/risks": {
+            "get": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "项目管理"
+                ],
+                "summary": "项目风险/问题列表（kind/status/level 过滤；可见性谓词）",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "项目ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "risk|issue",
+                        "name": "kind",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "open|mitigating|closed",
+                        "name": "status",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "low|medium|high",
+                        "name": "level",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/common.Response"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "$ref": "#/definitions/project.ProjectRiskResponse"
+                                            }
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            },
+            "post": {
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "项目管理"
+                ],
+                "summary": "创建风险/问题（负责人须为项目活跃成员；终态项目拒绝）",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "项目ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "风险请求",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/project.RiskCreateRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/common.Response"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/project.ProjectRiskResponse"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/projects/{id}/risks/{riskId}": {
+            "get": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "项目管理"
+                ],
+                "summary": "风险/问题详情（可见性谓词）",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "项目ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "integer",
+                        "description": "风险ID",
+                        "name": "riskId",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/common.Response"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/project.ProjectRiskResponse"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            },
+            "put": {
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "项目管理"
+                ],
+                "summary": "更新风险/问题（不含状态；version 乐观锁）",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "项目ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "integer",
+                        "description": "风险ID",
+                        "name": "riskId",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "更新请求",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/project.RiskUpdateRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/common.Response"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/project.ProjectRiskResponse"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "项目管理"
+                ],
+                "summary": "删除风险/问题（软删；已转换记录仍可删，关联实体不受影响）",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "项目ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "integer",
+                        "description": "风险ID",
+                        "name": "riskId",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/common.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/projects/{id}/risks/{riskId}/convert": {
+            "post": {
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "项目管理"
+                ],
+                "summary": "风险/问题转问题单或变更单（幂等：同目标二次转换 409 + existingId）",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "项目ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "integer",
+                        "description": "风险ID",
+                        "name": "riskId",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "转换请求",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/project.RiskConvertRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/common.Response"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/project.ProjectRiskResponse"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/projects/{id}/risks/{riskId}/status": {
+            "post": {
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "项目管理"
+                ],
+                "summary": "风险/问题状态流转（mitigate|close|reopen；close 必填 resolution）",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "项目ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "integer",
+                        "description": "风险ID",
+                        "name": "riskId",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "流转请求",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/project.RiskStatusRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/common.Response"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/project.ProjectRiskResponse"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/projects/{id}/status": {
+            "post": {
+                "description": "complete 走结项门禁（未终结任务/单据返回 409 + blockers）；cancel 需 reason",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "项目管理"
+                ],
+                "summary": "状态流转（activate|suspend|resume|complete|cancel）",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "项目ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "流转请求",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/project.StatusRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/common.Response"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/project.ProjectResponse"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/projects/{id}/tasks": {
+            "get": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "项目管理"
+                ],
+                "summary": "项目任务列表",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "项目ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "tree|flat（默认 flat）",
+                        "name": "view",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "状态过滤",
+                        "name": "status",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "负责人过滤",
+                        "name": "assigneeId",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/common.Response"
+                        }
+                    }
+                }
+            },
+            "post": {
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "项目管理"
+                ],
+                "summary": "创建项目任务（WBS ≤3 层；负责人须为活跃成员）",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "项目ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "任务请求",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/project.TaskCreateRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/common.Response"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/project.ProjectTaskResponse"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/projects/{id}/tasks/{taskId}": {
+            "get": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "项目管理"
+                ],
+                "summary": "项目任务详情",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "项目ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "integer",
+                        "description": "任务ID",
+                        "name": "taskId",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/common.Response"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/project.ProjectTaskResponse"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            },
+            "put": {
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "项目管理"
+                ],
+                "summary": "更新项目任务（version 可选乐观锁）",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "项目ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "integer",
+                        "description": "任务ID",
+                        "name": "taskId",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "更新请求",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/project.TaskUpdateRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/common.Response"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/project.ProjectTaskResponse"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "项目管理"
+                ],
+                "summary": "删除项目任务",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "项目ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "integer",
+                        "description": "任务ID",
+                        "name": "taskId",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/common.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/projects/{id}/tasks/{taskId}/dependencies": {
+            "post": {
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "项目管理"
+                ],
+                "summary": "添加任务依赖（v1 仅 FS；同项目/无自依赖/无环）",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "项目ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "integer",
+                        "description": "任务ID",
+                        "name": "taskId",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "依赖请求",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/project.DependencyCreateRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/common.Response"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/project.ProjectTaskDependencyResponse"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/projects/{id}/tasks/{taskId}/dependencies/{dependsOnTaskId}": {
+            "delete": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "项目管理"
+                ],
+                "summary": "删除任务依赖",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "项目ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "integer",
+                        "description": "任务ID",
+                        "name": "taskId",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "integer",
+                        "description": "前置任务ID",
+                        "name": "dependsOnTaskId",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/common.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/projects/{id}/tasks/{taskId}/status": {
+            "post": {
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "项目管理"
+                ],
+                "summary": "任务状态流转（start|block|unblock|complete|cancel）",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "项目ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "integer",
+                        "description": "任务ID",
+                        "name": "taskId",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "流转请求",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/project.TaskStatusRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/common.Response"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/project.ProjectTaskResponse"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/projects/{id}/tasks/{taskId}/tickets": {
+            "post": {
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "项目管理"
+                ],
+                "summary": "任务生成工单（一任务一主工单；重复 409）",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "项目ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "integer",
+                        "description": "任务ID",
+                        "name": "taskId",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "生成参数",
+                        "name": "body",
+                        "in": "body",
+                        "schema": {
+                            "$ref": "#/definitions/project.TaskTicketRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/common.Response"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/project.ProjectTaskResponse"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "项目管理"
+                ],
+                "summary": "任务解绑主工单（解绑后可重建）",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "项目ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "integer",
+                        "description": "任务ID",
+                        "name": "taskId",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/common.Response"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/project.ProjectTaskResponse"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/projects/{id}/templates/apply": {
+            "post": {
+                "description": "模板须 active；一项目一模板（重复应用 409，幂等：不产生重复数据）；锚点=项目开始日期（缺失时=当日）",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "项目管理"
+                ],
+                "summary": "应用模板（生成阶段/任务/检查单/里程碑）",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "项目ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "应用请求",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/project.TemplateApplyRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/common.Response"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/project.TemplateApplyResponse"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/service-requests/{id}/project": {
+            "post": {
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "项目管理"
+                ],
+                "summary": "服务请求挂接项目",
+                "responses": {}
+            },
+            "delete": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "项目管理"
+                ],
+                "summary": "服务请求解除项目挂接",
+                "responses": {}
             }
         },
         "/api/v1/system/vector-store": {
@@ -11179,6 +14396,72 @@ const docTemplate = `{
                     "向量存储"
                 ],
                 "summary": "测试向量存储连接",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/common.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/tickets/{id}/project": {
+            "post": {
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "项目管理"
+                ],
+                "summary": "工单挂接项目（idempotent；project:write 动态复核）",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "工单ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "{projectId}",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/project.RecordAttachRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/common.Response"
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "项目管理"
+                ],
+                "summary": "工单解除项目挂接",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "工单ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
                 "responses": {
                     "200": {
                         "description": "OK",
@@ -11620,6 +14903,62 @@ const docTemplate = `{
                 }
             }
         },
+        "/api/v1/users/{id}/offboard": {
+            "post": {
+                "description": "停用用户 + 吊销全部会话 + 撤销该用户全部有效 MSP 分配（幂等可重跑）",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "用户管理"
+                ],
+                "summary": "离职编排（停用账号并撤销全部分配）",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "用户ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/common.Response"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/service.OffboardResult"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/common.Response"
+                        }
+                    },
+                    "409": {
+                        "description": "Conflict",
+                        "schema": {
+                            "$ref": "#/definitions/common.Response"
+                        }
+                    }
+                }
+            }
+        },
         "/api/v1/users/{id}/reset-password": {
             "put": {
                 "description": "管理员重置用户密码",
@@ -11761,6 +15100,38 @@ const docTemplate = `{
                 "StrengthMedium",
                 "StrengthLow"
             ]
+        },
+        "common.ListResponse": {
+            "type": "object",
+            "properties": {
+                "items": {},
+                "pagination": {
+                    "$ref": "#/definitions/common.PaginationResponse"
+                }
+            }
+        },
+        "common.PaginationResponse": {
+            "type": "object",
+            "properties": {
+                "hasNext": {
+                    "type": "boolean"
+                },
+                "hasPrev": {
+                    "type": "boolean"
+                },
+                "page": {
+                    "type": "integer"
+                },
+                "pageSize": {
+                    "type": "integer"
+                },
+                "total": {
+                    "type": "integer"
+                },
+                "totalPages": {
+                    "type": "integer"
+                }
+            }
         },
         "common.Response": {
             "type": "object",
@@ -12127,12 +15498,14 @@ const docTemplate = `{
                 "incident",
                 "service_request",
                 "problem",
-                "release"
+                "release",
+                "project"
             ],
             "x-enum-comments": {
                 "BusinessTypeChange": "变更",
                 "BusinessTypeIncident": "事件",
                 "BusinessTypeProblem": "问题",
+                "BusinessTypeProject": "项目（阶段门：initiation|plan|acceptance|closure）",
                 "BusinessTypeRelease": "发布",
                 "BusinessTypeServiceRequest": "服务请求",
                 "BusinessTypeTicket": "工单"
@@ -12143,7 +15516,8 @@ const docTemplate = `{
                 "事件",
                 "服务请求",
                 "问题",
-                "发布"
+                "发布",
+                "项目（阶段门：initiation|plan|acceptance|closure）"
             ],
             "x-enum-varnames": [
                 "BusinessTypeTicket",
@@ -12151,7 +15525,8 @@ const docTemplate = `{
                 "BusinessTypeIncident",
                 "BusinessTypeServiceRequest",
                 "BusinessTypeProblem",
-                "BusinessTypeRelease"
+                "BusinessTypeRelease",
+                "BusinessTypeProject"
             ]
         },
         "dto.CIAttributeDefinitionResponse": {
@@ -14023,7 +17398,9 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "description": {
-                    "type": "string"
+                    "description": "description 自富文本第三波起落库 HTML（CIEditorForm），标签与内嵌图片属性会额外\n占用长度，故放宽到 20000（对齐 service_request.reason 口径），纯文本口径由前端校验把关。",
+                    "type": "string",
+                    "maxLength": 20000
                 },
                 "discoverySource": {
                     "type": "string"
@@ -14603,8 +17980,9 @@ const docTemplate = `{
                     }
                 },
                 "description": {
+                    "description": "description 自富文本改造起落库 HTML，标签与内嵌图片属性会额外占用长度，\n故放宽到 20000（对齐第一波 service_request.reason），纯文本口径由前端校验把关。",
                     "type": "string",
-                    "maxLength": 5000,
+                    "maxLength": 20000,
                     "example": "生产环境Web服务器CPU使用率持续超过90%"
                 },
                 "detectedAt": {
@@ -14702,8 +18080,9 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "description": {
+                    "description": "description 自富文本改造起落库 HTML，标签与内嵌图片属性会额外占用长度，\n故放宽到 20000（对齐第一波 service_request.reason），纯文本口径由前端校验把关。",
                     "type": "string",
-                    "maxLength": 5000,
+                    "maxLength": 20000,
                     "minLength": 10
                 },
                 "impact": {
@@ -14756,9 +18135,10 @@ const docTemplate = `{
                     "minLength": 1
                 },
                 "password": {
+                    "description": "长度下限只做兜底；真实强度由 service 层按租户 system_configs 的密码策略校验，\n使 /admin/system-config 的 passwordMinLength 等配置真正生效。",
                     "type": "string",
                     "maxLength": 128,
-                    "minLength": 12
+                    "minLength": 6
                 },
                 "phone": {
                     "type": "string"
@@ -15795,6 +19175,13 @@ const docTemplate = `{
                 "pagination": {
                     "$ref": "#/definitions/dto.PaginationResponse"
                 },
+                "providerMembers": {
+                    "description": "ProviderMembers 客户租户内服务方成员（独立只读区块，不计入分页 total；MSW-Q2=B）。",
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/dto.UserDetailResponse"
+                    }
+                },
                 "users": {
                     "type": "array",
                     "items": {
@@ -16207,7 +19594,7 @@ const docTemplate = `{
                 "newPassword": {
                     "type": "string",
                     "maxLength": 128,
-                    "minLength": 12
+                    "minLength": 6
                 }
             }
         },
@@ -16566,7 +19953,9 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "description": {
-                    "type": "string"
+                    "description": "description 富文本 HTML 长度口径同 CreateCIRequest（20000）。",
+                    "type": "string",
+                    "maxLength": 20000
                 },
                 "discoverySource": {
                     "type": "string"
@@ -17002,8 +20391,9 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "description": {
+                    "description": "description 富文本 HTML 长度口径同 CreateProblemRequest。",
                     "type": "string",
-                    "maxLength": 5000,
+                    "maxLength": 20000,
                     "minLength": 10
                 },
                 "impact": {
@@ -17121,6 +20511,10 @@ const docTemplate = `{
         "dto.UserDetailResponse": {
             "type": "object",
             "properties": {
+                "accountKind": {
+                    "description": "Q2=B / MSW-2：客户侧成员列表的服务方成员只读展示（accountKind=provider, readOnly=true）。",
+                    "type": "string"
+                },
                 "active": {
                     "type": "boolean"
                 },
@@ -17144,6 +20538,9 @@ const docTemplate = `{
                 },
                 "phone": {
                     "type": "string"
+                },
+                "readOnly": {
+                    "type": "boolean"
                 },
                 "role": {
                     "type": "string"
@@ -17950,6 +21347,10 @@ const docTemplate = `{
                 "priority": {
                     "description": "优先级",
                     "type": "string"
+                },
+                "project_id": {
+                    "description": "所属项目ID（P0；同租户）",
+                    "type": "integer"
                 },
                 "related_tickets": {
                     "description": "相关工单",
@@ -18769,6 +22170,10 @@ const docTemplate = `{
         "ent.Conversation": {
             "type": "object",
             "properties": {
+                "bot_id": {
+                    "description": "BotID holds the value of the \"bot_id\" field.",
+                    "type": "integer"
+                },
                 "created_at": {
                     "description": "CreatedAt holds the value of the \"created_at\" field.",
                     "type": "string"
@@ -19810,6 +23215,10 @@ const docTemplate = `{
                     "description": "优先级",
                     "type": "string"
                 },
+                "project_id": {
+                    "description": "所属项目ID（P0；同租户）",
+                    "type": "integer"
+                },
                 "reporter_id": {
                     "description": "报告人ID",
                     "type": "integer"
@@ -20369,6 +23778,10 @@ const docTemplate = `{
                     "description": "文章内容",
                     "type": "string"
                 },
+                "content_type": {
+                    "description": "正文类型：text/markdown/html/rich_text；空=历史数据按内容自动判定",
+                    "type": "string"
+                },
                 "created_at": {
                     "description": "创建时间",
                     "type": "string"
@@ -20740,6 +24153,10 @@ const docTemplate = `{
                     "description": "MSP 员工ID（属于MSP租户）",
                     "type": "integer"
                 },
+                "provider_tenant_id": {
+                    "description": "服务商租户ID（IP-P2-1：= MSP 员工 home provider 且 == customer.msp_provider_id；NOT NULL 收尾）",
+                    "type": "integer"
+                },
                 "role": {
                     "description": "分配角色: primary|backup|specialist",
                     "type": "string"
@@ -20762,6 +24179,158 @@ const docTemplate = `{
                     "allOf": [
                         {
                             "$ref": "#/definitions/ent.User"
+                        }
+                    ]
+                },
+                "provider_tenant": {
+                    "description": "ProviderTenant holds the value of the provider_tenant edge.",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/ent.Tenant"
+                        }
+                    ]
+                }
+            }
+        },
+        "ent.MSPContract": {
+            "type": "object",
+            "properties": {
+                "contract_no": {
+                    "description": "合同编号（tenant 内唯一，对齐 support_contract 惯例）",
+                    "type": "string"
+                },
+                "created_at": {
+                    "description": "创建时间",
+                    "type": "string"
+                },
+                "currency": {
+                    "description": "结算币种（默认取 customer.currency）",
+                    "type": "string"
+                },
+                "customer_tenant_id": {
+                    "description": "被服务方（客户租户）",
+                    "type": "integer"
+                },
+                "edges": {
+                    "description": "Edges holds the relations/edges for other nodes in the graph.\nThe values are being populated by the MSPContractQuery when eager-loading is set.",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/ent.MSPContractEdges"
+                        }
+                    ]
+                },
+                "effective_from": {
+                    "description": "生效时间",
+                    "type": "string"
+                },
+                "effective_until": {
+                    "description": "失效时间（NULL=长期有效）",
+                    "type": "string"
+                },
+                "id": {
+                    "description": "ID of the ent.",
+                    "type": "integer"
+                },
+                "name": {
+                    "description": "合同名称",
+                    "type": "string"
+                },
+                "penalties": {
+                    "description": "违约条款（值对象）：{metric, threshold, credit_rate, cap}",
+                    "type": "object",
+                    "additionalProperties": true
+                },
+                "provider_tenant_id": {
+                    "description": "签订方（服务商租户）",
+                    "type": "integer"
+                },
+                "settlement_cycle": {
+                    "description": "结算周期：monthly|quarterly|on_demand",
+                    "type": "string"
+                },
+                "status": {
+                    "description": "状态：draft|active|expired|terminated",
+                    "type": "string"
+                },
+                "tenant_id": {
+                    "description": "归属租户ID（=provider_tenant_id；RLS 收窄依据）",
+                    "type": "integer"
+                },
+                "updated_at": {
+                    "description": "更新时间",
+                    "type": "string"
+                }
+            }
+        },
+        "ent.MSPContractEdges": {
+            "type": "object",
+            "properties": {
+                "sla_bindings": {
+                    "description": "合同引用的 SLA 定义集（关联表，非 JSON 数组——§4.4 v1.1）",
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/ent.MSPContractSLABinding"
+                    }
+                }
+            }
+        },
+        "ent.MSPContractSLABinding": {
+            "type": "object",
+            "properties": {
+                "contract_id": {
+                    "description": "合同ID",
+                    "type": "integer"
+                },
+                "created_at": {
+                    "description": "创建时间",
+                    "type": "string"
+                },
+                "edges": {
+                    "description": "Edges holds the relations/edges for other nodes in the graph.\nThe values are being populated by the MSPContractSLABindingQuery when eager-loading is set.",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/ent.MSPContractSLABindingEdges"
+                        }
+                    ]
+                },
+                "id": {
+                    "description": "ID of the ent.",
+                    "type": "integer"
+                },
+                "sla_definition_id": {
+                    "description": "SLA定义ID（owner=provider）",
+                    "type": "integer"
+                },
+                "tenant_id": {
+                    "description": "归属租户ID（=provider_tenant_id；RLS 收窄依据）",
+                    "type": "integer"
+                },
+                "ticket_type_id": {
+                    "description": "customer 租户内的工单类型ID；0=类型无关绑定",
+                    "type": "integer"
+                },
+                "updated_at": {
+                    "description": "更新时间",
+                    "type": "string"
+                }
+            }
+        },
+        "ent.MSPContractSLABindingEdges": {
+            "type": "object",
+            "properties": {
+                "contract": {
+                    "description": "Contract holds the value of the contract edge.",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/ent.MSPContract"
+                        }
+                    ]
+                },
+                "sla_definition": {
+                    "description": "SLADefinition holds the value of the sla_definition edge.",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/ent.SLADefinition"
                         }
                     ]
                 }
@@ -20970,6 +24539,10 @@ const docTemplate = `{
                 "role": {
                     "description": "Role holds the value of the \"role\" field.",
                     "type": "string"
+                },
+                "tenant_id": {
+                    "description": "TenantID holds the value of the \"tenant_id\" field.",
+                    "type": "integer"
                 }
             }
         },
@@ -21399,6 +24972,10 @@ const docTemplate = `{
                 "problem_number": {
                     "description": "问题编号 PRB-YYYYMMDD-XXXX",
                     "type": "string"
+                },
+                "project_id": {
+                    "description": "所属项目ID（P0；同租户）",
+                    "type": "integer"
                 },
                 "resolution": {
                     "description": "最终解决方案",
@@ -22424,12 +26001,40 @@ const docTemplate = `{
         "ent.Project": {
             "type": "object",
             "properties": {
+                "actual_end": {
+                    "description": "实际结束时间（P0）",
+                    "type": "string"
+                },
+                "actual_start": {
+                    "description": "实际开始时间（P0）",
+                    "type": "string"
+                },
+                "budget_amount": {
+                    "description": "项目预算金额（P2 轻量预算；不做财务级核算）",
+                    "type": "number"
+                },
+                "budget_currency": {
+                    "description": "预算币种（P2；空=租户默认）",
+                    "type": "string"
+                },
+                "closed_at": {
+                    "description": "结项时间（P0）",
+                    "type": "string"
+                },
                 "code": {
                     "description": "项目代码",
                     "type": "string"
                 },
                 "created_at": {
                     "description": "创建时间",
+                    "type": "string"
+                },
+                "default_weekly_capacity_hours": {
+                    "description": "项目周容量默认（小时；P2 资源热图；NULL=内置 40h）",
+                    "type": "number"
+                },
+                "deleted_at": {
+                    "description": "软删除时间（P0；DELETE 语义）",
                     "type": "string"
                 },
                 "department_id": {
@@ -22452,6 +26057,10 @@ const docTemplate = `{
                     "description": "结束日期",
                     "type": "string"
                 },
+                "health": {
+                    "description": "健康度: green|yellow|red（P0）",
+                    "type": "string"
+                },
                 "id": {
                     "description": "ID of the ent.",
                     "type": "integer"
@@ -22464,21 +26073,53 @@ const docTemplate = `{
                     "description": "项目名称",
                     "type": "string"
                 },
+                "owner_team_id": {
+                    "description": "团队归口（P0，集成契约 §1-2）",
+                    "type": "integer"
+                },
+                "parent_project_id": {
+                    "description": "父子项目（P0）",
+                    "type": "integer"
+                },
+                "progress": {
+                    "description": "进度 0-100（P0）",
+                    "type": "integer"
+                },
                 "start_date": {
                     "description": "开始日期",
                     "type": "string"
                 },
                 "status": {
-                    "description": "状态: active, completed, suspended",
+                    "description": "状态: planning|active|suspended|completed|cancelled（P0 受控；存量映射见 docs/project-management/plan）",
                     "type": "string"
+                },
+                "template_applied_at": {
+                    "description": "模板应用时间（PE-11）",
+                    "type": "string"
+                },
+                "template_applied_by": {
+                    "description": "模板应用人ID（PE-11）",
+                    "type": "integer"
+                },
+                "template_id": {
+                    "description": "已应用的项目模板ID（PE-11；非空即已应用，幂等闸门）",
+                    "type": "integer"
                 },
                 "tenant_id": {
                     "description": "租户ID",
                     "type": "integer"
                 },
+                "type": {
+                    "description": "项目类型: internal|improvement|delivery（P0）",
+                    "type": "string"
+                },
                 "updated_at": {
                     "description": "更新时间",
                     "type": "string"
+                },
+                "version": {
+                    "description": "乐观锁版本（P0）",
+                    "type": "integer"
                 }
             }
         },
@@ -22887,6 +26528,10 @@ const docTemplate = `{
                     "description": "SLA名称",
                     "type": "string"
                 },
+                "owner_provider_tenant_id": {
+                    "description": "归属服务商租户ID；0=租户自用，非0=provider 合同 SLA",
+                    "type": "integer"
+                },
                 "priority": {
                     "description": "优先级",
                     "type": "string"
@@ -22923,6 +26568,20 @@ const docTemplate = `{
                         "$ref": "#/definitions/ent.SLAAlertRule"
                     }
                 },
+                "contract_bindings": {
+                    "description": "合同绑定（provider 侧资产，D-SLA-4）",
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/ent.MSPContractSLABinding"
+                    }
+                },
+                "grants": {
+                    "description": "下发授权（provider 侧资产）",
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/ent.SLADefinitionGrant"
+                    }
+                },
                 "metrics": {
                     "description": "SLA指标",
                     "type": "array",
@@ -22943,6 +26602,72 @@ const docTemplate = `{
                     "items": {
                         "$ref": "#/definitions/ent.SLAViolation"
                     }
+                }
+            }
+        },
+        "ent.SLADefinitionGrant": {
+            "type": "object",
+            "properties": {
+                "created_at": {
+                    "description": "创建时间",
+                    "type": "string"
+                },
+                "customer_tenant_id": {
+                    "description": "被授权客户租户ID",
+                    "type": "integer"
+                },
+                "edges": {
+                    "description": "Edges holds the relations/edges for other nodes in the graph.\nThe values are being populated by the SLADefinitionGrantQuery when eager-loading is set.",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/ent.SLADefinitionGrantEdges"
+                        }
+                    ]
+                },
+                "id": {
+                    "description": "ID of the ent.",
+                    "type": "integer"
+                },
+                "is_active": {
+                    "description": "是否生效",
+                    "type": "boolean"
+                },
+                "provider_tenant_id": {
+                    "description": "服务商租户ID",
+                    "type": "integer"
+                },
+                "sla_definition_id": {
+                    "description": "SLA定义ID（provider 租户内的源头定义）",
+                    "type": "integer"
+                },
+                "tenant_id": {
+                    "description": "归属租户ID（=provider_tenant_id；RLS 收窄依据）",
+                    "type": "integer"
+                },
+                "ticket_type_id": {
+                    "description": "customer 租户内的工单类型ID；0=类型无关授权",
+                    "type": "integer"
+                },
+                "updated_at": {
+                    "description": "更新时间",
+                    "type": "string"
+                },
+                "valid_until": {
+                    "description": "有效期（NULL=长期有效；完整合同期由 P1 msp_contract 承载）",
+                    "type": "string"
+                }
+            }
+        },
+        "ent.SLADefinitionGrantEdges": {
+            "type": "object",
+            "properties": {
+                "sla_definition": {
+                    "description": "SLADefinition holds the value of the sla_definition edge.",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/ent.SLADefinition"
+                        }
+                    ]
                 }
             }
         },
@@ -23036,6 +26761,10 @@ const docTemplate = `{
                     "description": "违规描述",
                     "type": "string"
                 },
+                "dispute_reason": {
+                    "description": "争议理由（disputed 时必填）",
+                    "type": "string"
+                },
                 "edges": {
                     "description": "Edges holds the relations/edges for other nodes in the graph.\nThe values are being populated by the SLAViolationQuery when eager-loading is set.",
                     "allOf": [
@@ -23056,6 +26785,10 @@ const docTemplate = `{
                     "description": "是否已解决",
                     "type": "boolean"
                 },
+                "matched_layer": {
+                    "description": "匹配层级快照: L1/L2/L3a/L3b/L3c/L4（来源=工单）",
+                    "type": "string"
+                },
                 "overdue_minutes": {
                     "description": "超时分钟数",
                     "type": "integer"
@@ -23064,9 +26797,17 @@ const docTemplate = `{
                     "description": "解决说明",
                     "type": "string"
                 },
+                "resolution_state": {
+                    "description": "归责状态: pending|accepted|disputed|waived",
+                    "type": "string"
+                },
                 "resolved_at": {
                     "description": "解决时间",
                     "type": "string"
+                },
+                "settled_flag": {
+                    "description": "已进结算快照（终态锁定；D-SLA-9 §13.3）",
+                    "type": "boolean"
                 },
                 "severity": {
                     "description": "严重程度",
@@ -23110,6 +26851,18 @@ const docTemplate = `{
                 },
                 "violation_type": {
                     "description": "违规类型",
+                    "type": "string"
+                },
+                "waived_at": {
+                    "description": "豁免时间",
+                    "type": "string"
+                },
+                "waived_by": {
+                    "description": "豁免操作人ID",
+                    "type": "integer"
+                },
+                "waived_reason": {
+                    "description": "豁免理由（waived 时必填）",
                     "type": "string"
                 }
             }
@@ -23618,6 +27371,14 @@ const docTemplate = `{
                     "description": "订阅或套餐编码",
                     "type": "string"
                 },
+                "quota": {
+                    "description": "租户硬配额（limits）：{maxUsers,maxTicketsPerMonth,maxStorageMB}；NULL 或值\u003c=0 = 不限",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/tenantquota.Limits"
+                        }
+                    ]
+                },
                 "service_tier": {
                     "description": "服务等级",
                     "type": "string"
@@ -23654,8 +27415,29 @@ const docTemplate = `{
                         "$ref": "#/definitions/ent.BootstrapToken"
                     }
                 },
+                "membership_orgs": {
+                    "description": "成员组织归属（IP-P1-3）",
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/ent.UserTenantMembershipOrg"
+                    }
+                },
+                "memberships": {
+                    "description": "租户成员身份（IP-P1-1）",
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/ent.UserTenantMembership"
+                    }
+                },
                 "msp_customer_allocations": {
                     "description": "MSP客户分配",
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/ent.MSPAllocation"
+                    }
+                },
+                "msp_provider_allocations": {
+                    "description": "MSP服务商维度分配（IP-P2-1）",
                     "type": "array",
                     "items": {
                         "$ref": "#/definitions/ent.MSPAllocation"
@@ -23788,6 +27570,14 @@ const docTemplate = `{
                     "description": "工单描述",
                     "type": "string"
                 },
+                "description_format": {
+                    "description": "描述格式：plain/html，用于灰度与兼容旧数据",
+                    "type": "string"
+                },
+                "description_html": {
+                    "description": "工单描述富文本 HTML（服务端净化后）",
+                    "type": "string"
+                },
                 "edges": {
                     "description": "Edges holds the relations/edges for other nodes in the graph.\nThe values are being populated by the TicketQuery when eager-loading is set.",
                     "allOf": [
@@ -23821,6 +27611,10 @@ const docTemplate = `{
                     "description": "MSP服务提供商ID",
                     "type": "integer"
                 },
+                "msp_routed_at": {
+                    "description": "服务商路由时间（类型级自动路由标记；nil=未路由，客户内闭环）",
+                    "type": "string"
+                },
                 "msp_ticket_id": {
                     "description": "MSP工单ID(跨租户)",
                     "type": "string"
@@ -23832,6 +27626,10 @@ const docTemplate = `{
                 "priority": {
                     "description": "优先级",
                     "type": "string"
+                },
+                "project_id": {
+                    "description": "所属项目ID（P0；同租户，见 docs/project-management/plan/p0-data-ddl.md §3）",
+                    "type": "integer"
                 },
                 "rated_at": {
                     "description": "评分时间",
@@ -23868,6 +27666,10 @@ const docTemplate = `{
                 "sla_definition_id": {
                     "description": "SLA定义ID",
                     "type": "integer"
+                },
+                "sla_matched_layer": {
+                    "description": "SLA匹配层级快照: L1/L2/L3a/L3b/L3c/L4",
+                    "type": "string"
                 },
                 "sla_pause_reason": {
                     "description": "SLA暂停原因",
@@ -24644,6 +28446,10 @@ const docTemplate = `{
                     "description": "Color holds the value of the \"color\" field.",
                     "type": "string"
                 },
+                "controlled_by_provider": {
+                    "description": "受控字段锁：true=受控字段(name/description/sla_enabled/default_sla_id)仅服务商发布可改",
+                    "type": "boolean"
+                },
                 "created_at": {
                     "description": "CreatedAt holds the value of the \"created_at\" field.",
                     "type": "string"
@@ -24685,6 +28491,14 @@ const docTemplate = `{
                     "description": "ID of the ent.",
                     "type": "integer"
                 },
+                "last_synced_at": {
+                    "description": "最近一次发布同步时间",
+                    "type": "string"
+                },
+                "msp_route_enabled": {
+                    "description": "是否启用服务商跨租户路由（类型级自动路由：建单派生 MSP 快照并标记路由）",
+                    "type": "boolean"
+                },
                 "name": {
                     "description": "Name holds the value of the \"name\" field.",
                     "type": "string"
@@ -24693,6 +28507,18 @@ const docTemplate = `{
                     "description": "NotificationConfig holds the value of the \"notification_config\" field.",
                     "type": "object",
                     "additionalProperties": true
+                },
+                "origin": {
+                    "description": "来源: native(客户自建)|controlled(服务商下发副本)",
+                    "type": "string"
+                },
+                "origin_provider_tenant_id": {
+                    "description": "下发源服务商租户ID（0=非下发）",
+                    "type": "integer"
+                },
+                "origin_type_id": {
+                    "description": "下发源类型行ID（provider 租户内；0=非下发）",
+                    "type": "integer"
                 },
                 "permission_config": {
                     "description": "PermissionConfig holds the value of the \"permission_config\" field.",
@@ -24703,12 +28529,20 @@ const docTemplate = `{
                     "description": "SLAEnabled holds the value of the \"sla_enabled\" field.",
                     "type": "boolean"
                 },
+                "sla_exempt": {
+                    "description": "SLA 显式豁免：true=跳过全部匹配，报表豁免桶",
+                    "type": "boolean"
+                },
                 "sort_order": {
                     "description": "SortOrder holds the value of the \"sort_order\" field.",
                     "type": "integer"
                 },
                 "status": {
                     "description": "Status holds the value of the \"status\" field.",
+                    "type": "string"
+                },
+                "sync_status": {
+                    "description": "同步状态: ''(native)|synced|dirty|failed|orphaned|unbound",
                     "type": "string"
                 },
                 "tenant_id": {
@@ -24843,8 +28677,20 @@ const docTemplate = `{
                     "description": "ApprovedBy holds the value of the \"approved_by\" field.",
                     "type": "integer"
                 },
+                "args_redacted": {
+                    "description": "脱敏后的入参快照（展示/审计唯一来源；与 B0-02 input_redacted 统一命名）",
+                    "type": "string"
+                },
                 "arguments": {
                     "description": "Arguments holds the value of the \"arguments\" field.",
+                    "type": "string"
+                },
+                "attempt_count": {
+                    "description": "队列消费尝试次数",
+                    "type": "integer"
+                },
+                "category": {
+                    "description": "工具分类快照",
                     "type": "string"
                 },
                 "conversation_id": {
@@ -24859,6 +28705,10 @@ const docTemplate = `{
                     "description": "DryRun holds the value of the \"dry_run\" field.",
                     "type": "boolean"
                 },
+                "duration_ms": {
+                    "description": "执行耗时（毫秒）",
+                    "type": "integer"
+                },
                 "edges": {
                     "description": "Edges holds the relations/edges for other nodes in the graph.\nThe values are being populated by the ToolInvocationQuery when eager-loading is set.",
                     "allOf": [
@@ -24871,13 +28721,45 @@ const docTemplate = `{
                     "description": "Error holds the value of the \"error\" field.",
                     "type": "string"
                 },
+                "error_code": {
+                    "description": "错误码（分类后）",
+                    "type": "string"
+                },
+                "expires_at": {
+                    "description": "确认单过期时间",
+                    "type": "string"
+                },
                 "id": {
                     "description": "ID of the ent.",
                     "type": "integer"
                 },
+                "idempotency_key_hash": {
+                    "description": "幂等键 hash（只存 hash；读工具为空）",
+                    "type": "string"
+                },
+                "last_error_code": {
+                    "description": "最近一次消费错误码",
+                    "type": "string"
+                },
+                "mcp_callable_name": {
+                    "description": "MCP 投影名 mcp__\u003cserver\u003e__\u003ctool\u003e",
+                    "type": "string"
+                },
+                "mcp_raw_tool_name": {
+                    "description": "MCP 原始工具名",
+                    "type": "string"
+                },
+                "mcp_server_name": {
+                    "description": "MCP 服务器标识（provider=mcp 时）",
+                    "type": "string"
+                },
                 "needs_approval": {
                     "description": "NeedsApproval holds the value of the \"needs_approval\" field.",
                     "type": "boolean"
+                },
+                "output_summary": {
+                    "description": "结果摘要（脱敏/截断）",
+                    "type": "string"
                 },
                 "permission_check": {
                     "description": "权限校验结果: passed|denied|skipped",
@@ -24885,6 +28767,10 @@ const docTemplate = `{
                 },
                 "permission_reason": {
                     "description": "权限校验原因/拒绝原因",
+                    "type": "string"
+                },
+                "provider": {
+                    "description": "工具来源: builtin|mcp",
                     "type": "string"
                 },
                 "request_id": {
@@ -24895,12 +28781,36 @@ const docTemplate = `{
                     "description": "Result holds the value of the \"result\" field.",
                     "type": "string"
                 },
+                "risk": {
+                    "description": "调用时风险快照: read|plan|act_low|act_medium|act_high",
+                    "type": "string"
+                },
                 "role_snapshot": {
                     "description": "调用时角色快照，便于事后审计",
                     "type": "string"
                 },
+                "run_id": {
+                    "description": "所属 bot_runs（B1-01 落表后关联）",
+                    "type": "integer"
+                },
                 "status": {
                     "description": "Status holds the value of the \"status\" field.",
+                    "type": "string"
+                },
+                "step_id": {
+                    "description": "所属 bot_steps",
+                    "type": "integer"
+                },
+                "support_ref": {
+                    "description": "支撑信息引用（证据/来源）",
+                    "type": "string"
+                },
+                "target_id": {
+                    "description": "目标对象 ID",
+                    "type": "string"
+                },
+                "target_type": {
+                    "description": "目标对象类型（ticket/incident/ci/...）",
                     "type": "string"
                 },
                 "tenant_id": {
@@ -24914,6 +28824,14 @@ const docTemplate = `{
                 "user_id": {
                     "description": "工具触发者用户 ID",
                     "type": "integer"
+                },
+                "verify_note": {
+                    "description": "VerifyNote holds the value of the \"verify_note\" field.",
+                    "type": "string"
+                },
+                "verify_state": {
+                    "description": "执行后回读: pending|verified|failed|skipped",
+                    "type": "string"
                 }
             }
         },
@@ -24985,6 +28903,10 @@ const docTemplate = `{
                     "description": "是否通过bootstrap token创建",
                     "type": "boolean"
                 },
+                "last_active_tenant_id": {
+                    "description": "最近活跃租户（登录/切换时更新；IP-P1-5）",
+                    "type": "integer"
+                },
                 "msp_role": {
                     "description": "MSP角色: provider_admin=MSP管理员, provider_agent=MSP客服, customer_user=客户用户",
                     "allOf": [
@@ -24992,6 +28914,10 @@ const docTemplate = `{
                             "$ref": "#/definitions/user.MspRole"
                         }
                     ]
+                },
+                "must_change_password": {
+                    "description": "首登强制改密（IP-P1-5；bootstrap 管理员默认 true）",
+                    "type": "boolean"
                 },
                 "name": {
                     "description": "姓名",
@@ -25004,6 +28930,11 @@ const docTemplate = `{
                 "phone": {
                     "description": "电话",
                     "type": "string"
+                },
+                "preferences": {
+                    "description": "用户偏好（IP-P1-6c）：workbenchFilter 等；仅本人可读写",
+                    "type": "object",
+                    "additionalProperties": true
                 },
                 "role": {
                     "description": "角色（词表单一源=domain/role；security 为存量 legacy 值，新代码禁用）",
@@ -25109,6 +29040,13 @@ const docTemplate = `{
                         }
                     ]
                 },
+                "tenant_memberships": {
+                    "description": "账号的租户成员身份（IP-P1-1）",
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/ent.UserTenantMembership"
+                    }
+                },
                 "ticket_attachments": {
                     "description": "工单附件",
                     "type": "array",
@@ -25150,6 +29088,225 @@ const docTemplate = `{
                     "items": {
                         "$ref": "#/definitions/ent.ProcessVersionChangelog"
                     }
+                }
+            }
+        },
+        "ent.UserTenantMembership": {
+            "type": "object",
+            "properties": {
+                "account_kind": {
+                    "description": "账号类型快照（目标架构 §3.1）：customer|provider|platform；由服务层与 users 判定同步 + 巡检",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/usertenantmembership.AccountKind"
+                        }
+                    ]
+                },
+                "allocation_id": {
+                    "description": "服务方作用域来源分配（msp_allocations.id，可追溯）",
+                    "type": "integer"
+                },
+                "created_at": {
+                    "description": "创建时间",
+                    "type": "string"
+                },
+                "deassigned_at": {
+                    "description": "分配撤销时间（allocation 软删同步）",
+                    "type": "string"
+                },
+                "deleted_at": {
+                    "description": "软删时间（保留历史，回收即失效）",
+                    "type": "string"
+                },
+                "edges": {
+                    "description": "Edges holds the relations/edges for other nodes in the graph.\nThe values are being populated by the UserTenantMembershipQuery when eager-loading is set.",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/ent.UserTenantMembershipEdges"
+                        }
+                    ]
+                },
+                "expires_at": {
+                    "description": "作用域到期（IP-P1-3 起生效）",
+                    "type": "string"
+                },
+                "id": {
+                    "description": "ID of the ent.",
+                    "type": "integer"
+                },
+                "invited_by": {
+                    "description": "邀请人（source=invite）",
+                    "type": "integer"
+                },
+                "is_default": {
+                    "description": "主作用域标记：客户方恒 true；provider 的 provider 作用域 true",
+                    "type": "boolean"
+                },
+                "joined_at": {
+                    "description": "加入时间（source=invite 时）",
+                    "type": "string"
+                },
+                "msp_role": {
+                    "description": "服务方角色词表（D10：msp_viewer/msp_tech/msp_specialist/msp_manager/msp_admin）；客户方为空",
+                    "type": "string"
+                },
+                "role_id": {
+                    "description": "作用域内角色（roles.id，同租户）；映射失败可为空并进入巡检清单",
+                    "type": "integer"
+                },
+                "source": {
+                    "description": "来源：home|allocation|platform|invite|migration（可追溯）",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/usertenantmembership.Source"
+                        }
+                    ]
+                },
+                "status": {
+                    "description": "成员状态：active|suspended（邀请态由邀请流承载；移除=软删）",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/usertenantmembership.Status"
+                        }
+                    ]
+                },
+                "subject_type": {
+                    "description": "主体类型：第一期仅 user；service_account P2 扩展",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/usertenantmembership.SubjectType"
+                        }
+                    ]
+                },
+                "tenant_id": {
+                    "description": "作用域租户ID（tenants.id）",
+                    "type": "integer"
+                },
+                "updated_at": {
+                    "description": "更新时间",
+                    "type": "string"
+                },
+                "user_id": {
+                    "description": "账号ID（users.id）",
+                    "type": "integer"
+                }
+            }
+        },
+        "ent.UserTenantMembershipEdges": {
+            "type": "object",
+            "properties": {
+                "orgs": {
+                    "description": "组织归属（IP-P1-3：多组织/生效期以 membership 为唯一载体）",
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/ent.UserTenantMembershipOrg"
+                    }
+                },
+                "tenant": {
+                    "description": "Tenant holds the value of the tenant edge.",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/ent.Tenant"
+                        }
+                    ]
+                },
+                "user": {
+                    "description": "User holds the value of the user edge.",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/ent.User"
+                        }
+                    ]
+                }
+            }
+        },
+        "ent.UserTenantMembershipOrg": {
+            "type": "object",
+            "properties": {
+                "created_at": {
+                    "description": "创建时间",
+                    "type": "string"
+                },
+                "deleted_at": {
+                    "description": "软删时间（保留历史）",
+                    "type": "string"
+                },
+                "edges": {
+                    "description": "Edges holds the relations/edges for other nodes in the graph.\nThe values are being populated by the UserTenantMembershipOrgQuery when eager-loading is set.",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/ent.UserTenantMembershipOrgEdges"
+                        }
+                    ]
+                },
+                "expires_at": {
+                    "description": "组织归属生效期（到期即失效，巡检/读取按 now 判定）",
+                    "type": "string"
+                },
+                "id": {
+                    "description": "ID of the ent.",
+                    "type": "integer"
+                },
+                "is_primary": {
+                    "description": "主组织标记：同一 membership 同一 org_type 至多一个（部分唯一索引）",
+                    "type": "boolean"
+                },
+                "membership_id": {
+                    "description": "成员行ID（user_tenant_memberships.id；与 tenant_id 组成复合 FK）",
+                    "type": "integer"
+                },
+                "org_id": {
+                    "description": "组织ID（多态指向 department/team/group/project 表；租户一致性由应用层校验 + guard 扫描）",
+                    "type": "integer"
+                },
+                "org_type": {
+                    "description": "组织类型（多态）：department|team|group|project",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/usertenantmembershiporg.OrgType"
+                        }
+                    ]
+                },
+                "role_id": {
+                    "description": "组织内角色（roles.id，可选；同租户）",
+                    "type": "integer"
+                },
+                "status": {
+                    "description": "关联状态：active|suspended（移除=软删）",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/usertenantmembershiporg.Status"
+                        }
+                    ]
+                },
+                "tenant_id": {
+                    "description": "作用域租户ID（tenants.id）；与 membership.tenant_id 永久一致（DB 复合 FK + 应用双校验）",
+                    "type": "integer"
+                },
+                "updated_at": {
+                    "description": "更新时间",
+                    "type": "string"
+                }
+            }
+        },
+        "ent.UserTenantMembershipOrgEdges": {
+            "type": "object",
+            "properties": {
+                "membership": {
+                    "description": "Membership holds the value of the membership edge.",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/ent.UserTenantMembership"
+                        }
+                    ]
+                },
+                "tenant": {
+                    "description": "Tenant holds the value of the tenant edge.",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/ent.Tenant"
+                        }
+                    ]
                 }
             }
         },
@@ -25875,6 +30032,2770 @@ const docTemplate = `{
                 "TypePlugin"
             ]
         },
+        "project.AIMinutesTasksRequest": {
+            "type": "object",
+            "properties": {
+                "content": {
+                    "type": "string"
+                },
+                "limit": {
+                    "type": "integer"
+                }
+            }
+        },
+        "project.AIMinutesTasksResponse": {
+            "type": "object",
+            "properties": {
+                "contentChars": {
+                    "type": "integer"
+                },
+                "degradeReason": {
+                    "type": "string"
+                },
+                "degraded": {
+                    "type": "boolean"
+                },
+                "generatedAt": {
+                    "type": "string"
+                },
+                "generatedBy": {
+                    "type": "string"
+                },
+                "model": {
+                    "type": "string"
+                },
+                "projectId": {
+                    "type": "integer"
+                },
+                "proposals": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/project.AITaskProposal"
+                    }
+                }
+            }
+        },
+        "project.AIRiskSignal": {
+            "type": "object",
+            "properties": {
+                "detail": {
+                    "type": "string"
+                },
+                "refId": {
+                    "type": "integer"
+                },
+                "refType": {
+                    "type": "string"
+                },
+                "severity": {
+                    "type": "string"
+                },
+                "title": {
+                    "type": "string"
+                },
+                "type": {
+                    "type": "string"
+                }
+            }
+        },
+        "project.AIRiskWarning": {
+            "type": "object",
+            "properties": {
+                "detail": {
+                    "type": "string"
+                },
+                "severity": {
+                    "type": "string"
+                },
+                "suggestion": {
+                    "type": "string"
+                },
+                "title": {
+                    "type": "string"
+                }
+            }
+        },
+        "project.AIRiskWarningsResponse": {
+            "type": "object",
+            "properties": {
+                "degradeReason": {
+                    "type": "string"
+                },
+                "degraded": {
+                    "type": "boolean"
+                },
+                "generatedAt": {
+                    "type": "string"
+                },
+                "generatedBy": {
+                    "type": "string"
+                },
+                "model": {
+                    "type": "string"
+                },
+                "projectId": {
+                    "type": "integer"
+                },
+                "signalTotal": {
+                    "type": "integer"
+                },
+                "signals": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/project.AIRiskSignal"
+                    }
+                },
+                "truncated": {
+                    "type": "boolean"
+                },
+                "warnings": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/project.AIRiskWarning"
+                    }
+                }
+            }
+        },
+        "project.AISummaryRequest": {
+            "type": "object",
+            "properties": {
+                "cadence": {
+                    "type": "string"
+                }
+            }
+        },
+        "project.AISummaryResponse": {
+            "type": "object",
+            "properties": {
+                "cadence": {
+                    "type": "string"
+                },
+                "degradeReason": {
+                    "type": "string"
+                },
+                "degraded": {
+                    "type": "boolean"
+                },
+                "generatedAt": {
+                    "type": "string"
+                },
+                "generatedBy": {
+                    "type": "string"
+                },
+                "model": {
+                    "type": "string"
+                },
+                "projectId": {
+                    "type": "integer"
+                },
+                "promptChars": {
+                    "type": "integer"
+                },
+                "summary": {
+                    "type": "string"
+                }
+            }
+        },
+        "project.AITaskProposal": {
+            "type": "object",
+            "properties": {
+                "description": {
+                    "type": "string"
+                },
+                "estimateHours": {
+                    "type": "number"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "ownerHint": {
+                    "type": "string"
+                },
+                "priority": {
+                    "type": "string"
+                }
+            }
+        },
+        "project.AssetLinkCandidate": {
+            "type": "object",
+            "properties": {
+                "id": {
+                    "type": "integer"
+                },
+                "label": {
+                    "type": "string"
+                },
+                "sublabel": {
+                    "type": "string"
+                }
+            }
+        },
+        "project.AssetLinkCandidateListResponse": {
+            "type": "object",
+            "properties": {
+                "items": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/project.AssetLinkCandidate"
+                    }
+                },
+                "truncated": {
+                    "type": "boolean"
+                }
+            }
+        },
+        "project.AssetLinkCreateRequest": {
+            "type": "object",
+            "required": [
+                "linkType",
+                "targetId"
+            ],
+            "properties": {
+                "linkType": {
+                    "description": "LinkType asset|asset_license|vendor|contract。",
+                    "type": "string"
+                },
+                "note": {
+                    "description": "Note 登记备注（可选，≤512 字符）。",
+                    "type": "string"
+                },
+                "targetId": {
+                    "description": "TargetID 同租户目标 ID（弱引用；写入时存在性校验）。",
+                    "type": "integer"
+                }
+            }
+        },
+        "project.AssetLinkItem": {
+            "type": "object",
+            "properties": {
+                "createdAt": {
+                    "type": "string"
+                },
+                "createdBy": {
+                    "type": "integer"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "label": {
+                    "description": "Label/Sublabel 读时富化的目标标签；TargetMissing=true 时 Label 为空。",
+                    "type": "string"
+                },
+                "linkType": {
+                    "type": "string"
+                },
+                "note": {
+                    "type": "string"
+                },
+                "sublabel": {
+                    "type": "string"
+                },
+                "targetId": {
+                    "type": "integer"
+                },
+                "targetMissing": {
+                    "type": "boolean"
+                }
+            }
+        },
+        "project.AssetLinkListResponse": {
+            "type": "object",
+            "properties": {
+                "items": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/project.AssetLinkItem"
+                    }
+                },
+                "summary": {
+                    "type": "object",
+                    "additionalProperties": {
+                        "type": "integer"
+                    }
+                },
+                "total": {
+                    "type": "integer"
+                },
+                "truncated": {
+                    "description": "Truncated 超出硬上限（200）时为 true（不静默截断）。",
+                    "type": "boolean"
+                }
+            }
+        },
+        "project.BaselineBudgetDeviation": {
+            "type": "object",
+            "properties": {
+                "baseAmount": {
+                    "type": "number"
+                },
+                "baseCurrency": {
+                    "type": "string"
+                },
+                "changed": {
+                    "type": "boolean"
+                },
+                "currentAmount": {
+                    "type": "number"
+                },
+                "currentCurrency": {
+                    "type": "string"
+                },
+                "frozen": {
+                    "type": "boolean"
+                }
+            }
+        },
+        "project.BaselineCreateRequest": {
+            "type": "object",
+            "properties": {
+                "reason": {
+                    "type": "string"
+                }
+            }
+        },
+        "project.BaselineDiffResponse": {
+            "type": "object",
+            "properties": {
+                "baselineId": {
+                    "type": "integer"
+                },
+                "budget": {
+                    "description": "PE-22（D-34）：项目级预算偏差（v1 快照 frozen=false，不参与变更判定）。",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/project.BaselineBudgetDeviation"
+                        }
+                    ]
+                },
+                "createdAt": {
+                    "type": "string"
+                },
+                "frozenAt": {
+                    "type": "string"
+                },
+                "milestoneChanges": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/project.BaselineMilestoneDeviation"
+                    }
+                },
+                "milestoneSummary": {
+                    "$ref": "#/definitions/project.BaselineDiffSummary"
+                },
+                "taskChanges": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/project.BaselineTaskDeviation"
+                    }
+                },
+                "taskSummary": {
+                    "$ref": "#/definitions/project.BaselineDiffSummary"
+                },
+                "version": {
+                    "type": "integer"
+                }
+            }
+        },
+        "project.BaselineDiffSummary": {
+            "type": "object",
+            "properties": {
+                "added": {
+                    "type": "integer"
+                },
+                "changed": {
+                    "type": "integer"
+                },
+                "removed": {
+                    "type": "integer"
+                },
+                "unchanged": {
+                    "type": "integer"
+                }
+            }
+        },
+        "project.BaselineMilestoneDeviation": {
+            "type": "object",
+            "properties": {
+                "baselineStatus": {
+                    "type": "string"
+                },
+                "changeType": {
+                    "type": "string"
+                },
+                "currentStatus": {
+                    "type": "string"
+                },
+                "dueDateShiftDays": {
+                    "type": "integer"
+                },
+                "milestoneId": {
+                    "type": "integer"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "statusChanged": {
+                    "type": "boolean"
+                }
+            }
+        },
+        "project.BaselineMilestoneSnapshot": {
+            "type": "object",
+            "properties": {
+                "dueDate": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "ownerId": {
+                    "type": "integer"
+                },
+                "reachedAt": {
+                    "type": "string"
+                },
+                "status": {
+                    "type": "string"
+                }
+            }
+        },
+        "project.BaselineProjectSnapshot": {
+            "type": "object",
+            "properties": {
+                "budgetAmount": {
+                    "description": "PE-22（D-34）：冻结预算（v2 起；v1 快照缺省）。",
+                    "type": "number"
+                },
+                "budgetCurrency": {
+                    "type": "string"
+                },
+                "code": {
+                    "type": "string"
+                },
+                "endDate": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "progress": {
+                    "type": "integer"
+                },
+                "startDate": {
+                    "type": "string"
+                },
+                "status": {
+                    "type": "string"
+                }
+            }
+        },
+        "project.BaselineSnapshot": {
+            "type": "object",
+            "properties": {
+                "frozenAt": {
+                    "type": "string"
+                },
+                "milestones": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/project.BaselineMilestoneSnapshot"
+                    }
+                },
+                "project": {
+                    "$ref": "#/definitions/project.BaselineProjectSnapshot"
+                },
+                "schemaVersion": {
+                    "type": "integer"
+                },
+                "tasks": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/project.BaselineTaskSnapshot"
+                    }
+                }
+            }
+        },
+        "project.BaselineTaskDeviation": {
+            "type": "object",
+            "properties": {
+                "baselineStatus": {
+                    "type": "string"
+                },
+                "changeType": {
+                    "type": "string"
+                },
+                "currentStatus": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "planEndShiftDays": {
+                    "type": "integer"
+                },
+                "progressDelta": {
+                    "type": "integer"
+                },
+                "statusChanged": {
+                    "type": "boolean"
+                },
+                "taskId": {
+                    "type": "integer"
+                }
+            }
+        },
+        "project.BaselineTaskSnapshot": {
+            "type": "object",
+            "properties": {
+                "assigneeId": {
+                    "type": "integer"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "planEnd": {
+                    "type": "string"
+                },
+                "planStart": {
+                    "type": "string"
+                },
+                "priority": {
+                    "type": "string"
+                },
+                "progress": {
+                    "type": "integer"
+                },
+                "status": {
+                    "type": "string"
+                }
+            }
+        },
+        "project.Blocker": {
+            "type": "object",
+            "properties": {
+                "id": {
+                    "type": "integer"
+                },
+                "number": {
+                    "type": "string"
+                },
+                "status": {
+                    "type": "string"
+                },
+                "title": {
+                    "type": "string"
+                },
+                "type": {
+                    "type": "string"
+                }
+            }
+        },
+        "project.CapacityMemberInput": {
+            "type": "object",
+            "required": [
+                "userId"
+            ],
+            "properties": {
+                "userId": {
+                    "type": "integer"
+                },
+                "weeklyCapacityHours": {
+                    "$ref": "#/definitions/project.OptionalFloat"
+                }
+            }
+        },
+        "project.CapacityMemberView": {
+            "type": "object",
+            "properties": {
+                "userId": {
+                    "type": "integer"
+                },
+                "weeklyCapacityHours": {
+                    "type": "number"
+                }
+            }
+        },
+        "project.CapacityResponse": {
+            "type": "object",
+            "properties": {
+                "defaultWeeklyCapacityHours": {
+                    "type": "number"
+                },
+                "members": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/project.CapacityMemberView"
+                    }
+                }
+            }
+        },
+        "project.CapacityUpdateRequest": {
+            "type": "object",
+            "properties": {
+                "defaultWeeklyCapacityHours": {
+                    "$ref": "#/definitions/project.OptionalFloat"
+                },
+                "members": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/project.CapacityMemberInput"
+                    }
+                }
+            }
+        },
+        "project.ClosureAssetsRequest": {
+            "type": "object",
+            "required": [
+                "action"
+            ],
+            "properties": {
+                "action": {
+                    "description": "Action confirm=确认已登记；waive=本项目无资产/许可登记（豁免，必填原因）。",
+                    "type": "string"
+                },
+                "note": {
+                    "description": "Note 登记备注（confirm 可选；如登记位置/清单说明）。",
+                    "type": "string"
+                },
+                "reason": {
+                    "description": "Reason 豁免原因（waive 必填）。",
+                    "type": "string"
+                }
+            }
+        },
+        "project.ClosureItem": {
+            "type": "object",
+            "properties": {
+                "action": {
+                    "description": "前端可用动作（无=只读/自动项）",
+                    "type": "string"
+                },
+                "blocking": {
+                    "type": "boolean"
+                },
+                "detail": {
+                    "type": "string"
+                },
+                "key": {
+                    "type": "string"
+                },
+                "status": {
+                    "description": "done|pending",
+                    "type": "string"
+                },
+                "title": {
+                    "type": "string"
+                }
+            }
+        },
+        "project.CreateRequest": {
+            "type": "object",
+            "required": [
+                "name"
+            ],
+            "properties": {
+                "budgetAmount": {
+                    "description": "P2（PE-22）轻量预算：成对提供（只给其一 → 400），见 plan/p2-budget-hours-design.md D-33。",
+                    "type": "number"
+                },
+                "budgetCurrency": {
+                    "type": "string"
+                },
+                "code": {
+                    "type": "string"
+                },
+                "departmentId": {
+                    "type": "integer"
+                },
+                "description": {
+                    "type": "string"
+                },
+                "endDate": {
+                    "type": "string"
+                },
+                "managerId": {
+                    "type": "integer"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "ownerTeamId": {
+                    "type": "integer"
+                },
+                "startDate": {
+                    "type": "string"
+                },
+                "type": {
+                    "type": "string"
+                }
+            }
+        },
+        "project.DeliveryDetail": {
+            "type": "object",
+            "properties": {
+                "actualEnd": {
+                    "type": "string"
+                },
+                "code": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "onTime": {
+                    "type": "boolean"
+                },
+                "planEnd": {
+                    "type": "string"
+                },
+                "projectId": {
+                    "type": "integer"
+                }
+            }
+        },
+        "project.DeliveryMetrics": {
+            "type": "object",
+            "properties": {
+                "denominator": {
+                    "type": "integer"
+                },
+                "details": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/project.DeliveryDetail"
+                    }
+                },
+                "detailsTotal": {
+                    "type": "integer"
+                },
+                "noPlanDate": {
+                    "type": "integer"
+                },
+                "numerator": {
+                    "type": "integer"
+                },
+                "rate": {
+                    "type": "number"
+                }
+            }
+        },
+        "project.DependencyCreateRequest": {
+            "type": "object",
+            "required": [
+                "dependsOnTaskId"
+            ],
+            "properties": {
+                "depType": {
+                    "type": "string"
+                },
+                "dependsOnTaskId": {
+                    "type": "integer"
+                }
+            }
+        },
+        "project.GateBlocker": {
+            "type": "object",
+            "properties": {
+                "detail": {
+                    "description": "可读说明",
+                    "type": "string"
+                },
+                "number": {
+                    "description": "关联对象编号（单据）",
+                    "type": "string"
+                },
+                "refId": {
+                    "description": "关联对象ID（如未终态单据/任务）",
+                    "type": "integer"
+                },
+                "status": {
+                    "description": "关联对象状态",
+                    "type": "string"
+                },
+                "total": {
+                    "description": "该类阻塞总数（明细截断时给出总量）",
+                    "type": "integer"
+                },
+                "type": {
+                    "description": "gate_not_passed|manager_missing|member_missing|task_missing|milestone_missing|task_open|milestone_open|record_open",
+                    "type": "string"
+                }
+            }
+        },
+        "project.GateDecisionRequest": {
+            "type": "object",
+            "required": [
+                "decision"
+            ],
+            "properties": {
+                "comment": {
+                    "description": "Comment 裁决意见；reject 必填（拒绝含明确原因）。",
+                    "type": "string"
+                },
+                "decision": {
+                    "description": "Decision approve|reject。",
+                    "type": "string"
+                }
+            }
+        },
+        "project.GateDetail": {
+            "type": "object",
+            "properties": {
+                "decidedAt": {
+                    "type": "string"
+                },
+                "firstPass": {
+                    "type": "boolean"
+                },
+                "gate": {
+                    "type": "string"
+                },
+                "projectId": {
+                    "type": "integer"
+                },
+                "rejectCount": {
+                    "type": "integer"
+                },
+                "status": {
+                    "type": "string"
+                }
+            }
+        },
+        "project.GateMetrics": {
+            "type": "object",
+            "properties": {
+                "details": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/project.GateDetail"
+                    }
+                },
+                "detailsTotal": {
+                    "type": "integer"
+                },
+                "firstPass": {
+                    "type": "integer"
+                },
+                "passed": {
+                    "type": "integer"
+                },
+                "rate": {
+                    "type": "number"
+                }
+            }
+        },
+        "project.GenerateReportRequest": {
+            "type": "object",
+            "properties": {
+                "templateId": {
+                    "type": "integer"
+                }
+            }
+        },
+        "project.HeatmapCalendar": {
+            "type": "object",
+            "properties": {
+                "businessDaysOnly": {
+                    "type": "boolean"
+                },
+                "mode": {
+                    "type": "string"
+                },
+                "note": {
+                    "type": "string"
+                }
+            }
+        },
+        "project.HeatmapDefaults": {
+            "type": "object",
+            "properties": {
+                "defaultWeeklyCapacityHours": {
+                    "type": "number"
+                },
+                "source": {
+                    "type": "string"
+                }
+            }
+        },
+        "project.HeatmapMemberWeek": {
+            "type": "object",
+            "properties": {
+                "capacityHours": {
+                    "type": "number"
+                },
+                "memberStatus": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "plannedHours": {
+                    "type": "number"
+                },
+                "plannedRatio": {
+                    "type": "number"
+                },
+                "projectRole": {
+                    "type": "string"
+                },
+                "remainingHours": {
+                    "type": "number"
+                },
+                "remainingRatio": {
+                    "type": "number"
+                },
+                "userId": {
+                    "type": "integer"
+                },
+                "username": {
+                    "type": "string"
+                }
+            }
+        },
+        "project.HeatmapRange": {
+            "type": "object",
+            "properties": {
+                "end": {
+                    "type": "string"
+                },
+                "start": {
+                    "type": "string"
+                }
+            }
+        },
+        "project.HeatmapUnplanned": {
+            "type": "object",
+            "properties": {
+                "estimateHours": {
+                    "type": "number"
+                },
+                "taskCount": {
+                    "type": "integer"
+                }
+            }
+        },
+        "project.HeatmapWeek": {
+            "type": "object",
+            "properties": {
+                "members": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/project.HeatmapMemberWeek"
+                    }
+                },
+                "weekEnd": {
+                    "type": "string"
+                },
+                "weekStart": {
+                    "type": "string"
+                }
+            }
+        },
+        "project.HoursSummaryResponse": {
+            "type": "object",
+            "properties": {
+                "actualHours": {
+                    "type": "number"
+                },
+                "actualTaskCount": {
+                    "type": "integer"
+                },
+                "estimateHours": {
+                    "type": "number"
+                },
+                "estimatedTaskCount": {
+                    "type": "integer"
+                },
+                "taskCount": {
+                    "type": "integer"
+                }
+            }
+        },
+        "project.MemberAddRequest": {
+            "type": "object",
+            "required": [
+                "userId"
+            ],
+            "properties": {
+                "projectRole": {
+                    "type": "string"
+                },
+                "userId": {
+                    "type": "integer"
+                }
+            }
+        },
+        "project.MemberCandidate": {
+            "type": "object",
+            "properties": {
+                "expiresAt": {
+                    "type": "string"
+                },
+                "memberOrigin": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "userId": {
+                    "type": "integer"
+                },
+                "username": {
+                    "type": "string"
+                }
+            }
+        },
+        "project.MemberRoleUpdateRequest": {
+            "type": "object",
+            "required": [
+                "projectRole"
+            ],
+            "properties": {
+                "projectRole": {
+                    "type": "string"
+                }
+            }
+        },
+        "project.MemberView": {
+            "type": "object",
+            "properties": {
+                "expiresAt": {
+                    "type": "string"
+                },
+                "joinedAt": {
+                    "type": "string"
+                },
+                "memberOrigin": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "projectRole": {
+                    "type": "string"
+                },
+                "status": {
+                    "type": "string"
+                },
+                "userId": {
+                    "type": "integer"
+                },
+                "username": {
+                    "type": "string"
+                },
+                "weeklyCapacityHours": {
+                    "description": "WeeklyCapacityHours 成员周容量覆盖（P2/PE-23；NULL=继承项目默认，见 p2-resource-heatmap-design.md §3.2）。",
+                    "type": "number"
+                }
+            }
+        },
+        "project.MetricsDateWindow": {
+            "type": "object",
+            "properties": {
+                "from": {
+                    "type": "string"
+                },
+                "to": {
+                    "type": "string"
+                }
+            }
+        },
+        "project.MetricsFilters": {
+            "type": "object",
+            "properties": {
+                "managerId": {
+                    "type": "integer"
+                },
+                "ownerTeamId": {
+                    "type": "integer"
+                },
+                "q": {
+                    "type": "string"
+                },
+                "status": {
+                    "type": "string"
+                },
+                "type": {
+                    "type": "string"
+                }
+            }
+        },
+        "project.MetricsProjectScope": {
+            "type": "object",
+            "properties": {
+                "filters": {
+                    "$ref": "#/definitions/project.MetricsFilters"
+                },
+                "total": {
+                    "type": "integer"
+                },
+                "truncated": {
+                    "type": "boolean"
+                }
+            }
+        },
+        "project.MetricsResponse": {
+            "type": "object",
+            "properties": {
+                "gateFirstPass": {
+                    "$ref": "#/definitions/project.GateMetrics"
+                },
+                "generatedAt": {
+                    "type": "string"
+                },
+                "milestoneAchievement": {
+                    "$ref": "#/definitions/project.MilestoneMetrics"
+                },
+                "onTimeDelivery": {
+                    "$ref": "#/definitions/project.DeliveryMetrics"
+                },
+                "projectScope": {
+                    "$ref": "#/definitions/project.MetricsProjectScope"
+                },
+                "resourceUtilization": {
+                    "$ref": "#/definitions/project.ResourceUtilization"
+                },
+                "window": {
+                    "$ref": "#/definitions/project.MetricsDateWindow"
+                }
+            }
+        },
+        "project.MilestoneCreateRequest": {
+            "type": "object",
+            "required": [
+                "name"
+            ],
+            "properties": {
+                "description": {
+                    "type": "string"
+                },
+                "dueDate": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "ownerId": {
+                    "type": "integer"
+                }
+            }
+        },
+        "project.MilestoneDetail": {
+            "type": "object",
+            "properties": {
+                "achieved": {
+                    "type": "boolean"
+                },
+                "dateUsed": {
+                    "type": "string"
+                },
+                "dueDate": {
+                    "type": "string"
+                },
+                "milestoneId": {
+                    "type": "integer"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "onTime": {
+                    "type": "boolean"
+                },
+                "projectId": {
+                    "type": "integer"
+                },
+                "reachedAt": {
+                    "type": "string"
+                },
+                "status": {
+                    "type": "string"
+                }
+            }
+        },
+        "project.MilestoneMetrics": {
+            "type": "object",
+            "properties": {
+                "details": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/project.MilestoneDetail"
+                    }
+                },
+                "detailsTotal": {
+                    "type": "integer"
+                },
+                "judged": {
+                    "type": "integer"
+                },
+                "missed": {
+                    "type": "integer"
+                },
+                "onTimeRate": {
+                    "type": "number"
+                },
+                "onTimeReached": {
+                    "type": "integer"
+                },
+                "rate": {
+                    "type": "number"
+                },
+                "reached": {
+                    "type": "integer"
+                }
+            }
+        },
+        "project.MilestoneStatusRequest": {
+            "type": "object",
+            "required": [
+                "action"
+            ],
+            "properties": {
+                "action": {
+                    "type": "string"
+                }
+            }
+        },
+        "project.MilestoneUpdateRequest": {
+            "type": "object",
+            "properties": {
+                "description": {
+                    "type": "string"
+                },
+                "dueDate": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "ownerId": {
+                    "type": "integer"
+                }
+            }
+        },
+        "project.MyMilestoneResponse": {
+            "type": "object",
+            "properties": {
+                "createdAt": {
+                    "type": "string"
+                },
+                "daysLeft": {
+                    "type": "integer"
+                },
+                "description": {
+                    "type": "string"
+                },
+                "dueDate": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "overdue": {
+                    "type": "boolean"
+                },
+                "ownerId": {
+                    "type": "integer"
+                },
+                "projectCode": {
+                    "type": "string"
+                },
+                "projectId": {
+                    "type": "integer"
+                },
+                "projectName": {
+                    "type": "string"
+                },
+                "reachedAt": {
+                    "type": "string"
+                },
+                "status": {
+                    "type": "string"
+                },
+                "updatedAt": {
+                    "type": "string"
+                }
+            }
+        },
+        "project.MyTaskResponse": {
+            "type": "object",
+            "properties": {
+                "actualEnd": {
+                    "type": "string"
+                },
+                "actualHours": {
+                    "type": "number"
+                },
+                "actualStart": {
+                    "type": "string"
+                },
+                "assigneeId": {
+                    "type": "integer"
+                },
+                "children": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/project.ProjectTaskResponse"
+                    }
+                },
+                "createdAt": {
+                    "type": "string"
+                },
+                "description": {
+                    "type": "string"
+                },
+                "estimateHours": {
+                    "type": "number"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "linkedTicketId": {
+                    "type": "integer"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "parentTaskId": {
+                    "type": "integer"
+                },
+                "planEnd": {
+                    "type": "string"
+                },
+                "planStart": {
+                    "type": "string"
+                },
+                "priority": {
+                    "type": "string"
+                },
+                "progress": {
+                    "type": "integer"
+                },
+                "projectId": {
+                    "type": "integer"
+                },
+                "projectName": {
+                    "type": "string"
+                },
+                "sortOrder": {
+                    "type": "integer"
+                },
+                "status": {
+                    "type": "string"
+                },
+                "updatedAt": {
+                    "type": "string"
+                },
+                "version": {
+                    "type": "integer"
+                }
+            }
+        },
+        "project.OptionalFloat": {
+            "type": "object",
+            "properties": {
+                "set": {
+                    "type": "boolean"
+                },
+                "value": {
+                    "type": "number",
+                    "format": "float64"
+                }
+            }
+        },
+        "project.PortfolioBucket": {
+            "type": "object",
+            "properties": {
+                "count": {
+                    "type": "integer"
+                },
+                "key": {
+                    "type": "string"
+                },
+                "name": {
+                    "description": "Name 富化名称（manager=用户姓名，缺失/未设置为「未设置」；department 名称由前端映射，后端不跨域查询）。",
+                    "type": "string"
+                }
+            }
+        },
+        "project.PortfolioResponse": {
+            "type": "object",
+            "properties": {
+                "generatedAt": {
+                    "type": "string"
+                },
+                "projects": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/project.ProjectResponse"
+                    }
+                },
+                "summary": {
+                    "$ref": "#/definitions/project.PortfolioSummary"
+                },
+                "truncated": {
+                    "type": "boolean"
+                }
+            }
+        },
+        "project.PortfolioSummary": {
+            "type": "object",
+            "properties": {
+                "byDepartment": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/project.PortfolioBucket"
+                    }
+                },
+                "byHealth": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/project.PortfolioBucket"
+                    }
+                },
+                "byManager": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/project.PortfolioBucket"
+                    }
+                },
+                "byStatus": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/project.PortfolioBucket"
+                    }
+                },
+                "byType": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/project.PortfolioBucket"
+                    }
+                },
+                "total": {
+                    "type": "integer"
+                }
+            }
+        },
+        "project.ProjectBaselineResponse": {
+            "type": "object",
+            "properties": {
+                "createdAt": {
+                    "type": "string"
+                },
+                "createdBy": {
+                    "type": "integer"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "projectId": {
+                    "type": "integer"
+                },
+                "reason": {
+                    "type": "string"
+                },
+                "snapshot": {
+                    "$ref": "#/definitions/project.BaselineSnapshot"
+                },
+                "version": {
+                    "type": "integer"
+                }
+            }
+        },
+        "project.ProjectClosureResponse": {
+            "type": "object",
+            "properties": {
+                "assetsConfirmedAt": {
+                    "type": "string"
+                },
+                "assetsLinkSummary": {
+                    "description": "AssetsLinkSummary 按类型计数（恒含 asset/asset_license/vendor/contract 四键，缺省 0）。",
+                    "type": "object",
+                    "additionalProperties": {
+                        "type": "integer"
+                    }
+                },
+                "assetsLinks": {
+                    "description": "AssetsLinks 采购/资产结项登记明细（PE-26；读时富化，上限 200）。",
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/project.AssetLinkItem"
+                    }
+                },
+                "assetsLinksTruncated": {
+                    "description": "AssetsLinksTruncated 登记明细超出上限（200）时为 true。",
+                    "type": "boolean"
+                },
+                "assetsNote": {
+                    "type": "string"
+                },
+                "assetsWaiveReason": {
+                    "type": "string"
+                },
+                "assetsWaived": {
+                    "type": "boolean"
+                },
+                "blockers": {
+                    "description": "Blockers 未通过的阻塞项（含自动项，供前端一次展示全部缺口）。",
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/project.Blocker"
+                    }
+                },
+                "csatSurveyId": {
+                    "type": "integer"
+                },
+                "csatTriggeredAt": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "items": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/project.ClosureItem"
+                    }
+                },
+                "membersRecycledAt": {
+                    "type": "string"
+                },
+                "membersRecycledCount": {
+                    "type": "integer"
+                },
+                "projectId": {
+                    "type": "integer"
+                },
+                "retroGeneratedAt": {
+                    "type": "string"
+                },
+                "retroKbArticleId": {
+                    "description": "产物与动作留痕。",
+                    "type": "integer"
+                },
+                "status": {
+                    "description": "pending=存在未通过项；ready=可结项；completed=项目已结项",
+                    "type": "string"
+                },
+                "updatedAt": {
+                    "type": "string"
+                },
+                "version": {
+                    "type": "integer"
+                }
+            }
+        },
+        "project.ProjectGateResponse": {
+            "type": "object",
+            "properties": {
+                "approvalChainId": {
+                    "type": "string"
+                },
+                "blockers": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/project.GateBlocker"
+                    }
+                },
+                "createdAt": {
+                    "type": "string"
+                },
+                "decidedAt": {
+                    "type": "string"
+                },
+                "decidedBy": {
+                    "type": "integer"
+                },
+                "decisionComment": {
+                    "type": "string"
+                },
+                "gate": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "processInstanceId": {
+                    "type": "integer"
+                },
+                "projectId": {
+                    "type": "integer"
+                },
+                "rejectCount": {
+                    "description": "PE-24：累计被拒绝次数（一次通过率度量；passed 且 0 = 一次通过）。",
+                    "type": "integer"
+                },
+                "status": {
+                    "type": "string"
+                },
+                "submittedAt": {
+                    "type": "string"
+                },
+                "submittedBy": {
+                    "type": "integer"
+                },
+                "updatedAt": {
+                    "type": "string"
+                },
+                "version": {
+                    "type": "integer"
+                }
+            }
+        },
+        "project.ProjectMilestoneResponse": {
+            "type": "object",
+            "properties": {
+                "createdAt": {
+                    "type": "string"
+                },
+                "description": {
+                    "type": "string"
+                },
+                "dueDate": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "ownerId": {
+                    "type": "integer"
+                },
+                "projectId": {
+                    "type": "integer"
+                },
+                "reachedAt": {
+                    "type": "string"
+                },
+                "status": {
+                    "type": "string"
+                },
+                "updatedAt": {
+                    "type": "string"
+                }
+            }
+        },
+        "project.ProjectResponse": {
+            "type": "object",
+            "properties": {
+                "actualEnd": {
+                    "type": "string"
+                },
+                "actualStart": {
+                    "type": "string"
+                },
+                "budgetAmount": {
+                    "description": "P2（PE-22）轻量预算：未设置时省略（NULL 语义）。",
+                    "type": "number"
+                },
+                "budgetCurrency": {
+                    "type": "string"
+                },
+                "closedAt": {
+                    "type": "string"
+                },
+                "code": {
+                    "type": "string"
+                },
+                "createdAt": {
+                    "type": "string"
+                },
+                "departmentId": {
+                    "type": "integer"
+                },
+                "description": {
+                    "type": "string"
+                },
+                "endDate": {
+                    "type": "string"
+                },
+                "health": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "managerId": {
+                    "type": "integer"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "ownerTeamDeleted": {
+                    "type": "boolean"
+                },
+                "ownerTeamId": {
+                    "type": "integer"
+                },
+                "ownerTeamName": {
+                    "description": "PE-17 归口团队展示（读取侧降级：团队缺失/软删 → ownerTeamDeleted=true，UI 提示重新归口）。",
+                    "type": "string"
+                },
+                "parentProjectId": {
+                    "type": "integer"
+                },
+                "progress": {
+                    "type": "integer"
+                },
+                "startDate": {
+                    "type": "string"
+                },
+                "status": {
+                    "type": "string"
+                },
+                "templateAppliedAt": {
+                    "type": "string"
+                },
+                "templateId": {
+                    "description": "P1 模板应用（PE-11）：非空 = 该项目已应用模板（一项目一模板，重复应用 409）。",
+                    "type": "integer"
+                },
+                "tenantId": {
+                    "type": "integer"
+                },
+                "type": {
+                    "type": "string"
+                },
+                "updatedAt": {
+                    "type": "string"
+                },
+                "version": {
+                    "type": "integer"
+                }
+            }
+        },
+        "project.ProjectRiskResponse": {
+            "type": "object",
+            "properties": {
+                "createdAt": {
+                    "type": "string"
+                },
+                "description": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "impact": {
+                    "type": "string"
+                },
+                "kind": {
+                    "type": "string"
+                },
+                "level": {
+                    "type": "string"
+                },
+                "ownerId": {
+                    "type": "integer"
+                },
+                "ownerName": {
+                    "type": "string"
+                },
+                "probability": {
+                    "type": "string"
+                },
+                "projectId": {
+                    "type": "integer"
+                },
+                "relatedChangeId": {
+                    "type": "integer"
+                },
+                "relatedProblemId": {
+                    "type": "integer"
+                },
+                "relatedTicketId": {
+                    "type": "integer"
+                },
+                "resolution": {
+                    "type": "string"
+                },
+                "status": {
+                    "type": "string"
+                },
+                "title": {
+                    "type": "string"
+                },
+                "updatedAt": {
+                    "type": "string"
+                },
+                "version": {
+                    "type": "integer"
+                }
+            }
+        },
+        "project.ProjectTaskDependencyResponse": {
+            "type": "object",
+            "properties": {
+                "createdAt": {
+                    "type": "string"
+                },
+                "depType": {
+                    "type": "string"
+                },
+                "dependsOnTaskId": {
+                    "type": "integer"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "taskId": {
+                    "type": "integer"
+                }
+            }
+        },
+        "project.ProjectTaskResponse": {
+            "type": "object",
+            "properties": {
+                "actualEnd": {
+                    "type": "string"
+                },
+                "actualHours": {
+                    "type": "number"
+                },
+                "actualStart": {
+                    "type": "string"
+                },
+                "assigneeId": {
+                    "type": "integer"
+                },
+                "children": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/project.ProjectTaskResponse"
+                    }
+                },
+                "createdAt": {
+                    "type": "string"
+                },
+                "description": {
+                    "type": "string"
+                },
+                "estimateHours": {
+                    "type": "number"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "linkedTicketId": {
+                    "type": "integer"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "parentTaskId": {
+                    "type": "integer"
+                },
+                "planEnd": {
+                    "type": "string"
+                },
+                "planStart": {
+                    "type": "string"
+                },
+                "priority": {
+                    "type": "string"
+                },
+                "progress": {
+                    "type": "integer"
+                },
+                "projectId": {
+                    "type": "integer"
+                },
+                "sortOrder": {
+                    "type": "integer"
+                },
+                "status": {
+                    "type": "string"
+                },
+                "updatedAt": {
+                    "type": "string"
+                },
+                "version": {
+                    "type": "integer"
+                }
+            }
+        },
+        "project.ProjectTemplateResponse": {
+            "type": "object",
+            "properties": {
+                "checklistCount": {
+                    "type": "integer"
+                },
+                "createdAt": {
+                    "type": "string"
+                },
+                "createdBy": {
+                    "type": "integer"
+                },
+                "description": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "milestoneCount": {
+                    "type": "integer"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "payload": {
+                    "$ref": "#/definitions/project.TemplatePayload"
+                },
+                "stageCount": {
+                    "type": "integer"
+                },
+                "status": {
+                    "type": "string"
+                },
+                "taskCount": {
+                    "type": "integer"
+                },
+                "type": {
+                    "type": "string"
+                },
+                "updatedAt": {
+                    "type": "string"
+                },
+                "version": {
+                    "type": "integer"
+                }
+            }
+        },
+        "project.RecordAttachRequest": {
+            "type": "object",
+            "properties": {
+                "projectId": {
+                    "type": "integer"
+                }
+            }
+        },
+        "project.ReportData": {
+            "type": "object",
+            "properties": {
+                "gates": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/project.ReportGateItem"
+                    }
+                },
+                "generatedAt": {
+                    "type": "string"
+                },
+                "health": {
+                    "type": "string"
+                },
+                "managerId": {
+                    "type": "integer"
+                },
+                "milestoneStats": {
+                    "$ref": "#/definitions/project.ReportMilestoneStats"
+                },
+                "ownerTeam": {
+                    "$ref": "#/definitions/project.ReportOwnerTeam"
+                },
+                "progress": {
+                    "type": "integer"
+                },
+                "projectCode": {
+                    "type": "string"
+                },
+                "projectId": {
+                    "type": "integer"
+                },
+                "projectName": {
+                    "type": "string"
+                },
+                "sections": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "status": {
+                    "type": "string"
+                },
+                "taskStats": {
+                    "$ref": "#/definitions/project.ReportTaskStats"
+                },
+                "template": {
+                    "$ref": "#/definitions/project.ReportTemplateRef"
+                },
+                "variance": {
+                    "$ref": "#/definitions/project.ReportVarianceSummary"
+                }
+            }
+        },
+        "project.ReportGateItem": {
+            "type": "object",
+            "properties": {
+                "gate": {
+                    "type": "string"
+                },
+                "status": {
+                    "type": "string"
+                },
+                "updatedAt": {
+                    "type": "string"
+                }
+            }
+        },
+        "project.ReportGroupResponse": {
+            "type": "object",
+            "properties": {
+                "greenCount": {
+                    "type": "integer"
+                },
+                "ownerTeamDeleted": {
+                    "type": "boolean"
+                },
+                "ownerTeamId": {
+                    "type": "integer"
+                },
+                "ownerTeamName": {
+                    "type": "string"
+                },
+                "projectCount": {
+                    "type": "integer"
+                },
+                "redCount": {
+                    "type": "integer"
+                },
+                "yellowCount": {
+                    "type": "integer"
+                }
+            }
+        },
+        "project.ReportMilestoneStats": {
+            "type": "object",
+            "properties": {
+                "missed": {
+                    "type": "integer"
+                },
+                "onTime": {
+                    "type": "integer"
+                },
+                "overdue": {
+                    "type": "integer"
+                },
+                "overdueRate": {
+                    "type": "number"
+                },
+                "planned": {
+                    "type": "integer"
+                },
+                "rate": {
+                    "type": "number"
+                },
+                "reached": {
+                    "type": "integer"
+                },
+                "total": {
+                    "type": "integer"
+                }
+            }
+        },
+        "project.ReportOwnerTeam": {
+            "type": "object",
+            "properties": {
+                "deleted": {
+                    "type": "boolean"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "name": {
+                    "type": "string"
+                }
+            }
+        },
+        "project.ReportResponse": {
+            "type": "object",
+            "properties": {
+                "data": {
+                    "$ref": "#/definitions/project.ReportData"
+                },
+                "markdown": {
+                    "type": "string"
+                }
+            }
+        },
+        "project.ReportTaskStats": {
+            "type": "object",
+            "properties": {
+                "cancelled": {
+                    "type": "integer"
+                },
+                "done": {
+                    "type": "integer"
+                },
+                "dueSoon": {
+                    "type": "integer"
+                },
+                "open": {
+                    "type": "integer"
+                },
+                "overdue": {
+                    "type": "integer"
+                },
+                "total": {
+                    "type": "integer"
+                }
+            }
+        },
+        "project.ReportTemplateCreateRequest": {
+            "type": "object",
+            "required": [
+                "name"
+            ],
+            "properties": {
+                "cadence": {
+                    "type": "string"
+                },
+                "description": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "sections": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "status": {
+                    "type": "string"
+                }
+            }
+        },
+        "project.ReportTemplateRef": {
+            "type": "object",
+            "properties": {
+                "cadence": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "name": {
+                    "type": "string"
+                }
+            }
+        },
+        "project.ReportTemplateResponse": {
+            "type": "object",
+            "properties": {
+                "cadence": {
+                    "type": "string"
+                },
+                "createdAt": {
+                    "type": "string"
+                },
+                "createdBy": {
+                    "type": "integer"
+                },
+                "description": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "sections": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "status": {
+                    "type": "string"
+                },
+                "tenantId": {
+                    "type": "integer"
+                },
+                "updatedAt": {
+                    "type": "string"
+                },
+                "version": {
+                    "type": "integer"
+                }
+            }
+        },
+        "project.ReportTemplateUpdateRequest": {
+            "type": "object",
+            "properties": {
+                "cadence": {
+                    "type": "string"
+                },
+                "description": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "sections": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "status": {
+                    "type": "string"
+                },
+                "version": {
+                    "type": "integer"
+                }
+            }
+        },
+        "project.ReportVarianceSummary": {
+            "type": "object",
+            "properties": {
+                "added": {
+                    "type": "integer"
+                },
+                "baselineCreatedAt": {
+                    "type": "string"
+                },
+                "baselineVersion": {
+                    "type": "integer"
+                },
+                "changed": {
+                    "type": "integer"
+                },
+                "removed": {
+                    "type": "integer"
+                },
+                "unchanged": {
+                    "type": "integer"
+                }
+            }
+        },
+        "project.ResourceHeatmap": {
+            "type": "object",
+            "properties": {
+                "calendar": {
+                    "$ref": "#/definitions/project.HeatmapCalendar"
+                },
+                "defaults": {
+                    "$ref": "#/definitions/project.HeatmapDefaults"
+                },
+                "projectId": {
+                    "type": "integer"
+                },
+                "range": {
+                    "$ref": "#/definitions/project.HeatmapRange"
+                },
+                "unplanned": {
+                    "$ref": "#/definitions/project.HeatmapUnplanned"
+                },
+                "weeks": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/project.HeatmapWeek"
+                    }
+                }
+            }
+        },
+        "project.ResourceProjectRow": {
+            "type": "object",
+            "properties": {
+                "capacityHours": {
+                    "type": "number"
+                },
+                "code": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "plannedHours": {
+                    "type": "number"
+                },
+                "projectId": {
+                    "type": "integer"
+                },
+                "rate": {
+                    "type": "number"
+                }
+            }
+        },
+        "project.ResourceUnplanned": {
+            "type": "object",
+            "properties": {
+                "estimateHours": {
+                    "type": "number"
+                },
+                "taskCount": {
+                    "type": "integer"
+                }
+            }
+        },
+        "project.ResourceUtilization": {
+            "type": "object",
+            "properties": {
+                "calendar": {
+                    "$ref": "#/definitions/project.HeatmapCalendar"
+                },
+                "capacityHours": {
+                    "type": "number"
+                },
+                "plannedHours": {
+                    "type": "number"
+                },
+                "projects": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/project.ResourceProjectRow"
+                    }
+                },
+                "rate": {
+                    "type": "number"
+                },
+                "unplanned": {
+                    "$ref": "#/definitions/project.ResourceUnplanned"
+                },
+                "window": {
+                    "$ref": "#/definitions/project.ResourceWindow"
+                }
+            }
+        },
+        "project.ResourceWindow": {
+            "type": "object",
+            "properties": {
+                "end": {
+                    "type": "string"
+                },
+                "start": {
+                    "type": "string"
+                },
+                "weeks": {
+                    "type": "integer"
+                }
+            }
+        },
+        "project.RiskConvertRequest": {
+            "type": "object",
+            "required": [
+                "target"
+            ],
+            "properties": {
+                "target": {
+                    "type": "string"
+                }
+            }
+        },
+        "project.RiskCreateRequest": {
+            "type": "object",
+            "required": [
+                "title"
+            ],
+            "properties": {
+                "description": {
+                    "type": "string"
+                },
+                "impact": {
+                    "type": "string"
+                },
+                "kind": {
+                    "type": "string"
+                },
+                "level": {
+                    "type": "string"
+                },
+                "ownerId": {
+                    "type": "integer"
+                },
+                "probability": {
+                    "type": "string"
+                },
+                "relatedTicketId": {
+                    "type": "integer"
+                },
+                "title": {
+                    "type": "string"
+                }
+            }
+        },
+        "project.RiskStatusRequest": {
+            "type": "object",
+            "required": [
+                "action"
+            ],
+            "properties": {
+                "action": {
+                    "type": "string"
+                },
+                "resolution": {
+                    "type": "string"
+                },
+                "version": {
+                    "type": "integer"
+                }
+            }
+        },
+        "project.RiskUpdateRequest": {
+            "type": "object",
+            "properties": {
+                "description": {
+                    "type": "string"
+                },
+                "impact": {
+                    "type": "string"
+                },
+                "kind": {
+                    "type": "string"
+                },
+                "level": {
+                    "type": "string"
+                },
+                "ownerId": {
+                    "type": "integer"
+                },
+                "probability": {
+                    "type": "string"
+                },
+                "relatedTicketId": {
+                    "type": "integer"
+                },
+                "title": {
+                    "type": "string"
+                },
+                "version": {
+                    "type": "integer"
+                }
+            }
+        },
+        "project.StatusRequest": {
+            "type": "object",
+            "required": [
+                "action"
+            ],
+            "properties": {
+                "action": {
+                    "type": "string"
+                },
+                "reason": {
+                    "type": "string"
+                },
+                "version": {
+                    "type": "integer"
+                }
+            }
+        },
+        "project.TaskCreateRequest": {
+            "type": "object",
+            "required": [
+                "name"
+            ],
+            "properties": {
+                "assigneeId": {
+                    "type": "integer"
+                },
+                "description": {
+                    "type": "string"
+                },
+                "estimateHours": {
+                    "type": "number"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "parentTaskId": {
+                    "type": "integer"
+                },
+                "planEnd": {
+                    "type": "string"
+                },
+                "planStart": {
+                    "type": "string"
+                },
+                "priority": {
+                    "type": "string"
+                },
+                "sortOrder": {
+                    "type": "integer"
+                }
+            }
+        },
+        "project.TaskStatusRequest": {
+            "type": "object",
+            "required": [
+                "action"
+            ],
+            "properties": {
+                "action": {
+                    "type": "string"
+                },
+                "version": {
+                    "type": "integer"
+                }
+            }
+        },
+        "project.TaskTicketRequest": {
+            "type": "object",
+            "properties": {
+                "priority": {
+                    "type": "string"
+                },
+                "ticketTypeId": {
+                    "type": "integer"
+                },
+                "title": {
+                    "type": "string"
+                }
+            }
+        },
+        "project.TaskUpdateRequest": {
+            "type": "object",
+            "properties": {
+                "actualEnd": {
+                    "type": "string"
+                },
+                "actualHours": {
+                    "type": "number"
+                },
+                "actualStart": {
+                    "type": "string"
+                },
+                "assigneeId": {
+                    "type": "integer"
+                },
+                "description": {
+                    "type": "string"
+                },
+                "estimateHours": {
+                    "type": "number"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "planEnd": {
+                    "type": "string"
+                },
+                "planStart": {
+                    "type": "string"
+                },
+                "priority": {
+                    "type": "string"
+                },
+                "progress": {
+                    "type": "integer"
+                },
+                "sortOrder": {
+                    "type": "integer"
+                },
+                "version": {
+                    "type": "integer"
+                }
+            }
+        },
+        "project.TemplateApplyRequest": {
+            "type": "object",
+            "required": [
+                "templateId"
+            ],
+            "properties": {
+                "templateId": {
+                    "type": "integer"
+                }
+            }
+        },
+        "project.TemplateApplyResponse": {
+            "type": "object",
+            "properties": {
+                "anchorDate": {
+                    "type": "string"
+                },
+                "appliedAt": {
+                    "type": "string"
+                },
+                "checklists": {
+                    "type": "integer"
+                },
+                "milestones": {
+                    "type": "integer"
+                },
+                "projectId": {
+                    "type": "integer"
+                },
+                "stages": {
+                    "type": "integer"
+                },
+                "tasks": {
+                    "type": "integer"
+                },
+                "templateId": {
+                    "type": "integer"
+                },
+                "templateName": {
+                    "type": "string"
+                }
+            }
+        },
+        "project.TemplateCreateRequest": {
+            "type": "object",
+            "required": [
+                "name",
+                "payload"
+            ],
+            "properties": {
+                "description": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "payload": {
+                    "$ref": "#/definitions/project.TemplatePayload"
+                },
+                "status": {
+                    "type": "string"
+                },
+                "type": {
+                    "type": "string"
+                }
+            }
+        },
+        "project.TemplateMilestoneSpec": {
+            "type": "object",
+            "properties": {
+                "name": {
+                    "type": "string"
+                },
+                "offsetDays": {
+                    "type": "integer"
+                }
+            }
+        },
+        "project.TemplatePayload": {
+            "type": "object",
+            "properties": {
+                "milestones": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/project.TemplateMilestoneSpec"
+                    }
+                },
+                "tasks": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/project.TemplateTaskSpec"
+                    }
+                }
+            }
+        },
+        "project.TemplateTaskSpec": {
+            "type": "object",
+            "properties": {
+                "checklist": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "description": {
+                    "type": "string"
+                },
+                "durationDays": {
+                    "type": "integer"
+                },
+                "estimateHours": {
+                    "type": "number"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "priority": {
+                    "type": "string"
+                },
+                "stage": {
+                    "type": "string"
+                },
+                "startOffsetDays": {
+                    "type": "integer"
+                }
+            }
+        },
+        "project.TemplateUpdateRequest": {
+            "type": "object",
+            "properties": {
+                "description": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "payload": {
+                    "$ref": "#/definitions/project.TemplatePayload"
+                },
+                "status": {
+                    "type": "string"
+                },
+                "type": {
+                    "type": "string"
+                },
+                "version": {
+                    "type": "integer"
+                }
+            }
+        },
+        "project.UpdateRequest": {
+            "type": "object",
+            "properties": {
+                "budgetAmount": {
+                    "description": "P2（PE-22）轻量预算：nil=不修改；成对提供；amount\u003c=0 = 清空（同写同清）。",
+                    "type": "number"
+                },
+                "budgetCurrency": {
+                    "type": "string"
+                },
+                "departmentId": {
+                    "type": "integer"
+                },
+                "description": {
+                    "type": "string"
+                },
+                "endDate": {
+                    "type": "string"
+                },
+                "health": {
+                    "type": "string"
+                },
+                "managerId": {
+                    "type": "integer"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "ownerTeamId": {
+                    "type": "integer"
+                },
+                "progress": {
+                    "type": "integer"
+                },
+                "startDate": {
+                    "type": "string"
+                },
+                "type": {
+                    "type": "string"
+                },
+                "version": {
+                    "type": "integer"
+                }
+            }
+        },
         "role.DataScope": {
             "type": "string",
             "enum": [
@@ -25934,6 +32855,26 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "to_user": {
+                    "type": "integer"
+                }
+            }
+        },
+        "service.OffboardResult": {
+            "type": "object",
+            "properties": {
+                "allocationsPending": {
+                    "type": "integer"
+                },
+                "allocationsRevoked": {
+                    "type": "integer"
+                },
+                "alreadyInactive": {
+                    "type": "boolean"
+                },
+                "deactivated": {
+                    "type": "boolean"
+                },
+                "userId": {
                     "type": "integer"
                 }
             }
@@ -26006,6 +32947,20 @@ const docTemplate = `{
                 "StatusUninstalled"
             ]
         },
+        "tenantquota.Limits": {
+            "type": "object",
+            "properties": {
+                "maxStorageMB": {
+                    "type": "integer"
+                },
+                "maxTicketsPerMonth": {
+                    "type": "integer"
+                },
+                "maxUsers": {
+                    "type": "integer"
+                }
+            }
+        },
         "user.MspRole": {
             "type": "string",
             "enum": [
@@ -26046,6 +33001,90 @@ const docTemplate = `{
                 "RoleTechnician",
                 "RoleSecurity",
                 "RoleEndUser"
+            ]
+        },
+        "usertenantmembership.AccountKind": {
+            "type": "string",
+            "enum": [
+                "customer",
+                "customer",
+                "provider",
+                "platform"
+            ],
+            "x-enum-varnames": [
+                "DefaultAccountKind",
+                "AccountKindCustomer",
+                "AccountKindProvider",
+                "AccountKindPlatform"
+            ]
+        },
+        "usertenantmembership.Source": {
+            "type": "string",
+            "enum": [
+                "home",
+                "allocation",
+                "platform",
+                "invite",
+                "migration"
+            ],
+            "x-enum-varnames": [
+                "SourceHome",
+                "SourceAllocation",
+                "SourcePlatform",
+                "SourceInvite",
+                "SourceMigration"
+            ]
+        },
+        "usertenantmembership.Status": {
+            "type": "string",
+            "enum": [
+                "active",
+                "active",
+                "suspended"
+            ],
+            "x-enum-varnames": [
+                "DefaultStatus",
+                "StatusActive",
+                "StatusSuspended"
+            ]
+        },
+        "usertenantmembership.SubjectType": {
+            "type": "string",
+            "enum": [
+                "user",
+                "user"
+            ],
+            "x-enum-varnames": [
+                "DefaultSubjectType",
+                "SubjectTypeUser"
+            ]
+        },
+        "usertenantmembershiporg.OrgType": {
+            "type": "string",
+            "enum": [
+                "department",
+                "team",
+                "group",
+                "project"
+            ],
+            "x-enum-varnames": [
+                "OrgTypeDepartment",
+                "OrgTypeTeam",
+                "OrgTypeGroup",
+                "OrgTypeProject"
+            ]
+        },
+        "usertenantmembershiporg.Status": {
+            "type": "string",
+            "enum": [
+                "active",
+                "active",
+                "suspended"
+            ],
+            "x-enum-varnames": [
+                "DefaultStatus",
+                "StatusActive",
+                "StatusSuspended"
             ]
         }
     },

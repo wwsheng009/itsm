@@ -28,6 +28,27 @@ definitions:
     - StrengthHigh
     - StrengthMedium
     - StrengthLow
+  common.ListResponse:
+    properties:
+      items: {}
+      pagination:
+        $ref: '#/definitions/common.PaginationResponse'
+    type: object
+  common.PaginationResponse:
+    properties:
+      hasNext:
+        type: boolean
+      hasPrev:
+        type: boolean
+      page:
+        type: integer
+      pageSize:
+        type: integer
+      total:
+        type: integer
+      totalPages:
+        type: integer
+    type: object
   common.Response:
     properties:
       code:
@@ -280,11 +301,13 @@ definitions:
     - service_request
     - problem
     - release
+    - project
     type: string
     x-enum-comments:
       BusinessTypeChange: 变更
       BusinessTypeIncident: 事件
       BusinessTypeProblem: 问题
+      BusinessTypeProject: 项目（阶段门：initiation|plan|acceptance|closure）
       BusinessTypeRelease: 发布
       BusinessTypeServiceRequest: 服务请求
       BusinessTypeTicket: 工单
@@ -295,6 +318,7 @@ definitions:
     - 服务请求
     - 问题
     - 发布
+    - 项目（阶段门：initiation|plan|acceptance|closure）
     x-enum-varnames:
     - BusinessTypeTicket
     - BusinessTypeChange
@@ -302,6 +326,7 @@ definitions:
     - BusinessTypeServiceRequest
     - BusinessTypeProblem
     - BusinessTypeRelease
+    - BusinessTypeProject
   dto.CIAttributeDefinitionResponse:
     properties:
       ciTypeId:
@@ -1607,6 +1632,10 @@ definitions:
       criticality:
         type: string
       description:
+        description: |-
+          description 自富文本第三波起落库 HTML（CIEditorForm），标签与内嵌图片属性会额外
+          占用长度，故放宽到 20000（对齐 service_request.reason 口径），纯文本口径由前端校验把关。
+        maxLength: 20000
         type: string
       discoverySource:
         type: string
@@ -2022,8 +2051,11 @@ definitions:
           type: integer
         type: array
       description:
+        description: |-
+          description 自富文本改造起落库 HTML，标签与内嵌图片属性会额外占用长度，
+          故放宽到 20000（对齐第一波 service_request.reason），纯文本口径由前端校验把关。
         example: 生产环境Web服务器CPU使用率持续超过90%
-        maxLength: 5000
+        maxLength: 20000
         type: string
       detectedAt:
         example: "2024-01-01T00:00:00Z"
@@ -2097,7 +2129,10 @@ definitions:
       category:
         type: string
       description:
-        maxLength: 5000
+        description: |-
+          description 自富文本改造起落库 HTML，标签与内嵌图片属性会额外占用长度，
+          故放宽到 20000（对齐第一波 service_request.reason），纯文本口径由前端校验把关。
+        maxLength: 20000
         minLength: 10
         type: string
       impact:
@@ -2136,8 +2171,11 @@ definitions:
         minLength: 1
         type: string
       password:
+        description: |-
+          长度下限只做兜底；真实强度由 service 层按租户 system_configs 的密码策略校验，
+          使 /admin/system-config 的 passwordMinLength 等配置真正生效。
         maxLength: 128
-        minLength: 12
+        minLength: 6
         type: string
       phone:
         type: string
@@ -2878,6 +2916,11 @@ definitions:
     properties:
       pagination:
         $ref: '#/definitions/dto.PaginationResponse'
+      providerMembers:
+        description: ProviderMembers 客户租户内服务方成员（独立只读区块，不计入分页 total；MSW-Q2=B）。
+        items:
+          $ref: '#/definitions/dto.UserDetailResponse'
+        type: array
       users:
         items:
           $ref: '#/definitions/dto.UserDetailResponse'
@@ -3162,7 +3205,7 @@ definitions:
     properties:
       newPassword:
         maxLength: 128
-        minLength: 12
+        minLength: 6
         type: string
     required:
     - newPassword
@@ -3410,6 +3453,8 @@ definitions:
       criticality:
         type: string
       description:
+        description: description 富文本 HTML 长度口径同 CreateCIRequest（20000）。
+        maxLength: 20000
         type: string
       discoverySource:
         type: string
@@ -3712,7 +3757,8 @@ definitions:
       category:
         type: string
       description:
-        maxLength: 5000
+        description: description 富文本 HTML 长度口径同 CreateProblemRequest。
+        maxLength: 20000
         minLength: 10
         type: string
       impact:
@@ -3796,6 +3842,9 @@ definitions:
     type: object
   dto.UserDetailResponse:
     properties:
+      accountKind:
+        description: Q2=B / MSW-2：客户侧成员列表的服务方成员只读展示（accountKind=provider, readOnly=true）。
+        type: string
       active:
         type: boolean
       createdAt:
@@ -3812,6 +3861,8 @@ definitions:
         type: string
       phone:
         type: string
+      readOnly:
+        type: boolean
       role:
         type: string
       roleIds:
@@ -4380,6 +4431,9 @@ definitions:
       priority:
         description: 优先级
         type: string
+      project_id:
+        description: 所属项目ID（P0；同租户）
+        type: integer
       related_tickets:
         description: 相关工单
         items:
@@ -4967,6 +5021,9 @@ definitions:
     type: object
   ent.Conversation:
     properties:
+      bot_id:
+        description: BotID holds the value of the "bot_id" field.
+        type: integer
       created_at:
         description: CreatedAt holds the value of the "created_at" field.
         type: string
@@ -5716,6 +5773,9 @@ definitions:
       priority:
         description: 优先级
         type: string
+      project_id:
+        description: 所属项目ID（P0；同租户）
+        type: integer
       reporter_id:
         description: 报告人ID
         type: integer
@@ -6112,6 +6172,9 @@ definitions:
       content:
         description: 文章内容
         type: string
+      content_type:
+        description: 正文类型：text/markdown/html/rich_text；空=历史数据按内容自动判定
+        type: string
       created_at:
         description: 创建时间
         type: string
@@ -6373,6 +6436,10 @@ definitions:
       msp_user_id:
         description: MSP 员工ID（属于MSP租户）
         type: integer
+      provider_tenant_id:
+        description: 服务商租户ID（IP-P2-1：= MSP 员工 home provider 且 == customer.msp_provider_id；NOT
+          NULL 收尾）
+        type: integer
       role:
         description: '分配角色: primary|backup|specialist'
         type: string
@@ -6387,6 +6454,111 @@ definitions:
         allOf:
         - $ref: '#/definitions/ent.User'
         description: MspUser holds the value of the msp_user edge.
+      provider_tenant:
+        allOf:
+        - $ref: '#/definitions/ent.Tenant'
+        description: ProviderTenant holds the value of the provider_tenant edge.
+    type: object
+  ent.MSPContract:
+    properties:
+      contract_no:
+        description: 合同编号（tenant 内唯一，对齐 support_contract 惯例）
+        type: string
+      created_at:
+        description: 创建时间
+        type: string
+      currency:
+        description: 结算币种（默认取 customer.currency）
+        type: string
+      customer_tenant_id:
+        description: 被服务方（客户租户）
+        type: integer
+      edges:
+        allOf:
+        - $ref: '#/definitions/ent.MSPContractEdges'
+        description: |-
+          Edges holds the relations/edges for other nodes in the graph.
+          The values are being populated by the MSPContractQuery when eager-loading is set.
+      effective_from:
+        description: 生效时间
+        type: string
+      effective_until:
+        description: 失效时间（NULL=长期有效）
+        type: string
+      id:
+        description: ID of the ent.
+        type: integer
+      name:
+        description: 合同名称
+        type: string
+      penalties:
+        additionalProperties: true
+        description: 违约条款（值对象）：{metric, threshold, credit_rate, cap}
+        type: object
+      provider_tenant_id:
+        description: 签订方（服务商租户）
+        type: integer
+      settlement_cycle:
+        description: 结算周期：monthly|quarterly|on_demand
+        type: string
+      status:
+        description: 状态：draft|active|expired|terminated
+        type: string
+      tenant_id:
+        description: 归属租户ID（=provider_tenant_id；RLS 收窄依据）
+        type: integer
+      updated_at:
+        description: 更新时间
+        type: string
+    type: object
+  ent.MSPContractEdges:
+    properties:
+      sla_bindings:
+        description: 合同引用的 SLA 定义集（关联表，非 JSON 数组——§4.4 v1.1）
+        items:
+          $ref: '#/definitions/ent.MSPContractSLABinding'
+        type: array
+    type: object
+  ent.MSPContractSLABinding:
+    properties:
+      contract_id:
+        description: 合同ID
+        type: integer
+      created_at:
+        description: 创建时间
+        type: string
+      edges:
+        allOf:
+        - $ref: '#/definitions/ent.MSPContractSLABindingEdges'
+        description: |-
+          Edges holds the relations/edges for other nodes in the graph.
+          The values are being populated by the MSPContractSLABindingQuery when eager-loading is set.
+      id:
+        description: ID of the ent.
+        type: integer
+      sla_definition_id:
+        description: SLA定义ID（owner=provider）
+        type: integer
+      tenant_id:
+        description: 归属租户ID（=provider_tenant_id；RLS 收窄依据）
+        type: integer
+      ticket_type_id:
+        description: customer 租户内的工单类型ID；0=类型无关绑定
+        type: integer
+      updated_at:
+        description: 更新时间
+        type: string
+    type: object
+  ent.MSPContractSLABindingEdges:
+    properties:
+      contract:
+        allOf:
+        - $ref: '#/definitions/ent.MSPContract'
+        description: Contract holds the value of the contract edge.
+      sla_definition:
+        allOf:
+        - $ref: '#/definitions/ent.SLADefinition'
+        description: SLADefinition holds the value of the sla_definition edge.
     type: object
   ent.MarketplaceItem:
     properties:
@@ -6534,6 +6706,9 @@ definitions:
       role:
         description: Role holds the value of the "role" field.
         type: string
+      tenant_id:
+        description: TenantID holds the value of the "tenant_id" field.
+        type: integer
     type: object
   ent.MessageEdges:
     properties:
@@ -6836,6 +7011,9 @@ definitions:
       problem_number:
         description: 问题编号 PRB-YYYYMMDD-XXXX
         type: string
+      project_id:
+        description: 所属项目ID（P0；同租户）
+        type: integer
       resolution:
         description: 最终解决方案
         type: string
@@ -7570,11 +7748,32 @@ definitions:
     type: object
   ent.Project:
     properties:
+      actual_end:
+        description: 实际结束时间（P0）
+        type: string
+      actual_start:
+        description: 实际开始时间（P0）
+        type: string
+      budget_amount:
+        description: 项目预算金额（P2 轻量预算；不做财务级核算）
+        type: number
+      budget_currency:
+        description: 预算币种（P2；空=租户默认）
+        type: string
+      closed_at:
+        description: 结项时间（P0）
+        type: string
       code:
         description: 项目代码
         type: string
       created_at:
         description: 创建时间
+        type: string
+      default_weekly_capacity_hours:
+        description: 项目周容量默认（小时；P2 资源热图；NULL=内置 40h）
+        type: number
+      deleted_at:
+        description: 软删除时间（P0；DELETE 语义）
         type: string
       department_id:
         description: 所属部门ID
@@ -7591,6 +7790,9 @@ definitions:
       end_date:
         description: 结束日期
         type: string
+      health:
+        description: '健康度: green|yellow|red（P0）'
+        type: string
       id:
         description: ID of the ent.
         type: integer
@@ -7600,18 +7802,43 @@ definitions:
       name:
         description: 项目名称
         type: string
+      owner_team_id:
+        description: 团队归口（P0，集成契约 §1-2）
+        type: integer
+      parent_project_id:
+        description: 父子项目（P0）
+        type: integer
+      progress:
+        description: 进度 0-100（P0）
+        type: integer
       start_date:
         description: 开始日期
         type: string
       status:
-        description: '状态: active, completed, suspended'
+        description: '状态: planning|active|suspended|completed|cancelled（P0 受控；存量映射见
+          docs/project-management/plan）'
         type: string
+      template_applied_at:
+        description: 模板应用时间（PE-11）
+        type: string
+      template_applied_by:
+        description: 模板应用人ID（PE-11）
+        type: integer
+      template_id:
+        description: 已应用的项目模板ID（PE-11；非空即已应用，幂等闸门）
+        type: integer
       tenant_id:
         description: 租户ID
         type: integer
+      type:
+        description: '项目类型: internal|improvement|delivery（P0）'
+        type: string
       updated_at:
         description: 更新时间
         type: string
+      version:
+        description: 乐观锁版本（P0）
+        type: integer
     type: object
   ent.ProjectEdges:
     properties:
@@ -7897,6 +8124,9 @@ definitions:
       name:
         description: SLA名称
         type: string
+      owner_provider_tenant_id:
+        description: 归属服务商租户ID；0=租户自用，非0=provider 合同 SLA
+        type: integer
       priority:
         description: 优先级
         type: string
@@ -7923,6 +8153,16 @@ definitions:
         items:
           $ref: '#/definitions/ent.SLAAlertRule'
         type: array
+      contract_bindings:
+        description: 合同绑定（provider 侧资产，D-SLA-4）
+        items:
+          $ref: '#/definitions/ent.MSPContractSLABinding'
+        type: array
+      grants:
+        description: 下发授权（provider 侧资产）
+        items:
+          $ref: '#/definitions/ent.SLADefinitionGrant'
+        type: array
       metrics:
         description: SLA指标
         items:
@@ -7938,6 +8178,52 @@ definitions:
         items:
           $ref: '#/definitions/ent.SLAViolation'
         type: array
+    type: object
+  ent.SLADefinitionGrant:
+    properties:
+      created_at:
+        description: 创建时间
+        type: string
+      customer_tenant_id:
+        description: 被授权客户租户ID
+        type: integer
+      edges:
+        allOf:
+        - $ref: '#/definitions/ent.SLADefinitionGrantEdges'
+        description: |-
+          Edges holds the relations/edges for other nodes in the graph.
+          The values are being populated by the SLADefinitionGrantQuery when eager-loading is set.
+      id:
+        description: ID of the ent.
+        type: integer
+      is_active:
+        description: 是否生效
+        type: boolean
+      provider_tenant_id:
+        description: 服务商租户ID
+        type: integer
+      sla_definition_id:
+        description: SLA定义ID（provider 租户内的源头定义）
+        type: integer
+      tenant_id:
+        description: 归属租户ID（=provider_tenant_id；RLS 收窄依据）
+        type: integer
+      ticket_type_id:
+        description: customer 租户内的工单类型ID；0=类型无关授权
+        type: integer
+      updated_at:
+        description: 更新时间
+        type: string
+      valid_until:
+        description: 有效期（NULL=长期有效；完整合同期由 P1 msp_contract 承载）
+        type: string
+    type: object
+  ent.SLADefinitionGrantEdges:
+    properties:
+      sla_definition:
+        allOf:
+        - $ref: '#/definitions/ent.SLADefinition'
+        description: SLADefinition holds the value of the sla_definition edge.
     type: object
   ent.SLAMetric:
     properties:
@@ -8003,6 +8289,9 @@ definitions:
       description:
         description: 违规描述
         type: string
+      dispute_reason:
+        description: 争议理由（disputed 时必填）
+        type: string
       edges:
         allOf:
         - $ref: '#/definitions/ent.SLAViolationEdges'
@@ -8018,15 +8307,24 @@ definitions:
       is_resolved:
         description: 是否已解决
         type: boolean
+      matched_layer:
+        description: '匹配层级快照: L1/L2/L3a/L3b/L3c/L4（来源=工单）'
+        type: string
       overdue_minutes:
         description: 超时分钟数
         type: integer
       resolution_notes:
         description: 解决说明
         type: string
+      resolution_state:
+        description: '归责状态: pending|accepted|disputed|waived'
+        type: string
       resolved_at:
         description: 解决时间
         type: string
+      settled_flag:
+        description: 已进结算快照（终态锁定；D-SLA-9 §13.3）
+        type: boolean
       severity:
         description: 严重程度
         type: string
@@ -8059,6 +8357,15 @@ definitions:
         type: string
       violation_type:
         description: 违规类型
+        type: string
+      waived_at:
+        description: 豁免时间
+        type: string
+      waived_by:
+        description: 豁免操作人ID
+        type: integer
+      waived_reason:
+        description: 豁免理由（waived 时必填）
         type: string
     type: object
   ent.SLAViolationEdges:
@@ -8423,6 +8730,11 @@ definitions:
       plan_code:
         description: 订阅或套餐编码
         type: string
+      quota:
+        allOf:
+        - $ref: '#/definitions/tenantquota.Limits'
+        description: 租户硬配额（limits）：{maxUsers,maxTicketsPerMonth,maxStorageMB}；NULL
+          或值<=0 = 不限
       service_tier:
         description: 服务等级
         type: string
@@ -8448,8 +8760,23 @@ definitions:
         items:
           $ref: '#/definitions/ent.BootstrapToken'
         type: array
+      membership_orgs:
+        description: 成员组织归属（IP-P1-3）
+        items:
+          $ref: '#/definitions/ent.UserTenantMembershipOrg'
+        type: array
+      memberships:
+        description: 租户成员身份（IP-P1-1）
+        items:
+          $ref: '#/definitions/ent.UserTenantMembership'
+        type: array
       msp_customer_allocations:
         description: MSP客户分配
+        items:
+          $ref: '#/definitions/ent.MSPAllocation'
+        type: array
+      msp_provider_allocations:
+        description: MSP服务商维度分配（IP-P2-1）
         items:
           $ref: '#/definitions/ent.MSPAllocation'
         type: array
@@ -8542,6 +8869,12 @@ definitions:
       description:
         description: 工单描述
         type: string
+      description_format:
+        description: 描述格式：plain/html，用于灰度与兼容旧数据
+        type: string
+      description_html:
+        description: 工单描述富文本 HTML（服务端净化后）
+        type: string
       edges:
         allOf:
         - $ref: '#/definitions/ent.TicketEdges'
@@ -8567,6 +8900,9 @@ definitions:
       msp_provider_id:
         description: MSP服务提供商ID
         type: integer
+      msp_routed_at:
+        description: 服务商路由时间（类型级自动路由标记；nil=未路由，客户内闭环）
+        type: string
       msp_ticket_id:
         description: MSP工单ID(跨租户)
         type: string
@@ -8576,6 +8912,9 @@ definitions:
       priority:
         description: 优先级
         type: string
+      project_id:
+        description: 所属项目ID（P0；同租户，见 docs/project-management/plan/p0-data-ddl.md §3）
+        type: integer
       rated_at:
         description: 评分时间
         type: string
@@ -8603,6 +8942,9 @@ definitions:
       sla_definition_id:
         description: SLA定义ID
         type: integer
+      sla_matched_layer:
+        description: 'SLA匹配层级快照: L1/L2/L3a/L3b/L3c/L4'
+        type: string
       sla_pause_reason:
         description: SLA暂停原因
         type: string
@@ -9145,6 +9487,9 @@ definitions:
       color:
         description: Color holds the value of the "color" field.
         type: string
+      controlled_by_provider:
+        description: 受控字段锁：true=受控字段(name/description/sla_enabled/default_sla_id)仅服务商发布可改
+        type: boolean
       created_at:
         description: CreatedAt holds the value of the "created_at" field.
         type: string
@@ -9176,6 +9521,12 @@ definitions:
       id:
         description: ID of the ent.
         type: integer
+      last_synced_at:
+        description: 最近一次发布同步时间
+        type: string
+      msp_route_enabled:
+        description: 是否启用服务商跨租户路由（类型级自动路由：建单派生 MSP 快照并标记路由）
+        type: boolean
       name:
         description: Name holds the value of the "name" field.
         type: string
@@ -9184,6 +9535,15 @@ definitions:
         description: NotificationConfig holds the value of the "notification_config"
           field.
         type: object
+      origin:
+        description: '来源: native(客户自建)|controlled(服务商下发副本)'
+        type: string
+      origin_provider_tenant_id:
+        description: 下发源服务商租户ID（0=非下发）
+        type: integer
+      origin_type_id:
+        description: 下发源类型行ID（provider 租户内；0=非下发）
+        type: integer
       permission_config:
         additionalProperties: true
         description: PermissionConfig holds the value of the "permission_config" field.
@@ -9191,11 +9551,17 @@ definitions:
       sla_enabled:
         description: SLAEnabled holds the value of the "sla_enabled" field.
         type: boolean
+      sla_exempt:
+        description: SLA 显式豁免：true=跳过全部匹配，报表豁免桶
+        type: boolean
       sort_order:
         description: SortOrder holds the value of the "sort_order" field.
         type: integer
       status:
         description: Status holds the value of the "status" field.
+        type: string
+      sync_status:
+        description: '同步状态: ''''(native)|synced|dirty|failed|orphaned|unbound'
         type: string
       tenant_id:
         description: TenantID holds the value of the "tenant_id" field.
@@ -9292,8 +9658,17 @@ definitions:
       approved_by:
         description: ApprovedBy holds the value of the "approved_by" field.
         type: integer
+      args_redacted:
+        description: 脱敏后的入参快照（展示/审计唯一来源；与 B0-02 input_redacted 统一命名）
+        type: string
       arguments:
         description: Arguments holds the value of the "arguments" field.
+        type: string
+      attempt_count:
+        description: 队列消费尝试次数
+        type: integer
+      category:
+        description: 工具分类快照
         type: string
       conversation_id:
         description: ConversationID holds the value of the "conversation_id" field.
@@ -9304,6 +9679,9 @@ definitions:
       dry_run:
         description: DryRun holds the value of the "dry_run" field.
         type: boolean
+      duration_ms:
+        description: 执行耗时（毫秒）
+        type: integer
       edges:
         allOf:
         - $ref: '#/definitions/ent.ToolInvocationEdges'
@@ -9313,17 +9691,44 @@ definitions:
       error:
         description: Error holds the value of the "error" field.
         type: string
+      error_code:
+        description: 错误码（分类后）
+        type: string
+      expires_at:
+        description: 确认单过期时间
+        type: string
       id:
         description: ID of the ent.
         type: integer
+      idempotency_key_hash:
+        description: 幂等键 hash（只存 hash；读工具为空）
+        type: string
+      last_error_code:
+        description: 最近一次消费错误码
+        type: string
+      mcp_callable_name:
+        description: MCP 投影名 mcp__<server>__<tool>
+        type: string
+      mcp_raw_tool_name:
+        description: MCP 原始工具名
+        type: string
+      mcp_server_name:
+        description: MCP 服务器标识（provider=mcp 时）
+        type: string
       needs_approval:
         description: NeedsApproval holds the value of the "needs_approval" field.
         type: boolean
+      output_summary:
+        description: 结果摘要（脱敏/截断）
+        type: string
       permission_check:
         description: '权限校验结果: passed|denied|skipped'
         type: string
       permission_reason:
         description: 权限校验原因/拒绝原因
+        type: string
+      provider:
+        description: '工具来源: builtin|mcp'
         type: string
       request_id:
         description: RequestID holds the value of the "request_id" field.
@@ -9331,11 +9736,29 @@ definitions:
       result:
         description: Result holds the value of the "result" field.
         type: string
+      risk:
+        description: '调用时风险快照: read|plan|act_low|act_medium|act_high'
+        type: string
       role_snapshot:
         description: 调用时角色快照，便于事后审计
         type: string
+      run_id:
+        description: 所属 bot_runs（B1-01 落表后关联）
+        type: integer
       status:
         description: Status holds the value of the "status" field.
+        type: string
+      step_id:
+        description: 所属 bot_steps
+        type: integer
+      support_ref:
+        description: 支撑信息引用（证据/来源）
+        type: string
+      target_id:
+        description: 目标对象 ID
+        type: string
+      target_type:
+        description: 目标对象类型（ticket/incident/ci/...）
         type: string
       tenant_id:
         description: TenantID holds the value of the "tenant_id" field.
@@ -9346,6 +9769,12 @@ definitions:
       user_id:
         description: 工具触发者用户 ID
         type: integer
+      verify_note:
+        description: VerifyNote holds the value of the "verify_note" field.
+        type: string
+      verify_state:
+        description: '执行后回读: pending|verified|failed|skipped'
+        type: string
     type: object
   ent.ToolInvocationEdges:
     properties:
@@ -9393,10 +9822,16 @@ definitions:
       is_bootstrap_admin:
         description: 是否通过bootstrap token创建
         type: boolean
+      last_active_tenant_id:
+        description: 最近活跃租户（登录/切换时更新；IP-P1-5）
+        type: integer
       msp_role:
         allOf:
         - $ref: '#/definitions/user.MspRole'
         description: 'MSP角色: provider_admin=MSP管理员, provider_agent=MSP客服, customer_user=客户用户'
+      must_change_password:
+        description: 首登强制改密（IP-P1-5；bootstrap 管理员默认 true）
+        type: boolean
       name:
         description: 姓名
         type: string
@@ -9406,6 +9841,10 @@ definitions:
       phone:
         description: 电话
         type: string
+      preferences:
+        additionalProperties: true
+        description: 用户偏好（IP-P1-6c）：workbenchFilter 等；仅本人可读写
+        type: object
       role:
         allOf:
         - $ref: '#/definitions/user.Role'
@@ -9475,6 +9914,11 @@ definitions:
         allOf:
         - $ref: '#/definitions/ent.Tenant'
         description: Tenant holds the value of the tenant edge.
+      tenant_memberships:
+        description: 账号的租户成员身份（IP-P1-1）
+        items:
+          $ref: '#/definitions/ent.UserTenantMembership'
+        type: array
       ticket_attachments:
         description: 工单附件
         items:
@@ -9505,6 +9949,149 @@ definitions:
         items:
           $ref: '#/definitions/ent.ProcessVersionChangelog'
         type: array
+    type: object
+  ent.UserTenantMembership:
+    properties:
+      account_kind:
+        allOf:
+        - $ref: '#/definitions/usertenantmembership.AccountKind'
+        description: 账号类型快照（目标架构 §3.1）：customer|provider|platform；由服务层与 users 判定同步
+          + 巡检
+      allocation_id:
+        description: 服务方作用域来源分配（msp_allocations.id，可追溯）
+        type: integer
+      created_at:
+        description: 创建时间
+        type: string
+      deassigned_at:
+        description: 分配撤销时间（allocation 软删同步）
+        type: string
+      deleted_at:
+        description: 软删时间（保留历史，回收即失效）
+        type: string
+      edges:
+        allOf:
+        - $ref: '#/definitions/ent.UserTenantMembershipEdges'
+        description: |-
+          Edges holds the relations/edges for other nodes in the graph.
+          The values are being populated by the UserTenantMembershipQuery when eager-loading is set.
+      expires_at:
+        description: 作用域到期（IP-P1-3 起生效）
+        type: string
+      id:
+        description: ID of the ent.
+        type: integer
+      invited_by:
+        description: 邀请人（source=invite）
+        type: integer
+      is_default:
+        description: 主作用域标记：客户方恒 true；provider 的 provider 作用域 true
+        type: boolean
+      joined_at:
+        description: 加入时间（source=invite 时）
+        type: string
+      msp_role:
+        description: 服务方角色词表（D10：msp_viewer/msp_tech/msp_specialist/msp_manager/msp_admin）；客户方为空
+        type: string
+      role_id:
+        description: 作用域内角色（roles.id，同租户）；映射失败可为空并进入巡检清单
+        type: integer
+      source:
+        allOf:
+        - $ref: '#/definitions/usertenantmembership.Source'
+        description: 来源：home|allocation|platform|invite|migration（可追溯）
+      status:
+        allOf:
+        - $ref: '#/definitions/usertenantmembership.Status'
+        description: 成员状态：active|suspended（邀请态由邀请流承载；移除=软删）
+      subject_type:
+        allOf:
+        - $ref: '#/definitions/usertenantmembership.SubjectType'
+        description: 主体类型：第一期仅 user；service_account P2 扩展
+      tenant_id:
+        description: 作用域租户ID（tenants.id）
+        type: integer
+      updated_at:
+        description: 更新时间
+        type: string
+      user_id:
+        description: 账号ID（users.id）
+        type: integer
+    type: object
+  ent.UserTenantMembershipEdges:
+    properties:
+      orgs:
+        description: 组织归属（IP-P1-3：多组织/生效期以 membership 为唯一载体）
+        items:
+          $ref: '#/definitions/ent.UserTenantMembershipOrg'
+        type: array
+      tenant:
+        allOf:
+        - $ref: '#/definitions/ent.Tenant'
+        description: Tenant holds the value of the tenant edge.
+      user:
+        allOf:
+        - $ref: '#/definitions/ent.User'
+        description: User holds the value of the user edge.
+    type: object
+  ent.UserTenantMembershipOrg:
+    properties:
+      created_at:
+        description: 创建时间
+        type: string
+      deleted_at:
+        description: 软删时间（保留历史）
+        type: string
+      edges:
+        allOf:
+        - $ref: '#/definitions/ent.UserTenantMembershipOrgEdges'
+        description: |-
+          Edges holds the relations/edges for other nodes in the graph.
+          The values are being populated by the UserTenantMembershipOrgQuery when eager-loading is set.
+      expires_at:
+        description: 组织归属生效期（到期即失效，巡检/读取按 now 判定）
+        type: string
+      id:
+        description: ID of the ent.
+        type: integer
+      is_primary:
+        description: 主组织标记：同一 membership 同一 org_type 至多一个（部分唯一索引）
+        type: boolean
+      membership_id:
+        description: 成员行ID（user_tenant_memberships.id；与 tenant_id 组成复合 FK）
+        type: integer
+      org_id:
+        description: 组织ID（多态指向 department/team/group/project 表；租户一致性由应用层校验 + guard
+          扫描）
+        type: integer
+      org_type:
+        allOf:
+        - $ref: '#/definitions/usertenantmembershiporg.OrgType'
+        description: 组织类型（多态）：department|team|group|project
+      role_id:
+        description: 组织内角色（roles.id，可选；同租户）
+        type: integer
+      status:
+        allOf:
+        - $ref: '#/definitions/usertenantmembershiporg.Status'
+        description: 关联状态：active|suspended（移除=软删）
+      tenant_id:
+        description: 作用域租户ID（tenants.id）；与 membership.tenant_id 永久一致（DB 复合 FK + 应用双校验）
+        type: integer
+      updated_at:
+        description: 更新时间
+        type: string
+    type: object
+  ent.UserTenantMembershipOrgEdges:
+    properties:
+      membership:
+        allOf:
+        - $ref: '#/definitions/ent.UserTenantMembership'
+        description: Membership holds the value of the membership edge.
+      tenant:
+        allOf:
+        - $ref: '#/definitions/ent.Tenant'
+        description: Tenant holds the value of the tenant edge.
     type: object
   ent.Workflow:
     properties:
@@ -10007,6 +10594,1826 @@ definitions:
     - TypeConnector
     - TypeSkill
     - TypePlugin
+  project.AIMinutesTasksRequest:
+    properties:
+      content:
+        type: string
+      limit:
+        type: integer
+    type: object
+  project.AIMinutesTasksResponse:
+    properties:
+      contentChars:
+        type: integer
+      degradeReason:
+        type: string
+      degraded:
+        type: boolean
+      generatedAt:
+        type: string
+      generatedBy:
+        type: string
+      model:
+        type: string
+      projectId:
+        type: integer
+      proposals:
+        items:
+          $ref: '#/definitions/project.AITaskProposal'
+        type: array
+    type: object
+  project.AIRiskSignal:
+    properties:
+      detail:
+        type: string
+      refId:
+        type: integer
+      refType:
+        type: string
+      severity:
+        type: string
+      title:
+        type: string
+      type:
+        type: string
+    type: object
+  project.AIRiskWarning:
+    properties:
+      detail:
+        type: string
+      severity:
+        type: string
+      suggestion:
+        type: string
+      title:
+        type: string
+    type: object
+  project.AIRiskWarningsResponse:
+    properties:
+      degradeReason:
+        type: string
+      degraded:
+        type: boolean
+      generatedAt:
+        type: string
+      generatedBy:
+        type: string
+      model:
+        type: string
+      projectId:
+        type: integer
+      signalTotal:
+        type: integer
+      signals:
+        items:
+          $ref: '#/definitions/project.AIRiskSignal'
+        type: array
+      truncated:
+        type: boolean
+      warnings:
+        items:
+          $ref: '#/definitions/project.AIRiskWarning'
+        type: array
+    type: object
+  project.AISummaryRequest:
+    properties:
+      cadence:
+        type: string
+    type: object
+  project.AISummaryResponse:
+    properties:
+      cadence:
+        type: string
+      degradeReason:
+        type: string
+      degraded:
+        type: boolean
+      generatedAt:
+        type: string
+      generatedBy:
+        type: string
+      model:
+        type: string
+      projectId:
+        type: integer
+      promptChars:
+        type: integer
+      summary:
+        type: string
+    type: object
+  project.AITaskProposal:
+    properties:
+      description:
+        type: string
+      estimateHours:
+        type: number
+      name:
+        type: string
+      ownerHint:
+        type: string
+      priority:
+        type: string
+    type: object
+  project.AssetLinkCandidate:
+    properties:
+      id:
+        type: integer
+      label:
+        type: string
+      sublabel:
+        type: string
+    type: object
+  project.AssetLinkCandidateListResponse:
+    properties:
+      items:
+        items:
+          $ref: '#/definitions/project.AssetLinkCandidate'
+        type: array
+      truncated:
+        type: boolean
+    type: object
+  project.AssetLinkCreateRequest:
+    properties:
+      linkType:
+        description: LinkType asset|asset_license|vendor|contract。
+        type: string
+      note:
+        description: Note 登记备注（可选，≤512 字符）。
+        type: string
+      targetId:
+        description: TargetID 同租户目标 ID（弱引用；写入时存在性校验）。
+        type: integer
+    required:
+    - linkType
+    - targetId
+    type: object
+  project.AssetLinkItem:
+    properties:
+      createdAt:
+        type: string
+      createdBy:
+        type: integer
+      id:
+        type: integer
+      label:
+        description: Label/Sublabel 读时富化的目标标签；TargetMissing=true 时 Label 为空。
+        type: string
+      linkType:
+        type: string
+      note:
+        type: string
+      sublabel:
+        type: string
+      targetId:
+        type: integer
+      targetMissing:
+        type: boolean
+    type: object
+  project.AssetLinkListResponse:
+    properties:
+      items:
+        items:
+          $ref: '#/definitions/project.AssetLinkItem'
+        type: array
+      summary:
+        additionalProperties:
+          type: integer
+        type: object
+      total:
+        type: integer
+      truncated:
+        description: Truncated 超出硬上限（200）时为 true（不静默截断）。
+        type: boolean
+    type: object
+  project.BaselineBudgetDeviation:
+    properties:
+      baseAmount:
+        type: number
+      baseCurrency:
+        type: string
+      changed:
+        type: boolean
+      currentAmount:
+        type: number
+      currentCurrency:
+        type: string
+      frozen:
+        type: boolean
+    type: object
+  project.BaselineCreateRequest:
+    properties:
+      reason:
+        type: string
+    type: object
+  project.BaselineDiffResponse:
+    properties:
+      baselineId:
+        type: integer
+      budget:
+        allOf:
+        - $ref: '#/definitions/project.BaselineBudgetDeviation'
+        description: PE-22（D-34）：项目级预算偏差（v1 快照 frozen=false，不参与变更判定）。
+      createdAt:
+        type: string
+      frozenAt:
+        type: string
+      milestoneChanges:
+        items:
+          $ref: '#/definitions/project.BaselineMilestoneDeviation'
+        type: array
+      milestoneSummary:
+        $ref: '#/definitions/project.BaselineDiffSummary'
+      taskChanges:
+        items:
+          $ref: '#/definitions/project.BaselineTaskDeviation'
+        type: array
+      taskSummary:
+        $ref: '#/definitions/project.BaselineDiffSummary'
+      version:
+        type: integer
+    type: object
+  project.BaselineDiffSummary:
+    properties:
+      added:
+        type: integer
+      changed:
+        type: integer
+      removed:
+        type: integer
+      unchanged:
+        type: integer
+    type: object
+  project.BaselineMilestoneDeviation:
+    properties:
+      baselineStatus:
+        type: string
+      changeType:
+        type: string
+      currentStatus:
+        type: string
+      dueDateShiftDays:
+        type: integer
+      milestoneId:
+        type: integer
+      name:
+        type: string
+      statusChanged:
+        type: boolean
+    type: object
+  project.BaselineMilestoneSnapshot:
+    properties:
+      dueDate:
+        type: string
+      id:
+        type: integer
+      name:
+        type: string
+      ownerId:
+        type: integer
+      reachedAt:
+        type: string
+      status:
+        type: string
+    type: object
+  project.BaselineProjectSnapshot:
+    properties:
+      budgetAmount:
+        description: PE-22（D-34）：冻结预算（v2 起；v1 快照缺省）。
+        type: number
+      budgetCurrency:
+        type: string
+      code:
+        type: string
+      endDate:
+        type: string
+      name:
+        type: string
+      progress:
+        type: integer
+      startDate:
+        type: string
+      status:
+        type: string
+    type: object
+  project.BaselineSnapshot:
+    properties:
+      frozenAt:
+        type: string
+      milestones:
+        items:
+          $ref: '#/definitions/project.BaselineMilestoneSnapshot'
+        type: array
+      project:
+        $ref: '#/definitions/project.BaselineProjectSnapshot'
+      schemaVersion:
+        type: integer
+      tasks:
+        items:
+          $ref: '#/definitions/project.BaselineTaskSnapshot'
+        type: array
+    type: object
+  project.BaselineTaskDeviation:
+    properties:
+      baselineStatus:
+        type: string
+      changeType:
+        type: string
+      currentStatus:
+        type: string
+      name:
+        type: string
+      planEndShiftDays:
+        type: integer
+      progressDelta:
+        type: integer
+      statusChanged:
+        type: boolean
+      taskId:
+        type: integer
+    type: object
+  project.BaselineTaskSnapshot:
+    properties:
+      assigneeId:
+        type: integer
+      id:
+        type: integer
+      name:
+        type: string
+      planEnd:
+        type: string
+      planStart:
+        type: string
+      priority:
+        type: string
+      progress:
+        type: integer
+      status:
+        type: string
+    type: object
+  project.Blocker:
+    properties:
+      id:
+        type: integer
+      number:
+        type: string
+      status:
+        type: string
+      title:
+        type: string
+      type:
+        type: string
+    type: object
+  project.CapacityMemberInput:
+    properties:
+      userId:
+        type: integer
+      weeklyCapacityHours:
+        $ref: '#/definitions/project.OptionalFloat'
+    required:
+    - userId
+    type: object
+  project.CapacityMemberView:
+    properties:
+      userId:
+        type: integer
+      weeklyCapacityHours:
+        type: number
+    type: object
+  project.CapacityResponse:
+    properties:
+      defaultWeeklyCapacityHours:
+        type: number
+      members:
+        items:
+          $ref: '#/definitions/project.CapacityMemberView'
+        type: array
+    type: object
+  project.CapacityUpdateRequest:
+    properties:
+      defaultWeeklyCapacityHours:
+        $ref: '#/definitions/project.OptionalFloat'
+      members:
+        items:
+          $ref: '#/definitions/project.CapacityMemberInput'
+        type: array
+    type: object
+  project.ClosureAssetsRequest:
+    properties:
+      action:
+        description: Action confirm=确认已登记；waive=本项目无资产/许可登记（豁免，必填原因）。
+        type: string
+      note:
+        description: Note 登记备注（confirm 可选；如登记位置/清单说明）。
+        type: string
+      reason:
+        description: Reason 豁免原因（waive 必填）。
+        type: string
+    required:
+    - action
+    type: object
+  project.ClosureItem:
+    properties:
+      action:
+        description: 前端可用动作（无=只读/自动项）
+        type: string
+      blocking:
+        type: boolean
+      detail:
+        type: string
+      key:
+        type: string
+      status:
+        description: done|pending
+        type: string
+      title:
+        type: string
+    type: object
+  project.CreateRequest:
+    properties:
+      budgetAmount:
+        description: P2（PE-22）轻量预算：成对提供（只给其一 → 400），见 plan/p2-budget-hours-design.md
+          D-33。
+        type: number
+      budgetCurrency:
+        type: string
+      code:
+        type: string
+      departmentId:
+        type: integer
+      description:
+        type: string
+      endDate:
+        type: string
+      managerId:
+        type: integer
+      name:
+        type: string
+      ownerTeamId:
+        type: integer
+      startDate:
+        type: string
+      type:
+        type: string
+    required:
+    - name
+    type: object
+  project.DeliveryDetail:
+    properties:
+      actualEnd:
+        type: string
+      code:
+        type: string
+      name:
+        type: string
+      onTime:
+        type: boolean
+      planEnd:
+        type: string
+      projectId:
+        type: integer
+    type: object
+  project.DeliveryMetrics:
+    properties:
+      denominator:
+        type: integer
+      details:
+        items:
+          $ref: '#/definitions/project.DeliveryDetail'
+        type: array
+      detailsTotal:
+        type: integer
+      noPlanDate:
+        type: integer
+      numerator:
+        type: integer
+      rate:
+        type: number
+    type: object
+  project.DependencyCreateRequest:
+    properties:
+      depType:
+        type: string
+      dependsOnTaskId:
+        type: integer
+    required:
+    - dependsOnTaskId
+    type: object
+  project.GateBlocker:
+    properties:
+      detail:
+        description: 可读说明
+        type: string
+      number:
+        description: 关联对象编号（单据）
+        type: string
+      refId:
+        description: 关联对象ID（如未终态单据/任务）
+        type: integer
+      status:
+        description: 关联对象状态
+        type: string
+      total:
+        description: 该类阻塞总数（明细截断时给出总量）
+        type: integer
+      type:
+        description: gate_not_passed|manager_missing|member_missing|task_missing|milestone_missing|task_open|milestone_open|record_open
+        type: string
+    type: object
+  project.GateDecisionRequest:
+    properties:
+      comment:
+        description: Comment 裁决意见；reject 必填（拒绝含明确原因）。
+        type: string
+      decision:
+        description: Decision approve|reject。
+        type: string
+    required:
+    - decision
+    type: object
+  project.GateDetail:
+    properties:
+      decidedAt:
+        type: string
+      firstPass:
+        type: boolean
+      gate:
+        type: string
+      projectId:
+        type: integer
+      rejectCount:
+        type: integer
+      status:
+        type: string
+    type: object
+  project.GateMetrics:
+    properties:
+      details:
+        items:
+          $ref: '#/definitions/project.GateDetail'
+        type: array
+      detailsTotal:
+        type: integer
+      firstPass:
+        type: integer
+      passed:
+        type: integer
+      rate:
+        type: number
+    type: object
+  project.GenerateReportRequest:
+    properties:
+      templateId:
+        type: integer
+    type: object
+  project.HeatmapCalendar:
+    properties:
+      businessDaysOnly:
+        type: boolean
+      mode:
+        type: string
+      note:
+        type: string
+    type: object
+  project.HeatmapDefaults:
+    properties:
+      defaultWeeklyCapacityHours:
+        type: number
+      source:
+        type: string
+    type: object
+  project.HeatmapMemberWeek:
+    properties:
+      capacityHours:
+        type: number
+      memberStatus:
+        type: string
+      name:
+        type: string
+      plannedHours:
+        type: number
+      plannedRatio:
+        type: number
+      projectRole:
+        type: string
+      remainingHours:
+        type: number
+      remainingRatio:
+        type: number
+      userId:
+        type: integer
+      username:
+        type: string
+    type: object
+  project.HeatmapRange:
+    properties:
+      end:
+        type: string
+      start:
+        type: string
+    type: object
+  project.HeatmapUnplanned:
+    properties:
+      estimateHours:
+        type: number
+      taskCount:
+        type: integer
+    type: object
+  project.HeatmapWeek:
+    properties:
+      members:
+        items:
+          $ref: '#/definitions/project.HeatmapMemberWeek'
+        type: array
+      weekEnd:
+        type: string
+      weekStart:
+        type: string
+    type: object
+  project.HoursSummaryResponse:
+    properties:
+      actualHours:
+        type: number
+      actualTaskCount:
+        type: integer
+      estimateHours:
+        type: number
+      estimatedTaskCount:
+        type: integer
+      taskCount:
+        type: integer
+    type: object
+  project.MemberAddRequest:
+    properties:
+      projectRole:
+        type: string
+      userId:
+        type: integer
+    required:
+    - userId
+    type: object
+  project.MemberCandidate:
+    properties:
+      expiresAt:
+        type: string
+      memberOrigin:
+        type: string
+      name:
+        type: string
+      userId:
+        type: integer
+      username:
+        type: string
+    type: object
+  project.MemberRoleUpdateRequest:
+    properties:
+      projectRole:
+        type: string
+    required:
+    - projectRole
+    type: object
+  project.MemberView:
+    properties:
+      expiresAt:
+        type: string
+      joinedAt:
+        type: string
+      memberOrigin:
+        type: string
+      name:
+        type: string
+      projectRole:
+        type: string
+      status:
+        type: string
+      userId:
+        type: integer
+      username:
+        type: string
+      weeklyCapacityHours:
+        description: WeeklyCapacityHours 成员周容量覆盖（P2/PE-23；NULL=继承项目默认，见 p2-resource-heatmap-design.md
+          §3.2）。
+        type: number
+    type: object
+  project.MetricsDateWindow:
+    properties:
+      from:
+        type: string
+      to:
+        type: string
+    type: object
+  project.MetricsFilters:
+    properties:
+      managerId:
+        type: integer
+      ownerTeamId:
+        type: integer
+      q:
+        type: string
+      status:
+        type: string
+      type:
+        type: string
+    type: object
+  project.MetricsProjectScope:
+    properties:
+      filters:
+        $ref: '#/definitions/project.MetricsFilters'
+      total:
+        type: integer
+      truncated:
+        type: boolean
+    type: object
+  project.MetricsResponse:
+    properties:
+      gateFirstPass:
+        $ref: '#/definitions/project.GateMetrics'
+      generatedAt:
+        type: string
+      milestoneAchievement:
+        $ref: '#/definitions/project.MilestoneMetrics'
+      onTimeDelivery:
+        $ref: '#/definitions/project.DeliveryMetrics'
+      projectScope:
+        $ref: '#/definitions/project.MetricsProjectScope'
+      resourceUtilization:
+        $ref: '#/definitions/project.ResourceUtilization'
+      window:
+        $ref: '#/definitions/project.MetricsDateWindow'
+    type: object
+  project.MilestoneCreateRequest:
+    properties:
+      description:
+        type: string
+      dueDate:
+        type: string
+      name:
+        type: string
+      ownerId:
+        type: integer
+    required:
+    - name
+    type: object
+  project.MilestoneDetail:
+    properties:
+      achieved:
+        type: boolean
+      dateUsed:
+        type: string
+      dueDate:
+        type: string
+      milestoneId:
+        type: integer
+      name:
+        type: string
+      onTime:
+        type: boolean
+      projectId:
+        type: integer
+      reachedAt:
+        type: string
+      status:
+        type: string
+    type: object
+  project.MilestoneMetrics:
+    properties:
+      details:
+        items:
+          $ref: '#/definitions/project.MilestoneDetail'
+        type: array
+      detailsTotal:
+        type: integer
+      judged:
+        type: integer
+      missed:
+        type: integer
+      onTimeRate:
+        type: number
+      onTimeReached:
+        type: integer
+      rate:
+        type: number
+      reached:
+        type: integer
+    type: object
+  project.MilestoneStatusRequest:
+    properties:
+      action:
+        type: string
+    required:
+    - action
+    type: object
+  project.MilestoneUpdateRequest:
+    properties:
+      description:
+        type: string
+      dueDate:
+        type: string
+      name:
+        type: string
+      ownerId:
+        type: integer
+    type: object
+  project.MyMilestoneResponse:
+    properties:
+      createdAt:
+        type: string
+      daysLeft:
+        type: integer
+      description:
+        type: string
+      dueDate:
+        type: string
+      id:
+        type: integer
+      name:
+        type: string
+      overdue:
+        type: boolean
+      ownerId:
+        type: integer
+      projectCode:
+        type: string
+      projectId:
+        type: integer
+      projectName:
+        type: string
+      reachedAt:
+        type: string
+      status:
+        type: string
+      updatedAt:
+        type: string
+    type: object
+  project.MyTaskResponse:
+    properties:
+      actualEnd:
+        type: string
+      actualHours:
+        type: number
+      actualStart:
+        type: string
+      assigneeId:
+        type: integer
+      children:
+        items:
+          $ref: '#/definitions/project.ProjectTaskResponse'
+        type: array
+      createdAt:
+        type: string
+      description:
+        type: string
+      estimateHours:
+        type: number
+      id:
+        type: integer
+      linkedTicketId:
+        type: integer
+      name:
+        type: string
+      parentTaskId:
+        type: integer
+      planEnd:
+        type: string
+      planStart:
+        type: string
+      priority:
+        type: string
+      progress:
+        type: integer
+      projectId:
+        type: integer
+      projectName:
+        type: string
+      sortOrder:
+        type: integer
+      status:
+        type: string
+      updatedAt:
+        type: string
+      version:
+        type: integer
+    type: object
+  project.OptionalFloat:
+    properties:
+      set:
+        type: boolean
+      value:
+        format: float64
+        type: number
+    type: object
+  project.PortfolioBucket:
+    properties:
+      count:
+        type: integer
+      key:
+        type: string
+      name:
+        description: Name 富化名称（manager=用户姓名，缺失/未设置为「未设置」；department 名称由前端映射，后端不跨域查询）。
+        type: string
+    type: object
+  project.PortfolioResponse:
+    properties:
+      generatedAt:
+        type: string
+      projects:
+        items:
+          $ref: '#/definitions/project.ProjectResponse'
+        type: array
+      summary:
+        $ref: '#/definitions/project.PortfolioSummary'
+      truncated:
+        type: boolean
+    type: object
+  project.PortfolioSummary:
+    properties:
+      byDepartment:
+        items:
+          $ref: '#/definitions/project.PortfolioBucket'
+        type: array
+      byHealth:
+        items:
+          $ref: '#/definitions/project.PortfolioBucket'
+        type: array
+      byManager:
+        items:
+          $ref: '#/definitions/project.PortfolioBucket'
+        type: array
+      byStatus:
+        items:
+          $ref: '#/definitions/project.PortfolioBucket'
+        type: array
+      byType:
+        items:
+          $ref: '#/definitions/project.PortfolioBucket'
+        type: array
+      total:
+        type: integer
+    type: object
+  project.ProjectBaselineResponse:
+    properties:
+      createdAt:
+        type: string
+      createdBy:
+        type: integer
+      id:
+        type: integer
+      projectId:
+        type: integer
+      reason:
+        type: string
+      snapshot:
+        $ref: '#/definitions/project.BaselineSnapshot'
+      version:
+        type: integer
+    type: object
+  project.ProjectClosureResponse:
+    properties:
+      assetsConfirmedAt:
+        type: string
+      assetsLinkSummary:
+        additionalProperties:
+          type: integer
+        description: AssetsLinkSummary 按类型计数（恒含 asset/asset_license/vendor/contract
+          四键，缺省 0）。
+        type: object
+      assetsLinks:
+        description: AssetsLinks 采购/资产结项登记明细（PE-26；读时富化，上限 200）。
+        items:
+          $ref: '#/definitions/project.AssetLinkItem'
+        type: array
+      assetsLinksTruncated:
+        description: AssetsLinksTruncated 登记明细超出上限（200）时为 true。
+        type: boolean
+      assetsNote:
+        type: string
+      assetsWaiveReason:
+        type: string
+      assetsWaived:
+        type: boolean
+      blockers:
+        description: Blockers 未通过的阻塞项（含自动项，供前端一次展示全部缺口）。
+        items:
+          $ref: '#/definitions/project.Blocker'
+        type: array
+      csatSurveyId:
+        type: integer
+      csatTriggeredAt:
+        type: string
+      id:
+        type: integer
+      items:
+        items:
+          $ref: '#/definitions/project.ClosureItem'
+        type: array
+      membersRecycledAt:
+        type: string
+      membersRecycledCount:
+        type: integer
+      projectId:
+        type: integer
+      retroGeneratedAt:
+        type: string
+      retroKbArticleId:
+        description: 产物与动作留痕。
+        type: integer
+      status:
+        description: pending=存在未通过项；ready=可结项；completed=项目已结项
+        type: string
+      updatedAt:
+        type: string
+      version:
+        type: integer
+    type: object
+  project.ProjectGateResponse:
+    properties:
+      approvalChainId:
+        type: string
+      blockers:
+        items:
+          $ref: '#/definitions/project.GateBlocker'
+        type: array
+      createdAt:
+        type: string
+      decidedAt:
+        type: string
+      decidedBy:
+        type: integer
+      decisionComment:
+        type: string
+      gate:
+        type: string
+      id:
+        type: integer
+      processInstanceId:
+        type: integer
+      projectId:
+        type: integer
+      rejectCount:
+        description: PE-24：累计被拒绝次数（一次通过率度量；passed 且 0 = 一次通过）。
+        type: integer
+      status:
+        type: string
+      submittedAt:
+        type: string
+      submittedBy:
+        type: integer
+      updatedAt:
+        type: string
+      version:
+        type: integer
+    type: object
+  project.ProjectMilestoneResponse:
+    properties:
+      createdAt:
+        type: string
+      description:
+        type: string
+      dueDate:
+        type: string
+      id:
+        type: integer
+      name:
+        type: string
+      ownerId:
+        type: integer
+      projectId:
+        type: integer
+      reachedAt:
+        type: string
+      status:
+        type: string
+      updatedAt:
+        type: string
+    type: object
+  project.ProjectResponse:
+    properties:
+      actualEnd:
+        type: string
+      actualStart:
+        type: string
+      budgetAmount:
+        description: P2（PE-22）轻量预算：未设置时省略（NULL 语义）。
+        type: number
+      budgetCurrency:
+        type: string
+      closedAt:
+        type: string
+      code:
+        type: string
+      createdAt:
+        type: string
+      departmentId:
+        type: integer
+      description:
+        type: string
+      endDate:
+        type: string
+      health:
+        type: string
+      id:
+        type: integer
+      managerId:
+        type: integer
+      name:
+        type: string
+      ownerTeamDeleted:
+        type: boolean
+      ownerTeamId:
+        type: integer
+      ownerTeamName:
+        description: PE-17 归口团队展示（读取侧降级：团队缺失/软删 → ownerTeamDeleted=true，UI 提示重新归口）。
+        type: string
+      parentProjectId:
+        type: integer
+      progress:
+        type: integer
+      startDate:
+        type: string
+      status:
+        type: string
+      templateAppliedAt:
+        type: string
+      templateId:
+        description: P1 模板应用（PE-11）：非空 = 该项目已应用模板（一项目一模板，重复应用 409）。
+        type: integer
+      tenantId:
+        type: integer
+      type:
+        type: string
+      updatedAt:
+        type: string
+      version:
+        type: integer
+    type: object
+  project.ProjectRiskResponse:
+    properties:
+      createdAt:
+        type: string
+      description:
+        type: string
+      id:
+        type: integer
+      impact:
+        type: string
+      kind:
+        type: string
+      level:
+        type: string
+      ownerId:
+        type: integer
+      ownerName:
+        type: string
+      probability:
+        type: string
+      projectId:
+        type: integer
+      relatedChangeId:
+        type: integer
+      relatedProblemId:
+        type: integer
+      relatedTicketId:
+        type: integer
+      resolution:
+        type: string
+      status:
+        type: string
+      title:
+        type: string
+      updatedAt:
+        type: string
+      version:
+        type: integer
+    type: object
+  project.ProjectTaskDependencyResponse:
+    properties:
+      createdAt:
+        type: string
+      depType:
+        type: string
+      dependsOnTaskId:
+        type: integer
+      id:
+        type: integer
+      taskId:
+        type: integer
+    type: object
+  project.ProjectTaskResponse:
+    properties:
+      actualEnd:
+        type: string
+      actualHours:
+        type: number
+      actualStart:
+        type: string
+      assigneeId:
+        type: integer
+      children:
+        items:
+          $ref: '#/definitions/project.ProjectTaskResponse'
+        type: array
+      createdAt:
+        type: string
+      description:
+        type: string
+      estimateHours:
+        type: number
+      id:
+        type: integer
+      linkedTicketId:
+        type: integer
+      name:
+        type: string
+      parentTaskId:
+        type: integer
+      planEnd:
+        type: string
+      planStart:
+        type: string
+      priority:
+        type: string
+      progress:
+        type: integer
+      projectId:
+        type: integer
+      sortOrder:
+        type: integer
+      status:
+        type: string
+      updatedAt:
+        type: string
+      version:
+        type: integer
+    type: object
+  project.ProjectTemplateResponse:
+    properties:
+      checklistCount:
+        type: integer
+      createdAt:
+        type: string
+      createdBy:
+        type: integer
+      description:
+        type: string
+      id:
+        type: integer
+      milestoneCount:
+        type: integer
+      name:
+        type: string
+      payload:
+        $ref: '#/definitions/project.TemplatePayload'
+      stageCount:
+        type: integer
+      status:
+        type: string
+      taskCount:
+        type: integer
+      type:
+        type: string
+      updatedAt:
+        type: string
+      version:
+        type: integer
+    type: object
+  project.RecordAttachRequest:
+    properties:
+      projectId:
+        type: integer
+    type: object
+  project.ReportData:
+    properties:
+      gates:
+        items:
+          $ref: '#/definitions/project.ReportGateItem'
+        type: array
+      generatedAt:
+        type: string
+      health:
+        type: string
+      managerId:
+        type: integer
+      milestoneStats:
+        $ref: '#/definitions/project.ReportMilestoneStats'
+      ownerTeam:
+        $ref: '#/definitions/project.ReportOwnerTeam'
+      progress:
+        type: integer
+      projectCode:
+        type: string
+      projectId:
+        type: integer
+      projectName:
+        type: string
+      sections:
+        items:
+          type: string
+        type: array
+      status:
+        type: string
+      taskStats:
+        $ref: '#/definitions/project.ReportTaskStats'
+      template:
+        $ref: '#/definitions/project.ReportTemplateRef'
+      variance:
+        $ref: '#/definitions/project.ReportVarianceSummary'
+    type: object
+  project.ReportGateItem:
+    properties:
+      gate:
+        type: string
+      status:
+        type: string
+      updatedAt:
+        type: string
+    type: object
+  project.ReportGroupResponse:
+    properties:
+      greenCount:
+        type: integer
+      ownerTeamDeleted:
+        type: boolean
+      ownerTeamId:
+        type: integer
+      ownerTeamName:
+        type: string
+      projectCount:
+        type: integer
+      redCount:
+        type: integer
+      yellowCount:
+        type: integer
+    type: object
+  project.ReportMilestoneStats:
+    properties:
+      missed:
+        type: integer
+      onTime:
+        type: integer
+      overdue:
+        type: integer
+      overdueRate:
+        type: number
+      planned:
+        type: integer
+      rate:
+        type: number
+      reached:
+        type: integer
+      total:
+        type: integer
+    type: object
+  project.ReportOwnerTeam:
+    properties:
+      deleted:
+        type: boolean
+      id:
+        type: integer
+      name:
+        type: string
+    type: object
+  project.ReportResponse:
+    properties:
+      data:
+        $ref: '#/definitions/project.ReportData'
+      markdown:
+        type: string
+    type: object
+  project.ReportTaskStats:
+    properties:
+      cancelled:
+        type: integer
+      done:
+        type: integer
+      dueSoon:
+        type: integer
+      open:
+        type: integer
+      overdue:
+        type: integer
+      total:
+        type: integer
+    type: object
+  project.ReportTemplateCreateRequest:
+    properties:
+      cadence:
+        type: string
+      description:
+        type: string
+      name:
+        type: string
+      sections:
+        items:
+          type: string
+        type: array
+      status:
+        type: string
+    required:
+    - name
+    type: object
+  project.ReportTemplateRef:
+    properties:
+      cadence:
+        type: string
+      id:
+        type: integer
+      name:
+        type: string
+    type: object
+  project.ReportTemplateResponse:
+    properties:
+      cadence:
+        type: string
+      createdAt:
+        type: string
+      createdBy:
+        type: integer
+      description:
+        type: string
+      id:
+        type: integer
+      name:
+        type: string
+      sections:
+        items:
+          type: string
+        type: array
+      status:
+        type: string
+      tenantId:
+        type: integer
+      updatedAt:
+        type: string
+      version:
+        type: integer
+    type: object
+  project.ReportTemplateUpdateRequest:
+    properties:
+      cadence:
+        type: string
+      description:
+        type: string
+      name:
+        type: string
+      sections:
+        items:
+          type: string
+        type: array
+      status:
+        type: string
+      version:
+        type: integer
+    type: object
+  project.ReportVarianceSummary:
+    properties:
+      added:
+        type: integer
+      baselineCreatedAt:
+        type: string
+      baselineVersion:
+        type: integer
+      changed:
+        type: integer
+      removed:
+        type: integer
+      unchanged:
+        type: integer
+    type: object
+  project.ResourceHeatmap:
+    properties:
+      calendar:
+        $ref: '#/definitions/project.HeatmapCalendar'
+      defaults:
+        $ref: '#/definitions/project.HeatmapDefaults'
+      projectId:
+        type: integer
+      range:
+        $ref: '#/definitions/project.HeatmapRange'
+      unplanned:
+        $ref: '#/definitions/project.HeatmapUnplanned'
+      weeks:
+        items:
+          $ref: '#/definitions/project.HeatmapWeek'
+        type: array
+    type: object
+  project.ResourceProjectRow:
+    properties:
+      capacityHours:
+        type: number
+      code:
+        type: string
+      name:
+        type: string
+      plannedHours:
+        type: number
+      projectId:
+        type: integer
+      rate:
+        type: number
+    type: object
+  project.ResourceUnplanned:
+    properties:
+      estimateHours:
+        type: number
+      taskCount:
+        type: integer
+    type: object
+  project.ResourceUtilization:
+    properties:
+      calendar:
+        $ref: '#/definitions/project.HeatmapCalendar'
+      capacityHours:
+        type: number
+      plannedHours:
+        type: number
+      projects:
+        items:
+          $ref: '#/definitions/project.ResourceProjectRow'
+        type: array
+      rate:
+        type: number
+      unplanned:
+        $ref: '#/definitions/project.ResourceUnplanned'
+      window:
+        $ref: '#/definitions/project.ResourceWindow'
+    type: object
+  project.ResourceWindow:
+    properties:
+      end:
+        type: string
+      start:
+        type: string
+      weeks:
+        type: integer
+    type: object
+  project.RiskConvertRequest:
+    properties:
+      target:
+        type: string
+    required:
+    - target
+    type: object
+  project.RiskCreateRequest:
+    properties:
+      description:
+        type: string
+      impact:
+        type: string
+      kind:
+        type: string
+      level:
+        type: string
+      ownerId:
+        type: integer
+      probability:
+        type: string
+      relatedTicketId:
+        type: integer
+      title:
+        type: string
+    required:
+    - title
+    type: object
+  project.RiskStatusRequest:
+    properties:
+      action:
+        type: string
+      resolution:
+        type: string
+      version:
+        type: integer
+    required:
+    - action
+    type: object
+  project.RiskUpdateRequest:
+    properties:
+      description:
+        type: string
+      impact:
+        type: string
+      kind:
+        type: string
+      level:
+        type: string
+      ownerId:
+        type: integer
+      probability:
+        type: string
+      relatedTicketId:
+        type: integer
+      title:
+        type: string
+      version:
+        type: integer
+    type: object
+  project.StatusRequest:
+    properties:
+      action:
+        type: string
+      reason:
+        type: string
+      version:
+        type: integer
+    required:
+    - action
+    type: object
+  project.TaskCreateRequest:
+    properties:
+      assigneeId:
+        type: integer
+      description:
+        type: string
+      estimateHours:
+        type: number
+      name:
+        type: string
+      parentTaskId:
+        type: integer
+      planEnd:
+        type: string
+      planStart:
+        type: string
+      priority:
+        type: string
+      sortOrder:
+        type: integer
+    required:
+    - name
+    type: object
+  project.TaskStatusRequest:
+    properties:
+      action:
+        type: string
+      version:
+        type: integer
+    required:
+    - action
+    type: object
+  project.TaskTicketRequest:
+    properties:
+      priority:
+        type: string
+      ticketTypeId:
+        type: integer
+      title:
+        type: string
+    type: object
+  project.TaskUpdateRequest:
+    properties:
+      actualEnd:
+        type: string
+      actualHours:
+        type: number
+      actualStart:
+        type: string
+      assigneeId:
+        type: integer
+      description:
+        type: string
+      estimateHours:
+        type: number
+      name:
+        type: string
+      planEnd:
+        type: string
+      planStart:
+        type: string
+      priority:
+        type: string
+      progress:
+        type: integer
+      sortOrder:
+        type: integer
+      version:
+        type: integer
+    type: object
+  project.TemplateApplyRequest:
+    properties:
+      templateId:
+        type: integer
+    required:
+    - templateId
+    type: object
+  project.TemplateApplyResponse:
+    properties:
+      anchorDate:
+        type: string
+      appliedAt:
+        type: string
+      checklists:
+        type: integer
+      milestones:
+        type: integer
+      projectId:
+        type: integer
+      stages:
+        type: integer
+      tasks:
+        type: integer
+      templateId:
+        type: integer
+      templateName:
+        type: string
+    type: object
+  project.TemplateCreateRequest:
+    properties:
+      description:
+        type: string
+      name:
+        type: string
+      payload:
+        $ref: '#/definitions/project.TemplatePayload'
+      status:
+        type: string
+      type:
+        type: string
+    required:
+    - name
+    - payload
+    type: object
+  project.TemplateMilestoneSpec:
+    properties:
+      name:
+        type: string
+      offsetDays:
+        type: integer
+    type: object
+  project.TemplatePayload:
+    properties:
+      milestones:
+        items:
+          $ref: '#/definitions/project.TemplateMilestoneSpec'
+        type: array
+      tasks:
+        items:
+          $ref: '#/definitions/project.TemplateTaskSpec'
+        type: array
+    type: object
+  project.TemplateTaskSpec:
+    properties:
+      checklist:
+        items:
+          type: string
+        type: array
+      description:
+        type: string
+      durationDays:
+        type: integer
+      estimateHours:
+        type: number
+      name:
+        type: string
+      priority:
+        type: string
+      stage:
+        type: string
+      startOffsetDays:
+        type: integer
+    type: object
+  project.TemplateUpdateRequest:
+    properties:
+      description:
+        type: string
+      name:
+        type: string
+      payload:
+        $ref: '#/definitions/project.TemplatePayload'
+      status:
+        type: string
+      type:
+        type: string
+      version:
+        type: integer
+    type: object
+  project.UpdateRequest:
+    properties:
+      budgetAmount:
+        description: P2（PE-22）轻量预算：nil=不修改；成对提供；amount<=0 = 清空（同写同清）。
+        type: number
+      budgetCurrency:
+        type: string
+      departmentId:
+        type: integer
+      description:
+        type: string
+      endDate:
+        type: string
+      health:
+        type: string
+      managerId:
+        type: integer
+      name:
+        type: string
+      ownerTeamId:
+        type: integer
+      progress:
+        type: integer
+      startDate:
+        type: string
+      type:
+        type: string
+      version:
+        type: integer
+    type: object
   role.DataScope:
     enum:
     - all
@@ -10049,6 +12456,19 @@ definitions:
       to_group:
         type: string
       to_user:
+        type: integer
+    type: object
+  service.OffboardResult:
+    properties:
+      allocationsPending:
+        type: integer
+      allocationsRevoked:
+        type: integer
+      alreadyInactive:
+        type: boolean
+      deactivated:
+        type: boolean
+      userId:
         type: integer
     type: object
   service.SLAComplianceData:
@@ -10104,6 +12524,15 @@ definitions:
     - StatusDisabled
     - StatusFailed
     - StatusUninstalled
+  tenantquota.Limits:
+    properties:
+      maxStorageMB:
+        type: integer
+      maxTicketsPerMonth:
+        type: integer
+      maxUsers:
+        type: integer
+    type: object
   user.MspRole:
     enum:
     - provider_admin
@@ -10140,6 +12569,72 @@ definitions:
     - RoleTechnician
     - RoleSecurity
     - RoleEndUser
+  usertenantmembership.AccountKind:
+    enum:
+    - customer
+    - customer
+    - provider
+    - platform
+    type: string
+    x-enum-varnames:
+    - DefaultAccountKind
+    - AccountKindCustomer
+    - AccountKindProvider
+    - AccountKindPlatform
+  usertenantmembership.Source:
+    enum:
+    - home
+    - allocation
+    - platform
+    - invite
+    - migration
+    type: string
+    x-enum-varnames:
+    - SourceHome
+    - SourceAllocation
+    - SourcePlatform
+    - SourceInvite
+    - SourceMigration
+  usertenantmembership.Status:
+    enum:
+    - active
+    - active
+    - suspended
+    type: string
+    x-enum-varnames:
+    - DefaultStatus
+    - StatusActive
+    - StatusSuspended
+  usertenantmembership.SubjectType:
+    enum:
+    - user
+    - user
+    type: string
+    x-enum-varnames:
+    - DefaultSubjectType
+    - SubjectTypeUser
+  usertenantmembershiporg.OrgType:
+    enum:
+    - department
+    - team
+    - group
+    - project
+    type: string
+    x-enum-varnames:
+    - OrgTypeDepartment
+    - OrgTypeTeam
+    - OrgTypeGroup
+    - OrgTypeProject
+  usertenantmembershiporg.Status:
+    enum:
+    - active
+    - active
+    - suspended
+    type: string
+    x-enum-varnames:
+    - DefaultStatus
+    - StatusActive
+    - StatusSuspended
 info:
   contact: {}
   description: AI-Native ITSM 平台 API：ITIL v4 核心流程（工单/事件/问题/变更/发布/服务请求）、CMDB、BPMN 工作流、知识库
@@ -11279,6 +13774,23 @@ paths:
       summary: 创建实施后评审（PIR）
       tags:
       - 变更管理
+  /api/v1/changes/{id}/project:
+    delete:
+      produces:
+      - application/json
+      responses: {}
+      summary: 变更解除项目挂接
+      tags:
+      - 项目管理
+    post:
+      consumes:
+      - application/json
+      produces:
+      - application/json
+      responses: {}
+      summary: 变更挂接项目
+      tags:
+      - 项目管理
   /api/v1/changes/{id}/reject:
     post:
       consumes:
@@ -14129,7 +16641,7 @@ paths:
       - 部门管理
   /api/v1/global-search:
     get:
-      description: 在工单、事件、问题、变更、知识库中搜索
+      description: 在工单、事件、问题、变更、知识库、项目、项目任务中搜索（项目/任务受可见性谓词约束）
       parameters:
       - description: 搜索关键词
         in: query
@@ -15207,6 +17719,23 @@ paths:
       summary: 获取事件指标
       tags:
       - 事件管理
+  /api/v1/incidents/{id}/project:
+    delete:
+      produces:
+      - application/json
+      responses: {}
+      summary: 事件解除项目挂接
+      tags:
+      - 项目管理
+    post:
+      consumes:
+      - application/json
+      produces:
+      - application/json
+      responses: {}
+      summary: 事件挂接项目
+      tags:
+      - 项目管理
   /api/v1/incidents/{id}/reopen:
     post:
       description: 将已解决/关闭的事件重新打开
@@ -16626,6 +19155,23 @@ paths:
       summary: 开始调查问题
       tags:
       - 问题管理
+  /api/v1/problems/{id}/project:
+    delete:
+      produces:
+      - application/json
+      responses: {}
+      summary: 问题解除项目挂接
+      tags:
+      - 项目管理
+    post:
+      consumes:
+      - application/json
+      produces:
+      - application/json
+      responses: {}
+      summary: 问题挂接项目
+      tags:
+      - 项目管理
   /api/v1/problems/{id}/root-cause:
     put:
       consumes:
@@ -16882,9 +19428,7 @@ paths:
       - BPMN-ProcessTrigger
   /api/v1/projects:
     get:
-      consumes:
-      - application/json
-      description: 获取所有项目列表
+      description: 分页 + 过滤：status/type/ownerTeamId/managerId/q
       produces:
       - application/json
       responses:
@@ -16895,36 +19439,22 @@ paths:
             - $ref: '#/definitions/common.Response'
             - properties:
                 data:
-                  items:
-                    $ref: '#/definitions/ent.Project'
-                  type: array
+                  $ref: '#/definitions/common.ListResponse'
               type: object
-      summary: 获取项目列表
+      summary: 项目列表
       tags:
       - 项目管理
     post:
       consumes:
       - application/json
-      description: 创建新的项目
+      description: 创建项目（code 缺省自动生成 PRJ-YYYYMMDD-XXXX；新项目从 planning 起步）
       parameters:
-      - description: 项目名称
-        in: query
-        name: name
+      - description: 创建请求
+        in: body
+        name: body
         required: true
-        type: string
-      - description: 项目代码
-        in: query
-        name: code
-        required: true
-        type: string
-      - description: 部门ID
-        in: query
-        name: deptId
-        type: integer
-      - description: 项目经理ID
-        in: query
-        name: managerId
-        type: integer
+        schema:
+          $ref: '#/definitions/project.CreateRequest'
       produces:
       - application/json
       responses:
@@ -16935,16 +19465,13 @@ paths:
             - $ref: '#/definitions/common.Response'
             - properties:
                 data:
-                  $ref: '#/definitions/ent.Project'
+                  $ref: '#/definitions/project.ProjectResponse'
               type: object
       summary: 创建项目
       tags:
       - 项目管理
   /api/v1/projects/{id}:
     delete:
-      consumes:
-      - application/json
-      description: 删除指定项目
       parameters:
       - description: 项目ID
         in: path
@@ -16962,9 +19489,6 @@ paths:
       tags:
       - 项目管理
     get:
-      consumes:
-      - application/json
-      description: 获取指定项目的详细信息
       parameters:
       - description: 项目ID
         in: path
@@ -16981,36 +19505,79 @@ paths:
             - $ref: '#/definitions/common.Response'
             - properties:
                 data:
-                  $ref: '#/definitions/ent.Project'
+                  $ref: '#/definitions/project.ProjectResponse'
               type: object
-      summary: 获取项目详情
+      summary: 项目详情
       tags:
       - 项目管理
     put:
       consumes:
       - application/json
-      description: 更新指定项目的信息
       parameters:
       - description: 项目ID
         in: path
         name: id
         required: true
         type: integer
-      - description: 项目名称
-        in: query
-        name: name
-        type: string
-      - description: 项目代码
-        in: query
-        name: code
-        type: string
-      - description: 部门ID
-        in: query
-        name: deptId
+      - description: 更新请求（version 可选乐观锁）
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/project.UpdateRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/common.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/project.ProjectResponse'
+              type: object
+      summary: 更新项目（基础字段；不含状态）
+      tags:
+      - 项目管理
+  /api/v1/projects/{id}/ai/minutes/tasks:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: 项目ID
+        in: path
+        name: id
+        required: true
         type: integer
-      - description: 项目经理ID
-        in: query
-        name: managerId
+      - description: 纪要内容（content ≤20000 字符）
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/project.AIMinutesTasksRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/common.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/project.AIMinutesTasksResponse'
+              type: object
+      summary: 会议纪要转任务建议（只出建议不落库；AI 不可用时返回空提案 + 降级标记）
+      tags:
+      - 项目管理
+  /api/v1/projects/{id}/ai/risk-warnings:
+    post:
+      parameters:
+      - description: 项目ID
+        in: path
+        name: id
+        required: true
         type: integer
       produces:
       - application/json
@@ -17022,9 +19589,1874 @@ paths:
             - $ref: '#/definitions/common.Response'
             - properties:
                 data:
-                  $ref: '#/definitions/ent.Project'
+                  $ref: '#/definitions/project.AIRiskWarningsResponse'
               type: object
-      summary: 更新项目
+      summary: 生成项目风险预警（规则信号恒返回；AI 判断为增强段）
+      tags:
+      - 项目管理
+  /api/v1/projects/{id}/ai/summary:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: 项目ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: 摘要请求（cadence 缺省 weekly）
+        in: body
+        name: body
+        schema:
+          $ref: '#/definitions/project.AISummaryRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/common.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/project.AISummaryResponse'
+              type: object
+      summary: 生成项目 AI 状态摘要（周报/双周报/月报；AI 不可用时降级为事实派生）
+      tags:
+      - 项目管理
+  /api/v1/projects/{id}/asset-link-candidates:
+    get:
+      parameters:
+      - description: 项目ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: asset|asset_license|vendor|contract
+        in: query
+        name: type
+        required: true
+        type: string
+      - description: 关键词（编号/名称/标题）
+        in: query
+        name: q
+        type: string
+      - description: 返回条数（默认 20，上限 50）
+        in: query
+        name: limit
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/common.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/project.AssetLinkCandidateListResponse'
+              type: object
+      summary: 台账候选查询（type=asset|asset_license|vendor|contract；q 模糊；limit 1..50）
+      tags:
+      - 项目管理
+  /api/v1/projects/{id}/asset-links:
+    get:
+      parameters:
+      - description: 项目ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/common.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/project.AssetLinkListResponse'
+              type: object
+      summary: 项目台账登记列表（asset|asset_license|vendor|contract；可见性谓词）
+      tags:
+      - 项目管理
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: 项目ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: 登记请求
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/project.AssetLinkCreateRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/common.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/project.AssetLinkListResponse'
+              type: object
+      summary: 新增台账登记（同租户弱引用校验；重复 409；终态项目拒绝）
+      tags:
+      - 项目管理
+  /api/v1/projects/{id}/asset-links/{linkId}:
+    delete:
+      parameters:
+      - description: 项目ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: 登记ID
+        in: path
+        name: linkId
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/common.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/project.AssetLinkListResponse'
+              type: object
+      summary: 删除台账登记（软删；已删/不存在 404；终态项目拒绝）
+      tags:
+      - 项目管理
+  /api/v1/projects/{id}/baselines:
+    get:
+      parameters:
+      - description: 项目ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/common.Response'
+            - properties:
+                data:
+                  items:
+                    $ref: '#/definitions/project.ProjectBaselineResponse'
+                  type: array
+              type: object
+      summary: 项目计划基线列表（version 倒序）
+      tags:
+      - 项目管理
+    post:
+      consumes:
+      - application/json
+      description: 快照当前任务计划/里程碑/项目计划面；终态项目拒绝；首版 reason 可选、后续版本必填
+      parameters:
+      - description: 项目ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: 冻结请求（reason 可选）
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/project.BaselineCreateRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/common.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/project.ProjectBaselineResponse'
+              type: object
+      summary: 冻结计划基线（不可变；变更 = 新版本 + reason）
+      tags:
+      - 项目管理
+  /api/v1/projects/{id}/baselines/diff:
+    get:
+      parameters:
+      - description: 项目ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/common.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/project.BaselineDiffResponse'
+              type: object
+      summary: 最新基线 vs 当前状态偏差（实时计算）
+      tags:
+      - 项目管理
+  /api/v1/projects/{id}/capacity:
+    put:
+      consumes:
+      - application/json
+      description: 成员须为项目存活成员；取值 (0,168] 小时；审计 capacity_update（未变化不留痕）
+      parameters:
+      - description: 项目ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: 容量请求
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/project.CapacityUpdateRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/common.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/project.CapacityResponse'
+              type: object
+      summary: 周容量配置（项目默认 + 成员覆盖；缺省=不修改，null/0=清空）
+      tags:
+      - 项目管理
+  /api/v1/projects/{id}/closure:
+    get:
+      parameters:
+      - description: 项目ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/common.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/project.ProjectClosureResponse'
+              type: object
+      summary: 结项清单（任务/单据/结项门/复盘 KB/资产登记/成员回收/CSAT）
+      tags:
+      - 项目管理
+  /api/v1/projects/{id}/closure/assets:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: 项目ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: 确认/豁免请求
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/project.ClosureAssetsRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/common.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/project.ProjectClosureResponse'
+              type: object
+      summary: 资产/许可登记确认（confirm）或豁免（waive，必填原因）
+      tags:
+      - 项目管理
+  /api/v1/projects/{id}/closure/csat:
+    post:
+      parameters:
+      - description: 项目ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/common.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/project.ProjectClosureResponse'
+              type: object
+      summary: 触发结项 CSAT 调研（幂等；结项时自动触发，失败可手动重试）
+      tags:
+      - 项目管理
+  /api/v1/projects/{id}/closure/members/recycle:
+    post:
+      parameters:
+      - description: 项目ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/common.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/project.ProjectClosureResponse'
+              type: object
+      summary: 成员回收（回收 member 角色活跃成员；保留 PM 与干系人）
+      tags:
+      - 项目管理
+  /api/v1/projects/{id}/closure/retro:
+    post:
+      parameters:
+      - description: 项目ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/common.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/project.ProjectClosureResponse'
+              type: object
+      summary: 生成复盘 KB 草稿（幂等；草稿态不自动发布）
+      tags:
+      - 项目管理
+  /api/v1/projects/{id}/dependencies:
+    get:
+      parameters:
+      - description: 项目ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/common.Response'
+            - properties:
+                data:
+                  items:
+                    $ref: '#/definitions/project.ProjectTaskDependencyResponse'
+                  type: array
+              type: object
+      summary: 项目任务依赖列表
+      tags:
+      - 项目管理
+  /api/v1/projects/{id}/gates:
+    get:
+      parameters:
+      - description: 项目ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/common.Response'
+            - properties:
+                data:
+                  items:
+                    $ref: '#/definitions/project.ProjectGateResponse'
+                  type: array
+              type: object
+      summary: 项目阶段门列表（四道门 + 状态/阻塞明细）
+      tags:
+      - 项目管理
+  /api/v1/projects/{id}/gates/{gate}/decision:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: 项目ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: initiation|plan|acceptance|closure
+        in: path
+        name: gate
+        required: true
+        type: string
+      - description: 裁决请求
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/project.GateDecisionRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/common.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/project.ProjectGateResponse'
+              type: object
+      summary: 裁决阶段门（approve 在流程结束/无流程后放行；reject 必须带原因）
+      tags:
+      - 项目管理
+  /api/v1/projects/{id}/gates/{gate}/submit:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: 项目ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: initiation|plan|acceptance|closure
+        in: path
+        name: gate
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/common.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/project.ProjectGateResponse'
+              type: object
+      summary: 提交阶段门（门禁规则校验；通过后触发 BPMN 审批或降级自动通过）
+      tags:
+      - 项目管理
+  /api/v1/projects/{id}/hours-summary:
+    get:
+      description: 口径：项目全部未删任务的 estimate_hours/actual_hours 求和（不做状态过滤）；可见性同项目详情（不可见
+        404）
+      parameters:
+      - description: 项目ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/common.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/project.HoursSummaryResponse'
+              type: object
+      summary: 项目任务工时汇总
+      tags:
+      - 项目管理
+  /api/v1/projects/{id}/member-candidates:
+    get:
+      parameters:
+      - description: 项目ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: 姓名/用户名关键字
+        in: query
+        name: q
+        type: string
+      - description: 返回上限（≤50）
+        in: query
+        name: limit
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/common.Response'
+            - properties:
+                data:
+                  items:
+                    $ref: '#/definitions/project.MemberCandidate'
+                  type: array
+              type: object
+      summary: 成员候选（目标租户活跃 membership，排除在册成员；最小字段）
+      tags:
+      - 项目管理
+  /api/v1/projects/{id}/members:
+    get:
+      parameters:
+      - description: 项目ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/common.Response'
+            - properties:
+                data:
+                  items:
+                    $ref: '#/definitions/project.MemberView'
+                  type: array
+              type: object
+      summary: 项目成员列表（含失效历史与派生标签 memberOrigin/expiresAt）
+      tags:
+      - 项目管理
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: 项目ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: 成员请求
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/project.MemberAddRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/common.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/project.MemberView'
+              type: object
+      summary: 添加项目成员（校验目标租户活跃 membership）
+      tags:
+      - 项目管理
+  /api/v1/projects/{id}/members/{userId}:
+    delete:
+      parameters:
+      - description: 项目ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: 用户ID
+        in: path
+        name: userId
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/common.Response'
+      summary: 移除项目成员（软失效；项目经理不可移除）
+      tags:
+      - 项目管理
+    patch:
+      consumes:
+      - application/json
+      parameters:
+      - description: 项目ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: 用户ID
+        in: path
+        name: userId
+        required: true
+        type: integer
+      - description: 角色请求
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/project.MemberRoleUpdateRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/common.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/project.MemberView'
+              type: object
+      summary: 调整成员角色（pm|member|stakeholder）
+      tags:
+      - 项目管理
+  /api/v1/projects/{id}/milestones:
+    get:
+      parameters:
+      - description: 项目ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: planned|reached|missed
+        in: query
+        name: status
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/common.Response'
+            - properties:
+                data:
+                  items:
+                    $ref: '#/definitions/project.ProjectMilestoneResponse'
+                  type: array
+              type: object
+      summary: 项目里程碑列表（可见性谓词）
+      tags:
+      - 项目管理
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: 项目ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: 里程碑请求
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/project.MilestoneCreateRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/common.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/project.ProjectMilestoneResponse'
+              type: object
+      summary: 创建里程碑（负责人须为项目活跃成员）
+      tags:
+      - 项目管理
+  /api/v1/projects/{id}/milestones/{milestoneId}:
+    delete:
+      parameters:
+      - description: 项目ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: 里程碑ID
+        in: path
+        name: milestoneId
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/common.Response'
+      summary: 删除里程碑
+      tags:
+      - 项目管理
+    put:
+      consumes:
+      - application/json
+      parameters:
+      - description: 项目ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: 里程碑ID
+        in: path
+        name: milestoneId
+        required: true
+        type: integer
+      - description: 更新请求
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/project.MilestoneUpdateRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/common.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/project.ProjectMilestoneResponse'
+              type: object
+      summary: 更新里程碑（不含状态）
+      tags:
+      - 项目管理
+  /api/v1/projects/{id}/milestones/{milestoneId}/status:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: 项目ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: 里程碑ID
+        in: path
+        name: milestoneId
+        required: true
+        type: integer
+      - description: 流转请求
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/project.MilestoneStatusRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/common.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/project.ProjectMilestoneResponse'
+              type: object
+      summary: 里程碑状态流转（reach|miss）
+      tags:
+      - 项目管理
+  /api/v1/projects/{id}/records:
+    get:
+      parameters:
+      - description: 项目ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: ticket|incident|problem|change|service_request
+        in: query
+        name: type
+        type: string
+      - description: 状态过滤
+        in: query
+        name: status
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/common.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/common.ListResponse'
+              type: object
+      summary: 项目关联单据（五域聚合；type 可选，空=合并）
+      tags:
+      - 项目管理
+  /api/v1/projects/{id}/reports/generate:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: 项目ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: 生成请求
+        in: body
+        name: body
+        schema:
+          $ref: '#/definitions/project.GenerateReportRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/common.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/project.ReportResponse'
+              type: object
+      summary: 生成项目状态报告（markdown + data；templateId 缺省用默认章节）
+      tags:
+      - 项目管理
+  /api/v1/projects/{id}/resource-heatmap:
+    get:
+      description: 口径：任务估算按计划日期自然日均摊、剩余=estimate−actual 均摊（逾期落本周）；周对齐 ISO 周；可见性同详情（不可见
+        404）
+      parameters:
+      - description: 项目ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: 窗口起始（YYYY-MM-DD 或 RFC3339；缺省=本周，snap 到周一）
+        in: query
+        name: start
+        type: string
+      - description: 窗口周数 1..12（缺省 6）
+        in: query
+        name: weeks
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/common.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/project.ResourceHeatmap'
+              type: object
+      summary: 资源负荷只读热图（周维度）
+      tags:
+      - 项目管理
+  /api/v1/projects/{id}/risks:
+    get:
+      parameters:
+      - description: 项目ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: risk|issue
+        in: query
+        name: kind
+        type: string
+      - description: open|mitigating|closed
+        in: query
+        name: status
+        type: string
+      - description: low|medium|high
+        in: query
+        name: level
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/common.Response'
+            - properties:
+                data:
+                  items:
+                    $ref: '#/definitions/project.ProjectRiskResponse'
+                  type: array
+              type: object
+      summary: 项目风险/问题列表（kind/status/level 过滤；可见性谓词）
+      tags:
+      - 项目管理
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: 项目ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: 风险请求
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/project.RiskCreateRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/common.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/project.ProjectRiskResponse'
+              type: object
+      summary: 创建风险/问题（负责人须为项目活跃成员；终态项目拒绝）
+      tags:
+      - 项目管理
+  /api/v1/projects/{id}/risks/{riskId}:
+    delete:
+      parameters:
+      - description: 项目ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: 风险ID
+        in: path
+        name: riskId
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/common.Response'
+      summary: 删除风险/问题（软删；已转换记录仍可删，关联实体不受影响）
+      tags:
+      - 项目管理
+    get:
+      parameters:
+      - description: 项目ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: 风险ID
+        in: path
+        name: riskId
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/common.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/project.ProjectRiskResponse'
+              type: object
+      summary: 风险/问题详情（可见性谓词）
+      tags:
+      - 项目管理
+    put:
+      consumes:
+      - application/json
+      parameters:
+      - description: 项目ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: 风险ID
+        in: path
+        name: riskId
+        required: true
+        type: integer
+      - description: 更新请求
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/project.RiskUpdateRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/common.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/project.ProjectRiskResponse'
+              type: object
+      summary: 更新风险/问题（不含状态；version 乐观锁）
+      tags:
+      - 项目管理
+  /api/v1/projects/{id}/risks/{riskId}/convert:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: 项目ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: 风险ID
+        in: path
+        name: riskId
+        required: true
+        type: integer
+      - description: 转换请求
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/project.RiskConvertRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/common.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/project.ProjectRiskResponse'
+              type: object
+      summary: 风险/问题转问题单或变更单（幂等：同目标二次转换 409 + existingId）
+      tags:
+      - 项目管理
+  /api/v1/projects/{id}/risks/{riskId}/status:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: 项目ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: 风险ID
+        in: path
+        name: riskId
+        required: true
+        type: integer
+      - description: 流转请求
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/project.RiskStatusRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/common.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/project.ProjectRiskResponse'
+              type: object
+      summary: 风险/问题状态流转（mitigate|close|reopen；close 必填 resolution）
+      tags:
+      - 项目管理
+  /api/v1/projects/{id}/status:
+    post:
+      consumes:
+      - application/json
+      description: complete 走结项门禁（未终结任务/单据返回 409 + blockers）；cancel 需 reason
+      parameters:
+      - description: 项目ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: 流转请求
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/project.StatusRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/common.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/project.ProjectResponse'
+              type: object
+      summary: 状态流转（activate|suspend|resume|complete|cancel）
+      tags:
+      - 项目管理
+  /api/v1/projects/{id}/tasks:
+    get:
+      parameters:
+      - description: 项目ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: tree|flat（默认 flat）
+        in: query
+        name: view
+        type: string
+      - description: 状态过滤
+        in: query
+        name: status
+        type: string
+      - description: 负责人过滤
+        in: query
+        name: assigneeId
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/common.Response'
+      summary: 项目任务列表
+      tags:
+      - 项目管理
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: 项目ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: 任务请求
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/project.TaskCreateRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/common.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/project.ProjectTaskResponse'
+              type: object
+      summary: 创建项目任务（WBS ≤3 层；负责人须为活跃成员）
+      tags:
+      - 项目管理
+  /api/v1/projects/{id}/tasks/{taskId}:
+    delete:
+      parameters:
+      - description: 项目ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: 任务ID
+        in: path
+        name: taskId
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/common.Response'
+      summary: 删除项目任务
+      tags:
+      - 项目管理
+    get:
+      parameters:
+      - description: 项目ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: 任务ID
+        in: path
+        name: taskId
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/common.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/project.ProjectTaskResponse'
+              type: object
+      summary: 项目任务详情
+      tags:
+      - 项目管理
+    put:
+      consumes:
+      - application/json
+      parameters:
+      - description: 项目ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: 任务ID
+        in: path
+        name: taskId
+        required: true
+        type: integer
+      - description: 更新请求
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/project.TaskUpdateRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/common.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/project.ProjectTaskResponse'
+              type: object
+      summary: 更新项目任务（version 可选乐观锁）
+      tags:
+      - 项目管理
+  /api/v1/projects/{id}/tasks/{taskId}/dependencies:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: 项目ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: 任务ID
+        in: path
+        name: taskId
+        required: true
+        type: integer
+      - description: 依赖请求
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/project.DependencyCreateRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/common.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/project.ProjectTaskDependencyResponse'
+              type: object
+      summary: 添加任务依赖（v1 仅 FS；同项目/无自依赖/无环）
+      tags:
+      - 项目管理
+  /api/v1/projects/{id}/tasks/{taskId}/dependencies/{dependsOnTaskId}:
+    delete:
+      parameters:
+      - description: 项目ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: 任务ID
+        in: path
+        name: taskId
+        required: true
+        type: integer
+      - description: 前置任务ID
+        in: path
+        name: dependsOnTaskId
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/common.Response'
+      summary: 删除任务依赖
+      tags:
+      - 项目管理
+  /api/v1/projects/{id}/tasks/{taskId}/status:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: 项目ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: 任务ID
+        in: path
+        name: taskId
+        required: true
+        type: integer
+      - description: 流转请求
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/project.TaskStatusRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/common.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/project.ProjectTaskResponse'
+              type: object
+      summary: 任务状态流转（start|block|unblock|complete|cancel）
+      tags:
+      - 项目管理
+  /api/v1/projects/{id}/tasks/{taskId}/tickets:
+    delete:
+      parameters:
+      - description: 项目ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: 任务ID
+        in: path
+        name: taskId
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/common.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/project.ProjectTaskResponse'
+              type: object
+      summary: 任务解绑主工单（解绑后可重建）
+      tags:
+      - 项目管理
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: 项目ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: 任务ID
+        in: path
+        name: taskId
+        required: true
+        type: integer
+      - description: 生成参数
+        in: body
+        name: body
+        schema:
+          $ref: '#/definitions/project.TaskTicketRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/common.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/project.ProjectTaskResponse'
+              type: object
+      summary: 任务生成工单（一任务一主工单；重复 409）
+      tags:
+      - 项目管理
+  /api/v1/projects/{id}/templates/apply:
+    post:
+      consumes:
+      - application/json
+      description: 模板须 active；一项目一模板（重复应用 409，幂等：不产生重复数据）；锚点=项目开始日期（缺失时=当日）
+      parameters:
+      - description: 项目ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: 应用请求
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/project.TemplateApplyRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/common.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/project.TemplateApplyResponse'
+              type: object
+      summary: 应用模板（生成阶段/任务/检查单/里程碑）
+      tags:
+      - 项目管理
+  /api/v1/projects/metrics:
+    get:
+      description: 与 GET /projects 同过滤、同可见性；from/to 为口径日期时间窗（可选），start/weeks 为资源窗口（缺省本周/6
+        周，1..12）；明细上限 200/组（分子分母恒为全量）。
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/common.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/project.MetricsResponse'
+              type: object
+      summary: 项目组合度量（按时交付率/里程碑达成率/阶段门一次通过率/资源利用率 + 明细）
+      tags:
+      - 项目管理
+  /api/v1/projects/my-milestones:
+    get:
+      parameters:
+      - description: 只看 N 天内到期（0=不限；默认 30）
+        in: query
+        name: dueWithinDays
+        type: integer
+      - description: 返回上限（≤200，默认 50）
+        in: query
+        name: limit
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/common.Response'
+            - properties:
+                data:
+                  items:
+                    $ref: '#/definitions/project.MyMilestoneResponse'
+                  type: array
+              type: object
+      summary: 我的里程碑到期（跨可见项目；仅 planned；默认 30 天内含逾期）
+      tags:
+      - 项目管理
+  /api/v1/projects/my-tasks:
+    get:
+      parameters:
+      - description: 状态过滤
+        in: query
+        name: status
+        type: string
+      - description: 返回上限（≤200）
+        in: query
+        name: limit
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/common.Response'
+            - properties:
+                data:
+                  items:
+                    $ref: '#/definitions/project.MyTaskResponse'
+                  type: array
+              type: object
+      summary: 我的项目任务（跨可见项目；默认排除终态）
+      tags:
+      - 项目管理
+  /api/v1/projects/portfolio:
+    get:
+      description: 与 GET /projects 同过滤、同可见性、同行结构（口径同源，供对账）；projects 行上限 500，超过 truncated=true。
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/common.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/project.PortfolioResponse'
+              type: object
+      summary: 项目组合视图（按状态/健康度/负责人/部门/类型聚合 + 与列表一致的项目行）
+      tags:
+      - 项目管理
+  /api/v1/projects/report-groups:
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/common.Response'
+            - properties:
+                data:
+                  items:
+                    $ref: '#/definitions/project.ReportGroupResponse'
+                  type: array
+              type: object
+      summary: 报表分组：按归口团队聚合项目数与健康度分布（可见性谓词收窄）
+      tags:
+      - 项目管理
+  /api/v1/projects/report-templates:
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/common.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/common.ListResponse'
+              type: object
+      summary: 报告模板列表（status/q 过滤 + 分页）
+      tags:
+      - 项目管理
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: 创建请求
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/project.ReportTemplateCreateRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/common.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/project.ReportTemplateResponse'
+              type: object
+      summary: '创建报告模板（cadence: weekly|biweekly|monthly；sections: overview|tasks|milestones|gates|variance|team）'
+      tags:
+      - 项目管理
+  /api/v1/projects/report-templates/{templateId}:
+    delete:
+      parameters:
+      - description: 模板ID
+        in: path
+        name: templateId
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/common.Response'
+      summary: 删除报告模板（软删；名称不释放）
+      tags:
+      - 项目管理
+    get:
+      parameters:
+      - description: 模板ID
+        in: path
+        name: templateId
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/common.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/project.ReportTemplateResponse'
+              type: object
+      summary: 报告模板详情
+      tags:
+      - 项目管理
+    put:
+      consumes:
+      - application/json
+      parameters:
+      - description: 模板ID
+        in: path
+        name: templateId
+        required: true
+        type: integer
+      - description: 更新请求
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/project.ReportTemplateUpdateRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/common.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/project.ReportTemplateResponse'
+              type: object
+      summary: 更新报告模板（version 乐观锁；status 显式切换）
+      tags:
+      - 项目管理
+  /api/v1/projects/templates:
+    get:
+      description: 分页 + 过滤：status/type/q（列表省略 payload，仅给计数）
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/common.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/common.ListResponse'
+              type: object
+      summary: 模板列表
+      tags:
+      - 项目管理
+    post:
+      consumes:
+      - application/json
+      description: 模板 = 阶段/任务/检查单/里程碑定义（status 缺省 draft，激活后可一键生成）
+      parameters:
+      - description: 创建请求
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/project.TemplateCreateRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/common.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/project.ProjectTemplateResponse'
+              type: object
+      summary: 创建模板
+      tags:
+      - 项目管理
+  /api/v1/projects/templates/{templateId}:
+    delete:
+      parameters:
+      - description: 模板ID
+        in: path
+        name: templateId
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/common.Response'
+      summary: 删除模板
+      tags:
+      - 项目管理
+    get:
+      parameters:
+      - description: 模板ID
+        in: path
+        name: templateId
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/common.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/project.ProjectTemplateResponse'
+              type: object
+      summary: 模板详情（含定义体 payload）
+      tags:
+      - 项目管理
+    put:
+      consumes:
+      - application/json
+      parameters:
+      - description: 模板ID
+        in: path
+        name: templateId
+        required: true
+        type: integer
+      - description: 更新请求
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/project.TemplateUpdateRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/common.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/project.ProjectTemplateResponse'
+              type: object
+      summary: 更新模板（nil 字段不改；version 可选乐观锁；status 显式切换）
+      tags:
+      - 项目管理
+  /api/v1/service-requests/{id}/project:
+    delete:
+      produces:
+      - application/json
+      responses: {}
+      summary: 服务请求解除项目挂接
+      tags:
+      - 项目管理
+    post:
+      consumes:
+      - application/json
+      produces:
+      - application/json
+      responses: {}
+      summary: 服务请求挂接项目
       tags:
       - 项目管理
   /api/v1/system/vector-store:
@@ -17053,6 +21485,49 @@ paths:
       summary: 测试向量存储连接
       tags:
       - 向量存储
+  /api/v1/tickets/{id}/project:
+    delete:
+      parameters:
+      - description: 工单ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/common.Response'
+      summary: 工单解除项目挂接
+      tags:
+      - 项目管理
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: 工单ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: '{projectId}'
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/project.RecordAttachRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/common.Response'
+      summary: 工单挂接项目（idempotent；project:write 动态复核）
+      tags:
+      - 项目管理
   /api/v1/users:
     get:
       consumes:
@@ -17232,6 +21707,40 @@ paths:
           schema:
             $ref: '#/definitions/common.Response'
       summary: 更新用户信息
+      tags:
+      - 用户管理
+  /api/v1/users/{id}/offboard:
+    post:
+      consumes:
+      - application/json
+      description: 停用用户 + 吊销全部会话 + 撤销该用户全部有效 MSP 分配（幂等可重跑）
+      parameters:
+      - description: 用户ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/common.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/service.OffboardResult'
+              type: object
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/common.Response'
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/common.Response'
+      summary: 离职编排（停用账号并撤销全部分配）
       tags:
       - 用户管理
   /api/v1/users/{id}/reset-password:

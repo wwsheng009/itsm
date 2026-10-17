@@ -107,6 +107,77 @@ func TestNotificationDeliveryHandlerCreatesInAppRecordsIdempotently(t *testing.T
 	require.Equal(t, "sent", deliveries[0].Status)
 }
 
+// TestNotificationDeliveryHandlerDeliversProjectMilestone PE-14 收尾：里程碑到期
+// 通知（resourceType=project_milestone）走 in_app 投递：落通用 notification +
+// notification_delivery 审计，动作链接指向里程碑所属项目工作台，无 ticket 关联行。
+func TestNotificationDeliveryHandlerDeliversProjectMilestone(t *testing.T) {
+	client, ctx, tenantID, userID, _ := notificationDeliveryFixture(t)
+	projectEntity, err := client.Project.Create().SetTenantID(tenantID).
+		SetName("交付项目").SetCode("PRJ-NOTIFY").SetStatus("active").Save(ctx)
+	require.NoError(t, err)
+	milestone, err := client.ProjectMilestone.Create().SetTenantID(tenantID).
+		SetProjectID(projectEntity.ID).SetName("UAT 完成").
+		SetDueDate(time.Now().Add(24 * time.Hour)).SetStatus("planned").Save(ctx)
+	require.NoError(t, err)
+	cmd, err := commandbus.Enqueue(ctx, client, commandbus.EnqueueRequest{
+		TenantID: tenantID, CommandType: commandbus.CommandDeliverNotification,
+		AggregateType: "project_milestone", AggregateID: milestone.ID, IdempotencyKey: "milestone-due-1",
+		Payload: map[string]interface{}{
+			"resourceType": "project_milestone", "resourceId": milestone.ID,
+			"recipientId": userID, "type": ProjectMilestoneDueNotificationType,
+			"channel": "in_app", "content": "项目「交付项目」的里程碑「UAT 完成」将于 2026-10-18 到期",
+		},
+	})
+	require.NoError(t, err)
+	cmd.Attempt = 1
+	handler := NewNotificationDeliveryCommandHandler(client, nil, zap.NewNop().Sugar())
+	require.NoError(t, handler.Handle(ctx, cmd))
+
+	notifications, err := client.Notification.Query().All(ctx)
+	require.NoError(t, err)
+	require.Len(t, notifications, 1)
+	require.Equal(t, fmt.Sprintf("/projects/%d", projectEntity.ID), notifications[0].ActionURL)
+	require.Equal(t, "查看项目里程碑", notifications[0].ActionText)
+	deliveries, err := client.NotificationDelivery.Query().
+		Where(notificationdelivery.OperationalCommandIDEQ(cmd.ID)).All(ctx)
+	require.NoError(t, err)
+	require.Len(t, deliveries, 1)
+	require.Equal(t, "sent", deliveries[0].Status)
+	require.Zero(t, client.TicketNotification.Query().CountX(ctx), "项目通知不关联工单通知行")
+}
+
+// TestNotificationDeliveryHandlerMilestoneDueHonorsPreference 事件类型偏好隔离：
+// 用户显式关闭 project_milestone_due 的 in_app 渠道后，投递按偏好跳过（成功且不落记录）。
+func TestNotificationDeliveryHandlerMilestoneDueHonorsPreference(t *testing.T) {
+	client, ctx, tenantID, userID, _ := notificationDeliveryFixture(t)
+	_, err := client.NotificationPreference.Create().
+		SetUserID(userID).SetTenantID(tenantID).SetEventType(ProjectMilestoneDueNotificationType).
+		SetInAppEnabled(false).SetEmailEnabled(false).Save(ctx)
+	require.NoError(t, err)
+	projectEntity, err := client.Project.Create().SetTenantID(tenantID).
+		SetName("交付项目").SetCode("PRJ-NOTIFY-PREF").SetStatus("active").Save(ctx)
+	require.NoError(t, err)
+	milestone, err := client.ProjectMilestone.Create().SetTenantID(tenantID).
+		SetProjectID(projectEntity.ID).SetName("UAT 完成").
+		SetDueDate(time.Now().Add(24 * time.Hour)).SetStatus("planned").Save(ctx)
+	require.NoError(t, err)
+	cmd, err := commandbus.Enqueue(ctx, client, commandbus.EnqueueRequest{
+		TenantID: tenantID, CommandType: commandbus.CommandDeliverNotification,
+		AggregateType: "project_milestone", AggregateID: milestone.ID, IdempotencyKey: "milestone-due-pref",
+		Payload: map[string]interface{}{
+			"resourceType": "project_milestone", "resourceId": milestone.ID,
+			"recipientId": userID, "type": ProjectMilestoneDueNotificationType,
+			"channel": "in_app", "content": "应被偏好拦截",
+		},
+	})
+	require.NoError(t, err)
+	cmd.Attempt = 1
+	handler := NewNotificationDeliveryCommandHandler(client, nil, zap.NewNop().Sugar())
+	require.NoError(t, handler.Handle(ctx, cmd), "偏好跳过应视为成功而非错误")
+	require.Zero(t, client.Notification.Query().CountX(ctx))
+	require.Zero(t, client.NotificationDelivery.Query().CountX(ctx))
+}
+
 // TestNotificationDeliveryHandlerSkipsWhenPreferenceDisabled 核心契约：偏好表对
 // 某事件类型的 in_app 渠道显式关闭后，投递命令应成功返回且不落任何投递/通知记录
 // （语义=按用户选择跳过，而非失败；避免 worker 无效重试到 dead_letter）。

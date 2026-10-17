@@ -126,7 +126,9 @@
     {"business_type": "cloud_public_ops", "process_definition_key": "cloud_public_ops_flow", "is_default": false},
     {"business_type": "cloud_private_ops", "process_definition_key": "cloud_private_ops_flow", "is_default": false},
     {"business_type": "cloud_security_scan", "process_definition_key": "cloud_security_scan_flow", "is_default": false},
-    {"business_type": "dev_ops_request", "process_definition_key": "dev_approval_ops_flow", "is_default": false}
+    {"business_type": "dev_ops_request", "process_definition_key": "dev_approval_ops_flow", "is_default": false},
+    {"business_type": "project", "business_sub_type": "initiation", "process_definition_key": "project_initiation_flow", "is_default": true},
+    {"business_type": "project", "business_sub_type": "closure", "process_definition_key": "project_closure_flow", "is_default": true}
   ],
   "ticket_views": [
     {"name": "我的待办工单", "description": "分配给我的未关闭工单", "is_shared": false, "columns": ["id", "title", "priority", "status", "assignee", "created_at"]},

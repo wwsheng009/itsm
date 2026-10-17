@@ -140,10 +140,121 @@ func SetupCommonSystemRoutes(r *gin.Engine, tenant *gin.RouterGroup, config *Rou
 			{
 				projects.GET("", middleware.RequirePermission("project", "read"), config.ProjectHandler.ListProjects)
 				projects.POST("", middleware.RequirePermission("project", "write"), config.ProjectHandler.CreateProject)
+				// P2（PE-24）：组合视图与度量（只读；与列表同过滤/同可见性，口径同源）。
+				projects.GET("/portfolio", middleware.RequirePermission("project", "read"), config.ProjectHandler.Portfolio)
+				projects.GET("/metrics", middleware.RequirePermission("project", "read"), config.ProjectHandler.Metrics)
 				projects.GET("/:id", middleware.RequirePermission("project", "read"), config.ProjectHandler.GetProject)
+				// P2（PE-22）：任务工时汇总（estimate/actual 全量求和；可见性同详情）。
+				projects.GET("/:id/hours-summary", middleware.RequirePermission("project", "read"), config.ProjectHandler.HoursSummary)
+				projects.PUT("/:id/capacity", middleware.RequirePermission("project", "write"), config.ProjectHandler.UpdateCapacity)
+				projects.GET("/:id/resource-heatmap", middleware.RequirePermission("project", "read"), config.ProjectHandler.ResourceHeatmap)
 				projects.PUT("/:id", middleware.RequirePermission("project", "write"), config.ProjectHandler.UpdateProject)
 				projects.DELETE("/:id", middleware.RequirePermission("project", "write"), config.ProjectHandler.DeleteProject)
+				// 状态流转专用端点（P0；complete 走结项门禁，见 docs/project-management/plan/p0-integration-contracts.md §3.3）
+				projects.POST("/:id/status", middleware.RequirePermission("project", "write"), config.ProjectHandler.TransitionStatus)
+				// 成员（PE-3；候选=目标租户活跃 membership，见 docs/project-management/04）
+				projects.GET("/:id/members", middleware.RequirePermission("project", "read"), config.ProjectHandler.ListMembers)
+				projects.POST("/:id/members", middleware.RequirePermission("project", "write"), config.ProjectHandler.AddMember)
+				projects.PATCH("/:id/members/:userId", middleware.RequirePermission("project", "write"), config.ProjectHandler.UpdateMemberRole)
+				projects.DELETE("/:id/members/:userId", middleware.RequirePermission("project", "write"), config.ProjectHandler.RemoveMember)
+				projects.GET("/:id/member-candidates", middleware.RequirePermission("project", "write"), config.ProjectHandler.MemberCandidates)
+				// 任务（PE-4；WBS ≤3 层，见 docs/project-management/plan/p0-api-and-pages.md §1.3）
+				projects.GET("/my-tasks", middleware.RequirePermission("project", "read"), config.ProjectHandler.MyTasks)
+				// 个人工作台聚合（PE-16）：我的里程碑到期（跨可见项目；仅 planned）
+				projects.GET("/my-milestones", middleware.RequirePermission("project", "read"), config.ProjectHandler.MyMilestones)
+				projects.GET("/:id/tasks", middleware.RequirePermission("project", "read"), config.ProjectHandler.ListTasks)
+				projects.POST("/:id/tasks", middleware.RequirePermission("project", "write"), config.ProjectHandler.CreateTask)
+				projects.GET("/:id/tasks/:taskId", middleware.RequirePermission("project", "read"), config.ProjectHandler.GetTask)
+				projects.PUT("/:id/tasks/:taskId", middleware.RequirePermission("project", "write"), config.ProjectHandler.UpdateTask)
+				projects.DELETE("/:id/tasks/:taskId", middleware.RequirePermission("project", "write"), config.ProjectHandler.DeleteTask)
+				projects.POST("/:id/tasks/:taskId/status", middleware.RequirePermission("project", "write"), config.ProjectHandler.TransitionTask)
+				// 单据关联（PE-5；契约 §3.1/§3.2）
+				projects.GET("/:id/records", middleware.RequirePermission("project", "read"), config.ProjectHandler.ListProjectRecords)
+				projects.POST("/:id/tasks/:taskId/tickets", middleware.RequirePermission("project", "write"), config.ProjectHandler.GenerateTaskTicket)
+				projects.DELETE("/:id/tasks/:taskId/tickets", middleware.RequirePermission("project", "write"), config.ProjectHandler.UnbindTaskTicket)
+				// P1（PE-14）：里程碑与任务依赖
+				projects.GET("/:id/milestones", middleware.RequirePermission("project", "read"), config.ProjectHandler.ListMilestones)
+				projects.POST("/:id/milestones", middleware.RequirePermission("project", "write"), config.ProjectHandler.CreateMilestone)
+				projects.PUT("/:id/milestones/:milestoneId", middleware.RequirePermission("project", "write"), config.ProjectHandler.UpdateMilestone)
+				projects.POST("/:id/milestones/:milestoneId/status", middleware.RequirePermission("project", "write"), config.ProjectHandler.TransitionMilestone)
+				projects.DELETE("/:id/milestones/:milestoneId", middleware.RequirePermission("project", "write"), config.ProjectHandler.DeleteMilestone)
+				projects.GET("/:id/dependencies", middleware.RequirePermission("project", "read"), config.ProjectHandler.ListDependencies)
+				projects.POST("/:id/tasks/:taskId/dependencies", middleware.RequirePermission("project", "write"), config.ProjectHandler.AddDependency)
+				projects.DELETE("/:id/tasks/:taskId/dependencies/:dependsOnTaskId", middleware.RequirePermission("project", "write"), config.ProjectHandler.RemoveDependency)
+				// P1（PE-13）：计划基线（不可变快照 + 偏差对比）
+				projects.GET("/:id/baselines", middleware.RequirePermission("project", "read"), config.ProjectHandler.ListBaselines)
+				projects.POST("/:id/baselines", middleware.RequirePermission("project", "write"), config.ProjectHandler.CreateBaseline)
+				projects.GET("/:id/baselines/diff", middleware.RequirePermission("project", "read"), config.ProjectHandler.BaselineDiff)
+				// P1（PE-12）：阶段门（四道门提交/裁决 + 门禁规则；business_type=project）
+				projects.GET("/:id/gates", middleware.RequirePermission("project", "read"), config.ProjectHandler.ListGates)
+				projects.POST("/:id/gates/:gate/submit", middleware.RequirePermission("project", "write"), config.ProjectHandler.SubmitGate)
+				projects.POST("/:id/gates/:gate/decision", middleware.RequirePermission("project", "write"), config.ProjectHandler.DecideGate)
+
+				// PE-15 结项清单（复盘 KB 草稿/资产登记/成员回收/CSAT）。
+				projects.GET("/:id/closure", middleware.RequirePermission("project", "read"), config.ProjectHandler.GetClosure)
+				projects.POST("/:id/closure/retro", middleware.RequirePermission("project", "write"), config.ProjectHandler.GenerateRetroDraft)
+				projects.POST("/:id/closure/assets", middleware.RequirePermission("project", "write"), config.ProjectHandler.ConfirmClosureAssets)
+				projects.POST("/:id/closure/members/recycle", middleware.RequirePermission("project", "write"), config.ProjectHandler.RecycleClosureMembers)
+				projects.POST("/:id/closure/csat", middleware.RequirePermission("project", "write"), config.ProjectHandler.TriggerClosureCSAT)
+				// P2（PE-26）：采购/资产结项登记（结构化台账链接；同租户弱引用 asset/asset_license/vendor/contract）。
+				projects.GET("/:id/asset-links", middleware.RequirePermission("project", "read"), config.ProjectHandler.ListAssetLinks)
+				projects.POST("/:id/asset-links", middleware.RequirePermission("project", "write"), config.ProjectHandler.CreateAssetLink)
+				projects.DELETE("/:id/asset-links/:linkId", middleware.RequirePermission("project", "write"), config.ProjectHandler.DeleteAssetLink)
+				projects.GET("/:id/asset-link-candidates", middleware.RequirePermission("project", "read"), config.ProjectHandler.ListAssetLinkCandidates)
+				// P1（PE-11）：项目模板（CRUD + 一键生成；模板库为租户级配置）
+				projects.GET("/templates", middleware.RequirePermission("project", "read"), config.ProjectHandler.ListTemplates)
+				projects.POST("/templates", middleware.RequirePermission("project", "write"), config.ProjectHandler.CreateTemplate)
+				projects.GET("/templates/:templateId", middleware.RequirePermission("project", "read"), config.ProjectHandler.GetTemplate)
+				projects.PUT("/templates/:templateId", middleware.RequirePermission("project", "write"), config.ProjectHandler.UpdateTemplate)
+				projects.DELETE("/templates/:templateId", middleware.RequirePermission("project", "write"), config.ProjectHandler.DeleteTemplate)
+				projects.POST("/:id/templates/apply", middleware.RequirePermission("project", "write"), config.ProjectHandler.ApplyTemplate)
+				// P1（PE-17）：状态报告模板与报表分组（模板库为租户级配置；报告按项目生成）。
+				projects.GET("/report-templates", middleware.RequirePermission("project", "read"), config.ProjectHandler.ListReportTemplates)
+				projects.POST("/report-templates", middleware.RequirePermission("project", "write"), config.ProjectHandler.CreateReportTemplate)
+				projects.GET("/report-templates/:templateId", middleware.RequirePermission("project", "read"), config.ProjectHandler.GetReportTemplate)
+				projects.PUT("/report-templates/:templateId", middleware.RequirePermission("project", "write"), config.ProjectHandler.UpdateReportTemplate)
+				projects.DELETE("/report-templates/:templateId", middleware.RequirePermission("project", "write"), config.ProjectHandler.DeleteReportTemplate)
+				projects.GET("/report-groups", middleware.RequirePermission("project", "read"), config.ProjectHandler.ReportGroups)
+				projects.POST("/:id/reports/generate", middleware.RequirePermission("project", "read"), config.ProjectHandler.GenerateProjectReport)
+
+				// P2（PE-21）：风险/问题台账（kind=risk|issue；可转问题单/变更）。
+				projects.GET("/:id/risks", middleware.RequirePermission("project", "read"), config.ProjectHandler.ListRisks)
+				projects.POST("/:id/risks", middleware.RequirePermission("project", "write"), config.ProjectHandler.CreateRisk)
+				projects.GET("/:id/risks/:riskId", middleware.RequirePermission("project", "read"), config.ProjectHandler.GetRisk)
+				projects.PUT("/:id/risks/:riskId", middleware.RequirePermission("project", "write"), config.ProjectHandler.UpdateRisk)
+				projects.DELETE("/:id/risks/:riskId", middleware.RequirePermission("project", "write"), config.ProjectHandler.DeleteRisk)
+				projects.POST("/:id/risks/:riskId/status", middleware.RequirePermission("project", "write"), config.ProjectHandler.TransitionRisk)
+				projects.POST("/:id/risks/:riskId/convert", middleware.RequirePermission("project", "write"), config.ProjectHandler.ConvertRisk)
+
+				// P2（PE-25）：项目 AI（周报摘要 / 风险预警 / 纪要转任务；只读派生 + 审计，
+				// AI 不可用时降级返回 200，不阻塞主流程，见 plan/p2-ai-design.md D-44）。
+				projects.POST("/:id/ai/summary", middleware.RequirePermission("project", "read"), config.ProjectHandler.GenerateAISummary)
+				projects.POST("/:id/ai/risk-warnings", middleware.RequirePermission("project", "read"), config.ProjectHandler.GenerateAIRiskWarnings)
+				projects.POST("/:id/ai/minutes/tasks", middleware.RequirePermission("project", "read"), config.ProjectHandler.ExtractAIMinutesTasks)
 			}
+		}
+
+		// 单据 ↔ 项目挂接（PE-5）：域写码由本组路由声明，project:write 由服务层动态复核。
+		if config.ProjectHandler != nil {
+			tickets := tenant.Group("/tickets")
+			tickets.POST("/:id/project", middleware.RequirePermission("ticket", "update"), config.ProjectHandler.AttachTicket)
+			tickets.DELETE("/:id/project", middleware.RequirePermission("ticket", "update"), config.ProjectHandler.DetachTicket)
+
+			incidents := tenant.Group("/incidents")
+			incidents.POST("/:id/project", middleware.RequirePermission("incident", "write"), config.ProjectHandler.AttachIncident)
+			incidents.DELETE("/:id/project", middleware.RequirePermission("incident", "write"), config.ProjectHandler.DetachIncident)
+
+			problems := tenant.Group("/problems")
+			problems.POST("/:id/project", middleware.RequirePermission("problem", "write"), config.ProjectHandler.AttachProblem)
+			problems.DELETE("/:id/project", middleware.RequirePermission("problem", "write"), config.ProjectHandler.DetachProblem)
+
+			changes := tenant.Group("/changes")
+			changes.POST("/:id/project", middleware.RequirePermission("change", "write"), config.ProjectHandler.AttachChange)
+			changes.DELETE("/:id/project", middleware.RequirePermission("change", "write"), config.ProjectHandler.DetachChange)
+
+			serviceRequests := tenant.Group("/service-requests")
+			serviceRequests.POST("/:id/project", middleware.RequirePermission("service_request", "write"), config.ProjectHandler.AttachServiceRequest)
+			serviceRequests.DELETE("/:id/project", middleware.RequirePermission("service_request", "write"), config.ProjectHandler.DetachServiceRequest)
 		}
 
 		// Applications

@@ -11,6 +11,7 @@ import (
 	"itsm-backend/ent/change"
 	"itsm-backend/ent/notificationdelivery"
 	"itsm-backend/ent/notificationpreference"
+	"itsm-backend/ent/projectmilestone"
 	"itsm-backend/ent/servicerequest"
 	"itsm-backend/ent/ticket"
 	"itsm-backend/ent/user"
@@ -80,6 +81,16 @@ func (h *NotificationDeliveryCommandHandler) Handle(ctx context.Context, cmd *en
 			servicerequest.IDEQ(resourceID), servicerequest.TenantIDEQ(cmd.TenantID),
 		).Only(ctx)
 		actionURL, actionText = fmt.Sprintf("/service-requests/%d", resourceID), "查看服务请求"
+	case "project_milestone":
+		// PE-14 收尾：里程碑到期通知跳转到所属项目工作台。
+		var milestone *ent.ProjectMilestone
+		milestone, err = h.client.ProjectMilestone.Query().Where(
+			projectmilestone.IDEQ(resourceID), projectmilestone.TenantIDEQ(cmd.TenantID),
+		).Only(ctx)
+		actionURL, actionText = "/projects", "查看项目"
+		if milestone != nil {
+			actionURL, actionText = fmt.Sprintf("/projects/%d", milestone.ProjectID), "查看项目里程碑"
+		}
 	default:
 		return fmt.Errorf("unsupported notification resource type %q", resourceType)
 	}

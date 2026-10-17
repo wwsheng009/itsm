@@ -584,6 +584,8 @@ func getEmbeddedConfig() *SeedConfig {
 			{BusinessType: "ticket", BusinessSubType: "service_request", ProcessDefinitionKey: "service_request_flow", IsDefault: true},
 			{BusinessType: "ticket", BusinessSubType: "improvement", ProcessDefinitionKey: "ticket_general_flow", IsDefault: true},
 			{BusinessType: "ticket", ProcessDefinitionKey: "ticket_general_flow", IsDefault: true},
+			{BusinessType: "project", BusinessSubType: "initiation", ProcessDefinitionKey: "project_initiation_flow", IsDefault: true},
+			{BusinessType: "project", BusinessSubType: "closure", ProcessDefinitionKey: "project_closure_flow", IsDefault: true},
 		},
 		TicketViews: []TicketViewSeed{
 			{Name: "我的待办工单", Desc: "分配给我的未关闭工单", IsShared: false, Columns: []string{"id", "title", "priority", "status", "assignee", "created_at"}},
@@ -1737,6 +1739,8 @@ func (s *Seeder) seedMenus(ctx context.Context) {
 		{Name: "NOC工作台", Path: "/noc", Icon: "Activity", ParentPath: "", PermissionCode: "incident:read", SortOrder: 35, Description: "重大事件作战室"},
 		{Name: "问题管理", Path: "/problems", Icon: "HelpCircle", ParentPath: "", PermissionCode: "problem:read", SortOrder: 40, Description: "问题管理"},
 		{Name: "变更管理", Path: "/changes", Icon: "BarChart3", ParentPath: "", PermissionCode: "change:read", SortOrder: 50, Description: "变更管理"},
+		// 项目管理（P0，2026-10-17）：一级菜单入口；存量租户由 syncMenusToExistingTenants 按 path 幂等补齐。
+		{Name: "项目管理", Path: "/projects", Icon: "Briefcase", ParentPath: "", PermissionCode: "project:read", SortOrder: 55, Description: "项目管理（任务/成员/单据关联）"},
 		{Name: "知识库", Path: "/knowledge", Icon: "Book", ParentPath: "", PermissionCode: "knowledge:read", SortOrder: 60, Description: "知识库管理"},
 		{Name: "邮件报障", Path: "/email-intake", Icon: "Inbox", ParentPath: "", PermissionCode: "email_intake:read", SortOrder: 65, Description: "AI 邮件智能报障"},
 		// 2026-10-10 菜单挂载收口：permission_code 对齐页面主接口（GET /api/v1/service-catalogs = service_catalog:read），

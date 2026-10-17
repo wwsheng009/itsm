@@ -37,6 +37,7 @@ import (
 	marketplaceService "itsm-backend/service/marketplace"
 
 	"itsm-backend/database"
+	"itsm-backend/dto"
 	"itsm-backend/ent"
 	"itsm-backend/ent/tenant"
 	"itsm-backend/ent/user"
@@ -75,6 +76,7 @@ import (
 	predictionHandler "itsm-backend/handlers/prediction"
 	"itsm-backend/handlers/problem"
 	"itsm-backend/handlers/problem_investigation"
+	projectHandler "itsm-backend/handlers/project"
 	provisioningHandler "itsm-backend/handlers/provisioning"
 	rbacHandler "itsm-backend/handlers/rbac"
 	releaseHandler "itsm-backend/handlers/release"
@@ -1466,6 +1468,57 @@ func NewApplication() *Application {
 	mspWorkbenchService.SetChangeStatusWriter(mspHandler.NewChangeStatusWriter(changeServiceDomain))
 	mspWorkbenchService.SetRequestStatusWriter(mspHandler.NewRequestStatusWriter(srService))
 
+	// 项目管理服务（PE-5）：注入既有工单服务适配器（任务→工单生成走工单域，不直连）。
+	projectService := projectHandler.NewService(projectHandler.NewEntRepository(client))
+	projectService.SetTicketGenerator(projectHandler.TicketGeneratorFunc(func(ctx context.Context, in projectHandler.TicketGenerateInput) (int, error) {
+		title := strings.TrimSpace(in.Request.Title)
+		if title == "" {
+			title = in.Task.Name
+		}
+		priority := strings.TrimSpace(in.Request.Priority)
+		if priority == "" {
+			priority = in.Task.Priority
+		}
+		description := in.Task.Description
+		if len(description) > 5000 {
+			description = description[:5000]
+		}
+		created, err := ticketService.CreateTicket(ctx, &dto.CreateTicketRequest{
+			Title:        title,
+			Description:  description,
+			Priority:     priority,
+			Type:         "ticket",
+			TicketTypeID: in.Request.TicketTypeID,
+			RequesterID:  in.ActorID,
+		}, in.TenantID)
+		if err != nil {
+			return 0, err
+		}
+		if err := projectService.AttachGeneratedTicket(ctx, in.TenantID, created.ID, in.ProjectID); err != nil {
+			return 0, err
+		}
+		return created.ID, nil
+	}))
+	// PE-12 阶段门：审批端口复用 process_binding（business_type=project）+ BPMN 触发 + 审批桥接。
+	projectService.SetGateProcess(projectHandler.NewGateProcessAdapter(client, processTriggerService, processBindingService, sugar))
+	// PE-15 结项清单：复盘 KB 草稿走知识库域服务（新建即草稿），CSAT 走 survey 域服务；
+	// 结项时 CSAT 自动触发为尽力而为（失败仅记日志，可经结项页手动重试）。
+	projectService.SetLogger(sugar)
+	projectService.SetClosurePorts(
+		projectHandler.NewClosureKnowledgeAdapter(knowledgeServiceDomain),
+		projectHandler.NewClosureSurveyAdapter(surveyService),
+	)
+	// PE-21 风险台账：转换端口复用问题/变更域服务（未装配时转换端点 503）。
+	projectService.SetRiskPorts(
+		projectHandler.NewRiskProblemAdapter(problemServiceDomain),
+		projectHandler.NewRiskChangeAdapter(changeServiceDomain),
+	)
+	// PE-25 项目 AI：LLM Gateway 适配器（周报摘要/风险预警/纪要转任务）。
+	// LLM 未配置/调用失败时端点降级返回 200（generatedBy=deterministic|rules|none），不阻塞主流程。
+	projectService.SetAIPort(projectHandler.NewProjectAIAdapter(llmGateway, llmConfig.Model, sugar))
+	projectHTTPHandler := projectHandler.NewHandler(projectService)
+	projectHTTPHandler.SetAuditClient(client)
+
 	routerConfig := &router.RouterConfig{
 		JWTSecret:                    cfg.JWT.Secret,
 		Logger:                       sugar,
@@ -1532,6 +1585,7 @@ func NewApplication() *Application {
 		ServiceCatalogHandler:       scHandler,
 		ServiceRequestHandler:       srHandler,
 		ApplicationHandler:          applicationHTTPHandler,
+		ProjectHandler:              projectHTTPHandler,
 		ProblemHandler:              problemHandler,
 		ProblemInvestigationHandler: problemInvestigationHandler,
 		ChangeHandler:               changeHandler,
@@ -2232,6 +2286,43 @@ func (app *Application) startBackgroundTasks(ctx context.Context) {
 					}
 					if processed > 0 {
 						app.Logger.Infow("BPMN timeout scan completed", "tenant_id", t.ID, "processed", processed)
+					}
+				}
+			}
+		}
+	})
+
+	// 项目里程碑到期通知扫描（PE-14 收尾）：枚举租户后把「planned 且已逾期或
+	// 窗口内到期」的里程碑入箱（outbox → in_app），重复扫描由幂等键收敛。
+	// 提醒窗口可用 ITSM_PROJECT_MILESTONE_DUE_WINDOW_HOURS 覆盖（默认 72h = 提前 3 天）。
+	safeGo("project-milestone-due-scanner", func() {
+		scanner := service.NewProjectMilestoneDueScanner(app.DBClient, app.Logger)
+		if v := os.Getenv("ITSM_PROJECT_MILESTONE_DUE_WINDOW_HOURS"); v != "" {
+			if hours, parseErr := strconv.Atoi(v); parseErr == nil && hours > 0 {
+				scanner.SetDueWindow(time.Duration(hours) * time.Hour)
+			}
+		}
+		ticker := time.NewTicker(30 * time.Minute)
+		defer ticker.Stop()
+		scanCtx := tenantctx.SystemContext(ctx, "project-milestone-due-scanner:list_tenants", "enumerate tenants for project milestone due scan")
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			case <-ticker.C:
+				tenants, err := app.DBClient.Tenant.Query().All(scanCtx)
+				if err != nil {
+					continue
+				}
+				for _, t := range tenants {
+					tenantCtx := tenantctx.WithTenantID(scanCtx, t.ID)
+					enqueued, err := scanner.ScanDueMilestones(tenantCtx, t.ID)
+					if err != nil {
+						app.Logger.Warnw("project milestone due scan failed", "error", err, "tenant_id", t.ID)
+						continue
+					}
+					if enqueued > 0 {
+						app.Logger.Infow("project milestone due scan completed", "tenant_id", t.ID, "enqueued", enqueued)
 					}
 				}
 			}

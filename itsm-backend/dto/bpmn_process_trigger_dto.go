@@ -12,6 +12,7 @@ const (
 	BusinessTypeServiceRequest BusinessType = "service_request" // 服务请求
 	BusinessTypeProblem        BusinessType = "problem"         // 问题
 	BusinessTypeRelease        BusinessType = "release"         // 发布
+	BusinessTypeProject        BusinessType = "project"         // 项目（阶段门：initiation|plan|acceptance|closure）
 )
 
 // ProcessStatus 流程状态

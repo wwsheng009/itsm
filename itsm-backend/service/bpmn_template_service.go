@@ -153,6 +153,16 @@ func (s *BPMNTemplateService) listTemplates() ([]*TemplateInfo, error) {
 			info.Category = "ticket"
 			info.SubCategory = "approval"
 			info.Description = "开发提交→主管审批→运维操作三级流程"
+		case "project_initiation_flow":
+			info.Name = "项目立项审批流程"
+			info.Category = "project"
+			info.SubCategory = "initiation"
+			info.Description = "项目管理阶段门：立项门审批（planning → active 前）"
+		case "project_closure_flow":
+			info.Name = "项目结项审批流程"
+			info.Category = "project"
+			info.SubCategory = "closure"
+			info.Description = "项目管理阶段门：结项门审批（→ completed 前）"
 		default:
 			info.Name = key
 			info.Category = "default"

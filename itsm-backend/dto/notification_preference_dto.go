@@ -64,5 +64,6 @@ func ListNotificationEventTypes() []NotificationEventType {
 		{Code: "change_approved", Name: "变更批准", Description: "当变更被批准时"},
 		{Code: "change_rejected", Name: "变更拒绝", Description: "当变更被拒绝时"},
 		{Code: "problem_identified", Name: "问题识别", Description: "当问题被识别时"},
+		{Code: "project_milestone_due", Name: "项目里程碑到期", Description: "当项目里程碑即将到期或已逾期时"},
 	}
 }

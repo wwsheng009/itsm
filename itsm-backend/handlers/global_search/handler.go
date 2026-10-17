@@ -4,6 +4,7 @@ import (
 	"strings"
 
 	"itsm-backend/common"
+	"itsm-backend/domain/role"
 	"itsm-backend/middleware"
 
 	"github.com/gin-gonic/gin"
@@ -27,6 +28,11 @@ type SearchResult struct {
 	Description  string `json:"description,omitempty"`
 	Status       string `json:"status,omitempty"`
 	TicketNumber string `json:"ticketNumber,omitempty"`
+	// Code 项目编号（type=project/project_task 时返回）。
+	Code string `json:"code,omitempty"`
+	// ProjectID/ProjectName 所属项目（type=project_task 时返回，供前端跳转）。
+	ProjectID   int    `json:"projectId,omitempty"`
+	ProjectName string `json:"projectName,omitempty"`
 }
 
 // SearchResponse 搜索响应
@@ -37,7 +43,7 @@ type SearchResponse struct {
 
 // Search 全局搜索
 // @Summary 全局搜索
-// @Description 在工单、事件、问题、变更、知识库中搜索
+// @Description 在工单、事件、问题、变更、知识库、项目、项目任务中搜索（项目/任务受可见性谓词约束）
 // @Tags 全局搜索
 // @Produce json
 // @Param q query string true "搜索关键词"
@@ -59,13 +65,27 @@ func (h *Handler) Search(ctx *gin.Context) {
 		return
 	}
 
-	response, err := h.service.Search(ctx.Request.Context(), tenantID, keyword)
+	response, err := h.service.Search(
+		ctx.Request.Context(), tenantID,
+		ctx.GetInt("user_id"), isAdminLike(middleware.GetContextRoles(ctx)),
+		keyword,
+	)
 	if err != nil {
 		common.Fail(ctx, common.InternalErrorCode, "搜索失败")
 		return
 	}
 
 	common.Success(ctx, response)
+}
+
+// isAdminLike 管理角色判定（单一源：domain/role.IsAdminLike，与项目域可见性口径一致）。
+func isAdminLike(roles []string) bool {
+	for _, r := range roles {
+		if role.IsAdminLike(r) {
+			return true
+		}
+	}
+	return false
 }
 
 // RegisterRoutes 注册路由
