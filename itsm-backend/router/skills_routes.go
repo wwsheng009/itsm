@@ -40,19 +40,16 @@ func skillsDistDir() string {
 //   - /skills-dist/registry    清单
 //   - /skills-dist/installer   安装器
 //   - /skills-dist/:name/download / /skills-dist/bundle/download  分发包
-// public 与 auth 组各挂一份（分发面无租户数据；auth 面供前端复用登录态）。
+// 仅挂 **auth 组单份**：gin 同一 engine 上两个 group 挂同一路径会在第二次注册时 panic
+//（实测 v1.12.0：`handlers are already registered`——2026-10-17 238 部署 P0 教训：
+// 本地单测 RouterConfig 全 nil + 只建 public 组，未触发双挂载场景）。安装器用户为
+// 运维/开发（有账号）；前端资源中心页在登录态内复用同一路径，不受影响。
 func SetupSkillsRoutes(public *gin.RouterGroup, auth *gin.RouterGroup) {
-	if auth != nil {
-		auth.GET("/skills-dist/registry", skillsRegistryHandler)
-		auth.GET("/skills-dist/installer", skillsInstallerHandler)
-		auth.GET("/skills-dist/:name/download", skillsDownloadHandler)
-		auth.GET("/skills-dist/bundle/download", skillsDownloadHandler)
-	}
-	if public != nil {
-		public.GET("/skills-dist/registry", skillsRegistryHandler)
-		public.GET("/skills-dist/installer", skillsInstallerHandler)
-		public.GET("/skills-dist/:name/download", skillsDownloadHandler)
-	}
+	_ = public // 保留签名兼容；分发面只挂 auth（见上注）
+	auth.GET("/skills-dist/registry", skillsRegistryHandler)
+	auth.GET("/skills-dist/installer", skillsInstallerHandler)
+	auth.GET("/skills-dist/:name/download", skillsDownloadHandler)
+	auth.GET("/skills-dist/bundle/download", skillsDownloadHandler)
 }
 
 // skillsManifest 读取并解析 dist 目录的 manifest.json。

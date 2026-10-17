@@ -11,6 +11,7 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
+// newSkillsTestRouter 构造带 auth 组的测试路由（分发面只挂 auth，见 skills_routes.go 注）。
 func newSkillsTestRouter(t *testing.T, distDir string) *gin.Engine {
 	t.Helper()
 	gin.SetMode(gin.TestMode)
@@ -20,8 +21,8 @@ func newSkillsTestRouter(t *testing.T, distDir string) *gin.Engine {
 		t.Setenv("SKILLS_DIST_DIR", "")
 	}
 	r := gin.New()
-	pub := r.Group("/api/v1")
-	SetupSkillsRoutes(pub, nil)
+	auth := r.Group("/api/v1")
+	SetupSkillsRoutes(nil, auth)
 	return r
 }
 
@@ -53,7 +54,7 @@ func writeFakeDist(t *testing.T, dir string) {
 func TestSkillsRegistry_NotConfigured(t *testing.T) {
 	r := newSkillsTestRouter(t, "")
 	w := httptest.NewRecorder()
-	r.ServeHTTP(w, httptest.NewRequest(http.MethodGet, "/api/v1/skills/registry", nil))
+	r.ServeHTTP(w, httptest.NewRequest(http.MethodGet, "/api/v1/skills-dist/registry", nil))
 	if w.Code != http.StatusOK {
 		t.Fatalf("expect 200 got %d", w.Code)
 	}
@@ -75,7 +76,7 @@ func TestSkillsRegistry_Configured(t *testing.T) {
 	r := newSkillsTestRouter(t, dir)
 
 	w := httptest.NewRecorder()
-	r.ServeHTTP(w, httptest.NewRequest(http.MethodGet, "/api/v1/skills/registry", nil))
+	r.ServeHTTP(w, httptest.NewRequest(http.MethodGet, "/api/v1/skills-dist/registry", nil))
 	if w.Code != http.StatusOK {
 		t.Fatalf("expect 200 got %d body=%s", w.Code, w.Body.String())
 	}
@@ -91,7 +92,7 @@ func TestSkillsDownload_AllowedAndBlocked(t *testing.T) {
 
 	// 允许：manifest 登记的 zip
 	w := httptest.NewRecorder()
-	r.ServeHTTP(w, httptest.NewRequest(http.MethodGet, "/api/v1/skills/itsm-cmdb-operations/download", nil))
+	r.ServeHTTP(w, httptest.NewRequest(http.MethodGet, "/api/v1/skills-dist/itsm-cmdb-operations/download", nil))
 	if w.Code != http.StatusOK || w.Body.String() != "DATA" {
 		t.Fatalf("expect 200 DATA got %d %q", w.Code, w.Body.String())
 	}
@@ -100,13 +101,13 @@ func TestSkillsDownload_AllowedAndBlocked(t *testing.T) {
 	}
 	// bundle 别名
 	w2 := httptest.NewRecorder()
-	r.ServeHTTP(w2, httptest.NewRequest(http.MethodGet, "/api/v1/skills/bundle/download", nil))
+	r.ServeHTTP(w2, httptest.NewRequest(http.MethodGet, "/api/v1/skills-dist/bundle/download", nil))
 	if w2.Code != http.StatusOK {
 		t.Fatalf("bundle expect 200 got %d", w2.Code)
 	}
 	// 未登记 → 404（NotFoundCode 4004 映射 404）
 	w3 := httptest.NewRecorder()
-	r.ServeHTTP(w3, httptest.NewRequest(http.MethodGet, "/api/v1/skills/not-registered/download", nil))
+	r.ServeHTTP(w3, httptest.NewRequest(http.MethodGet, "/api/v1/skills-dist/not-registered/download", nil))
 	if w3.Code != http.StatusNotFound {
 		t.Fatalf("unregistered expect 404 got %d", w3.Code)
 	}
@@ -117,7 +118,7 @@ func TestSkillsInstaller_Served(t *testing.T) {
 	writeFakeDist(t, dir)
 	r := newSkillsTestRouter(t, dir)
 	w := httptest.NewRecorder()
-	r.ServeHTTP(w, httptest.NewRequest(http.MethodGet, "/api/v1/skills/installer", nil))
+	r.ServeHTTP(w, httptest.NewRequest(http.MethodGet, "/api/v1/skills-dist/installer", nil))
 	if w.Code != http.StatusOK || w.Body.String() != "DATA" {
 		t.Fatalf("installer expect 200 DATA got %d %q", w.Code, w.Body.String())
 	}
