@@ -60,6 +60,9 @@ var precheckFallbackPolicies = map[string]map[string]Permission{
 		"/api/v1/ticket-templates":     {Resource: "ticket_template", Action: "read"},
 		"/api/v1/ticket-templates/*":   {Resource: "ticket_template", Action: "read"},
 		"/api/v1/workflow/tasks/*":     {Resource: "task", Action: "read"},
+		// Skills 分发面（2026-10-17）：静态构建产物（manifest/installer/zip），已认证即可读。
+		// handlers/skill RegisterRoutes 的 /skills 与本 /skills-dist 分发面是两个概念。
+		"/api/v1/skills-dist/*": {Resource: "knowledge", Action: "read"},
 	},
 	"PATCH": {
 		"/api/v1/applications/*":       {Resource: "application", Action: "write"},
