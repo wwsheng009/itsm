@@ -22,6 +22,7 @@
 | P2 | itsm-service-request-operations | service_request 20 + service_catalog 10 | 目录下单/审批；优先级低于流程域能力 |
 | P2 | itsm-release-operations | release 16 | **须先与 itsm-deploy 划界**（业务发布 vs 部署操作） |
 | P2 | itsm-cloud-operations | cloud 15 | 云资源同步/盘点，偏集成 |
+| P2（产品功能） | **skills 分发与安装**（资源中心页） | —（非 skill） | 见 §6：Phase 1 仓库打包 → Phase 2 ITSM 内建资源页（API+前端）→ Phase 3 签名/自更新 |
 | 不做 | — | bot 9 / connector 8 / survey 7 / audit 2 / alert 1 / vendor 4 | 长尾低频：按需并入相近域或临时 curl，不占 skill 名额 |
 
 **明确不做**：PAT 管理面（AC-39 防自我繁殖：PAT 身份无权管理 PAT，仅浏览器会话）；登录/auth 公共底座（已内嵌各脚本）。
@@ -49,3 +50,39 @@
 - [ ] incident(47) 与 ticket 域边界调研（两套路由并存），结论回填本文 §2
 - [ ] **P0 启动**：itsm-cmdb-operations——先产出 API 契约调研（references 初稿），再落脚本骨架
 - [ ] P0：itsm-change-operations——先调研状态机与审批链契约
+
+## 6. 分发与安装（skills 打包下发）
+
+目标：让 Claude Code / Codex / 其他 code-x agent 通过**一个 link** 下载并安装本目录技能（含安装指导），无需手工拷贝目录。
+
+### 6.1 分发约束（已确认的实现事实）
+
+1. **共享底座布局不可拆**：各域脚本经 `parents[2]/_lib` 引用 `_lib/itsm_common.py`（§4.3）。单 skill zip 必须内嵌 `_lib/`，保持「技能根/skill/scripts」布局，否则 import 断链。
+2. **宿主技能根目录映射**（安装器负责落到正确位置）：
+   - Claude Code：`~/.claude/skills/<name>/`
+   - Codex / aicli：`~/.aicli/.agents/skills/<name>/`（外部技能根）
+   - 通用/项目级：`<project>/.agents/skills/<name>/`
+   - 无 `SKILL.md` 的 `_lib/` 目录会被宿主忽略，无害。
+3. **脱敏要求**：SKILL.md 示例含 demo 环境口令，公开分发前统一替换为占位符（打包脚本负责）。
+
+### 6.2 三阶段路线
+
+| Phase | 内容 | 产物 |
+|---|---|---|
+| **P1 仓库即分发**（零基建） | 打包脚本产出 `dist/skills/`：每 skill 一个 zip（内嵌 `_lib`）+ 全量 bundle + `manifest.json`（name/version/description/sha256/updatedAt/sourceCommit）+ 零依赖安装器 `itsm-skills-install.py`（校验 sha256 → 解压到宿主技能根 → 登记 `.skills-installed.json`） | `scripts/package-skills.ps1` + `dist/skills/*` |
+| **P2 ITSM 内建资源中心页** | 后端：`GET /api/v1/skills/registry`（清单）、`GET /api/v1/skills/:name/download`（go:embed 镜像或挂载 dist）、`GET /api/v1/skills/installer`；前端：资源页 skill 卡片（版本/大小/sha256/更新时间）+ 按**宿主 Tab**（Claude Code / Codex / 通用）展示一键复制安装命令 + 安装指导文档链接 | 后端 skills 路由 + 前端「资源中心」页 |
+| **P3 可选增强** | 包签名（minisign/cosign）、安装器 `--check` 自更新、版本锁定与回滚 | 签名公钥分发 + CLI 参数 |
+
+### 6.3 安装体验（P2 目标形态）
+
+资源页每个 skill 卡片给出按宿主的复制即用命令，形如：
+
+```bash
+# Claude Code / Codex 通用（P1 形态：直连仓库 raw / P2 形态：ITSM 资源页 base）
+curl -fsSL <BASE>/skills/manifest.json -o manifest.json
+python itsm-skills-install.py --manifest manifest.json --name itsm-ticket-operations --host codex   # host: claude|codex|project
+```
+
+安装器职责：sha256 校验 → 按宿主映射解压 → 幂等（重装覆盖 + 版本登记）→ 输出后续验证命令（如 `itsm_ticket.py --help`）。
+
+> 注：本节是**产品功能规划**，按 §4.5 不新增 skill；Phase 1 属 skill 体系工具链（仓库内脚本），Phase 2 走产品需求（后端路由 + 前端页面）。
