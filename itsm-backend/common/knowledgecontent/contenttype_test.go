@@ -62,6 +62,10 @@ func TestDetect(t *testing.T) {
 		{"html table", "<table><tbody><tr><td>x</td></tr></tbody></table>", TypeRichText},
 		{"html heading with attr", `<h2 class="x">标题</h2>`, TypeRichText},
 		{"html image", `<img src="/a.png" data-attachment-id="1">`, TypeRichText},
+		// 代码块里的 HTML 片段不能把整篇 Markdown 判成 rich_text（2026-10-17 修复）
+		{"html inside fenced code", "示例：\n\n```html\n<div class=\"x\">hi</div>\n```\n", TypeMarkdown},
+		{"html inside tilde fence", "~~~\n<table><tr><td>x</td></tr></table>\n~~~\n", TypeMarkdown},
+		{"html outside fence wins", "```\n<div>x</div>\n```\n\n<p>真 HTML</p>", TypeRichText},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {

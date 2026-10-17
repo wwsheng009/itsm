@@ -74,10 +74,38 @@ func Detect(content string) string {
 	if strings.TrimSpace(content) == "" {
 		return TypeText
 	}
-	if blockTagRe.MatchString(content) {
+	if blockTagRe.MatchString(stripFencedCode(content)) {
 		return TypeRichText
 	}
 	return TypeMarkdown
+}
+
+// stripFencedCode 剔除围栏代码块（``` / ~~~）后再交给块级标签判定。
+//
+// 为什么需要（2026-10-17）：Markdown 文档在代码块里贴 `<div>`、`<table>` 是常态，
+// 直接对全文跑 blockTagRe 会把整篇 Markdown 误判成 rich_text，从而走 HTML 净化
+// 链路——正文被实体化，代码块里的引号变成 &#34;。判定只看「代码块之外的正文」。
+func stripFencedCode(content string) string {
+	var b strings.Builder
+	inFence := false
+	fence := ""
+	for _, line := range strings.Split(content, "\n") {
+		trimmed := strings.TrimSpace(line)
+		if !inFence {
+			if strings.HasPrefix(trimmed, "```") || strings.HasPrefix(trimmed, "~~~") {
+				inFence = true
+				fence = trimmed[:3]
+				continue
+			}
+			b.WriteString(line)
+			b.WriteString("\n")
+			continue
+		}
+		if strings.HasPrefix(trimmed, fence) {
+			inFence = false
+		}
+	}
+	return b.String()
 }
 
 // Resolve 给出最终生效类型：显式值优先，缺失 / 非法时按内容兜底。

@@ -136,12 +136,14 @@ func enqueueVectorSyncTx(ctx context.Context, tx *ent.Tx, article *Article, acti
 }
 
 func (s *Service) CreateArticle(ctx context.Context, a *Article) (*Article, error) {
-	// XSS 消毒：Title 走 strict（纯文本），Content 走 UGC（保留富文本白名单，剥离 script/on*/javascript:）
-	a.Title = common.SanitizeText(a.Title)
-	a.Content = common.SanitizeHTML(a.Content)
+	// 顺序很重要：先归一 content_type，再按类型选消毒口径（见 sanitizeArticleContent）。
+	// 若先消毒再判定，正文已被实体化，Detect 只看得到纯文本，类型永远落成 markdown。
 	if err := normalizeArticleContentType(a); err != nil {
 		return nil, err
 	}
+	// XSS 消毒：Title 走 strict（纯文本）；Content 按类型分流
+	a.Title = common.SanitizeText(a.Title)
+	a.Content = sanitizeArticleContent(a.ContentType, a.Content)
 	s.validateInlineImageRefs(ctx, a)
 	// 新建即草稿：即使请求携带 is_published，也不在这里发布。
 	// 版本号从 v1 开始且只属于「发布」动作，创建时写版本会让版本历史混入未发布内容。
@@ -191,12 +193,13 @@ func (s *Service) ValidateCategory(ctx context.Context, tenantID int, category s
 }
 
 func (s *Service) UpdateArticle(ctx context.Context, a *Article) (*Article, error) {
-	// XSS 消毒
-	a.Title = common.SanitizeText(a.Title)
-	a.Content = common.SanitizeHTML(a.Content)
+	// 先归一类型再消毒，口径与 CreateArticle 一致
 	if err := normalizeArticleContentType(a); err != nil {
 		return nil, err
 	}
+	// XSS 消毒
+	a.Title = common.SanitizeText(a.Title)
+	a.Content = sanitizeArticleContent(a.ContentType, a.Content)
 	s.validateInlineImageRefs(ctx, a)
 	// 保存 = 一次编辑，不是发布：写回的内容一律回到草稿态。
 	// 已发布文章的线上内容与未发布修改不能共存于同一行，因此编辑已发布文章
@@ -429,6 +432,29 @@ func normalizeArticleContentType(a *Article) error {
 	}
 	a.ContentType = knowledgecontent.Resolve(explicit, a.Content)
 	return nil
+}
+
+// sanitizeArticleContent 按正文类型选择消毒口径。
+//
+// 背景（2026-10-17 修复）：此前无论 content_type 一律走 common.SanitizeHTML，
+// 而 bluemonday 会把「非标签文本」里的直引号、&、<、> 转成 HTML 实体
+// （&#34; / &#39; / &amp; …）。对 HTML 正文这是正确行为；对 Markdown 正文则是数据
+// 损坏——渲染端在代码块里不解码实体，`d = {"a": 1}` 会字面显示成 `d = {&#34;a&#34;: 1}`，
+// 示例代码直接失效。
+//
+// 现按类型分流：
+//   - html / rich_text：仍走 UGC 白名单净化（剥 script / on* / javascript:），
+//     这两类正文本来就是要按 HTML 语义渲染的；
+//   - markdown / text：原样保留。安全性由渲染端保证——前端 Markdown 渲染链是
+//     react-markdown + remark-gfm + rehype-sanitize，未启用 rehype-raw，正文里的
+//     原始 HTML 不会被解析执行（见 components/ai/MarkdownMessage.tsx）。
+func sanitizeArticleContent(contentType, content string) string {
+	switch contentType {
+	case knowledgecontent.TypeHTML, knowledgecontent.TypeRichText:
+		return common.SanitizeHTML(content)
+	default:
+		return content
+	}
 }
 
 // validateInlineImageRefs BE-7：知识库正文的内嵌图片引用必须归属当前文章

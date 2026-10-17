@@ -128,4 +128,4 @@
 7. （已修复 2026-10-16）分类两套集合不一致：原 create 链路**完全跳过校验**（12 值白名单是仅单测引用的死代码），`GET /categories` 下拉值与白名单互斥。现 create/update 统一为「白名单 ∪ 分类接口返回值」联合校验，非法值 400。
 8. （已修复 2026-10-16）`PUT` 原不校验分类（实测可改任意值）：现与创建同策略，非法分类 400。
 9. **创建即复核逾期（2026-10-17 实测）**：创建时设置 `reviewIntervalDays>0` 且未复核的文章，创建（乃至发布）后 `freshness.verdict` 立即为 `review_overdue`（`citable=false`），**不会进入 search 结果**；需调用一次 `POST /:id/review` 后才可检索（实测 review 后 `reviewDueAt=now+interval`，且该时间在后续 update+republish 中保留）。`reviewIntervalDays=0` 不受影响。调用方如需「发布即可检索」，应在 publish 后补 review。
-10. **UGC 消毒把直引号实体化（2026-10-17 实测）**：正文中的直引号 `"`/`'` 在落库时被转成 HTML 实体 `&#34;`/`&#39;`（`&`/`<`/`>` 同理）。Markdown 正文文本渲染时实体按 CommonMark 解码、观感正常；但**代码块（fenced code）内实体不解码、会字面显示**——示例代码请避免直引号（或用「」全角引号），发布后回读 `content` 核对。
+10. （已修复 2026-10-17）**UGC 消毒把直引号实体化**：原实现不区分 `content_type`，一律走 HTML 净化，直引号 `"`/`'` 与 `&`/`<`/`>` 落库时被转成 `&#34;`/`&#39;`/`&amp;`/`&lt;`/`&gt;`；代码块内实体在渲染端不解码，示例代码字面显示为实体。现按类型分流：`html`/`rich_text` 仍走白名单净化，`markdown`/`text` 原样落库（XSS 由渲染端 `react-markdown + rehype-sanitize` 兜底）。**尚未重新部署的旧实例仍会实体化**，对旧实例发布 Markdown 时仍建议避开直引号并回读 `content` 核对。

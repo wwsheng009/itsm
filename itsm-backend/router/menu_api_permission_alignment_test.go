@@ -148,6 +148,10 @@ func TestMenuSpecsWithoutPermissionCodeAreAllowlisted(t *testing.T) {
 
 	allowed := map[string]string{
 		"/dashboard": "服务台为所有登录用户默认落地页（无业务数据权限要求）",
+		// 资源中心只呈现「构建产物分发面」的安装指引与下载入口，对应后端
+		// /api/v1/skills-dist/* 是**公开**端点（code agent 无登录态，必须能自取）；
+		// 页面本身不暴露租户数据，故不设 permission_code，对所有登录用户可见。
+		"/skills": "资源中心为公开的技能分发展示页，后端分发端点无需登录即可访问（agent 自取）",
 	}
 
 	var undeclared []string
