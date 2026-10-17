@@ -14,6 +14,7 @@
 | itsm-sla-operations | SLA 定义 / 监控 / 指标 / 违约处置 / 绩效 / 合规 / MSP 子面直通 | itsm_sla.py（25 子命令） | 维护中（P1，2026-10-17；238 实测） |
 | itsm-problem-operations | 问题 CRUD / 调查/根因/方案/关闭 / 关联 / 统计趋势热点 | itsm_problem.py（19 子命令） | 维护中（P1，2026-10-17；238 全生命周期实测） |
 | itsm-msp-operations | MSP 跨租户：分配 / 客户 / 类型下发 / 工作台全族 / 报表 / 审计 | itsm_msp.py（44 子命令） | 维护中（P1，2026-10-17；238 以 demo.msp.manager 实测，非 MSP 403 门禁同验） |
+| itsm-service-request-operations | 服务请求 CRUD / 多级审批链 / 开通任务 / 服务目录 CRUD | itsm_service_request.py（21 子命令） | 维护中（P2，2026-10-17；238 全链实测：catalogId/complianceAck 必填、审批推进、409 白名单守卫） |
 
 ## 2. 候选路线图（按路由面 + 复用价值）
 
@@ -25,9 +26,7 @@
 | P1（✅ 已建 2026-10-17） | itsm-msp-operations | msp 45 | 44 子命令；MSPMiddleware 门禁与双层授权链实测（demo.msp.manager） |
 | P1（✅ 已建 2026-10-17） | itsm-problem-operations | problem 24 | 19 子命令；状态机 409 守卫与全生命周期实测 |
 | P3 | itsm-incident-operations | incident 47 | 见 §7 边界结论：监控驱动场景，复用低频；先不做 |
-| P2 | itsm-service-request-operations | service_request 20 + service_catalog 10 | 目录下单/审批；优先级低于流程域能力 |
-| P2 | itsm-release-operations | release 16 | **须先与 itsm-deploy 划界**（业务发布 vs 部署操作） |
-| P2 | itsm-cloud-operations | cloud 15 | 云资源同步/盘点，偏集成 |
+| P2（✅ 已建 2026-10-17） | itsm-service-request-operations | service_request 20 + service_catalog 10 | 21 子命令；多级审批链（正交于运营状态机）+ provisioning 任务；**腾位决策**：cloud 并入 itsm-cmdb-operations 长尾（§5，不单独建）；总数 9 超 §4.6 上限 → 治理备注见下 |
 | P2（产品功能） | **skills 分发与安装**（资源中心页） | —（非 skill） | 见 §6：Phase 1 仓库打包 → Phase 2 ITSM 内建资源页（API+前端）→ Phase 3 签名/自更新 |
 | 不做 | — | bot 9 / connector 8 / survey 7 / audit 2 / alert 1 / vendor 4 | 长尾低频：按需并入相近域或临时 curl，不占 skill 名额 |
 
@@ -58,7 +57,8 @@
 - [x] **P0**：itsm-change-operations——SKILL.md + references + 33 子命令脚本，238 全生命周期实测
 - [x] **P1**：itsm-sla-operations / itsm-problem-operations / itsm-msp-operations（2026-10-17 三技能完成，238 实测；数量上限 8 已达 8——后续新域须先合并/归档再建）
 - [x] CMDB 长尾：导入导出任务 / 云资源三件套 / 发现任务封装（2026-10-17 完成，itsm_cmdb.py 33→56 子命令；238 实测 export 任务制+云面；GAPS-6 云发现未配置返回 null）
-- [ ] P2：itsm-service-request-operations / itsm-cloud-operations（需先归档或合并既有技能腾位）
+- [x] P2：itsm-service-request-operations（2026-10-17 完成，21 子命令，238 全链实测）；**cloud 并入 cmdb 长尾**（云资源/发现已在 itsm_cmdb.py，不单独建 itsm-cloud-operations）；**release 维持 itsm-deploy 承接**（业务发布面暂无独立自动化诉求，P3 观察项）
+- [ ] **治理动作（下一轮）**：技能总数 9 超 §4.6 上限 8——候选合并：itsm-service-request-operations 的目录管理面并入 itsm-msp-operations（provider 维护目录），或将 itsm-knowledge/deploy 择一归档；按季度使用频次复盘后执行
 
 ## 6. 分发与安装（skills 打包下发）
 
