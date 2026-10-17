@@ -9,7 +9,7 @@ description: 通过 ITSM REST API 查询 CMDB 配置项（CI 列表/搜索/统�
 
 ## 脚本工具（scripts/itsm_cmdb.py）
 
-零依赖 Python 3 CLI，公共层复用 `../_lib/itsm_common.py`（认证/输出/错误/token 落盘，与工单、知识库同款卫生：`--save` 默认 `~/.itsm/itsm.token`、掩码回显）。**33 个子命令：读面全量 + 写面核心**：
+零依赖 Python 3 CLI，公共层复用 `../_lib/itsm_common.py`（认证/输出/错误/token 落盘，与工单、知识库同款卫生：`--save` 默认 `~/.itsm/itsm.token`、掩码回显）。**56 个子命令：读面全量 + 写面核心 + 导入导出/云三件套/发现**：
 
 ```bash
 B=http://172.18.3.238:8089/api/v1
@@ -22,7 +22,7 @@ python scripts/itsm_cmdb.py --base $B --token-file "$TOKEN" cis-impact 12       
 python scripts/itsm_cmdb.py --base $B --token-file "$TOKEN" ontology                      # 类型×属性×关系词表自描述
 ```
 
-子命令清单：login / cis-list / cis-get / cis-search / cis-stats / cis-history / cis-topology / cis-impact / cis-relationships / types-list / type-get / type-attributes / ontology / capabilities / rel-types / rel-list / rel-get / views-list / discovery-health / reconciliation ＋ 写面 ci-create / ci-update / ci-delete / batch-create / batch-update / batch-delete / lifecycle-update / lifecycle-history / batch-lifecycle / revert / rel-create / rel-update / rel-delete。
+子命令清单：login / cis-list / cis-get / cis-search / cis-stats / cis-history / cis-topology / cis-impact / cis-relationships / types-list / type-get / type-attributes / ontology / capabilities / rel-types / rel-list / rel-get / views-list / discovery-health / reconciliation ＋ 写面 ci-create / ci-update / ci-delete / batch-create / batch-update / batch-delete / lifecycle-update / lifecycle-history / batch-lifecycle / revert / rel-create / rel-update / rel-delete ＋ 长尾 import-create / import-status / import-list / export-create / export-status / export-list / cloud-accounts / cloud-account-get / cloud-account-create / cloud-account-update / cloud-account-delete / cloud-services / cloud-service-get / cloud-resources / cloud-resource-get / cloud-resource-create / cloud-resource-update / cloud-resource-delete / discovery-sources / discovery-source-create / discovery-job-create / discovery-results。
 
 ## 核心查询速查（curl 等价）
 
@@ -46,7 +46,7 @@ curl -H "$PAT" "$B/cmdb/ci-types";  curl -H "$PAT" "$B/cmdb/ci-types/5/attribute
 ## 待办（下一步）
 
 - [x] 写面封装（2026-10-17）：`ci-create/ci-update/ci-delete`、`batch-create/batch-update/batch-delete`、`lifecycle-update/lifecycle-history/batch-lifecycle`、`revert`、`rel-create/rel-update/rel-delete`——238 实测 create→update(乐观锁)→lifecycle→rel 三步链 + 自清理全通过
-- [ ] 云资源三件套与发现任务封装；导入导出任务封装（任务制轮询）
+- [x] 长尾封装（2026-10-17）：`import-*/export-*`（任务制轮询）、`cloud-accounts/services/resources` CRUD、`discovery-sources/jobs/results`——238 实测 export 任务创建+轮询、云面/发现面列表（云发现能力未配置 → 返回 null，见 references GAPS-6）
 - [ ] GAPS 持续登记：见 references §4（search 未知键静默忽略、lifecycle 响应不回显状态等）
 
 ## 排障与验证

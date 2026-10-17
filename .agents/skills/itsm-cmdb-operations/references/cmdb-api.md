@@ -72,9 +72,29 @@
 
 **relationshipType 枚举**：`depends_on / hosts / hosted_on / connects_to / runs_on / contains / part_of / impacts / impacted_by / owns`；**strength/impactLevel 枚举**：`critical/high/medium/low`。
 
-### 3.4 暂未封装（curl 口径照旧）
+### 3.4 导入导出（任务制，2026-10-17 起已封装）
 
-CI 类型/属性/标签/视图 CRUD；`POST/DELETE /cmdb/cis/:id/tags`；导入导出任务（`GET/POST /cmdb/import|export`，任务制 POST 后轮询 `:task_id`）；云账号/云服务/云资源 CRUD；发现 sources/jobs/results。
+| 端点 | 契约（`dto/cmdb_import_export.go`） |
+|---|---|
+| `POST /cmdb/import` | `ImportCIRequest`：`fileUrl`(**必填，合法 URL**)、`fileType`(必填 oneof `xlsx/csv`)、`updateMode`(必填 oneof `skip/overwrite/merge`)、`sheetName?` |
+| `GET /cmdb/import`、`GET /cmdb/import/:task_id` | 任务列表 / 状态轮询（`{taskId,status,totalCount,createdAt,completedAt,expiresAt}`） |
+| `POST /cmdb/export` | `ExportCIRequest`：`exportType`(必填 oneof `xlsx/csv`)、`filters?`(CISearchFilter)、`exportFields?` |
+| `GET /cmdb/export`、`GET /cmdb/export/:task_id` | 同上任务制 |
+
+**实测（2026-10-17 demo）**：export-create 返回 `taskId`（UUID）+ `status=pending` + `expiresAt=+7d`；无过滤条件全量导出任务可创建但轮询可能 `failed`（totalCount=0 场景）——调用方必须轮询 status 判断终态，勿假设创建即成功。
+
+### 3.5 云资源三件套 / 发现（2026-10-17 起已封装）
+
+| 端点 | 契约 |
+|---|---|
+| `POST/PUT/DELETE /cmdb/cloud-accounts[/:id]` | `CloudAccountRequest`：`provider/accountId/accountName` 必填、`credentialRef/regionWhitelist/isActive` 可选（更新为 `CMDBCloudAccountUpdateRequest` 指针字段） |
+| `GET /cmdb/cloud-accounts[/:id]` | 响应含 `hasCredential`（不回明文） |
+| `GET /cmdb/cloud-services[/:id]` | 云服务类型目录 |
+| `POST/PUT/DELETE /cmdb/cloud-resources[/:id]` | Create：`{cloudAccountId, serviceId, resourceId}` 必填 + `resourceName/region/zone/status/tags/metadata/lifecycleState?`；**跨租户账号在 handler 边界拒绝**（handler_cloud_resource_identity_test） |
+| `GET /cmdb/cloud-resources` | 分页 + provider/region 过滤 |
+| `GET/POST /cmdb/discovery/sources` | `DiscoverySourceRequest`：`name/sourceType` 必填、`reconcilePolicy` oneof `manual/discovered_wins/cmdb_wins`、`schedule/serviceCodes/regions/cloudAccountId/staleThreshold?` |
+| `POST /cmdb/discovery/jobs` | `{sourceId}` |
+| `GET /cmdb/discovery/results` | 发现结果列表 |
 
 ## 4. GAPS（P0 初版，随实测回填）
 
@@ -83,4 +103,4 @@ CI 类型/属性/标签/视图 CRUD；`POST/DELETE /cmdb/cis/:id/tags`；导入�
 3. `size` 上限 200（form）、`pageSize` 上限 100（POST search）——两套分页参数名不一致，脚本已分别透传。
 4. **POST search 未知 filter 键静默忽略（2026-10-17 实测）**：`CISearchFilter` 合法键= `keyword/ciTypeId/status/environment/criticality/assetTag/serialNumber/vendor/location/assignedTo/ownedBy/tagIds/attributes/dateFrom/dateTo/cloudProvider/cloudRegion/cloudResourceId`；传未知键（如 `ciType`）**不报错、不过滤**（Go JSON 绑定非严格），返回全量。排障时先核对键名。
 5. **lifecycle-update 响应不回显 lifecycleStatus（2026-10-17 实测）**：切换成功返回 CI DTO 但无 `lifecycleStatus` 字段；确认当前状态以 `GET /:id/lifecycle/history` 为准（实测切换后 history 立即出现 `oldStatus→newStatus` 行）。
-6. CI 类型/标签/视图写面、导入导出任务、云资源三件套、发现任务**暂未封装脚本**（见 §3.4）；需要时优先封装导入导出（任务制）。
+6. **云发现能力未配置时云面为空**（2026-10-17 实测）：`cloud-accounts/services/resources`、`discovery-sources/results` 返回 `null`（非空数组）；`capabilities` 显示 `cmdbDiscovery: unconfigured / tenantReadiness:false`——先配置云账号与服务目录再走发现链路。CI 类型/属性/标签/视图写面与 `POST /:id/tags` 仍为 curl 口径（低频，按需补）。

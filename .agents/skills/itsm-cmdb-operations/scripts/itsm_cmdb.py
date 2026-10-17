@@ -273,6 +273,130 @@ def cmd_rel_delete(client, args):
     return client.request("DELETE", "/cmdb/relationships/%s" % args.id)
 
 
+# ---------------- 长尾：导入导出 / 云资源三件套 / 发现（README §5 待办）----------------
+
+def cmd_import_create(client, args):
+    if not args.file_url or not args.file_type or not args.update_mode:
+        raise ApiError("import-create 必填 --file-url(合法 URL) --file-type xlsx|csv --update-mode skip|overwrite|merge")
+    body = {"fileUrl": args.file_url, "fileType": args.file_type, "updateMode": args.update_mode}
+    if args.sheet_name:
+        body["sheetName"] = args.sheet_name
+    return client.request("POST", "/cmdb/import", body)
+
+
+def cmd_import_status(client, args):
+    return client.request("GET", "/cmdb/import/%s" % args.task_id)
+
+
+def cmd_import_list(client, _args):
+    return client.request("GET", "/cmdb/import")
+
+
+def cmd_export_create(client, args):
+    if args.export_type not in ("xlsx", "csv"):
+        raise ApiError("export-create 的 --export-type 仅 xlsx|csv")
+    body = {"exportType": args.export_type}
+    if args.filter:
+        body["filters"] = _json_kv(args.filter, flag="--filter")
+    if args.fields:
+        body["exportFields"] = [f for f in args.fields.split(",") if f.strip()]
+    return client.request("POST", "/cmdb/export", body)
+
+
+def cmd_export_status(client, args):
+    return client.request("GET", "/cmdb/export/%s" % args.task_id)
+
+
+def cmd_export_list(client, _args):
+    return client.request("GET", "/cmdb/export")
+
+
+def cmd_cloud_accounts(client, _args):
+    return client.request("GET", "/cmdb/cloud-accounts")
+
+
+def cmd_cloud_account_get(client, args):
+    return client.request("GET", "/cmdb/cloud-accounts/%s" % args.id)
+
+
+def cmd_cloud_account_create(client, args):
+    body = _json_kv(args.set)
+    for key in ("provider", "accountId", "accountName"):
+        if key not in body:
+            raise ApiError("cloud-account-create 必填 --set provider=... --set accountId=... --set accountName=...")
+    return client.request("POST", "/cmdb/cloud-accounts", body)
+
+
+def cmd_cloud_account_update(client, args):
+    body = _json_kv(args.set)
+    if not body:
+        raise ApiError("cloud-account-update 至少一个 --set")
+    return client.request("PUT", "/cmdb/cloud-accounts/%s" % args.id, body)
+
+
+def cmd_cloud_account_delete(client, args):
+    return client.request("DELETE", "/cmdb/cloud-accounts/%s" % args.id)
+
+
+def cmd_cloud_services(client, _args):
+    return client.request("GET", "/cmdb/cloud-services")
+
+
+def cmd_cloud_service_get(client, args):
+    return client.request("GET", "/cmdb/cloud-services/%s" % args.id)
+
+
+def cmd_cloud_resources(client, args):
+    return _get(client, "/cmdb/cloud-resources", {
+        "page": args.page, "size": args.size, "provider": args.provider, "region": args.region,
+    })
+
+
+def cmd_cloud_resource_get(client, args):
+    return client.request("GET", "/cmdb/cloud-resources/%s" % args.id)
+
+
+def cmd_cloud_resource_create(client, args):
+    body = _json_kv(args.set)
+    for key in ("cloudAccountId", "serviceId", "resourceId"):
+        if key not in body:
+            raise ApiError("cloud-resource-create 必填 --set cloudAccountId=N --set serviceId=N --set resourceId=...")
+    return client.request("POST", "/cmdb/cloud-resources", body)
+
+
+def cmd_cloud_resource_update(client, args):
+    body = _json_kv(args.set)
+    if not body:
+        raise ApiError("cloud-resource-update 至少一个 --set")
+    return client.request("PUT", "/cmdb/cloud-resources/%s" % args.id, body)
+
+
+def cmd_cloud_resource_delete(client, args):
+    return client.request("DELETE", "/cmdb/cloud-resources/%s" % args.id)
+
+
+def cmd_discovery_sources(client, _args):
+    return client.request("GET", "/cmdb/discovery/sources")
+
+
+def cmd_discovery_source_create(client, args):
+    body = _json_kv(args.set)
+    for key in ("name", "sourceType"):
+        if key not in body:
+            raise ApiError("discovery-source-create 必填 --set name=... --set sourceType=...（reconcilePolicy 可选 manual|discovered_wins|cmdb_wins）")
+    return client.request("POST", "/cmdb/discovery/sources", body)
+
+
+def cmd_discovery_job_create(client, args):
+    if not args.source_id:
+        raise ApiError("discovery-job-create 需要 --source-id（DiscoveryJobRequest {sourceId}）")
+    return client.request("POST", "/cmdb/discovery/jobs", {"sourceId": args.source_id})
+
+
+def cmd_discovery_results(client, args):
+    return _get(client, "/cmdb/discovery/results", {"page": args.page, "size": args.size})
+
+
 COMMANDS = {
     "login": (cmd_login, False),
     "cis-list": (cmd_cis_list, True),
@@ -307,6 +431,28 @@ COMMANDS = {
     "rel-create": (cmd_rel_create, True),
     "rel-update": (cmd_rel_update, True),
     "rel-delete": (cmd_rel_delete, True),
+    "import-create": (cmd_import_create, True),
+    "import-status": (cmd_import_status, True),
+    "import-list": (cmd_import_list, True),
+    "export-create": (cmd_export_create, True),
+    "export-status": (cmd_export_status, True),
+    "export-list": (cmd_export_list, True),
+    "cloud-accounts": (cmd_cloud_accounts, True),
+    "cloud-account-get": (cmd_cloud_account_get, True),
+    "cloud-account-create": (cmd_cloud_account_create, True),
+    "cloud-account-update": (cmd_cloud_account_update, True),
+    "cloud-account-delete": (cmd_cloud_account_delete, True),
+    "cloud-services": (cmd_cloud_services, True),
+    "cloud-service-get": (cmd_cloud_service_get, True),
+    "cloud-resources": (cmd_cloud_resources, True),
+    "cloud-resource-get": (cmd_cloud_resource_get, True),
+    "cloud-resource-create": (cmd_cloud_resource_create, True),
+    "cloud-resource-update": (cmd_cloud_resource_update, True),
+    "cloud-resource-delete": (cmd_cloud_resource_delete, True),
+    "discovery-sources": (cmd_discovery_sources, True),
+    "discovery-source-create": (cmd_discovery_source_create, True),
+    "discovery-job-create": (cmd_discovery_job_create, True),
+    "discovery-results": (cmd_discovery_results, True),
 }
 
 
@@ -448,6 +594,63 @@ def build_parser():
 
     rd = add("rel-delete", "DELETE /cmdb/relationships/:id")
     rd.add_argument("id")
+
+    # ---------------- 长尾：导入导出（任务制）/ 云三件套 / 发现 ----------------
+    ic = add("import-create", "POST /cmdb/import（ImportCIRequest：fileUrl/fileType/updateMode 必填）")
+    ic.add_argument("--file-url", default="")
+    ic.add_argument("--file-type", default="", choices=["", "xlsx", "csv"])
+    ic.add_argument("--update-mode", default="", choices=["", "skip", "overwrite", "merge"])
+    ic.add_argument("--sheet-name", default="")
+    isx = add("import-status", "GET /cmdb/import/:task_id")
+    isx.add_argument("task_id")
+    add("import-list", "GET /cmdb/import")
+
+    ec = add("export-create", "POST /cmdb/export（ExportCIRequest：exportType 必填；filters/fields 可选）")
+    ec.add_argument("--export-type", required=True, choices=["xlsx", "csv"])
+    ec.add_argument("--filter", action="append", default=[], metavar="KEY=VALUE")
+    ec.add_argument("--fields", default="", help="逗号分隔导出字段")
+    esx = add("export-status", "GET /cmdb/export/:task_id")
+    esx.add_argument("task_id")
+    add("export-list", "GET /cmdb/export")
+
+    ca = add("cloud-accounts", "GET /cmdb/cloud-accounts")
+    cag = add("cloud-account-get", "GET /cmdb/cloud-accounts/:id")
+    cag.add_argument("id")
+    cac = add("cloud-account-create", "POST /cmdb/cloud-accounts（--set provider/accountId/accountName 必填）")
+    cac.add_argument("--set", action="append", default=[], metavar="KEY=VALUE")
+    cau = add("cloud-account-update", "PUT /cmdb/cloud-accounts/:id")
+    cau.add_argument("id")
+    cau.add_argument("--set", action="append", default=[], metavar="KEY=VALUE")
+    cad = add("cloud-account-delete", "DELETE /cmdb/cloud-accounts/:id")
+    cad.add_argument("id")
+
+    cs = add("cloud-services", "GET /cmdb/cloud-services")
+    csg = add("cloud-service-get", "GET /cmdb/cloud-services/:id")
+    csg.add_argument("id")
+
+    crl = add("cloud-resources", "GET /cmdb/cloud-resources（分页+provider/region 过滤）")
+    crl.add_argument("--page", type=int, default=1)
+    crl.add_argument("--size", type=int, default=20)
+    crl.add_argument("--provider", default="")
+    crl.add_argument("--region", default="")
+    crg = add("cloud-resource-get", "GET /cmdb/cloud-resources/:id")
+    crg.add_argument("id")
+    crc = add("cloud-resource-create", "POST /cmdb/cloud-resources（--set cloudAccountId/serviceId/resourceId 必填）")
+    crc.add_argument("--set", action="append", default=[], metavar="KEY=VALUE")
+    cru = add("cloud-resource-update", "PUT /cmdb/cloud-resources/:id")
+    cru.add_argument("id")
+    cru.add_argument("--set", action="append", default=[], metavar="KEY=VALUE")
+    crd = add("cloud-resource-delete", "DELETE /cmdb/cloud-resources/:id")
+    crd.add_argument("id")
+
+    dsl = add("discovery-sources", "GET /cmdb/discovery/sources")
+    dsc = add("discovery-source-create", "POST /cmdb/discovery/sources（--set name/sourceType 必填）")
+    dsc.add_argument("--set", action="append", default=[], metavar="KEY=VALUE")
+    djc = add("discovery-job-create", "POST /cmdb/discovery/jobs（{sourceId}）")
+    djc.add_argument("--source-id", default="")
+    drl = add("discovery-results", "GET /cmdb/discovery/results")
+    drl.add_argument("--page", type=int, default=1)
+    drl.add_argument("--size", type=int, default=20)
 
     return parser
 

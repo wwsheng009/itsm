@@ -57,7 +57,7 @@
 - [x] **P0**：itsm-cmdb-operations——读面+写面核心完成（33 子命令，238 实测）
 - [x] **P0**：itsm-change-operations——SKILL.md + references + 33 子命令脚本，238 全生命周期实测
 - [x] **P1**：itsm-sla-operations / itsm-problem-operations / itsm-msp-operations（2026-10-17 三技能完成，238 实测；数量上限 8 已达 8——后续新域须先合并/归档再建）
-- [ ] CMDB 长尾：导入导出任务 / 云资源三件套 / 发现任务封装
+- [x] CMDB 长尾：导入导出任务 / 云资源三件套 / 发现任务封装（2026-10-17 完成，itsm_cmdb.py 33→56 子命令；238 实测 export 任务制+云面；GAPS-6 云发现未配置返回 null）
 - [ ] P2：itsm-service-request-operations / itsm-cloud-operations（需先归档或合并既有技能腾位）
 
 ## 6. 分发与安装（skills 打包下发）
