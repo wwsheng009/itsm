@@ -10,8 +10,10 @@
  *
  * 直观查看多个客户的单据：
  * - 顶部 KPI 汇总（客户数/未关闭/SLA 超期/临近/未指派）；
+ * - 协助单据 KPI（事件/问题/已知错误/变更/服务请求 的未结数）；
  * - 全部客户概览表（每客户一行计数徽标 + 风险占比条，点击行 = 收窄客户范围）；
  * - SLA 风险 Top-N（复用 SlaRiskBoard 排序语义）；
+ * - 跨租户协助单据总览（每类未结/总量 + 最近更新条目）；
  * - 汇总标签分布（工单状态 × 客户数量）与最近更新的跨客户工单；
  * - 深链：进入工作台 / 待办任务 / 跨租户单据。
  */
@@ -30,16 +32,34 @@ import {
   Typography,
 } from 'antd';
 import type { TableColumnsType } from 'antd';
-import { AlertTriangle, ArrowRight, Clock, Inbox, RefreshCw, UserX, Users } from 'lucide-react';
+import {
+  AlertTriangle,
+  ArrowRight,
+  BookOpen,
+  Bug,
+  CheckSquare,
+  Clock,
+  Inbox,
+  RefreshCw,
+  Server,
+  UserX,
+  Users,
+  Zap,
+} from 'lucide-react';
 import { MspProviderGate } from '@/components/auth/MspProviderGate';
 import {
   CUSTOMER_TENANT_IDS_PARAM,
+  getWorkbenchRecordsSummary,
   parseCustomerTenantIds,
   serializeCustomerTenantIds,
 } from '@/lib/api/msp-workbench-api';
 import {
   getWorkbenchSummary,
   listWorkbenchTickets,
+  type MspRecordsSummary,
+  type MspRecordsSummaryRecentItem,
+  type MspRecordsSummaryType,
+  type MspRecordsSummaryTypeSummary,
   type WorkbenchSummary,
   type WorkbenchSummaryCustomer,
   type WorkbenchTicketItem,
@@ -99,6 +119,142 @@ export function statusLabel(status?: string): string {
 
 export function priorityLabel(priority?: string): string {
   return PRIORITY_LABEL.get(priority ?? '') ?? (priority || '—');
+}
+
+// ==================== 协助单据（事件/问题/已知错误/变更/服务请求）展示口径 ====================
+
+/** 协助单据类型 → 中文名 + 图标 + 主题色 + 工作台深链。 */
+export const MSP_RECORD_TYPES: Array<{
+  key: MspRecordsSummaryType;
+  summaryKey: keyof Pick<
+    MspRecordsSummary,
+    'incident' | 'problem' | 'knownError' | 'change' | 'serviceRequest'
+  >;
+  label: string;
+  shortLabel: string;
+  color: string;
+  icon: React.ReactNode;
+  workbenchPath: string;
+}> = [
+  {
+    key: 'incident',
+    summaryKey: 'incident',
+    label: '事件',
+    shortLabel: '事件',
+    color: '#ef4444',
+    icon: <Zap size={18} />,
+    workbenchPath: '/incidents',
+  },
+  {
+    key: 'problem',
+    summaryKey: 'problem',
+    label: '问题',
+    shortLabel: '问题',
+    color: '#f59e0b',
+    icon: <Bug size={18} />,
+    workbenchPath: '/msp/workbench?board=records&recordType=problem',
+  },
+  {
+    key: 'known_error',
+    summaryKey: 'knownError',
+    label: '已知错误',
+    shortLabel: '已知错误',
+    color: '#8b5cf6',
+    icon: <BookOpen size={18} />,
+    workbenchPath: '/known-errors',
+  },
+  {
+    key: 'change',
+    summaryKey: 'change',
+    label: '变更',
+    shortLabel: '变更',
+    color: '#0ea5e9',
+    icon: <Server size={18} />,
+    workbenchPath: '/msp/workbench?board=records&recordType=change',
+  },
+  {
+    key: 'service_request',
+    summaryKey: 'serviceRequest',
+    label: '服务请求',
+    shortLabel: '服务请求',
+    color: '#10b981',
+    icon: <CheckSquare size={18} />,
+    workbenchPath: '/msp/workbench?board=records&recordType=service_request',
+  },
+];
+
+/** 协助单据域状态标签（跨域并集；未收录时回落原值）。 */
+const RECORD_STATUS_LABEL = new Map<string, string>([
+  // incident
+  ['new', '新建'],
+  ['assigned', '已指派'],
+  ['in_progress', '处理中'],
+  ['pending', '挂起'],
+  ['resolved', '已解决'],
+  ['closed', '已关闭'],
+  ['cancelled', '已取消'],
+  // problem
+  ['open', '待处理'],
+  ['investigating', '调查中'],
+  ['identified', '已定位'],
+  ['known_error', '已知错误'],
+  // known_error
+  ['draft', '草稿'],
+  ['active', '生效中'],
+  ['deprecated', '已废弃'],
+  // change
+  ['submitted', '已提交'],
+  ['approved', '已批准'],
+  ['rejected', '已拒绝'],
+  ['scheduled', '已排期'],
+  ['completed', '已完成'],
+  ['rolled_back', '已回滚'],
+  // service_request
+  ['pending_approval', '待审批'],
+  ['security_approved', '安全审批通过'],
+  ['provisioning', '开通中'],
+  ['delivered', '已交付'],
+  ['failed', '失败'],
+]);
+
+export function recordStatusLabel(status?: string): string {
+  return RECORD_STATUS_LABEL.get(status ?? '') ?? (status || '—');
+}
+
+const RECORD_STATUS_COLOR: Record<string, string> = {
+  new: 'blue',
+  open: 'blue',
+  assigned: 'processing',
+  in_progress: 'processing',
+  investigating: 'processing',
+  provisioning: 'processing',
+  pending: 'gold',
+  pending_approval: 'gold',
+  identified: 'cyan',
+  known_error: 'purple',
+  active: 'green',
+  approved: 'green',
+  security_approved: 'green',
+  scheduled: 'cyan',
+  resolved: 'success',
+  completed: 'success',
+  delivered: 'success',
+  closed: 'default',
+  cancelled: 'default',
+  deprecated: 'default',
+  draft: 'default',
+  rejected: 'red',
+  failed: 'red',
+  rolled_back: 'red',
+};
+
+const RECORD_TYPE_LABEL = new Map<string, string>(
+  MSP_RECORD_TYPES.map(item => [item.key, item.label])
+);
+
+/** 空汇总（请求失败/加载中占位；保持 recent 为空数组以稳定渲染）。 */
+function emptyTypeSummary(): MspRecordsSummaryTypeSummary {
+  return { total: 0, open: 0, recent: [] };
 }
 
 function formatDateTime(value?: string): string {
@@ -163,6 +319,10 @@ export interface MspDashPageProps {
   /** 测试注入用；缺省请求服务端。 */
   fetchSummary?: () => Promise<WorkbenchSummary>;
   fetchTickets?: () => Promise<{ items: WorkbenchTicketItem[]; total: number }>;
+  /** 协助单据总览（事件/问题/已知错误/变更/服务请求）；缺省请求服务端。 */
+  fetchRecordsSummary?: (query: {
+    customerTenantIds?: 'all' | number[];
+  }) => Promise<MspRecordsSummary>;
 }
 
 // ==================== 子组件 ====================
@@ -246,9 +406,205 @@ function RiskBar({ customer }: { customer: WorkbenchSummaryCustomer }) {
   );
 }
 
+/** 协助单据 KPI 卡片：未结数为主指标 + 总量/未结占比说明。 */
+function RecordKpiTile(props: {
+  testId: string;
+  label: string;
+  summary: MspRecordsSummaryTypeSummary;
+  color: string;
+  icon: React.ReactNode;
+  onClick?: () => void;
+}) {
+  const { total, open } = props.summary;
+  const closed = Math.max(0, total - open);
+  const body = (
+    <div className='flex items-start gap-3 h-full'>
+      <div
+        className='w-10 h-10 rounded-lg flex items-center justify-center shrink-0'
+        style={{ backgroundColor: `${props.color}14`, color: props.color }}
+      >
+        {props.icon}
+      </div>
+      <div className='min-w-0 flex-1'>
+        <div className='flex items-baseline gap-2'>
+          <Statistic
+            value={open}
+            valueStyle={{ fontSize: 22, fontWeight: 700, lineHeight: 1.2 }}
+          />
+          <span className='text-xs text-gray-400'>未结</span>
+        </div>
+        <div className='text-xs text-gray-500 truncate'>{props.label}</div>
+        <div className='text-[11px] text-gray-400 mt-0.5 truncate'>
+          总 {total} · 已结 {closed}
+        </div>
+      </div>
+    </div>
+  );
+  if (!props.onClick) {
+    return (
+      <Card
+        size='small'
+        className='rounded-xl border border-gray-100 shadow-sm h-full'
+        data-testid={props.testId}
+      >
+        {body}
+      </Card>
+    );
+  }
+  return (
+    <button
+      type='button'
+      onClick={props.onClick}
+      className='text-left w-full'
+      data-testid={props.testId}
+    >
+      <Card
+        size='small'
+        className='rounded-xl border border-gray-100 shadow-sm h-full hover:shadow-md transition-shadow'
+      >
+        {body}
+      </Card>
+    </button>
+  );
+}
+
+/** 跨租户协助单据总览卡：每类一行（未结/总量 + 最近更新条目）。 */
+function RecordsOverviewCard(props: {
+  summary: MspRecordsSummary | null;
+  loading: boolean;
+  scopeLabel: string;
+  onOpenType: (path: string) => void;
+}) {
+  const { summary, loading, scopeLabel, onOpenType } = props;
+  const columns: TableColumnsType<MspRecordsSummaryRecentItem> = [
+    {
+      title: '类型',
+      dataIndex: 'recordType',
+      key: 'recordType',
+      width: 92,
+      render: (value: string) => (
+        <Tag style={{ margin: 0 }}>{RECORD_TYPE_LABEL.get(value) ?? value}</Tag>
+      ),
+    },
+    {
+      title: '客户',
+      dataIndex: 'customerName',
+      key: 'customerName',
+      width: 120,
+      ellipsis: true,
+      render: (value: string | undefined, record) => (
+        <span className='text-sm text-gray-800'>
+          {value || `#${record.customerTenantId}`}
+        </span>
+      ),
+    },
+    {
+      title: '编号',
+      dataIndex: 'number',
+      key: 'number',
+      width: 140,
+      render: (value: string) => <span className='font-mono text-xs'>{value}</span>,
+    },
+    {
+      title: '标题',
+      dataIndex: 'title',
+      key: 'title',
+      ellipsis: true,
+      render: (value: string) => <span className='text-sm'>{value}</span>,
+    },
+    {
+      title: '状态',
+      dataIndex: 'status',
+      key: 'status',
+      width: 110,
+      render: (value: string) => (
+        <Tag color={RECORD_STATUS_COLOR[value] ?? 'default'} style={{ margin: 0 }}>
+          {recordStatusLabel(value)}
+        </Tag>
+      ),
+    },
+    {
+      title: '更新时间',
+      dataIndex: 'updatedAt',
+      key: 'updatedAt',
+      width: 150,
+      render: (value: string) => (
+        <span className='text-xs text-gray-500'>{formatDateTime(value)}</span>
+      ),
+    },
+  ];
+
+  const recentRows = useMemo(() => {
+    if (!summary) return [];
+    const rows: MspRecordsSummaryRecentItem[] = [];
+    for (const type of MSP_RECORD_TYPES) {
+      rows.push(...(summary[type.summaryKey]?.recent ?? []));
+    }
+    return rows
+      .sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime())
+      .slice(0, 10);
+  }, [summary]);
+
+  return (
+    <Card
+      className='rounded-xl border-0 shadow-sm mb-6'
+      styles={{ body: { padding: '20px 24px' } }}
+      title={
+        <div>
+          <div className='text-lg font-bold text-gray-900'>跨租户协助单据总览</div>
+          <p className='text-sm text-gray-600 font-normal mt-1 mb-0'>
+            范围：{scopeLabel} · 事件 / 问题 / 已知错误 / 变更 / 服务请求 的未结与总量
+          </p>
+        </div>
+      }
+      data-testid='msp-dash-records-overview'
+    >
+      {loading ? (
+        <Skeleton active paragraph={{ rows: 4 }} />
+      ) : (
+        <>
+          <div className='grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 mb-4'>
+            {MSP_RECORD_TYPES.map(type => {
+              const item = summary?.[type.summaryKey] ?? emptyTypeSummary();
+              return (
+                <button
+                  key={type.key}
+                  type='button'
+                  onClick={() => onOpenType(type.workbenchPath)}
+                  data-testid={`msp-dash-record-stat-${type.key}`}
+                  className='text-left rounded-lg border border-gray-100 px-3 py-2 hover:border-blue-200 hover:bg-blue-50/40 transition-colors'
+                >
+                  <div className='flex items-center gap-2'>
+                    <span style={{ color: type.color }}>{type.icon}</span>
+                    <span className='text-xs text-gray-500'>{type.label}</span>
+                  </div>
+                  <div className='mt-1 flex items-baseline gap-1.5'>
+                    <span className='text-xl font-bold text-gray-900'>{item.open}</span>
+                    <span className='text-[11px] text-gray-400'>未结</span>
+                    <span className='text-[11px] text-gray-400 ml-auto'>/ {item.total}</span>
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+          <Table<MspRecordsSummaryRecentItem>
+            rowKey={record => `${record.recordType}-${record.id}`}
+            size='small'
+            columns={columns}
+            dataSource={recentRows}
+            pagination={false}
+            locale={{ emptyText: '当前范围内暂无协助单据' }}
+            data-testid='msp-dash-records-recent'
+          />
+        </>
+      )}
+    </Card>
+  );
+}
+
 // ==================== 页面 ====================
 
-function MspDashboardInner({ fetchSummary, fetchTickets }: MspDashPageProps) {
+function MspDashboardInner({ fetchSummary, fetchTickets, fetchRecordsSummary }: MspDashPageProps) {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const scopeRaw = searchParams.get(CUSTOMER_TENANT_IDS_PARAM);
@@ -308,6 +664,32 @@ function MspDashboardInner({ fetchSummary, fetchTickets }: MspDashPageProps) {
     void loadRecent();
   }, [loadRecent]);
 
+  // ==================== 协助单据总览（事件/问题/已知错误/变更/服务请求） ====================
+  const [recordsSummary, setRecordsSummary] = useState<MspRecordsSummary | null>(null);
+  const [recordsLoading, setRecordsLoading] = useState(true);
+  const [recordsError, setRecordsError] = useState<string | null>(null);
+
+  const loadRecordsSummary = useCallback(async () => {
+    setRecordsLoading(true);
+    setRecordsError(null);
+    try {
+      const loader = fetchRecordsSummary
+        ? fetchRecordsSummary
+        : getWorkbenchRecordsSummary;
+      const response = await loader({ customerTenantIds: customerScope });
+      setRecordsSummary(response ?? null);
+    } catch (err) {
+      setRecordsSummary(null);
+      setRecordsError(errorMessage(err, '加载协助单据总览失败'));
+    } finally {
+      setRecordsLoading(false);
+    }
+  }, [customerScope, fetchRecordsSummary]);
+
+  useEffect(() => {
+    void loadRecordsSummary();
+  }, [loadRecordsSummary]);
+
   // ==================== 状态分布（基于当前范围的 summary 汇总标签） ====================
   const allCustomers = useMemo(() => summary?.customers ?? [], [summary]);
   const scopedCustomers = useMemo(
@@ -351,6 +733,23 @@ function MspDashboardInner({ fetchSummary, fetchTickets }: MspDashPageProps) {
         params.set(CUSTOMER_TENANT_IDS_PARAM, serializeCustomerTenantIds(customerScope));
       }
       if (extra?.board) params.set('board', extra.board);
+      const suffix = params.toString();
+      navigate(`/msp/workbench${suffix ? `?${suffix}` : ''}`);
+    },
+    [customerScope, navigate]
+  );
+
+  /** 协助单据卡片点击：工作台类深链带上当前客户范围；客户侧页面直接跳转。 */
+  const openRecordType = useCallback(
+    (path: string) => {
+      if (!path.startsWith('/msp/workbench')) {
+        navigate(path);
+        return;
+      }
+      const params = new URLSearchParams(path.split('?')[1] ?? '');
+      if (customerScope !== 'all') {
+        params.set(CUSTOMER_TENANT_IDS_PARAM, serializeCustomerTenantIds(customerScope));
+      }
       const suffix = params.toString();
       navigate(`/msp/workbench${suffix ? `?${suffix}` : ''}`);
     },
@@ -546,12 +945,17 @@ function MspDashboardInner({ fetchSummary, fetchTickets }: MspDashPageProps) {
             onChange={value => changeScope(String(value))}
           />
           <Button
-            icon={<RefreshCw className={summaryLoading || recentLoading ? 'animate-spin' : ''} />}
+            icon={
+              <RefreshCw
+                className={summaryLoading || recentLoading || recordsLoading ? 'animate-spin' : ''}
+              />
+            }
             onClick={() => {
               void loadSummary();
               void loadRecent();
+              void loadRecordsSummary();
             }}
-            loading={summaryLoading || recentLoading}
+            loading={summaryLoading || recentLoading || recordsLoading}
             data-testid='msp-dash-refresh'
           >
             刷新
@@ -607,6 +1011,39 @@ function MspDashboardInner({ fetchSummary, fetchTickets }: MspDashPageProps) {
           icon={<UserX size={18} />}
         />
       </div>
+
+      {/* 协助单据 KPI（事件/问题/已知错误/变更/服务请求 的未结数） */}
+      <div
+        className='mb-6 grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4'
+        data-testid='msp-dash-record-kpis'
+      >
+        {MSP_RECORD_TYPES.map(type => (
+          <RecordKpiTile
+            key={type.key}
+            testId={`msp-dash-kpi-${type.key.replace('_', '-')}`}
+            label={`${type.label}（未结）`}
+            summary={recordsSummary?.[type.summaryKey] ?? emptyTypeSummary()}
+            color={type.color}
+            icon={type.icon}
+            onClick={() => openRecordType(type.workbenchPath)}
+          />
+        ))}
+      </div>
+
+      {recordsError && (
+        <div className='mb-6' data-testid='msp-dash-records-error'>
+          <Typography.Text type='danger'>协助单据总览加载失败：{recordsError}</Typography.Text>
+          <div className='mt-2'>
+            <Button
+              size='small'
+              onClick={() => void loadRecordsSummary()}
+              data-testid='msp-dash-records-retry'
+            >
+              重试
+            </Button>
+          </div>
+        </div>
+      )}
 
       {summaryError && (
         <div className='mb-6' data-testid='msp-dash-summary-error'>
@@ -727,6 +1164,14 @@ function MspDashboardInner({ fetchSummary, fetchTickets }: MspDashPageProps) {
           </Card>
         </>
       )}
+
+      {/* 跨租户协助单据总览（事件/问题/已知错误/变更/服务请求） */}
+      <RecordsOverviewCard
+        summary={recordsSummary}
+        loading={recordsLoading}
+        scopeLabel={scopeLabel}
+        onOpenType={openRecordType}
+      />
 
       {/* 最近更新的跨客户工单 */}
       <Card

@@ -379,6 +379,7 @@ func precheckRoutePermissions() map[string]map[string]Permission {
 			"/api/v1/msp/tickets/*/comments":                               {Resource: "msp_ticket", Action: "read"},
 			"/api/v1/msp/workbench/changes":                                {Resource: "msp_ticket", Action: "read"},
 			"/api/v1/msp/workbench/problems":                               {Resource: "msp_ticket", Action: "read"},
+			"/api/v1/msp/workbench/records-summary":                        {Resource: "msp_ticket", Action: "read"},
 			"/api/v1/msp/workbench/service-requests":                       {Resource: "msp_ticket", Action: "read"},
 			"/api/v1/msp/workbench/summary":                                {Resource: "msp_ticket", Action: "read"},
 			"/api/v1/msp/workbench/tasks":                                  {Resource: "msp_ticket", Action: "read"},

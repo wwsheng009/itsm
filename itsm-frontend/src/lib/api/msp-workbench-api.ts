@@ -177,6 +177,64 @@ export async function getWorkbenchSummary(): Promise<WorkbenchSummary> {
   return httpClient.get<WorkbenchSummary>('/api/v1/msp/workbench/summary');
 }
 
+// ==================== 协助单据总览（GET /api/v1/msp/workbench/records-summary） ====================
+
+/** 协助单据类型（与后端 recordType 字面量一致）。 */
+export type MspRecordsSummaryType =
+  | 'incident'
+  | 'problem'
+  | 'known_error'
+  | 'change'
+  | 'service_request';
+
+export interface MspRecordsSummaryRecentItem {
+  recordType: MspRecordsSummaryType;
+  id: number;
+  customerTenantId: number;
+  customerName?: string;
+  number: string;
+  title: string;
+  status: string;
+  priority?: string;
+  updatedAt: string;
+}
+
+export interface MspRecordsSummaryTypeSummary {
+  total: number;
+  open: number;
+  recent: MspRecordsSummaryRecentItem[];
+}
+
+/** 跨租户协助单据总览（dashboard 第二排 KPI + 总览卡）。 */
+export interface MspRecordsSummary {
+  generatedAt: string;
+  incident: MspRecordsSummaryTypeSummary;
+  problem: MspRecordsSummaryTypeSummary;
+  knownError: MspRecordsSummaryTypeSummary;
+  change: MspRecordsSummaryTypeSummary;
+  serviceRequest: MspRecordsSummaryTypeSummary;
+}
+
+/**
+ * GET /api/v1/msp/workbench/records-summary —— 事件/问题/已知错误/变更/服务请求
+ * 的 total/open 计数 + 每类最近 5 条（allocation 收口；customerTenantIds 仅收窄）。
+ */
+export async function getWorkbenchRecordsSummary(
+  query: { customerTenantIds?: CustomerTenantIdsFilter } = {}
+): Promise<MspRecordsSummary> {
+  const params = new URLSearchParams();
+  if (query.customerTenantIds && query.customerTenantIds !== 'all') {
+    params.set(
+      'customerTenantIds',
+      serializeCustomerTenantIds(query.customerTenantIds)
+    );
+  }
+  const suffix = params.toString();
+  return httpClient.get<MspRecordsSummary>(
+    `/api/v1/msp/workbench/records-summary${suffix ? `?${suffix}` : ''}`
+  );
+}
+
 /** GET /api/v1/msp/workbench/tickets —— 跨客户工单列表（per-tenant 复合游标）。 */
 export async function listWorkbenchTickets(
   query: WorkbenchTicketQuery = {}

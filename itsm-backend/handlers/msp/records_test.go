@@ -153,6 +153,7 @@ func newRecordsTestRouter(t *testing.T, env *recordsHandlerEnv, mspCtx *middlewa
 	group.GET("/workbench/changes", h.ListWorkbenchChanges)
 	group.GET("/workbench/problems", h.ListWorkbenchProblems)
 	group.GET("/workbench/service-requests", h.ListWorkbenchServiceRequests)
+	group.GET("/workbench/records-summary", h.GetWorkbenchRecordsSummary)
 	group.GET("/changes/:id", h.GetWorkbenchChange)
 	group.GET("/problems/:id", h.GetWorkbenchProblem)
 	group.GET("/service-requests/:id", h.GetWorkbenchServiceRequest)
@@ -224,6 +225,70 @@ func TestWorkbenchRecords_NoMSPContextFailsClosed(t *testing.T) {
 	r := newRecordsTestRouter(t, env, nil)
 
 	req := httptest.NewRequest(http.MethodGet, "/api/v1/msp/workbench/changes", nil)
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+	assert.Equal(t, http.StatusForbidden, w.Code)
+}
+
+// TestWorkbenchRecordsSummary_CountsAndScope 锁定 dashboard 协助单据总览契约：
+//   - 计数按 allocation 允许集合收窄（客户 C 不在允许集合时不出现）；
+//   - open 口径 = 排除终态（problem: resolved/closed；change: closed/cancelled/rejected/rolled_back）；
+//   - recent 每类按 updated_at 降序、最多 5 条，且带客户名。
+func TestWorkbenchRecordsSummary_CountsAndScope(t *testing.T) {
+	env := newRecordsHandlerEnv(t)
+	ctx := context.Background()
+
+	// 客户 A 再加一条终态问题（验证 open 口径）。
+	_, err := env.client.Problem.Create().
+		SetProblemNumber("PRB-H2").SetTitle("handler 已解决问题").SetStatus("resolved").
+		SetPriority("low").SetCreatedBy(1).SetTenantID(env.custA.ID).Save(ctx)
+	require.NoError(t, err)
+
+	r := newRecordsTestRouter(t, env, recordsActorCtx([]int{env.custA.ID}))
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/msp/workbench/records-summary", nil)
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+	require.Equal(t, http.StatusOK, w.Code, w.Body.String())
+
+	var body struct {
+		Code int                             `json:"code"`
+		Data dto.MSPRecordsSummaryResponse   `json:"data"`
+	}
+	require.NoError(t, json.Unmarshal(w.Body.Bytes(), &body))
+
+	// 问题：2 条（investigating + resolved），open = 1。
+	assert.Equal(t, 2, body.Data.Problem.Total)
+	assert.Equal(t, 1, body.Data.Problem.Open)
+	require.NotEmpty(t, body.Data.Problem.Recent)
+	for _, item := range body.Data.Problem.Recent {
+		assert.Equal(t, env.custA.ID, item.CustomerTenantID, "客户 C 不在允许集合，不应出现")
+		assert.Equal(t, "客户A", item.CustomerName)
+	}
+	assert.LessOrEqual(t, len(body.Data.Problem.Recent), 5)
+
+	// 变更：1 条 submitted（非终态）→ open = 1。
+	assert.Equal(t, 1, body.Data.Change.Total)
+	assert.Equal(t, 1, body.Data.Change.Open)
+	require.Len(t, body.Data.Change.Recent, 1)
+	assert.Equal(t, "CHG-H1", body.Data.Change.Recent[0].Number)
+
+	// 服务请求：客户 A 1 条 security_approved（非终态）→ open = 1。
+	assert.Equal(t, 1, body.Data.ServiceReq.Total)
+	assert.Equal(t, 1, body.Data.ServiceReq.Open)
+
+	// 事件/已知错误无数据 → 0，且 recent 为空切片。
+	assert.Equal(t, 0, body.Data.Incident.Total)
+	assert.Equal(t, 0, body.Data.Incident.Open)
+	assert.Empty(t, body.Data.Incident.Recent)
+	assert.Equal(t, 0, body.Data.KnownError.Total)
+}
+
+// TestWorkbenchRecordsSummary_NoMSPContextFailsClosed 无 MSP 上下文 → 403（与列表同口径）。
+func TestWorkbenchRecordsSummary_NoMSPContextFailsClosed(t *testing.T) {
+	env := newRecordsHandlerEnv(t)
+	r := newRecordsTestRouter(t, env, nil)
+
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/msp/workbench/records-summary", nil)
 	w := httptest.NewRecorder()
 	r.ServeHTTP(w, req)
 	assert.Equal(t, http.StatusForbidden, w.Code)

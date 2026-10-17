@@ -83,6 +83,8 @@ func SetupMSPRoutes(r *gin.Engine, config *RouterConfig) {
 		msp.GET("/workbench/changes", middleware.RequireMSPPermission("msp_ticket", "read"), config.MSPHandler.ListWorkbenchChanges)
 		msp.GET("/workbench/problems", middleware.RequireMSPPermission("msp_ticket", "read"), config.MSPHandler.ListWorkbenchProblems)
 		msp.GET("/workbench/service-requests", middleware.RequireMSPPermission("msp_ticket", "read"), config.MSPHandler.ListWorkbenchServiceRequests)
+		// 协助单据总览（MSP dashboard 第二排 KPI）：事件/问题/已知错误/变更/服务请求 计数 + 最近条目。
+		msp.GET("/workbench/records-summary", middleware.RequireMSPPermission("msp_ticket", "read"), config.MSPHandler.GetWorkbenchRecordsSummary)
 		msp.GET("/changes/:id", middleware.RequireMSPPermission("msp_ticket", "read"), config.MSPHandler.GetWorkbenchChange)
 		msp.GET("/problems/:id", middleware.RequireMSPPermission("msp_ticket", "read"), config.MSPHandler.GetWorkbenchProblem)
 		msp.GET("/service-requests/:id", middleware.RequireMSPPermission("msp_ticket", "read"), config.MSPHandler.GetWorkbenchServiceRequest)

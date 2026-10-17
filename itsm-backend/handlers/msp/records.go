@@ -105,6 +105,33 @@ func (h *Handler) ListWorkbenchServiceRequests(c *gin.Context) {
 	h.listWorkbenchRecords(c, service.MSPRecordServiceRequest)
 }
 
+// GetWorkbenchRecordsSummary GET /api/v1/msp/workbench/records-summary
+// 跨租户协助单据总览（MSP dashboard 第二排 KPI）：事件/问题/已知错误/变更/服务请求
+// 的 total/open 计数 + 每类最近 5 条；授权与 ListRecords 同源（allocation 允许集合）。
+func (h *Handler) GetWorkbenchRecordsSummary(c *gin.Context) {
+	actor, ok := workbenchActorFrom(c)
+	if !ok {
+		common.Fail(c, common.ForbiddenCode, "非MSP用户")
+		return
+	}
+	if h.workbench == nil {
+		common.Fail(c, common.InternalErrorCode, "工作台服务未启用")
+		return
+	}
+	tenantIDs, ok := parseCustomerTenantIDs(c.Query("customerTenantIds"))
+	if !ok {
+		common.Fail(c, common.ParamErrorCode, "customerTenantIds 格式错误（all 或逗号分隔数字）")
+		return
+	}
+	resp, err := h.workbench.RecordsSummary(c.Request.Context(), actor, tenantIDs)
+	if err != nil {
+		h.logger.Errorw("msp records summary failed", "error", err, "user_id", actor.UserID)
+		failMSPAccess(c, err, "查询协助单据总览失败")
+		return
+	}
+	common.Success(c, resp)
+}
+
 // GetWorkbenchChange GET /api/v1/msp/changes/:id
 func (h *Handler) GetWorkbenchChange(c *gin.Context) {
 	h.getWorkbenchRecord(c, service.MSPRecordChange)

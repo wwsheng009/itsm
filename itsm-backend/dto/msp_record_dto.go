@@ -103,3 +103,39 @@ type UpdateMSPRequestStatusRequest struct {
 	CustomerTenantID int    `json:"customerTenantId"`
 	Status           string `json:"status"`
 }
+
+// MSPRecordsSummaryTypeCounts 单类单据的计数徽标（total = 全量；open = 非终态）。
+type MSPRecordsSummaryTypeCounts struct {
+	Total int `json:"total"`
+	Open  int `json:"open"`
+}
+
+// MSPRecordsSummaryRecentItem 最近更新条目（跨类型只读摘要）。
+type MSPRecordsSummaryRecentItem struct {
+	RecordType       string    `json:"recordType"` // incident | problem | known_error | change | service_request
+	ID               int       `json:"id"`
+	CustomerTenantID int       `json:"customerTenantId"`
+	CustomerName     string    `json:"customerName,omitempty"`
+	Number           string    `json:"number"`
+	Title            string    `json:"title"`
+	Status           string    `json:"status"`
+	Priority         string    `json:"priority,omitempty"`
+	UpdatedAt        time.Time `json:"updatedAt"`
+}
+
+// MSPRecordsSummaryTypeSummary 单类单据的计数 + 最近更新条目。
+type MSPRecordsSummaryTypeSummary struct {
+	MSPRecordsSummaryTypeCounts
+	Recent []MSPRecordsSummaryRecentItem `json:"recent"`
+}
+
+// MSPRecordsSummaryResponse 跨租户协助单据总览（MSP dashboard 第二排 KPI + 总览卡）。
+// 全部为只读计数投影；授权与 ListRecords 同源（allocation 允许集合，逐租户查询）。
+type MSPRecordsSummaryResponse struct {
+	GeneratedAt time.Time                    `json:"generatedAt"`
+	Incident    MSPRecordsSummaryTypeSummary `json:"incident"`
+	Problem     MSPRecordsSummaryTypeSummary `json:"problem"`
+	KnownError  MSPRecordsSummaryTypeSummary `json:"knownError"`
+	Change      MSPRecordsSummaryTypeSummary `json:"change"`
+	ServiceReq  MSPRecordsSummaryTypeSummary `json:"serviceRequest"`
+}
