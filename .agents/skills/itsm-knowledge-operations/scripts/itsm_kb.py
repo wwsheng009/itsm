@@ -19,159 +19,31 @@ Token 来源优先级：--token > --token-file > 环境变量 ITSM_TOKEN / ITSM_
 输出：JSON 到 stdout；API 错误 JSON 到 stderr，退出码 1（参数错误 2）。
 """
 import argparse
-import json
-import mimetypes
 import os
 import sys
-import urllib.error
 import urllib.parse
-import urllib.request
-import uuid
-from http.cookiejar import CookieJar
 from pathlib import Path
 
-DEFAULT_BASE = os.environ.get("ITSM_BASE_URL", "http://localhost:8090/api/v1")
-DEFAULT_TIMEOUT = 30
+sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "_lib"))
+from itsm_common import (  # noqa: E402
+    DEFAULT_BASE,
+    DEFAULT_TIMEOUT,
+    DEFAULT_TOKEN_PATH,
+    add_common_args,
+    ApiError,
+    authed,
+    build_multipart,
+    Client,
+    emit,
+    fail,
+    save_login_token,
+)
 
 # 分类校验策略（2026-10-16 起）：服务端联合校验
 #   允许 = 静态白名单(12) ∪ GET /knowledge/categories（8 默认 ∪ 租户已用）
 # 未知分类由服务端返回 400「无效的知识库分类」；`categories` 子命令可查可用值。
 
 
-class ApiError(Exception):
-    def __init__(self, message, http=0, code=0, reason_code="", data=None, hint=""):
-        super().__init__(message)
-        self.http = http
-        self.code = code
-        self.reason_code = reason_code
-        self.data = data
-        self.hint = hint
-
-    def as_dict(self):
-        out = {"ok": False, "http": self.http, "code": self.code, "message": str(self)}
-        if self.reason_code:
-            out["reasonCode"] = self.reason_code
-        if self.data is not None:
-            out["data"] = self.data
-        if self.hint:
-            out["hint"] = self.hint
-        return out
-
-
-def build_multipart(fields, file_path=None, file_field="file"):
-    boundary = "----itsmkb" + uuid.uuid4().hex
-    chunks = []
-    for key, value in (fields or {}).items():
-        if value is None:
-            continue
-        chunks.append(
-            ('--%s\r\nContent-Disposition: form-data; name="%s"\r\n\r\n%s\r\n' % (boundary, key, value)).encode("utf-8")
-        )
-    if file_path:
-        path = Path(file_path)
-        mime = mimetypes.guess_type(path.name)[0] or "application/octet-stream"
-        chunks.append(
-            (
-                '--%s\r\nContent-Disposition: form-data; name="%s"; filename="%s"\r\n'
-                "Content-Type: %s\r\n\r\n" % (boundary, file_field, path.name, mime)
-            ).encode("utf-8")
-            + path.read_bytes()
-            + b"\r\n"
-        )
-    chunks.append(("--%s--\r\n" % boundary).encode("ascii"))
-    return b"".join(chunks), "multipart/form-data; boundary=%s" % boundary
-
-
-class Client:
-    def __init__(self, base, token=None, timeout=DEFAULT_TIMEOUT):
-        self.base = base.rstrip("/")
-        self.token = token or ""
-        self.timeout = timeout
-        self.jar = CookieJar()
-
-    def _opener(self):
-        return urllib.request.build_opener(urllib.request.HTTPCookieProcessor(self.jar))
-
-    def request(self, method, path, body=None, raw=None, content_type="application/json"):
-        url = self.base + path
-        data = None
-        headers = {"Accept": "application/json"}
-        if self.token:
-            headers["Authorization"] = "Bearer %s" % self.token
-        if raw is not None:
-            data = raw
-            headers["Content-Type"] = content_type
-        elif body is not None:
-            data = json.dumps(body, ensure_ascii=False).encode("utf-8")
-            headers["Content-Type"] = content_type + "; charset=utf-8"
-        req = urllib.request.Request(url, data=data, headers=headers, method=method.upper())
-        try:
-            with self._opener().open(req, timeout=self.timeout) as resp:
-                payload = resp.read()
-                status = resp.status
-        except urllib.error.HTTPError as exc:
-            payload = exc.read()
-            status = exc.code
-        except urllib.error.URLError as exc:
-            raise ApiError("网络错误: %s" % exc.reason)
-        try:
-            parsed = json.loads(payload.decode("utf-8"))
-        except ValueError:
-            if 200 <= status < 300:
-                return {"raw": payload.decode("utf-8", "replace")}
-            raise ApiError("非 JSON 响应", http=status)
-        if isinstance(parsed, dict) and parsed.get("code") == 0 and 200 <= status < 300:
-            return parsed.get("data")
-        if isinstance(parsed, dict):
-            raise ApiError(
-                parsed.get("message", "请求失败"),
-                http=status,
-                code=parsed.get("code", 0),
-                reason_code=parsed.get("reasonCode", ""),
-                data=parsed.get("data"),
-            )
-        raise ApiError("非预期响应", http=status, data=parsed)
-
-    def login(self, username, password, tenant_code=None):
-        body = {"username": username, "password": password}
-        if tenant_code:
-            body["tenantCode"] = tenant_code
-        data = self.request("POST", "/auth/login", body)
-        token = ""
-        for cookie in self.jar:
-            if cookie.name == "access_token":
-                token = cookie.value
-        if not token:
-            raise ApiError("登录成功但未在 Set-Cookie 中找到 access_token")
-        return {"token": token, "user": (data or {}).get("user"), "tenant": (data or {}).get("tenant")}
-
-
-# ------------------------- 输出 / 参数辅助 -------------------------
-
-def emit(obj, pretty=True):
-    sys.stdout.write(json.dumps(obj, ensure_ascii=False, indent=2 if pretty else None) + "\n")
-
-
-def fail(err, pretty=True):
-    emit(err.as_dict() if isinstance(err, ApiError) else {"ok": False, "message": str(err)}, pretty)
-    sys.exit(1)
-
-
-def resolve_token(args):
-    token = args.token or os.environ.get("ITSM_TOKEN") or os.environ.get("ITSM_PAT")
-    if not token and getattr(args, "token_file", None):
-        token = Path(args.token_file).read_text(encoding="utf-8").strip()
-    return token or ""
-
-
-def authed(args):
-    token = resolve_token(args)
-    if not token:
-        fail(ApiError("缺少令牌：先 login 获取 JWT，或用 --token/--token-file/ITSM_PAT 提供"))
-    return Client(args.base, token, args.timeout)
-
-
-# ------------------------- 子命令实现 -------------------------
 
 def _query(params):
     parts = []
@@ -195,22 +67,7 @@ def cmd_login(client, args):
         fail(ApiError("login 需要 --username/--password（或环境变量 ITSM_USERNAME/ITSM_PASSWORD）"))
     result = client.login(args.username, args.password, args.tenant_code)
     if args.save:
-        path = Path(args.save).expanduser()
-        path.parent.mkdir(parents=True, exist_ok=True)
-        path.write_text(result["token"], encoding="utf-8")
-        if os.name != "nt":
-            try:
-                path.chmod(0o600)
-            except OSError:
-                pass
-        print(
-            "[itsm_kb] token 已写入 %s（含明文凭据，勿提交版本库；后续用 --token-file 引用）" % path,
-            file=sys.stderr,
-        )
-        masked = result["token"][:12] + "****"
-        result["savedTo"] = str(path)
-        result["maskedToken"] = masked
-        result["token"] = masked
+        save_login_token(result, args.save, tool_name="itsm_kb")
     result["ok"] = True
     return result
 
@@ -383,17 +240,8 @@ COMMANDS = {
 # ------------------------- CLI -------------------------
 
 def _add_common(parser, suppressed=False):
-    """公共参数。子命令侧用 SUPPRESS：Python 3.13 argparse 的 subparser 默认值
-    会覆盖主 parser 已解析的全局参数，SUPPRESS 表示"未显式给出则不动命名空间"。"""
-
-    def default(value):
-        return argparse.SUPPRESS if suppressed else value
-
-    parser.add_argument("--base", default=default(DEFAULT_BASE), help="API base，默认 %s" % DEFAULT_BASE)
-    parser.add_argument("--token", default=default(""), help="JWT 或 PAT（优先于环境变量）")
-    parser.add_argument("--token-file", default=default(""), help="从文件读取 token（login --save 产物）")
-    parser.add_argument("--timeout", type=float, default=default(DEFAULT_TIMEOUT), help="请求超时秒数")
-    parser.add_argument("--compact", action="store_true", default=default(False), help="紧凑 JSON 输出")
+    # 公共参数由共享底座提供（治理：.agents/skills/README.md §4.3）
+    add_common_args(parser, suppressed=suppressed)
 
 
 def build_parser():
@@ -413,7 +261,7 @@ def build_parser():
     lg.add_argument(
         "--save",
         nargs="?",
-        const=str(Path.home() / ".itsm" / "itsm.token"),
+        const=str(DEFAULT_TOKEN_PATH),
         default="",
         help="token 写入文件；省略路径默认 ~/.itsm/itsm.token（供 --token-file 复用）",
     )

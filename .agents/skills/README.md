@@ -37,7 +37,7 @@
 
 1. **描述预算**：description ≤3 行——触发词 + 覆盖端点 + 「Do NOT use for」互斥链接；正文全部下沉 `references/`（渐进披露，按需才读）。
 2. **域聚合**：一个业务域一个 skill；不按路由文件切分；长尾域并入相近域。
-3. **共享底座**：脚本公共层（HTTP Client / 认证 / token 主目录落盘 / 错误封装）收敛到共享模块（规划 `scripts/_itsm_common.py`）；认证与 token 规范维护**一份** reference，各 SKILL.md 链接引用，禁止复制漂移（ticket/kb 已发生一次同款漂移，见 §5 待办）。
+3. **共享底座**：脚本公共层（HTTP Client / 认证 / token 主目录落盘 / 错误封装）收敛到共享模块 **`_lib/itsm_common.py`**（与本目录各 skill 平级，脚本经 `parents[2]/_lib` 引用）；认证与 token 规范维护**一份** reference，各 SKILL.md 链接引用，禁止复制漂移（ticket/kb 曾发生一次同款漂移，2026-10-17 已收敛消除）。
 4. **触发词互斥**：相近域在 description 显式互斥（ticket vs incident；change vs release vs deploy）。
 5. **组合任务**：跨域流程（如 环境检查→建单→知识沉淀）写 runbook 文档引用多个 skill，**不为流程单开 skill**。
 6. **数量上限**：常驻 skill ≤8；超出先合并。
@@ -45,7 +45,7 @@
 
 ## 5. 近期待办（2026-10-17）
 
-- [ ] 抽取共享底座 `_itsm_common.py`，迁移 ticket/kb 两脚本（消除已发生的复制漂移）
+- [x] 抽取共享底座 `_lib/itsm_common.py`，迁移 ticket/kb 两脚本（2026-10-17 完成：净删 319 行复制代码，238 实测 stats/login/上传/401 全链路回归通过）
 - [ ] incident(47) 与 ticket 域边界调研（两套路由并存），结论回填本文 §2
 - [ ] **P0 启动**：itsm-cmdb-operations——先产出 API 契约调研（references 初稿），再落脚本骨架
 - [ ] P0：itsm-change-operations——先调研状态机与审批链契约
