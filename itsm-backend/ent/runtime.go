@@ -104,6 +104,17 @@ import (
 	"itsm-backend/ent/processvariable"
 	"itsm-backend/ent/processversionchangelog"
 	"itsm-backend/ent/project"
+	"itsm-backend/ent/projectassetlink"
+	"itsm-backend/ent/projectbaseline"
+	"itsm-backend/ent/projectclosure"
+	"itsm-backend/ent/projectgate"
+	"itsm-backend/ent/projectmember"
+	"itsm-backend/ent/projectmilestone"
+	"itsm-backend/ent/projectreporttemplate"
+	"itsm-backend/ent/projectrisk"
+	"itsm-backend/ent/projecttask"
+	"itsm-backend/ent/projecttaskdependency"
+	"itsm-backend/ent/projecttemplate"
 	"itsm-backend/ent/prompttemplate"
 	"itsm-backend/ent/provisioningtask"
 	"itsm-backend/ent/relationshiptype"
@@ -1329,11 +1340,11 @@ func init() {
 	// change.TenantIDValidator is a validator for the "tenant_id" field. It is called by the builders before save.
 	change.TenantIDValidator = changeDescTenantID.Validators[0].(func(int) error)
 	// changeDescCreatedAt is the schema descriptor for created_at field.
-	changeDescCreatedAt := changeFields[20].Descriptor()
+	changeDescCreatedAt := changeFields[21].Descriptor()
 	// change.DefaultCreatedAt holds the default value on creation for the created_at field.
 	change.DefaultCreatedAt = changeDescCreatedAt.Default.(func() time.Time)
 	// changeDescUpdatedAt is the schema descriptor for updated_at field.
-	changeDescUpdatedAt := changeFields[21].Descriptor()
+	changeDescUpdatedAt := changeFields[22].Descriptor()
 	// change.DefaultUpdatedAt holds the default value on creation for the updated_at field.
 	change.DefaultUpdatedAt = changeDescUpdatedAt.Default.(func() time.Time)
 	// change.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
@@ -2547,69 +2558,69 @@ func init() {
 	// incident.PriorityValidator is a validator for the "priority" field. It is called by the builders before save.
 	incident.PriorityValidator = incidentDescPriority.Validators[0].(func(string) error)
 	// incidentDescSLAStatus is the schema descriptor for sla_status field.
-	incidentDescSLAStatus := incidentFields[10].Descriptor()
+	incidentDescSLAStatus := incidentFields[11].Descriptor()
 	// incident.DefaultSLAStatus holds the default value on creation for the sla_status field.
 	incident.DefaultSLAStatus = incidentDescSLAStatus.Default.(string)
 	// incidentDescSeverity is the schema descriptor for severity field.
-	incidentDescSeverity := incidentFields[13].Descriptor()
+	incidentDescSeverity := incidentFields[14].Descriptor()
 	// incident.DefaultSeverity holds the default value on creation for the severity field.
 	incident.DefaultSeverity = incidentDescSeverity.Default.(string)
 	// incidentDescImpact is the schema descriptor for impact field.
-	incidentDescImpact := incidentFields[14].Descriptor()
+	incidentDescImpact := incidentFields[15].Descriptor()
 	// incident.DefaultImpact holds the default value on creation for the impact field.
 	incident.DefaultImpact = incidentDescImpact.Default.(string)
 	// incident.ImpactValidator is a validator for the "impact" field. It is called by the builders before save.
 	incident.ImpactValidator = incidentDescImpact.Validators[0].(func(string) error)
 	// incidentDescUrgency is the schema descriptor for urgency field.
-	incidentDescUrgency := incidentFields[15].Descriptor()
+	incidentDescUrgency := incidentFields[16].Descriptor()
 	// incident.DefaultUrgency holds the default value on creation for the urgency field.
 	incident.DefaultUrgency = incidentDescUrgency.Default.(string)
 	// incident.UrgencyValidator is a validator for the "urgency" field. It is called by the builders before save.
 	incident.UrgencyValidator = incidentDescUrgency.Validators[0].(func(string) error)
 	// incidentDescIncidentNumber is the schema descriptor for incident_number field.
-	incidentDescIncidentNumber := incidentFields[16].Descriptor()
+	incidentDescIncidentNumber := incidentFields[17].Descriptor()
 	// incident.IncidentNumberValidator is a validator for the "incident_number" field. It is called by the builders before save.
 	incident.IncidentNumberValidator = incidentDescIncidentNumber.Validators[0].(func(string) error)
 	// incidentDescReporterID is the schema descriptor for reporter_id field.
-	incidentDescReporterID := incidentFields[17].Descriptor()
+	incidentDescReporterID := incidentFields[18].Descriptor()
 	// incident.ReporterIDValidator is a validator for the "reporter_id" field. It is called by the builders before save.
 	incident.ReporterIDValidator = incidentDescReporterID.Validators[0].(func(int) error)
 	// incidentDescDetectedAt is the schema descriptor for detected_at field.
-	incidentDescDetectedAt := incidentFields[29].Descriptor()
+	incidentDescDetectedAt := incidentFields[30].Descriptor()
 	// incident.DefaultDetectedAt holds the default value on creation for the detected_at field.
 	incident.DefaultDetectedAt = incidentDescDetectedAt.Default.(func() time.Time)
 	// incidentDescEscalationLevel is the schema descriptor for escalation_level field.
-	incidentDescEscalationLevel := incidentFields[33].Descriptor()
+	incidentDescEscalationLevel := incidentFields[34].Descriptor()
 	// incident.DefaultEscalationLevel holds the default value on creation for the escalation_level field.
 	incident.DefaultEscalationLevel = incidentDescEscalationLevel.Default.(int)
 	// incidentDescIsAutomated is the schema descriptor for is_automated field.
-	incidentDescIsAutomated := incidentFields[34].Descriptor()
+	incidentDescIsAutomated := incidentFields[35].Descriptor()
 	// incident.DefaultIsAutomated holds the default value on creation for the is_automated field.
 	incident.DefaultIsAutomated = incidentDescIsAutomated.Default.(bool)
 	// incidentDescIsMajorIncident is the schema descriptor for is_major_incident field.
-	incidentDescIsMajorIncident := incidentFields[35].Descriptor()
+	incidentDescIsMajorIncident := incidentFields[36].Descriptor()
 	// incident.DefaultIsMajorIncident holds the default value on creation for the is_major_incident field.
 	incident.DefaultIsMajorIncident = incidentDescIsMajorIncident.Default.(bool)
 	// incidentDescSource is the schema descriptor for source field.
-	incidentDescSource := incidentFields[36].Descriptor()
+	incidentDescSource := incidentFields[37].Descriptor()
 	// incident.DefaultSource holds the default value on creation for the source field.
 	incident.DefaultSource = incidentDescSource.Default.(string)
 	// incidentDescTenantID is the schema descriptor for tenant_id field.
-	incidentDescTenantID := incidentFields[38].Descriptor()
+	incidentDescTenantID := incidentFields[39].Descriptor()
 	// incident.TenantIDValidator is a validator for the "tenant_id" field. It is called by the builders before save.
 	incident.TenantIDValidator = incidentDescTenantID.Validators[0].(func(int) error)
 	// incidentDescVersion is the schema descriptor for version field.
-	incidentDescVersion := incidentFields[39].Descriptor()
+	incidentDescVersion := incidentFields[40].Descriptor()
 	// incident.DefaultVersion holds the default value on creation for the version field.
 	incident.DefaultVersion = incidentDescVersion.Default.(int)
 	// incident.VersionValidator is a validator for the "version" field. It is called by the builders before save.
 	incident.VersionValidator = incidentDescVersion.Validators[0].(func(int) error)
 	// incidentDescCreatedAt is the schema descriptor for created_at field.
-	incidentDescCreatedAt := incidentFields[40].Descriptor()
+	incidentDescCreatedAt := incidentFields[41].Descriptor()
 	// incident.DefaultCreatedAt holds the default value on creation for the created_at field.
 	incident.DefaultCreatedAt = incidentDescCreatedAt.Default.(func() time.Time)
 	// incidentDescUpdatedAt is the schema descriptor for updated_at field.
-	incidentDescUpdatedAt := incidentFields[41].Descriptor()
+	incidentDescUpdatedAt := incidentFields[42].Descriptor()
 	// incident.DefaultUpdatedAt holds the default value on creation for the updated_at field.
 	incident.DefaultUpdatedAt = incidentDescUpdatedAt.Default.(func() time.Time)
 	// incident.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
@@ -4131,19 +4142,19 @@ func init() {
 	// problem.DefaultPriority holds the default value on creation for the priority field.
 	problem.DefaultPriority = problemDescPriority.Default.(string)
 	// problemDescCreatedBy is the schema descriptor for created_by field.
-	problemDescCreatedBy := problemFields[11].Descriptor()
+	problemDescCreatedBy := problemFields[12].Descriptor()
 	// problem.CreatedByValidator is a validator for the "created_by" field. It is called by the builders before save.
 	problem.CreatedByValidator = problemDescCreatedBy.Validators[0].(func(int) error)
 	// problemDescTenantID is the schema descriptor for tenant_id field.
-	problemDescTenantID := problemFields[12].Descriptor()
+	problemDescTenantID := problemFields[13].Descriptor()
 	// problem.TenantIDValidator is a validator for the "tenant_id" field. It is called by the builders before save.
 	problem.TenantIDValidator = problemDescTenantID.Validators[0].(func(int) error)
 	// problemDescCreatedAt is the schema descriptor for created_at field.
-	problemDescCreatedAt := problemFields[13].Descriptor()
+	problemDescCreatedAt := problemFields[14].Descriptor()
 	// problem.DefaultCreatedAt holds the default value on creation for the created_at field.
 	problem.DefaultCreatedAt = problemDescCreatedAt.Default.(func() time.Time)
 	// problemDescUpdatedAt is the schema descriptor for updated_at field.
-	problemDescUpdatedAt := problemFields[14].Descriptor()
+	problemDescUpdatedAt := problemFields[15].Descriptor()
 	// problem.DefaultUpdatedAt holds the default value on creation for the updated_at field.
 	problem.DefaultUpdatedAt = problemDescUpdatedAt.Default.(func() time.Time)
 	// problem.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
@@ -4662,20 +4673,610 @@ func init() {
 	projectDescStatus := projectFields[7].Descriptor()
 	// project.DefaultStatus holds the default value on creation for the status field.
 	project.DefaultStatus = projectDescStatus.Default.(string)
+	// projectDescType is the schema descriptor for type field.
+	projectDescType := projectFields[8].Descriptor()
+	// project.DefaultType holds the default value on creation for the type field.
+	project.DefaultType = projectDescType.Default.(string)
+	// project.TypeValidator is a validator for the "type" field. It is called by the builders before save.
+	project.TypeValidator = projectDescType.Validators[0].(func(string) error)
+	// projectDescHealth is the schema descriptor for health field.
+	projectDescHealth := projectFields[10].Descriptor()
+	// project.DefaultHealth holds the default value on creation for the health field.
+	project.DefaultHealth = projectDescHealth.Default.(string)
+	// project.HealthValidator is a validator for the "health" field. It is called by the builders before save.
+	project.HealthValidator = projectDescHealth.Validators[0].(func(string) error)
+	// projectDescProgress is the schema descriptor for progress field.
+	projectDescProgress := projectFields[11].Descriptor()
+	// project.DefaultProgress holds the default value on creation for the progress field.
+	project.DefaultProgress = projectDescProgress.Default.(int)
+	// project.ProgressValidator is a validator for the "progress" field. It is called by the builders before save.
+	project.ProgressValidator = projectDescProgress.Validators[0].(func(int) error)
+	// projectDescBudgetCurrency is the schema descriptor for budget_currency field.
+	projectDescBudgetCurrency := projectFields[20].Descriptor()
+	// project.BudgetCurrencyValidator is a validator for the "budget_currency" field. It is called by the builders before save.
+	project.BudgetCurrencyValidator = projectDescBudgetCurrency.Validators[0].(func(string) error)
+	// projectDescVersion is the schema descriptor for version field.
+	projectDescVersion := projectFields[22].Descriptor()
+	// project.DefaultVersion holds the default value on creation for the version field.
+	project.DefaultVersion = projectDescVersion.Default.(int)
+	// project.VersionValidator is a validator for the "version" field. It is called by the builders before save.
+	project.VersionValidator = projectDescVersion.Validators[0].(func(int) error)
 	// projectDescTenantID is the schema descriptor for tenant_id field.
-	projectDescTenantID := projectFields[8].Descriptor()
+	projectDescTenantID := projectFields[24].Descriptor()
 	// project.TenantIDValidator is a validator for the "tenant_id" field. It is called by the builders before save.
 	project.TenantIDValidator = projectDescTenantID.Validators[0].(func(int) error)
 	// projectDescCreatedAt is the schema descriptor for created_at field.
-	projectDescCreatedAt := projectFields[9].Descriptor()
+	projectDescCreatedAt := projectFields[25].Descriptor()
 	// project.DefaultCreatedAt holds the default value on creation for the created_at field.
 	project.DefaultCreatedAt = projectDescCreatedAt.Default.(func() time.Time)
 	// projectDescUpdatedAt is the schema descriptor for updated_at field.
-	projectDescUpdatedAt := projectFields[10].Descriptor()
+	projectDescUpdatedAt := projectFields[26].Descriptor()
 	// project.DefaultUpdatedAt holds the default value on creation for the updated_at field.
 	project.DefaultUpdatedAt = projectDescUpdatedAt.Default.(func() time.Time)
 	// project.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
 	project.UpdateDefaultUpdatedAt = projectDescUpdatedAt.UpdateDefault.(func() time.Time)
+	projectassetlinkFields := schema.ProjectAssetLink{}.Fields()
+	_ = projectassetlinkFields
+	// projectassetlinkDescTenantID is the schema descriptor for tenant_id field.
+	projectassetlinkDescTenantID := projectassetlinkFields[0].Descriptor()
+	// projectassetlink.TenantIDValidator is a validator for the "tenant_id" field. It is called by the builders before save.
+	projectassetlink.TenantIDValidator = projectassetlinkDescTenantID.Validators[0].(func(int) error)
+	// projectassetlinkDescProjectID is the schema descriptor for project_id field.
+	projectassetlinkDescProjectID := projectassetlinkFields[1].Descriptor()
+	// projectassetlink.ProjectIDValidator is a validator for the "project_id" field. It is called by the builders before save.
+	projectassetlink.ProjectIDValidator = projectassetlinkDescProjectID.Validators[0].(func(int) error)
+	// projectassetlinkDescLinkType is the schema descriptor for link_type field.
+	projectassetlinkDescLinkType := projectassetlinkFields[2].Descriptor()
+	// projectassetlink.LinkTypeValidator is a validator for the "link_type" field. It is called by the builders before save.
+	projectassetlink.LinkTypeValidator = func() func(string) error {
+		validators := projectassetlinkDescLinkType.Validators
+		fns := [...]func(string) error{
+			validators[0].(func(string) error),
+			validators[1].(func(string) error),
+		}
+		return func(link_type string) error {
+			for _, fn := range fns {
+				if err := fn(link_type); err != nil {
+					return err
+				}
+			}
+			return nil
+		}
+	}()
+	// projectassetlinkDescTargetID is the schema descriptor for target_id field.
+	projectassetlinkDescTargetID := projectassetlinkFields[3].Descriptor()
+	// projectassetlink.TargetIDValidator is a validator for the "target_id" field. It is called by the builders before save.
+	projectassetlink.TargetIDValidator = projectassetlinkDescTargetID.Validators[0].(func(int) error)
+	// projectassetlinkDescNote is the schema descriptor for note field.
+	projectassetlinkDescNote := projectassetlinkFields[4].Descriptor()
+	// projectassetlink.DefaultNote holds the default value on creation for the note field.
+	projectassetlink.DefaultNote = projectassetlinkDescNote.Default.(string)
+	// projectassetlink.NoteValidator is a validator for the "note" field. It is called by the builders before save.
+	projectassetlink.NoteValidator = projectassetlinkDescNote.Validators[0].(func(string) error)
+	// projectassetlinkDescCreatedAt is the schema descriptor for created_at field.
+	projectassetlinkDescCreatedAt := projectassetlinkFields[8].Descriptor()
+	// projectassetlink.DefaultCreatedAt holds the default value on creation for the created_at field.
+	projectassetlink.DefaultCreatedAt = projectassetlinkDescCreatedAt.Default.(func() time.Time)
+	projectbaselineFields := schema.ProjectBaseline{}.Fields()
+	_ = projectbaselineFields
+	// projectbaselineDescTenantID is the schema descriptor for tenant_id field.
+	projectbaselineDescTenantID := projectbaselineFields[0].Descriptor()
+	// projectbaseline.TenantIDValidator is a validator for the "tenant_id" field. It is called by the builders before save.
+	projectbaseline.TenantIDValidator = projectbaselineDescTenantID.Validators[0].(func(int) error)
+	// projectbaselineDescProjectID is the schema descriptor for project_id field.
+	projectbaselineDescProjectID := projectbaselineFields[1].Descriptor()
+	// projectbaseline.ProjectIDValidator is a validator for the "project_id" field. It is called by the builders before save.
+	projectbaseline.ProjectIDValidator = projectbaselineDescProjectID.Validators[0].(func(int) error)
+	// projectbaselineDescVersion is the schema descriptor for version field.
+	projectbaselineDescVersion := projectbaselineFields[2].Descriptor()
+	// projectbaseline.VersionValidator is a validator for the "version" field. It is called by the builders before save.
+	projectbaseline.VersionValidator = projectbaselineDescVersion.Validators[0].(func(int) error)
+	// projectbaselineDescReason is the schema descriptor for reason field.
+	projectbaselineDescReason := projectbaselineFields[4].Descriptor()
+	// projectbaseline.ReasonValidator is a validator for the "reason" field. It is called by the builders before save.
+	projectbaseline.ReasonValidator = projectbaselineDescReason.Validators[0].(func(string) error)
+	// projectbaselineDescCreatedAt is the schema descriptor for created_at field.
+	projectbaselineDescCreatedAt := projectbaselineFields[6].Descriptor()
+	// projectbaseline.DefaultCreatedAt holds the default value on creation for the created_at field.
+	projectbaseline.DefaultCreatedAt = projectbaselineDescCreatedAt.Default.(func() time.Time)
+	projectclosureFields := schema.ProjectClosure{}.Fields()
+	_ = projectclosureFields
+	// projectclosureDescTenantID is the schema descriptor for tenant_id field.
+	projectclosureDescTenantID := projectclosureFields[0].Descriptor()
+	// projectclosure.TenantIDValidator is a validator for the "tenant_id" field. It is called by the builders before save.
+	projectclosure.TenantIDValidator = projectclosureDescTenantID.Validators[0].(func(int) error)
+	// projectclosureDescProjectID is the schema descriptor for project_id field.
+	projectclosureDescProjectID := projectclosureFields[1].Descriptor()
+	// projectclosure.ProjectIDValidator is a validator for the "project_id" field. It is called by the builders before save.
+	projectclosure.ProjectIDValidator = projectclosureDescProjectID.Validators[0].(func(int) error)
+	// projectclosureDescRetroKBArticleID is the schema descriptor for retro_kb_article_id field.
+	projectclosureDescRetroKBArticleID := projectclosureFields[2].Descriptor()
+	// projectclosure.DefaultRetroKBArticleID holds the default value on creation for the retro_kb_article_id field.
+	projectclosure.DefaultRetroKBArticleID = projectclosureDescRetroKBArticleID.Default.(int)
+	// projectclosureDescRetroGeneratedBy is the schema descriptor for retro_generated_by field.
+	projectclosureDescRetroGeneratedBy := projectclosureFields[3].Descriptor()
+	// projectclosure.DefaultRetroGeneratedBy holds the default value on creation for the retro_generated_by field.
+	projectclosure.DefaultRetroGeneratedBy = projectclosureDescRetroGeneratedBy.Default.(int)
+	// projectclosureDescAssetsConfirmedBy is the schema descriptor for assets_confirmed_by field.
+	projectclosureDescAssetsConfirmedBy := projectclosureFields[5].Descriptor()
+	// projectclosure.DefaultAssetsConfirmedBy holds the default value on creation for the assets_confirmed_by field.
+	projectclosure.DefaultAssetsConfirmedBy = projectclosureDescAssetsConfirmedBy.Default.(int)
+	// projectclosureDescAssetsNote is the schema descriptor for assets_note field.
+	projectclosureDescAssetsNote := projectclosureFields[7].Descriptor()
+	// projectclosure.DefaultAssetsNote holds the default value on creation for the assets_note field.
+	projectclosure.DefaultAssetsNote = projectclosureDescAssetsNote.Default.(string)
+	// projectclosure.AssetsNoteValidator is a validator for the "assets_note" field. It is called by the builders before save.
+	projectclosure.AssetsNoteValidator = projectclosureDescAssetsNote.Validators[0].(func(string) error)
+	// projectclosureDescAssetsWaivedBy is the schema descriptor for assets_waived_by field.
+	projectclosureDescAssetsWaivedBy := projectclosureFields[8].Descriptor()
+	// projectclosure.DefaultAssetsWaivedBy holds the default value on creation for the assets_waived_by field.
+	projectclosure.DefaultAssetsWaivedBy = projectclosureDescAssetsWaivedBy.Default.(int)
+	// projectclosureDescAssetsWaiveReason is the schema descriptor for assets_waive_reason field.
+	projectclosureDescAssetsWaiveReason := projectclosureFields[10].Descriptor()
+	// projectclosure.DefaultAssetsWaiveReason holds the default value on creation for the assets_waive_reason field.
+	projectclosure.DefaultAssetsWaiveReason = projectclosureDescAssetsWaiveReason.Default.(string)
+	// projectclosure.AssetsWaiveReasonValidator is a validator for the "assets_waive_reason" field. It is called by the builders before save.
+	projectclosure.AssetsWaiveReasonValidator = projectclosureDescAssetsWaiveReason.Validators[0].(func(string) error)
+	// projectclosureDescMembersRecycledBy is the schema descriptor for members_recycled_by field.
+	projectclosureDescMembersRecycledBy := projectclosureFields[11].Descriptor()
+	// projectclosure.DefaultMembersRecycledBy holds the default value on creation for the members_recycled_by field.
+	projectclosure.DefaultMembersRecycledBy = projectclosureDescMembersRecycledBy.Default.(int)
+	// projectclosureDescMembersRecycledCount is the schema descriptor for members_recycled_count field.
+	projectclosureDescMembersRecycledCount := projectclosureFields[13].Descriptor()
+	// projectclosure.DefaultMembersRecycledCount holds the default value on creation for the members_recycled_count field.
+	projectclosure.DefaultMembersRecycledCount = projectclosureDescMembersRecycledCount.Default.(int)
+	// projectclosureDescCsatSurveyID is the schema descriptor for csat_survey_id field.
+	projectclosureDescCsatSurveyID := projectclosureFields[14].Descriptor()
+	// projectclosure.DefaultCsatSurveyID holds the default value on creation for the csat_survey_id field.
+	projectclosure.DefaultCsatSurveyID = projectclosureDescCsatSurveyID.Default.(int)
+	// projectclosureDescVersion is the schema descriptor for version field.
+	projectclosureDescVersion := projectclosureFields[16].Descriptor()
+	// projectclosure.DefaultVersion holds the default value on creation for the version field.
+	projectclosure.DefaultVersion = projectclosureDescVersion.Default.(int)
+	// projectclosureDescCreatedBy is the schema descriptor for created_by field.
+	projectclosureDescCreatedBy := projectclosureFields[17].Descriptor()
+	// projectclosure.DefaultCreatedBy holds the default value on creation for the created_by field.
+	projectclosure.DefaultCreatedBy = projectclosureDescCreatedBy.Default.(int)
+	// projectclosureDescCreatedAt is the schema descriptor for created_at field.
+	projectclosureDescCreatedAt := projectclosureFields[18].Descriptor()
+	// projectclosure.DefaultCreatedAt holds the default value on creation for the created_at field.
+	projectclosure.DefaultCreatedAt = projectclosureDescCreatedAt.Default.(func() time.Time)
+	// projectclosureDescUpdatedAt is the schema descriptor for updated_at field.
+	projectclosureDescUpdatedAt := projectclosureFields[19].Descriptor()
+	// projectclosure.DefaultUpdatedAt holds the default value on creation for the updated_at field.
+	projectclosure.DefaultUpdatedAt = projectclosureDescUpdatedAt.Default.(func() time.Time)
+	// projectclosure.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
+	projectclosure.UpdateDefaultUpdatedAt = projectclosureDescUpdatedAt.UpdateDefault.(func() time.Time)
+	projectgateFields := schema.ProjectGate{}.Fields()
+	_ = projectgateFields
+	// projectgateDescTenantID is the schema descriptor for tenant_id field.
+	projectgateDescTenantID := projectgateFields[0].Descriptor()
+	// projectgate.TenantIDValidator is a validator for the "tenant_id" field. It is called by the builders before save.
+	projectgate.TenantIDValidator = projectgateDescTenantID.Validators[0].(func(int) error)
+	// projectgateDescProjectID is the schema descriptor for project_id field.
+	projectgateDescProjectID := projectgateFields[1].Descriptor()
+	// projectgate.ProjectIDValidator is a validator for the "project_id" field. It is called by the builders before save.
+	projectgate.ProjectIDValidator = projectgateDescProjectID.Validators[0].(func(int) error)
+	// projectgateDescGate is the schema descriptor for gate field.
+	projectgateDescGate := projectgateFields[2].Descriptor()
+	// projectgate.GateValidator is a validator for the "gate" field. It is called by the builders before save.
+	projectgate.GateValidator = func() func(string) error {
+		validators := projectgateDescGate.Validators
+		fns := [...]func(string) error{
+			validators[0].(func(string) error),
+			validators[1].(func(string) error),
+		}
+		return func(gate string) error {
+			for _, fn := range fns {
+				if err := fn(gate); err != nil {
+					return err
+				}
+			}
+			return nil
+		}
+	}()
+	// projectgateDescStatus is the schema descriptor for status field.
+	projectgateDescStatus := projectgateFields[3].Descriptor()
+	// projectgate.DefaultStatus holds the default value on creation for the status field.
+	projectgate.DefaultStatus = projectgateDescStatus.Default.(string)
+	// projectgate.StatusValidator is a validator for the "status" field. It is called by the builders before save.
+	projectgate.StatusValidator = projectgateDescStatus.Validators[0].(func(string) error)
+	// projectgateDescProcessInstanceID is the schema descriptor for process_instance_id field.
+	projectgateDescProcessInstanceID := projectgateFields[4].Descriptor()
+	// projectgate.DefaultProcessInstanceID holds the default value on creation for the process_instance_id field.
+	projectgate.DefaultProcessInstanceID = projectgateDescProcessInstanceID.Default.(int)
+	// projectgateDescApprovalChainID is the schema descriptor for approval_chain_id field.
+	projectgateDescApprovalChainID := projectgateFields[5].Descriptor()
+	// projectgate.DefaultApprovalChainID holds the default value on creation for the approval_chain_id field.
+	projectgate.DefaultApprovalChainID = projectgateDescApprovalChainID.Default.(string)
+	// projectgate.ApprovalChainIDValidator is a validator for the "approval_chain_id" field. It is called by the builders before save.
+	projectgate.ApprovalChainIDValidator = projectgateDescApprovalChainID.Validators[0].(func(string) error)
+	// projectgateDescSubmittedBy is the schema descriptor for submitted_by field.
+	projectgateDescSubmittedBy := projectgateFields[6].Descriptor()
+	// projectgate.DefaultSubmittedBy holds the default value on creation for the submitted_by field.
+	projectgate.DefaultSubmittedBy = projectgateDescSubmittedBy.Default.(int)
+	// projectgateDescDecidedBy is the schema descriptor for decided_by field.
+	projectgateDescDecidedBy := projectgateFields[8].Descriptor()
+	// projectgate.DefaultDecidedBy holds the default value on creation for the decided_by field.
+	projectgate.DefaultDecidedBy = projectgateDescDecidedBy.Default.(int)
+	// projectgateDescDecisionComment is the schema descriptor for decision_comment field.
+	projectgateDescDecisionComment := projectgateFields[10].Descriptor()
+	// projectgate.DefaultDecisionComment holds the default value on creation for the decision_comment field.
+	projectgate.DefaultDecisionComment = projectgateDescDecisionComment.Default.(string)
+	// projectgate.DecisionCommentValidator is a validator for the "decision_comment" field. It is called by the builders before save.
+	projectgate.DecisionCommentValidator = projectgateDescDecisionComment.Validators[0].(func(string) error)
+	// projectgateDescRejectCount is the schema descriptor for reject_count field.
+	projectgateDescRejectCount := projectgateFields[12].Descriptor()
+	// projectgate.DefaultRejectCount holds the default value on creation for the reject_count field.
+	projectgate.DefaultRejectCount = projectgateDescRejectCount.Default.(int)
+	// projectgateDescVersion is the schema descriptor for version field.
+	projectgateDescVersion := projectgateFields[13].Descriptor()
+	// projectgate.DefaultVersion holds the default value on creation for the version field.
+	projectgate.DefaultVersion = projectgateDescVersion.Default.(int)
+	// projectgateDescCreatedAt is the schema descriptor for created_at field.
+	projectgateDescCreatedAt := projectgateFields[14].Descriptor()
+	// projectgate.DefaultCreatedAt holds the default value on creation for the created_at field.
+	projectgate.DefaultCreatedAt = projectgateDescCreatedAt.Default.(func() time.Time)
+	// projectgateDescUpdatedAt is the schema descriptor for updated_at field.
+	projectgateDescUpdatedAt := projectgateFields[15].Descriptor()
+	// projectgate.DefaultUpdatedAt holds the default value on creation for the updated_at field.
+	projectgate.DefaultUpdatedAt = projectgateDescUpdatedAt.Default.(func() time.Time)
+	// projectgate.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
+	projectgate.UpdateDefaultUpdatedAt = projectgateDescUpdatedAt.UpdateDefault.(func() time.Time)
+	projectmemberFields := schema.ProjectMember{}.Fields()
+	_ = projectmemberFields
+	// projectmemberDescTenantID is the schema descriptor for tenant_id field.
+	projectmemberDescTenantID := projectmemberFields[0].Descriptor()
+	// projectmember.TenantIDValidator is a validator for the "tenant_id" field. It is called by the builders before save.
+	projectmember.TenantIDValidator = projectmemberDescTenantID.Validators[0].(func(int) error)
+	// projectmemberDescProjectID is the schema descriptor for project_id field.
+	projectmemberDescProjectID := projectmemberFields[1].Descriptor()
+	// projectmember.ProjectIDValidator is a validator for the "project_id" field. It is called by the builders before save.
+	projectmember.ProjectIDValidator = projectmemberDescProjectID.Validators[0].(func(int) error)
+	// projectmemberDescUserID is the schema descriptor for user_id field.
+	projectmemberDescUserID := projectmemberFields[2].Descriptor()
+	// projectmember.UserIDValidator is a validator for the "user_id" field. It is called by the builders before save.
+	projectmember.UserIDValidator = projectmemberDescUserID.Validators[0].(func(int) error)
+	// projectmemberDescProjectRole is the schema descriptor for project_role field.
+	projectmemberDescProjectRole := projectmemberFields[3].Descriptor()
+	// projectmember.DefaultProjectRole holds the default value on creation for the project_role field.
+	projectmember.DefaultProjectRole = projectmemberDescProjectRole.Default.(string)
+	// projectmember.ProjectRoleValidator is a validator for the "project_role" field. It is called by the builders before save.
+	projectmember.ProjectRoleValidator = projectmemberDescProjectRole.Validators[0].(func(string) error)
+	// projectmemberDescStatus is the schema descriptor for status field.
+	projectmemberDescStatus := projectmemberFields[4].Descriptor()
+	// projectmember.DefaultStatus holds the default value on creation for the status field.
+	projectmember.DefaultStatus = projectmemberDescStatus.Default.(string)
+	// projectmember.StatusValidator is a validator for the "status" field. It is called by the builders before save.
+	projectmember.StatusValidator = projectmemberDescStatus.Validators[0].(func(string) error)
+	// projectmemberDescJoinedAt is the schema descriptor for joined_at field.
+	projectmemberDescJoinedAt := projectmemberFields[6].Descriptor()
+	// projectmember.DefaultJoinedAt holds the default value on creation for the joined_at field.
+	projectmember.DefaultJoinedAt = projectmemberDescJoinedAt.Default.(func() time.Time)
+	// projectmemberDescCreatedAt is the schema descriptor for created_at field.
+	projectmemberDescCreatedAt := projectmemberFields[8].Descriptor()
+	// projectmember.DefaultCreatedAt holds the default value on creation for the created_at field.
+	projectmember.DefaultCreatedAt = projectmemberDescCreatedAt.Default.(func() time.Time)
+	// projectmemberDescUpdatedAt is the schema descriptor for updated_at field.
+	projectmemberDescUpdatedAt := projectmemberFields[9].Descriptor()
+	// projectmember.DefaultUpdatedAt holds the default value on creation for the updated_at field.
+	projectmember.DefaultUpdatedAt = projectmemberDescUpdatedAt.Default.(func() time.Time)
+	// projectmember.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
+	projectmember.UpdateDefaultUpdatedAt = projectmemberDescUpdatedAt.UpdateDefault.(func() time.Time)
+	projectmilestoneFields := schema.ProjectMilestone{}.Fields()
+	_ = projectmilestoneFields
+	// projectmilestoneDescTenantID is the schema descriptor for tenant_id field.
+	projectmilestoneDescTenantID := projectmilestoneFields[0].Descriptor()
+	// projectmilestone.TenantIDValidator is a validator for the "tenant_id" field. It is called by the builders before save.
+	projectmilestone.TenantIDValidator = projectmilestoneDescTenantID.Validators[0].(func(int) error)
+	// projectmilestoneDescProjectID is the schema descriptor for project_id field.
+	projectmilestoneDescProjectID := projectmilestoneFields[1].Descriptor()
+	// projectmilestone.ProjectIDValidator is a validator for the "project_id" field. It is called by the builders before save.
+	projectmilestone.ProjectIDValidator = projectmilestoneDescProjectID.Validators[0].(func(int) error)
+	// projectmilestoneDescName is the schema descriptor for name field.
+	projectmilestoneDescName := projectmilestoneFields[2].Descriptor()
+	// projectmilestone.NameValidator is a validator for the "name" field. It is called by the builders before save.
+	projectmilestone.NameValidator = func() func(string) error {
+		validators := projectmilestoneDescName.Validators
+		fns := [...]func(string) error{
+			validators[0].(func(string) error),
+			validators[1].(func(string) error),
+		}
+		return func(name string) error {
+			for _, fn := range fns {
+				if err := fn(name); err != nil {
+					return err
+				}
+			}
+			return nil
+		}
+	}()
+	// projectmilestoneDescStatus is the schema descriptor for status field.
+	projectmilestoneDescStatus := projectmilestoneFields[5].Descriptor()
+	// projectmilestone.DefaultStatus holds the default value on creation for the status field.
+	projectmilestone.DefaultStatus = projectmilestoneDescStatus.Default.(string)
+	// projectmilestone.StatusValidator is a validator for the "status" field. It is called by the builders before save.
+	projectmilestone.StatusValidator = projectmilestoneDescStatus.Validators[0].(func(string) error)
+	// projectmilestoneDescCreatedAt is the schema descriptor for created_at field.
+	projectmilestoneDescCreatedAt := projectmilestoneFields[8].Descriptor()
+	// projectmilestone.DefaultCreatedAt holds the default value on creation for the created_at field.
+	projectmilestone.DefaultCreatedAt = projectmilestoneDescCreatedAt.Default.(func() time.Time)
+	// projectmilestoneDescUpdatedAt is the schema descriptor for updated_at field.
+	projectmilestoneDescUpdatedAt := projectmilestoneFields[9].Descriptor()
+	// projectmilestone.DefaultUpdatedAt holds the default value on creation for the updated_at field.
+	projectmilestone.DefaultUpdatedAt = projectmilestoneDescUpdatedAt.Default.(func() time.Time)
+	// projectmilestone.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
+	projectmilestone.UpdateDefaultUpdatedAt = projectmilestoneDescUpdatedAt.UpdateDefault.(func() time.Time)
+	projectreporttemplateFields := schema.ProjectReportTemplate{}.Fields()
+	_ = projectreporttemplateFields
+	// projectreporttemplateDescTenantID is the schema descriptor for tenant_id field.
+	projectreporttemplateDescTenantID := projectreporttemplateFields[0].Descriptor()
+	// projectreporttemplate.TenantIDValidator is a validator for the "tenant_id" field. It is called by the builders before save.
+	projectreporttemplate.TenantIDValidator = projectreporttemplateDescTenantID.Validators[0].(func(int) error)
+	// projectreporttemplateDescName is the schema descriptor for name field.
+	projectreporttemplateDescName := projectreporttemplateFields[1].Descriptor()
+	// projectreporttemplate.NameValidator is a validator for the "name" field. It is called by the builders before save.
+	projectreporttemplate.NameValidator = func() func(string) error {
+		validators := projectreporttemplateDescName.Validators
+		fns := [...]func(string) error{
+			validators[0].(func(string) error),
+			validators[1].(func(string) error),
+		}
+		return func(name string) error {
+			for _, fn := range fns {
+				if err := fn(name); err != nil {
+					return err
+				}
+			}
+			return nil
+		}
+	}()
+	// projectreporttemplateDescCadence is the schema descriptor for cadence field.
+	projectreporttemplateDescCadence := projectreporttemplateFields[3].Descriptor()
+	// projectreporttemplate.DefaultCadence holds the default value on creation for the cadence field.
+	projectreporttemplate.DefaultCadence = projectreporttemplateDescCadence.Default.(string)
+	// projectreporttemplate.CadenceValidator is a validator for the "cadence" field. It is called by the builders before save.
+	projectreporttemplate.CadenceValidator = projectreporttemplateDescCadence.Validators[0].(func(string) error)
+	// projectreporttemplateDescStatus is the schema descriptor for status field.
+	projectreporttemplateDescStatus := projectreporttemplateFields[5].Descriptor()
+	// projectreporttemplate.DefaultStatus holds the default value on creation for the status field.
+	projectreporttemplate.DefaultStatus = projectreporttemplateDescStatus.Default.(string)
+	// projectreporttemplate.StatusValidator is a validator for the "status" field. It is called by the builders before save.
+	projectreporttemplate.StatusValidator = projectreporttemplateDescStatus.Validators[0].(func(string) error)
+	// projectreporttemplateDescVersion is the schema descriptor for version field.
+	projectreporttemplateDescVersion := projectreporttemplateFields[6].Descriptor()
+	// projectreporttemplate.DefaultVersion holds the default value on creation for the version field.
+	projectreporttemplate.DefaultVersion = projectreporttemplateDescVersion.Default.(int)
+	// projectreporttemplate.VersionValidator is a validator for the "version" field. It is called by the builders before save.
+	projectreporttemplate.VersionValidator = projectreporttemplateDescVersion.Validators[0].(func(int) error)
+	// projectreporttemplateDescCreatedAt is the schema descriptor for created_at field.
+	projectreporttemplateDescCreatedAt := projectreporttemplateFields[8].Descriptor()
+	// projectreporttemplate.DefaultCreatedAt holds the default value on creation for the created_at field.
+	projectreporttemplate.DefaultCreatedAt = projectreporttemplateDescCreatedAt.Default.(func() time.Time)
+	// projectreporttemplateDescUpdatedAt is the schema descriptor for updated_at field.
+	projectreporttemplateDescUpdatedAt := projectreporttemplateFields[9].Descriptor()
+	// projectreporttemplate.DefaultUpdatedAt holds the default value on creation for the updated_at field.
+	projectreporttemplate.DefaultUpdatedAt = projectreporttemplateDescUpdatedAt.Default.(func() time.Time)
+	// projectreporttemplate.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
+	projectreporttemplate.UpdateDefaultUpdatedAt = projectreporttemplateDescUpdatedAt.UpdateDefault.(func() time.Time)
+	projectriskFields := schema.ProjectRisk{}.Fields()
+	_ = projectriskFields
+	// projectriskDescTenantID is the schema descriptor for tenant_id field.
+	projectriskDescTenantID := projectriskFields[0].Descriptor()
+	// projectrisk.TenantIDValidator is a validator for the "tenant_id" field. It is called by the builders before save.
+	projectrisk.TenantIDValidator = projectriskDescTenantID.Validators[0].(func(int) error)
+	// projectriskDescProjectID is the schema descriptor for project_id field.
+	projectriskDescProjectID := projectriskFields[1].Descriptor()
+	// projectrisk.ProjectIDValidator is a validator for the "project_id" field. It is called by the builders before save.
+	projectrisk.ProjectIDValidator = projectriskDescProjectID.Validators[0].(func(int) error)
+	// projectriskDescKind is the schema descriptor for kind field.
+	projectriskDescKind := projectriskFields[2].Descriptor()
+	// projectrisk.DefaultKind holds the default value on creation for the kind field.
+	projectrisk.DefaultKind = projectriskDescKind.Default.(string)
+	// projectrisk.KindValidator is a validator for the "kind" field. It is called by the builders before save.
+	projectrisk.KindValidator = projectriskDescKind.Validators[0].(func(string) error)
+	// projectriskDescTitle is the schema descriptor for title field.
+	projectriskDescTitle := projectriskFields[3].Descriptor()
+	// projectrisk.TitleValidator is a validator for the "title" field. It is called by the builders before save.
+	projectrisk.TitleValidator = func() func(string) error {
+		validators := projectriskDescTitle.Validators
+		fns := [...]func(string) error{
+			validators[0].(func(string) error),
+			validators[1].(func(string) error),
+		}
+		return func(title string) error {
+			for _, fn := range fns {
+				if err := fn(title); err != nil {
+					return err
+				}
+			}
+			return nil
+		}
+	}()
+	// projectriskDescLevel is the schema descriptor for level field.
+	projectriskDescLevel := projectriskFields[5].Descriptor()
+	// projectrisk.DefaultLevel holds the default value on creation for the level field.
+	projectrisk.DefaultLevel = projectriskDescLevel.Default.(string)
+	// projectrisk.LevelValidator is a validator for the "level" field. It is called by the builders before save.
+	projectrisk.LevelValidator = projectriskDescLevel.Validators[0].(func(string) error)
+	// projectriskDescProbability is the schema descriptor for probability field.
+	projectriskDescProbability := projectriskFields[6].Descriptor()
+	// projectrisk.ProbabilityValidator is a validator for the "probability" field. It is called by the builders before save.
+	projectrisk.ProbabilityValidator = projectriskDescProbability.Validators[0].(func(string) error)
+	// projectriskDescImpact is the schema descriptor for impact field.
+	projectriskDescImpact := projectriskFields[7].Descriptor()
+	// projectrisk.ImpactValidator is a validator for the "impact" field. It is called by the builders before save.
+	projectrisk.ImpactValidator = projectriskDescImpact.Validators[0].(func(string) error)
+	// projectriskDescStatus is the schema descriptor for status field.
+	projectriskDescStatus := projectriskFields[9].Descriptor()
+	// projectrisk.DefaultStatus holds the default value on creation for the status field.
+	projectrisk.DefaultStatus = projectriskDescStatus.Default.(string)
+	// projectrisk.StatusValidator is a validator for the "status" field. It is called by the builders before save.
+	projectrisk.StatusValidator = projectriskDescStatus.Validators[0].(func(string) error)
+	// projectriskDescVersion is the schema descriptor for version field.
+	projectriskDescVersion := projectriskFields[15].Descriptor()
+	// projectrisk.DefaultVersion holds the default value on creation for the version field.
+	projectrisk.DefaultVersion = projectriskDescVersion.Default.(int)
+	// projectrisk.VersionValidator is a validator for the "version" field. It is called by the builders before save.
+	projectrisk.VersionValidator = projectriskDescVersion.Validators[0].(func(int) error)
+	// projectriskDescCreatedAt is the schema descriptor for created_at field.
+	projectriskDescCreatedAt := projectriskFields[17].Descriptor()
+	// projectrisk.DefaultCreatedAt holds the default value on creation for the created_at field.
+	projectrisk.DefaultCreatedAt = projectriskDescCreatedAt.Default.(func() time.Time)
+	// projectriskDescUpdatedAt is the schema descriptor for updated_at field.
+	projectriskDescUpdatedAt := projectriskFields[18].Descriptor()
+	// projectrisk.DefaultUpdatedAt holds the default value on creation for the updated_at field.
+	projectrisk.DefaultUpdatedAt = projectriskDescUpdatedAt.Default.(func() time.Time)
+	// projectrisk.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
+	projectrisk.UpdateDefaultUpdatedAt = projectriskDescUpdatedAt.UpdateDefault.(func() time.Time)
+	projecttaskFields := schema.ProjectTask{}.Fields()
+	_ = projecttaskFields
+	// projecttaskDescTenantID is the schema descriptor for tenant_id field.
+	projecttaskDescTenantID := projecttaskFields[0].Descriptor()
+	// projecttask.TenantIDValidator is a validator for the "tenant_id" field. It is called by the builders before save.
+	projecttask.TenantIDValidator = projecttaskDescTenantID.Validators[0].(func(int) error)
+	// projecttaskDescProjectID is the schema descriptor for project_id field.
+	projecttaskDescProjectID := projecttaskFields[1].Descriptor()
+	// projecttask.ProjectIDValidator is a validator for the "project_id" field. It is called by the builders before save.
+	projecttask.ProjectIDValidator = projecttaskDescProjectID.Validators[0].(func(int) error)
+	// projecttaskDescName is the schema descriptor for name field.
+	projecttaskDescName := projecttaskFields[3].Descriptor()
+	// projecttask.NameValidator is a validator for the "name" field. It is called by the builders before save.
+	projecttask.NameValidator = func() func(string) error {
+		validators := projecttaskDescName.Validators
+		fns := [...]func(string) error{
+			validators[0].(func(string) error),
+			validators[1].(func(string) error),
+		}
+		return func(name string) error {
+			for _, fn := range fns {
+				if err := fn(name); err != nil {
+					return err
+				}
+			}
+			return nil
+		}
+	}()
+	// projecttaskDescStatus is the schema descriptor for status field.
+	projecttaskDescStatus := projecttaskFields[6].Descriptor()
+	// projecttask.DefaultStatus holds the default value on creation for the status field.
+	projecttask.DefaultStatus = projecttaskDescStatus.Default.(string)
+	// projecttask.StatusValidator is a validator for the "status" field. It is called by the builders before save.
+	projecttask.StatusValidator = projecttaskDescStatus.Validators[0].(func(string) error)
+	// projecttaskDescPriority is the schema descriptor for priority field.
+	projecttaskDescPriority := projecttaskFields[7].Descriptor()
+	// projecttask.DefaultPriority holds the default value on creation for the priority field.
+	projecttask.DefaultPriority = projecttaskDescPriority.Default.(string)
+	// projecttask.PriorityValidator is a validator for the "priority" field. It is called by the builders before save.
+	projecttask.PriorityValidator = projecttaskDescPriority.Validators[0].(func(string) error)
+	// projecttaskDescProgress is the schema descriptor for progress field.
+	projecttaskDescProgress := projecttaskFields[12].Descriptor()
+	// projecttask.DefaultProgress holds the default value on creation for the progress field.
+	projecttask.DefaultProgress = projecttaskDescProgress.Default.(int)
+	// projecttask.ProgressValidator is a validator for the "progress" field. It is called by the builders before save.
+	projecttask.ProgressValidator = projecttaskDescProgress.Validators[0].(func(int) error)
+	// projecttaskDescSortOrder is the schema descriptor for sort_order field.
+	projecttaskDescSortOrder := projecttaskFields[16].Descriptor()
+	// projecttask.DefaultSortOrder holds the default value on creation for the sort_order field.
+	projecttask.DefaultSortOrder = projecttaskDescSortOrder.Default.(int)
+	// projecttaskDescVersion is the schema descriptor for version field.
+	projecttaskDescVersion := projecttaskFields[17].Descriptor()
+	// projecttask.DefaultVersion holds the default value on creation for the version field.
+	projecttask.DefaultVersion = projecttaskDescVersion.Default.(int)
+	// projecttask.VersionValidator is a validator for the "version" field. It is called by the builders before save.
+	projecttask.VersionValidator = projecttaskDescVersion.Validators[0].(func(int) error)
+	// projecttaskDescCreatedAt is the schema descriptor for created_at field.
+	projecttaskDescCreatedAt := projecttaskFields[19].Descriptor()
+	// projecttask.DefaultCreatedAt holds the default value on creation for the created_at field.
+	projecttask.DefaultCreatedAt = projecttaskDescCreatedAt.Default.(func() time.Time)
+	// projecttaskDescUpdatedAt is the schema descriptor for updated_at field.
+	projecttaskDescUpdatedAt := projecttaskFields[20].Descriptor()
+	// projecttask.DefaultUpdatedAt holds the default value on creation for the updated_at field.
+	projecttask.DefaultUpdatedAt = projecttaskDescUpdatedAt.Default.(func() time.Time)
+	// projecttask.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
+	projecttask.UpdateDefaultUpdatedAt = projecttaskDescUpdatedAt.UpdateDefault.(func() time.Time)
+	projecttaskdependencyFields := schema.ProjectTaskDependency{}.Fields()
+	_ = projecttaskdependencyFields
+	// projecttaskdependencyDescTenantID is the schema descriptor for tenant_id field.
+	projecttaskdependencyDescTenantID := projecttaskdependencyFields[0].Descriptor()
+	// projecttaskdependency.TenantIDValidator is a validator for the "tenant_id" field. It is called by the builders before save.
+	projecttaskdependency.TenantIDValidator = projecttaskdependencyDescTenantID.Validators[0].(func(int) error)
+	// projecttaskdependencyDescTaskID is the schema descriptor for task_id field.
+	projecttaskdependencyDescTaskID := projecttaskdependencyFields[1].Descriptor()
+	// projecttaskdependency.TaskIDValidator is a validator for the "task_id" field. It is called by the builders before save.
+	projecttaskdependency.TaskIDValidator = projecttaskdependencyDescTaskID.Validators[0].(func(int) error)
+	// projecttaskdependencyDescDependsOnTaskID is the schema descriptor for depends_on_task_id field.
+	projecttaskdependencyDescDependsOnTaskID := projecttaskdependencyFields[2].Descriptor()
+	// projecttaskdependency.DependsOnTaskIDValidator is a validator for the "depends_on_task_id" field. It is called by the builders before save.
+	projecttaskdependency.DependsOnTaskIDValidator = projecttaskdependencyDescDependsOnTaskID.Validators[0].(func(int) error)
+	// projecttaskdependencyDescDepType is the schema descriptor for dep_type field.
+	projecttaskdependencyDescDepType := projecttaskdependencyFields[3].Descriptor()
+	// projecttaskdependency.DefaultDepType holds the default value on creation for the dep_type field.
+	projecttaskdependency.DefaultDepType = projecttaskdependencyDescDepType.Default.(string)
+	// projecttaskdependency.DepTypeValidator is a validator for the "dep_type" field. It is called by the builders before save.
+	projecttaskdependency.DepTypeValidator = projecttaskdependencyDescDepType.Validators[0].(func(string) error)
+	// projecttaskdependencyDescCreatedAt is the schema descriptor for created_at field.
+	projecttaskdependencyDescCreatedAt := projecttaskdependencyFields[4].Descriptor()
+	// projecttaskdependency.DefaultCreatedAt holds the default value on creation for the created_at field.
+	projecttaskdependency.DefaultCreatedAt = projecttaskdependencyDescCreatedAt.Default.(func() time.Time)
+	// projecttaskdependencyDescUpdatedAt is the schema descriptor for updated_at field.
+	projecttaskdependencyDescUpdatedAt := projecttaskdependencyFields[5].Descriptor()
+	// projecttaskdependency.DefaultUpdatedAt holds the default value on creation for the updated_at field.
+	projecttaskdependency.DefaultUpdatedAt = projecttaskdependencyDescUpdatedAt.Default.(func() time.Time)
+	// projecttaskdependency.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
+	projecttaskdependency.UpdateDefaultUpdatedAt = projecttaskdependencyDescUpdatedAt.UpdateDefault.(func() time.Time)
+	projecttemplateFields := schema.ProjectTemplate{}.Fields()
+	_ = projecttemplateFields
+	// projecttemplateDescTenantID is the schema descriptor for tenant_id field.
+	projecttemplateDescTenantID := projecttemplateFields[0].Descriptor()
+	// projecttemplate.TenantIDValidator is a validator for the "tenant_id" field. It is called by the builders before save.
+	projecttemplate.TenantIDValidator = projecttemplateDescTenantID.Validators[0].(func(int) error)
+	// projecttemplateDescName is the schema descriptor for name field.
+	projecttemplateDescName := projecttemplateFields[1].Descriptor()
+	// projecttemplate.NameValidator is a validator for the "name" field. It is called by the builders before save.
+	projecttemplate.NameValidator = func() func(string) error {
+		validators := projecttemplateDescName.Validators
+		fns := [...]func(string) error{
+			validators[0].(func(string) error),
+			validators[1].(func(string) error),
+		}
+		return func(name string) error {
+			for _, fn := range fns {
+				if err := fn(name); err != nil {
+					return err
+				}
+			}
+			return nil
+		}
+	}()
+	// projecttemplateDescType is the schema descriptor for type field.
+	projecttemplateDescType := projecttemplateFields[3].Descriptor()
+	// projecttemplate.DefaultType holds the default value on creation for the type field.
+	projecttemplate.DefaultType = projecttemplateDescType.Default.(string)
+	// projecttemplate.TypeValidator is a validator for the "type" field. It is called by the builders before save.
+	projecttemplate.TypeValidator = projecttemplateDescType.Validators[0].(func(string) error)
+	// projecttemplateDescStatus is the schema descriptor for status field.
+	projecttemplateDescStatus := projecttemplateFields[4].Descriptor()
+	// projecttemplate.DefaultStatus holds the default value on creation for the status field.
+	projecttemplate.DefaultStatus = projecttemplateDescStatus.Default.(string)
+	// projecttemplate.StatusValidator is a validator for the "status" field. It is called by the builders before save.
+	projecttemplate.StatusValidator = projecttemplateDescStatus.Validators[0].(func(string) error)
+	// projecttemplateDescVersion is the schema descriptor for version field.
+	projecttemplateDescVersion := projecttemplateFields[6].Descriptor()
+	// projecttemplate.DefaultVersion holds the default value on creation for the version field.
+	projecttemplate.DefaultVersion = projecttemplateDescVersion.Default.(int)
+	// projecttemplate.VersionValidator is a validator for the "version" field. It is called by the builders before save.
+	projecttemplate.VersionValidator = projecttemplateDescVersion.Validators[0].(func(int) error)
+	// projecttemplateDescCreatedAt is the schema descriptor for created_at field.
+	projecttemplateDescCreatedAt := projecttemplateFields[8].Descriptor()
+	// projecttemplate.DefaultCreatedAt holds the default value on creation for the created_at field.
+	projecttemplate.DefaultCreatedAt = projecttemplateDescCreatedAt.Default.(func() time.Time)
+	// projecttemplateDescUpdatedAt is the schema descriptor for updated_at field.
+	projecttemplateDescUpdatedAt := projecttemplateFields[9].Descriptor()
+	// projecttemplate.DefaultUpdatedAt holds the default value on creation for the updated_at field.
+	projecttemplate.DefaultUpdatedAt = projecttemplateDescUpdatedAt.Default.(func() time.Time)
+	// projecttemplate.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
+	projecttemplate.UpdateDefaultUpdatedAt = projecttemplateDescUpdatedAt.UpdateDefault.(func() time.Time)
 	prompttemplateFields := schema.PromptTemplate{}.Fields()
 	_ = prompttemplateFields
 	// prompttemplateDescCreatedAt is the schema descriptor for created_at field.
@@ -5389,45 +5990,45 @@ func init() {
 	// servicerequest.CatalogIDValidator is a validator for the "catalog_id" field. It is called by the builders before save.
 	servicerequest.CatalogIDValidator = servicerequestDescCatalogID.Validators[0].(func(int) error)
 	// servicerequestDescRequesterID is the schema descriptor for requester_id field.
-	servicerequestDescRequesterID := servicerequestFields[3].Descriptor()
+	servicerequestDescRequesterID := servicerequestFields[4].Descriptor()
 	// servicerequest.RequesterIDValidator is a validator for the "requester_id" field. It is called by the builders before save.
 	servicerequest.RequesterIDValidator = servicerequestDescRequesterID.Validators[0].(func(int) error)
 	// servicerequestDescStatus is the schema descriptor for status field.
-	servicerequestDescStatus := servicerequestFields[4].Descriptor()
+	servicerequestDescStatus := servicerequestFields[5].Descriptor()
 	// servicerequest.DefaultStatus holds the default value on creation for the status field.
 	servicerequest.DefaultStatus = servicerequestDescStatus.Default.(string)
 	// servicerequestDescDataClassification is the schema descriptor for data_classification field.
-	servicerequestDescDataClassification := servicerequestFields[9].Descriptor()
+	servicerequestDescDataClassification := servicerequestFields[10].Descriptor()
 	// servicerequest.DefaultDataClassification holds the default value on creation for the data_classification field.
 	servicerequest.DefaultDataClassification = servicerequestDescDataClassification.Default.(string)
 	// servicerequestDescNeedsPublicIP is the schema descriptor for needs_public_ip field.
-	servicerequestDescNeedsPublicIP := servicerequestFields[10].Descriptor()
+	servicerequestDescNeedsPublicIP := servicerequestFields[11].Descriptor()
 	// servicerequest.DefaultNeedsPublicIP holds the default value on creation for the needs_public_ip field.
 	servicerequest.DefaultNeedsPublicIP = servicerequestDescNeedsPublicIP.Default.(bool)
 	// servicerequestDescComplianceAck is the schema descriptor for compliance_ack field.
-	servicerequestDescComplianceAck := servicerequestFields[13].Descriptor()
+	servicerequestDescComplianceAck := servicerequestFields[14].Descriptor()
 	// servicerequest.DefaultComplianceAck holds the default value on creation for the compliance_ack field.
 	servicerequest.DefaultComplianceAck = servicerequestDescComplianceAck.Default.(bool)
 	// servicerequestDescCurrentLevel is the schema descriptor for current_level field.
-	servicerequestDescCurrentLevel := servicerequestFields[14].Descriptor()
+	servicerequestDescCurrentLevel := servicerequestFields[15].Descriptor()
 	// servicerequest.DefaultCurrentLevel holds the default value on creation for the current_level field.
 	servicerequest.DefaultCurrentLevel = servicerequestDescCurrentLevel.Default.(int)
 	// servicerequestDescTotalLevels is the schema descriptor for total_levels field.
-	servicerequestDescTotalLevels := servicerequestFields[15].Descriptor()
+	servicerequestDescTotalLevels := servicerequestFields[16].Descriptor()
 	// servicerequest.DefaultTotalLevels holds the default value on creation for the total_levels field.
 	servicerequest.DefaultTotalLevels = servicerequestDescTotalLevels.Default.(int)
 	// servicerequestDescVersion is the schema descriptor for version field.
-	servicerequestDescVersion := servicerequestFields[25].Descriptor()
+	servicerequestDescVersion := servicerequestFields[26].Descriptor()
 	// servicerequest.DefaultVersion holds the default value on creation for the version field.
 	servicerequest.DefaultVersion = servicerequestDescVersion.Default.(int)
 	// servicerequest.VersionValidator is a validator for the "version" field. It is called by the builders before save.
 	servicerequest.VersionValidator = servicerequestDescVersion.Validators[0].(func(int) error)
 	// servicerequestDescCreatedAt is the schema descriptor for created_at field.
-	servicerequestDescCreatedAt := servicerequestFields[26].Descriptor()
+	servicerequestDescCreatedAt := servicerequestFields[27].Descriptor()
 	// servicerequest.DefaultCreatedAt holds the default value on creation for the created_at field.
 	servicerequest.DefaultCreatedAt = servicerequestDescCreatedAt.Default.(func() time.Time)
 	// servicerequestDescUpdatedAt is the schema descriptor for updated_at field.
-	servicerequestDescUpdatedAt := servicerequestFields[27].Descriptor()
+	servicerequestDescUpdatedAt := servicerequestFields[28].Descriptor()
 	// servicerequest.DefaultUpdatedAt holds the default value on creation for the updated_at field.
 	servicerequest.DefaultUpdatedAt = servicerequestDescUpdatedAt.Default.(func() time.Time)
 	// servicerequest.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
@@ -5669,15 +6270,15 @@ func init() {
 	surveyresponseFields := schema.SurveyResponse{}.Fields()
 	_ = surveyresponseFields
 	// surveyresponseDescScore is the schema descriptor for score field.
-	surveyresponseDescScore := surveyresponseFields[4].Descriptor()
+	surveyresponseDescScore := surveyresponseFields[5].Descriptor()
 	// surveyresponse.DefaultScore holds the default value on creation for the score field.
 	surveyresponse.DefaultScore = surveyresponseDescScore.Default.(int)
 	// surveyresponseDescTenantID is the schema descriptor for tenant_id field.
-	surveyresponseDescTenantID := surveyresponseFields[6].Descriptor()
+	surveyresponseDescTenantID := surveyresponseFields[7].Descriptor()
 	// surveyresponse.TenantIDValidator is a validator for the "tenant_id" field. It is called by the builders before save.
 	surveyresponse.TenantIDValidator = surveyresponseDescTenantID.Validators[0].(func(int) error)
 	// surveyresponseDescSubmittedAt is the schema descriptor for submitted_at field.
-	surveyresponseDescSubmittedAt := surveyresponseFields[7].Descriptor()
+	surveyresponseDescSubmittedAt := surveyresponseFields[8].Descriptor()
 	// surveyresponse.DefaultSubmittedAt holds the default value on creation for the submitted_at field.
 	surveyresponse.DefaultSubmittedAt = surveyresponseDescSubmittedAt.Default.(func() time.Time)
 	systemconfigFields := schema.SystemConfig{}.Fields()
@@ -5861,35 +6462,35 @@ func init() {
 	// ticket.TenantIDValidator is a validator for the "tenant_id" field. It is called by the builders before save.
 	ticket.TenantIDValidator = ticketDescTenantID.Validators[0].(func(int) error)
 	// ticketDescSLAStatus is the schema descriptor for sla_status field.
-	ticketDescSLAStatus := ticketFields[22].Descriptor()
+	ticketDescSLAStatus := ticketFields[23].Descriptor()
 	// ticket.DefaultSLAStatus holds the default value on creation for the sla_status field.
 	ticket.DefaultSLAStatus = ticketDescSLAStatus.Default.(string)
 	// ticketDescSLAMatchedLayer is the schema descriptor for sla_matched_layer field.
-	ticketDescSLAMatchedLayer := ticketFields[25].Descriptor()
+	ticketDescSLAMatchedLayer := ticketFields[26].Descriptor()
 	// ticket.SLAMatchedLayerValidator is a validator for the "sla_matched_layer" field. It is called by the builders before save.
 	ticket.SLAMatchedLayerValidator = ticketDescSLAMatchedLayer.Validators[0].(func(string) error)
 	// ticketDescRating is the schema descriptor for rating field.
-	ticketDescRating := ticketFields[31].Descriptor()
+	ticketDescRating := ticketFields[32].Descriptor()
 	// ticket.RatingValidator is a validator for the "rating" field. It is called by the builders before save.
 	ticket.RatingValidator = ticketDescRating.Validators[0].(func(int) error)
 	// ticketDescVersion is the schema descriptor for version field.
-	ticketDescVersion := ticketFields[35].Descriptor()
+	ticketDescVersion := ticketFields[36].Descriptor()
 	// ticket.DefaultVersion holds the default value on creation for the version field.
 	ticket.DefaultVersion = ticketDescVersion.Default.(int)
 	// ticket.VersionValidator is a validator for the "version" field. It is called by the builders before save.
 	ticket.VersionValidator = ticketDescVersion.Validators[0].(func(int) error)
 	// ticketDescCreatedAt is the schema descriptor for created_at field.
-	ticketDescCreatedAt := ticketFields[36].Descriptor()
+	ticketDescCreatedAt := ticketFields[37].Descriptor()
 	// ticket.DefaultCreatedAt holds the default value on creation for the created_at field.
 	ticket.DefaultCreatedAt = ticketDescCreatedAt.Default.(func() time.Time)
 	// ticketDescUpdatedAt is the schema descriptor for updated_at field.
-	ticketDescUpdatedAt := ticketFields[37].Descriptor()
+	ticketDescUpdatedAt := ticketFields[38].Descriptor()
 	// ticket.DefaultUpdatedAt holds the default value on creation for the updated_at field.
 	ticket.DefaultUpdatedAt = ticketDescUpdatedAt.Default.(func() time.Time)
 	// ticket.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
 	ticket.UpdateDefaultUpdatedAt = ticketDescUpdatedAt.UpdateDefault.(func() time.Time)
 	// ticketDescIsManagedByMsp is the schema descriptor for is_managed_by_msp field.
-	ticketDescIsManagedByMsp := ticketFields[38].Descriptor()
+	ticketDescIsManagedByMsp := ticketFields[39].Descriptor()
 	// ticket.DefaultIsManagedByMsp holds the default value on creation for the is_managed_by_msp field.
 	ticket.DefaultIsManagedByMsp = ticketDescIsManagedByMsp.Default.(bool)
 	ticketapprovalFields := schema.TicketApproval{}.Fields()

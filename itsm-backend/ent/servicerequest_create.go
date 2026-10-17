@@ -46,6 +46,20 @@ func (_c *ServiceRequestCreate) SetNillableCiID(v *int) *ServiceRequestCreate {
 	return _c
 }
 
+// SetProjectID sets the "project_id" field.
+func (_c *ServiceRequestCreate) SetProjectID(v int) *ServiceRequestCreate {
+	_c.mutation.SetProjectID(v)
+	return _c
+}
+
+// SetNillableProjectID sets the "project_id" field if the given value is not nil.
+func (_c *ServiceRequestCreate) SetNillableProjectID(v *int) *ServiceRequestCreate {
+	if v != nil {
+		_c.SetProjectID(*v)
+	}
+	return _c
+}
+
 // SetRequesterID sets the "requester_id" field.
 func (_c *ServiceRequestCreate) SetRequesterID(v int) *ServiceRequestCreate {
 	_c.mutation.SetRequesterID(v)
@@ -546,6 +560,10 @@ func (_c *ServiceRequestCreate) createSpec() (*ServiceRequest, *sqlgraph.CreateS
 	if value, ok := _c.mutation.CiID(); ok {
 		_spec.SetField(servicerequest.FieldCiID, field.TypeInt, value)
 		_node.CiID = value
+	}
+	if value, ok := _c.mutation.ProjectID(); ok {
+		_spec.SetField(servicerequest.FieldProjectID, field.TypeInt, value)
+		_node.ProjectID = value
 	}
 	if value, ok := _c.mutation.RequesterID(); ok {
 		_spec.SetField(servicerequest.FieldRequesterID, field.TypeInt, value)

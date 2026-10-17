@@ -36,6 +36,8 @@ const (
 	FieldImpact = "impact"
 	// FieldAssigneeID holds the string denoting the assignee_id field in the database.
 	FieldAssigneeID = "assignee_id"
+	// FieldProjectID holds the string denoting the project_id field in the database.
+	FieldProjectID = "project_id"
 	// FieldCreatedBy holds the string denoting the created_by field in the database.
 	FieldCreatedBy = "created_by"
 	// FieldTenantID holds the string denoting the tenant_id field in the database.
@@ -91,6 +93,7 @@ var Columns = []string{
 	FieldResolution,
 	FieldImpact,
 	FieldAssigneeID,
+	FieldProjectID,
 	FieldCreatedBy,
 	FieldTenantID,
 	FieldCreatedAt,
@@ -212,6 +215,11 @@ func ByImpact(opts ...sql.OrderTermOption) OrderOption {
 // ByAssigneeID orders the results by the assignee_id field.
 func ByAssigneeID(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldAssigneeID, opts...).ToFunc()
+}
+
+// ByProjectID orders the results by the project_id field.
+func ByProjectID(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldProjectID, opts...).ToFunc()
 }
 
 // ByCreatedBy orders the results by the created_by field.

@@ -40,6 +40,9 @@ func (Incident) Fields() []ent.Field {
 				return nil
 			}).
 			Default("medium"),
+		field.Int("project_id").
+			Comment("所属项目ID（P0；同租户）").
+			Optional(),
 		field.Int("sla_definition_id").
 			Comment("SLA定义ID").
 			Optional(),

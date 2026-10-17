@@ -114,6 +114,33 @@ func (_u *IncidentUpdate) SetNillablePriority(v *string) *IncidentUpdate {
 	return _u
 }
 
+// SetProjectID sets the "project_id" field.
+func (_u *IncidentUpdate) SetProjectID(v int) *IncidentUpdate {
+	_u.mutation.ResetProjectID()
+	_u.mutation.SetProjectID(v)
+	return _u
+}
+
+// SetNillableProjectID sets the "project_id" field if the given value is not nil.
+func (_u *IncidentUpdate) SetNillableProjectID(v *int) *IncidentUpdate {
+	if v != nil {
+		_u.SetProjectID(*v)
+	}
+	return _u
+}
+
+// AddProjectID adds value to the "project_id" field.
+func (_u *IncidentUpdate) AddProjectID(v int) *IncidentUpdate {
+	_u.mutation.AddProjectID(v)
+	return _u
+}
+
+// ClearProjectID clears the value of the "project_id" field.
+func (_u *IncidentUpdate) ClearProjectID() *IncidentUpdate {
+	_u.mutation.ClearProjectID()
+	return _u
+}
+
 // SetSLADefinitionID sets the "sla_definition_id" field.
 func (_u *IncidentUpdate) SetSLADefinitionID(v int) *IncidentUpdate {
 	_u.mutation.ResetSLADefinitionID()
@@ -1261,6 +1288,15 @@ func (_u *IncidentUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 	if value, ok := _u.mutation.Priority(); ok {
 		_spec.SetField(incident.FieldPriority, field.TypeString, value)
 	}
+	if value, ok := _u.mutation.ProjectID(); ok {
+		_spec.SetField(incident.FieldProjectID, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.AddedProjectID(); ok {
+		_spec.AddField(incident.FieldProjectID, field.TypeInt, value)
+	}
+	if _u.mutation.ProjectIDCleared() {
+		_spec.ClearField(incident.FieldProjectID, field.TypeInt)
+	}
 	if value, ok := _u.mutation.SLADefinitionID(); ok {
 		_spec.SetField(incident.FieldSLADefinitionID, field.TypeInt, value)
 	}
@@ -2014,6 +2050,33 @@ func (_u *IncidentUpdateOne) SetNillablePriority(v *string) *IncidentUpdateOne {
 	if v != nil {
 		_u.SetPriority(*v)
 	}
+	return _u
+}
+
+// SetProjectID sets the "project_id" field.
+func (_u *IncidentUpdateOne) SetProjectID(v int) *IncidentUpdateOne {
+	_u.mutation.ResetProjectID()
+	_u.mutation.SetProjectID(v)
+	return _u
+}
+
+// SetNillableProjectID sets the "project_id" field if the given value is not nil.
+func (_u *IncidentUpdateOne) SetNillableProjectID(v *int) *IncidentUpdateOne {
+	if v != nil {
+		_u.SetProjectID(*v)
+	}
+	return _u
+}
+
+// AddProjectID adds value to the "project_id" field.
+func (_u *IncidentUpdateOne) AddProjectID(v int) *IncidentUpdateOne {
+	_u.mutation.AddProjectID(v)
+	return _u
+}
+
+// ClearProjectID clears the value of the "project_id" field.
+func (_u *IncidentUpdateOne) ClearProjectID() *IncidentUpdateOne {
+	_u.mutation.ClearProjectID()
 	return _u
 }
 
@@ -3193,6 +3256,15 @@ func (_u *IncidentUpdateOne) sqlSave(ctx context.Context) (_node *Incident, err 
 	}
 	if value, ok := _u.mutation.Priority(); ok {
 		_spec.SetField(incident.FieldPriority, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.ProjectID(); ok {
+		_spec.SetField(incident.FieldProjectID, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.AddedProjectID(); ok {
+		_spec.AddField(incident.FieldProjectID, field.TypeInt, value)
+	}
+	if _u.mutation.ProjectIDCleared() {
+		_spec.ClearField(incident.FieldProjectID, field.TypeInt)
 	}
 	if value, ok := _u.mutation.SLADefinitionID(); ok {
 		_spec.SetField(incident.FieldSLADefinitionID, field.TypeInt, value)

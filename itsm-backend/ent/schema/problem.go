@@ -50,6 +50,9 @@ func (Problem) Fields() []ent.Field {
 		field.Int("assignee_id").
 			Comment("处理人ID").
 			Optional(),
+		field.Int("project_id").
+			Comment("所属项目ID（P0；同租户）").
+			Optional(),
 		field.Int("created_by").
 			Comment("创建人ID").
 			Positive(),

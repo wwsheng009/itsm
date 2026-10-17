@@ -24,6 +24,8 @@ type SurveyResponse struct {
 	SurveyID int `json:"survey_id,omitempty"`
 	// Ticket ID associated with the survey
 	TicketID int `json:"ticket_id,omitempty"`
+	// Project ID associated with the survey（P1 结项 CSAT；与 ticket_id 并列，不互斥）
+	ProjectID int `json:"project_id,omitempty"`
 	// User ID of the respondent
 	RespondentID int `json:"respondent_id,omitempty"`
 	// Answers to survey questions
@@ -69,7 +71,7 @@ func (*SurveyResponse) scanValues(columns []string) ([]any, error) {
 		switch columns[i] {
 		case surveyresponse.FieldAnswers:
 			values[i] = new([]byte)
-		case surveyresponse.FieldID, surveyresponse.FieldSurveyID, surveyresponse.FieldTicketID, surveyresponse.FieldRespondentID, surveyresponse.FieldScore, surveyresponse.FieldTenantID:
+		case surveyresponse.FieldID, surveyresponse.FieldSurveyID, surveyresponse.FieldTicketID, surveyresponse.FieldProjectID, surveyresponse.FieldRespondentID, surveyresponse.FieldScore, surveyresponse.FieldTenantID:
 			values[i] = new(sql.NullInt64)
 		case surveyresponse.FieldComment:
 			values[i] = new(sql.NullString)
@@ -107,6 +109,12 @@ func (_m *SurveyResponse) assignValues(columns []string, values []any) error {
 				return fmt.Errorf("unexpected type %T for field ticket_id", values[i])
 			} else if value.Valid {
 				_m.TicketID = int(value.Int64)
+			}
+		case surveyresponse.FieldProjectID:
+			if value, ok := values[i].(*sql.NullInt64); !ok {
+				return fmt.Errorf("unexpected type %T for field project_id", values[i])
+			} else if value.Valid {
+				_m.ProjectID = int(value.Int64)
 			}
 		case surveyresponse.FieldRespondentID:
 			if value, ok := values[i].(*sql.NullInt64); !ok {
@@ -192,6 +200,9 @@ func (_m *SurveyResponse) String() string {
 	builder.WriteString(", ")
 	builder.WriteString("ticket_id=")
 	builder.WriteString(fmt.Sprintf("%v", _m.TicketID))
+	builder.WriteString(", ")
+	builder.WriteString("project_id=")
+	builder.WriteString(fmt.Sprintf("%v", _m.ProjectID))
 	builder.WriteString(", ")
 	builder.WriteString("respondent_id=")
 	builder.WriteString(fmt.Sprintf("%v", _m.RespondentID))

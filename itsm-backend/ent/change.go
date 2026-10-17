@@ -42,6 +42,8 @@ type Change struct {
 	CreatedBy int `json:"created_by,omitempty"`
 	// 租户ID
 	TenantID int `json:"tenant_id,omitempty"`
+	// 所属项目ID（P0；同租户）
+	ProjectID int `json:"project_id,omitempty"`
 	// 计划开始时间
 	PlannedStartDate time.Time `json:"planned_start_date,omitempty"`
 	// 计划结束时间
@@ -105,7 +107,7 @@ func (*Change) scanValues(columns []string) ([]any, error) {
 		switch columns[i] {
 		case change.FieldAffectedCis, change.FieldRelatedTickets:
 			values[i] = new([]byte)
-		case change.FieldID, change.FieldAssigneeID, change.FieldCreatedBy, change.FieldTenantID:
+		case change.FieldID, change.FieldAssigneeID, change.FieldCreatedBy, change.FieldTenantID, change.FieldProjectID:
 			values[i] = new(sql.NullInt64)
 		case change.FieldChangeNumber, change.FieldTitle, change.FieldDescription, change.FieldJustification, change.FieldType, change.FieldStatus, change.FieldPriority, change.FieldImpactScope, change.FieldRiskLevel, change.FieldImplementationPlan, change.FieldRollbackPlan:
 			values[i] = new(sql.NullString)
@@ -205,6 +207,12 @@ func (_m *Change) assignValues(columns []string, values []any) error {
 				return fmt.Errorf("unexpected type %T for field tenant_id", values[i])
 			} else if value.Valid {
 				_m.TenantID = int(value.Int64)
+			}
+		case change.FieldProjectID:
+			if value, ok := values[i].(*sql.NullInt64); !ok {
+				return fmt.Errorf("unexpected type %T for field project_id", values[i])
+			} else if value.Valid {
+				_m.ProjectID = int(value.Int64)
 			}
 		case change.FieldPlannedStartDate:
 			if value, ok := values[i].(*sql.NullTime); !ok {
@@ -358,6 +366,9 @@ func (_m *Change) String() string {
 	builder.WriteString(", ")
 	builder.WriteString("tenant_id=")
 	builder.WriteString(fmt.Sprintf("%v", _m.TenantID))
+	builder.WriteString(", ")
+	builder.WriteString("project_id=")
+	builder.WriteString(fmt.Sprintf("%v", _m.ProjectID))
 	builder.WriteString(", ")
 	builder.WriteString("planned_start_date=")
 	builder.WriteString(_m.PlannedStartDate.Format(time.ANSIC))

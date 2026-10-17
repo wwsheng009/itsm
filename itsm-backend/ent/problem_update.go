@@ -240,6 +240,33 @@ func (_u *ProblemUpdate) ClearAssigneeID() *ProblemUpdate {
 	return _u
 }
 
+// SetProjectID sets the "project_id" field.
+func (_u *ProblemUpdate) SetProjectID(v int) *ProblemUpdate {
+	_u.mutation.ResetProjectID()
+	_u.mutation.SetProjectID(v)
+	return _u
+}
+
+// SetNillableProjectID sets the "project_id" field if the given value is not nil.
+func (_u *ProblemUpdate) SetNillableProjectID(v *int) *ProblemUpdate {
+	if v != nil {
+		_u.SetProjectID(*v)
+	}
+	return _u
+}
+
+// AddProjectID adds value to the "project_id" field.
+func (_u *ProblemUpdate) AddProjectID(v int) *ProblemUpdate {
+	_u.mutation.AddProjectID(v)
+	return _u
+}
+
+// ClearProjectID clears the value of the "project_id" field.
+func (_u *ProblemUpdate) ClearProjectID() *ProblemUpdate {
+	_u.mutation.ClearProjectID()
+	return _u
+}
+
 // SetCreatedBy sets the "created_by" field.
 func (_u *ProblemUpdate) SetCreatedBy(v int) *ProblemUpdate {
 	_u.mutation.ResetCreatedBy()
@@ -607,6 +634,15 @@ func (_u *ProblemUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 	}
 	if _u.mutation.AssigneeIDCleared() {
 		_spec.ClearField(problem.FieldAssigneeID, field.TypeInt)
+	}
+	if value, ok := _u.mutation.ProjectID(); ok {
+		_spec.SetField(problem.FieldProjectID, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.AddedProjectID(); ok {
+		_spec.AddField(problem.FieldProjectID, field.TypeInt, value)
+	}
+	if _u.mutation.ProjectIDCleared() {
+		_spec.ClearField(problem.FieldProjectID, field.TypeInt)
 	}
 	if value, ok := _u.mutation.CreatedBy(); ok {
 		_spec.SetField(problem.FieldCreatedBy, field.TypeInt, value)
@@ -1008,6 +1044,33 @@ func (_u *ProblemUpdateOne) ClearAssigneeID() *ProblemUpdateOne {
 	return _u
 }
 
+// SetProjectID sets the "project_id" field.
+func (_u *ProblemUpdateOne) SetProjectID(v int) *ProblemUpdateOne {
+	_u.mutation.ResetProjectID()
+	_u.mutation.SetProjectID(v)
+	return _u
+}
+
+// SetNillableProjectID sets the "project_id" field if the given value is not nil.
+func (_u *ProblemUpdateOne) SetNillableProjectID(v *int) *ProblemUpdateOne {
+	if v != nil {
+		_u.SetProjectID(*v)
+	}
+	return _u
+}
+
+// AddProjectID adds value to the "project_id" field.
+func (_u *ProblemUpdateOne) AddProjectID(v int) *ProblemUpdateOne {
+	_u.mutation.AddProjectID(v)
+	return _u
+}
+
+// ClearProjectID clears the value of the "project_id" field.
+func (_u *ProblemUpdateOne) ClearProjectID() *ProblemUpdateOne {
+	_u.mutation.ClearProjectID()
+	return _u
+}
+
 // SetCreatedBy sets the "created_by" field.
 func (_u *ProblemUpdateOne) SetCreatedBy(v int) *ProblemUpdateOne {
 	_u.mutation.ResetCreatedBy()
@@ -1405,6 +1468,15 @@ func (_u *ProblemUpdateOne) sqlSave(ctx context.Context) (_node *Problem, err er
 	}
 	if _u.mutation.AssigneeIDCleared() {
 		_spec.ClearField(problem.FieldAssigneeID, field.TypeInt)
+	}
+	if value, ok := _u.mutation.ProjectID(); ok {
+		_spec.SetField(problem.FieldProjectID, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.AddedProjectID(); ok {
+		_spec.AddField(problem.FieldProjectID, field.TypeInt, value)
+	}
+	if _u.mutation.ProjectIDCleared() {
+		_spec.ClearField(problem.FieldProjectID, field.TypeInt)
 	}
 	if value, ok := _u.mutation.CreatedBy(); ok {
 		_spec.SetField(problem.FieldCreatedBy, field.TypeInt, value)

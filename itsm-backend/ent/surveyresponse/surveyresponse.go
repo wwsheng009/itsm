@@ -18,6 +18,8 @@ const (
 	FieldSurveyID = "survey_id"
 	// FieldTicketID holds the string denoting the ticket_id field in the database.
 	FieldTicketID = "ticket_id"
+	// FieldProjectID holds the string denoting the project_id field in the database.
+	FieldProjectID = "project_id"
 	// FieldRespondentID holds the string denoting the respondent_id field in the database.
 	FieldRespondentID = "respondent_id"
 	// FieldAnswers holds the string denoting the answers field in the database.
@@ -48,6 +50,7 @@ var Columns = []string{
 	FieldID,
 	FieldSurveyID,
 	FieldTicketID,
+	FieldProjectID,
 	FieldRespondentID,
 	FieldAnswers,
 	FieldScore,
@@ -91,6 +94,11 @@ func BySurveyID(opts ...sql.OrderTermOption) OrderOption {
 // ByTicketID orders the results by the ticket_id field.
 func ByTicketID(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldTicketID, opts...).ToFunc()
+}
+
+// ByProjectID orders the results by the project_id field.
+func ByProjectID(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldProjectID, opts...).ToFunc()
 }
 
 // ByRespondentID orders the results by the respondent_id field.

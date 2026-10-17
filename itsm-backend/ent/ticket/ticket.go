@@ -50,6 +50,8 @@ const (
 	FieldCategoryID = "category_id"
 	// FieldDepartmentID holds the string denoting the department_id field in the database.
 	FieldDepartmentID = "department_id"
+	// FieldProjectID holds the string denoting the project_id field in the database.
+	FieldProjectID = "project_id"
 	// FieldParentTicketID holds the string denoting the parent_ticket_id field in the database.
 	FieldParentTicketID = "parent_ticket_id"
 	// FieldSLADefinitionID holds the string denoting the sla_definition_id field in the database.
@@ -273,6 +275,7 @@ var Columns = []string{
 	FieldTemplateID,
 	FieldCategoryID,
 	FieldDepartmentID,
+	FieldProjectID,
 	FieldParentTicketID,
 	FieldSLADefinitionID,
 	FieldSLAResponseDeadline,
@@ -473,6 +476,11 @@ func ByCategoryID(opts ...sql.OrderTermOption) OrderOption {
 // ByDepartmentID orders the results by the department_id field.
 func ByDepartmentID(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldDepartmentID, opts...).ToFunc()
+}
+
+// ByProjectID orders the results by the project_id field.
+func ByProjectID(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldProjectID, opts...).ToFunc()
 }
 
 // ByParentTicketID orders the results by the parent_ticket_id field.

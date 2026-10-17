@@ -369,6 +369,33 @@ func (_u *TicketUpdate) ClearDepartmentID() *TicketUpdate {
 	return _u
 }
 
+// SetProjectID sets the "project_id" field.
+func (_u *TicketUpdate) SetProjectID(v int) *TicketUpdate {
+	_u.mutation.ResetProjectID()
+	_u.mutation.SetProjectID(v)
+	return _u
+}
+
+// SetNillableProjectID sets the "project_id" field if the given value is not nil.
+func (_u *TicketUpdate) SetNillableProjectID(v *int) *TicketUpdate {
+	if v != nil {
+		_u.SetProjectID(*v)
+	}
+	return _u
+}
+
+// AddProjectID adds value to the "project_id" field.
+func (_u *TicketUpdate) AddProjectID(v int) *TicketUpdate {
+	_u.mutation.AddProjectID(v)
+	return _u
+}
+
+// ClearProjectID clears the value of the "project_id" field.
+func (_u *TicketUpdate) ClearProjectID() *TicketUpdate {
+	_u.mutation.ClearProjectID()
+	return _u
+}
+
 // SetParentTicketID sets the "parent_ticket_id" field.
 func (_u *TicketUpdate) SetParentTicketID(v int) *TicketUpdate {
 	_u.mutation.ResetParentTicketID()
@@ -1640,6 +1667,15 @@ func (_u *TicketUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 	if _u.mutation.DepartmentIDCleared() {
 		_spec.ClearField(ticket.FieldDepartmentID, field.TypeInt)
 	}
+	if value, ok := _u.mutation.ProjectID(); ok {
+		_spec.SetField(ticket.FieldProjectID, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.AddedProjectID(); ok {
+		_spec.AddField(ticket.FieldProjectID, field.TypeInt, value)
+	}
+	if _u.mutation.ProjectIDCleared() {
+		_spec.ClearField(ticket.FieldProjectID, field.TypeInt)
+	}
 	if value, ok := _u.mutation.ParentTicketID(); ok {
 		_spec.SetField(ticket.FieldParentTicketID, field.TypeInt, value)
 	}
@@ -2862,6 +2898,33 @@ func (_u *TicketUpdateOne) AddDepartmentID(v int) *TicketUpdateOne {
 // ClearDepartmentID clears the value of the "department_id" field.
 func (_u *TicketUpdateOne) ClearDepartmentID() *TicketUpdateOne {
 	_u.mutation.ClearDepartmentID()
+	return _u
+}
+
+// SetProjectID sets the "project_id" field.
+func (_u *TicketUpdateOne) SetProjectID(v int) *TicketUpdateOne {
+	_u.mutation.ResetProjectID()
+	_u.mutation.SetProjectID(v)
+	return _u
+}
+
+// SetNillableProjectID sets the "project_id" field if the given value is not nil.
+func (_u *TicketUpdateOne) SetNillableProjectID(v *int) *TicketUpdateOne {
+	if v != nil {
+		_u.SetProjectID(*v)
+	}
+	return _u
+}
+
+// AddProjectID adds value to the "project_id" field.
+func (_u *TicketUpdateOne) AddProjectID(v int) *TicketUpdateOne {
+	_u.mutation.AddProjectID(v)
+	return _u
+}
+
+// ClearProjectID clears the value of the "project_id" field.
+func (_u *TicketUpdateOne) ClearProjectID() *TicketUpdateOne {
+	_u.mutation.ClearProjectID()
 	return _u
 }
 
@@ -4165,6 +4228,15 @@ func (_u *TicketUpdateOne) sqlSave(ctx context.Context) (_node *Ticket, err erro
 	}
 	if _u.mutation.DepartmentIDCleared() {
 		_spec.ClearField(ticket.FieldDepartmentID, field.TypeInt)
+	}
+	if value, ok := _u.mutation.ProjectID(); ok {
+		_spec.SetField(ticket.FieldProjectID, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.AddedProjectID(); ok {
+		_spec.AddField(ticket.FieldProjectID, field.TypeInt, value)
+	}
+	if _u.mutation.ProjectIDCleared() {
+		_spec.ClearField(ticket.FieldProjectID, field.TypeInt)
 	}
 	if value, ok := _u.mutation.ParentTicketID(); ok {
 		_spec.SetField(ticket.FieldParentTicketID, field.TypeInt, value)

@@ -1220,6 +1220,138 @@ func (f ProjectFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, err
 	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.ProjectMutation", m)
 }
 
+// The ProjectAssetLinkFunc type is an adapter to allow the use of ordinary
+// function as ProjectAssetLink mutator.
+type ProjectAssetLinkFunc func(context.Context, *ent.ProjectAssetLinkMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f ProjectAssetLinkFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.ProjectAssetLinkMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.ProjectAssetLinkMutation", m)
+}
+
+// The ProjectBaselineFunc type is an adapter to allow the use of ordinary
+// function as ProjectBaseline mutator.
+type ProjectBaselineFunc func(context.Context, *ent.ProjectBaselineMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f ProjectBaselineFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.ProjectBaselineMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.ProjectBaselineMutation", m)
+}
+
+// The ProjectClosureFunc type is an adapter to allow the use of ordinary
+// function as ProjectClosure mutator.
+type ProjectClosureFunc func(context.Context, *ent.ProjectClosureMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f ProjectClosureFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.ProjectClosureMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.ProjectClosureMutation", m)
+}
+
+// The ProjectGateFunc type is an adapter to allow the use of ordinary
+// function as ProjectGate mutator.
+type ProjectGateFunc func(context.Context, *ent.ProjectGateMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f ProjectGateFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.ProjectGateMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.ProjectGateMutation", m)
+}
+
+// The ProjectMemberFunc type is an adapter to allow the use of ordinary
+// function as ProjectMember mutator.
+type ProjectMemberFunc func(context.Context, *ent.ProjectMemberMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f ProjectMemberFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.ProjectMemberMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.ProjectMemberMutation", m)
+}
+
+// The ProjectMilestoneFunc type is an adapter to allow the use of ordinary
+// function as ProjectMilestone mutator.
+type ProjectMilestoneFunc func(context.Context, *ent.ProjectMilestoneMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f ProjectMilestoneFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.ProjectMilestoneMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.ProjectMilestoneMutation", m)
+}
+
+// The ProjectReportTemplateFunc type is an adapter to allow the use of ordinary
+// function as ProjectReportTemplate mutator.
+type ProjectReportTemplateFunc func(context.Context, *ent.ProjectReportTemplateMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f ProjectReportTemplateFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.ProjectReportTemplateMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.ProjectReportTemplateMutation", m)
+}
+
+// The ProjectRiskFunc type is an adapter to allow the use of ordinary
+// function as ProjectRisk mutator.
+type ProjectRiskFunc func(context.Context, *ent.ProjectRiskMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f ProjectRiskFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.ProjectRiskMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.ProjectRiskMutation", m)
+}
+
+// The ProjectTaskFunc type is an adapter to allow the use of ordinary
+// function as ProjectTask mutator.
+type ProjectTaskFunc func(context.Context, *ent.ProjectTaskMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f ProjectTaskFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.ProjectTaskMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.ProjectTaskMutation", m)
+}
+
+// The ProjectTaskDependencyFunc type is an adapter to allow the use of ordinary
+// function as ProjectTaskDependency mutator.
+type ProjectTaskDependencyFunc func(context.Context, *ent.ProjectTaskDependencyMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f ProjectTaskDependencyFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.ProjectTaskDependencyMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.ProjectTaskDependencyMutation", m)
+}
+
+// The ProjectTemplateFunc type is an adapter to allow the use of ordinary
+// function as ProjectTemplate mutator.
+type ProjectTemplateFunc func(context.Context, *ent.ProjectTemplateMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f ProjectTemplateFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.ProjectTemplateMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.ProjectTemplateMutation", m)
+}
+
 // The PromptTemplateFunc type is an adapter to allow the use of ordinary
 // function as PromptTemplate mutator.
 type PromptTemplateFunc func(context.Context, *ent.PromptTemplateMutation) (ent.Value, error)

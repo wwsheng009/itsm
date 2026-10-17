@@ -101,6 +101,15 @@ var rlsManagedTables = []string{
 	"alerts", "ai_analysis_result", "endpoint_ac_ls",
 	// 010 批次 8 平台面收口
 	"bootstrap_tokens", "tenant_installations",
+	// 015 批次 9 项目管理（P0 + P1 表；015 策略文件已覆盖全部五表）
+	"project_members", "project_tasks",
+	"project_milestones", "project_task_dependencies", "project_baselines",
+	"project_templates",
+	"project_gates",
+	"project_closures",
+	"project_report_templates",
+	"project_risks",
+	"project_asset_links",
 }
 
 // rlsProbeTables — 逐表低权探针清单（003 批次 1 + 004 批次 2 + 005 批次 3；changes 走带播种的特殊探针）。

@@ -72,6 +72,33 @@ func (_u *SurveyResponseUpdate) ClearTicketID() *SurveyResponseUpdate {
 	return _u
 }
 
+// SetProjectID sets the "project_id" field.
+func (_u *SurveyResponseUpdate) SetProjectID(v int) *SurveyResponseUpdate {
+	_u.mutation.ResetProjectID()
+	_u.mutation.SetProjectID(v)
+	return _u
+}
+
+// SetNillableProjectID sets the "project_id" field if the given value is not nil.
+func (_u *SurveyResponseUpdate) SetNillableProjectID(v *int) *SurveyResponseUpdate {
+	if v != nil {
+		_u.SetProjectID(*v)
+	}
+	return _u
+}
+
+// AddProjectID adds value to the "project_id" field.
+func (_u *SurveyResponseUpdate) AddProjectID(v int) *SurveyResponseUpdate {
+	_u.mutation.AddProjectID(v)
+	return _u
+}
+
+// ClearProjectID clears the value of the "project_id" field.
+func (_u *SurveyResponseUpdate) ClearProjectID() *SurveyResponseUpdate {
+	_u.mutation.ClearProjectID()
+	return _u
+}
+
 // SetRespondentID sets the "respondent_id" field.
 func (_u *SurveyResponseUpdate) SetRespondentID(v int) *SurveyResponseUpdate {
 	_u.mutation.ResetRespondentID()
@@ -264,6 +291,15 @@ func (_u *SurveyResponseUpdate) sqlSave(ctx context.Context) (_node int, err err
 	if _u.mutation.TicketIDCleared() {
 		_spec.ClearField(surveyresponse.FieldTicketID, field.TypeInt)
 	}
+	if value, ok := _u.mutation.ProjectID(); ok {
+		_spec.SetField(surveyresponse.FieldProjectID, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.AddedProjectID(); ok {
+		_spec.AddField(surveyresponse.FieldProjectID, field.TypeInt, value)
+	}
+	if _u.mutation.ProjectIDCleared() {
+		_spec.ClearField(surveyresponse.FieldProjectID, field.TypeInt)
+	}
 	if value, ok := _u.mutation.RespondentID(); ok {
 		_spec.SetField(surveyresponse.FieldRespondentID, field.TypeInt, value)
 	}
@@ -389,6 +425,33 @@ func (_u *SurveyResponseUpdateOne) AddTicketID(v int) *SurveyResponseUpdateOne {
 // ClearTicketID clears the value of the "ticket_id" field.
 func (_u *SurveyResponseUpdateOne) ClearTicketID() *SurveyResponseUpdateOne {
 	_u.mutation.ClearTicketID()
+	return _u
+}
+
+// SetProjectID sets the "project_id" field.
+func (_u *SurveyResponseUpdateOne) SetProjectID(v int) *SurveyResponseUpdateOne {
+	_u.mutation.ResetProjectID()
+	_u.mutation.SetProjectID(v)
+	return _u
+}
+
+// SetNillableProjectID sets the "project_id" field if the given value is not nil.
+func (_u *SurveyResponseUpdateOne) SetNillableProjectID(v *int) *SurveyResponseUpdateOne {
+	if v != nil {
+		_u.SetProjectID(*v)
+	}
+	return _u
+}
+
+// AddProjectID adds value to the "project_id" field.
+func (_u *SurveyResponseUpdateOne) AddProjectID(v int) *SurveyResponseUpdateOne {
+	_u.mutation.AddProjectID(v)
+	return _u
+}
+
+// ClearProjectID clears the value of the "project_id" field.
+func (_u *SurveyResponseUpdateOne) ClearProjectID() *SurveyResponseUpdateOne {
+	_u.mutation.ClearProjectID()
 	return _u
 }
 
@@ -613,6 +676,15 @@ func (_u *SurveyResponseUpdateOne) sqlSave(ctx context.Context) (_node *SurveyRe
 	}
 	if _u.mutation.TicketIDCleared() {
 		_spec.ClearField(surveyresponse.FieldTicketID, field.TypeInt)
+	}
+	if value, ok := _u.mutation.ProjectID(); ok {
+		_spec.SetField(surveyresponse.FieldProjectID, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.AddedProjectID(); ok {
+		_spec.AddField(surveyresponse.FieldProjectID, field.TypeInt, value)
+	}
+	if _u.mutation.ProjectIDCleared() {
+		_spec.ClearField(surveyresponse.FieldProjectID, field.TypeInt)
 	}
 	if value, ok := _u.mutation.RespondentID(); ok {
 		_spec.SetField(surveyresponse.FieldRespondentID, field.TypeInt, value)

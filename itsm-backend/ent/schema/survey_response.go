@@ -28,6 +28,9 @@ func (SurveyResponse) Fields() []ent.Field {
 		field.Int("ticket_id").
 			Comment("Ticket ID associated with the survey").
 			Optional(),
+		field.Int("project_id").
+			Comment("Project ID associated with the survey（P1 结项 CSAT；与 ticket_id 并列，不互斥）").
+			Optional(),
 		field.Int("respondent_id").
 			Comment("User ID of the respondent").
 			Optional(),
@@ -65,6 +68,7 @@ func (SurveyResponse) Indexes() []ent.Index {
 	return []ent.Index{
 		index.Fields("survey_id"),
 		index.Fields("ticket_id"),
+		index.Fields("project_id"),
 		index.Fields("tenant_id"),
 		index.Fields("respondent_id"),
 	}

@@ -65,6 +65,9 @@ func (Ticket) Fields() []ent.Field {
 		field.Int("department_id").
 			Comment("部门ID").
 			Optional(),
+		field.Int("project_id").
+			Comment("所属项目ID（P0；同租户，见 docs/project-management/plan/p0-data-ddl.md §3）").
+			Optional(),
 		field.Int("parent_ticket_id").
 			Comment("父工单ID").
 			Optional(),

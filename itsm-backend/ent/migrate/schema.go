@@ -1088,6 +1088,7 @@ var (
 		{Name: "assignee_id", Type: field.TypeInt, Nullable: true},
 		{Name: "created_by", Type: field.TypeInt},
 		{Name: "tenant_id", Type: field.TypeInt},
+		{Name: "project_id", Type: field.TypeInt, Nullable: true},
 		{Name: "planned_start_date", Type: field.TypeTime, Nullable: true},
 		{Name: "planned_end_date", Type: field.TypeTime, Nullable: true},
 		{Name: "actual_start_date", Type: field.TypeTime, Nullable: true},
@@ -1108,7 +1109,7 @@ var (
 		ForeignKeys: []*schema.ForeignKey{
 			{
 				Symbol:     "changes_standard_changes_changes",
-				Columns:    []*schema.Column{ChangesColumns[23]},
+				Columns:    []*schema.Column{ChangesColumns[24]},
 				RefColumns: []*schema.Column{StandardChangesColumns[0]},
 				OnDelete:   schema.SetNull,
 			},
@@ -2295,6 +2296,7 @@ var (
 		{Name: "status", Type: field.TypeString, Default: "new"},
 		{Name: "type", Type: field.TypeString, Default: "incident"},
 		{Name: "priority", Type: field.TypeString, Default: "medium"},
+		{Name: "project_id", Type: field.TypeInt, Nullable: true},
 		{Name: "sla_definition_id", Type: field.TypeInt, Nullable: true},
 		{Name: "sla_response_deadline", Type: field.TypeTime, Nullable: true},
 		{Name: "sla_resolution_deadline", Type: field.TypeTime, Nullable: true},
@@ -2342,13 +2344,13 @@ var (
 		ForeignKeys: []*schema.ForeignKey{
 			{
 				Symbol:     "incidents_email_conversations_incidents",
-				Columns:    []*schema.Column{IncidentsColumns[42]},
+				Columns:    []*schema.Column{IncidentsColumns[43]},
 				RefColumns: []*schema.Column{EmailConversationsColumns[0]},
 				OnDelete:   schema.SetNull,
 			},
 			{
 				Symbol:     "incidents_groups_assigned_incidents",
-				Columns:    []*schema.Column{IncidentsColumns[43]},
+				Columns:    []*schema.Column{IncidentsColumns[44]},
 				RefColumns: []*schema.Column{GroupsColumns[0]},
 				OnDelete:   schema.SetNull,
 			},
@@ -2357,12 +2359,12 @@ var (
 			{
 				Name:    "incident_tenant_id_email_conversation_id",
 				Unique:  true,
-				Columns: []*schema.Column{IncidentsColumns[37], IncidentsColumns[42]},
+				Columns: []*schema.Column{IncidentsColumns[38], IncidentsColumns[43]},
 			},
 			{
 				Name:    "incident_tenant_id_assignment_group_id",
 				Unique:  false,
-				Columns: []*schema.Column{IncidentsColumns[37], IncidentsColumns[43]},
+				Columns: []*schema.Column{IncidentsColumns[38], IncidentsColumns[44]},
 			},
 		},
 	}
@@ -3613,6 +3615,7 @@ var (
 		{Name: "resolution", Type: field.TypeString, Nullable: true, Size: 2147483647},
 		{Name: "impact", Type: field.TypeString, Nullable: true, Size: 2147483647},
 		{Name: "assignee_id", Type: field.TypeInt, Nullable: true},
+		{Name: "project_id", Type: field.TypeInt, Nullable: true},
 		{Name: "created_by", Type: field.TypeInt},
 		{Name: "tenant_id", Type: field.TypeInt},
 		{Name: "created_at", Type: field.TypeTime},
@@ -3630,7 +3633,7 @@ var (
 		ForeignKeys: []*schema.ForeignKey{
 			{
 				Symbol:     "problems_known_errors_problem",
-				Columns:    []*schema.Column{ProblemsColumns[19]},
+				Columns:    []*schema.Column{ProblemsColumns[20]},
 				RefColumns: []*schema.Column{KnownErrorsColumns[0]},
 				OnDelete:   schema.SetNull,
 			},
@@ -4452,6 +4455,22 @@ var (
 		{Name: "start_date", Type: field.TypeTime, Nullable: true},
 		{Name: "end_date", Type: field.TypeTime, Nullable: true},
 		{Name: "status", Type: field.TypeString, Default: "active"},
+		{Name: "type", Type: field.TypeString, Size: 16, Default: "internal"},
+		{Name: "parent_project_id", Type: field.TypeInt, Nullable: true},
+		{Name: "health", Type: field.TypeString, Size: 8, Default: "green"},
+		{Name: "progress", Type: field.TypeInt, Default: 0},
+		{Name: "actual_start", Type: field.TypeTime, Nullable: true},
+		{Name: "actual_end", Type: field.TypeTime, Nullable: true},
+		{Name: "closed_at", Type: field.TypeTime, Nullable: true},
+		{Name: "owner_team_id", Type: field.TypeInt, Nullable: true},
+		{Name: "template_id", Type: field.TypeInt, Nullable: true},
+		{Name: "template_applied_at", Type: field.TypeTime, Nullable: true},
+		{Name: "template_applied_by", Type: field.TypeInt, Nullable: true},
+		{Name: "budget_amount", Type: field.TypeFloat64, Nullable: true},
+		{Name: "budget_currency", Type: field.TypeString, Nullable: true, Size: 8},
+		{Name: "default_weekly_capacity_hours", Type: field.TypeFloat64, Nullable: true},
+		{Name: "version", Type: field.TypeInt, Default: 1},
+		{Name: "deleted_at", Type: field.TypeTime, Nullable: true},
 		{Name: "tenant_id", Type: field.TypeInt},
 		{Name: "created_at", Type: field.TypeTime},
 		{Name: "updated_at", Type: field.TypeTime},
@@ -4465,7 +4484,7 @@ var (
 		ForeignKeys: []*schema.ForeignKey{
 			{
 				Symbol:     "projects_departments_projects",
-				Columns:    []*schema.Column{ProjectsColumns[11]},
+				Columns:    []*schema.Column{ProjectsColumns[27]},
 				RefColumns: []*schema.Column{DepartmentsColumns[0]},
 				OnDelete:   schema.SetNull,
 			},
@@ -4474,7 +4493,398 @@ var (
 			{
 				Name:    "uq_project_tenant_code",
 				Unique:  true,
-				Columns: []*schema.Column{ProjectsColumns[8], ProjectsColumns[2]},
+				Columns: []*schema.Column{ProjectsColumns[24], ProjectsColumns[2]},
+			},
+			{
+				Name:    "idx_projects_tenant_status",
+				Unique:  false,
+				Columns: []*schema.Column{ProjectsColumns[24], ProjectsColumns[7]},
+			},
+			{
+				Name:    "idx_projects_tenant_type",
+				Unique:  false,
+				Columns: []*schema.Column{ProjectsColumns[24], ProjectsColumns[8]},
+			},
+			{
+				Name:    "idx_projects_owner_team",
+				Unique:  false,
+				Columns: []*schema.Column{ProjectsColumns[24], ProjectsColumns[15]},
+			},
+			{
+				Name:    "idx_projects_tenant_manager",
+				Unique:  false,
+				Columns: []*schema.Column{ProjectsColumns[24], ProjectsColumns[4]},
+			},
+		},
+	}
+	// ProjectAssetLinksColumns holds the columns for the "project_asset_links" table.
+	ProjectAssetLinksColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeInt, Increment: true},
+		{Name: "tenant_id", Type: field.TypeInt},
+		{Name: "project_id", Type: field.TypeInt},
+		{Name: "link_type", Type: field.TypeString, Size: 16},
+		{Name: "target_id", Type: field.TypeInt},
+		{Name: "note", Type: field.TypeString, Size: 512, Default: ""},
+		{Name: "created_by", Type: field.TypeInt, Nullable: true},
+		{Name: "deleted_at", Type: field.TypeTime, Nullable: true},
+		{Name: "deleted_by", Type: field.TypeInt, Nullable: true},
+		{Name: "created_at", Type: field.TypeTime},
+	}
+	// ProjectAssetLinksTable holds the schema information for the "project_asset_links" table.
+	ProjectAssetLinksTable = &schema.Table{
+		Name:       "project_asset_links",
+		Columns:    ProjectAssetLinksColumns,
+		PrimaryKey: []*schema.Column{ProjectAssetLinksColumns[0]},
+		Indexes: []*schema.Index{
+			{
+				Name:    "idx_project_asset_links_tenant_project",
+				Unique:  false,
+				Columns: []*schema.Column{ProjectAssetLinksColumns[1], ProjectAssetLinksColumns[2], ProjectAssetLinksColumns[9]},
+			},
+		},
+	}
+	// ProjectBaselinesColumns holds the columns for the "project_baselines" table.
+	ProjectBaselinesColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeInt, Increment: true},
+		{Name: "tenant_id", Type: field.TypeInt},
+		{Name: "project_id", Type: field.TypeInt},
+		{Name: "version", Type: field.TypeInt},
+		{Name: "snapshot", Type: field.TypeJSON, Nullable: true},
+		{Name: "reason", Type: field.TypeString, Nullable: true, Size: 512},
+		{Name: "created_by", Type: field.TypeInt, Nullable: true},
+		{Name: "created_at", Type: field.TypeTime},
+	}
+	// ProjectBaselinesTable holds the schema information for the "project_baselines" table.
+	ProjectBaselinesTable = &schema.Table{
+		Name:       "project_baselines",
+		Columns:    ProjectBaselinesColumns,
+		PrimaryKey: []*schema.Column{ProjectBaselinesColumns[0]},
+		Indexes: []*schema.Index{
+			{
+				Name:    "uk_project_baselines",
+				Unique:  true,
+				Columns: []*schema.Column{ProjectBaselinesColumns[2], ProjectBaselinesColumns[3]},
+			},
+		},
+	}
+	// ProjectClosuresColumns holds the columns for the "project_closures" table.
+	ProjectClosuresColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeInt, Increment: true},
+		{Name: "tenant_id", Type: field.TypeInt},
+		{Name: "project_id", Type: field.TypeInt},
+		{Name: "retro_kb_article_id", Type: field.TypeInt, Nullable: true, Default: 0},
+		{Name: "retro_generated_by", Type: field.TypeInt, Nullable: true, Default: 0},
+		{Name: "retro_generated_at", Type: field.TypeTime, Nullable: true},
+		{Name: "assets_confirmed_by", Type: field.TypeInt, Nullable: true, Default: 0},
+		{Name: "assets_confirmed_at", Type: field.TypeTime, Nullable: true},
+		{Name: "assets_note", Type: field.TypeString, Nullable: true, Size: 1024, Default: ""},
+		{Name: "assets_waived_by", Type: field.TypeInt, Nullable: true, Default: 0},
+		{Name: "assets_waived_at", Type: field.TypeTime, Nullable: true},
+		{Name: "assets_waive_reason", Type: field.TypeString, Nullable: true, Size: 512, Default: ""},
+		{Name: "members_recycled_by", Type: field.TypeInt, Nullable: true, Default: 0},
+		{Name: "members_recycled_at", Type: field.TypeTime, Nullable: true},
+		{Name: "members_recycled_count", Type: field.TypeInt, Nullable: true, Default: 0},
+		{Name: "csat_survey_id", Type: field.TypeInt, Nullable: true, Default: 0},
+		{Name: "csat_triggered_at", Type: field.TypeTime, Nullable: true},
+		{Name: "version", Type: field.TypeInt, Default: 1},
+		{Name: "created_by", Type: field.TypeInt, Nullable: true, Default: 0},
+		{Name: "created_at", Type: field.TypeTime},
+		{Name: "updated_at", Type: field.TypeTime},
+	}
+	// ProjectClosuresTable holds the schema information for the "project_closures" table.
+	ProjectClosuresTable = &schema.Table{
+		Name:       "project_closures",
+		Columns:    ProjectClosuresColumns,
+		PrimaryKey: []*schema.Column{ProjectClosuresColumns[0]},
+		Indexes: []*schema.Index{
+			{
+				Name:    "uk_project_closures",
+				Unique:  true,
+				Columns: []*schema.Column{ProjectClosuresColumns[1], ProjectClosuresColumns[2]},
+			},
+		},
+	}
+	// ProjectGatesColumns holds the columns for the "project_gates" table.
+	ProjectGatesColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeInt, Increment: true},
+		{Name: "tenant_id", Type: field.TypeInt},
+		{Name: "project_id", Type: field.TypeInt},
+		{Name: "gate", Type: field.TypeString, Size: 32},
+		{Name: "status", Type: field.TypeString, Size: 32, Default: "pending"},
+		{Name: "process_instance_id", Type: field.TypeInt, Nullable: true, Default: 0},
+		{Name: "approval_chain_id", Type: field.TypeString, Nullable: true, Size: 128, Default: ""},
+		{Name: "submitted_by", Type: field.TypeInt, Nullable: true, Default: 0},
+		{Name: "submitted_at", Type: field.TypeTime, Nullable: true},
+		{Name: "decided_by", Type: field.TypeInt, Nullable: true, Default: 0},
+		{Name: "decided_at", Type: field.TypeTime, Nullable: true},
+		{Name: "decision_comment", Type: field.TypeString, Nullable: true, Size: 512, Default: ""},
+		{Name: "blockers", Type: field.TypeJSON, Nullable: true},
+		{Name: "reject_count", Type: field.TypeInt, Default: 0},
+		{Name: "version", Type: field.TypeInt, Default: 1},
+		{Name: "created_at", Type: field.TypeTime},
+		{Name: "updated_at", Type: field.TypeTime},
+	}
+	// ProjectGatesTable holds the schema information for the "project_gates" table.
+	ProjectGatesTable = &schema.Table{
+		Name:       "project_gates",
+		Columns:    ProjectGatesColumns,
+		PrimaryKey: []*schema.Column{ProjectGatesColumns[0]},
+		Indexes: []*schema.Index{
+			{
+				Name:    "uk_project_gates",
+				Unique:  true,
+				Columns: []*schema.Column{ProjectGatesColumns[1], ProjectGatesColumns[2], ProjectGatesColumns[3]},
+			},
+			{
+				Name:    "projectgate_project_id_status",
+				Unique:  false,
+				Columns: []*schema.Column{ProjectGatesColumns[2], ProjectGatesColumns[4]},
+			},
+		},
+	}
+	// ProjectMembersColumns holds the columns for the "project_members" table.
+	ProjectMembersColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeInt, Increment: true},
+		{Name: "tenant_id", Type: field.TypeInt},
+		{Name: "project_id", Type: field.TypeInt},
+		{Name: "user_id", Type: field.TypeInt},
+		{Name: "project_role", Type: field.TypeString, Size: 16, Default: "member"},
+		{Name: "status", Type: field.TypeString, Size: 16, Default: "active"},
+		{Name: "weekly_capacity_hours", Type: field.TypeFloat64, Nullable: true},
+		{Name: "joined_at", Type: field.TypeTime},
+		{Name: "created_by", Type: field.TypeInt, Nullable: true},
+		{Name: "created_at", Type: field.TypeTime},
+		{Name: "updated_at", Type: field.TypeTime},
+	}
+	// ProjectMembersTable holds the schema information for the "project_members" table.
+	ProjectMembersTable = &schema.Table{
+		Name:       "project_members",
+		Columns:    ProjectMembersColumns,
+		PrimaryKey: []*schema.Column{ProjectMembersColumns[0]},
+		Indexes: []*schema.Index{
+			{
+				Name:    "uk_project_members_live",
+				Unique:  true,
+				Columns: []*schema.Column{ProjectMembersColumns[1], ProjectMembersColumns[2], ProjectMembersColumns[3]},
+				Annotation: &entsql.IndexAnnotation{
+					Where: "status = 'active'",
+				},
+			},
+			{
+				Name:    "idx_project_members_tenant_user",
+				Unique:  false,
+				Columns: []*schema.Column{ProjectMembersColumns[1], ProjectMembersColumns[3]},
+			},
+		},
+	}
+	// ProjectMilestonesColumns holds the columns for the "project_milestones" table.
+	ProjectMilestonesColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeInt, Increment: true},
+		{Name: "tenant_id", Type: field.TypeInt},
+		{Name: "project_id", Type: field.TypeInt},
+		{Name: "name", Type: field.TypeString, Size: 255},
+		{Name: "description", Type: field.TypeString, Nullable: true, Size: 2147483647},
+		{Name: "due_date", Type: field.TypeTime},
+		{Name: "status", Type: field.TypeString, Size: 16, Default: "planned"},
+		{Name: "owner_id", Type: field.TypeInt, Nullable: true},
+		{Name: "reached_at", Type: field.TypeTime, Nullable: true},
+		{Name: "created_at", Type: field.TypeTime},
+		{Name: "updated_at", Type: field.TypeTime},
+	}
+	// ProjectMilestonesTable holds the schema information for the "project_milestones" table.
+	ProjectMilestonesTable = &schema.Table{
+		Name:       "project_milestones",
+		Columns:    ProjectMilestonesColumns,
+		PrimaryKey: []*schema.Column{ProjectMilestonesColumns[0]},
+		Indexes: []*schema.Index{
+			{
+				Name:    "idx_project_milestones",
+				Unique:  false,
+				Columns: []*schema.Column{ProjectMilestonesColumns[1], ProjectMilestonesColumns[2], ProjectMilestonesColumns[6]},
+			},
+		},
+	}
+	// ProjectReportTemplatesColumns holds the columns for the "project_report_templates" table.
+	ProjectReportTemplatesColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeInt, Increment: true},
+		{Name: "tenant_id", Type: field.TypeInt},
+		{Name: "name", Type: field.TypeString, Size: 128},
+		{Name: "description", Type: field.TypeString, Nullable: true, Size: 2147483647},
+		{Name: "cadence", Type: field.TypeString, Size: 16, Default: "weekly"},
+		{Name: "sections", Type: field.TypeJSON, Nullable: true},
+		{Name: "status", Type: field.TypeString, Size: 16, Default: "draft"},
+		{Name: "version", Type: field.TypeInt, Default: 1},
+		{Name: "created_by", Type: field.TypeInt, Nullable: true},
+		{Name: "created_at", Type: field.TypeTime},
+		{Name: "updated_at", Type: field.TypeTime},
+		{Name: "deleted_at", Type: field.TypeTime, Nullable: true},
+	}
+	// ProjectReportTemplatesTable holds the schema information for the "project_report_templates" table.
+	ProjectReportTemplatesTable = &schema.Table{
+		Name:       "project_report_templates",
+		Columns:    ProjectReportTemplatesColumns,
+		PrimaryKey: []*schema.Column{ProjectReportTemplatesColumns[0]},
+		Indexes: []*schema.Index{
+			{
+				Name:    "uq_project_report_templates_tenant_name",
+				Unique:  true,
+				Columns: []*schema.Column{ProjectReportTemplatesColumns[1], ProjectReportTemplatesColumns[2]},
+			},
+			{
+				Name:    "idx_project_report_templates_tenant_status",
+				Unique:  false,
+				Columns: []*schema.Column{ProjectReportTemplatesColumns[1], ProjectReportTemplatesColumns[6]},
+			},
+		},
+	}
+	// ProjectRisksColumns holds the columns for the "project_risks" table.
+	ProjectRisksColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeInt, Increment: true},
+		{Name: "tenant_id", Type: field.TypeInt},
+		{Name: "project_id", Type: field.TypeInt},
+		{Name: "kind", Type: field.TypeString, Size: 16, Default: "risk"},
+		{Name: "title", Type: field.TypeString, Size: 255},
+		{Name: "description", Type: field.TypeString, Nullable: true, Size: 2147483647},
+		{Name: "level", Type: field.TypeString, Size: 16, Default: "medium"},
+		{Name: "probability", Type: field.TypeString, Nullable: true, Size: 16},
+		{Name: "impact", Type: field.TypeString, Nullable: true, Size: 16},
+		{Name: "owner_id", Type: field.TypeInt, Nullable: true},
+		{Name: "status", Type: field.TypeString, Size: 16, Default: "open"},
+		{Name: "resolution", Type: field.TypeString, Nullable: true, Size: 2147483647},
+		{Name: "related_ticket_id", Type: field.TypeInt, Nullable: true},
+		{Name: "related_problem_id", Type: field.TypeInt, Nullable: true},
+		{Name: "related_change_id", Type: field.TypeInt, Nullable: true},
+		{Name: "created_by", Type: field.TypeInt, Nullable: true},
+		{Name: "version", Type: field.TypeInt, Default: 1},
+		{Name: "deleted_at", Type: field.TypeTime, Nullable: true},
+		{Name: "created_at", Type: field.TypeTime},
+		{Name: "updated_at", Type: field.TypeTime},
+	}
+	// ProjectRisksTable holds the schema information for the "project_risks" table.
+	ProjectRisksTable = &schema.Table{
+		Name:       "project_risks",
+		Columns:    ProjectRisksColumns,
+		PrimaryKey: []*schema.Column{ProjectRisksColumns[0]},
+		Indexes: []*schema.Index{
+			{
+				Name:    "idx_project_risks_tenant_project_status",
+				Unique:  false,
+				Columns: []*schema.Column{ProjectRisksColumns[1], ProjectRisksColumns[2], ProjectRisksColumns[10]},
+			},
+			{
+				Name:    "idx_project_risks_tenant_project_level",
+				Unique:  false,
+				Columns: []*schema.Column{ProjectRisksColumns[1], ProjectRisksColumns[2], ProjectRisksColumns[6]},
+			},
+		},
+	}
+	// ProjectTasksColumns holds the columns for the "project_tasks" table.
+	ProjectTasksColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeInt, Increment: true},
+		{Name: "tenant_id", Type: field.TypeInt},
+		{Name: "project_id", Type: field.TypeInt},
+		{Name: "parent_task_id", Type: field.TypeInt, Nullable: true},
+		{Name: "name", Type: field.TypeString, Size: 255},
+		{Name: "description", Type: field.TypeString, Nullable: true, Size: 2147483647},
+		{Name: "assignee_id", Type: field.TypeInt, Nullable: true},
+		{Name: "status", Type: field.TypeString, Size: 16, Default: "todo"},
+		{Name: "priority", Type: field.TypeString, Size: 16, Default: "medium"},
+		{Name: "plan_start", Type: field.TypeTime, Nullable: true},
+		{Name: "plan_end", Type: field.TypeTime, Nullable: true},
+		{Name: "actual_start", Type: field.TypeTime, Nullable: true},
+		{Name: "actual_end", Type: field.TypeTime, Nullable: true},
+		{Name: "progress", Type: field.TypeInt, Default: 0},
+		{Name: "estimate_hours", Type: field.TypeFloat64, Nullable: true},
+		{Name: "actual_hours", Type: field.TypeFloat64, Nullable: true},
+		{Name: "linked_ticket_id", Type: field.TypeInt, Nullable: true},
+		{Name: "sort_order", Type: field.TypeInt, Default: 0},
+		{Name: "version", Type: field.TypeInt, Default: 1},
+		{Name: "created_by", Type: field.TypeInt, Nullable: true},
+		{Name: "created_at", Type: field.TypeTime},
+		{Name: "updated_at", Type: field.TypeTime},
+		{Name: "deleted_at", Type: field.TypeTime, Nullable: true},
+	}
+	// ProjectTasksTable holds the schema information for the "project_tasks" table.
+	ProjectTasksTable = &schema.Table{
+		Name:       "project_tasks",
+		Columns:    ProjectTasksColumns,
+		PrimaryKey: []*schema.Column{ProjectTasksColumns[0]},
+		Indexes: []*schema.Index{
+			{
+				Name:    "idx_project_tasks_project",
+				Unique:  false,
+				Columns: []*schema.Column{ProjectTasksColumns[1], ProjectTasksColumns[2], ProjectTasksColumns[7]},
+			},
+			{
+				Name:    "idx_project_tasks_assignee",
+				Unique:  false,
+				Columns: []*schema.Column{ProjectTasksColumns[1], ProjectTasksColumns[6], ProjectTasksColumns[7]},
+			},
+			{
+				Name:    "idx_project_tasks_parent",
+				Unique:  false,
+				Columns: []*schema.Column{ProjectTasksColumns[3]},
+			},
+		},
+	}
+	// ProjectTaskDependenciesColumns holds the columns for the "project_task_dependencies" table.
+	ProjectTaskDependenciesColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeInt, Increment: true},
+		{Name: "tenant_id", Type: field.TypeInt},
+		{Name: "task_id", Type: field.TypeInt},
+		{Name: "depends_on_task_id", Type: field.TypeInt},
+		{Name: "dep_type", Type: field.TypeString, Size: 8, Default: "fs"},
+		{Name: "created_at", Type: field.TypeTime},
+		{Name: "updated_at", Type: field.TypeTime},
+	}
+	// ProjectTaskDependenciesTable holds the schema information for the "project_task_dependencies" table.
+	ProjectTaskDependenciesTable = &schema.Table{
+		Name:       "project_task_dependencies",
+		Columns:    ProjectTaskDependenciesColumns,
+		PrimaryKey: []*schema.Column{ProjectTaskDependenciesColumns[0]},
+		Indexes: []*schema.Index{
+			{
+				Name:    "uk_project_task_deps",
+				Unique:  true,
+				Columns: []*schema.Column{ProjectTaskDependenciesColumns[2], ProjectTaskDependenciesColumns[3]},
+			},
+			{
+				Name:    "idx_project_task_deps_reverse",
+				Unique:  false,
+				Columns: []*schema.Column{ProjectTaskDependenciesColumns[3]},
+			},
+		},
+	}
+	// ProjectTemplatesColumns holds the columns for the "project_templates" table.
+	ProjectTemplatesColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeInt, Increment: true},
+		{Name: "tenant_id", Type: field.TypeInt},
+		{Name: "name", Type: field.TypeString, Size: 128},
+		{Name: "description", Type: field.TypeString, Nullable: true, Size: 2147483647},
+		{Name: "type", Type: field.TypeString, Size: 16, Default: "internal"},
+		{Name: "status", Type: field.TypeString, Size: 16, Default: "draft"},
+		{Name: "payload", Type: field.TypeJSON, Nullable: true},
+		{Name: "version", Type: field.TypeInt, Default: 1},
+		{Name: "created_by", Type: field.TypeInt, Nullable: true},
+		{Name: "created_at", Type: field.TypeTime},
+		{Name: "updated_at", Type: field.TypeTime},
+		{Name: "deleted_at", Type: field.TypeTime, Nullable: true},
+	}
+	// ProjectTemplatesTable holds the schema information for the "project_templates" table.
+	ProjectTemplatesTable = &schema.Table{
+		Name:       "project_templates",
+		Columns:    ProjectTemplatesColumns,
+		PrimaryKey: []*schema.Column{ProjectTemplatesColumns[0]},
+		Indexes: []*schema.Index{
+			{
+				Name:    "uq_project_templates_tenant_name",
+				Unique:  true,
+				Columns: []*schema.Column{ProjectTemplatesColumns[1], ProjectTemplatesColumns[2]},
+			},
+			{
+				Name:    "idx_project_templates_tenant_status",
+				Unique:  false,
+				Columns: []*schema.Column{ProjectTemplatesColumns[1], ProjectTemplatesColumns[5]},
 			},
 		},
 	}
@@ -5092,6 +5502,7 @@ var (
 		{Name: "tenant_id", Type: field.TypeInt},
 		{Name: "catalog_id", Type: field.TypeInt},
 		{Name: "ci_id", Type: field.TypeInt, Nullable: true},
+		{Name: "project_id", Type: field.TypeInt, Nullable: true},
 		{Name: "requester_id", Type: field.TypeInt},
 		{Name: "status", Type: field.TypeString, Default: "submitted"},
 		{Name: "title", Type: field.TypeString, Nullable: true},
@@ -5128,17 +5539,17 @@ var (
 			{
 				Name:    "servicerequest_tenant_id_created_at",
 				Unique:  false,
-				Columns: []*schema.Column{ServiceRequestsColumns[1], ServiceRequestsColumns[27]},
+				Columns: []*schema.Column{ServiceRequestsColumns[1], ServiceRequestsColumns[28]},
 			},
 			{
 				Name:    "servicerequest_tenant_id_requester_id_created_at",
 				Unique:  false,
-				Columns: []*schema.Column{ServiceRequestsColumns[1], ServiceRequestsColumns[4], ServiceRequestsColumns[27]},
+				Columns: []*schema.Column{ServiceRequestsColumns[1], ServiceRequestsColumns[5], ServiceRequestsColumns[28]},
 			},
 			{
 				Name:    "servicerequest_tenant_id_status_created_at",
 				Unique:  false,
-				Columns: []*schema.Column{ServiceRequestsColumns[1], ServiceRequestsColumns[5], ServiceRequestsColumns[27]},
+				Columns: []*schema.Column{ServiceRequestsColumns[1], ServiceRequestsColumns[6], ServiceRequestsColumns[28]},
 			},
 			{
 				Name:    "servicerequest_tenant_id_ci_id",
@@ -5148,7 +5559,7 @@ var (
 			{
 				Name:    "servicerequest_tenant_id_current_level",
 				Unique:  false,
-				Columns: []*schema.Column{ServiceRequestsColumns[1], ServiceRequestsColumns[15]},
+				Columns: []*schema.Column{ServiceRequestsColumns[1], ServiceRequestsColumns[16]},
 			},
 		},
 	}
@@ -5347,6 +5758,7 @@ var (
 	SurveyResponsesColumns = []*schema.Column{
 		{Name: "id", Type: field.TypeInt, Increment: true},
 		{Name: "ticket_id", Type: field.TypeInt, Nullable: true},
+		{Name: "project_id", Type: field.TypeInt, Nullable: true},
 		{Name: "respondent_id", Type: field.TypeInt, Nullable: true},
 		{Name: "answers", Type: field.TypeJSON},
 		{Name: "score", Type: field.TypeInt, Default: 0},
@@ -5363,7 +5775,7 @@ var (
 		ForeignKeys: []*schema.ForeignKey{
 			{
 				Symbol:     "survey_responses_surveys_responses",
-				Columns:    []*schema.Column{SurveyResponsesColumns[8]},
+				Columns:    []*schema.Column{SurveyResponsesColumns[9]},
 				RefColumns: []*schema.Column{SurveysColumns[0]},
 				OnDelete:   schema.NoAction,
 			},
@@ -5372,7 +5784,7 @@ var (
 			{
 				Name:    "surveyresponse_survey_id",
 				Unique:  false,
-				Columns: []*schema.Column{SurveyResponsesColumns[8]},
+				Columns: []*schema.Column{SurveyResponsesColumns[9]},
 			},
 			{
 				Name:    "surveyresponse_ticket_id",
@@ -5380,14 +5792,19 @@ var (
 				Columns: []*schema.Column{SurveyResponsesColumns[1]},
 			},
 			{
+				Name:    "surveyresponse_project_id",
+				Unique:  false,
+				Columns: []*schema.Column{SurveyResponsesColumns[2]},
+			},
+			{
 				Name:    "surveyresponse_tenant_id",
 				Unique:  false,
-				Columns: []*schema.Column{SurveyResponsesColumns[6]},
+				Columns: []*schema.Column{SurveyResponsesColumns[7]},
 			},
 			{
 				Name:    "surveyresponse_respondent_id",
 				Unique:  false,
-				Columns: []*schema.Column{SurveyResponsesColumns[2]},
+				Columns: []*schema.Column{SurveyResponsesColumns[3]},
 			},
 		},
 	}
@@ -5564,6 +5981,7 @@ var (
 		{Name: "template_id", Type: field.TypeInt, Nullable: true},
 		{Name: "category_id", Type: field.TypeInt, Nullable: true},
 		{Name: "department_id", Type: field.TypeInt, Nullable: true},
+		{Name: "project_id", Type: field.TypeInt, Nullable: true},
 		{Name: "parent_ticket_id", Type: field.TypeInt, Nullable: true},
 		{Name: "sla_definition_id", Type: field.TypeInt, Nullable: true},
 		{Name: "sla_response_deadline", Type: field.TypeTime, Nullable: true},
@@ -5609,61 +6027,61 @@ var (
 		ForeignKeys: []*schema.ForeignKey{
 			{
 				Symbol:     "tickets_configuration_items_tickets",
-				Columns:    []*schema.Column{TicketsColumns[42]},
+				Columns:    []*schema.Column{TicketsColumns[43]},
 				RefColumns: []*schema.Column{ConfigurationItemsColumns[0]},
 				OnDelete:   schema.SetNull,
 			},
 			{
 				Symbol:     "tickets_departments_tickets",
-				Columns:    []*schema.Column{TicketsColumns[43]},
+				Columns:    []*schema.Column{TicketsColumns[44]},
 				RefColumns: []*schema.Column{DepartmentsColumns[0]},
 				OnDelete:   schema.SetNull,
 			},
 			{
 				Symbol:     "tickets_problems_tickets",
-				Columns:    []*schema.Column{TicketsColumns[44]},
+				Columns:    []*schema.Column{TicketsColumns[45]},
 				RefColumns: []*schema.Column{ProblemsColumns[0]},
 				OnDelete:   schema.SetNull,
 			},
 			{
 				Symbol:     "tickets_sla_definitions_tickets",
-				Columns:    []*schema.Column{TicketsColumns[45]},
+				Columns:    []*schema.Column{TicketsColumns[46]},
 				RefColumns: []*schema.Column{SLADefinitionsColumns[0]},
 				OnDelete:   schema.SetNull,
 			},
 			{
 				Symbol:     "tickets_sla_policies_tickets",
-				Columns:    []*schema.Column{TicketsColumns[46]},
+				Columns:    []*schema.Column{TicketsColumns[47]},
 				RefColumns: []*schema.Column{SLAPoliciesColumns[0]},
 				OnDelete:   schema.SetNull,
 			},
 			{
 				Symbol:     "tickets_ticket_tags_tickets",
-				Columns:    []*schema.Column{TicketsColumns[47]},
+				Columns:    []*schema.Column{TicketsColumns[48]},
 				RefColumns: []*schema.Column{TicketTagsColumns[0]},
 				OnDelete:   schema.SetNull,
 			},
 			{
 				Symbol:     "tickets_ticket_templates_tickets",
-				Columns:    []*schema.Column{TicketsColumns[48]},
+				Columns:    []*schema.Column{TicketsColumns[49]},
 				RefColumns: []*schema.Column{TicketTemplatesColumns[0]},
 				OnDelete:   schema.SetNull,
 			},
 			{
 				Symbol:     "tickets_ticket_types_tickets",
-				Columns:    []*schema.Column{TicketsColumns[49]},
+				Columns:    []*schema.Column{TicketsColumns[50]},
 				RefColumns: []*schema.Column{TicketTypesColumns[0]},
 				OnDelete:   schema.SetNull,
 			},
 			{
 				Symbol:     "tickets_users_tickets",
-				Columns:    []*schema.Column{TicketsColumns[50]},
+				Columns:    []*schema.Column{TicketsColumns[51]},
 				RefColumns: []*schema.Column{UsersColumns[0]},
 				OnDelete:   schema.NoAction,
 			},
 			{
 				Symbol:     "tickets_users_assigned_tickets",
-				Columns:    []*schema.Column{TicketsColumns[51]},
+				Columns:    []*schema.Column{TicketsColumns[52]},
 				RefColumns: []*schema.Column{UsersColumns[0]},
 				OnDelete:   schema.SetNull,
 			},
@@ -5692,17 +6110,17 @@ var (
 			{
 				Name:    "ticket_requester_id",
 				Unique:  false,
-				Columns: []*schema.Column{TicketsColumns[50]},
+				Columns: []*schema.Column{TicketsColumns[51]},
 			},
 			{
 				Name:    "ticket_assignee_id",
 				Unique:  false,
-				Columns: []*schema.Column{TicketsColumns[51]},
+				Columns: []*schema.Column{TicketsColumns[52]},
 			},
 			{
 				Name:    "ticket_created_at",
 				Unique:  false,
-				Columns: []*schema.Column{TicketsColumns[34]},
+				Columns: []*schema.Column{TicketsColumns[35]},
 			},
 			{
 				Name:    "ticket_tenant_id",
@@ -5717,12 +6135,12 @@ var (
 			{
 				Name:    "ticket_tenant_id_requester_id",
 				Unique:  false,
-				Columns: []*schema.Column{TicketsColumns[12], TicketsColumns[50]},
+				Columns: []*schema.Column{TicketsColumns[12], TicketsColumns[51]},
 			},
 			{
 				Name:    "ticket_tenant_id_ticket_type_id",
 				Unique:  false,
-				Columns: []*schema.Column{TicketsColumns[12], TicketsColumns[49]},
+				Columns: []*schema.Column{TicketsColumns[12], TicketsColumns[50]},
 			},
 			{
 				Name:    "ticket_status_priority",
@@ -5732,7 +6150,7 @@ var (
 			{
 				Name:    "ticket_requester_id_status",
 				Unique:  false,
-				Columns: []*schema.Column{TicketsColumns[50], TicketsColumns[5]},
+				Columns: []*schema.Column{TicketsColumns[51], TicketsColumns[5]},
 			},
 		},
 	}
@@ -7199,6 +7617,17 @@ var (
 		ProcessVariablesTable,
 		ProcessVersionChangelogsTable,
 		ProjectsTable,
+		ProjectAssetLinksTable,
+		ProjectBaselinesTable,
+		ProjectClosuresTable,
+		ProjectGatesTable,
+		ProjectMembersTable,
+		ProjectMilestonesTable,
+		ProjectReportTemplatesTable,
+		ProjectRisksTable,
+		ProjectTasksTable,
+		ProjectTaskDependenciesTable,
+		ProjectTemplatesTable,
 		PromptTemplatesTable,
 		ProvisioningTasksTable,
 		RelationshipTypesTable,

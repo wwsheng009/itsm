@@ -42,6 +42,20 @@ func (_c *SurveyResponseCreate) SetNillableTicketID(v *int) *SurveyResponseCreat
 	return _c
 }
 
+// SetProjectID sets the "project_id" field.
+func (_c *SurveyResponseCreate) SetProjectID(v int) *SurveyResponseCreate {
+	_c.mutation.SetProjectID(v)
+	return _c
+}
+
+// SetNillableProjectID sets the "project_id" field if the given value is not nil.
+func (_c *SurveyResponseCreate) SetNillableProjectID(v *int) *SurveyResponseCreate {
+	if v != nil {
+		_c.SetProjectID(*v)
+	}
+	return _c
+}
+
 // SetRespondentID sets the "respondent_id" field.
 func (_c *SurveyResponseCreate) SetRespondentID(v int) *SurveyResponseCreate {
 	_c.mutation.SetRespondentID(v)
@@ -214,6 +228,10 @@ func (_c *SurveyResponseCreate) createSpec() (*SurveyResponse, *sqlgraph.CreateS
 	if value, ok := _c.mutation.TicketID(); ok {
 		_spec.SetField(surveyresponse.FieldTicketID, field.TypeInt, value)
 		_node.TicketID = value
+	}
+	if value, ok := _c.mutation.ProjectID(); ok {
+		_spec.SetField(surveyresponse.FieldProjectID, field.TypeInt, value)
+		_node.ProjectID = value
 	}
 	if value, ok := _c.mutation.RespondentID(); ok {
 		_spec.SetField(surveyresponse.FieldRespondentID, field.TypeInt, value)

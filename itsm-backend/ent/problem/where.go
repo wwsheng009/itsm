@@ -110,6 +110,11 @@ func AssigneeID(v int) predicate.Problem {
 	return predicate.Problem(sql.FieldEQ(FieldAssigneeID, v))
 }
 
+// ProjectID applies equality check predicate on the "project_id" field. It's identical to ProjectIDEQ.
+func ProjectID(v int) predicate.Problem {
+	return predicate.Problem(sql.FieldEQ(FieldProjectID, v))
+}
+
 // CreatedBy applies equality check predicate on the "created_by" field. It's identical to CreatedByEQ.
 func CreatedBy(v int) predicate.Problem {
 	return predicate.Problem(sql.FieldEQ(FieldCreatedBy, v))
@@ -913,6 +918,56 @@ func AssigneeIDIsNil() predicate.Problem {
 // AssigneeIDNotNil applies the NotNil predicate on the "assignee_id" field.
 func AssigneeIDNotNil() predicate.Problem {
 	return predicate.Problem(sql.FieldNotNull(FieldAssigneeID))
+}
+
+// ProjectIDEQ applies the EQ predicate on the "project_id" field.
+func ProjectIDEQ(v int) predicate.Problem {
+	return predicate.Problem(sql.FieldEQ(FieldProjectID, v))
+}
+
+// ProjectIDNEQ applies the NEQ predicate on the "project_id" field.
+func ProjectIDNEQ(v int) predicate.Problem {
+	return predicate.Problem(sql.FieldNEQ(FieldProjectID, v))
+}
+
+// ProjectIDIn applies the In predicate on the "project_id" field.
+func ProjectIDIn(vs ...int) predicate.Problem {
+	return predicate.Problem(sql.FieldIn(FieldProjectID, vs...))
+}
+
+// ProjectIDNotIn applies the NotIn predicate on the "project_id" field.
+func ProjectIDNotIn(vs ...int) predicate.Problem {
+	return predicate.Problem(sql.FieldNotIn(FieldProjectID, vs...))
+}
+
+// ProjectIDGT applies the GT predicate on the "project_id" field.
+func ProjectIDGT(v int) predicate.Problem {
+	return predicate.Problem(sql.FieldGT(FieldProjectID, v))
+}
+
+// ProjectIDGTE applies the GTE predicate on the "project_id" field.
+func ProjectIDGTE(v int) predicate.Problem {
+	return predicate.Problem(sql.FieldGTE(FieldProjectID, v))
+}
+
+// ProjectIDLT applies the LT predicate on the "project_id" field.
+func ProjectIDLT(v int) predicate.Problem {
+	return predicate.Problem(sql.FieldLT(FieldProjectID, v))
+}
+
+// ProjectIDLTE applies the LTE predicate on the "project_id" field.
+func ProjectIDLTE(v int) predicate.Problem {
+	return predicate.Problem(sql.FieldLTE(FieldProjectID, v))
+}
+
+// ProjectIDIsNil applies the IsNil predicate on the "project_id" field.
+func ProjectIDIsNil() predicate.Problem {
+	return predicate.Problem(sql.FieldIsNull(FieldProjectID))
+}
+
+// ProjectIDNotNil applies the NotNil predicate on the "project_id" field.
+func ProjectIDNotNil() predicate.Problem {
+	return predicate.Problem(sql.FieldNotNull(FieldProjectID))
 }
 
 // CreatedByEQ applies the EQ predicate on the "created_by" field.

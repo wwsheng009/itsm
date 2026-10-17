@@ -91,6 +91,20 @@ func (_c *IncidentCreate) SetNillablePriority(v *string) *IncidentCreate {
 	return _c
 }
 
+// SetProjectID sets the "project_id" field.
+func (_c *IncidentCreate) SetProjectID(v int) *IncidentCreate {
+	_c.mutation.SetProjectID(v)
+	return _c
+}
+
+// SetNillableProjectID sets the "project_id" field if the given value is not nil.
+func (_c *IncidentCreate) SetNillableProjectID(v *int) *IncidentCreate {
+	if v != nil {
+		_c.SetProjectID(*v)
+	}
+	return _c
+}
+
 // SetSLADefinitionID sets the "sla_definition_id" field.
 func (_c *IncidentCreate) SetSLADefinitionID(v int) *IncidentCreate {
 	_c.mutation.SetSLADefinitionID(v)
@@ -953,6 +967,10 @@ func (_c *IncidentCreate) createSpec() (*Incident, *sqlgraph.CreateSpec) {
 	if value, ok := _c.mutation.Priority(); ok {
 		_spec.SetField(incident.FieldPriority, field.TypeString, value)
 		_node.Priority = value
+	}
+	if value, ok := _c.mutation.ProjectID(); ok {
+		_spec.SetField(incident.FieldProjectID, field.TypeInt, value)
+		_node.ProjectID = value
 	}
 	if value, ok := _c.mutation.SLADefinitionID(); ok {
 		_spec.SetField(incident.FieldSLADefinitionID, field.TypeInt, value)

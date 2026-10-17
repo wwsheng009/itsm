@@ -53,6 +53,9 @@ func (Change) Fields() []ent.Field {
 		field.Int("tenant_id").
 			Comment("租户ID").
 			Positive(),
+		field.Int("project_id").
+			Comment("所属项目ID（P0；同租户）").
+			Optional(),
 		field.Time("planned_start_date").
 			Comment("计划开始时间").
 			Optional(),

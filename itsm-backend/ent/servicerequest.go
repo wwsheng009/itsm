@@ -24,6 +24,8 @@ type ServiceRequest struct {
 	CatalogID int `json:"catalog_id,omitempty"`
 	// 关联CI ID
 	CiID int `json:"ci_id,omitempty"`
+	// 所属项目ID（P0；同租户）
+	ProjectID int `json:"project_id,omitempty"`
 	// 申请人ID
 	RequesterID int `json:"requester_id,omitempty"`
 	// 状态: submitted|approved|rejected|in_progress|completed|cancelled
@@ -88,7 +90,7 @@ func (*ServiceRequest) scanValues(columns []string) ([]any, error) {
 			values[i] = new([]byte)
 		case servicerequest.FieldNeedsPublicIP, servicerequest.FieldComplianceAck:
 			values[i] = new(sql.NullBool)
-		case servicerequest.FieldID, servicerequest.FieldTenantID, servicerequest.FieldCatalogID, servicerequest.FieldCiID, servicerequest.FieldRequesterID, servicerequest.FieldCurrentLevel, servicerequest.FieldTotalLevels, servicerequest.FieldProcessorID, servicerequest.FieldVersion:
+		case servicerequest.FieldID, servicerequest.FieldTenantID, servicerequest.FieldCatalogID, servicerequest.FieldCiID, servicerequest.FieldProjectID, servicerequest.FieldRequesterID, servicerequest.FieldCurrentLevel, servicerequest.FieldTotalLevels, servicerequest.FieldProcessorID, servicerequest.FieldVersion:
 			values[i] = new(sql.NullInt64)
 		case servicerequest.FieldStatus, servicerequest.FieldTitle, servicerequest.FieldReason, servicerequest.FieldCostCenter, servicerequest.FieldDataClassification, servicerequest.FieldCurrentApprover, servicerequest.FieldApproverComment, servicerequest.FieldCompletionNote, servicerequest.FieldLastError:
 			values[i] = new(sql.NullString)
@@ -132,6 +134,12 @@ func (_m *ServiceRequest) assignValues(columns []string, values []any) error {
 				return fmt.Errorf("unexpected type %T for field ci_id", values[i])
 			} else if value.Valid {
 				_m.CiID = int(value.Int64)
+			}
+		case servicerequest.FieldProjectID:
+			if value, ok := values[i].(*sql.NullInt64); !ok {
+				return fmt.Errorf("unexpected type %T for field project_id", values[i])
+			} else if value.Valid {
+				_m.ProjectID = int(value.Int64)
 			}
 		case servicerequest.FieldRequesterID:
 			if value, ok := values[i].(*sql.NullInt64); !ok {
@@ -340,6 +348,9 @@ func (_m *ServiceRequest) String() string {
 	builder.WriteString(", ")
 	builder.WriteString("ci_id=")
 	builder.WriteString(fmt.Sprintf("%v", _m.CiID))
+	builder.WriteString(", ")
+	builder.WriteString("project_id=")
+	builder.WriteString(fmt.Sprintf("%v", _m.ProjectID))
 	builder.WriteString(", ")
 	builder.WriteString("requester_id=")
 	builder.WriteString(fmt.Sprintf("%v", _m.RequesterID))

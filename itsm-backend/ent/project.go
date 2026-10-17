@@ -32,8 +32,40 @@ type Project struct {
 	StartDate time.Time `json:"start_date,omitempty"`
 	// 结束日期
 	EndDate time.Time `json:"end_date,omitempty"`
-	// 状态: active, completed, suspended
+	// 状态: planning|active|suspended|completed|cancelled（P0 受控；存量映射见 docs/project-management/plan）
 	Status string `json:"status,omitempty"`
+	// 项目类型: internal|improvement|delivery（P0）
+	Type string `json:"type,omitempty"`
+	// 父子项目（P0）
+	ParentProjectID int `json:"parent_project_id,omitempty"`
+	// 健康度: green|yellow|red（P0）
+	Health string `json:"health,omitempty"`
+	// 进度 0-100（P0）
+	Progress int `json:"progress,omitempty"`
+	// 实际开始时间（P0）
+	ActualStart time.Time `json:"actual_start,omitempty"`
+	// 实际结束时间（P0）
+	ActualEnd time.Time `json:"actual_end,omitempty"`
+	// 结项时间（P0）
+	ClosedAt time.Time `json:"closed_at,omitempty"`
+	// 团队归口（P0，集成契约 §1-2）
+	OwnerTeamID int `json:"owner_team_id,omitempty"`
+	// 已应用的项目模板ID（PE-11；非空即已应用，幂等闸门）
+	TemplateID int `json:"template_id,omitempty"`
+	// 模板应用时间（PE-11）
+	TemplateAppliedAt time.Time `json:"template_applied_at,omitempty"`
+	// 模板应用人ID（PE-11）
+	TemplateAppliedBy int `json:"template_applied_by,omitempty"`
+	// 项目预算金额（P2 轻量预算；不做财务级核算）
+	BudgetAmount *float64 `json:"budget_amount,omitempty"`
+	// 预算币种（P2；空=租户默认）
+	BudgetCurrency *string `json:"budget_currency,omitempty"`
+	// 项目周容量默认（小时；P2 资源热图；NULL=内置 40h）
+	DefaultWeeklyCapacityHours *float64 `json:"default_weekly_capacity_hours,omitempty"`
+	// 乐观锁版本（P0）
+	Version int `json:"version,omitempty"`
+	// 软删除时间（P0；DELETE 语义）
+	DeletedAt *time.Time `json:"deleted_at,omitempty"`
 	// 租户ID
 	TenantID int `json:"tenant_id,omitempty"`
 	// 创建时间
@@ -93,11 +125,13 @@ func (*Project) scanValues(columns []string) ([]any, error) {
 	values := make([]any, len(columns))
 	for i := range columns {
 		switch columns[i] {
-		case project.FieldID, project.FieldManagerID, project.FieldDepartmentID, project.FieldTenantID:
+		case project.FieldBudgetAmount, project.FieldDefaultWeeklyCapacityHours:
+			values[i] = new(sql.NullFloat64)
+		case project.FieldID, project.FieldManagerID, project.FieldDepartmentID, project.FieldParentProjectID, project.FieldProgress, project.FieldOwnerTeamID, project.FieldTemplateID, project.FieldTemplateAppliedBy, project.FieldVersion, project.FieldTenantID:
 			values[i] = new(sql.NullInt64)
-		case project.FieldName, project.FieldCode, project.FieldDescription, project.FieldStatus:
+		case project.FieldName, project.FieldCode, project.FieldDescription, project.FieldStatus, project.FieldType, project.FieldHealth, project.FieldBudgetCurrency:
 			values[i] = new(sql.NullString)
-		case project.FieldStartDate, project.FieldEndDate, project.FieldCreatedAt, project.FieldUpdatedAt:
+		case project.FieldStartDate, project.FieldEndDate, project.FieldActualStart, project.FieldActualEnd, project.FieldClosedAt, project.FieldTemplateAppliedAt, project.FieldDeletedAt, project.FieldCreatedAt, project.FieldUpdatedAt:
 			values[i] = new(sql.NullTime)
 		default:
 			values[i] = new(sql.UnknownType)
@@ -167,6 +201,106 @@ func (_m *Project) assignValues(columns []string, values []any) error {
 				return fmt.Errorf("unexpected type %T for field status", values[i])
 			} else if value.Valid {
 				_m.Status = value.String
+			}
+		case project.FieldType:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field type", values[i])
+			} else if value.Valid {
+				_m.Type = value.String
+			}
+		case project.FieldParentProjectID:
+			if value, ok := values[i].(*sql.NullInt64); !ok {
+				return fmt.Errorf("unexpected type %T for field parent_project_id", values[i])
+			} else if value.Valid {
+				_m.ParentProjectID = int(value.Int64)
+			}
+		case project.FieldHealth:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field health", values[i])
+			} else if value.Valid {
+				_m.Health = value.String
+			}
+		case project.FieldProgress:
+			if value, ok := values[i].(*sql.NullInt64); !ok {
+				return fmt.Errorf("unexpected type %T for field progress", values[i])
+			} else if value.Valid {
+				_m.Progress = int(value.Int64)
+			}
+		case project.FieldActualStart:
+			if value, ok := values[i].(*sql.NullTime); !ok {
+				return fmt.Errorf("unexpected type %T for field actual_start", values[i])
+			} else if value.Valid {
+				_m.ActualStart = value.Time
+			}
+		case project.FieldActualEnd:
+			if value, ok := values[i].(*sql.NullTime); !ok {
+				return fmt.Errorf("unexpected type %T for field actual_end", values[i])
+			} else if value.Valid {
+				_m.ActualEnd = value.Time
+			}
+		case project.FieldClosedAt:
+			if value, ok := values[i].(*sql.NullTime); !ok {
+				return fmt.Errorf("unexpected type %T for field closed_at", values[i])
+			} else if value.Valid {
+				_m.ClosedAt = value.Time
+			}
+		case project.FieldOwnerTeamID:
+			if value, ok := values[i].(*sql.NullInt64); !ok {
+				return fmt.Errorf("unexpected type %T for field owner_team_id", values[i])
+			} else if value.Valid {
+				_m.OwnerTeamID = int(value.Int64)
+			}
+		case project.FieldTemplateID:
+			if value, ok := values[i].(*sql.NullInt64); !ok {
+				return fmt.Errorf("unexpected type %T for field template_id", values[i])
+			} else if value.Valid {
+				_m.TemplateID = int(value.Int64)
+			}
+		case project.FieldTemplateAppliedAt:
+			if value, ok := values[i].(*sql.NullTime); !ok {
+				return fmt.Errorf("unexpected type %T for field template_applied_at", values[i])
+			} else if value.Valid {
+				_m.TemplateAppliedAt = value.Time
+			}
+		case project.FieldTemplateAppliedBy:
+			if value, ok := values[i].(*sql.NullInt64); !ok {
+				return fmt.Errorf("unexpected type %T for field template_applied_by", values[i])
+			} else if value.Valid {
+				_m.TemplateAppliedBy = int(value.Int64)
+			}
+		case project.FieldBudgetAmount:
+			if value, ok := values[i].(*sql.NullFloat64); !ok {
+				return fmt.Errorf("unexpected type %T for field budget_amount", values[i])
+			} else if value.Valid {
+				_m.BudgetAmount = new(float64)
+				*_m.BudgetAmount = value.Float64
+			}
+		case project.FieldBudgetCurrency:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field budget_currency", values[i])
+			} else if value.Valid {
+				_m.BudgetCurrency = new(string)
+				*_m.BudgetCurrency = value.String
+			}
+		case project.FieldDefaultWeeklyCapacityHours:
+			if value, ok := values[i].(*sql.NullFloat64); !ok {
+				return fmt.Errorf("unexpected type %T for field default_weekly_capacity_hours", values[i])
+			} else if value.Valid {
+				_m.DefaultWeeklyCapacityHours = new(float64)
+				*_m.DefaultWeeklyCapacityHours = value.Float64
+			}
+		case project.FieldVersion:
+			if value, ok := values[i].(*sql.NullInt64); !ok {
+				return fmt.Errorf("unexpected type %T for field version", values[i])
+			} else if value.Valid {
+				_m.Version = int(value.Int64)
+			}
+		case project.FieldDeletedAt:
+			if value, ok := values[i].(*sql.NullTime); !ok {
+				return fmt.Errorf("unexpected type %T for field deleted_at", values[i])
+			} else if value.Valid {
+				_m.DeletedAt = new(time.Time)
+				*_m.DeletedAt = value.Time
 			}
 		case project.FieldTenantID:
 			if value, ok := values[i].(*sql.NullInt64); !ok {
@@ -260,6 +394,62 @@ func (_m *Project) String() string {
 	builder.WriteString(", ")
 	builder.WriteString("status=")
 	builder.WriteString(_m.Status)
+	builder.WriteString(", ")
+	builder.WriteString("type=")
+	builder.WriteString(_m.Type)
+	builder.WriteString(", ")
+	builder.WriteString("parent_project_id=")
+	builder.WriteString(fmt.Sprintf("%v", _m.ParentProjectID))
+	builder.WriteString(", ")
+	builder.WriteString("health=")
+	builder.WriteString(_m.Health)
+	builder.WriteString(", ")
+	builder.WriteString("progress=")
+	builder.WriteString(fmt.Sprintf("%v", _m.Progress))
+	builder.WriteString(", ")
+	builder.WriteString("actual_start=")
+	builder.WriteString(_m.ActualStart.Format(time.ANSIC))
+	builder.WriteString(", ")
+	builder.WriteString("actual_end=")
+	builder.WriteString(_m.ActualEnd.Format(time.ANSIC))
+	builder.WriteString(", ")
+	builder.WriteString("closed_at=")
+	builder.WriteString(_m.ClosedAt.Format(time.ANSIC))
+	builder.WriteString(", ")
+	builder.WriteString("owner_team_id=")
+	builder.WriteString(fmt.Sprintf("%v", _m.OwnerTeamID))
+	builder.WriteString(", ")
+	builder.WriteString("template_id=")
+	builder.WriteString(fmt.Sprintf("%v", _m.TemplateID))
+	builder.WriteString(", ")
+	builder.WriteString("template_applied_at=")
+	builder.WriteString(_m.TemplateAppliedAt.Format(time.ANSIC))
+	builder.WriteString(", ")
+	builder.WriteString("template_applied_by=")
+	builder.WriteString(fmt.Sprintf("%v", _m.TemplateAppliedBy))
+	builder.WriteString(", ")
+	if v := _m.BudgetAmount; v != nil {
+		builder.WriteString("budget_amount=")
+		builder.WriteString(fmt.Sprintf("%v", *v))
+	}
+	builder.WriteString(", ")
+	if v := _m.BudgetCurrency; v != nil {
+		builder.WriteString("budget_currency=")
+		builder.WriteString(*v)
+	}
+	builder.WriteString(", ")
+	if v := _m.DefaultWeeklyCapacityHours; v != nil {
+		builder.WriteString("default_weekly_capacity_hours=")
+		builder.WriteString(fmt.Sprintf("%v", *v))
+	}
+	builder.WriteString(", ")
+	builder.WriteString("version=")
+	builder.WriteString(fmt.Sprintf("%v", _m.Version))
+	builder.WriteString(", ")
+	if v := _m.DeletedAt; v != nil {
+		builder.WriteString("deleted_at=")
+		builder.WriteString(v.Format(time.ANSIC))
+	}
 	builder.WriteString(", ")
 	builder.WriteString("tenant_id=")
 	builder.WriteString(fmt.Sprintf("%v", _m.TenantID))

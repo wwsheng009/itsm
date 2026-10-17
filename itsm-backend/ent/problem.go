@@ -39,6 +39,8 @@ type Problem struct {
 	Impact string `json:"impact,omitempty"`
 	// 处理人ID
 	AssigneeID int `json:"assignee_id,omitempty"`
+	// 所属项目ID（P0；同租户）
+	ProjectID int `json:"project_id,omitempty"`
 	// 创建人ID
 	CreatedBy int `json:"created_by,omitempty"`
 	// 租户ID
@@ -105,7 +107,7 @@ func (*Problem) scanValues(columns []string) ([]any, error) {
 	values := make([]any, len(columns))
 	for i := range columns {
 		switch columns[i] {
-		case problem.FieldID, problem.FieldAssigneeID, problem.FieldCreatedBy, problem.FieldTenantID:
+		case problem.FieldID, problem.FieldAssigneeID, problem.FieldProjectID, problem.FieldCreatedBy, problem.FieldTenantID:
 			values[i] = new(sql.NullInt64)
 		case problem.FieldProblemNumber, problem.FieldTitle, problem.FieldDescription, problem.FieldStatus, problem.FieldPriority, problem.FieldCategory, problem.FieldRootCause, problem.FieldWorkaround, problem.FieldResolution, problem.FieldImpact:
 			values[i] = new(sql.NullString)
@@ -199,6 +201,12 @@ func (_m *Problem) assignValues(columns []string, values []any) error {
 				return fmt.Errorf("unexpected type %T for field assignee_id", values[i])
 			} else if value.Valid {
 				_m.AssigneeID = int(value.Int64)
+			}
+		case problem.FieldProjectID:
+			if value, ok := values[i].(*sql.NullInt64); !ok {
+				return fmt.Errorf("unexpected type %T for field project_id", values[i])
+			} else if value.Valid {
+				_m.ProjectID = int(value.Int64)
 			}
 		case problem.FieldCreatedBy:
 			if value, ok := values[i].(*sql.NullInt64); !ok {
@@ -335,6 +343,9 @@ func (_m *Problem) String() string {
 	builder.WriteString(", ")
 	builder.WriteString("assignee_id=")
 	builder.WriteString(fmt.Sprintf("%v", _m.AssigneeID))
+	builder.WriteString(", ")
+	builder.WriteString("project_id=")
+	builder.WriteString(fmt.Sprintf("%v", _m.ProjectID))
 	builder.WriteString(", ")
 	builder.WriteString("created_by=")
 	builder.WriteString(fmt.Sprintf("%v", _m.CreatedBy))

@@ -98,6 +98,33 @@ func (_u *ServiceRequestUpdate) ClearCiID() *ServiceRequestUpdate {
 	return _u
 }
 
+// SetProjectID sets the "project_id" field.
+func (_u *ServiceRequestUpdate) SetProjectID(v int) *ServiceRequestUpdate {
+	_u.mutation.ResetProjectID()
+	_u.mutation.SetProjectID(v)
+	return _u
+}
+
+// SetNillableProjectID sets the "project_id" field if the given value is not nil.
+func (_u *ServiceRequestUpdate) SetNillableProjectID(v *int) *ServiceRequestUpdate {
+	if v != nil {
+		_u.SetProjectID(*v)
+	}
+	return _u
+}
+
+// AddProjectID adds value to the "project_id" field.
+func (_u *ServiceRequestUpdate) AddProjectID(v int) *ServiceRequestUpdate {
+	_u.mutation.AddProjectID(v)
+	return _u
+}
+
+// ClearProjectID clears the value of the "project_id" field.
+func (_u *ServiceRequestUpdate) ClearProjectID() *ServiceRequestUpdate {
+	_u.mutation.ClearProjectID()
+	return _u
+}
+
 // SetRequesterID sets the "requester_id" field.
 func (_u *ServiceRequestUpdate) SetRequesterID(v int) *ServiceRequestUpdate {
 	_u.mutation.ResetRequesterID()
@@ -672,6 +699,15 @@ func (_u *ServiceRequestUpdate) sqlSave(ctx context.Context) (_node int, err err
 	if _u.mutation.CiIDCleared() {
 		_spec.ClearField(servicerequest.FieldCiID, field.TypeInt)
 	}
+	if value, ok := _u.mutation.ProjectID(); ok {
+		_spec.SetField(servicerequest.FieldProjectID, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.AddedProjectID(); ok {
+		_spec.AddField(servicerequest.FieldProjectID, field.TypeInt, value)
+	}
+	if _u.mutation.ProjectIDCleared() {
+		_spec.ClearField(servicerequest.FieldProjectID, field.TypeInt)
+	}
 	if value, ok := _u.mutation.RequesterID(); ok {
 		_spec.SetField(servicerequest.FieldRequesterID, field.TypeInt, value)
 	}
@@ -909,6 +945,33 @@ func (_u *ServiceRequestUpdateOne) AddCiID(v int) *ServiceRequestUpdateOne {
 // ClearCiID clears the value of the "ci_id" field.
 func (_u *ServiceRequestUpdateOne) ClearCiID() *ServiceRequestUpdateOne {
 	_u.mutation.ClearCiID()
+	return _u
+}
+
+// SetProjectID sets the "project_id" field.
+func (_u *ServiceRequestUpdateOne) SetProjectID(v int) *ServiceRequestUpdateOne {
+	_u.mutation.ResetProjectID()
+	_u.mutation.SetProjectID(v)
+	return _u
+}
+
+// SetNillableProjectID sets the "project_id" field if the given value is not nil.
+func (_u *ServiceRequestUpdateOne) SetNillableProjectID(v *int) *ServiceRequestUpdateOne {
+	if v != nil {
+		_u.SetProjectID(*v)
+	}
+	return _u
+}
+
+// AddProjectID adds value to the "project_id" field.
+func (_u *ServiceRequestUpdateOne) AddProjectID(v int) *ServiceRequestUpdateOne {
+	_u.mutation.AddProjectID(v)
+	return _u
+}
+
+// ClearProjectID clears the value of the "project_id" field.
+func (_u *ServiceRequestUpdateOne) ClearProjectID() *ServiceRequestUpdateOne {
+	_u.mutation.ClearProjectID()
 	return _u
 }
 
@@ -1515,6 +1578,15 @@ func (_u *ServiceRequestUpdateOne) sqlSave(ctx context.Context) (_node *ServiceR
 	}
 	if _u.mutation.CiIDCleared() {
 		_spec.ClearField(servicerequest.FieldCiID, field.TypeInt)
+	}
+	if value, ok := _u.mutation.ProjectID(); ok {
+		_spec.SetField(servicerequest.FieldProjectID, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.AddedProjectID(); ok {
+		_spec.AddField(servicerequest.FieldProjectID, field.TypeInt, value)
+	}
+	if _u.mutation.ProjectIDCleared() {
+		_spec.ClearField(servicerequest.FieldProjectID, field.TypeInt)
 	}
 	if value, ok := _u.mutation.RequesterID(); ok {
 		_spec.SetField(servicerequest.FieldRequesterID, field.TypeInt, value)

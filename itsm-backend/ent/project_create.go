@@ -119,6 +119,230 @@ func (_c *ProjectCreate) SetNillableStatus(v *string) *ProjectCreate {
 	return _c
 }
 
+// SetType sets the "type" field.
+func (_c *ProjectCreate) SetType(v string) *ProjectCreate {
+	_c.mutation.SetType(v)
+	return _c
+}
+
+// SetNillableType sets the "type" field if the given value is not nil.
+func (_c *ProjectCreate) SetNillableType(v *string) *ProjectCreate {
+	if v != nil {
+		_c.SetType(*v)
+	}
+	return _c
+}
+
+// SetParentProjectID sets the "parent_project_id" field.
+func (_c *ProjectCreate) SetParentProjectID(v int) *ProjectCreate {
+	_c.mutation.SetParentProjectID(v)
+	return _c
+}
+
+// SetNillableParentProjectID sets the "parent_project_id" field if the given value is not nil.
+func (_c *ProjectCreate) SetNillableParentProjectID(v *int) *ProjectCreate {
+	if v != nil {
+		_c.SetParentProjectID(*v)
+	}
+	return _c
+}
+
+// SetHealth sets the "health" field.
+func (_c *ProjectCreate) SetHealth(v string) *ProjectCreate {
+	_c.mutation.SetHealth(v)
+	return _c
+}
+
+// SetNillableHealth sets the "health" field if the given value is not nil.
+func (_c *ProjectCreate) SetNillableHealth(v *string) *ProjectCreate {
+	if v != nil {
+		_c.SetHealth(*v)
+	}
+	return _c
+}
+
+// SetProgress sets the "progress" field.
+func (_c *ProjectCreate) SetProgress(v int) *ProjectCreate {
+	_c.mutation.SetProgress(v)
+	return _c
+}
+
+// SetNillableProgress sets the "progress" field if the given value is not nil.
+func (_c *ProjectCreate) SetNillableProgress(v *int) *ProjectCreate {
+	if v != nil {
+		_c.SetProgress(*v)
+	}
+	return _c
+}
+
+// SetActualStart sets the "actual_start" field.
+func (_c *ProjectCreate) SetActualStart(v time.Time) *ProjectCreate {
+	_c.mutation.SetActualStart(v)
+	return _c
+}
+
+// SetNillableActualStart sets the "actual_start" field if the given value is not nil.
+func (_c *ProjectCreate) SetNillableActualStart(v *time.Time) *ProjectCreate {
+	if v != nil {
+		_c.SetActualStart(*v)
+	}
+	return _c
+}
+
+// SetActualEnd sets the "actual_end" field.
+func (_c *ProjectCreate) SetActualEnd(v time.Time) *ProjectCreate {
+	_c.mutation.SetActualEnd(v)
+	return _c
+}
+
+// SetNillableActualEnd sets the "actual_end" field if the given value is not nil.
+func (_c *ProjectCreate) SetNillableActualEnd(v *time.Time) *ProjectCreate {
+	if v != nil {
+		_c.SetActualEnd(*v)
+	}
+	return _c
+}
+
+// SetClosedAt sets the "closed_at" field.
+func (_c *ProjectCreate) SetClosedAt(v time.Time) *ProjectCreate {
+	_c.mutation.SetClosedAt(v)
+	return _c
+}
+
+// SetNillableClosedAt sets the "closed_at" field if the given value is not nil.
+func (_c *ProjectCreate) SetNillableClosedAt(v *time.Time) *ProjectCreate {
+	if v != nil {
+		_c.SetClosedAt(*v)
+	}
+	return _c
+}
+
+// SetOwnerTeamID sets the "owner_team_id" field.
+func (_c *ProjectCreate) SetOwnerTeamID(v int) *ProjectCreate {
+	_c.mutation.SetOwnerTeamID(v)
+	return _c
+}
+
+// SetNillableOwnerTeamID sets the "owner_team_id" field if the given value is not nil.
+func (_c *ProjectCreate) SetNillableOwnerTeamID(v *int) *ProjectCreate {
+	if v != nil {
+		_c.SetOwnerTeamID(*v)
+	}
+	return _c
+}
+
+// SetTemplateID sets the "template_id" field.
+func (_c *ProjectCreate) SetTemplateID(v int) *ProjectCreate {
+	_c.mutation.SetTemplateID(v)
+	return _c
+}
+
+// SetNillableTemplateID sets the "template_id" field if the given value is not nil.
+func (_c *ProjectCreate) SetNillableTemplateID(v *int) *ProjectCreate {
+	if v != nil {
+		_c.SetTemplateID(*v)
+	}
+	return _c
+}
+
+// SetTemplateAppliedAt sets the "template_applied_at" field.
+func (_c *ProjectCreate) SetTemplateAppliedAt(v time.Time) *ProjectCreate {
+	_c.mutation.SetTemplateAppliedAt(v)
+	return _c
+}
+
+// SetNillableTemplateAppliedAt sets the "template_applied_at" field if the given value is not nil.
+func (_c *ProjectCreate) SetNillableTemplateAppliedAt(v *time.Time) *ProjectCreate {
+	if v != nil {
+		_c.SetTemplateAppliedAt(*v)
+	}
+	return _c
+}
+
+// SetTemplateAppliedBy sets the "template_applied_by" field.
+func (_c *ProjectCreate) SetTemplateAppliedBy(v int) *ProjectCreate {
+	_c.mutation.SetTemplateAppliedBy(v)
+	return _c
+}
+
+// SetNillableTemplateAppliedBy sets the "template_applied_by" field if the given value is not nil.
+func (_c *ProjectCreate) SetNillableTemplateAppliedBy(v *int) *ProjectCreate {
+	if v != nil {
+		_c.SetTemplateAppliedBy(*v)
+	}
+	return _c
+}
+
+// SetBudgetAmount sets the "budget_amount" field.
+func (_c *ProjectCreate) SetBudgetAmount(v float64) *ProjectCreate {
+	_c.mutation.SetBudgetAmount(v)
+	return _c
+}
+
+// SetNillableBudgetAmount sets the "budget_amount" field if the given value is not nil.
+func (_c *ProjectCreate) SetNillableBudgetAmount(v *float64) *ProjectCreate {
+	if v != nil {
+		_c.SetBudgetAmount(*v)
+	}
+	return _c
+}
+
+// SetBudgetCurrency sets the "budget_currency" field.
+func (_c *ProjectCreate) SetBudgetCurrency(v string) *ProjectCreate {
+	_c.mutation.SetBudgetCurrency(v)
+	return _c
+}
+
+// SetNillableBudgetCurrency sets the "budget_currency" field if the given value is not nil.
+func (_c *ProjectCreate) SetNillableBudgetCurrency(v *string) *ProjectCreate {
+	if v != nil {
+		_c.SetBudgetCurrency(*v)
+	}
+	return _c
+}
+
+// SetDefaultWeeklyCapacityHours sets the "default_weekly_capacity_hours" field.
+func (_c *ProjectCreate) SetDefaultWeeklyCapacityHours(v float64) *ProjectCreate {
+	_c.mutation.SetDefaultWeeklyCapacityHours(v)
+	return _c
+}
+
+// SetNillableDefaultWeeklyCapacityHours sets the "default_weekly_capacity_hours" field if the given value is not nil.
+func (_c *ProjectCreate) SetNillableDefaultWeeklyCapacityHours(v *float64) *ProjectCreate {
+	if v != nil {
+		_c.SetDefaultWeeklyCapacityHours(*v)
+	}
+	return _c
+}
+
+// SetVersion sets the "version" field.
+func (_c *ProjectCreate) SetVersion(v int) *ProjectCreate {
+	_c.mutation.SetVersion(v)
+	return _c
+}
+
+// SetNillableVersion sets the "version" field if the given value is not nil.
+func (_c *ProjectCreate) SetNillableVersion(v *int) *ProjectCreate {
+	if v != nil {
+		_c.SetVersion(*v)
+	}
+	return _c
+}
+
+// SetDeletedAt sets the "deleted_at" field.
+func (_c *ProjectCreate) SetDeletedAt(v time.Time) *ProjectCreate {
+	_c.mutation.SetDeletedAt(v)
+	return _c
+}
+
+// SetNillableDeletedAt sets the "deleted_at" field if the given value is not nil.
+func (_c *ProjectCreate) SetNillableDeletedAt(v *time.Time) *ProjectCreate {
+	if v != nil {
+		_c.SetDeletedAt(*v)
+	}
+	return _c
+}
+
 // SetTenantID sets the "tenant_id" field.
 func (_c *ProjectCreate) SetTenantID(v int) *ProjectCreate {
 	_c.mutation.SetTenantID(v)
@@ -227,6 +451,22 @@ func (_c *ProjectCreate) defaults() {
 		v := project.DefaultStatus
 		_c.mutation.SetStatus(v)
 	}
+	if _, ok := _c.mutation.GetType(); !ok {
+		v := project.DefaultType
+		_c.mutation.SetType(v)
+	}
+	if _, ok := _c.mutation.Health(); !ok {
+		v := project.DefaultHealth
+		_c.mutation.SetHealth(v)
+	}
+	if _, ok := _c.mutation.Progress(); !ok {
+		v := project.DefaultProgress
+		_c.mutation.SetProgress(v)
+	}
+	if _, ok := _c.mutation.Version(); !ok {
+		v := project.DefaultVersion
+		_c.mutation.SetVersion(v)
+	}
 	if _, ok := _c.mutation.CreatedAt(); !ok {
 		v := project.DefaultCreatedAt()
 		_c.mutation.SetCreatedAt(v)
@@ -257,6 +497,43 @@ func (_c *ProjectCreate) check() error {
 	}
 	if _, ok := _c.mutation.Status(); !ok {
 		return &ValidationError{Name: "status", err: errors.New(`ent: missing required field "Project.status"`)}
+	}
+	if _, ok := _c.mutation.GetType(); !ok {
+		return &ValidationError{Name: "type", err: errors.New(`ent: missing required field "Project.type"`)}
+	}
+	if v, ok := _c.mutation.GetType(); ok {
+		if err := project.TypeValidator(v); err != nil {
+			return &ValidationError{Name: "type", err: fmt.Errorf(`ent: validator failed for field "Project.type": %w`, err)}
+		}
+	}
+	if _, ok := _c.mutation.Health(); !ok {
+		return &ValidationError{Name: "health", err: errors.New(`ent: missing required field "Project.health"`)}
+	}
+	if v, ok := _c.mutation.Health(); ok {
+		if err := project.HealthValidator(v); err != nil {
+			return &ValidationError{Name: "health", err: fmt.Errorf(`ent: validator failed for field "Project.health": %w`, err)}
+		}
+	}
+	if _, ok := _c.mutation.Progress(); !ok {
+		return &ValidationError{Name: "progress", err: errors.New(`ent: missing required field "Project.progress"`)}
+	}
+	if v, ok := _c.mutation.Progress(); ok {
+		if err := project.ProgressValidator(v); err != nil {
+			return &ValidationError{Name: "progress", err: fmt.Errorf(`ent: validator failed for field "Project.progress": %w`, err)}
+		}
+	}
+	if v, ok := _c.mutation.BudgetCurrency(); ok {
+		if err := project.BudgetCurrencyValidator(v); err != nil {
+			return &ValidationError{Name: "budget_currency", err: fmt.Errorf(`ent: validator failed for field "Project.budget_currency": %w`, err)}
+		}
+	}
+	if _, ok := _c.mutation.Version(); !ok {
+		return &ValidationError{Name: "version", err: errors.New(`ent: missing required field "Project.version"`)}
+	}
+	if v, ok := _c.mutation.Version(); ok {
+		if err := project.VersionValidator(v); err != nil {
+			return &ValidationError{Name: "version", err: fmt.Errorf(`ent: validator failed for field "Project.version": %w`, err)}
+		}
 	}
 	if _, ok := _c.mutation.TenantID(); !ok {
 		return &ValidationError{Name: "tenant_id", err: errors.New(`ent: missing required field "Project.tenant_id"`)}
@@ -325,6 +602,70 @@ func (_c *ProjectCreate) createSpec() (*Project, *sqlgraph.CreateSpec) {
 	if value, ok := _c.mutation.Status(); ok {
 		_spec.SetField(project.FieldStatus, field.TypeString, value)
 		_node.Status = value
+	}
+	if value, ok := _c.mutation.GetType(); ok {
+		_spec.SetField(project.FieldType, field.TypeString, value)
+		_node.Type = value
+	}
+	if value, ok := _c.mutation.ParentProjectID(); ok {
+		_spec.SetField(project.FieldParentProjectID, field.TypeInt, value)
+		_node.ParentProjectID = value
+	}
+	if value, ok := _c.mutation.Health(); ok {
+		_spec.SetField(project.FieldHealth, field.TypeString, value)
+		_node.Health = value
+	}
+	if value, ok := _c.mutation.Progress(); ok {
+		_spec.SetField(project.FieldProgress, field.TypeInt, value)
+		_node.Progress = value
+	}
+	if value, ok := _c.mutation.ActualStart(); ok {
+		_spec.SetField(project.FieldActualStart, field.TypeTime, value)
+		_node.ActualStart = value
+	}
+	if value, ok := _c.mutation.ActualEnd(); ok {
+		_spec.SetField(project.FieldActualEnd, field.TypeTime, value)
+		_node.ActualEnd = value
+	}
+	if value, ok := _c.mutation.ClosedAt(); ok {
+		_spec.SetField(project.FieldClosedAt, field.TypeTime, value)
+		_node.ClosedAt = value
+	}
+	if value, ok := _c.mutation.OwnerTeamID(); ok {
+		_spec.SetField(project.FieldOwnerTeamID, field.TypeInt, value)
+		_node.OwnerTeamID = value
+	}
+	if value, ok := _c.mutation.TemplateID(); ok {
+		_spec.SetField(project.FieldTemplateID, field.TypeInt, value)
+		_node.TemplateID = value
+	}
+	if value, ok := _c.mutation.TemplateAppliedAt(); ok {
+		_spec.SetField(project.FieldTemplateAppliedAt, field.TypeTime, value)
+		_node.TemplateAppliedAt = value
+	}
+	if value, ok := _c.mutation.TemplateAppliedBy(); ok {
+		_spec.SetField(project.FieldTemplateAppliedBy, field.TypeInt, value)
+		_node.TemplateAppliedBy = value
+	}
+	if value, ok := _c.mutation.BudgetAmount(); ok {
+		_spec.SetField(project.FieldBudgetAmount, field.TypeFloat64, value)
+		_node.BudgetAmount = &value
+	}
+	if value, ok := _c.mutation.BudgetCurrency(); ok {
+		_spec.SetField(project.FieldBudgetCurrency, field.TypeString, value)
+		_node.BudgetCurrency = &value
+	}
+	if value, ok := _c.mutation.DefaultWeeklyCapacityHours(); ok {
+		_spec.SetField(project.FieldDefaultWeeklyCapacityHours, field.TypeFloat64, value)
+		_node.DefaultWeeklyCapacityHours = &value
+	}
+	if value, ok := _c.mutation.Version(); ok {
+		_spec.SetField(project.FieldVersion, field.TypeInt, value)
+		_node.Version = value
+	}
+	if value, ok := _c.mutation.DeletedAt(); ok {
+		_spec.SetField(project.FieldDeletedAt, field.TypeTime, value)
+		_node.DeletedAt = &value
 	}
 	if value, ok := _c.mutation.TenantID(); ok {
 		_spec.SetField(project.FieldTenantID, field.TypeInt, value)

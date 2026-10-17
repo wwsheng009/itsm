@@ -30,6 +30,38 @@ const (
 	FieldEndDate = "end_date"
 	// FieldStatus holds the string denoting the status field in the database.
 	FieldStatus = "status"
+	// FieldType holds the string denoting the type field in the database.
+	FieldType = "type"
+	// FieldParentProjectID holds the string denoting the parent_project_id field in the database.
+	FieldParentProjectID = "parent_project_id"
+	// FieldHealth holds the string denoting the health field in the database.
+	FieldHealth = "health"
+	// FieldProgress holds the string denoting the progress field in the database.
+	FieldProgress = "progress"
+	// FieldActualStart holds the string denoting the actual_start field in the database.
+	FieldActualStart = "actual_start"
+	// FieldActualEnd holds the string denoting the actual_end field in the database.
+	FieldActualEnd = "actual_end"
+	// FieldClosedAt holds the string denoting the closed_at field in the database.
+	FieldClosedAt = "closed_at"
+	// FieldOwnerTeamID holds the string denoting the owner_team_id field in the database.
+	FieldOwnerTeamID = "owner_team_id"
+	// FieldTemplateID holds the string denoting the template_id field in the database.
+	FieldTemplateID = "template_id"
+	// FieldTemplateAppliedAt holds the string denoting the template_applied_at field in the database.
+	FieldTemplateAppliedAt = "template_applied_at"
+	// FieldTemplateAppliedBy holds the string denoting the template_applied_by field in the database.
+	FieldTemplateAppliedBy = "template_applied_by"
+	// FieldBudgetAmount holds the string denoting the budget_amount field in the database.
+	FieldBudgetAmount = "budget_amount"
+	// FieldBudgetCurrency holds the string denoting the budget_currency field in the database.
+	FieldBudgetCurrency = "budget_currency"
+	// FieldDefaultWeeklyCapacityHours holds the string denoting the default_weekly_capacity_hours field in the database.
+	FieldDefaultWeeklyCapacityHours = "default_weekly_capacity_hours"
+	// FieldVersion holds the string denoting the version field in the database.
+	FieldVersion = "version"
+	// FieldDeletedAt holds the string denoting the deleted_at field in the database.
+	FieldDeletedAt = "deleted_at"
 	// FieldTenantID holds the string denoting the tenant_id field in the database.
 	FieldTenantID = "tenant_id"
 	// FieldCreatedAt holds the string denoting the created_at field in the database.
@@ -76,6 +108,22 @@ var Columns = []string{
 	FieldStartDate,
 	FieldEndDate,
 	FieldStatus,
+	FieldType,
+	FieldParentProjectID,
+	FieldHealth,
+	FieldProgress,
+	FieldActualStart,
+	FieldActualEnd,
+	FieldClosedAt,
+	FieldOwnerTeamID,
+	FieldTemplateID,
+	FieldTemplateAppliedAt,
+	FieldTemplateAppliedBy,
+	FieldBudgetAmount,
+	FieldBudgetCurrency,
+	FieldDefaultWeeklyCapacityHours,
+	FieldVersion,
+	FieldDeletedAt,
 	FieldTenantID,
 	FieldCreatedAt,
 	FieldUpdatedAt,
@@ -104,6 +152,24 @@ var (
 	CodeValidator func(string) error
 	// DefaultStatus holds the default value on creation for the "status" field.
 	DefaultStatus string
+	// DefaultType holds the default value on creation for the "type" field.
+	DefaultType string
+	// TypeValidator is a validator for the "type" field. It is called by the builders before save.
+	TypeValidator func(string) error
+	// DefaultHealth holds the default value on creation for the "health" field.
+	DefaultHealth string
+	// HealthValidator is a validator for the "health" field. It is called by the builders before save.
+	HealthValidator func(string) error
+	// DefaultProgress holds the default value on creation for the "progress" field.
+	DefaultProgress int
+	// ProgressValidator is a validator for the "progress" field. It is called by the builders before save.
+	ProgressValidator func(int) error
+	// BudgetCurrencyValidator is a validator for the "budget_currency" field. It is called by the builders before save.
+	BudgetCurrencyValidator func(string) error
+	// DefaultVersion holds the default value on creation for the "version" field.
+	DefaultVersion int
+	// VersionValidator is a validator for the "version" field. It is called by the builders before save.
+	VersionValidator func(int) error
 	// TenantIDValidator is a validator for the "tenant_id" field. It is called by the builders before save.
 	TenantIDValidator func(int) error
 	// DefaultCreatedAt holds the default value on creation for the "created_at" field.
@@ -160,6 +226,86 @@ func ByEndDate(opts ...sql.OrderTermOption) OrderOption {
 // ByStatus orders the results by the status field.
 func ByStatus(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldStatus, opts...).ToFunc()
+}
+
+// ByType orders the results by the type field.
+func ByType(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldType, opts...).ToFunc()
+}
+
+// ByParentProjectID orders the results by the parent_project_id field.
+func ByParentProjectID(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldParentProjectID, opts...).ToFunc()
+}
+
+// ByHealth orders the results by the health field.
+func ByHealth(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldHealth, opts...).ToFunc()
+}
+
+// ByProgress orders the results by the progress field.
+func ByProgress(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldProgress, opts...).ToFunc()
+}
+
+// ByActualStart orders the results by the actual_start field.
+func ByActualStart(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldActualStart, opts...).ToFunc()
+}
+
+// ByActualEnd orders the results by the actual_end field.
+func ByActualEnd(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldActualEnd, opts...).ToFunc()
+}
+
+// ByClosedAt orders the results by the closed_at field.
+func ByClosedAt(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldClosedAt, opts...).ToFunc()
+}
+
+// ByOwnerTeamID orders the results by the owner_team_id field.
+func ByOwnerTeamID(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldOwnerTeamID, opts...).ToFunc()
+}
+
+// ByTemplateID orders the results by the template_id field.
+func ByTemplateID(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldTemplateID, opts...).ToFunc()
+}
+
+// ByTemplateAppliedAt orders the results by the template_applied_at field.
+func ByTemplateAppliedAt(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldTemplateAppliedAt, opts...).ToFunc()
+}
+
+// ByTemplateAppliedBy orders the results by the template_applied_by field.
+func ByTemplateAppliedBy(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldTemplateAppliedBy, opts...).ToFunc()
+}
+
+// ByBudgetAmount orders the results by the budget_amount field.
+func ByBudgetAmount(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldBudgetAmount, opts...).ToFunc()
+}
+
+// ByBudgetCurrency orders the results by the budget_currency field.
+func ByBudgetCurrency(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldBudgetCurrency, opts...).ToFunc()
+}
+
+// ByDefaultWeeklyCapacityHours orders the results by the default_weekly_capacity_hours field.
+func ByDefaultWeeklyCapacityHours(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldDefaultWeeklyCapacityHours, opts...).ToFunc()
+}
+
+// ByVersion orders the results by the version field.
+func ByVersion(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldVersion, opts...).ToFunc()
+}
+
+// ByDeletedAt orders the results by the deleted_at field.
+func ByDeletedAt(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldDeletedAt, opts...).ToFunc()
 }
 
 // ByTenantID orders the results by the tenant_id field.

@@ -309,6 +309,39 @@ type ProcessVersionChangelog func(*sql.Selector)
 // Project is the predicate function for project builders.
 type Project func(*sql.Selector)
 
+// ProjectAssetLink is the predicate function for projectassetlink builders.
+type ProjectAssetLink func(*sql.Selector)
+
+// ProjectBaseline is the predicate function for projectbaseline builders.
+type ProjectBaseline func(*sql.Selector)
+
+// ProjectClosure is the predicate function for projectclosure builders.
+type ProjectClosure func(*sql.Selector)
+
+// ProjectGate is the predicate function for projectgate builders.
+type ProjectGate func(*sql.Selector)
+
+// ProjectMember is the predicate function for projectmember builders.
+type ProjectMember func(*sql.Selector)
+
+// ProjectMilestone is the predicate function for projectmilestone builders.
+type ProjectMilestone func(*sql.Selector)
+
+// ProjectReportTemplate is the predicate function for projectreporttemplate builders.
+type ProjectReportTemplate func(*sql.Selector)
+
+// ProjectRisk is the predicate function for projectrisk builders.
+type ProjectRisk func(*sql.Selector)
+
+// ProjectTask is the predicate function for projecttask builders.
+type ProjectTask func(*sql.Selector)
+
+// ProjectTaskDependency is the predicate function for projecttaskdependency builders.
+type ProjectTaskDependency func(*sql.Selector)
+
+// ProjectTemplate is the predicate function for projecttemplate builders.
+type ProjectTemplate func(*sql.Selector)
+
 // PromptTemplate is the predicate function for prompttemplate builders.
 type PromptTemplate func(*sql.Selector)
 

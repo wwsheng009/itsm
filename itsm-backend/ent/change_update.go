@@ -244,6 +244,33 @@ func (_u *ChangeUpdate) AddTenantID(v int) *ChangeUpdate {
 	return _u
 }
 
+// SetProjectID sets the "project_id" field.
+func (_u *ChangeUpdate) SetProjectID(v int) *ChangeUpdate {
+	_u.mutation.ResetProjectID()
+	_u.mutation.SetProjectID(v)
+	return _u
+}
+
+// SetNillableProjectID sets the "project_id" field if the given value is not nil.
+func (_u *ChangeUpdate) SetNillableProjectID(v *int) *ChangeUpdate {
+	if v != nil {
+		_u.SetProjectID(*v)
+	}
+	return _u
+}
+
+// AddProjectID adds value to the "project_id" field.
+func (_u *ChangeUpdate) AddProjectID(v int) *ChangeUpdate {
+	_u.mutation.AddProjectID(v)
+	return _u
+}
+
+// ClearProjectID clears the value of the "project_id" field.
+func (_u *ChangeUpdate) ClearProjectID() *ChangeUpdate {
+	_u.mutation.ClearProjectID()
+	return _u
+}
+
 // SetPlannedStartDate sets the "planned_start_date" field.
 func (_u *ChangeUpdate) SetPlannedStartDate(v time.Time) *ChangeUpdate {
 	_u.mutation.SetPlannedStartDate(v)
@@ -626,6 +653,15 @@ func (_u *ChangeUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 	}
 	if value, ok := _u.mutation.AddedTenantID(); ok {
 		_spec.AddField(change.FieldTenantID, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.ProjectID(); ok {
+		_spec.SetField(change.FieldProjectID, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.AddedProjectID(); ok {
+		_spec.AddField(change.FieldProjectID, field.TypeInt, value)
+	}
+	if _u.mutation.ProjectIDCleared() {
+		_spec.ClearField(change.FieldProjectID, field.TypeInt)
 	}
 	if value, ok := _u.mutation.PlannedStartDate(); ok {
 		_spec.SetField(change.FieldPlannedStartDate, field.TypeTime, value)
@@ -1011,6 +1047,33 @@ func (_u *ChangeUpdateOne) SetNillableTenantID(v *int) *ChangeUpdateOne {
 // AddTenantID adds value to the "tenant_id" field.
 func (_u *ChangeUpdateOne) AddTenantID(v int) *ChangeUpdateOne {
 	_u.mutation.AddTenantID(v)
+	return _u
+}
+
+// SetProjectID sets the "project_id" field.
+func (_u *ChangeUpdateOne) SetProjectID(v int) *ChangeUpdateOne {
+	_u.mutation.ResetProjectID()
+	_u.mutation.SetProjectID(v)
+	return _u
+}
+
+// SetNillableProjectID sets the "project_id" field if the given value is not nil.
+func (_u *ChangeUpdateOne) SetNillableProjectID(v *int) *ChangeUpdateOne {
+	if v != nil {
+		_u.SetProjectID(*v)
+	}
+	return _u
+}
+
+// AddProjectID adds value to the "project_id" field.
+func (_u *ChangeUpdateOne) AddProjectID(v int) *ChangeUpdateOne {
+	_u.mutation.AddProjectID(v)
+	return _u
+}
+
+// ClearProjectID clears the value of the "project_id" field.
+func (_u *ChangeUpdateOne) ClearProjectID() *ChangeUpdateOne {
+	_u.mutation.ClearProjectID()
 	return _u
 }
 
@@ -1426,6 +1489,15 @@ func (_u *ChangeUpdateOne) sqlSave(ctx context.Context) (_node *Change, err erro
 	}
 	if value, ok := _u.mutation.AddedTenantID(); ok {
 		_spec.AddField(change.FieldTenantID, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.ProjectID(); ok {
+		_spec.SetField(change.FieldProjectID, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.AddedProjectID(); ok {
+		_spec.AddField(change.FieldProjectID, field.TypeInt, value)
+	}
+	if _u.mutation.ProjectIDCleared() {
+		_spec.ClearField(change.FieldProjectID, field.TypeInt)
 	}
 	if value, ok := _u.mutation.PlannedStartDate(); ok {
 		_spec.SetField(change.FieldPlannedStartDate, field.TypeTime, value)

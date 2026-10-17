@@ -30,6 +30,8 @@ type Incident struct {
 	Type string `json:"type,omitempty"`
 	// 优先级
 	Priority string `json:"priority,omitempty"`
+	// 所属项目ID（P0；同租户）
+	ProjectID int `json:"project_id,omitempty"`
 	// SLA定义ID
 	SLADefinitionID int `json:"sla_definition_id,omitempty"`
 	// SLA响应截止时间
@@ -253,7 +255,7 @@ func (*Incident) scanValues(columns []string) ([]any, error) {
 			values[i] = new([]byte)
 		case incident.FieldIsAutomated, incident.FieldIsMajorIncident:
 			values[i] = new(sql.NullBool)
-		case incident.FieldID, incident.FieldSLADefinitionID, incident.FieldReporterID, incident.FieldAssigneeID, incident.FieldAssignmentGroupID, incident.FieldEmailConversationID, incident.FieldConfigurationItemID, incident.FieldEscalationLevel, incident.FieldTenantID, incident.FieldVersion:
+		case incident.FieldID, incident.FieldProjectID, incident.FieldSLADefinitionID, incident.FieldReporterID, incident.FieldAssigneeID, incident.FieldAssignmentGroupID, incident.FieldEmailConversationID, incident.FieldConfigurationItemID, incident.FieldEscalationLevel, incident.FieldTenantID, incident.FieldVersion:
 			values[i] = new(sql.NullInt64)
 		case incident.FieldTitle, incident.FieldDescription, incident.FieldStatus, incident.FieldType, incident.FieldPriority, incident.FieldSLAStatus, incident.FieldSLAPauseReason, incident.FieldSeverity, incident.FieldImpact, incident.FieldUrgency, incident.FieldIncidentNumber, incident.FieldCategory, incident.FieldSubcategory, incident.FieldServiceType, incident.FieldFailureType, incident.FieldSource:
 			values[i] = new(sql.NullString)
@@ -309,6 +311,12 @@ func (_m *Incident) assignValues(columns []string, values []any) error {
 				return fmt.Errorf("unexpected type %T for field priority", values[i])
 			} else if value.Valid {
 				_m.Priority = value.String
+			}
+		case incident.FieldProjectID:
+			if value, ok := values[i].(*sql.NullInt64); !ok {
+				return fmt.Errorf("unexpected type %T for field project_id", values[i])
+			} else if value.Valid {
+				_m.ProjectID = int(value.Int64)
 			}
 		case incident.FieldSLADefinitionID:
 			if value, ok := values[i].(*sql.NullInt64); !ok {
@@ -654,6 +662,9 @@ func (_m *Incident) String() string {
 	builder.WriteString(", ")
 	builder.WriteString("priority=")
 	builder.WriteString(_m.Priority)
+	builder.WriteString(", ")
+	builder.WriteString("project_id=")
+	builder.WriteString(fmt.Sprintf("%v", _m.ProjectID))
 	builder.WriteString(", ")
 	builder.WriteString("sla_definition_id=")
 	builder.WriteString(fmt.Sprintf("%v", _m.SLADefinitionID))

@@ -107,6 +107,17 @@ import (
 	"itsm-backend/ent/processvariable"
 	"itsm-backend/ent/processversionchangelog"
 	"itsm-backend/ent/project"
+	"itsm-backend/ent/projectassetlink"
+	"itsm-backend/ent/projectbaseline"
+	"itsm-backend/ent/projectclosure"
+	"itsm-backend/ent/projectgate"
+	"itsm-backend/ent/projectmember"
+	"itsm-backend/ent/projectmilestone"
+	"itsm-backend/ent/projectreporttemplate"
+	"itsm-backend/ent/projectrisk"
+	"itsm-backend/ent/projecttask"
+	"itsm-backend/ent/projecttaskdependency"
+	"itsm-backend/ent/projecttemplate"
 	"itsm-backend/ent/prompttemplate"
 	"itsm-backend/ent/provisioningtask"
 	"itsm-backend/ent/relationshiptype"
@@ -329,6 +340,17 @@ func checkColumn(t, c string) error {
 			processvariable.Table:             processvariable.ValidColumn,
 			processversionchangelog.Table:     processversionchangelog.ValidColumn,
 			project.Table:                     project.ValidColumn,
+			projectassetlink.Table:            projectassetlink.ValidColumn,
+			projectbaseline.Table:             projectbaseline.ValidColumn,
+			projectclosure.Table:              projectclosure.ValidColumn,
+			projectgate.Table:                 projectgate.ValidColumn,
+			projectmember.Table:               projectmember.ValidColumn,
+			projectmilestone.Table:            projectmilestone.ValidColumn,
+			projectreporttemplate.Table:       projectreporttemplate.ValidColumn,
+			projectrisk.Table:                 projectrisk.ValidColumn,
+			projecttask.Table:                 projecttask.ValidColumn,
+			projecttaskdependency.Table:       projecttaskdependency.ValidColumn,
+			projecttemplate.Table:             projecttemplate.ValidColumn,
 			prompttemplate.Table:              prompttemplate.ValidColumn,
 			provisioningtask.Table:            provisioningtask.ValidColumn,
 			relationshiptype.Table:            relationshiptype.ValidColumn,

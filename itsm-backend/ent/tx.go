@@ -214,6 +214,28 @@ type Tx struct {
 	ProcessVersionChangelog *ProcessVersionChangelogClient
 	// Project is the client for interacting with the Project builders.
 	Project *ProjectClient
+	// ProjectAssetLink is the client for interacting with the ProjectAssetLink builders.
+	ProjectAssetLink *ProjectAssetLinkClient
+	// ProjectBaseline is the client for interacting with the ProjectBaseline builders.
+	ProjectBaseline *ProjectBaselineClient
+	// ProjectClosure is the client for interacting with the ProjectClosure builders.
+	ProjectClosure *ProjectClosureClient
+	// ProjectGate is the client for interacting with the ProjectGate builders.
+	ProjectGate *ProjectGateClient
+	// ProjectMember is the client for interacting with the ProjectMember builders.
+	ProjectMember *ProjectMemberClient
+	// ProjectMilestone is the client for interacting with the ProjectMilestone builders.
+	ProjectMilestone *ProjectMilestoneClient
+	// ProjectReportTemplate is the client for interacting with the ProjectReportTemplate builders.
+	ProjectReportTemplate *ProjectReportTemplateClient
+	// ProjectRisk is the client for interacting with the ProjectRisk builders.
+	ProjectRisk *ProjectRiskClient
+	// ProjectTask is the client for interacting with the ProjectTask builders.
+	ProjectTask *ProjectTaskClient
+	// ProjectTaskDependency is the client for interacting with the ProjectTaskDependency builders.
+	ProjectTaskDependency *ProjectTaskDependencyClient
+	// ProjectTemplate is the client for interacting with the ProjectTemplate builders.
+	ProjectTemplate *ProjectTemplateClient
 	// PromptTemplate is the client for interacting with the PromptTemplate builders.
 	PromptTemplate *PromptTemplateClient
 	// ProvisioningTask is the client for interacting with the ProvisioningTask builders.
@@ -556,6 +578,17 @@ func (tx *Tx) init() {
 	tx.ProcessVariable = NewProcessVariableClient(tx.config)
 	tx.ProcessVersionChangelog = NewProcessVersionChangelogClient(tx.config)
 	tx.Project = NewProjectClient(tx.config)
+	tx.ProjectAssetLink = NewProjectAssetLinkClient(tx.config)
+	tx.ProjectBaseline = NewProjectBaselineClient(tx.config)
+	tx.ProjectClosure = NewProjectClosureClient(tx.config)
+	tx.ProjectGate = NewProjectGateClient(tx.config)
+	tx.ProjectMember = NewProjectMemberClient(tx.config)
+	tx.ProjectMilestone = NewProjectMilestoneClient(tx.config)
+	tx.ProjectReportTemplate = NewProjectReportTemplateClient(tx.config)
+	tx.ProjectRisk = NewProjectRiskClient(tx.config)
+	tx.ProjectTask = NewProjectTaskClient(tx.config)
+	tx.ProjectTaskDependency = NewProjectTaskDependencyClient(tx.config)
+	tx.ProjectTemplate = NewProjectTemplateClient(tx.config)
 	tx.PromptTemplate = NewPromptTemplateClient(tx.config)
 	tx.ProvisioningTask = NewProvisioningTaskClient(tx.config)
 	tx.RelationshipType = NewRelationshipTypeClient(tx.config)

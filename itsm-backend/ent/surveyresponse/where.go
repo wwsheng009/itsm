@@ -65,6 +65,11 @@ func TicketID(v int) predicate.SurveyResponse {
 	return predicate.SurveyResponse(sql.FieldEQ(FieldTicketID, v))
 }
 
+// ProjectID applies equality check predicate on the "project_id" field. It's identical to ProjectIDEQ.
+func ProjectID(v int) predicate.SurveyResponse {
+	return predicate.SurveyResponse(sql.FieldEQ(FieldProjectID, v))
+}
+
 // RespondentID applies equality check predicate on the "respondent_id" field. It's identical to RespondentIDEQ.
 func RespondentID(v int) predicate.SurveyResponse {
 	return predicate.SurveyResponse(sql.FieldEQ(FieldRespondentID, v))
@@ -158,6 +163,56 @@ func TicketIDIsNil() predicate.SurveyResponse {
 // TicketIDNotNil applies the NotNil predicate on the "ticket_id" field.
 func TicketIDNotNil() predicate.SurveyResponse {
 	return predicate.SurveyResponse(sql.FieldNotNull(FieldTicketID))
+}
+
+// ProjectIDEQ applies the EQ predicate on the "project_id" field.
+func ProjectIDEQ(v int) predicate.SurveyResponse {
+	return predicate.SurveyResponse(sql.FieldEQ(FieldProjectID, v))
+}
+
+// ProjectIDNEQ applies the NEQ predicate on the "project_id" field.
+func ProjectIDNEQ(v int) predicate.SurveyResponse {
+	return predicate.SurveyResponse(sql.FieldNEQ(FieldProjectID, v))
+}
+
+// ProjectIDIn applies the In predicate on the "project_id" field.
+func ProjectIDIn(vs ...int) predicate.SurveyResponse {
+	return predicate.SurveyResponse(sql.FieldIn(FieldProjectID, vs...))
+}
+
+// ProjectIDNotIn applies the NotIn predicate on the "project_id" field.
+func ProjectIDNotIn(vs ...int) predicate.SurveyResponse {
+	return predicate.SurveyResponse(sql.FieldNotIn(FieldProjectID, vs...))
+}
+
+// ProjectIDGT applies the GT predicate on the "project_id" field.
+func ProjectIDGT(v int) predicate.SurveyResponse {
+	return predicate.SurveyResponse(sql.FieldGT(FieldProjectID, v))
+}
+
+// ProjectIDGTE applies the GTE predicate on the "project_id" field.
+func ProjectIDGTE(v int) predicate.SurveyResponse {
+	return predicate.SurveyResponse(sql.FieldGTE(FieldProjectID, v))
+}
+
+// ProjectIDLT applies the LT predicate on the "project_id" field.
+func ProjectIDLT(v int) predicate.SurveyResponse {
+	return predicate.SurveyResponse(sql.FieldLT(FieldProjectID, v))
+}
+
+// ProjectIDLTE applies the LTE predicate on the "project_id" field.
+func ProjectIDLTE(v int) predicate.SurveyResponse {
+	return predicate.SurveyResponse(sql.FieldLTE(FieldProjectID, v))
+}
+
+// ProjectIDIsNil applies the IsNil predicate on the "project_id" field.
+func ProjectIDIsNil() predicate.SurveyResponse {
+	return predicate.SurveyResponse(sql.FieldIsNull(FieldProjectID))
+}
+
+// ProjectIDNotNil applies the NotNil predicate on the "project_id" field.
+func ProjectIDNotNil() predicate.SurveyResponse {
+	return predicate.SurveyResponse(sql.FieldNotNull(FieldProjectID))
 }
 
 // RespondentIDEQ applies the EQ predicate on the "respondent_id" field.
