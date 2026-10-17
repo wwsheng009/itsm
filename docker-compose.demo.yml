@@ -135,6 +135,7 @@ services:
       - METRICS_REQUIRE_AUTH=${METRICS_REQUIRE_AUTH:-true}
       - no_proxy=localhost,127.0.0.1
       - NO_PROXY=localhost,127.0.0.1
+      - SKILLS_DIST_DIR=/skills-dist
     ports:
       # 仅宿主本地诊断（外部流量走 itsm-nginx-demo:8089）
       - "127.0.0.1:8091:8090"
@@ -146,6 +147,7 @@ services:
     volumes:
       - ./deploy/demo/logs:/app/logs
       - ./deploy/demo/uploads:/app/uploads:rw
+      - ./skills:/skills-dist:ro
     networks:
       - itsm-demo-network
       - itsm-shared-network
@@ -193,12 +195,14 @@ services:
       - RLS_TENANT_VAR_NAME=${RLS_TENANT_VAR_NAME:-app.current_tenant}
       - no_proxy=localhost,127.0.0.1
       - NO_PROXY=localhost,127.0.0.1
+      - SKILLS_DIST_DIR=/skills-dist
     depends_on:
       redis-demo:
         condition: service_healthy
       itsm-init-demo:
         condition: service_completed_successfully
     volumes:
+      - ./skills:/skills-dist:ro
       - ./deploy/demo/logs:/app/logs
       - ./deploy/demo/uploads:/app/uploads:rw
     networks:
