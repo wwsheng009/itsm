@@ -148,6 +148,31 @@ def dir_sha256(path):
     return h.hexdigest()
 
 
+def ensure_package(src_dir, base, file_name, skill_name=None):
+    """确保分发包在本地：--base 模式下缺失即从服务端拉取。
+
+    2026-10-17 修复：旧版 --base 只拉清单不拉包，install_one 随后在临时目录里
+    找不到 zip 直接报「包不存在」——文档写着一条命令装完，实际跑不通。
+    服务端端点：单包 /<skill>/download，全量包 /bundle/download。
+    """
+    zp = src_dir / file_name
+    if zp.exists():
+        return zp
+    if not base:
+        raise SystemExit("包不存在: %s（未提供 --base，无法下载）" % zp)
+    if file_name == "itsm-skills-all.zip":
+        url = base.rstrip("/") + "/bundle/download"
+    elif skill_name:
+        url = "%s/%s/download" % (base.rstrip("/"), skill_name)
+    else:
+        raise SystemExit("包不存在且无法推导下载地址: %s" % file_name)
+    try:
+        urllib.request.urlretrieve(url, zp)  # nosec - 内网可信分发面
+    except Exception as exc:  # noqa: BLE001
+        raise SystemExit("下载失败 %s: %s" % (url, exc))
+    return zp
+
+
 def load_registry(root):
     reg = root / REGISTRY_FILE
     if not reg.exists():
@@ -197,14 +222,12 @@ def backup_existing(root, name, prev_version):
     return zip_path
 
 
-def install_one(entry, src_dir, root, wanted_version=None):
+def install_one(entry, src_dir, root, wanted_version=None, base=""):
     if wanted_version and entry.get("version") != wanted_version:
         raise SystemExit(
             "版本锁定不匹配: %s 期望 %s，manifest 提供 %s" % (entry["name"], wanted_version, entry.get("version", ""))
         )
-    zip_path = src_dir / entry["file"]
-    if not zip_path.exists():
-        raise SystemExit("包不存在: %s" % zip_path)
+    zip_path = ensure_package(src_dir, base, entry["file"], skill_name=entry["name"])
     digest = sha256_file(zip_path)
     if digest != entry["sha256"]:
         raise SystemExit("sha256 校验失败: %s\n  期望 %s\n  实际 %s" % (entry["file"], entry["sha256"], digest))
@@ -411,7 +434,7 @@ def main():
         bundle = manifest.get("bundle") or {}
         if not bundle:
             raise SystemExit("manifest 无 bundle 段")
-        zip_path = src_dir / bundle["file"]
+        zip_path = ensure_package(src_dir, args.base, bundle["file"])
         digest = sha256_file(zip_path)
         if digest != bundle["sha256"]:
             raise SystemExit("bundle sha256 校验失败")
@@ -442,7 +465,7 @@ def main():
             raise SystemExit("manifest 中不存在: %s" % ", ".join(sorted(missing)))
         for entry in targets:
             pin = requested.get(entry["name"])
-            installed.append(install_one(entry, src_dir, root, wanted_version=pin))
+            installed.append(install_one(entry, src_dir, root, wanted_version=pin, base=args.base))
             print("installed: %s@%s -> %s" % (entry["name"], entry.get("version", ""), root / entry["name"]))
 
     save_registry(root, installed)

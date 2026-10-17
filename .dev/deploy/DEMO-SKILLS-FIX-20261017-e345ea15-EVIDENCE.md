@@ -39,6 +39,15 @@
 | 知识库实体化 | 新建 markdown 探针文章（id 27）：`d = {"skills": [1]}`、`a & b`、`< 10`、`> 0`、直引号 **全部原样落库**，无 `&#34;` / `&amp;` / `&lt;`；探针已删除 |
 | 回归 | 既有文章 id 26 仍可读取（200） |
 
+## 部署后追加修复（部署验证时暴露）
+
+用线上清单跑一次真实升级（`--base … --all --skills-root`）时，安装器报 `包不存在: …\Temp\itsm-skills-xxxx\itsm-change-operations.zip`：
+
+- **根因**：`--base` 模式只拉清单、不拉 zip，`install_one` 随后在临时目录找包直接失败——正是此前沉淀的「自动下载名不副实」缺口，文档写一条命令装完，实际跑不通。
+- **修复**：新增 `ensure_package()`，`--base` 模式下缺失即按 `/<skill>/download` 或 `/bundle/download` 拉取（仍走 sha256 校验）；`install_one` 与 bundle 分支统一走它。
+- **上线**：安装器单文件重新上传到 `repo/skills/`（无需重启，bind mount 按请求读取），线上 `sha256=43a3f44a…` 与本地一致。
+- **端到端验证**：`--base http://172.18.3.238:8089/api/v1/skills-dist --all --skills-root ~/.workbuddy-ai/skills` → 8 个技能从 `2026-10-17.d510b4b4` 升级到 `2026-10-17.e345ea15`，旧版自动备份进 `.skills-backup/`，自检 **8 通过 / 0 失败**。
+
 ## 遗留项
 
 1. **前端/ai 未重建**：仅 retag 到新版本号，`itsm-frontend-demo` 仍跑 `1.8.0-dev.skills-install` 的镜像内容（本次无前端改动）；`itsm-ai-service-demo` 容器仍是 `22ee3603`（历史上 `.env.demo` 改版未重启，属既有不一致）。
