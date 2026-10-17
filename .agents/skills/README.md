@@ -6,15 +6,16 @@
 
 | Skill | 覆盖域 | 脚本 | 状态 |
 |---|---|---|---|
-| itsm-deploy | 238/189 构建发布链路（git bundle + .dev/deploy 脚本族） | 部署脚本 | 维护中 |
 | itsm-ticket-operations | 工单 CRUD / 状态机 / 评论 / 附件 / SLA 查询 | itsm_ticket.py（20 子命令） | 维护中（2026-10-17 加固 token 落盘/掩码、types 去重、create 补参+--dry-run） |
 | itsm-knowledge-operations | 知识库 CRUD / 发布 / 版本 / 检索 / 分类可见性 | itsm_kb.py（22 子命令） | 维护中（2026-10-17 同款加固 + GAPS 9/10 登记） |
-| itsm-cmdb-operations | CMDB CI / 类型 / 关系 / 视图 / 本体 / 发现健康 / 对账 | itsm_cmdb.py（33 子命令，读+写核心） | 维护中（P0，2026-10-17；238 实测） |
+| itsm-cmdb-operations | CMDB CI / 类型 / 关系 / 视图 / 本体 / 发现健康 / 对账 | itsm_cmdb.py（56 子命令，读+写核心+导入导出/云/发现） | 维护中（P0，2026-10-17；238 实测） |
 | itsm-change-operations | 变更 CRUD / 分类型状态机流转 / 审批 / 风险 / PIR / 日历 / CAB | itsm_change.py（33 子命令） | 维护中（P0，2026-10-17；238 全生命周期实测） |
 | itsm-sla-operations | SLA 定义 / 监控 / 指标 / 违约处置 / 绩效 / 合规 / MSP 子面直通 | itsm_sla.py（25 子命令） | 维护中（P1，2026-10-17；238 实测） |
 | itsm-problem-operations | 问题 CRUD / 调查/根因/方案/关闭 / 关联 / 统计趋势热点 | itsm_problem.py（19 子命令） | 维护中（P1，2026-10-17；238 全生命周期实测） |
 | itsm-msp-operations | MSP 跨租户：分配 / 客户 / 类型下发 / 工作台全族 / 报表 / 审计 | itsm_msp.py（44 子命令） | 维护中（P1，2026-10-17；238 以 demo.msp.manager 实测，非 MSP 403 门禁同验） |
-| itsm-service-request-operations | 服务请求 CRUD / 多级审批链 / 开通任务 / 服务目录 CRUD | itsm_service_request.py（21 子命令） | 维护中（P2，2026-10-17；238 全链实测：catalogId/complianceAck 必填、审批推进、409 白名单守卫） |
+| itsm-service-request-operations | 服务请求 CRUD / 多级审批链 / 开通任务 / 服务目录读面 | itsm_service_request.py（18 子命令，写面归 msp） | 维护中（P2，2026-10-17；238 全链实测） |
+
+> 部署知识已降级为 `.dev/deploy/README.md` runbook（2026-10-17 治理决策：纯文档型 skill 按 §4.5 并入脚本同目录，腾位给业务域；内容零丢失）。
 
 ## 2. 候选路线图（按路由面 + 复用价值）
 
@@ -58,7 +59,7 @@
 - [x] **P1**：itsm-sla-operations / itsm-problem-operations / itsm-msp-operations（2026-10-17 三技能完成，238 实测；数量上限 8 已达 8——后续新域须先合并/归档再建）
 - [x] CMDB 长尾：导入导出任务 / 云资源三件套 / 发现任务封装（2026-10-17 完成，itsm_cmdb.py 33→56 子命令；238 实测 export 任务制+云面；GAPS-6 云发现未配置返回 null）
 - [x] P2：itsm-service-request-operations（2026-10-17 完成，21 子命令，238 全链实测）；**cloud 并入 cmdb 长尾**（云资源/发现已在 itsm_cmdb.py，不单独建 itsm-cloud-operations）；**release 维持 itsm-deploy 承接**（业务发布面暂无独立自动化诉求，P3 观察项）
-- [ ] **治理动作（下一轮）**：技能总数 9 超 §4.6 上限 8——候选合并：itsm-service-request-operations 的目录管理面并入 itsm-msp-operations（provider 维护目录），或将 itsm-knowledge/deploy 择一归档；按季度使用频次复盘后执行
+- [x] **治理动作（2026-10-17 执行）**：itsm-deploy 纯文档 skill 按 §4.5 降级为 `.dev/deploy/README.md` runbook（环境清单/核心流程/P1-P10 陷阱全量迁移，内容零丢失）；技能数 9→**8**（≤ §4.6 上限）；决策分析留痕 `.dev/deploy/GOVERNANCE-NOTE-20261017.md`
 
 ## 6. 分发与安装（skills 打包下发）
 
