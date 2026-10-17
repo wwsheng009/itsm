@@ -38,6 +38,7 @@ import {
 import { KPICards } from './components/KPICards';
 import { ChartsSection } from './components/ChartsSection';
 import { CrossTenantOverview } from './components/CrossTenantOverview';
+import { MyProjectWorkloadCard } from './components/MyProjectWorkloadCard';
 import { QuickActions } from './components/QuickActions';
 import { useDashboardData } from './hooks/useDashboardData';
 import type { QuickAction } from './types/dashboard.types';
@@ -277,6 +278,13 @@ export default function DashboardPage() {
           <div className='mb-6'>
             <KPICards metrics={data?.kpiMetrics || []} loading={loading} />
           </div>
+
+          {/* 个人工作台聚合（PE-16）：我的项目任务 + 里程碑到期（project:read 门控） */}
+          <PermissionGate anyOf={['project:read']}>
+            <div className='mb-6' data-testid='dashboard-my-project-workload'>
+              <MyProjectWorkloadCard />
+            </div>
+          </PermissionGate>
 
           {/*
             跨租户总览分区（缺口治理）：

@@ -50,8 +50,11 @@ export default function ApplicationsPage() {
   useEffect(() => {
     fetchData();
     projectService
-      .listProjects()
-      .then(data => setProjectOptions(data.map(p => ({ label: p.name, value: p.id }))))
+      .listProjects({ pageSize: 100 })
+      .then(data => {
+        const items = data.items ?? data.projects ?? [];
+        setProjectOptions(items.map(p => ({ label: p.name, value: p.id })));
+      })
       .catch(error => console.error('Failed to fetch projects:', error));
   }, []);
 

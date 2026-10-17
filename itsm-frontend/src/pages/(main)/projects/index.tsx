@@ -1,83 +1,113 @@
-
-import React, { useState, useEffect } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
-  Table,
   Button,
-  Tag,
-  Space,
-  Modal,
+  DatePicker,
   Form,
   Input,
-  Select,
-  DatePicker,
+  InputNumber,
+  Modal,
   Progress,
+  Select,
+  Space,
+  Table,
+  Tag,
+  Tooltip,
   message,
 } from 'antd';
-import { Plus, Pencil, Trash2, RefreshCw, Briefcase } from 'lucide-react';
+import type { ColumnsType } from 'antd/es/table';
+import { BarChart3, Briefcase, LayoutTemplate, Pencil, Plus, RefreshCw, Trash2 } from 'lucide-react';
+import { useNavigate } from 'react-router';
 import { PageContainer } from '@/components/common/PageContainer';
-import type { Project } from '@/lib/services/project-service';
-import { projectService } from '@/lib/services/project-service';
-import { departmentService } from '@/lib/services/department-service';
-import type { Department } from '@/lib/services/department-service';
-import { UserApi } from '@/lib/api/user-api';
-import { useI18n } from '@/lib/i18n';
 import { useCan } from '@/components/auth/PermissionGate';
+import { useI18n } from '@/lib/i18n';
+import type { Project, ProjectStatus, ProjectType } from '@/lib/services/project-service';
+import { projectService } from '@/lib/services/project-service';
+import type { Department } from '@/lib/services/department-service';
+import { departmentService } from '@/lib/services/department-service';
+import { UserApi } from '@/lib/api/user-api';
 
 const { RangePicker } = DatePicker;
 
+const STATUS_META: Record<ProjectStatus, { label: string; color: string }> = {
+  planning: { label: '规划中', color: 'default' },
+  active: { label: '进行中', color: 'processing' },
+  suspended: { label: '已暂停', color: 'warning' },
+  completed: { label: '已完成', color: 'success' },
+  cancelled: { label: '已取消', color: 'default' },
+};
+
+const TYPE_META: Record<ProjectType, { label: string; color: string }> = {
+  internal: { label: 'IT 内部项目', color: 'blue' },
+  improvement: { label: '服务改进', color: 'purple' },
+  delivery: { label: '交付项目', color: 'cyan' },
+};
+
+const HEALTH_META: Record<string, { label: string; color: string }> = {
+  green: { label: '健康', color: 'success' },
+  yellow: { label: '关注', color: 'warning' },
+  red: { label: '风险', color: 'error' },
+};
+
 export default function ProjectsPage() {
   const { t } = useI18n();
-  // 入口级门禁：项目增删改 → project:write（rbac_precheck_gen.go /api/v1/projects*；删除亦为 write）。
+  const navigate = useNavigate();
   const canWrite = useCan(['project:write']);
-  const [isModalVisible, setIsModalVisible] = useState(false);
-  const [editingProject, setEditingProject] = useState<Project | null>(null);
-  const [form] = Form.useForm();
+
   const [loading, setLoading] = useState(false);
   const [projects, setProjects] = useState<Project[]>([]);
-  const [fetching, setFetching] = useState(false);
-  const [departmentOptions, setDepartmentOptions] = useState<{ label: string; value: number }[]>([]);
-  const [userOptions, setUserOptions] = useState<{ label: string; value: number }[]>([]);
+  const [total, setTotal] = useState(0);
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(20);
+  const [filters, setFilters] = useState<{ status?: string; type?: string; q?: string }>({});
 
-  const fetchProjects = async () => {
-    setFetching(true);
+  const [isModalVisible, setIsModalVisible] = useState(false);
+  const [editingProject, setEditingProject] = useState<Project | null>(null);
+  const [submitting, setSubmitting] = useState(false);
+  const [form] = Form.useForm();
+
+  const [cancelTarget, setCancelTarget] = useState<Project | null>(null);
+  const [cancelForm] = Form.useForm();
+
+  const [departmentOptions, setDepartmentOptions] = useState<{ label: string; value: number }[]>([]);
+  const [userNameById, setUserNameById] = useState<Record<number, string>>({});
+
+  const fetchProjects = useCallback(async () => {
+    setLoading(true);
     try {
-      const data = await projectService.listProjects();
-      setProjects(data);
+      const data = await projectService.listProjects({ page, pageSize, ...filters });
+      setProjects(data.items ?? data.projects ?? []);
+      setTotal(data.total ?? 0);
     } catch (error) {
       console.error('Failed to fetch projects:', error);
       message.error(t('common.getFailed'));
     } finally {
-      setFetching(false);
+      setLoading(false);
     }
-  };
+  }, [page, pageSize, filters, t]);
 
   const flattenDepartments = (list: Department[]): { label: string; value: number }[] => {
     const result: { label: string; value: number }[] = [];
-    list.forEach(d => {
+    list.forEach((d) => {
       result.push({ label: d.name, value: d.id });
       if (d.children) result.push(...flattenDepartments(d.children));
     });
     return result;
   };
 
-  const fetchDepartmentOptions = async () => {
+  const fetchOptions = async () => {
     try {
       const tree = await departmentService.getDepartmentTree();
       setDepartmentOptions(flattenDepartments(tree));
     } catch (error) {
       console.error('Failed to fetch departments:', error);
     }
-  };
-
-  const fetchUserOptions = async () => {
     try {
       const response = await UserApi.getUsers({ page: 1, pageSize: 100 });
-      setUserOptions(
-        response.users.map(user => ({
-          label: user.name || user.username,
-          value: user.id,
-        }))
-      );
+      const map: Record<number, string> = {};
+      (response.users || []).forEach((u) => {
+        map[u.id] = u.name || u.username;
+      });
+      setUserNameById(map);
     } catch (error) {
       console.error('Failed to fetch users:', error);
     }
@@ -85,122 +115,237 @@ export default function ProjectsPage() {
 
   useEffect(() => {
     fetchProjects();
-    fetchDepartmentOptions();
-    fetchUserOptions();
+  }, [fetchProjects]);
+
+  useEffect(() => {
+    fetchOptions();
   }, []);
 
-  const columns = [
-    {
-      title: '项目名称',
-      dataIndex: 'name',
-      key: 'name',
-      render: (text: string) => (
-        <Space>
-          <Briefcase />
-          <span className="font-medium">{text}</span>
-        </Space>
-      ),
-    },
-    {
-      title: '项目代码',
-      dataIndex: 'code',
-      key: 'code',
-    },
-    {
-      title: '所属部门',
-      dataIndex:'departmentName',
-      key: 'department',
-      render: (id: number) => <span>ID: {id}</span>,
-    },
-    {
-      title: '负责人',
-      dataIndex:'managerName',
-      key: 'manager',
-      render: (id: number) => <span>ID: {id}</span>,
-    },
-    {
-      title: '进度',
-      dataIndex: 'progress', // Not in API yet
-      key: 'progress',
-      render: (percent: number) => <Progress percent={percent || 0} size="small" />,
-      width: 200,
-    },
-    {
-      title: '状态',
-      dataIndex: 'status',
-      key: 'status',
-      render: (status: string) => {
-        // Map status
-        return <Tag>{status || 'Unknown'}</Tag>;
-      },
-    },
-    {
-      title: '操作',
-      key: 'action',
-      render: (_: unknown, record: Project) => (
-        <Space size="middle">
-          {canWrite && (
-            <>
-              <Button type="text" icon={<Pencil />} onClick={() => handleEdit(record)} />
-              <Button
-                type="text"
-                danger
-                icon={<Trash2 />}
-                onClick={() => handleDelete(record)}
-              />
-            </>
-          )}
-        </Space>
-      ),
-    },
-  ];
-
-  const handleEdit = (record: Project) => {
-    setEditingProject(record);
-    form.setFieldsValue(record);
+  const openCreate = () => {
+    setEditingProject(null);
+    form.resetFields();
+    form.setFieldsValue({ type: 'internal' });
     setIsModalVisible(true);
   };
 
-  const handleDelete = (record: Project) => {
-    Modal.confirm({
-      title: '确认删除',
-      content: `确定要删除项目 "${record.name}" 吗？`,
-      onOk: async () => {
-        try {
-          await projectService.deleteProject(record.id);
-          message.success(t('common.deleteSuccess'));
-          fetchProjects();
-        } catch (error) {
-          message.error(t('common.deleteFailed'));
-        }
-      },
+  const openEdit = (record: Project) => {
+    setEditingProject(record);
+    form.setFieldsValue({
+      name: record.name,
+      code: record.code,
+      type: record.type,
+      description: record.description,
+      managerId: record.managerId,
+      departmentId: record.departmentId,
+      startDate: record.startDate,
+      endDate: record.endDate,
+      budgetAmount: record.budgetAmount,
+      budgetCurrency: record.budgetCurrency,
     });
+    setIsModalVisible(true);
   };
 
   const handleOk = async () => {
     try {
       const values = await form.validateFields();
-      setLoading(true);
-
-      // 编辑/新建分支，避免修改时走 create 导致重复记录
-      if (editingProject) {
-        await projectService.updateProject(editingProject.id, values);
+      setSubmitting(true);
+      const payload = {
+        ...values,
+        startDate: values.range?.[0]?.toISOString(),
+        endDate: values.range?.[1]?.toISOString(),
+      };
+      delete payload.range;
+      // PE-22：预算同写同清——填写金额即连同币种提交（币种缺省空串 = 租户默认）；金额 <=0 = 清空。
+      if (values.budgetAmount !== undefined && values.budgetAmount !== null) {
+        payload.budgetAmount = values.budgetAmount;
+        payload.budgetCurrency = typeof values.budgetCurrency === 'string' ? values.budgetCurrency.trim() : '';
       } else {
-        await projectService.createProject(values);
+        delete payload.budgetAmount;
+        delete payload.budgetCurrency;
       }
-
+      if (editingProject) {
+        await projectService.updateProject(editingProject.id, payload);
+      } else {
+        await projectService.createProject(payload);
+      }
       message.success(t('common.saveSuccess'));
       setIsModalVisible(false);
       setEditingProject(null);
       form.resetFields();
       fetchProjects();
     } catch (error) {
-      console.error('Operation Failed:', error);
+      if (error && typeof error === 'object' && 'errorFields' in error) return;
+      console.error('Operation failed:', error);
       message.error(t('common.operationFailed'));
     } finally {
-      setLoading(false);
+      setSubmitting(false);
     }
   };
+
+  const runTransition = async (record: Project, action: string) => {
+    try {
+      await projectService.transitionProject(record.id, action, undefined, record.version);
+      message.success('操作成功');
+      fetchProjects();
+    } catch (error) {
+      console.error('Transition failed:', error);
+      const msg = error instanceof Error ? error.message : '操作失败';
+      message.error(msg.includes('未终结') ? msg : '操作失败，请刷新后重试');
+    }
+  };
+
+  const submitCancel = async () => {
+    if (!cancelTarget) return;
+    try {
+      const values = await cancelForm.validateFields();
+      await projectService.transitionProject(cancelTarget.id, 'cancel', values.reason, cancelTarget.version);
+      message.success('项目已取消');
+      setCancelTarget(null);
+      cancelForm.resetFields();
+      fetchProjects();
+    } catch (error) {
+      if (error && typeof error === 'object' && 'errorFields' in error) return;
+      console.error('Cancel failed:', error);
+      message.error('取消失败');
+    }
+  };
+
+  const handleDelete = (record: Project) => {
+    Modal.confirm({
+      title: '确认删除',
+      content: `确定要删除项目「${record.name}」吗？存在关联任务/单据时会被拒绝。`,
+      onOk: async () => {
+        try {
+          await projectService.deleteProject(record.id);
+          message.success(t('common.deleteSuccess'));
+          fetchProjects();
+        } catch (error) {
+          console.error('Delete failed:', error);
+          message.error('删除失败：项目仍有关联任务或单据');
+        }
+      },
+    });
+  };
+
+  const columns: ColumnsType<Project> = useMemo(
+    () => [
+      {
+        title: '项目名称',
+        dataIndex: 'name',
+        key: 'name',
+        render: (text: string, record) => (
+          <Space>
+            <Briefcase size={16} />
+            <a onClick={() => navigate(`/projects/${record.id}`)}>{text}</a>
+          </Space>
+        ),
+      },
+      { title: '项目编号', dataIndex: 'code', key: 'code', width: 170 },
+      {
+        title: '类型',
+        dataIndex: 'type',
+        key: 'type',
+        width: 120,
+        render: (type: ProjectType) => <Tag color={TYPE_META[type]?.color}>{TYPE_META[type]?.label ?? type}</Tag>,
+      },
+      {
+        title: '状态',
+        dataIndex: 'status',
+        key: 'status',
+        width: 100,
+        render: (status: ProjectStatus) => (
+          <Tag color={STATUS_META[status]?.color}>{STATUS_META[status]?.label ?? status}</Tag>
+        ),
+      },
+      {
+        title: '健康度',
+        dataIndex: 'health',
+        key: 'health',
+        width: 90,
+        render: (health: string) => (
+          <Tag color={HEALTH_META[health]?.color}>{HEALTH_META[health]?.label ?? health}</Tag>
+        ),
+      },
+      {
+        title: '进度',
+        dataIndex: 'progress',
+        key: 'progress',
+        width: 160,
+        render: (percent: number) => <Progress percent={percent || 0} size="small" />,
+      },
+      {
+        title: '负责人',
+        dataIndex: 'managerId',
+        key: 'managerId',
+        width: 120,
+        render: (id?: number) => (id ? userNameById[id] ?? `ID: ${id}` : '-'),
+      },
+      {
+        title: '归口',
+        dataIndex: 'ownerTeamName',
+        key: 'ownerTeamName',
+        width: 160,
+        render: (name: string | undefined, record) =>
+          record.ownerTeamId ? (
+            <Space size={4}>
+              <span>{name || `团队 #${record.ownerTeamId}`}</span>
+              {record.ownerTeamDeleted && <Tag color="error">已停用</Tag>}
+            </Space>
+          ) : (
+            '-'
+          ),
+      },
+      {
+        title: '计划结束',
+        dataIndex: 'endDate',
+        key: 'endDate',
+        width: 120,
+        render: (v?: string) => (v ? v.slice(0, 10) : '-'),
+      },
+      {
+        // P2（PE-22）：轻量预算（未设置显示 '-'；不含财务口径）。
+        title: '预算',
+        key: 'budget',
+        width: 140,
+        render: (_: unknown, record) =>
+          record.budgetAmount ? `${record.budgetAmount.toLocaleString()} ${record.budgetCurrency ?? ''}`.trim() : '-',
+      },
+      {
+        title: '操作',
+        key: 'action',
+        width: 260,
+        render: (_: unknown, record) => (
+          <Space size="small">
+            <a onClick={() => navigate(`/projects/${record.id}`)}>工作台</a>
+            {canWrite && (
+              <>
+                <a onClick={() => openEdit(record)}>
+                  <Pencil size={14} /> 编辑
+                </a>
+                {record.status === 'planning' && <a onClick={() => runTransition(record, 'activate')}>激活</a>}
+                {record.status === 'active' && (
+                  <a onClick={() => runTransition(record, 'suspend')}>暂停</a>
+                )}
+                {record.status === 'suspended' && <a onClick={() => runTransition(record, 'resume')}>恢复</a>}
+                {(record.status === 'active' || record.status === 'suspended') && (
+                  <Tooltip title="存在未终结任务/单据时将被门禁阻止">
+                    <a onClick={() => runTransition(record, 'complete')}>结项</a>
+                  </Tooltip>
+                )}
+                {(record.status === 'planning' || record.status === 'active' || record.status === 'suspended') && (
+                  <a onClick={() => setCancelTarget(record)}>取消</a>
+                )}
+                <a onClick={() => handleDelete(record)}>
+                  <Trash2 size={14} />
+                </a>
+              </>
+            )}
+          </Space>
+        ),
+      },
+    ],
+    [canWrite, userNameById]
+  );
 
   return (
     <PageContainer
@@ -209,63 +354,144 @@ export default function ProjectsPage() {
         breadcrumb: { items: [{ title: '首页' }, { title: '项目管理' }] },
       }}
       extra={[
-        <Button key="refresh" icon={<RefreshCw />} onClick={fetchProjects} loading={fetching}>
+        <Button key="refresh" icon={<RefreshCw />} onClick={fetchProjects} loading={loading}>
           刷新
         </Button>,
+        <Button key="templates" icon={<LayoutTemplate />} onClick={() => navigate('/projects/templates')}>
+          模板管理
+        </Button>,
+        <Button key="reports" icon={<BarChart3 />} onClick={() => navigate('/projects/reports')}>
+          报表中心
+        </Button>,
+        <Button key="portfolio" icon={<BarChart3 />} onClick={() => navigate('/projects/portfolio')}>
+          组合视图
+        </Button>,
         canWrite ? (
-          <Button
-            key="create"
-            type="primary"
-            icon={<Plus />}
-            onClick={() => {
-              setEditingProject(null);
-              form.resetFields();
-              setIsModalVisible(true);
-            }}
-          >
+          <Button key="create" type="primary" icon={<Plus />} onClick={openCreate}>
             新建项目
           </Button>
         ) : null,
       ]}
     >
-      <Table columns={columns} dataSource={projects} rowKey="id" loading={fetching} />
+      <Space style={{ marginBottom: 16 }} wrap>
+        <Select
+          allowClear
+          placeholder="状态"
+          style={{ width: 140 }}
+          options={Object.entries(STATUS_META).map(([value, meta]) => ({ value, label: meta.label }))}
+          onChange={(value) => {
+            setPage(1);
+            setFilters((prev) => ({ ...prev, status: value }));
+          }}
+        />
+        <Select
+          allowClear
+          placeholder="类型"
+          style={{ width: 160 }}
+          options={Object.entries(TYPE_META).map(([value, meta]) => ({ value, label: meta.label }))}
+          onChange={(value) => {
+            setPage(1);
+            setFilters((prev) => ({ ...prev, type: value }));
+          }}
+        />
+        <Input.Search
+          allowClear
+          placeholder="项目名称/编号"
+          style={{ width: 260 }}
+          onSearch={(value) => {
+            setPage(1);
+            setFilters((prev) => ({ ...prev, q: value || undefined }));
+          }}
+        />
+      </Space>
+
+      <Table
+        rowKey="id"
+        columns={columns}
+        dataSource={projects}
+        loading={loading}
+        pagination={{
+          current: page,
+          pageSize,
+          total,
+          showSizeChanger: true,
+          showTotal: (t2) => `共 ${t2} 个项目`,
+          onChange: (p, ps) => {
+            setPage(p);
+            setPageSize(ps);
+          },
+        }}
+      />
 
       <Modal
-        title="新建/编辑项目"
+        title={editingProject ? '编辑项目' : '新建项目'}
         open={isModalVisible}
         onOk={handleOk}
         onCancel={() => {
           setIsModalVisible(false);
           setEditingProject(null);
         }}
-        confirmLoading={loading}
-        width={600}
+        confirmLoading={submitting}
+        width={640}
       >
         <Form form={form} layout="vertical">
-          <Form.Item
-            name="name"
-            label="项目名称"
-            rules={[{ required: true, message: '请输入项目名称' }]}
-          >
+          <Form.Item name="name" label="项目名称" rules={[{ required: true, message: '请输入项目名称' }]}>
             <Input placeholder="请输入项目名称" />
           </Form.Item>
-          <Form.Item
-            name="code"
-            label="项目代码"
-            rules={[{ required: true, message: '请输入项目代码' }]}
-          >
-            <Input placeholder="请输入项目代码" />
+          <Form.Item name="code" label="项目编号" extra="留空自动生成 PRJ-YYYYMMDD-XXXX；创建后不可修改">
+            <Input placeholder="可留空" disabled={!!editingProject} />
           </Form.Item>
           <div className="grid grid-cols-2 gap-4">
-            <Form.Item name="departmentId" label="所属部门">
-              <Select placeholder="请选择部门" options={departmentOptions} />
+            <Form.Item name="type" label="项目类型">
+              <Select
+                options={Object.entries(TYPE_META).map(([value, meta]) => ({ value, label: meta.label }))}
+              />
             </Form.Item>
-            <Form.Item name="managerId" label="负责人">
-              <Select placeholder="请选择负责人" options={userOptions} />
+            <Form.Item name="managerId" label="项目经理">
+              <Select
+                allowClear
+                showSearch
+                optionFilterProp="label"
+                placeholder="请选择项目经理"
+                options={Object.entries(userNameById).map(([id, name]) => ({ value: Number(id), label: name }))}
+              />
             </Form.Item>
           </div>
-          <Form.Item name="description" label="描述">
-            <Input.TextArea rows={4} />
+          <div className="grid grid-cols-2 gap-4">
+            <Form.Item name="departmentId" label="所属部门">
+              <Select allowClear showSearch optionFilterProp="label" placeholder="请选择部门" options={departmentOptions} />
+            </Form.Item>
+            <Form.Item name="range" label="计划起止">
+              <RangePicker style={{ width: '100%' }} />
+            </Form.Item>
+          </div>
+          <div className="grid grid-cols-2 gap-4">
+            {/* P2（PE-22）：轻量预算（金额与币种成对提交；金额 0 = 清空预算）。 */}
+            <Form.Item name="budgetAmount" label="预算金额" extra="留空 = 未设置（不做财务级核算）">
+              <InputNumber min={0} style={{ width: '100%' }} placeholder="如 120000" />
+            </Form.Item>
+            <Form.Item name="budgetCurrency" label="币种" extra="留空 = 租户默认">
+              <Input maxLength={8} placeholder="如 CNY / USD" />
+            </Form.Item>
+          </div>
+          <Form.Item name="description" label="项目描述">
+            <Input.TextArea rows={3} />
+          </Form.Item>
+        </Form>
+      </Modal>
+
+      <Modal
+        title={`取消项目：${cancelTarget?.name ?? ''}`}
+        open={!!cancelTarget}
+        onOk={submitCancel}
+        onCancel={() => {
+          setCancelTarget(null);
+          cancelForm.resetFields();
+        }}
+      >
+        <Form form={cancelForm} layout="vertical">
+          <Form.Item name="reason" label="取消原因" rules={[{ required: true, message: '取消需要填写原因' }]}>
+            <Input.TextArea rows={3} placeholder="请填写取消原因（审计留痕）" />
           </Form.Item>
         </Form>
       </Modal>

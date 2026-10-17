@@ -116,6 +116,11 @@ const EVENT_TYPES: EventTypeConfig[] = [
     nameKey: 'notifications.approvalCompleted',
     descKey: 'notifications.approvalCompletedDesc',
   },
+  {
+    type: 'project_milestone_due',
+    nameKey: 'notifications.projectMilestoneDue',
+    descKey: 'notifications.projectMilestoneDueDesc',
+  },
 ];
 
 // 通知渠道配置

@@ -3109,6 +3109,8 @@ export const translations = {
       approvalRequiredDesc: '当有待审批的工单时',
       approvalCompleted: '审批完成',
       approvalCompletedDesc: '当审批结果出来时',
+      projectMilestoneDue: '项目里程碑到期',
+      projectMilestoneDueDesc: '当项目里程碑即将到期或已逾期时',
       // Filter
       filter: '筛选',
       allChannels: '全部渠道',
@@ -8305,6 +8307,8 @@ export const translations = {
       approvalRequiredDesc: 'When there are tickets pending approval',
       approvalCompleted: 'Approval Completed',
       approvalCompletedDesc: 'When approval results are available',
+      projectMilestoneDue: 'Project Milestone Due',
+      projectMilestoneDueDesc: 'When a project milestone is due soon or overdue',
       // Filter
       filter: 'Filter',
       allChannels: 'All Channels',

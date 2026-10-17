@@ -145,6 +145,10 @@ const ProblemsNew = lazy(() => import('@/pages/(main)/problems/new/index'));
 const ProblemsTrends = lazy(() => import('@/pages/(main)/problems/trends/index'));
 const Profile = lazy(() => import('@/pages/(main)/profile/index'));
 const Projects = lazy(() => import('@/pages/(main)/projects/index'));
+const ProjectDetail = lazy(() => import('@/pages/(main)/projects/detail'));
+const ProjectTemplates = lazy(() => import('@/pages/(main)/projects/templates'));
+const ProjectReports = lazy(() => import('@/pages/(main)/projects/reports'));
+const ProjectPortfolio = lazy(() => import('@/pages/(main)/projects/portfolio'));
 const Register = lazy(() => import('@/pages/(auth)/register/index'));
 const Releases = lazy(() => import('@/pages/(main)/releases/index'));
 const ReleasesId = lazy(() => import('@/pages/(main)/releases/$id/index'));
@@ -380,6 +384,10 @@ export const routes: RouteObject[] = [
           { path: 'problems/trends', element: lazyElement(ProblemsTrends) },
           { path: 'profile', element: lazyElement(Profile) },
           { path: 'projects', element: lazyElement(Projects) },
+          { path: 'projects/templates', element: lazyElement(ProjectTemplates) },
+          { path: 'projects/reports', element: lazyElement(ProjectReports) },
+          { path: 'projects/portfolio', element: lazyElement(ProjectPortfolio) },
+          { path: 'projects/:id', element: lazyElement(ProjectDetail) },
           { path: 'releases', element: lazyElement(Releases) },
           { path: 'releases/:id', element: lazyElement(ReleasesId) },
           { path: 'releases/:id/edit', element: lazyElement(ReleasesIdEdit) },

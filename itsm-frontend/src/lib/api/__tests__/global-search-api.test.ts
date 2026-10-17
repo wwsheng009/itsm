@@ -28,6 +28,20 @@ describe('globalSearch', () => {
     expect(result.total).toBe(0);
   });
 
+  it('should pass through project/project_task results (PE-16)', async () => {
+    mockGet.mockResolvedValue({
+      results: [
+        { id: 7, type: 'project', title: '迁移改造项目', code: 'PRJ-MIG-1' },
+        { id: 8, type: 'project_task', title: '迁移任务一', projectId: 7, projectName: '迁移改造项目' },
+      ],
+      total: 2,
+    });
+    const result = await globalSearch('迁移');
+    expect(result.total).toBe(2);
+    expect(result.results[0]).toMatchObject({ type: 'project', code: 'PRJ-MIG-1' });
+    expect(result.results[1]).toMatchObject({ type: 'project_task', projectId: 7, projectName: '迁移改造项目' });
+  });
+
   it('should propagate errors', async () => {
     mockGet.mockRejectedValue(new Error('Search failed'));
     await expect(globalSearch('test')).rejects.toThrow('Search failed');

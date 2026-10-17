@@ -94,8 +94,15 @@ export const GlobalSearch: React.FC<GlobalSearchProps> = ({
       change: 'changes',
       knowledge: 'knowledge',
     };
-    const basePath = pathMap[item.type] || item.type;
-    navigate(`/${basePath}/${item.id}`);
+    // PE-16：项目/项目任务跳转——任务结果进入其所属项目工作台。
+    if (item.type === 'project') {
+      navigate(`/projects/${item.id}`);
+    } else if (item.type === 'project_task') {
+      navigate(item.projectId ? `/projects/${item.projectId}` : '/projects');
+    } else {
+      const basePath = pathMap[item.type] || item.type;
+      navigate(`/${basePath}/${item.id}`);
+    }
     onClose();
   };
 
@@ -119,7 +126,7 @@ export const GlobalSearch: React.FC<GlobalSearchProps> = ({
         <Input
           ref={searchInputRef}
           className={styles.globalSearchModalInput}
-          placeholder='搜索工单、事件...'
+          placeholder='搜索工单、事件、项目、任务...'
           prefix={<Search size={16} style={{ color: DESIGN.colors.textMuted }} />}
           value={searchValue}
           onChange={e => setSearchValue(e.target.value)}
@@ -145,7 +152,7 @@ export const GlobalSearch: React.FC<GlobalSearchProps> = ({
                 <List.Item.Meta
                   avatar={<Ticket size={16} style={{ color: DESIGN.colors.accent }} />}
                   title={<a onClick={() => handleItemClick(item)}>{item.title}</a>}
-                  description={item.status}
+                  description={[item.status, item.projectName, item.code].filter(Boolean).join(' · ')}
                 />
               </List.Item>
             )}

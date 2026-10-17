@@ -44,6 +44,12 @@ export const ROUTE_PERMISSIONS: RoutePermissionRule[] = [
   { pattern: '/changes/:id/edit', anyOf: ['change:write'], reason: 'router/change_routes.go PUT /changes/:id' },
   { pattern: '/problems/new', anyOf: ['problem:write'], reason: 'router/problem_routes.go POST /problems' },
   { pattern: '/problems/:id/edit', anyOf: ['problem:write'], reason: 'router/problem_routes.go PUT /problems/:id' },
+  // 项目管理（P0）：只读页面也显式登记数据面权限码，避免"菜单可见→进入页面才发现 403"。
+  { pattern: '/projects', anyOf: ['project:read'], reason: 'router/common_system_routes.go GET /projects' },
+  { pattern: '/projects/:id', anyOf: ['project:read'], reason: 'router/common_system_routes.go GET /projects/:id' },
+  { pattern: '/projects/templates', anyOf: ['project:read'], reason: 'router/common_system_routes.go GET /projects/templates' },
+  { pattern: '/projects/reports', anyOf: ['project:read'], reason: 'router/common_system_routes.go GET /projects/report-templates' },
+  { pattern: '/projects/portfolio', anyOf: ['project:read'], reason: 'router/common_system_routes.go GET /projects/portfolio' },
   { pattern: '/releases/new', anyOf: ['release:write'], reason: 'router/release_routes.go POST /releases' },
   { pattern: '/releases/:id/edit', anyOf: ['release:write'], reason: 'router/release_routes.go PUT /releases/:id' },
   { pattern: '/improvements/new', anyOf: ['ticket:create'], reason: '页面复用 TicketApi.createTicket（POST /tickets）' },

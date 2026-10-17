@@ -11,6 +11,9 @@ export default defineConfig(({ mode }) => {
 
   return {
     plugins: [react(), tailwindcss()],
+    // JSX 运行时：dev 用 jsxDEV（更好报错），build 必须用生产 react/jsx-runtime，
+    // 否则 dist 里的 jsxDEV 调用在预览/生产会因运行时无该导出而白屏崩溃。
+    esbuild: { jsxDev: !isProd },
     resolve: {
       alias: {
         '@': fileURLToPath(new URL('./src', import.meta.url)),
@@ -37,6 +40,10 @@ export default defineConfig(({ mode }) => {
       host: '0.0.0.0',
       port: 3000,
       strictPort: true,
+      // Preview 与 dev 保持同一 /api 代理口径（生产构建的本地/e2e 冒烟可复用同一入口）。
+      proxy: {
+        '/api': { target: backend, changeOrigin: false, cookieDomainRewrite: '' },
+      },
     },
     optimizeDeps: {
       // antd / 图表 / 编辑器等大依赖预打包，避免首次进入页面时浏览器侧二次发现
