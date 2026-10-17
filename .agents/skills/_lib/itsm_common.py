@@ -11,11 +11,16 @@
 - 公共 argparse：add_common_args（--base/--token/--token-file/--timeout/--compact，
   子命令侧 SUPPRESS 语义：Python 3.13 下 subparser 默认值不覆盖主 parser）
 
-用法（各域脚本内）：
+用法（各域脚本内，兼容两种布局自动定位，勿手写 parents[N]）：
     import sys
     from pathlib import Path
-    sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "_lib"))
+    sys.path.insert(0, _locate_lib())
     from itsm_common import (...)
+
+其中 _locate_lib 逻辑：脚本位于 <root>/<skill>/scripts/x.py——
+  开发态（仓库）：<root>/_lib           （parents[2]/_lib）
+  分发态（单技能 zip）：<root>/<skill>/_lib（parents[1]/_lib）
+取第一个存在 itsm_common.py 的路径，找不到抛出带布局提示的 RuntimeError。
 """
 import argparse
 import json
@@ -32,6 +37,23 @@ from pathlib import Path
 DEFAULT_BASE = os.environ.get("ITSM_BASE_URL", "http://localhost:8090/api/v1")
 DEFAULT_TIMEOUT = 30
 DEFAULT_TOKEN_PATH = Path.home() / ".itsm" / "itsm.token"
+
+
+def locate_lib():
+    """定位 _lib 目录（供各域脚本 sys.path 注入；兼容开发态/分发态两种布局）。"""
+    here = Path(__file__).resolve().parent          # <root>/_lib（本文件所在处）
+    script_dir = here.parent.parent                  # <skill>/scripts
+    candidates = [
+        script_dir.parent / "_lib",   # 分发态：<root>/<skill>/_lib
+        script_dir.parent.parent / "_lib",  # 开发态：<root>/_lib
+    ]
+    for cand in candidates:
+        if (cand / "itsm_common.py").exists():
+            return str(cand)
+    raise RuntimeError(
+        "未找到 _lib/itsm_common.py；期望布局：<root>/<skill>/scripts/x.py 且 "
+        "_lib 位于 <root>/<skill>/_lib（单技能包）或 <root>/_lib（仓库）"
+    )
 
 
 class ApiError(Exception):

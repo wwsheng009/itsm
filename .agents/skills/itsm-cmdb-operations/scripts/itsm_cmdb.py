@@ -13,7 +13,9 @@ import argparse
 import sys
 from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "_lib"))
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "_lib"))  # 分发态：单技能包内嵌 _lib
+if not (Path(sys.path[0]) / "itsm_common.py").exists():
+    sys.path[0] = str(Path(__file__).resolve().parents[2] / "_lib")  # 开发态：仓库 skills 根 _lib
 from itsm_common import (  # noqa: E402
     add_common_args,
     add_login_parser,

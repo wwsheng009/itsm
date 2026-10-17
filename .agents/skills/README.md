@@ -39,7 +39,7 @@
 
 1. **描述预算**：description ≤3 行——触发词 + 覆盖端点 + 「Do NOT use for」互斥链接；正文全部下沉 `references/`（渐进披露，按需才读）。
 2. **域聚合**：一个业务域一个 skill；不按路由文件切分；长尾域并入相近域。
-3. **共享底座**：脚本公共层（HTTP Client / 认证 / token 主目录落盘 / 错误封装）收敛到共享模块 **`_lib/itsm_common.py`**（与本目录各 skill 平级，脚本经 `parents[2]/_lib` 引用）；认证与 token 规范维护**一份** reference，各 SKILL.md 链接引用，禁止复制漂移（ticket/kb 曾发生一次同款漂移，2026-10-17 已收敛消除）。
+3. **共享底座**：脚本公共层（HTTP Client / 认证 / token 主目录落盘 / 错误封装）收敛到共享模块 **`_lib/itsm_common.py`**（与本目录各 skill 平级，脚本经双布局 bootstrap 引用，见 §6.1）；认证与 token 规范维护**一份** reference，各 SKILL.md 链接引用，禁止复制漂移（ticket/kb 曾发生一次同款漂移，2026-10-17 已收敛消除）。
 4. **触发词互斥**：相近域在 description 显式互斥（ticket vs incident；change vs release vs deploy）。
 5. **组合任务**：跨域流程（如 环境检查→建单→知识沉淀）写 runbook 文档引用多个 skill，**不为流程单开 skill**。
 6. **数量上限**：常驻 skill ≤8；超出先合并。
@@ -60,7 +60,7 @@
 
 ### 6.1 分发约束（已确认的实现事实）
 
-1. **共享底座布局不可拆**：各域脚本经 `parents[2]/_lib` 引用 `_lib/itsm_common.py`（§4.3）。单 skill zip 必须内嵌 `_lib/`，保持「技能根/skill/scripts」布局，否则 import 断链。
+1. **共享底座布局不可拆**：各域脚本经 `_lib` 引用 `itsm_common.py`（§4.3）。打包时单 skill zip **内嵌 `_lib/`**；脚本 bootstrap 采用**双布局自定位**（先试 `<skill>/_lib` 分发态，再试 `<root>/_lib` 开发态），两种形态均可运行。
 2. **宿主技能根目录映射**（安装器负责落到正确位置）：
    - Claude Code：`~/.claude/skills/<name>/`
    - Codex / aicli：`~/.aicli/.agents/skills/<name>/`（外部技能根）
@@ -72,7 +72,7 @@
 
 | Phase | 内容 | 产物 |
 |---|---|---|
-| **P1 仓库即分发**（零基建） | 打包脚本产出 `dist/skills/`：每 skill 一个 zip（内嵌 `_lib`）+ 全量 bundle + `manifest.json`（name/version/description/sha256/updatedAt/sourceCommit）+ 零依赖安装器 `itsm-skills-install.py`（校验 sha256 → 解压到宿主技能根 → 登记 `.skills-installed.json`） | `scripts/package-skills.ps1` + `dist/skills/*` |
+| **P1 仓库即分发**（✅ 已实施 2026-10-17） | `scripts/package-skills.ps1` 产出 `dist/skills/`：每 skill 一个 zip（内嵌 `_lib/`）+ 全量 bundle + `manifest.json`（name/version=日期.commit/description/sha256/sizeBytes/sourceCommit）+ 零依赖安装器；示例口令打包时自动脱敏（`Demo@2026!`→`YOUR_PASSWORD`，仅包内）；`scripts/itsm-skills-install.py`：sha256 校验（防 zip-slip）→ 宿主映射（claude/codex/project）→ 幂等覆盖 → `.skills-installed.json` 登记。**E2E 已验证**：安装态 `_lib` 双布局自定位（开发态 skills 根 / 分发态技能内嵌）、篡改包被拦截、5 技能安装后真实 API 调用通过 | `dist/skills/*`（构建产物，gitignored） |
 | **P2 ITSM 内建资源中心页** | 后端：`GET /api/v1/skills/registry`（清单）、`GET /api/v1/skills/:name/download`（go:embed 镜像或挂载 dist）、`GET /api/v1/skills/installer`；前端：资源页 skill 卡片（版本/大小/sha256/更新时间）+ 按**宿主 Tab**（Claude Code / Codex / 通用）展示一键复制安装命令 + 安装指导文档链接 | 后端 skills 路由 + 前端「资源中心」页 |
 | **P3 可选增强** | 包签名（minisign/cosign）、安装器 `--check` 自更新、版本锁定与回滚 | 签名公钥分发 + CLI 参数 |
 
