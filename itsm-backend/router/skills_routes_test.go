@@ -6,12 +6,13 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/gin-gonic/gin"
 )
 
-// newSkillsTestRouter 构造带 auth 组的测试路由（分发面只挂 auth，见 skills_routes.go 注）。
+// newSkillsTestRouter 构造带 public 组的测试路由（分发面公开挂载，见 skills_routes.go 注）。
 func newSkillsTestRouter(t *testing.T, distDir string) *gin.Engine {
 	t.Helper()
 	gin.SetMode(gin.TestMode)
@@ -21,8 +22,8 @@ func newSkillsTestRouter(t *testing.T, distDir string) *gin.Engine {
 		t.Setenv("SKILLS_DIST_DIR", "")
 	}
 	r := gin.New()
-	auth := r.Group("/api/v1")
-	SetupSkillsRoutes(nil, auth)
+	pub := r.Group("/api/v1")
+	SetupSkillsRoutes(pub, nil)
 	return r
 }
 
@@ -121,5 +122,25 @@ func TestSkillsInstaller_Served(t *testing.T) {
 	r.ServeHTTP(w, httptest.NewRequest(http.MethodGet, "/api/v1/skills-dist/installer", nil))
 	if w.Code != http.StatusOK || w.Body.String() != "DATA" {
 		t.Fatalf("installer expect 200 DATA got %d %q", w.Code, w.Body.String())
+	}
+}
+
+func TestSkillsInstallDoc_PublicMarkdown(t *testing.T) {
+	dir := filepath.Join(t.TempDir(), "skills")
+	writeFakeDist(t, dir)
+	r := newSkillsTestRouter(t, dir)
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, httptest.NewRequest(http.MethodGet, "/api/v1/skills-dist/install.md", nil))
+	if w.Code != http.StatusOK {
+		t.Fatalf("install.md expect 200 got %d", w.Code)
+	}
+	body := w.Body.String()
+	for _, want := range []string{"# ITSM Agent Skills 安装说明", "/api/v1/skills-dist/registry", "itsm-cmdb-operations/download", "sha256"} {
+		if !strings.Contains(body, want) {
+			t.Fatalf("install.md missing %q", want)
+		}
+	}
+	if ct := w.Header().Get("Content-Type"); !strings.HasPrefix(ct, "text/markdown") {
+		t.Fatalf("expect text/markdown got %s", ct)
 	}
 }

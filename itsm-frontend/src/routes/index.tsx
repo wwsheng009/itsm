@@ -123,6 +123,7 @@ const LicensesId = lazy(() => import('@/pages/(main)/licenses/$id/index'));
 const LicensesIdEdit = lazy(() => import('@/pages/(main)/licenses/$id/edit/index'));
 const LicensesNew = lazy(() => import('@/pages/(main)/licenses/new/index'));
 const Login = lazy(() => import('@/pages/(auth)/login/index'));
+const SkillsInstall = lazy(() => import('@/pages/(auth)/skills-install/index'));
 const Marketplace = lazy(() => import('@/pages/(main)/marketplace/index'));
 const MarketplaceId = lazy(() => import('@/pages/(main)/marketplace/$id/index'));
 const Skills = lazy(() => import('@/pages/(main)/skills/index'));
@@ -218,6 +219,7 @@ export const routes: RouteObject[] = [
           // 同时保留 `/invite?token=` 查询式兼容（邮件模板/手工拼接）。
           { path: 'invite/:token', element: lazyElement(Invite) },
           { path: 'login', element: lazyElement(Login) },
+          { path: 'skills-install', element: lazyElement(SkillsInstall) },
           { path: 'register', element: lazyElement(Register) },
           { path: 'reset-password', element: lazyElement(ResetPassword) },
           { path: 'sso/callback', element: lazyElement(SsoCallback) },

@@ -372,6 +372,14 @@ function LoginForm() {
         </Text>
       </div>
 
+      <div className='text-center mt-2'>
+        <Link to='/skills-install'>
+          <Button type='link' className='p-0 h-auto text-xs text-gray-400'>
+            Agent Skills 安装（公开）
+          </Button>
+        </Link>
+      </div>
+
       {/* 跳转过渡：从"确认会话成功"到目标页渲染完成之间的视觉衔接。
           延迟 200ms 出现，导航很快时不会闪一下。 */}
       {succeeded && (
