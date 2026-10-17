@@ -406,6 +406,8 @@ func SetupRoutes(r *gin.Engine, config *RouterConfig) {
 		auth.Use(middleware.CSRFProtectionMiddleware(csrfConfig))
 	}
 	auth.GET("/capabilities", capability.Handler)
+	// Skills 分发面（README §6.2 Phase 2）：registry/installer/下载；SKILLS_DIST_DIR 未配置时降级。
+	SetupSkillsRoutes(public, auth)
 	if config.Client != nil {
 		operationHandler := operations.NewHandler(operations.NewService(config.Client))
 		operationRoutes := auth.Group("/admin/operations/commands")

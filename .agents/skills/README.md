@@ -73,7 +73,7 @@
 | Phase | 内容 | 产物 |
 |---|---|---|
 | **P1 仓库即分发**（✅ 已实施 2026-10-17） | `scripts/package-skills.ps1` 产出 `dist/skills/`：每 skill 一个 zip（内嵌 `_lib/`）+ 全量 bundle + `manifest.json`（name/version=日期.commit/description/sha256/sizeBytes/sourceCommit）+ 零依赖安装器；示例口令打包时自动脱敏（`Demo@2026!`→`YOUR_PASSWORD`，仅包内）；`scripts/itsm-skills-install.py`：sha256 校验（防 zip-slip）→ 宿主映射（claude/codex/project）→ 幂等覆盖 → `.skills-installed.json` 登记。**E2E 已验证**：安装态 `_lib` 双布局自定位（开发态 skills 根 / 分发态技能内嵌）、篡改包被拦截、5 技能安装后真实 API 调用通过 | `dist/skills/*`（构建产物，gitignored） |
-| **P2 ITSM 内建资源中心页** | 后端：`GET /api/v1/skills/registry`（清单）、`GET /api/v1/skills/:name/download`（go:embed 镜像或挂载 dist）、`GET /api/v1/skills/installer`；前端：资源页 skill 卡片（版本/大小/sha256/更新时间）+ 按**宿主 Tab**（Claude Code / Codex / 通用）展示一键复制安装命令 + 安装指导文档链接 | 后端 skills 路由 + 前端「资源中心」页 |
+| **P2 ITSM 内建资源中心页**（✅ 已实施 2026-10-17） | 后端：`router/skills_routes.go`——`GET /api/v1/skills/registry`（manifest 直通；`SKILLS_DIST_DIR` 未配置时返回 `configured:false` 降级）、`GET /skills/installer`、`GET /skills/:name/download`（**仅 manifest 登记文件可下发**，bundle 走 `bundle/download`；路径清洗+大小上限+X-SHA256 响应头；public+auth 双挂载）；菜单种子「资源中心」/skills（登录即可，分发面无租户数据）。前端：`/skills` 页——分发元信息卡、宿主 Tab（Claude Code/Codex/项目级）三步安装指导 + 复制、技能卡片（版本/sha256/大小/下载/单技能安装命令）。**验证**：后端 `go test ./router -run TestSkills` 4 用例 + seeder 回归 ✅；前端 `tsc --noEmit` + `vite build` ✅。部署侧仅需：CI 产物挂载到 `SKILLS_DIST_DIR` | 后端 skills 路由 + seeder 菜单 + 前端 `/skills` 页 |
 | **P3 可选增强** | 包签名（minisign/cosign）、安装器 `--check` 自更新、版本锁定与回滚 | 签名公钥分发 + CLI 参数 |
 
 ### 6.3 安装体验（P2 目标形态）

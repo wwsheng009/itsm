@@ -1855,6 +1855,9 @@ func (s *Seeder) seedMenus(ctx context.Context) {
 		{Name: "Bot 管理与授权", Path: "/admin/bots", Icon: "Bot", ParentPath: "/admin", PermissionCode: "ai:read", SortOrder: 287},
 		// 工具目录（查询内置 + MCP 外部工具；与 Bot 授权选择器同源，均按 ai:read 开放）。
 		{Name: "工具目录", Path: "/admin/tools", Icon: "Wrench", ParentPath: "/admin", PermissionCode: "ai:read", SortOrder: 288},
+		// Agent Skills 资源中心（README §6.2 Phase 2）：分发面为静态构建产物（无租户数据），
+		// 登录即可访问（PermissionCode 空），与「服务台」同策略。
+		{Name: "资源中心", Path: "/skills", Icon: "Package", ParentPath: "", PermissionCode: "", SortOrder: 190, Description: "Agent Skills 分发与安装"},
 		// 2026-10-10 治理域收口 §8 D7：向量库为平台资产——路由挂 L1，菜单码改挂平台码
 		// system:read（仅平台角色持有，租户侧不挂载）。
 		{Name: "向量存储配置", Path: "/admin/vector-store", Icon: "Database", ParentPath: "/admin", PermissionCode: "system:read", SortOrder: 290},

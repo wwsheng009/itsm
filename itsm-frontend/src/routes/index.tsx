@@ -125,6 +125,7 @@ const LicensesNew = lazy(() => import('@/pages/(main)/licenses/new/index'));
 const Login = lazy(() => import('@/pages/(auth)/login/index'));
 const Marketplace = lazy(() => import('@/pages/(main)/marketplace/index'));
 const MarketplaceId = lazy(() => import('@/pages/(main)/marketplace/$id/index'));
+const Skills = lazy(() => import('@/pages/(main)/skills/index'));
 const Msp = lazy(() => import('@/pages/(main)/msp/index'));
 const MspAudit = lazy(() => import('@/pages/(main)/msp/audit/index'));
 const MspDashboard = lazy(() => import('@/pages/(main)/msp/dashboard/index'));
@@ -354,6 +355,7 @@ export const routes: RouteObject[] = [
           { path: 'licenses/new', element: lazyElement(LicensesNew) },
           { path: 'marketplace', element: lazyElement(Marketplace) },
           { path: 'marketplace/:id', element: lazyElement(MarketplaceId) },
+          { path: 'skills', element: lazyElement(Skills) },
           {
             element: <RequireCapability anyOf={MSP_AREA_PERMISSIONS} />,
             children: [
