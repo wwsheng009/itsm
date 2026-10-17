@@ -259,6 +259,61 @@ func ResolvePermissions(ctx context.Context, client *ent.Client, userID, tenantI
 	return codes, PermissionSourceMembership, nil
 }
 
+// ResolveMembershipRoleCodes 返回 (userID, tenantID) 存活 membership 指向的角色 code
+// （附加角色 user_roles m2m 的并集交由 RBACMiddleware 既有物化链路处理，此处不重复）。
+//
+// 请求期单源收敛（IP-P1-2 遗留项）：RBACMiddleware 请求期判定此前仅看 JWT 主角色 +
+// m2m 附加角色，未读取目标租户 membership 角色，导致深切换进客户租户的 MSP 员工
+// （JWT 角色保持 end_user）在展示面（/auth/me 经 ResolvePermissions 返回 C2 基线码）
+// 与判定面（RBACMiddleware）口径分叉：/cmdb/cis 等读面 403（2026-10-17 浏览器实测）。
+// RBACMiddleware 物化生效角色时并入本函数结果即可与展示面同源；无 membership /
+// 角色行缺失时返回 nil（fail-closed，不影响既有主角色与 m2m 判定）。
+func ResolveMembershipRoleCodes(ctx context.Context, client *ent.Client, userID, tenantID int) []string {
+	if client == nil || userID <= 0 || tenantID <= 0 {
+		return nil
+	}
+	ctx = tenantctx.WithTenantID(ctx, tenantID)
+
+	membership, err := client.UserTenantMembership.Query().
+		Where(
+			usertenantmembership.UserID(userID),
+			usertenantmembership.TenantID(tenantID),
+			usertenantmembership.DeletedAtIsNil(),
+			usertenantmembership.StatusEQ(usertenantmembership.StatusActive),
+			// IP-P2-9 惰性判定：expires_at 已过视为不存在（fail-closed）。
+			MembershipNotExpired(),
+		).
+		Only(ctx)
+	if err != nil {
+		// NotFound=无 membership 属业务态；其他错误记 Warn 后同样 fail-closed。
+		if !ent.IsNotFound(err) {
+			zap.S().Warnw("ResolveMembershipRoleCodes: membership lookup failed",
+				"user_id", userID, "tenant_id", tenantID, "error", err)
+		}
+		return nil
+	}
+	if membership.RoleID == nil {
+		return nil
+	}
+	roleEntity, err := client.Role.Query().
+		Where(
+			role.IDEQ(*membership.RoleID),
+			role.TenantID(tenantID),
+		).
+		Only(ctx)
+	if err != nil {
+		if !ent.IsNotFound(err) {
+			zap.S().Warnw("ResolveMembershipRoleCodes: role lookup failed",
+				"user_id", userID, "tenant_id", tenantID, "role_id", *membership.RoleID, "error", err)
+		}
+		return nil
+	}
+	if roleEntity.Code == "super_admin" {
+		return []string{"super_admin"}
+	}
+	return []string{roleEntity.Code}
+}
+
 // mergePermissionCodes 并集两个权限码列表（排序去重）。
 func mergePermissionCodes(base, extra []string) []string {
 	seen := make(map[string]bool, len(base)+len(extra))

@@ -1074,6 +1074,25 @@ func RBACMiddleware(client *ent.Client) gin.HandlerFunc {
 			}
 		}
 
+		// 请求期单源收敛（IP-P1-2 遗留项）：并入目标租户 membership 指向的角色 code。
+		// 此前请求期判定仅看 JWT 主角色 + m2m 附加角色，深切换进客户租户的 MSP 员工
+		// （JWT 角色保持 users.role，如 end_user）与展示面（/auth/me 经 ResolvePermissions
+		// 读 membership → C2 基线）口径分叉，/api/v1/cmdb/cis 等读面 403。
+		// 无 membership / 角色行缺失时返回 nil，fail-closed，不影响既有判定。
+		if membershipRoles := ResolveMembershipRoleCodes(c.Request.Context(), client, userID, tenantID); len(membershipRoles) > 0 {
+			existing, _ := c.Get("roles")
+			roleCodes, _ := existing.([]string)
+			merged := make([]string, 0, len(roleCodes)+len(membershipRoles))
+			seen := make(map[string]bool, len(roleCodes)+len(membershipRoles))
+			for _, r := range append(append([]string(nil), roleCodes...), membershipRoles...) {
+				if r != "" && !seen[r] {
+					seen[r] = true
+					merged = append(merged, r)
+				}
+			}
+			c.Set("roles", merged)
+		}
+
 		// 检查用户是否被禁用
 		if !userEntity.Active {
 			zap.S().Warnw(
