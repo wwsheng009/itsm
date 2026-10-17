@@ -137,6 +137,140 @@ def cmd_reconciliation(client, _args):
     return client.request("GET", "/cmdb/reconciliation")
 
 
+def _json_kv(pairs, flag="--set"):
+    """key=value 转 body 片段；value 尝试 JSON 解析（数字/布尔/对象），失败按字符串。"""
+    import json as _json
+    out = {}
+    for item in pairs or []:
+        if "=" not in item:
+            raise ApiError("%s 需要 key=value 形式: %s" % (flag, item))
+        key, value = item.split("=", 1)
+        key = key.strip()
+        try:
+            out[key] = _json.loads(value)
+        except ValueError:
+            out[key] = value
+    return out
+
+
+def cmd_ci_create(client, args):
+    body = _json_kv(args.set)
+    for key in ("name", "status"):
+        if key not in body:
+            raise ApiError("创建 CI 必填 --set name=... --set status=...（如 active）")
+    if args.ci_type_id:
+        body["ciTypeId"] = args.ci_type_id
+    return client.request("POST", "/cmdb/cis", body)
+
+
+def cmd_ci_update(client, args):
+    body = _json_kv(args.set)
+    if not body:
+        raise ApiError("更新 CI 至少一个 --set key=value；version 用 --version 指定乐观锁（0=取当前）")
+    if args.version is not None:
+        body["version"] = args.version
+    return client.request("PUT", "/cmdb/cis/%s" % args.id, body)
+
+
+def cmd_ci_delete(client, args):
+    return client.request("DELETE", "/cmdb/cis/%s" % args.id)
+
+
+def cmd_batch_create(client, args):
+    items = []
+    for item in args.item or []:
+        items.append(_json_kv([item]))
+    if not items:
+        raise ApiError("batch-create 需要至少一个 --item（JSON 对象或 key=value 串）")
+    return client.request("POST", "/cmdb/cis/batch", {"items": items})
+
+
+def cmd_batch_update(client, args):
+    ids = [int(x) for x in args.ids.split(",") if x.strip()]
+    updates = _json_kv(args.set)
+    if not ids or not updates:
+        raise ApiError("batch-update 需要 --ids 1,2,3 与至少一个 --set key=value")
+    if args.version is not None:
+        updates["version"] = args.version
+    return client.request("PUT", "/cmdb/cis/batch", {"ids": ids, "updates": updates})
+
+
+def cmd_batch_delete(client, args):
+    ids = [int(x) for x in args.ids.split(",") if x.strip()]
+    if not ids:
+        raise ApiError("batch-delete 需要 --ids 1,2,3")
+    return client.request("DELETE", "/cmdb/cis/batch", {"ids": ids})
+
+
+def cmd_lifecycle_update(client, args):
+    if not args.status:
+        raise ApiError("lifecycle-update 需要 --status（draft/online/maintenance/offline/scrapped），经 query 传参")
+    path = "/cmdb/cis/%s/lifecycle?status=%s" % (args.id, args.status)
+    if args.remark:
+        from urllib.parse import quote
+        path += "&remark=%s" % quote(args.remark, safe="")
+    return client.request("PUT", path)
+
+
+def cmd_lifecycle_history(client, args):
+    return client.request("GET", "/cmdb/cis/%s/lifecycle/history" % args.id)
+
+
+def cmd_batch_lifecycle(client, args):
+    ids = [int(x) for x in args.ids.split(",") if x.strip()]
+    if not ids or not args.status:
+        raise ApiError("batch-lifecycle 需要 --ids 1,2,3 与 --status")
+    body = {"ids": ids, "status": args.status}
+    if args.remark:
+        body["remark"] = args.remark
+    return client.request("PUT", "/cmdb/cis/batch/lifecycle", body)
+
+
+def cmd_ci_revert(client, args):
+    if not args.version:
+        raise ApiError("revert 需要 --version N（目标历史版本号）")
+    body = {"version": args.version}
+    if args.remark:
+        body["remark"] = args.remark
+    return client.request("POST", "/cmdb/cis/%s/revert" % args.id, body)
+
+
+def cmd_rel_create(client, args):
+    if not args.source or not args.target or not args.rel_type:
+        raise ApiError("rel-create 必填 --source CI_ID --target CI_ID --rel-type（depends_on/hosts/hosted_on/connects_to/runs_on/contains/part_of/impacts/impacted_by/owns…）")
+    body = {"sourceCiId": args.source, "targetCiId": args.target, "relationshipType": args.rel_type}
+    if args.strength:
+        body["strength"] = args.strength
+    if args.impact:
+        body["impactLevel"] = args.impact
+    if args.description:
+        body["description"] = args.description
+    if args.discovered is not None:
+        body["isDiscovered"] = args.discovered.lower() in ("1", "true", "yes")
+    return client.request("POST", "/cmdb/relationships", body)
+
+
+def cmd_rel_update(client, args):
+    body = {}
+    if args.rel_type:
+        body["relationshipType"] = args.rel_type
+    if args.strength:
+        body["strength"] = args.strength
+    if args.impact:
+        body["impactLevel"] = args.impact
+    if args.description:
+        body["description"] = args.description
+    if args.active is not None:
+        body["isActive"] = args.active.lower() in ("1", "true", "yes")
+    if not body:
+        raise ApiError("rel-update 至少一个可改字段")
+    return client.request("PUT", "/cmdb/relationships/%s" % args.id, body)
+
+
+def cmd_rel_delete(client, args):
+    return client.request("DELETE", "/cmdb/relationships/%s" % args.id)
+
+
 COMMANDS = {
     "login": (cmd_login, False),
     "cis-list": (cmd_cis_list, True),
@@ -158,6 +292,19 @@ COMMANDS = {
     "views-list": (cmd_views_list, True),
     "discovery-health": (cmd_discovery_health, True),
     "reconciliation": (cmd_reconciliation, True),
+    "ci-create": (cmd_ci_create, True),
+    "ci-update": (cmd_ci_update, True),
+    "ci-delete": (cmd_ci_delete, True),
+    "batch-create": (cmd_batch_create, True),
+    "batch-update": (cmd_batch_update, True),
+    "batch-delete": (cmd_batch_delete, True),
+    "lifecycle-update": (cmd_lifecycle_update, True),
+    "lifecycle-history": (cmd_lifecycle_history, True),
+    "batch-lifecycle": (cmd_batch_lifecycle, True),
+    "revert": (cmd_ci_revert, True),
+    "rel-create": (cmd_rel_create, True),
+    "rel-update": (cmd_rel_update, True),
+    "rel-delete": (cmd_rel_delete, True),
 }
 
 
@@ -236,6 +383,69 @@ def build_parser():
     add("views-list", "GET /cmdb/views（保存的搜索视图）")
     add("discovery-health", "GET /cmdb/discovery/health")
     add("reconciliation", "GET /cmdb/reconciliation（对账）")
+
+    # ---------------- 写面（cmdb:write / cmdb:delete）----------------
+    cc = add("ci-create", "POST /cmdb/cis（创建 CI；--set key=value 可重复，value 支持 JSON 字面量）")
+    cc.add_argument("--set", action="append", default=[], metavar="KEY=VALUE")
+    cc.add_argument("--ci-type-id", type=int, default=0)
+
+    cu = add("ci-update", "PUT /cmdb/cis/:id（部分更新；--version 乐观锁）")
+    cu.add_argument("id")
+    cu.add_argument("--set", action="append", default=[], metavar="KEY=VALUE")
+    cu.add_argument("--version", type=int, default=None)
+
+    cd = add("ci-delete", "DELETE /cmdb/cis/:id（软删）")
+    cd.add_argument("id")
+
+    bc = add("batch-create", "POST /cmdb/cis/batch（≤100 条）")
+    bc.add_argument("--item", action="append", default=[], metavar="KEY=VALUE|JSON", help="一个 CI 的字段；可重复")
+
+    bu = add("batch-update", "PUT /cmdb/cis/batch（同字段批量改）")
+    bu.add_argument("--ids", required=True, help="逗号分隔 CI id")
+    bu.add_argument("--set", action="append", default=[], metavar="KEY=VALUE")
+    bu.add_argument("--version", type=int, default=None)
+
+    bd = add("batch-delete", "DELETE /cmdb/cis/batch")
+    bd.add_argument("--ids", required=True, help="逗号分隔 CI id")
+
+    lu = add("lifecycle-update", "PUT /cmdb/cis/:id/lifecycle?status=&remark=（query 传参，非 JSON body）")
+    lu.add_argument("id")
+    lu.add_argument("--status", required=True, choices=["draft", "online", "maintenance", "offline", "scrapped"])
+    lu.add_argument("--remark", default="")
+
+    lh = add("lifecycle-history", "GET /cmdb/cis/:id/lifecycle/history")
+    lh.add_argument("id")
+
+    bl = add("batch-lifecycle", "PUT /cmdb/cis/batch/lifecycle")
+    bl.add_argument("--ids", required=True)
+    bl.add_argument("--status", required=True, choices=["draft", "online", "maintenance", "offline", "scrapped"])
+    bl.add_argument("--remark", default="")
+
+    rv = add("revert", "POST /cmdb/cis/:id/revert（版本回滚）")
+    rv.add_argument("id")
+    rv.add_argument("--version", type=int, required=True)
+    rv.add_argument("--remark", default="")
+
+    rc = add("rel-create", "POST /cmdb/relationships（创建关系）")
+    rc.add_argument("--source", type=int, required=True, help="源 CI id")
+    rc.add_argument("--target", type=int, required=True, help="目标 CI id")
+    rc.add_argument("--rel-type", required=True,
+                    help="depends_on/hosts/hosted_on/connects_to/runs_on/contains/part_of/impacts/impacted_by/owns")
+    rc.add_argument("--strength", default="", choices=["", "critical", "high", "medium", "low"])
+    rc.add_argument("--impact", default="", choices=["", "critical", "high", "medium", "low"])
+    rc.add_argument("--description", default="")
+    rc.add_argument("--discovered", default=None, help="true/false（isDiscovered）")
+
+    ru = add("rel-update", "PUT /cmdb/relationships/:id")
+    ru.add_argument("id")
+    ru.add_argument("--rel-type", default="")
+    ru.add_argument("--strength", default="", choices=["", "critical", "high", "medium", "low"])
+    ru.add_argument("--impact", default="", choices=["", "critical", "high", "medium", "low"])
+    ru.add_argument("--description", default="")
+    ru.add_argument("--active", default=None, help="true/false（isActive）")
+
+    rd = add("rel-delete", "DELETE /cmdb/relationships/:id")
+    rd.add_argument("id")
 
     return parser
 

@@ -40,19 +40,41 @@
 | `GET /cmdb/discovery/health` | 发现健康 |
 | `GET /cmdb/reconciliation` | 对账 |
 
-## 3. 写面（**暂未封装脚本**，curl 口径）
+## 3. 写面（2026-10-17 起脚本已封装核心，子命令 `ci-create/ci-update/ci-delete/batch-*/lifecycle-*/revert/rel-*`）
 
-| 端点 | 权限 |
+### 3.1 CI CRUD / 批量（JSON body）
+
+| 端点 | body 契约（`dto/cmdb_dto.go` / `cmdb_advanced_dto.go`） |
 |---|---|
-| `POST/PUT/DELETE /cmdb/cis[/:id]` | write/delete |
-| `POST/PUT/DELETE /cmdb/cis/batch`（batch.delete 走 DELETE + body）、`PUT /cmdb/cis/batch/lifecycle` | write/delete |
-| `POST /cmdb/cis/:id/revert`（版本回滚）、`GET/PUT /cmdb/cis/:id/lifecycle[/history]` | write |
-| `POST/DELETE /cmdb/cis/:id/tags` | write |
-| CI 类型/属性/标签/视图 CRUD | write/delete |
-| `POST /cmdb/relationships`、`PUT/DELETE /cmdb/relationships/:id` | write/delete |
-| `GET/POST /cmdb/import[/:task_id]`、`GET/POST /cmdb/export[/:task_id]`（任务制，POST 后轮询 task_id） | read/write |
-| `GET/POST/PUT/DELETE /cmdb/cloud-accounts|cloud-services|cloud-resources[/:id]` | read/write/delete |
-| `GET/POST /cmdb/discovery/sources`、`POST /cmdb/discovery/jobs`、`GET /cmdb/discovery/results` | read/write |
+| `POST /cmdb/cis` | `CreateCIRequest`：`name`(必填 ≤255)、`status`(必填)、`ciTypeId`、`description`(≤20000)、`environment/criticality/assetTag/serialNumber/model/vendor/location/assignedTo/ownedBy/source/discoverySource`、`attributes{}`（自定义属性 map）、云字段（`cloudProvider/cloudAccountId/.../cloudTags/cloudMetrics`）、`lifecycleStatus`(oneof `draft/online/maintenance/offline/scrapped`)、`effectiveAt/expireAt`；`type` 不传时由 CIType 推导 |
+| `PUT /cmdb/cis/:id` | `UpdateCIRequest`：同上字段全部可选（指针语义）；**`version` 乐观锁**（不带=服务端按当前处理，带旧值=冲突） |
+| `DELETE /cmdb/cis/:id` | 软删 |
+| `POST /cmdb/cis/batch` | `{items: CreateCIRequest[]}`，≤100 |
+| `PUT /cmdb/cis/batch` | `{ids: int[], updates: UpdateCIRequest}` |
+| `DELETE /cmdb/cis/batch` | `{ids: int[]}`（DELETE + body） |
+| `PUT /cmdb/cis/batch/lifecycle` | `{ids, status(必填), remark?}` |
+
+### 3.2 生命周期 / 版本回滚
+
+| 端点 | 契约 |
+|---|---|
+| `PUT /cmdb/cis/:id/lifecycle?status=&remark=` | **query 传参（非 JSON body）**；status 必填；返回 CI DTO（lifecycleStatus 可能不回显——2026-10-17 实测，确认状态以 lifecycle/history 为准） |
+| `GET /cmdb/cis/:id/lifecycle/history` | 数组（无包络）：`{id, ciId, oldStatus, newStatus, operatorId, operatorName, remark, version, createdAt}` |
+| `POST /cmdb/cis/:id/revert` | `RevertCIVersionRequest`：`{version(必填 ≥1), remark?}` |
+
+### 3.3 关系
+
+| 端点 | 契约（`dto/ci_relationship_dto.go`） |
+|---|---|
+| `POST /cmdb/relationships` | `{sourceCiId, targetCiId, relationshipType(必填), strength?, impactLevel?, description?, metadata?, isDiscovered?}` |
+| `PUT /cmdb/relationships/:id` | 指针字段：`relationshipType/strength/impactLevel/description/metadata/isActive` |
+| `DELETE /cmdb/relationships/:id` | — |
+
+**relationshipType 枚举**：`depends_on / hosts / hosted_on / connects_to / runs_on / contains / part_of / impacts / impacted_by / owns`；**strength/impactLevel 枚举**：`critical/high/medium/low`。
+
+### 3.4 暂未封装（curl 口径照旧）
+
+CI 类型/属性/标签/视图 CRUD；`POST/DELETE /cmdb/cis/:id/tags`；导入导出任务（`GET/POST /cmdb/import|export`，任务制 POST 后轮询 `:task_id`）；云账号/云服务/云资源 CRUD；发现 sources/jobs/results。
 
 ## 4. GAPS（P0 初版，随实测回填）
 
@@ -60,4 +82,5 @@
 2. `sortBy` 白名单为 `id/name/status/environment/criticality/created_at/updated_at`（binding oneof），传其余值 400。
 3. `size` 上限 200（form）、`pageSize` 上限 100（POST search）——两套分页参数名不一致，脚本已分别透传。
 4. **POST search 未知 filter 键静默忽略（2026-10-17 实测）**：`CISearchFilter` 合法键= `keyword/ciTypeId/status/environment/criticality/assetTag/serialNumber/vendor/location/assignedTo/ownedBy/tagIds/attributes/dateFrom/dateTo/cloudProvider/cloudRegion/cloudResourceId`；传未知键（如 `ciType`）**不报错、不过滤**（Go JSON 绑定非严格），返回全量。排障时先核对键名。
-5. 写面/响应 DTO 字段表待补；本文件为 P0 调研稿，写面封装后回填 §3 详情与实测证据。
+5. **lifecycle-update 响应不回显 lifecycleStatus（2026-10-17 实测）**：切换成功返回 CI DTO 但无 `lifecycleStatus` 字段；确认当前状态以 `GET /:id/lifecycle/history` 为准（实测切换后 history 立即出现 `oldStatus→newStatus` 行）。
+6. CI 类型/标签/视图写面、导入导出任务、云资源三件套、发现任务**暂未封装脚本**（见 §3.4）；需要时优先封装导入导出（任务制）。

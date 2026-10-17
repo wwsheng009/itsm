@@ -14,11 +14,12 @@
 
 | 优先级 | 候选 Skill | 路由面（router/*.go 实测） | 理由 / 备注 |
 |---|---|---|---|
-| **P0** | itsm-cmdb-operations | cmdb_routes 106 | 资产/关系/同步是「环境检查」类工单的底座；读多写少、契约稳定 |
-| **P0** | itsm-change-operations | change 35 + cab 4 + approval_chain 6 | 独立状态机 + 审批/CAB 语义，与 ticket 流转互补 |
+| **P0**（✅ 已建 2026-10-17） | itsm-cmdb-operations | cmdb_routes 106 | 读面全量 20 + 写面核心 13 子命令；GAPS 见其 references §4 |
+| **P0**（✅ 已建 2026-10-17） | itsm-change-operations | change 35 + cab 4 + approval_chain 6 | 33 子命令；分类型状态机 + 审批双校验，全链 238 实测通过 |
 | P1 | itsm-sla-operations | sla 39 | 定义/监控/超时；与 ticket stats 组合可做报表自动化 |
 | P1 | itsm-msp-operations | msp 45 | MSP 多租户资源范围/客户管理，平台核心场景 |
 | P1 | itsm-problem-operations | problem 24 | 调查+知识沉淀链路与 knowledge skill 衔接 |
+| P3 | itsm-incident-operations | incident 47 | 见 §7 边界结论：监控驱动场景，复用低频；先不做 |
 | P2 | itsm-service-request-operations | service_request 20 + service_catalog 10 | 目录下单/审批；优先级低于流程域能力 |
 | P2 | itsm-release-operations | release 16 | **须先与 itsm-deploy 划界**（业务发布 vs 部署操作） |
 | P2 | itsm-cloud-operations | cloud 15 | 云资源同步/盘点，偏集成 |
@@ -47,9 +48,11 @@
 ## 5. 近期待办（2026-10-17）
 
 - [x] 抽取共享底座 `_lib/itsm_common.py`，迁移 ticket/kb 两脚本（2026-10-17 完成：净删 319 行复制代码，238 实测 stats/login/上传/401 全链路回归通过）
-- [ ] incident(47) 与 ticket 域边界调研（两套路由并存），结论回填本文 §2
-- [ ] **P0 启动**：itsm-cmdb-operations——先产出 API 契约调研（references 初稿），再落脚本骨架
-- [ ] P0：itsm-change-operations——先调研状态机与审批链契约
+- [x] incident(47) 与 ticket 域边界调研——结论回填 §7（P3 暂缓）
+- [x] **P0**：itsm-cmdb-operations——读面+写面核心完成（33 子命令，238 实测）
+- [x] **P0**：itsm-change-operations——SKILL.md + references + 33 子命令脚本，238 全生命周期实测
+- [ ] CMDB 长尾：导入导出任务 / 云资源三件套 / 发现任务封装
+- [ ] P1：itsm-sla-operations / itsm-msp-operations / itsm-problem-operations
 
 ## 6. 分发与安装（skills 打包下发）
 
@@ -86,3 +89,14 @@ python itsm-skills-install.py --manifest manifest.json --name itsm-ticket-operat
 安装器职责：sha256 校验 → 按宿主映射解压 → 幂等（重装覆盖 + 版本登记）→ 输出后续验证命令（如 `itsm_ticket.py --help`）。
 
 > 注：本节是**产品功能规划**，按 §4.5 不新增 skill；Phase 1 属 skill 体系工具链（仓库内脚本），Phase 2 走产品需求（后端路由 + 前端页面）。
+
+## 7. incident 与 ticket 域边界结论（2026-10-17 调研）
+
+| 维度 | /tickets（itsm-ticket-operations 已覆盖） | /incidents（独立域） |
+|---|---|---|
+| 数据模型 | 工单（含 type=incident 等枚举）+ 平台工单类型/表单/SLA | 独立 incident 实体（ent，无 ticket 外键关联） |
+| 状态机 | `common.IsValidTicketStatusTransition`（new→…→closed，7 态） | `common.IsValidIncidentStatusTransition`（10 态：new/acknowledged/assigned/in_progress/triaged/escalated/on_hold/resolved/closed/cancelled） |
+| 能力重心 | 业务单据流（表单/审批/自动化/评分/视图） | **监控告警驱动**：告警关联（/alerts 子面 5 条）、事件时间线、影响分析、根因分析、SLA 暂停/恢复、major-incident、convert-to-problem、metrics/monitoring |
+| 权限码 | ticket 族 | incident 族（含 incident:admin/force-update） |
+
+**结论**：两域**数据不互通、状态机各自独立**（incident 实体无 ticket 关联字段；ticket 的 type=incident 只是工单分类枚举）。incident 是面向监控告警集成的重运维域（alerts/events/metrics/monitoring 占 47 条中约 1/3）。**按 §3 门槛评估：当前无跨会话自动化诉求，P3 暂缓**；待接入监控源（Prometheus/Zabbix webhook 类场景）时再按 P1 启动，脚本骨架可直接复用 `_lib` 底座。
