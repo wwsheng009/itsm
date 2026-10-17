@@ -1,7 +1,7 @@
 /**
  * 资源中心页（P2）：ITSM Skills 分发与安装指导
  *
- * 数据源：GET /api/v1/skills/registry（P1 打包产物 dist/skills/manifest.json 的直通镜像）。
+ * 数据源：GET /api/v1/skills-dist/registry（P1 打包产物 dist/skills/manifest.json 的直通镜像）。
  * 未配置（SKILLS_DIST_DIR 未挂载）→ 降级提示，不报错。
  *
  * 页面结构：
@@ -64,7 +64,7 @@ const SkillsResourcesPage = () => {
   const load = async () => {
     setLoading(true);
     try {
-      const data = await httpClient.get<SkillsManifest>('/api/v1/skills/registry');
+      const data = await httpClient.get<SkillsManifest>('/api/v1/skills-dist/registry');
       setManifest(data);
     } catch {
       setManifest({ configured: false, reason: '接口不可用' });
@@ -80,7 +80,7 @@ const SkillsResourcesPage = () => {
   const skills = manifest?.skills ?? [];
 
   const installCmd = useMemo(() => {
-    const base = `${window.location.origin}/api/v1/skills`;
+    const base = `${window.location.origin}/api/v1/skills-dist`;
     if (host === 'project') {
       return [
         `# 1) 下载清单与安装器`,
@@ -173,12 +173,12 @@ const SkillsResourcesPage = () => {
             <Button size="sm" onClick={() => copy(installCmd, '安装命令 ')}>
               <Copy className="mr-1 h-4 w-4" /> 复制安装命令
             </Button>
-            <Button size="sm" variant="outline" onClick={() => { window.location.href = '/api/v1/skills/bundle/download'; }}>
+            <Button size="sm" variant="outline" onClick={() => { window.location.href = '/api/v1/skills-dist/bundle/download'; }}>
               <span>
                 <Download className="mr-1 h-4 w-4" /> 下载全量包
               </span>
             </Button>
-            <Button size="sm" variant="outline" onClick={() => { window.location.href = '/api/v1/skills/installer'; }}>
+            <Button size="sm" variant="outline" onClick={() => { window.location.href = '/api/v1/skills-dist/installer'; }}>
               <span>
                 <Terminal className="mr-1 h-4 w-4" /> 下载安装器
               </span>
@@ -233,7 +233,7 @@ const SkillsResourcesPage = () => {
                 <code className="break-all">sha256:{s.sha256?.slice(0, 12)}…</code>
               </div>
               <div className="flex gap-2">
-                <Button size="sm" variant="outline" onClick={() => { window.location.href = `/api/v1/skills/${s.name}/download`; }}>
+                <Button size="sm" variant="outline" onClick={() => { window.location.href = `/api/v1/skills-dist/${s.name}/download`; }}>
                   <span>
                     <Download className="mr-1 h-4 w-4" /> 下载 zip
                   </span>
