@@ -695,3 +695,54 @@ func TestSeedProductionMSPMenuEntries(t *testing.T) {
 		assert.Equal(t, code, m.PermissionCode, "菜单权限码漂移: %s", path)
 	}
 }
+
+// TestSeedMenusSyncsNewMenusToExistingTenants（2026-10-17 实测修复）：菜单规格新增
+// （如 /msp/dashboard）后，已开通租户不会自动获得新菜单（provision 时 cloneMenus
+// 只拷贝一次）。seedMenus 的第三遍（syncMenusToExistingTenants）须按 path 补齐缺失行：
+//  1. 新增菜单补齐（权限码正确）；
+//  2. 已有行不被覆盖（租户自定义改名/排序保留）；
+//  3. 幂等：重复播种不重复插入。
+func TestSeedMenusSyncsNewMenusToExistingTenants(t *testing.T) {
+	seeder, ctx := newTestSeeder(t, tenantmode.DeploymentModePrivate)
+	require.NoError(t, seeder.SeedProduction(ctx))
+
+	// 模拟"规格演进前开通"的存量租户：仅一条自定义菜单（改名 + 自定义排序）。
+	legacy, err := seeder.client.Tenant.Create().
+		SetName("Legacy Customer").SetCode("legacy-customer").SetStatus("active").
+		Save(ctx)
+	require.NoError(t, err)
+	_, err = seeder.client.Menu.Create().
+		SetName("自定义客户管理").
+		SetPath("/msp").
+		SetPermissionCode("msp:read").
+		SetSortOrder(999).
+		SetTenantID(legacy.ID).
+		Save(ctx)
+	require.NoError(t, err)
+
+	seeder.seedMenus(ctx)
+
+	// 1. 缺失的新菜单被补齐（含权限码）。
+	dashboard, err := seeder.client.Menu.Query().
+		Where(menu.PathEQ("/msp/dashboard"), menu.TenantIDEQ(legacy.ID)).
+		Only(ctx)
+	require.NoError(t, err, "存量租户应补齐 /msp/dashboard")
+	assert.Equal(t, "服务台仪表盘", dashboard.Name)
+	assert.Equal(t, "msp_ticket:read", dashboard.PermissionCode)
+
+	// 2. 已有行不被覆盖（自定义名与排序保留）。
+	existing, err := seeder.client.Menu.Query().
+		Where(menu.PathEQ("/msp"), menu.TenantIDEQ(legacy.ID)).
+		Only(ctx)
+	require.NoError(t, err)
+	assert.Equal(t, "自定义客户管理", existing.Name)
+	assert.Equal(t, 999, existing.SortOrder)
+
+	// 3. 幂等：重复播种后该租户菜单数不变。
+	before, err := seeder.client.Menu.Query().Where(menu.TenantIDEQ(legacy.ID)).Count(ctx)
+	require.NoError(t, err)
+	seeder.seedMenus(ctx)
+	after, err := seeder.client.Menu.Query().Where(menu.TenantIDEQ(legacy.ID)).Count(ctx)
+	require.NoError(t, err)
+	assert.Equal(t, before, after)
+}

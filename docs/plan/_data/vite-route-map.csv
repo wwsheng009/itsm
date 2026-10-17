@@ -98,6 +98,8 @@
 /marketplace,src/app/(main)/marketplace/page.tsx,/marketplace,@/pages/(main)/marketplace/index,(main),,,,/marketplace
 /msp/dashboard,src/app/(main)/msp/dashboard/page.tsx,/msp/dashboard,@/pages/(main)/msp/dashboard/index,(main),,,,/msp/dashboard
 /msp/management,src/app/(main)/msp/management/page.tsx,/msp/management,@/pages/(main)/msp/management/index,(main),,,,/msp/management
+/msp/workbench,src/app/(main)/msp/workbench/page.tsx,/msp/workbench,@/pages/(main)/msp/workbench/index,(main),,,,/msp/workbench
+/msp/audit,src/app/(main)/msp/audit/page.tsx,/msp/audit,@/pages/(main)/msp/audit/index,(main),,,,/msp/audit
 /msp,src/app/(main)/msp/page.tsx,/msp,@/pages/(main)/msp/index,(main),,,,/msp
 /my-requests/[requestId],src/app/(main)/my-requests/[requestId]/page.tsx,/my-requests/:requestId,@/pages/(main)/my-requests/$requestId/index,(main),:requestId,,,/my-requests/1
 /my-requests,src/app/(main)/my-requests/page.tsx,/my-requests,@/pages/(main)/my-requests/index,(main),,,,/my-requests

@@ -1906,7 +1906,70 @@ func (s *Seeder) seedMenus(ctx context.Context) {
 		s.upsertMenu(ctx, t.ID, m, &parent.ID)
 	}
 
+	// 第三遍：存量租户补齐（2026-10-17）。
+	// 背景：菜单规格新增（如 /msp/dashboard 服务台仪表盘）后，已开通租户不会自动
+	// 获得新菜单——provision 时的 cloneMenus 只在开通时刻拷贝一次，规格演进不同步。
+	// 结果：demo 服务商/客户租户侧栏缺失「服务台仪表盘」入口（实测）。
+	// 语义与 cloneMenus 一致：按 path 只补缺失行（不覆盖租户侧自定义：改名/隐藏/
+	// 排序保留），不设 parent（克隆产物为扁平结构，与开通时一致）；幂等可重放。
+	s.syncMenusToExistingTenants(ctx, specs)
+
 	s.sugar.Infow("menus seeded (hierarchical)", "count", len(specs))
+}
+
+// syncMenusToExistingTenants 将 default 租户的菜单规格按 path 补齐到所有其它租户。
+// 与 seedMenus 的第一/二遍（default 租户 upsert）不同：这里只对缺失项 INSERT，
+// 已存在的行一律不动——租户侧自定义（重命名/隐藏/排序）优先。
+func (s *Seeder) syncMenusToExistingTenants(ctx context.Context, specs []menuSpec) {
+	tenants, err := s.client.Tenant.Query().
+		Where(tenant.CodeNEQ("default")).
+		All(ctx)
+	if err != nil {
+		s.sugar.Warnw("sync menus: list tenants failed", "error", err)
+		return
+	}
+	if len(tenants) == 0 {
+		return
+	}
+	for _, t := range tenants {
+		existing, err := s.client.Menu.Query().
+			Where(menu.TenantIDEQ(t.ID)).
+			All(ctx)
+		if err != nil {
+			s.sugar.Warnw("sync menus: load tenant menus failed", "error", err, "tenant_id", t.ID)
+			continue
+		}
+		paths := make(map[string]struct{}, len(existing))
+		for _, item := range existing {
+			paths[item.Path] = struct{}{}
+		}
+		created := 0
+		for _, m := range specs {
+			if _, ok := paths[m.Path]; ok {
+				continue
+			}
+			builder := s.client.Menu.Create().
+				SetName(m.Name).
+				SetPath(m.Path).
+				SetIcon(m.Icon).
+				SetPermissionCode(m.PermissionCode).
+				SetSortOrder(m.SortOrder).
+				SetIsVisible(true).
+				SetIsEnabled(true).
+				SetTenantID(t.ID)
+			if m.Description != "" {
+				builder = builder.SetDescription(m.Description)
+			}
+			if _, cerr := builder.Save(ctx); cerr != nil {
+				s.sugar.Warnw("sync menus: create failed", "error", cerr, "tenant_id", t.ID, "path", m.Path)
+				continue
+			}
+			created++
+		}
+		if created > 0 {
+			s.sugar.Infow("tenant menus synced", "tenant_id", t.ID, "created", created)
+		}
+	}
 }
 
 // upsertMenu 按 (tenant, path) 创建或更新菜单。

@@ -53,6 +53,11 @@ var menuRouteAlignment = []struct {
 	{"/admin/teams", "GET", "/api/v1/org/teams"},
 	{"/admin/system-config", "GET", "/api/v1/system-configs"},
 	{"/admin/menus", "GET", "/api/v1/menus"},
+	// MSP 跨租户页面（2026-10-17）：菜单码 = 页面主数据接口码（RequireMSPPermission 声明）。
+	{"/msp/dashboard", "GET", "/api/v1/msp/workbench/summary"},
+	{"/msp/workbench", "GET", "/api/v1/msp/workbench/tickets"},
+	{"/msp/management", "GET", "/api/v1/msp/allocations"},
+	{"/msp/audit", "GET", "/api/v1/msp/audit/summary"},
 }
 
 // menuRouteMismatchAllowlist 已知未对齐配对（key=MenuPath），必须写明理由与去向。
