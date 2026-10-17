@@ -1,7 +1,7 @@
 # 🛣️ ITSM Roadmap
 
 > **Source of truth for what is shipping, what is shipping next, and what
-> is parked.** Updated as part of every release. Last synced: 2026-09-27.
+> is parked.** Updated as part of every release. Last synced: 2026-10-17.
 >
 > Cross-references:
 > - PRD library: [docs/prd/](./docs/prd)
@@ -102,6 +102,7 @@ Concretely that means:
 - [x] **架构收敛与可维护性** — `router.go` 巨石按域拆分为独立 routes 文件；user / tenant / rbac / notification / application / cloud 六域接口化并补冒烟测试（作为 58 域迁移样板）；包名与目录名统一、分层守卫增加包名≠目录名检查；双 BPMN 引擎死代码清理。
 - [x] **授权平面收敛（批次 1–5）** — A 类越权写收口（bpmn/流程触发等 39+ 条写路由补挂权限门，任务面 `task:*` 与流程面 `bpmn:*` 分权）；B 类权限码词表统一（95 种未定义码收敛到既有码空间）；C 类预检映射全量对齐（112 处声明/预检错配清零）；批次 5 治本：**路由声明成为权限单一真源**——预检映射路由条目由 `cmd/authz-gen` 从声明 AST 生成（698 条），族级回退策略显式化（120 条），4 道守卫（写路由必挂门 / 声明码⊆码空间 / 声明-预检对齐 / 生成物新鲜度）构成防漂移闭环；admin/technician DBOnly 空集修复 + seeder 同义动作奇偶补齐。
 - [x] **性能与运维** — 变更列表与 RAG 向量检索两处热路径 N+1 修复；prod 备份自动化（`scripts/prod-backup.sh` + 恢复演练 + launchd 每日调度）、compose 项目名隔离（`itsm-prod` / `itsm`）与诊断端口参数化。
+- [x] **项目管理 P0** — 项目主数据升级（状态机/类型/健康度/进度/团队归口/软删）+ `project_members`/`project_tasks` + 五类单据 `project_id`；vertical slice API（自动编号/乐观锁/结项与删除门禁/成员候选（活跃 membership 派生标签）/任务 WBS ≤3 层/五域挂接与聚合读/任务→工单生成）；可见性谓词（管理角色 ∨ 项目成员）；前端列表 + 工作台（概览/任务/关联单据/成员）与一级菜单入口。验证：后端 `handlers/project` 测试（含跨租户隔离）与路由/预检/菜单守卫全绿；前端 type-check、目标单测、路由权限守卫与生产构建全绿。**环境项已闭环**：本机真实 PostgreSQL（embedded-postgres）完成迁移 + RLS 001–015 `-verify` + 结构/行为探针 6/6 + HTTP E2E 13/13 + 浏览器 UI 冒烟 8/8（证据见 `docs/project-management/06-implementation-roadmap.md`）。
 
 ### 当前收敛项
 
@@ -128,6 +129,19 @@ Concretely that means:
 - [ ] **用户侧 Bot 能力落地（B0–B4）** — Bot 工作区、工具治理、运行档案与运行维度看板（方案：`docs/plan/ai-bot-capability-landing-implementation-plan-2026-09-27.md`）。
   - 已完成：B0 工具元数据与一次迁移（`integration_verified`）；B1 运行档案/确认五态/持久队列/SSE v2（`flow_verified`）；B2 模板与授权治理（`flow_verified`）；B3 三入口与场景 pilot S1/S2/S3（`flow_verified`，条件达标）；B4-01 E2E 双通道章程与 run-summary（`flow_verified`）、B4-02 运行维度指标与看板（`integration_verified`）。
   - 剩余：B4 `accepted` 评审签署（产品 + 测试）；browser E2E 首轮 CI 校准（摘 `continue-on-error`）；token 计量接线；S3 `create_kb_draft` 写工具与产物读取端点。
+
+- [x] **项目管理 P1** — 交付治理（模板/阶段门/基线/里程碑与依赖/结项清单/搜索/归口/状态报告）——**已收口**。
+  - 已完成：数据层六表（`project_gates`/`project_closures` 已入）与迁移兜底；里程碑与依赖（v1 仅 FS + 全项目环检测）API；计划基线不可变快照（冻结/版本/偏差）API；项目模板（CRUD/一键生成幂等，CAS 认领 + 单事务）；**阶段门（四道门门禁规则 + `process_binding business_type=project` + 内置立项/结项审批模板 + 降级自动通过 + 审计；`activate`/`complete` 状态机强制点；计划门通过自动冻结基线 v1）**；**结项清单 + CSAT（自动项实时派生 + 复盘 KB 草稿（结项门提交自动生成、不自动发布）/资产登记确认或豁免/成员回收（保留 PM 与干系人）/CSAT 尽力触发；`complete` 依序校验业务阻塞 → 结项门 → 清单齐备；`survey_responses.project_id` 补齐）**；前端工作台「里程碑/计划基线/**阶段门/结项清单**」Tab 与任务「依赖」弹窗、「项目模板」管理页与工作台「应用模板」入口（`project-service` 单测 31/31、`check-api-paths` 1052/1052、生产构建通过）；**搜索与待办（全局搜索纳入 `project`/`project_task` 且强制可见性谓词；新增 `GET /projects/my-milestones`，`/dashboard`「我的项目任务」卡片并行聚合未终结任务与 30 天内到期里程碑，前端 40/40 单测）**；**里程碑到期通知（租户级扫描器 `planned` 且逾期/窗口内 → 入箱 `notification.deliver`（outbox）+ 幂等键收敛 + PM/干系人收件（fail-closed）+ `project_milestone_due` 双词表 + `source=job` 审计；`service` 单测 4 + 投递 2 用例）**；**归口与状态报告（归口写入校验 + 读取软删降级 + 报表分组 + 归口团队负责人并入里程碑通知候选（D-24：不扩大成员可见性）；`project_report_templates` 模板 + `POST /projects/:id/reports/generate` 实时派生 Markdown/JSON（D-25：不落快照）；前端「报表中心」页 + 工作台「状态报告」Tab；`handlers/project` 5 用例，ACL 927 路由，前端 47/47 单测）**。
+  - P1 收口已完成（真实库：ent 全量迁移 + 六份兜底 SQL + RLS 001–015 `-verify` + 结构/行为探针 8/8 + HTTP E2E 35/35 + 里程碑通知链路 smoke + 浏览器 UI 冒烟 11/11；含生产构建 JSX 运行时修复）。后续增量（甘特/资源热图/风险台账/AI 周报等）见 P2。
+
+- [x] **项目管理 P2** — 经营化与 AI（风险台账/预算与工时/资源热图/报表度量/AI/采购登记）——**已收口**。
+  - 已完成：**PE-21 风险/问题台账（`project_risks`：kind=risk|issue、等级/概率/影响、负责人、状态机（close 必填结论）、软删 + 乐观锁；API 7 条）+ 转换链路（端口 + 适配器复用问题/变更域服务，未装配 503；CAS 回写关联；同目标二次 409 + `existingId`；审计 `risk_convert` 等 5 类）+ 前端工作台「风险/问题」Tab（筛选/新建/编辑/缓解/关闭/重开/转问题·变更/删除）；`handlers/project` 3 用例，ACL 934 路由，前端 44/44 单测，`go build -p 2 ./...` + `npm run build` 通过）**。
+  - 已完成：**PE-22 预算与工时（`projects.budget_amount`/`budget_currency` 两列 + 成对写入（只给其一 400）+ `budget_update` 审计；任务 `estimate_hours`/`actual_hours` ≥0 校验 + `GET /projects/:id/hours-summary` 汇总（全部未删任务口径）；基线快照 `schemaVersion 1→2` 冻结预算 + diff `budget{...}`（v1 容忍）；worklog 评估结论 = P2 不建实体（D-36）；前端列表「预算」列 + 创建/编辑弹窗预算字段 + 概览预算/工时卡片 + 任务表单实际工时回填与「工时（估/实）」列；`handlers/project` 4 用例，ACL 935 路由，前端 49/49 单测，`go build -p 2 ./...` + `npm run build` 通过）**。
+  - 已完成：**PE-23 资源负荷（周容量两级配置 `projects.default_weekly_capacity_hours`/`project_members.weekly_capacity_hours`（NULL=继承/回内置 40）+ `PUT /projects/:id/capacity`（缺省=不修改，null/0=清空；成员须存活；`capacity_update` 审计 old/new）+ `GET /projects/:id/resource-heatmap`（ISO 周对齐、weeks 1..12；计划=估算按计划窗口自然日均摊、剩余=estimate−actual（逾期落本周、完成归零）；行=存活成员 ∪ 窗口内负责人（离册标 removed）；v1 自然日口径随响应/UI 显式标注；实时计算不落库）+ 前端工作台「资源负荷」Tab（周数切换 + 配色热图 + 未排期提示 + 容量设置弹窗）；`handlers/project` 3 用例，ACL 937 路由，前端 58/58 单测，`go build -p 2 ./...` + `npm run build` 通过）**。
+  - 已完成：**PE-24 组合视图与度量（`project_gates.reject_count`（reject CAS 内原子 +1）+ `GET /projects/portfolio`（五维聚合 + 与列表同谓词/同可见性/同行序项目行；上限与 `truncated` 显式）+ `GET /projects/metrics`（按时交付率/里程碑达成率/阶段门一次通过率/资源利用率：分子分母 + 明细 200/组（对账勾稽字段）+ `rate=null` 语义 + `from/to` 口径日期 + 资源复用 PE-23 热图函数）+ 前端独立页 `/projects/portfolio`（度量卡片 + 分布 Tab + 组合项目表 + 4 组明细 Tab；报表中心互链）；`handlers/project` 5 用例（含组合 vs 列表、资源 vs 热图两组对账），ACL 939 路由，前端 62 单测，`check-api-paths` 1067/1067，Swagger 重生成对齐注解）**。
+  - 已完成：**PE-25 AI 能力（周报摘要/风险预警/纪要转任务：三端点 `/projects/:id/ai/{summary,risk-warnings,minutes/tasks}`（`project:read`，不落库）+ **降级一律 200**（摘要→事实派生 `deterministic`、预警→规则信号 `rules`（六类、每类前 5 条 + `signalTotal`/`truncated`）、纪要→空提案 `none`；`degradeReason` 受控词表）+ 提示注入防护（纪要=不可信数据块）与词表收敛（priority 仅取任务词表、工时仅正数）+ 审计三 action + `ai_llm_calls` 遥测 + 前端工作台「AI 助手」Tab（勾选建议批量建任务）；`handlers/project` 5 用例（含「降级后仍可建任务/读列表」=主流程不受影响），ACL 942 路由，前端 58/58 单测，`check-api-paths` 1070/1070，Swagger 重生成对齐注解**。
+  - 已完成：**PE-26 采购/资产结项登记（`project_asset_links`：`link_type=asset|asset_license|vendor|contract` + 同租户弱引用 `target_id`（跨租户/不存在 400）+ 备注 + 软删 + 未删行唯一 partial index + 迁移/RLS 015/rls-apply 清单同步）+ 4 端点（`GET|POST /projects/:id/asset-links`、`DELETE .../asset-links/:linkId`、`GET .../asset-link-candidates`（最小字段候选：编号/名称/标题 + 辅标签，四域 tenant 过滤））+ 结项清单 `assetsLinks`/`assetsLinkSummary` 明细（目标缺失标 `targetMissing`；门禁语义不变=确认/豁免）+ 审计 `asset_link_create|asset_link_delete` + 前端结项清单「采购/资产登记明细」区与「添加登记」弹窗（候选 300ms 防抖远程搜索）；`handlers/project` 4 用例（含跨租户拒绝、零登记确认仍通过、completed 补登记、cancelled 拒绝写），ACL 946 路由，前端 62/62 单测，`check-api-paths` 1070/1070，Swagger 重生成对齐注解**。
+  - P2 收口已完成（真实库：ent 全量迁移 + P2 兜底 SQL 五份 + RLS 001–015 全量应用与 `-verify` + P2 结构/行为探针 **11/11** + HTTP E2E **38/38** + 浏览器 UI 冒烟 **15/15**，覆盖 PE-21~PE-26 主链路；harness 见 `.tmp/pgverify`，证据见 `docs/project-management/06-implementation-roadmap.md`「P2 收口已完成」）。
 
 ### 发布门禁
 
