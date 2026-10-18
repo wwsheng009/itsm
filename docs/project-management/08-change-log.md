@@ -120,7 +120,7 @@
 
 ## 6. 单据挂接项目：创建时挂接 + 详情页「所属项目」（PE-5 增补）
 
-> 状态：已实施并通过本地验证（**尚未部署到 238 demo**；本节与第 1~3 节不属同一批次）。
+> 状态：已实施、通过本地验证，并已部署 238 demo（`1.8.0-dev.cad4362e`，2026-10-18）。
 
 ### 背景
 
@@ -147,11 +147,12 @@ PE-5 此前仅落地「项目工作台查看/解除挂接」与「任务生成�
 | `node scripts/generate-acl-manifest.js` | **948 → 953 条**（+5 条 `GET /{id}/project`），覆盖率 93.81% |
 | `go run ./cmd/authz-gen` + `middleware` 预检新鲜度/路由对齐测试 | 通过 |
 | Swagger（`make swagger-gen` 同口径） | `swag init` 重生成，仅新增（+115 行）：5 条端点摘要 + 五域创建请求 `projectId` 字段 + `project.RecordProjectResponse` 定义 |
+| 238 demo 部署（`1.8.0-dev.cad4362e`） | backend/worker/frontend 三容器 healthy、init ExitCode=0、`/api/v1/version` 对齐；backend 二进制新校验文案 A/B **0→1**、frontend `所属项目` 产物 **1→13**；API E2E：携带 `projectId=3` 建单 `#65` → 反查 `project.id=3`，不存在项目 → **404 code=4004**。证据：[DEMO-PE5-20261018-cad4362e-EVIDENCE.md](../../.dev/deploy/DEMO-PE5-20261018-cad4362e-EVIDENCE.md) |
 
 ### 遗留
 
 - （已收口，见下）BPMN 服务任务 `create_incident` 直插 ent，不支持 `projectId`。
-- 本节变更尚未部署到 demo，未做浏览器级回归；`RecordProjectLink` 的「加入/移出」复用既有 `POST|DELETE /.../:id/project`（已在 `handlers/project` 单测覆盖）。
+- （已部署）本节变更已上线 238 demo（`1.8.0-dev.cad4362e`，2026-10-18）；浏览器级 UI 走查仍待补做。`RecordProjectLink` 的「加入/移出」复用既有 `POST|DELETE /.../:id/project`（已在 `handlers/project` 单测覆盖）。
 
 ### 遗留收口：BPMN 服务任务创建时挂接项目（2026-10-18 补丁）
 
