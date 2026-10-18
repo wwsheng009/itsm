@@ -1891,15 +1891,19 @@ export default function ProjectDetailPage() {
                     刷新
                   </Button>
                   {nextGate ? (
-                    <Tag color={readinessByKey[nextGate]?.ready ? 'success' : 'warning'}>
-                      {`预检：${GATE_META[nextGate].label}${
-                        readinessByKey[nextGate]
-                          ? readinessByKey[nextGate]!.ready
-                            ? '已满足，可提交'
-                            : `待补 ${readinessByKey[nextGate]!.blockers.length} 项`
-                          : '检查中'
-                      }`}
-                    </Tag>
+                    (gatesByKey[nextGate]?.status ?? 'pending') === 'in_review' ? (
+                      <Tag color="processing">{`预检：${GATE_META[nextGate].label}审批中`}</Tag>
+                    ) : (
+                      <Tag color={readinessByKey[nextGate]?.ready ? 'success' : 'warning'}>
+                        {`预检：${GATE_META[nextGate].label}${
+                          readinessByKey[nextGate]
+                            ? readinessByKey[nextGate]!.ready
+                              ? '已满足，可提交'
+                              : `待补 ${readinessByKey[nextGate]!.blockers.length} 项`
+                            : '检查中'
+                        }`}
+                      </Tag>
+                    )
                   ) : (
                     <Tag color="success">四道门已全部通过</Tag>
                   )}
