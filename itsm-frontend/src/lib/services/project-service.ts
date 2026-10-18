@@ -363,9 +363,17 @@ export interface ProjectGate {
   updatedAt: string;
 }
 
+/** 阶段门实时预检（只读；后端与提交共用同一套规则）。 */
+export interface ProjectGateReadiness {
+  gate: ProjectGateKey;
+  ready: boolean;
+  blockers: ProjectGateBlocker[];
+}
+
 export interface GateListResult {
   items: ProjectGate[];
   gates: string[];
+  readiness: ProjectGateReadiness[];
 }
 
 // ---- P1（PE-15）：结项清单 ----
@@ -1215,10 +1223,16 @@ class ProjectService {
   /** 阶段门列表（四道门状态 + 阻塞明细 + 门顺序）。 */
   listGates(projectId: number): Promise<GateListResult> {
     return httpClient
-      .get<{ items?: ProjectGate[]; gates?: string[]; projectGates?: ProjectGate[] }>(`${BASE_URL}/${projectId}/gates`)
+      .get<{
+        items?: ProjectGate[];
+        gates?: string[];
+        projectGates?: ProjectGate[];
+        readiness?: ProjectGateReadiness[];
+      }>(`${BASE_URL}/${projectId}/gates`)
       .then((data) => ({
         items: data.items ?? data.projectGates ?? [],
         gates: data.gates ?? [...GATE_ORDER],
+        readiness: data.readiness ?? [],
       }));
   }
 

@@ -75,6 +75,14 @@ type GateBlockedError struct {
 	Blockers []GateBlocker
 }
 
+// GateReadiness 阶段门实时预检结果（只读；不创建/不更新门记录）。
+// 用于阶段门页进入即展示「还差什么」，避免必须先点「提交」才知道阻塞项。
+type GateReadiness struct {
+	Gate     string        `json:"gate"`
+	Ready    bool          `json:"ready"`
+	Blockers []GateBlocker `json:"blockers"`
+}
+
 func (e *GateBlockedError) Error() string {
 	return fmt.Sprintf("stage gate %q blocked by %d item(s)", e.Gate, len(e.Blockers))
 }

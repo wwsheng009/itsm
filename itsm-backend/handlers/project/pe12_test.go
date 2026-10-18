@@ -351,3 +351,48 @@ func TestHandlerGateEndpoints(t *testing.T) {
 	assert.Equal(t, http.StatusConflict, w.Code)
 }
 
+
+// TestPreviewGates 预检：未提交即返回实时阻塞项；修复后即时更新；预检不落库。
+func TestPreviewGates(t *testing.T) {
+	svc, client, tid := newTestEnv(t)
+	ctx := context.Background()
+
+	manager := seedUserWithMembership(t, client, tid, "gp1", "home", nil)
+	p, err := svc.Create(ctx, &CreateRequest{TenantID: tid, Name: "预检项目"})
+	require.NoError(t, err)
+
+	// 未提交任何门：预检直接给出立项门阻塞项 + 计划门顺序前置。
+	preview, err := svc.PreviewGates(ctx, tid, p.ID, manager.ID, true)
+	require.NoError(t, err)
+	require.Len(t, preview, 4)
+	assert.Equal(t, GateInitiation, preview[0].Gate)
+	assert.False(t, preview[0].Ready)
+	types := make([]string, 0, len(preview[0].Blockers))
+	for _, b := range preview[0].Blockers {
+		types = append(types, b.Type)
+	}
+	assert.ElementsMatch(t, []string{"manager_missing", "member_missing"}, types)
+	require.NotEmpty(t, preview[1].Blockers)
+	assert.Equal(t, "gate_not_passed", preview[1].Blockers[0].Type)
+
+	// 预检只读：不创建/不更新门记录。
+	records, err := svc.repo.ListGates(ctx, tid, p.ID)
+	require.NoError(t, err)
+	assert.Empty(t, records)
+
+	// 修复经理 + 成员后，预检即时变为 ready。
+	managerID := manager.ID
+	_, err = svc.Update(ctx, tid, p.ID, &UpdateRequest{ManagerID: &managerID})
+	require.NoError(t, err)
+	_, err = svc.AddMember(ctx, tid, p.ID, manager.ID, &MemberAddRequest{UserID: manager.ID, ProjectRole: "pm"})
+	require.NoError(t, err)
+	preview, err = svc.PreviewGates(ctx, tid, p.ID, manager.ID, true)
+	require.NoError(t, err)
+	assert.True(t, preview[0].Ready)
+	assert.Empty(t, preview[0].Blockers)
+
+	// 预检仍未落库。
+	records, err = svc.repo.ListGates(ctx, tid, p.ID)
+	require.NoError(t, err)
+	assert.Empty(t, records)
+}

@@ -69,6 +69,27 @@ func (s *Service) ListGates(ctx context.Context, tenantID, projectID, viewerID i
 	return s.repo.ListGates(ctx, tenantID, projectID)
 }
 
+// PreviewGates 只读预检四道门：按当前项目数据实时评估阻塞项，不落库、不触发审批。
+// 与 SubmitGate 共用 evaluateGateRules，保证「预检」与「提交」口径完全一致。
+func (s *Service) PreviewGates(ctx context.Context, tenantID, projectID, viewerID int, admin bool) ([]GateReadiness, error) {
+	project, err := s.GetForViewer(ctx, tenantID, projectID, viewerID, admin)
+	if err != nil {
+		return nil, err
+	}
+	out := make([]GateReadiness, 0, len(gateSequence))
+	for _, gate := range gateSequence {
+		blockers, err := s.evaluateGateRules(ctx, tenantID, project, gate)
+		if err != nil {
+			return nil, err
+		}
+		if blockers == nil {
+			blockers = []GateBlocker{}
+		}
+		out = append(out, GateReadiness{Gate: gate, Ready: len(blockers) == 0, Blockers: blockers})
+	}
+	return out, nil
+}
+
 // SubmitGate 提交阶段门：门禁规则 → 触发审批（或自动通过）→ 记录状态与阻塞明细。
 func (s *Service) SubmitGate(
 	ctx context.Context, tenantID, projectID, actorID int, gate string, actorName string, admin bool,

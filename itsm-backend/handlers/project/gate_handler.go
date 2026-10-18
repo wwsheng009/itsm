@@ -47,10 +47,20 @@ func (h *Handler) ListGates(c *gin.Context) {
 		h.fail(c, err)
 		return
 	}
+	// 实时预检：四道门按当前数据评估阻塞项（只读，不落库），进入页面即可看到待办。
+	readiness, err := h.service.PreviewGates(
+		c.Request.Context(), tenantID, id,
+		c.GetInt("user_id"), isAdminViewer(middleware.GetContextRoles(c)),
+	)
+	if err != nil {
+		h.fail(c, err)
+		return
+	}
 	common.Success(c, gin.H{
-		"items":       ToGateResponseList(items),
-		"gates":       GateOrder(),
+		"items":        ToGateResponseList(items),
+		"gates":        GateOrder(),
 		"projectGates": ToGateResponseList(items),
+		"readiness":    readiness,
 	})
 }
 

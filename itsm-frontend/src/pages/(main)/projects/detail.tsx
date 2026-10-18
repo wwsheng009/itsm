@@ -38,6 +38,7 @@ import type {
   ProjectBaseline,
   ProjectClosure,
   ProjectGate,
+  ProjectGateReadiness,
   ProjectGateKey,
   ProjectGateStatus,
   ProjectMilestone,
@@ -237,6 +238,7 @@ export default function ProjectDetailPage() {
 
   // P1（PE-12）：阶段门（四道门 + 裁决）
   const [gates, setGates] = useState<ProjectGate[]>([]);
+  const [gateReadiness, setGateReadiness] = useState<ProjectGateReadiness[]>([]);
   const [gateLoading, setGateLoading] = useState(false);
   const [gateRejectTarget, setGateRejectTarget] = useState<ProjectGateKey | null>(null);
   const [gateRejectComment, setGateRejectComment] = useState('');
@@ -433,6 +435,7 @@ export default function ProjectDetailPage() {
     try {
       const data = await projectService.listGates(projectId);
       setGates(data.items);
+      setGateReadiness(data.readiness);
     } catch (error) {
       console.error('Failed to fetch gates:', error);
     } finally {
@@ -513,6 +516,18 @@ export default function ProjectDetailPage() {
     });
     return map;
   }, [gates]);
+
+  // PE-12：实时预检（进入页面即返回，无需先点提交）。
+  const readinessByKey = useMemo(() => {
+    const map: Partial<Record<ProjectGateKey, ProjectGateReadiness>> = {};
+    gateReadiness.forEach((r) => {
+      map[r.gate] = r;
+    });
+    return map;
+  }, [gateReadiness]);
+
+  // 下一道待通过的门 + 预检状态（顶部提示用）。
+  const nextGate = GATE_ORDER.find((gate) => (gatesByKey[gate]?.status ?? 'pending') !== 'passed');
 
   const handleSubmitGate = async (gate: ProjectGateKey) => {
     if (!project) return;
@@ -1248,8 +1263,14 @@ export default function ProjectDetailPage() {
       title: '门禁阻塞项',
       key: 'blockers',
       render: (_: unknown, row) => {
-        const blockers = row.record?.blockers ?? [];
-        if (blockers.length === 0) return '-';
+        const status = row.record?.status ?? 'pending';
+        const actionable = status === 'pending' || status === 'rejected';
+        const readiness = readinessByKey[row.gate];
+        // 未提交/已拒绝：展示实时预检（进入页面即检查）；审批中/已通过：展示提交时快照。
+        const blockers = actionable && readiness ? readiness.blockers : (row.record?.blockers ?? []);
+        if (blockers.length === 0) {
+          return actionable && readiness?.ready ? <Tag color="success">条件已满足，可提交</Tag> : '-';
+        }
         return (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
             {blockers.map((b, index) => {
@@ -1799,7 +1820,11 @@ export default function ProjectDetailPage() {
     >
       <Tabs
         activeKey={activeTab}
-        onChange={setActiveTab}
+        onChange={(key) => {
+          setActiveTab(key);
+          // 预检随数据变化：进入阶段门时重新拉取（在任务/里程碑/成员 Tab 修复后立即可见）。
+          if (key === 'gates') void fetchGates();
+        }}
         items={[
           {
             key: 'overview',
@@ -1865,9 +1890,22 @@ export default function ProjectDetailPage() {
                   <Button icon={<RefreshCw />} onClick={fetchGates} loading={gateLoading}>
                     刷新
                   </Button>
+                  {nextGate ? (
+                    <Tag color={readinessByKey[nextGate]?.ready ? 'success' : 'warning'}>
+                      {`预检：${GATE_META[nextGate].label}${
+                        readinessByKey[nextGate]
+                          ? readinessByKey[nextGate]!.ready
+                            ? '已满足，可提交'
+                            : `待补 ${readinessByKey[nextGate]!.blockers.length} 项`
+                          : '检查中'
+                      }`}
+                    </Tag>
+                  ) : (
+                    <Tag color="success">四道门已全部通过</Tag>
+                  )}
                   <span style={{ color: '#8c8c8c' }}>
-                    立项门通过后才能激活项目；结项门通过后才能结项。阻塞项右侧可直接进入对应处理入口，
-                    修复后请在该门行点击「重新提交」（拒绝须填写原因）。
+                    进入本页即按当前数据实时预检（无需先提交）；阻塞项右侧可直接进入对应处理入口，
+                    修复后在该门行点击「重新提交」。立项门通过后才能激活项目。
                   </span>
                 </Space>
                 <Table
