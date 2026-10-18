@@ -199,7 +199,7 @@ export default function ProjectsPage() {
       // PE-12：激活/结项前必须先通过阶段门（activate→立项门，complete→结项门）。
       // 旧实现只透传含「未终结」的错误，其余一律吞成「操作失败，请刷新后重试」，
       // 用户无法得知真实原因（如：立项门尚未提交审批）。
-      if (msg.includes('阶段门禁未通过')) {
+      if (msg.includes('阶段门门禁未通过') || msg.includes('阶段门禁未通过')) {
         const isActivate = action === 'activate';
         const gateLabel = isActivate ? '立项门' : action === 'complete' ? '结项门' : '阶段门';
         Modal.warning({
