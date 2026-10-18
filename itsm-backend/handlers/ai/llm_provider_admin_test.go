@@ -371,6 +371,27 @@ func TestLLMProviderAdminEndpointFullPathRoundTrip(t *testing.T) {
 	requireLLMAdminError(t, err, 422, "AI_PROVIDER_ENDPOINT_REQUIRED")
 }
 
+func TestLLMProviderAdminConnectivityTestUsesFullEndpoint(t *testing.T) {
+	var gotPath string
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		gotPath = r.URL.Path
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"choices":[{"index":0,"message":{"role":"assistant","content":"pong"},"finish_reason":"stop"}]}`))
+	}))
+	defer server.Close()
+
+	env := newLLMAdminTestEnv(t)
+	req := validCreateRequest("full-path-test")
+	req.Endpoint = server.URL + "/v2/tokenplan/personal/chat/completions"
+	req.EndpointFullPath = true
+	created := mustCreateProvider(t, env, req)
+
+	result, err := env.svc.TestProvider(context.Background(), llmAdminTenantID, llmAdminUserID, created.ID)
+	require.NoError(t, err)
+	assert.True(t, result.OK)
+	assert.Equal(t, "/v2/tokenplan/personal/chat/completions", gotPath)
+}
+
 // ---------- §3.4 更新：部分更新 / 清空语义 / 默认保护 ----------
 
 func TestLLMProviderAdminUpdatePaths(t *testing.T) {

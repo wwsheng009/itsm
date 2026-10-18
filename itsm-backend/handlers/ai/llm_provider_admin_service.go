@@ -801,11 +801,12 @@ func (s *LLMProviderAdminService) persistTestResult(ctx context.Context, record 
 // 适配器优先（BE-9），未注册协议回退既有分支（§3.1.4 映射）。
 func buildLLMProviderForRecord(record *ent.LLMProviderConfig, apiKey string) (service.LLMProvider, error) {
 	provider, err := service.NewProtocolProvider(service.ProtocolProviderOptions{
-		Protocol: record.Protocol,
-		Variant:  record.Variant,
-		APIKey:   apiKey,
-		Endpoint: record.Endpoint,
-		Model:    record.Model,
+		Protocol:         record.Protocol,
+		Variant:          record.Variant,
+		APIKey:           apiKey,
+		Endpoint:         record.Endpoint,
+		EndpointFullPath: record.EndpointFullPath,
+		Model:            record.Model,
 	})
 	if err == nil {
 		return provider, nil
