@@ -199,3 +199,36 @@ PE-5 此前仅落地「项目工作台查看/解除挂接」与「任务生成�
 证据：[DEMO-PE5-GATEFIX-20261018-ce56a999-EVIDENCE.md](../../.dev/deploy/DEMO-PE5-GATEFIX-20261018-ce56a999-EVIDENCE.md)。
 
 > 说明：本次只修失败提示与引导，不绕过 PE-12 门禁；项目仍需在工作台「阶段门」提交并通过立项门后才能激活。
+
+## 8. 阶段门阻塞项下一步导航 + 详情页任命项目经理（2026-10-18）
+
+### 背景
+
+`/projects/3` 阶段门展示「未任命项目经理」「未登记项目成员/干系人」等阻塞项，但只有静态 Tag，用户不知道入口在哪里；且详情页此前无法任命项目经理（只能回列表页编辑弹窗）。
+
+### 缺口与修复
+
+| 缺口 | 修复 |
+|---|---|
+| 阻塞项纯静态、不可操作 | 每项右侧增加下一步入口：`manager_missing`→任命项目经理弹窗；`member_missing`→切「成员」Tab 并打开添加成员；`task/milestone_missing`→切 Tab 并打开新建；`task/milestone_open`→切 Tab；`record_open`→切「关联单据」 |
+| 详情页无任命项目经理入口 | 新增「任命项目经理」弹窗（候选搜索 + `PUT /projects/:id` CAS）；概览「项目经理」为空时提供「未任命（去任命）」 |
+| 阻塞文案重复 | `detail` 与 `type` 文案相同时不再重复拼接 |
+| 失败提交的门显示 `提交：0001-01-01 00:00:00` | 零值时间不展示（`submittedAt`/`decidedAt`） |
+| 只读用户可见写入口 | 任命/新建类入口仅 `canWrite` 展示；查看类导航保留 |
+| 成员添加后门数据不刷新 | 添加成功同步 `fetchGates()`；阶段门提示「修复后在该门行重新提交」 |
+
+提交：`bdbb015b`、`4590aed4`。
+
+### 验证
+
+| 检查 | 结果 |
+|---|---|
+| `npm run type-check` / 改动文件 `eslint` | ✅ |
+| 238 demo `1.8.0-dev.4590aed4` | backend/worker/frontend healthy、init ExitCode=0、version 对齐 |
+| Tabbit 真实浏览器 `/projects/3` | 4 门正常；立项门阻塞项无重复/无零值时间；按钮 `去任命项目经理 →`、`去添加成员 →`、`提交` |
+| 任命入口 | 弹窗打开，标题「任命项目经理」 |
+| 成员入口 | 自动切「成员」Tab（`aria-selected=true`）并打开「添加成员」弹窗 |
+
+证据：[DEMO-PE5-GATENAV-20261018-4590aed4-EVIDENCE.md](../../.dev/deploy/DEMO-PE5-GATENAV-20261018-4590aed4-EVIDENCE.md)。
+
+> 后续可选：把「任命项目经理 + 登记为成员」合并为一步（当前为两个独立动作，符合后端两个独立规则）。
