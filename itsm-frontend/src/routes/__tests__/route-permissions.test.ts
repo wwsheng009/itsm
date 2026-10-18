@@ -138,13 +138,32 @@ describe('canUseMspWorkbench（顶栏客户过滤器门禁）', () => {
       canUseMspWorkbench({
         userId: 1,
         tenantType: 'msp',
-        mspRole: undefined,
+        mspRole: 'provider_agent',
+        hasPermission: allowAll,
+      })
+    ).toBe(true);
+    expect(
+      canUseMspWorkbench({
+        userId: 1,
+        tenantType: 'msp_provider',
+        mspRole: 'msp_manager',
         hasPermission: allowAll,
       })
     ).toBe(true);
   });
 
-  it('客户租户即使有 * 通配权限也不渲染（修复 403 根因）', () => {
+  it('平台超级管理员在 provider 租户但 mspRole 为空 → 不渲染（本次 403 根因）', () => {
+    expect(
+      canUseMspWorkbench({
+        userId: 1,
+        tenantType: 'msp_provider',
+        mspRole: undefined,
+        hasPermission: allowAll,
+      })
+    ).toBe(false);
+  });
+
+  it('客户租户即使有 * 通配权限也不渲染', () => {
     expect(
       canUseMspWorkbench({
         userId: 1,

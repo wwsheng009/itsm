@@ -11,22 +11,30 @@
  * 租户类型不符 → 不渲染（也不发请求）；类型符合再按操作码判定。
  */
 import React from 'react';
-import { PermissionGate } from '@/components/auth/PermissionGate';
 import { useAuthStore } from '@/lib/store/auth-store';
-import { isMspProviderTenant, MSP_WORKBENCH_PERMISSIONS } from '@/routes/area-permissions';
+import { canUseMspWorkbench } from '@/routes/area-permissions';
 
 export interface MspProviderGateProps {
   children: React.ReactElement;
 }
 
 export const MspProviderGate: React.FC<MspProviderGateProps> = ({ children }) => {
+  const user = useAuthStore(state => state.user);
   const tenantType = useAuthStore(state => state.currentTenant?.type);
+  const hasPermission = useAuthStore(state => state.hasPermission);
 
-  if (!isMspProviderTenant(tenantType)) {
+  if (
+    !canUseMspWorkbench({
+      userId: user?.id,
+      tenantType,
+      mspRole: user?.mspRole,
+      hasPermission,
+    })
+  ) {
     return null;
   }
 
-  return <PermissionGate anyOf={MSP_WORKBENCH_PERMISSIONS}>{children}</PermissionGate>;
+  return children;
 };
 
 export default MspProviderGate;

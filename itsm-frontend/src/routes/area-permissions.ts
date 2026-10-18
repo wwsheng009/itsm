@@ -85,9 +85,26 @@ export const MSP_WORKBENCH_PERMISSIONS: string[] = ['msp_ticket:read'];
  */
 export const MSP_PROVIDER_TENANT_TYPES: string[] = ['msp_provider', 'msp'];
 
+/** 服务商员工角色词表（后端 users.msp_role；含历史 msp_* 五角色）。 */
+const MSP_PROVIDER_ROLE_CODES: string[] = [
+  'provider_admin',
+  'provider_agent',
+  'provider_tenant_admin',
+  'msp_viewer',
+  'msp_tech',
+  'msp_specialist',
+  'msp_manager',
+  'msp_admin',
+];
+
 /** 当前租户上下文是否服务商租户（未知类型一律 false，fail-closed）。 */
 export function isMspProviderTenant(type?: string | null): boolean {
   return !!type && MSP_PROVIDER_TENANT_TYPES.includes(type);
+}
+
+/** 当前用户是否服务商员工（后端 IsMSP 的第二维；空/客户角色一律 false）。 */
+export function isMspProviderRole(role?: string | null): boolean {
+  return !!role && MSP_PROVIDER_ROLE_CODES.includes(role);
 }
 
 /**
@@ -97,9 +114,10 @@ export function isMspProviderTenant(type?: string | null): boolean {
  * 误判为 MSP 权限，导致客户租户管理员也渲染 CustomerFilter，并必然请求
  * `/msp/customers`、`/msp/workbench/summary` 得到 403。
  *
- * 判定必须同时满足：
+ * 判定必须同时满足（与后端 IsMSP = 租户类型 + msp_role fail-closed 同向）：
  * - 当前租户上下文是服务商租户（msp_provider / msp）；
- * - 不是客户侧投影角色；
+ * - 用户持有服务商员工角色（provider_* / 历史 msp_* 五角色）；平台超级管理员的
+ *   `*` 权限但 msp_role 为空时仍视为非 MSP 员工；
  * - 持有点位操作码 `msp_ticket:read`（`*` 仅在服务商租户内才可能放行）。
  */
 export function canUseMspWorkbench(input: {
@@ -109,6 +127,6 @@ export function canUseMspWorkbench(input: {
   hasPermission: (permission: string) => boolean;
 }): boolean {
   if (!input.userId || !isMspProviderTenant(input.tenantType)) return false;
-  if (input.mspRole === 'customer_user') return false;
+  if (!isMspProviderRole(input.mspRole)) return false;
   return input.hasPermission(MSP_WORKBENCH_PERMISSIONS[0]);
 }
