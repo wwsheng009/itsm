@@ -115,6 +115,6 @@
 - `ent/schema/tenant.go`、`ent/schema/user.go:69-72`、`ent/schema/msp_allocation.go:19-51`
 - `pkg/tenantmode/tenantmode.go`、`middleware/tenant.go:138-169`
 - `middleware/msp_middleware.go:19-27, 133`、`middleware/msp_rbac.go:125-127`、`middleware/msp_gate.go:21-33`
-- `internal/schema/tenant_guard.go:65-115, 117-127`、`config/config.go:107-114`
+- `internal/schema/tenant_guard.go:65-135`（TenantExemptTables 单一真相源 + Policy 语义）、`config/config.go:107-114`
 - `handlers/auth/service.go:114`、`docs/acl-manifest.yaml:2593-2650`
 - 关联文档：[ADR-004](../architecture/adr-004-multi-customer-tenant-model-selection.md)、`docs/articles/05-multi-tenant-msp-operations.md`
