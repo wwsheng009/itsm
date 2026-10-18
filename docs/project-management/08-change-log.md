@@ -281,3 +281,37 @@ PE-5 此前仅落地「项目工作台查看/解除挂接」与「任务生成�
 | Tabbit：列表页「激活」→「去阶段门处理」 | 跳转 `/projects/5?tab=gates` 且阶段门选中 |
 
 证据：[DEMO-PE5-GATECTA-20261018-12c2d7d2-EVIDENCE.md](../../.dev/deploy/DEMO-PE5-GATECTA-20261018-12c2d7d2-EVIDENCE.md)。
+
+## 11. 修复：项目 AI 助手恒降级（LLM 模型被静态配置覆盖，2026-10-18）
+
+### 现象
+
+`/projects/1` AI 助手三端点均降级为确定性输出；后端日志：
+`403 The current model does not support Token Plan Person`。
+
+### 根因
+
+租户 DB provider 为千帆 `deepseek-v4.1-flash`（Token Plan Personal，连通性 ok），但 `ProjectAIAdapter` 把静态 env `LLM_MODEL=gpt-4o-mini` 传给 `LLMGateway.Chat`，`OpenAIProvider.Chat` 在 model 非空时覆盖自身配置 → 实际请求 `gpt-4o-mini` → 403。`bpmn_ai_generator_service.go` 已有「空模型委派 provider」的同类修复，项目 AI 遗漏。
+
+### 修复
+
+- `ProjectAIAdapter.chat` 改传空模型并使用 `ChatWithRequest`（租户/用户解析链）；不再覆盖 provider 模型。
+- `ProviderResolution` 新增 `Model`（来自 slot）；适配器回带最近一次实际生效模型，响应 `model` 展示真实模型（静态回退仍用 `LLM_MODEL`）。
+- `ai_llm_calls.model` 记录解析后的实际模型（非流式 + 流式）。
+- 新增 `TestProjectAIAdapterDelegatesModelToProvider` 回归测试。
+
+提交：`7b383714`、`d80cf753`。
+
+### 验证
+
+| 检查 | 结果 |
+|---|---|
+| `go test ./handlers/project/` | 全绿（含新增适配器测试） |
+| `go test ./service/ -run "TestLLMGateway\|TestGateway"` | 全绿 |
+| 238 demo `1.8.0-dev.d80cf753` | 三容器 healthy、version 对齐 |
+| `POST /projects/1/ai/summary` | `ai` / `degraded=false` / `model=deepseek-v4.1-flash` |
+| `POST /projects/1/ai/risk-warnings` | `ai` / `degraded=false` / warnings=6 |
+| `POST /projects/1/ai/minutes/tasks` | `ai` / `degraded=false` / proposals=2 |
+| `ai_llm_calls` | 新行 `model=deepseek-v4.1-flash success=t`；旧失败行为 `gpt-4o-mini` |
+
+证据：[DEMO-PROJECT-AI-20261018-d80cf753-EVIDENCE.md](../../.dev/deploy/DEMO-PROJECT-AI-20261018-d80cf753-EVIDENCE.md)。

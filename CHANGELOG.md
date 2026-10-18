@@ -31,6 +31,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **项目管理：AI 助手恒降级（LLM 模型被静态配置覆盖，2026-10-18）** — `/projects/:id` AI 三端点均返回 `AI 调用失败，已降级为确定性输出`；日志 `403 The current model does not support Token Plan Person`。根因：租户 DB provider 为千帆 `deepseek-v4.1-flash`，但 `ProjectAIAdapter` 把静态 env `LLM_MODEL=gpt-4o-mini` 传入网关，`OpenAIProvider.Chat` 在 model 非空时覆盖 provider 自身模型 → 实际请求 `gpt-4o-mini` → 403。修复：`chat` 改传空模型并走 `ChatWithRequest`（租户/用户解析链），由解析出的 provider 决定模型（与 BPMN AI 生成器同一先例）；`ProviderResolution` 新增 `Model`，响应 `model` 与 `ai_llm_calls.model` 均记录实际模型；新增 `TestProjectAIAdapterDelegatesModelToProvider`。验证：`handlers/project` 全绿、`service` 网关测试全绿；**238 demo 已部署 `1.8.0-dev.d80cf753`**（三容器 healthy、version 对齐）；三端点实测 `generatedBy=ai`、`degraded=false`、`model=deepseek-v4.1-flash`（summary 360+ 字 / warnings 6 / proposals 2），`ai_llm_calls` 新行 `success=t`，10 分钟内无 `project ai degraded` 日志。证据：[08 变更记录 §11](docs/project-management/08-change-log.md)、[DEMO-PROJECT-AI-20261018-d80cf753-EVIDENCE](.dev/deploy/DEMO-PROJECT-AI-20261018-d80cf753-EVIDENCE.md)。
+
 - **项目管理：列表「激活」失败提示不可行动（前端，2026-10-18）** — `/projects` 点击「激活」恒提示「操作失败，请刷新后重试」。根因：PE-12 要求 `planning → active` 前立项门必须通过，未提交时后端返回 `409 "阶段门门禁未通过"`，而列表页只透传含「未终结」的错误，其余一律吞成通用文案。修复：剥离 `[RID]` 后缀后识别阶段门禁错误，改为弹窗展示真实原因与处理路径（激活=立项门 / 结项=结项门），提供「去项目工作台」直达 `/projects/:id`；「未终结/版本冲突/刷新」等错误直接透出后端消息；兼容「阶段门门禁未通过 / 阶段门禁未通过」两种写法。验证：`tsc --noEmit` + 改动文件 ESLint ✅；**238 demo 已部署 `1.8.0-dev.ce56a999`**（三容器 healthy、init ExitCode=0、version 对齐）；Tabbit 真实浏览器点击「激活」→ 弹窗文案完整、按钮「去项目工作台」跳转 `/projects/3` ✅；镜像 A/B 新引导文案 0→1。证据：[08 变更记录 §7](docs/project-management/08-change-log.md)、[DEMO-PE5-GATEFIX-20261018-ce56a999-EVIDENCE](.dev/deploy/DEMO-PE5-GATEFIX-20261018-ce56a999-EVIDENCE.md)。
 
 ### Added
