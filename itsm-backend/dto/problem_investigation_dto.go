@@ -109,8 +109,9 @@ type UpdateInvestigationStepRequest struct {
 
 // CreateRootCauseAnalysisRequest 创建根本原因分析请求
 type CreateRootCauseAnalysisRequest struct {
-	ProblemID            int             `json:"problemId" binding:"required"`
-	AnalystID            int             `json:"analystId" binding:"required"`
+	ProblemID int `json:"problemId" binding:"required"`
+	// AnalystID 可选：未指定时由 handler 默认为当前登录用户
+	AnalystID            int             `json:"analystId"`
 	AnalysisMethod       string          `json:"analysisMethod" binding:"required"`
 	RootCauseDescription string          `json:"rootCauseDescription" binding:"required"`
 	ContributingFactors  string          `json:"contributingFactors"`
@@ -131,14 +132,15 @@ type UpdateRootCauseAnalysisRequest struct {
 
 // CreateProblemSolutionRequest 创建问题解决方案请求
 type CreateProblemSolutionRequest struct {
-	ProblemID            int          `json:"problemId" binding:"required"`
-	SolutionType         SolutionType `json:"solutionType" binding:"required"`
-	SolutionDescription  string       `json:"solutionDescription" binding:"required"`
-	Priority             string       `json:"priority" binding:"required,oneof=low medium high critical"`
-	ProposedBy           int          `json:"proposedBy" binding:"required"`
-	EstimatedEffortHours *int         `json:"estimatedEffortHours"`
-	EstimatedCost        *float64     `json:"estimatedCost"`
-	RiskAssessment       string       `json:"riskAssessment"`
+	ProblemID           int          `json:"problemId" binding:"required"`
+	SolutionType        SolutionType `json:"solutionType" binding:"required"`
+	SolutionDescription string       `json:"solutionDescription" binding:"required"`
+	Priority            string       `json:"priority" binding:"required,oneof=low medium high critical"`
+	// ProposedBy 可选：未指定时由 handler 默认为当前登录用户
+	ProposedBy           int      `json:"proposedBy"`
+	EstimatedEffortHours *int     `json:"estimatedEffortHours"`
+	EstimatedCost        *float64 `json:"estimatedCost"`
+	RiskAssessment       string   `json:"riskAssessment"`
 }
 
 // UpdateProblemSolutionRequest 更新问题解决方案请求

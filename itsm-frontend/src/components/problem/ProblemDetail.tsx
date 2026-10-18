@@ -11,11 +11,12 @@ import { ArrowLeft, Search, Pencil, FlaskConical, ShieldAlert } from 'lucide-rea
 import { ProblemApi } from '@/lib/api/';
 import { useI18n } from '@/lib/i18n/useI18n';
 import { KEDBApi } from '@/lib/api/kedb-api';
+import { ProblemInvestigationAPI } from '@/lib/api/problem-investigation';
 import { ProblemStatus, ProblemStatusLabels } from '@/constants/problem';
 import type { Problem } from '@/types/biz/problem';
 import ProblemInvestigationTab from './ProblemInvestigationTab';
 import BasicInfoCard from './BasicInfoCard';
-import { PermissionGate } from '@/components/auth/PermissionGate';
+import { PermissionGate, useCan } from '@/components/auth/PermissionGate';
 
 const { Title } = Typography;
 const { TextArea } = Input;
@@ -35,6 +36,9 @@ const ProblemDetail: React.FC<{ id?: string }> = ({ id: propId }) => {
   // 调查 Tab 内部初始面板（启动 RCA 时跳到“根因分析”）
   const [investigationInnerTab, setInvestigationInnerTab] = useState('overview');
   const [investigationMountKey, setInvestigationMountKey] = useState(0);
+  // 启动 RCA loading：自动创建调查期间防重复点击
+  const [startingRca, setStartingRca] = useState(false);
+  const canWriteProblem = useCan(['problem:write']);
   // {t('problemDetail.toKnownError')} Modal
   const [knownErrorModalOpen, setKnownErrorModalOpen] = useState(false);
   const [creatingKnownError, setCreatingKnownError] = useState(false);
@@ -83,9 +87,30 @@ const ProblemDetail: React.FC<{ id?: string }> = ({ id: propId }) => {
     });
   };
 
-  // 启动 RCA：跳转到问题调查 Tab 的“根因分析”面板
-  const handleStartRCA = () => {
-    setInvestigationInnerTab('root-cause');
+  // 启动 RCA：无调查记录时先创建（等同“开始调查”），再进入根因分析面板；
+  // 只读用户/查询失败时回落到“调查概览”，避免落入“请先开始调查”死角。
+  const handleStartRCA = async () => {
+    if (!data) return;
+    setStartingRca(true);
+    let innerTab = 'root-cause';
+    try {
+      const summary = await ProblemInvestigationAPI.getSummary(data.id);
+      if (!summary?.investigation) {
+        if (canWriteProblem) {
+          await ProblemInvestigationAPI.createInvestigation({ problemId: data.id });
+          message.success(t('problemDetail.startRcaCreated'));
+          loadData();
+        } else {
+          innerTab = 'overview';
+        }
+      }
+    } catch (error) {
+      message.error(t('problemInvestigation.messages.createInvestigationFailed'));
+      innerTab = 'overview';
+    } finally {
+      setStartingRca(false);
+    }
+    setInvestigationInnerTab(innerTab);
     setInvestigationMountKey((k) => k + 1);
     setActiveTab('investigation');
   };
@@ -184,7 +209,7 @@ const ProblemDetail: React.FC<{ id?: string }> = ({ id: propId }) => {
             {(data.status === ProblemStatus.OPEN ||
               data.status === ProblemStatus.INVESTIGATING ||
               data.status === ProblemStatus.IN_PROGRESS) && (
-              <Button icon={<FlaskConical />} onClick={handleStartRCA}>
+              <Button icon={<FlaskConical />} loading={startingRca} onClick={handleStartRCA}>
                 {t('problemDetail.startRca')}
               </Button>
             )}
