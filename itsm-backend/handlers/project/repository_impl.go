@@ -2,6 +2,7 @@ package project
 
 import (
 	"context"
+	"math"
 	"sort"
 	"strings"
 	"time"
@@ -179,6 +180,9 @@ func (r *EntRepository) StatusCAS(ctx context.Context, tenantID, id int, from, t
 	}
 	if patch.ClosedAt != nil {
 		upd = upd.SetClosedAt(*patch.ClosedAt)
+	}
+	if patch.Progress != nil {
+		upd = upd.SetProgress(*patch.Progress)
 	}
 	return upd.Save(ctx)
 }
@@ -568,103 +572,214 @@ func (r *EntRepository) GetTaskByID(ctx context.Context, tenantID, taskID int) (
 		Only(ctx)
 }
 
-// CreateTask 创建任务。
-func (r *EntRepository) CreateTask(ctx context.Context, p TaskCreateParams) (*ent.ProjectTask, error) {
-	builder := r.client.ProjectTask.Create().
-		SetTenantID(p.TenantID).
-		SetProjectID(p.ProjectID).
-		SetName(p.Name).
-		SetPriority(p.Priority).
-		SetSortOrder(p.SortOrder).
-		SetNillableParentTaskID(optionalInt(p.ParentTaskID)).
-		SetNillableAssigneeID(optionalInt(p.AssigneeID)).
-		SetNillablePlanStart(p.PlanStart).
-		SetNillablePlanEnd(p.PlanEnd).
-		SetNillableEstimateHours(p.EstimateHours).
-		SetNillableCreatedBy(optionalInt(p.CreatedBy))
-	if p.Description != "" {
-		builder = builder.SetDescription(p.Description)
+// runTaskMutationTx 在单事务内执行任务写操作并重算项目进度。
+//
+// 进度是项目级派生字段：任务创建/更新/流转/软删必须与汇总同事务提交，
+// 避免任务已变更但 projects.progress 仍停留在旧值（PE-6 E2E 实测 0% 缺陷）。
+func (r *EntRepository) runTaskMutationTx(
+	ctx context.Context, tenantID, projectID int, mutate func(tx *ent.Tx) error,
+) error {
+	tx, err := r.client.Tx(ctx)
+	if err != nil {
+		return err
 	}
-	return builder.Save(ctx)
+	defer func() { _ = tx.Rollback() }()
+
+	if err := mutate(tx); err != nil {
+		return err
+	}
+	if err := recalcProjectProgressTx(ctx, tx, tenantID, projectID); err != nil {
+		return err
+	}
+	return tx.Commit()
 }
 
-// UpdateTaskCAS 任务更新（version>0 校验乐观锁）。
-func (r *EntRepository) UpdateTaskCAS(ctx context.Context, tenantID, projectID, taskID int, p TaskUpdateParams, version int) (*ent.ProjectTask, error) {
-	upd := r.client.ProjectTask.UpdateOneID(taskID).
-		Where(projecttask.TenantIDEQ(tenantID), projecttask.ProjectIDEQ(projectID), projecttask.DeletedAtIsNil())
-	if version > 0 {
-		upd = upd.Where(projecttask.VersionEQ(version))
-	}
-	if p.Name != nil {
-		upd = upd.SetName(*p.Name)
-	}
-	if p.Description != nil {
-		upd = upd.SetDescription(*p.Description)
-	}
-	if p.AssigneeID != nil {
-		upd = upd.SetNillableAssigneeID(optionalInt(*p.AssigneeID))
-	}
-	if p.Priority != nil {
-		upd = upd.SetPriority(*p.Priority)
-	}
-	if p.PlanStart != nil {
-		upd = upd.SetNillablePlanStart(p.PlanStart)
-	}
-	if p.PlanEnd != nil {
-		upd = upd.SetNillablePlanEnd(p.PlanEnd)
-	}
-	if p.ActualStart != nil {
-		upd = upd.SetNillableActualStart(p.ActualStart)
-	}
-	if p.ActualEnd != nil {
-		upd = upd.SetNillableActualEnd(p.ActualEnd)
-	}
-	if p.Progress != nil {
-		upd = upd.SetProgress(*p.Progress)
-	}
-	if p.EstimateHours != nil {
-		upd = upd.SetNillableEstimateHours(p.EstimateHours)
-	}
-	if p.ActualHours != nil {
-		upd = upd.SetNillableActualHours(p.ActualHours)
-	}
-	if p.SortOrder != nil {
-		upd = upd.SetSortOrder(*p.SortOrder)
-	}
-	return upd.AddVersion(1).Save(ctx)
-}
-
-// TaskStatusCAS 任务状态流转（from + 可选版本双重校验）。
-func (r *EntRepository) TaskStatusCAS(ctx context.Context, tenantID, projectID, taskID int, from, to string, version int, patch TaskStatusPatch) (*ent.ProjectTask, error) {
-	upd := r.client.ProjectTask.UpdateOneID(taskID).
+// recalcProjectProgressTx 重算并写回项目进度（调用方事务内）。
+//
+// 口径（P1 自动汇总）：
+//   - 只统计未软删、非 cancelled 的**叶子任务**；父任务由子任务自然汇总，避免模板阶段行稀释进度；
+//   - 叶子任务取算术平均并四舍五入；无有效叶子任务 → 0；
+//   - 不递增 projects.version（派生字段更新不应造成用户编辑的乐观锁冲突）。
+func recalcProjectProgressTx(ctx context.Context, tx *ent.Tx, tenantID, projectID int) error {
+	tasks, err := tx.ProjectTask.Query().
 		Where(
 			projecttask.TenantIDEQ(tenantID),
 			projecttask.ProjectIDEQ(projectID),
 			projecttask.DeletedAtIsNil(),
-			projecttask.StatusEQ(from),
-		)
-	if version > 0 {
-		upd = upd.Where(projecttask.VersionEQ(version))
+		).
+		Select(
+			projecttask.FieldID,
+			projecttask.FieldParentTaskID,
+			projecttask.FieldStatus,
+			projecttask.FieldProgress,
+		).
+		All(ctx)
+	if err != nil {
+		return err
 	}
-	upd = upd.SetStatus(to).AddVersion(1)
-	if patch.ActualStart != nil {
-		upd = upd.SetActualStart(*patch.ActualStart)
-	}
-	if patch.ActualEnd != nil {
-		upd = upd.SetActualEnd(*patch.ActualEnd)
-	}
-	if patch.Progress != nil {
-		upd = upd.SetProgress(*patch.Progress)
-	}
-	return upd.Save(ctx)
+	progress := aggregateProjectProgress(tasks)
+	return tx.Project.UpdateOneID(projectID).
+		Where(project.TenantIDEQ(tenantID), project.DeletedAtIsNil()).
+		SetProgress(progress).
+		Exec(ctx)
 }
 
-// SoftDeleteTask 软删任务。
+// aggregateProjectProgress 任务叶节点进度汇总（纯函数，便于单测）。
+func aggregateProjectProgress(tasks []*ent.ProjectTask) int {
+	parentIDs := make(map[int]struct{}, len(tasks))
+	for _, task := range tasks {
+		if task.ParentTaskID > 0 {
+			parentIDs[task.ParentTaskID] = struct{}{}
+		}
+	}
+	sum, count := 0, 0
+	for _, task := range tasks {
+		if task.Status == TaskStatusCancelled {
+			continue
+		}
+		if _, isParent := parentIDs[task.ID]; isParent {
+			continue
+		}
+		progress := task.Progress
+		// 状态优先：done 的语义就是完成，避免历史行 progress 字段未同步导致汇总偏低。
+		if task.Status == TaskStatusDone {
+			progress = 100
+		}
+		sum += progress
+		count++
+	}
+	if count == 0 {
+		return 0
+	}
+	return int(math.Round(float64(sum) / float64(count)))
+}
+
+// CreateTask 创建任务（同事务重算项目进度）。
+func (r *EntRepository) CreateTask(ctx context.Context, p TaskCreateParams) (*ent.ProjectTask, error) {
+	var created *ent.ProjectTask
+	err := r.runTaskMutationTx(ctx, p.TenantID, p.ProjectID, func(tx *ent.Tx) error {
+		builder := tx.ProjectTask.Create().
+			SetTenantID(p.TenantID).
+			SetProjectID(p.ProjectID).
+			SetName(p.Name).
+			SetPriority(p.Priority).
+			SetSortOrder(p.SortOrder).
+			SetNillableParentTaskID(optionalInt(p.ParentTaskID)).
+			SetNillableAssigneeID(optionalInt(p.AssigneeID)).
+			SetNillablePlanStart(p.PlanStart).
+			SetNillablePlanEnd(p.PlanEnd).
+			SetNillableEstimateHours(p.EstimateHours).
+			SetNillableCreatedBy(optionalInt(p.CreatedBy))
+		if p.Description != "" {
+			builder = builder.SetDescription(p.Description)
+		}
+		var err error
+		created, err = builder.Save(ctx)
+		return err
+	})
+	if err != nil {
+		return nil, err
+	}
+	return created, nil
+}
+
+// UpdateTaskCAS 任务更新（version>0 校验乐观锁；同事务重算项目进度）。
+func (r *EntRepository) UpdateTaskCAS(ctx context.Context, tenantID, projectID, taskID int, p TaskUpdateParams, version int) (*ent.ProjectTask, error) {
+	var updated *ent.ProjectTask
+	err := r.runTaskMutationTx(ctx, tenantID, projectID, func(tx *ent.Tx) error {
+		upd := tx.ProjectTask.UpdateOneID(taskID).
+			Where(projecttask.TenantIDEQ(tenantID), projecttask.ProjectIDEQ(projectID), projecttask.DeletedAtIsNil())
+		if version > 0 {
+			upd = upd.Where(projecttask.VersionEQ(version))
+		}
+		if p.Name != nil {
+			upd = upd.SetName(*p.Name)
+		}
+		if p.Description != nil {
+			upd = upd.SetDescription(*p.Description)
+		}
+		if p.AssigneeID != nil {
+			upd = upd.SetNillableAssigneeID(optionalInt(*p.AssigneeID))
+		}
+		if p.Priority != nil {
+			upd = upd.SetPriority(*p.Priority)
+		}
+		if p.PlanStart != nil {
+			upd = upd.SetNillablePlanStart(p.PlanStart)
+		}
+		if p.PlanEnd != nil {
+			upd = upd.SetNillablePlanEnd(p.PlanEnd)
+		}
+		if p.ActualStart != nil {
+			upd = upd.SetNillableActualStart(p.ActualStart)
+		}
+		if p.ActualEnd != nil {
+			upd = upd.SetNillableActualEnd(p.ActualEnd)
+		}
+		if p.Progress != nil {
+			upd = upd.SetProgress(*p.Progress)
+		}
+		if p.EstimateHours != nil {
+			upd = upd.SetNillableEstimateHours(p.EstimateHours)
+		}
+		if p.ActualHours != nil {
+			upd = upd.SetNillableActualHours(p.ActualHours)
+		}
+		if p.SortOrder != nil {
+			upd = upd.SetSortOrder(*p.SortOrder)
+		}
+		var err error
+		updated, err = upd.AddVersion(1).Save(ctx)
+		return err
+	})
+	if err != nil {
+		return nil, err
+	}
+	return updated, nil
+}
+
+// TaskStatusCAS 任务状态流转（from + 可选版本双重校验；同事务重算项目进度）。
+func (r *EntRepository) TaskStatusCAS(ctx context.Context, tenantID, projectID, taskID int, from, to string, version int, patch TaskStatusPatch) (*ent.ProjectTask, error) {
+	var updated *ent.ProjectTask
+	err := r.runTaskMutationTx(ctx, tenantID, projectID, func(tx *ent.Tx) error {
+		upd := tx.ProjectTask.UpdateOneID(taskID).
+			Where(
+				projecttask.TenantIDEQ(tenantID),
+				projecttask.ProjectIDEQ(projectID),
+				projecttask.DeletedAtIsNil(),
+				projecttask.StatusEQ(from),
+			)
+		if version > 0 {
+			upd = upd.Where(projecttask.VersionEQ(version))
+		}
+		upd = upd.SetStatus(to).AddVersion(1)
+		if patch.ActualStart != nil {
+			upd = upd.SetActualStart(*patch.ActualStart)
+		}
+		if patch.ActualEnd != nil {
+			upd = upd.SetActualEnd(*patch.ActualEnd)
+		}
+		if patch.Progress != nil {
+			upd = upd.SetProgress(*patch.Progress)
+		}
+		var err error
+		updated, err = upd.Save(ctx)
+		return err
+	})
+	if err != nil {
+		return nil, err
+	}
+	return updated, nil
+}
+
+// SoftDeleteTask 软删任务（同事务重算项目进度）。
 func (r *EntRepository) SoftDeleteTask(ctx context.Context, tenantID, projectID, taskID int) error {
-	return r.client.ProjectTask.UpdateOneID(taskID).
-		Where(projecttask.TenantIDEQ(tenantID), projecttask.ProjectIDEQ(projectID), projecttask.DeletedAtIsNil()).
-		SetDeletedAt(time.Now()).
-		Exec(ctx)
+	return r.runTaskMutationTx(ctx, tenantID, projectID, func(tx *ent.Tx) error {
+		return tx.ProjectTask.UpdateOneID(taskID).
+			Where(projecttask.TenantIDEQ(tenantID), projecttask.ProjectIDEQ(projectID), projecttask.DeletedAtIsNil()).
+			SetDeletedAt(time.Now()).
+			Exec(ctx)
+	})
 }
 
 // CountTaskChildren 子任务数。

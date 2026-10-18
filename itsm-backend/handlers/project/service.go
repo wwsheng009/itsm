@@ -299,6 +299,9 @@ func (s *Service) Transition(ctx context.Context, tenantID, id int, req *StatusR
 		}
 		patch.ActualEnd = &now
 		patch.ClosedAt = &now
+		// 结项是项目级终态：无论任务如何分布（含无任务/全取消），对外进度都收敛为 100%。
+		progress := 100
+		patch.Progress = &progress
 	case ActionCancel:
 		if current.ActualEnd.IsZero() {
 			patch.ActualEnd = &now

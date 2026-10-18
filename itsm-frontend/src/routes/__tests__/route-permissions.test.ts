@@ -21,6 +21,7 @@ import {
   permissionGranted,
   resolveRoutePermission,
 } from '../route-permissions';
+import { canUseMspWorkbench } from '../area-permissions';
 import { routes } from '../index';
 
 /** 递归收集路由表全部路径（拼接父子段；无 path 的布局路由只递归不产出）。 */
@@ -118,5 +119,75 @@ describe('resolveRoutePermission', () => {
     expect(resolveRoutePermission('/knowledge/articles/new', technician)).toBe('deny');
     const admin = ['knowledge:write', 'ticket:admin'];
     expect(resolveRoutePermission('/knowledge/articles/new', admin)).toBe('allow');
+  });
+});
+
+describe('canUseMspWorkbench（顶栏客户过滤器门禁）', () => {
+  const allowAll = () => true;
+
+  it('服务商租户 + msp_ticket:read → 渲染', () => {
+    expect(
+      canUseMspWorkbench({
+        userId: 1,
+        tenantType: 'msp_provider',
+        mspRole: 'msp_manager',
+        hasPermission: allowAll,
+      })
+    ).toBe(true);
+    expect(
+      canUseMspWorkbench({
+        userId: 1,
+        tenantType: 'msp',
+        mspRole: undefined,
+        hasPermission: allowAll,
+      })
+    ).toBe(true);
+  });
+
+  it('客户租户即使有 * 通配权限也不渲染（修复 403 根因）', () => {
+    expect(
+      canUseMspWorkbench({
+        userId: 1,
+        tenantType: 'customer',
+        mspRole: undefined,
+        hasPermission: allowAll,
+      })
+    ).toBe(false);
+    expect(
+      canUseMspWorkbench({
+        userId: 1,
+        tenantType: 'internal',
+        mspRole: 'msp_tech',
+        hasPermission: allowAll,
+      })
+    ).toBe(false);
+  });
+
+  it('客户角色 / 无权限 / 未登录 → 不渲染（fail-closed）', () => {
+    const denyAll = () => false;
+    expect(
+      canUseMspWorkbench({
+        userId: 1,
+        tenantType: 'msp_provider',
+        mspRole: 'customer_user',
+        hasPermission: allowAll,
+      })
+    ).toBe(false);
+    expect(
+      canUseMspWorkbench({
+        userId: 1,
+        tenantType: 'msp_provider',
+        mspRole: 'msp_viewer',
+        hasPermission: denyAll,
+      })
+    ).toBe(false);
+    expect(
+      canUseMspWorkbench({
+        userId: undefined,
+        tenantType: 'msp_provider',
+        mspRole: 'msp_manager',
+        hasPermission: allowAll,
+      })
+    ).toBe(false);
   });
 });

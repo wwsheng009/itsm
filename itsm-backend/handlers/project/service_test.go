@@ -163,6 +163,7 @@ func TestServiceTransition_LifecycleAndClosureGate(t *testing.T) {
 	completed, err := svc.Transition(ctx, tid, p.ID, &StatusRequest{Action: ActionComplete})
 	require.NoError(t, err)
 	assert.Equal(t, StatusCompleted, completed.Status)
+	assert.Equal(t, 100, completed.Progress, "结项后进度必须收敛为 100%")
 	assert.False(t, completed.ClosedAt.IsZero(), "complete 应回填结项时间")
 
 	// CAS 冲突：携带过期版本更新。

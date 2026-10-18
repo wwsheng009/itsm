@@ -27,7 +27,7 @@
 | `type` | string（`internal\|improvement\|delivery`） | 项目类型，默认 `internal` |
 | `parent_project_id` | int，可空 | 父子项目（如子项目/工作流） |
 | `health` | string（`green\|yellow\|red`） | 健康度（手动 + P1 可自动汇总） |
-| `progress` | int（0–100） | 进度（P0 手填；P1 由任务汇总） |
+| `progress` | int（0–100） | 进度（P1 起由任务自动汇总；`complete` 强制 100） |
 | `actual_start` / `actual_end` | time，可空 | 实际起止 |
 | `closed_at` | time，可空 | 结项时间 |
 | `version` | int，默认 1 | 乐观锁 |
@@ -39,6 +39,8 @@
 > 保留：`name/code/description/manager_id/department_id/start_date/end_date/status/tenant_id`；`status` 从自由字符串升级为受控值：`planning\|active\|suspended\|completed\|cancelled`（沿用现有默认 `active` 的兼容策略：存量数据映射 `active→active`、`completed→completed`、`suspended→suspended`）。
 
 > 编号策略：沿用 `code`（租户内唯一 + 服务层校验）；可选自动编号 `PRJ-xxxx`（对齐 `ticket_number`/`change_number` 生成先例）。基线不落在本表：见 §3.7 `project_baselines`。
+
+> **进度汇总口径（2026-10-18 修复）**：任务创建/更新/流转/软删与项目进度重算同事务执行。只统计未软删、非 `cancelled` 的**叶子任务**（父任务由子任务汇总，避免模板阶段行稀释）；任务 `done` 恒按 100 计，其余取 `progress`；叶子任务取算术平均并四舍五入，无有效叶子任务时为 0。派生更新不递增 `projects.version`。存量回填见 `migrations/20261029_project_management_progress_backfill.sql`（completed→100；有叶子任务→平均值；无任务保留原值）。
 
 ## 3. 新增表清单
 

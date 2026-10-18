@@ -70,6 +70,8 @@ type StatusPatch struct {
 	ActualStart *time.Time
 	ActualEnd   *time.Time
 	ClosedAt    *time.Time
+	// Progress 非 nil 时写入项目进度（结项强制 100；任务汇总由仓储事务维护）。
+	Progress *int
 }
 
 // Repository 项目仓储（数据访问层；仅 ent，不承载业务规则）。

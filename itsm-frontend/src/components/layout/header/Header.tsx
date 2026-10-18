@@ -21,6 +21,7 @@ import { NotificationDrawer } from './NotificationDrawer';
 import { GlobalSearch, SearchInput } from './GlobalSearch';
 import { CustomerFilter } from './CustomerFilter';
 import { buildBreadcrumb, useBuildBreadcrumb } from './breadcrumb-utils';
+import { canUseMspWorkbench as resolveMspWorkbenchAccess } from '@/routes/area-permissions';
 import styles from './Header.module.css';
 
 const { Header: AntHeader } = Layout;
@@ -47,18 +48,19 @@ export const Header: React.FC<HeaderProps> = ({
 }) => {
   const navigate = useNavigate();
   const pathname = useLocation().pathname;
-  const { user, token, hasPermission, isAdmin } = useAuthStore();
+  const { user, token, currentTenant, hasPermission, isAdmin } = useAuthStore();
   const { isDark, toggleTheme } = useTheme();
   const { language, changeLanguage } = useI18n();
   useAuthStoreHydration();
 
-  // FE-A5：仅 provider 侧渲染 CustomerFilter（客户账号/无 MSP 权限完全不渲染）
+  // FE-A5：仅 provider 侧渲染 CustomerFilter（客户租户 / 客户角色 / 无 MSP 权限完全不渲染）
   const mspRole = user?.mspRole;
-  const canUseMspWorkbench =
-    !!user?.id &&
-    mspRole !== 'customer_user' &&
-    (hasPermission('msp_ticket:read') ||
-      (typeof mspRole === 'string' && mspRole.startsWith('provider_')));
+  const canUseMspWorkbench = resolveMspWorkbenchAccess({
+    userId: user?.id,
+    tenantType: currentTenant?.type,
+    mspRole,
+    hasPermission,
+  });
   // 通知抽屉标记已读/全部已读（router/common_system_routes.go:247-248）：notification:write。
   const canManageNotifications = hasPermission('notification:write');
 

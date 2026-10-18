@@ -200,6 +200,10 @@ func (r *EntRepository) ApplyTemplateTx(ctx context.Context, p TemplateApplyPara
 		}
 		outcome.MilestoneCount++
 	}
+	// 模板生成的任务默认 0 进度；若项目应用前已有任务/手填进度，统一收敛到派生值。
+	if err := recalcProjectProgressTx(ctx, tx, p.TenantID, p.ProjectID); err != nil {
+		return nil, err
+	}
 	if err := tx.Commit(); err != nil {
 		return nil, err
 	}

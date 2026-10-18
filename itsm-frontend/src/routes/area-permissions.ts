@@ -89,3 +89,26 @@ export const MSP_PROVIDER_TENANT_TYPES: string[] = ['msp_provider', 'msp'];
 export function isMspProviderTenant(type?: string | null): boolean {
   return !!type && MSP_PROVIDER_TENANT_TYPES.includes(type);
 }
+
+/**
+ * 顶栏 MSP 客户过滤器可见性（与 MspProviderGate 同向收敛）。
+ *
+ * 修复 2026-10-18 E2E：此前仅看 `msp_ticket:read`，超级管理员的 `*` 通配被
+ * 误判为 MSP 权限，导致客户租户管理员也渲染 CustomerFilter，并必然请求
+ * `/msp/customers`、`/msp/workbench/summary` 得到 403。
+ *
+ * 判定必须同时满足：
+ * - 当前租户上下文是服务商租户（msp_provider / msp）；
+ * - 不是客户侧投影角色；
+ * - 持有点位操作码 `msp_ticket:read`（`*` 仅在服务商租户内才可能放行）。
+ */
+export function canUseMspWorkbench(input: {
+  userId?: number | null;
+  tenantType?: string | null;
+  mspRole?: string | null;
+  hasPermission: (permission: string) => boolean;
+}): boolean {
+  if (!input.userId || !isMspProviderTenant(input.tenantType)) return false;
+  if (input.mspRole === 'customer_user') return false;
+  return input.hasPermission(MSP_WORKBENCH_PERMISSIONS[0]);
+}
