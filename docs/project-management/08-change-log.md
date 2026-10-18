@@ -377,3 +377,33 @@ PE-5 此前仅落地「项目工作台查看/解除挂接」与「任务生成�
 | Playwright UI 闭环（开关 → 保存 → API 生效） | ✅ `before=true → offState=false → backOn=true`，恢复初始；截图 `CAP-5/6-*.png` |
 
 证据：[DEMO-CAPSW-20261018-fd7514a9-EVIDENCE.md](../../.dev/deploy/DEMO-CAPSW-20261018-fd7514a9-EVIDENCE.md)。
+
+## 14. 修复：AI 分诊识别 Guidance 静默降级并回落网关 + 按上下文租户调用（F1，2026-10-18）
+
+**背景（BE-8 §12 的后续项 F1）**：BE-8 收尾时记录的「范围外发现」之一——demo `/ai/triage` 恒返回关键词分类（`confidence=0.7`、`reasoning="keyword-based classification (LLM unavailable)"`）且不产生 `ai_llm_calls` 遥测，sidecar 降级被静默吞掉。
+
+**根因**：
+
+1. `itsm-ai-service/api/guidance.py` 在 `LLM_API_KEY` 缺失时以 **HTTP 200** 返回关键词降级结果（`method="guidance-fallback"`），而 `TriageService.Suggest` 仅在 sidecar 抛错/不可达时才进入优先级 2（LLM 网关）→ 网关永不触发；
+2. `/ai/triage`、`/ai/ticket/create` 调用 `Suggest`（内部硬编码租户 1），跨租户会话下 sidecar 审计与网关回落解析链拿到错误租户。
+
+**修复**（提交 `eb214870`，4 文件）：
+
+- `service/triage_service.go`：新增 `guidanceMethodFallback` 常量 + `isGuidanceDegraded`（`method=guidance-fallback` 视同 sidecar 不可用，记 warn 后继续走网关；旧版空 method 兼容按正常处理）；guidance 成功路径日志补 `method` 字段；网关失败仍回落关键词结果。
+- `handlers/ai/service.go`：`TriageTicket`、`CreateTicketByAI` 改 `SuggestForTenant(ctx, …, tenantID)`。
+- 测试：`service/triage_service_test.go` 新增 3 例（降级走网关 / 网关失败兜底 / 正常 guidance 不咨询网关）+ `handlers/ai/handler_test.go` 端到端租户透传（httptest sidecar 断言 `tenantId=7`）。
+
+**验证**：
+
+| 检查 | 结果 |
+|---|---|
+| `go build ./...`（GOMAXPROCS=2） | ✅ BUILD_EXIT=0 |
+| `go test ./service/ -p 1` / `go test ./handlers/ai/ -p 1` | ✅ 全绿（含新增 4 测试） |
+| 238 demo `1.8.0-dev.eb214870` | backend/worker/frontend healthy、`itsm-init` Exit 0、version 对齐、sidecar 未重启；A/B 指纹 `degraded to keyword fallback` 0→1 |
+| `POST /ai/triage` ×2 | ✅ `network/0.95`、`application/0.82`，reasoning 为模型生成（修复前恒 `0.7 + LLM unavailable`） |
+| `ai_llm_calls` | ✅ 新增 2 行 `provider=openai_chat_completions, pkey=baidu, model=deepseek-v4.1-flash, success=t`（1508ms） |
+| backend 日志 | ✅ warn `TriageService: Guidance sidecar degraded to keyword fallback, using LLM gateway` |
+
+**遗留**：sidecar 自身 `LLM_API_KEY` 仍为空（配置面可选补配，不配也不影响分诊）；F2 `get_ci_impact` 的 `ci_id` 分支 5001 单独跟进。
+
+证据：[DEMO-F1-20261018-eb214870-EVIDENCE.md](../../.dev/deploy/DEMO-F1-20261018-eb214870-EVIDENCE.md)。
