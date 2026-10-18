@@ -489,7 +489,7 @@ location / {
   try_files $uri $uri/ /index.html;          # SPA 回退：166 条前端路由必须能直达（刷新不 404）
 }
 location = /health { return 200 'ok'; add_header Content-Type text/plain; }
-location /assets/ {                            # Vite 产物带 hash，可长缓存
+location /static/ {                            # Vite 产物带 hash，可长缓存；assetsDir=static 避免与 /assets 路由冲突（2026-10-18 修订）。
   expires 1y; add_header Cache-Control "public, immutable";
 }
 location /uploads/ { alias /usr/share/nginx/uploads/; }   # 保持与现状同一 URL 前缀

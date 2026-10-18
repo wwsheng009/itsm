@@ -62,6 +62,9 @@ export default defineConfig(({ mode }) => {
       outDir: 'dist',
       sourcemap: !isProd,
       chunkSizeWarningLimit: 1500,
+      // 避免构建产物目录 assets/ 与前端 SPA 路由 /assets 同名冲突（见 §5.9 方案 i 修订）。
+      // 冲突表现：请求 /assets（无斜杠）时 nginx 生成 301 到 /assets/，内部端口 3000 指向宿主 Grafana。
+      assetsDir: 'static',
       rollupOptions: {
         output: {
           // 图表库单独成 chunk。注意：本项目不依赖 `echarts`（@ant-design/charts 2.x 基于
