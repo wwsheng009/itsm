@@ -166,3 +166,36 @@ PE-5 此前仅落地「项目工作台查看/解除挂接」与「任务生成�
 - 语义与 HTTP 一致：未装配端口时携带 `projectId` 的创建任务 fail-closed；不携带 `projectId` 的存量流程不受影响（直通）。
 
 
+
+**验证**：`go test -p 1 -count=1 ./service/bpmn/ ./handlers/bpmn/ ./handlers/project/` 全绿；`service/bpmn` 新增 `project_link_test.go` 12 用例（变量解析矩阵、端口未装配 fail-closed、不携带 projectId 直通、发起人角色解析含跨租户排除、三域 create_* 单次 INSERT 落 `project_id`、校验失败零落库）；`go test -run NONE ./service/ ./internal/bootstrap/` 编译通过；定向 `go build -p 1 ./service/bpmn/ ./service/ ./internal/bootstrap/ ./handlers/bpmn/` ✅；238 demo 已部署 `1.8.0-dev.cad4362e` 并完成 API E2E。
+
+## 7. 修复：项目列表「激活」失败提示不可行动（2026-10-18）
+
+### 现象
+
+`http://172.18.3.238:8089/projects` 点击「激活」恒提示「操作失败，请刷新后重试」。
+
+### 根因
+
+- PE-12 状态机要求 `planning → active` 前**立项门（initiation）必须通过**；示例项目 #3 尚未提交立项门。
+- 后端返回 `409 {"code":4090,"message":"阶段门门禁未通过","gate":"initiation"}`（注意实际文案为「阶段**门门**禁未通过」）。
+- 列表页 `runTransition` 只透传含「未终结」的错误，其余统一替换为通用文案，真实的门禁原因与处理路径被吞掉（详情页原本已有较明确的提示）。
+
+### 修复
+
+- `itsm-frontend/src/pages/(main)/projects/index.tsx`：剥离 `[RID: ...]` 后识别阶段门禁错误，改为 `Modal.warning` 展示真实原因 + 指引（激活=立项门，结项=结项门），提供「去项目工作台」按钮直达 `/projects/:id`；「未终结 / 版本冲突 / 刷新」等错误直接透出后端消息；兼容「阶段门门禁未通过 / 阶段门禁未通过」两种写法。
+- 提交：`3266f4e3`（提示 + 引导）、`ce56a999`（修正双「门」文案匹配）。
+
+### 验证
+
+| 检查 | 结果 |
+|---|---|
+| `npm run type-check` / 改动文件 `eslint` | ✅ |
+| 238 demo `1.8.0-dev.ce56a999` | backend/worker/frontend healthy、init ExitCode=0、version 对齐 |
+| Tabbit 真实浏览器 | 点击「激活」→ `modalCount=1`，文案「无法激活：立项门未通过 / 阶段门门禁未通过 / 请先在项目工作台「阶段门」提交并通过立项门（需项目经理任命 + 成员登记）。」 |
+| 引导按钮 | 「去项目工作台」→ 跳转 `http://172.18.3.238:8089/projects/3` ✅ |
+| 镜像 A/B | 新引导文案产物：旧 `cad4362e`=0 → 新 `ce56a999`=1 |
+
+证据：[DEMO-PE5-GATEFIX-20261018-ce56a999-EVIDENCE.md](../../.dev/deploy/DEMO-PE5-GATEFIX-20261018-ce56a999-EVIDENCE.md)。
+
+> 说明：本次只修失败提示与引导，不绕过 PE-12 门禁；项目仍需在工作台「阶段门」提交并通过立项门后才能激活。
