@@ -77,3 +77,36 @@ func TestApplyGuard_Silent(t *testing.T) {
 	require.NoError(t, err)
 	assert.Nil(t, violations)
 }
+
+// TestTenantExemptTables_DerivedChildTables 覆盖 2026-10-18 新增豁免
+// （问题调查四表 + PIR 评审关系表）：均为「父表继承租户」型子表，
+// 豁免理由必须指向实际承载租户维度的父表/隔离方式，且复核日期为登记日。
+func TestTenantExemptTables_DerivedChildTables(t *testing.T) {
+	reviewed := time.Date(2026, 10, 18, 0, 0, 0, 0, time.UTC)
+	want := map[string]struct {
+		owner     string
+		reasonSub string
+	}{
+		"problem_investigations":      {"problem", "JOIN problems"},
+		"problem_investigation_steps": {"problem", "JOIN problems"},
+		"problem_root_cause_analyses": {"problem", "JOIN problems"},
+		"problem_solutions":           {"problem", "JOIN problems"},
+		"user_pir_reviews":            {"change", "change_pi_rs"},
+	}
+
+	seen := map[string]bool{}
+	for _, e := range TenantExemptTables {
+		w, ok := want[e.TableName]
+		if !ok {
+			continue
+		}
+		seen[e.TableName] = true
+		assert.Equal(t, "derived", e.Scope, "%s: 子表豁免 scope 应为 derived", e.TableName)
+		assert.Equal(t, w.owner, e.Owner, "%s: owner 应由业务域负责", e.TableName)
+		assert.Contains(t, e.Reason, w.reasonSub, "%s: reason 需引用承载租户维度的父表/隔离方式", e.TableName)
+		assert.True(t, e.ReviewedAt.Equal(reviewed), "%s: reviewed_at 应为登记日 2026-10-18", e.TableName)
+	}
+	for name := range want {
+		assert.True(t, seen[name], "%s 缺失于 TenantExemptTables（新增豁免必须登记）", name)
+	}
+}

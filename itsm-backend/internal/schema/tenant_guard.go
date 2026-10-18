@@ -50,7 +50,8 @@ type ExemptTable struct {
 
 // TenantExemptTables 是单一真相源。任何新增条目必须同步：
 //  1. 至少一条 TableGuardTest 单元测试（断言表确实不存在于 production DB，或豁免理由引用准确）；
-//  2. docs/architecture/tenant-isolation.md 的豁免章节；
+//  2. 豁免清单文档章节（docs/multi-tenant/01-architecture.md §7；原注释指向的
+//     docs/architecture/tenant-isolation.md 已不存在）；
 //  3. CHANGELOG.md（Unreleased）。
 //
 // 历史豁免依据汇总（避免误删）：
@@ -101,6 +102,16 @@ var TenantExemptTables = []ExemptTable{
 	{TableName: "incident_related_incidents", Reason: "事件↔事件纯关联表", Owner: "incident", Scope: "derived", ReviewedAt: time.Date(2026, 9, 8, 0, 0, 0, 0, time.UTC)},
 	{TableName: "problem_changes", Reason: "问题↔变更纯关联表", Owner: "problem", Scope: "derived", ReviewedAt: time.Date(2026, 9, 8, 0, 0, 0, 0, time.UTC)},
 	{TableName: "problem_incidents", Reason: "问题↔事件纯关联表", Owner: "problem", Scope: "derived", ReviewedAt: time.Date(2026, 9, 8, 0, 0, 0, 0, time.UTC)},
+	// 问题调查子表（migrations/20261030_problem_investigation_tables.sql）：按父表继承租户的设计，
+	// 仓库层全部读写经 JOIN problems / IN (SELECT id FROM problems WHERE tenant_id=$) 强制租户过滤
+	// （service/problem_investigation_repository.go 头部说明）；2026-10-18 启动扫描发现后登记。
+	{TableName: "problem_investigations", Reason: "问题调查主表（问题子表），仓库层 JOIN problems 强制租户过滤", Owner: "problem", Scope: "derived", ReviewedAt: time.Date(2026, 10, 18, 0, 0, 0, 0, time.UTC)},
+	{TableName: "problem_investigation_steps", Reason: "问题调查步骤子表，仓库层 JOIN problems 强制租户过滤", Owner: "problem", Scope: "derived", ReviewedAt: time.Date(2026, 10, 18, 0, 0, 0, 0, time.UTC)},
+	{TableName: "problem_root_cause_analyses", Reason: "问题 RCA 子表，仓库层 JOIN problems 强制租户过滤", Owner: "problem", Scope: "derived", ReviewedAt: time.Date(2026, 10, 18, 0, 0, 0, 0, time.UTC)},
+	{TableName: "problem_solutions", Reason: "问题解决方案子表，仓库层 JOIN problems 强制租户过滤", Owner: "problem", Scope: "derived", ReviewedAt: time.Date(2026, 10, 18, 0, 0, 0, 0, time.UTC)},
+	// PIR 评审人纯关联表（migrations/20260523_create_change_pir.sql，User↔ChangePIR 复合主键）：
+	// 无独立租户语义，租户维度由父表 change_pi_rs.tenant_id 承载（RLS 009 已纳管父表）；2026-10-18 登记。
+	{TableName: "user_pir_reviews", Reason: "变更 PIR 评审人纯关联表，租户维度由父表 change_pi_rs 承载", Owner: "change", Scope: "derived", ReviewedAt: time.Date(2026, 10, 18, 0, 0, 0, 0, time.UTC)},
 	{TableName: "ticket_category_tickets", Reason: "工单分类关联表", Owner: "ticket", Scope: "derived", ReviewedAt: time.Date(2026, 9, 8, 0, 0, 0, 0, time.UTC)},
 	{TableName: "ticket_related_tickets", Reason: "工单↔工单纯关联表", Owner: "ticket", Scope: "derived", ReviewedAt: time.Date(2026, 9, 8, 0, 0, 0, 0, time.UTC)},
 	// 知识库会话/版本

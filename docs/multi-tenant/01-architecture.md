@@ -96,7 +96,7 @@
 ## 7. 共享与隔离边界（摘要）
 
 - **共享基础设施**：同一数据库实例、连接池、缓存、消息总线、对象存储、监控；AI 服务无租户态（按参数传 `tenantId`）。
-- **平台级共享表**（`TenantExemptTables` 显式登记，`tenant_guard.go:65-115`）：`tenants`、`schema_migrations`、`user_roles`、`ai_llm_calls`、标签云关联表、`msp_allocations`、初始化台账、纯关联表、协作快照、`marketplace_items`、`messages`（待评估）、`prompt_templates`（待评估）、`password_reset_tokens`。
+- **平台级共享表**（`TenantExemptTables` 显式登记，`tenant_guard.go` 单一真相源）：`tenants`、`schema_migrations`、`user_roles`、`ai_llm_calls`、标签云关联表、`msp_allocations`、初始化台账、纯关联表（含 `user_pir_reviews`，2026-10-18 登记）、问题调查四表（`problem_investigations`/`problem_investigation_steps`/`problem_root_cause_analyses`/`problem_solutions`，2026-10-18 登记，scope=derived：仓库层 JOIN `problems` 强制租户过滤）、协作快照、`marketplace_items`、`messages`（待评估）、`prompt_templates`（待评估）、`password_reset_tokens`。
 - **按租户隔离**：users/roles/permissions/menus/groups、工单/服务目录、ITIL 四域、CMDB、知识库、流程引擎、会话、附件、审计、AI 结果、`system_configs` 等。
 - **CMDB 口径**：租户内全员可读（tenant-wide，ADR-003），**不跨租户**。
 
