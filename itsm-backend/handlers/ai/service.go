@@ -1138,9 +1138,10 @@ func (s *Service) ChatStreamWithProviderInfo(
 }
 
 // chatStream 在既有流式链路外包裹运行态记录（B1-01）：
-// 注入 RunStore 时起运行（running）、把 run_id 注入上下文（供 ToolInvocation 贯通），
-// 结束后记 llm 步骤 + run_finished 事件并收口运行；未注入时直接透传，
-// 行为与既有版本零差异。所有运行态写入失败均只告警，**绝不**影响聊天主链路。
+// RunStore 已注入且 bot.enabled 运行时生效（平台级开关开启）时起运行（running）、
+// 把 run_id 注入上下文（供 ToolInvocation 贯通），结束后记 llm 步骤 + run_finished
+// 事件并收口运行；未注入或能力关闭时直接透传，行为与既有版本零差异。
+// 所有运行态写入失败均只告警，**绝不**影响聊天主链路。
 func (s *Service) chatStream(
 	ctx context.Context,
 	tenantID, userID int,
@@ -1192,7 +1193,9 @@ func (s *Service) chatStream(
 		}
 		broadcastRunEvent(onRun, eventType, payload, run)
 	}
-	if s.botRunner != nil {
+	// 能力关闭（bot.enabled=false，含静态默认与管理台关闭）时不落运行档案：
+	// 与「未注入 RunStore」的既有兼容态逐字节一致。
+	if s.botRunner != nil && s.botEnabled(ctx, tenantID) {
 		scope := ScopeFromContext(ctx)
 		started, err := s.botRunner.Start(ctx, bot.StartRunInput{
 			TenantID:       tenantID,

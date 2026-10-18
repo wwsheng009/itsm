@@ -11,9 +11,11 @@ import {
   Shield,
   Clock,
   Cpu,
+  Sparkles,
 } from 'lucide-react';
 
 import React, { useState, useEffect } from 'react';
+import { useSearchParams } from 'react-router';
 import {
   Card,
   Tabs,
@@ -48,6 +50,7 @@ import { UsageGuideCard } from '@/components/common/UsageGuideCard';
 import { useLLMProviderFeature } from '@/lib/hooks/use-llm-provider-feature';
 import { usePermissions } from '@/lib/hooks/use-permissions';
 
+import AICapabilitiesSection from './AICapabilitiesSection';
 import { LLMProviderSettings } from './llm-provider-settings';
 
 const BOOLEAN_CONFIG_KEYS = new Set([
@@ -103,7 +106,12 @@ export default function SystemConfiguration() {
   const { enabled: llmProvidersFeatureEnabled } = useLLMProviderFeature();
   const llmProvidersEnabled =
     llmProvidersFeatureEnabled && hasPermission('system', 'write');
-  const [activeTab, setActiveTab] = useState('general');
+  // 页签状态：支持 `?tab=xxx` 深链（如 MCP 页的「能力开关已迁移」提示直达 AI 配置），
+  // 切换时同步回写 URL（general 不写参数，保持既有地址形态）。
+  const [searchParams, setSearchParams] = useSearchParams();
+  const [activeTab, setActiveTab] = useState(
+    () => searchParams.get('tab') ?? 'general',
+  );
   const [config, setConfig] = useState<Record<string, unknown>>({});
   const [hasChanges, setHasChanges] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
@@ -174,6 +182,26 @@ export default function SystemConfiguration() {
     const interval = setInterval(fetchSystemStats, 5000);
     return () => clearInterval(interval);
   }, []);
+
+  // URL → 页签：外部导航（含已挂载页面上的链接跳转）时跟随 `?tab=` 参数切换。
+  const tabFromUrl = searchParams.get('tab');
+  useEffect(() => {
+    if (tabFromUrl) setActiveTab(tabFromUrl);
+  }, [tabFromUrl]);
+
+  // 页签 → URL：仅同步键名，保留其他查询参数。
+  const handleTabChange = (key: string) => {
+    setActiveTab(key);
+    setSearchParams(
+      prev => {
+        const next = new URLSearchParams(prev);
+        if (key === 'general') next.delete('tab');
+        else next.set('tab', key);
+        return next;
+      },
+      { replace: true },
+    );
+  };
 
   // 计算运行时长
   const calculateUptime = (startTime?: number): string => {
@@ -528,6 +556,12 @@ export default function SystemConfiguration() {
       children: <EmailSettings />,
       icon: <Mail className="w-4 h-4" />,
     },
+    {
+      key: 'ai',
+      label: 'AI 配置',
+      children: <AICapabilitiesSection />,
+      icon: <Sparkles className="w-4 h-4" />,
+    },
     ...(llmProvidersEnabled
       ? [
           {
@@ -560,6 +594,7 @@ export default function SystemConfiguration() {
           '上传限制（大小与允许类型）影响工单附件等所有文件上传，按组织规范调整。',
           '密码策略与账户安全调整会作用于后续的设置与重置；收紧策略前请确认不会阻碍存量用户正常登录。',
           '需要邮件通知时配置本租户 SMTP（服务器、端口、账号、密码）；服务器留空则回退部署级邮件配置。密码不回显明文（显示 ******，提交掩码表示保持原值）。',
+          '「AI 配置」页签维护平台级能力开关（MCP 总开关 / 外部写工具面 / Bot 能力）：保存后立即生效、无需重启；缺省跟随部署配置，可由超级管理员恢复默认。',
           '上方“系统运行时间 / Goroutine / CPU 核心 / 内存使用率”为后端实时运行指标，仅供健康观察，无需配置。',
         ]}
       />
@@ -648,7 +683,13 @@ export default function SystemConfiguration() {
             </Space>
           </div>
 
-          <Tabs items={tabItems} type="card" className="custom-tabs" />
+          <Tabs
+            items={tabItems}
+            type="card"
+            className="custom-tabs"
+            activeKey={activeTab}
+            onChange={handleTabChange}
+          />
         </Form>
       </Card>
     </div>

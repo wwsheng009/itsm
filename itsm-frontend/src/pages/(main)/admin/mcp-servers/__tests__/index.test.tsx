@@ -1,5 +1,6 @@
 import { App } from 'antd';
 import { configure, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import { MemoryRouter } from 'react-router';
 
 import MCPServersAdminPage from '..';
 import mcpApi, { type MCPServer, type MCPTool } from '@/lib/api/mcp-api';
@@ -137,9 +138,11 @@ const btn = (label: string) => new RegExp(label.split('').join('\\s*'));
 
 function renderPage() {
   return render(
-    <App>
-      <MCPServersAdminPage />
-    </App>,
+    <MemoryRouter>
+      <App>
+        <MCPServersAdminPage />
+      </App>
+    </MemoryRouter>,
   );
 }
 
@@ -153,7 +156,7 @@ describe('MCP 管理页（M0-12）', () => {
     mockedConfig.getAICapabilities.mockResolvedValue(aiCapabilities() as never);
   });
 
-  it('能力开关卡片 + 写面关闭禁用态：工具治理 Alert + 写工具行徽标（只读行不加）', async () => {
+  it('能力开关迁移提示 + 写面关闭禁用态：工具治理 Alert + 写工具行徽标（只读行不加）', async () => {
     mocked.listServers.mockResolvedValue({
       items: [server()],
       summary: summary(),
@@ -172,9 +175,9 @@ describe('MCP 管理页（M0-12）', () => {
 
     renderPage();
 
-    // 能力开关卡片（快照随 system-configs 接口下发；无写权限时只读展示）。
-    expect(await screen.findByTestId('mcp-capability-card')).toBeInTheDocument();
-    expect(screen.getByTestId('mcp-capability-switch-mcp.write_enabled')).not.toBeChecked();
+    // 能力开关已迁移到「系统配置 → AI 配置」：MCP 页保留指路提示，开关卡片不再渲染。
+    expect(await screen.findByTestId('mcp-capabilities-moved')).toBeInTheDocument();
+    expect(screen.queryByTestId('ai-capability-card')).toBeNull();
 
     // 工具治理页签：顶部说明性 Alert + 写工具行徽标（read_only=true 不加）。
     const row1 = await screen.findByTestId('mcp-row-1');

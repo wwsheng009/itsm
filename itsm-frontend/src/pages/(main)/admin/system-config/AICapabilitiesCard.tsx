@@ -43,7 +43,7 @@ const ROWS: CapabilityRow[] = [
   },
 ];
 
-export interface CapabilitySwitchesCardProps {
+export interface AICapabilitiesCardProps {
   /** 当前生效快照；null = 尚未加载或读取失败（配合 error 展示提示）。 */
   capabilities: AICapabilities | null;
   /** 是否具备 `system_config:write`（仅超级管理员）；false = 只读展示。 */
@@ -60,15 +60,18 @@ export interface CapabilitySwitchesCardProps {
 }
 
 /**
- * 「能力开关」卡片（MCP 管理页）。
+ * 「AI 能力开关」卡片（系统配置 → AI 配置）。
  *
- * 三个运行时能力开关（`mcp.enabled` / `mcp.write_enabled` / `bot.enabled`）：
+ * 三个平台级运行时能力开关（`mcp.enabled` / `mcp.write_enabled` / `bot.enabled`）：
  * - 每行展示当前生效值 + 来源徽标（已由管理台覆盖 / 跟随环境默认）；
  * - 保存只提交**变更过的字段**（三态契约：字段缺省 = 不改，不把"跟随默认"意外固化为覆盖）；
  * - 「恢复默认」仅重置已覆盖的键（reset 数组）；
  * - 无 `system_config:write` 时全部只读并提示。
+ *
+ * 2026-10 自「MCP 外部工具」页迁移至此（开关本体随平台级配置迁移；MCP 页保留指路提示）。
+ * i18n 复用 `mcp.capabilities.*` 键（文案描述的就是这三个键的语义，迁移后语义不变）。
  */
-const CapabilitySwitchesCard: React.FC<CapabilitySwitchesCardProps> = ({
+const AICapabilitiesCard: React.FC<AICapabilitiesCardProps> = ({
   capabilities,
   canWrite,
   error = false,
@@ -125,7 +128,7 @@ const CapabilitySwitchesCard: React.FC<CapabilitySwitchesCardProps> = ({
   return (
     <Card
       size="small"
-      data-testid="mcp-capability-card"
+      data-testid="ai-capability-card"
       style={{ marginBottom: 16 }}
       loading={loading && !capabilities}
       title={t('mcp.capabilities.title')}
@@ -133,7 +136,7 @@ const CapabilitySwitchesCard: React.FC<CapabilitySwitchesCardProps> = ({
     >
       {error ? (
         <Alert
-          data-testid="mcp-capability-error"
+          data-testid="ai-capability-error"
           type="warning"
           showIcon
           message={t('mcp.capabilities.loadFailed')}
@@ -144,7 +147,7 @@ const CapabilitySwitchesCard: React.FC<CapabilitySwitchesCardProps> = ({
 
       {readOnly ? (
         <Alert
-          data-testid="mcp-capability-readonly"
+          data-testid="ai-capability-readonly"
           type="info"
           showIcon
           message={t('mcp.capabilities.readOnlyHint')}
@@ -160,7 +163,7 @@ const CapabilitySwitchesCard: React.FC<CapabilitySwitchesCardProps> = ({
             <Space key={row.key} direction="vertical" size={2} style={{ width: '100%' }}>
               <Space size={8} align="center">
                 <Switch
-                  data-testid={`mcp-capability-switch-${row.key}`}
+                  data-testid={`ai-capability-switch-${row.key}`}
                   aria-label={t(row.labelKey)}
                   checked={checked}
                   disabled={readOnly || !draft}
@@ -169,7 +172,7 @@ const CapabilitySwitchesCard: React.FC<CapabilitySwitchesCardProps> = ({
                 />
                 <Text strong>{t(row.labelKey)}</Text>
                 <Tag
-                  data-testid={`mcp-capability-source-${row.key}`}
+                  data-testid={`ai-capability-source-${row.key}`}
                   color={overridden ? 'blue' : 'default'}
                 >
                   {t(overridden ? 'mcp.capabilities.sourceOverride' : 'mcp.capabilities.sourceDefault')}
@@ -193,7 +196,7 @@ const CapabilitySwitchesCard: React.FC<CapabilitySwitchesCardProps> = ({
           <Button
             type="primary"
             icon={<Save size={14} />}
-            data-testid="mcp-capability-save"
+            data-testid="ai-capability-save"
             disabled={readOnly || !patch}
             loading={saving}
             onClick={() => patch && void onSave(patch)}
@@ -206,7 +209,7 @@ const CapabilitySwitchesCard: React.FC<CapabilitySwitchesCardProps> = ({
         >
           <Button
             icon={<RotateCcw size={14} />}
-            data-testid="mcp-capability-reset"
+            data-testid="ai-capability-reset"
             disabled={readOnly || overriddenKeys.length === 0}
             loading={saving}
             onClick={() => void onReset(overriddenKeys)}
@@ -219,4 +222,4 @@ const CapabilitySwitchesCard: React.FC<CapabilitySwitchesCardProps> = ({
   );
 };
 
-export default CapabilitySwitchesCard;
+export default AICapabilitiesCard;

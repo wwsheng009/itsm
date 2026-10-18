@@ -10,7 +10,9 @@ import (
 // SetupBotAdminRoutes 注册 Bot 模板/授权管理 API（B2-01；前缀 /api/v1/admin/bots）。
 //
 // 门禁：
-//   - h 为 nil（bot.enabled=false 或未装配）时整组不注册——开关关闭即对既有系统零行为变化；
+//   - h 为 nil（组件未装配）时整组不注册（防御性回退，正常 bootstrap 常驻装配）；
+//   - 平台级运行时开关 bot.enabled 由 handler 在请求期求值：读端保留（页面可展示「已关闭」
+//     并引导到「系统配置 → AI 配置」），写端关闭时 403（feature_disabled:bot 语义）；
 //   - 读端点挂 RequirePermission("ai","read")、写端点挂 ("ai","write")（BD8：
 //     复用既有 AI 权限码，不新开权限码，角色矩阵不扩散）。
 //

@@ -61,7 +61,7 @@ func (h *BotAdminHandler) requireBotEnabled(c *gin.Context, tenantID int) bool {
 	if h.capability.For(c.Request.Context(), tenantID).BotEnabled {
 		return true
 	}
-	common.Fail(c, common.ForbiddenCode, "Bot 能力已在管理后台关闭（bot.enabled=false），请先在管理后台启用后再操作")
+	common.Fail(c, common.ForbiddenCode, "Bot 能力已关闭（bot.enabled=false），请在「系统配置 → AI 配置」中启用后再操作")
 	return false
 }
 

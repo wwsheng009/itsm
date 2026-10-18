@@ -9,10 +9,10 @@ import {
   Activity, FlaskConical, KeyRound, ListChecks, Plus, Power, PowerOff, RefreshCw, RotateCcw,
   Trash2,
 } from 'lucide-react';
+import { Link } from 'react-router';
 import { PageContainer } from '@/components/common/PageContainer';
 import { UsageGuideCard } from '@/components/common/UsageGuideCard';
 import { useI18n } from '@/lib/i18n/useI18n';
-import { usePermissions } from '@/lib/hooks/use-permissions';
 import mcpApi, {
   describeMCPError,
   isMCPFeatureDisabled,
@@ -29,10 +29,7 @@ import mcpApi, {
 import {
   SystemConfigAPI,
   type AICapabilities,
-  type AICapabilitiesPatch,
-  type AICapabilityKey,
 } from '@/lib/api/system-config-api';
-import CapabilitySwitchesCard from './CapabilitySwitchesCard';
 import {
   PARALLEL_RANGE,
   RETRY_RANGE,
@@ -93,19 +90,14 @@ const TRANSPORT_OPTIONS: Array<{ value: MCPTransport; label: string }> = [
 export default function MCPServersAdminPage() {
   const { t } = useI18n();
   const { message, modal } = App.useApp();
-  const { hasPermission } = usePermissions();
 
   const [tab, setTab] = useState('servers');
   const [loading, setLoading] = useState(false);
   const [list, setList] = useState<MCPServerListResult>({ items: [], summary: emptySummary });
   const [blocked, setBlocked] = useState<'disabled' | 'unavailable' | null>(null);
 
-  // 能力开关卡片（运行时三键；展示禁用态优先用列表响应下发的 capabilities 块）。
+  // 运行时能力快照（仅用于列表响应缺省时的展示回退；开关本体已迁移到「系统配置 → AI 配置」）。
   const [capabilities, setCapabilities] = useState<AICapabilities | null>(null);
-  const [capabilitiesLoading, setCapabilitiesLoading] = useState(false);
-  const [capabilitiesSaving, setCapabilitiesSaving] = useState(false);
-  const [capabilitiesError, setCapabilitiesError] = useState(false);
-  const canWriteCapabilities = hasPermission('system_config', 'write');
 
   // 服务器 tab 交互态
   const [wizardOpen, setWizardOpen] = useState(false);
@@ -150,7 +142,7 @@ export default function MCPServersAdminPage() {
     [servers, toolsServerId],
   );
 
-  // 展示用能力块：优先列表响应下发（与 MCP 页同权限面），缺省回落到开关卡片快照，再缺省按未管控。
+  // 展示用能力块：优先列表响应下发（与 MCP 页同权限面），缺省回落到能力快照，再缺省按未管控。
   const displayCapabilities = useMemo(
     () => ({
       mcpEnabled: list.capabilities?.mcp_enabled ?? capabilities?.mcpEnabled ?? true,
@@ -184,17 +176,12 @@ export default function MCPServersAdminPage() {
     void load();
   }, [load]);
 
-  /** 读取运行时能力开关（无 system_config:read / 服务未就绪时降级提示，不阻塞页面）。 */
+  /** 读取运行时能力快照（仅列表响应缺省时的展示回退；读取失败静默，不阻塞页面）。 */
   const loadCapabilities = useCallback(async () => {
-    setCapabilitiesLoading(true);
     try {
-      const snapshot = await SystemConfigAPI.getAICapabilities();
-      setCapabilities(snapshot);
-      setCapabilitiesError(false);
+      setCapabilities(await SystemConfigAPI.getAICapabilities());
     } catch {
-      setCapabilitiesError(true);
-    } finally {
-      setCapabilitiesLoading(false);
+      // 无 system_config:read 或服务未就绪：保持 null，展示回退到「未管控」。
     }
   }, []);
 
@@ -356,73 +343,6 @@ export default function MCPServersAdminPage() {
     }
   }, [tab, toolsServerId, loadTools]);
   // 继续：服务器工具栏与表格见附录 chunk
-
-  const reportCapabilityError = useCallback(
-    (e: unknown) => {
-      const status = (e as { httpStatus?: number } | undefined)?.httpStatus;
-      if (status === 403) {
-        message.warning(t('mcp.capabilities.writeDenied'));
-        return;
-      }
-      message.error(describeMCPError(e, t('mcp.capabilities.saveFailed')));
-    },
-    [message, t],
-  );
-
-  /** 能力开关保存成功后刷新页面数据（列表 + 正在查看的工具治理）。 */
-  const refreshAfterCapabilityChange = useCallback(async () => {
-    await load();
-    if (tab === 'tools' && toolsServerId !== null) {
-      await loadTools(toolsServerId);
-    }
-  }, [load, loadTools, tab, toolsServerId]);
-
-  /** 保存能力开关：仅提交脏字段（字段缺省 = 不修改）。 */
-  const saveCapabilities = useCallback(
-    async (patch: AICapabilitiesPatch) => {
-      setCapabilitiesSaving(true);
-      try {
-        const snapshot = await SystemConfigAPI.updateAICapabilities(patch);
-        setCapabilities(snapshot);
-        setCapabilitiesError(false);
-        message.success(t('mcp.capabilities.saved'));
-        await refreshAfterCapabilityChange();
-      } catch (e) {
-        reportCapabilityError(e);
-      } finally {
-        setCapabilitiesSaving(false);
-      }
-    },
-    [message, refreshAfterCapabilityChange, reportCapabilityError, t],
-  );
-
-  /** 恢复默认：删除覆盖行、恢复跟随环境默认（仅重置已覆盖的键，二次确认防误触）。 */
-  const resetCapabilities = useCallback(
-    (keys: AICapabilityKey[]) => {
-      if (!keys.length) return;
-      modal.confirm({
-        title: t('mcp.capabilities.resetConfirmTitle'),
-        content: t('mcp.capabilities.resetConfirmContent'),
-        okText: t('common.confirm'),
-        cancelText: t('common.cancel'),
-        onOk: async () => {
-          setCapabilitiesSaving(true);
-          try {
-            const snapshot = await SystemConfigAPI.updateAICapabilities({ reset: keys });
-            setCapabilities(snapshot);
-            setCapabilitiesError(false);
-            message.success(t('mcp.capabilities.saved'));
-            await refreshAfterCapabilityChange();
-          } catch (e) {
-            reportCapabilityError(e);
-          } finally {
-            setCapabilitiesSaving(false);
-          }
-        },
-      });
-    },
-    [message, modal, refreshAfterCapabilityChange, reportCapabilityError, t],
-  );
 
   const saveToolClassification = useCallback(
     async (tool: MCPTool) => {
@@ -963,15 +883,18 @@ export default function MCPServersAdminPage() {
         steps={[t('mcp.guide.step1'), t('mcp.guide.step2'), t('mcp.guide.step3'), t('mcp.guide.step4')]}
       />
 
-      <CapabilitySwitchesCard
-        capabilities={capabilities}
-        canWrite={canWriteCapabilities}
-        error={capabilitiesError}
-        loading={capabilitiesLoading}
-        saving={capabilitiesSaving}
-        t={t}
-        onSave={saveCapabilities}
-        onReset={resetCapabilities}
+      <Alert
+        data-testid="mcp-capabilities-moved"
+        type="info"
+        showIcon
+        style={{ marginBottom: 16 }}
+        message={t('mcp.capabilities.movedTitle')}
+        description={
+          <span>
+            {t('mcp.capabilities.movedHint')}{' '}
+            <Link to="/admin/system-config?tab=ai">{t('mcp.capabilities.movedLink')}</Link>
+          </span>
+        }
       />
 
       <Tabs

@@ -1036,7 +1036,9 @@ func NewApplication() *Application {
 
 	// M2 能力开关（2026-09-30 方案）：MCP / Bot 运行时开关（管理后台可切换，免重启）。
 	// 默认值取静态配置（env / config.yaml）——system_configs 缺行即跟随默认，升级零行为变化；
-	// 静态 mcp.enabled=false / bot.enabled=false 仍是最高优先级短路（组件不装配、路由不注册）。
+	// 静态 mcp.enabled=false 仍是 MCP 的最高优先级短路（组件不装配、路由不注册）。
+	// Bot（2026-10-18 平台级开关调整）：bot.enabled 提升为平台级运行时开关——组件与路由常驻装配，
+	// 静态值仅作开关默认值；生效与否在请求期由 system_configs.bot.enabled 求值，管理台开启后无需重启。
 	capabilitySource := capability.NewConfigSource(client, capability.Defaults{
 		MCPEnabled:      cfg.MCP.Enabled,
 		MCPWriteEnabled: cfg.MCP.WriteEnabled,
@@ -1044,49 +1046,45 @@ func NewApplication() *Application {
 	}, sugar)
 	aiServiceDomain.SetCapabilitySource(capabilitySource)
 	// B1-01/B1-02：Bot 运行态管理器（bot_runs/bot_steps/bot_events + BP8 预算护栏）。
-	// bot.enabled=false（默认）时不注入 → 聊天链路零额外写入、零行为变化。
-	if cfg.Bot.Enabled {
-		aiServiceDomain.SetBotRunner(botService.NewManager(botService.NewRunStore(client), botService.Budget{
-			MaxSteps:       cfg.Bot.Budget.MaxSteps,
-			MaxTokens:      cfg.Bot.Budget.MaxTokens,
-			MaxToolCalls:   cfg.Bot.Budget.MaxToolCalls,
-			ToolTimeout:    cfg.Bot.Budget.BotToolTimeout(),
-			MaxOutputBytes: cfg.Bot.Budget.MaxOutputBytes,
-		}))
-		// B1-05：确认单有效期 + 过期扫描（惰性判定在 ApproveTool，周期扫描兜底待办列表）。
-		aiServiceDomain.SetConfirmationTTL(time.Duration(cfg.Bot.ConfirmationTTLHours) * time.Hour)
-		// B2-02：Bot 策略门禁（授权 ∩ RBAC ∩ 风险上限 ∩ 入口），下发与执行同一判定。
-		// 未配置任何授权的 Bot 走兼容默认（等价现状：只读 + 遗留写白名单），行为不变。
-		aiServiceDomain.SetBotPolicy(botService.NewPolicy(client))
-		// B4-02：运行维度指标（成功/确认/verify/工具错误/时延/成本代理）。
-		// 同一 bot.enabled 开关：关闭时不注入 → `GET /ai/bot-metrics` 返回 503（前端隐藏看板）。
-		aiServiceDomain.SetBotMetrics(botService.NewMetricsService(client))
-		sweeper := &botService.Sweeper{
-			Store:    aiServiceDomain.ConfirmationStore(),
-			Interval: 10 * time.Minute,
-			OnResult: func(result botService.SweepResult) {
-				if result.Expired > 0 {
-					zap.L().Info("MCP/Bot 确认单过期扫描完成",
-						zap.Int("scanned", result.Scanned), zap.Int("expired", result.Expired))
-				}
-			},
-			OnError: func(err error) {
-				zap.L().Warn("确认单过期扫描失败", zap.Error(err))
-			},
-		}
-		go sweeper.Run(context.Background())
+	// 常驻注入（不再以静态 cfg.Bot.Enabled 短路）：运行期开关关闭时由门禁降级
+	// （聊天不落运行档案、策略回退兼容默认），管理台开启后立即恢复全量行为。
+	aiServiceDomain.SetBotRunner(botService.NewManager(botService.NewRunStore(client), botService.Budget{
+		MaxSteps:       cfg.Bot.Budget.MaxSteps,
+		MaxTokens:      cfg.Bot.Budget.MaxTokens,
+		MaxToolCalls:   cfg.Bot.Budget.MaxToolCalls,
+		ToolTimeout:    cfg.Bot.Budget.BotToolTimeout(),
+		MaxOutputBytes: cfg.Bot.Budget.MaxOutputBytes,
+	}))
+	// B1-05：确认单有效期 + 过期扫描（惰性判定在 ApproveTool，周期扫描兜底待办列表）。
+	aiServiceDomain.SetConfirmationTTL(time.Duration(cfg.Bot.ConfirmationTTLHours) * time.Hour)
+	// B2-02：Bot 策略门禁（授权 ∩ RBAC ∩ 风险上限 ∩ 入口），下发与执行同一判定。
+	// 运行时开关关闭时按「未注入」处理 = 兼容默认（只读 + 遗留写白名单），与既有静态关闭语义一致。
+	aiServiceDomain.SetBotPolicy(botService.NewPolicy(client))
+	// B4-02：运行维度指标（成功/确认/verify/工具错误/时延/成本代理）；关闭态由前端按 botEnabled 隐藏看板。
+	aiServiceDomain.SetBotMetrics(botService.NewMetricsService(client))
+	sweeper := &botService.Sweeper{
+		Store:    aiServiceDomain.ConfirmationStore(),
+		Interval: 10 * time.Minute,
+		OnResult: func(result botService.SweepResult) {
+			if result.Expired > 0 {
+				zap.L().Info("MCP/Bot 确认单过期扫描完成",
+					zap.Int("scanned", result.Scanned), zap.Int("expired", result.Expired))
+			}
+		},
+		OnError: func(err error) {
+			zap.L().Warn("确认单过期扫描失败", zap.Error(err))
+		},
 	}
+	go sweeper.Run(context.Background())
 	aiHandler := ai.NewHandler(aiServiceDomain)
 
 	// B2-01：Bot 模板/授权管理面（/api/v1/admin/bots；读 ai:read、写 ai:write）。
-	// bot.enabled=false（默认）时不注入 → 整组路由不注册（端点不可达即回滚语义）；
+	// 平台级运行时开关：handler 常驻装配并注册路由（读端保留、写端按 bot.enabled 运行期 403），
+	// 管理员在「系统配置 → AI 配置」打开开关后无需重启即可用；
 	// 首次列表访问时按租户幂等种入内置「默认助手」（兼容默认，见 service/bot/admin.go）。
-	var botAdminHandler *ai.BotAdminHandler
-	if cfg.Bot.Enabled {
-		botAdminHandler = ai.NewBotAdminHandler(botService.NewTemplateAdmin(client))
-		// M2 能力开关：写端运行时门禁（bot.enabled 可在管理后台关闭；读端保留）。
-		botAdminHandler.SetCapabilitySource(capabilitySource)
-	}
+	botAdminHandler := ai.NewBotAdminHandler(botService.NewTemplateAdmin(client))
+	// M2 能力开关：写端运行时门禁（bot.enabled 可在管理后台关闭；读端保留）。
+	botAdminHandler.SetCapabilitySource(capabilitySource)
 
 	// MCP 外部工具接入（M0-09：provider 装配与运行时拉起）。
 	// mcp.enabled=false（默认）时不初始化任何组件、不产生任何后台行为（零行为变化）；

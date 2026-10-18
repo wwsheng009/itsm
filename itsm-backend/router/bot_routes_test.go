@@ -20,7 +20,7 @@ import (
 
 // B2-01：Bot 管理路由的装配门禁与权限声明守卫（与 mcp_routes_test.go 同构）。
 //
-// - handler 为 nil（bot.enabled=false / 未装配）时整组不注册 → 端点 404（开关关闭即回滚语义）；
+// - handler 为 nil（未装配）时整组不注册 → 端点 404（防御性回退；平台级开关由 handler 运行期门禁）；
 // - 注入后必须注册且声明 ai:read / ai:write（BD8：复用既有权限码）；
 // - 路由声明是 RBAC 预检映射的单一真源，改动后需 go run ./cmd/authz-gen 重新生成。
 
