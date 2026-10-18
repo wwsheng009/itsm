@@ -110,13 +110,14 @@ func staticProviderProtocolSpec(provider string) (protocolName, variant string, 
 
 // ProtocolProviderOptions 构建协议适配器 provider 的参数。
 type ProtocolProviderOptions struct {
-	Protocol    string
-	Variant     string
-	APIKey      string
-	Endpoint    string
-	Model       string
-	MaxTokens   int
-	Temperature float64
+	Protocol         string
+	Variant          string
+	APIKey           string
+	Endpoint         string
+	EndpointFullPath bool
+	Model            string
+	MaxTokens        int
+	Temperature      float64
 	// Headers 调用方附加请求头（如追踪头），由适配器按大小写不敏感合并。
 	Headers map[string]string
 	// HTTPClient 为空时使用无超时的默认客户端（与 go-openai 客户端一致，超时由 ctx 控制，
@@ -149,16 +150,21 @@ func NewProtocolProvider(opts ProtocolProviderOptions) (LLMProvider, error) {
 	if client == nil {
 		client = &http.Client{}
 	}
+	endpoint := opts.Endpoint
+	if !opts.EndpointFullPath {
+		endpoint = normalizeVariantEndpoint(endpoint, opts.Protocol, opts.Variant)
+	}
 	return &protocolProvider{
-		adapter:     adapter,
-		variant:     opts.Variant,
-		client:      client,
-		apiKey:      opts.APIKey,
-		endpoint:    normalizeVariantEndpoint(opts.Endpoint, opts.Protocol, opts.Variant),
-		model:       opts.Model,
-		maxTokens:   maxTokens,
-		temperature: temperature,
-		headers:     opts.Headers,
+		adapter:          adapter,
+		variant:          opts.Variant,
+		client:           client,
+		apiKey:           opts.APIKey,
+		endpoint:         endpoint,
+		endpointFullPath: opts.EndpointFullPath,
+		model:            opts.Model,
+		maxTokens:        maxTokens,
+		temperature:      temperature,
+		headers:          opts.Headers,
 	}, nil
 }
 
@@ -208,15 +214,16 @@ func newProtocolProviderFromConfig(cfg ProviderConfig, apiKey string) LLMProvide
 //  1. model 覆盖不写回实例（局部生效），避免共享实例上的并发写；
 //  2. 推理模型（gpt-5*/o1/o3/o4/o5/codex）不下发 temperature（参考实现口径）。
 type protocolProvider struct {
-	adapter     protocol.ProtocolAdapter
-	variant     string
-	client      *http.Client
-	apiKey      string
-	endpoint    string
-	model       string
-	maxTokens   int
-	temperature float64
-	headers     map[string]string
+	adapter          protocol.ProtocolAdapter
+	variant          string
+	client           *http.Client
+	apiKey           string
+	endpoint         string
+	endpointFullPath bool
+	model            string
+	maxTokens        int
+	temperature      float64
+	headers          map[string]string
 }
 
 var (
@@ -295,7 +302,7 @@ func (p *protocolProvider) call(
 	if modelPathAdapter, ok := p.adapter.(protocol.ModelPathAdapter); ok {
 		apiPath = modelPathAdapter.APIPathFor(resolvedModel, stream)
 	}
-	request, err := http.NewRequestWithContext(ctx, http.MethodPost, resolveProtocolURL(p.endpoint, apiPath, p.defaultEndpoint()), bytes.NewReader(requestBody))
+	request, err := http.NewRequestWithContext(ctx, http.MethodPost, resolveProtocolURL(p.endpoint, apiPath, p.defaultEndpoint(), p.endpointFullPath), bytes.NewReader(requestBody))
 	if err != nil {
 		return protocol.ProcessResult{}, fmt.Errorf("%s: create request: %w", p.adapter.Name(), err)
 	}
@@ -375,8 +382,12 @@ func (p *protocolProvider) defaultEndpoint() string {
 // 口径（与既有 config.yaml 写法对齐）：endpoint 为空回退默认地址；endpoint 已带版本段
 // （如 https://api.deepseek.com/v1）时只补路径余部，保证与既有 go-openai 客户端
 // （BaseURL + /chat/completions）逐字节一致；endpoint 已含完整协议路径时原样使用。
-func resolveProtocolURL(endpoint, apiPath, fallbackEndpoint string) string {
+// endpointFullPath=true 表示管理员显式把 endpoint 配成完整请求地址，不再追加任何路径。
+func resolveProtocolURL(endpoint, apiPath, fallbackEndpoint string, endpointFullPath bool) string {
 	base := strings.TrimRight(strings.TrimSpace(endpoint), "/")
+	if endpointFullPath {
+		return base
+	}
 	if base == "" {
 		base = fallbackEndpoint
 	}
@@ -941,13 +952,14 @@ func (r *LLMProviderRegistry) buildProvider(record *ent.LLMProviderConfig, apiKe
 	// （"适配器优先、旧分支回退"，与 BE-9 静态路径同口径）。
 	if protocolAdapters.Supports(protocolName, variant) {
 		provider, err := NewProtocolProvider(ProtocolProviderOptions{
-			Protocol:    protocolName,
-			Variant:     variant,
-			APIKey:      apiKey,
-			Endpoint:    record.Endpoint,
-			Model:       llmProviderModelForVariant(protocolName, variant, record.Model, record.Deployment),
-			MaxTokens:   adapterOptionInt(record.AdapterOptions, "max_tokens"),
-			Temperature: adapterOptionFloat(record.AdapterOptions, "temperature"),
+			Protocol:         protocolName,
+			Variant:          variant,
+			APIKey:           apiKey,
+			Endpoint:         record.Endpoint,
+			EndpointFullPath: record.EndpointFullPath,
+			Model:            llmProviderModelForVariant(protocolName, variant, record.Model, record.Deployment),
+			MaxTokens:        adapterOptionInt(record.AdapterOptions, "max_tokens"),
+			Temperature:      adapterOptionFloat(record.AdapterOptions, "temperature"),
 		})
 		if err == nil {
 			return provider, nil

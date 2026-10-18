@@ -163,6 +163,20 @@ func (_u *LLMProviderConfigUpdate) ClearEndpoint() *LLMProviderConfigUpdate {
 	return _u
 }
 
+// SetEndpointFullPath sets the "endpoint_full_path" field.
+func (_u *LLMProviderConfigUpdate) SetEndpointFullPath(v bool) *LLMProviderConfigUpdate {
+	_u.mutation.SetEndpointFullPath(v)
+	return _u
+}
+
+// SetNillableEndpointFullPath sets the "endpoint_full_path" field if the given value is not nil.
+func (_u *LLMProviderConfigUpdate) SetNillableEndpointFullPath(v *bool) *LLMProviderConfigUpdate {
+	if v != nil {
+		_u.SetEndpointFullPath(*v)
+	}
+	return _u
+}
+
 // SetDeployment sets the "deployment" field.
 func (_u *LLMProviderConfigUpdate) SetDeployment(v string) *LLMProviderConfigUpdate {
 	_u.mutation.SetDeployment(v)
@@ -491,6 +505,9 @@ func (_u *LLMProviderConfigUpdate) sqlSave(ctx context.Context) (_node int, err 
 	if _u.mutation.EndpointCleared() {
 		_spec.ClearField(llmproviderconfig.FieldEndpoint, field.TypeString)
 	}
+	if value, ok := _u.mutation.EndpointFullPath(); ok {
+		_spec.SetField(llmproviderconfig.FieldEndpointFullPath, field.TypeBool, value)
+	}
 	if value, ok := _u.mutation.Deployment(); ok {
 		_spec.SetField(llmproviderconfig.FieldDeployment, field.TypeString, value)
 	}
@@ -691,6 +708,20 @@ func (_u *LLMProviderConfigUpdateOne) SetNillableEndpoint(v *string) *LLMProvide
 // ClearEndpoint clears the value of the "endpoint" field.
 func (_u *LLMProviderConfigUpdateOne) ClearEndpoint() *LLMProviderConfigUpdateOne {
 	_u.mutation.ClearEndpoint()
+	return _u
+}
+
+// SetEndpointFullPath sets the "endpoint_full_path" field.
+func (_u *LLMProviderConfigUpdateOne) SetEndpointFullPath(v bool) *LLMProviderConfigUpdateOne {
+	_u.mutation.SetEndpointFullPath(v)
+	return _u
+}
+
+// SetNillableEndpointFullPath sets the "endpoint_full_path" field if the given value is not nil.
+func (_u *LLMProviderConfigUpdateOne) SetNillableEndpointFullPath(v *bool) *LLMProviderConfigUpdateOne {
+	if v != nil {
+		_u.SetEndpointFullPath(*v)
+	}
 	return _u
 }
 
@@ -1051,6 +1082,9 @@ func (_u *LLMProviderConfigUpdateOne) sqlSave(ctx context.Context) (_node *LLMPr
 	}
 	if _u.mutation.EndpointCleared() {
 		_spec.ClearField(llmproviderconfig.FieldEndpoint, field.TypeString)
+	}
+	if value, ok := _u.mutation.EndpointFullPath(); ok {
+		_spec.SetField(llmproviderconfig.FieldEndpointFullPath, field.TypeBool, value)
 	}
 	if value, ok := _u.mutation.Deployment(); ok {
 		_spec.SetField(llmproviderconfig.FieldDeployment, field.TypeString, value)

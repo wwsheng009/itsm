@@ -29,6 +29,8 @@ const (
 	FieldModel = "model"
 	// FieldEndpoint holds the string denoting the endpoint field in the database.
 	FieldEndpoint = "endpoint"
+	// FieldEndpointFullPath holds the string denoting the endpoint_full_path field in the database.
+	FieldEndpointFullPath = "endpoint_full_path"
 	// FieldDeployment holds the string denoting the deployment field in the database.
 	FieldDeployment = "deployment"
 	// FieldEncryptedAPIKey holds the string denoting the encrypted_api_key field in the database.
@@ -66,6 +68,7 @@ var Columns = []string{
 	FieldAdapterOptions,
 	FieldModel,
 	FieldEndpoint,
+	FieldEndpointFullPath,
 	FieldDeployment,
 	FieldEncryptedAPIKey,
 	FieldEnabled,
@@ -104,6 +107,8 @@ var (
 	ModelValidator func(string) error
 	// EndpointValidator is a validator for the "endpoint" field. It is called by the builders before save.
 	EndpointValidator func(string) error
+	// DefaultEndpointFullPath holds the default value on creation for the "endpoint_full_path" field.
+	DefaultEndpointFullPath bool
 	// DeploymentValidator is a validator for the "deployment" field. It is called by the builders before save.
 	DeploymentValidator func(string) error
 	// DefaultEnabled holds the default value on creation for the "enabled" field.
@@ -169,6 +174,11 @@ func ByModel(opts ...sql.OrderTermOption) OrderOption {
 // ByEndpoint orders the results by the endpoint field.
 func ByEndpoint(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldEndpoint, opts...).ToFunc()
+}
+
+// ByEndpointFullPath orders the results by the endpoint_full_path field.
+func ByEndpointFullPath(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldEndpointFullPath, opts...).ToFunc()
 }
 
 // ByDeployment orders the results by the deployment field.

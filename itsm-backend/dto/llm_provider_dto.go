@@ -15,17 +15,18 @@ import (
 
 // LLMCreateProviderRequest POST /api/v1/ai/providers 请求体。
 type LLMCreateProviderRequest struct {
-	Name           string          `json:"name"`
-	DisplayName    string          `json:"displayName"`
-	Protocol       string          `json:"protocol"`
-	Variant        string          `json:"variant"`
-	Model          string          `json:"model"`
-	Endpoint       string          `json:"endpoint"`
-	Deployment     string          `json:"deployment"`
-	APIKey         string          `json:"apiKey"`
-	AdapterOptions json.RawMessage `json:"adapterOptions"`
-	Enabled        *bool           `json:"enabled"`
-	IsDefault      bool            `json:"isDefault"`
+	Name             string          `json:"name"`
+	DisplayName      string          `json:"displayName"`
+	Protocol         string          `json:"protocol"`
+	Variant          string          `json:"variant"`
+	Model            string          `json:"model"`
+	Endpoint         string          `json:"endpoint"`
+	EndpointFullPath bool            `json:"endpointFullPath"`
+	Deployment       string          `json:"deployment"`
+	APIKey           string          `json:"apiKey"`
+	AdapterOptions   json.RawMessage `json:"adapterOptions"`
+	Enabled          *bool           `json:"enabled"`
+	IsDefault        bool            `json:"isDefault"`
 }
 
 // LLMUpdateProviderRequest PUT /api/v1/ai/providers/:id 请求体。
@@ -33,15 +34,16 @@ type LLMCreateProviderRequest struct {
 // 指针语义：nil = 不修改；apiKey 传空串 = 清空密钥；adapterOptions 传 "{}" = 清空。
 // name 不可修改（唯一键 + 密文归属校验锚点），更新 name 需删除重建。
 type LLMUpdateProviderRequest struct {
-	DisplayName    *string         `json:"displayName"`
-	Protocol       *string         `json:"protocol"`
-	Variant        *string         `json:"variant"`
-	Model          *string         `json:"model"`
-	Endpoint       *string         `json:"endpoint"`
-	Deployment     *string         `json:"deployment"`
-	APIKey         *string         `json:"apiKey"`
-	AdapterOptions json.RawMessage `json:"adapterOptions"`
-	Enabled        *bool           `json:"enabled"`
+	DisplayName      *string         `json:"displayName"`
+	Protocol         *string         `json:"protocol"`
+	Variant          *string         `json:"variant"`
+	Model            *string         `json:"model"`
+	Endpoint         *string         `json:"endpoint"`
+	EndpointFullPath *bool           `json:"endpointFullPath"`
+	Deployment       *string         `json:"deployment"`
+	APIKey           *string         `json:"apiKey"`
+	AdapterOptions   json.RawMessage `json:"adapterOptions"`
+	Enabled          *bool           `json:"enabled"`
 }
 
 // LLMUserPreferenceRequest PUT /api/v1/ai/user-preference 请求体。
@@ -70,25 +72,26 @@ type LLMProtocolOptionDTO struct {
 //
 // 安全：不含明文密钥与密文；MaskedAPIKey 为 common.MaskSecret 结果（解密失败时退化为 "****"）。
 type LLMProviderDTO struct {
-	ID             int                    `json:"id"`
-	Key            string                 `json:"key"`
-	DisplayName    string                 `json:"displayName"`
-	Protocol       string                 `json:"protocol"`
-	Variant        string                 `json:"variant"`
-	Model          string                 `json:"model"`
-	Endpoint       string                 `json:"endpoint"`
-	Deployment     string                 `json:"deployment"`
-	AdapterOptions map[string]interface{} `json:"adapterOptions,omitempty"`
-	Enabled        bool                   `json:"enabled"`
-	IsDefault      bool                   `json:"isDefault"`
-	Source         string                 `json:"source"`
-	Status         string                 `json:"status"`
-	LastError      string                 `json:"lastError,omitempty"`
-	LastTestedAt   *time.Time             `json:"lastTestedAt,omitempty"`
-	HasAPIKey      bool                   `json:"hasApiKey"`
-	MaskedAPIKey   string                 `json:"maskedApiKey,omitempty"`
-	CreatedAt      time.Time              `json:"createdAt"`
-	UpdatedAt      time.Time              `json:"updatedAt"`
+	ID               int                    `json:"id"`
+	Key              string                 `json:"key"`
+	DisplayName      string                 `json:"displayName"`
+	Protocol         string                 `json:"protocol"`
+	Variant          string                 `json:"variant"`
+	Model            string                 `json:"model"`
+	Endpoint         string                 `json:"endpoint"`
+	EndpointFullPath bool                   `json:"endpointFullPath"`
+	Deployment       string                 `json:"deployment"`
+	AdapterOptions   map[string]interface{} `json:"adapterOptions,omitempty"`
+	Enabled          bool                   `json:"enabled"`
+	IsDefault        bool                   `json:"isDefault"`
+	Source           string                 `json:"source"`
+	Status           string                 `json:"status"`
+	LastError        string                 `json:"lastError,omitempty"`
+	LastTestedAt     *time.Time             `json:"lastTestedAt,omitempty"`
+	HasAPIKey        bool                   `json:"hasApiKey"`
+	MaskedAPIKey     string                 `json:"maskedApiKey,omitempty"`
+	CreatedAt        time.Time              `json:"createdAt"`
+	UpdatedAt        time.Time              `json:"updatedAt"`
 }
 
 // LLMProviderListResponse GET /api/v1/ai/providers 响应 data。

@@ -92,6 +92,20 @@ func (_c *LLMProviderConfigCreate) SetNillableEndpoint(v *string) *LLMProviderCo
 	return _c
 }
 
+// SetEndpointFullPath sets the "endpoint_full_path" field.
+func (_c *LLMProviderConfigCreate) SetEndpointFullPath(v bool) *LLMProviderConfigCreate {
+	_c.mutation.SetEndpointFullPath(v)
+	return _c
+}
+
+// SetNillableEndpointFullPath sets the "endpoint_full_path" field if the given value is not nil.
+func (_c *LLMProviderConfigCreate) SetNillableEndpointFullPath(v *bool) *LLMProviderConfigCreate {
+	if v != nil {
+		_c.SetEndpointFullPath(*v)
+	}
+	return _c
+}
+
 // SetDeployment sets the "deployment" field.
 func (_c *LLMProviderConfigCreate) SetDeployment(v string) *LLMProviderConfigCreate {
 	_c.mutation.SetDeployment(v)
@@ -281,6 +295,10 @@ func (_c *LLMProviderConfigCreate) ExecX(ctx context.Context) {
 
 // defaults sets the default values of the builder before save.
 func (_c *LLMProviderConfigCreate) defaults() {
+	if _, ok := _c.mutation.EndpointFullPath(); !ok {
+		v := llmproviderconfig.DefaultEndpointFullPath
+		_c.mutation.SetEndpointFullPath(v)
+	}
 	if _, ok := _c.mutation.Enabled(); !ok {
 		v := llmproviderconfig.DefaultEnabled
 		_c.mutation.SetEnabled(v)
@@ -355,6 +373,9 @@ func (_c *LLMProviderConfigCreate) check() error {
 		if err := llmproviderconfig.EndpointValidator(v); err != nil {
 			return &ValidationError{Name: "endpoint", err: fmt.Errorf(`ent: validator failed for field "LLMProviderConfig.endpoint": %w`, err)}
 		}
+	}
+	if _, ok := _c.mutation.EndpointFullPath(); !ok {
+		return &ValidationError{Name: "endpoint_full_path", err: errors.New(`ent: missing required field "LLMProviderConfig.endpoint_full_path"`)}
 	}
 	if v, ok := _c.mutation.Deployment(); ok {
 		if err := llmproviderconfig.DeploymentValidator(v); err != nil {
@@ -451,6 +472,10 @@ func (_c *LLMProviderConfigCreate) createSpec() (*LLMProviderConfig, *sqlgraph.C
 	if value, ok := _c.mutation.Endpoint(); ok {
 		_spec.SetField(llmproviderconfig.FieldEndpoint, field.TypeString, value)
 		_node.Endpoint = value
+	}
+	if value, ok := _c.mutation.EndpointFullPath(); ok {
+		_spec.SetField(llmproviderconfig.FieldEndpointFullPath, field.TypeBool, value)
+		_node.EndpointFullPath = value
 	}
 	if value, ok := _c.mutation.Deployment(); ok {
 		_spec.SetField(llmproviderconfig.FieldDeployment, field.TypeString, value)

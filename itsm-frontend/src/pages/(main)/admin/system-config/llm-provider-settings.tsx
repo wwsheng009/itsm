@@ -61,6 +61,7 @@ interface ProviderFormValues {
   variant?: string;
   model: string;
   endpoint?: string;
+  endpointFullPath?: boolean;
   deployment?: string;
   apiKey?: string;
   adapterOptions?: string;
@@ -115,6 +116,7 @@ export const LLMProviderSettings: React.FC = () => {
   // 监听表单值：协议切换时重置 variant；启用状态与默认互斥。
   const selectedProtocol = Form.useWatch('protocol', form);
   const enabledValue = Form.useWatch('enabled', form);
+  const endpointFullPath = Form.useWatch('endpointFullPath', form);
   const clearApiKey = Form.useWatch('clearApiKey', form);
   const clearAdapterOptions = Form.useWatch('clearAdapterOptions', form);
 
@@ -154,6 +156,7 @@ export const LLMProviderSettings: React.FC = () => {
       variant: firstImplemented?.variants?.[0] ?? '',
       enabled: true,
       isDefault: false,
+      endpointFullPath: false,
       clearApiKey: false,
       clearAdapterOptions: false,
     });
@@ -171,6 +174,7 @@ export const LLMProviderSettings: React.FC = () => {
         variant: record.variant || undefined,
         model: record.model,
         endpoint: record.endpoint,
+        endpointFullPath: record.endpointFullPath,
         deployment: record.deployment,
         apiKey: '',
         adapterOptions: record.adapterOptions ? JSON.stringify(record.adapterOptions, null, 2) : '',
@@ -208,6 +212,7 @@ export const LLMProviderSettings: React.FC = () => {
           variant: values.variant ?? '',
           model: values.model.trim(),
           endpoint: values.endpoint?.trim() ?? '',
+          endpointFullPath: Boolean(values.endpointFullPath),
           deployment: values.deployment?.trim() ?? '',
           enabled: values.enabled,
         };
@@ -231,6 +236,7 @@ export const LLMProviderSettings: React.FC = () => {
           variant: values.variant ?? '',
           model: values.model.trim(),
           endpoint: values.endpoint?.trim() || undefined,
+          endpointFullPath: Boolean(values.endpointFullPath),
           deployment: values.deployment?.trim() || undefined,
           apiKey: values.apiKey || undefined,
           adapterOptions,
@@ -360,9 +366,12 @@ export const LLMProviderSettings: React.FC = () => {
           <Space direction="vertical" size={0}>
             <Text style={{ fontSize: 13 }}>{value}</Text>
             {record.endpoint ? (
-              <Text type="secondary" style={{ fontSize: 12 }} ellipsis={{ tooltip: record.endpoint }}>
-                {record.endpoint}
-              </Text>
+              <Space size={4} wrap>
+                <Text type="secondary" style={{ fontSize: 12 }} ellipsis={{ tooltip: record.endpoint }}>
+                  {record.endpoint}
+                </Text>
+                {record.endpointFullPath ? <Tag color="cyan">完整路径</Tag> : null}
+              </Space>
             ) : null}
           </Space>
         ),
@@ -543,8 +552,35 @@ export const LLMProviderSettings: React.FC = () => {
             <Input placeholder="例如 gpt-4o-mini / deepseek-chat" />
           </Form.Item>
 
-          <Form.Item label="Endpoint" name="endpoint" extra="留空回退协议内置地址；Azure/Ollama 等按需填写">
+          <Form.Item
+            label="Endpoint"
+            name="endpoint"
+            extra={
+              endpointFullPath
+                ? '当前为完整请求地址模式：请求将直接使用该地址，不再追加协议路径'
+                : '留空回退协议内置地址；Azure/Ollama 等按需填写'
+            }
+            rules={[
+              ({ getFieldValue }) => ({
+                validator(_, value) {
+                  if (!getFieldValue('endpointFullPath') || String(value ?? '').trim()) {
+                    return Promise.resolve();
+                  }
+                  return Promise.reject(new Error('完整请求地址模式必须填写 Endpoint'));
+                },
+              }),
+            ]}
+          >
             <Input placeholder="https://api.example.com/v1" />
+          </Form.Item>
+
+          <Form.Item
+            label="Endpoint 为完整请求地址"
+            name="endpointFullPath"
+            valuePropName="checked"
+            extra="开启后不拼接 /v1/chat/completions 等协议路径，适用于非标准完整 URL"
+          >
+            <Switch />
           </Form.Item>
 
           <Form.Item label="Deployment" name="deployment" extra="Azure OpenAI 等需要 deployment 的协议填写">

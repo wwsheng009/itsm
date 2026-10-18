@@ -2841,6 +2841,7 @@ var (
 		{Name: "adapter_options", Type: field.TypeJSON, Nullable: true},
 		{Name: "model", Type: field.TypeString, Nullable: true, Size: 100},
 		{Name: "endpoint", Type: field.TypeString, Nullable: true, Size: 500},
+		{Name: "endpoint_full_path", Type: field.TypeBool, Default: false},
 		{Name: "deployment", Type: field.TypeString, Nullable: true, Size: 100},
 		{Name: "encrypted_api_key", Type: field.TypeString, Nullable: true, Size: 2147483647},
 		{Name: "enabled", Type: field.TypeBool, Default: true},
@@ -2867,7 +2868,7 @@ var (
 			{
 				Name:    "llmproviderconfig_tenant_id_enabled",
 				Unique:  false,
-				Columns: []*schema.Column{LlmProviderConfigsColumns[1], LlmProviderConfigsColumns[11]},
+				Columns: []*schema.Column{LlmProviderConfigsColumns[1], LlmProviderConfigsColumns[12]},
 			},
 		},
 	}

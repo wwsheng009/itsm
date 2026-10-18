@@ -244,7 +244,10 @@ func validateProtocolSlot(protocolName, variant string) error {
 
 // validateEndpointRequirements 端点/部署必填规则（§3.4「endpoint 缺失 → 422」）：
 // azure 变体必须显式给出 endpoint（无法回退内置默认）与 deployment。
-func validateEndpointRequirements(protocolName, variant, endpoint, deployment string) error {
+func validateEndpointRequirements(protocolName, variant, endpoint, deployment string, endpointFullPath bool) error {
+	if endpointFullPath && strings.TrimSpace(endpoint) == "" {
+		return newLLMAdminError(422, LLMAdminCodeEndpointMissing, "Endpoint 为完整请求地址时必须填写 endpoint")
+	}
 	if variant == service.LLMVariantAzure {
 		if strings.TrimSpace(endpoint) == "" {
 			return newLLMAdminError(422, LLMAdminCodeEndpointMissing, "variant=azure 必须提供 endpoint")
@@ -296,23 +299,24 @@ func (s *LLMProviderAdminService) maskedKey(ciphertext string) string {
 // toProviderDTO 实体 → 响应 DTO（无明文密钥/密文）。
 func (s *LLMProviderAdminService) toProviderDTO(record *ent.LLMProviderConfig) dto.LLMProviderDTO {
 	item := dto.LLMProviderDTO{
-		ID:           record.ID,
-		Key:          record.Name,
-		DisplayName:  record.DisplayName,
-		Protocol:     record.Protocol,
-		Variant:      record.Variant,
-		Model:        record.Model,
-		Endpoint:     record.Endpoint,
-		Deployment:   record.Deployment,
-		Enabled:      record.Enabled,
-		IsDefault:    record.IsDefault,
-		Source:       record.Source,
-		Status:       record.Status,
-		LastError:    record.LastError,
-		LastTestedAt: record.LastTestedAt,
-		HasAPIKey:    strings.TrimSpace(record.EncryptedAPIKey) != "",
-		CreatedAt:    record.CreatedAt,
-		UpdatedAt:    record.UpdatedAt,
+		ID:               record.ID,
+		Key:              record.Name,
+		DisplayName:      record.DisplayName,
+		Protocol:         record.Protocol,
+		Variant:          record.Variant,
+		Model:            record.Model,
+		Endpoint:         record.Endpoint,
+		EndpointFullPath: record.EndpointFullPath,
+		Deployment:       record.Deployment,
+		Enabled:          record.Enabled,
+		IsDefault:        record.IsDefault,
+		Source:           record.Source,
+		Status:           record.Status,
+		LastError:        record.LastError,
+		LastTestedAt:     record.LastTestedAt,
+		HasAPIKey:        strings.TrimSpace(record.EncryptedAPIKey) != "",
+		CreatedAt:        record.CreatedAt,
+		UpdatedAt:        record.UpdatedAt,
 	}
 	if item.HasAPIKey {
 		item.MaskedAPIKey = s.maskedKey(record.EncryptedAPIKey)
@@ -429,8 +433,9 @@ func (s *LLMProviderAdminService) CreateProvider(ctx context.Context, tenantID, 
 		return dto.LLMProviderDTO{}, err
 	}
 	endpoint := strings.TrimSpace(req.Endpoint)
+	endpointFullPath := req.EndpointFullPath
 	deployment := strings.TrimSpace(req.Deployment)
-	if err := validateEndpointRequirements(protocolName, variant, endpoint, deployment); err != nil {
+	if err := validateEndpointRequirements(protocolName, variant, endpoint, deployment, endpointFullPath); err != nil {
 		return dto.LLMProviderDTO{}, err
 	}
 	options, err := decodeAdapterOptions(req.AdapterOptions)
@@ -472,6 +477,7 @@ func (s *LLMProviderAdminService) CreateProvider(ctx context.Context, tenantID, 
 		SetVariant(variant).
 		SetModel(strings.TrimSpace(req.Model)).
 		SetEndpoint(endpoint).
+		SetEndpointFullPath(endpointFullPath).
 		SetDeployment(deployment).
 		SetEnabled(enabled).
 		SetIsDefault(false).
@@ -550,11 +556,15 @@ func (s *LLMProviderAdminService) UpdateProvider(ctx context.Context, tenantID, 
 	if req.Endpoint != nil {
 		endpoint = strings.TrimSpace(*req.Endpoint)
 	}
+	endpointFullPath := record.EndpointFullPath
+	if req.EndpointFullPath != nil {
+		endpointFullPath = *req.EndpointFullPath
+	}
 	deployment := record.Deployment
 	if req.Deployment != nil {
 		deployment = strings.TrimSpace(*req.Deployment)
 	}
-	if err := validateEndpointRequirements(protocolName, variant, endpoint, deployment); err != nil {
+	if err := validateEndpointRequirements(protocolName, variant, endpoint, deployment, endpointFullPath); err != nil {
 		return dto.LLMProviderDTO{}, err
 	}
 
@@ -587,6 +597,7 @@ func (s *LLMProviderAdminService) UpdateProvider(ctx context.Context, tenantID, 
 		SetVariant(variant).
 		SetModel(strings.TrimSpace(valueOr(req.Model, record.Model))).
 		SetEndpoint(endpoint).
+		SetEndpointFullPath(endpointFullPath).
 		SetDeployment(deployment).
 		SetDisplayName(displayName).
 		SetEnabled(enabled).

@@ -398,22 +398,69 @@ func TestNewProtocolProviderUnregisteredReturnsSentinel(t *testing.T) {
 func TestResolveProtocolURL(t *testing.T) {
 	const apiPath = "/v1/chat/completions"
 	cases := []struct {
-		name     string
-		endpoint string
-		want     string
+		name             string
+		endpoint         string
+		endpointFullPath bool
+		want             string
 	}{
-		{"默认地址", "", "https://api.openai.com/v1/chat/completions"},
-		{"endpoint 含 /v1（既有 config.yaml 写法）", "https://api.deepseek.com/v1", "https://api.deepseek.com/v1/chat/completions"},
-		{"endpoint 尾斜杠", "https://api.deepseek.com/v1/", "https://api.deepseek.com/v1/chat/completions"},
-		{"endpoint 不含版本段", "http://127.0.0.1:8080", "http://127.0.0.1:8080/v1/chat/completions"},
-		{"endpoint 含多级前缀 + 版本段", "https://gw.example.com/openai/v1", "https://gw.example.com/openai/v1/chat/completions"},
-		{"endpoint 已含完整路径", "https://gw.example.com/v1/chat/completions", "https://gw.example.com/v1/chat/completions"},
+		{name: "默认地址", endpoint: "", want: "https://api.openai.com/v1/chat/completions"},
+		{name: "endpoint 含 /v1（既有 config.yaml 写法）", endpoint: "https://api.deepseek.com/v1", want: "https://api.deepseek.com/v1/chat/completions"},
+		{name: "endpoint 尾斜杠", endpoint: "https://api.deepseek.com/v1/", want: "https://api.deepseek.com/v1/chat/completions"},
+		{name: "endpoint 不含版本段", endpoint: "http://127.0.0.1:8080", want: "http://127.0.0.1:8080/v1/chat/completions"},
+		{name: "endpoint 含多级前缀 + 版本段", endpoint: "https://gw.example.com/openai/v1", want: "https://gw.example.com/openai/v1/chat/completions"},
+		{name: "endpoint 已含完整路径", endpoint: "https://gw.example.com/v1/chat/completions", want: "https://gw.example.com/v1/chat/completions"},
+		{
+			"完整路径模式：非标准版本段原样使用",
+			"https://qianfan.baidubce.com/v2/tokenplan/personal/chat/completions/",
+			true,
+			"https://qianfan.baidubce.com/v2/tokenplan/personal/chat/completions",
+		},
+		{
+			"非完整路径模式：仍按协议默认路径拼接",
+			"https://qianfan.baidubce.com/v2/tokenplan/personal/chat/completions",
+			false,
+			"https://qianfan.baidubce.com/v2/tokenplan/personal/chat/completions/v1/chat/completions",
+		},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			assert.Equal(t, tc.want, resolveProtocolURL(tc.endpoint, apiPath, ""))
+			assert.Equal(t, tc.want, resolveProtocolURL(tc.endpoint, apiPath, "", tc.endpointFullPath))
 		})
 	}
+}
+
+func TestProtocolProviderUsesExactEndpointWhenFullPath(t *testing.T) {
+	stub := newProtocolStub(t)
+	provider, err := NewProtocolProvider(ProtocolProviderOptions{
+		Protocol:         protocol.ProtocolOpenAIChatCompletions,
+		APIKey:           "test-key",
+		Endpoint:         stub.server.URL + "/v2/tokenplan/personal/chat/completions",
+		EndpointFullPath: true,
+		Model:            "deepseek-v4.1-flash",
+	})
+	require.NoError(t, err)
+
+	_, err = provider.Chat(context.Background(), "", []LLMMessage{{Role: "user", Content: "ping"}})
+	require.NoError(t, err)
+
+	requests := stub.snapshot()
+	require.Len(t, requests, 1)
+	assert.Equal(t, "/v2/tokenplan/personal/chat/completions", requests[0].Path)
+}
+
+func TestProtocolProviderFullPathBypassesVariantNormalization(t *testing.T) {
+	provider, err := NewProtocolProvider(ProtocolProviderOptions{
+		Protocol:         protocol.ProtocolOpenAIChatCompletions,
+		Variant:          protocol.VariantAzure,
+		Endpoint:         "https://example.test/custom/chat/completions",
+		EndpointFullPath: true,
+		Model:            "gpt-4o-mini",
+	})
+	require.NoError(t, err)
+
+	typed, ok := provider.(*protocolProvider)
+	require.True(t, ok)
+	assert.Equal(t, "https://example.test/custom/chat/completions", typed.endpoint)
 }
 
 // TestResolveProtocolURLEndpointFallback 锁定变体级默认地址回退（PA-1）：
@@ -476,7 +523,7 @@ func TestResolveProtocolURLEndpointFallback(t *testing.T) {
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			assert.Equal(t, tc.want, resolveProtocolURL(tc.endpoint, tc.apiPath, tc.fallback))
+			assert.Equal(t, tc.want, resolveProtocolURL(tc.endpoint, tc.apiPath, tc.fallback, false))
 		})
 	}
 }

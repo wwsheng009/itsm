@@ -34,6 +34,8 @@ type LLMProviderConfig struct {
 	Model string `json:"model,omitempty"`
 	// 接口地址；留空回退内置默认地址
 	Endpoint string `json:"endpoint,omitempty"`
+	// endpoint 是否为完整请求地址；为 true 时不再拼接协议资源路径
+	EndpointFullPath bool `json:"endpoint_full_path,omitempty"`
 	// 部署名（variant=azure 使用）
 	Deployment string `json:"deployment,omitempty"`
 	// API Key 的 AES-GCM 密文（AAD=tenant_id:name）；无鉴权实例可为空
@@ -66,7 +68,7 @@ func (*LLMProviderConfig) scanValues(columns []string) ([]any, error) {
 		switch columns[i] {
 		case llmproviderconfig.FieldAdapterOptions:
 			values[i] = new([]byte)
-		case llmproviderconfig.FieldEnabled, llmproviderconfig.FieldIsDefault:
+		case llmproviderconfig.FieldEndpointFullPath, llmproviderconfig.FieldEnabled, llmproviderconfig.FieldIsDefault:
 			values[i] = new(sql.NullBool)
 		case llmproviderconfig.FieldID, llmproviderconfig.FieldTenantID:
 			values[i] = new(sql.NullInt64)
@@ -144,6 +146,12 @@ func (_m *LLMProviderConfig) assignValues(columns []string, values []any) error 
 				return fmt.Errorf("unexpected type %T for field endpoint", values[i])
 			} else if value.Valid {
 				_m.Endpoint = value.String
+			}
+		case llmproviderconfig.FieldEndpointFullPath:
+			if value, ok := values[i].(*sql.NullBool); !ok {
+				return fmt.Errorf("unexpected type %T for field endpoint_full_path", values[i])
+			} else if value.Valid {
+				_m.EndpointFullPath = value.Bool
 			}
 		case llmproviderconfig.FieldDeployment:
 			if value, ok := values[i].(*sql.NullString); !ok {
@@ -272,6 +280,9 @@ func (_m *LLMProviderConfig) String() string {
 	builder.WriteString(", ")
 	builder.WriteString("endpoint=")
 	builder.WriteString(_m.Endpoint)
+	builder.WriteString(", ")
+	builder.WriteString("endpoint_full_path=")
+	builder.WriteString(fmt.Sprintf("%v", _m.EndpointFullPath))
 	builder.WriteString(", ")
 	builder.WriteString("deployment=")
 	builder.WriteString(_m.Deployment)

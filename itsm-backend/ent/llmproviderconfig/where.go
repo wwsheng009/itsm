@@ -89,6 +89,11 @@ func Endpoint(v string) predicate.LLMProviderConfig {
 	return predicate.LLMProviderConfig(sql.FieldEQ(FieldEndpoint, v))
 }
 
+// EndpointFullPath applies equality check predicate on the "endpoint_full_path" field. It's identical to EndpointFullPathEQ.
+func EndpointFullPath(v bool) predicate.LLMProviderConfig {
+	return predicate.LLMProviderConfig(sql.FieldEQ(FieldEndpointFullPath, v))
+}
+
 // Deployment applies equality check predicate on the "deployment" field. It's identical to DeploymentEQ.
 func Deployment(v string) predicate.LLMProviderConfig {
 	return predicate.LLMProviderConfig(sql.FieldEQ(FieldDeployment, v))
@@ -612,6 +617,16 @@ func EndpointEqualFold(v string) predicate.LLMProviderConfig {
 // EndpointContainsFold applies the ContainsFold predicate on the "endpoint" field.
 func EndpointContainsFold(v string) predicate.LLMProviderConfig {
 	return predicate.LLMProviderConfig(sql.FieldContainsFold(FieldEndpoint, v))
+}
+
+// EndpointFullPathEQ applies the EQ predicate on the "endpoint_full_path" field.
+func EndpointFullPathEQ(v bool) predicate.LLMProviderConfig {
+	return predicate.LLMProviderConfig(sql.FieldEQ(FieldEndpointFullPath, v))
+}
+
+// EndpointFullPathNEQ applies the NEQ predicate on the "endpoint_full_path" field.
+func EndpointFullPathNEQ(v bool) predicate.LLMProviderConfig {
+	return predicate.LLMProviderConfig(sql.FieldNEQ(FieldEndpointFullPath, v))
 }
 
 // DeploymentEQ applies the EQ predicate on the "deployment" field.

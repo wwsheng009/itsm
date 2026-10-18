@@ -40,7 +40,7 @@ export const LLM_PROVIDER_ERROR_MESSAGES: Record<string, string> = {
   AI_ADAPTER_OPTIONS_INVALID: '高级参数非法（需为 JSON 对象、≤4KB 且不含敏感键）',
   AI_PROVIDER_NAME_CONFLICT: '同名 Provider 已存在',
   AI_PROVIDER_NAME_INVALID: 'Provider 标识（key）非法',
-  AI_PROVIDER_ENDPOINT_REQUIRED: '该协议/变体必须填写 Endpoint',
+  AI_PROVIDER_ENDPOINT_REQUIRED: '该协议/变体或完整请求地址模式必须填写 Endpoint',
   AI_PROVIDER_VALIDATION_ERROR: '参数校验失败',
   AI_PROVIDER_INTERNAL_ERROR: '服务内部错误，请稍后重试',
 };
@@ -114,6 +114,7 @@ export interface LLMProvider {
   variant: string;
   model: string;
   endpoint: string;
+  endpointFullPath: boolean;
   deployment: string;
   adapterOptions?: Record<string, unknown>;
   enabled: boolean;
@@ -157,6 +158,7 @@ export interface LLMCreateProviderRequest {
   variant?: string;
   model: string;
   endpoint?: string;
+  endpointFullPath?: boolean;
   deployment?: string;
   apiKey?: string;
   adapterOptions?: Record<string, unknown>;
@@ -175,6 +177,7 @@ export interface LLMUpdateProviderRequest {
   variant?: string;
   model?: string;
   endpoint?: string;
+  endpointFullPath?: boolean;
   deployment?: string;
   apiKey?: string;
   adapterOptions?: Record<string, unknown>;

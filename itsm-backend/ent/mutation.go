@@ -92705,33 +92705,34 @@ func (m *KnownErrorMutation) ResetEdge(name string) error {
 // LLMProviderConfigMutation represents an operation that mutates the LLMProviderConfig nodes in the graph.
 type LLMProviderConfigMutation struct {
 	config
-	op                Op
-	typ               string
-	id                *int
-	tenant_id         *int
-	addtenant_id      *int
-	name              *string
-	display_name      *string
-	protocol          *string
-	variant           *string
-	adapter_options   *map[string]interface{}
-	model             *string
-	endpoint          *string
-	deployment        *string
-	encrypted_api_key *string
-	enabled           *bool
-	is_default        *bool
-	source            *string
-	status            *string
-	last_error        *string
-	last_tested_at    *time.Time
-	created_at        *time.Time
-	updated_at        *time.Time
-	deleted_at        *time.Time
-	clearedFields     map[string]struct{}
-	done              bool
-	oldValue          func(context.Context) (*LLMProviderConfig, error)
-	predicates        []predicate.LLMProviderConfig
+	op                 Op
+	typ                string
+	id                 *int
+	tenant_id          *int
+	addtenant_id       *int
+	name               *string
+	display_name       *string
+	protocol           *string
+	variant            *string
+	adapter_options    *map[string]interface{}
+	model              *string
+	endpoint           *string
+	endpoint_full_path *bool
+	deployment         *string
+	encrypted_api_key  *string
+	enabled            *bool
+	is_default         *bool
+	source             *string
+	status             *string
+	last_error         *string
+	last_tested_at     *time.Time
+	created_at         *time.Time
+	updated_at         *time.Time
+	deleted_at         *time.Time
+	clearedFields      map[string]struct{}
+	done               bool
+	oldValue           func(context.Context) (*LLMProviderConfig, error)
+	predicates         []predicate.LLMProviderConfig
 }
 
 var _ ent.Mutation = (*LLMProviderConfigMutation)(nil)
@@ -93190,6 +93191,42 @@ func (m *LLMProviderConfigMutation) EndpointCleared() bool {
 func (m *LLMProviderConfigMutation) ResetEndpoint() {
 	m.endpoint = nil
 	delete(m.clearedFields, llmproviderconfig.FieldEndpoint)
+}
+
+// SetEndpointFullPath sets the "endpoint_full_path" field.
+func (m *LLMProviderConfigMutation) SetEndpointFullPath(b bool) {
+	m.endpoint_full_path = &b
+}
+
+// EndpointFullPath returns the value of the "endpoint_full_path" field in the mutation.
+func (m *LLMProviderConfigMutation) EndpointFullPath() (r bool, exists bool) {
+	v := m.endpoint_full_path
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldEndpointFullPath returns the old "endpoint_full_path" field's value of the LLMProviderConfig entity.
+// If the LLMProviderConfig object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *LLMProviderConfigMutation) OldEndpointFullPath(ctx context.Context) (v bool, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldEndpointFullPath is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldEndpointFullPath requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldEndpointFullPath: %w", err)
+	}
+	return oldValue.EndpointFullPath, nil
+}
+
+// ResetEndpointFullPath resets all changes to the "endpoint_full_path" field.
+func (m *LLMProviderConfigMutation) ResetEndpointFullPath() {
+	m.endpoint_full_path = nil
 }
 
 // SetDeployment sets the "deployment" field.
@@ -93687,7 +93724,7 @@ func (m *LLMProviderConfigMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *LLMProviderConfigMutation) Fields() []string {
-	fields := make([]string, 0, 19)
+	fields := make([]string, 0, 20)
 	if m.tenant_id != nil {
 		fields = append(fields, llmproviderconfig.FieldTenantID)
 	}
@@ -93711,6 +93748,9 @@ func (m *LLMProviderConfigMutation) Fields() []string {
 	}
 	if m.endpoint != nil {
 		fields = append(fields, llmproviderconfig.FieldEndpoint)
+	}
+	if m.endpoint_full_path != nil {
+		fields = append(fields, llmproviderconfig.FieldEndpointFullPath)
 	}
 	if m.deployment != nil {
 		fields = append(fields, llmproviderconfig.FieldDeployment)
@@ -93769,6 +93809,8 @@ func (m *LLMProviderConfigMutation) Field(name string) (ent.Value, bool) {
 		return m.Model()
 	case llmproviderconfig.FieldEndpoint:
 		return m.Endpoint()
+	case llmproviderconfig.FieldEndpointFullPath:
+		return m.EndpointFullPath()
 	case llmproviderconfig.FieldDeployment:
 		return m.Deployment()
 	case llmproviderconfig.FieldEncryptedAPIKey:
@@ -93816,6 +93858,8 @@ func (m *LLMProviderConfigMutation) OldField(ctx context.Context, name string) (
 		return m.OldModel(ctx)
 	case llmproviderconfig.FieldEndpoint:
 		return m.OldEndpoint(ctx)
+	case llmproviderconfig.FieldEndpointFullPath:
+		return m.OldEndpointFullPath(ctx)
 	case llmproviderconfig.FieldDeployment:
 		return m.OldDeployment(ctx)
 	case llmproviderconfig.FieldEncryptedAPIKey:
@@ -93902,6 +93946,13 @@ func (m *LLMProviderConfigMutation) SetField(name string, value ent.Value) error
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.SetEndpoint(v)
+		return nil
+	case llmproviderconfig.FieldEndpointFullPath:
+		v, ok := value.(bool)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetEndpointFullPath(v)
 		return nil
 	case llmproviderconfig.FieldDeployment:
 		v, ok := value.(string)
@@ -94124,6 +94175,9 @@ func (m *LLMProviderConfigMutation) ResetField(name string) error {
 		return nil
 	case llmproviderconfig.FieldEndpoint:
 		m.ResetEndpoint()
+		return nil
+	case llmproviderconfig.FieldEndpointFullPath:
+		m.ResetEndpointFullPath()
 		return nil
 	case llmproviderconfig.FieldDeployment:
 		m.ResetDeployment()

@@ -56,6 +56,9 @@ func (LLMProviderConfig) Fields() []ent.Field {
 			Comment("接口地址；留空回退内置默认地址").
 			Optional().
 			MaxLen(500),
+		field.Bool("endpoint_full_path").
+			Comment("endpoint 是否为完整请求地址；为 true 时不再拼接协议资源路径").
+			Default(false),
 		field.String("deployment").
 			Comment("部署名（variant=azure 使用）").
 			Optional().

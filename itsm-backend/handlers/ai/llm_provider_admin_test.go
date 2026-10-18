@@ -202,6 +202,7 @@ func TestLLMProviderAdminCreateValidationTable(t *testing.T) {
 		{"协议枚举非法", func(r *dto.LLMCreateProviderRequest) { r.Protocol = "chat_completions" }, 422, "AI_PROTOCOL_INVALID"},
 		{"变体非法", func(r *dto.LLMCreateProviderRequest) { r.Variant = "vertex" }, 422, "AI_PROTOCOL_VARIANT_INVALID"},
 		{"azure 缺 endpoint", func(r *dto.LLMCreateProviderRequest) { r.Variant = service.LLMVariantAzure }, 422, "AI_PROVIDER_ENDPOINT_REQUIRED"},
+		{"完整路径模式缺 endpoint", func(r *dto.LLMCreateProviderRequest) { r.EndpointFullPath = true }, 422, "AI_PROVIDER_ENDPOINT_REQUIRED"},
 		{"azure 缺 deployment", func(r *dto.LLMCreateProviderRequest) {
 			r.Variant = service.LLMVariantAzure
 			r.Endpoint = "https://demo.openai.azure.com"
@@ -339,6 +340,35 @@ func TestLLMProviderAdminCreateNameConflictAndTenantIsolation(t *testing.T) {
 	tenantOther, err := env.svc.ListProviders(ctx, 77)
 	require.NoError(t, err)
 	assert.Equal(t, 1, tenantOther.Total)
+}
+
+func TestLLMProviderAdminEndpointFullPathRoundTrip(t *testing.T) {
+	env := newLLMAdminTestEnv(t)
+	ctx := context.Background()
+	endpoint := "https://qianfan.baidubce.com/v2/tokenplan/personal/chat/completions"
+
+	req := validCreateRequest("qianfan-full-path")
+	req.Endpoint = endpoint
+	req.EndpointFullPath = true
+	created := mustCreateProvider(t, env, req)
+	assert.Equal(t, endpoint, created.Endpoint)
+	assert.True(t, created.EndpointFullPath)
+
+	record, err := env.client.LLMProviderConfig.Get(ctx, created.ID)
+	require.NoError(t, err)
+	assert.True(t, record.EndpointFullPath)
+
+	updated, err := env.svc.UpdateProvider(ctx, llmAdminTenantID, llmAdminUserID, created.ID, dto.LLMUpdateProviderRequest{
+		EndpointFullPath: llmAdminBoolPtr(false),
+	})
+	require.NoError(t, err)
+	assert.False(t, updated.EndpointFullPath)
+
+	_, err = env.svc.UpdateProvider(ctx, llmAdminTenantID, llmAdminUserID, created.ID, dto.LLMUpdateProviderRequest{
+		Endpoint:         llmAdminStringPtr(""),
+		EndpointFullPath: llmAdminBoolPtr(true),
+	})
+	requireLLMAdminError(t, err, 422, "AI_PROVIDER_ENDPOINT_REQUIRED")
 }
 
 // ---------- §3.4 更新：部分更新 / 清空语义 / 默认保护 ----------

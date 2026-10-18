@@ -3147,40 +3147,44 @@ func init() {
 	llmproviderconfigDescEndpoint := llmproviderconfigFields[7].Descriptor()
 	// llmproviderconfig.EndpointValidator is a validator for the "endpoint" field. It is called by the builders before save.
 	llmproviderconfig.EndpointValidator = llmproviderconfigDescEndpoint.Validators[0].(func(string) error)
+	// llmproviderconfigDescEndpointFullPath is the schema descriptor for endpoint_full_path field.
+	llmproviderconfigDescEndpointFullPath := llmproviderconfigFields[8].Descriptor()
+	// llmproviderconfig.DefaultEndpointFullPath holds the default value on creation for the endpoint_full_path field.
+	llmproviderconfig.DefaultEndpointFullPath = llmproviderconfigDescEndpointFullPath.Default.(bool)
 	// llmproviderconfigDescDeployment is the schema descriptor for deployment field.
-	llmproviderconfigDescDeployment := llmproviderconfigFields[8].Descriptor()
+	llmproviderconfigDescDeployment := llmproviderconfigFields[9].Descriptor()
 	// llmproviderconfig.DeploymentValidator is a validator for the "deployment" field. It is called by the builders before save.
 	llmproviderconfig.DeploymentValidator = llmproviderconfigDescDeployment.Validators[0].(func(string) error)
 	// llmproviderconfigDescEnabled is the schema descriptor for enabled field.
-	llmproviderconfigDescEnabled := llmproviderconfigFields[10].Descriptor()
+	llmproviderconfigDescEnabled := llmproviderconfigFields[11].Descriptor()
 	// llmproviderconfig.DefaultEnabled holds the default value on creation for the enabled field.
 	llmproviderconfig.DefaultEnabled = llmproviderconfigDescEnabled.Default.(bool)
 	// llmproviderconfigDescIsDefault is the schema descriptor for is_default field.
-	llmproviderconfigDescIsDefault := llmproviderconfigFields[11].Descriptor()
+	llmproviderconfigDescIsDefault := llmproviderconfigFields[12].Descriptor()
 	// llmproviderconfig.DefaultIsDefault holds the default value on creation for the is_default field.
 	llmproviderconfig.DefaultIsDefault = llmproviderconfigDescIsDefault.Default.(bool)
 	// llmproviderconfigDescSource is the schema descriptor for source field.
-	llmproviderconfigDescSource := llmproviderconfigFields[12].Descriptor()
+	llmproviderconfigDescSource := llmproviderconfigFields[13].Descriptor()
 	// llmproviderconfig.DefaultSource holds the default value on creation for the source field.
 	llmproviderconfig.DefaultSource = llmproviderconfigDescSource.Default.(string)
 	// llmproviderconfig.SourceValidator is a validator for the "source" field. It is called by the builders before save.
 	llmproviderconfig.SourceValidator = llmproviderconfigDescSource.Validators[0].(func(string) error)
 	// llmproviderconfigDescStatus is the schema descriptor for status field.
-	llmproviderconfigDescStatus := llmproviderconfigFields[13].Descriptor()
+	llmproviderconfigDescStatus := llmproviderconfigFields[14].Descriptor()
 	// llmproviderconfig.DefaultStatus holds the default value on creation for the status field.
 	llmproviderconfig.DefaultStatus = llmproviderconfigDescStatus.Default.(string)
 	// llmproviderconfig.StatusValidator is a validator for the "status" field. It is called by the builders before save.
 	llmproviderconfig.StatusValidator = llmproviderconfigDescStatus.Validators[0].(func(string) error)
 	// llmproviderconfigDescLastError is the schema descriptor for last_error field.
-	llmproviderconfigDescLastError := llmproviderconfigFields[14].Descriptor()
+	llmproviderconfigDescLastError := llmproviderconfigFields[15].Descriptor()
 	// llmproviderconfig.LastErrorValidator is a validator for the "last_error" field. It is called by the builders before save.
 	llmproviderconfig.LastErrorValidator = llmproviderconfigDescLastError.Validators[0].(func(string) error)
 	// llmproviderconfigDescCreatedAt is the schema descriptor for created_at field.
-	llmproviderconfigDescCreatedAt := llmproviderconfigFields[16].Descriptor()
+	llmproviderconfigDescCreatedAt := llmproviderconfigFields[17].Descriptor()
 	// llmproviderconfig.DefaultCreatedAt holds the default value on creation for the created_at field.
 	llmproviderconfig.DefaultCreatedAt = llmproviderconfigDescCreatedAt.Default.(func() time.Time)
 	// llmproviderconfigDescUpdatedAt is the schema descriptor for updated_at field.
-	llmproviderconfigDescUpdatedAt := llmproviderconfigFields[17].Descriptor()
+	llmproviderconfigDescUpdatedAt := llmproviderconfigFields[18].Descriptor()
 	// llmproviderconfig.DefaultUpdatedAt holds the default value on creation for the updated_at field.
 	llmproviderconfig.DefaultUpdatedAt = llmproviderconfigDescUpdatedAt.Default.(func() time.Time)
 	// llmproviderconfig.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
