@@ -288,6 +288,15 @@ func (g *LLMGateway) Chat(ctx context.Context, model string, messages []LLMMessa
 		out, _, err := g.ChatWithRequest(ctx, *g.boundRequest, model, messages)
 		return out, err
 	}
+	if g.resolver != nil {
+		// BE-8（2026-10-18）：开关启用的部署里，未绑定的既有调用方（工单总结/分诊/根因/
+		// SLA 预测/影响解释/邮件提取等）同样必须走 §3.3 解析链，按 ctx 租户解析 DB
+		// provider；否则它们会静默落到静态 env provider——演示环境静态 provider 无密钥，
+		// 各页面 AI 便以「模板兜底」形式悄悄降级。隐式链不可用时 resolveProvider 仍回落
+		// 静态（现状行为）；开关关闭（resolver=nil）时不进入本分支，旧快速路径逐字节不变。
+		out, _, err := g.ChatWithRequest(ctx, ProviderRequest{}, model, messages)
+		return out, err
+	}
 	start := time.Now()
 	// naive tokens estimation
 	tokens := 0
@@ -318,6 +327,11 @@ func (g *LLMGateway) ChatStream(ctx context.Context, model string, messages []LL
 	if g.boundRequest != nil {
 		// BE-7：绑定副本按解析链路由（未绑定时零行为变化）。
 		_, err := g.ChatStreamWithRequest(ctx, *g.boundRequest, model, messages, callback)
+		return err
+	}
+	if g.resolver != nil {
+		// BE-8（2026-10-18）：同 Chat——未绑定调用方按 ctx 租户解析（开关关闭时不进入）。
+		_, err := g.ChatStreamWithRequest(ctx, ProviderRequest{}, model, messages, callback)
 		return err
 	}
 	start := time.Now()
@@ -366,6 +380,11 @@ func (g *LLMGateway) ChatStreamWithTools(ctx context.Context, model string, mess
 	if g.boundRequest != nil {
 		// BE-7：绑定副本按解析链路由（未绑定时零行为变化）。
 		_, err := g.ChatStreamWithToolsRequest(ctx, *g.boundRequest, model, messages, tools, callback, onToolCalls)
+		return err
+	}
+	if g.resolver != nil {
+		// BE-8（2026-10-18）：同 Chat——未绑定调用方按 ctx 租户解析（开关关闭时不进入）。
+		_, err := g.ChatStreamWithToolsRequest(ctx, ProviderRequest{}, model, messages, tools, callback, onToolCalls)
 		return err
 	}
 	if p, ok := g.provider.(ToolCallingStreamProvider); ok {

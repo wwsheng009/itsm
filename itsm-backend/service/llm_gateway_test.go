@@ -1103,3 +1103,84 @@ func TestLLMGateway_SupportsToolCallingFor(t *testing.T) {
 		assert.False(t, nilGateway.SupportsToolCallingFor(context.Background(), "k"))
 	})
 }
+
+// ==================== BE-8 未绑定调用方的解析链路由（2026-10-18）====================
+
+// TestLLMGateway_Chat_UnboundUsesResolverWhenEnabled 锁定 BE-8：
+// 多 Provider 开关启用（resolver 注入）后，未绑定的 Chat 也必须按 ctx 租户解析 DB
+// provider，而不是静默落到静态 env provider（演示环境静态 provider 无密钥 → 页面 AI
+// 悄悄降级为模板兜底）。空模型必须委派给已解析 provider（不覆盖其模型）。
+func TestLLMGateway_Chat_UnboundUsesResolverWhenEnabled(t *testing.T) {
+	static := &MockLLMProvider{Response: "static-answer"}
+	resolved := &MockLLMProvider{Response: "tenant-answer"}
+	resolver := &stubProviderResolver{
+		slot: ProviderSlot{
+			Key:      "baidu",
+			Model:    "deepseek-v4.1-flash",
+			Protocol: "openai_chat_completions",
+			Provider: resolved,
+		},
+		source: ProviderSourceTenant,
+	}
+	observer := &MockObserver{}
+	gateway := NewLLMGateway(static, &MockTokenLimiter{ShouldAllow: true}, observer, "openai").WithResolver(resolver)
+
+	out, err := gateway.Chat(tenantctx.WithTenantID(context.Background(), 1), "", []LLMMessage{{Role: "user", Content: "hi"}})
+	require.NoError(t, err)
+	assert.Equal(t, "tenant-answer", out)
+	assert.Equal(t, 0, static.Calls(), "开关开启时未绑定调用不得落到静态 provider")
+	assert.Equal(t, 1, resolved.Calls())
+	assert.Equal(t, 1, resolver.resolveCalls())
+	assert.Equal(t, 1, resolver.resolveTenantID(), "租户维度必须来自 ctx（tenantctx）")
+	require.Len(t, observer.Records, 1)
+	assert.Equal(t, "baidu", observer.Records[0].ProviderKey, "观测必须记录生效 DB 实例 key")
+	assert.Equal(t, "deepseek-v4.1-flash", observer.Records[0].Model, "空模型由解析结果回填遥测")
+}
+
+// TestLLMGateway_Chat_UnboundFallsBackToStaticWithoutTenant 锁定 BE-8 的安全边界：
+// ctx 无租户（后台任务）/ 租户无可用 DB 实例时，隐式解析链失败 → 仍回落静态 provider
+// （与改造前一致的现状行为），不得把原本可用的静态调用变成硬失败。
+func TestLLMGateway_Chat_UnboundFallsBackToStaticWithoutTenant(t *testing.T) {
+	static := &MockLLMProvider{Response: "static-answer"}
+	resolver := &stubProviderResolver{err: ErrProviderNotFound}
+	gateway := NewLLMGateway(static, &MockTokenLimiter{ShouldAllow: true}, &MockObserver{}, "openai").WithResolver(resolver)
+
+	out, err := gateway.Chat(context.Background(), "", []LLMMessage{{Role: "user", Content: "hi"}})
+	require.NoError(t, err)
+	assert.Equal(t, "static-answer", out)
+	assert.Equal(t, 1, static.Calls())
+}
+
+// TestLLMGateway_ChatStream_UnboundUsesResolverWhenEnabled 锁定流式版本同 BE-8 口径。
+func TestLLMGateway_ChatStream_UnboundUsesResolverWhenEnabled(t *testing.T) {
+	static := &MockLLMProvider{Response: "static-answer"}
+	resolved := &streamingMockProvider{chunks: []string{"tenant", "-stream"}}
+	resolver := &stubProviderResolver{
+		slot:   ProviderSlot{Key: "baidu", Provider: resolved},
+		source: ProviderSourceTenant,
+	}
+	gateway := NewLLMGateway(static, &MockTokenLimiter{ShouldAllow: true}, &MockObserver{}, "openai").WithResolver(resolver)
+
+	var got []string
+	err := gateway.ChatStream(tenantctx.WithTenantID(context.Background(), 1), "", []LLMMessage{{Role: "user", Content: "hi"}}, func(chunk string) {
+		got = append(got, chunk)
+	})
+	require.NoError(t, err)
+	assert.Equal(t, []string{"tenant", "-stream"}, got)
+	assert.Equal(t, 0, static.Calls(), "开关开启时未绑定流式调用不得落到静态 provider")
+}
+
+// TestLLMGateway_Chat_NoResolverKeepsStaticFastPath 锁定零破坏：
+// 开关关闭（未注入 resolver）时，未绑定 Chat 仍走静态快速路径（逐字节保持现状）。
+func TestLLMGateway_Chat_NoResolverKeepsStaticFastPath(t *testing.T) {
+	static := &MockLLMProvider{Response: "static-answer"}
+	observer := &MockObserver{}
+	gateway := NewLLMGateway(static, &MockTokenLimiter{ShouldAllow: true}, observer, "openai")
+
+	out, err := gateway.Chat(tenantctx.WithTenantID(context.Background(), 1), "gpt-4o-mini", []LLMMessage{{Role: "user", Content: "hi"}})
+	require.NoError(t, err)
+	assert.Equal(t, "static-answer", out)
+	assert.Equal(t, 1, static.Calls())
+	require.Len(t, observer.Records, 1)
+	assert.Equal(t, "", observer.Records[0].ProviderKey, "开关关闭时观测口径保持静态（provider_key 空）")
+}

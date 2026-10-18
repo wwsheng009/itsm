@@ -91,7 +91,12 @@ func (s *ImpactExplanationService) ExplainImpact(
 		{Role: "user", Content: prompt},
 	}
 
-	resp, err := s.llm.Chat(ctx, s.model, messages)
+	// 模型委派（与 BPMN AI / 项目 AI 同一先例）：传空模型由已解析的 provider 决定，
+	// 绝不把静态 LLM_MODEL 传给网关覆盖租户 DB provider 的模型——2026-10-18 项目 AI
+	// 恒降级（千帆 403 The current model does not support Token Plan Person）即此根因。
+	// 走 ChatWithRequest 完整解析链（租户默认 DB provider → 静态回退），保持 fail-open：
+	// 解析/调用失败仍返回 nil 不向上抛。
+	resp, resolution, err := s.llm.ChatWithRequest(ctx, ProviderRequest{TenantID: tenantID}, "", messages)
 	if err != nil {
 		s.logger.Warnw("Impact explanation LLM failed; falling back to nil", "error", err, "ci_id", ciID)
 		return nil, nil
@@ -104,7 +109,12 @@ func (s *ImpactExplanationService) ExplainImpact(
 		return nil, nil
 	}
 	parsed.GeneratedAt = time.Now().UTC().Format(time.RFC3339)
-	parsed.Model = s.model
+	// 记录实际生效模型：DB 实例回带 resolution.Model；静态回退为空时保留构造参数
+	// （静态 provider 的实际模型由构造时的 LLM_MODEL 决定，网关无法回读）。
+	parsed.Model = resolution.Model
+	if parsed.Model == "" {
+		parsed.Model = s.model
+	}
 
 	// 写缓存（即使 LLM 失败也写默认值避免雪崩）
 	s.saveToCache(ctx, tenantID, ciID, hops, parsed)
