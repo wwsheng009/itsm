@@ -54,10 +54,12 @@ import type {
 } from '@/lib/services/project-service';
 import { CLOSURE_ITEM_ORDER, GATE_ORDER, projectService } from '@/lib/services/project-service';
 import { dateValue, isoValue } from '@/lib/utils/date-value';
+import { formatBudget } from '@/lib/utils/budget';
 import { ProjectReportPanel } from './components/ProjectReportPanel';
 import { ProjectResourceHeatmap } from './components/ProjectResourceHeatmap';
 import { ProjectRiskPanel } from './components/ProjectRiskPanel';
 import { ProjectAITab } from './components/ProjectAITab';
+import { ProjectHealthTag } from './components/ProjectHealthTag';
 
 const STATUS_META: Record<ProjectStatus, { label: string; color: string }> = {
   planning: { label: '规划中', color: 'default' },
@@ -65,12 +67,6 @@ const STATUS_META: Record<ProjectStatus, { label: string; color: string }> = {
   suspended: { label: '已暂停', color: 'warning' },
   completed: { label: '已完成', color: 'success' },
   cancelled: { label: '已取消', color: 'default' },
-};
-
-const HEALTH_META: Record<string, { label: string; color: string }> = {
-  green: { label: '健康', color: 'success' },
-  yellow: { label: '关注', color: 'warning' },
-  red: { label: '风险', color: 'error' },
 };
 
 const TASK_STATUS_META: Record<string, { label: string; color: string }> = {
@@ -1949,7 +1945,7 @@ export default function ProjectDetailPage() {
                     <Tag color={STATUS_META[project.status]?.color}>{STATUS_META[project.status]?.label}</Tag>
                   </Descriptions.Item>
                   <Descriptions.Item label="健康度">
-                    <Tag color={HEALTH_META[project.health]?.color}>{HEALTH_META[project.health]?.label}</Tag>
+                    <ProjectHealthTag health={project.health} reasons={project.healthReasons} />
                   </Descriptions.Item>
                   <Descriptions.Item label="项目经理">
                     {project.managerId ? (
@@ -1976,9 +1972,7 @@ export default function ProjectDetailPage() {
                   </Descriptions.Item>
                   {/* P2（PE-22）：轻量预算 + 任务工时汇总（估算/实际，口径见 plan/p2-budget-hours-design.md）。 */}
                   <Descriptions.Item label="预算">
-                    {project.budgetAmount
-                      ? `${project.budgetAmount.toLocaleString()} ${project.budgetCurrency ?? ''}`.trim()
-                      : '未设置'}
+                    {formatBudget(project.budgetAmount, project.budgetCurrency) ?? '未设置'}
                   </Descriptions.Item>
                   <Descriptions.Item label="工时汇总（估算/实际）">
                     {hoursSummary

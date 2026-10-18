@@ -51,8 +51,13 @@ func TestPortfolioReconcilesWithList(t *testing.T) {
 	require.NoError(t, err)
 	p3, err := svc.Create(ctx, &CreateRequest{TenantID: tid, Name: "组合C"})
 	require.NoError(t, err)
-	require.NoError(t, client.Project.UpdateOneID(p1.ID).SetStatus(StatusActive).SetHealth("red").Exec(ctx))
-	require.NoError(t, client.Project.UpdateOneID(p2.ID).SetStatus(StatusCompleted).SetHealth("yellow").Exec(ctx))
+	// PE-27（D-54）：健康度事实派生 —— p1 逾期项目 → red；p2 未达成里程碑（completed 保留）→ yellow。
+	past := time.Now().Add(-48 * time.Hour)
+	require.NoError(t, client.Project.UpdateOneID(p1.ID).SetStatus(StatusActive).SetEndDate(past).Exec(ctx))
+	require.NoError(t, client.Project.UpdateOneID(p2.ID).SetStatus(StatusCompleted).Exec(ctx))
+	_, err = client.ProjectMilestone.Create().SetTenantID(tid).SetProjectID(p2.ID).
+		SetName("未达成").SetDueDate(past).SetStatus("missed").Save(ctx)
+	require.NoError(t, err)
 	_, err = svc.AddMember(ctx, tid, p3.ID, viewer.ID, &MemberAddRequest{UserID: viewer.ID})
 	require.NoError(t, err)
 
@@ -86,6 +91,20 @@ func TestPortfolioReconcilesWithList(t *testing.T) {
 		}
 		assert.Equal(t, len(items), bucketTotal, "各维度桶计数总和应等于项目总数")
 	}
+	// PE-27（D-58）：byHealth 桶与组合行健康度逐键一致。
+	rowHealth := map[int]string{}
+	for _, r := range portfolio.Projects {
+		rowHealth[r.ID] = r.Health
+	}
+	healthCounts := map[string]int{}
+	for _, it := range items {
+		healthCounts[rowHealth[it.ID]]++
+	}
+	for _, b := range portfolio.Summary.ByHealth {
+		assert.Equal(t, healthCounts[b.Key], b.Count, "byHealth 桶必须与行健康度逐键一致（D-58）")
+	}
+	assert.Equal(t, 1, healthCounts[HealthLevelRed])
+	assert.Equal(t, 1, healthCounts[HealthLevelYellow])
 	foundManager := false
 	for _, b := range portfolio.Summary.ByManager {
 		if b.Key == intKey(mgr.ID) {

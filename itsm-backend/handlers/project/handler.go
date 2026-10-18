@@ -56,10 +56,15 @@ func (h *Handler) CreateProject(c *gin.Context) {
 		h.fail(c, err)
 		return
 	}
-	common.Success(c, ToResponseWithOwnerTeams(
+	resp := ToResponseWithOwnerTeams(
 		created,
 		h.service.OwnerTeamRefs(c.Request.Context(), tenantID, []*ent.Project{created}),
-	))
+	)
+	if err := h.attachHealth(c.Request.Context(), tenantID, []*ent.Project{created}, []*ProjectResponse{resp}); err != nil {
+		h.fail(c, err)
+		return
+	}
+	common.Success(c, resp)
 }
 
 // ListProjects 项目列表
@@ -93,8 +98,13 @@ func (h *Handler) ListProjects(c *gin.Context) {
 		h.fail(c, err)
 		return
 	}
+	responses := ToResponseListWithOwnerTeams(items, h.service.OwnerTeamRefs(c.Request.Context(), tenantID, items))
+	if err := h.attachHealth(c.Request.Context(), tenantID, items, responses); err != nil {
+		h.fail(c, err)
+		return
+	}
 	common.Success(c, common.NewListResponse(
-		ToResponseListWithOwnerTeams(items, h.service.OwnerTeamRefs(c.Request.Context(), tenantID, items)),
+		responses,
 		common.NewPaginationResponse(page.Page, page.PageSize, total),
 	))
 }
@@ -123,10 +133,15 @@ func (h *Handler) GetProject(c *gin.Context) {
 		h.fail(c, err)
 		return
 	}
-	common.Success(c, ToResponseWithOwnerTeams(
+	resp := ToResponseWithOwnerTeams(
 		item,
 		h.service.OwnerTeamRefs(c.Request.Context(), tenantID, []*ent.Project{item}),
-	))
+	)
+	if err := h.attachHealth(c.Request.Context(), tenantID, []*ent.Project{item}, []*ProjectResponse{resp}); err != nil {
+		h.fail(c, err)
+		return
+	}
+	common.Success(c, resp)
 }
 
 // HoursSummary 项目任务工时汇总（PE-22）
@@ -193,10 +208,15 @@ func (h *Handler) UpdateProject(c *gin.Context) {
 		return
 	}
 	h.writeBudgetAudit(c, tenantID, c.GetInt("user_id"), id, oldBudget, ToResponse(updated))
-	common.Success(c, ToResponseWithOwnerTeams(
+	resp := ToResponseWithOwnerTeams(
 		updated,
 		h.service.OwnerTeamRefs(c.Request.Context(), tenantID, []*ent.Project{updated}),
-	))
+	)
+	if err := h.attachHealth(c.Request.Context(), tenantID, []*ent.Project{updated}, []*ProjectResponse{resp}); err != nil {
+		h.fail(c, err)
+		return
+	}
+	common.Success(c, resp)
 }
 
 // DeleteProject 删除项目（软删；存在关联任务/单据时 409）
@@ -259,12 +279,28 @@ func (h *Handler) TransitionStatus(c *gin.Context) {
 		h.fail(c, err)
 		return
 	}
-	common.Success(c, ToResponse(updated))
+	resp := ToResponse(updated)
+	if err := h.attachHealth(c.Request.Context(), tenantID, []*ent.Project{updated}, []*ProjectResponse{resp}); err != nil {
+		h.fail(c, err)
+		return
+	}
+	common.Success(c, resp)
 }
 
 // ---------------------------------------------------------------------------
 // 内部工具
 // ---------------------------------------------------------------------------
+
+// attachHealth 装配派生健康度（PE-27 D-58：列表/详情/组合/报表同源；
+// 取数失败不降级 —— 直接读失败，不展示假绿，D-59）。
+func (h *Handler) attachHealth(ctx context.Context, tenantID int, projects []*ent.Project, resps []*ProjectResponse) error {
+	healthMap, err := h.service.HealthMap(ctx, tenantID, projects)
+	if err != nil {
+		return err
+	}
+	applyHealthList(resps, healthMap)
+	return nil
+}
 
 func parseID(c *gin.Context, param string) (int, bool) {
 	id, err := strconv.Atoi(c.Param(param))
@@ -387,6 +423,10 @@ func (h *Handler) fail(c *gin.Context, err error) {
 		common.Fail(c, common.ParamErrorCode, "无效的项目角色（pm|member|stakeholder）")
 	case errors.Is(err, ErrOwnerTeamUnavailable):
 		common.Fail(c, common.ParamErrorCode, "归口团队不可用（不存在/已删除/已停用）")
+	case errors.Is(err, ErrManagerUnavailable):
+		common.Fail(c, common.ParamErrorCode, "项目经理不可用（须为本租户活跃成员）")
+	case errors.Is(err, ErrDepartmentUnavailable):
+		common.Fail(c, common.ParamErrorCode, "所属部门不可用（不存在/已删除）")
 	case errors.Is(err, ErrReportTemplateNotFound):
 		common.Fail(c, common.NotFoundCode, "报告模板不存在")
 	case errors.Is(err, ErrReportTemplateExists):

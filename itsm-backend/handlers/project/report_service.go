@@ -304,6 +304,12 @@ func (s *Service) GenerateProjectReport(ctx context.Context, tenantID, projectID
 	if err != nil {
 		return nil, err
 	}
+	// PE-27（D-58）：报告健康度派生，与列表/详情同源（含解释项）。
+	healthMap, err := s.HealthMap(ctx, tenantID, []*ent.Project{p})
+	if err != nil {
+		return nil, err
+	}
+	derived := healthMap[p.ID]
 
 	// 偏差：无基线（ErrBaselineNotFound）跳过；其他错误不吞。
 	var variance *ReportVarianceSummary
@@ -328,7 +334,8 @@ func (s *Service) GenerateProjectReport(ctx context.Context, tenantID, projectID
 		ProjectName:    p.Name,
 		ProjectCode:    p.Code,
 		Status:         normalizeStatus(p.Status),
-		Health:         p.Health,
+		Health:         healthLevelOf(healthMap, p.ID),
+		HealthReasons:  derived.Reasons,
 		Progress:       p.Progress,
 		GeneratedAt:    now,
 		Template:       templateRef,
@@ -434,13 +441,40 @@ func (s *Service) ReportGroupsByOwnerTeam(ctx context.Context, tenantID, viewerI
 		}
 		projectIDs = ids
 	}
-	aggs, err := s.repo.ReportGroupsByOwnerTeam(ctx, tenantID, projectIDs)
+	projects, err := s.repo.ListProjectsForReportGroups(ctx, tenantID, projectIDs)
 	if err != nil {
 		return nil, err
 	}
-	if len(aggs) == 0 {
+	if len(projects) == 0 {
 		return []ReportGroupResponse{}, nil
 	}
+	// PE-27（D-58）：分组绿/黄/红计数按派生健康度（与列表逐行一致）。
+	healthMap, err := s.HealthMap(ctx, tenantID, projects)
+	if err != nil {
+		return nil, err
+	}
+	byTeam := make(map[int]*ReportGroupAggregate, 4)
+	for _, p := range projects {
+		agg, ok := byTeam[p.OwnerTeamID]
+		if !ok {
+			agg = &ReportGroupAggregate{OwnerTeamID: p.OwnerTeamID}
+			byTeam[p.OwnerTeamID] = agg
+		}
+		agg.ProjectCount++
+		switch healthLevelOf(healthMap, p.ID) {
+		case HealthLevelRed:
+			agg.RedCount++
+		case HealthLevelYellow:
+			agg.YellowCount++
+		default:
+			agg.GreenCount++
+		}
+	}
+	aggs := make([]ReportGroupAggregate, 0, len(byTeam))
+	for _, agg := range byTeam {
+		aggs = append(aggs, *agg)
+	}
+	sort.Slice(aggs, func(i, j int) bool { return aggs[i].OwnerTeamID < aggs[j].OwnerTeamID })
 	teamIDs := make([]int, 0, len(aggs))
 	for _, agg := range aggs {
 		if agg.OwnerTeamID > 0 {

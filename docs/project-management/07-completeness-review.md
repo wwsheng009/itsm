@@ -17,7 +17,7 @@
 
 | # | 能力域 | 方案现状 | 裁决 |
 |---|---|---|---|
-| 1 | 主数据/生命周期 | P0 状态机/类型/父子/健康度 | ✅ 覆盖 |
+| 1 | 主数据/生命周期 | P0 状态机/类型/父子/健康度 | ✅ 覆盖；**健康度升级为读时派生 + `healthReasons[]` 可展开解释（PE-27，D-54~D-59，设计见 [plan/p3-health-design.md](./plan/p3-health-design.md)）** |
 | 2 | 主数据/编号 | 手工 `code` | ✅ P0 沿用 code + 校验；**可选自动编号**（对齐 `ticket_number`/`change_number` 先例） |
 | 3 | 组织/成员 | P0 成员；membership 派生外部标签 | ✅ P1 增补 team/group 归口（复用 `membership_org` 维度） |
 | 4 | 计划/进度 | P0/P1 任务/里程碑；甘特可选 | ✅ 依赖 **v1 仅 FS**；甘特可选视图后置 |
@@ -105,6 +105,8 @@
 
 | 日期 | 文档 | 变更 |
 |---|---|---|
+| 2026-10-18 | 07（本文件）/02/06/README | 外部「模块评审」P0 缺口核验与收敛登记：健康度（PE-27 已落地）+ 字段校验（PE-28：负责人/部门/日期/币种，D-60~D-63）；状态机扩容（进行中/暂停/终止）与验收把关核验为**已覆盖**、「归档」由软删承担；「已完成须有计划结束日期」**评估不采纳**（PE-24 已按 `noPlanDate` 归口）。核验表见 [plan/p3-write-integrity-design.md](./plan/p3-write-integrity-design.md) §1/§5 |
+| 2026-10-18 | 07（本文件）/02/06/README | §2-1 标注 PE-27 落地（健康度读时派生：9 条规则 + `healthReasons[]` + 全读路径同源；`PUT /projects/:id` 移除 `health` 入参；零新表/端点/迁移；设计见 plan/p3-health-design.md，D-54~D-59） |
 | 2026-10-28 | 06/ROADMAP | P2 收口完成标记（真实库迁移 + RLS `-verify` + 探针 11/11 + HTTP E2E 38/38 + 浏览器 UI 冒烟 15/15，覆盖 PE-21~PE-26） |
 | 2026-10-28 | 07（本文件） | §2-15/B5 标注 PE-26 落地（采购/资产登记结构化链接：`project_asset_links` 同租户弱引用 + 4 端点 + 结项清单明细；门禁语义不变；设计见 plan/p2-procurement-design.md） |
 | 2026-10-27 | 07（本文件） | §2-19 标注 PE-24 落地（组合视图 + 四项度量与明细对账；设计见 plan/p2-portfolio-metrics-design.md） |

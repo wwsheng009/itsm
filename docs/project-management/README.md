@@ -1,6 +1,6 @@
 # 项目管理模块文档集（Project Management）
 
-> 状态：**P0–P2 已收口（PE-1~PE-26 全部落地并通过真实库 + HTTP E2E + 浏览器验证）**
+> 状态：**P0–P2 已收口（PE-1~PE-26 全部落地并通过真实库 + HTTP E2E + 浏览器验证）**；**P3-A 治理补强启动：PE-27 健康度派生与解释已落地（2026-10-18）**
 > 更新日期：2026-10-28
 > 定位：`docs/project-management/` 的**唯一入口索引**——模块蓝图、数据模型、集成点、身份与成员、MSP 交付、实施路线。
 > 关联：多租户/MSP 权威口径以 [multi-tenant canon](../multi-tenant/plan/msp-concept-model-and-architecture-canon.md) 为准；现有产品架构文档将项目管理列在"组织架构支撑模块"下（`prd/ITSM产品模块架构设计.md` §3.1），本文件集将其**上移为一级业务模块**并给出演进方案。
@@ -25,13 +25,13 @@
 
 | 文档 | 状态 | 定位 |
 |---|---|---|
-| [README.md](./README.md)（本文件） | Draft v1.0 | 入口索引、阅读路径、决策记录（D-01~D-53） |
+| [README.md](./README.md)（本文件） | Draft v1.0 | 入口索引、阅读路径、决策记录（D-01~D-63） |
 | [01-module-blueprint.md](./01-module-blueprint.md) | Draft v0.2 | 模块定位与边界、能力矩阵、阶段门、命名约定 |
 | [02-data-model.md](./02-data-model.md) | Draft v0.2 | 数据模型草案、单租户原则、基线快照、工程约定 |
 | [03-integration.md](./03-integration.md) | Draft v0.2 | 与本仓已有能力的结合点清单（20 项） |
 | [04-membership-and-external-users.md](./04-membership-and-external-users.md) | Draft v0.1 | membership 单源、外部人员简化方案、provider 投影 |
 | [05-msp-delivery.md](./05-msp-delivery.md) | Draft v0.1 | MSP 客户交付项目（P2 后置）与前置改造 |
-| [06-implementation-roadmap.md](./06-implementation-roadmap.md) | Draft v0.2 | P0–P3 分期（PE-1~PE-26）、工程落地清单、验收要点 |
+| [06-implementation-roadmap.md](./06-implementation-roadmap.md) | Draft v0.2 | P0–P3 分期（PE-1~PE-28）、工程落地清单、验收要点 |
 | [07-completeness-review.md](./07-completeness-review.md) | **裁决版 v1.0** | 完整性审查 + 最佳实践裁决（B1–B7 结论、非目标、回写记录） |
 | [08-change-log.md](./08-change-log.md) | **已实施 v1.0** | 2026-10-18 进度汇总/MSP 顶栏 403/日期编辑崩溃的变更、验证与部署证据；§6 单据挂接项目（PE-5 增补：创建时挂接 + 详情页所属项目，未部署） |
 | [plan/p0-integration-contracts.md](./plan/p0-integration-contracts.md) | Draft v1.0 | P0 集成契约：14 项决策收敛、接口/时序/错误码/审计/事件清单/测试矩阵 |
@@ -50,8 +50,10 @@
 | [plan/p2-portfolio-metrics-design.md](./plan/p2-portfolio-metrics-design.md) | **已实现 v1.0** | P2 组合视图与度量（PE-24）：组合聚合/四项度量口径（交付/里程碑/门一次通过/资源利用率）/明细对账（D-40~D-43）/API/验证证据 |
 | [plan/p2-ai-design.md](./plan/p2-ai-design.md) | **已实现 v1.0** | P2 AI（PE-25）：周报摘要/风险预警/纪要转任务、降级矩阵与审计（D-44~D-48）、LLM 适配器与提示词策略/API/验证证据 |
 | [plan/p2-procurement-design.md](./plan/p2-procurement-design.md) | **已实现 v1.0** | P2 采购/资产结项登记（PE-26）：`project_asset_links`（同租户弱引用/软删/未删行唯一）、列表/新增/删除/候选 4 端点、结项清单明细与门禁语义（D-49~D-53）/验证证据 |
+| [plan/p3-health-design.md](./plan/p3-health-design.md) | **已实现 v1.0** | P3-A 治理补强（PE-27）：健康度读时派生（9 条规则 + 阈值，`cancelled`/`completed` 终态语义）、`healthReasons[]` 可展开解释、列表/详情/组合/报表/AI facts 同源（D-54~D-59）/验证证据 |
+| [plan/p3-write-integrity-design.md](./plan/p3-write-integrity-design.md) | **已实现 v1.0** | P3-A 治理补强（PE-28）：写入完整性校验——负责人（同租户活跃 membership）/部门（同租户未软删）/项目日期区间（end ≥ start，更新合并存量）/币种（trim+大写，`^[A-Z]{2,8}$`）写侧 fail-closed；外部模块评审 P0 缺口核验表（D-60~D-63）/验证证据 |
 
-> 维护规则：新增/重命名/停用文档必须同步本索引。P2 详细设计（PE-21~PE-26）均已登记；后续批次（P2 收口验证/P2+/P3）继续放 `plan/` 子目录并在本索引登记。
+> 维护规则：新增/重命名/停用文档必须同步本索引。P2 详细设计（PE-21~PE-26）与 P3-A 治理补强（PE-27/PE-28）均已登记；后续批次（P2 收口验证/P3-B MSP 交付）继续放 `plan/` 子目录并在本索引登记。
 
 ## 2. 按角色的阅读路径
 
@@ -142,6 +144,16 @@
 | D-51 | **门禁语义不变**：结项清单项 `assets` 仍以「已确认（confirm）或已豁免（waive）」判定；链接是登记**明细**（响应 `assetsLinks`/`assetsLinkSummary`，清单项 detail 携带登记条数），不是新门禁条件 | 06 §4.3 验收原文是「可链接」；P1 门禁已验收不回退、存量项目不受升级影响（同上 §2） |
 | D-52 | **候选选择器统一入口**：`GET /projects/:id/asset-link-candidates`（`project:read`，可见性同详情 404）：`type` 四词表必填、`q` 关键词（`ContainsFold`）、`limit` 默认 20/上限 50；返回**最小字段** `{id,label,sublabel}`（不回传价格/密钥/联系方式/合同金额），各域强制 `tenant_id` 过滤 | 统一选择器（`contract` 无 HTTP 面、`vendor` 前端无页面）；字段最小化控制跨域读暴露面（同上 §2/§4） |
 | D-53 | **写权限与终态**：新增/删除 = `project:write` + 可见性谓词；**cancelled 拒绝写（400）**；`completed` 允许补登记（采购/发票后到的真实场景，与 PE-15 结项动作同口径）；审计 `asset_link_create\|asset_link_delete`（记录 linkType/targetId/label/note 长度，不落敏感字段） | 结项动作一致口径 + 审计留痕替代事后禁止（同上 §2/§5） |
+| D-54 | **健康度只读派生**：读时实时计算、不落库；`projects.health` 列保留但不再读写（存量忽略、不回填、不迁移）；`PUT /projects/:id` 移除 `health` 入参（前端本未发送） | 单一事实来源；跟随 D-38/D-39「热图/度量实时计算不落库」先例；避免双写漂移（[plan/p3-health-design.md](./plan/p3-health-design.md) §2/§4） |
+| D-55 | **规则集 9 条**：`overdue_project`(red)/`schedule_deviation`(≥20pp 黄、≥40pp 红)/`overdue_task`(1~2 黄、≥3 红)/`blocked_task`(黄)/`overdue_milestone`(黄)/`missed_milestone`(黄)/`open_high_risk`(1~2 黄、≥3 红，仅 `kind=risk` ∧ `level=high` ∧ 未关闭)/`gate_rejected`(黄)/`budget_deviation`(黄，基线 `schemaVersion≥2` 冻结预算 vs 当前)；评审四输入（进度偏差/预算偏差/风险数/逾期任务）为骨架，其余复用 D-45 AI 信号同名词表 | 列表健康度、AI 风险预警、组合度量使用同一批事实与同一套词表（同上 §2/§3） |
+| D-56 | **终态语义**：`cancelled` 恒 green（无信号）；`completed` 仅保留 `missed_milestone`（yellow）；`planning/active/suspended` 应用全量规则 | 健康度=「是否仍需关注」；终态无未来动作面，但已完成项目的里程碑错过仍应可见（同上 §3） |
+| D-57 | **可解释契约**：`ProjectResponse` 新增 `healthReasons[]`（`{rule,level,message,count?}`），red 优先、同级按规则名排序；`health`=命中规则最高级；无信号=green 且省略数组；报告 `data` 同步携带 | 评审要求「做成可展开的解释」；零新端点（同上 §4） |
+| D-58 | **装配同源**：列表/详情/创建/更新/流转响应、组合（行 + `byHealth` 桶）、报表（`data` + 归口分组 counts）、AI facts 全部调用同一 `deriveHealth`；列表/组合按页**批量取数**（tasks/milestones/gates/risks/baselines），单项目路径同函数单发 | D-40「组合与列表口径同源」延伸到健康度；避免 N+1（同上 §2/§4） |
+| D-59 | **取数失败不降级**：事实源查询失败 → 读失败（不展示假绿）；基线快照解码失败仅跳过预算规则并留日志 | 「可信」优先于「可用」；快照为辅助输入，单条损坏不应拖垮整个列表（同上 §2） |
+| D-60 | **负责人写入校验**：`managerId > 0` 必须为**同租户活跃 membership**（未软删/status=active/未过期），否则 400 `ErrManagerUnavailable`；≤0 = 未设置（创建）/不修改（更新，`optionalInt` 语义）；**不要求先加入项目成员**（立项门负责任命把关） | 复用 `ActiveMembership`（与加入成员前置校验同源）；防悬空引用污染立项门/通知候选/组合分组（[plan/p3-write-integrity-design.md](./plan/p3-write-integrity-design.md) §2） |
+| D-61 | **部门写入校验**：`departmentId > 0` 必须同租户且未软删，否则 400 `ErrDepartmentUnavailable`；≤0 同 D-60 语义 | 防组合「按部门」维度出现不可解析引用（同上 §2） |
+| D-62 | **项目日期口径**：`startDate`/`endDate` 两端齐备（更新按**合并存量**后有效值）须 `endDate ≥ startDate`，否则 400；计划日期保持可空（单端可存在，不引入必填） | 与任务级 `planEnd ≥ planStart` 对齐；快照/偏差/健康度以日期为输入（同上 §2） |
+| D-63 | **币种口径**：`budgetCurrency` trim + **大写归一**；非空须匹配 `^[A-Z]{2,8}$`，否则 400；空串=租户默认（D-33 成对清空不变，不做币种主数据） | 展示与基线预算比对需要稳定币种口径；前端新增共享 `formatBudget`（同上 §2/§3） |
 
 ## 6. 开放问题（待确认）
 

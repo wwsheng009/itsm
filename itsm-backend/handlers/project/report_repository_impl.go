@@ -2,7 +2,6 @@ package project
 
 import (
 	"context"
-	"sort"
 	"strings"
 	"time"
 
@@ -172,45 +171,22 @@ func (r *EntRepository) ReportTemplateNameExists(ctx context.Context, tenantID i
 	return query.Exist(ctx)
 }
 
-// ReportGroupsByOwnerTeam 报表分组：按归口团队 + 健康度聚合项目数（可见性收窄在调用方完成）。
-func (r *EntRepository) ReportGroupsByOwnerTeam(ctx context.Context, tenantID int, projectIDs []int) ([]ReportGroupAggregate, error) {
+// ListProjectsForReportGroups 报表分组取数：轻量列（健康度由服务层派生，PE-27 D-58）。
+func (r *EntRepository) ListProjectsForReportGroups(ctx context.Context, tenantID int, projectIDs []int) ([]*ent.Project, error) {
 	query := r.client.Project.Query().
 		Where(project.TenantIDEQ(tenantID), project.DeletedAtIsNil())
 	if projectIDs != nil {
 		if len(projectIDs) == 0 {
-			return []ReportGroupAggregate{}, nil
+			return []*ent.Project{}, nil
 		}
 		query = query.Where(project.IDIn(projectIDs...))
 	}
 	// 说明：ent 的 GroupBy+Scan 对多词列名（owner_team_id）不做 struct 字段映射，
-	// 这里用 Select 轻量列后在内存聚合（报表读路径，规模可控；可见性已在 SQL 收窄）。
-	projects, err := query.
-		Select(project.FieldID, project.FieldOwnerTeamID, project.FieldHealth).
+	// 这里用 Select 轻量列（健康度派生所需最小字段集，健康度在服务层派生）。
+	return query.
+		Select(
+			project.FieldID, project.FieldOwnerTeamID, project.FieldStatus, project.FieldProgress,
+			project.FieldStartDate, project.FieldEndDate, project.FieldBudgetAmount, project.FieldBudgetCurrency,
+		).
 		All(ctx)
-	if err != nil {
-		return nil, err
-	}
-	byTeam := make(map[int]*ReportGroupAggregate, 4)
-	for _, p := range projects {
-		agg, ok := byTeam[p.OwnerTeamID]
-		if !ok {
-			agg = &ReportGroupAggregate{OwnerTeamID: p.OwnerTeamID}
-			byTeam[p.OwnerTeamID] = agg
-		}
-		agg.ProjectCount++
-		switch p.Health {
-		case "red":
-			agg.RedCount++
-		case "yellow":
-			agg.YellowCount++
-		default:
-			agg.GreenCount++
-		}
-	}
-	out := make([]ReportGroupAggregate, 0, len(byTeam))
-	for _, agg := range byTeam {
-		out = append(out, *agg)
-	}
-	sort.Slice(out, func(i, j int) bool { return out[i].OwnerTeamID < out[j].OwnerTeamID })
-	return out, nil
 }

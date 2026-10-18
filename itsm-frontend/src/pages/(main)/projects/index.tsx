@@ -26,6 +26,8 @@ import type { Department } from '@/lib/services/department-service';
 import { departmentService } from '@/lib/services/department-service';
 import { UserApi } from '@/lib/api/user-api';
 import { dateValue, isoValue } from '@/lib/utils/date-value';
+import { formatBudget, normalizeBudgetCurrency } from '@/lib/utils/budget';
+import { ProjectHealthTag } from './components/ProjectHealthTag';
 
 const { RangePicker } = DatePicker;
 
@@ -41,12 +43,6 @@ const TYPE_META: Record<ProjectType, { label: string; color: string }> = {
   internal: { label: 'IT 内部项目', color: 'blue' },
   improvement: { label: '服务改进', color: 'purple' },
   delivery: { label: '交付项目', color: 'cyan' },
-};
-
-const HEALTH_META: Record<string, { label: string; color: string }> = {
-  green: { label: '健康', color: 'success' },
-  yellow: { label: '关注', color: 'warning' },
-  red: { label: '风险', color: 'error' },
 };
 
 export default function ProjectsPage() {
@@ -161,7 +157,8 @@ export default function ProjectsPage() {
       // PE-22：预算同写同清——填写金额即连同币种提交（币种缺省空串 = 租户默认）；金额 <=0 = 清空。
       if (values.budgetAmount !== undefined && values.budgetAmount !== null) {
         payload.budgetAmount = values.budgetAmount;
-        payload.budgetCurrency = typeof values.budgetCurrency === 'string' ? values.budgetCurrency.trim() : '';
+        // PE-28（D-63）：币种 trim + 大写归一（非空须 2-8 位字母，由后端强校验）。
+        payload.budgetCurrency = normalizeBudgetCurrency(values.budgetCurrency);
       } else {
         delete payload.budgetAmount;
         delete payload.budgetCurrency;
@@ -294,8 +291,8 @@ export default function ProjectsPage() {
         dataIndex: 'health',
         key: 'health',
         width: 90,
-        render: (health: string) => (
-          <Tag color={HEALTH_META[health]?.color}>{HEALTH_META[health]?.label ?? health}</Tag>
+        render: (_: string, record: Project) => (
+          <ProjectHealthTag health={record.health} reasons={record.healthReasons} />
         ),
       },
       {
@@ -339,8 +336,7 @@ export default function ProjectsPage() {
         title: '预算',
         key: 'budget',
         width: 140,
-        render: (_: unknown, record) =>
-          record.budgetAmount ? `${record.budgetAmount.toLocaleString()} ${record.budgetCurrency ?? ''}`.trim() : '-',
+        render: (_: unknown, record) => formatBudget(record.budgetAmount, record.budgetCurrency) ?? '-',
       },
       {
         title: '操作',
@@ -502,7 +498,7 @@ export default function ProjectsPage() {
             <Form.Item name="budgetAmount" label="预算金额" extra="留空 = 未设置（不做财务级核算）">
               <InputNumber min={0} style={{ width: '100%' }} placeholder="如 120000" />
             </Form.Item>
-            <Form.Item name="budgetCurrency" label="币种" extra="留空 = 租户默认">
+            <Form.Item name="budgetCurrency" label="币种" extra="2-8 位字母（如 CNY / USD）；留空 = 租户默认">
               <Input maxLength={8} placeholder="如 CNY / USD" />
             </Form.Item>
           </div>

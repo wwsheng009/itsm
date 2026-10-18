@@ -7,6 +7,13 @@ import { httpClient } from '@/lib/api/http-client';
 export type ProjectType = 'internal' | 'improvement' | 'delivery';
 export type ProjectStatus = 'planning' | 'active' | 'suspended' | 'completed' | 'cancelled';
 export type ProjectHealth = 'green' | 'yellow' | 'red';
+/** PE-27 健康度解释项：rule 为命中规则（进度偏差/预算偏差/风险/逾期任务等），count 为明细数。 */
+export interface HealthReason {
+  rule: string;
+  level: ProjectHealth;
+  message: string;
+  count?: number;
+}
 export type ProjectRole = 'pm' | 'member' | 'stakeholder';
 export type TaskStatus = 'todo' | 'in_progress' | 'blocked' | 'done' | 'cancelled';
 export type TaskPriority = 'low' | 'medium' | 'high' | 'critical';
@@ -19,7 +26,9 @@ export interface Project {
   description: string;
   type: ProjectType;
   status: ProjectStatus;
+  /** PE-27：事实派生值（读时计算，不可写；写面已移除 health）。 */
   health: ProjectHealth;
+  healthReasons?: HealthReason[];
   progress: number;
   managerId?: number;
   departmentId?: number;
@@ -81,7 +90,7 @@ export interface CreateProjectRequest {
 }
 
 export interface UpdateProjectRequest extends Partial<Omit<CreateProjectRequest, 'code'>> {
-  health?: ProjectHealth;
+  /** PE-27：health 已移出写面（后端派生）；此处不再接受 health。 */
   progress?: number;
   version?: number;
 }
@@ -655,6 +664,8 @@ export interface ProjectReportData {
   projectCode: string;
   status: ProjectStatus;
   health: ProjectHealth;
+  /** PE-27：报告 data 同步携带派生解释项（与列表同源）。 */
+  healthReasons?: HealthReason[];
   progress: number;
   managerId?: number;
   ownerTeam?: { id: number; name: string; deleted: boolean };

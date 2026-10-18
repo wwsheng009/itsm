@@ -44,7 +44,6 @@ type UpdateParams struct {
 	Name         *string
 	Description  *string
 	Type         *string
-	Health       *string
 	Progress     *int
 	ManagerID    *int
 	DepartmentID *int
@@ -116,6 +115,11 @@ type Repository interface {
 	ActiveMemberships(ctx context.Context, tenantID, limit int) ([]*ent.UserTenantMembership, error)
 	// UsersByIDs 批量取用户（展示字段；不按 home tenant 过滤——provider 投影用户归属他租户）。
 	UsersByIDs(ctx context.Context, userIDs []int) ([]*ent.User, error)
+
+	// ---- 引用校验（PE-28）----
+
+	// ActiveDepartment 部门引用（同租户、未软删；不存在返回 ent.IsNotFound）。
+	ActiveDepartment(ctx context.Context, tenantID, departmentID int) (*ent.Department, error)
 
 	// ---- 任务（PE-4）----
 
@@ -215,6 +219,10 @@ type Repository interface {
 	ListTasksByProjects(ctx context.Context, tenantID int, projectIDs []int) ([]*ent.ProjectTask, error)
 	// ListMembersByProjects 批量成员（跨项目；含已移除行，口径同 ListMembers）。
 	ListMembersByProjects(ctx context.Context, tenantID int, projectIDs []int) ([]*ent.ProjectMember, error)
+	// ListRisksByProjects 批量风险/问题（跨项目；未软删，口径同 ListRisks 无过滤视图）——PE-27 健康度事实源。
+	ListRisksByProjects(ctx context.Context, tenantID int, projectIDs []int) ([]*ent.ProjectRisk, error)
+	// ListBaselinesByProjects 批量基线（跨项目；version 升序，取每项目最新）——PE-27 健康度事实源。
+	ListBaselinesByProjects(ctx context.Context, tenantID int, projectIDs []int) ([]*ent.ProjectBaseline, error)
 
 	// GetGate 取单门（不存在返回 ent.IsNotFound）。
 	GetGate(ctx context.Context, tenantID, projectID int, gate string) (*ent.ProjectGate, error)
@@ -271,8 +279,9 @@ type Repository interface {
 	// ReportTemplateNameExists 报告模板名占用（excludeID>0 时排除自身）。
 	ReportTemplateNameExists(ctx context.Context, tenantID int, name string, excludeID int) (bool, error)
 
-	// ReportGroupsByOwnerTeam 报表分组：按归口团队 + 健康度聚合项目数（projectIDs 收窄，nil=不限）。
-	ReportGroupsByOwnerTeam(ctx context.Context, tenantID int, projectIDs []int) ([]ReportGroupAggregate, error)
+	// ListProjectsForReportGroups 报表分组取数：轻量列（id/owner_team_id/状态/进度/日期/预算），
+	// 健康度由服务层派生（PE-27 D-58）；projectIDs 收窄，nil=不限。
+	ListProjectsForReportGroups(ctx context.Context, tenantID int, projectIDs []int) ([]*ent.Project, error)
 
 	// --- PE-21 风险/问题台账 ---
 

@@ -21,6 +21,9 @@ var (
 	ErrValidation        = errors.New("project validation failed")
 	ErrReasonRequired    = errors.New("reason required")
 	ErrNoUpdateFields    = errors.New("no update fields")
+	// PE-28（D-60/D-61）：引用型字段写入校验。
+	ErrManagerUnavailable    = errors.New("manager is not an available tenant member")
+	ErrDepartmentUnavailable = errors.New("department is not available")
 )
 
 // ClosureBlockedError 结项门禁阻塞（409 + blockers 明细）。
@@ -127,6 +130,17 @@ func (s *Service) Create(ctx context.Context, req *CreateRequest) (*ent.Project,
 		return nil, err
 	}
 
+	// PE-28：写入完整性校验（负责人 D-60 / 部门 D-61 / 日期区间 D-62）。
+	if err := s.ensureManager(ctx, req.TenantID, derefInt(req.ManagerID)); err != nil {
+		return nil, err
+	}
+	if err := s.ensureDepartment(ctx, req.TenantID, derefInt(req.DepartmentID)); err != nil {
+		return nil, err
+	}
+	if err := validateDateRange(req.StartDate, req.EndDate); err != nil {
+		return nil, err
+	}
+
 	// PE-22：轻量预算校验（成对提供；amount<=0 = 未设置）。
 	budgetAmount, budgetCurrency, err := normalizeBudget(req.BudgetAmount, req.BudgetCurrency)
 	if err != nil {
@@ -191,18 +205,80 @@ func (s *Service) Get(ctx context.Context, tenantID, id int) (*ent.Project, erro
 	return p, nil
 }
 
+// ---------------------------------------------------------------------------
+// PE-28 写入完整性校验（D-60~D-63；权威定义：
+// docs/project-management/plan/p3-write-integrity-design.md）。
+// ---------------------------------------------------------------------------
+
+// ensureManager 负责人校验（D-60）：必须为本租户活跃 membership（未软删/active/未过期）。
+func (s *Service) ensureManager(ctx context.Context, tenantID, userID int) error {
+	if userID <= 0 {
+		return nil
+	}
+	if _, err := s.repo.ActiveMembership(ctx, tenantID, userID); err != nil {
+		if ent.IsNotFound(err) {
+			return ErrManagerUnavailable
+		}
+		return err
+	}
+	return nil
+}
+
+// ensureDepartment 部门校验（D-61）：必须同租户且未软删。
+func (s *Service) ensureDepartment(ctx context.Context, tenantID, departmentID int) error {
+	if departmentID <= 0 {
+		return nil
+	}
+	if _, err := s.repo.ActiveDepartment(ctx, tenantID, departmentID); err != nil {
+		if ent.IsNotFound(err) {
+			return ErrDepartmentUnavailable
+		}
+		return err
+	}
+	return nil
+}
+
+// validateDateRange 创建路径日期校验（D-62）：两端齐备时 endDate 不得早于 startDate。
+func validateDateRange(start, end *time.Time) error {
+	if start == nil || end == nil {
+		return nil
+	}
+	return checkDateOrder(*start, *end)
+}
+
+// validateDateRangeMerged 更新路径日期校验（D-62）：单端更新与存量合并后判定。
+func validateDateRangeMerged(curStart, curEnd time.Time, reqStart, reqEnd *time.Time) error {
+	start, end := curStart, curEnd
+	if reqStart != nil {
+		start = *reqStart
+	}
+	if reqEnd != nil {
+		end = *reqEnd
+	}
+	if start.IsZero() || end.IsZero() {
+		return nil
+	}
+	return checkDateOrder(start, end)
+}
+
+// checkDateOrder 日期区间断言（同日通过）。
+func checkDateOrder(start, end time.Time) error {
+	if end.Before(start) {
+		return fmt.Errorf("%w: endDate must not be before startDate", ErrValidation)
+	}
+	return nil
+}
+
 // Update 基础字段更新（version 可选乐观锁）。
 func (s *Service) Update(ctx context.Context, tenantID, id int, req *UpdateRequest) (*ent.Project, error) {
 	if req.Type != nil && !validTypes[*req.Type] {
 		return nil, fmt.Errorf("%w: invalid type %q", ErrValidation, *req.Type)
 	}
-	if req.Health != nil && !validHealths[*req.Health] {
-		return nil, fmt.Errorf("%w: invalid health %q", ErrValidation, *req.Health)
-	}
+	// PE-27（D-54）：health 移出写面（读时派生，含 healthReasons 解释），不再校验。
 	if req.Progress != nil && (*req.Progress < 0 || *req.Progress > 100) {
 		return nil, fmt.Errorf("%w: progress must be within 0-100", ErrValidation)
 	}
-	if req.Name == nil && req.Description == nil && req.Type == nil && req.Health == nil &&
+	if req.Name == nil && req.Description == nil && req.Type == nil &&
 		req.Progress == nil && req.ManagerID == nil && req.DepartmentID == nil && req.OwnerTeamID == nil &&
 		req.StartDate == nil && req.EndDate == nil && req.BudgetAmount == nil && req.BudgetCurrency == nil {
 		return nil, ErrNoUpdateFields
@@ -210,6 +286,30 @@ func (s *Service) Update(ctx context.Context, tenantID, id int, req *UpdateReque
 	// PE-17：仅当显式归口到具体团队时校验（nil/0 = 不修改/清空）。
 	if req.OwnerTeamID != nil && *req.OwnerTeamID > 0 {
 		if err := s.ensureOwnerTeam(ctx, tenantID, *req.OwnerTeamID); err != nil {
+			return nil, err
+		}
+	}
+	// PE-28：写入完整性校验（仅当显式指向具体用户/部门；nil/0 = 不修改，optionalInt 语义）。
+	if req.ManagerID != nil && *req.ManagerID > 0 {
+		if err := s.ensureManager(ctx, tenantID, *req.ManagerID); err != nil {
+			return nil, err
+		}
+	}
+	if req.DepartmentID != nil && *req.DepartmentID > 0 {
+		if err := s.ensureDepartment(ctx, tenantID, *req.DepartmentID); err != nil {
+			return nil, err
+		}
+	}
+	// PE-28（D-62）：日期区间校验——单端更新与存量合并后判定。
+	if req.StartDate != nil || req.EndDate != nil {
+		current, err := s.repo.Get(ctx, tenantID, id)
+		if err != nil {
+			if ent.IsNotFound(err) {
+				return nil, ErrNotFound
+			}
+			return nil, err
+		}
+		if err := validateDateRangeMerged(current.StartDate, current.EndDate, req.StartDate, req.EndDate); err != nil {
 			return nil, err
 		}
 	}
@@ -224,7 +324,6 @@ func (s *Service) Update(ctx context.Context, tenantID, id int, req *UpdateReque
 		Name:           req.Name,
 		Description:    req.Description,
 		Type:           req.Type,
-		Health:         req.Health,
 		Progress:       req.Progress,
 		ManagerID:      req.ManagerID,
 		DepartmentID:   req.DepartmentID,

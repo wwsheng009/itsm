@@ -197,6 +197,8 @@ type ReportData struct {
 	ProjectCode    string             `json:"projectCode"`
 	Status         string             `json:"status"`
 	Health         string             `json:"health"`
+	// PE-27：派生健康度解释项（无信号省略；与列表/D-57 同源）。
+	HealthReasons  []HealthReason     `json:"healthReasons,omitempty"`
 	Progress       int                `json:"progress"`
 	ManagerID      *int               `json:"managerId,omitempty"`
 	OwnerTeam      *ReportOwnerTeam   `json:"ownerTeam,omitempty"`
@@ -235,6 +237,13 @@ func buildReportMarkdown(data *ReportData) string {
 	fmt.Fprintf(&b, "# 项目状态报告 · %s（%s）\n\n", data.ProjectName, data.ProjectCode)
 	fmt.Fprintf(&b, "- 生成时间：%s\n", data.GeneratedAt.Format("2006-01-02 15:04"))
 	fmt.Fprintf(&b, "- 状态：%s｜健康度：%s｜进度：%d%%\n", data.Status, data.Health, data.Progress)
+	if len(data.HealthReasons) > 0 {
+		reasons := make([]string, 0, len(data.HealthReasons))
+		for _, r := range data.HealthReasons {
+			reasons = append(reasons, r.Message)
+		}
+		fmt.Fprintf(&b, "- 健康度信号：%s\n", strings.Join(reasons, "；"))
+	}
 	if data.ManagerID != nil {
 		fmt.Fprintf(&b, "- 项目经理ID：%d\n", *data.ManagerID)
 	}

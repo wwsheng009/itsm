@@ -3,17 +3,12 @@ import { Alert, Button, Descriptions, Select, Space, Tag, message } from 'antd';
 import { Copy, Download, FileText, RefreshCw } from 'lucide-react';
 import { projectService } from '@/lib/services/project-service';
 import type { ProjectReport, ReportCadence, ReportTemplate } from '@/lib/services/project-service';
+import { ProjectHealthTag } from './ProjectHealthTag';
 
 const CADENCE_LABEL: Record<ReportCadence, string> = {
   weekly: '周报',
   biweekly: '双周报',
   monthly: '月报',
-};
-
-const HEALTH_TAG: Record<string, { color: string; label: string }> = {
-  green: { color: 'success', label: '健康' },
-  yellow: { color: 'warning', label: '关注' },
-  red: { color: 'error', label: '风险' },
 };
 
 interface ProjectReportPanelProps {
@@ -152,7 +147,7 @@ export function ProjectReportPanel({ projectId }: ProjectReportPanelProps) {
               )}
             </Descriptions.Item>
             <Descriptions.Item label="健康度">
-              <Tag color={HEALTH_TAG[report.data.health]?.color}>{HEALTH_TAG[report.data.health]?.label}</Tag>
+              <ProjectHealthTag health={report.data.health} reasons={report.data.healthReasons} />
             </Descriptions.Item>
             <Descriptions.Item label="任务">
               {report.data.taskStats.total} 项（完成 {report.data.taskStats.done} / 未终结 {report.data.taskStats.open}）

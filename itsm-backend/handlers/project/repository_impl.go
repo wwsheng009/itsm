@@ -9,6 +9,7 @@ import (
 
 	"itsm-backend/ent"
 	"itsm-backend/ent/change"
+	"itsm-backend/ent/department"
 	"itsm-backend/ent/incident"
 	"itsm-backend/ent/problem"
 	"itsm-backend/ent/project"
@@ -124,9 +125,7 @@ func (r *EntRepository) Update(ctx context.Context, tenantID, id int, p UpdatePa
 	if p.Type != nil {
 		upd = upd.SetType(*p.Type)
 	}
-	if p.Health != nil {
-		upd = upd.SetHealth(*p.Health)
-	}
+	// PE-27（D-54）：health 不再由写面更新（读时派生）。
 	if p.Progress != nil {
 		upd = upd.SetProgress(*p.Progress)
 	}
@@ -461,6 +460,17 @@ func (r *EntRepository) ActiveMembership(ctx context.Context, tenantID, userID i
 				usertenantmembership.ExpiresAtIsNil(),
 				usertenantmembership.ExpiresAtGT(time.Now()),
 			),
+		).
+		Only(ctx)
+}
+
+// ActiveDepartment 部门引用（PE-28/D-61：同租户 + 未软删；不存在返回 ent.IsNotFound）。
+func (r *EntRepository) ActiveDepartment(ctx context.Context, tenantID, departmentID int) (*ent.Department, error) {
+	return r.client.Department.Query().
+		Where(
+			department.TenantIDEQ(tenantID),
+			department.IDEQ(departmentID),
+			department.DeletedAtIsNil(),
 		).
 		Only(ctx)
 }

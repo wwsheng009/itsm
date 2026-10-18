@@ -5,6 +5,7 @@ import { RefreshCw } from 'lucide-react';
 import { departmentService } from '@/lib/services/department-service';
 import type { Department } from '@/lib/services/department-service';
 import { projectService } from '@/lib/services/project-service';
+import { ProjectHealthTag } from './ProjectHealthTag';
 import type {
   DeliveryDetail,
   GateDetail,
@@ -195,10 +196,9 @@ export default function ProjectPortfolioMetrics() {
       dataIndex: 'health',
       key: 'health',
       width: 100,
-      render: (value: string) => {
-        const meta = HEALTH_LABEL[value];
-        return meta ? <Tag color={meta.color}>{meta.label}</Tag> : value || '—';
-      },
+      render: (_: string, record: Project) => (
+        <ProjectHealthTag health={record.health} reasons={record.healthReasons} />
+      ),
     },
     { title: '类型', dataIndex: 'type', key: 'type', width: 120, render: (v: string) => TYPE_LABEL[v] ?? v },
     { title: '进度', dataIndex: 'progress', key: 'progress', width: 90, render: (v: number) => `${v}%` },

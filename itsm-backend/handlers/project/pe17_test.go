@@ -231,16 +231,19 @@ func TestReportGroupsByOwnerTeam(t *testing.T) {
 	teamA := seedTeam(t, client, tid, "A 组", admin.ID)
 	teamB := seedTeam(t, client, tid, "B 组", admin.ID)
 
-	healthYellow, healthRed := "yellow", "red"
 	pA1, err := svc.Create(ctx, &CreateRequest{TenantID: tid, Name: "A1", OwnerTeamID: ptrInt(t, teamA.ID)})
 	require.NoError(t, err)
 	pA2, err := svc.Create(ctx, &CreateRequest{TenantID: tid, Name: "A2", OwnerTeamID: ptrInt(t, teamA.ID)})
 	require.NoError(t, err)
-	_, err = svc.Update(ctx, tid, pA2.ID, &UpdateRequest{Health: &healthYellow})
+	// PE-27（D-54）：健康度改为事实派生 —— A2 逾期里程碑 → yellow；
+	past := time.Now().Add(-48 * time.Hour)
+	_, err = client.ProjectMilestone.Create().SetTenantID(tid).SetProjectID(pA2.ID).
+		SetName("逾期里程碑").SetDueDate(past).SetStatus("planned").Save(ctx)
 	require.NoError(t, err)
 	pB, err := svc.Create(ctx, &CreateRequest{TenantID: tid, Name: "B1", OwnerTeamID: ptrInt(t, teamB.ID)})
 	require.NoError(t, err)
-	_, err = svc.Update(ctx, tid, pB.ID, &UpdateRequest{Health: &healthRed})
+	// B1 计划结束日已过（非终态）→ red。
+	_, err = svc.Update(ctx, tid, pB.ID, &UpdateRequest{EndDate: &past})
 	require.NoError(t, err)
 	_, err = svc.Create(ctx, &CreateRequest{TenantID: tid, Name: "未归口"})
 	require.NoError(t, err)

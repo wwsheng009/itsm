@@ -58,21 +58,27 @@ func (s *Service) Portfolio(
 		return nil, err
 	}
 	resp.Truncated = len(rows) >= PortfolioAggregateMaxProjects
-	resp.Summary = s.buildPortfolioSummary(ctx, rows)
+	// PE-27（D-58）：组合行与 byHealth 桶使用派生健康度，与列表同源。
+	healthMap, err := s.HealthMap(ctx, tenantID, rows)
+	if err != nil {
+		return nil, err
+	}
+	resp.Summary = s.buildPortfolioSummary(ctx, rows, healthMap)
 	rowCap := rows
 	if len(rowCap) > PortfolioMaxProjects {
 		rowCap = rowCap[:PortfolioMaxProjects]
 	}
 	resp.Projects = ToResponseListWithOwnerTeams(rowCap, s.OwnerTeamRefs(ctx, tenantID, rowCap))
+	applyHealthList(resp.Projects, healthMap)
 	return resp, nil
 }
 
 // buildPortfolioSummary 五维聚合（count 降序、key 升序）；负责人姓名批量富化。
-func (s *Service) buildPortfolioSummary(ctx context.Context, rows []*ent.Project) PortfolioSummary {
+func (s *Service) buildPortfolioSummary(ctx context.Context, rows []*ent.Project, healthMap map[int]DerivedHealth) PortfolioSummary {
 	summary := PortfolioSummary{
 		Total:        len(rows),
 		ByStatus:     portfolioBuckets(rows, func(p *ent.Project) string { return normalizeStatus(p.Status) }),
-		ByHealth:     portfolioBuckets(rows, func(p *ent.Project) string { return p.Health }),
+		ByHealth:     portfolioBuckets(rows, func(p *ent.Project) string { return healthLevelOf(healthMap, p.ID) }),
 		ByType:       portfolioBuckets(rows, func(p *ent.Project) string { return p.Type }),
 		ByManager:    portfolioBuckets(rows, func(p *ent.Project) string { return intKey(p.ManagerID) }),
 		ByDepartment: portfolioBuckets(rows, func(p *ent.Project) string { return intKey(p.DepartmentID) }),
@@ -101,6 +107,14 @@ func (s *Service) buildPortfolioSummary(ctx context.Context, rows []*ent.Project
 	}
 	// 部门名称由前端用部门列表映射（后端不跨域查询，避免新耦合）。
 	return summary
+}
+
+// healthLevelOf 组合桶健康度口径（PE-27 D-58：与行健康度同源；未命中兜底 green）。
+func healthLevelOf(healthMap map[int]DerivedHealth, projectID int) string {
+	if h, ok := healthMap[projectID]; ok && h.Level != "" {
+		return h.Level
+	}
+	return HealthLevelGreen
 }
 
 // Metrics 组合度量（四项指标 + 明细；D-41 口径，明细供抽样对账）。

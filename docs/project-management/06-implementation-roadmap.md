@@ -14,11 +14,14 @@
 | **P0** | 单租户闭环 | 主数据升级（含编号）、成员、项目任务、单据关联、项目工作台、datascope 可见性 | 见 §4.1 | 无 |
 | **P1** | 计划与交付治理 | **模板 + 阶段门**、计划基线、里程碑、依赖（FS）、流程绑定、结项清单（资产登记/成员回收）、结项门禁、CSAT、全局搜索与"我的任务"、团队归口、状态报告模板（**✅ 已收口**） | 见 §4.2（✅ 全部通过） | P0 |
 | **P2** | 经营化与 AI | 风险台账、预算 + 任务级实际工时、资源只读热图、报表度量、AI 周报/预警、采购/资产结项登记 | 见 §4.3（**PE-21~PE-26 ✅ 已落地**；**P2 收口 ✅ 已完成**） | P1 |
+| **P3（治理补强）** | 可信化与治理闭环 | 健康度派生与解释（PE-27）；写入完整性校验（PE-28：负责人/部门/日期/币种）；后续按模块评审缺口继续收敛（口径同源/审计可追溯） | 见 [plan/p3-health-design.md](./plan/p3-health-design.md)、[plan/p3-write-integrity-design.md](./plan/p3-write-integrity-design.md)（**PE-27/PE-28 ✅ 已落地 2026-10-18**） | P2 |
 | **P2+/P3** | MSP 交付（可选） | 工作台项目面板、C2 基线、模板下发、合同/SLA 联动、任务投影 | 见 [05 §8](./05-msp-delivery.md)（**P2-A 只读面 ✅ 已落地 2026-10-18**；P2-A 对账/KPI 与 P2-B/C/D 待排期） | P0/P1 + MSP 存量能力 |
 
 > 非目标（不排期，见 [01 §1.3](./01-module-blueprint.md)）：需求管理实体（默认）、EVM、资源自动均衡、会议管理实体、Program 实体、财务级核算、敏捷迭代。
 
 > 每一期的文档同步为交付物的一部分（见 §3 文档纪律），不允许"下个 PR 再补"。
+
+> 阶段说明（2026-10-18）：**P3 分两条并行轨道**——「P3 治理补强」（新增行，PE-27 起，聚焦可信化/口径同源/可审计）与「P2+/P3 MSP 交付」（原行，可选、待排期）；两者互不阻塞。
 
 ## 2. P0 工作拆解（建议排期）
 
@@ -94,6 +97,17 @@
 
 > **P2 收口已完成（2026-10-28，真实库 + 浏览器）**——本地 embedded-postgres（55432）真实 PostgreSQL：`go run -tags migrate .` 全量 ent schema（新库 + 默认租户）✅ → P2 兜底 SQL 五份（`20261024_pe21` / `20261025_pe22` / `20261026_pe23` / `20261027_pe24` / `20261028_pe26`）全部应用 ✅ → RLS 001–015 全量应用 + `rls-apply -set-passwords` / `-verify` ✅ → **P2 结构/行为探针 11/11**（P2 两新表 + P2 关键列 18/18（`project_risks` 7 + `budget_*`/`*_capacity_hours` 4 + `reject_count` + `project_asset_links` 5）+ 索引 4/4（含**未删行唯一 partial index** `WHERE deleted_at IS NULL`）+ RLS 启用且含策略 + `itsm_app` 角色同租户写读 / **未删行唯一拒绝重复** / 跨租户读隔离（两表）/ 跨租户写拒绝）✅ → **HTTP E2E 38/38**（PE-21 风险 CRUD/close 必填 resolution/转问题单回写勾稽 + 二次转换 409 `existingId`；PE-22 预算成对写入与 400/任务估算+实际回填/工时汇总对账；PE-23 两级容量/热图自然日口径与 weeks 越界 400；PE-24 组合 total 与行数一致/度量四项结构；PE-25 三端点降级 200（摘要 `deterministic`、预警 `rules`、纪要 `none`）+ **降级后仍可建任务**；PE-26 四类型登记/重复 409/无效目标 400/候选命中/标签富化/结项清单明细与确认/软删与二次删 404 + 审计七类 action 留痕）✅ → **浏览器 UI 冒烟 15/15**（列表项目行；工作台「结项清单」登记明细行 + 「添加登记」弹窗与候选远程搜索下拉；「风险/问题」Tab 渲染；「资源负荷」Tab 含自然日口径；「AI 助手」Tab 生成摘要/预警（降级 200）；组合视图页度量卡片 + 项目行；零浏览器 pageerror；截图 5 张）✅。
 > 环境说明：真实库验证 harness 位于 `.tmp/pgverify`（不进代码库）：`start.js`（embedded-postgres 55432）/ `apply-sql.js` / `p2-probe.js` / `p2-e2e.js` / `p2-ui-smoke.cjs` / `p2-static-proxy.js`（静态 dist + `/api` 反代，规避 vite preview 的 ECONNRESET 崩溃）；首登强制改密经 `POST /api/v1/auth/change-password` 收口后进入工作台。
+
+### P3 关键工作（治理补强）
+
+| 编号 | 工作项 | 关键内容 |
+|---|---|---|
+| PE-27 | 健康度派生与解释 | `health` 从手工字段升级为读时派生（9 条事实规则 + 阈值）+ `healthReasons[]` 可展开解释；列表/详情/组合/报表/AI facts 全读路径同源 |
+| PE-28 | 写入完整性校验 | 负责人（同租户活跃 membership）/ 部门（同租户未软删）/ 项目日期区间（end ≥ start，更新合并存量）/ 币种（trim + 大写 + `^[A-Z]{2,8}$`）写入 fail-closed；零新表/端点/迁移 |
+
+> **PE-27 已落地（2026-10-18，后端 + 前端）**——**零新表/零新端点/零迁移**（`projects.health` 列保留不读写，D-54；无 RLS/ACL/Swagger 变更）。**规则（D-55/D-56）**：9 条——`overdue_project`(red)/`schedule_deviation`(≥20pp 黄、≥40pp 红，=按自然日应完成比例 − 当前进度)/`overdue_task`(1~2 黄、≥3 红)/`blocked_task`(黄)/`overdue_milestone`(黄)/`missed_milestone`(黄)/`open_high_risk`(1~2 黄、≥3 红)/`gate_rejected`(黄)/`budget_deviation`(黄，最新基线 `schemaVersion≥2` 冻结预算 vs 当前，含设置↔清空)；阈值常量化（`HealthDeviationYellowPP=20`/`HealthDeviationRedPP=40`/`HealthOverdueTaskRedCount=3`/`HealthHighRiskRedCount=3`）；`cancelled` 恒 green、`completed` 仅保留 `missed_milestone`。**契约（D-57）**：`ProjectResponse.healthReasons[] = {rule,level,message,count?}`（red 优先、同级按 rule；无信号 = green 且省略数组）；**`PUT /projects/:id` 移除 `health` 入参**（仅传 health → 无有效字段 `ParamError`）；`POST /projects/:id/reports/generate` 的 `data` 同步携带 + markdown 概览新增「健康度信号」行。**同源装配（D-58/D-59）**：列表/创建/更新/流转响应、组合行与 `byHealth` 桶、报表 `data` 与归口分组 counts、AI facts 全部走同一 `deriveHealth`；列表/组合按页批量取数（tasks/milestones/gates/risks/baselines，每项目取最新基线）杜绝 N+1；事实源查询失败不降级（不展示假绿），基线快照解码失败仅跳过预算规则并留日志。**前端**：新增 `ProjectHealthTag`（Tag + Popover 解释）供列表/详情共用；列表移除本地健康度词表。设计/证据：[plan/p3-health-design.md](./plan/p3-health-design.md)（D-54~D-59）。验证：`go test ./handlers/project/ -count=1` ✅（`pe27_test.go`：规则触发/阈值边界（19/20、39/40、2/3）/终态语义/reasons 排序/存量列忽略/预算偏差/报告与 markdown 同源/端点同源与 PUT 拒绝；`pe17`/`pe24` 改事实构造回归）+ `go vet ./handlers/project/` ✅、前端 `npm run type-check` ✅、改动文件 `eslint` ✅、`project-service` 单测 **62/62** ✅、`check-api-paths` **1075/1075** ✅、`npm run build` ✅。
+
+> **PE-28 已落地（2026-10-18，后端 + 前端）**——**零新表/零新端点/零迁移**（无 RLS/ACL/Swagger 变更）。**写入校验（D-60~D-63）**：`managerId > 0` 须**同租户活跃 membership**（未软删/status=active/未过期，400 `ErrManagerUnavailable`，复用 `ActiveMembership` 与加入成员前置校验同源）；`departmentId > 0` 须同租户且未软删（400 `ErrDepartmentUnavailable`，仓储新增 `ActiveDepartment`）；项目 `startDate`/`endDate` 两端齐备（更新按**合并存量**后判定）须 `endDate ≥ startDate`（400，对齐任务级 `planEnd ≥ planStart` 既有口径）；`budgetCurrency` **trim + 大写归一**且非空须匹配 `^[A-Z]{2,8}$`（空串仍=租户默认，D-33 成对清空不变）；`nil`=不修改、`≤0`（负责人/部门）沿用 `optionalInt` 语义=不修改。**评审核验（同日）**：状态机扩充（进行中/暂停/终止）与验收把关（四道阶段门 + activate/complete 强制点）已覆盖、「归档」由软删承担；「已完成须有计划结束日期」评估不采纳（PE-24 已按 `noPlanDate` 归口）——核验表见设计文档 §1/§5。**前端**：新增共享 `formatBudget`/`normalizeBudgetCurrency`（列表/详情展示同源 + 提交归一）。设计/证据：[plan/p3-write-integrity-design.md](./plan/p3-write-integrity-design.md)（D-60~D-63）。验证：`go test ./handlers/project/ -count=1 -p 1` ✅（`pe28_test.go` 5 用例：负责人 membership 矩阵/部门引用/日期合并校验/币种归一与字符集/端点 400 映射与合法写入）、`go vet ./handlers/project/` ✅、`gofmt -l`（改动文件）✅、前端 `npm run type-check` ✅、改动文件 `eslint` ✅、`budget`+`project-service` 单测 **65/65** ✅、`check-api-paths` **1075/1075** ✅、`npm run build` ✅。
 
 ## 3. 工程规范清单（每期通用）
 

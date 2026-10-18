@@ -39,11 +39,8 @@ var actionTransitions = map[string]map[string]string{
 	ActionCancel:   {StatusPlanning: StatusCancelled, StatusActive: StatusCancelled, StatusSuspended: StatusCancelled},
 }
 
-// 项目类型与健康度词表（P0）。
-var (
-	validTypes   = map[string]bool{"internal": true, "improvement": true, "delivery": true}
-	validHealths = map[string]bool{"green": true, "yellow": true, "red": true}
-)
+// 项目类型词表（P0）；健康度已退役手工词表，改为读时派生（PE-27 D-54，见 health_entity.go）。
+var validTypes = map[string]bool{"internal": true, "improvement": true, "delivery": true}
 
 // normalizeStatus：存量自由值兼容（读侧）。空值按 active 处理；其余保持原样，
 // 非法存量值在流转时按"非法流转"拒绝（fail-closed）。
@@ -100,10 +97,10 @@ type CreateRequest struct {
 
 // UpdateRequest 基础字段更新（不含状态；nil = 不修改）。
 type UpdateRequest struct {
-	Name         *string    `json:"name"`
-	Description  *string    `json:"description"`
-	Type         *string    `json:"type"`
-	Health       *string    `json:"health"`
+	Name        *string `json:"name"`
+	Description *string `json:"description"`
+	Type        *string `json:"type"`
+	// PE-27（D-54）：health 移出写面，读时派生（含解释项 healthReasons）。
 	Progress     *int       `json:"progress"`
 	ManagerID    *int       `json:"managerId"`
 	DepartmentID *int       `json:"departmentId"`
@@ -129,17 +126,19 @@ type StatusRequest struct {
 
 // ProjectResponse 项目响应。
 type ProjectResponse struct {
-	ID           int    `json:"id"`
-	Name         string `json:"name"`
-	Code         string `json:"code"`
-	Description  string `json:"description"`
-	Type         string `json:"type"`
-	Status       string `json:"status"`
-	Health       string `json:"health"`
-	Progress     int    `json:"progress"`
-	ManagerID    *int   `json:"managerId,omitempty"`
-	DepartmentID *int   `json:"departmentId,omitempty"`
-	OwnerTeamID  *int   `json:"ownerTeamId,omitempty"`
+	ID          int    `json:"id"`
+	Name        string `json:"name"`
+	Code        string `json:"code"`
+	Description string `json:"description"`
+	Type        string `json:"type"`
+	Status      string `json:"status"`
+	// PE-27：health=派生值（D-54/D-57），healthReasons=解释项（无信号省略）。
+	Health        string         `json:"health"`
+	HealthReasons []HealthReason `json:"healthReasons,omitempty"`
+	Progress      int            `json:"progress"`
+	ManagerID     *int           `json:"managerId,omitempty"`
+	DepartmentID  *int           `json:"departmentId,omitempty"`
+	OwnerTeamID   *int           `json:"ownerTeamId,omitempty"`
 	// PE-17 归口团队展示（读取侧降级：团队缺失/软删 → ownerTeamDeleted=true，UI 提示重新归口）。
 	OwnerTeamName    string     `json:"ownerTeamName,omitempty"`
 	OwnerTeamDeleted bool       `json:"ownerTeamDeleted,omitempty"`
@@ -182,12 +181,12 @@ func ToResponse(p *ent.Project) *ProjectResponse {
 		Description: p.Description,
 		Type:        p.Type,
 		Status:      normalizeStatus(p.Status),
-		Health:      p.Health,
-		Progress:    p.Progress,
-		Version:     p.Version,
-		TenantID:    p.TenantID,
-		CreatedAt:   p.CreatedAt,
-		UpdatedAt:   p.UpdatedAt,
+		// PE-27（D-54）：health 不再读存储列；由读路径 applyHealth 装配派生值。
+		Progress:  p.Progress,
+		Version:   p.Version,
+		TenantID:  p.TenantID,
+		CreatedAt: p.CreatedAt,
+		UpdatedAt: p.UpdatedAt,
 	}
 	if p.ManagerID > 0 {
 		id := p.ManagerID
@@ -259,6 +258,30 @@ func ToResponseWithOwnerTeams(p *ent.Project, refs map[int]TeamRef) *ProjectResp
 	resp := ToResponse(p)
 	applyOwnerTeam(resp, refs)
 	return resp
+}
+
+// applyHealth 装配派生健康度（PE-27 D-57/D-58：列表/详情/组合/报表同源）。
+// 无信号 = green 且省略解释数组。
+func applyHealth(resp *ProjectResponse, h DerivedHealth) {
+	if resp == nil {
+		return
+	}
+	level := h.Level
+	if level == "" {
+		level = HealthLevelGreen
+	}
+	resp.Health = level
+	resp.HealthReasons = h.Reasons
+}
+
+// applyHealthList 批量装配（列表/组合行；map 未命中按 green 兜底）。
+func applyHealthList(resps []*ProjectResponse, healthMap map[int]DerivedHealth) {
+	for _, resp := range resps {
+		if resp == nil {
+			continue
+		}
+		applyHealth(resp, healthMap[resp.ID])
+	}
 }
 
 // ToResponseListWithOwnerTeams 批量响应 + 归口团队富化（列表一次批量查询后调用）。

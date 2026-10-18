@@ -26,7 +26,7 @@
 |---|---|---|
 | `type` | string（`internal\|improvement\|delivery`） | 项目类型，默认 `internal` |
 | `parent_project_id` | int，可空 | 父子项目（如子项目/工作流） |
-| `health` | string（`green\|yellow\|red`） | 健康度（手动 + P1 可自动汇总） |
+| `health` | string（`green\|yellow\|red`） | 健康度（**PE-27/D-54 起读时派生、不落库**：9 条事实规则 + `healthReasons[]` 解释；列保留不读写，`PUT /projects/:id` 移除入参） |
 | `progress` | int（0–100） | 进度（P1 起由任务自动汇总；`complete` 强制 100） |
 | `actual_start` / `actual_end` | time，可空 | 实际起止 |
 | `closed_at` | time，可空 | 结项时间 |
@@ -41,6 +41,10 @@
 > 编号策略：沿用 `code`（租户内唯一 + 服务层校验）；可选自动编号 `PRJ-xxxx`（对齐 `ticket_number`/`change_number` 生成先例）。基线不落在本表：见 §3.7 `project_baselines`。
 
 > **进度汇总口径（2026-10-18 修复）**：任务创建/更新/流转/软删与项目进度重算同事务执行。只统计未软删、非 `cancelled` 的**叶子任务**（父任务由子任务汇总，避免模板阶段行稀释）；任务 `done` 恒按 100 计，其余取 `progress`；叶子任务取算术平均并四舍五入，无有效叶子任务时为 0。派生更新不递增 `projects.version`。存量回填见 `migrations/20261029_project_management_progress_backfill.sql`（completed→100；有叶子任务→平均值；无任务保留原值）。
+
+> **健康度口径（2026-10-18，PE-27/D-54~D-59）**：`projects.health` 由手工字段升级为**读时派生**（不落库、不回填、不迁移）：规则 = 项目逾期 / 进度偏差（≥20pp 黄、≥40pp 红）/ 逾期任务（≥1 黄、≥3 红）/ 阻塞任务 / 逾期里程碑 / 已错过里程碑 / 高风险（≥1 黄、≥3 红）/ 阶段门被拒 / 预算偏差（基线 v2 冻结预算 vs 当前）；`cancelled` 恒 green、`completed` 仅保留「已错过里程碑」。响应新增 `healthReasons[]`（可展开解释），列表/详情/组合（行 + `byHealth`）/报表/`AI facts` 全部同源；`PUT /projects/:id` 不再接受 `health`。设计/证据：[plan/p3-health-design.md](./plan/p3-health-design.md)。
+
+> **写入校验口径（2026-10-18，PE-28/D-60~D-63）**：引用与口径字段在写侧 fail-closed——`manager_id`（>0 时须为本租户活跃 membership，未软删/active/未过期）、`department_id`（>0 时须同租户且未软删）、`start_date`/`end_date`（两端齐备时 `end ≥ start`，更新按**合并存量**后判定；单端可空）、`budget_currency`（trim + 大写，非空须匹配 `^[A-Z]{2,8}$`，空串=租户默认）；`PUT` 的 `nil` = 不修改、`≤0`（负责人/部门）沿用 `optionalInt` 语义 = 不修改。设计/证据：[plan/p3-write-integrity-design.md](./plan/p3-write-integrity-design.md)。
 
 ## 3. 新增表清单
 

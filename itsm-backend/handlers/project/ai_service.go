@@ -190,6 +190,11 @@ func (s *Service) gatherAIFacts(ctx context.Context, tenantID, projectID, viewer
 	if err != nil {
 		return nil, err
 	}
+	// PE-27（D-58）：AI facts 健康度派生，与列表/报告同源。
+	healthMap, err := s.HealthMap(ctx, tenantID, []*ent.Project{p})
+	if err != nil {
+		return nil, err
+	}
 
 	now := s.now()
 	facts := &AIProjectFacts{
@@ -197,7 +202,7 @@ func (s *Service) gatherAIFacts(ctx context.Context, tenantID, projectID, viewer
 		ProjectName:    p.Name,
 		ProjectCode:    p.Code,
 		Status:         normalizeStatus(p.Status),
-		Health:         p.Health,
+		Health:         healthLevelOf(healthMap, p.ID),
 		Progress:       p.Progress,
 		EndDate:        p.EndDate,
 		ManagerID:      p.ManagerID,
