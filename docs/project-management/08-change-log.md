@@ -407,3 +407,34 @@ PE-5 此前仅落地「项目工作台查看/解除挂接」与「任务生成�
 **遗留**：sidecar 自身 `LLM_API_KEY` 仍为空（配置面可选补配，不配也不影响分诊）；F2 `get_ci_impact` 的 `ci_id` 分支 5001 单独跟进。
 
 证据：[DEMO-F1-20261018-eb214870-EVIDENCE.md](../../.dev/deploy/DEMO-F1-20261018-eb214870-EVIDENCE.md)。
+## 15. 变更：应用内 LLM 配置请求级下发 guidance sidecar（F2，2026-10-18）
+
+**背景**：§14（F1）解决了「sidecar 静默降级 → 后端回落网关」，但应用内（`llm_provider_configs`，逐租户 + AES-GCM 密文）配置始终到不了 sidecar——sidecar 是单进程单配置服务，只读自身 env/config.yaml；Go 注册表里的 DB 解析链与它完全隔离。
+
+**方案**（请求级下发）：`TriageService` 调用 sidecar 前解析**本租户默认实例**，把 `{protocol,variant,url,model,apiKey}` 随 `POST /triage` 的 `llm` 字段下发；sidecar 收到 `llm` 时不再读自身配置。能力门（sidecar 仅支持 `openai_chat_completions`/`anthropic_messages` 两形态）之外、或租户无可用目标 → **跳过 sidecar 直接走网关**（应用内配置为唯一事实源，不静默回落 sidecar 自身旧配置）。未接线（多 Provider 关闭）= 旧行为，前向兼容。
+
+**实现**（提交 `c05cc49e`，5 源文件 + 1 新增）：
+
+- `service/guidance_llm_spec.go`（新）：`GuidanceLLMSpec`、`GuidanceSpecResolver` 窄接口、`buildGuidanceSpec`（协议/变体能力门）、`(*LLMProviderRegistry).ResolveGuidanceSpec`（无 DB 客户端/非法租户/无默认/形态不支持 → `ok=false`）。
+- `service/llm_registry.go`：entry 预计算 `guidanceSpec`——URL 用 `resolveProtocolURL` + `adapter.GetAPIPath()` + `protocol.DefaultEndpoint`，与网关**逐字节同口径**，无拼接漂移。
+- `service/guidance_client.go`：`GuidanceTriageRequest` 增 `LLM *GuidanceLLMSpec json:"llm,omitempty"`；`Triage(ctx,title,desc,tenantID,spec)`。
+- `service/triage_service.go`：`SetGuidanceSpecResolver` + `resolveGuidanceSpec`；`ok=false`/error → 跳过 sidecar；成功路径记 Info（含 method/confidence/latency）。
+- `internal/bootstrap/app.go`：多 Provider 装配处 `triageService.SetGuidanceSpecResolver(providerRegistry)`。
+- `itsm-ai-service/api/guidance.py`：`GuidanceLLMTarget` + `llm` 分支 + `_call_llm_override`（URL 由后端给，sidecar 只按协议 POST）；日志仅记 tenant/protocol/variant/url/model，**apiKey 禁入日志**。
+
+**验证**：
+
+| 检查 | 结果 |
+|---|---|
+| `go test ./service/ -run 'Guidance' -count=1 -v`（GOMAXPROCS=2） | ✅ 26 项 PASS（含 `ResolveGuidanceSpec_*` ×5、`GuidanceSpecResolver_*` ×4、F1 回归 ×3）；`ok 2.756s` |
+| `go test ./handlers/ai/ -run 'Triage'` / `python -m py_compile api/guidance.py` | ✅ ok 1.680s / EXIT=0 |
+| 238 demo `1.8.0-dev.c05cc49e` | ✅ **四容器**（backend/worker/frontend/ai-service）healthy、version 对齐；A/B 指纹 backend `sidecar LLM target` 0→1、ai-service `_call_llm_override` 0→2 |
+| `POST /ai/triage` ×2（tenant 1 = `admin`） | ✅ 真实 LLM：`network/0.92`、`application/0.87`，reasoning 为模型生成中文 |
+| sidecar 日志 | ✅ `Guidance triage using request-scoped LLM target tenant=1 protocol=openai_chat_completions url=https://qianfan.baidubce.com/v2/tokenplan/personal/chat/completions model=deepseek-v4.1-flash`（与 DB 行逐字一致） |
+| sidecar 自身 env | ✅ `LLM_API_KEY` 仍为空（结果来自请求级下发，非 sidecar 自身配置） |
+| `ai_llm_calls` | ✅ **新增 0 行**（F1 下每次分诊因降级回落各新增 1 行；F2 sidecar 直连成功，网关未被调用） |
+| 负向对照（`demo.mfg.admin`=tenant 3，无 provider） | ✅ sidecar 未被调用（`override_log_lines=0`）、网关静态 provider 失败、终态 `keyword heuristic`——跨租户不下发，无 DB 目标租户与 F1 终态一致 |
+
+**遗留**：① sidecar 日志 `variant=None`（空变体 cosmetic）；② `ok=false` 路径后端记 Debug（demo info 级别不可见），建议后续加指标/提级；③ sidecar 其它端点（rca/risk）仍读自身 env，本次仅 `/triage`；④ 未做浏览器级 UI 走查（承接 F1）。
+
+证据：[DEMO-F2-20261018-c05cc49e-EVIDENCE.md](../../.dev/deploy/DEMO-F2-20261018-c05cc49e-EVIDENCE.md)。
