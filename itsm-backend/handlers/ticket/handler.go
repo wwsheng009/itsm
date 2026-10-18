@@ -8,6 +8,8 @@ import (
 	"itsm-backend/common"
 	"itsm-backend/common/handlerctx"
 	"itsm-backend/dto"
+	"itsm-backend/handlers/common/projectlink"
+	"itsm-backend/middleware"
 	"itsm-backend/pkg/tenantquota"
 	"itsm-backend/service"
 
@@ -16,8 +18,9 @@ import (
 
 // Handler handles HTTP requests for tickets.
 type Handler struct {
-	service    *Service
-	slaMonitor *service.SLAMonitorService
+	service     *Service
+	slaMonitor  *service.SLAMonitorService
+	projectLink projectlink.Validator
 }
 
 // NewHandler creates a new ticket handler.
@@ -29,6 +32,12 @@ func NewHandler(service *Service) *Handler {
 // 未装配时 Pause/Resume fail-closed 返回 503，禁止假成功。
 func (h *Handler) SetSLAMonitorService(svc *service.SLAMonitorService) {
 	h.slaMonitor = svc
+}
+
+// SetProjectLink 注入项目挂接校验端口（bootstrap 装配）。
+// 创建请求携带 projectId 且端口未装配时 fail-closed 返回 503，禁止静默丢弃关联意图。
+func (h *Handler) SetProjectLink(v projectlink.Validator) {
+	h.projectLink = v
 }
 
 // ticketToResponse converts a Ticket domain model to a TicketResponse DTO.
@@ -134,6 +143,12 @@ func (h *Handler) CreateTicket(c *gin.Context) {
 		return
 	}
 
+	// PE-5：创建时挂接项目——前置校验 project:write + 项目存在且非终态（未装配端口 → 503 fail-closed）。
+	if err := projectlink.GuardCreate(c.Request.Context(), h.projectLink, tenantID, req.ProjectID, middleware.GetContextRoles(c)); err != nil {
+		common.RespondError(c, err, "创建工单失败")
+		return
+	}
+
 	params := &CreateParams{
 		Title:       req.Title,
 		Description: req.Description,
@@ -141,6 +156,7 @@ func (h *Handler) CreateTicket(c *gin.Context) {
 		Priority:    req.Priority,
 		RequesterID: userID,
 		FormFields:  req.FormFields,
+		ProjectID:   req.ProjectID,
 
 		WorkflowDefinitionKey: req.WorkflowDefinitionKey,
 		// P2 富文本：透传原始 HTML，由服务层 sanitize 后决定写入与 format=html 标记。

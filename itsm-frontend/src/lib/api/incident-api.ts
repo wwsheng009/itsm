@@ -99,6 +99,8 @@ export interface CreateIncidentRequest {
   isMajorIncident?: boolean;
   assigneeId?: number;
   configurationItemIds?: number[];
+  /** ProjectID 创建时挂接的项目（可选；后端前置校验 project:write + 项目非终态，随 INSERT 一次写入）。 */
+  projectId?: number;
   category?: string;
   subcategory?: string;
   impact?: string; // Added for UI

@@ -90,6 +90,7 @@ func toRepoCreateParams(p *CreateParams) *ticket.CreateParams {
 		CategoryID:        p.CategoryID,
 		TemplateID:        p.TemplateID,
 		ParentTicketID:    p.ParentTicketID,
+		ProjectID:         p.ProjectID,
 		FormFields:        p.FormFields,
 		TagIDs:            p.TagIDs,
 	}

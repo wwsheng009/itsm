@@ -9,6 +9,7 @@ import (
 	"itsm-backend/common"
 	"itsm-backend/dto"
 	"itsm-backend/handlers/common/datascope"
+	"itsm-backend/handlers/common/projectlink"
 	"itsm-backend/middleware"
 
 	"github.com/gin-gonic/gin"
@@ -32,11 +33,18 @@ func userIDFromCtx(c *gin.Context) (int, bool) {
 }
 
 type Handler struct {
-	svc *Service
+	svc         *Service
+	projectLink projectlink.Validator
 }
 
 func NewHandler(svc *Service) *Handler {
 	return &Handler{svc: svc}
+}
+
+// SetProjectLink 注入项目挂接校验端口（bootstrap 装配）。
+// 创建请求携带 projectId 且端口未装配时 fail-closed 返回 503，禁止静默丢弃关联意图。
+func (h *Handler) SetProjectLink(v projectlink.Validator) {
+	h.projectLink = v
 }
 
 // Map domain to DTO
@@ -107,6 +115,12 @@ func (h *Handler) CreateChange(c *gin.Context) {
 		return
 	}
 
+	// PE-5：创建时挂接项目——前置校验 project:write + 项目存在且非终态（未装配端口 → 503 fail-closed）。
+	if err := projectlink.GuardCreate(c.Request.Context(), h.projectLink, tenantID, req.ProjectID, middleware.GetContextRoles(c)); err != nil {
+		common.RespondError(c, err, "创建变更失败")
+		return
+	}
+
 	changeEntity := &Change{
 		Title:              req.Title,
 		Description:        req.Description,
@@ -118,6 +132,7 @@ func (h *Handler) CreateChange(c *gin.Context) {
 		RiskLevel:          string(req.RiskLevel),
 		CreatedBy:          userID,
 		TenantID:           tenantID,
+		ProjectID:          req.ProjectID,
 		PlannedStartDate:   req.PlannedStartDate,
 		PlannedEndDate:     req.PlannedEndDate,
 		ImplementationPlan: req.ImplementationPlan,

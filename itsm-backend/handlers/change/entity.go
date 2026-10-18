@@ -6,21 +6,23 @@ import (
 
 // Change domain entity
 type Change struct {
-	ID                 int
-	ChangeNumber       string
-	Title              string
-	Description        string
-	Justification      string
-	Type               string
-	Status             string
-	Priority           string
-	ImpactScope        string
-	RiskLevel          string
-	AssigneeID         *int
-	Assignee           *User
-	CreatedBy          int
-	CreatedByUser      *User
-	TenantID           int
+	ID            int
+	ChangeNumber  string
+	Title         string
+	Description   string
+	Justification string
+	Type          string
+	Status        string
+	Priority      string
+	ImpactScope   string
+	RiskLevel     string
+	AssigneeID    *int
+	Assignee      *User
+	CreatedBy     int
+	CreatedByUser *User
+	TenantID      int
+	// ProjectID 创建时挂接的项目（nil=不挂接；随 INSERT 一次写入；前置校验由 handler 调 projectlink.GuardCreate）。
+	ProjectID          *int
 	PlannedStartDate   *time.Time
 	PlannedEndDate     *time.Time
 	ActualStartDate    *time.Time

@@ -74,6 +74,8 @@ type CreateChangeRequest struct {
 	RollbackPlan       string     `json:"rollbackPlan"`             // 回滚计划
 	AffectedCIs        []string   `json:"affectedCis"`              // 受影响的配置项
 	RelatedTickets     []string   `json:"relatedTickets"`           // 相关工单编号
+	// ProjectID 创建时挂接的项目（可选；handler 前置校验 project:write + 项目非终态，随 INSERT 一次写入）。
+	ProjectID *int `json:"projectId,omitempty"`
 }
 
 // UpdateChangeRequest 更新变更请求

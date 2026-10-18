@@ -1809,6 +1809,10 @@ definitions:
       priority:
         description: '优先级: low, medium, high, critical'
         type: string
+      projectId:
+        description: ProjectID 创建时挂接的项目（可选；handler 前置校验 project:write + 项目非终态，随 INSERT
+          一次写入）。
+        type: integer
       relatedTickets:
         description: 相关工单编号
         items:
@@ -2081,6 +2085,10 @@ definitions:
         - critical
         example: high
         type: string
+      projectId:
+        description: ProjectID 创建时挂接的项目（可选；handler 前置校验 project:write + 项目非终态，随 INSERT
+          一次写入）。
+        type: integer
       severity:
         enum:
         - low
@@ -2142,6 +2150,10 @@ definitions:
         type: string
       priority:
         type: string
+      projectId:
+        description: ProjectID 创建时挂接的项目（可选；handler 前置校验 project:write + 项目非终态，随 INSERT
+          一次写入）。
+        type: integer
       rootCause:
         type: string
       title:
@@ -11880,6 +11892,22 @@ definitions:
       projectId:
         type: integer
     type: object
+  project.RecordProjectResponse:
+    properties:
+      project:
+        $ref: '#/definitions/project.RecordProjectView'
+    type: object
+  project.RecordProjectView:
+    properties:
+      code:
+        type: string
+      id:
+        type: integer
+      name:
+        type: string
+      status:
+        type: string
+    type: object
   project.ReportData:
     properties:
       gates:
@@ -13780,6 +13808,13 @@ paths:
       - application/json
       responses: {}
       summary: 变更解除项目挂接
+      tags:
+      - 项目管理
+    get:
+      produces:
+      - application/json
+      responses: {}
+      summary: 变更所属项目（未挂接/项目不可见时 project=null）
       tags:
       - 项目管理
     post:
@@ -17727,6 +17762,13 @@ paths:
       summary: 事件解除项目挂接
       tags:
       - 项目管理
+    get:
+      produces:
+      - application/json
+      responses: {}
+      summary: 事件所属项目（未挂接/项目不可见时 project=null）
+      tags:
+      - 项目管理
     post:
       consumes:
       - application/json
@@ -19161,6 +19203,13 @@ paths:
       - application/json
       responses: {}
       summary: 问题解除项目挂接
+      tags:
+      - 项目管理
+    get:
+      produces:
+      - application/json
+      responses: {}
+      summary: 问题所属项目（未挂接/项目不可见时 project=null）
       tags:
       - 项目管理
     post:
@@ -21450,6 +21499,13 @@ paths:
       summary: 服务请求解除项目挂接
       tags:
       - 项目管理
+    get:
+      produces:
+      - application/json
+      responses: {}
+      summary: 服务请求所属项目（未挂接/项目不可见时 project=null）
+      tags:
+      - 项目管理
     post:
       consumes:
       - application/json
@@ -21501,6 +21557,28 @@ paths:
           schema:
             $ref: '#/definitions/common.Response'
       summary: 工单解除项目挂接
+      tags:
+      - 项目管理
+    get:
+      parameters:
+      - description: 工单ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/common.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/project.RecordProjectResponse'
+              type: object
+      summary: 工单所属项目（未挂接/项目不可见时 project=null）
       tags:
       - 项目管理
     post:

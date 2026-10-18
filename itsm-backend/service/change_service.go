@@ -86,6 +86,7 @@ func (s *ChangeService) CreateChange(ctx context.Context, req *dto.CreateChangeR
 		SetRiskLevel(req.RiskLevel).
 		SetCreatedBy(createdBy).
 		SetTenantID(tenantID).
+		SetNillableProjectID(req.ProjectID).
 		SetImplementationPlan(req.ImplementationPlan).
 		SetRollbackPlan(req.RollbackPlan).
 		SetNillablePlannedStartDate(req.PlannedStartDate).

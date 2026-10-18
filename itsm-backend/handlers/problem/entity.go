@@ -18,6 +18,8 @@ type Problem struct {
 	Resolution    string
 	Impact        string
 	AssigneeID    *int
+	// ProjectID 创建时挂接的项目（随 INSERT 一次写入；前置校验由 handler 调 projectlink.GuardCreate）。
+	ProjectID     *int
 	CreatedBy     int
 	TenantID      int
 	CreatedAt     time.Time

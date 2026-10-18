@@ -32,6 +32,10 @@ type CreateServiceRequestRequest struct {
 	SourceIPWhitelist  []string   `json:"sourceIpWhitelist" binding:"omitempty"`
 	ExpireAt           *time.Time `json:"expireAt" binding:"omitempty"`
 	ComplianceAck      bool       `json:"complianceAck"`
+
+	// ProjectID 创建时挂接的项目（PE-5 增补，可选；handler 前置校验 project:write + 项目非终态，
+	// 随 INSERT 一次写入；未装配校验端口时 fail-closed）。
+	ProjectID *int `json:"projectId,omitempty"`
 }
 
 // UpdateServiceRequestStatusRequest 更新服务请求状态请求

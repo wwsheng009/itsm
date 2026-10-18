@@ -139,6 +139,7 @@ func (s *Service) Create(ctx context.Context, tenantID, requesterID int, catalog
 		TenantID:           tenantID,
 		CatalogID:          catalogID,
 		RequesterID:        requesterID,
+		ProjectID:          reqData.ProjectID,
 		Status:             SRStatusSubmitted,
 		CurrentLevel:       1,
 		TotalLevels:        3,

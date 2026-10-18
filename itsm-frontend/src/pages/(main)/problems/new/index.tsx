@@ -5,6 +5,7 @@ import { ArrowLeft } from 'lucide-react';
 import { Form, Input, Select, Button, Card, message, Alert, Spin } from 'antd';
 import { ProblemApi } from '@/lib/api/problem-api';
 import { ProblemPriority, ProblemCategoryOptions } from '@/constants/problem';
+import ProjectSelect, { useProjectLinkPermission } from '@/components/business/ProjectSelect';
 import { useI18n } from '@/lib/i18n';
 import { htmlToPlainText, isRichTextEmpty, isRichTextEnabled } from '@/lib/rich-text/sanitize';
 import {
@@ -51,6 +52,7 @@ const CreateProblemPageContent = () => {
   const { t } = useI18n();
   const [searchParams] = useSearchParams();
   const [form] = Form.useForm();
+  const projectLinkPermission = useProjectLinkPermission('problem');
   const [loading, setLoading] = useState(false);
   const richTextEnabled = isRichTextEnabled();
   const uploadKey = 'problem-description-images';
@@ -111,6 +113,7 @@ const CreateProblemPageContent = () => {
         rootCause: values.rootCause,
         impact: values.impact,
         assigneeId: values.assigneeId,
+        projectId: values.projectId ?? undefined,
       });
 
       // 正文图片两段式：上传 → 用正式地址替换暂存占位 → 回写 description。
@@ -306,6 +309,16 @@ const CreateProblemPageContent = () => {
           >
             <TextArea rows={3} placeholder="请描述问题的影响范围，如影响哪些用户、服务或业务..." />
           </Form.Item>
+
+          {projectLinkPermission.canAttach && (
+            <Form.Item
+              name="projectId"
+              label="所属项目"
+              tooltip="创建后随问题一次写入所属项目；仅可挂接非终态（非已结项/取消）项目。"
+            >
+              <ProjectSelect />
+            </Form.Item>
+          )}
 
           <Form.Item className="mb-0">
             <div className="flex justify-end space-x-4">

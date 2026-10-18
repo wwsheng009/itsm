@@ -1,8 +1,8 @@
 version: "1.0"
-generated_at: "2026-10-18T02:23:58.072Z"
+generated_at: "2026-10-18T06:13:22.195Z"
 router_version: "1.0"
-total_routes: 948
-permission_coverage: "93.78%"
+total_routes: 953
+permission_coverage: "93.81%"
 routes:
   - method: GET
     path: /swagger/*any
@@ -2224,432 +2224,462 @@ routes:
     menu: v1
     description: 创建
     source: common_system_routes.go:233
-  - method: POST
+  - method: GET
     path: /api/v1/tickets/:id/project
-    permission: ticket.update
+    permission: ticket.read
     menu: v1
-    description: 创建
-    source: common_system_routes.go:240
-  - method: DELETE
-    path: /api/v1/tickets/:id/project
-    permission: ticket.update
-    menu: v1
-    description: 删除
+    description: 列表
     source: common_system_routes.go:241
   - method: POST
+    path: /api/v1/tickets/:id/project
+    permission: ticket.update
+    menu: v1
+    description: 创建
+    source: common_system_routes.go:242
+  - method: DELETE
+    path: /api/v1/tickets/:id/project
+    permission: ticket.update
+    menu: v1
+    description: 删除
+    source: common_system_routes.go:243
+  - method: GET
+    path: /api/v1/incidents/:id/project
+    permission: incident.read
+    menu: v1
+    description: 列表
+    source: common_system_routes.go:246
+  - method: POST
     path: /api/v1/incidents/:id/project
     permission: incident.write
     menu: v1
     description: 创建
-    source: common_system_routes.go:244
+    source: common_system_routes.go:247
   - method: DELETE
     path: /api/v1/incidents/:id/project
     permission: incident.write
     menu: v1
     description: 删除
-    source: common_system_routes.go:245
-  - method: POST
-    path: /api/v1/problems/:id/project
-    permission: problem.write
-    menu: v1
-    description: 创建
     source: common_system_routes.go:248
-  - method: DELETE
+  - method: GET
+    path: /api/v1/problems/:id/project
+    permission: problem.read
+    menu: v1
+    description: 列表
+    source: common_system_routes.go:251
+  - method: POST
     path: /api/v1/problems/:id/project
     permission: problem.write
-    menu: v1
-    description: 删除
-    source: common_system_routes.go:249
-  - method: POST
-    path: /api/v1/changes/:id/project
-    permission: change.write
     menu: v1
     description: 创建
     source: common_system_routes.go:252
   - method: DELETE
+    path: /api/v1/problems/:id/project
+    permission: problem.write
+    menu: v1
+    description: 删除
+    source: common_system_routes.go:253
+  - method: GET
+    path: /api/v1/changes/:id/project
+    permission: change.read
+    menu: v1
+    description: 列表
+    source: common_system_routes.go:256
+  - method: POST
+    path: /api/v1/changes/:id/project
+    permission: change.write
+    menu: v1
+    description: 创建
+    source: common_system_routes.go:257
+  - method: DELETE
     path: /api/v1/changes/:id/project
     permission: change.write
     menu: v1
     description: 删除
-    source: common_system_routes.go:253
+    source: common_system_routes.go:258
+  - method: GET
+    path: /api/v1/service-requests/:id/project
+    permission: service_request.read
+    menu: v1
+    description: 列表
+    source: common_system_routes.go:261
   - method: POST
     path: /api/v1/service-requests/:id/project
     permission: service_request.write
     menu: v1
     description: 创建
-    source: common_system_routes.go:256
+    source: common_system_routes.go:262
   - method: DELETE
     path: /api/v1/service-requests/:id/project
     permission: service_request.write
     menu: v1
     description: 删除
-    source: common_system_routes.go:257
+    source: common_system_routes.go:263
   - method: GET
     path: /api/v1/applications
     permission: application.read
     menu: v1
     description: 列表
-    source: common_system_routes.go:264
+    source: common_system_routes.go:270
   - method: POST
     path: /api/v1/applications
     permission: application.write
     menu: v1
     description: 创建
-    source: common_system_routes.go:265
+    source: common_system_routes.go:271
   - method: GET
     path: /api/v1/applications/microservices
     permission: application.read
     menu: v1
     description: 列表
-    source: common_system_routes.go:266
+    source: common_system_routes.go:272
   - method: POST
     path: /api/v1/applications/microservices
     permission: application.write
     menu: v1
     description: 创建
-    source: common_system_routes.go:267
+    source: common_system_routes.go:273
   - method: GET
     path: /api/v1/system/tags
     permission: ticket_tag.read
     menu: v1
     description: 列表
-    source: common_system_routes.go:273
+    source: common_system_routes.go:279
   - method: GET
     path: /api/v1/system/audit-logs
     permission: audit.read
     menu: v1
     description: 列表
-    source: common_system_routes.go:274
+    source: common_system_routes.go:280
   - method: GET
     path: /api/v1/departments
     permission: department.read
     menu: v1
     description: 列表
-    source: common_system_routes.go:280
+    source: common_system_routes.go:286
   - method: GET
     path: /api/v1/departments/tree
     permission: department.read
     menu: v1
     description: 列表
-    source: common_system_routes.go:281
+    source: common_system_routes.go:287
   - method: GET
     path: /api/v1/teams
     permission: team.read
     menu: v1
     description: 列表
-    source: common_system_routes.go:282
+    source: common_system_routes.go:288
   - method: GET
     path: /api/v1/tags
     permission: ticket_tag.read
     menu: v1
     description: 列表
-    source: common_system_routes.go:283
+    source: common_system_routes.go:289
   - method: GET
     path: /api/v1/admin/tenants
     permission: tenant.read
     menu: v1
     description: 列表
-    source: common_system_routes.go:291
+    source: common_system_routes.go:297
   - method: GET
     path: /api/v1/roles
     permission: role.read
     menu: v1
     description: 列表
-    source: common_system_routes.go:299
+    source: common_system_routes.go:305
   - method: POST
     path: /api/v1/roles
     permission: role.write
     menu: v1
     description: 创建
-    source: common_system_routes.go:300
+    source: common_system_routes.go:306
   - method: GET
     path: /api/v1/roles/:id
     permission: role.read
     menu: v1
     description: 列表
-    source: common_system_routes.go:301
+    source: common_system_routes.go:307
   - method: PUT
     path: /api/v1/roles/:id
     permission: role.write
     menu: v1
     description: 更新
-    source: common_system_routes.go:302
+    source: common_system_routes.go:308
   - method: DELETE
     path: /api/v1/roles/:id
     permission: role.delete
     menu: v1
     description: 删除
-    source: common_system_routes.go:303
+    source: common_system_routes.go:309
   - method: POST
     path: /api/v1/roles/:id/permissions
     permission: role.write
     menu: v1
     description: 创建
-    source: common_system_routes.go:304
+    source: common_system_routes.go:310
   - method: GET
     path: /api/v1/permissions
     permission: permission.read
     menu: v1
     description: 列表
-    source: common_system_routes.go:311
+    source: common_system_routes.go:317
   - method: POST
     path: /api/v1/permissions
     permission: role.write
     menu: v1
     description: 创建
-    source: common_system_routes.go:314
+    source: common_system_routes.go:320
   - method: POST
     path: /api/v1/permissions/init
     permission: role.write
     menu: v1
     description: 创建
-    source: common_system_routes.go:315
+    source: common_system_routes.go:321
   - method: GET
     path: /api/v1
     permission: null  # MISSING ACL
     menu: v1
     description: 列表
-    source: common_system_routes.go:325
+    source: common_system_routes.go:331
   - method: POST
     path: /api/v1
     permission: null  # MISSING ACL
     menu: v1
     description: 创建
-    source: common_system_routes.go:326
+    source: common_system_routes.go:332
   - method: GET
     path: /api/v1/:id
     permission: null  # MISSING ACL
     menu: v1
     description: 列表
-    source: common_system_routes.go:327
+    source: common_system_routes.go:333
   - method: PUT
     path: /api/v1/:id
     permission: null  # MISSING ACL
     menu: v1
     description: 更新
-    source: common_system_routes.go:328
+    source: common_system_routes.go:334
   - method: DELETE
     path: /api/v1/:id
     permission: null  # MISSING ACL
     menu: v1
     description: 删除
-    source: common_system_routes.go:329
+    source: common_system_routes.go:335
   - method: POST
     path: /api/v1/init
     permission: null  # MISSING ACL
     menu: v1
     description: 创建
-    source: common_system_routes.go:330
+    source: common_system_routes.go:336
   - method: GET
     path: /api/v1
     permission: tenant.read
     menu: v1
     description: 列表
-    source: common_system_routes.go:338
+    source: common_system_routes.go:344
   - method: POST
     path: /api/v1
     permission: tenant.write
     menu: v1
     description: 创建
-    source: common_system_routes.go:339
+    source: common_system_routes.go:345
   - method: GET
     path: /api/v1/:id
     permission: tenant.read
     menu: v1
     description: 列表
-    source: common_system_routes.go:340
+    source: common_system_routes.go:346
   - method: GET
     path: /api/v1/:id/usage
     permission: tenant.read
     menu: v1
     description: 列表
-    source: common_system_routes.go:342
+    source: common_system_routes.go:348
   - method: PUT
     path: /api/v1/:id
     permission: tenant.write
     menu: v1
     description: 更新
-    source: common_system_routes.go:343
+    source: common_system_routes.go:349
   - method: DELETE
     path: /api/v1/:id
     permission: tenant.write
     menu: v1
     description: 删除
-    source: common_system_routes.go:344
+    source: common_system_routes.go:350
   - method: PUT
     path: /api/v1/:id/status
     permission: tenant.write
     menu: v1
     description: 更新
-    source: common_system_routes.go:345
+    source: common_system_routes.go:351
   - method: GET
     path: /api/v1/:id/readiness
     permission: tenant.read
     menu: v1
     description: 列表
-    source: common_system_routes.go:347
+    source: common_system_routes.go:353
   - method: POST
     path: /api/v1/:id/provision
     permission: tenant.write
     menu: v1
     description: 创建
-    source: common_system_routes.go:348
+    source: common_system_routes.go:354
   - method: POST
     path: /api/v1/:id/bootstrap-admin
     permission: tenant.write
     menu: v1
     description: 创建
-    source: common_system_routes.go:349
+    source: common_system_routes.go:355
   - method: POST
     path: /api/v1/:id/users
     permission: tenant.write
     menu: v1
     description: 创建
-    source: common_system_routes.go:352
+    source: common_system_routes.go:358
   - method: GET
     path: /api/v1/:id/roles
     permission: tenant.write
     menu: v1
     description: 列表
-    source: common_system_routes.go:354
+    source: common_system_routes.go:360
   - method: GET
     path: /api/v1/:id/users
     permission: tenant.read
     menu: v1
     description: 列表
-    source: common_system_routes.go:358
+    source: common_system_routes.go:364
   - method: GET
     path: /api/v1/:id/users/:userId
     permission: tenant.read
     menu: v1
     description: 列表
-    source: common_system_routes.go:359
+    source: common_system_routes.go:365
   - method: POST
     path: /api/v1/:id/users/:userId/reset-password
     permission: tenant.write
     menu: v1
     description: 创建
-    source: common_system_routes.go:360
+    source: common_system_routes.go:366
   - method: PUT
     path: /api/v1/:id/users/:userId/status
     permission: tenant.write
     menu: v1
     description: 更新
-    source: common_system_routes.go:361
+    source: common_system_routes.go:367
   - method: POST
     path: /api/v1/:id/users/:userId/force-logout
     permission: tenant.write
     menu: v1
     description: 创建
-    source: common_system_routes.go:362
+    source: common_system_routes.go:368
   - method: POST
     path: /api/v1/:id/users/:userId/membership/revoke
     permission: tenant.write
     menu: v1
     description: 创建
-    source: common_system_routes.go:364
+    source: common_system_routes.go:370
   - method: POST
     path: /api/v1/:id/users/:userId/offboard
     permission: tenant.write
     menu: v1
     description: 创建
-    source: common_system_routes.go:366
+    source: common_system_routes.go:372
   - method: GET
     path: /api/v1/notification-preferences
     permission: notification.read
     menu: v1
     description: 列表
-    source: common_system_routes.go:376
+    source: common_system_routes.go:382
   - method: GET
     path: /api/v1/notification-preferences/event-types
     permission: notification.read
     menu: v1
     description: 列表
-    source: common_system_routes.go:377
+    source: common_system_routes.go:383
   - method: GET
     path: /api/v1/notification-preferences/:event_type
     permission: notification.read
     menu: v1
     description: 列表
-    source: common_system_routes.go:378
+    source: common_system_routes.go:384
   - method: POST
     path: /api/v1/notification-preferences
     permission: notification.create
     menu: v1
     description: 创建
-    source: common_system_routes.go:379
+    source: common_system_routes.go:385
   - method: PUT
     path: /api/v1/notification-preferences
     permission: notification.write
     menu: v1
     description: 更新
-    source: common_system_routes.go:380
+    source: common_system_routes.go:386
   - method: DELETE
     path: /api/v1/notification-preferences/:event_type
     permission: notification.write
     menu: v1
     description: 删除
-    source: common_system_routes.go:381
+    source: common_system_routes.go:387
   - method: POST
     path: /api/v1/notification-preferences/reset
     permission: notification.write
     menu: v1
     description: 创建
-    source: common_system_routes.go:382
+    source: common_system_routes.go:388
   - method: POST
     path: /api/v1/notification-preferences/init
     permission: notification.create
     menu: v1
     description: 创建
-    source: common_system_routes.go:383
+    source: common_system_routes.go:389
   - method: GET
     path: /api/v1/notifications
     permission: notification.read
     menu: v1
     description: 列表
-    source: common_system_routes.go:391
+    source: common_system_routes.go:397
   - method: GET
     path: /api/v1/notifications/unread-count
     permission: notification.read
     menu: v1
     description: 列表
-    source: common_system_routes.go:392
+    source: common_system_routes.go:398
   - method: PUT
     path: /api/v1/notifications/:id/read
     permission: notification.write
     menu: v1
     description: 更新
-    source: common_system_routes.go:393
+    source: common_system_routes.go:399
   - method: PUT
     path: /api/v1/notifications/read-all
     permission: notification.write
     menu: v1
     description: 更新
-    source: common_system_routes.go:394
+    source: common_system_routes.go:400
   - method: PUT
     path: /api/v1/notifications/batch/read
     permission: notification.write
     menu: v1
     description: 更新
-    source: common_system_routes.go:395
+    source: common_system_routes.go:401
   - method: DELETE
     path: /api/v1/notifications/batch
     permission: notification.write
     menu: v1
     description: 删除
-    source: common_system_routes.go:396
+    source: common_system_routes.go:402
   - method: DELETE
     path: /api/v1/notifications/:id
     permission: notification.write
     menu: v1
     description: 删除
-    source: common_system_routes.go:397
+    source: common_system_routes.go:403
   - method: POST
     path: /api/v1/notifications
     permission: notification.create
     menu: v1
     description: 创建
-    source: common_system_routes.go:398
+    source: common_system_routes.go:404
   - method: GET
     path: /api/v1/connectors
     permission: connector.read

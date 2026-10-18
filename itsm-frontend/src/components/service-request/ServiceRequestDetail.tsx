@@ -29,6 +29,7 @@ import type { ServiceRequest, ServiceRequestApproval } from '@/types/biz/service
 import { useI18n } from '@/lib/i18n/useI18n';
 import RichTextContent from '@/components/common/rich-text/RichTextContent';
 import { PermissionGate, useCan } from '@/components/auth/PermissionGate';
+import RecordProjectLink from '@/components/business/RecordProjectLink';
 
 const { Title, Text } = Typography;
 const { TextArea } = Input;
@@ -237,6 +238,9 @@ const ServiceRequestDetail: React.FC = () => {
             <Card title="请求详情">
               <Descriptions column={1} bordered>
                 <Descriptions.Item label="服务名称">{request.catalog?.name}</Descriptions.Item>
+                <Descriptions.Item label="所属项目">
+                  <RecordProjectLink domain="service_request" recordId={request.id} showLabel={false} />
+                </Descriptions.Item>
                 <Descriptions.Item label="申请原因"><RichTextContent content={request.reason} /></Descriptions.Item>
                 <Descriptions.Item label="成本中心">{request.costCenter || '-'}</Descriptions.Item>
                 <Descriptions.Item label="数据分类">

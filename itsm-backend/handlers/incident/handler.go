@@ -10,6 +10,8 @@ import (
 	"itsm-backend/common/handlerctx"
 	"itsm-backend/dto"
 	"itsm-backend/ent"
+	"itsm-backend/handlers/common/projectlink"
+	"itsm-backend/middleware"
 
 	"github.com/gin-gonic/gin"
 	"go.uber.org/zap"
@@ -17,11 +19,18 @@ import (
 
 // IncidentHandler HTTP handlers for incident domain
 type IncidentHandler struct {
-	service *Service
+	service     *Service
+	projectLink projectlink.Validator
 }
 
 func NewHandler(service *Service) *IncidentHandler {
 	return &IncidentHandler{service: service}
+}
+
+// SetProjectLink 注入项目挂接校验端口（bootstrap 装配）。
+// 创建请求携带 projectId 且端口未装配时 fail-closed 返回 503，禁止静默丢弃关联意图。
+func (h *IncidentHandler) SetProjectLink(v projectlink.Validator) {
+	h.projectLink = v
 }
 
 func failIncidentOperation(c *gin.Context, err error) {
@@ -342,6 +351,12 @@ func (h *IncidentHandler) Create(c *gin.Context) {
 		return
 	}
 
+	// PE-5 增补：创建时挂接项目——前置校验 project:write + 项目存在且非终态（未装配端口 → 503 fail-closed）。
+	if err := projectlink.GuardCreate(c.Request.Context(), h.projectLink, tenantID, req.ProjectID, middleware.GetContextRoles(c)); err != nil {
+		common.RespondError(c, err, "创建事件失败")
+		return
+	}
+
 	incident := &Incident{
 		Title:          req.Title,
 		Description:    req.Description,
@@ -354,6 +369,7 @@ func (h *IncidentHandler) Create(c *gin.Context) {
 		ImpactAnalysis: dto.StructToMap(req.ImpactAnalysis),
 		Source:         req.Source,
 		Metadata:       req.Metadata,
+		ProjectID:      req.ProjectID,
 		ReporterID:     userID,
 		IsAutomated:    false,
 	}

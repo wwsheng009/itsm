@@ -28,6 +28,8 @@ type CreateTicketRequest struct {
 	RequesterID           int                    `json:"requesterId" binding:"omitempty"` // 从认证上下文中获取，前端可不传
 	AssigneeID            int                    `json:"assigneeId"`
 	ParentTicketID        *int                   `json:"parentTicketId,omitempty"`
+	// ProjectID 创建时挂接的项目（可选；handler 前置校验 project:write + 项目非终态，随 INSERT 一次写入）。
+	ProjectID             *int                   `json:"projectId,omitempty"`
 	TagIDs                []int                  `json:"tagIds,omitempty"` // 标签ID列表
 	Tags                  []string               `json:"tags"`
 	FormFields            map[string]interface{} `json:"formFields"`

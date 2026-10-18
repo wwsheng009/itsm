@@ -237,22 +237,28 @@ func SetupCommonSystemRoutes(r *gin.Engine, tenant *gin.RouterGroup, config *Rou
 		// 单据 ↔ 项目挂接（PE-5）：域写码由本组路由声明，project:write 由服务层动态复核。
 		if config.ProjectHandler != nil {
 			tickets := tenant.Group("/tickets")
+			// 单据→项目反向查询（详情页展示"所属项目"；可见性由服务层按项目谓词收窄，不可见返回 null）。
+			tickets.GET("/:id/project", middleware.RequirePermission("ticket", "read"), config.ProjectHandler.GetTicketProject)
 			tickets.POST("/:id/project", middleware.RequirePermission("ticket", "update"), config.ProjectHandler.AttachTicket)
 			tickets.DELETE("/:id/project", middleware.RequirePermission("ticket", "update"), config.ProjectHandler.DetachTicket)
 
 			incidents := tenant.Group("/incidents")
+			incidents.GET("/:id/project", middleware.RequirePermission("incident", "read"), config.ProjectHandler.GetIncidentProject)
 			incidents.POST("/:id/project", middleware.RequirePermission("incident", "write"), config.ProjectHandler.AttachIncident)
 			incidents.DELETE("/:id/project", middleware.RequirePermission("incident", "write"), config.ProjectHandler.DetachIncident)
 
 			problems := tenant.Group("/problems")
+			problems.GET("/:id/project", middleware.RequirePermission("problem", "read"), config.ProjectHandler.GetProblemProject)
 			problems.POST("/:id/project", middleware.RequirePermission("problem", "write"), config.ProjectHandler.AttachProblem)
 			problems.DELETE("/:id/project", middleware.RequirePermission("problem", "write"), config.ProjectHandler.DetachProblem)
 
 			changes := tenant.Group("/changes")
+			changes.GET("/:id/project", middleware.RequirePermission("change", "read"), config.ProjectHandler.GetChangeProject)
 			changes.POST("/:id/project", middleware.RequirePermission("change", "write"), config.ProjectHandler.AttachChange)
 			changes.DELETE("/:id/project", middleware.RequirePermission("change", "write"), config.ProjectHandler.DetachChange)
 
 			serviceRequests := tenant.Group("/service-requests")
+			serviceRequests.GET("/:id/project", middleware.RequirePermission("service_request", "read"), config.ProjectHandler.GetServiceRequestProject)
 			serviceRequests.POST("/:id/project", middleware.RequirePermission("service_request", "write"), config.ProjectHandler.AttachServiceRequest)
 			serviceRequests.DELETE("/:id/project", middleware.RequirePermission("service_request", "write"), config.ProjectHandler.DetachServiceRequest)
 		}

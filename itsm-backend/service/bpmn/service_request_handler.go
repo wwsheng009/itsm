@@ -8,6 +8,7 @@ import (
 	"itsm-backend/dto"
 	"itsm-backend/ent"
 	"itsm-backend/ent/servicerequest"
+	"itsm-backend/handlers/common/projectlink"
 
 	"go.uber.org/zap"
 )
@@ -15,8 +16,9 @@ import (
 // ServiceRequestServiceTaskHandler 服务请求服务任务处理器
 type ServiceRequestServiceTaskHandler struct {
 	HandlerBase
-	client *ent.Client
-	logger *zap.SugaredLogger
+	client      *ent.Client
+	logger      *zap.SugaredLogger
+	projectLink projectlink.Validator
 }
 
 // NewServiceRequestServiceTaskHandler 创建服务请求处理器
@@ -25,6 +27,12 @@ func NewServiceRequestServiceTaskHandler(client *ent.Client, logger *zap.Sugared
 		client: client,
 		logger: logger,
 	}
+}
+
+// SetProjectLink 注入项目挂接校验端口（bootstrap 装配）。
+// 未装配时携带 projectId 的 create_request fail-closed（503），与 HTTP 五域口径一致。
+func (h *ServiceRequestServiceTaskHandler) SetProjectLink(v projectlink.Validator) {
+	h.projectLink = v
 }
 
 // GetTaskType 返回任务类型
@@ -107,6 +115,12 @@ func (h *ServiceRequestServiceTaskHandler) createRequest(ctx context.Context, va
 		return nil, fmt.Errorf("申请人ID不能为空")
 	}
 
+	// PE-5 遗留项：创建时挂接项目——前置校验与 HTTP 五域同一端口（未装配 → fail-closed）。
+	projectID, err := GuardProjectAttach(ctx, h.client, h.projectLink, tenantID, variables)
+	if err != nil {
+		return nil, errProjectAttach(err)
+	}
+
 	sr, err := h.client.ServiceRequest.Create().
 		SetTenantID(tenantID).
 		SetCatalogID(catalogID).
@@ -114,13 +128,14 @@ func (h *ServiceRequestServiceTaskHandler) createRequest(ctx context.Context, va
 		SetTitle(title).
 		SetReason(reason).
 		SetStatus("submitted").
+		SetNillableProjectID(projectID).
 		Save(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("创建服务请求失败: %w", err)
 	}
 
 	h.logger.Infow("ServiceRequest created via BPMN",
-		"request_id", sr.ID, "title", title, "catalog_id", catalogID, "tenant_id", tenantID)
+		"request_id", sr.ID, "title", title, "catalog_id", catalogID, "tenant_id", tenantID, "project_id", sr.ProjectID)
 
 	return &dto.ServiceTaskResult{
 		Success:    true,

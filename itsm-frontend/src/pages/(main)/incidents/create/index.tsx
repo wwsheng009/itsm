@@ -4,6 +4,7 @@ import React, { useState, useEffect, useCallback, useRef, lazy, Suspense } from 
 import { Button, Card, Form, Input, Select, Upload, Space, Row, Col, message, Tabs, Typography, Divider, Tag, Spin } from 'antd';
 import { ArrowLeft, Search, X, Sparkles } from 'lucide-react';
 import { IncidentAPI } from '@/lib/api/incident-api';
+import ProjectSelect, { useProjectLinkPermission } from '@/components/business/ProjectSelect';
 import { IncidentCategoryOptions } from '@/constants/taxonomy';
 import type { ConfigurationItem } from '@/types/biz/cmdb';
 import { CMDBApi } from '@/lib/api/cmdb-api';
@@ -61,6 +62,7 @@ interface IncidentFormValues {
   assignedTo?: number;
   affectedSystems?: string[];
   rootCause?: string;
+  projectId?: number;
 }
 
 export default function CreateIncidentPage() {
@@ -75,6 +77,8 @@ export default function CreateIncidentPage() {
   const [users, setUsers] = useState<User[]>([]);
   const [usersLoading, setUsersLoading] = useState(false);
   const { handleError } = useErrorHandler();
+  // PE-5 增补：创建时挂接项目（canAttach = project:write + incident:write，最终以后端动态复核为准）。
+  const projectLinkPermission = useProjectLinkPermission('incident');
 
   // AI 智能辅助：分类建议 + 相似历史事件
   // 说明：AI 建议一律「显式采纳」，不自动回填表单，避免用户不知情被改写输入
@@ -255,6 +259,7 @@ export default function CreateIncidentPage() {
         urgency: values.urgency,
         assigneeId: values.assignedTo,
         configurationItemIds: selectedCIs.map(ci => ci.id),
+        projectId: values.projectId ?? undefined,
       });
 
       // 正文图片两段式：上传 → 用正式地址替换暂存占位 → 回写 description。
@@ -605,6 +610,17 @@ export default function CreateIncidentPage() {
                             </Form.Item>
                           </Col>
                         </Row>
+
+                        {/* PE-5 增补：创建时挂接项目（canAttach 门控；后端创建前动态复核 project:write + 项目非终态） */}
+                        {projectLinkPermission.canAttach && (
+                          <Form.Item
+                            name="projectId"
+                            label="所属项目"
+                            tooltip="创建后随事件一次写入所属项目；仅可挂接非终态（非已完成/取消）项目。"
+                          >
+                            <ProjectSelect />
+                          </Form.Item>
+                        )}
 
                         {/* CI配置项关联 */}
                         <Form.Item label="关联配置项">

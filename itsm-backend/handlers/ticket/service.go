@@ -62,6 +62,7 @@ func (s *Service) Create(ctx context.Context, tenantID int, params *CreateParams
 		RequesterID:           params.RequesterID,
 		FormFields:            params.FormFields,
 		TagIDs:                params.TagIDs,
+		ProjectID:             params.ProjectID,
 		WorkflowDefinitionKey: params.WorkflowDefinitionKey,
 	}
 	if params.AssigneeID != nil {

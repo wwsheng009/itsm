@@ -155,6 +155,18 @@ export interface RecordListResult {
   total: number;
 }
 
+/** 单据→项目反向查询视图（PE-5 增补）：project=null 表示未挂接或项目对当前用户不可见。 */
+export interface RecordProjectView {
+  id: number;
+  name: string;
+  code: string;
+  status: ProjectStatus;
+}
+
+export interface RecordProjectResult {
+  project: RecordProjectView | null;
+}
+
 export interface TaskTicketRequest {
   ticketTypeId?: number;
   title?: string;
@@ -1439,6 +1451,11 @@ class ProjectService {
   }
 
   // ---- 关联单据 ----
+
+  /** 单据→项目反向查询（详情页展示"所属项目"；project=null = 未挂接或项目对当前用户不可见）。 */
+  getRecordProject(domain: RecordDomain, recordId: number): Promise<RecordProjectResult> {
+    return httpClient.get<RecordProjectResult>(`/api/v1/${DOMAIN_PATH[domain]}/${recordId}/project`);
+  }
 
   listRecords(
     projectId: number,

@@ -62,6 +62,7 @@ import {
 import { AISuggestionPanel } from '@/components/business/AISuggestionPanel';
 import { AskAILauncher } from '@/components/ai/AskAILauncher';
 import { WorkflowProgressCard } from '@/components/business/WorkflowProgressCard';
+import RecordProjectLink from '@/components/business/RecordProjectLink';
 import {
   isValidTransition,
   getAllowedTransitions,
@@ -954,6 +955,9 @@ const TicketDetail: React.FC<{ id?: string }> = ({ id: propId }) => {
             <Descriptions.Item label={t('ticketDetail.labelPriority')}>{getPriorityText(ticket.priority)}</Descriptions.Item>
             <Descriptions.Item label={t('ticketDetail.labelCreatedAt')}>{formatDateTime(ticket.createdAt)}</Descriptions.Item>
             <Descriptions.Item label={t('ticketDetail.labelUpdatedAt')}>{formatDateTime(ticket.updatedAt)}</Descriptions.Item>
+            <Descriptions.Item label="所属项目" span={2}>
+              <RecordProjectLink domain="ticket" recordId={ticket.id} showLabel={false} />
+            </Descriptions.Item>
             <Descriptions.Item label={t('ticketDetail.labelDescription')} span={2}>
               {descriptionRichHtml ? (
                 <>

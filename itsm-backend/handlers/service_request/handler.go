@@ -9,12 +9,21 @@ import (
 	"itsm-backend/dto"
 	"itsm-backend/ent"
 	"itsm-backend/handlers/common/datascope"
+	"itsm-backend/handlers/common/projectlink"
+	"itsm-backend/middleware"
 
 	"github.com/gin-gonic/gin"
 )
 
 type Handler struct {
-	service *Service
+	service     *Service
+	projectLink projectlink.Validator
+}
+
+// SetProjectLink 注入项目挂接校验端口（bootstrap 装配）。
+// 创建请求携带 projectId 且端口未装配时 fail-closed 返回 503，禁止静默丢弃关联意图。
+func (h *Handler) SetProjectLink(v projectlink.Validator) {
+	h.projectLink = v
 }
 
 func failServiceRequest(c *gin.Context, err error) {
@@ -136,6 +145,12 @@ func (h *Handler) Create(c *gin.Context) {
 		return
 	}
 
+	// PE-5：创建时挂接项目——前置校验 project:write + 项目存在且非终态（未装配端口 → 503 fail-closed）。
+	if err := projectlink.GuardCreate(c.Request.Context(), h.projectLink, tenantID, req.ProjectID, middleware.GetContextRoles(c)); err != nil {
+		common.RespondError(c, err, "创建服务请求失败")
+		return
+	}
+
 	expireAt := req.ExpireAt
 
 	domainReq := &ServiceRequest{
@@ -148,6 +163,7 @@ func (h *Handler) Create(c *gin.Context) {
 		CostCenter:         req.CostCenter,
 		SourceIPWhitelist:  req.SourceIPWhitelist,
 		ExpireAt:           expireAt,
+		ProjectID:          req.ProjectID,
 	}
 
 	created, err := h.service.Create(c.Request.Context(), tenantID, userID, req.CatalogID, domainReq)

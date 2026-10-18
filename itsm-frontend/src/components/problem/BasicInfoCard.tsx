@@ -4,6 +4,7 @@ import { Card, Descriptions, Divider, Typography } from 'antd';
 import dayjs from 'dayjs';
 import { useI18n } from '@/lib/i18n/useI18n';
 import RichTextContent from '@/components/common/rich-text/RichTextContent';
+import RecordProjectLink from '@/components/business/RecordProjectLink';
 
 const { Title, Paragraph } = Typography;
 
@@ -121,6 +122,9 @@ const BasicInfoCard: React.FC<BasicInfoCardProps> = ({ data }) => {
         <Descriptions.Item label={t('problem.category')}>{category}</Descriptions.Item>
         <Descriptions.Item label={t('problem.createdAt')}>{formatDate(createdAt)}</Descriptions.Item>
         <Descriptions.Item label={t('problem.updatedAt')}>{formatDate(updatedAt)}</Descriptions.Item>
+        <Descriptions.Item label="所属项目" span={2}>
+          <RecordProjectLink domain="problem" recordId={data.id} showLabel={false} />
+        </Descriptions.Item>
       </Descriptions>
 
       <Divider />

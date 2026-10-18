@@ -135,6 +135,7 @@ func (s *ProblemService) CreateProblem(ctx context.Context, req *dto.CreateProbl
 		SetImpact(req.Impact).
 		SetTenantID(tenantID).
 		SetCreatedBy(createdBy).
+		SetNillableProjectID(req.ProjectID).
 		Save(ctx)
 	if err != nil {
 		s.logger.Errorw("Failed to create problem", "error", err, "tenant_id", tenantID)

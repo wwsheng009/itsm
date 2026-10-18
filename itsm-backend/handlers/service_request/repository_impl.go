@@ -137,6 +137,9 @@ func (r *EntRepository) Create(ctx context.Context, req *ServiceRequest, approva
 	if req.CiID > 0 {
 		create.SetCiID(req.CiID)
 	}
+	if req.ProjectID != nil {
+		create.SetNillableProjectID(req.ProjectID)
+	}
 
 	savedReq, err := create.Save(ctx)
 	if err != nil {
@@ -219,6 +222,9 @@ func (r *EntRepository) CreateWithWorkflowCommand(ctx context.Context, req *Serv
 	}
 	if req.CiID > 0 {
 		create.SetCiID(req.CiID)
+	}
+	if req.ProjectID != nil {
+		create.SetNillableProjectID(req.ProjectID)
 	}
 
 	saved, err := create.Save(ctx)

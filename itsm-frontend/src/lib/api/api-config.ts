@@ -341,6 +341,8 @@ export interface CreateTicketRequest {
   formFields?: Record<string, unknown>;
   assigneeId?: number;
   workflowDefinitionKey?: string;
+  /** 所属项目（创建时挂接；需 project:write，后端动态复核）。 */
+  projectId?: number;
 }
 
 export interface UpdateStatusRequest {

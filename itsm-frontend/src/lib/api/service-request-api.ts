@@ -69,6 +69,8 @@ export interface CreateServiceRequestRequest {
   sourceIpWhitelist?: string[];
   expireAt?: string;
   complianceAck: boolean;
+  /** 所属项目（创建时挂接；PE-5 增补，需 project:write，后端动态复核）。 */
+  projectId?: number;
 }
 
 export interface UpdateServiceRequestStatusRequest {

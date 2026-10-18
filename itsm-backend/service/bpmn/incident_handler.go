@@ -2,13 +2,16 @@ package bpmn
 
 import (
 	"context"
+	"crypto/rand"
 	"fmt"
+	"math/big"
 	"time"
 
 	"itsm-backend/common"
 	"itsm-backend/dto"
 	"itsm-backend/ent"
 	"itsm-backend/ent/incident"
+	"itsm-backend/handlers/common/projectlink"
 
 	"go.uber.org/zap"
 )
@@ -16,8 +19,9 @@ import (
 // IncidentServiceTaskHandler 事件服务任务处理器
 type IncidentServiceTaskHandler struct {
 	HandlerBase
-	client *ent.Client
-	logger *zap.SugaredLogger
+	client      *ent.Client
+	logger      *zap.SugaredLogger
+	projectLink projectlink.Validator
 }
 
 // NewIncidentServiceTaskHandler 创建事件处理器
@@ -26,6 +30,12 @@ func NewIncidentServiceTaskHandler(client *ent.Client, logger *zap.SugaredLogger
 		client: client,
 		logger: logger,
 	}
+}
+
+// SetProjectLink 注入项目挂接校验端口（bootstrap 装配）。
+// 未装配时携带 projectId 的 create_incident fail-closed（503），与 HTTP 五域口径一致。
+func (h *IncidentServiceTaskHandler) SetProjectLink(v projectlink.Validator) {
+	h.projectLink = v
 }
 
 // GetTaskType 返回任务类型
@@ -93,6 +103,20 @@ func (h *IncidentServiceTaskHandler) createIncident(ctx context.Context, variabl
 	incidentType, _ := variables["type"].(string)
 	priority, _ := variables["priority"].(string)
 	severity, _ := variables["severity"].(string)
+	// schema 默认值兜底：显式 Set 空串会覆盖 Default 并触发枚举校验失败。
+	if incidentType == "" {
+		incidentType = "incident"
+	}
+	if priority == "" {
+		priority = "medium"
+	}
+	if severity == "" {
+		severity = "medium"
+	}
+	incidentNumber := GetStringFromVars(variables, "incident_number")
+	if incidentNumber == "" {
+		incidentNumber = nextBPMNIncidentNumber()
+	}
 
 	tenantID, err := ResolveTenantID(ctx, variables)
 	if err != nil {
@@ -104,6 +128,12 @@ func (h *IncidentServiceTaskHandler) createIncident(ctx context.Context, variabl
 		return nil, fmt.Errorf("事件标题不能为空")
 	}
 
+	// PE-5 遗留项：创建时挂接项目——前置校验与 HTTP 五域同一端口（未装配 → fail-closed）。
+	projectID, err := GuardProjectAttach(ctx, h.client, h.projectLink, tenantID, variables)
+	if err != nil {
+		return nil, errProjectAttach(err)
+	}
+
 	incident, err := h.client.Incident.Create().
 		SetTitle(title).
 		SetDescription(description).
@@ -111,20 +141,33 @@ func (h *IncidentServiceTaskHandler) createIncident(ctx context.Context, variabl
 		SetPriority(priority).
 		SetSeverity(severity).
 		SetStatus(common.IncidentStatusNew).
+		SetIncidentNumber(incidentNumber).
 		SetReporterID(GetIntFromVars(variables, "reporter_id")).
 		SetTenantID(tenantID).
+		SetNillableProjectID(projectID).
 		Save(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("创建事件失败: %w", err)
 	}
 
-	h.logger.Infow("Incident created via BPMN", "incident_id", incident.ID, "title", title, "tenant_id", tenantID)
+	h.logger.Infow("Incident created via BPMN", "incident_id", incident.ID, "title", title, "tenant_id", tenantID, "project_id", incident.ProjectID)
 
 	return &dto.ServiceTaskResult{
 		Success:    true,
 		Message:    fmt.Sprintf("事件 %d 已创建", incident.ID),
 		OutputVars: map[string]interface{}{"incident_id": incident.ID, "incident_number": incident.IncidentNumber, "tenant_id": tenantID},
 	}, nil
+}
+
+// nextBPMNIncidentNumber 生成流程侧事件编号兜底值（crypto/rand 后缀，碰撞概率可忽略；
+// incident_number 为全局唯一约束，真碰撞时 INSERT 会失败并由调用方重试）。
+// 流程变量显式携带 incident_number 时以显式值为准。
+func nextBPMNIncidentNumber() string {
+	suffix := fmt.Sprintf("%06d", time.Now().UnixNano()%1000000)
+	if n, err := rand.Int(rand.Reader, big.NewInt(1000000)); err == nil {
+		suffix = fmt.Sprintf("%06d", n.Int64())
+	}
+	return fmt.Sprintf("INC-%04d%02d-%s", time.Now().Year(), int(time.Now().Month()), suffix)
 }
 
 // assignIncident 分配事件

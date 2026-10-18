@@ -43,6 +43,7 @@ import type { Incident } from '@/types/biz/incident';
 import { useErrorHandler } from '@/lib/hooks/useErrorHandler';
 import { SafeContent, SafeTextBlock } from '@/components/common/SafeContent';
 import RichTextContent from '@/components/common/rich-text/RichTextContent';
+import RecordProjectLink from '@/components/business/RecordProjectLink';
 import { isValidIncidentTransition } from '@/lib/utils/workflow-state-machine';
 
 // 事件分类弹窗表单值：incidentId 由当前事件决定，置信度与自动分类标记由前端固定填充。
@@ -632,6 +633,10 @@ const IncidentDetail: React.FC<{ id?: string }> = ({ id: propId }) => {
               {data.detectedAt ? dayjs(data.detectedAt).format('YYYY-MM-DD HH:mm:ss') : '-'}
             </Descriptions.Item>
             <Descriptions.Item label="来源">{data.source}</Descriptions.Item>
+            {/* PE-5 增补：所属项目展示 + 加入/移出（权限与写操作由后端动态复核） */}
+            <Descriptions.Item label="所属项目" span={2}>
+              <RecordProjectLink domain="incident" recordId={data.id} showLabel={false} />
+            </Descriptions.Item>
             {data.problemId && (
               <Descriptions.Item label="关联问题">
                 <Button type="link" className="h-auto p-0" onClick={() => navigate(`/problems/${data.problemId}`)}>

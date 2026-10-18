@@ -38,6 +38,7 @@ import {
 } from '@/constants/change';
 import type { Change, ApprovalChainItem } from '@/types/biz/change';
 import CabStepBadge from '@/components/cab/CabStepBadge';
+import RecordProjectLink from '@/components/business/RecordProjectLink';
 import ChangeRiskAssessment from './ChangeRiskAssessment';
 import ChangeCMDBImpactPanel from './ChangeCMDBImpactPanel';
 import ChangeImpactAnalysis from './ChangeImpactAnalysis';
@@ -483,6 +484,9 @@ const ChangeDetail: React.FC = () => {
           </Descriptions.Item>
           <Descriptions.Item label={t('changeDetail.labelPlannedEnd')}>
             {formatDateTime(change.plannedEndDate) || '-'}
+          </Descriptions.Item>
+          <Descriptions.Item label="所属项目" span={2}>
+            <RecordProjectLink domain="change" recordId={change.id} showLabel={false} />
           </Descriptions.Item>
         </Descriptions>
 

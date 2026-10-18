@@ -80,6 +80,12 @@ export interface ProblemListResponse {
   pageSize: number;
 }
 
+/** 创建问题请求体：Partial<Problem> + PE-5 增补的创建时挂接项目字段。 */
+export interface CreateProblemPayload extends Partial<Problem> {
+  /** 所属项目（创建时挂接；需 project:write，后端动态复核）。 */
+  projectId?: number;
+}
+
 // ==================== 问题关联 ====================
 
 export type RelatedType = 'ticket' | 'incident' | 'change';
@@ -127,7 +133,7 @@ export class ProblemApi {
   /**
    * 创建问题
    */
-  static async createProblem(data: Partial<Problem>): Promise<Problem> {
+  static async createProblem(data: CreateProblemPayload): Promise<Problem> {
     return httpClient.post('/api/v1/problems', data);
   }
 

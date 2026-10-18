@@ -200,6 +200,7 @@ func (r *EntRepository) Create(ctx context.Context, p *Problem) (*Problem, error
 		SetImpact(p.Impact).
 		SetCreatedBy(p.CreatedBy).
 		SetTenantID(p.TenantID).
+		SetNillableProjectID(p.ProjectID).
 		SetCreatedAt(time.Now()).
 		SetUpdatedAt(time.Now())
 

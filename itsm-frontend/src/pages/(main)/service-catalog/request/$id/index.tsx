@@ -40,6 +40,7 @@ import {
 } from '@/lib/rich-text/staged-images';
 import { AttachmentApi, serviceRequestAttachmentPreviewUrl } from '@/lib/api/attachment-api';
 import type { UploadedImage } from '@/components/common/rich-text/RichTextEditor';
+import ProjectSelect, { useProjectLinkPermission } from '@/components/business/ProjectSelect';
 
 const { Title, Text, Paragraph } = Typography;
 const { TextArea } = Input;
@@ -69,6 +70,8 @@ export default function ServiceCatalogRequestPage() {
   const [fetchError, setFetchError] = useState<string | null>(null);
   const user = useAuthStore(state => state.user);
   const richTextEnabled = isRichTextEnabled();
+  // PE-5 增补：创建时挂接项目（前端权限预判；后端创建前动态复核 project:write + 项目非终态）。
+  const projectLinkPermission = useProjectLinkPermission('service_request');
 
   // 富文本图片「先占位、后上传」：服务请求创建成功前拿不到 requestId，
   // 故先在编辑器内以 blob: 占位，提交后统一上传并回写正式地址。
@@ -147,6 +150,8 @@ export default function ServiceCatalogRequestPage() {
       const expireAt: Dayjs | undefined = values.expireAt;
       const payload: any = {
         serviceId: id,
+        // PE-5 增补：创建时挂接项目（可选；映射层透传至后端 projectId）。
+        projectId: values.projectId ?? undefined,
         formData: {
           requesterName: values.requesterName,
           requesterEmail: values.requesterEmail,
@@ -298,6 +303,16 @@ export default function ServiceCatalogRequestPage() {
               <Input disabled placeholder="当前用户邮箱" />
             </Form.Item>
           </div>
+          {/* PE-5 增补：创建时挂接项目（canAttach 门控；后端创建前动态复核 project:write + 项目非终态） */}
+          {projectLinkPermission.canAttach && (
+            <Form.Item
+              name="projectId"
+              label="所属项目"
+              tooltip="创建后随服务请求一次写入所属项目；仅可挂接非终态（非已完成/取消）项目。"
+            >
+              <ProjectSelect />
+            </Form.Item>
+          )}
           <Form.Item
             name="title"
             label="申请标题"

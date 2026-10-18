@@ -117,3 +117,51 @@
   - `81787af0` 日期预填统一按 UTC 日历日（主分支）
   - `f2e32b4e` 部署分支上的 UTC 日期修复（cherry-pick）
 - 上述提交尚未 push 到 origin。
+
+## 6. 单据挂接项目：创建时挂接 + 详情页「所属项目」（PE-5 增补）
+
+> 状态：已实施并通过本地验证（**尚未部署到 238 demo**；本节与第 1~3 节不属同一批次）。
+
+### 背景
+
+PE-5 此前仅落地「项目工作台查看/解除挂接」与「任务生成工单自动关联」；单据侧不感知项目：五域（工单/事件/问题/变更/服务请求）创建请求不接受 `projectId`，详情页无「所属项目」，也没有「把已有单据加入项目」的界面入口（`attachRecord` 全前端零调用）。
+
+### 实现
+
+- **创建时挂接（五域一致口径）**：五域创建请求 DTO 新增可选 `projectId`；前置校验收敛为单一端口 [`handlers/common/projectlink`](../../itsm-backend/handlers/common/projectlink/projectlink.go)（`GuardCreate` → 项目服务 `ValidateAttach`：`project:write` 动态复核 + 项目存在（租户内、可见）且非终态）；校验通过后 `project_id` **随 INSERT 一次写入**（避免「先建单再挂接」的部分成功）；未装配端口时携带 `projectId` 的创建请求 **fail-closed 503**，不静默丢弃关联意图。`bootstrap` 五域 `SetProjectLink(projectService)` 装配。
+- **单据侧反向查询（新增 5 条端点）**：`GET /api/v1/{tickets|incidents|problems|changes|service-requests}/:id/project`（权限码各域 `read`），返回 `{project: {id,name,code,status} | null}`；项目可见性复用详情 `GetForViewer`（对查看者不可见按 `null` 返回，不泄露）。
+- **前端**：新增共享组件 `ProjectSelect`（创建页选项目；仅列非终态项目；`project:read + project:write + 域写码` 门控）与 `RecordProjectLink`（详情页「所属项目」展示 + 加入/移出）；五域创建页/详情页全部接入；服务请求创建入口为服务目录申请页（`pages/(main)/service-catalog/request/$id`），`projectId` 经 `service-catalog-api` 映射层透传。
+- **边界**：MSP 跨租户面保持只读，不暴露挂接写入口。
+
+### 验证
+
+| 检查 | 结果 |
+|---|---|
+| `go build -p 2 ./...` | `BUILD_EXIT=0` |
+| `go test -p 1 -count=1 ./handlers/project/ ./middleware/ ./handlers/ticket/ ./handlers/incident/ ./handlers/problem/ ./handlers/change/` | 6 包全部 `ok`（project 含新增 3 用例：反查/附接语义/端点） |
+| `handlers/service_request` 包测试 | 断言无失败；9 例在 Windows 下因 `TempDir` 清理报 `The process cannot access the file ... being used by another process`（SQLite 句柄回收的环境性问题）。基线复核：暂存本轮 4 个改动文件后同包跑出 **25 例同类清理失败**，确认与本轮改动无关 |
+| 前端 `npx tsc --noEmit` | `TSC_EXIT=0` |
+| 改动文件 ESLint（23 个前端文件） | 通过（0 error / 0 warning） |
+| 相关前端单测（`npx jest`：project/incident/change/problem service + service-catalog-api/service-request-api） | **6 套 140/140 通过**（子集运行触发全局覆盖率阈值提示，属预期，非用例失败） |
+| `node scripts/check-api-paths.js` | Matched **1075** / Missing **0** |
+| `node scripts/generate-acl-manifest.js` | **948 → 953 条**（+5 条 `GET /{id}/project`），覆盖率 93.81% |
+| `go run ./cmd/authz-gen` + `middleware` 预检新鲜度/路由对齐测试 | 通过 |
+| Swagger（`make swagger-gen` 同口径） | `swag init` 重生成，仅新增（+115 行）：5 条端点摘要 + 五域创建请求 `projectId` 字段 + `project.RecordProjectResponse` 定义 |
+
+### 遗留
+
+- （已收口，见下）BPMN 服务任务 `create_incident` 直插 ent，不支持 `projectId`。
+- 本节变更尚未部署到 demo，未做浏览器级回归；`RecordProjectLink` 的「加入/移出」复用既有 `POST|DELETE /.../:id/project`（已在 `handlers/project` 单测覆盖）。
+
+### 遗留收口：BPMN 服务任务创建时挂接项目（2026-10-18 补丁）
+
+**问题**：BPMN 服务任务 `create_incident` / `create_change` / `create_request`（`service/bpmn/*.go`）绕过 HTTP 创建路径直插 ent，既不读取流程变量 `projectId`，也不经 `projectlink` 端口，导致「流程创建的单据无法挂项目」且与五域口径不一致。核查中还发现 `create_incident` 的存量缺陷：未写必填的 `incident_number`、`type/priority/severity` 为空串时覆盖 schema 默认值并触发枚举校验失败（即该任务此前已无法成功建单）。
+
+**实现**：
+
+- 新增 `service/bpmn/project_link.go`：`ProjectIDFromVars`（`projectId` 优先，兼容 `project_id`；int/int64/float64/数字串均支持，非法值视为不挂接）+ `GuardProjectAttach`（复用 `handlers/common/projectlink.GuardCreate` 与项目服务 `ValidateAttach`，校验失败不落库）+ `resolveInitiatorRoles`（优先受信上下文 `BPMNUserIDContextKey`，回退流程变量 `initiator_id/created_by/reporter_id/requester_id`；主角色 + 同租户生效 m2m 角色，与 RBAC 中间件口径一致）。
+- 三个处理器新增 `SetProjectLink(projectlink.Validator)`；`CallbackRegistry.SetProjectLink` 统一注入；`ProcessEngine` 接口与 `CustomProcessEngine` 暴露同名方法；`bootstrap` 在 `projectService` 构造后与 HTTP 五域一起装配（`processEngine.SetProjectLink(projectService)`）。
+- `create_incident` 顺带修复存量缺陷：`incident_number` 显式变量优先、否则生成 `INC-YYYYMM-<crypto/rand 六位>` 兜底；`type/priority/severity` 空串按 schema 默认值（`incident/medium/medium`）落库。
+- 语义与 HTTP 一致：未装配端口时携带 `projectId` 的创建任务 fail-closed；不携带 `projectId` 的存量流程不受影响（直通）。
+
+

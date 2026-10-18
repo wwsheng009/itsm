@@ -6,18 +6,20 @@ import (
 
 // Incident represents the core incident entity
 type Incident struct {
-	ID                    int
-	Title                 string
-	Description           string
-	Status                string // new, in_progress, resolved, closed
-	Priority              string // low, medium, high, urgent
-	Severity              string // low, medium, high, critical
-	Impact                string // low, medium, high, critical
-	Urgency               string // low, medium, high, critical
-	IncidentNumber        string
-	ReporterID            int
-	AssigneeID            *int
-	ConfigurationItemID   *int
+	ID                  int
+	Title               string
+	Description         string
+	Status              string // new, in_progress, resolved, closed
+	Priority            string // low, medium, high, urgent
+	Severity            string // low, medium, high, critical
+	Impact              string // low, medium, high, critical
+	Urgency             string // low, medium, high, critical
+	IncidentNumber      string
+	ReporterID          int
+	AssigneeID          *int
+	ConfigurationItemID *int
+	// ProjectID 创建时挂接的项目（nil=不挂接；随 INSERT 一次写入）。
+	ProjectID             *int
 	Version               int
 	IsMajorIncident       bool
 	Category              string `json:"category"`

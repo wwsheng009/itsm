@@ -78,6 +78,8 @@ export interface CreateChangeRequest {
   rollbackPlan: string;
   affectedCIs?: string[];
   relatedTickets?: string[];
+  /** 创建时挂接的项目（可选；后端前置校验 project:write + 项目非终态）。 */
+  projectId?: number;
 }
 
 export interface UpdateChangeRequest extends Partial<CreateChangeRequest> {

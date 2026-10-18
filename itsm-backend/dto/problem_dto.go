@@ -13,6 +13,8 @@ type CreateProblemRequest struct {
 	RootCause   string `json:"rootCause"`
 	Impact      string `json:"impact"`
 	ImpactScope string `json:"impactScope"` // 影响范围
+	// ProjectID 创建时挂接的项目（可选；handler 前置校验 project:write + 项目非终态，随 INSERT 一次写入）。
+	ProjectID *int `json:"projectId,omitempty"`
 }
 
 // UpdateProblemRequest 更新问题请求

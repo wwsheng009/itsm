@@ -67,6 +67,8 @@ type CreateParams struct {
 	CategoryID        *int
 	TemplateID        *int
 	ParentTicketID    *int
+	// ProjectID 创建时挂接的项目（随 INSERT 一次写入；前置校验由 handler 调 projectlink.GuardCreate）。
+	ProjectID         *int
 	FormFields        map[string]interface{}
 	TagIDs            []int
 	// WorkflowDefinitionKey 调用方显式指定的 BPMN 流程 Key（可选）。

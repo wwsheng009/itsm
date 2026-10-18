@@ -14,6 +14,7 @@ type ServiceRequest struct {
 	CatalogID          int
 	RequesterID        int
 	CiID               int
+	ProjectID          *int // 创建时挂接的项目（PE-5 增补；随 INSERT 一次写入，前置校验由 handler 调 projectlink.GuardCreate）
 	Status             string
 	Title              string
 	Reason             string

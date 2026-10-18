@@ -109,6 +109,7 @@ func newHandlerEnv(t *testing.T) (*gin.Engine, *ent.Client, int) {
 	r.DELETE("/projects/:id/tasks/:taskId/tickets", h.UnbindTaskTicket)
 	r.POST("/tickets/:id/project", h.AttachTicket)
 	r.DELETE("/tickets/:id/project", h.DetachTicket)
+	r.GET("/tickets/:id/project", h.GetTicketProject)
 	r.GET("/projects/:id/milestones", h.ListMilestones)
 	r.POST("/projects/:id/milestones", h.CreateMilestone)
 	r.PUT("/projects/:id/milestones/:milestoneId", h.UpdateMilestone)

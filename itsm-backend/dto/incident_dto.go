@@ -66,7 +66,9 @@ type CreateIncidentRequest struct {
 	ImpactAnalysis       *ImpactAnalysis        `json:"impactAnalysis"`
 	Source               string                 `json:"source" binding:"omitempty,oneof=manual monitoring system user email" example:"monitoring"`
 	Metadata             map[string]interface{} `json:"metadata"`
-	DetectedAt           *time.Time             `json:"detectedAt" example:"2024-01-01T00:00:00Z"`
+	// ProjectID 创建时挂接的项目（可选；handler 前置校验 project:write + 项目非终态，随 INSERT 一次写入）。
+	ProjectID  *int       `json:"projectId,omitempty"`
+	DetectedAt *time.Time `json:"detectedAt" example:"2024-01-01T00:00:00Z"`
 }
 
 type UpdateIncidentRequest struct {

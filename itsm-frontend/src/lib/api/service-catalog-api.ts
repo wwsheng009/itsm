@@ -342,6 +342,8 @@ export class ServiceCatalogApi {
         ? String(request.formData?.costCenter)
         : undefined,
       expireAt: request.formData?.expireAt ? request.formData?.expireAt : undefined,
+      // PE-5 增补：创建时挂接项目（可选；后端 projectlink.GuardCreate 动态复核）。
+      projectId: request.projectId != null ? Number(request.projectId) : undefined,
     };
 
     return httpClient.post('/api/v1/service-requests', payload);

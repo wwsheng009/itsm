@@ -69,6 +69,7 @@ func (r *EntRepository) toDomain(e *ent.Incident) *Incident {
 		ReporterID:            e.ReporterID,
 		AssigneeID:            optionalID(e.AssigneeID),
 		ConfigurationItemID:   optionalID(e.ConfigurationItemID),
+		ProjectID:             optionalID(e.ProjectID),
 		Version:               e.Version,
 		IsMajorIncident:       e.IsMajorIncident,
 		Category:              e.Category,
@@ -170,6 +171,10 @@ func (r *EntRepository) Create(ctx context.Context, i *Incident) (*Incident, err
 	}
 	if i.ConfigurationItemID != nil {
 		query.SetConfigurationItemID(*i.ConfigurationItemID)
+	}
+	// PE-5 增补：创建时挂接项目（project:write + 项目非终态前置校验在 handler 层完成）。
+	if i.ProjectID != nil {
+		query.SetNillableProjectID(i.ProjectID)
 	}
 	// ent schema 对 impact/urgency 的 Validate 拒绝空串，留空时必须让 Default("medium")
 	// 生效，因此仅在调用方显式给出值时写入。

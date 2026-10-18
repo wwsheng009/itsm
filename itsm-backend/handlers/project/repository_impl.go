@@ -922,6 +922,66 @@ func (r *EntRepository) DetachRecord(ctx context.Context, tenantID int, domain s
 	}
 }
 
+// GetRecordProject 反向查询：单据当前挂接的 project_id（recordFound=false 表示单据不存在/跨租户）。
+// 谓词与 ListRecords 对齐（仅 tenant + 单据 ID），未挂接返回 projectID=0。
+func (r *EntRepository) GetRecordProject(ctx context.Context, tenantID int, domain string, recordID int) (int, bool, error) {
+	notFound := func(err error) (int, bool, error) {
+		if ent.IsNotFound(err) {
+			return 0, false, nil
+		}
+		return 0, false, err
+	}
+	switch domain {
+	case "ticket":
+		row, err := r.client.Ticket.Query().
+			Where(ticket.IDEQ(recordID), ticket.TenantIDEQ(tenantID)).
+			Select(ticket.FieldProjectID).
+			Only(ctx)
+		if err != nil {
+			return notFound(err)
+		}
+		return row.ProjectID, true, nil
+	case "incident":
+		row, err := r.client.Incident.Query().
+			Where(incident.IDEQ(recordID), incident.TenantIDEQ(tenantID)).
+			Select(incident.FieldProjectID).
+			Only(ctx)
+		if err != nil {
+			return notFound(err)
+		}
+		return row.ProjectID, true, nil
+	case "problem":
+		row, err := r.client.Problem.Query().
+			Where(problem.IDEQ(recordID), problem.TenantIDEQ(tenantID)).
+			Select(problem.FieldProjectID).
+			Only(ctx)
+		if err != nil {
+			return notFound(err)
+		}
+		return row.ProjectID, true, nil
+	case "change":
+		row, err := r.client.Change.Query().
+			Where(change.IDEQ(recordID), change.TenantIDEQ(tenantID)).
+			Select(change.FieldProjectID).
+			Only(ctx)
+		if err != nil {
+			return notFound(err)
+		}
+		return row.ProjectID, true, nil
+	case "service_request":
+		row, err := r.client.ServiceRequest.Query().
+			Where(servicerequest.IDEQ(recordID), servicerequest.TenantIDEQ(tenantID)).
+			Select(servicerequest.FieldProjectID).
+			Only(ctx)
+		if err != nil {
+			return notFound(err)
+		}
+		return row.ProjectID, true, nil
+	default:
+		return 0, false, ErrRecordDomainInvalid
+	}
+}
+
 // ListRecords 聚合读：domain 指定单域；空则五域合并（updatedAt 倒序 + offset/limit）。
 func (r *EntRepository) ListRecords(ctx context.Context, tenantID, projectID int, domain, status string, offset, limit int) ([]RecordItem, int64, error) {
 	if limit <= 0 || limit > 100 {

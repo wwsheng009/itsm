@@ -1519,6 +1519,17 @@ func NewApplication() *Application {
 	projectHTTPHandler := projectHandler.NewHandler(projectService)
 	projectHTTPHandler.SetAuditClient(client)
 
+	// PE-5 增补：创建时挂接项目——项目管理服务（ValidateAttach）作为校验端口注入各域 handler。
+	// 未装配端口的域在创建请求携带 projectId 时 fail-closed（503），不静默丢弃关联意图。
+	ticketHandler.SetProjectLink(projectService)
+	incidentHandler.SetProjectLink(projectService)
+	problemHandler.SetProjectLink(projectService)
+	changeHandler.SetProjectLink(projectService)
+	srHandler.SetProjectLink(projectService)
+	// BPMN 服务任务（create_incident / create_change / create_request）复用同一端口，
+	// 使流程创建的单据也能在创建时挂接项目（PE-5 遗留项）。
+	processEngine.SetProjectLink(projectService)
+
 	routerConfig := &router.RouterConfig{
 		JWTSecret:                    cfg.JWT.Secret,
 		Logger:                       sugar,

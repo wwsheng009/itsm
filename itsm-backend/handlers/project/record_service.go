@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 
+	"itsm-backend/common"
 	"itsm-backend/ent"
 )
 
@@ -21,6 +22,27 @@ var (
 // SetTicketGenerator 注入工单生成适配器（bootstrap 装配；未注入时生成端点 503）。
 func (s *Service) SetTicketGenerator(gen TicketGenerator) {
 	s.ticketGen = gen
+}
+
+// ValidateAttach 创建前置校验（PE-5 增补；供各域「创建时挂接项目」复用同一口径）：
+// project:write 动态复核 + 项目存在（租户内） + 非终态。
+// 与 AttachRecord 的判定一致，但错误按 common 语义返回，便于各域 handler 统一 RespondError 映射：
+// 403（权限）/ 404（项目不存在或不可见）/ 400（项目已结项/取消）。
+func (s *Service) ValidateAttach(ctx context.Context, tenantID, projectID int, roles []string) error {
+	if !s.repo.AuthorizeProjectWrite(ctx, roles, tenantID) {
+		return common.NewForbiddenError("需要项目写权限（project:write）")
+	}
+	current, err := s.Get(ctx, tenantID, projectID)
+	if err != nil {
+		if errors.Is(err, ErrNotFound) {
+			return common.NewBusinessError(common.NotFoundCode, "项目不存在或不可见", "")
+		}
+		return err
+	}
+	if current.Status == StatusCompleted || current.Status == StatusCancelled {
+		return common.NewBusinessError(common.ParamErrorCode, "项目已结项/取消，不能再挂接单据", "")
+	}
+	return nil
 }
 
 // AttachRecord 挂接单据到项目（契约 §3.1：域写码由路由声明，project:write 在此动态复核）。
@@ -62,6 +84,33 @@ func (s *Service) DetachRecord(ctx context.Context, tenantID int, domain string,
 		return err
 	}
 	return nil
+}
+
+// GetRecordProject 单据→项目反向查询（单据详情页展示"所属项目"；PE-5 增补）。
+// 可见性：复用项目详情谓词（GetForViewer）；项目对查看者不可见时按"未挂接"返回（project=null），
+// 不泄露项目信息。单据本身不存在/跨租户 → ErrRecordNotFound（404）。
+func (s *Service) GetRecordProject(ctx context.Context, tenantID int, domain string, recordID, viewerID int, admin bool) (*RecordProjectView, error) {
+	if !validRecordDomains[domain] {
+		return nil, ErrRecordDomainInvalid
+	}
+	projectID, found, err := s.repo.GetRecordProject(ctx, tenantID, domain, recordID)
+	if err != nil {
+		return nil, err
+	}
+	if !found {
+		return nil, ErrRecordNotFound
+	}
+	if projectID <= 0 {
+		return nil, nil
+	}
+	p, err := s.GetForViewer(ctx, tenantID, projectID, viewerID, admin)
+	if err != nil {
+		if errors.Is(err, ErrNotFound) {
+			return nil, nil
+		}
+		return nil, err
+	}
+	return &RecordProjectView{ID: p.ID, Name: p.Name, Code: p.Code, Status: string(p.Status)}, nil
 }
 
 // ListRecords 项目关联单据聚合读（可见性谓词复用 GetForViewer）。

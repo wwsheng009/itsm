@@ -8,6 +8,7 @@ import (
 	"itsm-backend/dto"
 	"itsm-backend/ent"
 	"itsm-backend/ent/change"
+	"itsm-backend/handlers/common/projectlink"
 
 	"go.uber.org/zap"
 )
@@ -15,8 +16,9 @@ import (
 // ChangeServiceTaskHandler 变更服务任务处理器
 type ChangeServiceTaskHandler struct {
 	HandlerBase
-	client *ent.Client
-	logger *zap.SugaredLogger
+	client      *ent.Client
+	logger      *zap.SugaredLogger
+	projectLink projectlink.Validator
 }
 
 // NewChangeServiceTaskHandler 创建变更处理器
@@ -25,6 +27,12 @@ func NewChangeServiceTaskHandler(client *ent.Client, logger *zap.SugaredLogger) 
 		client: client,
 		logger: logger,
 	}
+}
+
+// SetProjectLink 注入项目挂接校验端口（bootstrap 装配）。
+// 未装配时携带 projectId 的 create_change fail-closed（503），与 HTTP 五域口径一致。
+func (h *ChangeServiceTaskHandler) SetProjectLink(v projectlink.Validator) {
+	h.projectLink = v
 }
 
 // GetTaskType 返回任务类型
@@ -109,6 +117,12 @@ func (h *ChangeServiceTaskHandler) createChange(ctx context.Context, variables m
 		return nil, fmt.Errorf("变更标题不能为空")
 	}
 
+	// PE-5 遗留项：创建时挂接项目——前置校验与 HTTP 五域同一端口（未装配 → fail-closed）。
+	projectID, err := GuardProjectAttach(ctx, h.client, h.projectLink, tenantID, variables)
+	if err != nil {
+		return nil, errProjectAttach(err)
+	}
+
 	change, err := h.client.Change.Create().
 		SetTitle(title).
 		SetDescription(description).
@@ -117,12 +131,13 @@ func (h *ChangeServiceTaskHandler) createChange(ctx context.Context, variables m
 		SetStatus("draft").
 		SetCreatedBy(GetIntFromVars(variables, "created_by")).
 		SetTenantID(tenantID).
+		SetNillableProjectID(projectID).
 		Save(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("创建变更失败: %w", err)
 	}
 
-	h.logger.Infow("Change created via BPMN", "change_id", change.ID, "title", title, "tenant_id", tenantID)
+	h.logger.Infow("Change created via BPMN", "change_id", change.ID, "title", title, "tenant_id", tenantID, "project_id", change.ProjectID)
 
 	return &dto.ServiceTaskResult{
 		Success:    true,

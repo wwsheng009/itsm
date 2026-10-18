@@ -306,6 +306,11 @@ func (s *IncidentService) createIncident(ctx context.Context, req *dto.CreateInc
 	if req.AssigneeID != nil {
 		create.SetAssigneeID(*req.AssigneeID)
 	}
+	// PE-5 增补：创建时挂接项目（DTO 路径与 handler 直连路径保持一致；
+	// project:write + 项目非终态前置校验由携带 projectId 的调用方/repo 边界负责）。
+	if req.ProjectID != nil {
+		create.SetNillableProjectID(req.ProjectID)
+	}
 	if options.assignmentGroupID != nil {
 		create.SetAssignmentGroupID(*options.assignmentGroupID)
 	}

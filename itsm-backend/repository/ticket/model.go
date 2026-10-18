@@ -214,6 +214,8 @@ type CreateParams struct {
 	CategoryID        *int
 	TemplateID        *int
 	ParentTicketID    *int
+	// ProjectID 创建时挂接的项目（nil=不挂接；随 INSERT 一次写入）。
+	ProjectID         *int
 	TagIDs            []int
 	Tags              []string
 	// MSP 快照（IP-P0-3 / R11）：由客户租户归属派生，建单时一次写入；

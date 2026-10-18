@@ -46,7 +46,7 @@ func toDomain(ec *ent.Change) *Change {
 	if ec == nil {
 		return nil
 	}
-	return &Change{
+	result := &Change{
 		ID:                 ec.ID,
 		ChangeNumber:       ec.ChangeNumber,
 		Title:              ec.Title,
@@ -71,6 +71,12 @@ func toDomain(ec *ent.Change) *Change {
 		CreatedAt:          ec.CreatedAt,
 		UpdatedAt:          ec.UpdatedAt,
 	}
+	// project_id 为非空 int 列：>0 视为已挂接，0 归一为 nil（未挂接）。
+	if ec.ProjectID > 0 {
+		projectID := ec.ProjectID
+		result.ProjectID = &projectID
+	}
+	return result
 }
 
 // assignChangeNumber best-effort 生成变更编号（CHG-YYYYMMDD-XXXX，租户内日序列）。
@@ -145,6 +151,7 @@ func (r *EntRepository) Create(ctx context.Context, c *Change) (*Change, error) 
 		SetRiskLevel(c.RiskLevel).
 		SetCreatedBy(c.CreatedBy).
 		SetTenantID(c.TenantID).
+		SetNillableProjectID(c.ProjectID).
 		SetImplementationPlan(c.ImplementationPlan).
 		SetRollbackPlan(c.RollbackPlan).
 		SetNillablePlannedStartDate(c.PlannedStartDate).
@@ -179,6 +186,7 @@ func (r *EntRepository) CreateWithWorkflowCommand(ctx context.Context, c *Change
 		SetTitle(c.Title).SetDescription(c.Description).SetJustification(c.Justification).
 		SetType(c.Type).SetStatus(c.Status).SetPriority(c.Priority).SetImpactScope(c.ImpactScope).
 		SetRiskLevel(c.RiskLevel).SetCreatedBy(c.CreatedBy).SetTenantID(c.TenantID).
+		SetNillableProjectID(c.ProjectID).
 		SetImplementationPlan(c.ImplementationPlan).SetRollbackPlan(c.RollbackPlan).
 		SetNillablePlannedStartDate(c.PlannedStartDate).SetNillablePlannedEndDate(c.PlannedEndDate).
 		SetAffectedCis(c.AffectedCIs).SetRelatedTickets(c.RelatedTickets).Save(ctx)

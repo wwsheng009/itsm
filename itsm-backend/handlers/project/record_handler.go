@@ -135,6 +135,64 @@ func (h *Handler) AttachServiceRequest(c *gin.Context) { h.attach(c, "service_re
 // @Router /api/v1/service-requests/{id}/project [delete]
 func (h *Handler) DetachServiceRequest(c *gin.Context) { h.detach(c, "service_request") }
 
+// getRecordProject 单据→项目反向查询（详情页展示"所属项目"；五域共用）。
+func (h *Handler) getRecordProject(c *gin.Context, domain string) {
+	tenantID, ok := middleware.TenantIDOrUnauthorized(c)
+	if !ok {
+		return
+	}
+	id, ok := parseID(c, "id")
+	if !ok {
+		return
+	}
+	view, err := h.service.GetRecordProject(
+		c.Request.Context(), tenantID, domain, id,
+		c.GetInt("user_id"), isAdminViewer(middleware.GetContextRoles(c)),
+	)
+	if err != nil {
+		h.fail(c, err)
+		return
+	}
+	common.Success(c, RecordProjectResponse{Project: view})
+}
+
+// GetTicketProject 工单所属项目
+// @Summary 工单所属项目（未挂接/项目不可见时 project=null）
+// @Tags 项目管理
+// @Produce json
+// @Param id path int true "工单ID"
+// @Success 200 {object} common.Response{data=RecordProjectResponse}
+// @Router /api/v1/tickets/{id}/project [get]
+func (h *Handler) GetTicketProject(c *gin.Context) { h.getRecordProject(c, "ticket") }
+
+// GetIncidentProject 事件所属项目
+// @Summary 事件所属项目（未挂接/项目不可见时 project=null）
+// @Tags 项目管理
+// @Produce json
+// @Router /api/v1/incidents/{id}/project [get]
+func (h *Handler) GetIncidentProject(c *gin.Context) { h.getRecordProject(c, "incident") }
+
+// GetProblemProject 问题所属项目
+// @Summary 问题所属项目（未挂接/项目不可见时 project=null）
+// @Tags 项目管理
+// @Produce json
+// @Router /api/v1/problems/{id}/project [get]
+func (h *Handler) GetProblemProject(c *gin.Context) { h.getRecordProject(c, "problem") }
+
+// GetChangeProject 变更所属项目
+// @Summary 变更所属项目（未挂接/项目不可见时 project=null）
+// @Tags 项目管理
+// @Produce json
+// @Router /api/v1/changes/{id}/project [get]
+func (h *Handler) GetChangeProject(c *gin.Context) { h.getRecordProject(c, "change") }
+
+// GetServiceRequestProject 服务请求所属项目
+// @Summary 服务请求所属项目（未挂接/项目不可见时 project=null）
+// @Tags 项目管理
+// @Produce json
+// @Router /api/v1/service-requests/{id}/project [get]
+func (h *Handler) GetServiceRequestProject(c *gin.Context) { h.getRecordProject(c, "service_request") }
+
 // ListProjectRecords 项目关联单据聚合读
 // @Summary 项目关联单据（五域聚合；type 可选，空=合并）
 // @Tags 项目管理

@@ -2090,6 +2090,16 @@ const docTemplate = `{
             }
         },
         "/api/v1/changes/{id}/project": {
+            "get": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "项目管理"
+                ],
+                "summary": "变更所属项目（未挂接/项目不可见时 project=null）",
+                "responses": {}
+            },
             "post": {
                 "consumes": [
                     "application/json"
@@ -8786,6 +8796,16 @@ const docTemplate = `{
             }
         },
         "/api/v1/incidents/{id}/project": {
+            "get": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "项目管理"
+                ],
+                "summary": "事件所属项目（未挂接/项目不可见时 project=null）",
+                "responses": {}
+            },
             "post": {
                 "consumes": [
                     "application/json"
@@ -10693,6 +10713,16 @@ const docTemplate = `{
             }
         },
         "/api/v1/problems/{id}/project": {
+            "get": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "项目管理"
+                ],
+                "summary": "问题所属项目（未挂接/项目不可见时 project=null）",
+                "responses": {}
+            },
             "post": {
                 "consumes": [
                     "application/json"
@@ -14342,6 +14372,16 @@ const docTemplate = `{
             }
         },
         "/api/v1/service-requests/{id}/project": {
+            "get": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "项目管理"
+                ],
+                "summary": "服务请求所属项目（未挂接/项目不可见时 project=null）",
+                "responses": {}
+            },
             "post": {
                 "consumes": [
                     "application/json"
@@ -14407,6 +14447,44 @@ const docTemplate = `{
             }
         },
         "/api/v1/tickets/{id}/project": {
+            "get": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "项目管理"
+                ],
+                "summary": "工单所属项目（未挂接/项目不可见时 project=null）",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "工单ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/common.Response"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/project.RecordProjectResponse"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            },
             "post": {
                 "consumes": [
                     "application/json"
@@ -17649,6 +17727,10 @@ const docTemplate = `{
                     "description": "优先级: low, medium, high, critical",
                     "type": "string"
                 },
+                "projectId": {
+                    "description": "ProjectID 创建时挂接的项目（可选；handler 前置校验 project:write + 项目非终态，随 INSERT 一次写入）。",
+                    "type": "integer"
+                },
                 "relatedTickets": {
                     "description": "相关工单编号",
                     "type": "array",
@@ -18016,6 +18098,10 @@ const docTemplate = `{
                     ],
                     "example": "high"
                 },
+                "projectId": {
+                    "description": "ProjectID 创建时挂接的项目（可选；handler 前置校验 project:write + 项目非终态，随 INSERT 一次写入）。",
+                    "type": "integer"
+                },
                 "severity": {
                     "type": "string",
                     "enum": [
@@ -18094,6 +18180,10 @@ const docTemplate = `{
                 },
                 "priority": {
                     "type": "string"
+                },
+                "projectId": {
+                    "description": "ProjectID 创建时挂接的项目（可选；handler 前置校验 project:write + 项目非终态，随 INSERT 一次写入）。",
+                    "type": "integer"
                 },
                 "rootCause": {
                     "type": "string"
@@ -31976,6 +32066,31 @@ const docTemplate = `{
             "properties": {
                 "projectId": {
                     "type": "integer"
+                }
+            }
+        },
+        "project.RecordProjectResponse": {
+            "type": "object",
+            "properties": {
+                "project": {
+                    "$ref": "#/definitions/project.RecordProjectView"
+                }
+            }
+        },
+        "project.RecordProjectView": {
+            "type": "object",
+            "properties": {
+                "code": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "status": {
+                    "type": "string"
                 }
             }
         },

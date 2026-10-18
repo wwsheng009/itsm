@@ -47,6 +47,8 @@ export interface CreateProblemRequest {
   rootCause: string;
   impact: string;
   assigneeId?: number;
+  // 所属项目（创建时挂接；需 project:write，后端动态复核；PE-5 增补）。
+  projectId?: number;
 }
 
 // 更新问题请求

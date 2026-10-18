@@ -42,10 +42,21 @@
 - **聚合**：项目工作台按 `project_id` 查询单据列表（复用各域列表服务，传入项目过滤条件）。
 - **注意**：任务生成单据属于跨模块写操作，需在服务层做权限与租户双重校验；事件侧沿用既有状态机，不新增旁路。
 
+> **落地说明（PE-5 增补，2026-10-18）**：**「创建时挂接项目」与「单据侧所属项目反查」已落地（五域：工单/事件/问题/变更/服务请求）**——
+> ① **创建时挂接**：五域创建请求新增可选 `projectId`；前置校验收敛为单一端口 `handlers/common/projectlink`（`GuardCreate`，
+> 由项目服务 `ValidateAttach` 实现：`project:write` 动态复核 + 项目存在（租户内、可见）且**非终态**），校验通过后 `project_id` **随 INSERT 一次写入**
+> （避免「先建单再挂接」的部分成功；未装配端口时携带 `projectId` 的创建请求 **fail-closed 503**，不静默丢弃关联意图）。
+> ② **反向查询**：新增 `GET /api/v1/{tickets|incidents|problems|changes|service-requests}/:id/project`（各域 `read` 码），
+> 返回 `{project: {id,name,code,status} | null}`；可见性复用项目详情的 `GetForViewer` 谓词，项目对查看者不可见时按 `null` 返回（不泄露）。
+> ③ **前端**：共享组件 `ProjectSelect`（创建页选择；仅列出非终态项目，`project:read + project:write + 域写码` 门控）与
+> `RecordProjectLink`（详情页展示"所属项目"+ 加入/移出，加入/移除走既有 `POST|DELETE /.../:id/project`）已接入五域创建页/详情页。
+> 创建前置校验与既有挂接端点（§2.1 首条）共用 `ValidateAttach` 同一口径；MSP 跨租户面保持只读，不暴露写入口。
+
 ### 2.2 问题 / Known Error（P1/P2）
 
 - 项目风险（`project_risks.kind=risk`）可"升级为问题单"（复用 `problem` 创建）；
 - CSI 项目反哺：问题解决后发起改进项目，结项沉淀 Known Error 与知识库文章。
+- **创建时挂接/详情展示**：问题域同样支持创建请求携带 `projectId` 与详情页「所属项目」加入/移出（见 §2.1 落地说明）。
 
 > **落地说明（PE-21，2026-10-24）**：**风险/问题台账 + 转换链路已落地**——`project_risks`（kind=risk|issue；等级/概率/影响/负责人/状态机；close 必填结论）；
 > 转换 `POST /projects/:id/risks/:riskId/convert {target: problem|change}` 经**端口 + 适配器**（`RiskProblemAdapter`/`RiskChangeAdapter`，bootstrap 装配，未装配 503）复用问题/变更域服务，
@@ -58,11 +69,13 @@
 - **结项门禁**：存在非终态变更（`{closed,cancelled,rejected,rolled_back}` 之外）时拒绝结项，错误信息列出阻塞单号；
 - **双轨制（B6 裁决）**：交付变更走 ITSM Change（`changes.project_id` + 双向引用）；项目计划/基线变更走项目内变更日志（`project_baselines.reason` + 审计），两轨不混；
 - 发布/标准变更（P2 评估）：发布挂项目为可选关联；标准变更沿用既有流程，不新增机制。
+- **创建时挂接/详情展示**：变更域同样支持创建请求携带 `projectId` 与详情页「所属项目」加入/移出（见 §2.1 落地说明）。
 
 ### 2.4 服务请求 / 开通任务（P2）
 
 - 交付类项目把 `ProvisioningTask` 的执行状态汇总进项目进度；
 - 审批类动作仍留在服务请求自身审批链，项目侧只做展示与门禁，避免两套审批。
+- **创建时挂接/详情展示**：服务请求域同样支持创建请求携带 `projectId` 与详情页「所属项目」加入/移出（见 §2.1 落地说明）；创建入口为服务目录申请页（`pages/(main)/service-catalog/request/$id`），`projectId` 经 `service-catalog-api` 映射层透传至 `POST /service-requests`。
 
 ### 2.5 CMDB（P1）
 

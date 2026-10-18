@@ -44,6 +44,8 @@ export interface ChangeRequest {
   rollbackPlan: string;
   affectedCis: string[];
   relatedTickets: string[];
+  /** 创建时挂接的项目（可选；后端前置校验 project:write + 项目非终态，随 INSERT 一次写入）。 */
+  projectId?: number;
 }
 
 // 变更响应接口

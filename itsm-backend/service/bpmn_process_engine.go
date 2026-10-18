@@ -8,6 +8,7 @@ import (
 	"itsm-backend/dto"
 	"itsm-backend/ent"
 	"itsm-backend/ent/workflowtask"
+	"itsm-backend/handlers/common/projectlink"
 	"itsm-backend/service/bpmn"
 
 	"go.uber.org/zap"
@@ -23,6 +24,8 @@ type ProcessEngine interface {
 	TaskService() TaskService
 	// 注入 ApprovalService（解决审批处理器循环依赖）
 	SetApprovalService(svc bpmn.ApprovalServiceInterface)
+	// 注入项目挂接校验端口（BPMN create_* 服务任务与 HTTP 五域同一口径）
+	SetProjectLink(v projectlink.Validator)
 	// 流程执行
 	StartProcess(ctx context.Context, processDefinitionKey string, businessKey string, variables map[string]interface{}) (*ent.ProcessInstance, error)
 	CompleteTask(ctx context.Context, taskID string, variables map[string]interface{}) error
@@ -212,6 +215,12 @@ func (e *CustomProcessEngine) TaskService() TaskService {
 // SetApprovalService 注入 ApprovalService，解决循环依赖
 func (e *CustomProcessEngine) SetApprovalService(svc bpmn.ApprovalServiceInterface) {
 	e.callbackRegistry.SetApprovalService(svc)
+}
+
+// SetProjectLink 注入项目挂接校验端口，使 BPMN 的 create_* 服务任务
+// （事件/变更/服务请求）在创建时即可挂接项目，且校验口径与 HTTP 五域一致。
+func (e *CustomProcessEngine) SetProjectLink(v projectlink.Validator) {
+	e.callbackRegistry.SetProjectLink(v)
 }
 
 // requireBPMNTenantContext 从 ctx 强制提取并校验租户上下文（P1-4 fail-closed）。

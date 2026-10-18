@@ -170,6 +170,9 @@ func (r *EntRepository) Create(ctx context.Context, params *CreateParams, tenant
 		if params.ParentTicketID != nil {
 			builder.SetParentTicketID(*params.ParentTicketID)
 		}
+		if params.ProjectID != nil {
+			builder.SetNillableProjectID(params.ProjectID)
+		}
 		if len(params.TagIDs) > 0 {
 			builder.AddTagIDs(params.TagIDs...)
 		}
@@ -247,6 +250,9 @@ func (r *EntRepository) CreateWithTx(ctx context.Context, tx *ent.Tx, params *Cr
 	}
 	if params.ParentTicketID != nil {
 		builder.SetParentTicketID(*params.ParentTicketID)
+	}
+	if params.ProjectID != nil {
+		builder.SetNillableProjectID(params.ProjectID)
 	}
 	if len(params.TagIDs) > 0 {
 		builder.AddTagIDs(params.TagIDs...)

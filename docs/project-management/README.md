@@ -33,7 +33,7 @@
 | [05-msp-delivery.md](./05-msp-delivery.md) | Draft v0.1 | MSP 客户交付项目（P2 后置）与前置改造 |
 | [06-implementation-roadmap.md](./06-implementation-roadmap.md) | Draft v0.2 | P0–P3 分期（PE-1~PE-26）、工程落地清单、验收要点 |
 | [07-completeness-review.md](./07-completeness-review.md) | **裁决版 v1.0** | 完整性审查 + 最佳实践裁决（B1–B7 结论、非目标、回写记录） |
-| [08-change-log.md](./08-change-log.md) | **已实施 v1.0** | 2026-10-18 进度汇总/MSP 顶栏 403/日期编辑崩溃的变更、验证与部署证据 |
+| [08-change-log.md](./08-change-log.md) | **已实施 v1.0** | 2026-10-18 进度汇总/MSP 顶栏 403/日期编辑崩溃的变更、验证与部署证据；§6 单据挂接项目（PE-5 增补：创建时挂接 + 详情页所属项目，未部署） |
 | [plan/p0-integration-contracts.md](./plan/p0-integration-contracts.md) | Draft v1.0 | P0 集成契约：14 项决策收敛、接口/时序/错误码/审计/事件清单/测试矩阵 |
 | [plan/p0-data-ddl.md](./plan/p0-data-ddl.md) | Draft v1.0 | P0 表 DDL 草案、迁移兜底、RLS 策略、登记清单 |
 | [plan/p0-api-and-pages.md](./plan/p0-api-and-pages.md) | Draft v1.0 | P0 API 总表、错误码、前端页面/路由/权限/菜单映射 |

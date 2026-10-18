@@ -36,6 +36,19 @@ type RecordAttachRequest struct {
 	ProjectID int `json:"projectId"`
 }
 
+// RecordProjectView 单据所属项目摘要（单据详情页展示"所属项目"；不进项目聚合读）。
+type RecordProjectView struct {
+	ID     int    `json:"id"`
+	Name   string `json:"name"`
+	Code   string `json:"code,omitempty"`
+	Status string `json:"status"`
+}
+
+// RecordProjectResponse 单据→项目反向查询响应；project 为 null 表示未挂接（或项目对当前用户不可见）。
+type RecordProjectResponse struct {
+	Project *RecordProjectView `json:"project"`
+}
+
 // TaskTicketRequest 任务→工单生成请求。
 type TaskTicketRequest struct {
 	TicketTypeID *int   `json:"ticketTypeId"`

@@ -8,6 +8,7 @@ import (
 	"itsm-backend/dto"
 	"itsm-backend/ent"
 	"itsm-backend/ent/processtask"
+	"itsm-backend/handlers/common/projectlink"
 
 	"github.com/pkg/errors"
 	"go.uber.org/zap"
@@ -177,6 +178,29 @@ func (r *CallbackRegistry) SetApprovalService(svc ApprovalServiceInterface) {
 	if h, ok := r.handlers["approval_handler"]; ok {
 		if ah, ok := h.(*ApprovalHandler); ok {
 			ah.SetApprovalService(svc)
+		}
+	}
+}
+
+// SetProjectLink 将项目挂接校验端口注入三个 create_* 服务任务处理器
+// （事件/变更/服务请求），使 BPMN 创建路径与 HTTP 五域共享同一前置校验口径。
+// 需在项目管理服务创建完成后、流程执行前调用；未注入时携带 projectId 的创建任务 fail-closed。
+func (r *CallbackRegistry) SetProjectLink(v projectlink.Validator) {
+	r.handlersMu.Lock()
+	defer r.handlersMu.Unlock()
+	if h, ok := r.handlers["incident_service_handler"]; ok {
+		if ih, ok := h.(*IncidentServiceTaskHandler); ok {
+			ih.SetProjectLink(v)
+		}
+	}
+	if h, ok := r.handlers["change_service_handler"]; ok {
+		if ch, ok := h.(*ChangeServiceTaskHandler); ok {
+			ch.SetProjectLink(v)
+		}
+	}
+	if h, ok := r.handlers["service_request_handler"]; ok {
+		if sh, ok := h.(*ServiceRequestServiceTaskHandler); ok {
+			sh.SetProjectLink(v)
 		}
 	}
 }

@@ -18,6 +18,7 @@ import { ArrowLeft } from 'lucide-react';
 import dayjs, { type Dayjs } from 'dayjs';
 import { ChangeApi, type ChangeRequest } from '@/lib/api/change-api';
 import { AttachmentApi, changeAttachmentPreviewUrl } from '@/lib/api/attachment-api';
+import ProjectSelect, { useProjectLinkPermission } from '@/components/business/ProjectSelect';
 import { htmlToPlainText, isRichTextEmpty, isRichTextEnabled } from '@/lib/rich-text/sanitize';
 import {
   STAGED_ID_PREFIX,
@@ -79,6 +80,8 @@ interface ChangeFormValues {
   affectedCisText?: string;
   implementationPlan: string;
   rollbackPlan: string;
+  /** 所属项目（仅 project:read + project:write + change:write 时展示/可选）。 */
+  projectId?: number;
 }
 
 const TYPE_OPTIONS: Array<{ value: ChangeRequest['type']; label: string; hint?: string }> = [
@@ -113,6 +116,7 @@ const CreateChangePage: React.FC = () => {
   const [form] = Form.useForm<ChangeFormValues>();
   const [loading, setLoading] = useState(false);
   const richTextEnabled = isRichTextEnabled();
+  const projectLinkPermission = useProjectLinkPermission('change');
 
   // 富文本图片「先占位、后上传」：变更创建成功前拿不到 changeId，
   // 故先在编辑器内以 blob: 占位，提交后统一上传并把正式 HTML 回写字段。
@@ -168,6 +172,7 @@ const CreateChangePage: React.FC = () => {
         rollbackPlan: htmlForCreate('rollbackPlan').trim(),
         affectedCis,
         relatedTickets: [],
+        projectId: values.projectId ?? undefined,
       };
 
       const created: any = await ChangeApi.createChange(payload);
@@ -411,6 +416,16 @@ const CreateChangePage: React.FC = () => {
           >
             <Input placeholder="例如：CI-ECS-001, CI-APP-CRM" allowClear />
           </Form.Item>
+
+          {projectLinkPermission.canAttach && (
+            <Form.Item
+              name="projectId"
+              label="所属项目"
+              tooltip="创建后随变更单一次写入所属项目；仅可挂接非终态（非已结项/取消）项目。"
+            >
+              <ProjectSelect />
+            </Form.Item>
+          )}
 
           <Form.Item
             label="实施计划"

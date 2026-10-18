@@ -67,6 +67,8 @@ export interface CreateIncidentRequest {
   priority: IncidentPriority;
   category?: string;
   assigneeId?: number;
+  /** 创建时挂接的项目（PE-5 增补；与 IncidentAPI.createIncident 请求体保持一致）。 */
+  projectId?: number;
   source?: IncidentSource;
   impact?: string;
   urgency?: string;

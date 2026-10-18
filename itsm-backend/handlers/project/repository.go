@@ -144,6 +144,8 @@ type Repository interface {
 	DetachRecord(ctx context.Context, tenantID int, domain string, recordID int) error
 	// ListRecords 聚合读（domain 为空 = 五域合并；offset/limit 作用于合并结果）。
 	ListRecords(ctx context.Context, tenantID, projectID int, domain, status string, offset, limit int) ([]RecordItem, int64, error)
+	// GetRecordProject 反向查询：单据当前挂接的 project_id（recordFound=false 表示单据不存在/跨租户；未挂接返回 0）。
+	GetRecordProject(ctx context.Context, tenantID int, domain string, recordID int) (projectID int, recordFound bool, err error)
 	// SetTaskLinkedTicket 回写任务主工单（同租户/同项目校验）。
 	SetTaskLinkedTicket(ctx context.Context, tenantID, projectID, taskID, ticketID int) error
 	// ClearTaskLinkedTicket 解绑任务主工单。

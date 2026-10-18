@@ -49,6 +49,7 @@ import AttachmentField, {
 import TicketTypePickerModal, { type TicketTypePickerItem } from '@/components/business/TicketTypePickerModal';
 import TicketTypeIcon from '@/components/business/TicketTypeIcon';
 import DynamicFieldRenderer, { type ReferenceSelectOptions } from '@/components/business/DynamicFieldRenderer';
+import ProjectSelect, { useProjectLinkPermission } from '@/components/business/ProjectSelect';
 
 const { Title, Text } = Typography;
 const { TextArea } = Input;
@@ -125,6 +126,7 @@ export default function CreateTicketPage() {
   const { message, modal } = App.useApp();
   const { t } = useI18n();
   const [form] = Form.useForm();
+  const projectLinkPermission = useProjectLinkPermission('ticket');
   const richTextEnabled = isRichTextEnabled();
 
   const [loading, setLoading] = useState(false);
@@ -423,6 +425,7 @@ export default function CreateTicketPage() {
         ticketTypeId: selectedType?.id,
         category: values.category || undefined,
         formFields,
+        projectId: values.projectId ?? undefined,
       });
 
       const createdId = created.id;
@@ -749,6 +752,20 @@ export default function CreateTicketPage() {
                     </Form.Item>
                   </Col>
                 </Row>
+
+                {projectLinkPermission.canAttach && (
+                  <Row gutter={[16, 16]} style={{ marginTop: 16 }}>
+                    <Col span={24}>
+                      <Form.Item
+                        name="projectId"
+                        label="所属项目"
+                        tooltip="创建后随工单一次写入所属项目；仅可挂接非终态（非已结项/取消）项目。"
+                      >
+                        <ProjectSelect />
+                      </Form.Item>
+                    </Col>
+                  </Row>
+                )}
               </Card>
             </Col>
 

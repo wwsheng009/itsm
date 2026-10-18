@@ -176,3 +176,114 @@ func TestHandlerRecordEndpoints(t *testing.T) {
 	assert.Equal(t, http.StatusServiceUnavailable, w.Code)
 	assert.Equal(t, common.ServiceUnavailableCode, env.Code)
 }
+
+// TestRecordProjectReverseLookup 单据→项目反向查询：未挂接/已挂接/不可见/单据不存在（PE-5 增补）。
+func TestRecordProjectReverseLookup(t *testing.T) {
+	svc, client, tid := newTestEnv(t)
+	ctx := context.Background()
+
+	p, err := svc.Create(ctx, &CreateRequest{TenantID: tid, Name: "反查项目", Code: "REV-1"})
+	require.NoError(t, err)
+	tk := seedTicket(t, client, tid, "TK-REV-1", "反查工单")
+
+	// 未挂接 → project=null（nil，不报错）。
+	view, err := svc.GetRecordProject(ctx, tid, "ticket", tk.ID, 0, true)
+	require.NoError(t, err)
+	assert.Nil(t, view)
+
+	// 挂接后 → 返回项目视图（id/name/code/status）。
+	require.NoError(t, svc.AttachRecord(ctx, tid, "ticket", tk.ID, p.ID, []string{"admin"}))
+	view, err = svc.GetRecordProject(ctx, tid, "ticket", tk.ID, 0, true)
+	require.NoError(t, err)
+	require.NotNil(t, view)
+	assert.Equal(t, p.ID, view.ID)
+	assert.Equal(t, "反查项目", view.Name)
+	assert.Equal(t, "REV-1", view.Code)
+	assert.Equal(t, string(p.Status), view.Status)
+
+	// 非管理查看者且非项目成员 → 不可见按 null（不泄露存在性，不报错）。
+	stranger := seedUserWithMembership(t, client, tid, "rev-stranger", "home", nil)
+	view, err = svc.GetRecordProject(ctx, tid, "ticket", tk.ID, stranger.ID, false)
+	require.NoError(t, err)
+	assert.Nil(t, view)
+
+	// 项目成员（非管理）→ 可见。
+	member := seedUserWithMembership(t, client, tid, "rev-member", "home", nil)
+	_, err = svc.AddMember(ctx, tid, p.ID, member.ID, &MemberAddRequest{UserID: member.ID})
+	require.NoError(t, err)
+	view, err = svc.GetRecordProject(ctx, tid, "ticket", tk.ID, member.ID, false)
+	require.NoError(t, err)
+	require.NotNil(t, view)
+	assert.Equal(t, p.ID, view.ID)
+
+	// 单据不存在/跨租户 → 404 语义；域非法 → 400 语义。
+	_, err = svc.GetRecordProject(ctx, tid, "ticket", 999999, 0, true)
+	require.ErrorIs(t, err, ErrRecordNotFound)
+	_, err = svc.GetRecordProject(ctx, tid, "bogus", tk.ID, 0, true)
+	require.ErrorIs(t, err, ErrRecordDomainInvalid)
+}
+
+// TestValidateAttachSemantics 创建前置校验：403/404/400 三类语义（PE-5 增补）。
+func TestValidateAttachSemantics(t *testing.T) {
+	svc, _, tid := newTestEnv(t)
+	ctx := context.Background()
+
+	p, err := svc.Create(ctx, &CreateRequest{TenantID: tid, Name: "前置校验项目"})
+	require.NoError(t, err)
+
+	// 无 project:write → 403。
+	var appErr *common.AppError
+	require.ErrorAs(t, svc.ValidateAttach(ctx, tid, p.ID, []string{"end_user"}), &appErr)
+	assert.Equal(t, common.ErrCodeForbidden, appErr.Code)
+	assert.Equal(t, http.StatusForbidden, appErr.HTTPStatus)
+
+	// 管理角色 + 正常项目 → nil。
+	require.NoError(t, svc.ValidateAttach(ctx, tid, p.ID, []string{"admin"}))
+
+	// 项目不存在（或跨租户不可见）→ 404。
+	var bizErr *common.BusinessError
+	require.ErrorAs(t, svc.ValidateAttach(ctx, tid, 999999, []string{"admin"}), &bizErr)
+	assert.Equal(t, common.NotFoundCode, bizErr.Code)
+
+	// 终态项目 → 400。
+	_, err = svc.Transition(ctx, tid, p.ID, &StatusRequest{Action: ActionCancel, Reason: "测试取消"})
+	require.NoError(t, err)
+	require.ErrorAs(t, svc.ValidateAttach(ctx, tid, p.ID, []string{"admin"}), &bizErr)
+	assert.Equal(t, common.ParamErrorCode, bizErr.Code)
+}
+
+// TestHandlerRecordProjectEndpoint 端点级：GET /tickets/:id/project → 项目对象 / null（PE-5 增补）。
+func TestHandlerRecordProjectEndpoint(t *testing.T) {
+	r, client, tid := newHandlerEnv(t)
+	ticket := seedTicket(t, client, tid, "TK-P5-G1", "反查接口工单")
+
+	// 未挂接 → project=null。
+	w, env := doJSON(t, r, http.MethodGet, fmt.Sprintf("/tickets/%d/project", ticket.ID), nil)
+	require.Equal(t, http.StatusOK, w.Code)
+	var got RecordProjectResponse
+	require.NoError(t, json.Unmarshal(env.Data, &got))
+	assert.Nil(t, got.Project)
+
+	// 挂接后再查 → 项目对象。
+	_, env = doJSON(t, r, http.MethodPost, "/projects", map[string]any{"name": "反查接口项目", "code": "REV-H1"})
+	var created ProjectResponse
+	require.NoError(t, json.Unmarshal(env.Data, &created))
+	w, _ = doJSON(t, r, http.MethodPost, fmt.Sprintf("/tickets/%d/project", ticket.ID), map[string]any{"projectId": created.ID})
+	require.Equal(t, http.StatusOK, w.Code)
+
+	w, env = doJSON(t, r, http.MethodGet, fmt.Sprintf("/tickets/%d/project", ticket.ID), nil)
+	require.Equal(t, http.StatusOK, w.Code)
+	var gotLinked RecordProjectResponse
+	require.NoError(t, json.Unmarshal(env.Data, &gotLinked))
+	require.NotNil(t, gotLinked.Project)
+	assert.Equal(t, created.ID, gotLinked.Project.ID)
+	assert.Equal(t, "反查接口项目", gotLinked.Project.Name)
+
+	// 解除后回到 null。
+	w, _ = doJSON(t, r, http.MethodDelete, fmt.Sprintf("/tickets/%d/project", ticket.ID), nil)
+	require.Equal(t, http.StatusOK, w.Code)
+	_, env = doJSON(t, r, http.MethodGet, fmt.Sprintf("/tickets/%d/project", ticket.ID), nil)
+	var gotDetached RecordProjectResponse
+	require.NoError(t, json.Unmarshal(env.Data, &gotDetached))
+	assert.Nil(t, gotDetached.Project)
+}

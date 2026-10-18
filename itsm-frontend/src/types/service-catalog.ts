@@ -424,6 +424,8 @@ export interface CreateServiceRequestRequest {
   priority?: 'low' | 'medium' | 'high' | 'urgent';
   additionalNotes?: string;
   requestedFor?: number;
+  /** 所属项目（创建时挂接；PE-5 增补，需 project:write，后端动态复核）。 */
+  projectId?: number;
 }
 
 /**
