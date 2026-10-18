@@ -10,6 +10,12 @@ describe('date-value', () => {
     expect(dayjs.isDayjs(value)).toBe(true);
     expect(typeof value?.isValid).toBe('function');
     expect(value?.isValid()).toBe(true);
+    expect(value?.format('YYYY-MM-DD')).toBe('2026-11-14');
+  });
+
+  it('项目日期按 UTC 日历日预填（不受浏览器时区影响）', () => {
+    const value = dateValue('2026-11-14T16:00:00Z');
+    expect(value?.format('YYYY-MM-DD')).toBe('2026-11-14');
   });
 
   it('空值/非法值 → undefined（不把坏值传给 DatePicker）', () => {
@@ -20,7 +26,7 @@ describe('date-value', () => {
   });
 
   it('Dayjs → ISO；空值/非法值 → undefined', () => {
-    expect(isoValue(dayjs('2026-11-14T00:00:00Z'))).toBe('2026-11-14T00:00:00.000Z');
+    expect(isoValue(dayjs('2026-11-14'))).toBe('2026-11-14T00:00:00.000Z');
     expect(isoValue(undefined)).toBeUndefined();
     expect(isoValue(null)).toBeUndefined();
   });
