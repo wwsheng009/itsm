@@ -182,6 +182,9 @@ interface GateRow {
   record?: ProjectGate;
 }
 
+/** 后端零值时间（0001-01-01T00:00:00Z）不展示，避免「提交：0001-01-01…」误导。 */
+const hasRealTime = (value?: string): boolean => Boolean(value) && !value!.startsWith('0001-');
+
 /** 里程碑计划到期日是否已过（仍处 planned）。 */
 function milestoneOverdue(m: ProjectMilestone): boolean {
   return m.status === 'planned' && new Date(m.dueDate).getTime() < Date.now();
@@ -1153,34 +1156,41 @@ export default function ProjectDetailPage() {
   const gateRows: GateRow[] = GATE_ORDER.map((gate) => ({ gate, record: gatesByKey[gate] }));
 
   // PE-12 阻塞项 → 下一步入口：能在本页完成的直接打开（任命/新建），其余切到对应 Tab。
+  // 写操作入口仅对 canWrite 展示，避免只读用户点击后收到 403。
   const gateBlockerAction = (type: string): { label: string; onClick: () => void } | null => {
     switch (type) {
       case 'manager_missing':
-        return { label: '去任命项目经理', onClick: openManagerModal };
+        return canWrite ? { label: '去任命项目经理', onClick: openManagerModal } : null;
       case 'member_missing':
-        return {
-          label: '去添加成员',
-          onClick: () => {
-            setActiveTab('members');
-            openMemberModal();
-          },
-        };
+        return canWrite
+          ? {
+              label: '去添加成员',
+              onClick: () => {
+                setActiveTab('members');
+                openMemberModal();
+              },
+            }
+          : null;
       case 'task_missing':
-        return {
-          label: '去新建任务',
-          onClick: () => {
-            setActiveTab('tasks');
-            openTaskCreate();
-          },
-        };
+        return canWrite
+          ? {
+              label: '去新建任务',
+              onClick: () => {
+                setActiveTab('tasks');
+                openTaskCreate();
+              },
+            }
+          : null;
       case 'milestone_missing':
-        return {
-          label: '去新建里程碑',
-          onClick: () => {
-            setActiveTab('milestones');
-            openMilestoneCreate();
-          },
-        };
+        return canWrite
+          ? {
+              label: '去新建里程碑',
+              onClick: () => {
+                setActiveTab('milestones');
+                openMilestoneCreate();
+              },
+            }
+          : null;
       case 'task_open':
         return { label: '去处理任务', onClick: () => setActiveTab('tasks') };
       case 'milestone_open':
@@ -1220,13 +1230,15 @@ export default function ProjectDetailPage() {
       render: (_: unknown, row) => {
         const record = row.record;
         if (!record) return '-';
+        const submittedAt = record.submittedAt ?? '';
+        const decidedAt = record.decidedAt ?? '';
         return (
           <div style={{ fontSize: 12, color: '#595959' }}>
-            {record.submittedAt ? (
-              <div>{`提交：${record.submittedAt.replace('T', ' ').slice(0, 19)}`}</div>
+            {hasRealTime(submittedAt) ? (
+              <div>{`提交：${submittedAt.replace('T', ' ').slice(0, 19)}`}</div>
             ) : null}
             {record.processInstanceId ? <div>{`流程实例：#${record.processInstanceId}`}</div> : null}
-            {record.decidedAt ? <div>{`裁决：${record.decidedAt.replace('T', ' ').slice(0, 19)}`}</div> : null}
+            {hasRealTime(decidedAt) ? <div>{`裁决：${decidedAt.replace('T', ' ').slice(0, 19)}`}</div> : null}
             {record.decisionComment ? <div>{`意见：${record.decisionComment}`}</div> : null}
           </div>
         );
@@ -1242,13 +1254,16 @@ export default function ProjectDetailPage() {
           <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
             {blockers.map((b, index) => {
               const action = gateBlockerAction(b.type);
+              const label = GATE_BLOCKER_META[b.type] ?? b.type;
+              // 后端 detail 与 type 文案常常相同（如「未任命项目经理」），避免重复展示。
+              const detail = b.detail && b.detail !== label ? `：${b.detail}` : '';
               return (
                 <div
                   key={`${b.type}-${index}`}
                   style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}
                 >
                   <Tag color="warning" style={{ marginInlineEnd: 0 }}>
-                    {`${GATE_BLOCKER_META[b.type] ?? b.type}${b.total ? `（${b.total}）` : ''}${b.detail ? `：${b.detail}` : ''}`}
+                    {`${label}${b.total ? `（${b.total}）` : ''}${detail}`}
                   </Tag>
                   {action ? (
                     <Button
@@ -1558,6 +1573,8 @@ export default function ProjectDetailPage() {
       message.success('成员已添加');
       setMemberModalOpen(false);
       fetchMembers();
+      // 成员登记是立项门规则之一：刷新阶段门，便于用户回到门行重新提交。
+      void fetchGates();
     } catch (error) {
       if (error && typeof error === 'object' && 'errorFields' in error) return;
       console.error('Add member failed:', error);
