@@ -462,12 +462,17 @@ func (g *LLMGateway) ChatWithRequest(ctx context.Context, req ProviderRequest, m
 	}
 	start := time.Now()
 	tokens := estimateTokens(messages)
+	// model 为空 = 由已解析 provider 决定；遥测记录实际模型而非空串。
+	effectiveModel := model
+	if effectiveModel == "" {
+		effectiveModel = resolution.Model
+	}
 	if g.limiter != nil && !g.limiter.Allow(tokens) {
-		g.observe(observationKey(resolution), resolution.Protocol, model, tokens, time.Since(start), ErrRateLimited)
+		g.observe(observationKey(resolution), resolution.Protocol, effectiveModel, tokens, time.Since(start), ErrRateLimited)
 		return "", resolution, ErrRateLimited
 	}
 	out, err := g.retryableChatWith(ctx, provider, model, messages)
-	g.observe(observationKey(resolution), resolution.Protocol, model, tokens, time.Since(start), err)
+	g.observe(observationKey(resolution), resolution.Protocol, effectiveModel, tokens, time.Since(start), err)
 	return out, resolution, err
 }
 
@@ -490,18 +495,22 @@ func (g *LLMGateway) ChatStreamWithRequest(ctx context.Context, req ProviderRequ
 func (g *LLMGateway) chatStreamWithProvider(ctx context.Context, provider LLMProvider, resolution ProviderResolution, model string, messages []LLMMessage, callback func(string)) (ProviderResolution, error) {
 	start := time.Now()
 	tokens := estimateTokens(messages)
+	effectiveModel := model
+	if effectiveModel == "" {
+		effectiveModel = resolution.Model
+	}
 	if g.limiter != nil && !g.limiter.Allow(tokens) {
-		g.observe(observationKey(resolution), resolution.Protocol, model, tokens, time.Since(start), ErrRateLimited)
+		g.observe(observationKey(resolution), resolution.Protocol, effectiveModel, tokens, time.Since(start), ErrRateLimited)
 		return resolution, ErrRateLimited
 	}
 	if streamer, ok := provider.(StreamingLLMProvider); ok {
 		err := streamer.ChatStream(ctx, model, messages, callback)
-		g.observe(observationKey(resolution), resolution.Protocol, model, tokens, time.Since(start), err)
+		g.observe(observationKey(resolution), resolution.Protocol, effectiveModel, tokens, time.Since(start), err)
 		return resolution, err
 	}
 	// 非流式 provider：与旧 ChatStream 相同，单块下发整段回复。
 	out, err := g.retryableChatWith(ctx, provider, model, messages)
-	g.observe(observationKey(resolution), resolution.Protocol, model, tokens, time.Since(start), err)
+	g.observe(observationKey(resolution), resolution.Protocol, effectiveModel, tokens, time.Since(start), err)
 	if err != nil {
 		return resolution, err
 	}
