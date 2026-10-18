@@ -364,3 +364,55 @@ func TestKnowledgeSearch_TenantIsolationEndToEnd(t *testing.T) {
 	assert.Empty(t, resp.Data.Results, "租户2 不得看到租户1 的文章")
 	assert.False(t, resp.Data.Degraded)
 }
+
+// ==================== F1（2026-10-18）：/ai/triage 按上下文租户调用 ====================
+
+// TestTriage_ForwardsContextTenantToGuidance 端到端验证：handler 从上下文取租户（此处 7，
+// 刻意区别于旧实现硬编码的 1），经 Service.TriageTicket → TriageService.SuggestForTenant
+// 透传到 Guidance sidecar 请求体的 tenantId。
+func TestTriage_ForwardsContextTenantToGuidance(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	var capturedTenant int
+	sidecar := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		var req service.GuidanceTriageRequest
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			w.WriteHeader(http.StatusBadRequest)
+			return
+		}
+		capturedTenant = req.TenantID
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"category":"network","priority":"high","confidence":0.88,"explanation":"ok","assigneeId":102,"method":"guidance","latencyMs":12}`))
+	}))
+	defer sidecar.Close()
+
+	guidance := service.NewGuidanceClient(sidecar.URL, zap.NewNop().Sugar())
+	triageService := service.NewTriageServiceWithGuidanceAndSugaredLogger(nil, guidance, zap.NewNop().Sugar())
+
+	svc := ai.NewService(nil, zap.NewNop().Sugar(), nil, nil, nil, nil, nil, nil, triageService, nil, nil)
+	h := ai.NewHandler(svc)
+
+	r := gin.New()
+	r.POST("/api/v1/ai/triage", func(c *gin.Context) {
+		c.Set("tenant_id", 7)
+		h.Triage(c)
+	})
+
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/ai/triage", bytes.NewBufferString(`{"title":"VPN 无法连接","description":"办公区无法访问内网"}`))
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+
+	require.Equal(t, http.StatusOK, w.Code)
+	assert.Equal(t, 7, capturedTenant, "handler 应把上下文租户透传给 sidecar（原实现硬编码 1）")
+
+	var resp struct {
+		Code int `json:"code"`
+		Data struct {
+			Suggestions map[string]interface{} `json:"suggestions"`
+		} `json:"data"`
+	}
+	require.NoError(t, json.Unmarshal(w.Body.Bytes(), &resp))
+	assert.Equal(t, common.SuccessCode, resp.Code)
+	assert.Equal(t, "network", resp.Data.Suggestions["category"])
+}

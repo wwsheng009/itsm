@@ -16,6 +16,21 @@ type guidanceTriageClient interface {
 	Triage(ctx context.Context, title, description string, tenantID int) (*GuidanceTriageResponse, error)
 }
 
+// guidanceMethodFallback 是 Guidance sidecar 在 LLM 不可用（未配置 LLM_API_KEY、
+// 端点/模型不可达等）时"静默降级"为关键词分类的标记值（itsm-ai-service/api/guidance.py）。
+// 该降级以 HTTP 200 返回，调用方无法通过 error 识别，必须显式检查 method 字段。
+const guidanceMethodFallback = "guidance-fallback"
+
+// isGuidanceDegraded 判定 sidecar 是否以"降级结果"应答（method="guidance-fallback"）。
+// 向后兼容：旧版 sidecar 不返回 method（空串）时按正常结果处理，避免误伤；
+// nil 响应（异常态）按降级处理，交由下方网关链路兜底。
+func isGuidanceDegraded(resp *GuidanceTriageResponse) bool {
+	if resp == nil {
+		return true
+	}
+	return strings.EqualFold(strings.TrimSpace(resp.Method), guidanceMethodFallback)
+}
+
 // normalizeResult ensures triage result has valid category, priority, and confidence values
 func (t *TriageService) normalizeResult(result TriageResult) TriageResult {
 	// Validate and normalize category
@@ -154,8 +169,19 @@ func (t *TriageService) SuggestForTenant(ctx context.Context, title, description
 		guidanceResult, err := t.guidanceClient.Triage(ctx, title, description, tenantID)
 		if err != nil {
 			t.logger.Warn("TriageService: Guidance sidecar failed, falling back", zap.Error(err))
+		} else if isGuidanceDegraded(guidanceResult) {
+			// F1（2026-10-18）：sidecar 的 LLM 不可用是"静默降级"——HTTP 200 +
+			// method="guidance-fallback"，仅凭 err 无法识别。若直接返回该关键词结果，
+			// 会永久屏蔽下方 Priority 2 网关链路（应用级/租户 provider），且不产生
+			// ai_llm_calls 遥测。故视同 sidecar 不可用继续回落：网关可用时拿真实 LLM
+			// 结果，网关失败仍由下方关键词兜底。
+			t.logger.Warn("TriageService: Guidance sidecar degraded to keyword fallback, using LLM gateway",
+				zap.String("method", guidanceResult.Method),
+				zap.String("explanation", guidanceResult.Explanation),
+				zap.Float64("confidence", guidanceResult.Confidence))
 		} else {
 			t.logger.Info("TriageService: Guidance-constrained classification",
+				zap.String("method", guidanceResult.Method),
 				zap.String("category", guidanceResult.Category),
 				zap.String("priority", guidanceResult.Priority),
 				zap.Float64("confidence", guidanceResult.Confidence),

@@ -502,3 +502,85 @@ func TestTriage_Suggest_GuidanceErrorAndLLMError_FallsBackToKeyword(t *testing.T
 	assert.Equal(t, 101, result.AssigneeID)
 	assert.Greater(t, result.Confidence, 0.5)
 }
+
+// ==================== F1（2026-10-18）：Guidance 静默降级识别 ====================
+
+func TestTriage_Suggest_GuidanceDegraded_UsesLLMGateway(t *testing.T) {
+	// F1 修复：sidecar 在 LLM 不可用时以 HTTP 200 + method="guidance-fallback" 静默降级
+	// 关键词分类（如 demo 的 LLM_API_KEY 为空）。服务必须识别该标记并继续走 Priority 2
+	// 网关拿真实 LLM 结果，而不是直接采用关键词结果（后者会永久屏蔽网关且无遥测）。
+	mockLLM := &MockLLMGateway{
+		MockChat: func(ctx context.Context, model string, messages []LLMMessage) (string, error) {
+			return `{"category":"network","priority":"high","confidence":0.91,"explanation":"vpn gateway failure"}`, nil
+		},
+	}
+	gateway := NewLLMGateway(mockLLM, nil, nil, "test")
+	guidance := &fakeGuidanceClient{
+		result: &GuidanceTriageResponse{
+			Category:    "general",
+			Priority:    "medium",
+			Confidence:  0.7,
+			Explanation: "keyword-based classification (LLM unavailable)",
+			Method:      guidanceMethodFallback,
+			LatencyMs:   0,
+		},
+	}
+
+	svc := newTriageServiceWithGuidance(gateway, guidance)
+	// 后端关键词表不含 "vpn"，若修复失效（返回 sidecar 关键词结果）则 category 为 general。
+	result := svc.Suggest(context.Background(), "VPN 无法连接", "办公区无法访问内网")
+
+	assert.Equal(t, 1, guidance.callCount, "guidance 应仅被咨询一次")
+	assert.Equal(t, "network", result.Category, "降级结果不得短路网关链路")
+	assert.Equal(t, "high", result.Priority)
+	assert.Equal(t, 0.91, result.Confidence)
+}
+
+func TestTriage_Suggest_GuidanceDegraded_GatewayFails_FallsBackToKeyword(t *testing.T) {
+	// sidecar 降级且网关也失败时，仍应回落到关键词兜底（保持既有可用性语义）。
+	mockLLM := &MockLLMGateway{
+		MockChat: func(ctx context.Context, model string, messages []LLMMessage) (string, error) {
+			return "", errors.New("gateway unavailable")
+		},
+	}
+	gateway := NewLLMGateway(mockLLM, nil, nil, "test")
+	guidance := &fakeGuidanceClient{
+		result: &GuidanceTriageResponse{
+			Category:   "general",
+			Priority:   "medium",
+			Confidence: 0.7,
+			Method:     guidanceMethodFallback,
+		},
+	}
+
+	svc := newTriageServiceWithGuidance(gateway, guidance)
+	result := svc.Suggest(context.Background(), "mysql connection failed", "database unreachable")
+
+	assert.Equal(t, "database", result.Category)
+	assert.Equal(t, 101, result.AssigneeID)
+}
+
+func TestTriage_Suggest_GuidanceSuccess_DoesNotConsultGateway(t *testing.T) {
+	// 真实 guidance 结果（method="guidance"）仍须短路网关：网关不应被调用。
+	mockLLM := &MockLLMGateway{
+		MockChat: func(ctx context.Context, model string, messages []LLMMessage) (string, error) {
+			t.Fatal("sidecar 正常应答时不得再咨询网关")
+			return "", nil
+		},
+	}
+	gateway := NewLLMGateway(mockLLM, nil, nil, "test")
+	guidance := &fakeGuidanceClient{
+		result: &GuidanceTriageResponse{
+			Category:   "network",
+			Priority:   "high",
+			Confidence: 0.88,
+			Method:     "guidance",
+		},
+	}
+
+	svc := newTriageServiceWithGuidance(gateway, guidance)
+	result := svc.Suggest(context.Background(), "WiFi 故障", "")
+
+	assert.Equal(t, "network", result.Category)
+	assert.Equal(t, 0.88, result.Confidence)
+}

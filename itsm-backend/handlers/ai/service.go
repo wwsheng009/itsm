@@ -1663,7 +1663,9 @@ func (s *Service) CreateTicketByAI(ctx context.Context, description string, tena
 
 	// 使用 Triage 服务分析描述，提取分类和优先级
 	if s.triageService != nil {
-		result := s.triageService.Suggest(ctx, description, description)
+		// F1：按上下文租户调用（原先 Suggest 硬编码租户 1，跨租户会话会把错误租户
+		// 传给 sidecar 审计与网关回落时的 provider 解析链）。
+		result := s.triageService.SuggestForTenant(ctx, description, description, tenantID)
 		return map[string]interface{}{
 			"suggested_title":    description,
 			"suggested_category": result.Category,
@@ -1860,7 +1862,8 @@ func (s *Service) TriageTicket(ctx context.Context, tenantID int, title, descrip
 
 	// Use LLM-powered TriageService if available
 	if s.triageService != nil {
-		result := s.triageService.Suggest(ctx, title, description)
+		// F1：按上下文租户调用（原 Suggest 硬编码租户 1）。
+		result := s.triageService.SuggestForTenant(ctx, title, description, tenantID)
 		return map[string]interface{}{
 			"title":       title,
 			"description": description,
