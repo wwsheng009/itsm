@@ -44,6 +44,12 @@
 
 截图：`.dev/deploy/ui-shots/CAP-1-system-config-ai-tab.png`、`CAP-2-tab-url-sync.png`、`CAP-3-mcp-moved.png`、`CAP-4-moved-link-nav.png`；`pageErrors`：无。
 
+### 3.1 闭环补测：UI 开关 → 保存 → 后端立即生效（`ui-verify-ai-cap-toggle.cjs`）
+
+- 在 `/admin/system-config?tab=ai` 用 UI 开关拨动「Bot 能力」并点击保存：关闭后 `GET /system-configs/ai-capabilities` → `botEnabled=false`；再打开保存 → `true`；结束时恢复初始值。
+- 结果：`T1-ui-toggle-effective` **PASS** `{before:true, onState:true, offState:false, backOn:true, restored:true}`；截图 `CAP-5-ui-toggle-off.png`、`CAP-6-ui-toggle-restored.png`。
+- 备注：浏览器上下文直接 `POST /admin/bots`（无 CSRF 头）返回 403 属 CSRF 防护，非能力门禁结论；能力门禁结论以 §2 的 V5/V7 为准。
+
 ## 4. 本地回归
 
 - `go build ./handlers/ai/... ./router/... ./internal/bootstrap/... ./capability/...` ✅

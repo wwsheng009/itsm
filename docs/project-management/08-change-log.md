@@ -374,5 +374,6 @@ PE-5 此前仅落地「项目工作台查看/解除挂接」与「任务生成�
 | 关闭态 `POST /admin/bots` / `GET /admin/bots` | **403**（新文案）/ **200**（读端保留） |
 | 开启态 `POST /admin/bots`（空 body） | **400** 校验错误（门禁放行）；开关切换全程容器 `StartedAt` 不变（**免重启**） |
 | Playwright 浏览器验收（5 项） | 5/5 PASS：AI 页签选中 + 三开关渲染 + URL 联动 + MCP 迁移提示 + 链接跳转；截图 `ui-shots/CAP-*.png` |
+| Playwright UI 闭环（开关 → 保存 → API 生效） | ✅ `before=true → offState=false → backOn=true`，恢复初始；截图 `CAP-5/6-*.png` |
 
 证据：[DEMO-CAPSW-20261018-fd7514a9-EVIDENCE.md](../../.dev/deploy/DEMO-CAPSW-20261018-fd7514a9-EVIDENCE.md)。
