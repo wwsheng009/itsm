@@ -29,6 +29,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **系统配置新增「AI 配置」页签（前端，2026-10-18）** — 能力开关卡片由 MCP 页迁移至 `/admin/system-config?tab=ai`（`AICapabilitiesCard`，testid `ai-capability-*`）：支持 URL 页签联动（深链进入 / 点击回写）、按 `system_config:write` 只读降级、恢复默认二次确认；MCP 页保留迁移提示与「前往 AI 配置」直达链接（i18n zh/en 同步）。**238 demo 已部署 `1.8.0-dev.fd7514a9`**：Playwright 5/5 PASS（AI 页签选中 + 三开关渲染 + URL 联动 + MCP 迁移提示 + 链接跳转），截图 `.dev/deploy/ui-shots/CAP-*.png`，无页面错误。证据：[DEMO-CAPSW-20261018-fd7514a9-EVIDENCE](.dev/deploy/DEMO-CAPSW-20261018-fd7514a9-EVIDENCE.md)。
+
+### Changed
+
+- **Bot 能力改平台级运行时开关、免重启（后端 + 前端迁移，2026-10-18）** — Bot 管理组件与路由改为常驻装配（去掉 bootstrap 对 `cfg.Bot.Enabled` 的短路），静态 `bot.enabled` 仅作默认值，生效由 `system_configs` **请求期求值**：管理写端 403（文案指引「系统配置 → AI 配置」）、读端保留（页面可展示关闭态）、聊天不落运行档案（与未注入 RunStore 的兼容态逐字节一致）。管理员打开开关后无需重启即可用。**238 demo 验证**：`PUT {"botEnabled":false}` 后 `POST /admin/bots` → 403 + 新文案、`GET /admin/bots` → 200；恢复后写端 400（校验层，门禁放行）；开关切换全程 backend 容器 `StartedAt` 不变（免重启）；`ai-capability` / `mcp-capabilities-moved` 均进入前端镜像产物。证据：[DEMO-CAPSW-20261018-fd7514a9-EVIDENCE](.dev/deploy/DEMO-CAPSW-20261018-fd7514a9-EVIDENCE.md)。
+
 ### Fixed
 
 - **LLM 网关：未绑定调用方统一走租户 provider 解析链（后端，2026-10-18）** — 承接「项目 AI 助手恒降级」（详见下条）的类案排查结论：缺陷不在单一入口，而在统一处理器——`LLMGateway` 的租户/用户解析链只在 `ChatWithRequest`/`ChatStreamWithRequest` 副本路径生效，`Chat`/`ChatStream`/`ChatStreamWithTools` 在未绑定请求时直接落到静态 env provider，导致工单总结/分析、RCA、BPMN 生成、SLA 预测、A2UI、影响解释、邮件提取等「拿基础网关直调」的入口全部绕过租户 DB provider（demo 上静态 key/模型不可用时静默降级）。修复：三处未绑定分支改走 `ChatWithRequest`（等价流式/tools 实现），`resolver` 为空（开关关闭）时保持原静态快速路径不变；`ImpactExplanationService` 传 `TenantID` 并按解析结果回填模型；邮件提取器不再传静态模型。新增 4 个网关回归 + 1 个提取器委派测试。**238 demo 已部署 `1.8.0-dev.00aaa26e`**：三容器 healthy、version 对齐；`/ai/tickets/65/summary` 返回 `method=llm` 真实摘要，`ai_llm_calls` 新行 `provider_key=baidu model=deepseek-v4.1-flash success=t`；项目 AI 回归 `generatedBy=ai degraded=false`；10 分钟内无降级日志。范围外发现：`/ai/triage` 恒退化关键词（Guidance sidecar `LLM_API_KEY` 为空）、`get_ci_impact` 工具 5001（与 LLM 无关），均转单独跟进。证据：[08 变更记录 §12](docs/project-management/08-change-log.md)、[DEMO-BE8-20261018-00aaa26e-EVIDENCE](.dev/deploy/DEMO-BE8-20261018-00aaa26e-EVIDENCE.md)。

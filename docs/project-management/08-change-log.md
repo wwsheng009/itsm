@@ -351,3 +351,28 @@ PE-5 此前仅落地「项目工作台查看/解除挂接」与「任务生成�
 - F2 `get_ci_impact`（`/agent/tools/execute`）返回 5001：15.8ms、无 LLM 记录，与本次修复无关（`tool_registry` 的 `cmdb relationship service not initialized` 分支嫌疑），单独跟进。
 
 证据：[DEMO-BE8-20261018-00aaa26e-EVIDENCE.md](../../.dev/deploy/DEMO-BE8-20261018-00aaa26e-EVIDENCE.md)。
+
+## 13. 变更：AI 能力开关迁移至系统配置 + Bot 平台级开关免重启（2026-10-18）
+
+**背景（用户反馈）**：① `bot.enabled=false` 时后端不注册 Bot 管理路由，页面只能提示「需管理员打开开关后**重启服务**」；② 能力开关藏在 `/admin/mcp-servers` 的卡片里，与「应用配置」直觉不符；③ MCP 页上的 Bot 能力配置「保存后不生效」。
+
+**方案**：
+
+1. **后端常驻装配 + 请求期求值**：`internal/bootstrap/app.go` 去掉 `if cfg.Bot.Enabled` 短路，Bot 管理组件/路由/运行门禁/指标/确认单 sweeper 一律装配；静态 `cfg.Bot.Enabled` 仅作为 `system_configs.bot.enabled` 缺行时的默认值，实际生效由 `capabilitySource` 在**请求期**求值——关闭态：管理写端 403（文案指引「系统配置 → AI 配置」）、读端保留（页面可展示关闭态）、聊天不落运行档案（与「未注入 RunStore」兼容态一致）；开启/关闭**无需重启**。
+2. **前端迁移**：`mcp-servers/CapabilitySwitchesCard` → `system-config/AICapabilitiesCard`（testid `ai-capability-*`），挂到系统配置新增「AI 配置」页签（`?tab=ai` 深链 + 点击回写 / 只读降级 / 恢复默认二次确认）；MCP 页保留 `Alert` + 「前往 AI 配置」链接；i18n 中英文案同步改为平台级/免重启表述。
+
+**验证**：
+
+| 检查 | 结果 |
+|---|---|
+| `go build ./handlers/ai/... ./router/... ./internal/bootstrap/... ./capability/...` | ✅ |
+| `go test ./router/ -run "TestSetupRoutes_BotRoutes\|TestBotRouteDeclarationsUseAICodes\|TestBotSelectorRouteDeclaresAIRead"` | ✅ |
+| `go test ./handlers/ai/ -run "TestBotAdminHandler_\|TestGetBotMetrics\|TestChatToolDecisionBlacklistNeverDispatched\|TestValidateBotSelection"` | ✅ |
+| `npm run type-check` / `npx eslint`（8 文件） | ✅ |
+| jest（`AICapabilitiesCard` 5 / `AICapabilitiesSection` 3 / `mcp-servers` 4） | ✅ |
+| 238 demo `1.8.0-dev.fd7514a9` | 三容器 healthy、`itsm-init` Exit 0、version 对齐、远端 HEAD `fd7514a9` |
+| 关闭态 `POST /admin/bots` / `GET /admin/bots` | **403**（新文案）/ **200**（读端保留） |
+| 开启态 `POST /admin/bots`（空 body） | **400** 校验错误（门禁放行）；开关切换全程容器 `StartedAt` 不变（**免重启**） |
+| Playwright 浏览器验收（5 项） | 5/5 PASS：AI 页签选中 + 三开关渲染 + URL 联动 + MCP 迁移提示 + 链接跳转；截图 `ui-shots/CAP-*.png` |
+
+证据：[DEMO-CAPSW-20261018-fd7514a9-EVIDENCE.md](../../.dev/deploy/DEMO-CAPSW-20261018-fd7514a9-EVIDENCE.md)。
