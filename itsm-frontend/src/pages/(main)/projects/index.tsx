@@ -192,8 +192,37 @@ export default function ProjectsPage() {
       fetchProjects();
     } catch (error) {
       console.error('Transition failed:', error);
-      const msg = error instanceof Error ? error.message : '操作失败';
-      message.error(msg.includes('未终结') ? msg : '操作失败，请刷新后重试');
+      // 后端包络消息可能带 [RID: ...] 排查后缀，展示前剥离。
+      const msg = (error instanceof Error ? error.message : '')
+        .replace(/\s*\[RID:[^\]]*\]\s*$/, '')
+        .trim();
+      // PE-12：激活/结项前必须先通过阶段门（activate→立项门，complete→结项门）。
+      // 旧实现只透传含「未终结」的错误，其余一律吞成「操作失败，请刷新后重试」，
+      // 用户无法得知真实原因（如：立项门尚未提交审批）。
+      if (msg.includes('阶段门禁未通过')) {
+        const isActivate = action === 'activate';
+        const gateLabel = isActivate ? '立项门' : action === 'complete' ? '结项门' : '阶段门';
+        Modal.warning({
+          title: `无法${isActivate ? '激活' : action === 'complete' ? '结项' : '流转'}：${gateLabel}未通过`,
+          content: (
+            <div>
+              <p>{msg}</p>
+              <p>
+                请先在项目工作台「阶段门」提交并通过{gateLabel}
+                {isActivate ? '（需项目经理任命 + 成员登记）' : action === 'complete' ? '（需关联单据全部终态）' : ''}。
+              </p>
+            </div>
+          ),
+          okText: '去项目工作台',
+          onOk: () => navigate(`/projects/${record.id}`),
+        });
+        return;
+      }
+      if (msg.includes('未终结') || msg.includes('版本') || msg.includes('刷新')) {
+        message.error(msg);
+        return;
+      }
+      message.error(msg || '操作失败，请刷新后重试');
     }
   };
 
