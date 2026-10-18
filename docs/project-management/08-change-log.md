@@ -315,3 +315,39 @@ PE-5 此前仅落地「项目工作台查看/解除挂接」与「任务生成�
 | `ai_llm_calls` | 新行 `model=deepseek-v4.1-flash success=t`；旧失败行为 `gpt-4o-mini` |
 
 证据：[DEMO-PROJECT-AI-20261018-d80cf753-EVIDENCE.md](../../.dev/deploy/DEMO-PROJECT-AI-20261018-d80cf753-EVIDENCE.md)。
+
+## 12. 修复：LLM 网关未绑定调用方走租户 provider 解析链（BE-8，2026-10-18）
+
+**背景**：`/projects/1` AI 助手修复（§11）后复查「其它 AI 入口是否存在同类静态 provider 覆盖」，确认缺陷不止单一入口。
+
+**根因（统一处理器级）**：`LLMGateway.resolveProvider` 的解析链（请求级 → 个人默认 → 租户默认 → 静态）只在 `ChatWithRequest`/`ChatStreamWithRequest`/`WithProviderRequest`（带 `boundRequest` 的副本路径）生效；`Chat`/`ChatStream`/`ChatStreamWithTools` 在未绑定请求时直接使用静态 `g.provider`。因此所有「拿基础网关直接调」的调用方（工单总结/分析 `/ai/tickets/:id/summary`、网关分支的 `/ai/triage`、RCA/根因、BPMN 生成、SLA 预测、A2UI、影响解释、邮件提取）在 demo 上都绕过租户 DB provider（千帆 `deepseek-v4.1-flash`），落到静态 env provider；demo 静态 `LLM_API_KEY` 缺失/模型不受支持时表现为静默降级（`ai_llm_calls` 里 `provider_key=<static> success=f`）。
+
+**影响面审计（非测试调用点逐一过）**：
+- 传静态模型（同类缺陷）：`service/impact_explanation_service.go`（`s.model` 来自 bootstrap）、`handlers/email_intake/extractor.go`（空则默认 `gpt-4o-mini`）；
+- 传空模型已正确：BPMN 生成器、RAG、根因、RCA、总结、分诊、SLA 预测技能（但基础网关未绑定 → 依然命中静态快速路径，本次统一修复后一并走解析链）；
+- 有意保留显式模型：provider 管理端「连通性测试」用 `record.Model`（正确，不改）。
+
+**修复**：
+1. `service/llm_gateway.go`：`Chat`/`ChatStream`/`ChatStreamWithTools` 在 `boundRequest == nil && resolver != nil` 时改走 `ChatWithRequest(ctx, ProviderRequest{}, model, messages)`（流式/tools 等价路径）；`resolver == nil`（能力开关关闭）时保持原静态快速路径逐字节不变。
+2. `service/impact_explanation_service.go`：改 `ChatWithRequest(ctx, ProviderRequest{TenantID: tenantID}, "", messages)`，`Model` 取解析结果（空回退 `s.model`）。
+3. `handlers/email_intake/extractor.go`：不再传 `e.model`（改传空，由解析链决定）。
+4. 新增回归测试 4 个（网关：未绑定走解析链 / 无租户回落静态 / 流式未绑定 / 无解析器保持静态）+ 1 个（邮件提取委派模型给网关）。
+
+**验证**：
+
+| 检查 | 结果 |
+|---|---|
+| `go build ./...` | ✅ |
+| `go test ./service/ -run "TestLLMGateway\|TestImpactExplanation"` | 全绿（含 4 个新用例） |
+| `go test ./handlers/email_intake/ ./handlers/project/ ./handlers/ai/` | 全绿（含提取器委派用例） |
+| 238 demo `1.8.0-dev.00aaa26e` | 三容器 healthy、`itsm-init` Exit 0、version 对齐、远端 HEAD `00aaa26e` |
+| `GET /ai/tickets/65/summary` | `code=0`、`method=llm`、真实摘要；`ai_llm_calls` 新行 `provider_key=baidu model=deepseek-v4.1-flash success=t latency=2310ms` |
+| `POST /projects/1/ai/summary`（§11 回归） | `ai` / `degraded=false` / `model=deepseek-v4.1-flash` / 457 字 |
+| `ai_llm_calls` 前后对比 | 修复前样本 `#48 openai/<static> success=f 15906ms`；部署后 #49/#50 均为 baidu 成功 |
+| 降级日志 | 10 分钟内无 `degraded` / `falling back` / `LLM failed` |
+
+**范围外发现（Follow-up）**：
+- F1 `/ai/triage` 恒退化关键词：后端分诊优先走 Guidance sidecar，`itsm-ai-service-demo` 的 `LLM_API_KEY` 为空（其日志 `LLM_API_KEY not configured`），sidecar 静态 `LLM_PROVIDER=openai/LLM_MODEL=gpt-*` 与租户 provider 不一致 → 需单独配 key 或调整 sidecar/gateway 优先级。
+- F2 `get_ci_impact`（`/agent/tools/execute`）返回 5001：15.8ms、无 LLM 记录，与本次修复无关（`tool_registry` 的 `cmdb relationship service not initialized` 分支嫌疑），单独跟进。
+
+证据：[DEMO-BE8-20261018-00aaa26e-EVIDENCE.md](../../.dev/deploy/DEMO-BE8-20261018-00aaa26e-EVIDENCE.md)。
