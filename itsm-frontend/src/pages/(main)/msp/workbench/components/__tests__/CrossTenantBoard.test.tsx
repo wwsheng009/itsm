@@ -194,4 +194,15 @@ describe('CrossTenantBoard · 跨租户单据', () => {
       expect(api.listRecords).toHaveBeenCalledWith('service_request', expect.anything())
     );
   });
+
+  it('切换记录类型：项目只读面（P2+ MSP 客户交付，slug=projects）', async () => {
+    const api = buildApi();
+    const user = userEvent.setup();
+    render(<CrossTenantBoard kind="records" api={api} />);
+
+    await screen.findByText('CHG-P215');
+    await user.click(screen.getByText('项目'));
+
+    await waitFor(() => expect(api.listRecords).toHaveBeenCalledWith('project', expect.anything()));
+  });
 });

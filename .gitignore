@@ -348,3 +348,6 @@ itsm-backend/main.exe.bak-*
 
 # 附件域运行时上传数据（保留磁盘文件、不提交；目录内历史 fixture 仍受跟踪）
 itsm-backend/uploads/tickets/*
+
+# 本地 Agent 工具设置（clawMode 等，不入库）
+.arts/

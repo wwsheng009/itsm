@@ -105,6 +105,13 @@ func (h *Handler) ListWorkbenchServiceRequests(c *gin.Context) {
 	h.listWorkbenchRecords(c, service.MSPRecordServiceRequest)
 }
 
+// ListWorkbenchProjects GET /api/v1/msp/workbench/projects
+// 跨客户项目只读总览（P2+ MSP 客户交付 P2-A）：与三类单据同构——allocation 允许集合 +
+// 逐租户查询后内存合并；只读（项目审批/状态推进保留客户治理面，故 allowedActions 仅 view）。
+func (h *Handler) ListWorkbenchProjects(c *gin.Context) {
+	h.listWorkbenchRecords(c, service.MSPRecordProject)
+}
+
 // GetWorkbenchRecordsSummary GET /api/v1/msp/workbench/records-summary
 // 跨租户协助单据总览（MSP dashboard 第二排 KPI）：事件/问题/已知错误/变更/服务请求
 // 的 total/open 计数 + 每类最近 5 条；授权与 ListRecords 同源（allocation 允许集合）。
@@ -145,6 +152,12 @@ func (h *Handler) GetWorkbenchProblem(c *gin.Context) {
 // GetWorkbenchServiceRequest GET /api/v1/msp/service-requests/:id
 func (h *Handler) GetWorkbenchServiceRequest(c *gin.Context) {
 	h.getWorkbenchRecord(c, service.MSPRecordServiceRequest)
+}
+
+// GetWorkbenchProject GET /api/v1/msp/projects/:id
+// 跨客户项目详情（只读；声明租户 == 资源租户校验 + allocation 二次校验）。
+func (h *Handler) GetWorkbenchProject(c *gin.Context) {
+	h.getWorkbenchRecord(c, service.MSPRecordProject)
 }
 
 // UpdateWorkbenchProblemStatus POST /api/v1/msp/problems/:id/status

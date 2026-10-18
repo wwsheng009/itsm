@@ -88,7 +88,7 @@ const PRIORITY_COLOR: Record<string, string> = {
   low: 'default',
 };
 
-const RECORD_TYPE_ORDER: MSPRecordType[] = ['change', 'problem', 'service_request'];
+const RECORD_TYPE_ORDER: MSPRecordType[] = ['change', 'problem', 'service_request', 'project'];
 
 function formatDateTime(value?: string): string {
   if (!value) return '—';

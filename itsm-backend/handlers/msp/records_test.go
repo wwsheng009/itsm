@@ -23,6 +23,7 @@ import (
 	"itsm-backend/ent"
 	entChange "itsm-backend/ent/change"
 	"itsm-backend/ent/enttest"
+	entProject "itsm-backend/ent/project"
 	entProblem "itsm-backend/ent/problem"
 	entSR "itsm-backend/ent/servicerequest"
 	entTenant "itsm-backend/ent/tenant"
@@ -95,6 +96,13 @@ func newRecordsHandlerEnv(t *testing.T) *recordsHandlerEnv {
 		SetTitle("handler 服务请求C").SetStatus("security_approved").SetReason("C 申请").Save(ctx)
 	require.NoError(t, err)
 
+	// 项目（客户 A；P2+ MSP 客户交付 P2-A 只读面板夹具）。
+	_, err = client.Project.Create().
+		SetName("handler 项目").SetCode("PRJ-H1").SetStatus("active").
+		SetManagerID(7).SetDescription("项目描述").SetTenantID(custA.ID).
+		SetUpdatedAt(time.Now()).Save(ctx)
+	require.NoError(t, err)
+
 	// 服务请求（客户 A；履约窗口内 security_approved，供写面契约用）。
 	_, err = client.ServiceRequest.Create().
 		SetTenantID(custA.ID).SetCatalogID(1).SetRequesterID(1).
@@ -153,10 +161,12 @@ func newRecordsTestRouter(t *testing.T, env *recordsHandlerEnv, mspCtx *middlewa
 	group.GET("/workbench/changes", h.ListWorkbenchChanges)
 	group.GET("/workbench/problems", h.ListWorkbenchProblems)
 	group.GET("/workbench/service-requests", h.ListWorkbenchServiceRequests)
+	group.GET("/workbench/projects", h.ListWorkbenchProjects)
 	group.GET("/workbench/records-summary", h.GetWorkbenchRecordsSummary)
 	group.GET("/changes/:id", h.GetWorkbenchChange)
 	group.GET("/problems/:id", h.GetWorkbenchProblem)
 	group.GET("/service-requests/:id", h.GetWorkbenchServiceRequest)
+	group.GET("/projects/:id", h.GetWorkbenchProject)
 	group.POST("/problems/:id/status", h.UpdateWorkbenchProblemStatus)
 	group.POST("/changes/:id/status", h.UpdateWorkbenchChangeStatus)
 	group.POST("/service-requests/:id/status", h.UpdateWorkbenchServiceRequestStatus)
@@ -201,6 +211,60 @@ func TestWorkbenchRecords_ListAndDetail(t *testing.T) {
 	require.Len(t, detailEnv.Data.AllowedActions, 2)
 	assert.True(t, detailEnv.Data.AllowedActions[0].Allowed)
 	assert.Equal(t, "status", detailEnv.Data.AllowedActions[1].Action)
+}
+
+// TestWorkbenchRecords_ProjectReadOnly 跨客户项目只读面板（P2-A）：
+// 列表/详情 200、allowedActions 仅 view（无 status 动作，审批/推进保留客户治理面）、
+// 未知 id 404、声明租户不匹配 400。
+func TestWorkbenchRecords_ProjectReadOnly(t *testing.T) {
+	env := newRecordsHandlerEnv(t)
+	r := newRecordsTestRouter(t, env, recordsActorCtx([]int{env.custA.ID}))
+
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/msp/workbench/projects?customerTenantIds=all&limit=10", nil)
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+	require.Equal(t, http.StatusOK, w.Code, w.Body.String())
+	var listEnv struct {
+		Code int                       `json:"code"`
+		Data dto.MSPRecordListResponse `json:"data"`
+	}
+	require.NoError(t, json.Unmarshal(w.Body.Bytes(), &listEnv))
+	require.Equal(t, 1, listEnv.Data.Total)
+	require.Len(t, listEnv.Data.Items, 1)
+	assert.Equal(t, "PRJ-H1", listEnv.Data.Items[0].Number)
+	assert.Equal(t, service.MSPRecordProject, listEnv.Data.Items[0].RecordType)
+	require.Len(t, listEnv.Data.Items[0].AllowedActions, 1, "项目只读：仅 view")
+	assert.Equal(t, "view", listEnv.Data.Items[0].AllowedActions[0].Action)
+
+	project, err := env.client.Project.Query().Where(entProject.TenantIDEQ(env.custA.ID)).Only(context.Background())
+	require.NoError(t, err)
+	req = httptest.NewRequest(http.MethodGet,
+		fmt.Sprintf("/api/v1/msp/projects/%d?customerTenantId=%d", project.ID, env.custA.ID), nil)
+	w = httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+	require.Equal(t, http.StatusOK, w.Code, w.Body.String())
+	var detailEnv struct {
+		Code int                         `json:"code"`
+		Data dto.MSPRecordDetailResponse `json:"data"`
+	}
+	require.NoError(t, json.Unmarshal(w.Body.Bytes(), &detailEnv))
+	assert.Equal(t, "PRJ-H1", detailEnv.Data.Number)
+	assert.Equal(t, "handler 项目", detailEnv.Data.Title)
+	assert.Equal(t, "active", detailEnv.Data.Status)
+	assert.Equal(t, "项目描述", detailEnv.Data.Description)
+	require.Len(t, detailEnv.Data.AllowedActions, 1)
+	assert.Equal(t, "view", detailEnv.Data.AllowedActions[0].Action)
+
+	req = httptest.NewRequest(http.MethodGet, "/api/v1/msp/projects/999999?customerTenantId="+fmt.Sprint(env.custA.ID), nil)
+	w = httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+	assert.Equal(t, http.StatusNotFound, w.Code, w.Body.String())
+
+	req = httptest.NewRequest(http.MethodGet,
+		fmt.Sprintf("/api/v1/msp/projects/%d?customerTenantId=%d", project.ID, env.custC.ID), nil)
+	w = httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+	assert.Equal(t, http.StatusBadRequest, w.Code, w.Body.String())
 }
 
 func TestWorkbenchRecords_BadParams(t *testing.T) {

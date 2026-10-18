@@ -83,11 +83,15 @@ func SetupMSPRoutes(r *gin.Engine, config *RouterConfig) {
 		msp.GET("/workbench/changes", middleware.RequireMSPPermission("msp_ticket", "read"), config.MSPHandler.ListWorkbenchChanges)
 		msp.GET("/workbench/problems", middleware.RequireMSPPermission("msp_ticket", "read"), config.MSPHandler.ListWorkbenchProblems)
 		msp.GET("/workbench/service-requests", middleware.RequireMSPPermission("msp_ticket", "read"), config.MSPHandler.ListWorkbenchServiceRequests)
+		// 跨客户项目只读总览（P2+ MSP 客户交付 P2-A）。
+		msp.GET("/workbench/projects", middleware.RequireMSPPermission("msp_ticket", "read"), config.MSPHandler.ListWorkbenchProjects)
 		// 协助单据总览（MSP dashboard 第二排 KPI）：事件/问题/已知错误/变更/服务请求 计数 + 最近条目。
 		msp.GET("/workbench/records-summary", middleware.RequireMSPPermission("msp_ticket", "read"), config.MSPHandler.GetWorkbenchRecordsSummary)
 		msp.GET("/changes/:id", middleware.RequireMSPPermission("msp_ticket", "read"), config.MSPHandler.GetWorkbenchChange)
 		msp.GET("/problems/:id", middleware.RequireMSPPermission("msp_ticket", "read"), config.MSPHandler.GetWorkbenchProblem)
 		msp.GET("/service-requests/:id", middleware.RequireMSPPermission("msp_ticket", "read"), config.MSPHandler.GetWorkbenchServiceRequest)
+		// 项目详情（只读；审批/状态推进保留客户治理面）。
+		msp.GET("/projects/:id", middleware.RequireMSPPermission("msp_ticket", "read"), config.MSPHandler.GetWorkbenchProject)
 
 		// 写面（IP-P2-13 问题 / IP-P2-15 变更·服务请求）：处理类动作（D8）；
 		// 审批类（变更 approve/reject、服务请求 approval）保留客户治理面，不注册 MSP 端点。

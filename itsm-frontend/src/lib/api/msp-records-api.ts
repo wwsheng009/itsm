@@ -83,14 +83,15 @@ export function completeWorkbenchTask(
 
 // ==================== 三类单据读面（GET /api/v1/msp/workbench/{changes,problems,service-requests}） ====================
 
-/** 记录类型（后端 recordType 枚举）。 */
-export type MSPRecordType = 'change' | 'problem' | 'service_request';
+/** 记录类型（后端 recordType 枚举；project 为 P2+ MSP 客户交付只读面）。 */
+export type MSPRecordType = 'change' | 'problem' | 'service_request' | 'project';
 
 /** 记录类型 → 路径 slug（路由段）。 */
 export const MSP_RECORD_SLUG: Record<MSPRecordType, string> = {
   change: 'changes',
   problem: 'problems',
   service_request: 'service-requests',
+  project: 'projects',
 };
 
 export interface MSPRecordItem {
@@ -245,12 +246,15 @@ export const MSP_STATUS_OPTIONS: Record<MSPRecordType, MSPStatusOption[]> = {
   change: CHANGE_STATUS_OPTIONS,
   problem: PROBLEM_STATUS_OPTIONS,
   service_request: SERVICE_REQUEST_STATUS_OPTIONS,
+  // 项目只读：审批/状态推进保留客户治理面（MSP 面不提供写端点）。
+  project: [],
 };
 
 export const MSP_RECORD_TYPE_LABEL: Record<MSPRecordType, string> = {
   change: '变更',
   problem: '问题',
   service_request: '服务请求',
+  project: '项目',
 };
 
 /** 全量状态展示标签（含流程中/终态；详情与列表当前状态回显用）。 */
@@ -271,6 +275,10 @@ const STATUS_LABELS: Record<string, string> = {
   investigating: '调查中',
   identified: '已定位',
   resolved: '已解决',
+  // 项目（只读展示）
+  planning: '规划中',
+  active: '进行中',
+  suspended: '已暂停',
   // 服务请求
   pending: '待提交',
   pending_approval_sr: '待审批',

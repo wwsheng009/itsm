@@ -1,8 +1,8 @@
 version: "1.0"
-generated_at: "2026-10-17T22:51:31.183Z"
+generated_at: "2026-10-18T02:23:58.072Z"
 router_version: "1.0"
-total_routes: 946
-permission_coverage: "93.76%"
+total_routes: 948
+permission_coverage: "93.78%"
 routes:
   - method: GET
     path: /swagger/*any
@@ -3815,65 +3815,77 @@ routes:
     description: 列表
     source: msp_routes.go:85
   - method: GET
-    path: /api/v1/msp/workbench/records-summary
+    path: /api/v1/msp/workbench/projects
     permission: msp_ticket.read
     menu: v1
     description: 列表
     source: msp_routes.go:87
   - method: GET
-    path: /api/v1/msp/changes/:id
-    permission: msp_ticket.read
-    menu: v1
-    description: 列表
-    source: msp_routes.go:88
-  - method: GET
-    path: /api/v1/msp/problems/:id
+    path: /api/v1/msp/workbench/records-summary
     permission: msp_ticket.read
     menu: v1
     description: 列表
     source: msp_routes.go:89
   - method: GET
-    path: /api/v1/msp/service-requests/:id
+    path: /api/v1/msp/changes/:id
     permission: msp_ticket.read
     menu: v1
     description: 列表
     source: msp_routes.go:90
+  - method: GET
+    path: /api/v1/msp/problems/:id
+    permission: msp_ticket.read
+    menu: v1
+    description: 列表
+    source: msp_routes.go:91
+  - method: GET
+    path: /api/v1/msp/service-requests/:id
+    permission: msp_ticket.read
+    menu: v1
+    description: 列表
+    source: msp_routes.go:92
+  - method: GET
+    path: /api/v1/msp/projects/:id
+    permission: msp_ticket.read
+    menu: v1
+    description: 列表
+    source: msp_routes.go:94
   - method: POST
     path: /api/v1/msp/problems/:id/status
     permission: msp_ticket.write
     menu: v1
     description: 创建
-    source: msp_routes.go:94
+    source: msp_routes.go:98
   - method: POST
     path: /api/v1/msp/changes/:id/status
     permission: msp_ticket.write
     menu: v1
     description: 创建
-    source: msp_routes.go:95
+    source: msp_routes.go:99
   - method: POST
     path: /api/v1/msp/service-requests/:id/status
     permission: msp_ticket.write
     menu: v1
     description: 创建
-    source: msp_routes.go:96
+    source: msp_routes.go:100
   - method: GET
     path: /api/v1/msp/reports/customers
     permission: msp_report.read
     menu: v1
     description: 列表
-    source: msp_routes.go:99
+    source: msp_routes.go:103
   - method: GET
     path: /api/v1/msp/reports/performance
     permission: msp_report.read
     menu: v1
     description: 列表
-    source: msp_routes.go:100
+    source: msp_routes.go:104
   - method: GET
     path: /api/v1/msp/audit/summary
     permission: msp_report.read
     menu: v1
     description: 列表
-    source: msp_routes.go:103
+    source: msp_routes.go:107
   - method: POST
     path: /api/v1/problem-investigation/investigations
     permission: problem.write

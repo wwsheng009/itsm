@@ -326,3 +326,106 @@ func TestMSPRecordProjection_InactiveTenantReadable(t *testing.T) {
 	// 绑定 RLS GUC 的调用方式不受影响（逐租户 ctx 重绑定）。
 	_ = tenantctx.WithTenantID(ctx, env.custB.ID)
 }
+
+// TestMSPRecordProjection_ProjectsReadOnly 跨客户项目只读投影（P2+ MSP 客户交付 P2-A）：
+// 列表（跨租户合并/过滤/分页）、详情（字段回写）、allowedActions 仅 view（审批/推进保留客户治理面）与反例。
+func TestMSPRecordProjection_ProjectsReadOnly(t *testing.T) {
+	env := newRecordProjEnv(t)
+	svc := env.svc()
+	ctx := context.Background()
+
+	mk := func(tenant int, code, name, status, desc string, manager int, at time.Time) *ent.Project {
+		builder := env.client.Project.Create().
+			SetTenantID(tenant).SetCode(code).SetName(name).SetStatus(status).
+			SetUpdatedAt(at)
+		if desc != "" {
+			builder = builder.SetDescription(desc)
+		}
+		if manager > 0 {
+			builder = builder.SetManagerID(manager)
+		}
+		p, err := builder.Save(ctx)
+		require.NoError(t, err)
+		return p
+	}
+	pA1 := mk(env.custA.ID, "PRJ-A1", "A 项目一", "active", "A 项目描述", env.userA.ID, env.base.Add(20*time.Minute))
+	_ = mk(env.custA.ID, "PRJ-A2", "A 项目二", "completed", "", env.userA.ID, env.base.Add(40*time.Minute))
+	_ = mk(env.custB.ID, "PRJ-B1", "B 项目一", "planning", "", 0, env.base.Add(50*time.Minute))
+	cProject := mk(env.custC.ID, "PRJ-C1", "C 项目一", "active", "", 0, env.base.Add(60*time.Minute))
+
+	// 全量：允许集合 = A+B（C 不可见），updated_at 降序。
+	resp, err := svc.ListRecords(ctx, env.actor, MSPRecordProject, dto.MSPRecordQuery{})
+	require.NoError(t, err)
+	require.Equal(t, 3, resp.Total)
+	require.Len(t, resp.Items, 3)
+	assert.Equal(t, "PRJ-B1", resp.Items[0].Number)
+	assert.Equal(t, "PRJ-A2", resp.Items[1].Number)
+	assert.Equal(t, "PRJ-A1", resp.Items[2].Number)
+	assert.Equal(t, MSPRecordProject, resp.Items[0].RecordType)
+	assert.Equal(t, env.custB.ID, resp.Items[0].CustomerTenantID)
+	assert.Equal(t, "客户B", resp.Items[0].CustomerName)
+	require.Len(t, resp.Items[0].AllowedActions, 1, "项目只读：仅 view")
+	assert.Equal(t, "view", resp.Items[0].AllowedActions[0].Action)
+	assert.True(t, resp.Items[0].AllowedActions[0].Allowed)
+
+	// 状态与关键词过滤（编号/名称 ContainsFold）。
+	resp, err = svc.ListRecords(ctx, env.actor, MSPRecordProject, dto.MSPRecordQuery{Status: "active"})
+	require.NoError(t, err)
+	require.Equal(t, 1, resp.Total)
+	assert.Equal(t, "PRJ-A1", resp.Items[0].Number)
+	resp, err = svc.ListRecords(ctx, env.actor, MSPRecordProject, dto.MSPRecordQuery{Q: "prj-a2"})
+	require.NoError(t, err)
+	require.Equal(t, 1, resp.Total)
+	assert.Equal(t, "PRJ-A2", resp.Items[0].Number)
+
+	// 逐租户游标分页：limit=1 逐页取完，无重复、无遗漏。
+	seen := map[string]bool{}
+	cursor := ""
+	pages := 0
+	for {
+		page, err := svc.ListRecords(ctx, env.actor, MSPRecordProject, dto.MSPRecordQuery{Limit: 1, Cursor: cursor})
+		require.NoError(t, err)
+		pages++
+		require.LessOrEqual(t, pages, 6, "分页不得死循环")
+		for _, it := range page.Items {
+			require.False(t, seen[it.Number], "重复返回: %s", it.Number)
+			seen[it.Number] = true
+		}
+		if page.NextCursor == "" {
+			break
+		}
+		cursor = page.NextCursor
+	}
+	assert.Equal(t, map[string]bool{"PRJ-A1": true, "PRJ-A2": true, "PRJ-B1": true}, seen)
+
+	// 详情：编号/名称/状态/描述/负责人（项目经理）富化 + 只读动作。
+	detail, err := svc.GetRecord(ctx, env.actor, MSPRecordProject, pA1.ID, env.custA.ID)
+	require.NoError(t, err)
+	assert.Equal(t, "PRJ-A1", detail.Number)
+	assert.Equal(t, "A 项目一", detail.Title)
+	assert.Equal(t, "active", detail.Status)
+	assert.Equal(t, "A 项目描述", detail.Description)
+	assert.Equal(t, env.userA.ID, detail.AssigneeID)
+	assert.Equal(t, "客户A员工", detail.AssigneeName)
+	require.Len(t, detail.AllowedActions, 1)
+	assert.Equal(t, "view", detail.AllowedActions[0].Action)
+
+	// 反例：未知 id → 404；声明租户不匹配 → 400；未分配客户 C → 403 allocation。
+	_, err = svc.GetRecord(ctx, env.actor, MSPRecordProject, 999999, env.custA.ID)
+	require.Error(t, err)
+	ae, ok := AsCustomerAccessError(err)
+	require.True(t, ok)
+	assert.Equal(t, CodeCustomerTenantNotFound, ae.Code)
+
+	_, err = svc.GetRecord(ctx, env.actor, MSPRecordProject, pA1.ID, env.custB.ID)
+	require.Error(t, err)
+	ae, ok = AsCustomerAccessError(err)
+	require.True(t, ok)
+	assert.Equal(t, CodeResourceTenantMismatch, ae.Code)
+
+	_, err = svc.GetRecord(ctx, env.actor, MSPRecordProject, cProject.ID, env.custC.ID)
+	require.Error(t, err)
+	ae, ok = AsCustomerAccessError(err)
+	require.True(t, ok)
+	assert.Equal(t, CodeMSPAllocationRequired, ae.Code)
+}

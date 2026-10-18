@@ -20,6 +20,7 @@ import (
 	"itsm-backend/ent"
 	entChange "itsm-backend/ent/change"
 	entProblem "itsm-backend/ent/problem"
+	entProject "itsm-backend/ent/project"
 	entSR "itsm-backend/ent/servicerequest"
 	"itsm-backend/ent/user"
 )
@@ -29,11 +30,12 @@ const (
 	MSPRecordChange         = "change"
 	MSPRecordProblem        = "problem"
 	MSPRecordServiceRequest = "service_request"
+	MSPRecordProject        = "project" // P2+ MSP 客户交付：provider 跨客户看项目总览
 )
 
 func isMSPRecordType(t string) bool {
 	switch t {
-	case MSPRecordChange, MSPRecordProblem, MSPRecordServiceRequest:
+	case MSPRecordChange, MSPRecordProblem, MSPRecordServiceRequest, MSPRecordProject:
 		return true
 	default:
 		return false
@@ -340,6 +342,42 @@ func (s *MSPWorkbenchService) listRecordRows(ctx context.Context, recordType str
 		}
 		return out, n, more, nil
 
+	case MSPRecordProject:
+		query := s.client.Project.Query().Where(entProject.TenantIDEQ(tenantID), entProject.DeletedAtIsNil())
+		if status != "" {
+			query = query.Where(entProject.StatusEQ(status))
+		}
+		if q != "" {
+			query = query.Where(entProject.Or(entProject.CodeContainsFold(q), entProject.NameContainsFold(q)))
+		}
+		n, err := query.Clone().Count(qctx)
+		if err != nil {
+			return nil, 0, false, fmt.Errorf("msp records count project tenant %d: %w", tenantID, err)
+		}
+		if hasCursor {
+			query = query.Where(entProject.Or(
+				entProject.UpdatedAtLT(ts),
+				entProject.And(entProject.UpdatedAtEQ(ts), entProject.IDLT(pos.LastID)),
+			))
+		}
+		rows, err := query.Order(ent.Desc(entProject.FieldUpdatedAt), ent.Desc(entProject.FieldID)).Limit(limit + 1).All(qctx)
+		if err != nil {
+			return nil, 0, false, fmt.Errorf("msp records query project tenant %d: %w", tenantID, err)
+		}
+		more := len(rows) > limit
+		if more {
+			rows = rows[:limit]
+		}
+		out := make([]mspRecordRow, 0, len(rows))
+		for _, r := range rows {
+			out = append(out, mspRecordRow{
+				tenantID: tenantID, id: r.ID, number: r.Code, title: r.Name,
+				status: r.Status, priority: "", ownerID: r.ManagerID, assigneeID: r.ManagerID,
+				createdAt: r.CreatedAt, updatedAt: r.UpdatedAt,
+			})
+		}
+		return out, n, more, nil
+
 	default:
 		return nil, 0, false, NewCustomerAccessError(CodeActionNotAllowed, "不支持的单据类型: %s", recordType)
 	}
@@ -406,6 +444,23 @@ func (s *MSPWorkbenchService) GetRecord(ctx context.Context, actor MSPWorkbenchA
 			return nil, NewCustomerAccessError(CodeCustomerTenantNotFound, "服务请求不存在")
 		}
 		resp = serviceRequestRecordDetail(row)
+
+	case MSPRecordProject:
+		row, err := s.client.Project.Get(tenantctx.WithTenantID(ctx, declaredTenantID), id)
+		if err != nil {
+			if ent.IsNotFound(err) {
+				return nil, NewCustomerAccessError(CodeCustomerTenantNotFound, "项目不存在")
+			}
+			return nil, err
+		}
+		if row.TenantID != declaredTenantID {
+			return nil, NewCustomerAccessError(CodeResourceTenantMismatch, "项目租户与请求声明不一致")
+		}
+		if row.DeletedAt != nil {
+			return nil, NewCustomerAccessError(CodeCustomerTenantNotFound, "项目不存在")
+		}
+		ownerID = row.ManagerID
+		resp = projectRecordDetail(row)
 	}
 
 	if err := s.ensureAllocated(actor, resp.CustomerTenantID); err != nil {
@@ -552,6 +607,33 @@ func serviceRequestRecordDetail(row *ent.ServiceRequest) *dto.MSPRecordDetailRes
 	}
 	if !row.CompletedAt.IsZero() {
 		v := row.CompletedAt
+		resp.CompletedAt = &v
+	}
+	return resp
+}
+// projectRecordDetail 项目详情（只读；P2+ MSP 客户交付）。
+func projectRecordDetail(row *ent.Project) *dto.MSPRecordDetailResponse {
+	resp := &dto.MSPRecordDetailResponse{
+		MSPRecordItem: dto.MSPRecordItem{
+			RecordType:       MSPRecordProject,
+			ID:               row.ID,
+			CustomerTenantID: row.TenantID,
+			Number:           row.Code,
+			Title:            row.Name,
+			Status:           row.Status,
+			AssigneeID:       row.ManagerID,
+			RequesterID:      row.ManagerID,
+			UpdatedAt:        row.UpdatedAt,
+		},
+		Description: row.Description,
+		CreatedAt:   row.CreatedAt,
+	}
+	if !row.ActualStart.IsZero() {
+		v := row.ActualStart
+		resp.StartedAt = &v
+	}
+	if !row.ClosedAt.IsZero() {
+		v := row.ClosedAt
 		resp.CompletedAt = &v
 	}
 	return resp

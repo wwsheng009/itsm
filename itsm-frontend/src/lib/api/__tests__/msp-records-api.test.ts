@@ -75,6 +75,19 @@ describe('msp-records-api · 三类单据读面', () => {
     expect(MSP_RECORD_SLUG.change).toBe('changes');
     expect(MSP_RECORD_SLUG.problem).toBe('problems');
     expect(MSP_RECORD_SLUG.service_request).toBe('service-requests');
+    expect(MSP_RECORD_SLUG.project).toBe('projects');
+  });
+
+  it('项目只读面：列表/详情 URL（P2+ MSP 客户交付）', async () => {
+    mockGet.mockResolvedValue({ items: [], total: 0 });
+    await listWorkbenchRecords('project', { customerTenantIds: [11], status: 'active', limit: 20 });
+    expect(mockGet).toHaveBeenCalledWith(
+      '/api/v1/msp/workbench/projects?customerTenantIds=11&status=active&limit=20'
+    );
+
+    mockGet.mockResolvedValue({ id: 7, recordType: 'project' });
+    await getWorkbenchRecord('project', 7, 11);
+    expect(mockGet).toHaveBeenCalledWith('/api/v1/msp/projects/7?customerTenantId=11');
   });
 
   it('listWorkbenchRecords 按类型与筛选序列化', async () => {

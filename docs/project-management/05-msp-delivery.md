@@ -69,10 +69,17 @@ provider 沉淀标准交付模板（阶段/里程碑/任务清单/检查表）�
 | 阶段 | 交付 | 验收 |
 |---|---|---|
 | P2-pre | 单租户 PM 已上线并稳定 | 见 [06 实施路线](./06-implementation-roadmap.md) |
-| P2-A | C2 基线 + 对账 + 工作台只读项目面板 | 跨客户可见范围 = allocation 集合；越界 403 + 审计；撤权即不可见 |
+| P2-A | C2 基线 + 对账 + 工作台只读项目面板（**✅ 部分落地 2026-10-18**：C2 角色补 `project:read`（tech）/`project:write`（manager）+ 工作台 `recordType=project` 只读投影 + 前端「项目」Tab；对账脚本与工作台 KPI 面板待补） | 跨客户可见范围 = allocation 集合；越界 403 + 审计；撤权即不可见 |
 | P2-B | 深度切换下 provider 完成项目排期/任务推进 | 写门禁按目标租户业务码；状态机/并发冲突 409；审批类动作不可达 |
 | P2-C | 模板受控下发 + 合同/SLA 联动 | 分发来源追踪、解绑转 native；验收结果进结算口径 |
 | P2-D（可选） | 项目任务待办投影 | claim/complete 写回客户租户 + 审计；反例（撤权后 403） |
+
+> **落地说明（P2-A 只读面，2026-10-18）**：
+> - 后端：`GET /api/v1/msp/workbench/projects`（跨客户列表：allocation 允许集合 + 逐租户查询 + updated_at 合并 + 游标分页）与 `GET /api/v1/msp/projects/:id?customerTenantId=`（声明租户 == 资源租户 + allocation 二次校验）；
+>   `allowedActions` **仅 `view`**（项目审批/状态推进保留客户治理面，MSP 面不注册写端点）；`recordType=project` 复用三类单据同一投影契约（RLS 逐租户 ctx 重绑定）。
+> - 角色：`MSPCustomerScopeRolePermissionCodes()` 增补 `project:read`（tech 起）/`project:write`（manager 起，为 P2-B 预留；当前无写端点）。
+> - 前端：MSP 工作台「跨租户单据」记录类型新增「项目」（slug=`projects`），列表/详情按只读渲染（状态动作下拉为空，仅 view）。
+> - 验证：`go test ./handlers/msp/ ./service/ -run 'WorkbenchRecords|MSPRecordProjection'`（含项目列表过滤/分页/详情/越权反例）；前端 `tsc` + `msp-records-api` 11/11 + `CrossTenantBoard` 6/6。
 
 ## 9. 风险与注意
 
