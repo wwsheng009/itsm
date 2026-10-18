@@ -232,7 +232,7 @@ func TestNewProviderFromConfigSwitchOnUsesProtocolAdapter(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, "你好，世界", adapterText)
 
-	legacy := NewOpenAIProvider("test-key", stub.server.URL+"/v1", "gpt-4o-mini")
+	legacy := NewOpenAIProvider("test-key", stub.server.URL+"/v1", "gpt-4o-mini", 30*time.Second)
 	legacyText, err := legacy.Chat(ctx, "", []LLMMessage{{Role: "user", Content: "hi"}})
 	require.NoError(t, err)
 	assert.Equal(t, legacyText, adapterText, "非流式正文与既有实现一致")
@@ -267,7 +267,7 @@ func TestProtocolProviderStreamWithToolsEquivalence(t *testing.T) {
 	}
 	tools := []LLMTool{{Name: "get_time", Description: "查询时间", Parameters: parameters}}
 
-	legacy := NewOpenAIProvider("test-key", stub.server.URL+"/v1", "gpt-4o-mini")
+	legacy := NewOpenAIProvider("test-key", stub.server.URL+"/v1", "gpt-4o-mini", 30*time.Second)
 	var legacyDeltas []string
 	var legacyCalls []LLMToolCall
 	require.NoError(t, legacy.ChatStreamWithTools(ctx, "", messages, tools,
@@ -303,7 +303,7 @@ func TestProtocolProviderPlainStreamEquivalence(t *testing.T) {
 	ctx := context.Background()
 	messages := []LLMMessage{{Role: "user", Content: "打个招呼"}}
 
-	legacy := NewOpenAIProvider("test-key", stub.server.URL+"/v1", "gpt-4o-mini")
+	legacy := NewOpenAIProvider("test-key", stub.server.URL+"/v1", "gpt-4o-mini", 30*time.Second)
 	var legacyDeltas []string
 	require.NoError(t, legacy.ChatStream(ctx, "", messages, func(delta string) { legacyDeltas = append(legacyDeltas, delta) }))
 
@@ -324,7 +324,7 @@ func TestProtocolProviderErrorMappingMatchesGatewayRetrySemantics(t *testing.T) 
 		stub := newProtocolStub(t)
 		stub.setMode("401")
 
-		legacy := NewOpenAIProvider("bad-key", stub.server.URL+"/v1", "gpt-4o-mini")
+		legacy := NewOpenAIProvider("bad-key", stub.server.URL+"/v1", "gpt-4o-mini", 30*time.Second)
 		_, legacyErr := legacy.Chat(ctx, "", messages)
 		require.Error(t, legacyErr)
 

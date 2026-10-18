@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -25,7 +26,7 @@ func TestAzureAdapterMatchesLegacyAzureProvider(t *testing.T) {
 	stub := newProtocolStub(t)
 	messages := []LLMMessage{{Role: "user", Content: "hi"}}
 
-	legacy := NewAzureProvider("sk-azure", stub.server.URL, "gpt4o-deploy")
+	legacy := NewAzureProvider("sk-azure", stub.server.URL, "gpt4o-deploy", 30*time.Second)
 	legacyText, err := legacy.Chat(ctx, "", messages)
 	require.NoError(t, err)
 

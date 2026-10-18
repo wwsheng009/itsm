@@ -10,6 +10,7 @@ import (
 	"strings"
 	"sync"
 	"testing"
+	"time"
 
 	openai "github.com/sashabaranov/go-openai"
 	"github.com/stretchr/testify/assert"
@@ -170,7 +171,7 @@ func TestEquivalenceNonStreamChat(t *testing.T) {
 	stub := newChatStub(t)
 	ctx := context.Background()
 
-	provider := service.NewOpenAIProvider("test-key", stub.server.URL+"/v1", "gpt-4o-mini")
+	provider := service.NewOpenAIProvider("test-key", stub.server.URL+"/v1", "gpt-4o-mini", 30*time.Second)
 	providerText, err := provider.Chat(ctx, "", []service.LLMMessage{{Role: "user", Content: "hi"}})
 	require.NoError(t, err)
 	assert.Equal(t, "你好，世界", providerText)
@@ -213,7 +214,7 @@ func TestEquivalenceStreamWithTools(t *testing.T) {
 	}
 
 	// 既有实现路径：OpenAIProvider.ChatStreamWithTools
-	provider := service.NewOpenAIProvider("test-key", stub.server.URL+"/v1", "gpt-4o-mini")
+	provider := service.NewOpenAIProvider("test-key", stub.server.URL+"/v1", "gpt-4o-mini", 30*time.Second)
 	var providerDeltas []string
 	var providerCalls []service.LLMToolCall
 	err := provider.ChatStreamWithTools(
@@ -267,7 +268,7 @@ func TestEquivalenceToolCallConsistency(t *testing.T) {
 	ctx := context.Background()
 	parameters := map[string]any{"type": "object"}
 
-	provider := service.NewOpenAIProvider("test-key", stub.server.URL+"/v1", "gpt-4o-mini")
+	provider := service.NewOpenAIProvider("test-key", stub.server.URL+"/v1", "gpt-4o-mini", 30*time.Second)
 	var providerCalls []service.LLMToolCall
 	var providerDeltas []string
 	err := provider.ChatStreamWithTools(
@@ -309,7 +310,7 @@ func TestEquivalenceErrorMapping(t *testing.T) {
 		stub := newChatStub(t)
 		stub.setMode("401")
 
-		provider := service.NewOpenAIProvider("bad-key", stub.server.URL+"/v1", "gpt-4o-mini")
+		provider := service.NewOpenAIProvider("bad-key", stub.server.URL+"/v1", "gpt-4o-mini", 30*time.Second)
 		_, providerErr := provider.Chat(ctx, "", []service.LLMMessage{{Role: "user", Content: "hi"}})
 		require.Error(t, providerErr)
 		var apiErr *openai.APIError
@@ -330,7 +331,7 @@ func TestEquivalenceErrorMapping(t *testing.T) {
 		stub := newChatStub(t)
 		stub.setMode("500")
 
-		provider := service.NewOpenAIProvider("test-key", stub.server.URL+"/v1", "gpt-4o-mini")
+		provider := service.NewOpenAIProvider("test-key", stub.server.URL+"/v1", "gpt-4o-mini", 30*time.Second)
 		_, providerErr := provider.Chat(ctx, "", []service.LLMMessage{{Role: "user", Content: "hi"}})
 		require.Error(t, providerErr)
 		var apiErr *openai.APIError

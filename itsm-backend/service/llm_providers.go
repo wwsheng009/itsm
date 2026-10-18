@@ -9,6 +9,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"strconv"
 	"strings"
 	"time"
 
@@ -23,10 +24,16 @@ type OpenAIProvider struct {
 	maxTokens int
 }
 
-func NewOpenAIProvider(apiKey, endpoint, model string) *OpenAIProvider {
+func NewOpenAIProvider(apiKey, endpoint, model string, timeout time.Duration) *OpenAIProvider {
 	config := openai.DefaultConfig(apiKey)
 	if endpoint != "" {
 		config.BaseURL = endpoint
+	}
+	if timeout <= 0 {
+		timeout = 30 * time.Second
+	}
+	config.HTTPClient = &http.Client{
+		Timeout: timeout,
 	}
 	client := openai.NewClientWithConfig(config)
 	return &OpenAIProvider{
@@ -256,10 +263,16 @@ type StreamingOpenAIProvider struct {
 	maxTokens int
 }
 
-func NewStreamingOpenAIProvider(apiKey, endpoint, model string) *StreamingOpenAIProvider {
+func NewStreamingOpenAIProvider(apiKey, endpoint, model string, timeout time.Duration) *StreamingOpenAIProvider {
 	config := openai.DefaultConfig(apiKey)
 	if endpoint != "" {
 		config.BaseURL = endpoint
+	}
+	if timeout <= 0 {
+		timeout = 30 * time.Second
+	}
+	config.HTTPClient = &http.Client{
+		Timeout: timeout,
 	}
 	client := openai.NewClientWithConfig(config)
 	return &StreamingOpenAIProvider{
@@ -312,11 +325,17 @@ type AzureProvider struct {
 	apiVersion   string
 }
 
-func NewAzureProvider(apiKey, endpoint, deploymentID string) *AzureProvider {
+func NewAzureProvider(apiKey, endpoint, deploymentID string, timeout time.Duration) *AzureProvider {
 	config := openai.DefaultConfig(apiKey)
 	// Azure endpoint format: https://{resource-name}.openai.azure.com/
 	if endpoint != "" {
 		config.BaseURL = fmt.Sprintf("%s/openai/v1", endpoint)
+	}
+	if timeout <= 0 {
+		timeout = 30 * time.Second
+	}
+	config.HTTPClient = &http.Client{
+		Timeout: timeout,
 	}
 	client := openai.NewClientWithConfig(config)
 	return &AzureProvider{
@@ -570,6 +589,7 @@ type ProviderConfig struct {
 	Endpoint   string
 	Deployment string
 	TokenCap   int
+	Timeout    time.Duration
 	// ProtocolAdapterEnabled 部署级开关（默认 false）：开启后 openai 走协议适配器路径，
 	// 其余 provider / 未注册变体仍回退既有分支（BE-9，见 llm_registry.go）。
 	ProtocolAdapterEnabled bool
@@ -577,6 +597,20 @@ type ProviderConfig struct {
 
 // LoadLLMConfig loads LLM configuration from viper
 func LoadLLMConfig() ProviderConfig {
+	timeout := viper.GetDuration("llm.timeout")
+	// 部署侧 LLM_TIMEOUT（秒整数）优先：config.LoadConfig 只显式映射部分环境变量，
+	// compose 透传的 LLM_TIMEOUT 需在此读取（默认 30s，见 provider 构造函数兜底）。
+	if raw := strings.TrimSpace(os.Getenv("LLM_TIMEOUT")); raw != "" {
+		if secs, err := strconv.Atoi(raw); err == nil && secs > 0 {
+			timeout = time.Duration(secs) * time.Second
+		}
+	}
+	if timeout <= 0 {
+		// 兼容 compose 侧 LLM_TIMEOUT（秒整数），优先读 llm.timeout
+		if secs := viper.GetInt("llm_timeout"); secs > 0 {
+			timeout = time.Duration(secs) * time.Second
+		}
+	}
 	return ProviderConfig{
 		Provider:               viper.GetString("llm.provider"),
 		Model:                  viper.GetString("llm.model"),
@@ -584,6 +618,7 @@ func LoadLLMConfig() ProviderConfig {
 		Endpoint:               viper.GetString("llm.endpoint"),
 		Deployment:             viper.GetString("llm.deployment"),
 		TokenCap:               viper.GetInt("llm.token_cap"),
+		Timeout:                timeout,
 		ProtocolAdapterEnabled: protocolAdapterEnabled(),
 	}
 }
@@ -610,9 +645,9 @@ func NewProviderFromConfig(cfg ProviderConfig) LLMProvider {
 
 	switch cfg.Provider {
 	case "openai":
-		return NewOpenAIProvider(apiKey, cfg.Endpoint, cfg.Model)
+		return NewOpenAIProvider(apiKey, cfg.Endpoint, cfg.Model, cfg.Timeout)
 	case "azure":
-		return NewAzureProvider(apiKey, cfg.Endpoint, cfg.Deployment)
+		return NewAzureProvider(apiKey, cfg.Endpoint, cfg.Deployment, cfg.Timeout)
 	case "local":
 		return NewLocalProvider(cfg.Endpoint)
 	case "minimax":
@@ -622,12 +657,12 @@ func NewProviderFromConfig(cfg ProviderConfig) LLMProvider {
 		// 双条件启用（provider=mock ∧ LLM_MOCK_ENABLED=true），避免任何生产隐式生效。
 		if !MockLLMEnabled() {
 			log.Printf("[llm] llm.provider=mock 但未设置 %s=true：mock provider 仅限显式开启的 E2E/联调环境，已回退默认 provider", MockLLMEnabledEnv)
-			return NewOpenAIProvider(apiKey, cfg.Endpoint, cfg.Model)
+			return NewOpenAIProvider(apiKey, cfg.Endpoint, cfg.Model, cfg.Timeout)
 		}
 		log.Printf("[llm] 已启用 mock LLM provider（确定性替身，仅限 E2E/本地联调；触发词=%q）", MockProviderOptionsFromEnv().Trigger)
 		return NewMockProvider(MockProviderOptionsFromEnv())
 	default:
 		// Default to OpenAI
-		return NewOpenAIProvider(apiKey, cfg.Endpoint, cfg.Model)
+		return NewOpenAIProvider(apiKey, cfg.Endpoint, cfg.Model, cfg.Timeout)
 	}
 }

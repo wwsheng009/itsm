@@ -125,6 +125,8 @@ services:
       - LLM_MODEL=${LLM_MODEL:-gpt-4}
       - LLM_API_KEY=${LLM_API_KEY:-}
       - LLM_ENDPOINT=${LLM_ENDPOINT:-}
+      # LLM 请求超时（秒；留空 = provider 默认 30s）。demo 可调小以避免长等待。
+      - LLM_TIMEOUT=${LLM_TIMEOUT:-}
       - OPENAI_API_KEY=${OPENAI_API_KEY:-}
       - OPENAI_BASE_URL=${OPENAI_BASE_URL:-}
       - LLM_MULTI_PROVIDER_ENABLED=${LLM_MULTI_PROVIDER_ENABLED:-true}
