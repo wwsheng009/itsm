@@ -39,6 +39,9 @@ type GuidanceTriageRequest struct {
 	Title       string `json:"title"`
 	Description string `json:"description"`
 	TenantID    int    `json:"tenantId"`
+	// LLM 请求级下发的 LLM 目标（F2，2026-10-18）：非 nil 时 sidecar 不再读自身
+	// env/config.yaml，直接使用这里的 URL/模型/密钥（应用内配置是唯一事实源）。
+	LLM *GuidanceLLMSpec `json:"llm,omitempty"`
 }
 
 // GuidanceTriageResponse matches the Python sidecar's TriageResponse
@@ -53,12 +56,14 @@ type GuidanceTriageResponse struct {
 	LatencyMs    float64 `json:"latencyMs"`
 }
 
-// Triage calls the Guidance sidecar for constrained JSON output
-func (c *GuidanceClient) Triage(ctx context.Context, title, description string, tenantID int) (*GuidanceTriageResponse, error) {
+// Triage calls the Guidance sidecar for constrained JSON output.
+// spec 非 nil 时随请求下发 LLM 目标（F2）：sidecar 有 override 时不再读自身配置。
+func (c *GuidanceClient) Triage(ctx context.Context, title, description string, tenantID int, spec *GuidanceLLMSpec) (*GuidanceTriageResponse, error) {
 	reqBody := GuidanceTriageRequest{
 		Title:       title,
 		Description: description,
 		TenantID:    tenantID,
+		LLM:         spec,
 	}
 
 	body, err := json.Marshal(reqBody)

@@ -547,6 +547,8 @@ type llmRegistryTestInstance struct {
 	Model      string
 	Endpoint   string
 	Deployment string
+	// EndpointFullPath=true 表示 endpoint 为完整请求地址（F2：sidecar 目标同口径测试）。
+	EndpointFullPath bool
 	// APIKey 明文；空串表示不写 encrypted_api_key（模拟无密钥实例）。
 	APIKey     string
 	Enabled    bool
@@ -575,6 +577,9 @@ func createLLMRegistryTestInstance(t *testing.T, client *ent.Client, encrypter *
 		SetDeployment(cfg.Deployment).
 		SetEnabled(cfg.Enabled).
 		SetIsDefault(cfg.IsDefault)
+	if cfg.EndpointFullPath {
+		builder = builder.SetEndpointFullPath(true)
+	}
 	if cfg.APIKey != "" {
 		ciphertext, err := encrypter.Encrypt(cfg.APIKey)
 		require.NoError(t, err)

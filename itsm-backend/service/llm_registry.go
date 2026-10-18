@@ -703,6 +703,10 @@ type llmRegistryEntry struct {
 	enabled       bool
 	provider      LLMProvider
 	supportsTools bool
+	// guidanceSpec 预计算的 guidance sidecar 请求级目标（F2，2026-10-18）：
+	// 仅 openai_chat_completions（默认/ollama）与 anthropic_messages（默认/官方/minimax）形态有值。
+	// 含明文密钥，生命周期与本条目一致（快照 TTL 内常驻内存），禁止日志输出。
+	guidanceSpec *GuidanceLLMSpec
 	// buildErr 非 nil = 实例已启用但不可用（ErrProviderKeyMissing / ErrProviderUnavailable），
 	// 该 slot 的失败不影响同租户其它 slot，也不 panic。
 	buildErr error
@@ -933,6 +937,12 @@ func (r *LLMProviderRegistry) buildEntry(record *ent.LLMProviderConfig) *llmRegi
 	}
 	entry.provider = provider
 	entry.supportsTools = supportsToolCalling(provider)
+	// F2：预计算 sidecar 请求级目标——URL/模型与网关调用同口径（resolveProtocolURL +
+	// adapter.GetAPIPath + protocol.DefaultEndpoint）；sidecar 不支持的形态保持 nil，
+	// 由调用方（TriageService.resolveGuidanceSpec）跳过 sidecar 直接走网关。
+	entry.guidanceSpec = buildGuidanceSpec(entry.protocol, entry.variant,
+		llmProviderModelForVariant(entry.protocol, entry.variant, record.Model, record.Deployment),
+		record.Endpoint, record.EndpointFullPath, apiKey)
 	// 快照加载期 Debug：解析结果结构化日志，密钥仅脱敏值（§3.7）。
 	llmRegistryDebugLog(r.logger, "llm registry: provider slot built",
 		"tenant_id", record.TenantID, "provider", entry.key, "protocol", entry.protocol,

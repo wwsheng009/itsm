@@ -32,10 +32,25 @@ _VALID_CATEGORIES = [
 _VALID_PRIORITIES = ["critical", "high", "medium", "low"]
 
 
+class GuidanceLLMTarget(BaseModel):
+    """请求级 LLM 目标（F2）：由后端按应用内（DB）配置解析后随请求下发。
+
+    出现该字段时 sidecar 不再读取自身 env/config.yaml——url 已按与后端网关相同的
+    规则解析为最终请求地址，直接 POST；密钥只在本进程内使用，禁止落日志。
+    """
+
+    protocol: str = "openai_chat_completions"
+    variant: Optional[str] = None
+    url: str
+    model: str
+    apiKey: Optional[str] = None
+
+
 class GuidanceTriageRequest(BaseModel):
     title: str
     description: str = ""
     tenantId: int = 1
+    llm: Optional[GuidanceLLMTarget] = None
 
 
 class GuidanceTriageResponse(BaseModel):
@@ -127,20 +142,14 @@ def _keyword_classify(title: str, description: str) -> GuidanceTriageResponse:
     )
 
 
-def _call_llm(title: str, description: str) -> dict:
-    """Call the configured provider and return a constrained triage object."""
-    cfg = get_config()
-    api_key = os.getenv("LLM_API_KEY") or cfg.llm.api_key
-    if not api_key:
-        raise RuntimeError("LLM_API_KEY not configured")
+def _post_openai_compatible(
+    title: str, description: str, url: str, model: str, api_key: str, timeout: float
+) -> dict:
+    """OpenAI Chat Completions 形态调用（env 配置路径与请求级 target 共用）。
 
-    if cfg.llm.provider == "minimax":
-        return _call_minimax(title, description, api_key)
-
-    base_url = (cfg.llm.base_url or "https://api.openai.com/v1").rstrip("/")
-    model = cfg.llm.model or "gpt-4o-mini"
-    url = f"{base_url}/chat/completions"
-
+    url 为最终请求地址：env 路径由 base_url 拼接；请求级 target 由后端按与网关
+    相同的规则解析后下发。
+    """
     payload = {
         "model": model,
         "messages": [
@@ -154,7 +163,7 @@ def _call_llm(title: str, description: str) -> dict:
     if api_key:
         headers["Authorization"] = f"Bearer {api_key}"
 
-    with httpx.Client(timeout=httpx.Timeout(cfg.llm.timeout or 120)) as client:
+    with httpx.Client(timeout=httpx.Timeout(timeout or 120)) as client:
         resp = client.post(url, json=payload, headers=headers)
         resp.raise_for_status()
         data = resp.json()
@@ -166,17 +175,12 @@ def _call_llm(title: str, description: str) -> dict:
     return parsed
 
 
-def _call_minimax(title: str, description: str, api_key: str) -> dict:
-    """Call MiniMax's Anthropic-compatible Messages API.
-
-    The Go gateway uses this same protocol. Keeping it explicit prevents the
-    guidance sidecar from silently falling back to OpenAI when MiniMax is the
-    deployment provider.
-    """
-    cfg = get_config()
-    base_url = (cfg.llm.base_url or "https://api.minimaxi.com/anthropic/v1").rstrip("/")
+def _post_anthropic_compatible(
+    title: str, description: str, url: str, model: str, api_key: str, timeout: float
+) -> dict:
+    """Anthropic Messages 形态调用（官方 / MiniMax 兼容端点共用；F2 起 url 由调用方给出）。"""
     payload = {
-        "model": cfg.llm.model,
+        "model": model,
         "max_tokens": 512,
         "system": _SYSTEM_PROMPT,
         "temperature": 0.2,
@@ -184,12 +188,13 @@ def _call_minimax(title: str, description: str, api_key: str) -> dict:
     }
     headers = {
         "Content-Type": "application/json",
-        "x-api-key": api_key,
         "anthropic-version": "2023-06-01",
     }
+    if api_key:
+        headers["x-api-key"] = api_key
 
-    with httpx.Client(timeout=httpx.Timeout(cfg.llm.timeout or 120)) as client:
-        resp = client.post(f"{base_url}/messages", json=payload, headers=headers)
+    with httpx.Client(timeout=httpx.Timeout(timeout or 120)) as client:
+        resp = client.post(url, json=payload, headers=headers)
         resp.raise_for_status()
         data = resp.json()
 
@@ -199,8 +204,48 @@ def _call_minimax(title: str, description: str, api_key: str) -> dict:
     )
     parsed = json.loads(text)
     if not isinstance(parsed, dict):
-        raise ValueError("MiniMax did not return a JSON object")
+        raise ValueError("Anthropic-compatible provider did not return a JSON object")
     return parsed
+
+
+def _call_llm(title: str, description: str) -> dict:
+    """Call the provider configured in env/config.yaml and return a constrained triage object."""
+    cfg = get_config()
+    api_key = os.getenv("LLM_API_KEY") or cfg.llm.api_key
+    if not api_key:
+        raise RuntimeError("LLM_API_KEY not configured")
+
+    timeout = cfg.llm.timeout or 120
+    if cfg.llm.provider == "minimax":
+        # 保留原 MiniMax 兼容口径：base_url 默认 .../anthropic/v1，路径 /messages。
+        base_url = (cfg.llm.base_url or "https://api.minimaxi.com/anthropic/v1").rstrip("/")
+        return _post_anthropic_compatible(
+            title, description, f"{base_url}/messages", cfg.llm.model, api_key, timeout
+        )
+
+    base_url = (cfg.llm.base_url or "https://api.openai.com/v1").rstrip("/")
+    model = cfg.llm.model or "gpt-4o-mini"
+    return _post_openai_compatible(
+        title, description, f"{base_url}/chat/completions", model, api_key, timeout
+    )
+
+
+def _call_llm_override(title: str, description: str, target: GuidanceLLMTarget) -> dict:
+    """请求级 LLM 目标（F2）：URL/模型/密钥全部来自应用内配置，不再读自身 env/config.yaml。
+
+    后端（TriageService）已按与网关相同的规则解析 url，sidecar 只负责按协议 POST：
+    anthropic_messages → Anthropic Messages 形态；其余（openai_chat_completions）→ OpenAI 形态。
+    """
+    cfg = get_config()
+    timeout = cfg.llm.timeout or 120
+    protocol = (target.protocol or "").strip().lower()
+    if protocol == "anthropic_messages":
+        return _post_anthropic_compatible(
+            title, description, target.url, target.model, target.apiKey or "", timeout
+        )
+    return _post_openai_compatible(
+        title, description, target.url, target.model, target.apiKey or "", timeout
+    )
 
 
 @router.post("/triage", response_model=GuidanceTriageResponse)
@@ -208,7 +253,17 @@ async def guidance_triage(req: GuidanceTriageRequest):
     """Guidance sidecar 兼容的受限分诊入口。"""
     start = time.perf_counter()
     try:
-        raw = _call_llm(req.title, req.description)
+        if req.llm is not None:
+            # F2：应用内（DB）配置下发——URL/模型/密钥来自后端解析，不再读自身配置。
+            # 仅记录非敏感字段；apiKey 禁止进日志。
+            logger.info(
+                "Guidance triage using request-scoped LLM target "
+                f"tenant={req.tenantId} protocol={req.llm.protocol} variant={req.llm.variant} "
+                f"url={req.llm.url} model={req.llm.model}"
+            )
+            raw = _call_llm_override(req.title, req.description, req.llm)
+        else:
+            raw = _call_llm(req.title, req.description)
     except Exception as e:  # noqa: BLE001 - 任何失败都降级为关键词分类
         logger.warning(f"Guidance triage LLM unavailable, using keyword fallback: {e}")
         latency = (time.perf_counter() - start) * 1000

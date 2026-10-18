@@ -13,7 +13,7 @@ import (
 // guidanceTriageClient defines the interface for Guidance sidecar calls
 // This enables dependency injection for testing
 type guidanceTriageClient interface {
-	Triage(ctx context.Context, title, description string, tenantID int) (*GuidanceTriageResponse, error)
+	Triage(ctx context.Context, title, description string, tenantID int, spec *GuidanceLLMSpec) (*GuidanceTriageResponse, error)
 }
 
 // guidanceMethodFallback 是 Guidance sidecar 在 LLM 不可用（未配置 LLM_API_KEY、
@@ -77,6 +77,9 @@ type TriageService struct {
 	logger           *zap.Logger
 	keywordFallback  bool
 	defaultAssignees map[string]int
+	// guidanceSpecResolver 下发 sidecar 的租户级 LLM 目标解析器（F2，2026-10-18）。
+	// nil = 多 Provider 关闭：sidecar 调用不带请求级目标（旧行为，sidecar 读自身配置）。
+	guidanceSpecResolver GuidanceSpecResolver
 }
 
 // Default assignee IDs by category
@@ -147,6 +150,36 @@ func NewTriageServiceWithConfig(gateway *LLMGateway, logger *zap.Logger, fallbac
 	return svc
 }
 
+// SetGuidanceSpecResolver 注入 sidecar LLM 目标解析器（F2，2026-10-18）。
+// bootstrap 在多 Provider 开启（应用内配置成为唯一事实源）时接线；不接线 = 旧行为：
+// sidecar 调用不带请求级目标，由 sidecar 读自身 env/config.yaml。
+func (t *TriageService) SetGuidanceSpecResolver(resolver GuidanceSpecResolver) {
+	t.guidanceSpecResolver = resolver
+}
+
+// resolveGuidanceSpec 解析本次 sidecar 调用应携带的 LLM 目标。
+//
+//   - 未接线（多 Provider 关闭）：(nil, true)——不下发目标、继续调用 sidecar（旧行为）；
+//   - 解析失败 / 无租户默认 / 实例形态 sidecar 不支持：(nil, false)——跳过 sidecar 直接
+//     走网关。应用内配置是唯一事实源，不静默回退 sidecar 自身可能过期的配置。
+func (t *TriageService) resolveGuidanceSpec(ctx context.Context, tenantID int) (*GuidanceLLMSpec, bool) {
+	if t.guidanceSpecResolver == nil {
+		return nil, true
+	}
+	spec, ok, err := t.guidanceSpecResolver.ResolveGuidanceSpec(ctx, tenantID)
+	if err != nil {
+		t.logger.Warn("TriageService: resolve sidecar LLM target failed, using LLM gateway",
+			zap.Int("tenant_id", tenantID), zap.Error(err))
+		return nil, false
+	}
+	if !ok {
+		t.logger.Debug("TriageService: no sidecar-compatible tenant LLM target, using LLM gateway",
+			zap.Int("tenant_id", tenantID))
+		return nil, false
+	}
+	return &spec, true
+}
+
 // Suggest returns classification suggestions using LLM
 func (t *TriageService) Suggest(ctx context.Context, title, description string) TriageResult {
 	return t.SuggestForTenant(ctx, title, description, 1)
@@ -166,34 +199,36 @@ func (t *TriageService) SuggestForTenant(ctx context.Context, title, description
 
 	// Priority 1: Use Guidance sidecar for constrained generation
 	if t.guidanceClient != nil {
-		guidanceResult, err := t.guidanceClient.Triage(ctx, title, description, tenantID)
-		if err != nil {
-			t.logger.Warn("TriageService: Guidance sidecar failed, falling back", zap.Error(err))
-		} else if isGuidanceDegraded(guidanceResult) {
-			// F1（2026-10-18）：sidecar 的 LLM 不可用是"静默降级"——HTTP 200 +
-			// method="guidance-fallback"，仅凭 err 无法识别。若直接返回该关键词结果，
-			// 会永久屏蔽下方 Priority 2 网关链路（应用级/租户 provider），且不产生
-			// ai_llm_calls 遥测。故视同 sidecar 不可用继续回落：网关可用时拿真实 LLM
-			// 结果，网关失败仍由下方关键词兜底。
-			t.logger.Warn("TriageService: Guidance sidecar degraded to keyword fallback, using LLM gateway",
-				zap.String("method", guidanceResult.Method),
-				zap.String("explanation", guidanceResult.Explanation),
-				zap.Float64("confidence", guidanceResult.Confidence))
-		} else {
-			t.logger.Info("TriageService: Guidance-constrained classification",
-				zap.String("method", guidanceResult.Method),
-				zap.String("category", guidanceResult.Category),
-				zap.String("priority", guidanceResult.Priority),
-				zap.Float64("confidence", guidanceResult.Confidence),
-				zap.Float64("latency_ms", guidanceResult.LatencyMs))
-			return t.normalizeResult(TriageResult{
-				Category:     guidanceResult.Category,
-				Priority:     guidanceResult.Priority,
-				AssigneeID:   guidanceResult.AssigneeID,
-				Confidence:   guidanceResult.Confidence,
-				Explanation:  guidanceResult.Explanation,
-				SuggestedFix: guidanceResult.SuggestedFix,
-			})
+		if spec, useSidecar := t.resolveGuidanceSpec(ctx, tenantID); useSidecar {
+			guidanceResult, err := t.guidanceClient.Triage(ctx, title, description, tenantID, spec)
+			if err != nil {
+				t.logger.Warn("TriageService: Guidance sidecar failed, falling back", zap.Error(err))
+			} else if isGuidanceDegraded(guidanceResult) {
+				// F1（2026-10-18）：sidecar 的 LLM 不可用是"静默降级"——HTTP 200 +
+				// method="guidance-fallback"，仅凭 err 无法识别。若直接返回该关键词结果，
+				// 会永久屏蔽下方 Priority 2 网关链路（应用级/租户 provider），且不产生
+				// ai_llm_calls 遥测。故视同 sidecar 不可用继续回落：网关可用时拿真实 LLM
+				// 结果，网关失败仍由下方关键词兜底。
+				t.logger.Warn("TriageService: Guidance sidecar degraded to keyword fallback, using LLM gateway",
+					zap.String("method", guidanceResult.Method),
+					zap.String("explanation", guidanceResult.Explanation),
+					zap.Float64("confidence", guidanceResult.Confidence))
+			} else {
+				t.logger.Info("TriageService: Guidance-constrained classification",
+					zap.String("method", guidanceResult.Method),
+					zap.String("category", guidanceResult.Category),
+					zap.String("priority", guidanceResult.Priority),
+					zap.Float64("confidence", guidanceResult.Confidence),
+					zap.Float64("latency_ms", guidanceResult.LatencyMs))
+				return t.normalizeResult(TriageResult{
+					Category:     guidanceResult.Category,
+					Priority:     guidanceResult.Priority,
+					AssigneeID:   guidanceResult.AssigneeID,
+					Confidence:   guidanceResult.Confidence,
+					Explanation:  guidanceResult.Explanation,
+					SuggestedFix: guidanceResult.SuggestedFix,
+				})
+			}
 		}
 	}
 

@@ -1196,6 +1196,9 @@ func NewApplication() *Application {
 		providerRegistry := service.NewLLMProviderRegistry(client, providerEncrypter, llmConfig, sugar)
 		// 解析链：请求级覆盖 → 个人默认 → 租户默认 → 静态回退（§3.3）。
 		llmGateway.WithResolver(providerRegistry)
+		// F2（2026-10-18）：应用内配置（租户默认实例）以请求级目标下发 guidance sidecar；
+		// 无可用 DB 目标时跳过 sidecar 直接走网关（单一事实源，不回落 sidecar 自身配置）。
+		triageService.SetGuidanceSpecResolver(providerRegistry)
 		llmProviderAdminHandler = ai.NewLLMProviderAdminHandler(ai.NewLLMProviderAdminService(ai.LLMProviderAdminDeps{
 			Client:      client,
 			Encrypter:   providerEncrypter,

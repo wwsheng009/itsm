@@ -23,11 +23,14 @@ type fakeGuidanceClient struct {
 	err       error
 	tenantID  int
 	callCount int
+	// spec 记录最后一次调用携带的请求级 LLM 目标（F2：用于断言下发内容）。
+	spec *GuidanceLLMSpec
 }
 
-func (f *fakeGuidanceClient) Triage(ctx context.Context, title, description string, tenantID int) (*GuidanceTriageResponse, error) {
+func (f *fakeGuidanceClient) Triage(ctx context.Context, title, description string, tenantID int, spec *GuidanceLLMSpec) (*GuidanceTriageResponse, error) {
 	f.callCount++
 	f.tenantID = tenantID
+	f.spec = spec
 	if f.err != nil {
 		return nil, f.err
 	}
@@ -583,4 +586,128 @@ func TestTriage_Suggest_GuidanceSuccess_DoesNotConsultGateway(t *testing.T) {
 
 	assert.Equal(t, "network", result.Category)
 	assert.Equal(t, 0.88, result.Confidence)
+}
+
+// ==================== F2（2026-10-18）：应用内配置 → sidecar 请求级下发 ====================
+
+// fakeGuidanceSpecResolver 参数化的 GuidanceSpecResolver 桩（F2）。
+type fakeGuidanceSpecResolver struct {
+	spec     GuidanceLLMSpec
+	ok       bool
+	err      error
+	calls    int
+	tenantID int
+}
+
+func (f *fakeGuidanceSpecResolver) ResolveGuidanceSpec(ctx context.Context, tenantID int) (GuidanceLLMSpec, bool, error) {
+	f.calls++
+	f.tenantID = tenantID
+	if f.err != nil {
+		return GuidanceLLMSpec{}, false, f.err
+	}
+	return f.spec, f.ok, nil
+}
+
+func TestTriage_Suggest_GuidanceSpecResolver_InjectsTenantTarget(t *testing.T) {
+	// 接线解析器后：sidecar 调用必须携带本租户默认实例的最终目标（协议/URL/模型/密钥），
+	// 且正常结果直接返回、不再咨询网关（单一事实源短路语义保持）。
+	mockLLM := &MockLLMGateway{
+		MockChat: func(ctx context.Context, model string, messages []LLMMessage) (string, error) {
+			t.Fatal("sidecar 携带应用内配置正常应答时不得再咨询网关")
+			return "", nil
+		},
+	}
+	gateway := NewLLMGateway(mockLLM, nil, nil, "test")
+	guidance := &fakeGuidanceClient{
+		result: &GuidanceTriageResponse{
+			Category: "server", Priority: "high", Confidence: 0.9, Method: "guidance",
+		},
+	}
+	resolver := &fakeGuidanceSpecResolver{
+		ok: true,
+		spec: GuidanceLLMSpec{
+			Protocol: "openai_chat_completions",
+			URL:      "https://qianfan.baidubce.com/v2/chat/completions",
+			Model:    "deepseek-v4.1-flash",
+			APIKey:   "sk-tenant-abcdefgh-1234",
+		},
+	}
+
+	svc := newTriageServiceWithGuidance(gateway, guidance)
+	svc.SetGuidanceSpecResolver(resolver)
+
+	result := svc.SuggestForTenant(context.Background(), "服务器 CPU 告警", "", 7)
+
+	assert.Equal(t, 1, resolver.calls)
+	assert.Equal(t, 7, resolver.tenantID, "解析器必须收到上下文租户")
+	if assert.NotNil(t, guidance.spec, "sidecar 调用必须携带下发的 LLM 目标") {
+		assert.Equal(t, "openai_chat_completions", guidance.spec.Protocol)
+		assert.Equal(t, "https://qianfan.baidubce.com/v2/chat/completions", guidance.spec.URL)
+		assert.Equal(t, "deepseek-v4.1-flash", guidance.spec.Model)
+		assert.Equal(t, "sk-tenant-abcdefgh-1234", guidance.spec.APIKey)
+	}
+	assert.Equal(t, "server", result.Category)
+	assert.Equal(t, 0.9, result.Confidence)
+}
+
+func TestTriage_Suggest_GuidanceSpecResolver_NoTarget_SkipsSidecar(t *testing.T) {
+	// 解析器已接线但无可用目标（ok=false）：跳过 sidecar 直接走网关——
+	// 不得让 sidecar 用自身可能过期的配置（env/config.yaml）产出结果。
+	mockLLM := &MockLLMGateway{
+		MockChat: func(ctx context.Context, model string, messages []LLMMessage) (string, error) {
+			return `{"category":"network","priority":"high","confidence":0.93,"explanation":"gateway result"}`, nil
+		},
+	}
+	gateway := NewLLMGateway(mockLLM, nil, nil, "test")
+	guidance := &fakeGuidanceClient{
+		result: &GuidanceTriageResponse{Category: "general", Priority: "medium", Confidence: 0.7},
+	}
+	resolver := &fakeGuidanceSpecResolver{ok: false}
+
+	svc := newTriageServiceWithGuidance(gateway, guidance)
+	svc.SetGuidanceSpecResolver(resolver)
+
+	result := svc.SuggestForTenant(context.Background(), "VPN 无法连接", "办公区无法访问内网", 3)
+
+	assert.Equal(t, 1, resolver.calls)
+	assert.Equal(t, 0, guidance.callCount, "无可用目标时不得调用 sidecar")
+	assert.Equal(t, "network", result.Category)
+	assert.Equal(t, 0.93, result.Confidence)
+}
+
+func TestTriage_Suggest_GuidanceSpecResolver_ResolveError_SkipsSidecar(t *testing.T) {
+	// 解析失败（如快照加载错误）：跳过 sidecar 直接走网关（可见地落到网关，不静默）。
+	mockLLM := &MockLLMGateway{
+		MockChat: func(ctx context.Context, model string, messages []LLMMessage) (string, error) {
+			return `{"category":"network","priority":"high","confidence":0.92,"explanation":"gateway result"}`, nil
+		},
+	}
+	gateway := NewLLMGateway(mockLLM, nil, nil, "test")
+	guidance := &fakeGuidanceClient{
+		result: &GuidanceTriageResponse{Category: "general", Priority: "medium", Confidence: 0.7},
+	}
+	resolver := &fakeGuidanceSpecResolver{err: errors.New("snapshot load failed")}
+
+	svc := newTriageServiceWithGuidance(gateway, guidance)
+	svc.SetGuidanceSpecResolver(resolver)
+
+	result := svc.Suggest(context.Background(), "VPN 无法连接", "")
+
+	assert.Equal(t, 0, guidance.callCount, "解析失败时不得调用 sidecar")
+	assert.Equal(t, "network", result.Category)
+	assert.Equal(t, 0.92, result.Confidence)
+}
+
+func TestTriage_Suggest_GuidanceSpecResolver_NotWired_LegacyBehavior(t *testing.T) {
+	// 未接线（多 Provider 关闭）：sidecar 调用不带请求级目标，旧行为逐字节保持。
+	guidance := &fakeGuidanceClient{
+		result: &GuidanceTriageResponse{Category: "database", Priority: "high", Confidence: 0.8},
+	}
+	svc := newTriageServiceWithGuidance(NewLLMGateway(nil, nil, nil, "test"), guidance)
+
+	result := svc.Suggest(context.Background(), "mysql connection failed", "")
+
+	assert.Equal(t, 1, guidance.callCount)
+	assert.Nil(t, guidance.spec, "未接线时不得下发请求级目标")
+	assert.Equal(t, "database", result.Category)
 }
