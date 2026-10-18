@@ -31,8 +31,15 @@
 
 ## 3. 范围外发现（Follow-up）
 
-- **F1：`/ai/triage` 恒退化关键词分类（sidecar 配置缺口）** — `itsm-ai-service-demo` 日志：`Guidance triage LLM unavailable, using keyword fallback: LLM_API_KEY not configured`（`itsm-ai-service/api/guidance.py:213`）。后端 `TriageService.SuggestForTenant` 优先走 Guidance sidecar（`guidanceClient != nil`），sidecar 的 `LLM_API_KEY` 为空即恒回退（容器 env 为静态 `LLM_PROVIDER=openai` / `LLM_MODEL=gpt-*`，与后端租户 provider `deepseek-v4.1-flash` 不一致）；本次后端网关修复不覆盖该端点。建议：为 sidecar 配置可用 key，或按 `TriageService` 既有 gateway 分支调整优先级（单独跟进）。
-- **F2：`get_ci_impact` 工具 5001** — 与 LLM 无关（15.8ms、无 `ai_llm_calls` 记录）；`service/tool_registry.go:1309` 存在 `cmdb relationship service not initialized` 分支（bootstrap 依赖 `CIRelationshipService`），需单独定位注入/开关问题。
+- **F1：`/ai/triage` 恒退化关键词分类（Guidance sidecar 配置缺口）** — 链路：`handlers/ai/service.go:1862`（`TriageTicket`）→ `TriageService.Suggest` → `SuggestForTenant` 优先级 1：`guidanceClient != nil` 时调 `itsm-ai-service-demo`，仅当 sidecar **报错**才落到优先级 2（后端网关/租户 provider）。sidecar `api/guidance.py:133-135`：`api_key = os.getenv("LLM_API_KEY") or cfg.llm.api_key`，为空即 `RuntimeError("LLM_API_KEY not configured")`，被 :213 捕获后静默降级为 `_keyword_classify`（HTTP 200、`method="guidance-fallback"`、`confidence=0.7`、`explanation="keyword-based classification (LLM unavailable)"`）——**200 而非错误**，故后端永远不会触发网关回退。
+  容器实测：`LLM_API_KEY=len(0)`（空）、`LLM_MODEL=gpt-4o-mini`、`LLM_PROVIDER=openai`、`LLM_BASE_URL=…(len 25)`；`docker-compose.demo.yml` 对 sidecar 用 `${LLM_API_KEY:-}` / `${LLM_ENDPOINT:-…}`，`.env.demo` 未提供该 key。另注：demo `.env.demo` 的 `LLM_MODEL=gpt-4o-mini` 若配上 key 直连，会重演「静态模型覆盖」类问题（与 BE-8 同源），需指向有效端点/模型。
+  连带缺陷：`TriageTicket` 调的是 `Suggest(ctx,…)`，其 `SuggestForTenant(…, 1)` 固定 tenant 1（`service/triage_service.go:136-138`）——多租户下 sidecar 永远拿到租户 1。
+  建议：① 为 sidecar 配可用 `LLM_API_KEY`/端点（注意与租户 provider 一致性）；② 或后端分诊改为「网关优先 / 识别 `method=guidance-fallback` 后回退网关」；③ 修 `Suggest` 硬编码租户（改传上下文租户）。
+- **F2：`get_ci_impact` 工具 5001（更正：非注入问题，是跨租户 `ci_id` + not-found 泛化错误）** — 20:xx 复核实验（`.dev/deploy/deploy238_f2_probe.sh`）：
+  - `get_ci_relationships ci_id=1` → `code=0` 空关系；`get_ci ci_id=1` → `code=0 {"found":false}` ⇒ `t.cmdb`/`t.ciRelationship` **均已注入**（`bootstrap/app.go:630` + `:796` 无条件注入），原「`cmdb relationship service not initialized` 嫌疑」不成立；
+  - 真实根因：CI id=1 属 **tenant 3**（`CI-202610-000002`），会话租户为 1，而 demo 的 CI 只存在于 tenant 3/4/5（tenant 1 无任何 CI）。`get_ci_impact` 走 `ci_id` 分支**不做预检**，直接 `GetCIImpactAnalysis(ctx, 1, tenantID=1, 3)` → `ConfigurationItem.Query().Where(IDEQ(1), TenantIDEQ(1)).First()` → ent not found → `CI not found` → handler `common.FailWithErr(..., "操作失败")` → **5001「操作失败」**（15.8ms、无 `ai_llm_calls` 记录，与 LLM/BE-8 无关）；
+  - 行为不一致：同一工具 `ci_number` 分支对未知/跨租户编号返回 **200 `{"found":false}`**（实测 `ci_number=CI-202610-000002` 亦然），`ci_id` 分支却 5001。
+  建议（独立跟进）：`ci_id` 分支对齐 `ci_number` 的 graceful 语义（not-found → `{"found":false,"ci_id":…}`）或映射 404 语义码；补契约测试「跨租户/不存在 ci_id 不得 5001」。正路径（有效租户 CI + 关系数据）未验证，需对应租户会话复测。
 
 ## 4. 复现方式
 
