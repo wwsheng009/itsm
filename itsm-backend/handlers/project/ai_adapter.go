@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"strings"
+	"sync"
 
 	"itsm-backend/service"
 
@@ -19,6 +20,9 @@ type ProjectAIAdapter struct {
 	gateway *service.LLMGateway
 	model   string
 	logger  *zap.SugaredLogger
+
+	mu        sync.RWMutex
+	lastModel string
 }
 
 // NewProjectAIAdapter 构造适配器（model 为空时用网关默认模型）。
@@ -29,19 +33,39 @@ func NewProjectAIAdapter(gateway *service.LLMGateway, model string, logger *zap.
 	return &ProjectAIAdapter{gateway: gateway, model: strings.TrimSpace(model), logger: logger}
 }
 
-// ModelName 生效模型名。
-func (a *ProjectAIAdapter) ModelName() string { return a.model }
+// ModelName 最近一次调用实际生效的模型名（解析链给出的 provider 模型优先；
+// 静态回退时回落到构造参数，即部署配置的 LLM_MODEL）。
+func (a *ProjectAIAdapter) ModelName() string {
+	a.mu.RLock()
+	defer a.mu.RUnlock()
+	if a.lastModel != "" {
+		return a.lastModel
+	}
+	return a.model
+}
 
 // chat 统一入口：绑定租户/用户解析链（个人默认 → 租户默认 → 静态回退）。
+//
+// 注意：model 传空串以委派给已解析 provider 的配置模型。项目 AI 此前传静态
+// LLM_MODEL（如 gpt-4o-mini）会覆盖租户 DB provider 的模型（如 deepseek-v4.1-flash），
+// 千帆 Token Plan 因此返回 403「current model does not support Token Plan Person」。
+// 与 bpmn_ai_generator_service.go 的既有修复保持同一口径。
 func (a *ProjectAIAdapter) chat(ctx context.Context, tenantID, userID int, messages []service.LLMMessage) (string, error) {
 	if a.gateway == nil {
 		return "", ErrAIPortUnavailable
 	}
-	gateway := a.gateway
-	if tenantID > 0 {
-		gateway = gateway.WithProviderRequest(service.ProviderRequest{TenantID: tenantID, UserID: userID})
+	out, resolution, err := a.gateway.ChatWithRequest(
+		ctx,
+		service.ProviderRequest{TenantID: tenantID, UserID: userID},
+		"",
+		messages,
+	)
+	if resolution.Model != "" {
+		a.mu.Lock()
+		a.lastModel = resolution.Model
+		a.mu.Unlock()
 	}
-	return gateway.Chat(ctx, a.model, messages)
+	return out, err
 }
 
 // Summarize 生成状态摘要（纯文本；空输出视为解析失败 → 服务层降级为事实派生）。

@@ -65,6 +65,8 @@ type ProviderResolution struct {
 	// Protocol 生效 provider 的协议形态值（§3.7：ai_llm_calls.provider 自 v1.2 起写 4 值枚举）。
 	// 静态回退按 staticProviderProtocolSpec 归一；未识别的自定义 provider 名保持原样。
 	Protocol string
+	// Model 生效实例配置的模型名（静态回退为空：由 provider 构造时的模型决定）。
+	Model string
 }
 
 type LLMProvider interface {
@@ -638,6 +640,7 @@ func slotProvider(slot ProviderSlot, source string) (LLMProvider, ProviderResolu
 		Key:           slot.Key,
 		Source:        source,
 		Protocol:      slot.Protocol,
+		Model:         slot.Model,
 		SupportsTools: supportsToolCalling(slot.Provider),
 	}
 	if slot.Provider == nil {
