@@ -213,8 +213,8 @@ export default function ProjectsPage() {
               </p>
             </div>
           ),
-          okText: '去项目工作台',
-          onOk: () => navigate(`/projects/${record.id}`),
+          okText: '去阶段门处理',
+          onOk: () => navigate(`/projects/${record.id}?tab=gates`),
         });
         return;
       }

@@ -16,11 +16,12 @@ import {
   Table,
   Tabs,
   Tag,
+  Tooltip,
   message,
 } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
 import { ArrowLeft, FilePlus2, Flag, GitCompare, Plus, RefreshCw } from 'lucide-react';
-import { useNavigate, useParams } from 'react-router';
+import { useNavigate, useParams, useSearchParams } from 'react-router';
 import { PageContainer } from '@/components/common/PageContainer';
 import { useCan } from '@/components/auth/PermissionGate';
 import type {
@@ -202,6 +203,7 @@ export default function ProjectDetailPage() {
   const { id } = useParams<{ id: string }>();
   const projectId = Number(id);
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const canWrite = useCan(['project:write']);
 
   const [project, setProject] = useState<Project | null>(null);
@@ -228,6 +230,11 @@ export default function ProjectDetailPage() {
   const [managerModalOpen, setManagerModalOpen] = useState(false);
   const [managerSaving, setManagerSaving] = useState(false);
   const [managerForm] = Form.useForm();
+
+  // 深链：/projects/:id?tab=gates（列表页/激活失败引导直达阶段门）。
+  useEffect(() => {
+    if (searchParams.get('tab') === 'gates') setActiveTab('gates');
+  }, [searchParams]);
 
   // P1（PE-14）：里程碑与任务依赖；P1（PE-13）：计划基线
   const [milestones, setMilestones] = useState<ProjectMilestone[]>([]);
@@ -529,6 +536,71 @@ export default function ProjectDetailPage() {
   // 下一道待通过的门 + 预检状态（顶部提示用）。
   const nextGate = GATE_ORDER.find((gate) => (gatesByKey[gate]?.status ?? 'pending') !== 'passed');
 
+  // 阶段门徽标（顶部按钮旁）：已通过 / 审批中 / 就绪 / 待补 N 项。
+  const gateBadge = (key: ProjectGateKey): { text: string; color: string } | null => {
+    const record = gatesByKey[key];
+    const readiness = readinessByKey[key];
+    if (record?.status === 'passed') return { text: `${GATE_META[key].label}已通过`, color: 'success' };
+    if (record?.status === 'in_review') return { text: `${GATE_META[key].label}审批中`, color: 'processing' };
+    if (readiness) {
+      return readiness.ready
+        ? { text: `${GATE_META[key].label}就绪`, color: 'success' }
+        : { text: `${GATE_META[key].label}待补 ${readiness.blockers.length} 项`, color: 'warning' };
+    }
+    return null;
+  };
+
+  // 激活前置：用实时预检拦截（避免必然失败的 409），并直接切到阶段门处理。
+  const handleActivate = () => {
+    // 预检已加载时：门必须已通过（审批中/未提交/已拒绝都不能激活）。
+    if (gateReadiness.length > 0) {
+      const record = gatesByKey.initiation;
+      if (!record || record.status !== 'passed') {
+        setActiveTab('gates');
+        message.warning(
+          !record
+            ? '立项门尚未提交，请先在阶段门提交'
+            : record.status === 'in_review'
+              ? '立项门审批中，请等待通过后再激活'
+              : '立项门尚未通过，请先在阶段门处理并重新提交'
+        );
+        return;
+      }
+    }
+    const readiness = readinessByKey.initiation;
+    if (readiness && !readiness.ready) {
+      setActiveTab('gates');
+      message.warning(`立项门还有 ${readiness.blockers.length} 项待完成，请先在阶段门处理`);
+      return;
+    }
+    void runTransition('activate');
+  };
+
+  // 结项前置：结项门未通过时直接引导到阶段门（业务阻塞项/结项清单仍由后端兜底）。
+  const handleComplete = () => {
+    if (gateReadiness.length > 0) {
+      const record = gatesByKey.closure;
+      if (!record || record.status !== 'passed') {
+        setActiveTab('gates');
+        message.warning(
+          !record
+            ? '结项门尚未提交，请先在阶段门提交'
+            : record.status === 'in_review'
+              ? '结项门审批中，请等待通过后再结项'
+              : '结项门尚未通过，请先在阶段门处理并重新提交'
+        );
+        return;
+      }
+    }
+    const readiness = readinessByKey.closure;
+    if (readiness && !readiness.ready) {
+      setActiveTab('gates');
+      message.warning(`结项门还有 ${readiness.blockers.length} 项待完成，请先在阶段门处理`);
+      return;
+    }
+    void runTransition('complete');
+  };
+
   const handleSubmitGate = async (gate: ProjectGateKey) => {
     if (!project) return;
     setGateLoading(true);
@@ -778,7 +850,16 @@ export default function ProjectDetailPage() {
       }
     } catch (error) {
       console.error('Transition failed:', error);
-      message.error('操作失败：请检查阶段门与结项门禁（未提交/未通过的阶段门、未终结任务或单据）');
+      const msg = (error instanceof Error ? error.message : '')
+        .replace(/\s*\[RID:[^\]]*\]\s*$/, '')
+        .trim();
+      if (msg.includes('阶段门门禁未通过') || msg.includes('阶段门禁未通过')) {
+        setActiveTab('gates');
+        void fetchGates();
+        message.error(`${msg}；已切到阶段门，请按阻塞项处理`);
+        return;
+      }
+      message.error(msg || '操作失败：请检查阶段门与结项门禁（未提交/未通过的阶段门、未终结任务或单据）');
     }
   };
 
@@ -1796,10 +1877,25 @@ export default function ProjectDetailPage() {
             应用模板
           </Button>
         ) : null,
+        project.status === 'planning' && gateBadge('initiation') ? (
+          <Tag key="gate-readiness" color={gateBadge('initiation')!.color}>
+            {gateBadge('initiation')!.text}
+          </Tag>
+        ) : null,
         canWrite && project.status === 'planning' ? (
-          <Button key="activate" type="primary" onClick={() => runTransition('activate')}>
-            激活
-          </Button>
+          <Tooltip
+            title={
+              readinessByKey.initiation
+                ? readinessByKey.initiation.ready
+                  ? '立项门条件已满足，可激活'
+                  : '立项门未通过：点击查看并处理阻塞项'
+                : undefined
+            }
+          >
+            <Button key="activate" type="primary" onClick={handleActivate}>
+              激活
+            </Button>
+          </Tooltip>
         ) : null,
         canWrite && project.status === 'active' ? (
           <Button key="suspend" onClick={() => runTransition('suspend')}>
@@ -1811,10 +1907,25 @@ export default function ProjectDetailPage() {
             恢复
           </Button>
         ) : null,
+        (project.status === 'active' || project.status === 'suspended') && gateBadge('closure') ? (
+          <Tag key="closure-readiness" color={gateBadge('closure')!.color}>
+            {gateBadge('closure')!.text}
+          </Tag>
+        ) : null,
         canWrite && (project.status === 'active' || project.status === 'suspended') ? (
-          <Button key="complete" onClick={() => runTransition('complete')}>
-            结项
-          </Button>
+          <Tooltip
+            title={
+              readinessByKey.closure
+                ? readinessByKey.closure.ready
+                  ? '结项门条件已满足'
+                  : '结项门未通过：点击查看并处理阻塞项'
+                : undefined
+            }
+          >
+            <Button key="complete" onClick={handleComplete}>
+              结项
+            </Button>
+          </Tooltip>
         ) : null,
       ]}
     >
