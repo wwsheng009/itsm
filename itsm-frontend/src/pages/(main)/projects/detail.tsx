@@ -51,6 +51,7 @@ import type {
   TaskPriority,
 } from '@/lib/services/project-service';
 import { CLOSURE_ITEM_ORDER, GATE_ORDER, projectService } from '@/lib/services/project-service';
+import { dateValue, isoValue } from '@/lib/utils/date-value';
 import { ProjectReportPanel } from './components/ProjectReportPanel';
 import { ProjectResourceHeatmap } from './components/ProjectResourceHeatmap';
 import { ProjectRiskPanel } from './components/ProjectRiskPanel';
@@ -755,8 +756,8 @@ export default function ProjectDetailPage() {
       parentTaskId: task.parentTaskId ?? 0,
       priority: task.priority,
       assigneeId: task.assigneeId,
-      planStart: task.planStart,
-      planEnd: task.planEnd,
+      planStart: dateValue(task.planStart),
+      planEnd: dateValue(task.planEnd),
       estimateHours: task.estimateHours,
       actualHours: task.actualHours,
       progress: task.progress,
@@ -771,6 +772,8 @@ export default function ProjectDetailPage() {
         ...values,
         parentTaskId: values.parentTaskId || undefined,
         assigneeId: values.assigneeId || undefined,
+        planStart: isoValue(values.planStart),
+        planEnd: isoValue(values.planEnd),
       };
       if (editingTask) {
         await projectService.updateTask(projectId, editingTask.id, payload);
@@ -845,7 +848,7 @@ export default function ProjectDetailPage() {
     milestoneForm.setFieldsValue({
       name: m.name,
       description: m.description,
-      dueDate: m.dueDate,
+      dueDate: dateValue(m.dueDate),
       ownerId: m.ownerId,
     });
     setMilestoneModalOpen(true);
@@ -854,7 +857,11 @@ export default function ProjectDetailPage() {
   const submitMilestone = async () => {
     try {
       const values = await milestoneForm.validateFields();
-      const payload = { ...values, ownerId: values.ownerId || undefined };
+      const payload = {
+        ...values,
+        dueDate: isoValue(values.dueDate),
+        ownerId: values.ownerId || undefined,
+      };
       if (editingMilestone) {
         await projectService.updateMilestone(projectId, editingMilestone.id, payload);
       } else {

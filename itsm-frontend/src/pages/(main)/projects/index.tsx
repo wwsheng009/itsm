@@ -25,6 +25,7 @@ import { projectService } from '@/lib/services/project-service';
 import type { Department } from '@/lib/services/department-service';
 import { departmentService } from '@/lib/services/department-service';
 import { UserApi } from '@/lib/api/user-api';
+import { dateValue, isoValue } from '@/lib/utils/date-value';
 
 const { RangePicker } = DatePicker;
 
@@ -137,8 +138,10 @@ export default function ProjectsPage() {
       description: record.description,
       managerId: record.managerId,
       departmentId: record.departmentId,
-      startDate: record.startDate,
-      endDate: record.endDate,
+      range:
+        record.startDate && record.endDate
+          ? [dateValue(record.startDate), dateValue(record.endDate)]
+          : undefined,
       budgetAmount: record.budgetAmount,
       budgetCurrency: record.budgetCurrency,
     });
@@ -151,8 +154,8 @@ export default function ProjectsPage() {
       setSubmitting(true);
       const payload = {
         ...values,
-        startDate: values.range?.[0]?.toISOString(),
-        endDate: values.range?.[1]?.toISOString(),
+        startDate: isoValue(values.range?.[0]),
+        endDate: isoValue(values.range?.[1]),
       };
       delete payload.range;
       // PE-22：预算同写同清——填写金额即连同币种提交（币种缺省空串 = 租户默认）；金额 <=0 = 清空。
