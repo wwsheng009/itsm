@@ -219,6 +219,12 @@ export default function ProjectDetailPage() {
   const [candidateLoading, setCandidateLoading] = useState(false);
   const [memberForm] = Form.useForm();
 
+  // PE-12 阻塞项导航：受控 Tab + 详情页内任命项目经理（原入口仅在列表页编辑弹窗）。
+  const [activeTab, setActiveTab] = useState('overview');
+  const [managerModalOpen, setManagerModalOpen] = useState(false);
+  const [managerSaving, setManagerSaving] = useState(false);
+  const [managerForm] = Form.useForm();
+
   // P1（PE-14）：里程碑与任务依赖；P1（PE-13）：计划基线
   const [milestones, setMilestones] = useState<ProjectMilestone[]>([]);
   const [dependencies, setDependencies] = useState<TaskDependency[]>([]);
@@ -468,6 +474,25 @@ export default function ProjectDetailPage() {
     });
     return map;
   }, [members]);
+
+  // 任命项目经理候选：在册成员 + 租户活跃候选（memberCandidates 会排除在册成员），
+  // 并兜底当前 managerId（历史数据/候选分页截断时仍可正确回显）。
+  const managerOptions = useMemo(() => {
+    const map = new Map<number, string>();
+    members
+      .filter((m) => m.status === 'active')
+      .forEach((m) => map.set(m.userId, m.name || m.username));
+    candidates.forEach((c) => {
+      if (map.has(c.userId)) return;
+      const origin =
+        c.memberOrigin === 'provider' ? '（服务方）' : c.memberOrigin === 'external' ? '（外部）' : '';
+      map.set(c.userId, `${c.name || c.username}${origin}`);
+    });
+    if (project?.managerId && !map.has(project.managerId)) {
+      map.set(project.managerId, memberNameById[project.managerId] ?? `ID:${project.managerId}`);
+    }
+    return Array.from(map.entries()).map(([value, label]) => ({ value, label }));
+  }, [members, candidates, project?.managerId, memberNameById]);
 
   const taskNameById = useMemo(() => {
     const map: Record<number, string> = {};
@@ -1127,6 +1152,46 @@ export default function ProjectDetailPage() {
   // PE-12：阶段门表格（四道门固定顺序；无记录 = 未提交）。
   const gateRows: GateRow[] = GATE_ORDER.map((gate) => ({ gate, record: gatesByKey[gate] }));
 
+  // PE-12 阻塞项 → 下一步入口：能在本页完成的直接打开（任命/新建），其余切到对应 Tab。
+  const gateBlockerAction = (type: string): { label: string; onClick: () => void } | null => {
+    switch (type) {
+      case 'manager_missing':
+        return { label: '去任命项目经理', onClick: openManagerModal };
+      case 'member_missing':
+        return {
+          label: '去添加成员',
+          onClick: () => {
+            setActiveTab('members');
+            openMemberModal();
+          },
+        };
+      case 'task_missing':
+        return {
+          label: '去新建任务',
+          onClick: () => {
+            setActiveTab('tasks');
+            openTaskCreate();
+          },
+        };
+      case 'milestone_missing':
+        return {
+          label: '去新建里程碑',
+          onClick: () => {
+            setActiveTab('milestones');
+            openMilestoneCreate();
+          },
+        };
+      case 'task_open':
+        return { label: '去处理任务', onClick: () => setActiveTab('tasks') };
+      case 'milestone_open':
+        return { label: '去处理里程碑', onClick: () => setActiveTab('milestones') };
+      case 'record_open':
+        return { label: '去查看关联单据', onClick: () => setActiveTab('records') };
+      default:
+        return null;
+    }
+  };
+
   const gateColumns: ColumnsType<GateRow> = [
     {
       title: '阶段门',
@@ -1174,12 +1239,30 @@ export default function ProjectDetailPage() {
         const blockers = row.record?.blockers ?? [];
         if (blockers.length === 0) return '-';
         return (
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
-            {blockers.map((b, index) => (
-              <Tag key={`${b.type}-${index}`} color="warning">
-                {`${GATE_BLOCKER_META[b.type] ?? b.type}${b.total ? `（${b.total}）` : ''}${b.detail ? `：${b.detail}` : ''}`}
-              </Tag>
-            ))}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+            {blockers.map((b, index) => {
+              const action = gateBlockerAction(b.type);
+              return (
+                <div
+                  key={`${b.type}-${index}`}
+                  style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}
+                >
+                  <Tag color="warning" style={{ marginInlineEnd: 0 }}>
+                    {`${GATE_BLOCKER_META[b.type] ?? b.type}${b.total ? `（${b.total}）` : ''}${b.detail ? `：${b.detail}` : ''}`}
+                  </Tag>
+                  {action ? (
+                    <Button
+                      type="link"
+                      size="small"
+                      style={{ padding: 0, height: 'auto' }}
+                      onClick={action.onClick}
+                    >
+                      {action.label} →
+                    </Button>
+                  ) : null}
+                </div>
+              );
+            })}
           </div>
         );
       },
@@ -1482,6 +1565,36 @@ export default function ProjectDetailPage() {
     }
   };
 
+  // PE-12 阻塞项：详情页直接任命项目经理（原入口仅在列表页编辑弹窗）。
+  const openManagerModal = () => {
+    managerForm.resetFields();
+    managerForm.setFieldsValue({ managerId: project?.managerId });
+    setManagerModalOpen(true);
+    void searchCandidates();
+  };
+
+  const submitManager = async () => {
+    if (!project) return;
+    try {
+      const values = await managerForm.validateFields();
+      setManagerSaving(true);
+      const updated = await projectService.updateProject(project.id, {
+        managerId: values.managerId,
+        version: project.version,
+      });
+      setProject(updated);
+      setManagerModalOpen(false);
+      message.success('项目经理已任命；请回到「阶段门」重新提交立项门');
+      await Promise.all([fetchMembers(), fetchGates()]);
+    } catch (error) {
+      if (error && typeof error === 'object' && 'errorFields' in error) return;
+      console.error('Assign manager failed:', error);
+      message.error('任命失败：请确认所选用户是本租户有效成员，且项目未被他人修改');
+    } finally {
+      setManagerSaving(false);
+    }
+  };
+
   const memberColumns: ColumnsType<MemberView> = [
     { title: '姓名', dataIndex: 'name', key: 'name' },
     { title: '用户名', dataIndex: 'username', key: 'username', width: 140 },
@@ -1668,6 +1781,8 @@ export default function ProjectDetailPage() {
       ]}
     >
       <Tabs
+        activeKey={activeTab}
+        onChange={setActiveTab}
         items={[
           {
             key: 'overview',
@@ -1684,7 +1799,13 @@ export default function ProjectDetailPage() {
                     <Tag color={HEALTH_META[project.health]?.color}>{HEALTH_META[project.health]?.label}</Tag>
                   </Descriptions.Item>
                   <Descriptions.Item label="项目经理">
-                    {project.managerId ? memberNameById[project.managerId] ?? `ID:${project.managerId}` : '-'}
+                    {project.managerId ? (
+                      memberNameById[project.managerId] ?? `ID:${project.managerId}`
+                    ) : canWrite ? (
+                      <a onClick={openManagerModal}>未任命（去任命）</a>
+                    ) : (
+                      '未任命'
+                    )}
                   </Descriptions.Item>
                   <Descriptions.Item label="计划起止">
                     {project.startDate?.slice(0, 10) ?? '-'} ~ {project.endDate?.slice(0, 10) ?? '-'}
@@ -1728,7 +1849,8 @@ export default function ProjectDetailPage() {
                     刷新
                   </Button>
                   <span style={{ color: '#8c8c8c' }}>
-                    立项门通过后才能激活项目；结项门通过后才能结项（拒绝须填写原因，可修复后重新提交）。
+                    立项门通过后才能激活项目；结项门通过后才能结项。阻塞项右侧可直接进入对应处理入口，
+                    修复后请在该门行点击「重新提交」（拒绝须填写原因）。
                   </span>
                 </Space>
                 <Table
@@ -2067,6 +2189,33 @@ export default function ProjectDetailPage() {
           </Form.Item>
           <Form.Item name="projectRole" label="项目角色">
             <Select options={Object.entries(ROLE_META).map(([value, label]) => ({ value, label }))} />
+          </Form.Item>
+        </Form>
+      </Modal>
+
+      <Modal
+        title="任命项目经理"
+        open={managerModalOpen}
+        onOk={submitManager}
+        confirmLoading={managerSaving}
+        onCancel={() => setManagerModalOpen(false)}
+        okText="任命"
+      >
+        <Form form={managerForm} layout="vertical">
+          <Form.Item
+            name="managerId"
+            label="项目经理（目标租户有效成员）"
+            rules={[{ required: true, message: '请选择项目经理' }]}
+            extra="任命后仍需在「成员」Tab 登记至少 1 名成员/干系人，立项门方可提交通过。"
+          >
+            <Select
+              showSearch
+              filterOption={false}
+              loading={candidateLoading}
+              placeholder="输入姓名/用户名搜索"
+              onSearch={searchCandidates}
+              options={managerOptions}
+            />
           </Form.Item>
         </Form>
       </Modal>
