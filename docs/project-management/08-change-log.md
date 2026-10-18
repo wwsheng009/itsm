@@ -232,3 +232,29 @@ PE-5 此前仅落地「项目工作台查看/解除挂接」与「任务生成�
 证据：[DEMO-PE5-GATENAV-20261018-4590aed4-EVIDENCE.md](../../.dev/deploy/DEMO-PE5-GATENAV-20261018-4590aed4-EVIDENCE.md)。
 
 > 后续可选：把「任命项目经理 + 登记为成员」合并为一步（当前为两个独立动作，符合后端两个独立规则）。
+
+## 9. 阶段门进入即实时预检（2026-10-18）
+
+### 问题
+
+此前阻塞项只在「提交」失败后落库并展示，用户必须先提交才知道缺什么。
+
+### 实现
+
+- **后端**：新增 `Service.PreviewGates`，对四道门复用 `evaluateGateRules`（与 `SubmitGate` 同源规则）做只读评估，返回 `readiness: [{gate, ready, blockers[]}]`；`GET /projects/:id/gates` 响应新增 `readiness`。预检不落库、不创建门记录、不触发审批；可见性沿用 `GetForViewer`。
+- **前端**：`pending/rejected` 门展示实时预检（无需提交），`in_review/passed` 保留提交快照；预检通过时显示「条件已满足，可提交」；顶部预检标签区分「待补 N 项 / 已满足，可提交 / 审批中」；切回阶段门 Tab、任命经理、添加成员、提交门后自动刷新。
+- 提交：`9a53da0a`、`945e5e4a`。
+
+### 验证
+
+| 检查 | 结果 |
+|---|---|
+| `go test -p 1 -count=1 ./handlers/project/` | 全绿（新增 `TestPreviewGates`：未提交即有阻塞项、修复后即时 ready、预检零落库） |
+| 前端 `tsc --noEmit` / 改动文件 ESLint | ✅ |
+| API（project #5，仅立项门有记录） | `plan` 返回 `gate_not_passed + task_missing + milestone_missing`；`acceptance/closure` 返回顺序前置门未通过 |
+| Tabbit `/projects/5` 阶段门 | 计划门未提交即显示任务/里程碑阻塞项与「去新建」入口（未点击提交）；顶部标签「预检：立项门审批中」 |
+| 238 demo `1.8.0-dev.945e5e4a` | 三容器 healthy、init ExitCode=0、version 对齐 |
+
+证据：[DEMO-PE5-GATEPREVIEW-20261018-945e5e4a-EVIDENCE.md](../../.dev/deploy/DEMO-PE5-GATEPREVIEW-20261018-945e5e4a-EVIDENCE.md)。
+
+> 后续可选：用预检结果驱动页头「激活」按钮的禁用/提示（当前仍由后端 409 + 前端引导兜底）。
