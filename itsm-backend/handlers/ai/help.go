@@ -6,6 +6,7 @@ import (
 	"itsm-backend/capability"
 	"itsm-backend/common"
 	"itsm-backend/internal/helpindex"
+	"itsm-backend/service"
 
 	"github.com/gin-gonic/gin"
 )
@@ -38,6 +39,14 @@ func (h *Handler) SearchHelp(c *gin.Context) {
 	limit := queryInt(c, "limit", 5)
 
 	results := helpindex.Load().Search(query, pageKey, limit)
+	// T5-09b：语义检索补齐（未配置 embedding/vector 时保持词法结果）。
+	if h.svc != nil && h.svc.rag != nil {
+		if err := h.svc.rag.EnsureHelpDocsIndexed(c.Request.Context(), tenantID); err == nil {
+			if semantic, err := h.svc.rag.SearchHelpDocs(c.Request.Context(), tenantID, query, pageKey, limit); err == nil {
+				results = service.MergeHelpSearchResults(results, semantic, limit)
+			}
+		}
+	}
 
 	// P2：合并服务商分发帮助检索（客户租户可见；未装配/失败 → 空，不阻塞内嵌检索）。
 	distributed := h.svc.SearchCustomerHelpDocs(c.Request.Context(), tenantID, query, pageKey, limit)

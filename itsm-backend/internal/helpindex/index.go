@@ -59,6 +59,8 @@ type SearchResult struct {
 	PageKeys []string `json:"pageKeys"`
 	Snippet  string   `json:"snippet"`
 	Score    int      `json:"score"`
+	// Source：lexical | semantic（T5-09b 混合检索标记；旧调用方可忽略）。
+	Source string `json:"source,omitempty"`
 }
 
 // Index 是加载后的帮助索引（进程内单例由 Load 保证）。
@@ -187,6 +189,7 @@ func (i *Index) Search(query, pageKey string, limit int) []SearchResult {
 			PageKeys: doc.PageKeys,
 			Snippet:  snippet(doc.Text, terms[0]),
 			Score:    score,
+			Source:   "lexical",
 		})
 	}
 
@@ -200,6 +203,16 @@ func (i *Index) Search(query, pageKey string, limit int) []SearchResult {
 		results = results[:limit]
 	}
 	return results
+}
+
+// Docs 返回全部帮助文档（副本；供向量索引构建使用）。
+func (i *Index) Docs() []Doc {
+	if i == nil {
+		return nil
+	}
+	out := make([]Doc, len(i.docs))
+	copy(out, i.docs)
+	return out
 }
 
 // DocsForPage 返回页面覆盖信息与其关联的全部文档（未知页面 Status=unknown）。

@@ -1100,9 +1100,9 @@ Dock 容器、chat-core 抽离、交互状态机、帮助覆盖率 ratchet、Aut
 | T5-07a | 成本口径修正：首 token / 整体 P50+P95 分离；健康 SLO 改用首 token P95 | §13.3；评审 §5.2 | ✅ 口径评审 + 看板（2026-10-19；证据 `assistant-dock/T5-07a-cost-latency-evidence.md`） |
 | T5-07b | 模型分级路由与成本上限（Q5） | §12 Q5；§3.7 L119；专项 `assistant-model-routing-and-budget-plan-2026-10-19.md` | 待排期（先做 Q5 五项口径决策） |
 | T5-08 | 流式 `aria-live` 行为验收（不限于 axe 静态扫描） | §3.7 L113；I2-02 盲区 | 行为断言 |
-| T5-09 | 帮助写面收口：`help_update_draft` / `help_submit_review` / `help_publish` + diff 预览 / 一键审阅 UI；help-index 向量化 | §5.4/§5.5 | T5-09a ✅ / T5-09b 待排期 |
+| T5-09 | 帮助写面收口：`help_update_draft` / `help_submit_review` / `help_publish` + diff 预览 / 一键审阅 UI；help-index 向量化 | §5.4/§5.5 | ✅ T5-09a + T5-09b（2026-10-19） |
 | T5-09a | 帮助写面 + 一键审阅：三工具、KB「用户指南」草稿、行级 diff、覆盖率看板审阅队列 | §5.4/§5.5 | ✅ 写面/审阅（2026-10-19；证据 `assistant-dock/T5-09a-help-write-review-evidence.md`） |
-| T5-09b | help-index 语义向量化 | §5.1 L153；H0-03 边界 | 待排期（词法检索保持兼容） |
+| T5-09b | help-index 语义向量化 | §5.1 L153；H0-03 边界 | ✅ 懒索引 + 语义/词法混合（2026-10-19；证据 `assistant-dock/T5-09b-help-index-vectorization-evidence.md`） |
 | T5-10 | i18n"文案批次"落为真实任务（或显式关闭） | §3.7；多处条件项悬空引用 | 任务化 / 关闭登记 |
 | T5-11 | 宽度交互文档收口：将"离散三档 + 键盘循环（替代自由拖拽）"回写 §3.1/§3.7；决定是否保留"边缘收纳" | `5d87a831` 已按新形态实现 | 方案条款同步后关闭 |
 | T5-12 | 双入口一致性收口：按 §14.4-① 决策实施或更新方案条款（`5d87a831` 已实现"抑制 + 一次性交接"） | §3.7 L119；评审 §3 | 决策落文档 + 一致性用例 |
@@ -1132,6 +1132,8 @@ Dock 容器、chat-core 抽离、交互状态机、帮助覆盖率 ratchet、Aut
 > 进展（2026-10-19）：T5-03b 已完成——Dock/工作区共用附件选择器（5 个、10MB、共享白名单），用户消息展示附件芯片，`/ai/chat/stream` 仅非空时落 `attachments[]`；后端按同租户+同用户+`ai_chat`+`active` 校验，任一不可用整单拒绝；非视觉模型以“仅元数据、未读取内容”文本降级。后端 3 包串行 + 前端 6 suites / 107 tests、tsc/eslint 全绿；证据 `assistant-dock/T5-03b-ai-attachment-dock-evidence.md`。
 
 > 进展（2026-10-19）：T5-09a 已完成——新增 `help_update_draft`（plan）/ `help_submit_review`（act_low）/ `help_publish`（act_medium + `knowledge:admin`）；提交审阅落 KB「用户指南」草稿，发布复用 KB 版本/向量 outbox，写动作仍走审批队列；覆盖率看板新增同租户草稿队列、行级 diff、提交/发布入口。后端 6 包串行 + 前端 3 suites / 81 tests、tsc/eslint 全绿；路由预检已重生；证据 `assistant-dock/T5-09a-help-write-review-evidence.md`。help-index 语义向量化归 T5-09b。
+
+> 进展（2026-10-19）：T5-09b 已完成——帮助文档按租户懒索引到 connector + legacy 向量库（`object_type=help_doc`，`source=文档路径`）；`/ai/help/search` 与 `help_search` 合并语义结果（词法优先、路径去重、pageKey 过滤），embedding/vector 不可用时零行为变化回退词法。后端 service/handlers/ai/internal/helpindex/router/middleware/bootstrap 全绿；证据 `assistant-dock/T5-09b-help-index-vectorization-evidence.md`。
 
 > 进展（2026-10-19）：T5-13 已完成——12 个助手表面（面板/建议/记忆条/回执卡/门户入口/帮助视图/Dock/批量面板/邮件入口等）接入 `useI18n`；新增 `assistant` 命名空间（`translations-assistant.ts`，11 子命名空间、zh/en 各 213 键，键集与占位符对齐校验通过）；zh 值与原字面量逐字一致；eslint/tsc 全绿，回归 40/41 suites 通过（唯一失败为存量 `TicketDetailAssignSearch`，HEAD 复现）；证据 `assistant-dock/T5-13-i18n-copy-batch-evidence.md`；登记见交付台账 T5 段。
 
@@ -1166,4 +1168,4 @@ Dock 容器、chat-core 抽离、交互状态机、帮助覆盖率 ratchet、Aut
 | T5-04 handoff 三项 | `docs/plan/assistant-handoff-actions-plan-2026-10-19.md` | ✅ T5-04a + T5-04b 已完成 |
 | T5-07b 模型分级路由/成本上限 | `docs/plan/assistant-model-routing-and-budget-plan-2026-10-19.md` | 方案待评审；Q5 五项口径待拍板 |
 | T5-03 附件域基础 | `docs/plan/generic-attachment-richtext-control-plan.md` | ✅ T5-03a + T5-03b 已完成 |
-| T5-09 帮助子系统 | 本文 §5.1–5.8 + `docs/plan/evidence/help-agent/H0-*.md` | ✅ T5-09a 写面/审阅已完成；T5-09b 向量化待排期 |
+| T5-09 帮助子系统 | 本文 §5.1–5.8 + `docs/plan/evidence/help-agent/H0-*.md` | ✅ T5-09a 写面/审阅 + T5-09b 向量化均已完成 |

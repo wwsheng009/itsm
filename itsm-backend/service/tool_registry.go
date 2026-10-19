@@ -153,6 +153,8 @@ type ToolRegistry struct {
 	artifacts *bot.ArtifactStore
 	// helpPublisher 是帮助写面落 KB 草稿/发布的桥（T5-09a；nil = 写面 fail-visible）。
 	helpPublisher HelpDocPublisher
+	// helpSemantic 是帮助文档语义检索（T5-09b；nil = 仅词法检索）。
+	helpSemantic HelpSemanticSearcher
 	// providers 是内置工具之外的工具来源（M0-09：MCP），按注册顺序作为解析兜底。
 	providers []ToolProvider
 }
@@ -179,6 +181,11 @@ func (t *ToolRegistry) SetArtifactStore(store *bot.ArtifactStore) { t.artifacts 
 // SetHelpPublisher 注入帮助文档写面（T5-09a）：提交审阅时落 KB 草稿、发布时走 KB 发布。
 func (t *ToolRegistry) SetHelpPublisher(publisher HelpDocPublisher) {
 	t.helpPublisher = publisher
+}
+
+// SetHelpSemanticSearcher 注入帮助文档向量检索（T5-09b）。
+func (t *ToolRegistry) SetHelpSemanticSearcher(searcher HelpSemanticSearcher) {
+	t.helpSemantic = searcher
 }
 
 // RegisterProvider 注册外部工具来源（M0-09：MCP provider；nil 忽略）。
@@ -973,7 +980,7 @@ func (t *ToolRegistry) executeBuiltin(ctx context.Context, tenantID int, name st
 	case "draft_kb_article":
 		return t.executeDraftKBArticle(ctx, tenantID, args)
 	case "help_search", "help_get_page", "help_read_doc", "help_list_gaps":
-		return executeHelpTool(ctx, name, args)
+		return t.executeHelpTool(ctx, tenantID, name, args)
 	case "help_create_draft":
 		return t.executeHelpCreateDraft(ctx, tenantID, args)
 	case "help_update_draft":

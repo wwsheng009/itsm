@@ -20,6 +20,12 @@ type HelpDocPublisher interface {
 	PublishHelpDraft(ctx context.Context, tenantID, publisherID, articleID int, changeLog string) error
 }
 
+// HelpSemanticSearcher 是帮助文档语义检索桥（T5-09b）。
+type HelpSemanticSearcher interface {
+	EnsureHelpDocsIndexed(ctx context.Context, tenantID int) error
+	SearchHelpDocs(ctx context.Context, tenantID int, query, pageKey string, limit int) ([]helpindex.SearchResult, error)
+}
+
 // H0-03 / T5-09a Help Agent 工具（读面 + plan 草稿 + 写面）。
 //
 // 口径（方案 §5.4）：
@@ -269,7 +275,7 @@ func helpToolDefinitions() []ToolDefinition {
 }
 
 // executeHelpTool 执行 help_* 工具（无 DB 依赖，fail 时返回模型可读错误）。
-func executeHelpTool(_ context.Context, name string, args map[string]interface{}) (interface{}, error) {
+func (t *ToolRegistry) executeHelpTool(ctx context.Context, tenantID int, name string, args map[string]interface{}) (interface{}, error) {
 	idx := helpindex.Load()
 	switch name {
 	case "help_search":
@@ -280,6 +286,13 @@ func executeHelpTool(_ context.Context, name string, args map[string]interface{}
 			limit = int(v)
 		}
 		results := idx.Search(strings.TrimSpace(query), strings.TrimSpace(pageKey), limit)
+		if t != nil && t.helpSemantic != nil {
+			if err := t.helpSemantic.EnsureHelpDocsIndexed(ctx, tenantID); err == nil {
+				if semantic, err := t.helpSemantic.SearchHelpDocs(ctx, tenantID, query, pageKey, limit); err == nil {
+					results = MergeHelpSearchResults(results, semantic, limit)
+				}
+			}
+		}
 		return map[string]interface{}{"results": results, "count": len(results)}, nil
 	case "help_get_page":
 		pageKey, _ := args["pageKey"].(string)

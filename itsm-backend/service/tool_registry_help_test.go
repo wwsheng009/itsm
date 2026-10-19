@@ -10,8 +10,27 @@ import (
 
 	"itsm-backend/ent/botartifact"
 	"itsm-backend/ent/enttest"
+	"itsm-backend/internal/helpindex"
 	"itsm-backend/service/bot"
 )
+
+type fakeHelpSemanticSearcher struct {
+	ensureCalls int
+	results     []helpindex.SearchResult
+	err         error
+}
+
+func (f *fakeHelpSemanticSearcher) EnsureHelpDocsIndexed(context.Context, int) error {
+	f.ensureCalls++
+	return f.err
+}
+
+func (f *fakeHelpSemanticSearcher) SearchHelpDocs(context.Context, int, string, string, int) ([]helpindex.SearchResult, error) {
+	if f.err != nil {
+		return nil, f.err
+	}
+	return f.results, nil
+}
 
 type fakeHelpPublisher struct {
 	articleID      int
@@ -103,6 +122,26 @@ func TestHelpTools_MissingArgsAreVisibleErrors(t *testing.T) {
 	// 空查询 → 空结果（不报错，模型可自行改写查询）。
 	res := execHelp(t, reg, "help_search", map[string]interface{}{"q": "   "})
 	assert.Equal(t, float64(0), res["count"].(float64))
+}
+
+func TestHelpSearch_SemanticMerge(t *testing.T) {
+	reg := NewToolRegistry(nil, nil, nil, nil)
+	searcher := &fakeHelpSemanticSearcher{results: []helpindex.SearchResult{{
+		Path: "docs/help/tickets/detail.md", Title: "语义命中", Source: "semantic",
+	}}}
+	reg.SetHelpSemanticSearcher(searcher)
+
+	payload := execHelp(t, reg, "help_search", map[string]interface{}{"q": "zzz-no-lexical-hit"})
+	require.Equal(t, 1, searcher.ensureCalls)
+	require.Equal(t, float64(1), payload["count"])
+	results := payload["results"].([]interface{})
+	require.Len(t, results, 1)
+	assert.Equal(t, "semantic", results[0].(map[string]interface{})["source"])
+
+	// 语义索引/检索失败 → 词法结果不受影响。
+	reg.SetHelpSemanticSearcher(&fakeHelpSemanticSearcher{err: ErrHelpSemanticUnavailable})
+	payload = execHelp(t, reg, "help_search", map[string]interface{}{"q": "SLA"})
+	assert.Greater(t, payload["count"].(float64), float64(0))
 }
 
 // TestHelpCreateDraft_Artifact：H0-04 草稿通道——只落 bot_artifacts（plan）、归属隔离、fail-visible。

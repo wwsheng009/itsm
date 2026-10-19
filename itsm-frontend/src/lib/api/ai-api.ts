@@ -429,6 +429,8 @@ export interface HelpSearchResult {
   pageKeys: string[];
   snippet: string;
   score: number;
+  /** T5-09b：lexical | semantic；旧后端缺省按词法结果处理。 */
+  source?: 'lexical' | 'semantic' | string;
 }
 
 export type HelpPageStatus = 'ok' | 'missing' | 'stale' | 'unknown';

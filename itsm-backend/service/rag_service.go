@@ -8,6 +8,7 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"go.uber.org/zap"
@@ -40,6 +41,10 @@ type RAGService struct {
 	// 避免模型引用过期制度给出带来源的错误答案。
 	// nil 时不做时效过滤（保持旧行为），生产装配必须注入。
 	freshness *knowledgeaccess.FreshnessJudger
+
+	// T5-09b：帮助文档向量索引（按租户懒构建；进程内只成功构建一次）。
+	helpIndexMu sync.Mutex
+	helpIndexed map[int]struct{}
 }
 
 // SetKnowledgeGuard 注入知识分类可见性守卫。

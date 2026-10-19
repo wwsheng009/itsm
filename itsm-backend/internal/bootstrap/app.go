@@ -782,6 +782,8 @@ func NewApplication() *Application {
 
 	// AI Tools
 	toolRegistry := service.NewToolRegistry(ragService, incidentService, configurationItemService, client)
+	// T5-09b：帮助文档语义检索（懒索引；未配置 embedding/vector 时自动回退词法）。
+	toolRegistry.SetHelpSemanticSearcher(ragService)
 	toolQueue := service.NewToolQueue(client, toolRegistry, 100, sugar)
 	// 写工具（create_ticket/update_ticket/create_ticket_type）需要领域服务支撑；ticketService 已就绪，此处注入。
 	toolRegistry.SetTicketService(ticketService)
