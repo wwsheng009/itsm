@@ -29,6 +29,7 @@ import RunTraceView from '@/components/ai/run-trace/RunTraceView';
 import PilotReportCard from '@/components/ai/observability/PilotReportCard';
 import SegmentBreakdownCard from '@/components/ai/observability/SegmentBreakdownCard';
 import DocMetricsCard from '@/components/ai/observability/DocMetricsCard';
+import QualityMetricsCard from '@/components/ai/observability/QualityMetricsCard';
 
 const { Title, Text } = Typography;
 
@@ -286,6 +287,7 @@ const AssistantObservabilityPage: React.FC = () => {
   const taskCompleted = countOf('task_completed');
   const completionRate = taskStarted > 0 ? taskCompleted / taskStarted : undefined;
   const errorRate = data && data.totalEvents > 0 ? data.errorEvents / data.totalEvents : undefined;
+  const models = data?.models ?? [];
 
   return (
     <div data-testid="ai-observability-page" style={{ padding: 24 }}>
@@ -547,6 +549,9 @@ const AssistantObservabilityPage: React.FC = () => {
         {/* V0-04 试点对照报告 + §11.5 放量门槛（本期 vs 基线；可导出 Markdown） */}
         <PilotReportCard days={filters.days} pageKey="ai.observability" />
 
+        {/* T5-06b §11.5 质量层三指标：引用覆盖率 / 无引用回答率 / 点踩率（可测） */}
+        <QualityMetricsCard quality={data?.quality} />
+
         {/* O2-01 分群对比（按角色/页面找"哪里对用户真正有用"） */}
         <SegmentBreakdownCard days={filters.days} />
 
@@ -670,6 +675,24 @@ const AssistantObservabilityPage: React.FC = () => {
                   </div>
                 </Col>
               </Row>
+              <div style={{ marginTop: 16 }} data-testid="model-distribution">
+                <Text type="secondary" style={{ fontSize: 12 }}>
+                  {t('aiObservability.modelDistributionTitle')}
+                </Text>
+                <Space wrap size={[8, 8]} style={{ marginTop: 8 }}>
+                  {models.length > 0 ? (
+                    models.map(item => (
+                      <Tag key={item.key} data-testid={`model-distribution-${item.key}`}>
+                        {item.key} · {item.count}
+                      </Tag>
+                    ))
+                  ) : (
+                    <Text type="secondary" style={{ fontSize: 12 }} data-testid="model-distribution-empty">
+                      {t('aiObservability.modelDistributionEmpty')}
+                    </Text>
+                  )}
+                </Space>
+              </div>
             </Card>
           </Col>
         </Row>

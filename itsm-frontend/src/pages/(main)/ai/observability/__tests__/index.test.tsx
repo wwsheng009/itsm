@@ -307,6 +307,19 @@ const fixture: AssistantTelemetrySummary = {
     { key: 'ticket.detail', count: 40 },
   ],
   latencyMs: { avg: 850.5, p95: 1500, max: 3000 },
+  quality: {
+    answerCount: 10,
+    citationAnswerCount: 6,
+    feedbackCount: 8,
+    downvoteCount: 2,
+    citationCoverage: 0.6,
+    noCitationRate: 0.4,
+    downvoteRate: 0.25,
+  },
+  models: [
+    { key: 'gpt-4o-mini', count: 30 },
+    { key: 'claude-sonnet-4', count: 5 },
+  ],
   generatedAt: '2026-10-18T12:00:00Z',
 };
 
@@ -354,10 +367,19 @@ describe('AssistantObservabilityPage（O0-03 看板）', () => {
     expect(screen.getByTestId('stat-error-rate')).toHaveTextContent('5.0%');
     expect(screen.getByTestId('stat-confirmation-accepted')).toHaveTextContent('4');
     expect(screen.getByTestId('stat-confirmation-rejected')).toHaveTextContent('1');
+    // T5-06b：质量层三指标 + 分母样本
+    expect(screen.getByTestId('quality-citation-coverage')).toHaveTextContent('60.0%');
+    expect(screen.getByTestId('quality-no-citation-rate')).toHaveTextContent('40.0%');
+    expect(screen.getByTestId('quality-downvote-rate')).toHaveTextContent('25.0%');
+    expect(screen.getByTestId('quality-citation-sample')).toHaveTextContent('有引用 6 / 可统计 10 回答');
+    expect(screen.getByTestId('quality-downvote-sample')).toHaveTextContent('点踩 2 / 反馈 8');
     // 成本与时延
     expect(screen.getByTestId('stat-latency-avg')).toHaveTextContent('851 ms');
     expect(screen.getByTestId('stat-latency-p95')).toHaveTextContent('1500 ms');
     expect(screen.getByTestId('stat-latency-max')).toHaveTextContent('3000 ms');
+    // T5-06b：模型分布（仅 stream_end 上报）
+    expect(screen.getByTestId('model-distribution')).toHaveTextContent('gpt-4o-mini · 30');
+    expect(screen.getByTestId('model-distribution')).toHaveTextContent('claude-sonnet-4 · 5');
     // 分解表与生成时间
     expect(screen.getByTestId('observability-by-name')).toHaveTextContent('assistant_opened');
     expect(screen.getByTestId('observability-by-page')).toHaveTextContent('ticket.detail');
@@ -407,11 +429,15 @@ describe('AssistantObservabilityPage（O0-03 看板）', () => {
       byName: [],
       byPage: [],
       latencyMs: undefined,
+      quality: undefined,
+      models: [],
     });
 
     render(<AssistantObservabilityPage />);
 
     expect(await screen.findByTestId('observability-empty')).toHaveTextContent('暂无埋点数据');
+    expect(screen.getByTestId('quality-empty')).toBeInTheDocument();
+    expect(screen.getByTestId('model-distribution-empty')).toBeInTheDocument();
   });
 
   it('服务未装配（503）展示未启用提示，不报错', async () => {

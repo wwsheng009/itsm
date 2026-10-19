@@ -116,15 +116,15 @@
 |---|---|---|
 | T5-01 | ✅ 2026-10-19 | 批 7–10 证据补登记：`assistant-dock/I0-01-interaction-state-evidence.md`（#7）、`assistant-dock/runtime-fixes-batch-2-evidence.md`（#8–10） |
 | T5-02 | ✅ 2026-10-19 | 输入坞 `/` 快捷指令（`/工单` `/SLA` `/话术`）+ `@` 引用当前页对象：双表面接线共享模块；解析单测 20 例 + 交互 4 例；证据 `assistant-dock/T5-02-input-dock-slash-and-reference-evidence.md` |
-| T5-06 | 拆分 | 质量层拆分为 T5-06a（数据源，已完成）/ T5-06b（看板接线，待排期） |
+| T5-06 | ✅ 2026-10-19 | 质量层父任务：T5-06a（数据源）+ T5-06b（看板接线）均已完成；证据 `assistant-dock/T5-06a-quality-data-source-evidence.md`、`assistant-dock/T5-06b-quality-dashboard-evidence.md` |
 | T5-06a | ✅ 2026-10-19 | 质量层数据源：`message_feedback` + `sources_count` / `query_hash` / `model`；前端 SDK、回答级反馈、历史消息补链；后端迁移 4 列 + 2 索引、INSERT 18 列、质量三率 + 模型 Top 20；后端 3 包 + 前端 4 suites / 42 tests 全过，eslint/tsc/gofmt 全绿；证据 `assistant-dock/T5-06a-quality-data-source-evidence.md` |
-| T5-06b | 待排期 | 质量层看板接线：summary `quality` / `models` 接入观测看板；§11.5 三指标标注可测 |
+| T5-06b | ✅ 2026-10-19 | 质量层看板接线：新增 `QualityMetricsCard`（三率 + 分子/分母 + 「可测」标识 + 空分母「—」），成本卡新增模型分布 Top 20；API 类型补齐 `quality` / `models`；观测看板回归 5 suites / 33 tests（含定向新增 2 suites / 20 tests）、tsc、eslint 全绿；证据 `assistant-dock/T5-06b-quality-dashboard-evidence.md` |
 | T5-08 | ✅ 2026-10-19 | 流式 aria-live 行为验收：消息区 `role="log"` + `aria-live="polite"` + `aria-busy` 流式抑制（工作区/Dock 双表面）；行为断言 3 例；证据 `assistant-dock/T5-08-streaming-aria-live-evidence.md` |
 | T5-10 | ✅ 2026-10-19 | i18n"文案批次"任务化：新设 T5-13 承接（方案 §14.2；§14.3 条件行改挂） |
 | T5-11 | ✅ 2026-10-19 | 宽度交互回写：离散三档 + 键盘循环（显式替代自由拖拽）；"边缘收纳"不采纳（收起态即 FAB） |
 | T5-12 | ✅ 2026-10-19 | 双入口按 B 收口：§3.7/§8 条款认可现状（抑制 + 一次性交接）；§14.4-① 解除；Q3（launcher/深链）连带回写 |
 | T5-13 | ✅ 2026-10-19 | 文案 i18n 批次：12 个助手表面接入 `useI18n`；新增 `assistant` 命名空间（11 子命名空间、zh/en 各 213 键）；zh 值逐字不变；证据 `assistant-dock/T5-13-i18n-copy-batch-evidence.md` |
-| T5-03 ~ T5-05、T5-06b、T5-07、T5-09 | 待排期 | 见方案 §14.2 |
+| T5-03 ~ T5-05、T5-07、T5-09 | 待排期 | 见方案 §14.2 |
 
 > 维护记录（2026-10-19）：存量失败测试治理 6 套件 / 19 用例已修复（`4938945a`）；方案 `stock-test-failure-governance-plan-2026-10-19.md`，证据 `assistant-dock/T5-13-i18n-copy-batch-evidence.md` §5。
 

@@ -646,6 +646,17 @@ export interface AssistantTelemetryLatency {
   max: number;
 }
 
+// T5-06b：质量层三指标（分母为 0 时后端省略对应比率 → 前端显示「—」）。
+export interface AssistantTelemetryQuality {
+  answerCount: number;
+  citationAnswerCount: number;
+  feedbackCount: number;
+  downvoteCount: number;
+  citationCoverage?: number;
+  noCitationRate?: number;
+  downvoteRate?: number;
+}
+
 export interface AssistantTelemetrySummary {
   days: number;
   totalEvents: number;
@@ -654,6 +665,8 @@ export interface AssistantTelemetrySummary {
   byName: AssistantTelemetryBucket[];
   byPage: AssistantTelemetryBucket[];
   latencyMs?: AssistantTelemetryLatency;
+  quality?: AssistantTelemetryQuality;
+  models?: AssistantTelemetryBucket[];
   generatedAt: string;
 }
 

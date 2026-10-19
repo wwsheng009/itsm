@@ -18,7 +18,7 @@
 | `model` 上报 | ✅ done SSE 可选 `model?`，仅 provider resolution 有 Model 时下发；`stream_end` 落库并聚合 Top 20 | `handler.go`；`ai-api.ts`；`chat-telemetry.ts` |
 | `query_hash` 补链 | ✅ 前端 FNV-1a 32 位哈希；`message_sent` / `stream_end` / `error_shown` / `message_feedback` 均可关联；不采集问题原文 | `telemetry.ts`；`chat-telemetry.ts`；`use-ai-chat-session.ts` |
 | 指标可算 | ✅ `GET /api/v1/ai/telemetry/summary` 返回 `quality`（三率）与 `models` | `ai_assistant_telemetry.go`；handler/service 单测 |
-| 看板接线 | ⏳ 不在本任务范围，见 **T5-06b** | 方案 §14.2 |
+| 看板接线 | ✅ 已由 **T5-06b**（2026-10-19）完成 | 方案 §14.2；证据 `assistant-dock/T5-06b-quality-dashboard-evidence.md` |
 
 ---
 
@@ -129,7 +129,7 @@
 
 ## 6. 局限与后续
 
-1. **看板接线未做**：`quality` / `models` 已在 summary API 可算可读，但观测看板 UI 与 §11.5 放量门槛展示归 **T5-06b**。
+1. **看板接线已由 T5-06b 完成**：`quality` / `models` 已在 summary API 可算可读，并接入观测看板与 §11.5 质量指标展示；详见 `assistant-dock/T5-06b-quality-dashboard-evidence.md`。
 2. **未跑真实 PG 集成**：本轮为 sqlmock + 迁移测试；真实库回归仍属方案 §14.3 条件项。
 3. **反馈去重仅前端**：单条消息只允许反馈一次；服务端未按消息去重（事件无 message id）。严格去重需后续补事件去重键。
 4. **哈希碰撞**：FNV-1a 32 位仅用于分组关联，不作为身份标识；碰撞概率可接受但不为零。
