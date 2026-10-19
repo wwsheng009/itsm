@@ -9,17 +9,27 @@ import HelpCoveragePage, {
   HELP_TODO_STATE_META,
   formatHelpCoveragePercent,
 } from '../index';
-import { aiGetHelpCoverage, aiGetHelpTodos, aiSetHelpTodoState } from '@/lib/api/ai-api';
+import {
+  aiExecuteTool,
+  aiGetHelpCoverage,
+  aiGetHelpTodos,
+  aiListHelpDrafts,
+  aiSetHelpTodoState,
+} from '@/lib/api/ai-api';
 
 jest.mock('@/lib/api/ai-api', () => ({
   __esModule: true,
   aiGetHelpCoverage: jest.fn(),
   aiGetHelpTodos: jest.fn(),
+  aiListHelpDrafts: jest.fn(),
+  aiExecuteTool: jest.fn(),
   aiSetHelpTodoState: jest.fn(),
 }));
 
 const mockedCoverage = aiGetHelpCoverage as jest.MockedFunction<typeof aiGetHelpCoverage>;
 const mockedTodos = aiGetHelpTodos as jest.MockedFunction<typeof aiGetHelpTodos>;
+const mockedDrafts = aiListHelpDrafts as jest.MockedFunction<typeof aiListHelpDrafts>;
+const mockedExecuteTool = aiExecuteTool as jest.MockedFunction<typeof aiExecuteTool>;
 const mockedSetState = aiSetHelpTodoState as jest.MockedFunction<typeof aiSetHelpTodoState>;
 
 const coverageFixture = {
@@ -69,9 +79,12 @@ const todosFixture = {
 beforeEach(() => {
   mockedCoverage.mockReset();
   mockedTodos.mockReset();
+  mockedDrafts.mockReset();
+  mockedExecuteTool.mockReset();
   mockedSetState.mockReset();
   mockedCoverage.mockResolvedValue(coverageFixture);
   mockedTodos.mockResolvedValue(todosFixture);
+  mockedDrafts.mockResolvedValue({ items: [], total: 0 });
   mockedSetState.mockResolvedValue({
     pageKey: 'dashboard',
     state: 'claimed',
@@ -216,5 +229,37 @@ describe('HelpCoveragePage（H1-04）', () => {
     expect(await screen.findByTestId('help-todos-action-error')).toBeInTheDocument();
     // 状态未被乐观改写：仍渲染「待处理」。
     expect(screen.getByTestId('help-todo-state-open')).toBeInTheDocument();
+  });
+
+  it('T5-09a：草稿提交审阅走工具入口并提示等待审批', async () => {
+    mockedDrafts.mockResolvedValue({
+      total: 1,
+      items: [
+        {
+          artifactId: 31,
+          ownerUserId: 9,
+          pageKey: 'dashboard',
+          title: '仪表盘帮助草稿',
+          status: 'draft',
+          revision: 1,
+          markdown: '## 新内容',
+          baselineMarkdown: '## 旧内容',
+          diff: [
+            { type: 'removed', content: '## 旧内容' },
+            { type: 'added', content: '## 新内容' },
+          ],
+          createdAt: '2026-10-19T00:00:00Z',
+        },
+      ],
+    });
+    mockedExecuteTool.mockResolvedValue({ status: 'pending' });
+
+    render(<HelpCoveragePage />);
+    fireEvent.click(await screen.findByTestId('help-draft-submit-31'));
+
+    await waitFor(() =>
+      expect(mockedExecuteTool).toHaveBeenCalledWith('help_submit_review', { artifactId: 31 })
+    );
+    expect(await screen.findByTestId('help-draft-notice')).toHaveTextContent('已提交审批');
   });
 });

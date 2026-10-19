@@ -93,6 +93,8 @@ func SetupAIRoutes(tenant *gin.RouterGroup, h *aiHandler.Handler) {
 		aiGrp.PUT("/help/todos/state", middleware.RequirePermission("ai", "write"), h.SetHelpTodoState)
 		// H1-04 帮助覆盖率看板数据面（账本覆盖率 + 页面清单 + orphan 文档）。
 		aiGrp.GET("/help/coverage", middleware.RequirePermission("ai", "read"), h.GetHelpCoverage)
+		// T5-09a 帮助草稿审阅队列（知识库维护者；可跨发起人读同租户草稿）。
+		aiGrp.GET("/help/drafts", middleware.RequirePermission("knowledge", "write"), h.ListHelpDrafts)
 		// P2 文档命中率/解决率运营报表（遥测聚合 + 账本覆盖率；埋点未装配时降级为仅覆盖率）。
 		aiGrp.GET("/observability/doc-metrics", middleware.RequirePermission("ai", "read"), h.GetDocMetrics)
 		// O1-01 单任务全链路轨迹（run_id 回放：会话→run→步骤/事件→工具/确认→产物→业务对象）。

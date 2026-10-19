@@ -567,6 +567,40 @@ export async function aiGetHelpCoverage(): Promise<HelpCoverageResult> {
   return httpClient.get<HelpCoverageResult>('/api/v1/ai/help/coverage');
 }
 
+// ==================== T5-09a 帮助草稿审阅队列 ====================
+// 后端契约：GET /api/v1/ai/help/drafts（knowledge:write；返回同租户帮助草稿 + 行级 diff）。
+
+export interface HelpDraftReviewLine {
+  type: 'added' | 'removed';
+  content: string;
+}
+
+export interface HelpDraftReviewItem {
+  artifactId: number;
+  ownerUserId: number;
+  pageKey: string;
+  title: string;
+  status: 'draft' | 'in_review' | 'published' | string;
+  revision: number;
+  knowledgeArticleId?: number;
+  markdown: string;
+  baselineMarkdown: string;
+  diff: HelpDraftReviewLine[];
+  sourceDocs?: string[];
+  submittedAt?: string;
+  publishedAt?: string;
+  createdAt: string;
+}
+
+export interface HelpDraftReviewResult {
+  items: HelpDraftReviewItem[];
+  total: number;
+}
+
+export async function aiListHelpDrafts(): Promise<HelpDraftReviewResult> {
+  return httpClient.get<HelpDraftReviewResult>('/api/v1/ai/help/drafts');
+}
+
 // ==================== D1-01 页面助手上下文（服务端建议过滤） ====================
 // 后端契约：GET /api/v1/ai/assistant/context?pageKey=&route=（handlers/ai/assistant_context.go）。
 // 前端策略：建议卡优先消费服务端过滤结果（可见 Bot ∩ 工具授权 ∩ RBAC）；

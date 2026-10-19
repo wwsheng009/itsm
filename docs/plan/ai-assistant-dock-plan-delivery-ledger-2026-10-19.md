@@ -106,6 +106,7 @@
 - 流式消息区 aria-live 验收缺口（评审 §12 第 12 项；UX B9/F2）：已由 T5-08 关闭（2026-10-19）——工作区/Dock 面板消息区 `role="log"` + `aria-live="polite"`，流式期间 `aria-busy` 抑制逐字播报、完成后一次性读出；行为断言 `streaming-a11y-behavior.test.tsx`；证据 `assistant-dock/T5-08-streaming-aria-live-evidence.md`。
 - 输入坞 `/` 快捷指令 + `@` 引用当前页对象（评审 §3 第 1 项；UX B4 / 建议 10）：已由 T5-02 关闭（2026-10-19）——双表面接入共享辅助模块（解析/菜单/hook），菜单开启时 Enter 只做选择（不发送）；解析单测 20 例 + 交互 4 例；证据 `assistant-dock/T5-02-input-dock-slash-and-reference-evidence.md`。
 - 文案 i18n 批次（V1-01 / V1-02 / 面板等；评审 §2/§3 悬空项）：已由 T5-13 关闭（2026-10-19）——12 个助手表面接入 `useI18n`；新增 `assistant` 命名空间（11 子命名空间、zh/en 各 213 键；键集/占位符对齐校验通过）；zh 值逐字不变；eslint/tsc 全绿；证据 `assistant-dock/T5-13-i18n-copy-batch-evidence.md`。
+- 帮助写面与一键审阅（H0-03 写面缺口）：已由 T5-09a 关闭（2026-10-19）——三工具（更新/提交审阅/发布）、KB「用户指南」草稿、覆盖率看板 diff/审阅入口；写动作仍走审批队列；证据 `assistant-dock/T5-09a-help-write-review-evidence.md`。语义向量化归 T5-09b。
 - 条件项（真实 Provider E2E、真库回归、Q1/Q2/Q4 口径等）：见方案 §14.3。
 
 ---
@@ -129,13 +130,16 @@
 | T5-07 | 拆分 | 成本口径修正已完成（T5-07a）；模型分级路由/成本上限归 T5-07b 待排期 |
 | T5-07a | ✅ 2026-10-19 | 成本口径修正：首 token / 整体（stream_end）P50+P95+Max+Count 分离；顶层兼容字段固定整体口径；健康 SLO 改用首 token P95；service/handlers 两包 + 看板 1 suite / 17 tests、tsc/eslint 全绿；证据 `assistant-dock/T5-07a-cost-latency-evidence.md` |
 | T5-08 | ✅ 2026-10-19 | 流式 aria-live 行为验收：消息区 `role="log"` + `aria-live="polite"` + `aria-busy` 流式抑制（工作区/Dock 双表面）；行为断言 3 例；证据 `assistant-dock/T5-08-streaming-aria-live-evidence.md` |
+| T5-09 | 拆分 | 写面/审阅已完成（T5-09a）；help-index 向量化归 T5-09b 待排期 |
+| T5-09a | ✅ 2026-10-19 | 帮助写面 + 一键审阅：`help_update_draft` / `help_submit_review` / `help_publish`；KB「用户指南」草稿、行级 diff、覆盖率看板审阅队列；写动作经审批；后端 6 包串行 + 前端 3 suites / 81 tests、tsc/eslint 全绿；证据 `assistant-dock/T5-09a-help-write-review-evidence.md` |
+| T5-09b | 待排期 | help-index 语义向量化（词法检索保持兼容） |
 | T5-10 | ✅ 2026-10-19 | i18n"文案批次"任务化：新设 T5-13 承接（方案 §14.2；§14.3 条件行改挂） |
 | T5-11 | ✅ 2026-10-19 | 宽度交互回写：离散三档 + 键盘循环（显式替代自由拖拽）；"边缘收纳"不采纳（收起态即 FAB） |
 | T5-12 | ✅ 2026-10-19 | 双入口按 B 收口：§3.7/§8 条款认可现状（抑制 + 一次性交接）；§14.4-① 解除；Q3（launcher/深链）连带回写 |
 | T5-13 | ✅ 2026-10-19 | 文案 i18n 批次：12 个助手表面接入 `useI18n`；新增 `assistant` 命名空间（11 子命名空间、zh/en 各 213 键）；zh 值逐字不变；证据 `assistant-dock/T5-13-i18n-copy-batch-evidence.md` |
-| T5-07b、T5-09 | 待排期 | 见方案 §14.2 |
+| T5-07b、T5-09b | 待排期 | 见方案 §14.2 |
 
-> 方案补充（2026-10-19）：T5-04 专项 `assistant-handoff-actions-plan-2026-10-19.md`、T5-07b 专项 `assistant-model-routing-and-budget-plan-2026-10-19.md` 已补齐；T5-03/T5-09 的拆分建议见方案 §14.6。
+> 方案补充（2026-10-19）：T5-04 专项 `assistant-handoff-actions-plan-2026-10-19.md`、T5-07b 专项 `assistant-model-routing-and-budget-plan-2026-10-19.md` 已补齐；T5-03（a/b）与 T5-09（a/b）已按方案 §14.6 拆分落地。
 
 > 维护记录（2026-10-19）：存量失败测试治理 6 套件 / 19 用例已修复（`4938945a`）；方案 `stock-test-failure-governance-plan-2026-10-19.md`，证据 `assistant-dock/T5-13-i18n-copy-batch-evidence.md` §5。
 

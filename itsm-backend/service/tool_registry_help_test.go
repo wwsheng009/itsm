@@ -13,6 +13,37 @@ import (
 	"itsm-backend/service/bot"
 )
 
+type fakeHelpPublisher struct {
+	articleID      int
+	createTitle    string
+	createBody     string
+	createAuthorID int
+	publishedID    int
+	publisherID    int
+	changeLog      string
+	createCalls    int
+	publishCalls   int
+}
+
+func (f *fakeHelpPublisher) CreateHelpDraft(_ context.Context, _, authorID int, title, content string) (int, error) {
+	f.createCalls++
+	f.createAuthorID = authorID
+	f.createTitle = title
+	f.createBody = content
+	if f.articleID <= 0 {
+		f.articleID = 501
+	}
+	return f.articleID, nil
+}
+
+func (f *fakeHelpPublisher) PublishHelpDraft(_ context.Context, _, publisherID, articleID int, changeLog string) error {
+	f.publishCalls++
+	f.publisherID = publisherID
+	f.publishedID = articleID
+	f.changeLog = changeLog
+	return nil
+}
+
 // H0-03 Help Agent 工具执行面：只读、无 DB 依赖、参数缺失 fail-visible。
 
 func execHelp(t *testing.T, reg *ToolRegistry, name string, args map[string]interface{}) map[string]interface{} {
@@ -129,4 +160,98 @@ func TestHelpCreateDraft_Artifact(t *testing.T) {
 	// 参数缺失 → 明确错误。
 	_, err = registry.Execute(runCtx, tenantA.ID, "help_create_draft", map[string]interface{}{"pageKey": "x"})
 	require.ErrorContains(t, err, "content")
+}
+
+// T5-09a：草稿更新 → 提交审阅（落 KB 草稿）→ 发布（只发布关联草稿）。
+func TestHelpWriteFlow_UpdateSubmitPublish(t *testing.T) {
+	ctx := context.Background()
+	client := enttest.Open(t, "sqlite3", "file:help-write-"+t.Name()+"?mode=memory&cache=shared&_fk=1")
+	t.Cleanup(func() { _ = client.Close() })
+
+	tenant := client.Tenant.Create().SetCode("help-write").SetName("Help Write").SaveX(ctx)
+	user := client.User.Create().
+		SetUsername("help-writer").SetEmail("help-writer@example.com").SetName("Writer").
+		SetPasswordHash("x").SetTenantID(tenant.ID).SaveX(ctx)
+	other := client.User.Create().
+		SetUsername("help-other").SetEmail("help-other@example.com").SetName("Other").
+		SetPasswordHash("x").SetTenantID(tenant.ID).SaveX(ctx)
+
+	publisher := &fakeHelpPublisher{}
+	registry := NewToolRegistry(nil, nil, nil, client)
+	registry.SetArtifactStore(bot.NewArtifactStore(client))
+	registry.SetHelpPublisher(publisher)
+	runCtx := WithToolActor(WithToolConversation(ctx, 88), user.ID)
+
+	created, err := registry.Execute(runCtx, tenant.ID, "help_create_draft", map[string]interface{}{
+		"pageKey": "ticket.detail",
+		"content": "## 初稿\n- 旧内容",
+	})
+	require.NoError(t, err)
+	artifactId := created.(map[string]interface{})["artifactId"].(int)
+
+	updated, err := registry.Execute(runCtx, tenant.ID, "help_update_draft", map[string]interface{}{
+		"artifactId": artifactId,
+		"content":    "## 初稿\n- 新内容\n- 补充步骤",
+	})
+	require.NoError(t, err)
+	updatePayload := updated.(map[string]interface{})
+	assert.Equal(t, 2, updatePayload["revision"])
+	assert.Equal(t, "draft", updatePayload["status"])
+
+	// 跨用户不可读写。
+	_, err = registry.Execute(WithToolActor(ctx, other.ID), tenant.ID, "help_update_draft", map[string]interface{}{
+		"artifactId": artifactId, "content": "x",
+	})
+	require.Error(t, err)
+
+	reviewCtx := WithToolActor(ctx, other.ID)
+	submitted, err := registry.Execute(reviewCtx, tenant.ID, "help_submit_review", map[string]interface{}{
+		"artifactId": artifactId,
+	})
+	require.NoError(t, err)
+	submitPayload := submitted.(map[string]interface{})
+	assert.Equal(t, 501, submitPayload["knowledgeArticleId"])
+	assert.Equal(t, "in_review", submitPayload["status"])
+	assert.Equal(t, 1, publisher.createCalls)
+	assert.Equal(t, user.ID, publisher.createAuthorID, "KB 草稿作者保持原 artifact 归属")
+	assert.Equal(t, "帮助文档草稿：工单详情", publisher.createTitle)
+	assert.Contains(t, publisher.createBody, "新内容")
+
+	// 审阅中不可再改正文（防止 artifact 与 KB 草稿漂移）。
+	_, err = registry.Execute(runCtx, tenant.ID, "help_update_draft", map[string]interface{}{
+		"artifactId": artifactId, "content": "x",
+	})
+	require.Error(t, err)
+
+	published, err := registry.Execute(reviewCtx, tenant.ID, "help_publish", map[string]interface{}{
+		"artifactId": artifactId,
+		"changeLog":  "T5-09a 审阅通过",
+	})
+	require.NoError(t, err)
+	publishPayload := published.(map[string]interface{})
+	assert.Equal(t, "published", publishPayload["status"])
+	assert.Equal(t, 501, publisher.publishedID)
+	assert.Equal(t, other.ID, publisher.publisherID, "发布人记录审批/操作者")
+	assert.Equal(t, "T5-09a 审阅通过", publisher.changeLog)
+	assert.Equal(t, 1, publisher.publishCalls)
+
+	// 已发布重放幂等；未提交审阅的草稿不可发布。
+	replay, err := registry.Execute(runCtx, tenant.ID, "help_publish", map[string]interface{}{"artifactId": artifactId})
+	require.NoError(t, err)
+	assert.Equal(t, true, replay.(map[string]interface{})["idempotentReplay"])
+
+	draft2, err := registry.Execute(runCtx, tenant.ID, "help_create_draft", map[string]interface{}{
+		"pageKey": "ticket.list", "content": "draft only",
+	})
+	require.NoError(t, err)
+	draft2ID := draft2.(map[string]interface{})["artifactId"].(int)
+	_, err = registry.Execute(runCtx, tenant.ID, "help_publish", map[string]interface{}{"artifactId": draft2ID})
+	require.ErrorContains(t, err, "尚未提交审阅")
+
+	// 写面未装配时 fail-visible。
+	bare := NewToolRegistry(nil, nil, nil, client)
+	bare.SetArtifactStore(bot.NewArtifactStore(client))
+	_, err = bare.Execute(runCtx, tenant.ID, "help_submit_review", map[string]interface{}{"artifactId": draft2ID})
+	require.ErrorContains(t, err, "知识库写面未启用")
+
 }

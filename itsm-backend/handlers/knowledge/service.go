@@ -155,6 +155,45 @@ func (s *Service) CreateArticle(ctx context.Context, a *Article) (*Article, erro
 	return s.repo.Create(ctx, a)
 }
 
+// CreateHelpDraft 是 T5-09a 帮助写面到 KB 的桥：把 AI 帮助草稿落为「用户指南」草稿。
+//
+// 只创建草稿，不发布；标题/正文继续走 CreateArticle 的统一消毒、分类校验与
+// 向量 outbox 口径。返回文章 ID 供 artifact 记录关联。
+func (s *Service) CreateHelpDraft(ctx context.Context, tenantID, authorID int, title, content string) (int, error) {
+	title = strings.TrimSpace(title)
+	content = strings.TrimSpace(content)
+	if title == "" || content == "" {
+		return 0, fmt.Errorf("帮助草稿标题与正文不能为空")
+	}
+	article, err := s.CreateArticle(ctx, &Article{
+		Title:    title,
+		Content:  content,
+		Category: "用户指南",
+		AuthorID: authorID,
+		TenantID: tenantID,
+	})
+	if err != nil {
+		return 0, err
+	}
+	return article.ID, nil
+}
+
+// PublishHelpDraft 发布帮助写面关联的 KB 草稿（T5-09a）。
+//
+// 边界：仅允许发布「用户指南」分类，防止 Help Agent 借 artifact 关联 ID
+// 变成任意知识文章的发布旁路。版本/发布态/向量同步复用 PublishArticle。
+func (s *Service) PublishHelpDraft(ctx context.Context, tenantID, publisherID, articleID int, changeLog string) error {
+	article, err := s.GetArticle(ctx, articleID, tenantID)
+	if err != nil {
+		return err
+	}
+	if article.Category != "用户指南" {
+		return fmt.Errorf("帮助写面仅允许发布「用户指南」分类")
+	}
+	_, err = s.PublishArticle(ctx, articleID, tenantID, publisherID, changeLog)
+	return err
+}
+
 func (s *Service) GetArticle(ctx context.Context, id int, tenantID int) (*Article, error) {
 	return s.repo.Get(ctx, id, tenantID)
 }

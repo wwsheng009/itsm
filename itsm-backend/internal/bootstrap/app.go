@@ -802,7 +802,8 @@ func NewApplication() *Application {
 	impactExplainer := service.NewImpactExplanationService(llmGateway, llmConfig.Model, nil, sugar)
 	toolRegistry.SetImpactExplainer(impactExplainer)
 	// B3-06：plan/analysis/draft 类工具产物存储（bot_artifacts；租户 + 归属隔离）。
-	toolRegistry.SetArtifactStore(botService.NewArtifactStore(client))
+	artifactStore := botService.NewArtifactStore(client)
+	toolRegistry.SetArtifactStore(artifactStore)
 
 	// General Notification Service & Controller
 	notificationService := service.NewNotificationService(client)
@@ -1018,6 +1019,8 @@ func NewApplication() *Application {
 	}
 	ragService.SetKnowledgeGuard(knowledgeGuard)
 	knowledgeHandler := knowledge.NewHandler(knowledgeServiceDomain)
+	// T5-09a：Help Agent 写面——提交审阅落 KB 草稿、发布复用 KB 版本/向量同步。
+	toolRegistry.SetHelpPublisher(knowledgeServiceDomain)
 
 	// Domain: SLA (DDD)
 	slaRepo := sla.NewEntRepository(client)
@@ -1052,6 +1055,8 @@ func NewApplication() *Application {
 	aiServiceDomain.SetEntClient(client)
 	// T5-03a：AI 对话附件复用通用附件服务（专用 AI 上传/下载端点）。
 	aiServiceDomain.SetAttachmentService(attachmentService)
+	// T5-09a：帮助草稿审阅队列（bot_artifacts；按租户 + 审阅权限）。
+	aiServiceDomain.SetArtifactStore(artifactStore)
 
 	// M2 能力开关（2026-09-30 方案）：MCP / Bot 运行时开关（管理后台可切换，免重启）。
 	// 默认值取静态配置（env / config.yaml）——system_configs 缺行即跟随默认，升级零行为变化；

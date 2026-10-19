@@ -70,6 +70,8 @@ type Service struct {
 	capability capability.Source
 	// T5-03a：AI 附件上传/下载（nil = 端点 503；复用通用附件服务）。
 	attachments *service.AttachmentService
+	// T5-09a：帮助草稿审阅队列（nil = 草稿端点 503）。
+	artifacts *bot.ArtifactStore
 }
 
 func NewService(
@@ -122,6 +124,11 @@ func (s *Service) SetEntClient(client *ent.Client) {
 // SetAttachmentService 注入通用附件服务（T5-03a；nil = AI 附件端点 503）。
 func (s *Service) SetAttachmentService(attachments *service.AttachmentService) {
 	s.attachments = attachments
+}
+
+// SetArtifactStore 注入帮助草稿产物存储（T5-09a；nil = 草稿端点 503）。
+func (s *Service) SetArtifactStore(store *bot.ArtifactStore) {
+	s.artifacts = store
 }
 
 // SetBotMetrics 注入运行维度指标服务（B4-02）。

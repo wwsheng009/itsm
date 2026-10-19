@@ -24,14 +24,20 @@ import {
 import { ReloadOutlined } from '@ant-design/icons';
 
 import {
+  aiExecuteTool,
   aiGetHelpCoverage,
   aiGetHelpTodos,
+  aiListHelpDrafts,
   aiSetHelpTodoState,
   type HelpCoverageResult,
+  type HelpDraftReviewItem,
+  type HelpDraftReviewResult,
   type HelpTodoItem,
   type HelpTodoState,
   type HelpTodosResult,
 } from '@/lib/api/ai-api';
+import HelpDraftReviewCard from './HelpDraftReviewCard';
+import { usePermissions } from '@/lib/hooks/use-permissions';
 
 const { Title, Text } = Typography;
 
@@ -75,18 +81,38 @@ const HelpCoveragePage: React.FC = () => {
   const [stateFilter, setStateFilter] = useState<'all' | 'open' | 'claimed' | 'ignored'>('all');
   const [statePending, setStatePending] = useState<string | null>(null);
   const [todoActionError, setTodoActionError] = useState<string | null>(null);
+  // T5-09a：帮助草稿审阅队列（独立降级，不影响覆盖率主数据）。
+  const [drafts, setDrafts] = useState<HelpDraftReviewResult | null>(null);
+  const [draftLoading, setDraftLoading] = useState(false);
+  const [draftError, setDraftError] = useState<string | null>(null);
+  const [draftActionError, setDraftActionError] = useState<string | null>(null);
+  const [draftNotice, setDraftNotice] = useState<string | null>(null);
+  const [draftPendingId, setDraftPendingId] = useState<number | null>(null);
+  const { hasPermission } = usePermissions();
+  const canPublishHelpDraft = hasPermission('knowledge', 'admin');
 
   const load = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
-      const [coverageResult, todosResult] = await Promise.all([
+      const [coverageResult, todosResult, draftsResult] = await Promise.all([
         aiGetHelpCoverage(),
         // 待办（H1-01）失败不影响看板主数据。
         aiGetHelpTodos(30, 100).catch(() => null),
+        // 草稿审阅（T5-09a）失败不影响覆盖率主数据。
+        aiListHelpDrafts()
+          .then(result => ({ ok: true as const, result }))
+          .catch((err: Error) => ({ ok: false as const, error: err })),
       ]);
       setCoverage(coverageResult);
       setTodos(todosResult);
+      if (draftsResult.ok) {
+        setDrafts(draftsResult.result);
+        setDraftError(null);
+      } else {
+        setDrafts(null);
+        setDraftError(draftsResult.error?.message || '帮助草稿审阅队列不可用（需要知识库写权限）');
+      }
     } catch (err) {
       setError((err as Error)?.message || '加载帮助覆盖率失败');
       setCoverage(null);
@@ -122,6 +148,42 @@ const HelpCoveragePage: React.FC = () => {
   );
 
   const statesAvailable = todos ? todos.states?.available !== false : true;
+
+  const refreshDrafts = useCallback(async () => {
+    setDraftLoading(true);
+    try {
+      const result = await aiListHelpDrafts();
+      setDrafts(result);
+      setDraftError(null);
+    } catch (err) {
+      setDrafts(null);
+      setDraftError((err as Error)?.message || '帮助草稿审阅队列不可用（需要知识库写权限）');
+    } finally {
+      setDraftLoading(false);
+    }
+  }, []);
+
+  const runDraftAction = useCallback(
+    async (item: HelpDraftReviewItem, tool: 'help_submit_review' | 'help_publish') => {
+      setDraftPendingId(item.artifactId);
+      setDraftActionError(null);
+      setDraftNotice(null);
+      try {
+        const result = await aiExecuteTool(tool, { artifactId: item.artifactId });
+        if (result.status === 'pending') {
+          setDraftNotice('已提交审批；通过后请刷新草稿队列查看状态。');
+        } else {
+          setDraftNotice(result.summary || '操作完成。');
+        }
+        await refreshDrafts();
+      } catch (err) {
+        setDraftActionError((err as Error)?.message || '操作失败');
+      } finally {
+        setDraftPendingId(null);
+      }
+    },
+    [refreshDrafts]
+  );
 
   const filteredTodos = useMemo(() => {
     const items = todos?.items ?? [];
@@ -408,6 +470,19 @@ const HelpCoveragePage: React.FC = () => {
           />
         )}
       </Card>
+
+      <HelpDraftReviewCard
+        items={drafts?.items ?? []}
+        loading={draftLoading}
+        error={draftError}
+        actionError={draftActionError}
+        notice={draftNotice}
+        actionPendingId={draftPendingId}
+        canPublish={canPublishHelpDraft}
+        onSubmitReview={item => void runDraftAction(item, 'help_submit_review')}
+        onPublish={item => void runDraftAction(item, 'help_publish')}
+        onRefresh={() => void refreshDrafts()}
+      />
 
       <Card size="small" title="页面覆盖清单">
         <Space style={{ marginBottom: 12 }} wrap>

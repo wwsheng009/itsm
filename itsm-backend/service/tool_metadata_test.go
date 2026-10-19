@@ -15,7 +15,9 @@ import (
 //
 // 2026-10-18：17 → 22——H0-03/H0-04 新增 5 个 Help 工具
 // （4 个只读检索/阅读 + help_create_draft（plan：只落 bot_artifacts 草稿产物，不发布））。
-const builtinToolCount = 22
+// 2026-10-19：22 → 25——T5-09a 新增 help_update_draft（plan）、
+// help_submit_review（act_low）、help_publish（act_medium）。
+const builtinToolCount = 25
 
 // wantBuiltinRisk 是 B0-01 冻结的风险矩阵（对齐阶段一报告 §5.5）：
 // 读工具 read/plan；写工具按影响面 act_low → act_medium → act_high。
@@ -36,11 +38,15 @@ var wantBuiltinRisk = map[string]string{
 	"help_list_gaps": ToolRiskRead,
 	// H0-04 帮助文档草稿产物（plan：零业务写入、不发布）
 	"help_create_draft": ToolRiskPlan,
+	// T5-09a 帮助写面（plan / 写动作均经审批）
+	"help_update_draft":  ToolRiskPlan,
+	"help_submit_review": ToolRiskActLow,
+	"help_publish":       ToolRiskActMedium,
 	// B3-06 plan 工具（3）：只读草案生成，产物落 bot_artifacts
 	"draft_ticket_fields":    ToolRiskPlan,
 	"analyze_ci_impact_plan": ToolRiskPlan,
 	"draft_kb_article":       ToolRiskPlan,
-	// 写（6）
+	// 写（8）
 	"link_ticket_ci":         ToolRiskActLow,
 	"create_ticket":          ToolRiskActLow,
 	"update_ticket":          ToolRiskActMedium,

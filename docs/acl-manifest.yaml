@@ -1,8 +1,8 @@
 version: "1.0"
-generated_at: "2026-10-18T06:13:22.195Z"
+generated_at: "2026-10-19T13:45:51.685Z"
 router_version: "1.0"
-total_routes: 953
-permission_coverage: "93.81%"
+total_routes: 991
+permission_coverage: "94.05%"
 routes:
   - method: GET
     path: /swagger/*any
@@ -220,156 +220,330 @@ routes:
     menu: v1
     description: 创建
     source: ai_routes.go:16
+  - method: POST
+    path: /api/v1/ai/attachments
+    permission: ai.read
+    menu: v1
+    description: 创建
+    source: ai_routes.go:18
+  - method: GET
+    path: /api/v1/ai/attachments/:id/content
+    permission: ai.read
+    menu: v1
+    description: 列表
+    source: ai_routes.go:19
   - method: GET
     path: /api/v1/ai/conversations
     permission: ai.read
     menu: v1
     description: 列表
-    source: ai_routes.go:17
+    source: ai_routes.go:20
   - method: GET
     path: /api/v1/ai/conversations/:id
     permission: ai.read
     menu: v1
     description: 列表
-    source: ai_routes.go:18
+    source: ai_routes.go:21
+  - method: GET
+    path: /api/v1/ai/conversations/:id/export
+    permission: ai.read
+    menu: v1
+    description: 列表
+    source: ai_routes.go:23
+  - method: GET
+    path: /api/v1/ai/conversations/:id/trace
+    permission: ai.read
+    menu: v1
+    description: 列表
+    source: ai_routes.go:25
   - method: DELETE
     path: /api/v1/ai/conversations/:id
     permission: ai.write
     menu: v1
     description: 删除
-    source: ai_routes.go:19
+    source: ai_routes.go:26
   - method: GET
     path: /api/v1/ai/analysis-results
     permission: ai.read
     menu: v1
     description: 列表
-    source: ai_routes.go:20
+    source: ai_routes.go:27
   - method: GET
     path: /api/v1/ai/analysis-results/:id
     permission: ai.read
     menu: v1
     description: 列表
-    source: ai_routes.go:21
+    source: ai_routes.go:28
   - method: DELETE
     path: /api/v1/ai/analysis-results/:id
     permission: ai.write
     menu: v1
     description: 删除
-    source: ai_routes.go:22
+    source: ai_routes.go:29
   - method: POST
     path: /api/v1/ai/analytics
     permission: ai.read
     menu: v1
     description: 创建
-    source: ai_routes.go:23
+    source: ai_routes.go:30
   - method: POST
     path: /api/v1/ai/predictions
     permission: ai.read
     menu: v1
     description: 创建
-    source: ai_routes.go:24
+    source: ai_routes.go:31
   - method: POST
     path: /api/v1/ai/tickets/:id/analyze
     permission: ai.read
     menu: v1
     description: 创建
-    source: ai_routes.go:25
+    source: ai_routes.go:32
+  - method: POST
+    path: /api/v1/ai/tickets/:id/reply-draft
+    permission: ai.read
+    menu: v1
+    description: 创建
+    source: ai_routes.go:34
+  - method: POST
+    path: /api/v1/ai/tickets/batch-triage
+    permission: ai.read
+    menu: v1
+    description: 创建
+    source: ai_routes.go:41
+  - method: POST
+    path: /api/v1/ai/tickets/batch-reply-drafts
+    permission: ai.read
+    menu: v1
+    description: 创建
+    source: ai_routes.go:46
+  - method: POST
+    path: /api/v1/ai/tickets/interpret
+    permission: ai.read
+    menu: v1
+    description: 创建
+    source: ai_routes.go:53
   - method: POST
     path: /api/v1/ai/incidents/:id/analyze
     permission: ai.read
     menu: v1
     description: 创建
-    source: ai_routes.go:26
+    source: ai_routes.go:58
   - method: POST
     path: /api/v1/ai/feedback
     permission: ai.write
     menu: v1
     description: 创建
-    source: ai_routes.go:31
+    source: ai_routes.go:63
   - method: POST
     path: /api/v1/ai/audit
     permission: ai.write
     menu: v1
     description: 创建
-    source: ai_routes.go:32
+    source: ai_routes.go:64
   - method: GET
     path: /api/v1/ai/metrics
     permission: ai.read
     menu: v1
     description: 列表
-    source: ai_routes.go:33
+    source: ai_routes.go:65
   - method: GET
     path: /api/v1/ai/bot-metrics
     permission: ai.read
     menu: v1
     description: 列表
-    source: ai_routes.go:35
+    source: ai_routes.go:67
   - method: GET
     path: /api/v1/ai/evaluation
     permission: ai.read
     menu: v1
     description: 列表
-    source: ai_routes.go:37
+    source: ai_routes.go:69
   - method: GET
     path: /api/v1/ai/audit-logs
     permission: ai.read
     menu: v1
     description: 列表
-    source: ai_routes.go:39
+    source: ai_routes.go:71
   - method: POST
     path: /api/v1/ai/triage
     permission: ai.read
     menu: v1
     description: 创建
-    source: ai_routes.go:40
+    source: ai_routes.go:72
   - method: POST
     path: /api/v1/ai/rag/search
     permission: ai.read
     menu: v1
     description: 创建
-    source: ai_routes.go:47
+    source: ai_routes.go:79
   - method: POST
     path: /api/v1/ai/ticket/create
     permission: ticket.create
     menu: v1
     description: 创建
-    source: ai_routes.go:49
+    source: ai_routes.go:81
+  - method: POST
+    path: /api/v1/ai/telemetry/events
+    permission: ai.read
+    menu: v1
+    description: 创建
+    source: ai_routes.go:83
+  - method: GET
+    path: /api/v1/ai/telemetry/summary
+    permission: ai.read
+    menu: v1
+    description: 列表
+    source: ai_routes.go:84
+  - method: GET
+    path: /api/v1/ai/help/search
+    permission: ai.read
+    menu: v1
+    description: 列表
+    source: ai_routes.go:86
+  - method: GET
+    path: /api/v1/ai/help/page
+    permission: ai.read
+    menu: v1
+    description: 列表
+    source: ai_routes.go:87
+  - method: GET
+    path: /api/v1/ai/assistant/context
+    permission: ai.read
+    menu: v1
+    description: 列表
+    source: ai_routes.go:89
+  - method: GET
+    path: /api/v1/ai/help/todos
+    permission: ai.read
+    menu: v1
+    description: 列表
+    source: ai_routes.go:91
+  - method: PUT
+    path: /api/v1/ai/help/todos/state
+    permission: ai.write
+    menu: v1
+    description: 更新
+    source: ai_routes.go:93
+  - method: GET
+    path: /api/v1/ai/help/coverage
+    permission: ai.read
+    menu: v1
+    description: 列表
+    source: ai_routes.go:95
+  - method: GET
+    path: /api/v1/ai/help/drafts
+    permission: knowledge.write
+    menu: v1
+    description: 列表
+    source: ai_routes.go:97
+  - method: GET
+    path: /api/v1/ai/observability/doc-metrics
+    permission: ai.read
+    menu: v1
+    description: 列表
+    source: ai_routes.go:99
+  - method: GET
+    path: /api/v1/ai/runs/:id/trace
+    permission: ai.read
+    menu: v1
+    description: 列表
+    source: ai_routes.go:101
+  - method: GET
+    path: /api/v1/ai/health
+    permission: ai.read
+    menu: v1
+    description: 列表
+    source: ai_routes.go:103
+  - method: POST
+    path: /api/v1/ai/health/alerts/dispatch
+    permission: ai.write
+    menu: v1
+    description: 创建
+    source: ai_routes.go:104
+  - method: GET
+    path: /api/v1/ai/observability/pilot-report
+    permission: ai.read
+    menu: v1
+    description: 列表
+    source: ai_routes.go:106
+  - method: GET
+    path: /api/v1/ai/observability/segments
+    permission: ai.read
+    menu: v1
+    description: 列表
+    source: ai_routes.go:108
+  - method: GET
+    path: /api/v1/ai/assistant/suggestions/dynamic
+    permission: ai.read
+    menu: v1
+    description: 列表
+    source: ai_routes.go:110
+  - method: POST
+    path: /api/v1/ai/async/answers
+    permission: ai.read
+    menu: v1
+    description: 创建
+    source: ai_routes.go:112
+  - method: GET
+    path: /api/v1/ai/async/answers/:id
+    permission: ai.read
+    menu: v1
+    description: 列表
+    source: ai_routes.go:113
+  - method: GET
+    path: /api/v1/ai/runs
+    permission: ai.read
+    menu: v1
+    description: 列表
+    source: ai_routes.go:115
+  - method: POST
+    path: /api/v1/ai/runs/:id/cancel
+    permission: ai.write
+    menu: v1
+    description: 创建
+    source: ai_routes.go:116
+  - method: POST
+    path: /api/v1/ai/runs/:id/rollback
+    permission: ai.write
+    menu: v1
+    description: 创建
+    source: ai_routes.go:117
   - method: GET
     path: /api/v1/agent/tools
     permission: ai.read
     menu: v1
     description: 列表
-    source: ai_routes.go:54
+    source: ai_routes.go:122
   - method: GET
     path: /api/v1/agent/tools/catalog
     permission: ai.read
     menu: v1
     description: 列表
-    source: ai_routes.go:57
+    source: ai_routes.go:125
   - method: POST
     path: /api/v1/agent/tools/execute
     permission: ai.read
     menu: v1
     description: 创建
-    source: ai_routes.go:58
+    source: ai_routes.go:126
   - method: GET
     path: /api/v1/agent/tools/:id
     permission: ai.read
     menu: v1
     description: 列表
-    source: ai_routes.go:59
+    source: ai_routes.go:127
   - method: GET
     path: /api/v1/agent/tools/invocations
     permission: ai.read
     menu: v1
     description: 列表
-    source: ai_routes.go:61
+    source: ai_routes.go:129
   - method: POST
     path: /api/v1/agent/tools/:id/approve
     permission: ai.write
     menu: v1
     description: 创建
-    source: ai_routes.go:62
+    source: ai_routes.go:130
   - method: POST
     path: /api/v1/alerts/sources/:source/ingest
     permission: alert.write
@@ -477,55 +651,55 @@ routes:
     permission: null  # MISSING ACL
     menu: v1
     description: 列表
-    source: bot_routes.go:27
+    source: bot_routes.go:29
   - method: GET
     path: /api/v1/bots/:id
     permission: null  # MISSING ACL
     menu: v1
     description: 列表
-    source: bot_routes.go:28
+    source: bot_routes.go:30
   - method: GET
     path: /api/v1/bots/:id/grants
     permission: null  # MISSING ACL
     menu: v1
     description: 列表
-    source: bot_routes.go:29
+    source: bot_routes.go:31
   - method: GET
     path: /api/v1/bots
     permission: null  # MISSING ACL
     menu: v1
     description: 列表
-    source: bot_routes.go:35
+    source: bot_routes.go:37
   - method: POST
     path: /api/v1/bots
     permission: null  # MISSING ACL
     menu: v1
     description: 创建
-    source: bot_routes.go:40
-  - method: PUT
-    path: /api/v1/bots/:id
-    permission: null  # MISSING ACL
-    menu: v1
-    description: 更新
-    source: bot_routes.go:41
-  - method: DELETE
-    path: /api/v1/bots/:id
-    permission: null  # MISSING ACL
-    menu: v1
-    description: 删除
     source: bot_routes.go:42
   - method: PUT
-    path: /api/v1/bots/:id/grants
+    path: /api/v1/bots/:id
     permission: null  # MISSING ACL
     menu: v1
     description: 更新
     source: bot_routes.go:43
   - method: DELETE
-    path: /api/v1/bots/:id/grants/:grantId
+    path: /api/v1/bots/:id
     permission: null  # MISSING ACL
     menu: v1
     description: 删除
     source: bot_routes.go:44
+  - method: PUT
+    path: /api/v1/bots/:id/grants
+    permission: null  # MISSING ACL
+    menu: v1
+    description: 更新
+    source: bot_routes.go:45
+  - method: DELETE
+    path: /api/v1/bots/:id/grants/:grantId
+    permission: null  # MISSING ACL
+    menu: v1
+    description: 删除
+    source: bot_routes.go:46
   - method: GET
     path: /api/v1/cab/members
     permission: change.read
@@ -3730,192 +3904,246 @@ routes:
     menu: v1
     description: 创建
     source: msp_routes.go:50
+  - method: GET
+    path: /api/v1/msp/help/docs
+    permission: msp.read
+    menu: v1
+    description: 列表
+    source: msp_routes.go:53
+  - method: POST
+    path: /api/v1/msp/help/docs
+    permission: msp.write
+    menu: v1
+    description: 创建
+    source: msp_routes.go:54
+  - method: PUT
+    path: /api/v1/msp/help/docs/:id
+    permission: msp.write
+    menu: v1
+    description: 更新
+    source: msp_routes.go:55
+  - method: POST
+    path: /api/v1/msp/help/docs/:id/publish
+    permission: msp.write
+    menu: v1
+    description: 创建
+    source: msp_routes.go:56
+  - method: DELETE
+    path: /api/v1/msp/help/docs/:id
+    permission: msp.write
+    menu: v1
+    description: 删除
+    source: msp_routes.go:57
+  - method: GET
+    path: /api/v1/msp/customers/:customer_tenant_id/help/distributions
+    permission: msp_customer.read
+    menu: v1
+    description: 列表
+    source: msp_routes.go:60
+  - method: POST
+    path: /api/v1/msp/customers/:customer_tenant_id/help/docs/:id/distribute
+    permission: msp_customer.write
+    menu: v1
+    description: 创建
+    source: msp_routes.go:61
+  - method: POST
+    path: /api/v1/msp/customers/:customer_tenant_id/help/distributions/:distId/upgrade
+    permission: msp_customer.write
+    menu: v1
+    description: 创建
+    source: msp_routes.go:62
+  - method: POST
+    path: /api/v1/msp/customers/:customer_tenant_id/help/distributions/:distId/unbind
+    permission: msp_customer.write
+    menu: v1
+    description: 创建
+    source: msp_routes.go:63
   - method: POST
     path: /api/v1/msp/tickets/:id/assign
     permission: msp_ticket.write
     menu: v1
     description: 创建
-    source: msp_routes.go:53
+    source: msp_routes.go:66
   - method: GET
     path: /api/v1/msp/workbench/tickets
     permission: msp_ticket.read
     menu: v1
     description: 列表
-    source: msp_routes.go:56
+    source: msp_routes.go:69
   - method: GET
     path: /api/v1/msp/workbench/summary
     permission: msp_ticket.read
     menu: v1
     description: 列表
-    source: msp_routes.go:57
+    source: msp_routes.go:70
   - method: POST
     path: /api/v1/msp/workbench/batch
     permission: msp_ticket.write
     menu: v1
     description: 创建
-    source: msp_routes.go:59
+    source: msp_routes.go:72
   - method: POST
     path: /api/v1/msp/tickets/:id/reply
     permission: msp_ticket.write
     menu: v1
     description: 创建
-    source: msp_routes.go:60
+    source: msp_routes.go:73
   - method: POST
     path: /api/v1/msp/tickets/:id/status
     permission: msp_ticket.write
     menu: v1
     description: 创建
-    source: msp_routes.go:61
+    source: msp_routes.go:74
   - method: GET
     path: /api/v1/msp/tickets/:id
     permission: msp_ticket.read
     menu: v1
     description: 列表
-    source: msp_routes.go:63
+    source: msp_routes.go:76
   - method: GET
     path: /api/v1/msp/tickets/:id/comments
     permission: msp_ticket.read
     menu: v1
     description: 列表
-    source: msp_routes.go:65
+    source: msp_routes.go:78
   - method: GET
     path: /api/v1/msp/workbench/views
     permission: msp_ticket.read
     menu: v1
     description: 列表
-    source: msp_routes.go:67
+    source: msp_routes.go:80
   - method: POST
     path: /api/v1/msp/workbench/views
     permission: msp_ticket.write
     menu: v1
     description: 创建
-    source: msp_routes.go:68
+    source: msp_routes.go:81
   - method: PUT
     path: /api/v1/msp/workbench/views/:id
     permission: msp_ticket.write
     menu: v1
     description: 更新
-    source: msp_routes.go:69
+    source: msp_routes.go:82
   - method: DELETE
     path: /api/v1/msp/workbench/views/:id
     permission: msp_ticket.write
     menu: v1
     description: 删除
-    source: msp_routes.go:70
+    source: msp_routes.go:83
   - method: POST
     path: /api/v1/msp/workbench/views/:id/default
     permission: msp_ticket.write
     menu: v1
     description: 创建
-    source: msp_routes.go:71
+    source: msp_routes.go:84
   - method: GET
     path: /api/v1/msp/workbench/tasks
     permission: msp_ticket.read
     menu: v1
     description: 列表
-    source: msp_routes.go:76
+    source: msp_routes.go:89
   - method: POST
     path: /api/v1/msp/workbench/tasks/:taskId/claim
     permission: msp_ticket.write
     menu: v1
     description: 创建
-    source: msp_routes.go:77
+    source: msp_routes.go:90
   - method: POST
     path: /api/v1/msp/workbench/tasks/:taskId/complete
     permission: msp_ticket.write
     menu: v1
     description: 创建
-    source: msp_routes.go:78
+    source: msp_routes.go:91
   - method: GET
     path: /api/v1/msp/workbench/changes
     permission: msp_ticket.read
     menu: v1
     description: 列表
-    source: msp_routes.go:83
+    source: msp_routes.go:96
   - method: GET
     path: /api/v1/msp/workbench/problems
     permission: msp_ticket.read
     menu: v1
     description: 列表
-    source: msp_routes.go:84
+    source: msp_routes.go:97
   - method: GET
     path: /api/v1/msp/workbench/service-requests
     permission: msp_ticket.read
     menu: v1
     description: 列表
-    source: msp_routes.go:85
+    source: msp_routes.go:98
   - method: GET
     path: /api/v1/msp/workbench/projects
     permission: msp_ticket.read
     menu: v1
     description: 列表
-    source: msp_routes.go:87
+    source: msp_routes.go:100
   - method: GET
     path: /api/v1/msp/workbench/records-summary
     permission: msp_ticket.read
     menu: v1
     description: 列表
-    source: msp_routes.go:89
+    source: msp_routes.go:102
   - method: GET
     path: /api/v1/msp/changes/:id
     permission: msp_ticket.read
     menu: v1
     description: 列表
-    source: msp_routes.go:90
+    source: msp_routes.go:103
   - method: GET
     path: /api/v1/msp/problems/:id
     permission: msp_ticket.read
     menu: v1
     description: 列表
-    source: msp_routes.go:91
+    source: msp_routes.go:104
   - method: GET
     path: /api/v1/msp/service-requests/:id
     permission: msp_ticket.read
     menu: v1
     description: 列表
-    source: msp_routes.go:92
+    source: msp_routes.go:105
   - method: GET
     path: /api/v1/msp/projects/:id
     permission: msp_ticket.read
     menu: v1
     description: 列表
-    source: msp_routes.go:94
+    source: msp_routes.go:107
   - method: POST
     path: /api/v1/msp/problems/:id/status
     permission: msp_ticket.write
     menu: v1
     description: 创建
-    source: msp_routes.go:98
+    source: msp_routes.go:111
   - method: POST
     path: /api/v1/msp/changes/:id/status
     permission: msp_ticket.write
     menu: v1
     description: 创建
-    source: msp_routes.go:99
+    source: msp_routes.go:112
   - method: POST
     path: /api/v1/msp/service-requests/:id/status
     permission: msp_ticket.write
     menu: v1
     description: 创建
-    source: msp_routes.go:100
+    source: msp_routes.go:113
   - method: GET
     path: /api/v1/msp/reports/customers
     permission: msp_report.read
     menu: v1
     description: 列表
-    source: msp_routes.go:103
+    source: msp_routes.go:116
   - method: GET
     path: /api/v1/msp/reports/performance
     permission: msp_report.read
     menu: v1
     description: 列表
-    source: msp_routes.go:104
+    source: msp_routes.go:117
   - method: GET
     path: /api/v1/msp/audit/summary
     permission: msp_report.read
     menu: v1
     description: 列表
-    source: msp_routes.go:107
+    source: msp_routes.go:120
   - method: POST
     path: /api/v1/problem-investigation/investigations
     permission: problem.write

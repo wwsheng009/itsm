@@ -151,6 +151,8 @@ type ToolRegistry struct {
 	impactExplain  *ImpactExplanationService
 	// artifacts 是 plan/analysis/draft 类工具的产物存储（B3-06；nil = 该能力不注册）。
 	artifacts *bot.ArtifactStore
+	// helpPublisher 是帮助写面落 KB 草稿/发布的桥（T5-09a；nil = 写面 fail-visible）。
+	helpPublisher HelpDocPublisher
 	// providers 是内置工具之外的工具来源（M0-09：MCP），按注册顺序作为解析兜底。
 	providers []ToolProvider
 }
@@ -173,6 +175,11 @@ func (t *ToolRegistry) SetImpactExplainer(s *ImpactExplanationService) { t.impac
 
 // SetArtifactStore 注入产物存储（B3-06）；nil 时 plan/analysis/draft 工具执行返回「能力未启用」。
 func (t *ToolRegistry) SetArtifactStore(store *bot.ArtifactStore) { t.artifacts = store }
+
+// SetHelpPublisher 注入帮助文档写面（T5-09a）：提交审阅时落 KB 草稿、发布时走 KB 发布。
+func (t *ToolRegistry) SetHelpPublisher(publisher HelpDocPublisher) {
+	t.helpPublisher = publisher
+}
 
 // RegisterProvider 注册外部工具来源（M0-09：MCP provider；nil 忽略）。
 // 解析顺序 = 内置优先 → provider 注册顺序。
@@ -684,8 +691,8 @@ func (t *ToolRegistry) ListTools() []ToolDefinition {
 						"description": "优先级，缺省 medium",
 					},
 					"type": map[string]interface{}{
-						"type": "string",
-						"enum": []any{"incident", "service_request", "change", "ticket", "problem", "improvement"},
+						"type":        "string",
+						"enum":        []any{"incident", "service_request", "change", "ticket", "problem", "improvement"},
 						"description": "工单类型",
 					},
 					"category": map[string]interface{}{
@@ -969,6 +976,12 @@ func (t *ToolRegistry) executeBuiltin(ctx context.Context, tenantID int, name st
 		return executeHelpTool(ctx, name, args)
 	case "help_create_draft":
 		return t.executeHelpCreateDraft(ctx, tenantID, args)
+	case "help_update_draft":
+		return t.executeHelpUpdateDraft(ctx, tenantID, args)
+	case "help_submit_review":
+		return t.executeHelpSubmitReview(ctx, tenantID, args)
+	case "help_publish":
+		return t.executeHelpPublish(ctx, tenantID, args)
 	case "get_incident_stats":
 		// 使用ListIncidents来获取统计信息
 		incidents, _, err := t.incident.ListIncidents(ctx, tenantID, 1, 1000, map[string]interface{}{})

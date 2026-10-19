@@ -18,6 +18,7 @@ import {
   aiBatchReplyDrafts,
   aiInterpretTicketIntent,
   aiGetHelpTodos,
+  aiListHelpDrafts,
   aiSetHelpTodoState,
   aiUploadAttachment,
   aiAttachmentContentUrl,
@@ -1037,6 +1038,38 @@ describe('AI API', () => {
       expect(result.items[0].state).toBe('claimed');
       expect(result.states?.available).toBe(true);
       expect(result.totals.claimed).toBe(1);
+    });
+
+    it('T5-09a：aiListHelpDrafts 读取审阅队列与行级 diff', async () => {
+      mockGet.mockResolvedValue({
+        total: 1,
+        items: [
+          {
+            artifactId: 31,
+            ownerUserId: 9,
+            pageKey: 'ticket.detail',
+            title: '工单详情帮助草稿',
+            status: 'draft',
+            revision: 2,
+            markdown: '## 新内容',
+            baselineMarkdown: '## 旧内容',
+            diff: [
+              { type: 'removed', content: '## 旧内容' },
+              { type: 'added', content: '## 新内容' },
+            ],
+            createdAt: '2026-10-19T00:00:00Z',
+          },
+        ],
+      });
+
+      const result = await aiListHelpDrafts();
+
+      expect(mockGet).toHaveBeenCalledWith('/api/v1/ai/help/drafts');
+      expect(result.items[0].artifactId).toBe(31);
+      expect(result.items[0].diff).toEqual([
+        { type: 'removed', content: '## 旧内容' },
+        { type: 'added', content: '## 新内容' },
+      ]);
     });
 
     it('aiSetHelpTodoState PUT 状态写面（claimed|ignored|open 同一入口）', async () => {
