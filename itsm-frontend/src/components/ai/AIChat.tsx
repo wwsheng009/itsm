@@ -5,7 +5,7 @@
  * `chat-core/use-ai-chat-session`，消息项抽到 `chat-core/ChatMessageItem`；
  * 本文件只保留整页布局锁 + 工作区外壳 JSX（会话历史 / 工具条 / 消息区 / 输入坞）。
  */
-import React, { useEffect, useLayoutEffect, useRef } from 'react';
+import React, { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { Alert, Button, Input, Popconfirm, Select, Spin, Tag, Tooltip, Typography, theme } from 'antd';
 import type { TextAreaRef } from 'antd/es/input/TextArea';
 import {
@@ -34,6 +34,8 @@ import { useAIChatSession } from './chat-core/use-ai-chat-session';
 import { InputDockAssistMenu } from './chat-core/InputDockAssistMenu';
 import { useInputDockAssist } from './chat-core/use-input-dock-assist';
 import { useAssistantStore } from '@/lib/store/assistant-store';
+import type { ChatMessage } from './chat-core/types';
+import HandoffActionCard from './handoff/HandoffActionCard';
 import AssistantDiagnosticsEntry, {
   AI_CHAT_DIAGNOSTICS_OPEN_TESTID,
 } from './diagnostics/AssistantDiagnosticsEntry';
@@ -166,6 +168,7 @@ const AIChat: React.FC = () => {
 
   // T5-02：输入坞 `/` 快捷指令 + `@` 当前页对象引用（只填不发）。
   const inputRef = useRef<TextAreaRef>(null);
+  const [handoffMessage, setHandoffMessage] = useState<ChatMessage | null>(null);
   // T5-05：Dock 关闭时，预填入口降级到工作区；工作区在此消费一次提示词（只填不发）。
   const pendingPrompt = useAssistantStore(state => state.pendingPrompt);
   const consumePendingPrompt = useAssistantStore(state => state.consumePendingPrompt);
@@ -546,6 +549,7 @@ const AIChat: React.FC = () => {
                   onOpenOutcome={openOutcome}
                   // B1-07：对话内确认（确认抽屉）。入口只在确认单仍 pending 且未过期时出现。
                   onRequestConfirm={handleRequestConfirm}
+                  onHandoff={setHandoffMessage}
                 />
               ))}
             </div>
@@ -640,6 +644,11 @@ const AIChat: React.FC = () => {
           </div>
         </div>
       </section>
+      <HandoffActionCard
+        open={handoffMessage !== null}
+        message={handoffMessage}
+        onClose={() => setHandoffMessage(null)}
+      />
     </div>
   );
 };

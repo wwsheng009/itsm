@@ -4,7 +4,7 @@
  */
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Alert, Avatar, Button, Spin, Tag, Tooltip, Typography, theme } from 'antd';
-import { Bot, Check, Copy, FileText, ThumbsDown, ThumbsUp } from 'lucide-react';
+import { Bot, Check, Copy, FileText, ThumbsDown, ThumbsUp, UserRound } from 'lucide-react';
 
 import { aiApproveTool, type RagAnswer, type ToolInvocationDetail } from '@/lib/api/ai-api';
 import { usePermissions } from '@/lib/hooks/use-permissions';
@@ -45,6 +45,8 @@ interface ChatMessageItemProps {
   onConfirmed?: () => void;
   /** I0-04：结果落点回执的「打开」动作（SPA 导航由调用方注入；缺省整页跳转兜底）。 */
   onOpenOutcome?: (outcome: AssistantOutcome) => void;
+  /** T5-04a：消息级「转人工」入口（打开页面 / 预填表单）。 */
+  onHandoff?: (message: ChatMessage) => void;
 }
 
 /** 单条消息：用户 = 右对齐气泡；助手 = 头像 + Markdown 正文 + 操作区。 */
@@ -56,6 +58,7 @@ export const ChatMessageItem: React.FC<ChatMessageItemProps> = ({
   onRequestConfirm,
   onConfirmed,
   onOpenOutcome,
+  onHandoff,
 }) => {
   const { token } = theme.useToken();
   // 入口级门禁：消息级「补充为知识文章」→ knowledge:write（落点 /knowledge/articles/new 路由级同码）。
@@ -340,6 +343,18 @@ export const ChatMessageItem: React.FC<ChatMessageItemProps> = ({
               <Text type="secondary" style={{ fontSize: 12 }} data-testid="answer-feedback-thanks">
                 已反馈
               </Text>
+            ) : null}
+            {onHandoff ? (
+              <Button
+                type="text"
+                size="small"
+                icon={<UserRound size={12} />}
+                onClick={() => onHandoff(message)}
+                data-testid="answer-handoff"
+                style={{ height: 'auto', padding: 0, fontSize: 12, color: token.colorTextSecondary }}
+              >
+                转人工
+              </Button>
             ) : null}
             {message.providerInfo?.provider ? (
               <Tooltip title={`生效来源：${providerSourceLabel}`}>

@@ -1,6 +1,6 @@
-import { useNavigate } from 'react-router';
+import { useLocation, useNavigate } from 'react-router';
 
-import React, { useState, useEffect, useCallback, useRef, lazy, Suspense } from 'react';
+import React, { useState, useEffect, useCallback, useRef, useMemo, lazy, Suspense } from 'react';
 import { Button, Card, Form, Input, Select, Upload, Space, Row, Col, message, Tabs, Typography, Divider, Tag, Spin } from 'antd';
 import { ArrowLeft, Search, X, Sparkles } from 'lucide-react';
 import { IncidentAPI } from '@/lib/api/incident-api';
@@ -23,6 +23,7 @@ import {
 } from '@/lib/rich-text/staged-images';
 import { AttachmentApi, incidentAttachmentPreviewUrl } from '@/lib/api/attachment-api';
 import type { UploadedImage } from '@/components/common/rich-text/RichTextEditor';
+import { pickBlankHandoffPrefill, readHandoffPrefill } from '@/lib/ai/handoff/prefill';
 
 const { Title, Text } = Typography;
 const { TextArea } = Input;
@@ -67,6 +68,7 @@ interface IncidentFormValues {
 
 export default function CreateIncidentPage() {
   const navigate = useNavigate();
+  const location = useLocation();
   const [form] = Form.useForm();
   const [loading, setLoading] = useState(false);
   const [activeTab, setActiveTab] = useState('basic');
@@ -79,6 +81,23 @@ export default function CreateIncidentPage() {
   const { handleError } = useErrorHandler();
   // PE-5 增补：创建时挂接项目（canAttach = project:write + incident:write，最终以后端动态复核为准）。
   const projectLinkPermission = useProjectLinkPermission('incident');
+  const handoffPrefill = useMemo(
+    () => readHandoffPrefill(location.state, 'incident'),
+    [location.state]
+  );
+  const handoffPrefillAppliedRef = useRef(false);
+
+  // T5-04a：AI 助手 handoff 预填（只填空白字段，不自动提交；消费后清除路由 state）。
+  useEffect(() => {
+    if (!handoffPrefill || handoffPrefillAppliedRef.current) return;
+    handoffPrefillAppliedRef.current = true;
+    const patch = pickBlankHandoffPrefill(handoffPrefill, {
+      title: form.getFieldValue('title'),
+      description: form.getFieldValue('description'),
+    });
+    if (Object.keys(patch).length > 0) form.setFieldsValue(patch);
+    navigate(location.pathname, { replace: true, state: null });
+  }, [form, handoffPrefill, location.pathname, navigate]);
 
   // AI 智能辅助：分类建议 + 相似历史事件
   // 说明：AI 建议一律「显式采纳」，不自动回填表单，避免用户不知情被改写输入

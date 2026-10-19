@@ -100,4 +100,20 @@ describe('ChatMessageItem × OutcomeReceipt（I0-04）', () => {
     fireEvent.click(screen.getByTestId('answer-feedback-helpful'));
     expect(mockedTrack).toHaveBeenCalledTimes(1);
   });
+
+  it('T5-04a：点击「转人工」把当前消息交给 handoff 动作卡', () => {
+    const onHandoff = jest.fn();
+    render(
+      <ChatMessageItem
+        message={message}
+        providerLabel={() => 'provider'}
+        onCreateArticle={jest.fn()}
+        onOpenApproval={jest.fn()}
+        onHandoff={onHandoff}
+      />
+    );
+
+    fireEvent.click(screen.getByTestId('answer-handoff'));
+    expect(onHandoff).toHaveBeenCalledWith(expect.objectContaining({ id: 'm-outcome' }));
+  });
 });

@@ -1,4 +1,4 @@
-import { useNavigate } from 'react-router';
+import { useLocation, useNavigate } from 'react-router';
 
 /**
  * 工单创建页（富文本 / 附件增强版）
@@ -52,6 +52,7 @@ import DynamicFieldRenderer, { type ReferenceSelectOptions } from '@/components/
 import ProjectSelect, { useProjectLinkPermission } from '@/components/business/ProjectSelect';
 import { InlineApplyDiff } from '@/components/ai/InlineApplyDiff';
 import { useInlineApplyFlow, type InlineChangeSet } from '@/components/ai/use-inline-apply';
+import { pickBlankHandoffPrefill, readHandoffPrefill } from '@/lib/ai/handoff/prefill';
 
 const { Title, Text } = Typography;
 const { TextArea } = Input;
@@ -125,11 +126,29 @@ const inferTicketType = (selectedType: RuntimeTicketType | null): TicketCreateTy
 
 export default function CreateTicketPage() {
   const navigate = useNavigate();
+  const location = useLocation();
   const { message, modal } = App.useApp();
   const { t } = useI18n();
   const [form] = Form.useForm();
   const projectLinkPermission = useProjectLinkPermission('ticket');
   const richTextEnabled = isRichTextEnabled();
+  const handoffPrefill = useMemo(
+    () => readHandoffPrefill(location.state, 'ticket'),
+    [location.state]
+  );
+  const handoffPrefillAppliedRef = useRef(false);
+
+  // T5-04a：AI 助手 handoff 预填（只填空白字段，不自动提交；消费后清除路由 state）。
+  useEffect(() => {
+    if (!handoffPrefill || handoffPrefillAppliedRef.current) return;
+    handoffPrefillAppliedRef.current = true;
+    const patch = pickBlankHandoffPrefill(handoffPrefill, {
+      title: form.getFieldValue('title'),
+      description: form.getFieldValue('description'),
+    });
+    if (Object.keys(patch).length > 0) form.setFieldsValue(patch);
+    navigate(location.pathname, { replace: true, state: null });
+  }, [form, handoffPrefill, location.pathname, navigate]);
 
   const [loading, setLoading] = useState(false);
   const [ticketTypes, setTicketTypes] = useState<RuntimeTicketType[]>([]);

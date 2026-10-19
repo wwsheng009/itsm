@@ -47,6 +47,8 @@ import { deriveInteractionState } from '@/lib/ai/interaction-state';
 import { InputDockAssistMenu } from '@/components/ai/chat-core/InputDockAssistMenu';
 import { useInputDockAssist } from '@/components/ai/chat-core/use-input-dock-assist';
 import { useI18n } from '@/lib/i18n/useI18n';
+import type { ChatMessage } from '@/components/ai/chat-core/types';
+import HandoffActionCard from '@/components/ai/handoff/HandoffActionCard';
 
 interface AssistantChatPanelProps {
   /** T5-05：`help.agent.enabled=false` 时隐藏帮助页签（默认开启）。 */
@@ -160,6 +162,7 @@ const AssistantChatPanel: React.FC<AssistantChatPanelProps> = ({ helpEnabled = t
 
   // H0-04：面板页签（对话 / 帮助）；"生成初稿"切回对话并发送结构化提示。
   const [tab, setTab] = useState<'chat' | 'help'>('chat');
+  const [handoffMessage, setHandoffMessage] = useState<ChatMessage | null>(null);
   // T5-05：灰度关闭时立即收回帮助页签，避免停留在一个不可用视图。
   useEffect(() => {
     if (!helpEnabled) setTab(prev => (prev === 'help' ? 'chat' : prev));
@@ -479,6 +482,7 @@ const AssistantChatPanel: React.FC<AssistantChatPanelProps> = ({ helpEnabled = t
                 onOpenApproval={handleOpenApproval}
                 onOpenOutcome={openOutcome}
                 onRequestConfirm={handleRequestConfirm}
+                onHandoff={setHandoffMessage}
               />
             ))}
           </div>
@@ -592,6 +596,12 @@ const AssistantChatPanel: React.FC<AssistantChatPanelProps> = ({ helpEnabled = t
       ) : helpEnabled ? (
         <AssistantHelpPanel onDraft={handleDraftFromHelp} />
       ) : null}
+
+      <HandoffActionCard
+        open={handoffMessage !== null}
+        message={handoffMessage}
+        onClose={() => setHandoffMessage(null)}
+      />
 
     </div>
   );
