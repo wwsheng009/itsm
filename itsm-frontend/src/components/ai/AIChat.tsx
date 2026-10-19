@@ -158,7 +158,7 @@ const AIChat: React.FC = () => {
     handleOpenApproval,
     handleRequestConfirm,
     openOutcome,
-  } = useAIChatSession();
+  } = useAIChatSession({ consumeWorkspaceHandoff: true });
 
   return (
     <div data-ai-chat-page style={{ display: 'flex', gap: 12, flex: '1 1 auto', minHeight: 0 }}>

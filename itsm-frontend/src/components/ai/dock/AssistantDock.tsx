@@ -11,9 +11,9 @@
  *   通知订阅（复用 `notificationWS` 单例只读订阅 + 未读高价值通知聚合）。
  */
 import React, { useEffect, useRef, useState } from 'react';
-import { useNavigate } from 'react-router';
+import { useLocation, useNavigate } from 'react-router';
 import { Button, Popover, Switch, Tag, Tooltip, theme } from 'antd';
-import { Bot, SlidersHorizontal, X } from 'lucide-react';
+import { Bot, Maximize2, SlidersHorizontal, X } from 'lucide-react';
 import { useHotkeys } from 'react-hotkeys-hook';
 
 import { usePermissions } from '@/lib/hooks/use-permissions';
@@ -21,7 +21,12 @@ import { askAITargetTypeLabel } from '@/lib/ai/ask-ai-scope';
 import type { ProactiveSignal } from '@/lib/ai/proactive/signals';
 import { useProactiveSignals } from '@/lib/ai/proactive/use-proactive-signals';
 import { trackAssistantEvent } from '@/lib/ai/telemetry';
-import { useAssistantStore } from '@/lib/store/assistant-store';
+import {
+  ASSISTANT_DOCK_PUSH_THRESHOLD,
+  ASSISTANT_WIDTH_TIERS,
+  normalizeAssistantWidth,
+  useAssistantStore,
+} from '@/lib/store/assistant-store';
 import { useAssistantProactiveStore } from '@/lib/store/assistant-proactive-store';
 import { useAssistantPageData } from '@/lib/store/assistant-context-store';
 import { usePageAssistantContext } from '@/lib/ai/page-context/use-page-assistant-context';
@@ -40,10 +45,13 @@ const MOBILE_BREAKPOINT = 768;
 
 const AssistantDock: React.FC = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const { hasPermission } = usePermissions();
   const { token } = theme.useToken();
   const open = useAssistantStore(state => state.open);
   const width = useAssistantStore(state => state.width);
+  const setWidth = useAssistantStore(state => state.setWidth);
+  const cycleWidth = useAssistantStore(state => state.cycleWidth);
   const togglePanel = useAssistantStore(state => state.togglePanel);
   const closePanel = useAssistantStore(state => state.closePanel);
   const openPanel = useAssistantStore(state => state.openPanel);
@@ -53,6 +61,10 @@ const AssistantDock: React.FC = () => {
   // D1-02：L2 运行时数据（详情页显式注册）→ 上下文条展示具体对象（用户可见）。
   const pageData = useAssistantPageData();
   const canReadAssistant = hasPermission('ai', 'read');
+  // P0：AI 工作区（/ai/chat）本身就是全宽会话界面，再挂 Dock 会出现两套聊天并存。
+  // 路由级直接不渲染（含 FAB），避免重复入口与重复会话请求。
+  // 必须在所有依赖它的 hook（信号聚合/快捷键）之前定义。
+  const isWorkspaceRoute = location.pathname === '/ai/chat';
   // I1-03：主动协助偏好（持久化 UI 偏好；默认静默）。
   const proactiveEnabled = useAssistantProactiveStore(state => state.enabled);
   const proactiveSilent = useAssistantProactiveStore(state => state.silent);
@@ -61,8 +73,10 @@ const AssistantDock: React.FC = () => {
   const setProactiveSilent = useAssistantProactiveStore(state => state.setSilent);
   const dismissScope = useAssistantProactiveStore(state => state.dismissScope);
   const restoreDismissed = useAssistantProactiveStore(state => state.restoreDismissed);
-  // I1-03：只读信号聚合（无权限/总开关关闭 → 零请求）。
-  const { badgeCount, suggestion } = useProactiveSignals(canReadAssistant);
+  // I1-03：只读信号聚合（无权限/总开关关闭/工作区路由 → 零请求）。
+  // P0 补充：/ai/chat 不渲染 Dock，但仍挂载本组件；若不关掉信号聚合，
+  // 工作区会平白轮询审批/通知，属于重复请求。
+  const { badgeCount, suggestion } = useProactiveSignals(canReadAssistant && !isWorkspaceRoute);
   // V2-02：异步精算任务状态（运行中点 + 未读回执并入 FAB 徽标；面板打开即已读）。
   const asyncTasks = useAssistantAsyncStore(state => state.tasks);
   const asyncRunningCount = countRunningTasks(asyncTasks);
@@ -74,6 +88,9 @@ const AssistantDock: React.FC = () => {
   const [isMobile, setIsMobile] = useState(
     () => typeof window !== 'undefined' && window.innerWidth < MOBILE_BREAKPOINT
   );
+  // a11y：面板关闭后把焦点还给 FAB（否则键盘用户会掉回 body，丢失当前位置）。
+  const fabRef = useRef<HTMLButtonElement | HTMLAnchorElement>(null);
+  const wasOpenRef = useRef(open);
 
   useEffect(() => {
     const handleResize = () => setIsMobile(window.innerWidth < MOBILE_BREAKPOINT);
@@ -81,14 +98,40 @@ const AssistantDock: React.FC = () => {
     return () => window.removeEventListener('resize', handleResize);
   }, []);
 
+  // P1：视口变化后把持久化宽度收敛到当前可用档位（例如从 1440 缩到 1024 时 720 不可用）。
+  // 只在值真的变化时写入，避免每次 resize 都触发一次 persist 写盘。
+  useEffect(() => {
+    if (typeof window === 'undefined' || isMobile) return;
+    const normalized = normalizeAssistantWidth(width, window.innerWidth);
+    if (normalized !== width) setWidth(normalized);
+  }, [width, isMobile, setWidth]);
+
+  useEffect(() => {
+    const wasOpen = wasOpenRef.current;
+    wasOpenRef.current = open;
+    if (!wasOpen || open) return;
+    if (typeof document === 'undefined') return;
+    const active = document.activeElement as HTMLElement | null;
+    // 只在"焦点因面板卸载而丢失"时归还：用户主动点了其它控件（active 仍在文档中）则不抢焦点。
+    const lostFocus = !active || active === document.body || !active.isConnected;
+    if (!lostFocus) return;
+    const raf = window.requestAnimationFrame(() => fabRef.current?.focus());
+    return () => window.cancelAnimationFrame(raf);
+  }, [open]);
+
   // Ctrl/Cmd+I：唤起/收起（输入框内同样生效）；ESC：收起（面板打开时）。
-  useHotkeys('ctrl+i, cmd+i', togglePanel, { preventDefault: true, enableOnFormTags: true });
+  // 工作区路由下 Dock 不渲染，快捷键同样禁用，避免"按了没反应但状态被改"。
+  useHotkeys('ctrl+i, cmd+i', togglePanel, {
+    preventDefault: true,
+    enableOnFormTags: true,
+    enabled: !isWorkspaceRoute,
+  });
   useHotkeys(
     'esc',
     () => {
       if (open) closePanel();
     },
-    { enabled: open, enableOnFormTags: true }
+    { enabled: open && !isWorkspaceRoute, enableOnFormTags: true }
   );
 
   // 内联建议条可见性：静默模式/总开关/面板展开/已忽略 → 隐藏（suggestion 已按忽略过滤，二次防御）。
@@ -110,7 +153,22 @@ const AssistantDock: React.FC = () => {
     // 依赖仅取稳定标识：同一建议重开面板不重复上报。
   }, [suggestionVisible, suggestionId, pageKey, suggestion?.kind]);
 
-  if (!canReadAssistant) return null;
+  // P2：宽档位起推挤主内容（避免 fixed 面板遮挡表格右侧操作列）。
+  // 用 CSS 变量而不是逐层传 props：MainLayout 只需读取一次，页面组件零改动。
+  // 注意：该 effect 必须在任何 early return 之前——否则 hooks 顺序不稳定（rules-of-hooks）。
+  useEffect(() => {
+    if (typeof document === 'undefined') return;
+    const root = document.documentElement;
+    // 工作区路由必须为 0：Dock 不渲染，若沿用持久化的 open=true 会给工作区白加右内边距。
+    const shouldPush =
+      open && !isMobile && !isWorkspaceRoute && width >= ASSISTANT_DOCK_PUSH_THRESHOLD;
+    root.style.setProperty('--assistant-dock-push', shouldPush ? `${width}px` : '0px');
+    return () => {
+      root.style.setProperty('--assistant-dock-push', '0px');
+    };
+  }, [open, isMobile, isWorkspaceRoute, width]);
+
+  if (!canReadAssistant || isWorkspaceRoute) return null;
 
   const chipLabel = declaration
     ? pageData?.targetId
@@ -153,6 +211,19 @@ const AssistantDock: React.FC = () => {
     dismissScope(signal.scopeKey);
   };
 
+  // P1：宽度档位循环（窄 → 宽 → 超宽 → 窄），按当前视口自动跳过放不下的档位。
+  const tierIndex = ASSISTANT_WIDTH_TIERS.indexOf(width as (typeof ASSISTANT_WIDTH_TIERS)[number]);
+  const widthLabel = tierIndex >= 0 ? ['标准宽度', '加宽', '超宽'][tierIndex] : '调整宽度';
+  const handleCycleWidth = () => {
+    if (typeof window === 'undefined') return;
+    const next = cycleWidth(window.innerWidth);
+    trackAssistantEvent('assistant_opened', {
+      pageKey,
+      source: 'width_toggle',
+      extra: { width: next },
+    });
+  };
+
   return (
     <div data-testid={ASSISTANT_DOCK_TESTID} data-page-key={pageKey}>
       {!open ? (
@@ -174,6 +245,7 @@ const AssistantDock: React.FC = () => {
               }
             >
               <Button
+                ref={fabRef}
                 data-testid={ASSISTANT_FAB_TESTID}
                 type="primary"
                 shape="circle"
@@ -245,6 +317,7 @@ const AssistantDock: React.FC = () => {
           data-testid={ASSISTANT_PANEL_TESTID}
           // V1-02：移动端形态标记（<768px 为底部全宽抽屉），供样式与测试断言。
           data-mobile={isMobile ? 'true' : 'false'}
+          data-width={width}
           role="dialog"
           aria-label="AI 助手面板"
           style={{
@@ -253,6 +326,8 @@ const AssistantDock: React.FC = () => {
             right: 0,
             bottom: 0,
             width: isMobile ? '100%' : width,
+            // P1：极端窄视口下兜底，保证面板永不把整页遮死（与 store 的档位收敛同口径）。
+            maxWidth: isMobile ? '100%' : 'calc(100vw - 320px)',
             zIndex: 981,
             display: 'flex',
             flexDirection: 'column',
@@ -296,6 +371,20 @@ const AssistantDock: React.FC = () => {
               </Tag>
             ) : null}
             <span style={{ flex: 1 }} />
+            {/* P1：宽度三档循环（400 → 560 → 720），键盘可达；移动端不展示（已是全宽）。 */}
+            {!isMobile ? (
+              <Tooltip title={`${widthLabel}（${width}px）`}>
+                <Button
+                  data-testid="assistant-width-toggle"
+                  type="text"
+                  size="small"
+                  icon={<Maximize2 size={14} />}
+                  onClick={handleCycleWidth}
+                  aria-label={`调整 AI 助手宽度（当前 ${width}px）`}
+                  aria-pressed={width > ASSISTANT_WIDTH_TIERS[0]}
+                />
+              </Tooltip>
+            ) : null}
             {/* I1-03：主动协助设置（默认静默；可恢复已忽略提示）。 */}
             <Popover
               trigger="click"

@@ -6,9 +6,29 @@
  * - 懒挂载：仅面板打开时挂载本组件，因此未展开时零会话/候选请求（见 AssistantDock 注释）。
  */
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { Alert, App, Button, Input, Popover, Segmented, Spin, Tooltip, theme } from 'antd';
+import {
+  Alert,
+  App,
+  Button,
+  Input,
+  Popconfirm,
+  Popover,
+  Segmented,
+  Spin,
+  Tooltip,
+  theme,
+} from 'antd';
 import type { TextAreaRef } from 'antd/es/input/TextArea';
-import { ExternalLink, History, Plus, Send, Sparkles, StopCircle } from 'lucide-react';
+import {
+  Download,
+  ExternalLink,
+  History,
+  Plus,
+  Send,
+  Sparkles,
+  StopCircle,
+  Trash2,
+} from 'lucide-react';
 import { useNavigate } from 'react-router';
 
 import { useAIChatSession } from '@/components/ai/chat-core/use-ai-chat-session';
@@ -40,6 +60,9 @@ const AssistantChatPanel: React.FC = () => {
     formatTime,
     switchToConversation,
     startNewConversation,
+    canDeleteConversation,
+    handleDeleteConversation,
+    handleExportConversation,
     query,
     setQuery,
     scrollRef,
@@ -91,6 +114,12 @@ const AssistantChatPanel: React.FC = () => {
 
   // 会话历史下拉：与工作区共用内核的列表/切换动作（同一套数据与竞态保护）。
   const [historyOpen, setHistoryOpen] = useState(false);
+  const [historyQuery, setHistoryQuery] = useState('');
+  const filteredConversations = historyQuery.trim()
+    ? conversations.filter(conv =>
+        (conv.title || `会话 #${conv.id}`).toLowerCase().includes(historyQuery.trim().toLowerCase())
+      )
+    : conversations;
   const handleSwitchConversation = useCallback(
     (conv: (typeof conversations)[number]) => {
       if (streaming) return;
@@ -235,16 +264,25 @@ const AssistantChatPanel: React.FC = () => {
                   >
                     新建会话
                   </Button>
+                  <Input
+                    data-testid="assistant-history-search"
+                    size="small"
+                    allowClear
+                    value={historyQuery}
+                    onChange={e => setHistoryQuery(e.target.value)}
+                    placeholder="搜索会话标题"
+                    style={{ marginBottom: 6 }}
+                  />
                   {loadingConvs ? (
                     <div style={{ textAlign: 'center', padding: 12 }}>
                       <Spin size="small" />
                     </div>
-                  ) : conversations.length === 0 ? (
+                  ) : filteredConversations.length === 0 ? (
                     <div style={{ fontSize: 12, color: token.colorTextSecondary, padding: '8px 4px' }}>
-                      暂无会话记录
+                      {conversations.length === 0 ? '暂无会话记录' : '没有匹配的会话'}
                     </div>
                   ) : (
-                    conversations.map(conv => (
+                    filteredConversations.map(conv => (
                       <div
                         key={conv.id}
                         data-testid={`assistant-history-item-${conv.id}`}
@@ -260,21 +298,69 @@ const AssistantChatPanel: React.FC = () => {
                         }}
                         style={{
                           display: 'flex',
-                          flexDirection: 'column',
-                          gap: 2,
-                          padding: '6px 8px',
+                          alignItems: 'center',
+                          gap: 4,
+                          padding: '4px 4px 4px 8px',
                           borderRadius: 6,
                           cursor: streaming ? 'not-allowed' : 'pointer',
                           background: conv.id === convId ? token.colorFillSecondary : undefined,
                           opacity: streaming ? 0.6 : 1,
                         }}
                       >
-                        <span style={{ fontSize: 12, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                          {conv.title || `会话 #${conv.id}`}
-                        </span>
-                        <span style={{ fontSize: 11, color: token.colorTextSecondary }}>
-                          {formatTime(conv.createdAt)}
-                        </span>
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <div
+                            style={{
+                              fontSize: 12,
+                              overflow: 'hidden',
+                              textOverflow: 'ellipsis',
+                              whiteSpace: 'nowrap',
+                            }}
+                          >
+                            {conv.title || `会话 #${conv.id}`}
+                          </div>
+                          <div style={{ fontSize: 11, color: token.colorTextSecondary }}>
+                            {formatTime(conv.createdAt)}
+                          </div>
+                        </div>
+                        {/* 导出：与工作区同源动作（只读，不受 ai:write 门控）。 */}
+                        <Tooltip title="导出会话（Markdown）">
+                          <Button
+                            data-testid={`assistant-history-export-${conv.id}`}
+                            type="text"
+                            size="small"
+                            icon={<Download size={12} />}
+                            aria-label="导出会话"
+                            onClick={e => {
+                              e.stopPropagation();
+                              void handleExportConversation(e, conv.id);
+                            }}
+                          />
+                        </Tooltip>
+                        {canDeleteConversation ? (
+                          <Popconfirm
+                            title="删除此会话？"
+                            okText="删除"
+                            cancelText="取消"
+                            okButtonProps={{ danger: true, size: 'small' }}
+                            onConfirm={e => {
+                              e?.stopPropagation();
+                              void handleDeleteConversation(
+                                e as unknown as React.MouseEvent,
+                                conv.id
+                              );
+                            }}
+                          >
+                            <Button
+                              data-testid={`assistant-history-delete-${conv.id}`}
+                              type="text"
+                              size="small"
+                              danger
+                              icon={<Trash2 size={12} />}
+                              aria-label="删除会话"
+                              onClick={e => e.stopPropagation()}
+                            />
+                          </Popconfirm>
+                        ) : null}
                       </div>
                     ))
                   )}

@@ -19,6 +19,7 @@ import {
 import { useLLMProviderFeature } from '@/lib/hooks/use-llm-provider-feature';
 import { usePermissions } from '@/lib/hooks/use-permissions';
 import { useAssistantContextStore } from '@/lib/store/assistant-context-store';
+import { useAssistantStore } from '@/lib/store/assistant-store';
 import { trackAssistantEvent } from '@/lib/ai/telemetry';
 import { downloadTextFile } from '@/lib/utils/download-text-file';
 
@@ -60,6 +61,7 @@ jest.mock('react-router', () => jest.requireActual('react-router'));
 
 const mockedBots = AIApi as unknown as { listVisibleBotsWithCapabilities: jest.Mock };
 const mockedStream = aiChatStream as jest.MockedFunction<typeof aiChatStream>;
+const mockedGetMessages = getConversationMessages as jest.MockedFunction<typeof getConversationMessages>;
 const mockedListConversations = listConversations as jest.MockedFunction<typeof listConversations>;
 const mockedExport = exportConversation as jest.MockedFunction<typeof exportConversation>;
 const mockedProviderFeature = useLLMProviderFeature as jest.MockedFunction<
@@ -90,6 +92,8 @@ beforeEach(() => {
   } as unknown as ReturnType<typeof usePermissions>);
   mockedStream.mockReset();
   mockedTrack.mockReset();
+  mockedGetMessages.mockReset();
+  useAssistantStore.setState({ handoffConversationId: undefined });
 });
 
 afterEach(() => {
@@ -134,6 +138,54 @@ describe('useAIChatSession（D0-01 抽离后的会话内核）', () => {
       expect.objectContaining({ query: 'hello' }),
       expect.any(Object)
     );
+  });
+
+  it('P3：工作区实例消费交接会话并加载历史（一次性）', async () => {
+    mockedGetMessages.mockResolvedValue([
+      {
+        id: 1,
+        conversationId: 77,
+        role: 'user',
+        content: '我之前问了什么？',
+        createdAt: '2026-10-19T01:00:00Z',
+      },
+      {
+        id: 2,
+        conversationId: 77,
+        role: 'assistant',
+        content: JSON.stringify({ answer: '你问了会话连续性。', sources: [] }),
+        createdAt: '2026-10-19T01:00:01Z',
+      },
+    ]);
+    useAssistantStore.getState().setHandoffConversationId(77);
+
+    const { result } = renderHook(
+      () => useAIChatSession({ consumeWorkspaceHandoff: true }),
+      { wrapper }
+    );
+
+    await waitFor(() => expect(result.current.convId).toBe(77));
+    expect(result.current.messages).toHaveLength(2);
+    expect(result.current.messages[0]).toMatchObject({ role: 'user', content: '我之前问了什么？' });
+    // assistant 信封按既有规则解包成自然语言。
+    expect(result.current.messages[1]).toMatchObject({
+      role: 'assistant',
+      content: '你问了会话连续性。',
+    });
+    expect(mockedGetMessages).toHaveBeenCalledWith(77);
+    // 一次性：消费后 store 立即清空。
+    expect(useAssistantStore.getState().handoffConversationId).toBeUndefined();
+  });
+
+  it('P3：Dock 实例（默认）不消费交接，避免截胡工作区会话', async () => {
+    useAssistantStore.getState().setHandoffConversationId(88);
+
+    const { result } = renderHook(() => useAIChatSession(), { wrapper });
+    await waitFor(() => expect(mockedListConversations).toHaveBeenCalled());
+
+    expect(result.current.convId).toBeUndefined();
+    expect(mockedGetMessages).not.toHaveBeenCalled();
+    expect(useAssistantStore.getState().handoffConversationId).toBe(88);
   });
 
   it('流式期间 streaming=true，结束后复位', async () => {

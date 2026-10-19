@@ -45,12 +45,19 @@ import type { AssistantOutcome } from '@/lib/ai/outcome';
 import { trackAssistantEvent } from '@/lib/ai/telemetry';
 import { usePageAssistantContext } from '@/lib/ai/page-context/use-page-assistant-context';
 import { useAssistantPageData } from '@/lib/store/assistant-context-store';
+import { useAssistantStore } from '@/lib/store/assistant-store';
 import { buildChatCss } from './chat-css';
 import { downloadTextFile } from '@/lib/utils/download-text-file';
 import { AUTO_SCROLL_THRESHOLD, nextId } from './constants';
 import type { ChatMessage } from './types';
 
-export function useAIChatSession() {
+/**
+ * @param options.consumeWorkspaceHandoff 是否消费 Dock → 工作区的会话交接。
+ *   只有 `/ai/chat` 工作区实例应传 true；Dock 面板必须保持 false，
+ *   否则用户在别的页面打开 Dock 时会把本该交给工作区的会话"截胡"。
+ */
+export function useAIChatSession(options?: { consumeWorkspaceHandoff?: boolean }) {
+  const consumeWorkspaceHandoff = options?.consumeWorkspaceHandoff === true;
   const navigate = useNavigate();
   const location = useLocation();
   const { token } = theme.useToken();
@@ -286,6 +293,40 @@ export function useAIChatSession() {
     },
     [parseMessageContent, streaming]
   );
+
+  /**
+   * P3：消费 Dock → 工作区的会话交接。
+   *
+   * 只在**首次挂载**消费一次（ref 防 StrictMode 双调用重复拉取），且不依赖 `streaming`
+   * （挂载时必然非流式）。加载失败只提示、不阻断页面——用户仍可正常发起新会话。
+   *
+   * 注意：这里刻意不做「卸载后丢弃结果」的 alive 守卫——StrictMode 会执行
+   * effect → cleanup → effect，若第一次请求被 cleanup 取消、第二次又被 ref 拦住，
+   * 交接会静默丢失。React 18 对卸载后的 setState 是安全的 no-op。
+   */
+  const handoffConsumedRef = useRef(false);
+  useEffect(() => {
+    if (!consumeWorkspaceHandoff) return;
+    if (handoffConsumedRef.current) return;
+    handoffConsumedRef.current = true;
+    const handoffId = useAssistantStore.getState().consumeHandoffConversationId();
+    if (!handoffId) return;
+    void getConversationMessages(handoffId)
+      .then(msgs => {
+        const mapped: ChatMessage[] = msgs.map(m => ({
+          id: `saved-${m.id}`,
+          role: m.role === 'user' ? 'user' : 'assistant',
+          content: parseMessageContent(m.role, m.content),
+          createdAt: m.createdAt,
+        }));
+        autoScrollRef.current = true;
+        setMessages(mapped);
+        setConvId(handoffId);
+      })
+      .catch(() => {
+        antdMessage.error('加载会话失败');
+      });
+  }, [consumeWorkspaceHandoff, parseMessageContent]);
 
   // 开始新会话
   const startNewConversation = useCallback(() => {
@@ -677,6 +718,8 @@ export function useAIChatSession() {
     sidebarOpen,
     setSidebarOpen,
     activeScope,
+    /** P3：当前生效的入口上下文（launcher scope 优先，否则由页面 L2 数据派生）。 */
+    effectiveScope,
     setScopeDismissed,
     openOutcome,
     bots,

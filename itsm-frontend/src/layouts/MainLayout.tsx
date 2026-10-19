@@ -190,6 +190,10 @@ function ThemedMainLayout({
             className="bg-[var(--color-background-primary)] w-auto min-w-0 max-w-full overflow-x-hidden shadow-none outline-none"
             style={{
               minHeight: LAYOUT_CONFIG.content.minHeight,
+              // P2：AI 助手宽档位（≥560px）时只让内容区让位，Header 保持全宽。
+              // 变量由 AssistantDock 写入（窄档/收起/移动端/工作区恒为 0px），页面组件零改动。
+              paddingRight: 'var(--assistant-dock-push, 0px)',
+              transition: 'padding-right 0.2s ease',
             }}
           >
             <div
@@ -203,7 +207,10 @@ function ThemedMainLayout({
           </Content>
 
           {/* 页脚（可选） */}
-          <footer className="text-center p-4 bg-transparent text-gray-400 text-xs">
+          <footer
+            className="text-center p-4 bg-transparent text-gray-400 text-xs"
+            style={{ paddingRight: 'var(--assistant-dock-push, 0px)' }}
+          >
             AI-Native ITSM ©{new Date().getFullYear()} - AI驱动的IT服务管理系统
           </footer>
         </Layout>

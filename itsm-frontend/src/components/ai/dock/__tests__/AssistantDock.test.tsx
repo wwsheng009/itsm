@@ -2,7 +2,7 @@
  * D0-02 AssistantDock 容器测试：权限门禁、FAB 开合、Ctrl/Cmd+I、ESC、懒挂载。
  */
 import React from 'react';
-import { act, fireEvent, render, screen } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { MemoryRouter } from 'react-router';
 
 import AssistantDock, { ASSISTANT_FAB_BADGE_TESTID, ASSISTANT_FAB_RUNNING_TESTID } from '../AssistantDock';
@@ -164,6 +164,66 @@ describe('AssistantDock（D0-02）', () => {
 
     fireEvent.keyDown(document, { key: 'i', code: 'KeyI', ctrlKey: true });
     expect(screen.queryByTestId('assistant-panel')).not.toBeInTheDocument();
+  });
+
+  it('P0：/ai/chat 工作区不渲染 Dock（含 FAB），避免双聊天入口', () => {
+    renderDock('/ai/chat');
+
+    expect(screen.queryByTestId('assistant-dock')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('assistant-fab')).not.toBeInTheDocument();
+
+    // 即使 store 已展开也不渲染（工作区自身就是全宽会话界面）。
+    act(() => {
+      useAssistantStore.setState({ open: true });
+    });
+    expect(screen.queryByTestId('assistant-panel')).not.toBeInTheDocument();
+  });
+
+  it('a11y：关闭面板后焦点归还 FAB（键盘用户不丢失位置）', async () => {
+    renderDock();
+    fireEvent.click(screen.getByTestId('assistant-fab'));
+    expect(screen.getByTestId('assistant-panel')).toBeInTheDocument();
+
+    fireEvent.click(screen.getByTestId('assistant-close'));
+    const fab = await screen.findByTestId('assistant-fab');
+    await waitFor(() => expect(fab).toHaveFocus());
+  });
+
+  it('P1：宽度按钮循环 400 → 560 → 720，并写入面板宽度与推挤变量', () => {
+    const originalInnerWidth = window.innerWidth;
+    try {
+      // jsdom 默认 1024：显式给一个能容纳 720 的桌面视口，验证完整三档循环。
+      window.innerWidth = 1440;
+      renderDock();
+      act(() => {
+        useAssistantStore.setState({ open: true, width: 400 });
+      });
+
+      const panel = screen.getByTestId('assistant-panel');
+      expect(panel).toHaveAttribute('data-width', '400');
+      expect(document.documentElement.style.getPropertyValue('--assistant-dock-push')).toBe('0px');
+
+      const toggle = screen.getByTestId('assistant-width-toggle');
+      expect(toggle).toHaveAttribute('aria-label', '调整 AI 助手宽度（当前 400px）');
+      expect(toggle).toHaveAttribute('aria-pressed', 'false');
+
+      fireEvent.click(toggle);
+      expect(useAssistantStore.getState().width).toBe(560);
+      expect(screen.getByTestId('assistant-panel')).toHaveAttribute('data-width', '560');
+      // 宽档位（≥560）推挤主内容。
+      expect(document.documentElement.style.getPropertyValue('--assistant-dock-push')).toBe('560px');
+      expect(screen.getByTestId('assistant-width-toggle')).toHaveAttribute('aria-pressed', 'true');
+
+      fireEvent.click(screen.getByTestId('assistant-width-toggle'));
+      expect(useAssistantStore.getState().width).toBe(720);
+      expect(document.documentElement.style.getPropertyValue('--assistant-dock-push')).toBe('720px');
+
+      fireEvent.click(screen.getByTestId('assistant-width-toggle'));
+      expect(useAssistantStore.getState().width).toBe(400);
+      expect(document.documentElement.style.getPropertyValue('--assistant-dock-push')).toBe('0px');
+    } finally {
+      window.innerWidth = originalInnerWidth;
+    }
   });
 
   it('V2-02：后台精算运行中显示 FAB 状态点；收口未读并入徽标，已读后消除', () => {
