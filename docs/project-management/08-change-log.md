@@ -1,7 +1,7 @@
 # 项目管理 · 变更记录（2026-10-18）
 
 > 状态：已实施并部署到 238 demo
-> 当前 demo 版本：`1.8.0-dev.f2e32b4e`
+> 当前 demo 版本：`1.8.0-dev.d51ed172`
 > 范围：项目进度汇总、MSP 顶栏 403、里程碑/任务/项目日期编辑预填
 > 说明：本文件是上述变更的**文档化变更记录**；不再在 `.dev/deploy/` 新增证据文件。
 
@@ -438,3 +438,14 @@ PE-5 此前仅落地「项目工作台查看/解除挂接」与「任务生成�
 **遗留**：① sidecar 日志 `variant=None`（空变体 cosmetic）；② `ok=false` 路径后端记 Debug（demo info 级别不可见），建议后续加指标/提级；③ sidecar 其它端点（rca/risk）仍读自身 env，本次仅 `/triage`；④ 未做浏览器级 UI 走查（承接 F1）。
 
 证据：[DEMO-F2-20261018-c05cc49e-EVIDENCE.md](../../.dev/deploy/DEMO-F2-20261018-c05cc49e-EVIDENCE.md)。
+## 16. 部署：AI 助手常驻组件与 AI 驱动业务系统全量交付（dock-plan，`d51ed172`，2026-10-18）
+
+**范围**：按 [`docs/plan/ai-assistant-dock-plan-2026-10-18.md`](../../docs/plan/ai-assistant-dock-plan-2026-10-18.md) §7 任务矩阵全量交付（`d51ed172`，391 files / 51933 insertions）——后端（Dock/页面上下文协议与建议排序、遥测接收与聚合、帮助空间与帮助待办、运行轨迹/巡检、分析增强 O2）+ 前端（AI Dock 底座、建议卡展示/点击/忽略结算、内联 diff 与撤销、帮助覆盖页、观测页、快捷入口与全局搜索、i18n/路由）+ 迁移（`20261018` 批：`ai_telemetry_events` 含 filters/retention、AI 可观测性与帮助覆盖菜单、`msp_help_space`、`ai_doc_todo_states`、`llm_provider_endpoint_full_path`、`project_management_p1`）+ 文档与 CI（docs/help、夜批工作流、页面清单脚本）。
+
+**部署**（238 demo，`1.8.0-dev.d51ed172`）：`deploy238_dock_a/b/c.sh` + `_verify.sh` + `_evidence.sh`；bundle 基线 `c05cc49e`；ledger 96→103（本批新增 7 条，另 2 条此前已应用）；backend/worker/frontend 三容器 healthy（init exit 0、version 对齐）；A/B 指纹 backend `assistant/context` 0→2、`ai_telemetry_events` 0→15，frontend `assistant/context` 0→1、`assistant-dock` 0→1。
+
+**运行时验证**：5 个新端点全 200（assistant/context、help/search、help/coverage、help/todos、telemetry/summary）；遥测写入 `{"accepted":2,"dropped":1}` → `verify.dock` 落库 2 条 → summary 聚合反映；4 张新表存在；近 10m 日志无 error/panic。
+
+**遗留**：浏览器级 UI 走查未纳入本批部署证据；ai-service 未重建（本批无 sidecar 代码变更）；移动端抽屉/真实 Provider E2E 归联调（方案既定条件项）；回滚口径见证据文档。
+
+证据：[DEMO-DOCK-20261018-d51ed172-EVIDENCE.md](../../.dev/deploy/DEMO-DOCK-20261018-d51ed172-EVIDENCE.md)。
