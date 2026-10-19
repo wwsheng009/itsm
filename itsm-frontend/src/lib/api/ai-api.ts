@@ -640,10 +640,19 @@ export interface AssistantTelemetryBucket {
   count: number;
 }
 
-export interface AssistantTelemetryLatency {
+export interface AssistantTelemetryLatencyBreakdown {
   avg: number;
   p95: number;
+  p50?: number;
   max: number;
+  count?: number;
+}
+
+export interface AssistantTelemetryLatency extends AssistantTelemetryLatencyBreakdown {
+  /** T5-07a：首 token（first_token）口径。 */
+  firstToken?: AssistantTelemetryLatencyBreakdown;
+  /** T5-07a：整体（stream_end）口径。 */
+  overall?: AssistantTelemetryLatencyBreakdown;
 }
 
 // T5-06b：质量层三指标（分母为 0 时后端省略对应比率 → 前端显示「—」）。
@@ -2128,7 +2137,15 @@ export interface AIHealthQuality {
   errorShown: number;
   errorRecovered: number;
   recoveryRate: number;
+  /** 兼容字段：整体（stream_end）P95。 */
   latencyP95Ms: number;
+  /** T5-07a：首 token / 整体分开下发；首 token 用于健康 SLO。 */
+  firstTokenP50Ms?: number;
+  firstTokenP95Ms?: number;
+  firstTokenCount?: number;
+  overallP50Ms?: number;
+  overallP95Ms?: number;
+  overallCount?: number;
   taskStarted: number;
   taskCompleted: number;
 }

@@ -995,7 +995,7 @@ Dock 容器、chat-core 抽离、交互状态机、帮助覆盖率 ratchet、Aut
 > - Q2：随 P2 帮助空间交付归档；助手侧客户上下文联动列为增强项（§14.3）。
 > - Q3：`/ai/chat` 深链兼容现状保留；"统一改为打开 Dock"与实现口径（工作区抑制 + 一次性交接）冲突 → 待决策（§14.4-①）。→ 2026-10-19：按 B 收口——保留 `/ai/chat` 深链与 launcher 跳转现状（工作区为持久入口），"统一改为打开 Dock"作废；§14.3 对应行关闭。
 > - Q4：维持建议口径（owner 兜底 + 平台侧例行复核）→ 转运营例行跟踪（§14.3）。
-> - Q5：未闭环 → 转入补任务 T5-07（§14.2）。
+> - Q5：未闭环 → 转入补任务 T5-07（§14.2）；2026-10-19 拆分为 T5-07a（成本口径修正，已完成）/ T5-07b（模型分级路由与成本上限，待排期）。
 
 ---
 
@@ -1037,7 +1037,7 @@ Dock 容器、chat-core 抽离、交互状态机、帮助覆盖率 ratchet、Aut
 | 采用 | 打开率、活跃用户、建议点击率、任务卡发起率、零输入占比、入口分布 |
 | 效果 | 任务完成率、单任务点击/输入字符/耗时（对照 §11）、inline 采纳率与 undo 率、转人工率、自助解决率 |
 | 质量 | 引用覆盖率、无引用回答率、点踩率、verify 通过率、错误率（按 error_code）、重试成功率 |
-| 成本/性能 | P50/P95 首 token、端到端时延、token 成本/任务、模型分布、预算超限率 |
+| 成本/性能 | 首 token P50/P95、整体（stream_end）P50/P95、token 成本/任务、模型分布、预算超限率 |
 
 - 运营层：帮助覆盖率/stale、文档起草采纳率、`help_gap` 收敛；
 - 支持按 页面/角色/租户/场景 Bot 过滤；预置"试点对照报告"（§11 可直接使用）。
@@ -1092,7 +1092,9 @@ Dock 容器、chat-core 抽离、交互状态机、帮助覆盖率 ratchet、Aut
 | T5-06 | 质量层数据源与看板接线（父任务，拆分为 T5-06a / T5-06b） | §13.3；§11.5 门槛依赖 | ✅ 两个子任务完成（2026-10-19；证据 `assistant-dock/T5-06a-quality-data-source-evidence.md`、`assistant-dock/T5-06b-quality-dashboard-evidence.md`） |
 | T5-06a | 质量层数据源：citation 埋点（sources 数 / 无引用回答）、回答级点踩、`model` 上报、`query_hash` 补链 | §13.3；§11.5 门槛依赖 | ✅ 指标可算（2026-10-19；证据 `assistant-dock/T5-06a-quality-data-source-evidence.md`） |
 | T5-06b | 质量层看板接线：summary `quality` / `models` 接入观测看板；§11.5 三指标标注可测 | §13.3；§14.4-③/④ | ✅ 看板展示 + 门槛可执行（2026-10-19；证据 `assistant-dock/T5-06b-quality-dashboard-evidence.md`） |
-| T5-07 | 成本口径修正（首 token P95 / 整体 P95 区分、补 P50）+ 模型分级路由与成本上限（Q5） | §13.3、§12 Q5 | 口径评审 + 看板 |
+| T5-07 | 成本口径修正 + 模型分级路由与成本上限（父任务，拆分为 T5-07a / T5-07b） | §13.3、§12 Q5 | T5-07a ✅ / T5-07b 待排期 |
+| T5-07a | 成本口径修正：首 token / 整体 P50+P95 分离；健康 SLO 改用首 token P95 | §13.3；评审 §5.2 | ✅ 口径评审 + 看板（2026-10-19；证据 `assistant-dock/T5-07a-cost-latency-evidence.md`） |
+| T5-07b | 模型分级路由与成本上限（Q5） | §12 Q5；§3.7 L119 | 待排期 |
 | T5-08 | 流式 `aria-live` 行为验收（不限于 axe 静态扫描） | §3.7 L113；I2-02 盲区 | 行为断言 |
 | T5-09 | 帮助写面收口：`help_update_draft` / `help_submit_review` / `help_publish` + diff 预览 / 一键审阅 UI；help-index 向量化 | §5.4/§5.5 | 按 §5 设计验收 |
 | T5-10 | i18n"文案批次"落为真实任务（或显式关闭） | §3.7；多处条件项悬空引用 | 任务化 / 关闭登记 |
@@ -1112,6 +1114,8 @@ Dock 容器、chat-core 抽离、交互状态机、帮助覆盖率 ratchet、Aut
 > 进展（2026-10-19）：T5-06b 已完成——观测看板新增质量层三指标卡（引用覆盖率 / 无引用回答率 / 点踩率，展示分子/分母与「可测」标识，空分母显示「—」），成本与时延卡新增模型分布 Top 20；前端 API 类型补齐 `quality` / `models`。验证：观测看板回归 5 suites / 33 tests（含定向新增 2 suites / 20 tests）、tsc、eslint 全绿；证据 `assistant-dock/T5-06b-quality-dashboard-evidence.md`；登记见交付台账 T5 段。
 
 > 进展（2026-10-19）：T5-05 已完成——`capability` 新增 `assistant.dock.enabled` / `help.agent.enabled`（默认开启、租户覆盖、写后缓存失效免重启）；公共能力面下发 `assistant.dockEnabled/helpEnabled`；系统配置 AI 页签可读写/恢复默认；Dock 关闭时不渲染入口且预填入口降级到 `/ai/chat`，帮助关闭时隐藏页签且 `/ai/help/search|page` 返回 403（未注入能力源 fail-safe 开启）。后端 4 包 + 前端 8 suites / 57 tests、tsc/eslint 全绿；证据 `assistant-dock/T5-05-gray-switches-evidence.md`；登记见交付台账 T5 段。
+
+> 进展（2026-10-19）：T5-07a 已完成——summary 时延拆为首 token（`first_token`）与整体（`stream_end`）两套 P50/P95/Max/Count；顶层字段固定为整体口径以保持兼容；健康 SLO 改用 `firstTokenP95Ms`，不再使用混合 `latency_ms`。后端 service/handlers 两包 + 看板 1 suite / 17 tests、tsc/eslint 全绿；证据 `assistant-dock/T5-07a-cost-latency-evidence.md`；T5-07b（模型分级路由/成本上限）待排期。
 
 > 进展（2026-10-19）：T5-13 已完成——12 个助手表面（面板/建议/记忆条/回执卡/门户入口/帮助视图/Dock/批量面板/邮件入口等）接入 `useI18n`；新增 `assistant` 命名空间（`translations-assistant.ts`，11 子命名空间、zh/en 各 213 键，键集与占位符对齐校验通过）；zh 值与原字面量逐字一致；eslint/tsc 全绿，回归 40/41 suites 通过（唯一失败为存量 `TicketDetailAssignSearch`，HEAD 复现）；证据 `assistant-dock/T5-13-i18n-copy-batch-evidence.md`；登记见交付台账 T5 段。
 

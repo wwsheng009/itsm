@@ -64,11 +64,27 @@ type AssistantTelemetryBucket struct {
 	Count int    `json:"count"`
 }
 
+// AssistantTelemetryLatencyBreakdown 是单一时延口径（首 token / 整体）的分位统计（毫秒）。
+type AssistantTelemetryLatencyBreakdown struct {
+	Avg   float64 `json:"avg"`
+	P50   float64 `json:"p50"`
+	P95   float64 `json:"p95"`
+	Max   int64   `json:"max"`
+	Count int     `json:"count"`
+}
+
 // AssistantTelemetryLatency 是时延分位统计（毫秒）。
+//
+// T5-07a：顶层字段是**整体时延（stream_end）**的兼容别名；首 token 与整体分别下发在
+// FirstToken / Overall 中，避免混合事件的 P95 被误读为首 token P95。
 type AssistantTelemetryLatency struct {
-	Avg float64 `json:"avg"`
-	P95 float64 `json:"p95"`
-	Max int64   `json:"max"`
+	Avg        float64                             `json:"avg"`
+	P50        float64                             `json:"p50"`
+	P95        float64                             `json:"p95"`
+	Max        int64                               `json:"max"`
+	Count      int                                 `json:"count"`
+	FirstToken *AssistantTelemetryLatencyBreakdown `json:"firstToken,omitempty"`
+	Overall    *AssistantTelemetryLatencyBreakdown `json:"overall,omitempty"`
 }
 
 // AssistantTelemetryQuality 是质量层指标（T5-06a；§13.3）。
@@ -298,22 +314,44 @@ func (r *aiTelemetryRepository) AggregateAssistantEvents(ctx context.Context, te
 	summary.ByPage = byPage
 
 	const latencyQuery = `
-		SELECT COALESCE(AVG(latency_ms), 0),
-		       COALESCE(percentile_cont(0.95) WITHIN GROUP (ORDER BY latency_ms), 0),
-		       COALESCE(MAX(latency_ms), 0)
+		SELECT COALESCE(AVG(latency_ms) FILTER (WHERE name = 'stream_end'), 0),
+		       COALESCE(percentile_cont(0.50) WITHIN GROUP (ORDER BY latency_ms)
+		                FILTER (WHERE name = 'stream_end'), 0),
+		       COALESCE(percentile_cont(0.95) WITHIN GROUP (ORDER BY latency_ms)
+		                FILTER (WHERE name = 'stream_end'), 0),
+		       COALESCE(MAX(latency_ms) FILTER (WHERE name = 'stream_end'), 0),
+		       COUNT(*) FILTER (WHERE name = 'stream_end'),
+		       COALESCE(AVG(latency_ms) FILTER (WHERE name = 'first_token'), 0),
+		       COALESCE(percentile_cont(0.50) WITHIN GROUP (ORDER BY latency_ms)
+		                FILTER (WHERE name = 'first_token'), 0),
+		       COALESCE(percentile_cont(0.95) WITHIN GROUP (ORDER BY latency_ms)
+		                FILTER (WHERE name = 'first_token'), 0),
+		       COALESCE(MAX(latency_ms) FILTER (WHERE name = 'first_token'), 0),
+		       COUNT(*) FILTER (WHERE name = 'first_token')
 		FROM ai_telemetry_events
 		WHERE tenant_id = $1 AND occurred_at >= NOW() - INTERVAL '1 day' * $2
 		  AND latency_ms IS NOT NULL
 		  AND ($3 = '' OR page_key = $3)
 		  AND ($4 = '' OR role = $4)
 	`
+	var overall, firstToken AssistantTelemetryLatencyBreakdown
 	var latency AssistantTelemetryLatency
 	if err := r.db.QueryRowContext(ctx, latencyQuery, args...).Scan(
-		&latency.Avg, &latency.P95, &latency.Max,
+		&overall.Avg, &overall.P50, &overall.P95, &overall.Max, &overall.Count,
+		&firstToken.Avg, &firstToken.P50, &firstToken.P95, &firstToken.Max, &firstToken.Count,
 	); err != nil {
 		return nil, fmt.Errorf("aggregate assistant telemetry latency: %w", err)
 	}
-	if latency.Avg != 0 || latency.P95 != 0 || latency.Max != 0 {
+	// 顶层字段保持向后兼容：语义固定为整体（stream_end），不再混合 first_token。
+	latency.Avg, latency.P50, latency.P95, latency.Max, latency.Count =
+		overall.Avg, overall.P50, overall.P95, overall.Max, overall.Count
+	if overall.Count > 0 {
+		latency.Overall = &overall
+	}
+	if firstToken.Count > 0 {
+		latency.FirstToken = &firstToken
+	}
+	if overall.Count > 0 || firstToken.Count > 0 {
 		summary.LatencyMs = &latency
 	}
 

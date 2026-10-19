@@ -130,7 +130,10 @@ func TestGetAssistantTelemetrySummary_Aggregates(t *testing.T) {
 
 	mock.ExpectQuery(regexp.QuoteMeta("percentile_cont(0.95)")).
 		WithArgs(int64(1), int64(30), "", "").
-		WillReturnRows(sqlmock.NewRows([]string{"avg", "p95", "max"}).AddRow(120.5, 250.0, 800))
+		WillReturnRows(sqlmock.NewRows([]string{
+			"overall_avg", "overall_p50", "overall_p95", "overall_max", "overall_count",
+			"first_avg", "first_p50", "first_p95", "first_max", "first_count",
+		}).AddRow(120.5, 100.0, 250.0, 800, 10, 80.0, 90.0, 120.0, 200, 10))
 
 	mock.ExpectQuery(regexp.QuoteMeta("COUNT(*) FILTER")).
 		WithArgs(int64(1), int64(30), "", "").
@@ -155,8 +158,16 @@ func TestGetAssistantTelemetrySummary_Aggregates(t *testing.T) {
 	assert.Equal(t, "ticket.detail", summary.ByPage[0].Key)
 	require.NotNil(t, summary.LatencyMs)
 	assert.Equal(t, 120.5, summary.LatencyMs.Avg)
+	assert.Equal(t, 100.0, summary.LatencyMs.P50)
 	assert.Equal(t, 250.0, summary.LatencyMs.P95)
 	assert.Equal(t, int64(800), summary.LatencyMs.Max)
+	assert.Equal(t, 10, summary.LatencyMs.Count)
+	require.NotNil(t, summary.LatencyMs.Overall)
+	assert.Equal(t, 250.0, summary.LatencyMs.Overall.P95)
+	require.NotNil(t, summary.LatencyMs.FirstToken)
+	assert.Equal(t, 90.0, summary.LatencyMs.FirstToken.P50)
+	assert.Equal(t, 120.0, summary.LatencyMs.FirstToken.P95)
+	assert.Equal(t, 10, summary.LatencyMs.FirstToken.Count)
 	require.NotNil(t, summary.Quality)
 	assert.Equal(t, 10, summary.Quality.AnswerCount)
 	assert.Equal(t, 6, summary.Quality.CitationAnswerCount)
@@ -189,7 +200,10 @@ func TestGetAssistantTelemetrySummary_ClampsDays(t *testing.T) {
 			WillReturnRows(sqlmock.NewRows([]string{"page_key", "count"}))
 		mock.ExpectQuery(regexp.QuoteMeta("percentile_cont(0.95)")).
 			WithArgs(int64(1), days, "", "").
-			WillReturnRows(sqlmock.NewRows([]string{"avg", "p95", "max"}).AddRow(0, 0, 0))
+			WillReturnRows(sqlmock.NewRows([]string{
+				"overall_avg", "overall_p50", "overall_p95", "overall_max", "overall_count",
+				"first_avg", "first_p50", "first_p95", "first_max", "first_count",
+			}).AddRow(0, 0, 0, 0, 0, 0, 0, 0, 0, 0))
 		mock.ExpectQuery(regexp.QuoteMeta("COUNT(*) FILTER")).
 			WithArgs(int64(1), days, "", "").
 			WillReturnRows(sqlmock.NewRows([]string{"answers", "cited", "feedback", "downvotes"}).
@@ -204,6 +218,7 @@ func TestGetAssistantTelemetrySummary_ClampsDays(t *testing.T) {
 	summary, err := svc.GetAssistantTelemetrySummary(context.Background(), 1, 500, AssistantTelemetryFilter{})
 	require.NoError(t, err)
 	assert.Equal(t, 90, summary.Days)
+	assert.Nil(t, summary.LatencyMs, "无样本时不下发时延对象")
 	require.NotNil(t, summary.Quality)
 	assert.Nil(t, summary.Quality.CitationCoverage)
 	assert.Nil(t, summary.Quality.NoCitationRate)
@@ -231,7 +246,10 @@ func TestGetAssistantTelemetrySummary_AppliesFilters(t *testing.T) {
 	expect("GROUP BY page_key").
 		WillReturnRows(sqlmock.NewRows([]string{"page_key", "count"}).AddRow("ticket.detail", 3))
 	expect("percentile_cont(0.95)").
-		WillReturnRows(sqlmock.NewRows([]string{"avg", "p95", "max"}).AddRow(10.0, 20.0, 30))
+		WillReturnRows(sqlmock.NewRows([]string{
+			"overall_avg", "overall_p50", "overall_p95", "overall_max", "overall_count",
+			"first_avg", "first_p50", "first_p95", "first_max", "first_count",
+		}).AddRow(10.0, 8.0, 20.0, 30, 3, 4.0, 3.0, 5.0, 8, 3))
 	expect("COUNT(*) FILTER").
 		WillReturnRows(sqlmock.NewRows([]string{"answers", "cited", "feedback", "downvotes"}).
 			AddRow(3, 2, 1, 0))

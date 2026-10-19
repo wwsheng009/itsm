@@ -52,7 +52,10 @@ func TestEvaluateAIHealthSLOs(t *testing.T) {
 		Runs:      AIHealthRuns{Completed: 8, Failed: 2, SuccessRate: 0.8},
 		Tools:     AIHealthTools{Total: 6, Errors: 2, ErrorRate: 2.0 / 6.0},
 		Providers: AIHealthProviders{Known: true, CallCount: 20, SuccessRate: 0.97},
-		Quality:   AIHealthQuality{LatencyP95Ms: 2500, ErrorShown: 10, ErrorRecovered: 9, RecoveryRate: 0.9},
+		Quality: AIHealthQuality{
+			LatencyP95Ms: 9000, FirstTokenP95Ms: 2500, FirstTokenCount: 10,
+			OverallP95Ms: 9000, ErrorShown: 10, ErrorRecovered: 9, RecoveryRate: 0.9,
+		},
 	}
 	results := EvaluateAIHealthSLOs(breaching)
 	byRule := map[string]SLOResult{}
@@ -62,6 +65,9 @@ func TestEvaluateAIHealthSLOs(t *testing.T) {
 	assert.Equal(t, "breach", byRule["ai_task_success_rate"].Status)
 	assert.Equal(t, "breach", byRule["ai_tool_error_rate"].Status)
 	assert.Equal(t, "ok", byRule["ai_first_token_p95"].Status)
+	assert.Equal(t, float64(2500), byRule["ai_first_token_p95"].Actual,
+		"首 token SLO 必须取 first_token，不得取整体时延")
+	assert.Equal(t, 10, byRule["ai_first_token_p95"].Sample)
 	assert.Equal(t, "ok", byRule["ai_error_recovery_rate"].Status) // 0.9 >= 0.9
 	assert.Equal(t, "ok", byRule["ai_llm_success_rate"].Status)
 
@@ -90,6 +96,28 @@ func TestEvaluateAIHealthSLOs(t *testing.T) {
 	}
 	assert.Empty(t, buildAlerts(results))
 	assert.Nil(t, EvaluateAIHealthSLOs(nil))
+}
+
+func TestEvaluateAIHealthSLOs_FirstTokenIndependentFromOverall(t *testing.T) {
+	// 整体慢但首 token 达标 → SLO 通过。
+	ok := &AIHealthSnapshot{Quality: AIHealthQuality{
+		FirstTokenP95Ms: 2000, FirstTokenCount: 10, OverallP95Ms: 9000, OverallCount: 10,
+	}}
+	byRule := map[string]SLOResult{}
+	for _, item := range EvaluateAIHealthSLOs(ok) {
+		byRule[item.Rule] = item
+	}
+	assert.Equal(t, "ok", byRule["ai_first_token_p95"].Status)
+
+	// 首 token 超阈值但整体更快 → SLO 违规（证明两口径独立）。
+	breach := &AIHealthSnapshot{Quality: AIHealthQuality{
+		FirstTokenP95Ms: 3200, FirstTokenCount: 10, OverallP95Ms: 1000, OverallCount: 10,
+	}}
+	byRule = map[string]SLOResult{}
+	for _, item := range EvaluateAIHealthSLOs(breach) {
+		byRule[item.Rule] = item
+	}
+	assert.Equal(t, "breach", byRule["ai_first_token_p95"].Status)
 }
 
 // seedHealthTenant 落一个租户的基础数据（run/工具调用），返回租户与管理员 ID。

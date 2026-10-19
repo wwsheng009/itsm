@@ -649,28 +649,60 @@ const AssistantObservabilityPage: React.FC = () => {
           </Col>
           <Col xs={24} lg={12}>
             <Card title={t('aiObservability.layerCost')} data-testid="layer-latency">
+              <Text strong style={{ display: 'block', marginBottom: 8 }}>
+                {t('aiObservability.latencyFirstTokenTitle')}
+              </Text>
               <Row gutter={[16, 16]}>
                 <Col span={8}>
-                  <div data-testid="stat-latency-avg">
+                  <div data-testid="stat-first-token-p50">
                     <Statistic
-                      title={t('aiObservability.latencyAvg')}
-                      value={fmtObservabilityMs(data?.latencyMs?.avg)}
+                      title={t('aiObservability.latencyP50')}
+                      value={fmtObservabilityMs(data?.latencyMs?.firstToken?.p50)}
                     />
                   </div>
                 </Col>
                 <Col span={8}>
-                  <div data-testid="stat-latency-p95">
+                  <div data-testid="stat-first-token-p95">
                     <Statistic
                       title={t('aiObservability.latencyP95')}
-                      value={fmtObservabilityMs(data?.latencyMs?.p95)}
+                      value={fmtObservabilityMs(data?.latencyMs?.firstToken?.p95)}
                     />
                   </div>
                 </Col>
                 <Col span={8}>
-                  <div data-testid="stat-latency-max">
+                  <div data-testid="stat-first-token-count">
+                    <Statistic
+                      title={t('aiObservability.latencySampleCount')}
+                      value={data?.latencyMs?.firstToken?.count ?? '—'}
+                    />
+                  </div>
+                </Col>
+              </Row>
+              <Text strong style={{ display: 'block', marginTop: 16, marginBottom: 8 }}>
+                {t('aiObservability.latencyOverallTitle')}
+              </Text>
+              <Row gutter={[16, 16]}>
+                <Col span={8}>
+                  <div data-testid="stat-overall-p50">
+                    <Statistic
+                      title={t('aiObservability.latencyP50')}
+                      value={fmtObservabilityMs(data?.latencyMs?.overall?.p50)}
+                    />
+                  </div>
+                </Col>
+                <Col span={8}>
+                  <div data-testid="stat-overall-p95">
+                    <Statistic
+                      title={t('aiObservability.latencyP95')}
+                      value={fmtObservabilityMs(data?.latencyMs?.overall?.p95)}
+                    />
+                  </div>
+                </Col>
+                <Col span={8}>
+                  <div data-testid="stat-overall-max">
                     <Statistic
                       title={t('aiObservability.latencyMax')}
-                      value={fmtObservabilityMs(data?.latencyMs?.max)}
+                      value={fmtObservabilityMs(data?.latencyMs?.overall?.max)}
                     />
                   </div>
                 </Col>

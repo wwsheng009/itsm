@@ -306,7 +306,15 @@ const fixture: AssistantTelemetrySummary = {
     { key: 'ai.chat', count: 80 },
     { key: 'ticket.detail', count: 40 },
   ],
-  latencyMs: { avg: 850.5, p95: 1500, max: 3000 },
+  latencyMs: {
+    avg: 850.5,
+    p50: 800,
+    p95: 1500,
+    max: 3000,
+    count: 35,
+    firstToken: { avg: 300, p50: 280, p95: 450, max: 600, count: 35 },
+    overall: { avg: 850.5, p50: 800, p95: 1500, max: 3000, count: 35 },
+  },
   quality: {
     answerCount: 10,
     citationAnswerCount: 6,
@@ -374,9 +382,12 @@ describe('AssistantObservabilityPage（O0-03 看板）', () => {
     expect(screen.getByTestId('quality-citation-sample')).toHaveTextContent('有引用 6 / 可统计 10 回答');
     expect(screen.getByTestId('quality-downvote-sample')).toHaveTextContent('点踩 2 / 反馈 8');
     // 成本与时延
-    expect(screen.getByTestId('stat-latency-avg')).toHaveTextContent('851 ms');
-    expect(screen.getByTestId('stat-latency-p95')).toHaveTextContent('1500 ms');
-    expect(screen.getByTestId('stat-latency-max')).toHaveTextContent('3000 ms');
+    expect(screen.getByTestId('stat-first-token-p50')).toHaveTextContent('280 ms');
+    expect(screen.getByTestId('stat-first-token-p95')).toHaveTextContent('450 ms');
+    expect(screen.getByTestId('stat-first-token-count')).toHaveTextContent('35');
+    expect(screen.getByTestId('stat-overall-p50')).toHaveTextContent('800 ms');
+    expect(screen.getByTestId('stat-overall-p95')).toHaveTextContent('1500 ms');
+    expect(screen.getByTestId('stat-overall-max')).toHaveTextContent('3000 ms');
     // T5-06b：模型分布（仅 stream_end 上报）
     expect(screen.getByTestId('model-distribution')).toHaveTextContent('gpt-4o-mini · 30');
     expect(screen.getByTestId('model-distribution')).toHaveTextContent('claude-sonnet-4 · 5');

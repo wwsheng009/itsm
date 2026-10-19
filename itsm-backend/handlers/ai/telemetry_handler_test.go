@@ -216,7 +216,10 @@ func TestGetTelemetrySummary_Success(t *testing.T) {
 		WillReturnRows(sqlmock.NewRows([]string{"page_key", "count"}).AddRow("ticket.detail", 5))
 	mock.ExpectQuery(regexp.QuoteMeta("percentile_cont(0.95)")).
 		WithArgs(int64(1), int64(30), "", "").
-		WillReturnRows(sqlmock.NewRows([]string{"avg", "p95", "max"}).AddRow(120.5, 250.0, 800))
+		WillReturnRows(sqlmock.NewRows([]string{
+			"overall_avg", "overall_p50", "overall_p95", "overall_max", "overall_count",
+			"first_avg", "first_p50", "first_p95", "first_max", "first_count",
+		}).AddRow(120.5, 100.0, 250.0, 800, 10, 80.0, 90.0, 120.0, 200, 10))
 	mock.ExpectQuery(regexp.QuoteMeta("COUNT(*) FILTER")).
 		WithArgs(int64(1), int64(30), "", "").
 		WillReturnRows(sqlmock.NewRows([]string{"answers", "cited", "feedback", "downvotes"}).
@@ -234,6 +237,17 @@ func TestGetTelemetrySummary_Success(t *testing.T) {
 	assert.Equal(t, float64(4), data["distinctSessions"])
 	assert.Equal(t, float64(2), data["errorEvents"])
 	assert.Equal(t, float64(30), data["days"])
+	latency, ok := data["latencyMs"].(map[string]interface{})
+	require.True(t, ok)
+	assert.Equal(t, float64(100), latency["p50"])
+	assert.Equal(t, float64(10), latency["count"])
+	firstToken, ok := latency["firstToken"].(map[string]interface{})
+	require.True(t, ok)
+	assert.Equal(t, float64(90), firstToken["p50"])
+	assert.Equal(t, float64(120), firstToken["p95"])
+	overall, ok := latency["overall"].(map[string]interface{})
+	require.True(t, ok)
+	assert.Equal(t, float64(250), overall["p95"])
 	quality, ok := data["quality"].(map[string]interface{})
 	require.True(t, ok)
 	assert.Equal(t, float64(10), quality["answerCount"])
@@ -267,7 +281,10 @@ func TestGetTelemetrySummary_AppliesFilters(t *testing.T) {
 	expect("GROUP BY page_key").
 		WillReturnRows(sqlmock.NewRows([]string{"page_key", "count"}).AddRow("ticket.detail", 5))
 	expect("percentile_cont(0.95)").
-		WillReturnRows(sqlmock.NewRows([]string{"avg", "p95", "max"}).AddRow(9.0, 12.0, 15))
+		WillReturnRows(sqlmock.NewRows([]string{
+			"overall_avg", "overall_p50", "overall_p95", "overall_max", "overall_count",
+			"first_avg", "first_p50", "first_p95", "first_max", "first_count",
+		}).AddRow(9.0, 8.0, 12.0, 15, 5, 3.0, 2.5, 4.0, 6, 5))
 	expect("COUNT(*) FILTER").
 		WillReturnRows(sqlmock.NewRows([]string{"answers", "cited", "feedback", "downvotes"}).
 			AddRow(5, 3, 2, 1))

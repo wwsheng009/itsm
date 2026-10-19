@@ -115,9 +115,17 @@ type AIHealthQuality struct {
 	ErrorShown     int     `json:"errorShown"`
 	ErrorRecovered int     `json:"errorRecovered"`
 	RecoveryRate   float64 `json:"recoveryRate"`
-	LatencyP95Ms   float64 `json:"latencyP95Ms"`
-	TaskStarted    int     `json:"taskStarted"`
-	TaskCompleted  int     `json:"taskCompleted"`
+	// LatencyP95Ms 是兼容字段，语义固定为**整体时延（stream_end）P95**。
+	LatencyP95Ms float64 `json:"latencyP95Ms"`
+	// T5-07a：首 token 与整体分开下发，首 token 用于健康 SLO。
+	FirstTokenP50Ms float64 `json:"firstTokenP50Ms"`
+	FirstTokenP95Ms float64 `json:"firstTokenP95Ms"`
+	FirstTokenCount int     `json:"firstTokenCount"`
+	OverallP50Ms    float64 `json:"overallP50Ms"`
+	OverallP95Ms    float64 `json:"overallP95Ms"`
+	OverallCount    int     `json:"overallCount"`
+	TaskStarted     int     `json:"taskStarted"`
+	TaskCompleted   int     `json:"taskCompleted"`
 }
 
 // AIHealthSnapshot 一次健康快照（看板/告警共用同一份口径）。
@@ -256,6 +264,16 @@ func (s *AIHealthService) Snapshot(ctx context.Context, tenantID, windowDays int
 			}
 			if summary.LatencyMs != nil {
 				quality.LatencyP95Ms = summary.LatencyMs.P95
+				if summary.LatencyMs.FirstToken != nil {
+					quality.FirstTokenP50Ms = summary.LatencyMs.FirstToken.P50
+					quality.FirstTokenP95Ms = summary.LatencyMs.FirstToken.P95
+					quality.FirstTokenCount = summary.LatencyMs.FirstToken.Count
+				}
+				if summary.LatencyMs.Overall != nil {
+					quality.OverallP50Ms = summary.LatencyMs.Overall.P50
+					quality.OverallP95Ms = summary.LatencyMs.Overall.P95
+					quality.OverallCount = summary.LatencyMs.Overall.Count
+				}
 			}
 			snapshot.Quality = quality
 		}
@@ -312,12 +330,12 @@ func EvaluateAIHealthSLOs(snapshot *AIHealthSnapshot) []SLOResult {
 			snapshot.Tools.Total, aiHealthMinSample),
 	}
 
-	// 首 token P95：埋点 latency_ms 窗口 P95（first_token 为主事件；口径见 §13.5 走查记录）。
-	p95 := snapshot.Quality.LatencyP95Ms
+	// 首 token P95：只取 first_token 事件（T5-07a；不再使用混合 latency_ms 口径）。
+	p95 := snapshot.Quality.FirstTokenP95Ms
 	if p95 > 0 {
 		results = append(results, sloResult("ai_first_token_p95", "首 token P95（ms）",
 			map[bool]string{true: "ok", false: "breach"}[p95 <= SLOFirstTokenP95MsThreshold],
-			p95, SLOFirstTokenP95MsThreshold, "lte", 0,
+			p95, SLOFirstTokenP95MsThreshold, "lte", snapshot.Quality.FirstTokenCount,
 			func() string {
 				if p95 <= SLOFirstTokenP95MsThreshold {
 					return ""
