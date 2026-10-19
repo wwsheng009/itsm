@@ -1,8 +1,8 @@
 /**
  * B1-08 EvidencePanel / RunStatusBar 组件测试。
  *
- * 覆盖：空态、工具行（来源/状态/耗时/错误码/摘要）、目标跳转与依据（detailsByInvocation）、
- * 步骤渲染、错误态；状态条的 running/done/中断、预算段（有则显示）。
+ * 覆盖：默认折叠与展开、空态、工具行（来源/状态/耗时/错误码/摘要）、目标跳转与依据
+ * （detailsByInvocation）、步骤渲染、错误态；状态条的 running/done/中断、预算段（有则显示）。
  */
 import React from 'react';
 import { render, screen, fireEvent } from '@testing-library/react';
@@ -37,15 +37,52 @@ const steps: AIRunStepEvent[] = [
   { runId: 7, stepIndex: 1, type: 'llm', durationMs: 800 },
 ];
 
+/** 过程证据默认折叠：先点标题展开，再断言明细。 */
+const expandPanel = () => fireEvent.click(screen.getByTestId('evidence-toggle'));
+
 describe('EvidencePanel (B1-08)', () => {
-  it('renders an explicit empty state when there is no evidence', () => {
+  it('默认折叠：标题与计数常驻，明细不渲染；点击标题可展开/收起', () => {
+    render(<EvidencePanel steps={steps} toolEvents={toolEvents} />);
+
+    const toggle = screen.getByTestId('evidence-toggle');
+    expect(toggle).toHaveAttribute('aria-expanded', 'false');
+    expect(toggle).toHaveTextContent('过程证据');
+    expect(toggle).toHaveTextContent('步骤 2 · 工具调用 2');
+    expect(screen.queryByTestId('evidence-tool-0')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('evidence-step-1')).not.toBeInTheDocument();
+
+    expandPanel();
+    expect(screen.getByTestId('evidence-toggle')).toHaveAttribute('aria-expanded', 'true');
+    expect(screen.getByTestId('evidence-tool-0')).toBeInTheDocument();
+    expect(screen.getByTestId('evidence-step-1')).toBeInTheDocument();
+
+    expandPanel();
+    expect(screen.getByTestId('evidence-toggle')).toHaveAttribute('aria-expanded', 'false');
+    expect(screen.queryByTestId('evidence-tool-0')).not.toBeInTheDocument();
+  });
+
+  it('键盘可操作：Enter/Space 切换展开态', () => {
+    render(<EvidencePanel steps={steps} />);
+    const toggle = screen.getByTestId('evidence-toggle');
+
+    fireEvent.keyDown(toggle, { key: 'Enter' });
+    expect(toggle).toHaveAttribute('aria-expanded', 'true');
+
+    fireEvent.keyDown(toggle, { key: ' ' });
+    expect(toggle).toHaveAttribute('aria-expanded', 'false');
+  });
+
+  it('renders an explicit empty state when expanded without evidence', () => {
     render(<EvidencePanel />);
+    expect(screen.queryByTestId('evidence-empty')).not.toBeInTheDocument();
+    expandPanel();
     expect(screen.getByTestId('evidence-empty')).toBeInTheDocument();
     expect(screen.getByText(/没有可展示的过程证据/)).toBeInTheDocument();
   });
 
   it('pairs tool events and shows source, status, duration and summary', () => {
     render(<EvidencePanel toolEvents={toolEvents} />);
+    expandPanel();
 
     // 配对后剩两行：完成的读调用 + 失败的写调用（started 帧被合并）。
     expect(screen.getByTestId('evidence-tool-0')).toHaveTextContent('mcp__mock__list_issues');
@@ -67,6 +104,7 @@ describe('EvidencePanel (B1-08)', () => {
         onOpenTarget={onOpenTarget}
       />
     );
+    expandPanel();
 
     // 事件带 invocation id 且调用方提供了详情 → 渲染跳转与依据。
     expect(screen.getByText('依据 kb:runbook/42')).toBeInTheDocument();
@@ -82,6 +120,7 @@ describe('EvidencePanel (B1-08)', () => {
         onOpenTarget={jest.fn()}
       />
     );
+    expandPanel();
 
     expect(screen.queryByText(/查看目标/)).not.toBeInTheDocument();
     expect(screen.queryByText('依据 kb:runbook/42')).not.toBeInTheDocument();
@@ -94,6 +133,7 @@ describe('EvidencePanel (B1-08)', () => {
         detailsByInvocation={{ 42: { targetType: 'ticket', targetId: '1001' } }}
       />
     );
+    expandPanel();
 
     expect(screen.getByText('目标 ticket#1001')).toBeInTheDocument();
     expect(screen.queryByText(/查看目标/)).not.toBeInTheDocument();
@@ -101,6 +141,7 @@ describe('EvidencePanel (B1-08)', () => {
 
   it('orders steps by stepIndex and shows payload refs', () => {
     render(<EvidencePanel steps={steps} />);
+    expandPanel();
     const stepOne = screen.getByTestId('evidence-step-1');
     const stepTwo = screen.getByTestId('evidence-step-2');
     expect(stepOne).toHaveTextContent('模型');
@@ -111,6 +152,7 @@ describe('EvidencePanel (B1-08)', () => {
 
   it('surfaces a read-only error without hiding the empty hint contract', () => {
     render(<EvidencePanel error="run 档案读取失败" />);
+    // 错误是降级信号：折叠态也可见，不要求用户先展开。
     expect(screen.getByTestId('evidence-error')).toHaveTextContent('run 档案读取失败');
   });
 });

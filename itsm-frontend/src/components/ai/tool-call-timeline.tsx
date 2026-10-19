@@ -147,7 +147,8 @@ export interface ToolCallTimelineProps {
 }
 
 /**
- * 工具调用时间线：每次调用一个折叠块（来源徽标 → 工具名 → 状态/耗时 → 脱敏摘要）。
+ * 工具调用时间线：面板默认折叠（标题显示计数，点击展开/收起）；展开后每次调用一个折叠块
+ * （来源徽标 → 工具名 → 状态/耗时 → 脱敏摘要）。
  */
 export const ToolCallTimeline: React.FC<ToolCallTimelineProps> = ({
   events,
@@ -161,6 +162,8 @@ export const ToolCallTimeline: React.FC<ToolCallTimelineProps> = ({
     [merged, hideStatuses]
   );
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
+  // 默认折叠：标题保留计数；点击标题展开/收起（面板内每条调用仍可单独展开）。
+  const [panelOpen, setPanelOpen] = useState(false);
 
   // 无事件（旧后端 / 事件丢失 / 纯知识库问答）→ 不渲染任何容器，避免空白块。
   if (entries.length === 0) return null;
@@ -179,129 +182,147 @@ export const ToolCallTimeline: React.FC<ToolCallTimelineProps> = ({
       }}
       data-testid="tool-call-timeline"
     >
-      <Typography.Text type="secondary" style={{ fontSize: 12 }}>
-        {title} · {entries.length}
-      </Typography.Text>
-      <ul style={{ listStyle: 'none', paddingLeft: 0, margin: '6px 0 0' }}>
-        {entries.map(entry => {
-          const meta = statusMeta(entry.status);
-          const duration = formatDuration(entry.durationMs);
-          const summary = entry.summary ?? '';
-          const truncated = summary.includes(TRUNCATED_MARKER);
-          const open = Boolean(expanded[entry.key]);
-          const expandable = summary.length > 0 || Boolean(entry.errorCode) || entry.status === 'pending';
-          return (
-            <li key={entry.key} style={{ marginBottom: 4 }}>
-              <div
-                role="button"
-                tabIndex={0}
-                aria-expanded={expandable ? open : undefined}
-                onClick={() => expandable && toggle(entry.key)}
-                onKeyDown={e => {
-                  if (!expandable) return;
-                  if (e.key === 'Enter' || e.key === ' ') {
-                    e.preventDefault();
-                    toggle(entry.key);
-                  }
-                }}
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 6,
-                  flexWrap: 'wrap',
-                  cursor: expandable ? 'pointer' : 'default',
-                  fontSize: 12,
-                }}
-              >
-                {expandable ? (
-                  open ? (
-                    <ChevronDown size={12} />
-                  ) : (
-                    <ChevronRight size={12} />
-                  )
-                ) : (
-                  <span style={{ width: 12 }} />
-                )}
-                <span style={{ color: token.colorTextSecondary, display: 'inline-flex', alignItems: 'center' }}>
-                  {statusIcon(entry.status)}
-                </span>
-                <Tag
-                  color={entry.provider === 'mcp' ? 'geekblue' : 'default'}
-                  style={{ marginInlineEnd: 0 }}
+      <div
+        role="button"
+        tabIndex={0}
+        aria-expanded={panelOpen}
+        data-testid="tool-call-timeline-toggle"
+        onClick={() => setPanelOpen(v => !v)}
+        onKeyDown={e => {
+          if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault();
+            setPanelOpen(v => !v);
+          }
+        }}
+        style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, cursor: 'pointer' }}
+      >
+        {panelOpen ? <ChevronDown size={12} /> : <ChevronRight size={12} />}
+        <Typography.Text type="secondary" style={{ fontSize: 12 }}>
+          {title} · {entries.length}
+        </Typography.Text>
+      </div>
+      {panelOpen ? (
+        <ul style={{ listStyle: 'none', paddingLeft: 0, margin: '6px 0 0' }}>
+          {entries.map(entry => {
+            const meta = statusMeta(entry.status);
+            const duration = formatDuration(entry.durationMs);
+            const summary = entry.summary ?? '';
+            const truncated = summary.includes(TRUNCATED_MARKER);
+            const open = Boolean(expanded[entry.key]);
+            const expandable = summary.length > 0 || Boolean(entry.errorCode) || entry.status === 'pending';
+            return (
+              <li key={entry.key} style={{ marginBottom: 4 }}>
+                <div
+                  role="button"
+                  tabIndex={0}
+                  aria-expanded={expandable ? open : undefined}
+                  onClick={() => expandable && toggle(entry.key)}
+                  onKeyDown={e => {
+                    if (!expandable) return;
+                    if (e.key === 'Enter' || e.key === ' ') {
+                      e.preventDefault();
+                      toggle(entry.key);
+                    }
+                  }}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 6,
+                    flexWrap: 'wrap',
+                    cursor: expandable ? 'pointer' : 'default',
+                    fontSize: 12,
+                  }}
                 >
-                  {sourceLabel(entry)}
-                </Tag>
-                <Typography.Text code style={{ fontSize: 12 }}>
-                  {entry.tool}
-                </Typography.Text>
-                <Tag color={meta.color} style={{ marginInlineEnd: 0 }}>
-                  {meta.label}
-                </Tag>
-                {duration ? (
-                  <span
-                    style={{
-                      display: 'inline-flex',
-                      alignItems: 'center',
-                      gap: 2,
-                      color: token.colorTextSecondary,
-                    }}
-                  >
-                    <Clock size={11} />
-                    {duration}
+                  {expandable ? (
+                    open ? (
+                      <ChevronDown size={12} />
+                    ) : (
+                      <ChevronRight size={12} />
+                    )
+                  ) : (
+                    <span style={{ width: 12 }} />
+                  )}
+                  <span style={{ color: token.colorTextSecondary, display: 'inline-flex', alignItems: 'center' }}>
+                    {statusIcon(entry.status)}
                   </span>
-                ) : null}
-                {entry.phase === 'write' ? (
-                  <Tag color="orange" style={{ marginInlineEnd: 0 }}>
-                    写操作
+                  <Tag
+                    color={entry.provider === 'mcp' ? 'geekblue' : 'default'}
+                    style={{ marginInlineEnd: 0 }}
+                  >
+                    {sourceLabel(entry)}
                   </Tag>
-                ) : null}
-              </div>
-
-              {open ? (
-                <div style={{ marginTop: 4, paddingLeft: 18 }} data-testid={`tool-call-detail-${entry.tool}`}>
-                  {entry.status === 'pending' ? (
-                    <Typography.Text type="secondary" style={{ fontSize: 12 }}>
-                      已提交人工审批{entry.invocationId ? `（#${entry.invocationId}）` : ''}，审批通过后执行；可在「AI 审批」页处理。
-                    </Typography.Text>
+                  <Typography.Text code style={{ fontSize: 12 }}>
+                    {entry.tool}
+                  </Typography.Text>
+                  <Tag color={meta.color} style={{ marginInlineEnd: 0 }}>
+                    {meta.label}
+                  </Tag>
+                  {duration ? (
+                    <span
+                      style={{
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: 2,
+                        color: token.colorTextSecondary,
+                      }}
+                    >
+                      <Clock size={11} />
+                      {duration}
+                    </span>
                   ) : null}
-                  {entry.errorCode ? (
-                    <div style={{ fontSize: 12, color: token.colorError }}>错误码：{entry.errorCode}</div>
-                  ) : null}
-                  {summary ? (
-                    <div style={{ marginTop: entry.errorCode || entry.status === 'pending' ? 4 : 0 }}>
-                      {truncated ? (
-                        <Tooltip title="输出超过长度上限，已截断">
-                          <Tag color="default" style={{ marginInlineEnd: 6, fontSize: 11 }}>
-                            已截断
-                          </Tag>
-                        </Tooltip>
-                      ) : null}
-                      {/* 纯文本渲染：工具输出不可信，绝不经 Markdown/HTML 解析。 */}
-                      <pre
-                        style={{
-                          margin: 0,
-                          maxHeight: 180,
-                          overflow: 'auto',
-                          whiteSpace: 'pre-wrap',
-                          wordBreak: 'break-all',
-                          fontSize: 12,
-                          color: token.colorTextSecondary,
-                        }}
-                      >
-                        {summary}
-                      </pre>
-                    </div>
-                  ) : entry.status === 'done' ? (
-                    <Typography.Text type="secondary" style={{ fontSize: 12 }}>
-                      （无摘要）
-                    </Typography.Text>
+                  {entry.phase === 'write' ? (
+                    <Tag color="orange" style={{ marginInlineEnd: 0 }}>
+                      写操作
+                    </Tag>
                   ) : null}
                 </div>
-              ) : null}
-            </li>
-          );
-        })}
-      </ul>
+
+                {open ? (
+                  <div style={{ marginTop: 4, paddingLeft: 18 }} data-testid={`tool-call-detail-${entry.tool}`}>
+                    {entry.status === 'pending' ? (
+                      <Typography.Text type="secondary" style={{ fontSize: 12 }}>
+                        已提交人工审批{entry.invocationId ? `（#${entry.invocationId}）` : ''}，审批通过后执行；可在「AI 审批」页处理。
+                      </Typography.Text>
+                    ) : null}
+                    {entry.errorCode ? (
+                      <div style={{ fontSize: 12, color: token.colorError }}>错误码：{entry.errorCode}</div>
+                    ) : null}
+                    {summary ? (
+                      <div style={{ marginTop: entry.errorCode || entry.status === 'pending' ? 4 : 0 }}>
+                        {truncated ? (
+                          <Tooltip title="输出超过长度上限，已截断">
+                            <Tag color="default" style={{ marginInlineEnd: 6, fontSize: 11 }}>
+                              已截断
+                            </Tag>
+                          </Tooltip>
+                        ) : null}
+                        {/* 纯文本渲染：工具输出不可信，绝不经 Markdown/HTML 解析。 */}
+                        <pre
+                          style={{
+                            margin: 0,
+                            maxHeight: 180,
+                            overflow: 'auto',
+                            whiteSpace: 'pre-wrap',
+                            wordBreak: 'break-all',
+                            fontSize: 12,
+                            color: token.colorTextSecondary,
+                          }}
+                        >
+                          {summary}
+                        </pre>
+                      </div>
+                    ) : entry.status === 'done' ? (
+                      <Typography.Text type="secondary" style={{ fontSize: 12 }}>
+                        （无摘要）
+                      </Typography.Text>
+                    ) : null}
+                  </div>
+                ) : null}
+              </li>
+            );
+          })}
+        </ul>
+      ) : null}
       <style>{'.ai-tool-spin { animation: ai-tool-spin 1s linear infinite; } @keyframes ai-tool-spin { to { transform: rotate(360deg); } }'}</style>
     </div>
   );

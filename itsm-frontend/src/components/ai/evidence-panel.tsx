@@ -9,10 +9,13 @@
  *   - 跳转 URL 仅对**已核实存在**的路由生成（tickets/incidents/cmdb cis 详情），未知类型退化为纯文本。
  *
  * 兼容：旧后端不产生 v2 事件 → 面板不渲染，AIChat 回退既有 `ToolCallTimeline`（M1-04）。
+ *
+ * 交互：面板默认折叠（标题常驻「步骤 N · 工具调用 M」计数，点击标题展开/收起）；
+ * 加载错误是降级信号，不随折叠隐藏。
  */
-import React, { useMemo } from 'react';
-import { Space, Tag, Typography, theme } from 'antd';
-import { CircleDashed, Wrench } from 'lucide-react';
+import React, { useMemo, useState } from 'react';
+import { Tag, Typography, theme } from 'antd';
+import { ChevronDown, ChevronRight, CircleDashed, Wrench } from 'lucide-react';
 
 import type { AIRunStepEvent, AIToolStreamEvent } from '@/lib/api/ai-api';
 import { mergeToolEvents } from './tool-call-timeline';
@@ -79,6 +82,9 @@ export const EvidencePanel: React.FC<EvidencePanelProps> = ({
   const orderedSteps = useMemo(() => [...(steps ?? [])].sort((a, b) => a.stepIndex - b.stepIndex), [steps]);
   const tools = useMemo(() => mergeToolEvents(toolEvents), [toolEvents]);
   const isEmpty = orderedSteps.length === 0 && tools.length === 0;
+  // 默认折叠：过程证据是旁路信息（答案由消息正文承载），标题保留计数供扫读。
+  const [expanded, setExpanded] = useState(false);
+  const toggle = () => setExpanded(v => !v);
 
   const monoStyle: React.CSSProperties = { fontSize: 12 };
 
@@ -92,7 +98,22 @@ export const EvidencePanel: React.FC<EvidencePanelProps> = ({
         border: `1px solid ${token.colorBorderSecondary}`,
       }}
     >
-      <Space size={6} style={{ fontSize: 12 }}>
+      {/* 标题行即开关：折叠时保留计数（步骤 N · 工具调用 M），展开后才渲染明细。 */}
+      <div
+        role="button"
+        tabIndex={0}
+        aria-expanded={expanded}
+        data-testid="evidence-toggle"
+        onClick={toggle}
+        onKeyDown={e => {
+          if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault();
+            toggle();
+          }
+        }}
+        style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap', fontSize: 12, cursor: 'pointer' }}
+      >
+        {expanded ? <ChevronDown size={12} /> : <ChevronRight size={12} />}
         <CircleDashed size={12} />
         <Typography.Text strong style={{ fontSize: 12 }}>
           过程证据
@@ -100,21 +121,22 @@ export const EvidencePanel: React.FC<EvidencePanelProps> = ({
         <Typography.Text type="secondary" style={{ fontSize: 12 }}>
           步骤 {orderedSteps.length} · 工具调用 {tools.length}
         </Typography.Text>
-      </Space>
+      </div>
 
+      {/* 加载失败是降级信号：不藏进折叠区，折叠态也保持可见。 */}
       {error ? (
         <div style={{ marginTop: 6, fontSize: 12, color: token.colorError }} data-testid="evidence-error">
           {error}
         </div>
       ) : null}
 
-      {isEmpty && !error ? (
+      {expanded && isEmpty && !error ? (
         <div style={{ marginTop: 6, fontSize: 12, color: token.colorTextSecondary }} data-testid="evidence-empty">
           本次运行没有可展示的过程证据。
         </div>
       ) : null}
 
-      {tools.length > 0 ? (
+      {expanded && tools.length > 0 ? (
         <div style={{ marginTop: 8 }}>
           {tools.map((t, idx) => {
             const status = TOOL_STATUS_META[t.status] ?? { color: 'default', label: t.status };
@@ -171,7 +193,7 @@ export const EvidencePanel: React.FC<EvidencePanelProps> = ({
         </div>
       ) : null}
 
-      {orderedSteps.length > 0 ? (
+      {expanded && orderedSteps.length > 0 ? (
         <div style={{ marginTop: 8 }}>
           {orderedSteps.map(step => (
             <div

@@ -133,6 +133,8 @@ test.describe('MCP 对话链路：工具调用与时间线（A2-05 / M2-05）', 
       // 2) 工具调用时间线出现，且包含 MCP 工具的投影名（D3 前缀）。
       const timeline = page.locator('[data-testid="tool-call-timeline"]').first();
       await expect(timeline).toBeVisible({ timeout: 60_000 });
+      // 过程证据面板默认折叠：先展开标题，再断言条目内容。
+      await timeline.getByTestId('tool-call-timeline-toggle').click();
       await expect(timeline).toContainText(CALLABLE, { timeout: 60_000 });
 
       // 3) 证据截图。

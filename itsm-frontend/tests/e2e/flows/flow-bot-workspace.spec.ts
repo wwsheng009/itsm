@@ -132,6 +132,8 @@ test.describe('Bot 工作区：入口 → SSE → 工具时间线 → 确认抽�
 
     // 工具时间线出现（SSE `tool_call_started/finished` 驱动）。
     await expect(page.getByTestId('tool-call-timeline')).toBeVisible({ timeout: 60_000 });
+    // 过程证据面板默认折叠：先展开标题，再断言条目内容。
+    await page.getByTestId('tool-call-timeline-toggle').click();
     await expect(page.getByTestId('tool-call-timeline')).toContainText(MOCK_TOOL.replace(/^mcp__/, '').slice(0, 24), {
       timeout: 30_000,
     });

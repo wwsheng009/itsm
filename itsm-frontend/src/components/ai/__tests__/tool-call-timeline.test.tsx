@@ -2,6 +2,7 @@
  * 工具调用时间线测试（M1-04，jsdom + @testing-library/react）。
  *
  * 覆盖任务卡要求的四条：正常序列 / 失败序列 / 无事件降级 / 超长输出折叠与截断标记，
+ * 以及面板级默认折叠（标题计数常驻、点击展开/收起），
  * 另补两条边界：同名工具多次调用不互相覆盖、事件丢失时终态事件自建条目（不丢过程）。
  *
  * 安全断言：工具输出按纯文本渲染——`<img onerror>` 之类的载荷只能以文本出现，不得进入 DOM。
@@ -21,7 +22,27 @@ const mcpList = (status: string, extra: Partial<AIToolStreamEvent> = {}): AITool
   ...extra,
 });
 
+/** 面板默认折叠：先点标题展开，再断言条目内容。 */
+const expandPanel = () => fireEvent.click(screen.getByTestId('tool-call-timeline-toggle'));
+
 describe('ToolCallTimeline', () => {
+  it('默认折叠：标题与计数常驻，条目收起；点击标题可展开/收起', () => {
+    render(<ToolCallTimeline events={[mcpList('started'), mcpList('done', { summary: '{"issues":[]}' })]} />);
+
+    const toggle = screen.getByTestId('tool-call-timeline-toggle');
+    expect(toggle).toHaveAttribute('aria-expanded', 'false');
+    expect(toggle).toHaveTextContent('工具调用 · 1');
+    expect(screen.queryByText('mcp__mock__list_issues')).toBeNull();
+
+    expandPanel();
+    expect(screen.getByTestId('tool-call-timeline-toggle')).toHaveAttribute('aria-expanded', 'true');
+    expect(screen.getByText('mcp__mock__list_issues')).toBeTruthy();
+
+    expandPanel();
+    expect(screen.getByTestId('tool-call-timeline-toggle')).toHaveAttribute('aria-expanded', 'false');
+    expect(screen.queryByText('mcp__mock__list_issues')).toBeNull();
+  });
+
   it('正常序列：started → done 合并为一条，展示来源徽标/工具名/状态/耗时与脱敏摘要', () => {
     render(
       <ToolCallTimeline
@@ -31,6 +52,7 @@ describe('ToolCallTimeline', () => {
         ]}
       />
     );
+    expandPanel();
 
     // 标题计数 = 1 条调用（started 与 done 已配对，不产生两行）。
     expect(screen.getByText('工具调用 · 1')).toBeTruthy();
@@ -54,6 +76,7 @@ describe('ToolCallTimeline', () => {
         ]}
       />
     );
+    expandPanel();
 
     expect(screen.getByText('失败')).toBeTruthy();
     expect(screen.getByText('写操作')).toBeTruthy();
@@ -70,6 +93,7 @@ describe('ToolCallTimeline', () => {
         ]}
       />
     );
+    expandPanel();
 
     expect(screen.getByText('待审批')).toBeTruthy();
     fireEvent.click(screen.getByText('create_ticket'));
@@ -95,6 +119,7 @@ describe('ToolCallTimeline', () => {
     ];
 
     const { rerender } = render(<ToolCallTimeline events={events} hideStatuses={['pending']} />);
+    expandPanel();
     expect(screen.getByText('工具调用 · 1')).toBeTruthy();
     expect(screen.queryByText('create_ticket')).toBeNull();
 
@@ -106,6 +131,7 @@ describe('ToolCallTimeline', () => {
   it('超长输出：截断标记展示「已截断」，展开后仍可见摘要（滚动承载）', () => {
     const longSummary = `{"items":["${'x'.repeat(200)}"]}${TRUNCATED_MARKER}`;
     render(<ToolCallTimeline events={[mcpList('done', { summary: longSummary, durationMs: 1500 })]} />);
+    expandPanel();
 
     // 事件丢失降级：只有终态事件也能渲染。
     expect(screen.getByText('工具调用 · 1')).toBeTruthy();
@@ -137,6 +163,7 @@ describe('ToolCallTimeline', () => {
   it('工具输出按纯文本渲染：HTML/脚本载荷只以文本出现，不进入 DOM', () => {
     const payload = '<img src=x onerror="alert(1)"><script>alert(2)</script>';
     const { container } = render(<ToolCallTimeline events={[mcpList('done', { summary: payload })]} />);
+    expandPanel();
 
     fireEvent.click(screen.getByText('mcp__mock__list_issues'));
     expect(screen.getByText(payload)).toBeTruthy();
