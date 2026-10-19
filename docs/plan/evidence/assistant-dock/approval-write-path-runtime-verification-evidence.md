@@ -2,7 +2,7 @@
 
 - 环境：`http://172.18.3.238:8089`，`itsm_demo`
 - 修复前版本：`1.8.0-dev.d51ed172`（dock-plan 全量交付）
-- 修复后版本：`1.8.0-dev.2926ddc8`（本批，提交 `2926ddc8c87ec2894acd13edbf2e1219dba3e1fd`）
+- 修复后版本：`1.8.0-dev.abd8705a`（本批，提交 `abd8705aab67f259df5146adaf8cdc1a0ba7b892`；写路径修复提交 `2926ddc8`）
 - 验证方式：tabbit CLI + Playwright 真实浏览器（`tbG` 修复前、`tbG2` 修复后）
 
 ## 1. 结论
@@ -81,6 +81,26 @@ DB 证据：
 | `go test ./service/ -run 'TestToolRegistryWriteToolDefinitions\|TestCreateTicketArgsSchemaExposesExecutableFields'` | 通过 |
 | 部署 | 双镜像 `2926ddc8` 构建 `BUILD_EXIT=0`；backend/worker/frontend `Up (healthy)`；`/api/v1/version` 对齐 |
 | A/B 指纹 | 前端「暂时无法获取审批状态」旧镜像 0 → 新镜像 1 |
+
+## 5.1 回归走查（`abd8705a`，2026-10-18）
+
+修复部署后重新走查 Dock / 帮助 / 审批页 / 工作区：
+
+| 检查 | 结果 |
+|---|---|
+| `/dashboard` Dock | ✅ `data-page-key=dashboard`、面板可开、建议卡、上下文条「仪表盘」 |
+| 帮助页签 | ✅ `已覆盖`、`覆盖率 100%`、文档 1 篇、请求 `GET /ai/help/page?pageKey=dashboard` 200 |
+| `/ai/approval` | ✅ 页面渲染「AI 工具审批队列 / 待审批 / 工具治理 / Autopilot 运行监督」 |
+| `/ai/chat` | ✅ Bot 选择器 1 个、会话导出按钮 15 个 |
+| 控制台 | ✅ 0 console errors、0 失败请求 |
+
+### 缺陷 C：帮助面板加载中谎报「未注册页面」（前端，已修复）
+
+- 现象：已注册页面（`dashboard`）在 `/ai/help/page` 返回前，`help-status` 因 `data=null` 落入
+  `STATUS_META.unknown`，首帧显示「未注册页面」；首次走查因此误判（实际随后即为「已覆盖」）。
+- 修复：加载中显示「查询中」；仅 `pageKey` 确实缺失/`unknown` 时显示「未注册页面」。
+- 回归锁：`AssistantHelpPanel` 新增首帧断言；浏览器专项（延迟页面帮助请求 4s）实测
+  `statusDuringLoad=查询中`、`unknownDuringLoad=0`，加载完成 `statusAfterLoad=已覆盖`。
 
 > 说明：本机 Windows 上 `go build ./...` / `go test ./service/` 全包因 MinGW 链接器 `final link failed: memory exhausted` 失败，属本地环境限制；已用 `go vet` + 定向测试 + 远端镜像构建（`BUILD_EXIT=0`）替代验证。
 

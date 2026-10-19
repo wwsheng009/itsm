@@ -672,6 +672,10 @@
 > 门禁：tool-approval-card 11 例 + AI 表面 48 suites/316 tests + tsc/eslint、`go vet` + service 定向用例全绿；
 > 双镜像构建 `BUILD_EXIT=0`、三容器 healthy、版本对齐、A/B 指纹 0→1。
 > 证据 `docs/plan/evidence/assistant-dock/approval-write-path-runtime-verification-evidence.md`。
+> 追加（`1.8.0-dev.abd8705a`）：回归走查又发现**帮助面板加载中谎报「未注册页面」**（已注册页面在
+> `/ai/help/page` 返回前因 `data=null` 落入 unknown）——已改为加载中「查询中」，仅 pageKey 缺失时显示未注册；
+> AssistantHelpPanel 15 例（新增首帧断言）+ AI 表面 48 suites/322 tests + tsc/eslint 全绿；
+> 浏览器专项（延迟请求 4s）实测 `查询中`→`已覆盖`、`unknownDuringLoad=0`；Dock/审批页/工作区回归 0 console errors。
 > 条件项：本机 Windows 全包 `go build`/`go test ./service/` 受 MinGW 链接器内存限制（非代码问题），已用远端镜像构建替代；
 > 验证产生的 `TKT-202610-000065` 为测试数据，可清理。
 
