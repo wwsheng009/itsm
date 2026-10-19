@@ -56,17 +56,28 @@ const gamma: WorkbenchSummaryCustomer = {
   ticketsCreated30d: 1,
 };
 
-/** 与门禁消费方式对齐：selector 接收含 user.permissions 与 currentTenant.type 的状态。 */
-function setAuth(permissions: string[], tenantType: string | null = 'msp_provider') {
-  (useAuthStore as unknown as jest.Mock).mockImplementation(
-    (
-      selector: (state: {
-        user: { permissions: string[] };
-        currentTenant: { type?: string } | null;
-      }) => unknown
-    ) => selector({ user: { permissions }, currentTenant: tenantType ? { type: tenantType } : null })
-  );
-}
+  /** 与门禁消费方式对齐：canUseMspWorkbench 需 userId + 租户类型 + msp_role + 操作码（2026-10-18 起）。 */
+  function setAuth(
+    permissions: string[],
+    tenantType: string | null = 'msp_provider',
+    mspRole: string | null = 'provider_admin'
+  ) {
+    (useAuthStore as unknown as jest.Mock).mockImplementation(
+      (
+        selector: (state: {
+          user: { id: number; permissions: string[]; mspRole?: string | null };
+          currentTenant: { type?: string } | null;
+          hasPermission: (permission: string) => boolean;
+        }) => unknown
+      ) =>
+        selector({
+          user: { id: 1, permissions, mspRole },
+          currentTenant: tenantType ? { type: tenantType } : null,
+          hasPermission: (permission: string) =>
+            permissions.includes(permission) || permissions.includes('*'),
+        })
+    );
+  }
 
 function setup(overrides: { customers?: WorkbenchSummaryCustomer[] } = {}) {
   setAuth(['msp_ticket:read']);

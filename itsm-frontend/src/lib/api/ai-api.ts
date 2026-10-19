@@ -474,8 +474,10 @@ export interface HelpPageResult {
 }
 
 export async function aiGetPageHelp(pageKey: string): Promise<HelpPageResult> {
-  const qs = `?pageKey=${encodeURIComponent(pageKey)}`;
-  return httpClient.get<HelpPageResult>(`/api/v1/ai/help/page${qs}`);
+  // 保持扫描器可解析的「?${qs}」形态：api-contract 扫描器按字面 `?` 剥离查询串，
+  // `page${qs}`（qs 自带 ?）会被误判为真实漂移。运行期 URL 不变。
+  const qs = `pageKey=${encodeURIComponent(pageKey)}`;
+  return httpClient.get<HelpPageResult>(`/api/v1/ai/help/page?${qs}`);
 }
 
 export async function aiSearchHelp(

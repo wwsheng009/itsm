@@ -78,13 +78,18 @@ jest.mock('@/lib/hooks/useUserListQuery', () => ({
   }),
 }));
 
-jest.mock('@/lib/store/auth-store', () => ({
+jest.mock('@/lib/store/auth-store', () => {
   // hasPermission：B3-02 起 TicketDetail 用它做「问 AI」入口的权限预检（AI 读权限）。
-  useAuthStore: () => ({
+  // getState：非 hook 读取路径（use-permissions.hasPermission → useAuthStore.getState()），
+  // 供 TicketDetail 内嵌的 ProjectSelect / RecordProjectLink 等做受控渲染判定。
+  const state = {
     user: { id: 1, username: 'admin', name: '系统管理员' },
     hasPermission: () => true,
-  }),
-}));
+  };
+  return {
+    useAuthStore: Object.assign(() => state, { getState: () => state }),
+  };
+});
 
 jest.mock('@/lib/hooks/useErrorHandler', () => ({
   useErrorHandler: () => ({ handleError: jest.fn() }),

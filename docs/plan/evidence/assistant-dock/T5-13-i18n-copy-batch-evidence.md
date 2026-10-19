@@ -56,3 +56,12 @@
 - 提示词模板、注册表卡片与帮助文档正文不在本批（边界见 §1）；如需多语言提示词，另立任务并同步后端/模型侧口径。
 - `TicketDetailAssignSearch` 存量失败建议单独立项修复（mock 补 `getState` 即可），不影响本批验收。
 - en-US 为新增译文，建议在联调环境做一次英文走查（长度/换行/截断）；zh 默认路径已由既有测试覆盖。
+
+## 5. 补记：存量失败测试治理（2026-10-19）
+
+- §2/§4 登记的 `TicketDetailAssignSearch` 存量失败已修复：auth-store mock 补 `getState`（供 `use-permissions.hasPermission` 的非 hook 读取路径使用）。
+- 同批治理全量套件扫描出的同类存量腐烂（非 T5-13 范围）：
+  - `tickets/types`：用例改为「持 `ticket_type:manage`、不持 `install_preset`」场景（组件已新增 manage 门控「新建类型」）；
+  - MSP 门控三套件（`MspProviderGate` / `msp/dashboard` / `CrossTenantOverview`）：auth-store mock 对齐 `canUseMspWorkbench` 2026-10-18 契约（`userId` + `msp_role` + 租户类型 + 操作码），`MspProviderGate` 新增 `msp_role` 缺失负例；
+  - `api-contract`：`aiGetPageHelp` 查询串改写为 `?${qs}` 形态（运行期 URL 不变），消除扫描器对 `page${qs}` 的误报。
+- 验证：全量 jest **359/359 suites；4735 passed / 13 skipped / 0 failed**；eslint、tsc 全绿。

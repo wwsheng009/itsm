@@ -51,7 +51,8 @@ beforeEach(() => {
 });
 
 describe('TicketTypesPage 预设入口权限门控', () => {
-  it('无 install_preset 权限：不渲染「从预设安装」，保留「新建类型」', async () => {
+  it('无 install_preset 权限（持有 manage）：不渲染「从预设安装」，保留「新建类型」', async () => {
+    mockHasPermission = (...args) => args[0] === 'ticket_type' && args[1] === 'manage';
     renderPage();
     await waitFor(() => expect(mockedApi.list).toHaveBeenCalled());
 
