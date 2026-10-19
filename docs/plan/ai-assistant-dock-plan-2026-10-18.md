@@ -1086,17 +1086,17 @@ Dock 容器、chat-core 抽离、交互状态机、帮助覆盖率 ratchet、Aut
 |---|---|---|---|
 | T5-01 | 证据与台账补登记：I0-01（`4a1fd4f8`）与运行时修复批 2（`cd61ce7f`/`26512d69`/`5d87a831`） | 证据缺口（评审 §2.1–2.2） | 每项一证据文件 + §7/台账登记 |
 | T5-02 | 输入坞 `/` 快捷指令 + `@` 当前页对象引用 | §3.1 L47；代码零命中 | 解析 + 交互测试 |
-| T5-03 | 附件/截图输入（语音输入可显式关闭） | §3.5 L100–101 | 上传面 + 双界面接线 |
-| T5-04 | handoff"转人工"三项（打开页面 / 预填 / 指派） | §3.2 L65；现仅埋点 | 端到端用例 |
+| T5-03 | 附件/截图输入（语音输入可显式关闭） | §3.5 L100–101；附件域 `generic-attachment-richtext-control-plan.md` | 上传面 + 双界面接线（建议拆 T5-03a 上传面/契约、T5-03b 双界面与视觉降级） |
+| T5-04 | handoff"转人工"三项（打开页面 / 预填 / 指派） | §3.2 L65；专项 `assistant-handoff-actions-plan-2026-10-19.md` | 端到端用例（建议拆 T5-04a 打开/预填、T5-04b 指派） |
 | T5-05 | 灰度开关 `assistant.dock.enabled` / `help.agent.enabled` | §3.7 L118、§6 L270 | ✅ 平台配置 + 免重启生效（2026-10-19；租户级；证据 `assistant-dock/T5-05-gray-switches-evidence.md`） |
 | T5-06 | 质量层数据源与看板接线（父任务，拆分为 T5-06a / T5-06b） | §13.3；§11.5 门槛依赖 | ✅ 两个子任务完成（2026-10-19；证据 `assistant-dock/T5-06a-quality-data-source-evidence.md`、`assistant-dock/T5-06b-quality-dashboard-evidence.md`） |
 | T5-06a | 质量层数据源：citation 埋点（sources 数 / 无引用回答）、回答级点踩、`model` 上报、`query_hash` 补链 | §13.3；§11.5 门槛依赖 | ✅ 指标可算（2026-10-19；证据 `assistant-dock/T5-06a-quality-data-source-evidence.md`） |
 | T5-06b | 质量层看板接线：summary `quality` / `models` 接入观测看板；§11.5 三指标标注可测 | §13.3；§14.4-③/④ | ✅ 看板展示 + 门槛可执行（2026-10-19；证据 `assistant-dock/T5-06b-quality-dashboard-evidence.md`） |
 | T5-07 | 成本口径修正 + 模型分级路由与成本上限（父任务，拆分为 T5-07a / T5-07b） | §13.3、§12 Q5 | T5-07a ✅ / T5-07b 待排期 |
 | T5-07a | 成本口径修正：首 token / 整体 P50+P95 分离；健康 SLO 改用首 token P95 | §13.3；评审 §5.2 | ✅ 口径评审 + 看板（2026-10-19；证据 `assistant-dock/T5-07a-cost-latency-evidence.md`） |
-| T5-07b | 模型分级路由与成本上限（Q5） | §12 Q5；§3.7 L119 | 待排期 |
+| T5-07b | 模型分级路由与成本上限（Q5） | §12 Q5；§3.7 L119；专项 `assistant-model-routing-and-budget-plan-2026-10-19.md` | 待排期（先做 Q5 五项口径决策） |
 | T5-08 | 流式 `aria-live` 行为验收（不限于 axe 静态扫描） | §3.7 L113；I2-02 盲区 | 行为断言 |
-| T5-09 | 帮助写面收口：`help_update_draft` / `help_submit_review` / `help_publish` + diff 预览 / 一键审阅 UI；help-index 向量化 | §5.4/§5.5 | 按 §5 设计验收 |
+| T5-09 | 帮助写面收口：`help_update_draft` / `help_submit_review` / `help_publish` + diff 预览 / 一键审阅 UI；help-index 向量化 | §5.4/§5.5 | 按 §5 设计验收（建议拆 T5-09a 写面/审阅、T5-09b 向量化） |
 | T5-10 | i18n"文案批次"落为真实任务（或显式关闭） | §3.7；多处条件项悬空引用 | 任务化 / 关闭登记 |
 | T5-11 | 宽度交互文档收口：将"离散三档 + 键盘循环（替代自由拖拽）"回写 §3.1/§3.7；决定是否保留"边缘收纳" | `5d87a831` 已按新形态实现 | 方案条款同步后关闭 |
 | T5-12 | 双入口一致性收口：按 §14.4-① 决策实施或更新方案条款（`5d87a831` 已实现"抑制 + 一次性交接"） | §3.7 L119；评审 §3 | 决策落文档 + 一致性用例 |
@@ -1142,3 +1142,12 @@ Dock 容器、chat-core 抽离、交互状态机、帮助覆盖率 ratchet、Aut
 - 任务状态更新优先写入独立交付台账；§7 的 `> 进度：` 块保留为历史增量。
 - 新增任务必须含 ID + 验收 + 证据路径（可行时附提交哈希）。
 - 条件项统一登记在 §14.3；完成即回填证据并移除。
+
+### 14.6 专项方案索引（2026-10-19）
+
+| 范围 | 专项文档 | 状态 |
+|---|---|---|
+| T5-04 handoff 三项 | `docs/plan/assistant-handoff-actions-plan-2026-10-19.md` | 方案待评审，实现未开工 |
+| T5-07b 模型分级路由/成本上限 | `docs/plan/assistant-model-routing-and-budget-plan-2026-10-19.md` | 方案待评审；Q5 五项口径待拍板 |
+| T5-03 附件域基础 | `docs/plan/generic-attachment-richtext-control-plan.md` | 已有附件域方案；AI 对话附件待拆 T5-03a/b |
+| T5-09 帮助子系统 | 本文 §5.1–5.8 + `docs/plan/evidence/help-agent/H0-*.md` | 设计/读面已有；写面与向量化待拆 T5-09a/b |
