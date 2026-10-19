@@ -1,0 +1,108 @@
+# AI 助手 Dock 方案 · 交付台账（截至 2026-10-19）
+
+- 用途：v5 起承接方案 §7 任务的**逐项交付状态**；方案：`docs/plan/ai-assistant-dock-plan-2026-10-18.md`（§14 为评审收口说明），评审：`docs/plan/ai-assistant-dock-plan-review-2026-10-19.md`。
+- 抽取基线：`29edea81` 快照（2026-10-19 13:16）；其后变更（批 7–10）见下方"G. 批次与提交"。
+- 状态口径：✅ 已交付（进度块 + 证据实存）｜✅* 代码已交付、证据待补｜❌ 未交付。
+- 提交为批次级映射（无逐任务溯源，评审 §4.2 已记录）；证据文件均在 `docs/plan/evidence/` 下。
+
+## A. V 系列（用户价值）—— 9/9 ✅
+
+| 任务 | 内容 | 状态 | 证据（docs/plan/evidence/ 下） |
+|---|---|---|---|
+| V0-01 | 工单详情三件套（分诊 + 答复草稿 + 知识推荐，Inline 优先） | ✅ | assistant-dock/V0-01-ticket-inline-trio-evidence.md |
+| V0-02 | 一句话建单 + 自助问答（员工侧） | ✅ | assistant-dock/V0-02-self-service-ai-create-evidence.md |
+| V0-03 | 变更影响分析任务卡（plan 产物） | ✅ | assistant-dock/V0-03-change-impact-plan-card-evidence.md |
+| V0-04 | 试点对照报告 + 放量门槛（§11.5） | ✅ | assistant-observability/V0-04-pilot-report-gate-evidence.md |
+| V1-01 | 列表页批量 AI（分类 / 草稿 / 分派） | ✅ | assistant-dock/V1-01-batch-ai-evidence.md |
+| V1-02 | 员工侧入口覆盖（移动端 / 门户 / 邮件） | ✅ | assistant-dock/V1-02-employee-entry-coverage-evidence.md |
+| V1-03 | 口语↔术语确认 | ✅ | assistant-dock/V1-03-intent-interpretation-evidence.md |
+| V2-01 | 个性化记忆（可关闭） | ✅ | assistant-dock/V2-01-personalized-memory-evidence.md |
+| V2-02 | 异步任务体验（先答后精 + 通知） | ✅ | assistant-dock/V2-02-async-task-experience-evidence.md |
+
+## B. P0（Dock 底座 + 帮助骨架）—— 9/9 ✅
+
+| 任务 | 内容 | 状态 | 证据（docs/plan/evidence/ 下） |
+|---|---|---|---|
+| D0-01 | chat-core 抽离 | ✅ | assistant-dock/D0-01-chat-core-extraction-evidence.md |
+| D0-02 | 常驻 Dock 底座（含移动形态；宽度三档后补于 `5d87a831`） | ✅ | assistant-dock/D0-02-assistant-dock-evidence.md |
+| D0-03 | 页面上下文注册表（page_key 白名单） | ✅ | assistant-dock/D0-03-page-context-registry-evidence.md |
+| D0-04 | 页面上下文协议（/ai/assistant/context） | ✅ | assistant-dock/D0-04-page-context-protocol-evidence.md |
+| D0-05 | 遥测接线 + 建议 / ContextBar（分两批） | ✅ | assistant-dock/D0-05-chat-telemetry-wiring-evidence.md；assistant-dock/D0-05-suggestions-context-bar-evidence.md |
+| H0-01 | 帮助文档种子（docs/help 规范） | ✅ | help-agent/H0-01-help-docs-seed-evidence.md |
+| H0-02 | Page Manifest + Doc Ledger | ✅（schema 与方案有偏差，评审 §5.1） | help-agent/H0-02-page-manifest-doc-ledger-evidence.md |
+| H0-03 | Help Agent 工具集（读面） | ✅（写面 3 工具未实现，见方案 §14.2 T5-09） | help-agent/H0-03-help-agent-tools-evidence.md |
+| H0-04 | 面板帮助视图 | ✅ | help-agent/H0-04-panel-help-view-evidence.md |
+
+## C. P1（场景化 + 帮助闭环）—— 6/6 ✅
+
+| 任务 | 内容 | 状态 | 证据（docs/plan/evidence/ 下） |
+|---|---|---|---|
+| D1-01 | 助手上下文接口（/ai/assistant/context） | ✅ | assistant-dock/D1-01-assistant-context-evidence.md |
+| D1-02 | 动作与页面上下文 | ✅ | assistant-dock/D1-02-actions-and-page-context-evidence.md |
+| H1-01 | 文档待办队列 | ✅ | help-agent/H1-01-doc-todo-queue-evidence.md |
+| H1-02 | 文档校验器 + CI | ✅ | help-agent/H1-02-docs-validator-ci-evidence.md |
+| H1-03 | 夜间 stale 检测 | ✅ | help-agent/H1-03-nightly-stale-detection-evidence.md |
+| H1-04 | 覆盖看板 + 待办持久化 + 草稿采纳度量（分三批） | ✅ | help-agent/H1-04-help-coverage-dashboard-evidence.md；help-agent/H1-04-todo-state-persistence-evidence.md；help-agent/H1-04-doc-draft-adoption-evidence.md |
+
+## D. P2（智能化与运营；原方案无 ID，本表代号为 v5 台账所加）—— 4/4 ✅
+
+| 任务 | 内容 | 状态 | 证据（docs/plan/evidence/ 下） |
+|---|---|---|---|
+| P2-a | 动态建议 | ✅ | assistant-dock/P2-dynamic-suggestions-evidence.md |
+| P2-b | L1 自动合并（默认 dry-run） | ✅（审计字段不全，评审 §5.1） | help-agent/P2-l1-auto-merge-evidence.md |
+| P2-c | 文档运营报表 | ✅ | help-agent/P2-doc-metrics-report-evidence.md |
+| P2-d | MSP 帮助空间 | ✅ | help-agent/P2-msp-help-space-evidence.md |
+
+## E. I 系列（交互补强）—— 9/9 ✅（I0-01 证据待补）
+
+| 任务 | 内容 | 状态 | 证据（docs/plan/evidence/ 下） |
+|---|---|---|---|
+| I0-01 | 交互状态机 + 错误字典（Dock 接入） | ✅*（`4a1fd4f8`：10 状态 + 错误字典 + Banner + 247 行测试；证据文件待补） | （待补）代码：itsm-frontend/src/lib/ai/interaction-state.ts |
+| I0-02 | 任务卡模型 | ✅ | assistant-dock/I0-02-task-card-model-evidence.md |
+| I0-03 | 快捷键 + 命令面板 | ✅ | assistant-dock/I0-03-shortcuts-and-command-palette-evidence.md |
+| I0-04 | Outcome Contract 回执 | ✅ | assistant-dock/I0-04-outcome-contract-evidence.md |
+| I1-01 | Inline 一键应用（diff + undo） | ✅ | assistant-dock/I1-01-inline-apply-evidence.md |
+| I1-02 | 划词问 AI + 错误解释 | ✅ | assistant-dock/I1-02-selection-and-error-explain-evidence.md |
+| I1-03 | 主动协助（三形态 / 静默） | ✅ | assistant-dock/I1-03-proactive-assist-evidence.md |
+| I2-01 | Autopilot 巡检 | ✅ | assistant-dock/I2-01-autopilot-supervision-evidence.md |
+| I2-02 | 合规 + a11y（axe 扫描面） | ✅（流式 aria-live 行为验收盲区，见 T5-08） | assistant-dock/I2-02-compliance-a11y-evidence.md；assistant-dock/O2-02-workspace-entry-a11y-evidence.md |
+
+## F. O 系列（观测性与分析）—— 7/7 ✅
+
+| 任务 | 内容 | 状态 | 证据（docs/plan/evidence/ 下） |
+|---|---|---|---|
+| O0-01 | 遥测 SDK | ✅ | assistant-observability/O0-01-telemetry-sdk-evidence.md |
+| O0-02 | 遥测接收 + 保留清理 | ✅ | assistant-observability/O0-02-telemetry-ingest-evidence.md；assistant-observability/O0-02-retention-cleanup-evidence.md |
+| O0-03 | 观测看板 | ✅（与 §13.3 指标口径差距，评审 §5.2 / T5-06） | assistant-observability/O0-03-observability-dashboard-evidence.md |
+| O1-01 | 单任务轨迹 + 会话回放 | ✅ | assistant-observability/O1-01-run-trace-evidence.md；assistant-observability/O1-01-conversation-trace-evidence.md |
+| O1-02 | 健康告警 + sweeper 订阅 | ✅ | assistant-observability/O1-02-health-alerts-evidence.md；assistant-observability/O1-02-sweeper-subscription-evidence.md |
+| O2-01 | 分析增强 | ✅ | assistant-observability/O2-01-analysis-enhancements-evidence.md |
+| O2-02 | 诊断抽屉 + token 用量 + 工作区入口 a11y（分三批） | ✅ | assistant-dock/O2-02-diagnostics-drawer-evidence.md；assistant-dock/O2-02-token-usage-evidence.md；assistant-dock/O2-02-workspace-entry-a11y-evidence.md |
+
+## G. 批次与提交（`d51ed172` 起）
+
+| # | 提交 | 说明 |
+|---|---|---|
+| 1 | `d51ed172` | 全量交付（V / P0 / P1 / P2 / I 主批） |
+| 2 | `27ead101` | 全量交付部署证据与变更记录 |
+| 3 | `2926ddc8` | 写路径审批闭环两处实测缺陷修复 |
+| 4 | `00817fc6` | 写路径审批闭环浏览器实测证据 |
+| 5 | `abd8705a` | 帮助面板首帧修复（"未注册页面"谎报） |
+| 6 | `29edea81` | 帮助面板修复证据与回归走查结论 |
+| 7 | `4a1fd4f8` | I0-01 交互状态机 + 错误字典（Dock 接入） |
+| 8 | `cd61ce7f` | 流式会话回放历史消息 + 稳定前缀（后端多轮连续性） |
+| 9 | `26512d69` | 过程证据面板默认折叠可展开 |
+| 10 | `5d87a831` | Dock 宽度三档 + 持久化 + 键盘循环 + 推挤；会话历史下拉；Dock→工作区一次性交接 |
+
+## H. 例外与悬空（与方案 §14 同步）
+
+- I0-01：代码已交付（`4a1fd4f8`）、证据文件待补（方案 §14.2 T5-01）。
+- 批次 7–10（`4a1fd4f8`/`cd61ce7f`/`26512d69`/`5d87a831`）：均已提交、未附证据、未更新方案 §7（T5-01）。
+- 悬空设计项（无任务映射）：`/` 与 `@`、附件 / 截图、handoff"转人工"三项、灰度开关、质量层指标数据源 → 方案 §14.2（T5-02–T5-06）。
+- 宽度交互"拖拽调宽"：已被 `5d87a831` 显式替代为离散三档 + 键盘循环（WCAG 2.1.1），待回写方案（T5-11）。
+- 双入口"在侧栏继续 / 全屏打开"：未实现；现为"抑制 + 一次性交接"，待决策（方案 §14.4-① / T5-12）。
+- 条件项（真实 Provider E2E、真库回归、i18n 文案批次、Q1/Q2/Q4 口径等）：见方案 §14.3。
+
+---
+
+- 维护约定：本台账为 v5 起任务状态的**唯一入口**；方案 §7 `> 进度：` 块为历史增量。新增/变更任务须更新本表并附证据路径（可行时附提交哈希）。
