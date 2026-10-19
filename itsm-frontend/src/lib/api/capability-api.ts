@@ -22,6 +22,13 @@ export interface CapabilityResponse {
   deploymentMode?: string;
   /** /api/v1/msp/* 路由族是否开放（仅 saas_msp 为 true） */
   mspRoutesEnabled?: boolean;
+  /**
+   * AI 助手租户策略（V2-01）：`memoryEnabled=false` = 租户关闭个性化记忆
+   * （前端此后不读写记忆数据，零请求）；缺省/读取失败按产品默认开启处理。
+   */
+  assistant?: {
+    memoryEnabled?: boolean;
+  };
 }
 
 export const getCapabilities = (): Promise<CapabilityResponse> =>

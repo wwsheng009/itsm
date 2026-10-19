@@ -1,14 +1,57 @@
 package capability
 
 import (
+	"context"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
 	"testing"
 
+	caproot "itsm-backend/capability"
+
 	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/require"
 )
+
+// runtimeStubSource 是运行时能力源的最小替身（V2-01 个性化记忆租户开关）。
+type runtimeStubSource struct{ snap caproot.Snapshot }
+
+func (s runtimeStubSource) For(context.Context, int) caproot.Snapshot { return s.snap }
+func (s runtimeStubSource) Invalidate(int)                            {}
+
+// V2-01：公共能力面下发租户级 assistant.memoryEnabled：
+//   - 注入源且租户关闭 → false；
+//   - 未注入源（测试/未装配）→ 产品默认 true（fail-safe，不阻断）。
+func TestHandlerExposesAssistantMemoryPolicy(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	router := gin.New()
+	router.GET("/capabilities", func(c *gin.Context) {
+		c.Set("tenant_id", 7)
+		Handler(c)
+	})
+
+	read := func() bool {
+		recorder := httptest.NewRecorder()
+		router.ServeHTTP(recorder, httptest.NewRequest(http.MethodGet, "/capabilities", nil))
+		require.Equal(t, http.StatusOK, recorder.Code)
+		var response struct {
+			Data struct {
+				Assistant struct {
+					MemoryEnabled bool `json:"memoryEnabled"`
+				} `json:"assistant"`
+			} `json:"data"`
+		}
+		require.NoError(t, json.Unmarshal(recorder.Body.Bytes(), &response))
+		return response.Data.Assistant.MemoryEnabled
+	}
+
+	caproot.SetRuntimeSource(runtimeStubSource{snap: caproot.Snapshot{AssistantMemoryEnabled: false}})
+	t.Cleanup(func() { caproot.SetRuntimeSource(nil) })
+	require.False(t, read(), "租户关闭记忆 → assistant.memoryEnabled=false")
+
+	caproot.SetRuntimeSource(runtimeStubSource{snap: caproot.Snapshot{AssistantMemoryEnabled: true}})
+	require.True(t, read())
+}
 
 func TestHandlerReturnsTenantAwareCapabilityContract(t *testing.T) {
 	gin.SetMode(gin.TestMode)

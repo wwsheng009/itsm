@@ -298,11 +298,9 @@ func (g *LLMGateway) Chat(ctx context.Context, model string, messages []LLMMessa
 		return out, err
 	}
 	start := time.Now()
-	// naive tokens estimation
-	tokens := 0
-	for _, m := range messages {
-		tokens += len([]rune(m.Content)) / 4
-	}
+	// naive tokens estimation（口径：字符/4；导出为 EstimatePromptTokens，展示与限流同源）
+	tokens := EstimatePromptTokens(messages)
+	reportUsageEstimate(ctx, tokens)
 	if g.limiter != nil && !g.limiter.Allow(tokens) {
 		if g.observer != nil {
 			g.observe("", g.providerName, model, tokens, time.Since(start), ErrRateLimited)
@@ -335,10 +333,8 @@ func (g *LLMGateway) ChatStream(ctx context.Context, model string, messages []LL
 		return err
 	}
 	start := time.Now()
-	tokens := 0
-	for _, m := range messages {
-		tokens += len([]rune(m.Content)) / 4
-	}
+	tokens := EstimatePromptTokens(messages)
+	reportUsageEstimate(ctx, tokens)
 	if g.limiter != nil && !g.limiter.Allow(tokens) {
 		if g.observer != nil {
 			g.observe("", g.providerName, model, tokens, time.Since(start), ErrRateLimited)
@@ -393,10 +389,8 @@ func (g *LLMGateway) ChatStreamWithTools(ctx context.Context, model string, mess
 		// 导致 /ai/metrics 的调用数/失败率/平均延迟全部失真（UAT Q-1/Q-2 的 33 次
 		// 采样若混入工具路径则不可信）。现补齐与 ChatStream 相同的门禁与观测。
 		start := time.Now()
-		tokens := 0
-		for _, m := range messages {
-			tokens += len([]rune(m.Content)) / 4
-		}
+		tokens := EstimatePromptTokens(messages)
+		reportUsageEstimate(ctx, tokens)
 		if g.limiter != nil && !g.limiter.Allow(tokens) {
 			if g.observer != nil {
 				g.observe("", g.providerName, model, tokens, time.Since(start), ErrRateLimited)
@@ -480,7 +474,8 @@ func (g *LLMGateway) ChatWithRequest(ctx context.Context, req ProviderRequest, m
 		return "", resolution, err
 	}
 	start := time.Now()
-	tokens := estimateTokens(messages)
+	tokens := EstimatePromptTokens(messages)
+	reportUsageEstimate(ctx, tokens)
 	// model 为空 = 由已解析 provider 决定；遥测记录实际模型而非空串。
 	effectiveModel := model
 	if effectiveModel == "" {
@@ -513,7 +508,8 @@ func (g *LLMGateway) ChatStreamWithRequest(ctx context.Context, req ProviderRequ
 // 保证限流/观测/回退口径与既有 ChatStream 完全一致。
 func (g *LLMGateway) chatStreamWithProvider(ctx context.Context, provider LLMProvider, resolution ProviderResolution, model string, messages []LLMMessage, callback func(string)) (ProviderResolution, error) {
 	start := time.Now()
-	tokens := estimateTokens(messages)
+	tokens := EstimatePromptTokens(messages)
+	reportUsageEstimate(ctx, tokens)
 	effectiveModel := model
 	if effectiveModel == "" {
 		effectiveModel = resolution.Model
@@ -558,7 +554,8 @@ func (g *LLMGateway) ChatStreamWithToolsRequest(ctx context.Context, req Provide
 		return g.chatStreamWithProvider(ctx, provider, resolution, model, messages, callback)
 	}
 	start := time.Now()
-	tokens := estimateTokens(messages)
+	tokens := EstimatePromptTokens(messages)
+	reportUsageEstimate(ctx, tokens)
 	if g.limiter != nil && !g.limiter.Allow(tokens) {
 		g.observe(observationKey(resolution), resolution.Protocol, model, tokens, time.Since(start), ErrRateLimited)
 		return resolution, ErrRateLimited
@@ -675,15 +672,6 @@ func slotProvider(slot ProviderSlot, source string) (LLMProvider, ProviderResolu
 		return nil, resolution, fmt.Errorf("%w: provider %q 未构建出可用实例", ErrProviderUnavailable, slot.Key)
 	}
 	return slot.Provider, resolution, nil
-}
-
-// estimateTokens 沿用既有口径估算输入 token（rune 数 / 4），供新增路径与旧路径保持同一限流口径。
-func estimateTokens(messages []LLMMessage) int {
-	tokens := 0
-	for _, m := range messages {
-		tokens += len([]rune(m.Content)) / 4
-	}
-	return tokens
 }
 
 // Simple implementations

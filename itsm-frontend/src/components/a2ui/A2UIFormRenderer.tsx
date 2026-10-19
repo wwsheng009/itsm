@@ -1,11 +1,23 @@
 
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect, useRef } from 'react';
 import { Form, Input, Select, Button, Card, Space, Spin, App } from 'antd';
 import { Send, Bot, CheckCircle } from 'lucide-react';
 import type { A2UIComponent, A2UIDataModel, ValueDef, OptionItem, ActionDef, TextProps } from '@/types/a2ui';
 import { getValueByPath, setValueByPath } from '@/types/a2ui';
 import { useAuthStore } from '@/lib/store/auth-store';
 import { A2UIApi } from '@/lib/api/a2ui-api';
+import {
+  aiInterpretTicketIntent,
+  type TicketIntentFields,
+  type TicketIntentInterpretation,
+} from '@/lib/api/ai-api';
+import IntentUnderstandingCard, {
+  type IntentUnderstandingChanges,
+} from './IntentUnderstandingCard';
+import {
+  AICreateFlowTracker,
+  type AICreateSuggestedFields,
+} from '@/lib/ai/ai-create-metrics';
 
 // 解析值定义（字面量或路径）
 function resolveValue(def: ValueDef | undefined, model: A2UIDataModel): unknown {
@@ -254,7 +266,15 @@ const A2UIComponentRenderer: React.FC<{
 
 // ==================== 主渲染器 ====================
 
-export function A2UIFormRenderer() {
+export interface A2UIFormRendererProps {
+  /** 受控意图（V0-02：自助问答「去建单」把问题描述带入表单；缺省为内部状态）。 */
+  intent?: string;
+  onIntentChange?: (value: string) => void;
+  /** 埋点用页面键（缺省不落字段）。 */
+  pageKey?: string;
+}
+
+export function A2UIFormRenderer({ intent, onIntentChange, pageKey }: A2UIFormRendererProps = {}) {
   const { message } = App.useApp();
   const [form] = Form.useForm();
   const [components, setComponents] = useState<A2UIComponent[]>([]);
@@ -262,10 +282,28 @@ export function A2UIFormRenderer() {
     ticket: { title: '', type: 'hardware', priority: 'medium', description: '' },
     ui: { canSubmit: false, status: '', statusColor: 'gray', errors: {} },
   });
-  const [userIntent, setUserIntent] = useState('');
+  const [internalIntent, setInternalIntent] = useState('');
+  const userIntent = intent ?? internalIntent;
+  const setUserIntent = useCallback(
+    (value: string) => {
+      if (intent === undefined) setInternalIntent(value);
+      onIntentChange?.(value);
+    },
+    [intent, onIntentChange]
+  );
   const [loading, setLoading] = useState(false);
   const [surfaceId, setSurfaceId] = useState<string | null>(null);
   const [submitted, setSubmitted] = useState(false);
+  // V1-03 口语↔术语确认：理解结果与待确认的口语原文（确认/修改后才触发表单生成）。
+  const [interpretation, setInterpretation] = useState<TicketIntentInterpretation | null>(null);
+  const [pendingIntent, setPendingIntent] = useState('');
+  // V0-02 度量：建单时长（start→提交成功）/ 误分类率代理（字段纠正）/ 任务漏斗。
+  const trackerRef = useRef<AICreateFlowTracker | null>(null);
+  if (trackerRef.current === null) trackerRef.current = new AICreateFlowTracker();
+  const modelRef = useRef(model);
+  useEffect(() => {
+    modelRef.current = model;
+  }, [model]);
 
   // 渲染 ID 列表
   const getRenderableIds = (): string[] => {
@@ -299,18 +337,17 @@ export function A2UIFormRenderer() {
     return true;
   };
 
-  // 发送意图到 AI
-  const sendToAI = async () => {
-    if (!userIntent.trim()) {
-      message.warning('请描述您的需求');
-      return;
-    }
+  // 生成建单表单（V1-03 后：仅在用户确认/修改理解结果后调用；applied = 用户确认的术语）。
+  const generateForm = async (intentText: string, applied?: TicketIntentFields) => {
     if (!checkAuth()) {
       return;
     }
     setLoading(true);
+    const tracker = trackerRef.current as AICreateFlowTracker;
+    tracker.start(pageKey);
+    const suggested: AICreateSuggestedFields = {};
     try {
-      const data = await A2UIApi.generateTicketForm(userIntent, surfaceId);
+      const data = await A2UIApi.generateTicketForm(intentText, surfaceId);
 
       // 解析消息
       (data.messages || []).forEach((msg: string) => {
@@ -328,6 +365,13 @@ export function A2UIFormRenderer() {
 
           if ('dataModelUpdate' in parsed) {
             const updates = parsed.dataModelUpdate.contents;
+            // 捕获 AI 建议字段（误分类率代理的基线）。
+            if (parsed.dataModelUpdate.path === 'ticket') {
+              updates.forEach((u: { key: string; valueString?: string }) => {
+                if (u.key === 'type') suggested.type = u.valueString;
+                if (u.key === 'priority') suggested.priority = u.valueString;
+              });
+            }
             setModel(prev => {
               const newModel = JSON.parse(JSON.stringify(prev));
               updates.forEach(
@@ -361,12 +405,84 @@ export function A2UIFormRenderer() {
         }
       });
 
+      // V1-03：用户确认/修改过的术语优先于规则解析结果（表单初值 = 用户认可的理解）。
+      if (applied) {
+        setModel(prev => {
+          const newModel = JSON.parse(JSON.stringify(prev));
+          setValueByPath(newModel, '/ticket/title', applied.title);
+          setValueByPath(newModel, '/ticket/type', applied.type);
+          setValueByPath(newModel, '/ticket/priority', applied.priority);
+          setValueByPath(newModel, '/ticket/description', applied.description);
+          return newModel;
+        });
+        form.setFieldValue('title', applied.title);
+        form.setFieldValue('type', applied.type);
+        form.setFieldValue('priority', applied.priority);
+        form.setFieldValue('description', applied.description);
+        // 误分类率基线 = 用户确认后的值：确认卡上的纠正已即时上报，避免重复计数。
+        tracker.captureSuggested({ type: applied.type, priority: applied.priority });
+      } else {
+        tracker.captureSuggested(suggested);
+      }
       setUserIntent('');
+      setPendingIntent('');
     } catch (e) {
       console.error(e);
       message.error('请求失败，请稍后重试');
+      tracker.finishFailure('generate_failed', pageKey);
     } finally {
       setLoading(false);
+    }
+  };
+
+  // 发送口语：先理解（V1-03「我理解成 …」），理解失败降级为直接生成（不阻塞建单）。
+  const sendToAI = async () => {
+    if (!userIntent.trim()) {
+      message.warning('请描述您的需求');
+      return;
+    }
+    if (!checkAuth()) {
+      return;
+    }
+    const utterance = userIntent.trim();
+    setLoading(true);
+    try {
+      const result = await aiInterpretTicketIntent(utterance);
+      // 理解确认阶段先清空上一次表单，避免旧表单在新理解被确认前被提交。
+      setComponents([]);
+      setSurfaceId(null);
+      setSubmitted(false);
+      setPendingIntent(utterance);
+      setInterpretation(result);
+      setUserIntent('');
+    } catch (e) {
+      console.error(e);
+      await generateForm(utterance);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // 确认原样理解 → 生成表单（用户确认的字段作为初值）。
+  const handleInterpretConfirm = () => {
+    const applied = interpretation?.fields;
+    const intentText = pendingIntent;
+    setInterpretation(null);
+    if (intentText) {
+      void generateForm(intentText, applied);
+    }
+  };
+
+  // 修改理解 → 用修正后的字段生成表单。
+  const handleInterpretModify = (changes: IntentUnderstandingChanges) => {
+    if (!interpretation) {
+      return;
+    }
+    const applied: TicketIntentFields = { ...interpretation.fields, ...changes };
+    const intentText = pendingIntent;
+    setInterpretation(null);
+    if (intentText) {
+      void generateForm(intentText, applied);
     }
   };
 
@@ -390,6 +506,12 @@ export function A2UIFormRenderer() {
               if (status === 'created') {
                 setSubmitted(true);
                 message.success('工单创建成功！');
+                // 任务完成收口：先报字段纠正（误分类率代理），再报时长（latencyMs 同口径）。
+                const ticket = (modelRef.current.ticket ?? {}) as AICreateSuggestedFields;
+                (trackerRef.current as AICreateFlowTracker).finishSuccess(
+                  { type: ticket.type, priority: ticket.priority },
+                  pageKey
+                );
               }
             }
             if ('deleteSurface' in parsed) {
@@ -402,6 +524,7 @@ export function A2UIFormRenderer() {
         });
       } catch (e) {
         message.error('提交失败');
+        (trackerRef.current as AICreateFlowTracker).finishFailure('submit_failed', pageKey);
       } finally {
         setLoading(false);
       }
@@ -457,6 +580,18 @@ export function A2UIFormRenderer() {
         </Space.Compact>
       </div>
 
+      {/* V1-03 理解确认卡：「我理解成：网络故障（高）→ 确认 / 修改」；确认后才生成表单。 */}
+      {interpretation ? (
+        <IntentUnderstandingCard
+          key={`${interpretation.summary}:${pendingIntent}`}
+          interpretation={interpretation}
+          onConfirm={handleInterpretConfirm}
+          onModify={handleInterpretModify}
+          pageKey={pageKey}
+          loading={loading}
+        />
+      ) : null}
+
       {/* A2UI 表单渲染 */}
       {components.length > 0 ? (
         <Spin spinning={loading}>
@@ -477,7 +612,7 @@ export function A2UIFormRenderer() {
             })}
           </Form>
         </Spin>
-      ) : (
+      ) : interpretation ? null : (
         <div className="text-center text-gray-400 py-8">
           <Bot className="w-12 h-12 mx-auto mb-2 opacity-50" />
           <p>描述您的需求，AI 将生成工单表单</p>

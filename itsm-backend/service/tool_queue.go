@@ -67,6 +67,22 @@ func (q *ToolQueue) Enqueue(job ToolJob) error {
 	}
 }
 
+// Len 返回当前排队任务数（只读；O1-02 健康快照的「队列积压」口径）。
+func (q *ToolQueue) Len() int {
+	if q == nil || q.jobs == nil {
+		return 0
+	}
+	return len(q.jobs)
+}
+
+// Cap 返回队列容量（与 NewToolQueue 的 capacity 一致）。
+func (q *ToolQueue) Cap() int {
+	if q == nil || q.jobs == nil {
+		return 0
+	}
+	return cap(q.jobs)
+}
+
 func (q *ToolQueue) worker() {
 	for job := range q.jobs {
 		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)

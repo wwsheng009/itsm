@@ -10,7 +10,13 @@ import { App } from 'antd';
 import { configure, fireEvent, render, screen, waitFor } from '@testing-library/react';
 
 import AIApprovalQueue, { formatSource } from '..';
-import { aiGetToolApprovals } from '@/lib/api/ai-api';
+import {
+  aiGetToolApprovals,
+  aiListAutopilotRuns,
+  aiCancelAutopilotRun,
+  aiRollbackAutopilotRun,
+  type AutopilotRunSummary,
+} from '@/lib/api/ai-api';
 import { mcpApi } from '@/lib/api/mcp-api';
 import { usePermissions } from '@/lib/hooks/use-permissions';
 import type { ToolApproval } from '@/lib/api/ai-api';
@@ -22,6 +28,9 @@ jest.mock('@/lib/api/ai-api', () => ({
   __esModule: true,
   aiGetToolApprovals: jest.fn(),
   aiApproveTool: jest.fn(),
+  aiListAutopilotRuns: jest.fn(),
+  aiCancelAutopilotRun: jest.fn(),
+  aiRollbackAutopilotRun: jest.fn(),
 }));
 
 jest.mock('@/lib/api/mcp-api', () => ({
@@ -47,6 +56,11 @@ jest.mock('react-router', () => ({
 }));
 
 const mockedList = aiGetToolApprovals as jest.MockedFunction<typeof aiGetToolApprovals>;
+const mockedRuns = aiListAutopilotRuns as jest.MockedFunction<typeof aiListAutopilotRuns>;
+const mockedCancel = aiCancelAutopilotRun as jest.MockedFunction<typeof aiCancelAutopilotRun>;
+const mockedRollback = aiRollbackAutopilotRun as jest.MockedFunction<
+  typeof aiRollbackAutopilotRun
+>;
 const mockedMcp = mcpApi as jest.Mocked<typeof mcpApi>;
 const mockedPermissions = usePermissions as jest.MockedFunction<typeof usePermissions>;
 
@@ -75,11 +89,26 @@ const approval = (overrides: Partial<ToolApproval> = {}): ToolApproval => ({
   ...overrides,
 });
 
-const setPermission = (granted: boolean) => {
+const setPermission = (granted: boolean, aiWrite = false) => {
   mockedPermissions.mockReturnValue({
-    hasPermission: (resource: string, action: string) => granted && resource === 'mcp' && action === 'admin',
+    hasPermission: (resource: string, action: string) =>
+      (granted && resource === 'mcp' && action === 'admin') || (aiWrite && resource === 'ai' && action === 'write'),
   } as unknown as ReturnType<typeof usePermissions>);
 };
+
+const runSummary = (overrides: Partial<AutopilotRunSummary> = {}): AutopilotRunSummary => ({
+  id: 21,
+  conversationId: 3,
+  botId: 0,
+  entrypoint: 'scheduler',
+  status: 'running',
+  startedAt: '2026-10-18T09:00:00Z',
+  steps: 2,
+  toolCalls: 2,
+  pendingApprovals: 1,
+  artifacts: 1,
+  ...overrides,
+});
 
 function renderPage() {
   return render(
@@ -107,6 +136,14 @@ describe('审批页来源增强（M1-06）', () => {
       items: [{ name: 'mock', display_name: 'Mock MCP' }],
       summary: {},
     } as never);
+    mockedRuns.mockResolvedValue({ items: [], days: 7, status: 'running' });
+    mockedCancel.mockResolvedValue({ runId: 21, cancelled: true });
+    mockedRollback.mockResolvedValue({
+      runId: 21,
+      cancelled: true,
+      rejectedInvocations: 1,
+      notifications: 2,
+    });
     setPermission(false);
   });
 
@@ -167,5 +204,52 @@ describe('审批页来源增强（M1-06）', () => {
     await waitFor(() => expect(mockedList).toHaveBeenCalledWith('pending', { provider: '', server: 'mock' }));
     // 状态下拉仍在（服务器维度降级不影响其余筛选）。
     expect(screen.getAllByText('待审批').length).toBeGreaterThan(0);
+  });
+
+  it('I2-01 监督面：运行列表渲染、暂停/回滚调用、按运行联动审批', async () => {
+    setPermission(false, true);
+    mockedRuns.mockResolvedValue({ items: [runSummary()], days: 7, status: 'running' });
+
+    renderPage();
+
+    // 运行行 + 计数（待审批高亮）。
+    expect(await screen.findByTestId('autopilot-run-21')).toHaveTextContent('run#21');
+    expect(screen.getByTestId('autopilot-pending-21')).toHaveTextContent('待审批 1');
+    expect(screen.getByTestId('autopilot-trace-21')).toBeTruthy();
+
+    // 暂停：调用取消接口并刷新运行列表。
+    const runsCallsBefore = mockedRuns.mock.calls.length;
+    fireEvent.click(screen.getByTestId('autopilot-pause-21'));
+    await waitFor(() => expect(mockedCancel).toHaveBeenCalledWith(21, 'paused_from_supervision'));
+    await waitFor(() => expect(mockedRuns.mock.calls.length).toBeGreaterThan(runsCallsBefore));
+
+    // 回滚：调用回滚接口（冻结待审批 + 通知中心投递在后端完成）。
+    fireEvent.click(screen.getByTestId('autopilot-rollback-21'));
+    await waitFor(() =>
+      expect(mockedRollback).toHaveBeenCalledWith(21, 'rollback_from_supervision')
+    );
+
+    // 审批联动：查看待审批 → 列表按 runId 收敛 + 过滤 chip 可见（可清除）。
+    fireEvent.click(screen.getByTestId('autopilot-approvals-21'));
+    await waitFor(() =>
+      expect(mockedList).toHaveBeenLastCalledWith('pending', {
+        provider: '',
+        server: '',
+        runId: 21,
+      })
+    );
+    expect(await screen.findByTestId('approval-run-filter')).toHaveTextContent('运行 #21');
+  });
+
+  it('I2-01：无 ai:write 时只读监督（不渲染暂停/回滚，仍可查看待审批）', async () => {
+    setPermission(false, false);
+    mockedRuns.mockResolvedValue({ items: [runSummary()], days: 7, status: 'running' });
+
+    renderPage();
+
+    expect(await screen.findByTestId('autopilot-run-21')).toBeTruthy();
+    expect(screen.queryByTestId('autopilot-pause-21')).toBeNull();
+    expect(screen.queryByTestId('autopilot-rollback-21')).toBeNull();
+    expect(screen.getByTestId('autopilot-approvals-21')).toBeTruthy();
   });
 });

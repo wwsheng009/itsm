@@ -18,11 +18,26 @@ import {
   Modal,
   Tooltip,
 } from 'antd';
-import { CheckCircle2, Clock, Settings2, XCircle, RefreshCw, ShieldAlert } from 'lucide-react';
+import {
+  Activity,
+  Bell,
+  CheckCircle2,
+  Clock,
+  PauseCircle,
+  RotateCcw,
+  Settings2,
+  XCircle,
+  RefreshCw,
+  ShieldAlert,
+} from 'lucide-react';
 
 import {
   aiGetToolApprovals,
   aiApproveTool,
+  aiListAutopilotRuns,
+  aiCancelAutopilotRun,
+  aiRollbackAutopilotRun,
+  type AutopilotRunSummary,
   type ToolApproval,
   type ToolApprovalListResponse,
 } from '@/lib/api/ai-api';
@@ -39,6 +54,7 @@ import { formatRemaining } from '@/components/ai/confirmation-drawer';
 import DryRunSnapshot from '@/components/ai/dry-run-snapshot';
 import { usePermissions } from '@/lib/hooks/use-permissions';
 import { useAuthStoreHydration } from '@/lib/store/auth-store';
+import { runStatusColor } from '@/components/ai/run-trace/trace-model';
 
 const { Title, Text } = Typography;
 
@@ -118,21 +134,82 @@ const AIApprovalQueue: React.FC = () => {
     [nowTick]
   );
 
+  // I2-01 Autopilot 监督面：运行列表 + 暂停/回滚 + 按运行联动审批。
+  const [runs, setRuns] = useState<AutopilotRunSummary[]>([]);
+  const [runsLoading, setRunsLoading] = useState(false);
+  const [runStatusFilter, setRunStatusFilter] = useState('running');
+  const [actingRunId, setActingRunId] = useState<number | null>(null);
+  const [runIdFilter, setRunIdFilter] = useState<number | null>(null);
+
+  const fetchRuns = useCallback(async () => {
+    setRunsLoading(true);
+    try {
+      const res = await aiListAutopilotRuns({ days: 7, status: runStatusFilter, limit: 20 });
+      setRuns(res.items);
+    } catch (e) {
+      message.error(`加载运行列表失败：${(e as Error).message}`);
+    } finally {
+      setRunsLoading(false);
+    }
+  }, [runStatusFilter, message]);
+
+  useEffect(() => {
+    void fetchRuns();
+  }, [fetchRuns]);
+
   const fetchList = useCallback(async () => {
     setLoading(true);
     try {
-      const res: ToolApprovalListResponse = await aiGetToolApprovals(state, { provider, server });
+      // I2-01 审批联动：runId 仅在选中时携带（保持既有调用形状与断言不变）。
+      const filter = { provider, server } as { provider: string; server: string; runId?: number };
+      if (runIdFilter) filter.runId = runIdFilter;
+      const res: ToolApprovalListResponse = await aiGetToolApprovals(state, filter);
       setItems(res.items ?? []);
     } catch (e) {
       message.error(`加载审批队列失败：${(e as Error).message}`);
     } finally {
       setLoading(false);
     }
-  }, [state, provider, server, message]);
+  }, [state, provider, server, runIdFilter, message]);
 
   useEffect(() => {
     fetchList();
   }, [fetchList]);
+
+  const handlePauseRun = useCallback(
+    async (run: AutopilotRunSummary) => {
+      setActingRunId(run.id);
+      try {
+        const res = await aiCancelAutopilotRun(run.id, 'paused_from_supervision');
+        message.success(res.cancelled ? `已暂停运行 #${run.id}` : `运行 #${run.id} 已收口，无需暂停`);
+        await Promise.all([fetchRuns(), fetchList()]);
+      } catch (e) {
+        message.error(`暂停失败：${(e as Error).message}`);
+      } finally {
+        setActingRunId(null);
+      }
+    },
+    [fetchRuns, fetchList, message]
+  );
+
+  const handleRollbackRun = useCallback(
+    async (run: AutopilotRunSummary) => {
+      setActingRunId(run.id);
+      try {
+        const res = await aiRollbackAutopilotRun(run.id, 'rollback_from_supervision');
+        // 回滚是写动作闸门：终止运行 + 冻结待审批（结果同步投递通知中心）。
+        message.success(
+          `已回滚运行 #${run.id}：冻结 ${res.rejectedInvocations} 项待审批，通知 ${res.notifications} 人`
+        );
+        await Promise.all([fetchRuns(), fetchList()]);
+      } catch (e) {
+        message.error(`回滚失败：${(e as Error).message}`);
+      } finally {
+        setActingRunId(null);
+      }
+    },
+    [fetchRuns, fetchList, message]
+  );
 
   // 服务器筛选项：治理面列表（失败不阻塞审批，退化为手填标识）。
   useEffect(() => {
@@ -364,6 +441,16 @@ const AIApprovalQueue: React.FC = () => {
           </Title>
         </Space>
         <Space>
+          {runIdFilter ? (
+            <Tag
+              color="blue"
+              closable
+              data-testid="approval-run-filter"
+              onClose={() => setRunIdFilter(null)}
+            >
+              运行 #{runIdFilter}
+            </Tag>
+          ) : null}
           <Select
             style={{ width: 150 }}
             value={provider}
@@ -413,6 +500,165 @@ const AIApprovalQueue: React.FC = () => {
           ) : null}
         </Space>
       </Space>
+
+      {/* I2-01 Autopilot 监督面：运行列表 + 暂停/回滚（写动作闸门），与审批队列按运行联动。 */}
+      <Card
+        data-testid="autopilot-supervision-card"
+        title={
+          <Space>
+            <Activity size={16} />
+            <span>Autopilot 运行监督</span>
+            <Text type="secondary" style={{ fontSize: 12 }}>
+              只读任务与写动作闸门；回滚会冻结该运行全部待审批
+            </Text>
+          </Space>
+        }
+        extra={
+          <Space>
+            <Select
+              data-testid="autopilot-status-filter"
+              size="small"
+              style={{ width: 130 }}
+              value={runStatusFilter}
+              onChange={setRunStatusFilter}
+              options={[
+                { value: '', label: '全部状态' },
+                { value: 'running', label: '运行中' },
+                { value: 'completed', label: '已完成' },
+                { value: 'failed', label: '已中断' },
+                { value: 'cancelled', label: '已取消' },
+              ]}
+            />
+            <Button
+              size="small"
+              icon={<RefreshCw size={14} />}
+              loading={runsLoading}
+              onClick={() => void fetchRuns()}
+              data-testid="autopilot-refresh"
+            >
+              刷新
+            </Button>
+            <Button
+              size="small"
+              type="link"
+              icon={<Bell size={14} />}
+              onClick={() => navigate('/notifications')}
+              data-testid="autopilot-notifications"
+            >
+              通知中心
+            </Button>
+          </Space>
+        }
+      >
+        <Table<AutopilotRunSummary>
+          data-testid="autopilot-runs-table"
+          rowKey="id"
+          size="small"
+          loading={runsLoading}
+          dataSource={runs}
+          pagination={false}
+          locale={{ emptyText: <Empty description="窗口内没有符合条件的运行" /> }}
+          columns={[
+            {
+              title: '运行',
+              key: 'run',
+              width: 150,
+              render: (_: unknown, r: AutopilotRunSummary) => (
+                <Space size={4}>
+                  <Text code data-testid={`autopilot-run-${r.id}`}>
+                    run#{r.id}
+                  </Text>
+                  <Typography.Link
+                    data-testid={`autopilot-trace-${r.id}`}
+                    style={{ fontSize: 12 }}
+                    onClick={() => navigate(`/ai/observability?runId=${r.id}`)}
+                  >
+                    轨迹
+                  </Typography.Link>
+                </Space>
+              ),
+            },
+            { title: '入口', dataIndex: 'entrypoint', key: 'entrypoint', width: 110 },
+            {
+              title: '状态',
+              dataIndex: 'status',
+              key: 'status',
+              width: 100,
+              render: (v: string) => <Tag color={runStatusColor(v)}>{v}</Tag>,
+            },
+            {
+              title: '计数',
+              key: 'counts',
+              render: (_: unknown, r: AutopilotRunSummary) => (
+                <Space size={6} wrap style={{ fontSize: 12 }}>
+                  <Text type="secondary">步骤 {r.steps}</Text>
+                  <Text type="secondary">工具 {r.toolCalls}</Text>
+                  <Tag
+                    color={r.pendingApprovals > 0 ? 'gold' : 'default'}
+                    data-testid={`autopilot-pending-${r.id}`}
+                  >
+                    待审批 {r.pendingApprovals}
+                  </Tag>
+                  <Text type="secondary">产物 {r.artifacts}</Text>
+                </Space>
+              ),
+            },
+            {
+              title: '开始时间',
+              dataIndex: 'startedAt',
+              key: 'startedAt',
+              width: 170,
+              render: (v: string) => new Date(v).toLocaleString('zh-CN', { hour12: false }),
+            },
+            {
+              title: '操作',
+              key: 'actions',
+              width: 260,
+              render: (_: unknown, r: AutopilotRunSummary) => (
+                <Space size={4} wrap>
+                  {r.status === 'running' && canApproveTools ? (
+                    <Button
+                      size="small"
+                      icon={<PauseCircle size={14} />}
+                      loading={actingRunId === r.id}
+                      onClick={() => void handlePauseRun(r)}
+                      data-testid={`autopilot-pause-${r.id}`}
+                    >
+                      暂停
+                    </Button>
+                  ) : null}
+                  {canApproveTools ? (
+                    <Button
+                      size="small"
+                      danger
+                      icon={<RotateCcw size={14} />}
+                      loading={actingRunId === r.id}
+                      onClick={() => void handleRollbackRun(r)}
+                      data-testid={`autopilot-rollback-${r.id}`}
+                    >
+                      回滚
+                    </Button>
+                  ) : null}
+                  <Button
+                    size="small"
+                    type="link"
+                    onClick={() => {
+                      // 审批联动：只看该运行的待审批（清空来源筛选，避免组合出空集）。
+                      setProvider('');
+                      setServer('');
+                      setState('pending');
+                      setRunIdFilter(r.id);
+                    }}
+                    data-testid={`autopilot-approvals-${r.id}`}
+                  >
+                    查看待审批
+                  </Button>
+                </Space>
+              ),
+            },
+          ]}
+        />
+      </Card>
 
       <Card>
         <Table

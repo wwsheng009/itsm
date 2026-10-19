@@ -20,16 +20,17 @@ const snapshot = (overrides: Partial<AICapabilities> = {}): AICapabilities => ({
   mcpEnabled: true,
   mcpWriteEnabled: false,
   botEnabled: true,
-  defaults: { mcpEnabled: true, mcpWriteEnabled: false, botEnabled: true },
+  assistantMemoryEnabled: true,
+  defaults: { mcpEnabled: true, mcpWriteEnabled: false, botEnabled: true, assistantMemoryEnabled: true },
   overridden: {},
   updatedAt: '2026-09-30T01:00:00Z',
   updatedBy: 'admin',
-  keys: ['mcp.enabled', 'mcp.write_enabled', 'bot.enabled'],
+  keys: ['mcp.enabled', 'mcp.write_enabled', 'bot.enabled', 'assistant.memory_enabled'],
   ...overrides,
 });
 
 describe('AICapabilitiesCard（AI 能力开关卡片）', () => {
-  it('渲染三键当前生效值与来源徽标（覆盖 / 默认）', () => {
+  it('渲染能力键当前生效值与来源徽标（覆盖 / 默认）', () => {
     render(
       <AICapabilitiesCard
         capabilities={snapshot({ overridden: { 'mcp.write_enabled': true } })}
@@ -43,6 +44,8 @@ describe('AICapabilitiesCard（AI 能力开关卡片）', () => {
     expect(screen.getByTestId('ai-capability-switch-mcp.enabled')).toBeChecked();
     expect(screen.getByTestId('ai-capability-switch-mcp.write_enabled')).not.toBeChecked();
     expect(screen.getByTestId('ai-capability-switch-bot.enabled')).toBeChecked();
+    // V2-01：个性化记忆租户开关（默认开启，静态默认同值）。
+    expect(screen.getByTestId('ai-capability-switch-assistant.memory_enabled')).toBeChecked();
 
     expect(screen.getByTestId('ai-capability-source-mcp.enabled')).toHaveTextContent(
       'mcp.capabilities.sourceDefault',

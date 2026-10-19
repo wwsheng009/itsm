@@ -8,12 +8,14 @@
  */
 import fs from 'node:fs';
 import path from 'node:path';
-import { render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 
 import {
   buildArticlePrefillState,
   buildConversationArticlePrefillState,
 } from '@/lib/knowledge/ai-article-prefill';
+import { KnowledgeBaseApi } from '@/lib/api/knowledge-base-api';
+import { trackAssistantEvent } from '@/lib/ai/telemetry';
 import { fetchConversationArticle } from '@/lib/knowledge/conversation-article';
 import NewKnowledgeArticlePage from '@/pages/(main)/knowledge/articles/new';
 
@@ -38,7 +40,15 @@ jest.mock('@/lib/knowledge/conversation-article', () => ({
   fetchConversationArticle: jest.fn(),
 }));
 
+// 起草落地信号（doc_draft_published）：单测只断言上报参数，不触发真实批处理网络。
+jest.mock('@/lib/ai/telemetry', () => ({
+  __esModule: true,
+  trackAssistantEvent: jest.fn(),
+}));
+
 const mockFetchConversationArticle = jest.mocked(fetchConversationArticle);
+const mockedCreate = KnowledgeBaseApi.createArticle as jest.Mock;
+const mockedTrack = trackAssistantEvent as jest.Mock;
 
 const MARKDOWN = '# VPN 拨号失败排查\n\n1. 检查账号状态\n2. 检查网络连通性\n';
 const TITLE_PLACEHOLDER = '例如：VPN 拨号失败排查指南';
@@ -61,6 +71,9 @@ describe('新建文章页：承接 AI 助手预填', () => {
     mockLocation.state = undefined;
     mockNavigate.mockReset();
     mockFetchConversationArticle.mockReset();
+    mockedCreate.mockReset();
+    mockedCreate.mockResolvedValue({ id: 11 });
+    mockedTrack.mockReset();
   });
 
   it('预填标题与正文写入表单，且正文固定 Markdown 模式', async () => {
@@ -132,13 +145,61 @@ describe('新建文章页：承接 AI 助手预填', () => {
     await waitFor(() => expect(screen.getByPlaceholderText(TITLE_PLACEHOLDER)).toHaveValue(''));
     expect(screen.getByPlaceholderText(MARKDOWN_PLACEHOLDER)).toHaveValue('');
   });
+
+  it('AI 预填成文：创建成功后上报 doc_draft_published（含来源种类）', async () => {
+    mockLocation.state = buildArticlePrefillState(MARKDOWN);
+    render(<NewKnowledgeArticlePage />);
+
+    await waitFor(() =>
+      expect(screen.getByPlaceholderText(TITLE_PLACEHOLDER)).toHaveValue('VPN 拨号失败排查')
+    );
+    fireEvent.click(screen.getByRole('button', { name: /保存草稿/ }));
+
+    await waitFor(() => expect(mockedCreate).toHaveBeenCalled());
+    await waitFor(() =>
+      expect(mockedTrack).toHaveBeenCalledWith(
+        'doc_draft_published',
+        expect.objectContaining({
+          source: 'article_new_prefill',
+          outcomeType: 'draft',
+          extra: { kind: 'answer' },
+        })
+      )
+    );
+    expect(mockNavigate).toHaveBeenCalledWith('/knowledge/articles/11');
+  });
+
+  it('普通空白新建成文：不上报 doc_draft_published（不污染起草采纳率分子）', async () => {
+    const restore = withRichTextOff();
+    try {
+      render(<NewKnowledgeArticlePage />);
+      await waitFor(() => expect(screen.getByPlaceholderText(TITLE_PLACEHOLDER)).toHaveValue(''));
+
+      fireEvent.change(screen.getByPlaceholderText(TITLE_PLACEHOLDER), {
+        target: { value: '手工文章' },
+      });
+      fireEvent.change(screen.getByPlaceholderText(MARKDOWN_PLACEHOLDER), {
+        target: { value: '正文' },
+      });
+      fireEvent.click(screen.getByRole('button', { name: /保存草稿/ }));
+
+      await waitFor(() => expect(mockedCreate).toHaveBeenCalled());
+      expect(mockedTrack).not.toHaveBeenCalledWith('doc_draft_published', expect.anything());
+    } finally {
+      restore();
+    }
+  });
 });
 
 describe('写侧接线（源码契约，防回退到裸跳转）', () => {
-  const chatSource = fs.readFileSync(
-    path.join(process.cwd(), 'src/components/ai/AIChat.tsx'),
-    'utf8'
-  );
+  // D0-01：会话内核与消息项已抽到 chat-core，源码契约按三处合并校验（页面壳 + 内核 + 消息项）。
+  const chatSource = [
+    'src/components/ai/AIChat.tsx',
+    'src/components/ai/chat-core/use-ai-chat-session.ts',
+    'src/components/ai/chat-core/ChatMessageItem.tsx',
+  ]
+    .map(rel => fs.readFileSync(path.join(process.cwd(), rel), 'utf8'))
+    .join('\n\n');
 
   it('「补充为知识文章」携带 state 跳转 /knowledge/articles/new', () => {
     expect(chatSource).toMatch(

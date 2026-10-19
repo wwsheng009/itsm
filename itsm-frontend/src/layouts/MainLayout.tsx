@@ -10,6 +10,8 @@ import { httpClient } from '@/lib/api/http-client';
 import { LAYOUT_CONFIG } from '@/config/layout.config';
 import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
 import { NetworkStatus } from '@/components/common/NetworkStatus';
+import AssistantDock from '@/components/ai/dock/AssistantDock';
+import SelectionAskAI from '@/components/ai/SelectionAskAI';
 import { AdminRouteGuard } from '@/components/common/AdminRouteGuard';
 import { useLayoutStore } from '@/lib/store/layout-store';
 import PageTransition from '@/components/common/PageTransition';
@@ -217,6 +219,10 @@ function ThemedMainLayout({
         />
       )}
       </Layout>
+      {/* D0-02 常驻 AI 助手（悬停球 ↔ 右侧面板；权限门禁与懒挂载在组件内） */}
+      <AssistantDock />
+      {/* I1-02 划词问 AI：选区悬浮入口（未选中文本时零渲染） */}
+      <SelectionAskAI />
     </App>
   );
 }

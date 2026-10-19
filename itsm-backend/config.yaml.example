@@ -104,6 +104,21 @@ pat:
   rate_limit_per_minute: ${PAT_RATE_LIMIT_PER_MINUTE:120} # 单令牌限流（次/分钟），0=不限
   housekeeping_retention_days: ${PAT_HOUSEKEEPING_RETENTION_DAYS:180} # 过期令牌行清理保留期（天；0=默认180）
 
+# AI 埋点事件保留期清理（O0-02 条件项闭环；方案 §13.1.4 合规 / §13.3 数据策略）
+# 缺省（不配置本块）：90 天 / 24h / 5000 行；数值项 <=0 时按缺省回落。
+ai_telemetry:
+  retention_days: ${AI_TELEMETRY_RETENTION_DAYS:90}                       # 保留期（天；与看板 90 天回溯上限一致）
+  cleanup_interval_minutes: ${AI_TELEMETRY_CLEANUP_INTERVAL_MINUTES:1440} # 清理间隔（分钟）
+  cleanup_batch_size: ${AI_TELEMETRY_CLEANUP_BATCH_SIZE:5000}             # 单批删除上限（行）
+
+# AI 健康告警定时巡检（O1-02 条件项闭环；方案 §13.5）
+# 缺省关闭 = 不自动打扰（仅管理台显式派发按钮可用）；开启后按间隔巡检各租户 SLO，
+# 收件人受用户通知偏好 ai_health_alert 约束（无偏好行=放行）。
+ai_health:
+  sweeper_enabled: ${AI_HEALTH_SWEEPER_ENABLED:false}                  # 定时巡检开关
+  sweeper_interval_minutes: ${AI_HEALTH_SWEEPER_INTERVAL_MINUTES:15}   # 巡检间隔（分钟；0=默认15）
+  sweeper_window_days: ${AI_HEALTH_SWEEPER_WINDOW_DAYS:7}              # 评估窗口（天；上限 30）
+
 # RLS controls PostgreSQL Row-Level Security enforcement tiers.
 # Default is "off" (zero risk — middleware still injects tenant_id into context).
 rls:

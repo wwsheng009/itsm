@@ -347,6 +347,9 @@ func (r *EntRepository) ListToolInvocations(ctx context.Context, tenantID int, f
 	if filter.Server != "" {
 		q = q.Where(toolinvocation.McpServerNameEQ(filter.Server))
 	}
+	if filter.RunID > 0 {
+		q = q.Where(toolinvocation.RunID(filter.RunID))
+	}
 	invocations, err := q.
 		Order(ent.Desc(toolinvocation.FieldCreatedAt)).
 		All(ctx)

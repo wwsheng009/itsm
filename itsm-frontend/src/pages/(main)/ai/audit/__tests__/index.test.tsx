@@ -131,4 +131,34 @@ describe('审计页工具调用审计（M1-07）', () => {
     // 空态把生效筛选写出来，便于排障（不是无信息的空白）。
     expect(await screen.findByText(/当前筛选条件下没有工具调用记录（来源=mcp/)).toBeTruthy();
   });
+
+  it('审计行内跳转轨迹（O1-01 条件项）：有 run 优先 run 维度；无 run 回退会话维度', async () => {
+    mockedToolList.mockResolvedValue({
+      items: [
+        toolRow(),
+        toolRow({ id: 22, runId: 88 }),
+        toolRow({ id: 23, conversationId: 0 }),
+      ],
+      state: 'all',
+      provider: '',
+      server: '',
+    } as never);
+
+    render(
+      <App>
+        <AIAuditConsole />
+      </App>
+    );
+
+    // 纯问答（无 run）+ 有会话 → 会话维度轨迹。
+    fireEvent.click(await screen.findByTestId('audit-tool-trace-21'));
+    expect(mockNavigate).toHaveBeenCalledWith('/ai/observability?conversationId=4');
+
+    // 有 run → run 维度轨迹（优先）。
+    fireEvent.click(screen.getByTestId('audit-tool-trace-22'));
+    expect(mockNavigate).toHaveBeenCalledWith('/ai/observability?runId=88');
+
+    // 无 run 且无会话 → 不渲染跳转入口（不臆造目标）。
+    expect(screen.queryByTestId('audit-tool-trace-23')).toBeNull();
+  });
 });

@@ -30,7 +30,7 @@ func newCapTestSource(t *testing.T, defaults Defaults) (*ConfigSource, *ent.Clie
 }
 
 func staticDefaults() Defaults {
-	return Defaults{MCPEnabled: true, MCPWriteEnabled: false, BotEnabled: true}
+	return Defaults{MCPEnabled: true, MCPWriteEnabled: false, BotEnabled: true, AssistantMemoryEnabled: true}
 }
 
 func TestConfigSource_FollowsStaticDefaultsWhenNoOverride(t *testing.T) {
@@ -40,8 +40,28 @@ func TestConfigSource_FollowsStaticDefaultsWhenNoOverride(t *testing.T) {
 	assert.True(t, snap.MCPEnabled)
 	assert.False(t, snap.MCPWriteEnabled)
 	assert.True(t, snap.BotEnabled)
+	assert.True(t, snap.AssistantMemoryEnabled, "V2-01：缺行跟随静态默认（产品默认开启）")
 	assert.Empty(t, snap.Overridden, "无覆盖行时 Overridden 必须为空")
 	assert.False(t, snap.IsOverridden(KeyMCPWriteEnabled))
+}
+
+// V2-01：个性化记忆租户开关的覆盖 / 恢复默认契约（与 MCP/Bot 同源同语义）。
+func TestConfigSource_AssistantMemoryOverrideAndClear(t *testing.T) {
+	src, _ := newCapTestSource(t, staticDefaults())
+	ctx := context.Background()
+
+	require.True(t, src.For(ctx, 7).AssistantMemoryEnabled)
+
+	off := false
+	snap, err := src.Update(ctx, 7, Patch{AssistantMemoryEnabled: &off}, "admin")
+	require.NoError(t, err)
+	assert.False(t, snap.AssistantMemoryEnabled, "租户关闭：覆盖行立即生效")
+	assert.True(t, snap.IsOverridden(KeyAssistantMemoryEnabled))
+
+	snap, err = src.Clear(ctx, 7, KeyAssistantMemoryEnabled)
+	require.NoError(t, err)
+	assert.True(t, snap.AssistantMemoryEnabled, "Clear 恢复跟随静态默认（开启）")
+	assert.False(t, snap.IsOverridden(KeyAssistantMemoryEnabled))
 }
 
 func TestConfigSource_OverrideWinsAndInvalidateAppliesImmediately(t *testing.T) {
@@ -143,7 +163,7 @@ func TestConfigSource_FailSafeOnUnavailableClientAndBadTenant(t *testing.T) {
 }
 
 func TestKnownKeys_StableOrder(t *testing.T) {
-	assert.Equal(t, []string{KeyMCPEnabled, KeyMCPWriteEnabled, KeyBotEnabled}, KnownKeys())
+	assert.Equal(t, []string{KeyMCPEnabled, KeyMCPWriteEnabled, KeyBotEnabled, KeyAssistantMemoryEnabled}, KnownKeys())
 	for _, key := range KnownKeys() {
 		assert.True(t, IsKnownKey(key))
 	}

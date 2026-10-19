@@ -111,6 +111,98 @@ type ProcessResult struct {
 	Reasoning    string
 	ToolCalls    []ToolCall
 	FinishReason string
+	// Usage 是 provider 回包携带的真实 token 用量（B4-02）；未回包/无法解析时为 nil
+	// （接线层据此保持「估算」语义，不注入任何字段）。
+	Usage *Usage
+}
+
+// Usage provider 回包中的真实 token 用量。
+//
+// 各协议来源（一协议一实现，容错解析：字段缺失/类型不符 → nil）：
+//   - openai_chat_completions：usage.prompt_tokens / usage.completion_tokens（流式在含 usage 的帧）；
+//   - openai_responses：usage.input_tokens / usage.output_tokens（流式 response.completed 快照）；
+//   - anthropic_messages：usage.input_tokens（message_start）/ usage.output_tokens（message_delta）；
+//   - google_gemini：usageMetadata.promptTokenCount / usageMetadata.candidatesTokenCount。
+type Usage struct {
+	PromptTokens     int
+	CompletionTokens int
+}
+
+// HasUsage 报告是否解析到有效用量（任一非零；上游可能回 0 值占位）。
+func (u *Usage) HasUsage() bool {
+	return u != nil && (u.PromptTokens != 0 || u.CompletionTokens != 0)
+}
+
+// accumulateUsage 把一次解析结果并入累计值（流式多帧：如 Anthropic 输入/输出分帧回包）。
+// nil 安全：current/next 均可为空；next 无效时原样返回 current。
+func accumulateUsage(current, next *Usage) *Usage {
+	if !next.HasUsage() {
+		return current
+	}
+	if current == nil {
+		current = &Usage{}
+	}
+	current.PromptTokens += next.PromptTokens
+	current.CompletionTokens += next.CompletionTokens
+	return current
+}
+
+// usageFromTokenFields 读取 OpenAI Chat Completions 风格 usage（prompt_tokens/completion_tokens）。
+func usageFromTokenFields(payload map[string]any) *Usage {
+	if payload == nil {
+		return nil
+	}
+	raw, _ := payload["usage"].(map[string]any)
+	if raw == nil {
+		return nil
+	}
+	usage := &Usage{
+		PromptTokens:     intValue(raw["prompt_tokens"]),
+		CompletionTokens: intValue(raw["completion_tokens"]),
+	}
+	if !usage.HasUsage() {
+		return nil
+	}
+	return usage
+}
+
+// usageFromIOUsageObject 读取 usage 子对象中的 input_tokens/output_tokens
+// （Anthropic messages 与 OpenAI Responses 共用字段名；Responses 的 usage 位于 response 对象内）。
+func usageFromIOUsageObject(payload map[string]any) *Usage {
+	if payload == nil {
+		return nil
+	}
+	raw, _ := payload["usage"].(map[string]any)
+	if raw == nil {
+		return nil
+	}
+	usage := &Usage{
+		PromptTokens:     intValue(raw["input_tokens"]),
+		CompletionTokens: intValue(raw["output_tokens"]),
+	}
+	if !usage.HasUsage() {
+		return nil
+	}
+	return usage
+}
+
+// usageFromGeminiMetadata 读取 Gemini usageMetadata（promptTokenCount/candidatesTokenCount）。
+func usageFromGeminiMetadata(payload map[string]any) *Usage {
+	if payload == nil {
+		return nil
+	}
+	raw, _ := payload["usageMetadata"].(map[string]any)
+	if raw == nil {
+		return nil
+	}
+	usage := &Usage{
+		PromptTokens:     intValue(raw["promptTokenCount"]),
+		CompletionTokens: intValue(raw["candidatesTokenCount"]),
+	}
+	if !usage.HasUsage() {
+		return nil
+	}
+	return usage
 }
 
 // HasToolCalls 报告响应中是否包含工具调用。

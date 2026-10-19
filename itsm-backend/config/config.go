@@ -33,6 +33,8 @@ type Config struct {
 	Bot            BotConfig            `mapstructure:"bot"`
 	Authz          AuthzConfig          `mapstructure:"authz"`
 	PAT            PATConfig            `mapstructure:"pat"`
+	AITelemetry    AITelemetryConfig    `mapstructure:"ai_telemetry"`
+	AIHealth       AIHealthConfig       `mapstructure:"ai_health"`
 }
 
 // AttachmentConfig 是附件域的灰度开关（方案 §6.1 开关与回滚矩阵）。
@@ -419,6 +421,27 @@ type PATConfig struct {
 	HousekeepingRetentionDays int    `mapstructure:"housekeeping_retention_days"` // 过期令牌行清理保留期（默认 180，T13）
 }
 
+// AITelemetryConfig 是 AI 埋点事件（O0-02/O0-03）的保留期清理参数
+// （方案 docs/plan/ai-assistant-dock-plan-2026-10-18.md §13.1.4 合规 / §13.3 数据策略）。
+//
+// 缺省值由 service.NewAITelemetryHousekeepingService 兜底：<=0 回落
+// 90 天 / 24h / 5000 行，因此不配置本块即为「保留期清理生效」的默认态。
+type AITelemetryConfig struct {
+	RetentionDays          int `mapstructure:"retention_days"`           // 保留期（天，默认 90）
+	CleanupIntervalMinutes int `mapstructure:"cleanup_interval_minutes"` // 清理间隔（分钟，默认 1440）
+	CleanupBatchSize       int `mapstructure:"cleanup_batch_size"`       // 单批删除上限（行，默认 5000）
+}
+
+// AIHealthConfig 是 AI 健康告警定时巡检（O1-02 条件项闭环，方案 §13.5）的部署级开关。
+//
+// 默认关闭：不配置本块即「不自动打扰」，仅显式触发端点可用；显式打开后
+// 按间隔巡检各租户 SLO 并投递通知（收件人仍受用户订阅偏好 ai_health_alert 约束）。
+type AIHealthConfig struct {
+	SweeperEnabled         bool `mapstructure:"sweeper_enabled"`          // 定时巡检开关（默认 false）
+	SweeperIntervalMinutes int  `mapstructure:"sweeper_interval_minutes"` // 巡检间隔（分钟，默认 15）
+	SweeperWindowDays      int  `mapstructure:"sweeper_window_days"`      // 评估窗口（天，默认 7，上限 30）
+}
+
 type LogConfig struct {
 	Level                string `mapstructure:"level"`                  // 日志级别：debug, info, warn, error
 	Path                 string `mapstructure:"path"`                   // 日志文件目录
@@ -553,6 +576,8 @@ func LoadConfig() (*Config, error) {
 	viper.Set("bot", rawConfig["bot"])
 	viper.Set("authz", rawConfig["authz"])
 	viper.Set("pat", rawConfig["pat"])
+	viper.Set("ai_telemetry", rawConfig["ai_telemetry"])
+	viper.Set("ai_health", rawConfig["ai_health"])
 
 	// 重新绑定到 Config 结构
 	var config Config

@@ -14,10 +14,10 @@ const { Text } = Typography;
 /** i18n 函数签名（与 useI18n 的 t 对齐）。 */
 type TFunc = (key: string, params?: Record<string, string | number>) => string;
 
-/** 三键与响应字段的映射（key 为后端 system_configs 键名，field 为 camelCase 字段）。 */
+/** 能力键与响应字段的映射（key 为后端 system_configs 键名，field 为 camelCase 字段）。 */
 interface CapabilityRow {
   key: AICapabilityKey;
-  field: 'mcpEnabled' | 'mcpWriteEnabled' | 'botEnabled';
+  field: 'mcpEnabled' | 'mcpWriteEnabled' | 'botEnabled' | 'assistantMemoryEnabled';
   labelKey: string;
   hintKey: string;
 }
@@ -41,6 +41,13 @@ const ROWS: CapabilityRow[] = [
     labelKey: 'mcp.capabilities.botEnabled',
     hintKey: 'mcp.capabilities.botEnabledHint',
   },
+  // V2-01：AI 助手个性化记忆（租户策略可关闭；关闭后助手记忆面停用且零请求）。
+  {
+    key: 'assistant.memory_enabled',
+    field: 'assistantMemoryEnabled',
+    labelKey: 'mcp.capabilities.assistantMemoryEnabled',
+    hintKey: 'mcp.capabilities.assistantMemoryEnabledHint',
+  },
 ];
 
 export interface AICapabilitiesCardProps {
@@ -62,7 +69,8 @@ export interface AICapabilitiesCardProps {
 /**
  * 「AI 能力开关」卡片（系统配置 → AI 配置）。
  *
- * 三个平台级运行时能力开关（`mcp.enabled` / `mcp.write_enabled` / `bot.enabled`）：
+ * 平台级运行时能力开关（`mcp.enabled` / `mcp.write_enabled` / `bot.enabled` /
+ * V2-01 `assistant.memory_enabled`）：
  * - 每行展示当前生效值 + 来源徽标（已由管理台覆盖 / 跟随环境默认）；
  * - 保存只提交**变更过的字段**（三态契约：字段缺省 = 不改，不把"跟随默认"意外固化为覆盖）；
  * - 「恢复默认」仅重置已覆盖的键（reset 数组）；
@@ -93,7 +101,8 @@ const AICapabilitiesCard: React.FC<AICapabilitiesCardProps> = ({
       if (!prev) return prev;
       if (field === 'mcpEnabled') return { ...prev, mcpEnabled: next };
       if (field === 'mcpWriteEnabled') return { ...prev, mcpWriteEnabled: next };
-      return { ...prev, botEnabled: next };
+      if (field === 'botEnabled') return { ...prev, botEnabled: next };
+      return { ...prev, assistantMemoryEnabled: next };
     });
   };
 
@@ -104,6 +113,9 @@ const AICapabilitiesCard: React.FC<AICapabilitiesCardProps> = ({
     if (draft.mcpEnabled !== capabilities.mcpEnabled) next.mcpEnabled = draft.mcpEnabled;
     if (draft.mcpWriteEnabled !== capabilities.mcpWriteEnabled) next.mcpWriteEnabled = draft.mcpWriteEnabled;
     if (draft.botEnabled !== capabilities.botEnabled) next.botEnabled = draft.botEnabled;
+    if (draft.assistantMemoryEnabled !== capabilities.assistantMemoryEnabled) {
+      next.assistantMemoryEnabled = draft.assistantMemoryEnabled;
+    }
     return Object.keys(next).length > 0 ? next : null;
   }, [capabilities, draft]);
 

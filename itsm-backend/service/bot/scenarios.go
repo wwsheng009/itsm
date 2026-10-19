@@ -77,6 +77,12 @@ func ScenarioBots() []ScenarioBot {
 			Entrypoints: []string{EntrypointChat, EntrypointCIDetail},
 			Grants: []ScenarioGrant{
 				{"list_kb", RiskRead},
+				// H0-03：帮助文档只读工具（检索/阅读/缺口清单）——自助与文档维护的基础面。
+				{"help_search", RiskRead},
+				{"help_get_page", RiskRead},
+				{"help_read_doc", RiskRead},
+				{"help_list_gaps", RiskRead},
+				{"help_create_draft", RiskPlan}, // H0-04：缺失页面的草稿产物（不发布）
 				{"draft_kb_article", RiskPlan},
 			},
 		},

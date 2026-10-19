@@ -394,6 +394,7 @@ type geminiStreamState struct {
 	reasoning    strings.Builder
 	toolCalls    []ToolCall
 	finishReason string
+	usage        *Usage
 }
 
 // result 输出归一化结果（tools 为空时保持 nil，与其它适配器一致）。
@@ -403,12 +404,15 @@ func (s *geminiStreamState) result() ProcessResult {
 		Reasoning:    s.reasoning.String(),
 		ToolCalls:    s.toolCalls,
 		FinishReason: s.finishReason,
+		Usage:        s.usage,
 	}
 }
 
 // geminiConsumeChunk 消费一帧/一个响应体：候选首项的 finishReason 与 content.parts。
 // 只取 candidates[0]（网关按单候选调用），未知字段与额外候选忽略（容错口径）。
 func geminiConsumeChunk(state *geminiStreamState, payload map[string]any, callbacks StreamCallbacks) {
+	// B4-02：usageMetadata 独立于 candidates（可能出现在无候选的末帧），先解析再判空。
+	state.usage = accumulateUsage(state.usage, usageFromGeminiMetadata(payload))
 	candidates, _ := payload["candidates"].([]any)
 	if len(candidates) == 0 {
 		return

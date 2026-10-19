@@ -36,6 +36,7 @@ import {
 } from '@/lib/services/emailIntakeService';
 import { UserApi } from '@/lib/api/user-api';
 import { useCan } from '@/components/auth/PermissionGate';
+import EmailIntentSuggest from './components/EmailIntentSuggest';
 
 interface User {
   id: number;
@@ -655,6 +656,33 @@ export default function EmailIntakePage() {
               ]}
             />
             <Card size='small' title='人工修正'>
+              {/* V1-02 邮件场景：AI 先理解邮件（只读建议）；采纳只回填空白字段，仍需人工保存。 */}
+              <EmailIntentSuggest
+                pageKey='email.intake'
+                text={[
+                  String(detail.canonicalData?.title ?? ''),
+                  String(detail.canonicalData?.description ?? ''),
+                ]
+                  .filter(Boolean)
+                  .join('\n')}
+                onAdopt={fields => {
+                  const current = correctionForm.getFieldsValue();
+                  let filled = false;
+                  if (fields.title && !String(current.title ?? '').trim()) {
+                    correctionForm.setFieldValue('title', fields.title);
+                    filled = true;
+                  }
+                  if (fields.description && !String(current.description ?? '').trim()) {
+                    correctionForm.setFieldValue('description', fields.description);
+                    filled = true;
+                  }
+                  if (filled) {
+                    message.success('已采纳 AI 建议（仅填充空白字段），请核对后点击「保存并重新核验」');
+                  } else {
+                    message.info('表单已有内容，未覆盖；可参考上方 AI 建议人工修正');
+                  }
+                }}
+              />
               <Form form={correctionForm} layout='vertical'>
                 <Form.Item name='customerName' label='客户名称'>
                   <Input />

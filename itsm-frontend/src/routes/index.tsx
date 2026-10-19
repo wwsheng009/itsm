@@ -66,6 +66,8 @@ const AgentOpsDemo = lazy(() => import('@/pages/agent-ops-demo/index'));
 const AiApproval = lazy(() => import('@/pages/(main)/ai/approval/index'));
 const AiAudit = lazy(() => import('@/pages/(main)/ai/audit/index'));
 const AiBotMetrics = lazy(() => import('@/pages/(main)/ai/bot-metrics/index'));
+const AiHelpCoverage = lazy(() => import('@/pages/(main)/ai/help-coverage/index'));
+const AiObservability = lazy(() => import('@/pages/(main)/ai/observability/index'));
 const AiChat = lazy(() => import('@/pages/(main)/ai/chat/index'));
 const Applications = lazy(() => import('@/pages/(main)/applications/index'));
 const Approvals = lazy(() => import('@/pages/(main)/approvals/index'));
@@ -307,6 +309,8 @@ export const routes: RouteObject[] = [
           { path: 'ai/approval', element: lazyElement(AiApproval) },
           { path: 'ai/audit', element: lazyElement(AiAudit) },
           { path: 'ai/bot-metrics', element: lazyElement(AiBotMetrics) },
+          { path: 'ai/help-coverage', element: lazyElement(AiHelpCoverage) },
+          { path: 'ai/observability', element: lazyElement(AiObservability) },
           { path: 'ai/chat', element: lazyElement(AiChat) },
           { path: 'applications', element: lazyElement(Applications) },
           { path: 'approvals', element: lazyElement(Approvals) },

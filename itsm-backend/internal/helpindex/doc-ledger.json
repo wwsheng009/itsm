@@ -1,0 +1,217 @@
+{
+  "generatedAt": "2026-10-18T20:58:58.786Z",
+  "coverage": 1,
+  "totals": {
+    "pages": 21,
+    "ok": 21,
+    "missing": 0,
+    "stale": 0,
+    "orphan": 0
+  },
+  "pages": {
+    "ticket.create": {
+      "title": "创建工单",
+      "pattern": "/tickets/create",
+      "entrypoint": "chat",
+      "scene": "s1-ticket-assistant",
+      "docs": [
+        "docs/help/tickets/create.md"
+      ],
+      "status": "ok"
+    },
+    "ticket.aiCreate": {
+      "title": "AI 创建工单",
+      "pattern": "/tickets/ai-create",
+      "entrypoint": "chat",
+      "scene": "s1-ticket-assistant",
+      "docs": [
+        "docs/help/tickets/create.md"
+      ],
+      "status": "ok"
+    },
+    "ticket.detail": {
+      "title": "工单详情",
+      "pattern": "/tickets/:id",
+      "entrypoint": "ticket_detail",
+      "scene": "s1-ticket-assistant",
+      "docs": [
+        "docs/help/tickets/detail.md"
+      ],
+      "status": "ok"
+    },
+    "ticket.list": {
+      "title": "工单列表",
+      "pattern": "/tickets",
+      "entrypoint": "ticket_list",
+      "scene": "s1-ticket-assistant",
+      "docs": [
+        "docs/help/tickets/list.md"
+      ],
+      "status": "ok"
+    },
+    "incident.create": {
+      "title": "创建事件",
+      "pattern": "/incidents/create",
+      "entrypoint": "incident_create",
+      "scene": "s2-incident-oncall",
+      "docs": [
+        "docs/help/incidents/create.md"
+      ],
+      "status": "ok"
+    },
+    "incident.detail": {
+      "title": "事件详情",
+      "pattern": "/incidents/:id",
+      "entrypoint": "incident_detail",
+      "scene": "s2-incident-oncall",
+      "docs": [
+        "docs/help/incidents/detail.md"
+      ],
+      "status": "ok"
+    },
+    "incident.list": {
+      "title": "事件列表",
+      "pattern": "/incidents",
+      "entrypoint": "chat",
+      "scene": "s2-incident-oncall",
+      "docs": [
+        "docs/help/incidents/list.md"
+      ],
+      "status": "ok"
+    },
+    "change.create": {
+      "title": "新建变更",
+      "pattern": "/changes/new",
+      "entrypoint": "chat",
+      "scene": "s4-change-impact-analyst",
+      "docs": [
+        "docs/help/changes/detail.md"
+      ],
+      "status": "ok"
+    },
+    "change.detail": {
+      "title": "变更详情",
+      "pattern": "/changes/:id",
+      "entrypoint": "chat",
+      "scene": "s4-change-impact-analyst",
+      "docs": [
+        "docs/help/changes/detail.md"
+      ],
+      "status": "ok"
+    },
+    "change.list": {
+      "title": "变更列表",
+      "pattern": "/changes",
+      "entrypoint": "chat",
+      "scene": "s4-change-impact-analyst",
+      "docs": [
+        "docs/help/changes/list.md"
+      ],
+      "status": "ok"
+    },
+    "problem.list": {
+      "title": "问题管理",
+      "pattern": "/problems",
+      "entrypoint": "chat",
+      "docs": [
+        "docs/help/problems/list.md"
+      ],
+      "status": "ok"
+    },
+    "ci.create": {
+      "title": "新建配置项",
+      "pattern": "/cmdb/cis/create",
+      "entrypoint": "chat",
+      "docs": [
+        "docs/help/configuration-items.md"
+      ],
+      "status": "ok"
+    },
+    "ci.detail": {
+      "title": "配置项详情",
+      "pattern": "/cmdb/cis/:id",
+      "entrypoint": "ci_detail",
+      "scene": "s4-change-impact-analyst",
+      "docs": [
+        "docs/help/configuration-items.md"
+      ],
+      "status": "ok"
+    },
+    "ci.list": {
+      "title": "配置项列表",
+      "pattern": "/cmdb/cis",
+      "entrypoint": "chat",
+      "scene": "s4-change-impact-analyst",
+      "docs": [
+        "docs/help/configuration-items.md"
+      ],
+      "status": "ok"
+    },
+    "knowledge.new": {
+      "title": "新建知识文章",
+      "pattern": "/knowledge/articles/new",
+      "entrypoint": "chat",
+      "scene": "s3-knowledge-assistant",
+      "docs": [
+        "docs/help/knowledge/list.md"
+      ],
+      "status": "ok"
+    },
+    "knowledge.list": {
+      "title": "知识库",
+      "pattern": "/knowledge",
+      "entrypoint": "chat",
+      "scene": "s3-knowledge-assistant",
+      "docs": [
+        "docs/help/knowledge/list.md"
+      ],
+      "status": "ok"
+    },
+    "sla.monitor": {
+      "title": "SLA 监控",
+      "pattern": "/sla-monitor",
+      "entrypoint": "chat",
+      "docs": [
+        "docs/help/sla/monitor.md"
+      ],
+      "status": "ok"
+    },
+    "service.catalog": {
+      "title": "服务目录",
+      "pattern": "/service-catalog",
+      "entrypoint": "chat",
+      "docs": [
+        "docs/help/service-catalog.md"
+      ],
+      "status": "ok"
+    },
+    "dashboard": {
+      "title": "仪表盘",
+      "pattern": "/dashboard",
+      "entrypoint": "chat",
+      "docs": [
+        "docs/help/dashboard.md"
+      ],
+      "status": "ok"
+    },
+    "ai.chat": {
+      "title": "AI 助手",
+      "pattern": "/ai/chat",
+      "entrypoint": "chat",
+      "docs": [
+        "docs/help/ai/chat.md"
+      ],
+      "status": "ok"
+    },
+    "ai.observability": {
+      "title": "AI 观测看板",
+      "pattern": "/ai/observability",
+      "entrypoint": "chat",
+      "docs": [
+        "docs/help/ai/observability.md"
+      ],
+      "status": "ok"
+    }
+  },
+  "orphanDocs": []
+}

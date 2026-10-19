@@ -130,6 +130,7 @@ func (a *OpenAIResponsesAdapter) ProcessResponse(result map[string]any) ProcessR
 		Reasoning:    reasoning.String(),
 		ToolCalls:    calls,
 		FinishReason: responsesFinishReason(result, calls),
+		Usage:        usageFromIOUsageObject(result),
 	}
 }
 
@@ -151,6 +152,7 @@ type responsesStreamState struct {
 	finishReason string
 	calls        map[int]*streamToolCallAccumulator
 	order        []int
+	usage        *Usage
 }
 
 func (s *responsesStreamState) call(index int) *streamToolCallAccumulator {
@@ -189,6 +191,7 @@ func (a *OpenAIResponsesAdapter) handleStream(respBody io.Reader, callbacks Stre
 		Reasoning:    state.reasoning.String(),
 		ToolCalls:    toolCallsFromAccumulator(state.calls, state.order),
 		FinishReason: state.finishReason,
+		Usage:        state.usage,
 	}, nil
 }
 
@@ -240,6 +243,8 @@ func (a *OpenAIResponsesAdapter) processStreamEvent(state *responsesStreamState,
 		}
 	case "response.completed", "response.incomplete", "response.done":
 		response, _ := event["response"].(map[string]any)
+		// B4-02：usage 位于终态 response 对象内（input_tokens/output_tokens）。
+		state.usage = accumulateUsage(state.usage, usageFromIOUsageObject(response))
 		// 先补齐快照再定结束原因：completed 的 "tool_calls"/"stop" 取决于最终工具调用集合。
 		a.recoverStreamSnapshot(state, response, callbacks)
 		state.finishReason = firstNonEmpty(state.finishReason,

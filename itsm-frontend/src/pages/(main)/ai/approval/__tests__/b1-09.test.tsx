@@ -8,7 +8,11 @@ import { App } from 'antd';
 import { configure, fireEvent, render, screen, waitFor } from '@testing-library/react';
 
 import AIApprovalQueue from '..';
-import { aiGetToolApprovals, aiGetToolInvocation } from '@/lib/api/ai-api';
+import {
+  aiGetToolApprovals,
+  aiGetToolInvocation,
+  aiListAutopilotRuns,
+} from '@/lib/api/ai-api';
 import { mcpApi } from '@/lib/api/mcp-api';
 import { usePermissions } from '@/lib/hooks/use-permissions';
 import type { ToolApproval } from '@/lib/api/ai-api';
@@ -21,6 +25,9 @@ jest.mock('@/lib/api/ai-api', () => ({
   aiGetToolApprovals: jest.fn(),
   aiApproveTool: jest.fn(),
   aiGetToolInvocation: jest.fn(),
+  aiListAutopilotRuns: jest.fn(),
+  aiCancelAutopilotRun: jest.fn(),
+  aiRollbackAutopilotRun: jest.fn(),
 }));
 
 jest.mock('@/lib/api/mcp-api', () => ({
@@ -46,6 +53,7 @@ jest.mock('react-router', () => ({
 
 const mockedList = aiGetToolApprovals as jest.MockedFunction<typeof aiGetToolApprovals>;
 const mockedDetail = aiGetToolInvocation as jest.MockedFunction<typeof aiGetToolInvocation>;
+const mockedRuns = aiListAutopilotRuns as jest.MockedFunction<typeof aiListAutopilotRuns>;
 const mockedMcp = mcpApi as jest.Mocked<typeof mcpApi>;
 const mockedPermissions = usePermissions as jest.MockedFunction<typeof usePermissions>;
 
@@ -78,7 +86,12 @@ const renderPage = () =>
 beforeEach(() => {
   jest.clearAllMocks();
   mockedMcp.listServers.mockResolvedValue({ items: [], summary: {} } as never);
-  mockedPermissions.mockReturnValue({ hasPermission: () => false } as unknown as ReturnType<typeof usePermissions>);
+  mockedRuns.mockResolvedValue({ items: [], days: 7, status: 'running' });
+  // 审批按钮门控为 ai:write：本文件验证「通过/驳回」的时限行为，需放开审批写面
+  // （mcp:admin 保持 false，治理入口断言不受影响）。
+  mockedPermissions.mockReturnValue({
+    hasPermission: (resource: string, action: string) => resource === 'ai' && action === 'write',
+  } as unknown as ReturnType<typeof usePermissions>);
 });
 
 describe('B1-09 审批页增强', () => {

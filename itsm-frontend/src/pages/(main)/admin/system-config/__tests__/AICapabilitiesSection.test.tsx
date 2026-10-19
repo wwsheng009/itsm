@@ -33,11 +33,12 @@ const snapshot = (overrides: Partial<AICapabilities> = {}): AICapabilities => ({
   mcpEnabled: true,
   mcpWriteEnabled: false,
   botEnabled: true,
-  defaults: { mcpEnabled: true, mcpWriteEnabled: false, botEnabled: true },
+  assistantMemoryEnabled: true,
+  defaults: { mcpEnabled: true, mcpWriteEnabled: false, botEnabled: true, assistantMemoryEnabled: true },
   overridden: {},
   updatedAt: '2026-09-30T01:00:00Z',
   updatedBy: 'admin',
-  keys: ['mcp.enabled', 'mcp.write_enabled', 'bot.enabled'],
+  keys: ['mcp.enabled', 'mcp.write_enabled', 'bot.enabled', 'assistant.memory_enabled'],
   ...overrides,
 });
 

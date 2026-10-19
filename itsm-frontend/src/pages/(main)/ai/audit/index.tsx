@@ -280,6 +280,32 @@ const AIAuditConsole: React.FC = () => {
       width: 150,
       render: (v?: string) => (v ? <Text type="danger">{v}</Text> : '-'),
     },
+    {
+      // O1-01 条件项闭环：审计行内跳转轨迹（有 run 优先 run 维度；纯问答回退会话维度）。
+      title: '轨迹',
+      key: 'trace',
+      width: 90,
+      render: (_: unknown, r: ToolApproval) => {
+        const runId = r.runId && r.runId > 0 ? r.runId : undefined;
+        if (!runId && !(r.conversationId > 0)) {
+          return <Text type="secondary">-</Text>;
+        }
+        return (
+          <a
+            data-testid={`audit-tool-trace-${r.id}`}
+            onClick={() =>
+              navigate(
+                runId
+                  ? `/ai/observability?runId=${runId}`
+                  : `/ai/observability?conversationId=${r.conversationId}`
+              )
+            }
+          >
+            查看轨迹
+          </a>
+        );
+      },
+    },
   ];
 
   return (

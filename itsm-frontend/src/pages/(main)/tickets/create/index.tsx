@@ -50,6 +50,8 @@ import TicketTypePickerModal, { type TicketTypePickerItem } from '@/components/b
 import TicketTypeIcon from '@/components/business/TicketTypeIcon';
 import DynamicFieldRenderer, { type ReferenceSelectOptions } from '@/components/business/DynamicFieldRenderer';
 import ProjectSelect, { useProjectLinkPermission } from '@/components/business/ProjectSelect';
+import { InlineApplyDiff } from '@/components/ai/InlineApplyDiff';
+import { useInlineApplyFlow, type InlineChangeSet } from '@/components/ai/use-inline-apply';
 
 const { Title, Text } = Typography;
 const { TextArea } = Input;
@@ -161,6 +163,22 @@ export default function CreateTicketPage() {
   // 分类下拉选项：从后端 TicketCategory 主数据动态拉取，避免前后端分类词表零重合
   const [categoryOptions, setCategoryOptions] = useState<{ label: string; value: string }[]>([]);
   const [categoryLoading, setCategoryLoading] = useState(false);
+
+  // I1-01：AI 分类建议先 diff 预览，确认后**仅写入表单**（不提交），并可撤销。
+  const triageApply = useInlineApplyFlow({
+    scope: 'triage_create',
+    pageKey: 'ticket.create',
+    onApply: (changes: InlineChangeSet[]) => {
+      for (const change of changes) {
+        form.setFieldValue(change.field, change.after);
+      }
+    },
+    onUndo: (changes: InlineChangeSet[]) => {
+      for (const change of changes) {
+        form.setFieldValue(change.field, change.before ?? undefined);
+      }
+    },
+  });
 
   useEffect(() => {
     let cancelled = false;
@@ -536,15 +554,38 @@ export default function CreateTicketPage() {
 
       if (response?.suggestions) {
         setAiSuggestions(response.suggestions);
-        // 自动应用建议：分类仅在与后端主数据匹配时回填，
-        // 否则 AI 返回的英文 slug（database/network/…）与 TicketCategory 名称不匹配会导致提交失败
-        if (response.suggestions.category && categoryOptions.some(o => o.value === response.suggestions.category)) {
-          form.setFieldValue('category', response.suggestions.category);
+        // I1-01：不再自动回填——构建 diff 预览，用户确认后才写入表单（不提交）。
+        // 分类仅在与后端主数据匹配时纳入 diff，否则 AI 的英文 slug 与 TicketCategory 名称不匹配。
+        const beforeCategory = form.getFieldValue('category') as string | undefined;
+        const beforePriority = form.getFieldValue('priority') as string | undefined;
+        const changes: InlineChangeSet[] = [];
+        const nextCategory = response.suggestions.category as string | undefined;
+        if (
+          nextCategory &&
+          categoryOptions.some(option => option.value === nextCategory) &&
+          nextCategory !== beforeCategory
+        ) {
+          changes.push({
+            field: 'category',
+            label: '分类',
+            before: beforeCategory,
+            after: nextCategory,
+          });
         }
-        if (response.suggestions.priority) {
-          form.setFieldValue('priority', response.suggestions.priority);
+        const nextPriority = response.suggestions.priority as string | undefined;
+        if (nextPriority && nextPriority !== beforePriority) {
+          changes.push({
+            field: 'priority',
+            label: '优先级',
+            before: beforePriority,
+            after: nextPriority,
+          });
         }
-        message.success('AI 分类建议已应用');
+        if (changes.length === 0) {
+          message.info('AI 建议与当前表单值一致，无需应用');
+        } else {
+          triageApply.preview(changes);
+        }
       }
     } catch (e: unknown) {
       console.error('AI triage error:', e);
@@ -846,7 +887,29 @@ export default function CreateTicketPage() {
                   >
                     获取 AI 建议
                   </Button>
+                  {triageApply.applied ? (
+                    <Alert
+                      type="success"
+                      showIcon
+                      className="mt-2"
+                      data-testid="ticket-ai-applied-undo"
+                      message="AI 建议已填入表单（未提交）"
+                      action={
+                        <Button size="small" onClick={() => void triageApply.undo()}>
+                          撤销
+                        </Button>
+                      }
+                    />
+                  ) : null}
                 </Card>
+                <InlineApplyDiff
+                  open={Boolean(triageApply.pending)}
+                  changes={triageApply.pending ?? []}
+                  applying={triageApply.applying}
+                  onConfirm={() => void triageApply.confirm()}
+                  onCancel={triageApply.cancel}
+                  testId="triage-create-apply-diff"
+                />
               </Space>
             </Col>
           </Row>

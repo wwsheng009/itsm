@@ -217,6 +217,8 @@ func (s *NotificationPreferenceService) InitializeDefaultPreferences(ctx context
 		{EventType: "change_approved", EmailEnabled: boolPtr(true), SMSEnabled: boolPtr(false), InAppEnabled: boolPtr(true), PushEnabled: boolPtr(false), Frequency: "immediate", Timezone: "UTC"},
 		{EventType: "change_rejected", EmailEnabled: boolPtr(true), SMSEnabled: boolPtr(false), InAppEnabled: boolPtr(true), PushEnabled: boolPtr(false), Frequency: "immediate", Timezone: "UTC"},
 		{EventType: "problem_identified", EmailEnabled: boolPtr(true), SMSEnabled: boolPtr(false), InAppEnabled: boolPtr(true), PushEnabled: boolPtr(false), Frequency: "immediate", Timezone: "UTC"},
+		// O1-02 条件项闭环：AI 健康告警默认站内开启（与 AIHealthAlertEventType 同源；无行=放行）。
+		{EventType: "ai_health_alert", EmailEnabled: boolPtr(false), SMSEnabled: boolPtr(false), InAppEnabled: boolPtr(true), PushEnabled: boolPtr(false), Frequency: "immediate", Timezone: "UTC"},
 	}
 
 	for _, req := range defaultPreferences {

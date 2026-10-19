@@ -332,7 +332,15 @@ func (p *protocolProvider) call(
 		}
 		return protocol.ProcessResult{}, p.wrapHTTPError(errorPrefix, response, responseBody)
 	}
-	return p.adapter.HandleResponse(stream, response.Body, callbacks)
+	result, err := p.adapter.HandleResponse(stream, response.Body, callbacks)
+	if err != nil {
+		return protocol.ProcessResult{}, err
+	}
+	// B4-02：provider 回包带真实 usage 时上报（未注入 sink → no-op，零行为变化）。
+	if result.Usage.HasUsage() {
+		reportProviderUsage(ctx, result.Usage.PromptTokens, result.Usage.CompletionTokens)
+	}
+	return result, nil
 }
 
 // wrapHTTPError 把非 2xx 响应映射为双身份错误：*openai.APIError（网关重试分类依赖，

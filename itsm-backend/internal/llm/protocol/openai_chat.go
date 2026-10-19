@@ -69,6 +69,9 @@ func (a *OpenAIChatAdapter) BuildRequest(cfg RequestConfig) map[string]any {
 	}
 	if cfg.Stream {
 		body["stream"] = true
+		// B4-02：请求流末 usage 帧（真实 token 用量）。OpenAI 与主流兼容网关
+		// （DeepSeek/Qwen/vLLM/Azure）支持该字段；不改变非流式请求体。
+		body["stream_options"] = map[string]any{"include_usage": true}
 	}
 	if cfg.MaxTokens > 0 {
 		body["max_tokens"] = cfg.MaxTokens
@@ -111,6 +114,7 @@ func (a *OpenAIChatAdapter) ProcessResponse(result map[string]any) ProcessResult
 	out.Content = stringValue(message["content"])
 	out.Reasoning = reasoningText(message)
 	out.ToolCalls = parseOpenAIToolCalls(message["tool_calls"])
+	out.Usage = usageFromTokenFields(result)
 	return out
 }
 
@@ -136,6 +140,7 @@ func (a *OpenAIChatAdapter) handleStream(respBody io.Reader, callbacks StreamCal
 		content      strings.Builder
 		reasoning    strings.Builder
 		finishReason string
+		usage        *Usage
 	)
 	calls := map[int]*streamToolCallAccumulator{}
 	var order []int
@@ -155,6 +160,8 @@ func (a *OpenAIChatAdapter) handleStream(respBody io.Reader, callbacks StreamCal
 		if payloadErr := errorFromPayload(ProtocolOpenAIChatCompletions, chunk); payloadErr != nil {
 			return false, payloadErr
 		}
+		// B4-02：usage 帧可能不带 choices（OpenAI 的 include_usage 末帧），必须先于 choice 判空解析。
+		usage = accumulateUsage(usage, usageFromTokenFields(chunk))
 		choice := firstOpenAIChoice(chunk)
 		if choice == nil {
 			return true, nil
@@ -185,6 +192,7 @@ func (a *OpenAIChatAdapter) handleStream(respBody io.Reader, callbacks StreamCal
 		Reasoning:    reasoning.String(),
 		ToolCalls:    toolCallsFromAccumulator(calls, order),
 		FinishReason: finishReason,
+		Usage:        usage,
 	}, nil
 }
 

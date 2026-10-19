@@ -30,6 +30,13 @@ describe('buildAskAIState / readAskAIScope', () => {
     });
   });
 
+  it('D1-02：change 目标类型合法（变更详情页上下文）', () => {
+    const scope = readAskAIScope(
+      buildAskAIState({ entrypoint: 'chat', targetType: 'change', targetId: 9 })
+    );
+    expect(scope).toEqual({ entrypoint: 'chat', targetType: 'change', targetId: 9 });
+  });
+
   it('无目标上下文（列表页入口）合法', () => {
     const scope = readAskAIScope(buildAskAIState({ entrypoint: 'ticket_list' }));
     expect(scope).toEqual({ entrypoint: 'ticket_list' });

@@ -118,6 +118,7 @@ func (a *AnthropicMessagesAdapter) HandleResponse(isStream bool, respBody io.Rea
 func (a *AnthropicMessagesAdapter) ProcessResponse(result map[string]any) ProcessResult {
 	var out ProcessResult
 	out.FinishReason = a.stopReason(result)
+	out.Usage = usageFromIOUsageObject(result)
 	blocks, _ := result["content"].([]any)
 	for _, raw := range blocks {
 		block, _ := raw.(map[string]any)
@@ -159,6 +160,7 @@ func (a *AnthropicMessagesAdapter) handleStream(respBody io.Reader, callbacks St
 		content      strings.Builder
 		reasoning    strings.Builder
 		finishReason string
+		usage        *Usage
 	)
 	calls := map[int]*streamToolCallAccumulator{}
 	var order []int
@@ -215,7 +217,15 @@ func (a *AnthropicMessagesAdapter) handleStream(respBody io.Reader, callbacks St
 					ensureToolCallAccumulator(calls, &order, index).args.WriteString(partial)
 				}
 			}
+		case "message_start":
+			// B4-02：官方在 message_start.message.usage 回输入 token（MiniMax 兼容端点同形）。
+			message, _ := event["message"].(map[string]any)
+			if message != nil {
+				usage = accumulateUsage(usage, usageFromIOUsageObject(message))
+			}
 		case "message_delta":
+			// B4-02：输出 token 在 message_delta.usage（与 stop_reason 同帧）。
+			usage = accumulateUsage(usage, usageFromIOUsageObject(event))
 			delta, _ := event["delta"].(map[string]any)
 			if stop := a.stopReason(delta); stop != "" {
 				finishReason = stop
@@ -234,6 +244,7 @@ func (a *AnthropicMessagesAdapter) handleStream(respBody io.Reader, callbacks St
 		Reasoning:    reasoning.String(),
 		ToolCalls:    toolCallsFromAccumulator(calls, order),
 		FinishReason: finishReason,
+		Usage:        usage,
 	}, nil
 }
 

@@ -347,6 +347,8 @@ func (h *Handler) Chat(c *gin.Context) {
 		TargetType string `json:"targetType"`
 		TargetID   int    `json:"targetId"`
 		Summary    string `json:"summary"`
+		// D0-04 页面上下文提示（pageKey/route；仅提示/审计，未知 pageKey 静默忽略）。
+		PageContext *PageContextHint `json:"pageContext"`
 	}
 	if err := c.ShouldBindJSON(&req); err != nil {
 		common.ParamErrorWithErr(c, err, "请求参数错误")
@@ -376,6 +378,11 @@ func (h *Handler) Chat(c *gin.Context) {
 	// 注入知识访问者身份：RAG 检索据此做分类级可见性过滤（L0 权限边界）。
 	// 不注入则按匿名处理，已纳管的受限分类一律不可见（fail-closed）。
 	chatCtx := knowledgeaccess.WithViewer(c.Request.Context(), knowledgeaccess.Viewer{UserID: userID, Role: role})
+	// D0-04：页面上下文提示（仅提示/审计，不参与授权；未知 pageKey 静默忽略）。
+	if hintedCtx, pageKey, pageRoute := applyPageContextHint(chatCtx, req.PageContext); pageKey != "" {
+		chatCtx = hintedCtx
+		h.svc.logger.Infow("chat page context", "pageKey", pageKey, "route", pageRoute, "tenantID", tenantID)
+	}
 	// B2-04：新会话归属选择器指定的 Bot（0 = 默认助手；历史会话由 conversation.bot_id 决定）。
 	chatCtx = WithBotID(chatCtx, req.BotID)
 	// B2-05：跨租户 fail-closed——显式 botId 必须命中本租户模板，否则 404（不静默降级到兼容默认）。
@@ -457,6 +464,7 @@ func (h *Handler) Chat(c *gin.Context) {
 //   - event: run_started    data: {v:2, runId, entrypoint, conversationId?}（v2；仅有运行档案时发送）
 //   - event: step           data: {v:2, runId, stepIndex, type, payloadRef?, durationMs}（v2；llm/tool 步骤）
 //   - event: done           data: {"conversationId": <id>}（多 Provider 开启/显式覆盖时附加 provider/providerSource）
+//   - event: usage          data: {v:2, tokenIn, tokenOut, estimated, scope:"turn"}（v2；回合 token 估算，恒在 done 前）
 //   - event: error          data: {"message": "..."}（预算超限附加 errorCode=budget_exceeded；provider 解析失败附加 §3.4 错误码）
 //
 // 兼容承诺：v1 事件名与载荷不变；新增 v2 事件对旧客户端是未知事件，按注册表约定**必须忽略**。
@@ -477,6 +485,8 @@ func (h *Handler) ChatStream(c *gin.Context) {
 		TargetType string `json:"targetType"`
 		TargetID   int    `json:"targetId"`
 		Summary    string `json:"summary"`
+		// D0-04 页面上下文提示（pageKey/route；仅提示/审计，未知 pageKey 静默忽略）。
+		PageContext *PageContextHint `json:"pageContext"`
 	}
 	if err := c.ShouldBindJSON(&req); err != nil {
 		common.ParamErrorWithErr(c, err, "请求参数错误")
@@ -571,6 +581,11 @@ func (h *Handler) ChatStream(c *gin.Context) {
 
 	// 注入访问者身份：AI 助手主链路，RAG 据此做知识分类可见性过滤（L0 权限边界）
 	chatCtx := knowledgeaccess.WithViewer(c.Request.Context(), knowledgeaccess.Viewer{UserID: userID, Role: role})
+	// D0-04：页面上下文提示（仅提示/审计，不参与授权；未知 pageKey 静默忽略）。
+	if hintedCtx, pageKey, pageRoute := applyPageContextHint(chatCtx, req.PageContext); pageKey != "" {
+		chatCtx = hintedCtx
+		h.svc.logger.Infow("chat page context", "pageKey", pageKey, "route", pageRoute, "tenantID", tenantID)
+	}
 	// B2-04：新会话归属选择器指定的 Bot（0 = 默认助手；历史会话由 conversation.bot_id 决定）。
 	chatCtx = WithBotID(chatCtx, req.BotID)
 	// B2-05：跨租户 fail-closed（与 Chat 同源校验）；SSE 已开始前拒绝，走统一错误事件。
@@ -589,19 +604,21 @@ func (h *Handler) ChatStream(c *gin.Context) {
 	}
 	chatCtx = WithScope(chatCtx, scope)
 	if !useProviderInfo {
-		convID, _, err := h.svc.ChatStream(chatCtx, tenantID, userID, role, req.Query, req.Limit, req.ConversationID, onSources, onDelta, onTool, onRun)
+		convID, _, usage, err := h.svc.ChatStream(chatCtx, tenantID, userID, role, req.Query, req.Limit, req.ConversationID, onSources, onDelta, onTool, onRun)
 		if err != nil {
 			h.svc.logger.Warnw("AI ChatStream 失败", "error", err, "tenantID", tenantID)
 			writeEvent(SSEEventError, sseErrorPayload(err))
 			return
 		}
+		// O2-02/§13.4：usage 恒在 done 之前发送（前端以 done 收口回合，尾事件先到）。
+		writeUsageEvent(writeEvent, usage)
 		writeEvent(SSEEventDone, map[string]int{"conversationId": convID})
 		return
 	}
 
 	// BE-7：多 Provider 开启或显式覆盖——解析 provider 并把生效标注写进 done 事件；
 	// 显式覆盖的解析失败在 SSE error 事件内可见地失败（带 errorCode），不回退默认 provider。
-	resolution, convID, err := h.svc.ChatStreamWithProviderInfo(chatCtx, tenantID, userID, role, req.Query, req.Limit, req.ConversationID, provider, onSources, onDelta, onTool, onRun)
+	resolution, convID, usage, err := h.svc.ChatStreamWithProviderInfo(chatCtx, tenantID, userID, role, req.Query, req.Limit, req.ConversationID, provider, onSources, onDelta, onTool, onRun)
 	if err != nil {
 		h.svc.logger.Warnw("AI ChatStream 失败", "error", err, "tenantID", tenantID, "provider", provider)
 		if isProviderResolutionError(err) {
@@ -617,6 +634,8 @@ func (h *Handler) ChatStream(c *gin.Context) {
 		done["provider"] = resolution.Key
 		done["providerSource"] = resolution.Source
 	}
+	// O2-02/§13.4：usage 恒在 done 之前发送（前端以 done 收口回合，尾事件先到）。
+	writeUsageEvent(writeEvent, usage)
 	writeEvent(SSEEventDone, done)
 }
 
@@ -1290,13 +1309,23 @@ func (h *Handler) ListToolInvocations(c *gin.Context) {
 		return
 	}
 	server := strings.TrimSpace(c.Query("server"))
+	// I2-01：按运行收敛（监督面「审批联动」只看某次运行的待审批）。
+	runID := 0
+	if raw := strings.TrimSpace(c.Query("runId")); raw != "" {
+		parsed, parseErr := strconv.Atoi(raw)
+		if parseErr != nil || parsed <= 0 {
+			common.Fail(c, common.ParamErrorCode, "invalid runId")
+			return
+		}
+		runID = parsed
+	}
 	tenantID := c.GetInt("tenant_id")
 	if tenantID == 0 {
 		common.Fail(c, common.AuthFailedCode, "租户信息缺失")
 		return
 	}
 
-	filter := ToolInvocationFilter{State: filterState, Provider: provider, Server: server}
+	filter := ToolInvocationFilter{State: filterState, Provider: provider, Server: server, RunID: runID}
 	invs, err := h.svc.repo.ListToolInvocations(c.Request.Context(), tenantID, filter)
 	if err != nil {
 		h.svc.logger.Warnw("查询工具调用列表失败", "error", err, "tenantID", tenantID)
@@ -1311,7 +1340,7 @@ func (h *Handler) ListToolInvocations(c *gin.Context) {
 		items = append(items, h.toolInvocationItem(c.Request.Context(), tenantID, inv))
 	}
 	// 回显生效过滤条件：前端据此做筛选回显与「空态原因」提示。
-	common.Success(c, gin.H{"items": items, "state": state, "provider": provider, "server": server})
+	common.Success(c, gin.H{"items": items, "state": state, "provider": provider, "server": server, "runId": runID})
 }
 
 // ApproveTool handles POST /api/v1/agent/tools/:id/approve

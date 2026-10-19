@@ -23,6 +23,7 @@ import { TicketListToolbar } from './TicketListToolbar';
 import { TicketListFilters, type TicketFilterValues } from './TicketListFilters';
 import { TicketDeleteModal } from './TicketDeleteModal';
 import TicketBatchOperations from './TicketBatchOperations';
+import { TicketBatchAIPanel } from './TicketBatchAIPanel';
 import { useCan } from '@/components/auth/PermissionGate';
 
 interface TicketListProps {
@@ -344,6 +345,13 @@ const TicketList: React.FC<TicketListProps> = ({
           selectedTickets={tickets.filter(t => selection.isSelected(t.id))}
           onOperationComplete={() => void fetchTickets(filters)}
           onSelectionClear={selection.clear}
+        />
+      )}
+
+      {!embedded && selection.count > 0 && (
+        <TicketBatchAIPanel
+          selectedTickets={tickets.filter(t => selection.isSelected(t.id))}
+          onApplied={() => void fetchTickets(filters)}
         />
       )}
 

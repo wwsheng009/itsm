@@ -28,7 +28,9 @@ type Handler struct {
 	workflowDistribution   workflowDistributionService
 	ticketTypeDistribution ticketTypeDistributionService
 	taskProjection         taskProjectionService
-	logger                 *zap.SugaredLogger
+	// P2 帮助空间与分发授权（可选注入；nil 时端点返回 503，不影响既有行为）。
+	helpSpace helpSpaceService
+	logger    *zap.SugaredLogger
 }
 
 // NewHandler 创建 MSP handler 实例
@@ -54,6 +56,11 @@ func NewHandler(
 		taskProjection:         taskProjection,
 		logger:                 logger,
 	}
+}
+
+// SetHelpSpace 注入帮助空间与分发服务（P2；setter 装配避免既有 NewHandler 调用点连锁改动）。
+func (h *Handler) SetHelpSpace(svc helpSpaceService) {
+	h.helpSpace = svc
 }
 
 // parseDateOrZero 解析 YYYY-MM-DD 格式日期，失败时返回零值

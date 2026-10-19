@@ -121,6 +121,11 @@ const EVENT_TYPES: EventTypeConfig[] = [
     nameKey: 'notifications.projectMilestoneDue',
     descKey: 'notifications.projectMilestoneDueDesc',
   },
+  {
+    type: 'ai_health_alert',
+    nameKey: 'notifications.aiHealthAlert',
+    descKey: 'notifications.aiHealthAlertDesc',
+  },
 ];
 
 // 通知渠道配置

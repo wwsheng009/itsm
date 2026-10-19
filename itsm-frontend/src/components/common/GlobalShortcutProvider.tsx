@@ -24,8 +24,9 @@ const SHORTCUTS = [
     category: '操作',
     items: [
       { key: 'ctrl+n / cmd+n', description: '新建工单', action: '/tickets/new' },
-      { key: 'ctrl+k / cmd+k', description: '打开全局搜索', action: 'search' },
+      { key: 'ctrl+k / cmd+k', description: '打开全局搜索（可问 AI）', action: 'search' },
       { key: 'ctrl+b / cmd+b', description: '切换侧边栏折叠', action: 'toggleSidebar' },
+      { key: 'ctrl+i / cmd+i', description: '唤起/收起 AI 助手', action: 'assistant' },
       { key: 'ctrl+r / cmd+r', description: '刷新当前页面数据', action: 'refresh' },
     ],
   },
@@ -47,6 +48,7 @@ export default function GlobalShortcutProvider({ children }: GlobalShortcutProvi
   const [searchVisible, setSearchVisible] = useState(false);
   const navigate = useNavigate();
   const { collapsed, setCollapsed } = useLayoutStore();
+  const requestGlobalSearch = useLayoutStore(state => state.requestGlobalSearch);
   // 入口级门禁：新建工单写路由为 /tickets/create（旧别名 /tickets/new 会 404，§5-5 已修正）；
   // 无 ticket:create 时快捷键不导航（避免落入 403 页）。
   const canCreateTicket = useCan(['ticket:create']);
@@ -59,8 +61,9 @@ export default function GlobalShortcutProvider({ children }: GlobalShortcutProvi
   // 打开全局搜索
   const openSearch = useCallback(() => {
     setSearchVisible(true);
-    // 这里可以后续对接全局搜索组件
-  }, []);
+    // I0-03：Header 订阅 layout-store 的请求计数并打开搜索弹窗（搜索内的「问 AI」转交助手面板）。
+    requestGlobalSearch();
+  }, [requestGlobalSearch]);
 
   // 切换侧边栏
   const toggleSidebar = useCallback(() => {
@@ -79,7 +82,8 @@ export default function GlobalShortcutProvider({ children }: GlobalShortcutProvi
   useHotkeys('g k', () => navigate('/knowledge'), { preventDefault: true });
   useHotkeys('g w', () => navigate('/workflows'), { preventDefault: true });
   useHotkeys('ctrl+n, cmd+n', openCreateTicket, { preventDefault: true });
-  useHotkeys('ctrl+k, cmd+k', openSearch, { preventDefault: true });
+  // I0-03：enableOnFormTags —— 在助手面板输入框等表单元素内 Ctrl+K 同样可达搜索。
+  useHotkeys('ctrl+k, cmd+k', openSearch, { preventDefault: true, enableOnFormTags: true });
   useHotkeys('ctrl+b, cmd+b', toggleSidebar, { preventDefault: true });
   useHotkeys('ctrl+/, cmd+/, ?', openHelp, { preventDefault: true });
 

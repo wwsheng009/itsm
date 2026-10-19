@@ -5,6 +5,7 @@ import (
 	"errors"
 
 	"itsm-backend/ent"
+	"itsm-backend/ent/change"
 	"itsm-backend/ent/configurationitem"
 	"itsm-backend/ent/incident"
 	"itsm-backend/ent/ticket"
@@ -43,7 +44,7 @@ func EntrypointFromContext(ctx context.Context) string {
 // entTargetChecker 是基于 ent 的目标对象预检实现（G9）：
 // 租户内**存在**（对象级隔离）+ 角色对该资源具备读权限。
 //
-// 资源映射：ticket → ticket、incident → incident、ci → ci（与 authz 目录一致）。
+// 资源映射：ticket → ticket、incident → incident、ci → ci、change → change（与 authz 目录一致）。
 type entTargetChecker struct {
 	client *ent.Client
 }
@@ -89,6 +90,16 @@ func (c *entTargetChecker) CheckTarget(ctx context.Context, tenantID, userID int
 		}
 		exists, err := c.client.ConfigurationItem.Query().
 			Where(configurationitem.ID(targetID), configurationitem.TenantID(tenantID)).Exist(ctx)
+		if err != nil || !exists {
+			return bot.ErrScopeTargetDenied
+		}
+		return nil
+	case bot.TargetTypeChange:
+		if !middleware.HasResourcePermission(ctx, c.client, role, "change", "read", tenantID) {
+			return bot.ErrScopeTargetDenied
+		}
+		exists, err := c.client.Change.Query().
+			Where(change.ID(targetID), change.TenantID(tenantID)).Exist(ctx)
 		if err != nil || !exists {
 			return bot.ErrScopeTargetDenied
 		}

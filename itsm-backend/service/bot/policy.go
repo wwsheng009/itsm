@@ -129,7 +129,33 @@ func (p *Policy) SnapshotForBot(ctx context.Context, tenantID, botID int) (*Snap
 	if err != nil {
 		return nil, err
 	}
+	return p.loadSnapshot(ctx, tenantID, tpl)
+}
 
+// SnapshotForSlug 解析某 slug 的策略快照（D1-01 页面场景 Bot 过滤）。
+// 不存在 → (nil, nil)（调用方按「模板缺失」处理，不视为错误）。
+func (p *Policy) SnapshotForSlug(ctx context.Context, tenantID int, slug string) (*Snapshot, error) {
+	if p == nil || p.client == nil {
+		return nil, fmt.Errorf("bot policy: ent client 未注入")
+	}
+	slug = strings.TrimSpace(slug)
+	if slug == "" {
+		return nil, nil
+	}
+	tpl, err := p.client.BotTemplate.Query().
+		Where(bottemplate.TenantID(tenantID), bottemplate.SlugEQ(slug)).
+		Only(ctx)
+	if ent.IsNotFound(err) {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, err
+	}
+	return p.loadSnapshot(ctx, tenantID, tpl)
+}
+
+// loadSnapshot 读取模板授权并组装策略快照（BotID / slug 两个解析入口复用）。
+func (p *Policy) loadSnapshot(ctx context.Context, tenantID int, tpl *ent.BotTemplate) (*Snapshot, error) {
 	grants, err := p.client.BotToolGrant.Query().
 		Where(bottoolgrant.TenantID(tenantID), bottoolgrant.BotID(tpl.ID)).
 		All(ctx)

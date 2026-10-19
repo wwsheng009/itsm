@@ -351,3 +351,6 @@ itsm-backend/uploads/tickets/*
 
 # 本地 Agent 工具设置（clawMode 等，不入库）
 .arts/
+# H1-03 夜批 stale 提议（生成物，运行时产出；不提交）
+docs/help/_stale-proposals.json
+docs/help/_stale-proposals.md

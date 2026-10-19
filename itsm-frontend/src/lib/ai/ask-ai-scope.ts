@@ -26,8 +26,8 @@ export const ASK_AI_ENTRYPOINTS = [
 ] as const;
 export type AskAIEntrypoint = (typeof ASK_AI_ENTRYPOINTS)[number];
 
-/** 目标对象类型（与后端 TargetType 对齐）。 */
-export const ASK_AI_TARGET_TYPES = ['ticket', 'incident', 'ci'] as const;
+/** 目标对象类型（与后端 TargetType 对齐；D1-02 起含 change）。 */
+export const ASK_AI_TARGET_TYPES = ['ticket', 'incident', 'ci', 'change'] as const;
 export type AskAITargetType = (typeof ASK_AI_TARGET_TYPES)[number];
 
 /** 路由 state 的来源标记（校验用，避免误读其他页面的 state）。 */
@@ -137,6 +137,17 @@ export function askAIEntrypointLabel(entrypoint: AskAIEntrypoint): string {
     ci_detail: '配置项详情',
   };
   return labels[entrypoint] ?? entrypoint;
+}
+
+/** 目标对象类型的中文标签（D1-02 上下文条展示用）。 */
+export function askAITargetTypeLabel(targetType: AskAITargetType): string {
+  const labels: Record<AskAITargetType, string> = {
+    ticket: '工单',
+    incident: '事件',
+    ci: '配置项',
+    change: '变更',
+  };
+  return labels[targetType] ?? targetType;
 }
 
 function normalizeScope(scope: AskAIScope): AskAIScope {

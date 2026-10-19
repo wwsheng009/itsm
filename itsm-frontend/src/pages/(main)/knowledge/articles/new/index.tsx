@@ -38,6 +38,7 @@ import { ArrowLeft, Save } from 'lucide-react';
 import { KnowledgeBaseApi } from '@/lib/api/knowledge-base-api';
 import { AttachmentApi, knowledgeAttachmentPreviewUrl } from '@/lib/api/attachment-api';
 import { isForbiddenError } from '@/lib/utils/api-error';
+import { trackAssistantEvent } from '@/lib/ai/telemetry';
 import {
   ARTICLE_CONTENT_MAX_LENGTH,
   readArticlePrefillRequest,
@@ -282,6 +283,16 @@ export default function NewKnowledgeArticlePage() {
       }
 
       message.success('文章创建成功');
+      // P2 起草采纳率（H1-04 条件项）：仅当本次成文由 AI 预填驱动时上报终点信号
+      // （分子与 doc_draft_created 同一漏斗）；普通空白新建不进入该口径。
+      if (prefillRequest) {
+        trackAssistantEvent('doc_draft_published', {
+          pageKey: 'knowledge.article.new',
+          outcomeType: 'draft',
+          source: 'article_new_prefill',
+          extra: { kind: prefillRequest.kind },
+        });
+      }
       navigate(`/knowledge/articles/${created.id}`);
     } catch (e: any) {
       // 兜底（路由/入口门禁之外）：会话权限被服务端收回等竞态下给语义化提示。

@@ -6,6 +6,7 @@ import (
 	"strings"
 	"time"
 
+	caproot "itsm-backend/capability"
 	"itsm-backend/common"
 	"itsm-backend/domain/role"
 	"itsm-backend/middleware"
@@ -84,6 +85,12 @@ func Handler(c *gin.Context) {
 	tenantReady := c.GetInt("tenant_id") > 0
 	admin := role.IsAdminLike(roleStr)
 
+	// V2-01：个性化记忆的租户策略（运行时能力源；未注入/读取不可用按产品默认开启）。
+	memoryEnabled := true
+	if snap, ok := caproot.SnapshotFor(c.Request.Context(), c.GetInt("tenant_id")); ok {
+		memoryEnabled = snap.AssistantMemoryEnabled
+	}
+
 	items := make([]Capability, 0, len(registry))
 	for _, item := range registry {
 		dependencies := item.dependencies
@@ -124,6 +131,9 @@ func Handler(c *gin.Context) {
 		"acceptanceVersion": acceptanceVersion,
 		"deploymentMode":    middleware.DeploymentMode(),
 		"mspRoutesEnabled":  middleware.IsMSPEnabled(),
+		"assistant": gin.H{
+			"memoryEnabled": memoryEnabled,
+		},
 	})
 }
 

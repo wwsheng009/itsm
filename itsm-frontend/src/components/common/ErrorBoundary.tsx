@@ -4,6 +4,8 @@ import React, { Component } from 'react';
 import { Result, Button, Card } from 'antd';
 import { RefreshCw, Home, Bug } from 'lucide-react';
 import { handleErrorBoundary } from '@/lib/hooks/useErrorHandler';
+import { isChunkLoadError, recoverFromChunkLoadError } from '@/lib/chunk-recovery';
+import { ExplainErrorButton } from '@/components/ai/ExplainErrorButton';
 
 interface ErrorBoundaryState {
   hasError: boolean;
@@ -47,6 +49,12 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
       errorInfo,
     });
 
+    // 旧版本文档引用的哈希 chunk 已被新部署清理：整页刷新换取最新资源。
+    // 刷新受 chunk-recovery 冷却防抖；被拦截时仍展示下方兜底 UI。
+    if (isChunkLoadError(error)) {
+      recoverFromChunkLoadError();
+    }
+
     // 调用全局错误处理
     handleErrorBoundary(error, errorInfo);
 
@@ -87,6 +95,11 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
   };
 
   private handleRetry = () => {
+    // chunk 加载失败时 reset 只会用同一个已失效的 URL 重试，必须整页刷新。
+    if (isChunkLoadError(this.state.error)) {
+      recoverFromChunkLoadError({ force: true });
+      return;
+    }
     this.resetError();
   };
 
@@ -156,6 +169,12 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
                 <Button key="report" icon={<Bug size={16} />} onClick={this.handleReportBug}>
                   报告问题
                 </Button>,
+                // I1-02：错误旁「解释这个错误」→ 助手面板预填（只填不发送）。
+                <ExplainErrorButton
+                  key="explain"
+                  error={this.state.error}
+                  context={typeof window !== 'undefined' ? window.location.pathname : undefined}
+                />,
               ]}
             />
 

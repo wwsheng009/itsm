@@ -169,6 +169,30 @@ func (s *RunStore) FinishRun(ctx context.Context, tenantID, runID int, status, e
 	return update.Exec(ctx)
 }
 
+// CancelRun 取消运行（I2-01 监督面）：仅 `running` 可取消，条件更新天然幂等。
+//
+// 返回是否实际取消（false = 不存在/跨租户/已收口）；errorCode 缺省 `cancelled_by_user`。
+func (s *RunStore) CancelRun(ctx context.Context, tenantID, runID int, errorCode string) (bool, error) {
+	if s == nil || s.client == nil {
+		return false, fmt.Errorf("bot: run store 未初始化")
+	}
+	ctx = tenantctx.WithTenantID(ctx, tenantID)
+	code := errorCode
+	if code == "" {
+		code = "cancelled_by_user"
+	}
+	affected, err := s.client.BotRun.Update().
+		Where(botrun.ID(runID), botrun.TenantID(tenantID), botrun.StatusEQ("running")).
+		SetStatus("cancelled").
+		SetFinishedAt(time.Now()).
+		SetErrorCode(code).
+		Save(ctx)
+	if err != nil {
+		return false, fmt.Errorf("bot: 取消运行失败: %w", err)
+	}
+	return affected > 0, nil
+}
+
 // ListRunSteps / ListRunEvents 供审计与测试按运行回溯（租户维度前置）。
 func (s *RunStore) ListRunSteps(ctx context.Context, tenantID, runID int) ([]*ent.BotStep, error) {
 	if s == nil || s.client == nil {

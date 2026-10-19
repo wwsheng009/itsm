@@ -36,6 +36,8 @@ type ToolInvocationFilter struct {
 	Provider string
 	// Server MCP 服务器标识（仅 provider=mcp 时可能非空）；空串表示全部。
 	Server string
+	// RunID 所属运行（I2-01 监督面「审批联动」：只看某次运行的待审批）；0 = 不过滤。
+	RunID int
 }
 
 // ToolInvocation represents an AI tool execution

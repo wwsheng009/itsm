@@ -4,7 +4,7 @@ import { useNavigate, useParams } from 'react-router';
  * 变更详情组件
  */
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import {
   Card,
   Descriptions,
@@ -38,9 +38,12 @@ import {
 } from '@/constants/change';
 import type { Change, ApprovalChainItem } from '@/types/biz/change';
 import CabStepBadge from '@/components/cab/CabStepBadge';
+import { useRegisterAssistantPageData } from '@/lib/ai/page-context/use-register-assistant-page-data';
+import { useRegisterAssistantAction } from '@/lib/ai/page-context/use-register-assistant-action';
 import RecordProjectLink from '@/components/business/RecordProjectLink';
 import ChangeRiskAssessment from './ChangeRiskAssessment';
 import ChangeCMDBImpactPanel from './ChangeCMDBImpactPanel';
+import ChangeAIInlinePlanCard from './ChangeAIInlinePlanCard';
 import ChangeImpactAnalysis from './ChangeImpactAnalysis';
 import ChangeRollbackPlan from './ChangeRollbackPlan';
 import { SafeTextBlock } from '@/components/common/SafeContent';
@@ -66,6 +69,10 @@ const ChangeDetail: React.FC = () => {
   const { t } = useI18n();
   const [loading, setLoading] = useState(true);
   const [change, setChange] = useState<Change | null>(null);
+  // D1-02：L2 运行时数据（显式注册；未加载 = 不注册）；服务端仍做对象预检。
+  useRegisterAssistantPageData(
+    change ? { targetType: 'change', targetId: change.id, summary: change.title } : null
+  );
   const [approvalChain, setApprovalChain] = useState<ApprovalChainItem[]>([]);
   const [riskAssessment, setRiskAssessment] = useState<any>(null);
   const [impactAnalysis, setImpactAnalysis] = useState<any>(null);
@@ -82,6 +89,10 @@ const ChangeDetail: React.FC = () => {
   const canWriteChange = useCan(['change:write']);
   const canApproveChange = useCan(['change:approve']);
   const canRollbackChange = useCan(['change:rollback']);
+  // V0-03：任务卡直达（D1-02 动作桥）——点击「生成影响分析计划」建议卡时在页内触发 plan 运行。
+  const [impactPlanNonce, setImpactPlanNonce] = useState(0);
+  const triggerImpactPlan = useCallback(() => setImpactPlanNonce(nonce => nonce + 1), []);
+  useRegisterAssistantAction('impact_plan', triggerImpactPlan);
 
   useEffect(() => {
     if (id) {
@@ -386,6 +397,11 @@ const ChangeDetail: React.FC = () => {
 
   return (
     <Space orientation="vertical" style={{ width: '100%' }} size="large">
+      <ChangeAIInlinePlanCard
+        changeId={change.id}
+        changeTitle={change.title}
+        triggerNonce={impactPlanNonce}
+      />
       <Card>
         <div style={{ marginBottom: 24 }}>
           <Button

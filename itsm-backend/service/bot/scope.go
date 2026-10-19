@@ -53,11 +53,13 @@ const (
 	TargetTypeTicket   = "ticket"
 	TargetTypeIncident = "incident"
 	TargetTypeCI       = "ci"
+	// TargetTypeChange D1-02：变更详情页上下文（变更影响分析/回滚方案建议的事实源）。
+	TargetTypeChange = "change"
 )
 
 // KnownTargetTypes 返回全部合法目标类型（稳定顺序）。
 func KnownTargetTypes() []string {
-	return []string{TargetTypeTicket, TargetTypeIncident, TargetTypeCI}
+	return []string{TargetTypeTicket, TargetTypeIncident, TargetTypeCI, TargetTypeChange}
 }
 
 func isKnownTargetType(value string) bool {

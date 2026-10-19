@@ -49,6 +49,19 @@ func SetupMSPRoutes(r *gin.Engine, config *RouterConfig) {
 		msp.POST("/customers/:customer_tenant_id/ticket-types/distributions/:distId/publish", middleware.RequireMSPPermission("msp_customer", "write"), config.MSPHandler.PublishTicketTypeDistribution)
 		msp.POST("/customers/:customer_tenant_id/ticket-types/distributions/:distId/unbind", middleware.RequireMSPPermission("msp_customer", "write"), config.MSPHandler.UnbindTicketTypeDistribution)
 
+		// P2 帮助空间（provider 自有帮助库）：读 msp:read / 写 msp:write；draft → publish，仅已发布可分发。
+		msp.GET("/help/docs", middleware.RequireMSPPermission("msp", "read"), config.MSPHandler.ListHelpDocs)
+		msp.POST("/help/docs", middleware.RequireMSPPermission("msp", "write"), config.MSPHandler.CreateHelpDoc)
+		msp.PUT("/help/docs/:id", middleware.RequireMSPPermission("msp", "write"), config.MSPHandler.UpdateHelpDoc)
+		msp.POST("/help/docs/:id/publish", middleware.RequireMSPPermission("msp", "write"), config.MSPHandler.PublishHelpDoc)
+		msp.DELETE("/help/docs/:id", middleware.RequireMSPPermission("msp", "write"), config.MSPHandler.DeleteHelpDoc)
+		// P2 帮助分发授权（copy-in + 来源追踪 + 升级提示/解绑转原生）：
+		// 授权 = msp_customer read/write ∩ mspguard（allocation + 客户 active，服务端二次校验）。
+		msp.GET("/customers/:customer_tenant_id/help/distributions", middleware.RequireMSPPermission("msp_customer", "read"), config.MSPHandler.ListHelpDistributions)
+		msp.POST("/customers/:customer_tenant_id/help/docs/:id/distribute", middleware.RequireMSPPermission("msp_customer", "write"), config.MSPHandler.DistributeHelpDoc)
+		msp.POST("/customers/:customer_tenant_id/help/distributions/:distId/upgrade", middleware.RequireMSPPermission("msp_customer", "write"), config.MSPHandler.UpgradeHelpDistribution)
+		msp.POST("/customers/:customer_tenant_id/help/distributions/:distId/unbind", middleware.RequireMSPPermission("msp_customer", "write"), config.MSPHandler.UnbindHelpDistribution)
+
 		// 工单分配 - 需要 msp_ticket:write 权限
 		msp.POST("/tickets/:id/assign", middleware.RequireMSPPermission("msp_ticket", "write"), config.MSPHandler.AssignMSPTechnician)
 

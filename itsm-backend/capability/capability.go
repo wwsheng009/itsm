@@ -35,6 +35,9 @@ const (
 	KeyMCPWriteEnabled = "mcp.write_enabled"
 	KeyBotEnabled      = "bot.enabled"
 
+	// V2-01 个性化记忆：租户策略可关闭（缺行 = 跟随静态默认，默认开启）。
+	KeyAssistantMemoryEnabled = "assistant.memory_enabled"
+
 	// Category 是能力开关在 system_configs 中的固定分类（管理后台按此分组展示）。
 	Category = "ai"
 )
@@ -48,6 +51,8 @@ type Defaults struct {
 	MCPEnabled      bool
 	MCPWriteEnabled bool
 	BotEnabled      bool
+	// AssistantMemoryEnabled 是 AI 助手个性化记忆的静态默认（产品默认开启，租户可覆盖关闭）。
+	AssistantMemoryEnabled bool
 }
 
 // Snapshot 是某租户当前生效的能力开关快照。
@@ -55,6 +60,8 @@ type Snapshot struct {
 	MCPEnabled      bool
 	MCPWriteEnabled bool
 	BotEnabled      bool
+	// AssistantMemoryEnabled：AI 助手个性化记忆（常用语/模板/最近处理元数据）租户开关。
+	AssistantMemoryEnabled bool
 	// Overridden[key] = true 表示该键由 system_configs 覆盖（管理台设置）；
 	// false = 跟随静态默认（UI 显示「跟随环境默认」）。
 	Overridden map[string]bool
@@ -79,9 +86,10 @@ type Source interface {
 //   - 字段指向 true/false → 写入/更新覆盖行；
 //   - 需要「删除覆盖行、恢复跟随静态默认」时调用 Clear。
 type Patch struct {
-	MCPEnabled      *bool
-	MCPWriteEnabled *bool
-	BotEnabled      *bool
+	MCPEnabled             *bool
+	MCPWriteEnabled        *bool
+	BotEnabled             *bool
+	AssistantMemoryEnabled *bool
 }
 
 // errUnavailable 等稳定错误（handler 据此映射 HTTP 状态码）。
@@ -138,10 +146,11 @@ func newConfigSource(client *ent.Client, defaults Defaults, ttl time.Duration, l
 // defaultsSnapshot 返回仅含静态默认的快照。
 func (s *ConfigSource) defaultsSnapshot() Snapshot {
 	return Snapshot{
-		MCPEnabled:      s.defaults.MCPEnabled,
-		MCPWriteEnabled: s.defaults.MCPWriteEnabled,
-		BotEnabled:      s.defaults.BotEnabled,
-		Overridden:      map[string]bool{},
+		MCPEnabled:             s.defaults.MCPEnabled,
+		MCPWriteEnabled:        s.defaults.MCPWriteEnabled,
+		BotEnabled:             s.defaults.BotEnabled,
+		AssistantMemoryEnabled: s.defaults.AssistantMemoryEnabled,
+		Overridden:             map[string]bool{},
 	}
 }
 
@@ -211,7 +220,7 @@ func (s *ConfigSource) load(ctx context.Context, tenantID int) (Snapshot, error)
 		Where(
 			systemconfig.TenantIDEQ(tenantID),
 			systemconfig.DeletedAtIsNil(),
-			systemconfig.KeyIn(KeyMCPEnabled, KeyMCPWriteEnabled, KeyBotEnabled),
+			systemconfig.KeyIn(KeyMCPEnabled, KeyMCPWriteEnabled, KeyBotEnabled, KeyAssistantMemoryEnabled),
 		).
 		All(ctx)
 	if err != nil {
@@ -234,6 +243,8 @@ func (s *ConfigSource) load(ctx context.Context, tenantID int) (Snapshot, error)
 			snap.MCPWriteEnabled = parsed
 		case KeyBotEnabled:
 			snap.BotEnabled = parsed
+		case KeyAssistantMemoryEnabled:
+			snap.AssistantMemoryEnabled = parsed
 		default:
 			continue
 		}
@@ -270,6 +281,9 @@ func (c *ConfigSource) Update(ctx context.Context, tenantID int, patch Patch, op
 	}
 	if patch.BotEnabled != nil {
 		upserts[KeyBotEnabled] = *patch.BotEnabled
+	}
+	if patch.AssistantMemoryEnabled != nil {
+		upserts[KeyAssistantMemoryEnabled] = *patch.AssistantMemoryEnabled
 	}
 	for key, value := range upserts {
 		if err := c.upsert(ctx, tenantID, key, value, operator); err != nil {
@@ -353,7 +367,7 @@ func (c *ConfigSource) upsert(ctx context.Context, tenantID int, key string, val
 // IsKnownKey 判断键是否属于能力开关集合。
 func IsKnownKey(key string) bool {
 	switch key {
-	case KeyMCPEnabled, KeyMCPWriteEnabled, KeyBotEnabled:
+	case KeyMCPEnabled, KeyMCPWriteEnabled, KeyBotEnabled, KeyAssistantMemoryEnabled:
 		return true
 	default:
 		return false
@@ -362,7 +376,7 @@ func IsKnownKey(key string) bool {
 
 // KnownKeys 返回全部能力开关键（顺序固定，管理 API 与 UI 同源）。
 func KnownKeys() []string {
-	return []string{KeyMCPEnabled, KeyMCPWriteEnabled, KeyBotEnabled}
+	return []string{KeyMCPEnabled, KeyMCPWriteEnabled, KeyBotEnabled, KeyAssistantMemoryEnabled}
 }
 
 func descriptionOf(key string) string {
@@ -373,6 +387,8 @@ func descriptionOf(key string) string {
 		return "MCP 写工具面开关（运行时；关闭时写工具不可见、不可执行）"
 	case KeyBotEnabled:
 		return "Bot 能力开关（运行时；关闭时 Bot 管理写端与选择器停用）"
+	case KeyAssistantMemoryEnabled:
+		return "AI 助手个性化记忆开关（运行时；关闭时常用语/模板/最近处理元数据停用且前端零请求）"
 	default:
 		return ""
 	}

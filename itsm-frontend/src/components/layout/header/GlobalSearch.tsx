@@ -3,13 +3,15 @@ import { useNavigate } from 'react-router';
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { Input, Modal, List, Spin } from 'antd';
 import type { InputRef } from 'antd';
-import { Search, Ticket } from 'lucide-react';
+import { Search, Sparkles, Ticket } from 'lucide-react';
 import {
   globalSearch,
   type GlobalSearchResponse,
   type SearchResult,
 } from '@/lib/api/global-search-api';
 import { DESIGN } from '@/design-system/tokens';
+import { useAssistantStore } from '@/lib/store/assistant-store';
+import { trackAssistantEvent } from '@/lib/ai/telemetry';
 import styles from './Header.module.css';
 
 interface GlobalSearchProps {
@@ -30,6 +32,9 @@ export const GlobalSearch: React.FC<GlobalSearchProps> = ({
   const [searchValue, setSearchValue] = useState('');
   const [searchResults, setSearchResults] = useState<GlobalSearchResponse | null>(initialResults);
   const [isSearching, setIsSearching] = useState(false);
+  // I0-03：搜索「问 AI」——把关键词转交常驻助手面板（预填，不自动发送）。
+  const openPanel = useAssistantStore(state => state.openPanel);
+  const setPendingPrompt = useAssistantStore(state => state.setPendingPrompt);
 
   const handleSearch = useCallback(async (value: string) => {
     const keyword = value.trim();
@@ -106,6 +111,18 @@ export const GlobalSearch: React.FC<GlobalSearchProps> = ({
     onClose();
   };
 
+  const handleAskAI = useCallback(
+    (keyword: string) => {
+      const q = keyword.trim();
+      if (!q) return;
+      setPendingPrompt(q);
+      openPanel();
+      trackAssistantEvent('handoff', { extra: { from: 'global_search' } });
+      onClose();
+    },
+    [onClose, openPanel, setPendingPrompt]
+  );
+
   return (
     <Modal
       title={
@@ -130,7 +147,16 @@ export const GlobalSearch: React.FC<GlobalSearchProps> = ({
           prefix={<Search size={16} style={{ color: DESIGN.colors.textMuted }} />}
           value={searchValue}
           onChange={e => setSearchValue(e.target.value)}
-          onPressEnter={() => handleSearch(searchValue)}
+          onKeyDown={e => {
+            if (e.key !== 'Enter') return;
+            // I0-03：Enter 仍是搜索；Ctrl/Cmd+Enter = 问 AI（键盘全流程可达，行为不冲突）。
+            if (e.ctrlKey || e.metaKey) {
+              e.preventDefault();
+              handleAskAI(searchValue);
+              return;
+            }
+            void handleSearch(searchValue);
+          }}
           suffix={isSearching ? <Spin size='small' /> : null}
           style={{
             width: '100%',
@@ -141,6 +167,44 @@ export const GlobalSearch: React.FC<GlobalSearchProps> = ({
           autoFocus
         />
       </div>
+
+      {/* I0-03：问 AI 区（关键词非空时常驻首项；点击或 Ctrl+Enter 转交助手面板） */}
+      {searchValue.trim() ? (
+        <div style={{ padding: '0 20px', marginBottom: 12 }}>
+          <div
+            data-testid="global-search-ask-ai"
+            role="button"
+            tabIndex={0}
+            onClick={() => handleAskAI(searchValue)}
+            onKeyDown={e => {
+              if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault();
+                handleAskAI(searchValue);
+              }
+            }}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 10,
+              padding: '10px 12px',
+              borderRadius: DESIGN.radius.md,
+              border: `1px solid ${DESIGN.colors.border}`,
+              background: DESIGN.colors.bgSubtle,
+              cursor: 'pointer',
+            }}
+          >
+            <Sparkles size={16} style={{ color: DESIGN.colors.accent }} />
+            <div style={{ minWidth: 0 }}>
+              <div style={{ fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                问 AI：{searchValue.trim()}
+              </div>
+              <div style={{ fontSize: 12, color: DESIGN.colors.textMuted }}>
+                在 AI 助手中继续（Ctrl+Enter）
+              </div>
+            </div>
+          </div>
+        </div>
+      ) : null}
 
       {searchResults && searchResults.results.length > 0 ? (
         <div style={{ padding: '0 20px' }}>

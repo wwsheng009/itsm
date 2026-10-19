@@ -150,6 +150,14 @@ func (m *Manager) Budget() Budget {
 	return m.budget
 }
 
+// Cancel 取消运行（I2-01 监督面暂停/回滚的动作面；仅 running 可取消）。
+func (m *Manager) Cancel(ctx context.Context, tenantID, runID int, errorCode string) (bool, error) {
+	if m == nil || m.store == nil {
+		return false, fmt.Errorf("bot: run manager 未初始化")
+	}
+	return m.store.CancelRun(ctx, tenantID, runID, errorCode)
+}
+
 // Start 创建运行并返回句柄；不自动发事件（run_started 由调用方显式 Emit，便于包裹点控制）。
 func (m *Manager) Start(ctx context.Context, in StartRunInput) (*Run, error) {
 	if m == nil || m.store == nil {

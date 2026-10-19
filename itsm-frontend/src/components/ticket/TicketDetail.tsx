@@ -60,7 +60,12 @@ import {
   sanitizeRichTextHtml,
 } from '@/lib/rich-text/sanitize';
 import { AISuggestionPanel } from '@/components/business/AISuggestionPanel';
+import { TicketAIInlineAssistant } from '@/components/business/TicketAIInlineAssistant';
 import { AskAILauncher } from '@/components/ai/AskAILauncher';
+import { InlineApplyDiff } from '@/components/ai/InlineApplyDiff';
+import { useInlineApplyFlow, type InlineChangeSet } from '@/components/ai/use-inline-apply';
+import type { TriageResult } from '@/lib/api/ai-api';
+import { useRegisterAssistantPageData } from '@/lib/ai/page-context/use-register-assistant-page-data';
 import { WorkflowProgressCard } from '@/components/business/WorkflowProgressCard';
 import RecordProjectLink from '@/components/business/RecordProjectLink';
 import {
@@ -214,6 +219,13 @@ const TicketDetail: React.FC<{ id?: string }> = ({ id: propId }) => {
   };
 
   const [ticket, setTicket] = useState<Ticket | null>(null);
+  // D1-02：L2 运行时数据（显式注册；未加载/加载失败 = 不注册）。
+  // 服务端仍对 target 做存在性 + 读权限预检（fail-closed），前端值只是提示。
+  useRegisterAssistantPageData(
+    ticket ? { targetType: 'ticket', targetId: ticket.id, summary: ticket.title } : null
+  );
+  // V0-01：Inline 草稿 → 评论框填入（nonce 触发覆盖；只填不提交）。
+  const [replyDraft, setReplyDraft] = useState<{ text: string; nonce: number } | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [assignModalVisible, setAssignModalVisible] = useState(false);
@@ -761,6 +773,69 @@ const TicketDetail: React.FC<{ id?: string }> = ({ id: propId }) => {
     return () => window.removeEventListener('keydown', handleShortcut);
   }, [editForm, fetchTicket, isTicketFinal, ticket]);
 
+  // I1-01：Inline Apply —— 分诊建议先 diff 预览，用户确认后才写回；写入后可撤销（写回旧值）。
+  const buildTriageChanges = useCallback(
+    (suggestion: TriageResult): InlineChangeSet[] => {
+      if (!ticket) return [];
+      const changes: InlineChangeSet[] = [];
+      const nextPriority = toTicketPriority(suggestion.priority);
+      if (suggestion.category && suggestion.category !== ticket.category) {
+        changes.push({
+          field: 'category',
+          label: '分类',
+          before: ticket.category || undefined,
+          after: suggestion.category,
+        });
+      }
+      if (nextPriority && nextPriority !== ticket.priority) {
+        changes.push({
+          field: 'priority',
+          label: '优先级',
+          before: ticket.priority || undefined,
+          after: nextPriority,
+        });
+      }
+      return changes;
+    },
+    [ticket]
+  );
+
+  const applyTriageChanges = useCallback(
+    async (changes: InlineChangeSet[]) => {
+      if (!ticket || !resolvedTicketId) return;
+      const body: Record<string, unknown> = { version: ticket.version };
+      const category = changes.find(item => item.field === 'category')?.after;
+      const priority = changes.find(item => item.field === 'priority')?.after;
+      if (category) body.category = category;
+      if (priority) body.priority = priority;
+      try {
+        const updated = await TicketApi.updateTicket(resolvedTicketId, body as never);
+        if (updated && (updated as { id?: number }).id) {
+          setTicket(prev => (prev ? { ...prev, ...(updated as Partial<Ticket>) } : prev));
+        }
+        await fetchTicket();
+        antMessage.success('已应用 AI 建议（可在提示条中撤销）');
+      } catch (err) {
+        handleError(err, 'applyAISuggestion', '应用 AI 建议失败');
+        throw err;
+      }
+    },
+    [antMessage, fetchTicket, handleError, resolvedTicketId, ticket]
+  );
+
+  const triageApply = useInlineApplyFlow({
+    scope: 'triage_detail',
+    pageKey: 'ticket.detail',
+    onApply: applyTriageChanges,
+    onUndo: async changes => {
+      const reversed = changes
+        .filter(change => Boolean(change.before))
+        .map(change => ({ ...change, after: change.before as string }));
+      if (reversed.length > 0) await applyTriageChanges(reversed);
+      antMessage.success('已撤销 AI 建议');
+    },
+  });
+
   if (loading) {
     return (
       <div className="p-6">
@@ -859,40 +934,65 @@ const TicketDetail: React.FC<{ id?: string }> = ({ id: propId }) => {
         </div>
       </div>
 
-      {/* AI Suggestion Panel */}
+      {/* V0-01 Inline 三件套：答复草稿 + 知识推荐（分诊建议由下方 AISuggestionPanel 承载） */}
       {ticket && (
-        <AISuggestionPanel
+        <TicketAIInlineAssistant
+          ticketId={ticket.id}
           title={ticket.title}
           description={ticket.description}
-          onAccept={canUpdateTicket ? async suggestion => {
-            // Bug 11 修复：onAccept 之前只打开编辑弹窗没有真正落库
-            // 现在直接调 updateTicket 写入 AI 建议的 category + priority
-            if (
-              suggestion.priority === ticket.priority &&
-              suggestion.category === ticket.category
-            ) {
-              antMessage.info('AI建议与当前分类/优先级一致，无需更新');
-              return;
-            }
-            try {
-              const updated = await TicketApi.updateTicket(resolvedTicketId!, {
-                category: suggestion.category,
-                priority: toTicketPriority(suggestion.priority),
-                version: ticket.version,
-              } as any);
-              antMessage.success(
-                `已采纳AI建议：分类 ${suggestion.category}，优先级 ${suggestion.priority}`,
-              );
-              // Update local state immediately with the server response, then refetch in background
-              if (updated && (updated as any).id) {
-                setTicket(prev => (prev ? { ...prev, ...(updated as Partial<Ticket>) } : prev));
-              }
-              await fetchTicket();
-            } catch (err) {
-              handleError(err, 'applyAISuggestion', '采纳建议失败');
-            }
-          } : undefined}
+          onApplyReply={text => setReplyDraft({ text, nonce: Date.now() })}
         />
+      )}
+
+      {/* AI Suggestion Panel */}
+      {ticket && (
+        <>
+          <AISuggestionPanel
+            title={ticket.title}
+            description={ticket.description}
+            onAccept={
+              canUpdateTicket
+                ? suggestion => {
+                    // I1-01：不再直接写库——先展示 diff，用户确认后才应用（可撤销）。
+                    const changes = buildTriageChanges(suggestion);
+                    if (changes.length === 0) {
+                      antMessage.info('AI 建议与当前分类/优先级一致，无需应用');
+                      return;
+                    }
+                    triageApply.preview(changes);
+                  }
+                : undefined
+            }
+          />
+          {triageApply.applied && canUpdateTicket ? (
+            <div
+              data-testid="inline-applied-undo"
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 8,
+                marginBottom: 16,
+                padding: '8px 12px',
+                border: '1px solid #b7eb8f',
+                borderRadius: 8,
+                background: '#f6ffed',
+              }}
+            >
+              <span style={{ fontSize: 13 }}>AI 分诊建议已应用（分类/优先级）</span>
+              <Button size="small" onClick={() => void triageApply.undo()}>
+                撤销
+              </Button>
+            </div>
+          ) : null}
+          <InlineApplyDiff
+            open={Boolean(triageApply.pending)}
+            changes={triageApply.pending ?? []}
+            applying={triageApply.applying}
+            onConfirm={() => void triageApply.confirm()}
+            onCancel={triageApply.cancel}
+            testId="triage-apply-diff"
+          />
+        </>
       )}
 
       {/* AI-Native：受影响配置项（工单→CI 反向查询，复用本体链路外键） */}
@@ -1637,6 +1737,7 @@ const TicketDetail: React.FC<{ id?: string }> = ({ id: propId }) => {
           isTicketFinal={isTicketFinal}
           onRefresh={fetchTicket}
           t={t}
+          externalReplyDraft={replyDraft ?? undefined}
         />
       )}
     </div>
@@ -1654,6 +1755,8 @@ interface TicketDetailTabsProps {
   isTicketFinal: boolean;
   onRefresh: () => void;
   t: (key: string) => string;
+  /** V0-01：Inline 草稿（nonce 变化 → 填入评论框；不自动提交）。 */
+  externalReplyDraft?: { text: string; nonce: number };
 }
 
 const TicketDetailTabs: React.FC<TicketDetailTabsProps> = ({
@@ -1665,6 +1768,7 @@ const TicketDetailTabs: React.FC<TicketDetailTabsProps> = ({
   isTicketFinal,
   onRefresh,
   t,
+  externalReplyDraft,
 }) => {
   // 详情 Tabs 子组件内的入口级门禁（与主组件同源：auth-store hasPermission 单码语义）。
   const { hasPermission } = useAuthStore();
@@ -1687,6 +1791,7 @@ const TicketDetailTabs: React.FC<TicketDetailTabsProps> = ({
           canCreate={hasPermission('ticket:create')}
           canEdit={hasPermission('ticket:update')}
           canDelete={hasPermission('ticket:delete')}
+          externalDraft={externalReplyDraft}
         />
       ),
     },

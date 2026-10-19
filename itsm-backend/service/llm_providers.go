@@ -105,6 +105,10 @@ func (p *OpenAIProvider) Chat(ctx context.Context, model string, messages []LLMM
 		return "", fmt.Errorf("no response from OpenAI")
 	}
 
+	// B4-02：非流式回包始终携带真实 usage。
+	if resp.Usage.PromptTokens > 0 || resp.Usage.CompletionTokens > 0 {
+		reportProviderUsage(ctx, resp.Usage.PromptTokens, resp.Usage.CompletionTokens)
+	}
 	return resp.Choices[0].Message.Content, nil
 }
 
@@ -125,6 +129,8 @@ func (p *OpenAIProvider) ChatStream(ctx context.Context, model string, messages 
 		MaxTokens:   p.maxTokens,
 		Temperature: 0.3,
 	}
+	// B4-02：请求流末 usage 帧（OpenAI 兼容端点在流末回真实 token 用量）。
+	req.StreamOptions = &openai.StreamOptions{IncludeUsage: true}
 	if len(tools) > 0 {
 		req.Tools = tools
 	}
@@ -142,6 +148,10 @@ func (p *OpenAIProvider) ChatStream(ctx context.Context, model string, messages 
 				return nil
 			}
 			return nil
+		}
+		// B4-02：usage 末帧 choices 为空，先于选择分支解析。
+		if chunk.Usage != nil {
+			reportProviderUsage(ctx, chunk.Usage.PromptTokens, chunk.Usage.CompletionTokens)
 		}
 		if len(chunk.Choices) > 0 {
 			delta := chunk.Choices[0].Delta.Content
@@ -173,6 +183,8 @@ func (p *OpenAIProvider) ChatStreamWithTools(ctx context.Context, model string, 
 		MaxTokens:   p.maxTokens,
 		Temperature: 0.3,
 	}
+	// B4-02：同 ChatStream，请求流末 usage 帧。
+	req.StreamOptions = &openai.StreamOptions{IncludeUsage: true}
 	// 合并网关传入的工具声明
 	for _, td := range tools {
 		declared = append(declared, openai.Tool{
@@ -210,6 +222,10 @@ func (p *OpenAIProvider) ChatStreamWithTools(ctx context.Context, model string, 
 			}
 			// 流中断：尽力返回已累积的工具调用
 			break
+		}
+		// B4-02：usage 末帧 choices 为空；continue 前先解析。
+		if chunk.Usage != nil {
+			reportProviderUsage(ctx, chunk.Usage.PromptTokens, chunk.Usage.CompletionTokens)
 		}
 		if len(chunk.Choices) == 0 {
 			continue
@@ -300,6 +316,8 @@ func (p *StreamingOpenAIProvider) ChatStream(ctx context.Context, model string, 
 		Messages:    msgs,
 		MaxTokens:   p.maxTokens,
 		Temperature: 0.3,
+		// B4-02：请求流末 usage 帧（真实 token 用量）。
+		StreamOptions: &openai.StreamOptions{IncludeUsage: true},
 	})
 	if err != nil {
 		return fmt.Errorf("OpenAI stream error: %w", err)
@@ -310,6 +328,10 @@ func (p *StreamingOpenAIProvider) ChatStream(ctx context.Context, model string, 
 		chunk, err := stream.Recv()
 		if err != nil {
 			break
+		}
+		// B4-02：usage 末帧 choices 为空，先于选择分支解析。
+		if chunk.Usage != nil {
+			reportProviderUsage(ctx, chunk.Usage.PromptTokens, chunk.Usage.CompletionTokens)
 		}
 		if len(chunk.Choices) > 0 {
 			callback(chunk.Choices[0].Delta.Content)

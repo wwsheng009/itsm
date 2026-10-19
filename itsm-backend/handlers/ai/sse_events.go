@@ -5,6 +5,7 @@ import (
 	"errors"
 	"sort"
 
+	"itsm-backend/service"
 	"itsm-backend/service/bot"
 )
 
@@ -55,6 +56,11 @@ const (
 	SSEEventRunStarted = "run_started"
 	// SSEEventStep：运行步骤（llm/tool/confirm），与 bot_steps 同源。
 	SSEEventStep = "step"
+	// SSEEventUsage：一次对话回合的 token 用量**估算**（O2-02/§13.4 诊断抽屉数据源）。
+	//
+	// 口径：字符数 ÷ 4，与 LLMGateway 限流门禁同一算法——**不是** provider 回包的真实 usage、
+	// 不是账单口径（真实 usage 解析归 B4-02 专项）。前端必须按「估算」展示。
+	SSEEventUsage = "usage"
 	// SSEEventConfirmationRequired：写工具等待人工确认（v2 正名）。
 	SSEEventConfirmationRequired = "confirmation_required"
 	// SSEEventArtifact：计划类工具产出的 artifact（B3-06 起发送）。
@@ -92,6 +98,7 @@ var sseEventRegistry = []SSEEventSpec{
 	{Name: SSEEventToolCallFailed, Version: 1, Family: SSEFamilyToolCall, Payload: "{id?,tool,provider,server?,phase,status:\"failed\",errorCode}"},
 	{Name: SSEEventRunStarted, Version: 2, Payload: "{v:2, runId, entrypoint, conversationId?}"},
 	{Name: SSEEventStep, Version: 2, Payload: "{v:2, runId, stepIndex, type, payloadRef?, durationMs}"},
+	{Name: SSEEventUsage, Version: 2, Payload: "{v:2, tokenIn, tokenOut, estimated:true, scope:\"turn\"}（字符/4 估算，非账单口径）"},
 	// 同一语义双名：v2 正名 + v1 旧名（别名）。旧名载荷保持 v1 原样，新名载荷追加 `v:2`。
 	{Name: SSEEventConfirmationRequired, Version: 2, Family: SSEFamilyConfirmation, Aliases: []string{SSEEventApprovalPending}, Payload: "{v:2, id,tool,provider,server?,phase:\"write\",status:\"pending\"}；别名 approval_pending 为同一载荷（无 v）"},
 	{Name: SSEEventArtifact, Version: 2, Payload: "{v:2, artifactId, kind, title, conversationId?}（B3-06 起发送）"},
@@ -176,6 +183,25 @@ func writeSSERunEvent(write func(event string, payload interface{}), eventType s
 	}
 	write(name, sseEnvelopeV2(payload))
 	return true
+}
+
+// writeUsageEvent 发送 v2 `usage` 事件（O2-02/§13.4：诊断抽屉与成本观测的数据源）。
+//
+// 边界：
+//   - 零值也发送——「本回合没有可计量的 LLM 调用」（如纯检索命中、生成前失败）本身就是诊断信息，
+//     静默缺失会让前端无法区分「无数据」与「未接线」；
+//   - 必须发生在 done 之前（前端以 done 收口回合，usage 作为回合尾事件被消费）；
+//   - estimated 语义：true=字符/4 估算（见 service/llm_usage.go）；false=provider 回包实测
+//     （B4-02；工具循环仅当全覆盖时才置 false，否则保持估算，不冒充全量）。
+func writeUsageEvent(write func(event string, payload interface{}), usage service.LLMUsageEstimate) {
+	// 零值（无任何计量数据）按估算标注，避免把「无数据」冒充为 provider 实测。
+	estimated := usage.Estimated || (usage.TokenIn == 0 && usage.TokenOut == 0)
+	write(SSEEventUsage, sseEnvelopeV2(map[string]interface{}{
+		"tokenIn":   usage.TokenIn,
+		"tokenOut":  usage.TokenOut,
+		"estimated": estimated,
+		"scope":     "turn",
+	}))
 }
 
 // sseErrorPayload 组装 error 事件载荷：稳定错误码优先（budget_exceeded → 内建；

@@ -5,6 +5,7 @@ import { Layout, Button, Tooltip, Badge, Dropdown, message, Breadcrumb } from 'a
 import { PanelLeftClose, PanelLeftOpen, Bell, Bot, Globe, Home, Moon, Sun } from 'lucide-react';
 import { useTheme } from '@/lib/design-system/theme';
 import { useAuthStore, useAuthStoreHydration } from '@/lib/store/auth-store';
+import { useLayoutStore } from '@/lib/store/layout-store';
 import { AuthService } from '@/lib/services/auth-service';
 import { DESIGN } from '@/design-system/tokens';
 import { useI18n } from '@/lib/i18n';
@@ -76,6 +77,11 @@ export const Header: React.FC<HeaderProps> = ({
   const [searchResults, setSearchResults] = useState<GlobalSearchResponse | null>(null);
   const [isClient, setIsClient] = useState(false);
   const suppressSearchOpenRef = useRef(false);
+  // I0-03：全局快捷键（GlobalShortcutProvider）经 layout-store 请求打开搜索弹窗。
+  const searchRequestNonce = useLayoutStore(state => state.searchRequestNonce);
+  useEffect(() => {
+    if (searchRequestNonce > 0) setSearchModalVisible(true);
+  }, [searchRequestNonce]);
 
   // 通知状态
   const [notifications, setNotifications] = useState<TicketNotification[]>([]);

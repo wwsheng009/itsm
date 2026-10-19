@@ -58,6 +58,9 @@ type ToolStreamEvent struct {
 	DurationMs int64 `json:"durationMs,omitempty"`
 	// ErrorCode：失败时的稳定错误码（前端据此区分「无权限」与「执行失败」）。
 	ErrorCode string `json:"errorCode,omitempty"`
+	// ArtifactID：I0-04 Outcome Contract——产物类工具（plan/analysis/draft）成功时回带产物 id，
+	// 供前端回执卡渲染「查看产物/复制引用」等可验证落点。可选字段：非产物工具/旧客户端忽略。
+	ArtifactID int `json:"artifactId,omitempty"`
 }
 
 // errorCoder 由外部工具错误类型实现（如 mcp/provider.ExecuteError），
@@ -129,4 +132,28 @@ func toolEventSummary(result interface{}, limit int) string {
 		return text
 	}
 	return string([]rune(text)[:limit]) + redact.TruncatedMarker
+}
+
+// toolResultArtifactID 从工具结果提取产物 id（I0-04 Outcome Contract）。
+//
+// plan/analysis/draft 类工具（saveArtifact）返回 map 且含 `artifactId`；其余结果/异常形态返回 0
+// （前端按「无产物落点」降级渲染，不臆造引用）。
+func toolResultArtifactID(result interface{}) int {
+	payload, ok := result.(map[string]interface{})
+	if !ok || payload == nil {
+		return 0
+	}
+	switch value := payload["artifactId"].(type) {
+	case int:
+		return value
+	case int64:
+		return int(value)
+	case float64:
+		return int(value)
+	case json.Number:
+		if parsed, err := value.Int64(); err == nil {
+			return int(parsed)
+		}
+	}
+	return 0
 }

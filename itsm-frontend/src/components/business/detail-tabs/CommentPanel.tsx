@@ -67,6 +67,8 @@ export interface CommentPanelProps {
   canEdit?: boolean;
   /** 入口级门禁：删除评论（域内 :delete/:write，缺省不限制）。 */
   canDelete?: boolean;
+  /** V0-01：外部填入的草稿（nonce 变化时覆盖新增评论输入框；**不自动提交**）。 */
+  externalDraft?: { text: string; nonce: number };
 }
 
 export const CommentPanel: React.FC<CommentPanelProps> = ({
@@ -79,6 +81,7 @@ export const CommentPanel: React.FC<CommentPanelProps> = ({
   canCreate = true,
   canEdit = true,
   canDelete = true,
+  externalDraft,
 }) => {
   const { t, language } = useI18n();
   const { message } = App.useApp();
@@ -124,6 +127,12 @@ export const CommentPanel: React.FC<CommentPanelProps> = ({
   useEffect(() => {
     void fetchComments();
   }, [fetchComments]);
+
+  // V0-01 Inline Apply：外部草稿只填入输入框，提交仍由用户点击（绝不自动提交）。
+  useEffect(() => {
+    if (!externalDraft?.text || !externalDraft.nonce) return;
+    setNewComment(externalDraft.text);
+  }, [externalDraft]);
 
   const handleAddComment = async () => {
     if (!newComment.trim()) {

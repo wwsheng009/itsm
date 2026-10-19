@@ -1,0 +1,81 @@
+name: docs-ledger
+
+# H0-02 帮助文档覆盖率门禁（Page Manifest + Doc Ledger ratchet，方案 §5.2/§5.3）。
+#
+# 门禁语义：missing/stale/orphan 数量不得高于 docs/help/_coverage-baseline.json；
+# 回退即 FAIL（修复：补齐/更新 docs/help 文档；确需放宽先评审再 --write-baseline）。
+#
+# 触发面：页面注册表 / 路由表 / 生成脚本 / 帮助文档 / 本工作流。
+
+on:
+  push:
+    branches: [main, develop]
+    paths:
+      - 'itsm-frontend/src/lib/ai/page-context/**'
+      - 'itsm-frontend/src/routes/route-paths.ts'
+      - 'itsm-frontend/scripts/gen-page-manifest.mjs'
+      - 'itsm-frontend/scripts/validate-help-docs.mjs'
+      - 'itsm-frontend/src/generated/page-manifest.json'
+      - 'docs/help/**'
+      - 'mkdocs.yml'
+      - 'requirements-docs.txt'
+      - '.github/workflows/docs-ledger.yml'
+  pull_request:
+    paths:
+      - 'itsm-frontend/src/lib/ai/page-context/**'
+      - 'itsm-frontend/src/routes/route-paths.ts'
+      - 'itsm-frontend/scripts/gen-page-manifest.mjs'
+      - 'itsm-frontend/scripts/validate-help-docs.mjs'
+      - 'itsm-frontend/src/generated/page-manifest.json'
+      - 'docs/help/**'
+      - 'mkdocs.yml'
+      - 'requirements-docs.txt'
+      - '.github/workflows/docs-ledger.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: docs-ledger-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  ledger:
+    name: Docs Ledger (H0-02)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v6
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: itsm-frontend/package-lock.json
+      - name: Install dependencies
+        working-directory: itsm-frontend
+        run: npm ci --legacy-peer-deps
+      - name: Docs ledger ratchet check
+        working-directory: itsm-frontend
+        run: npm run docs:ledger:check
+      - name: Help docs validator (H1-02)
+        working-directory: itsm-frontend
+        run: npm run docs:validate
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install docs dependencies
+        run: python -m pip install -r requirements-docs.txt
+      - name: mkdocs build (site sanity)
+        run: python -m mkdocs build --site-dir .tmp/mkdocs-site
+      - name: Upload ledger artifacts
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: docs-ledger
+          path: |
+            docs/help/_ledger.json
+            itsm-frontend/src/generated/page-manifest.json
+          retention-days: 14
+          if-no-files-found: warn

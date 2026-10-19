@@ -118,6 +118,12 @@ func TestEntTargetChecker_TenantIsolationAndPermission(t *testing.T) {
 		SetTenantID(tenantA.ID).SetTitle("A 的工单").SetTicketNumber("B3-A-1").
 		SetRequesterID(userA.ID).
 		SaveX(ctx)
+	// D1-02：change 目标类型纳入预检（变更详情页上下文）。
+	changeA := client.Change.Create().
+		SetTenantID(tenantA.ID).SetTitle("A 的变更").SetChangeNumber("B3-A-CHG-1").
+		SetType("normal").SetStatus("pending").SetPriority("medium").
+		SetImpactScope("low").SetRiskLevel("low").SetCreatedBy(userA.ID).
+		SaveX(ctx)
 
 	checker := newEntTargetChecker(client)
 	require.NotNil(t, checker)
@@ -128,6 +134,11 @@ func TestEntTargetChecker_TenantIsolationAndPermission(t *testing.T) {
 
 	// 普通角色：资源读权限不足 → 拒绝（HardcodeOnly 模式下 agent 对 ticket:read 未授权）。
 	assert.Error(t, checker.CheckTarget(ctx, tenantA.ID, 1, "some_unknown_role", bot.TargetTypeTicket, ticketA.ID))
+
+	// D1-02：change 目标同样按「本租户存在 + 角色可读」收敛。
+	assert.NoError(t, checker.CheckTarget(ctx, tenantA.ID, 1, "super_admin", bot.TargetTypeChange, changeA.ID))
+	assert.Error(t, checker.CheckTarget(ctx, tenantB.ID, 1, "super_admin", bot.TargetTypeChange, changeA.ID))
+	assert.Error(t, checker.CheckTarget(ctx, tenantA.ID, 1, "some_unknown_role", bot.TargetTypeChange, changeA.ID))
 
 	// 未知类型 → 拒绝。
 	assert.Error(t, checker.CheckTarget(ctx, tenantA.ID, 1, "super_admin", "user", 1))

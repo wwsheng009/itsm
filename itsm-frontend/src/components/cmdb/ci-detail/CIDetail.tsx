@@ -18,6 +18,7 @@ import { CIImpactAnalysisTab } from './sections/CIImpactAnalysisTab';
 import { CIChangeHistoryTab } from './sections/CIChangeHistoryTab';
 import type { ConfigurationItem, CIType } from '@/types/biz/cmdb';
 import { AskAILauncher } from '@/components/ai/AskAILauncher';
+import { useRegisterAssistantPageData } from '@/lib/ai/page-context/use-register-assistant-page-data';
 import { useAuthStore } from '@/lib/store/auth-store';
 
 const { Title, Text } = Typography;
@@ -36,6 +37,11 @@ export const CIDetail: React.FC = () => {
     loadChangeHistory,
     typeInfo,
   } = useCIDetail();
+
+  // D1-02：L2 运行时数据（显式注册；未加载 = 不注册）；服务端仍做对象预检。
+  useRegisterAssistantPageData(
+    ci ? { targetType: 'ci', targetId: ci.id, summary: ci.name } : null
+  );
 
   // 标签页首次激活时自动加载数据，避免展示空态再点按钮
   const visitedTabsRef = useRef(new Set<string>());

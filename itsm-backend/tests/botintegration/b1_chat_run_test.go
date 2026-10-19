@@ -42,6 +42,9 @@ func TestB1ChatStreamWritesRunArchive(t *testing.T) {
 		nil, nil, nil, nil, nil, nil)
 	svc.SetEntClient(h.client)
 	svc.SetBotRunStore(h.store)
+	// B2-02 起 botEnabled 以策略注入为前置（未注入 = 关闭态）；本用例断言运行档案，
+	// 必须在「开启态」下运行——注入真实策略（空模板库 → 兼容默认，见 bot.Policy.SnapshotForBot）。
+	svc.SetBotPolicy(bot.NewPolicy(h.client))
 
 	handler := ai.NewHandler(svc)
 	gin.SetMode(gin.TestMode)
@@ -175,6 +178,8 @@ func TestB1ChatStreamRunManagerSequenceMatchesDB(t *testing.T) {
 	svc := ai.NewService(ai.NewEntRepository(h.client), zap.NewNop().Sugar(), rag, h.registry, h.queue,
 		nil, nil, nil, nil, nil, nil)
 	svc.SetEntClient(h.client)
+	// 同上：RunManager 顺序断言要求开启态（策略注入为 B2-02 起的开启前置）。
+	svc.SetBotPolicy(bot.NewPolicy(h.client))
 	svc.SetBotRunner(manager)
 
 	handler := ai.NewHandler(svc)
@@ -229,7 +234,7 @@ func TestB1ChatStreamRunManagerSequenceMatchesDB(t *testing.T) {
 	assert.Equal(t, "chat", runStarted["entrypoint"])
 	assert.Equal(t, "done", frames[len(frames)-1].Event)
 
-	var stepFrames, deltaFrames, doneFrames int
+	var stepFrames, deltaFrames, doneFrames, usageFrames int
 	for _, frame := range frames {
 		assert.True(t, ai.IsKnownSSEEvent(frame.Event), "帧事件名 %s 必须已登记", frame.Event)
 		switch frame.Event {
@@ -238,6 +243,15 @@ func TestB1ChatStreamRunManagerSequenceMatchesDB(t *testing.T) {
 			payload := frame.Object(t)
 			assert.Equal(t, float64(ai.SSEProtocolVersionV2), payload["v"])
 			assert.Equal(t, "llm", payload["type"])
+		case "usage":
+			// O2-02/§13.4：真实链路必须发出回合用量估算帧（零值也发，区分「无计量」与「未接线」）。
+			usageFrames++
+			payload := frame.Object(t)
+			assert.Equal(t, float64(ai.SSEProtocolVersionV2), payload["v"])
+			assert.Equal(t, true, payload["estimated"], "口径恒为估算（非账单）")
+			assert.Equal(t, "turn", payload["scope"])
+			assert.Contains(t, payload, "tokenIn")
+			assert.Contains(t, payload, "tokenOut")
 		case "delta":
 			deltaFrames++
 			// v1 兼容承诺：delta 载荷保持 {content} 且不带 `v`。
@@ -253,6 +267,18 @@ func TestB1ChatStreamRunManagerSequenceMatchesDB(t *testing.T) {
 	}
 	assert.Equal(t, 1, stepFrames, "llm 步骤应广播一次")
 	assert.Equal(t, 1, doneFrames)
+	assert.Equal(t, 1, usageFrames, "usage 帧恒发一次（即使无 LLM 调用）")
+	// 顺序契约：usage 必须在 done 之前（前端以 done 收口回合）。
+	usageIndex, finalDoneIndex := -1, -1
+	for index, frame := range frames {
+		if frame.Event == "usage" && usageIndex < 0 {
+			usageIndex = index
+		}
+		if frame.Event == "done" {
+			finalDoneIndex = index
+		}
+	}
+	assert.Greater(t, finalDoneIndex, usageIndex, "usage 必须先于 done 到达")
 	// delta 帧数量取决于 RAG 回答路径（无网关时可能为 0），其载荷形状已在循环内逐帧断言。
 	assert.GreaterOrEqual(t, deltaFrames, 0)
 }
@@ -266,6 +292,8 @@ func TestB1ChatStreamBudgetAbortEndToEnd(t *testing.T) {
 	svc := ai.NewService(ai.NewEntRepository(h.client), zap.NewNop().Sugar(), rag, h.registry, h.queue,
 		nil, nil, nil, nil, nil, nil)
 	svc.SetEntClient(h.client)
+	// 同上：预算闸门与运行收口只在开启态发生（策略注入为前置）。
+	svc.SetBotPolicy(bot.NewPolicy(h.client))
 	// 确定性模型替身：每次模型轮次都发起一次 stub__list_notes 调用（工具循环见 rag_service）。
 	svc.SetLLMGateway(service.NewLLMGateway(
 		service.NewMockProvider(service.MockProviderOptions{

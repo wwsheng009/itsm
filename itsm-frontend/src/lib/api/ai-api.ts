@@ -245,6 +245,132 @@ export async function aiSimilarIncidents(
   return { incidents: Array.isArray(res?.results) ? res.results : [] };
 }
 
+// ==================== V0-01 工单答复草稿（Inline 优先） ====================
+// 后端契约：POST /ai/tickets/:id/reply-draft（只读生成 + KB 引用；采纳/提交由页面完成）。
+
+export interface ReplyDraftCitation {
+  title: string;
+  source: string;
+  snippet?: string;
+  score?: number;
+}
+
+export interface ReplyDraftResult {
+  ticketId: number;
+  draft: string;
+  citations: ReplyDraftCitation[];
+  latencyMs?: number;
+  degraded: boolean;
+}
+
+/** 生成工单答复草稿（**只读**；不落任何业务字段，绝不自动提交）。 */
+export async function aiCreateReplyDraft(
+  ticketId: number,
+  tone?: string
+): Promise<ReplyDraftResult> {
+  return httpClient.post<ReplyDraftResult>(
+    `/api/v1/ai/tickets/${ticketId}/reply-draft`,
+    tone ? { tone } : {}
+  );
+}
+
+// ==================== V1-01 列表页 AI 批量（只读生成） ====================
+// 后端契约：POST /ai/tickets/batch-triage、POST /ai/tickets/batch-reply-drafts。
+// 两个端点均只返回建议/草稿文本；采纳与分派由列表页逐行走既有写端点，绝不自动提交。
+
+/** 批量分诊上限（后端 fail-visible：超限 400）。 */
+export const BATCH_TRIAGE_MAX_TICKETS = 20;
+/** 批量草稿上限（LLM 逐条调用；超限 400）。 */
+export const BATCH_REPLY_DRAFT_MAX_TICKETS = 10;
+
+export interface BatchTriageItem {
+  ticketId: number;
+  title?: string;
+  status: 'ok' | 'not_found';
+  category?: string;
+  priority?: string;
+  urgency?: string;
+  assigneeId?: number;
+  confidence?: number;
+  explanation?: string;
+}
+
+export interface BatchTriageResult {
+  items: BatchTriageItem[];
+  processed: number;
+  degraded: boolean;
+  latencyMs?: number;
+}
+
+/** 批量分诊建议（只读；分派/写回仍由用户逐行确认）。 */
+export async function aiBatchTriage(ticketIds: number[]): Promise<BatchTriageResult> {
+  return httpClient.post<BatchTriageResult>('/api/v1/ai/tickets/batch-triage', { ticketIds });
+}
+
+export interface BatchReplyDraftItem {
+  ticketId: number;
+  status: 'ok' | 'failed' | 'not_found';
+  draft?: string;
+  citations?: ReplyDraftCitation[];
+  latencyMs?: number;
+  reason?: string;
+}
+
+export interface BatchReplyDraftResult {
+  items: BatchReplyDraftItem[];
+  succeeded: number;
+  degraded: boolean;
+  latencyMs?: number;
+}
+
+/** 批量答复草稿（只读；草稿不落任何业务字段、不自动评论）。 */
+export async function aiBatchReplyDrafts(ticketIds: number[]): Promise<BatchReplyDraftResult> {
+  return httpClient.post<BatchReplyDraftResult>('/api/v1/ai/tickets/batch-reply-drafts', {
+    ticketIds,
+  });
+}
+
+// ==================== V1-03 口语↔术语确认（只读理解） ====================
+// 后端契约：POST /api/v1/ai/tickets/interpret（handlers/ai/interpret.go）。
+// 只把口语映射为可核对的术语（分类/优先级）+ 证据片段 + 置信度；
+// 不生成表单、不写业务字段；前端确认/修改后才进入 A2UI 建单，绝不自动提交。
+
+/** 一次术语命中：surface 是命中的口语片段（证据），term 是术语标签（网络故障/高）。 */
+export interface TicketIntentTerm {
+  field: string;
+  surface: string;
+  term: string;
+  value: string;
+  confidence: number;
+}
+
+/** 可直接带进建单表单的建议字段（后端已给出 title/description 兜底）。 */
+export interface TicketIntentFields {
+  title: string;
+  type: string;
+  priority: string;
+  description: string;
+}
+
+/** 口语理解结果（matched=false 表示未命中术语，已按 other/medium 默认值降级）。 */
+export interface TicketIntentInterpretation {
+  summary: string;
+  matched: boolean;
+  needsConfirmation: boolean;
+  confidence: number;
+  terms: TicketIntentTerm[];
+  fields: TicketIntentFields;
+}
+
+/** 口语 → 术语理解（只读；确认/修改交互由「理解确认卡」承载）。 */
+export async function aiInterpretTicketIntent(
+  utterance: string
+): Promise<TicketIntentInterpretation> {
+  return httpClient.post<TicketIntentInterpretation>('/api/v1/ai/tickets/interpret', {
+    utterance,
+  });
+}
+
 export async function aiSummarize(text: string, maxLen = 200): Promise<{ summary: string }> {
   const res = await httpClient.post<{ answers: unknown[] }>(`/api/v1/ai/chat`, {
     query: `请在${maxLen}字以内总结以下内容：\n\n${text}`,
@@ -284,6 +410,270 @@ export async function aiGetBotMetrics(params: BotMetricsQuery = {}): Promise<Bot
     return httpClient.get<BotMetrics>(`/api/v1/ai/bot-metrics?${qs}`);
   }
   return httpClient.get<BotMetrics>('/api/v1/ai/bot-metrics');
+}
+
+// ==================== H0-03/H0-04 帮助文档数据面 ====================
+// 后端契约：GET /api/v1/ai/help/search?q=&pageKey=&limit=、GET /api/v1/ai/help/page?pageKey=
+// （handlers/ai/help.go；内嵌索引来自 docs/help 真源）。
+
+export interface HelpDoc {
+  path: string;
+  title: string;
+  pageKeys: string[];
+  text: string;
+}
+
+export interface HelpSearchResult {
+  path: string;
+  title: string;
+  pageKeys: string[];
+  snippet: string;
+  score: number;
+}
+
+export type HelpPageStatus = 'ok' | 'missing' | 'stale' | 'unknown';
+
+/**
+ * P2：服务商（MSP）分发的帮助文档（copy-in 快照）。
+ * status=active 跟随 provider 更新；unbound=已解绑，转客户原生副本（内容保留）。
+ */
+export interface HelpDistributedDoc {
+  title: string;
+  pageKey: string;
+  text: string;
+  source: 'msp_provider';
+  providerTenantId: number;
+  sourceSlug: string;
+  sourceVersion: number;
+  status: 'active' | 'unbound';
+}
+
+/** P2：服务商分发帮助的检索结果（字段集与内嵌结果不同：无 path/score，带来源追踪）。 */
+export interface HelpDistributedSearchResult {
+  title: string;
+  pageKey: string;
+  snippet: string;
+  text?: string;
+  source: 'msp_provider';
+  providerTenantId: number;
+  sourceSlug: string;
+  sourceVersion: number;
+  status: 'active' | 'unbound';
+}
+
+export interface HelpPageResult {
+  pageKey: string;
+  status: HelpPageStatus;
+  title: string;
+  pattern: string;
+  entrypoint: string;
+  docs: HelpDoc[];
+  /** P2：服务商分发帮助（可能为空；面板按来源标注渲染）。 */
+  distributedDocs?: HelpDistributedDoc[];
+  coverage: { coverage: number; totals: Record<string, number> };
+}
+
+export async function aiGetPageHelp(pageKey: string): Promise<HelpPageResult> {
+  const qs = `?pageKey=${encodeURIComponent(pageKey)}`;
+  return httpClient.get<HelpPageResult>(`/api/v1/ai/help/page${qs}`);
+}
+
+export async function aiSearchHelp(
+  query: string,
+  pageKey?: string,
+  limit = 5
+): Promise<{ results: HelpSearchResult[]; distributedResults?: HelpDistributedSearchResult[] }> {
+  const search = new URLSearchParams();
+  search.set('q', query);
+  if (pageKey) search.set('pageKey', pageKey);
+  if (limit > 0) search.set('limit', String(limit));
+  const qs = search.toString();
+  return httpClient.get<{
+    results: HelpSearchResult[];
+    distributedResults?: HelpDistributedSearchResult[];
+  }>(`/api/v1/ai/help/search?${qs}`);
+}
+
+// ==================== H1-01/H1-04 帮助闭环数据面 ====================
+// 后端契约：GET /ai/help/todos（遥测缺口待办队列，H1-01）；GET /ai/help/coverage（覆盖率看板，H1-04）。
+
+// H1-01/H1-03/H1-04 条件项：待办运营状态（open=待处理缺省；claimed=已认领；ignored=已忽略）。
+export type HelpTodoState = 'open' | 'claimed' | 'ignored';
+
+export interface HelpTodoItem {
+  pageKey: string;
+  title?: string;
+  docStatus: 'missing' | 'stale' | 'ok' | 'unknown';
+  gapCount: number;
+  draftCount: number;
+  lastSeen?: string;
+  reason: 'doc_missing' | 'doc_stale' | 'page_unregistered' | 'user_help_gaps';
+  state?: HelpTodoState;
+  stateUpdatedBy?: number;
+  stateUpdatedAt?: string;
+}
+
+export interface HelpTodosResult {
+  days: number;
+  items: HelpTodoItem[];
+  totals: { items: number; missing: number; stale: number; claimed?: number; ignored?: number };
+  /** H1-04 条件项：false = 状态服务未装配/降级（状态按 open 缺省渲染，写面不可用）。 */
+  states?: { available: boolean };
+  telemetry: { available: boolean };
+}
+
+export async function aiGetHelpTodos(days = 30, limit = 50): Promise<HelpTodosResult> {
+  const search = new URLSearchParams();
+  search.set('days', String(days));
+  search.set('limit', String(limit));
+  return httpClient.get<HelpTodosResult>(`/api/v1/ai/help/todos?${search.toString()}`);
+}
+
+export interface HelpTodoStateResult {
+  pageKey: string;
+  state: HelpTodoState;
+  updatedBy?: number;
+  updatedAt?: string;
+}
+
+// 待办认领/忽略/恢复（claimed|ignored|open；幂等；ai:write 门控由后端执行）。
+export async function aiSetHelpTodoState(
+  pageKey: string,
+  state: HelpTodoState
+): Promise<HelpTodoStateResult> {
+  return httpClient.put<HelpTodoStateResult>('/api/v1/ai/help/todos/state', { pageKey, state });
+}
+
+export interface HelpCoveragePage {
+  pageKey: string;
+  title: string;
+  pattern: string;
+  entrypoint: string;
+  status: 'ok' | 'missing' | 'stale';
+  docs: string[];
+}
+
+export interface HelpCoverageResult {
+  generatedAt: string;
+  coverage: number;
+  totals: { pages: number; ok: number; missing: number; stale: number; orphan: number };
+  pages: HelpCoveragePage[];
+  orphanDocs: Array<{ doc: string; unknownKeys: string[] }>;
+}
+
+export async function aiGetHelpCoverage(): Promise<HelpCoverageResult> {
+  return httpClient.get<HelpCoverageResult>('/api/v1/ai/help/coverage');
+}
+
+// ==================== D1-01 页面助手上下文（服务端建议过滤） ====================
+// 后端契约：GET /api/v1/ai/assistant/context?pageKey=&route=（handlers/ai/assistant_context.go）。
+// 前端策略：建议卡优先消费服务端过滤结果（可见 Bot ∩ 工具授权 ∩ RBAC）；
+// 请求失败 / known=false → 回退 D0-03/D0-05 静态注册表基线（零延迟基线先行渲染，不阻塞交互）。
+
+export interface AssistantContextSuggestion {
+  id: string;
+  kind: 'task' | 'question';
+  label: string;
+  prompt: string;
+  readOnly: boolean;
+  /** 注册表序号（服务端过滤后仍保留原始顺序）。 */
+  rank: number;
+  /** O2-01：规则打分（ranking=weighted 时携带）。 */
+  score?: number;
+  /** O2-01：反馈（原始计数 + 半衰期衰减有效计数）。 */
+  feedback?: AssistantContextFeedback;
+}
+
+/** 建议反馈计数（O2-01：decayed* 为半衰期衰减后的排序口径，旧后端可能缺省）。 */
+export interface AssistantContextFeedback {
+  shown: number;
+  clicked: number;
+  ignored: number;
+  decayedShown?: number;
+  decayedClicked?: number;
+  decayedIgnored?: number;
+}
+
+export interface AssistantContextScene {
+  slug?: string;
+  botId?: number;
+  status?: string;
+  /** 场景建议是否放行；false = 该页场景建议全部被过滤。 */
+  eligible?: boolean;
+  /** 判定原因码（template_missing / status_draft / audience_denied / entrypoint_denied / policy_disabled …）。 */
+  reason?: string;
+}
+
+export interface AssistantContextResult {
+  pageKey: string;
+  route?: string;
+  known: boolean;
+  title?: string;
+  entrypoint?: string;
+  suggestions: AssistantContextSuggestion[];
+  filtered?: Array<{ id: string; reason: string }>;
+  /** enabled=服务端过滤生效；disabled=策略层未装配（兼容态）；none=无场景声明。 */
+  filtering?: 'enabled' | 'disabled' | 'none';
+  scene?: AssistantContextScene | null;
+  /** O2-01：weighted=按反馈重排；registry=注册表顺序（埋点未装配/无反馈）。 */
+  ranking?: 'weighted' | 'registry';
+}
+
+export async function aiGetAssistantContext(
+  pageKey: string,
+  route?: string
+): Promise<AssistantContextResult> {
+  const search = new URLSearchParams();
+  search.set('pageKey', pageKey);
+  if (route) search.set('route', route);
+  return httpClient.get<AssistantContextResult>(`/api/v1/ai/assistant/context?${search.toString()}`);
+}
+
+// ==================== AI Copilot 观测看板（O0-03） ====================
+// 后端契约：GET /api/v1/ai/telemetry/summary?days=&pageKey=&role=（handlers/ai/telemetry.go）。
+// 口径：采用 / 效果 / 质量 / 成本与时延四层；过滤字段留空即不参与条件（零行为变化）。
+
+export interface AssistantTelemetryBucket {
+  key: string;
+  count: number;
+}
+
+export interface AssistantTelemetryLatency {
+  avg: number;
+  p95: number;
+  max: number;
+}
+
+export interface AssistantTelemetrySummary {
+  days: number;
+  totalEvents: number;
+  distinctSessions: number;
+  errorEvents: number;
+  byName: AssistantTelemetryBucket[];
+  byPage: AssistantTelemetryBucket[];
+  latencyMs?: AssistantTelemetryLatency;
+  generatedAt: string;
+}
+
+export interface AssistantTelemetryQuery {
+  days?: number;
+  pageKey?: string;
+  role?: string;
+}
+
+export async function aiGetAssistantTelemetrySummary(
+  params: AssistantTelemetryQuery = {}
+): Promise<AssistantTelemetrySummary> {
+  const search = new URLSearchParams();
+  if (params.days && params.days > 0) search.set('days', String(params.days));
+  if (params.pageKey) search.set('pageKey', params.pageKey);
+  if (params.role) search.set('role', params.role);
+  const qs = search.toString();
+  // 同 aiGetBotMetrics：避免嵌套模板字面量（api-contract 扫描器提取规则）。
+  if (qs) {
+    return httpClient.get<AssistantTelemetrySummary>(`/api/v1/ai/telemetry/summary?${qs}`);
+  }
+  return httpClient.get<AssistantTelemetrySummary>('/api/v1/ai/telemetry/summary');
 }
 
 // ==================== AI 评估与审计（AI-Native：可观测、可回测） ====================
@@ -422,6 +812,11 @@ export interface ToolApproval {
   conversationId: number;
   userId: number;
   /**
+   * B1-01 运行归属（后端 `runId` 原样返回；0/缺省 = 纯问答无运行）。
+   * 审计页据此提供「查看轨迹」行内跳转（有 run 优先 run 维度，否则会话维度）。
+   */
+  runId?: number;
+  /**
    * 来源与风险（M1-02 后端契约）：
    * `provider` = builtin | mcp；`serverName/rawToolName/callableName` 为 MCP 三元组
    * （内置工具为空）；`risk` 由工具面实时解析（服务器不可达时为空串）。
@@ -475,6 +870,8 @@ export interface ToolApprovalListFilter {
   provider?: string;
   /** MCP 服务器标识；空/缺省=全部。 */
   server?: string;
+  /** I2-01 监督面：按运行收敛（只看某次运行的待审批）；0/缺省=不过滤。 */
+  runId?: number;
 }
 
 export interface ToolApproveRequest {
@@ -492,6 +889,7 @@ export async function aiGetToolApprovals(
   const parts = ['state=' + encodeURIComponent(state)];
   if (filter.provider) parts.push('provider=' + encodeURIComponent(filter.provider));
   if (filter.server) parts.push('server=' + encodeURIComponent(filter.server));
+  if (filter.runId && filter.runId > 0) parts.push('runId=' + encodeURIComponent(String(filter.runId)));
   const url = '/api/v1/agent/tools/invocations?' + parts.join('&');
   return httpClient.get<ToolApprovalListResponse>(url);
 }
@@ -524,6 +922,32 @@ export async function aiApproveTool(
   req: ToolApproveRequest
 ): Promise<{ invocationId: number; approvalState: string }> {
   return httpClient.post(`/api/v1/agent/tools/${id}/approve`, req);
+}
+
+// ==================== V0-03 工具直执行（Inline 任务卡；plan/只读） ====================
+// 后端契约：POST /api/v1/agent/tools/execute（handlers/ai ExecuteTool；写工具会返回 pending 审批，
+// 本入口不改变该语义——Inline 面板只用于 plan/只读工具，如 analyze_ci_impact_plan）。
+
+export interface ToolExecuteResult {
+  status: string;
+  summary?: string;
+  nextActions?: string[];
+  artifacts?: string[];
+  /** 工具输出（plan/analysis 类含 artifactId/kind/title/content/evidence）。 */
+  data?: Record<string, unknown> | null;
+}
+
+export async function aiExecuteTool(
+  name: string,
+  args: Record<string, unknown>,
+  opts?: { conversationId?: number; dryRun?: boolean }
+): Promise<ToolExecuteResult> {
+  return httpClient.post<ToolExecuteResult>('/api/v1/agent/tools/execute', {
+    name,
+    args,
+    ...(opts?.conversationId ? { conversationId: opts.conversationId } : {}),
+    ...(opts?.dryRun ? { dryRun: true } : {}),
+  });
 }
 
 // ==================== 合并自 legacy AIService（src/lib/services/ai-service.ts） ====================
@@ -680,10 +1104,31 @@ export async function aiIntelligentSearch(
 
 // ==================== SSE Streaming Chat ====================
 
+/**
+ * O2-02/§13.4 + B4-02：一次对话回合的 token 用量（后端 v2 `usage` 事件）。
+ *
+ * 口径（按 estimated 区分）：
+ * - true/缺省：字符数 ÷ 4，与后端限流门禁同一算法——展示必须保留「估算」字样；
+ * - false：provider 回包实测（B4-02；协议 usage 末帧/非流式响应），展示标注「provider 实测」；
+ * 两者均**不是**账单口径（缓存命中/推理 token 等细分与计价映射不在范围内）。
+ */
+export interface AIUsageEstimate {
+  /** 本回合输入估算（含系统提示与历史上下文；工具循环多次调用累加）。 */
+  tokenIn: number;
+  /** 本回合输出估算（流式正文累计）。 */
+  tokenOut: number;
+  /** 口径标记：true/缺省=字符/4 估算；false=provider 回包实测（B4-02）。 */
+  estimated?: boolean;
+  /** 计量范围：turn = 本回合。 */
+  scope?: string;
+}
+
 /** SSE `done` 事件回带的生效实例信息（BE-7；开关关闭时两端都缺省 → 与现状一致）。 */
 export interface AIChatDoneInfo {
   provider?: string;
   providerSource?: string;
+  /** v2 `usage` 事件（恒在 done 前到达；旧后端缺省 → undefined，调用方按无数据处理）。 */
+  usage?: AIUsageEstimate;
 }
 
 /** Server-Sent Event payload types emitted by /ai/chat/stream. */
@@ -697,7 +1142,8 @@ export type AIChatStreamEvent =
   | { type: 'confirmation_required'; event: AIToolStreamEvent }
   | { type: 'run_started'; run: AIRunStartedEvent }
   | { type: 'step'; step: AIRunStepEvent }
-  | { type: 'done'; conversationId: number; provider?: string; providerSource?: string }
+  | { type: 'usage'; usage: AIUsageEstimate }
+  | { type: 'done'; conversationId: number; provider?: string; providerSource?: string; usage?: AIUsageEstimate }
   | { type: 'error'; message: string };
 
 /**
@@ -751,6 +1197,11 @@ export interface AIToolStreamEvent {
   durationMs?: number;
   /** 失败时的稳定错误码（tool_permission_denied / unknown_tool / ...）。 */
   errorCode?: string;
+  /**
+   * I0-04 Outcome Contract：产物类工具（plan/analysis/draft）成功时回带的产物 id（可选）。
+   * 旧后端不产生该字段 → 前端回执卡按「无产物落点」降级渲染。
+   */
+  artifactId?: number;
 }
 
 /** 工具事件回调（四种事件共用；status 区分阶段）。 */
@@ -767,6 +1218,8 @@ export interface AIChatStreamCallbacks {
   onRunStarted?: (run: AIRunStartedEvent) => void;
   /** v2 步骤进度（B1-03）；不传即忽略。 */
   onStep?: (step: AIRunStepEvent) => void;
+  /** v2 回合用量估算（O2-02/§13.4）；不传即忽略（仅用于展示/埋点，不影响渲染）。 */
+  onUsage?: (usage: AIUsageEstimate) => void;
   /**
    * 未知事件上报（可选）：默认静默忽略以保证前向兼容；
    * 传入时仅用于日志/埋点，**不得**据此中断流或渲染。
@@ -872,7 +1325,18 @@ export interface AIChatStreamRequest {
   targetType?: string;
   targetId?: number;
   summary?: string;
+  /**
+   * D0-04 页面上下文提示（pageKey/route；仅提示/审计，不参与授权）。
+   * 缺省不落字段——请求体与改动前逐字节一致（QA-3 门禁）。
+   */
+  pageContext?: AIPageContextHint;
   signal?: AbortSignal;
+}
+
+/** D0-04 页面上下文提示（与后端 handlers/ai/page_context.go 的 PageContextHint 对齐）。 */
+export interface AIPageContextHint {
+  pageKey: string;
+  route?: string;
 }
 
 /**
@@ -939,6 +1403,8 @@ export async function aiChatStream(
     ...(req.entrypoint ? { entrypoint: req.entrypoint } : {}),
     ...(req.targetType && req.targetId ? { targetType: req.targetType, targetId: req.targetId } : {}),
     ...(req.summary ? { summary: req.summary } : {}),
+    // D0-04：仅携带页面上下文提示时落字段（缺省请求体与现状逐字节一致）。
+    ...(req.pageContext ? { pageContext: req.pageContext } : {}),
   });
 
   let lastError: Error | null = null;
@@ -983,6 +1449,8 @@ export async function aiChatStream(
       const decoder = new TextDecoder('utf-8');
       let buffer = '';
       let finalConversationId = 0;
+      // O2-02/§13.4：`usage` 事件恒在 done 前到达 → 先缓存，随 done 一并交给调用方。
+      let finalUsage: AIUsageEstimate | undefined;
       // B1-03 双发去重：同一 invocation id 的待审批事件（v1 + v2）只回调一次。
       const seenPendingIds = new Set<number>();
 
@@ -1014,16 +1482,39 @@ export async function aiChatStream(
             };
             finalConversationId = payload?.conversationId ?? finalConversationId;
             // 开关关闭/静态回退时 done 不含 provider 字段 → 第二参数缺省，
-            // 调用方与既有行为完全一致（QA-3 回归门禁）。
+            // 调用方与既有行为完全一致（QA-3 回归门禁）；usage 存在时才补第二参数。
             const info =
-              payload?.provider || payload?.providerSource
-                ? { provider: payload?.provider, providerSource: payload?.providerSource }
+              payload?.provider || payload?.providerSource || finalUsage
+                ? {
+                    provider: payload?.provider,
+                    providerSource: payload?.providerSource,
+                    usage: finalUsage,
+                  }
                 : undefined;
             if (info) {
               callbacks.onDone?.(finalConversationId, info);
             } else {
               // 单参数调用，保持与改动前的回调签名逐字一致（既有调用方零感知）。
               callbacks.onDone?.(finalConversationId);
+            }
+            break;
+          }
+          case 'usage': {
+            // v2（O2-02/§13.4）：回合 token 用量（估算或 provider 实测），恒在 done 前到达；旧后端不发送。
+            const payload = data as Partial<AIUsageEstimate> | null;
+            if (
+              payload &&
+              typeof payload.tokenIn === 'number' &&
+              typeof payload.tokenOut === 'number'
+            ) {
+              finalUsage = {
+                tokenIn: payload.tokenIn,
+                tokenOut: payload.tokenOut,
+                // 旧/异常载荷未带 estimated 时按估算处理（宁可标注，也不冒充真实值）。
+                estimated: payload.estimated !== false,
+                scope: payload.scope,
+              };
+              callbacks.onUsage?.(finalUsage);
             }
             break;
           }
@@ -1244,6 +1735,8 @@ export class AIApi {
     targetType?: string;
     targetId?: number;
     summary?: string;
+    /** D0-04：页面上下文提示（缺省不落字段）。 */
+    pageContext?: AIPageContextHint;
   }): Promise<any> {
     return httpClient.post(`/api/v1/ai/chat`, {
       query: params.query,
@@ -1254,6 +1747,7 @@ export class AIApi {
       ...(params.entrypoint ? { entrypoint: params.entrypoint } : {}),
       ...(params.targetType && params.targetId ? { targetType: params.targetType, targetId: params.targetId } : {}),
       ...(params.summary ? { summary: params.summary } : {}),
+      ...(params.pageContext ? { pageContext: params.pageContext } : {}),
     });
   }
 
@@ -1403,4 +1897,653 @@ export async function aiListToolCatalog(params: ToolCatalogParams = {}): Promise
     total: res?.total ?? 0,
     capabilities: res?.capabilities,
   };
+}
+// ==================== O1-01 单任务全链路轨迹（run_id 回放） ====================
+
+/**
+ * 运行轨迹契约：`GET /api/v1/ai/runs/:id/trace`（ai:read）。
+ *
+ * 链路（方案 §13.4）：会话 → run → 步骤/事件 → 工具调用（确认/审批）→ 产物 → 业务对象。
+ * 口径：原始参数不回显（仅 `argsRedacted`）；跨租户与不存在同为 404。
+ */
+export interface AIRunTraceRun {
+  id: number;
+  conversationId: number;
+  botId: number;
+  entrypoint: string;
+  status: string;
+  model?: string;
+  targetType?: string;
+  targetId?: number;
+  errorCode?: string;
+  budgetJson?: string;
+  startedAt: string;
+  finishedAt?: string;
+}
+
+export interface AIRunTraceStep {
+  id: number;
+  stepIndex: number;
+  type: string;
+  payloadRef?: string;
+  durationMs: number;
+  createdAt: string;
+}
+
+export interface AIRunTraceEvent {
+  id: number;
+  seq: number;
+  type: string;
+  payload?: Record<string, unknown>;
+  createdAt: string;
+}
+
+export interface AIRunTraceTool {
+  id: number;
+  toolName: string;
+  status: string;
+  approvalState: string;
+  /** 规范化确认状态：pending|confirmed|rejected|expired|cancelled|unknown。 */
+  confirmationState: string;
+  needsApproval: boolean;
+  risk?: string;
+  category?: string;
+  provider?: string;
+  serverName?: string;
+  argsRedacted?: string;
+  result?: string | null;
+  outputSummary?: string;
+  error?: string | null;
+  errorCode?: string;
+  verifyState?: string;
+  verifyNote?: string;
+  durationMs: number;
+  targetType?: string;
+  targetId?: string;
+  stepId: number;
+  userId: number;
+  approvedBy?: number;
+  approvedAt?: string;
+  createdAt: string;
+}
+
+export interface AIRunTraceArtifact {
+  id: number;
+  kind: string;
+  toolName?: string;
+  title?: string;
+  contentJson?: string;
+  evidenceJson?: string;
+  createdAt: string;
+}
+
+export interface AIRunTrace {
+  run: AIRunTraceRun;
+  steps: AIRunTraceStep[];
+  events: AIRunTraceEvent[];
+  toolInvocations: AIRunTraceTool[];
+  artifacts: AIRunTraceArtifact[];
+}
+
+/** 读取单次运行的全链路轨迹（管理侧回放；404 = 不存在或跨租户）。 */
+export async function aiGetRunTrace(runId: number): Promise<AIRunTrace> {
+  // 字面量路径 + 拼接，避免模板内三元表达式，保证 api-contract 测试可静态解析路径
+  const url = '/api/v1/ai/runs/' + runId + '/trace';
+  const res = await httpClient.get<AIRunTrace>(url);
+  return {
+    run: res?.run,
+    steps: Array.isArray(res?.steps) ? res.steps : [],
+    events: Array.isArray(res?.events) ? res.events : [],
+    toolInvocations: Array.isArray(res?.toolInvocations) ? res.toolInvocations : [],
+    artifacts: Array.isArray(res?.artifacts) ? res.artifacts : [],
+  };
+}
+
+// ==================== O1-01 条件项：会话维度轨迹（纯问答可回放） ====================
+
+/**
+ * 会话维度轨迹契约：`GET /api/v1/ai/conversations/:id/trace`（ai:read）。
+ *
+ * 链路：会话档案 → 消息回合 →（若有）运行列表 → 工具调用与确认 → 产物。
+ * 口径：纯问答无 bot_runs 同样可回放；消息超长/超窗口由后端截断并显式标记
+ * （`truncated` / `messagesTruncated`）；原始参数不回显（仅 `argsRedacted`）；
+ * 跨租户与不存在同为 404。
+ */
+export interface AIConversationTraceMessage {
+  id: number;
+  role: string;
+  content: string;
+  truncated?: boolean;
+  createdAt: string;
+}
+
+export interface AIConversationTraceRun {
+  id: number;
+  status: string;
+  entrypoint?: string;
+  model?: string;
+  errorCode?: string;
+  startedAt: string;
+  finishedAt?: string;
+}
+
+export interface AIConversationTraceConversation {
+  id: number;
+  userId?: number;
+  botId?: number;
+  title?: string;
+  createdAt: string;
+}
+
+export interface AIConversationTrace {
+  conversation: AIConversationTraceConversation;
+  messages: AIConversationTraceMessage[];
+  messageCount: number;
+  messagesTruncated: boolean;
+  runs: AIConversationTraceRun[];
+  toolInvocations: AIRunTraceTool[];
+  artifacts: AIRunTraceArtifact[];
+}
+
+/** 读取会话维度全链路轨迹（纯问答无 run 同样可回放；404 = 不存在或跨租户）。 */
+export async function aiGetConversationTrace(conversationId: number): Promise<AIConversationTrace> {
+  // 字面量路径 + 拼接，避免模板内三元表达式，保证 api-contract 测试可静态解析路径
+  const url = '/api/v1/ai/conversations/' + conversationId + '/trace';
+  const res = await httpClient.get<AIConversationTrace>(url);
+  return {
+    conversation: res?.conversation,
+    messages: Array.isArray(res?.messages) ? res.messages : [],
+    messageCount: typeof res?.messageCount === 'number' ? res.messageCount : (res?.messages?.length ?? 0),
+    messagesTruncated: res?.messagesTruncated === true,
+    runs: Array.isArray(res?.runs) ? res.runs : [],
+    toolInvocations: Array.isArray(res?.toolInvocations) ? res.toolInvocations : [],
+    artifacts: Array.isArray(res?.artifacts) ? res.artifacts : [],
+  };
+}
+
+// ==================== O1-02 实时健康与告警（SLO） ====================
+
+/**
+ * 健康快照契约：`GET /api/v1/ai/health`（ai:read）。
+ * 告警派发：`POST /api/v1/ai/health/alerts/dispatch`（ai:write；违规项投递到通知中心，同标题 30 分钟去重）。
+ */
+export interface AIHealthRuns {
+  total: number;
+  completed: number;
+  failed: number;
+  running: number;
+  successRate: number;
+  avgDurationMs: number;
+}
+
+export interface AIHealthTools {
+  total: number;
+  errors: number;
+  errorRate: number;
+  avgDurationMs: number;
+}
+
+export interface AIHealthConfirmations {
+  approved: number;
+  rejected: number;
+  expired: number;
+  pending: number;
+  expireRate: number;
+}
+
+export interface AIHealthQueue {
+  available: boolean;
+  length: number;
+  capacity: number;
+}
+
+export interface AIHealthProviders {
+  available: boolean;
+  callCount: number;
+  successRate: number;
+  known: boolean;
+  avgLatencyMs: number;
+}
+
+export interface AIHealthQuality {
+  errorShown: number;
+  errorRecovered: number;
+  recoveryRate: number;
+  latencyP95Ms: number;
+  taskStarted: number;
+  taskCompleted: number;
+}
+
+export interface AIHealthSnapshot {
+  tenantId: number;
+  windowDays: number;
+  generatedAt: string;
+  runs: AIHealthRuns;
+  tools: AIHealthTools;
+  confirmations: AIHealthConfirmations;
+  queue: AIHealthQueue;
+  providers: AIHealthProviders;
+  quality: AIHealthQuality;
+  notes?: string[];
+}
+
+export type AIHealthSLOStatus = 'ok' | 'breach' | 'insufficient_data';
+
+export interface AIHealthSLO {
+  rule: string;
+  title: string;
+  status: AIHealthSLOStatus;
+  actual: number;
+  threshold: number;
+  comparator: 'gte' | 'lte';
+  sample: number;
+  message?: string;
+}
+
+export interface AIHealthResponse {
+  snapshot: AIHealthSnapshot;
+  slos: AIHealthSLO[];
+}
+
+export interface AIHealthAlert {
+  rule: string;
+  severity: 'warning' | 'critical';
+  title: string;
+  message: string;
+  actual: number;
+  threshold: number;
+}
+
+export interface AIHealthDispatchResult {
+  snapshot: AIHealthSnapshot;
+  slos: AIHealthSLO[];
+  alerts: AIHealthAlert[];
+  recipients: number;
+  created: number;
+  skipped: number;
+  /** 因用户订阅偏好（ai_health_alert 关闭站内通知）被排除的候选收件人数（O1-02 条件项）。 */
+  skippedByPreference?: number;
+}
+
+/** 采集健康快照 + SLO 评估（只读）。 */
+export async function aiGetAIHealth(days = 7): Promise<AIHealthResponse> {
+  const url = '/api/v1/ai/health?days=' + encodeURIComponent(String(days));
+  const res = await httpClient.get<AIHealthResponse>(url);
+  return {
+    snapshot: res?.snapshot,
+    slos: Array.isArray(res?.slos) ? res.slos : [],
+  };
+}
+
+/** 评估并把违规告警投递到通知中心（写面；返回本次新建/去重计数）。 */
+export async function aiDispatchAIHealthAlerts(days = 7): Promise<AIHealthDispatchResult> {
+  const url = '/api/v1/ai/health/alerts/dispatch?days=' + encodeURIComponent(String(days));
+  return httpClient.post<AIHealthDispatchResult>(url, {});
+}// ==================== I2-01 Autopilot 监督面（运行列表 / 暂停 / 回滚） ====================
+
+/**
+ * Autopilot 运行监督契约：
+ * - `GET /api/v1/ai/runs?days=&status=&limit=`（ai:read）：运行列表 + 步骤/工具/待审批/产物计数；
+ * - `POST /api/v1/ai/runs/:id/cancel`（ai:write）：暂停/终止（仅 running 生效，幂等）；
+ * - `POST /api/v1/ai/runs/:id/rollback`（ai:write）：终止 + 冻结该运行全部待审批（cancelled，永不执行）
+ *   + 回滚结果投递通知中心（`type=ai_autopilot`，深链 `/ai/approval`）。
+ */
+export interface AutopilotRunSummary {
+  id: number;
+  conversationId: number;
+  botId: number;
+  entrypoint: string;
+  status: string;
+  model?: string;
+  errorCode?: string;
+  targetType?: string;
+  targetId?: number;
+  startedAt: string;
+  finishedAt?: string;
+  steps: number;
+  toolCalls: number;
+  pendingApprovals: number;
+  artifacts: number;
+}
+
+export interface AutopilotRunListResponse {
+  items: AutopilotRunSummary[];
+  days: number;
+  status: string;
+}
+
+export interface AutopilotActionResponse {
+  runId: number;
+  cancelled: boolean;
+}
+
+export interface AutopilotRollbackResult extends AutopilotActionResponse {
+  rejectedInvocations: number;
+  notifications: number;
+  reason?: string;
+}
+
+/** 运行列表（监督面；status 为空串/缺省 = 全部状态）。 */
+export async function aiListAutopilotRuns(
+  params: { days?: number; status?: string; limit?: number } = {}
+): Promise<AutopilotRunListResponse> {
+  const query = new URLSearchParams();
+  if (params.days) query.set('days', String(params.days));
+  if (params.status) query.set('status', params.status);
+  if (params.limit) query.set('limit', String(params.limit));
+  const qs = query.toString();
+  const url = '/api/v1/ai/runs' + (qs ? `?${qs}` : '');
+  const res = await httpClient.get<AutopilotRunListResponse>(url);
+  return {
+    items: Array.isArray(res?.items) ? res.items : [],
+    days: res?.days ?? 0,
+    status: res?.status ?? '',
+  };
+}
+
+/** 暂停/终止运行（仅 running 生效；返回 cancelled=false 表示已收口）。 */
+export async function aiCancelAutopilotRun(
+  runId: number,
+  reason?: string
+): Promise<AutopilotActionResponse> {
+  const url = '/api/v1/ai/runs/' + runId + '/cancel';
+  return httpClient.post<AutopilotActionResponse>(url, { reason });
+}
+
+/** 回滚运行：终止 + 冻结待审批 + 通知中心投递。 */
+export async function aiRollbackAutopilotRun(
+  runId: number,
+  reason?: string
+): Promise<AutopilotRollbackResult> {
+  const url = '/api/v1/ai/runs/' + runId + '/rollback';
+  return httpClient.post<AutopilotRollbackResult>(url, { reason });
+}// ==================== I2-02 合规：会话导出（Markdown 快照） ====================
+
+/**
+ * 会话导出契约：`GET /api/v1/ai/conversations/:id/export`（ai:read）。
+ * 返回 Markdown 快照（标题/导出时间/消息数 + 逐条角色与内容）；跨租户与不存在同口径 404。
+ */
+export interface AIConversationExport {
+  conversationId: number;
+  title: string;
+  exportedAt: string;
+  messageCount: number;
+  markdown: string;
+}
+
+/** 导出会话快照（前端据此生成 `.md` 下载，不落服务端文件）。 */
+export async function exportConversation(conversationId: number): Promise<AIConversationExport> {
+  const url = '/api/v1/ai/conversations/' + conversationId + '/export';
+  return httpClient.get<AIConversationExport>(url);
+}// ==================== V0-04 试点对照报告（§11.5 放量门槛） ====================
+
+/**
+ * 契约：`GET /api/v1/ai/observability/pilot-report?currentDays=&baselineDays=`（ai:read）。
+ * 对照口径：本期窗口 vs 基线窗口（前一窗口，同一埋点采集）；门槛：≥2 项试点相对基线改善 ≥30% 且负向指标不恶化。
+ */
+export interface PilotMetric {
+  key: string;
+  title: string;
+  unit: 'rate' | 'ms';
+  direction: 'up' | 'down';
+  kind: 'primary' | 'secondary' | 'negative';
+  baseline: number;
+  current: number;
+  delta: number;
+  improvement: number;
+  comparable: boolean;
+  improved: boolean;
+  sample: number;
+  note?: string;
+}
+
+export interface PilotSection {
+  key: string;
+  title: string;
+  pilot: string;
+  metrics: PilotMetric[];
+  met: boolean;
+  reasons?: string[];
+}
+
+export interface PilotWindowInfo {
+  days: number;
+  since: string;
+  until: string;
+}
+
+export interface PilotGate {
+  passed: boolean;
+  pilotsMet: number;
+  required: number;
+  reasons: string[];
+  thresholds: string[];
+}
+
+export interface PilotReport {
+  tenantId: number;
+  current: PilotWindowInfo;
+  baseline: PilotWindowInfo;
+  generatedAt: string;
+  sections: PilotSection[];
+  negative: PilotMetric[];
+  gate: PilotGate;
+  notes?: string[];
+}
+
+/** 试点对照报告（窗口缺省 7/7，上限 30）。 */
+export async function aiGetPilotReport(
+  params: { currentDays?: number; baselineDays?: number } = {}
+): Promise<PilotReport> {
+  const query = new URLSearchParams();
+  if (params.currentDays) query.set('currentDays', String(params.currentDays));
+  if (params.baselineDays) query.set('baselineDays', String(params.baselineDays));
+  const qs = query.toString();
+  const url = '/api/v1/ai/observability/pilot-report' + (qs ? `?${qs}` : '');
+  return httpClient.get<PilotReport>(url);
+}// ==================== O2-01 分群对比（role | pageKey 维度） ====================
+
+/**
+ * 契约：`GET /api/v1/ai/observability/segments?dimension=role|pageKey&days=`（ai:read）。
+ * 口径：租户隐式条件；按维度分组输出采用/建议/任务/Inline/错误子集（分母为 0 → 0）。
+ */
+export interface AssistantSegment {
+  key: string;
+  events: number;
+  sessions: number;
+  suggestionShown: number;
+  suggestionClicked: number;
+  taskStarted: number;
+  taskCompleted: number;
+  inlinePreview: number;
+  inlineApplied: number;
+  errors: number;
+  suggestionCtr: number;
+  taskCompletionRate: number;
+  inlineAdoptionRate: number;
+  errorRate: number;
+}
+
+export interface AssistantSegmentsReport {
+  tenantId: number;
+  days: number;
+  dimension: 'role' | 'pageKey';
+  segments: AssistantSegment[];
+  generatedAt: string;
+  notes?: string[];
+}
+
+/** 分群对比报告（维度白名单；窗口缺省 7，上限 90）。 */
+export async function aiGetAssistantSegments(
+  params: { dimension?: 'role' | 'pageKey'; days?: number } = {}
+): Promise<AssistantSegmentsReport> {
+  const query = new URLSearchParams();
+  if (params.dimension) query.set('dimension', params.dimension);
+  if (params.days) query.set('days', String(params.days));
+  const qs = query.toString();
+  const url = '/api/v1/ai/observability/segments' + (qs ? `?${qs}` : '');
+  return httpClient.get<AssistantSegmentsReport>(url);
+}
+
+// ==================== P2 文档命中率/解决率运营报表 ====================
+
+/** 遥测窗口内的原始计数与会话级分母（`GET /api/v1/ai/observability/doc-metrics`）。 */
+export interface DocMetricsTotals {
+  opened: number;
+  gaps: number;
+  drafts: number;
+  /** AI 起草的草稿被实际保存成知识库文章的条数（doc_draft_published）。 */
+  published: number;
+  feedbackHelpful: number;
+  feedbackUnhelpful: number;
+  handoffs: number;
+  openedSessions: number;
+  gapSessions: number;
+  handoffSessions: number;
+  events: number;
+}
+
+/** 四口径比率（无有效分母时字段缺省/为 null，前端渲染「—」，不虚报 0%）。 */
+export interface DocMetricsRates {
+  hitRate?: number | null;
+  resolveRate?: number | null;
+  feedbackResolveRate?: number | null;
+  /** 起草落地率 = published / drafts（无起草动作时缺省 = null）。 */
+  draftPublishRate?: number | null;
+}
+
+export interface DocMetricsPage {
+  pageKey: string;
+  opened: number;
+  gaps: number;
+  drafts: number;
+  published: number;
+  helpful: number;
+  unhelpful: number;
+}
+
+export interface DocMetricsTrendPoint {
+  day: string;
+  opened: number;
+  gaps: number;
+  drafts: number;
+  published: number;
+  helpful: number;
+  unhelpful: number;
+}
+
+/** 账本覆盖率快照（与 `/ai/help/coverage` 同源；埋点未装配时报表的基础面）。 */
+export interface DocMetricsCoverage {
+  coverage: number;
+  totals: Record<string, number>;
+}
+
+export interface DocMetricsReport {
+  days: number;
+  totals: DocMetricsTotals;
+  rates: DocMetricsRates;
+  byPage: DocMetricsPage[];
+  trend: DocMetricsTrendPoint[];
+  coverage: DocMetricsCoverage;
+  telemetry: { available: boolean };
+  generatedAt?: string;
+}
+
+/** 读取文档命中率/解决率运营报表（days 缺省 30，上限 90）。 */
+export async function aiGetDocMetrics(params: { days?: number } = {}): Promise<DocMetricsReport> {
+  const query = new URLSearchParams();
+  if (params.days && params.days > 0) query.set('days', String(params.days));
+  const qs = query.toString();
+  const url = '/api/v1/ai/observability/doc-metrics' + (qs ? `?${qs}` : '');
+  return httpClient.get<DocMetricsReport>(url);
+}
+
+// ==================== P2 LLM 动态建议（缓存 + 审计；失败回退静态基线） ====================
+
+/**
+ * 契约：`GET /api/v1/ai/assistant/suggestions/dynamic?pageKey=&route=`（ai:read）。
+ * - `generated=false` / 请求失败 / 503 → 前端保持静态注册表基线（动态建议只是增强）；
+ * - `cached=true` 表示服务端缓存命中（进程内 TTL）。
+ */
+export interface AIDynamicSuggestion {
+  id: string;
+  kind: 'task' | 'question';
+  label: string;
+  prompt: string;
+  readOnly: boolean;
+  source: string;
+}
+
+export interface AIDynamicSuggestionResult {
+  pageKey: string;
+  known: boolean;
+  generated: boolean;
+  cached: boolean;
+  model?: string;
+  suggestions: AIDynamicSuggestion[];
+  reason?: string;
+}
+
+/** 读取页面动态建议（LLM 生成 + 服务端缓存；未知页面/未启用时按降级返回）。 */
+export async function aiGetDynamicSuggestions(params: {
+  pageKey: string;
+  route?: string;
+}): Promise<AIDynamicSuggestionResult> {
+  const query = new URLSearchParams();
+  query.set('pageKey', params.pageKey);
+  if (params.route) query.set('route', params.route);
+  const url = '/api/v1/ai/assistant/suggestions/dynamic?' + query.toString();
+  return httpClient.get<AIDynamicSuggestionResult>(url);
+}
+
+/**
+ * V2-02 异步精算（先给可用答案 + 后台精算完成后通知）。
+ *
+ * 契约：`POST /api/v1/ai/async/answers`（ai:read）→ 立即返回 `{taskId,status,fast}`；
+ * 后台精算完成后 `GET /api/v1/ai/async/answers/:id` 返回 `refined`（并投递通知中心）。
+ * 未装配 Provider 时 `status=degraded`（仅快速参考），不假装精算。
+ */
+export type AIAsyncAnswerStatus = 'running' | 'done' | 'degraded' | 'failed';
+
+export interface AIAsyncAnswerFastItem {
+  title: string;
+  snippet: string;
+  path?: string;
+  pageKey?: string;
+}
+
+export interface AIAsyncAnswerFast {
+  source: 'help_index' | 'none' | string;
+  items: AIAsyncAnswerFastItem[];
+}
+
+export interface AIAsyncAnswerRefined {
+  model?: string;
+  answer: string;
+}
+
+export interface AIAsyncAnswerTask {
+  taskId: string;
+  status: AIAsyncAnswerStatus;
+  prompt: string;
+  pageKey?: string;
+  createdAt: string;
+  finishedAt?: string;
+  fast: AIAsyncAnswerFast;
+  refined?: AIAsyncAnswerRefined;
+  reason?: string;
+}
+
+/** 发起异步精算：立即拿到快速参考（先给可用答案），精算在后台进行。 */
+export async function aiStartAsyncAnswer(params: {
+  prompt: string;
+  pageKey?: string;
+  route?: string;
+}): Promise<AIAsyncAnswerTask> {
+  return httpClient.post<AIAsyncAnswerTask>('/api/v1/ai/async/answers', params);
+}
+
+/** 读取异步精算任务快照（租户 + 用户隔离；未知/过期 → 404）。 */
+export async function aiGetAsyncAnswer(taskId: string): Promise<AIAsyncAnswerTask> {
+  return httpClient.get<AIAsyncAnswerTask>(`/api/v1/ai/async/answers/${encodeURIComponent(taskId)}`);
 }

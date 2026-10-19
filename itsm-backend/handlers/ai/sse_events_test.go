@@ -17,6 +17,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"itsm-backend/service"
 	"itsm-backend/service/bot"
 )
 
@@ -27,6 +28,7 @@ func TestSSERegistry_AllEmittedEventsRegistered(t *testing.T) {
 		SSEEventToolCallStarted, SSEEventToolCallFinished, SSEEventToolCallFailed,
 		SSEEventApprovalPending, SSEEventConfirmationRequired,
 		SSEEventRunStarted, SSEEventStep,
+		SSEEventUsage,
 	}
 	for _, name := range emitted {
 		assert.True(t, IsKnownSSEEvent(name), "事件 %s 必须已登记", name)
@@ -85,6 +87,52 @@ func TestSSEEnvelopeV2_AddsVersionAndPreservesFields(t *testing.T) {
 
 	// nil 载荷只带版本字段。
 	assert.Equal(t, map[string]interface{}{"v": SSEProtocolVersionV2}, sseEnvelopeV2(nil))
+}
+
+// O2-02/§13.4：`usage` 事件的帧契约——v2 信封、估算口径字段恒在（含零值），
+// 且不得写入 v1 的 done/error 载荷（兼容承诺：v1 载荷字节级不变）。
+func TestWriteUsageEvent_EnvelopeAndZeroValue(t *testing.T) {
+	type frame struct {
+		event   string
+		payload interface{}
+	}
+	var frames []frame
+	write := func(event string, payload interface{}) { frames = append(frames, frame{event, payload}) }
+
+	writeUsageEvent(write, service.LLMUsageEstimate{TokenIn: 120, TokenOut: 48, Estimated: true})
+	// 零值也发送：区分「无 LLM 调用」与「未接线」。
+	writeUsageEvent(write, service.LLMUsageEstimate{Estimated: true})
+	writeUsageEvent(write, service.LLMUsageEstimate{})
+	// B4-02：provider 实测（estimated=false）如实透出。
+	writeUsageEvent(write, service.LLMUsageEstimate{TokenIn: 33, TokenOut: 7, Estimated: false})
+
+	require.Len(t, frames, 4)
+	assert.Equal(t, SSEEventUsage, frames[0].event)
+	assert.True(t, IsKnownSSEEvent(SSEEventUsage), "新增事件必须已登记")
+
+	first, ok := frames[0].payload.(map[string]interface{})
+	require.True(t, ok, "v2 事件载荷必须是对象信封")
+	assert.Equal(t, SSEProtocolVersionV2, first["v"])
+	// sseEnvelopeV2 经 JSON 往返，数值统一为 float64（与 v2 信封的实现细节一致）。
+	assert.Equal(t, float64(120), first["tokenIn"])
+	assert.Equal(t, float64(48), first["tokenOut"])
+	assert.Equal(t, true, first["estimated"], "口径恒为估算（非账单口径）")
+	assert.Equal(t, "turn", first["scope"])
+
+	// 前三帧恒为估算口径（含零值 → 不得冒充实测）。
+	for i, f := range frames[:3] {
+		payload, ok := f.payload.(map[string]interface{})
+		require.True(t, ok, "frame %d 载荷必须是对象信封", i)
+		assert.Equal(t, true, payload["estimated"])
+		assert.Contains(t, payload, "tokenIn")
+		assert.Contains(t, payload, "tokenOut")
+	}
+
+	real, ok := frames[3].payload.(map[string]interface{})
+	require.True(t, ok, "v2 事件载荷必须是对象信封")
+	assert.Equal(t, float64(33), real["tokenIn"])
+	assert.Equal(t, float64(7), real["tokenOut"])
+	assert.Equal(t, false, real["estimated"], "provider 实测须与估算显式区分（非账单口径）")
 }
 
 func TestWriteSSERunEvent_Mapping(t *testing.T) {

@@ -5,6 +5,7 @@ import { Card, Row, Col, Statistic, Typography, Tabs, Table, Tag, Button, messag
 import ServiceRequestList from '@/components/service-request/ServiceRequestList';
 import { FileText, Clock, CheckCircle, XCircle, Plus, Inbox } from 'lucide-react';
 import { serviceRequestAPI } from '@/lib/api/service-request-api';
+import PortalAssistantEntry from '@/components/ai/PortalAssistantEntry';
 
 const { Title, Text } = Typography;
 
@@ -119,6 +120,14 @@ export default function ServiceRequestsPage() {
           </Text>
         </div>
       </div>
+
+      {/* V1-02 门户入口：服务申请面同样提供「不会填/该走哪条路」的助手入口（只读建议，不自动提交）。 */}
+      <PortalAssistantEntry
+        pageKey="service.requests"
+        title="服务申请不会填 / 想先问问？"
+        description="描述你的诉求，AI 帮你判断该走服务申请还是工单、需要准备哪些信息；不会自动提交。"
+        prompt="我想提交一个服务申请，但不确定该选哪个服务或该准备哪些信息，请帮我判断（只读，不提交申请）。"
+      />
 
       {/* 统计卡片 */}
       <Row gutter={[16, 16]} className="mb-6">

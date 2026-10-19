@@ -13,6 +13,7 @@ import (
 	"itsm-backend/dto"
 	"itsm-backend/ent"
 	"itsm-backend/ent/bottemplate"
+	"itsm-backend/ent/user"
 	"itsm-backend/metrics"
 	"itsm-backend/middleware"
 	"itsm-backend/service"
@@ -40,6 +41,18 @@ type Service struct {
 	entClient *ent.Client
 	// botMetrics 运行维度指标（B4-02；nil = 指标端点返回 503，不影响既有行为）。
 	botMetrics *bot.MetricsService
+	// O1-01：单任务全链路轨迹（nil = 轨迹端点返回 503，不影响既有行为）。
+	trace *bot.TraceService
+	// O1-02：实时健康与告警（nil = 健康端点返回 503，不影响既有行为）。
+	health *service.AIHealthService
+	// P2：LLM 动态建议（缓存 + 审计；nil = 端点 503，前端保持静态基线）。
+	dynamicSuggestions *DynamicSuggestionService
+	// V2-02：异步精算任务（先给可用答案 + 后台精算 + 完成通知；nil = 端点 503）。
+	asyncAnswers *AsyncAnswerService
+	// P2：MSP 帮助空间（客户侧消费服务商分发文档；nil = 不合并，帮助视图仅内嵌文档）。
+	mspHelpSpace *service.MSPHelpSpaceService
+	// H1-01/H1-03/H1-04 条件项：文档待办认领/忽略状态（nil = 待办只读，states.available=false）。
+	helpTodoStates *service.HelpDocTodoStateService
 	// B0-06：统一脱敏入口（按工具元数据的 default/strict 档位口径）。
 	redactor *bot.Redactor
 	// B1-01/B1-02：运行态管理器（chatStream 起运行/记步骤/记事件/预算护栏；未注入时零行为变化）。
@@ -118,6 +131,288 @@ func (s *Service) GetBotMetrics(ctx context.Context, tenantID int, q bot.Metrics
 		return nil, ErrBotMetricsUnavailable
 	}
 	return s.botMetrics.Summary(ctx, tenantID, q)
+}
+
+// SetTraceService 注入运行轨迹服务（O1-01）。
+//
+// 未注入（nil）时 `GET /ai/runs/:id/trace` 返回 503，既有端点行为零差异。
+func (s *Service) SetTraceService(trace *bot.TraceService) {
+	s.trace = trace
+}
+
+// GetRunTrace 读取单次运行的全链路轨迹（O1-01；租户前置，未命中 → bot.ErrRunNotFound）。
+func (s *Service) GetRunTrace(ctx context.Context, tenantID, runID int) (*bot.RunTrace, error) {
+	if s.trace == nil {
+		return nil, ErrTraceServiceUnavailable
+	}
+	return s.trace.GetRunTrace(ctx, tenantID, runID)
+}
+
+// GetConversationTrace 读取会话维度的全链路轨迹（O1-01 条件项：纯问答无 run 同样可回放；
+// 租户前置，未命中 → bot.ErrConversationNotFound）。
+func (s *Service) GetConversationTrace(ctx context.Context, tenantID, conversationID int) (*bot.ConversationTrace, error) {
+	if s.trace == nil {
+		return nil, ErrTraceServiceUnavailable
+	}
+	return s.trace.GetConversationTrace(ctx, tenantID, conversationID)
+}
+
+// ErrTraceServiceUnavailable 轨迹服务未装配（bot 运行面关闭的兼容态）。
+var ErrTraceServiceUnavailable = fmt.Errorf("trace service not initialized")
+
+// SetHealthService 注入实时健康与告警服务（O1-02）。
+//
+// 未注入（nil）时 `GET /ai/health` 与告警派发返回 503，既有端点行为零差异。
+func (s *Service) SetHealthService(health *service.AIHealthService) {
+	s.health = health
+}
+
+// GetAIHealth 采集健康快照并评估 SLO（O1-02）。
+func (s *Service) GetAIHealth(ctx context.Context, tenantID, days int) (*service.AIHealthSnapshot, []service.SLOResult, error) {
+	if s.health == nil {
+		return nil, nil, ErrHealthServiceUnavailable
+	}
+	snapshot, err := s.health.Snapshot(ctx, tenantID, days)
+	if err != nil {
+		return nil, nil, err
+	}
+	return snapshot, service.EvaluateAIHealthSLOs(snapshot), nil
+}
+
+// DispatchAIHealthAlerts 评估 SLO 并把违规项投递到通知中心（O1-02）。
+func (s *Service) DispatchAIHealthAlerts(ctx context.Context, tenantID, days int) (*service.AIHealthDispatchResult, error) {
+	if s.health == nil {
+		return nil, ErrHealthServiceUnavailable
+	}
+	return s.health.DispatchAlerts(ctx, tenantID, days)
+}
+
+// ErrHealthServiceUnavailable 健康服务未装配。
+var ErrHealthServiceUnavailable = fmt.Errorf("ai health service not initialized")
+
+// —— I2-01 Autopilot 监督面（暂停/回滚/审批联动） ——
+
+// ErrAutopilotUnavailable 运行态管理器未装配（bot.enabled=false 的兼容态）。
+var ErrAutopilotUnavailable = fmt.Errorf("autopilot supervision unavailable")
+
+// AutopilotRollbackResult 回滚结果（终止运行 + 冻结待审批 + 通知投递）。
+type AutopilotRollbackResult struct {
+	RunID               int    `json:"runId"`
+	Cancelled           bool   `json:"cancelled"`
+	RejectedInvocations int    `json:"rejectedInvocations"`
+	Notifications       int    `json:"notifications"`
+	Reason              string `json:"reason,omitempty"`
+}
+
+// ListAutopilotRuns 列出运行（监督面：状态 + 步骤/工具/待审批/产物计数）。
+func (s *Service) ListAutopilotRuns(ctx context.Context, tenantID, days int, status string, limit int) ([]bot.RunTraceSummary, error) {
+	if s.trace == nil {
+		return nil, ErrTraceServiceUnavailable
+	}
+	return s.trace.ListRuns(ctx, tenantID, bot.RunListFilter{Days: days, Status: status, Limit: limit})
+}
+
+// CancelAutopilotRun 取消运行（暂停/终止后台任务；仅 running 生效，幂等）。
+func (s *Service) CancelAutopilotRun(ctx context.Context, tenantID, runID int, reason string) (bool, error) {
+	if s.botRunner == nil {
+		return false, ErrAutopilotUnavailable
+	}
+	code := strings.TrimSpace(reason)
+	if code == "" {
+		code = "cancelled_by_user"
+	}
+	return s.botRunner.Cancel(ctx, tenantID, runID, code)
+}
+
+// RollbackAutopilotRun 回滚：终止运行（可已收口）+ 冻结该运行下所有待审批写动作
+// （approval_state=cancelled，永不执行）+ 结果投递通知中心。
+//
+// 语义：不做"无感自动写"的撤回（已执行的写动作由业务侧/Inline undo 处理）；
+// 回滚保证**尚未执行的写动作全部失效**，并把结果告知管理员。
+func (s *Service) RollbackAutopilotRun(ctx context.Context, tenantID, runID, actorID int, reason string) (*AutopilotRollbackResult, error) {
+	if s.botRunner == nil {
+		return nil, ErrAutopilotUnavailable
+	}
+	code := strings.TrimSpace(reason)
+	if code == "" {
+		code = "autopilot_rollback"
+	}
+	result := &AutopilotRollbackResult{RunID: runID, Reason: code}
+
+	cancelled, err := s.botRunner.Cancel(ctx, tenantID, runID, code)
+	if err != nil {
+		return nil, err
+	}
+	result.Cancelled = cancelled
+
+	invocations, err := s.repo.ListToolInvocations(ctx, tenantID, ToolInvocationFilter{RunID: runID})
+	if err != nil {
+		return nil, err
+	}
+	now := time.Now()
+	for _, inv := range invocations {
+		if bot.NormalizeConfirmationState(inv.ApprovalState, inv.Status) != bot.ConfirmationPending {
+			continue
+		}
+		inv.ApprovalState = string(bot.ConfirmationCancelled)
+		inv.Status = string(bot.ConfirmationCancelled)
+		inv.ApprovalReason = code
+		inv.ApprovedBy = actorID
+		inv.ApprovedAt = &now
+		if _, err := s.repo.UpdateToolInvocation(ctx, inv); err != nil {
+			return nil, fmt.Errorf("回滚冻结待审批失败（invocation #%d）: %w", inv.ID, err)
+		}
+		result.RejectedInvocations++
+		// 拒绝原因结构化回填会话（供模型/后续轮次重新规划）。
+		s.backfillToolDecision(ctx, inv, string(bot.ConfirmationCancelled), code)
+	}
+
+	notifications, err := s.notifyAutopilotRollback(ctx, tenantID, actorID, runID, code, result.RejectedInvocations)
+	if err != nil {
+		s.logger.Warnw("Autopilot 回滚通知投递失败", "error", err, "tenant_id", tenantID, "run_id", runID)
+	} else {
+		result.Notifications = notifications
+	}
+	return result, nil
+}
+
+// notifyAutopilotRollback 回滚结果投递通知中心（活跃管理员优先；无管理员 → 通知操作人）。
+func (s *Service) notifyAutopilotRollback(ctx context.Context, tenantID, actorID, runID int, reason string, rejected int) (int, error) {
+	if s.entClient == nil {
+		return 0, nil
+	}
+	recipients := make([]int, 0, 8)
+	admins, err := s.entClient.User.Query().
+		Where(user.TenantID(tenantID), user.ActiveEQ(true),
+			user.RoleIn("admin", "super_admin", "tenant_admin")).
+		Limit(50).
+		All(ctx)
+	if err != nil {
+		return 0, err
+	}
+	for _, admin := range admins {
+		recipients = append(recipients, admin.ID)
+	}
+	if len(recipients) == 0 && actorID > 0 {
+		recipients = append(recipients, actorID)
+	}
+	if len(recipients) == 0 {
+		return 0, nil
+	}
+	title := fmt.Sprintf("【Autopilot】运行 #%d 已回滚", runID)
+	message := fmt.Sprintf("已终止运行并冻结 %d 项待审批写动作（原因：%s）。", rejected, reason)
+	created := 0
+	for _, userID := range recipients {
+		if _, err := s.entClient.Notification.Create().
+			SetTenantID(tenantID).
+			SetUserID(userID).
+			SetType("ai_autopilot").
+			SetTitle(title).
+			SetMessage(message).
+			SetActionURL("/ai/approval").
+			SetActionText("去监督面").
+			Save(ctx); err != nil {
+			return created, err
+		}
+		created++
+	}
+	return created, nil
+}
+
+// BuildPilotReport 生成试点对照报告（V0-04；埋点服务未装配 → 503 语义错误）。
+func (s *Service) BuildPilotReport(ctx context.Context, tenantID int, q service.PilotReportQuery) (*service.PilotReport, error) {
+	if s.aiTelemetryService == nil {
+		return nil, service.ErrAssistantTelemetryUnavailable
+	}
+	return s.aiTelemetryService.BuildPilotReport(ctx, tenantID, q)
+}
+
+// SuggestionWeights 读取建议反馈权重（O2-01 规则排序；埋点未装配 → 503 语义错误）。
+func (s *Service) SuggestionWeights(ctx context.Context, tenantID, days int) (map[string]service.SuggestionWeight, error) {
+	if s.aiTelemetryService == nil {
+		return nil, service.ErrAssistantTelemetryUnavailable
+	}
+	return s.aiTelemetryService.GetSuggestionWeights(ctx, tenantID, days)
+}
+
+// GetAssistantSegments 生成分群对比报告（O2-01；非法维度 → service.ErrAssistantSegmentsDimension）。
+func (s *Service) GetAssistantSegments(ctx context.Context, tenantID, days int, dimension string) (*service.AssistantSegmentsReport, error) {
+	if s.aiTelemetryService == nil {
+		return nil, service.ErrAssistantTelemetryUnavailable
+	}
+	return s.aiTelemetryService.GetAssistantSegments(ctx, tenantID, days, dimension)
+}
+
+// GetAssistantDocMetrics 聚合文档命中率/解决率运营指标（P2；埋点未装配 → 503 语义错误）。
+func (s *Service) GetAssistantDocMetrics(ctx context.Context, tenantID, days int) (*service.AssistantDocMetricsReport, error) {
+	if s.aiTelemetryService == nil {
+		return nil, service.ErrAssistantTelemetryUnavailable
+	}
+	return s.aiTelemetryService.GetAssistantDocMetrics(ctx, tenantID, days)
+}
+
+// SetDynamicSuggestions 注入 LLM 动态建议服务（P2；nil = 端点 503，前端保持静态基线）。
+func (s *Service) SetDynamicSuggestions(svc *DynamicSuggestionService) {
+	s.dynamicSuggestions = svc
+}
+
+// SetMSPHelpSpace 注入 MSP 帮助空间服务（P2；nil = 客户侧帮助不合并服务商分发文档）。
+func (s *Service) SetMSPHelpSpace(svc *service.MSPHelpSpaceService) {
+	s.mspHelpSpace = svc
+}
+
+// SetHelpDocTodoStates 注入文档待办状态服务（H1-01/H1-03/H1-04 条件项闭环）。
+//
+// 未注入（nil）时 GET /ai/help/todos 仍正常返回（states.available=false，状态按 open 缺省渲染），
+// 写路径 PUT /ai/help/todos/state 返回 503 语义错误（可见地失败，不静默丢状态）。
+func (s *Service) SetHelpDocTodoStates(svc *service.HelpDocTodoStateService) {
+	s.helpTodoStates = svc
+}
+
+// HelpDocTodoStates 读取租户待办状态映射（未装配 → ErrHelpDocTodoStateUnavailable）。
+func (s *Service) HelpDocTodoStates(ctx context.Context, tenantID int) (map[string]service.HelpDocTodoState, error) {
+	if s == nil || s.helpTodoStates == nil {
+		return nil, service.ErrHelpDocTodoStateUnavailable
+	}
+	return s.helpTodoStates.ListStates(ctx, tenantID)
+}
+
+// SetHelpDocTodoState 写入单条待办状态（claimed|ignored|open；未装配 → 503 语义错误）。
+func (s *Service) SetHelpDocTodoState(ctx context.Context, tenantID, userID int, pageKey, state string) (*service.HelpDocTodoState, error) {
+	if s == nil || s.helpTodoStates == nil {
+		return nil, service.ErrHelpDocTodoStateUnavailable
+	}
+	return s.helpTodoStates.SetState(ctx, tenantID, userID, pageKey, state)
+}
+
+// CustomerHelpDocs 读取本租户可见的服务商分发帮助（active + 解绑转原生）；未装配/失败 → 空（不阻塞帮助视图）。
+func (s *Service) CustomerHelpDocs(ctx context.Context, tenantID int, pageKey string) []service.CustomerHelpDoc {
+	if s == nil || s.mspHelpSpace == nil {
+		return nil
+	}
+	docs, err := s.mspHelpSpace.CustomerHelpDocs(ctx, tenantID, pageKey)
+	if err != nil {
+		if s.logger != nil {
+			s.logger.Warnw("customer help docs unavailable", "error", err, "tenantID", tenantID)
+		}
+		return nil
+	}
+	return docs
+}
+
+// SearchCustomerHelpDocs 在本租户服务商分发帮助中检索（未装配/失败 → 空）。
+func (s *Service) SearchCustomerHelpDocs(ctx context.Context, tenantID int, query, pageKey string, limit int) []service.CustomerHelpDoc {
+	if s == nil || s.mspHelpSpace == nil {
+		return nil
+	}
+	docs, err := s.mspHelpSpace.SearchCustomerHelpDocs(ctx, tenantID, query, pageKey, limit)
+	if err != nil {
+		if s.logger != nil {
+			s.logger.Warnw("customer help search unavailable", "error", err, "tenantID", tenantID)
+		}
+		return nil
+	}
+	return docs
 }
 
 // ErrBotMetricsUnavailable 指标服务未装配（bot.enabled=false 的兼容态）。
@@ -1107,7 +1402,7 @@ func (s *Service) ChatStream(
 	onDelta func(string),
 	onTool func(ToolStreamEvent),
 	onRun func(eventType string, payload map[string]any),
-) (int, string, error) {
+) (int, string, service.LLMUsageEstimate, error) {
 	gateway, providerReq := s.chatGateway(tenantID, userID, "")
 	return s.chatStream(ctx, tenantID, userID, role, query, limit, convID, gateway, providerReq, onSources, onDelta, onTool, onRun)
 }
@@ -1127,14 +1422,14 @@ func (s *Service) ChatStreamWithProviderInfo(
 	onDelta func(string),
 	onTool func(ToolStreamEvent),
 	onRun func(eventType string, payload map[string]any),
-) (service.ProviderResolution, int, error) {
+) (service.ProviderResolution, int, service.LLMUsageEstimate, error) {
 	resolution, err := s.ResolveChatProvider(ctx, tenantID, userID, provider)
 	if err != nil {
-		return resolution, 0, err
+		return resolution, 0, service.LLMUsageEstimate{}, err
 	}
 	gateway, providerReq := s.chatGateway(tenantID, userID, provider)
-	convIDOut, _, err := s.chatStream(ctx, tenantID, userID, role, query, limit, convID, gateway, providerReq, onSources, onDelta, onTool, onRun)
-	return resolution, convIDOut, err
+	convIDOut, _, usage, err := s.chatStream(ctx, tenantID, userID, role, query, limit, convID, gateway, providerReq, onSources, onDelta, onTool, onRun)
+	return resolution, convIDOut, usage, err
 }
 
 // chatStream 在既有流式链路外包裹运行态记录（B1-01）：
@@ -1155,7 +1450,7 @@ func (s *Service) chatStream(
 	onDelta func(string),
 	onTool func(ToolStreamEvent),
 	onRun func(eventType string, payload map[string]any),
-) (int, string, error) {
+) (int, string, service.LLMUsageEstimate, error) {
 	var run *bot.Run
 	startedAt := time.Now()
 	budgetAborted := false
@@ -1218,6 +1513,11 @@ func (s *Service) chatStream(
 				"conversationId": convID,
 				"limit":          limit,
 			}
+			// D0-04：页面上下文提示随 run_started 事件外发（审计可回溯"从哪个页面发起"；
+			// pageKey 不参与授权，仅作提示层，缺省不落字段保持事件载荷与现状一致）。
+			if pageKey := PageKeyFromContext(ctx); pageKey != "" {
+				startedPayload["pageKey"] = pageKey
+			}
 			// B3-01：入口上下文进入 run 记录与 run_started 事件（审计可回溯"从哪个页面发起、针对哪个对象"）。
 			if scope.HasTarget() {
 				startedPayload["targetType"] = scope.TargetType
@@ -1237,7 +1537,7 @@ func (s *Service) chatStream(
 		toolObserver = s.botToolObserver(run, onRun, onTool)
 	}
 
-	outConvID, answer, err := s.chatStreamInner(ctx, tenantID, userID, role, query, limit, convID, gateway, providerReq, onSources, onDelta, toolObserver, admitTool)
+	outConvID, answer, usage, err := s.chatStreamInner(ctx, tenantID, userID, role, query, limit, convID, gateway, providerReq, onSources, onDelta, toolObserver, admitTool)
 
 	if run != nil {
 		// 收口写入与请求取消解耦：客户端断开也要留下完成态与事件（审计同源）。
@@ -1274,7 +1574,7 @@ func (s *Service) chatStream(
 		}
 	}
 
-	return outConvID, answer, err
+	return outConvID, answer, usage, err
 }
 
 // broadcastRunEvent 把**已落库**的运行事件转交 SSE 广播（B1-03），并统一补充 runId。
@@ -1368,11 +1668,38 @@ func (s *Service) chatStreamInner(
 	onDelta func(string),
 	onTool func(ToolStreamEvent),
 	admitTool func() (error, bool),
-) (int, string, error) {
+) (int, string, service.LLMUsageEstimate, error) {
 	s.logger.Infow("AI ChatStream", "query", query, "tenantID", tenantID, "convID", convID, "role", role)
 
+	// O2-02/§13.4：本回合 token 估算（口径：字符/4，与网关限流同源；非 provider 真实 usage、非账单口径）。
+	// sink 为本请求私有：工具循环会产生多次 LLM 调用，TokenIn 累加为一次回合的总输入估算。
+	usage := service.LLMUsageEstimate{Estimated: true}
+	estimatedReports := 0
+	ctx = service.WithUsageSink(ctx, func(promptTokens int) {
+		estimatedReports++
+		if promptTokens > 0 {
+			usage.TokenIn += promptTokens
+		}
+	})
+	// B4-02：provider 真实 usage（协议回包 / SDK 流末帧）经 sink 累加。
+	providerUsage := struct {
+		tokenIn  int
+		tokenOut int
+		reports  int
+	}{}
+	ctx = service.WithProviderUsageSink(ctx, func(promptTokens, completionTokens int) {
+		providerUsage.reports++
+		providerUsage.tokenIn += promptTokens
+		providerUsage.tokenOut += completionTokens
+	})
+	// finalUsage 收口本回合用量：provider 覆盖了全部 LLM 调用 → 实测（estimated=false）；
+	// 有调用未回包（含重试）→ 保持估算（estimated=true），不把部分实测冒充全量。
+	finalUsage := func() service.LLMUsageEstimate {
+		return service.ResolveTurnUsage(usage, providerUsage.tokenIn, providerUsage.tokenOut, providerUsage.reports, estimatedReports)
+	}
+
 	if s.rag == nil {
-		return 0, "", fmt.Errorf("RAG service not initialized")
+		return 0, "", finalUsage(), fmt.Errorf("RAG service not initialized")
 	}
 
 	// 按权限过滤只读工具注入聊天路径；写工具仅放行经审批流的白名单（创建工单/更新工单/创建工单类型），
@@ -1522,6 +1849,10 @@ func (s *Service) chatStreamInner(
 				"message":      fmt.Sprintf("操作已提交，等待人工审批后执行（invocationId=%d）", invID),
 			}, nil
 		}
+		// I0-04 Outcome Contract：产物类工具在 done 事件回带 artifactId（可选字段；前端回执卡据此渲染落点）。
+		if artifactID := toolResultArtifactID(res); artifactID > 0 {
+			event.ArtifactID = artifactID
+		}
 		finish(ToolEventStatusDone, toolEventSummary(res, ToolEventSummaryLimit), "", invID)
 		return res, nil
 	}
@@ -1545,7 +1876,7 @@ func (s *Service) chatStreamInner(
 	}
 
 	if err := s.rag.AskWithLLMStreamWithTools(ctx, tenantID, query, gateway, limit, toolFace, wrappedSources, wrappedDelta, execTool); err != nil {
-		return 0, "", err
+		return 0, "", finalUsage(), err
 	}
 
 	// Persist conversation and messages after the stream completes so we don't
@@ -1601,7 +1932,8 @@ func (s *Service) chatStreamInner(
 		}
 	}
 
-	return convID, captured.String(), nil
+	usage.TokenOut = service.EstimateTextTokens(captured.String())
+	return convID, captured.String(), finalUsage(), nil
 }
 
 func (s *Service) ListConversations(ctx context.Context, tenantID, userID int) ([]*Conversation, error) {
@@ -1836,6 +2168,30 @@ func (s *Service) GetMetrics(ctx context.Context, tenantID int, lookbackDays int
 		return nil, fmt.Errorf("AI telemetry service not initialized")
 	}
 	return s.aiTelemetryService.GetMetrics(ctx, tenantID, lookbackDays)
+}
+
+// IngestAssistantTelemetry 写入 AI Copilot 埋点事件（O0-02；nil 装配时返回不可用）。
+func (s *Service) IngestAssistantTelemetry(ctx context.Context, tenantID, userID int, events []service.AssistantTelemetryEvent) (int, error) {
+	if s.aiTelemetryService == nil {
+		return 0, service.ErrAssistantTelemetryUnavailable
+	}
+	return s.aiTelemetryService.IngestAssistantEvents(ctx, tenantID, userID, events)
+}
+
+// GetAssistantTelemetrySummary 聚合埋点摘要（O0-02/O0-03；观测看板与试点对照报告复用）。
+func (s *Service) GetAssistantTelemetrySummary(ctx context.Context, tenantID, days int, filter service.AssistantTelemetryFilter) (*service.AssistantTelemetrySummary, error) {
+	if s.aiTelemetryService == nil {
+		return nil, service.ErrAssistantTelemetryUnavailable
+	}
+	return s.aiTelemetryService.GetAssistantTelemetrySummary(ctx, tenantID, days, filter)
+}
+
+// GetAssistantHelpGapClusters 聚合文档缺口聚类（H1-01；埋点服务未装配 → 不可用错误，调用方降级为账本缺口）。
+func (s *Service) GetAssistantHelpGapClusters(ctx context.Context, tenantID, days, limit int) ([]service.AssistantHelpGapCluster, error) {
+	if s.aiTelemetryService == nil {
+		return nil, service.ErrAssistantTelemetryUnavailable
+	}
+	return s.aiTelemetryService.GetAssistantHelpGapClusters(ctx, tenantID, days, limit)
 }
 
 // SearchKnowledge handles RAG search over knowledge base

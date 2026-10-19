@@ -12,6 +12,7 @@ import { useI18n } from '@/lib/i18n';
 import { CMDBApi } from '@/lib/api/cmdb-api';
 import type { CIType, CloudService } from '@/types/biz/cmdb';
 import { usePermissions } from '@/lib/hooks/use-permissions';
+import PortalAssistantEntry from '@/components/ai/PortalAssistantEntry';
 
 const { Title, Text } = Typography;
 
@@ -193,6 +194,9 @@ export default function ServiceCatalogPage() {
           {t('serviceCatalog.pageDescription')}
         </Text>
       </div>
+
+      {/* V1-02 门户入口：不会选服务 → 交给常驻 Dock（只读建议，不自动提交申请）。 */}
+      <PortalAssistantEntry pageKey="service.catalog" />
 
       {/* 统计卡片 */}
       <ServiceCatalogStats stats={stats} />

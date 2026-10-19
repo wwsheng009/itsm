@@ -12,7 +12,10 @@ import (
 // 2026-09-30：14 → 17——B3-06 新增 3 个 plan 工具（draft_ticket_fields /
 // analyze_ci_impact_plan / draft_kb_article）时未同步本计数，守卫测试自此恒失败；
 // 本次一并补齐（这 3 个工具在注册表已按 plan 完整标注）。
-const builtinToolCount = 17
+//
+// 2026-10-18：17 → 22——H0-03/H0-04 新增 5 个 Help 工具
+// （4 个只读检索/阅读 + help_create_draft（plan：只落 bot_artifacts 草稿产物，不发布））。
+const builtinToolCount = 22
 
 // wantBuiltinRisk 是 B0-01 冻结的风险矩阵（对齐阶段一报告 §5.5）：
 // 读工具 read/plan；写工具按影响面 act_low → act_medium → act_high。
@@ -26,6 +29,13 @@ var wantBuiltinRisk = map[string]string{
 	"get_ci":               ToolRiskRead,
 	"get_ci_relationships": ToolRiskRead,
 	"get_ci_impact":        ToolRiskPlan,
+	// H0-03 帮助文档只读工具（4）
+	"help_search":    ToolRiskRead,
+	"help_get_page":  ToolRiskRead,
+	"help_read_doc":  ToolRiskRead,
+	"help_list_gaps": ToolRiskRead,
+	// H0-04 帮助文档草稿产物（plan：零业务写入、不发布）
+	"help_create_draft": ToolRiskPlan,
 	// B3-06 plan 工具（3）：只读草案生成，产物落 bot_artifacts
 	"draft_ticket_fields":    ToolRiskPlan,
 	"analyze_ci_impact_plan": ToolRiskPlan,

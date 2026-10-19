@@ -9,17 +9,23 @@ import type {
 // ==================== AI 能力开关（运行时能力，免重启） ====================
 
 /**
- * 三个运行时能力开关键（与后端 `system_configs.key` 一一对应）。
+ * 运行时能力开关键（与后端 `system_configs.key` 一一对应）。
  *
  * 语义：缺行 = 跟随环境默认；写入覆盖行后立即生效（缓存失效），无需重启。
+ * V2-01：新增 `assistant.memory_enabled`（AI 助手个性化记忆，产品默认开启，租户可关闭）。
  */
-export type AICapabilityKey = 'mcp.enabled' | 'mcp.write_enabled' | 'bot.enabled';
+export type AICapabilityKey =
+  | 'mcp.enabled'
+  | 'mcp.write_enabled'
+  | 'bot.enabled'
+  | 'assistant.memory_enabled';
 
-/** 三个键的静态（环境/配置文件）默认值。 */
+/** 各键的静态（环境/配置文件）默认值。 */
 export interface AICapabilityDefaults {
   mcpEnabled: boolean;
   mcpWriteEnabled: boolean;
   botEnabled: boolean;
+  assistantMemoryEnabled: boolean;
 }
 
 /**
@@ -31,6 +37,7 @@ export interface AICapabilitiesPatch {
   mcpEnabled?: boolean;
   mcpWriteEnabled?: boolean;
   botEnabled?: boolean;
+  assistantMemoryEnabled?: boolean;
   reset?: AICapabilityKey[];
 }
 
@@ -44,6 +51,7 @@ export interface AICapabilities {
   mcpEnabled: boolean;
   mcpWriteEnabled: boolean;
   botEnabled: boolean;
+  assistantMemoryEnabled: boolean;
   defaults: AICapabilityDefaults;
   /**
    * 已被管理台覆盖的键 → true（未列出的键 = 跟随环境默认）。

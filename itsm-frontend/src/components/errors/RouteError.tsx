@@ -4,6 +4,7 @@ import { useNavigate, useRouteError } from 'react-router';
 import React, { useEffect } from 'react';
 import { Result, Button } from 'antd';
 import { LayoutDashboard, RotateCcw } from 'lucide-react';
+import { ExplainErrorButton } from '@/components/ai/ExplainErrorButton';
 
 /**
  * 路由级错误边界（react-router `errorElement`）
@@ -51,6 +52,8 @@ export default function RouteError() {
           >
             返回仪表盘
           </Button>,
+          // I1-02：路由级错误旁「解释这个错误」→ 助手面板预填（只填不发送）。
+          <ExplainErrorButton key="explain" error={error} context={window.location.pathname} />,
         ]}
       />
     </div>

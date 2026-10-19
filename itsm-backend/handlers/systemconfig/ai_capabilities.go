@@ -41,25 +41,28 @@ type capabilityAdmin interface {
 //	字段缺省（nil）→ 该键不改动；
 //	reset 数组    → 指定键删除覆盖行、恢复跟随环境默认（与显式赋值可同请求并用）。
 type AICapabilitiesRequest struct {
-	MCPEnabled      *bool    `json:"mcpEnabled"`
-	MCPWriteEnabled *bool    `json:"mcpWriteEnabled"`
-	BotEnabled      *bool    `json:"botEnabled"`
-	Reset           []string `json:"reset"`
+	MCPEnabled             *bool    `json:"mcpEnabled"`
+	MCPWriteEnabled        *bool    `json:"mcpWriteEnabled"`
+	BotEnabled             *bool    `json:"botEnabled"`
+	AssistantMemoryEnabled *bool    `json:"assistantMemoryEnabled"`
+	Reset                  []string `json:"reset"`
 }
 
 // AICapabilitiesDefaults 是静态配置提供的默认值（页面展示「跟随环境默认」时使用）。
 type AICapabilitiesDefaults struct {
-	MCPEnabled      bool `json:"mcpEnabled"`
-	MCPWriteEnabled bool `json:"mcpWriteEnabled"`
-	BotEnabled      bool `json:"botEnabled"`
+	MCPEnabled             bool `json:"mcpEnabled"`
+	MCPWriteEnabled        bool `json:"mcpWriteEnabled"`
+	BotEnabled             bool `json:"botEnabled"`
+	AssistantMemoryEnabled bool `json:"assistantMemoryEnabled"`
 }
 
 // AICapabilitiesView 是 GET/PUT 的响应体。
 type AICapabilitiesView struct {
-	MCPEnabled      bool                   `json:"mcpEnabled"`
-	MCPWriteEnabled bool                   `json:"mcpWriteEnabled"`
-	BotEnabled      bool                   `json:"botEnabled"`
-	Defaults        AICapabilitiesDefaults `json:"defaults"`
+	MCPEnabled             bool                   `json:"mcpEnabled"`
+	MCPWriteEnabled        bool                   `json:"mcpWriteEnabled"`
+	BotEnabled             bool                   `json:"botEnabled"`
+	AssistantMemoryEnabled bool                   `json:"assistantMemoryEnabled"`
+	Defaults               AICapabilitiesDefaults `json:"defaults"`
 	// Overridden[key]=true 表示该键由管理台覆盖（否则跟随环境默认）。
 	Overridden map[string]bool `json:"overridden"`
 	UpdatedAt  string          `json:"updatedAt,omitempty"`
@@ -77,12 +80,13 @@ func (h *Handler) capabilitiesView(c *gin.Context, tenantID int) (*AICapabilitie
 	snap := h.capability.For(ctx, tenantID)
 
 	view := &AICapabilitiesView{
-		MCPEnabled:      snap.MCPEnabled,
-		MCPWriteEnabled: snap.MCPWriteEnabled,
-		BotEnabled:      snap.BotEnabled,
-		Overridden:      snap.Overridden,
-		UpdatedBy:       snap.UpdatedBy,
-		Keys:            capability.KnownKeys(),
+		MCPEnabled:             snap.MCPEnabled,
+		MCPWriteEnabled:        snap.MCPWriteEnabled,
+		BotEnabled:             snap.BotEnabled,
+		AssistantMemoryEnabled: snap.AssistantMemoryEnabled,
+		Overridden:             snap.Overridden,
+		UpdatedBy:              snap.UpdatedBy,
+		Keys:                   capability.KnownKeys(),
 	}
 	if !snap.UpdatedAt.IsZero() {
 		view.UpdatedAt = snap.UpdatedAt.UTC().Format("2006-01-02T15:04:05Z07:00")
@@ -93,9 +97,10 @@ func (h *Handler) capabilitiesView(c *gin.Context, tenantID int) (*AICapabilitie
 	if h.capabilityAdmin != nil {
 		defaults := h.capabilityAdmin.Defaults()
 		view.Defaults = AICapabilitiesDefaults{
-			MCPEnabled:      defaults.MCPEnabled,
-			MCPWriteEnabled: defaults.MCPWriteEnabled,
-			BotEnabled:      defaults.BotEnabled,
+			MCPEnabled:             defaults.MCPEnabled,
+			MCPWriteEnabled:        defaults.MCPWriteEnabled,
+			BotEnabled:             defaults.BotEnabled,
+			AssistantMemoryEnabled: defaults.AssistantMemoryEnabled,
 		}
 	}
 	return view, true
@@ -138,11 +143,13 @@ func (h *Handler) UpdateAICapabilities(c *gin.Context) {
 
 	source := h.capabilityAdmin
 	before, _ := h.capabilitiesView(c, tid)
-	if req.MCPEnabled != nil || req.MCPWriteEnabled != nil || req.BotEnabled != nil {
+	if req.MCPEnabled != nil || req.MCPWriteEnabled != nil || req.BotEnabled != nil ||
+		req.AssistantMemoryEnabled != nil {
 		if _, err := source.Update(ctx, tid, capability.Patch{
-			MCPEnabled:      req.MCPEnabled,
-			MCPWriteEnabled: req.MCPWriteEnabled,
-			BotEnabled:      req.BotEnabled,
+			MCPEnabled:             req.MCPEnabled,
+			MCPWriteEnabled:        req.MCPWriteEnabled,
+			BotEnabled:             req.BotEnabled,
+			AssistantMemoryEnabled: req.AssistantMemoryEnabled,
 		}, operator); err != nil {
 			common.FailWithErr(c, err, "能力开关保存失败")
 			return

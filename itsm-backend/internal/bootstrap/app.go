@@ -147,6 +147,10 @@ type Application struct {
 	// AttachmentService 通用附件服务（BE-8 后台清理任务使用；与 HTTP 路由共用同一实例）。
 	AttachmentService *service.AttachmentService
 
+	// AIHealthSweeper AI 健康定时巡检（O1-02 条件项闭环；仅当 config 显式开启时在
+	// startBackgroundTasks 中启动；与 HTTP 路由共用同一 health 实例）。
+	AIHealthSweeper *service.AIHealthSweeper
+
 	// backgroundWG 跟踪由 startBackgroundTasks 启动的所有后台 goroutine。
 	// 在 Stop() 中等待它们退出，避免应用关闭时强制杀死进行中的任务。
 	backgroundWG sync.WaitGroup
@@ -1026,6 +1030,19 @@ func NewApplication() *Application {
 	aiRepo := ai.NewEntRepository(client)
 	aiServiceDomain := ai.NewService(aiRepo, sugar, ragService, toolRegistry, toolQueue, analyticsService, predictionService, slaForecastSkill, triageService, rootCauseService, aiTelemetryService)
 	aiServiceDomain.SetLLMGateway(llmGateway)
+	// P2 LLM 动态建议（缓存 + 审计）：LLM 未装配时服务不可用（端点 503，前端保持静态基线）。
+	aiServiceDomain.SetDynamicSuggestions(ai.NewDynamicSuggestionService(
+		ai.NewLLMDynamicSuggestionGenerator(llmGateway, sugar),
+		aiServiceDomain.DynamicSuggestionAuditSink(),
+		sugar,
+	))
+	// V2-02 异步精算（先给可用答案 + 后台精算 + 完成通知）：
+	// LLM 未装配时生成器为 nil → 任务诚实 degraded（仅快速参考），通知自然跳过。
+	aiServiceDomain.SetAsyncAnswers(ai.NewAsyncAnswerService(
+		ai.NewLLMAsyncAnswerGenerator(llmGateway, sugar),
+		ai.NewEntAsyncAnswerNotifier(client),
+		sugar,
+	))
 	// 2026-09-06 P1-2 修复：装配 SummarizeService（之前定义了但 NewSummarizeService 在生产装配路径零调用点）。
 	// SummarizeService 通过 ai.summarize skill 被 SkillRegistry 消费（handlers/ai/skills.go），
 	// 不再作为 404 行死代码留存。
@@ -1043,8 +1060,13 @@ func NewApplication() *Application {
 		MCPEnabled:      cfg.MCP.Enabled,
 		MCPWriteEnabled: cfg.MCP.WriteEnabled,
 		BotEnabled:      cfg.Bot.Enabled,
+		// V2-01 个性化记忆：产品默认开启，租户管理台可关闭（缺行 = 跟随默认，升级零行为变化）。
+		AssistantMemoryEnabled: true,
 	}, sugar)
 	aiServiceDomain.SetCapabilitySource(capabilitySource)
+	// V2-01：公共能力面（GET /api/v1/capabilities）下发租户级 assistant.memoryEnabled，
+	// 与 MCP/Bot 开关同一 Source（fail-safe：未注入时前端按产品默认开启处理）。
+	capability.SetRuntimeSource(capabilitySource)
 	// B1-01/B1-02：Bot 运行态管理器（bot_runs/bot_steps/bot_events + BP8 预算护栏）。
 	// 常驻注入（不再以静态 cfg.Bot.Enabled 短路）：运行期开关关闭时由门禁降级
 	// （聊天不落运行档案、策略回退兼容默认），管理台开启后立即恢复全量行为。
@@ -1061,7 +1083,20 @@ func NewApplication() *Application {
 	// 运行时开关关闭时按「未注入」处理 = 兼容默认（只读 + 遗留写白名单），与既有静态关闭语义一致。
 	aiServiceDomain.SetBotPolicy(botService.NewPolicy(client))
 	// B4-02：运行维度指标（成功/确认/verify/工具错误/时延/成本代理）；关闭态由前端按 botEnabled 隐藏看板。
-	aiServiceDomain.SetBotMetrics(botService.NewMetricsService(client))
+	botMetricsService := botService.NewMetricsService(client)
+	aiServiceDomain.SetBotMetrics(botMetricsService)
+	// O1-02：实时健康与告警（快照 + SLO + 告警进通知中心）；复用同一 metrics 实例避免双份口径。
+	healthService := service.NewAIHealthService(client, botMetricsService, aiTelemetryService)
+	healthService.SetQueue(toolQueue)
+	aiServiceDomain.SetHealthService(healthService)
+	// O1-02 条件项闭环：定时巡检 sweeper（部署级开关默认关闭＝不默认打扰；
+	// 由 startBackgroundTasks 在 worker/all 模式下启动）。
+	aiHealthSweeper := service.NewAIHealthSweeper(
+		client, healthService, sugar,
+		cfg.AIHealth.SweeperIntervalMinutes, cfg.AIHealth.SweeperWindowDays,
+	)
+	// O1-01：单任务全链路轨迹（会话→run→步骤/事件→工具/确认→产物→业务对象；只读回放）。
+	aiServiceDomain.SetTraceService(botService.NewTraceService(client))
 	sweeper := &botService.Sweeper{
 		Store:    aiServiceDomain.ConfirmationStore(),
 		Interval: 10 * time.Minute,
@@ -1076,6 +1111,18 @@ func NewApplication() *Application {
 		},
 	}
 	go sweeper.Run(context.Background())
+
+	// P2：MSP 帮助空间与分发授权（provider 自有帮助库 + copy-in 分发 + 客户侧消费）。
+	// 同一实例注入 AI 助手（客户帮助合并分发文档）与 MSP handler（管理面），保存证与授权口径一致。
+	mspHelpSpaceService := service.NewMSPHelpSpaceService(
+		database.GetRawDB(), service.NewMSPAccessValidator(client), client, sugar)
+	aiServiceDomain.SetMSPHelpSpace(mspHelpSpaceService)
+
+	// H1-01/H1-03/H1-04 条件项闭环：文档待办认领/忽略状态持久化（同库；RLS 017 兜底隔离）。
+	// 未注入时行为与注入前一致（GET 仅 states.available=false，写路径 503）。
+	aiServiceDomain.SetHelpDocTodoStates(
+		service.NewHelpDocTodoStateService(database.GetRawDB(), sugar))
+
 	aiHandler := ai.NewHandler(aiServiceDomain)
 
 	// B2-01：Bot 模板/授权管理面（/api/v1/admin/bots；读 ai:read、写 ai:write）。
@@ -1531,6 +1578,17 @@ func NewApplication() *Application {
 	// 使流程创建的单据也能在创建时挂接项目（PE-5 遗留项）。
 	processEngine.SetProjectLink(projectService)
 
+	// P2：MSP handler（帮助空间 setter 装配；构造参数保持既有 9 参签名）。
+	mspHTTPHandler := mspHandler.NewHandler(mspAllocationService, ticketService,
+		mspWorkbenchService,
+		service.NewMSPWorkbenchViewService(client, sugar),
+		service.NewMSPAuditService(client, sugar),
+		service.NewMSPWorkflowDistributionService(database.GetRawDB(), bpmnTemplateCatalog, service.NewMSPAccessValidator(client), client, sugar),
+		ttDistributionService,
+		service.NewMSPTaskProjectionService(client, sugar),
+		sugar)
+	mspHTTPHandler.SetHelpSpace(mspHelpSpaceService)
+
 	routerConfig := &router.RouterConfig{
 		JWTSecret:                    cfg.JWT.Secret,
 		Logger:                       sugar,
@@ -1562,16 +1620,9 @@ func NewApplication() *Application {
 		TicketTagHandler:             ticketTagHandler.NewHandler(ticketTagService, sugar),
 		EscalationMatrixHandler:      escalationMatrixHandler.NewHandler(sugar, escalationMatrixService),
 		AuditLogHandler:              auditlogHandler.NewHandler(auditLogService, sugar),
-		MSPHandler: mspHandler.NewHandler(mspAllocationService, ticketService,
-			mspWorkbenchService,
-			service.NewMSPWorkbenchViewService(client, sugar),
-			service.NewMSPAuditService(client, sugar),
-			service.NewMSPWorkflowDistributionService(database.GetRawDB(), bpmnTemplateCatalog, service.NewMSPAccessValidator(client), client, sugar),
-			ttDistributionService,
-			service.NewMSPTaskProjectionService(client, sugar),
-			sugar),
-		SystemConfigHandler:  systemConfigHandler,
-		ApprovalChainHandler: approvalChainHandler.NewHandler(approvalChainService, sugar),
+		MSPHandler:                   mspHTTPHandler,
+		SystemConfigHandler:          systemConfigHandler,
+		ApprovalChainHandler:         approvalChainHandler.NewHandler(approvalChainService, sugar),
 
 		// Vendor Controller
 		VendorHandler: vendorHandler.NewHandler(vendorService, sugar),
@@ -1674,6 +1725,9 @@ func NewApplication() *Application {
 
 		// 附件生命周期清理任务的数据源（BE-8）
 		AttachmentService: attachmentService,
+
+		// AI 健康定时巡检（O1-02 条件项闭环；开关在 startBackgroundTasks 判定）
+		AIHealthSweeper: aiHealthSweeper,
 	}
 }
 
@@ -2032,6 +2086,25 @@ func (app *Application) startBackgroundTasks(ctx context.Context) {
 	if app.Cfg.PAT.Enabled && app.DBClient != nil {
 		hk := service.NewPATHousekeepingService(app.DBClient, app.Logger, app.Cfg.PAT.HousekeepingRetentionDays, 24*60)
 		hk.Start(ctx)
+	}
+
+	// AI 埋点事件保留期清理（O0-02 条件项闭环，方案 §13.1.4 合规 / §13.3 数据策略）：
+	// 跨租户回收超过保留期（默认 90 天）的 ai_telemetry_events 行；批量上限 + 循环扫空，
+	// 失败仅告警不阻断进程。rawDB 为管理池（系统旁路），与 /ai/telemetry 聚合口径无关。
+	if rawDB := database.GetRawDB(); rawDB != nil {
+		service.NewAITelemetryHousekeepingService(
+			rawDB,
+			app.Logger,
+			app.Cfg.AITelemetry.RetentionDays,
+			app.Cfg.AITelemetry.CleanupIntervalMinutes,
+			app.Cfg.AITelemetry.CleanupBatchSize,
+		).Start(ctx)
+	}
+
+	// AI 健康定时巡检（O1-02 条件项闭环，方案 §13.5）：部署级开关默认关闭＝不默认打扰；
+	// 显式打开后按间隔评估各租户 SLO 并投递（收件人仍受用户订阅偏好 ai_health_alert 约束）。
+	if app.Cfg.AIHealth.SweeperEnabled && app.AIHealthSweeper != nil {
+		app.AIHealthSweeper.Start(ctx)
 	}
 
 	// safeGo 启动一个 panic-safe 的后台 goroutine：

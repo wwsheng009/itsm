@@ -1,0 +1,108 @@
+name: docs-stale-nightly
+
+# H1-03 夜间批任务：代码/页面定义变更 → 文档 stale 标记 → 更新提议（方案 §5.6 触发源 4）。
+#
+# 口径：
+#  - 对比 origin/main 的页面清单（src/generated/page-manifest.json，H0-02 生成物）与当前版本；
+#  - 输出 docs/help/_stale-proposals.{json,md}（机器可读 + 人读摘要），并汇总到 Job Summary；
+#  - 有提议时创建/刷新「[docs] 夜间文档更新提议」Issue（幂等：同名 open Issue 更新正文）；
+#  - 提议的处置走 itsm-agent PR 通道（prompts/docs-maintenance.md）。
+
+on:
+  schedule:
+    # 每天 18:00 UTC（= 次日 02:00 CST；夜批窗口）。
+    - cron: '0 18 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+
+concurrency:
+  group: docs-stale-nightly
+  cancel-in-progress: false
+
+jobs:
+  detect:
+    name: Docs stale detection (H1-03)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v6
+        with:
+          node-version: '22'
+      - name: Unit + integration tests (doc-stale core)
+        working-directory: itsm-frontend
+        run: npm run docs:stale:test && npm run docs:merge:test
+      - name: Detect stale docs (manifest diff vs origin/main)
+        working-directory: itsm-frontend
+        run: node scripts/detect-doc-stale.mjs --base origin/main --out ../docs/help/_stale-proposals.json
+      # P2 L1 自动合并策略（§5.7）：默认关，夜批只跑 dry-run 观察候选；
+      # 真正自动合并需 `DOCS_AUTO_MERGE=1` + 校验全绿（见 scripts/apply-doc-fixes.mjs）。
+      - name: L1 auto-merge dry-run (policy default off)
+        working-directory: itsm-frontend
+        run: npm run docs:merge
+      - name: Upload proposals artifact
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: docs-stale-proposals
+          path: |
+            docs/help/_stale-proposals.json
+            docs/help/_stale-proposals.md
+            docs/help/_automerge-report.json
+          retention-days: 14
+          if-no-files-found: warn
+      - name: Open or refresh proposal issue
+        if: always()
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const summaryPath = 'docs/help/_stale-proposals.md';
+            const reportPath = 'docs/help/_stale-proposals.json';
+            if (!fs.existsSync(summaryPath) || !fs.existsSync(reportPath)) {
+              core.info('未产出提议文件（检测步骤可能失败），跳过 Issue。');
+              return;
+            }
+            const report = JSON.parse(fs.readFileSync(reportPath, 'utf8'));
+            if (!report.proposals || report.proposals.length === 0) {
+              core.info('无文档更新提议，跳过 Issue。');
+              return;
+            }
+            const title = '[docs] 夜间文档更新提议';
+            const header = [
+              `> 由 \`docs-stale-nightly\` 生成（基线 \`${report.base}\`，页面 ${report.headCount} 个）。`,
+              '> 处置：按 `itsm-agent/prompts/docs-maintenance.md` 起草/修订；',
+              '> `npm run docs:validate` 与 `npm run docs:ledger:check` 全绿后走 PR 通道。',
+              '> L1 机械修正候选见本夜批日志/artifact（`docs/help/_automerge-report.json`；策略默认关，仅观察）。',
+              '',
+            ].join('\n');
+            const body = `${header}${fs.readFileSync(summaryPath, 'utf8')}`;
+            const { data: issues } = await github.rest.issues.listForRepo({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              state: 'open',
+              per_page: 100,
+            });
+            const existing = issues.find(issue => issue.title === title);
+            if (existing) {
+              await github.rest.issues.update({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: existing.number,
+                body,
+              });
+              core.info(`已刷新 Issue #${existing.number}`);
+            } else {
+              const created = await github.rest.issues.create({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                title,
+                body,
+              });
+              core.info(`已创建 Issue #${created.data.number}`);
+            }

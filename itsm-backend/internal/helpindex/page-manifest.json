@@ -1,0 +1,474 @@
+{
+  "generatedAt": "2026-10-18T20:58:58.786Z",
+  "note": "H0-02 生成物：由 itsm-frontend/scripts/gen-page-manifest.mjs 从页面注册表 + 帮助文档生成，禁止手改。",
+  "pages": [
+    {
+      "pageKey": "ticket.create",
+      "pattern": "/tickets/create",
+      "title": "创建工单",
+      "entrypoint": "chat",
+      "scene": "s1-ticket-assistant",
+      "docs": [
+        "docs/help/tickets/create.md"
+      ],
+      "status": "ok",
+      "suggestions": [
+        {
+          "id": "draft_fields",
+          "kind": "task",
+          "readOnly": true
+        },
+        {
+          "id": "how_to_fill",
+          "kind": "question",
+          "readOnly": true
+        }
+      ]
+    },
+    {
+      "pageKey": "ticket.aiCreate",
+      "pattern": "/tickets/ai-create",
+      "title": "AI 创建工单",
+      "entrypoint": "chat",
+      "scene": "s1-ticket-assistant",
+      "docs": [
+        "docs/help/tickets/create.md"
+      ],
+      "status": "ok",
+      "suggestions": [
+        {
+          "id": "ai_create_draft",
+          "kind": "task",
+          "readOnly": true
+        },
+        {
+          "id": "describe_need",
+          "kind": "question",
+          "readOnly": true
+        }
+      ]
+    },
+    {
+      "pageKey": "ticket.detail",
+      "pattern": "/tickets/:id",
+      "title": "工单详情",
+      "entrypoint": "ticket_detail",
+      "scene": "s1-ticket-assistant",
+      "docs": [
+        "docs/help/tickets/detail.md"
+      ],
+      "status": "ok",
+      "suggestions": [
+        {
+          "id": "triage_plan",
+          "kind": "task",
+          "readOnly": true
+        },
+        {
+          "id": "reply_draft",
+          "kind": "task",
+          "readOnly": true
+        },
+        {
+          "id": "kb_lookup",
+          "kind": "question",
+          "readOnly": true
+        }
+      ]
+    },
+    {
+      "pageKey": "ticket.list",
+      "pattern": "/tickets",
+      "title": "工单列表",
+      "entrypoint": "ticket_list",
+      "scene": "s1-ticket-assistant",
+      "docs": [
+        "docs/help/tickets/list.md"
+      ],
+      "status": "ok",
+      "suggestions": [
+        {
+          "id": "pending_overview",
+          "kind": "task",
+          "readOnly": true
+        },
+        {
+          "id": "priority_view",
+          "kind": "question",
+          "readOnly": true
+        }
+      ]
+    },
+    {
+      "pageKey": "incident.create",
+      "pattern": "/incidents/create",
+      "title": "创建事件",
+      "entrypoint": "incident_create",
+      "scene": "s2-incident-oncall",
+      "docs": [
+        "docs/help/incidents/create.md"
+      ],
+      "status": "ok",
+      "suggestions": [
+        {
+          "id": "complete_description",
+          "kind": "task",
+          "readOnly": true
+        },
+        {
+          "id": "severity_help",
+          "kind": "question",
+          "readOnly": true
+        }
+      ]
+    },
+    {
+      "pageKey": "incident.detail",
+      "pattern": "/incidents/:id",
+      "title": "事件详情",
+      "entrypoint": "incident_detail",
+      "scene": "s2-incident-oncall",
+      "docs": [
+        "docs/help/incidents/detail.md"
+      ],
+      "status": "ok",
+      "suggestions": [
+        {
+          "id": "impact_plan",
+          "kind": "task",
+          "readOnly": true
+        },
+        {
+          "id": "similar_incidents",
+          "kind": "question",
+          "readOnly": true
+        }
+      ]
+    },
+    {
+      "pageKey": "incident.list",
+      "pattern": "/incidents",
+      "title": "事件列表",
+      "entrypoint": "chat",
+      "scene": "s2-incident-oncall",
+      "docs": [
+        "docs/help/incidents/list.md"
+      ],
+      "status": "ok",
+      "suggestions": [
+        {
+          "id": "active_overview",
+          "kind": "task",
+          "readOnly": true
+        }
+      ]
+    },
+    {
+      "pageKey": "change.create",
+      "pattern": "/changes/new",
+      "title": "新建变更",
+      "entrypoint": "chat",
+      "scene": "s4-change-impact-analyst",
+      "docs": [
+        "docs/help/changes/detail.md"
+      ],
+      "status": "ok",
+      "suggestions": [
+        {
+          "id": "risk_draft",
+          "kind": "task",
+          "readOnly": true
+        }
+      ]
+    },
+    {
+      "pageKey": "change.detail",
+      "pattern": "/changes/:id",
+      "title": "变更详情",
+      "entrypoint": "chat",
+      "scene": "s4-change-impact-analyst",
+      "docs": [
+        "docs/help/changes/detail.md"
+      ],
+      "status": "ok",
+      "suggestions": [
+        {
+          "id": "impact_plan",
+          "kind": "task",
+          "readOnly": true
+        },
+        {
+          "id": "cab_evidence",
+          "kind": "question",
+          "readOnly": true
+        }
+      ]
+    },
+    {
+      "pageKey": "change.list",
+      "pattern": "/changes",
+      "title": "变更列表",
+      "entrypoint": "chat",
+      "scene": "s4-change-impact-analyst",
+      "docs": [
+        "docs/help/changes/list.md"
+      ],
+      "status": "ok",
+      "suggestions": [
+        {
+          "id": "week_overview",
+          "kind": "task",
+          "readOnly": true
+        }
+      ]
+    },
+    {
+      "pageKey": "problem.list",
+      "pattern": "/problems",
+      "title": "问题管理",
+      "entrypoint": "chat",
+      "scene": null,
+      "docs": [
+        "docs/help/problems/list.md"
+      ],
+      "status": "ok",
+      "suggestions": [
+        {
+          "id": "problem_overview",
+          "kind": "task",
+          "readOnly": true
+        },
+        {
+          "id": "known_error_hint",
+          "kind": "question",
+          "readOnly": true
+        }
+      ]
+    },
+    {
+      "pageKey": "ci.create",
+      "pattern": "/cmdb/cis/create",
+      "title": "新建配置项",
+      "entrypoint": "chat",
+      "scene": null,
+      "docs": [
+        "docs/help/configuration-items.md"
+      ],
+      "status": "ok",
+      "suggestions": [
+        {
+          "id": "ci_draft",
+          "kind": "task",
+          "readOnly": true
+        },
+        {
+          "id": "ci_fields_help",
+          "kind": "question",
+          "readOnly": true
+        }
+      ]
+    },
+    {
+      "pageKey": "ci.detail",
+      "pattern": "/cmdb/cis/:id",
+      "title": "配置项详情",
+      "entrypoint": "ci_detail",
+      "scene": "s4-change-impact-analyst",
+      "docs": [
+        "docs/help/configuration-items.md"
+      ],
+      "status": "ok",
+      "suggestions": [
+        {
+          "id": "impact_plan",
+          "kind": "task",
+          "readOnly": true
+        },
+        {
+          "id": "related_tickets",
+          "kind": "question",
+          "readOnly": true
+        }
+      ]
+    },
+    {
+      "pageKey": "ci.list",
+      "pattern": "/cmdb/cis",
+      "title": "配置项列表",
+      "entrypoint": "chat",
+      "scene": "s4-change-impact-analyst",
+      "docs": [
+        "docs/help/configuration-items.md"
+      ],
+      "status": "ok",
+      "suggestions": [
+        {
+          "id": "type_stats",
+          "kind": "task",
+          "readOnly": true
+        }
+      ]
+    },
+    {
+      "pageKey": "knowledge.new",
+      "pattern": "/knowledge/articles/new",
+      "title": "新建知识文章",
+      "entrypoint": "chat",
+      "scene": "s3-knowledge-assistant",
+      "docs": [
+        "docs/help/knowledge/list.md"
+      ],
+      "status": "ok",
+      "suggestions": [
+        {
+          "id": "draft_from_context",
+          "kind": "task",
+          "readOnly": true
+        }
+      ]
+    },
+    {
+      "pageKey": "knowledge.list",
+      "pattern": "/knowledge",
+      "title": "知识库",
+      "entrypoint": "chat",
+      "scene": "s3-knowledge-assistant",
+      "docs": [
+        "docs/help/knowledge/list.md"
+      ],
+      "status": "ok",
+      "suggestions": [
+        {
+          "id": "kb_digest",
+          "kind": "task",
+          "readOnly": true
+        },
+        {
+          "id": "search_help",
+          "kind": "question",
+          "readOnly": true
+        },
+        {
+          "id": "self_service",
+          "kind": "question",
+          "readOnly": true
+        }
+      ]
+    },
+    {
+      "pageKey": "sla.monitor",
+      "pattern": "/sla-monitor",
+      "title": "SLA 监控",
+      "entrypoint": "chat",
+      "scene": null,
+      "docs": [
+        "docs/help/sla/monitor.md"
+      ],
+      "status": "ok",
+      "suggestions": [
+        {
+          "id": "risk_scan",
+          "kind": "task",
+          "readOnly": true
+        },
+        {
+          "id": "explain_risk",
+          "kind": "question",
+          "readOnly": true
+        }
+      ]
+    },
+    {
+      "pageKey": "service.catalog",
+      "pattern": "/service-catalog",
+      "title": "服务目录",
+      "entrypoint": "chat",
+      "scene": null,
+      "docs": [
+        "docs/help/service-catalog.md"
+      ],
+      "status": "ok",
+      "suggestions": [
+        {
+          "id": "catalog_recommend",
+          "kind": "task",
+          "readOnly": true
+        },
+        {
+          "id": "which_service",
+          "kind": "question",
+          "readOnly": true
+        }
+      ]
+    },
+    {
+      "pageKey": "dashboard",
+      "pattern": "/dashboard",
+      "title": "仪表盘",
+      "entrypoint": "chat",
+      "scene": null,
+      "docs": [
+        "docs/help/dashboard.md"
+      ],
+      "status": "ok",
+      "suggestions": [
+        {
+          "id": "attention_today",
+          "kind": "task",
+          "readOnly": true
+        },
+        {
+          "id": "sla_summary",
+          "kind": "question",
+          "readOnly": true
+        }
+      ]
+    },
+    {
+      "pageKey": "ai.chat",
+      "pattern": "/ai/chat",
+      "title": "AI 助手",
+      "entrypoint": "chat",
+      "scene": null,
+      "docs": [
+        "docs/help/ai/chat.md"
+      ],
+      "status": "ok",
+      "suggestions": [
+        {
+          "id": "summarize_tickets",
+          "kind": "task",
+          "readOnly": true
+        },
+        {
+          "id": "standard_process",
+          "kind": "question",
+          "readOnly": true
+        }
+      ]
+    },
+    {
+      "pageKey": "ai.observability",
+      "pattern": "/ai/observability",
+      "title": "AI 观测看板",
+      "entrypoint": "chat",
+      "scene": null,
+      "docs": [
+        "docs/help/ai/observability.md"
+      ],
+      "status": "ok",
+      "suggestions": [
+        {
+          "id": "obs_digest",
+          "kind": "task",
+          "readOnly": true
+        },
+        {
+          "id": "metric_meaning",
+          "kind": "question",
+          "readOnly": true
+        }
+      ]
+    }
+  ]
+}

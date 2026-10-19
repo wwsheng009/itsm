@@ -412,7 +412,7 @@ func (t *ToolRegistry) listBuiltinToolsForTenant(ctx context.Context, tenantID i
 }
 
 func (t *ToolRegistry) ListTools() []ToolDefinition {
-	return []ToolDefinition{
+	tools := []ToolDefinition{
 		{
 			Name:        "get_incident_stats",
 			Description: "获取当前租户的事件统计",
@@ -884,6 +884,9 @@ func (t *ToolRegistry) ListTools() []ToolDefinition {
 			},
 		},
 	}
+
+	// H0-03：Help Agent 只读工具（help_search/help_get_page/help_read_doc/help_list_gaps）。
+	return append(tools, helpToolDefinitions()...)
 }
 
 // Execute 执行工具：内置优先；内置未命中时委派外部 provider（M0-09：MCP 只读工具）。
@@ -933,6 +936,10 @@ func (t *ToolRegistry) executeBuiltin(ctx context.Context, tenantID int, name st
 		return t.executeCIImpactPlan(ctx, tenantID, args)
 	case "draft_kb_article":
 		return t.executeDraftKBArticle(ctx, tenantID, args)
+	case "help_search", "help_get_page", "help_read_doc", "help_list_gaps":
+		return executeHelpTool(ctx, name, args)
+	case "help_create_draft":
+		return t.executeHelpCreateDraft(ctx, tenantID, args)
 	case "get_incident_stats":
 		// 使用ListIncidents来获取统计信息
 		incidents, _, err := t.incident.ListIncidents(ctx, tenantID, 1, 1000, map[string]interface{}{})

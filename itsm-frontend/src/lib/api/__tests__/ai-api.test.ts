@@ -13,6 +13,12 @@ import {
   aiListVisibleBots,
   aiListVisibleBotsWithCapabilities,
   aiListToolCatalog,
+  aiExecuteTool,
+  aiBatchTriage,
+  aiBatchReplyDrafts,
+  aiInterpretTicketIntent,
+  aiGetHelpTodos,
+  aiSetHelpTodoState,
   AIApi,
 } from '../ai-api';
 import { httpClient } from '../http-client';
@@ -31,6 +37,7 @@ jest.mock('../http-client', () => ({
 
 const mockGet = httpClient.get as jest.Mock;
 const mockPost = httpClient.post as jest.Mock;
+const mockPut = httpClient.put as jest.Mock;
 
 describe('AI API', () => {
   beforeEach(() => { jest.clearAllMocks(); });
@@ -56,6 +63,69 @@ describe('AI API', () => {
   });
 
   describe('aiSearchKB', () => {
+    it('V1-01 aiBatchTriage 提交 ticketIds 到 batch-triage', async () => {
+      mockPost.mockResolvedValue({
+        items: [{ ticketId: 1, status: 'ok', category: 'network', priority: 'high' }],
+        processed: 1,
+        degraded: false,
+      });
+      const res = await aiBatchTriage([1, 2]);
+      expect(mockPost).toHaveBeenCalledWith('/api/v1/ai/tickets/batch-triage', {
+        ticketIds: [1, 2],
+      });
+      expect(res.items).toHaveLength(1);
+      expect(res.processed).toBe(1);
+    });
+
+    it('V1-01 aiBatchReplyDrafts 提交 ticketIds 到 batch-reply-drafts', async () => {
+      mockPost.mockResolvedValue({
+        items: [{ ticketId: 1, status: 'ok', draft: '您好' }],
+        succeeded: 1,
+        degraded: false,
+      });
+      const res = await aiBatchReplyDrafts([1]);
+      expect(mockPost).toHaveBeenCalledWith('/api/v1/ai/tickets/batch-reply-drafts', {
+        ticketIds: [1],
+      });
+      expect(res.succeeded).toBe(1);
+    });
+
+    it('V1-03 aiInterpretTicketIntent 提交 utterance 到 interpret（只读理解）', async () => {
+      mockPost.mockResolvedValue({
+        summary: '网络故障（高）',
+        matched: true,
+        needsConfirmation: true,
+        confidence: 0.9,
+        terms: [
+          {
+            field: 'type',
+            surface: '连不上网',
+            term: '网络故障',
+            value: 'network',
+            confidence: 0.93,
+          },
+        ],
+        fields: {
+          title: '连不上网很急',
+          type: 'network',
+          priority: 'high',
+          description: '连不上网很急',
+        },
+      });
+      const res = await aiInterpretTicketIntent('连不上网很急');
+      expect(mockPost).toHaveBeenCalledWith('/api/v1/ai/tickets/interpret', {
+        utterance: '连不上网很急',
+      });
+      expect(res.summary).toBe('网络故障（高）');
+      expect(res.needsConfirmation).toBe(true);
+      expect(res.terms[0].surface).toBe('连不上网');
+    });
+
+    it('V1-03 理解失败向上抛错（调用方降级为直接生成，不阻塞建单）', async () => {
+      mockPost.mockRejectedValue(new Error('boom'));
+      await expect(aiInterpretTicketIntent('x')).rejects.toThrow('boom');
+    });
+
     it('should search knowledge base', async () => {
       mockPost.mockResolvedValue({ results: [{ id: 1, objectType: 'article', snippet: 'found' }] });
       const result = await aiSearchKB('password reset', 3);
@@ -162,6 +232,31 @@ describe('AI API', () => {
       mockGet.mockResolvedValue({ total: 0 });
       const result = await aiGetAuditLogs({ page: 1 });
       expect(result.items).toBeUndefined();
+    });
+  });
+
+  describe('aiExecuteTool (V0-03)', () => {
+    it('posts name/args/options to /agent/tools/execute（缺省选项不落字段）', async () => {
+      mockPost.mockResolvedValue({ status: 'success', data: { artifactId: 31 } });
+
+      const result = await aiExecuteTool('analyze_ci_impact_plan', { ciId: 7 });
+      expect(mockPost).toHaveBeenCalledWith('/api/v1/agent/tools/execute', {
+        name: 'analyze_ci_impact_plan',
+        args: { ciId: 7 },
+      });
+      expect(result.status).toBe('success');
+    });
+
+    it('opts 携带 conversationId/dryRun 时透传', async () => {
+      mockPost.mockResolvedValue({ status: 'success' });
+
+      await aiExecuteTool('analyze_ci_impact_plan', { ciId: 9 }, { conversationId: 55, dryRun: true });
+      expect(mockPost).toHaveBeenCalledWith('/api/v1/agent/tools/execute', {
+        name: 'analyze_ci_impact_plan',
+        args: { ciId: 9 },
+        conversationId: 55,
+        dryRun: true,
+      });
     });
   });
 
@@ -718,6 +813,41 @@ describe('AI API', () => {
       expect(Object.prototype.hasOwnProperty.call(JSON.parse(rawBody), 'provider')).toBe(false);
     });
 
+    it('omits pageContext when absent (QA-3 byte-identity preserved)', async () => {
+      const { aiChatStream } = require('../ai-api');
+      const fetchMock = mockStream([encode('event:done\ndata:{"conversationId":7}\n\n')]);
+
+      await aiChatStream({ query: 'test', conversationId: 3, limit: 5 }, {});
+
+      const rawBody = streamCallBody(fetchMock);
+      expect(Object.prototype.hasOwnProperty.call(JSON.parse(rawBody), 'pageContext')).toBe(false);
+    });
+
+    it('carries pageContext hint when provided (D0-04)', async () => {
+      const { aiChatStream } = require('../ai-api');
+      const fetchMock = mockStream([encode('event:done\ndata:{"conversationId":5}\n\n')]);
+
+      await aiChatStream(
+        { query: 'test', limit: 5, pageContext: { pageKey: 'ticket.detail', route: '/tickets/42' } },
+        {}
+      );
+
+      const rawBody = streamCallBody(fetchMock);
+      // 与既有构造顺序一致：query → limit → conversationId → … → pageContext（追加在末尾）。
+      expect(rawBody).toBe(
+        JSON.stringify({
+          query: 'test',
+          limit: 5,
+          conversationId: undefined,
+          pageContext: { pageKey: 'ticket.detail', route: '/tickets/42' },
+        })
+      );
+      expect(JSON.parse(rawBody).pageContext).toEqual({
+        pageKey: 'ticket.detail',
+        route: '/tickets/42',
+      });
+    });
+
     it('passes provider through and surfaces the effective instance on done', async () => {
       const { aiChatStream } = require('../ai-api');
       const fetchMock = mockStream([
@@ -750,6 +880,73 @@ describe('AI API', () => {
       expect(onDone).toHaveBeenCalledWith(9);
     });
 
+    it('surfaces the v2 usage estimate via onUsage and done info (O2-02/§13.4)', async () => {
+      const { aiChatStream } = require('../ai-api');
+      mockStream([
+        encode('event:usage\ndata:{"v":2,"tokenIn":120,"tokenOut":48,"estimated":true,"scope":"turn"}\n\n'),
+        encode('event:done\ndata:{"conversationId":42}\n\n'),
+      ]);
+      const onUsage = jest.fn();
+      const onDone = jest.fn();
+
+      const result = await aiChatStream({ query: 'test', limit: 5 }, { onUsage, onDone });
+
+      expect(onUsage).toHaveBeenCalledWith({
+        tokenIn: 120,
+        tokenOut: 48,
+        estimated: true,
+        scope: 'turn',
+      });
+      // usage 存在即补第二参数（provider 缺省时仍交付用量；字段本身保持可选）。
+      expect(onDone).toHaveBeenCalledWith(42, {
+        provider: undefined,
+        providerSource: undefined,
+        usage: { tokenIn: 120, tokenOut: 48, estimated: true, scope: 'turn' },
+      });
+      expect(result).toBe(42);
+    });
+
+    it('surfaces provider-reported usage when estimated=false (B4-02)', async () => {
+      const { aiChatStream } = require('../ai-api');
+      mockStream([
+        encode('event:usage\ndata:{"v":2,"tokenIn":33,"tokenOut":7,"estimated":false,"scope":"turn"}\n\n'),
+        encode('event:done\ndata:{"conversationId":42}\n\n'),
+      ]);
+      const onUsage = jest.fn();
+      const onDone = jest.fn();
+
+      await aiChatStream({ query: 'test', limit: 5 }, { onUsage, onDone });
+
+      expect(onUsage).toHaveBeenCalledWith({
+        tokenIn: 33,
+        tokenOut: 7,
+        estimated: false,
+        scope: 'turn',
+      });
+      // 口径标记必须原样保留：false 表示 provider 实测，不得被规范化成估算。
+      expect(onDone).toHaveBeenCalledWith(42, {
+        provider: undefined,
+        providerSource: undefined,
+        usage: { tokenIn: 33, tokenOut: 7, estimated: false, scope: 'turn' },
+      });
+    });
+
+    it('ignores malformed usage frames (no fabricated numbers)', async () => {
+      const { aiChatStream } = require('../ai-api');
+      mockStream([
+        encode('event:usage\ndata:{"tokenIn":"many"}\n\n'),
+        encode('event:done\ndata:{"conversationId":9}\n\n'),
+      ]);
+      const onUsage = jest.fn();
+      const onDone = jest.fn();
+
+      await aiChatStream({ query: 'test' }, { onUsage, onDone });
+
+      expect(onUsage).not.toHaveBeenCalled();
+      // 未知 usage 载荷不得污染 done 回调：退回单参数兼容形态。
+      expect(onDone).toHaveBeenCalledWith(9);
+    });
+
     it('omits provider in one-shot fallback body unless selected, and forwards it otherwise', async () => {
       mockPost.mockResolvedValue({});
       await AIApi.chat({ query: 'q', conversationId: 3, limit: 5 });
@@ -766,6 +963,49 @@ describe('AI API', () => {
         conversationId: 3,
         provider: 'db-7',
       });
+    });
+  });
+
+  describe('H1-01/H1-04 文档待办状态（条件项闭环）', () => {
+    it('aiGetHelpTodos 透传 days/limit 并透出状态与 states.available', async () => {
+      mockGet.mockResolvedValue({
+        days: 30,
+        items: [
+          {
+            pageKey: 'dashboard',
+            state: 'claimed',
+            stateUpdatedBy: 9,
+            stateUpdatedAt: '2026-10-18T03:00:00Z',
+          },
+        ],
+        totals: { items: 1, missing: 1, stale: 0, claimed: 1, ignored: 0 },
+        states: { available: true },
+        telemetry: { available: true },
+      });
+
+      const result = await aiGetHelpTodos(7, 10);
+
+      expect(mockGet).toHaveBeenCalledWith('/api/v1/ai/help/todos?days=7&limit=10');
+      expect(result.items[0].state).toBe('claimed');
+      expect(result.states?.available).toBe(true);
+      expect(result.totals.claimed).toBe(1);
+    });
+
+    it('aiSetHelpTodoState PUT 状态写面（claimed|ignored|open 同一入口）', async () => {
+      mockPut.mockResolvedValue({
+        pageKey: 'dashboard',
+        state: 'ignored',
+        updatedBy: 9,
+        updatedAt: '2026-10-18T04:00:00Z',
+      });
+
+      const result = await aiSetHelpTodoState('dashboard', 'ignored');
+
+      expect(mockPut).toHaveBeenCalledWith('/api/v1/ai/help/todos/state', {
+        pageKey: 'dashboard',
+        state: 'ignored',
+      });
+      expect(result.state).toBe('ignored');
     });
   });
 });

@@ -29,6 +29,7 @@ import { ArrowUp, Plus, Save, Pencil, FileText, Clock, AlertCircle, CheckCircle,
 import dayjs from 'dayjs';
 
 import { PermissionGate, useCan } from '@/components/auth/PermissionGate';
+import { useRegisterAssistantPageData } from '@/lib/ai/page-context/use-register-assistant-page-data';
 import { IncidentAPI } from '@/lib/api/';
 import type { CreateIncidentClassificationRequest } from '@/lib/api/incident-api';
 import { UserApi } from '@/lib/api/user-api';
@@ -100,6 +101,10 @@ const IncidentDetail: React.FC<{ id?: string }> = ({ id: propId }) => {
   const [loading, setLoading] = useState(false);
   const [loadError, setLoadError] = useState(false);
   const [data, setData] = useState<Incident | null>(null);
+  // D1-02：L2 运行时数据（显式注册；未加载 = 不注册）；服务端仍做对象预检。
+  useRegisterAssistantPageData(
+    data ? { targetType: 'incident', targetId: data.id, summary: data.title } : null
+  );
   const [escalateModalVisible, setEscalateModalVisible] = useState(false);
   const [resolveModalVisible, setResolveModalVisible] = useState(false);
   const [escalating, setEscalating] = useState(false);

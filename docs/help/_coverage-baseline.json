@@ -1,0 +1,8 @@
+{
+  "updatedAt": "2026-10-18T17:31:09.312Z",
+  "note": "ratchet 基线：missing/stale/orphan 不得高于此值（--write-baseline 显式放宽需评审）。",
+  "missing": 0,
+  "stale": 0,
+  "orphan": 0,
+  "coverage": 1
+}
