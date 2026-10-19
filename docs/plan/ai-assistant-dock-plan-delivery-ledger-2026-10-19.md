@@ -65,7 +65,7 @@
 | I1-02 | 划词问 AI + 错误解释 | ✅ | assistant-dock/I1-02-selection-and-error-explain-evidence.md |
 | I1-03 | 主动协助（三形态 / 静默） | ✅ | assistant-dock/I1-03-proactive-assist-evidence.md |
 | I2-01 | Autopilot 巡检 | ✅ | assistant-dock/I2-01-autopilot-supervision-evidence.md |
-| I2-02 | 合规 + a11y（axe 扫描面） | ✅（流式 aria-live 行为验收盲区，见 T5-08） | assistant-dock/I2-02-compliance-a11y-evidence.md；assistant-dock/O2-02-workspace-entry-a11y-evidence.md |
+| I2-02 | 合规 + a11y（axe 扫描面） | ✅（流式 aria-live 行为验收已由 T5-08 补位，2026-10-19） | assistant-dock/I2-02-compliance-a11y-evidence.md；assistant-dock/O2-02-workspace-entry-a11y-evidence.md |
 
 ## F. O 系列（观测性与分析）—— 7/7 ✅
 
@@ -103,6 +103,7 @@
 - 悬空设计项（无任务映射）：`/` 与 `@`、附件 / 截图、handoff"转人工"三项、灰度开关、质量层指标数据源 → 方案 §14.2（T5-02–T5-06）。
 - 宽度交互"拖拽调宽"：已被 `5d87a831` 显式替代为离散三档 + 键盘循环（WCAG 2.1.1）；条款已回写（T5-11，2026-10-19）；"边缘收纳"显式不采纳（收起态即 FAB，与 D1 一致）。
 - 双入口"在侧栏继续 / 全屏打开"：未实现；现为"抑制 + 一次性交接"（`5d87a831`）——已按 B 收口（T5-12，2026-10-19）：条款更新认可现状（方案 §3.7/§8）、§14.4-① 解除。
+- 流式消息区 aria-live 验收缺口（评审 §12 第 12 项；UX B9/F2）：已由 T5-08 关闭（2026-10-19）——工作区/Dock 面板消息区 `role="log"` + `aria-live="polite"`，流式期间 `aria-busy` 抑制逐字播报、完成后一次性读出；行为断言 `streaming-a11y-behavior.test.tsx`；证据 `assistant-dock/T5-08-streaming-aria-live-evidence.md`。
 - 条件项（真实 Provider E2E、真库回归、i18n 文案批次、Q1/Q2/Q4 口径等）：见方案 §14.3。
 
 ---
@@ -112,9 +113,10 @@
 | ID | 状态 | 说明 |
 |---|---|---|
 | T5-01 | ✅ 2026-10-19 | 批 7–10 证据补登记：`assistant-dock/I0-01-interaction-state-evidence.md`（#7）、`assistant-dock/runtime-fixes-batch-2-evidence.md`（#8–10） |
+| T5-08 | ✅ 2026-10-19 | 流式 aria-live 行为验收：消息区 `role="log"` + `aria-live="polite"` + `aria-busy` 流式抑制（工作区/Dock 双表面）；行为断言 3 例；证据 `assistant-dock/T5-08-streaming-aria-live-evidence.md` |
 | T5-11 | ✅ 2026-10-19 | 宽度交互回写：离散三档 + 键盘循环（显式替代自由拖拽）；"边缘收纳"不采纳（收起态即 FAB） |
 | T5-12 | ✅ 2026-10-19 | 双入口按 B 收口：§3.7/§8 条款认可现状（抑制 + 一次性交接）；§14.4-① 解除；Q3（launcher/深链）连带回写 |
-| T5-02 ~ T5-10 | 待排期 | 见方案 §14.2 |
+| T5-02 ~ T5-07、T5-09 ~ T5-10 | 待排期 | 见方案 §14.2 |
 
 ---
 

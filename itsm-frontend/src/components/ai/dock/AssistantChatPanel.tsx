@@ -416,7 +416,16 @@ const AssistantChatPanel: React.FC = () => {
           }
         }}
       />
-      <div ref={scrollRef} style={{ flex: 1, minHeight: 0, overflowY: 'auto', padding: '14px 12px 6px' }}>
+      {/* T5-08：消息区 live region（与工作区同口径）——role=log + polite；流式期间 aria-busy
+          抑制逐字播报，生成结束置 false 后由读屏一次性读出。 */}
+      <div
+        ref={scrollRef}
+        role="log"
+        aria-label="AI 助手会话消息"
+        aria-live="polite"
+        aria-busy={streaming}
+        style={{ flex: 1, minHeight: 0, overflowY: 'auto', padding: '14px 12px 6px' }}
+      >
         {isEmpty ? (
           <div data-testid="assistant-panel-empty" style={{ padding: '16px 2px' }}>
             <div

@@ -461,10 +461,16 @@ const AIChat: React.FC = () => {
           </div>
         </header>
 
-        {/* b. 消息滚动区（ref 绑在真正的滚动容器上） */}
+        {/* b. 消息滚动区（ref 绑在真正的滚动容器上）。
+            T5-08：消息区即 live region（role=log + polite）——流式期间 aria-busy 抑制逐字播报，
+            生成结束置 false 后由读屏一次性读出完整回答。 */}
         <div
           ref={scrollRef}
           onScroll={handleScroll}
+          role="log"
+          aria-label="AI 助手会话消息"
+          aria-live="polite"
+          aria-busy={streaming}
           style={{ flex: 1, minHeight: 0, overflowY: 'auto', padding: '20px 20px 8px' }}
         >
           {isEmpty ? (

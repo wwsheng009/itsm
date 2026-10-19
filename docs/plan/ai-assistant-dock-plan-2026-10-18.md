@@ -1095,6 +1095,7 @@ Dock 容器、chat-core 抽离、交互状态机、帮助覆盖率 ratchet、Aut
 > 进展（2026-10-19）：T5-01 已完成——证据 `assistant-dock/I0-01-interaction-state-evidence.md`、`assistant-dock/runtime-fixes-batch-2-evidence.md`；登记见交付台账 §E/§G/§H 与 T5 段。
 > 进展（2026-10-19）：T5-12 已按 B 收口——方案 §3.7/§8 条款更新为"工作区抑制 Dock + 一次性会话交接"（`5d87a831`）；一致性用例=既有回归（`AssistantDock` / `AssistantChatPanel` / `use-ai-chat-session`）；§14.4-① 解除；登记见交付台账 §H 与 T5 段。
 > 进展（2026-10-19）：T5-11 已完成——"离散三档 + 键盘循环"回写 §3.1/§3.7（显式替代自由拖拽）；"边缘收纳"显式不采纳（收起态即 FAB，与 D1 一致）；登记见交付台账 T5 段。
+> 进展（2026-10-19）：T5-08 已完成——消息区 live region 双表面落地（`role="log"` + `aria-live="polite"` + 流式 `aria-busy` 抑制；工作区 `AIChat.tsx` / Dock 面板 `AssistantChatPanel.tsx`）；行为断言 `streaming-a11y-behavior.test.tsx`（3 例）实跑 4 suites / 26 tests 全过（含 axe 回归）；证据 `assistant-dock/T5-08-streaming-aria-live-evidence.md`；登记见交付台账 §H 与 T5 段。
 
 ### 14.3 条件项登记表（v5 起统一入口，完成即回填证据并从表移除）
 

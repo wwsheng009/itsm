@@ -293,3 +293,9 @@
 2. **T5-11（宽度交互）**：方案 §3.1 已回写"离散三档 400 / 560 / 720 + 键盘循环（显式替代自由拖拽）"、§3.7 无障碍条同步；"边缘收纳"显式不采纳（收起态即 FAB，与 D1 一致）。
 3. **Q3 连带回写**：launcher / `/ai/chat` 深链口径按现状保留（工作区为持久入口），原"随后统一改为打开 Dock"作废；§14.3 对应行关闭（回写见方案 §12 收口注）。
 4. **快照语义与登记**：本评审正文保留快照口径，本节仅为附注；§3 缺口表第 6、7 项（拖拽调宽 / 边缘收纳、双入口）随本批处置关闭；交付台账 §H 与 T5 段已同步。
+
+### 附-7 流式 aria-live 行为验收落地（2026-10-19，T5-08）
+
+1. **§12 第 12 项缺口关闭**：消息区 live region 双表面落地——工作区 `AIChat.tsx` 与 Dock 面板 `AssistantChatPanel.tsx` 消息滚动容器均为 `role="log"` + `aria-live="polite"` + 流式期间 `aria-busy`（抑制逐字播报、完成后一次性读出）。
+2. **验收方式 = 行为断言**（不依赖 axe 静态扫描）：新增 `streaming-a11y-behavior.test.tsx` 3 例（空态持久 log / busy=true→false 状态机 / 双表面），实跑 4 suites / 26 tests 全过（含 I2-02 axe 回归）；证据 `docs/plan/evidence/assistant-dock/T5-08-streaming-aria-live-evidence.md`。
+3. **快照语义**：本评审正文保留快照口径，本节仅为附注。
