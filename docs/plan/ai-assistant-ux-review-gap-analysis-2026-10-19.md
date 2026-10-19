@@ -184,3 +184,6 @@
 5. **收口（2026-10-19，T5-11 / T5-12）**：双入口冲突已按 B 收口——方案 §3.7/§8 条款更新认可现状（工作区抑制 Dock + 一次性交接；§14.4-① 解除）；宽度交互按"离散三档 + 键盘循环"回写方案 §3.1/§3.7（显式替代自由拖拽），"边缘收纳"不采纳（收起态即 FAB）。本文 F1 行与建议 13 的"拖拽/钳制"表述按第 4 条更新为准、至此关闭；"窄屏 Bottom Sheet"仍为待办项。
 
 6. **消息区 aria-live 缺口关闭（2026-10-19，T5-08）**：第 24 条 / B9 / F2 中"消息区无 `role="log"/aria-live`、屏幕阅读器无播报"的缺口已关闭——工作区与 Dock 面板消息区均为 `role="log"` + `aria-live="polite"`，流式期间 `aria-busy` 抑制逐字播报、完成后一次性读出；行为断言 `streaming-a11y-behavior.test.tsx`（3 例，独立于 axe 扫描；证据 `docs/plan/evidence/assistant-dock/T5-08-streaming-aria-live-evidence.md`）。第 117 条建议中"输入框补 `aria-label`、`RunStatusBar` 补 `role="status"`、Dock 补 `aria-modal`/初始聚焦"等其余条目维持原口径（未变）。
+
+
+7. **斜杠命令与 `@` 引用落地（2026-10-19，T5-02）**：缺失清单第 8 条 / B4 / 建议 10 / §3 映射表"斜杠命令（`/` 快捷指令）"的缺口已关闭——输入坞双表面支持 `/工单` `/SLA` `/话术`（键盘/点击选择，只填不发）与 `@` 引用 L2 当前页对象（无对象时提示）；解析单测 20 例 + 交互 4 例，证据 `docs/plan/evidence/assistant-dock/T5-02-input-dock-slash-and-reference-evidence.md`。"与 I0-03 命令面板统一"维持后续增强（注册表可替换）；建议 9 的"附件/截图上传"仍待 T5-03。

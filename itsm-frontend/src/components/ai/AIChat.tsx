@@ -5,8 +5,9 @@
  * `chat-core/use-ai-chat-session`，消息项抽到 `chat-core/ChatMessageItem`；
  * 本文件只保留整页布局锁 + 工作区外壳 JSX（会话历史 / 工具条 / 消息区 / 输入坞）。
  */
-import React, { useLayoutEffect } from 'react';
+import React, { useLayoutEffect, useRef } from 'react';
 import { Alert, Button, Input, Popconfirm, Select, Spin, Tag, Tooltip, Typography, theme } from 'antd';
+import type { TextAreaRef } from 'antd/es/input/TextArea';
 import {
   Bot,
   ChevronLeft,
@@ -30,6 +31,8 @@ import { ChatMessageItem } from './chat-core/ChatMessageItem';
 import SuggestionCards from './chat-core/SuggestionCards';
 import { CONTENT_MAX_WIDTH } from './chat-core/constants';
 import { useAIChatSession } from './chat-core/use-ai-chat-session';
+import { InputDockAssistMenu } from './chat-core/InputDockAssistMenu';
+import { useInputDockAssist } from './chat-core/use-input-dock-assist';
 import AssistantDiagnosticsEntry, {
   AI_CHAT_DIAGNOSTICS_OPEN_TESTID,
 } from './diagnostics/AssistantDiagnosticsEntry';
@@ -159,6 +162,15 @@ const AIChat: React.FC = () => {
     handleRequestConfirm,
     openOutcome,
   } = useAIChatSession({ consumeWorkspaceHandoff: true });
+
+  // T5-02：输入坞 `/` 快捷指令 + `@` 当前页对象引用（只填不发）。
+  const inputRef = useRef<TextAreaRef>(null);
+  const inputAssist = useInputDockAssist({
+    query,
+    setQuery,
+    onSessionKeyDown: handleKeyDown,
+    inputRef,
+  });
 
   return (
     <div data-ai-chat-page style={{ display: 'flex', gap: 12, flex: '1 1 auto', minHeight: 0 }}>
@@ -550,6 +562,7 @@ const AIChat: React.FC = () => {
           <div style={{ maxWidth: CONTENT_MAX_WIDTH, margin: '0 auto' }}>
             <div
               style={{
+                position: 'relative',
                 display: 'flex',
                 alignItems: 'flex-end',
                 gap: 8,
@@ -561,9 +574,11 @@ const AIChat: React.FC = () => {
               }}
             >
               <Input.TextArea
+                ref={inputRef}
+                data-testid="assistant-chat-input"
                 value={query}
                 onChange={e => setQuery(e.target.value)}
-                onKeyDown={handleKeyDown}
+                onKeyDown={inputAssist.handleKeyDown}
                 placeholder="请输入你的问题…"
                 autoSize={{ minRows: 1, maxRows: 8 }}
                 variant="borderless"
@@ -589,6 +604,16 @@ const AIChat: React.FC = () => {
                   aria-label="发送"
                 />
               )}
+              {inputAssist.assist ? (
+                <InputDockAssistMenu
+                  mode={inputAssist.assist.mode}
+                  items={inputAssist.assist.items}
+                  activeIndex={inputAssist.assist.activeIndex}
+                  hint={inputAssist.assist.hint}
+                  onSelect={inputAssist.selectItem}
+                  onHighlight={inputAssist.highlightItem}
+                />
+              ) : null}
             </div>
             <div
               style={{

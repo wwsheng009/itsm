@@ -304,3 +304,11 @@
 
 1. **§2/§3/§7 悬空依赖关闭**：L69（§2 悬空清单）、§3 第 11 项与 §7 建议 9 中"文案批次"不再悬空——新设 **T5-13**「文案 i18n 批次」（范围 = 助手各表面新增文案；验收 = `useI18n` zh/en 键齐全；证据路径 `assistant-dock/T5-13-i18n-copy-batch-evidence.md`），方案 §14.2/§14.3 与交付台账已同步。
 2. **快照语义**：本评审正文保留快照口径，本节仅为附注。
+
+
+### 附-9 输入坞 `/` 快捷指令 + `@` 引用落地（2026-10-19，T5-02）
+
+1. **§3 缺口表第 1 项关闭**：输入坞 `/` 快捷指令与 `@` 引用当前页对象已双表面落地（工作区 `AIChat.tsx` / Dock 面板 `AssistantChatPanel.tsx`）——共享模块 `chat-core/input-dock-commands.ts`（触发解析/过滤/替换）、`InputDockAssistMenu.tsx`（菜单）、`use-input-dock-assist.ts`（键盘交互）；命令集 v1 = `/工单` `/SLA` `/话术`（UX B4 示例，注册表可扩展）；`@` 列出 L2 当前页对象（无对象/无匹配时给提示，非静默）。
+2. **验收（解析 + 交互测试）**：解析单测 20 例（`input-dock-commands.test.ts`）+ 双表面交互 4 例（`input-dock-assist.test.tsx`）——`/` 触发/过滤/↑↓/Enter 选择（菜单开启时不发送）/Esc 交还；`@` 插入 `@类型#编号 `。实跑新测 2 suites / 24 tests + 回归 8 suites / 61 tests 全过；证据 `docs/plan/evidence/assistant-dock/T5-02-input-dock-slash-and-reference-evidence.md`。
+3. **§7 建议 2 部分落地**："输入坞：`/` 快捷指令与 `@` 页面对象引用"完成；"附件/截图输入"仍挂 T5-03。
+4. **快照语义**：本评审正文保留快照口径，本节仅为附注。

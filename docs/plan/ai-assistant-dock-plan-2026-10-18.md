@@ -1098,6 +1098,7 @@ Dock 容器、chat-core 抽离、交互状态机、帮助覆盖率 ratchet、Aut
 > 进展（2026-10-19）：T5-11 已完成——"离散三档 + 键盘循环"回写 §3.1/§3.7（显式替代自由拖拽）；"边缘收纳"显式不采纳（收起态即 FAB，与 D1 一致）；登记见交付台账 T5 段。
 > 进展（2026-10-19）：T5-08 已完成——消息区 live region 双表面落地（`role="log"` + `aria-live="polite"` + 流式 `aria-busy` 抑制；工作区 `AIChat.tsx` / Dock 面板 `AssistantChatPanel.tsx`）；行为断言 `streaming-a11y-behavior.test.tsx`（3 例）实跑 4 suites / 26 tests 全过（含 axe 回归）；证据 `assistant-dock/T5-08-streaming-aria-live-evidence.md`；登记见交付台账 §H 与 T5 段。
 > 进展（2026-10-19）：T5-10 已完成——"文案批次"任务化：新设 **T5-13**（文案 i18n 批次，助手各表面；验收=useI18n zh/en 键齐全 + 证据路径）；§14.3 条件行改挂 T5-13；登记见交付台账 T5 段。
+> 进展（2026-10-19）：T5-02 已完成——输入坞 `/` 快捷指令（`/工单` `/SLA` `/话术`）+ `@` 引用当前页对象双表面落地（共享模块 `chat-core/input-dock-commands.ts` / `InputDockAssistMenu.tsx` / `use-input-dock-assist.ts`；工作区 `AIChat.tsx` / Dock 面板 `AssistantChatPanel.tsx` 接线）；菜单开启时 Enter 只做选择不发送、Esc 后交还会话路径；解析单测 20 例 + 双表面交互 4 例（新测 2 suites / 24 tests；回归 8 suites / 61 tests 全过）；证据 `assistant-dock/T5-02-input-dock-slash-and-reference-evidence.md`；登记见交付台账 §H 与 T5 段。
 
 ### 14.3 条件项登记表（v5 起统一入口，完成即回填证据并从表移除）
 

@@ -44,6 +44,8 @@ import AssistantMemoryChips from './AssistantMemoryChips';
 import AssistantAsyncAnswerCard from './AssistantAsyncAnswerCard';
 import AssistantInteractionBanner from './AssistantInteractionBanner';
 import { deriveInteractionState } from '@/lib/ai/interaction-state';
+import { InputDockAssistMenu } from '@/components/ai/chat-core/InputDockAssistMenu';
+import { useInputDockAssist } from '@/components/ai/chat-core/use-input-dock-assist';
 
 const AssistantChatPanel: React.FC = () => {
   const { token } = theme.useToken();
@@ -196,6 +198,14 @@ const AssistantChatPanel: React.FC = () => {
     },
     [setQuery]
   );
+
+  // T5-02：输入坞 `/` 快捷指令 + `@` 当前页对象引用（只填不发）。
+  const inputAssist = useInputDockAssist({
+    query,
+    setQuery,
+    onSessionKeyDown: handleKeyDown,
+    inputRef,
+  });
 
   // V2-02：后台精算（先给可用答案 + 完成后回执/通知）；发起失败如实提示，不静默假装。
   const handleStartAsync = useCallback(async () => {
@@ -490,6 +500,7 @@ const AssistantChatPanel: React.FC = () => {
 
         <div
           style={{
+            position: 'relative',
             display: 'flex',
             alignItems: 'flex-end',
             gap: 8,
@@ -504,7 +515,7 @@ const AssistantChatPanel: React.FC = () => {
             data-testid="assistant-panel-input"
             value={query}
             onChange={e => setQuery(e.target.value)}
-            onKeyDown={handleKeyDown}
+            onKeyDown={inputAssist.handleKeyDown}
             placeholder="请输入你的问题…"
             // P1：宽档位（≥560px）给输入更多行数，长提示词不必在 6 行里滚动。
             autoSize={{ minRows: 1, maxRows: widePanel ? 10 : 6 }}
@@ -540,6 +551,16 @@ const AssistantChatPanel: React.FC = () => {
               aria-label="发送"
             />
           )}
+          {inputAssist.assist ? (
+            <InputDockAssistMenu
+              mode={inputAssist.assist.mode}
+              items={inputAssist.assist.items}
+              activeIndex={inputAssist.assist.activeIndex}
+              hint={inputAssist.assist.hint}
+              onSelect={inputAssist.selectItem}
+              onHighlight={inputAssist.highlightItem}
+            />
+          ) : null}
         </div>
         <div
           style={{
