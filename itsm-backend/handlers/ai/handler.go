@@ -634,6 +634,11 @@ func (h *Handler) ChatStream(c *gin.Context) {
 		done["provider"] = resolution.Key
 		done["providerSource"] = resolution.Source
 	}
+	// T5-06a：模型名随 done 回带，供前端 stream_end 埋点计算模型分布。
+	// 静态回退未配置 model 时为空 → 不落字段（不伪造模型名）。
+	if resolution.Model != "" {
+		done["model"] = resolution.Model
+	}
 	// O2-02/§13.4：usage 恒在 done 之前发送（前端以 done 收口回合，尾事件先到）。
 	writeUsageEvent(writeEvent, usage)
 	writeEvent(SSEEventDone, done)

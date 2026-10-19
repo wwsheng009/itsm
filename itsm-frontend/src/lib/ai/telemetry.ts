@@ -31,6 +31,8 @@ export const ASSISTANT_EVENT_NAMES = [
   'message_sent',
   'first_token',
   'stream_end',
+  // T5-06a 质量层：回答级反馈（helpful/unhelpful）。
+  'message_feedback',
   'tool_call',
   'confirmation_shown',
   'confirmation_accepted',
@@ -102,6 +104,14 @@ export interface AssistantEventInput {
   durationMs?: number;
   tokenIn?: number;
   tokenOut?: number;
+  /** T5-06a：本回合引用条数（0 = 无引用回答；旧后端缺省不落字段）。 */
+  sourcesCount?: number;
+  /** T5-06a：引用覆盖率的分母/分子便捷标记（sourcesCount > 0）。 */
+  hasSources?: boolean;
+  /** T5-06a：问题文本哈希（仅分组关联，不采集原文）。 */
+  queryHash?: string;
+  /** T5-06a：回答级反馈。 */
+  feedback?: 'helpful' | 'unhelpful';
   errorCode?: string;
   recoveryAction?: string;
   field?: string;
@@ -189,6 +199,10 @@ const COPYABLE_FIELDS = [
   'durationMs',
   'tokenIn',
   'tokenOut',
+  'sourcesCount',
+  'hasSources',
+  'queryHash',
+  'feedback',
   'errorCode',
   'recoveryAction',
   'field',

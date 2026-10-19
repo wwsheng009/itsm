@@ -1129,6 +1129,8 @@ export interface AIUsageEstimate {
 export interface AIChatDoneInfo {
   provider?: string;
   providerSource?: string;
+  /** T5-06a：本回合生效模型（done 事件回带；静态回退缺省）。 */
+  model?: string;
   /** v2 `usage` 事件（恒在 done 前到达；旧后端缺省 → undefined，调用方按无数据处理）。 */
   usage?: AIUsageEstimate;
 }
@@ -1145,7 +1147,7 @@ export type AIChatStreamEvent =
   | { type: 'run_started'; run: AIRunStartedEvent }
   | { type: 'step'; step: AIRunStepEvent }
   | { type: 'usage'; usage: AIUsageEstimate }
-  | { type: 'done'; conversationId: number; provider?: string; providerSource?: string; usage?: AIUsageEstimate }
+  | { type: 'done'; conversationId: number; provider?: string; providerSource?: string; model?: string; usage?: AIUsageEstimate }
   | { type: 'error'; message: string };
 
 /**
@@ -1481,15 +1483,17 @@ export async function aiChatStream(
               conversationId?: number;
               provider?: string;
               providerSource?: string;
+              model?: string;
             };
             finalConversationId = payload?.conversationId ?? finalConversationId;
             // 开关关闭/静态回退时 done 不含 provider 字段 → 第二参数缺省，
             // 调用方与既有行为完全一致（QA-3 回归门禁）；usage 存在时才补第二参数。
             const info =
-              payload?.provider || payload?.providerSource || finalUsage
+              payload?.provider || payload?.providerSource || payload?.model || finalUsage
                 ? {
                     provider: payload?.provider,
                     providerSource: payload?.providerSource,
+                    model: payload?.model,
                     usage: finalUsage,
                   }
                 : undefined;

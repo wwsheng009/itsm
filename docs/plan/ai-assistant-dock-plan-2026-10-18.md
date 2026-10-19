@@ -1015,7 +1015,8 @@ Dock 容器、chat-core 抽离、交互状态机、帮助覆盖率 ratchet、Aut
 | `context_loaded/degraded` | page_key、有无 target、耗时 | 上下文质量 |
 | `suggestion_shown/clicked/ignored` | card_id、kind（task/question）、rank | 建议排序与价值 |
 | `task_started/completed/failed` | task_card_id、outcome.type、耗时、error_code | 任务闭环漏斗 |
-| `message_sent / first_token / stream_end` | latency_ms、model、token_in/out、provider_source | 性能与成本 |
+| `message_sent / first_token / stream_end` | latency_ms、model、token_in/out、provider_source、query_hash、sources_count | 性能与成本；引用覆盖率/无引用回答率 |
+| `message_feedback` | query_hash、feedback（helpful/unhelpful）、conversation_id | 回答级点踩率（质量层） |
 | `tool_call / confirmation_shown/accepted/rejected / approval_pending` | tool、risk、reason_code | 治理与信任 |
 | `inline_preview/applied/undone` | field、source（triage/ai）、undo 原因 | Inline 采纳与风险 |
 | `help_opened / help_gap / doc_draft_created / doc_draft_published / doc_feedback` | page_key、query_hash、coverage_status、extra.helpful、extra.kind | 帮助闭环与缺口、起草落地率（草稿→成文）、反馈解决率（P2 运营报表） |
@@ -1084,7 +1085,9 @@ Dock 容器、chat-core 抽离、交互状态机、帮助覆盖率 ratchet、Aut
 | T5-03 | 附件/截图输入（语音输入可显式关闭） | §3.5 L100–101 | 上传面 + 双界面接线 |
 | T5-04 | handoff"转人工"三项（打开页面 / 预填 / 指派） | §3.2 L65；现仅埋点 | 端到端用例 |
 | T5-05 | 灰度开关 `assistant.dock.enabled` / `help.agent.enabled` | §3.7 L118、§6 L270 | 平台配置 + 免重启生效 |
-| T5-06 | 质量层数据源：citation 埋点（sources 数 / 无引用回答）、回答级点踩、`model` 上报、`query_hash` 补链 | §13.3；§11.5 门槛依赖 | 指标可算 + 看板接线 |
+| T5-06 | 质量层数据源与看板接线（父任务，拆分为 T5-06a / T5-06b） | §13.3；§11.5 门槛依赖 | 两个子任务完成 |
+| T5-06a | 质量层数据源：citation 埋点（sources 数 / 无引用回答）、回答级点踩、`model` 上报、`query_hash` 补链 | §13.3；§11.5 门槛依赖 | ✅ 指标可算（2026-10-19；证据 `assistant-dock/T5-06a-quality-data-source-evidence.md`） |
+| T5-06b | 质量层看板接线：summary `quality` / `models` 接入观测看板；§11.5 三指标标注可测 | §13.3；§14.4-③/④ | 看板展示 + 门槛可执行 |
 | T5-07 | 成本口径修正（首 token P95 / 整体 P95 区分、补 P50）+ 模型分级路由与成本上限（Q5） | §13.3、§12 Q5 | 口径评审 + 看板 |
 | T5-08 | 流式 `aria-live` 行为验收（不限于 axe 静态扫描） | §3.7 L113；I2-02 盲区 | 行为断言 |
 | T5-09 | 帮助写面收口：`help_update_draft` / `help_submit_review` / `help_publish` + diff 预览 / 一键审阅 UI；help-index 向量化 | §5.4/§5.5 | 按 §5 设计验收 |
@@ -1099,6 +1102,8 @@ Dock 容器、chat-core 抽离、交互状态机、帮助覆盖率 ratchet、Aut
 > 进展（2026-10-19）：T5-08 已完成——消息区 live region 双表面落地（`role="log"` + `aria-live="polite"` + 流式 `aria-busy` 抑制；工作区 `AIChat.tsx` / Dock 面板 `AssistantChatPanel.tsx`）；行为断言 `streaming-a11y-behavior.test.tsx`（3 例）实跑 4 suites / 26 tests 全过（含 axe 回归）；证据 `assistant-dock/T5-08-streaming-aria-live-evidence.md`；登记见交付台账 §H 与 T5 段。
 > 进展（2026-10-19）：T5-10 已完成——"文案批次"任务化：新设 **T5-13**（文案 i18n 批次，助手各表面；验收=useI18n zh/en 键齐全 + 证据路径）；§14.3 条件行改挂 T5-13；登记见交付台账 T5 段。
 > 进展（2026-10-19）：T5-02 已完成——输入坞 `/` 快捷指令（`/工单` `/SLA` `/话术`）+ `@` 引用当前页对象双表面落地（共享模块 `chat-core/input-dock-commands.ts` / `InputDockAssistMenu.tsx` / `use-input-dock-assist.ts`；工作区 `AIChat.tsx` / Dock 面板 `AssistantChatPanel.tsx` 接线）；菜单开启时 Enter 只做选择不发送、Esc 后交还会话路径；解析单测 20 例 + 双表面交互 4 例（新测 2 suites / 24 tests；回归 8 suites / 61 tests 全过）；证据 `assistant-dock/T5-02-input-dock-slash-and-reference-evidence.md`；登记见交付台账 §H 与 T5 段。
+
+> 进展（2026-10-19）：T5-06a 已完成——质量层事件契约（§13.2）新增 `message_feedback` 与 `sources_count` / `query_hash` / `model` 字段；前端 SDK 补 `onSources`、回答级反馈按钮与历史消息补链；后端迁移新增 4 列 + 2 索引，INSERT 14→18 列，summary 新增 `quality`（引用覆盖率 / 无引用回答率 / 点踩率，空分母为 `null`）与 `models`（Top 20）；`stream_end` 显式 `0` = 无引用，`NULL` = 旧客户端不计入分母。验证：后端 3 包 + 前端 4 suites / 42 tests 全过，eslint/tsc/gofmt 全绿；证据 `assistant-dock/T5-06a-quality-data-source-evidence.md`。看板接线归 **T5-06b**（待排期）；登记见交付台账 T5 段。
 
 > 进展（2026-10-19）：T5-13 已完成——12 个助手表面（面板/建议/记忆条/回执卡/门户入口/帮助视图/Dock/批量面板/邮件入口等）接入 `useI18n`；新增 `assistant` 命名空间（`translations-assistant.ts`，11 子命名空间、zh/en 各 213 键，键集与占位符对齐校验通过）；zh 值与原字面量逐字一致；eslint/tsc 全绿，回归 40/41 suites 通过（唯一失败为存量 `TicketDetailAssignSearch`，HEAD 复现）；证据 `assistant-dock/T5-13-i18n-copy-batch-evidence.md`；登记见交付台账 T5 段。
 
@@ -1117,8 +1122,8 @@ Dock 容器、chat-core 抽离、交互状态机、帮助覆盖率 ratchet、Aut
 
 1. **双入口口径（用户/负责人拍板）**：方案 §3.7 L119、§8 L914 为"双入口并存 + 在侧栏继续 / 全屏打开"；实现（`5d87a831` 等）为"工作区抑制 Dock + 一次性会话交接（convId + 页面 scope）"。二选一：改实现回到并存，或更新方案条款认可现状（T5-12 据此收口）。→ 2026-10-19：**按 B 收口**——条款已更新认可现状（见 §3.7/§8）；原"在侧栏继续 / 全屏打开"表述作废；一致性用例=既有回归；§14.3 的 launcher/深链（Q3）行随之回写关闭（见 §12）；本条解除。
 2. **批 2 登记时点**：`4a1fd4f8`/`cd61ce7f`/`26512d69`/`5d87a831` 已提交但缺证据；在 T5-01 完成前，相关能力只可记为"代码已交付（证据待补）"，不得按五级口径记为已验收。→ 2026-10-19：T5-01 已完成补登记（见 §14.2 进展注），本条解除。
-3. **放量门槛口径（§11.5）**：质量层三指标（引用覆盖率 / 无引用回答率 / 点踩率）在 T5-06 落地前应标注"暂不可测"，否则门槛不可执行（评审 §7-F）。
-4. **§13.3 看板口径**：O0-03"四层看板已交付"与"指标可算"分开验收（评审 §5.2 差距表）。
+3. **放量门槛口径（§11.5）**：质量层三指标（引用覆盖率 / 无引用回答率 / 点踩率）自 T5-06a（2026-10-19）起已可算（summary API）；看板接线完成前，界面仍标注"可算未接线"，不得按已展示口径执行放量门槛（评审 §7-F；T5-06b）。
+4. **§13.3 看板口径**：O0-03"四层看板已交付"与"指标可算"分开验收（评审 §5.2 差距表）；T5-06a 已交付后者，前者归 T5-06b。
 
 ### 14.5 文档治理惯例（v5 起）
 

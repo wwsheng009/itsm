@@ -3,6 +3,7 @@ package ai
 import (
 	"encoding/json"
 	"errors"
+	"strings"
 	"time"
 
 	"itsm-backend/common"
@@ -24,19 +25,21 @@ import (
 
 // assistantTelemetryEventNames 是服务端事件白名单。
 var assistantTelemetryEventNames = map[string]struct{}{
-	"assistant_opened":      {},
-	"assistant_closed":      {},
-	"context_loaded":        {},
-	"context_degraded":      {},
-	"suggestion_shown":      {},
-	"suggestion_clicked":    {},
-	"suggestion_ignored":    {},
-	"task_started":          {},
-	"task_completed":        {},
-	"task_failed":           {},
-	"message_sent":          {},
-	"first_token":           {},
-	"stream_end":            {},
+	"assistant_opened":   {},
+	"assistant_closed":   {},
+	"context_loaded":     {},
+	"context_degraded":   {},
+	"suggestion_shown":   {},
+	"suggestion_clicked": {},
+	"suggestion_ignored": {},
+	"task_started":       {},
+	"task_completed":     {},
+	"task_failed":        {},
+	"message_sent":       {},
+	"first_token":        {},
+	"stream_end":         {},
+	// T5-06a 质量层：回答级反馈（extra.helpful=true/false；feedback=helpful/unhelpful）。
+	"message_feedback":      {},
 	"tool_call":             {},
 	"confirmation_shown":    {},
 	"confirmation_accepted": {},
@@ -115,6 +118,10 @@ func (h *Handler) IngestTelemetryEvents(c *gin.Context) {
 			RunID:          truncateRunes(telemetryString(raw, "runId"), 64),
 			LatencyMs:      telemetryLatencyMs(raw),
 			ErrorCode:      truncateRunes(telemetryString(raw, "errorCode"), 64),
+			Model:          truncateRunes(telemetryString(raw, "model"), 128),
+			QueryHash:      truncateRunes(telemetryString(raw, "queryHash"), 64),
+			SourcesCount:   telemetryNonNegativeInt(raw, "sourcesCount"),
+			Feedback:       telemetryFeedback(raw),
 			OccurredAt:     telemetryOccurredAt(raw, now),
 			Payload:        telemetryPayload(raw),
 		})
@@ -183,6 +190,27 @@ func telemetryPositiveInt(event map[string]interface{}, key string) *int {
 	}
 	out := int(value)
 	return &out
+}
+
+// telemetryNonNegativeInt 读取 0 或正整数字段（如 sourcesCount）；缺失/负数返回 nil。
+func telemetryNonNegativeInt(event map[string]interface{}, key string) *int {
+	value, ok := telemetryInt64(event, key)
+	if !ok || value < 0 {
+		return nil
+	}
+	out := int(value)
+	return &out
+}
+
+// telemetryFeedback 只接受质量层约定的两种回答级反馈；未知值丢弃（不放大脏数据）。
+func telemetryFeedback(event map[string]interface{}) string {
+	value := strings.ToLower(strings.TrimSpace(telemetryString(event, "feedback")))
+	switch value {
+	case "helpful", "unhelpful":
+		return value
+	default:
+		return ""
+	}
 }
 
 // telemetryLatencyMs 兼容 latencyMs（首选）与 durationMs（兜底）。

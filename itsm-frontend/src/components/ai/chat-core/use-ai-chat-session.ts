@@ -17,6 +17,7 @@ import {
   getConversationMessages,
   listConversations,
   type AgentBotsCapabilities,
+  type AIMessage,
   type AIPageContextHint,
   type AIRunStepEvent,
   type AIToolStreamEvent,
@@ -42,7 +43,7 @@ import {
 } from '@/lib/ai/ask-ai-scope';
 import { createChatTelemetry } from '@/lib/ai/chat-telemetry';
 import type { AssistantOutcome } from '@/lib/ai/outcome';
-import { trackAssistantEvent } from '@/lib/ai/telemetry';
+import { hashTelemetryText, trackAssistantEvent } from '@/lib/ai/telemetry';
 import { usePageAssistantContext } from '@/lib/ai/page-context/use-page-assistant-context';
 import { useAssistantPageData } from '@/lib/store/assistant-context-store';
 import { useAssistantStore } from '@/lib/store/assistant-store';
@@ -272,18 +273,36 @@ export function useAIChatSession(options?: { consumeWorkspaceHandoff?: boolean }
     return content;
   }, []);
 
+  // T5-06a：历史消息补回答级反馈所需的会话/问题关联（不采集原文，只存哈希）。
+  const mapStoredMessages = useCallback(
+    (msgs: AIMessage[], conversationId: number): ChatMessage[] => {
+      let lastUserQuery = '';
+      return msgs.map(m => {
+        const role = m.role === 'user' ? 'user' : 'assistant';
+        const content = parseMessageContent(m.role, m.content);
+        if (role === 'user') lastUserQuery = content;
+        return {
+          id: `saved-${m.id}`,
+          role,
+          content,
+          createdAt: m.createdAt,
+          conversationId,
+          ...(role === 'assistant' && lastUserQuery
+            ? { queryHash: hashTelemetryText(lastUserQuery) }
+            : {}),
+        };
+      });
+    },
+    [parseMessageContent]
+  );
+
   // 切换到指定会话，加载历史消息
   const switchToConversation = useCallback(
     async (conv: ConversationSummary) => {
       if (streaming) return;
       try {
         const msgs = await getConversationMessages(conv.id);
-        const mapped: ChatMessage[] = msgs.map(m => ({
-          id: `saved-${m.id}`,
-          role: m.role === 'user' ? 'user' : 'assistant',
-          content: parseMessageContent(m.role, m.content),
-          createdAt: m.createdAt,
-        }));
+        const mapped = mapStoredMessages(msgs, conv.id);
         autoScrollRef.current = true;
         setMessages(mapped);
         setConvId(conv.id);
@@ -291,7 +310,7 @@ export function useAIChatSession(options?: { consumeWorkspaceHandoff?: boolean }
         antdMessage.error('加载会话失败');
       }
     },
-    [parseMessageContent, streaming]
+    [mapStoredMessages, streaming]
   );
 
   /**
@@ -313,12 +332,7 @@ export function useAIChatSession(options?: { consumeWorkspaceHandoff?: boolean }
     if (!handoffId) return;
     void getConversationMessages(handoffId)
       .then(msgs => {
-        const mapped: ChatMessage[] = msgs.map(m => ({
-          id: `saved-${m.id}`,
-          role: m.role === 'user' ? 'user' : 'assistant',
-          content: parseMessageContent(m.role, m.content),
-          createdAt: m.createdAt,
-        }));
+        const mapped = mapStoredMessages(msgs, handoffId);
         autoScrollRef.current = true;
         setMessages(mapped);
         setConvId(handoffId);
@@ -326,7 +340,7 @@ export function useAIChatSession(options?: { consumeWorkspaceHandoff?: boolean }
       .catch(() => {
         antdMessage.error('加载会话失败');
       });
-  }, [consumeWorkspaceHandoff, parseMessageContent]);
+  }, [consumeWorkspaceHandoff, mapStoredMessages]);
 
   // 开始新会话
   const startNewConversation = useCallback(() => {
@@ -465,7 +479,7 @@ export function useAIChatSession(options?: { consumeWorkspaceHandoff?: boolean }
         botId: selectedBotId ?? undefined,
         conversationId: convId ?? undefined,
       });
-      telemetry.onSend(userMsg.content.length, convId);
+      telemetry.onSend(userMsg.content, convId);
 
       try {
         const finalConvId = await aiChatStream(
@@ -484,6 +498,7 @@ export function useAIChatSession(options?: { consumeWorkspaceHandoff?: boolean }
           {
             onSources: sources => {
               updateAssistant(assistantId, { sources });
+              telemetry.onSources(sources.length);
             },
             onDelta: delta => {
               appendAssistantContent(assistantId, delta);
@@ -512,6 +527,7 @@ export function useAIChatSession(options?: { consumeWorkspaceHandoff?: boolean }
                 conversationId: newConvId,
                 provider: info?.provider,
                 providerSource: info?.providerSource,
+                model: info?.model,
                 // O2-02/§13.4：usage 缺席时保持 undefined（SDK 不落字段，旧后端零变化）。
                 tokenIn: info?.usage?.tokenIn,
                 tokenOut: info?.usage?.tokenOut,
@@ -529,6 +545,7 @@ export function useAIChatSession(options?: { consumeWorkspaceHandoff?: boolean }
                         ...m,
                         streaming: false,
                         providerInfo: info,
+                        conversationId: newConvId ?? convId,
                         // O2-02/§13.4：回合用量估算（诊断抽屉数据源；旧后端缺省）。
                         usage: info?.usage,
                         run: m.run ? { ...m.run, status: 'done' } : undefined,
@@ -584,6 +601,7 @@ export function useAIChatSession(options?: { consumeWorkspaceHandoff?: boolean }
             streaming: false,
             content: fallbackText || '抱歉，我没有找到相关的答案。',
             sources: answers.filter((a): a is RagAnswer => typeof a === 'object' && a !== null),
+            conversationId: res?.conversationId ?? convId,
           });
           if (res?.conversationId) {
             setConvId(res.conversationId);
@@ -640,6 +658,8 @@ export function useAIChatSession(options?: { consumeWorkspaceHandoff?: boolean }
         content: '',
         createdAt: new Date().toISOString(),
         streaming: true,
+        conversationId: convId,
+        queryHash: hashTelemetryText(trimmed),
       };
       setMessages(prev => [...prev, userMsg, assistantMsg]);
       setQuery('');

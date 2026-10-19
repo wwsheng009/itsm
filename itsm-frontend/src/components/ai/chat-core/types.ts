@@ -30,6 +30,10 @@ export interface ChatMessage {
   steps?: AIRunStepEvent[];
   /** 生效实例（done 事件回带；开关关闭时缺省）。 */
   providerInfo?: { provider?: string; providerSource?: string };
+  /** T5-06a：会话 id（回答级反馈关联；历史消息可能缺省）。 */
+  conversationId?: number;
+  /** T5-06a：对应问题的 FNV-1a 哈希（仅分组关联，不存原文）。 */
+  queryHash?: string;
   /**
    * O2-02/§13.4：本回合 token 用量**估算**（v2 `usage` 事件，随 done 回带）。
    * 口径：字符/4，非账单；旧后端缺省 → 诊断抽屉显示「无计量数据」。

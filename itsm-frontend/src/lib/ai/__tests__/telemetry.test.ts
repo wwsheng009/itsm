@@ -45,6 +45,7 @@ const EXPECTED_EVENT_NAMES = [
   'message_sent',
   'first_token',
   'stream_end',
+  'message_feedback',
   'tool_call',
   'confirmation_shown',
   'confirmation_accepted',

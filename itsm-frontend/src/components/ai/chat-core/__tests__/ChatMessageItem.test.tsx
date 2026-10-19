@@ -15,6 +15,7 @@ jest.mock('@/lib/hooks/use-permissions', () => ({
 jest.mock('@/lib/ai/telemetry', () => ({
   __esModule: true,
   trackAssistantEvent: jest.fn(),
+  hashTelemetryText: (text: string) => `h-${text.length}`,
 }));
 
 const message: ChatMessage = {
@@ -69,5 +70,34 @@ describe('ChatMessageItem × OutcomeReceipt（I0-04）', () => {
       />
     );
     expect(screen.queryByTestId('outcome-receipt')).not.toBeInTheDocument();
+  });
+
+  it('回答级反馈：点击一次上报 message_feedback 并固化', () => {
+    const mockedTrack = trackAssistantEvent as jest.Mock;
+    mockedTrack.mockClear();
+    render(
+      <ChatMessageItem
+        message={{ ...message, conversationId: 9, queryHash: 'q-1' }}
+        providerLabel={() => 'provider'}
+        onCreateArticle={jest.fn()}
+        onOpenApproval={jest.fn()}
+      />
+    );
+
+    fireEvent.click(screen.getByTestId('answer-feedback-unhelpful'));
+    expect(mockedTrack).toHaveBeenCalledWith(
+      'message_feedback',
+      expect.objectContaining({
+        conversationId: 9,
+        queryHash: 'q-1',
+        feedback: 'unhelpful',
+        extra: { helpful: false },
+      })
+    );
+    expect(screen.getByTestId('answer-feedback-thanks')).toBeInTheDocument();
+
+    // 单条消息只允许反馈一次，重复点击不重复计数。
+    fireEvent.click(screen.getByTestId('answer-feedback-helpful'));
+    expect(mockedTrack).toHaveBeenCalledTimes(1);
   });
 });

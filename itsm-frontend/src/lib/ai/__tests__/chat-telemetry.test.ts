@@ -5,7 +5,7 @@ import {
   createChatTelemetry,
   type ChatTelemetryTrack,
 } from '@/lib/ai/chat-telemetry';
-import type { AssistantEventName } from '@/lib/ai/telemetry';
+import { hashTelemetryText, type AssistantEventName } from '@/lib/ai/telemetry';
 
 function createRecorder() {
   const calls: Array<{ name: AssistantEventName; input: Record<string, unknown> }> = [];
@@ -25,7 +25,7 @@ describe('createChatTelemetry', () => {
       () => clock
     );
 
-    telemetry.onSend(12, 88);
+    telemetry.onSend('hello world!', 88);
     expect(calls).toHaveLength(1);
     expect(calls[0].name).toBe('message_sent');
     expect(calls[0].input).toMatchObject({
@@ -33,6 +33,7 @@ describe('createChatTelemetry', () => {
       route: '/ai/chat',
       entrypoint: 'ticket_detail',
       conversationId: 88,
+      queryHash: hashTelemetryText('hello world!'),
       extra: { queryLength: 12, botId: 3 },
     });
 
@@ -51,12 +52,21 @@ describe('createChatTelemetry', () => {
     });
 
     clock += 100;
-    telemetry.onDone({ conversationId: 99, provider: 'doubao', providerSource: 'tenant' });
+    telemetry.onSources(2);
+    telemetry.onDone({
+      conversationId: 99,
+      provider: 'doubao',
+      providerSource: 'tenant',
+      model: 'doubao-pro',
+    });
     expect(calls[3].name).toBe('stream_end');
     expect(calls[3].input).toMatchObject({
       conversationId: 99,
       latencyMs: 350,
       providerSource: 'tenant',
+      model: 'doubao-pro',
+      sourcesCount: 2,
+      hasSources: true,
       extra: { provider: 'doubao' },
     });
 
@@ -82,7 +92,7 @@ describe('createChatTelemetry', () => {
     let clock = 5_000;
     const telemetry = createChatTelemetry({ pageKey: 'ai.chat' }, track, () => clock);
 
-    telemetry.onSend(4);
+    telemetry.onSend('test');
     clock += 80;
     telemetry.onError('provider timeout');
     expect(calls).toHaveLength(2);
@@ -112,14 +122,14 @@ describe('createChatTelemetry', () => {
       throw new Error('sink down');
     };
     const telemetry = createChatTelemetry({ pageKey: 'ai.chat' }, failing, () => 0);
-    expect(() => telemetry.onSend(3)).not.toThrow();
+    expect(() => telemetry.onSend('abc')).not.toThrow();
     expect(() => telemetry.onDone()).not.toThrow();
   });
 
   it('会话 id 回退：onSend 未传时使用上下文会话 id', () => {
     const { calls, track } = createRecorder();
     const telemetry = createChatTelemetry({ pageKey: 'ai.chat', conversationId: 7 }, track, () => 0);
-    telemetry.onSend(1);
+    telemetry.onSend('x');
     expect(calls[0].input.conversationId).toBe(7);
   });
 
@@ -127,7 +137,7 @@ describe('createChatTelemetry', () => {
     const { calls, track } = createRecorder();
     const telemetry = createChatTelemetry({ pageKey: 'ai.chat' }, track, () => 0);
 
-    telemetry.onSend(6);
+    telemetry.onSend('abcdef');
     telemetry.onDone({ conversationId: 5, tokenIn: 120, tokenOut: 48 });
 
     const streamEnd = calls.find(call => call.name === 'stream_end');
@@ -143,7 +153,7 @@ describe('createChatTelemetry', () => {
     const { calls, track } = createRecorder();
     const telemetry = createChatTelemetry({ pageKey: 'ai.chat' }, track, () => 0);
 
-    telemetry.onSend(6);
+    telemetry.onSend('abcdef');
     telemetry.onDone({ conversationId: 5, tokenIn: 33, tokenOut: 7, tokenEstimated: false });
 
     const streamEnd = calls.find(call => call.name === 'stream_end');
@@ -158,12 +168,29 @@ describe('createChatTelemetry', () => {
     const { calls, track } = createRecorder();
     const telemetry = createChatTelemetry({ pageKey: 'ai.chat' }, track, () => 0);
 
-    telemetry.onSend(6);
+    telemetry.onSend('abcdef');
     telemetry.onDone({ conversationId: 5 });
 
     const streamEnd = calls.find(call => call.name === 'stream_end');
     expect(streamEnd?.input.tokenIn).toBeUndefined();
     expect(streamEnd?.input.tokenOut).toBeUndefined();
+    expect(streamEnd?.input.sourcesCount).toBe(0);
+    expect(streamEnd?.input.hasSources).toBe(false);
     expect(streamEnd?.input.extra).toEqual({});
+  });
+
+  it('无 sources 事件时 stream_end 记 0（无引用回答进入质量层分母）', () => {
+    const { calls, track } = createRecorder();
+    const telemetry = createChatTelemetry({ pageKey: 'ai.chat' }, track, () => 0);
+
+    telemetry.onSend('无引用问题');
+    telemetry.onDone({ conversationId: 5 });
+
+    const streamEnd = calls.find(call => call.name === 'stream_end');
+    expect(streamEnd?.input).toMatchObject({
+      sourcesCount: 0,
+      hasSources: false,
+      queryHash: hashTelemetryText('无引用问题'),
+    });
   });
 });

@@ -15,7 +15,8 @@ import (
 //
 //  1. 事件名只在本文件定义；`writeToolEvent` 等发送点一律引用本表常量，杜绝"同名不同义"。
 //  2. **向后兼容策略 = 只增不改**：
-//     - v1 事件（sources/delta/done/error/tool_call_*/approval_pending）保持**事件名与载荷字节级不变**；
+//     - v1 事件（sources/delta/done/error/tool_call_*/approval_pending）保持**事件名与既有字段语义不变**；
+//     新增信息只能追加可选字段（如 done.model?），旧客户端忽略未知字段；
 //     - v2 新增事件（run_started/step/confirmation_required/artifact）在对象载荷中携带 `"v":2` 版本字段；
 //     - `confirmation_required` 与 v1 的 `approval_pending` **双发**（同一语义两种名字），
 //     旧客户端命中旧名，新客户端读新名，双方都不需要改代码即可灰度。
@@ -31,13 +32,13 @@ const (
 	// SSEProtocolVersionV2 是 v2 协议版本号（写入 v2 事件的 `v` 字段）。
 	SSEProtocolVersionV2 = 2
 
-	// ---- v1 事件（载荷不再变更） ----
+	// ---- v1 事件（事件名与既有字段不变；仅允许追加可选字段） ----
 
 	// SSEEventSources：RAG 检索来源数组（载荷为数组）。
 	SSEEventSources = "sources"
 	// SSEEventDelta：正文增量（载荷 {content}）。
 	SSEEventDelta = "delta"
-	// SSEEventDone：流正常结束（载荷 {conversationId, provider?, providerSource?}）。
+	// SSEEventDone：流正常结束（载荷 {conversationId, provider?, providerSource?, model?}）。
 	SSEEventDone = "done"
 	// SSEEventError：流以错误结束（载荷 {message, errorCode?}）。
 	SSEEventError = "error"
@@ -91,7 +92,7 @@ type SSEEventSpec struct {
 var sseEventRegistry = []SSEEventSpec{
 	{Name: SSEEventSources, Version: 1, Payload: "[{objectType,id,title,snippet,score}]（数组载荷）"},
 	{Name: SSEEventDelta, Version: 1, Payload: "{content}"},
-	{Name: SSEEventDone, Version: 1, Payload: "{conversationId, provider?, providerSource?}"},
+	{Name: SSEEventDone, Version: 1, Payload: "{conversationId, provider?, providerSource?, model?}"},
 	{Name: SSEEventError, Version: 1, Payload: "{message, errorCode?}"},
 	{Name: SSEEventToolCallStarted, Version: 1, Family: SSEFamilyToolCall, Payload: "{id?,tool,provider,server?,phase,status:\"started\"}"},
 	{Name: SSEEventToolCallFinished, Version: 1, Family: SSEFamilyToolCall, Payload: "{id?,tool,provider,server?,phase,status:\"done\",summary,durationMs}"},

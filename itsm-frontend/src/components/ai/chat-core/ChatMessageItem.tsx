@@ -4,7 +4,7 @@
  */
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Alert, Avatar, Button, Spin, Tag, Tooltip, Typography, theme } from 'antd';
-import { Bot, Check, Copy, FileText } from 'lucide-react';
+import { Bot, Check, Copy, FileText, ThumbsDown, ThumbsUp } from 'lucide-react';
 
 import { aiApproveTool, type RagAnswer, type ToolInvocationDetail } from '@/lib/api/ai-api';
 import { usePermissions } from '@/lib/hooks/use-permissions';
@@ -62,6 +62,8 @@ export const ChatMessageItem: React.FC<ChatMessageItemProps> = ({
   const { hasPermission: hasMessagePermission } = usePermissions();
   const canPromoteKnowledge = hasMessagePermission('knowledge', 'write');
   const [copied, setCopied] = useState(false);
+  // T5-06a：回答级反馈（点踩率数据源；单条消息只允许反馈一次）。
+  const [answerFeedback, setAnswerFeedback] = useState<'helpful' | 'unhelpful' | null>(null);
   const copyTimerRef = useRef<number | null>(null);
   // B1-07：对话内确认抽屉（仅在 BusinessBot 注入 onRequestConfirm 时启用）。
   const [confirmTarget, setConfirmTarget] = useState<ToolInvocationDetail | null>(null);
@@ -90,6 +92,21 @@ export const ChatMessageItem: React.FC<ChatMessageItemProps> = ({
       // 剪贴板不可用：静默降级，不打断阅读。
     }
   }, [message.content]);
+
+  const handleAnswerFeedback = useCallback(
+    (feedback: 'helpful' | 'unhelpful') => {
+      if (answerFeedback !== null) return;
+      setAnswerFeedback(feedback);
+      trackAssistantEvent('message_feedback', {
+        pageKey: 'ai.chat',
+        conversationId: message.conversationId,
+        queryHash: message.queryHash,
+        feedback,
+        extra: { helpful: feedback === 'helpful' },
+      });
+    },
+    [answerFeedback, message.conversationId, message.queryHash]
+  );
 
   /**
    * 待审批条目（M1-05）：由 SSE 事件配对得到，只取「已提交审批且有 invocationId」的写调用。
@@ -296,6 +313,34 @@ export const ChatMessageItem: React.FC<ChatMessageItemProps> = ({
             >
               {copied ? '已复制' : '复制回答'}
             </Button>
+            {/* T5-06a：回答级反馈（点踩率）；反馈后固化，避免重复计数。 */}
+            <Button
+              type="text"
+              size="small"
+              icon={<ThumbsUp size={12} />}
+              onClick={() => handleAnswerFeedback('helpful')}
+              disabled={answerFeedback !== null}
+              data-testid="answer-feedback-helpful"
+              style={{ height: 'auto', padding: 0, fontSize: 12, color: token.colorTextSecondary }}
+            >
+              有用
+            </Button>
+            <Button
+              type="text"
+              size="small"
+              icon={<ThumbsDown size={12} />}
+              onClick={() => handleAnswerFeedback('unhelpful')}
+              disabled={answerFeedback !== null}
+              data-testid="answer-feedback-unhelpful"
+              style={{ height: 'auto', padding: 0, fontSize: 12, color: token.colorTextSecondary }}
+            >
+              没用
+            </Button>
+            {answerFeedback ? (
+              <Text type="secondary" style={{ fontSize: 12 }} data-testid="answer-feedback-thanks">
+                已反馈
+              </Text>
+            ) : null}
             {message.providerInfo?.provider ? (
               <Tooltip title={`生效来源：${providerSourceLabel}`}>
                 <span style={{ fontSize: 12, color: token.colorTextSecondary }}>

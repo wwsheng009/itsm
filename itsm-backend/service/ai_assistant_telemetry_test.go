@@ -55,14 +55,18 @@ func TestIngestAssistantEvents_Insert(t *testing.T) {
 	occurred := time.Date(2026, 10, 18, 10, 0, 0, 0, time.UTC)
 	events := []AssistantTelemetryEvent{
 		{
-			Name:       "assistant_opened",
-			SessionID:  "sid-1",
-			PageKey:    "ticket.detail",
-			Route:      "/tickets/1",
-			Entrypoint: "ticket_detail",
-			Role:       "agent",
-			OccurredAt: occurred,
-			Payload:    map[string]interface{}{"name": "assistant_opened", "source": "fab"},
+			Name:         "assistant_opened",
+			SessionID:    "sid-1",
+			PageKey:      "ticket.detail",
+			Route:        "/tickets/1",
+			Entrypoint:   "ticket_detail",
+			Role:         "agent",
+			Model:        "doubao-pro",
+			QueryHash:    "q-open",
+			SourcesCount: nil,
+			Feedback:     "",
+			OccurredAt:   occurred,
+			Payload:      map[string]interface{}{"name": "assistant_opened", "source": "fab"},
 		},
 		{
 			Name:           "message_sent",
@@ -70,6 +74,10 @@ func TestIngestAssistantEvents_Insert(t *testing.T) {
 			ConversationID: &conversationID,
 			RunID:          "run-7",
 			LatencyMs:      &latency,
+			Model:          "doubao-pro",
+			QueryHash:      "q-answer",
+			SourcesCount:   nil,
+			Feedback:       "unhelpful",
 			OccurredAt:     occurred,
 			Payload:        map[string]interface{}{"name": "message_sent"},
 		},
@@ -80,9 +88,11 @@ func TestIngestAssistantEvents_Insert(t *testing.T) {
 			int64(1), int64(9), "sid-1", "assistant_opened", "ticket.detail", "/tickets/1", "ticket_detail",
 			"agent",
 			nil, "", nil, "", sqlmock.AnyArg(), occurred,
+			"doubao-pro", "q-open", nil, "",
 			int64(1), int64(9), "sid-1", "message_sent", "", "", "",
 			"",
 			int64(42), "run-7", int64(180), "", sqlmock.AnyArg(), occurred,
+			"doubao-pro", "q-answer", nil, "unhelpful",
 		).
 		WillReturnResult(sqlmock.NewResult(0, 2))
 
@@ -122,6 +132,17 @@ func TestGetAssistantTelemetrySummary_Aggregates(t *testing.T) {
 		WithArgs(int64(1), int64(30), "", "").
 		WillReturnRows(sqlmock.NewRows([]string{"avg", "p95", "max"}).AddRow(120.5, 250.0, 800))
 
+	mock.ExpectQuery(regexp.QuoteMeta("COUNT(*) FILTER")).
+		WithArgs(int64(1), int64(30), "", "").
+		WillReturnRows(sqlmock.NewRows([]string{"answers", "cited", "feedback", "downvotes"}).
+			AddRow(10, 6, 4, 1))
+
+	mock.ExpectQuery(regexp.QuoteMeta("GROUP BY model")).
+		WithArgs(int64(1), int64(30), "", "").
+		WillReturnRows(sqlmock.NewRows([]string{"model", "count"}).
+			AddRow("doubao-pro", 6).
+			AddRow("gpt-4o", 4))
+
 	summary, err := svc.GetAssistantTelemetrySummary(context.Background(), 1, 30, AssistantTelemetryFilter{})
 	require.NoError(t, err)
 	assert.Equal(t, 30, summary.Days)
@@ -136,6 +157,19 @@ func TestGetAssistantTelemetrySummary_Aggregates(t *testing.T) {
 	assert.Equal(t, 120.5, summary.LatencyMs.Avg)
 	assert.Equal(t, 250.0, summary.LatencyMs.P95)
 	assert.Equal(t, int64(800), summary.LatencyMs.Max)
+	require.NotNil(t, summary.Quality)
+	assert.Equal(t, 10, summary.Quality.AnswerCount)
+	assert.Equal(t, 6, summary.Quality.CitationAnswerCount)
+	assert.Equal(t, 4, summary.Quality.FeedbackCount)
+	assert.Equal(t, 1, summary.Quality.DownvoteCount)
+	require.NotNil(t, summary.Quality.CitationCoverage)
+	assert.InDelta(t, 0.6, *summary.Quality.CitationCoverage, 1e-9)
+	require.NotNil(t, summary.Quality.NoCitationRate)
+	assert.InDelta(t, 0.4, *summary.Quality.NoCitationRate, 1e-9)
+	require.NotNil(t, summary.Quality.DownvoteRate)
+	assert.InDelta(t, 0.25, *summary.Quality.DownvoteRate, 1e-9)
+	require.Len(t, summary.Models, 2)
+	assert.Equal(t, AssistantTelemetryBucket{Key: "doubao-pro", Count: 6}, summary.Models[0])
 	assert.NotEmpty(t, summary.GeneratedAt)
 	assert.NoError(t, mock.ExpectationsWereMet())
 }
@@ -156,6 +190,13 @@ func TestGetAssistantTelemetrySummary_ClampsDays(t *testing.T) {
 		mock.ExpectQuery(regexp.QuoteMeta("percentile_cont(0.95)")).
 			WithArgs(int64(1), days, "", "").
 			WillReturnRows(sqlmock.NewRows([]string{"avg", "p95", "max"}).AddRow(0, 0, 0))
+		mock.ExpectQuery(regexp.QuoteMeta("COUNT(*) FILTER")).
+			WithArgs(int64(1), days, "", "").
+			WillReturnRows(sqlmock.NewRows([]string{"answers", "cited", "feedback", "downvotes"}).
+				AddRow(0, 0, 0, 0))
+		mock.ExpectQuery(regexp.QuoteMeta("GROUP BY model")).
+			WithArgs(int64(1), days, "", "").
+			WillReturnRows(sqlmock.NewRows([]string{"model", "count"}))
 	}
 
 	// 超上限 → 90；0/负数 → 7
@@ -163,6 +204,10 @@ func TestGetAssistantTelemetrySummary_ClampsDays(t *testing.T) {
 	summary, err := svc.GetAssistantTelemetrySummary(context.Background(), 1, 500, AssistantTelemetryFilter{})
 	require.NoError(t, err)
 	assert.Equal(t, 90, summary.Days)
+	require.NotNil(t, summary.Quality)
+	assert.Nil(t, summary.Quality.CitationCoverage)
+	assert.Nil(t, summary.Quality.NoCitationRate)
+	assert.Nil(t, summary.Quality.DownvoteRate)
 
 	expectSummaryQueries(7)
 	zeroDays, err := svc.GetAssistantTelemetrySummary(context.Background(), 1, 0, AssistantTelemetryFilter{})
@@ -187,6 +232,11 @@ func TestGetAssistantTelemetrySummary_AppliesFilters(t *testing.T) {
 		WillReturnRows(sqlmock.NewRows([]string{"page_key", "count"}).AddRow("ticket.detail", 3))
 	expect("percentile_cont(0.95)").
 		WillReturnRows(sqlmock.NewRows([]string{"avg", "p95", "max"}).AddRow(10.0, 20.0, 30))
+	expect("COUNT(*) FILTER").
+		WillReturnRows(sqlmock.NewRows([]string{"answers", "cited", "feedback", "downvotes"}).
+			AddRow(3, 2, 1, 0))
+	expect("GROUP BY model").
+		WillReturnRows(sqlmock.NewRows([]string{"model", "count"}).AddRow("doubao-pro", 3))
 
 	// 过滤值前后空白由服务层归一化后下发（防注入式拼接另由参数化保证）。
 	summary, err := svc.GetAssistantTelemetrySummary(

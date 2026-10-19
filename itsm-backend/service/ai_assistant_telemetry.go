@@ -43,8 +43,13 @@ type AssistantTelemetryEvent struct {
 	RunID          string
 	LatencyMs      *int64
 	ErrorCode      string
-	OccurredAt     time.Time
-	Payload        map[string]interface{}
+	// T5-06a 质量层：模型、问题哈希、引用条数与回答级反馈。
+	Model        string
+	QueryHash    string
+	SourcesCount *int
+	Feedback     string
+	OccurredAt   time.Time
+	Payload      map[string]interface{}
 }
 
 // AssistantTelemetryFilter 是聚合过滤条件（看板 O0-03 的"页面/角色"维度；租户为隐式条件）。
@@ -66,6 +71,23 @@ type AssistantTelemetryLatency struct {
 	Max int64   `json:"max"`
 }
 
+// AssistantTelemetryQuality 是质量层指标（T5-06a；§13.3）。
+//
+// 分母口径：
+//   - 引用覆盖率/无引用率：只统计**带 sources_count** 的 stream_end（旧客户端未上报 → 不计入）；
+//   - 点踩率：只统计 message_feedback 中 feedback 非空的事件。
+//
+// 分母为 0 时对应比率为 nil（前端显示“—”而不是伪造 0）。
+type AssistantTelemetryQuality struct {
+	AnswerCount         int      `json:"answerCount"`
+	CitationAnswerCount int      `json:"citationAnswerCount"`
+	FeedbackCount       int      `json:"feedbackCount"`
+	DownvoteCount       int      `json:"downvoteCount"`
+	CitationCoverage    *float64 `json:"citationCoverage,omitempty"`
+	NoCitationRate      *float64 `json:"noCitationRate,omitempty"`
+	DownvoteRate        *float64 `json:"downvoteRate,omitempty"`
+}
+
 // AssistantTelemetrySummary 是观测看板（O0-03）消费的聚合口径。
 type AssistantTelemetrySummary struct {
 	Days             int                        `json:"days"`
@@ -75,6 +97,8 @@ type AssistantTelemetrySummary struct {
 	ByName           []AssistantTelemetryBucket `json:"byName"`
 	ByPage           []AssistantTelemetryBucket `json:"byPage"`
 	LatencyMs        *AssistantTelemetryLatency `json:"latencyMs,omitempty"`
+	Quality          *AssistantTelemetryQuality `json:"quality,omitempty"`
+	Models           []AssistantTelemetryBucket `json:"models"`
 	GeneratedAt      string                     `json:"generatedAt"`
 }
 
@@ -156,7 +180,7 @@ func (s *AITelemetryService) GetAssistantHelpGapClusters(ctx context.Context, te
 
 // InsertAssistantEvents 以单条多值 INSERT 落库，返回实际写入行数。
 func (r *aiTelemetryRepository) InsertAssistantEvents(ctx context.Context, tenantID, userID int, events []AssistantTelemetryEvent) (int, error) {
-	const columns = 14
+	const columns = 18
 	placeholders := make([]string, 0, len(events))
 	args := make([]interface{}, 0, len(events)*columns)
 
@@ -164,9 +188,10 @@ func (r *aiTelemetryRepository) InsertAssistantEvents(ctx context.Context, tenan
 		base := i * columns
 		// run_id 空串写 NULL（NULLIF），conversation_id/latency_ms 由 *T nil 表示缺省。
 		placeholders = append(placeholders, fmt.Sprintf(
-			"($%d,$%d,$%d,$%d,$%d,$%d,$%d,$%d,$%d,NULLIF($%d,''),$%d,$%d,$%d::jsonb,$%d)",
+			"($%d,$%d,$%d,$%d,$%d,$%d,$%d,$%d,$%d,NULLIF($%d,''),$%d,$%d,$%d::jsonb,$%d,$%d,$%d,$%d,$%d)",
 			base+1, base+2, base+3, base+4, base+5, base+6, base+7, base+8,
-			base+9, base+10, base+11, base+12, base+13, base+14,
+			base+9, base+10, base+11, base+12, base+13, base+14, base+15, base+16,
+			base+17, base+18,
 		))
 		payload, err := json.Marshal(event.Payload)
 		if err != nil {
@@ -191,11 +216,15 @@ func (r *aiTelemetryRepository) InsertAssistantEvents(ctx context.Context, tenan
 			event.ErrorCode,
 			string(payload),
 			occurredAt,
+			event.Model,
+			event.QueryHash,
+			event.SourcesCount,
+			event.Feedback,
 		)
 	}
 
 	query := `INSERT INTO ai_telemetry_events
-		(tenant_id, user_id, session_id, name, page_key, route, entrypoint, role, conversation_id, run_id, latency_ms, error_code, payload, occurred_at)
+		(tenant_id, user_id, session_id, name, page_key, route, entrypoint, role, conversation_id, run_id, latency_ms, error_code, payload, occurred_at, model, query_hash, sources_count, feedback)
 		VALUES ` + strings.Join(placeholders, ",")
 
 	res, err := r.db.ExecContext(ctx, query, args...)
@@ -288,7 +317,59 @@ func (r *aiTelemetryRepository) AggregateAssistantEvents(ctx context.Context, te
 		summary.LatencyMs = &latency
 	}
 
+	// T5-06a：质量层三指标（引用覆盖率 / 无引用回答率 / 点踩率）。
+	const qualityQuery = `
+		SELECT
+		       COUNT(*) FILTER (WHERE name = 'stream_end' AND sources_count IS NOT NULL),
+		       COUNT(*) FILTER (WHERE name = 'stream_end' AND sources_count > 0),
+		       COUNT(*) FILTER (WHERE name = 'message_feedback' AND feedback <> ''),
+		       COUNT(*) FILTER (WHERE name = 'message_feedback' AND feedback = 'unhelpful')
+		FROM ai_telemetry_events
+		WHERE tenant_id = $1 AND occurred_at >= NOW() - INTERVAL '1 day' * $2
+		  AND ($3 = '' OR page_key = $3)
+		  AND ($4 = '' OR role = $4)
+	`
+	var quality AssistantTelemetryQuality
+	if err := r.db.QueryRowContext(ctx, qualityQuery, args...).Scan(
+		&quality.AnswerCount,
+		&quality.CitationAnswerCount,
+		&quality.FeedbackCount,
+		&quality.DownvoteCount,
+	); err != nil {
+		return nil, fmt.Errorf("aggregate assistant telemetry quality: %w", err)
+	}
+	quality.CitationCoverage = assistantTelemetryRatio(quality.CitationAnswerCount, quality.AnswerCount)
+	quality.NoCitationRate = assistantTelemetryRatio(quality.AnswerCount-quality.CitationAnswerCount, quality.AnswerCount)
+	quality.DownvoteRate = assistantTelemetryRatio(quality.DownvoteCount, quality.FeedbackCount)
+	summary.Quality = &quality
+
+	// T5-06a：模型分布（只统计 stream_end 且 model 非空；静态回退缺省不伪造）。
+	const modelsQuery = `
+		SELECT model, COUNT(*)
+		FROM ai_telemetry_events
+		WHERE tenant_id = $1 AND occurred_at >= NOW() - INTERVAL '1 day' * $2
+		  AND name = 'stream_end' AND model <> ''
+		  AND ($3 = '' OR page_key = $3)
+		  AND ($4 = '' OR role = $4)
+		GROUP BY model
+		ORDER BY COUNT(*) DESC
+		LIMIT 20
+	`
+	models, err := r.queryBuckets(ctx, modelsQuery, args...)
+	if err != nil {
+		return nil, fmt.Errorf("aggregate assistant telemetry models: %w", err)
+	}
+	summary.Models = models
+
 	return summary, nil
+}
+
+func assistantTelemetryRatio(numerator, denominator int) *float64 {
+	if denominator <= 0 {
+		return nil
+	}
+	value := float64(numerator) / float64(denominator)
+	return &value
 }
 
 // AggregateHelpGapClusters 按 page_key 聚合文档缺口事件（H1-01；租户为隐式条件）。

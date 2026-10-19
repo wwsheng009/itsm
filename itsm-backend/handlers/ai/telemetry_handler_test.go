@@ -134,10 +134,10 @@ func TestIngestTelemetryEvents_AcceptsAndDrops(t *testing.T) {
 	r := newTelemetryTestRouter(t, svc, true)
 
 	// 2 条白名单事件 + 1 条未知事件：未知静默丢弃并计数（不阻断整批）。
-	// 28 个参数（2 条事件 × 14 列）；role 位于每条事件第 8 列（索引 7/21），来自服务端上下文。
-	execArgs := anyArgs(28)
+	// 36 个参数（2 条事件 × 18 列）；role 位于每条事件第 8 列（索引 7/25），来自服务端上下文。
+	execArgs := anyArgs(36)
 	execArgs[7] = "agent"
-	execArgs[21] = "agent"
+	execArgs[25] = "agent"
 	mock.ExpectExec(regexp.QuoteMeta("INSERT INTO ai_telemetry_events")).
 		WithArgs(execArgs...).
 		WillReturnResult(sqlmock.NewResult(0, 2))
@@ -173,6 +173,34 @@ func TestIngestTelemetryEvents_AcceptsAndDrops(t *testing.T) {
 	assert.NoError(t, mock.ExpectationsWereMet())
 }
 
+func TestIngestTelemetryEvents_PersistsQualityFields(t *testing.T) {
+	svc, mock := newTelemetryMockService(t)
+	r := newTelemetryTestRouter(t, svc, true)
+
+	mock.ExpectExec(regexp.QuoteMeta("INSERT INTO ai_telemetry_events")).
+		WithArgs(
+			int64(1), int64(9), "", "message_feedback", "", "", "",
+			"agent",
+			nil, "", nil, "", sqlmock.AnyArg(), sqlmock.AnyArg(),
+			"doubao-pro", "abc123", int64(0), "unhelpful",
+		).
+		WillReturnResult(sqlmock.NewResult(0, 1))
+
+	w := doJSON(r, http.MethodPost, "/api/v1/ai/telemetry/events", map[string]interface{}{
+		"events": []map[string]interface{}{
+			{
+				"name":         "message_feedback",
+				"model":        "doubao-pro",
+				"queryHash":    "abc123",
+				"sourcesCount": float64(0),
+				"feedback":     "unhelpful",
+			},
+		},
+	})
+	require.Equal(t, http.StatusOK, w.Code)
+	assert.NoError(t, mock.ExpectationsWereMet())
+}
+
 func TestGetTelemetrySummary_Success(t *testing.T) {
 	svc, mock := newTelemetryMockService(t)
 	r := newTelemetryTestRouter(t, svc, true)
@@ -189,6 +217,13 @@ func TestGetTelemetrySummary_Success(t *testing.T) {
 	mock.ExpectQuery(regexp.QuoteMeta("percentile_cont(0.95)")).
 		WithArgs(int64(1), int64(30), "", "").
 		WillReturnRows(sqlmock.NewRows([]string{"avg", "p95", "max"}).AddRow(120.5, 250.0, 800))
+	mock.ExpectQuery(regexp.QuoteMeta("COUNT(*) FILTER")).
+		WithArgs(int64(1), int64(30), "", "").
+		WillReturnRows(sqlmock.NewRows([]string{"answers", "cited", "feedback", "downvotes"}).
+			AddRow(10, 6, 4, 1))
+	mock.ExpectQuery(regexp.QuoteMeta("GROUP BY model")).
+		WithArgs(int64(1), int64(30), "", "").
+		WillReturnRows(sqlmock.NewRows([]string{"model", "count"}).AddRow("doubao-pro", 6))
 
 	w := doJSON(r, http.MethodGet, "/api/v1/ai/telemetry/summary?days=30", nil)
 	require.Equal(t, http.StatusOK, w.Code)
@@ -199,6 +234,13 @@ func TestGetTelemetrySummary_Success(t *testing.T) {
 	assert.Equal(t, float64(4), data["distinctSessions"])
 	assert.Equal(t, float64(2), data["errorEvents"])
 	assert.Equal(t, float64(30), data["days"])
+	quality, ok := data["quality"].(map[string]interface{})
+	require.True(t, ok)
+	assert.Equal(t, float64(10), quality["answerCount"])
+	assert.InDelta(t, 0.6, quality["citationCoverage"], 1e-9)
+	models, ok := data["models"].([]interface{})
+	require.True(t, ok)
+	require.Len(t, models, 1)
 	assert.NoError(t, mock.ExpectationsWereMet())
 }
 
@@ -226,6 +268,11 @@ func TestGetTelemetrySummary_AppliesFilters(t *testing.T) {
 		WillReturnRows(sqlmock.NewRows([]string{"page_key", "count"}).AddRow("ticket.detail", 5))
 	expect("percentile_cont(0.95)").
 		WillReturnRows(sqlmock.NewRows([]string{"avg", "p95", "max"}).AddRow(9.0, 12.0, 15))
+	expect("COUNT(*) FILTER").
+		WillReturnRows(sqlmock.NewRows([]string{"answers", "cited", "feedback", "downvotes"}).
+			AddRow(5, 3, 2, 1))
+	expect("GROUP BY model").
+		WillReturnRows(sqlmock.NewRows([]string{"model", "count"}).AddRow("doubao-pro", 5))
 
 	w := doJSON(r, http.MethodGet, "/api/v1/ai/telemetry/summary?days=30&pageKey=ticket.detail&role=agent", nil)
 	require.Equal(t, http.StatusOK, w.Code)

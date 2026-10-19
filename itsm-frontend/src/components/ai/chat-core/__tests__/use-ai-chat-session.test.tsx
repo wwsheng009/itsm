@@ -46,6 +46,7 @@ jest.mock('@/lib/hooks/use-permissions', () => ({
 jest.mock('@/lib/ai/telemetry', () => ({
   __esModule: true,
   trackAssistantEvent: jest.fn(),
+  hashTelemetryText: (text: string) => `h-${text.length}`,
   isAssistantEventName: () => true,
   getTelemetryMode: () => 'off',
   setTelemetryMode: jest.fn(),
@@ -171,6 +172,8 @@ describe('useAIChatSession（D0-01 抽离后的会话内核）', () => {
     expect(result.current.messages[1]).toMatchObject({
       role: 'assistant',
       content: '你问了会话连续性。',
+      conversationId: 77,
+      queryHash: 'h-8',
     });
     expect(mockedGetMessages).toHaveBeenCalledWith(77);
     // 一次性：消费后 store 立即清空。
