@@ -18,10 +18,18 @@ import { useAssistantMemory } from '@/lib/ai/memory/use-assistant-memory';
 import {
   MEMORY_MAX_TEMPLATE_BODY_CHARS,
   MEMORY_MAX_TEMPLATE_NAME_CHARS,
-  recentActionLabel,
 } from '@/lib/ai/memory/types';
+import { useI18n } from '@/lib/i18n/useI18n';
 
 const { Text } = Typography;
+
+/** recent 动作键 → 翻译键（未登记键的兜底规则与 lib/ai/memory/types.recentActionLabel 同口径）。 */
+const RECENT_ACTION_KEYS: Record<string, string> = {
+  'inline_apply:triage_detail': 'assistant.memory.recentTriageDetail',
+  'inline_apply:triage_create': 'assistant.memory.recentTriageCreate',
+  'memory.phrase_used': 'assistant.memory.recentPhraseUsed',
+  'memory.template_used': 'assistant.memory.recentTemplateUsed',
+};
 
 export const ASSISTANT_MEMORY_CHIPS_TESTID = 'assistant-memory-chips';
 export const ASSISTANT_MEMORY_CHIP_TESTID = 'assistant-memory-chip';
@@ -52,6 +60,7 @@ export interface AssistantMemoryChipsProps {
 const AssistantMemoryChips: React.FC<AssistantMemoryChipsProps> = ({ query, onInsert }) => {
   const { token } = theme.useToken();
   const { message, modal } = App.useApp();
+  const { t } = useI18n();
   const {
     mode,
     status,
@@ -110,7 +119,7 @@ const AssistantMemoryChips: React.FC<AssistantMemoryChipsProps> = ({ query, onIn
     return (
       <div style={{ marginBottom: 6, textAlign: 'right' }}>
         <Text type="secondary" style={{ fontSize: 11 }}>
-          个性化记忆已关闭
+          {t('assistant.memory.disabled')}
         </Text>
         <Button
           size="small"
@@ -118,7 +127,7 @@ const AssistantMemoryChips: React.FC<AssistantMemoryChipsProps> = ({ query, onIn
           data-testid={ASSISTANT_MEMORY_REENABLE_TESTID}
           onClick={() => void setUserEnabled(true)}
         >
-          重新开启
+          {t('assistant.memory.reenable')}
         </Button>
       </div>
     );
@@ -136,7 +145,7 @@ const AssistantMemoryChips: React.FC<AssistantMemoryChipsProps> = ({ query, onIn
     const text = query.trim();
     if (!text) return;
     await savePhrase(text);
-    message.success('已记住这句常用语');
+    message.success(t('assistant.memory.savedPhrase'));
   };
 
   const openTemplateModal = () => {
@@ -149,41 +158,48 @@ const AssistantMemoryChips: React.FC<AssistantMemoryChipsProps> = ({ query, onIn
     if (!templateName.trim()) return;
     await saveTemplate(templateName, templateBody);
     setTemplateOpen(false);
-    message.success('已保存个人模板');
+    message.success(t('assistant.memory.savedTemplate'));
   };
 
   const handleDisable = () => {
     modal.confirm({
-      title: '关闭个性化记忆？',
-      content: '关闭后不再记录常用语、模板与最近处理方式；已保存内容保留，可随时重新开启。',
-      okText: '关闭',
-      cancelText: '取消',
+      title: t('assistant.memory.disableTitle'),
+      content: t('assistant.memory.disableContent'),
+      okText: t('assistant.memory.disableOk'),
+      cancelText: t('assistant.panel.cancel'),
       onOk: () => void setUserEnabled(false),
     });
   };
 
   const handleClear = () => {
     modal.confirm({
-      title: '清空全部记忆？',
-      content: '常用语、个人模板与最近处理记录将被删除（云端与本机），不可恢复。',
-      okText: '清空',
+      title: t('assistant.memory.clearTitle'),
+      content: t('assistant.memory.clearContent'),
+      okText: t('assistant.memory.clearOk'),
       okButtonProps: { danger: true },
-      cancelText: '取消',
+      cancelText: t('assistant.panel.cancel'),
       onOk: () => void clearAll(),
     });
   };
 
   const formatTime = (at: string) => at.slice(0, 16).replace('T', ' ');
 
+  const recentActionText = (key: string) =>
+    RECENT_ACTION_KEYS[key]
+      ? t(RECENT_ACTION_KEYS[key])
+      : key.startsWith('inline_apply:')
+        ? t('assistant.memory.recentInlineApply', { scope: key.slice('inline_apply:'.length) })
+        : key;
+
   const manageContent = (
     <div style={{ width: 272 }} data-testid="assistant-memory-manage-panel">
       <Text strong style={{ fontSize: 12 }}>
-        常用语（{memory.phrases.length}）
+        {t('assistant.memory.phrasesTitle', { count: memory.phrases.length })}
       </Text>
       {memory.phrases.length === 0 ? (
         <div>
           <Text type="secondary" style={{ fontSize: 11 }}>
-            暂无（输入后点书签图标保存）
+            {t('assistant.memory.phrasesEmpty')}
           </Text>
         </div>
       ) : (
@@ -197,7 +213,7 @@ const AssistantMemoryChips: React.FC<AssistantMemoryChipsProps> = ({ query, onIn
               type="text"
               danger
               icon={<Trash2 size={12} />}
-              aria-label={`删除常用语 ${phrase}`}
+              aria-label={t('assistant.memory.removePhraseAria', { phrase })}
               onClick={() => void removePhrase(phrase)}
             />
           </div>
@@ -206,13 +222,13 @@ const AssistantMemoryChips: React.FC<AssistantMemoryChipsProps> = ({ query, onIn
 
       <div style={{ marginTop: 10 }}>
         <Text strong style={{ fontSize: 12 }}>
-          个人模板（{memory.templates.length}）
+          {t('assistant.memory.templatesTitle', { count: memory.templates.length })}
         </Text>
       </div>
       {memory.templates.length === 0 ? (
         <div>
           <Text type="secondary" style={{ fontSize: 11 }}>
-            暂无（输入后点文档图标保存）
+            {t('assistant.memory.templatesEmpty')}
           </Text>
         </div>
       ) : (
@@ -226,7 +242,7 @@ const AssistantMemoryChips: React.FC<AssistantMemoryChipsProps> = ({ query, onIn
               type="text"
               danger
               icon={<Trash2 size={12} />}
-              aria-label={`删除模板 ${tpl.name}`}
+              aria-label={t('assistant.memory.removeTemplateAria', { name: tpl.name })}
               onClick={() => void removeTemplate(tpl.name)}
             />
           </div>
@@ -235,20 +251,20 @@ const AssistantMemoryChips: React.FC<AssistantMemoryChipsProps> = ({ query, onIn
 
       <div style={{ marginTop: 10 }}>
         <Text strong style={{ fontSize: 12 }}>
-          最近处理方式（仅元数据）
+          {t('assistant.memory.recentTitle')}
         </Text>
       </div>
       {memory.recent.length === 0 ? (
         <div>
           <Text type="secondary" style={{ fontSize: 11 }}>
-            暂无记录
+            {t('assistant.memory.recentEmpty')}
           </Text>
         </div>
       ) : (
         memory.recent.slice(0, 5).map(item => (
           <div key={item.key}>
             <Text type="secondary" style={{ fontSize: 11 }}>
-              · {recentActionLabel(item.key)}（{formatTime(item.at)}）
+              · {recentActionText(item.key)}（{formatTime(item.at)}）
             </Text>
           </div>
         ))
@@ -257,7 +273,7 @@ const AssistantMemoryChips: React.FC<AssistantMemoryChipsProps> = ({ query, onIn
       {mode === 'local' ? (
         <div style={{ marginTop: 8 }}>
           <Text type="secondary" style={{ fontSize: 11 }}>
-            匿名档：记忆仅存本机，不上传。
+            {t('assistant.memory.localNote')}
           </Text>
         </div>
       ) : null}
@@ -273,10 +289,10 @@ const AssistantMemoryChips: React.FC<AssistantMemoryChipsProps> = ({ query, onIn
         }}
       >
         <Button size="small" data-testid={ASSISTANT_MEMORY_DISABLE_TESTID} onClick={handleDisable}>
-          关闭个性化记忆
+          {t('assistant.memory.disableButton')}
         </Button>
         <Button size="small" danger data-testid={ASSISTANT_MEMORY_CLEAR_TESTID} onClick={handleClear}>
-          清空记忆
+          {t('assistant.memory.clearButton')}
         </Button>
       </div>
     </div>
@@ -288,7 +304,7 @@ const AssistantMemoryChips: React.FC<AssistantMemoryChipsProps> = ({ query, onIn
       style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: 6, marginBottom: 6 }}
     >
       {chips.map(chip => (
-        <Tooltip key={chip.id} title={chip.kind === 'template' ? `模板：${chip.label}` : '常用语'}>
+        <Tooltip key={chip.id} title={chip.kind === 'template' ? t('assistant.memory.chipTemplate', { name: chip.label }) : t('assistant.memory.chipPhrase')}>
           <Tag
             data-testid={ASSISTANT_MEMORY_CHIP_TESTID}
             data-kind={chip.kind}
@@ -306,30 +322,30 @@ const AssistantMemoryChips: React.FC<AssistantMemoryChipsProps> = ({ query, onIn
           type="text"
           icon={<History size={13} />}
           data-testid={ASSISTANT_MEMORY_MANAGE_TESTID}
-          aria-label="记忆管理"
+          aria-label={t('assistant.memory.manageAria')}
         >
-          记忆
+          {t('assistant.memory.manageButton')}
         </Button>
       </Popover>
 
-      <Tooltip title="把当前输入存为常用语">
+      <Tooltip title={t('assistant.memory.savePhraseTooltip')}>
         <Button
           size="small"
           type="text"
           icon={<BookmarkPlus size={13} />}
           data-testid={ASSISTANT_MEMORY_SAVE_PHRASE_TESTID}
-          aria-label="存为常用语"
+          aria-label={t('assistant.memory.savePhraseAria')}
           disabled={!query.trim()}
           onClick={() => void handleSavePhrase()}
         />
       </Tooltip>
-      <Tooltip title="把当前输入存为个人模板">
+      <Tooltip title={t('assistant.memory.saveTemplateTooltip')}>
         <Button
           size="small"
           type="text"
           icon={<FileText size={13} />}
           data-testid={ASSISTANT_MEMORY_SAVE_TEMPLATE_TESTID}
-          aria-label="存为模板"
+          aria-label={t('assistant.memory.saveTemplateAria')}
           disabled={!query.trim()}
           onClick={openTemplateModal}
         />
@@ -337,27 +353,27 @@ const AssistantMemoryChips: React.FC<AssistantMemoryChipsProps> = ({ query, onIn
 
       {error === 'save_failed' ? (
         <Text type="danger" style={{ fontSize: 11 }}>
-          记忆保存失败，已暂存本机
+          {t('assistant.memory.saveFailed')}
         </Text>
       ) : null}
       {error === 'sync_failed' ? (
         <Text type="secondary" style={{ fontSize: 11 }}>
-          云端同步不可用，展示本机缓存
+          {t('assistant.memory.syncFailed')}
         </Text>
       ) : null}
 
       <Modal
-        title="存为个人模板"
+        title={t('assistant.memory.templateModalTitle')}
         open={templateOpen}
         onCancel={() => setTemplateOpen(false)}
         onOk={() => void handleSaveTemplate()}
-        okText="保存"
-        cancelText="取消"
+        okText={t('assistant.memory.save')}
+        cancelText={t('assistant.panel.cancel')}
         okButtonProps={{ disabled: !templateName.trim() }}
       >
         <div data-testid={ASSISTANT_MEMORY_TEMPLATE_MODAL_TESTID}>
           <Input
-            placeholder={`模板名（≤${MEMORY_MAX_TEMPLATE_NAME_CHARS} 字）`}
+            placeholder={t('assistant.memory.templateNamePlaceholder', { max: MEMORY_MAX_TEMPLATE_NAME_CHARS })}
             value={templateName}
             maxLength={MEMORY_MAX_TEMPLATE_NAME_CHARS}
             onChange={e => setTemplateName(e.target.value)}
@@ -365,7 +381,7 @@ const AssistantMemoryChips: React.FC<AssistantMemoryChipsProps> = ({ query, onIn
             style={{ marginBottom: 8 }}
           />
           <Input.TextArea
-            placeholder={`模板内容（≤${MEMORY_MAX_TEMPLATE_BODY_CHARS} 字，仅你自己可见）`}
+            placeholder={t('assistant.memory.templateBodyPlaceholder', { max: MEMORY_MAX_TEMPLATE_BODY_CHARS })}
             value={templateBody}
             maxLength={MEMORY_MAX_TEMPLATE_BODY_CHARS}
             onChange={e => setTemplateBody(e.target.value)}

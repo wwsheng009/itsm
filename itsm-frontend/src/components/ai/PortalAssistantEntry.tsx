@@ -13,6 +13,7 @@ import { Bot, Sparkles } from 'lucide-react';
 import { usePermissions } from '@/lib/hooks/use-permissions';
 import { useAssistantStore } from '@/lib/store/assistant-store';
 import { trackAssistantEvent } from '@/lib/ai/telemetry';
+import { useI18n } from '@/lib/i18n/useI18n';
 
 export const PORTAL_ASSISTANT_ENTRY_TESTID = 'portal-assistant-entry';
 export const PORTAL_ASSISTANT_ENTRY_OPEN_TESTID = 'portal-assistant-entry-open';
@@ -35,10 +36,13 @@ interface PortalAssistantEntryProps {
 const PortalAssistantEntry: React.FC<PortalAssistantEntryProps> = ({
   pageKey,
   prompt,
-  title = '不知道该选哪个服务？',
-  description = '描述你遇到的问题，AI 帮你判断该走哪个服务/工单类型；只给建议，不自动提交申请。',
+  title,
+  description,
 }) => {
   const { token } = theme.useToken();
+  const { t } = useI18n();
+  const resolvedTitle = title ?? t('assistant.portal.title');
+  const resolvedDescription = description ?? t('assistant.portal.description');
   const { hasPermission } = usePermissions();
   const openPanel = useAssistantStore(state => state.openPanel);
   const setPendingPrompt = useAssistantStore(state => state.setPendingPrompt);
@@ -66,11 +70,11 @@ const PortalAssistantEntry: React.FC<PortalAssistantEntryProps> = ({
         <Bot size={18} color={token.colorPrimary} aria-hidden />
         <div style={{ flex: 1, minWidth: 220 }}>
           <Text strong style={{ fontSize: 13 }}>
-            {title}
+            {resolvedTitle}
           </Text>
           <div>
             <Text type="secondary" style={{ fontSize: 12 }}>
-              {description}
+              {resolvedDescription}
             </Text>
           </div>
         </div>
@@ -82,7 +86,7 @@ const PortalAssistantEntry: React.FC<PortalAssistantEntryProps> = ({
           onClick={handleOpen}
           data-testid={PORTAL_ASSISTANT_ENTRY_OPEN_TESTID}
         >
-          让 AI 帮我选
+          {t('assistant.portal.open')}
         </Button>
       </div>
     </Card>

@@ -27,6 +27,7 @@ import {
 } from '@/lib/api/ai-api';
 import { trackAssistantEvent } from '@/lib/ai/telemetry';
 import { useCan } from '@/components/auth/PermissionGate';
+import { useI18n } from '@/lib/i18n/useI18n';
 
 const { Text, Paragraph } = Typography;
 
@@ -34,23 +35,23 @@ const ticketPriorities: TicketPriority[] = ['low', 'medium', 'high', 'urgent', '
 const toTicketPriority = (value?: string): TicketPriority =>
   value && ticketPriorities.includes(value as TicketPriority) ? (value as TicketPriority) : 'medium';
 
-const categoryLabels: Record<string, string> = {
-  database: '数据库',
-  network: '网络',
-  server: '服务器',
-  application: '应用',
-  security: '安全',
-  storage: '存储',
-  user_access: '用户访问',
-  userAccess: '用户访问',
-  general: '通用',
+const categoryLabelKeys: Record<string, string> = {
+  database: 'assistant.batch.catDatabase',
+  network: 'assistant.batch.catNetwork',
+  server: 'assistant.batch.catServer',
+  application: 'assistant.batch.catApplication',
+  security: 'assistant.batch.catSecurity',
+  storage: 'assistant.batch.catStorage',
+  user_access: 'assistant.batch.catUserAccess',
+  userAccess: 'assistant.batch.catUserAccess',
+  general: 'assistant.batch.catGeneral',
 };
 
-const priorityLabels: Record<string, string> = {
-  critical: '紧急',
-  high: '高',
-  medium: '中',
-  low: '低',
+const priorityLabelKeys: Record<string, string> = {
+  critical: 'assistant.batch.priCritical',
+  high: 'assistant.batch.priHigh',
+  medium: 'assistant.batch.priMedium',
+  low: 'assistant.batch.priLow',
 };
 
 const priorityColors: Record<string, string> = {
@@ -70,6 +71,7 @@ export function TicketBatchAIPanel({ selectedTickets, onApplied }: TicketBatchAI
   const canUseAI = useCan(['ai:read']);
   const canUpdate = useCan(['ticket:update']);
   const canAssign = useCan(['ticket:assign']);
+  const { t } = useI18n();
 
   const [triage, setTriage] = useState<BatchTriageItem[] | null>(null);
   const [drafts, setDrafts] = useState<BatchReplyDraftItem[] | null>(null);
@@ -82,7 +84,7 @@ export function TicketBatchAIPanel({ selectedTickets, onApplied }: TicketBatchAI
   const runTriage = useCallback(async () => {
     if (ticketIds.length === 0) return;
     if (ticketIds.length > BATCH_TRIAGE_MAX_TICKETS) {
-      message.warning(`AI 建议分类单次最多处理 ${BATCH_TRIAGE_MAX_TICKETS} 张工单`);
+      message.warning(t('assistant.batch.triageLimit', { count: BATCH_TRIAGE_MAX_TICKETS }));
       return;
     }
     setBusy('triage');
@@ -110,16 +112,16 @@ export function TicketBatchAIPanel({ selectedTickets, onApplied }: TicketBatchAI
         taskCardId: 'batch_triage',
         errorCode: 'batch_triage_failed',
       });
-      message.error('AI 批量分诊失败，请稍后重试');
+      message.error(t('assistant.batch.triageFailed'));
     } finally {
       setBusy(null);
     }
-  }, [ticketIds]);
+  }, [ticketIds, t]);
 
   const runDrafts = useCallback(async () => {
     if (ticketIds.length === 0) return;
     if (ticketIds.length > BATCH_REPLY_DRAFT_MAX_TICKETS) {
-      message.warning(`批量草稿单次最多处理 ${BATCH_REPLY_DRAFT_MAX_TICKETS} 张工单`);
+      message.warning(t('assistant.batch.draftLimit', { count: BATCH_REPLY_DRAFT_MAX_TICKETS }));
       return;
     }
     setBusy('draft');
@@ -147,11 +149,11 @@ export function TicketBatchAIPanel({ selectedTickets, onApplied }: TicketBatchAI
         taskCardId: 'batch_draft',
         errorCode: 'batch_draft_failed',
       });
-      message.error('AI 批量草稿生成失败，请稍后重试');
+      message.error(t('assistant.batch.draftRunFailed'));
     } finally {
       setBusy(null);
     }
-  }, [ticketIds]);
+  }, [ticketIds, t]);
 
   const acceptOne = useCallback(
     async (item: BatchTriageItem, opts?: { silent?: boolean }) => {
@@ -186,13 +188,13 @@ export function TicketBatchAIPanel({ selectedTickets, onApplied }: TicketBatchAI
       const ok = await acceptOne(item);
       setApplying(null);
       if (ok) {
-        message.success(`已采纳 #${item.ticketId} 的分类建议`);
+        message.success(t('assistant.batch.acceptedOne', { id: item.ticketId }));
         onApplied?.();
       } else {
-        message.error(`采纳 #${item.ticketId} 失败`);
+        message.error(t('assistant.batch.acceptOneFailed', { id: item.ticketId }));
       }
     },
-    [acceptOne, onApplied]
+    [acceptOne, onApplied, t]
   );
 
   const assembleAll = useCallback(
@@ -208,13 +210,19 @@ export function TicketBatchAIPanel({ selectedTickets, onApplied }: TicketBatchAI
       }
       setApplyingAll(false);
       if (succeeded > 0) {
-        message.success(`已采纳 ${succeeded} 条分类建议${succeeded < targets.length ? `（${targets.length - succeeded} 条失败）` : ''}`);
+        message.success(
+          `${t('assistant.batch.acceptedAll', { count: succeeded })}${
+            succeeded < targets.length
+              ? t('assistant.batch.acceptedAllFailedSuffix', { count: targets.length - succeeded })
+              : ''
+          }`
+        );
         onApplied?.();
       } else {
-        message.error('批量采纳失败，请稍后重试');
+        message.error(t('assistant.batch.acceptedAllFailed'));
       }
     },
-    [acceptOne, onApplied]
+    [acceptOne, onApplied, t]
   );
 
   const assignOne = useCallback(async (item: BatchTriageItem) => {
@@ -240,13 +248,13 @@ export function TicketBatchAIPanel({ selectedTickets, onApplied }: TicketBatchAI
       const ok = await assignOne(item);
       setApplying(null);
       if (ok) {
-        message.success(`已按建议分派 #${item.ticketId}`);
+        message.success(t('assistant.batch.assignedOne', { id: item.ticketId }));
         onApplied?.();
       } else {
-        message.error(`分派 #${item.ticketId} 失败`);
+        message.error(t('assistant.batch.assignOneFailed', { id: item.ticketId }));
       }
     },
-    [assignOne, onApplied]
+    [assignOne, onApplied, t]
   );
 
   const handleAssignAll = useCallback(
@@ -261,13 +269,19 @@ export function TicketBatchAIPanel({ selectedTickets, onApplied }: TicketBatchAI
       }
       setApplyingAll(false);
       if (succeeded > 0) {
-        message.success(`已按建议分派 ${succeeded} 张工单${succeeded < targets.length ? `（${targets.length - succeeded} 张失败）` : ''}`);
+        message.success(
+          `${t('assistant.batch.assignedAll', { count: succeeded })}${
+            succeeded < targets.length
+              ? t('assistant.batch.assignedAllFailedSuffix', { count: targets.length - succeeded })
+              : ''
+          }`
+        );
         onApplied?.();
       } else {
-        message.error('批量分派失败，请稍后重试');
+        message.error(t('assistant.batch.assignedAllFailed'));
       }
     },
-    [assignOne, onApplied]
+    [assignOne, onApplied, t]
   );
 
   const copyDraft = useCallback(async (item: BatchReplyDraftItem) => {
@@ -284,8 +298,8 @@ export function TicketBatchAIPanel({ selectedTickets, onApplied }: TicketBatchAI
       taskCardId: 'batch_draft',
       extra: { action: 'copy', chars: text.length },
     });
-    message.success(`已复制 #${item.ticketId} 草稿`);
-  }, []);
+    message.success(t('assistant.batch.copiedDraft', { id: item.ticketId }));
+  }, [t]);
 
   const clearResults = useCallback(() => {
     setTriage(null);
@@ -305,9 +319,9 @@ export function TicketBatchAIPanel({ selectedTickets, onApplied }: TicketBatchAI
       title={
         <Space>
           <Sparkles size={16} />
-          <span>AI 批量助手</span>
+          <span>{t('assistant.batch.title')}</span>
           <Text type='secondary' className='text-xs'>
-            已选 {selectedTickets.length} 条
+            {t('assistant.batch.selected', { count: selectedTickets.length })}
           </Text>
         </Space>
       }
@@ -319,7 +333,7 @@ export function TicketBatchAIPanel({ selectedTickets, onApplied }: TicketBatchAI
           disabled={busy !== null}
           data-testid='batch-ai-triage'
         >
-          AI 建议分类
+          {t('assistant.batch.runTriage')}
         </Button>
         <Button
           onClick={() => void runDrafts()}
@@ -327,7 +341,7 @@ export function TicketBatchAIPanel({ selectedTickets, onApplied }: TicketBatchAI
           disabled={busy !== null}
           data-testid='batch-ai-drafts'
         >
-          批量草稿
+          {t('assistant.batch.runDrafts')}
         </Button>
         {triage && canUpdate && triageOK.length > 0 && (
           <Button
@@ -337,7 +351,7 @@ export function TicketBatchAIPanel({ selectedTickets, onApplied }: TicketBatchAI
             loading={applyingAll}
             data-testid='batch-ai-accept-all'
           >
-            全部采纳分类
+            {t('assistant.batch.acceptAll')}
           </Button>
         )}
         {triage && canAssign && triageOK.some(item => item.assigneeId) && (
@@ -346,17 +360,17 @@ export function TicketBatchAIPanel({ selectedTickets, onApplied }: TicketBatchAI
             loading={applyingAll}
             data-testid='batch-ai-assign-all'
           >
-            按建议分派
+            {t('assistant.batch.assignAll')}
           </Button>
         )}
         {(triage || drafts) && (
           <Button type='link' onClick={clearResults} data-testid='batch-ai-clear'>
-            清除结果
+            {t('assistant.batch.clear')}
           </Button>
         )}
       </Space>
       <Paragraph type='secondary' className='!mb-0 mt-2 text-xs'>
-        仅生成建议与草稿；采纳 / 分派需你确认后才写回，草稿不会自动发送。
+        {t('assistant.batch.boundaryNote')}
       </Paragraph>
 
       {triage && (
@@ -364,8 +378,10 @@ export function TicketBatchAIPanel({ selectedTickets, onApplied }: TicketBatchAI
           <Alert
             type={triage.some(item => item.status === 'not_found') ? 'warning' : 'success'}
             showIcon
-            title={`已生成 ${triageOK.length} 条建议${
-              triage.length > triageOK.length ? `（${triage.length - triageOK.length} 条不可用）` : ''
+            title={`${t('assistant.batch.triageGenerated', { count: triageOK.length })}${
+              triage.length > triageOK.length
+                ? t('assistant.batch.triageUnavailableSuffix', { count: triage.length - triageOK.length })
+                : ''
             }`}
           />
           {triage.map(item => (
@@ -377,13 +393,21 @@ export function TicketBatchAIPanel({ selectedTickets, onApplied }: TicketBatchAI
               <Text strong>#{item.ticketId}</Text>
               {item.status === 'ok' ? (
                 <>
-                  <Tag>{categoryLabels[item.category ?? ''] ?? item.category ?? '未分类'}</Tag>
-                  <Tag color={priorityColors[item.priority ?? ''] ?? 'default'}>
-                    优先级 {priorityLabels[item.priority ?? ''] ?? item.priority}
+                  <Tag>
+                    {categoryLabelKeys[item.category ?? '']
+                      ? t(categoryLabelKeys[item.category ?? ''])
+                      : item.category ?? t('assistant.batch.uncategorized')}
                   </Tag>
-                  {item.assigneeId ? <Tag icon={<UserCheck size={12} />}>建议处理人 #{item.assigneeId}</Tag> : null}
+                  <Tag color={priorityColors[item.priority ?? ''] ?? 'default'}>
+                    {t('assistant.batch.priorityTag', {
+                      level: priorityLabelKeys[item.priority ?? '']
+                        ? t(priorityLabelKeys[item.priority ?? ''])
+                        : item.priority ?? '',
+                    })}
+                  </Tag>
+                  {item.assigneeId ? <Tag icon={<UserCheck size={12} />}>{t('assistant.batch.suggestedAssignee', { id: item.assigneeId })}</Tag> : null}
                   <Text type='secondary' className='text-xs'>
-                    置信度 {Math.round((item.confidence ?? 0) * 100)}%
+                    {t('assistant.batch.confidence', { pct: Math.round((item.confidence ?? 0) * 100) })}
                   </Text>
                   <Space className='ml-auto'>
                     {canUpdate && (
@@ -393,7 +417,7 @@ export function TicketBatchAIPanel({ selectedTickets, onApplied }: TicketBatchAI
                         onClick={() => void handleAcceptOne(item)}
                         data-testid={`batch-ai-accept-${item.ticketId}`}
                       >
-                        采纳
+                        {t('assistant.batch.accept')}
                       </Button>
                     )}
                     {canAssign && item.assigneeId ? (
@@ -402,13 +426,13 @@ export function TicketBatchAIPanel({ selectedTickets, onApplied }: TicketBatchAI
                         onClick={() => void handleAssignOne(item)}
                         data-testid={`batch-ai-assign-${item.ticketId}`}
                       >
-                        分派
+                        {t('assistant.batch.assign')}
                       </Button>
                     ) : null}
                   </Space>
                 </>
               ) : (
-                <Text type='secondary'>不可用（工单不存在或无权访问）</Text>
+                <Text type='secondary'>{t('assistant.batch.unavailable')}</Text>
               )}
             </div>
           ))}
@@ -420,8 +444,10 @@ export function TicketBatchAIPanel({ selectedTickets, onApplied }: TicketBatchAI
           <Alert
             type={draftOK.length > 0 ? 'success' : 'warning'}
             showIcon
-            title={`已生成 ${draftOK.length} 份草稿${
-              drafts.length > draftOK.length ? `（${drafts.length - draftOK.length} 条失败/不可用）` : ''
+            title={`${t('assistant.batch.draftsGenerated', { count: draftOK.length })}${
+              drafts.length > draftOK.length
+                ? t('assistant.batch.draftsFailedSuffix', { count: drafts.length - draftOK.length })
+                : ''
             }`}
           />
           {drafts.map(item => (
@@ -441,11 +467,11 @@ export function TicketBatchAIPanel({ selectedTickets, onApplied }: TicketBatchAI
                     onClick={() => void copyDraft(item)}
                     data-testid={`batch-ai-copy-${item.ticketId}`}
                   >
-                    复制草稿
+                    {t('assistant.batch.copyDraft')}
                   </Button>
                 ) : (
                   <Text type='secondary' className='ml-auto text-xs'>
-                    {item.status === 'not_found' ? '不可用（工单不存在或无权访问）' : item.reason || '生成失败'}
+                    {item.status === 'not_found' ? t('assistant.batch.unavailable') : item.reason || t('assistant.batch.draftFailed')}
                   </Text>
                 )}
               </div>

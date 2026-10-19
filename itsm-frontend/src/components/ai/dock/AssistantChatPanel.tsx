@@ -46,11 +46,13 @@ import AssistantInteractionBanner from './AssistantInteractionBanner';
 import { deriveInteractionState } from '@/lib/ai/interaction-state';
 import { InputDockAssistMenu } from '@/components/ai/chat-core/InputDockAssistMenu';
 import { useInputDockAssist } from '@/components/ai/chat-core/use-input-dock-assist';
+import { useI18n } from '@/lib/i18n/useI18n';
 
 const AssistantChatPanel: React.FC = () => {
   const { token } = theme.useToken();
   const { message } = App.useApp();
   const navigate = useNavigate();
+  const { t } = useI18n();
   const { pageKey: assistantPageKey, route: assistantRoute } = usePageAssistantContext();
   const {
     messages,
@@ -109,17 +111,17 @@ const AssistantChatPanel: React.FC = () => {
   }, [closePanel, convId, effectiveScope, navigate, setHandoffConversationId, streaming]);
 
   const workspaceHint = streaming
-    ? '生成中，完成后可在工作区继续'
+    ? t('assistant.panel.workspaceHintStreaming')
     : convId
-      ? '在工作区打开（继续当前会话）'
-      : '发送第一条消息后可在工作区继续';
+      ? t('assistant.panel.workspaceHintHasConv')
+      : t('assistant.panel.workspaceHintNoConv');
 
   // 会话历史下拉：与工作区共用内核的列表/切换动作（同一套数据与竞态保护）。
   const [historyOpen, setHistoryOpen] = useState(false);
   const [historyQuery, setHistoryQuery] = useState('');
   const filteredConversations = historyQuery.trim()
     ? conversations.filter(conv =>
-        (conv.title || `会话 #${conv.id}`).toLowerCase().includes(historyQuery.trim().toLowerCase())
+        (conv.title || t('assistant.panel.conversationFallback', { id: conv.id })).toLowerCase().includes(historyQuery.trim().toLowerCase())
       )
     : conversations;
   const handleSwitchConversation = useCallback(
@@ -216,8 +218,8 @@ const AssistantChatPanel: React.FC = () => {
       pageKey: assistantPageKey && assistantPageKey !== 'unknown' ? assistantPageKey : undefined,
       route: assistantRoute,
     });
-    if (!task) message.error('发起后台精算失败，请稍后重试');
-  }, [query, assistantPageKey, assistantRoute, message]);
+    if (!task) message.error(t('assistant.panel.asyncStartFailed'));
+  }, [query, assistantPageKey, assistantRoute, message, t]);
 
   return (
     <div
@@ -246,8 +248,8 @@ const AssistantChatPanel: React.FC = () => {
             value={tab}
             onChange={value => setTab(value as 'chat' | 'help')}
             options={[
-              { label: '对话', value: 'chat' },
-              { label: '帮助', value: 'help' },
+              { label: t('assistant.panel.tabChat'), value: 'chat' },
+              { label: t('assistant.panel.tabHelp'), value: 'help' },
             ]}
           />
           <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
@@ -257,7 +259,7 @@ const AssistantChatPanel: React.FC = () => {
               onOpenChange={setHistoryOpen}
               trigger="click"
               placement="bottomRight"
-              title="会话历史"
+              title={t('assistant.panel.historyTitle')}
               content={
                 <div
                   data-testid="assistant-history-popover"
@@ -272,7 +274,7 @@ const AssistantChatPanel: React.FC = () => {
                     disabled={streaming}
                     style={{ width: '100%', justifyContent: 'flex-start', marginBottom: 4 }}
                   >
-                    新建会话
+                    {t('assistant.panel.newConversation')}
                   </Button>
                   <Input
                     data-testid="assistant-history-search"
@@ -280,7 +282,7 @@ const AssistantChatPanel: React.FC = () => {
                     allowClear
                     value={historyQuery}
                     onChange={e => setHistoryQuery(e.target.value)}
-                    placeholder="搜索会话标题"
+                    placeholder={t('assistant.panel.searchConversations')}
                     style={{ marginBottom: 6 }}
                   />
                   {loadingConvs ? (
@@ -289,7 +291,7 @@ const AssistantChatPanel: React.FC = () => {
                     </div>
                   ) : filteredConversations.length === 0 ? (
                     <div style={{ fontSize: 12, color: token.colorTextSecondary, padding: '8px 4px' }}>
-                      {conversations.length === 0 ? '暂无会话记录' : '没有匹配的会话'}
+                      {conversations.length === 0 ? t('assistant.panel.noConversations') : t('assistant.panel.noMatchingConversations')}
                     </div>
                   ) : (
                     filteredConversations.map(conv => (
@@ -326,20 +328,20 @@ const AssistantChatPanel: React.FC = () => {
                               whiteSpace: 'nowrap',
                             }}
                           >
-                            {conv.title || `会话 #${conv.id}`}
+                            {conv.title || t('assistant.panel.conversationFallback', { id: conv.id })}
                           </div>
                           <div style={{ fontSize: 11, color: token.colorTextSecondary }}>
                             {formatTime(conv.createdAt)}
                           </div>
                         </div>
                         {/* 导出：与工作区同源动作（只读，不受 ai:write 门控）。 */}
-                        <Tooltip title="导出会话（Markdown）">
+                        <Tooltip title={t('assistant.panel.exportConversationTooltip')}>
                           <Button
                             data-testid={`assistant-history-export-${conv.id}`}
                             type="text"
                             size="small"
                             icon={<Download size={12} />}
-                            aria-label="导出会话"
+                            aria-label={t('assistant.panel.exportConversation')}
                             onClick={e => {
                               e.stopPropagation();
                               void handleExportConversation(e, conv.id);
@@ -348,9 +350,9 @@ const AssistantChatPanel: React.FC = () => {
                         </Tooltip>
                         {canDeleteConversation ? (
                           <Popconfirm
-                            title="删除此会话？"
-                            okText="删除"
-                            cancelText="取消"
+                            title={t('assistant.panel.deleteConversationPrompt')}
+                            okText={t('assistant.panel.delete')}
+                            cancelText={t('assistant.panel.cancel')}
                             okButtonProps={{ danger: true, size: 'small' }}
                             onConfirm={e => {
                               e?.stopPropagation();
@@ -366,7 +368,7 @@ const AssistantChatPanel: React.FC = () => {
                               size="small"
                               danger
                               icon={<Trash2 size={12} />}
-                              aria-label="删除会话"
+                              aria-label={t('assistant.panel.deleteConversation')}
                               onClick={e => e.stopPropagation()}
                             />
                           </Popconfirm>
@@ -377,13 +379,13 @@ const AssistantChatPanel: React.FC = () => {
                 </div>
               }
             >
-              <Tooltip title={currentConvTitle ? `会话历史 · ${currentConvTitle}` : '会话历史'}>
+              <Tooltip title={currentConvTitle ? t('assistant.panel.historyWithTitle', { title: currentConvTitle }) : t('assistant.panel.historyTitle')}>
                 <Button
                   data-testid="assistant-history-open"
                   type="text"
                   size="small"
                   icon={<History size={14} />}
-                  aria-label="会话历史"
+                  aria-label={t('assistant.panel.historyTitle')}
                   aria-haspopup="dialog"
                   aria-expanded={historyOpen}
                   onClick={() => setHistoryOpen(v => !v)}
@@ -399,7 +401,7 @@ const AssistantChatPanel: React.FC = () => {
                 icon={<ExternalLink size={14} />}
                 onClick={handleOpenWorkspace}
                 disabled={!convId || streaming}
-                aria-label="在工作区打开"
+                aria-label={t('assistant.panel.openWorkspace')}
               />
             </Tooltip>
             {/* O2-02：诊断入口（与 /ai/chat 工作区共用同一实现；关闭时不请求轨迹）。 */}
@@ -431,7 +433,7 @@ const AssistantChatPanel: React.FC = () => {
       <div
         ref={scrollRef}
         role="log"
-        aria-label="AI 助手会话消息"
+        aria-label={t('assistant.panel.messagesAria')}
         aria-live="polite"
         aria-busy={streaming}
         style={{ flex: 1, minHeight: 0, overflowY: 'auto', padding: '14px 12px 6px' }}
@@ -446,7 +448,7 @@ const AssistantChatPanel: React.FC = () => {
                 textAlign: 'center',
               }}
             >
-              结合知识库回答当前页面的问题
+              {t('assistant.panel.emptyHint')}
             </div>
             <div style={{ display: 'grid', gap: 8 }}>
               {/* D0-05：页面级建议卡（注册表驱动，未注册路由回退通用建议）。 */}
@@ -516,20 +518,20 @@ const AssistantChatPanel: React.FC = () => {
             value={query}
             onChange={e => setQuery(e.target.value)}
             onKeyDown={inputAssist.handleKeyDown}
-            placeholder="请输入你的问题…"
+            placeholder={t('assistant.panel.inputPlaceholder')}
             // P1：宽档位（≥560px）给输入更多行数，长提示词不必在 6 行里滚动。
             autoSize={{ minRows: 1, maxRows: widePanel ? 10 : 6 }}
             variant="borderless"
             style={{ padding: '6px 0', resize: 'none', fontSize: 13, lineHeight: 1.6 }}
           />
-          <Tooltip title="后台精算：先看快速参考，完整回答完成后通知">
+          <Tooltip title={t('assistant.panel.asyncStartTooltip')}>
             <Button
               data-testid="assistant-async-start"
               shape="circle"
               icon={<Sparkles size={15} />}
               onClick={() => void handleStartAsync()}
               disabled={!query.trim()}
-              aria-label="后台精算"
+              aria-label={t('assistant.panel.asyncStart')}
             />
           </Tooltip>
           {streaming ? (
@@ -538,7 +540,7 @@ const AssistantChatPanel: React.FC = () => {
               danger
               icon={<StopCircle size={15} />}
               onClick={handleStop}
-              aria-label="停止生成"
+              aria-label={t('assistant.panel.stopGenerating')}
             />
           ) : (
             <Button
@@ -548,7 +550,7 @@ const AssistantChatPanel: React.FC = () => {
               icon={<Send size={15} />}
               onClick={() => handleSend()}
               disabled={!query.trim()}
-              aria-label="发送"
+              aria-label={t('assistant.panel.send')}
             />
           )}
           {inputAssist.assist ? (
@@ -570,7 +572,7 @@ const AssistantChatPanel: React.FC = () => {
             marginTop: 6,
           }}
         >
-          Enter 发送 · 回答由 AI 生成，请自行甄别
+          {t('assistant.panel.footerHint')}
         </div>
       </div>
         </>

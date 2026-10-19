@@ -19,6 +19,7 @@ import { useAssistantSuggestions } from '@/lib/ai/page-context/use-assistant-sug
 import { useDynamicSuggestions } from '@/lib/ai/page-context/use-dynamic-suggestions';
 import { trackAssistantEvent } from '@/lib/ai/telemetry';
 import { useAssistantPageData } from '@/lib/store/assistant-context-store';
+import { useI18n } from '@/lib/i18n/useI18n';
 import { SUGGESTIONS } from './constants';
 
 interface SuggestionCardItem {
@@ -52,6 +53,7 @@ export interface SuggestionCardsProps {
 
 export const SuggestionCards: React.FC<SuggestionCardsProps> = ({ onSend, disabled, compact }) => {
   const { token } = theme.useToken();
+  const { t } = useI18n();
   const { declaration, pageKey, route } = usePageAssistantContext();
   const feed = useAssistantSuggestions(declaration, pageKey, route);
   // P2 LLM 动态建议：失败/未启用 → 空数组（保持静态/服务端基线，零行为差异）。
@@ -192,7 +194,7 @@ export const SuggestionCards: React.FC<SuggestionCardsProps> = ({ onSend, disabl
       size={compact ? 'small' : 'middle'}
       onClick={() => handlePick(card, rank)}
       disabled={disabled}
-      title={card.kind === 'task' ? '任务卡（只读）' : undefined}
+      title={card.kind === 'task' ? t('assistant.suggestions.taskCardTooltip') : undefined}
       style={
         card.kind === 'question'
           ? { color: token.colorTextSecondary, borderColor: token.colorBorderSecondary }
@@ -218,13 +220,13 @@ export const SuggestionCards: React.FC<SuggestionCardsProps> = ({ onSend, disabl
     <div data-testid="suggestion-cards" style={{ display: 'grid', gap: compact ? 10 : 14 }}>
       {taskCards.length > 0 ? (
         <section data-testid="suggestion-group-tasks">
-          <div style={groupHeaderStyle}>任务卡（零输入可执行；只读）</div>
+          <div style={groupHeaderStyle}>{t('assistant.suggestions.groupTasks')}</div>
           <div style={groupGridStyle}>{taskCards.map((card, index) => renderCard(card, index))}</div>
         </section>
       ) : null}
       {questionCards.length > 0 ? (
         <section data-testid="suggestion-group-questions">
-          <div style={groupHeaderStyle}>问题卡（了解）</div>
+          <div style={groupHeaderStyle}>{t('assistant.suggestions.groupQuestions')}</div>
           <div style={groupGridStyle}>
             {questionCards.map((card, index) => renderCard(card, taskCards.length + index))}
           </div>

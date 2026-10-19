@@ -17,6 +17,7 @@ import {
   useAssistantAsyncStore,
   type AssistantAsyncTask,
 } from '@/lib/ai/async/assistant-async-store';
+import { useI18n } from '@/lib/i18n/useI18n';
 
 export const ASSISTANT_ASYNC_CARD_TESTID = 'assistant-async-card';
 export const ASSISTANT_ASYNC_FAST_TESTID = 'assistant-async-fast';
@@ -30,34 +31,36 @@ export const ASSISTANT_ASYNC_POLL_INTERVAL_MS = 3000;
 /** 面板内最多同时展示的任务数（其余保留在 store，FAB 徽标仍计数）。 */
 export const ASSISTANT_ASYNC_VISIBLE_LIMIT = 2;
 
-/** 失败/降级原因 → 可读文案（诚实说明，不显示原始错误码给终端用户）。 */
-export function asyncReasonText(reason?: string, status?: string): string {
+/** 失败/降级原因 → 翻译键（诚实说明，不显示原始错误码给终端用户）。 */
+export function asyncReasonKey(reason?: string, status?: string): string | null {
   switch (reason) {
     case 'timeout':
-      return '精算超时，快速参考仍可用';
+      return 'assistant.async.reasonTimeout';
     case 'provider_error':
-      return '模型调用失败，快速参考仍可用';
+      return 'assistant.async.reasonProviderError';
     case 'generator_unavailable':
-      return '当前未配置模型，仅提供快速参考';
+      return 'assistant.async.reasonGeneratorUnavailable';
     case 'not_found':
-      return '任务已过期';
+      return 'assistant.async.reasonNotFound';
     default:
-      return status === 'failed' ? '精算未完成，快速参考仍可用' : '';
+      return status === 'failed' ? 'assistant.async.reasonFailedFallback' : null;
   }
 }
 
-const statusLabel: Record<string, string> = {
-  running: '精算中',
-  done: '已完成',
-  degraded: '仅快速参考',
-  failed: '精算未完成',
+const statusLabelKey: Record<string, string> = {
+  running: 'assistant.async.statusRunning',
+  done: 'assistant.async.statusDone',
+  degraded: 'assistant.async.statusDegraded',
+  failed: 'assistant.async.statusFailed',
 };
 
 const TaskRow: React.FC<{ task: AssistantAsyncTask }> = ({ task }) => {
   const { token } = theme.useToken();
+  const { t } = useI18n();
   const remove = useAssistantAsyncStore(state => state.remove);
   const running = isTaskRunning(task);
-  const reason = asyncReasonText(task.reason, task.status);
+  const reasonKey = asyncReasonKey(task.reason, task.status);
+  const reason = reasonKey ? t(reasonKey) : '';
 
   return (
     <div
@@ -84,14 +87,14 @@ const TaskRow: React.FC<{ task: AssistantAsyncTask }> = ({ task }) => {
           color={running ? 'processing' : task.status === 'done' ? 'success' : 'default'}
           style={{ marginInlineEnd: 0, fontSize: 11, lineHeight: '18px' }}
         >
-          {statusLabel[task.status] ?? task.status}
+          {statusLabelKey[task.status] ? t(statusLabelKey[task.status]) : task.status}
         </Tag>
-        <Tooltip title="移除回执">
+        <Tooltip title={t('assistant.async.dismiss')}>
           <Button
             data-testid={ASSISTANT_ASYNC_DISMISS_TESTID}
             type="text"
             size="small"
-            aria-label="移除回执"
+            aria-label={t('assistant.async.dismiss')}
             icon={<X size={12} />}
             onClick={() => remove(task.taskId)}
           />
@@ -101,7 +104,7 @@ const TaskRow: React.FC<{ task: AssistantAsyncTask }> = ({ task }) => {
       {task.fast.items.length > 0 && (
         <div data-testid={ASSISTANT_ASYNC_FAST_TESTID} style={{ marginTop: 6 }}>
           <div style={{ fontSize: 11, color: token.colorTextSecondary, marginBottom: 2 }}>
-            {running ? '先看这些（快速参考）' : '快速参考'}
+            {t(running ? 'assistant.async.fastRunning' : 'assistant.async.fast')}
           </div>
           {task.fast.items.map((item, index) => (
             <div key={`${task.taskId}-${index}`} style={{ fontSize: 12, marginBottom: 2 }}>
@@ -120,7 +123,7 @@ const TaskRow: React.FC<{ task: AssistantAsyncTask }> = ({ task }) => {
       )}
       {task.fast.items.length === 0 && running && (
         <div style={{ fontSize: 11, color: token.colorTextSecondary, marginTop: 6 }}>
-          暂无快速参考，完整回答正在后台精算…
+          {t('assistant.async.noFast')}
         </div>
       )}
 

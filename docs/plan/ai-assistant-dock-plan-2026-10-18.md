@@ -1091,7 +1091,7 @@ Dock 容器、chat-core 抽离、交互状态机、帮助覆盖率 ratchet、Aut
 | T5-10 | i18n"文案批次"落为真实任务（或显式关闭） | §3.7；多处条件项悬空引用 | 任务化 / 关闭登记 |
 | T5-11 | 宽度交互文档收口：将"离散三档 + 键盘循环（替代自由拖拽）"回写 §3.1/§3.7；决定是否保留"边缘收纳" | `5d87a831` 已按新形态实现 | 方案条款同步后关闭 |
 | T5-12 | 双入口一致性收口：按 §14.4-① 决策实施或更新方案条款（`5d87a831` 已实现"抑制 + 一次性交接"） | §3.7 L119；评审 §3 | 决策落文档 + 一致性用例 |
-| T5-13 | 文案 i18n 批次（承接 T5-10）：面板/建议/记忆条/回执卡/门户入口/帮助视图及 V1-01/V1-02 等新增文案接入 `useI18n`（zh/en） | §3.7 L116；多处条件项悬空引用（v4 见 L316/345/358/372/429/457/563） | 文案走翻译键、zh/en 键齐全；证据 `assistant-dock/T5-13-i18n-copy-batch-evidence.md`（待产出） |
+| T5-13 | 文案 i18n 批次（承接 T5-10）：面板/建议/记忆条/回执卡/门户入口/帮助视图及 V1-01/V1-02 等新增文案接入 `useI18n`（zh/en） | §3.7 L116；多处条件项悬空引用（v4 见 L316/345/358/372/429/457/563） | 文案走翻译键、zh/en 键齐全；证据 `assistant-dock/T5-13-i18n-copy-batch-evidence.md` |
 
 > 进展（2026-10-19）：T5-01 已完成——证据 `assistant-dock/I0-01-interaction-state-evidence.md`、`assistant-dock/runtime-fixes-batch-2-evidence.md`；登记见交付台账 §E/§G/§H 与 T5 段。
 > 进展（2026-10-19）：T5-12 已按 B 收口——方案 §3.7/§8 条款更新为"工作区抑制 Dock + 一次性会话交接"（`5d87a831`）；一致性用例=既有回归（`AssistantDock` / `AssistantChatPanel` / `use-ai-chat-session`）；§14.4-① 解除；登记见交付台账 §H 与 T5 段。
@@ -1099,6 +1099,8 @@ Dock 容器、chat-core 抽离、交互状态机、帮助覆盖率 ratchet、Aut
 > 进展（2026-10-19）：T5-08 已完成——消息区 live region 双表面落地（`role="log"` + `aria-live="polite"` + 流式 `aria-busy` 抑制；工作区 `AIChat.tsx` / Dock 面板 `AssistantChatPanel.tsx`）；行为断言 `streaming-a11y-behavior.test.tsx`（3 例）实跑 4 suites / 26 tests 全过（含 axe 回归）；证据 `assistant-dock/T5-08-streaming-aria-live-evidence.md`；登记见交付台账 §H 与 T5 段。
 > 进展（2026-10-19）：T5-10 已完成——"文案批次"任务化：新设 **T5-13**（文案 i18n 批次，助手各表面；验收=useI18n zh/en 键齐全 + 证据路径）；§14.3 条件行改挂 T5-13；登记见交付台账 T5 段。
 > 进展（2026-10-19）：T5-02 已完成——输入坞 `/` 快捷指令（`/工单` `/SLA` `/话术`）+ `@` 引用当前页对象双表面落地（共享模块 `chat-core/input-dock-commands.ts` / `InputDockAssistMenu.tsx` / `use-input-dock-assist.ts`；工作区 `AIChat.tsx` / Dock 面板 `AssistantChatPanel.tsx` 接线）；菜单开启时 Enter 只做选择不发送、Esc 后交还会话路径；解析单测 20 例 + 双表面交互 4 例（新测 2 suites / 24 tests；回归 8 suites / 61 tests 全过）；证据 `assistant-dock/T5-02-input-dock-slash-and-reference-evidence.md`；登记见交付台账 §H 与 T5 段。
+
+> 进展（2026-10-19）：T5-13 已完成——12 个助手表面（面板/建议/记忆条/回执卡/门户入口/帮助视图/Dock/批量面板/邮件入口等）接入 `useI18n`；新增 `assistant` 命名空间（`translations-assistant.ts`，11 子命名空间、zh/en 各 213 键，键集与占位符对齐校验通过）；zh 值与原字面量逐字一致；eslint/tsc 全绿，回归 40/41 suites 通过（唯一失败为存量 `TicketDetailAssignSearch`，HEAD 复现）；证据 `assistant-dock/T5-13-i18n-copy-batch-evidence.md`；登记见交付台账 T5 段。
 
 ### 14.3 条件项登记表（v5 起统一入口，完成即回填证据并从表移除）
 
@@ -1110,7 +1112,6 @@ Dock 容器、chat-core 抽离、交互状态机、帮助覆盖率 ratchet、Aut
 | Q1"核心 40 页"量化目标 | 产品口径 | 复核保号或降级 |
 | Q2 助手侧客户上下文联动（增强） | 产品口径 | 与 MSP 场景一并评估 |
 | Q4 平台侧季度覆盖率 / stale 例行复核 | 运营 | 制度化后关闭 |
-| 文案 i18n（V1-01 / V1-02 / 面板等） | T5-13（承接 T5-10） | 批次排期后 |
 
 ### 14.4 待决策（阻塞项）
 

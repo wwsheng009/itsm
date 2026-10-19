@@ -20,15 +20,16 @@ import {
 } from '@/lib/api/ai-api';
 import { usePageAssistantContext } from '@/lib/ai/page-context/use-page-assistant-context';
 import { trackAssistantEvent } from '@/lib/ai/telemetry';
+import { useI18n } from '@/lib/i18n/useI18n';
 import MarkdownMessage from '../MarkdownMessage';
 
 const { Text } = Typography;
 
-const STATUS_META: Record<string, { color: string; label: string }> = {
-  ok: { color: 'green', label: '已覆盖' },
-  stale: { color: 'orange', label: '需复核' },
-  missing: { color: 'red', label: '缺失' },
-  unknown: { color: 'default', label: '未注册页面' },
+const STATUS_META: Record<string, { color: string; labelKey: string }> = {
+  ok: { color: 'green', labelKey: 'assistant.help.statusOk' },
+  stale: { color: 'orange', labelKey: 'assistant.help.statusStale' },
+  missing: { color: 'red', labelKey: 'assistant.help.statusMissing' },
+  unknown: { color: 'default', labelKey: 'assistant.help.statusUnknown' },
 };
 
 export interface AssistantHelpPanelProps {
@@ -38,6 +39,7 @@ export interface AssistantHelpPanelProps {
 
 const AssistantHelpPanel: React.FC<AssistantHelpPanelProps> = ({ onDraft }) => {
   const { token } = theme.useToken();
+  const { t } = useI18n();
   const { pageKey, route, declaration } = usePageAssistantContext();
   const [loading, setLoading] = useState(false);
   const [data, setData] = useState<HelpPageResult | null>(null);
@@ -63,11 +65,11 @@ const AssistantHelpPanel: React.FC<AssistantHelpPanelProps> = ({ onDraft }) => {
     try {
       setData(await aiGetPageHelp(pageKey));
     } catch (err) {
-      setError((err as Error)?.message || '加载页面帮助失败');
+      setError((err as Error)?.message || t('assistant.help.loadFailed'));
     } finally {
       setLoading(false);
     }
-  }, [pageKey]);
+  }, [pageKey, t]);
 
   useEffect(() => {
     void load();
@@ -121,11 +123,11 @@ const AssistantHelpPanel: React.FC<AssistantHelpPanelProps> = ({ onDraft }) => {
       setResults(res.results ?? []);
       setDistributedResults(res.distributedResults ?? []);
     } catch (err) {
-      setSearchError((err as Error)?.message || '检索失败');
+      setSearchError((err as Error)?.message || t('assistant.help.searchFailed'));
     } finally {
       setSearching(false);
     }
-  }, []);
+  }, [t]);
 
   // P2：文档反馈（每条文档视图最多一次）——「已解决」= 命中且解决；「未解决」= 需转人工/建单。
   const handleFeedback = useCallback(
@@ -148,8 +150,8 @@ const AssistantHelpPanel: React.FC<AssistantHelpPanelProps> = ({ onDraft }) => {
   // 已注册页面在首帧应显示「查询中」（避免把"还没拉到"谎报为"页面未注册"）。
   const status = data?.status ?? 'unknown';
   const meta = loading
-    ? { color: 'processing', label: '查询中' }
-    : (!pageKey || pageKey === 'unknown')
+    ? { color: 'processing', labelKey: 'assistant.help.statusQuerying' }
+    : !pageKey || pageKey === 'unknown'
       ? STATUS_META.unknown
       : (STATUS_META[status] ?? STATUS_META.unknown);
   const canDraft = status === 'missing' || status === 'stale';
@@ -189,14 +191,14 @@ const AssistantHelpPanel: React.FC<AssistantHelpPanelProps> = ({ onDraft }) => {
         <Space size={6}>
           <FileText size={14} color={token.colorTextSecondary} />
           <Text strong style={{ fontSize: 13 }}>
-            页面帮助
+            {t('assistant.help.title')}
           </Text>
           <Tag color={meta.color} data-testid="help-status" style={{ marginInlineEnd: 0 }}>
-            {meta.label}
+            {t(meta.labelKey)}
           </Tag>
           {data?.coverage ? (
             <Text type="secondary" style={{ fontSize: 11 }} data-testid="help-coverage">
-              {`覆盖率 ${(data.coverage.coverage * 100).toFixed(0)}%`}
+              {t('assistant.help.coverage', { pct: (data.coverage.coverage * 100).toFixed(0) })}
             </Text>
           ) : null}
         </Space>
@@ -207,7 +209,7 @@ const AssistantHelpPanel: React.FC<AssistantHelpPanelProps> = ({ onDraft }) => {
           size="small"
           icon={<RefreshCw size={13} />}
           onClick={() => void load()}
-          aria-label="刷新帮助"
+          aria-label={t('assistant.help.refresh')}
         />
       </div>
 
@@ -244,10 +246,10 @@ const AssistantHelpPanel: React.FC<AssistantHelpPanelProps> = ({ onDraft }) => {
               >
                 <Space size={6} wrap>
                   <Tag color="purple" style={{ marginInlineEnd: 0 }}>
-                    服务商分发
+                    {t('assistant.help.distributed')}
                   </Tag>
                   {doc.status === 'unbound' ? (
-                    <Tag style={{ marginInlineEnd: 0 }}>已解绑·原生副本</Tag>
+                    <Tag style={{ marginInlineEnd: 0 }}>{t('assistant.help.unboundNative')}</Tag>
                   ) : null}
                   <Text type="secondary" style={{ fontSize: 11 }}>
                     {doc.title} · {doc.sourceSlug} v{doc.sourceVersion}
@@ -265,7 +267,7 @@ const AssistantHelpPanel: React.FC<AssistantHelpPanelProps> = ({ onDraft }) => {
             style={{ marginTop: 10, display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}
           >
             <Text type="secondary" style={{ fontSize: 12 }}>
-              这个帮助解决了你的问题吗？
+              {t('assistant.help.feedbackQuestion')}
             </Text>
             <Button
               size="small"
@@ -273,7 +275,7 @@ const AssistantHelpPanel: React.FC<AssistantHelpPanelProps> = ({ onDraft }) => {
               disabled={feedback !== null}
               onClick={() => handleFeedback(true)}
             >
-              已解决
+              {t('assistant.help.helpful')}
             </Button>
             <Button
               size="small"
@@ -281,11 +283,11 @@ const AssistantHelpPanel: React.FC<AssistantHelpPanelProps> = ({ onDraft }) => {
               disabled={feedback !== null}
               onClick={() => handleFeedback(false)}
             >
-              未解决
+              {t('assistant.help.unhelpful')}
             </Button>
             {feedback ? (
               <Text type="secondary" style={{ fontSize: 12 }} data-testid="help-feedback-thanks">
-                感谢反馈
+                {t('assistant.help.feedbackThanks')}
               </Text>
             ) : null}
           </div>
@@ -295,8 +297,8 @@ const AssistantHelpPanel: React.FC<AssistantHelpPanelProps> = ({ onDraft }) => {
           <Alert
             type="warning"
             showIcon
-            message={status === 'stale' ? '该页面帮助文档已过时' : '该页面暂无帮助文档'}
-            description="可让 AI 参考同类页面结构生成初稿（草稿只落产物，不发布）。"
+            message={t(status === 'stale' ? 'assistant.help.staleAlert' : 'assistant.help.missingAlert')}
+            description={t('assistant.help.draftAlertDescription')}
             data-testid="help-missing-alert"
             action={
               <Button
@@ -305,7 +307,7 @@ const AssistantHelpPanel: React.FC<AssistantHelpPanelProps> = ({ onDraft }) => {
                 data-testid="help-generate-draft"
                 onClick={() => onDraft(buildDraftPrompt())}
               >
-                让 AI 生成初稿
+                {t('assistant.help.generateDraft')}
               </Button>
             }
             style={{ marginTop: data?.docs.length ? 12 : 0 }}
@@ -316,8 +318,8 @@ const AssistantHelpPanel: React.FC<AssistantHelpPanelProps> = ({ onDraft }) => {
           <Alert
             type="info"
             showIcon
-            message="当前页面未注册页面键"
-            description="帮助视图仅对已注册页面提供（见页面注册表 D0-03）。"
+            message={t('assistant.help.unknownPage')}
+            description={t('assistant.help.unknownPageDescription')}
             data-testid="help-unknown-page"
           />
         ) : null}
@@ -332,7 +334,7 @@ const AssistantHelpPanel: React.FC<AssistantHelpPanelProps> = ({ onDraft }) => {
       >
         <Input.Search
           data-testid="help-search-input"
-          placeholder="搜索帮助文档（如：SLA 违约）"
+          placeholder={t('assistant.help.searchPlaceholder')}
           value={query}
           onChange={e => setQuery(e.target.value)}
           onSearch={value => void handleSearch(value)}
@@ -356,7 +358,7 @@ const AssistantHelpPanel: React.FC<AssistantHelpPanelProps> = ({ onDraft }) => {
           >
             {results.length === 0 && distributedResults.length === 0 ? (
               <Text type="secondary" style={{ fontSize: 12 }}>
-                没有匹配的帮助文档
+                {t('assistant.help.noResults')}
               </Text>
             ) : (
               results.map(item => (
@@ -394,7 +396,7 @@ const AssistantHelpPanel: React.FC<AssistantHelpPanelProps> = ({ onDraft }) => {
                   >
                     <Space size={6} wrap>
                       <Tag color="purple" style={{ marginInlineEnd: 0 }}>
-                        服务商分发
+                        {t('assistant.help.distributed')}
                       </Tag>
                       <Text strong style={{ fontSize: 12 }}>
                         {item.title}

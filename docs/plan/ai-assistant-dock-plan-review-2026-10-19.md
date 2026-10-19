@@ -312,3 +312,12 @@
 2. **验收（解析 + 交互测试）**：解析单测 20 例（`input-dock-commands.test.ts`）+ 双表面交互 4 例（`input-dock-assist.test.tsx`）——`/` 触发/过滤/↑↓/Enter 选择（菜单开启时不发送）/Esc 交还；`@` 插入 `@类型#编号 `。实跑新测 2 suites / 24 tests + 回归 8 suites / 61 tests 全过；证据 `docs/plan/evidence/assistant-dock/T5-02-input-dock-slash-and-reference-evidence.md`。
 3. **§7 建议 2 部分落地**："输入坞：`/` 快捷指令与 `@` 页面对象引用"完成；"附件/截图输入"仍挂 T5-03。
 4. **快照语义**：本评审正文保留快照口径，本节仅为附注。
+
+
+### 附-10 文案 i18n 批次落地（2026-10-19，T5-13）
+
+1. **T5-13 完成**：12 个助手表面（Dock 面板 / 建议卡 / 主动建议条 / Dock 容器 / 交互状态条 / 异步精算卡 / 回执卡 / 门户入口 / 批量助手面板 / 记忆条 / 帮助视图 / 邮件意图建议）接入 `useI18n`；新增 `assistant` 命名空间 `translations-assistant.ts`（11 个子命名空间，zh-CN / en-US 各 213 键）。
+2. **验收**：zh 值与原字面量逐字一致（默认 zh-CN，既有中文断言全部通过）；键集与占位符对齐校验 213/213（0 缺失 / 多余 / 不一致 / 空值）；eslint 与 tsc 全绿；回归 40/41 suites、284/288 tests 通过——唯一失败为存量 `TicketDetailAssignSearch`（auth-store mock 缺 `getState`，HEAD 复现），与本批无关。
+3. **范围边界**：注册表卡片 / 帮助文档正文与发送给模型的提示词模板（`PortalAssistantEntry` 缺省提示词、`AssistantHelpPanel` 起草提示词、`lib/ai/interaction-state` 字典）按内容 / 协议数据处理，未纳入本命名空间。
+4. **登记**：方案 §14.3 条件行移除；交付台账 §H 与 T5 段同步；证据 `docs/plan/evidence/assistant-dock/T5-13-i18n-copy-batch-evidence.md`。
+5. **快照语义**：本评审正文保留快照口径，本节仅为附注。

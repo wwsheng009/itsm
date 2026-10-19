@@ -15,6 +15,7 @@ import {
   type AssistantErrorAction,
   type AssistantInteractionState,
 } from '@/lib/ai/interaction-state';
+import { useI18n } from '@/lib/i18n/useI18n';
 
 const { Text } = Typography;
 
@@ -46,6 +47,7 @@ export const AssistantInteractionBanner: React.FC<AssistantInteractionBannerProp
   className,
 }) => {
   const { token } = theme.useToken();
+  const { t } = useI18n();
 
   // ready / closed 不占位：closed 由 FAB 呈现，ready 保持界面干净。
   if (state === 'closed' || state === 'ready') return null;
@@ -60,7 +62,7 @@ export const AssistantInteractionBanner: React.FC<AssistantInteractionBannerProp
       >
         <Skeleton active title={false} paragraph={{ rows: 2, width: ['80%', '55%'] }} />
         <Text type="secondary" style={{ fontSize: 12 }}>
-          正在准备页面上下文与建议…
+          {t('assistant.banner.opening')}
         </Text>
       </div>
     );
@@ -101,10 +103,10 @@ export const AssistantInteractionBanner: React.FC<AssistantInteractionBannerProp
       >
         <Space size={6}>
           <Tag color="processing" style={{ marginInlineEnd: 0 }}>
-            生成中
+            {t('assistant.banner.streamingTag')}
           </Tag>
           <Text type="secondary" style={{ fontSize: 12 }}>
-            回答正在流式生成，可随时停止。
+            {t('assistant.banner.streamingText')}
           </Text>
         </Space>
       </div>
@@ -123,8 +125,8 @@ export const AssistantInteractionBanner: React.FC<AssistantInteractionBannerProp
       >
         <Space size={6}>
           <Wrench size={13} color={token.colorPrimary} />
-          <Text style={{ fontSize: 12 }}>正在执行工具：</Text>
-          <Tag style={{ marginInlineEnd: 0 }}>{runningTool || '未知工具'}</Tag>
+          <Text style={{ fontSize: 12 }}>{t('assistant.banner.toolRunning')}</Text>
+          <Tag style={{ marginInlineEnd: 0 }}>{runningTool || t('assistant.banner.toolUnknown')}</Tag>
         </Space>
       </div>
     );
@@ -142,7 +144,7 @@ export const AssistantInteractionBanner: React.FC<AssistantInteractionBannerProp
       >
         <Space size={6}>
           <ShieldAlert size={13} color={token.colorWarning} />
-          <Text style={{ fontSize: 12 }}>有写操作等待确认，确认后才会执行。</Text>
+          <Text style={{ fontSize: 12 }}>{t('assistant.banner.awaitingConfirmation')}</Text>
         </Space>
       </div>
     );
@@ -161,11 +163,13 @@ export const AssistantInteractionBanner: React.FC<AssistantInteractionBannerProp
         <Space size={6} wrap>
           <ShieldAlert size={13} color={token.colorWarning} />
           <Text style={{ fontSize: 12 }}>
-            {pendingApprovalCount > 0 ? `${pendingApprovalCount} 个写操作等待人工审批` : '写操作等待人工审批'}
+            {pendingApprovalCount > 0
+              ? t('assistant.banner.awaitingApprovalCount', { count: pendingApprovalCount })
+              : t('assistant.banner.awaitingApproval')}
           </Text>
           {onOpenApproval ? (
             <Button type="link" size="small" style={{ padding: 0 }} onClick={onOpenApproval}>
-              去审批
+              {t('assistant.banner.goApprove')}
             </Button>
           ) : null}
         </Space>
@@ -186,7 +190,7 @@ export const AssistantInteractionBanner: React.FC<AssistantInteractionBannerProp
         <Space size={6}>
           <CheckCircle2 size={13} color={token.colorSuccess} />
           <Text type="secondary" style={{ fontSize: 12 }}>
-            本轮已完成，结果落点见回执。
+            {t('assistant.banner.done')}
           </Text>
         </Space>
       </div>
@@ -205,7 +209,7 @@ export const AssistantInteractionBanner: React.FC<AssistantInteractionBannerProp
     >
       <Space size={6}>
         <Text type="secondary" style={{ fontSize: 12 }}>
-          已转人工处理，可在对应业务页面继续。
+          {t('assistant.banner.handoff')}
         </Text>
       </Space>
     </div>

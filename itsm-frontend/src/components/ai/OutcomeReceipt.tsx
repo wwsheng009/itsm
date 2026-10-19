@@ -9,7 +9,8 @@ import { Button, Card, Space, Tag, Typography, message } from 'antd';
 import { Copy, ExternalLink, PackageCheck } from 'lucide-react';
 
 import { trackAssistantEvent } from '@/lib/ai/telemetry';
-import { OUTCOME_KIND_LABELS, type AssistantOutcome } from '@/lib/ai/outcome';
+import type { AssistantOutcome } from '@/lib/ai/outcome';
+import { useI18n } from '@/lib/i18n/useI18n';
 
 const { Text } = Typography;
 
@@ -20,6 +21,13 @@ const KIND_COLORS: Record<AssistantOutcome['kind'], string> = {
   navigation: 'default',
 };
 
+const KIND_LABEL_KEYS: Record<AssistantOutcome['kind'], string> = {
+  entity: 'assistant.outcome.kindEntity',
+  artifact: 'assistant.outcome.kindArtifact',
+  draft: 'assistant.outcome.kindDraft',
+  navigation: 'assistant.outcome.kindNavigation',
+};
+
 export interface OutcomeReceiptProps {
   outcomes: AssistantOutcome[];
   /** 打开落点（SPA 导航）；缺省使用 window.location.assign。 */
@@ -27,6 +35,7 @@ export interface OutcomeReceiptProps {
 }
 
 export const OutcomeReceipt: React.FC<OutcomeReceiptProps> = ({ outcomes, onOpen }) => {
+  const { t } = useI18n();
   const handleOpen = useCallback(
     (outcome: AssistantOutcome) => {
       if (!outcome.route) return;
@@ -53,11 +62,11 @@ export const OutcomeReceipt: React.FC<OutcomeReceiptProps> = ({ outcomes, onOpen
     if (!navigator.clipboard?.writeText) return;
     try {
       await navigator.clipboard.writeText(outcome.ref);
-      message.success(`已复制引用：${outcome.ref}`);
+      message.success(t('assistant.outcome.copied', { ref: outcome.ref }));
     } catch {
       // 剪贴板拒绝（权限/非安全上下文）：静默降级，不打断阅读。
     }
-  }, []);
+  }, [t]);
 
   if (outcomes.length === 0) return null;
 
@@ -69,7 +78,7 @@ export const OutcomeReceipt: React.FC<OutcomeReceiptProps> = ({ outcomes, onOpen
       title={
         <Space size={6}>
           <PackageCheck size={14} color="#2f54eb" />
-          <span style={{ fontSize: 13 }}>结果落点（可跳转 / 可验证）</span>
+          <span style={{ fontSize: 13 }}>{t('assistant.outcome.title')}</span>
         </Space>
       }
     >
@@ -81,7 +90,7 @@ export const OutcomeReceipt: React.FC<OutcomeReceiptProps> = ({ outcomes, onOpen
             style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}
           >
             <Tag color={KIND_COLORS[outcome.kind]} style={{ marginInlineEnd: 0 }}>
-              {OUTCOME_KIND_LABELS[outcome.kind]}
+              {t(KIND_LABEL_KEYS[outcome.kind])}
             </Tag>
             <Text style={{ fontSize: 13 }}>{outcome.label}</Text>
             <Text type="secondary" code style={{ fontSize: 11 }}>
@@ -96,7 +105,7 @@ export const OutcomeReceipt: React.FC<OutcomeReceiptProps> = ({ outcomes, onOpen
                 onClick={() => handleOpen(outcome)}
                 data-testid={`outcome-open-${outcome.kind}-${outcome.ref}`}
               >
-                打开
+                {t('assistant.outcome.open')}
               </Button>
             ) : null}
             <Button
@@ -106,7 +115,7 @@ export const OutcomeReceipt: React.FC<OutcomeReceiptProps> = ({ outcomes, onOpen
               onClick={() => void handleCopy(outcome)}
               data-testid={`outcome-copy-${outcome.kind}-${outcome.ref}`}
             >
-              复制引用
+              {t('assistant.outcome.copyRef')}
             </Button>
           </div>
         ))}

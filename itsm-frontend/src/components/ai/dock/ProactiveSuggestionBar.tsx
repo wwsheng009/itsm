@@ -9,6 +9,7 @@ import { Button, theme } from 'antd';
 import { Sparkles, X } from 'lucide-react';
 
 import type { ProactiveSignal } from '@/lib/ai/proactive/signals';
+import { useI18n } from '@/lib/i18n/useI18n';
 
 export const PROACTIVE_BAR_TESTID = 'assistant-proactive-bar';
 
@@ -28,14 +29,18 @@ const ProactiveSuggestionBar: React.FC<ProactiveSuggestionBarProps> = ({
   onDismissForever,
 }) => {
   const { token } = theme.useToken();
-  const actionLabel = signal.action.type === 'navigate' ? '去处理' : '让 AI 看';
+  const { t } = useI18n();
+  const actionLabel =
+    signal.action.type === 'navigate'
+      ? t('assistant.suggestions.proactiveActionNavigate')
+      : t('assistant.suggestions.proactiveActionPrompt');
 
   return (
     <div
       data-testid={PROACTIVE_BAR_TESTID}
       role="status"
       aria-live="polite"
-      aria-label="AI 助手建议"
+      aria-label={t('assistant.suggestions.proactiveAria')}
       style={{
         position: 'fixed',
         right: 24,
@@ -76,7 +81,7 @@ const ProactiveSuggestionBar: React.FC<ProactiveSuggestionBarProps> = ({
             {actionLabel}
           </Button>
           <Button size="small" type="link" onClick={() => onDismissForever(signal)}>
-            不再提示
+            {t('assistant.suggestions.proactiveDismissForever')}
           </Button>
         </div>
       </div>
@@ -84,7 +89,7 @@ const ProactiveSuggestionBar: React.FC<ProactiveSuggestionBarProps> = ({
         data-testid="assistant-proactive-bar-close"
         type="text"
         size="small"
-        aria-label="关闭建议"
+        aria-label={t('assistant.suggestions.proactiveClose')}
         icon={<X size={12} />}
         onClick={() => onDismiss(signal)}
       />

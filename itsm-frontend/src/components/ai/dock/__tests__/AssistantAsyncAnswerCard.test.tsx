@@ -12,7 +12,7 @@ import AssistantAsyncAnswerCard, {
   ASSISTANT_ASYNC_REFINED_TESTID,
   ASSISTANT_ASYNC_SEEN_TESTID,
   ASSISTANT_ASYNC_STATUS_TESTID,
-  asyncReasonText,
+  asyncReasonKey,
 } from '../AssistantAsyncAnswerCard';
 import { aiGetAsyncAnswer, type AIAsyncAnswerTask } from '@/lib/api/ai-api';
 import { mergeServerTask, useAssistantAsyncStore } from '@/lib/ai/async/assistant-async-store';
@@ -100,11 +100,14 @@ describe('AssistantAsyncAnswerCard（V2-02 异步回执卡）', () => {
     expect(screen.queryByTestId(ASSISTANT_ASYNC_CARD_TESTID)).toBeNull();
   });
 
-  it('asyncReasonText：原因码 → 可读文案（未知原因按状态兜底）', () => {
-    expect(asyncReasonText('timeout', 'failed')).toBe('精算超时，快速参考仍可用');
-    expect(asyncReasonText('provider_error', 'failed')).toBe('模型调用失败，快速参考仍可用');
-    expect(asyncReasonText('generator_unavailable', 'degraded')).toBe('当前未配置模型，仅提供快速参考');
-    expect(asyncReasonText(undefined, 'failed')).toBe('精算未完成，快速参考仍可用');
-    expect(asyncReasonText(undefined, 'running')).toBe('');
+  it('asyncReasonKey：原因码 → 翻译键（未知原因按状态兜底）', () => {
+    expect(asyncReasonKey('timeout', 'failed')).toBe('assistant.async.reasonTimeout');
+    expect(asyncReasonKey('provider_error', 'failed')).toBe('assistant.async.reasonProviderError');
+    expect(asyncReasonKey('generator_unavailable', 'degraded')).toBe(
+      'assistant.async.reasonGeneratorUnavailable'
+    );
+    expect(asyncReasonKey('not_found', 'failed')).toBe('assistant.async.reasonNotFound');
+    expect(asyncReasonKey(undefined, 'failed')).toBe('assistant.async.reasonFailedFallback');
+    expect(asyncReasonKey(undefined, 'running')).toBeNull();
   });
 });

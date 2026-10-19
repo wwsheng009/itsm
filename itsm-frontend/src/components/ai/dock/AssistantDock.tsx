@@ -30,6 +30,7 @@ import {
 import { useAssistantProactiveStore } from '@/lib/store/assistant-proactive-store';
 import { useAssistantPageData } from '@/lib/store/assistant-context-store';
 import { usePageAssistantContext } from '@/lib/ai/page-context/use-page-assistant-context';
+import { useI18n } from '@/lib/i18n/useI18n';
 import AssistantChatPanel from './AssistantChatPanel';
 import ProactiveSuggestionBar from './ProactiveSuggestionBar';
 import { countRunningTasks, countUnreadTasks, useAssistantAsyncStore } from '@/lib/ai/async/assistant-async-store';
@@ -48,6 +49,7 @@ const AssistantDock: React.FC = () => {
   const location = useLocation();
   const { hasPermission } = usePermissions();
   const { token } = theme.useToken();
+  const { t } = useI18n();
   const open = useAssistantStore(state => state.open);
   const width = useAssistantStore(state => state.width);
   const setWidth = useAssistantStore(state => state.setWidth);
@@ -213,7 +215,8 @@ const AssistantDock: React.FC = () => {
 
   // P1：宽度档位循环（窄 → 宽 → 超宽 → 窄），按当前视口自动跳过放不下的档位。
   const tierIndex = ASSISTANT_WIDTH_TIERS.indexOf(width as (typeof ASSISTANT_WIDTH_TIERS)[number]);
-  const widthLabel = tierIndex >= 0 ? ['标准宽度', '加宽', '超宽'][tierIndex] : '调整宽度';
+  const widthLabel =
+    tierIndex >= 0 ? t(`assistant.dock.widthTier${tierIndex}`) : t('assistant.dock.widthAdjust');
   const handleCycleWidth = () => {
     if (typeof window === 'undefined') return;
     const next = cycleWidth(window.innerWidth);
@@ -241,7 +244,9 @@ const AssistantDock: React.FC = () => {
           >
             <Tooltip
               title={
-                fabBadgeCount > 0 ? `AI 助手（Ctrl+I）· ${fabBadgeCount} 项待处理` : 'AI 助手（Ctrl+I）'
+                fabBadgeCount > 0
+                  ? t('assistant.dock.fabTooltipBadge', { count: fabBadgeCount })
+                  : t('assistant.dock.fabTooltip')
               }
             >
               <Button
@@ -249,7 +254,7 @@ const AssistantDock: React.FC = () => {
                 data-testid={ASSISTANT_FAB_TESTID}
                 type="primary"
                 shape="circle"
-                aria-label="AI 助手"
+                aria-label={t('assistant.dock.fabAria')}
                 onClick={togglePanel}
                 style={{
                   width: 48,
@@ -264,7 +269,7 @@ const AssistantDock: React.FC = () => {
             {fabBadgeCount > 0 ? (
               <span
                 data-testid={ASSISTANT_FAB_BADGE_TESTID}
-                aria-label={`${fabBadgeCount} 项 AI 待处理`}
+                aria-label={t('assistant.dock.fabBadgeAria', { count: fabBadgeCount })}
                 style={{
                   position: 'absolute',
                   top: -4,
@@ -288,7 +293,7 @@ const AssistantDock: React.FC = () => {
             {asyncRunningCount > 0 ? (
               <span
                 data-testid={ASSISTANT_FAB_RUNNING_TESTID}
-                aria-label={`${asyncRunningCount} 项后台精算进行中`}
+                aria-label={t('assistant.dock.fabRunningAria', { count: asyncRunningCount })}
                 style={{
                   position: 'absolute',
                   top: -2,
@@ -319,7 +324,7 @@ const AssistantDock: React.FC = () => {
           data-mobile={isMobile ? 'true' : 'false'}
           data-width={width}
           role="dialog"
-          aria-label="AI 助手面板"
+          aria-label={t('assistant.dock.panelAria')}
           style={{
             position: 'fixed',
             top: 64,
@@ -352,7 +357,7 @@ const AssistantDock: React.FC = () => {
             }}
           >
             <Bot size={16} color={token.colorPrimary} />
-            <span style={{ fontWeight: 600, fontSize: 13 }}>AI 助手</span>
+            <span style={{ fontWeight: 600, fontSize: 13 }}>{t('assistant.dock.panelTitle')}</span>
             {/* D0-05 上下文条：当前页面（来自注册表声明）。 */}
             {chipLabel ? (
               <Tag
@@ -373,14 +378,14 @@ const AssistantDock: React.FC = () => {
             <span style={{ flex: 1 }} />
             {/* P1：宽度三档循环（400 → 560 → 720），键盘可达；移动端不展示（已是全宽）。 */}
             {!isMobile ? (
-              <Tooltip title={`${widthLabel}（${width}px）`}>
+              <Tooltip title={t('assistant.dock.widthTooltip', { label: widthLabel, width })}>
                 <Button
                   data-testid="assistant-width-toggle"
                   type="text"
                   size="small"
                   icon={<Maximize2 size={14} />}
                   onClick={handleCycleWidth}
-                  aria-label={`调整 AI 助手宽度（当前 ${width}px）`}
+                  aria-label={t('assistant.dock.widthAria', { width })}
                   aria-pressed={width > ASSISTANT_WIDTH_TIERS[0]}
                 />
               </Tooltip>
@@ -389,7 +394,7 @@ const AssistantDock: React.FC = () => {
             <Popover
               trigger="click"
               placement="bottomRight"
-              title="主动协助"
+              title={t('assistant.dock.proactiveTitle')}
               content={
                 <div style={{ width: 248, display: 'flex', flexDirection: 'column', gap: 8 }}>
                   <div
@@ -400,13 +405,13 @@ const AssistantDock: React.FC = () => {
                       gap: 8,
                     }}
                   >
-                    <span style={{ fontSize: 12 }}>启用主动协助</span>
+                    <span style={{ fontSize: 12 }}>{t('assistant.dock.proactiveEnable')}</span>
                     <span data-testid="assistant-proactive-enabled">
                       <Switch
                         size="small"
                         checked={proactiveEnabled}
                         onChange={setProactiveEnabled}
-                        aria-label="启用主动协助"
+                        aria-label={t('assistant.dock.proactiveEnable')}
                       />
                     </span>
                   </div>
@@ -418,19 +423,19 @@ const AssistantDock: React.FC = () => {
                       gap: 8,
                     }}
                   >
-                    <span style={{ fontSize: 12 }}>静默模式</span>
+                    <span style={{ fontSize: 12 }}>{t('assistant.dock.proactiveSilent')}</span>
                     <span data-testid="assistant-proactive-silent">
                       <Switch
                         size="small"
                         checked={proactiveSilent}
                         disabled={!proactiveEnabled}
                         onChange={setProactiveSilent}
-                        aria-label="静默模式"
+                        aria-label={t('assistant.dock.proactiveSilent')}
                       />
                     </span>
                   </div>
                   <div style={{ fontSize: 11, color: token.colorTextSecondary }}>
-                    静默模式：只显示徽标与通知中心投递，不出现页面内建议条（默认开启）。
+                    {t('assistant.dock.proactiveSilentHint')}
                   </div>
                   <Button
                     data-testid="assistant-proactive-restore"
@@ -440,7 +445,7 @@ const AssistantDock: React.FC = () => {
                     onClick={restoreDismissed}
                     style={{ padding: 0, alignSelf: 'flex-start' }}
                   >
-                    恢复已忽略提示（{dismissedScopes.length}）
+                    {t('assistant.dock.proactiveRestore', { count: dismissedScopes.length })}
                   </Button>
                   {/* 通知订阅/退订复用现有通知偏好（/profile），助手侧不重复实现。 */}
                   <Button
@@ -450,7 +455,7 @@ const AssistantDock: React.FC = () => {
                     onClick={() => navigate('/profile')}
                     style={{ padding: 0, alignSelf: 'flex-start' }}
                   >
-                    通知订阅设置（通知中心投递）
+                    {t('assistant.dock.proactiveNotificationSettings')}
                   </Button>
                 </div>
               }
@@ -460,7 +465,7 @@ const AssistantDock: React.FC = () => {
                 type="text"
                 size="small"
                 icon={<SlidersHorizontal size={14} />}
-                aria-label="主动协助设置"
+                aria-label={t('assistant.dock.proactiveSettingsAria')}
               />
             </Popover>
             <Button
@@ -469,7 +474,7 @@ const AssistantDock: React.FC = () => {
               size="small"
               icon={<X size={14} />}
               onClick={closePanel}
-              aria-label="收起 AI 助手"
+              aria-label={t('assistant.dock.closeAria')}
             />
           </header>
           <AssistantChatPanel />

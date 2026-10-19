@@ -1,7 +1,10 @@
 // 翻译文本定义
 // test-coverage-guard: skip — i18n 数据文件,变更均为语言字符串,由类型检查与渲染测试覆盖。
+import { assistantTranslations } from './translations-assistant';
+
 export const translations = {
   'zh-CN': {
+    assistant: assistantTranslations['zh-CN'],
     header: {
       profile: '个人中心',
       settings: '设置',
@@ -5557,6 +5560,7 @@ export const translations = {
   },
 
   'en-US': {
+    assistant: assistantTranslations['en-US'],
     header: {
       profile: 'Profile',
       settings: 'Settings',

@@ -16,6 +16,7 @@ import { Bot, Sparkles } from 'lucide-react';
 import { aiInterpretTicketIntent, type TicketIntentInterpretation } from '@/lib/api/ai-api';
 import { useCan } from '@/components/auth/PermissionGate';
 import { trackAssistantEvent } from '@/lib/ai/telemetry';
+import { useI18n } from '@/lib/i18n/useI18n';
 
 export const EMAIL_INTENT_SUGGEST_TESTID = 'email-intent-suggest';
 export const EMAIL_INTENT_SUGGEST_RUN_TESTID = 'email-intent-suggest-run';
@@ -42,6 +43,7 @@ const EmailIntentSuggest: React.FC<EmailIntentSuggestProps> = ({
   pageKey = 'email.intake',
 }) => {
   const { token } = theme.useToken();
+  const { t } = useI18n();
   const canReadAi = useCan(['ai:read']);
   const canReadTicket = useCan(['ticket:read']);
   const [loading, setLoading] = useState(false);
@@ -64,7 +66,7 @@ const EmailIntentSuggest: React.FC<EmailIntentSuggestProps> = ({
       });
     } catch {
       setResult(undefined);
-      setError('理解失败：请稍后重试或直接人工填写（不影响复核流程）。');
+      setError(t('assistant.email.runFailed'));
       trackAssistantEvent('error_shown', {
         pageKey,
         source: 'email_intent',
@@ -73,7 +75,7 @@ const EmailIntentSuggest: React.FC<EmailIntentSuggestProps> = ({
     } finally {
       setLoading(false);
     }
-  }, [loading, utterance, pageKey]);
+  }, [loading, utterance, pageKey, t]);
 
   const handleAdopt = useCallback(() => {
     if (!result) return;
@@ -99,15 +101,14 @@ const EmailIntentSuggest: React.FC<EmailIntentSuggestProps> = ({
       title={
         <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 13 }}>
           <Bot size={14} color={token.colorPrimary} />
-          AI 理解邮件（只读建议）
+          {t('assistant.email.title')}
         </span>
       }
       style={{ marginBottom: 12 }}
     >
       <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
         <Text type="secondary" style={{ fontSize: 12 }}>
-          先让 AI「读懂」这封邮件（分类/优先级/标题）；采纳仅回填空白字段，仍需你核对并点击
-          「保存并重新核验」，不会自动开单。
+          {t('assistant.email.intro')}
         </Text>
 
         {!result ? (
@@ -119,15 +120,15 @@ const EmailIntentSuggest: React.FC<EmailIntentSuggestProps> = ({
               onClick={() => void handleRun()}
               data-testid={EMAIL_INTENT_SUGGEST_RUN_TESTID}
             >
-              运行 AI 理解
+              {t('assistant.email.run')}
             </Button>
           </span>
         ) : (
           <div data-testid={EMAIL_INTENT_SUGGEST_RESULT_TESTID}>
             <div style={{ fontSize: 13 }}>
-              我理解成：<Text strong>{result.summary}</Text>
+              {t('assistant.email.understood')}<Text strong>{result.summary}</Text>
               <Text type="secondary" style={{ marginLeft: 8, fontSize: 12 }}>
-                置信度 {Math.round(result.confidence * 100)}%
+                {t('assistant.email.confidence', { pct: Math.round(result.confidence * 100) })}
               </Text>
             </div>
             {result.terms.length > 0 ? (
@@ -144,7 +145,7 @@ const EmailIntentSuggest: React.FC<EmailIntentSuggestProps> = ({
                 type="warning"
                 showIcon
                 style={{ marginTop: 8 }}
-                message="未识别到明确术语：已按「其他 / 中」兜底，请以人工判断为准。"
+                message={t('assistant.email.unmatched')}
               />
             ) : null}
             <div style={{ marginTop: 8, display: 'flex', gap: 8 }}>
@@ -154,10 +155,10 @@ const EmailIntentSuggest: React.FC<EmailIntentSuggestProps> = ({
                 onClick={handleAdopt}
                 data-testid={EMAIL_INTENT_SUGGEST_ADOPT_TESTID}
               >
-                采纳到修正表单
+                {t('assistant.email.adopt')}
               </Button>
               <Button size="small" onClick={handleDismiss} data-testid={EMAIL_INTENT_SUGGEST_DISMISS_TESTID}>
-                忽略
+                {t('assistant.email.dismiss')}
               </Button>
             </div>
           </div>
