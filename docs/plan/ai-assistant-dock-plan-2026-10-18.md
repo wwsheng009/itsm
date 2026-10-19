@@ -1087,9 +1087,9 @@ Dock 容器、chat-core 抽离、交互状态机、帮助覆盖率 ratchet、Aut
 | T5-01 | 证据与台账补登记：I0-01（`4a1fd4f8`）与运行时修复批 2（`cd61ce7f`/`26512d69`/`5d87a831`） | 证据缺口（评审 §2.1–2.2） | 每项一证据文件 + §7/台账登记 |
 | T5-02 | 输入坞 `/` 快捷指令 + `@` 当前页对象引用 | §3.1 L47；代码零命中 | 解析 + 交互测试 |
 | T5-03 | 附件/截图输入（语音输入可显式关闭） | §3.5 L100–101；附件域 `generic-attachment-richtext-control-plan.md` | 上传面 + 双界面接线（建议拆 T5-03a 上传面/契约、T5-03b 双界面与视觉降级） |
-| T5-04 | handoff"转人工"三项（打开页面 / 预填 / 指派） | §3.2 L65；专项 `assistant-handoff-actions-plan-2026-10-19.md` | T5-04a ✅ / T5-04b 待排期 |
+| T5-04 | handoff"转人工"三项（打开页面 / 预填 / 指派） | §3.2 L65；专项 `assistant-handoff-actions-plan-2026-10-19.md` | ✅ 三项完成（2026-10-19；证据 `assistant-dock/T5-04a-handoff-open-prefill-evidence.md`、`assistant-dock/T5-04b-handoff-assign-evidence.md`） |
 | T5-04a | handoff 打开页面 + 预填表单（消息级入口，Dock/工作区共用） | §3.2；专项 §4.1/4.2 | ✅ 端到端（2026-10-19；证据 `assistant-dock/T5-04a-handoff-open-prefill-evidence.md`） |
-| T5-04b | handoff 指派（候选人/确认/域 API/冲突） | §3.2；专项 §4.3 | 待排期 |
+| T5-04b | handoff 指派（候选人/确认/域 API/冲突） | §3.2；专项 §4.3 | ✅ 工单/事件指派（2026-10-19；证据 `assistant-dock/T5-04b-handoff-assign-evidence.md`） |
 | T5-05 | 灰度开关 `assistant.dock.enabled` / `help.agent.enabled` | §3.7 L118、§6 L270 | ✅ 平台配置 + 免重启生效（2026-10-19；租户级；证据 `assistant-dock/T5-05-gray-switches-evidence.md`） |
 | T5-06 | 质量层数据源与看板接线（父任务，拆分为 T5-06a / T5-06b） | §13.3；§11.5 门槛依赖 | ✅ 两个子任务完成（2026-10-19；证据 `assistant-dock/T5-06a-quality-data-source-evidence.md`、`assistant-dock/T5-06b-quality-dashboard-evidence.md`） |
 | T5-06a | 质量层数据源：citation 埋点（sources 数 / 无引用回答）、回答级点踩、`model` 上报、`query_hash` 补链 | §13.3；§11.5 门槛依赖 | ✅ 指标可算（2026-10-19；证据 `assistant-dock/T5-06a-quality-data-source-evidence.md`） |
@@ -1121,6 +1121,8 @@ Dock 容器、chat-core 抽离、交互状态机、帮助覆盖率 ratchet、Aut
 
 > 进展（2026-10-19）：T5-04a 已完成——消息级「转人工」入口 + 动作卡（打开当前对象/列表、预填新建工单/事件）；预填走一次性 `assistant_handoff` state，只填空白标题/描述，消费后清除，不自动提交；权限按目标域 read / `ticket:create` / `incident:write` 裁剪。前端 5 suites / 29 tests、tsc/eslint 全绿；证据 `assistant-dock/T5-04a-handoff-open-prefill-evidence.md`；T5-04b 指派待排期。
 
+> 进展（2026-10-19）：T5-04b 已完成——动作卡新增「指派处理人」：active 候选人、搜索、二次确认；工单走 `POST /tickets/:id/assign`（`ticket:assign`），事件走 `assignIncident`（`incident:write`）；失败保留卡片并显示后端原因，埋点记录 assignee/success。前端 5 suites / 31 tests、tsc/eslint 全绿；证据 `assistant-dock/T5-04b-handoff-assign-evidence.md`。
+
 > 进展（2026-10-19）：T5-13 已完成——12 个助手表面（面板/建议/记忆条/回执卡/门户入口/帮助视图/Dock/批量面板/邮件入口等）接入 `useI18n`；新增 `assistant` 命名空间（`translations-assistant.ts`，11 子命名空间、zh/en 各 213 键，键集与占位符对齐校验通过）；zh 值与原字面量逐字一致；eslint/tsc 全绿，回归 40/41 suites 通过（唯一失败为存量 `TicketDetailAssignSearch`，HEAD 复现）；证据 `assistant-dock/T5-13-i18n-copy-batch-evidence.md`；登记见交付台账 T5 段。
 
 ### 14.3 条件项登记表（v5 起统一入口，完成即回填证据并从表移除）
@@ -1151,7 +1153,7 @@ Dock 容器、chat-core 抽离、交互状态机、帮助覆盖率 ratchet、Aut
 
 | 范围 | 专项文档 | 状态 |
 |---|---|---|
-| T5-04 handoff 三项 | `docs/plan/assistant-handoff-actions-plan-2026-10-19.md` | T5-04a ✅；T5-04b 待排期 |
+| T5-04 handoff 三项 | `docs/plan/assistant-handoff-actions-plan-2026-10-19.md` | ✅ T5-04a + T5-04b 已完成 |
 | T5-07b 模型分级路由/成本上限 | `docs/plan/assistant-model-routing-and-budget-plan-2026-10-19.md` | 方案待评审；Q5 五项口径待拍板 |
 | T5-03 附件域基础 | `docs/plan/generic-attachment-richtext-control-plan.md` | 已有附件域方案；AI 对话附件待拆 T5-03a/b |
 | T5-09 帮助子系统 | 本文 §5.1–5.8 + `docs/plan/evidence/help-agent/H0-*.md` | 设计/读面已有；写面与向量化待拆 T5-09a/b |

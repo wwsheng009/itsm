@@ -7,9 +7,9 @@
  *
  * 权限在动作生成时裁剪；页面消费预填时仍按空白字段优先，不覆盖人工输入。
  */
-import React, { useCallback, useMemo } from 'react';
-import { Alert, Button, Modal, Space, Typography } from 'antd';
-import { ExternalLink, FilePlus2 } from 'lucide-react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { Alert, App, Button, Modal, Select, Space, Typography } from 'antd';
+import { ExternalLink, FilePlus2, UserPlus } from 'lucide-react';
 import { useNavigate } from 'react-router';
 
 import type { ChatMessage } from '@/components/ai/chat-core/types';
@@ -22,6 +22,9 @@ import {
   buildHandoffPrefillState,
   type HandoffPrefillTarget,
 } from '@/lib/ai/handoff/prefill';
+import { TicketApi } from '@/lib/api/ticket-api';
+import { IncidentAPI } from '@/lib/api/incident-api';
+import { UserApi } from '@/lib/api/user-api';
 
 const { Text } = Typography;
 
@@ -46,6 +49,12 @@ type HandoffAction =
       id: 'prefill-ticket' | 'prefill-incident';
       label: string;
       targetType: HandoffPrefillTarget;
+    }
+  | {
+      id: 'assign';
+      label: string;
+      targetType: 'ticket' | 'incident';
+      targetId: number;
     };
 
 const targetRoute = (targetType: string, targetId: number): string | null => {
@@ -81,9 +90,30 @@ const targetResource = (targetType: string): string | null => {
 const HandoffActionCard: React.FC<HandoffActionCardProps> = ({ open, onClose, message }) => {
   const navigate = useNavigate();
   const { t } = useI18n();
+  const { message: antMessage } = App.useApp();
   const { hasPermission } = usePermissions();
   const { pageKey } = usePageAssistantContext();
   const pageData = useAssistantPageData();
+  const [assignMode, setAssignMode] = useState(false);
+  const [assignTarget, setAssignTarget] = useState<{ targetType: 'ticket' | 'incident'; targetId: number } | null>(null);
+  const [assigneeId, setAssigneeId] = useState<number | undefined>();
+  const [assigneeOptions, setAssigneeOptions] = useState<Array<{ value: number; label: string }>>([]);
+  const [assigneesLoading, setAssigneesLoading] = useState(false);
+  const [assigning, setAssigning] = useState(false);
+  const [assignError, setAssignError] = useState<string | null>(null);
+
+  const resetAssign = useCallback(() => {
+    setAssignMode(false);
+    setAssignTarget(null);
+    setAssigneeId(undefined);
+    setAssigneesLoading(false);
+    setAssigning(false);
+    setAssignError(null);
+  }, []);
+
+  useEffect(() => {
+    if (!open) resetAssign();
+  }, [open, resetAssign]);
 
   const prefillTitle = useMemo(() => {
     const summary = pageData?.summary?.trim();
@@ -136,11 +166,52 @@ const HandoffActionCard: React.FC<HandoffActionCardProps> = ({ open, onClose, me
         targetType: 'incident',
       });
     }
+    if (pageData?.targetType === 'ticket' && hasPermission('ticket', 'assign')) {
+      next.push({
+        id: 'assign',
+        label: t('assistant.handoff.assign'),
+        targetType: 'ticket',
+        targetId: pageData.targetId,
+      });
+    }
+    if (pageData?.targetType === 'incident' && hasPermission('incident', 'write')) {
+      next.push({
+        id: 'assign',
+        label: t('assistant.handoff.assign'),
+        targetType: 'incident',
+        targetId: pageData.targetId,
+      });
+    }
     return next;
   }, [hasPermission, pageData, t]);
 
+  const loadAssignees = useCallback(async () => {
+    setAssigneesLoading(true);
+    setAssignError(null);
+    try {
+      const result = await UserApi.getUsers({ page: 1, pageSize: 200, status: 'active' });
+      setAssigneeOptions(
+        (result.users ?? []).map(user => ({
+          value: user.id,
+          label: `${user.name || user.username}${user.department ? ` · ${user.department}` : ''}`,
+        }))
+      );
+    } catch {
+      setAssignError(t('assistant.handoff.assigneesLoadFailed'));
+    } finally {
+      setAssigneesLoading(false);
+    }
+  }, [t]);
+
   const handleAction = useCallback(
     (action: HandoffAction) => {
+      if (action.id === 'assign') {
+        setAssignTarget({ targetType: action.targetType, targetId: action.targetId });
+        setAssignMode(true);
+        setAssignError(null);
+        void loadAssignees();
+        return;
+      }
       trackAssistantEvent('handoff', {
         pageKey,
         conversationId: message?.conversationId,
@@ -163,40 +234,147 @@ const HandoffActionCard: React.FC<HandoffActionCardProps> = ({ open, onClose, me
         }),
       });
     },
-    [message?.conversationId, message?.queryHash, navigate, onClose, pageKey, prefillDescription, prefillTitle]
+    [
+      loadAssignees,
+      message?.conversationId,
+      message?.queryHash,
+      navigate,
+      onClose,
+      pageKey,
+      prefillDescription,
+      prefillTitle,
+    ]
   );
+
+  const handleAssign = useCallback(async () => {
+    if (!assignTarget || !assigneeId) return;
+    setAssigning(true);
+    setAssignError(null);
+    try {
+      if (assignTarget.targetType === 'ticket') {
+        await TicketApi.assignTicket(assignTarget.targetId, { assigneeId });
+      } else {
+        await IncidentAPI.assignIncident(assignTarget.targetId, assigneeId);
+      }
+      trackAssistantEvent('handoff', {
+        pageKey,
+        conversationId: message?.conversationId,
+        queryHash: message?.queryHash,
+        extra: {
+          action: 'assign',
+          targetType: assignTarget.targetType,
+          targetId: assignTarget.targetId,
+          assigneeId,
+          success: true,
+        },
+      });
+      antMessage.success(t('assistant.handoff.assignSuccess'));
+      onClose();
+      resetAssign();
+    } catch (err) {
+      const reason =
+        (err as { message?: string } | undefined)?.message || t('assistant.handoff.assignFailed');
+      setAssignError(reason);
+      trackAssistantEvent('handoff', {
+        pageKey,
+        conversationId: message?.conversationId,
+        queryHash: message?.queryHash,
+        extra: {
+          action: 'assign',
+          targetType: assignTarget.targetType,
+          targetId: assignTarget.targetId,
+          assigneeId,
+          success: false,
+        },
+      });
+    } finally {
+      setAssigning(false);
+    }
+  }, [antMessage, assignTarget, assigneeId, message?.conversationId, message?.queryHash, onClose, pageKey, resetAssign, t]);
 
   return (
     <Modal
       open={open}
       onCancel={onClose}
       footer={null}
-      title={t('assistant.handoff.title')}
+      title={assignMode ? t('assistant.handoff.assignTitle') : t('assistant.handoff.title')}
       data-testid={HANDOFF_ACTION_CARD_TESTID}
     >
       <Space direction="vertical" size="middle" style={{ width: '100%' }}>
-        <Text type="secondary">{t('assistant.handoff.description')}</Text>
-        {actions.length > 0 ? (
-          actions.map(action => (
-            <Button
-              key={action.id}
-              block
-              size="large"
-              icon={action.id === 'open' ? <ExternalLink size={16} /> : <FilePlus2 size={16} />}
-              data-testid={`handoff-action-${action.id}`}
-              onClick={() => handleAction(action)}
-              style={{ justifyContent: 'flex-start' }}
-            >
-              {action.label}
-            </Button>
-          ))
+        {assignMode && assignTarget ? (
+          <>
+            <Text type="secondary">
+              {t('assistant.handoff.assignHint', {
+                type: assignTarget.targetType === 'ticket' ? '工单' : '事件',
+                id: assignTarget.targetId,
+              })}
+            </Text>
+            <Select
+              showSearch
+              value={assigneeId}
+              onChange={setAssigneeId}
+              loading={assigneesLoading}
+              options={assigneeOptions}
+              placeholder={t('assistant.handoff.assignPlaceholder')}
+              optionFilterProp="label"
+              data-testid="handoff-assignee-select"
+              style={{ width: '100%' }}
+            />
+            {assignError ? (
+              <Alert
+                type="error"
+                showIcon
+                data-testid="handoff-assign-error"
+                message={assignError}
+              />
+            ) : null}
+            <Space>
+              <Button onClick={resetAssign}>{t('assistant.handoff.assignCancel')}</Button>
+              <Button
+                type="primary"
+                loading={assigning}
+                disabled={!assigneeId}
+                data-testid="handoff-assign-confirm"
+                onClick={() => void handleAssign()}
+              >
+                {t('assistant.handoff.assignConfirm')}
+              </Button>
+            </Space>
+          </>
         ) : (
-          <Alert
-            type="info"
-            showIcon
-            data-testid="handoff-empty"
-            message={t('assistant.handoff.empty')}
-          />
+          <>
+            <Text type="secondary">{t('assistant.handoff.description')}</Text>
+            {actions.length > 0 ? (
+              actions.map(action => (
+                <Button
+                  key={action.id}
+                  block
+                  size="large"
+                  icon={
+                    action.id === 'open' ? (
+                      <ExternalLink size={16} />
+                    ) : action.id === 'assign' ? (
+                      <UserPlus size={16} />
+                    ) : (
+                      <FilePlus2 size={16} />
+                    )
+                  }
+                  data-testid={`handoff-action-${action.id}`}
+                  onClick={() => handleAction(action)}
+                  style={{ justifyContent: 'flex-start' }}
+                >
+                  {action.label}
+                </Button>
+              ))
+            ) : (
+              <Alert
+                type="info"
+                showIcon
+                data-testid="handoff-empty"
+                message={t('assistant.handoff.empty')}
+              />
+            )}
+          </>
         )}
       </Space>
     </Modal>
