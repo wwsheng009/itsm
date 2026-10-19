@@ -1,7 +1,7 @@
 # AI 助手 Dock 方案 · 交付台账（截至 2026-10-19）
 
 - 用途：v5 起承接方案 §7 任务的**逐项交付状态**；方案：`docs/plan/ai-assistant-dock-plan-2026-10-18.md`（§14 为评审收口说明），评审：`docs/plan/ai-assistant-dock-plan-review-2026-10-19.md`。
-- 抽取基线：`29edea81` 快照（2026-10-19 13:16）；其后变更（批 7–10）见下方"G. 批次与提交"。
+- 抽取基线：`29edea81` 快照（2026-10-19 13:16）；其后变更（批 7–10）见下方"G. 批次与提交"；批 7–10 证据补登记见 §E/§G/§H 与 T5 段（2026-10-19，T5-01）。
 - 状态口径：✅ 已交付（进度块 + 证据实存）｜✅* 代码已交付、证据待补｜❌ 未交付。
 - 提交为批次级映射（无逐任务溯源，评审 §4.2 已记录）；证据文件均在 `docs/plan/evidence/` 下。
 
@@ -53,11 +53,11 @@
 | P2-c | 文档运营报表 | ✅ | help-agent/P2-doc-metrics-report-evidence.md |
 | P2-d | MSP 帮助空间 | ✅ | help-agent/P2-msp-help-space-evidence.md |
 
-## E. I 系列（交互补强）—— 9/9 ✅（I0-01 证据待补）
+## E. I 系列（交互补强）—— 9/9 ✅
 
 | 任务 | 内容 | 状态 | 证据（docs/plan/evidence/ 下） |
 |---|---|---|---|
-| I0-01 | 交互状态机 + 错误字典（Dock 接入） | ✅*（`4a1fd4f8`：10 状态 + 错误字典 + Banner + 247 行测试；证据文件待补） | （待补）代码：itsm-frontend/src/lib/ai/interaction-state.ts |
+| I0-01 | 交互状态机 + 错误字典（Dock 接入） | ✅（`4a1fd4f8`；33 例测试实跑通过） | assistant-dock/I0-01-interaction-state-evidence.md |
 | I0-02 | 任务卡模型 | ✅ | assistant-dock/I0-02-task-card-model-evidence.md |
 | I0-03 | 快捷键 + 命令面板 | ✅ | assistant-dock/I0-03-shortcuts-and-command-palette-evidence.md |
 | I0-04 | Outcome Contract 回执 | ✅ | assistant-dock/I0-04-outcome-contract-evidence.md |
@@ -94,14 +94,25 @@
 | 9 | `26512d69` | 过程证据面板默认折叠可展开 |
 | 10 | `5d87a831` | Dock 宽度三档 + 持久化 + 键盘循环 + 推挤；会话历史下拉；Dock→工作区一次性交接 |
 
+> 批 7–10 证据补登记（2026-10-19，T5-01）：#7 → `assistant-dock/I0-01-interaction-state-evidence.md`；#8–#10 → `assistant-dock/runtime-fixes-batch-2-evidence.md`。
+
 ## H. 例外与悬空（与方案 §14 同步）
 
-- I0-01：代码已交付（`4a1fd4f8`）、证据文件待补（方案 §14.2 T5-01）。
-- 批次 7–10（`4a1fd4f8`/`cd61ce7f`/`26512d69`/`5d87a831`）：均已提交、未附证据、未更新方案 §7（T5-01）。
+- I0-01：已交付（`4a1fd4f8`）且证据补登记完成（`assistant-dock/I0-01-interaction-state-evidence.md`，T5-01）。
+- 批次 7–10（`4a1fd4f8`/`cd61ce7f`/`26512d69`/`5d87a831`）：证据已补登记（T5-01，2026-10-19）；方案 §7 按 §14.5 惯例保留为历史增量、不回填。
 - 悬空设计项（无任务映射）：`/` 与 `@`、附件 / 截图、handoff"转人工"三项、灰度开关、质量层指标数据源 → 方案 §14.2（T5-02–T5-06）。
 - 宽度交互"拖拽调宽"：已被 `5d87a831` 显式替代为离散三档 + 键盘循环（WCAG 2.1.1），待回写方案（T5-11）。
 - 双入口"在侧栏继续 / 全屏打开"：未实现；现为"抑制 + 一次性交接"，待决策（方案 §14.4-① / T5-12）。
 - 条件项（真实 Provider E2E、真库回归、i18n 文案批次、Q1/Q2/Q4 口径等）：见方案 §14.3。
+
+---
+
+## T5. v5 补任务状态（方案 §14.2）
+
+| ID | 状态 | 说明 |
+|---|---|---|
+| T5-01 | ✅ 2026-10-19 | 批 7–10 证据补登记：`assistant-dock/I0-01-interaction-state-evidence.md`（#7）、`assistant-dock/runtime-fixes-batch-2-evidence.md`（#8–10） |
+| T5-02 ~ T5-12 | 待排期 | 见方案 §14.2；T5-12 依赖 §14.4-① 决策 |
 
 ---
 
