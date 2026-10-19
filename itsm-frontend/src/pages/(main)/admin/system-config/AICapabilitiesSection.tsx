@@ -115,7 +115,7 @@ const AICapabilitiesSection: React.FC = () => {
         showIcon
         style={{ marginBottom: 16 }}
         message="AI 能力开关（平台级配置，免重启）"
-        description="MCP 与 Bot 的能力开关在此统一维护：保存后立即生效、无需重启服务；缺省跟随部署配置（环境变量 / 配置文件）。此前位于「MCP 外部工具」页顶部的能力开关卡片已迁移到本页签，MCP 页保留指路提示。"
+        description="MCP、Bot、助手记忆及 Dock / 帮助智能体灰度在此统一维护：保存后立即生效、无需重启服务；缺省跟随部署配置（环境变量 / 配置文件）。此前位于「MCP 外部工具」页顶部的能力开关卡片已迁移到本页签，MCP 页保留指路提示。"
       />
       <AICapabilitiesCard
         capabilities={capabilities}

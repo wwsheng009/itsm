@@ -23,11 +23,16 @@ export interface CapabilityResponse {
   /** /api/v1/msp/* 路由族是否开放（仅 saas_msp 为 true） */
   mspRoutesEnabled?: boolean;
   /**
-   * AI 助手租户策略（V2-01）：`memoryEnabled=false` = 租户关闭个性化记忆
-   * （前端此后不读写记忆数据，零请求）；缺省/读取失败按产品默认开启处理。
+   * AI 助手租户策略（V2-01 / T5-05）：
+   * - `memoryEnabled=false` = 租户关闭个性化记忆（前端此后不读写记忆数据，零请求）；
+   * - `dockEnabled=false` = 租户关闭 Dock 入口（工作区 /ai/chat 不受影响）；
+   * - `helpEnabled=false` = 租户关闭帮助智能体（隐藏帮助页签，数据面 403）；
+   * 缺省/读取失败按产品默认开启处理（fail-safe）。
    */
   assistant?: {
     memoryEnabled?: boolean;
+    dockEnabled?: boolean;
+    helpEnabled?: boolean;
   };
 }
 

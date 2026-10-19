@@ -3,7 +3,7 @@
  */
 import React from 'react';
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
-import { MemoryRouter } from 'react-router';
+import { MemoryRouter, useLocation } from 'react-router';
 
 import AssistantDock, { ASSISTANT_FAB_BADGE_TESTID, ASSISTANT_FAB_RUNNING_TESTID } from '../AssistantDock';
 import { mergeServerTask, useAssistantAsyncStore } from '@/lib/ai/async/assistant-async-store';
@@ -11,6 +11,7 @@ import { useAssistantStore } from '@/lib/store/assistant-store';
 import { useAssistantProactiveStore } from '@/lib/store/assistant-proactive-store';
 import { useAssistantContextStore } from '@/lib/store/assistant-context-store';
 import { usePermissions } from '@/lib/hooks/use-permissions';
+import { getCapabilities } from '@/lib/api/capability-api';
 
 // 需要真实路由上下文（D0-03 页面感知 + MemoryRouter）；
 // jest.setup.js 全局 mock 了 useLocation → 按 setup 注释约定还原真实实现。
@@ -38,6 +39,10 @@ jest.mock('@/lib/api/ticket-notification-api', () => ({
     })),
   },
 }));
+jest.mock('@/lib/api/capability-api', () => ({
+  __esModule: true,
+  getCapabilities: jest.fn(),
+}));
 // 懒挂载断言：面板未打开时不得挂载聊天视图（此处用 stub 替换，接口由内核测试覆盖）。
 jest.mock('../AssistantChatPanel', () => ({
   __esModule: true,
@@ -45,6 +50,7 @@ jest.mock('../AssistantChatPanel', () => ({
 }));
 
 const mockedPermissions = usePermissions as jest.MockedFunction<typeof usePermissions>;
+const mockedCapabilities = getCapabilities as jest.MockedFunction<typeof getCapabilities>;
 
 const grantPermission = (allowed: boolean) => {
   mockedPermissions.mockReturnValue({
@@ -60,9 +66,14 @@ const renderDock = (route = '/dashboard') =>
     </MemoryRouter>
   );
 
+const LocationProbe = () => {
+  const location = useLocation();
+  return <div data-testid="location-probe" data-path={location.pathname} />;
+};
+
 beforeEach(() => {
   window.localStorage.clear();
-  useAssistantStore.setState({ open: false });
+  useAssistantStore.setState({ open: false, pendingPrompt: undefined });
   // I1-03：默认静默（用例自行覆盖）。
   useAssistantProactiveStore.setState({ enabled: true, silent: true, dismissedScopes: [] });
   // D1-02：L2 store 为模块级状态，用例间隔离。
@@ -70,6 +81,12 @@ beforeEach(() => {
   // V2-02：异步精算任务表用例间隔离。
   useAssistantAsyncStore.getState().reset();
   grantPermission(true);
+  mockedCapabilities.mockReset();
+  mockedCapabilities.mockResolvedValue({
+    items: [],
+    acceptanceVersion: 'test',
+    assistant: { dockEnabled: true, helpEnabled: true, memoryEnabled: true },
+  } as never);
 });
 
 describe('AssistantDock（D0-02）', () => {
@@ -85,6 +102,52 @@ describe('AssistantDock（D0-02）', () => {
       useAssistantStore.setState({ open: true });
     });
     expect(screen.queryByTestId('assistant-panel')).not.toBeInTheDocument();
+  });
+
+  it('T5-05：租户关闭 Dock → 不渲染入口', async () => {
+    mockedCapabilities.mockResolvedValue({
+      items: [],
+      acceptanceVersion: 'test',
+      assistant: { dockEnabled: false, helpEnabled: true, memoryEnabled: true },
+    } as never);
+
+    renderDock();
+
+    await waitFor(() =>
+      expect(mockedCapabilities).toHaveBeenCalled(),
+    );
+    await waitFor(() =>
+      expect(screen.queryByTestId('assistant-dock')).not.toBeInTheDocument(),
+    );
+    expect(screen.queryByTestId('assistant-fab')).not.toBeInTheDocument();
+  });
+
+  it('T5-05：Dock 关闭 + 预填入口 → 自动降级到 /ai/chat 工作区', async () => {
+    mockedCapabilities.mockResolvedValue({
+      items: [],
+      acceptanceVersion: 'test',
+      assistant: { dockEnabled: false, helpEnabled: true, memoryEnabled: true },
+    } as never);
+
+    render(
+      <MemoryRouter initialEntries={['/dashboard']}>
+        <AssistantDock />
+        <LocationProbe />
+      </MemoryRouter>
+    );
+
+    await waitFor(() => expect(mockedCapabilities).toHaveBeenCalled());
+    await waitFor(() => expect(screen.queryByTestId('assistant-dock')).not.toBeInTheDocument());
+
+    act(() => {
+      useAssistantStore.setState({ open: true, pendingPrompt: '解释这个错误' });
+    });
+
+    await waitFor(() =>
+      expect(screen.getByTestId('location-probe')).toHaveAttribute('data-path', '/ai/chat')
+    );
+    expect(useAssistantStore.getState().open).toBe(false);
+    expect(useAssistantStore.getState().pendingPrompt).toBe('解释这个错误');
   });
 
   it('FAB 打开面板并懒挂载聊天视图；关闭按钮收回', () => {

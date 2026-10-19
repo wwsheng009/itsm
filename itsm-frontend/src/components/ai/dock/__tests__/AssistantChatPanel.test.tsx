@@ -62,6 +62,7 @@ jest.mock('@/lib/ai/telemetry', () => ({
   __esModule: true,
   trackAssistantEvent: jest.fn(),
   isAssistantEventName: () => true,
+  hashTelemetryText: (value: string) => `hash-${value.length}`,
   getTelemetryMode: () => 'off',
   setTelemetryMode: jest.fn(),
 }));
@@ -78,10 +79,10 @@ const mockedProviderFeature = useLLMProviderFeature as jest.MockedFunction<
 const mockedPermissions = usePermissions as jest.MockedFunction<typeof usePermissions>;
 const mockedTrack = trackAssistantEvent as jest.Mock;
 
-const renderPanel = () =>
+const renderPanel = (props: { helpEnabled?: boolean } = {}) =>
   render(
     <MemoryRouter>
-      <AssistantChatPanel />
+      <AssistantChatPanel {...props} />
     </MemoryRouter>
   );
 
@@ -145,6 +146,16 @@ describe('AssistantChatPanel（D0-02 面板聊天视图）', () => {
     await waitFor(() => expect(mockedListConversations).toHaveBeenCalled());
     expect(await screen.findByTestId('assistant-panel-empty')).toBeInTheDocument();
     expect(screen.getByText('总结我最近处理过的工单')).toBeInTheDocument();
+  });
+
+  it('T5-05：helpEnabled=false 隐藏帮助页签与帮助视图', async () => {
+    renderPanel({ helpEnabled: false });
+    await waitFor(() => expect(mockedListConversations).toHaveBeenCalled());
+
+    const tabs = screen.getByTestId('assistant-panel-tabs');
+    expect(within(tabs).getByText('对话')).toBeInTheDocument();
+    expect(within(tabs).queryByText('帮助')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('assistant-help-panel')).not.toBeInTheDocument();
   });
 
   it('输入并发送：走同一 SSE 回调链并渲染回答', async () => {

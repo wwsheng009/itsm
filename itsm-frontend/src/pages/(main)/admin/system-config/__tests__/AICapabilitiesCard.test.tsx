@@ -21,11 +21,27 @@ const snapshot = (overrides: Partial<AICapabilities> = {}): AICapabilities => ({
   mcpWriteEnabled: false,
   botEnabled: true,
   assistantMemoryEnabled: true,
-  defaults: { mcpEnabled: true, mcpWriteEnabled: false, botEnabled: true, assistantMemoryEnabled: true },
+  assistantDockEnabled: true,
+  helpAgentEnabled: true,
+  defaults: {
+    mcpEnabled: true,
+    mcpWriteEnabled: false,
+    botEnabled: true,
+    assistantMemoryEnabled: true,
+    assistantDockEnabled: true,
+    helpAgentEnabled: true,
+  },
   overridden: {},
   updatedAt: '2026-09-30T01:00:00Z',
   updatedBy: 'admin',
-  keys: ['mcp.enabled', 'mcp.write_enabled', 'bot.enabled', 'assistant.memory_enabled'],
+  keys: [
+    'mcp.enabled',
+    'mcp.write_enabled',
+    'bot.enabled',
+    'assistant.memory_enabled',
+    'assistant.dock.enabled',
+    'help.agent.enabled',
+  ],
   ...overrides,
 });
 
@@ -46,6 +62,9 @@ describe('AICapabilitiesCard（AI 能力开关卡片）', () => {
     expect(screen.getByTestId('ai-capability-switch-bot.enabled')).toBeChecked();
     // V2-01：个性化记忆租户开关（默认开启，静态默认同值）。
     expect(screen.getByTestId('ai-capability-switch-assistant.memory_enabled')).toBeChecked();
+    // T5-05：Dock / 帮助智能体灰度（默认开启）。
+    expect(screen.getByTestId('ai-capability-switch-assistant.dock.enabled')).toBeChecked();
+    expect(screen.getByTestId('ai-capability-switch-help.agent.enabled')).toBeChecked();
 
     expect(screen.getByTestId('ai-capability-source-mcp.enabled')).toHaveTextContent(
       'mcp.capabilities.sourceDefault',
@@ -72,10 +91,17 @@ describe('AICapabilitiesCard（AI 能力开关卡片）', () => {
 
     fireEvent.click(screen.getByTestId('ai-capability-switch-bot.enabled'));
     fireEvent.click(screen.getByTestId('ai-capability-switch-mcp.write_enabled'));
+    fireEvent.click(screen.getByTestId('ai-capability-switch-assistant.dock.enabled'));
+    fireEvent.click(screen.getByTestId('ai-capability-switch-help.agent.enabled'));
     fireEvent.click(screen.getByTestId('ai-capability-save'));
 
     expect(onSave).toHaveBeenCalledTimes(1);
-    expect(onSave).toHaveBeenCalledWith({ mcpWriteEnabled: true, botEnabled: false });
+    expect(onSave).toHaveBeenCalledWith({
+      mcpWriteEnabled: true,
+      botEnabled: false,
+      assistantDockEnabled: false,
+      helpAgentEnabled: false,
+    });
     // 未变更的 mcp.enabled 不进入补丁（避免把"跟随默认"固化成覆盖）。
     expect(onSave.mock.calls[0][0]).not.toHaveProperty('mcpEnabled');
   });
@@ -84,7 +110,13 @@ describe('AICapabilitiesCard（AI 能力开关卡片）', () => {
     const onReset = jest.fn();
     const { unmount } = render(
       <AICapabilitiesCard
-        capabilities={snapshot({ overridden: { 'mcp.write_enabled': true, 'bot.enabled': true } })}
+        capabilities={snapshot({
+          overridden: {
+            'mcp.write_enabled': true,
+            'bot.enabled': true,
+            'assistant.dock.enabled': true,
+          },
+        })}
         canWrite
         t={t}
         onSave={jest.fn()}
@@ -93,7 +125,11 @@ describe('AICapabilitiesCard（AI 能力开关卡片）', () => {
     );
 
     fireEvent.click(screen.getByTestId('ai-capability-reset'));
-    expect(onReset).toHaveBeenCalledWith(['mcp.write_enabled', 'bot.enabled']);
+    expect(onReset).toHaveBeenCalledWith([
+      'mcp.write_enabled',
+      'bot.enabled',
+      'assistant.dock.enabled',
+    ]);
     unmount();
 
     render(

@@ -48,6 +48,12 @@ func (s *stubCapabilityAdmin) Update(_ context.Context, tenantID int, patch capa
 	if patch.AssistantMemoryEnabled != nil {
 		s.snap.AssistantMemoryEnabled = *patch.AssistantMemoryEnabled
 	}
+	if patch.AssistantDockEnabled != nil {
+		s.snap.AssistantDockEnabled = *patch.AssistantDockEnabled
+	}
+	if patch.HelpAgentEnabled != nil {
+		s.snap.HelpAgentEnabled = *patch.HelpAgentEnabled
+	}
 	return s.snap, nil
 }
 
@@ -63,6 +69,10 @@ func (s *stubCapabilityAdmin) Clear(_ context.Context, tenantID int, keys ...str
 			s.snap.BotEnabled = s.defaults.BotEnabled
 		case capability.KeyAssistantMemoryEnabled:
 			s.snap.AssistantMemoryEnabled = s.defaults.AssistantMemoryEnabled
+		case capability.KeyAssistantDockEnabled:
+			s.snap.AssistantDockEnabled = s.defaults.AssistantDockEnabled
+		case capability.KeyHelpAgentEnabled:
+			s.snap.HelpAgentEnabled = s.defaults.HelpAgentEnabled
 		}
 	}
 	return s.snap, nil
@@ -124,11 +134,14 @@ func TestAICapabilities_GetExposesEffectiveAndDefaults(t *testing.T) {
 	source := &stubCapabilityAdmin{
 		snap: capability.Snapshot{
 			MCPEnabled: true, MCPWriteEnabled: true, BotEnabled: false,
-			AssistantMemoryEnabled: false,
-			Overridden:             map[string]bool{capability.KeyMCPWriteEnabled: true},
-			UpdatedBy:              "admin",
+			AssistantMemoryEnabled: false, AssistantDockEnabled: false, HelpAgentEnabled: false,
+			Overridden: map[string]bool{capability.KeyMCPWriteEnabled: true},
+			UpdatedBy:  "admin",
 		},
-		defaults: capability.Defaults{MCPEnabled: true, MCPWriteEnabled: false, BotEnabled: true, AssistantMemoryEnabled: true},
+		defaults: capability.Defaults{
+			MCPEnabled: true, MCPWriteEnabled: false, BotEnabled: true,
+			AssistantMemoryEnabled: true, AssistantDockEnabled: true, HelpAgentEnabled: true,
+		},
 	}
 	engine := newCapabilityEndpointHarness(t, source)
 
@@ -140,11 +153,15 @@ func TestAICapabilities_GetExposesEffectiveAndDefaults(t *testing.T) {
 	assert.Equal(t, true, data["mcpWriteEnabled"])
 	assert.Equal(t, false, data["botEnabled"])
 	assert.Equal(t, false, data["assistantMemoryEnabled"], "V2-01：记忆开关随能力快照下发")
+	assert.Equal(t, false, data["assistantDockEnabled"], "T5-05：Dock 灰度随能力快照下发")
+	assert.Equal(t, false, data["helpAgentEnabled"], "T5-05：帮助智能体灰度随能力快照下发")
 
 	defaults, ok := data["defaults"].(map[string]any)
 	require.True(t, ok, "必须下发默认值（页面展示「跟随环境默认」）")
 	assert.Equal(t, false, defaults["mcpWriteEnabled"])
 	assert.Equal(t, true, defaults["assistantMemoryEnabled"], "记忆静态默认开启（租户可关闭）")
+	assert.Equal(t, true, defaults["assistantDockEnabled"], "Dock 静态默认开启")
+	assert.Equal(t, true, defaults["helpAgentEnabled"], "帮助智能体静态默认开启")
 
 	overridden, ok := data["overridden"].(map[string]any)
 	require.True(t, ok)
@@ -152,8 +169,10 @@ func TestAICapabilities_GetExposesEffectiveAndDefaults(t *testing.T) {
 
 	keys, ok := data["keys"].([]any)
 	require.True(t, ok)
-	assert.Len(t, keys, 4, "V2-01：键清单新增 assistant.memory_enabled")
+	assert.Len(t, keys, 6, "T5-05：键清单新增 assistant.dock.enabled / help.agent.enabled")
 	assert.Contains(t, keys, capability.KeyAssistantMemoryEnabled)
+	assert.Contains(t, keys, capability.KeyAssistantDockEnabled)
+	assert.Contains(t, keys, capability.KeyHelpAgentEnabled)
 	assert.Equal(t, "admin", data["updatedBy"])
 }
 
@@ -167,6 +186,8 @@ func TestAICapabilities_PutAppliesPatchAndReset(t *testing.T) {
 	recorder := doCapabilityRequest(t, engine, http.MethodPut, map[string]any{
 		"mcpWriteEnabled":        true,
 		"assistantMemoryEnabled": false,
+		"assistantDockEnabled":   false,
+		"helpAgentEnabled":       false,
 		"reset":                  []string{capability.KeyMCPEnabled},
 	}, true)
 	require.Equal(t, http.StatusOK, recorder.Code, recorder.Body.String())
@@ -175,6 +196,10 @@ func TestAICapabilities_PutAppliesPatchAndReset(t *testing.T) {
 	assert.True(t, *source.lastPatch.MCPWriteEnabled)
 	require.NotNil(t, source.lastPatch.AssistantMemoryEnabled)
 	assert.False(t, *source.lastPatch.AssistantMemoryEnabled, "V2-01：租户可显式关闭记忆")
+	require.NotNil(t, source.lastPatch.AssistantDockEnabled)
+	assert.False(t, *source.lastPatch.AssistantDockEnabled, "T5-05：租户可显式关闭 Dock")
+	require.NotNil(t, source.lastPatch.HelpAgentEnabled)
+	assert.False(t, *source.lastPatch.HelpAgentEnabled, "T5-05：租户可显式关闭帮助智能体")
 	assert.Nil(t, source.lastPatch.MCPEnabled, "缺省字段不得被改动")
 	assert.Equal(t, []string{capability.KeyMCPEnabled}, source.lastReset)
 	assert.Equal(t, 7, source.lastTenant)
@@ -183,6 +208,8 @@ func TestAICapabilities_PutAppliesPatchAndReset(t *testing.T) {
 	data := decodeCapabilityData(t, recorder)
 	assert.Equal(t, true, data["mcpWriteEnabled"], "写后返回最新生效值")
 	assert.Equal(t, false, data["assistantMemoryEnabled"])
+	assert.Equal(t, false, data["assistantDockEnabled"])
+	assert.Equal(t, false, data["helpAgentEnabled"])
 }
 
 func TestAICapabilities_RejectsUnknownResetKeyAndMissingTenant(t *testing.T) {

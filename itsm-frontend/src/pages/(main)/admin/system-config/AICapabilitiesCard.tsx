@@ -17,7 +17,13 @@ type TFunc = (key: string, params?: Record<string, string | number>) => string;
 /** 能力键与响应字段的映射（key 为后端 system_configs 键名，field 为 camelCase 字段）。 */
 interface CapabilityRow {
   key: AICapabilityKey;
-  field: 'mcpEnabled' | 'mcpWriteEnabled' | 'botEnabled' | 'assistantMemoryEnabled';
+  field:
+    | 'mcpEnabled'
+    | 'mcpWriteEnabled'
+    | 'botEnabled'
+    | 'assistantMemoryEnabled'
+    | 'assistantDockEnabled'
+    | 'helpAgentEnabled';
   labelKey: string;
   hintKey: string;
 }
@@ -48,6 +54,19 @@ const ROWS: CapabilityRow[] = [
     labelKey: 'mcp.capabilities.assistantMemoryEnabled',
     hintKey: 'mcp.capabilities.assistantMemoryEnabledHint',
   },
+  // T5-05：Dock / 帮助智能体灰度（租户级；保存后立即生效、无需重启）。
+  {
+    key: 'assistant.dock.enabled',
+    field: 'assistantDockEnabled',
+    labelKey: 'mcp.capabilities.assistantDockEnabled',
+    hintKey: 'mcp.capabilities.assistantDockEnabledHint',
+  },
+  {
+    key: 'help.agent.enabled',
+    field: 'helpAgentEnabled',
+    labelKey: 'mcp.capabilities.helpAgentEnabled',
+    hintKey: 'mcp.capabilities.helpAgentEnabledHint',
+  },
 ];
 
 export interface AICapabilitiesCardProps {
@@ -70,14 +89,14 @@ export interface AICapabilitiesCardProps {
  * 「AI 能力开关」卡片（系统配置 → AI 配置）。
  *
  * 平台级运行时能力开关（`mcp.enabled` / `mcp.write_enabled` / `bot.enabled` /
- * V2-01 `assistant.memory_enabled`）：
+ * V2-01 `assistant.memory_enabled` / T5-05 `assistant.dock.enabled` + `help.agent.enabled`）：
  * - 每行展示当前生效值 + 来源徽标（已由管理台覆盖 / 跟随环境默认）；
  * - 保存只提交**变更过的字段**（三态契约：字段缺省 = 不改，不把"跟随默认"意外固化为覆盖）；
  * - 「恢复默认」仅重置已覆盖的键（reset 数组）；
  * - 无 `system_config:write` 时全部只读并提示。
  *
  * 2026-10 自「MCP 外部工具」页迁移至此（开关本体随平台级配置迁移；MCP 页保留指路提示）。
- * i18n 复用 `mcp.capabilities.*` 键（文案描述的就是这三个键的语义，迁移后语义不变）。
+ * i18n 复用 `mcp.capabilities.*` 键（文案描述的就是这些键的语义，迁移后语义不变）。
  */
 const AICapabilitiesCard: React.FC<AICapabilitiesCardProps> = ({
   capabilities,
@@ -102,7 +121,9 @@ const AICapabilitiesCard: React.FC<AICapabilitiesCardProps> = ({
       if (field === 'mcpEnabled') return { ...prev, mcpEnabled: next };
       if (field === 'mcpWriteEnabled') return { ...prev, mcpWriteEnabled: next };
       if (field === 'botEnabled') return { ...prev, botEnabled: next };
-      return { ...prev, assistantMemoryEnabled: next };
+      if (field === 'assistantMemoryEnabled') return { ...prev, assistantMemoryEnabled: next };
+      if (field === 'assistantDockEnabled') return { ...prev, assistantDockEnabled: next };
+      return { ...prev, helpAgentEnabled: next };
     });
   };
 
@@ -115,6 +136,12 @@ const AICapabilitiesCard: React.FC<AICapabilitiesCardProps> = ({
     if (draft.botEnabled !== capabilities.botEnabled) next.botEnabled = draft.botEnabled;
     if (draft.assistantMemoryEnabled !== capabilities.assistantMemoryEnabled) {
       next.assistantMemoryEnabled = draft.assistantMemoryEnabled;
+    }
+    if (draft.assistantDockEnabled !== capabilities.assistantDockEnabled) {
+      next.assistantDockEnabled = draft.assistantDockEnabled;
+    }
+    if (draft.helpAgentEnabled !== capabilities.helpAgentEnabled) {
+      next.helpAgentEnabled = draft.helpAgentEnabled;
     }
     return Object.keys(next).length > 0 ? next : null;
   }, [capabilities, draft]);

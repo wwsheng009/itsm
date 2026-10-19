@@ -31,6 +31,7 @@ import { useAssistantProactiveStore } from '@/lib/store/assistant-proactive-stor
 import { useAssistantPageData } from '@/lib/store/assistant-context-store';
 import { usePageAssistantContext } from '@/lib/ai/page-context/use-page-assistant-context';
 import { useI18n } from '@/lib/i18n/useI18n';
+import { useAssistantCapabilityPolicy } from '@/lib/ai/use-assistant-capability-policy';
 import AssistantChatPanel from './AssistantChatPanel';
 import ProactiveSuggestionBar from './ProactiveSuggestionBar';
 import { countRunningTasks, countUnreadTasks, useAssistantAsyncStore } from '@/lib/ai/async/assistant-async-store';
@@ -51,6 +52,7 @@ const AssistantDock: React.FC = () => {
   const { token } = theme.useToken();
   const { t } = useI18n();
   const open = useAssistantStore(state => state.open);
+  const pendingPrompt = useAssistantStore(state => state.pendingPrompt);
   const width = useAssistantStore(state => state.width);
   const setWidth = useAssistantStore(state => state.setWidth);
   const cycleWidth = useAssistantStore(state => state.cycleWidth);
@@ -67,6 +69,10 @@ const AssistantDock: React.FC = () => {
   // 路由级直接不渲染（含 FAB），避免重复入口与重复会话请求。
   // 必须在所有依赖它的 hook（信号聚合/快捷键）之前定义。
   const isWorkspaceRoute = location.pathname === '/ai/chat';
+  // T5-05：租户级 Dock / 帮助智能体灰度（fail-safe：缺省/读取失败按开启）。
+  const { dockEnabled, helpEnabled } = useAssistantCapabilityPolicy(
+    canReadAssistant && !isWorkspaceRoute
+  );
   // I1-03：主动协助偏好（持久化 UI 偏好；默认静默）。
   const proactiveEnabled = useAssistantProactiveStore(state => state.enabled);
   const proactiveSilent = useAssistantProactiveStore(state => state.silent);
@@ -78,7 +84,9 @@ const AssistantDock: React.FC = () => {
   // I1-03：只读信号聚合（无权限/总开关关闭/工作区路由 → 零请求）。
   // P0 补充：/ai/chat 不渲染 Dock，但仍挂载本组件；若不关掉信号聚合，
   // 工作区会平白轮询审批/通知，属于重复请求。
-  const { badgeCount, suggestion } = useProactiveSignals(canReadAssistant && !isWorkspaceRoute);
+  const { badgeCount, suggestion } = useProactiveSignals(
+    canReadAssistant && !isWorkspaceRoute && dockEnabled
+  );
   // V2-02：异步精算任务状态（运行中点 + 未读回执并入 FAB 徽标；面板打开即已读）。
   const asyncTasks = useAssistantAsyncStore(state => state.tasks);
   const asyncRunningCount = countRunningTasks(asyncTasks);
@@ -121,12 +129,20 @@ const AssistantDock: React.FC = () => {
     return () => window.cancelAnimationFrame(raf);
   }, [open]);
 
+  // T5-05：Dock 关闭时，依赖 Dock 的预填入口（划词/报错解释/全局搜索等）
+  // 自动降级到 `/ai/chat` 工作区；提示词保留在 store 中由工作区消费。
+  useEffect(() => {
+    if (dockEnabled || isWorkspaceRoute || !open) return;
+    closePanel();
+    if (pendingPrompt) navigate('/ai/chat');
+  }, [closePanel, dockEnabled, isWorkspaceRoute, navigate, open, pendingPrompt]);
+
   // Ctrl/Cmd+I：唤起/收起（输入框内同样生效）；ESC：收起（面板打开时）。
   // 工作区路由下 Dock 不渲染，快捷键同样禁用，避免"按了没反应但状态被改"。
   useHotkeys('ctrl+i, cmd+i', togglePanel, {
     preventDefault: true,
     enableOnFormTags: true,
-    enabled: !isWorkspaceRoute,
+    enabled: !isWorkspaceRoute && dockEnabled,
   });
   useHotkeys(
     'esc',
@@ -170,7 +186,7 @@ const AssistantDock: React.FC = () => {
     };
   }, [open, isMobile, isWorkspaceRoute, width]);
 
-  if (!canReadAssistant || isWorkspaceRoute) return null;
+  if (!canReadAssistant || isWorkspaceRoute || !dockEnabled) return null;
 
   const chipLabel = declaration
     ? pageData?.targetId
@@ -477,7 +493,7 @@ const AssistantDock: React.FC = () => {
               aria-label={t('assistant.dock.closeAria')}
             />
           </header>
-          <AssistantChatPanel />
+          <AssistantChatPanel helpEnabled={helpEnabled} />
         </section>
       )}
     </div>

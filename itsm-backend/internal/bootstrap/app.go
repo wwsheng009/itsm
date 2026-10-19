@@ -1062,6 +1062,9 @@ func NewApplication() *Application {
 		BotEnabled:      cfg.Bot.Enabled,
 		// V2-01 个性化记忆：产品默认开启，租户管理台可关闭（缺行 = 跟随默认，升级零行为变化）。
 		AssistantMemoryEnabled: true,
+		// T5-05 灰度开关：产品默认开启，租户管理台可关闭（缺行 = 跟随默认，升级零行为变化）。
+		AssistantDockEnabled: true,
+		HelpAgentEnabled:     true,
 	}, sugar)
 	aiServiceDomain.SetCapabilitySource(capabilitySource)
 	// V2-01：公共能力面（GET /api/v1/capabilities）下发租户级 assistant.memoryEnabled，

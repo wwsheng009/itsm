@@ -45,6 +45,8 @@ type AICapabilitiesRequest struct {
 	MCPWriteEnabled        *bool    `json:"mcpWriteEnabled"`
 	BotEnabled             *bool    `json:"botEnabled"`
 	AssistantMemoryEnabled *bool    `json:"assistantMemoryEnabled"`
+	AssistantDockEnabled   *bool    `json:"assistantDockEnabled"`
+	HelpAgentEnabled       *bool    `json:"helpAgentEnabled"`
 	Reset                  []string `json:"reset"`
 }
 
@@ -54,6 +56,8 @@ type AICapabilitiesDefaults struct {
 	MCPWriteEnabled        bool `json:"mcpWriteEnabled"`
 	BotEnabled             bool `json:"botEnabled"`
 	AssistantMemoryEnabled bool `json:"assistantMemoryEnabled"`
+	AssistantDockEnabled   bool `json:"assistantDockEnabled"`
+	HelpAgentEnabled       bool `json:"helpAgentEnabled"`
 }
 
 // AICapabilitiesView 是 GET/PUT 的响应体。
@@ -62,6 +66,8 @@ type AICapabilitiesView struct {
 	MCPWriteEnabled        bool                   `json:"mcpWriteEnabled"`
 	BotEnabled             bool                   `json:"botEnabled"`
 	AssistantMemoryEnabled bool                   `json:"assistantMemoryEnabled"`
+	AssistantDockEnabled   bool                   `json:"assistantDockEnabled"`
+	HelpAgentEnabled       bool                   `json:"helpAgentEnabled"`
 	Defaults               AICapabilitiesDefaults `json:"defaults"`
 	// Overridden[key]=true 表示该键由管理台覆盖（否则跟随环境默认）。
 	Overridden map[string]bool `json:"overridden"`
@@ -84,6 +90,8 @@ func (h *Handler) capabilitiesView(c *gin.Context, tenantID int) (*AICapabilitie
 		MCPWriteEnabled:        snap.MCPWriteEnabled,
 		BotEnabled:             snap.BotEnabled,
 		AssistantMemoryEnabled: snap.AssistantMemoryEnabled,
+		AssistantDockEnabled:   snap.AssistantDockEnabled,
+		HelpAgentEnabled:       snap.HelpAgentEnabled,
 		Overridden:             snap.Overridden,
 		UpdatedBy:              snap.UpdatedBy,
 		Keys:                   capability.KnownKeys(),
@@ -101,6 +109,8 @@ func (h *Handler) capabilitiesView(c *gin.Context, tenantID int) (*AICapabilitie
 			MCPWriteEnabled:        defaults.MCPWriteEnabled,
 			BotEnabled:             defaults.BotEnabled,
 			AssistantMemoryEnabled: defaults.AssistantMemoryEnabled,
+			AssistantDockEnabled:   defaults.AssistantDockEnabled,
+			HelpAgentEnabled:       defaults.HelpAgentEnabled,
 		}
 	}
 	return view, true
@@ -144,12 +154,15 @@ func (h *Handler) UpdateAICapabilities(c *gin.Context) {
 	source := h.capabilityAdmin
 	before, _ := h.capabilitiesView(c, tid)
 	if req.MCPEnabled != nil || req.MCPWriteEnabled != nil || req.BotEnabled != nil ||
-		req.AssistantMemoryEnabled != nil {
+		req.AssistantMemoryEnabled != nil || req.AssistantDockEnabled != nil ||
+		req.HelpAgentEnabled != nil {
 		if _, err := source.Update(ctx, tid, capability.Patch{
 			MCPEnabled:             req.MCPEnabled,
 			MCPWriteEnabled:        req.MCPWriteEnabled,
 			BotEnabled:             req.BotEnabled,
 			AssistantMemoryEnabled: req.AssistantMemoryEnabled,
+			AssistantDockEnabled:   req.AssistantDockEnabled,
+			HelpAgentEnabled:       req.HelpAgentEnabled,
 		}, operator); err != nil {
 			common.FailWithErr(c, err, "能力开关保存失败")
 			return

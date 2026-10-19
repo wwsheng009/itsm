@@ -3,6 +3,7 @@ package ai
 import (
 	"strings"
 
+	"itsm-backend/capability"
 	"itsm-backend/common"
 	"itsm-backend/internal/helpindex"
 
@@ -15,12 +16,17 @@ import (
 // 权限：路由层挂 ai:read；本层只做参数归一化与降级：
 //   - 搜索关键词为空 → 400（避免全量返回）；
 //   - 未知 pageKey → status=unknown 的正常响应（面板帮助视图展示"暂无文档"并引导生成）。
+//   - T5-05：help.agent.enabled=false → 403（未注入能力源/读取失败按默认开启）。
 
 // SearchHelp handles GET /api/v1/ai/help/search?q=&pageKey=&limit=
 func (h *Handler) SearchHelp(c *gin.Context) {
 	tenantID := c.GetInt("tenant_id")
 	if tenantID == 0 {
 		common.Fail(c, common.AuthFailedCode, "租户信息缺失")
+		return
+	}
+	if !helpAgentEnabled(c) {
+		common.Fail(c, common.ForbiddenCode, "帮助智能体已关闭")
 		return
 	}
 	query := strings.TrimSpace(c.Query("q"))
@@ -66,6 +72,10 @@ func (h *Handler) GetPageHelp(c *gin.Context) {
 		common.Fail(c, common.AuthFailedCode, "租户信息缺失")
 		return
 	}
+	if !helpAgentEnabled(c) {
+		common.Fail(c, common.ForbiddenCode, "帮助智能体已关闭")
+		return
+	}
 	pageKey := strings.TrimSpace(c.Query("pageKey"))
 	if pageKey == "" {
 		common.Fail(c, common.ParamErrorCode, "pageKey 不能为空")
@@ -105,6 +115,16 @@ func (h *Handler) GetPageHelp(c *gin.Context) {
 			"totals":   totals,
 		},
 	})
+}
+
+// helpAgentEnabled 读取 T5-05 帮助智能体灰度开关。
+//
+// fail-safe：未注入运行时能力源或读取失败 → 按产品默认开启，保证升级零行为变化。
+func helpAgentEnabled(c *gin.Context) bool {
+	if snap, ok := capability.SnapshotFor(c.Request.Context(), c.GetInt("tenant_id")); ok {
+		return snap.HelpAgentEnabled
+	}
+	return true
 }
 
 // GetHelpCoverage handles GET /api/v1/ai/help/coverage

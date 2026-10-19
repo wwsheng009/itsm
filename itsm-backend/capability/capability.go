@@ -38,6 +38,10 @@ const (
 	// V2-01 个性化记忆：租户策略可关闭（缺行 = 跟随静态默认，默认开启）。
 	KeyAssistantMemoryEnabled = "assistant.memory_enabled"
 
+	// T5-05 灰度开关：AI 助手 Dock 与帮助智能体（缺行 = 跟随静态默认，默认开启）。
+	KeyAssistantDockEnabled = "assistant.dock.enabled"
+	KeyHelpAgentEnabled     = "help.agent.enabled"
+
 	// Category 是能力开关在 system_configs 中的固定分类（管理后台按此分组展示）。
 	Category = "ai"
 )
@@ -53,6 +57,9 @@ type Defaults struct {
 	BotEnabled      bool
 	// AssistantMemoryEnabled 是 AI 助手个性化记忆的静态默认（产品默认开启，租户可覆盖关闭）。
 	AssistantMemoryEnabled bool
+	// AssistantDockEnabled / HelpAgentEnabled 是 T5-05 灰度开关的静态默认（产品默认开启）。
+	AssistantDockEnabled bool
+	HelpAgentEnabled     bool
 }
 
 // Snapshot 是某租户当前生效的能力开关快照。
@@ -62,6 +69,10 @@ type Snapshot struct {
 	BotEnabled      bool
 	// AssistantMemoryEnabled：AI 助手个性化记忆（常用语/模板/最近处理元数据）租户开关。
 	AssistantMemoryEnabled bool
+	// AssistantDockEnabled：AI 助手 Dock 入口灰度（关闭后不渲染 Dock；工作区不受影响）。
+	AssistantDockEnabled bool
+	// HelpAgentEnabled：帮助智能体灰度（关闭后隐藏帮助页签并拒绝帮助数据面请求）。
+	HelpAgentEnabled bool
 	// Overridden[key] = true 表示该键由 system_configs 覆盖（管理台设置）；
 	// false = 跟随静态默认（UI 显示「跟随环境默认」）。
 	Overridden map[string]bool
@@ -90,6 +101,8 @@ type Patch struct {
 	MCPWriteEnabled        *bool
 	BotEnabled             *bool
 	AssistantMemoryEnabled *bool
+	AssistantDockEnabled   *bool
+	HelpAgentEnabled       *bool
 }
 
 // errUnavailable 等稳定错误（handler 据此映射 HTTP 状态码）。
@@ -150,6 +163,8 @@ func (s *ConfigSource) defaultsSnapshot() Snapshot {
 		MCPWriteEnabled:        s.defaults.MCPWriteEnabled,
 		BotEnabled:             s.defaults.BotEnabled,
 		AssistantMemoryEnabled: s.defaults.AssistantMemoryEnabled,
+		AssistantDockEnabled:   s.defaults.AssistantDockEnabled,
+		HelpAgentEnabled:       s.defaults.HelpAgentEnabled,
 		Overridden:             map[string]bool{},
 	}
 }
@@ -220,7 +235,10 @@ func (s *ConfigSource) load(ctx context.Context, tenantID int) (Snapshot, error)
 		Where(
 			systemconfig.TenantIDEQ(tenantID),
 			systemconfig.DeletedAtIsNil(),
-			systemconfig.KeyIn(KeyMCPEnabled, KeyMCPWriteEnabled, KeyBotEnabled, KeyAssistantMemoryEnabled),
+			systemconfig.KeyIn(
+				KeyMCPEnabled, KeyMCPWriteEnabled, KeyBotEnabled,
+				KeyAssistantMemoryEnabled, KeyAssistantDockEnabled, KeyHelpAgentEnabled,
+			),
 		).
 		All(ctx)
 	if err != nil {
@@ -245,6 +263,10 @@ func (s *ConfigSource) load(ctx context.Context, tenantID int) (Snapshot, error)
 			snap.BotEnabled = parsed
 		case KeyAssistantMemoryEnabled:
 			snap.AssistantMemoryEnabled = parsed
+		case KeyAssistantDockEnabled:
+			snap.AssistantDockEnabled = parsed
+		case KeyHelpAgentEnabled:
+			snap.HelpAgentEnabled = parsed
 		default:
 			continue
 		}
@@ -272,7 +294,7 @@ func (c *ConfigSource) Update(ctx context.Context, tenantID int, patch Patch, op
 	// RLS 批次 5（007）：平台管理员可管理指定租户的覆盖行 → 以目标租户重绑定 ctx。
 	ctx = tenantctx.WithTenantID(ctx, tenantID)
 
-	upserts := make(map[string]bool, 3)
+	upserts := make(map[string]bool, 6)
 	if patch.MCPEnabled != nil {
 		upserts[KeyMCPEnabled] = *patch.MCPEnabled
 	}
@@ -284,6 +306,12 @@ func (c *ConfigSource) Update(ctx context.Context, tenantID int, patch Patch, op
 	}
 	if patch.AssistantMemoryEnabled != nil {
 		upserts[KeyAssistantMemoryEnabled] = *patch.AssistantMemoryEnabled
+	}
+	if patch.AssistantDockEnabled != nil {
+		upserts[KeyAssistantDockEnabled] = *patch.AssistantDockEnabled
+	}
+	if patch.HelpAgentEnabled != nil {
+		upserts[KeyHelpAgentEnabled] = *patch.HelpAgentEnabled
 	}
 	for key, value := range upserts {
 		if err := c.upsert(ctx, tenantID, key, value, operator); err != nil {
@@ -367,7 +395,8 @@ func (c *ConfigSource) upsert(ctx context.Context, tenantID int, key string, val
 // IsKnownKey 判断键是否属于能力开关集合。
 func IsKnownKey(key string) bool {
 	switch key {
-	case KeyMCPEnabled, KeyMCPWriteEnabled, KeyBotEnabled, KeyAssistantMemoryEnabled:
+	case KeyMCPEnabled, KeyMCPWriteEnabled, KeyBotEnabled,
+		KeyAssistantMemoryEnabled, KeyAssistantDockEnabled, KeyHelpAgentEnabled:
 		return true
 	default:
 		return false
@@ -376,7 +405,10 @@ func IsKnownKey(key string) bool {
 
 // KnownKeys 返回全部能力开关键（顺序固定，管理 API 与 UI 同源）。
 func KnownKeys() []string {
-	return []string{KeyMCPEnabled, KeyMCPWriteEnabled, KeyBotEnabled, KeyAssistantMemoryEnabled}
+	return []string{
+		KeyMCPEnabled, KeyMCPWriteEnabled, KeyBotEnabled,
+		KeyAssistantMemoryEnabled, KeyAssistantDockEnabled, KeyHelpAgentEnabled,
+	}
 }
 
 func descriptionOf(key string) string {
@@ -389,6 +421,10 @@ func descriptionOf(key string) string {
 		return "Bot 能力开关（运行时；关闭时 Bot 管理写端与选择器停用）"
 	case KeyAssistantMemoryEnabled:
 		return "AI 助手个性化记忆开关（运行时；关闭时常用语/模板/最近处理元数据停用且前端零请求）"
+	case KeyAssistantDockEnabled:
+		return "AI 助手 Dock 灰度开关（运行时；关闭后租户内不渲染 Dock，工作区 /ai/chat 不受影响）"
+	case KeyHelpAgentEnabled:
+		return "帮助智能体开关（运行时；关闭后隐藏帮助页签，帮助数据面请求返回 403）"
 	default:
 		return ""
 	}

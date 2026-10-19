@@ -30,7 +30,10 @@ func newCapTestSource(t *testing.T, defaults Defaults) (*ConfigSource, *ent.Clie
 }
 
 func staticDefaults() Defaults {
-	return Defaults{MCPEnabled: true, MCPWriteEnabled: false, BotEnabled: true, AssistantMemoryEnabled: true}
+	return Defaults{
+		MCPEnabled: true, MCPWriteEnabled: false, BotEnabled: true,
+		AssistantMemoryEnabled: true, AssistantDockEnabled: true, HelpAgentEnabled: true,
+	}
 }
 
 func TestConfigSource_FollowsStaticDefaultsWhenNoOverride(t *testing.T) {
@@ -41,8 +44,37 @@ func TestConfigSource_FollowsStaticDefaultsWhenNoOverride(t *testing.T) {
 	assert.False(t, snap.MCPWriteEnabled)
 	assert.True(t, snap.BotEnabled)
 	assert.True(t, snap.AssistantMemoryEnabled, "V2-01：缺行跟随静态默认（产品默认开启）")
+	assert.True(t, snap.AssistantDockEnabled, "T5-05：Dock 缺行跟随静态默认（开启）")
+	assert.True(t, snap.HelpAgentEnabled, "T5-05：帮助智能体缺行跟随静态默认（开启）")
 	assert.Empty(t, snap.Overridden, "无覆盖行时 Overridden 必须为空")
 	assert.False(t, snap.IsOverridden(KeyMCPWriteEnabled))
+}
+
+// T5-05：Dock / 帮助智能体灰度开关的覆盖 / 恢复默认契约。
+func TestConfigSource_GrayscaleSwitchesOverrideAndClear(t *testing.T) {
+	src, _ := newCapTestSource(t, staticDefaults())
+	ctx := context.Background()
+
+	require.True(t, src.For(ctx, 7).AssistantDockEnabled)
+	require.True(t, src.For(ctx, 7).HelpAgentEnabled)
+
+	off := false
+	snap, err := src.Update(ctx, 7, Patch{
+		AssistantDockEnabled: &off,
+		HelpAgentEnabled:     &off,
+	}, "admin")
+	require.NoError(t, err)
+	assert.False(t, snap.AssistantDockEnabled, "租户关闭 Dock：覆盖行立即生效")
+	assert.False(t, snap.HelpAgentEnabled, "租户关闭帮助：覆盖行立即生效")
+	assert.True(t, snap.IsOverridden(KeyAssistantDockEnabled))
+	assert.True(t, snap.IsOverridden(KeyHelpAgentEnabled))
+
+	snap, err = src.Clear(ctx, 7, KeyAssistantDockEnabled, KeyHelpAgentEnabled)
+	require.NoError(t, err)
+	assert.True(t, snap.AssistantDockEnabled, "Clear 恢复跟随静态默认（开启）")
+	assert.True(t, snap.HelpAgentEnabled, "Clear 恢复跟随静态默认（开启）")
+	assert.False(t, snap.IsOverridden(KeyAssistantDockEnabled))
+	assert.False(t, snap.IsOverridden(KeyHelpAgentEnabled))
 }
 
 // V2-01：个性化记忆租户开关的覆盖 / 恢复默认契约（与 MCP/Bot 同源同语义）。
@@ -163,7 +195,10 @@ func TestConfigSource_FailSafeOnUnavailableClientAndBadTenant(t *testing.T) {
 }
 
 func TestKnownKeys_StableOrder(t *testing.T) {
-	assert.Equal(t, []string{KeyMCPEnabled, KeyMCPWriteEnabled, KeyBotEnabled, KeyAssistantMemoryEnabled}, KnownKeys())
+	assert.Equal(t, []string{
+		KeyMCPEnabled, KeyMCPWriteEnabled, KeyBotEnabled,
+		KeyAssistantMemoryEnabled, KeyAssistantDockEnabled, KeyHelpAgentEnabled,
+	}, KnownKeys())
 	for _, key := range KnownKeys() {
 		assert.True(t, IsKnownKey(key))
 	}

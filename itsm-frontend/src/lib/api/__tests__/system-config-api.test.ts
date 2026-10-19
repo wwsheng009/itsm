@@ -97,11 +97,28 @@ describe('SystemConfigAPI', () => {
     mcpEnabled: true,
     mcpWriteEnabled: false,
     botEnabled: true,
-    defaults: { mcpEnabled: true, mcpWriteEnabled: false, botEnabled: true },
+    assistantMemoryEnabled: true,
+    assistantDockEnabled: true,
+    helpAgentEnabled: true,
+    defaults: {
+      mcpEnabled: true,
+      mcpWriteEnabled: false,
+      botEnabled: true,
+      assistantMemoryEnabled: true,
+      assistantDockEnabled: true,
+      helpAgentEnabled: true,
+    },
     overridden: { 'mcp.write_enabled': true },
     updatedAt: '2026-09-30T01:00:00Z',
     updatedBy: 'admin',
-    keys: ['mcp.enabled', 'mcp.write_enabled', 'bot.enabled'],
+    keys: [
+      'mcp.enabled',
+      'mcp.write_enabled',
+      'bot.enabled',
+      'assistant.memory_enabled',
+      'assistant.dock.enabled',
+      'help.agent.enabled',
+    ],
   } as const;
 
   describe('getAICapabilities', () => {

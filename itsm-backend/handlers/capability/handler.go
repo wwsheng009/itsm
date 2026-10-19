@@ -87,8 +87,13 @@ func Handler(c *gin.Context) {
 
 	// V2-01：个性化记忆的租户策略（运行时能力源；未注入/读取不可用按产品默认开启）。
 	memoryEnabled := true
+	// T5-05：Dock / 帮助智能体灰度（未注入/读取不可用按产品默认开启）。
+	dockEnabled := true
+	helpEnabled := true
 	if snap, ok := caproot.SnapshotFor(c.Request.Context(), c.GetInt("tenant_id")); ok {
 		memoryEnabled = snap.AssistantMemoryEnabled
+		dockEnabled = snap.AssistantDockEnabled
+		helpEnabled = snap.HelpAgentEnabled
 	}
 
 	items := make([]Capability, 0, len(registry))
@@ -133,6 +138,8 @@ func Handler(c *gin.Context) {
 		"mspRoutesEnabled":  middleware.IsMSPEnabled(),
 		"assistant": gin.H{
 			"memoryEnabled": memoryEnabled,
+			"dockEnabled":   dockEnabled,
+			"helpEnabled":   helpEnabled,
 		},
 	})
 }

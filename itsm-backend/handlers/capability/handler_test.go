@@ -19,10 +19,10 @@ type runtimeStubSource struct{ snap caproot.Snapshot }
 func (s runtimeStubSource) For(context.Context, int) caproot.Snapshot { return s.snap }
 func (s runtimeStubSource) Invalidate(int)                            {}
 
-// V2-01：公共能力面下发租户级 assistant.memoryEnabled：
-//   - 注入源且租户关闭 → false；
+// V2-01/T5-05：公共能力面下发租户级 assistant 策略：
+//   - 注入源且租户关闭 → 对应字段 false；
 //   - 未注入源（测试/未装配）→ 产品默认 true（fail-safe，不阻断）。
-func TestHandlerExposesAssistantMemoryPolicy(t *testing.T) {
+func TestHandlerExposesAssistantPolicies(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	router := gin.New()
 	router.GET("/capabilities", func(c *gin.Context) {
@@ -30,27 +30,42 @@ func TestHandlerExposesAssistantMemoryPolicy(t *testing.T) {
 		Handler(c)
 	})
 
-	read := func() bool {
+	type assistantPolicy struct {
+		MemoryEnabled bool `json:"memoryEnabled"`
+		DockEnabled   bool `json:"dockEnabled"`
+		HelpEnabled   bool `json:"helpEnabled"`
+	}
+	read := func() assistantPolicy {
 		recorder := httptest.NewRecorder()
 		router.ServeHTTP(recorder, httptest.NewRequest(http.MethodGet, "/capabilities", nil))
 		require.Equal(t, http.StatusOK, recorder.Code)
 		var response struct {
 			Data struct {
-				Assistant struct {
-					MemoryEnabled bool `json:"memoryEnabled"`
-				} `json:"assistant"`
+				Assistant assistantPolicy `json:"assistant"`
 			} `json:"data"`
 		}
 		require.NoError(t, json.Unmarshal(recorder.Body.Bytes(), &response))
-		return response.Data.Assistant.MemoryEnabled
+		return response.Data.Assistant
 	}
 
-	caproot.SetRuntimeSource(runtimeStubSource{snap: caproot.Snapshot{AssistantMemoryEnabled: false}})
 	t.Cleanup(func() { caproot.SetRuntimeSource(nil) })
-	require.False(t, read(), "租户关闭记忆 → assistant.memoryEnabled=false")
+	caproot.SetRuntimeSource(nil)
+	require.Equal(t, assistantPolicy{MemoryEnabled: true, DockEnabled: true, HelpEnabled: true}, read(),
+		"未注入源 → 全部按产品默认开启")
 
-	caproot.SetRuntimeSource(runtimeStubSource{snap: caproot.Snapshot{AssistantMemoryEnabled: true}})
-	require.True(t, read())
+	caproot.SetRuntimeSource(runtimeStubSource{snap: caproot.Snapshot{
+		AssistantMemoryEnabled: false,
+		AssistantDockEnabled:   false,
+		HelpAgentEnabled:       false,
+	}})
+	require.Equal(t, assistantPolicy{}, read(), "租户关闭 → 三个策略均为 false")
+
+	caproot.SetRuntimeSource(runtimeStubSource{snap: caproot.Snapshot{
+		AssistantMemoryEnabled: true,
+		AssistantDockEnabled:   true,
+		HelpAgentEnabled:       true,
+	}})
+	require.Equal(t, assistantPolicy{MemoryEnabled: true, DockEnabled: true, HelpEnabled: true}, read())
 }
 
 func TestHandlerReturnsTenantAwareCapabilityContract(t *testing.T) {

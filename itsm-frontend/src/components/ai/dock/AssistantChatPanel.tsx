@@ -48,7 +48,12 @@ import { InputDockAssistMenu } from '@/components/ai/chat-core/InputDockAssistMe
 import { useInputDockAssist } from '@/components/ai/chat-core/use-input-dock-assist';
 import { useI18n } from '@/lib/i18n/useI18n';
 
-const AssistantChatPanel: React.FC = () => {
+interface AssistantChatPanelProps {
+  /** T5-05：`help.agent.enabled=false` 时隐藏帮助页签（默认开启）。 */
+  helpEnabled?: boolean;
+}
+
+const AssistantChatPanel: React.FC<AssistantChatPanelProps> = ({ helpEnabled = true }) => {
   const { token } = theme.useToken();
   const { message } = App.useApp();
   const navigate = useNavigate();
@@ -155,6 +160,10 @@ const AssistantChatPanel: React.FC = () => {
 
   // H0-04：面板页签（对话 / 帮助）；"生成初稿"切回对话并发送结构化提示。
   const [tab, setTab] = useState<'chat' | 'help'>('chat');
+  // T5-05：灰度关闭时立即收回帮助页签，避免停留在一个不可用视图。
+  useEffect(() => {
+    if (!helpEnabled) setTab(prev => (prev === 'help' ? 'chat' : prev));
+  }, [helpEnabled]);
 
   // P1：面板打开即聚焦输入框（少一次点击）。桌面端延迟到下一帧，避免与打开动画抢布局；
   // 移动端不自动聚焦——会立即弹起软键盘、遮挡刚打开的面板。
@@ -243,15 +252,19 @@ const AssistantChatPanel: React.FC = () => {
         }}
       >
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-          <Segmented
-            size="small"
-            value={tab}
-            onChange={value => setTab(value as 'chat' | 'help')}
-            options={[
-              { label: t('assistant.panel.tabChat'), value: 'chat' },
-              { label: t('assistant.panel.tabHelp'), value: 'help' },
-            ]}
-          />
+          {helpEnabled ? (
+            <Segmented
+              size="small"
+              value={tab}
+              onChange={value => setTab(value as 'chat' | 'help')}
+              options={[
+                { label: t('assistant.panel.tabChat'), value: 'chat' },
+                { label: t('assistant.panel.tabHelp'), value: 'help' },
+              ]}
+            />
+          ) : (
+            <span style={{ fontSize: 13, fontWeight: 600 }}>{t('assistant.panel.tabChat')}</span>
+          )}
           <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
             {/* P4：会话历史（Dock 内切换历史会话 / 新建），与工作区共用内核动作。 */}
             <Popover
@@ -576,9 +589,9 @@ const AssistantChatPanel: React.FC = () => {
         </div>
       </div>
         </>
-      ) : (
+      ) : helpEnabled ? (
         <AssistantHelpPanel onDraft={handleDraftFromHelp} />
-      )}
+      ) : null}
 
     </div>
   );

@@ -120,6 +120,8 @@
 - **灰度与回滚**：`assistant.dock.enabled` 按租户/角色/页面白名单推进；指标达标才扩大；保留一键关闭；
 - **双入口一致性**：`/ai/chat` 工作区与 Dock 共用 chat-core 与 store；工作区内不渲染 Dock（抑制，避免双聊天入口）；Dock → 工作区以一次性会话交接衔接（convId + 页面 scope，经 store 传递、不再依赖 history state）。
 
+> 2026-10-19：T5-05 已落地租户级 `assistant.dock.enabled` / `help.agent.enabled`（平台配置 + 免重启）；角色/页面白名单仍为后续增强。
+
 ---
 
 ## 4. 上下文模型与协议
@@ -1086,7 +1088,7 @@ Dock 容器、chat-core 抽离、交互状态机、帮助覆盖率 ratchet、Aut
 | T5-02 | 输入坞 `/` 快捷指令 + `@` 当前页对象引用 | §3.1 L47；代码零命中 | 解析 + 交互测试 |
 | T5-03 | 附件/截图输入（语音输入可显式关闭） | §3.5 L100–101 | 上传面 + 双界面接线 |
 | T5-04 | handoff"转人工"三项（打开页面 / 预填 / 指派） | §3.2 L65；现仅埋点 | 端到端用例 |
-| T5-05 | 灰度开关 `assistant.dock.enabled` / `help.agent.enabled` | §3.7 L118、§6 L270 | 平台配置 + 免重启生效 |
+| T5-05 | 灰度开关 `assistant.dock.enabled` / `help.agent.enabled` | §3.7 L118、§6 L270 | ✅ 平台配置 + 免重启生效（2026-10-19；租户级；证据 `assistant-dock/T5-05-gray-switches-evidence.md`） |
 | T5-06 | 质量层数据源与看板接线（父任务，拆分为 T5-06a / T5-06b） | §13.3；§11.5 门槛依赖 | ✅ 两个子任务完成（2026-10-19；证据 `assistant-dock/T5-06a-quality-data-source-evidence.md`、`assistant-dock/T5-06b-quality-dashboard-evidence.md`） |
 | T5-06a | 质量层数据源：citation 埋点（sources 数 / 无引用回答）、回答级点踩、`model` 上报、`query_hash` 补链 | §13.3；§11.5 门槛依赖 | ✅ 指标可算（2026-10-19；证据 `assistant-dock/T5-06a-quality-data-source-evidence.md`） |
 | T5-06b | 质量层看板接线：summary `quality` / `models` 接入观测看板；§11.5 三指标标注可测 | §13.3；§14.4-③/④ | ✅ 看板展示 + 门槛可执行（2026-10-19；证据 `assistant-dock/T5-06b-quality-dashboard-evidence.md`） |
@@ -1108,6 +1110,8 @@ Dock 容器、chat-core 抽离、交互状态机、帮助覆盖率 ratchet、Aut
 > 进展（2026-10-19）：T5-06a 已完成——质量层事件契约（§13.2）新增 `message_feedback` 与 `sources_count` / `query_hash` / `model` 字段；前端 SDK 补 `onSources`、回答级反馈按钮与历史消息补链；后端迁移新增 4 列 + 2 索引，INSERT 14→18 列，summary 新增 `quality`（引用覆盖率 / 无引用回答率 / 点踩率，空分母为 `null`）与 `models`（Top 20）；`stream_end` 显式 `0` = 无引用，`NULL` = 旧客户端不计入分母。验证：后端 3 包 + 前端 4 suites / 42 tests 全过，eslint/tsc/gofmt 全绿；证据 `assistant-dock/T5-06a-quality-data-source-evidence.md`。看板接线归 **T5-06b**（已完成，见下条）；登记见交付台账 T5 段。
 
 > 进展（2026-10-19）：T5-06b 已完成——观测看板新增质量层三指标卡（引用覆盖率 / 无引用回答率 / 点踩率，展示分子/分母与「可测」标识，空分母显示「—」），成本与时延卡新增模型分布 Top 20；前端 API 类型补齐 `quality` / `models`。验证：观测看板回归 5 suites / 33 tests（含定向新增 2 suites / 20 tests）、tsc、eslint 全绿；证据 `assistant-dock/T5-06b-quality-dashboard-evidence.md`；登记见交付台账 T5 段。
+
+> 进展（2026-10-19）：T5-05 已完成——`capability` 新增 `assistant.dock.enabled` / `help.agent.enabled`（默认开启、租户覆盖、写后缓存失效免重启）；公共能力面下发 `assistant.dockEnabled/helpEnabled`；系统配置 AI 页签可读写/恢复默认；Dock 关闭时不渲染入口且预填入口降级到 `/ai/chat`，帮助关闭时隐藏页签且 `/ai/help/search|page` 返回 403（未注入能力源 fail-safe 开启）。后端 4 包 + 前端 8 suites / 57 tests、tsc/eslint 全绿；证据 `assistant-dock/T5-05-gray-switches-evidence.md`；登记见交付台账 T5 段。
 
 > 进展（2026-10-19）：T5-13 已完成——12 个助手表面（面板/建议/记忆条/回执卡/门户入口/帮助视图/Dock/批量面板/邮件入口等）接入 `useI18n`；新增 `assistant` 命名空间（`translations-assistant.ts`，11 子命名空间、zh/en 各 213 键，键集与占位符对齐校验通过）；zh 值与原字面量逐字一致；eslint/tsc 全绿，回归 40/41 suites 通过（唯一失败为存量 `TicketDetailAssignSearch`，HEAD 复现）；证据 `assistant-dock/T5-13-i18n-copy-batch-evidence.md`；登记见交付台账 T5 段。
 

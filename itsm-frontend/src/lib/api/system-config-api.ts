@@ -13,12 +13,15 @@ import type {
  *
  * 语义：缺行 = 跟随环境默认；写入覆盖行后立即生效（缓存失效），无需重启。
  * V2-01：新增 `assistant.memory_enabled`（AI 助手个性化记忆，产品默认开启，租户可关闭）。
+ * T5-05：新增 `assistant.dock.enabled` / `help.agent.enabled`（Dock / 帮助智能体灰度）。
  */
 export type AICapabilityKey =
   | 'mcp.enabled'
   | 'mcp.write_enabled'
   | 'bot.enabled'
-  | 'assistant.memory_enabled';
+  | 'assistant.memory_enabled'
+  | 'assistant.dock.enabled'
+  | 'help.agent.enabled';
 
 /** 各键的静态（环境/配置文件）默认值。 */
 export interface AICapabilityDefaults {
@@ -26,6 +29,8 @@ export interface AICapabilityDefaults {
   mcpWriteEnabled: boolean;
   botEnabled: boolean;
   assistantMemoryEnabled: boolean;
+  assistantDockEnabled: boolean;
+  helpAgentEnabled: boolean;
 }
 
 /**
@@ -38,6 +43,8 @@ export interface AICapabilitiesPatch {
   mcpWriteEnabled?: boolean;
   botEnabled?: boolean;
   assistantMemoryEnabled?: boolean;
+  assistantDockEnabled?: boolean;
+  helpAgentEnabled?: boolean;
   reset?: AICapabilityKey[];
 }
 
@@ -52,6 +59,8 @@ export interface AICapabilities {
   mcpWriteEnabled: boolean;
   botEnabled: boolean;
   assistantMemoryEnabled: boolean;
+  assistantDockEnabled: boolean;
+  helpAgentEnabled: boolean;
   defaults: AICapabilityDefaults;
   /**
    * 已被管理台覆盖的键 → true（未列出的键 = 跟随环境默认）。
@@ -131,7 +140,7 @@ export class SystemConfigAPI {
   }
 
   /**
-   * 读取 AI 能力开关（三键生效值 + 来源 + 静态默认 + 最近更新人/时间）。
+   * 读取 AI 能力开关（全部能力键生效值 + 来源 + 静态默认 + 最近更新人/时间）。
    *
    * 需要 `system_config:read`；能力服务未就绪时后端返回 503。
    */

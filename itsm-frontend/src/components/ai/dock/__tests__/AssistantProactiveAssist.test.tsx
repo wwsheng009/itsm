@@ -43,6 +43,14 @@ jest.mock('@/lib/services/notification-ws', () => ({
     onNotification: jest.fn(),
   },
 }));
+jest.mock('@/lib/api/capability-api', () => ({
+  __esModule: true,
+  getCapabilities: jest.fn(async () => ({
+    items: [],
+    acceptanceVersion: 'test',
+    assistant: { dockEnabled: true, helpEnabled: true, memoryEnabled: true },
+  })),
+}));
 jest.mock('../AssistantChatPanel', () => ({
   __esModule: true,
   default: () => <div data-testid="assistant-chat-panel-stub" />,
