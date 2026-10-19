@@ -1465,6 +1465,7 @@ func (s *Service) chatStream(
 	onTool func(ToolStreamEvent),
 	onRun func(eventType string, payload map[string]any),
 ) (int, string, service.LLMUsageEstimate, error) {
+	ctx = service.WithLLMTaskType(ctx, service.LLMTaskChat)
 	var run *bot.Run
 	startedAt := time.Now()
 	budgetAborted := false

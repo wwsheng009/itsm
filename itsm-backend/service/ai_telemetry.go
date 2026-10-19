@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"fmt"
 	"time"
 
@@ -11,6 +12,9 @@ import (
 
 	"go.uber.org/zap"
 )
+
+// ErrLLMCallObservabilityUnavailable 调用历史仓储未装配。
+var ErrLLMCallObservabilityUnavailable = errors.New("llm call observability repository not initialized")
 
 // AITelemetryService AI 遥测指标服务。
 //
@@ -57,9 +61,9 @@ func (s *AITelemetryService) SetSkillRegistry(reg *SkillRegistry) {
 // LLMObserver implements the LLMGateway Observer interface. Every gateway call
 // (success, rate-limited or failed) is recorded into ai_llm_calls so that
 // GetMetrics can report a real avg_response_time_seconds instead of a constant.
-// The gateway is tenant-agnostic, so the table intentionally carries no
-// tenant_id; latency metrics are platform-level, while tenant-scoped counters
-// keep coming from audit_logs / ai_feedbacks.
+// T5-07b-lite: new rows carry the request tenant when available; historical
+// platform-level rows keep tenant_id NULL and remain excluded from tenant
+// call reports. Existing platform-level metric aggregates stay unchanged.
 type LLMObserver struct {
 	repo   *aiTelemetryRepository
 	logger *zap.SugaredLogger
@@ -74,6 +78,29 @@ func (o *LLMObserver) Observe(provider string, model string, tokens int, latency
 	o.ObserveWithProviderKey("", provider, model, tokens, latency, err)
 }
 
+// ObserveLLMCall 实现 service.LLMCallObserver：携带租户、任务类型、Provider 来源
+// 与结构化错误分类，写入租户可查询的调用历史。
+//
+// 写库不绑定请求 ctx（请求取消时仍应留痕），固定短超时避免观测拖慢响应。
+func (o *LLMObserver) ObserveLLMCall(ctx context.Context, call LLMCallObservation) {
+	if o == nil || o.repo == nil {
+		return
+	}
+	if call.TaskType == "" {
+		call.TaskType = LLMTaskTypeFromContext(ctx)
+	}
+	if !call.Success && call.ErrorClass == "" {
+		call.ErrorClass = LLMCallErrorUnknown
+	}
+	writeCtx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+	if err := o.repo.ObserveLLMCallDetailed(writeCtx, call); err != nil {
+		safeLog(o.logger, "failed to record detailed LLM call metric",
+			"error", err, "provider", call.Provider, "providerKey", call.ProviderKey,
+			"tenantID", call.TenantID, "taskType", call.TaskType)
+	}
+}
+
 // ObserveWithProviderKey 实现 service.ProviderKeyObserver（BE-6，主计划 §3.7）：
 // 除既有字段外把生效的 DB 实例 key 写入 ai_llm_calls.provider_key；
 // 静态回退/旧路径传空串 → 落 NULL（历史口径不变，QA-3 回归门禁）。
@@ -81,11 +108,21 @@ func (o *LLMObserver) Observe(provider string, model string, tokens int, latency
 // 该方法为增量扩展：Observer 接口本身未改签名，未实现本方法的既有实现（NoopObserver/
 // MockObserver/第三方桩）继续走 Observe，零破坏。
 func (o *LLMObserver) ObserveWithProviderKey(providerKey, provider, model string, tokens int, latency time.Duration, err error) {
-	success := err == nil
-	if obsErr := o.repo.ObserveLLMCallWithProviderKey(context.Background(), providerKey, provider, model, tokens, latency.Milliseconds(), success); obsErr != nil {
-		safeLog(o.logger, "failed to record LLM call metric",
-			"error", obsErr, "provider", provider, "providerKey", providerKey)
+	if o == nil || o.repo == nil {
+		return
 	}
+	class, status := ClassifyLLMCallError(err)
+	o.ObserveLLMCall(context.Background(), LLMCallObservation{
+		ProviderKey:  providerKey,
+		Provider:     provider,
+		Model:        model,
+		Tokens:       tokens,
+		Latency:      latency,
+		Success:      err == nil,
+		ErrorClass:   class,
+		HTTPStatus:   status,
+		ErrorMessage: SanitizeLLMCallError(err),
+	})
 }
 
 // SaveFeedback saves user feedback on AI suggestions
@@ -165,6 +202,22 @@ func (s *AITelemetryService) GetMetrics(ctx context.Context, tenantID int, lookb
 	}
 
 	return out, nil
+}
+
+// ListLLMCalls 分页查询租户级 LLM 调用历史（错误可见；不含 prompt/请求体）。
+func (s *AITelemetryService) ListLLMCalls(ctx context.Context, tenantID int, filter LLMCallFilter) (*LLMCallList, error) {
+	if s == nil || s.repo == nil {
+		return nil, ErrLLMCallObservabilityUnavailable
+	}
+	return s.repo.ListLLMCalls(ctx, tenantID, filter)
+}
+
+// SummarizeLLMCalls 聚合租户级 LLM 调用报表（成功/失败/错误分类/Provider/模型/任务）。
+func (s *AITelemetryService) SummarizeLLMCalls(ctx context.Context, tenantID int, filter LLMCallFilter) (*LLMCallSummary, error) {
+	if s == nil || s.repo == nil {
+		return nil, ErrLLMCallObservabilityUnavailable
+	}
+	return s.repo.SummarizeLLMCalls(ctx, tenantID, filter)
 }
 
 // countAIAuditLogs 通过 Ent 在 audit_logs 中统计"近 lookbackDays 内、含 ai 动作"的条数。

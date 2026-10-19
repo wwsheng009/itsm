@@ -411,6 +411,7 @@ func NewLLMAsyncAnswerGenerator(gateway *service.LLMGateway, logger *zap.Sugared
 }
 
 func (g *llmAsyncAnswerGenerator) Generate(ctx context.Context, req AsyncAnswerRequest, fast AsyncAnswerFast) (string, string, error) {
+	ctx = service.WithLLMTaskType(ctx, service.LLMTaskAsyncAnswer)
 	providerReq := service.ProviderRequest{TenantID: req.TenantID, UserID: req.UserID}
 	resolution, err := g.gateway.ResolveRequest(ctx, providerReq)
 	if err != nil {

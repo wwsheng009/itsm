@@ -47,7 +47,15 @@ func newTelemetryTestDB(t *testing.T) (*sql.DB, *AITelemetryService) {
 			latency_ms INT,
 			success BOOLEAN,
 			-- BE-6 §3.7：生效实例 key（静态回退/旧路径写 NULL）
-			provider_key TEXT
+			provider_key TEXT,
+			-- T5-07b-lite：调用报表字段（历史行缺省由默认值兜底）
+			tenant_id INT,
+			provider_source TEXT NOT NULL DEFAULT '',
+			task_type TEXT NOT NULL DEFAULT 'unknown',
+			tokens_estimated BOOLEAN NOT NULL DEFAULT 1,
+			error_class TEXT NOT NULL DEFAULT '',
+			http_status INT,
+			error_message TEXT NOT NULL DEFAULT ''
 		);
 	`)
 	require.NoError(t, err)

@@ -100,7 +100,7 @@
 
 - I0-01：已交付（`4a1fd4f8`）且证据补登记完成（`assistant-dock/I0-01-interaction-state-evidence.md`，T5-01）。
 - 批次 7–10（`4a1fd4f8`/`cd61ce7f`/`26512d69`/`5d87a831`）：证据已补登记（T5-01，2026-10-19）；方案 §7 按 §14.5 惯例保留为历史增量、不回填。
-- 悬空设计项（无任务映射）：`/` 与 `@`（T5-02，已关闭）、附件 / 截图（T5-03，已关闭）、handoff"转人工"三项（T5-04，已关闭）、灰度开关（T5-05，已关闭）、质量层指标数据源与看板（T5-06a/T5-06b，已关闭）；余 T5-07b、T5-09 见方案 §14.2。
+- 悬空设计项（无任务映射）：`/` 与 `@`（T5-02，已关闭）、附件 / 截图（T5-03，已关闭）、handoff"转人工"三项（T5-04，已关闭）、灰度开关（T5-05，已关闭）、质量层指标数据源与看板（T5-06a/T5-06b，已关闭）、调用观测（T5-07b，已关闭）、帮助写面与向量化（T5-09a/T5-09b，已关闭）。
 - 宽度交互"拖拽调宽"：已被 `5d87a831` 显式替代为离散三档 + 键盘循环（WCAG 2.1.1）；条款已回写（T5-11，2026-10-19）；"边缘收纳"显式不采纳（收起态即 FAB，与 D1 一致）。
 - 双入口"在侧栏继续 / 全屏打开"：未实现；现为"抑制 + 一次性交接"（`5d87a831`）——已按 B 收口（T5-12，2026-10-19）：条款更新认可现状（方案 §3.7/§8）、§14.4-① 解除。
 - 流式消息区 aria-live 验收缺口（评审 §12 第 12 项；UX B9/F2）：已由 T5-08 关闭（2026-10-19）——工作区/Dock 面板消息区 `role="log"` + `aria-live="polite"`，流式期间 `aria-busy` 抑制逐字播报、完成后一次性读出；行为断言 `streaming-a11y-behavior.test.tsx`；证据 `assistant-dock/T5-08-streaming-aria-live-evidence.md`。
@@ -128,7 +128,7 @@
 | T5-06 | ✅ 2026-10-19 | 质量层父任务：T5-06a（数据源）+ T5-06b（看板接线）均已完成；证据 `assistant-dock/T5-06a-quality-data-source-evidence.md`、`assistant-dock/T5-06b-quality-dashboard-evidence.md` |
 | T5-06a | ✅ 2026-10-19 | 质量层数据源：`message_feedback` + `sources_count` / `query_hash` / `model`；前端 SDK、回答级反馈、历史消息补链；后端迁移 4 列 + 2 索引、INSERT 18 列、质量三率 + 模型 Top 20；后端 3 包 + 前端 4 suites / 42 tests 全过，eslint/tsc/gofmt 全绿；证据 `assistant-dock/T5-06a-quality-data-source-evidence.md` |
 | T5-06b | ✅ 2026-10-19 | 质量层看板接线：新增 `QualityMetricsCard`（三率 + 分子/分母 + 「可测」标识 + 空分母「—」），成本卡新增模型分布 Top 20；API 类型补齐 `quality` / `models`；观测看板回归 5 suites / 33 tests（含定向新增 2 suites / 20 tests）、tsc、eslint 全绿；证据 `assistant-dock/T5-06b-quality-dashboard-evidence.md` |
-| T5-07 | 拆分 | 成本口径修正已完成（T5-07a）；模型分级路由/成本上限归 T5-07b 待排期 |
+| T5-07 | 收窄 | 成本口径修正已完成（T5-07a）；T5-07b 按用户口径只交付调用观测，预算/金额/自动路由延后 |
 | T5-07a | ✅ 2026-10-19 | 成本口径修正：首 token / 整体（stream_end）P50+P95+Max+Count 分离；顶层兼容字段固定整体口径；健康 SLO 改用首 token P95；service/handlers 两包 + 看板 1 suite / 17 tests、tsc/eslint 全绿；证据 `assistant-dock/T5-07a-cost-latency-evidence.md` |
 | T5-08 | ✅ 2026-10-19 | 流式 aria-live 行为验收：消息区 `role="log"` + `aria-live="polite"` + `aria-busy` 流式抑制（工作区/Dock 双表面）；行为断言 3 例；证据 `assistant-dock/T5-08-streaming-aria-live-evidence.md` |
 | T5-09 | ✅ 2026-10-19 | 帮助子系统收口：T5-09a 写面/审阅 + T5-09b 向量化；证据 `assistant-dock/T5-09a-help-write-review-evidence.md`、`assistant-dock/T5-09b-help-index-vectorization-evidence.md` |
@@ -138,9 +138,9 @@
 | T5-11 | ✅ 2026-10-19 | 宽度交互回写：离散三档 + 键盘循环（显式替代自由拖拽）；"边缘收纳"不采纳（收起态即 FAB） |
 | T5-12 | ✅ 2026-10-19 | 双入口按 B 收口：§3.7/§8 条款认可现状（抑制 + 一次性交接）；§14.4-① 解除；Q3（launcher/深链）连带回写 |
 | T5-13 | ✅ 2026-10-19 | 文案 i18n 批次：12 个助手表面接入 `useI18n`；新增 `assistant` 命名空间（11 子命名空间、zh/en 各 213 键）；zh 值逐字不变；证据 `assistant-dock/T5-13-i18n-copy-batch-evidence.md` |
-| T5-07b | 待排期 | 见方案 §14.2 |
+| T5-07b | ✅ 2026-10-19（调用观测） | 租户级 LLM 调用账本：`ai_llm_calls` 增加 tenant/task/error_class/http_status/脱敏摘要；新增 `GET /ai/llm-calls` 与 `/summary`；观测页新增调用历史与错误卡（状态/Provider/模型/任务/耗时/Token 估算/错误）；后端 5 包 + 前端 3 suites / 22 tests、tsc/eslint/gofmt 全绿；预算/金额/自动降级/模型分级路由延后由上游管理；证据 `assistant-dock/T5-07b-llm-call-observability-evidence.md` |
 
-> 方案补充（2026-10-19）：T5-04 专项 `assistant-handoff-actions-plan-2026-10-19.md`、T5-07b 专项 `assistant-model-routing-and-budget-plan-2026-10-19.md` 已补齐；T5-03（a/b）与 T5-09（a/b）已按方案 §14.6 拆分落地。
+> 方案补充（2026-10-19）：T5-04 专项 `assistant-handoff-actions-plan-2026-10-19.md`、T5-07b 专项 `assistant-model-routing-and-budget-plan-2026-10-19.md` 已补齐；T5-07b 已按用户口径收窄为调用观测并交付，预算/金额/自动路由延后；T5-03（a/b）与 T5-09（a/b）已按方案 §14.6 拆分落地。
 
 > 维护记录（2026-10-19）：存量失败测试治理 6 套件 / 19 用例已修复（`4938945a`）；方案 `stock-test-failure-governance-plan-2026-10-19.md`，证据 `assistant-dock/T5-13-i18n-copy-batch-evidence.md` §5。
 

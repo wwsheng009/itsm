@@ -48,6 +48,99 @@ export interface AIMetrics {
   responseTimeAvailable?: boolean;
 }
 
+// —— LLM 调用历史与报表（租户级；不含预算/金额口径）——
+
+export interface LLMCallRecord {
+  id: number;
+  createdAt: string;
+  tenantId: number;
+  providerKey: string;
+  provider: string;
+  providerSource: string;
+  model: string;
+  taskType: string;
+  tokens: number;
+  tokensEstimated: boolean;
+  latencyMs: number;
+  success: boolean;
+  errorClass: string;
+  httpStatus?: number;
+  errorMessage: string;
+}
+
+export interface LLMCallBucket {
+  key: string;
+  count: number;
+  success: number;
+  successRate: number;
+  avgLatencyMs: number;
+  tokens: number;
+}
+
+export interface LLMCallSummary {
+  windowDays: number;
+  since: string;
+  generatedAt: string;
+  total: number;
+  success: number;
+  failed: number;
+  successRate: number;
+  avgLatencyMs: number;
+  tokens: number;
+  tokensEstimated: boolean;
+  byProvider: LLMCallBucket[];
+  byTask: LLMCallBucket[];
+  byModel: LLMCallBucket[];
+  byErrorClass: LLMCallBucket[];
+}
+
+export interface LLMCallList {
+  items: LLMCallRecord[];
+  total: number;
+  page: number;
+  pageSize: number;
+}
+
+export interface LLMCallQuery {
+  days?: number;
+  providerKey?: string;
+  model?: string;
+  taskType?: string;
+  errorClass?: string;
+  success?: boolean;
+  page?: number;
+  pageSize?: number;
+}
+
+function llmCallQueryString(params: LLMCallQuery): string {
+  const search = new URLSearchParams();
+  if (params.days && params.days > 0) search.set('days', String(params.days));
+  if (params.providerKey) search.set('providerKey', params.providerKey);
+  if (params.model) search.set('model', params.model);
+  if (params.taskType) search.set('taskType', params.taskType);
+  if (params.errorClass) search.set('errorClass', params.errorClass);
+  if (typeof params.success === 'boolean') search.set('success', String(params.success));
+  if (params.page && params.page > 0) search.set('page', String(params.page));
+  if (params.pageSize && params.pageSize > 0) search.set('pageSize', String(params.pageSize));
+  return search.toString();
+}
+
+export async function aiGetLLMCalls(params: LLMCallQuery = {}): Promise<LLMCallList> {
+  const qs = llmCallQueryString(params);
+  if (qs) {
+    return httpClient.get<LLMCallList>(`/api/v1/ai/llm-calls?${qs}`);
+  }
+  return httpClient.get<LLMCallList>('/api/v1/ai/llm-calls');
+}
+
+export async function aiGetLLMCallSummary(params: LLMCallQuery = {}): Promise<LLMCallSummary> {
+  const qs = llmCallQueryString(params);
+  if (qs) {
+    return httpClient.get<LLMCallSummary>(`/api/v1/ai/llm-calls/summary?${qs}`);
+  }
+  return httpClient.get<LLMCallSummary>('/api/v1/ai/llm-calls/summary');
+}
+
 // —— B4-02：Bot 运行维度指标（GET /api/v1/ai/bot-metrics）——
 
 export interface BotMetricsRunStats {

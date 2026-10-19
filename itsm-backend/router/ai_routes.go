@@ -63,6 +63,9 @@ func SetupAIRoutes(tenant *gin.RouterGroup, h *aiHandler.Handler) {
 		aiGrp.POST("/feedback", middleware.RequirePermission("ai", "write"), h.SaveFeedback)
 		aiGrp.POST("/audit", middleware.RequirePermission("ai", "write"), h.RecordAudit)
 		aiGrp.GET("/metrics", middleware.RequirePermission("ai", "read"), h.GetMetrics)
+		// 调用报表与错误观测（租户级；不做预算/金额闸门）。
+		aiGrp.GET("/llm-calls", middleware.RequirePermission("ai", "read"), h.GetLLMCalls)
+		aiGrp.GET("/llm-calls/summary", middleware.RequirePermission("ai", "read"), h.GetLLMCallSummary)
 		// B4-02：Bot 运行维度指标（成功/确认/verify/工具错误/时延/成本代理）。
 		aiGrp.GET("/bot-metrics", middleware.RequirePermission("ai", "read"), h.GetBotMetrics)
 		// AI 评估报告（按场景有用率 / 置信度校准 / 平台 LLM 统计）

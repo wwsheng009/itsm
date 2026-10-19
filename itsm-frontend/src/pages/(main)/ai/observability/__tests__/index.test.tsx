@@ -16,6 +16,8 @@ import {
   aiGetPilotReport,
   aiGetAssistantSegments,
   aiGetDocMetrics,
+  aiGetLLMCallSummary,
+  aiGetLLMCalls,
   type AIRunTrace,
   type AIConversationTrace,
   type AIHealthDispatchResult,
@@ -39,6 +41,8 @@ jest.mock('@/lib/api/ai-api', () => ({
   aiGetPilotReport: jest.fn(),
   aiGetAssistantSegments: jest.fn(),
   aiGetDocMetrics: jest.fn(),
+  aiGetLLMCallSummary: jest.fn(),
+  aiGetLLMCalls: jest.fn(),
 }));
 jest.mock('@/lib/hooks/use-permissions', () => ({
   __esModule: true,
@@ -62,6 +66,8 @@ const mockedSegments = aiGetAssistantSegments as jest.MockedFunction<
   typeof aiGetAssistantSegments
 >;
 const mockedDocMetrics = aiGetDocMetrics as jest.MockedFunction<typeof aiGetDocMetrics>;
+const mockedLLMSummary = aiGetLLMCallSummary as jest.MockedFunction<typeof aiGetLLMCallSummary>;
+const mockedLLMCalls = aiGetLLMCalls as jest.MockedFunction<typeof aiGetLLMCalls>;
 
 const segmentsFixture: AssistantSegmentsReport = {
   tenantId: 1,
@@ -341,11 +347,30 @@ describe('AssistantObservabilityPage（O0-03 看板）', () => {
     mockedPilot.mockReset();
     mockedSegments.mockReset();
     mockedDocMetrics.mockReset();
+    mockedLLMSummary.mockReset();
+    mockedLLMCalls.mockReset();
     mockedHealth.mockResolvedValue(healthFixture);
     mockedDispatch.mockResolvedValue(dispatchFixture);
     mockedPilot.mockResolvedValue(pilotFixture);
     mockedSegments.mockResolvedValue(segmentsFixture);
     mockedDocMetrics.mockResolvedValue(docMetricsFixture);
+    mockedLLMSummary.mockResolvedValue({
+      windowDays: 7,
+      since: '2026-10-12T00:00:00Z',
+      generatedAt: '2026-10-19T00:00:00Z',
+      total: 0,
+      success: 0,
+      failed: 0,
+      successRate: 0,
+      avgLatencyMs: 0,
+      tokens: 0,
+      tokensEstimated: true,
+      byProvider: [],
+      byTask: [],
+      byModel: [],
+      byErrorClass: [],
+    });
+    mockedLLMCalls.mockResolvedValue({ items: [], total: 0, page: 1, pageSize: 20 });
     mockedConversationTrace.mockResolvedValue(conversationTraceFixture);
     // 默认无写面：派发按钮不渲染（用例按需放开）。
     grantWrite(false);

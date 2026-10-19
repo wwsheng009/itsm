@@ -378,6 +378,7 @@ func (g *llmDynamicSuggestionGenerator) Generate(ctx context.Context, req Dynami
 
 	callCtx, cancel := context.WithTimeout(ctx, DynamicSuggestionsTimeout)
 	defer cancel()
+	callCtx = service.WithLLMTaskType(callCtx, service.LLMTaskDynamicSuggestion)
 	output, _, err := g.gateway.ChatWithRequest(callCtx, providerReq, resolution.Model, []service.LLMMessage{
 		{Role: "system", Content: dynamicSuggestionSystemPrompt},
 		{Role: "user", Content: builder.String()},

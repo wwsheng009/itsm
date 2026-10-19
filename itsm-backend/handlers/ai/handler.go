@@ -1097,6 +1097,109 @@ func (h *Handler) GetMetrics(c *gin.Context) {
 	common.Success(c, metrics)
 }
 
+// parseLLMCallFilter 解析调用历史的通用过滤参数（参数非法时返回 errMessage）。
+func parseLLMCallFilter(c *gin.Context, withPaging bool) (service.LLMCallFilter, string) {
+	filter := service.LLMCallFilter{
+		ProviderKey: strings.TrimSpace(c.Query("providerKey")),
+		Model:       strings.TrimSpace(c.Query("model")),
+		TaskType:    strings.TrimSpace(c.Query("taskType")),
+		ErrorClass:  strings.TrimSpace(c.Query("errorClass")),
+	}
+	if raw := strings.TrimSpace(c.Query("days")); raw != "" {
+		days, err := strconv.Atoi(raw)
+		if err != nil || days <= 0 {
+			return filter, "days 必须为正整数"
+		}
+		filter.Days = days
+	}
+	if raw := strings.TrimSpace(c.Query("success")); raw != "" {
+		switch strings.ToLower(raw) {
+		case "true", "1":
+			value := true
+			filter.Success = &value
+		case "false", "0":
+			value := false
+			filter.Success = &value
+		default:
+			return filter, "success 仅支持 true|false"
+		}
+	}
+	if !withPaging {
+		return filter, ""
+	}
+	if raw := strings.TrimSpace(c.Query("page")); raw != "" {
+		page, err := strconv.Atoi(raw)
+		if err != nil || page <= 0 {
+			return filter, "page 必须为正整数"
+		}
+		filter.Page = page
+	}
+	if raw := strings.TrimSpace(c.Query("pageSize")); raw != "" {
+		pageSize, err := strconv.Atoi(raw)
+		if err != nil || pageSize <= 0 || pageSize > 100 {
+			return filter, "pageSize 必须在 1..100 之间"
+		}
+		filter.PageSize = pageSize
+	}
+	return filter, ""
+}
+
+// GetLLMCalls handles GET /api/v1/ai/llm-calls（租户级调用历史，错误可见）。
+func (h *Handler) GetLLMCalls(c *gin.Context) {
+	tenantID := c.GetInt("tenant_id")
+	if tenantID <= 0 {
+		common.Fail(c, common.AuthFailedCode, "租户信息缺失")
+		return
+	}
+	filter, message := parseLLMCallFilter(c, true)
+	if message != "" {
+		common.Fail(c, common.BadRequestCode, message)
+		return
+	}
+	if h.svc == nil || h.svc.aiTelemetryService == nil {
+		common.Fail(c, common.ServiceUnavailableCode, "AI 调用观测服务未启用")
+		return
+	}
+	result, err := h.svc.aiTelemetryService.ListLLMCalls(c.Request.Context(), tenantID, filter)
+	if err != nil {
+		if errors.Is(err, service.ErrLLMCallObservabilityUnavailable) {
+			common.Fail(c, common.ServiceUnavailableCode, "AI 调用观测服务未启用")
+			return
+		}
+		common.FailWithErr(c, err, "查询 LLM 调用历史失败")
+		return
+	}
+	common.Success(c, result)
+}
+
+// GetLLMCallSummary handles GET /api/v1/ai/llm-calls/summary（租户级调用报表）。
+func (h *Handler) GetLLMCallSummary(c *gin.Context) {
+	tenantID := c.GetInt("tenant_id")
+	if tenantID <= 0 {
+		common.Fail(c, common.AuthFailedCode, "租户信息缺失")
+		return
+	}
+	filter, message := parseLLMCallFilter(c, false)
+	if message != "" {
+		common.Fail(c, common.BadRequestCode, message)
+		return
+	}
+	if h.svc == nil || h.svc.aiTelemetryService == nil {
+		common.Fail(c, common.ServiceUnavailableCode, "AI 调用观测服务未启用")
+		return
+	}
+	result, err := h.svc.aiTelemetryService.SummarizeLLMCalls(c.Request.Context(), tenantID, filter)
+	if err != nil {
+		if errors.Is(err, service.ErrLLMCallObservabilityUnavailable) {
+			common.Fail(c, common.ServiceUnavailableCode, "AI 调用观测服务未启用")
+			return
+		}
+		common.FailWithErr(c, err, "查询 LLM 调用报表失败")
+		return
+	}
+	common.Success(c, result)
+}
+
 // GetBotMetrics handles GET /api/v1/ai/bot-metrics（B4-02：运行维度指标）。
 //
 // 查询参数：`days`（默认 7，上限 90）、`botId`（可选）、`entrypoint`（可选）。

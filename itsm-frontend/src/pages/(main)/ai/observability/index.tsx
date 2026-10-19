@@ -30,6 +30,7 @@ import PilotReportCard from '@/components/ai/observability/PilotReportCard';
 import SegmentBreakdownCard from '@/components/ai/observability/SegmentBreakdownCard';
 import DocMetricsCard from '@/components/ai/observability/DocMetricsCard';
 import QualityMetricsCard from '@/components/ai/observability/QualityMetricsCard';
+import LLMCallObservabilityCard from '@/components/ai/observability/LLMCallObservabilityCard';
 
 const { Title, Text } = Typography;
 
@@ -490,6 +491,9 @@ const AssistantObservabilityPage: React.FC = () => {
             ) : null}
           </Space>
         </Card>
+
+        {/* 租户级 LLM 调用历史与错误观测（不做预算/金额闸门）。 */}
+        <LLMCallObservabilityCard days={filters.days} />
 
         {/* V0-02 基线：员工侧自助服务与一句话建单（自助解决率 / 误分类率代理） */}
         <Card

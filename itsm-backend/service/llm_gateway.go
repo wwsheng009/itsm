@@ -136,10 +136,48 @@ func NewLLMGateway(p LLMProvider, l TokenLimiter, o Observer, providerName strin
 	return &LLMGateway{provider: p, limiter: l, observer: o, providerName: providerName}
 }
 
-// observe 统一观测出口：observer 实现 ProviderKeyObserver 时回带 providerKey，
+// observe 统一观测出口（旧签名兼容）：observer 实现 ProviderKeyObserver 时回带 providerKey，
 // 否则退回旧签名（不丢失任何既有观测语义）。
 func (g *LLMGateway) observe(providerKey, provider, model string, tokens int, latency time.Duration, err error) {
+	g.observeWithContext(context.Background(), providerKey, provider, "", model, tokens, latency, err)
+}
+
+// observeWithContext 是带租户/任务/Provider 来源的观测出口。
+// 新 LLMCallObserver 优先接收完整快照；未实现时保持旧接口语义。
+func (g *LLMGateway) observeWithContext(
+	ctx context.Context,
+	providerKey, provider, providerSource, model string,
+	tokens int,
+	latency time.Duration,
+	err error,
+) {
 	if g == nil || g.observer == nil {
+		return
+	}
+	tenantID, _ := tenantctx.TenantID(ctx)
+	errorClass, httpStatus := ClassifyLLMCallError(err)
+	recordProvider := provider
+	if providerSource == ProviderSourceStatic {
+		// 历史路径的 providerName 可能是 "openai"/"minimax" 等旧名；
+		// 明细记录统一为协议枚举，旧 Observer 仍接收原始名（保持既有契约）。
+		recordProvider = staticProtocol(provider)
+	}
+	call := LLMCallObservation{
+		TenantID:       tenantID,
+		ProviderKey:    providerKey,
+		Provider:       recordProvider,
+		ProviderSource: providerSource,
+		Model:          model,
+		TaskType:       LLMTaskTypeFromContext(ctx),
+		Tokens:         tokens,
+		Latency:        latency,
+		Success:        err == nil,
+		ErrorClass:     errorClass,
+		HTTPStatus:     httpStatus,
+		ErrorMessage:   SanitizeLLMCallError(err),
+	}
+	if detailed, ok := g.observer.(LLMCallObserver); ok {
+		detailed.ObserveLLMCall(ctx, call)
 		return
 	}
 	if pko, ok := g.observer.(ProviderKeyObserver); ok {
@@ -303,13 +341,13 @@ func (g *LLMGateway) Chat(ctx context.Context, model string, messages []LLMMessa
 	reportUsageEstimate(ctx, tokens)
 	if g.limiter != nil && !g.limiter.Allow(tokens) {
 		if g.observer != nil {
-			g.observe("", g.providerName, model, tokens, time.Since(start), ErrRateLimited)
+			g.observeWithContext(ctx, "", g.providerName, ProviderSourceStatic, model, tokens, time.Since(start), ErrRateLimited)
 		}
 		return "", ErrRateLimited
 	}
 	out, err := g.retryableChat(ctx, model, messages)
 	if g.observer != nil {
-		g.observe("", g.providerName, model, tokens, time.Since(start), err)
+		g.observeWithContext(ctx, "", g.providerName, ProviderSourceStatic, model, tokens, time.Since(start), err)
 	}
 	return out, err
 }
@@ -337,7 +375,7 @@ func (g *LLMGateway) ChatStream(ctx context.Context, model string, messages []LL
 	reportUsageEstimate(ctx, tokens)
 	if g.limiter != nil && !g.limiter.Allow(tokens) {
 		if g.observer != nil {
-			g.observe("", g.providerName, model, tokens, time.Since(start), ErrRateLimited)
+			g.observeWithContext(ctx, "", g.providerName, ProviderSourceStatic, model, tokens, time.Since(start), ErrRateLimited)
 		}
 		return ErrRateLimited
 	}
@@ -347,7 +385,7 @@ func (g *LLMGateway) ChatStream(ctx context.Context, model string, messages []LL
 		// 重试会造成内容重复。瞬时错误交由调用方（前端断线重连）兜底。
 		err := streamer.ChatStream(ctx, model, messages, callback)
 		if g.observer != nil {
-			g.observe("", g.providerName, model, tokens, time.Since(start), err)
+			g.observeWithContext(ctx, "", g.providerName, ProviderSourceStatic, model, tokens, time.Since(start), err)
 		}
 		return err
 	}
@@ -355,7 +393,7 @@ func (g *LLMGateway) ChatStream(ctx context.Context, model string, messages []LL
 	// Fallback: run a normal Chat and emit the whole response as one chunk.
 	out, err := g.retryableChat(ctx, model, messages)
 	if g.observer != nil {
-		g.observe("", g.providerName, model, tokens, time.Since(start), err)
+		g.observeWithContext(ctx, "", g.providerName, ProviderSourceStatic, model, tokens, time.Since(start), err)
 	}
 	if err != nil {
 		return err
@@ -393,13 +431,13 @@ func (g *LLMGateway) ChatStreamWithTools(ctx context.Context, model string, mess
 		reportUsageEstimate(ctx, tokens)
 		if g.limiter != nil && !g.limiter.Allow(tokens) {
 			if g.observer != nil {
-				g.observe("", g.providerName, model, tokens, time.Since(start), ErrRateLimited)
+				g.observeWithContext(ctx, "", g.providerName, ProviderSourceStatic, model, tokens, time.Since(start), ErrRateLimited)
 			}
 			return ErrRateLimited
 		}
 		err := p.ChatStreamWithTools(ctx, model, messages, tools, callback, onToolCalls)
 		if g.observer != nil {
-			g.observe("", g.providerName, model, tokens, time.Since(start), err)
+			g.observeWithContext(ctx, "", g.providerName, ProviderSourceStatic, model, tokens, time.Since(start), err)
 		}
 		return err
 	}
@@ -471,6 +509,7 @@ func (g *LLMGateway) ChatStreamWithProviderInfo(ctx context.Context, providerKey
 func (g *LLMGateway) ChatWithRequest(ctx context.Context, req ProviderRequest, model string, messages []LLMMessage) (string, ProviderResolution, error) {
 	provider, resolution, err := g.resolveProvider(ctx, req)
 	if err != nil {
+		g.observeWithContext(ctx, observationKey(resolution), resolution.Protocol, resolution.Source, model, 0, 0, err)
 		return "", resolution, err
 	}
 	start := time.Now()
@@ -482,11 +521,11 @@ func (g *LLMGateway) ChatWithRequest(ctx context.Context, req ProviderRequest, m
 		effectiveModel = resolution.Model
 	}
 	if g.limiter != nil && !g.limiter.Allow(tokens) {
-		g.observe(observationKey(resolution), resolution.Protocol, effectiveModel, tokens, time.Since(start), ErrRateLimited)
+		g.observeWithContext(ctx, observationKey(resolution), resolution.Protocol, resolution.Source, effectiveModel, tokens, time.Since(start), ErrRateLimited)
 		return "", resolution, ErrRateLimited
 	}
 	out, err := g.retryableChatWith(ctx, provider, model, messages)
-	g.observe(observationKey(resolution), resolution.Protocol, effectiveModel, tokens, time.Since(start), err)
+	g.observeWithContext(ctx, observationKey(resolution), resolution.Protocol, resolution.Source, effectiveModel, tokens, time.Since(start), err)
 	return out, resolution, err
 }
 
@@ -495,6 +534,7 @@ func (g *LLMGateway) ChatWithRequest(ctx context.Context, req ProviderRequest, m
 func (g *LLMGateway) ChatStreamWithRequest(ctx context.Context, req ProviderRequest, model string, messages []LLMMessage, callback func(string)) (ProviderResolution, error) {
 	provider, resolution, err := g.resolveProvider(ctx, req)
 	if err != nil {
+		g.observeWithContext(ctx, observationKey(resolution), resolution.Protocol, resolution.Source, model, 0, 0, err)
 		return resolution, err
 	}
 	if callback == nil {
@@ -515,17 +555,17 @@ func (g *LLMGateway) chatStreamWithProvider(ctx context.Context, provider LLMPro
 		effectiveModel = resolution.Model
 	}
 	if g.limiter != nil && !g.limiter.Allow(tokens) {
-		g.observe(observationKey(resolution), resolution.Protocol, effectiveModel, tokens, time.Since(start), ErrRateLimited)
+		g.observeWithContext(ctx, observationKey(resolution), resolution.Protocol, resolution.Source, effectiveModel, tokens, time.Since(start), ErrRateLimited)
 		return resolution, ErrRateLimited
 	}
 	if streamer, ok := provider.(StreamingLLMProvider); ok {
 		err := streamer.ChatStream(ctx, model, messages, callback)
-		g.observe(observationKey(resolution), resolution.Protocol, effectiveModel, tokens, time.Since(start), err)
+		g.observeWithContext(ctx, observationKey(resolution), resolution.Protocol, resolution.Source, effectiveModel, tokens, time.Since(start), err)
 		return resolution, err
 	}
 	// 非流式 provider：与旧 ChatStream 相同，单块下发整段回复。
 	out, err := g.retryableChatWith(ctx, provider, model, messages)
-	g.observe(observationKey(resolution), resolution.Protocol, effectiveModel, tokens, time.Since(start), err)
+	g.observeWithContext(ctx, observationKey(resolution), resolution.Protocol, resolution.Source, effectiveModel, tokens, time.Since(start), err)
 	if err != nil {
 		return resolution, err
 	}
@@ -543,6 +583,7 @@ func (g *LLMGateway) chatStreamWithProvider(ctx context.Context, provider LLMPro
 func (g *LLMGateway) ChatStreamWithToolsRequest(ctx context.Context, req ProviderRequest, model string, messages []LLMMessage, tools []LLMTool, callback func(string), onToolCalls func([]LLMToolCall)) (ProviderResolution, error) {
 	provider, resolution, err := g.resolveProvider(ctx, req)
 	if err != nil {
+		g.observeWithContext(ctx, observationKey(resolution), resolution.Protocol, resolution.Source, model, 0, 0, err)
 		return resolution, err
 	}
 	if callback == nil {
@@ -556,12 +597,16 @@ func (g *LLMGateway) ChatStreamWithToolsRequest(ctx context.Context, req Provide
 	start := time.Now()
 	tokens := EstimatePromptTokens(messages)
 	reportUsageEstimate(ctx, tokens)
+	effectiveModel := model
+	if effectiveModel == "" {
+		effectiveModel = resolution.Model
+	}
 	if g.limiter != nil && !g.limiter.Allow(tokens) {
-		g.observe(observationKey(resolution), resolution.Protocol, model, tokens, time.Since(start), ErrRateLimited)
+		g.observeWithContext(ctx, observationKey(resolution), resolution.Protocol, resolution.Source, effectiveModel, tokens, time.Since(start), ErrRateLimited)
 		return resolution, ErrRateLimited
 	}
 	err = p.ChatStreamWithTools(ctx, model, messages, tools, callback, onToolCalls)
-	g.observe(observationKey(resolution), resolution.Protocol, model, tokens, time.Since(start), err)
+	g.observeWithContext(ctx, observationKey(resolution), resolution.Protocol, resolution.Source, effectiveModel, tokens, time.Since(start), err)
 	return resolution, err
 }
 

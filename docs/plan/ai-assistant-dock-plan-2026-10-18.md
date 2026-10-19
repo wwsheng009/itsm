@@ -1096,9 +1096,9 @@ Dock 容器、chat-core 抽离、交互状态机、帮助覆盖率 ratchet、Aut
 | T5-06 | 质量层数据源与看板接线（父任务，拆分为 T5-06a / T5-06b） | §13.3；§11.5 门槛依赖 | ✅ 两个子任务完成（2026-10-19；证据 `assistant-dock/T5-06a-quality-data-source-evidence.md`、`assistant-dock/T5-06b-quality-dashboard-evidence.md`） |
 | T5-06a | 质量层数据源：citation 埋点（sources 数 / 无引用回答）、回答级点踩、`model` 上报、`query_hash` 补链 | §13.3；§11.5 门槛依赖 | ✅ 指标可算（2026-10-19；证据 `assistant-dock/T5-06a-quality-data-source-evidence.md`） |
 | T5-06b | 质量层看板接线：summary `quality` / `models` 接入观测看板；§11.5 三指标标注可测 | §13.3；§14.4-③/④ | ✅ 看板展示 + 门槛可执行（2026-10-19；证据 `assistant-dock/T5-06b-quality-dashboard-evidence.md`） |
-| T5-07 | 成本口径修正 + 模型分级路由与成本上限（父任务，拆分为 T5-07a / T5-07b） | §13.3、§12 Q5 | T5-07a ✅ / T5-07b 待排期 |
+| T5-07 | 成本口径修正 + LLM 调用观测（父任务，拆分为 T5-07a / T5-07b） | §13.3、§12 Q5 | T5-07a ✅ / T5-07b 调用观测 ✅（预算/路由延后） |
 | T5-07a | 成本口径修正：首 token / 整体 P50+P95 分离；健康 SLO 改用首 token P95 | §13.3；评审 §5.2 | ✅ 口径评审 + 看板（2026-10-19；证据 `assistant-dock/T5-07a-cost-latency-evidence.md`） |
-| T5-07b | 模型分级路由与成本上限（Q5） | §12 Q5；§3.7 L119；专项 `assistant-model-routing-and-budget-plan-2026-10-19.md` | 待排期（先做 Q5 五项口径决策） |
+| T5-07b | 调用报表与错误观测（Q5 收窄；预算/路由延后） | §12 Q5；§3.7 L119；专项 `assistant-model-routing-and-budget-plan-2026-10-19.md` | ✅ 调用账本 + 历史/汇总 API + 观测卡（2026-10-19；证据 `assistant-dock/T5-07b-llm-call-observability-evidence.md`）；预算/金额/自动路由由上游管理 |
 | T5-08 | 流式 `aria-live` 行为验收（不限于 axe 静态扫描） | §3.7 L113；I2-02 盲区 | 行为断言 |
 | T5-09 | 帮助写面收口：`help_update_draft` / `help_submit_review` / `help_publish` + diff 预览 / 一键审阅 UI；help-index 向量化 | §5.4/§5.5 | ✅ T5-09a + T5-09b（2026-10-19） |
 | T5-09a | 帮助写面 + 一键审阅：三工具、KB「用户指南」草稿、行级 diff、覆盖率看板审阅队列 | §5.4/§5.5 | ✅ 写面/审阅（2026-10-19；证据 `assistant-dock/T5-09a-help-write-review-evidence.md`） |
@@ -1122,6 +1122,8 @@ Dock 容器、chat-core 抽离、交互状态机、帮助覆盖率 ratchet、Aut
 > 进展（2026-10-19）：T5-05 已完成——`capability` 新增 `assistant.dock.enabled` / `help.agent.enabled`（默认开启、租户覆盖、写后缓存失效免重启）；公共能力面下发 `assistant.dockEnabled/helpEnabled`；系统配置 AI 页签可读写/恢复默认；Dock 关闭时不渲染入口且预填入口降级到 `/ai/chat`，帮助关闭时隐藏页签且 `/ai/help/search|page` 返回 403（未注入能力源 fail-safe 开启）。后端 4 包 + 前端 8 suites / 57 tests、tsc/eslint 全绿；证据 `assistant-dock/T5-05-gray-switches-evidence.md`；登记见交付台账 T5 段。
 
 > 进展（2026-10-19）：T5-07a 已完成——summary 时延拆为首 token（`first_token`）与整体（`stream_end`）两套 P50/P95/Max/Count；顶层字段固定为整体口径以保持兼容；健康 SLO 改用 `firstTokenP95Ms`，不再使用混合 `latency_ms`。后端 service/handlers 两包 + 看板 1 suite / 17 tests、tsc/eslint 全绿；证据 `assistant-dock/T5-07a-cost-latency-evidence.md`；T5-07b（模型分级路由/成本上限）待排期。
+
+> 进展（2026-10-19）：T5-07b 已按用户口径收窄并交付“调用观测”部分——`ai_llm_calls` 新增租户/任务/错误分类/脱敏摘要字段；新增 `GET /ai/llm-calls` 与 `/ai/llm-calls/summary`；观测页新增“LLM 调用历史与错误”卡（状态/Provider/模型/任务/耗时/Token 估算/错误）。后端 5 包 + 前端 3 suites / 22 tests、tsc/eslint/gofmt 全绿；证据 `assistant-dock/T5-07b-llm-call-observability-evidence.md`。预算/金额/自动降级/模型分级路由延后，由上游管理。
 
 > 进展（2026-10-19）：T5-04a 已完成——消息级「转人工」入口 + 动作卡（打开当前对象/列表、预填新建工单/事件）；预填走一次性 `assistant_handoff` state，只填空白标题/描述，消费后清除，不自动提交；权限按目标域 read / `ticket:create` / `incident:write` 裁剪。前端 5 suites / 29 tests、tsc/eslint 全绿；证据 `assistant-dock/T5-04a-handoff-open-prefill-evidence.md`；T5-04b 指派待排期。
 

@@ -60,7 +60,8 @@ type ExemptTable struct {
 //   - schema_migrations：迁移历史表，全局唯一
 //   - user_roles / role_permissions / role_permissions_join：RBAC 关系表，
 //     平台级 RBAC 不应被租户过滤拦截（详见 docs/adr/0001）
-//   - ai_llm_calls：LLM 网关级可观测性，与租户无关（service/ai_telemetry.go 注释）
+//   - ai_llm_calls：LLM 调用观测；历史平台级行为 NULL，新行按请求租户写入，
+//     租户查询强制 tenant_id 过滤（service/ai_telemetry.go 注释）
 //   - knowledge_article_participants/sessions/version：协作快照，session id 是天然唯一键
 //   - msp_allocations：MSP 模式下的租户-服务分配，是租户维度之上的概念
 var TenantExemptTables = []ExemptTable{
@@ -83,7 +84,7 @@ var TenantExemptTables = []ExemptTable{
 	// RBAC 平台级关系表
 	{TableName: "user_roles", Reason: "平台级 RBAC 关系，不应被租户过滤拦截（ADR 0001）", Owner: "rbac", Scope: "platform", ReviewedAt: time.Date(2026, 9, 8, 0, 0, 0, 0, time.UTC)},
 	// AI 网关级观测
-	{TableName: "ai_llm_calls", Reason: "LLM 网关级可观测性，与租户无关（service/ai_telemetry.go）", Owner: "ai", Scope: "platform", ReviewedAt: time.Date(2026, 9, 8, 0, 0, 0, 0, time.UTC)},
+	{TableName: "ai_llm_calls", Reason: "LLM 调用观测：历史行 tenant_id NULL；新行按租户写入，查询强制租户过滤", Owner: "ai", Scope: "platform", ReviewedAt: time.Date(2026, 10, 19, 0, 0, 0, 0, time.UTC)},
 	// 协作快照/版本
 	{TableName: "knowledge_article_participants", Reason: "协作会话快照，session_id 天然唯一", Owner: "knowledge", Scope: "derived", ReviewedAt: time.Date(2026, 9, 8, 0, 0, 0, 0, time.UTC)},
 	{TableName: "knowledge_article_session_participants", Reason: "协作会话快照", Owner: "knowledge", Scope: "derived", ReviewedAt: time.Date(2026, 9, 8, 0, 0, 0, 0, time.UTC)},

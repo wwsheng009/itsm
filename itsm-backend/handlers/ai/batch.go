@@ -89,7 +89,7 @@ func (h *Handler) BatchTriage(c *gin.Context) {
 		return
 	}
 
-	ctx := c.Request.Context()
+	ctx := service.WithLLMTaskType(c.Request.Context(), service.LLMTaskBatch)
 	found, ok := h.loadBatchTickets(c, ctx, tenantID, ids)
 	if !ok {
 		return
@@ -183,7 +183,7 @@ func (h *Handler) BatchReplyDrafts(c *gin.Context) {
 		return
 	}
 
-	ctx := c.Request.Context()
+	ctx := service.WithLLMTaskType(c.Request.Context(), service.LLMTaskBatch)
 	found, ok := h.loadBatchTickets(c, ctx, tenantID, ids)
 	if !ok {
 		return
