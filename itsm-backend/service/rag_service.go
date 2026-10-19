@@ -744,6 +744,24 @@ func (r *RAGService) AskWithLLMStream(
 	onSources func(sources []map[string]any),
 	onDelta func(delta string),
 ) error {
+	return r.AskWithLLMStreamWithHistory(ctx, tenantID, query, nil, gateway, maxResults, onSources, onDelta)
+}
+
+// AskWithLLMStreamWithHistory 与 AskWithLLMStream 相同，并额外注入会话历史（可为 nil）。
+//
+// 消息布局固定为「稳定 system → 稳定历史 → 当前输入」：provider 的前缀/KV 缓存按
+// 逐字节一致的前缀命中，因此历史必须是确定性回放（顺序、内容、裁剪边界均可复现），
+// 且本轮检索上下文等易变内容只允许出现在最后一条 user 消息里，绝不插到历史之前。
+func (r *RAGService) AskWithLLMStreamWithHistory(
+	ctx context.Context,
+	tenantID int,
+	query string,
+	history []LLMMessage,
+	gateway *LLMGateway,
+	maxResults int,
+	onSources func(sources []map[string]any),
+	onDelta func(delta string),
+) error {
 	if maxResults <= 0 {
 		maxResults = 5
 	}
@@ -778,10 +796,7 @@ func (r *RAGService) AskWithLLMStream(
 		// 知识库无匹配文章时：若已配置 LLM 网关，仍调用大模型用通用 ITSM 知识回答，
 		// 而不是直接返回"无内容"模板——否则助手对通用问题（如"你能做什么"）完全失效。
 		if gateway != nil {
-			generalMessages := []LLMMessage{
-				{Role: "system", Content: productAwareFallbackSystemPrompt()},
-				{Role: "user", Content: query},
-			}
+			generalMessages := chatMessagesWithHistory(productAwareFallbackSystemPrompt(), history, query)
 			if err := gateway.ChatStream(ctx, "", generalMessages, onDelta); err != nil {
 				r.logger.Warnw("RAGService: general LLM answer failed, falling back to KB-empty template", "error", err)
 			} else {
@@ -829,10 +844,9 @@ func (r *RAGService) AskWithLLMStream(
 
 回答：`, contextBuilder.String(), query)
 
-	messages := []LLMMessage{
-		{Role: "system", Content: "你是IT服务管理知识库助手，基于检索到的知识内容与CMDB/工单图谱事实回答用户问题。图谱中的对象编号、状态、关联关系是系统实时数据，可信度高于推测。"},
-		{Role: "user", Content: prompt},
-	}
+	messages := chatMessagesWithHistory(
+		"你是IT服务管理知识库助手，基于检索到的知识内容与CMDB/工单图谱事实回答用户问题。图谱中的对象编号、状态、关联关系是系统实时数据，可信度高于推测。",
+		history, prompt)
 
 	if err := gateway.ChatStream(ctx, "", messages, onDelta); err != nil {
 		return fmt.Errorf("LLM stream failed: %w", err)
@@ -863,9 +877,31 @@ func (r *RAGService) AskWithLLMStreamWithTools(
 	onDelta func(delta string),
 	execTool func(name string, args map[string]any) (any, error),
 ) error {
+	return r.AskWithLLMStreamWithToolsAndHistory(ctx, tenantID, query, nil, gateway, maxResults, face, onSources, onDelta, execTool)
+}
+
+// AskWithLLMStreamWithToolsAndHistory 是工具增强版的带历史形态：在
+// AskWithLLMStreamWithTools 的基础上把会话历史拼进消息前缀（布局见
+// chatMessagesWithHistory），其余行为（工具面裁剪、工具循环、错误处理）完全一致。
+//
+// 工具面先按名称排序再派生 schema 与系统提示词：同一工具集合必须生成逐字节一致的
+// system 前缀，否则注册顺序/并发装配差异会让 provider 前缀缓存逐轮失效。
+func (r *RAGService) AskWithLLMStreamWithToolsAndHistory(
+	ctx context.Context,
+	tenantID int,
+	query string,
+	history []LLMMessage,
+	gateway *LLMGateway,
+	maxResults int,
+	face []ToolFaceEntry,
+	onSources func(sources []map[string]any),
+	onDelta func(delta string),
+	execTool func(name string, args map[string]any) (any, error),
+) error {
 	if gateway == nil || len(face) == 0 {
-		return r.AskWithLLMStream(ctx, tenantID, query, gateway, maxResults, onSources, onDelta)
+		return r.AskWithLLMStreamWithHistory(ctx, tenantID, query, history, gateway, maxResults, onSources, onDelta)
 	}
+	face = sortedToolFace(face)
 	// 函数调用 schema 与系统提示词同源派生，杜绝「提示词说有、实际没下发」的错位。
 	tools := make([]LLMTool, 0, len(face))
 	for _, entry := range face {
@@ -922,12 +958,10 @@ func (r *RAGService) AskWithLLMStreamWithTools(
 
 回答：`, contextBuilder.String(), query)
 
-	messages := []LLMMessage{
-		// 系统提示词与函数调用 schema 同源（都来自 face）：只承诺本次真正下发的工具，
-		// 避免模型"知道"未授权/未下发的工具（2026-09-30 修复）。
-		{Role: "system", Content: buildToolAwareSystemPrompt(face)},
-		{Role: "user", Content: prompt},
-	}
+	// 系统提示词与函数调用 schema 同源（都来自 face）：只承诺本次真正下发的工具，
+	// 避免模型"知道"未授权/未下发的工具（2026-09-30 修复）。历史插在 system 之后、
+	// 本轮 prompt 之前，保证前缀稳定。
+	messages := chatMessagesWithHistory(buildToolAwareSystemPrompt(face), history, prompt)
 
 	// 工具循环：模型发起调用 → 执行 → 结果回填 → 再请求，直到模型给出最终回答
 	for round := 0; round < maxToolRounds; round++ {
@@ -979,6 +1013,36 @@ type ToolFaceEntry struct {
 
 // toolPromptDescriptionMaxRunes 限制单个工具在系统提示词中的说明长度，防止长描述挤占上下文。
 const toolPromptDescriptionMaxRunes = 100
+
+// chatMessagesWithHistory 组装对 provider 前缀缓存友好的消息序列：
+// 稳定 system → 稳定历史 → 当前输入（唯一允许携带本轮动态内容的位置）。
+//
+// 约束：任何逐请求变化的内容（检索上下文、页面上下文等）只能进入 currentPrompt；
+// 一旦插到历史之前，后续所有消息的 token 前缀都会变化，provider 前缀缓存将全部失效。
+func chatMessagesWithHistory(system string, history []LLMMessage, currentPrompt string) []LLMMessage {
+	messages := make([]LLMMessage, 0, len(history)+2)
+	if system != "" {
+		messages = append(messages, LLMMessage{Role: "system", Content: system})
+	}
+	messages = append(messages, history...)
+	if currentPrompt != "" {
+		messages = append(messages, LLMMessage{Role: "user", Content: currentPrompt})
+	}
+	return messages
+}
+
+// sortedToolFace 返回按工具名排序的浅拷贝：同一工具集合必须生成逐字节一致的系统提示词
+// 与 function schema（顺序不稳定会破坏 provider 前缀缓存；重名已在注册表投影去重）。
+func sortedToolFace(face []ToolFaceEntry) []ToolFaceEntry {
+	if len(face) == 0 {
+		return face
+	}
+	out := append([]ToolFaceEntry(nil), face...)
+	sort.SliceStable(out, func(i, j int) bool {
+		return strings.TrimSpace(out[i].Tool.Name) < strings.TrimSpace(out[j].Tool.Name)
+	})
+	return out
+}
 
 // buildToolAwareSystemPrompt 依据本次会话实际下发的工具面生成系统提示词。
 //

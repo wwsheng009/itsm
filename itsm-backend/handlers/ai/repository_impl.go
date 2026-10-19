@@ -135,9 +135,12 @@ func (r *EntRepository) CreateMessage(ctx context.Context, m *Message) (*Message
 }
 
 func (r *EntRepository) GetMessages(ctx context.Context, conversationID int) ([]*Message, error) {
+	// 排序必须完全确定：created_at 精度不足时同轮 user/assistant 可能落在同一时刻，
+	// 仅按时间排序会得到不稳定顺序。历史回放直接依赖该顺序（provider 前缀缓存要求
+	// 同一会话每次重建的消息序列逐字节一致），因此追加 id 作为稳定次序键。
 	es, err := r.client.Message.Query().
 		Where(message.ConversationID(conversationID)).
-		Order(ent.Asc(message.FieldCreatedAt)).
+		Order(ent.Asc(message.FieldCreatedAt), ent.Asc(message.FieldID)).
 		All(ctx)
 	if err != nil {
 		return nil, err

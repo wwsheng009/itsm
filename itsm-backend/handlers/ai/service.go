@@ -1875,7 +1875,15 @@ func (s *Service) chatStreamInner(
 		}
 	}
 
-	if err := s.rag.AskWithLLMStreamWithTools(ctx, tenantID, query, gateway, limit, toolFace, wrappedSources, wrappedDelta, execTool); err != nil {
+	// 历史回放：读取本会话最近 user/assistant 消息并置于「system 之后、本轮 query 之前」。
+	// 无历史（新会话/越权/读取失败）时为空切片，行为与修复前一致。
+	history := s.loadChatHistory(ctx, tenantID, userID, convID)
+	if len(history) > 0 && s.logger != nil {
+		s.logger.Debugw("AI ChatStream: 注入会话历史前缀",
+			"tenant_id", tenantID, "user_id", userID, "conversation_id", convID,
+			"history_messages", len(history))
+	}
+	if err := s.rag.AskWithLLMStreamWithToolsAndHistory(ctx, tenantID, query, history, gateway, limit, toolFace, wrappedSources, wrappedDelta, execTool); err != nil {
 		return 0, "", finalUsage(), err
 	}
 
