@@ -144,8 +144,14 @@ const AssistantHelpPanel: React.FC<AssistantHelpPanelProps> = ({ onDraft }) => {
     [feedback, pageKey, route, data]
   );
 
+  // 加载中/首帧不得显示「未注册页面」：只有确认 pageKey 缺失时才是 unknown，
+  // 已注册页面在首帧应显示「查询中」（避免把"还没拉到"谎报为"页面未注册"）。
   const status = data?.status ?? 'unknown';
-  const meta = STATUS_META[status] ?? STATUS_META.unknown;
+  const meta = loading
+    ? { color: 'processing', label: '查询中' }
+    : (!pageKey || pageKey === 'unknown')
+      ? STATUS_META.unknown
+      : (STATUS_META[status] ?? STATUS_META.unknown);
   const canDraft = status === 'missing' || status === 'stale';
 
   const buildDraftPrompt = useCallback(() => {

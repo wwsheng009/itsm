@@ -73,6 +73,17 @@ describe('AssistantHelpPanel（H0-04 面板帮助视图）', () => {
     expect(screen.getByTestId('help-doc')).toHaveTextContent('分诊建议');
   });
 
+  it('加载中不得谎报「未注册页面」：已注册页面首帧显示查询中', async () => {
+    // 永不 resolve，锁定首帧状态。
+    mockedPageHelp.mockReturnValue(new Promise<HelpPageResult>(() => {}));
+
+    renderPanel('/tickets/42');
+
+    const tag = await screen.findByTestId('help-status');
+    expect(tag).toHaveTextContent('查询中');
+    expect(tag).not.toHaveTextContent('未注册页面');
+  });
+
   it('缺失页面：提示 + 「让 AI 生成初稿」发送结构化 prompt（含 pageKey 与不发布约束）', async () => {
     mockedPageHelp.mockResolvedValue({
       ...okFixture,
