@@ -1365,6 +1365,37 @@ export interface AIPageContextHint {
   route?: string;
 }
 
+// ==================== T5-03a AI 对话附件 ====================
+// 专用端点：ai:read 可用；附件宿主固定 ai_chat + 当前用户，避免通用 attachment:* 兜底码。
+
+export interface AIAttachmentRef {
+  id: number;
+  fileName: string;
+  fileSize: number;
+  mimeType: string;
+  fileUrl: string;
+}
+
+export async function aiUploadAttachment(
+  file: File,
+  onProgress?: (percent: number) => void
+): Promise<AIAttachmentRef> {
+  const formData = new FormData();
+  formData.append('file', file);
+  return httpClient.post<AIAttachmentRef>('/api/v1/ai/attachments', formData, {
+    onUploadProgress: onProgress,
+  });
+}
+
+/** AI 附件内容地址；disposition=inline 仅对图片生效（服务端再校验）。 */
+export function aiAttachmentContentUrl(
+  id: number,
+  disposition: 'attachment' | 'inline' = 'attachment'
+): string {
+  const suffix = disposition === 'inline' ? '?disposition=inline' : '';
+  return `/api/v1/ai/attachments/${id}/content${suffix}`;
+}
+
 /**
  * Stream a RAG-backed answer over SSE. Falls back to the plain /ai/chat
  * endpoint if streaming is unsupported by the environment (e.g. legacy

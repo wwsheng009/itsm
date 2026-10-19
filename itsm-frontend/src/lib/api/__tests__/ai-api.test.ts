@@ -19,6 +19,8 @@ import {
   aiInterpretTicketIntent,
   aiGetHelpTodos,
   aiSetHelpTodoState,
+  aiUploadAttachment,
+  aiAttachmentContentUrl,
   AIApi,
 } from '../ai-api';
 import { httpClient } from '../http-client';
@@ -59,6 +61,36 @@ describe('AI API', () => {
       expect(result.category).toBe('general');
       expect(result.priority).toBe('medium');
       expect(result.confidence).toBe(0);
+    });
+  });
+
+  describe('T5-03a AI 附件', () => {
+    it('上传走专用端点并透传进度', async () => {
+      mockPost.mockResolvedValue({
+        id: 11,
+        fileName: '截图.png',
+        fileSize: 1024,
+        mimeType: 'image/png',
+        fileUrl: '/api/v1/ai/attachments/11/content',
+      });
+      const onProgress = jest.fn();
+      const file = new File(['x'], '截图.png', { type: 'image/png' });
+
+      const result = await aiUploadAttachment(file, onProgress);
+
+      expect(mockPost).toHaveBeenCalledWith(
+        '/api/v1/ai/attachments',
+        expect.any(FormData),
+        { onUploadProgress: onProgress }
+      );
+      expect(result.id).toBe(11);
+    });
+
+    it('内容地址支持 inline 预览参数', () => {
+      expect(aiAttachmentContentUrl(11)).toBe('/api/v1/ai/attachments/11/content');
+      expect(aiAttachmentContentUrl(11, 'inline')).toBe(
+        '/api/v1/ai/attachments/11/content?disposition=inline'
+      );
     });
   });
 

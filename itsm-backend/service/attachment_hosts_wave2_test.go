@@ -34,6 +34,8 @@ func TestDefaultAttachmentHostsCoverDeclaredBizTypes(t *testing.T) {
 		AttachmentBizTypeRelease,
 		AttachmentBizTypeCMDBci,
 		AttachmentBizTypeKnownError,
+		// T5-03a：AI 对话附件宿主。
+		AttachmentBizTypeAIChat,
 	} {
 		assert.Contains(t, hosts, bizType, "biz_type %q 缺少宿主登记", bizType)
 	}

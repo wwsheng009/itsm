@@ -14,6 +14,9 @@ func SetupAIRoutes(tenant *gin.RouterGroup, h *aiHandler.Handler) {
 	{
 		aiGrp.POST("/chat", middleware.RequirePermission("ai", "read"), h.Chat)
 		aiGrp.POST("/chat/stream", middleware.RequirePermission("ai", "read"), h.ChatStream)
+		// T5-03a：AI 对话附件（用户级草稿附件；专用路由避免通用 attachment:* 兜底码）。
+		aiGrp.POST("/attachments", middleware.RequirePermission("ai", "read"), h.UploadAIAttachment)
+		aiGrp.GET("/attachments/:id/content", middleware.RequirePermission("ai", "read"), h.DownloadAIAttachment)
 		aiGrp.GET("/conversations", middleware.RequirePermission("ai", "read"), h.ListConversations)
 		aiGrp.GET("/conversations/:id", middleware.RequirePermission("ai", "read"), h.GetConversation)
 		// I2-02 合规：会话导出（Markdown 快照；租户内只读）。

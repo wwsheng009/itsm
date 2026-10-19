@@ -1050,6 +1050,8 @@ func NewApplication() *Application {
 	aiServiceDomain.SetSummarizeService(summarizeService)
 	// P2-6: 注入 ent client 供 AI 工具 RBAC 校验复用 hasResourcePermission
 	aiServiceDomain.SetEntClient(client)
+	// T5-03a：AI 对话附件复用通用附件服务（专用 AI 上传/下载端点）。
+	aiServiceDomain.SetAttachmentService(attachmentService)
 
 	// M2 能力开关（2026-09-30 方案）：MCP / Bot 运行时开关（管理后台可切换，免重启）。
 	// 默认值取静态配置（env / config.yaml）——system_configs 缺行即跟随默认，升级零行为变化；

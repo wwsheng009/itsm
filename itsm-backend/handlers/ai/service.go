@@ -68,6 +68,8 @@ type Service struct {
 	scopeResolver *bot.ScopeResolver
 	// M2 能力开关：运行时能力开关源（nil = 保持既有行为，未启用运行时开关）。
 	capability capability.Source
+	// T5-03a：AI 附件上传/下载（nil = 端点 503；复用通用附件服务）。
+	attachments *service.AttachmentService
 }
 
 func NewService(
@@ -115,6 +117,11 @@ func (s *Service) SetSummarizeService(svc *service.SummarizeService) {
 // P2-6: AI 工具执行前调用 hasResourcePermission 校验用户对工具 Resource/Action 的权限
 func (s *Service) SetEntClient(client *ent.Client) {
 	s.entClient = client
+}
+
+// SetAttachmentService 注入通用附件服务（T5-03a；nil = AI 附件端点 503）。
+func (s *Service) SetAttachmentService(attachments *service.AttachmentService) {
+	s.attachments = attachments
 }
 
 // SetBotMetrics 注入运行维度指标服务（B4-02）。

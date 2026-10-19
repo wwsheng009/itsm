@@ -45,6 +45,7 @@ import (
 	"itsm-backend/ent/servicerequest"
 	"itsm-backend/ent/ticket"
 	"itsm-backend/ent/ticketcomment"
+	userent "itsm-backend/ent/user"
 
 	"github.com/google/uuid"
 	"go.uber.org/zap"
@@ -62,6 +63,8 @@ const (
 	AttachmentBizTypeRelease          = "release"
 	AttachmentBizTypeCMDBci           = "cmdb_ci"
 	AttachmentBizTypeKnownError       = "known_error"
+	// T5-03a：AI 对话附件宿主。biz_id = userID（用户级草稿附件），会话关联在对话请求层完成。
+	AttachmentBizTypeAIChat = "ai_chat"
 
 	// 用途（写入 attachments.usage，长度上限 32）。
 	AttachmentUsageAttachment        = "attachment"
@@ -1130,6 +1133,17 @@ func defaultAttachmentHosts() map[string]AttachmentHost {
 				}
 				return htmlReferencesAttachment(ke.Workaround, attachmentID) ||
 					htmlReferencesAttachment(ke.Resolution, attachmentID), nil
+			},
+		},
+		AttachmentBizTypeAIChat: AttachmentHostFunc{
+			ExistsFunc: func(ctx context.Context, client *ent.Client, tenantID, bizID int) (bool, error) {
+				return client.User.Query().
+					Where(userent.ID(bizID), userent.TenantID(tenantID)).
+					Exist(ctx)
+			},
+			// AI 附件不参与富文本内嵌引用保护；删除生命周期由附件清理任务负责。
+			ReferencesFunc: func(context.Context, *ent.Client, int, int, int) (bool, error) {
+				return false, nil
 			},
 		},
 	}
