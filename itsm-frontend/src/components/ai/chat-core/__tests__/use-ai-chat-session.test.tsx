@@ -141,6 +141,41 @@ describe('useAIChatSession（D0-01 抽离后的会话内核）', () => {
     );
   });
 
+  it('T5-03b：待发送附件进入消息与请求体，并在发送后清空', async () => {
+    mockedStream.mockResolvedValue(8);
+    const attachments = [
+      {
+        id: 11,
+        fileName: '截图.png',
+        fileSize: 1024,
+        mimeType: 'image/png',
+        fileUrl: '/api/v1/ai/attachments/11/content',
+      },
+    ];
+    const onAttachmentsSent = jest.fn();
+    const { result } = renderHook(
+      () =>
+        useAIChatSession({
+          getAttachments: () => attachments,
+          onAttachmentsSent,
+        }),
+      { wrapper }
+    );
+    await waitFor(() => expect(mockedListConversations).toHaveBeenCalled());
+
+    await act(async () => {
+      result.current.handleSend('看图');
+    });
+
+    await waitFor(() => expect(mockedStream).toHaveBeenCalled());
+    expect(mockedStream).toHaveBeenCalledWith(
+      expect.objectContaining({ query: '看图', attachments: [11] }),
+      expect.any(Object)
+    );
+    expect(result.current.messages[0].attachments).toEqual(attachments);
+    expect(onAttachmentsSent).toHaveBeenCalledTimes(1);
+  });
+
   it('P3：工作区实例消费交接会话并加载历史（一次性）', async () => {
     mockedGetMessages.mockResolvedValue([
       {

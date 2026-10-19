@@ -49,6 +49,8 @@ import { useInputDockAssist } from '@/components/ai/chat-core/use-input-dock-ass
 import { useI18n } from '@/lib/i18n/useI18n';
 import type { ChatMessage } from '@/components/ai/chat-core/types';
 import HandoffActionCard from '@/components/ai/handoff/HandoffActionCard';
+import ChatAttachmentPicker from '@/components/ai/chat-core/ChatAttachmentPicker';
+import type { AIAttachmentRef } from '@/lib/api/ai-api';
 
 interface AssistantChatPanelProps {
   /** T5-05：`help.agent.enabled=false` 时隐藏帮助页签（默认开启）。 */
@@ -60,6 +62,14 @@ const AssistantChatPanel: React.FC<AssistantChatPanelProps> = ({ helpEnabled = t
   const { message } = App.useApp();
   const navigate = useNavigate();
   const { t } = useI18n();
+  const [pendingAttachments, setPendingAttachments] = useState<AIAttachmentRef[]>([]);
+  const attachmentsRef = useRef<AIAttachmentRef[]>([]);
+  const setAttachments = useCallback((next: AIAttachmentRef[]) => {
+    attachmentsRef.current = next;
+    setPendingAttachments(next);
+  }, []);
+  const getAttachments = useCallback(() => attachmentsRef.current, []);
+  const clearAttachments = useCallback(() => setAttachments([]), [setAttachments]);
   const { pageKey: assistantPageKey, route: assistantRoute } = usePageAssistantContext();
   const {
     messages,
@@ -90,7 +100,7 @@ const AssistantChatPanel: React.FC<AssistantChatPanelProps> = ({ helpEnabled = t
     handleRequestConfirm,
     openOutcome,
     effectiveScope,
-  } = useAIChatSession();
+  } = useAIChatSession({ getAttachments, onAttachmentsSent: clearAttachments });
 
   // P1：宽档位（≥560px）放宽输入行数；与 AssistantDock 的推挤阈值同源，避免两处漂移。
   const panelWidth = useAssistantStore(state => state.width);
@@ -517,6 +527,15 @@ const AssistantChatPanel: React.FC<AssistantChatPanelProps> = ({ helpEnabled = t
           />
         ) : null}
 
+        {/* T5-03b：附件选择器与待发送芯片（Dock/工作区共用）。 */}
+        <div style={{ marginBottom: 6 }}>
+          <ChatAttachmentPicker
+            attachments={pendingAttachments}
+            onChange={setAttachments}
+            disabled={streaming}
+          />
+        </div>
+
         <div
           style={{
             position: 'relative',
@@ -541,13 +560,19 @@ const AssistantChatPanel: React.FC<AssistantChatPanelProps> = ({ helpEnabled = t
             variant="borderless"
             style={{ padding: '6px 0', resize: 'none', fontSize: 13, lineHeight: 1.6 }}
           />
-          <Tooltip title={t('assistant.panel.asyncStartTooltip')}>
+          <Tooltip
+            title={
+              pendingAttachments.length > 0
+                ? t('assistant.attachment.asyncUnsupported')
+                : t('assistant.panel.asyncStartTooltip')
+            }
+          >
             <Button
               data-testid="assistant-async-start"
               shape="circle"
               icon={<Sparkles size={15} />}
               onClick={() => void handleStartAsync()}
-              disabled={!query.trim()}
+              disabled={!query.trim() || pendingAttachments.length > 0}
               aria-label={t('assistant.panel.asyncStart')}
             />
           </Tooltip>

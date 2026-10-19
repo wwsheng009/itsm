@@ -5,7 +5,7 @@
  * `chat-core/use-ai-chat-session`，消息项抽到 `chat-core/ChatMessageItem`；
  * 本文件只保留整页布局锁 + 工作区外壳 JSX（会话历史 / 工具条 / 消息区 / 输入坞）。
  */
-import React, { useEffect, useLayoutEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { Alert, Button, Input, Popconfirm, Select, Spin, Tag, Tooltip, Typography, theme } from 'antd';
 import type { TextAreaRef } from 'antd/es/input/TextArea';
 import {
@@ -36,6 +36,8 @@ import { useInputDockAssist } from './chat-core/use-input-dock-assist';
 import { useAssistantStore } from '@/lib/store/assistant-store';
 import type { ChatMessage } from './chat-core/types';
 import HandoffActionCard from './handoff/HandoffActionCard';
+import ChatAttachmentPicker from './chat-core/ChatAttachmentPicker';
+import type { AIAttachmentRef } from '@/lib/api/ai-api';
 import AssistantDiagnosticsEntry, {
   AI_CHAT_DIAGNOSTICS_OPEN_TESTID,
 } from './diagnostics/AssistantDiagnosticsEntry';
@@ -111,6 +113,14 @@ const lockChatPageLayout = (): (() => void) => {
 const AIChat: React.FC = () => {
   const { t } = useI18n();
   const { token } = theme.useToken();
+  const [pendingAttachments, setPendingAttachments] = useState<AIAttachmentRef[]>([]);
+  const attachmentsRef = useRef<AIAttachmentRef[]>([]);
+  const setAttachments = useCallback((next: AIAttachmentRef[]) => {
+    attachmentsRef.current = next;
+    setPendingAttachments(next);
+  }, []);
+  const getAttachments = useCallback(() => attachmentsRef.current, []);
+  const clearAttachments = useCallback(() => setAttachments([]), [setAttachments]);
 
   // 整页锁定：挂载时把外壳改造成 100vh 纵向 flex 链，卸载时原样还原（布局提交前同步执行，无跳变）。
   useLayoutEffect(() => {
@@ -164,7 +174,11 @@ const AIChat: React.FC = () => {
     handleOpenApproval,
     handleRequestConfirm,
     openOutcome,
-  } = useAIChatSession({ consumeWorkspaceHandoff: true });
+  } = useAIChatSession({
+    consumeWorkspaceHandoff: true,
+    getAttachments,
+    onAttachmentsSent: clearAttachments,
+  });
 
   // T5-02：输入坞 `/` 快捷指令 + `@` 当前页对象引用（只填不发）。
   const inputRef = useRef<TextAreaRef>(null);
@@ -576,6 +590,14 @@ const AIChat: React.FC = () => {
           ) : null}
 
           <div style={{ maxWidth: CONTENT_MAX_WIDTH, margin: '0 auto' }}>
+            {/* T5-03b：附件选择器（Dock/工作区共用）。 */}
+            <div style={{ marginBottom: 6 }}>
+              <ChatAttachmentPicker
+                attachments={pendingAttachments}
+                onChange={setAttachments}
+                disabled={streaming}
+              />
+            </div>
             <div
               style={{
                 position: 'relative',

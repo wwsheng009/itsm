@@ -80,6 +80,15 @@ export const assistantTranslations = {
       defaultDescription: '来自 AI 助手的转人工请求，请补充问题描述后提交。',
       empty: '当前权限下没有可用的转人工动作。',
     },
+    attachment: {
+      upload: '附件',
+      uploading: '上传中…',
+      uploadHint: '上传截图或文件（最多 {max} 个，单文件 {maxSize}MB）',
+      uploadFailed: '附件上传失败',
+      limit: '最多只能添加 {max} 个附件',
+      count: '已添加 {count}/{max} 个附件；发送前可移除',
+      asyncUnsupported: '后台精算暂不支持附件，请直接发送对话',
+    },
     suggestions: {
       groupTasks: '任务卡（零输入可执行；只读）',
       groupQuestions: '问题卡（了解）',
@@ -342,6 +351,15 @@ export const assistantTranslations = {
       defaultTitle: 'Handoff from AI assistant',
       defaultDescription: 'Handoff requested from the AI assistant. Add details before submitting.',
       empty: 'No handoff actions are available with your current permissions.',
+    },
+    attachment: {
+      upload: 'Attach',
+      uploading: 'Uploading…',
+      uploadHint: 'Upload screenshots or files (max {max}, {maxSize}MB each)',
+      uploadFailed: 'Attachment upload failed',
+      limit: 'You can add at most {max} attachments',
+      count: '{count}/{max} attachments added; remove before sending if needed',
+      asyncUnsupported: 'Background analysis does not support attachments yet; send in chat instead',
     },
     suggestions: {
       groupTasks: 'Task cards (zero-input, read-only)',

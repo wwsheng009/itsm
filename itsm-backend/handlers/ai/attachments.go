@@ -1,16 +1,21 @@
 package ai
 
 import (
+	"context"
 	"fmt"
 	"net/http"
 	"strconv"
 	"strings"
 
 	"itsm-backend/common"
+	"itsm-backend/ent"
+	"itsm-backend/ent/attachment"
 	"itsm-backend/service"
 
 	"github.com/gin-gonic/gin"
 )
+
+const maxAIChatAttachments = 5
 
 // T5-03a：AI 对话附件上传/下载专用端点。
 //
@@ -25,6 +30,81 @@ type aiAttachmentRef struct {
 	FileSize int    `json:"fileSize"`
 	MimeType string `json:"mimeType"`
 	FileURL  string `json:"fileUrl"`
+}
+
+// resolveAIChatAttachments 校验附件归属：仅当前租户、当前用户、ai_chat 宿主的存活草稿附件。
+// 返回顺序与入参一致（去重后）；任何缺失都整体拒绝，避免部分附件被静默忽略。
+func (h *Handler) resolveAIChatAttachments(
+	ctx context.Context,
+	tenantID, userID int,
+	ids []int,
+) ([]*ent.Attachment, error) {
+	if len(ids) == 0 {
+		return nil, nil
+	}
+	if len(ids) > maxAIChatAttachments {
+		return nil, fmt.Errorf("最多支持 %d 个附件", maxAIChatAttachments)
+	}
+	unique := make([]int, 0, len(ids))
+	seen := make(map[int]struct{}, len(ids))
+	for _, id := range ids {
+		if id <= 0 {
+			return nil, fmt.Errorf("附件 ID 非法")
+		}
+		if _, ok := seen[id]; ok {
+			continue
+		}
+		seen[id] = struct{}{}
+		unique = append(unique, id)
+	}
+	if h == nil || h.svc == nil || h.svc.entClient == nil {
+		return nil, fmt.Errorf("附件服务未就绪")
+	}
+	rows, err := h.svc.entClient.Attachment.Query().
+		Where(
+			attachment.TenantID(tenantID),
+			attachment.IDIn(unique...),
+			attachment.BizTypeEQ(service.AttachmentBizTypeAIChat),
+			attachment.BizID(userID),
+			attachment.UploadedByEQ(userID),
+			attachment.StatusEQ(service.AttachmentStatusActive),
+			attachment.DeletedAtIsNil(),
+		).
+		All(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("读取附件失败")
+	}
+	if len(rows) != len(unique) {
+		return nil, fmt.Errorf("附件不存在或不可访问")
+	}
+	byID := make(map[int]*ent.Attachment, len(rows))
+	for _, row := range rows {
+		byID[row.ID] = row
+	}
+	ordered := make([]*ent.Attachment, 0, len(unique))
+	for _, id := range unique {
+		ordered = append(ordered, byID[id])
+	}
+	return ordered, nil
+}
+
+// buildAIChatAttachmentContext 以“未读取内容”的诚实口径补充附件元数据。
+// 模型侧视觉/文件解析在后续接入前，不伪造图片内容或文本摘要。
+func buildAIChatAttachmentContext(query string, attachments []*ent.Attachment) string {
+	if len(attachments) == 0 {
+		return query
+	}
+	var b strings.Builder
+	b.WriteString(strings.TrimSpace(query))
+	b.WriteString("\n\n[用户上传附件（仅元数据，未自动读取内容）]\n")
+	for _, item := range attachments {
+		if item == nil {
+			continue
+		}
+		b.WriteString(fmt.Sprintf("- %s（%s，%d bytes）\n", item.FileName, item.MimeType, item.FileSize))
+	}
+	b.WriteString("如果回答依赖附件正文或图片内容，请明确说明当前模型不能直接读取，并请用户补充文字描述。")
+	return b.String()
 }
 
 func (h *Handler) aiAttachmentsAvailable(c *gin.Context) bool {

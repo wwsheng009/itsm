@@ -349,6 +349,8 @@ func (h *Handler) Chat(c *gin.Context) {
 		Summary    string `json:"summary"`
 		// D0-04 页面上下文提示（pageKey/route；仅提示/审计，未知 pageKey 静默忽略）。
 		PageContext *PageContextHint `json:"pageContext"`
+		// T5-03b：AI 附件 id（最多 5 个；仅接受当前用户 ai_chat 草稿附件）。
+		Attachments []int `json:"attachments"`
 	}
 	if err := c.ShouldBindJSON(&req); err != nil {
 		common.ParamErrorWithErr(c, err, "请求参数错误")
@@ -361,6 +363,14 @@ func (h *Handler) Chat(c *gin.Context) {
 	if tenantID <= 0 || userID <= 0 || role == "" {
 		common.AuthFailed(c, "缺少有效身份上下文")
 		return
+	}
+	if len(req.Attachments) > 0 {
+		attachments, err := h.resolveAIChatAttachments(c.Request.Context(), tenantID, userID, req.Attachments)
+		if err != nil {
+			common.Fail(c, common.ParamErrorCode, "附件不可用："+err.Error())
+			return
+		}
+		req.Query = buildAIChatAttachmentContext(req.Query, attachments)
 	}
 
 	provider := strings.TrimSpace(req.Provider)
@@ -487,6 +497,8 @@ func (h *Handler) ChatStream(c *gin.Context) {
 		Summary    string `json:"summary"`
 		// D0-04 页面上下文提示（pageKey/route；仅提示/审计，未知 pageKey 静默忽略）。
 		PageContext *PageContextHint `json:"pageContext"`
+		// T5-03b：AI 附件 id（最多 5 个；仅接受当前用户 ai_chat 草稿附件）。
+		Attachments []int `json:"attachments"`
 	}
 	if err := c.ShouldBindJSON(&req); err != nil {
 		common.ParamErrorWithErr(c, err, "请求参数错误")
@@ -499,6 +511,14 @@ func (h *Handler) ChatStream(c *gin.Context) {
 	if tenantID == 0 {
 		common.Fail(c, common.AuthFailedCode, "租户信息缺失")
 		return
+	}
+	if len(req.Attachments) > 0 {
+		attachments, err := h.resolveAIChatAttachments(c.Request.Context(), tenantID, userID, req.Attachments)
+		if err != nil {
+			common.Fail(c, common.ParamErrorCode, "附件不可用："+err.Error())
+			return
+		}
+		req.Query = buildAIChatAttachmentContext(req.Query, attachments)
 	}
 
 	provider := strings.TrimSpace(req.Provider)

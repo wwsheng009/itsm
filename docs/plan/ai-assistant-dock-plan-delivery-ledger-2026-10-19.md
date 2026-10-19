@@ -100,7 +100,7 @@
 
 - I0-01：已交付（`4a1fd4f8`）且证据补登记完成（`assistant-dock/I0-01-interaction-state-evidence.md`，T5-01）。
 - 批次 7–10（`4a1fd4f8`/`cd61ce7f`/`26512d69`/`5d87a831`）：证据已补登记（T5-01，2026-10-19）；方案 §7 按 §14.5 惯例保留为历史增量、不回填。
-- 悬空设计项（无任务映射）：`/` 与 `@`（T5-02，已关闭）、附件 / 截图（T5-03）、handoff"转人工"三项（T5-04）、灰度开关（T5-05）、质量层指标数据源（T5-06a，已关闭；看板接线 T5-06b）→ 方案 §14.2。
+- 悬空设计项（无任务映射）：`/` 与 `@`（T5-02，已关闭）、附件 / 截图（T5-03，已关闭）、handoff"转人工"三项（T5-04，已关闭）、灰度开关（T5-05，已关闭）、质量层指标数据源与看板（T5-06a/T5-06b，已关闭）；余 T5-07b、T5-09 见方案 §14.2。
 - 宽度交互"拖拽调宽"：已被 `5d87a831` 显式替代为离散三档 + 键盘循环（WCAG 2.1.1）；条款已回写（T5-11，2026-10-19）；"边缘收纳"显式不采纳（收起态即 FAB，与 D1 一致）。
 - 双入口"在侧栏继续 / 全屏打开"：未实现；现为"抑制 + 一次性交接"（`5d87a831`）——已按 B 收口（T5-12，2026-10-19）：条款更新认可现状（方案 §3.7/§8）、§14.4-① 解除。
 - 流式消息区 aria-live 验收缺口（评审 §12 第 12 项；UX B9/F2）：已由 T5-08 关闭（2026-10-19）——工作区/Dock 面板消息区 `role="log"` + `aria-live="polite"`，流式期间 `aria-busy` 抑制逐字播报、完成后一次性读出；行为断言 `streaming-a11y-behavior.test.tsx`；证据 `assistant-dock/T5-08-streaming-aria-live-evidence.md`。
@@ -116,8 +116,9 @@
 |---|---|---|
 | T5-01 | ✅ 2026-10-19 | 批 7–10 证据补登记：`assistant-dock/I0-01-interaction-state-evidence.md`（#7）、`assistant-dock/runtime-fixes-batch-2-evidence.md`（#8–10） |
 | T5-02 | ✅ 2026-10-19 | 输入坞 `/` 快捷指令（`/工单` `/SLA` `/话术`）+ `@` 引用当前页对象：双表面接线共享模块；解析单测 20 例 + 交互 4 例；证据 `assistant-dock/T5-02-input-dock-slash-and-reference-evidence.md` |
-| T5-03 | 拆分 | 上传面/契约已完成（T5-03a）；双界面/视觉降级归 T5-03b 待排期 |
+| T5-03 | ✅ 2026-10-19 | 附件/截图输入完成：T5-03a（上传面/契约）+ T5-03b（双界面/消息展示/归属校验/文本降级）；证据 `assistant-dock/T5-03a-ai-attachment-upload-evidence.md`、`assistant-dock/T5-03b-ai-attachment-dock-evidence.md` |
 | T5-03a | ✅ 2026-10-19 | AI 附件上传面：`ai_chat` 宿主、专用 `POST/GET /ai/attachments`（`ai:read`）、复用通用附件校验/配额/扫描/审计；前端 `aiUploadAttachment` / `aiAttachmentContentUrl`；后端 3 包 + 前端 1 suite / 66 tests、tsc/eslint 全绿；证据 `assistant-dock/T5-03a-ai-attachment-upload-evidence.md` |
+| T5-03b | ✅ 2026-10-19 | 双界面附件接线：Dock/工作区共用选择器（5 个/10MB/白名单）、消息附件芯片、发送后清空、后台精算禁用；`attachments[]` 仅非空落字段；后端同租户+同用户+`ai_chat`+`active` 归属校验与文本降级；后端 3 包串行 + 前端 6 suites / 107 tests、tsc/eslint 全绿；证据 `assistant-dock/T5-03b-ai-attachment-dock-evidence.md` |
 | T5-04 | ✅ 2026-10-19 | handoff 三项完成：T5-04a（打开/预填）+ T5-04b（指派）；证据 `assistant-dock/T5-04a-handoff-open-prefill-evidence.md`、`assistant-dock/T5-04b-handoff-assign-evidence.md` |
 | T5-04a | ✅ 2026-10-19 | handoff 打开页面 + 预填：消息级「转人工」入口（Dock/工作区共用）；一次性 `assistant_handoff` state；只填空白标题/描述、不自动提交；权限裁剪；前端 5 suites / 29 tests、tsc/eslint 全绿；证据 `assistant-dock/T5-04a-handoff-open-prefill-evidence.md` |
 | T5-04b | ✅ 2026-10-19 | handoff 指派：active 候选人/搜索/二次确认；工单 `ticket:assign`、事件 `incident:write`；失败保留卡片并显示原因；埋点 assignee/success；前端 5 suites / 31 tests、tsc/eslint 全绿；证据 `assistant-dock/T5-04b-handoff-assign-evidence.md` |
@@ -132,7 +133,7 @@
 | T5-11 | ✅ 2026-10-19 | 宽度交互回写：离散三档 + 键盘循环（显式替代自由拖拽）；"边缘收纳"不采纳（收起态即 FAB） |
 | T5-12 | ✅ 2026-10-19 | 双入口按 B 收口：§3.7/§8 条款认可现状（抑制 + 一次性交接）；§14.4-① 解除；Q3（launcher/深链）连带回写 |
 | T5-13 | ✅ 2026-10-19 | 文案 i18n 批次：12 个助手表面接入 `useI18n`；新增 `assistant` 命名空间（11 子命名空间、zh/en 各 213 键）；zh 值逐字不变；证据 `assistant-dock/T5-13-i18n-copy-batch-evidence.md` |
-| T5-03b、T5-07b、T5-09 | 待排期 | 见方案 §14.2 |
+| T5-07b、T5-09 | 待排期 | 见方案 §14.2 |
 
 > 方案补充（2026-10-19）：T5-04 专项 `assistant-handoff-actions-plan-2026-10-19.md`、T5-07b 专项 `assistant-model-routing-and-budget-plan-2026-10-19.md` 已补齐；T5-03/T5-09 的拆分建议见方案 §14.6。
 

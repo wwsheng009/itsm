@@ -1356,6 +1356,8 @@ export interface AIChatStreamRequest {
    * 缺省不落字段——请求体与改动前逐字节一致（QA-3 门禁）。
    */
   pageContext?: AIPageContextHint;
+  /** T5-03b：最多 5 个 AI 附件 ID；缺省不落字段。 */
+  attachments?: number[];
   signal?: AbortSignal;
 }
 
@@ -1462,6 +1464,8 @@ export async function aiChatStream(
     ...(req.summary ? { summary: req.summary } : {}),
     // D0-04：仅携带页面上下文提示时落字段（缺省请求体与现状逐字节一致）。
     ...(req.pageContext ? { pageContext: req.pageContext } : {}),
+    // T5-03b：仅携带附件时落字段（缺省请求体与现状逐字节一致）。
+    ...(req.attachments && req.attachments.length > 0 ? { attachments: req.attachments } : {}),
   });
 
   let lastError: Error | null = null;

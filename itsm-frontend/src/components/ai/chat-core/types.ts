@@ -1,7 +1,13 @@
 /**
  * D0-01 chat-core：会话消息模型（由 AIChat.tsx 逐字搬运）。
  */
-import type { AIRunStepEvent, AIToolStreamEvent, AIUsageEstimate, RagAnswer } from '@/lib/api/ai-api';
+import type {
+  AIAttachmentRef,
+  AIRunStepEvent,
+  AIToolStreamEvent,
+  AIUsageEstimate,
+  RagAnswer,
+} from '@/lib/api/ai-api';
 import type { RunSnapshot } from '../run-status-bar';
 
 export interface ChatMessage {
@@ -34,6 +40,8 @@ export interface ChatMessage {
   conversationId?: number;
   /** T5-06a：对应问题的 FNV-1a 哈希（仅分组关联，不存原文）。 */
   queryHash?: string;
+  /** T5-03b：用户消息附带的 AI 草稿附件（只展示元数据）。 */
+  attachments?: AIAttachmentRef[];
   /**
    * O2-02/§13.4：本回合 token 用量**估算**（v2 `usage` 事件，随 done 回带）。
    * 口径：字符/4，非账单；旧后端缺省 → 诊断抽屉显示「无计量数据」。

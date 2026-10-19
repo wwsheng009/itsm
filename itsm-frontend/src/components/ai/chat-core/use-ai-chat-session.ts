@@ -17,6 +17,7 @@ import {
   getConversationMessages,
   listConversations,
   type AgentBotsCapabilities,
+  type AIAttachmentRef,
   type AIMessage,
   type AIPageContextHint,
   type AIRunStepEvent,
@@ -57,8 +58,18 @@ import type { ChatMessage } from './types';
  *   只有 `/ai/chat` 工作区实例应传 true；Dock 面板必须保持 false，
  *   否则用户在别的页面打开 Dock 时会把本该交给工作区的会话"截胡"。
  */
-export function useAIChatSession(options?: { consumeWorkspaceHandoff?: boolean }) {
+export interface UseAIChatSessionOptions {
+  consumeWorkspaceHandoff?: boolean;
+  /** T5-03b：发送时读取当前界面的待发送附件。 */
+  getAttachments?: () => AIAttachmentRef[];
+  /** T5-03b：消息已进入发送队列后清空界面附件。 */
+  onAttachmentsSent?: () => void;
+}
+
+export function useAIChatSession(options?: UseAIChatSessionOptions) {
   const consumeWorkspaceHandoff = options?.consumeWorkspaceHandoff === true;
+  const getAttachments = options?.getAttachments;
+  const onAttachmentsSent = options?.onAttachmentsSent;
   const navigate = useNavigate();
   const location = useLocation();
   const { token } = theme.useToken();
@@ -493,6 +504,10 @@ export function useAIChatSession(options?: { consumeWorkspaceHandoff?: boolean }
             ...buildAskAIRequestScope(effectiveScope),
             // D0-04：页面上下文提示（缺省不落字段，请求体与现状逐字节一致）。
             ...(pageContextHint ? { pageContext: pageContextHint } : {}),
+            // T5-03b：仅有附件时落字段（缺省请求体与现状逐字节一致）。
+            ...(userMsg.attachments && userMsg.attachments.length > 0
+              ? { attachments: userMsg.attachments.map(item => item.id) }
+              : {}),
             signal: controller.signal,
           },
           {
@@ -641,9 +656,10 @@ export function useAIChatSession(options?: { consumeWorkspaceHandoff?: boolean }
 
   // 支持带参调用：空状态建议卡片直接以该文案发送。
   const handleSend = useCallback(
-    (raw?: string) => {
+    (raw?: string, attachmentsOverride?: AIAttachmentRef[]) => {
       const trimmed = (typeof raw === 'string' ? raw : query).trim();
       if (!trimmed || streaming) return;
+      const attachments = attachmentsOverride ?? getAttachments?.() ?? [];
 
       autoScrollRef.current = true;
       const userMsg: ChatMessage = {
@@ -651,6 +667,7 @@ export function useAIChatSession(options?: { consumeWorkspaceHandoff?: boolean }
         role: 'user',
         content: trimmed,
         createdAt: new Date().toISOString(),
+        ...(attachments.length > 0 ? { attachments } : {}),
       };
       const assistantMsg: ChatMessage = {
         id: nextId(),
@@ -663,9 +680,10 @@ export function useAIChatSession(options?: { consumeWorkspaceHandoff?: boolean }
       };
       setMessages(prev => [...prev, userMsg, assistantMsg]);
       setQuery('');
+      onAttachmentsSent?.();
       void runStreaming(userMsg, assistantMsg.id);
     },
-    [query, streaming, runStreaming]
+    [getAttachments, onAttachmentsSent, query, runStreaming, streaming]
   );
 
   const handleStop = useCallback(() => {

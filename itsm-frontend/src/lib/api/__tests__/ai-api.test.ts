@@ -880,6 +880,22 @@ describe('AI API', () => {
       });
     });
 
+    it('T5-03b：仅有附件时落 attachments 字段，缺省不落', async () => {
+      const { aiChatStream } = require('../ai-api');
+      const fetchMock = mockStream([encode('event:done\ndata:{"conversationId":7}\n\n')]);
+
+      await aiChatStream({ query: '看图', limit: 5, attachments: [11, 12] }, {});
+      const withAttachments = JSON.parse(streamCallBody(fetchMock));
+      expect(withAttachments.attachments).toEqual([11, 12]);
+
+      const fetchMock2 = mockStream([encode('event:done\ndata:{"conversationId":7}\n\n')]);
+      await aiChatStream({ query: '纯文本', limit: 5 }, {});
+      const withoutAttachments = JSON.parse(streamCallBody(fetchMock2));
+      expect(
+        Object.prototype.hasOwnProperty.call(withoutAttachments, 'attachments')
+      ).toBe(false);
+    });
+
     it('passes provider through and surfaces the effective instance on done', async () => {
       const { aiChatStream } = require('../ai-api');
       const fetchMock = mockStream([

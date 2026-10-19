@@ -150,6 +150,18 @@ export const ChatMessageItem: React.FC<ChatMessageItemProps> = ({
           }}
         >
           {message.content}
+          {message.attachments && message.attachments.length > 0 ? (
+            <div
+              data-testid="user-message-attachments"
+              style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 8 }}
+            >
+              {message.attachments.map(item => (
+                <Tag key={item.id} data-testid={`user-message-attachment-${item.id}`}>
+                  {item.fileName}
+                </Tag>
+              ))}
+            </div>
+          ) : null}
         </div>
       </div>
     );

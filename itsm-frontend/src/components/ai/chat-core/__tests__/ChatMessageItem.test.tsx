@@ -116,4 +116,31 @@ describe('ChatMessageItem × OutcomeReceipt（I0-04）', () => {
     fireEvent.click(screen.getByTestId('answer-handoff'));
     expect(onHandoff).toHaveBeenCalledWith(expect.objectContaining({ id: 'm-outcome' }));
   });
+
+  it('T5-03b：用户消息展示附件芯片', () => {
+    render(
+      <ChatMessageItem
+        message={{
+          id: 'u-1',
+          role: 'user',
+          content: '请看截图',
+          createdAt: new Date().toISOString(),
+          attachments: [
+            {
+              id: 11,
+              fileName: '截图.png',
+              fileSize: 1024,
+              mimeType: 'image/png',
+              fileUrl: '/api/v1/ai/attachments/11/content',
+            },
+          ],
+        }}
+        providerLabel={() => 'provider'}
+        onCreateArticle={jest.fn()}
+        onOpenApproval={jest.fn()}
+      />
+    );
+
+    expect(screen.getByTestId('user-message-attachments')).toHaveTextContent('截图.png');
+  });
 });
