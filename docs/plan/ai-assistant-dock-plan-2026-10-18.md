@@ -657,6 +657,24 @@
 ### P2 · 智能化与运营
 - LLM 动态建议（缓存 + 审计）；L1 自动合并策略；文档命中率/解决率运营报表；MSP 多租户帮助空间与分发授权。
 
+> 进度：**浏览器级运行时走查 + 写路径审批闭环缺陷修复已交付**（2026-10-18，`integration_verified`，238 demo）：
+> 在 `1.8.0-dev.d51ed172` 上用 tabbit + Playwright 完成最终用户视角走查：Dock FAB/热键/ESC/建议卡/上下文条（D0-02/D0-03/D0-05）、
+> 真实 LLM 流式对话与「停止生成」（tbB）、工具调用 `list_tickets` 实调（tbC）、帮助视图检索/未注册页回退/反馈/异步精算（tbD/tbDF/H0-04/V2-02）、
+> `/ai/chat` Bot 选择器与会话持久化（tbE/D1-01）、详情页「问 AI」→ scope chip（tbE2/D1-02）均通过。
+> **发现并修复 2 处写路径缺陷**：
+> ① `create_ticket.ArgsSchema` 仅声明 `ci_id`，执行层却读取 `title/description/priority/type` 等 →
+>    LLM 无从得知 `title` 必填，审批通过后必然 `create_ticket: title is required`；已补齐 schema 与 `required:["title"]`；
+> ② `ToolApprovalCard` 将内联 `onLoaded` 闭包纳入 `useCallback` 依赖，父组件 `setState` → 新闭包 → 无限重拉
+>    （实测同秒 20+ 次 `GET /agent/tools/:id` → 429），且 `catch` 一律显示「已过期/不可用」；
+>    已改为 `useRef` 持有回调 + 新增 `unavailable` 态（仅 404 归为过期），瞬时失败可重试。
+> 修复后端到端复验（`1.8.0-dev.2926ddc8`）：`#34 approval_state=approved / status=done`，工单 `TKT-202610-000065` 真实落库，
+> 卡片收敛「已处理」，卡片挂载到批准前仅 1 次详情请求；对照修复前 `#33 status=failed`。
+> 门禁：tool-approval-card 11 例 + AI 表面 48 suites/316 tests + tsc/eslint、`go vet` + service 定向用例全绿；
+> 双镜像构建 `BUILD_EXIT=0`、三容器 healthy、版本对齐、A/B 指纹 0→1。
+> 证据 `docs/plan/evidence/assistant-dock/approval-write-path-runtime-verification-evidence.md`。
+> 条件项：本机 Windows 全包 `go build`/`go test ./service/` 受 MinGW 链接器内存限制（非代码问题），已用远端镜像构建替代；
+> 验证产生的 `TKT-202610-000065` 为测试数据，可清理。
+
 > **P2 全部交付**（4/4，2026-10-18）：LLM 动态建议、L1 自动合并策略、文档命中率/解决率运营报表、MSP 多租户帮助空间与分发授权。
 > 证据：`docs/plan/evidence/assistant-dock/P2-dynamic-suggestions-evidence.md`、`docs/plan/evidence/help-agent/P2-l1-auto-merge-evidence.md`、
 > `docs/plan/evidence/help-agent/P2-doc-metrics-report-evidence.md`、`docs/plan/evidence/help-agent/P2-msp-help-space-evidence.md`。
