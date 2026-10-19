@@ -57,3 +57,41 @@ func TestToolRegistryWriteToolDefinitions(t *testing.T) {
 		}
 	}
 }
+
+// TestCreateTicketArgsSchemaExposesExecutableFields 锁定 create_ticket 的模型可见参数
+// 与执行层契约一致：执行层读取 title/description/priority/type/ci_id 等，若 schema 不声明，
+// LLM 永远看不到这些参数 → 审批通过后必然失败于 "title is required"（2026-10-18 浏览器实测）。
+func TestCreateTicketArgsSchemaExposesExecutableFields(t *testing.T) {
+	reg := NewToolRegistry(nil, nil, nil, nil)
+	var createTicket *ToolDefinition
+	for _, td := range reg.ListTools() {
+		if td.Name == "create_ticket" {
+			d := td
+			createTicket = &d
+			break
+		}
+	}
+	if createTicket == nil {
+		t.Fatal("create_ticket 未注册")
+	}
+
+	props, ok := createTicket.ArgsSchema["properties"].(map[string]interface{})
+	if !ok {
+		t.Fatalf("create_ticket ArgsSchema.properties 缺失或类型错误: %#v", createTicket.ArgsSchema)
+	}
+	for _, field := range []string{"title", "description", "priority", "type", "ci_id"} {
+		if _, exists := props[field]; !exists {
+			t.Errorf("create_ticket ArgsSchema 未声明执行层支持的参数 %q", field)
+		}
+	}
+
+	required, ok := createTicket.ArgsSchema["required"].([]string)
+	if !ok || len(required) != 1 || required[0] != "title" {
+		t.Errorf("create_ticket ArgsSchema.required 期望 [title]，实际 %#v", createTicket.ArgsSchema["required"])
+	}
+
+	title, ok := props["title"].(map[string]interface{})
+	if !ok || title["type"] != "string" {
+		t.Errorf("create_ticket title 参数应为 string，实际 %#v", props["title"])
+	}
+}

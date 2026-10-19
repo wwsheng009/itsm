@@ -655,7 +655,7 @@ func (t *ToolRegistry) ListTools() []ToolDefinition {
 		},
 		{
 			Name:        "create_ticket",
-			Description: "创建工单（需审批）。可传入 ci_id 将工单关联到 CMDB 中受影响的配置项；ci_id 应先通过 list_cis 定位",
+			Description: "创建工单（需审批）。title 必填；可传入 ci_id 将工单关联到 CMDB 中受影响的配置项（ci_id 应先通过 list_cis 定位）",
 			ReadOnly:    false,
 			Resource:    "ticket",
 			Action:      "write",
@@ -671,8 +671,37 @@ func (t *ToolRegistry) ListTools() []ToolDefinition {
 			ArgsSchema: map[string]interface{}{
 				"type": "object",
 				"properties": map[string]interface{}{
-					"ci_id": map[string]interface{}{"type": "integer", "description": "关联的配置项ID（CMDB 本体链路），先用 list_cis 定位"},
+					"title": map[string]interface{}{
+						"type": "string", "minLength": 2, "maxLength": 200,
+						"description": "工单标题（必填）",
+					},
+					"description": map[string]interface{}{
+						"type": "string", "maxLength": 5000,
+						"description": "工单描述",
+					},
+					"priority": map[string]interface{}{
+						"type": "string", "enum": []any{"low", "medium", "high", "critical", "urgent"},
+						"description": "优先级，缺省 medium",
+					},
+					"type": map[string]interface{}{
+						"type": "string",
+						"enum": []any{"incident", "service_request", "change", "ticket", "problem", "improvement"},
+						"description": "工单类型",
+					},
+					"category": map[string]interface{}{
+						"type": "string", "description": "工单分类",
+					},
+					"requester_id": map[string]interface{}{
+						"type": "integer", "description": "请求人用户 ID（缺省为当前用户）",
+					},
+					"assignee_id": map[string]interface{}{
+						"type": "integer", "description": "处理人用户 ID",
+					},
+					"ci_id": map[string]interface{}{
+						"type": "integer", "description": "关联的配置项ID（CMDB 本体链路），先用 list_cis 定位",
+					},
 				},
+				"required": []string{"title"},
 			},
 			ResultSchema: map[string]interface{}{
 				"type": "object",

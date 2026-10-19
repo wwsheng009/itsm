@@ -128,7 +128,7 @@ describe('ToolApprovalCard', () => {
   });
 
   it('记录不可得（查询失败）：降级为不可用状态并保留人工确认入口', async () => {
-    aiGetToolInvocation.mockRejectedValue(new Error('HTTP 404'));
+    aiGetToolInvocation.mockRejectedValue(Object.assign(new Error('HTTP 404'), { httpStatus: 404 }));
     const onOpenApproval = jest.fn();
 
     render(<ToolApprovalCard invocationId={9} tool="mcp__mock__create_issue" onOpenApproval={onOpenApproval} />);
@@ -136,6 +136,37 @@ describe('ToolApprovalCard', () => {
     expect(await screen.findByText('已过期/不可用')).toBeTruthy();
     fireEvent.click(screen.getByText('前往审批页确认'));
     expect(onOpenApproval).toHaveBeenCalledWith(9);
+  });
+
+  it('瞬时失败（429）不得谎报过期：显示暂时无法获取状态，且可重试恢复', async () => {
+    aiGetToolInvocation.mockRejectedValueOnce(
+      Object.assign(new Error('请求过于频繁，请稍后再试'), { httpStatus: 429 })
+    );
+    aiGetToolInvocation.mockResolvedValueOnce(detail());
+
+    render(<ToolApprovalCard invocationId={9} tool="mcp__mock__create_issue" />);
+
+    expect(await screen.findByText('暂时无法获取状态')).toBeTruthy();
+    expect(screen.getByText(/记录可能仍然有效/)).toBeTruthy();
+    expect(screen.queryByText('已过期/不可用')).toBeNull();
+
+    fireEvent.click(screen.getByText('刷新状态'));
+    await waitFor(() => expect(screen.getByText('待审批')).toBeTruthy());
+  });
+
+  it('父组件内联回调每次渲染变化时，不得重复拉取（回归：请求风暴 → 429）', async () => {
+    aiGetToolInvocation.mockResolvedValue(detail());
+    const { rerender } = render(
+      <ToolApprovalCard invocationId={9} tool="mcp__mock__create_issue" onLoaded={() => {}} />
+    );
+
+    expect(await screen.findByText('待审批')).toBeTruthy();
+    rerender(<ToolApprovalCard invocationId={9} tool="mcp__mock__create_issue" onLoaded={() => {}} />);
+    rerender(<ToolApprovalCard invocationId={9} tool="mcp__mock__create_issue" onLoaded={() => {}} />);
+
+    // 等待一拍，确认没有因新闭包再次触发 effect。
+    await new Promise(resolve => setTimeout(resolve, 50));
+    expect(aiGetToolInvocation).toHaveBeenCalledTimes(1);
   });
 
   it('刷新状态：终态化后由 pending 收敛为已处理（放弃操作入口）', async () => {

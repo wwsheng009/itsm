@@ -7,12 +7,14 @@
  * 状态语义与「禁止重复操作」：
  *   - `pending`  ：待审批 → 提供「前往审批」跳转；
  *   - `approved` / `rejected` / 已执行终态：已处理 → **只读**展示决策人与原因，不再提供任何操作入口；
- *   - `expired`  ：记录不可得（404/查询失败），或 `createdAt` 超过待审批保留期（默认 7 天，仅前端提示，
+ *   - `expired`  ：记录不可得（404），或 `createdAt` 超过待审批保留期（默认 7 天，仅前端提示，
  *                  后端当前无过期状态机）→ 提示「已过期/不可用」并禁止操作，只保留「前往审批页确认」。
+ *   - `unavailable`：**瞬时失败**（429/5xx/网络错误）——记录可能仍然有效，不得谎报"过期"，
+ *                  提示"暂时无法获取状态"并提供重试。
  *
  * 数据来源：`GET /api/v1/agent/tools/:id` **按需拉取一次**（挂载时 + 手动刷新），不做轮询。
  */
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { Button, Space, Tag, Tooltip, Typography, theme } from 'antd';
 import { AlertTriangle, CheckCircle2, ExternalLink, RefreshCw, ShieldAlert, XCircle } from 'lucide-react';
 
@@ -22,8 +24,8 @@ import { useCan } from '@/components/auth/PermissionGate';
 /** 待审批保留期（天）：仅用于前端「可能已过期」提示，不代表后端有过期状态机。 */
 export const PENDING_TTL_DAYS = 7;
 
-/** 卡片可视状态（四态 + 加载/未知）。 */
-export type ApprovalCardState = 'loading' | 'pending' | 'approved' | 'rejected' | 'expired' | 'unknown';
+/** 卡片可视状态（四态 + 加载/未知 + 瞬时失败）。 */
+export type ApprovalCardState = 'loading' | 'pending' | 'approved' | 'rejected' | 'expired' | 'unknown' | 'unavailable';
 
 export interface ToolApprovalCardProps {
   /** tool_invocation 主键（来自 SSE 的 approval_pending 事件）。 */
@@ -88,6 +90,13 @@ const STATE_META: Record<ApprovalCardState, { color: string; label: string; icon
   rejected: { color: 'error', label: '已驳回', icon: <XCircle size={14} /> },
   expired: { color: 'default', label: '已过期/不可用', icon: <AlertTriangle size={14} /> },
   unknown: { color: 'default', label: '状态未知', icon: <AlertTriangle size={14} /> },
+  unavailable: { color: 'default', label: '暂时无法获取状态', icon: <AlertTriangle size={14} /> },
+};
+
+/** 是否为"记录确实不存在/无权访问"（404）——只有这类失败才能归为过期/不可用。 */
+const isNotFound = (err: unknown): boolean => {
+  const status = (err as { httpStatus?: number } | undefined)?.httpStatus;
+  return status === 404;
 };
 
 const sourceLabel = (provider?: string, server?: string): string => {
@@ -113,20 +122,27 @@ export const ToolApprovalCard: React.FC<ToolApprovalCardProps> = ({
   const { token } = theme.useToken();
   const [view, setView] = useState<CardView>({ state: 'loading' });
   const [refreshing, setRefreshing] = useState(false);
+  // 回调放进 ref：父组件内联闭包每次渲染都会变化，若进入 useCallback 依赖会导致
+  // 「加载 → onLoaded → 父组件 setState → 新闭包 → 重新加载」的无限请求风暴（实测 429）。
+  const onLoadedRef = useRef(onLoaded);
+  onLoadedRef.current = onLoaded;
 
   const load = useCallback(async () => {
     setRefreshing(true);
     try {
       const detail = await aiGetToolInvocation(invocationId);
       setView({ state: deriveApprovalState(detail, PENDING_TTL_DAYS, now()), detail });
-      onLoaded?.(detail);
+      onLoadedRef.current?.(detail);
     } catch (err) {
-      // 记录不可得（已清理/跨租户/无权限）→ 过期/不可用，禁止操作但保留人工确认入口。
-      setView({ state: 'expired', errorMessage: (err as Error)?.message });
+      // 404（已清理/跨租户/无权限）→ 过期/不可用；其余（429/5xx/网络）→ 瞬时失败，可重试。
+      setView({
+        state: isNotFound(err) ? 'expired' : 'unavailable',
+        errorMessage: (err as Error)?.message,
+      });
     } finally {
       setRefreshing(false);
     }
-  }, [invocationId, now, onLoaded]);
+  }, [invocationId, now]);
 
   useEffect(() => {
     void load();
@@ -191,6 +207,9 @@ export const ToolApprovalCard: React.FC<ToolApprovalCardProps> = ({
         {view.state === 'expired' ? (
           <>记录已不可用或待审批时间过长（#{invocationId}），请前往审批页确认后再操作。</>
         ) : null}
+        {view.state === 'unavailable' ? (
+          <>暂时无法获取审批状态（#{invocationId}），记录可能仍然有效，请稍后重试。</>
+        ) : null}
         {view.state === 'unknown' ? <>未能确认审批状态（#{invocationId}），请前往审批页查看。</> : null}
       </div>
 
@@ -206,7 +225,7 @@ export const ToolApprovalCard: React.FC<ToolApprovalCardProps> = ({
             确认 / 拒绝
           </Button>
         ) : null}
-        {canAct ? (
+        {canAct || view.state === 'unavailable' ? (
           <Button
             type={canConfirmInline ? 'default' : 'primary'}
             size="small"
@@ -216,7 +235,7 @@ export const ToolApprovalCard: React.FC<ToolApprovalCardProps> = ({
             前往审批
           </Button>
         ) : null}
-        {!canAct ? (
+        {!canAct && view.state !== 'unavailable' ? (
           <Button size="small" icon={<ExternalLink size={12} />} onClick={() => onOpenApproval?.(invocationId)}>
             前往审批页确认
           </Button>
