@@ -299,3 +299,8 @@
 1. **§12 第 12 项缺口关闭**：消息区 live region 双表面落地——工作区 `AIChat.tsx` 与 Dock 面板 `AssistantChatPanel.tsx` 消息滚动容器均为 `role="log"` + `aria-live="polite"` + 流式期间 `aria-busy`（抑制逐字播报、完成后一次性读出）。
 2. **验收方式 = 行为断言**（不依赖 axe 静态扫描）：新增 `streaming-a11y-behavior.test.tsx` 3 例（空态持久 log / busy=true→false 状态机 / 双表面），实跑 4 suites / 26 tests 全过（含 I2-02 axe 回归）；证据 `docs/plan/evidence/assistant-dock/T5-08-streaming-aria-live-evidence.md`。
 3. **快照语义**：本评审正文保留快照口径，本节仅为附注。
+
+### 附-8 i18n"文案批次"任务化（2026-10-19，T5-10）
+
+1. **§2/§3/§7 悬空依赖关闭**：L69（§2 悬空清单）、§3 第 11 项与 §7 建议 9 中"文案批次"不再悬空——新设 **T5-13**「文案 i18n 批次」（范围 = 助手各表面新增文案；验收 = `useI18n` zh/en 键齐全；证据路径 `assistant-dock/T5-13-i18n-copy-batch-evidence.md`），方案 §14.2/§14.3 与交付台账已同步。
+2. **快照语义**：本评审正文保留快照口径，本节仅为附注。

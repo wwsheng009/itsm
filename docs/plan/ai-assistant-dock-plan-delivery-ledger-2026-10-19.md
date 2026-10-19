@@ -114,9 +114,11 @@
 |---|---|---|
 | T5-01 | ✅ 2026-10-19 | 批 7–10 证据补登记：`assistant-dock/I0-01-interaction-state-evidence.md`（#7）、`assistant-dock/runtime-fixes-batch-2-evidence.md`（#8–10） |
 | T5-08 | ✅ 2026-10-19 | 流式 aria-live 行为验收：消息区 `role="log"` + `aria-live="polite"` + `aria-busy` 流式抑制（工作区/Dock 双表面）；行为断言 3 例；证据 `assistant-dock/T5-08-streaming-aria-live-evidence.md` |
+| T5-10 | ✅ 2026-10-19 | i18n"文案批次"任务化：新设 T5-13 承接（方案 §14.2；§14.3 条件行改挂） |
 | T5-11 | ✅ 2026-10-19 | 宽度交互回写：离散三档 + 键盘循环（显式替代自由拖拽）；"边缘收纳"不采纳（收起态即 FAB） |
 | T5-12 | ✅ 2026-10-19 | 双入口按 B 收口：§3.7/§8 条款认可现状（抑制 + 一次性交接）；§14.4-① 解除；Q3（launcher/深链）连带回写 |
-| T5-02 ~ T5-07、T5-09 ~ T5-10 | 待排期 | 见方案 §14.2 |
+| T5-13 | 待排期 | 文案 i18n 批次（助手各表面，承接 T5-10）；验收=useI18n zh/en 键齐全；证据 `assistant-dock/T5-13-i18n-copy-batch-evidence.md`（待产出） |
+| T5-02 ~ T5-07、T5-09 | 待排期 | 见方案 §14.2 |
 
 ---
 
