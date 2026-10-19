@@ -123,6 +123,8 @@
 | T5-13 | ✅ 2026-10-19 | 文案 i18n 批次：12 个助手表面接入 `useI18n`；新增 `assistant` 命名空间（11 子命名空间、zh/en 各 213 键）；zh 值逐字不变；证据 `assistant-dock/T5-13-i18n-copy-batch-evidence.md` |
 | T5-03 ~ T5-07、T5-09 | 待排期 | 见方案 §14.2 |
 
+> 维护记录（2026-10-19）：存量失败测试治理 6 套件 / 19 用例已修复（`4938945a`）；方案 `stock-test-failure-governance-plan-2026-10-19.md`，证据 `assistant-dock/T5-13-i18n-copy-batch-evidence.md` §5。
+
 ---
 
 - 维护约定：本台账为 v5 起任务状态的**唯一入口**；方案 §7 `> 进度：` 块为历史增量。新增/变更任务须更新本表并附证据路径（可行时附提交哈希）。
