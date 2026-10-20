@@ -158,4 +158,22 @@ describe('AssistantComposer（composer 重构）', () => {
     fireEvent.keyDown(input, { key: 'Enter' });
     expect(handleKeyDown).toHaveBeenCalled();
   });
+
+  it('工作区形态：自定义 testid / 字号，且不渲染 Dock 专属的后台精算按钮', () => {
+    renderComposer({
+      testId: 'assistant-workspace-composer',
+      inputTestId: 'assistant-chat-input',
+      inputFontSize: 14,
+      onStartAsync: undefined,
+    });
+
+    const workspace = screen.getByTestId('assistant-workspace-composer');
+    const input = within(workspace).getByTestId('assistant-chat-input');
+    expect(input).toHaveStyle({ fontSize: '14px' });
+
+    // Dock 专属入口不出现；附件/发送仍在同一容器内。
+    expect(within(workspace).queryByTestId('assistant-async-start')).not.toBeInTheDocument();
+    expect(within(workspace).getByTestId('chat-attachment-upload')).toBeInTheDocument();
+    expect(within(workspace).getByTestId('assistant-panel-send')).toBeInTheDocument();
+  });
 });

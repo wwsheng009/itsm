@@ -6,7 +6,18 @@
  * 本文件只保留整页布局锁 + 工作区外壳 JSX（会话历史 / 工具条 / 消息区 / 输入坞）。
  */
 import React, { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
-import { Alert, Button, Input, Popconfirm, Select, Spin, Tag, Tooltip, Typography, theme } from 'antd';
+import {
+  Alert,
+  Button,
+  Dropdown,
+  Popconfirm,
+  Select,
+  Spin,
+  Tag,
+  Tooltip,
+  Typography,
+  theme,
+} from 'antd';
 import type { TextAreaRef } from 'antd/es/input/TextArea';
 import {
   Bot,
@@ -17,8 +28,8 @@ import {
   FileText,
   LoaderCircle,
   MessageSquare,
+  MoreHorizontal,
   Plus,
-  Send,
   Star,
   StopCircle,
   Trash2,
@@ -31,13 +42,17 @@ import { ChatMessageItem } from './chat-core/ChatMessageItem';
 import SuggestionCards from './chat-core/SuggestionCards';
 import { CONTENT_MAX_WIDTH } from './chat-core/constants';
 import { useAIChatSession } from './chat-core/use-ai-chat-session';
-import { InputDockAssistMenu } from './chat-core/InputDockAssistMenu';
 import { useInputDockAssist } from './chat-core/use-input-dock-assist';
 import { useAssistantStore } from '@/lib/store/assistant-store';
 import type { ChatMessage } from './chat-core/types';
 import HandoffActionCard from './handoff/HandoffActionCard';
-import ChatAttachmentPicker from './chat-core/ChatAttachmentPicker';
 import type { AIAttachmentRef } from '@/lib/api/ai-api';
+import { ACCEPT_ATTACHMENT_STRING } from '@/components/common/attachment/AttachmentField';
+import {
+  CHAT_ATTACHMENT_INPUT_TESTID,
+  useChatAttachments,
+} from './chat-core/use-chat-attachments';
+import AssistantComposer from './dock/AssistantComposer';
 import AssistantDiagnosticsEntry, {
   AI_CHAT_DIAGNOSTICS_OPEN_TESTID,
 } from './diagnostics/AssistantDiagnosticsEntry';
@@ -178,6 +193,13 @@ const AIChat: React.FC = () => {
     consumeWorkspaceHandoff: true,
     getAttachments,
     onAttachmentsSent: clearAttachments,
+  });
+
+  // composer 复用：附件上传链路与 Dock 共用同一 hook（按钮进工具条、芯片在文本域上方）。
+  const attachmentState = useChatAttachments({
+    attachments: pendingAttachments,
+    onChange: setAttachments,
+    disabled: streaming,
   });
 
   // T5-02：输入坞 `/` 快捷指令 + `@` 当前页对象引用（只填不发）。
@@ -468,24 +490,6 @@ const AIChat: React.FC = () => {
                 停止生成
               </Button>
             ) : null}
-            {canPromoteKnowledge && (
-              <Tooltip
-                title={
-                  convId
-                    ? '把整段会话整理成一篇知识文章草稿'
-                    : '完成一轮问答后可将整段会话保存为文章'
-                }
-              >
-                <Button
-                  size="small"
-                  icon={<FileText size={14} />}
-                  onClick={handleSaveConversationAsArticle}
-                  disabled={!convId || streaming || isEmpty}
-                >
-                  保存成文章
-                </Button>
-              </Tooltip>
-            )}
             {/* O2-02：会话诊断入口（与 Dock 面板共用同一实现；工作区入口独立 testid 免同页歧义）。 */}
             <AssistantDiagnosticsEntry
               testId={AI_CHAT_DIAGNOSTICS_OPEN_TESTID}
@@ -494,11 +498,48 @@ const AIChat: React.FC = () => {
               streaming={streaming}
               pageKey="ai.chat"
             />
-            <Tooltip title="清空当前对话">
-              <Button size="small" icon={<Eraser size={14} />} onClick={handleClear} disabled={streaming}>
-                清空对话
-              </Button>
-            </Tooltip>
+            {/*
+              低频动作收进「更多」：保存成文章 / 清空对话都是整段会话级操作，
+              不需要常驻在 48px 工具条里（改前 1024px 视口实测溢出 17px）。
+            */}
+            <Dropdown
+              trigger={['click']}
+              placement="bottomRight"
+              menu={{
+                items: [
+                  ...(canPromoteKnowledge
+                    ? [
+                        {
+                          key: 'save-article',
+                          icon: <FileText size={14} />,
+                          label: '保存成文章',
+                          disabled: !convId || streaming || isEmpty,
+                          onClick: handleSaveConversationAsArticle,
+                        },
+                      ]
+                    : []),
+                  {
+                    key: 'clear',
+                    icon: <Eraser size={14} />,
+                    label: '清空对话',
+                    danger: true,
+                    disabled: streaming,
+                    onClick: handleClear,
+                  },
+                ],
+              }}
+            >
+              <Tooltip title="更多操作">
+                <Button
+                  data-testid="ai-chat-more-actions"
+                  size="small"
+                  type="text"
+                  icon={<MoreHorizontal size={16} />}
+                  aria-label="更多操作"
+                  aria-haspopup="menu"
+                />
+              </Tooltip>
+            </Dropdown>
           </div>
         </header>
 
@@ -590,69 +631,42 @@ const AIChat: React.FC = () => {
           ) : null}
 
           <div style={{ maxWidth: CONTENT_MAX_WIDTH, margin: '0 auto' }}>
-            {/* T5-03b：附件选择器（Dock/工作区共用）。 */}
-            <div style={{ marginBottom: 6 }}>
-              <ChatAttachmentPicker
-                attachments={pendingAttachments}
-                onChange={setAttachments}
-                disabled={streaming}
-              />
-            </div>
-            <div
-              style={{
-                position: 'relative',
-                display: 'flex',
-                alignItems: 'flex-end',
-                gap: 8,
-                padding: '6px 6px 6px 14px',
-                borderRadius: 22,
-                border: `1px solid ${token.colorBorderSecondary}`,
-                background: token.colorBgContainer,
-                boxShadow: token.boxShadowTertiary,
-              }}
-            >
-              <Input.TextArea
-                ref={inputRef}
-                data-testid="assistant-chat-input"
-                value={query}
-                onChange={e => setQuery(e.target.value)}
-                onKeyDown={inputAssist.handleKeyDown}
-                placeholder="请输入你的问题…"
-                autoSize={{ minRows: 1, maxRows: 8 }}
-                variant="borderless"
-                style={{ padding: '6px 0', resize: 'none', fontSize: 14, lineHeight: 1.6 }}
-              />
-              {streaming ? (
-                <Tooltip title="停止生成">
-                  <Button
-                    shape="circle"
-                    danger
-                    icon={<StopCircle size={16} />}
-                    onClick={handleStop}
-                    aria-label="停止生成"
-                  />
-                </Tooltip>
-              ) : (
-                <Button
-                  shape="circle"
-                  type="primary"
-                  icon={<Send size={16} />}
-                  onClick={() => handleSend()}
-                  disabled={!query.trim()}
-                  aria-label="发送"
+            {/*
+              composer 复用（2026-10-20）：与 Dock 共用同一输入坞实现。
+              改前工作区有两处不一致：附件选择器独占输入框上方一行（左边缘还比输入框偏 15px），
+              且输入条与消息列宽度不同源。改后：附件进工具条、芯片在文本域上方、单一容器。
+            */}
+            <AssistantComposer
+              testId="assistant-workspace-composer"
+              inputTestId="assistant-chat-input"
+              inputFontSize={14}
+              maxRows={8}
+              widePanel
+              query={query}
+              setQuery={setQuery}
+              onSend={() => handleSend()}
+              onStop={handleStop}
+              streaming={streaming}
+              inputRef={inputRef}
+              inputAssist={inputAssist}
+              attachments={pendingAttachments}
+              attachmentInput={
+                <input
+                  ref={attachmentState.inputRef}
+                  type="file"
+                  multiple
+                  accept={ACCEPT_ATTACHMENT_STRING}
+                  style={{ display: 'none' }}
+                  data-testid={CHAT_ATTACHMENT_INPUT_TESTID}
+                  onChange={attachmentState.onInputChange}
                 />
-              )}
-              {inputAssist.assist ? (
-                <InputDockAssistMenu
-                  mode={inputAssist.assist.mode}
-                  items={inputAssist.assist.items}
-                  activeIndex={inputAssist.assist.activeIndex}
-                  hint={inputAssist.assist.hint}
-                  onSelect={inputAssist.selectItem}
-                  onHighlight={inputAssist.highlightItem}
-                />
-              ) : null}
-            </div>
+              }
+              onOpenAttachment={attachmentState.openPicker}
+              attachmentUploading={attachmentState.uploading}
+              attachmentError={attachmentState.error}
+              attachmentDisabled={streaming}
+              onRemoveAttachment={attachmentState.remove}
+            />
             <div
               style={{
                 fontSize: 12,

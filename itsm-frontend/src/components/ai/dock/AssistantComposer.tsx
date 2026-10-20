@@ -33,8 +33,8 @@ interface AssistantComposerProps {
   inputAssist: ReturnType<typeof useInputDockAssist>;
   /** 宽档位：给长提示词更多行数。 */
   widePanel: boolean;
-  /** 后台精算入口（无文本/有附件时禁用）。 */
-  onStartAsync: () => void;
+  /** 后台精算入口（Dock 专属；不传则不渲染该按钮）。 */
+  onStartAsync?: () => void;
   attachments: AIAttachmentRef[];
   /** 附件选择（由 useChatAttachments 提供的隐藏 input 与打开动作）。 */
   attachmentInput: React.ReactNode;
@@ -45,6 +45,17 @@ interface AssistantComposerProps {
   onRemoveAttachment: (id: number) => void;
   /** 左侧工具条附加入口（记忆等；可为空）。 */
   tools?: React.ReactNode;
+  /* ---------- 工作区（/ai/chat）复用所需的形态参数 ---------- */
+  /** 容器 testid（默认 Dock 的 `assistant-composer`）。 */
+  testId?: string;
+  /** 输入框 testid（Dock: assistant-panel-input；工作区: assistant-chat-input）。 */
+  inputTestId?: string;
+  /** 输入字号（工作区 14，Dock 13）。 */
+  inputFontSize?: number;
+  /** 文本域最大行数（不传则由 widePanel 推导）。 */
+  maxRows?: number;
+  /** 工具条右侧、发送按钮之前的附加动作。 */
+  extraActions?: React.ReactNode;
 }
 
 const ICON_BUTTON_STYLE: React.CSSProperties = {
@@ -75,6 +86,11 @@ const AssistantComposer: React.FC<AssistantComposerProps> = ({
   attachmentDisabled,
   onRemoveAttachment,
   tools,
+  testId = ASSISTANT_COMPOSER_TESTID,
+  inputTestId = 'assistant-panel-input',
+  inputFontSize = 13,
+  maxRows,
+  extraActions,
 }) => {
   const { token } = theme.useToken();
   const { t } = useI18n();
@@ -83,7 +99,7 @@ const AssistantComposer: React.FC<AssistantComposerProps> = ({
   const attachmentsLocked = attachmentDisabled || streaming;
 
   return (
-    <div data-testid={ASSISTANT_COMPOSER_TESTID}>
+    <div data-testid={testId}>
       {attachmentInput}
 
       {/* 附件芯片：单行横向滚动，不挤占工具条。 */}
@@ -174,19 +190,19 @@ const AssistantComposer: React.FC<AssistantComposerProps> = ({
       >
         <Input.TextArea
           ref={inputRef}
-          data-testid="assistant-panel-input"
+          data-testid={inputTestId}
           value={query}
           onChange={e => setQuery(e.target.value)}
           onKeyDown={inputAssist.handleKeyDown}
           onFocus={() => setFocused(true)}
           onBlur={() => setFocused(false)}
           placeholder={t('assistant.panel.inputPlaceholder')}
-          autoSize={{ minRows: 1, maxRows: widePanel ? 10 : 6 }}
+          autoSize={{ minRows: 1, maxRows: maxRows ?? (widePanel ? 10 : 6) }}
           variant="borderless"
           style={{
             padding: '10px 12px 2px',
             resize: 'none',
-            fontSize: 13,
+            fontSize: inputFontSize,
             lineHeight: 1.6,
           }}
         />
@@ -220,24 +236,28 @@ const AssistantComposer: React.FC<AssistantComposerProps> = ({
 
           <span style={{ flex: 1 }} />
 
-          <Tooltip
-            title={
-              attachments.length > 0
-                ? t('assistant.attachment.asyncUnsupported')
-                : t('assistant.panel.asyncStartTooltip')
-            }
-          >
-            <Button
-              data-testid="assistant-async-start"
-              type="text"
-              size="small"
-              style={ICON_BUTTON_STYLE}
-              icon={<Sparkles size={15} />}
-              onClick={onStartAsync}
-              disabled={!query.trim() || attachments.length > 0}
-              aria-label={t('assistant.panel.asyncStart')}
-            />
-          </Tooltip>
+          {extraActions}
+
+          {onStartAsync ? (
+            <Tooltip
+              title={
+                attachments.length > 0
+                  ? t('assistant.attachment.asyncUnsupported')
+                  : t('assistant.panel.asyncStartTooltip')
+              }
+            >
+              <Button
+                data-testid="assistant-async-start"
+                type="text"
+                size="small"
+                style={ICON_BUTTON_STYLE}
+                icon={<Sparkles size={15} />}
+                onClick={onStartAsync}
+                disabled={!query.trim() || attachments.length > 0}
+                aria-label={t('assistant.panel.asyncStart')}
+              />
+            </Tooltip>
+          ) : null}
 
           {streaming ? (
             <Tooltip title={t('assistant.panel.stopGenerating')}>
