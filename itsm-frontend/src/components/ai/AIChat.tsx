@@ -10,6 +10,7 @@ import {
   Alert,
   Button,
   Dropdown,
+  Popover,
   Popconfirm,
   Select,
   Spin,
@@ -30,6 +31,7 @@ import {
   MessageSquare,
   MoreHorizontal,
   Plus,
+  SlidersHorizontal,
   Star,
   StopCircle,
   Trash2,
@@ -47,6 +49,7 @@ import { useAssistantStore } from '@/lib/store/assistant-store';
 import type { ChatMessage } from './chat-core/types';
 import HandoffActionCard from './handoff/HandoffActionCard';
 import type { AIAttachmentRef } from '@/lib/api/ai-api';
+import { useMediaQuery } from '@/hooks/useResponsive';
 import { ACCEPT_ATTACHMENT_STRING } from '@/components/common/attachment/AttachmentField';
 import {
   CHAT_ATTACHMENT_INPUT_TESTID,
@@ -58,6 +61,14 @@ import AssistantDiagnosticsEntry, {
 } from './diagnostics/AssistantDiagnosticsEntry';
 
 const { Text } = Typography;
+
+/**
+ * 工作区窄屏断点（2026-10-20 布局优化）：
+ * - `< 1100px`：侧栏默认收起（256px 侧栏会把消息区压到 455px 以下）；
+ * - `< 900px`：头部选择器收进「模型/能力」弹层，避免工具条溢出（768px 实测溢出 94px）。
+ */
+const SIDEBAR_COLLAPSE_QUERY = '(max-width: 1099px)';
+const HEADER_COMPACT_QUERY = '(max-width: 899px)';
 
 /**
  * 聊天页整页布局锁：把 Header / Content 外壳临时改造成 100vh 纵向 flex 链，
@@ -202,6 +213,46 @@ const AIChat: React.FC = () => {
     disabled: streaming,
   });
 
+  /*
+   * 窄屏布局（2026-10-20）：
+   * - 侧栏从「挤压主区」改为「浮层抽屉」：<1100px 时不再占据 flex 宽度，
+   *   避免 768px 视口下消息区只剩 199px；
+   * - 仅在跨越断点时同步一次开合（宽→窄收起、窄→宽恢复），用户手动切换后不再被覆写。
+   */
+  const sidebarCollapsed = useMediaQuery(SIDEBAR_COLLAPSE_QUERY);
+  const headerCompact = useMediaQuery(HEADER_COMPACT_QUERY);
+  const narrowRef = useRef<boolean | null>(null);
+  useEffect(() => {
+    if (narrowRef.current === sidebarCollapsed) return;
+    narrowRef.current = sidebarCollapsed;
+    setSidebarOpen(!sidebarCollapsed);
+  }, [sidebarCollapsed, setSidebarOpen]);
+
+  /*
+   * 窄屏抽屉的「轻模态」行为：展开时点击浮层外部或按 Esc 收起。
+   * 只在窄屏生效——宽屏侧栏是并排布局，不应被这类全局监听影响。
+   */
+  const asideRef = useRef<HTMLElement>(null);
+  useEffect(() => {
+    if (!sidebarCollapsed || !sidebarOpen) return;
+    const onPointerDown = (event: MouseEvent) => {
+      const target = event.target as Node | null;
+      if (!target) return;
+      if (asideRef.current?.contains(target)) return;
+      setSidebarOpen(false);
+    };
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setSidebarOpen(false);
+    };
+    // 捕获阶段：先于面板内组件处理，避免被 stopPropagation 吃掉。
+    document.addEventListener('mousedown', onPointerDown, true);
+    document.addEventListener('keydown', onKeyDown, true);
+    return () => {
+      document.removeEventListener('mousedown', onPointerDown, true);
+      document.removeEventListener('keydown', onKeyDown, true);
+    };
+  }, [sidebarCollapsed, sidebarOpen, setSidebarOpen]);
+
   // T5-02：输入坞 `/` 快捷指令 + `@` 当前页对象引用（只填不发）。
   const inputRef = useRef<TextAreaRef>(null);
   const [handoffMessage, setHandoffMessage] = useState<ChatMessage | null>(null);
@@ -223,13 +274,90 @@ const AIChat: React.FC = () => {
     inputRef,
   });
 
+  /*
+   * 头部选择器片段（2026-10-20）：同一份 JSX 在两处复用——
+   * 宽屏直接放进工具条；窄屏收进「模型/能力」弹层。
+   * 抽成变量而非子组件：避免为 hooks/闭包再包一层，且两处渲染语义完全一致。
+   */
+  const botSelectorNode = (
+    <BotSelector
+      bots={bots}
+      value={selectedBotId}
+      onChange={setSelectedBotId}
+      locked={Boolean(convId)}
+      disabled={botCapabilities?.botEnabled === false}
+      labels={{ disabledHint: t('bots.capabilities.selectorDisabled') }}
+    />
+  );
+
+  const providerSelectorNode = canSwitchProvider ? (
+    <>
+      <Select
+        size="small"
+        style={{ minWidth: headerCompact ? '100%' : 160, maxWidth: 240 }}
+        value={selectedProvider}
+        allowClear
+        placeholder={
+          feature.preference?.effectiveProviderKey
+            ? `跟随默认 · ${providerLabel(feature.preference.effectiveProviderKey)}`
+            : '跟随默认实例'
+        }
+        options={feature.providers.map(p => ({
+          value: p.key,
+          label: p.implemented ? p.displayName : `${p.displayName}（未接入）`,
+          disabled: !p.implemented,
+        }))}
+        onChange={value => {
+          setSelectedProvider(value);
+          setProviderNotice(null);
+        }}
+      />
+      {/* 写端点（PUT /ai/user-preference）仍需 system:write */}
+      {canManageProviderPreference &&
+      selectedProvider &&
+      feature.preference?.providerKey !== selectedProvider ? (
+        <Tooltip title="设为我的默认（仅影响你自己的新会话）">
+          <Button
+            size="small"
+            type="text"
+            icon={<Star size={13} />}
+            onClick={handleSetPersonalDefault}
+          />
+        </Tooltip>
+      ) : null}
+      {canManageProviderPreference && feature.preference?.providerKey ? (
+        <Tooltip title={`清除我的默认（当前：${providerLabel(feature.preference.providerKey)}）`}>
+          <Button size="small" type="text" onClick={handleClearPersonalDefault}>
+            清除默认
+          </Button>
+        </Tooltip>
+      ) : null}
+    </>
+  ) : null;
+
   return (
-    <div data-ai-chat-page style={{ display: 'flex', gap: 12, flex: '1 1 auto', minHeight: 0 }}>
+    <div
+      data-ai-chat-page
+      style={{
+        display: 'flex',
+        gap: 12,
+        flex: '1 1 auto',
+        minHeight: 0,
+        // 窄屏侧栏是 absolute 浮层，需要本层作为定位参照。
+        position: 'relative',
+      }}
+    >
       {/* 局部 hover 反馈（不新增全局样式文件） */}
       <style>{chatCss}</style>
 
-      {/* 左侧会话历史栏 */}
+      {/*
+        左侧会话历史栏。
+        宽屏（≥1100px）：占据 flex 宽度、与主区并排；
+        窄屏（<1100px）且隐藏：不占宽度；展开时改为浮层抽屉（absolute）盖在主区上，
+        不再挤压消息区（768px 实测：并排时消息区仅剩 199px）。
+      */}
       <aside
+        ref={asideRef}
         style={{
           width: sidebarOpen ? 268 : 0,
           flexShrink: 0,
@@ -241,6 +369,16 @@ const AIChat: React.FC = () => {
           background: token.colorFillQuaternary,
           borderRadius: 12,
           border: sidebarOpen ? `1px solid ${token.colorBorderSecondary}` : 'none',
+          ...(sidebarCollapsed
+            ? {
+                position: 'absolute' as const,
+                left: 0,
+                top: 0,
+                bottom: 0,
+                zIndex: 30,
+                boxShadow: sidebarOpen ? token.boxShadowSecondary : undefined,
+              }
+            : {}),
         }}
       >
         <div style={{ width: 268, flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' }}>
@@ -406,14 +544,7 @@ const AIChat: React.FC = () => {
             }}
           >
             {/* B2-04 Bot 选择器：已有会话时锁定（切换仅影响新会话，不回溯改写历史归属） */}
-            <BotSelector
-              bots={bots}
-              value={selectedBotId}
-              onChange={setSelectedBotId}
-              locked={Boolean(convId)}
-              disabled={botCapabilities?.botEnabled === false}
-              labels={{ disabledHint: t('bots.capabilities.selectorDisabled') }}
-            />
+            {!headerCompact ? botSelectorNode : null}
             {/* B3-02：入口上下文条（来自页面 launcher；可清除，清除后按普通对话处理） */}
             {activeScope ? (
               <Tag
@@ -433,51 +564,54 @@ const AIChat: React.FC = () => {
               </Tag>
             ) : null}
             {/* Provider 选择器：feature.enabled && providers.length > 1（P1 起普通用户同样可见） */}
-            {canSwitchProvider ? (
-              <>
-                <Select
-                  size="small"
-                  style={{ minWidth: 160, maxWidth: 240 }}
-                  value={selectedProvider}
-                  allowClear
-                  placeholder={
-                    feature.preference?.effectiveProviderKey
-                      ? `跟随默认 · ${providerLabel(feature.preference.effectiveProviderKey)}`
-                      : '跟随默认实例'
-                  }
-                  options={feature.providers.map(p => ({
-                    value: p.key,
-                    label: p.implemented ? p.displayName : `${p.displayName}（未接入）`,
-                    disabled: !p.implemented,
-                  }))}
-                  onChange={value => {
-                    setSelectedProvider(value);
-                    setProviderNotice(null);
-                  }}
-                />
-                {/* 写端点（PUT /ai/user-preference）仍需 system:write */}
-                {canManageProviderPreference &&
-                selectedProvider &&
-                feature.preference?.providerKey !== selectedProvider ? (
-                  <Tooltip title="设为我的默认（仅影响你自己的新会话）">
-                    <Button
-                      size="small"
-                      type="text"
-                      icon={<Star size={13} />}
-                      onClick={handleSetPersonalDefault}
-                    />
-                  </Tooltip>
-                ) : null}
-                {canManageProviderPreference && feature.preference?.providerKey ? (
-                  <Tooltip
-                    title={`清除我的默认（当前：${providerLabel(feature.preference.providerKey)}）`}
+            {!headerCompact ? providerSelectorNode : null}
+
+            {/*
+              窄屏：Bot + Provider 收进「模型/能力」弹层。
+              改前 768px 视口实测头部溢出 94px、选择器被裁切。
+            */}
+            {headerCompact && (canSwitchProvider || bots.length > 0 || botCapabilities?.botEnabled === false) ? (
+              <Popover
+                trigger="click"
+                placement="bottomRight"
+                title="模型与能力"
+                content={
+                  <div
+                    data-testid="ai-chat-model-settings"
+                    style={{ width: 260, display: 'flex', flexDirection: 'column', gap: 10 }}
                   >
-                    <Button size="small" type="text" onClick={handleClearPersonalDefault}>
-                      清除默认
-                    </Button>
-                  </Tooltip>
-                ) : null}
-              </>
+                    <div>
+                      <div style={{ fontSize: 12, color: token.colorTextSecondary, marginBottom: 4 }}>
+                        Bot
+                      </div>
+                      {botSelectorNode}
+                    </div>
+                    {canSwitchProvider ? (
+                      <div>
+                        <div
+                          style={{ fontSize: 12, color: token.colorTextSecondary, marginBottom: 4 }}
+                        >
+                          模型实例
+                        </div>
+                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                          {providerSelectorNode}
+                        </div>
+                      </div>
+                    ) : null}
+                  </div>
+                }
+              >
+                <Tooltip title="模型与能力">
+                  <Button
+                    data-testid="ai-chat-model-settings-open"
+                    size="small"
+                    type="text"
+                    icon={<SlidersHorizontal size={15} />}
+                    aria-label="模型与能力"
+                    aria-haspopup="dialog"
+                  />
+                </Tooltip>
+              </Popover>
             ) : null}
 
             {streaming ? (
