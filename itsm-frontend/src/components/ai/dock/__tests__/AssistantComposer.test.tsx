@@ -24,6 +24,7 @@ jest.mock('@/lib/i18n/useI18n', () => ({
         'assistant.panel.stopGenerating': '停止生成',
         'assistant.panel.asyncStart': '后台精算',
         'assistant.panel.asyncStartTooltip': '后台精算说明',
+        'assistant.panel.asyncRequiresPrompt': '请先输入问题，再使用后台精算',
         'assistant.attachment.upload': '附件',
         'assistant.attachment.uploadHint': `最多 ${vars?.max} 个`,
         'assistant.attachment.asyncUnsupported': '后台精算暂不支持附件',
@@ -122,6 +123,19 @@ describe('AssistantComposer（composer 重构）', () => {
   it('有附件时后台精算禁用，并给出原因', () => {
     renderComposer({ query: '帮我看看', attachments });
     expect(screen.getByTestId('assistant-async-start')).toBeDisabled();
+    expect(screen.getByTestId('assistant-async-tooltip')).toHaveAttribute(
+      'aria-label',
+      '后台精算暂不支持附件'
+    );
+  });
+
+  it('空输入时后台精算禁用，tooltip 说明开放条件', () => {
+    renderComposer({ query: '   ' });
+    expect(screen.getByTestId('assistant-async-start')).toBeDisabled();
+    expect(screen.getByTestId('assistant-async-tooltip')).toHaveAttribute(
+      'aria-label',
+      '请先输入问题，再使用后台精算'
+    );
   });
 
   it('流式生成中：发送换成停止，且附件入口禁用', () => {

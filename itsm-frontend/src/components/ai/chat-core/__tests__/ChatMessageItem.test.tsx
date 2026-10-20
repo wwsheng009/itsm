@@ -143,4 +143,26 @@ describe('ChatMessageItem × OutcomeReceipt（I0-04）', () => {
 
     expect(screen.getByTestId('user-message-attachments')).toHaveTextContent('截图.png');
   });
+
+  it('预算降级：保留正文并以 warning 提示，而不是只显示错误', () => {
+    render(
+      <ChatMessageItem
+        message={{
+          ...message,
+          content: '已保留的检索线索\n\n建议拆分问题。',
+          errorCode: 'budget_exceeded',
+          error: '工具调用预算已用尽，以上为当前保留结果',
+          toolEvents: [],
+          pendingApprovals: [],
+        }}
+        providerLabel={() => 'provider'}
+        onCreateArticle={jest.fn()}
+        onOpenApproval={jest.fn()}
+      />
+    );
+
+    expect(screen.getByText('已保留的检索线索')).toBeInTheDocument();
+    expect(screen.getByTestId('budget-degraded-alert')).toHaveTextContent('预算已用尽');
+    expect(screen.getByTestId('budget-degraded-alert').closest('.ant-alert-warning')).not.toBeNull();
+  });
 });

@@ -163,9 +163,9 @@ export const ASSISTANT_ERROR_DICTIONARY: Record<string, AssistantErrorCopy> = {
   budget_exceeded: ENTRY(
     'budget_exceeded',
     '本次任务超出预算',
-    '已达到单次运行的步数/Token/工具调用上限，系统已安全中止。可拆分为更小的任务再试。',
-    'dismiss',
-    '知道了'
+    '已达到单次运行的步数/Token/工具调用上限，系统已安全中止；已查到的线索已保留。可拆分为更小的任务后重试。',
+    'retry',
+    '拆分后重试'
   ),
   rate_limited: ENTRY(
     'rate_limited',

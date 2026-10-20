@@ -1,9 +1,9 @@
 {
-  "generatedAt": "2026-10-18T20:58:58.786Z",
+  "generatedAt": "2026-10-20T05:05:19.216Z",
   "coverage": 1,
   "totals": {
-    "pages": 21,
-    "ok": 21,
+    "pages": 22,
+    "ok": 22,
     "missing": 0,
     "stale": 0,
     "orphan": 0
@@ -182,6 +182,15 @@
       "entrypoint": "chat",
       "docs": [
         "docs/help/service-catalog.md"
+      ],
+      "status": "ok"
+    },
+    "service.requests": {
+      "title": "服务请求",
+      "pattern": "/service-requests",
+      "entrypoint": "chat",
+      "docs": [
+        "docs/help/service-requests.md"
       ],
       "status": "ok"
     },

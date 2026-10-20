@@ -19,7 +19,7 @@ func TestLoad_IndexesGeneratedArtifacts(t *testing.T) {
 
 	coverage, totals := idx.Coverage()
 	assert.Equal(t, 1.0, coverage, "当前种子文档应 100% 覆盖页面注册表")
-	assert.Equal(t, 21, totals["pages"])
+	assert.Equal(t, 22, totals["pages"])
 	assert.Equal(t, 0, totals["missing"])
 	assert.Equal(t, 0, totals["stale"])
 	assert.Equal(t, 0, totals["orphan"])

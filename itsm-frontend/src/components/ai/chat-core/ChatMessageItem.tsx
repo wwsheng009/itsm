@@ -14,7 +14,6 @@ import ToolApprovalCard from '../tool-approval-card';
 import ConfirmationDrawer from '../confirmation-drawer';
 import EvidencePanel, { type EvidenceTargetMeta } from '../evidence-panel';
 import OutcomeReceipt from '../OutcomeReceipt';
-import RunStatusBar from '../run-status-bar';
 import ToolCallTimeline, { mergeToolEvents } from '../tool-call-timeline';
 import { deriveAssistantOutcomes, type AssistantOutcome } from '@/lib/ai/outcome';
 import { PENDING_HIDDEN_STATUSES, PROVIDER_SOURCE_LABELS } from './constants';
@@ -204,9 +203,12 @@ export const ChatMessageItem: React.FC<ChatMessageItemProps> = ({
 
         {message.error ? (
           <Alert
-            type="error"
+            type={message.errorCode === 'budget_exceeded' ? 'warning' : 'error'}
             showIcon
             message={message.error}
+            data-testid={
+              message.errorCode === 'budget_exceeded' ? 'budget-degraded-alert' : 'message-error'
+            }
             style={{ marginTop: message.content ? 8 : 0 }}
           />
         ) : null}
@@ -255,20 +257,6 @@ export const ChatMessageItem: React.FC<ChatMessageItemProps> = ({
           }
         />
 
-        {/* B1-08 运行状态条：仅在收到 v2 `run_started` 时渲染（旧后端不产生 → 无变化）。 */}
-        <RunStatusBar
-          info={
-            message.run
-              ? {
-                  ...message.run,
-                  providerLabel: message.providerInfo?.provider
-                    ? providerLabel(message.providerInfo.provider)
-                    : undefined,
-                }
-              : undefined
-          }
-        />
-
         {/* 过程证据（B1-08）：有 v2 步骤时用证据面板（含目标/依据），否则回退 M1-04 时间线。
             pending 条目由上方卡片承载，两者都不重复展示。 */}
         {message.steps && message.steps.length > 0 ? (
@@ -276,6 +264,16 @@ export const ChatMessageItem: React.FC<ChatMessageItemProps> = ({
             steps={message.steps}
             toolEvents={message.toolEvents}
             detailsByInvocation={detailsById}
+            run={
+              message.run
+                ? {
+                    ...message.run,
+                    providerLabel: message.providerInfo?.provider
+                      ? providerLabel(message.providerInfo.provider)
+                      : undefined,
+                  }
+                : undefined
+            }
           />
         ) : (
           <ToolCallTimeline events={message.toolEvents} hideStatuses={PENDING_HIDDEN_STATUSES} />

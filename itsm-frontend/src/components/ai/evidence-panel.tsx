@@ -10,7 +10,7 @@
  *
  * 兼容：旧后端不产生 v2 事件 → 面板不渲染，AIChat 回退既有 `ToolCallTimeline`（M1-04）。
  *
- * 交互：面板默认折叠（标题常驻「步骤 N · 工具调用 M」计数，点击标题展开/收起）；
+ * 交互：面板默认折叠（折叠态只显示「过程证据」，计数/运行号/耗时在展开后显示）；
  * 加载错误是降级信号，不随折叠隐藏。
  */
 import React, { useMemo, useState } from 'react';
@@ -19,7 +19,7 @@ import { ChevronDown, ChevronRight, CircleDashed, Wrench } from 'lucide-react';
 
 import type { AIRunStepEvent, AIToolStreamEvent } from '@/lib/api/ai-api';
 import { mergeToolEvents } from './tool-call-timeline';
-import { formatDuration } from './run-status-bar';
+import RunStatusBar, { formatDuration, type RunSnapshot } from './run-status-bar';
 
 /** 目标对象元信息（来自 invoke 详情；M0-03/B0-02 联合字段）。 */
 export interface EvidenceTargetMeta {
@@ -64,6 +64,8 @@ export interface EvidencePanelProps {
   onOpenTarget?: (targetType: string, targetId: string) => void;
   /** 证据加载错误（如 run 档案接口失败）；展示为只读提示，不影响回答本身。 */
   error?: string;
+  /** 运行快照；仅展开后显示，避免把 run#/步骤/耗时暴露给普通阅读路径。 */
+  run?: RunSnapshot;
 }
 
 /**
@@ -77,12 +79,13 @@ export const EvidencePanel: React.FC<EvidencePanelProps> = ({
   detailsByInvocation,
   onOpenTarget,
   error,
+  run,
 }) => {
   const { token } = theme.useToken();
   const orderedSteps = useMemo(() => [...(steps ?? [])].sort((a, b) => a.stepIndex - b.stepIndex), [steps]);
   const tools = useMemo(() => mergeToolEvents(toolEvents), [toolEvents]);
   const isEmpty = orderedSteps.length === 0 && tools.length === 0;
-  // 默认折叠：过程证据是旁路信息（答案由消息正文承载），标题保留计数供扫读。
+  // 默认折叠：过程证据是旁路信息（答案由消息正文承载），展开后才显示诊断细节。
   const [expanded, setExpanded] = useState(false);
   const toggle = () => setExpanded(v => !v);
 
@@ -98,7 +101,7 @@ export const EvidencePanel: React.FC<EvidencePanelProps> = ({
         border: `1px solid ${token.colorBorderSecondary}`,
       }}
     >
-      {/* 标题行即开关：折叠时保留计数（步骤 N · 工具调用 M），展开后才渲染明细。 */}
+      {/* 标题行即开关：折叠态不暴露 run#/计数/耗时，展开后才渲染明细。 */}
       <div
         role="button"
         tabIndex={0}
@@ -118,9 +121,11 @@ export const EvidencePanel: React.FC<EvidencePanelProps> = ({
         <Typography.Text strong style={{ fontSize: 12 }}>
           过程证据
         </Typography.Text>
-        <Typography.Text type="secondary" style={{ fontSize: 12 }}>
-          步骤 {orderedSteps.length} · 工具调用 {tools.length}
-        </Typography.Text>
+        {expanded ? (
+          <Typography.Text type="secondary" style={{ fontSize: 12 }}>
+            步骤 {orderedSteps.length} · 工具调用 {tools.length}
+          </Typography.Text>
+        ) : null}
       </div>
 
       {/* 加载失败是降级信号：不藏进折叠区，折叠态也保持可见。 */}
@@ -133,6 +138,12 @@ export const EvidencePanel: React.FC<EvidencePanelProps> = ({
       {expanded && isEmpty && !error ? (
         <div style={{ marginTop: 6, fontSize: 12, color: token.colorTextSecondary }} data-testid="evidence-empty">
           本次运行没有可展示的过程证据。
+        </div>
+      ) : null}
+
+      {expanded && run ? (
+        <div data-testid="evidence-run">
+          <RunStatusBar info={run} />
         </div>
       ) : null}
 

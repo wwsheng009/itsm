@@ -1362,6 +1362,11 @@ export interface AIToolStreamEvent {
 /** 工具事件回调（四种事件共用；status 区分阶段）。 */
 export type AIToolStreamCallback = (event: AIToolStreamEvent) => void;
 
+/** 流式错误帧的结构化补充（旧后端只发 message 时为空）。 */
+export interface AIChatStreamErrorInfo {
+  errorCode?: string;
+}
+
 export interface AIChatStreamCallbacks {
   onSources?: (sources: RagAnswer[]) => void;
   onDelta?: (delta: string) => void;
@@ -1381,7 +1386,7 @@ export interface AIChatStreamCallbacks {
    */
   onUnknownEvent?: (event: string, data: unknown) => void;
   onDone?: (conversationId: number, info?: AIChatDoneInfo) => void;
-  onError?: (message: string) => void;
+  onError?: (message: string, info?: AIChatStreamErrorInfo) => void;
 }
 
 // —— B2-04 工作区 Bot 选择器 ——
@@ -1711,8 +1716,11 @@ export async function aiChatStream(
             break;
           }
           case 'error': {
-            const payload = data as { message?: string };
-            callbacks.onError?.(payload?.message ?? 'unknown stream error');
+            const payload = data as { message?: string; errorCode?: string };
+            callbacks.onError?.(
+              payload?.message ?? 'unknown stream error',
+              payload?.errorCode ? { errorCode: payload.errorCode } : undefined
+            );
             break;
           }
           // M1-03 工具事件：四种事件共用同一回调，status 已由后端给出；

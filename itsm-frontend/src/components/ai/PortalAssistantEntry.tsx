@@ -2,7 +2,7 @@
  * V1-02 门户入口：员工自助门户（服务目录等）的助手形态。
  *
  * 场景：员工在门户里「不知道选哪个服务 / 不知道从哪提」——入口把问题交给常驻 Dock，
- * 并预填提示词（只读建议；不自动提交任何申请/表单）。
+ * 并预填提示词（只给建议；不直接提交，写操作需人工审批）。
  * 门禁：`ai:read`（与 Dock/Header 同码），无权限不渲染。
  * 埋点：复用既有事件 `assistant_opened`（source=launcher），事件字典零变更。
  */
@@ -18,9 +18,9 @@ import { useI18n } from '@/lib/i18n/useI18n';
 export const PORTAL_ASSISTANT_ENTRY_TESTID = 'portal-assistant-entry';
 export const PORTAL_ASSISTANT_ENTRY_OPEN_TESTID = 'portal-assistant-entry-open';
 
-/** 缺省提示词：与 service.catalog 注册表的「该选哪个服务？」建议同义（只读、不提交）。 */
+/** 缺省提示词：与 service.catalog 注册表的「该选哪个服务？」建议同义（先判断，不直接提交）。 */
 const DEFAULT_PORTAL_PROMPT =
-  '我遇到一个问题，不确定该走哪个服务目录条目或工单类型，请帮我判断并说明理由（只读，不提交申请）。';
+  '我遇到一个问题，不确定该走哪个服务目录条目或工单类型，请先帮我判断并说明理由；不要直接提交，写操作请走人工审批。';
 
 const { Text } = Typography;
 

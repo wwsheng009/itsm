@@ -100,9 +100,9 @@ describe('错误字典（原因码 → 文案 → 动作）', () => {
     }
   });
 
-  it('命中原因码返回对应动作（配置缺失 → 去配置；预算 → 知道了）', () => {
+  it('命中原因码返回对应动作（配置缺失 → 去配置；预算 → 拆分后重试）', () => {
     expect(resolveAssistantErrorCopy('AI_PROVIDER_KEY_MISSING').action).toBe('open_settings');
-    expect(resolveAssistantErrorCopy('budget_exceeded').action).toBe('dismiss');
+    expect(resolveAssistantErrorCopy('budget_exceeded').action).toBe('retry');
     expect(resolveAssistantErrorCopy('approval_expired').action).toBe('open_approval');
   });
 

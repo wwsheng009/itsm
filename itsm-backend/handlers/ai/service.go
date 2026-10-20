@@ -1792,8 +1792,10 @@ func (s *Service) chatStreamInner(
 		// 事件元数据取自同一解析入口（含 MCP 来源与读写性质）；解析不到（未知工具）
 		// 时仍发事件，让「失败」在界面上可见，而不是静默消失。
 		event := ToolStreamEvent{Tool: name, Provider: service.ProviderNameBuiltin, Phase: "read"}
+		var toolDef *service.ToolDefinition
 		if s.tools != nil {
 			if def := s.tools.GetToolForTenant(ctx, tenantID, name); def != nil {
+				toolDef = def
 				event.Provider = def.Provider
 				if event.Provider == "" {
 					event.Provider = service.ProviderNameBuiltin
@@ -1807,6 +1809,29 @@ func (s *Service) chatStreamInner(
 		emit := func(ev ToolStreamEvent) {
 			if onTool != nil {
 				onTool(ev)
+			}
+		}
+
+		// 写操作歧义闸门：指代不唯一时，在执行点拒绝创建审批单。
+		// 提示词已要求模型澄清；这里再做一次确定性兜底，避免模型跳过澄清直接写库。
+		if toolDef != nil && !toolDef.ReadOnly {
+			if reason := ambiguousWriteReason(query); reason != "" {
+				event.Status = ToolEventStatusFailed
+				event.ErrorCode = "write_intent_ambiguous"
+				event.Summary = "写操作需要先澄清指代，未创建审批单"
+				event.DurationMs = 1
+				emit(event)
+				// 返回结构化结果而不是 error：让模型直接据此向用户澄清，
+				// 避免把“需要澄清”误判为执行失败后反复重试写工具、继续消耗预算。
+				return map[string]any{
+					"status":          "clarification_required",
+					"errorCode":       "write_intent_ambiguous",
+					"ambiguousPhrase": reason,
+					"executed":        false,
+					"approvalCreated": false,
+					"message": "写操作未执行、未创建审批单。请先在回答中列出候选（工单类型、编号、标题或资产编号），" +
+						"请用户明确选择后再调用写工具；不得自行猜测类型或对象。",
+				}, nil
 			}
 		}
 

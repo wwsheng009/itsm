@@ -48,4 +48,6 @@ export interface ChatMessage {
    */
   usage?: AIUsageEstimate;
   error?: string;
+  /** 流式错误码（如 budget_exceeded）；旧后端缺省。 */
+  errorCode?: string;
 }

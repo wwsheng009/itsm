@@ -149,11 +149,18 @@ describe('AssistantHelpPanel（H0-04 面板帮助视图）', () => {
     );
   });
 
-  it('未注册页面：提示未注册且不请求页面帮助', async () => {
+  it('未注册页面：显示“暂无帮助文档”且提供推荐搜索入口，不请求页面帮助', async () => {
+    mockedSearch.mockResolvedValue({ results: [] });
     renderPanel('/no/such/page');
 
-    expect(await screen.findByTestId('help-unknown-page')).toHaveTextContent('未注册页面键');
+    const alert = await screen.findByTestId('help-unknown-page');
+    expect(alert).toHaveTextContent('当前页面暂无帮助文档');
+    expect(alert).not.toHaveTextContent('未注册页面键');
+    expect(screen.getByTestId('help-status')).toHaveTextContent('暂无帮助');
     expect(mockedPageHelp).not.toHaveBeenCalled();
+
+    fireEvent.click(screen.getByTestId('help-topic-topicProgress'));
+    await waitFor(() => expect(mockedSearch).toHaveBeenCalledWith('请求进度', undefined, 5));
   });
 
   it('H1-01：缺失页面上报 help_gap（含 coverageStatus 与 route）', async () => {

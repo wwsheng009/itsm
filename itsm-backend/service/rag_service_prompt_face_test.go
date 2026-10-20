@@ -63,6 +63,8 @@ func TestBuildToolAwareSystemPrompt_BuiltinFaceKeepsClosureGuidance(t *testing.T
 
 	assert.Contains(t, prompt, "可先用 list_tickets 查询确认", "list_tickets 在场时保留口语纠正提示")
 	assert.Contains(t, prompt, "写工具（create_ticket、link_ticket_ci）会进入人工审批流", "写工具须逐个点名并说明审批口径")
+	assert.Contains(t, prompt, "写操作前必须消除歧义", "写工具在场时必须要求先澄清不唯一指代")
+	assert.Contains(t, prompt, "不得自行猜测工单类型", "不得把“第二张单”等指代猜成事件单")
 	assert.Contains(t, prompt, "(a) 用 list_cis 定位 CI")
 	assert.Contains(t, prompt, "(b) 建单时带 ci_id")
 	assert.Contains(t, prompt, "(c) 若用户先报障建单")

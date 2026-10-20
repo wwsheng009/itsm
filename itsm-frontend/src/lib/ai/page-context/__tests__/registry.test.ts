@@ -93,4 +93,15 @@ describe('页面助手注册表契约（D0-03 / I0-02）', () => {
       }
     }
   });
+
+  it('服务请求页提供高频入口：进度、账号开通、设备故障', () => {
+    const declaration = PAGE_ASSISTANT_REGISTRY.find(item => item.pageKey === 'service.requests');
+    expect(declaration).toBeDefined();
+    expect(declaration?.pattern).toBe('/service-requests');
+    const actions = declaration ? flattenPageActions(declaration) : [];
+    expect(actions.map(action => action.label)).toEqual(
+      expect.arrayContaining(['查我的请求进度', '我要开通账号', '我的设备坏了'])
+    );
+    expect(actions.every(action => action.readOnly)).toBe(true);
+  });
 });

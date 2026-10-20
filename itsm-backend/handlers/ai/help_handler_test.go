@@ -154,7 +154,7 @@ func TestGetPageHelp_KnownAndUnknownPage(t *testing.T) {
 	assert.Equal(t, "docs/help/tickets/detail.md", resp.Data.Docs[0].Path)
 	assert.Contains(t, resp.Data.Docs[0].Text, "分诊建议")
 	assert.Equal(t, 1.0, resp.Data.Coverage.Coverage)
-	assert.Equal(t, 21, resp.Data.Coverage.Totals["pages"])
+	assert.Equal(t, 22, resp.Data.Coverage.Totals["pages"])
 
 	// 未知页面：status=unknown、docs 为空（面板降级"暂无文档"）。
 	w = getJSON(r, "/api/v1/ai/help/page?pageKey=no.such.page")

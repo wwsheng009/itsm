@@ -2,7 +2,7 @@
  * 工具调用时间线测试（M1-04，jsdom + @testing-library/react）。
  *
  * 覆盖任务卡要求的四条：正常序列 / 失败序列 / 无事件降级 / 超长输出折叠与截断标记，
- * 以及面板级默认折叠（标题计数常驻、点击展开/收起），
+ * 以及面板级默认折叠（折叠态不暴露计数、展开后显示计数），
  * 另补两条边界：同名工具多次调用不互相覆盖、事件丢失时终态事件自建条目（不丢过程）。
  *
  * 安全断言：工具输出按纯文本渲染——`<img onerror>` 之类的载荷只能以文本出现，不得进入 DOM。
@@ -26,12 +26,13 @@ const mcpList = (status: string, extra: Partial<AIToolStreamEvent> = {}): AITool
 const expandPanel = () => fireEvent.click(screen.getByTestId('tool-call-timeline-toggle'));
 
 describe('ToolCallTimeline', () => {
-  it('默认折叠：标题与计数常驻，条目收起；点击标题可展开/收起', () => {
+  it('默认折叠：折叠态只显示标题、不暴露计数；点击标题可展开/收起', () => {
     render(<ToolCallTimeline events={[mcpList('started'), mcpList('done', { summary: '{"issues":[]}' })]} />);
 
     const toggle = screen.getByTestId('tool-call-timeline-toggle');
     expect(toggle).toHaveAttribute('aria-expanded', 'false');
-    expect(toggle).toHaveTextContent('工具调用 · 1');
+    expect(toggle).toHaveTextContent('工具调用');
+    expect(toggle).not.toHaveTextContent('工具调用 · 1');
     expect(screen.queryByText('mcp__mock__list_issues')).toBeNull();
 
     expandPanel();

@@ -97,6 +97,12 @@ const AssistantComposer: React.FC<AssistantComposerProps> = ({
   const [focused, setFocused] = useState(false);
   // 流式生成中禁止再选附件：否则新附件会滞留到下一轮（与"本轮已发出"的语义不符）。
   const attachmentsLocked = attachmentDisabled || streaming;
+  const asyncTooltip =
+    attachments.length > 0
+      ? t('assistant.attachment.asyncUnsupported')
+      : !query.trim()
+        ? t('assistant.panel.asyncRequiresPrompt')
+        : t('assistant.panel.asyncStartTooltip');
 
   return (
     <div data-testid={testId}>
@@ -239,23 +245,24 @@ const AssistantComposer: React.FC<AssistantComposerProps> = ({
           {extraActions}
 
           {onStartAsync ? (
-            <Tooltip
-              title={
-                attachments.length > 0
-                  ? t('assistant.attachment.asyncUnsupported')
-                  : t('assistant.panel.asyncStartTooltip')
-              }
-            >
-              <Button
-                data-testid="assistant-async-start"
-                type="text"
-                size="small"
-                style={ICON_BUTTON_STYLE}
-                icon={<Sparkles size={15} />}
-                onClick={onStartAsync}
-                disabled={!query.trim() || attachments.length > 0}
-                aria-label={t('assistant.panel.asyncStart')}
-              />
+            <Tooltip title={asyncTooltip}>
+              {/* disabled 的 antd Button 不派发鼠标事件；外层 span 保证 tooltip 仍可见。 */}
+              <span
+                data-testid="assistant-async-tooltip"
+                style={{ display: 'inline-flex' }}
+                aria-label={asyncTooltip}
+              >
+                <Button
+                  data-testid="assistant-async-start"
+                  type="text"
+                  size="small"
+                  style={ICON_BUTTON_STYLE}
+                  icon={<Sparkles size={15} />}
+                  onClick={onStartAsync}
+                  disabled={!query.trim() || attachments.length > 0}
+                  aria-label={t('assistant.panel.asyncStart')}
+                />
+              </span>
             </Tooltip>
           ) : null}
 

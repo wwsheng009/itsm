@@ -40,6 +40,7 @@ export const assistantTranslations = {
       emptyHint: '结合知识库回答当前页面的问题',
       inputPlaceholder: '请输入你的问题…',
       asyncStartTooltip: '后台精算：先看快速参考，完整回答完成后通知',
+      asyncRequiresPrompt: '请先输入问题，再使用后台精算',
       asyncStart: '后台精算',
       asyncStartFailed: '发起后台精算失败，请稍后重试',
       stopGenerating: '停止生成',
@@ -171,7 +172,7 @@ export const assistantTranslations = {
     portal: {
       title: '不知道该选哪个服务？',
       description:
-        '描述你遇到的问题，AI 帮你判断该走哪个服务/工单类型；只给建议，不自动提交申请。',
+        '描述你遇到的问题，AI 帮你判断该走哪个服务/工单类型；只给建议，不会直接提交，写操作需人工审批。',
       open: '让 AI 帮我选',
     },
     help: {
@@ -183,7 +184,7 @@ export const assistantTranslations = {
       statusOk: '已覆盖',
       statusStale: '需复核',
       statusMissing: '缺失',
-      statusUnknown: '未注册页面',
+      statusUnknown: '暂无帮助',
       statusQuerying: '查询中',
       distributed: '服务商分发',
       unboundNative: '已解绑·原生副本',
@@ -195,8 +196,12 @@ export const assistantTranslations = {
       missingAlert: '该页面暂无帮助文档',
       draftAlertDescription: '可让 AI 参考同类页面结构生成初稿（草稿只落产物，不发布）。',
       generateDraft: '让 AI 生成初稿',
-      unknownPage: '当前页面未注册页面键',
-      unknownPageDescription: '帮助视图仅对已注册页面提供（见页面注册表 D0-03）。',
+      unknownPage: '当前页面暂无帮助文档',
+      unknownPageDescription: '可以搜索帮助文档，或回到对话描述你遇到的问题。',
+      recommendedTopics: '推荐入口',
+      topicAccount: '账号开通',
+      topicDevice: '设备故障',
+      topicProgress: '请求进度',
       searchPlaceholder: '搜索帮助文档（如：SLA 违约）',
       noResults: '没有匹配的帮助文档',
     },
@@ -312,6 +317,7 @@ export const assistantTranslations = {
       inputPlaceholder: 'Type your question…',
       asyncStartTooltip:
         'Background refinement: get a quick reference now, and a notification when the full answer is ready',
+      asyncRequiresPrompt: 'Enter a question before starting background refinement',
       asyncStart: 'Background refinement',
       asyncStartFailed: 'Failed to start background refinement. Please try again later.',
       stopGenerating: 'Stop generating',
@@ -445,7 +451,7 @@ export const assistantTranslations = {
     portal: {
       title: 'Not sure which service to pick?',
       description:
-        'Describe your problem and AI will suggest the right service or ticket type; advice only, nothing is submitted.',
+        'Describe your problem and AI will suggest the right service or ticket type. Suggestions only; nothing is submitted directly, and write actions require human approval.',
       open: 'Let AI choose for me',
     },
     help: {
@@ -457,7 +463,7 @@ export const assistantTranslations = {
       statusOk: 'Covered',
       statusStale: 'Needs review',
       statusMissing: 'Missing',
-      statusUnknown: 'Unregistered page',
+      statusUnknown: 'No help yet',
       statusQuerying: 'Checking',
       distributed: 'Provider distribution',
       unboundNative: 'Unbound · native copy',
@@ -470,9 +476,13 @@ export const assistantTranslations = {
       draftAlertDescription:
         'Ask AI to draft one based on similar pages (draft only, not published).',
       generateDraft: 'Ask AI to draft',
-      unknownPage: 'This page has no registered page key',
+      unknownPage: 'No help document is available for this page yet',
       unknownPageDescription:
-        'Help view is available for registered pages only (see page registry D0-03).',
+        'Search the help documents, or return to the chat and describe your issue.',
+      recommendedTopics: 'Recommended',
+      topicAccount: 'Account provisioning',
+      topicDevice: 'Device failure',
+      topicProgress: 'Request progress',
       searchPlaceholder: 'Search help docs (e.g. SLA breach)',
       noResults: 'No matching help docs',
     },

@@ -51,6 +51,7 @@ import { useAssistantStore } from '@/lib/store/assistant-store';
 import { buildChatCss } from './chat-css';
 import { downloadTextFile } from '@/lib/utils/download-text-file';
 import { AUTO_SCROLL_THRESHOLD, nextId } from './constants';
+import { buildBudgetExceededFallback } from './stream-fallback';
 import type { ChatMessage } from './types';
 
 /**
@@ -569,15 +570,26 @@ export function useAIChatSession(options?: UseAIChatSessionOptions) {
                 )
               );
             },
-            onError: msg => {
+            onError: (msg, info) => {
               telemetry.onError(msg);
+              const errorCode = info?.errorCode;
               setMessages(prev =>
                 prev.map(m =>
                   m.id === assistantId
                     ? {
                         ...m,
+                        content:
+                          errorCode === 'budget_exceeded'
+                            ? [m.content.trim(), buildBudgetExceededFallback(m)]
+                                .filter(Boolean)
+                                .join('\n\n')
+                            : m.content,
                         streaming: false,
-                        error: msg,
+                        error:
+                          errorCode === 'budget_exceeded'
+                            ? '工具调用预算已用尽，以上为当前保留结果'
+                            : msg,
+                        errorCode,
                         run: m.run ? { ...m.run, status: 'failed' } : undefined,
                       }
                     : m
@@ -701,7 +713,10 @@ export function useAIChatSession(options?: UseAIChatSessionOptions) {
   const handleKeyDown = useCallback(
     (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
       if (e.key !== 'Enter' || e.shiftKey) return;
-      if (e.nativeEvent.isComposing) return;
+      // 部分 Chromium/输入法在组合结束后仍把 Enter 标为 isComposing=true，
+      // 导致提示“Enter 发送”但实际无响应。229 才是输入法提交键的稳定信号；
+      // 普通 Enter（keyCode 13）即使残留 isComposing 也应按发送处理。
+      if (e.nativeEvent.isComposing && e.nativeEvent.keyCode === 229) return;
       e.preventDefault();
       handleSend();
     },

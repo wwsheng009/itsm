@@ -452,6 +452,7 @@ const AssistantChatPanel: React.FC<AssistantChatPanelProps> = ({ helpEnabled = t
       <AssistantInteractionBanner
         state={interactionState}
         runningTool={runningTool}
+        errorCode={lastAssistant?.errorCode}
         errorDetail={lastAssistant?.error}
         onAction={action => {
           if (action === 'retry') {

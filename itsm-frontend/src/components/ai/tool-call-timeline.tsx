@@ -198,7 +198,7 @@ export const ToolCallTimeline: React.FC<ToolCallTimelineProps> = ({
       >
         {panelOpen ? <ChevronDown size={12} /> : <ChevronRight size={12} />}
         <Typography.Text type="secondary" style={{ fontSize: 12 }}>
-          {title} · {entries.length}
+          {panelOpen ? `${title} · ${entries.length}` : title}
         </Typography.Text>
       </div>
       {panelOpen ? (

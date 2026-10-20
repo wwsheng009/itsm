@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-10-18T20:58:58.786Z",
+  "generatedAt": "2026-10-20T05:05:19.216Z",
   "note": "H0-02 生成物：由 itsm-frontend/scripts/gen-page-manifest.mjs 从页面注册表 + 帮助文档生成，禁止手改。",
   "pages": [
     {
@@ -396,6 +396,34 @@
         },
         {
           "id": "which_service",
+          "kind": "question",
+          "readOnly": true
+        }
+      ]
+    },
+    {
+      "pageKey": "service.requests",
+      "pattern": "/service-requests",
+      "title": "服务请求",
+      "entrypoint": "chat",
+      "scene": null,
+      "docs": [
+        "docs/help/service-requests.md"
+      ],
+      "status": "ok",
+      "suggestions": [
+        {
+          "id": "request_progress",
+          "kind": "task",
+          "readOnly": true
+        },
+        {
+          "id": "open_account",
+          "kind": "question",
+          "readOnly": true
+        },
+        {
+          "id": "device_broken",
           "kind": "question",
           "readOnly": true
         }

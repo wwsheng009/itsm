@@ -47,7 +47,8 @@ describe('EvidencePanel (B1-08)', () => {
     const toggle = screen.getByTestId('evidence-toggle');
     expect(toggle).toHaveAttribute('aria-expanded', 'false');
     expect(toggle).toHaveTextContent('过程证据');
-    expect(toggle).toHaveTextContent('步骤 2 · 工具调用 2');
+    expect(toggle).not.toHaveTextContent('步骤 2');
+    expect(toggle).not.toHaveTextContent('工具调用 2');
     expect(screen.queryByTestId('evidence-tool-0')).not.toBeInTheDocument();
     expect(screen.queryByTestId('evidence-step-1')).not.toBeInTheDocument();
 
@@ -154,6 +155,24 @@ describe('EvidencePanel (B1-08)', () => {
     render(<EvidencePanel error="run 档案读取失败" />);
     // 错误是降级信号：折叠态也可见，不要求用户先展开。
     expect(screen.getByTestId('evidence-error')).toHaveTextContent('run 档案读取失败');
+  });
+
+  it('run 过程信息默认收起，展开后才显示 run#/步骤/耗时', () => {
+    render(
+      <EvidencePanel
+        steps={steps}
+        run={{ runId: 42, status: 'done', stepCount: 2, lastStepType: 'tool', lastDurationMs: 800 }}
+      />
+    );
+
+    expect(screen.queryByTestId('run-status-bar')).not.toBeInTheDocument();
+    expect(screen.queryByText('run#42')).not.toBeInTheDocument();
+    expect(screen.getByTestId('evidence-toggle')).not.toHaveTextContent('步骤 2');
+
+    expandPanel();
+    expect(screen.getByTestId('evidence-run')).toBeInTheDocument();
+    expect(screen.getByTestId('run-status-bar')).toHaveTextContent('run#42');
+    expect(screen.getByTestId('evidence-toggle')).toHaveTextContent('步骤 2 · 工具调用 0');
   });
 });
 

@@ -462,6 +462,40 @@ export const PAGE_ASSISTANT_REGISTRY: readonly PageAssistantDeclaration[] = [
     ],
   },
   {
+    pageKey: 'service.requests',
+    pattern: '/service-requests',
+    title: '服务请求',
+    entrypoint: 'chat',
+    tasks: [
+      {
+        id: 'request_progress',
+        kind: 'task',
+        label: '查我的请求进度',
+        prompt:
+          '查询我最近提交的服务请求进度，按状态列出，并指出下一步需要我做什么（只读，不直接提交任何变更）。',
+        readOnly: true,
+      },
+    ],
+    questions: [
+      {
+        id: 'open_account',
+        kind: 'question',
+        label: '我要开通账号',
+        prompt:
+          '我要开通 VPN、邮箱或业务账号，请判断该走哪类服务请求，并列出需要准备的信息（先确认类型，不要直接提交）。',
+        readOnly: true,
+      },
+      {
+        id: 'device_broken',
+        kind: 'question',
+        label: '我的设备坏了',
+        prompt:
+          '我的设备坏了，请判断应报事件单还是服务请求，并说明需要补充的设备信息（只读）。',
+        readOnly: true,
+      },
+    ],
+  },
+  {
     pageKey: 'dashboard',
     pattern: '/dashboard',
     title: '仪表盘',

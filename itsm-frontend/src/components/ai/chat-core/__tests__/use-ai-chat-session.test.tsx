@@ -141,6 +141,59 @@ describe('useAIChatSession（D0-01 抽离后的会话内核）', () => {
     );
   });
 
+  it('预算超限：保留工具线索并输出降级答案，而不是空白错误', async () => {
+    mockedStream.mockImplementation(async (_req, callbacks) => {
+      callbacks?.onToolEvent?.({
+        tool: 'help_search',
+        provider: 'builtin',
+        phase: 'read',
+        status: 'done',
+        summary: '命中《VPN 开通指引》',
+      });
+      callbacks?.onError?.('本次对话已超出工具调用预算', { errorCode: 'budget_exceeded' });
+      return 0;
+    });
+
+    const { result } = renderHook(() => useAIChatSession(), { wrapper });
+    await waitFor(() => expect(mockedListConversations).toHaveBeenCalled());
+
+    await act(async () => {
+      result.current.handleSend('VPN 和邮箱开通，该走哪种单');
+    });
+
+    await waitFor(() => expect(result.current.messages).toHaveLength(2));
+    expect(result.current.messages[1]).toMatchObject({
+      role: 'assistant',
+      streaming: false,
+      errorCode: 'budget_exceeded',
+      error: '工具调用预算已用尽，以上为当前保留结果',
+    });
+    expect(result.current.messages[1].content).toContain('未能生成完整回答');
+    expect(result.current.messages[1].content).toContain('命中《VPN 开通指引》');
+    expect(result.current.messages[1].content).toContain('把问题拆成两个更具体的请求');
+  });
+
+  it('Enter：残留 isComposing 但 keyCode=13 时仍发送（修复提示与行为不一致）', async () => {
+    mockedStream.mockResolvedValue(3);
+    const { result } = renderHook(() => useAIChatSession(), { wrapper });
+    await waitFor(() => expect(mockedListConversations).toHaveBeenCalled());
+
+    act(() => {
+      result.current.setQuery('请总结我的工单');
+    });
+    await act(async () => {
+      result.current.handleKeyDown({
+        key: 'Enter',
+        shiftKey: false,
+        preventDefault: jest.fn(),
+        nativeEvent: { isComposing: true, keyCode: 13 },
+      } as unknown as React.KeyboardEvent<HTMLTextAreaElement>);
+    });
+
+    await waitFor(() => expect(mockedStream).toHaveBeenCalled());
+    expect(result.current.messages[0]).toMatchObject({ role: 'user', content: '请总结我的工单' });
+  });
+
   it('T5-03b：待发送附件进入消息与请求体，并在发送后清空', async () => {
     mockedStream.mockResolvedValue(8);
     const attachments = [

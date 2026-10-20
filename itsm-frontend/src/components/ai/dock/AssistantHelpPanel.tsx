@@ -319,7 +319,39 @@ const AssistantHelpPanel: React.FC<AssistantHelpPanelProps> = ({ onDraft }) => {
             type="info"
             showIcon
             message={t('assistant.help.unknownPage')}
-            description={t('assistant.help.unknownPageDescription')}
+            description={
+              <div>
+                <div>{t('assistant.help.unknownPageDescription')}</div>
+                <div
+                  data-testid="help-recommended-topics"
+                  style={{ marginTop: 8, display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}
+                >
+                  <Text type="secondary" style={{ fontSize: 12 }}>
+                    {t('assistant.help.recommendedTopics')}
+                  </Text>
+                  {[
+                    ['assistant.help.topicAccount', '账号开通'],
+                    ['assistant.help.topicDevice', '设备故障'],
+                    ['assistant.help.topicProgress', '请求进度'],
+                  ].map(([key, fallback]) => {
+                    const topic = t(key) || fallback;
+                    return (
+                      <Button
+                        key={key}
+                        size="small"
+                        data-testid={`help-topic-${key.split('.').pop()}`}
+                        onClick={() => {
+                          setQuery(topic);
+                          void handleSearch(topic);
+                        }}
+                      >
+                        {topic}
+                      </Button>
+                    );
+                  })}
+                </div>
+              </div>
+            }
             data-testid="help-unknown-page"
           />
         ) : null}

@@ -909,8 +909,10 @@ func (r *RAGService) AskWithLLMStreamWithToolsAndHistory(
 	face = sortedToolFace(face)
 	// 函数调用 schema 与系统提示词同源派生，杜绝「提示词说有、实际没下发」的错位。
 	tools := make([]LLMTool, 0, len(face))
+	readOnly := make(map[string]bool, len(face))
 	for _, entry := range face {
 		tools = append(tools, entry.Tool)
+		readOnly[strings.TrimSpace(entry.Tool.Name)] = entry.ReadOnly
 	}
 	if maxResults <= 0 {
 		maxResults = 5
@@ -969,6 +971,11 @@ func (r *RAGService) AskWithLLMStreamWithToolsAndHistory(
 	messages := chatMessagesWithHistory(buildToolAwareSystemPrompt(face), history, prompt)
 
 	// 工具循环：模型发起调用 → 执行 → 结果回填 → 再请求，直到模型给出最终回答
+	//
+	// 同一轮内对相同参数的只读工具调用做结果复用：模型偶尔会在一次响应里重复发起
+	// `help_search` 等完全相同的检索，既浪费工具预算也拉长首答时延。写工具永不缓存
+	// （即使参数相同，也应按审批/幂等语义走正式执行路径）。
+	readCache := make(map[string]any)
 	for round := 0; round < maxToolRounds; round++ {
 		var toolCalls []LLMToolCall
 		if err := gateway.ChatStreamWithTools(ctx, "", messages, tools, onDelta, func(tcs []LLMToolCall) {
@@ -986,13 +993,28 @@ func (r *RAGService) AskWithLLMStreamWithToolsAndHistory(
 		for _, tc := range toolCalls {
 			var result any
 			var execErr error
-			if execTool != nil {
-				result, execErr = execTool(tc.Name, parseToolArgs(tc.Arguments))
-			} else {
-				execErr = fmt.Errorf("no tool executor provided")
+			toolName := strings.TrimSpace(tc.Name)
+			args := parseToolArgs(tc.Arguments)
+			cacheKey := ""
+			cachedHit := false
+			if readOnly[toolName] {
+				cacheKey = toolCallCacheKey(toolName, args)
+				if cached, ok := readCache[cacheKey]; ok {
+					result = cached
+					cachedHit = true
+				}
+			}
+			if !cachedHit {
+				if execTool != nil {
+					result, execErr = execTool(toolName, args)
+				} else {
+					execErr = fmt.Errorf("no tool executor provided")
+				}
 			}
 			if execErr != nil {
 				result = map[string]any{"error": execErr.Error()}
+			} else if cacheKey != "" {
+				readCache[cacheKey] = result
 			}
 			b, marshalErr := json.Marshal(result)
 			if marshalErr != nil {
@@ -1092,15 +1114,20 @@ func buildToolAwareSystemPrompt(face []ToolFaceEntry) string {
 		}
 		b.WriteString("\n")
 	}
+	ruleNo := 4
 	if len(writes) > 0 {
-		b.WriteString("4. 写工具（")
+		b.WriteString(fmt.Sprintf("%d. 写操作前必须消除歧义：如果用户用“第二张/上一张/那个/这张”等指代，或要求“随便/任意”选择工单、资产、类型，而当前上下文没有唯一、明确的对象 ID 或已确认映射，**不得调用写工具**。必须先反问并列出候选（类型 + 编号 + 标题），待用户确认后再提交审批；不得自行猜测工单类型（事件单/服务请求）或绑定对象。\n", ruleNo))
+		ruleNo++
+		b.WriteString(fmt.Sprintf("%d. 写工具（", ruleNo))
 		b.WriteString(strings.Join(writes, "、"))
 		b.WriteString("）会进入人工审批流：调用后必须明确告知用户“已提交、待人工审批”，并说明审批通过后才正式生效；不要声称变更已直接完成。\n")
+		ruleNo++
 	} else {
-		b.WriteString("4. 本次会话**未挂载写工具**（建单、改单、建工单类型、关联 CI 等写操作不可用）：若用户要求这类操作，请如实说明当前会话无法执行，并建议其改用默认助手或为该 Bot 授权对应工具；不要归因为“MCP 服务未挂载”，也不要声称已提交审批。\n")
+		b.WriteString(fmt.Sprintf("%d. 本次会话**未挂载写工具**（建单、改单、建工单类型、关联 CI 等写操作不可用）：若用户要求这类操作，请如实说明当前会话无法执行，并建议其改用默认助手或为该 Bot 授权对应工具；不要归因为“MCP 服务未挂载”，也不要声称已提交审批。\n", ruleNo))
+		ruleNo++
 	}
 	if steps := cmdbClosureGuidance(available); len(steps) > 0 {
-		b.WriteString("5. CMDB 本体关联（故障→配置项→工单）：当用户报告某台设备/数据库/服务/网络故障（如“HIS-DB-01 连接超时”“护士站电脑蓝屏”“PACS 上传失败”）时，先把受影响的配置项（CI）与本条对话对齐，形成 ITSM↔CMDB 本体闭环。操作顺序：\n")
+		b.WriteString(fmt.Sprintf("%d. CMDB 本体关联（故障→配置项→工单）：当用户报告某台设备/数据库/服务/网络故障（如“HIS-DB-01 连接超时”“护士站电脑蓝屏”“PACS 上传失败”）时，先把受影响的配置项（CI）与本条对话对齐，形成 ITSM↔CMDB 本体闭环。操作顺序：\n", ruleNo))
 		for _, step := range steps {
 			b.WriteString(step)
 			b.WriteString("\n")
@@ -1172,6 +1199,22 @@ func parseToolArgs(s string) map[string]any {
 		args["value"] = s
 	}
 	return args
+}
+
+// toolCallCacheKey 生成只读工具调用的稳定缓存键。
+//
+// encoding/json 对 map key 排序，因此同一组参数（键顺序不同）会得到相同结果；
+// 解析失败时返回空键，调用方按“不缓存”处理。
+func toolCallCacheKey(name string, args map[string]any) string {
+	key := strings.TrimSpace(name)
+	if key == "" {
+		return ""
+	}
+	raw, err := json.Marshal(args)
+	if err != nil {
+		return ""
+	}
+	return key + "\x00" + string(raw)
 }
 
 // IndexArticle adds a knowledge article to all available vector stores.
