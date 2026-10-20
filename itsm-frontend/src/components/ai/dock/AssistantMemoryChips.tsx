@@ -34,6 +34,7 @@ const RECENT_ACTION_KEYS: Record<string, string> = {
 export const ASSISTANT_MEMORY_CHIPS_TESTID = 'assistant-memory-chips';
 export const ASSISTANT_MEMORY_CHIP_TESTID = 'assistant-memory-chip';
 export const ASSISTANT_MEMORY_MANAGE_TESTID = 'assistant-memory-manage';
+export const ASSISTANT_MEMORY_TOOLBAR_TESTID = 'assistant-memory-toolbar';
 export const ASSISTANT_MEMORY_SAVE_PHRASE_TESTID = 'assistant-memory-save-phrase';
 export const ASSISTANT_MEMORY_SAVE_TEMPLATE_TESTID = 'assistant-memory-save-template';
 export const ASSISTANT_MEMORY_TEMPLATE_MODAL_TESTID = 'assistant-memory-template-modal';
@@ -55,9 +56,20 @@ export interface AssistantMemoryChipsProps {
   query: string;
   /** 点击 chip：只预填输入框（调用方负责 setQuery + 聚焦），绝不自动发送。 */
   onInsert: (text: string) => void;
+  /**
+   * composer 重构（2026-10-19）：
+   * - `stacked`（默认）：chip 行 + 管理按钮，保留给独立使用与既有测试；
+   * - `toolbar`：只渲染一个「记忆」图标按钮，chip 与保存/管理动作收进弹出层——
+   *   Dock 的 composer 工具条用这一形态，避免输入区被 3 个常驻按钮占满。
+   */
+  layout?: 'stacked' | 'toolbar';
 }
 
-const AssistantMemoryChips: React.FC<AssistantMemoryChipsProps> = ({ query, onInsert }) => {
+const AssistantMemoryChips: React.FC<AssistantMemoryChipsProps> = ({
+  query,
+  onInsert,
+  layout = 'stacked',
+}) => {
   const { token } = theme.useToken();
   const { message, modal } = App.useApp();
   const { t } = useI18n();
@@ -79,6 +91,9 @@ const AssistantMemoryChips: React.FC<AssistantMemoryChipsProps> = ({ query, onIn
   const [templateOpen, setTemplateOpen] = useState(false);
   const [templateName, setTemplateName] = useState('');
   const [templateBody, setTemplateBody] = useState('');
+  // composer 工具条形态：弹出层在「chip 列表」与「管理面」之间切换（单层弹层，避免叠两层）。
+  const [toolbarView, setToolbarView] = useState<'chips' | 'manage'>('chips');
+  const [toolbarOpen, setToolbarOpen] = useState(false);
   const shownRef = useRef(false);
 
   const chips = useMemo<MemoryChip[]>(
@@ -116,6 +131,22 @@ const AssistantMemoryChips: React.FC<AssistantMemoryChipsProps> = ({ query, onIn
 
   if (status === 'disabled') {
     if (!userDisabled) return null; // 租户策略 / 埋点 off：策略面处理，不渲染
+    // composer 工具条形态：只留一个小号「重新开启」图标，避免在 24px 工具条里塞整块文字。
+    if (layout === 'toolbar') {
+      return (
+        <Tooltip title={t('assistant.memory.disabled')}>
+          <Button
+            size="small"
+            type="text"
+            icon={<History size={13} />}
+            data-testid={ASSISTANT_MEMORY_REENABLE_TESTID}
+            aria-label={t('assistant.memory.reenable')}
+            onClick={() => void setUserEnabled(true)}
+            style={{ width: 28, height: 28, minWidth: 28, borderRadius: 8, padding: 0 }}
+          />
+        </Tooltip>
+      );
+    }
     return (
       <div style={{ marginBottom: 6, textAlign: 'right' }}>
         <Text type="secondary" style={{ fontSize: 11 }}>
@@ -298,6 +329,169 @@ const AssistantMemoryChips: React.FC<AssistantMemoryChipsProps> = ({ query, onIn
     </div>
   );
 
+  const chipNodes = chips.map(chip => (
+    <Tooltip
+      key={chip.id}
+      title={
+        chip.kind === 'template'
+          ? t('assistant.memory.chipTemplate', { name: chip.label })
+          : t('assistant.memory.chipPhrase')
+      }
+    >
+      <Tag
+        data-testid={ASSISTANT_MEMORY_CHIP_TESTID}
+        data-kind={chip.kind}
+        style={{
+          cursor: 'pointer',
+          margin: 0,
+          maxWidth: 180,
+          overflow: 'hidden',
+          textOverflow: 'ellipsis',
+          whiteSpace: 'nowrap',
+        }}
+        onClick={() => {
+          handleChip(chip);
+          // 工具条形态：选中即收起弹层，把视觉焦点交回输入框。
+          if (layout === 'toolbar') setToolbarOpen(false);
+        }}
+      >
+        {chip.label}
+      </Tag>
+    </Tooltip>
+  ));
+
+  /*
+   * composer 工具条形态：只暴露 1 个「记忆」图标按钮。
+   * chip 列表、保存动作与管理面全部收进弹出层——静止态输入区不再被记忆按钮占据。
+   */
+  if (layout === 'toolbar') {
+    const hasContent = chips.length > 0 || memory.recent.length > 0;
+    return (
+      <>
+        <Popover
+          trigger="click"
+          placement="topLeft"
+          open={toolbarOpen}
+          onOpenChange={next => {
+            setToolbarOpen(next);
+            // 每次重新打开都回到 chip 列表，避免停留在上次的管理面。
+            if (!next) setToolbarView('chips');
+          }}
+          title={t('assistant.memory.manageAria')}
+          content={
+            toolbarView === 'manage' ? (
+              <div data-testid="assistant-memory-toolbar-popover">{manageContent}</div>
+            ) : (
+              <div
+                style={{ width: 288 }}
+                data-testid="assistant-memory-toolbar-popover"
+              >
+                {hasContent ? (
+                  <div
+                    style={{
+                      display: 'flex',
+                      flexWrap: 'wrap',
+                      gap: 6,
+                      marginBottom: 8,
+                      maxHeight: 132,
+                      overflowY: 'auto',
+                    }}
+                  >
+                    {chipNodes}
+                  </div>
+                ) : (
+                  <Text type="secondary" style={{ fontSize: 11 }}>
+                    {t('assistant.memory.phrasesEmpty')}
+                  </Text>
+                )}
+                <div
+                  style={{
+                    display: 'flex',
+                    gap: 6,
+                    paddingTop: 8,
+                    borderTop: `1px solid ${token.colorBorderSecondary}`,
+                  }}
+                >
+                  <Button
+                    size="small"
+                    icon={<BookmarkPlus size={12} />}
+                    data-testid={ASSISTANT_MEMORY_SAVE_PHRASE_TESTID}
+                    disabled={!query.trim()}
+                    onClick={() => void handleSavePhrase()}
+                    style={{ flex: 1 }}
+                  >
+                    {t('assistant.memory.savePhraseAria')}
+                  </Button>
+                  <Button
+                    size="small"
+                    icon={<FileText size={12} />}
+                    data-testid={ASSISTANT_MEMORY_SAVE_TEMPLATE_TESTID}
+                    disabled={!query.trim()}
+                    onClick={openTemplateModal}
+                    style={{ flex: 1 }}
+                  >
+                    {t('assistant.memory.saveTemplateAria')}
+                  </Button>
+                </div>
+                <div style={{ marginTop: 6, textAlign: 'right' }}>
+                  <Button
+                    size="small"
+                    type="link"
+                    data-testid={ASSISTANT_MEMORY_MANAGE_TESTID}
+                    onClick={() => setToolbarView('manage')}
+                  >
+                    {t('assistant.memory.manageButton')}
+                  </Button>
+                </div>
+              </div>
+            )
+          }
+        >
+          <Button
+            size="small"
+            type="text"
+            icon={<History size={13} />}
+            data-testid={ASSISTANT_MEMORY_TOOLBAR_TESTID}
+            aria-label={t('assistant.memory.manageAria')}
+            aria-haspopup="dialog"
+          />
+        </Popover>
+        <Modal
+          title={t('assistant.memory.templateModalTitle')}
+          open={templateOpen}
+          onCancel={() => setTemplateOpen(false)}
+          onOk={() => void handleSaveTemplate()}
+          okText={t('assistant.memory.save')}
+          cancelText={t('assistant.panel.cancel')}
+          okButtonProps={{ disabled: !templateName.trim() }}
+        >
+          <div data-testid={ASSISTANT_MEMORY_TEMPLATE_MODAL_TESTID}>
+            <Input
+              placeholder={t('assistant.memory.templateNamePlaceholder', {
+                max: MEMORY_MAX_TEMPLATE_NAME_CHARS,
+              })}
+              value={templateName}
+              maxLength={MEMORY_MAX_TEMPLATE_NAME_CHARS}
+              onChange={e => setTemplateName(e.target.value)}
+              data-testid={ASSISTANT_MEMORY_TEMPLATE_NAME_TESTID}
+              style={{ marginBottom: 8 }}
+            />
+            <Input.TextArea
+              placeholder={t('assistant.memory.templateBodyPlaceholder', {
+                max: MEMORY_MAX_TEMPLATE_BODY_CHARS,
+              })}
+              value={templateBody}
+              maxLength={MEMORY_MAX_TEMPLATE_BODY_CHARS}
+              onChange={e => setTemplateBody(e.target.value)}
+              autoSize={{ minRows: 3, maxRows: 8 }}
+              data-testid={ASSISTANT_MEMORY_TEMPLATE_BODY_TESTID}
+            />
+          </div>
+        </Modal>
+      </>
+    );
+  }
+
   return (
     <div
       data-testid={ASSISTANT_MEMORY_CHIPS_TESTID}
@@ -316,6 +510,10 @@ const AssistantMemoryChips: React.FC<AssistantMemoryChipsProps> = ({ query, onIn
         </Tooltip>
       ))}
 
+      {/*
+        composer 重构：常驻按钮从 3 个（管理/存常用语/存模板）降为 1 个。
+        `data-testid` 保留在管理入口上，既有测试与埋点语义不变。
+      */}
       <Popover trigger="click" placement="topRight" content={manageContent}>
         <Button
           size="small"
@@ -328,6 +526,7 @@ const AssistantMemoryChips: React.FC<AssistantMemoryChipsProps> = ({ query, onIn
         </Button>
       </Popover>
 
+      {/* stacked 形态保留原有的两个常驻保存按钮（行为与 DOM 契约不变）。 */}
       <Tooltip title={t('assistant.memory.savePhraseTooltip')}>
         <Button
           size="small"

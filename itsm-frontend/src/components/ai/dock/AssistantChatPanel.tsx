@@ -24,9 +24,6 @@ import {
   ExternalLink,
   History,
   Plus,
-  Send,
-  Sparkles,
-  StopCircle,
   Trash2,
 } from 'lucide-react';
 import { useNavigate } from 'react-router';
@@ -44,13 +41,14 @@ import AssistantMemoryChips from './AssistantMemoryChips';
 import AssistantAsyncAnswerCard from './AssistantAsyncAnswerCard';
 import AssistantInteractionBanner from './AssistantInteractionBanner';
 import { deriveInteractionState } from '@/lib/ai/interaction-state';
-import { InputDockAssistMenu } from '@/components/ai/chat-core/InputDockAssistMenu';
 import { useInputDockAssist } from '@/components/ai/chat-core/use-input-dock-assist';
 import { useI18n } from '@/lib/i18n/useI18n';
 import type { ChatMessage } from '@/components/ai/chat-core/types';
 import HandoffActionCard from '@/components/ai/handoff/HandoffActionCard';
-import ChatAttachmentPicker from '@/components/ai/chat-core/ChatAttachmentPicker';
 import type { AIAttachmentRef } from '@/lib/api/ai-api';
+import { ACCEPT_ATTACHMENT_STRING } from '@/components/common/attachment/AttachmentField';
+import { CHAT_ATTACHMENT_INPUT_TESTID, useChatAttachments } from '@/components/ai/chat-core/use-chat-attachments';
+import AssistantComposer from './AssistantComposer';
 
 interface AssistantChatPanelProps {
   /** T5-05：`help.agent.enabled=false` 时隐藏帮助页签（默认开启）。 */
@@ -101,6 +99,14 @@ const AssistantChatPanel: React.FC<AssistantChatPanelProps> = ({ helpEnabled = t
     openOutcome,
     effectiveScope,
   } = useAIChatSession({ getAttachments, onAttachmentsSent: clearAttachments });
+
+  // composer 重构：附件上传链路与视图解耦——按钮进工具条、芯片在文本域上方。
+  // `disabled` 与流式状态同源，避免生成中把新附件塞进已发出的请求。
+  const attachmentState = useChatAttachments({
+    attachments: pendingAttachments,
+    onChange: setAttachments,
+    disabled: streaming,
+  });
 
   // P1：宽档位（≥560px）放宽输入行数；与 AssistantDock 的推挤阈值同源，避免两处漂移。
   const panelWidth = useAssistantStore(state => state.width);
@@ -504,15 +510,10 @@ const AssistantChatPanel: React.FC<AssistantChatPanelProps> = ({ helpEnabled = t
         <AssistantAsyncAnswerCard />
       </div>
 
-      {/* V2-01：个性化记忆条（常用语/模板/记忆管理；点击只预填，不发送）。 */}
-      <div style={{ flexShrink: 0, padding: '8px 12px 0' }}>
-        <AssistantMemoryChips query={query} onInsert={handleInsertMemory} />
-      </div>
-
       <div
         style={{
           flexShrink: 0,
-          padding: '8px 12px 8px',
+          padding: '8px 12px 6px',
           borderTop: `1px solid ${token.colorBorderSecondary}`,
         }}
       >
@@ -527,85 +528,48 @@ const AssistantChatPanel: React.FC<AssistantChatPanelProps> = ({ helpEnabled = t
           />
         ) : null}
 
-        {/* T5-03b：附件选择器与待发送芯片（Dock/工作区共用）。 */}
-        <div style={{ marginBottom: 6 }}>
-          <ChatAttachmentPicker
-            attachments={pendingAttachments}
-            onChange={setAttachments}
-            disabled={streaming}
-          />
-        </div>
-
-        <div
-          style={{
-            position: 'relative',
-            display: 'flex',
-            alignItems: 'flex-end',
-            gap: 8,
-            padding: '4px 4px 4px 12px',
-            borderRadius: 20,
-            border: `1px solid ${token.colorBorderSecondary}`,
-            background: token.colorBgContainer,
-          }}
-        >
-          <Input.TextArea
-            ref={inputRef}
-            data-testid="assistant-panel-input"
-            value={query}
-            onChange={e => setQuery(e.target.value)}
-            onKeyDown={inputAssist.handleKeyDown}
-            placeholder={t('assistant.panel.inputPlaceholder')}
-            // P1：宽档位（≥560px）给输入更多行数，长提示词不必在 6 行里滚动。
-            autoSize={{ minRows: 1, maxRows: widePanel ? 10 : 6 }}
-            variant="borderless"
-            style={{ padding: '6px 0', resize: 'none', fontSize: 13, lineHeight: 1.6 }}
-          />
-          <Tooltip
-            title={
-              pendingAttachments.length > 0
-                ? t('assistant.attachment.asyncUnsupported')
-                : t('assistant.panel.asyncStartTooltip')
-            }
-          >
-            <Button
-              data-testid="assistant-async-start"
-              shape="circle"
-              icon={<Sparkles size={15} />}
-              onClick={() => void handleStartAsync()}
-              disabled={!query.trim() || pendingAttachments.length > 0}
-              aria-label={t('assistant.panel.asyncStart')}
+        {/*
+          composer 重构（2026-10-19）：输入框 + 全部动作收进单一容器。
+          原先「附件选择器独占一行 + 圆角输入条 + 记忆条 3 按钮」三块并置，静止态 9 个按钮；
+          现在工具条只留 4 个图标（附件 / 记忆 / 后台精算 / 发送），附件的低频命名动作
+          与记忆保存动作都收进二级面板。
+          V2-01 记忆 chip 仍保留在工具条内（点击只预填、绝不发送）；仅 3 个常驻按钮收为 1 个。
+        */}
+        <AssistantComposer
+          query={query}
+          setQuery={setQuery}
+          onSend={() => handleSend()}
+          onStop={handleStop}
+          streaming={streaming}
+          inputRef={inputRef}
+          inputAssist={inputAssist}
+          widePanel={widePanel}
+          onStartAsync={() => void handleStartAsync()}
+          attachments={pendingAttachments}
+          attachmentInput={
+            <input
+              ref={attachmentState.inputRef}
+              type="file"
+              multiple
+              accept={ACCEPT_ATTACHMENT_STRING}
+              style={{ display: 'none' }}
+              data-testid={CHAT_ATTACHMENT_INPUT_TESTID}
+              onChange={attachmentState.onInputChange}
             />
-          </Tooltip>
-          {streaming ? (
-            <Button
-              shape="circle"
-              danger
-              icon={<StopCircle size={15} />}
-              onClick={handleStop}
-              aria-label={t('assistant.panel.stopGenerating')}
+          }
+          onOpenAttachment={attachmentState.openPicker}
+          attachmentUploading={attachmentState.uploading}
+          attachmentError={attachmentState.error}
+          attachmentDisabled={streaming}
+          onRemoveAttachment={attachmentState.remove}
+          tools={
+            <AssistantMemoryChips
+              query={query}
+              onInsert={handleInsertMemory}
+              layout="toolbar"
             />
-          ) : (
-            <Button
-              data-testid="assistant-panel-send"
-              shape="circle"
-              type="primary"
-              icon={<Send size={15} />}
-              onClick={() => handleSend()}
-              disabled={!query.trim()}
-              aria-label={t('assistant.panel.send')}
-            />
-          )}
-          {inputAssist.assist ? (
-            <InputDockAssistMenu
-              mode={inputAssist.assist.mode}
-              items={inputAssist.assist.items}
-              activeIndex={inputAssist.assist.activeIndex}
-              hint={inputAssist.assist.hint}
-              onSelect={inputAssist.selectItem}
-              onHighlight={inputAssist.highlightItem}
-            />
-          ) : null}
-        </div>
+          }
+        />
         <div
           style={{
             fontSize: 11,

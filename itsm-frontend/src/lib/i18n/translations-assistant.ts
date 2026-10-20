@@ -87,6 +87,7 @@ export const assistantTranslations = {
       uploadFailed: '附件上传失败',
       limit: '最多只能添加 {max} 个附件',
       count: '已添加 {count}/{max} 个附件；发送前可移除',
+      remove: '移除附件 {name}',
       asyncUnsupported: '后台精算暂不支持附件，请直接发送对话',
     },
     suggestions: {
@@ -359,6 +360,7 @@ export const assistantTranslations = {
       uploadFailed: 'Attachment upload failed',
       limit: 'You can add at most {max} attachments',
       count: '{count}/{max} attachments added; remove before sending if needed',
+      remove: 'Remove attachment {name}',
       asyncUnsupported: 'Background analysis does not support attachments yet; send in chat instead',
     },
     suggestions: {
