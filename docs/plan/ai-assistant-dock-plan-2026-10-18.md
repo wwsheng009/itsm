@@ -1123,7 +1123,7 @@ Dock 容器、chat-core 抽离、交互状态机、帮助覆盖率 ratchet、Aut
 
 > 进展（2026-10-19）：T5-07a 已完成——summary 时延拆为首 token（`first_token`）与整体（`stream_end`）两套 P50/P95/Max/Count；顶层字段固定为整体口径以保持兼容；健康 SLO 改用 `firstTokenP95Ms`，不再使用混合 `latency_ms`。后端 service/handlers 两包 + 看板 1 suite / 17 tests、tsc/eslint 全绿；证据 `assistant-dock/T5-07a-cost-latency-evidence.md`；T5-07b（模型分级路由/成本上限）待排期。
 
-> 进展（2026-10-19）：T5-07b 已按用户口径收窄并交付“调用观测”部分——`ai_llm_calls` 新增租户/任务/错误分类/脱敏摘要字段；新增 `GET /ai/llm-calls` 与 `/ai/llm-calls/summary`；观测页新增“LLM 调用历史与错误”卡（状态/Provider/模型/任务/耗时/Token 估算/错误）。后端 5 包 + 前端 3 suites / 22 tests、tsc/eslint/gofmt 全绿；证据 `assistant-dock/T5-07b-llm-call-observability-evidence.md`。预算/金额/自动降级/模型分级路由延后，由上游管理。
+> 进展（2026-10-19）：T5-07b 已按用户口径收窄并交付“调用观测”部分——`ai_llm_calls` 新增租户/任务/错误分类/脱敏摘要字段；新增 `GET /ai/llm-calls` 与 `/ai/llm-calls/summary`；观测页新增“LLM 调用历史与错误”卡（状态/Provider/模型/任务/耗时/Token 估算/错误）。后端 5 包 + 前端 3 suites / 22 tests、tsc/eslint/gofmt 全绿；238 demo 部署验证通过（`1.8.0-dev.5b070145`，8089）；证据 `assistant-dock/T5-07b-llm-call-observability-evidence.md`。预算/金额/自动降级/模型分级路由延后，由上游管理。
 
 > 进展（2026-10-19）：T5-04a 已完成——消息级「转人工」入口 + 动作卡（打开当前对象/列表、预填新建工单/事件）；预填走一次性 `assistant_handoff` state，只填空白标题/描述，消费后清除，不自动提交；权限按目标域 read / `ticket:create` / `incident:write` 裁剪。前端 5 suites / 29 tests、tsc/eslint 全绿；证据 `assistant-dock/T5-04a-handoff-open-prefill-evidence.md`；T5-04b 指派待排期。
 

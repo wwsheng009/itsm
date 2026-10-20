@@ -105,7 +105,16 @@ npm test -- --runTestsByPath <3 suites> --coverage=false --runInBand --silent
 
 ---
 
-## 5. 局限与后续
+## 5. 部署验证（238 demo，2026-10-20）
+
+- 目标：`172.18.3.238` 的 `itsm-demo`（8089）；镜像 `1.8.0-dev.5b070145`；代码提交 `5b070145`。
+- 迁移：`20261019_ai_llm_call_observability` 已应用；`ai_llm_calls` 7 个新增字段均存在。
+- 健康：backend / worker / frontend / ai-service 全部 healthy；`/api/v1/readyz` 200；`/api/v1/version` 返回新版本。
+- 接口：admin 登录后 `GET /api/v1/ai/llm-calls` 与 `/summary` 均 200；空窗口返回空数组/0 值，未伪造数据。
+- 前端：新镜像命中调用观测卡标记 2 处，旧镜像 0 处；未登录访问新接口返回 401（路由鉴权生效）。
+- 边界：本次只部署 demo 8089；生产 8088 未改动。
+
+## 6. 局限与后续
 
 1. Token 仍是网关 prompt 估算（字符/4），不是 provider 账单用量；前端已标注“估算”。
 2. 历史平台级行（`tenant_id IS NULL`）不进入租户报表，不做回填。

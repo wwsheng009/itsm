@@ -138,7 +138,7 @@
 | T5-11 | ✅ 2026-10-19 | 宽度交互回写：离散三档 + 键盘循环（显式替代自由拖拽）；"边缘收纳"不采纳（收起态即 FAB） |
 | T5-12 | ✅ 2026-10-19 | 双入口按 B 收口：§3.7/§8 条款认可现状（抑制 + 一次性交接）；§14.4-① 解除；Q3（launcher/深链）连带回写 |
 | T5-13 | ✅ 2026-10-19 | 文案 i18n 批次：12 个助手表面接入 `useI18n`；新增 `assistant` 命名空间（11 子命名空间、zh/en 各 213 键）；zh 值逐字不变；证据 `assistant-dock/T5-13-i18n-copy-batch-evidence.md` |
-| T5-07b | ✅ 2026-10-19（调用观测） | 租户级 LLM 调用账本：`ai_llm_calls` 增加 tenant/task/error_class/http_status/脱敏摘要；新增 `GET /ai/llm-calls` 与 `/summary`；观测页新增调用历史与错误卡（状态/Provider/模型/任务/耗时/Token 估算/错误）；后端 5 包 + 前端 3 suites / 22 tests、tsc/eslint/gofmt 全绿；预算/金额/自动降级/模型分级路由延后由上游管理；证据 `assistant-dock/T5-07b-llm-call-observability-evidence.md` |
+| T5-07b | ✅ 2026-10-19（调用观测） | 租户级 LLM 调用账本：`ai_llm_calls` 增加 tenant/task/error_class/http_status/脱敏摘要；新增 `GET /ai/llm-calls` 与 `/summary`；观测页新增调用历史与错误卡（状态/Provider/模型/任务/耗时/Token 估算/错误）；后端 5 包 + 前端 3 suites / 22 tests、tsc/eslint/gofmt 全绿；238 demo 已部署验证（`1.8.0-dev.5b070145`，8089）；预算/金额/自动降级/模型分级路由延后由上游管理；证据 `assistant-dock/T5-07b-llm-call-observability-evidence.md` |
 
 > 方案补充（2026-10-19）：T5-04 专项 `assistant-handoff-actions-plan-2026-10-19.md`、T5-07b 专项 `assistant-model-routing-and-budget-plan-2026-10-19.md` 已补齐；T5-07b 已按用户口径收窄为调用观测并交付，预算/金额/自动路由延后；T5-03（a/b）与 T5-09（a/b）已按方案 §14.6 拆分落地。
 
