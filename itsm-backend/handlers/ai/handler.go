@@ -478,7 +478,8 @@ func (h *Handler) Chat(c *gin.Context) {
 //   - event: error          data: {"message": "..."}（预算超限附加 errorCode=budget_exceeded；provider 解析失败附加 §3.4 错误码）
 //
 // 兼容承诺：v1 事件名与载荷不变；新增 v2 事件对旧客户端是未知事件，按注册表约定**必须忽略**。
-// `artifact`（B3-06）已登记但本期不发送。
+// `artifact`（B3-06）已登记但本期不发送；产物元数据改随 `tool_call_finished`
+// 的可选字段 `artifactId/artifactKind/artifactTitle` 回带（向后兼容，旧客户端忽略）。
 //
 // M1-03：工具事件为**叠加**语义——最终答案仍由 delta/done 承载；事件丢失时前端按最终消息降级渲染。
 func (h *Handler) ChatStream(c *gin.Context) {

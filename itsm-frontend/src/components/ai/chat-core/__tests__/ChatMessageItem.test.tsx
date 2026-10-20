@@ -49,12 +49,15 @@ describe('ChatMessageItem × OutcomeReceipt（I0-04）', () => {
     );
 
     const receipt = screen.getByTestId('outcome-receipt');
-    expect(receipt).toHaveTextContent('产物 #31');
+    expect(receipt).toHaveTextContent('工单字段草案');
     expect(receipt).toHaveTextContent('去创建工单（字段草案）');
     expect(receipt).toHaveTextContent('去审批中心（#9 待审批）');
-    expect(receipt).toHaveTextContent('artifact:31');
+    // 内部标识不进正文（只通过「复制引用」写入剪贴板）。
+    expect(receipt).not.toHaveTextContent('artifact:31');
+    // 产物具备可打开入口。
+    expect(screen.getByTestId('outcome-open-artifact-artifact:31')).toBeInTheDocument();
 
-    fireEvent.click(screen.getByTestId('outcome-open-draft-draft:/tickets/create'));
+    fireEvent.click(screen.getByTestId('outcome-open-draft-draft:draft_ticket_fields'));
     expect(onOpenOutcome).toHaveBeenCalledWith(
       expect.objectContaining({ route: '/tickets/create', kind: 'draft' })
     );
@@ -70,6 +73,34 @@ describe('ChatMessageItem × OutcomeReceipt（I0-04）', () => {
       />
     );
     expect(screen.queryByTestId('outcome-receipt')).not.toBeInTheDocument();
+  });
+
+  it('有落点但无过程证据时显式说明，不出现空壳按钮', () => {
+    render(
+      <ChatMessageItem
+        message={{ ...message, toolEvents: [], pendingApprovals: [9], steps: [] }}
+        providerLabel={() => 'provider'}
+        onCreateArticle={jest.fn()}
+        onOpenApproval={jest.fn()}
+      />
+    );
+
+    const evidence = screen.getByTestId('evidence-panel');
+    fireEvent.click(screen.getByTestId('evidence-toggle'));
+    expect(evidence).toHaveTextContent('本次回答未调用外部工具');
+    expect(screen.queryByRole('button', { name: '复制' })).not.toBeInTheDocument();
+  });
+
+  it('无落点、无证据时不渲染证据面板（纯知识问答不占位）', () => {
+    render(
+      <ChatMessageItem
+        message={{ ...message, toolEvents: [], pendingApprovals: [], steps: [] }}
+        providerLabel={() => 'provider'}
+        onCreateArticle={jest.fn()}
+        onOpenApproval={jest.fn()}
+      />
+    );
+    expect(screen.queryByTestId('evidence-panel')).not.toBeInTheDocument();
   });
 
   it('回答级反馈：点击一次上报 message_feedback 并固化', () => {

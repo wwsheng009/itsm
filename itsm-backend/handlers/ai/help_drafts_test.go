@@ -106,3 +106,42 @@ func TestHelpDraftDiff(t *testing.T) {
 	oneRemoved := helpDraftDiff("a\na", "a")
 	require.Equal(t, []helpDraftReviewLine{{Type: "removed", Content: "a"}}, oneRemoved)
 }
+
+// I0-04：帮助文档详情（引用来源可点击）——只返回索引中存在的文档。
+func TestGetHelpDoc_ReadsEmbeddedIndexOnly(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	engine := gin.New()
+	engine.GET("/api/v1/ai/help/doc", func(c *gin.Context) {
+		c.Set("tenant_id", 1)
+		NewHandler(&Service{}).GetHelpDoc(c)
+	})
+
+	recorder := httptest.NewRecorder()
+	engine.ServeHTTP(recorder, httptest.NewRequest(http.MethodGet, "/api/v1/ai/help/doc?path=docs/help/ai/chat.md", nil))
+	require.Equal(t, http.StatusOK, recorder.Code)
+
+	var payload struct {
+		Code int `json:"code"`
+		Data struct {
+			Path     string   `json:"path"`
+			Title    string   `json:"title"`
+			PageKeys []string `json:"pageKeys"`
+			Text     string   `json:"text"`
+		} `json:"data"`
+	}
+	require.NoError(t, json.Unmarshal(recorder.Body.Bytes(), &payload))
+	require.Equal(t, 0, payload.Code)
+	require.Equal(t, "docs/help/ai/chat.md", payload.Data.Path)
+	require.NotEmpty(t, payload.Data.Title)
+	require.NotEmpty(t, payload.Data.Text)
+
+	// 未知路径 → 404（不回显任意文件）。
+	recorder = httptest.NewRecorder()
+	engine.ServeHTTP(recorder, httptest.NewRequest(http.MethodGet, "/api/v1/ai/help/doc?path=../../etc/passwd", nil))
+	require.Equal(t, http.StatusNotFound, recorder.Code)
+
+	// 缺少 path → 400。
+	recorder = httptest.NewRecorder()
+	engine.ServeHTTP(recorder, httptest.NewRequest(http.MethodGet, "/api/v1/ai/help/doc", nil))
+	require.Equal(t, http.StatusBadRequest, recorder.Code)
+}

@@ -61,6 +61,12 @@ type ToolStreamEvent struct {
 	// ArtifactID：I0-04 Outcome Contract——产物类工具（plan/analysis/draft）成功时回带产物 id，
 	// 供前端回执卡渲染「查看产物/复制引用」等可验证落点。可选字段：非产物工具/旧客户端忽略。
 	ArtifactID int `json:"artifactId,omitempty"`
+	// ArtifactKind：产物类型（plan/analysis/draft）。与 ArtifactID 同时出现，供回执卡选择
+	// 人类可读标题与详情入口；旧客户端忽略。
+	ArtifactKind string `json:"artifactKind,omitempty"`
+	// ArtifactTitle：产物标题（后端 saveArtifact 写入的 title），前端优先用它渲染落点名称；
+	// 缺省时前端才走工具规则/占位回退，避免把内部 id 直接铺到正文。
+	ArtifactTitle string `json:"artifactTitle,omitempty"`
 }
 
 // errorCoder 由外部工具错误类型实现（如 mcp/provider.ExecuteError），
@@ -139,21 +145,35 @@ func toolEventSummary(result interface{}, limit int) string {
 // plan/analysis/draft 类工具（saveArtifact）返回 map 且含 `artifactId`；其余结果/异常形态返回 0
 // （前端按「无产物落点」降级渲染，不臆造引用）。
 func toolResultArtifactID(result interface{}) int {
+	id, _, _ := toolResultArtifactMeta(result)
+	return id
+}
+
+// toolResultArtifactMeta 从工具结果提取产物 id/kind/title（I0-04 Outcome Contract）。
+//
+// 三者同源：saveArtifact 的返回 map 同时包含 artifactId/kind/title；任一字段缺失时
+// 只回传可用部分（前端按可用信息降级渲染，不臆造标题）。
+func toolResultArtifactMeta(result interface{}) (id int, kind, title string) {
 	payload, ok := result.(map[string]interface{})
 	if !ok || payload == nil {
-		return 0
+		return 0, "", ""
 	}
 	switch value := payload["artifactId"].(type) {
 	case int:
-		return value
+		id = value
 	case int64:
-		return int(value)
+		id = int(value)
 	case float64:
-		return int(value)
+		id = int(value)
 	case json.Number:
 		if parsed, err := value.Int64(); err == nil {
-			return int(parsed)
+			id = int(parsed)
 		}
 	}
-	return 0
+	if id <= 0 {
+		return 0, "", ""
+	}
+	kind, _ = payload["kind"].(string)
+	title, _ = payload["title"].(string)
+	return id, kind, title
 }

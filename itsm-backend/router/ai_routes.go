@@ -27,6 +27,8 @@ func SetupAIRoutes(tenant *gin.RouterGroup, h *aiHandler.Handler) {
 		aiGrp.GET("/analysis-results", middleware.RequirePermission("ai", "read"), h.ListAIAnalysisResults)
 		aiGrp.GET("/analysis-results/:id", middleware.RequirePermission("ai", "read"), h.GetAIAnalysisResult)
 		aiGrp.DELETE("/analysis-results/:id", middleware.RequirePermission("ai", "write"), h.DeleteAIAnalysisResult)
+		// I0-04 Outcome Contract：对话产物详情（只读；租户 + 发起人收敛，供结果落点「打开」）。
+		aiGrp.GET("/artifacts/:id", middleware.RequirePermission("ai", "read"), h.GetArtifact)
 		aiGrp.POST("/analytics", middleware.RequirePermission("ai", "read"), h.GetDeepAnalytics)
 		aiGrp.POST("/predictions", middleware.RequirePermission("ai", "read"), h.GetTrendPrediction)
 		aiGrp.POST("/tickets/:id/analyze", middleware.RequirePermission("ai", "read"), h.AnalyzeTicket)
@@ -88,6 +90,8 @@ func SetupAIRoutes(tenant *gin.RouterGroup, h *aiHandler.Handler) {
 		// H0-03 帮助文档（Help Agent 数据面）：内嵌索引检索与页面帮助（权限复用 ai:read）。
 		aiGrp.GET("/help/search", middleware.RequirePermission("ai", "read"), h.SearchHelp)
 		aiGrp.GET("/help/page", middleware.RequirePermission("ai", "read"), h.GetPageHelp)
+		// I0-04：帮助文档详情（来源引用可点击；仅读取内嵌索引中存在的文档）。
+		aiGrp.GET("/help/doc", middleware.RequirePermission("ai", "read"), h.GetHelpDoc)
 		// D1-01 助手上下文（服务端建议过滤：可见 Bot ∩ 工具授权 ∩ RBAC；未知 pageKey 正常降级）。
 		aiGrp.GET("/assistant/context", middleware.RequirePermission("ai", "read"), h.GetAssistantContext)
 		// H1-01 文档待办队列（账本缺口 + help_gap 遥测聚类；埋点未启用时降级为账本缺口）。

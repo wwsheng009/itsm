@@ -38,8 +38,10 @@
 /admin/vector-store,src/app/(main)/admin/vector-store/page.tsx,/admin/vector-store,@/pages/(main)/admin/vector-store/index,(main),,,,/admin/vector-store
 /admin/workflows,src/app/(main)/admin/workflows/page.tsx,/admin/workflows,@/pages/(main)/admin/workflows/index,(main),,,,/admin/workflows
 /ai/approval,src/app/(main)/ai/approval/page.tsx,/ai/approval,@/pages/(main)/ai/approval/index,(main),,,,/ai/approval
+/ai/artifacts/[id],src/app/(main)/ai/artifacts/[id]/page.tsx,/ai/artifacts/:id,@/pages/(main)/ai/artifacts/$id/index,(main),:id,,,/ai/artifacts/1
 /ai/audit,src/app/(main)/ai/audit/page.tsx,/ai/audit,@/pages/(main)/ai/audit/index,(main),,,,/ai/audit
 /ai/chat,src/app/(main)/ai/chat/page.tsx,/ai/chat,@/pages/(main)/ai/chat/index,(main),,,,/ai/chat
+/ai/help-doc,src/app/(main)/ai/help-doc/page.tsx,/ai/help-doc,@/pages/(main)/ai/help-doc/index,(main),,,,/ai/help-doc
 /applications,src/app/(main)/applications/page.tsx,/applications,@/pages/(main)/applications/index,(main),,,,/applications
 /approvals,src/app/(main)/approvals/page.tsx,/approvals,@/pages/(main)/approvals/index,(main),,,,/approvals
 /approvals/pending,src/app/(main)/approvals/pending/page.tsx,/approvals/pending,,,,/approvals,redirect-only,/approvals/pending

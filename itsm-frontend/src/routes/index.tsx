@@ -69,6 +69,8 @@ const AiBotMetrics = lazy(() => import('@/pages/(main)/ai/bot-metrics/index'));
 const AiHelpCoverage = lazy(() => import('@/pages/(main)/ai/help-coverage/index'));
 const AiObservability = lazy(() => import('@/pages/(main)/ai/observability/index'));
 const AiChat = lazy(() => import('@/pages/(main)/ai/chat/index'));
+const AiArtifactDetail = lazy(() => import('@/pages/(main)/ai/artifacts/$id/index'));
+const AiHelpDoc = lazy(() => import('@/pages/(main)/ai/help-doc/index'));
 const Applications = lazy(() => import('@/pages/(main)/applications/index'));
 const Approvals = lazy(() => import('@/pages/(main)/approvals/index'));
 const Assets = lazy(() => import('@/pages/(main)/assets/index'));
@@ -312,6 +314,8 @@ export const routes: RouteObject[] = [
           { path: 'ai/help-coverage', element: lazyElement(AiHelpCoverage) },
           { path: 'ai/observability', element: lazyElement(AiObservability) },
           { path: 'ai/chat', element: lazyElement(AiChat) },
+          { path: 'ai/artifacts/:id', element: lazyElement(AiArtifactDetail) },
+          { path: 'ai/help-doc', element: lazyElement(AiHelpDoc) },
           { path: 'applications', element: lazyElement(Applications) },
           { path: 'approvals', element: lazyElement(Approvals) },
           { path: 'assets', element: lazyElement(Assets) },

@@ -95,7 +95,7 @@ var sseEventRegistry = []SSEEventSpec{
 	{Name: SSEEventDone, Version: 1, Payload: "{conversationId, provider?, providerSource?, model?}"},
 	{Name: SSEEventError, Version: 1, Payload: "{message, errorCode?}"},
 	{Name: SSEEventToolCallStarted, Version: 1, Family: SSEFamilyToolCall, Payload: "{id?,tool,provider,server?,phase,status:\"started\"}"},
-	{Name: SSEEventToolCallFinished, Version: 1, Family: SSEFamilyToolCall, Payload: "{id?,tool,provider,server?,phase,status:\"done\",summary,durationMs}"},
+	{Name: SSEEventToolCallFinished, Version: 1, Family: SSEFamilyToolCall, Payload: "{id?,tool,provider,server?,phase,status:\"done\",summary,durationMs,artifactId?,artifactKind?,artifactTitle?}"},
 	{Name: SSEEventToolCallFailed, Version: 1, Family: SSEFamilyToolCall, Payload: "{id?,tool,provider,server?,phase,status:\"failed\",errorCode}"},
 	{Name: SSEEventRunStarted, Version: 2, Payload: "{v:2, runId, entrypoint, conversationId?}"},
 	{Name: SSEEventStep, Version: 2, Payload: "{v:2, runId, stepIndex, type, payloadRef?, durationMs}"},

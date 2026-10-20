@@ -5,7 +5,7 @@
  * （detailsByInvocation）、步骤渲染、错误态；状态条的 running/done/中断、预算段（有则显示）。
  */
 import React from 'react';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 
 import EvidencePanel, { targetUrl } from '../evidence-panel';
 import RunStatusBar, { formatDuration, formatElapsed } from '../run-status-bar';
@@ -78,7 +78,32 @@ describe('EvidencePanel (B1-08)', () => {
     expect(screen.queryByTestId('evidence-empty')).not.toBeInTheDocument();
     expandPanel();
     expect(screen.getByTestId('evidence-empty')).toBeInTheDocument();
-    expect(screen.getByText(/没有可展示的过程证据/)).toBeInTheDocument();
+    expect(screen.getByText(/未调用外部工具/)).toBeInTheDocument();
+  });
+
+  it('showEmptyState：空证据也渲染说明（结果落点承诺可验证时不再静默消失）', () => {
+    render(<EvidencePanel showEmptyState />);
+    expect(screen.getByTestId('evidence-panel')).toBeInTheDocument();
+    // 无需展开即可看到说明；且不渲染孤立的复制按钮。
+    expect(screen.getByTestId('evidence-empty')).toHaveTextContent('未调用外部工具');
+    expect(screen.queryByTestId('evidence-copy-all')).not.toBeInTheDocument();
+  });
+
+  it('有证据时提供「复制全部」，写入脱敏摘要（不含原始参数）', async () => {
+    const writeText = jest.fn().mockResolvedValue(undefined);
+    Object.defineProperty(navigator, 'clipboard', {
+      value: { writeText },
+      configurable: true,
+      writable: true,
+    });
+    render(<EvidencePanel toolEvents={toolEvents} />);
+
+    fireEvent.click(screen.getByTestId('evidence-copy-all'));
+    await waitFor(() => expect(writeText).toHaveBeenCalledTimes(1));
+    const copied = writeText.mock.calls[0][0] as string;
+    expect(copied).toContain('工具调用 2');
+    expect(copied).toContain('mcp__mock__list_issues');
+    expect(copied).toContain('共 3 条');
   });
 
   it('pairs tool events and shows source, status, duration and summary', () => {

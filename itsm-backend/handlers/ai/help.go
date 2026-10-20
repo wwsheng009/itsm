@@ -72,6 +72,38 @@ func (h *Handler) SearchHelp(c *gin.Context) {
 	})
 }
 
+// GetHelpDoc handles GET /api/v1/ai/help/doc?path=docs/help/....
+//
+// 用途：把 AI 回答里的来源路径变成可点击的文档详情（结果落点「可验证」）。
+// 口径：只读取内嵌帮助索引中确实存在的文档；未知路径 404，不回显任意文件内容。
+func (h *Handler) GetHelpDoc(c *gin.Context) {
+	tenantID := c.GetInt("tenant_id")
+	if tenantID == 0 {
+		common.Fail(c, common.AuthFailedCode, "租户信息缺失")
+		return
+	}
+	if !helpAgentEnabled(c) {
+		common.Fail(c, common.ForbiddenCode, "帮助智能体已关闭")
+		return
+	}
+	path := strings.TrimSpace(c.Query("path"))
+	if path == "" {
+		common.Fail(c, common.ParamErrorCode, "path 不能为空")
+		return
+	}
+	doc, ok := helpindex.Load().ReadDoc(path)
+	if !ok {
+		common.NotFound(c, "帮助文档不存在")
+		return
+	}
+	common.Success(c, gin.H{
+		"path":     doc.Path,
+		"title":    doc.Title,
+		"pageKeys": doc.PageKeys,
+		"text":     doc.Text,
+	})
+}
+
 // GetPageHelp handles GET /api/v1/ai/help/page?pageKey=
 //
 // 返回该页面的覆盖状态（ok/missing/stale/unknown）与关联文档正文（面板帮助视图直接渲染）。

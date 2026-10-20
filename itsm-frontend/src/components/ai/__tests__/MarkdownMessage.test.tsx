@@ -99,4 +99,20 @@ describe('MarkdownMessage', () => {
     rerender(<MarkdownMessage content={'生成结束'} />);
     expect(container.querySelector('.ai-md-caret')).toBeNull();
   });
+
+  it('站内引用锚点保留当前上下文（不强制新开标签页）', () => {
+    const { container } = render(
+      <MarkdownMessage content={'结论[【文档1】](/ai/help-doc?path=docs%2Fhelp%2Fa.md)'} />
+    );
+    const link = container.querySelector('a');
+    expect(link?.getAttribute('href')).toBe('/ai/help-doc?path=docs%2Fhelp%2Fa.md');
+    expect(link?.getAttribute('target')).toBeNull();
+  });
+
+  it('外链仍新开标签页并带 rel 防护', () => {
+    const { container } = render(<MarkdownMessage content={'[官网](https://example.com)'} />);
+    const link = container.querySelector('a');
+    expect(link?.getAttribute('target')).toBe('_blank');
+    expect(link?.getAttribute('rel')).toBe('noopener noreferrer');
+  });
 });

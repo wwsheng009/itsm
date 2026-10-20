@@ -591,6 +591,16 @@ export async function aiSearchHelp(
   }>(`/api/v1/ai/help/search?${qs}`);
 }
 
+/**
+ * 帮助文档详情（I0-04 引用可点击）：按内嵌索引路径读取。
+ *
+ * 后端契约：GET /api/v1/ai/help/doc?path=docs/help/...（仅返回索引中存在的文档）。
+ */
+export async function aiGetHelpDoc(path: string): Promise<HelpDoc> {
+  const qs = `path=${encodeURIComponent(path)}`;
+  return httpClient.get<HelpDoc>(`/api/v1/ai/help/doc?${qs}`);
+}
+
 // ==================== H1-01/H1-04 帮助闭环数据面 ====================
 // 后端契约：GET /ai/help/todos（遥测缺口待办队列，H1-01）；GET /ai/help/coverage（覆盖率看板，H1-04）。
 
@@ -694,6 +704,29 @@ export interface HelpDraftReviewResult {
 
 export async function aiListHelpDrafts(): Promise<HelpDraftReviewResult> {
   return httpClient.get<HelpDraftReviewResult>('/api/v1/ai/help/drafts');
+}
+
+// ==================== I0-04 产物详情（结果落点「打开」） ====================
+// 后端契约：GET /api/v1/ai/artifacts/:id（ai:read；租户 + 发起人收敛，越权/不存在统一 404）。
+
+export type AIArtifactKind = 'plan' | 'analysis' | 'draft' | string;
+
+export interface AIArtifactDetail {
+  id: number;
+  kind: AIArtifactKind;
+  title: string;
+  toolName?: string;
+  conversationId?: number;
+  runId?: number;
+  /** 产物内容（plan/analysis/draft 的结构随工具不同；按只读 JSON 展示）。 */
+  content?: unknown;
+  /** 证据引用（如 CI 基础信息、来源文档路径）。 */
+  evidence?: unknown;
+  createdAt?: string;
+}
+
+export async function aiGetArtifact(id: number): Promise<AIArtifactDetail> {
+  return httpClient.get<AIArtifactDetail>(`/api/v1/ai/artifacts/${id}`);
 }
 
 // ==================== D1-01 页面助手上下文（服务端建议过滤） ====================
@@ -1357,6 +1390,12 @@ export interface AIToolStreamEvent {
    * 旧后端不产生该字段 → 前端回执卡按「无产物落点」降级渲染。
    */
   artifactId?: number;
+  /**
+   * 产物类型（plan/analysis/draft）与标题：与 artifactId 同时回带（后端
+   * `toolResultArtifactMeta`），前端优先用标题渲染可读名称；旧后端缺省时回退工具规则。
+   */
+  artifactKind?: string;
+  artifactTitle?: string;
 }
 
 /** 工具事件回调（四种事件共用；status 区分阶段）。 */

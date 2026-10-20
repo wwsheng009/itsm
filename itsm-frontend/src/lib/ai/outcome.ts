@@ -16,6 +16,13 @@ export interface AssistantOutcome {
   kind: AssistantOutcomeKind;
   /** 稳定引用（artifact:31 / invocation:9 / route 等），供展示与核验。 */
   ref: string;
+  /** 人类可读标题（优先来自后端产物 title / 工具规则）。 */
+  title?: string;
+  /** 标题别名（兼容后端 name 字段；与 title 同口径）。 */
+  name?: string;
+  /** 摘要/描述（标题缺失时取首句作为回退）。 */
+  summary?: string;
+  /** 兼容既有字段（与 summary 同义；工具名等短说明）。 */
   label: string;
   /** 跳转目标（缺省 = 无跳转，仅可复制引用）。 */
   route?: string;
@@ -57,6 +64,29 @@ const TOOL_OUTCOME_RULES: Record<string, OutcomeRule> = {
   analyze_ci_impact_plan: { kind: 'artifact', label: '影响分析产物' },
 };
 
+/**
+ * 产物标题规则：工具没有回带 artifactTitle 时的可读名称。
+ *
+ * 这些名称与后端 saveArtifact 的 title 同源（不必逐字一致），但**绝不**用
+ * 「类型 + #id」拼占位名——内部 id 只用于 ref/路由，不进入正文。
+ */
+const ARTIFACT_TITLE_BY_TOOL: Record<string, string> = {
+  draft_ticket_fields: '工单字段草案',
+  analyze_ci_impact_plan: '配置项变更影响分析草案',
+  draft_kb_article: '知识文章草稿',
+  help_create_draft: '帮助文档草稿',
+  help_update_draft: '帮助文档草稿',
+};
+
+const artifactTitleFor = (event: AIToolStreamEvent): string | undefined => {
+  const fromBackend = (event.artifactTitle ?? '').trim();
+  if (fromBackend) return fromBackend;
+  if (event.artifactKind === 'plan') return 'AI 生成计划草案';
+  if (event.artifactKind === 'analysis') return 'AI 影响分析草案';
+  if (event.artifactKind === 'draft') return 'AI 生成草稿';
+  return ARTIFACT_TITLE_BY_TOOL[event.tool];
+};
+
 export function deriveAssistantOutcomes(input: {
   toolEvents?: readonly AIToolStreamEvent[];
   pendingApprovals?: readonly number[];
@@ -79,6 +109,7 @@ export function deriveAssistantOutcomes(input: {
       push({
         kind: 'navigation',
         ref,
+        title: '去审批中心（待审批）',
         label: '去审批中心（待审批）',
         route: '/ai/approval',
         description: event.tool,
@@ -88,10 +119,16 @@ export function deriveAssistantOutcomes(input: {
     if (status !== 'done') continue;
 
     if (typeof event.artifactId === 'number' && event.artifactId > 0) {
+      const title = artifactTitleFor(event);
       push({
         kind: 'artifact',
         ref: `artifact:${event.artifactId}`,
-        label: `产物 #${event.artifactId}`,
+        // 标题优先用后端真实 title；缺失时用工具规则；两者都缺失才落到通用占位，
+        // 由回执卡上报 title_fallback（可观测），而不是把 id 铺到正文。
+        title: title ?? 'AI 生成产物',
+        name: title,
+        label: title ?? 'AI 生成产物',
+        route: `/ai/artifacts/${event.artifactId}`,
         description: event.tool,
       });
     }
@@ -99,7 +136,9 @@ export function deriveAssistantOutcomes(input: {
     if (rule) {
       push({
         kind: rule.kind,
-        ref: rule.route ? `${rule.kind}:${rule.route}` : `${rule.kind}:${event.tool}`,
+        // 稳定引用只承载「类型 + 业务标识」，不把路由拼进来（路由单独放 route）。
+        ref: `${rule.kind}:${event.tool}`,
+        title: rule.label,
         label: rule.label,
         route: rule.route,
         applyTarget: rule.applyTarget,
@@ -113,6 +152,7 @@ export function deriveAssistantOutcomes(input: {
     push({
       kind: 'navigation',
       ref: `invocation:${id}`,
+      title: `去审批中心（#${id} 待审批）`,
       label: `去审批中心（#${id} 待审批）`,
       route: '/ai/approval',
     });

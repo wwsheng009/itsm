@@ -16,6 +16,11 @@ import EvidencePanel, { type EvidenceTargetMeta } from '../evidence-panel';
 import OutcomeReceipt from '../OutcomeReceipt';
 import ToolCallTimeline, { mergeToolEvents } from '../tool-call-timeline';
 import { deriveAssistantOutcomes, type AssistantOutcome } from '@/lib/ai/outcome';
+import {
+  citationTarget,
+  linkifyCitationMarkers,
+  stripDocPath,
+} from '@/lib/ai/citations';
 import { PENDING_HIDDEN_STATUSES, PROVIDER_SOURCE_LABELS } from './constants';
 import type { ChatMessage } from './types';
 
@@ -132,6 +137,13 @@ export const ChatMessageItem: React.FC<ChatMessageItemProps> = ({
     [message.toolEvents, message.pendingApprovals]
   );
 
+  // I0-04 通道级修复：把正文 `【文档n】` 转成指向对应来源的链接。
+  // 只在 sources 中确有该序号时才生成（不臆造锚点）；代码块内保持原样。
+  const linkedContent = useMemo(
+    () => linkifyCitationMarkers(message.content, message.sources),
+    [message.content, message.sources]
+  );
+
   if (message.role === 'user') {
     return (
       <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
@@ -184,7 +196,7 @@ export const ChatMessageItem: React.FC<ChatMessageItemProps> = ({
       />
       <div style={{ flex: 1, minWidth: 0 }}>
         {message.content ? (
-          <MarkdownMessage content={message.content} streaming={message.streaming} />
+          <MarkdownMessage content={linkedContent} streaming={message.streaming} />
         ) : message.streaming ? (
           <div
             style={{
@@ -257,8 +269,9 @@ export const ChatMessageItem: React.FC<ChatMessageItemProps> = ({
           }
         />
 
-        {/* 过程证据（B1-08）：有 v2 步骤时用证据面板（含目标/依据），否则回退 M1-04 时间线。
-            pending 条目由上方卡片承载，两者都不重复展示。 */}
+        {/* 过程证据（B1-08）：有 v2 步骤时用证据面板（含目标/依据），否则回退 M1-04 时间线；
+            两者都为空时显式给出空态说明，避免「承诺可验证却没有证据」。
+            pending 条目由上方卡片承载，避免重复展示。 */}
         {message.steps && message.steps.length > 0 ? (
           <EvidencePanel
             steps={message.steps}
@@ -275,9 +288,11 @@ export const ChatMessageItem: React.FC<ChatMessageItemProps> = ({
                 : undefined
             }
           />
-        ) : (
+        ) : message.toolEvents && message.toolEvents.length > 0 ? (
           <ToolCallTimeline events={message.toolEvents} hideStatuses={PENDING_HIDDEN_STATUSES} />
-        )}
+        ) : !message.streaming && message.content && outcomes.length > 0 ? (
+          <EvidencePanel showEmptyState />
+        ) : null}
 
         {/* B1-07：对话内确认抽屉（仅注入 onRequestConfirm 时可用；决策走 B1-05 状态机）。 */}
         {onRequestConfirm ? (
@@ -408,7 +423,7 @@ const OBJECT_TYPE_TAG_COLORS: Record<string, string> = {
 const objectTypeTagColor = (objectType?: string): string =>
   (objectType && OBJECT_TYPE_TAG_COLORS[objectType.toLowerCase()]) || 'blue';
 
-/** 助手消息内的引用来源（objectType Tag + 标题 + 相关度 + 可展开片段）。 */
+/** 助手消息内的引用来源（objectType Tag + 可点击标题 + 相关度 + 可展开片段）。 */
 const SourceList: React.FC<{ sources: RagAnswer[] }> = ({ sources }) => {
   const { token } = theme.useToken();
   return (
@@ -426,18 +441,40 @@ const SourceList: React.FC<{ sources: RagAnswer[] }> = ({ sources }) => {
       </Text>
       <ul style={{ paddingLeft: 18, marginTop: 6, marginBottom: 0 }}>
         {sources.map((s, idx) => {
-          const title = s.title || s.snippet?.slice(0, 30) || `来源 ${idx + 1}`;
+          const target = citationTarget(s, idx);
+          const title = target.displayName;
           const scoreLabel =
             typeof s.score === 'number' ? `${(s.score * 100).toFixed(0)}%` : undefined;
+          // 帮助文档：展示剥离前缀/后缀后的路径；知识库等业务对象不展示路径。
+          const pathHint =
+            s.source && (s.objectType === 'help_doc' || s.objectType === 'help')
+              ? stripDocPath(s.source)
+              : undefined;
           return (
             <li key={`${s.objectType}-${s.id}-${idx}`} style={{ marginBottom: 6 }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
                 <Tag color={objectTypeTagColor(s.objectType)} style={{ marginInlineEnd: 0 }}>
-                  {s.objectType || 'source'}
+                  {s.objectType === 'help_doc' ? '帮助文档' : s.objectType || '来源'}
                 </Tag>
-                <Text strong style={{ fontSize: 13 }}>
-                  {title}
-                </Text>
+                {target.href ? (
+                  <Typography.Link
+                    strong
+                    style={{ fontSize: 13 }}
+                    href={target.href}
+                    data-testid={`source-link-${idx}`}
+                  >
+                    {title}
+                  </Typography.Link>
+                ) : (
+                  <Text strong style={{ fontSize: 13 }}>
+                    {title}
+                  </Text>
+                )}
+                {pathHint ? (
+                  <Text type="secondary" style={{ fontSize: 11 }} data-testid={`source-path-${idx}`}>
+                    {pathHint}
+                  </Text>
+                ) : null}
                 {scoreLabel ? (
                   <Tag color="green" style={{ marginInlineEnd: 0 }}>
                     相关度 {scoreLabel}

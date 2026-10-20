@@ -1889,9 +1889,12 @@ func (s *Service) chatStreamInner(
 				"message":      fmt.Sprintf("操作已提交，等待人工审批后执行（invocationId=%d）", invID),
 			}, nil
 		}
-		// I0-04 Outcome Contract：产物类工具在 done 事件回带 artifactId（可选字段；前端回执卡据此渲染落点）。
-		if artifactID := toolResultArtifactID(res); artifactID > 0 {
+		// I0-04 Outcome Contract：产物类工具在 done 事件回带产物元数据（可选字段）。
+		// 标题与类型同源回带，前端不再用「类型标签 + #id」拼占位名，也不把内部 id 铺到正文。
+		if artifactID, artifactKind, artifactTitle := toolResultArtifactMeta(res); artifactID > 0 {
 			event.ArtifactID = artifactID
+			event.ArtifactKind = artifactKind
+			event.ArtifactTitle = artifactTitle
 		}
 		finish(ToolEventStatusDone, toolEventSummary(res, ToolEventSummaryLimit), "", invID)
 		return res, nil

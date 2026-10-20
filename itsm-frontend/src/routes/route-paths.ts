@@ -37,6 +37,7 @@ export const ROUTE_PATHS: ReadonlySet<string> = new Set([
   '/ai/approval',
   '/ai/audit',
   '/ai/chat',
+  '/ai/help-doc',
   '/ai/help-coverage',
   '/ai/observability',
   '/applications',

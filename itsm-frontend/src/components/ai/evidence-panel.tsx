@@ -8,14 +8,15 @@
  *     `detailsByInvocation`（卡片 `onLoaded` 即产出，零额外请求）；缺失时该行不渲染跳转/引用，不臆造。
  *   - 跳转 URL 仅对**已核实存在**的路由生成（tickets/incidents/cmdb cis 详情），未知类型退化为纯文本。
  *
- * 兼容：旧后端不产生 v2 事件 → 面板不渲染，AIChat 回退既有 `ToolCallTimeline`（M1-04）。
+ * 兼容：旧后端不产生 v2 事件 → 面板不渲染，AIChat 回退既有 `ToolCallTimeline`（M1-04）；
+ * 明确的「无工具调用」需要可验证时，调用方传 `showEmptyState`，面板渲染一行说明而非空壳。
  *
  * 交互：面板默认折叠（折叠态只显示「过程证据」，计数/运行号/耗时在展开后显示）；
  * 加载错误是降级信号，不随折叠隐藏。
  */
-import React, { useMemo, useState } from 'react';
-import { Tag, Typography, theme } from 'antd';
-import { ChevronDown, ChevronRight, CircleDashed, Wrench } from 'lucide-react';
+import React, { useCallback, useMemo, useState } from 'react';
+import { Button, Tag, Typography, theme } from 'antd';
+import { Check, ChevronDown, ChevronRight, CircleDashed, Copy, Wrench } from 'lucide-react';
 
 import type { AIRunStepEvent, AIToolStreamEvent } from '@/lib/api/ai-api';
 import { mergeToolEvents } from './tool-call-timeline';
@@ -66,6 +67,15 @@ export interface EvidencePanelProps {
   error?: string;
   /** 运行快照；仅展开后显示，避免把 run#/步骤/耗时暴露给普通阅读路径。 */
   run?: RunSnapshot;
+  /**
+   * 证据为空时是否渲染一条说明（默认 false，保持既有「不占位」行为）。
+   *
+   * 使用场景：结果落点区块承诺「可验证」，但本回合没有任何工具调用时，
+   * 静默消失会让用户以为漏渲染；此时显式说明「未调用外部工具」更诚实。
+   */
+  showEmptyState?: boolean;
+  /** 空态文案（缺省使用内置说明）。 */
+  emptyHint?: string;
 }
 
 /**
@@ -80,6 +90,8 @@ export const EvidencePanel: React.FC<EvidencePanelProps> = ({
   onOpenTarget,
   error,
   run,
+  showEmptyState = false,
+  emptyHint,
 }) => {
   const { token } = theme.useToken();
   const orderedSteps = useMemo(() => [...(steps ?? [])].sort((a, b) => a.stepIndex - b.stepIndex), [steps]);
@@ -87,9 +99,40 @@ export const EvidencePanel: React.FC<EvidencePanelProps> = ({
   const isEmpty = orderedSteps.length === 0 && tools.length === 0;
   // 默认折叠：过程证据是旁路信息（答案由消息正文承载），展开后才显示诊断细节。
   const [expanded, setExpanded] = useState(false);
+  const [copiedAll, setCopiedAll] = useState(false);
   const toggle = () => setExpanded(v => !v);
 
   const monoStyle: React.CSSProperties = { fontSize: 12 };
+
+  /** 复制全部证据：纯文本摘要（不含原始参数/敏感输出），便于粘贴到工单或复盘记录。 */
+  const handleCopyAll = useCallback(async () => {
+    const lines: string[] = [];
+    if (orderedSteps.length > 0) {
+      lines.push(`步骤 ${orderedSteps.length}`);
+      orderedSteps.forEach(step => {
+        lines.push(`#${step.stepIndex} ${STEP_TYPE_LABEL[step.type] ?? step.type}${step.payloadRef ? ` ${step.payloadRef}` : ''}`);
+      });
+    }
+    if (tools.length > 0) {
+      lines.push(`工具调用 ${tools.length}`);
+      tools.forEach(t => {
+        const status = TOOL_STATUS_META[t.status]?.label ?? t.status;
+        const duration = formatDuration(t.durationMs);
+        lines.push(
+          `${t.tool} · ${t.provider === 'mcp' ? `MCP ${t.server ?? ''}`.trim() : '内置'} · ${status}${duration ? ` · ${duration}` : ''}${t.summary ? ` · ${t.summary}` : ''}`
+        );
+      });
+    }
+    const text = lines.join('\n');
+    if (!text || !navigator.clipboard?.writeText) return;
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopiedAll(true);
+      window.setTimeout(() => setCopiedAll(false), 1600);
+    } catch {
+      // 剪贴板不可用：保持只读展示，不打断阅读。
+    }
+  }, [orderedSteps, tools]);
 
   return (
     <div
@@ -126,6 +169,22 @@ export const EvidencePanel: React.FC<EvidencePanelProps> = ({
             步骤 {orderedSteps.length} · 工具调用 {tools.length}
           </Typography.Text>
         ) : null}
+        {isEmpty ? null : (
+          <Button
+            size="small"
+            type="text"
+            icon={copiedAll ? <Check size={12} /> : <Copy size={12} />}
+            onClick={e => {
+              // 复制按钮不应触发展开/收起（标题行整体是开关）。
+              e.stopPropagation();
+              void handleCopyAll();
+            }}
+            data-testid="evidence-copy-all"
+            style={{ marginLeft: 'auto', height: 22, padding: '0 6px', fontSize: 12 }}
+          >
+            {copiedAll ? '已复制' : '复制全部'}
+          </Button>
+        )}
       </div>
 
       {/* 加载失败是降级信号：不藏进折叠区，折叠态也保持可见。 */}
@@ -135,9 +194,10 @@ export const EvidencePanel: React.FC<EvidencePanelProps> = ({
         </div>
       ) : null}
 
-      {expanded && isEmpty && !error ? (
+      {/* 空证据：声明式说明不藏进折叠区（承诺可验证时不能只留一个空壳）。 */}
+      {isEmpty && !error && (expanded || showEmptyState) ? (
         <div style={{ marginTop: 6, fontSize: 12, color: token.colorTextSecondary }} data-testid="evidence-empty">
-          本次运行没有可展示的过程证据。
+          {emptyHint ?? '本次回答未调用外部工具，结论基于已有知识/文档；因此没有可展开的过程证据。'}
         </div>
       ) : null}
 

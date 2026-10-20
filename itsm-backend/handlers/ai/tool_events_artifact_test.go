@@ -33,13 +33,38 @@ func TestToolResultArtifactID(t *testing.T) {
 
 func TestToolStreamEvent_ArtifactIDJSONContract(t *testing.T) {
 	payload, err := json.Marshal(ToolStreamEvent{
-		Tool: "analyze_ci_impact_plan", Provider: "builtin", Phase: "read", Status: "done", ArtifactID: 31,
+		Tool: "analyze_ci_impact_plan", Provider: "builtin", Phase: "read", Status: "done",
+		ArtifactID: 31, ArtifactKind: "analysis", ArtifactTitle: "配置项变更影响分析草案",
 	})
 	assert.NoError(t, err)
 	assert.Contains(t, string(payload), `"artifactId":31`)
+	assert.Contains(t, string(payload), `"artifactKind":"analysis"`)
+	assert.Contains(t, string(payload), `"artifactTitle":"配置项变更影响分析草案"`)
 
 	// 无产物 id 时不落字段（可选字段，保持既有事件字节形状）。
 	payload, err = json.Marshal(ToolStreamEvent{Tool: "list_tickets", Provider: "builtin", Phase: "read", Status: "done"})
 	assert.NoError(t, err)
 	assert.NotContains(t, string(payload), "artifactId")
+	assert.NotContains(t, string(payload), "artifactTitle")
+}
+
+func TestToolResultArtifactMeta(t *testing.T) {
+	id, kind, title := toolResultArtifactMeta(map[string]interface{}{
+		"artifactId": float64(33), "kind": "plan", "title": "事件单字段草案",
+	})
+	assert.Equal(t, 33, id)
+	assert.Equal(t, "plan", kind)
+	assert.Equal(t, "事件单字段草案", title)
+
+	// 缺 title/kind 时只回传 id（前端按规则/类型回退，不臆造标题）。
+	id, kind, title = toolResultArtifactMeta(map[string]interface{}{"artifactId": 34})
+	assert.Equal(t, 34, id)
+	assert.Empty(t, kind)
+	assert.Empty(t, title)
+
+	// 非法/缺少 id → 三者都为空。
+	id, kind, title = toolResultArtifactMeta(map[string]interface{}{"artifactId": "35", "title": "x"})
+	assert.Zero(t, id)
+	assert.Empty(t, kind)
+	assert.Empty(t, title)
 }

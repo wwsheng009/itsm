@@ -16,18 +16,52 @@ const event = (partial: Partial<AIToolStreamEvent>): AIToolStreamEvent => ({
 });
 
 describe('deriveAssistantOutcomes（I0-04）', () => {
-  it('产物工具 done + artifactId → artifact 落点（含引用与描述）', () => {
+  it('产物工具 done + artifactId → artifact 落点（可读标题 + 详情路由）', () => {
     const outcomes = deriveAssistantOutcomes({
       toolEvents: [event({ tool: 'analyze_ci_impact_plan', artifactId: 31 })],
     });
 
     expect(outcomes).toEqual(
       expect.arrayContaining([
-        expect.objectContaining({ kind: 'artifact', ref: 'artifact:31', label: '产物 #31' }),
+        expect.objectContaining({
+          kind: 'artifact',
+          ref: 'artifact:31',
+          title: '配置项变更影响分析草案',
+          route: '/ai/artifacts/31',
+        }),
       ])
     );
     // 规则落点同样出现（产物 + 影响分析规则，各自独立）。
     expect(outcomes.map(item => item.kind)).toContain('artifact');
+  });
+
+  it('后端回带 artifactTitle 时优先使用（不拼「产物 #id」）', () => {
+    const outcomes = deriveAssistantOutcomes({
+      toolEvents: [
+        event({
+          tool: 'draft_ticket_fields',
+          artifactId: 31,
+          artifactKind: 'plan',
+          artifactTitle: '事件单字段草案',
+        }),
+      ],
+    });
+
+    const artifact = outcomes.find(item => item.kind === 'artifact');
+    expect(artifact?.title).toBe('事件单字段草案');
+    // 内部 id 不进标题
+    expect(artifact?.title).not.toContain('31');
+  });
+
+  it('产物标题缺省时按类型回退为可读文案；无 id 时不产生产物落点', () => {
+    const byKind = deriveAssistantOutcomes({
+      toolEvents: [event({ tool: 'unknown_plan_tool', artifactId: 5, artifactKind: 'analysis' })],
+    });
+    expect(byKind.find(item => item.kind === 'artifact')?.title).toBe('AI 影响分析草案');
+
+    expect(
+      deriveAssistantOutcomes({ toolEvents: [event({ tool: 'unknown_plan_tool' })] })
+    ).toEqual([]);
   });
 
   it('草稿工具规则 → draft + route + applyTarget（可跳转、可应用）', () => {

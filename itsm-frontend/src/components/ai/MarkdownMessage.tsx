@@ -191,10 +191,15 @@ const MarkdownMessage: React.FC<MarkdownMessageProps> = ({ content, streaming, c
           </CodeBlock>
         );
       },
-      // 外链一律新开标签页（sanitize 只放行 href，target/rel 由这里补）。
-      a: ({ node: _node, ...props }) => (
-        <a {...props} target="_blank" rel="noopener noreferrer" />
-      ),
+      // 外链新开标签页；站内锚点（/...）保持当前上下文（引用标记点击后落文档详情）。
+      a: ({ node: _node, ...props }) => {
+        const internal = typeof props.href === 'string' && props.href.startsWith('/');
+        return internal ? (
+          <a {...props} />
+        ) : (
+          <a {...props} target="_blank" rel="noopener noreferrer" />
+        );
+      },
       // 表格：外层横向滚动容器（窄屏不撑破消息列）。
       table: ({ node: _node, ...props }) => (
         <div className={`${SCOPE}-tablewrap`}>
