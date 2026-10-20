@@ -141,6 +141,7 @@
 | T5-07b | ✅ 2026-10-19（调用观测） | 租户级 LLM 调用账本：`ai_llm_calls` 增加 tenant/task/error_class/http_status/脱敏摘要；新增 `GET /ai/llm-calls` 与 `/summary`；观测页新增调用历史与错误卡（状态/Provider/模型/任务/耗时/Token 估算/错误）；后端 5 包 + 前端 3 suites / 22 tests、tsc/eslint/gofmt 全绿；238 demo 已部署验证（`1.8.0-dev.5b070145`，8089）；预算/金额/自动降级/模型分级路由延后由上游管理；证据 `assistant-dock/T5-07b-llm-call-observability-evidence.md` |
 | T5-14 | ✅ 2026-10-20 | **Dock composer UI/UX 重构**（用户实测反馈）：输入区按钮 9 → 3~4（附件/记忆/精算/发送，全图标化）；附件不再独占整行，收进工具条且与输入框同容器（真机间距 2px），芯片移到文本域上方、零附件不渲染；记忆常驻按钮 3 → 1（chip/保存/管理收进单层弹层）；聚焦态主色描边；流式中附件统一禁用。新增 `AssistantComposer` + `use-chat-attachments`；Esc 分层修复（浮层打开时不再误关面板）。前端 60 suites / 426 tests、tsc/eslint 全绿；238 demo 已部署验证（`1.8.0-dev.e0e55200`）；证据 `assistant-dock/composer-uiux-refactor-evidence.md` |
 | T5-15 | ✅ 2026-10-20 | **`/ai/chat` 工作区布局优化**：复用 `AssistantComposer`（消除 Dock/工作区分叉），附件由输入框上方整行 → 工具条内（真机 +2px）；「保存成文章/清空对话」收进更多菜单，1024px 头部溢出 17px → 0；空态宽度 720 → `CONTENT_MAX_WIDTH`，与输入坞差 100px → 1px；空态「清空对话」禁用。前端 42 suites / 295 tests、tsc/eslint 全绿；238 demo 已部署验证（`1.8.0-dev.1eec3f3d`）；证据 `assistant-dock/workspace-layout-optimization-evidence.md` |
+| T5-16 | ✅ 2026-10-20 | **`/ai/chat` 窄屏响应式布局**：侧栏 <1100px 抽屉化（absolute 浮层，不挤压消息区；支持点外部/Esc 收起）；头部 <900px 把 Bot + Provider 收进「模型与能力」弹层。真机消息区：1024px 455 → **735px**（+61%）、900px 331 → **611px**（+85%）、768px 199 → **479px**（+141%）；768px 头部溢出 94px → **0**。新增 `AIChat.responsive.test.tsx` 7 例；全 AI 表面 43 suites / 302 tests、tsc/eslint 全绿；238 demo 已部署验证（`1.8.0-dev.0e2ba65f`）；证据 `assistant-dock/workspace-responsive-layout-evidence.md` |
 
 > 方案补充（2026-10-19）：T5-04 专项 `assistant-handoff-actions-plan-2026-10-19.md`、T5-07b 专项 `assistant-model-routing-and-budget-plan-2026-10-19.md` 已补齐；T5-07b 已按用户口径收窄为调用观测并交付，预算/金额/自动路由延后；T5-03（a/b）与 T5-09（a/b）已按方案 §14.6 拆分落地。
 
@@ -148,6 +149,7 @@
 
 > 维护记录（2026-10-20）：T5-14 composer 重构与 Esc 分层修复（`56d9c771` / `e0e55200`）已部署 238 demo（`1.8.0-dev.e0e55200`）。
 > 维护记录（2026-10-20）：T5-15 工作区布局优化（`77d9c3c7` / `6811f488` / `1eec3f3d`）已部署 238 demo（`1.8.0-dev.1eec3f3d`）。
+> 维护记录（2026-10-20）：T5-16 工作区窄屏响应式（`0e2ba65f`）已部署 238 demo（`1.8.0-dev.0e2ba65f`）。
 
 ---
 
