@@ -556,7 +556,14 @@ const AIChat: React.FC = () => {
           style={{ flex: 1, minHeight: 0, overflowY: 'auto', padding: '20px 20px 8px' }}
         >
           {isEmpty ? (
-            <div style={{ maxWidth: 720, margin: '0 auto', paddingTop: 32, textAlign: 'center' }}>
+            <div
+              style={{
+                maxWidth: CONTENT_MAX_WIDTH,
+                margin: '0 auto',
+                paddingTop: 32,
+                textAlign: 'center',
+              }}
+            >
               <div
                 style={{
                   width: 56,
