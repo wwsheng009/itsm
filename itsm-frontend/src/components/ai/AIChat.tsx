@@ -523,7 +523,8 @@ const AIChat: React.FC = () => {
                     icon: <Eraser size={14} />,
                     label: '清空对话',
                     danger: true,
-                    disabled: streaming,
+                    // 空态无可清空内容、流式中有并发风险：两者都禁用，避免无意义点击。
+                    disabled: streaming || isEmpty,
                     onClick: handleClear,
                   },
                 ],
