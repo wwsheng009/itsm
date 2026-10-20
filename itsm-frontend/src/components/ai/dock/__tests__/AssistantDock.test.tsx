@@ -229,6 +229,27 @@ describe('AssistantDock（D0-02）', () => {
     expect(screen.queryByTestId('assistant-panel')).not.toBeInTheDocument();
   });
 
+  it('ESC 分层：有浮层打开时不关闭面板（先收浮层，保住会话上下文）', () => {
+    renderDock('/tickets/42');
+    fireEvent.click(screen.getByTestId('assistant-fab'));
+    expect(screen.getByTestId('assistant-panel')).toBeInTheDocument();
+
+    // 模拟 Ant 浮层已打开（记忆/历史/诊断等任意 Popover/Dropdown）。
+    const overlay = document.createElement('div');
+    overlay.className = 'ant-popover';
+    document.body.appendChild(overlay);
+
+    fireEvent.keyDown(document, { key: 'Escape', code: 'Escape' });
+    expect(screen.getByTestId('assistant-panel')).toBeInTheDocument();
+
+    // 浮层收起后再按 ESC，才关闭面板。
+    overlay.className = 'ant-popover ant-popover-hidden';
+    fireEvent.keyDown(document, { key: 'Escape', code: 'Escape' });
+    expect(screen.queryByTestId('assistant-panel')).not.toBeInTheDocument();
+
+    document.body.removeChild(overlay);
+  });
+
   it('P0：/ai/chat 工作区不渲染 Dock（含 FAB），避免双聊天入口', () => {
     renderDock('/ai/chat');
 

@@ -147,7 +147,19 @@ const AssistantDock: React.FC = () => {
   useHotkeys(
     'esc',
     () => {
-      if (open) closePanel();
+      if (!open) return;
+      /*
+       * Esc 的语义分层：先收**最上层**，再收面板。
+       * 记忆/历史/诊断等弹层打开时按 Esc，用户意图是关闭弹层，不是丢弃整个会话上下文；
+       * 这里检测页面上是否还有可见的浮层，有则让给浮层（Ant 自身处理关闭）。
+       */
+      if (typeof document !== 'undefined') {
+        const overlay = document.querySelector(
+          '.ant-popover:not(.ant-popover-hidden), .ant-dropdown:not(.ant-dropdown-hidden), .ant-modal-root .ant-modal-wrap, .ant-drawer-open'
+        );
+        if (overlay) return;
+      }
+      closePanel();
     },
     { enabled: open && !isWorkspaceRoute, enableOnFormTags: true }
   );
