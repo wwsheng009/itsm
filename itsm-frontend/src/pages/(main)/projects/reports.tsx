@@ -173,6 +173,14 @@ export default function ProjectReportsPage() {
         </Space>
       ),
     },
+    {
+      // A2（回归遗留）：归口未设置时仍可按部门归因，避免整表只有「未归口」。
+      title: '所属部门',
+      key: 'departmentName',
+      width: 160,
+      render: (_: unknown, record) =>
+        record.departmentName || (record.departmentId ? `部门 #${record.departmentId}` : '未设置'),
+    },
     { title: '项目数', dataIndex: 'projectCount', key: 'projectCount', width: 100 },
     {
       title: '健康度分布',
@@ -259,7 +267,11 @@ export default function ProjectReportsPage() {
           }
         >
           <Table
-            rowKey={(record) => (record.ownerTeamId ? `team-${record.ownerTeamId}` : 'unassigned')}
+            rowKey={(record) =>
+              record.ownerTeamId
+                ? `team-${record.ownerTeamId}-dept-${record.departmentId ?? 0}`
+                : `unassigned-dept-${record.departmentId ?? 0}`
+            }
             columns={groupColumns}
             dataSource={groups}
             pagination={false}

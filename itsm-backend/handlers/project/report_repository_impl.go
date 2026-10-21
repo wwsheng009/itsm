@@ -45,7 +45,31 @@ func (r *EntRepository) ListTeamRefs(ctx context.Context, tenantID int, teamIDs 
 
 func teamRefFromEntity(entity *ent.Team) TeamRef {
 	deleted := entity.DeletedAt != nil && !entity.DeletedAt.IsZero()
-	return TeamRef{ID: entity.ID, Name: entity.Name, Status: entity.Status, Deleted: deleted}
+	return TeamRef{ID: entity.ID, Name: entity.Name, Code: entity.Code, Status: entity.Status, Deleted: deleted}
+}
+
+// ListActiveTeamRefs 归口候选（A2：项目「归口」维护入口的取数来源）。
+// 只返回同租户、未软删且 status=active 的团队；keyword 匹配名称/代码。
+func (r *EntRepository) ListActiveTeamRefs(
+	ctx context.Context, tenantID int, keyword string, limit int,
+) ([]TeamRef, error) {
+	if limit <= 0 || limit > 50 {
+		limit = 50
+	}
+	query := r.client.Team.Query().
+		Where(team.TenantIDEQ(tenantID), team.DeletedAtIsNil(), team.StatusEQ("active"))
+	if kw := strings.TrimSpace(keyword); kw != "" {
+		query = query.Where(team.Or(team.NameContainsFold(kw), team.CodeContainsFold(kw)))
+	}
+	entities, err := query.Order(ent.Asc(team.FieldName)).Limit(limit).All(ctx)
+	if err != nil {
+		return nil, err
+	}
+	out := make([]TeamRef, 0, len(entities))
+	for _, entity := range entities {
+		out = append(out, teamRefFromEntity(entity))
+	}
+	return out, nil
 }
 
 // ListReportTemplates 报告模板列表 + 总数（软删不可见；updatedAt 倒序）。
@@ -187,6 +211,8 @@ func (r *EntRepository) ListProjectsForReportGroups(ctx context.Context, tenantI
 		Select(
 			project.FieldID, project.FieldOwnerTeamID, project.FieldStatus, project.FieldProgress,
 			project.FieldStartDate, project.FieldEndDate, project.FieldBudgetAmount, project.FieldBudgetCurrency,
+			// A2（回归遗留）：部门维度需要参与分组，必须取列（否则恒为 0 → 全部落「未设置」）。
+			project.FieldDepartmentID,
 		).
 		All(ctx)
 }

@@ -469,12 +469,16 @@ func (s *Service) ReportGroupsByOwnerTeam(ctx context.Context, tenantID, viewerI
 	if err != nil {
 		return nil, err
 	}
-	byTeam := make(map[int]*ReportGroupAggregate, 4)
+	// A2（回归遗留）：按 (ownerTeamId, departmentId) 分组——归口未设置但部门已落库时，
+	// 报表不再全部挤进「未归口」，而是保留部门维度可供归因。
+	type groupKey struct{ teamID, deptID int }
+	byTeam := make(map[groupKey]*ReportGroupAggregate, 4)
 	for _, p := range projects {
-		agg, ok := byTeam[p.OwnerTeamID]
+		key := groupKey{teamID: p.OwnerTeamID, deptID: p.DepartmentID}
+		agg, ok := byTeam[key]
 		if !ok {
-			agg = &ReportGroupAggregate{OwnerTeamID: p.OwnerTeamID}
-			byTeam[p.OwnerTeamID] = agg
+			agg = &ReportGroupAggregate{OwnerTeamID: p.OwnerTeamID, DepartmentID: p.DepartmentID}
+			byTeam[key] = agg
 		}
 		agg.ProjectCount++
 		switch healthLevelOf(healthMap, p.ID) {
@@ -492,12 +496,26 @@ func (s *Service) ReportGroupsByOwnerTeam(ctx context.Context, tenantID, viewerI
 	}
 	sort.Slice(aggs, func(i, j int) bool { return aggs[i].OwnerTeamID < aggs[j].OwnerTeamID })
 	teamIDs := make([]int, 0, len(aggs))
+	deptIDs := make([]int, 0, len(aggs))
+	seenDept := make(map[int]bool, len(aggs))
 	for _, agg := range aggs {
 		if agg.OwnerTeamID > 0 {
 			teamIDs = append(teamIDs, agg.OwnerTeamID)
 		}
+		if agg.DepartmentID > 0 && !seenDept[agg.DepartmentID] {
+			seenDept[agg.DepartmentID] = true
+			deptIDs = append(deptIDs, agg.DepartmentID)
+		}
 	}
 	refs := s.OwnerTeamRefs(ctx, tenantID, projectRefsFromTeamIDs(teamIDs))
+	deptNames := map[int]string{}
+	if len(deptIDs) > 0 {
+		if departments, deptErr := s.repo.DepartmentsByIDs(ctx, tenantID, deptIDs); deptErr == nil {
+			for _, d := range departments {
+				deptNames[d.ID] = d.Name
+			}
+		}
+	}
 	out := make([]ReportGroupResponse, 0, len(aggs))
 	for _, agg := range aggs {
 		row := ReportGroupResponse{
@@ -518,10 +536,19 @@ func (s *Service) ReportGroupsByOwnerTeam(ctx context.Context, tenantID, viewerI
 		} else {
 			row.OwnerTeamName = "未归口"
 		}
+		if agg.DepartmentID > 0 {
+			deptID := agg.DepartmentID
+			row.DepartmentID = &deptID
+			row.DepartmentName = deptNames[agg.DepartmentID]
+		}
 		out = append(out, row)
 	}
 	sort.SliceStable(out, func(i, j int) bool {
-		return reportGroupKey(out[i]) < reportGroupKey(out[j])
+		ki, kj := reportGroupKey(out[i]), reportGroupKey(out[j])
+		if ki != kj {
+			return ki < kj
+		}
+		return reportDeptKey(out[i]) < reportDeptKey(out[j])
 	})
 	return out, nil
 }
@@ -531,6 +558,14 @@ func reportGroupKey(row ReportGroupResponse) int {
 		return 0
 	}
 	return *row.OwnerTeamID
+}
+
+// reportDeptKey 部门维度排序键（归口相同或同为未归口时按部门稳定排序）。
+func reportDeptKey(row ReportGroupResponse) int {
+	if row.DepartmentID == nil {
+		return 0
+	}
+	return *row.DepartmentID
 }
 
 // projectRefsFromTeamIDs 构造仅有归口 ID 的轻量项目引用（复用 OwnerTeamRefs 批量取团队）。

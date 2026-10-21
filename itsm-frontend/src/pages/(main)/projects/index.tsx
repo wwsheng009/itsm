@@ -70,6 +70,8 @@ export default function ProjectsPage() {
   // B7：模板链路——新建弹窗内可直接选择已激活模板（创建后自动应用，失败给出明确提示）。
   const [templateOptions, setTemplateOptions] = useState<{ label: string; value: number }[]>([]);
   const [selectedTemplateId, setSelectedTemplateId] = useState<number | undefined>(undefined);
+  // A2（回归遗留）：归口团队候选——此前前端无任何维护入口，导致「归口」恒为未设置。
+  const [ownerTeamOptions, setOwnerTeamOptions] = useState<{ label: string; value: number }[]>([]);
 
   const fetchProjects = useCallback(async () => {
     setLoading(true);
@@ -122,6 +124,12 @@ export default function ProjectsPage() {
     } catch (error) {
       console.error('Failed to fetch project templates:', error);
     }
+    try {
+      const teams = await projectService.ownerTeamCandidates({ limit: 50 });
+      setOwnerTeamOptions(teams.map((team) => ({ value: team.id, label: team.name })));
+    } catch (error) {
+      console.error('Failed to fetch owner team candidates:', error);
+    }
   };
 
   useEffect(() => {
@@ -149,6 +157,7 @@ export default function ProjectsPage() {
       description: record.description,
       managerId: record.managerId,
       departmentId: record.departmentId,
+      ownerTeamId: record.ownerTeamId,
       range:
         record.startDate && record.endDate
           ? [dateValue(record.startDate), dateValue(record.endDate)]
@@ -358,7 +367,8 @@ export default function ProjectsPage() {
           record.managerName || (id ? userNameById[id] ?? `用户 #${id}` : <Tag color="warning">未设置</Tag>),
       },
       {
-        title: '归口',
+        // A2：归口（ownerTeam）现可维护；列名保持业务口径，缺失显示「未设置」。
+        title: '归口团队',
         dataIndex: 'ownerTeamName',
         key: 'ownerTeamName',
         width: 150,
@@ -557,6 +567,9 @@ export default function ProjectsPage() {
                 allowClear
                 showSearch
                 optionFilterProp="label"
+                // B13（回归遗留）：关闭虚拟滚动，选项可被无障碍树逐个寻址。
+                virtual={false}
+                aria-label="项目经理"
                 placeholder="请选择项目经理"
                 options={Object.entries(userNameById).map(([id, name]) => ({ value: Number(id), label: name }))}
               />
@@ -568,8 +581,38 @@ export default function ProjectsPage() {
               label="所属部门"
               rules={[{ required: true, message: '请选择所属部门' }]}
             >
-              <Select allowClear showSearch optionFilterProp="label" placeholder="请选择部门" options={departmentOptions} />
+              <Select
+                allowClear
+                showSearch
+                optionFilterProp="label"
+                // B13（回归遗留）：关闭虚拟滚动，选项可被无障碍树逐个寻址。
+                virtual={false}
+                aria-label="所属部门"
+                placeholder="请选择部门"
+                options={departmentOptions}
+              />
             </Form.Item>
+            {/* A2：归口团队可维护（此前仅所属部门可编辑，归口无入口）。 */}
+            <Form.Item
+              name="ownerTeamId"
+              label="归口团队"
+              extra="归口用于报表分组与通知候选，不改变项目可见性"
+            >
+              <Select
+                allowClear
+                showSearch
+                optionFilterProp="label"
+                // B13（回归遗留）：下拉虚拟列表关闭，选项全部进入可寻址 DOM（读屏可逐项播报）。
+                virtual={false}
+                listHeight={320}
+                aria-label="归口团队"
+                placeholder="请选择归口团队（可留空）"
+                options={ownerTeamOptions}
+                notFoundContent="暂无可选团队：请先在「组织管理 → 团队」创建并启用"
+              />
+            </Form.Item>
+          </div>
+          <div className="grid grid-cols-2 gap-4">
             <Form.Item
               name="range"
               label="计划起止"
@@ -581,8 +624,19 @@ export default function ProjectsPage() {
           <div className="grid grid-cols-2 gap-4">
             {/* P2（PE-22）：轻量预算（金额与币种成对提交；金额 0 = 清空预算）。 */}
             <Form.Item name="budgetAmount" label="预算金额" extra="留空 = 未设置（不做财务级核算）">
-              {/* B2：显式设置上下限，避免组件默认 0/0 导致步进失效。 */}
-              <InputNumber min={0} max={1000000000} step={1000} style={{ width: '100%' }} placeholder="如 120000" />
+              {/* B1/B2：显式上下限 + 超限即时提示（不再静默钳制）。 */}
+              <InputNumber
+                min={0}
+                max={1000000000}
+                step={1000}
+                style={{ width: '100%' }}
+                placeholder="如 120000"
+                onChange={(value) => {
+                  if (typeof value === 'number' && value > 1000000000) {
+                    message.warning('预算金额上限为 1,000,000,000，将按上限保存');
+                  }
+                }}
+              />
             </Form.Item>
             <Form.Item name="budgetCurrency" label="币种" extra="2-8 位字母（如 CNY / USD）；留空 = 租户默认">
               <Input maxLength={8} placeholder="如 CNY / USD" />

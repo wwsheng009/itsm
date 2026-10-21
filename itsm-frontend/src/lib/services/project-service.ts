@@ -135,6 +135,13 @@ export interface MemberCandidate {
   expiresAt?: string;
 }
 
+/** 归口团队候选（A2：项目「归口」维护入口）。 */
+export interface OwnerTeamCandidate {
+  id: number;
+  name: string;
+  code?: string;
+}
+
 export interface ProjectTask {
   id: number;
   projectId: number;
@@ -716,6 +723,9 @@ export interface ReportGroup {
   ownerTeamId?: number;
   ownerTeamName: string;
   ownerTeamDeleted: boolean;
+  /** A2（回归遗留）：部门维度与归口并列输出（未归口时仍可按部门归因）。 */
+  departmentId?: number;
+  departmentName?: string;
   projectCount: number;
   greenCount: number;
   yellowCount: number;
@@ -1124,6 +1134,14 @@ class ProjectService {
   /** 项目任务工时汇总（估算/实际合计 + 已填报任务数；PE-22）。 */
   hoursSummary(projectId: number): Promise<HoursSummary> {
     return httpClient.get<HoursSummary>(`${BASE_URL}/${projectId}/hours-summary`);
+  }
+
+  /**
+   * 归口团队候选（A2 回归遗留：项目「归口」维护入口的取数来源）。
+   * 只返回同租户、未删除且 active 的团队；创建/编辑项目共用。
+   */
+  ownerTeamCandidates(params: { q?: string; limit?: number } = {}): Promise<OwnerTeamCandidate[]> {
+    return httpClient.get<OwnerTeamCandidate[]>(`${BASE_URL}/owner-team-candidates`, params);
   }
 
   createProject(data: CreateProjectRequest): Promise<Project> {

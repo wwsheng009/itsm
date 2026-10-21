@@ -231,10 +231,13 @@ type ReportGroupResponse struct {
 	OwnerTeamID      *int   `json:"ownerTeamId,omitempty"`
 	OwnerTeamName    string `json:"ownerTeamName"`
 	OwnerTeamDeleted bool   `json:"ownerTeamDeleted"`
-	ProjectCount     int    `json:"projectCount"`
-	GreenCount       int    `json:"greenCount"`
-	YellowCount      int    `json:"yellowCount"`
-	RedCount         int    `json:"redCount"`
+	// A2（回归遗留）：部门维度与归口维度并列输出，避免「未归口」掩盖部门已落库的事实。
+	DepartmentID   *int   `json:"departmentId,omitempty"`
+	DepartmentName string `json:"departmentName,omitempty"`
+	ProjectCount   int    `json:"projectCount"`
+	GreenCount     int    `json:"greenCount"`
+	YellowCount    int    `json:"yellowCount"`
+	RedCount       int    `json:"redCount"`
 }
 
 // buildReportMarkdown 由 ReportData 派生 Markdown（纯函数，便于单测）。

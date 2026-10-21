@@ -82,6 +82,7 @@ func newHandlerEnv(t *testing.T) (*gin.Engine, *ent.Client, int) {
 	r.GET("/projects/:id/hours-summary", h.HoursSummary)
 	r.PUT("/projects/:id/capacity", h.UpdateCapacity)
 	r.GET("/projects/:id/resource-heatmap", h.ResourceHeatmap)
+	r.GET("/projects/owner-team-candidates", h.ListOwnerTeamCandidates)
 	// P2（PE-24）：组合视图与度量。
 	r.GET("/projects/portfolio", h.Portfolio)
 	r.GET("/projects/metrics", h.Metrics)

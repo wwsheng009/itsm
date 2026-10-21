@@ -419,6 +419,9 @@ export default function ProjectTemplatesPage() {
             </Form.Item>
             <Form.Item name="status" label="状态" style={{ flex: 1 }}>
               <Select
+                // B13（回归遗留）：关闭虚拟滚动，选项可被无障碍树逐个寻址。
+                virtual={false}
+                aria-label="模板状态"
                 options={[
                   { value: 'draft', label: '草稿（不可应用）' },
                   { value: 'active', label: '已激活（可应用）' },
@@ -503,7 +506,18 @@ export default function ProjectTemplatesPage() {
                         <InputNumber min={0} max={3650} style={{ width: '100%' }} />
                       </Form.Item>
                       <Form.Item name={[field.name, 'estimateHours']} label="估算工时" style={{ flex: 1 }}>
-                        <InputNumber min={0} style={{ width: '100%' }} />
+                        {/* B1/B2（回归遗留）：显式上下限 + 超限即时提示，避免默认 valuemax=0 与静默钳制。 */}
+                        <InputNumber
+                          min={0}
+                          max={1000000}
+                          step={1}
+                          style={{ width: '100%' }}
+                          onChange={(value) => {
+                            if (typeof value === 'number' && value > 1000000) {
+                              message.warning('模板任务估算工时上限为 1,000,000 小时');
+                            }
+                          }}
+                        />
                       </Form.Item>
                     </div>
                     <Form.Item name={[field.name, 'description']} label="说明">

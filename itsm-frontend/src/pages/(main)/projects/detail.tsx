@@ -1182,6 +1182,8 @@ export default function ProjectDetailPage() {
       title: '操作',
       key: 'action',
       width: 190,
+      // B4：操作列固定右侧——任务表 9 列横向溢出时，首屏仍可直接操作，无需先拖滚动条。
+      fixed: 'right',
       // B4：主操作 + 「更多」菜单收纳次要操作；删除隔离二次确认，避免 7 个链接平铺与误点。
       render: (_: unknown, task) => {
         if (!canWrite) return '-';
@@ -1433,6 +1435,8 @@ export default function ProjectDetailPage() {
     {
       title: '门禁阻塞项',
       key: 'blockers',
+      // B4：表头/内容禁止逐字竖排（回归报告实测被压成每行一个字）。
+      width: 360,
       render: (_: unknown, row) => {
         const status = row.record?.status ?? 'pending';
         const actionable = status === 'pending' || status === 'rejected';
@@ -1478,6 +1482,8 @@ export default function ProjectDetailPage() {
       title: '操作',
       key: 'actions',
       width: 170,
+      // B4：门操作列固定右侧（横向溢出时首屏可见）。
+      fixed: 'right',
       render: (_: unknown, row) => {
         const status = row.record?.status ?? 'pending';
         if (!canWrite || status === 'passed') return '-';
@@ -2183,6 +2189,8 @@ export default function ProjectDetailPage() {
                   pagination={false}
                   size="small"
                   loading={gateLoading}
+                  // B4：阶段门表固定操作列 + 横向滚动，避免「门禁阻塞项」表头竖排。
+                  scroll={{ x: 1100 }}
                 />
               </>
             ),
@@ -2473,8 +2481,18 @@ export default function ProjectDetailPage() {
               <Select options={Object.entries(PRIORITY_META).map(([value, meta]) => ({ value, label: meta.label }))} />
             </Form.Item>
             <Form.Item name="estimateHours" label="估算工时（小时）">
-              {/* B2：显式上下限（原组件默认 0/0 导致步进失效）。 */}
-              <InputNumber min={0} max={1000000} step={1} style={{ width: '100%' }} />
+              {/* B1/B2：显式上下限 + 即时提示（避免超限后被静默钳制且无任何说明）。 */}
+              <InputNumber
+                min={0}
+                max={1000000}
+                step={1}
+                style={{ width: '100%' }}
+                onChange={(value) => {
+                  if (typeof value === 'number' && value > 1000000) {
+                    message.warning('估算工时上限为 1,000,000 小时，将按上限保存');
+                  }
+                }}
+              />
             </Form.Item>
           </div>
           <div className="grid grid-cols-2 gap-4">
@@ -2527,6 +2545,9 @@ export default function ProjectDetailPage() {
               showSearch
               filterOption={false}
               loading={candidateLoading}
+              // B13（回归遗留）：关闭虚拟滚动，候选选项可被无障碍树逐个寻址。
+              virtual={false}
+              aria-label="候选成员"
               placeholder="输入姓名/用户名/部门搜索"
               onSearch={searchCandidates}
               // B6：候选行补充部门/邮箱，便于同名消歧。

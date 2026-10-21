@@ -1,0 +1,38 @@
+fix(project): 修复回归验证遗留的归口/表格/数字控件问题
+
+回归报告归档：docs/project-management/reviews/2026-10-21-项目功能回归验证报告.md
+处置台账：docs/project-management/reviews/2026-10-21-回归遗留修复台账.md
+
+A2 归口字段无法维护（P0）
+- 根因一：ownerTeamId 后端早就有写入校验与报表聚合，但前端无任何维护入口。
+  新增 GET /api/v1/projects/owner-team-candidates（租户级字典，project:read；
+  仅同租户/未软删/status=active；q 匹配名称或代码；limit≤50；最小字段 id/name/code），
+  新建/编辑项目弹窗新增「归口团队」下拉。
+- 根因二（本轮新发现）：ListProjectsForReportGroups 的 Select 漏了 department_id，
+  导致部门维度恒为 0、报表分组只能落到「未归口」。补选该列。
+- 报表分组改为按 (ownerTeamId, departmentId) 聚合，输出 departmentId/departmentName；
+  报表中心新增「所属部门」列，行 key 改为 team+dept 组合。
+
+B4 工作台表格操作列首屏不可见（P0，回归唯一「未修复」项）
+- 任务表操作列 fixed:'right'；阶段门表操作列同样固定，
+  「门禁阻塞项」列显式 width=360 防表头逐字竖排；两张表补 scroll.x。
+
+B1/B2 数字控件
+- 任务/模板任务估算工时：min=0 max=1000000 step=1；预算金额 max=1e9 step=1000；
+  超限时立即 message.warning 告知上限（不再静默钳制）。
+- 模板任务工时此前只有 min，组件默认 valuemax=0，已补齐上限。
+
+B13 选项可寻址（局部）
+- 项目经理/所属部门/归口团队/成员候选/模板状态下拉加 virtual={false} + aria-label，
+  选项全部进入可寻址 DOM；全局浮层 ARIA 仍留独立批次。
+
+顺带清理（工作区已暂存项，与本批同属前端表格/布局收口）
+- 删除重复的 src/components/layout/Sidebar.module.css；唯一份为
+  src/components/layout/sidebar/Sidebar.module.css（与 sidebar-flyout-text 守卫测试一致）。
+
+校验
+- go test ./handlers/project/ -count=1 -p 1（含新增 3 个用例）
+- go vet ./handlers/project/、go build ./handlers/project/ ./router/ ./internal/bootstrap/
+- go run ./cmd/authz-gen（rbac_precheck_gen.go 重生成）+ node scripts/generate-acl-manifest.js（996 路由）
+- go test ./middleware/ -run 'Precheck|RoutePrecheckAlignment'
+- npx tsc --noEmit、改动文件 eslint、jest project-service（64/64）、check-api-paths（1100/1100）

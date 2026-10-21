@@ -84,6 +84,33 @@ describe('ProjectService', () => {
     });
   });
 
+  describe('ownerTeamCandidates (A2 回归遗留)', () => {
+    it('should fetch owner team candidates with optional keyword and limit', async () => {
+      const items = [
+        { id: 1, name: '交付部', code: 'TEAM-DELIVERY' },
+        { id: 2, name: '运维部', code: 'TEAM-OPS' },
+      ];
+      mockGet.mockResolvedValue(items);
+
+      const result = await projectService.ownerTeamCandidates({ q: '部', limit: 20 });
+
+      expect(mockGet).toHaveBeenCalledWith('/api/v1/projects/owner-team-candidates', {
+        q: '部',
+        limit: 20,
+      });
+      expect(result).toEqual(items);
+    });
+
+    it('should default to empty query', async () => {
+      mockGet.mockResolvedValue([]);
+
+      const result = await projectService.ownerTeamCandidates();
+
+      expect(mockGet).toHaveBeenCalledWith('/api/v1/projects/owner-team-candidates', {});
+      expect(result).toEqual([]);
+    });
+  });
+
   describe('deleteProject', () => {
     it('should delete a project by id', async () => {
       mockDelete.mockResolvedValue(undefined);

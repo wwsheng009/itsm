@@ -263,6 +263,9 @@ type Repository interface {
 	// ListTeamRefs 批量归口团队引用（列表/分组富化用；缺失 ID 不出现在 map）。
 	ListTeamRefs(ctx context.Context, tenantID int, teamIDs []int) (map[int]TeamRef, error)
 
+	// ListActiveTeamRefs 归口候选（同租户、未软删、status=active；关键词匹配 name/code）。
+	ListActiveTeamRefs(ctx context.Context, tenantID int, keyword string, limit int) ([]TeamRef, error)
+
 	// ListReportTemplates 报告模板列表 + 总数（软删不可见；updatedAt 倒序）。
 	ListReportTemplates(ctx context.Context, f ReportTemplateListFilter) ([]*ent.ProjectReportTemplate, int64, error)
 
@@ -378,8 +381,10 @@ type TemplateUpdateParams struct {
 
 // TeamRef 归口团队引用（PE-17；Deleted=软删，读取侧降级提示，写入侧拒绝）。
 type TeamRef struct {
-	ID      int
-	Name    string
+	ID   int
+	Name string
+	// Code 团队代码（归口候选展示/搜索用；其他读路径可留空）。
+	Code    string
 	Status  string
 	Deleted bool
 }
@@ -415,7 +420,9 @@ type ReportTemplateUpdateParams struct {
 
 // ReportGroupAggregate 报表分组聚合行（归口团队 × 健康度分布）。
 type ReportGroupAggregate struct {
-	OwnerTeamID  int
+	OwnerTeamID int
+	// DepartmentID 部门维度（A2 回归遗留：与归口并列聚合，避免未归口掩盖部门信息）。
+	DepartmentID int
 	ProjectCount int
 	GreenCount   int
 	YellowCount  int

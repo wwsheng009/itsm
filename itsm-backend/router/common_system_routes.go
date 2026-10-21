@@ -148,6 +148,8 @@ func SetupCommonSystemRoutes(r *gin.Engine, tenant *gin.RouterGroup, config *Rou
 				projects.GET("/:id/hours-summary", middleware.RequirePermission("project", "read"), config.ProjectHandler.HoursSummary)
 				projects.PUT("/:id/capacity", middleware.RequirePermission("project", "write"), config.ProjectHandler.UpdateCapacity)
 				projects.GET("/:id/resource-heatmap", middleware.RequirePermission("project", "read"), config.ProjectHandler.ResourceHeatmap)
+				// A2 回归遗留：归口（ownerTeam）候选选择器（租户级字典，创建/编辑项目共用）。
+				projects.GET("/owner-team-candidates", middleware.RequirePermission("project", "read"), config.ProjectHandler.ListOwnerTeamCandidates)
 				projects.PUT("/:id", middleware.RequirePermission("project", "write"), config.ProjectHandler.UpdateProject)
 				projects.DELETE("/:id", middleware.RequirePermission("project", "write"), config.ProjectHandler.DeleteProject)
 				// 状态流转专用端点（P0；complete 走结项门禁，见 docs/project-management/plan/p0-integration-contracts.md §3.3）
