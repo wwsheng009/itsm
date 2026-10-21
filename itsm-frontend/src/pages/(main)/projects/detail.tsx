@@ -1442,9 +1442,15 @@ export default function ProjectDetailPage() {
     {
       title: '门禁阻塞项',
       key: 'blockers',
-      // B4 + 第三轮：显式 width + minWidth，禁止被弹性压缩到 0 宽（列头会整个消失）。
+      /*
+       * B4 + 第四轮：列头消失（宽度 0）的根因是「表头」单元格没拿到 min-width——
+       * 只设 onCell 影响数据单元格，表头仍会被 table-layout:fixed 压成 0。
+       * 同时给 onHeaderCell，并保留 width 作为初始分配值。
+       */
       width: 360,
-      minWidth: 260,
+      onHeaderCell: () => ({
+        style: { minWidth: 260, width: 360, whiteSpace: 'nowrap', overflow: 'visible' },
+      }),
       onCell: () => ({ style: { minWidth: 260, whiteSpace: 'normal' } }),
       render: (_: unknown, row) => {
         const status = row.record?.status ?? 'pending';
@@ -2208,8 +2214,9 @@ export default function ProjectDetailPage() {
                   pagination={false}
                   size="small"
                   loading={gateLoading}
-                  // B4 + 第三轮：固定操作列 + 足够的总宽度，避免「门禁阻塞项」被压到 0 宽。
-                  scroll={{ x: 1360 }}
+                  // B4 + 第四轮：总宽 = 各列声明宽度之和（220+100+240+360+170），
+                  // 避免 table-layout:fixed 在剩余空间不足时把「门禁阻塞项」压到 0。
+                  scroll={{ x: 1090 }}
                   tableLayout="fixed"
                 />
               </>
@@ -2501,15 +2508,16 @@ export default function ProjectDetailPage() {
               <Select options={Object.entries(PRIORITY_META).map(([value, meta]) => ({ value, label: meta.label }))} />
             </Form.Item>
             {/*
-              B1（第三轮仍未修复）：antd InputNumber 在**失焦**时才钳制，onChange 拿到的
-              已是钳制后的值（999999999 → 1000000），因此「超限提示」永远不会触发。
-              改为表单级校验：超限直接阻止提交并给出字段级红字（不再静默截断）。
-              上限与后端 MaxTaskHours 保持一致（10000h）。
+              B1（第四轮根因）：**不能给 InputNumber 传 max**。
+              antd 在 blur 时先按 max 钳制再触发校验，校验器拿到的永远是 10000，
+              因此上一轮「超限拒绝保存」的承诺根本无法兑现（实测 999999999 → 保存为 10000）。
+              现在：去掉 max（不钳制、不改写用户输入），只保留 min，超限由 validator 拦截。
             */}
             <Form.Item
               name="estimateHours"
               label="估算工时（小时）"
-              extra="0 ~ 10,000 小时；超出会被拒绝保存（不会静默截断）"
+              extra={`0 ~ ${TASK_HOURS_MAX.toLocaleString()} 小时；超出将阻止保存并提示`}
+              validateTrigger={['onChange', 'onBlur']}
               rules={[
                 {
                   validator: (_, value) => {
@@ -2520,7 +2528,9 @@ export default function ProjectDetailPage() {
                     }
                     if (hours > TASK_HOURS_MAX) {
                       return Promise.reject(
-                        new Error(`估算工时上限为 ${TASK_HOURS_MAX.toLocaleString()} 小时，请调整后再保存`)
+                        new Error(
+                          `估算工时不得超过 ${TASK_HOURS_MAX.toLocaleString()} 小时（当前 ${hours.toLocaleString()}）`
+                        )
                       );
                     }
                     return Promise.resolve();
@@ -2528,7 +2538,7 @@ export default function ProjectDetailPage() {
                 },
               ]}
             >
-              <InputNumber min={0} max={TASK_HOURS_MAX} step={1} style={{ width: '100%' }} />
+              <InputNumber min={0} step={1} style={{ width: '100%' }} />
             </Form.Item>
           </div>
           <div className="grid grid-cols-2 gap-4">

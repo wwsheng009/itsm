@@ -1,0 +1,31 @@
+fix(project): 修复第四轮回归——工时校验真根因与表格 sticky 遮挡
+
+第四轮报告归档：docs/project-management/reviews/2026-10-21-项目功能回归验证报告-第四轮.md
+处置台账：docs/project-management/reviews/2026-10-21-第四轮回归遗留修复台账.md
+
+B1 工时静默钳制（第四轮：文案承诺拒绝、实际截断保存）
+- 真根因：<InputNumber max={10000}> 在 blur 时先钳制再同步 Form，
+  validator 收到的永远是 10000 → 校验必然通过。前两轮改提示/改校验器都没用。
+- 修复：工时输入**移除 max**（只留 min=0），antd 不再改写输入；
+  validateTrigger=[onChange,onBlur] 让越界即时红字并阻止保存；
+  文案改为「超出将阻止保存并提示」，与实现一致。
+- 模板任务工时同样移除 max 并补 validator（此前仅靠 max 钳制 = 无校验）。
+- 新增源码守卫测试 task-hours-limit.test.ts（7 用例）：
+  锁定「工时 InputNumber 不得出现 max=」，防止后人加回上限再次让校验变死代码。
+
+列表页 sticky 操作列遮挡 8 列（修复引入的新缺陷）
+- 真根因在全局 CSS：globals.css 的 `.ant-table { overflow: visible }`
+  破坏了 antd 固定列的 sticky 定位上下文，退化为不透明浮层覆盖中间列。
+  改为 overflow: hidden（圆角由 .ant-table-container 承担）。
+- 列精简：所属部门/归口团队/计划结束/预算 合并为「归属与计划」一列，
+  列数 12 → 9，scroll.x 1600 → 1440；信息不丢失（第二行仍展示）。
+
+阶段门「门禁阻塞项」列宽为 0
+- onCell 只作用于数据单元格，表头仍被 table-layout:fixed 压到 0；
+  补 onHeaderCell（minWidth 260 / width 360 / nowrap）；
+  scroll.x 1360 → 1090（= 各列声明宽度之和）。
+
+校验
+- npx jest --testPathPattern "task-hours-limit" ✅ 7/7
+- npx tsc --noEmit ✅ 0 error；改动文件 eslint ✅ 0 error
+- npm run build（tsc -b && vite build）✅ built in 1m 18s

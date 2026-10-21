@@ -889,7 +889,13 @@
 /* 增强的表格样式 */
 .ant-table {
   border-radius: 8px;
-  overflow: visible;
+  /*
+   * 固定列（fixed: 'left'|'right'）依赖滚动容器裁剪。
+   * 原 `overflow: visible` 会让 antd 的 .ant-table-cell-fix-* 失去 sticky 定位上下文，
+   * 退化为「不透明浮层盖住中间列」（2026-10-21 第四轮回归实测：列表页遮住 8 列）。
+   * 圆角由内层 .ant-table-container 承担，无需外层 overflow。
+   */
+  overflow: hidden;
   box-shadow: var(--shadow-sm);
 }
 

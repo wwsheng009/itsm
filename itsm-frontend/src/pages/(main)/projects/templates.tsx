@@ -27,6 +27,9 @@ import type {
 import { projectService } from '@/lib/services/project-service';
 import { formatBusinessDateTime } from '@/lib/formatters';
 
+/** 单任务工时上限（与后端 project.MaxTaskHours 同源；第四轮 B1）。 */
+const TASK_HOURS_MAX = 10000;
+
 // 项目模板管理（P1/PE-11）。权威定义：docs/project-management/plan/p1-template-design.md
 // 规则：draft 可编不可用；active 可一键生成；被项目应用过的模板不可删除（改为归档）。
 
@@ -507,9 +510,31 @@ export default function ProjectTemplatesPage() {
                       <Form.Item name={[field.name, 'durationDays']} label="工期（天）" style={{ flex: 1 }}>
                         <InputNumber min={0} max={3650} style={{ width: '100%' }} />
                       </Form.Item>
-                      <Form.Item name={[field.name, 'estimateHours']} label="估算工时" style={{ flex: 1 }}>
-                        {/* B1/B2：与实例任务同口径（后端 MaxTaskHours=10000）；超限由校验拒绝。 */}
-                        <InputNumber min={0} max={10000} step={1} style={{ width: '100%' }} />
+                      {/*
+                        B1/B2：与实例任务同口径（后端 MaxTaskHours=10000）。
+                        不传 max（否则 antd 会静默钳制后再校验，等于绕过校验）；超限由 validator 拦截。
+                      */}
+                      <Form.Item
+                        name={[field.name, 'estimateHours']}
+                        label="估算工时"
+                        style={{ flex: 1 }}
+                        rules={[
+                          {
+                            validator: (_, value) => {
+                              if (value === undefined || value === null || value === '') return Promise.resolve();
+                              const hours = Number(value);
+                              if (!Number.isFinite(hours) || hours < 0) {
+                                return Promise.reject(new Error('须为不小于 0 的数字'));
+                              }
+                              if (hours > TASK_HOURS_MAX) {
+                                return Promise.reject(new Error(`不得超过 ${TASK_HOURS_MAX} 小时`));
+                              }
+                              return Promise.resolve();
+                            },
+                          },
+                        ]}
+                      >
+                        <InputNumber min={0} step={1} style={{ width: '100%' }} />
                       </Form.Item>
                     </div>
                     <Form.Item name={[field.name, 'description']} label="说明">

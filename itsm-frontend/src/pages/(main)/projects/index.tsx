@@ -349,15 +349,6 @@ export default function ProjectsPage() {
         render: (percent: number) => <Progress percent={percent || 0} size="small" />,
       },
       {
-        // A2：所属部门单独成列（与「归口团队」区分；部门缺失明确显示「未设置」）。
-        title: '所属部门',
-        dataIndex: 'departmentName',
-        key: 'departmentName',
-        width: 150,
-        render: (name: string | undefined, record) =>
-          name || (record.departmentId ? `部门 #${record.departmentId}` : <Tag color="warning">未设置</Tag>),
-      },
-      {
         title: '负责人',
         dataIndex: 'managerId',
         key: 'managerId',
@@ -367,34 +358,33 @@ export default function ProjectsPage() {
           record.managerName || (id ? userNameById[id] ?? `用户 #${id}` : <Tag color="warning">未设置</Tag>),
       },
       {
-        // A2：归口（ownerTeam）现可维护；列名保持业务口径，缺失显示「未设置」。
-        title: '归口团队',
-        dataIndex: 'ownerTeamName',
-        key: 'ownerTeamName',
-        width: 150,
-        render: (name: string | undefined, record) =>
-          record.ownerTeamId ? (
-            <Space size={4}>
-              <span>{name || `团队 #${record.ownerTeamId}`}</span>
-              {record.ownerTeamDeleted && <Tag color="error">已停用</Tag>}
-            </Space>
-          ) : (
-            <Tag>未设置</Tag>
-          ),
-      },
-      {
-        title: '计划结束',
-        dataIndex: 'endDate',
-        key: 'endDate',
-        width: 120,
-        render: (v?: string) => (v ? v.slice(0, 10) : '-'),
-      },
-      {
-        // P2（PE-22）：轻量预算（未设置显示 '-'；不含财务口径）。
-        title: '预算',
-        key: 'budget',
-        width: 140,
-        render: (_: unknown, record) => formatBudget(record.budgetAmount, record.budgetCurrency) ?? '-',
+        /*
+         * 第四轮回归：12 列导致 fixed:'right' 操作列覆盖中间 8 列。
+         * 根因已单独修复（globals.css 的 .ant-table overflow），此处再做列精简：
+         * 部门/归口/计划结束/预算收敛为「归属与计划」一列（两行展示），列数 12 → 9，
+         * 避免宽表在常见 1440 屏宽下必须横向滚动。
+         */
+        title: '归属与计划',
+        key: 'ownership',
+        width: 220,
+        render: (_: unknown, record) => {
+          const dept = record.departmentName || (record.departmentId ? `部门 #${record.departmentId}` : '未设置部门');
+          const team = record.ownerTeamId
+            ? record.ownerTeamName || `团队 #${record.ownerTeamId}`
+            : '未设置归口';
+          const plan = record.endDate ? `计划结束 ${record.endDate.slice(0, 10)}` : '未设计划结束';
+          const budget = formatBudget(record.budgetAmount, record.budgetCurrency);
+          return (
+            <div style={{ lineHeight: 1.5, whiteSpace: 'nowrap' }}>
+              <div>{dept}</div>
+              <div style={{ color: '#8c8c8c', fontSize: 12 }}>
+                {team}
+                {record.ownerTeamDeleted ? '（已停用）' : ''} · {plan}
+                {budget ? ` · ${budget}` : ''}
+              </div>
+            </div>
+          );
+        },
       },
       {
         title: '操作',
@@ -499,8 +489,8 @@ export default function ProjectsPage() {
         columns={columns}
         dataSource={projects}
         loading={loading}
-        // B5：列宽自适应 + 最小宽度，超宽横向滚动，避免中文竖排折行；操作列固定右侧。
-        scroll={{ x: 1600 }}
+        // B5：列精简后总宽 1440，常见 1440 屏宽下无需横向滚动；仍保留 x 兜底窄屏。
+        scroll={{ x: 1440 }}
         pagination={{
           current: page,
           pageSize,
