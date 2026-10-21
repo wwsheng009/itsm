@@ -1,0 +1,10 @@
+docs(project): 记录回归遗留修复的 238 部署与线上验证
+
+- 版本 1.8.0-dev.b3f9762c，分支 deploy-demo-project-regression-b3f9762c
+- 记录构建阻断与修复：cb6142f1 删除重复 Sidebar.module.css 后，
+  MenuItems.tsx 仍引用 ../Sidebar.module.css，vite build 失败；
+  b3f9762c 改为同目录引用后构建通过（tsc --noEmit 不解析 CSS，未能暴露）
+- 线上验证：归口候选 10 个团队、PUT ownerTeamId 200 且名称回显、
+  报表出现「云平台运维 / IT基础架构」分组、其余按部门分列、
+  一次通过率 passed=5/firstPass=5/autoApproved=6、页面全 200、日志无 error
+- 台账补充 §10（部署、构建阻断、线上实测、待浏览器复验项）
