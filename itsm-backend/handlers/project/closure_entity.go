@@ -74,12 +74,14 @@ type ClosureItem struct {
 
 // ProjectClosureResponse 结项清单响应。
 type ProjectClosureResponse struct {
-	ID        int    `json:"id"`
-	ProjectID int    `json:"projectId"`
-	Status    string `json:"status"` // pending=存在未通过项；ready=可结项；completed=项目已结项
+	ID        int           `json:"id"`
+	ProjectID int           `json:"projectId"`
+	Status    string        `json:"status"` // pending=存在未通过项；ready=可结项；completed=项目已结项
 	Items     []ClosureItem `json:"items"`
 	// Blockers 未通过的阻塞项（含自动项，供前端一次展示全部缺口）。
 	Blockers []Blocker `json:"blockers"`
+	// BlockerTotal 阻塞项总数（Blockers 最多展示 10 条 + 汇总项；计数口径用本字段，A8）。
+	BlockerTotal int `json:"blockerTotal"`
 	// 产物与动作留痕。
 	RetroKbArticleID  int        `json:"retroKbArticleId"`
 	RetroGeneratedAt  *time.Time `json:"retroGeneratedAt,omitempty"`
@@ -153,6 +155,7 @@ func ToClosureResponse(
 	if resp.Blockers == nil {
 		resp.Blockers = []Blocker{}
 	}
+	resp.BlockerTotal = len(resp.Blockers)
 	if resp.Items == nil {
 		resp.Items = []ClosureItem{}
 	}

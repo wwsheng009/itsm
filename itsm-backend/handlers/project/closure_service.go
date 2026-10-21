@@ -493,6 +493,7 @@ func (s *Service) buildClosureView(
 	resp.AssetsLinksTruncated = linkList.Truncated
 
 	// 阻塞项截断保护：明细最多 10 条 + 汇总（records 可能很多）。
+	resp.BlockerTotal = len(resp.Blockers)
 	if len(resp.Blockers) > 10 {
 		total := len(resp.Blockers)
 		resp.Blockers = append(resp.Blockers[:10], Blocker{

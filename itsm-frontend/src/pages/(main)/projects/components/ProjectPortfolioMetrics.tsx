@@ -5,6 +5,7 @@ import { RefreshCw } from 'lucide-react';
 import { departmentService } from '@/lib/services/department-service';
 import type { Department } from '@/lib/services/department-service';
 import { projectService } from '@/lib/services/project-service';
+import { formatBusinessDate, formatBusinessDateTime } from '@/lib/formatters';
 import { ProjectHealthTag } from './ProjectHealthTag';
 import type {
   DeliveryDetail,
@@ -183,7 +184,7 @@ export default function ProjectPortfolioMetrics() {
 
   const projectColumns: ColumnsType<Project> = [
     { title: '编号', dataIndex: 'code', key: 'code', width: 160 },
-    { title: '项目名称', dataIndex: 'name', key: 'name' },
+    { title: '项目名称', dataIndex: 'name', key: 'name', width: 240 },
     {
       title: '状态',
       dataIndex: 'status',
@@ -197,18 +198,38 @@ export default function ProjectPortfolioMetrics() {
       key: 'health',
       width: 100,
       render: (_: string, record: Project) => (
-        <ProjectHealthTag health={record.health} reasons={record.healthReasons} />
+        <ProjectHealthTag
+          health={record.health}
+          reasons={record.healthReasons}
+          dataQuality={record.healthDataQuality}
+          dataGaps={record.healthDataGaps}
+        />
       ),
     },
     { title: '类型', dataIndex: 'type', key: 'type', width: 120, render: (v: string) => TYPE_LABEL[v] ?? v },
     { title: '进度', dataIndex: 'progress', key: 'progress', width: 90, render: (v: number) => `${v}%` },
-    { title: '计划结束', dataIndex: 'endDate', key: 'endDate', width: 120, render: (v?: string) => v?.slice(0, 10) ?? '—' },
+    // B3：负责人姓名由后端富化（缺失回退用户 #ID）。
+    {
+      title: '项目经理',
+      key: 'manager',
+      width: 130,
+      render: (_: unknown, r: Project) => r.managerName || (r.managerId ? `用户 #${r.managerId}` : '未设置'),
+    },
+    {
+      title: '所属部门',
+      key: 'department',
+      width: 140,
+      render: (_: unknown, r: Project) =>
+        r.departmentName || (r.departmentId ? `部门 #${r.departmentId}` : '未设置'),
+    },
+    // A6：日期按本地时区格式化，避免 UTC 截断导致的跨天偏移。
+    { title: '计划结束', dataIndex: 'endDate', key: 'endDate', width: 120, render: (v?: string) => formatBusinessDate(v) || '—' },
   ];
 
   const deliveryColumns: ColumnsType<DeliveryDetail> = [
     { title: '项目', key: 'project', render: (_, r) => `${r.code ? `${r.code} ` : ''}${r.name}` },
-    { title: '计划结束', dataIndex: 'planEnd', key: 'planEnd', width: 120, render: (v: string) => v.slice(0, 10) },
-    { title: '实际结束', dataIndex: 'actualEnd', key: 'actualEnd', width: 120, render: (v: string) => v.slice(0, 10) },
+    { title: '计划结束', dataIndex: 'planEnd', key: 'planEnd', width: 120, render: (v: string) => formatBusinessDate(v) || '—' },
+    { title: '实际结束', dataIndex: 'actualEnd', key: 'actualEnd', width: 120, render: (v: string) => formatBusinessDate(v) || '—' },
     {
       title: '是否按期',
       dataIndex: 'onTime',
@@ -231,13 +252,13 @@ export default function ProjectPortfolioMetrics() {
         return meta ? <Tag color={meta.color}>{meta.label}</Tag> : v;
       },
     },
-    { title: '目标日期', dataIndex: 'dueDate', key: 'dueDate', width: 120, render: (v: string) => v.slice(0, 10) },
+    { title: '目标日期', dataIndex: 'dueDate', key: 'dueDate', width: 120, render: (v: string) => formatBusinessDate(v) || '—' },
     {
       title: '达成时间',
       dataIndex: 'reachedAt',
       key: 'reachedAt',
       width: 120,
-      render: (v?: string) => (v ? v.slice(0, 10) : '—'),
+      render: (v?: string) => formatBusinessDate(v) || '—',
     },
     { title: '达成', dataIndex: 'achieved', key: 'achieved', width: 80, render: (v: boolean) => (v ? '✓' : '✗') },
     { title: '按期', dataIndex: 'onTime', key: 'onTime', width: 80, render: (v: boolean) => (v ? '✓' : '—') },
@@ -252,14 +273,16 @@ export default function ProjectPortfolioMetrics() {
       dataIndex: 'firstPass',
       key: 'firstPass',
       width: 100,
-      render: (v: boolean) => (v ? <Tag color="success">是</Tag> : <Tag color="warning">否</Tag>),
+      // B12：自动放行不计入一次通过率，明细里显式标注，避免误读为「审批失败」。
+      render: (v: boolean, row) =>
+        row.autoApproved ? <Tag color="default">自动放行（不计入）</Tag> : v ? <Tag color="success">是</Tag> : <Tag color="warning">否</Tag>,
     },
     {
       title: '裁决时间',
       dataIndex: 'decidedAt',
       key: 'decidedAt',
       width: 160,
-      render: (v?: string) => (v ? v.slice(0, 16).replace('T', ' ') : '—'),
+      render: (v?: string) => formatBusinessDateTime(v) || '—',
     },
   ];
 
@@ -362,7 +385,12 @@ export default function ProjectPortfolioMetrics() {
           <MetricCard
             title="阶段门一次通过率"
             rate={gate?.rate ?? null}
-            detail={`一次通过 ${gate?.firstPass ?? 0} / 已通过 ${gate?.passed ?? 0}`}
+            detail={`一次通过 ${gate?.firstPass ?? 0} / 人工审批通过 ${gate?.passed ?? 0}`}
+            extra={
+              gate?.autoApproved
+                ? `另有 ${gate.autoApproved} 道门未配置审批流程、自动放行（已剔除，不计入分子/分母）`
+                : undefined
+            }
           />
         </Col>
         <Col xs={12} md={6}>
@@ -459,6 +487,7 @@ export default function ProjectPortfolioMetrics() {
           dataSource={portfolio?.projects ?? []}
           loading={loading}
           size="small"
+          scroll={{ x: 1200 }}
           pagination={{ pageSize: 10, showSizeChanger: false }}
           data-testid="portfolio-projects-table"
         />

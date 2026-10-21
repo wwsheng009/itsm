@@ -1,9 +1,10 @@
 import { useCallback, useEffect, useState } from 'react';
-import { Button, Form, Input, Modal, Popconfirm, Select, Space, Table, Tag, message } from 'antd';
+import { Button, Form, Input, InputNumber, Modal, Popconfirm, Select, Space, Table, Tag, message } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
 import { Plus, RefreshCw } from 'lucide-react';
 import { Link } from 'react-router';
 import { projectService } from '@/lib/services/project-service';
+import { formatBusinessDateTime } from '@/lib/formatters';
 import type {
   ProjectRisk,
   RiskConvertTarget,
@@ -253,7 +254,7 @@ export function ProjectRiskPanel({ projectId, canWrite, memberOptions }: Project
       key: 'ownerId',
       width: 120,
       render: (ownerId?: number, risk?: ProjectRisk) =>
-        ownerId ? risk?.ownerName ?? `ID:${ownerId}` : '-',
+        ownerId ? risk?.ownerName ?? `用户 #${ownerId}` : <Tag color="warning">未指派</Tag>,
     },
     {
       title: '关联',
@@ -281,7 +282,7 @@ export function ProjectRiskPanel({ projectId, canWrite, memberOptions }: Project
       dataIndex: 'updatedAt',
       key: 'updatedAt',
       width: 170,
-      render: (v: string) => v?.replace('T', ' ').slice(0, 19) ?? '-',
+        render: (v: string) => formatBusinessDateTime(v) || '-',
     },
     {
       title: '操作',
@@ -409,11 +410,17 @@ export function ProjectRiskPanel({ projectId, canWrite, memberOptions }: Project
               <Select allowClear options={LEVEL_OPTIONS} placeholder="可选" />
             </Form.Item>
           </Space>
-          <Form.Item name="ownerId" label="负责人（项目活跃成员）">
-            <Select allowClear options={memberOptions} placeholder="可选" showSearch optionFilterProp="label" />
+          {/* B8：新建必填负责人（无 owner 的风险无人推进）；编辑历史无 owner 记录时允许补填前保存。 */}
+          <Form.Item
+            name="ownerId"
+            label="负责人（项目活跃成员）"
+            rules={editing ? [] : [{ required: true, message: '请选择负责人（须为项目活跃成员）' }]}
+          >
+            <Select options={memberOptions} placeholder="请选择负责人" showSearch optionFilterProp="label" />
           </Form.Item>
           <Form.Item name="relatedTicketId" label="关联工单 ID（可选，须同租户）">
-            <Input type="number" placeholder="例如 1024" />
+            {/* B2：数字控件显式上下限，保证步进可用。 */}
+            <InputNumber min={1} max={2147483647} precision={0} style={{ width: '100%' }} placeholder="例如 1024" />
           </Form.Item>
           <Form.Item name="description" label="描述">
             <Input.TextArea rows={3} placeholder="背景、影响面、应对思路（可选）" />

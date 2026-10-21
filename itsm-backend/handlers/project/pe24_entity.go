@@ -106,30 +106,36 @@ type MilestoneDetail struct {
 
 // MilestoneMetrics 里程碑达成率（judged=已判定；onTimeRate 以 reached 为分母）。
 type MilestoneMetrics struct {
-	Judged       int               `json:"judged"`
-	Reached      int               `json:"reached"`
-	Missed       int               `json:"missed"`
-	OnTimeReached int              `json:"onTimeReached"`
-	Rate         *float64          `json:"rate"`
-	OnTimeRate   *float64          `json:"onTimeRate"`
-	DetailsTotal int               `json:"detailsTotal"`
-	Details      []MilestoneDetail `json:"details"`
+	Judged        int               `json:"judged"`
+	Reached       int               `json:"reached"`
+	Missed        int               `json:"missed"`
+	OnTimeReached int               `json:"onTimeReached"`
+	Rate          *float64          `json:"rate"`
+	OnTimeRate    *float64          `json:"onTimeRate"`
+	DetailsTotal  int               `json:"detailsTotal"`
+	Details       []MilestoneDetail `json:"details"`
 }
 
 // GateDetail 阶段门明细行（firstPass 勾稽字段；rejectCount=0 且 passed 为一次通过）。
 type GateDetail struct {
-	ProjectID   int        `json:"projectId"`
-	Gate        string     `json:"gate"`
-	Status      string     `json:"status"`
-	RejectCount int        `json:"rejectCount"`
-	FirstPass   bool       `json:"firstPass"`
-	DecidedAt   *time.Time `json:"decidedAt,omitempty"`
+	ProjectID   int    `json:"projectId"`
+	Gate        string `json:"gate"`
+	Status      string `json:"status"`
+	RejectCount int    `json:"rejectCount"`
+	FirstPass   bool   `json:"firstPass"`
+	// AutoApproved 未配置审批流程的自动放行（B12：剔除出一次通过率，单独计数）。
+	AutoApproved bool       `json:"autoApproved"`
+	DecidedAt    *time.Time `json:"decidedAt,omitempty"`
 }
 
-// GateMetrics 阶段门一次通过率（分母=passed；分子=passed ∧ reject_count=0）。
+// GateMetrics 阶段门一次通过率（B12 口径）：
+//   - 分母 passed 仅统计**人工审批**通过的门；
+//   - 分子 = passed ∧ reject_count=0（一次通过）；
+//   - 自动放行（auto_approved_no_flow）单独计 autoApproved，不进入分子/分母。
 type GateMetrics struct {
 	Passed       int          `json:"passed"`
 	FirstPass    int          `json:"firstPass"`
+	AutoApproved int          `json:"autoApproved"`
 	Rate         *float64     `json:"rate"`
 	DetailsTotal int          `json:"detailsTotal"`
 	Details      []GateDetail `json:"details"`
@@ -171,13 +177,13 @@ type ResourceUtilization struct {
 
 // MetricsResponse 组合度量响应（四项指标 + 明细，支撑抽样对账）。
 type MetricsResponse struct {
-	GeneratedAt        time.Time            `json:"generatedAt"`
-	ProjectScope       MetricsProjectScope  `json:"projectScope"`
-	Window             MetricsDateWindow    `json:"window"`
-	OnTimeDelivery     DeliveryMetrics      `json:"onTimeDelivery"`
-	MilestoneAchievement MilestoneMetrics   `json:"milestoneAchievement"`
-	GateFirstPass      GateMetrics          `json:"gateFirstPass"`
-	ResourceUtilization ResourceUtilization `json:"resourceUtilization"`
+	GeneratedAt          time.Time           `json:"generatedAt"`
+	ProjectScope         MetricsProjectScope `json:"projectScope"`
+	Window               MetricsDateWindow   `json:"window"`
+	OnTimeDelivery       DeliveryMetrics     `json:"onTimeDelivery"`
+	MilestoneAchievement MilestoneMetrics    `json:"milestoneAchievement"`
+	GateFirstPass        GateMetrics         `json:"gateFirstPass"`
+	ResourceUtilization  ResourceUtilization `json:"resourceUtilization"`
 }
 
 // --- 计算辅助 ---

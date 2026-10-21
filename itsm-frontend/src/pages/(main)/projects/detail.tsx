@@ -17,10 +17,12 @@ import {
   Tabs,
   Tag,
   Tooltip,
+  Dropdown,
+  Checkbox,
   message,
 } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
-import { ArrowLeft, FilePlus2, Flag, GitCompare, Plus, RefreshCw } from 'lucide-react';
+import { ArrowLeft, Ellipsis as MoreOutlined, FilePlus2, Flag, GitCompare, Plus, RefreshCw } from 'lucide-react';
 import { useNavigate, useParams, useSearchParams } from 'react-router';
 import { PageContainer } from '@/components/common/PageContainer';
 import { useCan } from '@/components/auth/PermissionGate';
@@ -54,6 +56,7 @@ import type {
 } from '@/lib/services/project-service';
 import { CLOSURE_ITEM_ORDER, GATE_ORDER, projectService } from '@/lib/services/project-service';
 import { dateValue, isoValue } from '@/lib/utils/date-value';
+import { formatBusinessDate, formatBusinessDateTime } from '@/lib/formatters';
 import { formatBudget } from '@/lib/utils/budget';
 import { ProjectReportPanel } from './components/ProjectReportPanel';
 import { ProjectResourceHeatmap } from './components/ProjectResourceHeatmap';
@@ -116,7 +119,8 @@ const CHANGE_TYPE_META: Record<string, { label: string; color: string }> = {
 // P1（PE-12）阶段门：门定义与状态元数据（顺序与后端 GateOrder 一致）。
 const GATE_META: Record<ProjectGateKey, { label: string; hint: string }> = {
   initiation: { label: '立项门', hint: 'planning → active 前（需项目经理 + 成员登记）' },
-  plan: { label: '计划门', hint: '进入执行前（任务/里程碑齐备；通过时冻结基线）' },
+  // A5：与实现对齐（D4：已有基线不重复冻结，无基线时建 v1），避免"通过即产生 v2"的预期落差。
+  plan: { label: '计划门', hint: '进入执行前（任务/里程碑齐备；无基线时自动冻结 v1，已有基线不重复）' },
   acceptance: { label: '验收门', hint: '交付完成前（任务全完成 + 里程碑全达成）' },
   closure: { label: '结项门', hint: '→ completed 前（关联单据全部终态）' },
 };
@@ -454,6 +458,9 @@ export default function ProjectDetailPage() {
       setClosure(data);
     } catch (error) {
       console.error('Failed to fetch closure checklist:', error);
+      // A3：读取失败必须显式暴露（不得渲染旧「已通过」造成误判）。
+      setClosure(null);
+      message.error('结项清单加载失败，当前无法判断结项条件');
     } finally {
       setClosureLoading(false);
     }
@@ -475,6 +482,14 @@ export default function ProjectDetailPage() {
       fetchClosure();
     }
   }, [project?.id, fetchGates, fetchClosure]);
+
+  // A3：进入「结项清单」Tab 即实时重算门禁（首屏不再使用陈旧的自动项判定）。
+  useEffect(() => {
+    if (activeTab === 'closure') {
+      void fetchClosure();
+      void fetchGates();
+    }
+  }, [activeTab, fetchClosure, fetchGates]);
 
   const memberNameById = useMemo(() => {
     const map: Record<number, string> = {};
@@ -532,6 +547,33 @@ export default function ProjectDetailPage() {
   // 下一道待通过的门 + 预检状态（顶部提示用）。
   const nextGate = GATE_ORDER.find((gate) => (gatesByKey[gate]?.status ?? 'pending') !== 'passed');
 
+  // A8：结项阻塞数单一来源 = 结项清单（GET /closure 实时派生，含任务/单据/门/清单项）。
+  // 清单未加载成功时回退结项门预检，仍保持页头/告警/按钮禁用三处同源。
+  const closureBlockerCount = closure?.blockers.length ?? readinessByKey.closure?.blockers.length ?? 0;
+  // A8：blockers 明细可能被截断（>10 条），计数优先使用后端返回的总数。
+  const closureBlockerTotal = closure?.blockerTotal ?? closureBlockerCount;
+  // 告警明细与计数同源（结项清单优先，回退结项门预检）；统一成可渲染的最小结构。
+  const closureBlockerItems: { type: string; title?: string; detail?: string; number?: string }[] =
+    closure?.blockers ??
+    (readinessByKey.closure?.blockers ?? []).map((b) => ({
+      type: b.type,
+      detail: b.detail,
+      number: b.number,
+    }));
+  // A4：当前未通过门的审批方式（用于页头显式标注人工审批/自动放行）。
+  const nextGateApprovalMode = nextGate ? readinessByKey[nextGate]?.approvalMode : undefined;
+  const autoApprovalGates = GATE_ORDER.filter(
+    (gate) => (gatesByKey[gate]?.status ?? 'pending') !== 'passed' && readinessByKey[gate]?.approvalMode === 'auto',
+  );
+  // A8：存在阻塞（含结项门未通过）时禁用结项按钮，杜绝绕过门禁直接结项。
+  const closureGatePassed = gatesByKey.closure?.status === 'passed';
+  const completeDisabled = !closureGatePassed || closureBlockerTotal > 0;
+  const completeDisabledReason = !closureGatePassed
+    ? '结项门尚未通过：请先在「阶段门」提交并完成审批'
+    : closureBlockerTotal > 0
+      ? `仍有 ${closureBlockerTotal} 项结项阻塞：请在「阶段门」/「结项清单」处理`
+      : undefined;
+
   // 阶段门徽标（顶部按钮旁）：已通过 / 审批中 / 就绪 / 待补 N 项。
   const gateBadge = (key: ProjectGateKey): { text: string; color: string } | null => {
     const record = gatesByKey[key];
@@ -574,24 +616,16 @@ export default function ProjectDetailPage() {
 
   // 结项前置：结项门未通过时直接引导到阶段门（业务阻塞项/结项清单仍由后端兜底）。
   const handleComplete = () => {
-    if (gateReadiness.length > 0) {
-      const record = gatesByKey.closure;
-      if (!record || record.status !== 'passed') {
-        setActiveTab('gates');
-        message.warning(
-          !record
-            ? '结项门尚未提交，请先在阶段门提交'
-            : record.status === 'in_review'
-              ? '结项门审批中，请等待通过后再结项'
-              : '结项门尚未通过，请先在阶段门处理并重新提交'
-        );
-        return;
-      }
-    }
-    const readiness = readinessByKey.closure;
-    if (readiness && !readiness.ready) {
+    // A8：统一用 closureBlockerCount（= 结项门预检阻塞数）拦截至结项，口径与页头/告警一致。
+    if (closureBlockerTotal > 0 || !closureGatePassed) {
       setActiveTab('gates');
-      message.warning(`结项门还有 ${readiness.blockers.length} 项待完成，请先在阶段门处理`);
+      message.warning(
+        !closureGatePassed
+          ? gatesByKey.closure?.status === 'in_review'
+            ? '结项门审批中，请等待通过后再结项'
+            : '结项门尚未通过，请先在阶段门处理并重新提交'
+          : `结项门还有 ${closureBlockerTotal} 项待完成，请先在阶段门处理`
+      );
       return;
     }
     void runTransition('complete');
@@ -868,6 +902,16 @@ export default function ProjectDetailPage() {
     setTaskModalOpen(true);
   };
 
+  // B1：计划结束日联动仅作为默认值——用户手动改过（touched）后不再静默覆盖。
+  const handleTaskPlanStartChange = (value: unknown) => {
+    if (!value) return;
+    const currentEnd = taskForm.getFieldValue('planEnd');
+    if (currentEnd) return; // 用户已填写/已有值：尊重手输，不覆盖。
+    const start = value as { add?: (n: number, unit: string) => unknown };
+    if (typeof start.add !== 'function') return;
+    taskForm.setFieldsValue({ planEnd: start.add(7, 'day') });
+  };
+
   const openTaskEdit = (task: ProjectTask) => {
     setEditingTask(task);
     taskForm.setFieldsValue({
@@ -904,6 +948,9 @@ export default function ProjectDetailPage() {
       setTaskModalOpen(false);
       setEditingTask(null);
       fetchTasks();
+      // A3：任务增删改后刷新结项清单/阶段门预检（自动项实时派生）。
+      void fetchClosure();
+      void fetchGates();
     } catch (error) {
       if (error && typeof error === 'object' && 'errorFields' in error) return;
       console.error('Save task failed:', error);
@@ -916,6 +963,8 @@ export default function ProjectDetailPage() {
       await projectService.transitionTask(projectId, task.id, action, task.version);
       message.success('操作成功');
       fetchTasks();
+      // A3：任务状态变化会影响结项清单自动项（任务清零），需同步刷新，避免首屏陈旧。
+      void fetchClosure();
     } catch (error) {
       console.error('Task transition failed:', error);
       message.error('非法状态流转或并发冲突');
@@ -927,6 +976,7 @@ export default function ProjectDetailPage() {
       await projectService.deleteTask(projectId, task.id);
       message.success('已删除');
       fetchTasks();
+      void fetchClosure();
     } catch (error) {
       console.error('Delete task failed:', error);
       message.error('存在子任务时不可删除');
@@ -991,6 +1041,7 @@ export default function ProjectDetailPage() {
       setMilestoneModalOpen(false);
       setEditingMilestone(null);
       fetchMilestones();
+      void fetchGates();
     } catch (error) {
       if (error && typeof error === 'object' && 'errorFields' in error) return;
       console.error('Save milestone failed:', error);
@@ -1003,6 +1054,9 @@ export default function ProjectDetailPage() {
       await projectService.transitionMilestone(projectId, m.id, action);
       message.success('操作成功');
       fetchMilestones();
+      // A3/A5：里程碑状态影响验收门与结项清单，刷新预检。
+      void fetchGates();
+      void fetchClosure();
     } catch (error) {
       console.error('Milestone transition failed:', error);
       message.error('非法状态流转');
@@ -1014,6 +1068,7 @@ export default function ProjectDetailPage() {
       await projectService.deleteMilestone(projectId, m.id);
       message.success('已删除');
       fetchMilestones();
+      void fetchGates();
     } catch (error) {
       console.error('Delete milestone failed:', error);
       message.error('删除失败');
@@ -1076,7 +1131,8 @@ export default function ProjectDetailPage() {
   };
 
   const taskColumns: ColumnsType<ProjectTask> = [
-    { title: '任务名称', dataIndex: 'name', key: 'name' },
+    // B5：最小宽度 + 横向滚动，避免中文逐字竖排。
+    { title: '任务名称', dataIndex: 'name', key: 'name', width: 260 },
     {
       title: '状态',
       dataIndex: 'status',
@@ -1096,14 +1152,16 @@ export default function ProjectDetailPage() {
       dataIndex: 'assigneeId',
       key: 'assigneeId',
       width: 120,
-      render: (uid?: number) => (uid ? memberNameById[uid] ?? `ID:${uid}` : '-'),
+      // B3：禁止裸 ID（未解析时显式前缀）。
+      render: (uid?: number) => (uid ? memberNameById[uid] ?? `用户 #${uid}` : '-'),
     },
     {
       title: '计划',
       key: 'plan',
       width: 200,
       render: (_: unknown, task) =>
-        `${task.planStart?.slice(0, 10) ?? '-'} ~ ${task.planEnd?.slice(0, 10) ?? '-'}`,
+        // A6：计划日期按本地时区格式化（避免 UTC 截断跨天）。
+        `${formatBusinessDate(task.planStart) || '-'} ~ ${formatBusinessDate(task.planEnd) || '-'}`,
     },
     { title: '进度', dataIndex: 'progress', key: 'progress', width: 120, render: (v: number) => `${v}%` },
     {
@@ -1123,47 +1181,68 @@ export default function ProjectDetailPage() {
     {
       title: '操作',
       key: 'action',
-      width: 320,
-      render: (_: unknown, task) => (
-        <Space size="small" wrap>
-          {canWrite && task.status === 'todo' && <a onClick={() => runTaskAction(task, 'start')}>开始</a>}
-          {canWrite && task.status === 'in_progress' && (
-            <>
-              <a onClick={() => runTaskAction(task, 'block')}>阻塞</a>
-              <a onClick={() => runTaskAction(task, 'complete')}>完成</a>
-            </>
-          )}
-          {canWrite && task.status === 'blocked' && (
-            <>
-              <a onClick={() => runTaskAction(task, 'unblock')}>解除阻塞</a>
-              <a onClick={() => runTaskAction(task, 'complete')}>完成</a>
-            </>
-          )}
-          {canWrite && (task.status === 'todo' || task.status === 'in_progress' || task.status === 'blocked') && (
-            <a onClick={() => runTaskAction(task, 'cancel')}>取消</a>
-          )}
-          {canWrite && <a onClick={() => openTaskEdit(task)}>编辑</a>}
-          {canWrite && <a onClick={() => openDepModal(task)}>依赖</a>}
-          {canWrite &&
-            (task.linkedTicketId ? (
-              <a onClick={() => unbindTicket(task)}>解绑工单</a>
-            ) : (
-              <a onClick={() => generateTicket(task)}>生成工单</a>
-            ))}
-          {canWrite && (
-            <Popconfirm title="确认删除该任务？" onConfirm={() => deleteTask(task)}>
-              <a>删除</a>
-            </Popconfirm>
-          )}
-        </Space>
-      ),
+      width: 190,
+      // B4：主操作 + 「更多」菜单收纳次要操作；删除隔离二次确认，避免 7 个链接平铺与误点。
+      render: (_: unknown, task) => {
+        if (!canWrite) return '-';
+        const primary =
+          task.status === 'todo'
+            ? { label: '开始', action: 'start' }
+            : task.status === 'in_progress'
+              ? { label: '完成', action: 'complete' }
+              : task.status === 'blocked'
+                ? { label: '解除阻塞', action: 'unblock' }
+                : null;
+        const items: { key: string; label: React.ReactNode; danger?: boolean; onClick?: () => void }[] = [];
+        if (task.status === 'in_progress') items.push({ key: 'block', label: '标记阻塞', onClick: () => runTaskAction(task, 'block') });
+        if (task.status === 'blocked') items.push({ key: 'complete', label: '完成', onClick: () => runTaskAction(task, 'complete') });
+        if (task.status === 'todo' || task.status === 'in_progress' || task.status === 'blocked') {
+          items.push({ key: 'cancel', label: '取消任务', onClick: () => runTaskAction(task, 'cancel') });
+        }
+        items.push({ key: 'edit', label: '编辑', onClick: () => openTaskEdit(task) });
+        items.push({ key: 'dep', label: '依赖', onClick: () => openDepModal(task) });
+        items.push(
+          task.linkedTicketId
+            ? { key: 'unbind', label: '解绑工单', onClick: () => unbindTicket(task) }
+            : { key: 'ticket', label: '生成工单', onClick: () => generateTicket(task) },
+        );
+        items.push({
+          key: 'delete',
+          danger: true,
+          label: '删除任务',
+          onClick: () => {
+            Modal.confirm({
+              title: '确认删除该任务？',
+              content: `任务「${task.name}」删除后不可恢复；存在子任务时会被拒绝。`,
+              okText: '删除',
+              okButtonProps: { danger: true },
+              cancelText: '取消',
+              onOk: () => deleteTask(task),
+            });
+          },
+        });
+        return (
+          <Space size={4} wrap>
+            {primary ? (
+              <Button size="small" type="primary" onClick={() => runTaskAction(task, primary.action)}>
+                {primary.label}
+              </Button>
+            ) : null}
+            <Dropdown menu={{ items }} trigger={['click']}>
+              <Button size="small" icon={<MoreOutlined />} aria-label="更多任务操作">
+                更多
+              </Button>
+            </Dropdown>
+          </Space>
+        );
+      },
     },
   ];
 
   // ---- 里程碑 / 基线展示（P1：PE-14 / PE-13） ----
 
   const milestoneColumns: ColumnsType<ProjectMilestone> = [
-    { title: '里程碑', dataIndex: 'name', key: 'name' },
+    { title: '里程碑', dataIndex: 'name', key: 'name', width: 240 },
     {
       title: '计划日期',
       dataIndex: 'dueDate',
@@ -1171,7 +1250,7 @@ export default function ProjectDetailPage() {
       width: 170,
       render: (v: string, m) => (
         <Space size={4}>
-          {v?.slice(0, 10)}
+            {formatBusinessDate(v) || '-'}
           {milestoneOverdue(m) && <Tag color="error">已逾期</Tag>}
         </Space>
       ),
@@ -1197,7 +1276,7 @@ export default function ProjectDetailPage() {
       dataIndex: 'reachedAt',
       key: 'reachedAt',
       width: 170,
-      render: (v?: string) => v?.replace('T', ' ').slice(0, 19) ?? '-',
+        render: (v?: string) => formatBusinessDateTime(v) || '-',
     },
     {
       title: '操作',
@@ -1240,7 +1319,7 @@ export default function ProjectDetailPage() {
       dataIndex: 'createdAt',
       key: 'createdAt',
       width: 180,
-      render: (v: string) => v?.replace('T', ' ').slice(0, 19),
+        render: (v: string) => formatBusinessDateTime(v) || '-',
     },
   ];
 
@@ -1327,11 +1406,26 @@ export default function ProjectDetailPage() {
         return (
           <div style={{ fontSize: 12, color: '#595959' }}>
             {hasRealTime(submittedAt) ? (
-              <div>{`提交：${submittedAt.replace('T', ' ').slice(0, 19)}`}</div>
+                <div>{`提交：${formatBusinessDateTime(submittedAt)}`}</div>
             ) : null}
             {record.processInstanceId ? <div>{`流程实例：#${record.processInstanceId}`}</div> : null}
-            {hasRealTime(decidedAt) ? <div>{`裁决：${decidedAt.replace('T', ' ').slice(0, 19)}`}</div> : null}
+            {hasRealTime(decidedAt) ? <div>{`裁决：${formatBusinessDateTime(decidedAt)}`}</div> : null}
             {record.decisionComment ? <div>{`意见：${record.decisionComment}`}</div> : null}
+            {/* A4：逐门显式标注审批方式（人工审批 / 未配置自动放行）。 */}
+            <div>
+              审批方式：
+              {record.approvalMode === 'auto' || record.autoApproved ? (
+                <Tag color="warning" style={{ marginInlineStart: 4 }}>
+                  自动放行（未配置流程）
+                </Tag>
+              ) : record.approvalMode === 'manual' ? (
+                <Tag color="processing" style={{ marginInlineStart: 4 }}>
+                  人工审批
+                </Tag>
+              ) : (
+                <span>未提交</span>
+              )}
+            </div>
           </div>
         );
       },
@@ -1453,7 +1547,8 @@ export default function ProjectDetailPage() {
     {
       title: '操作',
       key: 'actions',
-      width: 200,
+      // B11：加宽操作列，避免「确认登记 / 豁免」按钮被挤压拆字。
+      width: 260,
       render: (_: unknown, row) => {
         if (!canWrite || project?.status === 'completed' || project?.status === 'cancelled') return '-';
         if (row.key === 'retro') {
@@ -1478,9 +1573,16 @@ export default function ProjectDetailPage() {
           );
         }
         if (row.key === 'members') {
+          // B10：已回收后降级为普通按钮并明示「重新回收」，避免主按钮误导重复操作。
+          const recycled = Boolean(closure?.membersRecycledAt);
           return (
-            <Button size="small" type="primary" loading={closureActionLoading} onClick={handleRecycleMembers}>
-              执行成员回收
+            <Button
+              size="small"
+              type={recycled ? 'default' : 'primary'}
+              loading={closureActionLoading}
+              onClick={handleRecycleMembers}
+            >
+              {recycled ? `重新回收（已回收 ${closure?.membersRecycledCount ?? 0} 人）` : '执行成员回收'}
             </Button>
           );
         }
@@ -1532,7 +1634,7 @@ export default function ProjectDetailPage() {
       dataIndex: 'createdAt',
       key: 'createdAt',
       width: 170,
-      render: (v: string) => (v ? new Date(v).toLocaleString() : '-'),
+        render: (v: string) => formatBusinessDateTime(v) || '-',
     },
     {
       title: '操作',
@@ -1632,7 +1734,7 @@ export default function ProjectDetailPage() {
       title: '前置任务',
       dataIndex: 'dependsOnTaskId',
       key: 'dependsOnTaskId',
-      render: (id: number) => taskNameById[id] ?? `ID:${id}`,
+      render: (id: number) => taskNameById[id] ?? `任务 #${id}`,
     },
     { title: '类型', dataIndex: 'depType', key: 'depType', width: 90, render: (t: string) => <Tag>{t}</Tag> },
     {
@@ -1659,7 +1761,8 @@ export default function ProjectDetailPage() {
 
   const openMemberModal = () => {
     memberForm.resetFields();
-    memberForm.setFieldsValue({ projectRole: 'member' });
+    // B6：角色选择器置于候选之后，默认「成员」；已有 PM 时提供同步任命开关。
+    memberForm.setFieldsValue({ projectRole: 'member', syncManager: false });
     setMemberModalOpen(true);
     searchCandidates();
   };
@@ -1668,7 +1771,22 @@ export default function ProjectDetailPage() {
     try {
       const values = await memberForm.validateFields();
       await projectService.addMember(projectId, values.userId, values.projectRole);
-      message.success('成员已添加');
+      // B6：可选的「同步设为项目经理」——成员登记成功后立即任命，失败不回滚成员。
+      if (values.syncManager && project && values.userId !== project.managerId) {
+        try {
+          const updated = await projectService.updateProject(project.id, {
+            managerId: values.userId,
+            version: project.version,
+          });
+          setProject(updated);
+          message.success('成员已添加，并已同步任命为项目经理');
+        } catch (managerError) {
+          console.error('Sync manager failed:', managerError);
+          message.warning('成员已添加，但同步任命项目经理失败（角色权限或版本冲突），请在概览页重试');
+        }
+      } else {
+        message.success('成员已添加');
+      }
       setMemberModalOpen(false);
       fetchMembers();
       // 成员登记是立项门规则之一：刷新阶段门，便于用户回到门行重新提交。
@@ -1756,7 +1874,7 @@ export default function ProjectDetailPage() {
       render: (v?: string) =>
         v ? (
           <Space size={4}>
-            {v.slice(0, 10)}
+              {formatBusinessDate(v)}
             {expiringSoon(v) && <Tag color="warning">即将到期</Tag>}
           </Space>
         ) : (
@@ -1813,7 +1931,7 @@ export default function ProjectDetailPage() {
       dataIndex: 'updatedAt',
       key: 'updatedAt',
       width: 170,
-      render: (v: string) => v?.replace('T', ' ').slice(0, 19),
+        render: (v: string) => formatBusinessDateTime(v) || '-',
     },
     {
       title: '操作',
@@ -1903,24 +2021,27 @@ export default function ProjectDetailPage() {
             恢复
           </Button>
         ) : null,
-        (project.status === 'active' || project.status === 'suspended') && gateBadge('closure') ? (
-          <Tag key="closure-readiness" color={gateBadge('closure')!.color}>
-            {gateBadge('closure')!.text}
+        (project.status === 'active' || project.status === 'suspended') && readinessByKey.closure ? (
+          // A8：页头徽标与告警块同源（结项门实时预检阻塞数），不再出现「1 项 vs 4 项」矛盾。
+          <Tag
+            key="closure-readiness"
+            color={closureGatePassed && closureBlockerTotal === 0 ? 'success' : 'warning'}
+          >
+            {closureGatePassed && closureBlockerTotal === 0
+              ? '结项门已通过'
+              : `结项待补 ${closureBlockerTotal} 项`}
           </Tag>
         ) : null,
         canWrite && (project.status === 'active' || project.status === 'suspended') ? (
           <Tooltip
-            title={
-              readinessByKey.closure
-                ? readinessByKey.closure.ready
-                  ? '结项门条件已满足'
-                  : '结项门未通过：点击查看并处理阻塞项'
-                : undefined
-            }
+            title={completeDisabledReason ?? '结项门条件已满足'}
+            // A8：禁用时仍保留点击解释（用禁用样式但可聚焦），避免「静态文案 + 可点击主按钮」。
           >
-            <Button key="complete" onClick={handleComplete}>
-              结项
-            </Button>
+            <span>
+              <Button key="complete" type="primary" disabled={completeDisabled} onClick={handleComplete}>
+                结项
+              </Button>
+            </span>
           </Tooltip>
         ) : null,
       ]}
@@ -1931,6 +2052,7 @@ export default function ProjectDetailPage() {
           setActiveTab(key);
           // 预检随数据变化：进入阶段门时重新拉取（在任务/里程碑/成员 Tab 修复后立即可见）。
           if (key === 'gates') void fetchGates();
+          if (key === 'closure') void fetchClosure();
         }}
         items={[
           {
@@ -1945,11 +2067,19 @@ export default function ProjectDetailPage() {
                     <Tag color={STATUS_META[project.status]?.color}>{STATUS_META[project.status]?.label}</Tag>
                   </Descriptions.Item>
                   <Descriptions.Item label="健康度">
-                    <ProjectHealthTag health={project.health} reasons={project.healthReasons} />
+                    <ProjectHealthTag
+                      health={project.health}
+                      reasons={project.healthReasons}
+                      dataQuality={project.healthDataQuality}
+                      dataGaps={project.healthDataGaps}
+                    />
                   </Descriptions.Item>
                   <Descriptions.Item label="项目经理">
                     {project.managerId ? (
-                      memberNameById[project.managerId] ?? `ID:${project.managerId}`
+                      // B3：后端富化名称 → 成员字典 → 明确前缀，避免裸 ID 误读。
+                      project.managerName ??
+                      memberNameById[project.managerId] ??
+                      `用户 #${project.managerId}`
                     ) : canWrite ? (
                       <a onClick={openManagerModal}>未任命（去任命）</a>
                     ) : (
@@ -1957,16 +2087,19 @@ export default function ProjectDetailPage() {
                     )}
                   </Descriptions.Item>
                   <Descriptions.Item label="计划起止">
-                    {project.startDate?.slice(0, 10) ?? '-'} ~ {project.endDate?.slice(0, 10) ?? '-'}
+                      {formatBusinessDate(project.startDate) || '-'} ~ {formatBusinessDate(project.endDate) || '-'}
+                  </Descriptions.Item>
+                  <Descriptions.Item label="所属部门">
+                    {project.departmentName || (project.departmentId ? `部门 #${project.departmentId}` : '未设置')}
                   </Descriptions.Item>
                   <Descriptions.Item label="实际起止">
-                    {project.actualStart?.slice(0, 10) ?? '-'} ~ {project.actualEnd?.slice(0, 10) ?? '-'}
+                      {formatBusinessDate(project.actualStart) || '-'} ~ {formatBusinessDate(project.actualEnd) || '-'}
                   </Descriptions.Item>
-                  <Descriptions.Item label="结项时间">{project.closedAt?.slice(0, 19) ?? '-'}</Descriptions.Item>
+                    <Descriptions.Item label="结项时间">{formatBusinessDateTime(project.closedAt) || '-'}</Descriptions.Item>
                   <Descriptions.Item label="已应用模板">
                     {project.templateId
                       ? `${appliedTemplateName || `模板 #${project.templateId}`}${
-                          project.templateAppliedAt ? `（${project.templateAppliedAt.slice(0, 10)}）` : ''
+                            project.templateAppliedAt ? `（${formatBusinessDate(project.templateAppliedAt)}）` : ''
                         }`
                       : '未应用'}
                   </Descriptions.Item>
@@ -1991,10 +2124,15 @@ export default function ProjectDetailPage() {
             label: `阶段门 (${GATE_ORDER.filter((g) => gatesByKey[g]?.status === 'passed').length}/4)`,
             children: (
               <>
-                <Space style={{ marginBottom: 12 }}>
+                <Space style={{ marginBottom: 12 }} wrap>
                   <Button icon={<RefreshCw />} onClick={fetchGates} loading={gateLoading}>
                     刷新
                   </Button>
+                  {nextGateApprovalMode === 'auto' && (
+                    <Tag color="warning">
+                      {`当前门（${GATE_META[nextGate!].label}）未配置审批流程：提交将自动放行`}
+                    </Tag>
+                  )}
                   {nextGate ? (
                     (gatesByKey[nextGate]?.status ?? 'pending') === 'in_review' ? (
                       <Tag color="processing">{`预检：${GATE_META[nextGate].label}审批中`}</Tag>
@@ -2016,7 +2154,28 @@ export default function ProjectDetailPage() {
                     进入本页即按当前数据实时预检（无需先提交）；阻塞项右侧可直接进入对应处理入口，
                     修复后在该门行点击「重新提交」。立项门通过后才能激活项目。
                   </span>
+                  <Button type="link" size="small" onClick={() => navigate('/admin/process-routing')}>
+                    配置审批流程 →
+                  </Button>
                 </Space>
+                {autoApprovalGates.length > 0 && (
+                  <Alert
+                    type="warning"
+                    showIcon
+                    style={{ marginBottom: 12 }}
+                    message={`${autoApprovalGates
+                      .map((gate) => GATE_META[gate].label)
+                      .join('、')} 未配置审批流程，提交后将自动放行（不计入一次通过率）`}
+                    description={
+                      <span>
+                        自动放行是「配置缺失」的降级行为，不等价于审批通过。请到
+                        <a onClick={() => navigate('/admin/process-routing')}> 流程路由配置 </a>
+                        为 project / initiation、project / plan、project / acceptance、project / closure
+                        绑定审批流程。
+                      </span>
+                    }
+                  />
+                )}
                 <Table
                   rowKey="gate"
                   columns={gateColumns}
@@ -2046,19 +2205,20 @@ export default function ProjectDetailPage() {
                     阻塞项全部通过后，用页头「结项」完成项目；复盘草稿不自动发布，CSAT 缺失不阻塞结项。
                   </span>
                 </Space>
-                {closure && closure.blockers.length > 0 && (
+                {closureBlockerCount > 0 && (
                   <Alert
                     type="warning"
                     showIcon
                     style={{ marginBottom: 12 }}
-                    message={`存在 ${closure.blockers.length} 项结项阻塞`}
+                    // A8：与页头徽标同源（结项门预检阻塞数），避免两个数字互相矛盾。
+                    message={`存在 ${closureBlockerTotal} 项结项阻塞`}
                     description={
                       <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
-                        {closure.blockers.map((b, index) => (
+                        {closureBlockerItems.map((b, index) => (
                           <Tag key={`${b.type}-${index}`} color="warning">
-                            {`${CLOSURE_ITEM_META[b.type]?.label ?? b.type}${b.title ? `：${b.title}` : ''}${
-                              b.number ? `（${b.number}）` : ''
-                            }`}
+                            {`${CLOSURE_ITEM_META[b.type]?.label ?? GATE_BLOCKER_META[b.type] ?? b.type}${
+                              b.title ? `：${b.title}` : b.detail ? `：${b.detail}` : ''
+                            }${b.number ? `（${b.number}）` : ''}`}
                           </Tag>
                         ))}
                       </div>
@@ -2119,7 +2279,15 @@ export default function ProjectDetailPage() {
                     新建任务
                   </Button>
                 )}
-                <Table rowKey="id" columns={taskColumns} dataSource={tasks} pagination={false} size="small" />
+                {/* B4/B5：任务表横向滚动，避免操作列被 AI 悬浮球遮挡与中文竖排。 */}
+                <Table
+                  rowKey="id"
+                  columns={taskColumns}
+                  dataSource={tasks}
+                  pagination={false}
+                  size="small"
+                  scroll={{ x: 1200 }}
+                />
               </>
             ),
           },
@@ -2133,7 +2301,14 @@ export default function ProjectDetailPage() {
                     新建里程碑
                   </Button>
                 )}
-                <Table rowKey="id" columns={milestoneColumns} dataSource={milestones} pagination={false} size="small" />
+                <Table
+                  rowKey="id"
+                  columns={milestoneColumns}
+                  dataSource={milestones}
+                  pagination={false}
+                  size="small"
+                  scroll={{ x: 900 }}
+                />
               </>
             ),
           },
@@ -2281,6 +2456,7 @@ export default function ProjectDetailPage() {
                 ]}
               />
             </Form.Item>
+            {/* B9：负责人附注「须为项目成员」但非硬必填（允许暂不指派），与后端语义一致。 */}
             <Form.Item name="assigneeId" label="负责人（须为项目成员）">
               <Select
                 allowClear
@@ -2296,15 +2472,29 @@ export default function ProjectDetailPage() {
             <Form.Item name="priority" label="优先级">
               <Select options={Object.entries(PRIORITY_META).map(([value, meta]) => ({ value, label: meta.label }))} />
             </Form.Item>
-            <Form.Item name="estimateHours" label="估算工时">
-              <InputNumber min={0} style={{ width: '100%' }} />
+            <Form.Item name="estimateHours" label="估算工时（小时）">
+              {/* B2：显式上下限（原组件默认 0/0 导致步进失效）。 */}
+              <InputNumber min={0} max={1000000} step={1} style={{ width: '100%' }} />
             </Form.Item>
           </div>
           <div className="grid grid-cols-2 gap-4">
             <Form.Item name="planStart" label="计划开始">
-              <DatePicker style={{ width: '100%' }} />
+              <DatePicker style={{ width: '100%' }} onChange={handleTaskPlanStartChange} />
             </Form.Item>
-            <Form.Item name="planEnd" label="计划结束">
+            <Form.Item
+              name="planEnd"
+              label="计划结束"
+              extra="默认 = 开始 + 7 天；手动修改后以输入为准"
+              rules={[
+                ({ getFieldValue }) => ({
+                  validator(_, value) {
+                    const start = getFieldValue('planStart');
+                    if (!value || !start || !value.isBefore(start)) return Promise.resolve();
+                    return Promise.reject(new Error('计划结束不得早于计划开始'));
+                  },
+                }),
+              ]}
+            >
               <DatePicker style={{ width: '100%' }} />
             </Form.Item>
           </div>
@@ -2337,8 +2527,9 @@ export default function ProjectDetailPage() {
               showSearch
               filterOption={false}
               loading={candidateLoading}
-              placeholder="输入姓名/用户名搜索"
+              placeholder="输入姓名/用户名/部门搜索"
               onSearch={searchCandidates}
+              // B6：候选行补充部门/邮箱，便于同名消歧。
               options={candidates.map((c) => ({
                 value: c.userId,
                 label: `${c.name || c.username}${
@@ -2347,10 +2538,22 @@ export default function ProjectDetailPage() {
                     : c.memberOrigin === 'external'
                       ? '（外部）'
                       : ''
-                }${c.expiresAt ? ` · ${c.expiresAt.slice(0, 10)} 到期` : ''}`,
+                }${c.department ? ` · ${c.department}` : ''}${c.email ? ` · ${c.email}` : ''}${
+                  c.expiresAt ? ` · ${formatBusinessDate(c.expiresAt)} 到期` : ''
+                }`,
               }))}
             />
           </Form.Item>
+          {/* B6：项目已有项目经理时，提示可同步任命（避免成员与 PM 两个事实源漂移）。 */}
+          {project?.managerId && (
+            <Form.Item
+              name="syncManager"
+              valuePropName="checked"
+              extra={`当前项目经理：${memberNameById[project.managerId] ?? project.managerName ?? `用户 #${project.managerId}`}。勾选后本次添加的成员将同步设为项目经理。`}
+            >
+              <Checkbox>同步设为项目经理</Checkbox>
+            </Form.Item>
+          )}
           <Form.Item name="projectRole" label="项目角色">
             <Select options={Object.entries(ROLE_META).map(([value, label]) => ({ value, label }))} />
           </Form.Item>

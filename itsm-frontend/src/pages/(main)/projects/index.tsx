@@ -67,6 +67,9 @@ export default function ProjectsPage() {
 
   const [departmentOptions, setDepartmentOptions] = useState<{ label: string; value: number }[]>([]);
   const [userNameById, setUserNameById] = useState<Record<number, string>>({});
+  // B7：模板链路——新建弹窗内可直接选择已激活模板（创建后自动应用，失败给出明确提示）。
+  const [templateOptions, setTemplateOptions] = useState<{ label: string; value: number }[]>([]);
+  const [selectedTemplateId, setSelectedTemplateId] = useState<number | undefined>(undefined);
 
   const fetchProjects = useCallback(async () => {
     setLoading(true);
@@ -108,6 +111,17 @@ export default function ProjectsPage() {
     } catch (error) {
       console.error('Failed to fetch users:', error);
     }
+    try {
+      const templates = await projectService.listTemplates({ status: 'active', pageSize: 100 });
+      setTemplateOptions(
+        (templates.items ?? templates.projectTemplates ?? []).map((tpl) => ({
+          value: tpl.id,
+          label: `${tpl.name}（任务 ${tpl.taskCount} / 里程碑 ${tpl.milestoneCount}）`,
+        })),
+      );
+    } catch (error) {
+      console.error('Failed to fetch project templates:', error);
+    }
   };
 
   useEffect(() => {
@@ -122,6 +136,7 @@ export default function ProjectsPage() {
     setEditingProject(null);
     form.resetFields();
     form.setFieldsValue({ type: 'internal' });
+    setSelectedTemplateId(undefined);
     setIsModalVisible(true);
   };
 
@@ -154,6 +169,8 @@ export default function ProjectsPage() {
         endDate: isoValue(values.range?.[1]),
       };
       delete payload.range;
+      // templateId 不属于项目主表字段（B7：由创建后 applyTemplate 单独处理），避免后端 400。
+      delete payload.templateId;
       // PE-22：预算同写同清——填写金额即连同币种提交（币种缺省空串 = 租户默认）；金额 <=0 = 清空。
       if (values.budgetAmount !== undefined && values.budgetAmount !== null) {
         payload.budgetAmount = values.budgetAmount;
@@ -166,11 +183,24 @@ export default function ProjectsPage() {
       if (editingProject) {
         await projectService.updateProject(editingProject.id, payload);
       } else {
-        await projectService.createProject(payload);
+        const created = await projectService.createProject(payload);
+        // B7：创建即应用模板；失败不掩盖创建结果（项目已建，可到工作台重试）。
+        if (selectedTemplateId) {
+          try {
+            const result = await projectService.applyTemplate(created.id, selectedTemplateId);
+            message.success(
+              `项目已创建并应用模板（阶段 ${result.stages} / 任务 ${result.tasks} / 检查项 ${result.checklists} / 里程碑 ${result.milestones}）`,
+            );
+          } catch (applyError) {
+            console.error('Apply template after create failed:', applyError);
+            message.warning('项目已创建，但模板应用失败：请到工作台「应用模板」重试（仅可应用一次）');
+          }
+        }
       }
-      message.success(t('common.saveSuccess'));
+      if (editingProject || !selectedTemplateId) message.success(t('common.saveSuccess'));
       setIsModalVisible(false);
       setEditingProject(null);
+      setSelectedTemplateId(undefined);
       form.resetFields();
       fetchProjects();
     } catch (error) {
@@ -268,6 +298,8 @@ export default function ProjectsPage() {
             <a onClick={() => navigate(`/projects/${record.id}`)}>{text}</a>
           </Space>
         ),
+        // B5：关键列设置最小宽度，避免中文逐字竖排（表格整体横向滚动）。
+        width: 240,
       },
       { title: '项目编号', dataIndex: 'code', key: 'code', width: 170 },
       {
@@ -292,7 +324,12 @@ export default function ProjectsPage() {
         key: 'health',
         width: 90,
         render: (_: string, record: Project) => (
-          <ProjectHealthTag health={record.health} reasons={record.healthReasons} />
+          <ProjectHealthTag
+            health={record.health}
+            reasons={record.healthReasons}
+            dataQuality={record.healthDataQuality}
+            dataGaps={record.healthDataGaps}
+          />
         ),
       },
       {
@@ -303,17 +340,28 @@ export default function ProjectsPage() {
         render: (percent: number) => <Progress percent={percent || 0} size="small" />,
       },
       {
+        // A2：所属部门单独成列（与「归口团队」区分；部门缺失明确显示「未设置」）。
+        title: '所属部门',
+        dataIndex: 'departmentName',
+        key: 'departmentName',
+        width: 150,
+        render: (name: string | undefined, record) =>
+          name || (record.departmentId ? `部门 #${record.departmentId}` : <Tag color="warning">未设置</Tag>),
+      },
+      {
         title: '负责人',
         dataIndex: 'managerId',
         key: 'managerId',
         width: 120,
-        render: (id?: number) => (id ? userNameById[id] ?? `ID: ${id}` : '-'),
+        // B3：优先使用后端富化名称，字典兜底，最后才显示 ID（并加前缀避免误读）。
+        render: (id: number | undefined, record) =>
+          record.managerName || (id ? userNameById[id] ?? `用户 #${id}` : <Tag color="warning">未设置</Tag>),
       },
       {
         title: '归口',
         dataIndex: 'ownerTeamName',
         key: 'ownerTeamName',
-        width: 160,
+        width: 150,
         render: (name: string | undefined, record) =>
           record.ownerTeamId ? (
             <Space size={4}>
@@ -321,7 +369,7 @@ export default function ProjectsPage() {
               {record.ownerTeamDeleted && <Tag color="error">已停用</Tag>}
             </Space>
           ) : (
-            '-'
+            <Tag>未设置</Tag>
           ),
       },
       {
@@ -438,6 +486,8 @@ export default function ProjectsPage() {
         columns={columns}
         dataSource={projects}
         loading={loading}
+        // B5：列宽自适应 + 最小宽度，超宽横向滚动，避免中文竖排折行。
+        scroll={{ x: 1400 }}
         pagination={{
           current: page,
           pageSize,
@@ -466,6 +516,28 @@ export default function ProjectsPage() {
           <Form.Item name="name" label="项目名称" rules={[{ required: true, message: '请输入项目名称' }]}>
             <Input placeholder="请输入项目名称" />
           </Form.Item>
+          {!editingProject && (
+            <Form.Item
+              name="templateId"
+              label="使用模板（可选）"
+              extra="仅列出已激活模板；创建后自动生成计划。一个项目只能应用一次模板。"
+            >
+              <Select
+                allowClear
+                showSearch
+                optionFilterProp="label"
+                placeholder="不使用模板"
+                options={templateOptions}
+                notFoundContent={
+                  <div style={{ padding: 8 }}>
+                    暂无已激活模板。
+                    <a onClick={() => navigate('/projects/templates')}> 前往项目模板创建/激活 →</a>
+                  </div>
+                }
+                onChange={(value) => setSelectedTemplateId(value)}
+              />
+            </Form.Item>
+          )}
           <Form.Item name="code" label="项目编号" extra="留空自动生成 PRJ-YYYYMMDD-XXXX；创建后不可修改">
             <Input placeholder="可留空" disabled={!!editingProject} />
           </Form.Item>
@@ -475,7 +547,12 @@ export default function ProjectsPage() {
                 options={Object.entries(TYPE_META).map(([value, meta]) => ({ value, label: meta.label }))}
               />
             </Form.Item>
-            <Form.Item name="managerId" label="项目经理">
+            {/* A1：项目经理 / 所属部门 / 计划起止为业务必填（与后端严格模式一致）。 */}
+            <Form.Item
+              name="managerId"
+              label="项目经理"
+              rules={[{ required: true, message: '请选择项目经理' }]}
+            >
               <Select
                 allowClear
                 showSearch
@@ -486,17 +563,26 @@ export default function ProjectsPage() {
             </Form.Item>
           </div>
           <div className="grid grid-cols-2 gap-4">
-            <Form.Item name="departmentId" label="所属部门">
+            <Form.Item
+              name="departmentId"
+              label="所属部门"
+              rules={[{ required: true, message: '请选择所属部门' }]}
+            >
               <Select allowClear showSearch optionFilterProp="label" placeholder="请选择部门" options={departmentOptions} />
             </Form.Item>
-            <Form.Item name="range" label="计划起止">
+            <Form.Item
+              name="range"
+              label="计划起止"
+              rules={[{ required: true, message: '请选择计划起止日期' }]}
+            >
               <RangePicker style={{ width: '100%' }} />
             </Form.Item>
           </div>
           <div className="grid grid-cols-2 gap-4">
             {/* P2（PE-22）：轻量预算（金额与币种成对提交；金额 0 = 清空预算）。 */}
             <Form.Item name="budgetAmount" label="预算金额" extra="留空 = 未设置（不做财务级核算）">
-              <InputNumber min={0} style={{ width: '100%' }} placeholder="如 120000" />
+              {/* B2：显式设置上下限，避免组件默认 0/0 导致步进失效。 */}
+              <InputNumber min={0} max={1000000000} step={1000} style={{ width: '100%' }} placeholder="如 120000" />
             </Form.Item>
             <Form.Item name="budgetCurrency" label="币种" extra="2-8 位字母（如 CNY / USD）；留空 = 租户默认">
               <Input maxLength={8} placeholder="如 CNY / USD" />

@@ -154,6 +154,8 @@ func (s *Service) CreateRisk(
 	if impact != "" && !validRiskLevels[impact] {
 		return nil, fmt.Errorf("%w: invalid impact %q", ErrValidation, req.Impact)
 	}
+	// B8：负责人保持可选以兼容既有契约（AI/脚本/历史数据），但未指派必须在读侧显式告警，
+	// 避免「风险无 owner、无人推进」被静默掩盖。
 	if req.OwnerID > 0 {
 		if err := s.ensureAssignee(ctx, tenantID, projectID, req.OwnerID); err != nil {
 			return nil, ErrRiskOwnerNotMember

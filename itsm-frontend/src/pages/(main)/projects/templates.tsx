@@ -25,6 +25,7 @@ import type {
   TemplateStatus,
 } from '@/lib/services/project-service';
 import { projectService } from '@/lib/services/project-service';
+import { formatBusinessDateTime } from '@/lib/formatters';
 
 // 项目模板管理（P1/PE-11）。权威定义：docs/project-management/plan/p1-template-design.md
 // 规则：draft 可编不可用；active 可一键生成；被项目应用过的模板不可删除（改为归档）。
@@ -244,6 +245,7 @@ export default function ProjectTemplatesPage() {
       title: '模板名称',
       dataIndex: 'name',
       key: 'name',
+      width: 240,
       render: (name: string, record) => (
         <Tooltip title={record.description || undefined}>
           <span>{name}</span>
@@ -279,7 +281,7 @@ export default function ProjectTemplatesPage() {
       dataIndex: 'updatedAt',
       key: 'updatedAt',
       width: 170,
-      render: (value: string) => value?.slice(0, 19).replace('T', ' ') ?? '-',
+      render: (value: string) => formatBusinessDateTime(value) || '-',
     },
     {
       title: '操作',
@@ -366,6 +368,20 @@ export default function ProjectTemplatesPage() {
         loading={loading}
         columns={columns}
         dataSource={items}
+        // B5：表头/名称不竖排；空态提供新建引导（B7）。
+        scroll={{ x: 1100 }}
+        locale={{
+          emptyText: (
+            <div style={{ padding: '24px 0' }}>
+              <div style={{ marginBottom: 8 }}>暂无项目模板：模板用于一键生成阶段/任务/检查项/里程碑。</div>
+              {canWrite ? (
+                <Button type="primary" icon={<Plus size={14} />} onClick={openCreate}>
+                  新建模板
+                </Button>
+              ) : null}
+            </div>
+          ),
+        }}
         pagination={{
           current: page,
           pageSize,

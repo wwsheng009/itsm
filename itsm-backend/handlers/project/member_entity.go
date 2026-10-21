@@ -60,9 +60,12 @@ type MemberView struct {
 
 // MemberCandidate 候选成员（最小字段：userId/name/username/memberOrigin/expiresAt）。
 type MemberCandidate struct {
-	UserID       int        `json:"userId"`
-	Name         string     `json:"name"`
-	Username     string     `json:"username"`
+	UserID   int    `json:"userId"`
+	Name     string `json:"name"`
+	Username string `json:"username"`
+	// Department / Email 消歧信息（B6：同名候选人可区分；最小字段，不暴露敏感信息）。
+	Department   string     `json:"department,omitempty"`
+	Email        string     `json:"email,omitempty"`
 	MemberOrigin string     `json:"memberOrigin"`
 	ExpiresAt    *time.Time `json:"expiresAt,omitempty"`
 }

@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { Alert, Button, Descriptions, Select, Space, Tag, message } from 'antd';
 import { Copy, Download, FileText, RefreshCw } from 'lucide-react';
 import { projectService } from '@/lib/services/project-service';
+import { formatBusinessDateTime } from '@/lib/formatters';
 import type { ProjectReport, ReportCadence, ReportTemplate } from '@/lib/services/project-service';
 import { ProjectHealthTag } from './ProjectHealthTag';
 
@@ -146,8 +147,20 @@ export function ProjectReportPanel({ projectId }: ProjectReportPanelProps) {
                 '-'
               )}
             </Descriptions.Item>
+            {/* B3：报告展示人员姓名（后端富化），不显示裸 ID。 */}
+            <Descriptions.Item label="项目经理">
+              {report.data.managerName || (report.data.managerId ? `用户 #${report.data.managerId}` : '-')}
+            </Descriptions.Item>
+            <Descriptions.Item label="所属部门">
+              {report.data.departmentName || (report.data.departmentId ? `部门 #${report.data.departmentId}` : '-')}
+            </Descriptions.Item>
             <Descriptions.Item label="健康度">
-              <ProjectHealthTag health={report.data.health} reasons={report.data.healthReasons} />
+              <ProjectHealthTag
+                health={report.data.health}
+                reasons={report.data.healthReasons}
+                dataQuality={report.data.healthDataQuality}
+                dataGaps={report.data.healthDataGaps}
+              />
             </Descriptions.Item>
             <Descriptions.Item label="任务">
               {report.data.taskStats.total} 项（完成 {report.data.taskStats.done} / 未终结 {report.data.taskStats.open}）
@@ -164,7 +177,7 @@ export function ProjectReportPanel({ projectId }: ProjectReportPanelProps) {
                 ? `基线 v${variance.baselineVersion}：变更 ${variance.changed} / 新增 ${variance.added} / 移除 ${variance.removed}`
                 : '未冻结基线'}
             </Descriptions.Item>
-            <Descriptions.Item label="生成时间">{report.data.generatedAt?.slice(0, 19)}</Descriptions.Item>
+            <Descriptions.Item label="生成时间">{formatBusinessDateTime(report.data.generatedAt) || '-'}</Descriptions.Item>
           </Descriptions>
           <pre
             data-testid="report-markdown"

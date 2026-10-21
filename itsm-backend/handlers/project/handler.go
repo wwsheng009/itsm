@@ -60,6 +60,7 @@ func (h *Handler) CreateProject(c *gin.Context) {
 		created,
 		h.service.OwnerTeamRefs(c.Request.Context(), tenantID, []*ent.Project{created}),
 	)
+	h.service.EnrichProjectDisplayNames(c.Request.Context(), tenantID, []*ProjectResponse{resp})
 	if err := h.attachHealth(c.Request.Context(), tenantID, []*ent.Project{created}, []*ProjectResponse{resp}); err != nil {
 		h.fail(c, err)
 		return
@@ -99,6 +100,7 @@ func (h *Handler) ListProjects(c *gin.Context) {
 		return
 	}
 	responses := ToResponseListWithOwnerTeams(items, h.service.OwnerTeamRefs(c.Request.Context(), tenantID, items))
+	h.service.EnrichProjectDisplayNames(c.Request.Context(), tenantID, responses)
 	if err := h.attachHealth(c.Request.Context(), tenantID, items, responses); err != nil {
 		h.fail(c, err)
 		return
@@ -137,6 +139,7 @@ func (h *Handler) GetProject(c *gin.Context) {
 		item,
 		h.service.OwnerTeamRefs(c.Request.Context(), tenantID, []*ent.Project{item}),
 	)
+	h.service.EnrichProjectDisplayNames(c.Request.Context(), tenantID, []*ProjectResponse{resp})
 	if err := h.attachHealth(c.Request.Context(), tenantID, []*ent.Project{item}, []*ProjectResponse{resp}); err != nil {
 		h.fail(c, err)
 		return
@@ -212,6 +215,7 @@ func (h *Handler) UpdateProject(c *gin.Context) {
 		updated,
 		h.service.OwnerTeamRefs(c.Request.Context(), tenantID, []*ent.Project{updated}),
 	)
+	h.service.EnrichProjectDisplayNames(c.Request.Context(), tenantID, []*ProjectResponse{resp})
 	if err := h.attachHealth(c.Request.Context(), tenantID, []*ent.Project{updated}, []*ProjectResponse{resp}); err != nil {
 		h.fail(c, err)
 		return
@@ -280,6 +284,7 @@ func (h *Handler) TransitionStatus(c *gin.Context) {
 		return
 	}
 	resp := ToResponse(updated)
+	h.service.EnrichProjectDisplayNames(c.Request.Context(), tenantID, []*ProjectResponse{resp})
 	if err := h.attachHealth(c.Request.Context(), tenantID, []*ent.Project{updated}, []*ProjectResponse{resp}); err != nil {
 		h.fail(c, err)
 		return
@@ -427,6 +432,9 @@ func (h *Handler) fail(c *gin.Context, err error) {
 		common.Fail(c, common.ParamErrorCode, "项目经理不可用（须为本租户活跃成员）")
 	case errors.Is(err, ErrDepartmentUnavailable):
 		common.Fail(c, common.ParamErrorCode, "所属部门不可用（不存在/已删除）")
+	case errors.Is(err, ErrRequiredProjectFields):
+		// A1：严格模式下的关键归属/计划字段缺失（明确告知缺失字段，指引补全）。
+		common.Fail(c, common.ParamErrorCode, "项目必填校验未通过："+err.Error())
 	case errors.Is(err, ErrReportTemplateNotFound):
 		common.Fail(c, common.NotFoundCode, "报告模板不存在")
 	case errors.Is(err, ErrReportTemplateExists):

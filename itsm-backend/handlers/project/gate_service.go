@@ -56,6 +56,13 @@ type GateApprovalPort interface {
 	DecideGate(ctx context.Context, tenantID, actorID, projectID int, decision, comment string) (GateApprovalDecision, error)
 }
 
+// GateApprovalModeInspector 审批方式只读探测（A4：提交前显式标注人工审批/自动放行）。
+// 可选能力：端口未实现时按「自动放行 + 配置缺失」保守展示，与实际降级行为一致。
+type GateApprovalModeInspector interface {
+	// ApprovalMode 返回 manual|auto；auto 表示当前配置下提交会直接放行。
+	ApprovalMode(ctx context.Context, tenantID int, gate string) (string, error)
+}
+
 // SetGateApproval 注入阶段门审批端口（bootstrap；测试可注入假实现）。
 func (s *Service) SetGateApproval(port GateApprovalPort) {
 	s.gateApproval = port
@@ -85,9 +92,30 @@ func (s *Service) PreviewGates(ctx context.Context, tenantID, projectID, viewerI
 		if blockers == nil {
 			blockers = []GateBlocker{}
 		}
-		out = append(out, GateReadiness{Gate: gate, Ready: len(blockers) == 0, Blockers: blockers})
+		mode, configMissing := s.gateApprovalMode(ctx, tenantID, gate)
+		out = append(out, GateReadiness{
+			Gate: gate, Ready: len(blockers) == 0, Blockers: blockers,
+			ApprovalMode: mode, AutoApprovalConfigMissing: configMissing,
+		})
 	}
 	return out, nil
+}
+
+// gateApprovalMode 预判提交后的审批路径（只读；不触发流程）。
+// 语义与 SubmitGate 的降级分支保持一致：无端口/无绑定/定义缺失 → auto（配置缺失）。
+func (s *Service) gateApprovalMode(ctx context.Context, tenantID int, gate string) (string, bool) {
+	if s.gateApproval == nil {
+		return GateApprovalModeAuto, true
+	}
+	inspector, ok := s.gateApproval.(GateApprovalModeInspector)
+	if !ok {
+		return GateApprovalModeAuto, true
+	}
+	mode, err := inspector.ApprovalMode(ctx, tenantID, gate)
+	if err != nil || mode != GateApprovalModeManual {
+		return GateApprovalModeAuto, true
+	}
+	return GateApprovalModeManual, false
 }
 
 // SubmitGate 提交阶段门：门禁规则 → 触发审批（或自动通过）→ 记录状态与阻塞明细。
@@ -139,7 +167,7 @@ func (s *Service) SubmitGate(
 	patch := GateSubmitPatch{SubmittedBy: actorID, SubmittedAt: s.now()}
 	if s.gateApproval != nil {
 		start, startErr := s.gateApproval.SubmitGate(ctx, tenantID, projectID, gate, map[string]any{
-			"projectId": projectID,
+			"projectId":   projectID,
 			"projectCode": project.Code,
 			"projectName": project.Name,
 			"gate":        gate,

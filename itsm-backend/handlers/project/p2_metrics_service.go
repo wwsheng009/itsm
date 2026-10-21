@@ -69,6 +69,8 @@ func (s *Service) Portfolio(
 		rowCap = rowCap[:PortfolioMaxProjects]
 	}
 	resp.Projects = ToResponseListWithOwnerTeams(rowCap, s.OwnerTeamRefs(ctx, tenantID, rowCap))
+	// B3：组合行与列表一致富化人员/部门名称（禁止裸 ID）。
+	s.EnrichProjectDisplayNames(ctx, tenantID, resp.Projects)
 	applyHealthList(resp.Projects, healthMap)
 	return resp, nil
 }
@@ -140,10 +142,10 @@ func (s *Service) Metrics(
 				OwnerTeamID: f.OwnerTeamID, Keyword: f.Keyword,
 			},
 		},
-		Window: MetricsDateWindow{},
-		OnTimeDelivery:      DeliveryMetrics{Details: []DeliveryDetail{}},
+		Window:               MetricsDateWindow{},
+		OnTimeDelivery:       DeliveryMetrics{Details: []DeliveryDetail{}},
 		MilestoneAchievement: MilestoneMetrics{Details: []MilestoneDetail{}},
-		GateFirstPass:       GateMetrics{Details: []GateDetail{}},
+		GateFirstPass:        GateMetrics{Details: []GateDetail{}},
 		ResourceUtilization: ResourceUtilization{
 			Calendar: HeatmapCalendar{Mode: "natural_days", BusinessDaysOnly: false, Note: heatmapCalendarNote},
 			Projects: []ResourceProjectRow{},
@@ -293,7 +295,10 @@ func milestoneMetrics(milestones []*ent.ProjectMilestone, today time.Time, from,
 	return out
 }
 
-// gateMetrics 阶段门一次通过率（§5.3；无时间窗时包含全部 passed，含历史无 decided_at 行）。
+// gateMetrics 阶段门一次通过率（§5.3；B12 口径修订）。
+//
+// 自动放行（decision_comment=auto_approved_no_flow）与真实人工审批混算会虚高审批效率，
+// 因此本函数把自动放行单独计数并从分子/分母剔除；明细仍全量返回（含 autoApproved 标记）供对账。
 func gateMetrics(gates []*ent.ProjectGate, from, to *time.Time) GateMetrics {
 	out := GateMetrics{Details: []GateDetail{}}
 	details := make([]GateDetail, 0, len(gates))
@@ -306,14 +311,19 @@ func gateMetrics(gates []*ent.ProjectGate, from, to *time.Time) GateMetrics {
 				continue
 			}
 		}
-		firstPass := g.RejectCount == 0
-		out.Passed++
-		if firstPass {
-			out.FirstPass++
+		autoApproved := g.DecisionComment == gateDecisionAutoApproved
+		firstPass := !autoApproved && g.RejectCount == 0
+		if autoApproved {
+			out.AutoApproved++
+		} else {
+			out.Passed++
+			if firstPass {
+				out.FirstPass++
+			}
 		}
 		row := GateDetail{
 			ProjectID: g.ProjectID, Gate: g.Gate, Status: g.Status,
-			RejectCount: g.RejectCount, FirstPass: firstPass,
+			RejectCount: g.RejectCount, FirstPass: firstPass, AutoApproved: autoApproved,
 		}
 		if g.DecidedAt != nil {
 			t := *g.DecidedAt

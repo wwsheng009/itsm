@@ -330,24 +330,40 @@ func (s *Service) GenerateProjectReport(ctx context.Context, tenantID, projectID
 	}
 
 	data := ReportData{
-		ProjectID:      p.ID,
-		ProjectName:    p.Name,
-		ProjectCode:    p.Code,
-		Status:         normalizeStatus(p.Status),
-		Health:         healthLevelOf(healthMap, p.ID),
-		HealthReasons:  derived.Reasons,
-		Progress:       p.Progress,
-		GeneratedAt:    now,
-		Template:       templateRef,
-		Sections:       sections,
-		TaskStats:      buildReportTaskStats(tasks, now),
-		MilestoneStats: buildReportMilestoneStats(milestones, now),
-		Gates:          buildReportGates(gates),
-		Variance:       variance,
+		ProjectID:     p.ID,
+		ProjectName:   p.Name,
+		ProjectCode:   p.Code,
+		Status:        normalizeStatus(p.Status),
+		Health:        healthLevelOf(healthMap, p.ID),
+		HealthReasons: derived.Reasons,
+		// A7：数据完备度与解释项同源输出（报告与列表一致）。
+		HealthDataQuality: derived.DataQuality,
+		HealthDataGaps:    derived.DataGaps,
+		Progress:          p.Progress,
+		GeneratedAt:       now,
+		Template:          templateRef,
+		Sections:          sections,
+		TaskStats:         buildReportTaskStats(tasks, now),
+		MilestoneStats:    buildReportMilestoneStats(milestones, now),
+		Gates:             buildReportGates(gates),
+		Variance:          variance,
 	}
 	if p.ManagerID > 0 {
 		id := p.ManagerID
 		data.ManagerID = &id
+		data.ManagerName = s.managerName(ctx, p.ManagerID)
+	}
+	if p.DepartmentID > 0 {
+		deptID := p.DepartmentID
+		data.DepartmentID = &deptID
+		if departments, deptErr := s.repo.DepartmentsByIDs(ctx, tenantID, []int{p.DepartmentID}); deptErr == nil {
+			for _, d := range departments {
+				if d.ID == p.DepartmentID {
+					data.DepartmentName = d.Name
+					break
+				}
+			}
+		}
 	}
 	if ref, ok := s.OwnerTeamRefs(ctx, tenantID, []*ent.Project{p})[p.OwnerTeamID]; ok && p.OwnerTeamID > 0 {
 		data.OwnerTeam = &ReportOwnerTeam{ID: ref.ID, Name: ref.Name, Deleted: ref.Deleted}

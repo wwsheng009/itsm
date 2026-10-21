@@ -27,6 +27,35 @@ type GateProcessAdapter struct {
 	logger   *zap.SugaredLogger
 }
 
+// ApprovalMode 实现 GateApprovalModeInspector：只读探测该门是否有可用审批流程（A4）。
+// 判定与 SubmitGate 完全一致：端口缺失/无绑定/绑定定义缺失 → auto；否则 manual。
+func (a *GateProcessAdapter) ApprovalMode(ctx context.Context, tenantID int, gate string) (string, error) {
+	if a.trigger == nil || a.bindings == nil {
+		return GateApprovalModeAuto, nil
+	}
+	binding, err := a.bindings.FindBestBinding(ctx, dto.BusinessTypeProject, gate, tenantID)
+	if err != nil {
+		return "", err
+	}
+	if binding == nil || binding.ProcessDefinitionKey == "" {
+		return GateApprovalModeAuto, nil
+	}
+	exists, err := a.client.ProcessDefinition.Query().
+		Where(
+			processdefinition.Key(binding.ProcessDefinitionKey),
+			processdefinition.TenantID(tenantID),
+			processdefinition.IsLatest(true),
+		).
+		Exist(ctx)
+	if err != nil {
+		return "", err
+	}
+	if !exists {
+		return GateApprovalModeAuto, nil
+	}
+	return GateApprovalModeManual, nil
+}
+
 // NewGateProcessAdapter 构造适配器。
 func NewGateProcessAdapter(
 	client *ent.Client,

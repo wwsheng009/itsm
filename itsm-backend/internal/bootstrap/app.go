@@ -1530,6 +1530,8 @@ func NewApplication() *Application {
 
 	// 项目管理服务（PE-5）：注入既有工单服务适配器（任务→工单生成走工单域，不直连）。
 	projectService := projectHandler.NewService(projectHandler.NewEntRepository(client))
+	// A1：生产装配开启创建严格必填（项目经理/所属部门/计划起止）；测试与导入脚本可按需关闭。
+	projectService.SetStrictCreate(true)
 	projectService.SetTicketGenerator(projectHandler.TicketGeneratorFunc(func(ctx context.Context, in projectHandler.TicketGenerateInput) (int, error) {
 		title := strings.TrimSpace(in.Request.Title)
 		if title == "" {

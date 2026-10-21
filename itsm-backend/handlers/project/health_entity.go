@@ -45,7 +45,18 @@ type HealthReason struct {
 type DerivedHealth struct {
 	Level   string
 	Reasons []HealthReason
+	// DataQuality 健康度计算的数据完备度（A7）：sufficient=关键事实齐备；insufficient=存在缺口。
+	// 与 Level 正交：无风险信号时仍可能因缺基线/缺归属而「无法判断」，UI 需显式标注「数据不足」。
+	DataQuality string
+	// DataGaps 数据缺口说明（≤4 条，稳定顺序）。
+	DataGaps []string
 }
+
+// 数据完备度词表（A7）。
+const (
+	HealthDataSufficient   = "sufficient"
+	HealthDataInsufficient = "insufficient"
+)
 
 // healthLevelRank 级别序（green<yellow<red）。
 func healthLevelRank(level string) int {

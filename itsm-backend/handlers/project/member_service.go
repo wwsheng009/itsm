@@ -217,6 +217,8 @@ func (s *Service) MemberCandidates(ctx context.Context, tenantID, projectID int,
 			UserID:       mb.UserID,
 			Name:         u.Name,
 			Username:     u.Username,
+			Department:   u.Department,
+			Email:        u.Email,
 			MemberOrigin: memberOrigin(string(mb.Source)),
 			ExpiresAt:    mb.ExpiresAt,
 		})
@@ -266,12 +268,12 @@ func buildMemberViews(members []*ent.ProjectMember, memberships []*ent.UserTenan
 			origin = OriginUnknown
 		}
 		view := MemberView{
-			UserID:       m.UserID,
-			ProjectRole:  m.ProjectRole,
-			Status:       m.Status,
-			MemberOrigin: origin,
-			ExpiresAt:    expiresByUser[m.UserID],
-			JoinedAt:     m.JoinedAt,
+			UserID:              m.UserID,
+			ProjectRole:         m.ProjectRole,
+			Status:              m.Status,
+			MemberOrigin:        origin,
+			ExpiresAt:           expiresByUser[m.UserID],
+			JoinedAt:            m.JoinedAt,
 			WeeklyCapacityHours: m.WeeklyCapacityHours,
 		}
 		if u := userByID[m.UserID]; u != nil {

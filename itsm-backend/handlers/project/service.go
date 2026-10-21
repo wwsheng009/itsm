@@ -24,6 +24,8 @@ var (
 	// PE-28（D-60/D-61）：引用型字段写入校验。
 	ErrManagerUnavailable    = errors.New("manager is not an available tenant member")
 	ErrDepartmentUnavailable = errors.New("department is not available")
+	// A1：创建项目的关键归属字段缺失（生产装配开启严格模式后生效）。
+	ErrRequiredProjectFields = errors.New("project requires manager, department and plan dates")
 )
 
 // ClosureBlockedError 结项门禁阻塞（409 + blockers 明细）。
@@ -58,6 +60,9 @@ type Service struct {
 	repo    Repository
 	now     func() time.Time
 	codeGen func(now time.Time) string
+	// strictCreate A1：创建项目时强制要求项目经理/所属部门/计划起止（bootstrap 生产装配开启）。
+	// 关闭时保持历史兼容（导入/测试/存量脚本可仅用 name 创建），由前端先行拦截默认路径。
+	strictCreate bool
 	// ticketGen 工单生成端口（PE-5；bootstrap 注入，未注入时生成端点 503）。
 	ticketGen TicketGenerator
 	// gateApproval 阶段门审批端口（PE-12；bootstrap 注入，未注入时提交即降级自动通过）。
@@ -74,6 +79,11 @@ type Service struct {
 	logger *zap.SugaredLogger
 }
 
+// SetStrictCreate 开启/关闭创建项目的严格必填校验（A1：前后端双层硬校验的后端一层）。
+func (s *Service) SetStrictCreate(enabled bool) {
+	s.strictCreate = enabled
+}
+
 // NewService 构造服务。
 func NewService(repo Repository) *Service {
 	return &Service{
@@ -81,7 +91,8 @@ func NewService(repo Repository) *Service {
 		now:    time.Now,
 		logger: zap.NewNop().Sugar(),
 		codeGen: func(t time.Time) string {
-			return fmt.Sprintf("PRJ-%s-%04d", t.Format("20060102"), rand.Intn(9000)+1000)
+			// A6：编号日期按业务时区生成（存储仍 UTC），避免 UTC 与本地跨天导致编号日期错位。
+			return fmt.Sprintf("PRJ-%s-%04d", InBusinessTime(t).Format("20060102"), rand.Intn(9000)+1000)
 		},
 	}
 }
@@ -98,6 +109,18 @@ func (s *Service) Create(ctx context.Context, req *CreateRequest) (*ent.Project,
 	name := strings.TrimSpace(req.Name)
 	if name == "" {
 		return nil, fmt.Errorf("%w: name is required", ErrValidation)
+	}
+	// A1：严格模式下项目必须有归属主体与计划区间，避免产生空壳项目污染健康度/归口/报表。
+	if s.strictCreate {
+		if req.ManagerID == nil || *req.ManagerID <= 0 {
+			return nil, fmt.Errorf("%w: managerId is required", ErrRequiredProjectFields)
+		}
+		if req.DepartmentID == nil || *req.DepartmentID <= 0 {
+			return nil, fmt.Errorf("%w: departmentId is required", ErrRequiredProjectFields)
+		}
+		if req.StartDate == nil || req.EndDate == nil {
+			return nil, fmt.Errorf("%w: startDate and endDate are required", ErrRequiredProjectFields)
+		}
 	}
 	projectType := strings.TrimSpace(req.Type)
 	if projectType == "" {
@@ -169,8 +192,10 @@ func (s *Service) Create(ctx context.Context, req *CreateRequest) (*ent.Project,
 
 // generateCode 自动编号（最多重试 5 次避免碰撞）。
 func (s *Service) generateCode(ctx context.Context, req *CreateRequest, name, projectType string, now time.Time) (string, error) {
+	// 生成基数按业务时区日期（A6），避免 UTC 与本地跨天导致编号日期与创建日不符。
+	dayStart := InBusinessTime(now)
 	for i := 0; i < 5; i++ {
-		code := s.codeGen(now)
+		code := s.codeGen(dayStart)
 		exists, err := s.repo.CodeExists(ctx, req.TenantID, code)
 		if err != nil {
 			return "", err

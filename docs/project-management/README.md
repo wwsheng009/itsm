@@ -19,6 +19,7 @@
 | 怎么落地、每期验收什么 | [06 实施路线](./06-implementation-roadmap.md) |
 | 方案有没有遗漏（通用 PM 能力/现有功能结合） | [07 完整性审查与裁决](./07-completeness-review.md)（B1–B7 结论 + 非目标） |
 | 2026-10-18 修复了什么、怎么验证的 | [08 变更记录](./08-change-log.md) |
+| 2026-10-21 外部功能审查 21 项缺陷怎么处置的 | [审查修复台账](./reviews/2026-10-21-功能审查修复台账.md) |
 | P0 怎么落地（接口契约/DDL/页面） | [plan/ P0 详细设计](./plan/p0-integration-contracts.md)：集成契约 + 数据 DDL + API/页面 |
 
 ## 1. 文档清单
@@ -52,6 +53,8 @@
 | [plan/p2-procurement-design.md](./plan/p2-procurement-design.md) | **已实现 v1.0** | P2 采购/资产结项登记（PE-26）：`project_asset_links`（同租户弱引用/软删/未删行唯一）、列表/新增/删除/候选 4 端点、结项清单明细与门禁语义（D-49~D-53）/验证证据 |
 | [plan/p3-health-design.md](./plan/p3-health-design.md) | **已实现 v1.0** | P3-A 治理补强（PE-27）：健康度读时派生（9 条规则 + 阈值，`cancelled`/`completed` 终态语义）、`healthReasons[]` 可展开解释、列表/详情/组合/报表/AI facts 同源（D-54~D-59）/验证证据 |
 | [plan/p3-write-integrity-design.md](./plan/p3-write-integrity-design.md) | **已实现 v1.0** | P3-A 治理补强（PE-28）：写入完整性校验——负责人（同租户活跃 membership）/部门（同租户未软删）/项目日期区间（end ≥ start，更新合并存量）/币种（trim+大写，`^[A-Z]{2,8}$`）写侧 fail-closed；外部模块评审 P0 缺口核验表（D-60~D-63）/验证证据 |
+| [reviews/2026-10-21-项目功能审查报告.md](./reviews/2026-10-21-项目功能审查报告.md) | **原始报告（归档）** | 2026-10-21 项目管理模块功能审查实测报告（21 项缺陷，P0/P1/P2 分级；原文未改动） |
+| [reviews/2026-10-21-功能审查修复台账.md](./reviews/2026-10-21-功能审查修复台账.md) | **已修复并验证** | 报告 21 项逐条源码核验：已具备 / 本次修复 / 未采纳（含理由）+ 变更文件 + 自动化验证证据 + 浏览器回归建议 |
 
 > 维护规则：新增/重命名/停用文档必须同步本索引。P2 详细设计（PE-21~PE-26）与 P3-A 治理补强（PE-27/PE-28）均已登记；后续批次（P2 收口验证/P3-B MSP 交付）继续放 `plan/` 子目录并在本索引登记。
 

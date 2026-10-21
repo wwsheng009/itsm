@@ -29,9 +29,17 @@ export interface Project {
   /** PE-27：事实派生值（读时计算，不可写；写面已移除 health）。 */
   health: ProjectHealth;
   healthReasons?: HealthReason[];
+  /** A7：健康度数据完备度；insufficient 表示缺基线/缺归属/无任务，结论仅供参考。 */
+  healthDataQuality?: 'sufficient' | 'insufficient';
+  /** A7：数据缺口说明（≤4 条）。 */
+  healthDataGaps?: string[];
   progress: number;
   managerId?: number;
+  /** 展示层人员名称（后端富化；缺失时前端回退 ID，禁止裸 ID 直接展示）。 */
+  managerName?: string;
   departmentId?: number;
+  /** 展示层部门名称（A2：归口/部门维度可读化）。 */
+  departmentName?: string;
   ownerTeamId?: number;
   /** PE-17 归口展示：团队名（团队缺失/软删时为空）+ 降级标记（UI 提示重新归口）。 */
   ownerTeamName?: string;
@@ -120,6 +128,9 @@ export interface MemberCandidate {
   userId: number;
   name: string;
   username: string;
+  /** B6：同名消歧信息（部门/邮箱）。 */
+  department?: string;
+  email?: string;
   memberOrigin: string;
   expiresAt?: string;
 }
@@ -361,6 +372,10 @@ export interface ProjectGate {
   status: ProjectGateStatus;
   processInstanceId: number;
   approvalChainId?: string;
+  /** 审批方式（A4）：manual=人工审批；auto=未配置流程自动放行；pending=尚未提交。 */
+  approvalMode?: 'manual' | 'auto' | 'pending';
+  /** 未配置审批流程的自动放行（B12：不计入一次通过率）。 */
+  autoApproved?: boolean;
   submittedBy: number;
   submittedAt?: string;
   decidedBy: number;
@@ -377,6 +392,10 @@ export interface ProjectGateReadiness {
   gate: ProjectGateKey;
   ready: boolean;
   blockers: ProjectGateBlocker[];
+  /** 提交后的审批方式预判（A4）。 */
+  approvalMode?: 'manual' | 'auto';
+  /** 自动放行且未配置审批流程（UI 需显式告警与配置引导）。 */
+  autoApprovalConfigMissing?: boolean;
 }
 
 export interface GateListResult {
@@ -456,6 +475,8 @@ export interface ProjectClosure {
   status: ProjectClosureStatus;
   items: ClosureItem[];
   blockers: Blocker[];
+  /** A8：阻塞项总数（blockers 明细超过 10 条时被截断，计数以本字段为准）。 */
+  blockerTotal?: number;
   /** 复盘 KB 草稿文章ID（0 = 未生成；草稿不自动发布）。 */
   retroKbArticleId: number;
   retroGeneratedAt?: string | null;
@@ -666,8 +687,16 @@ export interface ProjectReportData {
   health: ProjectHealth;
   /** PE-27：报告 data 同步携带派生解释项（与列表同源）。 */
   healthReasons?: HealthReason[];
+  /** A7：报告数据完备度与缺口（与列表同源）。 */
+  healthDataQuality?: 'sufficient' | 'insufficient';
+  healthDataGaps?: string[];
   progress: number;
   managerId?: number;
+  /** B3：报告人员展示名（后端富化；缺失回退 ID 前缀）。 */
+  managerName?: string;
+  /** A2：报告部门展示名（归口/部门维度可读化）。 */
+  departmentName?: string;
+  departmentId?: number;
   ownerTeam?: { id: number; name: string; deleted: boolean };
   generatedAt: string;
   template?: { id: number; name: string; cadence: ReportCadence };
@@ -932,13 +961,16 @@ export interface GateDetail {
   status: ProjectGateStatus;
   rejectCount: number;
   firstPass: boolean;
+  /** 自动放行（B12：剔除出一次通过率）。 */
+  autoApproved?: boolean;
   decidedAt?: string;
 }
 
-/** 阶段门一次通过率（passed 且 rejectCount=0 记为一次通过）。 */
+/** 阶段门一次通过率（人工审批 passed 且 rejectCount=0 记为一次通过；自动放行单独计数）。 */
 export interface GateMetrics {
   passed: number;
   firstPass: number;
+  autoApproved?: number;
   rate: number | null;
   detailsTotal: number;
   details: GateDetail[];

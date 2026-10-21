@@ -517,6 +517,22 @@ func (r *EntRepository) UsersByIDs(ctx context.Context, userIDs []int) ([]*ent.U
 	return r.client.User.Query().Where(user.IDIn(userIDs...)).All(ctx)
 }
 
+// DepartmentsByIDs 批量取部门展示字段（同租户 + 未软删；缺失 ID 不返回）。
+func (r *EntRepository) DepartmentsByIDs(
+	ctx context.Context, tenantID int, departmentIDs []int,
+) ([]*ent.Department, error) {
+	if len(departmentIDs) == 0 {
+		return nil, nil
+	}
+	return r.client.Department.Query().
+		Where(
+			department.TenantIDEQ(tenantID),
+			department.IDIn(departmentIDs...),
+			department.DeletedAtIsNil(),
+		).
+		All(ctx)
+}
+
 // SetProjectDefaultCapacity 设置/清空项目周容量默认（PE-23；hours=nil → 回内置 40h）。
 func (r *EntRepository) SetProjectDefaultCapacity(ctx context.Context, tenantID, projectID int, hours *float64) error {
 	upd := r.client.Project.UpdateOneID(projectID).

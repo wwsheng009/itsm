@@ -149,13 +149,13 @@ type ReportTaskStats struct {
 
 // ReportMilestoneStats 里程碑统计（报告章节 milestones；达成率口径见契约 §7）。
 type ReportMilestoneStats struct {
-	Total     int     `json:"total"`
-	Reached   int     `json:"reached"`
-	Planned   int     `json:"planned"`
-	Missed    int     `json:"missed"`
-	Overdue   int     `json:"overdue"`
-	OnTime    int     `json:"onTime"`
-	Rate      float64 `json:"rate"`
+	Total       int     `json:"total"`
+	Reached     int     `json:"reached"`
+	Planned     int     `json:"planned"`
+	Missed      int     `json:"missed"`
+	Overdue     int     `json:"overdue"`
+	OnTime      int     `json:"onTime"`
+	Rate        float64 `json:"rate"`
 	OverdueRate float64 `json:"overdueRate"`
 }
 
@@ -192,22 +192,31 @@ type ReportTemplateRef struct {
 
 // ReportData 报告数据（数据派生；供前端展示与二次处理）。
 type ReportData struct {
-	ProjectID      int                `json:"projectId"`
-	ProjectName    string             `json:"projectName"`
-	ProjectCode    string             `json:"projectCode"`
-	Status         string             `json:"status"`
-	Health         string             `json:"health"`
+	ProjectID   int    `json:"projectId"`
+	ProjectName string `json:"projectName"`
+	ProjectCode string `json:"projectCode"`
+	Status      string `json:"status"`
+	Health      string `json:"health"`
 	// PE-27：派生健康度解释项（无信号省略；与列表/D-57 同源）。
-	HealthReasons  []HealthReason     `json:"healthReasons,omitempty"`
-	Progress       int                `json:"progress"`
-	ManagerID      *int               `json:"managerId,omitempty"`
-	OwnerTeam      *ReportOwnerTeam   `json:"ownerTeam,omitempty"`
-	GeneratedAt    time.Time          `json:"generatedAt"`
-	Template       *ReportTemplateRef `json:"template,omitempty"`
-	Sections       []string           `json:"sections"`
-	TaskStats      ReportTaskStats    `json:"taskStats"`
-	MilestoneStats ReportMilestoneStats `json:"milestoneStats"`
-	Gates          []ReportGateItem   `json:"gates"`
+	HealthReasons []HealthReason `json:"healthReasons,omitempty"`
+	// A7：数据完备度（与列表同源；insufficient 时 Markdown 显式标注「数据不足」）。
+	HealthDataQuality string   `json:"healthDataQuality,omitempty"`
+	HealthDataGaps    []string `json:"healthDataGaps,omitempty"`
+	Progress          int      `json:"progress"`
+	ManagerID         *int     `json:"managerId,omitempty"`
+	// ManagerName 报告展示名（B3：报告正文禁止裸 ID）。
+	ManagerName string `json:"managerName,omitempty"`
+	// DepartmentName 所属部门展示名（A2：归口/部门维度可读化）。
+	DepartmentName string `json:"departmentName,omitempty"`
+	// DepartmentID 所属部门ID（与展示名并列；前端仅在有名称时优先展示名称）。
+	DepartmentID   *int                   `json:"departmentId,omitempty"`
+	OwnerTeam      *ReportOwnerTeam       `json:"ownerTeam,omitempty"`
+	GeneratedAt    time.Time              `json:"generatedAt"`
+	Template       *ReportTemplateRef     `json:"template,omitempty"`
+	Sections       []string               `json:"sections"`
+	TaskStats      ReportTaskStats        `json:"taskStats"`
+	MilestoneStats ReportMilestoneStats   `json:"milestoneStats"`
+	Gates          []ReportGateItem       `json:"gates"`
 	Variance       *ReportVarianceSummary `json:"variance,omitempty"`
 }
 
@@ -235,8 +244,16 @@ func buildReportMarkdown(data *ReportData) string {
 	}
 	var b strings.Builder
 	fmt.Fprintf(&b, "# 项目状态报告 · %s（%s）\n\n", data.ProjectName, data.ProjectCode)
-	fmt.Fprintf(&b, "- 生成时间：%s\n", data.GeneratedAt.Format("2006-01-02 15:04"))
-	fmt.Fprintf(&b, "- 状态：%s｜健康度：%s｜进度：%d%%\n", data.Status, data.Health, data.Progress)
+	// A6：生成时间按业务时区输出（与编号/审批/风险时间同源）。
+	fmt.Fprintf(&b, "- 生成时间：%s\n", FormatBusinessDateTime(data.GeneratedAt))
+	healthLabel := data.Health
+	if data.HealthDataQuality == HealthDataInsufficient {
+		healthLabel += "（数据不足，结论仅供参考）"
+	}
+	fmt.Fprintf(&b, "- 状态：%s｜健康度：%s｜进度：%d%%\n", data.Status, healthLabel, data.Progress)
+	if len(data.HealthDataGaps) > 0 {
+		fmt.Fprintf(&b, "- 数据缺口：%s\n", strings.Join(data.HealthDataGaps, "；"))
+	}
 	if len(data.HealthReasons) > 0 {
 		reasons := make([]string, 0, len(data.HealthReasons))
 		for _, r := range data.HealthReasons {
@@ -244,8 +261,13 @@ func buildReportMarkdown(data *ReportData) string {
 		}
 		fmt.Fprintf(&b, "- 健康度信号：%s\n", strings.Join(reasons, "；"))
 	}
-	if data.ManagerID != nil {
-		fmt.Fprintf(&b, "- 项目经理ID：%d\n", *data.ManagerID)
+	if data.ManagerName != "" {
+		fmt.Fprintf(&b, "- 项目经理：%s\n", data.ManagerName)
+	} else if data.ManagerID != nil {
+		fmt.Fprintf(&b, "- 项目经理：用户 #%d（名称不可解析）\n", *data.ManagerID)
+	}
+	if data.DepartmentName != "" {
+		fmt.Fprintf(&b, "- 所属部门：%s\n", data.DepartmentName)
 	}
 	if data.OwnerTeam != nil {
 		name := data.OwnerTeam.Name
@@ -313,5 +335,5 @@ func formatReportTime(t *time.Time) string {
 	if t == nil {
 		return "未知时间"
 	}
-	return t.Format("2006-01-02 15:04")
+	return FormatBusinessDateTime(*t)
 }

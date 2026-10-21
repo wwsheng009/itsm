@@ -29,6 +29,16 @@ const (
 	GateStatusRejected = "rejected"  // 已拒绝（可重新提交）
 )
 
+// 门审批方式（A4 透明化）：pending=未提交（尚无记录），manual=人工审批，auto=未配置流程自动放行。
+const (
+	GateApprovalModePending = "pending"
+	GateApprovalModeManual  = "manual"
+	GateApprovalModeAuto    = "auto"
+)
+
+// gateDecisionAutoApproved 未配置审批流程时的自动放行留痕（契约 §5 D3）。
+const gateDecisionAutoApproved = "auto_approved_no_flow"
+
 // gateSequence 四道门的固定顺序：后门的前置是前门 passed。
 var gateSequence = []string{GateInitiation, GatePlan, GateAcceptance, GateClosure}
 
@@ -81,6 +91,10 @@ type GateReadiness struct {
 	Gate     string        `json:"gate"`
 	Ready    bool          `json:"ready"`
 	Blockers []GateBlocker `json:"blockers"`
+	// ApprovalMode 提交后的审批方式预判（A4）：manual=存在可用审批流程；auto=未配置（提交即放行）。
+	// 未装配审批端口/查询失败时回退 auto，并置 AutoApprovalConfigMissing=true 供 UI 显式告警。
+	ApprovalMode              string `json:"approvalMode"`
+	AutoApprovalConfigMissing bool   `json:"autoApprovalConfigMissing"`
 }
 
 func (e *GateBlockedError) Error() string {
@@ -113,23 +127,27 @@ type GateSubmitRequest struct {
 
 // ProjectGateResponse 阶段门响应（类型名供领域别名 projectGates）。
 type ProjectGateResponse struct {
-	ID               int            `json:"id"`
-	ProjectID        int            `json:"projectId"`
-	Gate             string         `json:"gate"`
-	Status           string         `json:"status"`
-	ProcessInstanceID int           `json:"processInstanceId"`
-	ApprovalChainID  string         `json:"approvalChainId,omitempty"`
-	SubmittedBy      int            `json:"submittedBy"`
-	SubmittedAt      *time.Time     `json:"submittedAt,omitempty"`
-	DecidedBy        int            `json:"decidedBy"`
-	DecidedAt        *time.Time     `json:"decidedAt,omitempty"`
-	DecisionComment  string         `json:"decisionComment,omitempty"`
-	Blockers         []GateBlocker  `json:"blockers"`
+	ID                int    `json:"id"`
+	ProjectID         int    `json:"projectId"`
+	Gate              string `json:"gate"`
+	Status            string `json:"status"`
+	ProcessInstanceID int    `json:"processInstanceId"`
+	ApprovalChainID   string `json:"approvalChainId,omitempty"`
+	// ApprovalMode 审批方式（B/A4/B12 透明化）：manual=人工审批，auto=未配置审批流程自动放行，
+	// pending=尚未提交（无法判定）。auto 同时以 AutoApproved=true 明示，供 UI 告警与指标剔除。
+	ApprovalMode    string        `json:"approvalMode"`
+	AutoApproved    bool          `json:"autoApproved"`
+	SubmittedBy     int           `json:"submittedBy"`
+	SubmittedAt     *time.Time    `json:"submittedAt,omitempty"`
+	DecidedBy       int           `json:"decidedBy"`
+	DecidedAt       *time.Time    `json:"decidedAt,omitempty"`
+	DecisionComment string        `json:"decisionComment,omitempty"`
+	Blockers        []GateBlocker `json:"blockers"`
 	// PE-24：累计被拒绝次数（一次通过率度量；passed 且 0 = 一次通过）。
-	RejectCount      int            `json:"rejectCount"`
-	Version          int            `json:"version"`
-	CreatedAt        time.Time      `json:"createdAt"`
-	UpdatedAt        time.Time      `json:"updatedAt"`
+	RejectCount int       `json:"rejectCount"`
+	Version     int       `json:"version"`
+	CreatedAt   time.Time `json:"createdAt"`
+	UpdatedAt   time.Time `json:"updatedAt"`
 }
 
 // ToGateResponse 实体 → 响应。
@@ -149,6 +167,19 @@ func ToGateResponse(g *ent.ProjectGate) ProjectGateResponse {
 		Version:           g.Version,
 		CreatedAt:         g.CreatedAt,
 		UpdatedAt:         g.UpdatedAt,
+	}
+	// A4/B12：审批路径来自事实（流程实例 + 自动放行留痕），不依赖前端猜测。
+	switch {
+	case g.DecisionComment == gateDecisionAutoApproved:
+		resp.ApprovalMode = GateApprovalModeAuto
+		resp.AutoApproved = true
+	case g.ProcessInstanceID > 0 || g.Status == GateStatusInReview:
+		resp.ApprovalMode = GateApprovalModeManual
+	case g.Status == GateStatusPassed:
+		// 历史数据：已通过但无流程实例/自动留痕（早期手工放行）→ 归为人工，避免重复计入自动放行。
+		resp.ApprovalMode = GateApprovalModeManual
+	default:
+		resp.ApprovalMode = GateApprovalModePending
 	}
 	if g.SubmittedAt != nil {
 		resp.SubmittedAt = g.SubmittedAt

@@ -135,10 +135,16 @@ type ProjectResponse struct {
 	// PE-27：health=派生值（D-54/D-57），healthReasons=解释项（无信号省略）。
 	Health        string         `json:"health"`
 	HealthReasons []HealthReason `json:"healthReasons,omitempty"`
-	Progress      int            `json:"progress"`
-	ManagerID     *int           `json:"managerId,omitempty"`
-	DepartmentID  *int           `json:"departmentId,omitempty"`
-	OwnerTeamID   *int           `json:"ownerTeamId,omitempty"`
+	// A7：健康度数据完备度（sufficient|insufficient）+ 缺口说明；无缺口时省略。
+	HealthDataQuality string   `json:"healthDataQuality,omitempty"`
+	HealthDataGaps    []string `json:"healthDataGaps,omitempty"`
+	Progress          int      `json:"progress"`
+	ManagerID         *int     `json:"managerId,omitempty"`
+	// ManagerName / DepartmentName 展示层名称富化（禁止前端/报告直接输出裸 ID；B3）。
+	ManagerName    string `json:"managerName,omitempty"`
+	DepartmentName string `json:"departmentName,omitempty"`
+	DepartmentID   *int   `json:"departmentId,omitempty"`
+	OwnerTeamID    *int   `json:"ownerTeamId,omitempty"`
 	// PE-17 归口团队展示（读取侧降级：团队缺失/软删 → ownerTeamDeleted=true，UI 提示重新归口）。
 	OwnerTeamName    string     `json:"ownerTeamName,omitempty"`
 	OwnerTeamDeleted bool       `json:"ownerTeamDeleted,omitempty"`
@@ -272,6 +278,11 @@ func applyHealth(resp *ProjectResponse, h DerivedHealth) {
 	}
 	resp.Health = level
 	resp.HealthReasons = h.Reasons
+	// A7：数据不足时显式暴露（健康度仍按既有规则判级，但「无从判断」不能被读成「健康」）。
+	if h.DataQuality == HealthDataInsufficient {
+		resp.HealthDataQuality = HealthDataInsufficient
+		resp.HealthDataGaps = h.DataGaps
+	}
 }
 
 // applyHealthList 批量装配（列表/组合行；map 未命中按 green 兜底）。

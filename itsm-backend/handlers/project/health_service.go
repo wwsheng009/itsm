@@ -139,11 +139,11 @@ func (s *Service) loadHealthFacts(ctx context.Context, tenantID int, projects []
 // deriveHealth 派生健康度与解释项（确定性；终态语义见 D-56）。
 func deriveHealth(p *ent.Project, f *healthFacts, now time.Time) DerivedHealth {
 	if p == nil {
-		return DerivedHealth{Level: HealthLevelGreen}
+		return DerivedHealth{Level: HealthLevelGreen, DataQuality: HealthDataInsufficient}
 	}
 	status := normalizeStatus(p.Status)
 	if status == StatusCancelled {
-		return DerivedHealth{Level: HealthLevelGreen}
+		return DerivedHealth{Level: HealthLevelGreen, DataQuality: HealthDataSufficient}
 	}
 	if f == nil {
 		f = &healthFacts{}
@@ -307,7 +307,43 @@ func deriveHealth(p *ent.Project, f *healthFacts, now time.Time) DerivedHealth {
 		}
 		return reasons[i].Rule < reasons[j].Rule
 	})
-	return DerivedHealth{Level: level, Reasons: reasons}
+	gaps := healthDataGaps(p, f, status)
+	quality := HealthDataSufficient
+	if len(gaps) > 0 {
+		quality = HealthDataInsufficient
+	}
+	return DerivedHealth{Level: level, Reasons: reasons, DataQuality: quality, DataGaps: gaps}
+}
+
+// healthDataGaps 健康度数据缺口（A7：避免「无基线/无归属 = 健康」的误读）。
+//
+// 仅做**完备度提示**，不改变既有 9 条规则的判级（保持列表/组合/报表同源且不回溯改判）。
+// 判定：
+//   - 无项目经理 / 无所属部门（归口分析缺失主体）；
+//   - 非规划中项目缺计划起止（无法计算时间轴偏差）；
+//   - 无基线快照（无法判定预算偏差）；
+//   - 无任务（无执行事实，健康度无区分力）。
+func healthDataGaps(p *ent.Project, f *healthFacts, status string) []string {
+	gaps := make([]string, 0, 4)
+	if p.ManagerID <= 0 {
+		gaps = append(gaps, "未任命项目经理")
+	}
+	if p.DepartmentID <= 0 {
+		gaps = append(gaps, "未设置所属部门")
+	}
+	if status != StatusPlanning && (p.StartDate.IsZero() || p.EndDate.IsZero()) {
+		gaps = append(gaps, "缺少计划起止日期")
+	}
+	if f == nil || f.baseline == nil {
+		gaps = append(gaps, "未冻结计划基线（无预算/计划偏差可判）")
+	}
+	if f == nil || len(f.tasks) == 0 {
+		gaps = append(gaps, "无任务事实（无执行数据）")
+	}
+	if len(gaps) > 4 {
+		gaps = gaps[:4]
+	}
+	return gaps
 }
 
 // budgetPair 预算归一（amount<=0/nil = 未设置；币种大小写不敏感比较）。

@@ -115,6 +115,8 @@ type Repository interface {
 	ActiveMemberships(ctx context.Context, tenantID, limit int) ([]*ent.UserTenantMembership, error)
 	// UsersByIDs 批量取用户（展示字段；不按 home tenant 过滤——provider 投影用户归属他租户）。
 	UsersByIDs(ctx context.Context, userIDs []int) ([]*ent.User, error)
+	// DepartmentsByIDs 批量取部门（展示字段；同租户、未软删）。
+	DepartmentsByIDs(ctx context.Context, tenantID int, departmentIDs []int) ([]*ent.Department, error)
 
 	// ---- 引用校验（PE-28）----
 
