@@ -3,10 +3,13 @@ import { Button, Form, Input, InputNumber, Modal, Popconfirm, Select, Space, Tab
 import type { ColumnsType } from 'antd/es/table';
 import { Plus, RefreshCw } from 'lucide-react';
 import { Link } from 'react-router';
+import type { HttpClientError } from '@/lib/api/http-client';
 import { projectService } from '@/lib/services/project-service';
 import { formatBusinessDateTime } from '@/lib/formatters';
+import { describeRiskConvertError } from '@/lib/utils/risk-convert-error';
 import type {
   ProjectRisk,
+  ProjectStatus,
   RiskConvertTarget,
   RiskCreateRequest,
   RiskKind,
@@ -39,6 +42,8 @@ const LEVEL_OPTIONS = [
 
 interface ProjectRiskPanelProps {
   projectId: number;
+  /** 项目状态：completed/cancelled 时后端拒绝写入（D-30），前端同步禁用入口。 */
+  projectStatus: ProjectStatus;
   canWrite: boolean;
   /** 项目活跃成员（负责人下拉；来自工作台成员加载结果）。 */
   memberOptions: { value: number; label: string }[];
@@ -48,7 +53,7 @@ interface ProjectRiskPanelProps {
  * 项目风险/问题台账面板（P2/PE-21）：
  * kind=risk|issue 台账 + 状态机（open→mitigating→closed，close 必填结论）+ 转问题单/变更单。
  */
-export function ProjectRiskPanel({ projectId, canWrite, memberOptions }: ProjectRiskPanelProps) {
+export function ProjectRiskPanel({ projectId, projectStatus, canWrite, memberOptions }: ProjectRiskPanelProps) {
   const [risks, setRisks] = useState<ProjectRisk[]>([]);
   const [loading, setLoading] = useState(false);
   const [kindFilter, setKindFilter] = useState<RiskKind | ''>('');
@@ -64,6 +69,7 @@ export function ProjectRiskPanel({ projectId, canWrite, memberOptions }: Project
   const [closingRisk, setClosingRisk] = useState<ProjectRisk | null>(null);
   const [closeForm] = Form.useForm<{ resolution: string }>();
   const [actionLoading, setActionLoading] = useState(false);
+  const projectClosed = projectStatus === 'completed' || projectStatus === 'cancelled';
 
   const fetchRisks = useCallback(async () => {
     setLoading(true);
@@ -172,6 +178,14 @@ export function ProjectRiskPanel({ projectId, canWrite, memberOptions }: Project
   };
 
   const convert = (risk: ProjectRisk, target: RiskConvertTarget) => {
+    if (projectClosed) {
+      message.warning('项目已结项或已取消，不能继续转换');
+      return;
+    }
+    if (risk.status === 'closed') {
+      message.warning('该风险/问题已关闭，请先重开后再转换');
+      return;
+    }
     Modal.confirm({
       title: target === 'problem' ? '升级为问题单？' : '创建变更单？',
       content:
@@ -188,13 +202,11 @@ export function ProjectRiskPanel({ projectId, canWrite, memberOptions }: Project
           );
           await fetchRisks();
         } catch (error) {
-          const existingId = (error as { response?: { data?: { data?: { existingId?: number } } } })?.response
-            ?.data?.data?.existingId;
-          if (existingId) {
-            message.warning(`该风险已转换（既有单据 #${existingId}），如需新单据请先另建风险`);
-          } else {
-            console.error('Convert risk failed:', error);
-            message.error('转换失败（问题单/变更单服务未配置或参数无效）');
+          console.error('Convert risk failed:', error);
+          message.error(describeRiskConvertError(error, target));
+          // 409 代表关联已存在：刷新列表，让「关联」列与按钮状态立刻反映既有单据。
+          if ((error as Partial<HttpClientError> | undefined)?.httpStatus === 409) {
+            await fetchRisks();
           }
         }
       },
@@ -310,13 +322,49 @@ export function ProjectRiskPanel({ projectId, canWrite, memberOptions }: Project
                   重开
                 </Button>
               )}
-              {!risk.relatedProblemId && (
-                <Button size="small" type="link" onClick={() => convert(risk, 'problem')}>
+              {risk.relatedProblemId ? (
+                <Link to={`/problems/${risk.relatedProblemId}`}>
+                  <Button size="small" type="link">
+                    查看问题 #{risk.relatedProblemId}
+                  </Button>
+                </Link>
+              ) : (
+                <Button
+                  size="small"
+                  type="link"
+                  disabled={projectClosed || risk.status === 'closed'}
+                  title={
+                    projectClosed
+                      ? '项目已结项或已取消，不能继续转换'
+                      : risk.status === 'closed'
+                        ? '已关闭风险需先重开后再转换'
+                        : undefined
+                  }
+                  onClick={() => convert(risk, 'problem')}
+                >
                   转问题
                 </Button>
               )}
-              {!risk.relatedChangeId && (
-                <Button size="small" type="link" onClick={() => convert(risk, 'change')}>
+              {risk.relatedChangeId ? (
+                <Link to={`/changes/${risk.relatedChangeId}`}>
+                  <Button size="small" type="link">
+                    查看变更 #{risk.relatedChangeId}
+                  </Button>
+                </Link>
+              ) : (
+                <Button
+                  size="small"
+                  type="link"
+                  disabled={projectClosed || risk.status === 'closed'}
+                  title={
+                    projectClosed
+                      ? '项目已结项或已取消，不能继续转换'
+                      : risk.status === 'closed'
+                        ? '已关闭风险需先重开后再转换'
+                        : undefined
+                  }
+                  onClick={() => convert(risk, 'change')}
+                >
                   转变更
                 </Button>
               )}
@@ -335,7 +383,7 @@ export function ProjectRiskPanel({ projectId, canWrite, memberOptions }: Project
   return (
     <>
       <Space wrap style={{ marginBottom: 12 }}>
-        {canWrite && (
+        {canWrite && !projectClosed && (
           <Button type="primary" icon={<Plus size={16} />} onClick={openCreate} data-testid="risk-create">
             新建风险/问题
           </Button>
@@ -371,7 +419,9 @@ export function ProjectRiskPanel({ projectId, canWrite, memberOptions }: Project
           刷新
         </Button>
         <span style={{ color: '#8c8c8c' }}>
-          关闭须填写结论；转问题/变更走 ITSM 域（重复转换会被拒绝并给出既有单据）。
+          {projectClosed
+            ? '项目已结项/取消：风险台账只读，不能新建或转换。'
+            : '关闭须填写结论；转问题/变更走 ITSM 域（重复转换会被拒绝并给出既有单据）。'}
         </span>
       </Space>
 

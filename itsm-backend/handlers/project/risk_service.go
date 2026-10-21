@@ -16,6 +16,7 @@ var (
 	ErrRiskResolutionRequired = errors.New("risk resolution is required to close")
 	ErrRiskOwnerNotMember     = errors.New("risk owner is not an active project member")
 	ErrRiskTicketNotFound     = errors.New("related ticket not found in tenant")
+	ErrRiskClosedForConvert   = errors.New("risk is closed; reopen before conversion")
 	ErrRiskPortUnavailable    = errors.New("risk conversion port unavailable")
 	ErrRiskConversionFailed   = errors.New("risk conversion failed")
 )
@@ -326,6 +327,10 @@ func (s *Service) ConvertRisk(
 	current, err := s.getRisk(ctx, tenantID, projectID, riskID)
 	if err != nil {
 		return nil, 0, err
+	}
+	// 已关闭风险/问题先重开再转换（与前端入口禁用同口径；避免"关闭后仍可建单"绕过治理）。
+	if current.Status == RiskStatusClosed {
+		return nil, 0, ErrRiskClosedForConvert
 	}
 	// 已转换守卫（同目标二次转换 409 + existingId）。
 	if target == ConvertTargetProblem && current.RelatedProblemID > 0 {

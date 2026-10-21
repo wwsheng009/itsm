@@ -233,6 +233,44 @@ describe('httpClient', () => {
       await expect(httpClient.get('/api/v1/tickets/1')).rejects.toThrow(/status: 500/);
     });
 
+    it('exposes the backend error envelope data on non-2xx responses', async () => {
+      fetchMock.mockResolvedValueOnce(
+        jsonResponse(
+          {
+            code: 4090,
+            message: '该风险/问题已转换，不可重复转换',
+            data: { target: 'problem', existingId: 501 },
+          },
+          { status: 409, ok: false }
+        )
+      );
+
+      await expect(httpClient.post('/api/v1/projects/3/risks/11/convert', { target: 'problem' })).rejects.toMatchObject(
+        {
+          code: 4090,
+          httpStatus: 409,
+          data: { target: 'problem', existingId: 501 },
+        }
+      );
+    });
+
+    it('keeps errorCode and data for non-zero business codes on 2xx responses', async () => {
+      fetchMock.mockResolvedValueOnce(
+        jsonResponse({
+          code: 1001,
+          errorCode: 'VALIDATION_ERROR',
+          message: '参数错误',
+          data: { field: 'ownerId' },
+        })
+      );
+
+      await expect(httpClient.post('/api/v1/projects/3/risks', {})).rejects.toMatchObject({
+        code: 1001,
+        errorCode: 'VALIDATION_ERROR',
+        data: { field: 'ownerId' },
+      });
+    });
+
     it('tolerates a missing code field (BPMN controllers do not always set one)', async () => {
       fetchMock.mockResolvedValueOnce(jsonResponse({ message: 'ok', data: { ok: true } }));
 

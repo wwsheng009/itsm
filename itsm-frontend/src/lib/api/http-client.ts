@@ -97,6 +97,11 @@ export interface HttpClientError extends Error {
   reasonCode?: string;
   /** 响应头 `X-Request-Id`，便于日志排查 */
   requestId?: string;
+  /**
+   * 后端错误包络中的 `data`（如 409 的 `{ existingId }`、结项门禁的 `{ blockers }`）。
+   * HTTP 非 2xx 时 http-client 只解包 code/message，调用方需要明细时必须能拿到它。
+   */
+  data?: unknown;
 }
 
 const createHttpClientError = (
@@ -107,6 +112,7 @@ const createHttpClientError = (
     httpStatus?: number | null;
     reasonCode?: string | null;
     requestId?: string | null;
+    data?: unknown;
   } = {}
 ): HttpClientError => {
   const error = new Error(message) as HttpClientError;
@@ -117,12 +123,19 @@ const createHttpClientError = (
   }
   if (typeof meta.reasonCode === 'string' && meta.reasonCode) error.reasonCode = meta.reasonCode;
   if (meta.requestId) error.requestId = meta.requestId;
+  if (meta.data !== undefined && meta.data !== null) error.data = meta.data;
   return error;
 };
 
 const readErrorEnvelope = async (
   response: Response | undefined
-): Promise<{ code?: number; errorCode?: string; reasonCode?: string; message?: string } | null> => {
+): Promise<{
+  code?: number;
+  errorCode?: string;
+  reasonCode?: string;
+  message?: string;
+  data?: unknown;
+} | null> => {
   if (!response) return null;
   try {
     const payload = (await response.json()) as {
@@ -130,6 +143,7 @@ const readErrorEnvelope = async (
       errorCode?: unknown;
       reasonCode?: unknown;
       message?: unknown;
+      data?: unknown;
     } | null;
     if (!payload || typeof payload !== 'object') return null;
     const code = typeof payload.code === 'number' ? payload.code : undefined;
@@ -138,8 +152,17 @@ const readErrorEnvelope = async (
     const reasonCode =
       typeof payload.reasonCode === 'string' && payload.reasonCode ? payload.reasonCode : undefined;
     const message = typeof payload.message === 'string' && payload.message ? payload.message : undefined;
-    if (code === undefined && errorCode === undefined && reasonCode === undefined && message === undefined) return null;
-    return { code, errorCode, reasonCode, message };
+    const data = payload.data;
+    if (
+      code === undefined &&
+      errorCode === undefined &&
+      reasonCode === undefined &&
+      message === undefined &&
+      data === undefined
+    ) {
+      return null;
+    }
+    return { code, errorCode, reasonCode, message, data };
   } catch {
     // 非 JSON 响应体（网关 HTML / 空体）→ 回落到通用 HTTP 错误文案
     return null;
@@ -526,6 +549,7 @@ class HttpClient {
                 httpStatus: retryResponse.status,
                 reasonCode: envelope?.reasonCode ?? null,
                 requestId: rid,
+                data: envelope?.data,
               }
             );
           }
@@ -546,6 +570,7 @@ class HttpClient {
               errorCode: retryData.errorCode ?? null,
               httpStatus: retryResponse.status,
               requestId: rid,
+              data: retryData.data,
             });
           }
 
@@ -576,6 +601,7 @@ class HttpClient {
             httpStatus: response?.status ?? null,
             reasonCode: envelope?.reasonCode ?? null,
             requestId: rid,
+            data: envelope?.data,
           }
         );
       }
@@ -600,8 +626,10 @@ class HttpClient {
         const suffix = rid ? ` [RID: ${rid}]` : '';
         throw createHttpClientError((responseData.message || 'Request failed') + suffix, {
           code: responseData.code,
+          errorCode: responseData.errorCode ?? null,
           httpStatus: response.status,
           requestId: rid,
+          data: responseData.data,
         });
       }
 

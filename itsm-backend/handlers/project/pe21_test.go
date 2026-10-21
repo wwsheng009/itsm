@@ -170,6 +170,16 @@ func TestRiskConvertWorkflow(t *testing.T) {
 	_, _, err = svc.ConvertRisk(ctx, tid, p.ID, r1.ID, member.ID, &RiskConvertRequest{Target: ConvertTargetProblem})
 	require.ErrorIs(t, err, ErrRiskPortUnavailable)
 
+	// 已关闭风险 → 409（先重开再转换，防止关闭态绕过治理）。
+	closedRisk, err := svc.CreateRisk(ctx, tid, p.ID, member.ID, &RiskCreateRequest{Title: "已关闭风险"})
+	require.NoError(t, err)
+	_, err = svc.TransitionRisk(ctx, tid, p.ID, closedRisk.ID, &RiskStatusRequest{
+		Action: RiskActionClose, Resolution: "已规避",
+	})
+	require.NoError(t, err)
+	_, _, err = svc.ConvertRisk(ctx, tid, p.ID, closedRisk.ID, member.ID, &RiskConvertRequest{Target: ConvertTargetProblem})
+	require.ErrorIs(t, err, ErrRiskClosedForConvert)
+
 	problemPort := &fakeRiskProblemPort{id: 5001}
 	changePort := &fakeRiskChangePort{id: 6001}
 	svc.SetRiskPorts(problemPort, changePort)
@@ -219,7 +229,8 @@ func TestRiskConvertWorkflow(t *testing.T) {
 	require.ErrorIs(t, err, ErrValidation)
 }
 
-// TestHandlerRiskEndpoints 端点级：CRUD + 关闭校验 400 + 转换 503（未装配）+ 404（PE-21）。
+// TestHandlerRiskEndpoints 端点级：CRUD + 关闭校验 400 + 转换 503（未装配）/ 400（非法目标）/
+// 409（关闭态需先重开）+ 404（PE-21）。
 func TestHandlerRiskEndpoints(t *testing.T) {
 	r, _, _ := newHandlerEnv(t)
 
@@ -245,6 +256,12 @@ func TestHandlerRiskEndpoints(t *testing.T) {
 	w, _ = doJSON(t, r, http.MethodGet, fmt.Sprintf("/projects/%d/risks/%d", created.ID, risk.ID), nil)
 	require.Equal(t, http.StatusOK, w.Code)
 
+	// 转换：端口未装配 → 503；非法目标 → 400（关闭前验证，避免先命中 closed 守卫）。
+	w, _ = doJSON(t, r, http.MethodPost, fmt.Sprintf("/projects/%d/risks/%d/convert", created.ID, risk.ID), map[string]any{"target": "problem"})
+	assert.Equal(t, http.StatusServiceUnavailable, w.Code)
+	w, _ = doJSON(t, r, http.MethodPost, fmt.Sprintf("/projects/%d/risks/%d/convert", created.ID, risk.ID), map[string]any{"target": "bogus"})
+	assert.Equal(t, http.StatusBadRequest, w.Code)
+
 	// 关闭缺 resolution → 400；补齐后 200。
 	w, _ = doJSON(t, r, http.MethodPost, fmt.Sprintf("/projects/%d/risks/%d/status", created.ID, risk.ID), map[string]any{"action": "close"})
 	assert.Equal(t, http.StatusBadRequest, w.Code)
@@ -256,13 +273,9 @@ func TestHandlerRiskEndpoints(t *testing.T) {
 	require.NoError(t, json.Unmarshal(env.Data, &closedRisk))
 	assert.Equal(t, RiskStatusClosed, closedRisk.Status)
 
-	// 转换：端口未装配 → 503。
+	// 已关闭风险转换 → 409（先重开再转换）。
 	w, _ = doJSON(t, r, http.MethodPost, fmt.Sprintf("/projects/%d/risks/%d/convert", created.ID, risk.ID), map[string]any{"target": "problem"})
-	assert.Equal(t, http.StatusServiceUnavailable, w.Code)
-
-	// 非法目标 → 400。
-	w, _ = doJSON(t, r, http.MethodPost, fmt.Sprintf("/projects/%d/risks/%d/convert", created.ID, risk.ID), map[string]any{"target": "bogus"})
-	assert.Equal(t, http.StatusBadRequest, w.Code)
+	assert.Equal(t, http.StatusConflict, w.Code)
 
 	// 不存在 → 404；非法 level 过滤器 → 400。
 	w, _ = doJSON(t, r, http.MethodGet, fmt.Sprintf("/projects/%d/risks/%d", created.ID, 999999), nil)

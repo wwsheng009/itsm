@@ -2447,6 +2447,7 @@ export default function ProjectDetailPage() {
             children: (
               <ProjectRiskPanel
                 projectId={project.id}
+                projectStatus={project.status}
                 canWrite={canWrite}
                 memberOptions={members.map((m) => ({ value: m.userId, label: m.name || m.username }))}
               />

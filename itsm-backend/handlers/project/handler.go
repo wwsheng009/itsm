@@ -519,6 +519,10 @@ func (h *Handler) fail(c *gin.Context, err error) {
 		common.Fail(c, common.NotFoundCode, "风险/问题不存在")
 	case errors.Is(err, ErrInvalidRiskState):
 		common.Fail(c, common.ConflictCode, "非法风险状态流转："+err.Error())
+	case errors.Is(err, ErrRiskClosedForConvert):
+		common.FailWithData(c, common.ConflictCode, "该风险/问题已关闭，请先重开后再转换", gin.H{
+			"hint": "reopen_before_conversion",
+		})
 	case errors.Is(err, ErrRiskResolutionRequired):
 		common.Fail(c, common.ParamErrorCode, "关闭风险/问题必须填写结论（resolution）")
 	case errors.Is(err, ErrRiskOwnerNotMember):
