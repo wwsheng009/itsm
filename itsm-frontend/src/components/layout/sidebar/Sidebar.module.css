@@ -106,13 +106,13 @@
 }
 
 .customMenu :global(.ant-menu-item:hover) {
-  color: var(--color-primary) !important;
-  background-color: var(--color-bg-active) !important;
+  color: #1677ff !important;
+  background-color: #f3f4f6 !important;
 }
 
 .customMenu :global(.ant-menu-item-selected) {
-  background-color: var(--color-primary-soft) !important;
-  color: var(--color-primary) !important;
+  background-color: #e6f4ff !important;
+  color: #1677ff !important;
   font-weight: 600 !important;
 }
 
@@ -133,7 +133,7 @@
 }
 
 .menuItemBadge {
-  background-color: #3b82f6;
+  background-color: #ef4444;
   box-shadow: 0 0 0 1px #fff;
 }
 

@@ -130,14 +130,30 @@
   font-weight: 600 !important;
 }
 
-/* 侧边栏收缩后，子菜单 flyout 弹层（portals 到 body）内的菜单项
-   会继承 inline-collapsed 的 title-content 隐藏样式（opacity:0 / max-width:0），
-   导致悬浮弹层只剩图标没有文字。弹层内强制恢复文字显示。 */
+/* 侧边栏收缩后，子菜单 flyout 弹层（portals 到 body）内的菜单项文字必须可见。
+
+   ① 弹层会继承 inline-collapsed 的 title-content 隐藏样式
+      （opacity:0 / max-width:0），需显式恢复。
+   ② 更关键的“有图标则无文字”：antd 的 vertical 弹层里 <li> 是 display:block，
+      图标与 title-content 按 inline 排版；而 Sidebar 的 label 是块级 flex 容器
+      （.menuItemLabel = div + display:flex + width:100%）。行内盒中夹一个块级
+      flex 会强制换行，文本被推到 40px 行高之外，再被 li 的 overflow:hidden 裁掉；
+      无图标项没有前置行内盒，文本仍从行首开始，所以显示正常。
+      这里与 antd inline 模式对齐：弹层内 li 改成 flex 排成一行，
+      title-content 作为可伸缩 flex 项参与布局。 */
+.ant-menu-submenu-popup .ant-menu-item,
+.ant-menu-submenu-popup .ant-menu-submenu-title {
+  display: flex !important;
+  align-items: center !important;
+}
+
 .ant-menu-submenu-popup .ant-menu-title-content {
   opacity: 1 !important;
   visibility: visible !important;
   max-width: none !important;
   overflow: visible !important;
+  flex: auto !important;
+  min-width: 0 !important;
 }
 
 /* ========== Breadcrumb 面包屑 ========== */
