@@ -1,0 +1,48 @@
+branch=deploy-demo-project-review-0aa276da
+head=0aa276dad44fc6062f70499c18e4f37f8dd9e795
+VERSION=1.8.0-dev.0aa276da
+
+--- containers ---
+itsm-ai-service-demo|itsm-ai-service:1.8.0-dev.5b070145|Up 24 hours (healthy)
+itsm-backend-demo|itsm-backend:1.8.0-dev.0aa276da|Up 3 minutes (healthy)
+itsm-frontend-demo|itsm-frontend:1.8.0-dev.0aa276da|Up 2 minutes (healthy)
+itsm-nginx-demo|nginx:alpine|Up 7 days (healthy)
+itsm-redis-demo|redis:7-alpine|Up 7 days (healthy)
+itsm-worker-demo|itsm-backend:1.8.0-dev.0aa276da|Up 3 minutes (healthy)
+
+--- init ---
+exited|exit=0
+ledger_demo=105
+
+--- version ---
+{"code":0,"message":"success","data":{"build":"release","version":"1.8.0-dev.0aa276da"}}
+
+--- images ---
+itsm-backend:1.8.0-dev.0aa276da|268MB
+itsm-backend:1.8.0-dev.3cfc1dcc|268MB
+itsm-frontend:1.8.0-dev.0aa276da|72MB
+itsm-frontend:1.8.0-dev.3cfc1dcc|72MB
+
+--- 项目域数据抽样 ---
+1|PRJ-20261018-4563|0|0|planning
+2|PRJ-20261018-6947|0|0|planning
+3|PRJ-20261018-5583|1|0|planning
+4|PRJ-20261018-7226|1|0|completed
+5|PRJ-20261018-9577|1|4|planning
+6|PRJ-20261020-9637|1|1|completed
+
+--- 门审批留痕抽样 ---
+1|closure|pending|-
+1|initiation|pending|-
+3|acceptance|passed|auto_approved_no_flow
+3|closure|pending|-
+3|initiation|passed|-
+3|plan|passed|auto_approved_no_flow
+4|acceptance|passed|auto_approved_no_flow
+4|closure|passed|-
+4|initiation|passed|-
+4|plan|passed|auto_approved_no_flow
+5|initiation|in_review|-
+6|acceptance|passed|auto_approved_no_flow
+
+EVIDENCE-DONE

@@ -1,0 +1,43 @@
+fix(project): 按 2026-10-21 功能审查报告修复 21 项缺陷
+
+原始报告归档：docs/project-management/reviews/2026-10-21-项目功能审查报告.md
+逐条核验台账：docs/project-management/reviews/2026-10-21-功能审查修复台账.md
+
+P0 / 流程管控
+- A1 创建项目严格必填：新增 Service.SetStrictCreate（bootstrap 开启），
+  经理/部门/计划起止缺失返回 400 ErrRequiredProjectFields；前端弹窗同步加 required。
+- A4 门审批方式透明化：ProjectGateResponse 增 approvalMode(manual|auto|pending)
+  + autoApproved；GateReadiness 增 approvalMode/autoApprovalConfigMissing
+  （GateApprovalModeInspector 只读探测）；前端逐门标注并给出流程配置引导。
+- A8 结项阻塞单一口径：closure 响应增 blockerTotal（明细 >10 条时计数不截断）；
+  页头徽标/告警块/按钮禁用/点击拦截统一同源，结项按钮真实禁用并给出 Tooltip 原因。
+- A3 结项清单首屏实时化：进入 Tab 与任务/里程碑增删改后刷新清单与门预检；
+  读取失败清空清单并提示，不再渲染陈旧「已通过」。
+
+P0 / 数据正确性
+- A6 时间源：新增 business_time.go（默认 Asia/Shanghai，内嵌 tzdata，可用
+  ITSM_BUSINESS_TIMEZONE 覆盖），项目编号日期与报告时间按业务时区格式化；
+  前端新增 formatBusinessDate/formatBusinessDateTime 替换字符串截断。
+- A2/B3 展示口径：新增 display_service.go 批量富化 managerName/departmentName，
+  列表/详情/组合/报告统一「后端名称 → 成员字典 → 用户 #ID」降级，禁止裸 ID。
+
+P1 / 口径与交互
+- A5 计划门文案与实现对齐（无基线冻结 v1，已有基线不重复）。
+- A7 健康度增数据完备度：healthDataQuality/healthDataGaps（无经理/无部门/
+  缺计划/无基线/无任务），前端灰标「健康（数据不足）」+ 缺口 Popover；
+  不改变既有 9 条规则判级。
+- B12 一次通过率剔除 auto_approved_no_flow：分母仅人工审批通过，
+  自动放行单列 autoApproved；明细行标注「自动放行（不计入）」。
+- B1/B2/B5/B7/B9/B10/B11：日期联动改为默认值（手输优先）+ planEnd≥planStart 校验；
+  数字控件显式上下限；表格横向滚动与最小列宽；新建项目可选模板并自动应用、
+  模板页空态 CTA；风险新建必填负责人与「未指派」标签；成员回收按钮降级；
+  结项操作列加宽、任务操作改「主按钮 + 更多」菜单。
+- B6：成员候选补 department/email；已有 PM 时提供「同步设为项目经理」。
+
+校验
+- go test ./handlers/project/ -count=1 -p 1（含新增 7 个回归用例）
+- go vet ./handlers/project/、go build ./handlers/project/ ./internal/bootstrap/ ./router/
+- npx tsc --noEmit、改动文件 eslint、jest project-service/formatters/组件单测
+
+未采纳（明确边界）：B13 全局浮层键盘与 ARIA（需独立批次）、
+A6 存量时间戳/编号回填、A2 存量未归口数据补全（需业务确认）。
