@@ -400,8 +400,11 @@ export default function ProjectsPage() {
         title: '操作',
         key: 'action',
         width: 260,
+        // B5（第三轮遗留）：操作列固定右侧，避免 10+ 列时首屏看不到「工作台/编辑」。
+        fixed: 'right',
         render: (_: unknown, record) => (
-          <Space size="small">
+          // B5：操作文案禁止逐字换行（「工\n作\n台」）。
+          <Space size="small" wrap={false} style={{ whiteSpace: 'nowrap' }}>
             <a onClick={() => navigate(`/projects/${record.id}`)}>工作台</a>
             {canWrite && (
               <>
@@ -496,8 +499,8 @@ export default function ProjectsPage() {
         columns={columns}
         dataSource={projects}
         loading={loading}
-        // B5：列宽自适应 + 最小宽度，超宽横向滚动，避免中文竖排折行。
-        scroll={{ x: 1400 }}
+        // B5：列宽自适应 + 最小宽度，超宽横向滚动，避免中文竖排折行；操作列固定右侧。
+        scroll={{ x: 1600 }}
         pagination={{
           current: page,
           pageSize,
@@ -631,11 +634,6 @@ export default function ProjectsPage() {
                 step={1000}
                 style={{ width: '100%' }}
                 placeholder="如 120000"
-                onChange={(value) => {
-                  if (typeof value === 'number' && value > 1000000000) {
-                    message.warning('预算金额上限为 1,000,000,000，将按上限保存');
-                  }
-                }}
               />
             </Form.Item>
             <Form.Item name="budgetCurrency" label="币种" extra="2-8 位字母（如 CNY / USD）；留空 = 租户默认">

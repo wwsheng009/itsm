@@ -287,8 +287,10 @@ export default function ProjectTemplatesPage() {
       title: '操作',
       key: 'action',
       width: 220,
+      // B5（第三轮遗留）：操作列固定右侧 + 文案不换行。
+      fixed: 'right',
       render: (_, record) => (
-        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+        <div style={{ display: 'flex', gap: 8, flexWrap: 'nowrap', whiteSpace: 'nowrap' }}>
           {canWrite && <a onClick={() => openEdit(record)}>编辑</a>}
           {canWrite && record.status === 'draft' && <a onClick={() => toggleStatus(record, 'active')}>激活</a>}
           {canWrite && record.status === 'active' && <a onClick={() => toggleStatus(record, 'archived')}>归档</a>}
@@ -506,18 +508,8 @@ export default function ProjectTemplatesPage() {
                         <InputNumber min={0} max={3650} style={{ width: '100%' }} />
                       </Form.Item>
                       <Form.Item name={[field.name, 'estimateHours']} label="估算工时" style={{ flex: 1 }}>
-                        {/* B1/B2（回归遗留）：显式上下限 + 超限即时提示，避免默认 valuemax=0 与静默钳制。 */}
-                        <InputNumber
-                          min={0}
-                          max={1000000}
-                          step={1}
-                          style={{ width: '100%' }}
-                          onChange={(value) => {
-                            if (typeof value === 'number' && value > 1000000) {
-                              message.warning('模板任务估算工时上限为 1,000,000 小时');
-                            }
-                          }}
-                        />
+                        {/* B1/B2：与实例任务同口径（后端 MaxTaskHours=10000）；超限由校验拒绝。 */}
+                        <InputNumber min={0} max={10000} step={1} style={{ width: '100%' }} />
                       </Form.Item>
                     </div>
                     <Form.Item name={[field.name, 'description']} label="说明">

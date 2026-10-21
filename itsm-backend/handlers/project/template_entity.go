@@ -110,8 +110,9 @@ func (p *TemplatePayload) Validate() error {
 		if t.DurationDays != nil && (*t.DurationDays < 0 || *t.DurationDays > templateDurationMaxDays) {
 			return fmt.Errorf("%w: task[%d] durationDays must be within 0..%d", ErrValidation, i, templateDurationMaxDays)
 		}
-		if t.EstimateHours != nil && (*t.EstimateHours < 0 || *t.EstimateHours > 100000) {
-			return fmt.Errorf("%w: task[%d] estimateHours out of range", ErrValidation, i)
+		// 与实例任务同一上限（MaxTaskHours），避免模板可填 10 万、实例只能 1 万的口径分裂。
+		if t.EstimateHours != nil && (*t.EstimateHours < 0 || *t.EstimateHours > MaxTaskHours) {
+			return fmt.Errorf("%w: task[%d] estimateHours must be within 0..%g", ErrValidation, i, float64(MaxTaskHours))
 		}
 		if len(t.Checklist) > templateChecklistMax {
 			return fmt.Errorf("%w: task[%d] too many checklist items (max %d)", ErrValidation, i, templateChecklistMax)

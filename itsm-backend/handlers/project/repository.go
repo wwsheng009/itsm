@@ -62,6 +62,12 @@ type TaskHoursSummary struct {
 	ActualTaskCount    int
 	EstimateHours      float64
 	ActualHours        float64
+	// InvalidHoursTasks 工时越界（> MaxTaskHours）的任务数（B1 第三轮：汇总层护栏）。
+	// 这些任务不计入 EstimateHours/ActualHours，避免历史脏数据污染项目指标。
+	InvalidHoursTasks int
+	// InvalidEstimateHours / InvalidActualHours 被排除的越界工时合计（供 UI 提示，不参与指标）。
+	InvalidEstimateHours float64
+	InvalidActualHours   float64
 }
 
 // StatusPatch 状态流转附带写字段。

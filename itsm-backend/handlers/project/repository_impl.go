@@ -228,13 +228,30 @@ func (r *EntRepository) SumTaskHours(ctx context.Context, tenantID, projectID in
 	}
 	summary := &TaskHoursSummary{TaskCount: len(tasks)}
 	for _, t := range tasks {
+		// B1（第三轮）：越界工时不计入汇总——历史脏数据（如 1000000h）不能当作项目事实。
+		invalid := false
+		if t.EstimateHours > MaxTaskHours {
+			summary.InvalidEstimateHours += t.EstimateHours
+			invalid = true
+		}
+		if t.ActualHours > MaxTaskHours {
+			summary.InvalidActualHours += t.ActualHours
+			invalid = true
+		}
+		if invalid {
+			summary.InvalidHoursTasks++
+		}
 		if t.EstimateHours > 0 {
-			summary.EstimatedTaskCount++
-			summary.EstimateHours += t.EstimateHours
+			if t.EstimateHours <= MaxTaskHours {
+				summary.EstimatedTaskCount++
+				summary.EstimateHours += t.EstimateHours
+			}
 		}
 		if t.ActualHours > 0 {
-			summary.ActualTaskCount++
-			summary.ActualHours += t.ActualHours
+			if t.ActualHours <= MaxTaskHours {
+				summary.ActualTaskCount++
+				summary.ActualHours += t.ActualHours
+			}
 		}
 	}
 	return summary, nil

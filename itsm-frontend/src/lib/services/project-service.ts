@@ -1041,6 +1041,12 @@ export interface HoursSummary {
   actualTaskCount: number;
   estimateHours: number;
   actualHours: number;
+  /** B1（第三轮）：越界工时（> maxTaskHours）不计入合计；此处为被排除的任务数。 */
+  invalidHoursTasks?: number;
+  invalidEstimateHours?: number;
+  invalidActualHours?: number;
+  /** 后端当前单任务工时上限（与后端 MaxTaskHours 同源）。 */
+  maxTaskHours?: number;
 }
 
 // ---- P2/PE-25：项目 AI（状态摘要 / 风险预警 / 纪要转任务） ----

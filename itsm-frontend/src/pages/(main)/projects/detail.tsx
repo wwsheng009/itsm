@@ -17,6 +17,7 @@ import {
   Tabs,
   Tag,
   Tooltip,
+  Typography,
   Dropdown,
   Checkbox,
   message,
@@ -63,6 +64,12 @@ import { ProjectResourceHeatmap } from './components/ProjectResourceHeatmap';
 import { ProjectRiskPanel } from './components/ProjectRiskPanel';
 import { ProjectAITab } from './components/ProjectAITab';
 import { ProjectHealthTag } from './components/ProjectHealthTag';
+
+/**
+ * 单任务工时上限（B1）：与后端 `project.MaxTaskHours` 保持一致。
+ * 超限由表单校验拒绝（不再依赖 antd 失焦钳制，那条路径用户永远看不到提示）。
+ */
+const TASK_HOURS_MAX = 10000;
 
 const STATUS_META: Record<ProjectStatus, { label: string; color: string }> = {
   planning: { label: '规划中', color: 'default' },
@@ -1435,8 +1442,10 @@ export default function ProjectDetailPage() {
     {
       title: '门禁阻塞项',
       key: 'blockers',
-      // B4：表头/内容禁止逐字竖排（回归报告实测被压成每行一个字）。
+      // B4 + 第三轮：显式 width + minWidth，禁止被弹性压缩到 0 宽（列头会整个消失）。
       width: 360,
+      minWidth: 260,
+      onCell: () => ({ style: { minWidth: 260, whiteSpace: 'normal' } }),
       render: (_: unknown, row) => {
         const status = row.record?.status ?? 'pending';
         const actionable = status === 'pending' || status === 'rejected';
@@ -2114,9 +2123,19 @@ export default function ProjectDetailPage() {
                     {formatBudget(project.budgetAmount, project.budgetCurrency) ?? '未设置'}
                   </Descriptions.Item>
                   <Descriptions.Item label="工时汇总（估算/实际）">
-                    {hoursSummary
-                      ? `${hoursSummary.estimateHours} / ${hoursSummary.actualHours} 小时（实际已填报 ${hoursSummary.actualTaskCount}/${hoursSummary.taskCount} 任务）`
-                      : '-'}
+                    {hoursSummary ? (
+                      <Space direction="vertical" size={2}>
+                        <span>{`${hoursSummary.estimateHours} / ${hoursSummary.actualHours} 小时（实际已填报 ${hoursSummary.actualTaskCount}/${hoursSummary.taskCount} 任务）`}</span>
+                        {/* B1（第三轮）：越界工时已被排除，必须显式告知，不能让用户以为数字完整。 */}
+                        {(hoursSummary.invalidHoursTasks ?? 0) > 0 ? (
+                          <Typography.Text type="warning" style={{ fontSize: 12 }}>
+                            {`已排除 ${hoursSummary.invalidHoursTasks} 个越界工时任务（估算 ${hoursSummary.invalidEstimateHours ?? 0}h / 实际 ${hoursSummary.invalidActualHours ?? 0}h，上限 ${hoursSummary.maxTaskHours ?? TASK_HOURS_MAX}h/任务）；请修正后重新统计`}
+                          </Typography.Text>
+                        ) : null}
+                      </Space>
+                    ) : (
+                      '-'
+                    )}
                   </Descriptions.Item>
                   <Descriptions.Item label="描述" span={2}>
                     {project.description || '-'}
@@ -2189,8 +2208,9 @@ export default function ProjectDetailPage() {
                   pagination={false}
                   size="small"
                   loading={gateLoading}
-                  // B4：阶段门表固定操作列 + 横向滚动，避免「门禁阻塞项」表头竖排。
-                  scroll={{ x: 1100 }}
+                  // B4 + 第三轮：固定操作列 + 足够的总宽度，避免「门禁阻塞项」被压到 0 宽。
+                  scroll={{ x: 1360 }}
+                  tableLayout="fixed"
                 />
               </>
             ),
@@ -2480,19 +2500,35 @@ export default function ProjectDetailPage() {
             <Form.Item name="priority" label="优先级">
               <Select options={Object.entries(PRIORITY_META).map(([value, meta]) => ({ value, label: meta.label }))} />
             </Form.Item>
-            <Form.Item name="estimateHours" label="估算工时（小时）">
-              {/* B1/B2：显式上下限 + 即时提示（避免超限后被静默钳制且无任何说明）。 */}
-              <InputNumber
-                min={0}
-                max={1000000}
-                step={1}
-                style={{ width: '100%' }}
-                onChange={(value) => {
-                  if (typeof value === 'number' && value > 1000000) {
-                    message.warning('估算工时上限为 1,000,000 小时，将按上限保存');
-                  }
-                }}
-              />
+            {/*
+              B1（第三轮仍未修复）：antd InputNumber 在**失焦**时才钳制，onChange 拿到的
+              已是钳制后的值（999999999 → 1000000），因此「超限提示」永远不会触发。
+              改为表单级校验：超限直接阻止提交并给出字段级红字（不再静默截断）。
+              上限与后端 MaxTaskHours 保持一致（10000h）。
+            */}
+            <Form.Item
+              name="estimateHours"
+              label="估算工时（小时）"
+              extra="0 ~ 10,000 小时；超出会被拒绝保存（不会静默截断）"
+              rules={[
+                {
+                  validator: (_, value) => {
+                    if (value === undefined || value === null || value === '') return Promise.resolve();
+                    const hours = Number(value);
+                    if (!Number.isFinite(hours) || hours < 0) {
+                      return Promise.reject(new Error('估算工时须为不小于 0 的数字'));
+                    }
+                    if (hours > TASK_HOURS_MAX) {
+                      return Promise.reject(
+                        new Error(`估算工时上限为 ${TASK_HOURS_MAX.toLocaleString()} 小时，请调整后再保存`)
+                      );
+                    }
+                    return Promise.resolve();
+                  },
+                },
+              ]}
+            >
+              <InputNumber min={0} max={TASK_HOURS_MAX} step={1} style={{ width: '100%' }} />
             </Form.Item>
           </div>
           <div className="grid grid-cols-2 gap-4">

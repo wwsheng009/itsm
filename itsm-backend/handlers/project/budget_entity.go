@@ -14,8 +14,13 @@ import (
 // MaxBudgetAmount 预算金额上限（防误录护栏，非财务口径）。
 const MaxBudgetAmount = 1e12
 
-// MaxTaskHours 单任务工时上限（防误录护栏；100 万小时）。
-const MaxTaskHours = 1e6
+// MaxTaskHours 单任务工时上限（防误录护栏）。
+//
+// 第三轮回归（B1）：原 100 万小时对「人月级」项目毫无约束力，且越界值被钳制后
+// 仍计入项目汇总（实测 1000009h），等于把错误数字当事实。
+// 收敛为 10000 小时（约 5.5 人年 @ 8h×250 天），覆盖单任务合理上限；
+// 越界一律 400（不静默截断），由前端显式提示。
+const MaxTaskHours = 10000
 
 // budgetCurrencyPattern 币种口径（D-63）：2-8 位大写字母（如 CNY / USD）。
 var budgetCurrencyPattern = regexp.MustCompile(`^[A-Z]{2,8}$`)
@@ -53,6 +58,12 @@ type HoursSummaryResponse struct {
 	ActualTaskCount    int     `json:"actualTaskCount"`
 	EstimateHours      float64 `json:"estimateHours"`
 	ActualHours        float64 `json:"actualHours"`
+	// B1（第三轮）：越界工时不计入合计；此处回传被排除的任务数与工时，供 UI 显式告警。
+	InvalidHoursTasks    int     `json:"invalidHoursTasks"`
+	InvalidEstimateHours float64 `json:"invalidEstimateHours"`
+	InvalidActualHours   float64 `json:"invalidActualHours"`
+	// MaxTaskHours 当前口径上限（前端据此展示提示，避免与后端漂移）。
+	MaxTaskHours float64 `json:"maxTaskHours"`
 }
 
 // ToHoursSummaryResponse 映射汇总（nil → nil）。
@@ -61,10 +72,14 @@ func ToHoursSummaryResponse(s *TaskHoursSummary) *HoursSummaryResponse {
 		return nil
 	}
 	return &HoursSummaryResponse{
-		TaskCount:          s.TaskCount,
-		EstimatedTaskCount: s.EstimatedTaskCount,
-		ActualTaskCount:    s.ActualTaskCount,
-		EstimateHours:      s.EstimateHours,
-		ActualHours:        s.ActualHours,
+		TaskCount:            s.TaskCount,
+		EstimatedTaskCount:   s.EstimatedTaskCount,
+		ActualTaskCount:      s.ActualTaskCount,
+		EstimateHours:        s.EstimateHours,
+		ActualHours:          s.ActualHours,
+		InvalidHoursTasks:    s.InvalidHoursTasks,
+		InvalidEstimateHours: s.InvalidEstimateHours,
+		InvalidActualHours:   s.InvalidActualHours,
+		MaxTaskHours:         MaxTaskHours,
 	}
 }

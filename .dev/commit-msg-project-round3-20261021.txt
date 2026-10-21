@@ -1,0 +1,29 @@
+fix(project): 修复第三轮回归遗留——工时上限、表格固定列与汇总护栏
+
+第三轮报告归档：docs/project-management/reviews/2026-10-21-项目功能回归验证报告-第三轮.md
+处置台账：docs/project-management/reviews/2026-10-21-第三轮回归遗留修复台账.md
+
+B1 工时静默钳制（第三轮唯一实质未修复项）
+- 根因：antd InputNumber 在失焦时才钳制，onChange 拿到的已是钳制后的值，
+  上一轮 `value > max` 的提示永不触发（999999999 被静默改为 1000000）。
+- 上限收敛：MaxTaskHours 1e6 → 10000（原值对项目工时无约束力）。
+- 前端：任务弹窗改为 Form.Item validator，超限直接 reject 并红字提示、阻止提交；
+  模板任务工时同步为 0..10000（原 100000，口径分裂）。
+- 后端：写入侧沿用 400 拒绝；汇总侧 SumTaskHours 排除越界值，
+  新增 invalidHoursTasks/invalidEstimateHours/invalidActualHours/maxTaskHours；
+  概览显式告警「已排除 N 个越界工时任务」。
+- 历史脏数据不回填：project 9 的 1000000h 不再计入合计（原 1000009h → 9h）。
+
+B5 残留（列表/模板页）
+- 项目列表、模板列表操作列 fixed:'right'；操作文案 nowrap（消除「工\n作\n台」）；
+  项目列表 scroll.x 1400 → 1600。
+
+阶段门「门禁阻塞项」列 0 宽
+- 列增 minWidth:260 + onCell 强制最小宽度；表格 scroll.x 1100 → 1360
+  并加 tableLayout="fixed"，避免弹性列被压到 0。
+
+校验
+- go test ./handlers/project/ -count=1 -p 1（含新增 2 个用例）
+- go vet ./handlers/project/、go build ./handlers/project/ ./router/ ./internal/bootstrap/
+- npx tsc --noEmit、改动文件 eslint
+- npm run build（tsc -b && vite build）✅ built in 1m 12s（按上轮教训，提交前先跑生产构建）
