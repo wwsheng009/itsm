@@ -1,0 +1,9 @@
+docs(project): 记录第三轮回归修复的 238 部署与线上验证
+
+- 版本 1.8.0-dev.50a1831b，分支 deploy-demo-project-round3-50a1831b
+- B1 三层线上实测：999999999 → 400；边界 10000 通过 / 10001 拒绝；
+  汇总 estimateHours=9（修复前 1000009）、invalidHoursTasks=1、
+  invalidEstimateHours=1000000、maxTaskHours=10000
+- 页面可达全 200，日志无 panic/fatal/error
+- 记录历史脏数据（项目 9 task 8 = 1000000h）需业务侧修正，
+  当前已被汇总排除并显式告警
