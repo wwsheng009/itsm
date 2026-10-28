@@ -59,24 +59,6 @@ export const APPROVAL_STEP_LABEL: Record<string, string> = {
   security: '安全部门审批',
 };
 
-/** 优先级 code → 中文（工单/服务请求统计曾直出 low/medium/high/critical）。 */
-export const PRIORITY_LABEL: Record<string, string> = {
-  urgent: '紧急',
-  critical: '致命',
-  high: '高',
-  medium: '中',
-  low: '低',
-};
-
-/** 审批环节角色码 → 中文（服务请求详情曾直出 MANAGER / IT / SECURITY）。 */
-export const APPROVAL_ROLE_LABEL: Record<string, string> = {
-  MANAGER: '经理',
-  IT: 'IT 支持',
-  SECURITY: '安全',
-  admin: '管理员',
-  approver: '审批人',
-};
-
 /**
  * 通用枚举取中文标签。
  * 命中词表返回中文；否则原样返回 code（保持既有行为、不产生 undefined）；
