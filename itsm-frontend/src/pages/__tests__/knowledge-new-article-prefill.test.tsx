@@ -66,6 +66,17 @@ function withRichTextOff(): () => void {
   };
 }
 
+/**
+ * 分类为必填项且不再预选默认值（修复审查 R7：默认值预选会误导用户以为已选好，
+ * 且异步未命中会把内部 id「1」当分类名写入）。创建类用例需显式选择一个分类。
+ */
+async function selectCategory(name = '故障处理'): Promise<void> {
+  await waitFor(() => expect(screen.getByLabelText('分类')).toBeInTheDocument());
+  fireEvent.mouseDown(screen.getByLabelText('分类'));
+  const option = await screen.findByText(name, { selector: '.ant-select-item-option-content' });
+  fireEvent.click(option);
+}
+
 describe('新建文章页：承接 AI 助手预填', () => {
   beforeEach(() => {
     mockLocation.state = undefined;
@@ -153,6 +164,7 @@ describe('新建文章页：承接 AI 助手预填', () => {
     await waitFor(() =>
       expect(screen.getByPlaceholderText(TITLE_PLACEHOLDER)).toHaveValue('VPN 拨号失败排查')
     );
+    await selectCategory();
     fireEvent.click(screen.getByRole('button', { name: /保存草稿/ }));
 
     await waitFor(() => expect(mockedCreate).toHaveBeenCalled());
@@ -181,6 +193,7 @@ describe('新建文章页：承接 AI 助手预填', () => {
       fireEvent.change(screen.getByPlaceholderText(MARKDOWN_PLACEHOLDER), {
         target: { value: '正文' },
       });
+      await selectCategory();
       fireEvent.click(screen.getByRole('button', { name: /保存草稿/ }));
 
       await waitFor(() => expect(mockedCreate).toHaveBeenCalled());

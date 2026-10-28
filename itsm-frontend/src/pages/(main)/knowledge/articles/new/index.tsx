@@ -258,7 +258,7 @@ export default function NewKnowledgeArticlePage() {
         content: useRichEditor ? createContent || '<p></p>' : createContent,
         contentType,
         category:
-          categories.find(c => c.id === values.categoryId)?.name || String(values.categoryId),
+          categories.find(c => c.id === values.categoryId)?.name ?? undefined,
         tags: values.tags || [],
       });
 
@@ -346,7 +346,7 @@ export default function NewKnowledgeArticlePage() {
           form={form}
           layout="vertical"
           onFinish={onFinish}
-          initialValues={{ categoryId: 1, tags: [] }}
+          initialValues={{ categoryId: undefined, tags: [] }}
         >
           <Form.Item name="title" label="标题" rules={[{ required: true, message: '请输入标题' }]}>
             <Input placeholder="例如：VPN 拨号失败排查指南" maxLength={200} />
