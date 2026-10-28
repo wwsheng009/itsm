@@ -58,7 +58,9 @@ export function useI18n() {
       // 替换参数占位符
       if (params) {
         Object.keys(params).forEach(paramKey => {
-          const regex = new RegExp(`\\{${paramKey}\\}`, 'g');
+          // 同时支持 {name} 与 {{name}}（i18next/Vue 风格）两种占位符；
+          // 优先匹配双花括号，否则单花括号规则会把 {{days}} 误替换为 {7}（残留外层花括号）。
+          const regex = new RegExp(`\\{\\{${paramKey}\\}\\}|\\{${paramKey}\\}`, 'g');
           result = result.replace(regex, String(params[paramKey]));
         });
       }

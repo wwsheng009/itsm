@@ -296,7 +296,7 @@ const AssetForm: React.FC = () => {
           rules={formRules.purchasePrice}
           help={fieldHelps.purchasePrice}
         >
-          <InputNumber style={{ width: '100%' }} min={0} precision={2} placeholder="采购价格" />
+          <InputNumber style={{ width: '100%' }} min={0} max={999999999} precision={2} placeholder="采购价格" />
         </Form.Item>
 
         <Form.Item

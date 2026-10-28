@@ -69,6 +69,35 @@ describe('useI18n', () => {
     });
   });
 
+  describe('t() placeholder substitution', () => {
+    // P0 回归：部分翻译串使用 i18next/Vue 风格双花括号 {{name}}，历史上只替换单花括号
+    // {name}，导致 Bot 运行看板 `最近 {{days}} 天` 渲染成 `最近 {7} 天`（外层花括号残留），
+    // 分母 `{{completed}}=0` 渲染成 `{0}`。t() 现同时支持 {name} 与 {{name}}。
+    it('replaces {{name}} (double-brace) without leaving stray braces', () => {
+      const { result } = renderHook(() => useI18n());
+      expect(result.current.t('aiBotMetrics.lastDays', { days: 7 })).toBe('最近 7 天');
+      expect(result.current.t('aiBotMetrics.toolCounts', { total: 3, errors: 1 })).toBe(
+        '调用 3 / 错误 1',
+      );
+      expect(
+        result.current.t('aiBotMetrics.runCounts', { completed: 0, failed: 0, running: 0 }),
+      ).toBe('完成 0 / 失败 0 / 进行中 0');
+    });
+
+    it('replaces single-brace {name} still works', () => {
+      const { result } = renderHook(() => useI18n());
+      // workflow.workflowOverviewDescription: '该工作流包含 {total} 个节点，其中 {approval} 个审批节点'
+      expect(
+        result.current.t('workflow.workflowOverviewDescription', { total: 5, approval: 2 }),
+      ).toBe('该工作流包含 5 个节点，其中 2 个审批节点');
+    });
+
+    it('keeps a no-param key intact', () => {
+      const { result } = renderHook(() => useI18n());
+      expect(result.current.t('aiBotMetrics.title')).toBe('Bot 运行指标');
+    });
+  });
+
   describe('changeLanguage()', () => {
     it('should update language preference', () => {
       const { result } = renderHook(() => useI18n());
