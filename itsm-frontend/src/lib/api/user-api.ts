@@ -38,6 +38,95 @@ export const PRIMARY_ROLE_LABEL: Record<string, string> = Object.fromEntries(
   PRIMARY_ROLE_OPTIONS.map(o => [o.value, o.label])
 );
 
+/**
+ * 统一角色 code→中文标签表（覆盖全部可见角色 code：主角色 / RBAC 角色码 /
+ * MSP 身份角色码 / 平台·租户治理角色码）。
+ * 词表单一源：与后端 domain/role、middleware.PlatformRoleCodes、
+ * users.msp_role 枚举保持一致；PRIMARY_ROLE_LABEL 仅覆盖主角色子集。
+ */
+export const ROLE_LABEL_MAP: Record<string, string> = {
+  // 主角色（与 PRIMARY_ROLE_LABEL 保持一致）
+  ...PRIMARY_ROLE_LABEL,
+  // 平台 / 服务商 / 租户治理角色
+  platform_admin: '平台管理员',
+  provider_admin: '服务商经理',
+  provider_agent: '服务商坐席',
+  provider_tenant_admin: '服务商租户管理员',
+  tenant_admin: '租户管理员',
+  customer_user: '客户用户',
+  // 历史 / 兼容别名
+  user: '用户',
+  // MSP 内部角色别名（membership 映射：msp_manager / msp_tech / msp_admin …）
+  msp_manager: '服务商经理',
+  msp_tech: '服务商技术员',
+  msp_viewer: '服务商观察员',
+  msp_admin: '服务商管理员',
+  // 通用岗位
+  specialist: '专员',
+  security: '安全人员',
+};
+
+/** 未知角色 code 的兜底中文标签。 */
+export const DEFAULT_ROLE_LABEL = '用户';
+
+/** 形如 customer_user / it_admin 的裸标识符正则（区分「未映射 code」与「自定义角色名」）。 */
+const ROLE_CODE_RE = /^[a-z][a-zA-Z0-9_]*$/;
+
+/**
+ * 把单个角色 token（code 或角色名）映射为中文标签。
+ * - 命中词表 → 中文标签；
+ * - 形如裸 code（ASCII 标识符）→ 未映射 code，返回 null（不透出原始枚举）；
+ * - 其余（含中文的自定义角色名）→ 原样返回。
+ */
+export function mapRoleToken(token?: string | null): string | null {
+  if (!token) return null;
+  if (ROLE_CODE_RE.test(token) && !ROLE_LABEL_MAP[token]) return null;
+  return ROLE_LABEL_MAP[token] ?? token;
+}
+
+/** 取角色 code 的中文标签，未知时回退兜底（用于顶栏等「必须展示标签」的场景）。 */
+export function getRoleLabel(code?: string | null): string {
+  return mapRoleToken(code) ?? DEFAULT_ROLE_LABEL;
+}
+
+/**
+ * 把「主角色 + MSP 角色 + RBAC 角色名」统一映射为去重的中文标签数组。
+ * 用于用户/成员列表的角色列：未映射的裸 code 一律不透出；
+ * 多角色由调用方以数量徽标统一呈现。
+ */
+export function getUserRoleLabels(input: {
+  role?: string | null;
+  mspRole?: string | null;
+  roleNames?: string[] | null;
+}): string[] {
+  const labels = new Set<string>();
+  const add = (token?: string | null) => {
+    const label = mapRoleToken(token);
+    if (label) labels.add(label);
+  };
+  add(input.role);
+  add(input.mspRole);
+  (input.roleNames ?? []).forEach(add);
+  return Array.from(labels);
+}
+
+/**
+ * 解析「有效角色」标签（顶栏等场景）：
+ * - 优先 MSP 身份角色（服务商上下文，如 provider_admin）；
+ * - 否则取主角色；
+ * - 未知时回退兜底，绝不裸落原始 code。
+ */
+export function resolveEffectiveRoleLabel(input: {
+  role?: string | null;
+  mspRole?: string | null;
+}): string {
+  if (input.mspRole) {
+    const label = mapRoleToken(input.mspRole);
+    if (label) return label;
+  }
+  return getRoleLabel(input.role);
+}
+
 export interface User {
   id: number;
   username: string;

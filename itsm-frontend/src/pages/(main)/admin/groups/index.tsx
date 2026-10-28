@@ -25,7 +25,7 @@ import {
 import type { TablePaginationConfig } from 'antd';
 import { Edit, Plus, Search, Trash2, UserPlus, Users, User as UserIcon, X, Check } from 'lucide-react';
 import { GroupAPI, type Group } from '@/lib/api/group-api';
-import { UserApi, type User, PRIMARY_ROLE_OPTIONS, PRIMARY_ROLE_LABEL } from '@/lib/api/user-api';
+import { UserApi, type User, PRIMARY_ROLE_OPTIONS, getRoleLabel } from '@/lib/api/user-api';
 import { useI18n } from '@/lib/i18n/useI18n';
 
 const { Title, Text } = Typography;
@@ -225,12 +225,10 @@ const GroupManagement: React.FC = () => {
       role: u.role,
     }));
 
-  // 角色标签：显示用户主角色（词表单一源=PRIMARY_ROLE_LABEL）
+  // 角色标签：显示用户主角色（统一角色 code→中文词表，未映射 code 不透出）
   const memberRoleTag = (role?: string) => {
     if (!role) return null;
-    const label = PRIMARY_ROLE_LABEL[role];
-    if (!label) return null;
-    return <Tag>{label}</Tag>;
+    return <Tag>{getRoleLabel(role)}</Tag>;
   };
 
   const handleTableChange = (nextPagination: TablePaginationConfig) => {

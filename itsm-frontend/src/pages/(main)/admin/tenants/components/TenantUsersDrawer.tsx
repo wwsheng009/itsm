@@ -25,7 +25,7 @@ import {
   tenantUserAdminErrorMessage,
   type TenantUserItem,
 } from '@/lib/api/tenant-user-admin-api';
-import { PRIMARY_ROLE_LABEL, PRIMARY_ROLE_OPTIONS } from '@/lib/api/user-api';
+import { PRIMARY_ROLE_OPTIONS, getUserRoleLabels } from '@/lib/api/user-api';
 import { usePasswordPolicy } from '@/lib/hooks/usePasswordPolicy';
 import UserStatusToggle from '@/components/user/UserStatusToggle';
 import ResetPasswordModal from '@/components/user/ResetPasswordModal';
@@ -385,18 +385,31 @@ const TenantUsersDrawer: React.FC<TenantUsersDrawerProps> = ({
       dataIndex: 'role',
       key: 'role',
       width: 140,
-      render: (value: string, record) => (
-        <Space direction="vertical" size={2}>
-          <Tag color="blue" style={{ marginInlineEnd: 0 }}>
-            {PRIMARY_ROLE_LABEL[value] ?? value ?? '-'}
-          </Tag>
-          {record.mspRole && (
-            <Tag color="purple" style={{ marginInlineEnd: 0 }}>
-              {record.mspRole}
+      render: (_: unknown, record: TenantUserItem) => {
+        const labels = getUserRoleLabels(record);
+        if (labels.length === 0) {
+          return <Text type="secondary">-</Text>;
+        }
+        if (labels.length === 1) {
+          return (
+            <Tag color="blue" style={{ marginInlineEnd: 0 }}>
+              {labels[0]}
             </Tag>
-          )}
-        </Space>
-      ),
+          );
+        }
+        return (
+          <Tooltip title={labels.join('、')}>
+            <Space size={2}>
+              <Tag color="blue" style={{ marginInlineEnd: 0 }}>
+                {labels[0]}
+              </Tag>
+              <Tag color="geekblue" style={{ marginInlineEnd: 0 }}>
+                +{labels.length - 1}
+              </Tag>
+            </Space>
+          </Tooltip>
+        );
+      },
     },
     {
       title: '部门',

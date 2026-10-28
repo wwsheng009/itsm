@@ -825,6 +825,7 @@ export default function TenantManagement() {
                     placeholder="请选择 MSP 服务商"
                     showSearch
                     optionFilterProp="label"
+                    getPopupContainer={(trigger) => trigger.parentElement ?? document.body}
                     options={mspProviders.map(provider => ({
                       value: provider.id,
                       label: `${provider.name}（${provider.code}）`,

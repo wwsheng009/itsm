@@ -12,7 +12,7 @@
  * - fetchReadiness / provision / createAdmin 可注入（测试替身），默认走 TenantAPI；
  * - 服务端生成的密码仅在响应中回传一次，弹窗内显著提示“仅显示一次，请立即保存”。
  */
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Alert, App, Button, Form, Input, Modal, Space, Steps, Tag, Typography } from 'antd';
 import { Copy, Rocket } from 'lucide-react';
 import { TenantAPI } from '@/lib/api/tenant-api';
@@ -196,6 +196,12 @@ export default function TenantOnboardingModal({
   const created = adminCreated || (readiness?.bootstrapAdmins ?? 0) > 0;
   const nextDisabled = step === 0 ? !readiness : step === 1 ? !created : false;
 
+  // 业务数据提示项：required=false 但 count=0，仅作“待配置”引导，不影响 ready。
+  const hintItems = useMemo(
+    () => (readiness?.items ?? []).filter((i) => !i.required && i.count === 0),
+    [readiness]
+  );
+
   const footer = [
     step > 0 ? (
       <Button key="prev" onClick={() => setStep((s) => Math.max(0, s - 1))} data-testid="previous-step">
@@ -286,12 +292,32 @@ export default function TenantOnboardingModal({
                     <Text>{item.label}</Text>
                     {item.required && item.count === 0 ? (
                       <Text type="danger">缺失</Text>
+                    ) : !item.required && item.count === 0 ? (
+                      <Text type="secondary">待配置</Text>
                     ) : (
                       <Text type={item.required ? undefined : 'secondary'}>{item.count}</Text>
                     )}
                   </div>
                 ))}
               </div>
+
+              {readiness.ready && hintItems.length > 0 ? (
+                <Alert
+                  type="info"
+                  showIcon
+                  data-testid="readiness-onboarding-nudge"
+                  message="基线已就绪：以下业务数据暂未配置，补全后租户即可正式投入使用"
+                  description={
+                    <Space size={4} wrap>
+                      {hintItems.map((item) => (
+                        <Tag key={item.key} data-testid={`nudge-item-${item.key}`}>
+                          {item.label}：待配置
+                        </Tag>
+                      ))}
+                    </Space>
+                  }
+                />
+              ) : null}
 
               {provisionError ? (
                 <Alert type="error" showIcon message={provisionError} data-testid="provision-error" />

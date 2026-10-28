@@ -46,7 +46,12 @@ import {
   type ApprovalRecord,
 } from '@/lib/api/ticket-approval-api';
 import { TicketWorkflowStateApi } from '@/lib/api/ticket-workflow-state-api';
-import type { BpmnProcessState, NextActivityInfo } from '@/types/ticket-workflow-state';
+import {
+  bpmnActivityTypeName,
+  bpmnActivityDisplayName,
+  type BpmnProcessState,
+  type NextActivityInfo,
+} from '@/types/ticket-workflow-state';
 import { ApprovalTimeline } from './ApprovalTimeline';
 import type { ApprovalStep, ApprovalStepStatus } from './types';
 import { useI18n } from '@/lib/i18n/useI18n';
@@ -290,21 +295,6 @@ export const ApprovalWorkflowPanel: React.FC<ApprovalWorkflowPanelProps> = ({
     return undefined;
   };
 
-  // BPMN 节点类型 -> 中文 / 颜色，仅展示用，不参与逻辑。
-  const bpmnTypeLabels = useMemo(
-    () =>
-      ({
-        startEvent: t('detailTabs.bpmnTypeStartEvent') || '开始',
-        endEvent: t('detailTabs.bpmnTypeEndEvent') || '结束',
-        userTask: t('detailTabs.bpmnTypeUserTask') || '用户任务',
-        serviceTask: t('detailTabs.bpmnTypeServiceTask') || '服务任务',
-        exclusiveGateway: t('detailTabs.bpmnTypeExclusiveGateway') || '排他网关',
-        parallelGateway: t('detailTabs.bpmnTypeParallelGateway') || '并行网关',
-        inclusiveGateway: t('detailTabs.bpmnTypeInclusiveGateway') || '包容网关',
-      }) as Record<string, string>,
-    [t],
-  );
-
   const bpmnTypeColors: Record<string, string> = useMemo(
     () => ({
       startEvent: 'green',
@@ -330,6 +320,9 @@ export const ApprovalWorkflowPanel: React.FC<ApprovalWorkflowPanelProps> = ({
     },
     [ticketId],
   );
+
+  // 当前节点步序（用于「业务显示名缺失」时的降级文案）
+  const runningStep = (bpmnState?.history?.length ?? 0) + 1;
 
   if (loading) {
     return (
@@ -381,10 +374,9 @@ export const ApprovalWorkflowPanel: React.FC<ApprovalWorkflowPanelProps> = ({
                   color={bpmnTypeColors[bpmnState.currentActivityType || ''] || 'blue'}
                   className="mr-0"
                 >
-                  {bpmnTypeLabels[bpmnState.currentActivityType || ''] ||
-                    bpmnState.currentActivityType}
+                  {bpmnActivityTypeName(bpmnState.currentActivityType)}
                 </Tag>
-                <Text strong>{bpmnState.currentActivityName}</Text>
+                <Text strong>{bpmnActivityDisplayName(bpmnState.currentActivityName, runningStep)}</Text>
               </div>
               {bpmnState.currentAssignees && bpmnState.currentAssignees.length > 0 && (
                 <Space size={4} className="mt-2" wrap>
@@ -407,16 +399,16 @@ export const ApprovalWorkflowPanel: React.FC<ApprovalWorkflowPanelProps> = ({
                   {t('common.next') || '下一步'}
                 </Text>
                 <Space orientation="vertical" size={4} className="mt-1 w-full">
-                  {bpmnState.nextActivities.map((nx: NextActivityInfo) => (
+                  {bpmnState.nextActivities.map((nx: NextActivityInfo, idx: number) => (
                     <Space key={nx.activityId} size={6} className="text-xs">
                       <ArrowRight size={12} className="text-gray-400" />
                       <Tag
                         color={bpmnTypeColors[nx.activityType] || 'blue'}
                         className="mr-0"
                       >
-                        {bpmnTypeLabels[nx.activityType] || nx.activityType}
+                        {bpmnActivityTypeName(nx.activityType)}
                       </Tag>
-                      <Text>{nx.activityName}</Text>
+                      <Text>{bpmnActivityDisplayName(nx.activityName, runningStep + idx + 1)}</Text>
                       {nx.isGateway && (
                         <Tag color="orange" className="ml-1">
                           {t('detailTabs.bpmnIsGateway') || '网关分支'}

@@ -25,7 +25,11 @@ import {
   CircleSlash,
 } from 'lucide-react';
 import { TicketWorkflowStateApi } from '@/lib/api/ticket-workflow-state-api';
-import type { BpmnProcessState } from '@/types/ticket-workflow-state';
+import {
+  bpmnActivityTypeName,
+  bpmnActivityDisplayName,
+  type BpmnProcessState,
+} from '@/types/ticket-workflow-state';
 
 const { Text } = Typography;
 
@@ -224,16 +228,16 @@ export const WorkflowProgressCard: React.FC<WorkflowProgressCardProps> = ({
     >
       <Space orientation="vertical" size={10} className="w-full">
         {/* 当前节点 */}
-        {state.currentActivityName && (
+        {state.currentActivityType && (
           <div>
             <Text type="secondary" className="text-xs">
               当前节点
             </Text>
             <div className="mt-1 flex items-center gap-2">
               <Tag color="blue" className="mr-0">
-                {state.currentActivityType || 'userTask'}
+                {bpmnActivityTypeName(state.currentActivityType)}
               </Tag>
-              <Text strong>{state.currentActivityName}</Text>
+              <Text strong>{bpmnActivityDisplayName(state.currentActivityName, completed + 1)}</Text>
             </div>
             {state.currentAssignees && state.currentAssignees.length > 0 && (
               <Space size={4} className="mt-2" wrap>
@@ -259,13 +263,13 @@ export const WorkflowProgressCard: React.FC<WorkflowProgressCardProps> = ({
               下一步
             </Text>
             <Space orientation="vertical" size={2} className="mt-1 w-full">
-              {state.nextActivities.map((nx) => (
+              {state.nextActivities.map((nx, idx) => (
                 <Space key={nx.activityId} size={6} className="text-xs">
                   <ArrowRight size={12} className="text-gray-400" />
                   <Tag color={nx.isGateway ? 'orange' : 'blue'} className="mr-0">
-                    {nx.activityType}
+                    {bpmnActivityTypeName(nx.activityType)}
                   </Tag>
-                  <Text>{nx.activityName}</Text>
+                  <Text>{bpmnActivityDisplayName(nx.activityName, completed + 1 + idx + 1)}</Text>
                   {nx.isGateway && (
                     <Tag color="orange" className="ml-1">
                       网关分支

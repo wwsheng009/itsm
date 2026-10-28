@@ -43,7 +43,7 @@ function AggTags({ rows, emptyText }: { rows: MspAuditAggRow[]; emptyText: strin
   return (
     <Space size={[8, 8]} wrap>
       {rows.map(row => (
-        <Tag key={row.key}>
+        <Tag key={row.key} title={row.key}>
           {row.label || sourceLabel(row.key)} · {row.count}
         </Tag>
       ))}

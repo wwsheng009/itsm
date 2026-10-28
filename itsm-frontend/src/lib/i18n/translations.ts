@@ -325,6 +325,12 @@ export const translations = {
       requesterCannotApprove: '您是此工单的申请人，无法进行审批操作',
       fullOperationSupport: '支持状态变更、审批流程、分配处理人等完整工单操作',
       ticketFinalHint: '工单已结束，无法进行操作',
+      // P2-5 / P2-6 空态与审批提示
+      requesterNoApproval: '本单当前无审批环节',
+      slaNotConfigured: '未配置 SLA 定义，请联系管理员',
+      slaLoadFailed: 'SLA 信息加载失败，请稍后重试',
+      noRelatedCi: '暂无关联配置项',
+      ciLoadFailed: '配置项加载失败，请稍后重试',
       // 详情页签
       tabComments: '评论',
       tabAttachments: '附件',
@@ -5925,6 +5931,12 @@ export const translations = {
       requesterCannotApprove: 'You are the requester of this ticket, cannot approve',
       fullOperationSupport: 'Supports full ticket operations including status change, approval, and assignment',
       ticketFinalHint: 'Ticket is closed, cannot operate',
+      // P2-5 / P2-6 empty states & approval hints
+      requesterNoApproval: 'No approval step for this ticket',
+      slaNotConfigured: 'No SLA definition configured. Please contact your administrator',
+      slaLoadFailed: 'Failed to load SLA info. Please retry later',
+      noRelatedCi: 'No related configuration items',
+      ciLoadFailed: 'Failed to load configuration items. Please retry later',
       // Detail Tabs
       tabComments: 'Comments',
       tabAttachments: 'Attachments',

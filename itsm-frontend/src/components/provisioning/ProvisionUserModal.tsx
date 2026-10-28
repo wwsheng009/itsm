@@ -189,6 +189,7 @@ export default function ProvisionUserModal({
                 placeholder="选择客户"
                 showSearch
                 optionFilterProp="label"
+                getPopupContainer={(trigger) => trigger.parentElement ?? document.body}
                 options={customerOptions.map(c => ({ value: c.id, label: `${c.code} - ${c.name}` }))}
               />
             </Form.Item>
@@ -240,6 +241,7 @@ export default function ProvisionUserModal({
                 allowClear
                 showSearch
                 optionFilterProp="label"
+                getPopupContainer={(trigger) => trigger.parentElement ?? document.body}
                 placeholder="选择角色（可多选）"
                 loading={roleLoading}
                 disabled={!!roleLoadError}
@@ -266,7 +268,11 @@ export default function ProvisionUserModal({
               rules={[{ required: true, message: '请选择 MSP 角色' }]}
               extra="服务商租户员工必须带 MSP 角色，否则无法进入服务商工作台。"
             >
-              <Select placeholder="选择 MSP 角色" options={mspRoleOptions} />
+              <Select
+                placeholder="选择 MSP 角色"
+                getPopupContainer={(trigger) => trigger.parentElement ?? document.body}
+                options={mspRoleOptions}
+              />
             </Form.Item>
           </span>
         ) : null}

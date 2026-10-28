@@ -5,6 +5,7 @@ import { Dropdown, Avatar, Tag, Button } from 'antd';
 import type { MenuProps } from 'antd';
 import { User, Settings, LogOut } from 'lucide-react';
 import { useAuthStore } from '@/lib/store/auth-store';
+import { resolveEffectiveRoleLabel } from '@/lib/api/user-api';
 import { DESIGN } from '@/design-system/tokens';
 import styles from './Header.module.css';
 
@@ -42,9 +43,11 @@ export const UserMenuDropdown: React.FC<UserMenuDropdownProps> = ({
 
   const displayName = user?.name || user?.username || '';
   const userInitial = displayName.charAt(0).toUpperCase() || 'U';
-  const roleText =
-    user?.role === 'admin' ? '管理员' : user?.role === 'super_admin' ? '超级管理员' : '用户';
-  const roleColor = user?.role === 'admin' || user?.role === 'super_admin' ? '#3b82f6' : '#64748b';
+  // 统一角色映射：优先 MSP 身份角色（服务商经理等），未知时兜底，绝不裸落原始 code
+  const roleText = resolveEffectiveRoleLabel({ role: user?.role, mspRole: user?.mspRole });
+  // 服务商 / 平台 / 提权角色用紫色突出，其余用蓝色
+  const roleColor =
+    user?.mspRole || user?.isPlatformRole || user?.isElevatedMenuRole ? '#7c3aed' : '#3b82f6';
 
   const handleMenuClick: MenuProps['onClick'] = ({ key }) => {
     if (key === 'logout') {

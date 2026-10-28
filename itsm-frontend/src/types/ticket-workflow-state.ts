@@ -39,6 +39,55 @@ export type BpmnActivityType =
   | string;
 
 /**
+ * BPMN 节点类型 → 中文标签（仅展示用，不参与逻辑）。
+ * 词表单一源，覆盖 types/ticket-workflow-state.ts 的 BpmnActivityType。
+ */
+export const BPMN_ACTIVITY_TYPE_LABEL: Record<string, string> = {
+  startEvent: '开始事件',
+  endEvent: '结束事件',
+  userTask: '用户任务',
+  serviceTask: '服务任务',
+  exclusiveGateway: '排他网关',
+  parallelGateway: '并行网关',
+  inclusiveGateway: '包容网关',
+  scriptTask: '脚本任务',
+  subProcess: '子流程',
+};
+
+/** 将 BPMN 节点类型映射为中文标签（未命中也返回「节点」，绝不裸落原始 id）。 */
+export function bpmnActivityTypeName(type?: BpmnActivityType | null): string {
+  if (!type) return '节点';
+  return BPMN_ACTIVITY_TYPE_LABEL[type] || '节点';
+}
+
+/** 已知的「裸原始 id」集合（currentActivityName / activityName 偶尔返回技术 id 而非业务名）。 */
+const BPMN_RAW_NAME_TOKENS = new Set<string>([
+  'user_task',
+  'userTask',
+  'exclusiveGateway',
+  'parallelGateway',
+  'inclusiveGateway',
+  'serviceTask',
+  'scriptTask',
+  'startEvent',
+  'endEvent',
+  'task',
+  'gateway',
+  'subprocess',
+  'subProcess',
+]);
+
+/**
+ * 解析节点「业务显示名」：
+ * - 已有业务名（非裸原始 id）→ 原样展示；
+ * - 缺失或命中裸原始 id → 降级为「处理中（第 N 步）」，不回落到原始 id。
+ */
+export function bpmnActivityDisplayName(name?: string | null, step?: number): string {
+  if (name && !BPMN_RAW_NAME_TOKENS.has(name)) return name;
+  return `处理中（第 ${step ?? '?'} 步）`;
+}
+
+/**
  * 流程当前节点的处理人列表。
  * 与后端 WorkflowUserInfo 字段一一对应；前端可直接复用 TicketUser。
  */

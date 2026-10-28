@@ -31,9 +31,10 @@ import {
   theme,
   App,
   Tag,
+  Tooltip,
   Empty,
 } from 'antd';
-import { UserApi, type User, PRIMARY_ROLE_OPTIONS, PRIMARY_ROLE_LABEL } from '@/lib/api/user-api';
+import { UserApi, type User, PRIMARY_ROLE_OPTIONS, getUserRoleLabels } from '@/lib/api/user-api';
 import { RoleAPI } from '@/lib/api/role-api';
 import type { Role } from '@/lib/api/api-config';
 import { useAuthStore, useAuthStoreHydration } from '@/lib/store/auth-store';
@@ -275,18 +276,23 @@ const UserManagement: React.FC = () => {
       title: '角色',
       dataIndex: 'role',
       key: 'role',
-      render: (_: string, record: User) => (
-        <Space size={[4, 4]} wrap>
-          {record.role && (
-            <Tag color="blue" bordered={false}>
-              {PRIMARY_ROLE_LABEL[record.role] ?? record.role}
-            </Tag>
-          )}
-          {(record.roleNames ?? []).map(n => (
-            <Tag key={n} bordered={false}>{n}</Tag>
-          ))}
-        </Space>
-      ),
+      render: (_: unknown, record: User) => {
+        const labels = getUserRoleLabels(record);
+        if (labels.length === 0) {
+          return <Tag bordered={false}>用户</Tag>;
+        }
+        if (labels.length === 1) {
+          return <Tag color="blue" bordered={false}>{labels[0]}</Tag>;
+        }
+        return (
+          <Space size={[4, 4]} wrap>
+            <Tag color="blue" bordered={false}>{labels[0]}</Tag>
+            <Tooltip title={labels.slice(1).join('、')}>
+              <Tag color="geekblue" bordered={false}>+{labels.length - 1}</Tag>
+            </Tooltip>
+          </Space>
+        );
+      },
     },
     {
       title: t('users.columns.email'),

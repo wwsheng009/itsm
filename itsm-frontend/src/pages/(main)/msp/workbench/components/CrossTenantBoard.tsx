@@ -101,6 +101,15 @@ function errorMessage(error: unknown, fallback: string): string {
   return error instanceof Error && error.message ? error.message : fallback;
 }
 
+/** 任务是否超期（P2-2 行级红色高亮判定）：有截止时间且已过当前时间。 */
+const isTaskOverdue = (task: MSPTaskItem): boolean =>
+  !!task.dueDate && new Date(task.dueDate).getTime() < Date.now();
+
+/** 超期任务行返回淡红背景（P2-2）。 */
+function taskRowProps(task: MSPTaskItem): React.HTMLAttributes<HTMLElement> {
+  return isTaskOverdue(task) ? { style: { backgroundColor: 'rgba(255, 77, 79, 0.08)' } } : {};
+}
+
 /** 动作按钮：allowed=true → 可点；动作存在但 false → 禁用 + 原因提示；动作缺失 → 不渲染。 */
 function ActionButton(props: {
   item: { allowedActions?: { action: string; allowed: boolean; reasonCode?: string; reasonText?: string }[] };
@@ -392,29 +401,32 @@ export default function CrossTenantBoard({ kind, api = DEFAULT_API }: CrossTenan
       title: '编号',
       dataIndex: 'number',
       key: 'number',
+      width: 120,
       render: (value: string, record) => (
         <Button type="link" size="small" style={{ padding: 0 }} onClick={() => void openDetail(record)}>
           {value || `#${record.id}`}
         </Button>
       ),
     },
-    { title: '标题', dataIndex: 'title', key: 'title', ellipsis: true },
     {
       title: '客户',
       dataIndex: 'customerName',
       key: 'customerName',
+      width: 120,
       render: (value: string | undefined, record) => value || `#${record.customerTenantId}`,
     },
     {
       title: '状态',
       dataIndex: 'status',
       key: 'status',
+      width: 100,
       render: (value: string) => <Tag>{recordStatusLabel(value)}</Tag>,
     },
     {
       title: '优先级',
       dataIndex: 'priority',
       key: 'priority',
+      width: 90,
       render: (value?: string) =>
         value ? <Tag color={PRIORITY_COLOR[value] ?? 'default'}>{value}</Tag> : '—',
     },
@@ -422,17 +434,21 @@ export default function CrossTenantBoard({ kind, api = DEFAULT_API }: CrossTenan
       title: '处理人',
       dataIndex: 'assigneeName',
       key: 'assigneeName',
+      width: 120,
       render: (value: string | undefined) => value || '—',
     },
+    { title: '标题', dataIndex: 'title', key: 'title', ellipsis: true },
     {
       title: '更新时间',
       dataIndex: 'updatedAt',
       key: 'updatedAt',
+      width: 160,
       render: (value: string) => formatDateTime(value),
     },
     {
       title: '操作',
       key: 'actions',
+      width: 100,
       render: (_, record) => (
         <ActionButton
           item={record}
@@ -476,6 +492,7 @@ export default function CrossTenantBoard({ kind, api = DEFAULT_API }: CrossTenan
             rowKey={record => `${record.taskId}`}
             size="small"
             columns={taskColumns}
+            onRow={taskRowProps}
             dataSource={tasks}
             loading={tasksLoading || taskSubmitting !== null}
             pagination={false}
@@ -523,9 +540,10 @@ export default function CrossTenantBoard({ kind, api = DEFAULT_API }: CrossTenan
             dataSource={records}
             loading={recordsLoading}
             pagination={false}
+            scroll={{ x: 980 }}
             locale={{ emptyText: <Empty description="暂无跨租户单据" /> }}
             data-testid="board-records-table"
-          />
+            />
           {recordsCursor && (
             <div style={{ textAlign: 'center', marginTop: 12 }}>
               <Button

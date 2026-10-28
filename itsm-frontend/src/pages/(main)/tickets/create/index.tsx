@@ -684,7 +684,7 @@ export default function CreateTicketPage() {
                   type="info"
                   showIcon
                   className="mb-4"
-                  message="填写最少信息即可提交；附件与正文图片会在工单创建成功后自动上传。"
+                  message="填写标题与描述即可提交；附件与正文图片会在工单创建成功后自动上传。"
                 />
 
                 <Form.Item

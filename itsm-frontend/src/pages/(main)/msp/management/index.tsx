@@ -13,6 +13,8 @@ import {
   Tag,
   Alert,
   Spin,
+  Tooltip,
+  Typography,
 } from 'antd';
 import { Plus, UserPlus } from 'lucide-react';
 import MSPService from '@/lib/services/msp-service';
@@ -199,7 +201,14 @@ export default function MSPManagementPage() {
       >
         <Alert
           message="使用说明"
-          description="MSP Manager 可以为 MSP 员工分配客户租户。分配后，MSP 员工即可通过 X-Customer-Tenant-ID 头访问对应客户的工单。"
+          description={
+            <span>
+              分配后即可在工作台中查看并处理该客户的工单。
+              <Tooltip title="技术实现：MSP 员工通过 X-Customer-Tenant-ID 请求头访问对应客户租户的数据，管理员无需关注。">
+                <Typography.Link style={{ marginLeft: 8 }}>开发者备注</Typography.Link>
+              </Tooltip>
+            </span>
+          }
           type="info"
           showIcon
           style={{ marginBottom: 16 }}

@@ -285,10 +285,27 @@ export default function ServiceCatalogPage() {
           <Empty
             description={
               <div>
-                <p className="text-gray-500 mb-4">{t('serviceCatalog.noMatchingServices')}</p>
-                {canManageCatalog ? <Button type="primary" onClick={handleCreateService}>
-                  {t('serviceCatalog.createFirst')}
-                </Button> : <p className="text-sm text-gray-500">暂时没有可申请的服务，请联系服务目录管理员。</p>}
+                {catalogs.length === 0 ? (
+                  <>
+                    <p className="text-gray-500 mb-4">还没有服务项，去创建一个吧。</p>
+                    {canManageCatalog ? (
+                      <Button type="primary" onClick={handleCreateService}>
+                        {t('serviceCatalog.createFirst')}
+                      </Button>
+                    ) : (
+                      <p className="text-sm text-gray-500">还没有可展示的服务目录，请联系服务目录管理员创建。</p>
+                    )}
+                  </>
+                ) : (
+                  <>
+                    <p className="text-gray-500 mb-4">{t('serviceCatalog.noMatchingServices')}</p>
+                    {canManageCatalog && (
+                      <Button type="primary" onClick={handleCreateService}>
+                        {t('serviceCatalog.createFirst')}
+                      </Button>
+                    )}
+                  </>
+                )}
               </div>
             }
           />

@@ -119,6 +119,19 @@ const PRIORITY_COLOR: Record<string, string> = {
 
 const TERMINAL_STATUSES = new Set(['resolved', 'closed', 'cancelled']);
 
+/** SLA 是否超期：有截止时间且未进入终态且已超过当前时间（P2-2 行级红色高亮判定）。 */
+const isWorkbenchTicketOverdue = (record: WorkbenchTicketItem): boolean => {
+  if (!record.slaDeadline || TERMINAL_STATUSES.has(record.status)) return false;
+  return new Date(record.slaDeadline).getTime() < Date.now();
+};
+
+/** 超期行返回淡红背景，使其在一屏内醒目（P2-2）。 */
+function workbenchRowProps(record: WorkbenchTicketItem): React.HTMLAttributes<HTMLElement> {
+  return isWorkbenchTicketOverdue(record)
+    ? { style: { backgroundColor: 'rgba(255, 77, 79, 0.08)' } }
+    : {};
+}
+
 const BATCH_ACTION_LABEL: Record<WorkbenchBatchAction, string> = {
   reply: '批量回复',
   status: '批量改状态',
@@ -665,13 +678,23 @@ export default function MSPWorkbenchPage() {
           customerTenantId: ticket.customerTenantId,
           status,
         });
-        message.success('状态已更新');
+        const statusLabel = STATUS_LABEL.get(status) ?? status;
+        message.success(`已更新为${statusLabel}`);
+        // P2-1：若详情抽屉正展示被改的单据，局部刷新抽屉状态，使抽屉与列表一致
+        // （避免「提示成功、抽屉仍显示旧状态」诱发重复操作）。
+        if (
+          detailTarget &&
+          detailTarget.id === ticket.id &&
+          detailTarget.customerTenantId === ticket.customerTenantId
+        ) {
+          setDetail(prev => (prev ? { ...prev, status } : prev));
+        }
         void loadFirstPage();
       } catch (err) {
         message.error(errorMessage(err, '更新工单状态失败'));
       }
     },
-    [loadFirstPage]
+    [detailTarget, loadFirstPage]
   );
 
   const renderActions = useCallback(
@@ -775,10 +798,12 @@ export default function MSPWorkbenchPage() {
         render: (value: string) => value || '—',
       },
       {
-        title: '标题',
-        dataIndex: 'title',
-        key: 'title',
-        ellipsis: true,
+        title: '负责人',
+        dataIndex: 'assigneeName',
+        key: 'assigneeName',
+        width: 120,
+        render: (value: string | undefined) =>
+          value ? value : <span style={{ color: DESIGN.colors.textMuted }}>未指派</span>,
       },
       {
         title: '状态',
@@ -795,14 +820,6 @@ export default function MSPWorkbenchPage() {
         render: (value: string) => (
           <Tag color={PRIORITY_COLOR[value] ?? 'default'}>{PRIORITY_LABEL.get(value) ?? value}</Tag>
         ),
-      },
-      {
-        title: '负责人',
-        dataIndex: 'assigneeName',
-        key: 'assigneeName',
-        width: 120,
-        render: (value: string | undefined) =>
-          value ? value : <span style={{ color: DESIGN.colors.textMuted }}>未指派</span>,
       },
       {
         title: 'SLA 截止',
@@ -824,6 +841,12 @@ export default function MSPWorkbenchPage() {
             </Space>
           );
         },
+      },
+      {
+        title: '标题',
+        dataIndex: 'title',
+        key: 'title',
+        ellipsis: true,
       },
       {
         title: '更新时间',
@@ -1041,6 +1064,7 @@ export default function MSPWorkbenchPage() {
           testId="workbench-flat-list"
           rowSelection={rowSelection}
           columns={columns}
+          onRow={workbenchRowProps}
           dataSource={tickets}
           loading={loading}
           error={error}
@@ -1094,6 +1118,7 @@ export default function MSPWorkbenchPage() {
                   <TicketListShell<WorkbenchTicketItem>
                     rowSelection={rowSelection}
                     columns={groupColumns}
+                    onRow={workbenchRowProps}
                     dataSource={group.items}
                     size="small"
                     scroll={{ x: 1120 }}

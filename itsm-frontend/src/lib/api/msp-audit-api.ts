@@ -56,6 +56,15 @@ export const MSP_AUDIT_ACTION_LABEL: Record<string, string> = {
   'user.provision': '建号',
   'user.invite': '邀请',
   'user.invite_accept': '邀请接受',
+  // 按事件分布：统一中文标签（原始枚举见界面 tooltip）
+  view: '查看',
+  search: '搜索',
+  pat: '个人令牌',
+  update: '更新',
+  create: '创建',
+  delete: '删除',
+  export: '导出',
+  upload: '上传',
 };
 
 export const MSP_AUDIT_SOURCE_LABEL: Record<string, string> = {

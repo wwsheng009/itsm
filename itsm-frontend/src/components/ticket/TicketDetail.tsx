@@ -245,9 +245,13 @@ const TicketDetail: React.FC<{ id?: string }> = ({ id: propId }) => {
   const [approvalModalVisible, setApprovalModalVisible] = useState(false);
   const [approvalAction, setApprovalAction] = useState<'approve' | 'reject'>('approve');
 
+  // P2-5：是否存在待办审批任务（用于「申请人不可审批」提示的精确判定，避免无审批环节时误导）。
+  const [hasPendingApproval, setHasPendingApproval] = useState<boolean | null>(null);
+
   // AI-Native：受影响配置项（工单→CI 反向查询）
   const [cis, setCis] = useState<TicketConfigurationItem[]>([]);
   const [cisLoading, setCisLoading] = useState(false);
+  const [cisError, setCisError] = useState<string | null>(null);
   // users / loadingUsers 由 useUserListQuery 提供（带缓存）
   const [slaInfo, setSlaInfo] = useState<{
     slaName: string;
@@ -261,6 +265,7 @@ const TicketDetail: React.FC<{ id?: string }> = ({ id: propId }) => {
     firstResponseAt: string | null;
     resolvedAt: string | null;
   } | null>(null);
+  const [slaError, setSlaError] = useState<string | null>(null);
   const [assignForm] = Form.useForm();
   const [editForm] = Form.useForm();
   const [resolveForm] = Form.useForm();
@@ -352,9 +357,11 @@ const TicketDetail: React.FC<{ id?: string }> = ({ id: propId }) => {
     try {
       const data = await TicketApi.getTicketSLA(resolvedTicketId);
       setSlaInfo(data);
+      setSlaError(null);
     } catch (error) {
-      // SLA获取失败时不显示SLA信息
+      // SLA获取失败时不显示SLA信息，但保留错误态以区分「本就没有」与「加载失败」
       setSlaInfo(null);
+      setSlaError(error instanceof Error ? error.message : 'SLA 加载失败');
     }
   }, [resolvedTicketId]);
 
@@ -392,9 +399,11 @@ const TicketDetail: React.FC<{ id?: string }> = ({ id: propId }) => {
     try {
       const data = await TicketApi.getTicketConfigurationItems(resolvedTicketId);
       setCis(Array.isArray(data) ? data : []);
+      setCisError(null);
     } catch {
-      // CI 查询失败不阻塞工单详情展示
+      // CI 查询失败不阻塞工单详情展示，但保留错误态以区分「本就没有」与「加载失败」
       setCis([]);
+      setCisError('配置项加载失败');
     } finally {
       setCisLoading(false);
     }
@@ -412,6 +421,31 @@ const TicketDetail: React.FC<{ id?: string }> = ({ id: propId }) => {
       fetchCIs();
     }
   }, [ticketKey, fetchSLAInfo, fetchCIs]);
+
+  // P2-5：拉取待办审批任务，精确判定是否向申请人展示「不可审批」提示
+  // （无待办审批任务时不应渲染误导性的「无法进行审批操作」）。
+  useEffect(() => {
+    if (!resolvedTicketId) {
+      setHasPendingApproval(null);
+      return;
+    }
+    let cancelled = false;
+    TicketApprovalApi.getApprovalRecords({
+      ticketId: resolvedTicketId,
+      status: 'pending',
+      page: 1,
+      pageSize: 1,
+    })
+      .then((res) => {
+        if (!cancelled) setHasPendingApproval((res?.items?.length ?? 0) > 0);
+      })
+      .catch(() => {
+        if (!cancelled) setHasPendingApproval(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [resolvedTicketId]);
 
   // 用户列表由 useUserListQuery 内部处理挂载与缓存。
 
@@ -1006,12 +1040,14 @@ const TicketDetail: React.FC<{ id?: string }> = ({ id: propId }) => {
           </Space>
         }
       >
-        {cisLoading ? (
+        {cisError ? (
+          <Text type="danger">{t('ticketDetail.ciLoadFailed')}</Text>
+        ) : cisLoading ? (
           <Skeleton active paragraph={{ rows: 2 }} />
         ) : cis.length === 0 ? (
           <Empty
             image={Empty.PRESENTED_IMAGE_SIMPLE}
-            description="该工单尚未关联配置项"
+            description={t('ticketDetail.noRelatedCi')}
           />
         ) : (
           <List
@@ -1089,7 +1125,11 @@ const TicketDetail: React.FC<{ id?: string }> = ({ id: propId }) => {
           )}
 
           {/* SLA Information */}
-          {slaInfo && (
+          {slaError ? (
+            <Card size="small" title={t('ticketDetail.slaInfo')} className="mt-4">
+              <Text type="danger">{t('ticketDetail.slaLoadFailed')}</Text>
+            </Card>
+          ) : slaInfo ? (
             <Card size="small" title={t('ticketDetail.slaInfo')} className="mt-4">
               <Space orientation="vertical" style={{ width: '100%' }}>
                 <div className="flex justify-between">
@@ -1177,6 +1217,13 @@ const TicketDetail: React.FC<{ id?: string }> = ({ id: propId }) => {
                 )}
               </Space>
             </Card>
+          ) : (
+            <Card size="small" title={t('ticketDetail.slaInfo')} className="mt-4">
+              <Empty
+                image={Empty.PRESENTED_IMAGE_SIMPLE}
+                description={t('ticketDetail.slaNotConfigured')}
+              />
+            </Card>
           )}
 
           <Space>
@@ -1261,9 +1308,14 @@ const TicketDetail: React.FC<{ id?: string }> = ({ id: propId }) => {
             </Text>
           )}
 
-          {isRequester && !isTicketFinal && (
+          {isRequester && !isTicketFinal && hasPendingApproval === true && (
             <Text type="secondary" className="block mt-2">
               {t('ticketDetail.requesterCannotApprove')}
+            </Text>
+          )}
+          {isRequester && !isTicketFinal && hasPendingApproval === false && (
+            <Text type="secondary" className="block mt-2">
+              {t('ticketDetail.requesterNoApproval')}
             </Text>
           )}
 

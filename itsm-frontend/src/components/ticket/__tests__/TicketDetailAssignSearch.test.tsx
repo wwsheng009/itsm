@@ -61,6 +61,7 @@ jest.mock('@/lib/api/ticket-api', () => ({
 jest.mock('@/lib/api/ticket-approval-api', () => ({
   TicketApprovalApi: {
     getApprovalChain: jest.fn().mockResolvedValue([]),
+    getApprovalRecords: jest.fn().mockResolvedValue({ items: [], total: 0, page: 1, pageSize: 1 }),
     approve: jest.fn().mockResolvedValue(undefined),
     reject: jest.fn().mockResolvedValue(undefined),
   },

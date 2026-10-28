@@ -279,7 +279,7 @@ export const TicketAIInlineAssistant: React.FC<TicketAIInlineAssistantProps> = (
         ) : null}
 
         {!kbError && !kbLoading && kbItems.length === 0 ? (
-          <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="暂无相关知识" />
+          <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="暂无相关知识推荐" />
         ) : null}
 
         {kbItems.map(item => (
