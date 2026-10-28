@@ -909,6 +909,15 @@
   background-color: var(--color-primary-50);
 }
 
+/*
+ * 根因 A：详情类 Descriptions 的标签（成本中心/数据分类/需要公网IP）在 bordered 自动
+ * 表格布局下，被宽内容值列挤压到 min-content → 逐字竖排。标签均为短静态文案，
+ * 强制单行即可让标签列取自身宽度；值列仍可换行，无横向裁剪风险。
+ */
+.ant-descriptions-item-label {
+  white-space: nowrap;
+}
+
 /* 改进的表单样式 */
 .ant-form-item-label>label {
   font-weight: 500;
