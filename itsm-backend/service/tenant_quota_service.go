@@ -62,12 +62,16 @@ func (s *TenantQuotaService) LimitsOf(ctx context.Context, tenantID int) (tenant
 
 // Counts 轻量用量计数：用户数 / 本自然月新建未删工单数（列表页「资源使用」列专用；
 // 口径同 Usage，不含存储汇总，避免列表加载逐行扫描附件表）。
+//
+// 该计数被列表页（平台/服务商跨租户治理读）与单租户用量页共用：计数口径由下方
+// user.TenantID / ticket.TenantID 谓词唯一保证，故以 system-bypass 执行，避免调用方
+// 租户作用域或 RLS 会话变量把跨租户计数收窄为 0（P1-2：租户列表「资源使用」用户数
+// 恒为 0）。system-bypass 仅放开 RLS 行级作用域，不引入跨租户数据泄露。
 func (s *TenantQuotaService) Counts(ctx context.Context, tenantID int) (users, ticketsThisMonth int64, err error) {
 	if s == nil || s.client == nil {
 		return 0, 0, nil
 	}
-	// 同 LimitsOf：计数以目标租户为作用域（RLS enforce 下缺此绑定会静默清零）。
-	ctx = tenantctx.WithTenantID(ctx, tenantID)
+	ctx = tenantctx.WithSystemBypass(ctx)
 	u, err := s.client.User.Query().Where(user.TenantID(tenantID)).Count(ctx)
 	if err != nil {
 		return 0, 0, fmt.Errorf("count tenant users: %w", err)

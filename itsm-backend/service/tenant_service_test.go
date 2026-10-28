@@ -683,3 +683,40 @@ func TestTenantService_QuotaUsage(t *testing.T) {
 	_, err = service.QuotaUsage(ctx, 99999)
 	require.Error(t, err)
 }
+
+// TestTenantService_UsageCounts 锁定列表页「资源使用」列计数口径（P1-2）：
+// 逐租户实时 count(users where tenant_id=?) / 本月新建未删工单，与租户下真实数据一致，
+// 不受调用方租户作用域影响（system-bypass 跨租户治理读）。
+func TestTenantService_UsageCounts(t *testing.T) {
+	client, service, ctx := setupTenantTest(t)
+	defer client.Close()
+
+	service.SetTenantQuotaService(NewTenantQuotaService(client, zaptest.NewLogger(t).Sugar()))
+
+	withUsers, err := service.CreateTenant(ctx, &dto.CreateTenantRequest{
+		Name: "有用户租户", Code: "USAGE-HAS", Type: "internal",
+	})
+	require.NoError(t, err)
+	empty, err := service.CreateTenant(ctx, &dto.CreateTenantRequest{
+		Name: "空租户", Code: "USAGE-EMPTY", Type: "internal",
+	})
+	require.NoError(t, err)
+
+	for i := 0; i < 3; i++ {
+		_, err = client.User.Create().
+			SetUsername(fmt.Sprintf("usage-user-%d", i)).
+			SetEmail(fmt.Sprintf("usage-%d@example.com", i)).
+			SetName("用量用户").
+			SetPasswordHash("x").
+			SetTenantID(withUsers.ID).
+			Save(ctx)
+		require.NoError(t, err)
+	}
+
+	counts, err := service.UsageCounts(ctx, []int{withUsers.ID, empty.ID})
+	require.NoError(t, err)
+	require.Contains(t, counts, withUsers.ID)
+	require.Contains(t, counts, empty.ID)
+	assert.Equal(t, int64(3), counts[withUsers.ID].Users, "列表计数应与租户下真实用户数一致")
+	assert.Zero(t, counts[empty.ID].Users, "空租户计数为 0")
+}

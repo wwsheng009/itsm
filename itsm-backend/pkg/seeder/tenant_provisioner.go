@@ -4,7 +4,9 @@ import (
 	"context"
 	"fmt"
 	"sort"
+	"time"
 
+	"itsm-backend/database"
 	"itsm-backend/dto"
 	"itsm-backend/ent"
 	"itsm-backend/ent/approvalworkflow"
@@ -19,6 +21,8 @@ import (
 	"itsm-backend/ent/processdeployment"
 	"itsm-backend/ent/role"
 	"itsm-backend/ent/rolepermission"
+	"itsm-backend/ent/servicecatalog"
+	"itsm-backend/ent/servicecatalogitem"
 	"itsm-backend/ent/sladefinition"
 	"itsm-backend/ent/systemconfig"
 	"itsm-backend/ent/tenant"
@@ -572,7 +576,173 @@ func cloneTenantTemplates(ctx context.Context, c *ent.Client, sourceID, tenantID
 	if err := cloneProcessBindings(ctx, c, sourceID, tenantID); err != nil {
 		return err
 	}
-	return cloneBotTemplates(ctx, c, sourceID, tenantID)
+	if err := cloneBotTemplates(ctx, c, sourceID, tenantID); err != nil {
+		return err
+	}
+	// 开箱即带服务目录与工单类型，避免「开通后列表为空」的体感（P1-1）。
+	if err := cloneServiceCatalog(ctx, c, sourceID, tenantID); err != nil {
+		return err
+	}
+	if err := cloneTicketTypes(ctx, sourceID, tenantID); err != nil {
+		return err
+	}
+	return nil
+}
+
+// cloneServiceCatalog 克隆服务目录：先克隆目录（service_catalog），再克隆目录项
+// （service_catalog_items）并把 CatalogID 重映射到新目录。项内的 SLAID /
+// ApprovalChainID 等外键不重映射（置空），交由客户在开通后按场景配置。新租户开箱
+// 即有一批服务目录，避免「开通后服务目录为空」的用户体感（P1-1）。
+func cloneServiceCatalog(ctx context.Context, c *ent.Client, sourceID, tenantID int) error {
+	sourceCatalogs, err := c.ServiceCatalog.Query().Where(servicecatalog.TenantIDEQ(sourceID)).All(ctx)
+	if err != nil {
+		return err
+	}
+	targetCatalogs, err := c.ServiceCatalog.Query().Where(servicecatalog.TenantIDEQ(tenantID)).All(ctx)
+	if err != nil {
+		return err
+	}
+	existing := make(map[string]struct{}, len(targetCatalogs))
+	for _, item := range targetCatalogs {
+		existing[item.Name] = struct{}{}
+	}
+	missing := make([]*ent.ServiceCatalog, 0)
+	for _, item := range sourceCatalogs {
+		if _, ok := existing[item.Name]; ok {
+			continue
+		}
+		existing[item.Name] = struct{}{}
+		missing = append(missing, item)
+	}
+	catalogIDMap := make(map[int]int, len(missing))
+	for _, batch := range chunkSlice(missing, provisionBulkChunkSize) {
+		builders := make([]*ent.ServiceCatalogCreate, 0, len(batch))
+		srcIDs := make([]int, 0, len(batch))
+		for _, item := range batch {
+			b := c.ServiceCatalog.Create().
+				SetName(item.Name).SetDescription(item.Description).SetCategory(item.Category).
+				SetIcon(item.Icon).SetServiceType(item.ServiceType).SetPrice(item.Price).
+				SetDeliveryTime(item.DeliveryTime).SetUnit(item.Unit).
+				SetRequiresApproval(item.RequiresApproval).SetApprovalLevel(item.ApprovalLevel).
+				SetApprovers(item.Approvers).SetSLAResponseTime(item.SLAResponseTime).
+				SetSLAResolutionTime(item.SLAResolutionTime).SetFormSchema(item.FormSchema).
+				SetAvailableRegions(item.AvailableRegions).SetAvailableSpecs(item.AvailableSpecs).
+				SetStatus(item.Status).SetIsActive(item.IsActive).SetSortOrder(item.SortOrder).
+				SetTenantID(tenantID)
+			if item.CiTypeID > 0 {
+				b.SetCiTypeID(item.CiTypeID)
+			}
+			if item.CloudServiceID > 0 {
+				b.SetCloudServiceID(item.CloudServiceID)
+			}
+			builders = append(builders, b)
+			srcIDs = append(srcIDs, item.ID)
+		}
+		created, err := c.ServiceCatalog.CreateBulk(builders...).Save(ctx)
+		if err != nil {
+			return fmt.Errorf("provision service catalog: %w", err)
+		}
+		for i, entCreated := range created {
+			catalogIDMap[srcIDs[i]] = entCreated.ID
+		}
+	}
+	return cloneServiceCatalogItems(ctx, c, sourceID, tenantID, catalogIDMap)
+}
+
+// cloneServiceCatalogItems 克隆服务目录项，并把 CatalogID 重映射到新目录。
+// SLAID / ApprovalChainID 外键不重映射（置空），避免指向源租户的对象（P1-1）。
+func cloneServiceCatalogItems(ctx context.Context, c *ent.Client, sourceID, tenantID int, catalogIDMap map[int]int) error {
+	if len(catalogIDMap) == 0 {
+		return nil
+	}
+	sourceItems, err := c.ServiceCatalogItem.Query().Where(servicecatalogitem.TenantIDEQ(sourceID)).All(ctx)
+	if err != nil {
+		return err
+	}
+	targetItems, err := c.ServiceCatalogItem.Query().Where(servicecatalogitem.TenantIDEQ(tenantID)).All(ctx)
+	if err != nil {
+		return err
+	}
+	existing := make(map[string]struct{}, len(targetItems))
+	for _, item := range targetItems {
+		existing[item.Name] = struct{}{}
+	}
+	missing := make([]*ent.ServiceCatalogItem, 0)
+	for _, item := range sourceItems {
+		if _, ok := existing[item.Name]; ok {
+			continue
+		}
+		// 源项所属目录未克隆（例如已在目标存在但名称不同），跳过以免外键悬空。
+		if _, ok := catalogIDMap[item.CatalogID]; !ok {
+			continue
+		}
+		existing[item.Name] = struct{}{}
+		missing = append(missing, item)
+	}
+	for _, batch := range chunkSlice(missing, provisionBulkChunkSize) {
+		builders := make([]*ent.ServiceCatalogItemCreate, 0, len(batch))
+		for _, item := range batch {
+			b := c.ServiceCatalogItem.Create().
+				SetCatalogID(catalogIDMap[item.CatalogID]).SetName(item.Name).
+				SetDescription(item.Description).SetDetails(item.Details).
+				SetCategory(item.Category).SetIcon(item.Icon).SetFormSchema(item.FormSchema).
+				SetIsActive(item.IsActive).SetRequiresApproval(item.RequiresApproval).
+				SetEstimatedDays(item.EstimatedDays).SetBusinessSubType(item.BusinessSubType).
+				SetProcessDefinitionKey(item.ProcessDefinitionKey).SetTenantID(tenantID)
+			builders = append(builders, b)
+		}
+		if _, err := c.ServiceCatalogItem.CreateBulk(builders...).Save(ctx); err != nil {
+			return fmt.Errorf("provision service catalog item: %w", err)
+		}
+	}
+	return nil
+}
+
+// cloneTicketTypes 通过原生 SQL 克隆工单类型（无对应 ent 类型，沿用 seedTicketTypes
+// 的同一种方式）。幂等：目标租户已有工单类型则跳过；created_by 为 NOT NULL 外键，
+// 若目标租户尚无用户（无法填有效 created_by）或表不存在，则静默跳过，交由前端
+// 「业务数据提示项」引导客户配置（P1-1）。
+func cloneTicketTypes(ctx context.Context, sourceID, tenantID int) error {
+	rawDB := database.GetRawDB()
+	if rawDB == nil {
+		return nil
+	}
+	var existing int
+	if err := rawDB.QueryRowContext(ctx, "SELECT COUNT(*) FROM ticket_types WHERE tenant_id = $1", tenantID).Scan(&existing); err != nil {
+		return nil
+	}
+	if existing > 0 {
+		return nil
+	}
+	// created_by 为 NOT NULL 外键，需要目标租户至少一个用户。
+	var createdBy int
+	if err := rawDB.QueryRowContext(ctx, "SELECT id FROM users WHERE tenant_id = $1 LIMIT 1", tenantID).Scan(&createdBy); err != nil {
+		return nil
+	}
+	rows, err := rawDB.QueryContext(ctx,
+		`SELECT code, name, description, icon, color, status
+		 FROM ticket_types WHERE tenant_id = $1 ORDER BY id`, sourceID)
+	if err != nil {
+		return nil
+	}
+	defer rows.Close()
+	now := time.Now()
+	for rows.Next() {
+		var code, name, description, icon, color, status string
+		if err := rows.Scan(&code, &name, &description, &icon, &color, &status); err != nil {
+			return nil
+		}
+		if status == "" {
+			status = "active"
+		}
+		if _, err := rawDB.ExecContext(ctx,
+			`INSERT INTO ticket_types (code, name, description, icon, color, status, created_by, tenant_id, created_at, updated_at)
+			 VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)`,
+			code, name, description, icon, color, status, createdBy, tenantID, now, now); err != nil {
+			return nil
+		}
+	}
+	return nil
 }
 
 func cloneSLADefinitions(ctx context.Context, c *ent.Client, sourceID, tenantID int) error {
