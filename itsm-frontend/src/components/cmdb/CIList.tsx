@@ -30,6 +30,7 @@ import { useCan } from '@/components/auth/PermissionGate';
 
 import { CIStatus, CIStatusLabels } from '@/constants/cmdb';
 import type { ConfigurationItem, CIType } from '@/types/biz/cmdb';
+import { CI_TYPE_LABEL, enumLabel } from '@/lib/constants';
 import {
   useCIsQuery,
   useCITypesQuery,
@@ -212,7 +213,11 @@ const CIList: React.FC = () => {
       title: '类型',
       width: 120,
       render: (_: unknown, record: ConfigurationItem) => {
-        return types.find(t => t.id === record.ciTypeId)?.name || record.type || `类型 ${record.ciTypeId}`;
+        return (
+          types.find(t => t.id === record.ciTypeId)?.name ||
+          enumLabel(CI_TYPE_LABEL, record.type) ||
+          `类型 ${record.ciTypeId}`
+        );
       },
     },
     {
