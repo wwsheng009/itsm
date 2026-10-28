@@ -25,6 +25,7 @@ import dayjs from 'dayjs';
 
 import { ServiceRequestApi } from '@/lib/api/';
 import { ServiceRequestStatus, ApprovalStatus, ApprovalAction } from '@/constants/service-request';
+import { SERVICE_REQUEST_STATUS_LABEL, APPROVAL_STEP_LABEL, enumLabel } from '@/lib/constants';
 import type { ServiceRequest, ServiceRequestApproval } from '@/types/biz/service-request';
 import { useI18n } from '@/lib/i18n/useI18n';
 import RichTextContent from '@/components/common/rich-text/RichTextContent';
@@ -148,7 +149,7 @@ const ServiceRequestDetail: React.FC = () => {
             }
           >
             <Space orientation="vertical" size={2}>
-              <Text strong>{`${app.level}. ${app.step.toUpperCase()} 审批`}</Text>
+              <Text strong>{`${app.level}. ${enumLabel(APPROVAL_STEP_LABEL, app.step)}`}</Text>
               <div>
                 <Tag color={approvalStatusColors[app.status]}>
                   {t(approvalStatusLabelKeys[app.status] || app.status)}
@@ -225,7 +226,7 @@ const ServiceRequestDetail: React.FC = () => {
             <div style={{ textAlign: 'right' }}>
               <Title level={4} style={{ margin: 0 }}>
                 <Tag color={request.status === 'completed' ? 'green' : 'blue'}>
-                  {request.status.toUpperCase()}
+                  {enumLabel(SERVICE_REQUEST_STATUS_LABEL, request.status)}
                 </Tag>
               </Title>
             </div>

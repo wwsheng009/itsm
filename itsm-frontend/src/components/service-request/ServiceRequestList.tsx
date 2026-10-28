@@ -15,6 +15,7 @@ import { useCan } from '@/components/auth/PermissionGate';
 import { ServiceRequestApi } from '@/lib/api/';
 import { ServiceRequestStatus } from '@/constants/service-request';
 import type { ServiceRequest, ServiceRequestQuery } from '@/types/biz/service-request';
+import { SERVICE_REQUEST_STATUS_LABEL, enumLabel } from '@/lib/constants';
 
 // 状态标签颜色映射
 const statusColors: Record<string, string> = {
@@ -105,7 +106,9 @@ const ServiceRequestList: React.FC = () => {
       title: '状态',
       dataIndex: 'status',
       width: 150,
-      render: (status: string) => <Tag color={statusColors[status] || 'default'}>{status}</Tag>,
+      render: (status: string) => (
+        <Tag color={statusColors[status] || 'default'}>{enumLabel(SERVICE_REQUEST_STATUS_LABEL, status)}</Tag>
+      ),
     },
     {
       title: '当前步骤',

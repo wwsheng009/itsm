@@ -39,18 +39,24 @@ export const CI_TYPE_LABEL: Record<string, string> = {
   device: '设备',
 };
 
-/** 服务请求状态 code → 中文（详情页/列表曾直出 SUBMITTED / submitted / cancelled）。 */
+/** 服务请求状态 code → 中文（与 constants/service-request.ts 的枚举取值对齐）。 */
 export const SERVICE_REQUEST_STATUS_LABEL: Record<string, string> = {
-  draft: '草稿',
   submitted: '已提交',
-  SUBMITTED: '已提交',
-  approved: '已批准',
-  rejected: '已驳回',
-  in_progress: '处理中',
-  inProgress: '处理中',
-  fulfilled: '已交付',
+  manager_approved: '经理已审批',
+  it_approved: 'IT 已审批',
+  security_approved: '安全已审批',
+  provisioning: '履约中',
+  delivered: '已交付',
+  failed: '履约失败',
+  rejected: '已拒绝',
   cancelled: '已取消',
-  closed: '已关闭',
+};
+
+/** 审批步骤 code → 中文（ApprovalStep：manager/it/security，替代 `MANAGER 审批` 直出）。 */
+export const APPROVAL_STEP_LABEL: Record<string, string> = {
+  manager: '经理审批',
+  it: 'IT 审批',
+  security: '安全部门审批',
 };
 
 /** 优先级 code → 中文（工单/服务请求统计曾直出 low/medium/high/critical）。 */
