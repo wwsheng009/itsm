@@ -52,12 +52,72 @@ export const BPMN_ACTIVITY_TYPE_LABEL: Record<string, string> = {
   inclusiveGateway: '包容网关',
   scriptTask: '脚本任务',
   subProcess: '子流程',
+  // 兼容后端 XML 原始写法（snake_case）
+  start_event: '开始事件',
+  end_event: '结束事件',
+  user_task: '用户任务',
+  service_task: '服务任务',
+  exclusive_gateway: '排他网关',
+  parallel_gateway: '并行网关',
+  inclusive_gateway: '包容网关',
+  script_task: '脚本任务',
+  sub_process: '子流程',
 };
+
+/**
+ * 把任意写法的节点类型归一化：`user_task` / `USER_TASK` / `usertask`
+ * 统一折叠为 `userTask`，避免后端 XML 原始写法漏映射而外露原始标识。
+ */
+export function normalizeActivityType(type: string): string {
+  if (!type) return '';
+  if (type.includes('_') || type.includes('-')) {
+    return type
+      .split(/[_-]/)
+      .filter(Boolean)
+      .map((part, idx) =>
+        idx === 0
+          ? part.toLowerCase()
+          : part.charAt(0).toUpperCase() + part.slice(1).toLowerCase()
+      )
+      .join('');
+  }
+  if (type === type.toUpperCase() || type === type.toLowerCase()) {
+    // all-lower / all-upper：把首字母小写后按已知表命中
+    const lower = type.toLowerCase();
+    const camel = lower.charAt(0) + lower.slice(1);
+    if (BPMN_ACTIVITY_TYPE_LABEL[camel]) return camel;
+  }
+  return type;
+}
 
 /** 将 BPMN 节点类型映射为中文标签（未命中也返回「节点」，绝不裸落原始 id）。 */
 export function bpmnActivityTypeName(type?: BpmnActivityType | null): string {
   if (!type) return '节点';
-  return BPMN_ACTIVITY_TYPE_LABEL[type] || '节点';
+  const normalized = normalizeActivityType(String(type));
+  return BPMN_ACTIVITY_TYPE_LABEL[normalized] || BPMN_ACTIVITY_TYPE_LABEL[String(type)] || '节点';
+}
+
+/**
+ * 节点类型 → 标签色的统一映射。
+ *
+ * 与 bpmnActivityTypeName 共用同一套归一化，避免 `user_task` / `usertask`
+ * 这类写法在颜色表里 miss 而统一落到默认色（review round8 N6 的残留面）。
+ */
+const BPMN_ACTIVITY_TYPE_COLOR: Record<string, string> = {
+  startEvent: 'green',
+  endEvent: 'default',
+  userTask: 'blue',
+  serviceTask: 'purple',
+  exclusiveGateway: 'orange',
+  parallelGateway: 'cyan',
+  inclusiveGateway: 'gold',
+};
+
+/** 取节点类型的标签色；未命中等价回落 `blue`，不因写法差异变色。 */
+export function bpmnActivityTypeColor(type?: BpmnActivityType | null, fallback = 'blue'): string {
+  if (!type) return fallback;
+  const normalized = normalizeActivityType(String(type));
+  return BPMN_ACTIVITY_TYPE_COLOR[normalized] || BPMN_ACTIVITY_TYPE_COLOR[String(type)] || fallback;
 }
 
 /** 已知的「裸原始 id」集合（currentActivityName / activityName 偶尔返回技术 id 而非业务名）。 */
@@ -85,6 +145,15 @@ const BPMN_RAW_NAME_TOKENS = new Set<string>([
 export function bpmnActivityDisplayName(name?: string | null, step?: number): string {
   if (name && !BPMN_RAW_NAME_TOKENS.has(name)) return name;
   return `处理中（第 ${step ?? '?'} 步）`;
+}
+
+/**
+ * 判断某节点名是否为「裸原始标识」（`user_task` / `userTask` / `exclusiveGateway` 等）。
+ * 供流转进度、审批链等展示层统一判定，避免各组件各自维护一份 token 集合。
+ */
+export function isRawActivityName(name?: string | null): boolean {
+  if (!name) return false;
+  return BPMN_RAW_NAME_TOKENS.has(name);
 }
 
 /**

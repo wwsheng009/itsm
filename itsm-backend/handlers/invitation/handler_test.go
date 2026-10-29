@@ -44,6 +44,8 @@ func TestInvitationHandler_LifecycleContract(t *testing.T) {
 	roleAgent, err := client.Role.Create().SetName("Agent").SetCode("agent").SetTenantID(tenantA.ID).Save(ctx)
 	require.NoError(t, err)
 
+	// N1：邀请链接基址不再回落 localhost，显式注入站点基址。
+	t.Setenv("APP_BASE_URL", "https://itsm.example.com")
 	svc := service.NewInvitationService(client, service.NewUserService(client, logger), logger)
 	h := NewHandler(svc, logger)
 
@@ -152,6 +154,8 @@ func TestInvitationHandler_ListContract(t *testing.T) {
 	roleAgent, err := client.Role.Create().SetName("Agent").SetCode("agent").SetTenantID(tenantA.ID).Save(ctx)
 	require.NoError(t, err)
 
+	// N1：邀请链接基址不再回落 localhost，显式注入站点基址。
+	t.Setenv("APP_BASE_URL", "https://itsm.example.com")
 	svc := service.NewInvitationService(client, service.NewUserService(client, logger), logger)
 	h := NewHandler(svc, logger)
 

@@ -614,10 +614,10 @@ const TicketDetail: React.FC<{ id?: string }> = ({ id: propId }) => {
       return;
     }
     antModal.confirm({
-      title: t('ticketDetail.unsavedChangesTitle') || '存在未保存的修改',
-      content: t('ticketDetail.unsavedChangesContent') || '关闭后修改将丢失，确认放弃？',
-      okText: t('ticketDetail.discardChanges') || '放弃修改',
-      cancelText: t('common.cancel') || '取消',
+      title: t('ticketDetail.unsavedChangesTitle', undefined, '存在未保存的修改'),
+      content: t('ticketDetail.unsavedChangesContent', undefined, '关闭后修改将丢失，确认放弃？'),
+      okText: t('ticketDetail.discardChanges', undefined, '放弃修改'),
+      cancelText: t('common.cancel', undefined, '取消'),
       onOk: closeEditModal,
     });
   }, [antModal, closeEditModal, editDirty, t]);
@@ -689,7 +689,7 @@ const TicketDetail: React.FC<{ id?: string }> = ({ id: propId }) => {
       }
 
       if (Object.keys(changed).length === 0) {
-        antMessage.info(t('ticketDetail.noChanges') || '未检测到修改');
+        antMessage.info(t('ticketDetail.noChanges', undefined, '未检测到修改'));
         closeEditModal();
         return;
       }
@@ -1113,7 +1113,7 @@ const TicketDetail: React.FC<{ id?: string }> = ({ id: propId }) => {
 
           {/* 动态表单字段（来自 tenant 工单类型配置） */}
           {ticket.formFields && Object.keys(ticket.formFields).length > 0 && (
-            <Card size="small" title={t('ticketDetail.formFields') || '动态表单字段'} className="mt-2">
+            <Card size="small" title={t('ticketDetail.formFields', undefined, '动态表单字段')} className="mt-2">
               <Descriptions column={2} bordered size="small">
                 {Object.entries(ticket.formFields).map(([key, value]) => (
                   <Descriptions.Item key={key} label={key}>
@@ -1134,7 +1134,14 @@ const TicketDetail: React.FC<{ id?: string }> = ({ id: propId }) => {
               <Space orientation="vertical" style={{ width: '100%' }}>
                 <div className="flex justify-between">
                   <Text type="secondary">{t('ticketDetail.slaDefinition')}:</Text>
-                  <Tag color={slaInfo.isBreached ? 'red' : 'blue'}>{slaInfo.slaName}</Tag>
+                  {/* N9：SLA 名称为空时不要渲染空 Tag（页面会只剩一个孤零零的冒号）。 */}
+                  {slaInfo.slaName ? (
+                    <Tag color={slaInfo.isBreached ? 'red' : 'blue'}>{slaInfo.slaName}</Tag>
+                  ) : (
+                    <Text type="secondary" style={{ fontSize: 12 }}>
+                      {t('ticketDetail.slaNotConfigured', undefined, '尚未配置')}
+                    </Text>
+                  )}
                 </div>
                 {slaInfo.responseDeadline && (
                   <div className="flex justify-between">
@@ -1576,8 +1583,8 @@ const TicketDetail: React.FC<{ id?: string }> = ({ id: propId }) => {
                 <XCircle className="w-5 h-5 text-red-600" />
               )}
               {approvalAction === 'approve'
-                ? t('ticketDetail.approve') || '审批通过'
-                : t('ticketDetail.reject') || '审批驳回'}
+                ? t('ticketDetail.approve', undefined, '审批通过')
+                : t('ticketDetail.reject', undefined, '审批驳回')}
             </Space>
           }
           open={approvalModalVisible}
@@ -1590,14 +1597,14 @@ const TicketDetail: React.FC<{ id?: string }> = ({ id: propId }) => {
         >
           <Form form={approvalForm} layout="vertical" onFinish={handleApprovalSubmit}>
             <Form.Item
-              label={t('ticketDetail.remark') || '备注'}
+              label={t('ticketDetail.remark', undefined, '备注')}
               name="comment"
               rules={[
                 {
                   required: approvalAction === 'reject',
                   message:
                     approvalAction === 'reject'
-                      ? t('ticketDetail.assigneeRequired') || '请填写驳回原因'
+                      ? t('ticketDetail.assigneeRequired', undefined, '请填写驳回原因')
                       : undefined,
                 },
               ]}
@@ -1606,8 +1613,8 @@ const TicketDetail: React.FC<{ id?: string }> = ({ id: propId }) => {
                 rows={3}
                 placeholder={
                   approvalAction === 'approve'
-                    ? t('ticketDetail.assignRemarkPlaceholder') || '请输入审批意见（可选）'
-                    : t('ticketDetail.ccRemarkPlaceholder') || '请输入驳回原因'
+                    ? t('ticketDetail.assignRemarkPlaceholder', undefined, '请输入审批意见（可选）')
+                    : t('ticketDetail.ccRemarkPlaceholder', undefined, '请输入驳回原因')
                 }
                 maxLength={500}
                 showCount
@@ -1632,8 +1639,8 @@ const TicketDetail: React.FC<{ id?: string }> = ({ id: propId }) => {
                   loading={approvalAction === 'approve' ? approving : rejecting}
                 >
                   {approvalAction === 'approve'
-                    ? t('ticketDetail.confirmAssign') || '确认通过'
-                    : t('ticketDetail.confirmDelete') || '确认驳回'}
+                    ? t('ticketDetail.confirmAssign', undefined, '确认通过')
+                    : t('ticketDetail.confirmDelete', undefined, '确认驳回')}
                 </Button>
               </Space>
             </Form.Item>
@@ -1787,6 +1794,7 @@ const TicketDetail: React.FC<{ id?: string }> = ({ id: propId }) => {
           ticketPriority={ticket.priority as string | undefined}
           currentUserId={currentUser?.id}
           isTicketFinal={isTicketFinal}
+          hasPendingApproval={hasPendingApproval}
           onRefresh={fetchTicket}
           t={t}
           externalReplyDraft={replyDraft ?? undefined}
@@ -1805,6 +1813,8 @@ interface TicketDetailTabsProps {
   ticketPriority?: string;
   currentUserId?: number;
   isTicketFinal: boolean;
+  /** 待办审批判定结果（null=尚未加载）：供审批 Tab 区分「无待办审批」与「加载中」。 */
+  hasPendingApproval?: boolean | null;
   onRefresh: () => void;
   t: (key: string) => string;
   /** V0-01：Inline 草稿（nonce 变化 → 填入评论框；不自动提交）。 */
@@ -1818,6 +1828,7 @@ const TicketDetailTabs: React.FC<TicketDetailTabsProps> = ({
   ticketPriority,
   currentUserId,
   isTicketFinal,
+  hasPendingApproval,
   onRefresh,
   t,
   externalReplyDraft,
@@ -1882,6 +1893,9 @@ const TicketDetailTabs: React.FC<TicketDetailTabsProps> = ({
           priority={ticketPriority}
           currentUserId={currentUserId}
           isTicketFinal={isTicketFinal}
+          // N7：把顶部提示所用的同一份待办审批判定结果传下去，
+          // 让「无法审批」与「是否走审批流程」两个结论来自同一数据源。
+          hasPendingApproval={hasPendingApproval}
           onRefresh={onRefresh}
           formatDateTime={formatDateTime}
         />

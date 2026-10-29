@@ -4,6 +4,7 @@ import (
 	"errors"
 	"io"
 	"strconv"
+	"strings"
 
 	"itsm-backend/common"
 	"itsm-backend/service"
@@ -68,6 +69,8 @@ func (h *Handler) Create(c *gin.Context) {
 		RoleID:       req.RoleID,
 		MSPRole:      req.MSPRole,
 		TargetUserID: req.TargetUserID,
+		// N1：用本次请求实际访问的域名拼邀请链接，避免多域名/反代部署下产出 localhost:3000。
+		AppBaseURL: requestBaseURL(c),
 	})
 	if err != nil {
 		respondInvitationError(c, err)
@@ -194,6 +197,30 @@ func actorFromContext(c *gin.Context) service.InvitationActor {
 }
 
 // respondInvitationError 邀请域稳定错误码 → 响应；其余走通用失败。
+// requestBaseURL 依据当前请求推导站点基址（scheme://host）。
+//
+// 优先级：X-Forwarded-Proto / X-Forwarded-Host（反代场景）> 直连 Host。
+// 返回空串表示无法推导，交由 service 层决定是否使用 APP_BASE_URL 配置。
+func requestBaseURL(c *gin.Context) string {
+	if c == nil || c.Request == nil {
+		return ""
+	}
+	host := strings.TrimSpace(c.Request.Header.Get("X-Forwarded-Host"))
+	if host == "" {
+		host = strings.TrimSpace(c.Request.Host)
+	}
+	if host == "" {
+		return ""
+	}
+	scheme := "http"
+	if proto := strings.TrimSpace(c.Request.Header.Get("X-Forwarded-Proto")); proto == "http" || proto == "https" {
+		scheme = proto
+	} else if c.Request.TLS != nil {
+		scheme = "https"
+	}
+	return scheme + "://" + host
+}
+
 func respondInvitationError(c *gin.Context, err error) {
 	if ie, ok := service.AsInvitationError(err); ok {
 		c.JSON(ie.Status, gin.H{"code": ie.Code, "message": ie.Message, "error": ie.Message})

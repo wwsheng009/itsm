@@ -60,6 +60,8 @@ func newInvitationFixture(t *testing.T) *invitationFixture {
 
 func (f *invitationFixture) service(t *testing.T) *InvitationService {
 	t.Helper()
+	// N1：邀请链接基址不再回落 localhost，测试显式注入站点基址。
+	t.Setenv("APP_BASE_URL", "https://itsm.example.com")
 	return NewInvitationService(f.client, NewUserService(f.client, zaptest.NewLogger(t).Sugar()), zaptest.NewLogger(t).Sugar())
 }
 

@@ -8,6 +8,7 @@
  */
 import React from 'react';
 import { Card, Space, Table, Tag, Typography } from 'antd';
+import { getUserRoleLabels } from '@/lib/api/user-api';
 import type { User } from '@/lib/api/user-api';
 
 const { Text } = Typography;
@@ -55,7 +56,24 @@ export const ProviderMembersCard: React.FC<ProviderMembersCardProps> = ({ member
           {
             title: '服务方角色',
             dataIndex: 'role',
-            render: (value: string) => value || '服务方成员',
+            // N3：与服务方主用户表共用同一角色词表，未映射的裸 code（如 msp_specialist）不透出。
+            render: (_: unknown, row: User) => {
+              const labels = getUserRoleLabels({
+                role: row.role,
+                mspRole: row.mspRole,
+                roleNames: row.roleNames,
+              });
+              if (labels.length === 0) return <Text type="secondary">服务方成员</Text>;
+              return (
+                <Space size={[4, 4]} wrap>
+                  {labels.map(label => (
+                    <Tag key={label} color="geekblue" bordered={false}>
+                      {label}
+                    </Tag>
+                  ))}
+                </Space>
+              );
+            },
           },
           {
             title: '状态',

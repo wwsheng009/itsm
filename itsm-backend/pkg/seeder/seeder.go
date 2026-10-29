@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/fs"
+	"net/url"
 	"os"
 	"strings"
 	"time"
@@ -785,11 +786,38 @@ func (s *Seeder) VerifyProduction(ctx context.Context) error {
 	return nil
 }
 
+// defaultTenantDomain 推导默认租户的根域名。
+//
+// 取值顺序：TENANT_ROOT_DOMAIN > APP_BASE_URL 的 host。两者都不可用或命中本机地址时
+// 返回空串（宁可留空，也不写一个必然错误的 "localhost"，见 review round8 N11）。
+func (s *Seeder) defaultTenantDomain() string {
+	if raw := strings.TrimSpace(os.Getenv("TENANT_ROOT_DOMAIN")); raw != "" && !isLocalhostName(raw) {
+		return raw
+	}
+	if raw := strings.TrimSpace(os.Getenv("APP_BASE_URL")); raw != "" {
+		if u, err := url.Parse(raw); err == nil {
+			if host := strings.ToLower(u.Hostname()); host != "" && !isLocalhostName(host) {
+				return host
+			}
+		}
+	}
+	return ""
+}
+
+// isLocalhostName 判定域名是否指向本机。
+func isLocalhostName(host string) bool {
+	h := strings.ToLower(strings.TrimSpace(host))
+	return h == "localhost" || h == "127.0.0.1" || h == "::1" || h == "[::1]"
+}
+
 // seedDefaultTenant ensures default tenant exists
 func (s *Seeder) seedDefaultTenant(ctx context.Context) *ent.Tenant {
 	rootType := tenantmode.TenantTypeInternal
 	rootName := "Default Tenant"
-	rootDomain := "localhost"
+	// N11：根域名不再硬编码 "localhost"。localhost 对其他机器不可达，
+	// 会让租户列表展示出与实际访问地址不符的域名（与 N1 同源）。
+	// 优先取 APP_BASE_URL 的 host，未配置时留空，由前端按"未设置"呈现。
+	rootDomain := s.defaultTenantDomain()
 
 	switch s.deploymentMode() {
 	case tenantmode.DeploymentModeSaaS:
@@ -819,7 +847,9 @@ func (s *Seeder) seedDefaultTenant(ctx context.Context) *ent.Tenant {
 	defaultTenant, err := s.client.Tenant.Create().
 		SetName(rootName).
 		SetCode("default").
-		SetDomain(rootDomain).
+		// N11：域名为可选字段，取不到可信域名时写 NULL 而非空串，
+		// 避免租户列表把空串当成"已配置域名"展示。
+		SetNillableDomain(nilIfEmpty(rootDomain)).
 		SetStatus("active").
 		SetType(tenant.Type(rootType)).
 		SetBillingEnabled(true).

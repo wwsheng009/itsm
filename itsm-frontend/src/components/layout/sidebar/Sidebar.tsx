@@ -14,6 +14,7 @@ import type { MenuItem } from './menu-config';
 import { getIconByName } from './icons';
 import { MenuItems } from './MenuItems';
 import { useUserMenusQuery } from '@/lib/hooks/useUserMenusQuery';
+import { getUserRoleLabels } from '@/lib/api/user-api';
 import { useCapabilities } from '@/lib/hooks/useCapabilities';
 import type { MenuItem as MenuItemType } from '@/lib/api/menu-api';
 import { ADMIN_AREA_PERMISSIONS } from '@/routes/area-permissions';
@@ -281,7 +282,14 @@ export const Sidebar: React.FC<SidebarProps> = ({ collapsed, onCollapse, mobile 
             <div className={styles.userAvatar}>{user?.name?.[0] || user?.username?.[0] || 'U'}</div>
             <div className={styles.userDetails}>
               <div className={styles.userName}>{user?.name || user?.username}</div>
-              <div className={styles.userRole}>{user?.role || 'user'}</div>
+              {/* N10：这里曾直接渲染 user.role 原始 code（如 super_admin / tenant_admin），
+                  现统一走角色词表，未知角色退化为"普通用户"，不再外露英文标识。 */}
+              <div className={styles.userRole}>
+                {getUserRoleLabels({
+                  role: user?.role,
+                  mspRole: user?.mspRole,
+                }).join(' / ') || '普通用户'}
+              </div>
             </div>
           </div>
         </div>

@@ -35,6 +35,14 @@
 | `deep-business-test-report-2026-06-18.md` | historical | 深度业务流测试（默认账号过时，但仍含 API 验证记录） |
 | `product-architecture-review-2026-09-03.md` | historical | 产品架构评审快照；2026-09-12 由 `docs/reviews/`（复数目录）合并入本目录 |
 | `workflow-cmdb-review-2026-09-03.md` | historical | 工作流/CMDB 评审；被 [`docs/architecture/workflow-cmdb-invariants.md`](../architecture/workflow-cmdb-invariants.md) §回归 引用，移动时已同步更新该引用 |
+| `2026-10-28-multi-tenant-functional-review.md` | historical | 多租户功能审查（13 项问题）；`plan.md` 修复计划的输入，移动时已同步更新该引用 |
+| `2026-10-28-page-review-round2.md` | historical | 系统管理后台页面实测审查第二轮（46 项问题） |
+| `2026-10-28-page-review-round3.md` | historical | 系统管理后台页面实测审查第三轮（31 项问题） |
+| `2026-10-28-page-review-round4.md` | historical | 工作流 / SLA / 升级域实测审查第四轮（10 页，58 项问题） |
+| `2026-10-28-page-review-round5.md` | historical | 资源中心 / Bot / 工具目录 / CMDB 域实测审查第五轮（7 页，39 项问题） |
+| `2026-10-28-page-review-round6.md` | historical | 权限域 / 配置域实测审查第六轮（12 页 + 4 页签，101 项问题） |
+| `2026-10-28-page-review-round7.md` | historical | 表单域 / AI 域 / 业务域 / CMDB 域实测审查第七轮（20 页，87 项问题） |
+| `2026-10-28-page-review-round8.md` | historical | 多租户前端实测审查第八轮——`plan.md` 修复验收 14 项（确认生效 5 / 未生效 2 / 页面矛盾 1 / 未验证 6）+ 新缺陷 14 项（P1×4、P2×10） |
 
 ## 目录合并（2026-09-12）
 

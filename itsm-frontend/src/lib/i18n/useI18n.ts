@@ -32,7 +32,11 @@ export function useI18n() {
    * @param params 可选的参数对象，用于替换翻译文本中的占位符，如 {name: 'John'} 会替换 {name}
    */
   const t = useCallback(
-    (key: string, params?: Record<string, string | number>): string => {
+    (
+      key: string,
+      params?: Record<string, string | number>,
+      defaultValue?: string
+    ): string => {
       const keys = key.split('.');
       let value: unknown = translations[language];
 
@@ -46,14 +50,15 @@ export function useI18n() {
             if (value && typeof value === 'object' && fallbackKey in value) {
               value = value[fallbackKey as keyof typeof value];
             } else {
-              return key; // 如果还是找不到，返回原始键
+              // 兜底：优先调用方给定的 defaultValue，其次才返回原始键
+              return defaultValue ?? key;
             }
           }
           break;
         }
       }
 
-      let result = typeof value === 'string' ? value : key;
+      let result = typeof value === 'string' ? value : defaultValue ?? key;
 
       // 替换参数占位符
       if (params) {

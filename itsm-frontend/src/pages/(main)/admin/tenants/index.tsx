@@ -437,8 +437,11 @@ export default function TenantManagement() {
     {
       title: '资源使用',
       key: 'usage',
+      // N12：列宽不足时表头/单元格会被压成逐字竖排（"资源使用"→"资源/使用"，
+      // "3 用户"→"3/用/户"）。这里给足最小宽度并禁止逐字换行。
+      width: 168,
       render: (_: unknown, record: Tenant) => (
-        <div className="space-y-1">
+        <div className="space-y-1" style={{ minWidth: 120, whiteSpace: 'nowrap' }}>
           <div className="flex items-center">
             <Users className="w-4 h-4 mr-1 text-gray-400" />
             <span>{record.userCount || 0} 用户</span>
@@ -450,10 +453,16 @@ export default function TenantManagement() {
     {
       title: '配额',
       key: 'quota',
+      width: 150,
+      // N13：配额未配置时不再用"不限"占一整列宽度，收敛为行内次要标记。
       render: (_: unknown, record: Tenant) => {
         const q = record.quota;
         if (!q || (!q.maxUsers && !q.maxTicketsPerMonth && !q.maxStorageMB)) {
-          return <Text type="secondary">不限</Text>;
+          return (
+            <Text type="secondary" style={{ fontSize: 12, whiteSpace: 'nowrap' }}>
+              未设置
+            </Text>
+          );
         }
         return (
           <Space size={4} wrap>
@@ -468,10 +477,18 @@ export default function TenantManagement() {
       title: '到期时间',
       key: 'expires',
       dataIndex: 'expiresAt',
+      width: 130,
+      // N13：到期时间未设置时收敛为行内次要标记，把宽度让给"资源使用"。
       render: (expiresAt: string) => (
-        <div className="flex items-center">
+        <div className="flex items-center" style={{ whiteSpace: 'nowrap' }}>
           <Calendar className="w-4 h-4 mr-1 text-gray-400" />
-          {expiresAt ? new Date(expiresAt).toLocaleDateString() : '无'}
+          {expiresAt ? (
+            new Date(expiresAt).toLocaleDateString()
+          ) : (
+            <Text type="secondary" style={{ fontSize: 12 }}>
+              未设置
+            </Text>
+          )}
         </div>
       ),
     },

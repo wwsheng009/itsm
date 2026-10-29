@@ -9,6 +9,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"net/url"
 	"os"
 	"strconv"
 	"strings"
@@ -55,6 +56,8 @@ const (
 	InvitationCodePasswordWeak      = "INVITATION_PASSWORD_WEAK"
 	InvitationCodeUserNotFound      = "INVITATION_USER_NOT_FOUND"
 	InvitationCodeEmailMismatch     = "INVITATION_EMAIL_MISMATCH"
+	// InvitationCodeBaseURLMissing 站点基址未配置：拒绝创建邀请，避免产出 localhost / 空域名的坏链接。
+	InvitationCodeBaseURLMissing = "INVITATION_BASE_URL_MISSING"
 )
 
 // InvitationError 邀请域的稳定拒绝类型。
@@ -95,6 +98,9 @@ type CreateInvitationRequest struct {
 	RoleID       int
 	MSPRole      string
 	TargetUserID int
+	// AppBaseURL 本次请求实际生效的站点基址（由 handler 从请求 Host / X-Forwarded-* 推导）。
+	// 优先级高于服务级 APP_BASE_URL 配置，用于多域名/反代部署下拼出被邀请人可打开的链接。
+	AppBaseURL string
 }
 
 // CreateInvitationResult 创建邀请结果（SMTP 未配置时 inviteUrl 为唯一投递通道）。
@@ -181,7 +187,13 @@ type InvitationService struct {
 }
 
 // NewInvitationService 构造邀请服务。
-// 配置：INVITATION_TTL_HOURS（默认 72）、APP_BASE_URL（默认 http://localhost:3000，对齐本地 dev；生产须显式设置）。
+// 配置：INVITATION_TTL_HOURS（默认 72）、APP_BASE_URL（站点基址，缺省为空）。
+//
+// 注意：APP_BASE_URL 不再回落到 http://localhost:3000。回落会让被邀请人拿到一个
+// 必然打不开的链接（review round8 N1 / N11），因此改为：
+//  1. 优先用每次请求的 AppBaseURL（由 handler 从请求 Host / X-Forwarded-* 推导）；
+//  2. 其次用 APP_BASE_URL 配置；
+//  3. 两者都缺失时直接报错，不产出坏链接。
 func NewInvitationService(client *ent.Client, users *UserService, logger *zap.SugaredLogger) *InvitationService {
 	ttl := 72 * time.Hour
 	if raw := strings.TrimSpace(os.Getenv("INVITATION_TTL_HOURS")); raw != "" {
@@ -190,9 +202,6 @@ func NewInvitationService(client *ent.Client, users *UserService, logger *zap.Su
 		}
 	}
 	base := strings.TrimRight(strings.TrimSpace(os.Getenv("APP_BASE_URL")), "/")
-	if base == "" {
-		base = "http://localhost:3000"
-	}
 	return &InvitationService{
 		client:     client,
 		users:      users,
@@ -206,6 +215,46 @@ func NewInvitationService(client *ent.Client, users *UserService, logger *zap.Su
 // SetMailer 注入邮件投递实现（可选；SMTP 未配置时保持 nil）。
 func (s *InvitationService) SetMailer(m InvitationMailer) { s.mailer = m }
 
+// resolveBaseURL 决定本次邀请链接使用的站点基址。
+//
+// 优先级：请求级 AppBaseURL（handler 从 Host / X-Forwarded-* 推导）> APP_BASE_URL 配置。
+// 明确拒绝 http://localhost 与 127.0.0.1 回落：这两者只会产出被邀请人打不开的链接
+// （review round8 N1 / N11），因此缺失或命中本机地址时直接报错，让管理员先配置域名。
+func (s *InvitationService) resolveBaseURL(req *CreateInvitationRequest) (string, error) {
+	candidates := make([]string, 0, 2)
+	if req != nil {
+		candidates = append(candidates, req.AppBaseURL)
+	}
+	candidates = append(candidates, s.appBaseURL)
+
+	for _, raw := range candidates {
+		base := strings.TrimRight(strings.TrimSpace(raw), "/")
+		if base == "" {
+			continue
+		}
+		if isLoopbackBaseURL(base) {
+			continue
+		}
+		return base, nil
+	}
+	return "", newInvitationError(InvitationCodeBaseURLMissing, http.StatusServiceUnavailable,
+		"站点基址未配置（APP_BASE_URL），无法生成可访问的邀请链接")
+}
+
+// isLoopbackBaseURL 判定基址是否指向本机（localhost / 127.0.0.1 / [::1]），
+// 这类地址对其他机器的被邀请人不具可达性。
+func isLoopbackBaseURL(base string) bool {
+	u, err := url.Parse(base)
+	if err != nil {
+		host := strings.ToLower(base)
+		return strings.HasPrefix(host, "localhost") ||
+			strings.HasPrefix(host, "127.0.0.1") ||
+			strings.HasPrefix(host, "[::1]")
+	}
+	host := strings.ToLower(u.Hostname())
+	return host == "localhost" || host == "127.0.0.1" || host == "::1"
+}
+
 // Create 创建邀请：inviter 授权（platform/tenant/msp 三通道 + rank 上限）→
 // 角色白名单 → 重发旧邀请失效 → 落库（token 仅哈希）→ 审计 user.invite。
 func (s *InvitationService) Create(ctx context.Context, actor InvitationActor, req *CreateInvitationRequest) (*CreateInvitationResult, error) {
@@ -214,6 +263,10 @@ func (s *InvitationService) Create(ctx context.Context, actor InvitationActor, r
 	}
 	if req == nil {
 		return nil, newInvitationError("BAD_REQUEST", http.StatusBadRequest, "请求体不能为空")
+	}
+	// N1：站点基址必须在任何写操作之前确定，缺失即拒绝，避免产出 localhost / 空域名的坏链接。
+	if _, err := s.resolveBaseURL(req); err != nil {
+		return nil, err
 	}
 
 	target, err := s.client.Tenant.Query().Where(tenant.IDEQ(req.TenantID)).Only(ctx)
@@ -321,7 +374,13 @@ func (s *InvitationService) Create(ctx context.Context, actor InvitationActor, r
 		return nil, fmt.Errorf("创建邀请失败: %w", err)
 	}
 
-	inviteURL := s.appBaseURL + "/invite/" + rawToken
+	baseURL, err := s.resolveBaseURL(req)
+	if err != nil {
+		// 站点基址缺失时不留半成品邀请记录（上面刚落库，这里回滚语义由调用方事务兜底不了，
+		// 所以在落库前就先校验；此处保留二次校验用于防御配置在运行期被清空）。
+		return nil, err
+	}
+	inviteURL := baseURL + "/invite/" + rawToken
 	emailSent := false
 	if s.mailer != nil {
 		sent, sendErr := s.mailer.SendInvitation(ctx, created, rawToken, inviteURL)

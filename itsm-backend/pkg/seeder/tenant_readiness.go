@@ -14,7 +14,6 @@ import (
 	"itsm-backend/ent/rolepermission"
 	"itsm-backend/ent/sladefinition"
 	"itsm-backend/database"
-	"itsm-backend/ent/servicecatalog"
 	"itsm-backend/ent/servicecatalogitem"
 )
 

@@ -48,6 +48,7 @@ import {
 import { TicketWorkflowStateApi } from '@/lib/api/ticket-workflow-state-api';
 import {
   bpmnActivityTypeName,
+  bpmnActivityTypeColor,
   bpmnActivityDisplayName,
   type BpmnProcessState,
   type NextActivityInfo,
@@ -67,6 +68,12 @@ export interface ApprovalWorkflowPanelProps {
   isTicketFinal: boolean;
   onRefresh?: () => void;
   formatDateTime?: (s: string) => string;
+  /**
+   * N7：是否「存在待办审批」。由详情页用审批记录单一数据源判定后传入，
+   * 与顶部「申请人无法审批」提示共用同一结果，避免同页两种互斥文案。
+   * null 表示尚未判定（不渲染任何结论性空态）。
+   */
+  hasPendingApproval?: boolean | null;
 }
 
 interface LevelState {
@@ -100,6 +107,7 @@ export const ApprovalWorkflowPanel: React.FC<ApprovalWorkflowPanelProps> = ({
   priority,
   currentUserId,
   isTicketFinal,
+  hasPendingApproval = null,
   onRefresh,
   formatDateTime,
 }) => {
@@ -295,19 +303,6 @@ export const ApprovalWorkflowPanel: React.FC<ApprovalWorkflowPanelProps> = ({
     return undefined;
   };
 
-  const bpmnTypeColors: Record<string, string> = useMemo(
-    () => ({
-      startEvent: 'green',
-      endEvent: 'default',
-      userTask: 'blue',
-      serviceTask: 'purple',
-      exclusiveGateway: 'orange',
-      parallelGateway: 'cyan',
-      inclusiveGateway: 'gold',
-    }),
-    [],
-  );
-
   // "查看完整流程图" 跳转地址：与后端 ProcessTriggerService 约定的 businessKey 协议一致。
   const openProcessDiagramUrl = useCallback(
     (processInstanceId: string) => {
@@ -349,7 +344,7 @@ export const ApprovalWorkflowPanel: React.FC<ApprovalWorkflowPanelProps> = ({
               <WorkflowIcon size={14} />
               <Text strong>{bpmnState.processDefinitionName || bpmnState.processDefinitionKey}</Text>
               <Tag color="processing">
-                {t('detailTabs.bpmnStatusRunning') || '进行中'}
+                {t('detailTabs.bpmnStatusRunning', undefined, '进行中')}
               </Tag>
             </Space>
           }
@@ -360,18 +355,18 @@ export const ApprovalWorkflowPanel: React.FC<ApprovalWorkflowPanelProps> = ({
               icon={<ExternalLink size={12} />}
               onClick={() => openProcessDiagramUrl(bpmnState.processInstanceId)}
             >
-              {t('detailTabs.viewProcessDiagram') || '查看完整流程图'}
+              {t('detailTabs.viewProcessDiagram', undefined, '查看完整流程图')}
             </Button>
           }
         >
           <Space orientation="vertical" size={8} className="w-full">
             <div>
               <Text type="secondary" className="text-xs">
-                {t('detailTabs.bpmnCurrentNode') || '当前节点'}
+                {t('detailTabs.bpmnCurrentNode', undefined, '当前节点')}
               </Text>
               <div className="flex items-center gap-2 mt-1">
                 <Tag
-                  color={bpmnTypeColors[bpmnState.currentActivityType || ''] || 'blue'}
+                  color={bpmnActivityTypeColor(bpmnState.currentActivityType)}
                   className="mr-0"
                 >
                   {bpmnActivityTypeName(bpmnState.currentActivityType)}
@@ -381,7 +376,7 @@ export const ApprovalWorkflowPanel: React.FC<ApprovalWorkflowPanelProps> = ({
               {bpmnState.currentAssignees && bpmnState.currentAssignees.length > 0 && (
                 <Space size={4} className="mt-2" wrap>
                   <Text type="secondary" className="text-xs">
-                    {t('detailTabs.approverLabel') || '处理人'}
+                    {t('detailTabs.approverLabel', undefined, '处理人')}
                   </Text>
                   {bpmnState.currentAssignees.map((u) => (
                     <Tooltip key={u.id} title={u.fullName || u.username}>
@@ -396,14 +391,14 @@ export const ApprovalWorkflowPanel: React.FC<ApprovalWorkflowPanelProps> = ({
             {bpmnState.nextActivities && bpmnState.nextActivities.length > 0 && (
               <div>
                 <Text type="secondary" className="text-xs">
-                  {t('common.next') || '下一步'}
+                  {t('common.next', undefined, '下一步')}
                 </Text>
                 <Space orientation="vertical" size={4} className="mt-1 w-full">
                   {bpmnState.nextActivities.map((nx: NextActivityInfo, idx: number) => (
                     <Space key={nx.activityId} size={6} className="text-xs">
                       <ArrowRight size={12} className="text-gray-400" />
                       <Tag
-                        color={bpmnTypeColors[nx.activityType] || 'blue'}
+                        color={bpmnActivityTypeColor(nx.activityType)}
                         className="mr-0"
                       >
                         {bpmnActivityTypeName(nx.activityType)}
@@ -411,7 +406,7 @@ export const ApprovalWorkflowPanel: React.FC<ApprovalWorkflowPanelProps> = ({
                       <Text>{bpmnActivityDisplayName(nx.activityName, runningStep + idx + 1)}</Text>
                       {nx.isGateway && (
                         <Tag color="orange" className="ml-1">
-                          {t('detailTabs.bpmnIsGateway') || '网关分支'}
+                          {t('detailTabs.bpmnIsGateway', undefined, '网关分支')}
                         </Tag>
                       )}
                     </Space>
@@ -431,7 +426,7 @@ export const ApprovalWorkflowPanel: React.FC<ApprovalWorkflowPanelProps> = ({
           message={
             <Text>
               <Tag color="success" className="mr-2">
-                {t('detailTabs.approvalStatusApproved') || '流程已完成'}
+                {t('detailTabs.approvalStatusApproved', undefined, '流程已完成')}
               </Tag>
               {bpmnState.processDefinitionName || bpmnState.processDefinitionKey}
             </Text>
@@ -443,7 +438,7 @@ export const ApprovalWorkflowPanel: React.FC<ApprovalWorkflowPanelProps> = ({
               icon={<ExternalLink size={12} />}
               onClick={() => openProcessDiagramUrl(bpmnState.processInstanceId)}
             >
-              {t('detailTabs.viewProcessDiagram') || '查看完整流程图'}
+              {t('detailTabs.viewProcessDiagram', undefined, '查看完整流程图')}
             </Button>
           }
         />
@@ -454,7 +449,7 @@ export const ApprovalWorkflowPanel: React.FC<ApprovalWorkflowPanelProps> = ({
           type="error"
           showIcon
           icon={<CircleAlert size={16} />}
-          message={t('detailTabs.approvalStatusRejected') || '流程已终止'}
+          message={t('detailTabs.approvalStatusRejected', undefined, '流程已终止')}
         />
       )}
 
@@ -463,8 +458,7 @@ export const ApprovalWorkflowPanel: React.FC<ApprovalWorkflowPanelProps> = ({
           type="info"
           showIcon
           message={
-            t('detailTabs.workflowNotMatched') ||
-            '该工单未绑定 BPMN 流程，使用简化审批模式。'
+            t('detailTabs.workflowNotMatched', undefined, '该工单未绑定 BPMN 流程，使用简化审批模式。')
           }
           className="text-xs"
         />
@@ -557,8 +551,24 @@ export const ApprovalWorkflowPanel: React.FC<ApprovalWorkflowPanelProps> = ({
         />
       )}
 
-      {!hasRecords && !hasWorkflowMeta && (
+      {/* N7：只有确认「无待办审批」时才说"未走审批流程"。
+          若审批记录里确实有待办任务、只是流程元数据缺失，改为说明元数据缺失，
+          避免与顶部"您是此工单的申请人，无法进行审批操作"自相矛盾。 */}
+      {!hasRecords && !hasWorkflowMeta && hasPendingApproval !== true && (
         <Empty description={t('detailTabs.noApprovalWorkflow')} />
+      )}
+
+      {!hasRecords && !hasWorkflowMeta && hasPendingApproval === true && (
+        <Alert
+          type="warning"
+          showIcon
+          message={t(
+            'detailTabs.approvalWorkflowMetaMissing',
+            undefined,
+            '该工单存在待办审批，但审批流程定义缺失，请联系管理员核对流程绑定',
+          )}
+          className="text-xs"
+        />
       )}
 
       {hasRecords && (

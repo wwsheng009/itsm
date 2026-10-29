@@ -61,6 +61,10 @@ export const ROLE_LABEL_MAP: Record<string, string> = {
   msp_tech: '服务商技术员',
   msp_viewer: '服务商观察员',
   msp_admin: '服务商管理员',
+  msp_specialist: '服务商专员',
+  msp_engineer: '服务商工程师',
+  msp_delivery: '服务商交付专员',
+  msp_support: '服务商支持工程师',
   // 通用岗位
   specialist: '专员',
   security: '安全人员',
@@ -142,6 +146,8 @@ export interface User {
   roleIds?: number[];
   /** RBAC 多角色名称（仅展示用） */
   roleNames?: string[];
+  /** MSP 身份角色（provider_admin / msp_specialist 等；客户账号为空）。 */
+  mspRole?: string | null;
   createdAt: string;
   updatedAt: string;
   /** Q2=B / MSW-2：客户侧成员列表的服务方成员标记（provider + readOnly=true）。 */
