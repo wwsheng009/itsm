@@ -133,3 +133,61 @@ func TestIdempotencyMiddlewareSkipsMultipart(t *testing.T) {
 	require.Equal(t, 1, calls)
 	require.NoError(t, mock.ExpectationsWereMet(), "multipart 上传不应触发幂等 SQL")
 }
+
+func TestIdempotencyMiddlewareDoesNotCacheSetCookieResponses(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	require.NoError(t, err)
+	defer db.Close()
+
+	router := newIdempotencyTestRouter(db, func(c *gin.Context) {
+		c.SetCookie("access_token", "rotated", 3600, "/", "", false, true)
+		c.JSON(http.StatusOK, gin.H{"code": 0, "data": gin.H{"switched": true}})
+	})
+
+	body := []byte(`{"tenantId":9}`)
+	mock.ExpectQuery("INSERT INTO http_idempotency_records").
+		WithArgs(1, 2, http.MethodPost, "/items", "k1", sqlmock.AnyArg(), sqlmock.AnyArg()).
+		WillReturnRows(sqlmock.NewRows([]string{"id"}).AddRow(1))
+	mock.ExpectExec("DELETE FROM http_idempotency_records").
+		WithArgs(1).
+		WillReturnResult(sqlmock.NewResult(0, 1))
+
+	recorder := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodPost, "/items", bytes.NewReader(body))
+	req.Header.Set(IdempotencyKeyHeader, "k1")
+	req.Header.Set("Content-Type", "application/json")
+	router.ServeHTTP(recorder, req)
+
+	require.Equal(t, http.StatusOK, recorder.Code)
+	require.NotEmpty(t, recorder.Header().Values("Set-Cookie"))
+	require.NoError(t, mock.ExpectationsWereMet(), "Set-Cookie 响应不得写入幂等缓存")
+}
+
+func TestIdempotencyMiddlewareSkipsAuthRoutes(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	require.NoError(t, err)
+	defer db.Close()
+
+	calls := 0
+	router := gin.New()
+	router.Use(func(c *gin.Context) {
+		c.Set("tenant_id", 1)
+		c.Set("user_id", 2)
+		c.Next()
+	})
+	router.Use(IdempotencyMiddleware(db, zap.NewNop().Sugar()))
+	router.POST("/api/v1/auth/switch-tenant", func(c *gin.Context) {
+		calls++
+		c.Status(http.StatusOK)
+	})
+
+	recorder := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/auth/switch-tenant", bytes.NewReader([]byte(`{}`)))
+	req.Header.Set(IdempotencyKeyHeader, "k1")
+	req.Header.Set("Content-Type", "application/json")
+	router.ServeHTTP(recorder, req)
+
+	require.Equal(t, http.StatusOK, recorder.Code)
+	require.Equal(t, 1, calls)
+	require.NoError(t, mock.ExpectationsWereMet(), "认证/会话端点不得进入幂等 SQL")
+}

@@ -194,6 +194,14 @@ func (s *IdempotencyStore) executeAndPersist(c *gin.Context, logger *zap.Sugared
 	if status < 100 {
 		status = http.StatusOK
 	}
+	// 认证/会话类响应可能携带 Set-Cookie；重放 body 但不重放 Cookie 会造成
+	// 「客户端以为已切换租户/已刷新会话」的假成功，因此不缓存此类响应。
+	if len(writer.Header().Values("Set-Cookie")) > 0 {
+		if err := s.deleteByID(c.Request.Context(), recordID); err != nil {
+			logger.Warnw("释放带 Set-Cookie 的幂等占位失败", "record_id", recordID, "error", err)
+		}
+		return
+	}
 	if status < 200 || status >= 300 || writer.tooLarge {
 		if err := s.deleteByID(c.Request.Context(), recordID); err != nil {
 			logger.Warnw("释放未缓存的幂等占位失败", "record_id", recordID, "error", err)
@@ -262,6 +270,10 @@ func (s *IdempotencyStore) deleteByID(ctx context.Context, id int64) error {
 // idempotencyEligible 判断请求是否需要幂等保护。
 func idempotencyEligible(r *http.Request) bool {
 	if r == nil {
+		return false
+	}
+	// 会话/认证端点不做结果重放：它们依赖 Cookie/CSRF 等响应副作用。
+	if strings.HasPrefix(r.URL.Path, "/api/v1/auth/") {
 		return false
 	}
 	switch r.Method {
