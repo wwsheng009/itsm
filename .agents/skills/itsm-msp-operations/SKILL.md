@@ -9,22 +9,30 @@ description: 通过 ITSM REST API 操作 MSP 托管服务商跨租户能力（�
 
 ## 脚本工具（scripts/itsm_msp.py）
 
-零依赖 Python 3 CLI，公共层复用 `../_lib/itsm_common.py`（44 子命令）：
+零依赖 Python 3 CLI，公共层复用 `../_lib/itsm_common.py`。**首次配置用 `setup`**（一次性写入部署地址与凭据到 `~/.itsm/config.json` / `~/.itsm/itsm.token`，权限收紧、掩码回显），之后命令自动读取、无需 `--base/--token-file`；**localhost 只是脚本兜底，不是部署默认**（解析优先级：`--base` > `ITSM_BASE_URL` > 配置 > 兜底）。**47 个子命令**：
 
 ```bash
-B=http://172.18.3.238:8089/api/v1
-TOKEN="$HOME/.itsm/itsm.token"
-python scripts/itsm_msp.py login --base $B --username <MSP_USER> --password 'YOUR_PASSWORD' --save "$TOKEN"
-python scripts/itsm_msp.py --base $B --token-file "$TOKEN" status
-python scripts/itsm_msp.py --base $B --token-file "$TOKEN" customers
-python scripts/itsm_msp.py --base $B --token-file "$TOKEN" workbench-summary
-python scripts/itsm_msp.py --base $B --token-file "$TOKEN" workbench-tickets --status open --customer-id 3
-python scripts/itsm_msp.py --base $B --token-file "$TOKEN" ticket-reply 63 --content 'MSP 侧处理说明'
-python scripts/itsm_msp.py --base $B --token-file "$TOKEN" reports-performance
-python scripts/itsm_msp.py --base $B --token-file "$TOKEN" audit-summary
+BASE=https://itsm.example.com/api/v1     # ← 换成部署地址（含 /api/v1；内部 demo http://172.18.3.238:8089/api/v1）
+# A) PAT（推荐，个人中心→安全设置创建）——管道传入，不进 argv/shell 历史：
+cat pat.txt | python scripts/itsm_msp.py setup --base $BASE --token-stdin
+# B) 或账号换 JWT（15 分钟过期；口令走环境变量或交互式隐藏输入，勿明文写命令行）：
+ITSM_USERNAME=<MSP_USER> ITSM_PASSWORD='***' python scripts/itsm_msp.py setup --base $BASE --from-env
+
+python scripts/itsm_msp.py config     # 自检：生效地址/凭据来源/连通性/身份（不回显明文）
+
+# 之后所有命令自动读取配置（无需 --base/--token-file）：
+python scripts/itsm_msp.py status
+python scripts/itsm_msp.py customers
+python scripts/itsm_msp.py workbench-summary
+python scripts/itsm_msp.py workbench-tickets --status open --customer-id 3
+python scripts/itsm_msp.py ticket-reply 63 --content 'MSP 侧处理说明'
+python scripts/itsm_msp.py reports-performance
+python scripts/itsm_msp.py audit-summary
 ```
 
-子命令分组：status/context ｜ allocations（list/history/create/deallocate）｜ customers（list/tickets/roles/建号-未封装 curl 口径）｜ workflow-templates+distribute ｜ ticket-types 下发链（distributions/distribute/preview/publish/unbind，D-TT-1）｜ workbench（tickets/summary/ticket-get/comments/assign/reply/status/batch≤100/views+default）｜ tasks（list/claim/complete）｜ changes/problems/service-requests（list/get/status）｜ reports-customers/reports-performance/audit-summary。
+Windows PowerShell 等价：`$B = 'https://itsm.example.com/api/v1'; Get-Content pat.txt | python scripts/itsm_msp.py setup --base $B --token-stdin`；token 落盘 `$HOME\.itsm\itsm.token`（自动读取）。
+
+子命令分组：setup/config ｜ status/context ｜ allocations（list/history/create/deallocate）｜ customers（list/tickets/roles/建号-未封装 curl 口径）｜ workflow-templates+distribute ｜ ticket-types 下发链（distributions/distribute/preview/publish/unbind，D-TT-1）｜ workbench（tickets/summary/ticket-get/comments/assign/reply/status/batch≤100/views+default）｜ tasks（list/claim/complete）｜ changes/problems/service-requests（list/get/status）｜ reports-customers/reports-performance/audit-summary。
 
 ## 核心流程：工单类型受控下发（D-TT-1）
 

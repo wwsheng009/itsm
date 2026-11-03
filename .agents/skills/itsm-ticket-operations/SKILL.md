@@ -13,39 +13,42 @@ description: 通过 ITSM REST API 操作工单业务单据（创建工单/查询
 
 零依赖 Python 3 CLI（仅标准库，跨平台；bash / PowerShell / cmd 均可调用），已把「cookie 取 JWT、Bearer、409 读-改-写重试、multipart 上传、formFields 提示」等易错逻辑固化。外部调用方/自动化优先用它，不要每次重写 curl。
 
-**环境选择**：默认 base 为本地 `http://localhost:8090/api/v1`；本地未启动时直接用 238 demo `http://172.18.3.238:8089/api/v1`（先探测 `<BASE>/health`）。
-
-**Token 存放**：统一放用户主目录——bash `"$HOME/.itsm/itsm.token"`、PowerShell `"$HOME\.itsm\itsm.token"`；**不要放仓库目录**（明文凭据，`.gitignore` 仅兜底）。`login --save` 省略路径时默认写 `~/.itsm/itsm.token`，自动创建父目录（POSIX 下 chmod 600），且 stdout 只回显掩码 token。
+**首次配置（setup）**：一次性把**部署地址**与凭据写入 `~/.itsm/config.json` / `~/.itsm/itsm.token`（token 落盘权限收紧、stdout 掩码回显）；之后所有命令自动读取，无需再带 `--base/--token-file`。地址解析优先级：`--base` > `ITSM_BASE_URL` > 配置 > 内置兜底——**localhost 只是开发兜底，不是部署默认**。凭据安全口径：**PAT 优先**（个人中心→安全设置创建，有效期长）；口令/PAT 走 stdin 管道或交互式隐藏输入，**不要写进命令行参数**（会进 shell 历史/进程列表）；token 文件放用户主目录（bash `"$HOME/.itsm/itsm.token"`、PowerShell `"$HOME\.itsm\itsm.token"`），**不要放仓库目录**（明文凭据，`.gitignore` 仅兜底）。
 
 ```bash
-B=http://172.18.3.238:8089/api/v1
-TOKEN="$HOME/.itsm/itsm.token"
-# 1) 登录换 JWT（token 只从 Set-Cookie 取，响应体不含；--save 省略路径默认写 ~/.itsm/itsm.token）
-python scripts/itsm_ticket.py login --base $B --username demo.mfg.admin --password 'Demo@2026!' --save "$TOKEN"
-# 2) 后续命令统一 --token-file（或 --token/ITSM_TOKEN/ITSM_PAT）
-#    自定义类型先查必填字段 key（--show-fields 输出已去重，--brief 再精简）
-python scripts/itsm_ticket.py --base $B --token-file "$TOKEN" types --show-fields --brief
-python scripts/itsm_ticket.py --base $B --token-file "$TOKEN" create --title '打印机故障' --priority high --ticket-type-id 13 --form-field symptom=队列卡住   # 返回 id=61（示例）
-python scripts/itsm_ticket.py --base $B --token-file "$TOKEN" comment 61 --content '已受理，排查中'
-python scripts/itsm_ticket.py --base $B --token-file "$TOKEN" update 61 --title '打印机故障（处理中）'   # 409 自动重试
-python scripts/itsm_ticket.py --base $B --token-file "$TOKEN" resolve 61 --resolution '重建队列'
-python scripts/itsm_ticket.py --base $B --token-file "$TOKEN" close 61 --reason '用户确认恢复'
+BASE=https://itsm.example.com/api/v1     # ← 换成部署地址（含 /api/v1；内部 demo http://172.18.3.238:8089/api/v1）
+# A) PAT（推荐）——管道传入，不进 argv/shell 历史：
+cat pat.txt | python scripts/itsm_ticket.py setup --base $BASE --token-stdin
+# B) 或账号换 JWT（15 分钟过期；口令走环境变量或交互式隐藏输入，勿明文写命令行）：
+ITSM_USERNAME=you ITSM_PASSWORD='***' python scripts/itsm_ticket.py setup --base $BASE --from-env
+
+python scripts/itsm_ticket.py config     # 自检：生效地址/凭据来源/连通性/身份（不回显明文）
+
+# 之后所有命令自动读取配置，无需 --base/--token-file：
+#   自定义类型先查必填字段 key（--show-fields 输出已去重，--brief 再精简）
+python scripts/itsm_ticket.py types --show-fields --brief
+python scripts/itsm_ticket.py create --title '打印机故障' --priority high --ticket-type-id 13 --form-field symptom=队列卡住   # 返回 id=61（示例）
+python scripts/itsm_ticket.py comment 61 --content '已受理，排查中'
+python scripts/itsm_ticket.py update 61 --title '打印机故障（处理中）'   # 409 自动重试
+python scripts/itsm_ticket.py resolve 61 --resolution '重建队列'
+python scripts/itsm_ticket.py close 61 --reason '用户确认恢复'
 ```
 
-Windows PowerShell（等价写法；续行用反引号，token 用 Windows 路径）：
+Windows PowerShell（等价；PAT 管道同样适用，token 落盘 `$HOME\.itsm\itsm.token`，续行用反引号）：
 
 ```powershell
-$B = 'http://172.18.3.238:8089/api/v1'
-$Token = "$HOME\.itsm\itsm.token"
-python scripts/itsm_ticket.py login --base $B --username demo.mfg.admin --password 'Demo@2026!' --save $Token
-python scripts/itsm_ticket.py --base $B --token-file $Token types --show-fields --brief
-python scripts/itsm_ticket.py --base $B --token-file $Token create --title '服务器环境检查与磁盘空间清理协助' --priority medium --ticket-type-id 13 `
+$B = 'https://itsm.example.com/api/v1'   # 部署地址（含 /api/v1）
+Get-Content pat.txt | python scripts/itsm_ticket.py setup --base $B --token-stdin
+python scripts/itsm_ticket.py config
+python scripts/itsm_ticket.py create --title '服务器环境检查与磁盘空间清理协助' --priority medium --ticket-type-id 13 `
   --description '需求：协助检查服务器环境并清理磁盘空间。' `
   --form-field 'symptom=磁盘空间不足，需协助检查并清理'
-python scripts/itsm_ticket.py --base $B --token-file $Token get TKT-202610-000062 --compact
+python scripts/itsm_ticket.py get TKT-202610-000062 --compact
 ```
 
-- `python scripts/itsm_ticket.py --help`：20 个子命令（login/me/types/create/get/list/search/stats/comment/status/update/assign/resolve/close/escalate/history/sla/attachment-list/attachment-upload/comment-attachment-upload）
+临时覆盖/CI：可用 `--base` / `ITSM_BASE_URL`、`--token-file` / `--token` / `ITSM_TOKEN`·`ITSM_PAT` 单次指定，不依赖配置文件。
+
+- `python scripts/itsm_ticket.py --help`：22 个子命令（setup/config/login/me/types/create/get/list/search/stats/comment/status/update/assign/resolve/close/escalate/history/sla/attachment-list/attachment-upload/comment-attachment-upload）
 - 成功 JSON 到 stdout；错误 JSON 到 stderr（含 http/code/reasonCode/hint），退出码 1（参数错误 2）；`--compact` 输出紧凑 JSON
 - 全局参数 `--base/--token/--token-file/--timeout/--compact` 放在子命令前后均可
 - `update` 默认读-改-写、遇 409 自动重试一次；显式 `--version N` 时保留 409 语义不做重试
@@ -64,7 +67,7 @@ python scripts/itsm_ticket.py --base $B --token-file $Token get TKT-202610-00006
 ## 常用操作速查
 
 ```bash
-BASE=http://localhost:8090/api/v1; PAT="Authorization: Bearer itsm_pat_xxx"
+BASE=https://itsm.example.com/api/v1; PAT="Authorization: Bearer itsm_pat_xxx"   # BASE 换成部署地址（含 /api/v1）
 # 列表（分页 + 过滤）
 curl -H "$PAT" "$BASE/tickets?page=1&pageSize=20&status=open&priority=high&assigneeId=9&dateFrom=2026-01-01T00:00:00Z"
 # 关键字搜索（注意参数是 q）

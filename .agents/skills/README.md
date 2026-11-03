@@ -6,14 +6,16 @@
 
 | Skill | 覆盖域 | 脚本 | 状态 |
 |---|---|---|---|
-| itsm-ticket-operations | 工单 CRUD / 状态机 / 评论 / 附件 / SLA 查询 | itsm_ticket.py（20 子命令） | 维护中（2026-10-17 加固 token 落盘/掩码、types 去重、create 补参+--dry-run） |
-| itsm-knowledge-operations | 知识库 CRUD / 发布 / 版本 / 检索 / 分类可见性 | itsm_kb.py（22 子命令） | 维护中（2026-10-17 同款加固 + GAPS 9/10 登记） |
-| itsm-cmdb-operations | CMDB CI / 类型 / 关系 / 视图 / 本体 / 发现健康 / 对账 | itsm_cmdb.py（56 子命令，读+写核心+导入导出/云/发现） | 维护中（P0，2026-10-17；238 实测） |
-| itsm-change-operations | 变更 CRUD / 分类型状态机流转 / 审批 / 风险 / PIR / 日历 / CAB | itsm_change.py（33 子命令） | 维护中（P0，2026-10-17；238 全生命周期实测） |
-| itsm-sla-operations | SLA 定义 / 监控 / 指标 / 违约处置 / 绩效 / 合规 / MSP 子面直通 | itsm_sla.py（25 子命令） | 维护中（P1，2026-10-17；238 实测） |
-| itsm-problem-operations | 问题 CRUD / 调查/根因/方案/关闭 / 关联 / 统计趋势热点 | itsm_problem.py（19 子命令） | 维护中（P1，2026-10-17；238 全生命周期实测） |
-| itsm-msp-operations | MSP 跨租户：分配 / 客户 / 类型下发 / 工作台全族 / 报表 / 审计 | itsm_msp.py（44 子命令） | 维护中（P1，2026-10-17；238 以 demo.msp.manager 实测，非 MSP 403 门禁同验） |
-| itsm-service-request-operations | 服务请求 CRUD / 多级审批链 / 开通任务 / 服务目录读面 | itsm_service_request.py（18 子命令，写面归 msp） | 维护中（P2，2026-10-17；238 全链实测） |
+| itsm-ticket-operations | 工单 CRUD / 状态机 / 评论 / 附件 / SLA 查询 | itsm_ticket.py（22 子命令） | 维护中（2026-10-17 加固 token 落盘/掩码、types 去重、create 补参+--dry-run） |
+| itsm-knowledge-operations | 知识库 CRUD / 发布 / 版本 / 检索 / 分类可见性 | itsm_kb.py（24 子命令） | 维护中（2026-10-17 同款加固 + GAPS 9/10 登记） |
+| itsm-cmdb-operations | CMDB CI / 类型 / 关系 / 视图 / 本体 / 发现健康 / 对账 | itsm_cmdb.py（57 子命令，读+写核心+导入导出/云/发现） | 维护中（P0，2026-10-17；238 实测） |
+| itsm-change-operations | 变更 CRUD / 分类型状态机流转 / 审批 / 风险 / PIR / 日历 / CAB | itsm_change.py（35 子命令） | 维护中（P0，2026-10-17；238 全生命周期实测） |
+| itsm-sla-operations | SLA 定义 / 监控 / 指标 / 违约处置 / 绩效 / 合规 / MSP 子面直通 | itsm_sla.py（27 子命令） | 维护中（P1，2026-10-17；238 实测） |
+| itsm-problem-operations | 问题 CRUD / 调查/根因/方案/关闭 / 关联 / 统计趋势热点 | itsm_problem.py（21 子命令） | 维护中（P1，2026-10-17；238 全生命周期实测） |
+| itsm-msp-operations | MSP 跨租户：分配 / 客户 / 类型下发 / 工作台全族 / 报表 / 审计 | itsm_msp.py（47 子命令） | 维护中（P1，2026-10-17；238 以 demo.msp.manager 实测，非 MSP 403 门禁同验） |
+| itsm-service-request-operations | 服务请求 CRUD / 多级审批链 / 开通任务 / 服务目录读面 | itsm_service_request.py（23 子命令，写面归 msp） | 维护中（P2，2026-10-17；238 全链实测） |
+
+> 全部脚本含 `setup`（首次配置：部署地址 + 凭据安全落盘）与 `config`（自检）子命令（2026-10-19 全量接入）；地址/凭据解析与安全口径见 §4.8。
 
 > 部署知识已降级为 `.dev/deploy/README.md` runbook（2026-10-17 治理决策：纯文档型 skill 按 §4.5 并入脚本同目录，腾位给业务域；内容零丢失）。
 
@@ -22,16 +24,16 @@
 | 优先级 | 候选 Skill | 路由面（router/*.go 实测） | 理由 / 备注 |
 |---|---|---|---|
 | **P0**（✅ 已建 2026-10-17） | itsm-cmdb-operations | cmdb_routes 106 | 读面全量 20 + 写面核心 13 子命令；GAPS 见其 references §4 |
-| **P0**（✅ 已建 2026-10-17） | itsm-change-operations | change 35 + cab 4 + approval_chain 6 | 33 子命令；分类型状态机 + 审批双校验，全链 238 实测通过 |
-| P1（✅ 已建 2026-10-17） | itsm-sla-operations | sla 39 | 25 子命令；违约处置权限分离（disputed vs settle）实测 |
-| P1（✅ 已建 2026-10-17） | itsm-msp-operations | msp 45 | 44 子命令；MSPMiddleware 门禁与双层授权链实测（demo.msp.manager） |
-| P1（✅ 已建 2026-10-17） | itsm-problem-operations | problem 24 | 19 子命令；状态机 409 守卫与全生命周期实测 |
+| **P0**（✅ 已建 2026-10-17） | itsm-change-operations | change 35 + cab 4 + approval_chain 6 | 35 子命令；分类型状态机 + 审批双校验，全链 238 实测通过 |
+| P1（✅ 已建 2026-10-17） | itsm-sla-operations | sla 39 | 27 子命令；违约处置权限分离（disputed vs settle）实测 |
+| P1（✅ 已建 2026-10-17） | itsm-msp-operations | msp 45 | 47 子命令；MSPMiddleware 门禁与双层授权链实测（demo.msp.manager） |
+| P1（✅ 已建 2026-10-17） | itsm-problem-operations | problem 24 | 21 子命令；状态机 409 守卫与全生命周期实测 |
 | P3 | itsm-incident-operations | incident 47 | 见 §7 边界结论：监控驱动场景，复用低频；先不做 |
-| P2（✅ 已建 2026-10-17） | itsm-service-request-operations | service_request 20 + service_catalog 10 | 21 子命令；多级审批链（正交于运营状态机）+ provisioning 任务；**腾位决策**：cloud 并入 itsm-cmdb-operations 长尾（§5，不单独建）；总数 9 超 §4.6 上限 → 治理备注见下 |
+| P2（✅ 已建 2026-10-17） | itsm-service-request-operations | service_request 20 + service_catalog 10 | 23 子命令；多级审批链（正交于运营状态机）+ provisioning 任务；**腾位决策**：cloud 并入 itsm-cmdb-operations 长尾（§5，不单独建）；总数 9 超 §4.6 上限 → 治理备注见下 |
 | P2（产品功能） | **skills 分发与安装**（资源中心页） | —（非 skill） | 见 §6：Phase 1 仓库打包 → Phase 2 ITSM 内建资源页（API+前端）→ Phase 3 签名/自更新 |
 | 不做 | — | bot 9 / connector 8 / survey 7 / audit 2 / alert 1 / vendor 4 | 长尾低频：按需并入相近域或临时 curl，不占 skill 名额 |
 
-**明确不做**：PAT 管理面（AC-39 防自我繁殖：PAT 身份无权管理 PAT，仅浏览器会话）；登录/auth 公共底座（已内嵌各脚本）。
+**明确不做**：PAT 管理面（AC-39 防自我繁殖：PAT 身份无权管理 PAT，仅浏览器会话）；登录/auth 公共底座（已收敛 `_lib/itsm_common.py`：resolve_base / resolve_token、setup/config、login、错误/输出封装）。
 
 ## 3. 准入门槛（全部满足才建新 skill）
 
@@ -49,6 +51,7 @@
 5. **组合任务**：跨域流程（如 环境检查→建单→知识沉淀）写 runbook 文档引用多个 skill，**不为流程单开 skill**。
 6. **数量上限**：常驻 skill ≤8；超出先合并。
 7. **定期收敛**：每季度按使用频次复盘；连续两个周期未使用且 `usageCount=0` 的 skill 归档（移出本目录，git 历史保留）。
+8. **地址与凭据（部署一致性 + 安全引导）**：脚本地址解析优先级 `--base` > `ITSM_BASE_URL` > `~/.itsm/config.json` > 内置 dev 兜底——**localhost 仅开发兜底，禁止作为部署默认或文档示例默认**；首次配置统一走 `setup`（验证 `/health` 与身份后再落盘）、自检走 `config`；配置路径可用 `ITSM_CONFIG_FILE` 覆盖。凭据解析：`--token` > `ITSM_TOKEN`/`ITSM_PAT` > `--token-file` > config.tokenFile > `~/.itsm/itsm.token`（存在才自动用）；口令优先 `--password-stdin`/`--token-stdin`/`--from-env` 或交互式隐藏输入（**交互限时** `ITSM_PROMPT_TIMEOUT` 默认 60s，防 agent/CI 无输入源时永久阻塞），**明文一律不进 argv**。落盘卫生：POSIX chmod 600 / Windows icacls 尽力（`ITSM_SKIP_TOKEN_ACL=1` 可关）、stdout 掩码、仓库目录告警；缺凭据/缺地址/连不通/401 错误 JSON 均带 `hint`（含 setup 示例与 JWT 过期提示）。
 
 ## 5. 近期待办（2026-10-17）
 
@@ -60,6 +63,7 @@
 - [x] CMDB 长尾：导入导出任务 / 云资源三件套 / 发现任务封装（2026-10-17 完成，itsm_cmdb.py 33→56 子命令；238 实测 export 任务制+云面；GAPS-6 云发现未配置返回 null）
 - [x] P2：itsm-service-request-operations（2026-10-17 完成，21 子命令，238 全链实测）；**cloud 并入 cmdb 长尾**（云资源/发现已在 itsm_cmdb.py，不单独建 itsm-cloud-operations）；**release 维持 itsm-deploy 承接**（业务发布面暂无独立自动化诉求，P3 观察项）
 - [x] **治理动作（2026-10-17 执行）**：itsm-deploy 纯文档 skill 按 §4.5 降级为 `.dev/deploy/README.md` runbook（环境清单/核心流程/P1-P10 陷阱全量迁移，内容零丢失）；技能数 9→**8**（≤ §4.6 上限）；决策分析留痕 `.dev/deploy/GOVERNANCE-NOTE-20261017.md`
+- [x] **地址/凭据引导加固（2026-10-19）**：`_lib` 新增 `resolve_base`/`resolve_token_with_source`/`setup`/`config` 与 EOF 安全限时交互（`ITSM_PROMPT_TIMEOUT`）；8 脚本全量接入（子命令 +setup/config）；SKILL.md 全部改为 setup 优先（清理 localhost 部署默认与明文口令示例）；安装器加首次配置引导
 
 ## 6. 分发与安装（skills 打包下发）
 
@@ -79,7 +83,7 @@
 
 | Phase | 内容 | 产物 |
 |---|---|---|
-| **P1 仓库即分发**（✅ 已实施 2026-10-17） | `scripts/package-skills.ps1` 产出 `dist/skills/`：每 skill 一个 zip（内嵌 `_lib/`）+ 全量 bundle + `manifest.json`（name/version=日期.commit/description/sha256/sizeBytes/sourceCommit）+ 零依赖安装器；示例口令打包时自动脱敏（`Demo@2026!`→`YOUR_PASSWORD`，仅包内）；`scripts/itsm-skills-install.py`：sha256 校验（防 zip-slip）→ 宿主映射（claude/codex/project）→ 幂等覆盖 → `.skills-installed.json` 登记。**E2E 已验证**：安装态 `_lib` 双布局自定位（开发态 skills 根 / 分发态技能内嵌）、篡改包被拦截、5 技能安装后真实 API 调用通过 | `dist/skills/*`（构建产物，gitignored） |
+| **P1 仓库即分发**（✅ 已实施 2026-10-17） | `scripts/package-skills.ps1` 产出 `dist/skills/`：每 skill 一个 zip（内嵌 `_lib/`）+ 全量 bundle + `manifest.json`（name/version=日期.commit/description/sha256/sizeBytes/sourceCommit）+ 零依赖安装器；示例口令打包时自动脱敏（demo 环境口令→`YOUR_PASSWORD`，仅包内）；`scripts/itsm-skills-install.py`：sha256 校验（防 zip-slip）→ 宿主映射（claude/codex/project）→ 幂等覆盖 → `.skills-installed.json` 登记。**E2E 已验证**：安装态 `_lib` 双布局自定位（开发态 skills 根 / 分发态技能内嵌）、篡改包被拦截、5 技能安装后真实 API 调用通过 | `dist/skills/*`（构建产物，gitignored） |
 | **P2 ITSM 内建资源中心页**（✅ 已实施 2026-10-17） | 后端：`router/skills_routes.go`——`GET /api/v1/skills/registry`（manifest 直通；`SKILLS_DIST_DIR` 未配置时返回 `configured:false` 降级）、`GET /skills/installer`、`GET /skills/:name/download`（**仅 manifest 登记文件可下发**，bundle 走 `bundle/download`；路径清洗+大小上限+X-SHA256 响应头；public+auth 双挂载）；菜单种子「资源中心」/skills（登录即可，分发面无租户数据）。前端：`/skills` 页——分发元信息卡、宿主 Tab（Claude Code/Codex/项目级）三步安装指导 + 复制、技能卡片（版本/sha256/大小/下载/单技能安装命令）。**验证**：后端 `go test ./router -run TestSkills` 4 用例 + seeder 回归 ✅；前端 `tsc --noEmit` + `vite build` ✅。部署侧仅需：CI 产物挂载到 `SKILLS_DIST_DIR` | 后端 skills 路由 + seeder 菜单 + 前端 `/skills` 页 |
 | **P3 安装器版本治理**（✅ 已实施 2026-10-17） | `itsm-skills-install.py` 增强：`--check`（dry-run 对比已装 vs manifest，up-to-date/update-available）、`--verify`（安装态完整性：registry `contentSha256` vs 目录重算，检出本地改动）、`--name name@version` **版本锁定**（不匹配拒绝安装）、升级/回滚**自动快照**（`.skills-backup/<name>-<version>-<ts>.zip`，版本串清洗 Windows 非法字符）、`--rollback <name>`（最近备份恢复 + 回滚前再快照 + registry 登记 `rolled-back:*`）；bundle 覆盖同样走备份；stdout 容错（管道截断不误报失败）。**E2E 全绿**：pin 命中/拒绝、check 表、verify 检出篡改、备份→回滚→重装愈合。**签名（minisign/cosign）暂缓**：当前分发面为受信内网 + manifest sha256 锁；引入扩展点=安装器 `--require-sig` + manifest 增加 `sig` 字段，待对外分发时启动 | 安装器 v2（单文件）+ README 本行 |
 
@@ -93,7 +97,7 @@ curl -fsSL <BASE>/skills/manifest.json -o manifest.json
 python itsm-skills-install.py --manifest manifest.json --name itsm-ticket-operations --host codex   # host: claude|codex|project
 ```
 
-安装器职责：sha256 校验 → 按宿主映射解压 → 幂等（重装覆盖 + 版本登记）→ 输出后续验证命令（如 `itsm_ticket.py --help`）。
+安装器职责：sha256 校验 → 按宿主映射解压 → 幂等（重装覆盖 + 版本登记）→ 输出后续验证命令（如 `itsm_ticket.py --help`）与**首次配置引导**（`setup`：部署地址 + PAT/账号凭据安全落盘）。
 
 > 注：本节是**产品功能规划**，按 §4.5 不新增 skill；Phase 1 属 skill 体系工具链（仓库内脚本），Phase 2 走产品需求（后端路由 + 前端页面）。
 

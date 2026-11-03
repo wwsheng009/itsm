@@ -6,7 +6,7 @@
 #   - itsm-skills-install.py  零依赖安装器（从 scripts/ 拷入 dist 一起分发）
 # 幂等：重复运行覆盖重建。示例口令脱敏（Demo@2026! → YOUR_PASSWORD）仅作用于包内文件，不改动仓库源。
 param(
-    [string]$RepoRoot = (Resolve-Path "$PSScriptRoot\..\..").Path,
+    [string]$RepoRoot = (Resolve-Path "$PSScriptRoot\..").Path,
     [string]$OutDir = ""
 )
 
@@ -111,6 +111,7 @@ Get-ChildItem $bundleStage -Recurse -Directory -Filter '__pycache__' | Remove-It
 Get-ChildItem $bundleStage -Recurse -File -Include *.md, *.py | ForEach-Object { Sanitize-File $_.FullName }
 # README（治理文档）随 bundle 分发
 Copy-Item (Join-Path $skillsRoot 'README.md') $bundleStage -Force
+Sanitize-File (Join-Path $bundleStage 'README.md')
 $bundleZip = Join-Path $OutDir 'itsm-skills-all.zip'
 Compress-Archive -Path (Join-Path $bundleStage '*') -DestinationPath $bundleZip -Force
 $manifest.bundle = [ordered]@{

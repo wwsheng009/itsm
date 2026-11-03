@@ -28,17 +28,20 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "_lib"))  # 分�
 if not (Path(sys.path[0]) / "itsm_common.py").exists():
     sys.path[0] = str(Path(__file__).resolve().parents[2] / "_lib")  # 开发态：仓库 skills 根 _lib
 from itsm_common import (  # noqa: E402
-    DEFAULT_BASE,
-    DEFAULT_TIMEOUT,
-    DEFAULT_TOKEN_PATH,
     add_common_args,
+    add_config_parser,
+    add_login_parser,
+    add_setup_parser,
     ApiError,
     authed,
     build_multipart,
     Client,
+    cmd_config,
+    cmd_setup,
+    do_login,
     emit,
     fail,
-    save_login_token,
+    finalize_args,
 )
 
 # 分类校验策略（2026-10-16 起）：服务端联合校验
@@ -65,13 +68,7 @@ def _read_content(args):
 
 
 def cmd_login(client, args):
-    if not args.username or not args.password:
-        fail(ApiError("login 需要 --username/--password（或环境变量 ITSM_USERNAME/ITSM_PASSWORD）"))
-    result = client.login(args.username, args.password, args.tenant_code)
-    if args.save:
-        save_login_token(result, args.save, tool_name="itsm_kb")
-    result["ok"] = True
-    return result
+    return do_login(client, args, tool_name="itsm_kb")
 
 
 def cmd_me(client, _args):
@@ -216,6 +213,8 @@ def cmd_attachment_upload(client, args):
 
 COMMANDS = {
     "login": (cmd_login, False),
+    "setup": (cmd_setup, False),
+    "config": (cmd_config, False),
     "me": (cmd_me, True),
     "categories": (cmd_categories, True),
     "list": (cmd_list, True),
@@ -256,17 +255,9 @@ def build_parser():
     def add(name, help_text):
         return sub.add_parser(name, help=help_text, parents=[common_sub])
 
-    lg = add("login", "登录换 JWT（从 Set-Cookie 提取 access_token）")
-    lg.add_argument("--username", default=os.environ.get("ITSM_USERNAME", ""))
-    lg.add_argument("--password", default=os.environ.get("ITSM_PASSWORD", ""))
-    lg.add_argument("--tenant-code", default="")
-    lg.add_argument(
-        "--save",
-        nargs="?",
-        const=str(DEFAULT_TOKEN_PATH),
-        default="",
-        help="token 写入文件；省略路径默认 ~/.itsm/itsm.token（供 --token-file 复用）",
-    )
+    add_login_parser(sub, add, tool_name="itsm_kb")
+    add_setup_parser(sub, add, tool_name="itsm_kb")
+    add_config_parser(sub, add, tool_name="itsm_kb")
 
     add("me", "GET /auth/me")
 
@@ -356,16 +347,25 @@ def main(argv=None):
     for stream in (sys.stdout, sys.stderr):
         if hasattr(stream, "reconfigure"):
             stream.reconfigure(encoding="utf-8")
-    args = build_parser().parse_args(argv)
+    args = finalize_args(build_parser().parse_args(argv))
     pretty = not args.compact
     handler, needs_auth = COMMANDS[args.command]
     try:
-        client = Client(args.base, "", args.timeout) if args.command == "login" else (authed(args) if needs_auth else Client(args.base, "", args.timeout))
+        client = authed(args) if needs_auth else Client(args.base, "", args.timeout)
         result = handler(client, args)
         emit(result if result is not None else {"ok": True}, pretty)
         return 0
     except ApiError as err:
         fail(err, pretty)
+    except EOFError:
+        fail(
+            ApiError(
+                "输入中断（EOF）：当前环境无法交互输入。非交互请用 --token-stdin/--password-stdin 管道、"
+                "环境变量或命令行参数提供输入",
+                hint="示例：Get-Content pat.txt | python <script> setup --base <URL> --token-stdin",
+            ),
+            pretty,
+        )
     except KeyboardInterrupt:
         return 130
 

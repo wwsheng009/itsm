@@ -19,12 +19,18 @@ if not (Path(sys.path[0]) / "itsm_common.py").exists():
     sys.path[0] = str(Path(__file__).resolve().parents[2] / "_lib")
 from itsm_common import (  # noqa: E402
     add_common_args,
+    add_config_parser,
+    add_login_parser,
+    add_setup_parser,
     ApiError,
     authed,
     Client,
+    cmd_config,
+    cmd_setup,
+    do_login,
     emit,
     fail,
-    save_login_token,
+    finalize_args,
 )
 
 
@@ -54,11 +60,7 @@ def _get(client, path, params=None):
 # ------------------------- 子命令实现 -------------------------
 
 def cmd_login(client, args):
-    result = client.login(args.username, args.password, args.tenant_code)
-    if args.save:
-        save_login_token(result, args.save, tool_name="itsm_msp")
-    result["ok"] = True
-    return result
+    return do_login(client, args, tool_name="itsm_msp")
 
 
 def cmd_status(client, _args):
@@ -296,6 +298,8 @@ def cmd_audit_summary(client, _args):
 
 COMMANDS = {
     "login": (cmd_login, False),
+    "setup": (cmd_setup, False),
+    "config": (cmd_config, False),
     "status": (cmd_status, True),
     "context": (cmd_context, True),
     "allocations": (cmd_allocations, True),
@@ -353,12 +357,9 @@ def build_parser():
     def add(name, help_text):
         return sub.add_parser(name, help=help_text, parents=[common_sub])
 
-    lg = add("login", "登录换 JWT（从 Set-Cookie 提取 access_token）")
-    lg.add_argument("--username", default="")
-    lg.add_argument("--password", default="")
-    lg.add_argument("--tenant-code", default="")
-    lg.add_argument("--save", nargs="?", const=str(Path.home() / ".itsm" / "itsm.token"), default="",
-                    help="token 写入文件；省略路径默认 ~/.itsm/itsm.token")
+    add_login_parser(sub, add, tool_name="itsm_msp")
+    add_setup_parser(sub, add, tool_name="itsm_msp")
+    add_config_parser(sub, add, tool_name="itsm_msp")
 
     add("status", "GET /msp/status（MSP 员工与基础信息）")
     add("context", "GET /msp/context（msp:read）")
@@ -492,7 +493,7 @@ def main(argv=None):
     for stream in (sys.stdout, sys.stderr):
         if hasattr(stream, "reconfigure"):
             stream.reconfigure(encoding="utf-8")
-    args = build_parser().parse_args(argv)
+    args = finalize_args(build_parser().parse_args(argv))
     pretty = not args.compact
     handler, needs_auth = COMMANDS[args.command]
     try:
@@ -502,6 +503,15 @@ def main(argv=None):
         return 0
     except ApiError as err:
         fail(err, pretty)
+    except EOFError:
+        fail(
+            ApiError(
+                "输入中断（EOF）：当前环境无法交互输入。非交互请用 --token-stdin/--password-stdin 管道、"
+                "环境变量或命令行参数提供输入",
+                hint="示例：Get-Content pat.txt | python <script> setup --base <URL> --token-stdin",
+            ),
+            pretty,
+        )
     except KeyboardInterrupt:
         return 130
 

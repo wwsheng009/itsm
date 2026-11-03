@@ -18,24 +18,25 @@ if not (Path(sys.path[0]) / "itsm_common.py").exists():
     sys.path[0] = str(Path(__file__).resolve().parents[2] / "_lib")  # 开发态：仓库 skills 根 _lib
 from itsm_common import (  # noqa: E402
     add_common_args,
+    add_config_parser,
     add_login_parser,
+    add_setup_parser,
     authed,
     Client,
+    cmd_config,
+    cmd_setup,
+    do_login,
     emit,
     fail,
+    finalize_args,
     ApiError,
-    save_login_token,
 )
 
 
 # ------------------------- 子命令实现 -------------------------
 
 def cmd_login(client, args):
-    result = client.login(args.username, args.password, args.tenant_code)
-    if args.save:
-        save_login_token(result, args.save, tool_name="itsm_cmdb")
-    result["ok"] = True
-    return result
+    return do_login(client, args, tool_name="itsm_cmdb")
 
 
 def _get(client, path, params=None):
@@ -399,6 +400,8 @@ def cmd_discovery_results(client, args):
 
 COMMANDS = {
     "login": (cmd_login, False),
+    "setup": (cmd_setup, False),
+    "config": (cmd_config, False),
     "cis-list": (cmd_cis_list, True),
     "cis-get": (cmd_cis_get, True),
     "cis-search": (cmd_cis_search, True),
@@ -468,7 +471,9 @@ def build_parser():
     def add(name, help_text):
         return sub.add_parser(name, help=help_text, parents=[common_sub])
 
-    add_login_parser(sub, add)
+    add_login_parser(sub, add, tool_name="itsm_cmdb")
+    add_setup_parser(sub, add, tool_name="itsm_cmdb")
+    add_config_parser(sub, add, tool_name="itsm_cmdb")
 
     cl = add("cis-list", "GET /cmdb/cis（列表/过滤/分页）")
     cl.add_argument("--page", type=int, default=1)
@@ -659,7 +664,7 @@ def main(argv=None):
     for stream in (sys.stdout, sys.stderr):
         if hasattr(stream, "reconfigure"):
             stream.reconfigure(encoding="utf-8")
-    args = build_parser().parse_args(argv)
+    args = finalize_args(build_parser().parse_args(argv))
     pretty = not args.compact
     handler, needs_auth = COMMANDS[args.command]
     try:
@@ -669,6 +674,15 @@ def main(argv=None):
         return 0
     except ApiError as err:
         fail(err, pretty)
+    except EOFError:
+        fail(
+            ApiError(
+                "输入中断（EOF）：当前环境无法交互输入。非交互请用 --token-stdin/--password-stdin 管道、"
+                "环境变量或命令行参数提供输入",
+                hint="示例：Get-Content pat.txt | python <script> setup --base <URL> --token-stdin",
+            ),
+            pretty,
+        )
     except KeyboardInterrupt:
         return 130
 

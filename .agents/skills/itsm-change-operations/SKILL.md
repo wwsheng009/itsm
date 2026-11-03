@@ -9,24 +9,32 @@ description: 通过 ITSM REST API 操作变更管理（变更单 CRUD/提交审�
 
 ## 脚本工具（scripts/itsm_change.py）
 
-零依赖 Python 3 CLI，公共层复用 `../_lib/itsm_common.py`（33 子命令）：
+零依赖 Python 3 CLI，公共层复用 `../_lib/itsm_common.py`。**首次配置用 `setup`**（一次性写入部署地址与凭据到 `~/.itsm/config.json` / `~/.itsm/itsm.token`，权限收紧、掩码回显），之后命令自动读取、无需 `--base/--token-file`；**localhost 只是脚本兜底，不是部署默认**（解析优先级：`--base` > `ITSM_BASE_URL` > 配置 > 兜底）。**35 个子命令**：
 
 ```bash
-B=http://172.18.3.238:8089/api/v1
-TOKEN="$HOME/.itsm/itsm.token"
-python scripts/itsm_change.py login --base $B --username demo.mfg.admin --password 'YOUR_PASSWORD' --save "$TOKEN"
-python scripts/itsm_change.py --base $B --token-file "$TOKEN" stats
-python scripts/itsm_change.py --base $B --token-file "$TOKEN" list --status pending
-python scripts/itsm_change.py --base $B --token-file "$TOKEN" create --set title='升级 MES 数据库补丁' --set type=normal --set priority=high --set riskLevel=medium --set plannedStartDate=2026-10-20T02:00:00Z
-python scripts/itsm_change.py --base $B --token-file "$TOKEN" submit 7 --approver-ids 3,4
-python scripts/itsm_change.py --base $B --token-file "$TOKEN" approve 7 --comment '同意，窗口内实施'
-python scripts/itsm_change.py --base $B --token-file "$TOKEN" schedule 7 --comment '排期 10-20 凌晨'
-python scripts/itsm_change.py --base $B --token-file "$TOKEN" start 7
-python scripts/itsm_change.py --base $B --token-file "$TOKEN" complete 7
-python scripts/itsm_change.py --base $B --token-file "$TOKEN" pir-create 7 --set overallResult=successful --set objectivesAchieved=true
+BASE=https://itsm.example.com/api/v1     # ← 换成部署地址（含 /api/v1；内部 demo http://172.18.3.238:8089/api/v1）
+# A) PAT（推荐，个人中心→安全设置创建）——管道传入，不进 argv/shell 历史：
+cat pat.txt | python scripts/itsm_change.py setup --base $BASE --token-stdin
+# B) 或账号换 JWT（15 分钟过期；口令走环境变量或交互式隐藏输入，勿明文写命令行）：
+ITSM_USERNAME=you ITSM_PASSWORD='***' python scripts/itsm_change.py setup --base $BASE --from-env
+
+python scripts/itsm_change.py config     # 自检：生效地址/凭据来源/连通性/身份（不回显明文）
+
+# 之后所有命令自动读取配置（无需 --base/--token-file）：
+python scripts/itsm_change.py stats
+python scripts/itsm_change.py list --status pending
+python scripts/itsm_change.py create --set title='升级 MES 数据库补丁' --set type=normal --set priority=high --set riskLevel=medium --set plannedStartDate=2026-10-20T02:00:00Z
+python scripts/itsm_change.py submit 7 --approver-ids 3,4
+python scripts/itsm_change.py approve 7 --comment '同意，窗口内实施'
+python scripts/itsm_change.py schedule 7 --comment '排期 10-20 凌晨'
+python scripts/itsm_change.py start 7
+python scripts/itsm_change.py complete 7
+python scripts/itsm_change.py pir-create 7 --set overallResult=successful --set objectivesAchieved=true
 ```
 
-子命令清单：login / list / get / stats / create / update / delete / submit / assign / **approve / reject / schedule / start / complete / close / rollback / cancel**（8 个流转）/ approvals / approval-submit / approval-summary / risk-get / risk-update / cmdb-impact / calendar / pirs / pir-get / pir-create / pir-update / pir-delete / cab-members / cab-add / cab-update / cab-remove。
+Windows PowerShell 等价：`$B = 'https://itsm.example.com/api/v1'; Get-Content pat.txt | python scripts/itsm_change.py setup --base $B --token-stdin`；token 落盘 `$HOME\.itsm\itsm.token`（自动读取）。
+
+子命令清单：setup / config / login / list / get / stats / create / update / delete / submit / assign / **approve / reject / schedule / start / complete / close / rollback / cancel**（8 个流转）/ approvals / approval-submit / approval-summary / risk-get / risk-update / cmdb-impact / calendar / pirs / pir-get / pir-create / pir-update / pir-delete / cab-members / cab-add / cab-update / cab-remove。
 
 ## 核心流程：一张变更单的生命周期
 

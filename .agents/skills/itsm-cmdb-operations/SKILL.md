@@ -9,29 +9,38 @@ description: 通过 ITSM REST API 查询 CMDB 配置项（CI 列表/搜索/统�
 
 ## 脚本工具（scripts/itsm_cmdb.py）
 
-零依赖 Python 3 CLI，公共层复用 `../_lib/itsm_common.py`（认证/输出/错误/token 落盘，与工单、知识库同款卫生：`--save` 默认 `~/.itsm/itsm.token`、掩码回显）。**56 个子命令：读面全量 + 写面核心 + 导入导出/云三件套/发现**：
+零依赖 Python 3 CLI，公共层复用 `../_lib/itsm_common.py`（认证/输出/错误/token 落盘）。**首次配置用 `setup`**：一次性写入部署地址与凭据（`~/.itsm/config.json` / `~/.itsm/itsm.token`，权限收紧、掩码回显），之后命令自动读取；**localhost 只是脚本兜底，不是部署默认**（解析优先级：`--base` > `ITSM_BASE_URL` > 配置 > 兜底）。**57 个子命令：setup/config + 读面全量 + 写面核心 + 导入导出/云三件套/发现**：
 
 ```bash
-B=http://172.18.3.238:8089/api/v1
-TOKEN="$HOME/.itsm/itsm.token"
-python scripts/itsm_cmdb.py login --base $B --username demo.mfg.admin --password 'Demo@2026!' --save "$TOKEN"
-python scripts/itsm_cmdb.py --base $B --token-file "$TOKEN" cis-stats                     # 全局统计（状态/类型/环境/关键度分组）
-python scripts/itsm_cmdb.py --base $B --token-file "$TOKEN" cis-list --environment production --criticality P1
-python scripts/itsm_cmdb.py --base $B --token-file "$TOKEN" cis-get 12
-python scripts/itsm_cmdb.py --base $B --token-file "$TOKEN" cis-impact 12                 # 变更/故障影响面分析
-python scripts/itsm_cmdb.py --base $B --token-file "$TOKEN" ontology                      # 类型×属性×关系词表自描述
+BASE=https://itsm.example.com/api/v1       # ← 换成部署地址（含 /api/v1；内部 demo http://172.18.3.238:8089/api/v1）
+# A) PAT（推荐，个人中心→安全设置创建）——管道传入，不进 argv/shell 历史：
+cat pat.txt | python scripts/itsm_cmdb.py setup --base $BASE --token-stdin
+# B) 或账号换 JWT（15 分钟过期；口令走环境变量或交互式隐藏输入，勿明文写命令行）：
+ITSM_USERNAME=you ITSM_PASSWORD='***' python scripts/itsm_cmdb.py setup --base $BASE --from-env
+
+python scripts/itsm_cmdb.py config         # 自检：生效地址/凭据来源/连通性/身份（不回显明文）
+
+# 之后命令自动读取配置，无需 --base/--token-file：
+python scripts/itsm_cmdb.py cis-stats                          # 全局统计（状态/类型/环境/关键度分组）
+python scripts/itsm_cmdb.py cis-list --environment production --criticality P1
+python scripts/itsm_cmdb.py cis-get 12
+python scripts/itsm_cmdb.py cis-impact 12                      # 变更/故障影响面分析
+python scripts/itsm_cmdb.py ontology                           # 类型×属性×关系词表自描述
 ```
 
-子命令清单：login / cis-list / cis-get / cis-search / cis-stats / cis-history / cis-topology / cis-impact / cis-relationships / types-list / type-get / type-attributes / ontology / capabilities / rel-types / rel-list / rel-get / views-list / discovery-health / reconciliation ＋ 写面 ci-create / ci-update / ci-delete / batch-create / batch-update / batch-delete / lifecycle-update / lifecycle-history / batch-lifecycle / revert / rel-create / rel-update / rel-delete ＋ 长尾 import-create / import-status / import-list / export-create / export-status / export-list / cloud-accounts / cloud-account-get / cloud-account-create / cloud-account-update / cloud-account-delete / cloud-services / cloud-service-get / cloud-resources / cloud-resource-get / cloud-resource-create / cloud-resource-update / cloud-resource-delete / discovery-sources / discovery-source-create / discovery-job-create / discovery-results。
+Windows PowerShell 等价：`$B = 'https://itsm.example.com/api/v1'; Get-Content pat.txt | python scripts/itsm_cmdb.py setup --base $B --token-stdin`；token 落盘 `$HOME\.itsm\itsm.token`（自动读取）。
+
+子命令清单：setup / config / login / cis-list / cis-get / cis-search / cis-stats / cis-history / cis-topology / cis-impact / cis-relationships / types-list / type-get / type-attributes / ontology / capabilities / rel-types / rel-list / rel-get / views-list / discovery-health / reconciliation ＋ 写面 ci-create / ci-update / ci-delete / batch-create / batch-update / batch-delete / lifecycle-update / lifecycle-history / batch-lifecycle / revert / rel-create / rel-update / rel-delete ＋ 长尾 import-create / import-status / import-list / export-create / export-status / export-list / cloud-accounts / cloud-account-get / cloud-account-create / cloud-account-update / cloud-account-delete / cloud-services / cloud-service-get / cloud-resources / cloud-resource-get / cloud-resource-create / cloud-resource-update / cloud-resource-delete / discovery-sources / discovery-source-create / discovery-job-create / discovery-results。
 
 ## 核心查询速查（curl 等价）
 
 ```bash
 PAT="Authorization: Bearer itsm_pat_xxx"
-curl -H "$PAT" "$B/cmdb/cis?page=1&size=20&status=production&environment=prod&search=mysql"   # 宽语义模糊搜索
-curl -H "$PAT" -X POST "$B/cmdb/cis/search" -H 'Content-Type: application/json' -d '{"filters":{"ciType":"server"},"page":1,"pageSize":20}'
-curl -H "$PAT" "$B/cmdb/cis/12/topology";  curl -H "$PAT" "$B/cmdb/cis/12/impact-analysis"
-curl -H "$PAT" "$B/cmdb/ci-types";  curl -H "$PAT" "$B/cmdb/ci-types/5/attributes"
+BASE=https://itsm.example.com/api/v1   # 部署地址（含 /api/v1）
+curl -H "$PAT" "$BASE/cmdb/cis?page=1&size=20&status=production&environment=prod&search=mysql"   # 宽语义模糊搜索
+curl -H "$PAT" -X POST "$BASE/cmdb/cis/search" -H 'Content-Type: application/json' -d '{"filters":{"ciType":"server"},"page":1,"pageSize":20}'
+curl -H "$PAT" "$BASE/cmdb/cis/12/topology";  curl -H "$PAT" "$BASE/cmdb/cis/12/impact-analysis"
+curl -H "$PAT" "$BASE/cmdb/ci-types";  curl -H "$PAT" "$BASE/cmdb/ci-types/5/attributes"
 ```
 
 ## 决策要点（硬规则）

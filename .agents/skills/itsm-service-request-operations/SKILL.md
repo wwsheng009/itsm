@@ -9,21 +9,29 @@ description: 通过 ITSM REST API 操作服务请求与服务目录（请求 CRU
 
 ## 脚本工具（scripts/itsm_service_request.py）
 
-零依赖 Python 3 CLI，公共层复用 `../_lib/itsm_common.py`（21 子命令）：
+零依赖 Python 3 CLI，公共层复用 `../_lib/itsm_common.py`。**首次配置用 `setup`**（一次性写入部署地址与凭据到 `~/.itsm/config.json` / `~/.itsm/itsm.token`，权限收紧、掩码回显），之后命令自动读取、无需 `--base/--token-file`；**localhost 只是脚本兜底，不是部署默认**（解析优先级：`--base` > `ITSM_BASE_URL` > 配置 > 兜底）。**23 个子命令**：
 
 ```bash
-B=http://172.18.3.238:8089/api/v1
-TOKEN="$HOME/.itsm/itsm.token"
-python scripts/itsm_service_request.py login --base $B --username demo.mfg.admin --password 'YOUR_PASSWORD' --save "$TOKEN"
-python scripts/itsm_service_request.py --base $B --token-file "$TOKEN" catalog-list
-python scripts/itsm_service_request.py --base $B --token-file "$TOKEN" create --set catalogId=1 --set 'reason=申请测试虚拟机' --set dataClassification=internal
-python scripts/itsm_service_request.py --base $B --token-file "$TOKEN" pending
-python scripts/itsm_service_request.py --base $B --token-file "$TOKEN" approval 9 --action approve --comment '同意'
-python scripts/itsm_service_request.py --base $B --token-file "$TOKEN" provision 9
-python scripts/itsm_service_request.py --base $B --token-file "$TOKEN" provisioning-tasks 9
+BASE=https://itsm.example.com/api/v1     # ← 换成部署地址（含 /api/v1；内部 demo http://172.18.3.238:8089/api/v1）
+# A) PAT（推荐，个人中心→安全设置创建）——管道传入，不进 argv/shell 历史：
+cat pat.txt | python scripts/itsm_service_request.py setup --base $BASE --token-stdin
+# B) 或账号换 JWT（15 分钟过期；口令走环境变量或交互式隐藏输入，勿明文写命令行）：
+ITSM_USERNAME=you ITSM_PASSWORD='***' python scripts/itsm_service_request.py setup --base $BASE --from-env
+
+python scripts/itsm_service_request.py config     # 自检：生效地址/凭据来源/连通性/身份（不回显明文）
+
+# 之后所有命令自动读取配置（无需 --base/--token-file）：
+python scripts/itsm_service_request.py catalog-list
+python scripts/itsm_service_request.py create --set catalogId=1 --set 'reason=申请测试虚拟机' --set dataClassification=internal
+python scripts/itsm_service_request.py pending
+python scripts/itsm_service_request.py approval 9 --action approve --comment '同意'
+python scripts/itsm_service_request.py provision 9
+python scripts/itsm_service_request.py provisioning-tasks 9
 ```
 
-子命令清单：login / list / pending / get / create / update / delete / status / approvals / approval / provision / provisioning-tasks / task-execute ｜ catalog-list / catalog-get / catalog-search / catalog-stats / catalog-create / catalog-update / catalog-delete / catalog-services。
+Windows PowerShell 等价：`$B = 'https://itsm.example.com/api/v1'; Get-Content pat.txt | python scripts/itsm_service_request.py setup --base $B --token-stdin`；token 落盘 `$HOME\.itsm\itsm.token`（自动读取）。
+
+子命令清单：setup / config / login / list / pending / get / create / update / delete / status / approvals / approval / provision / provisioning-tasks / task-execute ｜ catalog-list / catalog-get / catalog-search / catalog-stats / catalog-create / catalog-update / catalog-delete / catalog-services。
 
 ## 核心流程：目录下单 → 多级审批 → 开通
 

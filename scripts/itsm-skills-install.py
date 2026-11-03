@@ -381,6 +381,39 @@ def cmd_rollback(root, name):
     print("rolled back: %s <- %s" % (dest, latest.name))
 
 
+def _print_next_steps(root, installed):
+    """安装完成后打印首次配置引导：部署地址 + 凭据安全写入（绝不回显密钥）。"""
+    script = None
+    candidates = []
+    for rec in installed:
+        dest = root / rec.get("name", "")
+        if dest.is_dir() and (dest / "scripts").is_dir():
+            candidates.extend(sorted((dest / "scripts").glob("*.py")))
+    if not candidates:
+        # bundle 安装：记录名不对应实际目录，直接扫技能根
+        for dest in sorted(root.iterdir()):
+            if dest.is_dir() and (dest / "scripts").is_dir():
+                candidates.extend(sorted((dest / "scripts").glob("*.py")))
+    if candidates:
+        script = candidates[0]
+
+    print("\n首次配置（部署地址 + 凭据；各技能脚本通用，token 勿放命令行）：")
+    if script is None:
+        print("  未找到可执行脚本；进入技能目录后执行：python scripts/<skill>.py setup --base <URL> --token-stdin")
+        return
+    cmd = 'python "%s"' % script
+    print("  1) 部署地址：https://<your-itsm-host>/api/v1（必须含 /api/v1，不要用 localhost 兜底）")
+    print("  2) 创建 PAT：Web 登录 → 个人中心 → 安全设置 → 创建访问令牌（仅显示一次）")
+    print("  3) 安全写入（PAT 走 stdin，避免进入 shell 历史/进程列表）：")
+    print("       PowerShell: Get-Content pat.txt | %s setup --base \"https://<host>/api/v1\" --token-stdin" % cmd)
+    print("       bash:       cat pat.txt | %s setup --base \"https://<host>/api/v1\" --token-stdin" % cmd)
+    print("     或账号换 JWT（15 分钟过期；口令隐藏输入，勿写命令行）：")
+    print("       %s setup --base \"https://<host>/api/v1\" --username <user>" % cmd)
+    print("  4) 自检（显示生效地址/凭据来源/连通性/身份，不回显明文）：%s config" % cmd)
+    print("  说明：地址解析 --base > ITSM_BASE_URL > ~/.itsm/config.json > localhost 兜底（仅开发）；")
+    print("        凭据默认落盘 ~/.itsm/itsm.token（权限收紧），不要放进仓库目录。")
+
+
 def main():
     # Windows 管道截断（如 | Select-Object -First N）会把 stdout 变成坏管道，
     # 后续 print 抛 OSError/EINVAL 导致「安装成功却报错」。换用容错 writer。
@@ -471,6 +504,7 @@ def main():
     save_registry(root, installed)
     print("registry: %s" % (root / REGISTRY_FILE))
     print("已装技能：%d 个" % len(installed))
+    _print_next_steps(root, installed)
 
     if args.no_selfcheck:
         print("已跳过自检（--no-selfcheck）")

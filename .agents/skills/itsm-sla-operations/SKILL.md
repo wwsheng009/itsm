@@ -9,21 +9,29 @@ description: 通过 ITSM REST API 操作 SLA（定义 CRUD、监控大屏数据�
 
 ## 脚本工具（scripts/itsm_sla.py）
 
-零依赖 Python 3 CLI，公共层复用 `../_lib/itsm_common.py`（25 子命令）：
+零依赖 Python 3 CLI，公共层复用 `../_lib/itsm_common.py`。**首次配置用 `setup`**（一次性写入部署地址与凭据到 `~/.itsm/config.json` / `~/.itsm/itsm.token`，权限收紧、掩码回显），之后命令自动读取、无需 `--base/--token-file`；**localhost 只是脚本兜底，不是部署默认**（解析优先级：`--base` > `ITSM_BASE_URL` > 配置 > 兜底）。**27 个子命令**：
 
 ```bash
-B=http://172.18.3.238:8089/api/v1
-TOKEN="$HOME/.itsm/itsm.token"
-python scripts/itsm_sla.py login --base $B --username demo.mfg.admin --password 'YOUR_PASSWORD' --save "$TOKEN"
-python scripts/itsm_sla.py --base $B --token-file "$TOKEN" stats
-python scripts/itsm_sla.py --base $B --token-file "$TOKEN" monitoring --start 2026-10-01T00:00:00Z --end 2026-10-31T23:59:59Z
-python scripts/itsm_sla.py --base $B --token-file "$TOKEN" violations --resolved false
-python scripts/itsm_sla.py --base $B --token-file "$TOKEN" performance --dimension priority
-python scripts/itsm_sla.py --base $B --token-file "$TOKEN" check-compliance 63
-python scripts/itsm_sla.py --base $B --token-file "$TOKEN" definition-create --set name=紧急SLA --set responseTime=15 --set resolutionTime=120 --set priority=critical
+BASE=https://itsm.example.com/api/v1     # ← 换成部署地址（含 /api/v1；内部 demo http://172.18.3.238:8089/api/v1）
+# A) PAT（推荐，个人中心→安全设置创建）——管道传入，不进 argv/shell 历史：
+cat pat.txt | python scripts/itsm_sla.py setup --base $BASE --token-stdin
+# B) 或账号换 JWT（15 分钟过期；口令走环境变量或交互式隐藏输入，勿明文写命令行）：
+ITSM_USERNAME=you ITSM_PASSWORD='***' python scripts/itsm_sla.py setup --base $BASE --from-env
+
+python scripts/itsm_sla.py config     # 自检：生效地址/凭据来源/连通性/身份（不回显明文）
+
+# 之后所有命令自动读取配置（无需 --base/--token-file）：
+python scripts/itsm_sla.py stats
+python scripts/itsm_sla.py monitoring --start 2026-10-01T00:00:00Z --end 2026-10-31T23:59:59Z
+python scripts/itsm_sla.py violations --resolved false
+python scripts/itsm_sla.py performance --dimension priority
+python scripts/itsm_sla.py check-compliance 63
+python scripts/itsm_sla.py definition-create --set name=紧急SLA --set responseTime=15 --set resolutionTime=120 --set priority=critical
 ```
 
-子命令清单：login / stats / definitions / definition-get / definition-create / definition-update / definition-delete / provided / alert-rules / alert-rule-get / alert-rule-create / alert-rule-update / alert-rule-delete / metrics / violations / violation-update / violation-settle / monitoring / performance / check-compliance / alert-history / compliance-report ＋ MSP 直通 grants / contracts / settlement。
+Windows PowerShell 等价：`$B = 'https://itsm.example.com/api/v1'; Get-Content pat.txt | python scripts/itsm_sla.py setup --base $B --token-stdin`；token 落盘 `$HOME\.itsm\itsm.token`（自动读取）。
+
+子命令清单：setup / config / login / stats / definitions / definition-get / definition-create / definition-update / definition-delete / provided / alert-rules / alert-rule-get / alert-rule-create / alert-rule-update / alert-rule-delete / metrics / violations / violation-update / violation-settle / monitoring / performance / check-compliance / alert-history / compliance-report ＋ MSP 直通 grants / contracts / settlement。
 
 ## 核心流程：违约处置（权限分离）
 

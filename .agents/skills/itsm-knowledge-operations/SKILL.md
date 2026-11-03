@@ -11,23 +11,29 @@ description: 通过 ITSM REST API 操作知识库文章（创建/更新/发布/�
 
 ## 脚本工具（scripts/itsm_kb.py）
 
-零依赖 Python 3 CLI（与工单域同款封装：cookie 取 JWT、Bearer、multipart、错误 JSON 化）：
+零依赖 Python 3 CLI（与工单域同款封装：cookie 取 JWT、Bearer、multipart、错误 JSON 化）。**首次配置用 `setup`**：一次性写入部署地址与凭据（`~/.itsm/config.json` / `~/.itsm/itsm.token`，token 权限收紧、掩码回显），之后所有命令自动读取，无需再带 `--base/--token-file`；**localhost 只是脚本兜底，不是部署默认**（解析优先级：`--base` > `ITSM_BASE_URL` > 配置 > 兜底）。
 
 ```bash
-B=http://172.18.3.238:8089/api/v1
-TOKEN="$HOME/.itsm/itsm.token"
-python scripts/itsm_kb.py login --base $B --username demo.mfg.admin --password 'Demo@2026!' --save "$TOKEN"
-python scripts/itsm_kb.py --base $B --token-file "$TOKEN" categories
-python scripts/itsm_kb.py --base $B --token-file "$TOKEN" create --title '打印机卡纸处理' --content '...' --category troubleshooting --tags 打印,硬件
-python scripts/itsm_kb.py --base $B --token-file "$TOKEN" publish 12 --change-log '首版'
-python scripts/itsm_kb.py --base $B --token-file "$TOKEN" search --query 卡纸
+BASE=https://itsm.example.com/api/v1     # ← 换成部署地址（含 /api/v1；内部 demo http://172.18.3.238:8089/api/v1）
+# A) PAT（推荐，个人中心→安全设置创建）——管道传入，不进 argv/shell 历史：
+cat pat.txt | python scripts/itsm_kb.py setup --base $BASE --token-stdin
+# B) 或账号换 JWT（15 分钟过期；口令走环境变量或交互式隐藏输入，勿明文写命令行）：
+ITSM_USERNAME=you ITSM_PASSWORD='***' python scripts/itsm_kb.py setup --base $BASE --from-env
+
+python scripts/itsm_kb.py config         # 自检：生效地址/凭据来源/连通性/身份（不回显明文）
+
+# 之后命令自动读取配置，无需 --base/--token-file：
+python scripts/itsm_kb.py categories
+python scripts/itsm_kb.py create --title '打印机卡纸处理' --content '...' --category troubleshooting --tags 打印,硬件
+python scripts/itsm_kb.py publish 12 --change-log '首版'
+python scripts/itsm_kb.py search --query 卡纸
 ```
 
-PowerShell 等价：`$Token = "$HOME\.itsm\itsm.token"`，其余参数同上（`--save $Token`、`--token-file $Token`）。
+Windows PowerShell 等价：`$B = 'https://itsm.example.com/api/v1'; Get-Content pat.txt | python scripts/itsm_kb.py setup --base $B --token-stdin`；token 落盘 `$HOME\.itsm\itsm.token`（自动读取）。
 
-`--save` 省略路径默认写 `~/.itsm/itsm.token`（自动建父目录、POSIX 下 chmod 600），stdout 只回显掩码 token；**token 勿放仓库目录**（`.gitignore` 仅兜底）。
+安全口径：口令/PAT 勿进命令行参数（shell 历史/进程列表）；token 文件放用户主目录、**勿放仓库目录**（`.gitignore` 仅兜底）；`setup`/`--save` 落盘自动建父目录并收紧权限（POSIX chmod 600 / Windows icacls 尽力）。
 
-`--help` 列出 22 个子命令（login/me/categories/list/get/create/update/publish/unpublish/review/versions/versions-compare/restore/search/stats/recent/recommendations/restrict-list/restrict-set/delete/attachment-list/attachment-upload）。
+`--help` 列出 24 个子命令（setup/config/login/me/categories/list/get/create/update/publish/unpublish/review/versions/versions-compare/restore/search/stats/recent/recommendations/restrict-list/restrict-set/delete/attachment-list/attachment-upload）。
 
 ## 核心流程：创建并发布一篇可检索的文章
 
