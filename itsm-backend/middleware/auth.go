@@ -204,6 +204,7 @@ func AuthMiddleware(jwtSecret string) gin.HandlerFunc {
 				identity, allowed, resolveErr = v2.Authenticate(c.Request.Context(), tokenString, c.ClientIP())
 				if resolveErr == nil && !allowed {
 					// 单令牌限流（R-3c）：429
+					c.Header("Retry-After", "60")
 					c.AbortWithStatusJSON(http.StatusTooManyRequests, gin.H{
 						"code":    common.ParamErrorCode,
 						"message": "请求过于频繁，请稍后重试",

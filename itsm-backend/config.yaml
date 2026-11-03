@@ -124,6 +124,9 @@ redis:
 # 历史 data-attachment-id / /tickets/:id/attachments/:ref URL 继续有效。
 # 回退：把下面四个开关改回 false（或用 ATTACHMENT_* 环境变量覆盖）即回旧链路。
 attachment:
+  # 单文件上限（MB）：默认 10，硬上限 200；上传路由按此值放宽请求体，
+  # 其余 API 仍保持 10 MB。GET /capabilities 的 limits 会下发实际值。
+  max_file_size_mb: ${ATTACHMENT_MAX_FILE_SIZE_MB:10}
   generic_read_enabled: ${ATTACHMENT_GENERIC_READ_ENABLED:true}
   generic_write_enabled: ${ATTACHMENT_GENERIC_WRITE_ENABLED:true}
   # dual_write_enabled 目前无运行时消费者（后端仅接线 read/write 两个开关），

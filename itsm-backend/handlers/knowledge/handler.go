@@ -4,6 +4,8 @@ import (
 	"errors"
 	"io"
 	"strconv"
+	"strings"
+	"time"
 
 	"itsm-backend/handlers/common/knowledgeaccess"
 
@@ -206,6 +208,22 @@ func (h *Handler) ListArticles(c *gin.Context) {
 	category := c.Query("category")
 	search := c.Query("search")
 	status := c.Query("status")
+	updatedSince, err := parseOptionalRFC3339(c.Query("updatedSince"))
+	if err != nil {
+		common.ParamError(c, "updatedSince 必须为 RFC3339 时间")
+		return
+	}
+	if page <= 0 {
+		page = 1
+	}
+	if pageSize <= 0 {
+		pageSize = 10
+	} else if pageSize > 100 {
+		pageSize = 100
+	}
+	// 游标取查询开始时间：查询期间发生的写入会留到下一轮（配合客户端 30s 重叠），
+	// 不能取查询结束时间，否则会永久跳过这部分变更。
+	serverTime := time.Now().UTC()
 
 	tenantIDVal, ok := c.Get("tenant_id")
 	if !ok {
@@ -220,7 +238,7 @@ func (h *Handler) ListArticles(c *gin.Context) {
 		return
 	}
 
-	list, total, err := h.svc.ListArticles(c.Request.Context(), tenantID, page, pageSize, category, search, status)
+	list, total, err := h.svc.ListArticles(c.Request.Context(), tenantID, page, pageSize, category, search, status, updatedSince)
 	if err != nil {
 		common.FailWithErr(c, err, "操作失败")
 		return
@@ -232,11 +250,73 @@ func (h *Handler) ListArticles(c *gin.Context) {
 	}
 
 	common.Success(c, dto.KnowledgeArticleListResponse{
-		Items:    dtos,
-		Total:    total,
-		Page:     page,
-		PageSize: pageSize,
+		Items:      dtos,
+		Total:      total,
+		Page:       page,
+		PageSize:   pageSize,
+		ServerTime: serverTime,
 	})
+}
+
+// ListDeletedArticles handles GET /api/v1/knowledge/articles/deleted?since=RFC3339
+//
+// 增量下行的删除流：只返回软删除墓碑，客户端据此清理本地缓存。
+func (h *Handler) ListDeletedArticles(c *gin.Context) {
+	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
+	pageSize, _ := strconv.Atoi(c.DefaultQuery("pageSize", "100"))
+	if page <= 0 {
+		page = 1
+	}
+	if pageSize <= 0 {
+		pageSize = 100
+	} else if pageSize > 100 {
+		pageSize = 100
+	}
+	since, err := parseOptionalRFC3339(c.Query("since"))
+	if err != nil {
+		common.ParamError(c, "since 必须为 RFC3339 时间")
+		return
+	}
+	serverTime := time.Now().UTC()
+	tenantIDVal, ok := c.Get("tenant_id")
+	if !ok {
+		common.Fail(c, common.AuthFailedCode, "Tenant ID not found")
+		return
+	}
+	tenantID, ok := tenantIDVal.(int)
+	if !ok {
+		common.Fail(c, common.AuthFailedCode, "Invalid tenant ID")
+		return
+	}
+	items, total, err := h.svc.ListDeletedArticles(c.Request.Context(), tenantID, since, page, pageSize)
+	if err != nil {
+		common.FailWithErr(c, err, "获取删除流失败")
+		return
+	}
+	dtos := make([]dto.KnowledgeDeletedItem, 0, len(items))
+	for _, item := range items {
+		dtos = append(dtos, dto.KnowledgeDeletedItem{ID: item.ID, DeletedAt: item.DeletedAt})
+	}
+	common.Success(c, dto.KnowledgeDeletedListResponse{
+		Items:      dtos,
+		Total:      total,
+		Page:       page,
+		PageSize:   pageSize,
+		ServerTime: serverTime,
+	})
+}
+
+// parseOptionalRFC3339 解析可选时间参数；空串返回 nil，非法值返回错误。
+func parseOptionalRFC3339(raw string) (*time.Time, error) {
+	raw = strings.TrimSpace(raw)
+	if raw == "" {
+		return nil, nil
+	}
+	value, err := time.Parse(time.RFC3339, raw)
+	if err != nil {
+		return nil, err
+	}
+	return &value, nil
 }
 
 // UpdateArticle handles PUT /api/v1/knowledge-articles/:id
@@ -751,7 +831,7 @@ func (h *Handler) GetRecommendations(c *gin.Context) {
 	}
 
 	limit := 5
-	articles, _, err := h.svc.ListArticles(c.Request.Context(), tenantID, 1, limit, "", "", "published")
+	articles, _, err := h.svc.ListArticles(c.Request.Context(), tenantID, 1, limit, "", "", "published", nil)
 	if err != nil {
 		common.InternalError(c, "获取推荐文章失败: "+err.Error())
 		return
@@ -779,7 +859,7 @@ func (h *Handler) GetRecentArticles(c *gin.Context) {
 	}
 
 	limit := 10
-	articles, _, err := h.svc.ListArticles(c.Request.Context(), tenantID, 1, limit, "", "", "published")
+	articles, _, err := h.svc.ListArticles(c.Request.Context(), tenantID, 1, limit, "", "", "published", nil)
 	if err != nil {
 		common.InternalError(c, "获取最近文章失败: "+err.Error())
 		return

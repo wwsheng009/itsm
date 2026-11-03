@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"sort"
 	"strings"
+	"time"
 
 	"go.uber.org/zap"
 	"itsm-backend/common"
@@ -198,8 +199,13 @@ func (s *Service) GetArticle(ctx context.Context, id int, tenantID int) (*Articl
 	return s.repo.Get(ctx, id, tenantID)
 }
 
-func (s *Service) ListArticles(ctx context.Context, tenantID int, page, size int, category, search, status string) ([]*Article, int, error) {
-	return s.repo.List(ctx, tenantID, page, size, category, search, status)
+func (s *Service) ListArticles(ctx context.Context, tenantID int, page, size int, category, search, status string, updatedSince *time.Time) ([]*Article, int, error) {
+	return s.repo.List(ctx, tenantID, page, size, category, search, status, updatedSince)
+}
+
+// ListDeletedArticles 返回软删除文章墓碑（增量下行删除流）。
+func (s *Service) ListDeletedArticles(ctx context.Context, tenantID int, since *time.Time, page, size int) ([]DeletedArticle, int, error) {
+	return s.repo.ListDeleted(ctx, tenantID, since, page, size)
 }
 
 // ValidateCategory 统一分类校验（2026-10-16 修复）。
@@ -634,7 +640,7 @@ func (s *Service) SearchArticles(ctx context.Context, tenantID int, query string
 	}
 
 	// No RAG service: fall back to plain ListArticles with keyword search.
-	articles, _, err := s.repo.List(ctx, tenantID, 1, limit, category, query, "published")
+	articles, _, err := s.repo.List(ctx, tenantID, 1, limit, category, query, "published", nil)
 	if err != nil {
 		return nil, err
 	}

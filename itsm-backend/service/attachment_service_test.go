@@ -212,6 +212,17 @@ func TestAttachmentUploadRejectsDisguisedContentByMagicBytes(t *testing.T) {
 	assert.Equal(t, 0, countFilesUnder(t, root))
 }
 
+func TestAttachmentSetMaxFileSizeBytes(t *testing.T) {
+	svc, _, _ := newAttachmentTestService(t)
+	require.Equal(t, 10, svc.MaxFileSizeMB(), "未注入配置时保持 10MB 安全默认")
+
+	svc.SetMaxFileSizeBytes(50 * 1024 * 1024)
+	require.Equal(t, 50, svc.MaxFileSizeMB())
+
+	svc.SetMaxFileSizeBytes(0)
+	require.Equal(t, 50, svc.MaxFileSizeMB(), "非正值不得把上限清零")
+}
+
 func TestAttachmentUploadDetectsDeclaredSizeMismatch(t *testing.T) {
 	svc, client, root := newAttachmentTestService(t)
 	ctx := context.Background()

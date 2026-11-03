@@ -120,3 +120,32 @@ func TestLoadConfig_AttachmentCleanupDefaults(t *testing.T) {
 			attachmentDefaultCleanupBatchSize, cfg.Attachment.CleanupBatchSize)
 	}
 }
+
+// TestLoadConfig_AttachmentMaxFileSize 验证附件单文件上限的默认值、环境变量覆盖与硬上限。
+func TestLoadConfig_AttachmentMaxFileSize(t *testing.T) {
+	t.Run("默认 10MB", func(t *testing.T) {
+		cfg := newTestConfig(t, "server:\n  port: 8080\n")
+		if cfg.Attachment.MaxFileSizeMB != attachmentDefaultMaxFileSizeMB {
+			t.Fatalf("max_file_size_mb 默认应为 %d，实际 %d",
+				attachmentDefaultMaxFileSizeMB, cfg.Attachment.MaxFileSizeMB)
+		}
+	})
+
+	t.Run("环境变量覆盖", func(t *testing.T) {
+		t.Setenv("ATTACHMENT_MAX_FILE_SIZE_MB", "50")
+		cfg := newTestConfig(t, "server:\n  port: 8080\n")
+		if cfg.Attachment.MaxFileSizeMB != 50 {
+			t.Fatalf("max_file_size_mb 应为 50，实际 %d", cfg.Attachment.MaxFileSizeMB)
+		}
+	})
+
+	t.Run("超过硬上限被裁剪", func(t *testing.T) {
+		cfg := newTestConfig(t, `attachment:
+  max_file_size_mb: 500
+`)
+		if cfg.Attachment.MaxFileSizeMB != attachmentMaxFileSizeMBLimit {
+			t.Fatalf("max_file_size_mb 应裁剪为 %d，实际 %d",
+				attachmentMaxFileSizeMBLimit, cfg.Attachment.MaxFileSizeMB)
+		}
+	})
+}

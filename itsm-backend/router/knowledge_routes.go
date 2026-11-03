@@ -21,6 +21,8 @@ func SetupKnowledgeRoutes(tenant *gin.RouterGroup, h *knowledgeHandler.Handler, 
 		{
 			articles.GET("", middleware.RequirePermission("knowledge", "read"), h.ListArticles)
 			articles.POST("", middleware.RequirePermission("knowledge", "write"), h.CreateArticle)
+			// 静态删除流必须在 /:id 之前注册，否则 Gin 会把 "deleted" 当作 id。
+			articles.GET("/deleted", middleware.RequirePermission("knowledge", "read"), h.ListDeletedArticles)
 			articles.GET("/:id", middleware.RequirePermission("knowledge", "read"), h.GetArticle)
 			articles.PUT("/:id", middleware.RequirePermission("knowledge", "write"), h.UpdateArticle)
 			articles.DELETE("/:id", middleware.RequirePermission("knowledge", "delete"), h.DeleteArticle)
@@ -74,6 +76,7 @@ func SetupKnowledgeRoutes(tenant *gin.RouterGroup, h *knowledgeHandler.Handler, 
 		kbGrp.POST("", middleware.RequirePermission("knowledge", "write"), h.CreateArticle)
 		// 静态路由必须在动态路由 /:id 之前注册，否则 Gin 会将 "categories" 当作 :id 参数
 		kbGrp.GET("/categories", middleware.RequirePermission("knowledge", "read"), h.GetCategories)
+		kbGrp.GET("/deleted", middleware.RequirePermission("knowledge", "read"), h.ListDeletedArticles)
 		kbGrp.GET("/:id", middleware.RequirePermission("knowledge", "read"), h.GetArticle)
 	}
 }

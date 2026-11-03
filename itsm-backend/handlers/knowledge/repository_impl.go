@@ -6,6 +6,7 @@ import (
 	"strings"
 	"time"
 
+	"entgo.io/ent/dialect/sql"
 	"itsm-backend/ent"
 	"itsm-backend/ent/knowledgearticle"
 	"itsm-backend/ent/knowledgearticleversion"
@@ -100,7 +101,7 @@ func (r *EntRepository) Get(ctx context.Context, id int, tenantID int) (*Article
 	return toDomain(e), nil
 }
 
-func (r *EntRepository) List(ctx context.Context, tenantID int, page, size int, category, search, status string) ([]*Article, int, error) {
+func (r *EntRepository) List(ctx context.Context, tenantID int, page, size int, category, search, status string, updatedSince *time.Time) ([]*Article, int, error) {
 	q := r.client.KnowledgeArticle.Query().Where(knowledgearticle.TenantID(tenantID), knowledgearticle.DeletedAtIsNil())
 
 	if category != "" {
@@ -121,13 +122,26 @@ func (r *EntRepository) List(ctx context.Context, tenantID int, page, size int, 
 			q = q.Where(knowledgearticle.IsPublished(false))
 		}
 	}
+	if updatedSince != nil {
+		// 增量下行：用 updated_at 升序 + id 升序保证分页稳定；
+		// 客户端以本批最大 updatedAt 作为下一游标（并保留 30s 重叠去重）。
+		q = q.Where(knowledgearticle.UpdatedAtGT(*updatedSince))
+	}
 
 	total, err := q.Count(ctx)
 	if err != nil {
 		return nil, 0, err
 	}
 
-	es, err := q.Limit(size).Offset((page - 1) * size).Order(ent.Desc(knowledgearticle.FieldCreatedAt)).All(ctx)
+	if updatedSince != nil {
+		q = q.Order(
+			knowledgearticle.ByUpdatedAt(sql.OrderAsc()),
+			knowledgearticle.ByID(sql.OrderAsc()),
+		)
+	} else {
+		q = q.Order(knowledgearticle.ByCreatedAt(sql.OrderDesc()))
+	}
+	es, err := q.Limit(size).Offset((page - 1) * size).All(ctx)
 	if err != nil {
 		return nil, 0, err
 	}
@@ -137,6 +151,43 @@ func (r *EntRepository) List(ctx context.Context, tenantID int, page, size int, 
 		results = append(results, toDomain(e))
 	}
 	return results, total, nil
+}
+
+// ListDeleted 返回 since 之后被软删除的文章墓碑。
+//
+// 删除流与更新流分开：软删除的文章不会出现在 List（DeletedAtIsNil），
+// 客户端必须靠本接口把本地缓存里的对象清掉；按 deleted_at 升序分页。
+func (r *EntRepository) ListDeleted(ctx context.Context, tenantID int, since *time.Time, page, size int) ([]DeletedArticle, int, error) {
+	q := r.client.KnowledgeArticle.Query().Where(
+		knowledgearticle.TenantID(tenantID),
+		knowledgearticle.DeletedAtNotNil(),
+	)
+	if since != nil {
+		q = q.Where(knowledgearticle.DeletedAtGT(*since))
+	}
+	total, err := q.Count(ctx)
+	if err != nil {
+		return nil, 0, err
+	}
+	es, err := q.
+		Limit(size).
+		Offset((page-1)*size).
+		Order(
+			knowledgearticle.ByDeletedAt(sql.OrderAsc()),
+			knowledgearticle.ByID(sql.OrderAsc()),
+		).
+		All(ctx)
+	if err != nil {
+		return nil, 0, err
+	}
+	items := make([]DeletedArticle, 0, len(es))
+	for _, e := range es {
+		if e.DeletedAt == nil {
+			continue
+		}
+		items = append(items, DeletedArticle{ID: e.ID, DeletedAt: *e.DeletedAt})
+	}
+	return items, total, nil
 }
 
 func (r *EntRepository) Update(ctx context.Context, a *Article) (*Article, error) {

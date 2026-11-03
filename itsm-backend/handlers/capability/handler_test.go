@@ -123,3 +123,31 @@ func TestHandlerDoesNotGrantActionsWithoutTenant(t *testing.T) {
 		require.Empty(t, item.AllowedActions)
 	}
 }
+
+// TestHandlerExposesRuntimeLimits 验证附件/请求体上限由服务端能力面下发，
+// 客户端不再写死 8 MB 或 10 MB。
+func TestHandlerExposesRuntimeLimits(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	previous := caproot.RuntimeLimitsSnapshot()
+	t.Cleanup(func() { caproot.SetRuntimeLimits(previous) })
+	caproot.SetRuntimeLimits(caproot.RuntimeLimits{
+		AttachmentMaxBytes: 50 * 1024 * 1024,
+		RequestMaxBytes:    10 * 1024 * 1024,
+		ChunkUpload:        false,
+	})
+
+	router := gin.New()
+	router.GET("/capabilities", Handler)
+	recorder := httptest.NewRecorder()
+	router.ServeHTTP(recorder, httptest.NewRequest(http.MethodGet, "/capabilities", nil))
+
+	var response struct {
+		Data struct {
+			Limits caproot.RuntimeLimits `json:"limits"`
+		} `json:"data"`
+	}
+	require.NoError(t, json.Unmarshal(recorder.Body.Bytes(), &response))
+	require.Equal(t, int64(50*1024*1024), response.Data.Limits.AttachmentMaxBytes)
+	require.Equal(t, int64(10*1024*1024), response.Data.Limits.RequestMaxBytes)
+	require.False(t, response.Data.Limits.ChunkUpload)
+}

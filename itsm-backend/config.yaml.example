@@ -129,6 +129,9 @@ rls:
 # 全部默认 false = 保留现网旧链路、零行为变化；灰度/回退改本块（部署级）或租户级
 # system_config 的 attachment 分组（键名相同，见 docs/install.md「3.1 附件域灰度开关」）。
 attachment:
+  # 单文件上限（MB）：默认 10，硬上限 200；上传请求体按此值放宽，
+  # 其余 API 仍为 10 MB；客户端从 GET /capabilities 的 limits 读取。
+  max_file_size_mb: ${ATTACHMENT_MAX_FILE_SIZE_MB:10}
   generic_read_enabled: ${ATTACHMENT_GENERIC_READ_ENABLED:false}    # 通用读路径（A2/A3/A4/A6）；关闭回退旧表，URL 不变
   generic_write_enabled: ${ATTACHMENT_GENERIC_WRITE_ENABLED:false}  # 通用写入（A1/A5）；关闭回退旧工单写入路径
   dual_write_enabled: ${ATTACHMENT_DUAL_WRITE_ENABLED:false}        # 双写对账（P2）；关闭即停止双写，旧表为事实源

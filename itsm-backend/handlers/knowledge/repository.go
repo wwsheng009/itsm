@@ -2,13 +2,18 @@ package knowledge
 
 import (
 	"context"
+	"time"
 )
 
 // Repository interface for Knowledge domain
 type Repository interface {
 	Create(ctx context.Context, a *Article) (*Article, error)
 	Get(ctx context.Context, id int, tenantID int) (*Article, error)
-	List(ctx context.Context, tenantID int, page, size int, category, search, status string) ([]*Article, int, error)
+	// List 列表/增量查询。updatedSince 非空时按 updated_at 升序返回该时间之后的变化，
+	// 供客户端做游标增量下行；为空时保持原有的创建时间倒序列表语义。
+	List(ctx context.Context, tenantID int, page, size int, category, search, status string, updatedSince *time.Time) ([]*Article, int, error)
+	// ListDeleted 返回 since 之后被软删除的文章墓碑，供增量下行删除传播。
+	ListDeleted(ctx context.Context, tenantID int, since *time.Time, page, size int) ([]DeletedArticle, int, error)
 	Update(ctx context.Context, a *Article) (*Article, error)
 	Delete(ctx context.Context, id int, tenantID int) error
 	// MarkReviewed 记录一次内容复核：把 last_reviewed_at 置为当前时间。
@@ -35,6 +40,12 @@ type Repository interface {
 	Publish(ctx context.Context, id int, tenantID int, publisherID int, changeSummary string, createRelease bool) (*Article, error)
 	// SetPublished 仅切换发布可见性（下架 / 重新上架），不产生版本记录。
 	SetPublished(ctx context.Context, id int, tenantID int, published bool) (*Article, error)
+}
+
+// DeletedArticle 是软删除文章的墓碑（只含下行需要的字段）。
+type DeletedArticle struct {
+	ID        int
+	DeletedAt time.Time
 }
 
 // Stats represents knowledge base statistics

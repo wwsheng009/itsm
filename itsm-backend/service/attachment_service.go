@@ -361,6 +361,16 @@ func (s *AttachmentService) Storage() StorageProvider { return s.storage }
 // MaxFileSizeMB 单文件大小上限（MB），供 handler 生成可读提示。
 func (s *AttachmentService) MaxFileSizeMB() int { return int(s.maxFileSize / (1024 * 1024)) }
 
+// SetMaxFileSizeBytes 覆盖单文件大小上限（bootstrap 按部署配置注入）。
+//
+// 非正值忽略，保持构造时的安全默认；上传校验与存储层写后复核共用该值。
+func (s *AttachmentService) SetMaxFileSizeBytes(maxBytes int64) {
+	if s == nil || maxBytes <= 0 {
+		return
+	}
+	s.maxFileSize = maxBytes
+}
+
 // Upload A1：校验 → 宿主存在性 → 幂等预检 → 加固四件套 → 落盘 → 落库 → 回写 file_url → 审计。
 func (s *AttachmentService) Upload(ctx context.Context, tenantID, userID int, in AttachmentUploadInput) (*AttachmentView, error) {
 	if tenantID <= 0 || userID <= 0 {

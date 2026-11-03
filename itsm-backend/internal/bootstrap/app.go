@@ -406,6 +406,8 @@ func NewApplication() *Application {
 	ticketCommentService := service.NewTicketCommentService(client, sugar)
 	ticketAttachmentService := service.NewTicketAttachmentService(client, sugar)
 	attachmentService := service.NewAttachmentService(client, sugar, nil)
+	attachmentMaxBytes := int64(cfg.Attachment.MaxFileSizeMB) * 1024 * 1024
+	attachmentService.SetMaxFileSizeBytes(attachmentMaxBytes)
 	// IP-P2-6 租户硬配额：读取 tenants.quota；未配置（NULL/零值）= 不限，行为与改造前一致。
 	tenantQuotaService := service.NewTenantQuotaService(client, sugar)
 	attachmentService.SetTenantQuotaService(tenantQuotaService)
@@ -1079,6 +1081,12 @@ func NewApplication() *Application {
 	// V2-01：公共能力面（GET /api/v1/capabilities）下发租户级 assistant.memoryEnabled，
 	// 与 MCP/Bot 开关同一 Source（fail-safe：未注入时前端按产品默认开启处理）。
 	capability.SetRuntimeSource(capabilitySource)
+	// 附件/请求体硬限随 capabilities 下发：客户端上传前预检，上限变更无需发版。
+	capability.SetRuntimeLimits(capability.RuntimeLimits{
+		AttachmentMaxBytes: attachmentMaxBytes,
+		RequestMaxBytes:    common.DefaultRequestMaxBytes,
+		ChunkUpload:        false,
+	})
 	// B1-01/B1-02：Bot 运行态管理器（bot_runs/bot_steps/bot_events + BP8 预算护栏）。
 	// 常驻注入（不再以静态 cfg.Bot.Enabled 短路）：运行期开关关闭时由门禁降级
 	// （聊天不落运行档案、策略回退兼容默认），管理台开启后立即恢复全量行为。
@@ -1608,6 +1616,7 @@ func NewApplication() *Application {
 		Logger:                       sugar,
 		Client:                       client,
 		RawDB:                        database.GetRawDB(),
+		AttachmentMaxFileBytes:       attachmentMaxBytes,
 		CSRFEnabled:                  cfg.Security.CSRFEnabled,
 		PATHandler:                   patHandler,
 		RedisRateLimiter:             redisRateLimiter,

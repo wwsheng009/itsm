@@ -130,12 +130,47 @@ func (rl *RateLimiter) Allow(clientIP string) bool {
 	return true
 }
 
+// RetryAfter 返回该客户端最早一条窗口内请求过期所需的等待时间。
+//
+// 仅用于 429 响应的 Retry-After 头；调用方应确保该 IP 已被限流。
+func (rl *RateLimiter) RetryAfter(clientIP string) time.Duration {
+	rl.mutex.RLock()
+	defer rl.mutex.RUnlock()
+
+	now := time.Now()
+	cutoff := now.Add(-rl.window)
+	var oldest time.Time
+	for _, requestTime := range rl.requests[clientIP] {
+		if requestTime.After(cutoff) && (oldest.IsZero() || requestTime.Before(oldest)) {
+			oldest = requestTime
+		}
+	}
+	if oldest.IsZero() {
+		return rl.window
+	}
+	remaining := rl.window - now.Sub(oldest)
+	if remaining < time.Second {
+		remaining = time.Second
+	}
+	return remaining
+}
+
+// Window 返回限流窗口，供调用方生成 Retry-After 兜底值。
+func (rl *RateLimiter) Window() time.Duration {
+	if rl == nil || rl.window <= 0 {
+		return time.Minute
+	}
+	return rl.window
+}
+
 // RateLimitMiddleware 限流中间件
 func RateLimitMiddleware(limiter *RateLimiter) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		clientIP := c.ClientIP()
 
 		if !limiter.Allow(clientIP) {
+			retryAfter := int((limiter.RetryAfter(clientIP) + time.Second - 1) / time.Second)
+			c.Header("Retry-After", itoa(retryAfter))
 			common.Fail(c, common.TooManyRequestsCode, "请求过于频繁，请稍后再试")
 			c.Abort()
 			return
@@ -289,14 +324,45 @@ func SecurityHeadersMiddleware() gin.HandlerFunc {
 
 // RequestSizeMiddleware 请求大小限制中间件
 func RequestSizeMiddleware(maxSize int64) gin.HandlerFunc {
+	return RequestSizeMiddlewareWithUploadLimit(maxSize, maxSize)
+}
+
+// RequestSizeMiddlewareWithUploadLimit 对普通 API 与附件上传分别设置请求体上限。
+//
+// 附件上限由部署配置决定（可大于普通 API 的 10 MB），但只对
+// POST .../attachments 放宽；其余路径仍使用 maxSize。
+// 文件本身的精确大小由 AttachmentService 校验，multipart 余量仅用于容纳边界与字段头。
+func RequestSizeMiddlewareWithUploadLimit(maxSize, uploadMaxSize int64) gin.HandlerFunc {
+	if maxSize <= 0 {
+		maxSize = 10 * 1024 * 1024
+	}
+	if uploadMaxSize < maxSize {
+		uploadMaxSize = maxSize
+	}
 	return func(c *gin.Context) {
-		if c.Request.ContentLength > maxSize {
+		effectiveMax := maxSize
+		if isAttachmentUploadRequest(c.Request) {
+			effectiveMax = uploadMaxSize
+		}
+		if c.Request.ContentLength > effectiveMax {
 			common.Fail(c, common.ParamErrorCode, "请求体过大")
 			c.Abort()
 			return
 		}
 
-		c.Request.Body = http.MaxBytesReader(c.Writer, c.Request.Body, maxSize)
+		c.Request.Body = http.MaxBytesReader(c.Writer, c.Request.Body, effectiveMax)
 		c.Next()
 	}
+}
+
+// isAttachmentUploadRequest 判定是否附件上传入口。
+//
+// 当前契约中所有上传入口均以 POST .../attachments 结尾
+// （通用 /attachments 与 ticket/knowledge/problem/... 域内别名）。
+func isAttachmentUploadRequest(r *http.Request) bool {
+	if r == nil || r.Method != http.MethodPost {
+		return false
+	}
+	path := strings.TrimSuffix(r.URL.Path, "/")
+	return strings.HasSuffix(path, "/attachments")
 }

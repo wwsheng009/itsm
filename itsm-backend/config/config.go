@@ -43,6 +43,11 @@ type Config struct {
 // 或租户级 system_config 的 attachment 分组（键名与本块一致，见
 // docs/install.md「3.1 附件域灰度开关」）。
 type AttachmentConfig struct {
+	// MaxFileSizeMB: attachment.max_file_size_mb
+	// 单文件大小上限（MB），默认 10，硬上限 200。
+	// 上传路由会按该值放宽请求体上限，其余 API 仍保持 10 MB。
+	MaxFileSizeMB int `mapstructure:"max_file_size_mb"`
+
 	// GenericReadEnabled: attachment.generic_read_enabled
 	// 通用读路径（A2/A3/A4/A6）；关闭后回退旧表读取，URL 不变。
 	GenericReadEnabled bool `mapstructure:"generic_read_enabled"`
@@ -78,6 +83,8 @@ type AttachmentConfig struct {
 // 附件域清理默认值（BE-8）。与 service.AttachmentDefault* 保持同值：
 // config 不反向依赖 service 包，故此处独立声明，两侧都有单测钉住。
 const (
+	attachmentDefaultMaxFileSizeMB          = 10
+	attachmentMaxFileSizeMBLimit            = 200
 	attachmentDefaultRetentionDays          = 30
 	attachmentDefaultCleanupIntervalMinutes = 360
 	attachmentDefaultCleanupBatchSize       = 200
@@ -88,6 +95,12 @@ const (
 func applyAttachmentDefaults(cfg *AttachmentConfig) {
 	if cfg == nil {
 		return
+	}
+	if cfg.MaxFileSizeMB <= 0 {
+		cfg.MaxFileSizeMB = attachmentDefaultMaxFileSizeMB
+	}
+	if cfg.MaxFileSizeMB > attachmentMaxFileSizeMBLimit {
+		cfg.MaxFileSizeMB = attachmentMaxFileSizeMBLimit
 	}
 	if cfg.RetentionDays <= 0 {
 		cfg.RetentionDays = attachmentDefaultRetentionDays
@@ -608,6 +621,7 @@ func LoadConfig() (*Config, error) {
 
 	// 附件域清理默认值（BE-8）：保留期 30 天 / 轮询 360 分钟 / 单批 200 条；
 	// cleanup_enabled 与 cleanup_purge_enabled 保持零值 false（未配置即关闭）。
+	config.Attachment.MaxFileSizeMB = getEnvIntWithDefault("ATTACHMENT_MAX_FILE_SIZE_MB", config.Attachment.MaxFileSizeMB)
 	applyAttachmentDefaults(&config.Attachment)
 
 	// MCP 外部工具接入（M0-01；2026-09-27 起默认开启）：连接/超时默认值见 applyMCPDefaults。

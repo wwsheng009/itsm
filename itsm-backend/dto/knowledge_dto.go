@@ -7,7 +7,7 @@ import (
 
 // 创建知识库文章请求
 type CreateKnowledgeArticleRequest struct {
-	Title    string   `json:"title" binding:"required"`
+	Title string `json:"title" binding:"required"`
 	// max=200000：新建页既承接人工写作，也承接「AI 会话 → 整段整理成文章」的预填
 	// （多轮会话可达数万字，见前端 ARTICLE_CONTENT_MAX_LENGTH；更新路径本就不设上限，
 	// 这里放宽到同一量级，避免长会话保存被 400 拦下）。全局请求体上限 10MB 仍是硬边界。
@@ -30,14 +30,14 @@ type CreateKnowledgeArticleRequest struct {
 
 // 更新知识库文章请求
 type UpdateKnowledgeArticleRequest struct {
-	Title    *string  `json:"title"`
-	Content  *string  `json:"content"`
-	Category *string  `json:"category"`
+	Title    *string `json:"title"`
+	Content  *string `json:"content"`
+	Category *string `json:"category"`
 	// Status 已废弃：更新接口刻意忽略该字段。发布态不是编辑字段，
 	// 只能由 POST /knowledge/articles/{id}/publish|unpublish 两个动作变更，
 	// 否则一次保存即可绕过版本记录把文章发布出去。
-	Status   *string  `json:"status"`
-	Tags     []string `json:"tags"`
+	Status *string  `json:"status"`
+	Tags   []string `json:"tags"`
 
 	// ContentType 正文类型：text / markdown / html / rich_text。
 	// 传 nil 表示「不显式指定」——服务端会保留已存类型，缺失时按内容判定。
@@ -71,20 +71,20 @@ type KnowledgeFreshness struct {
 
 // 知识库文章响应
 type KnowledgeArticleResponse struct {
-	ID        int       `json:"id"`
-	Title     string    `json:"title"`
-	Content   string    `json:"content"`
+	ID      int    `json:"id"`
+	Title   string `json:"title"`
+	Content string `json:"content"`
 	// ContentType 是解析后的生效类型（历史数据由内容形态兜底判定），
 	// 前端据此选择渲染器：text / markdown / html / rich_text。
-	ContentType string   `json:"contentType"`
-	Category  string    `json:"category"`
-	Status    string    `json:"status"`
-	Author    string    `json:"author"`
-	Views     int       `json:"views"`
-	Tags      []string  `json:"tags"`
-	TenantID  int       `json:"tenantId"`
-	CreatedAt time.Time `json:"createdAt"`
-	UpdatedAt time.Time `json:"updatedAt"`
+	ContentType string    `json:"contentType"`
+	Category    string    `json:"category"`
+	Status      string    `json:"status"`
+	Author      string    `json:"author"`
+	Views       int       `json:"views"`
+	Tags        []string  `json:"tags"`
+	TenantID    int       `json:"tenantId"`
+	CreatedAt   time.Time `json:"createdAt"`
+	UpdatedAt   time.Time `json:"updatedAt"`
 
 	// 知识可引用性 L1：时效性
 	ValidFrom          *time.Time          `json:"validFrom,omitempty"`
@@ -113,6 +113,8 @@ type ListKnowledgeArticlesRequest struct {
 	Category string `form:"category"`
 	Status   string `form:"status"`
 	Search   string `form:"search"`
+	// UpdatedSince RFC3339；仅返回该时间之后更新的文章，供客户端增量下行。
+	UpdatedSince string `form:"updatedSince"`
 }
 
 // 知识库文章列表响应
@@ -122,6 +124,23 @@ type KnowledgeArticleListResponse struct {
 	Total    int                        `json:"total"`
 	Page     int                        `json:"page"`
 	PageSize int                        `json:"pageSize"`
+	// ServerTime 本次响应的服务端时间；客户端用它做下一次增量游标，避免本地时钟漂移。
+	ServerTime time.Time `json:"serverTime"`
+}
+
+// KnowledgeDeletedItem 软删除文章墓碑（增量下行的删除流）。
+type KnowledgeDeletedItem struct {
+	ID        int       `json:"id"`
+	DeletedAt time.Time `json:"deletedAt"`
+}
+
+// KnowledgeDeletedListResponse 删除流分页响应。
+type KnowledgeDeletedListResponse struct {
+	Items      []KnowledgeDeletedItem `json:"items"`
+	Total      int                    `json:"total"`
+	Page       int                    `json:"page"`
+	PageSize   int                    `json:"pageSize"`
+	ServerTime time.Time              `json:"serverTime"`
 }
 
 // MarshalJSON 保证 articles 别名至少与 items 一致，避免前端列表为空。

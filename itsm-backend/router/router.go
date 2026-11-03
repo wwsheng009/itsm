@@ -25,7 +25,6 @@ import (
 	assignmentSmartHandler "itsm-backend/handlers/assignment_smart"
 	attachmentHandler "itsm-backend/handlers/attachment"
 	auditlogHandler "itsm-backend/handlers/auditlog"
-	"itsm-backend/handlers/pat"
 	authHandler "itsm-backend/handlers/auth"
 	automationRuleHandler "itsm-backend/handlers/automation_rule"
 	bpmnHandler "itsm-backend/handlers/bpmn"
@@ -51,6 +50,7 @@ import (
 	mspHandler "itsm-backend/handlers/msp"
 	notificationHandler "itsm-backend/handlers/notification"
 	"itsm-backend/handlers/operations"
+	"itsm-backend/handlers/pat"
 	predictionHandler "itsm-backend/handlers/prediction"
 	"itsm-backend/handlers/problem"
 	"itsm-backend/handlers/problem_investigation"
@@ -131,6 +131,9 @@ type RouterConfig struct {
 	Logger    *zap.SugaredLogger
 	Client    *ent.Client
 	RawDB     *sql.DB
+	// AttachmentMaxFileBytes 是当前部署允许的单文件上限（字节）；
+	// 仅用于放宽上传路由的请求体 limit，业务校验仍由 AttachmentService 精确执行。
+	AttachmentMaxFileBytes int64
 
 	// CSRF configuration
 	CSRFEnabled bool
@@ -289,6 +292,7 @@ func SetupRoutes(r *gin.Engine, config *RouterConfig) {
 					allowed = fallbackLimiter.Allow(clientIP)
 				}
 				if !allowed {
+					c.Header("Retry-After", "60")
 					common.Fail(c, common.TooManyRequestsCode, "请求过于频繁，请稍后再试")
 					c.Abort()
 					return
@@ -312,7 +316,14 @@ func SetupRoutes(r *gin.Engine, config *RouterConfig) {
 	r.Use(middleware.SecurityHeadersMiddleware())
 	r.Use(middleware.SQLInjectionProtectionMiddleware())
 	r.Use(middleware.XSSProtectionMiddleware())
-	r.Use(middleware.RequestSizeMiddleware(10 * 1024 * 1024)) // 10MB限制
+	attachmentMax := config.AttachmentMaxFileBytes
+	if attachmentMax <= 0 {
+		attachmentMax = 10 * 1024 * 1024
+	}
+	r.Use(middleware.RequestSizeMiddlewareWithUploadLimit(
+		common.DefaultRequestMaxBytes,
+		attachmentMax+common.AttachmentMultipartOverheadBytes,
+	))
 
 	// 公共路由（无需认证）
 	public := r.Group("/api/v1")
@@ -405,6 +416,9 @@ func SetupRoutes(r *gin.Engine, config *RouterConfig) {
 		csrfConfig := middleware.DefaultCSRFConfig()
 		auth.Use(middleware.CSRFProtectionMiddleware(csrfConfig))
 	}
+	// HTTP 幂等：仅对携带 Idempotency-Key 的非安全请求生效；multipart 上传走 clientToken。
+	// 必须位于 Auth/RBAC 之后，才能按 tenant_id + user_id 隔离幂等作用域。
+	auth.Use(middleware.IdempotencyMiddleware(config.RawDB, config.Logger))
 	auth.GET("/capabilities", capability.Handler)
 	// Skills 分发面（README §6.2 Phase 2）：registry/installer/下载；SKILLS_DIST_DIR 未配置时降级。
 	SetupSkillsRoutes(public, auth)

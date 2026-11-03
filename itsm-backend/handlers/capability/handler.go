@@ -136,6 +136,7 @@ func Handler(c *gin.Context) {
 		"acceptanceVersion": acceptanceVersion,
 		"deploymentMode":    middleware.DeploymentMode(),
 		"mspRoutesEnabled":  middleware.IsMSPEnabled(),
+		"limits":            caproot.RuntimeLimitsSnapshot(),
 		"assistant": gin.H{
 			"memoryEnabled": memoryEnabled,
 			"dockEnabled":   dockEnabled,
