@@ -203,14 +203,6 @@ func (s *IdempotencyStore) executeAndPersist(c *gin.Context, logger *zap.Sugared
 	if status < 100 {
 		status = http.StatusOK
 	}
-	// 认证/会话类响应可能携带 Set-Cookie；重放 body 但不重放 Cookie 会造成
-	// 「客户端以为已切换租户/已刷新会话」的假成功，因此不缓存此类响应。
-	if len(writer.Header().Values("Set-Cookie")) > 0 {
-		if err := s.deleteByID(c.Request.Context(), recordID); err != nil {
-			logger.Warnw("释放带 Set-Cookie 的幂等占位失败", "record_id", recordID, "error", err)
-		}
-		return
-	}
 	if status < 200 || status >= 300 || writer.tooLarge {
 		if err := s.deleteByID(c.Request.Context(), recordID); err != nil {
 			logger.Warnw("释放未缓存的幂等占位失败", "record_id", recordID, "error", err)
