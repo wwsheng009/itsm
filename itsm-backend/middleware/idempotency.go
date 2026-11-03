@@ -46,6 +46,7 @@ type idempotencyRecord struct {
 	responseBody []byte
 	contentType  string
 	createdAt    time.Time
+	expiresAt    time.Time
 }
 
 // IdempotencyStore 基于 PostgreSQL 的 HTTP 幂等记录存储。
@@ -140,6 +141,14 @@ func IdempotencyMiddleware(db *sql.DB, logger *zap.SugaredLogger) gin.HandlerFun
 					"method", scope.method, "path", scope.path, "tenant_id", scope.tenantID, "error", getErr)
 				common.Fail(c, common.ServiceUnavailableCode, "幂等保护暂不可用，请稍后重试")
 				return
+			}
+			if store.now().After(record.expiresAt) {
+				if deleteErr := store.deleteByID(c.Request.Context(), record.id); deleteErr != nil {
+					logger.Warnw("清理过期幂等记录失败", "record_id", record.id, "error", deleteErr)
+					common.Fail(c, common.ServiceUnavailableCode, "幂等保护暂不可用，请稍后重试")
+					return
+				}
+				continue
 			}
 			if record.requestHash != requestHash {
 				c.Header(IdempotencyKeyHeader, key)
@@ -239,12 +248,12 @@ func (s *IdempotencyStore) get(ctx context.Context, scope idempotencyScope) (*id
 	var body string
 	err := s.db.QueryRowContext(ctx, `
 		SELECT id, request_hash, state, status_code,
-		       COALESCE(response_body, ''), COALESCE(response_content_type, ''), created_at
+		       COALESCE(response_body, ''), COALESCE(response_content_type, ''), created_at, expires_at
 		FROM http_idempotency_records
 		WHERE tenant_id = $1 AND user_id = $2 AND method = $3 AND path = $4 AND idempotency_key = $5`,
 		scope.tenantID, scope.userID, scope.method, scope.path, scope.key,
 	).Scan(&record.id, &record.requestHash, &record.state, &record.statusCode,
-		&body, &record.contentType, &record.createdAt)
+		&body, &record.contentType, &record.createdAt, &record.expiresAt)
 	if err != nil {
 		return nil, err
 	}

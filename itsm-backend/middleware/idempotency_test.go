@@ -64,8 +64,9 @@ func TestIdempotencyMiddlewareReplaysCompletedResponse(t *testing.T) {
 	mock.ExpectQuery("SELECT id, request_hash, state, status_code").
 		WithArgs(1, 2, http.MethodPost, requestURL, "k1").
 		WillReturnRows(sqlmock.NewRows([]string{
-			"id", "request_hash", "state", "status_code", "response_body", "response_content_type", "created_at",
-		}).AddRow(1, hash, "completed", http.StatusOK, string(firstBody), "application/json; charset=utf-8", time.Now()))
+			"id", "request_hash", "state", "status_code", "response_body", "response_content_type", "created_at", "expires_at",
+		}).AddRow(1, hash, "completed", http.StatusOK, string(firstBody), "application/json; charset=utf-8",
+			time.Now(), time.Now().Add(time.Hour)))
 
 	second := httptest.NewRecorder()
 	req = httptest.NewRequest(http.MethodPost, requestURL, bytes.NewReader(body))
@@ -98,8 +99,9 @@ func TestIdempotencyMiddlewareRejectsDifferentPayload(t *testing.T) {
 	mock.ExpectQuery("SELECT id, request_hash, state, status_code").
 		WithArgs(1, 2, http.MethodPost, "/items", "k1").
 		WillReturnRows(sqlmock.NewRows([]string{
-			"id", "request_hash", "state", "status_code", "response_body", "response_content_type", "created_at",
-		}).AddRow(1, "different-hash", "completed", http.StatusOK, `{}`, "application/json", time.Now()))
+			"id", "request_hash", "state", "status_code", "response_body", "response_content_type", "created_at", "expires_at",
+		}).AddRow(1, "different-hash", "completed", http.StatusOK, `{}`, "application/json",
+			time.Now(), time.Now().Add(time.Hour)))
 
 	recorder := httptest.NewRecorder()
 	req := httptest.NewRequest(http.MethodPost, "/items", bytes.NewReader(body))
@@ -190,4 +192,47 @@ func TestIdempotencyMiddlewareSkipsAuthRoutes(t *testing.T) {
 	require.Equal(t, http.StatusOK, recorder.Code)
 	require.Equal(t, 1, calls)
 	require.NoError(t, mock.ExpectationsWereMet(), "认证/会话端点不得进入幂等 SQL")
+}
+
+func TestIdempotencyMiddlewareReclaimsExpiredRecord(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	require.NoError(t, err)
+	defer db.Close()
+
+	calls := 0
+	router := newIdempotencyTestRouter(db, func(c *gin.Context) {
+		calls++
+		c.JSON(http.StatusOK, gin.H{"code": 0, "data": gin.H{"id": 2}})
+	})
+
+	body := []byte(`{"title":"expired"}`)
+	hash := idempotencyRequestHash(httptest.NewRequest(http.MethodPost, "/items", bytes.NewReader(body)), body)
+	mock.ExpectQuery("INSERT INTO http_idempotency_records").
+		WithArgs(1, 2, http.MethodPost, "/items", "k1", hash, sqlmock.AnyArg()).
+		WillReturnRows(sqlmock.NewRows([]string{"id"}))
+	mock.ExpectQuery("SELECT id, request_hash, state, status_code").
+		WithArgs(1, 2, http.MethodPost, "/items", "k1").
+		WillReturnRows(sqlmock.NewRows([]string{
+			"id", "request_hash", "state", "status_code", "response_body", "response_content_type", "created_at", "expires_at",
+		}).AddRow(1, hash, "completed", http.StatusOK, `{}`, "application/json",
+			time.Now().Add(-2*time.Hour), time.Now().Add(-time.Hour)))
+	mock.ExpectExec("DELETE FROM http_idempotency_records").
+		WithArgs(1).
+		WillReturnResult(sqlmock.NewResult(0, 1))
+	mock.ExpectQuery("INSERT INTO http_idempotency_records").
+		WithArgs(1, 2, http.MethodPost, "/items", "k1", hash, sqlmock.AnyArg()).
+		WillReturnRows(sqlmock.NewRows([]string{"id"}).AddRow(2))
+	mock.ExpectExec("UPDATE http_idempotency_records").
+		WithArgs(http.StatusOK, sqlmock.AnyArg(), sqlmock.AnyArg(), 2).
+		WillReturnResult(sqlmock.NewResult(0, 1))
+
+	recorder := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodPost, "/items", bytes.NewReader(body))
+	req.Header.Set(IdempotencyKeyHeader, "k1")
+	req.Header.Set("Content-Type", "application/json")
+	router.ServeHTTP(recorder, req)
+
+	require.Equal(t, http.StatusOK, recorder.Code)
+	require.Equal(t, 1, calls, "过期记录应释放后重新执行，而不是无限重放")
+	require.NoError(t, mock.ExpectationsWereMet())
 }
