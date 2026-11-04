@@ -14,6 +14,7 @@ import AssistantDock from '@/components/ai/dock/AssistantDock';
 import SelectionAskAI from '@/components/ai/SelectionAskAI';
 import { AdminRouteGuard } from '@/components/common/AdminRouteGuard';
 import { useLayoutStore } from '@/lib/store/layout-store';
+import { readSidebarPreferenceFromUrl } from '@/lib/layout/sidebar-preference';
 import PageTransition from '@/components/common/PageTransition';
 import { useAuthStore, useAuthStoreHydration } from '@/lib/store/auth-store';
 import type { Tenant } from '@/lib/api/api-config';
@@ -29,10 +30,15 @@ const { Content } = Layout;
 export default function MainLayout() {
   const { collapsed, setCollapsed } = useLayoutStore();
   const [mounted, setMounted] = useState(false);
-  const [isMobile, setIsMobile] = useState(false);
+  const [isMobile, setIsMobile] = useState(
+    () => typeof window !== 'undefined' && window.innerWidth < 768
+  );
   const [sessionStatus, setSessionStatus] = useState<SessionStatus>(() =>
     useAuthStore.getState().isAuthenticated ? 'authenticated' : 'pending'
   );
+  // URL 参数只作为「初始默认值」：桌面客户端嵌入时传 sidebar=collapsed；
+  // 普通浏览器不传时保持展开；用户随后仍可用 Header 按钮切换。
+  const [initialSidebarPreference] = useState(() => readSidebarPreferenceFromUrl());
 
   // 恢复持久化的 auth store，并同步租户上下文到内存
   useAuthStoreHydration();
@@ -84,12 +90,11 @@ export default function MainLayout() {
     return () => window.removeEventListener('resize', handleResize);
   }, []);
 
-  // 移动端 → 桌面端切换时恢复侧边栏展开（此前会永久停留在收起态）
+  // 移动端 → 桌面端切换时恢复初始偏好（URL 参数优先，否则按原行为展开）。
   useEffect(() => {
-    if (mounted && !isMobile) {
-      setCollapsed(false);
-    }
-  }, [mounted, isMobile]);
+    if (!mounted || isMobile) return;
+    setCollapsed(initialSidebarPreference ?? false);
+  }, [initialSidebarPreference, mounted, isMobile, setCollapsed]);
 
   // 在移动端，点击内容区域时折叠侧边栏
   const handleContentClick = () => {

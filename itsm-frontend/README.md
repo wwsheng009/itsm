@@ -49,3 +49,18 @@ static assets through Nginx (SPA fallback to `index.html`).
 
 The browser-facing API base is empty by default. Requests already include
 `/api/v1`, while the Vite dev server proxy uses `ITSM_BACKEND_URL`.
+
+## Embedding URL parameters
+
+When the web UI is embedded by the desktop client, the following optional query
+parameter controls the **initial** sidebar state:
+
+| URL | Behavior |
+|---|---|
+| `?sidebar=collapsed` | Start with the left sidebar collapsed |
+| `?sidebar=expanded` | Start with the left sidebar expanded |
+| no parameter | Keep the existing default (expanded on desktop) |
+
+The parameter is read only once when the layout mounts. The user can still
+expand/collapse the sidebar with the Header button afterwards. Aliases such as
+`1/0`, `true/false`, `on/off`, `open/closed` are accepted.
