@@ -14,7 +14,7 @@
 
 | 域 | 上游现有文件数 | 是什么（源码注释/路由核对） |
 |---|---|---|
-| `handlers/on_call` | 3 | 值班排班独立领域入口 `/api/v1/on-call/*`；本地**完全没有该域** |
+| `handlers/on_call` | 3 | ⚠️ **不是新能力**（见 §8.4）：本地 on-call **已完整实现**，但挂在 `handlers/email_intake`（`handler.go:66` → `/email-intake/on-call/*`，seeder 菜单 `seeder.go:1819`、服务测试、前端页面俱全）；上游只是拆成**独立域** `/api/v1/on-call/*`（10 端点）。差异是**路由布局与代码组织**，不是能力有无 |
 | `handlers/cloudsignal` | 20 | 云信号接入：安全漏洞 + CloudMonitor 告警进入 ITSM 主流程 |
 | `handlers/workbench` | 8 | 工作台域 |
 | `handlers/account` | 2 | 账号域 |
@@ -23,7 +23,7 @@
 ### 1.2 新 service 层实现（非测试文件）
 
 ```
-service/cloud/                     29 个新文件（多云发现服务；本地只有 handlers/cloud 3 文件）
+service/cloud/                     **双方都有、且已分叉**：本地 8 个 .go / 上游 36 个；同目录另 `service/cloud/aliyun` 本地 1 / 上游 11
 service/marketplace/               13（商品目录/版本发布回滚/依赖闸门）
 service/bpmn_compensation.go       BPMN 补偿
 service/bpmn_pending_inventory.go  BPMN 待办清点
@@ -126,6 +126,24 @@ service/approval_chain_shadow.go   审批链影子执行
 与本地 ① 治理域收口 D7（`tenant:*` 平台专属，`internal/authz/roles.go:247-249,521-523`）
 ② G11 组合角色 `provider_tenant_admin` 四处同源 ③ `middleware.RoleRank` / 菜单提权名单 / `pkg/seeder` 词表
 **同时冲突**。列为硬排除，除非上游能提供其角色表与本词表的映射。
+
+### 8.4 `on_call`：本地已完整实现，上游只是拆了域（2026-11-06 复核修正）
+
+初稿把 `handlers/on_call` 当成"本地完全没有该域"的 A 类新增，**实测不成立**：
+
+| 证据 | 本地 | 上游 |
+|---|---|---|
+| 数据模型 | `ent/schema/on_call_schedule.go`、`on_call_shift.go` **已存在** | 同（不在 diff 内，说明 merge-base 前已有或被双方保留） |
+| 权限与菜单 | 权限码 `on_call:{read,write}` 已种；菜单 `seeder.go:1819`（`Path=/email-intake/on-call`，`PermissionCode=on_call:read`） | 沿用同一权限码 |
+| HTTP 面 | 挂在 **`handlers/email_intake`**：`handler.go:66` `onCall := root.Group("/on-call")` → `/email-intake/on-call/*` | **独立域** `/api/v1/on-call/*`（10 端点，`router/on_call_routes.go`） |
+| 服务与测试 | `handlers/email_intake/service_test.go` 含 `TestOnCallService_RejectsOverlapAndFindsCurrentResolver` | `handlers/on_call/service.go` + `service_test.go` |
+| 前端 | `src/pages/(main)/email-intake/on-call/index.tsx` 已存在 | 同页面（未变） |
+
+上游 `on_call_routes.go` 的注释自述："排班数据此前只能直接改库，本路由是它唯一的 HTTP 所有者" ——
+这句话描述的是**上游自己的历史**，不能套用到本地（本地早有 email-intake 下的 HTTP 面）。
+
+**结论**：`on_call` 属 **B 类（域边界重构：把 email-intake 内的实现抽成独立域并迁移调用方/菜单/前端路由）**，
+不是 A 类新增；初稿"需新建 schema 与迁移"的说法作废（schema 已存在）。
 
 ## 9. 反过来：本地独有、上游没有的能力（防止单向"上游更多"）
 

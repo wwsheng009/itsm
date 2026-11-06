@@ -100,19 +100,30 @@
 
 ## 3. 吸收分级（能力级，不是提交级）
 
-### A 类｜纯新增，不触碰本地不变量（优先做）
+### A 类｜**实测后重排**：初稿 5 项中 4 项不成立（2026-11-06 S1 差集结果）
 
-| 能力 | 上游证据 | 本地现状 | 移植要点 |
+| 候选（初稿 A 类） | 实测耦合（逐 import 核对） | 结论 |
+|---|---|---|
+| `on_call` | 本地**已完整实现**，只是挂在 `handlers/email_intake`（`handler.go:66` → `/email-intake/on-call/*`；seeder 菜单 `seeder.go:1819`；服务测试 `TestOnCallService_RejectsOverlapAndFindsCurrentResolver`；前端页面 `email-intake/on-call/index.tsx`）；上游只是拆成独立域 10 端点 | ❌ 非新增 → **B 类（域边界重构）** |
+| `cmd/ai-eval` | 依赖 `ai/eval` 的 7 个本地不存在符号（`LoadRAGCorpus`/`NewRealRAGRetriever`/`NormalizeRef`/`PredictionCase`/`RAGCase`/`SummarizeCandidateGenerator`/`SummarizeCase`）；本地 `ai/eval` 2 文件 vs 上游 5 | ❌ 需先差集 `ai/eval` |
+| `cmd/aliyun-oss-api-verify` | 需 `aliyun-oss-go-sdk`（本地 `go.mod` **无此依赖**）+ `service/cloud` 分叉 | ❌ 非自包含 |
+| `cmd/aliyun-sdk-api-verify`、`aliyun-security-api-verify` | 依赖 `service/cloud`（本地 8 / 上游 36）、`service/cloud/aliyun`（1/11）、`infrastructure/cloud`（1/6）、`infrastructure/cloud/alicloud`（1/5） | ❌ 非自包含 |
+| `cmd/service-request-maintenance` | 依赖本地**不存在**的 `svc.TerminateStaleServiceRequestInstances`；且虽默认 dry-run，`-apply` 会改数据 | ❌ 需先移植服务方法 |
+
+**重排后的真正 A 类（自包含、可独立验证）**：
+
+| 单元 | 规模 | 依赖 | 试点价值 |
 |---|---|---|---|
-| `on_call` 值班排班 | `handlers/on_call` 3 文件 + `router` 入口 `/api/v1/on-call/*` | **无该域** | 新域：schema/迁移需**本地重编号**（勿沿用上游号，见 §5 撞号风险）；权限码需过 D7 归属校验 |
-| `cloudsignal` 云信号 | `handlers/cloudsignal` 20 文件 | 无 | 与工单/事件主流程接线；注意它依赖 `service/cloud` |
-| `cmd/` 验证与维护工具 | `ai-eval`、`aliyun-oss-api-verify`、`aliyun-sdk-api-verify`、`aliyun-security-api-verify`、`service-request-maintenance` | 无 | **最低风险起步项**：独立 main 包，不碰契约面，适合验证协议是否顺手 |
-| `ai_quota` / `sla_breach_predictor` / `service_quality_report` | 对应 `service/*.go` + 测试 | 无同能力 | 有本地既有口径（`ai_llm_calls`、SLA 定义授权），先差集再实现 |
-| `bpmn_compensation` / `pending_inventory` / `template_digest` | `service/bpmn_*.go` | 本地有 BPMN 但无这三层 | 高价值；需与本地 `service/bpmn` 4 文件同源逻辑合并评审 |
+| `service/sla_breach_predictor.go` | 156 行 | **仅 `fmt` / `math`**（纯函数） | ✅ **P1 试点首选**：零 DB、零迁移、零接线风险，可用表驱动单测锁定行为 |
+| `service/ai_quota.go` | 206 行 | **仅标准库**（`context/sql/fmt/math/os/strconv/strings/sync/time`） | A 类第二项；接线需先定配额读取点与告警口径 |
+| `service/service_quality_report_service.go` | 150 行 | 仅 `itsm-backend/dto` | 需先核对本地 `dto` 是否已有对应类型 |
+
+> **口径教训（S1 期间第三次同类错误）**：**目录名 ≠ 能力**。连续三次踩坑：① `handlers/change_review` 实为本地 `cab` 改名；② `service/cloud` 被误判为"本地没有"（实为同一包 8 vs 36 分叉）；③ `on_call` 被误判为"本地完全没有"（实为挂在 `email-intake` 下且已实现）。
+> **此后强制的 S1 规则**：判定「新能力」必须五处交叉证实 —— 功能字符串 / 路由 / 权限码 / 菜单 / 前端入口；任一命中即改判为「已存在，需差集」。
 
 ### B 类｜差集扩展（触碰已有域，先测绘后动手）
 
-`service/cloud`(29) ↔ 本地 `handlers/cloud`(3)；`service/marketplace`(13) ↔ 本地 `handlers/marketplace`；
+`service/cloud`（**同一包已分叉**：本地 8 / 上游 36，另 `service/cloud/aliyun` 1/11）+ `handlers/cloud`（**本地独有**的 HTTP 面，上游无此目录）；`service/marketplace`(13) ↔ 本地 `handlers/marketplace`；
 `connector/builtin`(7)；`pkg/seeder`(28)；`workbench`；`account`。
 → 每一处都要回答："本地是否已有等价实现？若有，差异是 bug 还是设计？"（本仓多次教训：把已实现的能力当新能力移植）。
 
@@ -156,10 +167,16 @@
 | 阶段 | 内容 | 进入条件 | 退出判据 | 回滚 |
 |---|---|---|---|---|
 | **P0 门禁先行** | 实现 §2 L1 的面护栏 + `package.json` 回归契约 + 自证用例；登记 G18/G19 | 无 | ✅ **已完成**：门禁 15/15 绿、用例 10/10、真实树破坏演示三红两还原（§2「P0 完成状态」）；G18/G19 已登记 [`07-known-gaps.md`](../multi-tenant/07-known-gaps.md) §19/§20（含选项、实测代价、验收标准） | 撤脚本条目 |
-| **P1 协议试点** | 吸收 `cmd/` 5 个验证/维护工具（A 类最低风险） | P0 绿 | L1+L2+L3 全绿；**每个新工具自带用例并通过 `test-coverage-guard`**；契约面不低于附录 A 下限 | 单 PR revert |
-| **P2 A 类铺开** | `on_call` → `cloudsignal` → `ai_quota` / `sla_breach_predictor` / `service_quality_report` / BPMN 三件套 | G18/G19 至少 G19 已定 | 每能力独立 PR + 前后对照表 + 238 实测证据 | 逐能力 revert（互不依赖） |
+| **P1 协议试点** | ✅ **已完成（2026-11-06）**：移植 `service/sla_breach_predictor.go`（156 行，纯 `fmt`/`math`）+ 5 条用例（4 条上游规格 + 1 条本地加固 `AdjustSpeedFactors`）；**未接线**（无路由/无调用方） | P0 绿 | ✔ 上游 4 条规格用例全过；`gofmt -l` 干净；**8 个新增标识符在 service 包内零冲突**；**本地加固**：`prioritySpeedFactor` 被 `AdjustSpeedFactors` 写、`Predict` 读，上游无锁（data race），已加 `RWMutex`（不改变任何输入→输出）；`test-coverage-guard` 满足（源码与测试同批）；契约门禁 15/15、面不低于附录 A 下限 | 单 PR revert（删 2 文件；无迁移、无接线、无外部副作用） |
+
+| **P2 A 类铺开** | `service/ai_quota.go`（纯标准库）→ `service_quality_report_service.go`（依赖 `dto`，先核类型）→ BPMN 三件套（需与本地 `service/bpmn` 同源合并评审） | P1 收口 | 每能力独立 PR + 前后对照表 +（若有接线）238 实测证据 | 逐能力 revert（互不依赖） |
 | **P3 C 类资产** | 移植上游不依赖其实现的契约测试；引入 `fresh-install-gate` / `rls-golden-path` 两个 CI 门禁 | P2 至少 1 个能力收口 | CI 绿；**移植的每条测试均能独立跑绿且能故意打破本地实现而变红**（非装饰性断言）；无新增 flake | 撤 workflow 文件 |
 | **P4 B 类差集** | `service/cloud`、`marketplace`、`connector/builtin`、`seeder`、`workbench`、`account` | **G18 已裁决** | 差集清单 + 逐点取舍记录 | 按域 revert |
+
+> **P1 验证口径（须如实读）**：本地 `go test ./service` 因编译器内存上限（`runtime: cannot allocate memory`，
+> 与代码无关）**未能执行**；改为把同一份代码/测试放入隔离包 `slaprobe`（仅 3 文件 + testify）实跑 —— **5/5 通过**，
+> 跑完即删。**整包编译验证仍需 CI `backend-ci` 或 238 容器**（方法见部署证据 §6 R1：bind mount +
+> `CGO_ENABLED=1`，注意 `.dockerignore` 剔除 `*_test.go` 的假通过坑）。
 
 **每阶段硬规则**：一个能力一个 PR；PR 里禁止同时改唯一键/权限归属/RLS 边界；生成物一律本地重生成。
 
