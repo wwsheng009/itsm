@@ -72,7 +72,7 @@
 
 | # | 残项 | 状态 | 证据 |
 |---|---|---|---|
-| R1 | `go test ./handlers/tenant/ ./router/` | ✅ **已闭环（容器化 Linux）** | 本机三次尝试均 link 期 `cannot allocate memory`；改为在 238 用 `golang:1.25.13-alpine` bind mount 源码 + CGO 跑：`ok itsm-backend/handlers/tenant 0.145s`、`ok itsm-backend/router 0.271s`、`ok itsm-backend/service 4.814s`，`RUNNER_RC=0` |
+| R1 | `go test ./handlers/tenant/ ./router/` | ✅ **已闭环（容器化 Linux，并复核命中用例清单）** | 本机三次尝试均 link 期 `cannot allocate memory`；改在 238 用 `golang:1.25.13-alpine` bind mount 源码 + `CGO_ENABLED=1` 跑通。**因 `ok` 在「零用例匹配」时也会打印，故另跑 `go test -list` 与 `-v` 计数复核**：<br>· `handlers/tenant` 7 项（`TestListTenantUsers_SuccessAndIdentity`、`TestResetTenantUserPassword_BindsRequest`、`TestSetTenantUserStatus_StableErrorMapping`、`TestSetTenantUserStatus_RequiresActiveParam`、`TestTenantUserAdmin_InvalidPathAndNotConfigured`、`TestRevokeTenantUserMembership_SuccessAndErrorMapping`、`TestOffboardTenantUser_SuccessAndErrorMapping`）<br>· `router` 1 项（`TestSetupRoutes_TenantUserAdminRoutes`）<br>· `service` 13 项，含本批改动的 `TestTenantUserAdmin_ListUsers` 与 `TestTenantUserAdmin_SetActiveGuards`<br>最终 `-v` 统计 **`PASS_CASES=22`**、三包 `ok`、`RC=0`、**FAIL 0** |
 | R2 | `409 LAST_ADMIN_PROTECTED` 线上实测 | ✅ **已闭环（临时开写通道实测，测毕复原）** | `PUT /tenants/4/users/11/status {"active":false}` → `{"code":"LAST_ADMIN_PROTECTED","message":"该用户是租户最后一个可用管理员，不能停用"}`，复核 `active=true`（零副作用）；启停正路径对 `demo.med.user`(14) 关闭→再启用均 `code:0`，终态 `active=true`；`activeAdminCount` 全程稳定为 1 |
 | R2b | membership 撤销面错误码（G12/G14 关联） | ✅ **已实测** | 先 DB 只读预检（user 11 `home_tenant=4`、membership `tenant=4,status=active`）确认必触发 home 不可撤，再 `POST .../membership/revoke` → **HTTP 409** `HOME_MEMBERSHIP_IMMUTABLE`「home 映射不可撤销（账号级语义，请使用账号停用）」；DB 复核 `tenant_id=4` 撤销行数 **0** → 本批新映射的前端文案对应的正是服务端真实行为 |
 | R3 | 浏览器 UI 点测 | ✅ **已闭环（ego-browser）** | 抽屉「共 6 个用户」，6 行数据、6 个开关，**仅 `demo.med.admin`（周敏·医疗-管理员）`disabled=true`**，其余 5 个 enabled；应用自身请求 `GET /api/v1/tenants/4/users?page=1&pageSize=20` → **200 / total 6**；产物 `static/index-DtaaMdLQ.js` 内 `仅剩这一个活跃管理员` ×1、`activeAdminCount` ×2、`HOME_MEMBERSHIP_IMMUTABLE` ×1 |
@@ -107,7 +107,20 @@ curl -s http://127.0.0.1:8089/api/v1/version   # 期望 1.8.0-dev.6cf692f45
 
 旧镜像 `itsm-backend:1.8.0-dev.6cf692f45` / `itsm-frontend:1.8.0-dev.10635e36` 仍在本地镜像库，回滚**无需**重新构建（秒级）。
 
-## 8. 治理影响
+## 8. 主机侧留下的工件（供审计，均已确认不含凭据）
+
+| 文件 | 用途 |
+|---|---|
+| `~/qoder-deploy-tum.patch` | 本批代码 patch（回滚参照，与 `git revert 057b38132` 等价） |
+| `~/qoder-deploy-tum.sh`、`~/qoder-deploy.log`、`qoder-deploy2.log`、`qoder-deploy3.log`、`qoder-deploy3b.log` | 部署各阶段脚本与日志（含 stage1 的 `No services to build` 假通过与 stage3 成功路径） |
+| `~/qodertest.log`、`qodertest2.log`、`qodertest3.log`、`qodertest4.log`、`qodertest5.log`、`qodertest6.log` | R1 容器化测试各次尝试：`[no test files]` 假通过、`sh -lc` PATH 复位、bash 缺失、apk 挂起、最终 `-list` + `-v` 复核 |
+| `~/.env.demo.bak-pre-tum-*`、`~/.env.demo.bak-r2-*` | `.env.demo` 变更前后备份 |
+| `~/gomodcache-tum/`、`~/gobuildcache-tum/` | 测试用 Go module / build 缓存卷（可整目录删除，不影响运行中的栈） |
+
+三个脚本内的口令一律走 `DEPLOY_PW` 环境变量注入，**文件内 0 处硬编码**（`grep -c passw0rd` 已核）。
+R2 期间的临时 compose override `~/qoder-demo-override.yml` 已删除，写通道恢复默认关闭。
+
+## 9. 治理影响
 
 - `07:G12`、`07:G13`：代码已合并（本地 `1b017498`）并在 238 演示栈生效，可判定**线上生效**；`07:G16`（Swagger 注解缺失）不受本次部署影响，仍待办。
 - `07:G14`、`07:G15`：本次未涉及，维持原状态（待决策 / 维持不做）。

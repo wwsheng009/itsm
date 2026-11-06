@@ -385,6 +385,9 @@ v0.2 复核后的结论替换 v0.1 的四条（v0.1 判定方向部分错位，�
 `-gcflags=all=-c=1`；空闲物理内存 ~3.7 GB），238 又无 go 工具链且 remote shell 白名单不含 `go`。
 最终在 238 用 `golang:1.25.13-alpine` + bind mount 源码 + `CGO_ENABLED=1` 跑通：
 `ok itsm-backend/handlers/tenant`、`ok itsm-backend/router`、`ok itsm-backend/service`（RC=0）。
+因 `ok` 在「筛选零命中」时同样打印，另用 `go test -list` 复核命中清单
+（handlers/tenant 7 项、router 1 项、service 13 项，含本批修改的 `TestTenantUserAdmin_ListUsers`）
+并以 `-v` 统计得 **`PASS_CASES=22`、FAIL 0**。
 关键坑：`itsm-backend/.dockerignore` 含 `**/*_test.go`，用 `COPY` 构建的镜像里跑测试会得到
 `[no test files]` 且 **RC=0 假通过** —— 必须 bind mount。详见
 [`evidence/238-deploy-20261106/tenant-user-admin-g12-g13.md`](../multi-tenant/evidence/238-deploy-20261106/tenant-user-admin-g12-g13.md) §5/§6。
