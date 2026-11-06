@@ -5,7 +5,6 @@ import {
   Card,
   Typography,
   Button,
-  Input,
   Avatar,
   Tag as AntTag,
   Modal,
@@ -15,6 +14,9 @@ import {
 } from 'antd';
 import { UserSelect } from '@/components/common/UserSelect';
 import CommentItemBody from '@/components/business/CommentItemBody';
+import RichTextEditor from '@/components/common/rich-text/RichTextEditor';
+import { isRichTextEmpty } from '@/lib/rich-text/sanitize';
+import { isHtmlContent } from '@/lib/rich-text/content-format';
 import {
   CommentAttachmentField,
   CommentAttachmentList,
@@ -29,7 +31,30 @@ import type {
 } from './types';
 
 const { Text } = Typography;
-const { TextArea } = Input;
+
+/**
+ * 纯文本 → 富文本 HTML（换行转 <br>，并转义标记字符）。
+ * 用途：AI 草稿 / 外部注入等纯文本来源回填到富文本编辑器时保持原有换行语义。
+ */
+const PLAIN_TEXT_ESCAPES: Record<string, string> = {
+  '&': '&amp;',
+  '<': '&lt;',
+  '>': '&gt;',
+  '"': '&quot;',
+  "'": '&#39;',
+};
+
+export const plainTextToRichHtml = (text: string): string => {
+  if (!text) return '';
+  const NL = String.fromCharCode(10);
+  const escapeHtml = (s: string) => s.replace(/[&<>"']/g, (ch) => PLAIN_TEXT_ESCAPES[ch] ?? ch);
+  const html = text
+    .split(NL)
+    .map((line) => escapeHtml(line))
+    .join('<br>');
+  // TipTap 的块级 schema 需要段落包裹，否则纯文本会被当作行内内容处理。
+  return '<p>' + html + '</p>';
+};
 
 /** BE-11 展示元数据 → 附件字段条目（编辑态回填：已是完成态，无需再上传） */
 const refsToFieldItems = (refs?: CommentAttachment[]): AttachmentFieldItem[] =>
@@ -103,6 +128,23 @@ export const CommentPanel: React.FC<CommentPanelProps> = ({
   const canEditByUser = (c: CommentItem) => (currentUserId ? c.userId === currentUserId : true);
   /** 只有适配器提供评论附件上传（usage=comment_attachment）时才展示附件入口 */
   const canAttachComments = typeof adapter.uploadAttachment === 'function';
+  /** 富文本图片上传中（粘贴/拖拽/选图），用于提交前拦截 */
+  const [imageUploading, setImageUploading] = useState(false);
+
+  /**
+   * 评论图片上传：复用评论附件通道（usage=comment_attachment），供富文本编辑器的
+   * 选图 / 粘贴 / 拖拽使用。无上传通道时不注入 —— 编辑器会 fail-fast 禁用图片能力
+   * （图片按钮置灰、粘贴被拦截并告警），不会发起任何上传请求。
+   */
+  const handleUploadImage = canAttachComments
+    ? async (file: File) => {
+        const uploaded = await adapter.uploadAttachment!(targetId, file);
+        if (!uploaded?.url) {
+          throw new Error(t('detailTabs.imageUploadFailed'));
+        }
+        return { url: uploaded.url, id: uploaded.id, name: file.name };
+      }
+    : undefined;
 
   const defaultFormat = useCallback(
     (s: string) => (s ? new Date(s).toLocaleString(language === 'en-US' ? 'en-US' : 'zh-CN') : ''),
@@ -131,11 +173,20 @@ export const CommentPanel: React.FC<CommentPanelProps> = ({
   // V0-01 Inline Apply：外部草稿只填入输入框，提交仍由用户点击（绝不自动提交）。
   useEffect(() => {
     if (!externalDraft?.text || !externalDraft.nonce) return;
-    setNewComment(externalDraft.text);
+    // 草稿可能是纯文本（AI 生成）或 HTML；富文本输入框需要 HTML，纯文本先转义+保留换行。
+    setNewComment(
+      isHtmlContent(externalDraft.text)
+        ? externalDraft.text
+        : plainTextToRichHtml(externalDraft.text)
+    );
   }, [externalDraft]);
 
   const handleAddComment = async () => {
-    if (!newComment.trim()) {
+    if (imageUploading) {
+      message.warning(t('detailTabs.imageUploading'));
+      return;
+    }
+    if (isRichTextEmpty(newComment)) {
       message.warning(t('detailTabs.commentRequired'));
       return;
     }
@@ -167,7 +218,11 @@ export const CommentPanel: React.FC<CommentPanelProps> = ({
   };
 
   const handleEditComment = async (commentId: number) => {
-    if (!editingCommentContent.trim() || !adapter.update) {
+    if (imageUploading) {
+      message.warning(t('detailTabs.imageUploading'));
+      return;
+    }
+    if (isRichTextEmpty(editingCommentContent) || !adapter.update) {
       message.warning(t('detailTabs.commentRequired'));
       return;
     }
@@ -289,15 +344,18 @@ export const CommentPanel: React.FC<CommentPanelProps> = ({
             <label htmlFor={`comment-content-${targetId}`} className="sr-only">
               {t('detailTabs.commentPlaceholder')}
             </label>
-            <TextArea
-              id={`comment-content-${targetId}`}
-              name="newComment"
-              aria-label={t('detailTabs.commentPlaceholder')}
-              value={newComment}
-              onChange={(e) => setNewComment(e.target.value)}
-              placeholder={t('detailTabs.commentPlaceholder')}
-              rows={4}
-            />
+            <div id={`comment-content-${targetId}`}>
+              <RichTextEditor
+                value={newComment}
+                onChange={setNewComment}
+                placeholder={t('detailTabs.commentPlaceholder')}
+                minHeight={120}
+                disabled={submitting}
+                dataTestId={`comment-rich-text-${targetId}`}
+                onUploadImage={handleUploadImage}
+                onUploadingChange={setImageUploading}
+              />
+            </div>
             {canAttachComments && canCreate && (
               <CommentAttachmentField
                 value={newAttachments}
@@ -319,7 +377,7 @@ export const CommentPanel: React.FC<CommentPanelProps> = ({
                   type="primary"
                   icon={<Send size={14} />}
                   onClick={handleAddComment}
-                  disabled={!newComment.trim()}
+                  disabled={isRichTextEmpty(newComment)}
                   loading={submitting}
                 >
                   {t('detailTabs.postComment')}
@@ -341,15 +399,18 @@ export const CommentPanel: React.FC<CommentPanelProps> = ({
                 >
                   {t('detailTabs.commentPlaceholder')}
                 </label>
-                <TextArea
-                  id={`edit-comment-${comment.id}`}
-                  name={`editComment-${comment.id}`}
-                  aria-label={t('detailTabs.commentPlaceholder')}
-                  value={editingCommentContent}
-                  onChange={(e) => setEditingCommentContent(e.target.value)}
-                  rows={3}
-                  placeholder={t('detailTabs.commentPlaceholder')}
-                />
+                <div id={`edit-comment-${comment.id}`}>
+                  <RichTextEditor
+                    value={editingCommentContent}
+                    onChange={setEditingCommentContent}
+                    placeholder={t('detailTabs.commentPlaceholder')}
+                    minHeight={100}
+                    disabled={submitting}
+                    dataTestId={`edit-comment-rich-text-${comment.id}`}
+                    onUploadImage={handleUploadImage}
+                    onUploadingChange={setImageUploading}
+                  />
+                </div>
                 {canAttachComments && canEdit && (
                   <CommentAttachmentField
                     value={editingAttachments}
@@ -370,7 +431,7 @@ export const CommentPanel: React.FC<CommentPanelProps> = ({
                   <Button
                     type="primary"
                     onClick={() => handleEditComment(comment.id)}
-                    disabled={!editingCommentContent.trim()}
+                    disabled={isRichTextEmpty(editingCommentContent)}
                     loading={submitting}
                   >
                     {t('common.save')}

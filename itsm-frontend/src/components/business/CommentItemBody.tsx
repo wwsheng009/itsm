@@ -10,6 +10,9 @@
 import React from 'react';
 import { Space, Tag, Typography } from 'antd';
 
+import RichTextContent from '@/components/common/rich-text/RichTextContent';
+import { isHtmlContent } from '@/lib/rich-text/content-format';
+
 export interface CommentItemBodyItem {
   id: number;
   userId?: number;
@@ -86,11 +89,17 @@ export default function CommentItemBody({
           </Typography.Text>
         ) : null}
       </Space>
-      <Typography.Paragraph
-        style={{ whiteSpace: 'pre-wrap', marginBottom: footer || actions ? 8 : 0, marginTop: 4 }}
-      >
-        {item.content}
-      </Typography.Paragraph>
+      {isHtmlContent(item.content) ? (
+        <div style={{ marginBottom: footer || actions ? 8 : 0, marginTop: 4 }}>
+          <RichTextContent content={item.content} emptyText="" className="comment-rich-text prose max-w-none" />
+        </div>
+      ) : (
+        <Typography.Paragraph
+          style={{ whiteSpace: 'pre-wrap', marginBottom: footer || actions ? 8 : 0, marginTop: 4 }}
+        >
+          {item.content}
+        </Typography.Paragraph>
+      )}
       {footer}
       {actions ? <div style={{ marginTop: 4 }}>{actions}</div> : null}
     </div>
