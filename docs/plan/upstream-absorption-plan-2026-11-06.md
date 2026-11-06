@@ -168,8 +168,7 @@
 |---|---|---|---|---|
 | **P0 门禁先行** | 实现 §2 L1 的面护栏 + `package.json` 回归契约 + 自证用例；登记 G18/G19 | 无 | ✅ **已完成**：门禁 15/15 绿、用例 10/10、真实树破坏演示三红两还原（§2「P0 完成状态」）；G18/G19 已登记 [`07-known-gaps.md`](../multi-tenant/07-known-gaps.md) §19/§20（含选项、实测代价、验收标准） | 撤脚本条目 |
 | **P1 协议试点** | ✅ **已完成（2026-11-06）**：移植 `service/sla_breach_predictor.go`（156 行，纯 `fmt`/`math`）+ 5 条用例（4 条上游规格 + 1 条本地加固 `AdjustSpeedFactors`）；**未接线**（无路由/无调用方） | P0 绿 | ✔ 上游 4 条规格用例全过；`gofmt -l` 干净；**8 个新增标识符在 service 包内零冲突**；**本地加固**：`prioritySpeedFactor` 被 `AdjustSpeedFactors` 写、`Predict` 读，上游无锁（data race），已加 `RWMutex`（不改变任何输入→输出）；`test-coverage-guard` 满足（源码与测试同批）；契约门禁 15/15、面不低于附录 A 下限 | 单 PR revert（删 2 文件；无迁移、无接线、无外部副作用） |
-
-| **P2 A 类铺开** | `service/ai_quota.go`（纯标准库）→ `service_quality_report_service.go`（依赖 `dto`，先核类型）→ BPMN 三件套（需与本地 `service/bpmn` 同源合并评审） | P1 收口 | 每能力独立 PR + 前后对照表 +（若有接线）238 实测证据 | 逐能力 revert（互不依赖） |
+| **P2 A 类铺开** | ✅ **`ai_quota` 已移植（2026-11-06，未接线）**：`service/ai_quota.go` 206 行纯标准库 + 6 用例（5 条上游规格 + 1 条本地补 `EstimateCost`）；SQL 兼容性已实测核对（本地 `ai_llm_calls` 的 `tenant_id` 由 `migrations/20261019_ai_llm_call_observability.sql` 增加，`tokens`/`created_at` 齐备），配置走四个 `ITSM_AI_TOKEN_*` 环境变量。**接线另立 PR**：配额执行点应映射 429 而非 500，fail-open 语义需与网关一致。→ 下一步 `service_quality_report_service.go`（先核 `dto` 类型）→ BPMN 三件套（需与本地 `service/bpmn` 合并评审） | P1 收口 | 每能力独立 PR + 前后对照表 +（若有接线）238 实测证据 | 逐能力 revert（互不依赖） |
 | **P3 C 类资产** | 移植上游不依赖其实现的契约测试；引入 `fresh-install-gate` / `rls-golden-path` 两个 CI 门禁 | P2 至少 1 个能力收口 | CI 绿；**移植的每条测试均能独立跑绿且能故意打破本地实现而变红**（非装饰性断言）；无新增 flake | 撤 workflow 文件 |
 | **P4 B 类差集** | `service/cloud`、`marketplace`、`connector/builtin`、`seeder`、`workbench`、`account` | **G18 已裁决** | 差集清单 + 逐点取舍记录 | 按域 revert |
 
