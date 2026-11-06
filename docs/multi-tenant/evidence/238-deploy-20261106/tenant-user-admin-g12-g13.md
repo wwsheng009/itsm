@@ -68,14 +68,29 @@
 | registry 抖动 | 单层 57 MB 拉取约 8 min；首轮 `up` 直接 timeout | 重试可过；`docker info` 已配 daocloud/1panel mirror，但 build 阶段仍可能回落 docker.io |
 | 构建变量透传 | 用 `sudo env ... docker compose` 而非依赖宿主 env | `--env-file` 副本仅替换 `VERSION`，不改写 `.env.prod` |
 
-## 6. 残项（尚未闭环，勿据此宣称「已验证」）
+## 6. 残项闭环结果（2026-11-06 执行测试）
 
-| # | 残项 | 状态 | 说明 |
+| # | 残项 | 状态 | 证据 |
 |---|---|---|---|
-| R1 | `go test ./handlers/tenant/ ./router/` | ❌ **仍未执行** | 本机 3.7 GB 空闲内存下编译/link 期 `cannot allocate memory`（`-p 1`、`GOMAXPROCS=1`、`-gcflags=all=-c=1` 均失败）；238 remote shell 白名单不含 `go`，且 host **无 Go 工具链、无 module cache**（全部构建在 Docker 内）；容器化补跑需拉 ~250 MB golang base + cgo/sqlite，成本过高未执行。改动面为「响应体加字段 + 一次 Count 查询」，`./service` 与前端套件已覆盖，风险低但**未背书** |
-| R2 | `409 LAST_ADMIN_PROTECTED` 线上实测 | ❌ 未做 | 8089 写通道关闭态；需临时 `TENANT_USER_ADMIN_ENABLED=true` 重启后端方可验证 |
-| R3 | 浏览器点测（抽屉开关态与 Tooltip 文案） | ❌ 未做 | 已验证 API 契约与 bundle 含新代码，但未做 UI 交互走查 |
-| R4 | 多管理员租户的假性禁用现场复现 | ❌ 不可得 | 演示数据每客户仅 1 个活跃 admin，天然不触发旧缺陷形态；§3 用「当页 admin=0 / 租户级=1」等价证明 |
+| R1 | `go test ./handlers/tenant/ ./router/` | ✅ **已闭环（容器化 Linux）** | 本机三次尝试均 link 期 `cannot allocate memory`；改为在 238 用 `golang:1.25.13-alpine` bind mount 源码 + CGO 跑：`ok itsm-backend/handlers/tenant 0.145s`、`ok itsm-backend/router 0.271s`、`ok itsm-backend/service 4.814s`，`RUNNER_RC=0` |
+| R2 | `409 LAST_ADMIN_PROTECTED` 线上实测 | ✅ **已闭环（临时开写通道实测，测毕复原）** | `PUT /tenants/4/users/11/status {"active":false}` → `{"code":"LAST_ADMIN_PROTECTED","message":"该用户是租户最后一个可用管理员，不能停用"}`，复核 `active=true`（零副作用）；启停正路径对 `demo.med.user`(14) 关闭→再启用均 `code:0`，终态 `active=true`；`activeAdminCount` 全程稳定为 1 |
+| R2b | membership 撤销面错误码（G12/G14 关联） | ✅ **已实测** | 先 DB 只读预检（user 11 `home_tenant=4`、membership `tenant=4,status=active`）确认必触发 home 不可撤，再 `POST .../membership/revoke` → **HTTP 409** `HOME_MEMBERSHIP_IMMUTABLE`「home 映射不可撤销（账号级语义，请使用账号停用）」；DB 复核 `tenant_id=4` 撤销行数 **0** → 本批新映射的前端文案对应的正是服务端真实行为 |
+| R3 | 浏览器 UI 点测 | ✅ **已闭环（ego-browser）** | 抽屉「共 6 个用户」，6 行数据、6 个开关，**仅 `demo.med.admin`（周敏·医疗-管理员）`disabled=true`**，其余 5 个 enabled；应用自身请求 `GET /api/v1/tenants/4/users?page=1&pageSize=20` → **200 / total 6**；产物 `static/index-DtaaMdLQ.js` 内 `仅剩这一个活跃管理员` ×1、`activeAdminCount` ×2、`HOME_MEMBERSHIP_IMMUTABLE` ×1 |
+| R4 | 多管理员租户的假性禁用现场复现 | ⏸ **环境不可得，保持开放** | 六个租户 `activeAdminCount` 实测分布 `1:0 / 2:0 / 3:1 / 4:1 / 5:1 / 6:1` —— **无任一租户 ≥2 活跃 admin**，旧缺陷形态（≥2 且跨页）在演示数据里不可自然出现。不为验证而往演示库新建管理员（无删除通道，TUM-D8）；该形态由单元用例覆盖（后端「筛选/分页不收敛计数」+ 前端「`activeAdminCount=2` 仍可停用」）|
+
+### R3 过程中的两次误判（留此以免重复踩）
+
+1. 首轮把「抽屉 `共 0 个用户`、0 行」读成上线回归 —— 实为**等待条件错误**：antd v5 表格恒含
+   `tr.ant-table-measure-row`，`querySelectorAll('table tbody tr').length > 0` 在数据到达前即为真。
+   排除 measure-row 后同一入口稳定为 6 行 / HTTP 200。**应用无此问题。**
+2. 次轮 Tooltip 断言失败亦属脚本问题：抽屉表格有横向滚动（`scroll.x`），`getBoundingClientRect()` 得到
+   `x=2036` 超出视口宽 1480，hover 落空。该文案改由产物 bundle 字符串核验（见上表 R3）。
+
+### 复原确认
+
+测试后写通道已恢复关闭：容器内 `TENANT_USER_ADMIN_ENABLED=[unset]`、`.env.demo` 无该变量、override 文件已删除；
+再次 `PUT status` 复现 `{"code":"TENANT_USER_ADMIN_DISABLED"}`，读通道仍正常（`total=6 / activeAdminCount=1`）。
+238 仓库目录内临时 `itsm-backend/Dockerfile.qodertest` 已删除，host tracked 树干净。
 
 ## 7. 回滚
 

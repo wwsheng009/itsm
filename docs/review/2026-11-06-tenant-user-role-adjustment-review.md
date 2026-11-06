@@ -379,24 +379,28 @@ v0.2 复核后的结论替换 v0.1 的四条（v0.1 判定方向部分错位，�
   前端 `tsc --noEmit` exit 0、`jest TenantUsersDrawer tenant-user-admin-api` **18/18 通过**、
   `eslint` 4 个改动文件 0 problem、`bash scripts/docs-gate/run-all.sh` **6 gates / 0 failed**。
 
-**⚠️ 残项 1 —— 两个后端 suite 仍未执行（本机 + 远端皆不可得）**
+**✅ 残项 1 —— 两个后端 suite 已闭环（2026-11-06 容器化补跑）**
 
-`./handlers/tenant/`、`./router/` 在本机**构建期**即失败，未进入任何用例：
-`compile.exe: fatal error: runtime: cannot allocate memory`（GC worker 无法分配）。已尝试并全部失败：
-`-p 1`、`GOMAXPROCS=1`、以及本仓自用的低内存写法 `-gcflags=all=-c=1`（见 `plan` v0.10 证据行）；
-本机空闲物理内存约 3.7 GB。原计划在 238 上取 HEAD 基线，但远端 shell 命令白名单**不含 `go`**
-（`COMMAND_DENIED: command "go" is not in the allowlist`），无法执行。
-**判定**：失败发生在依赖包 `ent/schema` 编译/link 阶段，与本批两行改动（结构体加字段 + 一次 Count 查询）无关，
-但 `service` 绿**不能替它们背书** —— 需在内存充足的工作站补跑 `make test-backend`
-或 `go test ./handlers/tenant/ ./router/` 后方可合入。
+本机三次尝试均失败于 link 期 `runtime: cannot allocate memory`（`-p 1`、`GOMAXPROCS=1`、
+`-gcflags=all=-c=1`；空闲物理内存 ~3.7 GB），238 又无 go 工具链且 remote shell 白名单不含 `go`。
+最终在 238 用 `golang:1.25.13-alpine` + bind mount 源码 + `CGO_ENABLED=1` 跑通：
+`ok itsm-backend/handlers/tenant`、`ok itsm-backend/router`、`ok itsm-backend/service`（RC=0）。
+关键坑：`itsm-backend/.dockerignore` 含 `**/*_test.go`，用 `COPY` 构建的镜像里跑测试会得到
+`[no test files]` 且 **RC=0 假通过** —— 必须 bind mount。详见
+[`evidence/238-deploy-20261106/tenant-user-admin-g12-g13.md`](../multi-tenant/evidence/238-deploy-20261106/tenant-user-admin-g12-g13.md) §5/§6。
 
-**⚠️ 残项 2 —— live 验证部分闭环（2026-11-06 部署后）**：已上线 `itsm-demo`（8089，`1.8.0-dev.057b3813`）并实测：
-`GET /tenants/4/users` 在 `pageSize=1`（当页活跃 admin=0）、`page=2`、`role=end_user` 三种查询下均返回
-`activeAdminCount=1`，而**部署前该字段出现 0 次** → 计数与筛选/分页解耦的契约已在线上成立；
-新 bundle `static/index-DtaaMdLQ.js` 含 `activeAdminCount` 读取。
-**仍未做**：① 浏览器 UI 点测（开关态与 Tooltip 文案）；② `409 LAST_ADMIN_PROTECTED` 实测（写通道在本实例为关闭态）；
-③ 多管理员租户的假性禁用现场复现（演示数据每客户仅 1 个活跃 admin，天然不触发旧缺陷形态，故以 ① 的等价证明替代）。
-详见 [`evidence/238-deploy-20261106/tenant-user-admin-g12-g13.md`](../multi-tenant/evidence/238-deploy-20261106/tenant-user-admin-g12-g13.md) §6 残项表。
+**✅ 残项 2 —— live 验证已闭环（2026-11-06 部署 + 执行测试）**：`itsm-demo`（8089，`1.8.0-dev.057b3813`）实测：
+① 契约：`GET /tenants/4/users` 在 `pageSize=1`（当页活跃 admin=0）、`page=2`、`role=end_user` 下均返回
+`activeAdminCount=1`，而**部署前该字段出现 0 次**；
+② 浏览器 UI（ego-browser）：抽屉 6 行 6 开关，**仅 `demo.med.admin` 被禁用**，其余 5 个可用，
+应用自身请求 200 / total 6；
+③ 护栏：临时开启写通道后 `PUT status` 得 **409 `LAST_ADMIN_PROTECTED`**（账号状态未变），
+`membership/revoke` 得 **409 `HOME_MEMBERSHIP_IMMUTABLE`**（DB 复核撤销行数 0），
+启停正路径关闭→再启用均成功且终态 `active=true`；**测毕写通道已恢复关闭**（复现 `TENANT_USER_ADMIN_DISABLED`）。
+唯一保持开放：多管理员（≥2 且跨页）现场复现 —— 六个租户实测 `activeAdminCount` 为
+`0/0/1/1/1/1`，演示数据天然不含该形态，且不为验证往演示库新建管理员（无删除通道），由单元用例覆盖。
+完整过程与两次测试脚本自身误判（antd `measure-row`、抽屉横向滚动致 hover 落空）见
+[`evidence/238-deploy-20261106/tenant-user-admin-g12-g13.md`](../multi-tenant/evidence/238-deploy-20261106/tenant-user-admin-g12-g13.md) §6。
 
 **⚠️ 新发现（执行期）—— G16**：曾按建议执行 `make swagger-gen` 想把 `activeAdminCount` 写进 OpenAPI，结果：
 ① `handlers/tenant/user_admin.go` **7 个端点全部零 swagger 注解**，`TenantUserListResponse` 在 swagger 中 0 次出现，
@@ -415,7 +419,7 @@ v0.2 复核后的结论替换 v0.1 的四条（v0.1 判定方向部分错位，�
 | 关联文档 | `docs/multi-tenant/plan/msp-tenant-user-management-enhancement-plan.md`（TUM-1–TUM-7）、`docs/multi-tenant/07-known-gaps.md` |
 | 治理登记 | G12 / G13 / G14 / G15 / G16 → `docs/multi-tenant/07-known-gaps.md`（§15–§17）；本文件已登记 `docs/review/README.md` |
 | 部署证据 | [`evidence/238-deploy-20261106/tenant-user-admin-g12-g13.md`](../multi-tenant/evidence/238-deploy-20261106/tenant-user-admin-g12-g13.md)（含 lineage/fork 差异、构建配方坑、回滚步骤） |
-| 后续动作 | G14 接线决策 + G15 运维 SOP 文案评审 + G16 Swagger 注解补齐；live 三项残项（UI 点测 / 409 实测 / 多管理员场景）；TUM-7 维持不做，解除需先满足 §6.2 三项前置 |
+| 后续动作 | G14 接线决策 + G15 运维 SOP 文案评审 + G16 Swagger 注解补齐；live 残项仅剩「多管理员跨页场景」（环境不可得，已由单测覆盖）；TUM-7 维持不做，解除需先满足 §6.2 三项前置 |
 
 ## 修订记录
 
