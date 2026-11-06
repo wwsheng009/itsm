@@ -45,6 +45,7 @@
 | `2026-10-28-page-review-round8.md` | historical | 多租户前端实测审查第八轮——`plan.md` 修复验收 14 项（确认生效 5 / 未生效 2 / 页面矛盾 1 / 未验证 6）+ 新缺陷 14 项（P1×4、P2×10） |
 | `2026-11-06-tenant-user-role-adjustment-review.md` | **v0.2 复核修订（2026-11-06）** | 租户用户「角色调整」能力评审；v0.1 判为业务缺口，v0.2 按源码改判为**边界确认（TUM-7 维持不做）+ 三项真实缺陷**；衍生 G12–G15 已登记 [`docs/multi-tenant/07-known-gaps.md`](../multi-tenant/07-known-gaps.md)（G12 错误码漂移、G13 护栏按当页估算已修复；G14 membership 撤销面待接线决策、G15 职责边界口径） |
 | `2026-11-06-upstream-heidsoft-integration-scan.md` | 扫描结论（未合并） | 上游 fork `heidsoft/itsm`（238 部署机 origin）能力扫描：merge-base `e7fd79e9`、双向独有 636/537 提交、patch-id 等价 0、试合并 **439 冲突 / 2883 自动合并**；根因是**前端架构级分叉（上游 Next.js vs 本地 Vite）**；产出「硬排除项（含 `feat(role)!` BREAKING）+ 17 簇可移植性分级 + 移植顺序 + S1–S7 审查→调整→移植协议」 |
+| `2026-11-06-upstream-heidsoft-feature-inventory.md` | 只读清单（未合并） | 上游**到底加了什么**：955 新增文件逐项归类（新 handler 域 on_call/cloudsignal/workbench/account、`service/cloud` 29 文件、5 个 `cmd/` 验证命令、46 个新增 SQL 迁移、382 个新回归测试、`itsm-cli/dist` 144 产物入 VCS）；并给出**三处必须先裁决的不兼容**——`users.username` 全局唯一 vs 上游租户内组合唯一（上游依据正是 `AGENTS.md:245`，我们才是偏离基线的一方）、`cab` vs `change_review` 同端点同权限两套表、`feat(role)!` 与 D7/G11 冲突；另列本地独有 9 个 handler 域，防单向结论 |
 
 ## 目录合并（2026-09-12）
 
