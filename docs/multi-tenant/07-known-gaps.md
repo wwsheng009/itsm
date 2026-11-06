@@ -245,6 +245,8 @@
 ## 15. G12–G14 · 平台侧租户用户通道的契约与护栏复核（2026-11-06）
 
 **来源**：[`docs/review/2026-11-06-tenant-user-role-adjustment-review.md`](../review/2026-11-06-tenant-user-role-adjustment-review.md) v0.2 复核。
+**线上生效（2026-11-06）**：G12/G13 已部署至 238 演示栈（`1.8.0-dev.057b3813`），
+实测证据与回滚步骤见 [`evidence/238-deploy-20261106/tenant-user-admin-g12-g13.md`](./evidence/238-deploy-20261106/tenant-user-admin-g12-g13.md)。
 三项都发生在 TUM/MSW-3 通道上，与「是否做跨租户角色调整」**无关**，属可独立修复的契约/UX 缺陷。
 
 ### G12 错误码词表漂移（已修复）

@@ -362,7 +362,15 @@ v0.2 复核后的结论替换 v0.1 的四条（v0.1 判定方向部分错位，�
 
 ## 附：本次检查未覆盖的部分
 
-- 未验证 `TENANT_USER_ADMIN_ENABLED` 关闭态下抽屉的写操作表现（本次为开启态实例）。
+- **v0.2 已闭环（关闭态写操作实测）**：部署后对 `demo.med.admin`（tenant 4 / user 11）发起
+  `PUT /tenants/4/users/11/status {"active":false}` → 无 CSRF 时 `4031 CSRF token missing`；
+  带 CSRF 时 `{code: "TENANT_USER_ADMIN_DISABLED", message: "平台侧用户治理未启用"}`，账号复核仍 `active=true`（零副作用）。
+  根因：`TENANT_USER_ADMIN_ENABLED` 在 `.env.demo` 与 `docker-compose.demo.yml` **均未设置** → 走默认关
+  （`service/tenant_user_admin.go:120`），与 TUM-D3 / plan v0.12「保持生产默认关」一致。
+  ⚠️ **与 v0.1 记载冲突**：v0.1 §3.1 称走查时为「开启态实例」（能看见启停开关与行操作生效路径）。
+  两次时点间开关状态并不一致，说明该演示实例的写通道开关**被改动过或 v0.1 判断有误**；
+  本评审的运行实例结论应以「部署当日实测=关闭态」为准，证据见
+  [`evidence/238-deploy-20261106/tenant-user-admin-g12-g13.md`](../multi-tenant/evidence/238-deploy-20261106/tenant-user-admin-g12-g13.md) §4。
 - **v0.2 已补**：MSP 服务商自服务面（`provider` 维度）**确认无角色调整通道** —— MSP 面只有建号（`ProvisionUserToTenant`
   三通道之一）与工作台/跨客户视图，无角色写端点；与平台面口径一致（都是「可供给、不可授权」）。
   残留未验证项：provider 是否**应该**具备跨客户授权能力（属 G15 的产品决策，非本评审范围）。
@@ -382,8 +390,13 @@ v0.2 复核后的结论替换 v0.1 的四条（v0.1 判定方向部分错位，�
 但 `service` 绿**不能替它们背书** —— 需在内存充足的工作站补跑 `make test-backend`
 或 `go test ./handlers/tenant/ ./router/` 后方可合入。
 
-**⚠️ 残项 2 —— 浏览器实测未做**：护栏跨页场景（同一租户把 pageSize 调至 10，管理员分布多页时开关不应再灰）
-需在 238 live 走查确认；本机无实例凭据。
+**⚠️ 残项 2 —— live 验证部分闭环（2026-11-06 部署后）**：已上线 `itsm-demo`（8089，`1.8.0-dev.057b3813`）并实测：
+`GET /tenants/4/users` 在 `pageSize=1`（当页活跃 admin=0）、`page=2`、`role=end_user` 三种查询下均返回
+`activeAdminCount=1`，而**部署前该字段出现 0 次** → 计数与筛选/分页解耦的契约已在线上成立；
+新 bundle `static/index-DtaaMdLQ.js` 含 `activeAdminCount` 读取。
+**仍未做**：① 浏览器 UI 点测（开关态与 Tooltip 文案）；② `409 LAST_ADMIN_PROTECTED` 实测（写通道在本实例为关闭态）；
+③ 多管理员租户的假性禁用现场复现（演示数据每客户仅 1 个活跃 admin，天然不触发旧缺陷形态，故以 ① 的等价证明替代）。
+详见 [`evidence/238-deploy-20261106/tenant-user-admin-g12-g13.md`](../multi-tenant/evidence/238-deploy-20261106/tenant-user-admin-g12-g13.md) §6 残项表。
 
 **⚠️ 新发现（执行期）—— G16**：曾按建议执行 `make swagger-gen` 想把 `activeAdminCount` 写进 OpenAPI，结果：
 ① `handlers/tenant/user_admin.go` **7 个端点全部零 swagger 注解**，`TenantUserListResponse` 在 swagger 中 0 次出现，
@@ -398,10 +411,11 @@ v0.2 复核后的结论替换 v0.1 的四条（v0.1 判定方向部分错位，�
 | 项 | 值 |
 |---|---|
 | 创建日期 | 2026-11-06 |
-| 检查对象版本 | 运行实例 `172.18.3.238:8089`（2026-11-06 时点） |
+| 检查对象版本 | 运行实例 `172.18.3.238:8089`（2026-11-06 时点，v0.1 走查）；部署后 `1.8.0-dev.057b3813`（v0.2 实测） |
 | 关联文档 | `docs/multi-tenant/plan/msp-tenant-user-management-enhancement-plan.md`（TUM-1–TUM-7）、`docs/multi-tenant/07-known-gaps.md` |
 | 治理登记 | G12 / G13 / G14 / G15 / G16 → `docs/multi-tenant/07-known-gaps.md`（§15–§17）；本文件已登记 `docs/review/README.md` |
-| 后续动作 | G14 接线决策 + G15 运维 SOP 文案评审；TUM-7 维持不做，解除需先满足 §6.2 三项前置 |
+| 部署证据 | [`evidence/238-deploy-20261106/tenant-user-admin-g12-g13.md`](../multi-tenant/evidence/238-deploy-20261106/tenant-user-admin-g12-g13.md)（含 lineage/fork 差异、构建配方坑、回滚步骤） |
+| 后续动作 | G14 接线决策 + G15 运维 SOP 文案评审 + G16 Swagger 注解补齐；live 三项残项（UI 点测 / 409 实测 / 多管理员场景）；TUM-7 维持不做，解除需先满足 §6.2 三项前置 |
 
 ## 修订记录
 
