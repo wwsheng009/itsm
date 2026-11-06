@@ -354,3 +354,6 @@ itsm-backend/uploads/tickets/*
 # H1-03 夜批 stale 提议（生成物，运行时产出；不提交）
 docs/help/_stale-proposals.json
 docs/help/_stale-proposals.md
+# Obsidian 本地 vault 产物（编辑器自动生成，不入库；2026-11-06 误落盘清理）
+/.obsidian/
+/*.base
