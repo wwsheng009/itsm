@@ -32,10 +32,14 @@ type TenantUserItem struct {
 
 // TenantUserListResponse 列表响应。
 type TenantUserListResponse struct {
-	Items    []TenantUserItem `json:"items"`
-	Total    int64            `json:"total"`
-	Page     int              `json:"page"`
-	PageSize int              `json:"pageSize"`
+	Items []TenantUserItem `json:"items"`
+	Total int64            `json:"total"`
+	Page  int              `json:"page"`
+	// ActiveAdminCount 目标租户内「活跃 admin」全量计数：不受 keyword/status/role 筛选与分页影响，
+	// 供前端「最后管理员」护栏做按钮级禁用（G13）。停用动作本身仍以服务层租户级校验为权威
+	// （SetActive: 同租户其他活跃 admin 为 0 → 409 LAST_ADMIN_PROTECTED），前端判定只是 UX 收敛。
+	ActiveAdminCount int `json:"activeAdminCount"`
+	PageSize         int `json:"pageSize"`
 }
 
 // 重置密码模式（TUM-D4）：generated=一次性口令+强制改密（默认）；specified=管理员指定新密码。

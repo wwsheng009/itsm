@@ -194,4 +194,49 @@ describe('TenantUsersDrawer', () => {
     await waitFor(() => expect(mockOffboard).toHaveBeenCalledWith(9, 42));
     expect(await screen.findByText(/已离职「alice」：撤销 2 个分配/)).toBeInTheDocument();
   });
+
+  // G13：最后管理员护栏必须按服务端租户级计数判定，不能按当页 items 估算，
+  // 否则管理员跨页分布时会被假性禁用（当页只看到 1 个 admin）。
+  it('护栏计数取服务端租户级口径：activeAdminCount=2 时当页唯一管理员仍可停用', async () => {
+    mockListUsers.mockResolvedValue({
+      items: [{ ...baseItem, role: 'admin', username: 'admin1', id: 7 }],
+      total: 3,
+      page: 2,
+      pageSize: 1,
+      activeAdminCount: 2,
+    });
+    mockSetStatus.mockResolvedValue(undefined);
+
+    renderDrawer();
+    await screen.findByText('admin1');
+
+    const switchEl = screen.getByRole('switch');
+    expect(switchEl).not.toBeDisabled();
+
+    fireEvent.click(switchEl);
+    fireEvent.click(await screen.findByRole('button', { name: '确认停用' }));
+    await waitFor(() => expect(mockSetStatus).toHaveBeenCalledWith(9, 7, { active: false }));
+  });
+
+  it('护栏计数取服务端租户级口径：activeAdminCount=1 时禁用并说明原因', async () => {
+    mockListUsers.mockResolvedValue({
+      items: [
+        { ...baseItem, role: 'admin', username: 'admin1', id: 7 },
+        { ...baseItem, role: 'admin', username: 'admin2', id: 8, active: false },
+      ],
+      total: 2,
+      page: 1,
+      pageSize: 20,
+      activeAdminCount: 1,
+    });
+
+    renderDrawer();
+    await screen.findByText('admin1');
+
+    // 当页有 2 个 admin 行（其中 1 个已停用）→ 旧口径会算出 1 个活跃 admin 而恰好一致；
+    // 这里断言服务端口径生效：唯一活跃管理员的开关被禁用并给出原因。
+    const switches = screen.getAllByRole('switch');
+    expect(switches[0]).toBeDisabled();
+    expect(screen.getByText('admin1')).toBeInTheDocument();
+  });
 });

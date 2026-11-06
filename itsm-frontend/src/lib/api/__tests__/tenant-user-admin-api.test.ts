@@ -130,6 +130,16 @@ describe('tenantUserAdminErrorMessage（§3.5 错误码映射）', () => {
     expect(Object.keys(TENANT_USER_ADMIN_ERROR_MESSAGES)).toEqual(
       expect.arrayContaining(['PLATFORM_SCOPE_REQUIRED', 'TENANT_CONFIRM_REQUIRED'])
     );
+
+    // MSW-3 membership 撤销面错误码：与后端 service/tenant_user_admin.go 常量表同源，
+    // 任一项缺映射即为契约漂移（会以英文/原始 message 透出给用户）。
+    expect(tenantUserAdminErrorMessage({ errorCode: 'TENANT_USER_MEMBERSHIP_NOT_FOUND' })).toContain(
+      '成员映射'
+    );
+    expect(tenantUserAdminErrorMessage({ errorCode: 'HOME_MEMBERSHIP_IMMUTABLE' })).toContain('不可撤销');
+    expect(Object.keys(TENANT_USER_ADMIN_ERROR_MESSAGES)).toEqual(
+      expect.arrayContaining(['TENANT_USER_MEMBERSHIP_NOT_FOUND', 'HOME_MEMBERSHIP_IMMUTABLE'])
+    );
   });
 
   it('未知错误码回落后端 message，无 message 时兜底', () => {

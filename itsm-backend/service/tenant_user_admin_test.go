@@ -78,24 +78,53 @@ func createTUAUser(t *testing.T, client *ent.Client, tenantID int, username stri
 	return u
 }
 
+// countActiveAdminItems 统计当页 items 内的活跃 admin 数（用于与租户级 ActiveAdminCount 做对比）。
+func countActiveAdminItems(items []dto.TenantUserItem) int {
+	n := 0
+	for _, i := range items {
+		if i.Active && i.Role == "admin" {
+			n++
+		}
+	}
+	return n
+}
+
 func TestTenantUserAdmin_ListUsers(t *testing.T) {
 	f := newTenantUserAdminFixture(t)
 
 	resp, err := f.svc.ListUsers(f.ctx, f.actor, f.tenantA, &dto.TenantUserListQuery{})
 	require.NoError(t, err)
 	assert.EqualValues(t, 3, resp.Total, "仅返回目标租户用户（跨租户隔离）")
+	assert.Equal(t, 2, resp.ActiveAdminCount, "活跃 admin 计数=目标租户全量（tua-a-admin1/2）")
 
 	resp, err = f.svc.ListUsers(f.ctx, f.actor, f.tenantA, &dto.TenantUserListQuery{Keyword: "admin1"})
 	require.NoError(t, err)
 	assert.EqualValues(t, 1, resp.Total, "关键字命中用户名")
+	assert.Equal(t, 2, resp.ActiveAdminCount, "计数不受 keyword 筛选影响")
 
 	resp, err = f.svc.ListUsers(f.ctx, f.actor, f.tenantA, &dto.TenantUserListQuery{Status: "inactive"})
 	require.NoError(t, err)
 	assert.EqualValues(t, 0, resp.Total)
+	assert.Equal(t, 2, resp.ActiveAdminCount, "计数不受 status 筛选影响")
 
 	resp, err = f.svc.ListUsers(f.ctx, f.actor, f.tenantA, &dto.TenantUserListQuery{Role: "end_user"})
 	require.NoError(t, err)
 	assert.EqualValues(t, 1, resp.Total)
+	assert.Equal(t, 2, resp.ActiveAdminCount, "计数不受 role 筛选影响（页内 0 个 admin 仍返回 2）")
+
+	// G13：分页不能收敛计数。夹具按 admin1→admin2→end_user 顺序建号，列表按 id 倒序，
+	// 故 PageSize=1 的首条是 end_user（当页 admin 数=0）；若前端按当页 items 自行计数，
+	// 会误判「该租户没有管理员 / 最后一个管理员」并假性禁用停用开关。服务端仍返回租户级全量。
+	resp, err = f.svc.ListUsers(f.ctx, f.actor, f.tenantA, &dto.TenantUserListQuery{Page: 1, PageSize: 1})
+	require.NoError(t, err)
+	require.Len(t, resp.Items, 1)
+	assert.Equal(t, 2, resp.ActiveAdminCount, "计数不受分页影响")
+	assert.Equal(t, 0, countActiveAdminItems(resp.Items), "当页 admin 数=0（与租户级全量计数区分）")
+
+	// 目标租户的计数不串到别的租户（tenantB 只有 1 个活跃 admin）。
+	resp, err = f.svc.ListUsers(f.ctx, f.actor, f.tenantB, &dto.TenantUserListQuery{})
+	require.NoError(t, err)
+	assert.Equal(t, 1, resp.ActiveAdminCount, "跨租户计数隔离")
 
 	// 非平台角色 fail-closed（TUM-D1）。
 	_, err = f.svc.ListUsers(f.ctx, TenantAdminActor{UserID: 1, Role: "admin"}, f.tenantA, nil)

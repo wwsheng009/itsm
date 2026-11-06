@@ -73,7 +73,8 @@ const formatDateTime = (value?: string) => {
  * 平台侧租户用户管理抽屉（TUM-4）。
  * 契约：docs/multi-tenant/plan/msp-tenant-user-management-enhancement-plan.md §4.1–§4.5。
  * - 深链 `?tenantUsers=<tenantId>` 由父页面持有；筛选/分页同步 `tu*` 查询参数（前进/后退可回退）；
- * - 启停乐观更新 + 失败回滚；最后管理员由后端 409 兜底（前端按当前页计数禁用）；
+ * - 启停乐观更新 + 失败回滚；最后管理员护栏取服务端租户级计数 `activeAdminCount`（不随筛选/翻页收敛），
+ *   后端 409 LAST_ADMIN_PROTECTED 仍为权威兜底；仅当服务端未返回该字段时回退按当页估算；
  * - 批量仅本页选择、上限 50，逐条结果 + 失败重试（后端批量端点为 P1，本实现按单条串行聚合）。
  */
 const TenantUsersDrawer: React.FC<TenantUsersDrawerProps> = ({
@@ -92,6 +93,8 @@ const TenantUsersDrawer: React.FC<TenantUsersDrawerProps> = ({
 
   const [items, setItems] = useState<TenantUserItem[]>([]);
   const [total, setTotal] = useState(0);
+  // 服务端权威的「本租户活跃 admin 全量计数」；null=服务端未返回（回退按当页估算）。
+  const [tenantAdminCount, setTenantAdminCount] = useState<number | null>(null);
   const [loading, setLoading] = useState(false);
   const [loadError, setLoadError] = useState<{ code?: string; message: string } | null>(null);
 
@@ -170,11 +173,14 @@ const TenantUsersDrawer: React.FC<TenantUsersDrawerProps> = ({
       });
       setItems(resp.items ?? []);
       setTotal(resp.total ?? 0);
+      // 护栏计数一律取服务端租户级口径，不随筛选/翻页收敛。
+      setTenantAdminCount(typeof resp.activeAdminCount === 'number' ? resp.activeAdminCount : null);
     } catch (error) {
       const e = error as { errorCode?: string; message?: string };
       setLoadError({ code: e?.errorCode, message: tenantUserAdminErrorMessage(error) });
       setItems([]);
       setTotal(0);
+      setTenantAdminCount(null);
     } finally {
       setLoading(false);
     }
@@ -203,10 +209,13 @@ const TenantUsersDrawer: React.FC<TenantUsersDrawerProps> = ({
     syncUrl({ keyword: '', status: '', role: '', page: 1 });
   };
 
-  const activeAdminCount = useMemo(
+  // 当页估算值：仅在服务端未返回 activeAdminCount 时兜底（旧版本兼容），
+  // 不能用作主口径——管理员跨页分布时会误判为「最后一个管理员」并假性禁用开关。
+  const pageAdminCount = useMemo(
     () => items.filter(i => i.active && i.role === 'admin').length,
     [items]
   );
+  const activeAdminCount = tenantAdminCount ?? pageAdminCount;
 
   const isLastAdmin = (record: TenantUserItem) =>
     record.role === 'admin' && record.active && activeAdminCount <= 1;
@@ -217,7 +226,11 @@ const TenantUsersDrawer: React.FC<TenantUsersDrawerProps> = ({
     confirmCode?: string
   ) => {
     const snapshot = items;
+    const countSnapshot = tenantAdminCount;
     setItems(prev => prev.map(i => (i.id === record.id ? { ...i, active: next } : i)));
+    if (record.role === 'admin' && tenantAdminCount !== null) {
+      setTenantAdminCount(prev => Math.max(0, (prev ?? 0) + (next ? 1 : -1)));
+    }
     setStatusLoadingId(record.id);
     try {
       await TenantUserAdminApi.setStatus(tenantId, record.id, { active: next, confirmCode });
@@ -225,7 +238,8 @@ const TenantUsersDrawer: React.FC<TenantUsersDrawerProps> = ({
         next ? `已启用「${record.username}」` : `已停用「${record.username}」，该用户已立即下线`
       );
     } catch (error) {
-      setItems(snapshot); // 乐观更新回滚
+      setItems(snapshot); // 乐观更新回滚（含护栏计数）
+      setTenantAdminCount(countSnapshot);
       message.error(tenantUserAdminErrorMessage(error));
     } finally {
       setStatusLoadingId(null);
@@ -432,7 +446,9 @@ const TenantUsersDrawer: React.FC<TenantUsersDrawerProps> = ({
               checked={active}
               loading={statusLoadingId === record.id}
               disabled={!canWrite || lastAdmin}
-              disabledReason={lastAdmin ? '该租户最后一个管理员不可停用' : undefined}
+              disabledReason={
+                lastAdmin ? '该租户仅剩这一个活跃管理员，停用后该租户将失去管理入口' : undefined
+              }
               checkedChildren="启用"
               unCheckedChildren="停用"
               disableConfirmDescription="该用户将立即掉线，且无法登录；存量会话全部吊销。"

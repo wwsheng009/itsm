@@ -39,6 +39,12 @@ export interface TenantUserListResponse {
   total: number;
   page: number;
   pageSize: number;
+  /**
+   * 目标租户内「活跃 admin」全量计数（服务端权威，不受 keyword/status/role 筛选与分页影响）。
+   * 供「最后管理员」护栏禁用开关使用；停用仍由后端 409 LAST_ADMIN_PROTECTED 兜底。
+   * 可选字段：兼容未返回该字段的服务端版本（此时前端回退为按当页估算）。
+   */
+  activeAdminCount?: number;
 }
 
 export interface ResetTenantUserPasswordRequest {
@@ -87,6 +93,10 @@ export const TENANT_USER_ADMIN_ERROR_MESSAGES: Record<string, string> = {
   LAST_ADMIN_PROTECTED: '该租户最后一个管理员不可停用，请先指派新管理员',
   SELF_OPERATION_FORBIDDEN: '不能停用当前登录账号',
   TENANT_CONFIRM_REQUIRED: '该租户为平台默认租户，停用需输入租户编码确认',
+  // MSW-3 membership 撤销面（后端 service/tenant_user_admin.go 错误码常量表同源；
+  // 通道 POST /api/v1/tenants/:id/users/:userId/membership/revoke 当前为 API/CLI 面，无管理入口）。
+  TENANT_USER_MEMBERSHIP_NOT_FOUND: '该用户在此租户没有存活的成员映射，无需撤销',
+  HOME_MEMBERSHIP_IMMUTABLE: 'home（归属）成员映射不可撤销；如需移出该账号，请停用账号或办理离职',
 };
 
 export function tenantUserAdminErrorMessage(error: unknown): string {

@@ -280,6 +280,19 @@ func (s *TenantUserAdminService) ListUsers(ctx context.Context, actor TenantAdmi
 	if err != nil {
 		return nil, fmt.Errorf("count tenant users: %w", err)
 	}
+	// 最后管理员护栏的服务端权威计数（G13）：按目标租户全量统计活跃 admin，
+	// 刻意不带 keyword/status/role 过滤与分页偏移——前端若按当前页 items 自行计数，
+	// 管理员跨页分布时会误判「最后一个管理员」并假性禁用启用/停用开关。
+	activeAdminCount, err := s.client.User.Query().
+		Where(
+			user.TenantIDEQ(tenantID),
+			user.RoleEQ(user.RoleAdmin),
+			user.ActiveEQ(true),
+		).
+		Count(qctx)
+	if err != nil {
+		return nil, fmt.Errorf("count tenant active admins: %w", err)
+	}
 	entities, err := query.Order(ent.Desc(user.FieldID)).
 		Offset((page - 1) * pageSize).
 		Limit(pageSize).
@@ -292,7 +305,13 @@ func (s *TenantUserAdminService) ListUsers(ctx context.Context, actor TenantAdmi
 	for _, u := range entities {
 		items = append(items, toTenantUserItem(u))
 	}
-	return &dto.TenantUserListResponse{Items: items, Total: int64(total), Page: page, PageSize: pageSize}, nil
+	return &dto.TenantUserListResponse{
+		Items:            items,
+		Total:            int64(total),
+		Page:             page,
+		PageSize:         pageSize,
+		ActiveAdminCount: activeAdminCount,
+	}, nil
 }
 
 // GetUser 查询目标租户单个用户（GET /api/v1/tenants/:id/users/:userId）。
