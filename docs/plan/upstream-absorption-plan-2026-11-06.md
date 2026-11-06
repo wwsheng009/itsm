@@ -64,6 +64,28 @@
 **自证有效要求**：P0 阶段必须现场演示「删一条路由 / 删一个测试文件 / 放入一个 `itsm-cli/dist` 文件」时新门禁**变红**，
 否则判定门禁无效（本仓先例：某 header 冲突门禁因分支不可达而长期空转，见 `07:G9`）。
 
+### P0 完成状态（2026-11-06 已实施）
+
+**已落地**（`scripts/check-engineering-contracts.js` + 其 `node:test` 用例，均已在 CI 路径触发列表内）：
+
+| 草案 id | 实际实现 | 说明 |
+|---|---|---|
+| `absorption-surface-floor` | **拆成 6 条具名护栏**：`absorption-backend-routes`(999) / `absorption-rbac-precheck-keys`(1123) / `absorption-ent-schemas`(172) / `absorption-sql-migrations`(129) / `absorption-frontend-tests`(375) / `absorption-vendored-cli-dist`(**上限 42**) | 拆开而非合并，是为了失败信息直指**哪一面**缩水；草案把 dist 写成"forbid 任何 dist"，实测**本地已有 42 个 `itsm-cli/dist` 文件入库**（`.gitignore` 的 `dist/` 规则对已跟踪文件无效），故改为**上限**——倒退定义变成"吸收不得增多产物"，清理既有 42 个另立任务 |
+| `absorption-no-nextjs-regression` | 同名，落 `CONTRACTS` | require `"build": "tsc -b && vite build"`；forbid `"next":` / `"next-*":` |
+| `absorption-no-vendored-dist` | 合入上行 `absorption-vendored-cli-dist` | 用 `git ls-files` 计数（非磁盘计数，避免本地构建产物误报）；git 不可用时**显式标注跳过**而非静默通过 |
+
+**实测证据**：
+
+1. `node scripts/check-engineering-contracts.js` → **15 passed, 0 failed**（8 条既有 + 1 条既有格式新契约 + 6 条面护栏）；
+2. `node --test scripts/__tests__/check-engineering-contracts.test.js` → **10/10**（新增 7 条：路由下限、整目录删除必须显式失败、前端测试整删、dist 上限用注入 stub、git 不可用仍报告、Next.js 回归禁止、护栏集合自身一致性校验）；
+3. **真实树破坏演示**（脚本化、演示后精确还原）：
+   - 删 2 条路由注册 → `exit=1`，`absorption-backend-routes: count 997 violates min 999`；
+   - 把 `package.json` 改回 `next build` 并注入 `next` 依赖 → `exit=1`，`absorption-no-nextjs-regression: missing …vite build; forbidden /"next":\s*"/`；
+   - 还原后 → `exit=0`，`git status` 与演示前**完全一致**。
+
+**P0 未完成部分**：附录 A 基线已内联进脚本注释（单一来源），但 **G18 / G19 两项裁决仍未登记**——
+它们是 P2/P4 的前置，不是 P0 门禁的一部分。
+
 ### L2 行为门禁
 
 - 后端：`go test ./...`（本机内存不足时按既定方案在 238/容器内跑，见部署证据 §6 R1 方法与 `.dockerignore` 坑）；
@@ -130,7 +152,7 @@
 
 | 阶段 | 内容 | 进入条件 | 退出判据 | 回滚 |
 |---|---|---|---|---|
-| **P0 门禁先行** | 实现 §2 L1 的**三类新增条目**（`absorption-surface-floor` / `absorption-no-nextjs-regression` / `absorption-no-vendored-dist`）+ 其用例；固化附录 A 基线快照；登记 G18/G19 | 无 | `node scripts/check-engineering-contracts.js` 绿且进 CI；且现场演示「删一条路由 / 删一个测试文件 / 放入 `itsm-cli/dist` 文件」三种情况均触发**红**（自证有效，见 §2 末） | 撤脚本条目 |
+| **P0 门禁先行** | 实现 §2 L1 的面护栏 + `package.json` 回归契约 + 自证用例；登记 G18/G19 | 无 | ✅ **门禁部分已完成**（15/15 绿、10/10 用例、真实树破坏演示三红两还原，见 §2「P0 完成状态」）；⏸ G18/G19 待登记 | 撤脚本条目 |
 | **P1 协议试点** | 吸收 `cmd/` 5 个验证/维护工具（A 类最低风险） | P0 绿 | L1+L2+L3 全绿；**每个新工具自带用例并通过 `test-coverage-guard`**；契约面不低于附录 A 下限 | 单 PR revert |
 | **P2 A 类铺开** | `on_call` → `cloudsignal` → `ai_quota` / `sla_breach_predictor` / `service_quality_report` / BPMN 三件套 | G18/G19 至少 G19 已定 | 每能力独立 PR + 前后对照表 + 238 实测证据 | 逐能力 revert（互不依赖） |
 | **P3 C 类资产** | 移植上游不依赖其实现的契约测试；引入 `fresh-install-gate` / `rls-golden-path` 两个 CI 门禁 | P2 至少 1 个能力收口 | CI 绿；**移植的每条测试均能独立跑绿且能故意打破本地实现而变红**（非装饰性断言）；无新增 flake | 撤 workflow 文件 |
