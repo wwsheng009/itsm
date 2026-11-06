@@ -14,11 +14,18 @@ export const ThemeHtmlClassSync: React.FC = () => {
   useEffect(() => {
     if (typeof document === 'undefined') return;
     const root = document.documentElement;
+    // 必须成对维护 .dark / .light：
+    // 样式层（antd-layout-overrides.css、theme-variables.css、globals.css）存在
+    // @media (prefers-color-scheme: dark) { :root:not(.light) ... } 这类「跟随系统」兜底，
+    // 若亮色态只移除 .dark 而不写 .light，OS 为深色时该兜底会命中，
+    // 导致亮色主题下布局壳/顶栏被刷成 #141414 / #1f1f1f（黑底白卡）。
     if (isDark) {
       root.classList.add('dark');
+      root.classList.remove('light');
       root.style.colorScheme = 'dark';
     } else {
       root.classList.remove('dark');
+      root.classList.add('light');
       root.style.colorScheme = 'light';
     }
   }, [isDark]);
