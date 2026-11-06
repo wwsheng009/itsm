@@ -54,6 +54,8 @@
 | 服务启动失败，日志含 `tenant_guard ... refusing to start` | 存在未豁免且缺 `tenant_id` 的表 | 补 `tenant_id` 或在 `TenantExemptTables` 登记（含理由/owner/复核日期） |
 | RLS `enforce` 下请求 500 | 请求上下文缺少租户（fail-closed） | 先回退 `shadow` 观察，补齐缺失点后再切 `enforce`（`config/config.go:107-114`） |
 | 疑似跨客户数据串 | 缓存/外部系统 key 未带租户维度 | 核查缓存 key 约定（`itsm-backend/cache/` 无 tenant 逻辑，需人工确认）；AI 调用确认传 `tenantId` |
+| 被要求「替别的租户改用户角色/权限」 | 平台侧**不提供**跨租户授权通道（`07:G15`，TUM-7 冻结项） | **由目标租户自己的管理员**在其租户内 `系统管理 → 用户管理` 改主角色/RBAC 角色（`PUT /api/v1/users/:id`；只能授予不高于自身 rank 的角色）。平台侧只做建号与账号治理（重置密码/启停/强制下线/离职/撤销成员映射）。若该租户已无可用管理员 → 走**恢复**通道：首管窄通道重置密码（`is_bootstrap_admin`，不受 `TENANT_USER_ADMIN_ENABLED` 约束）或服务器侧 `cmd/reset_password`，恢复后由其管理员自行调角色。**禁止** SQL 直改 `users.role`/`user_roles`：无 rank 校验、无角色归属校验、无审计、且**不吊销存量会话**（旧 token 继续携带旧权限）。口径与 SLA 见 `07` §16 |
+| 停用/启用用户时开关**灰掉不可点**，但该租户其实有多个管理员 | 历史缺陷 `07:G13`：前端曾按**当页** items 估算活跃 admin | 已修复（护栏取服务端租户级 `activeAdminCount`）；若仍复现，确认前端已升级到携带该字段的版本，并核对后端 `GET /api/v1/tenants/:id/users` 响应是否含 `activeAdminCount` |
 
 ## 4. 排障工具
 

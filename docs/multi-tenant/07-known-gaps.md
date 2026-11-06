@@ -9,8 +9,13 @@
 > **复核（2026-09-30）**：G1–G10 的承接工作流见[实施方案 §3.0-F](./plan/msp-implementation-plan.md)。G8 优先级上调为 **P0**（并入 `IP-P0-2` 缓存审查）；G1/G3/G8 在 P0 关闭；**G9 的 P0 关闭（IP-P0-6）经 2026-09-30 复核未生效（JWT 已锁定时 Header 被跳过），已由 IP-P1-8 真正关闭**（401 + `tenant.probe_denied` 落库审计，见 §10 实现复核）；G2/G4/G5/G6 在 P1 关闭，G7 接受现状（P2 提升为通用约定），G10 文档/脚本已规避（P0 收尾）。
 
 > **新增（2026-10-06）**：**G11 · provider 首管只绑纯 MSP 角色（自身 ITSM 面不可见）** 已关闭（组合角色 `provider_tenant_admin` + 首管策略改绑 + `cmd/backfill_provider_admin` 存量回填，见 §12）。
+>
+> **新增（2026-11-06）**：**G12 · 错误码词表漂移**、**G13 · 最后管理员护栏按当页估算** 已关闭；
+> **G16 · TUM 平台面端点零 Swagger 注解**（执行 `make swagger-gen` 时新发现）登记为待办（§17）；
+> **G14 · membership 撤销面前端零接线** 与 **G15 · 跨租户角色调整职责边界未成文** 新登记。来源：
+> [`docs/review/2026-11-06-tenant-user-role-adjustment-review.md`](../review/2026-11-06-tenant-user-role-adjustment-review.md) v0.2 复核（详见 §15、§16）。
 
-> **编号（2026-09-29 一致性整改）**：本页 `G1–G11` 是**生产实测缺口**的唯一 G 空间；canon §7.3 的能力供给缺口已更名 `K1–K5`；工作台规则已更名 `WB1–WB6`。跨文档引用本页写作 `07:G4`（注册表见 canon 附录 C）。
+> **编号（2026-09-29 一致性整改；2026-11-06 扩至 G16）**：本页 `G1–G16` 是**生产实测缺口**的唯一 G 空间；canon §7.3 的能力供给缺口已更名 `K1–K5`；工作台规则已更名 `WB1–WB6`；租户用户管理方案另占 `TUM-G1–TUM-G4`，评审 v0.2 的角色调整缺口续号为 `TUM-G5–TUM-G12`（与本空间不重叠）。跨文档引用本页写作 `07:G4`（注册表见 canon 附录 C）。
 
 ## 1. 缺口清单（按影响排序）
 
@@ -27,6 +32,11 @@
 | G9 | `X-Tenant-Code` 与 JWT 冲突被静默忽略 | 调用方误以为切换了租户；无冲突告警，排障困难（不越权） | 依赖 JWT 租户；探针按实测标注 | Header 与 JWT 冲突时返回 401/400 并记录告警（§10）；**→ ✅ 真正关闭（2026-09-30 复核 + IP-P1-8 v1.29）**：IP-P0-6 声明的关闭未生效（JWT 已锁定时 Header 被跳过，冲突分支不可达）；现为 401 + `reasonCode=TENANT_MISMATCH_REJECTED` + `tenant.probe_denied` 落库审计（一致时正常放行） | P2 |
 | G10 | snap 版 docker 下宿主 `/tmp` 对守护进程不可见 | `docker cp` 静默复制旧文件；`docker run -v /tmp/...` 产物"写丢"，构建/供给莫名失败 | 产物与暂存目录放 `$HOME` 非隐藏目录 + sha256 校验（§11） | 文档/脚本固化路径约定；容器化部署优先用 bind 到 `$HOME` 或非 snap docker | P1 |
 | G11 | provider 首管只绑纯 MSP 角色，自身 ITSM 面不可见 | 服务商租户管理员登录后只见 4+1 个 MSP 菜单（工单/事件/变更/SLA/知识库/CMDB 全被权限过滤），与 canon §2.1「provider 同时是普通 ITSM 租户」冲突 | 无（权限驱动菜单按 membership 角色收敛，无提示） | 新增组合角色 `provider_tenant_admin`（= `admin` ∪ `msp_admin`）+ 首管策略改绑 + `cmd/backfill_provider_admin` 回填存量（§12）；**→ ✅ 已关闭（2026-10-06）** | P1 |
+| G12 | 平台侧租户用户**错误码词表漂移**：前端 `TENANT_USER_ADMIN_ERROR_MESSAGES` 10 项 vs 后端常量表 12 项，缺 `TENANT_USER_MEMBERSHIP_NOT_FOUND`、`HOME_MEMBERSHIP_IMMUTABLE` | membership 撤销失败时用户看到英文原文/裸 message，无法自助判断原因；违反 API 客户端自身「两侧必须同步」的契约声明 | **已修复**：补两码中文文案 + 加**同源断言**（`tenant-user-admin-api.test.ts`），缺映射即测试红 | 后续新增稳定错误码必须同步前端映射（§15） | P2 |
+| G13 | 租户用户抽屉「最后管理员」护栏按**当页 items** 估算活跃 admin | 管理员跨页分布（pageSize 默认 20，可选 10/20/50/100）时**假性禁用**停用开关，运维误判为「权限被锁」；真实拦截仍依赖后端 409 | **已修复**：`TenantUserListResponse.activeAdminCount` 返回租户级全量计数（刻意不受 keyword/status/role 筛选与分页影响），前端取该值并随乐观更新/回滚同步；字段缺失时回退当页估算（§15） | 服务端 `SetActive` 租户级校验始终为权威；待最低兼容版本确认后可移除前端回退 | P2 |
+| G14 | membership 撤销面**后端已实现、前端零接线**，且「仅 API/CLI 通道」口径未成文 | 平台 UI 无法撤销跨租户成员映射（home 不可撤、软删 + 分配级联、权限缓存与在途 refresh 立即失效等能力只有直调 API 才可达）；`itsm-frontend/src` 对该端点零引用 | 直调 `POST /api/v1/tenants/:id/users/:userId/membership/revoke`；本批先在 API 客户端注释与本表成文口径，**不擅自接 UI** | **待产品决策**：是否在 `TenantUsersDrawer` 行操作增「撤销成员映射」（纯前端接线，后端/审计/通知/测试均已就绪）（§15） | P2 |
+| G15 | **跨租户角色调整无通道**（平台 `super_admin` 与服务商 provider 均不能改他租户用户角色），且职责边界口径未成文 | 替他租户调权限的运维动线缺失 → 现实回落两种危险替代：「借目标租户管理员账号登录操作」（共享凭据、审计主体错位）或 **SQL 直改 `users.role` / `user_roles`**（无 rank 校验、无角色归属校验、无审计、不吊销会话） | **本租户内自助（设计主通道，非兜底）**：目标租户管理员用 `PUT /api/v1/users/:id`（主角色 + `roleIds`，`CanGrantRoles` 三重护栏 + 变更后吊销 token）与 `roles` CRUD；跨租户仅「建号时可指定角色」（`ProvisionUserToTenant` + `ListTenantGrantableRoles`） | 登记口径 + 运维 SOP（§16）；若 MSP 跨客户场景升级为需求，按 [`plan §10`](./plan/msp-tenant-user-management-enhancement-plan.md) 触发条件**另案评审**，前置：平台级角色词表收敛 + 变更审批/双人复核，并先解决 G11 四处同源 | P2（边界决策，维持不做） |
+| G16 | **TUM 平台面 7 个租户用户端点零 Swagger 注解**（`handlers/tenant/user_admin.go` 无 `@Summary/@Success/@Router`），故 `activeAdminCount` 等新契约字段在 OpenAPI 中**不可见** | 外部集成方/MCP/客户端代码生成看不到租户用户治理通道；契约漂移只能靠读源码发现（G12 之所以能被发现纯属人工比对）；`make swagger-gen` 因此**无法**记录本批新字段 | 契约单一源在 `docs/multi-tenant/plan/...enhancement-plan.md` §3.1/§3.5 + `tenant-user-admin-api.ts` 注释；本批**不回滚式刷新** docs（刷新会带进他人未提交的 swagger 漂移） | 单独一批：补 7 端点注解 → `make swagger-gen` → 与 `docs-gate` 一并提交；不与缺陷修复混批（§17） | P2 |
 
 ## 2. G1 · 跨租户创建用户被 tenant guard 拦截
 
@@ -219,6 +229,11 @@
 | G9 | A10（隔离回归） | ✅ 已关闭（IP-P1-8 v1.29；IP-P0-6 漏覆盖 header 冲突路径，复核后修复并落审计） |
 | G10 | 部署/工具链（非 ADR 行动项） | 已文档化 + sha256 校验；P0 收尾（随 `IP-P0-1` 自检复核） |
 | G11 | 非 ADR-004 行动项（canon §2.1 provider 双重定位的落地缺口） | **✅ 已关闭（2026-10-06）**：组合角色 + 首管策略 + 存量回填 |
+| G12 | 非 ADR-004 行动项（契约同步治理） | **✅ 已关闭（2026-11-06）**：补两码 + 同源断言（§15） |
+| G13 | 非 ADR-004 行动项（护栏口径） | **✅ 已关闭（2026-11-06）**：服务端租户级计数 + 前后端用例（§15） |
+| G14 | 非 ADR-004 行动项（MSW-3 交付面） | ⏸ **待产品决策**：口径已成文，UI 接线另议（§15） |
+| G15 | 非 ADR-004 行动项（`plan §10` TUM-7 冻结项的运维口径） | ⏸ **维持不做**：登记边界口径 + SOP（§16）；解除需先满足 `plan §10` 前置 |
+| G16 | 非 ADR-004 行动项（OpenAPI 契约可见性） | ⏸ **待办**：本批执行 `make swagger-gen` 时发现刷新会带入他人 swagger 漂移，已回滚；注解补齐另批处理（§17） |
 
 ## 14. 证据索引
 
@@ -226,3 +241,115 @@
 - 代码位置：`middleware/tenant.go`、`middleware/msp_middleware.go`、`handlers/user/handler.go:516`、`pkg/seeder/tenant_provisioner.go:27-43`、`cmd/initialize`、`cmd/provision_tenant/main.go`；
 - G11 代码位置：`internal/authz/roles.go`（组合角色派生）、`pkg/bootstrap/admin.go`（首管策略）、`pkg/seeder/seeder.go`（角色种子）、`middleware/rbac.go`（兜底 + rank）、`service/menu_service.go`（提权名单）、`cmd/backfill_provider_admin/main.go`（存量回填）；
 - 生产实测数据：租户 3/4/5 供给计数、`msp_allocations` 三条分配、隔离性探针输出（06 文档 §7）。
+
+## 15. G12–G14 · 平台侧租户用户通道的契约与护栏复核（2026-11-06）
+
+**来源**：[`docs/review/2026-11-06-tenant-user-role-adjustment-review.md`](../review/2026-11-06-tenant-user-role-adjustment-review.md) v0.2 复核。
+三项都发生在 TUM/MSW-3 通道上，与「是否做跨租户角色调整」**无关**，属可独立修复的契约/UX 缺陷。
+
+### G12 错误码词表漂移（已修复）
+
+**现象**：后端 `service/tenant_user_admin.go` 常量表 12 项，前端 `tenant-user-admin-api.ts` 映射 10 项，
+差 `TENANT_USER_MEMBERSHIP_NOT_FOUND`、`HOME_MEMBERSHIP_IMMUTABLE`；命中缺项时 `tenantUserAdminErrorMessage`
+回落原始 message，中文界面直接透出英文/后端原文。
+
+**修复**：补两项中文文案；在 `__tests__/tenant-user-admin-api.test.ts` 增加**同源断言**
+（映射存在 + 文案关键次校验），后续后端加码而前端不同步即测试即红。
+
+### G13 最后管理员护栏按当页估算（已修复）
+
+**现象**：`TenantUsersDrawer` 原以 `items.filter(i => i.active && i.role === 'admin').length` 判定
+「最后一个管理员」，而 `items` 只是**当前页**（`PAGE_SIZE_DEFAULT=20`，可选 10/20/50/100；后端上限 100）。
+管理员分布到多页时，每页都可能算出 `<= 1` → **开关被假性禁用**，运维以为权限被锁。
+
+**修复**：
+
+1. `dto.TenantUserListResponse` 新增 `activeAdminCount`，由 `ListUsers` 按
+   `tenant_id ∧ role=admin ∧ active=true` **全量计数**，刻意不接 keyword/status/role 筛选与分页偏移；
+2. 前端取 `activeAdminCount` 作为护栏口径，并在启停乐观更新/失败回滚时同步该计数；字段缺失时回退当页估算（兼容旧服务端）；
+3. 用例：后端断言「筛选/分页不收敛计数 + 跨租户不串」（`service/tenant_user_admin_test.go`），
+   前端断言「`activeAdminCount=2` 时当页唯一管理员仍可停用」与「`=1` 时禁用」（`TenantUsersDrawer.test.tsx`）。
+
+**不变量**：服务端 `SetActive` 的租户级校验（同租户其他活跃 admin 为 0 → `409 LAST_ADMIN_PROTECTED`）**始终是权威判定**，
+前端禁用只是 UX 收敛，不得作为安全依据。
+
+### G14 membership 撤销面「后端已实现、前端零接线」（口径已成文，UI 接线待决策）
+
+**现状**：`POST /api/v1/tenants/:id/users/:userId/membership/revoke` 全链路就绪 ——
+路由 `router/common_system_routes.go:372`、handler `handlers/tenant/user_admin.go:156`、
+RBAC 预检 `middleware/rbac_precheck_gen.go:943`、服务 `service/tenant_user_admin.go` `RevokeMembership`
+（平台面 `super_admin` 硬校验 + 写通道开关 + home 映射不可撤 409 + 分配级联 + 软删 + 双审计 + 权限缓存/在途 refresh 立即失效 + 租户通知），
+来源为 MSW-3（`msp-membership-switch-consolidation-plan.md` §M2 实施记录第 ⑤ 项，交付形态即「撤销面 API」）。
+`itsm-frontend/src` 对该端点**零引用**。
+
+**本批处置**：只在 API 客户端注释与本表成文「当前仅 API/CLI 可达」，**不在本批擅自加 UI 动作**
+（撤销成员映射是产品可见动作，且与「离职/停用」语义相邻，需评审确认动线）。
+
+**待决策**：是否在 `TenantUsersDrawer` 行操作增「撤销成员映射」；若加，需同时明确与 `离职`/`停用` 的语义差别与二次确认文案。
+
+**触发条件（本批判定「先不接线」的依据）**：跨租户撤销成员映射的运维请求**频次稳定出现（≥2 次/月）**，
+或出现「成员映射已撤但用户在该租户仍可见数据」的实际案例。届时工作量是**纯前端接线**
+（API 客户端 1 方法 + 行操作 + 二次确认 + 用例），后端、审计、通知、测试均无需改动。
+
+## 16. G15 · 跨租户角色调整的职责边界口径（2026-11-06 登记）
+
+**边界（现行设计，非缺陷）**：
+
+| 方向 | 能否调权限 | 通道 |
+|---|---|---|
+| 本租户内 | ✅ **可以，且是主通道** | 目标租户管理员 `PUT /api/v1/users/:id`（主角色 + `roleIds`）、`roles` CRUD |
+| 平台 → 他租户（建号时） | ✅ 可以 | `ProvisionUserToTenant` + `ListTenantGrantableRoles`（角色白名单 + rank 上限 + 配额） |
+| 平台 → 他租户（建号后） | ❌ 不可 | 无端点；`plan §10` TUM-7 显式冻结 |
+| 服务商 → 客户租户 | ❌ 不可 | MSP 面仅建号与工作台；同上冻结 |
+
+**为什么不做**（`plan §10` 三条依据的 v0.2 现状）：
+
+1. ~~「租户管理员也持 `tenant:write`，路由权限不足以区分平台面」~~ —— **该前提已被 2026-10-10 治理域收口 D7 推翻**
+   （`internal/authz/roles.go:247-249,521-523`：`tenant` 家族为平台专属码，租户 `admin` 不再持有）；
+2. **平台级角色词表未收敛**（仍成立）：`roles` 是租户内语义，`CanGrantRoles` 明确拒绝跨租户角色；
+3. **无变更审批 / 双人复核**（仍成立）：单点即可提权。
+
+**运维口径（SOP，替代人工工单外溢）**：
+
+> 「用户角色/权限变更请由**该租户自己的管理员**在其租户内 `系统管理 → 用户管理` 操作（可改主角色与 RBAC 角色；
+> 只能授予不高于自身 rank 的角色）。平台侧**只负责建号与账号治理**（重置密码 / 启停 / 强制下线 / 离职 / 撤销成员映射），
+> **不代租户调整权限**。若目标租户已无可用管理员，走**恢复**通道：首管窄通道重置密码
+> （`is_bootstrap_admin`，不受 `TENANT_USER_ADMIN_ENABLED` 约束）或服务器侧 `cmd/reset_password`，
+> 恢复后再由该租户管理员自行调角色。**禁止**用 SQL 直改 `users.role` / `user_roles` 代替：该路径无 rank 校验、
+> 无角色归属校验、无审计、且**不吊销存量会话**（旧 token 继续携带旧权限）。」
+
+**SLA 影响**：跨租户权限变更请求一律转「目标租户管理员自助」，平台侧不承诺时效；仅当目标租户无可用管理员时按恢复类工单受理。
+
+**解除冻结的前置**（三者齐备才另案评审，缺一即退回「不做」）：平台级角色词表收敛 + 变更审批/双人复核 +
+先解决 G11 四处同源（`mspRole` 若纳入首批，必须联动 `internal/authz/roles.go` 组合角色派生、`pkg/bootstrap/admin.go`
+首管策略、`middleware.RoleRank` + 菜单提权名单、`pkg/seeder` 角色种子，否则复现 G11 回归）。
+
+## 17. G16 · TUM 平台面端点零 Swagger 注解（2026-11-06 执行期发现）
+
+**发现过程**：本批为让 `activeAdminCount` 进入 OpenAPI 而执行 `make swagger-gen`，结果：
+
+1. 生成的 `docs/{docs.go,swagger.json,swagger.yaml}` 中 `TenantUserListResponse` **0 次出现** ——
+   因为 `itsm-backend/handlers/tenant/user_admin.go` 全部处理函数**没有任何 swagger 注解**
+   （无 `@Summary` / `@Success` / `@Router`），swag 根本不会为这 7 个端点产出条目；
+2. 同时刷新带入了**与本批无关的既有 swagger 漂移**（`/api/v1/projects/owner-team-candidates`、
+   `project.HealthReason`、工时校验字段等，来自先前 commits 未随附文档再生成），单文件 +182 行；
+3. 因此**已回滚** `itsm-backend/docs/*`：把它塞进缺陷修复提交会让评审无法分辨哪些改动属于本批，
+   而它对 `activeAdminCount` 也毫无记录价值（字段压根不在文档里）。
+
+**影响**：租户用户治理通道（列表/详情/重置密码/启停/强制下线/撤销成员映射/离职）对外**只存在于源码与方案文档**，
+OpenAPI 不可见 → 外部集成方、客户端代码生成、以及 `docs-gate` 的 swagger 路径检查都覆盖不到它。
+G12（错误码词表漂移）之所以能被人工发现，正是因为没有任何机器可校验的契约面。
+
+**建议修复（单独一批，勿与缺陷修复混做）**：
+
+1. 给 `handlers/tenant/user_admin.go` 7 个端点补注解，响应体显式引用
+   `dto.TenantUserListResponse` / `dto.ResetTenantUserPasswordResponse` / `dto.ForceLogoutTenantUserResponse` 等；
+   并把 `activeAdminCount` 的**语义与「不构成安全依据」**写进 `@description`（防后来者再按当页估算实现护栏）；
+2. 顺带补 `docs/docs.go` 里 membership 撤销面（G14）与离职编排（v0.11）的缺失条目；
+3. `make swagger-gen` 后**单独提交**（提交信息标注「含先前 commits 的 swagger 漂移补齐」），
+   再跑 `bash scripts/docs-gate/run-all.sh`；
+4. 建议在 CI/docs-gate 增一条**契约可见性检查**：`tenant:read|write` 路由集 ⊆ swagger 路径集，
+   否则通道继续会靠人工比对才被发现。
+
+**为什么不阻塞本批**：本批改的是响应体字段与前端取数，运行契约由 `service`/`jest` 用例锁定；
+OpenAPI 缺项是**既有**缺口（先前 7 端点上线时就未补注解），不是本批引入。

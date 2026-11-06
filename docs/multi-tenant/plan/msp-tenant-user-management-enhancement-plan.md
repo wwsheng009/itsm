@@ -16,6 +16,10 @@
 - **决策状态**：TUM-D1–TUM-D10 已按最佳实践冻结；原开放问题 Q1–Q5 全部收口（见 §9 决策确认记录），无 blocking 待决项。
 - **体验与闭环（v0.2 新增）**：§4.4 操作便利性（核心动作 ≤3 步、深链可复现、失败可重试、结果可复制）与 §2.3 业务逻辑闭环（场景 S1–S3 + 闭环点 C1–C6：用户侧即时反馈 / 口令转交责任链 / 租户侧可见性 / 对账一致 / 通知触达 / 异常补偿）。
 - **前置安全结论**（关键）：路由权限 `tenant:write` **不能**作为平台面判定依据——租户管理员同样持有该权限（`itsm-backend/internal/authz/roles.go:243`）；服务层必须叠加平台面判定（`role == super_admin`，沿用 2026-10-05 越权修复范式 `itsm-backend/handlers/tenant/handler.go:89-127`），否则构成跨租户越权。
+  **勘误（v0.13，2026-11-06）**：上述「租户管理员同样持有该权限」已被 2026-10-10 治理域收口（设计 §8 D7）作废——
+  `tenant` 家族现为**平台治理专属码**（`internal/authz/roles.go:247-249` 注释、`roles.go:28,30` `allExcept` 排除、
+  仅 `sysadmin` 持码 `roles.go:521-523`）。**结论不变**：路由权限仍不可单独作依据，服务层 `super_admin` 硬校验照旧必须；
+  变化的是越权面已被收窄，见 [`07-known-gaps.md` G15](../07-known-gaps.md)。
 
 ---
 
@@ -118,7 +122,7 @@
 
 | # | 决策 | 结论（已确认） | 理由 |
 |---|---|---|---|
-| TUM-D1 | 平台面判定 | 路由权限 `tenant:write` 仅作粗筛；**服务层必须叠加 `role == super_admin`**，不满足 → 403 `PLATFORM_SCOPE_REQUIRED` | `tenant:write` 租户管理员同样持有（`internal/authz/roles.go:243`），仅凭它无法区分平台面；沿用 2026-10-05 修复范式 |
+| TUM-D1 | 平台面判定 | 路由权限 `tenant:write` 仅作粗筛；**服务层必须叠加 `role == super_admin`**，不满足 → 403 `PLATFORM_SCOPE_REQUIRED` | `tenant:write` 租户管理员同样持有（`internal/authz/roles.go:243`），仅凭它无法区分平台面；沿用 2026-10-05 修复范式。**v0.13 勘误**：该前提已随 2026-10-10 D7 收口失效（`tenant:*` 现为平台专属码），详见 §1 前置安全结论勘误；**本决策与实现要求不变** |
 | TUM-D2 | 服务归属 | 新建 `TenantUserAdminService`（读 + 账号治理），复用 `tenantctx` 旁路与 `mspguard` 校验；**不并入** `UserProvisioningService`（建号 vs 治理的审计语义不同） | 职责分离；旁路入口仍保持「每类动作单一 service 入口」 |
 | TUM-D3 | 灰度开关 | 新增 `TENANT_USER_ADMIN_ENABLED`（默认 `false`），与 `USER_PROVISIONING_CHANNELS_ENABLED` 独立；读列表随路由上线（仍受 TUM-D1 判定）；**修订（v0.10）：首管（`is_bootstrap_admin`）重置密码拆为兜底恢复通道、默认可用（不受开关约束），防「唯一管理员口令丢失 → 租户锁死」；服务器侧兜底 `cmd/reset_password`** | 独立回滚；避免与建号灰度耦合；首管恢复通道保留（仅重置，不含启停/强退） |
 | TUM-D4 | 重置默认模式 | 默认「一次性口令 + 强制改密」（`mode=generated`）；「指定新密码」为次选（`mode=specified`）；两者都触发会话双吊销 | 安全优先；与首管一次性口令基线一致 |
@@ -407,8 +411,16 @@ bash scripts/docs-gate/check-multi-tenant-consistency.sh
 | 项 | 结论 | 依据 | 触发条件（出现时另案） |
 |---|---|---|---|
 | 删除用户（U9） | 不做物理删除 | 引用完整性（工单/审计/资产等多表引用）+ 合规删除应走离线评估与数据主体流程；停用为唯一移出手段（TUM-D8） | 合规要求明确（如数据主体删除请求）+ 引用清理/匿名化工具就绪 |
-| 跨租户角色调整 | 不做 | 平台面角色调整放大越权面；需先收敛到平台级角色词表与变更审批流 | RBAC 作用域模型支持平台级角色指派 + 变更审批/双人复核 |
+| 跨租户角色调整 | 不做（**v0.13 复核维持**） | 平台面角色调整放大越权面；需先收敛到平台级角色词表与变更审批流 | RBAC 作用域模型支持平台级角色指派 + 变更审批/双人复核 |
 | 导出用户清单（U8） | 暂缓（设计已预留：脱敏 + 审计水印，见 §3.1） | 当前对账可用列表/用量接口满足；导出面易成数据外带通道 | 合规/对账需求明确 + 脱敏与水印方案评审通过 |
+
+**v0.13 复核注（2026-11-06，[`review` v0.2](../../review/2026-11-06-tenant-user-role-adjustment-review.md)）**：
+「跨租户角色调整」**结论维持不做**，但依据需重述 ——
+① 「放大越权面」中的权限码泄露部分已随 2026-10-10 D7 收口（租户 `admin` 不再持 `tenant:*`）；
+现行拦路项是**平台级角色词表未收敛**与**无变更审批/双人复核**两项。
+② 同时确认：本租户内角色调整通道完整可用（目标租户管理员 `PUT /api/v1/users/:id` 主角色 + `roleIds`、
+`CanGrantRoles` 三重护栏、`roles` CRUD），因此「不做」的代价**仅限于平台/服务商跨租户代调权限**的运维动线缺失，
+已按 [`07-known-gaps.md` G15](../07-known-gaps.md) 登记职责边界口径与运维 SOP（含禁止 SQL 直改 `users.role`/`user_roles` 的理由）。
 
 **完成判据**：本纪要随方案 v0.7 评审确认；无代码变更。
 
@@ -430,3 +442,4 @@ bash scripts/docs-gate/check-multi-tenant-consistency.sh
 | v0.10 | 2026-10-06 | **TUM-D3 修订：首管口令恢复默认可用 + CLI 兜底**：`ResetPassword` 对 `is_bootstrap_admin` 拆出窄通道——不受 `TENANT_USER_ADMIN_ENABLED` 约束（非首管仍 403 `TENANT_USER_ADMIN_DISABLED`；仍要求 `super_admin` 硬校验），审计在开关关闭时标注 `channel=bootstrap_recovery`；新增 `cmd/reset_password`（目标租户密码策略校验 + bcrypt + 会话双吊销尽力 + 审计 `user.admin_password_reset`/`cmd:reset_password`）；部署文档与场景 09 回填。证据：`go test -p 1 -gcflags=all=-c=1 ./service -run TestTenantUserAdmin` 全绿（新增 `TestTenantUserAdmin_ResetPassword_BootstrapRecovery`）；CLI 构建通过 |
 | v0.11 | 2026-10-08 | **IP-P2-8 D3=B 平台面离职编排接入**：`POST /tenants/:id/users/:userId/offboard`（`tenant:write` + super_admin 硬校验 + 最后管理员护栏；复用 `OffboardingService`：停用 + 全量会话失效 + 撤销全部分配；`user.admin_offboard` 治理审计 `target_tenant_id` 标注 + 租户通知）+ TUM 抽屉行操作「离职」（二次确认 + 撤销计数提示）；契约/路由/e2e/抽屉用例补齐 |
 | v0.12 | 2026-10-12 | **TUM-7 默认开启评估（FDB-B1 实测输入）**：保持生产默认关；灰度开启前置（TUM 回归 + R4 回滚演练 + CLI 兜底确认 + 显式开关重启）；证据：TUM 30 PASS/2 SKIP、R4 10/10 + restore 6/6（`evidence/tenant-user-admin-acceptance/r4-channel-off-*.md`） |
+| v0.13 | 2026-11-06 | **TUM-7 复核 + §1/TUM-D1 勘误（来源：[`review` v0.2](../../review/2026-11-06-tenant-user-role-adjustment-review.md)）**：① §1 前置安全结论与 TUM-D1 依据栏所引「租户管理员同样持有 `tenant:write`」标注为**已失效前提**（2026-10-10 D7 收口后 `tenant:*` 为平台专属码），决策与实现要求不变；② §10「跨租户角色调整」结论**维持不做**，依据重述为「平台级角色词表未收敛 + 无变更审批/双人复核」两项，并确认本租户内角色调整通道完整（`PUT /api/v1/users/:id` + `CanGrantRoles` + `roles` CRUD）；③ 衍生治理项登记 [`07-known-gaps.md`](../07-known-gaps.md) **G12–G15**（G12 错误码词表漂移、G13 护栏按当页估算→**本批已修复**；G14 membership 撤销面前端零接线、G15 跨租户角色调整边界口径→**待决策/维持不做**）；④ 本批代码变更：`dto.TenantUserListResponse.activeAdminCount` + `ListUsers` 租户级计数 + 前端护栏取数与乐观同步 + 前端 membership 两码映射；证据：`go build`/`go vet`（dto+service）通过、`go test ./service -run TestTenantUserAdmin_ListUsers|SetActiveGuards` 通过、`tsc --noEmit` exit 0、`jest TenantUsersDrawer tenant-user-admin-api` 18/18；**残项**：`./handlers/tenant`、`./router` 测试构建因开发机内存不足未执行（非代码原因），需 `make test-backend` 或 238 补跑 |

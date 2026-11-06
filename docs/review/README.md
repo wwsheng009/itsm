@@ -43,6 +43,7 @@
 | `2026-10-28-page-review-round6.md` | historical | 权限域 / 配置域实测审查第六轮（12 页 + 4 页签，101 项问题） |
 | `2026-10-28-page-review-round7.md` | historical | 表单域 / AI 域 / 业务域 / CMDB 域实测审查第七轮（20 页，87 项问题） |
 | `2026-10-28-page-review-round8.md` | historical | 多租户前端实测审查第八轮——`plan.md` 修复验收 14 项（确认生效 5 / 未生效 2 / 页面矛盾 1 / 未验证 6）+ 新缺陷 14 项（P1×4、P2×10） |
+| `2026-11-06-tenant-user-role-adjustment-review.md` | **v0.2 复核修订（2026-11-06）** | 租户用户「角色调整」能力评审；v0.1 判为业务缺口，v0.2 按源码改判为**边界确认（TUM-7 维持不做）+ 三项真实缺陷**；衍生 G12–G15 已登记 [`docs/multi-tenant/07-known-gaps.md`](../multi-tenant/07-known-gaps.md)（G12 错误码漂移、G13 护栏按当页估算已修复；G14 membership 撤销面待接线决策、G15 职责边界口径） |
 
 ## 目录合并（2026-09-12）
 
