@@ -133,18 +133,21 @@
 
 | 选项 | 内容 | 代价 |
 |---|---|---|
-| **A（推荐评估）** | 采纳 `(tenant_id, username)` 组合唯一，回归 `AGENTS.md:245` 基线 | 需迁移 + 重述 `07:G2` 的 `admin-<tenantCode>` 绕行；复核 `pkg/bootstrap`、`cmd/initialize`、`cmd/provision_tenant`、`cmd/backfill_provider_admin`、登录/找回/邀请全链；邮箱仍保持全局唯一（上游同样保留，理由：`handlers/auth/service.go` 按 email 单独定位） |
-| B | 维持全局唯一 | 继续偏离仓库自身基线；每个新租户首管必须改名，`admin` 这一产品直觉永远不可得；上游相关能力（多租户交付、`on_call` 排班组等）移植时都会撞上 |
+| **A 对齐基线**（组合唯一） | 删全局唯一约束，建 `(tenant_id, username)` 唯一 | **代价比本规划初稿大且不可拆分**：登录在未指定租户时走 `UsernameEQ(username).Only(...)`（`handlers/common/service.go:195-199`），`.Only()` **多命中即报错** → 必须同步把登录改为「tenantCode/domain 必填或引入账号消歧」；另需复核注册查重（`handlers/auth/service.go:288-294`）、`pkg/bootstrap`、`cmd/initialize`、`cmd/provision_tenant`、`cmd/backfill_provider_admin`、邀请与 SSO 计划；邮箱仍保持全局唯一（上游同理，理由：找回密码按 email 单独定位） |
+| B 维持全局唯一 | 保持现状 | 必须在 `AGENTS.md` 把 `users.username` **登记为例外并写明理由**（登录预认证阶段无法确定租户），否则「文档说组合唯一、代码全局唯一」的自相矛盾继续存在；同时每租户 `admin` 直觉不可得，上游多租户能力（含 `on_call` 排班组）吸收时需逐处改名适配 |
 
 > 取证：本地 `ent/schema/user.go:21-23` = `field.String("username").Unique()`；
 > 上游 `20261006_tenant_scope_user_username_unique.sql` 头注释给出症状与理由；基线出处 `AGENTS.md:245`。
-> **注意**：本仓历史上多次出现"文档说 A 代码做 B"，此项必须先定，否则后续吸收会把不一致固化。
+> **结论修正（相对本规划初稿）**：这不是「选哪个更优雅」，而是**绑定决策** —— 唯一键口径与登录契约必须一起定，
+> 任何一半单独实施都会让既有登录入口倒退（`.Only()` 直接失败）。详细论证与验收标准已登记 `07:G18`（§19）。
 
 ### G19 `cab` vs `change_review`（同能力两名）
 
-四条 `/members` 端点权限完全一致（`change:read` / `change:write`），表一个 `cab_member.go`、一个 `change_review_member.go`，
-上游另有 `20260921_drop_cab_members_table.sql`（注明 CAB 已重命名为 change_review）。
-→ 必须先定唯一命名（含前端入口、权限码、菜单、数据迁移方向），否则吸收即制造第二套名册。
+四条 `/members` 端点方法与权限码完全一致（`change:read` / `change:write`，`router/cab_routes.go:15-18` ↔ 上游 `change_review_routes.go`），
+表一个 `cab_member.go`、一个 `change_review_member.go`，上游另有 `20260921_drop_cab_members_table.sql`（注明 CAB 已重命名为 change_review）。
+改名成本实测：后端 26 文件 / 前端 17 文件 / 文档与 manifest 5 文件。
+→ 必须先定唯一命名（含前端入口、权限码、菜单 key、路由前缀、数据迁移方向），否则吸收即制造第二套名册；已登记 `07:G19`（§20）。
+**裁决前禁止吸收 change 评审域任何文件**。
 
 **决策单要求**（两项共用模板）：选项 → 影响面（带 `file:line` 证据）→ 迁移与回滚 → 验收判据 → 负责人 → 截止。
 
@@ -152,7 +155,7 @@
 
 | 阶段 | 内容 | 进入条件 | 退出判据 | 回滚 |
 |---|---|---|---|---|
-| **P0 门禁先行** | 实现 §2 L1 的面护栏 + `package.json` 回归契约 + 自证用例；登记 G18/G19 | 无 | ✅ **门禁部分已完成**（15/15 绿、10/10 用例、真实树破坏演示三红两还原，见 §2「P0 完成状态」）；⏸ G18/G19 待登记 | 撤脚本条目 |
+| **P0 门禁先行** | 实现 §2 L1 的面护栏 + `package.json` 回归契约 + 自证用例；登记 G18/G19 | 无 | ✅ **已完成**：门禁 15/15 绿、用例 10/10、真实树破坏演示三红两还原（§2「P0 完成状态」）；G18/G19 已登记 [`07-known-gaps.md`](../multi-tenant/07-known-gaps.md) §19/§20（含选项、实测代价、验收标准） | 撤脚本条目 |
 | **P1 协议试点** | 吸收 `cmd/` 5 个验证/维护工具（A 类最低风险） | P0 绿 | L1+L2+L3 全绿；**每个新工具自带用例并通过 `test-coverage-guard`**；契约面不低于附录 A 下限 | 单 PR revert |
 | **P2 A 类铺开** | `on_call` → `cloudsignal` → `ai_quota` / `sla_breach_predictor` / `service_quality_report` / BPMN 三件套 | G18/G19 至少 G19 已定 | 每能力独立 PR + 前后对照表 + 238 实测证据 | 逐能力 revert（互不依赖） |
 | **P3 C 类资产** | 移植上游不依赖其实现的契约测试；引入 `fresh-install-gate` / `rls-golden-path` 两个 CI 门禁 | P2 至少 1 个能力收口 | CI 绿；**移植的每条测试均能独立跑绿且能故意打破本地实现而变红**（非装饰性断言）；无新增 flake | 撤 workflow 文件 |

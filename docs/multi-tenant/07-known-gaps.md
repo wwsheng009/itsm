@@ -16,8 +16,10 @@
 > [`docs/review/2026-11-06-tenant-user-role-adjustment-review.md`](../review/2026-11-06-tenant-user-role-adjustment-review.md) v0.2 复核（详见 §15、§16）。
 >
 > **新增（2026-11-06，客户主数据设计期间发现）**：**G17 · `msp_contracts` RLS 012 客户只读跨租户放宽**，违反「业务数据不跨租户」（BD-1），**已裁决收回**；须先建客户租户内快照通道再 DROP，否则 L1 SLA 匹配静默降级（§18）。
+>
+> **新增（2026-11-06，上游吸收规划期发现）**：**G18 · `users.username` 唯一性口径与 `AGENTS.md` 基线冲突（且登录契约依赖全局唯一）**、**G19 · `cab` 与上游 `change_review` 同能力两套命名** 登记为**待裁决**（§19、§20）；两者均为上游能力吸收的前置阻塞项。
 
-> **编号（2026-09-29 一致性整改；2026-11-06 扩至 G17）**：本页 `G1–G17` 是**生产实测缺口**的唯一 G 空间；canon §7.3 的能力供给缺口已更名 `K1–K5`；工作台规则已更名 `WB1–WB6`；租户用户管理方案另占 `TUM-G1–TUM-G4`，评审 v0.2 的角色调整缺口续号为 `TUM-G5–TUM-G12`（与本空间不重叠）。跨文档引用本页写作 `07:G4`（注册表见 canon 附录 C）。
+> **编号（2026-09-29 一致性整改；2026-11-06 扩至 G19）**：本页 `G1–G19` 是**生产实测缺口**的唯一 G 空间；canon §7.3 的能力供给缺口已更名 `K1–K5`；工作台规则已更名 `WB1–WB6`；租户用户管理方案另占 `TUM-G1–TUM-G4`，评审 v0.2 的角色调整缺口续号为 `TUM-G5–TUM-G12`（与本空间不重叠）。跨文档引用本页写作 `07:G4`（注册表见 canon 附录 C）。
 
 ## 1. 缺口清单（按影响排序）
 
@@ -40,6 +42,8 @@
 | G15 | **跨租户角色调整无通道**（平台 `super_admin` 与服务商 provider 均不能改他租户用户角色），且职责边界口径未成文 | 替他租户调权限的运维动线缺失 → 现实回落两种危险替代：「借目标租户管理员账号登录操作」（共享凭据、审计主体错位）或 **SQL 直改 `users.role` / `user_roles`**（无 rank 校验、无角色归属校验、无审计、不吊销会话） | **本租户内自助（设计主通道，非兜底）**：目标租户管理员用 `PUT /api/v1/users/:id`（主角色 + `roleIds`，`CanGrantRoles` 三重护栏 + 变更后吊销 token）与 `roles` CRUD；跨租户仅「建号时可指定角色」（`ProvisionUserToTenant` + `ListTenantGrantableRoles`） | 登记口径 + 运维 SOP（§16）；若 MSP 跨客户场景升级为需求，按 [`plan §10`](./plan/msp-tenant-user-management-enhancement-plan.md) 触发条件**另案评审**，前置：平台级角色词表收敛 + 变更审批/双人复核，并先解决 G11 四处同源 | P2（边界决策，维持不做） |
 | G16 | **TUM 平台面 7 个租户用户端点零 Swagger 注解**（`handlers/tenant/user_admin.go` 无 `@Summary/@Success/@Router`），故 `activeAdminCount` 等新契约字段在 OpenAPI 中**不可见** | 外部集成方/MCP/客户端代码生成看不到租户用户治理通道；契约漂移只能靠读源码发现（G12 之所以能被发现纯属人工比对）；`make swagger-gen` 因此**无法**记录本批新字段 | 契约单一源在 `docs/multi-tenant/plan/...enhancement-plan.md` §3.1/§3.5 + `tenant-user-admin-api.ts` 注释；本批**不回滚式刷新** docs（刷新会带进他人未提交的 swagger 漂移） | 单独一批：补 7 端点注解 → `make swagger-gen` → 与 `docs-gate` 一并提交；不与缺陷修复混批（§17） | P2 |
 | G17 | **`msp_contracts` RLS 012 存在客户只读跨租户放宽**：`msp_contract_customer_read`（`customer_tenant_id = ctx`）与 `msp_contract_binding_customer_read`（EXISTS 子查询继承）允许 customer 租户直读 provider 租户的合同业务行 | 客户租户可读对方 `name`/`penalties`（违约率与上限）/`settlement_cycle`/`currency`/`contract_no`，且**无列级粒度、无 `status`/有效期校验**（解约后历史行永久可读）、数据库侧不可审计；与「业务数据不跨租户」（BD-1）正面冲突 | 无（策略默认生效）；**不可用「直接 DROP」规避**——会造成 L1 静默降级（见下行） | **裁决收回**：013 删除两条策略；L1 匹配改读客户租户内 `contract_sla_snapshots`，结算/下发改读 `settlement_statements`。**必须先建快照通道（双写观察一个结算周期）再 DROP**。设计见 [`docs/customer-master-data/07-tenant-data-boundary.md` §3.2/§4.5](../customer-master-data/07-tenant-data-boundary.md)、DDL 与四项前置检查见 [`02-ddl-and-migration.md` §12.6](../customer-master-data/02-ddl-and-migration.md)（本节 §18） | P1 |
+| G18 | **`users.username` 唯一性口径与仓库自身基线冲突，且登录契约依赖全局唯一**：schema 为全局 `Unique()`（`ent/schema/user.go:21-23`），而 `AGENTS.md:245` 规定「业务唯一键默认按 tenant 组合唯一」；上游 `heidsoft` 已按基线放宽为 `(tenant_id, username)`（`migrations/20261006_tenant_scope_user_username_unique.sql`） | ① 每租户都想要 `admin` 的产品直觉不可实现，只能靠 `admin-<tenantCode>` 命名绕行（`07:G2` 的关闭方式，可读性/AD-SSO 习惯受损）；② **反向约束**：登录在未指定租户时走 `UsernameEQ(username).Only(...)`（`handlers/common/service.go:195-199`），`.Only()` 在多命中时**直接报错**，注册也在跨租户作用域查重（`handlers/auth/service.go:288-294`）—— 因此**不能只改唯一键**，必须同时改登录契约，否则不带 tenantCode 的既有登录入口会硬失败 | 命名策略 `admin-<tenantCode>`（username 与 email 均带租户后缀，`pkg/bootstrap/token.go:79`） | **需裁决（两项绑定，不可只做其一）**：A 采纳组合唯一 → 必须同步把登录改为「tenantCode/domain 必填或引入账号消歧步骤」，并复核注册查重、`cmd/initialize`、`cmd/provision_tenant`、`cmd/backfill_provider_admin`、邀请与 SSO 计划；B 维持全局唯一 → 需在 `AGENTS.md` 明确「`users.username` 为登记例外并写明理由」，消除基线自相矛盾 | P1（阻塞上游吸收 B 类与部分 A 类） |
+| G19 | **`cab` 与上游 `change_review` 是同一能力的两套命名/两张表**：四条 `/members` 端点方法与权限码完全一致（`change:read` / `change:write`，`router/cab_routes.go:15-18` vs 上游 `router/change_review_routes.go`），表名本地 `cab_member.go`、上游 `change_review_member.go`，上游另有 `20260921_drop_cab_members_table.sql`（注释：CAB 已重命名为 change_review） | 吸收上游变更评审能力会造出**第二套名册 + 第二组同名端点**；菜单、权限码、类型定义、acl manifest 分叉；存量数据需迁移 | 本地自成一套，功能可用（无上游介入时不影响） | **需裁决唯一命名**后再吸收。改名成本实测：后端 26 文件、前端 17 文件（`types/cab.ts`、`routes/area-permissions.ts` 等）、文档与 manifest 5 文件；建议连同权限码与菜单 key 一并定，并给出 `cab_members → change_review_members` 的迁移与回滚对（保留 ITIL 术语则反向要求上游移植时改名） | P1（阻塞 change 域吸收） |
 
 ## 2. G1 · 跨租户创建用户被 tenant guard 拦截
 
@@ -238,6 +242,8 @@
 | G15 | 非 ADR-004 行动项（`plan §10` TUM-7 冻结项的运维口径） | ⏸ **维持不做**：登记边界口径 + SOP（§16）；解除需先满足 `plan §10` 前置 |
 | G16 | 非 ADR-004 行动项（OpenAPI 契约可见性） | ⏸ **待办**：本批执行 `make swagger-gen` 时发现刷新会带入他人 swagger 漂移，已回滚；注解补齐另批处理（§17） |
 | G17 | 非 ADR-004 行动项（四层隔离 / 客户主数据设计的 BD-1 边界） | **P1，已裁决收回**：013 删除 `msp_contract_customer_read` + `msp_contract_binding_customer_read`；**前置** = 先建 `contract_sla_snapshots` 双写并观察一个结算周期（§18） |
+| G18 | 非 ADR-004 行动项（多租户账号模型基线 vs 登录契约） | ⏸ **待裁决（两项绑定）**：要么组合唯一 + 登录必带租户标识，要么全局唯一 + 在 `AGENTS.md` 登记例外（§19） |
+| G19 | 非 ADR-004 行动项（域命名与上游双实现） | ⏸ **待裁决唯一命名**后再吸收 change 评审域（§20） |
 
 ## 14. 证据索引
 
@@ -422,3 +428,71 @@ DDL、四项前置检查与回滚脚本见 [`docs/customer-master-data/02-ddl-an
 ### 18.7 一句话
 
 > G17 不是「权限设计缺失」，而是**把外键字段误当授权凭据**导致的边界溢出；修法不是补授权，而是**把跨租户读换成客户租户内副本**，且必须与 L1 改道同批。
+
+## 19. G18 · `users.username` 唯一性口径（2026-11-06 登记，待裁决）
+
+**发现路径**：为规划吸收上游 `heidsoft` 能力而做不变量测绘时命中。不是新功能缺陷，而是**两份内部规范互相矛盾**，且既有登录实现把矛盾固化了。
+
+### 19.1 冲突三方
+
+| 方 | 立场 | 证据 |
+|---|---|---|
+| 仓库基线 | 「业务唯一键默认按 tenant 组合唯一」 | `AGENTS.md:245` |
+| 本地实现 | `users.username` **全局唯一** | `itsm-backend/ent/schema/user.go:21-23`（`field.String("username").Unique()`） |
+| 本地绕行 | 首管命名 `admin-<tenantCode>`（username 与 email 都带后缀） | `pkg/bootstrap/token.go:79`、`pkg/bootstrap/admin.go:100`；登记为 `07:G2` 的关闭方式 |
+| 上游实现 | 已按基线放宽为 `(tenant_id, username)`，并**刻意保留 email 全局唯一** | `heidsoft/main:itsm-backend/migrations/20261006_tenant_scope_user_username_unique.sql` 头注释（症状：第二个租户建 `admin` 必撞全局唯一键） |
+
+### 19.2 为什么"直接对齐基线"不是免费的（本轮关键实测）
+
+```
+handlers/common/service.go:195-199
+  if tenantID == 0 {   // 登录未指定租户
+      entUser, err = s.client.User.Query().
+          Where(entuser.UsernameEQ(username)).
+          Only(tenantctx.SystemContext(ctx, "auth:login", "pre-auth username lookup (cross-tenant)"))
+```
+
+- `.Only()` 语义是"恰好一条"，**多命中即报错** → 一旦 username 变为租户内唯一且出现同名 `admin`，
+  **不带 `tenantCode` 的登录会硬失败**（不是"随便选一个租户"，更不是静默歧义）；
+- 注册路径同样依赖全局唯一：`handlers/auth/service.go:288-294` 在跨租户作用域查重并直接报"用户名已被注册"；
+- 因此 G18 是**绑定决策**：唯一键口径与登录契约必须一起定，任何一半单独实施都会造成登录倒退。
+
+### 19.3 选项与代价
+
+| 选项 | 内容 | 必须同时做的事 | 残余风险 |
+|---|---|---|---|
+| **A 对齐基线**（组合唯一） | 删全局唯一约束，建 `(tenant_id, username)` 唯一 | ① 登录契约变更：`tenantCode`/domain 必填或引入账号消歧步骤；② 复核 `handlers/auth`（注册查重、找回密码）、`pkg/bootstrap`、`cmd/initialize`、`cmd/provision_tenant`、`cmd/backfill_provider_admin`、邀请流程；③ 更新 `07:G2` 的关闭表述；④ 前端登录页加租户标识输入/域名解析；⑤ 若同时推进 SSO（吸收候选），IdP 主体名与租户映射需一并设计 | 存量"只输用户名即可登录"的所有入口（含 API 客户端、脚本、集成）行为变化，属**产品可见变更** |
+| **B 维持全局唯一** | 保持现状 | 在 `AGENTS.md` 明确登记 `users.username` 为**例外**并写明理由（登录预认证无法确定租户），消除自相矛盾 | 每租户 `admin` 直觉永久不可得；上游多租户相关能力吸收时需逐处改名适配 |
+
+### 19.4 验收标准（任一选项都要满足）
+
+1. `AGENTS.md` 与 schema/迁移三者表述一致（无"文档说组合唯一、代码全局唯一"的分裂）；
+2. 不带 `tenantCode` 的登录在**两个选项下都有确定行为**（成功或明确错误码，不得出现 `Only()` 非唯一错误裸奔 500）；
+3. 连续开通 2 个以上租户的首管流程有回归用例（`pkg/bootstrap` 既有对应用例需扩展）；
+4. 若选 A：提供迁移 + 回滚对，且 `cmd/mig-verify -ro` 只读预检零阻塞（`docs/plan/multi-llm-provider-plan.md` §4.4 账本漂移教训）。
+
+**优先级**：P1。**阻塞**：上游 B 类差集吸收、部分 A 类（依赖多租户首管语义者）。
+
+## 20. G19 · `cab` 与 `change_review` 同能力双命名（2026-11-06 登记，待裁决）
+
+**实测对照**（四条端点方法与权限码完全一致）：
+
+| 端点 | 本地 `router/cab_routes.go:15-18` | 上游 `router/change_review_routes.go` |
+|---|---|---|
+| `GET /members` | `RequirePermission("change","read")` | 同 |
+| `POST /members` | `RequirePermission("change","write")` | 同 |
+| `PUT /members/:id` | `RequirePermission("change","write")` | 同 |
+| `DELETE /members/:id` | `RequirePermission("change","write")` | 同 |
+
+- 表：本地 `ent/schema/cab_member.go` ↔ 上游 `ent/schema/change_review_member.go`；
+- 上游另有 `20260921_drop_cab_members_table.sql`，注释写明"CAB 已重命名为 change_review（评审组），数据迁移到 `change_review_members`，`cab_members` 从未被新代码写入"；
+- 两侧 handler 语义注释几乎一致（都是"仅名册管理，评审流转由审批链引擎驱动"）。
+
+**改名成本实测**：后端 26 文件、前端 17 文件（`itsm-frontend/src/types/cab.ts`、`routes/area-permissions.ts` 等）、文档与 `docs/acl-manifest.yaml` 5 文件。
+
+**裁决要求**：
+1. 定唯一对外命名（ITIL 术语 `cab` vs 泛化 `change_review`），含权限码、菜单 key、路由前缀、类型名；
+2. 若统一为 `change_review`：给 `cab_members → change_review_members` 迁移 + 回滚对（上游声称旧表"从未被新代码写入"，**须以本地库实测核实**后再决定是否需要数据搬迁）；
+3. 在裁决前，**禁止**吸收上游 change 评审域任何文件（否则立刻出现第二套名册与同名端点）。
+
+**优先级**：P1。**阻塞**：change 评审域相关吸收。
