@@ -308,6 +308,18 @@ func tenantScopeMode(role string, t *ent.Tenant) string {
 	return "single"
 }
 
+// tenantExpiry 把 ent 的到期时间转成可空指针：未设置（零值时间）返回 nil。
+//
+// 服务端 `expires_at` 是可空列，但 ent 用 time.Time 值类型承载，零值会直接
+// 序列化成 "0001-01-01T00:00:00Z"。客户端按 `<= now` 判断到期，会把「没有
+// 到期时间」误判成「已过期」（租户切换菜单被禁用）。这里统一收敛成 nil/null。
+func tenantExpiry(expiresAt time.Time) *time.Time {
+	if expiresAt.IsZero() {
+		return nil
+	}
+	return &expiresAt
+}
+
 func toAuthTenantInfo(t *ent.Tenant) *TenantInfo {
 	if t == nil {
 		return nil
@@ -318,7 +330,7 @@ func toAuthTenantInfo(t *ent.Tenant) *TenantInfo {
 		Code:      t.Code,
 		Type:      string(t.Type),
 		Status:    t.Status,
-		ExpiresAt: t.ExpiresAt,
+		ExpiresAt: tenantExpiry(t.ExpiresAt),
 	}
 }
 
@@ -600,7 +612,7 @@ func (s *Service) GetUserTenants(ctx context.Context, userID int) ([]interface{}
 			"code":      t.Code,
 			"type":      t.Type,
 			"status":    t.Status,
-			"expiresAt": t.ExpiresAt,
+			"expiresAt": tenantExpiry(t.ExpiresAt),
 		})
 	}
 

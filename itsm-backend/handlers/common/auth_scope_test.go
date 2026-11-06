@@ -2,6 +2,7 @@ package common
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"strings"
@@ -152,6 +153,52 @@ func TestGetUserTenants_Union(t *testing.T) {
 		require.NoError(t, err)
 		assert.Len(t, list, 4) // home + provider + cust-a + cust-b
 	})
+}
+
+// TestGetUserTenants_ExpiryIsNullWhenUnset 锁定：未设置到期时间的租户必须输出
+// expiresAt: null，而不是 Go 零值时间 "0001-01-01T00:00:00Z"。
+//
+// 客户端按 `expiresAt <= now` 判断租户是否过期；零值时间恒小于当前时间，会被
+// 误判成「已过期」，进而禁用租户切换菜单项（表现为「租户下拉框无法选择切换」）。
+func TestGetUserTenants_ExpiryIsNullWhenUnset(t *testing.T) {
+	client, svc, home, _, ctx := newAuthScopeFixture(t)
+	defer client.Close()
+
+	expiresAt := time.Now().Add(30 * 24 * time.Hour).UTC().Truncate(time.Second)
+	expiring := client.Tenant.Create().
+		SetName("Expiring").SetCode("expiring-1").SetStatus("active").
+		SetType("msp_customer").SetExpiresAt(expiresAt).SaveX(ctx)
+	root := client.User.Create().
+		SetUsername("root-expiry").SetEmail("root-expiry@example.com").SetName("Root").
+		SetPasswordHash("hash").SetRole("super_admin").SetActive(true).SetTenantID(home.ID).
+		SaveX(ctx)
+
+	list, err := svc.GetUserTenants(ctx, root.ID)
+	require.NoError(t, err)
+	raw, err := json.Marshal(map[string]any{"tenants": list})
+	require.NoError(t, err)
+	assert.NotContains(t, string(raw), "0001-01-01", "未设置到期时间不能输出 Go 零值时间")
+
+	var payload struct {
+		Tenants []map[string]any `json:"tenants"`
+	}
+	require.NoError(t, json.Unmarshal(raw, &payload))
+	entries := make(map[int]map[string]any, len(payload.Tenants))
+	for _, entry := range payload.Tenants {
+		id, ok := entry["id"].(float64)
+		require.True(t, ok, "租户 id 必须是数字：%v", entry["id"])
+		entries[int(id)] = entry
+	}
+
+	homeEntry, ok := entries[home.ID]
+	require.True(t, ok, "home 租户必须出现在候选里")
+	value, present := homeEntry["expiresAt"]
+	assert.True(t, present, "expiresAt 键必须存在（值应为 null）")
+	assert.Nil(t, value, "未设置到期时间必须是 null")
+
+	expiringEntry, ok := entries[expiring.ID]
+	require.True(t, ok, "配置了到期时间的租户必须出现在候选里")
+	require.NotNil(t, expiringEntry["expiresAt"], "真实到期时间必须保留")
 }
 
 // TestLogin_JWTRoleRankSelection 锁定 07:G3：JWT role = max(主角色, MSP 映射角色)。

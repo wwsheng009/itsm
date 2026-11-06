@@ -96,12 +96,15 @@ type TenantSelection struct {
 
 // TenantInfo 是认证响应中的租户最小视图（避免直接序列化 ent.Tenant）。
 type TenantInfo struct {
-	ID        int       `json:"id"`
-	Name      string    `json:"name"`
-	Code      string    `json:"code"`
-	Type      string    `json:"type"`
-	Status    string    `json:"status"`
-	ExpiresAt time.Time `json:"expiresAt,omitempty"`
+	ID     int    `json:"id"`
+	Name   string `json:"name"`
+	Code   string `json:"code"`
+	Type   string `json:"type"`
+	Status string `json:"status"`
+	// ExpiresAt 到期时间；未设置时为 nil（omitempty 省略），不能直接放
+	// time.Time 值类型——Go 零值会被序列化成 "0001-01-01T00:00:00Z"，
+	// 客户端会把它当成「已过期」。
+	ExpiresAt *time.Time `json:"expiresAt,omitempty"`
 }
 
 type AuthResult struct {
