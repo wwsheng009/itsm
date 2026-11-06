@@ -1056,6 +1056,7 @@ flowchart TD
 | IM-13 | bindings = `(contract_id, sla_definition_id)` 二列（§4.4 v1.1） | 扩展为 `(contract_id, sla_definition_id, ticket_type_id)`，唯一约束改 `(contract_id, ticket_type_id)`（0=类型无关） | v1.3 引入类型维度后（grant.ticket_type_id），合同绑定需承载 P0 grant 的完整语义；(contract_id, sla_definition_id) 唯一无法表达"同定义绑多类型" |
 | IM-14 | bindings 字段清单未列 tenant_id（§4.4 v1.1） | 补 `tenant_id`（=provider，NOT NULL） | RLS 收窄依据 + 对齐仓库全表 tenant_id 惯例（workflow_template_distributions 先例） |
 | IM-15 | RLS 通道"登记说明" | 落成 012 迁移四条策略：合同/bindings 各 provider FOR ALL（tenant_id=ctx）+ customer FOR SELECT 授信（customer_tenant_id=ctx / EXISTS 合同归属） | customer 读面（provided 视图、P2 结算报表）需要合同链可见；写路径 provider-only 保持 |
+| **IM-15 补正**<br>（2026-11-06） | IM-15 的两条 `customer_read` 策略 | ⚠️ **判定为违规，须收回**：`msp_contract_customer_read` 与 `msp_contract_binding_customer_read` 违反「业务数据不跨租户」（BD-1），由 013 迁移删除；L1 匹配改读客户租户内快照 `contract_sla_snapshots`，结算/下发走 `settlement_statements` | ① IM-15 的理由只有「L1 匹配」成立：`/sla/contracts` 与 `/sla/settlement-report` 全部挂在 `MSPMiddleware` 的 provider 面（`router/sla_routes.go:83-102`），`msp_contract_provider_all` 已覆盖，**结算报表从不需要 customer_read**；provided 读面在 `itsm-frontend/src` 零命中，属预留未实现。② 策略无列级粒度（`penalties`/`settlement_cycle`/`currency` 一并暴露）、无 `status`/有效期校验（解约后历史行永久可读）、不可审计。③ 直接 DROP 会让 `matchContractDefinition`（`service/ticket_sla_service.go:688-724`）经 `itsm_app` 低权池返回 0 行 → 落 L4 默认 60/480 分钟，**静默降级**。详见 `docs/customer-master-data/07-tenant-data-boundary.md` §3.2 与 §4.5 |
 
 **P1-1 交付物**（编译 `go build ./...` 绿；`go test ./migration/... ./handlers/sla/...` 绿；codegen ENTC_EXIT=0）：
 

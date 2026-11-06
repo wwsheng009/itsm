@@ -107,6 +107,15 @@ nav:
       - 开发: development.md
       - 运维: operations.md
       - v1.0 GA 验收: v1-ga-readiness.md
+  - 客户主数据:
+      - 设计总览: customer-master-data/README.md
+      - 主设计方案: customer-master-data/01-customer-master-data-design.md
+      - DDL 与迁移: customer-master-data/02-ddl-and-migration.md
+      - 多服务商场景: customer-master-data/04-multi-provider-scenario.md
+      - 合同与项目闭环: customer-master-data/05-customer-contract-project-linkage.md
+      - 合同建模与数据逻辑: customer-master-data/06-contract-modeling-design.md
+      - 租户数据边界: customer-master-data/07-tenant-data-boundary.md
+      - 待裁决问题: customer-master-data/03-open-questions.md
   - 治理:
       - 贡献指南: ../CONTRIBUTING.md
       - 标签体系: label-schema.md
