@@ -116,9 +116,10 @@
 |---|---|---|---|
 | `service/sla_breach_predictor.go` | 156 行 | **仅 `fmt` / `math`**（纯函数） | ✅ **P1 试点首选**：零 DB、零迁移、零接线风险，可用表驱动单测锁定行为 |
 | `service/ai_quota.go` | 206 行 | **仅标准库**（`context/sql/fmt/math/os/strconv/strings/sync/time`） | A 类第二项；接线需先定配额读取点与告警口径 |
-| `service/service_quality_report_service.go` | 150 行 | 仅 `itsm-backend/dto` | 需先核对本地 `dto` 是否已有对应类型 |
+| ✅ `service/bpmn_template_digest.go` | 62 行纯标准库 | 本地已有 `//go:embed bpmn/*.bpmn` 的 `bpmnTemplates`（`bpmn_template_service.go:24-25`，20 个模板） | **已移植（P2）**：`BuiltinProcessTemplateKeys()` + `EmbeddedBPMNDigest()`；上游无测试，本地补 3 条（含独立重算的可打破用例） |
+| ❌ `service_quality_report_service.go` | 150 行 | 实测依赖 `DashboardViewer`（本地 0 命中）、`DashboardOverviewSource`、`dto.AnalyticsTicketStatsResponse`（本地无）及 6 组 dashboard 数据类型 | **改判 B 类**（深耦合工作台/analytics 聚合层），不是「仅依赖 dto」 |
 
-> **口径教训（S1 期间第三次同类错误）**：**目录名 ≠ 能力**。连续三次踩坑：① `handlers/change_review` 实为本地 `cab` 改名；② `service/cloud` 被误判为"本地没有"（实为同一包 8 vs 36 分叉）；③ `on_call` 被误判为"本地完全没有"（实为挂在 `email-intake` 下且已实现）。
+> **口径教训（S1 期间第四次同类错误）**：**目录名 ≠ 能力、import 列表 ≠ 耦合面**。已连续四次踩坑：① `handlers/change_review` 实为本地 `cab` 改名；② `service/cloud` 被误判为"本地没有"（实为同一包 8 vs 36 分叉）；③ `on_call` 被误判为"本地完全没有"（实为挂在 `email-intake` 下且已实现）；④ `service_quality_report_service.go` 看似"仅 import `dto`"，实则**同包符号**依赖 `DashboardViewer`/`DashboardOverviewSource` 与 6 组 dashboard 数据类型（本地全无）。
 > **此后强制的 S1 规则**：判定「新能力」必须五处交叉证实 —— 功能字符串 / 路由 / 权限码 / 菜单 / 前端入口；任一命中即改判为「已存在，需差集」。
 
 ### B 类｜差集扩展（触碰已有域，先测绘后动手）
@@ -168,7 +169,7 @@
 |---|---|---|---|---|
 | **P0 门禁先行** | 实现 §2 L1 的面护栏 + `package.json` 回归契约 + 自证用例；登记 G18/G19 | 无 | ✅ **已完成**：门禁 15/15 绿、用例 10/10、真实树破坏演示三红两还原（§2「P0 完成状态」）；G18/G19 已登记 [`07-known-gaps.md`](../multi-tenant/07-known-gaps.md) §19/§20（含选项、实测代价、验收标准） | 撤脚本条目 |
 | **P1 协议试点** | ✅ **已完成（2026-11-06）**：移植 `service/sla_breach_predictor.go`（156 行，纯 `fmt`/`math`）+ 5 条用例（4 条上游规格 + 1 条本地加固 `AdjustSpeedFactors`）；**未接线**（无路由/无调用方） | P0 绿 | ✔ 上游 4 条规格用例全过；`gofmt -l` 干净；**8 个新增标识符在 service 包内零冲突**；**本地加固**：`prioritySpeedFactor` 被 `AdjustSpeedFactors` 写、`Predict` 读，上游无锁（data race），已加 `RWMutex`（不改变任何输入→输出）；`test-coverage-guard` 满足（源码与测试同批）；契约门禁 15/15、面不低于附录 A 下限 | 单 PR revert（删 2 文件；无迁移、无接线、无外部副作用） |
-| **P2 A 类铺开** | ✅ **`ai_quota` 已移植（2026-11-06，未接线）**：`service/ai_quota.go` 206 行纯标准库 + 6 用例（5 条上游规格 + 1 条本地补 `EstimateCost`）；SQL 兼容性已实测核对（本地 `ai_llm_calls` 的 `tenant_id` 由 `migrations/20261019_ai_llm_call_observability.sql` 增加，`tokens`/`created_at` 齐备），配置走四个 `ITSM_AI_TOKEN_*` 环境变量。**接线另立 PR**：配额执行点应映射 429 而非 500，fail-open 语义需与网关一致。→ 下一步 `service_quality_report_service.go`（先核 `dto` 类型）→ BPMN 三件套（需与本地 `service/bpmn` 合并评审） | P1 收口 | 每能力独立 PR + 前后对照表 +（若有接线）238 实测证据 | 逐能力 revert（互不依赖） |
+| **P2 A 类铺开** | ✅ **`ai_quota` 已移植（2026-11-06，未接线）**：`service/ai_quota.go` 206 行纯标准库 + 6 用例（5 条上游规格 + 1 条本地补 `EstimateCost`）；SQL 兼容性已实测核对（本地 `ai_llm_calls.tenant_id` 由 `migrations/20261019_ai_llm_call_observability.sql` 增加）。✅ **`bpmn_template_digest` 已移植**：62 行纯标准库 + 3 条本地用例，前置 `bpmnTemplates` embed 本地已具备（20 模板），零新依赖/零迁移；**未接线**（是否纳入初始化组件 checksum 属版本账本变更，另立 PR）。❌ `service_quality_report` 经实测改判 B 类（缺 `DashboardViewer` 等 8 项）。→ 后续候选：BPMN `bpmn_template_digest` 的账本接线、`bpmn_compensation.go`（依赖 `service/bpmn` 与 ent）、C 类 CI 门禁 | P1 收口 | 每能力独立 PR + 前后对照表 +（若有接线）238 实测证据 | 逐能力 revert（互不依赖） |
 | **P3 C 类资产** | 移植上游不依赖其实现的契约测试；引入 `fresh-install-gate` / `rls-golden-path` 两个 CI 门禁 | P2 至少 1 个能力收口 | CI 绿；**移植的每条测试均能独立跑绿且能故意打破本地实现而变红**（非装饰性断言）；无新增 flake | 撤 workflow 文件 |
 | **P4 B 类差集** | `service/cloud`、`marketplace`、`connector/builtin`、`seeder`、`workbench`、`account` | **G18 已裁决** | 差集清单 + 逐点取舍记录 | 按域 revert |
 
