@@ -1,8 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router';
 import { AlertCircle, CheckCircle, Lock, UserPlus } from 'lucide-react';
-import { Button, Card, ConfigProvider, Flex, Form, Input, Typography, message } from 'antd';
-import { antdTheme } from '@/lib/antd-theme';
+import { Button, Card, Flex, Form, Input, Typography, message } from 'antd';
 import AuthService, { type InvitationLandingInfo } from '@/lib/services/auth-service';
 import { logger } from '@/lib/env';
 
@@ -90,15 +89,15 @@ export default function InviteLandingPage() {
   };
 
   const shell = (children: React.ReactNode) => (
-    <ConfigProvider theme={antdTheme}>
-      <div className='min-h-screen flex items-center justify-center p-5 bg-gradient-to-br from-gray-50 to-blue-50'>
+    <>
+      <div className='auth-surface min-h-screen flex items-center justify-center p-5'>
         <div className='w-full max-w-[420px]'>
           <Card className='rounded-xl shadow-xl border-none' styles={{ body: { padding: '40px' } }}>
             {children}
           </Card>
         </div>
       </div>
-    </ConfigProvider>
+    </>
   );
 
   if (loading) {
@@ -115,13 +114,13 @@ export default function InviteLandingPage() {
         <div className='w-16 h-16 mx-auto mb-4 bg-green-100 rounded-full flex items-center justify-center'>
           <CheckCircle size={32} className='text-green-600' />
         </div>
-        <Title level={3} className='!mb-2 !text-gray-900 !text-xl'>
+        <Title level={3} className='!mb-2 !text-[var(--color-text-primary)] !text-xl'>
           账号已激活
         </Title>
-        <Text className='!text-gray-500 !text-sm block !mb-6'>
+        <Text className='!text-[var(--color-text-secondary)] !text-sm block !mb-6'>
           密码设置成功，即将跳转到登录页
         </Text>
-        <Text className='!text-gray-400 !text-xs block !mb-6'>
+        <Text className='!text-[var(--color-text-tertiary)] !text-xs block !mb-6'>
           登录用户名 = 邮箱 @ 前的部分（如 user@corp.com → user）
         </Text>
         <Button type='primary' size='large' className='w-full h-10' onClick={() => navigate('/login')}>
@@ -137,10 +136,10 @@ export default function InviteLandingPage() {
         <div className='w-16 h-16 mx-auto mb-4 bg-red-100 rounded-full flex items-center justify-center'>
           <AlertCircle size={32} className='text-red-600' />
         </div>
-        <Title level={3} className='!mb-2 !text-gray-900 !text-xl'>
+        <Title level={3} className='!mb-2 !text-[var(--color-text-primary)] !text-xl'>
           邀请不可用
         </Title>
-        <Text className='!text-gray-500 !text-sm block !mb-6'>{invalidReason || '邀请链接无效或不可用'}</Text>
+        <Text className='!text-[var(--color-text-secondary)] !text-sm block !mb-6'>{invalidReason || '邀请链接无效或不可用'}</Text>
         <Button type='primary' size='large' className='w-full h-10' onClick={() => navigate('/login')}>
           返回登录
         </Button>
@@ -154,13 +153,13 @@ export default function InviteLandingPage() {
         <div className='w-14 h-14 mx-auto mb-3 bg-blue-100 rounded-full flex items-center justify-center'>
           <UserPlus size={26} className='text-blue-600' />
         </div>
-        <Title level={2} className='!mb-1 !text-gray-900 !text-xl'>
+        <Title level={2} className='!mb-1 !text-[var(--color-text-primary)] !text-xl'>
           加入 {info.tenantName || '企业'}
         </Title>
-        <Text className='!text-gray-500 !text-sm'>
+        <Text className='!text-[var(--color-text-secondary)] !text-sm'>
           邀请邮箱 {info.emailMasked} · 角色 {info.roleCode}
         </Text>
-        <Text className='!text-gray-400 !text-xs block !mt-2'>
+        <Text className='!text-[var(--color-text-tertiary)] !text-xs block !mt-2'>
           激活后登录用户名 = 邮箱 @ 前的部分（如 user@corp.com → user）
         </Text>
       </div>
@@ -226,9 +225,9 @@ export default function InviteLandingPage() {
       </Form>
 
       <div className='text-center mt-4'>
-        <Text className='text-gray-400 text-xs'>
+        <Text className='text-[var(--color-text-tertiary)] text-xs'>
           已有账号？{' '}
-          <Link to='/login' className='text-blue-600 hover:underline'>
+          <Link to='/login' className='app-link'>
             去登录
           </Link>
         </Text>

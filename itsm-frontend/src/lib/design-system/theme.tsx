@@ -131,7 +131,10 @@ export const getAntdTheme = (isDark: boolean) => {
     algorithm: isDark ? theme.darkAlgorithm : theme.defaultAlgorithm,
     token: {
       // 颜色配置
-      colorPrimary: colorPalette.primary[500],
+      // 主按钮背景需承载白色文字（>=4.5:1），因此固定使用 600 阶；
+      // 链接文字另用 colorLink，暗色下自动取更亮的色阶，避免主色变深后链接不可读。
+      colorPrimary: '#2563eb',
+      colorLink: colorPalette.primary[600],
       colorSuccess: '#22c55e',
       colorWarning: '#f59e0b',
       colorError: '#ef4444',

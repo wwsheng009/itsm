@@ -22,7 +22,8 @@ const variantToAntConfig: Record<ButtonVariant, { type: AntButtonProps['type']; 
   default: { type: 'primary' },
   secondary: { type: 'default' },
   destructive: { type: 'primary', danger: true },
-  outline: { type: 'dashed' },
+  // outline 是实线描边按钮；dashed 是独立视觉变体，不能混用。
+  outline: { type: 'default' },
   ghost: { type: 'text' },
   link: { type: 'link' },
 };

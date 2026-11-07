@@ -7,6 +7,205 @@
 @import "tailwindcss";
 @reference "tailwindcss";
 
+/* 共享文字链接放在 Tailwind 层之外，避免 Ant Design 全局 a 样式覆盖主题色。 */
+.app-link {
+  color: var(--color-primary-600);
+  text-decoration: none;
+  transition: color var(--transition-fast);
+}
+
+.app-link:hover {
+  color: var(--color-primary-700);
+  text-decoration: underline;
+}
+
+.app-link--muted {
+  color: var(--color-text-secondary);
+}
+
+.app-link--muted:hover {
+  color: var(--color-primary-600);
+}
+
+.app-link[aria-disabled='true'] {
+  color: var(--color-text-disabled);
+  cursor: not-allowed;
+  text-decoration: none;
+}
+
+/* 首页主题表面：所有区块使用成对的明暗令牌，避免浅底白字或白底白字。 */
+.home-page {
+  min-height: 100vh;
+  background-color: var(--color-background-primary);
+  background-image: linear-gradient(
+    180deg,
+    color-mix(in srgb, var(--color-primary-600) 6%, transparent) 0,
+    transparent 420px
+  );
+  color: var(--color-text-primary);
+}
+
+.home-nav {
+  background-color: color-mix(in srgb, var(--color-background-primary) 90%, transparent);
+  border-bottom: 1px solid var(--color-border-primary);
+  backdrop-filter: blur(12px);
+}
+
+.home-nav-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--color-text-secondary);
+  transition: color var(--transition-fast);
+}
+
+.home-nav-link:hover {
+  color: var(--color-text-primary);
+}
+
+.home-heading,
+.home-heading-sm {
+  color: var(--color-text-primary);
+}
+
+.home-body,
+.home-body-sm {
+  color: var(--color-text-secondary);
+}
+
+.home-muted {
+  color: var(--color-text-tertiary);
+}
+
+.home-hairline {
+  border-color: var(--color-border-primary);
+}
+
+.home-eyebrow {
+  background-color: color-mix(in srgb, #2563eb 10%, transparent);
+  border: 1px solid color-mix(in srgb, #2563eb 26%, transparent);
+}
+
+.home-eyebrow-text {
+  color: #1d4ed8;
+}
+
+.dark .home-eyebrow-text {
+  color: #93c5fd;
+}
+
+.home-cta,
+.home-cta-secondary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  border-radius: 8px;
+  font-weight: 500;
+  transition:
+    background-color var(--transition-fast),
+    border-color var(--transition-fast),
+    color var(--transition-fast);
+}
+
+.home-cta {
+  background-color: #2563eb;
+  color: #ffffff;
+}
+
+.home-cta:hover {
+  background-color: #1d4ed8;
+  color: #ffffff;
+}
+
+.home-cta-secondary {
+  background-color: var(--color-text-primary);
+  color: var(--color-background-primary);
+}
+
+.home-cta-secondary:hover {
+  background-color: var(--color-text-secondary);
+  color: var(--color-background-primary);
+}
+
+.home-section {
+  background-color: var(--color-background-secondary);
+}
+
+.home-card {
+  background-color: var(--color-background-primary);
+  border: 1px solid var(--color-border-primary);
+  box-shadow: var(--box-shadow-sm);
+}
+
+.home-card:hover {
+  border-color: var(--color-primary-600);
+  box-shadow: var(--box-shadow-md);
+}
+
+.home-icon {
+  background-color: color-mix(in srgb, var(--color-primary-600) 14%, transparent);
+  color: var(--color-primary-600);
+}
+
+.home-terminal {
+  background-color: #0f172a;
+  color: #e2e8f0;
+}
+
+.home-terminal-muted {
+  color: #94a3b8;
+}
+
+.home-notice {
+  background-color: color-mix(in srgb, #2563eb 8%, transparent);
+  border: 1px solid color-mix(in srgb, #2563eb 22%, transparent);
+  color: var(--color-text-secondary);
+}
+
+.home-code-inline {
+  background-color: color-mix(in srgb, #2563eb 16%, transparent);
+  color: var(--color-text-primary);
+  border-radius: 4px;
+  padding: 1px 6px;
+}
+
+.home-chip {
+  background-color: var(--color-background-primary);
+  border: 1px solid var(--color-border-primary);
+  color: var(--color-text-secondary);
+}
+
+.home-footer {
+  background-color: #0f172a;
+  color: #e2e8f0;
+  border-top: 1px solid transparent;
+}
+
+.dark .home-footer {
+  background-color: var(--color-background-secondary);
+  border-top-color: var(--color-border-primary);
+}
+
+.home-footer-link {
+  color: #cbd5e1;
+  transition: color var(--transition-fast);
+}
+
+.home-footer-link:hover {
+  color: #ffffff;
+  text-decoration: underline;
+}
+
+.home-footer-muted,
+.home-footer-muted p {
+  color: #94a3b8;
+}
+
+.dark .home-footer-link:hover {
+  color: var(--color-text-primary);
+}
+
 /* Tooltip 样式修复 - 修复白色透明背景问题 */
 .ant-tooltip {
   opacity: 1 !important;
@@ -796,18 +995,9 @@
 }
 
 .accessibility-enhanced.keyboard-nav {
-
-  /* 键盘导航优化 - 移除蓝色边框，使用更柔和的样式 */
-  *:focus {
-    outline: none;
-  }
-
-  button:focus,
-  input:focus,
-  textarea:focus,
-  select:focus {
-    outline: none;
-    box-shadow: none;
+  /* 键盘导航增强模式保留清晰的焦点位置，不移除轮廓或焦点阴影。 */
+  :where(a, button, input, textarea, select, [role='button'], [tabindex]):focus-visible {
+    outline-width: 3px;
   }
 }
 
@@ -857,9 +1047,16 @@
   }
 }
 
-/* 增强的焦点指示器 - 移除蓝色边框 */
-*:focus-within {
-  outline: none;
+/* 仅对键盘等需要可见焦点的导航显示轮廓，避免鼠标点击出现多余焦点环。 */
+:where(a[href], button, input, textarea, select, summary, [role='button'], [role='link'], [tabindex]:not([tabindex='-1'])):focus-visible {
+  outline: 2px solid var(--color-border-focus, var(--color-primary));
+  outline-offset: 3px;
+}
+
+/* Ant Design 的可聚焦 input 位于 wrapper 内，焦点环应落在完整控件边界。 */
+.ant-input-affix-wrapper:focus-within {
+  outline: 2px solid var(--color-border-focus, var(--color-primary));
+  outline-offset: 2px;
 }
 
 /* 改进的消息通知样式 */
@@ -2722,4 +2919,49 @@ html:not(.dark) .ant-btn-default:focus {
     animation: none;
     transition: none;
   }
+}
+
+/* 认证页统一背景：跟随明暗主题，避免首页暗、登录页白的割裂。 */
+.auth-surface {
+  background-color: var(--color-background-primary);
+  background-image: linear-gradient(
+    135deg,
+    var(--color-background-primary) 0%,
+    color-mix(in srgb, var(--color-primary-600) 12%, var(--color-background-primary)) 100%
+  );
+  color: var(--color-text-primary);
+}
+
+.auth-surface .ant-card {
+  background-color: var(--color-background-primary);
+}
+
+/* 登录跳转遮罩：随主题变化，避免暗色页面出现白色蒙层。 */
+.auth-overlay {
+  background-color: color-mix(
+    in srgb,
+    var(--color-background-primary) 92%,
+    transparent
+  );
+}
+
+/* 认证页通用表面与图标底色，避免暗色下出现浅色补丁。 */
+.auth-subtle {
+  background-color: var(--color-background-secondary);
+}
+
+.auth-icon {
+  background-color: color-mix(in srgb, var(--color-primary-600) 14%, transparent);
+  color: var(--color-primary-600);
+}
+
+/* 主按钮在暗色主题下沿用与浅色一致的品牌渐变，
+   避免暗色算法把种子色推导成 #3b82f6 导致白字对比度不足（3.67:1）。 */
+html.dark .ant-btn-primary {
+  background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+}
+
+html.dark .ant-btn-primary:hover,
+html.dark .ant-btn-primary:focus {
+  background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
 }

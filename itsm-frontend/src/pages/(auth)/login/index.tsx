@@ -7,7 +7,6 @@ import {
   Typography,
   Space,
   Alert,
-  ConfigProvider,
   Form,
   Input,
   Button,
@@ -19,7 +18,6 @@ import {
   Tooltip,
   Spin,
 } from 'antd';
-import { antdTheme } from '@/lib/antd-theme';
 import { AuthService } from '@/lib/services/auth-service';
 import { resolveDefaultLanding, TENANT_LANDING_PATH } from '@/lib/auth/landing';
 import { logger } from '@/lib/env';
@@ -217,13 +215,13 @@ function LoginForm() {
         // 只响应抖动本身：子元素的 animationend 会冒泡到这里
         if (e.animationName === 'shake') setShake(false);
       }}
-      styles={{ body: { padding: '40px' } }}
+      styles={{ body: { padding: 'clamp(20px, 4vw, 40px)' } }}
     >
       <div className='text-center mb-6'>
-        <Title level={2} className='!mb-2 !text-gray-900 !text-2xl'>
+        <Title level={2} className='!mb-2 !text-[var(--color-text-primary)] !text-2xl'>
           {t('auth.login.title')}
         </Title>
-        <Text className='!text-gray-500 !text-sm'>{t('auth.login.subtitle')}</Text>
+        <Text className='!text-[var(--color-text-secondary)] !text-sm'>{t('auth.login.subtitle')}</Text>
       </div>
 
       {/* 默认账号提示：开发环境使用 admin/admin123，生产环境必须修改 */}
@@ -331,10 +329,15 @@ function LoginForm() {
               {t('auth.login.rememberMe')}
             </Checkbox>
             <Tooltip title={busy ? t('auth.login.loggingIn') : ''}>
-              <Link to='/forgot-password'>
-                <Button type='link' className='p-0 h-auto text-xs' disabled={busy}>
-                  {t('auth.login.forgotPassword')}
-                </Button>
+              <Link
+                to='/forgot-password'
+                className='app-link text-xs'
+                aria-disabled={busy || undefined}
+                onClick={event => {
+                  if (busy) event.preventDefault();
+                }}
+              >
+                {t('auth.login.forgotPassword')}
               </Link>
             </Tooltip>
           </Flex>
@@ -362,21 +365,23 @@ function LoginForm() {
       </Form>
 
       <div className='text-center mt-5'>
-        <Text className='text-gray-400 text-xs'>
+        <Text className='text-[var(--color-text-tertiary)] text-xs'>
           {t('auth.login.noAccount')}{' '}
-          <Link to='/register'>
-            <Button type='link' className='p-0 h-auto text-xs'>
-              {t('auth.login.registerNow')}
-            </Button>
+          <Link
+            to='/register'
+            className='app-link text-xs font-medium'
+          >
+            {t('auth.login.registerNow')}
           </Link>
         </Text>
       </div>
 
       <div className='text-center mt-2'>
-        <Link to='/skills-install'>
-          <Button type='link' className='p-0 h-auto text-xs text-gray-400'>
-            Agent Skills 安装（公开）
-          </Button>
+        <Link
+          to='/skills-install'
+          className='app-link app-link--muted text-xs'
+        >
+          Agent Skills 安装（公开）
         </Link>
       </div>
 
@@ -384,14 +389,14 @@ function LoginForm() {
           延迟 200ms 出现，导航很快时不会闪一下。 */}
       {succeeded && (
         <div
-          className='animate-fade-in-late absolute inset-0 z-10 flex flex-col items-center justify-center gap-3 rounded-xl bg-white/90'
+          className='animate-fade-in-late auth-overlay absolute inset-0 z-10 flex flex-col items-center justify-center gap-3 rounded-xl'
           role='status'
           aria-live='polite'
         >
           <Spin size='large' />
           {/* 超时后不报失败，只说"换一种方式进入"，避免与成功提示自相矛盾。
               遮罩不用 backdrop-blur：模糊整块卡片在慢机器上很贵，而它恰好在跳转时显示。 */}
-          <Text className='!text-gray-600 !text-sm'>
+          <Text className='!text-[var(--color-text-secondary)] !text-sm'>
             {slowRedirect ? t('auth.login.slowRedirect') : t('auth.login.loginSuccessDetail')}
           </Text>
         </div>
@@ -406,8 +411,8 @@ function LoginForm() {
  */
 export default function LoginPage() {
   return (
-    <ConfigProvider theme={antdTheme}>
-      <div className='min-h-screen flex items-center justify-center p-5 bg-gradient-to-br from-gray-50 to-blue-50'>
+    <>
+      <div className='auth-surface min-h-screen flex items-center justify-center p-5'>
         <div className='w-full max-w-[1000px]'>
           <Row gutter={[32, 0]} align='middle'>
             {/* 左侧品牌区域 */}
@@ -458,7 +463,7 @@ export default function LoginPage() {
                 fallback={
                   <Card
                     className='rounded-xl shadow-xl border-none'
-                    styles={{ body: { padding: '40px' } }}
+                    styles={{ body: { padding: 'clamp(20px, 4vw, 40px)' } }}
                   >
                     <div className='text-center py-20 text-gray-400'>加载中...</div>
                   </Card>
@@ -470,6 +475,6 @@ export default function LoginPage() {
           </Row>
         </div>
       </div>
-    </ConfigProvider>
+    </>
   );
 }

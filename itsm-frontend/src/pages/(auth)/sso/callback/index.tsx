@@ -2,8 +2,7 @@ import { useNavigate, useSearchParams } from 'react-router';
 
 import React, { useEffect, useState, Suspense } from 'react';
 import { Shield, CheckCircle, AlertCircle, Loader2 } from 'lucide-react';
-import { Typography, Card, ConfigProvider, message, Flex } from 'antd';
-import { antdTheme } from '@/lib/antd-theme';
+import { Typography, Card, message, Flex } from 'antd';
 import { AuthService } from '@/lib/services/auth-service';
 import { useAuthStore } from '@/lib/store/auth-store';
 import { logger } from '@/lib/env';
@@ -101,8 +100,8 @@ function SSOCallbackContent() {
 
   if (status === 'loading') {
     return (
-      <ConfigProvider theme={antdTheme}>
-        <div className="min-h-screen flex items-center justify-center p-5 bg-gradient-to-br from-gray-50 to-blue-50">
+      <>
+        <div className="auth-surface min-h-screen flex items-center justify-center p-5">
           <Card
             className="rounded-xl shadow-xl border-none w-full max-w-[400px]"
             styles={{ body: { padding: '48px' } }}
@@ -112,11 +111,11 @@ function SSOCallbackContent() {
                 <Loader2 size={32} className="text-blue-600 animate-spin" />
               </div>
 
-              <Title level={3} className="!mb-2 !text-gray-900 !text-xl">
+              <Title level={3} className="!mb-2 !text-[var(--color-text-primary)] !text-xl">
                 正在处理SSO登录
               </Title>
 
-              <Text className="!text-gray-500 !text-sm block">请稍候，正在验证您的身份...</Text>
+              <Text className="!text-[var(--color-text-secondary)] !text-sm block">请稍候，正在验证您的身份...</Text>
 
               <Flex justify="center" className="mt-6">
                 <div className="flex gap-2">
@@ -137,14 +136,14 @@ function SSOCallbackContent() {
             </div>
           </Card>
         </div>
-      </ConfigProvider>
+      </>
     );
   }
 
   if (status === 'success') {
     return (
-      <ConfigProvider theme={antdTheme}>
-        <div className="min-h-screen flex items-center justify-center p-5 bg-gradient-to-br from-gray-50 to-blue-50">
+      <>
+        <div className="auth-surface min-h-screen flex items-center justify-center p-5">
           <Card
             className="rounded-xl shadow-xl border-none w-full max-w-[400px]"
             styles={{ body: { padding: '48px' } }}
@@ -154,11 +153,11 @@ function SSOCallbackContent() {
                 <CheckCircle size={32} className="text-green-600" />
               </div>
 
-              <Title level={3} className="!mb-2 !text-gray-900 !text-xl">
+              <Title level={3} className="!mb-2 !text-[var(--color-text-primary)] !text-xl">
                 SSO登录成功
               </Title>
 
-              <Text className="!text-gray-500 !text-sm block">正在跳转到仪表盘...</Text>
+              <Text className="!text-[var(--color-text-secondary)] !text-sm block">正在跳转到仪表盘...</Text>
 
               <Flex justify="center" className="mt-6">
                 <div className="flex gap-2">
@@ -179,14 +178,14 @@ function SSOCallbackContent() {
             </div>
           </Card>
         </div>
-      </ConfigProvider>
+      </>
     );
   }
 
   // Error state
   return (
-    <ConfigProvider theme={antdTheme}>
-      <div className="min-h-screen flex items-center justify-center p-5 bg-gradient-to-br from-gray-50 to-blue-50">
+    <>
+      <div className="auth-surface min-h-screen flex items-center justify-center p-5">
         <Card
           className="rounded-xl shadow-xl border-none w-full max-w-[400px]"
           styles={{ body: { padding: '48px' } }}
@@ -196,11 +195,11 @@ function SSOCallbackContent() {
               <AlertCircle size={32} className="text-red-600" />
             </div>
 
-            <Title level={3} className="!mb-2 !text-gray-900 !text-xl">
+            <Title level={3} className="!mb-2 !text-[var(--color-text-primary)] !text-xl">
               SSO登录失败
             </Title>
 
-            <Text className="!text-gray-500 !text-sm block !mb-6">
+            <Text className="!text-[var(--color-text-secondary)] !text-sm block !mb-6">
               {errorMessage || 'SSO登录过程中出现错误'}
             </Text>
 
@@ -213,7 +212,7 @@ function SSOCallbackContent() {
           </div>
         </Card>
       </div>
-    </ConfigProvider>
+    </>
   );
 }
 
@@ -225,8 +224,8 @@ export default function SSOCallbackPage() {
   return (
     <Suspense
       fallback={
-        <ConfigProvider theme={antdTheme}>
-          <div className="min-h-screen flex items-center justify-center p-5 bg-gradient-to-br from-gray-50 to-blue-50">
+        <>
+          <div className="auth-surface min-h-screen flex items-center justify-center p-5">
             <Card
               className="rounded-xl shadow-xl border-none w-full max-w-[400px]"
               styles={{ body: { padding: '48px' } }}
@@ -235,13 +234,13 @@ export default function SSOCallbackPage() {
                 <div className="w-16 h-16 mx-auto mb-4 bg-blue-100 rounded-full flex items-center justify-center">
                   <Loader2 size={32} className="text-blue-600 animate-spin" />
                 </div>
-                <Title level={3} className="!mb-2 !text-gray-900 !text-xl">
+                <Title level={3} className="!mb-2 !text-[var(--color-text-primary)] !text-xl">
                   正在加载...
                 </Title>
               </div>
             </Card>
           </div>
-        </ConfigProvider>
+        </>
       }
     >
       <SSOCallbackContent />

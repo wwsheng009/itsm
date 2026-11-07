@@ -9,12 +9,10 @@ import {
   Input,
   Button,
   Card,
-  ConfigProvider,
   message,
   Divider,
   Alert,
 } from 'antd';
-import { antdTheme } from '@/lib/antd-theme';
 import { AuthService } from '@/lib/services/auth-service';
 import { logger } from '@/lib/env';
 
@@ -68,8 +66,8 @@ export default function ForgotPasswordPage() {
 
   if (submitted) {
     return (
-      <ConfigProvider theme={antdTheme}>
-        <div className="min-h-screen flex items-center justify-center p-5 bg-gradient-to-br from-gray-50 to-blue-50">
+      <>
+        <div className="auth-surface min-h-screen flex items-center justify-center p-5">
           <div className="w-full max-w-[420px]">
             <Card
               className="rounded-xl shadow-xl border-none"
@@ -80,21 +78,21 @@ export default function ForgotPasswordPage() {
                   <CheckCircle size={32} className="text-green-600" />
                 </div>
 
-                <Title level={3} className="!mb-2 !text-gray-900 !text-xl">
+                <Title level={3} className="!mb-2 !text-[var(--color-text-primary)] !text-xl">
                   检查您的邮箱
                 </Title>
 
-                <Text className="!text-gray-500 !text-sm block !mb-6">
+                <Text className="!text-[var(--color-text-secondary)] !text-sm block !mb-6">
                   我们已将密码重置链接发送至
                   <br />
                   <span className="text-blue-600 font-medium">{email}</span>
                 </Text>
 
                 <div className="bg-gray-50 rounded-lg p-4 mb-6 text-left">
-                  <Text className="!text-gray-600 !text-xs block !mb-2">
+                  <Text className="!text-[var(--color-text-secondary)] !text-xs block !mb-2">
                     没有收到邮件？请检查：
                   </Text>
-                  <ul className="!text-gray-500 !text-xs list-disc list-inside space-y-1">
+                  <ul className="!text-[var(--color-text-secondary)] !text-xs list-disc list-inside space-y-1">
                     <li>垃圾邮件文件夹</li>
                     <li>邮箱地址是否正确</li>
                     <li>邮件是否被拦截</li>
@@ -121,9 +119,9 @@ export default function ForgotPasswordPage() {
                 </Button>
 
                 <div className="text-center mt-4">
-                  <Text className="text-gray-400 text-xs">
+                  <Text className="text-[var(--color-text-tertiary)] text-xs">
                     记起密码了？{' '}
-                    <a href="/login" className="text-blue-600 hover:underline">
+                    <a href="/login" className="app-link">
                       {t('auth.register.loginNow')}
                     </a>
                   </Text>
@@ -132,20 +130,20 @@ export default function ForgotPasswordPage() {
             </Card>
           </div>
         </div>
-      </ConfigProvider>
+      </>
     );
   }
 
   return (
-    <ConfigProvider theme={antdTheme}>
-      <div className="min-h-screen flex items-center justify-center p-5 bg-gradient-to-br from-gray-50 to-blue-50">
+    <>
+      <div className="auth-surface min-h-screen flex items-center justify-center p-5">
         <div className="w-full max-w-[420px]">
           <Card className="rounded-xl shadow-xl border-none" styles={{ body: { padding: '40px' } }}>
             <div className="text-center mb-6">
-              <Title level={2} className="!mb-2 !text-gray-900 !text-2xl">
+              <Title level={2} className="!mb-2 !text-[var(--color-text-primary)] !text-2xl">
                 {t('auth.forgotPassword.title')}
               </Title>
-              <Text className="!text-gray-500 !text-sm">{t('auth.forgotPassword.subtitle')}</Text>
+              <Text className="!text-[var(--color-text-secondary)] !text-sm">{t('auth.forgotPassword.subtitle')}</Text>
             </div>
 
             {error && (
@@ -168,7 +166,7 @@ export default function ForgotPasswordPage() {
                 ]}
               >
                 <Input
-                  prefix={<Mail size={14} className="text-gray-400" />}
+                  prefix={<Mail size={14} className="text-[var(--color-text-tertiary)]" />}
                   placeholder={t('auth.forgotPassword.emailPlaceholder')}
                   size="large"
                   disabled={loading}
@@ -189,16 +187,16 @@ export default function ForgotPasswordPage() {
             </Form>
 
             <div className="text-center">
-              <Text className="text-gray-400 text-xs">
+              <Text className="text-[var(--color-text-tertiary)] text-xs">
                 记起密码了？{' '}
-                <a href="/login" className="text-blue-600 hover:underline">
+                <a href="/login" className="app-link">
                   {t('auth.register.loginNow')}
                 </a>
               </Text>
             </div>
 
             <Divider className="my-5">
-              <Text className="text-gray-400 text-xs">{t('auth.login.or')}</Text>
+              <Text className="text-[var(--color-text-tertiary)] text-xs">{t('auth.login.or')}</Text>
             </Divider>
 
             <Button
@@ -212,6 +210,6 @@ export default function ForgotPasswordPage() {
           </Card>
         </div>
       </div>
-    </ConfigProvider>
+    </>
   );
 }

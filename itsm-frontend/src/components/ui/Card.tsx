@@ -13,7 +13,7 @@ import type { CardProps as AntCardProps } from 'antd';
 
 const baseHeaderClass = 'flex flex-col space-y-1.5 p-6';
 const baseTitleClass = 'text-xl font-semibold leading-none tracking-tight';
-const baseDescriptionClass = 'text-sm text-gray-500';
+const baseDescriptionClass = 'text-sm text-[var(--color-text-tertiary)]';
 const baseContentClass = 'p-6 pt-0';
 const baseFooterClass = 'flex items-center p-6 pt-0';
 
