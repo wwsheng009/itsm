@@ -4,11 +4,12 @@ import (
 	"bytes"
 	"context"
 	"crypto/tls"
-	"encoding/base64"
 	"fmt"
 	"html/template"
+	"net"
 	"net/mail"
 	"net/smtp"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -76,71 +77,23 @@ func (s *EmailService) Send(ctx context.Context, msg *EmailMessage) error {
 		"subject", msg.Subject,
 	)
 
-	// 构建邮件内容
-	var emailBody strings.Builder
-
-	// MIME边界
-	boundary := "Mixed_123456789"
-
-	// 邮件头
-	emailBody.WriteString(fmt.Sprintf("From: %s <%s>\r\n", s.config.FromName, s.config.From))
-	emailBody.WriteString(fmt.Sprintf("To: %s\r\n", strings.Join(msg.To, ",")))
-	if len(msg.CC) > 0 {
-		emailBody.WriteString(fmt.Sprintf("Cc: %s\r\n", strings.Join(msg.CC, ",")))
-	}
-	emailBody.WriteString(fmt.Sprintf("Subject: %s\r\n", msg.Subject))
-	emailBody.WriteString("MIME-Version: 1.0\r\n")
-	emailBody.WriteString(fmt.Sprintf("Content-Type: multipart/alternative; boundary=\"%s\"\r\n", boundary))
-	emailBody.WriteString("\r\n")
-
-	// 纯文本版本
-	if msg.BodyText != "" {
-		emailBody.WriteString(fmt.Sprintf("--%s\r\n", boundary))
-		emailBody.WriteString("Content-Type: text/plain; charset=UTF-8\r\n")
-		emailBody.WriteString("Content-Transfer-Encoding: base64\r\n")
-		emailBody.WriteString("\r\n")
-		emailBody.WriteString(base64.StdEncoding.EncodeToString([]byte(msg.BodyText)))
-		emailBody.WriteString("\r\n")
-	}
-
-	// HTML版本
-	if msg.Body != "" {
-		emailBody.WriteString(fmt.Sprintf("--%s\r\n", boundary))
-		emailBody.WriteString("Content-Type: text/html; charset=UTF-8\r\n")
-		emailBody.WriteString("Content-Transfer-Encoding: base64\r\n")
-		emailBody.WriteString("\r\n")
-		emailBody.WriteString(base64.StdEncoding.EncodeToString([]byte(msg.Body)))
-		emailBody.WriteString("\r\n")
-	}
-
-	// 添加附件
-	for _, att := range msg.Attachments {
-		emailBody.WriteString(fmt.Sprintf("--%s\r\n", boundary))
-		emailBody.WriteString(fmt.Sprintf("Content-Type: %s; name=\"%s\"\r\n", att.ContentType, att.Filename))
-		emailBody.WriteString("Content-Transfer-Encoding: base64\r\n")
-		emailBody.WriteString(fmt.Sprintf("Content-Disposition: attachment; filename=\"%s\"\r\n", att.Filename))
-		emailBody.WriteString("\r\n")
-		emailBody.WriteString(base64.StdEncoding.EncodeToString(att.Data))
-		emailBody.WriteString("\r\n")
-	}
-
-	emailBody.WriteString(fmt.Sprintf("--%s--\r\n", boundary))
+	payload := buildEmailMessage(msg, s.config)
 
 	// 发送邮件（匿名中继允许 Username 为空）
 	var auth smtp.Auth
 	if s.config.Username != "" {
 		auth = smtp.PlainAuth("", s.config.Username, s.config.Password, s.config.Host)
 	}
-	addr := fmt.Sprintf("%s:%d", s.config.Host, s.config.Port)
+	addr := net.JoinHostPort(s.config.Host, strconv.Itoa(s.config.Port))
 	recipients := append(append([]string{}, msg.To...), msg.CC...)
 
 	var err error
 	for attempt := 0; attempt < 3; attempt++ {
 		if s.config.SSL && s.config.Port == 465 {
 			// 隐式 TLS（SMTPS）：net/smtp.SendMail 不支持 465 先握手后协商，需手动建连。
-			err = sendMailImplicitTLS(addr, s.config.Host, auth, s.config.From, recipients, []byte(emailBody.String()))
+			err = sendMailImplicitTLS(addr, s.config.Host, auth, s.config.From, recipients, payload)
 		} else {
-			err = smtp.SendMail(addr, auth, s.config.From, recipients, []byte(emailBody.String()))
+			err = sendMailWithTimeout(ctx, s.config, auth, s.config.From, recipients, payload)
 		}
 		if err == nil {
 			break
@@ -224,6 +177,21 @@ func (s *EmailService) checkRateLimit(keys []string, limit int, window time.Dura
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	now := time.Now()
+	// 顺带回收完全过期的收件人键，避免进程内 map 无界增长导致内存泄漏。
+	if len(s.recent) > 1024 {
+		for k, stamps := range s.recent {
+			alive := false
+			for _, sent := range stamps {
+				if now.Sub(sent) < window {
+					alive = true
+					break
+				}
+			}
+			if !alive {
+				delete(s.recent, k)
+			}
+		}
+	}
 	for _, key := range keys {
 		kept := s.recent[key][:0]
 		for _, sent := range s.recent[key] {
@@ -410,11 +378,14 @@ func (s *EmailService) ValidateConfig() error {
 	if s.config.Port == 0 {
 		return fmt.Errorf("email port is required")
 	}
-	if s.config.Username == "" {
-		return fmt.Errorf("email username is required")
+	if s.config.Username == "" && s.config.Password != "" {
+		return fmt.Errorf("email password requires a username")
 	}
 	if s.config.From == "" {
 		return fmt.Errorf("email from address is required")
+	}
+	if _, err := mail.ParseAddress(s.config.From); err != nil {
+		return fmt.Errorf("email from address is invalid")
 	}
 	return nil
 }

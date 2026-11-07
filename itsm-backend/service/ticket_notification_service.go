@@ -32,6 +32,7 @@ type TicketNotificationService struct {
 	smsService      *SMSService
 	outboxEnabled   bool
 	txOutboxEnabled bool
+	txEmailEnabled  bool
 }
 
 // EnableOutbox 启用基于 client 的非事务入箱路径（兼容外部触发、CC 等场景）。
@@ -41,6 +42,51 @@ func (s *TicketNotificationService) EnableOutbox() { s.outboxEnabled = true }
 // 否则入箱行会在工单/SLA/变更主表事务之外被提交，破坏「同一事务同生同死」的语义。
 // 启用后，所有 Notify*Tx 方法才会真正写入 operational_command；未启用时直接 fail-closed。
 func (s *TicketNotificationService) EnableTxOutbox() { s.txOutboxEnabled = true }
+
+// EnableTxOutboxEmail 让事务入箱路径在撰写站内信的同时，为同一事件追加 email 渠道的投递意图。
+//
+// 默认关闭，因此不改变既有「Tx 内仅入箱 in_app」的行为。开启后：
+//   - 邮件意图与工单/SLA 主表变更写入同一事务，回滚时同死，具备重试与审计；
+//   - 是否真正发信仍由投递处理器按 recipient.Email 与 notification_preferences.EmailEnabled 决定，
+//     未配置邮箱或用户关闭邮件偏好时该渠道被跳过，不会产生噪音；
+//   - 幂等键包含 channel，故 in_app 与 email 两路互不冲突。
+//
+// 注意：开启前应确认 MTU/事务时长可接受；邮件本身仍是异步发送，不会阻塞事务提交。
+func (s *TicketNotificationService) EnableTxOutboxEmail() { s.txEmailEnabled = true }
+
+// enqueueTxEmailIfEnabled 在事务内追加一条 email 渠道投递意图（默认关闭时为空操作）。
+func (s *TicketNotificationService) enqueueTxEmailIfEnabled(
+	ctx context.Context, tx *ent.Tx,
+	tenantID, ticketID, recipientID int,
+	notificationType, content, occurrenceKey string,
+) error {
+	if !s.txEmailEnabled || recipientID <= 0 {
+		return nil
+	}
+	err := enqueueTicketNotificationCommandTx(ctx, tx, tenantID, ticketID, recipientID,
+		notificationType, "email", content, occurrenceKey)
+	if err != nil && !ent.IsConstraintError(err) {
+		return fmt.Errorf("enqueue %s email notification: %w", notificationType, err)
+	}
+	return nil
+}
+
+// enqueueTxEmailResourceIfEnabled 为资源型（变更审批等）事件追加 email 渠道投递意图。
+func (s *TicketNotificationService) enqueueTxEmailResourceIfEnabled(
+	ctx context.Context, tx *ent.Tx,
+	tenantID int, aggregateType string, aggregateID, recipientID int,
+	notificationType, content, occurrenceKey string,
+) error {
+	if !s.txEmailEnabled || recipientID <= 0 {
+		return nil
+	}
+	err := enqueueResourceNotificationCommandTx(ctx, tx, tenantID, aggregateType, aggregateID, recipientID,
+		notificationType, "email", content, occurrenceKey)
+	if err != nil && !ent.IsConstraintError(err) {
+		return fmt.Errorf("enqueue %s email notification: %w", notificationType, err)
+	}
+	return nil
+}
 
 // NewTicketNotificationService 创建通知服务
 func NewTicketNotificationService(client *ent.Client, logger *zap.SugaredLogger) *TicketNotificationService {
@@ -648,8 +694,9 @@ func (s *TicketNotificationService) NotifySLAAlertLevelChanged(
 }
 
 // NotifyTicketCreatedTx 在已开启 txOutboxEnabled 的前提下，按与 NotifyTicketCreated 一致的策略
-// 在 *ent.Tx 中写入 operational_command。Email/SMS 投递不在此路径内 —— 与 in_app 边界一致，
-// 由 worker 阶段按 channel 决定是否调用 connector，避免同步 I/O 拖长事务。
+// 在 *ent.Tx 中写入 operational_command。默认仅入箱 in_app；若另开启 EnableTxOutboxEmail，
+// 同一事务内会为每个收件人追加一条 email 渠道投递意图（幂等键含 channel，两路互不冲突）。
+// 真正的 SMTP 发送仍由 worker/connector 异步执行，不在事务内做同步 I/O。
 // 调用方负责 ticket 上下文与 tx 的 commit/rollback；tx 提交时通知与工单主表同生，tx 回滚时同死。
 func (s *TicketNotificationService) NotifyTicketCreatedTx(ctx context.Context, tx *ent.Tx, ticket *ent.Ticket) error {
 	if !s.txOutboxEnabled {
@@ -665,6 +712,9 @@ func (s *TicketNotificationService) NotifyTicketCreatedTx(ctx context.Context, t
 		for _, recipientID := range userIDs {
 			if err := enqueueTicketNotificationCommandTx(ctx, tx, ticket.TenantID, ticket.ID, recipientID, "created", "in_app", content, occurrenceKey); err != nil && !ent.IsConstraintError(err) {
 				return fmt.Errorf("enqueue ticket created notification: %w", err)
+			}
+			if err := s.enqueueTxEmailIfEnabled(ctx, tx, ticket.TenantID, ticket.ID, recipientID, "created", content, occurrenceKey); err != nil {
+				return err
 			}
 		}
 	}
@@ -713,6 +763,9 @@ func (s *TicketNotificationService) NotifySLABreachedTx(
 		if err := enqueueTicketNotificationCommandTx(ctx, tx, tenantID, ticket.ID, recipientID, "sla_breached", "in_app", content, occurrenceKey); err != nil && !ent.IsConstraintError(err) {
 			return fmt.Errorf("enqueue SLA breach notification: %w", err)
 		}
+		if err := s.enqueueTxEmailIfEnabled(ctx, tx, tenantID, ticket.ID, recipientID, "sla_breached", content, occurrenceKey); err != nil {
+			return err
+		}
 	}
 	return nil
 }
@@ -753,6 +806,9 @@ func (s *TicketNotificationService) NotifySLAAlertLevelChangedTx(
 		if err := enqueueTicketNotificationCommandTx(ctx, tx, tenantID, ticket.ID, recipientID, "sla_alert", "in_app", content, occurrenceKey); err != nil && !ent.IsConstraintError(err) {
 			return fmt.Errorf("enqueue SLA alert notification: %w", err)
 		}
+		if err := s.enqueueTxEmailIfEnabled(ctx, tx, tenantID, ticket.ID, recipientID, "sla_alert", content, occurrenceKey); err != nil {
+			return err
+		}
 	}
 	return nil
 }
@@ -791,6 +847,9 @@ func (s *TicketNotificationService) NotifyChangeApprovalRequiredTx(
 	occurrenceKey := fmt.Sprintf("change_approval_required:%d:%d:%d:%d", tenantID, changeID, approvalLevel, approverID)
 	if err := enqueueResourceNotificationCommandTx(ctx, tx, tenantID, "change", changeID, approverID, "change_approval_required", "in_app", content, occurrenceKey); err != nil && !ent.IsConstraintError(err) {
 		return fmt.Errorf("enqueue change approval-required notification: %w", err)
+	}
+	if err := s.enqueueTxEmailResourceIfEnabled(ctx, tx, tenantID, "change", changeID, approverID, "change_approval_required", content, occurrenceKey); err != nil {
+		return err
 	}
 	return nil
 }
@@ -837,6 +896,9 @@ func (s *TicketNotificationService) NotifyChangeApprovalDecidedTx(
 	occurrenceKey := fmt.Sprintf("change_approval_decided:%d:%d:%d:%s", tenantID, changeID, approvalID, decision)
 	if err := enqueueResourceNotificationCommandTx(ctx, tx, tenantID, "change", changeID, creatorID, "change_approval_decided", "in_app", content, occurrenceKey); err != nil && !ent.IsConstraintError(err) {
 		return fmt.Errorf("enqueue change approval-decided notification: %w", err)
+	}
+	if err := s.enqueueTxEmailResourceIfEnabled(ctx, tx, tenantID, "change", changeID, creatorID, "change_approval_decided", content, occurrenceKey); err != nil {
+		return err
 	}
 	return nil
 }

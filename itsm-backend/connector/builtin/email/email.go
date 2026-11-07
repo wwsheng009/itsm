@@ -3,10 +3,13 @@ package email
 import (
 	"bytes"
 	"context"
+	"crypto/rand"
 	"crypto/tls"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"html"
 	"io"
 	"mime"
 	"mime/multipart"
@@ -248,10 +251,84 @@ func (c *Connector) Send(ctx context.Context, msg *connector.Message) error {
 	subject := mime.QEncoding.Encode("UTF-8", defaultString(msg.Title, "ITSM 通知"))
 	messageID := strings.Trim(strings.TrimSpace(msg.ID), "<>")
 	if messageID == "" {
-		messageID = fmt.Sprintf("email-%d", time.Now().UnixNano())
+		messageID = randomToken("email")
 	}
-	message := []byte(fmt.Sprintf("From: %s\r\nTo: %s\r\nSubject: %s\r\nMessage-ID: <%s@itsm.local>\r\nAuto-Submitted: auto-generated\r\nX-ITSM-Auto-Reply: 1\r\nMIME-Version: 1.0\r\nContent-Type: text/plain; charset=UTF-8\r\n\r\n%s", fromAddr.String(), to.String(), subject, messageID, normalizeBody(msg.Content)))
+	body := buildMessageBody(msg.Content, msg.Type)
+	message := []byte(fmt.Sprintf("From: %s\r\nTo: %s\r\nSubject: %s\r\nMessage-ID: <%s@itsm.local>\r\nAuto-Submitted: auto-generated\r\nX-ITSM-Auto-Reply: 1\r\nMIME-Version: 1.0\r\n%s\r\n%s",
+		fromAddr.String(), to.String(), subject, messageID, body.header, body.content))
 	return c.sendSMTP(ctx, to.Address, message)
+}
+
+// messageBody 表示已构造好的 MIME 头部片段与正文片段。
+type messageBody struct {
+	header  string
+	content string
+}
+
+// randomToken 返回密码学随机的十六进制串，用于 MIME boundary 与 Message-ID。
+// 不能用 time.Now().UnixNano()：Windows 计时器精度约 100ns，连续两次调用可能取到相同值。
+func randomToken(prefix string) string {
+	buf := make([]byte, 12)
+	if _, err := rand.Read(buf); err != nil {
+		return fmt.Sprintf("%s-%d", prefix, time.Now().UnixNano())
+	}
+	return prefix + "-" + hex.EncodeToString(buf)
+}
+
+// buildMessageBody 富文本场景改用 multipart/alternative，同时提供纯文本回退，避免 HTML 标签泄漏到正文。
+func buildMessageBody(content, msgType string) messageBody {
+	if !isHTMLContent(content, msgType) {
+		return messageBody{header: "Content-Type: text/plain; charset=UTF-8\r\n", content: normalizeBody(content)}
+	}
+	boundary := randomToken("itsm-alt")
+	var b strings.Builder
+	b.WriteString("--" + boundary + "\r\n")
+	b.WriteString("Content-Type: text/plain; charset=UTF-8\r\n\r\n")
+	b.WriteString(normalizeBody(stripHTMLTags(content)))
+	b.WriteString("\r\n--" + boundary + "\r\n")
+	b.WriteString("Content-Type: text/html; charset=UTF-8\r\n\r\n")
+	b.WriteString(normalizeBody(content))
+	b.WriteString("\r\n--" + boundary + "--")
+	return messageBody{header: "Content-Type: multipart/alternative; boundary=\"" + boundary + "\"\r\n", content: b.String()}
+}
+
+func isHTMLContent(content, msgType string) bool {
+	if strings.EqualFold(strings.TrimSpace(msgType), "html") {
+		return true
+	}
+	lower := strings.ToLower(content)
+	for _, tag := range []string{"<html", "<body", "<div", "<p>", "<br", "<table", "<span", "<h1", "<h2"} {
+		if strings.Contains(lower, tag) {
+			return true
+		}
+	}
+	return false
+}
+
+// stripHTMLTags 生成纯文本回退内容：去除标签、解码常见实体并压缩空白。
+func stripHTMLTags(content string) string {
+	var b strings.Builder
+	depth := 0
+	for _, r := range content {
+		switch r {
+		case '<':
+			depth++
+		case '>':
+			if depth > 0 {
+				depth--
+			}
+		case '\n', '\r', '\t':
+			if depth == 0 {
+				b.WriteRune(' ')
+			}
+		default:
+			if depth == 0 {
+				b.WriteRune(r)
+			}
+		}
+	}
+	text := html.UnescapeString(b.String())
+	return strings.Join(strings.Fields(text), " ")
 }
 
 func (c *Connector) sendSMTP(ctx context.Context, to string, message []byte) error {
