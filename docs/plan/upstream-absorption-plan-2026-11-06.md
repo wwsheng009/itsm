@@ -133,6 +133,44 @@
 - 上游 **3965 个测试函数**里**不依赖其私有实现**的部分（RLS 作用域、租户唯一键、软删、错误码语义、能力矩阵）→ 作为本地守护测试移植；
 - CI 门禁：`fresh-install-gate.yml`、`rls-golden-path.yml`（本地目前无同名门禁）。
 
+#### C 类门禁差集实测（2026-11-06）：**两个都不能原样搬**
+
+上次取不到内容的原因是 Git for Windows 把 `rev:.github/...` 当盘符路径转换坏了；改用
+`git ls-tree` 取 blob hash + `git cat-file blob` 后读全。实测前置：
+
+| 门禁 | 依赖 | 本地 | 直接搬的后果 |
+|---|---|---|---|
+| `fresh-install-gate` | `docker-compose.dev.yml` | ✅ 有 | — |
+| | `docker-compose.fresh-gate.yml` | ❌ **缺** | `Validate compose configuration` 必失败 |
+| | `scripts/fresh-install-gate.sh` | ❌ **缺** | `Run fresh-install gate` 必 `No such file` |
+| | `MIN_MIGRATIONS=50` | ✅ 本地 129 个 SQL，满足 | — |
+| `rls-golden-path` | `integration/golden_path_test.go`、`tests/multi_tenant/rls_matrix_test.go`、`database/rls/` | ✅ 全有 | — |
+| | build tag `integration_rls`、测试名 `TestGoldenPath_*` / `TestAcquireConn*` / `TestReleaseConn*` | ✅ 全匹配 | 命令可直接用 |
+| | `actions/{checkout,setup-go}@v7` | ✅ 本地已有 38 处 checkout@v7 / 16 处 setup-go@v7 | 版本不是障碍 |
+| | `go-version-file: itsm-backend/go.mod` | ✅ 本地 `go 1.25.13` | 上游注释里的 1.26.10 只是其自身版本 |
+| | **`go run -tags migrate .` 会创建 `itsm_app`/`itsm_admin`** | ❌ **不会** | `Verify RLS roles created by migrations` **必红** |
+| | 上游注释引用的 `migrations/20261031_rls_roles_bootstrap.sql` | ❌ 本地无 | 需改为本地 `database/rls/migrations/001_roles.sql` |
+
+**本地 RLS 链路实测**：`migrate_fresh.go`（`-tags migrate`）只做 `client.Schema.Create`，
+**不装载 RLS 迁移**；角色与策略由独立命令
+`go run -tags rlsapply ./cmd/rls-apply -files 001_roles.sql,002_pilot_policies.sql` 创建
+（`001_roles.sql` 定义 `itsm_app` 普通角色、`itsm_admin` BYPASSRLS；`-verify` 可断言受管表策略）。
+因此上游 workflow 必须**插入 `rls-apply` 步骤**并把角色断言指向本地迁移，才可能绿。
+
+**结论（防倒退）**：CI 门禁一旦启用就是必需检查，前置不全即「合并后 CI 变红」＝倒退。
+**本批两个都不启用**。P3 进入条件：
+① `fresh-install-gate`：先移植 2 个配套文件并在 238 做一次空卷首装实测；
+② `rls-golden-path`：先适配 `rls-apply` 步骤 + DSN/角色断言本地化，并在真实 PostgreSQL 上跑一次
+（本地 Windows paging file 不足，无法承担该验证）。
+③ 增量价值已确认：本地 `backend-ci.yml` **未跑** `integration_rls`，故该门禁不是重复建设。
+
+**同批其余候选判定**：`bpmn_compensation.go` 的 `BPMNCompensateEventDefinition` 定义在上游
+`bpmn_types.go`（本地 0 命中），且方法全挂在 `CustomProcessEngine` 上 → 需连带引擎解析/执行路径，
+属 **B 类**；`approval_chain_shadow.go` 缺 `ApprovalChainResolverAdapter` → **B 类**；
+`service_quality_report_service.go` 已改判 B 类（见 A 类表）。
+**真正自包含的 A 类单元至此穷尽**：`sla_breach_predictor`、`ai_quota`、`bpmn_template_digest`、
+`provisioning_delivery`（纯契约声明，本批已移植，未接线）。
+
 ### D 类｜拒绝（无论何时都不做）
 
 `feat(role)!` 权限包重构（与 D7/G11/`RoleRank` 四处同源冲突）；Next.js 侧 `src/app/**` 与 `next` 依赖；
