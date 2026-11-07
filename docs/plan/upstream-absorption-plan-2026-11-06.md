@@ -169,7 +169,7 @@
 |---|---|---|---|---|
 | **P0 门禁先行** | 实现 §2 L1 的面护栏 + `package.json` 回归契约 + 自证用例；登记 G18/G19 | 无 | ✅ **已完成**：门禁 15/15 绿、用例 10/10、真实树破坏演示三红两还原（§2「P0 完成状态」）；G18/G19 已登记 [`07-known-gaps.md`](../multi-tenant/07-known-gaps.md) §19/§20（含选项、实测代价、验收标准） | 撤脚本条目 |
 | **P1 协议试点** | ✅ **已完成（2026-11-06）**：移植 `service/sla_breach_predictor.go`（156 行，纯 `fmt`/`math`）+ 5 条用例（4 条上游规格 + 1 条本地加固 `AdjustSpeedFactors`）；**未接线**（无路由/无调用方） | P0 绿 | ✔ 上游 4 条规格用例全过；`gofmt -l` 干净；**8 个新增标识符在 service 包内零冲突**；**本地加固**：`prioritySpeedFactor` 被 `AdjustSpeedFactors` 写、`Predict` 读，上游无锁（data race），已加 `RWMutex`（不改变任何输入→输出）；`test-coverage-guard` 满足（源码与测试同批）；契约门禁 15/15、面不低于附录 A 下限 | 单 PR revert（删 2 文件；无迁移、无接线、无外部副作用） |
-| **P2 A 类铺开** | ✅ **`ai_quota` 已移植（2026-11-06，未接线）**：`service/ai_quota.go` 206 行纯标准库 + 6 用例（5 条上游规格 + 1 条本地补 `EstimateCost`）；SQL 兼容性已实测核对（本地 `ai_llm_calls.tenant_id` 由 `migrations/20261019_ai_llm_call_observability.sql` 增加）。✅ **`bpmn_template_digest` 已移植**：62 行纯标准库 + 3 条本地用例，前置 `bpmnTemplates` embed 本地已具备（20 模板），零新依赖/零迁移；**未接线**（是否纳入初始化组件 checksum 属版本账本变更，另立 PR）。❌ `service_quality_report` 经实测改判 B 类（缺 `DashboardViewer` 等 8 项）。→ 后续候选：BPMN `bpmn_template_digest` 的账本接线、`bpmn_compensation.go`（依赖 `service/bpmn` 与 ent）、C 类 CI 门禁 | P1 收口 | 每能力独立 PR + 前后对照表 +（若有接线）238 实测证据 | 逐能力 revert（互不依赖） |
+| **P2 A 类铺开** | ✅ **`ai_quota` 已移植（2026-11-06，未接线）**：`service/ai_quota.go` 206 行纯标准库 + 6 用例（5 条上游规格 + 1 条本地补 `EstimateCost`）；SQL 兼容性已实测核对（本地 `ai_llm_calls.tenant_id` 由 `migrations/20261019_ai_llm_call_observability.sql` 增加）。✅ **`bpmn_template_digest` 已移植**：62 行纯标准库 + 3 条本地用例，前置 `bpmnTemplates` embed 本地已具备（20 模板），零新依赖/零迁移；**测试期已接线**（`bpmn_builtin_lint_test.go` 漂移守护，破坏演示可红），**运行时未接线**（落点测绘见下方专题）。❌ `service_quality_report` 经实测改判 B 类（缺 `DashboardViewer` 等 8 项）。→ 后续候选：BPMN `bpmn_template_digest` 的账本接线、`bpmn_compensation.go`（依赖 `service/bpmn` 与 ent）、C 类 CI 门禁 | P1 收口 | 每能力独立 PR + 前后对照表 +（若有接线）238 实测证据 | 逐能力 revert（互不依赖） |
 | **P3 C 类资产** | 移植上游不依赖其实现的契约测试；引入 `fresh-install-gate` / `rls-golden-path` 两个 CI 门禁 | P2 至少 1 个能力收口 | CI 绿；**移植的每条测试均能独立跑绿且能故意打破本地实现而变红**（非装饰性断言）；无新增 flake | 撤 workflow 文件 |
 | **P4 B 类差集** | `service/cloud`、`marketplace`、`connector/builtin`、`seeder`、`workbench`、`account` | **G18 已裁决** | 差集清单 + 逐点取舍记录 | 按域 revert |
 
@@ -177,6 +177,35 @@
 > 与代码无关）**未能执行**；改为把同一份代码/测试放入隔离包 `slaprobe`（仅 3 文件 + testify）实跑 —— **5/5 通过**，
 > 跑完即删。**整包编译验证仍需 CI `backend-ci` 或 238 容器**（方法见部署证据 §6 R1：bind mount +
 > `CGO_ENABLED=1`，注意 `.dockerignore` 剔除 `*_test.go` 的假通过坑）。
+
+### BPMN 接线落点测绘（2026-11-06，用户要求「继续 BPMN 接线」）
+
+初稿把接线写成「把 `EmbeddedBPMNDigest()` 纳入初始化 checksum / 版本账本」，**实测发现本地没有这个落点**：
+
+| 对象 | 上游 | 本地 |
+|---|---|---|
+| 接线点 | `pkg/seeder/manifest_digest.go:92`，`workflow-core` 分支把 `deployed-bpmn-digest=` 写入 `componentChecksum` 的 inputs | **无 `manifest_digest.go`、无 component checksum 体系**（`pkg/seeder` 全目录 0 命中） |
+| 版本账本 | seeder 组件版本账本（按 checksum 决定是否重放） | **只有** `migration/migrator.go` 的 `checksumSQL(sql)` → `schema_migrations.checksum`（按 SQL 文件内容计） |
+| 依赖符号 | 抽查 11 个同包符号 | 本地缺 **6 个**：`menuDefinitions` / `PracticeRoles` / `grantDigests` / `ticketTypeDefinitions` / `workflowTemplateDefinitions` / `componentChecksum`（`AllDefinedPermissionCodes`、`BuiltinRoles`、`BuiltinGroups`、`seedWorkflowTemplateFS`、`defaultSLAPolicySeeds` 存在） |
+
+**两条被明确拒绝的路径**：
+
+1. ❌ **改 `schema_migrations.checksum` 来"接"摘要** —— 两套账本语义不同，且改 checksum 必然触发账本漂移。本仓已有先例：prod 账本漂移 6 条 → `GetPendingMigrations` 硬失败、全部 pending 不执行（`docs/plan/multi-llm-provider-plan.md` §4.4）。
+2. ❌ **移植整套 `manifest_digest.go`** —— 需补 6 个缺失符号 + 引入组件版本/重放语义，横跨 identity-rbac/itil-core/workflow-core/sla-core/cmdb-core，属 **B 类大工程**，不是"接线"，违反「一个能力一个 PR」。
+   （顺带：`cmd/mig-verify` 本地实测同样 heap OOM；为它加 `service` import 只会扩大耦合且职责错配，故也不把摘要输出塞进 `-ro`。）
+
+**本批实际落地的接线（零运行时行为变化）**：`service/bpmn_builtin_lint_test.go` 新增
+`TestBuiltinBPMNTemplateKeyRegistryHasNoStaleCases` —— 解析 `bpmn_template_service.go` 里手写的
+11 个 `case "key":` 命名映射，逐个断言其存在于 `BuiltinProcessTemplateKeys()`（embed 20 个模板，
+其余 9 个走 `default` 属设计允许），并断言 `EmbeddedBPMNDigest()` 产出 64 位 hex。
+这把「权威键集合」真正挂到本地命名清单上，让**模板删除/改名导致第二份清单漂移**在 CI 变红。
+
+**自证有效**：隔离包复现（从生产源码抽 case、生成占位模板）——正常态 `PASS`；
+删掉 `ticket_general_flow.bpmn` 后 `FAIL` 并精确报出该 case 失去载体；探针随即删除，生产目录未改动。
+
+**运行时接线的前置（另立项目）**：先引入 seeder component checksum 体系（B 类，需 G18/G19 式裁决 +
+6 个符号移植 + `cmd/mig-verify -ro` 账本漂移预检），届时把 `EmbeddedBPMNDigest()` 作为
+`workflow-core` 的一个 input 写入。在此之前**不动账本、不动运行时行为**。
 
 **每阶段硬规则**：一个能力一个 PR；PR 里禁止同时改唯一键/权限归属/RLS 边界；生成物一律本地重生成。
 
