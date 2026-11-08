@@ -401,13 +401,13 @@
     {
       "path": "/email-intake/contracts",
       "sample": "/email-intake/contracts",
-      "redirect": "",
+      "redirect": "/master-data/contracts",
       "protected": null
     },
     {
       "path": "/email-intake/customers",
       "sample": "/email-intake/customers",
-      "redirect": "",
+      "redirect": "/master-data/customers",
       "protected": null
     },
     {
@@ -425,6 +425,30 @@
     {
       "path": "/email-intake/sources",
       "sample": "/email-intake/sources",
+      "redirect": "/master-data/sources",
+      "protected": null
+    },
+    {
+      "path": "/master-data",
+      "sample": "/master-data",
+      "redirect": "",
+      "protected": null
+    },
+    {
+      "path": "/master-data/contracts",
+      "sample": "/master-data/contracts",
+      "redirect": "",
+      "protected": null
+    },
+    {
+      "path": "/master-data/customers",
+      "sample": "/master-data/customers",
+      "redirect": "",
+      "protected": null
+    },
+    {
+      "path": "/master-data/sources",
+      "sample": "/master-data/sources",
       "redirect": "",
       "protected": null
     },

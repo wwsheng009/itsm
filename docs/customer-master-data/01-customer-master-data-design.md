@@ -62,7 +62,7 @@
 4. **无联系人**：客户侧人员只能进 `users`，而 `users.tenant_id` 必填 + 占用配额，不适配「只是被通知的人」。
 5. **无治理闭环**：没有合并、没有质量分、没有外部 ID 对账，脏数据只能靠人工改名。
 
-### 2.3 前端现状（实测页面 `/email-intake/customers`）
+### 2.3 前端现状（实测页面 `/master-data/customers`）
 
 | 项 | 现状 |
 |---|---|
@@ -745,7 +745,7 @@ POST /api/v1/customers
 
 ## 11. 前端设计
 
-### 11.1 列表页（改造现有 `/email-intake/customers`）
+### 11.1 列表页（改造现有 `/master-data/customers`）
 
 | 列 | 变化 |
 |---|---|

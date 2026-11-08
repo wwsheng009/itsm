@@ -25,6 +25,10 @@ export const LEGACY_MENU_REDIRECTS: Record<string, string> = {
   // 缺少独立页面的入口（模块主页本身就是概览/会话首页）
   '/sla/overview': '/sla',
   '/email-intake/conversations': '/email-intake',
+  // 主数据从邮件报障归位到独立模块（2026-11-08）。
+  '/email-intake/customers': '/master-data/customers',
+  '/email-intake/contracts': '/master-data/contracts',
+  '/email-intake/sources': '/master-data/sources',
   '/knowledge/articles': '/knowledge',
 };
 

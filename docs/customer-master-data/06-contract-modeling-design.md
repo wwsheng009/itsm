@@ -717,7 +717,7 @@ SELECT id, contract_number, tenant_id FROM contracts WHERE vendor_id IS NULL;
 
 ## 10. 前端调整
 
-### 10.1 合同列表（`/email-intake/contracts`）
+### 10.1 合同列表（`/master-data/contracts`）
 
 现状列：`ID / 合同号 / 客户 / 分支 / 状态 / 有效期 / 操作`（实测页面为空表）。
 

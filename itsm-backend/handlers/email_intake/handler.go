@@ -37,6 +37,13 @@ func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
 	root.POST("/conversations/:id/retry", middleware.RequirePermission("email_intake", "retry"), h.RetryConversation)
 	root.POST("/conversations/:id/override", middleware.RequirePermission("email_intake", "override"), h.OverrideConversation)
 
+	// 客户、分支、来源组织、支持合同与外部合同映射属于运营主数据，
+	// 不再只挂在 /email-intake 下。前端已归位到 /master-data；
+	// 旧 API 前缀保留为兼容别名，避免已有调用方与历史脚本中断。
+	//
+	// 注意：这里保留两套显式路由声明，而不是抽 helper——middleware 的路由扫描器
+	// 按函数体内的 .Group() 链静态解析完整路径；helper 参数无法被解析，会导致
+	// authz precheck 漏掉 master-data 路由（非 super_admin 被 fail-closed 403）。
 	customers := root.Group("/customers")
 	customers.GET("", middleware.RequirePermission("customer_master", "read"), h.ListCustomers)
 	customers.POST("", middleware.RequirePermission("customer_master", "write"), h.CreateCustomer)
@@ -62,6 +69,33 @@ func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
 	references.POST("", middleware.RequirePermission("support_contract", "write"), h.CreateExternalContractReference)
 	references.PUT("/:id", middleware.RequirePermission("support_contract", "write"), h.UpdateExternalContractReference)
 	references.DELETE("/:id", middleware.RequirePermission("support_contract", "write"), h.DeleteExternalContractReference)
+
+	masterData := rg.Group("/master-data")
+	masterCustomers := masterData.Group("/customers")
+	masterCustomers.GET("", middleware.RequirePermission("customer_master", "read"), h.ListCustomers)
+	masterCustomers.POST("", middleware.RequirePermission("customer_master", "write"), h.CreateCustomer)
+	masterCustomers.PUT("/:id", middleware.RequirePermission("customer_master", "write"), h.UpdateCustomer)
+	masterCustomers.DELETE("/:id", middleware.RequirePermission("customer_master", "write"), h.DisableCustomer)
+	masterBranches := masterData.Group("/branches")
+	masterBranches.GET("", middleware.RequirePermission("customer_master", "read"), h.ListBranches)
+	masterBranches.POST("", middleware.RequirePermission("customer_master", "write"), h.CreateBranch)
+	masterBranches.PUT("/:id", middleware.RequirePermission("customer_master", "write"), h.UpdateBranch)
+	masterBranches.DELETE("/:id", middleware.RequirePermission("customer_master", "write"), h.DisableBranch)
+	masterSources := masterData.Group("/source-organizations")
+	masterSources.GET("", middleware.RequirePermission("customer_master", "read"), h.ListSourceOrganizations)
+	masterSources.POST("", middleware.RequirePermission("customer_master", "write"), h.CreateSourceOrganization)
+	masterSources.PUT("/:id", middleware.RequirePermission("customer_master", "write"), h.UpdateSourceOrganization)
+	masterSources.DELETE("/:id", middleware.RequirePermission("customer_master", "write"), h.DisableSourceOrganization)
+	masterContracts := masterData.Group("/support-contracts")
+	masterContracts.GET("", middleware.RequirePermission("support_contract", "read"), h.ListSupportContracts)
+	masterContracts.POST("", middleware.RequirePermission("support_contract", "write"), h.CreateSupportContract)
+	masterContracts.PUT("/:id", middleware.RequirePermission("support_contract", "write"), h.UpdateSupportContract)
+	masterContracts.DELETE("/:id", middleware.RequirePermission("support_contract", "write"), h.TerminateSupportContract)
+	masterReferences := masterData.Group("/external-contract-references")
+	masterReferences.GET("", middleware.RequirePermission("support_contract", "read"), h.ListExternalContractReferences)
+	masterReferences.POST("", middleware.RequirePermission("support_contract", "write"), h.CreateExternalContractReference)
+	masterReferences.PUT("/:id", middleware.RequirePermission("support_contract", "write"), h.UpdateExternalContractReference)
+	masterReferences.DELETE("/:id", middleware.RequirePermission("support_contract", "write"), h.DeleteExternalContractReference)
 
 	onCall := root.Group("/on-call")
 	onCall.GET("/schedules", middleware.RequirePermission("on_call", "read"), h.ListSchedules)

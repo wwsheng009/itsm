@@ -83,7 +83,7 @@ go run ./cmd/provision_tenant -tenant-id <客户租户ID> \
 面向邮件报障/合同运营的租户内客户档案，与"租户"是两回事：
 
 - 实体：`ServiceCustomer` / `CustomerBranch` / `SupportContract` / `SourceOrganization`，均带 `tenant_id`（`ent/schema/service_customer.go:12-42`）；
-- 用途：邮件 intake 的客户/分支/合同匹配与值班（`handlers/email_intake/service.go:136-158, 400-421`），菜单"邮件报障 → 客户资料/支持合同/来源组织/值班排班"（`pkg/seeder/seeder.go:1739-1742`）；
+- 用途：邮件 intake 的客户/分支/合同匹配与值班（`handlers/email_intake/service.go:136-158, 400-421`）；客户/支持合同/来源组织已归位到菜单“主数据”（`/master-data/*`），邮件报障仅保留值班排班（`pkg/seeder/seeder.go`）；
 - `linked_customer_tenant_id` 可关联到真正的客户租户（`ent/schema/service_customer.go:24`）；
 - **不得**用它替代租户隔离。
 

@@ -58,6 +58,11 @@ var menuRouteAlignment = []struct {
 	{"/msp/workbench", "GET", "/api/v1/msp/workbench/tickets"},
 	{"/msp/management", "GET", "/api/v1/msp/allocations"},
 	{"/msp/audit", "GET", "/api/v1/msp/audit/summary"},
+	// 主数据模块（2026-11-08）：菜单从 /email-intake 归位到 /master-data，
+	// 页面主数据接口同步提供 /api/v1/master-data/* 规范前缀。
+	{"/master-data/customers", "GET", "/api/v1/master-data/customers"},
+	{"/master-data/contracts", "GET", "/api/v1/master-data/support-contracts"},
+	{"/master-data/sources", "GET", "/api/v1/master-data/source-organizations"},
 }
 
 // menuRouteMismatchAllowlist 已知未对齐配对（key=MenuPath），必须写明理由与去向。
@@ -157,6 +162,8 @@ func TestMenuSpecsWithoutPermissionCodeAreAllowlisted(t *testing.T) {
 		// /api/v1/skills-dist/* 是**公开**端点（code agent 无登录态，必须能自取）；
 		// 页面本身不暴露租户数据，故不设 permission_code，对所有登录用户可见。
 		"/skills": "资源中心为公开的技能分发展示页，后端分发端点无需登录即可访问（agent 自取）",
+		"/master-data": "主数据为容器菜单（无自身页面数据面）；任一子项权限存活时保留，" +
+			"由子菜单 /master-data/{customers,contracts,sources} 的读码继续收敛。",
 	}
 
 	var undeclared []string

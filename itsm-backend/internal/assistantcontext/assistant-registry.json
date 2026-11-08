@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-11-07T02:04:07.731Z",
+  "generatedAt": "2026-11-08T05:36:20.785Z",
   "note": "D1-01 生成物：由 itsm-frontend/scripts/gen-page-manifest.mjs 从页面注册表生成，禁止手改。",
   "pages": [
     {
@@ -734,6 +734,70 @@
           "kind": "task",
           "label": "邮件接入怎么配置？",
           "prompt": "请说明邮件会话、转工单或事件、接入来源、客户与合同映射、值班表和健康监控的操作。",
+          "readOnly": true
+        }
+      ]
+    },
+    {
+      "pageKey": "masterData.home",
+      "pattern": "/master-data",
+      "title": "主数据管理",
+      "scene": null,
+      "entrypoint": "chat",
+      "suggestions": [
+        {
+          "id": "master_data_help",
+          "kind": "task",
+          "label": "主数据模块怎么用？",
+          "prompt": "请说明客户主数据、支持合同、来源组织三个子模块的职责边界和旧入口兼容策略。",
+          "readOnly": true
+        }
+      ]
+    },
+    {
+      "pageKey": "masterData.customers",
+      "pattern": "/master-data/customers",
+      "title": "客户主数据",
+      "scene": null,
+      "entrypoint": "chat",
+      "suggestions": [
+        {
+          "id": "master_data_customers_help",
+          "kind": "task",
+          "label": "客户主数据怎么维护？",
+          "prompt": "请说明客户名称、简称、别名、历史名称、关联客户租户、服务分支和停用操作的维护边界。",
+          "readOnly": true
+        }
+      ]
+    },
+    {
+      "pageKey": "masterData.contracts",
+      "pattern": "/master-data/contracts",
+      "title": "支持合同",
+      "scene": null,
+      "entrypoint": "chat",
+      "suggestions": [
+        {
+          "id": "master_data_contracts_help",
+          "kind": "task",
+          "label": "支持合同怎么维护？",
+          "prompt": "请说明支持合同与 MSP SLA 合同的区别，以及合同号、客户、分支、有效期和外部合同号映射的维护方法。",
+          "readOnly": true
+        }
+      ]
+    },
+    {
+      "pageKey": "masterData.sources",
+      "pattern": "/master-data/sources",
+      "title": "来源组织",
+      "scene": null,
+      "entrypoint": "chat",
+      "suggestions": [
+        {
+          "id": "master_data_sources_help",
+          "kind": "task",
+          "label": "来源组织怎么维护？",
+          "prompt": "请说明来源组织的邮箱地址、域名和邮件报障匹配之间的关系，以及停用前的核对项。",
           "readOnly": true
         }
       ]

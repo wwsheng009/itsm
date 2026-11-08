@@ -79,6 +79,7 @@ export interface ServiceCustomer {
   aliases: string[];
   historicalNames: string[];
   status: string;
+  linkedCustomerTenantId?: number | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -89,6 +90,8 @@ export interface CustomerBranch {
   name: string;
   aliases: string[];
   status: string;
+  createdAt?: string;
+  updatedAt?: string;
 }
 
 export interface SupportContract {
@@ -99,6 +102,8 @@ export interface SupportContract {
   status: 'active' | 'terminated' | 'expired' | 'pending';
   startAt?: string;
   endAt?: string;
+  createdAt?: string;
+  updatedAt?: string;
 }
 
 export interface SourceOrganization {
@@ -107,6 +112,8 @@ export interface SourceOrganization {
   emailAddresses: string[];
   emailDomains: string[];
   status: string;
+  createdAt?: string;
+  updatedAt?: string;
 }
 
 export interface ExternalContractReference {

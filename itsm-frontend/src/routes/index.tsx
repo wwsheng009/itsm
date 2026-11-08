@@ -100,10 +100,11 @@ const CmdbTopology = lazy(() => import('@/pages/(main)/cmdb/topology/index'));
 const Dashboard = lazy(() => import('@/pages/(main)/dashboard/index'));
 const ChangePassword = lazy(() => import('@/pages/(main)/change-password/index'));
 const EmailIntake = lazy(() => import('@/pages/(main)/email-intake/index'));
-const EmailIntakeContracts = lazy(() => import('@/pages/(main)/email-intake/contracts/index'));
-const EmailIntakeCustomers = lazy(() => import('@/pages/(main)/email-intake/customers/index'));
 const EmailIntakeOnCall = lazy(() => import('@/pages/(main)/email-intake/on-call/index'));
-const EmailIntakeSources = lazy(() => import('@/pages/(main)/email-intake/sources/index'));
+const MasterData = lazy(() => import('@/pages/(main)/master-data/index'));
+const MasterDataContracts = lazy(() => import('@/pages/(main)/master-data/contracts/index'));
+const MasterDataCustomers = lazy(() => import('@/pages/(main)/master-data/customers/index'));
+const MasterDataSources = lazy(() => import('@/pages/(main)/master-data/sources/index'));
 const EnterpriseDepartments = lazy(() => import('@/pages/(main)/enterprise/departments/index'));
 const EnterpriseTeams = lazy(() => import('@/pages/(main)/enterprise/teams/index'));
 const ForgotPassword = lazy(() => import('@/pages/(auth)/forgot-password/index'));
@@ -343,10 +344,11 @@ export const routes: RouteObject[] = [
           { path: 'cmdb/topology', element: lazyElement(CmdbTopology) },
           { path: 'dashboard', element: lazyElement(Dashboard) },
           { path: 'email-intake', element: lazyElement(EmailIntake) },
-          { path: 'email-intake/contracts', element: lazyElement(EmailIntakeContracts) },
-          { path: 'email-intake/customers', element: lazyElement(EmailIntakeCustomers) },
           { path: 'email-intake/on-call', element: lazyElement(EmailIntakeOnCall) },
-          { path: 'email-intake/sources', element: lazyElement(EmailIntakeSources) },
+          { path: 'master-data', element: lazyElement(MasterData) },
+          { path: 'master-data/contracts', element: lazyElement(MasterDataContracts) },
+          { path: 'master-data/customers', element: lazyElement(MasterDataCustomers) },
+          { path: 'master-data/sources', element: lazyElement(MasterDataSources) },
           { path: 'enterprise/departments', element: lazyElement(EnterpriseDepartments) },
           { path: 'enterprise/teams', element: lazyElement(EnterpriseTeams) },
           { path: 'improvements', element: lazyElement(Improvements) },

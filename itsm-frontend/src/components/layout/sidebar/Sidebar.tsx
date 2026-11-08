@@ -95,6 +95,9 @@ const MENU_PATH_NORMALIZATIONS: Record<string, string> = {
   // 缺少独立路由页面的概览入口 → 跳转到模块主页面（主页面本身就是概览）
   '/sla/overview': '/sla',
   '/email-intake/conversations': '/email-intake',
+  '/email-intake/customers': '/master-data/customers',
+  '/email-intake/contracts': '/master-data/contracts',
+  '/email-intake/sources': '/master-data/sources',
   '/knowledge/articles': '/knowledge',
   '/workflow/monitoring': '/workflow/dashboard',
   // 历史「待审批」入口 /approvals/pending 是 server redirect 到 /approvals 的兼容页。

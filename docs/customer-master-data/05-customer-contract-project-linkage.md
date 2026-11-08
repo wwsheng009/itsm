@@ -383,7 +383,7 @@ POST /api/v1/support-contracts/88/projects
 
 ## 11. 前端联动设计
 
-### 11.1 客户详情页（`/email-intake/customers/:id`）
+### 11.1 客户详情页（`/master-data/customers` 的详情抽屉）
 
 ```
 [Tabs] 概览 | 合同 | 项目 | 工单 | 资产 | 变更历史

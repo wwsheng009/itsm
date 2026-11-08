@@ -48,6 +48,7 @@ owner: service-desk          # 兜底责任人
 | 通知中心与通知偏好 | [notifications/center.md](notifications/center.md) |
 | NOC 工作台 | [noc/workbench.md](noc/workbench.md) |
 | 邮件报障 | [email-intake/workspace.md](email-intake/workspace.md) |
+| 主数据管理（客户/支持合同/来源组织） | [master-data/workspace.md](master-data/workspace.md) |
 | 客户管理与 MSP 工作台 | [msp/workbench.md](msp/workbench.md) |
 | 审计日志 | [audit-logs/workspace.md](audit-logs/workspace.md) |
 | 工作流管理 | [workflow/workspace.md](workflow/workspace.md) |

@@ -110,3 +110,66 @@ func TestCloneMenusPreservesAndRepairsHierarchy(t *testing.T) {
 	assert.Equal(t, countBefore, countAfter)
 	assertTenantMenuHierarchyMatches(t, ctx, seeder.client, sourceTenant.ID, targetTenant.ID)
 }
+
+func TestSeedMenusRelocatesLegacyMasterDataPaths(t *testing.T) {
+	seeder, ctx := newTestSeeder(t, tenantmode.DeploymentModeSaaSMSP)
+	require.NoError(t, seeder.SeedProduction(ctx))
+
+	sourceTenant, err := seeder.client.Tenant.Query().Where(tenant.CodeEQ("default")).Only(ctx)
+	require.NoError(t, err)
+	targetTenant, err := seeder.client.Tenant.Create().
+		SetName("主数据迁移测试客户").
+		SetCode("master-data-relocation-target").
+		SetType(tenant.TypeSaasCustomer).
+		SetStatus("active").
+		Save(ctx)
+	require.NoError(t, err)
+	require.NoError(t, cloneMenus(ctx, seeder.client, sourceTenant.ID, targetTenant.ID))
+
+	masterDataParent, err := seeder.client.Menu.Query().
+		Where(menu.TenantIDEQ(targetTenant.ID), menu.PathEQ("/master-data")).
+		Only(ctx)
+	require.NoError(t, err)
+	emailParent, err := seeder.client.Menu.Query().
+		Where(menu.TenantIDEQ(targetTenant.ID), menu.PathEQ("/email-intake")).
+		Only(ctx)
+	require.NoError(t, err)
+
+	// 模拟上一版本：客户/合同/来源组织仍挂在 /email-intake 下。
+	for _, relocation := range masterDataMenuRelocations {
+		item, err := seeder.client.Menu.Query().
+			Where(menu.TenantIDEQ(targetTenant.ID), menu.PathEQ(relocation.NewPath)).
+			Only(ctx)
+		require.NoError(t, err)
+		_, err = item.Update().
+			SetPath(relocation.OldPath).
+			SetName(relocation.OldName).
+			SetParentID(emailParent.ID).
+			Save(ctx)
+		require.NoError(t, err)
+	}
+
+	seeder.seedMenus(ctx)
+
+	for _, relocation := range masterDataMenuRelocations {
+		oldCount, err := seeder.client.Menu.Query().
+			Where(menu.TenantIDEQ(targetTenant.ID), menu.PathEQ(relocation.OldPath)).
+			Count(ctx)
+		require.NoError(t, err)
+		assert.Zero(t, oldCount, "旧路径应被迁移或删除: %s", relocation.OldPath)
+
+		item, err := seeder.client.Menu.Query().
+			Where(menu.TenantIDEQ(targetTenant.ID), menu.PathEQ(relocation.NewPath)).
+			Only(ctx)
+		require.NoError(t, err)
+		require.NotNil(t, item.ParentID)
+		assert.Equal(t, masterDataParent.ID, *item.ParentID)
+	}
+
+	customerMenu, err := seeder.client.Menu.Query().
+		Where(menu.TenantIDEQ(targetTenant.ID), menu.PathEQ("/master-data/customers")).
+		Only(ctx)
+	require.NoError(t, err)
+	assert.Equal(t, "客户主数据", customerMenu.Name)
+	assertTenantMenuHierarchyMatches(t, ctx, seeder.client, sourceTenant.ID, targetTenant.ID)
+}

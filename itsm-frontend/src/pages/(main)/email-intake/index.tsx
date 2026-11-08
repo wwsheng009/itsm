@@ -23,6 +23,7 @@ import {
 import { RefreshCw, ShieldAlert } from 'lucide-react';
 import type { Dayjs } from 'dayjs';
 import dayjs from 'dayjs';
+import { useNavigate } from 'react-router';
 
 import {
   emailIntakeService,
@@ -61,6 +62,7 @@ const formatTime = (value?: string): string =>
 
 export default function EmailIntakePage() {
   const { message } = App.useApp();
+  const navigate = useNavigate();
   // 入口级门禁（handlers/email_intake/handler.go + rbac_precheck_gen.go）：
   const canReviewIntake = useCan(['email_intake:review']);
   const canRetryIntake = useCan(['email_intake:retry']);
@@ -578,11 +580,22 @@ export default function EmailIntakePage() {
   return (
     <div className='space-y-5'>
       <div>
-        <Title level={2} className='!mb-1'>
-          邮件智能报障
-        </Title>
-        <Text type='secondary'>AI 负责提取，客户、分部和合同规则负责授权开单。</Text>
+        <div className='flex flex-wrap items-center justify-between gap-3'>
+          <div>
+            <Title level={2} className='!mb-1'>
+              邮件智能报障
+            </Title>
+            <Text type='secondary'>AI 负责提取，客户、分部和合同规则负责授权开单。</Text>
+          </div>
+          <Button onClick={() => navigate('/master-data')}>前往主数据管理</Button>
+        </div>
       </div>
+      <Alert
+        type='info'
+        showIcon
+        message='客户与合同主数据已迁移'
+        description='客户、支持合同和来源组织已归位到独立的 /master-data 模块；邮件报障继续使用这些主数据完成匹配与开单。旧地址会兼容跳转。'
+      />
       <Alert
         type='info'
         showIcon
@@ -592,7 +605,7 @@ export default function EmailIntakePage() {
       <Tabs
         items={[
           { key: 'queue', label: 'NOC 处理队列', children: queue },
-          { key: 'master', label: '客户与合同主数据', children: masterData },
+          { key: 'master', label: '主数据（兼容入口）', children: masterData },
           {
             key: 'oncall',
             label: '值班配置',

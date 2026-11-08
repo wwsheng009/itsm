@@ -78,6 +78,12 @@ export const ROUTE_PERMISSIONS: RoutePermissionRule[] = [
   // （pkg/seeder/seeder.go 工单统计）、页面主接口 GET /api/v1/analytics/tickets=ticket:read
   // （2026-10-10 由 report:read 收敛）、同页 GET /api/v1/tickets/stats=ticket:read。
   { pattern: '/tickets/analytics', anyOf: ['ticket:read'], reason: 'router/ticket_routes.go GET /analytics/tickets' },
+  // 主数据模块（2026-11-08）：客户/合同/来源组织从 /email-intake 归位到 /master-data；
+  // 后端同时提供 /api/v1/master-data/* 与 /api/v1/email-intake/* 兼容别名。
+  { pattern: '/master-data', anyOf: ['customer_master:read', 'support_contract:read'], reason: 'handlers/email_intake/handler.go GET /master-data/{customers,support-contracts,source-organizations}' },
+  { pattern: '/master-data/customers', anyOf: ['customer_master:read'], reason: 'handlers/email_intake/handler.go GET /master-data/customers' },
+  { pattern: '/master-data/contracts', anyOf: ['support_contract:read'], reason: 'handlers/email_intake/handler.go GET /master-data/support-contracts' },
+  { pattern: '/master-data/sources', anyOf: ['customer_master:read'], reason: 'handlers/email_intake/handler.go GET /master-data/source-organizations' },
 ];
 
 export type RoutePermissionDecision = 'allow' | 'deny' | 'none';

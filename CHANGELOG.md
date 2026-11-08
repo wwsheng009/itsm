@@ -31,6 +31,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **主数据模块路由归位（前端 + 后端，2026-11-08）** — 新增 `/master-data` 模块与 `/master-data/{customers,contracts,sources}` 子页，把客户主数据、支持合同、来源组织从 `/email-intake/*` 归位；旧路径保留兼容跳转与 API 别名。客户页补充关联客户租户、历史名称、分支编辑/停用、详情抽屉与合同数；合同页补充搜索、剩余天数、即将到期、外部合同映射与详情抽屉。后端同步注册 `/api/v1/master-data/*`，菜单 seeder 新增“主数据”父菜单并幂等迁移存量租户旧路径。
+
 - **SLA 定义快照与 Q-09 收回（后端 + 迁移，2026-11-08）** — 新增 `sla_definition_snapshots`（ent schema + `20261108_sla_definition_snapshots.sql` + RLS `020`），把合同绑定/grant 的 SLA 条款物化到 customer 租户；`TicketSLAService` L1 与 `ListProvidedDefinitions` 改读快照，不再回读 provider 的 `msp_contracts` / `sla_definitions`；定义更新重同步、删除撤销、grant 停用撤销，并提供 `cmd/backfill_sla_snapshots` 存量回填。RLS `021` 删除 `sla_definition_customer_read`，保留 `sla_grant_customer_read` 为授权元数据。验证：`go test ./handlers/sla`、`go test ./service -run 'TicketSLAMatcher|SLA'`、`go test ./migration ./database/rls`、`go build ./service ./handlers/sla ./cmd/backfill_sla_snapshots`、`go build -tags rlsapply ./cmd/rls-apply` 全绿。
 
 - **Demo 发布自动化与附件上传权限门禁（部署脚本 + 文档，2026-11-06）** — 新增 `scripts/deploy-demo.sh` 与 `make demo-{preflight,deploy,permissions,smoke,status}`：发布固定执行「数据库/env 备份 → 后端/前端构建 → uploads bind-mount ACL 修复与容器写入探针 → `itsm-init-demo` exit=0 门禁 → 服务切换 → 健康/版本/真实评论附件往返冒烟」；新增 `scripts/demo/smoke_attachment_upload.py`，使用工单域 `POST /tickets/:id/attachments` + `usage=comment_attachment`，校验 preview SHA256 后删除探针。修复 238 演示栈 `uploads/tickets` 宿主属主 `1000:1000` 而容器 `app` 为 `100:101` 导致评论附件上传 `HTTP 400 / mkdir permission denied`。238 实测（`1.8.0-dev.6e33fe2ff`）：预检、权限、备份、完整切换与附件冒烟全部 PASS；证据目录 `backups/demo-release-*`。详见 [演示环境部署说明](./docs/multi-tenant/demo-environment.md#8-发布回滚与上传冒烟2026-11-06)。

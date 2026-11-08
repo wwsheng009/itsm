@@ -1,9 +1,9 @@
 {
-  "generatedAt": "2026-11-07T02:04:07.731Z",
+  "generatedAt": "2026-11-08T05:36:20.785Z",
   "coverage": 1,
   "totals": {
-    "pages": 44,
-    "ok": 44,
+    "pages": 48,
+    "ok": 48,
     "missing": 0,
     "stale": 0,
     "orphan": 0
@@ -326,6 +326,42 @@
       "entrypoint": "chat",
       "docs": [
         "docs/help/email-intake/workspace.md"
+      ],
+      "status": "ok"
+    },
+    "masterData.home": {
+      "title": "主数据管理",
+      "pattern": "/master-data",
+      "entrypoint": "chat",
+      "docs": [
+        "docs/help/master-data/workspace.md"
+      ],
+      "status": "ok"
+    },
+    "masterData.customers": {
+      "title": "客户主数据",
+      "pattern": "/master-data/customers",
+      "entrypoint": "chat",
+      "docs": [
+        "docs/help/master-data/workspace.md"
+      ],
+      "status": "ok"
+    },
+    "masterData.contracts": {
+      "title": "支持合同",
+      "pattern": "/master-data/contracts",
+      "entrypoint": "chat",
+      "docs": [
+        "docs/help/master-data/workspace.md"
+      ],
+      "status": "ok"
+    },
+    "masterData.sources": {
+      "title": "来源组织",
+      "pattern": "/master-data/sources",
+      "entrypoint": "chat",
+      "docs": [
+        "docs/help/master-data/workspace.md"
       ],
       "status": "ok"
     },

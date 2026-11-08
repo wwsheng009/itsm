@@ -306,6 +306,23 @@ type menuSpec struct {
 	Description    string
 }
 
+// menuRelocation 描述一次结构归位：旧菜单路径迁移到新路径。
+// OldName 非空时仅当现有名称仍等于该默认名才同步 NewName，保留租户自定义名称。
+type menuRelocation struct {
+	OldPath string
+	NewPath string
+	OldName string
+	NewName string
+}
+
+// masterDataMenuRelocations 把客户/支持合同/来源组织从邮件报障归位到主数据模块。
+// 新装租户由 specs 直接创建新路径；存量租户由 relocateMenus 幂等迁移。
+var masterDataMenuRelocations = []menuRelocation{
+	{OldPath: "/email-intake/customers", NewPath: "/master-data/customers", OldName: "客户资料", NewName: "客户主数据"},
+	{OldPath: "/email-intake/contracts", NewPath: "/master-data/contracts", OldName: "支持合同", NewName: "支持合同"},
+	{OldPath: "/email-intake/sources", NewPath: "/master-data/sources", OldName: "来源组织", NewName: "来源组织"},
+}
+
 // Seeder manages database seeding operations
 type Seeder struct {
 	client                  *ent.Client
@@ -1773,6 +1790,7 @@ func (s *Seeder) seedMenus(ctx context.Context) {
 		{Name: "项目管理", Path: "/projects", Icon: "Briefcase", ParentPath: "", PermissionCode: "project:read", SortOrder: 55, Description: "项目管理（任务/成员/单据关联）"},
 		{Name: "知识库", Path: "/knowledge", Icon: "Book", ParentPath: "", PermissionCode: "knowledge:read", SortOrder: 60, Description: "知识库管理"},
 		{Name: "邮件报障", Path: "/email-intake", Icon: "Inbox", ParentPath: "", PermissionCode: "email_intake:read", SortOrder: 65, Description: "AI 邮件智能报障"},
+		{Name: "主数据", Path: "/master-data", Icon: "Layers", ParentPath: "", PermissionCode: "", SortOrder: 66, Description: "客户、支持合同与来源组织主数据"},
 		// 2026-10-10 菜单挂载收口：permission_code 对齐页面主接口（GET /api/v1/service-catalogs = service_catalog:read），
 		// 不再依赖菜单侧 Resource 别名（service→service_catalog）做宽松匹配。
 		{Name: "服务目录", Path: "/service-catalog", Icon: "BookOpen", ParentPath: "", PermissionCode: "service_catalog:read", SortOrder: 70, Description: "服务目录"},
@@ -1812,10 +1830,12 @@ func (s *Seeder) seedMenus(ctx context.Context) {
 		// ===== 子菜单：知识库 =====
 		{Name: "新建文章", Path: "/knowledge/articles/new", Icon: "Plus", ParentPath: "/knowledge", PermissionCode: "knowledge:write", SortOrder: 63},
 
+		// ===== 子菜单：主数据 =====
+		{Name: "客户主数据", Path: "/master-data/customers", Icon: "Users", ParentPath: "/master-data", PermissionCode: "customer_master:read", SortOrder: 661},
+		{Name: "支持合同", Path: "/master-data/contracts", Icon: "FileText", ParentPath: "/master-data", PermissionCode: "support_contract:read", SortOrder: 662},
+		{Name: "来源组织", Path: "/master-data/sources", Icon: "Globe", ParentPath: "/master-data", PermissionCode: "customer_master:read", SortOrder: 663},
+
 		// ===== 子菜单：邮件报障 =====
-		{Name: "客户资料", Path: "/email-intake/customers", Icon: "Users", ParentPath: "/email-intake", PermissionCode: "customer_master:read", SortOrder: 652},
-		{Name: "支持合同", Path: "/email-intake/contracts", Icon: "FileText", ParentPath: "/email-intake", PermissionCode: "support_contract:read", SortOrder: 653},
-		{Name: "来源组织", Path: "/email-intake/sources", Icon: "Globe", ParentPath: "/email-intake", PermissionCode: "customer_master:read", SortOrder: 654},
 		{Name: "值班排班", Path: "/email-intake/on-call", Icon: "Clock", ParentPath: "/email-intake", PermissionCode: "on_call:read", SortOrder: 655},
 
 		// ===== 子菜单：服务目录 =====
@@ -1970,6 +1990,11 @@ func (s *Seeder) syncMenusToExistingTenants(ctx context.Context, specs []menuSpe
 		return
 	}
 	for _, t := range tenants {
+		if moved, err := s.relocateMenus(ctx, t.ID, masterDataMenuRelocations); err != nil {
+			s.sugar.Warnw("sync menus: relocate failed", "error", err, "tenant_id", t.ID)
+		} else if moved > 0 {
+			s.sugar.Infow("tenant menus relocated", "tenant_id", t.ID, "moved", moved)
+		}
 		existing, err := s.client.Menu.Query().
 			Where(menu.TenantIDEQ(t.ID)).
 			All(ctx)
@@ -2039,6 +2064,59 @@ func (s *Seeder) syncMenusToExistingTenants(ctx context.Context, specs []menuSpe
 			s.sugar.Infow("tenant menus synced", "tenant_id", t.ID, "created", created, "reparented", reparented)
 		}
 	}
+}
+
+// relocateMenus 幂等迁移旧菜单路径。目标路径已存在时删除旧行；否则原地改 path，
+// 保留菜单 ID、排序和租户自定义字段。名称仅在仍为旧默认名时同步。
+func (s *Seeder) relocateMenus(ctx context.Context, tenantID int, relocations []menuRelocation) (int, error) {
+	if len(relocations) == 0 {
+		return 0, nil
+	}
+	existing, err := s.client.Menu.Query().
+		Where(menu.TenantIDEQ(tenantID)).
+		All(ctx)
+	if err != nil {
+		return 0, err
+	}
+	byPath := make(map[string]*ent.Menu, len(existing))
+	for _, item := range existing {
+		byPath[item.Path] = item
+	}
+
+	moved := 0
+	for _, relocation := range relocations {
+		oldMenu, ok := byPath[relocation.OldPath]
+		if !ok {
+			continue
+		}
+		if _, exists := byPath[relocation.NewPath]; exists {
+			if err := s.client.Menu.DeleteOneID(oldMenu.ID).Exec(ctx); err != nil {
+				s.sugar.Warnw("relocate menu: delete stale path failed",
+					"error", err, "tenant_id", tenantID, "old_path", relocation.OldPath)
+				continue
+			}
+			delete(byPath, relocation.OldPath)
+			moved++
+			continue
+		}
+
+		update := oldMenu.Update().SetPath(relocation.NewPath)
+		if relocation.NewName != "" &&
+			(relocation.OldName == "" || oldMenu.Name == relocation.OldName) {
+			update = update.SetName(relocation.NewName)
+		}
+		updated, err := update.Save(ctx)
+		if err != nil {
+			s.sugar.Warnw("relocate menu: update path failed",
+				"error", err, "tenant_id", tenantID,
+				"old_path", relocation.OldPath, "new_path", relocation.NewPath)
+			continue
+		}
+		delete(byPath, relocation.OldPath)
+		byPath[relocation.NewPath] = updated
+		moved++
+	}
+	return moved, nil
 }
 
 // reconcileMenuParent 仅在父关联不一致时写库，返回更新后的菜单与是否发生变化。
@@ -2166,6 +2244,11 @@ func (s *Seeder) seedMenuAndPermissionFixes(ctx context.Context) {
 	// 策略：所有列出的「旧路径」在当前的 seedMenus 规范中都不复存在。
 	// 迁移采用 UPDATE 优先；若目标路径已被 seedMenus 新条目占位（说明 fresh seed 已在），
 	// 则删除旧条目，避免 (tenant_id, path) 唯一键冲突。
+	if moved, rerr := s.relocateMenus(ctx, t.ID, masterDataMenuRelocations); rerr != nil {
+		s.sugar.Warnw("relocate master data menus failed", "error", rerr)
+	} else if moved > 0 {
+		s.sugar.Infow("master data menus relocated", "tenant_id", t.ID, "moved", moved)
+	}
 	menuPathFixes := map[string]string{
 		// —— 历史兼容（v1.0 → v1.1 早期重命名）——
 		"/admin/sla":                "/admin/sla-definitions",

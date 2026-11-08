@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-11-07T02:04:07.731Z",
+  "generatedAt": "2026-11-08T05:36:20.785Z",
   "note": "H0-02 生成物：由 itsm-frontend/scripts/gen-page-manifest.mjs 从页面注册表 + 帮助文档生成，禁止手改。",
   "pages": [
     {
@@ -709,6 +709,78 @@
       "suggestions": [
         {
           "id": "email_help",
+          "kind": "task",
+          "readOnly": true
+        }
+      ]
+    },
+    {
+      "pageKey": "masterData.home",
+      "pattern": "/master-data",
+      "title": "主数据管理",
+      "entrypoint": "chat",
+      "scene": null,
+      "docs": [
+        "docs/help/master-data/workspace.md"
+      ],
+      "status": "ok",
+      "suggestions": [
+        {
+          "id": "master_data_help",
+          "kind": "task",
+          "readOnly": true
+        }
+      ]
+    },
+    {
+      "pageKey": "masterData.customers",
+      "pattern": "/master-data/customers",
+      "title": "客户主数据",
+      "entrypoint": "chat",
+      "scene": null,
+      "docs": [
+        "docs/help/master-data/workspace.md"
+      ],
+      "status": "ok",
+      "suggestions": [
+        {
+          "id": "master_data_customers_help",
+          "kind": "task",
+          "readOnly": true
+        }
+      ]
+    },
+    {
+      "pageKey": "masterData.contracts",
+      "pattern": "/master-data/contracts",
+      "title": "支持合同",
+      "entrypoint": "chat",
+      "scene": null,
+      "docs": [
+        "docs/help/master-data/workspace.md"
+      ],
+      "status": "ok",
+      "suggestions": [
+        {
+          "id": "master_data_contracts_help",
+          "kind": "task",
+          "readOnly": true
+        }
+      ]
+    },
+    {
+      "pageKey": "masterData.sources",
+      "pattern": "/master-data/sources",
+      "title": "来源组织",
+      "entrypoint": "chat",
+      "scene": null,
+      "docs": [
+        "docs/help/master-data/workspace.md"
+      ],
+      "status": "ok",
+      "suggestions": [
+        {
+          "id": "master_data_sources_help",
           "kind": "task",
           "readOnly": true
         }
