@@ -37,7 +37,7 @@ import (
 	_ "github.com/lib/pq"
 )
 
-// rlsManagedTables — -verify 的受管表清单（与 database/rls/migrations 002/003/004/005 对齐）。
+// rlsManagedTables — -verify 的受管表清单（与 database/rls/migrations 002–020 对齐）。
 // 002 试点表在前、003 批次 1、004 批次 2、005 批次 3 依次在后；存在的表必须已启用 RLS 且有策略，否则 -verify 非零退出。
 var rlsManagedTables = []string{
 	"changes", "vectors", // 002 试点
@@ -46,6 +46,7 @@ var rlsManagedTables = []string{
 	"groups", "projects", "workbench_views", // 003 组织/工作台
 	"notifications", "notification_deliveries", "notification_preferences", "ticket_notifications", // 004 通知
 	"sla_definitions", "sla_metrics", "sla_violations", "sla_alert_histories", // 004 SLA
+	"sla_definition_snapshots",                      // 020 SLA 定义快照（Q-09 B）
 	"knowledge_articles", "knowledge_article_likes", // 004 知识库
 	"service_requests", "service_request_approvals", "service_catalog_items", // 004 服务请求
 	"invitations",                  // 004 邀请
@@ -118,6 +119,7 @@ var rlsProbeTables = []string{
 	"user_tenant_memberships", "user_tenant_membership_orgs", "groups", "projects", "workbench_views",
 	"notifications", "notification_deliveries", "notification_preferences", "ticket_notifications",
 	"sla_definitions", "sla_metrics", "sla_violations", "sla_alert_histories",
+	"sla_definition_snapshots",
 	"knowledge_articles", "knowledge_article_likes",
 	"service_requests", "service_request_approvals", "service_catalog_items",
 	"invitations", "incidents", "incident_alerts",

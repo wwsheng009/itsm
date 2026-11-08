@@ -1010,6 +1010,9 @@ const TicketDetail: React.FC<{ id?: string }> = ({ id: propId }) => {
                 border: '1px solid #b7eb8f',
                 borderRadius: 8,
                 background: '#f6ffed',
+                // 底色是固定浅绿，必须同时固定深色文字，
+                // 否则暗色主题下继承浅色文字会变成浅字浅底、无法阅读
+                color: '#135200',
               }}
             >
               <span style={{ fontSize: 13 }}>AI 分诊建议已应用（分类/优先级）</span>

@@ -63,7 +63,7 @@ export const UserMenuDropdown: React.FC<UserMenuDropdownProps> = ({
       label: (
         <div style={{ padding: '8px 0', minWidth: 160 }}>
           <div style={{ fontWeight: 600, marginBottom: 4 }}>{displayName}</div>
-          <div style={{ fontSize: 12, color: DESIGN.colors.textMuted }}>{user?.email}</div>
+          <div style={{ fontSize: 12, color: 'var(--color-text-tertiary, #6b7280)' }}>{user?.email}</div>
         </div>
       ),
       disabled: true,
@@ -118,7 +118,7 @@ export const UserMenuDropdown: React.FC<UserMenuDropdownProps> = ({
           gap: 10,
           padding: '6px 12px 6px 6px',
           borderRadius: DESIGN.radius.full,
-          background: DESIGN.colors.bgSubtle,
+          background: 'var(--color-bg-secondary, #f9fafb)',
           cursor: 'pointer',
           transition: 'all 0.2s',
           border: `1px solid ${open ? DESIGN.colors.accent : 'transparent'}`,
@@ -135,7 +135,9 @@ export const UserMenuDropdown: React.FC<UserMenuDropdownProps> = ({
           {userInitial}
         </Avatar>
         <div className={styles.userMenuDetails} style={{ lineHeight: 1.3 }}>
-          <div style={{ fontSize: 13, fontWeight: 600, color: DESIGN.colors.text }}>
+          {/* DESIGN.colors.text 固定为深色 #1e293b，胶囊底色已改为主题 token，
+              文字必须同步跟随主题，否则暗色下会是深字深底不可读 */}
+          <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--color-text-primary, #1e293b)' }}>
             {displayName}
           </div>
           <Tag

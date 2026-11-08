@@ -453,6 +453,23 @@ Pre-launch checklist:
 
 > Never use development defaults in production. See [Production Readiness Program](./docs/delivery/production-readiness-program.md) and [Operations Runbook](./docs/runbooks/production-initialization.md) for detailed steps.
 
+### Demo Environment (Standalone Stack)
+
+The demo stack (default `:8089`) uses `docker-compose.demo.yml` and `.env.demo`. One-command
+deployment includes DB/env backup, uploads ACL repair, `init exit=0` gating, and a real
+comment-attachment round trip:
+
+```bash
+make demo-preflight    # Read-only preflight
+make demo-deploy       # Full deployment
+make demo-smoke        # Health / version / attachment smoke
+make demo-status       # Containers and live version
+```
+
+Pass options via `DEMO_ARGS`, e.g. `make demo-deploy DEMO_ARGS='--skip-build'`.
+See the [Demo Environment Guide](./docs/multi-tenant/demo-environment.md#8-发布回滚与上传冒烟2026-11-06)
+for deployment, rollback, and uploads permission rules.
+
 ## Documentation
 
 | Document | Purpose |

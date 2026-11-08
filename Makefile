@@ -1,5 +1,5 @@
 # ITSM Makefile - 构建和部署自动化
-.PHONY: help build build-backend build-frontend build-images build-parallel build-no-cache deploy deploy-backend deploy-frontend prod-init prod-deploy prod-health prod-status test test-backend test-frontend test-unit lint lint-backend lint-frontend type-check check-contracts docs-gate check-handlers-hygiene verify-scripts health dev-health dev-start-docker dev-start-local dev-stop dev-stop-docker dev-stop-local dev-clean dev-reset dev-rebuild dev-backend-local dev-frontend-only dev-seed-demo swagger-gen clean clean-all logs restart status version
+.PHONY: help build build-backend build-frontend build-images build-parallel build-no-cache deploy deploy-backend deploy-frontend prod-init prod-deploy prod-health prod-status demo-preflight demo-deploy demo-permissions demo-smoke demo-status test test-backend test-frontend test-unit lint lint-backend lint-frontend type-check check-contracts docs-gate check-handlers-hygiene verify-scripts health dev-health dev-start-docker dev-start-local dev-stop dev-stop-docker dev-stop-local dev-clean dev-reset dev-rebuild dev-backend-local dev-frontend-only dev-seed-demo swagger-gen clean clean-all logs restart status version
 
 # 默认版本
 VERSION ?= $(shell git describe --tags --always --dirty 2>/dev/null || echo "latest")
@@ -151,6 +151,25 @@ prod-deploy: deploy ## 部署到生产环境（deploy 别名）
 prod-health: health ## 生产健康检查（health 别名）
 prod-status: status ## 生产状态查询（status 别名）
 build-images: build ## 构建全部镜像（build 别名，支持 VERSION/REGISTRY 变量）
+
+# ========================
+# Demo 环境（独立栈 8089）
+# ========================
+
+demo-preflight: ## Demo 发布预检（工具/环境/数据库/上传目录）
+	bash scripts/deploy-demo.sh preflight $(DEMO_ARGS)
+
+demo-deploy: ## Demo 一键发布（备份→构建→权限→init→切换→上传冒烟）
+	bash scripts/deploy-demo.sh deploy $(DEMO_ARGS)
+
+demo-permissions: ## 修复 Demo 上传目录 ACL 并验证容器可写
+	bash scripts/deploy-demo.sh permissions $(DEMO_ARGS)
+
+demo-smoke: ## Demo 健康/版本/评论附件上传冒烟
+	bash scripts/deploy-demo.sh smoke $(DEMO_ARGS)
+
+demo-status: ## Demo 容器状态与线上版本
+	bash scripts/deploy-demo.sh status $(DEMO_ARGS)
 
 verify-scripts: ## 校验 scripts 下全部 shell 脚本语法
 	@echo "$(BLUE)校验脚本语法...$(NC)"

@@ -1484,6 +1484,18 @@ func (f SLADefinitionGrantFunc) Mutate(ctx context.Context, m ent.Mutation) (ent
 	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.SLADefinitionGrantMutation", m)
 }
 
+// The SLADefinitionSnapshotFunc type is an adapter to allow the use of ordinary
+// function as SLADefinitionSnapshot mutator.
+type SLADefinitionSnapshotFunc func(context.Context, *ent.SLADefinitionSnapshotMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f SLADefinitionSnapshotFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.SLADefinitionSnapshotMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.SLADefinitionSnapshotMutation", m)
+}
+
 // The SLAMetricFunc type is an adapter to allow the use of ordinary
 // function as SLAMetric mutator.
 type SLAMetricFunc func(context.Context, *ent.SLAMetricMutation) (ent.Value, error)

@@ -235,7 +235,7 @@ const ArticleList: React.FC<ArticleListProps> = ({ showHeader = true }) => {
               className="w-36"
               allowClear
              
-              style={{ backgroundColor: '#fafafa', borderRadius: '6px' }}
+              style={{ backgroundColor: 'var(--color-bg-secondary, #f9fafb)', borderRadius: '6px' }}
              options={Array.isArray(categories) ? categories.map(c => ({ value: c, label: c })) : []} />
           </Form.Item>
           <Form.Item name="status" className="mb-0">
@@ -244,7 +244,7 @@ const ArticleList: React.FC<ArticleListProps> = ({ showHeader = true }) => {
               className="w-28"
               allowClear
              
-              style={{ backgroundColor: '#fafafa', borderRadius: '6px' }}
+              style={{ backgroundColor: 'var(--color-bg-secondary, #f9fafb)', borderRadius: '6px' }}
              options={[{ value: "published", label: "已发布" }, { value: "draft", label: "草稿" }]} />
           </Form.Item>
           <Form.Item className="mb-0">

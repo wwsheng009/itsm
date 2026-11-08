@@ -131,6 +131,7 @@ import (
 	"itsm-backend/ent/slaalertrule"
 	"itsm-backend/ent/sladefinition"
 	"itsm-backend/ent/sladefinitiongrant"
+	"itsm-backend/ent/sladefinitionsnapshot"
 	"itsm-backend/ent/slametric"
 	"itsm-backend/ent/slapolicy"
 	"itsm-backend/ent/slaviolation"
@@ -5687,6 +5688,110 @@ func init() {
 	sladefinitiongrant.DefaultUpdatedAt = sladefinitiongrantDescUpdatedAt.Default.(func() time.Time)
 	// sladefinitiongrant.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
 	sladefinitiongrant.UpdateDefaultUpdatedAt = sladefinitiongrantDescUpdatedAt.UpdateDefault.(func() time.Time)
+	sladefinitionsnapshotFields := schema.SLADefinitionSnapshot{}.Fields()
+	_ = sladefinitionsnapshotFields
+	// sladefinitionsnapshotDescTenantID is the schema descriptor for tenant_id field.
+	sladefinitionsnapshotDescTenantID := sladefinitionsnapshotFields[0].Descriptor()
+	// sladefinitionsnapshot.TenantIDValidator is a validator for the "tenant_id" field. It is called by the builders before save.
+	sladefinitionsnapshot.TenantIDValidator = sladefinitionsnapshotDescTenantID.Validators[0].(func(int) error)
+	// sladefinitionsnapshotDescSourceKind is the schema descriptor for source_kind field.
+	sladefinitionsnapshotDescSourceKind := sladefinitionsnapshotFields[1].Descriptor()
+	// sladefinitionsnapshot.SourceKindValidator is a validator for the "source_kind" field. It is called by the builders before save.
+	sladefinitionsnapshot.SourceKindValidator = func() func(string) error {
+		validators := sladefinitionsnapshotDescSourceKind.Validators
+		fns := [...]func(string) error{
+			validators[0].(func(string) error),
+			validators[1].(func(string) error),
+		}
+		return func(source_kind string) error {
+			for _, fn := range fns {
+				if err := fn(source_kind); err != nil {
+					return err
+				}
+			}
+			return nil
+		}
+	}()
+	// sladefinitionsnapshotDescSourceContractNo is the schema descriptor for source_contract_no field.
+	sladefinitionsnapshotDescSourceContractNo := sladefinitionsnapshotFields[3].Descriptor()
+	// sladefinitionsnapshot.SourceContractNoValidator is a validator for the "source_contract_no" field. It is called by the builders before save.
+	sladefinitionsnapshot.SourceContractNoValidator = sladefinitionsnapshotDescSourceContractNo.Validators[0].(func(string) error)
+	// sladefinitionsnapshotDescSourceDefinitionID is the schema descriptor for source_definition_id field.
+	sladefinitionsnapshotDescSourceDefinitionID := sladefinitionsnapshotFields[6].Descriptor()
+	// sladefinitionsnapshot.SourceDefinitionIDValidator is a validator for the "source_definition_id" field. It is called by the builders before save.
+	sladefinitionsnapshot.SourceDefinitionIDValidator = sladefinitionsnapshotDescSourceDefinitionID.Validators[0].(func(int) error)
+	// sladefinitionsnapshotDescSourceTenantID is the schema descriptor for source_tenant_id field.
+	sladefinitionsnapshotDescSourceTenantID := sladefinitionsnapshotFields[7].Descriptor()
+	// sladefinitionsnapshot.SourceTenantIDValidator is a validator for the "source_tenant_id" field. It is called by the builders before save.
+	sladefinitionsnapshot.SourceTenantIDValidator = sladefinitionsnapshotDescSourceTenantID.Validators[0].(func(int) error)
+	// sladefinitionsnapshotDescSourceVersion is the schema descriptor for source_version field.
+	sladefinitionsnapshotDescSourceVersion := sladefinitionsnapshotFields[8].Descriptor()
+	// sladefinitionsnapshot.SourceVersionValidator is a validator for the "source_version" field. It is called by the builders before save.
+	sladefinitionsnapshot.SourceVersionValidator = sladefinitionsnapshotDescSourceVersion.Validators[0].(func(int64) error)
+	// sladefinitionsnapshotDescDefinitionName is the schema descriptor for definition_name field.
+	sladefinitionsnapshotDescDefinitionName := sladefinitionsnapshotFields[9].Descriptor()
+	// sladefinitionsnapshot.DefinitionNameValidator is a validator for the "definition_name" field. It is called by the builders before save.
+	sladefinitionsnapshot.DefinitionNameValidator = func() func(string) error {
+		validators := sladefinitionsnapshotDescDefinitionName.Validators
+		fns := [...]func(string) error{
+			validators[0].(func(string) error),
+			validators[1].(func(string) error),
+		}
+		return func(definition_name string) error {
+			for _, fn := range fns {
+				if err := fn(definition_name); err != nil {
+					return err
+				}
+			}
+			return nil
+		}
+	}()
+	// sladefinitionsnapshotDescServiceType is the schema descriptor for service_type field.
+	sladefinitionsnapshotDescServiceType := sladefinitionsnapshotFields[11].Descriptor()
+	// sladefinitionsnapshot.ServiceTypeValidator is a validator for the "service_type" field. It is called by the builders before save.
+	sladefinitionsnapshot.ServiceTypeValidator = sladefinitionsnapshotDescServiceType.Validators[0].(func(string) error)
+	// sladefinitionsnapshotDescPriority is the schema descriptor for priority field.
+	sladefinitionsnapshotDescPriority := sladefinitionsnapshotFields[12].Descriptor()
+	// sladefinitionsnapshot.PriorityValidator is a validator for the "priority" field. It is called by the builders before save.
+	sladefinitionsnapshot.PriorityValidator = sladefinitionsnapshotDescPriority.Validators[0].(func(string) error)
+	// sladefinitionsnapshotDescStatus is the schema descriptor for status field.
+	sladefinitionsnapshotDescStatus := sladefinitionsnapshotFields[17].Descriptor()
+	// sladefinitionsnapshot.DefaultStatus holds the default value on creation for the status field.
+	sladefinitionsnapshot.DefaultStatus = sladefinitionsnapshotDescStatus.Default.(string)
+	// sladefinitionsnapshot.StatusValidator is a validator for the "status" field. It is called by the builders before save.
+	sladefinitionsnapshot.StatusValidator = sladefinitionsnapshotDescStatus.Validators[0].(func(string) error)
+	// sladefinitionsnapshotDescPayloadHash is the schema descriptor for payload_hash field.
+	sladefinitionsnapshotDescPayloadHash := sladefinitionsnapshotFields[18].Descriptor()
+	// sladefinitionsnapshot.PayloadHashValidator is a validator for the "payload_hash" field. It is called by the builders before save.
+	sladefinitionsnapshot.PayloadHashValidator = func() func(string) error {
+		validators := sladefinitionsnapshotDescPayloadHash.Validators
+		fns := [...]func(string) error{
+			validators[0].(func(string) error),
+			validators[1].(func(string) error),
+		}
+		return func(payload_hash string) error {
+			for _, fn := range fns {
+				if err := fn(payload_hash); err != nil {
+					return err
+				}
+			}
+			return nil
+		}
+	}()
+	// sladefinitionsnapshotDescSyncedAt is the schema descriptor for synced_at field.
+	sladefinitionsnapshotDescSyncedAt := sladefinitionsnapshotFields[19].Descriptor()
+	// sladefinitionsnapshot.DefaultSyncedAt holds the default value on creation for the synced_at field.
+	sladefinitionsnapshot.DefaultSyncedAt = sladefinitionsnapshotDescSyncedAt.Default.(func() time.Time)
+	// sladefinitionsnapshotDescCreatedAt is the schema descriptor for created_at field.
+	sladefinitionsnapshotDescCreatedAt := sladefinitionsnapshotFields[20].Descriptor()
+	// sladefinitionsnapshot.DefaultCreatedAt holds the default value on creation for the created_at field.
+	sladefinitionsnapshot.DefaultCreatedAt = sladefinitionsnapshotDescCreatedAt.Default.(func() time.Time)
+	// sladefinitionsnapshotDescUpdatedAt is the schema descriptor for updated_at field.
+	sladefinitionsnapshotDescUpdatedAt := sladefinitionsnapshotFields[21].Descriptor()
+	// sladefinitionsnapshot.DefaultUpdatedAt holds the default value on creation for the updated_at field.
+	sladefinitionsnapshot.DefaultUpdatedAt = sladefinitionsnapshotDescUpdatedAt.Default.(func() time.Time)
+	// sladefinitionsnapshot.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
+	sladefinitionsnapshot.UpdateDefaultUpdatedAt = sladefinitionsnapshotDescUpdatedAt.UpdateDefault.(func() time.Time)
 	slametricFields := schema.SLAMetric{}.Fields()
 	_ = slametricFields
 	// slametricDescSLADefinitionID is the schema descriptor for sla_definition_id field.

@@ -204,6 +204,13 @@ html.dark {
   /* 选中/悬浮软底色 */
   --color-primary-soft: rgba(59, 130, 246, 0.15);
   --color-primary-soft-hover: rgba(59, 130, 246, 0.1);
+
+  /* 语义色软底色：亮色下为浅色实底，暗色下必须改为低透明度彩底，
+     否则组件沿用亮色值会在深色界面上变成刺眼白块 */
+  --color-success-bg: rgba(34, 197, 94, 0.16);
+  --color-warning-bg: rgba(245, 158, 11, 0.16);
+  --color-error-bg: rgba(239, 68, 68, 0.16);
+  --color-info-bg: rgba(59, 130, 246, 0.16);
 }
 
 /* 系统偏好（OS 暗色且应用未显式设为亮色） */
@@ -237,6 +244,12 @@ html.dark {
 
     --color-primary-soft: rgba(59, 130, 246, 0.15);
     --color-primary-soft-hover: rgba(59, 130, 246, 0.1);
+
+    /* 语义色软底色（与 .dark 块保持一致） */
+    --color-success-bg: rgba(34, 197, 94, 0.16);
+    --color-warning-bg: rgba(245, 158, 11, 0.16);
+    --color-error-bg: rgba(239, 68, 68, 0.16);
+    --color-info-bg: rgba(59, 130, 246, 0.16);
   }
 }
 

@@ -1,6 +1,6 @@
 # 05 · 客户 → 合同 → 项目的业务闭环
 
-> 状态：Draft v1.0 · 2026-11-06
+> 状态：Draft v1.1 · 2026-11-08
 > 前置：所有数据不跨租户（见 [04-multi-provider-scenario.md](./04-multi-provider-scenario.md)）
 > 本文回答：客户、合同、项目三者的**业务联系**如何建模成闭环，而不是三张孤立的表。
 
@@ -10,9 +10,9 @@
 
 | 链路 | 现状 | 判定 |
 |---|---|---|
-| **客户 → 合同** | `support_contracts.customer_id` 为必填边（`edge.From("customer").Ref("contracts").Required()`），已通 | ⚠️ **字段级已通，业务级半通**：没有合同类型、金额、SLA 绑定、续签链；且 `branch_id` 与 `customer_id` 无归属一致性约束 |
+| **客户 → 合同** | `support_contracts.customer_id` 为必填边（`edge.From("customer").Ref("contracts").Required()`），已通 | ⚠️ **字段级已通，业务级半通**：没有合同类型、金额、SLA 绑定、续签链；`branch_id` 与 `customer_id` 的同租户/同客户约束本次用复合外键修复 |
 | **客户 → 项目** | `projects` 实体**完全没有客户字段**，仅 `department` / `applications` / `tags` 三条边；D-01 明确不设 `customer_tenant_id` | ✅ 已在 [02 §6](./02-ddl-and-migration.md) 用 `project_customer_links` 补齐（同租户闭环） |
-| **合同 → 项目** | **完全缺失**。`project_customer_links.contract_id` 只能「从项目反查合同」，无法回答「这份合同下有哪些项目」「合同额度被哪些项目消耗了」 | ❌ **断链，本轮补齐** |
+| **合同 → 项目** | **完全缺失**。旧草案的单个 `project_customer_links.contract_id` 只能「从项目反查一份合同」，无法回答「这份合同下有哪些项目」「合同额度被哪些项目消耗了」；本修订已将该列移除 | ❌ **断链，本轮补齐** |
 
 > 一句话：**客户是"谁"，合同是"承诺什么"，项目是"怎么兑现"。** 承诺与兑现之间必须有一条可正查、可计量、可对账的链路，否则合同到期时无法回答「履约完了吗」，项目结项时也无法回答「哪份合同可以关闭」。
 
@@ -22,7 +22,7 @@
 
 ### 2.1 为什么不能只靠一张链接表
 
-`project_customer_links` 表虽有 `contract_id`，但它回答的是「**项目**关联了哪个客户、依据哪份合同」。业务上还缺三个方向：
+即使旧草案在 `project_customer_links` 上保留单个 `contract_id`，它也只能回答「**项目**关联了哪个客户、依据哪一份合同」。业务上还缺三个方向：
 
 | 业务问题 | 只有 `project_customer_links` 能否回答 |
 |---|---|
@@ -57,60 +57,29 @@
 
 ## 3. 核心表：`contract_project_links`
 
-```sql
-CREATE TABLE IF NOT EXISTS contract_project_links (
-  id                BIGSERIAL PRIMARY KEY,
-  tenant_id         BIGINT NOT NULL,                 -- 归属租户（RLS 作用域）
-  contract_id       BIGINT NOT NULL REFERENCES support_contracts(id),
-  project_id        BIGINT NOT NULL,                 -- projects.id（同租户，弱引用）
-  relation_type     VARCHAR(24) NOT NULL DEFAULT 'basis',
-      -- basis      : 合同是本项目的立项依据（主关系）
-      -- coverage   : 合同覆盖本项目的运维/支持范围
-      -- billing    : 本项目消耗该合同的额度/工时
-      -- change     : 变更单追加（合同变更驱动项目范围变化）
-  allocated_amount  NUMERIC(18,2),                   -- 本项目从该合同分配的金额（可空）
-  allocated_hours   NUMERIC(10,2),                   -- 分配工时（可空，对应项目工时口径）
-  allocation_pct    SMALLINT,                        -- 分配比例 0-100（可空，与金额二选一）
-  is_primary        BOOLEAN NOT NULL DEFAULT FALSE,  -- 主依据（每项目最多一条 basis）
-  note              VARCHAR(500),
-  effective_from    DATE,
-  effective_to      DATE,
-  status            VARCHAR(16) NOT NULL DEFAULT 'active',  -- active|ended|cancelled
-  deleted_at        TIMESTAMPTZ,
-  created_by        BIGINT,
-  created_at        TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-  updated_at        TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-  CONSTRAINT ck_cpl_amount CHECK (allocated_amount IS NULL OR allocated_amount >= 0),
-  CONSTRAINT ck_cpl_pct    CHECK (allocation_pct IS NULL OR (allocation_pct >= 0 AND allocation_pct <= 100))
-);
+> **DDL 以 [02 §12.3](./02-ddl-and-migration.md) 为唯一权威**。本节只保留业务语义，避免两份建表语句漂移。
 
--- 同一合同+项目+关系类型只允许一条存活记录（防重复挂账）
-CREATE UNIQUE INDEX IF NOT EXISTS uq_cpl
-  ON contract_project_links (tenant_id, contract_id, project_id, relation_type)
-  WHERE deleted_at IS NULL;
+| 字段 | 语义 |
+|---|---|
+| `relation_type='basis'` | 合同是本项目的立项依据（主关系，每项目最多一条） |
+| `relation_type='coverage'` | 合同覆盖本项目的运维/支持范围 |
+| `relation_type='billing'` | **额度分配行**，本项目消耗该合同的金额/数量；只有该行可携带 `allocated_*` |
+| `change` | 变更单追加（合同变更驱动项目范围变化） |
+| `service_item_id` | `billing` 行必填，指向合同内具体服务项 |
+| `allocated_amount` / `allocated_hours` | 金额额度 / 数量额度（工时、工单数、设备数、项目数，按服务项 `billing_unit` 解释） |
+| `status` | `active / ended / cancelled`；`ended` 表示链路已结束，`cancelled` 表示撤销 |
 
--- 每项目最多一条「主依据」
-CREATE UNIQUE INDEX IF NOT EXISTS uq_cpl_primary
-  ON contract_project_links (tenant_id, project_id)
-  WHERE is_primary AND relation_type = 'basis' AND deleted_at IS NULL;
-
--- 【关键】合同 → 项目 正查路径
-CREATE INDEX IF NOT EXISTS idx_cpl_tenant_contract
-  ON contract_project_links (tenant_id, contract_id, status);
-CREATE INDEX IF NOT EXISTS idx_cpl_tenant_project
-  ON contract_project_links (tenant_id, project_id, status);
-```
-
-**为什么要 `allocated_amount` / `allocated_hours`**
+**为什么要 `billing` 行**
 不是做财务核算（那是 ERP 的职责），而是为了回答运营问题：
 - 框架合同 100 万，三个项目分别分配 40/35/15 万 → 剩余 10 万可再开项（合同执行率可视）；
-- 项目结项时反查"这份合同已被消耗多少"，避免超额承诺。
+- 项目结项时反查“这份合同已被消耗多少”，避免超额承诺；
+- 金额和数量分开统计，`billing` 行只承载一种或两种额度，不会与 `basis/coverage` 的语义关系重复记账。
 
 > 明确非目标：不做应收、不做开票、不做税率。金额仅为**授权额度的分配视图**。
 
 ---
 
-## 4. 四条归属一致性铁律
+## 4. 五条归属一致性铁律
 
 这是本轮最重要的一组约束——现有模型存在**真实完整性漏洞**：`support_contracts` 的 `customer_id` 与 `branch_id` 是两条独立边，数据库层完全可能存出「合同属于客户 A，但引用客户 B 的分支」。
 
@@ -128,14 +97,13 @@ WHERE id = $branchId AND tenant_id = $tenantId
 
 ```sql
 -- 方案 A（推荐）：复合外键，数据库层强制
-ALTER TABLE customer_branches
-  ADD CONSTRAINT uq_branch_id_customer UNIQUE (id, customer_id);
 ALTER TABLE support_contracts
-  ADD CONSTRAINT fk_contract_branch_customer
-  FOREIGN KEY (branch_id, customer_id) REFERENCES customer_branches (id, customer_id);
+  ADD CONSTRAINT fk_contract_branch_tenant_customer
+  FOREIGN KEY (tenant_id, customer_id, branch_id)
+  REFERENCES customer_branches (tenant_id, customer_id, id);
 ```
 
-> 执行前必须先清洗存量不一致数据（见 §8.2 排查 SQL）。复合外键在 `branch_id` 为 NULL 时不生效（MATCH SIMPLE 语义），正好符合"客户级合同"的要求。
+> 父端唯一索引与合同客户复合外键见 [02 §7.2](./02-ddl-and-migration.md)。执行前必须先清洗存量不一致数据（见 §8.2 排查 SQL）。复合外键在 `branch_id` 为 NULL 时不生效（MATCH SIMPLE 语义），正好符合“客户级合同”的要求。
 
 ### 铁律 L-02：项目的客户必须与合同的客户一致
 
@@ -166,7 +134,7 @@ SELECT
 
 ### 铁律 L-04：合同客户归属不可变更
 
-一旦合同下已挂项目，`support_contracts.customer_id` **不可修改**。改客户在业务上等于"换了一份合同"，应新建合同并把旧合同置为 `ended`。
+一旦合同下已挂项目，`support_contracts.customer_id` **不可修改**。改客户在业务上等于“换了一份合同”，应新建合同并把旧合同置为 `terminated`（人工）或 `expired`（自然到期）。
 
 ```sql
 -- 服务层：更新 customer_id 前检查
@@ -174,6 +142,18 @@ SELECT COUNT(*) FROM contract_project_links
 WHERE contract_id = $id AND tenant_id = $tenantId AND deleted_at IS NULL;
 -- > 0 则拒绝，返回 CONTRACT_CUSTOMER_IMMUTABLE
 ```
+
+> **唯一例外：客户合并**。合并事务需要 `customer.merge` 权限与完整审计，并按“项目客户链接 → 合同客户 → 其他关联”的顺序执行；除此之外，任何直接改合同客户都按 L-04 拒绝。
+
+### 铁律 L-05：billing 行必须指向同一合同的服务项
+
+`contract_project_links.relation_type='billing'` 时，`service_item_id` 必填，且必须满足：
+
+1. 服务项属于同一 `tenant_id` 与同一 `contract_id`；
+2. `allocated_hours` 的计量单位与 `contract_service_items.billing_unit` 一致；
+3. 同一合同+项目+服务项最多一条 `active` 的 `billing` 行。
+
+违反时返回 `CPL_SERVICE_ITEM_MISMATCH`。
 
 ---
 
@@ -198,9 +178,9 @@ WHERE contract_id = $id AND tenant_id = $tenantId AND deleted_at IS NULL;
 ```sql
 -- 某客户在当前租户下的合同与项目全景
 SELECT 'contract' AS kind, c.id, c.contract_number AS code, c.status,
-       c.start_at, c.end_at, NULL::int AS project_id
+       c.effective_from, c.effective_until, NULL::int AS project_id
 FROM support_contracts c
-WHERE c.tenant_id = $1 AND c.customer_id = $2 AND c.status <> 'deleted'
+WHERE c.tenant_id = $1 AND c.customer_id = $2 AND c.deleted_at IS NULL
 UNION ALL
 SELECT 'project', p.id, p.code, p.status, p.start_date, p.end_date, p.id
 FROM project_customer_links l
@@ -212,7 +192,8 @@ WHERE l.tenant_id = $1 AND l.customer_id = $2 AND l.deleted_at IS NULL;
 
 ```sql
 SELECT p.id, p.code, p.name, p.status, p.progress, p.health,
-       l.relation_type, l.allocated_amount, l.allocated_hours, l.is_primary
+       l.relation_type, l.service_item_id, l.allocated_amount,
+       l.allocated_hours, l.is_primary
 FROM contract_project_links l
 JOIN projects p ON p.id = l.project_id AND p.tenant_id = l.tenant_id AND p.deleted_at IS NULL
 WHERE l.tenant_id = $1 AND l.contract_id = $2 AND l.deleted_at IS NULL
@@ -223,19 +204,29 @@ ORDER BY l.is_primary DESC, p.start_date;
 ### 6.3 合同执行率（额度视角）
 
 ```sql
-SELECT c.id, c.contract_number, c.amount,
-       COALESCE(SUM(l.allocated_amount), 0) AS allocated,
-       c.amount - COALESCE(SUM(l.allocated_amount), 0) AS remaining,
-       ROUND(COALESCE(SUM(l.allocated_amount), 0) / NULLIF(c.amount, 0) * 100, 1) AS used_pct
-FROM support_contracts c
+WITH eff AS (
+  SELECT c.id, c.contract_number,
+         c.amount + COALESCE(SUM(a.amount_delta), 0) AS effective_amount
+  FROM support_contracts c
+  LEFT JOIN contract_amendments a
+    ON a.contract_id = c.id AND a.tenant_id = c.tenant_id
+   AND a.status = 'effective'
+  WHERE c.tenant_id = $1 AND c.id = $2
+  GROUP BY c.id, c.contract_number, c.amount
+)
+SELECT c.id, c.contract_number, c.effective_amount,
+       COALESCE(SUM(l.allocated_amount), 0) AS allocated_amount,
+       c.effective_amount - COALESCE(SUM(l.allocated_amount), 0) AS remaining_amount,
+       ROUND(COALESCE(SUM(l.allocated_amount), 0) / NULLIF(c.effective_amount, 0) * 100, 1)
+         AS allocated_pct
+FROM eff c
 LEFT JOIN contract_project_links l
-  ON l.contract_id = c.id AND l.tenant_id = c.tenant_id
- AND l.deleted_at IS NULL AND l.status = 'active'
-WHERE c.tenant_id = $1 AND c.id = $2
-GROUP BY c.id;
+  ON l.contract_id = c.id AND l.tenant_id = $1
+ AND l.relation_type = 'billing' AND l.status = 'active' AND l.deleted_at IS NULL
+GROUP BY c.id, c.contract_number, c.effective_amount;
 ```
 
-> 展示口径：`used_pct > 100` 标红（超额承诺），`remaining < 0` 需审批例外。
+> 展示口径：`allocated_pct > 100` 标红（超额承诺），`remaining_amount < 0` 需审批例外。**执行率不是实耗率**；实耗看 `contract_usage_ledger` / `quota_used`。
 
 ---
 
@@ -245,7 +236,7 @@ GROUP BY c.id;
 
 | 锚点 | 来源 | 用途 |
 |---|---|---|
-| 合同有效期 | `support_contracts.start_at` / `end_at` | 驱动续约提醒 |
+| 合同有效期 | `support_contracts.effective_from` / `effective_until`（半开区间） | 驱动续约提醒 |
 | 项目周期 | `projects.start_date` / `end_date` / `actual_start` / `actual_end` | 驱动交付看板 |
 | 链路有效期 | `contract_project_links.effective_from` / `effective_to` | 支持"合同续签后项目结转" |
 
@@ -253,16 +244,16 @@ GROUP BY c.id;
 
 | 冲突 | 判定 | 处置 |
 |---|---|---|
-| **T1 项目超出合同期** | `project.end_date > contract.end_at` | 立项时告警，需填 `note` 说明；结项前必须续签或缩范围 |
-| **T2 合同到期但项目在途** | `contract.end_at < now()` 且项目 `status IN (planning,active)` | 生成续约待办（S 级客户提前 90 天，A 级 60 天，其余 30 天）；合同到期后项目仍可继续但标"合同已过期"红标 |
-| **T3 续签后项目未结转** | 旧合同 `status='ended'`，但其项目仍挂旧合同 | 续签向导中提供"结转在途项目到新合同"一键操作（改 `contract_id` + 写 `effective_from`） |
+| **T1 项目超出合同期** | `project.end_date >= contract.effective_until` | 立项时告警，需填 `note` 说明；结项前必须续签或缩范围 |
+| **T2 合同到期但项目在途** | `contract.effective_until <= now()` 且项目 `status IN (planning,active)` | 生成续约待办（S 级客户提前 90 天，A 级 60 天，其余 30 天）；合同到期后项目仍可继续但标"合同已过期"红标 |
+| **T3 续签后项目未结转** | 旧合同 `status='renewed'`，但其项目仍挂旧合同 | 续签向导中提供"结转在途项目到新合同"一键操作（改 `contract_id` + 写 `effective_from`） |
 | **T4 项目先于合同立项** | 项目存在但无 `basis` 关系 | 项目列表标记"未关联合同"，并在合同创建时提示可选在途项目 |
-| **T5 项目已结项但合同未消耗完** | 项目 `status='completed'`，合同 `remaining > 0` | 提示"合同额度未用尽"，供续作/退款决策（不做自动退款） |
+| **T5 项目已结项但合同未消耗完** | 项目 `status='completed'`，合同 `available_to_allocate > 0` | 提示“合同额度未用尽”，供续作/退款决策（不做自动退款） |
 
 ### 7.3 续签链（`renewal_of_contract_id`）
 
 ```
-合同 C1 (2025-01-01 ~ 2025-12-31, ended)
+合同 C1 (2025-01-01 ~ 2025-12-31, renewed)
   └─ C2 (2026-01-01 ~ 2026-12-31, active, renewal_of_contract_id = C1)
        └─ C3 (...)
 ```
@@ -270,7 +261,7 @@ GROUP BY c.id;
 **规则**
 1. 续签必须指向同客户、同租户的上一份合同（软校验）；
 2. 续签时 `contract_project_links` **不自动迁移**（避免账期混乱），由用户在向导中显式选择结转；
-3. 结转时旧链路 `status='ended'`、`effective_to=旧合同 end_at`，新建链路指向新合同（保留历史可追溯）。
+3. 结转时旧链路 `status='ended'`、`effective_to=旧合同 effective_until 的结束日`，新建链路指向新合同（保留历史可追溯）。
 
 ---
 
@@ -280,11 +271,12 @@ GROUP BY c.id;
 
 | 步骤 | 动作 | 幂等 |
 |---|---|---|
-| M9 | 补 `support_contracts` 增强列（[02 §12](./02-ddl-and-migration.md)） | 幂等 |
-| M10 | 存量合同 `contract_type` 回填：有 `end_at` 且跨度 ≥ 330 天 → `framework`，否则 `support` | 幂等 |
+| M9 | 补 `support_contracts` 增强列（**以 [06 §7.2](./06-contract-modeling-design.md) 为最终版**） | 幂等 |
+| M10 | 存量合同 `contract_type` 回填：有 `effective_until` 且跨度 ≥ 330 天 → `framework`，否则 `support` | 幂等 |
 | M11 | 清理 L-01 违规数据（分支不属于客户） | 需人工确认 |
-| M12 | 建复合外键 `fk_contract_branch_customer` | 幂等（`IF NOT EXISTS` 语法需 PG 版本支持，否则先查 `pg_constraint`） |
+| M12 | 建复合外键 `fk_contract_branch_tenant_customer` | 幂等（先查 `pg_constraint`） |
 | M13 | `contract_project_links` 建表 + 存量猜测回填（**不自动建链**，仅生成建议清单） | 幂等 |
+| M14–M20 | 服务项/变更单/用量台账/`contracts` 修复/快照与 G17 收回 | 见 [06 §9.1](./06-contract-modeling-design.md) |
 
 > **重要**：存量合同与项目之间**不做自动推断关联**。业务上猜测关联会导致财务口径错乱，只生成"建议关联清单"供人工确认。
 
@@ -293,11 +285,12 @@ GROUP BY c.id;
 ```sql
 -- 找出「合同的分支不属于该合同客户」的所有存量异常
 SELECT c.id AS contract_id, c.contract_number, c.customer_id,
-       c.branch_id, b.customer_id AS branch_owner_customer_id
+       c.tenant_id, c.branch_id, b.tenant_id AS branch_tenant_id,
+       b.customer_id AS branch_owner_customer_id
 FROM support_contracts c
 JOIN customer_branches b ON b.id = c.branch_id
 WHERE c.branch_id IS NOT NULL
-  AND b.customer_id <> c.customer_id;
+  AND (b.tenant_id <> c.tenant_id OR b.customer_id <> c.customer_id);
 ```
 
 处置：逐条人工确认是「合同客户填错」还是「分支挂错客户」，修正后再建外键。
@@ -310,9 +303,11 @@ WHERE c.branch_id IS NOT NULL
 
 | 合同 `status` | 允许的项目操作 | 说明 |
 |---|---|---|
+| `draft` / `pending_sign` | ❌ 不允许建 `basis` / `billing` 链路 | 合同尚未生效 |
 | `active` | 全部 | 正常 |
-| `expired` / `ended` | 只读 + 可结项，**禁止新建 basis 链路** | 需先续签 |
-| `suspended` | 项目可继续但新建受限 | 挂起期 |
+| `expiring`（派生） | 同 `active` + 续约引导 | 未入库 |
+| `expired` | 只读 + 可结项，**禁止新建 basis 链路** | 需先续签 |
+| `renewed` | 只读 + 可结项 | 指向新合同，历史保留 |
 | `terminated`（提前终止） | 关联项目强制进入 `suspended`，需人工处置 | 高危，双人确认 |
 
 ### 9.2 项目状态对合同的反向影响
@@ -320,7 +315,7 @@ WHERE c.branch_id IS NOT NULL
 | 项目事件 | 对合同的影响 |
 |---|---|
 | 项目结项（`completed`） | 合同详情页履约率 +1；若全部 basis 项目结项，提示"合同可评估关闭" |
-| 项目取消（`cancelled`） | 该链路 `status='cancelled'`，释放 `allocated_amount` |
+| 项目取消（`cancelled`） | 该链路 `status='cancelled'`，释放 `billing` 行的 `allocated_amount/allocated_hours` |
 | 项目健康度 `red` | 合同详情页标记"履约风险"，进入客户健康度计算 |
 
 ### 9.3 与客户生命周期的联动
@@ -328,7 +323,7 @@ WHERE c.branch_id IS NOT NULL
 | 客户 `lifecycle_stage` | 合同 | 项目 |
 |---|---|---|
 | `renewal`（续约中） | 生成续约任务，锁定 `renewal_of_contract_id` | 在途项目正常，新建需审批 |
-| `churned`（流失） | 全部转 `ended`（人工确认） | 全部项目转 `suspended` 或 `cancelled` |
+| `churned`（流失） | 全部转 `terminated`（人工确认） | 全部项目转 `suspended` 或 `cancelled` |
 | `archived`（归档） | 只读 | 只读 |
 
 ---
@@ -340,13 +335,13 @@ WHERE c.branch_id IS NOT NULL
 | 方法 | 路径 | 权限 | 说明 |
 |---|---|---|---|
 | GET | `/api/v1/customers/:id/contracts` | `customer.read` | 客户合同列表（含执行率） |
-| POST | `/api/v1/customers/:id/contracts` | `contract.write` | 新建合同（自动带 `customer_id`） |
-| GET | `/api/v1/contracts/:id` | `contract.read` | 合同详情（含项目数、执行率） |
-| PUT | `/api/v1/contracts/:id` | `contract.write` | 更新（`customer_id` 变更受 L-04 限制） |
-| GET | `/api/v1/contracts/:id/projects` | `contract.read` | **合同 → 项目正查**（新增） |
-| POST | `/api/v1/contracts/:id/projects` | `contract.write` + `project.read` | 挂项目（校验 L-02） |
-| POST | `/api/v1/contracts/:id/renew` | `contract.write` | 续签（生成新合同 + 可选结转） |
-| GET | `/api/v1/contracts/:id/execution` | `contract.read` | 执行率（额度/项目数双口径） |
+| POST | `/api/v1/customers/:id/contracts` | `support_contract.write` | 新建合同（自动带 `customer_id`） |
+| GET | `/api/v1/support-contracts/:id` | `support_contract.read` | 合同详情（含项目数、执行率） |
+| PUT | `/api/v1/support-contracts/:id` | `support_contract.write` | 更新（`customer_id` 变更受 L-04 限制） |
+| GET | `/api/v1/support-contracts/:id/projects` | `support_contract.read` | **合同 → 项目正查**（新增） |
+| POST | `/api/v1/support-contracts/:id/projects` | `support_contract.write` + `project.read` | 挂项目（校验 L-02/L-05） |
+| POST | `/api/v1/support-contracts/:id/renew` | `support_contract.write` | 续签（生成新合同 + 可选结转） |
+| GET | `/api/v1/support-contracts/:id/execution` | `support_contract.read` | 执行率（额度/项目数双口径） |
 
 ### 10.2 项目侧
 
@@ -359,16 +354,18 @@ WHERE c.branch_id IS NOT NULL
 ### 10.3 请求示例
 
 ```json
-POST /api/v1/contracts/88/projects
+POST /api/v1/support-contracts/88/projects
 {
   "projectId": 301,
-  "relationType": "basis",
-  "isPrimary": true,
+  "relationType": "billing",
+  "serviceItemId": 42,
   "allocatedAmount": 400000,
   "effectiveFrom": "2026-01-01",
   "note": "一期实施"
 }
 ```
+
+> `basis` 关系单独建一条（`isPrimary=true`），不携带 `allocatedAmount`；额度统一落在 `billing` 行。
 
 ### 10.4 新增错误码
 
@@ -378,8 +375,9 @@ POST /api/v1/contracts/88/projects
 | `CPL_CUSTOMER_MISMATCH` | 422 | L-02：项目客户与合同客户不一致 |
 | `PCL_PROJECT_TYPE_INVALID` | 422 | L-03：internal 项目禁止关联客户 |
 | `CONTRACT_CUSTOMER_IMMUTABLE` | 422 | L-04：已挂项目的合同禁止改客户 |
-| `CONTRACT_ALLOCATION_EXCEEDED` | 409 | 分配额超出合同金额（可配为告警而非阻断） |
+| `CONTRACT_ALLOCATION_EXCEEDED` | 409 | 分配额超出合同有效金额（硬阻断） |
 | `CONTRACT_EXPIRED_FOR_NEW_LINK` | 422 | 合同已过期/终止仍尝试建 basis 链路 |
+| `CPL_SERVICE_ITEM_MISMATCH` | 422 | L-05：billing 服务项不属于合同或单位不匹配 |
 
 ---
 
@@ -403,7 +401,7 @@ POST /api/v1/contracts/88/projects
 ### 11.2 合同详情页
 
 ```
-[头部] 合同号 + 类型徽标 + 状态 + 执行率进度条（used_pct）
+[头部] 合同号 + 类型徽标 + 状态 + 分配率进度条（allocated_pct）
 [左] 基本信息 / 客户信息（可跳客户）/ 分支范围 / SLA
 [右] 关联项目列表（正查）+ 额度分配概览
 [操作] 续签 / 挂项目 / 终止 / 导出
@@ -413,7 +411,7 @@ POST /api/v1/contracts/88/projects
 
 ```
 [客户信息卡] 客户名称 + 等级 + 客户经理（来自 project_customer_links）
-[合同信息卡] 合同号 + 类型 + 有效期 + 本项目分配额 + 剩余合同额度
+[合同信息卡] 合同号 + 类型 + 有效期 + 本项目分配额 + 剩余可分配额度
 [冲突提示] 项目结束日期 > 合同到期日 → 红条「项目周期超出合同期限」
 ```
 
@@ -421,7 +419,7 @@ POST /api/v1/contracts/88/projects
 
 1. 客户详情 → 合同 → 项目，三级可下钻，面包屑可回溯；
 2. 建合同项目链接时，客户自动带入且**不可改**（只能改项目）；
-3. 分配额合计超出合同金额时，弹二次确认（可配置为阻断）；
+3. 分配额合计超出 `effective_amount` 时**硬阻断**，不得只弹确认；需先走变更单增额；
 4. 项目周期与合同期冲突时，保存前提示但允许保存（记录 `note`）。
 
 ---
@@ -449,11 +447,12 @@ POST /api/v1/contracts/88/projects
 4. 建「项目客户 ≠ 合同客户」的链接被拒绝（L-02）；
 5. `internal` 项目无法关联客户（L-03）；
 6. 已挂项目的合同修改客户被拒绝（L-04）；
-7. 合同执行率 `used_pct` 计算正确，超额承诺标红；
+7. 合同分配率 `allocated_pct` 按 `effective_amount` 计算正确，超额承诺标红；
 8. 合同续签后可选结转在途项目，旧链路保留 `ended` 历史；
 9. 项目结束日期晚于合同到期日时有明确冲突提示；
 10. 客户 `churned` 后其合同与项目进入只读/挂起流程；
-11. 存量 L-01 违规数据排查 SQL 返回 0 条后方可上生产外键。
+11. 存量 L-01 违规数据排查 SQL 返回 0 条后方可上生产外键；
+12. `billing` 行缺少服务项或服务项跨合同/跨单位被拒绝（L-05）。
 
 ---
 
@@ -463,7 +462,8 @@ POST /api/v1/contracts/88/projects
 |---|---|
 | [01 §5.4](./01-customer-master-data-design.md) | 项目关联补「合同正查」交叉引用 |
 | [01 §5.5](./01-customer-master-data-design.md) | 合同增强补 DDL 位置与三方闭环引用 |
-| [02 §12](./02-ddl-and-migration.md) | 新增合同 ALTER DDL + `contract_project_links` + 复合外键 |
-| [02 §8](./02-ddl-and-migration.md) | 回填表新增 M9–M13 |
+| [02 §12](./02-ddl-and-migration.md) | `support_contracts` DDL 以 06 §7.2 为权威；`contract_project_links` 增加 `service_item_id`、billing 约束与复合外键 |
+| [02 §8](./02-ddl-and-migration.md) | 回填表新增 M9–M13；合同扩展的 M14–M20 见 06 §9.1 |
+| [06](./06-contract-modeling-design.md) | 状态/日期/金额/额度/台账口径的唯一权威 |
 | [README](./README.md) | 文档结构新增本文 |
 | `mkdocs.yml` | 导航新增「合同与项目闭环」 |

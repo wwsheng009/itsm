@@ -1947,7 +1947,8 @@ func (s *Seeder) seedMenus(ctx context.Context) {
 	// 获得新菜单——provision 时的 cloneMenus 只在开通时刻拷贝一次，规格演进不同步。
 	// 结果：demo 服务商/客户租户侧栏缺失「服务台仪表盘」入口（实测）。
 	// 语义与 cloneMenus 一致：按 path 只补缺失行（不覆盖租户侧自定义：改名/隐藏/
-	// 排序保留），不设 parent（克隆产物为扁平结构，与开通时一致）；幂等可重放。
+	// 排序保留），随后按 ParentPath 对齐 parent_id，修复历史克隆产生的扁平菜单；
+	// 幂等可重放。
 	s.syncMenusToExistingTenants(ctx, specs)
 
 	s.sugar.Infow("menus seeded (hierarchical)", "count", len(specs))
@@ -1955,7 +1956,8 @@ func (s *Seeder) seedMenus(ctx context.Context) {
 
 // syncMenusToExistingTenants 将 default 租户的菜单规格按 path 补齐到所有其它租户。
 // 与 seedMenus 的第一/二遍（default 租户 upsert）不同：这里只对缺失项 INSERT，
-// 已存在的行一律不动——租户侧自定义（重命名/隐藏/排序）优先。
+// 已存在行的名称、权限、可见性与排序不动——租户侧自定义优先；仅按规格修复结构性
+// parent_id，使历史 demo/存量租户的扁平菜单重新形成层级。
 func (s *Seeder) syncMenusToExistingTenants(ctx context.Context, specs []menuSpec) {
 	tenants, err := s.client.Tenant.Query().
 		Where(tenant.CodeNEQ("default")).
@@ -1975,13 +1977,14 @@ func (s *Seeder) syncMenusToExistingTenants(ctx context.Context, specs []menuSpe
 			s.sugar.Warnw("sync menus: load tenant menus failed", "error", err, "tenant_id", t.ID)
 			continue
 		}
-		paths := make(map[string]struct{}, len(existing))
+		menusByPath := make(map[string]*ent.Menu, len(existing)+len(specs))
 		for _, item := range existing {
-			paths[item.Path] = struct{}{}
+			menusByPath[item.Path] = item
 		}
 		created := 0
+		// 先补齐缺失菜单，保证第二遍修复层级时所有父节点都已存在。
 		for _, m := range specs {
-			if _, ok := paths[m.Path]; ok {
+			if _, ok := menusByPath[m.Path]; ok {
 				continue
 			}
 			builder := s.client.Menu.Create().
@@ -1996,16 +1999,62 @@ func (s *Seeder) syncMenusToExistingTenants(ctx context.Context, specs []menuSpe
 			if m.Description != "" {
 				builder = builder.SetDescription(m.Description)
 			}
-			if _, cerr := builder.Save(ctx); cerr != nil {
+			item, cerr := builder.Save(ctx)
+			if cerr != nil {
 				s.sugar.Warnw("sync menus: create failed", "error", cerr, "tenant_id", t.ID, "path", m.Path)
 				continue
 			}
+			menusByPath[m.Path] = item
 			created++
 		}
-		if created > 0 {
-			s.sugar.Infow("tenant menus synced", "tenant_id", t.ID, "created", created)
+
+		// 再统一对齐父子关系。这里只修改 parent_id，不覆盖租户自定义名称、排序、
+		// 权限或可见性；根菜单也会被 ClearParentID，避免错误挂靠形成循环/错位。
+		reparented := 0
+		for _, m := range specs {
+			item, ok := menusByPath[m.Path]
+			if !ok {
+				continue
+			}
+			var parentID *int
+			if m.ParentPath != "" {
+				parent, found := menusByPath[m.ParentPath]
+				if !found {
+					s.sugar.Warnw("sync menus: parent not found", "tenant_id", t.ID, "path", m.Path, "parent_path", m.ParentPath)
+					continue
+				}
+				parentID = &parent.ID
+			}
+			updated, changed, uerr := reconcileMenuParent(ctx, item, parentID)
+			if uerr != nil {
+				s.sugar.Warnw("sync menus: update parent failed", "error", uerr, "tenant_id", t.ID, "path", m.Path, "parent_path", m.ParentPath)
+				continue
+			}
+			if changed {
+				menusByPath[m.Path] = updated
+				reparented++
+			}
+		}
+		if created > 0 || reparented > 0 {
+			s.sugar.Infow("tenant menus synced", "tenant_id", t.ID, "created", created, "reparented", reparented)
 		}
 	}
+}
+
+// reconcileMenuParent 仅在父关联不一致时写库，返回更新后的菜单与是否发生变化。
+func reconcileMenuParent(ctx context.Context, item *ent.Menu, parentID *int) (*ent.Menu, bool, error) {
+	if (item.ParentID == nil && parentID == nil) ||
+		(item.ParentID != nil && parentID != nil && *item.ParentID == *parentID) {
+		return item, false, nil
+	}
+	builder := item.Update()
+	if parentID == nil {
+		builder = builder.ClearParentID()
+	} else {
+		builder = builder.SetParentID(*parentID)
+	}
+	updated, err := builder.Save(ctx)
+	return updated, true, err
 }
 
 // upsertMenu 按 (tenant, path) 创建或更新菜单。

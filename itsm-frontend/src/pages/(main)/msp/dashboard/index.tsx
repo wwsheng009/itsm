@@ -393,7 +393,7 @@ function RiskBar({ customer }: { customer: WorkbenchSummaryCustomer }) {
       style={{
         width: 120,
         height: 8,
-        background: '#f5f5f5',
+        background: 'var(--color-bg-tertiary, #e5e7eb)',
         borderRadius: 4,
         overflow: 'hidden',
         display: 'flex',
@@ -401,7 +401,7 @@ function RiskBar({ customer }: { customer: WorkbenchSummaryCustomer }) {
     >
       <div style={{ width: `${riskPct}%`, background: '#cf1322', height: '100%' }} />
       <div style={{ width: `${duePct}%`, background: '#fa8c16', height: '100%' }} />
-      <div style={{ width: `${restPct}%`, background: '#d9d9d9', height: '100%' }} />
+      <div style={{ width: `${restPct}%`, background: 'var(--color-bg-tertiary, #d9d9d9)', height: '100%' }} />
     </div>
   );
 }

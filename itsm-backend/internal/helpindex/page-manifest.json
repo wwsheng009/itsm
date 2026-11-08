@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-10-20T05:05:19.216Z",
+  "generatedAt": "2026-11-07T02:04:07.731Z",
   "note": "H0-02 生成物：由 itsm-frontend/scripts/gen-page-manifest.mjs 从页面注册表 + 帮助文档生成，禁止手改。",
   "pages": [
     {
@@ -494,6 +494,402 @@
         {
           "id": "metric_meaning",
           "kind": "question",
+          "readOnly": true
+        }
+      ]
+    },
+    {
+      "pageKey": "project.workspace",
+      "pattern": "/projects",
+      "title": "项目管理",
+      "entrypoint": "chat",
+      "scene": null,
+      "docs": [
+        "docs/help/projects/workspace.md"
+      ],
+      "status": "ok",
+      "suggestions": [
+        {
+          "id": "project_help",
+          "kind": "task",
+          "readOnly": true
+        }
+      ]
+    },
+    {
+      "pageKey": "asset.workspace",
+      "pattern": "/assets",
+      "title": "资产管理",
+      "entrypoint": "chat",
+      "scene": null,
+      "docs": [
+        "docs/help/assets/workspace.md"
+      ],
+      "status": "ok",
+      "suggestions": [
+        {
+          "id": "asset_help",
+          "kind": "task",
+          "readOnly": true
+        }
+      ]
+    },
+    {
+      "pageKey": "license.workspace",
+      "pattern": "/licenses",
+      "title": "许可证管理",
+      "entrypoint": "chat",
+      "scene": null,
+      "docs": [
+        "docs/help/licenses/workspace.md"
+      ],
+      "status": "ok",
+      "suggestions": [
+        {
+          "id": "license_help",
+          "kind": "task",
+          "readOnly": true
+        }
+      ]
+    },
+    {
+      "pageKey": "release.workspace",
+      "pattern": "/releases",
+      "title": "发布管理",
+      "entrypoint": "chat",
+      "scene": null,
+      "docs": [
+        "docs/help/releases/workspace.md"
+      ],
+      "status": "ok",
+      "suggestions": [
+        {
+          "id": "release_help",
+          "kind": "task",
+          "readOnly": true
+        }
+      ]
+    },
+    {
+      "pageKey": "approval.center",
+      "pattern": "/approvals",
+      "title": "统一审批中心",
+      "entrypoint": "chat",
+      "scene": null,
+      "docs": [
+        "docs/help/approvals/pending.md"
+      ],
+      "status": "ok",
+      "suggestions": [
+        {
+          "id": "approval_help",
+          "kind": "task",
+          "readOnly": true
+        }
+      ]
+    },
+    {
+      "pageKey": "notification.center",
+      "pattern": "/notifications",
+      "title": "通知中心",
+      "entrypoint": "chat",
+      "scene": null,
+      "docs": [
+        "docs/help/notifications/center.md"
+      ],
+      "status": "ok",
+      "suggestions": [
+        {
+          "id": "notification_help",
+          "kind": "task",
+          "readOnly": true
+        }
+      ]
+    },
+    {
+      "pageKey": "problem.create",
+      "pattern": "/problems/new",
+      "title": "新建问题",
+      "entrypoint": "chat",
+      "scene": null,
+      "docs": [
+        "docs/help/problems/workspace.md"
+      ],
+      "status": "ok",
+      "suggestions": [
+        {
+          "id": "problem_create_help",
+          "kind": "task",
+          "readOnly": true
+        }
+      ]
+    },
+    {
+      "pageKey": "problem.detail",
+      "pattern": "/problems/:id",
+      "title": "问题详情",
+      "entrypoint": "chat",
+      "scene": null,
+      "docs": [
+        "docs/help/problems/workspace.md"
+      ],
+      "status": "ok",
+      "suggestions": [
+        {
+          "id": "problem_detail_help",
+          "kind": "task",
+          "readOnly": true
+        }
+      ]
+    },
+    {
+      "pageKey": "problem.trends",
+      "pattern": "/problems/trends",
+      "title": "问题趋势分析",
+      "entrypoint": "chat",
+      "scene": null,
+      "docs": [
+        "docs/help/problems/workspace.md"
+      ],
+      "status": "ok",
+      "suggestions": [
+        {
+          "id": "problem_trends_help",
+          "kind": "task",
+          "readOnly": true
+        }
+      ]
+    },
+    {
+      "pageKey": "problem.knownErrors",
+      "pattern": "/problems/known-errors",
+      "title": "已知错误",
+      "entrypoint": "chat",
+      "scene": null,
+      "docs": [
+        "docs/help/problems/workspace.md"
+      ],
+      "status": "ok",
+      "suggestions": [
+        {
+          "id": "known_error_help",
+          "kind": "task",
+          "readOnly": true
+        }
+      ]
+    },
+    {
+      "pageKey": "noc.workbench",
+      "pattern": "/noc",
+      "title": "NOC 工作台",
+      "entrypoint": "chat",
+      "scene": null,
+      "docs": [
+        "docs/help/noc/workbench.md"
+      ],
+      "status": "ok",
+      "suggestions": [
+        {
+          "id": "noc_help",
+          "kind": "task",
+          "readOnly": true
+        }
+      ]
+    },
+    {
+      "pageKey": "email.workspace",
+      "pattern": "/email-intake",
+      "title": "邮件报障",
+      "entrypoint": "chat",
+      "scene": null,
+      "docs": [
+        "docs/help/email-intake/workspace.md"
+      ],
+      "status": "ok",
+      "suggestions": [
+        {
+          "id": "email_help",
+          "kind": "task",
+          "readOnly": true
+        }
+      ]
+    },
+    {
+      "pageKey": "msp.workbench",
+      "pattern": "/msp/workbench",
+      "title": "MSP 工作台",
+      "entrypoint": "chat",
+      "scene": null,
+      "docs": [
+        "docs/help/msp/workbench.md"
+      ],
+      "status": "ok",
+      "suggestions": [
+        {
+          "id": "msp_workbench_help",
+          "kind": "task",
+          "readOnly": true
+        }
+      ]
+    },
+    {
+      "pageKey": "msp.dashboard",
+      "pattern": "/msp/dashboard",
+      "title": "MSP 仪表盘",
+      "entrypoint": "chat",
+      "scene": null,
+      "docs": [
+        "docs/help/msp/workbench.md"
+      ],
+      "status": "ok",
+      "suggestions": [
+        {
+          "id": "msp_dashboard_help",
+          "kind": "task",
+          "readOnly": true
+        }
+      ]
+    },
+    {
+      "pageKey": "msp.management",
+      "pattern": "/msp/management",
+      "title": "客户管理",
+      "entrypoint": "chat",
+      "scene": null,
+      "docs": [
+        "docs/help/msp/workbench.md"
+      ],
+      "status": "ok",
+      "suggestions": [
+        {
+          "id": "msp_management_help",
+          "kind": "task",
+          "readOnly": true
+        }
+      ]
+    },
+    {
+      "pageKey": "msp.audit",
+      "pattern": "/msp/audit",
+      "title": "MSP 审计",
+      "entrypoint": "chat",
+      "scene": null,
+      "docs": [
+        "docs/help/msp/workbench.md"
+      ],
+      "status": "ok",
+      "suggestions": [
+        {
+          "id": "msp_audit_help",
+          "kind": "task",
+          "readOnly": true
+        }
+      ]
+    },
+    {
+      "pageKey": "audit.workspace",
+      "pattern": "/audit-logs",
+      "title": "审计日志",
+      "entrypoint": "chat",
+      "scene": null,
+      "docs": [
+        "docs/help/audit-logs/workspace.md"
+      ],
+      "status": "ok",
+      "suggestions": [
+        {
+          "id": "audit_help",
+          "kind": "task",
+          "readOnly": true
+        }
+      ]
+    },
+    {
+      "pageKey": "workflow.workspace",
+      "pattern": "/workflow",
+      "title": "工作流管理",
+      "entrypoint": "chat",
+      "scene": null,
+      "docs": [
+        "docs/help/workflow/workspace.md"
+      ],
+      "status": "ok",
+      "suggestions": [
+        {
+          "id": "workflow_help",
+          "kind": "task",
+          "readOnly": true
+        }
+      ]
+    },
+    {
+      "pageKey": "admin.workspace",
+      "pattern": "/admin",
+      "title": "系统管理",
+      "entrypoint": "chat",
+      "scene": null,
+      "docs": [
+        "docs/help/admin/workspace.md"
+      ],
+      "status": "ok",
+      "suggestions": [
+        {
+          "id": "admin_help",
+          "kind": "task",
+          "readOnly": true
+        }
+      ]
+    },
+    {
+      "pageKey": "system.workspace",
+      "pattern": "/system/users",
+      "title": "组织与用户管理",
+      "entrypoint": "chat",
+      "scene": null,
+      "docs": [
+        "docs/help/admin/workspace.md"
+      ],
+      "status": "ok",
+      "suggestions": [
+        {
+          "id": "system_help",
+          "kind": "task",
+          "readOnly": true
+        }
+      ]
+    },
+    {
+      "pageKey": "report.workspace",
+      "pattern": "/reports",
+      "title": "报表分析",
+      "entrypoint": "chat",
+      "scene": null,
+      "docs": [
+        "docs/help/reports/workspace.md"
+      ],
+      "status": "ok",
+      "suggestions": [
+        {
+          "id": "report_help",
+          "kind": "task",
+          "readOnly": true
+        }
+      ]
+    },
+    {
+      "pageKey": "resource.center",
+      "pattern": "/skills",
+      "title": "资源中心",
+      "entrypoint": "chat",
+      "scene": null,
+      "docs": [
+        "docs/help/resources/center.md"
+      ],
+      "status": "ok",
+      "suggestions": [
+        {
+          "id": "resource_help",
+          "kind": "task",
           "readOnly": true
         }
       ]

@@ -492,16 +492,15 @@ func cloneMenus(ctx context.Context, c *ent.Client, sourceID, tenantID int) erro
 	if err != nil {
 		return err
 	}
-	existing := make(map[string]struct{}, len(targetMenus))
+	targetByPath := make(map[string]*ent.Menu, len(targetMenus)+len(sourceMenus))
 	for _, item := range targetMenus {
-		existing[item.Path] = struct{}{}
+		targetByPath[item.Path] = item
 	}
 	missing := make([]*ent.Menu, 0)
 	for _, item := range sourceMenus {
-		if _, ok := existing[item.Path]; ok {
+		if _, ok := targetByPath[item.Path]; ok {
 			continue
 		}
-		existing[item.Path] = struct{}{}
 		missing = append(missing, item)
 	}
 	for _, batch := range chunkSlice(missing, provisionBulkChunkSize) {
@@ -513,9 +512,43 @@ func cloneMenus(ctx context.Context, c *ent.Client, sourceID, tenantID int) erro
 				SetIsVisible(item.IsVisible).SetIsEnabled(item.IsEnabled).
 				SetDescription(item.Description).SetTenantID(tenantID))
 		}
-		if _, err := c.Menu.CreateBulk(builders...).Save(ctx); err != nil {
+		created, err := c.Menu.CreateBulk(builders...).Save(ctx)
+		if err != nil {
 			return fmt.Errorf("provision menu %s: %w", batch[0].Path, err)
 		}
+		for _, item := range created {
+			targetByPath[item.Path] = item
+		}
+	}
+
+	// 菜单 ID 按租户生成，源 parent_id 不能直接复制。按 path 找到源父节点对应的
+	// 目标菜单，再重映射父关联；同时修复旧版本开通时产生的扁平菜单。其它字段不动。
+	sourceByID := make(map[int]*ent.Menu, len(sourceMenus))
+	for _, item := range sourceMenus {
+		sourceByID[item.ID] = item
+	}
+	for _, item := range sourceMenus {
+		target, ok := targetByPath[item.Path]
+		if !ok {
+			return fmt.Errorf("provision menu %s: target menu missing after clone", item.Path)
+		}
+		var parentID *int
+		if item.ParentID != nil {
+			sourceParent, found := sourceByID[*item.ParentID]
+			if !found {
+				return fmt.Errorf("provision menu %s: source parent %d not found", item.Path, *item.ParentID)
+			}
+			targetParent, found := targetByPath[sourceParent.Path]
+			if !found {
+				return fmt.Errorf("provision menu %s: target parent %s not found", item.Path, sourceParent.Path)
+			}
+			parentID = &targetParent.ID
+		}
+		updated, _, err := reconcileMenuParent(ctx, target, parentID)
+		if err != nil {
+			return fmt.Errorf("provision menu %s parent: %w", item.Path, err)
+		}
+		targetByPath[item.Path] = updated
 	}
 	return nil
 }

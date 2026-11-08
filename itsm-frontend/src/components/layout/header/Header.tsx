@@ -238,7 +238,12 @@ export const Header: React.FC<HeaderProps> = ({
   ];
 
   return (
-    <AntHeader className={styles.header} style={{ background: DESIGN.colors.surface }}>
+    <AntHeader
+      className={styles.header}
+      // DESIGN.colors.surface 是静态 #ffffff，暗色主题下会让整个顶栏保持白底，
+      // 与深色页面割裂；改用主题 token 以跟随 .dark / .light
+      style={{ background: 'var(--color-background-primary, #ffffff)' }}
+    >
       {/* 主行：面包屑/收缩按钮 + 右侧工具 */}
       <div className={styles.mainRow}>
         {/* 左侧：收缩按钮 + 面包屑 */}

@@ -10,8 +10,8 @@ import (
 
 	"itsm-backend/common"
 	"itsm-backend/ent"
-	"itsm-backend/ent/mspcontract"
 	"itsm-backend/ent/sladefinition"
+	"itsm-backend/ent/sladefinitionsnapshot"
 	"itsm-backend/ent/tenant"
 	"itsm-backend/ent/ticket"
 
@@ -679,48 +679,56 @@ func (s *TicketSLAService) CalculateSLADeadlineFromRequest(ctx context.Context, 
 	}, nil
 }
 
-// matchContractDefinition L1：解析 customer 当前生效合同 → 取合同绑定定义集。
-//
-// P1-2 并轨升级（方案 §4.4 匹配升级）：L1 语义不变、实现从 grant 表替换为合同链
-// （active 合同 + 合同期内；最新生效优先——IM-16）。类型维度：显式绑定当前工单类型
-// （ticketTypeID>0）优先于类型无关绑定（ticket_type_id=0）；定义侧 is_active 必须为真。
-// customer ctx 下经 RLS 012 授信策略读取（msp_contract_customer_read）。
+// matchContractDefinition L1：读 customer 租户内的合同 SLA 快照，不再回读
+// provider 的 msp_contracts / sla_definitions。快照由 provider 在合同/定义
+// 发布时下发（020），旧版本标记 superseded。
 func (s *TicketSLAService) matchContractDefinition(ctx context.Context, tenantID, ticketTypeID int, now time.Time) *ent.SLADefinition {
-	contract, err := s.client.MSPContract.Query().
+	rows, err := s.client.SLADefinitionSnapshot.Query().
 		Where(
-			mspcontract.CustomerTenantIDEQ(tenantID),
-			mspcontract.StatusEQ("active"),
-			mspcontract.EffectiveFromLTE(now),
-			mspcontract.Or(
-				mspcontract.EffectiveUntilIsNil(),
-				mspcontract.EffectiveUntilGT(now),
+			sladefinitionsnapshot.TenantIDEQ(tenantID),
+			sladefinitionsnapshot.SourceKindEQ(SLASnapshotKindContractBinding),
+			sladefinitionsnapshot.StatusEQ("active"),
+			sladefinitionsnapshot.EffectiveFromLTE(now),
+			sladefinitionsnapshot.Or(
+				sladefinitionsnapshot.EffectiveUntilIsNil(),
+				sladefinitionsnapshot.EffectiveUntilGT(now),
 			),
 		).
-		WithSLABindings(func(q *ent.MSPContractSLABindingQuery) {
-			q.WithSLADefinition()
-		}).
-		Order(ent.Desc(mspcontract.FieldEffectiveFrom), ent.Desc(mspcontract.FieldID)).
-		First(ctx)
+		Order(
+			ent.Desc(sladefinitionsnapshot.FieldEffectiveFrom),
+			ent.Desc(sladefinitionsnapshot.FieldSourceContractID),
+			ent.Desc(sladefinitionsnapshot.FieldSourceVersion),
+		).
+		All(ctx)
 	if err != nil {
-		if !ent.IsNotFound(err) {
-			s.logger.Warnw("SLA contract lookup failed", "tenant_id", tenantID, "error", err)
-		}
+		s.logger.Warnw("SLA snapshot lookup failed", "tenant_id", tenantID, "error", err)
 		return nil
 	}
-	var typeAgnostic *ent.SLADefinition
-	for _, b := range contract.Edges.SLABindings {
-		def := b.Edges.SLADefinition
-		if def == nil || !def.IsActive {
+	var latestContractID int
+	var typeAgnostic *ent.SLADefinitionSnapshot
+	for _, row := range rows {
+		if row.SourceContractID == nil {
 			continue
 		}
-		if ticketTypeID > 0 && b.TicketTypeID == int64(ticketTypeID) {
-			return def // 显式类型绑定优先
+		if latestContractID == 0 {
+			latestContractID = *row.SourceContractID
 		}
-		if b.TicketTypeID == 0 && typeAgnostic == nil {
-			typeAgnostic = def
+		if *row.SourceContractID != latestContractID {
+			continue
+		}
+		if ticketTypeID > 0 && row.TicketTypeID != nil && *row.TicketTypeID == int64(ticketTypeID) {
+			if def := DefinitionFromSnapshot(row); def != nil {
+				return def
+			}
+		}
+		if row.TicketTypeID == nil && typeAgnostic == nil {
+			typeAgnostic = row
 		}
 	}
-	return typeAgnostic
+	if typeAgnostic != nil {
+		return DefinitionFromSnapshot(typeAgnostic)
+	}
+	return nil
 }
 
 // matchTierPolicy L2：按客户等级（Tenant.service_tier）匹配 SLA 策略。

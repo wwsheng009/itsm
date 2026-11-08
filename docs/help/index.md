@@ -2,7 +2,7 @@
 page_keys: []
 audience: internal
 version: 1.8
-last_reviewed: 2026-10-18
+last_reviewed: 2026-11-07
 owner: platform
 ---
 
@@ -21,7 +21,7 @@ owner: platform
 page_keys: [ticket.detail]   # 必填：关联的页面键（可为空数组 = 通用文档）
 audience: internal           # internal | customer | admin
 version: 1.8                 # 适用产品版本
-last_reviewed: 2026-10-18    # 最近复核日期（新鲜度判定）
+last_reviewed: 2026-11-07    # 最近复核日期（新鲜度判定）
 owner: service-desk          # 兜底责任人
 ---
 ```
@@ -33,13 +33,27 @@ owner: service-desk          # 兜底责任人
 | 工单列表 / 工单详情 / 创建工单 | [tickets/list.md](tickets/list.md)、[tickets/detail.md](tickets/detail.md)、[tickets/create.md](tickets/create.md) |
 | 事件（列表/创建/详情） | [incidents/list.md](incidents/list.md)、[incidents/create.md](incidents/create.md)、[incidents/detail.md](incidents/detail.md) |
 | 变更（列表/新建/详情） | [changes/list.md](changes/list.md)、[changes/detail.md](changes/detail.md) |
-| 问题管理 | [problems/list.md](problems/list.md) |
+| 问题管理 | [problems/list.md](problems/list.md)、[problems/workspace.md](problems/workspace.md)（创建/详情/趋势/已知错误） |
 | CMDB 配置项 | [configuration-items.md](configuration-items.md) |
 | 知识库 | [knowledge/list.md](knowledge/list.md) |
 | SLA 监控 | [sla/monitor.md](sla/monitor.md) |
 | 服务目录 | [service-catalog.md](service-catalog.md) |
 | 仪表盘 | [dashboard.md](dashboard.md) |
 | AI 助手 / AI 观测看板 | [ai/chat.md](ai/chat.md)、[ai/observability.md](ai/observability.md) |
+| 项目管理 | [projects/workspace.md](projects/workspace.md) |
+| 资产管理 | [assets/workspace.md](assets/workspace.md) |
+| 许可证管理 | [licenses/workspace.md](licenses/workspace.md) |
+| 发布管理 | [releases/workspace.md](releases/workspace.md) |
+| 统一审批中心 | [approvals/pending.md](approvals/pending.md) |
+| 通知中心与通知偏好 | [notifications/center.md](notifications/center.md) |
+| NOC 工作台 | [noc/workbench.md](noc/workbench.md) |
+| 邮件报障 | [email-intake/workspace.md](email-intake/workspace.md) |
+| 客户管理与 MSP 工作台 | [msp/workbench.md](msp/workbench.md) |
+| 审计日志 | [audit-logs/workspace.md](audit-logs/workspace.md) |
+| 工作流管理 | [workflow/workspace.md](workflow/workspace.md) |
+| 系统管理 / 组织与用户 | [admin/workspace.md](admin/workspace.md) |
+| 报表分析 | [reports/workspace.md](reports/workspace.md) |
+| 资源中心（Agent Skills） | [resources/center.md](resources/center.md) |
 
 ## 与 AI 助手的关系
 

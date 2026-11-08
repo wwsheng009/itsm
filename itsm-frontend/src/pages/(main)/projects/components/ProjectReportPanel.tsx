@@ -184,8 +184,8 @@ export function ProjectReportPanel({ projectId }: ProjectReportPanelProps) {
             style={{
               margin: 0,
               padding: 16,
-              background: '#fafafa',
-              border: '1px solid #f0f0f0',
+              background: 'var(--color-bg-secondary, #f9fafb)',
+              border: '1px solid var(--color-border-primary, #e5e7eb)',
               borderRadius: 8,
               maxHeight: 420,
               overflow: 'auto',

@@ -49,11 +49,6 @@
   height: 64px;                        /* 与Header高度一致 */
 }
 
-/* Sider 背景 */
-.ant-layout-sider-light {
-  background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%) !important;
-}
-
 /* ========== Content 内容区 ========== */
 .ant-layout-content {
   margin: 0 !important;
@@ -95,9 +90,8 @@
   border-radius: 6px !important;
 }
 
-/* 当前选中项 - 大色块强调 */
+/* 当前选中项保留左侧强调条；文字和底色统一使用 Ant Design Menu 令牌。 */
 .ant-menu-item-selected {
-  background: linear-gradient(90deg, var(--color-primary-50) 0%, var(--color-primary-100) 100%) !important;
   border-left: 4px solid var(--color-primary) !important;
   padding-left: 8px !important;        /* 减去border宽度 */
 }
@@ -118,15 +112,7 @@
   border-radius: 0 4px 4px 0;
 }
 
-/* 悬停效果 */
-.ant-menu-item:hover,
-.ant-menu-submenu-title:hover {
-  background: rgba(59, 130, 246, 0.08) !important;
-}
-
-/* 字体高亮变色 */
 .ant-menu-item-selected .ant-menu-title-content {
-  color: var(--color-primary) !important;
   font-weight: 600 !important;
 }
 
@@ -252,13 +238,6 @@ html.dark .ant-layout-header {
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.45) !important;
 }
 
-:root.dark .ant-layout-sider-light,
-html.dark .ant-layout-sider-light,
-:root.dark .ant-layout-sider-dark,
-html.dark .ant-layout-sider-dark {
-  background: linear-gradient(180deg, #1f1f1f 0%, #141414 100%) !important;
-}
-
 :root.dark .ant-layout-content,
 html.dark .ant-layout-content {
   background: #1f1f1f;
@@ -273,10 +252,6 @@ html.dark .ant-layout-content {
   :root:not(.light) .ant-layout-header {
     background: #1f1f1f !important;
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.45) !important;
-  }
-
-  :root:not(.light) .ant-layout-sider-light {
-    background: linear-gradient(180deg, #1f1f1f 0%, #141414 100%) !important;
   }
 
   :root:not(.light) .ant-layout-content {

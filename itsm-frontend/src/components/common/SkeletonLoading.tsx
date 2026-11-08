@@ -146,7 +146,8 @@ export const ChartSkeleton: React.FC<{ height?: number }> = ({ height = 300 }) =
           style={{
             width: '100%',
             height: '100%',
-            background: 'linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%)',
+            background:
+              'linear-gradient(90deg, var(--color-bg-tertiary, #f0f0f0) 25%, var(--color-border-primary, #e0e0e0) 50%, var(--color-bg-tertiary, #f0f0f0) 75%)',
             backgroundSize: '200% 100%',
             animation: 'loading 1.5s ease-in-out infinite',
           }}

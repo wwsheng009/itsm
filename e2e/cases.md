@@ -4,14 +4,14 @@
 
 ## 1. api 通道（`go test`）
 
-| # | 目标 | 覆盖 | 结果判据 |
-| --- | --- | --- | --- |
-| A-1 | `./tests/botintegration/`（B0） | 元数据全量标注、dry-run 零写入、严格脱敏档与 MCP 标注 | `ok` |
+| #   | 目标                            | 覆盖                                                       | 结果判据 |
+| --- | ----------------------------- | -------------------------------------------------------- | ---- |
+| A-1 | `./tests/botintegration/`（B0） | 元数据全量标注、dry-run 零写入、严格脱敏档与 MCP 标注                        | `ok` |
 | A-2 | `./tests/botintegration/`（B1） | 确认→执行→verify + run 归档、队列重启恢复（不重复执行）、确认状态机（过期/重放/冲突）、预算中止 | `ok` |
-| A-3 | `./tests/botintegration/`（B2） | 角色×入口授权矩阵、草稿/GA 模板、审计执行面、跨租户 404 | `ok` |
-| A-4 | `./tests/botintegration/`（B3） | 入口 target 落库、执行面入口过滤（chat 被拒留痕） | `ok` |
-| A-5 | `./handlers/ai/` | SSE 注册表与**未知事件忽略**（旧客户端兼容）、工具事件双名叠加 | `ok` |
-| A-6 | `./service/bot/` | 策略四重交集、黑名单、幂等、产物隔离、场景种子幂等与边界 | `ok` |
+| A-3 | `./tests/botintegration/`（B2） | 角色×入口授权矩阵、草稿/GA 模板、审计执行面、跨租户 404                         | `ok` |
+| A-4 | `./tests/botintegration/`（B3） | 入口 target 落库、执行面入口过滤（chat 被拒留痕）                          | `ok` |
+| A-5 | `./handlers/ai/`              | SSE 注册表与**未知事件忽略**（旧客户端兼容）、工具事件双名叠加                      | `ok` |
+| A-6 | `./service/bot/`              | 策略四重交集、黑名单、幂等、产物隔离、场景种子幂等与边界                             | `ok` |
 
 ## 2. browser 通道（Playwright，`itsm-frontend/tests/e2e/flows/flow-bot-workspace.spec.ts`）
 

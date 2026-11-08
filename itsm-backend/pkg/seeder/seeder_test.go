@@ -711,11 +711,19 @@ func TestSeedMenusSyncsNewMenusToExistingTenants(t *testing.T) {
 		SetName("Legacy Customer").SetCode("legacy-customer").SetStatus("active").
 		Save(ctx)
 	require.NoError(t, err)
-	_, err = seeder.client.Menu.Create().
+	customParent, err := seeder.client.Menu.Create().
 		SetName("自定义客户管理").
 		SetPath("/msp").
 		SetPermissionCode("msp:read").
 		SetSortOrder(999).
+		SetTenantID(legacy.ID).
+		Save(ctx)
+	require.NoError(t, err)
+	_, err = seeder.client.Menu.Create().
+		SetName("服务台工单").
+		SetPath("/msp/workbench").
+		SetPermissionCode("msp.workbench:read").
+		SetSortOrder(1).
 		SetTenantID(legacy.ID).
 		Save(ctx)
 	require.NoError(t, err)
@@ -729,6 +737,9 @@ func TestSeedMenusSyncsNewMenusToExistingTenants(t *testing.T) {
 	require.NoError(t, err, "存量租户应补齐 /msp/dashboard")
 	assert.Equal(t, "服务台仪表盘", dashboard.Name)
 	assert.Equal(t, "msp_ticket:read", dashboard.PermissionCode)
+	if assert.NotNil(t, dashboard.ParentID) {
+		assert.Equal(t, customParent.ID, *dashboard.ParentID)
+	}
 
 	// 2. 已有行不被覆盖（自定义名与排序保留）。
 	existing, err := seeder.client.Menu.Query().
@@ -737,6 +748,13 @@ func TestSeedMenusSyncsNewMenusToExistingTenants(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, "自定义客户管理", existing.Name)
 	assert.Equal(t, 999, existing.SortOrder)
+	workbench, err := seeder.client.Menu.Query().
+		Where(menu.PathEQ("/msp/workbench"), menu.TenantIDEQ(legacy.ID)).
+		Only(ctx)
+	require.NoError(t, err)
+	if assert.NotNil(t, workbench.ParentID) {
+		assert.Equal(t, customParent.ID, *workbench.ParentID)
+	}
 
 	// 3. 幂等：重复播种后该租户菜单数不变。
 	before, err := seeder.client.Menu.Query().Where(menu.TenantIDEQ(legacy.ID)).Count(ctx)
@@ -745,4 +763,8 @@ func TestSeedMenusSyncsNewMenusToExistingTenants(t *testing.T) {
 	after, err := seeder.client.Menu.Query().Where(menu.TenantIDEQ(legacy.ID)).Count(ctx)
 	require.NoError(t, err)
 	assert.Equal(t, before, after)
+
+	rootTenant, err := seeder.client.Tenant.Query().Where(tenant.CodeEQ("default")).Only(ctx)
+	require.NoError(t, err)
+	assertTenantMenuHierarchyMatches(t, ctx, seeder.client, rootTenant.ID, legacy.ID)
 }

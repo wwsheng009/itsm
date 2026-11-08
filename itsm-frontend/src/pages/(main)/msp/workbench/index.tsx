@@ -128,7 +128,7 @@ const isWorkbenchTicketOverdue = (record: WorkbenchTicketItem): boolean => {
 /** 超期行返回淡红背景，使其在一屏内醒目（P2-2）。 */
 function workbenchRowProps(record: WorkbenchTicketItem): React.HTMLAttributes<HTMLElement> {
   return isWorkbenchTicketOverdue(record)
-    ? { style: { backgroundColor: 'rgba(255, 77, 79, 0.08)' } }
+    ? { style: { backgroundColor: 'var(--color-error-bg, rgba(255, 77, 79, 0.08))' } }
     : {};
 }
 

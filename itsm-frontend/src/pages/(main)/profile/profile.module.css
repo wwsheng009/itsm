@@ -32,7 +32,7 @@
 }
 
 .account-card-content {
-  background: #f8fafc;
+  background: var(--color-bg-secondary, #f9fafb);
   border-radius: 12px;
   padding: 16px;
 }
@@ -121,7 +121,7 @@
 }
 
 .stat-item {
-  background: #f8fafc;
+  background: var(--color-bg-secondary, #f9fafb);
   border-radius: 12px;
   padding: 16px;
   text-align: center;
@@ -164,7 +164,7 @@
 }
 
 .stat-progress {
-  background: #f8fafc;
+  background: var(--color-bg-secondary, #f9fafb);
   border-radius: 10px;
   padding: 14px;
 }
@@ -243,7 +243,7 @@
   gap: 8px;
   font-size: 13px;
   border: 1px solid #e5e7eb;
-  background: #f9fafb;
+  background: var(--color-bg-secondary, #f9fafb);
   transition: all 0.2s ease;
 }
 

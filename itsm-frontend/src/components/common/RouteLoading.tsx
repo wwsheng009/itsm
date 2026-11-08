@@ -18,8 +18,8 @@ export default function Loading() {
           top: 0,
           bottom: 0,
           width: LAYOUT_CONFIG.sider.width,
-          background: '#ffffff',
-          borderRight: '1px solid #f0f0f0',
+          background: 'var(--color-background-primary)',
+          borderRight: '1px solid var(--color-border-primary)',
           zIndex: 1000,
           padding: '16px 12px',
         }}
@@ -48,8 +48,8 @@ export default function Loading() {
         <div
           style={{
             height: 64,
-            background: '#ffffff',
-            borderBottom: '1px solid #f0f0f0',
+            background: 'var(--color-background-primary)',
+            borderBottom: '1px solid var(--color-border-primary)',
             display: 'flex',
             alignItems: 'center',
             padding: '0 24px',

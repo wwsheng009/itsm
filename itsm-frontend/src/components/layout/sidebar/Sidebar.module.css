@@ -5,8 +5,8 @@
   bottom: 0 !important;
   height: 100vh !important;
   overflow-y: auto !important;
-  background: #ffffff !important;
-  border-right: 1px solid #f0f0f0 !important;
+  background: var(--color-background-primary, var(--color-bg-primary)) !important;
+  border-right: 1px solid var(--color-border-primary) !important;
   box-shadow: 2px 0 8px rgba(0, 0, 0, 0.05) !important;
   z-index: 1000 !important;
   display: flex !important;
@@ -19,8 +19,8 @@
   align-items: center;
   justify-content: flex-start;
   padding: 0 24px;
-  background: #ffffff;
-  border-bottom: 1px solid #f0f0f0;
+  background: var(--color-background-primary, var(--color-bg-primary));
+  border-bottom: 1px solid var(--color-border-primary);
   flex-shrink: 0;
 }
 
@@ -52,14 +52,14 @@
 .logoText {
   font-size: 15px;
   font-weight: 700;
-  color: #1f2937;
+  color: var(--color-text-primary);
   line-height: 1.1;
   white-space: nowrap;
 }
 
 .logoSubtext {
   font-size: 11px;
-  color: #6b7280;
+  color: var(--color-text-secondary);
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 1px;
@@ -71,7 +71,7 @@
   flex-grow: 1;
   /* Scrollbar styling */
   scrollbar-width: thin;
-  scrollbar-color: #e5e7eb transparent;
+  scrollbar-color: var(--color-border-secondary) transparent;
 }
 
 .mainMenu::-webkit-scrollbar {
@@ -83,7 +83,7 @@
 }
 
 .mainMenu::-webkit-scrollbar-thumb {
-  background-color: #e5e7eb;
+  background-color: var(--color-border-secondary);
   border-radius: 20px;
 }
 
@@ -102,17 +102,9 @@
   width: 100% !important;
   margin-inline: 0 !important;
   padding-inline: 12px !important;
-  color: #4b5563 !important;
-}
-
-.customMenu :global(.ant-menu-item:hover) {
-  color: #1677ff !important;
-  background-color: #f3f4f6 !important;
 }
 
 .customMenu :global(.ant-menu-item-selected) {
-  background-color: #e6f4ff !important;
-  color: #1677ff !important;
   font-weight: 600 !important;
 }
 
@@ -134,21 +126,21 @@
 
 .menuItemBadge {
   background-color: #ef4444;
-  box-shadow: 0 0 0 1px #fff;
+  box-shadow: 0 0 0 1px var(--color-background-primary, var(--color-bg-primary));
 }
 
 .adminMenuContainer {
   margin-top: auto;
   padding: 16px 8px;
   flex-shrink: 0;
-  background: #f9fafb;
-  border-top: 1px solid #f0f0f0;
+  background: var(--color-background-secondary, var(--color-bg-secondary));
+  border-top: 1px solid var(--color-border-primary);
 }
 
 .adminMenuHeader {
   padding: 0 12px 8px 12px;
   font-size: 11px;
-  color: #9ca3af;
+  color: var(--color-text-secondary);
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.5px;
@@ -160,8 +152,8 @@
 
 .userInfoContainer {
   padding: 16px;
-  border-top: 1px solid #f0f0f0;
-  background: #ffffff;
+  border-top: 1px solid var(--color-border-primary);
+  background: var(--color-background-primary, var(--color-bg-primary));
   flex-shrink: 0;
 }
 
@@ -176,18 +168,18 @@
 }
 
 .userInfo:hover {
-  background-color: #f3f4f6;
+  background-color: var(--color-background-tertiary, var(--color-bg-tertiary));
 }
 
 .userAvatar {
   width: 36px;
   height: 36px;
   border-radius: 8px;
-  background: #e0e7ff;
+  background: var(--color-primary-soft);
   display: flex;
   align-items: center;
   justify-content: center;
-  color: #4f46e5;
+  color: var(--color-primary-600);
   font-weight: 600;
   font-size: 15px;
 }
@@ -200,7 +192,7 @@
 .userName {
   font-size: 14px;
   font-weight: 600;
-  color: #1f2937;
+  color: var(--color-text-primary);
   margin-bottom: 2px;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -209,7 +201,7 @@
 
 .userRole {
   font-size: 12px;
-  color: #6b7280;
+  color: var(--color-text-secondary);
   text-transform: capitalize;
 }
 
@@ -242,51 +234,7 @@
   margin: 2px 0 !important;
 }
 
-/* ========== 暗色模式（跟随 html.dark 类） ========== */
+/* 颜色由主题变量统一切换，暗色仅保留阴影强度差异。 */
 :global(html.dark) .sider {
-  /* 原 .sider 用 !important 写死背景，暗色覆盖必须同样用 !important */
-  background: var(--color-bg-secondary) !important;
-  border-right: 1px solid var(--color-border-primary) !important;
   box-shadow: 2px 0 8px rgba(0, 0, 0, 0.25) !important;
-}
-
-:global(html.dark) .logoArea {
-  background: var(--color-bg-secondary);
-  border-bottom-color: var(--color-border-primary);
-}
-
-:global(html.dark) .logoText {
-  color: var(--color-text-primary);
-}
-
-:global(html.dark) .logoSubtext {
-  color: var(--color-text-muted);
-}
-
-:global(html.dark) .adminMenuContainer {
-  background: var(--color-bg-tertiary);
-  border-top-color: var(--color-border-primary);
-}
-
-:global(html.dark) .userInfoContainer {
-  background: var(--color-bg-secondary);
-  border-top-color: var(--color-border-primary);
-}
-
-:global(html.dark) .userInfo:hover {
-  background-color: var(--color-bg-active);
-}
-
-:global(html.dark) .customMenu :global(.ant-menu-item) {
-  color: var(--color-text-secondary) !important;
-}
-
-:global(html.dark) .customMenu :global(.ant-menu-item:hover) {
-  color: var(--color-primary-light) !important;
-  background-color: var(--color-bg-active) !important;
-}
-
-:global(html.dark) .customMenu :global(.ant-menu-item-selected) {
-  background-color: var(--color-primary-soft) !important;
-  color: var(--color-primary-light) !important;
 }

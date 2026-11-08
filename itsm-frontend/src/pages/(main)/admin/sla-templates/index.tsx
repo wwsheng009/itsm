@@ -347,12 +347,12 @@ export default function SLATemplatesPage() {
               {detail.description}
             </Descriptions.Item>
             <Descriptions.Item label="升级规则" span={2}>
-              <pre style={{ background: '#f5f5f5', padding: 8, borderRadius: 4, margin: 0 }}>
+              <pre style={{ background: 'var(--color-bg-secondary, #f9fafb)', padding: 8, borderRadius: 4, margin: 0 }}>
                 {JSON.stringify(detail.escalationRules, null, 2)}
               </pre>
             </Descriptions.Item>
             <Descriptions.Item label="适用条件" span={2}>
-              <pre style={{ background: '#f5f5f5', padding: 8, borderRadius: 4, margin: 0 }}>
+              <pre style={{ background: 'var(--color-bg-secondary, #f9fafb)', padding: 8, borderRadius: 4, margin: 0 }}>
                 {JSON.stringify(detail.conditions, null, 2)}
               </pre>
             </Descriptions.Item>

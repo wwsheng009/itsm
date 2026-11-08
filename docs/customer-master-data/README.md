@@ -1,7 +1,7 @@
 # 客户主数据（Customer Master Data）设计
 
-> 状态：**Draft v1.0（设计方案）**
-> 更新日期：2026-11-06
+> 状态：**Draft v1.1（设计方案修订）**
+> 更新日期：2026-11-08
 > 适用：产品、架构、后端、前端、交付
 > 关联模块：邮件报障（客户资料 / 支持合同 / 来源组织）、多租户（MSP 客户维度）、项目管理（交付项目）、SLA、CMDB
 
@@ -32,12 +32,12 @@
 | 文件 | 内容 |
 |---|---|
 | [01-customer-master-data-design.md](./01-customer-master-data-design.md) | 主设计：定位与原则、现状差距、实体分层、字段字典、关联模型、多租户场景、项目关联、生命周期、去重合并、AI 匹配、API、UI、迁移与验收 |
-| [02-ddl-and-migration.md](./02-ddl-and-migration.md) | 可落库 DDL 草案、索引 / 约束、回填脚本、RLS 与受管清单登记、回滚策略 |
+| [02-ddl-and-migration.md](./02-ddl-and-migration.md) | 可落库 DDL 草案、复合外键 / 唯一索引、交接包、回填脚本、RLS 与受管清单登记、回滚策略；合同最终 DDL 以 06 §7.2 为准（02 §12.1 过渡版已撤销） |
 | [03-open-questions.md](./03-open-questions.md) | 待裁决问题、与既有契约的冲突点、分期落地建议 |
 | [04-multi-provider-scenario.md](./04-multi-provider-scenario.md) | **多服务商场景**：三种拓扑辨析、不跨租户下的 5 个真实用法、服务边界 `coverage_scope`、交接包与归属切换、反模式清单 |
-| [05-customer-contract-project-linkage.md](./05-customer-contract-project-linkage.md) | **客户 → 合同 → 项目业务闭环**：`contract_project_links`、四条归属铁律（含修复 `branch_id` 归属漏洞）、执行率核算、续签与在途项目时序联动、三向正查路径 |
-| [06-contract-modeling-design.md](./06-contract-modeling-design.md) | **合同建模与业务数据逻辑优化**：三套合同实体（采购/交付/结算）职责划分、统一契约 CC-1~CC-8、六个可验证缺陷（含 `contract_number` 全局唯一 Bug 与 `Float` 金额 Bug）、服务项明细、变更单、金额三层与额度预占/实耗语义、状态派生、迁移风险 |
-| [07-tenant-data-boundary.md](./07-tenant-data-boundary.md) | **租户数据边界（硬约束）**：业务数据不跨租户的四条铁律 BD-1~BD-4、可执行 `pg_policy` 审计 SQL、现有构造逐项审计（**发现 `msp_contracts` RLS 012 客户只读放宽违规**）、**§3.2 设计意图溯源**、结算快照下发替代跨租户读、**§4.5 裁决：收回（含 L1 改道三方案与两步过渡顺序）**、迁移与验收 |
+| [05-customer-contract-project-linkage.md](./05-customer-contract-project-linkage.md) | **客户 → 合同 → 项目业务闭环**：`contract_project_links`、五条归属铁律（含 `branch_id` 同租户/同客户修复与 L-04 合并例外）、`billing` 分配行、执行率核算、续签与在途项目时序联动、三向正查路径 |
+| [06-contract-modeling-design.md](./06-contract-modeling-design.md) | **合同建模与业务数据逻辑优化**：三套合同实体（采购/交付/结算）职责划分、统一契约 CC-1~CC-8 的域适用矩阵、六个可验证缺陷、服务项/变更单/用量台账、`effective_amount` 与预占/实耗语义、状态派生、迁移风险 |
+| [07-tenant-data-boundary.md](./07-tenant-data-boundary.md) | **租户数据边界（硬约束）**：BD-1~BD-4、授权表 allowlist 审计、**发现 `msp_contracts` RLS 012 违规**、**§4.5 收回裁决**、`018/019` 合同快照、**Q-09 裁决 B 的 `020/021` SLA 定义快照**、迁移与验收 |
 
 ## 3. 一句话结论
 
@@ -50,6 +50,8 @@
 > ③ 用**唯一键 + 合并通道 + 数据质量分**把「同一个客户的多张皮」收敛成一条主档。
 >
 > 全程遵守两条硬约束：**档案永远按 `tenant_id` 归属**（不替代租户隔离）；**跨租户一律用弱引用 + 服务层校验 + MSPAllocation 授权**（不建跨租户外键，不违反项目 D-01）。
+>
+> 合同侧另按 [06](./06-contract-modeling-design.md) 做“三域不合并、契约分阶段收口”：**金额与数量分列、预占与实耗分离、所有实耗经用量台账幂等回写**。
 
 ## 4. 关键设计取舍（先看这里）
 
@@ -69,5 +71,8 @@
 | **P0（2 周）** | 主档八组字段 + 联系人表 + 租户映射表 + 编码 / 税号唯一键 | 立刻可做客户分层、多租户映射、联系人通知 |
 | **P1（2 周）** | 客户关系表 + 项目客户链接 + 合并通道 + 数据质量分 | 支撑集团客户树、项目交付视图、脏数据治理 |
 | **P2（2 周）** | 外部标识对账 + AI 域名匹配增强 + 客户 360 视图 | 支撑跨系统对账、邮件报障命中率提升 |
+| **C1（与 P1 衔接）** | 合同聚合根 + 服务项 / 变更单 / 用量台账 + `billing` 分配行 | 合同可履约、额度可核算、预占/实耗分离 |
+| **C2（与 P2 衔接）** | `018` 快照双写 + `019` G17 收回 + 结算快照 | 客户侧不再直读 provider 合同，BD-1 可审计 |
+| **C3（与 C2 并行）** | `020` SLA 定义快照 + `021` 删除 `sla_definition_customer_read` | Q-09 关闭，customer 不再读 provider 的 SLA 定义原行 |
 
 详见 [03-open-questions.md](./03-open-questions.md)。

@@ -36,78 +36,78 @@ export const IncidentList: React.FC<IncidentListProps> = ({
     new: {
       color: '#1890ff',
       text: t('incidents.statusNew') || '新建',
-      backgroundColor: '#e6f7ff',
+      backgroundColor: 'rgba(24, 144, 255, 0.15)',
     },
     // 已确认状态
     acknowledged: {
       color: '#722ed1',
       text: t('incidents.statusAcknowledged') || '已确认',
-      backgroundColor: '#f9f0ff',
+      backgroundColor: 'rgba(114, 46, 209, 0.15)',
     },
     // 已分配状态
     assigned: {
       color: '#13c2c2',
       text: t('incidents.statusAssigned') || '已分配',
-      backgroundColor: '#e6fffb',
+      backgroundColor: 'rgba(19, 194, 194, 0.15)',
     },
     // 调查中状态
     investigating: {
       color: '#722ed1',
       text: t('incidents.statusInvestigating') || '调查中',
-      backgroundColor: '#f9f0ff',
+      backgroundColor: 'rgba(114, 46, 209, 0.15)',
     },
     // 处理中状态 (both camelCase and snake_case from API)
     inProgress: {
       color: '#1890ff',
       text: t('incidents.statusInProgress'),
-      backgroundColor: '#e6f7ff',
+      backgroundColor: 'rgba(24, 144, 255, 0.15)',
     },
     'in_progress': {
       color: '#1890ff',
       text: t('incidents.statusInProgress'),
-      backgroundColor: '#e6f7ff',
+      backgroundColor: 'rgba(24, 144, 255, 0.15)',
     },
     // 已分类状态
     triaged: {
       color: '#faad14',
       text: t('incidents.statusTriaged') || '已分类',
-      backgroundColor: '#fffbe6',
+      backgroundColor: 'rgba(250, 173, 20, 0.15)',
     },
     // 已升级状态
     escalated: {
       color: '#ff4d4f',
       text: t('incidents.statusEscalated') || '已升级',
-      backgroundColor: '#fff2f0',
+      backgroundColor: 'rgba(255, 77, 79, 0.15)',
     },
     // 已暂停
     'on_hold': {
       color: '#fa8c16',
       text: t('incidents.statusOnHold') || '已暂停',
-      backgroundColor: '#fff7e6',
+      backgroundColor: 'rgba(250, 140, 22, 0.15)',
     },
     // 已解决状态
     resolved: {
       color: '#52c41a',
       text: t('incidents.statusResolved'),
-      backgroundColor: '#f6ffed',
+      backgroundColor: 'rgba(82, 196, 26, 0.15)',
     },
     // 已取消状态
     cancelled: {
       color: '#00000073',
       text: t('incidents.statusCancelled') || '已取消',
-      backgroundColor: '#fafafa',
+      backgroundColor: 'var(--color-bg-secondary, #f9fafb)',
     },
     // 已关闭状态
     closed: {
       color: '#00000073',
       text: t('incidents.statusClosed'),
-      backgroundColor: '#fafafa',
+      backgroundColor: 'var(--color-bg-secondary, #f9fafb)',
     },
     // 兼容旧的前端状态值
     open: {
       color: '#fa8c16',
       text: t('incidents.statusOpen'),
-      backgroundColor: '#fff7e6',
+      backgroundColor: 'rgba(250, 140, 22, 0.15)',
     },
   };
 
@@ -115,22 +115,22 @@ export const IncidentList: React.FC<IncidentListProps> = ({
     low: {
       color: '#52c41a',
       text: t('incidents.priorityLow'),
-      backgroundColor: '#f6ffed',
+      backgroundColor: 'rgba(82, 196, 26, 0.15)',
     },
     medium: {
       color: '#1890ff',
       text: t('incidents.priorityMedium'),
-      backgroundColor: '#e6f7ff',
+      backgroundColor: 'rgba(24, 144, 255, 0.15)',
     },
     high: {
       color: '#fa8c16',
       text: t('incidents.priorityHigh'),
-      backgroundColor: '#fff7e6',
+      backgroundColor: 'rgba(250, 140, 22, 0.15)',
     },
     critical: {
       color: '#ff4d4f',
       text: t('incidents.priorityCritical'),
-      backgroundColor: '#fff2f0',
+      backgroundColor: 'rgba(255, 77, 79, 0.15)',
     },
   };
 
@@ -145,7 +145,7 @@ export const IncidentList: React.FC<IncidentListProps> = ({
             style={{
               width: 40,
               height: 40,
-              backgroundColor: '#e6f7ff',
+              backgroundColor: 'rgba(24, 144, 255, 0.15)',
               borderRadius: 8,
               display: 'flex',
               alignItems: 'center',
@@ -175,7 +175,7 @@ export const IncidentList: React.FC<IncidentListProps> = ({
         const config = statusConfig[status] || {
           color: '#666',
           text: status || t('incidents.unknown'),
-          backgroundColor: '#f5f5f5',
+          backgroundColor: 'var(--color-bg-tertiary, #f0f0f0)',
         };
         return (
           <span
@@ -202,7 +202,7 @@ export const IncidentList: React.FC<IncidentListProps> = ({
         const config = priorityConfig[priority] || {
           color: '#666',
           text: priority || t('incidents.unknown'),
-          backgroundColor: '#f5f5f5',
+          backgroundColor: 'var(--color-bg-tertiary, #f0f0f0)',
         };
         return (
           <span

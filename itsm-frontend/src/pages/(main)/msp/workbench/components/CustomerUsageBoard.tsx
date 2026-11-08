@@ -166,7 +166,7 @@ export default function CustomerUsageBoard({ onSelectCustomer, fetchSummary }: C
                   flex: 1,
                   minWidth: 100,
                   height: 10,
-                  background: '#f5f5f5',
+                  background: 'var(--color-bg-tertiary, #e5e7eb)',
                   borderRadius: 5,
                   overflow: 'hidden',
                 }}

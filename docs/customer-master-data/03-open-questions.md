@@ -1,6 +1,6 @@
 # 03 · 待裁决问题与分期建议
 
-> 状态：Draft v1.0 · 2026-11-06
+> 状态：Draft v1.1 · 2026-11-08
 > 用途：把设计里「需要拍板」的点集中列出，避免边写代码边改模型。
 
 ## 1. 必须裁决的问题（影响表结构）
@@ -15,6 +15,7 @@
 | Q-06 | 合并后原客户档案是否允许**恢复**？ | A. 不可恢复<br>B. 保留 `merged_into_id` 可回滚 | **B**，但需限制为 7 天内 + 需 `customer.merge.undo` 权限 | 中 |
 | Q-07 | 联系人是否复用 `users` 表？ | A. 独立表 + 可选 `linked_user_id`<br>B. 直接建用户 | **A**。客户联系人大多不是系统用户，建用户会污染成员身份与配额 | 高 |
 | Q-08 | `tax_id` 唯一性范围？ | A. 租户内唯一<br>B. 全局唯一 | **A**，与既有 `(tenant_id, normalized_name)` 口径一致 | 中 |
+| Q-09 | 011 的 `sla_definition_customer_read` 是否保留？ | A. 保留（显式授权通道例外）<br>B. 按 BD-1 收回，改为客户租户内物化快照 | ✅ **已裁决（2026-11-08）：B（B-lite）**。新增 `sla_definition_snapshots`（`020`，`source_kind=contract_binding|grant`）物化响应/解决时限、工作时段、匹配条件与客户工单类型；L1/provided 已改读快照，AI/搜索/导出须走同一快照查询；观察通过后 `021` 删除 `sla_definition_customer_read`。`sla_definition_grants` 保留为 provider 侧授权记录，`sla_grant_customer_read` 可继续作为授权元数据读取（07 §1.2 allowlist）；后续确认无直接查询后再评估删除 | 已关闭 |
 
 ## 2. 与既有契约的冲突点（需显式确认）
 
@@ -26,6 +27,7 @@
 | 成员身份单源 | IP-P1-1：`UserTenantMembership` 是账号在某租户内角色/组织/生效期的唯一载体 | 客户经理 / 服务负责人字段只存 `user_id`，写入时校验其为同租户活跃 membership（对齐 `projects.manager_id` 校验口径） |
 | 平台级共享数据 | `tenant_guard.go` 中标签云、市场模板等跨租户共享 | 客户主数据**不属于**平台级共享数据，必须 RLS 全覆盖 |
 | **`msp_contracts` 客户只读授信** | `012_msp_contract_policies.sql:54-58 / 81-88` 的 `msp_contract_customer_read`、`msp_contract_binding_customer_read` 允许 customer 租户直读 provider 合同行 | ⚠️ **判定违规**：违反 BD-1「业务数据不跨租户」，**裁决收回**。唯一真实依赖是 L1 SLA 匹配，改为读客户租户内快照 `contract_sla_snapshots`；结算/下发走 `settlement_statements`。**须先建快照通道再 DROP**，否则 L1 静默降级。见 [07 §3.2 / §4.5](./07-tenant-data-boundary.md) |
+| **011 SLA 定义授信** | `011_sla_definition_grant_policies.sql:60-88` 的 `sla_grant_customer_read` / `sla_definition_customer_read` | ✅ **Q-09 裁决 B**：`sla_grant_customer_read` 仅作为授权元数据 allowlist；`sla_definition_customer_read` 在 `020` 快照双写、L1 切换并通过观察后，由 `021` 删除。客户统一读 `sla_definition_snapshots`，不再读 provider 的 `sla_definitions` 业务行 |
 
 ## 3. 分期落地建议
 
@@ -50,6 +52,28 @@
 - 邮件 intake 匹配升级为「域名 → 税号 → 精确名 → 别名 → 模糊」五级；
 - 客户 360 视图（工单 / 合同 / 项目 / 资产 / SLA / 联系人一屏）。
 
+### C1（与 P1 衔接）：合同聚合根 + 项目额度闭环
+
+- `support_contracts` 最终字段/状态/有效期（06 §7.2）；
+- `contract_service_items`、`contract_amendments`、`contract_usage_ledger`；
+- `contract_project_links` 的 `billing` 行、服务项复合外键与 M-1~M-5；
+- 验收：预占/实耗分离、同一 source 不重复扣减、分配额硬阻断。
+
+### C2（与 P2 衔接）：结算快照 + G17 收回
+
+- `018` 建 `contract_sla_snapshots` / `settlement_statements` 并双写；
+- L1 改读快照的 `sla_terms`，观察一个结算周期；
+- 满足 C1–C4 后执行 `019` 删除 012 两条 customer_read 策略；
+- 验收：客户侧无 `msp_contracts` 直读；合同域审计为 0 行（SLA 定义由 C3 收口）。
+
+### C3（与 C2 并行/紧随）：SLA 定义快照 + 011 收回
+
+- `020` 建客户租户内 `sla_definition_snapshots`（`source_kind=contract_binding|grant`，含 `terms`、`ticket_type_id`、`source_version`、`payload_hash`）+ RLS；
+- provider 在定义/授权发布、变更时下发新版本，撤销时置 `revoked`；L1/provided 改读快照，AI/搜索/导出须走同一快照查询；
+- 影子对比 L1 命中率与旧链路一致后，`021` 删除 `sla_definition_customer_read`；
+- `sla_definition_grants` 保留为 provider 侧授权记录；`sla_grant_customer_read` 作为授权元数据 allowlist，后续确认无直接查询后再评估删除；
+- 验收：customer 不再读 provider 的 `sla_definitions` 业务行，Q-09 关闭。
+
 ## 4. 风险登记
 
 | 风险 | 等级 | 缓解 |
@@ -59,6 +83,9 @@
 | 合并误操作导致数据错乱 | 高 | 二次确认 + 影响面预览（工单/会话/合同/项目条数）+ 审计 + 7 天回滚窗口 |
 | 客户关系形成环（A→B→A） | 中 | 写入时做环检测（深度优先，限深 5），拒绝成环 |
 | RLS 漏登记导致跨租户可见 | **高** | 新表全部入 `rls-apply` 清单，CI 增加「新表未登记即失败」检查 |
+| 同一租户行引用另一租户的 parent id | **高** | 父表 `(tenant_id,id)` 唯一索引 + 子表复合外键；服务层统一 validator |
+| 合同金额/数量/预占/实耗混算 | **高** | 金额与数量分列；`billing` 行承载预占；`contract_usage_ledger` 承载实耗；M-1/M-2 用 `effective_amount` |
+| SLA 定义快照漂移或 L1 命中率下降 | 高 | `020` 双写 + 影子对比；`source_version`/`payload_hash` 幂等；`021` 只在观察通过后执行 |
 
 ## 5. 验收清单（Definition of Done）
 
@@ -68,4 +95,7 @@
 4. 项目详情可见所属客户，客户详情可见关联项目；
 5. 合并后：被合并档案只读、关联全部重指向、审计日志完整、可回滚；
 6. 客户 A 租户的用户无法读取客户 B 租户的任何主数据（含联系人与关系）；
-7. 邮件报障原有匹配用例 100% 通过。
+7. 邮件报障原有匹配用例 100% 通过；
+8. 同租户 `customer_id` / `branch_id` / `contract_id` / `project_id` 引用由复合外键兜住；
+9. 合同预占与实耗分离，`contract_usage_ledger` 幂等键生效，M-1/M-2 按 `effective_amount` 校验；
+10. `018/019` 合同快照与 `020/021` SLA 定义快照全部通过观察；BD-1 审计为 0 行，Q-09 已关闭。

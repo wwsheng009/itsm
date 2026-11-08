@@ -306,7 +306,7 @@ const ArticleDetail: React.FC = () => {
                   <ArticleContentRenderer content={article.content} contentType={contentType} />
                   {/* Helpfulness Feedback */}
                   <Divider />
-                  <div style={{ padding: '16px 0', background: '#f9f9f9', borderRadius: 8, textAlign: 'center' }}>
+                  <div style={{ padding: '16px 0', background: 'var(--color-bg-secondary, #f9fafb)', borderRadius: 8, textAlign: 'center' }}>
                     {feedbackSubmitted ? (
                       <div>
                         <Text type="secondary">感谢您的反馈！</Text>

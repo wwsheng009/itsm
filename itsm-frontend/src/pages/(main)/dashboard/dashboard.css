@@ -1,7 +1,7 @@
 /* 企业级ITSM仪表盘样式 */
 .enterprise-dashboard-container {
-  /* 使用主题定义的布局背景色 */
-  background-color: #f8fafc; /* slate-50 from antdTheme.token.colorBgLayout */
+  /* 使用主题定义的布局背景色：必须走 token，硬编码 #f8fafc 会让暗色主题下整页仍是白底 */
+  background-color: var(--color-background-secondary, #f8fafc);
   padding: 24px; /* Consistent with antdTheme.token.paddingLG */
   scroll-behavior: smooth;
 }

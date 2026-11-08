@@ -218,7 +218,7 @@ const HelpDraftReviewCard: React.FC<HelpDraftReviewCardProps> = ({
                 overflow: 'auto',
                 border: '1px solid rgba(5,5,5,0.12)',
                 borderRadius: 6,
-                background: '#fff',
+                background: 'var(--color-background-primary)',
               }}
             >
               {active.diff.length === 0 ? (

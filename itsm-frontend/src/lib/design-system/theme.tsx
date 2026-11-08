@@ -126,6 +126,12 @@ export const getAntdTheme = (isDark: boolean) => {
   const borderRadiusValue = (value: string) => parseInt(value, 10);
   const lineHeightValue = (value: string) => parseFloat(value);
   const fontWeightValue = (value: string) => parseInt(value, 10);
+  const menuTextColor = colorPalette.functional.text.secondary;
+  const menuAccentColor = colorPalette.primary[700];
+  const menuBackground = colorPalette.functional.background.primary;
+  const menuHoverBackground = colorPalette.functional.background.tertiary;
+  const menuSelectedBackground = colorPalette.primary[50];
+  const menuPopupBackground = colorPalette.functional.background.elevated;
 
   return {
     algorithm: isDark ? theme.darkAlgorithm : theme.defaultAlgorithm,
@@ -202,6 +208,28 @@ export const getAntdTheme = (isDark: boolean) => {
       motionDurationFast: '0.1s',
     },
     components: {
+      // 菜单：父子项共用状态色；darkItem* 保证折叠弹层也遵循当前主题。
+      Menu: {
+        itemColor: menuTextColor,
+        itemHoverColor: menuAccentColor,
+        itemSelectedColor: menuAccentColor,
+        subMenuItemSelectedColor: menuAccentColor,
+        itemBg: menuBackground,
+        subMenuItemBg: menuBackground,
+        popupBg: menuPopupBackground,
+        itemHoverBg: menuHoverBackground,
+        itemActiveBg: colorPalette.primary[100],
+        itemSelectedBg: menuSelectedBackground,
+        darkItemColor: darkColors.functional.text.secondary,
+        darkItemHoverColor: darkColors.primary[700],
+        darkItemSelectedColor: darkColors.primary[700],
+        darkItemBg: darkColors.functional.background.primary,
+        darkPopupBg: darkColors.functional.background.elevated,
+        darkSubMenuItemBg: darkColors.functional.background.primary,
+        darkItemHoverBg: darkColors.functional.background.tertiary,
+        darkItemSelectedBg: darkColors.primary[50],
+      },
+
       // 按钮组件
       Button: {
         borderRadius: borderRadiusValue(borderRadius.lg),

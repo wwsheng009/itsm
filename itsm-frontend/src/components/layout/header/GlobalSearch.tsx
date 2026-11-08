@@ -188,8 +188,8 @@ export const GlobalSearch: React.FC<GlobalSearchProps> = ({
               gap: 10,
               padding: '10px 12px',
               borderRadius: DESIGN.radius.md,
-              border: `1px solid ${DESIGN.colors.border}`,
-              background: DESIGN.colors.bgSubtle,
+              border: '1px solid var(--color-border-primary, #e5e7eb)',
+              background: 'var(--color-background-primary, #ffffff)',
               cursor: 'pointer',
             }}
           >
@@ -198,7 +198,7 @@ export const GlobalSearch: React.FC<GlobalSearchProps> = ({
               <div style={{ fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                 问 AI：{searchValue.trim()}
               </div>
-              <div style={{ fontSize: 12, color: DESIGN.colors.textMuted }}>
+              <div style={{ fontSize: 12, color: 'var(--color-text-tertiary, #6b7280)' }}>
                 在 AI 助手中继续（Ctrl+Enter）
               </div>
             </div>
@@ -248,16 +248,16 @@ export const SearchInput: React.FC<SearchInputProps> = ({ value, onChange, onSea
     <Input
       className={styles.headerSearchInput}
       placeholder='搜索...'
-      prefix={<Search size={14} style={{ color: DESIGN.colors.textMuted }} />}
+      prefix={<Search size={14} style={{ color: 'var(--color-text-tertiary, #6b7280)' }} />}
       suffix={
         <kbd
           style={{
             fontSize: 11,
             padding: '1px 5px',
             borderRadius: 3,
-            background: DESIGN.colors.bgSubtle,
-            border: `1px solid ${DESIGN.colors.border}`,
-            color: DESIGN.colors.textMuted,
+            background: 'var(--color-bg-secondary, #f9fafb)',
+            border: '1px solid var(--color-border-primary, #e5e7eb)',
+            color: 'var(--color-text-tertiary, #6b7280)',
             lineHeight: 1.4,
           }}
         >
@@ -276,8 +276,8 @@ export const SearchInput: React.FC<SearchInputProps> = ({ value, onChange, onSea
         display: 'inline-flex',
         alignItems: 'center',
         borderRadius: DESIGN.radius.md,
-        border: `1px solid ${DESIGN.colors.border}`,
-        background: DESIGN.colors.bgSubtle,
+        border: '1px solid var(--color-border-primary, #e5e7eb)',
+        background: 'var(--color-bg-secondary, #f9fafb)',
         fontSize: 13,
       }}
     />

@@ -53,6 +53,24 @@ python scripts/demo/seed_demo_dataset.py \
 
 执行：`docker exec -i itsm-postgres-prod psql -U itsm -d itsm_demo < scripts/demo/<file>.sql`
 
+## 发布附件冒烟
+
+`smoke_attachment_upload.py` 由 `scripts/deploy-demo.sh` 在发布后自动调用，也可独立执行：
+
+```bash
+DEMO_ADMIN_PASSWORD='***' python scripts/demo/smoke_attachment_upload.py \
+  --base-url http://127.0.0.1:8089 \
+  --report .deploy/demo/smoke-attachment.json
+```
+
+它使用评论编辑器的真实链路：
+
+1. `POST /api/v1/tickets/:id/attachments`，`usage=comment_attachment`；
+2. 下载 preview 并校验 SHA256；
+3. 删除探针附件。
+
+口令只从环境变量读取，不进入 argv 和报告；环境无可见工单时输出 `skipped`。
+
 ## 数据集定义位置
 
 - 租户/用户/分配：见文件 `# 1.` 段（`TENANTS` / `USERS` / `ALLOCATIONS`）；

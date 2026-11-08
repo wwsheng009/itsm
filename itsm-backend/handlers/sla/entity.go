@@ -43,9 +43,9 @@ type SLADefinitionGrant struct {
 	DefinitionName string `json:"definitionName,omitempty"`
 }
 
-// ProvidedDefinition customer 视角的"服务商下发定义"（D-SLA-1 只读视图）。
-// P1-2 起数据源升级为合同链（active 合同 → bindings → 定义；grant 写入口已停用），
-// customer 不可修改（四层写保护）。
+// ProvidedDefinition customer 视角的“服务商下发定义”（D-SLA-1 只读视图）。
+// 数据源为客户租户内 sla_definition_snapshots（合同绑定 / grant 下发），
+// customer 不可修改（四层写保护），不再读 provider 的 sla_definitions 原行。
 type ProvidedDefinition struct {
 	ContractID       int        `json:"contractId"`
 	ContractNo       string     `json:"contractNo,omitempty"`

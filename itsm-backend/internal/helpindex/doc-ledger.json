@@ -1,9 +1,9 @@
 {
-  "generatedAt": "2026-10-20T05:05:19.216Z",
+  "generatedAt": "2026-11-07T02:04:07.731Z",
   "coverage": 1,
   "totals": {
-    "pages": 22,
-    "ok": 22,
+    "pages": 44,
+    "ok": 44,
     "missing": 0,
     "stale": 0,
     "orphan": 0
@@ -218,6 +218,204 @@
       "entrypoint": "chat",
       "docs": [
         "docs/help/ai/observability.md"
+      ],
+      "status": "ok"
+    },
+    "project.workspace": {
+      "title": "项目管理",
+      "pattern": "/projects",
+      "entrypoint": "chat",
+      "docs": [
+        "docs/help/projects/workspace.md"
+      ],
+      "status": "ok"
+    },
+    "asset.workspace": {
+      "title": "资产管理",
+      "pattern": "/assets",
+      "entrypoint": "chat",
+      "docs": [
+        "docs/help/assets/workspace.md"
+      ],
+      "status": "ok"
+    },
+    "license.workspace": {
+      "title": "许可证管理",
+      "pattern": "/licenses",
+      "entrypoint": "chat",
+      "docs": [
+        "docs/help/licenses/workspace.md"
+      ],
+      "status": "ok"
+    },
+    "release.workspace": {
+      "title": "发布管理",
+      "pattern": "/releases",
+      "entrypoint": "chat",
+      "docs": [
+        "docs/help/releases/workspace.md"
+      ],
+      "status": "ok"
+    },
+    "approval.center": {
+      "title": "统一审批中心",
+      "pattern": "/approvals",
+      "entrypoint": "chat",
+      "docs": [
+        "docs/help/approvals/pending.md"
+      ],
+      "status": "ok"
+    },
+    "notification.center": {
+      "title": "通知中心",
+      "pattern": "/notifications",
+      "entrypoint": "chat",
+      "docs": [
+        "docs/help/notifications/center.md"
+      ],
+      "status": "ok"
+    },
+    "problem.create": {
+      "title": "新建问题",
+      "pattern": "/problems/new",
+      "entrypoint": "chat",
+      "docs": [
+        "docs/help/problems/workspace.md"
+      ],
+      "status": "ok"
+    },
+    "problem.detail": {
+      "title": "问题详情",
+      "pattern": "/problems/:id",
+      "entrypoint": "chat",
+      "docs": [
+        "docs/help/problems/workspace.md"
+      ],
+      "status": "ok"
+    },
+    "problem.trends": {
+      "title": "问题趋势分析",
+      "pattern": "/problems/trends",
+      "entrypoint": "chat",
+      "docs": [
+        "docs/help/problems/workspace.md"
+      ],
+      "status": "ok"
+    },
+    "problem.knownErrors": {
+      "title": "已知错误",
+      "pattern": "/problems/known-errors",
+      "entrypoint": "chat",
+      "docs": [
+        "docs/help/problems/workspace.md"
+      ],
+      "status": "ok"
+    },
+    "noc.workbench": {
+      "title": "NOC 工作台",
+      "pattern": "/noc",
+      "entrypoint": "chat",
+      "docs": [
+        "docs/help/noc/workbench.md"
+      ],
+      "status": "ok"
+    },
+    "email.workspace": {
+      "title": "邮件报障",
+      "pattern": "/email-intake",
+      "entrypoint": "chat",
+      "docs": [
+        "docs/help/email-intake/workspace.md"
+      ],
+      "status": "ok"
+    },
+    "msp.workbench": {
+      "title": "MSP 工作台",
+      "pattern": "/msp/workbench",
+      "entrypoint": "chat",
+      "docs": [
+        "docs/help/msp/workbench.md"
+      ],
+      "status": "ok"
+    },
+    "msp.dashboard": {
+      "title": "MSP 仪表盘",
+      "pattern": "/msp/dashboard",
+      "entrypoint": "chat",
+      "docs": [
+        "docs/help/msp/workbench.md"
+      ],
+      "status": "ok"
+    },
+    "msp.management": {
+      "title": "客户管理",
+      "pattern": "/msp/management",
+      "entrypoint": "chat",
+      "docs": [
+        "docs/help/msp/workbench.md"
+      ],
+      "status": "ok"
+    },
+    "msp.audit": {
+      "title": "MSP 审计",
+      "pattern": "/msp/audit",
+      "entrypoint": "chat",
+      "docs": [
+        "docs/help/msp/workbench.md"
+      ],
+      "status": "ok"
+    },
+    "audit.workspace": {
+      "title": "审计日志",
+      "pattern": "/audit-logs",
+      "entrypoint": "chat",
+      "docs": [
+        "docs/help/audit-logs/workspace.md"
+      ],
+      "status": "ok"
+    },
+    "workflow.workspace": {
+      "title": "工作流管理",
+      "pattern": "/workflow",
+      "entrypoint": "chat",
+      "docs": [
+        "docs/help/workflow/workspace.md"
+      ],
+      "status": "ok"
+    },
+    "admin.workspace": {
+      "title": "系统管理",
+      "pattern": "/admin",
+      "entrypoint": "chat",
+      "docs": [
+        "docs/help/admin/workspace.md"
+      ],
+      "status": "ok"
+    },
+    "system.workspace": {
+      "title": "组织与用户管理",
+      "pattern": "/system/users",
+      "entrypoint": "chat",
+      "docs": [
+        "docs/help/admin/workspace.md"
+      ],
+      "status": "ok"
+    },
+    "report.workspace": {
+      "title": "报表分析",
+      "pattern": "/reports",
+      "entrypoint": "chat",
+      "docs": [
+        "docs/help/reports/workspace.md"
+      ],
+      "status": "ok"
+    },
+    "resource.center": {
+      "title": "资源中心",
+      "pattern": "/skills",
+      "entrypoint": "chat",
+      "docs": [
+        "docs/help/resources/center.md"
       ],
       "status": "ok"
     }

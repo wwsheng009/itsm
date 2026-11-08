@@ -173,7 +173,11 @@ export const OutcomeReceipt: React.FC<OutcomeReceiptProps> = ({ outcomes, onOpen
     <Card
       size="small"
       data-testid="outcome-receipt"
-      style={{ marginTop: 8, borderColor: '#d6e4ff', background: '#f5f8ff' }}
+      style={{
+        marginTop: 8,
+        borderColor: 'var(--color-border-primary, #d6e4ff)',
+        background: 'var(--color-bg-secondary, #f5f8ff)',
+      }}
       title={
         <Space size={6}>
           <PackageCheck size={14} color="#2f54eb" />

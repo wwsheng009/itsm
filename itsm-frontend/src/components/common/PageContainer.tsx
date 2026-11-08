@@ -21,7 +21,15 @@ interface PageContainerProps {
 
 export const PageContainer: React.FC<PageContainerProps> = ({ header, extra, children }) => {
   return (
-    <div style={{ padding: '24px', background: '#fff', minHeight: '100%' }}>
+    // 背景必须跟随主题 token：硬编码 #fff 会导致暗色主题下页面仍为白底，
+    // 而文字色已按暗色 token 变浅，形成白字白底不可读（黑洞/白洞问题）。
+    <div
+      style={{
+        padding: '24px',
+        background: 'var(--color-background-primary)',
+        minHeight: '100%',
+      }}
+    >
       {(header?.title || header?.breadcrumb?.items) && (
         <>
           <div

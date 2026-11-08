@@ -298,7 +298,7 @@ const WorkflowManagementPage = () => {
         <div style={{ maxHeight: '500px', overflow: 'auto' }}>
           <pre
             style={{
-              background: '#f5f5f5',
+              background: 'var(--color-bg-secondary, #f9fafb)',
               padding: '16px',
               borderRadius: '4px',
               fontSize: '12px',

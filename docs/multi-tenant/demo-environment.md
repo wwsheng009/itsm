@@ -1,6 +1,6 @@
 # ITSM 多租户演示环境（独立演示栈）
 
-> 状态：当前（2026-10-14 更新）｜定位：面向**学习 / 演示 / 培训**的全量多租户数据集与独立环境；与主站（`8088`）**完全隔离**，可随时重建重置。
+> 状态：当前（2026-11-06 更新）｜定位：面向**学习 / 演示 / 培训**的全量多租户数据集与独立环境；与主站（`8088`）**完全隔离**，可随时重建重置。
 
 ## 1. 入口与形态
 
@@ -8,7 +8,7 @@
 |---|---|
 | 演示入口 | `http://172.18.3.238:8089`（独立栈 `itsm-demo`） |
 | 数据库 | `itsm_demo`（复用宿主 `itsm-postgres-prod` 实例，独立库） |
-| 版本 | 以 `.env.demo` 中 `VERSION` 为准（当前 `1.8.0-dev.d3a4d2a4`） |
+| 版本 | 以 `.env.demo` 中 `VERSION` 为准（当前 `1.8.0-dev.6e33fe2ff`） |
 | 部署模式 | `saas_msp`（MSP 跨租户能力开启） |
 | 容器组 | `itsm-{backend,worker,frontend,nginx,redis,ai-service,init}-demo`（7 个） |
 | 部署文件 | `docker-compose.demo.yml`、`nginx/demo/conf.d/default.conf`、`.env.demo.example` |
@@ -194,3 +194,117 @@ python scripts/demo/seed_demo_dataset.py --base-url http://172.18.3.238:8089 --a
 | `5e4eab85` | 序列校正时机修复（全新库首次开通租户 500） |
 | `118c2322` + `c7ac0abc` | OB-18 P0：租户配置解析器（Redis 失效）+ 按租户邮件解析 + 凭据 AES-GCM/掩码/审计 + 前端文案；238 v8 实测 23/23（含占位 SMTP 回退缺陷修复） |
 | 本批 | 演示数据集种子器 `scripts/demo/seed_demo_dataset.py` + 本指南 |
+
+## 8. 发布、回滚与上传冒烟（2026-11-06）
+
+演示栈发布统一使用 `scripts/deploy-demo.sh`，禁止再手工拼「build → sed → up」步骤。
+该脚本把 238 曾出现的 `uploads` bind-mount 权限问题、初始化未成功即切主服务、
+以及「服务 healthy 但附件上传 400」纳入发布门禁。
+
+### 8.1 发布
+
+```bash
+cd /home/n9e/itsm/repo
+
+# 1) 只读预检（工具 / env / compose / DB / 当前上传目录可写性）
+bash scripts/deploy-demo.sh preflight
+
+# 2) 完整发布：备份 → 构建 → 修 uploads ACL → init exit=0 → up → 冒烟
+bash scripts/deploy-demo.sh deploy --version "1.8.0-dev.$(git rev-parse --short=8 HEAD)"
+
+# 等价的 Makefile 入口
+make demo-deploy DEMO_ARGS='--skip-build'
+```
+
+若执行用户不在 docker 组，脚本会自动对 Docker 命令使用 `sudo`（交互式环境只需认证一次，
+也可直接 `sudo bash scripts/deploy-demo.sh ...`）；证据目录会归回 `SUDO_USER`，避免 root
+独占备份文件。
+
+AI 源码未变更时避免重复构建大镜像，可显式复用已验证镜像并重打版本 tag：
+
+```bash
+bash scripts/deploy-demo.sh deploy \
+  --version "1.8.0-dev.$(git rev-parse --short=8 HEAD)" \
+  --reuse-ai itsm-ai-service:1.8.0-dev.5b070145
+```
+
+常用选项：
+
+| 选项 | 用途 |
+|---|---|
+| `--skip-build` | 复用已存在的目标版本镜像 |
+| `--skip-backup` | 跳过备份（仅限已确认可丢弃的临时环境） |
+| `--skip-attachment-smoke` | 跳过认证附件上传冒烟（不推荐） |
+| `--smoke-url` | 覆盖冒烟入口（默认 `http://127.0.0.1:${DEMO_HTTP_PORT:-8089}`） |
+| `--smoke-ticket-id` | 指定附件冒烟工单（默认取当前管理员可见第一张） |
+| `--allow-dirty` | 允许 tracked 工作树有未提交变更（默认拒绝） |
+
+发布证据固定写入：
+
+```text
+backups/demo-release-<version>-<UTC时间>/
+├── .env.demo.before       # 发布前环境文件（600）
+├── .env.demo.deployed     # 发布后环境文件（600）
+├── itsm_demo.dump         # pg_dump custom format
+├── itsm_demo.dump.sha256
+├── rollback.txt           # 前序版本/分支/commit/镜像
+├── smoke-attachment.json  # 附件上传/预览/删除结果
+└── release.txt            # 发布后容器、镜像与版本证据
+```
+
+### 8.2 uploads 权限规则
+
+后端镜像以 `app` 用户运行（当前 UID/GID `100:101`），而宿主 bind mount 由
+`n9e:1000` 创建，直接 `up -d` 会在新工单/租户首次上传时失败：
+
+```text
+attachment storage failure: create dir:
+mkdir uploads/tickets/1: permission denied
+```
+
+`deploy-demo.sh` 会在切换服务前自动对 `deploy/demo/uploads` 施加 ACL：
+
+- 递归授予容器 UID/GID `rwx`；
+- 对全部目录设置 default ACL，保证后续新建的 `tickets/<tenant>/<domain>/<ticket>` 可继承；
+- 使用目标 backend 镜像以 `${APP_UID}:${APP_GID}` 执行临时容器写入探针。
+
+手工修复与自检：
+
+```bash
+make demo-permissions DEMO_ARGS='--version 1.8.0-dev.<sha>'
+getfacl -p deploy/demo/uploads/tickets
+docker exec itsm-backend-demo sh -c \
+  'touch /app/uploads/tickets/.probe && rm -f /app/uploads/tickets/.probe'
+```
+
+若宿主文件系统不支持 ACL，脚本回退 `chown`，并提示宿主读取需 sudo。
+
+### 8.3 冒烟与回滚
+
+```bash
+# 健康 + readyz + /api/v1/version + 真实评论附件上传/预览/删除
+make demo-smoke DEMO_ARGS='--version 1.8.0-dev.<sha>'
+
+# 容器与线上版本
+make demo-status
+```
+
+附件冒烟使用工单域端点 `POST /api/v1/tickets/:id/attachments` 且
+`usage=comment_attachment`，与评论编辑器真实调用一致；测试附件为 1x1 PNG，
+校验 preview SHA256 后立即删除。若环境无可见工单则明确输出 `skipped`。
+
+回滚时从证据目录恢复旧环境并切回旧镜像：
+
+```bash
+BACKUP=backups/demo-release-<version>-<UTC时间>
+cp -p "$BACKUP/.env.demo.before" .env.demo
+docker compose --env-file .env.demo -f docker-compose.demo.yml \
+  up -d --force-recreate itsm-backend-demo itsm-worker-demo itsm-frontend-demo itsm-ai-service-demo
+```
+
+数据库仅在确认新版本造成数据不可逆变更时恢复：
+
+```bash
+docker exec -i itsm-postgres-prod pg_restore -U itsm -d itsm_demo --clean --if-exists \
+  < "$BACKUP/itsm_demo.dump"
+```

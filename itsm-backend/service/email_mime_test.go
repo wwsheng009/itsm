@@ -2,6 +2,7 @@ package service
 
 import (
 	"bytes"
+	"encoding/base64"
 	"io"
 	"mime"
 	"mime/multipart"
@@ -87,7 +88,7 @@ func TestBuildEmailMessage_NoAttachmentIsAlternative(t *testing.T) {
 	reader := multipart.NewReader(parsed.Body, boundary)
 	parts := 0
 	for {
-		part, err := reader.NextPart()
+		_, err := reader.NextPart()
 		if err == io.EOF {
 			break
 		}

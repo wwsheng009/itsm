@@ -1,6 +1,6 @@
 # 04 · 多服务商场景下的客户主数据用法
 
-> 状态：Draft v1.0 · 2026-11-06
+> 状态：Draft v1.1 · 2026-11-08
 > 前置决策（已由用户拍板）：**客户不跨租户共享，所有数据都不跨租户。**
 > 本文回答一个问题：既然数据绝不跨租户，那在**多服务商（Multi-MSP Provider）**场景下，客户主数据到底怎么用、能不能用、边界在哪。
 
@@ -16,7 +16,7 @@
 | **D-B** | 不引入 `customer_global_id` / 全局客户注册中心 | 表结构不新增全局唯一客户标识 |
 | **D-C** | 客户主档仍按 `tenant_id` 归属，RLS 全覆盖 | 沿用主设计 P-01 原则不变 |
 | **D-D** | 本原则适用于**全部业务数据**，不只是客户主数据 | 铁律 BD-1~BD-4 见 [07-tenant-data-boundary.md](./07-tenant-data-boundary.md)；含 `pg_policy` 审计 SQL 与违规处置 |
-| **D-E**<br>（2026-11-06） | 现有 `msp_contracts` 的两条 `customer_read` 策略（RLS 012）**判定违规，裁决收回** | 保留现状 = 保留整行、无生命周期、不可审计的永久后门；收回须与 L1 改道同批（推荐客户租户内快照 `contract_sla_snapshots`）。**禁止先 DROP**，否则 L1 静默降级到 L4 默认 60/480 分钟。完整因果与两步过渡见 [07 §3.2 / §4.5](./07-tenant-data-boundary.md) |
+| **D-E**<br>（2026-11-06） | 现有 `msp_contracts` 的两条 `customer_read` 策略（RLS 012）**判定违规，裁决收回** | 保留现状 = 保留整行、无生命周期、不可审计的永久后门；`018` 先建客户租户内快照（含物化 `sla_terms`），`019` 再 DROP。**禁止先 DROP**，否则 L1 静默降级到 L4 默认 60/480 分钟。完整因果与两步过渡见 [07 §3.2 / §4.5](./07-tenant-data-boundary.md) |
 
 ### 1.2 四条硬推导（必须写进代码纪律）
 
@@ -165,6 +165,8 @@ VALUES (7, 200, 'msp:A-TENANT-CODE', 'CUS-0100', NULL);
 
 **结论**：对外汇报时，只能声称"我方负责范围内的达成率"，不能合成客户整体可用性。这是"不跨租户"必然带来的表述约束，需要在报表文案上明确。
 
+> provider 下发的 SLA 定义也必须经客户租户内 `sla_definition_snapshots`（Q-09 裁决 B）；customer 不直接读 provider 的 `sla_definitions`。
+
 ### 3.5 用法五：项目关联不受影响（同租户内闭环）
 
 `project_customer_links` 全程在**项目所属租户**内，不因多服务商改变：
@@ -190,6 +192,8 @@ ALTER TABLE service_customers
 ### 4.2 新增：客户主数据交接包（Handover Package）
 
 > 仅记录"交接这件事发生过、给了谁、授权人是谁、导出了什么范围的快照哈希"，**不存客户数据本体**（数据本体走客户授权的离线导出文件）。
+>
+> 落库 DDL 以 [02 §7.1](./02-ddl-and-migration.md) 为准；本节保留业务语义与状态机。
 
 ```sql
 CREATE TABLE IF NOT EXISTS customer_handover_packages (
@@ -214,6 +218,8 @@ CREATE TABLE IF NOT EXISTS customer_handover_packages (
 CREATE INDEX IF NOT EXISTS idx_handover_tenant_customer
   ON customer_handover_packages (tenant_id, customer_id, status);
 ```
+
+> `(tenant_id, customer_id)` 的复合外键与 RLS 登记见 [02 §7.2 / §9](./02-ddl-and-migration.md)；本页 SQL 仅示意字段，不作为落库权威。
 
 **状态机**
 

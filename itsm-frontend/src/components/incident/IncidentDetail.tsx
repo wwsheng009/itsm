@@ -1042,7 +1042,7 @@ const IncidentDetail: React.FC<{ id?: string }> = ({ id: propId }) => {
             </Select>
           </Form.Item>
           {data?.problemId && (
-            <div style={{ padding: '8px 12px', background: '#f5f5f5', borderRadius: 4 }}>
+            <div style={{ padding: '8px 12px', background: 'var(--color-bg-secondary, #f9fafb)', borderRadius: 4 }}>
               <AlertCircle style={{ marginRight: 8, color: '#faad14' }} />
               <span>此事件已关联问题记录 #{data.problemId}</span>
             </div>

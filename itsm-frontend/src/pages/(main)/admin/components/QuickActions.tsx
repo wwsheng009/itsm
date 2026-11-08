@@ -134,7 +134,7 @@ export const QuickActions: React.FC = () => {
             height: '100%',
             borderRadius: DESIGN.radius.lg,
             border: `1px solid ${DESIGN.colors.border}`,
-            background: 'white',
+            background: 'var(--color-background-primary)',
             transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
             overflow: 'hidden',
           }}

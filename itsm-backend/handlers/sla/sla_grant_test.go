@@ -13,6 +13,7 @@ import (
 
 	"itsm-backend/ent"
 	"itsm-backend/ent/enttest"
+	"itsm-backend/ent/sladefinitionsnapshot"
 
 	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/assert"
@@ -144,6 +145,83 @@ func TestProvidedFilters_ContractChain(t *testing.T) {
 	assert.Equal(t, int64(7), provided[0].TicketTypeID)
 	assert.Equal(t, f.def.ID, provided[0].SLADefinitionID)
 	assert.Equal(t, valid.ID, provided[0].ContractID)
+}
+
+// provided 只读快照：provider 侧合同/绑定存在但未下发快照时，customer
+// 视图必须为空，不能回读 msp_contracts / sla_definitions。
+func TestProvidedRequiresCustomerSnapshot(t *testing.T) {
+	f := setupSLAGrantFixture(t)
+	now := time.Now()
+	contract := f.client.MSPContract.Create().
+		SetProviderTenantID(f.provider.ID).
+		SetCustomerTenantID(f.customer.ID).
+		SetContractNo("provider-only-contract").
+		SetName("Provider Only").
+		SetEffectiveFrom(now.Add(-time.Hour)).
+		SetStatus("active").
+		SetTenantID(f.provider.ID).
+		SaveX(f.ctx)
+	f.client.MSPContractSLABinding.Create().
+		SetContractID(contract.ID).
+		SetSLADefinitionID(f.def.ID).
+		SetTicketTypeID(7).
+		SetTenantID(f.provider.ID).
+		SaveX(f.ctx)
+
+	provided, err := f.svc.ListProvidedDefinitions(f.ctx, f.customer.ID)
+	require.NoError(t, err)
+	require.Empty(t, provided, "无客户租户快照时不得回读 provider 数据")
+}
+
+// Q-09 B：grant 也必须物化到 customer 租户快照；定义更新会生成新 active 版本，
+// 停用后不再残留 active 快照。
+func TestSLAGrant_SnapshotLifecycle(t *testing.T) {
+	f := setupSLAGrantFixture(t)
+	g, err := f.svc.CreateGrant(f.ctx, &SLADefinitionGrant{
+		SLADefinitionID:  f.def.ID,
+		CustomerTenantID: f.customer.ID,
+		ProviderTenantID: f.provider.ID,
+		TenantID:         f.provider.ID,
+	})
+	require.NoError(t, err)
+
+	active, err := f.client.SLADefinitionSnapshot.Query().
+		Where(
+			sladefinitionsnapshot.TenantIDEQ(f.customer.ID),
+			sladefinitionsnapshot.SourceKindEQ("grant"),
+			sladefinitionsnapshot.StatusEQ("active"),
+		).
+		All(f.ctx)
+	require.NoError(t, err)
+	require.Len(t, active, 1)
+	assert.EqualValues(t, 60, active[0].Terms["response_time"])
+
+	update := toSLADefinitionDomain(f.def)
+	update.ResponseTime = 30
+	_, err = f.svc.UpdateDefinition(f.ctx, update)
+	require.NoError(t, err)
+
+	active, err = f.client.SLADefinitionSnapshot.Query().
+		Where(
+			sladefinitionsnapshot.TenantIDEQ(f.customer.ID),
+			sladefinitionsnapshot.SourceKindEQ("grant"),
+			sladefinitionsnapshot.StatusEQ("active"),
+		).
+		All(f.ctx)
+	require.NoError(t, err)
+	require.Len(t, active, 1)
+	assert.EqualValues(t, 30, active[0].Terms["response_time"])
+
+	require.NoError(t, f.svc.DeactivateGrant(f.ctx, g.ID, f.provider.ID))
+	active, err = f.client.SLADefinitionSnapshot.Query().
+		Where(
+			sladefinitionsnapshot.TenantIDEQ(f.customer.ID),
+			sladefinitionsnapshot.SourceKindEQ("grant"),
+			sladefinitionsnapshot.StatusEQ("active"),
+		).
+		All(f.ctx)
+	require.NoError(t, err)
+	require.Empty(t, active)
 }
 
 // 有效期更新与清空。

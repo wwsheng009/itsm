@@ -1,6 +1,6 @@
 # 01 · 客户主数据设计方案（主文档）
 
-> 状态：Draft v1.0 · 2026-11-06
+> 状态：Draft v1.1 · 2026-11-08
 > 目标读者：产品、架构、后端、前端、交付
 > 前置阅读：[README](./README.md)、[02 DDL 草案](./02-ddl-and-migration.md)、[03 待裁决问题](./03-open-questions.md)
 > 事实基线：`itsm-backend/ent/schema/service_customer.go`、`customer_branch.go`、`support_contract.go`、`source_organization.go`、`email_conversation.go`、`tenant.go`、`msp_allocation.go`、`user_tenant_membership.go`、`project.go`、`project_member.go`；`itsm-backend/migrations/20260824_email_intake_poc.sql`；`docs/multi-tenant/03-customer-dimension.md`；`docs/project-management/02-data-model.md`
@@ -244,7 +244,7 @@ service_customers 1 ──── N email_conversations
 | `billing_address` | jsonb | 开票地址 |
 | `tax_id` | 见标识域 | 开票税号 |
 
-> 明确的**非目标**：不做应收应付、不做对账单生成、不做税率计算。这些属于财务系统，`contracts` / `msp_contract` 已有金额与币种字段可复用。
+> 明确的**非目标**：不做应收应付、不做对账单生成、不做税率计算。这些属于财务系统。注意：`contracts` 只有 `value`（待迁 `NUMERIC`），`msp_contracts` 只有 `currency`、没有金额；客户支持合同的金额由 [06](./06-contract-modeling-design.md) 的 `support_contracts.amount` 补齐，定位为“授权额度”，不是应收。
 
 ### 4.7 生命周期域（Lifecycle）
 
@@ -253,8 +253,8 @@ service_customers 1 ──── N email_conversations
 | `status`* | varchar(32) | `active` / `inactive` / `suspended` | 沿用现有，控制是否参与匹配 |
 | `lifecycle_stage`* | varchar(32) | `prospect` / `onboarding` / `active` / `renewal` / `churned` / `archived` | 运营阶段 |
 | `onboarded_at` | timestamptz | — | 完成开通时间 |
-| `contract_start_at` | timestamptz | — | 当前合同起始（可由合同表派生，冗余展示） |
-| `contract_end_at` | timestamptz | — | 当前合同到期（用于续约提醒） |
+| `contract_start_at` | timestamptz | — | 当前合同起始（由 `support_contracts.effective_from` 派生，只读） |
+| `contract_end_at` | timestamptz | — | 当前合同到期（由 `support_contracts.effective_until` 派生，只读，用于续约提醒） |
 | `churn_at` | timestamptz | — | 流失时间 |
 | `churn_reason` | varchar(255) | — | 流失原因 |
 
@@ -263,10 +263,12 @@ service_customers 1 ──── N email_conversations
 ```
 prospect ──开通──> onboarding ──readiness 通过──> active
                      │                              │
-                     └────失败/放弃────> archived     ├──合同临期 90d──> renewal ──续签──> active
+                      └────失败/放弃────> archived     ├──进入续约提前期──> renewal ──续签──> active
                                                     └──退租/终止────> churned ──归档──> archived
 archived / churned ──重启合作──> onboarding
 ```
+
+> 续约提前期不是固定 90 天，按客户等级 S 90 / A 60 / B·C 30 天（与 [06 §4.2](./06-contract-modeling-design.md) 一致）。
 
 **与租户状态的关系（重要）**
 
@@ -379,13 +381,14 @@ SELECT * FROM up ORDER BY depth;
 
 **规则**
 1. `link_type='primary'` 每客户最多一个（部分唯一索引）；
-2. 写入时校验 `linked_tenant_id` 存在，且若当前档案所属租户是 `msp_provider`，则目标租户必须 `type='msp_customer'` 且 `msp_provider_id` 等于当前租户（对齐 IP-P0-4 归属唯一写通道）；
-3. **不修改** `tenants` 的任何字段（套餐、配额、状态仍由租户管理页负责）；
-4. `provision_status` 由租户开通接口回写，本表只读展示。
+2. 同一 `tenant_id` 下，一个 `linked_tenant_id` 只能对应一条存活主档映射（反向唯一索引 `uq_ctlink_linked_tenant`）；
+3. 写入时校验 `linked_tenant_id` 存在，且若当前档案所属租户是 `msp_provider`，则目标租户必须 `type='msp_customer'` 且 `msp_provider_id` 等于当前租户（对齐 IP-P0-4 归属唯一写通道）；
+4. **不修改** `tenants` 的任何字段（套餐、配额、状态仍由租户管理页负责）；
+5. `provision_status` 由租户开通接口回写，本表只读展示。
 
 ### 5.4 客户 ↔ 项目：`project_customer_links`
 
-> **合同正查缺口**：本表只能「从项目反查合同」，无法回答「这份合同下有哪些项目」。合同 ↔ 项目的 M:N 闭环由 `contract_project_links` 补齐，详见 [05-customer-contract-project-linkage.md](./05-customer-contract-project-linkage.md)。
+> **合同正查缺口**：本表只负责「项目 ↔ 客户」，**不承载 `contract_id`**，因此不能回答「这份合同下有哪些项目」。合同 ↔ 项目的 M:N 闭环由 `contract_project_links` 补齐，详见 [05-customer-contract-project-linkage.md](./05-customer-contract-project-linkage.md)。
 
 **为什么不在 `projects` 加列**
 
@@ -400,12 +403,13 @@ SELECT * FROM up ORDER BY depth;
 | 字段 | 语义 |
 |---|---|
 | `tenant_id` | 项目所属租户（RLS 作用域，与 `projects` 一致） |
-| `project_id` | `projects.id`（同租户，弱引用） |
-| `customer_id` | 必须是**同租户**的 `service_customers.id` |
-| `branch_id` | 可选，指定服务点 |
+| `project_id` | `projects.id`（同租户，复合外键 `(tenant_id, project_id)`） |
+| `customer_id` | 必须是**同租户**的 `service_customers.id`（复合外键） |
+| `branch_id` | 可选，指定服务点；必须属于同一客户（三列复合外键） |
 | `relation_type` | `presales`（售前）/ `delivery`（交付）/ `implementation`（实施）/ `support`（运维）/ `renewal`（续约）/ `escalation`（升级专项） |
 | `is_primary` | 主客户（每项目最多 1 个） |
-| `contract_id` | 可选，指向 `support_contracts.id` |
+
+> 本表**不再保留 `contract_id`**；合同与项目的多对多关系统一走 `contract_project_links`，避免同一业务事实出现两个来源。
 
 **跨租户怎么办（MSP 场景）**
 
@@ -422,19 +426,21 @@ SELECT * FROM up ORDER BY depth;
 
 ### 5.5 客户 ↔ 合同：`support_contracts` 增强（P1）
 
-> DDL 见 [02 §12.1](./02-ddl-and-migration.md)（过渡草案）；**合同实体最终字段与业务数据逻辑以 [06-contract-modeling-design.md](./06-contract-modeling-design.md) 为准**；合同与项目的三方闭环见 [05-customer-contract-project-linkage.md](./05-customer-contract-project-linkage.md)。
+> **合同实体最终字段与业务数据逻辑以 [06-contract-modeling-design.md](./06-contract-modeling-design.md) 为准**；02 §12.1 的过渡 DDL 已撤销；合同与项目的三方闭环见 [05-customer-contract-project-linkage.md](./05-customer-contract-project-linkage.md)。
 
 | 新增字段 | 类型 | 说明 |
 |---|---|---|
 | `contract_type` | varchar(32) | `support` / `maintenance` / `subscription` / `project` / `framework` |
 | `contract_name` | varchar(255) | 合同名称 |
-| `amount` | numeric(18,2) | 合同金额（展示，不做财务核算） |
+| `amount` | numeric(18,2) | 合同授权总额（TCV），用于服务项汇总与项目分配上限；不是应收/开票金额 |
 | `currency` | varchar(8) | 币种 |
+| `effective_from` / `effective_until` | timestamptz | 统一有效期（半开区间；旧 `start_at/end_at` 只读） |
 | `sla_definition_id` | bigint | 合同级 SLA（弱引用），优先级高于客户级 |
 | `parent_contract_id` | bigint | 框架合同 → 子合同 |
 | `renewal_of_contract_id` | bigint | 续签链 |
 | `auto_renew` | boolean | 是否自动续约 |
 | `terminated_at` / `termination_reason` | — | 提前终止 |
+| `deleted_at` / `version` | — | 软删、乐观锁（CC-5/6） |
 
 **SLA 优先级**（修订版，服务项级最高；与 [06 §6.2](./06-contract-modeling-design.md) 一致）
 
@@ -597,11 +603,11 @@ provider A 租户(id=3)                          provider B 租户(id=7)
 
 当出现「域名不在任何客户上、但同一域名 30 天内 ≥3 次来信」时：
 
-1. 生成**候选客户档案**草稿（`status='active'`、`lifecycle_stage='prospect'`、`data_source='email_intake'`）；
-2. **不自动启用**，进入「待确认」列表，由运营一键采纳；
+1. 生成**候选客户档案**草稿（`status='inactive'`、`lifecycle_stage='prospect'`、`data_source='email_intake'`）；
+2. **不自动启用**，进入「待确认」列表，由运营一键采纳；采纳后再置 `status='active'`；
 3. 采纳时自动补 `email_domains`、`main_phone`（从签名提取）、`service_email`。
 
-> 这是防止「AI 自动建出一堆脏档案」的关键闸门，必须保留人工确认。
+> `status` 控制是否参与匹配（§4.7），候选档案必须保持 `inactive`；否则“待确认”草稿会被下一封邮件立即命中。这是防止「AI 自动建出一堆脏档案」的关键闸门，必须保留人工确认。
 
 ### 8.3 客户活跃度指标（供分级运营）
 
@@ -630,20 +636,24 @@ provider A 租户(id=3)                          provider B 租户(id=7)
 ### 9.2 合并流程（`POST /customers/:id/merge`）
 
 ```
-1. 预览影响面：工单数 / 会话数 / 合同数 / 分支数 / 联系人 / 项目链接 / 租户映射
+1. 预览影响面：工单数 / 会话数 / 合同数 / 服务项 / 项目链接 / 分支数 / 联系人 / 租户映射 / 外部标识 / 交接包
 2. 选择保留主档（target），确认被合并档（source）
 3. 冲突处理：
    - 标量字段：逐字段选「保留 target / 取 source」
    - 联系人：全部迁移，同邮箱去重
    - 分支：迁移，重名时追加「(来自 source.name)」
    - 关系：迁移，成环则拒绝并列出冲突
+   - 租户映射：primary / billing anchor 冲突时先由用户选定唯一锚点
+   - 项目/合同链接：项目主客户、billing 行、合同客户冲突时拒绝并列出明细
 4. 事务内执行：
-   - 更新所有关联表 customer_id → target
+   - 先迁移 `project_customer_links`，再迁移 `support_contracts.customer_id`（L-04 的合并例外），最后迁移联系人/分支/关系/租户映射/外部标识/交接包/会话
    - source.historical_names += [source.name, ...source.aliases]
    - source.merged_into_id = target.id；source.status='inactive'；source.deleted_at=now()
    - 写 auditlog（含 before/after 快照与操作人）
 5. 返回合并报告（迁移条数、冲突项、耗时）
 ```
+
+> 合并是 [05 L-04](./05-customer-contract-project-linkage.md) 的唯一例外，必须使用 `customer.merge` 权限并在同一事务内写审计；任何唯一键冲突都必须回滚，不允许部分合并。
 
 **回滚**：`POST /customers/:id/merge/undo`（7 天内 + `customer.merge.undo` 权限），依据 auditlog 快照反向恢复。
 
@@ -792,11 +802,16 @@ POST /api/v1/customers
 | P0 | DDL + ent schema + 主档 CRUD + 联系人 + 租户映射 + 列表/表单改造 | 后端 6 人日，前端 5 人日 |
 | P1 | 关系表 + 项目链接 + 合并 + 质量分 + 关系树 UI | 后端 6 人日，前端 5 人日 |
 | P2 | 外部 ID + AI 五级匹配 + 360 视图 | 后端 5 人日，前端 6 人日 |
+| C1（与 P1 衔接） | 合同聚合根 + 服务项/变更单/用量台账 + `contract_project_links` | 见 [06 §9.1](./06-contract-modeling-design.md)，另行估算 |
+| C2（与 P2 衔接） | `018/019` 快照下发 + G17 收回 + 结算快照 | 见 [07 §4.5](./07-tenant-data-boundary.md)，另行估算 |
+| C3（与 C2 并行） | `020/021` SLA 定义快照 + 011 收回（Q-09 B） | 见 [07 §4.6](./07-tenant-data-boundary.md)，另行估算 |
 | 贯穿 | 迁移脚本、RLS 登记、单测/E2E、文档 | 4 人日 |
 
 **前置依赖**
 - P0 需先确认 `03-open-questions.md` 的 Q-01 / Q-03 / Q-07（影响表结构）；
 - P1 的合并功能需 auditlog 支持结构化快照（现有 `auditlog` 需确认字段容量）。
+- C1 依赖 P1 的 `project_customer_links`；C2 依赖 C1 完成且 `018` 快照双写观察通过，禁止先执行 `019`。
+- C3 依赖 L1 读取改造；`020` 快照双写观察通过后才能执行 `021`，禁止先 DROP。
 
 ---
 
@@ -811,7 +826,9 @@ POST /api/v1/customers
 5. 合并后：被合并档案只读、关联全部重指向、审计完整、7 天内可撤销；
 6. 客户 A 租户用户无法读取客户 B 租户的任何客户主数据（含联系人、关系、映射）；
 7. 列表筛选「质量分 < 60」返回结果与后端计算一致；
-8. 新增表单 6 个 Tab 在 1280 / 1440 / 1920 宽度下无破版，中英文切换正常。
+8. 新增表单 6 个 Tab 在 1280 / 1440 / 1920 宽度下无破版，中英文切换正常；
+9. 跨租户 `customer_id` / `branch_id` / `contract_id` / `project_id` 写入被复合外键拒绝；
+10. 客户合并可在 L-04 例外路径完成，且所有唯一键冲突都能回滚。
 
 ### 13.2 主要风险
 
@@ -820,5 +837,5 @@ POST /api/v1/customers
 | 字段过多导致表单不可用 | 分组 Tab + 必填极简 + 质量分驱动补全 |
 | 合并误操作 | 影响面预览 + 二次确认 + 审计 + 撤销窗口 |
 | RLS 漏登记 | 新表强制登记 + CI 检查 |
-| 跨租户越权 | 全文弱引用 + 服务层校验 + 现有受控访问中间件 |
+| 跨租户越权 | 同租户引用用复合外键，跨租户用弱引用 + 服务层校验 + 现有受控访问中间件 |
 | 与租户配置双写不一致 | 原则 P-03：租户配置只在 `tenants`，主档只缓存只读快照 |

@@ -6,8 +6,9 @@ import { useLocation, useNavigate } from 'react-router';
  */
 
 import React, { useEffect, useRef } from 'react';
-import { App, Layout, theme } from 'antd';
+import { App, Layout } from 'antd';
 import { useAuthStore, useAuthStoreHydration } from '@/lib/store/auth-store';
+import { useTheme } from '@/lib/design-system/theme';
 import { LAYOUT_CONFIG } from '@/config/layout.config';
 import styles from './Sidebar.module.css';
 import type { MenuItem } from './menu-config';
@@ -118,7 +119,8 @@ function normalizeMenuPath(raw: string): string {
  * 侧边栏组件
  */
 export const Sidebar: React.FC<SidebarProps> = ({ collapsed, onCollapse, mobile = false }) => {
-  const { token } = theme.useToken();
+  const { isDark } = useTheme();
+  const menuTheme = isDark ? 'dark' : 'light';
   const { message } = App.useApp();
   const navigate = useNavigate();
   const pathname = useLocation().pathname;
@@ -236,6 +238,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ collapsed, onCollapse, mobile 
 
   return (
     <Sider
+      theme={menuTheme}
       trigger={null}
       collapsible
       collapsed={collapsed}
@@ -244,10 +247,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ collapsed, onCollapse, mobile 
       collapsedWidth={mobile ? 0 : LAYOUT_CONFIG.sider.collapsedWidth}
       width={LAYOUT_CONFIG.sider.width}
       className={styles.sider}
-      style={{
-        borderRight: `1px solid ${token.colorBorder}`,
-        zIndex: LAYOUT_CONFIG.zIndex.sider,
-      }}
+      style={{ zIndex: LAYOUT_CONFIG.zIndex.sider }}
     >
       {/* Logo 区域 */}
       <div className={`${styles.logoArea} ${collapsed ? styles.logoAreaCollapsed : ''}`}>
@@ -262,7 +262,12 @@ export const Sidebar: React.FC<SidebarProps> = ({ collapsed, onCollapse, mobile 
 
       {/* 主菜单 */}
       <div className={styles.mainMenu} style={{ flex: 1, overflowY: collapsed ? 'visible' : 'auto', opacity: capabilitiesLoading ? 0.85 : 1 }}>
-        <MenuItems items={mainMenus} selectedKeys={[pathname]} onMenuClick={handleMenuClick} />
+        <MenuItems
+          items={mainMenus}
+          selectedKeys={[pathname]}
+          onMenuClick={handleMenuClick}
+          theme={menuTheme}
+        />
       </div>
 
       {/* 管理员菜单 */}
@@ -270,7 +275,12 @@ export const Sidebar: React.FC<SidebarProps> = ({ collapsed, onCollapse, mobile 
         <div className={styles.adminMenuContainer}>
           {!collapsed && <div className={styles.adminMenuHeader}>管理功能</div>}
           <div className={styles.adminMenu}>
-            <MenuItems items={adminMenus} selectedKeys={[pathname]} onMenuClick={handleMenuClick} />
+            <MenuItems
+              items={adminMenus}
+              selectedKeys={[pathname]}
+              onMenuClick={handleMenuClick}
+              theme={menuTheme}
+            />
           </div>
         </div>
       )}

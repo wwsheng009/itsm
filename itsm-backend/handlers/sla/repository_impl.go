@@ -17,6 +17,7 @@ import (
 	"itsm-backend/ent/slaalertrule"
 	"itsm-backend/ent/sladefinition"
 	"itsm-backend/ent/sladefinitiongrant"
+	"itsm-backend/ent/sladefinitionsnapshot"
 	"itsm-backend/ent/slametric"
 	"itsm-backend/ent/slaviolation"
 	"itsm-backend/ent/tenant"
@@ -124,6 +125,9 @@ func (r *EntRepository) UpdateDefinition(ctx context.Context, s *SLADefinition) 
 	if err != nil {
 		return nil, err
 	}
+	if err := service.ResyncDefinitionSnapshots(ctx, r.client, e.ID, e.TenantID); err != nil {
+		return nil, fmt.Errorf("sync SLA definition snapshots: %w", err)
+	}
 	return toSLADefinitionDomain(e), nil
 }
 
@@ -138,6 +142,9 @@ func (r *EntRepository) DeleteDefinition(ctx context.Context, id int, tenantID i
 		// 2026-10-14 验收修复（IM-40）：域外/不存在 id 显式 404（原 fail-quiet 200），
 		// 由 handler 经 failSLAQuery 映射为 NotFound；存在行删除路径行为不变。
 		return common.NewBusinessError(common.NotFoundCode, "SLA Definition not found", "")
+	}
+	if err := service.RevokeDefinitionSnapshots(ctx, r.client, id, tenantID); err != nil {
+		return fmt.Errorf("revoke SLA definition snapshots: %w", err)
 	}
 	return nil
 }
@@ -210,6 +217,16 @@ func (r *EntRepository) CreateGrant(ctx context.Context, g *SLADefinitionGrant) 
 	}
 
 	// ③ deactivate-then-activate：同 customer + 同 type（0=类型无关）的旧授权先停用
+	oldGrants, err := tx.SLADefinitionGrant.Query().
+		Where(
+			sladefinitiongrant.CustomerTenantIDEQ(g.CustomerTenantID),
+			sladefinitiongrant.TicketTypeIDEQ(g.TicketTypeID),
+			sladefinitiongrant.IsActiveEQ(true),
+		).
+		All(ctx)
+	if err != nil {
+		return nil, err
+	}
 	if _, err := tx.SLADefinitionGrant.Update().
 		Where(
 			sladefinitiongrant.CustomerTenantIDEQ(g.CustomerTenantID),
@@ -236,6 +253,14 @@ func (r *EntRepository) CreateGrant(ctx context.Context, g *SLADefinitionGrant) 
 
 	if err := tx.Commit(); err != nil {
 		return nil, err
+	}
+	if err := service.SyncGrantSnapshot(ctx, r.client, created.ID); err != nil {
+		return nil, fmt.Errorf("sync SLA grant snapshot: %w", err)
+	}
+	for _, old := range oldGrants {
+		if err := service.SyncGrantSnapshot(ctx, r.client, old.ID); err != nil {
+			return nil, fmt.Errorf("sync deactivated SLA grant snapshot: %w", err)
+		}
 	}
 	return toSLADefinitionGrantDomain(created), nil
 }
@@ -288,6 +313,9 @@ func (r *EntRepository) UpdateGrantValidUntil(ctx context.Context, id int, provi
 	if err != nil {
 		return nil, err
 	}
+	if err := service.SyncGrantSnapshot(ctx, r.client, e.ID); err != nil {
+		return nil, fmt.Errorf("sync SLA grant snapshot: %w", err)
+	}
 	return toSLADefinitionGrantDomain(e), nil
 }
 
@@ -296,53 +324,66 @@ func (r *EntRepository) DeactivateGrant(ctx context.Context, id int, providerTen
 		Where(sladefinitiongrant.IDEQ(id), sladefinitiongrant.TenantIDEQ(providerTenantID)).
 		SetIsActive(false).
 		Save(ctx)
-	return err
+	if err != nil {
+		return err
+	}
+	if err := service.SyncGrantSnapshot(ctx, r.client, id); err != nil {
+		return fmt.Errorf("sync SLA grant snapshot: %w", err)
+	}
+	return nil
 }
 
-// ListProvidedDefinitions customer 侧只读视图（P1-2 起数据源升级为合同链）：
-// active 合同（合同期内）→ bindings → 定义（active）。grant 表不再参与读路径。
+// ListProvidedDefinitions customer 侧只读视图：只读本租户内的 SLA 定义快照，
+// 不读 provider 的 msp_contracts / sla_definitions / grants 原行。
 func (r *EntRepository) ListProvidedDefinitions(ctx context.Context, customerTenantID int) ([]*ProvidedDefinition, error) {
 	now := time.Now()
-	contracts, err := r.client.MSPContract.Query().
+	rows, err := r.client.SLADefinitionSnapshot.Query().
 		Where(
-			mspcontract.CustomerTenantIDEQ(customerTenantID),
-			mspcontract.StatusEQ("active"),
-			mspcontract.EffectiveFromLTE(now),
-			mspcontract.Or(
-				mspcontract.EffectiveUntilIsNil(),
-				mspcontract.EffectiveUntilGT(now),
+			sladefinitionsnapshot.TenantIDEQ(customerTenantID),
+			sladefinitionsnapshot.StatusEQ("active"),
+			sladefinitionsnapshot.EffectiveFromLTE(now),
+			sladefinitionsnapshot.Or(
+				sladefinitionsnapshot.EffectiveUntilIsNil(),
+				sladefinitionsnapshot.EffectiveUntilGT(now),
 			),
 		).
-		WithSLABindings(func(q *ent.MSPContractSLABindingQuery) {
-			q.WithSLADefinition()
-		}).
-		Order(ent.Desc(mspcontract.FieldEffectiveFrom), ent.Desc(mspcontract.FieldID)).
+		Order(
+			ent.Asc(sladefinitionsnapshot.FieldSourceKind),
+			ent.Desc(sladefinitionsnapshot.FieldEffectiveFrom),
+			ent.Desc(sladefinitionsnapshot.FieldSourceVersion),
+		).
 		All(ctx)
 	if err != nil {
 		return nil, err
 	}
-	out := make([]*ProvidedDefinition, 0)
-	for _, c := range contracts {
-		for _, b := range c.Edges.SLABindings {
-			def := b.Edges.SLADefinition
-			if def == nil || !def.IsActive {
-				continue
-			}
-			out = append(out, &ProvidedDefinition{
-				ContractID:       c.ID,
-				ContractNo:       c.ContractNo,
-				SLADefinitionID:  def.ID,
-				Name:             def.Name,
-				Description:      def.Description,
-				ServiceType:      def.ServiceType,
-				Priority:         def.Priority,
-				ResponseTime:     def.ResponseTime,
-				ResolutionTime:   def.ResolutionTime,
-				TicketTypeID:     b.TicketTypeID,
-				ProviderTenantID: c.ProviderTenantID,
-				ValidUntil:       c.EffectiveUntil,
-			})
+	out := make([]*ProvidedDefinition, 0, len(rows))
+	for _, row := range rows {
+		def := service.DefinitionFromSnapshot(row)
+		if def == nil {
+			continue
 		}
+		contractID := 0
+		if row.SourceContractID != nil {
+			contractID = *row.SourceContractID
+		}
+		ticketTypeID := int64(0)
+		if row.TicketTypeID != nil {
+			ticketTypeID = *row.TicketTypeID
+		}
+		out = append(out, &ProvidedDefinition{
+			ContractID:       contractID,
+			ContractNo:       row.SourceContractNo,
+			SLADefinitionID:  def.ID,
+			Name:             def.Name,
+			Description:      def.Description,
+			ServiceType:      def.ServiceType,
+			Priority:         def.Priority,
+			ResponseTime:     def.ResponseTime,
+			ResolutionTime:   def.ResolutionTime,
+			TicketTypeID:     ticketTypeID,
+			ProviderTenantID: row.SourceTenantID,
+			ValidUntil:       row.EffectiveUntil,
+		})
 	}
 	return out, nil
 }
@@ -495,6 +536,9 @@ func (r *EntRepository) CreateContract(ctx context.Context, c *MSPContract) (*MS
 	if err := tx.Commit(); err != nil {
 		return nil, err
 	}
+	if err := service.SyncContractSnapshot(ctx, r.client, created.ID); err != nil {
+		return nil, fmt.Errorf("sync SLA contract snapshot: %w", err)
+	}
 	return r.GetContract(ctx, created.ID, c.ProviderTenantID)
 }
 
@@ -583,6 +627,9 @@ func (r *EntRepository) UpdateContract(ctx context.Context, c *MSPContract) (*MS
 
 	if err := tx.Commit(); err != nil {
 		return nil, err
+	}
+	if err := service.SyncContractSnapshot(ctx, r.client, c.ID); err != nil {
+		return nil, fmt.Errorf("sync SLA contract snapshot: %w", err)
 	}
 	return r.GetContract(ctx, c.ID, c.ProviderTenantID)
 }

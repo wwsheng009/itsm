@@ -1,6 +1,6 @@
 # 06 · 合同建模与业务数据逻辑优化
 
-> 状态：Draft v1.0 · 2026-11-06
+> 状态：Draft v1.1 · 2026-11-08
 > 前置：所有数据不跨租户（[04](./04-multi-provider-scenario.md)）；合同 ↔ 项目闭环见 [05](./05-customer-contract-project-linkage.md)
 > 代码基线：`ent/schema/contract.go`、`support_contract.go`、`msp_contract.go`、`msp_contract_sla_binding.go`
 
@@ -68,7 +68,7 @@ field.Int("vendor_id").Optional(),   // contract.go:25
 三套实体都只有「编号 + 期限 + 状态」，**没有条款、没有服务项明细、没有计量单位、没有额度**。后果：
 
 - 无法回答「这份合同包含哪些服务、各多少量」；
-- 无法核算「合同额度被消耗了多少」（[05](./05-customer-contract-project-linkage.md) 的 `allocated_amount` 只能挂在项目上，责任在项目侧而非合同侧）；
+- 无法核算「合同额度被消耗了多少」（[05](./05-customer-contract-project-linkage.md) 的 `billing` 分配行只挂在项目侧，合同侧没有服务项额度与实耗台账）；
 - 服务目录（`service_catalog`）与合同完全脱钩，卖什么、卖多少没有记录。
 
 ### D-6 状态语义重叠，「生效」与「未到期」混为一谈
@@ -124,11 +124,11 @@ field.Int("vendor_id").Optional(),   // contract.go:25
 | provider 要给 customer 租户定 SLA 罚则并出结算快照 | `msp_contracts` |
 | 合同包含哪些服务项、各多少量、单价多少 | `support_contracts` + `contract_service_items` |
 | 合同支撑了哪些交付项目 | `contract_project_links`（05） |
-| 合同金额被消耗多少 | `contract_service_items` 额度 + 项目 `allocated_amount` |
+| 合同金额/额度被消耗多少 | `contract_service_items` 额度 + `billing` 分配行 + `contract_usage_ledger` 实耗台账 |
 
 ### 3.4 统一契约（Contract Conventions，CC-1 ~ CC-8）
 
-> 三个域**必须**共同遵守，否则报表与 API 无法统一。
+> 契约按域**分阶段适用**：CC-1 / CC-2 / CC-8 立即适用于三个域；CC-3~CC-7 先在交付域（`support_contracts`）强制执行，采购域与结算域按矩阵逐步收口。未收口项必须在路线图中显式登记，不能假装已统一。
 
 | 编号 | 契约 | 落地要求 |
 |---|---|---|
@@ -140,6 +140,17 @@ field.Int("vendor_id").Optional(),   // contract.go:25
 | **CC-6** | 乐观锁 `version` | 对齐 `projects.version` |
 | **CC-7** | 操作留痕 `created_by` / `updated_by` | — |
 | **CC-8** | 跨租户引用一律弱引用 | 不建跨租户外键（对齐 IP-P0-4 与 04） |
+
+| 契约 | `contracts`（采购） | `support_contracts`（交付） | `msp_contracts`（结算） |
+|---|---|---|---|
+| CC-1 租户内唯一 | 本次修复（§7.1） | ✅ 现有 | ✅ 现有 |
+| CC-2 NUMERIC 金额 | 本次 `value → amount` | ✅ 本次新增 | n/a（无合同金额，只存 `currency`） |
+| CC-3 `effective_*` | 🚧 采购域后续迁移 | ✅ 本次 | ✅ 现有 |
+| CC-4 状态枚举 | 🚧 采购域后续迁移 | ✅ 本次 | 🚧 后续补 `renewed` 映射 |
+| CC-5 软删 | 🚧 采购域后续迁移 | ✅ 本次 | 🚧 后续迁移 |
+| CC-6 乐观锁 | 🚧 采购域后续迁移 | ✅ 本次 | 🚧 后续迁移 |
+| CC-7 操作留痕 | 🚧 采购域后续迁移 | ✅ 本次 | 🚧 后续迁移 |
+| CC-8 跨租户弱引用 | ✅ | ✅ | ✅（G17 收回后） |
 
 **迁移时对旧字段的处理**：`start_date/end_date/start_at/end_at` 保留为**兼容只读列**，新代码只读写 `effective_from/effective_until`，双写一个版本后废弃。
 
@@ -175,7 +186,7 @@ field.Int("vendor_id").Optional(),   // contract.go:25
 ```
         ┌──────────────── 时间驱动（派生，不入库）────────────────┐
         │                                                        │
-draft ──提交──> pending_sign ──签订──> active ──end_at 临近──> (expiring)
+draft ──提交──> pending_sign ──签订──> active ──effective_until 临近──> (expiring)
                 │                       │                        │
                 └──撤回──> draft        │                        │
                                         ├──到期未续──> expired ◀──┘
@@ -183,19 +194,22 @@ draft ──提交──> pending_sign ──签订──> active ──end_at �
                                         └──签新合同──> renewed
 ```
 
-**核心改动：`expiring` 是派生状态，不存储。**
+**核心改动：`expiring` / `expired` 都是时间派生状态，列表展示不得依赖定时任务。**
 
 ```sql
 -- 列表/看板实时计算，避免定时任务漏跑导致状态漂移
 CASE
   WHEN status = 'active' AND effective_until IS NOT NULL
-       AND effective_until <= now() + (复约提前期)::interval
+       AND effective_until <= now()
+  THEN 'expired'
+  WHEN status = 'active' AND effective_until IS NOT NULL
+       AND effective_until <= now() + (续约提前期)::interval
   THEN 'expiring'
   ELSE status
 END AS display_status
 ```
 
-复约提前期按客户等级：S 级 90 天、A 级 60 天、B/C 级 30 天（与 [01 §4.3](./01-customer-master-data-design.md) 分级影响面对齐）。
+续约提前期按客户等级：S 级 90 天、A 级 60 天、B/C 级 30 天（与 [01 §4.3](./01-customer-master-data-design.md) 分级影响面对齐）。
 
 | 状态 | 入库 | 谁触发 | 允许的操作 |
 |---|---|---|---|
@@ -206,6 +220,8 @@ END AS display_status
 | `expired` | ✅ | 系统（到期任务）或人 | 只读，可续签 |
 | `terminated` | ✅ | 人（双人确认） | 只读 |
 | `renewed` | ✅ | 系统（续签生成） | 只读，指向新合同 |
+
+> **状态别名禁止**：`ended`、`suspended`、`deleted` 不属于本状态机。历史或外部文档中的 `ended` 按 `expired`（自然到期）或 `renewed`（已续签）映射；提前终止一律 `terminated`。`expired` 即使落库任务故障，`display_status` 仍按时间正确显示。
 
 ### 4.3 服务项明细：`contract_service_items`（让合同可履约）
 
@@ -223,23 +239,34 @@ CREATE TABLE IF NOT EXISTS contract_service_items (
   billing_unit      VARCHAR(32) NOT NULL DEFAULT 'month',
       -- month|quarter|year|hour|ticket|device|project
   quantity          NUMERIC(18,4) NOT NULL DEFAULT 1,
+  period_count      NUMERIC(18,4) NOT NULL DEFAULT 1,
+      -- 计费周期数：month/quarter/year 用；hour/ticket/device/project 固定 1
   unit_price        NUMERIC(18,2) NOT NULL DEFAULT 0,
-  amount            NUMERIC(18,2) NOT NULL DEFAULT 0,   -- 冗余：quantity × unit_price，写入时计算
+  amount            NUMERIC(18,2) NOT NULL DEFAULT 0,
+      -- 合同期内总金额（TCV）：quantity × unit_price × period_count；允许议价覆盖
   quota_total       NUMERIC(18,4),       -- 额度总量（工时/工单数/设备数），空=不限额
-  quota_used        NUMERIC(18,4) NOT NULL DEFAULT 0,   -- 已消耗（由计量回写）
+  quota_used        NUMERIC(18,4) NOT NULL DEFAULT 0,   -- 已消耗（由 contract_usage_ledger 同事务回写）
+  note              VARCHAR(500),        -- 议价/覆盖说明
   sla_definition_id BIGINT,              -- 服务项级 SLA（优先级最高）
   response_target_min  INT,              -- 覆盖性时限（空=用 SLA 定义）
   resolve_target_min   INT,
   sort_order        INT NOT NULL DEFAULT 0,
-  status            VARCHAR(16) NOT NULL DEFAULT 'active',
+  status            VARCHAR(16) NOT NULL DEFAULT 'active',   -- active|inactive
   deleted_at        TIMESTAMPTZ,
+  created_by        BIGINT,
+  updated_by        BIGINT,
   created_at        TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   updated_at        TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   CONSTRAINT ck_csi_qty   CHECK (quantity >= 0),
+  CONSTRAINT ck_csi_period CHECK (period_count > 0),
   CONSTRAINT ck_csi_price CHECK (unit_price >= 0),
-  CONSTRAINT ck_csi_used  CHECK (quota_used >= 0)
+  CONSTRAINT ck_csi_used  CHECK (quota_used >= 0),
+  CONSTRAINT fk_csi_contract_tenant
+    FOREIGN KEY (tenant_id, contract_id) REFERENCES support_contracts (tenant_id, id)
 );
 
+CREATE UNIQUE INDEX IF NOT EXISTS uq_csi_tenant_id
+  ON contract_service_items (tenant_id, id);
 CREATE UNIQUE INDEX IF NOT EXISTS uq_csi_contract_code
   ON contract_service_items (tenant_id, contract_id, item_code)
   WHERE deleted_at IS NULL AND item_code IS NOT NULL;
@@ -247,8 +274,11 @@ CREATE INDEX IF NOT EXISTS idx_csi_tenant_contract
   ON contract_service_items (tenant_id, contract_id, status);
 ```
 
-**为什么 `amount` 要与 `quantity × unit_price` 冗余**
-读多写少，且允许"整体议价"（`amount` 不等于乘积是合法的，例如打包优惠）。写入时计算，编辑时允许人工覆盖并记录 `note`。
+**金额与额度口径**
+- `amount` 是**合同期内总金额（TCV）**：`quantity × unit_price × period_count`；
+- 对 `month/quarter/year`，`period_count` 按合同期折算；对 `hour/ticket/device/project`，固定为 1；
+- 允许“整体议价”覆盖乘积（例如打包优惠），但覆盖必须写 `note`，并在审计日志记录原值；
+- `quota_used` 只由计量台账回写；`quota_reserved` 不落库，由 `contract_project_links` 的 `billing` 行实时汇总。
 
 ### 4.4 变更单：`contract_amendments`
 
@@ -270,8 +300,11 @@ CREATE TABLE IF NOT EXISTS contract_amendments (
   status         VARCHAR(16) NOT NULL DEFAULT 'draft',  -- draft|effective|cancelled
   signed_at      TIMESTAMPTZ,
   created_by     BIGINT,
+  updated_by     BIGINT,
   created_at     TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-  updated_at     TIMESTAMPTZ NOT NULL DEFAULT NOW()
+  updated_at     TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  CONSTRAINT fk_ca_contract_tenant
+    FOREIGN KEY (tenant_id, contract_id) REFERENCES support_contracts (tenant_id, id)
 );
 
 CREATE UNIQUE INDEX IF NOT EXISTS uq_amend_no
@@ -280,27 +313,73 @@ CREATE UNIQUE INDEX IF NOT EXISTS uq_amend_no
 
 ---
 
+### 4.5 用量台账：`contract_usage_ledger`（保证额度扣减幂等）
+
+`quota_used` 是聚合值，不能只靠“原子自增”保证正确；计量任务重试、消息重复投递都会造成重复扣减。每次实耗必须先写台账，再在同一事务内更新服务项聚合。
+
+```sql
+CREATE TABLE IF NOT EXISTS contract_usage_ledger (
+  id                BIGSERIAL PRIMARY KEY,
+  tenant_id         BIGINT NOT NULL,
+  contract_id       BIGINT NOT NULL,
+  service_item_id   BIGINT NOT NULL,
+  source_type       VARCHAR(32) NOT NULL,
+      -- timesheet|ticket|device_snapshot|project_close|manual_adjustment
+  source_ref        VARCHAR(160) NOT NULL,   -- 源单号/事件 ID，幂等键
+  quantity_delta    NUMERIC(18,4) NOT NULL DEFAULT 0,
+  amount_delta      NUMERIC(18,2) NOT NULL DEFAULT 0,
+  occurred_at       TIMESTAMPTZ NOT NULL,
+  note              VARCHAR(500),
+  created_by        BIGINT,
+  created_at        TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  CONSTRAINT uq_usage_source UNIQUE (tenant_id, service_item_id, source_type, source_ref),
+  CONSTRAINT ck_usage_delta CHECK (quantity_delta <> 0 OR amount_delta <> 0),
+  CONSTRAINT fk_usage_contract_tenant
+    FOREIGN KEY (tenant_id, contract_id) REFERENCES support_contracts (tenant_id, id),
+  CONSTRAINT fk_usage_item_tenant
+    FOREIGN KEY (tenant_id, service_item_id) REFERENCES contract_service_items (tenant_id, id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_usage_tenant_contract
+  ON contract_usage_ledger (tenant_id, contract_id, occurred_at);
+CREATE INDEX IF NOT EXISTS idx_usage_tenant_item
+  ON contract_usage_ledger (tenant_id, service_item_id, occurred_at);
+```
+
+**写入顺序（必须同事务）**
+
+1. `INSERT ... ON CONFLICT (tenant_id, service_item_id, source_type, source_ref) DO NOTHING`；
+2. 若插入成功，`UPDATE contract_service_items SET quota_used = quota_used + quantity_delta WHERE ... AND (quota_total IS NULL OR quota_used + quantity_delta <= quota_total)`；
+3. 影响行数为 0 → 回滚并返回 `CONTRACT_QUOTA_EXCEEDED`；
+4. 重复 source 命中时比对已有 `quantity_delta/amount_delta`：完全相同则幂等返回，不同则返回 `CONTRACT_USAGE_SOURCE_CONFLICT`，不得覆盖历史台账。
+
+---
+
 ## 5. 业务数据逻辑（本次核心）
 
 ### 5.1 金额三层与一致性规则
 
 ```
-① 合同总额 support_contracts.amount
-     = 服务项合计 SUM(contract_service_items.amount) ± 变更累计
+① 合同有效总额 effective_amount
+     = support_contracts.amount + 生效变更累计
+     ≥ SUM(contract_service_items.amount)
          │
 ② 服务项额度 contract_service_items.quota_total / quota_used
          │
-③ 项目分配 contract_project_links.allocated_amount   （05）
+③ 项目分配 contract_project_links.allocated_amount / allocated_hours（仅 billing 行，05）
 ```
 
-**四条校验规则**
+**五条校验规则**
 
 | 规则 | 判定 | 违反时 |
 |---|---|---|
-| **M-1** | `SUM(service_items.amount)` ≤ `contract.amount`（容差 0.01） | 警告（打包优惠合法），可配为阻断 |
-| **M-2** | `SUM(links.allocated_amount)` ≤ `contract.amount` | 阻断（超额承诺） |
+| **M-1** | `SUM(service_items.amount)` ≤ `effective_amount`（容差 0.01） | 警告（打包优惠合法），可配为阻断 |
+| **M-2** | `SUM(billing_links.allocated_amount WHERE status='active')` ≤ `effective_amount` | 阻断（超额承诺） |
 | **M-3** | `amount` 变更必须经 `contract_amendments`，不得直接改 | 阻断 |
-| **M-4** | `quota_used` 只能由**计量回写**，禁止人工编辑 | 阻断 |
+| **M-4** | `quota_used` 只能由 **`contract_usage_ledger` 同事务回写**，禁止人工编辑 | 阻断 |
+| **M-5** | 只有 `relation_type='billing'` 的 `contract_project_links` 行可携带额度 | 阻断 |
+
+> M-2 的数量维度按服务项执行：`SUM(active billing allocated_hours) ≤ quota_total - quota_used`；金额维度按合同执行：`SUM(active billing allocated_amount) ≤ effective_amount`。两者不能互相替代。
 
 **M-3 的实现方式**：`support_contracts.amount` 在 `status='active'` 后变为**只读派生列**：
 
@@ -315,16 +394,19 @@ WHERE c.id = $1 AND c.tenant_id = $2
 GROUP BY c.id;
 ```
 
-> 存储的 `amount` 保持"签约原始额"，`effective_amount` 实时计算。这样变更历史永远可追溯，不会出现"改了金额但说不清为什么"。
+> 存储的 `amount` 保持“签约原始额”，`effective_amount` 实时计算。M-1/M-2 的合同上限一律使用 `effective_amount`，不得再直接比较 `contract.amount`。这样变更历史永远可追溯，不会出现“改了金额但说不清为什么”。
 
 ### 5.2 额度扣减：预占 ≠ 实耗（最容易做错的地方）
 
 | 概念 | 字段 | 语义 | 谁写入 |
 |---|---|---|---|
 | **总额度** | `quota_total` | 合同买了多少（1000 工时） | 合同录入 |
-| **预占** | `allocated_amount` / 项目分配 | 已承诺给项目，但还没用 | 项目挂接时 |
-| **实耗** | `quota_used` | 真实消耗（工时已提交） | 计量回写（工时/工单） |
-| **可用** | `quota_total - quota_used` | 还能卖多少 | 派生 |
+| **预占（数量）** | `SUM(contract_project_links.allocated_hours)`（仅 `relation_type='billing'` 且 `status='active'`） | 已承诺给项目，但还没用 | 项目挂接时 |
+| **预占（金额）** | `SUM(contract_project_links.allocated_amount)`（仅 `billing` 且 `active`） | 已承诺给项目的合同金额 | 项目挂接时 |
+| **实耗** | `quota_used` / `contract_usage_ledger` | 真实消耗（工时已提交） | 台账同事务回写 |
+| **剩余可消耗** | `quota_total - quota_used` | 还能消耗多少 | 派生 |
+| **可再分配（数量）** | `quota_total - quota_used - SUM(active billing allocated_hours)` | 还能承诺给新项目多少 | 派生 |
+| **可再分配（金额）** | `effective_amount - SUM(active billing allocated_amount)` | 还能承诺给新项目的合同金额 | 派生 |
 
 **关键语义**：报表必须**分开呈现预占与实耗**。
 
@@ -336,29 +418,38 @@ GROUP BY c.id;
   └─ 未分配 300
 ```
 
-若把预占当实耗，会导致「额度已用完」误报，销售无法再开项目；
-若把实耗当预占，会导致超额承诺才发现。
+上例中：剩余可消耗 = 1000 - 450 = 550；可再分配 = 1000 - 450 - 700 = 300。两个值不能混用。
 
-**并发安全**：`quota_used` 回写用原子更新 + 上限守卫
+若把预占当实耗，会导致「额度已用完」误报，销售无法再开项目；若把实耗当预占，会导致超额承诺才发现。金额与数量必须分别核算，不能拿 `allocated_amount` 去比较 `quota_total`。
+
+**并发安全与幂等**：先写 `contract_usage_ledger`（唯一 source 幂等），再在同一事务内原子更新 `quota_used` 并做上限守卫：
 
 ```sql
+-- 1) 台账唯一键吸收重复事件
+INSERT INTO contract_usage_ledger
+  (tenant_id, contract_id, service_item_id, source_type, source_ref,
+   quantity_delta, occurred_at)
+VALUES ($tenantId, $contractId, $itemId, 'timesheet', $sourceRef, $delta, NOW())
+ON CONFLICT (tenant_id, service_item_id, source_type, source_ref) DO NOTHING;
+
+-- 2) 仅当台账插入成功（影响行数 1）时更新聚合
 UPDATE contract_service_items
 SET quota_used = quota_used + $delta, updated_at = NOW()
-WHERE id = $id AND tenant_id = $tenantId
-  AND (quota_total IS NULL OR quota_used + $delta <= quota_total)  -- 超限则不更新
+WHERE id = $itemId AND tenant_id = $tenantId
+  AND (quota_total IS NULL OR quota_used + $delta <= quota_total)
 RETURNING quota_used;
--- 影响行数 0 → 说明超限，返回 409 CONTRACT_QUOTA_EXCEEDED
+-- 影响行数 0 → 回滚并返回 409 CONTRACT_QUOTA_EXCEEDED
 ```
 
 ### 5.3 状态派生计算（不存储时间事实）
 
 | 展示状态 | 计算方式 |
 |---|---|
-| `expiring` | `status='active' AND effective_until <= now() + 复约提前期` |
-| `expired` | `status='active' AND effective_until < now()`（由每日任务落库为 `expired`） |
+| `expiring` | `status='active' AND effective_until > now() AND effective_until <= now() + 续约提前期` |
+| `expired` | `status='active' AND effective_until <= now()`（展示层实时；落库任务只是补偿） |
 | 剩余天数 | `effective_until - now()`，`NULL` 表示长期有效 |
 
-> 列表页一次 SQL 算出，避免 N+1；`expired` 落库由任务负责，即便任务故障，`display_status` 仍能正确显示。
+> 列表页一次 SQL 算出，避免 N+1；`display_status` 必须同时覆盖 `expired` 与 `expiring`。`expired` 落库由任务负责，即便任务故障，展示仍按时间正确。
 
 ### 5.4 日期口径（必须写死，否则对账必吵架）
 
@@ -366,8 +457,8 @@ RETURNING quota_used;
 |---|---|
 | 时区 | 统一存 `timestamptz`；展示按租户时区（`tenants.timezone`，缺省 `Asia/Shanghai`） |
 | `effective_from` | **含**当日 00:00:00 |
-| `effective_until` | **含**当日 23:59:59（即"到 12 月 31 日"表示含 12/31 全天） |
-| 工单归属判定 | `created_at ∈ [effective_from, effective_until]`（对齐 D-SLA-9 白名单④） |
+| `effective_until` | **不含**，存“结束日次日 00:00:00”；例如“到 12 月 31 日”存 `次年 1 月 1 日 00:00:00` |
+| 工单归属判定 | `created_at ∈ [effective_from, effective_until)`（对齐 D-SLA-9 白名单④） |
 | 长期有效 | `effective_until IS NULL`，不写 `9999-12-31` |
 
 ### 5.5 金额精度与舍入
@@ -420,13 +511,15 @@ RETURNING quota_used;
 
 > 与 D-SLA-9 的 L1/L2/L3 判定衔接：`msp_contracts.sla_bindings` 提供结算基准，`support_contracts` 提供服务项级细化。
 
+> **Q-09 裁决 B 的读取口径**：合同个案 SLA 读 `contract_sla_snapshots.sla_terms`；非合同/grant 下发的 SLA 定义读 `sla_definition_snapshots.terms`。两者都在 customer 租户内，禁止回读 provider 的 `sla_definitions`。
+
 ### 6.3 与项目域（05）
 
 | 环节 | 联动 |
 |---|---|
-| 建项目客户链接 | 必须存在 `active`/`expiring` 状态的合同（否则告警"未关联合同"） |
-| 建合同项目链接 | 校验 `allocated_amount ≤ 合同可用额度` |
-| 项目结项 | 释放项目未耗额度（`quota_used` 不回退，`allocated` 置为实耗） |
+| 建项目客户链接 | 不强制存在合同；无合同/无 `basis` 链时只标记“未关联合同”风险（对齐 05 T4） |
+| 建合同项目链接 | `basis`/`coverage` 只做语义关联；`billing` 行才校验 `allocated_amount/allocated_hours ≤ 服务项可用额度` |
+| 项目结项 | 释放项目未耗的预占（`quota_used` 不回退，`billing` 行的 `allocated_*` 按实耗结算后置零/关闭） |
 | 合同终止 | 关联项目强制挂起，需人工处置 |
 
 ### 6.4 与客户域（01）
@@ -434,8 +527,8 @@ RETURNING quota_used;
 | 环节 | 联动 |
 |---|---|
 | 客户 `churned` | 合同批量转 `terminated`（需人工确认，不自动） |
-| 客户合并 | 合同 `customer_id` 随之迁移（[01 §9](./01-customer-master-data-design.md) 合并流程已含） |
-| 客户等级变化 | 复约提前期随之调整（派生计算，无需改数据） |
+| 客户合并 | 合同 `customer_id` 可随之迁移，但这是 L-04 的**唯一例外**：需 `customer.merge` 权限、同事务审计，且先迁移项目客户链接再迁移合同 |
+| 客户等级变化 | 续约提前期随之调整（派生计算，无需改数据） |
 
 ---
 
@@ -446,12 +539,18 @@ RETURNING quota_used;
 ```sql
 -- D-1：全局唯一 → 租户内唯一（必须先清洗跨租户重复，见 §9.2）
 ALTER TABLE contracts DROP CONSTRAINT IF EXISTS contracts_contract_number_key;
+DROP INDEX IF EXISTS contracts_contract_number_key;
+ALTER TABLE contracts ADD COLUMN IF NOT EXISTS normalized_contract_number VARCHAR(160);
+-- 存量由统一 normalizer 回填（全角转半角、去空白、统一分隔符、字母大写），与新代码同源
 CREATE UNIQUE INDEX IF NOT EXISTS uq_contracts_tenant_no
-  ON contracts (tenant_id, upper(regexp_replace(contract_number, '\s+', '', 'g')));
+  ON contracts (tenant_id, normalized_contract_number)
+  WHERE normalized_contract_number IS NOT NULL;
 
 -- D-2：value 迁移到 NUMERIC
 ALTER TABLE contracts ADD COLUMN IF NOT EXISTS amount NUMERIC(18,2);
 UPDATE contracts SET amount = ROUND(value::numeric, 2) WHERE amount IS NULL;
+ALTER TABLE contracts
+  ADD CONSTRAINT ck_contracts_amount_nonneg CHECK (amount IS NULL OR amount >= 0);
 -- value 保留只读一版后废弃
 
 -- D-4 + 缺失索引
@@ -471,7 +570,7 @@ ALTER TABLE support_contracts
   ADD COLUMN IF NOT EXISTS effective_until  TIMESTAMPTZ,
   ADD COLUMN IF NOT EXISTS signed_at        TIMESTAMPTZ,
   -- CC-2 金额
-  ADD COLUMN IF NOT EXISTS amount           NUMERIC(18,2),
+  ADD COLUMN IF NOT EXISTS amount           NUMERIC(18,2),   -- 合同授权总额（TCV），非应收/开票基础
   ADD COLUMN IF NOT EXISTS currency         VARCHAR(8),
   ADD COLUMN IF NOT EXISTS contract_type    VARCHAR(32) NOT NULL DEFAULT 'support',
   ADD COLUMN IF NOT EXISTS contract_name    VARCHAR(255),
@@ -493,7 +592,11 @@ ALTER TABLE support_contracts
 -- 有效期回填
 UPDATE support_contracts
 SET effective_from = COALESCE(effective_from, start_at),
-    effective_until = COALESCE(effective_until, end_at)
+    effective_until = COALESCE(
+      effective_until,
+      CASE WHEN end_at IS NULL THEN NULL
+           ELSE date_trunc('day', end_at) + interval '1 day' END
+    )
 WHERE effective_from IS NULL OR effective_until IS NULL;
 
 CREATE INDEX IF NOT EXISTS idx_sc_tenant_effective
@@ -501,15 +604,33 @@ CREATE INDEX IF NOT EXISTS idx_sc_tenant_effective
   WHERE status = 'active' AND deleted_at IS NULL;
 CREATE INDEX IF NOT EXISTS idx_sc_tenant_type
   ON support_contracts (tenant_id, contract_type, status);
+
+ALTER TABLE support_contracts
+  ADD CONSTRAINT ck_sc_amount_nonneg CHECK (amount IS NULL OR amount >= 0);
 ```
+
+> 存量 `end_at` 若原本表示“结束日当天有效”，回填为次日 00:00（半开区间）；若原本是精确失效时刻，则需先确认口径再迁移，不能直接套用 `date_trunc`。
+
+> `amount` 的定位是**合同授权额度**，用于项目分配上限（M-2）与服务项汇总（M-1），不是财务应收。存量 `amount IS NULL` 的合同在签订前必须补齐金额与币种；`active` 合同建议增加服务层强校验，禁止空金额进入分配。
 
 ### 7.3 新表
 
-`contract_service_items`（§4.3）、`contract_amendments`（§4.4）、`contract_project_links`（[02 §12.3](./02-ddl-and-migration.md)）。
+`contract_service_items`（§4.3）、`contract_amendments`（§4.4）、`contract_usage_ledger`（§4.5）、`contract_project_links`（[02 §12.3](./02-ddl-and-migration.md)）。
+
+建表完成后追加 `contract_project_links.service_item_id` 的复合外键：
+
+```sql
+ALTER TABLE contract_project_links
+  ADD CONSTRAINT fk_cpl_service_item_tenant
+  FOREIGN KEY (tenant_id, service_item_id)
+  REFERENCES contract_service_items (tenant_id, id);
+```
+
+> 约束创建前先查 `pg_constraint` 判重，避免重复执行报错。
 
 ### 7.4 RLS 登记（新增）
 
-`contract_service_items`、`contract_amendments` 必须登记到 `cmd/rls-apply` 与 `internal/schema/tenant_guard.go`，与 `support_contracts` 同作用域。
+`contract_service_items`、`contract_amendments`、`contract_usage_ledger` 必须登记到 `cmd/rls-apply` 与 `internal/schema/tenant_guard.go`，与 `support_contracts` 同作用域。
 
 ---
 
@@ -526,9 +647,11 @@ CREATE INDEX IF NOT EXISTS idx_sc_tenant_type
 | POST/PUT/DELETE | `/api/v1/support-contracts/:id/items[/:itemId]` | 服务项 CRUD（`active` 后仅允许新增，不改历史） |
 | POST | `/api/v1/support-contracts/:id/amendments` | 创建变更单 |
 | POST | `/api/v1/support-contracts/:id/amendments/:aid/effect` | 变更生效（重算 `effective_amount`） |
-| GET | `/api/v1/support-contracts/:id/balance` | 额度视图（total/allocated/used/available） |
+| GET | `/api/v1/support-contracts/:id/balance` | 额度视图（total/reserved/used/remaining/available_to_allocate/available_amount） |
 | GET | `/api/v1/support-contracts/:id/projects` | 关联项目（05 正查） |
 | POST | `/api/v1/support-contracts/:id/renew` | 续签（生成新合同 + 可选结转项目） |
+
+> **路由兼容**：现有 email-intake 支持合同接口为 `/api/v1/email-intake/support-contracts`，MSP 结算合同为 `/api/v1/sla/contracts`。新 `/api/v1/support-contracts` 与 `/api/v1/contracts` 是新增统一面；上线期必须保留旧路径为兼容别名，并明确权限码：交付域 `support_contract:read|write`，结算域 `sla:contract:read|write`，不得混用。
 
 **新增错误码**
 
@@ -540,6 +663,8 @@ CREATE INDEX IF NOT EXISTS idx_sc_tenant_type
 | `CONTRACT_QUOTA_EXCEEDED` | 409 | 额度扣减超限 |
 | `CONTRACT_ALLOCATION_EXCEEDED` | 409 | 项目分配超合同额 |
 | `CONTRACT_DOMAIN_MISMATCH` | 422 | 跨域误用（如给内部项目挂外部合同） |
+| `CPL_SERVICE_ITEM_MISMATCH` | 422 | billing 行的服务项不属于该合同，或额度单位不匹配 |
+| `CONTRACT_USAGE_SOURCE_CONFLICT` | 409 | 同一计量 source 重复提交且载荷不一致 |
 
 ---
 
@@ -549,25 +674,29 @@ CREATE INDEX IF NOT EXISTS idx_sc_tenant_type
 
 | 步骤 | 动作 | 风险 |
 |---|---|---|
-| M14 | `support_contracts` 增列 + 有效期回填（§7.2） | 低（全可空） |
-| M15 | `contract_service_items` / `contract_amendments` 建表 | 低 |
-| M16 | 存量合同**生成一条汇总服务项**（`item_name='历史合同（未拆分）'`，`amount=contract.amount`），保证签订校验不失败 | 中（需确认口径） |
-| M17 | `contracts` 全局唯一 → 租户内唯一（§9.2 先清洗） | **高** |
-| M18 | `contracts.value` → `amount NUMERIC` 双写一版后废弃 | 中 |
-| M19 | 新表 RLS 登记 | 需人工 |
+| M14 | `contract_service_items` / `contract_amendments` / `contract_usage_ledger` 建表 + `service_item_id` 复合外键 | 低 |
+| M15 | 存量合同**生成一条汇总服务项**（`item_name='历史合同（未拆分）'`，`amount=COALESCE(support_contracts.amount,0)`），保证签订校验不失败 | 中（需确认口径） |
+| M16 | `contracts` 全局唯一 → 租户内唯一 + `normalized_contract_number` 回填（§9.2 先清洗） | **高** |
+| M17 | `contracts.value` → `amount NUMERIC` 双写一版后废弃 | 中 |
+| M18 | 新表 RLS 登记 | 需人工 |
+| M19 | `018`：`contract_sla_snapshots` / `settlement_statements` 建表、RLS、双写 | 中 |
+| M20 | `019`：C1–C4 全绿后 DROP 012 两条 customer_read 策略 | **高** |
 
 ### 9.2 高风险迁移的两个前置检查
 
-**检查 1：`contracts` 跨租户合同号重复**
+**检查 1：`contracts` 同租户合同号重复**
 
 ```sql
-SELECT upper(regexp_replace(contract_number,'\s+','','g')) AS norm_no,
-       COUNT(*) AS cnt, array_agg(DISTINCT tenant_id) AS tenants
+SELECT tenant_id,
+       upper(regexp_replace(contract_number,'\s+','','g')) AS norm_no,
+       COUNT(*) AS cnt
 FROM contracts
-GROUP BY 1 HAVING COUNT(*) > 1;
+GROUP BY tenant_id, 2 HAVING COUNT(*) > 1;
 ```
 
-处置：同租户重复 → 人工合并或改号；**跨租户重复是必然的**（D-1），改索引后自然允许，但 migratioin 前必须先确认没有同租户内重复。
+> 上例是简化版；全角/分隔符归一化必须与代码中的统一 normalizer 一致，建议迁移脚本直接调用同一函数或由应用层预检。
+
+处置：同租户重复 → 人工合并或改号；**跨租户重复是必然的**（D-1），改索引后自然允许，但迁移前必须先确认没有同租户内重复。原查询按 `norm_no` 不分租户会在多租户下返回大量预期内重复，不能作为阻断条件。
 
 **检查 2：`contracts` 孤儿合同（无 vendor）**
 
@@ -608,9 +737,9 @@ SELECT id, contract_number, tenant_id FROM contracts WHERE vendor_id IS NULL;
 ### 10.3 关键交互
 
 1. `active` 后金额字段变为**只读 + 「申请变更」按钮**（引导建变更单）；
-2. 保存服务项时实时校验 `SUM(amount) ≤ contract.amount`，超限黄条提示；
+2. 保存服务项时实时校验 `SUM(amount) ≤ effective_amount`，超限黄条提示；
 3. 额度进度条分三段色：已耗（深）/ 预占（浅）/ 未分配（灰）；
-4. 到期 30 天内状态列显示 `expiring` 橙色徽标 + 「续签」快捷入口；
+4. 进入客户等级对应续约提前期时，状态列显示 `expiring` 橙色徽标 + 「续签」快捷入口；
 5. 续签向导：选择结转项目 → 预览额度继承 → 确认生成新合同。
 
 ---
@@ -624,7 +753,9 @@ SELECT id, contract_number, tenant_id FROM contracts WHERE vendor_id IS NULL;
 | 金额用 float/JSON 数字 | 分位漂移，对账吵架 | CC-2 `NUMERIC(18,2)` |
 | 直接改已生效合同的金额 | 变更无痕，审计失败 | M-3 走 `contract_amendments` |
 | 把预占当实耗 | 额度误报用尽 | §5.2 分列展示 |
-| 人工改 `quota_used` | 数据不可信 | M-4 仅计量回写 |
+| 人工改 `quota_used` | 数据不可信 | M-4 仅 `contract_usage_ledger` 同事务回写 |
+| 在 `basis`/`coverage` 行上挂 `allocated_*` | 同一项目重复记账 | 只有 `billing` 行携带额度（M-5） |
+| 计量 source 重试直接加 `quota_used` | 重复扣减 | 台账唯一源 + 事务回写 |
 | 用 `expired` 表示"快到期" | 与事实混淆 | `expiring` 为派生值 |
 | 补充协议新建合同号 | 服务项与续签链断裂 | 用 `contract_amendments` |
 | 合同期写 `9999-12-31` | 排序/计算异常 | `effective_until IS NULL` |
@@ -639,14 +770,16 @@ SELECT id, contract_number, tenant_id FROM contracts WHERE vendor_id IS NULL;
 3. `support_contracts` 全部走 `effective_from/effective_until`，旧字段仅只读；
 4. 已生效合同改金额被拒绝，走变更单后 `effective_amount` 正确重算；
 5. 签订合同时若服务项为空则拒绝；
-6. 服务项 `SUM(amount) > contract.amount` 时按配置告警或阻断；
-7. 额度视图四值（total/allocated/used/available）互洽：`available = total - used`，`allocated` 独立展示；
-8. 并发扣减额度 10 次后 `quota_used` 精确等于增量总和，无丢失更新；
+6. 服务项 `SUM(amount) > effective_amount` 时按配置告警或阻断；
+7. 额度视图互洽：数量 `remaining = total - used`、`available_to_allocate = total - used - reserved`；金额 `available_amount = effective_amount - allocated_amount`；`reserved`/`allocated_amount` 只统计 active `billing` 行；
+8. 并发扣减额度 10 次后 `quota_used` 精确等于增量总和；同一 source 重复投递不重复扣减；
 9. `expiring` 在各等级客户的提前期分别正确（S 90 / A 60 / B·C 30 天）；
-10. 到期日 `effective_until` 当天的工单仍计入合同覆盖（§5.4 边界）；
+10. `effective_until` 之前（不含该时刻）的工单仍计入合同覆盖（§5.4 半开区间）；
 11. 续签生成新合同后旧合同 `status='renewed'`，服务项历史保留；
-12. `contracts` 跨租户重复合同号索引创建成功，同租户重复仍被拒绝；
-13. 采购域/交付域/结算域三套实体互不串用（`CONTRACT_DOMAIN_MISMATCH` 生效）。
+12. `contracts` 同租户重复合同号仍被拒绝，跨租户同号可创建；
+13. 采购域/交付域/结算域三套实体互不串用（`CONTRACT_DOMAIN_MISMATCH` 生效）；
+14. 跨租户 `contract_id` / `service_item_id` 写入被复合外键拒绝；
+15. `basis`/`coverage` 行携带 `allocated_*` 被拒绝，`billing` 行缺少 `service_item_id` 被拒绝。
 
 ---
 
@@ -654,8 +787,8 @@ SELECT id, contract_number, tenant_id FROM contracts WHERE vendor_id IS NULL;
 
 | 文档 | 变更 |
 |---|---|
-| [02 §12.1](./02-ddl-and-migration.md) | 以本文 §7.2 为最终版（补 effective_from/until、层级、软删、版本）；新增 `contracts` 修复 |
+| [02 §12.1](./02-ddl-and-migration.md) | 过渡 DDL 已撤销，以本文 §7.2 为唯一权威；`contract_project_links` 的 billing/服务项约束见 02 §12.3 |
 | [01 §5.5](./01-customer-master-data-design.md) | SLA 优先级链更新为服务项级最高（§6.2）；合同字段表指向本文 |
-| [05](./05-customer-contract-project-linkage.md) | 合同类型约束引用本文 §3.2；额度校验引用 §5.2 |
-| [README](./README.md) | 文档结构新增本文 |
+| [05](./05-customer-contract-project-linkage.md) | 状态/日期统一到本文 CC-3/CC-4；执行率改按 `effective_amount`；额度只统计 `billing` 行 |
+| [03](./03-open-questions.md)、[README](./README.md) | 合同域阶段、迁移 M14–M20 与 G17 的 018/019 顺序纳入路线图 |
 | `mkdocs.yml` | 导航新增「合同建模与数据逻辑」 |

@@ -457,6 +457,21 @@ make prod-health      # 检查状态
 
 > 不要把开发默认配置用于生产。详细步骤见[生产就绪计划](./docs/delivery/production-readiness-program.md)和[运维手册](./docs/runbooks/production-initialization.md)。
 
+### 演示环境（独立 Demo 栈）
+
+演示栈（默认 `:8089`）使用独立的 `docker-compose.demo.yml` 与 `.env.demo`，一键发布包含
+数据库备份、上传目录 ACL 修复、初始化 exit=0 门禁和真实评论附件往返冒烟：
+
+```bash
+make demo-preflight    # 只读预检
+make demo-deploy       # 完整发布
+make demo-smoke        # 健康 / 版本 / 附件上传冒烟
+make demo-status       # 容器与线上版本
+```
+
+参数通过 `DEMO_ARGS` 透传，例如 `make demo-deploy DEMO_ARGS='--skip-build'`。
+完整发布、回滚和 `uploads` 权限规则见[演示环境指南](./docs/multi-tenant/demo-environment.md#8-发布回滚与上传冒烟2026-11-06)。
+
 ## 文档导航
 
 | 文档 | 用途 |

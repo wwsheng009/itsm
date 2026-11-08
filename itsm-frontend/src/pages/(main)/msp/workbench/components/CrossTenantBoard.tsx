@@ -107,7 +107,9 @@ const isTaskOverdue = (task: MSPTaskItem): boolean =>
 
 /** 超期任务行返回淡红背景（P2-2）。 */
 function taskRowProps(task: MSPTaskItem): React.HTMLAttributes<HTMLElement> {
-  return isTaskOverdue(task) ? { style: { backgroundColor: 'rgba(255, 77, 79, 0.08)' } } : {};
+  return isTaskOverdue(task)
+    ? { style: { backgroundColor: 'var(--color-error-bg, rgba(255, 77, 79, 0.08))' } }
+    : {};
 }
 
 /** 动作按钮：allowed=true → 可点；动作存在但 false → 禁用 + 原因提示；动作缺失 → 不渲染。 */

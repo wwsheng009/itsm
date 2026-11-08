@@ -83,7 +83,7 @@ class ErrorBoundary extends Component<Props, State> {
         >
           <div
             style={{
-              background: 'white',
+              background: 'var(--color-background-primary, #ffffff)',
               borderRadius: '16px',
               boxShadow:
                 '0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)',
@@ -121,7 +121,7 @@ class ErrorBoundary extends Component<Props, State> {
               </Paragraph>
               <div
                 style={{
-                  background: '#f5f5f5',
+                  background: 'var(--color-bg-secondary, #f9fafb)',
                   padding: '16px',
                   borderRadius: '8px',
                   fontFamily: 'monospace',
@@ -147,8 +147,10 @@ class ErrorBoundary extends Component<Props, State> {
                 style={{
                   marginTop: '16px',
                   padding: '12px',
-                  background: '#e6f7ff',
+                  background: 'var(--color-info-bg, #f0f9ff)',
                   border: '1px solid #91d5ff',
+                  // 该提示框为浅色底，文字必须固定深色，避免暗色主题下浅字浅底
+                  color: '#0c4a6e',
                   borderRadius: '6px',
                 }}
               >
@@ -199,7 +201,7 @@ export const SimpleErrorFallback: React.FC<{
       style={{
         padding: '40px',
         textAlign: 'center',
-        background: '#fafafa',
+        background: 'var(--color-bg-secondary, #f9fafb)',
         minHeight: '400px',
         display: 'flex',
         flexDirection: 'column',

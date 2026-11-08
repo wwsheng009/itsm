@@ -134,6 +134,7 @@ import (
 	"itsm-backend/ent/slaalertrule"
 	"itsm-backend/ent/sladefinition"
 	"itsm-backend/ent/sladefinitiongrant"
+	"itsm-backend/ent/sladefinitionsnapshot"
 	"itsm-backend/ent/slametric"
 	"itsm-backend/ent/slapolicy"
 	"itsm-backend/ent/slaviolation"
@@ -362,6 +363,7 @@ func checkColumn(t, c string) error {
 			slaalertrule.Table:                slaalertrule.ValidColumn,
 			sladefinition.Table:               sladefinition.ValidColumn,
 			sladefinitiongrant.Table:          sladefinitiongrant.ValidColumn,
+			sladefinitionsnapshot.Table:       sladefinitionsnapshot.ValidColumn,
 			slametric.Table:                   slametric.ValidColumn,
 			slapolicy.Table:                   slapolicy.ValidColumn,
 			slaviolation.Table:                slaviolation.ValidColumn,

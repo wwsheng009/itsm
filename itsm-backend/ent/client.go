@@ -139,6 +139,7 @@ import (
 	"itsm-backend/ent/slaalertrule"
 	"itsm-backend/ent/sladefinition"
 	"itsm-backend/ent/sladefinitiongrant"
+	"itsm-backend/ent/sladefinitionsnapshot"
 	"itsm-backend/ent/slametric"
 	"itsm-backend/ent/slapolicy"
 	"itsm-backend/ent/slaviolation"
@@ -436,6 +437,8 @@ type Client struct {
 	SLADefinition *SLADefinitionClient
 	// SLADefinitionGrant is the client for interacting with the SLADefinitionGrant builders.
 	SLADefinitionGrant *SLADefinitionGrantClient
+	// SLADefinitionSnapshot is the client for interacting with the SLADefinitionSnapshot builders.
+	SLADefinitionSnapshot *SLADefinitionSnapshotClient
 	// SLAMetric is the client for interacting with the SLAMetric builders.
 	SLAMetric *SLAMetricClient
 	// SLAPolicy is the client for interacting with the SLAPolicy builders.
@@ -658,6 +661,7 @@ func (c *Client) init() {
 	c.SLAAlertRule = NewSLAAlertRuleClient(c.config)
 	c.SLADefinition = NewSLADefinitionClient(c.config)
 	c.SLADefinitionGrant = NewSLADefinitionGrantClient(c.config)
+	c.SLADefinitionSnapshot = NewSLADefinitionSnapshotClient(c.config)
 	c.SLAMetric = NewSLAMetricClient(c.config)
 	c.SLAPolicy = NewSLAPolicyClient(c.config)
 	c.SLAViolation = NewSLAViolationClient(c.config)
@@ -917,6 +921,7 @@ func (c *Client) Tx(ctx context.Context) (*Tx, error) {
 		SLAAlertRule:                NewSLAAlertRuleClient(cfg),
 		SLADefinition:               NewSLADefinitionClient(cfg),
 		SLADefinitionGrant:          NewSLADefinitionGrantClient(cfg),
+		SLADefinitionSnapshot:       NewSLADefinitionSnapshotClient(cfg),
 		SLAMetric:                   NewSLAMetricClient(cfg),
 		SLAPolicy:                   NewSLAPolicyClient(cfg),
 		SLAViolation:                NewSLAViolationClient(cfg),
@@ -1103,6 +1108,7 @@ func (c *Client) BeginTx(ctx context.Context, opts *sql.TxOptions) (*Tx, error) 
 		SLAAlertRule:                NewSLAAlertRuleClient(cfg),
 		SLADefinition:               NewSLADefinitionClient(cfg),
 		SLADefinitionGrant:          NewSLADefinitionGrantClient(cfg),
+		SLADefinitionSnapshot:       NewSLADefinitionSnapshotClient(cfg),
 		SLAMetric:                   NewSLAMetricClient(cfg),
 		SLAPolicy:                   NewSLAPolicyClient(cfg),
 		SLAViolation:                NewSLAViolationClient(cfg),
@@ -1207,18 +1213,18 @@ func (c *Client) Use(hooks ...Hook) {
 		c.ProjectReportTemplate, c.ProjectRisk, c.ProjectTask, c.ProjectTaskDependency,
 		c.ProjectTemplate, c.PromptTemplate, c.ProvisioningTask, c.RelationshipType,
 		c.Release, c.Role, c.RolePermission, c.RootCauseAnalysis, c.SLAAlertHistory,
-		c.SLAAlertRule, c.SLADefinition, c.SLADefinitionGrant, c.SLAMetric,
-		c.SLAPolicy, c.SLAViolation, c.ServiceCatalog, c.ServiceCatalogItem,
-		c.ServiceCustomer, c.ServiceRequest, c.ServiceRequestApproval,
-		c.SourceOrganization, c.StandardChange, c.SupportContract, c.Survey,
-		c.SurveyResponse, c.SystemConfig, c.Tag, c.Team, c.Tenant,
-		c.TenantInstallation, c.Ticket, c.TicketApproval, c.TicketAssignmentRule,
-		c.TicketAttachment, c.TicketAutomationRule, c.TicketCC, c.TicketCategory,
-		c.TicketComment, c.TicketNotification, c.TicketTag, c.TicketTemplate,
-		c.TicketType, c.TicketTypeDistribution, c.TicketView, c.TicketWorkflowRecord,
-		c.ToolInvocation, c.User, c.UserTenantMembership, c.UserTenantMembershipOrg,
-		c.Vendor, c.WorkbenchView, c.Workflow, c.WorkflowInstance, c.WorkflowTask,
-		c.WorkflowTemplate, c.WorkflowVersion,
+		c.SLAAlertRule, c.SLADefinition, c.SLADefinitionGrant, c.SLADefinitionSnapshot,
+		c.SLAMetric, c.SLAPolicy, c.SLAViolation, c.ServiceCatalog,
+		c.ServiceCatalogItem, c.ServiceCustomer, c.ServiceRequest,
+		c.ServiceRequestApproval, c.SourceOrganization, c.StandardChange,
+		c.SupportContract, c.Survey, c.SurveyResponse, c.SystemConfig, c.Tag, c.Team,
+		c.Tenant, c.TenantInstallation, c.Ticket, c.TicketApproval,
+		c.TicketAssignmentRule, c.TicketAttachment, c.TicketAutomationRule, c.TicketCC,
+		c.TicketCategory, c.TicketComment, c.TicketNotification, c.TicketTag,
+		c.TicketTemplate, c.TicketType, c.TicketTypeDistribution, c.TicketView,
+		c.TicketWorkflowRecord, c.ToolInvocation, c.User, c.UserTenantMembership,
+		c.UserTenantMembershipOrg, c.Vendor, c.WorkbenchView, c.Workflow,
+		c.WorkflowInstance, c.WorkflowTask, c.WorkflowTemplate, c.WorkflowVersion,
 	} {
 		n.Use(hooks...)
 	}
@@ -1259,18 +1265,18 @@ func (c *Client) Intercept(interceptors ...Interceptor) {
 		c.ProjectReportTemplate, c.ProjectRisk, c.ProjectTask, c.ProjectTaskDependency,
 		c.ProjectTemplate, c.PromptTemplate, c.ProvisioningTask, c.RelationshipType,
 		c.Release, c.Role, c.RolePermission, c.RootCauseAnalysis, c.SLAAlertHistory,
-		c.SLAAlertRule, c.SLADefinition, c.SLADefinitionGrant, c.SLAMetric,
-		c.SLAPolicy, c.SLAViolation, c.ServiceCatalog, c.ServiceCatalogItem,
-		c.ServiceCustomer, c.ServiceRequest, c.ServiceRequestApproval,
-		c.SourceOrganization, c.StandardChange, c.SupportContract, c.Survey,
-		c.SurveyResponse, c.SystemConfig, c.Tag, c.Team, c.Tenant,
-		c.TenantInstallation, c.Ticket, c.TicketApproval, c.TicketAssignmentRule,
-		c.TicketAttachment, c.TicketAutomationRule, c.TicketCC, c.TicketCategory,
-		c.TicketComment, c.TicketNotification, c.TicketTag, c.TicketTemplate,
-		c.TicketType, c.TicketTypeDistribution, c.TicketView, c.TicketWorkflowRecord,
-		c.ToolInvocation, c.User, c.UserTenantMembership, c.UserTenantMembershipOrg,
-		c.Vendor, c.WorkbenchView, c.Workflow, c.WorkflowInstance, c.WorkflowTask,
-		c.WorkflowTemplate, c.WorkflowVersion,
+		c.SLAAlertRule, c.SLADefinition, c.SLADefinitionGrant, c.SLADefinitionSnapshot,
+		c.SLAMetric, c.SLAPolicy, c.SLAViolation, c.ServiceCatalog,
+		c.ServiceCatalogItem, c.ServiceCustomer, c.ServiceRequest,
+		c.ServiceRequestApproval, c.SourceOrganization, c.StandardChange,
+		c.SupportContract, c.Survey, c.SurveyResponse, c.SystemConfig, c.Tag, c.Team,
+		c.Tenant, c.TenantInstallation, c.Ticket, c.TicketApproval,
+		c.TicketAssignmentRule, c.TicketAttachment, c.TicketAutomationRule, c.TicketCC,
+		c.TicketCategory, c.TicketComment, c.TicketNotification, c.TicketTag,
+		c.TicketTemplate, c.TicketType, c.TicketTypeDistribution, c.TicketView,
+		c.TicketWorkflowRecord, c.ToolInvocation, c.User, c.UserTenantMembership,
+		c.UserTenantMembershipOrg, c.Vendor, c.WorkbenchView, c.Workflow,
+		c.WorkflowInstance, c.WorkflowTask, c.WorkflowTemplate, c.WorkflowVersion,
 	} {
 		n.Intercept(interceptors...)
 	}
@@ -1525,6 +1531,8 @@ func (c *Client) Mutate(ctx context.Context, m Mutation) (Value, error) {
 		return c.SLADefinition.mutate(ctx, m)
 	case *SLADefinitionGrantMutation:
 		return c.SLADefinitionGrant.mutate(ctx, m)
+	case *SLADefinitionSnapshotMutation:
+		return c.SLADefinitionSnapshot.mutate(ctx, m)
 	case *SLAMetricMutation:
 		return c.SLAMetric.mutate(ctx, m)
 	case *SLAPolicyMutation:
@@ -20649,6 +20657,139 @@ func (c *SLADefinitionGrantClient) mutate(ctx context.Context, m *SLADefinitionG
 	}
 }
 
+// SLADefinitionSnapshotClient is a client for the SLADefinitionSnapshot schema.
+type SLADefinitionSnapshotClient struct {
+	config
+}
+
+// NewSLADefinitionSnapshotClient returns a client for the SLADefinitionSnapshot from the given config.
+func NewSLADefinitionSnapshotClient(c config) *SLADefinitionSnapshotClient {
+	return &SLADefinitionSnapshotClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `sladefinitionsnapshot.Hooks(f(g(h())))`.
+func (c *SLADefinitionSnapshotClient) Use(hooks ...Hook) {
+	c.hooks.SLADefinitionSnapshot = append(c.hooks.SLADefinitionSnapshot, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `sladefinitionsnapshot.Intercept(f(g(h())))`.
+func (c *SLADefinitionSnapshotClient) Intercept(interceptors ...Interceptor) {
+	c.inters.SLADefinitionSnapshot = append(c.inters.SLADefinitionSnapshot, interceptors...)
+}
+
+// Create returns a builder for creating a SLADefinitionSnapshot entity.
+func (c *SLADefinitionSnapshotClient) Create() *SLADefinitionSnapshotCreate {
+	mutation := newSLADefinitionSnapshotMutation(c.config, OpCreate)
+	return &SLADefinitionSnapshotCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of SLADefinitionSnapshot entities.
+func (c *SLADefinitionSnapshotClient) CreateBulk(builders ...*SLADefinitionSnapshotCreate) *SLADefinitionSnapshotCreateBulk {
+	return &SLADefinitionSnapshotCreateBulk{config: c.config, builders: builders}
+}
+
+// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
+// a builder and applies setFunc on it.
+func (c *SLADefinitionSnapshotClient) MapCreateBulk(slice any, setFunc func(*SLADefinitionSnapshotCreate, int)) *SLADefinitionSnapshotCreateBulk {
+	rv := reflect.ValueOf(slice)
+	if rv.Kind() != reflect.Slice {
+		return &SLADefinitionSnapshotCreateBulk{err: fmt.Errorf("calling to SLADefinitionSnapshotClient.MapCreateBulk with wrong type %T, need slice", slice)}
+	}
+	builders := make([]*SLADefinitionSnapshotCreate, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		builders[i] = c.Create()
+		setFunc(builders[i], i)
+	}
+	return &SLADefinitionSnapshotCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for SLADefinitionSnapshot.
+func (c *SLADefinitionSnapshotClient) Update() *SLADefinitionSnapshotUpdate {
+	mutation := newSLADefinitionSnapshotMutation(c.config, OpUpdate)
+	return &SLADefinitionSnapshotUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *SLADefinitionSnapshotClient) UpdateOne(_m *SLADefinitionSnapshot) *SLADefinitionSnapshotUpdateOne {
+	mutation := newSLADefinitionSnapshotMutation(c.config, OpUpdateOne, withSLADefinitionSnapshot(_m))
+	return &SLADefinitionSnapshotUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *SLADefinitionSnapshotClient) UpdateOneID(id int) *SLADefinitionSnapshotUpdateOne {
+	mutation := newSLADefinitionSnapshotMutation(c.config, OpUpdateOne, withSLADefinitionSnapshotID(id))
+	return &SLADefinitionSnapshotUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for SLADefinitionSnapshot.
+func (c *SLADefinitionSnapshotClient) Delete() *SLADefinitionSnapshotDelete {
+	mutation := newSLADefinitionSnapshotMutation(c.config, OpDelete)
+	return &SLADefinitionSnapshotDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *SLADefinitionSnapshotClient) DeleteOne(_m *SLADefinitionSnapshot) *SLADefinitionSnapshotDeleteOne {
+	return c.DeleteOneID(_m.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *SLADefinitionSnapshotClient) DeleteOneID(id int) *SLADefinitionSnapshotDeleteOne {
+	builder := c.Delete().Where(sladefinitionsnapshot.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &SLADefinitionSnapshotDeleteOne{builder}
+}
+
+// Query returns a query builder for SLADefinitionSnapshot.
+func (c *SLADefinitionSnapshotClient) Query() *SLADefinitionSnapshotQuery {
+	return &SLADefinitionSnapshotQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypeSLADefinitionSnapshot},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a SLADefinitionSnapshot entity by its id.
+func (c *SLADefinitionSnapshotClient) Get(ctx context.Context, id int) (*SLADefinitionSnapshot, error) {
+	return c.Query().Where(sladefinitionsnapshot.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *SLADefinitionSnapshotClient) GetX(ctx context.Context, id int) *SLADefinitionSnapshot {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// Hooks returns the client hooks.
+func (c *SLADefinitionSnapshotClient) Hooks() []Hook {
+	return c.hooks.SLADefinitionSnapshot
+}
+
+// Interceptors returns the client interceptors.
+func (c *SLADefinitionSnapshotClient) Interceptors() []Interceptor {
+	return c.inters.SLADefinitionSnapshot
+}
+
+func (c *SLADefinitionSnapshotClient) mutate(ctx context.Context, m *SLADefinitionSnapshotMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&SLADefinitionSnapshotCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&SLADefinitionSnapshotUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&SLADefinitionSnapshotUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&SLADefinitionSnapshotDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("ent: unknown SLADefinitionSnapshot mutation op: %q", m.Op())
+	}
+}
+
 // SLAMetricClient is a client for the SLAMetric schema.
 type SLAMetricClient struct {
 	config
@@ -28178,16 +28319,17 @@ type (
 		ProjectMilestone, ProjectReportTemplate, ProjectRisk, ProjectTask,
 		ProjectTaskDependency, ProjectTemplate, PromptTemplate, ProvisioningTask,
 		RelationshipType, Release, Role, RolePermission, RootCauseAnalysis,
-		SLAAlertHistory, SLAAlertRule, SLADefinition, SLADefinitionGrant, SLAMetric,
-		SLAPolicy, SLAViolation, ServiceCatalog, ServiceCatalogItem, ServiceCustomer,
-		ServiceRequest, ServiceRequestApproval, SourceOrganization, StandardChange,
-		SupportContract, Survey, SurveyResponse, SystemConfig, Tag, Team, Tenant,
-		TenantInstallation, Ticket, TicketApproval, TicketAssignmentRule,
-		TicketAttachment, TicketAutomationRule, TicketCC, TicketCategory,
-		TicketComment, TicketNotification, TicketTag, TicketTemplate, TicketType,
-		TicketTypeDistribution, TicketView, TicketWorkflowRecord, ToolInvocation, User,
-		UserTenantMembership, UserTenantMembershipOrg, Vendor, WorkbenchView, Workflow,
-		WorkflowInstance, WorkflowTask, WorkflowTemplate, WorkflowVersion []ent.Hook
+		SLAAlertHistory, SLAAlertRule, SLADefinition, SLADefinitionGrant,
+		SLADefinitionSnapshot, SLAMetric, SLAPolicy, SLAViolation, ServiceCatalog,
+		ServiceCatalogItem, ServiceCustomer, ServiceRequest, ServiceRequestApproval,
+		SourceOrganization, StandardChange, SupportContract, Survey, SurveyResponse,
+		SystemConfig, Tag, Team, Tenant, TenantInstallation, Ticket, TicketApproval,
+		TicketAssignmentRule, TicketAttachment, TicketAutomationRule, TicketCC,
+		TicketCategory, TicketComment, TicketNotification, TicketTag, TicketTemplate,
+		TicketType, TicketTypeDistribution, TicketView, TicketWorkflowRecord,
+		ToolInvocation, User, UserTenantMembership, UserTenantMembershipOrg, Vendor,
+		WorkbenchView, Workflow, WorkflowInstance, WorkflowTask, WorkflowTemplate,
+		WorkflowVersion []ent.Hook
 	}
 	inters struct {
 		AIAnalysisResult, Alert, Application, ApprovalChain, ApprovalRecord,
@@ -28216,16 +28358,16 @@ type (
 		ProjectMilestone, ProjectReportTemplate, ProjectRisk, ProjectTask,
 		ProjectTaskDependency, ProjectTemplate, PromptTemplate, ProvisioningTask,
 		RelationshipType, Release, Role, RolePermission, RootCauseAnalysis,
-		SLAAlertHistory, SLAAlertRule, SLADefinition, SLADefinitionGrant, SLAMetric,
-		SLAPolicy, SLAViolation, ServiceCatalog, ServiceCatalogItem, ServiceCustomer,
-		ServiceRequest, ServiceRequestApproval, SourceOrganization, StandardChange,
-		SupportContract, Survey, SurveyResponse, SystemConfig, Tag, Team, Tenant,
-		TenantInstallation, Ticket, TicketApproval, TicketAssignmentRule,
-		TicketAttachment, TicketAutomationRule, TicketCC, TicketCategory,
-		TicketComment, TicketNotification, TicketTag, TicketTemplate, TicketType,
-		TicketTypeDistribution, TicketView, TicketWorkflowRecord, ToolInvocation, User,
-		UserTenantMembership, UserTenantMembershipOrg, Vendor, WorkbenchView, Workflow,
-		WorkflowInstance, WorkflowTask, WorkflowTemplate,
+		SLAAlertHistory, SLAAlertRule, SLADefinition, SLADefinitionGrant,
+		SLADefinitionSnapshot, SLAMetric, SLAPolicy, SLAViolation, ServiceCatalog,
+		ServiceCatalogItem, ServiceCustomer, ServiceRequest, ServiceRequestApproval,
+		SourceOrganization, StandardChange, SupportContract, Survey, SurveyResponse,
+		SystemConfig, Tag, Team, Tenant, TenantInstallation, Ticket, TicketApproval,
+		TicketAssignmentRule, TicketAttachment, TicketAutomationRule, TicketCC,
+		TicketCategory, TicketComment, TicketNotification, TicketTag, TicketTemplate,
+		TicketType, TicketTypeDistribution, TicketView, TicketWorkflowRecord,
+		ToolInvocation, User, UserTenantMembership, UserTenantMembershipOrg, Vendor,
+		WorkbenchView, Workflow, WorkflowInstance, WorkflowTask, WorkflowTemplate,
 		WorkflowVersion []ent.Interceptor
 	}
 )

@@ -1254,8 +1254,8 @@ const BPMNDesigner: React.FC<BPMNDesignerProps> = ({
       <div
         style={{
           width: 48,
-          borderRight: '1px solid #d9d9d9',
-          background: '#f5f5f5',
+          borderRight: '1px solid var(--color-border-primary, #e5e7eb)',
+          background: 'var(--color-bg-secondary, #f9fafb)',
           display: 'flex',
           flexDirection: 'column',
           alignItems: 'center',
@@ -1293,7 +1293,14 @@ const BPMNDesigner: React.FC<BPMNDesignerProps> = ({
           />
         </Tooltip>
 
-        <div style={{ height: 1, width: '80%', background: '#e8e8e8', margin: '8px 0' }} />
+        <div
+          style={{
+            height: 1,
+            width: '80%',
+            background: 'var(--color-border-primary, #e8e8e8)',
+            margin: '8px 0',
+          }}
+        />
 
         <Tooltip title={t('bpmnDesigner.buttons.copyShortcut')} placement="right">
           <Button
@@ -1329,7 +1336,14 @@ const BPMNDesigner: React.FC<BPMNDesignerProps> = ({
           />
         </Tooltip>
 
-        <div style={{ height: 1, width: '80%', background: '#e8e8e8', margin: '8px 0' }} />
+        <div
+          style={{
+            height: 1,
+            width: '80%',
+            background: 'var(--color-border-primary, #e8e8e8)',
+            margin: '8px 0',
+          }}
+        />
 
         <Dropdown menu={{ items: alignMenuItems }} placement="bottomRight" trigger={['click']}>
           <Tooltip title={t('bpmnDesigner.buttons.align')} placement="right">
@@ -1381,7 +1395,7 @@ const BPMNDesigner: React.FC<BPMNDesignerProps> = ({
         transform: 'translateX(-50%)',
         width: 300,
         zIndex: 10,
-        background: 'white',
+        background: 'var(--color-background-primary, #ffffff)',
         borderRadius: '6px',
         boxShadow: '0 2px 8px rgba(0,0,0,0.15)'
       }}>
@@ -1439,7 +1453,7 @@ const BPMNDesigner: React.FC<BPMNDesignerProps> = ({
           right: 16,
           display: 'flex',
           gap: 4,
-          background: 'white',
+          background: 'var(--color-background-primary, #ffffff)',
           padding: 4,
           borderRadius: 6,
           boxShadow: '0 2px 8px rgba(0,0,0,0.15)',

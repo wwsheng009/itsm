@@ -1,7 +1,7 @@
 # 07 · 已确认产品缺口（Known Gaps）
 
 > **状态**：当前
-> **更新日期**：2026-09-28
+> **更新日期**：2026-11-08
 > **来源**：`saas_msp` 生产环境端到端初始化实测（1 服务商 + 2 客户，见 [06 文档 §7](./06-verification-and-troubleshooting.md)）
 > **用途**：记录实测中确认的**产品缺口**、当前运维规避手段与建议修复方向；缺口关闭后在本页更新状态，不删除历史结论。
 > **配套方案**：用户创建 / 登录选租户 / 租户切换相关缺口（G1/G2/G3/G9）的深入分析与分期方案见 [plan/msp-user-lifecycle-and-tenant-switching-plan.md](./plan/msp-user-lifecycle-and-tenant-switching-plan.md)（缺口编号 F1–F15）。
@@ -15,7 +15,9 @@
 > **G14 · membership 撤销面前端零接线** 与 **G15 · 跨租户角色调整职责边界未成文** 新登记。来源：
 > [`docs/review/2026-11-06-tenant-user-role-adjustment-review.md`](../review/2026-11-06-tenant-user-role-adjustment-review.md) v0.2 复核（详见 §15、§16）。
 >
-> **新增（2026-11-06，客户主数据设计期间发现）**：**G17 · `msp_contracts` RLS 012 客户只读跨租户放宽**，违反「业务数据不跨租户」（BD-1），**已裁决收回**；须先建客户租户内快照通道再 DROP，否则 L1 SLA 匹配静默降级（§18）。
+> **新增（2026-11-06，客户主数据设计期间发现）**：**G17 · `msp_contracts` RLS 012 客户只读跨租户放宽**，违反「业务数据不跨租户」（BD-1），**已裁决收回**；须先跑 `018` 建客户租户内快照通道、再跑 `019` DROP，否则 L1 SLA 匹配静默降级（§18）。
+>
+> **新增（2026-11-08，G17 邻接项）**：**Q-09 · `sla_definition_customer_read` 跨租户读 provider 定义** 已裁决 B：`020` 建 `sla_definition_snapshots` 并双写，`021` 删除该策略；`sla_grant_customer_read` 保留为授权元数据 allowlist（§18.3）。
 
 > **编号（2026-09-29 一致性整改；2026-11-06 扩至 G17）**：本页 `G1–G17` 是**生产实测缺口**的唯一 G 空间；canon §7.3 的能力供给缺口已更名 `K1–K5`；工作台规则已更名 `WB1–WB6`；租户用户管理方案另占 `TUM-G1–TUM-G4`，评审 v0.2 的角色调整缺口续号为 `TUM-G5–TUM-G12`（与本空间不重叠）。跨文档引用本页写作 `07:G4`（注册表见 canon 附录 C）。
 
@@ -39,7 +41,7 @@
 | G14 | membership 撤销面**后端已实现、前端零接线**，且「仅 API/CLI 通道」口径未成文 | 平台 UI 无法撤销跨租户成员映射（home 不可撤、软删 + 分配级联、权限缓存与在途 refresh 立即失效等能力只有直调 API 才可达）；`itsm-frontend/src` 对该端点零引用 | 直调 `POST /api/v1/tenants/:id/users/:userId/membership/revoke`；本批先在 API 客户端注释与本表成文口径，**不擅自接 UI** | **待产品决策**：是否在 `TenantUsersDrawer` 行操作增「撤销成员映射」（纯前端接线，后端/审计/通知/测试均已就绪）（§15） | P2 |
 | G15 | **跨租户角色调整无通道**（平台 `super_admin` 与服务商 provider 均不能改他租户用户角色），且职责边界口径未成文 | 替他租户调权限的运维动线缺失 → 现实回落两种危险替代：「借目标租户管理员账号登录操作」（共享凭据、审计主体错位）或 **SQL 直改 `users.role` / `user_roles`**（无 rank 校验、无角色归属校验、无审计、不吊销会话） | **本租户内自助（设计主通道，非兜底）**：目标租户管理员用 `PUT /api/v1/users/:id`（主角色 + `roleIds`，`CanGrantRoles` 三重护栏 + 变更后吊销 token）与 `roles` CRUD；跨租户仅「建号时可指定角色」（`ProvisionUserToTenant` + `ListTenantGrantableRoles`） | 登记口径 + 运维 SOP（§16）；若 MSP 跨客户场景升级为需求，按 [`plan §10`](./plan/msp-tenant-user-management-enhancement-plan.md) 触发条件**另案评审**，前置：平台级角色词表收敛 + 变更审批/双人复核，并先解决 G11 四处同源 | P2（边界决策，维持不做） |
 | G16 | **TUM 平台面 7 个租户用户端点零 Swagger 注解**（`handlers/tenant/user_admin.go` 无 `@Summary/@Success/@Router`），故 `activeAdminCount` 等新契约字段在 OpenAPI 中**不可见** | 外部集成方/MCP/客户端代码生成看不到租户用户治理通道；契约漂移只能靠读源码发现（G12 之所以能被发现纯属人工比对）；`make swagger-gen` 因此**无法**记录本批新字段 | 契约单一源在 `docs/multi-tenant/plan/...enhancement-plan.md` §3.1/§3.5 + `tenant-user-admin-api.ts` 注释；本批**不回滚式刷新** docs（刷新会带进他人未提交的 swagger 漂移） | 单独一批：补 7 端点注解 → `make swagger-gen` → 与 `docs-gate` 一并提交；不与缺陷修复混批（§17） | P2 |
-| G17 | **`msp_contracts` RLS 012 存在客户只读跨租户放宽**：`msp_contract_customer_read`（`customer_tenant_id = ctx`）与 `msp_contract_binding_customer_read`（EXISTS 子查询继承）允许 customer 租户直读 provider 租户的合同业务行 | 客户租户可读对方 `name`/`penalties`（违约率与上限）/`settlement_cycle`/`currency`/`contract_no`，且**无列级粒度、无 `status`/有效期校验**（解约后历史行永久可读）、数据库侧不可审计；与「业务数据不跨租户」（BD-1）正面冲突 | 无（策略默认生效）；**不可用「直接 DROP」规避**——会造成 L1 静默降级（见下行） | **裁决收回**：013 删除两条策略；L1 匹配改读客户租户内 `contract_sla_snapshots`，结算/下发改读 `settlement_statements`。**必须先建快照通道（双写观察一个结算周期）再 DROP**。设计见 [`docs/customer-master-data/07-tenant-data-boundary.md` §3.2/§4.5](../customer-master-data/07-tenant-data-boundary.md)、DDL 与四项前置检查见 [`02-ddl-and-migration.md` §12.6](../customer-master-data/02-ddl-and-migration.md)（本节 §18） | P1 |
+| G17 | **`msp_contracts` RLS 012 存在客户只读跨租户放宽**：`msp_contract_customer_read`（`customer_tenant_id = ctx`）与 `msp_contract_binding_customer_read`（EXISTS 子查询继承）允许 customer 租户直读 provider 租户的合同业务行 | 客户租户可读对方 `name`/`penalties`（违约率与上限）/`settlement_cycle`/`currency`/`contract_no`，且**无列级粒度、无 `status`/有效期校验**（解约后历史行永久可读）、数据库侧不可审计；与「业务数据不跨租户」（BD-1）正面冲突 | 无（策略默认生效）；**不可用「直接 DROP」规避**——会造成 L1 静默降级（见下行） | **裁决收回**：`018` 建 `contract_sla_snapshots` / `settlement_statements` 并双写，观察通过后 `019` 删除两条策略；L1 匹配改读客户租户内 `contract_sla_snapshots`。设计见 [`docs/customer-master-data/07-tenant-data-boundary.md` §3.2/§4.5](../customer-master-data/07-tenant-data-boundary.md)、DDL 与四项前置检查见 [`02-ddl-and-migration.md` §12.6](../customer-master-data/02-ddl-and-migration.md)（本节 §18） | P1 |
 
 ## 2. G1 · 跨租户创建用户被 tenant guard 拦截
 
@@ -237,7 +239,7 @@
 | G14 | 非 ADR-004 行动项（MSW-3 交付面） | ⏸ **待产品决策**：口径已成文，UI 接线另议（§15） |
 | G15 | 非 ADR-004 行动项（`plan §10` TUM-7 冻结项的运维口径） | ⏸ **维持不做**：登记边界口径 + SOP（§16）；解除需先满足 `plan §10` 前置 |
 | G16 | 非 ADR-004 行动项（OpenAPI 契约可见性） | ⏸ **待办**：本批执行 `make swagger-gen` 时发现刷新会带入他人 swagger 漂移，已回滚；注解补齐另批处理（§17） |
-| G17 | 非 ADR-004 行动项（四层隔离 / 客户主数据设计的 BD-1 边界） | **P1，已裁决收回**：013 删除 `msp_contract_customer_read` + `msp_contract_binding_customer_read`；**前置** = 先建 `contract_sla_snapshots` 双写并观察一个结算周期（§18） |
+| G17 | 非 ADR-004 行动项（四层隔离 / 客户主数据设计的 BD-1 边界） | **P1，已裁决收回**：`019` 删除 `msp_contract_customer_read` + `msp_contract_binding_customer_read`；**前置** = 先跑 `018` 建 `contract_sla_snapshots`/`settlement_statements` 双写并观察一个结算周期（§18） |
 
 ## 14. 证据索引
 
@@ -368,7 +370,7 @@ OpenAPI 缺项是**既有**缺口（先前 7 端点上线时就未补注解）�
 
 | 策略 | 位置 | 谓词 | 效果 |
 |---|---|---|---|
-| `msp_contract_customer_read` | `012:54-58` | `FOR SELECT USING (customer_tenant_id = current_setting('app.tenant_id')::uuid)` | customer 租户可直读 provider 租户的 `msp_contracts` 行 |
+| `msp_contract_customer_read` | `012:54-58` | `FOR SELECT USING (customer_tenant_id = get_current_tenant_id())` | customer 租户可直读 provider 租户的 `msp_contracts` 行 |
 | `msp_contract_binding_customer_read` | `012:81-88` | `EXISTS (SELECT 1 FROM msp_contracts c WHERE c.id = contract_id AND c.customer_tenant_id = ctx)` | `msp_contract_sla_bindings` 经子查询继承同一放宽 |
 
 **暴露的字段**（整行可见，PostgreSQL 无列级 RLS）：`name`、`contract_no`、`status`、`effective_from/until`、`penalties`（违约率与上限）、`settlement_cycle`、`currency`。
@@ -387,7 +389,9 @@ OpenAPI 缺项是**既有**缺口（先前 7 端点上线时就未补注解）�
 2. **无生命周期**：策略不含 `status` / 有效期谓词。合同 `terminated`、双方解约、甚至争议中的历史行，**永久可读**。
 3. **不可审计**：客户读 provider 行在数据库侧无痕迹，无法回答「谁在何时读过对方的罚则条款」。
 
-对比方案自身对 SLA 定义的处理（`sla_definition_grants` 独立授权行、`is_active`、`valid_from/until`、可单独撤销），同一份方案内两处通道模式不一致：**合同把行上的 `customer_tenant_id` 业务字段当作了授权凭据**。
+对比方案自身对 SLA 定义的处理（`sla_definition_grants` 独立授权行、`is_active`、`valid_until`、可单独撤销），同一份方案内两处通道模式不一致：**合同把行上的 `customer_tenant_id` 业务字段当作了授权凭据**。
+
+> **邻接项 Q-09 已裁决 B（2026-11-08）**：现状（`021` 前）`sla_definition_customer_read` 仍允许 customer 读取 provider 的 `sla_definitions` 业务行；grant 行属于授权记录，不等于业务行可以跨租户读。处理方式与 G17 同构：`020` 建 `sla_definition_snapshots` 并双写，L1/provided 改读快照，观察通过后 `021` 删除 `sla_definition_customer_read`；`sla_grant_customer_read` 作为授权元数据 allowlist。详见 [`docs/customer-master-data/03-open-questions.md` Q-09](../customer-master-data/03-open-questions.md) 与 [`02-ddl-and-migration.md` §12.7](../customer-master-data/02-ddl-and-migration.md)。
 
 ### 18.4 为什么不能「直接 DROP」
 
@@ -407,8 +411,8 @@ matchContractDefinition（customer ctx）
 
 | 步骤 | 内容 | 门禁 |
 |---|---|---|
-| **Step 1（新增）** | 建 `contract_sla_snapshots`（`tenant_id = 客户租户`，RLS `tenant_id = ctx`）+ provider 侧合同 active/变更/终止时下发；`matchContractDefinition` 改读快照（双写期快照优先、保留回退） | 观察**一个结算周期**，L1 命中率与改前一致 |
-| **Step 2（收回）** | 移除快照回退分支 → 执行 `013` DROP 两条策略 → 验收 | C1 客户侧无直读、C2 存量结算单已迁 `settlement_statements`、C3 命中率无下降、C4 回滚脚本已演练 |
+| **Step 1（新增）** | 执行 `018` 建 `contract_sla_snapshots` / `settlement_statements`（`tenant_id = 客户租户`，RLS `tenant_id = ctx`），快照物化 SLA 时限；provider 侧合同 active/变更/终止时下发；`matchContractDefinition` 改读快照（双写期快照优先、保留回退） | 观察**一个结算周期**，L1 命中率与改前一致 |
+| **Step 2（收回）** | 移除快照回退分支 → 执行 `019` DROP 两条策略 → 验收 | C1 客户侧无直读、C2 存量结算单已迁 `settlement_statements`、C3 命中率无下降、C4 回滚脚本已演练 |
 
 DDL、四项前置检查与回滚脚本见 [`docs/customer-master-data/02-ddl-and-migration.md` §12.6](../customer-master-data/02-ddl-and-migration.md)；完整因果与 L1 改道三方案对比见 [`07-tenant-data-boundary.md` §3.2 / §4.5](../customer-master-data/07-tenant-data-boundary.md)。
 

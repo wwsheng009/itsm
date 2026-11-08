@@ -25,7 +25,7 @@ type Repository interface {
 	UpdateGrantValidUntil(ctx context.Context, id int, providerTenantID int, validUntil *time.Time) (*SLADefinitionGrant, error)
 	// DeactivateGrant 停用授权（逻辑撤销；不物理删除，保留审计链）。
 	DeactivateGrant(ctx context.Context, id int, providerTenantID int) error
-	// ListProvidedDefinitions customer 侧只读视图：授权 join 定义（active 且未过期）。
+	// ListProvidedDefinitions customer 侧只读视图：只读本租户 SLA 定义快照（active 且未过期）。
 	ListProvidedDefinitions(ctx context.Context, customerTenantID int) ([]*ProvidedDefinition, error)
 
 	// MSP SLA Contracts（D-SLA-4，方案 §4.4）

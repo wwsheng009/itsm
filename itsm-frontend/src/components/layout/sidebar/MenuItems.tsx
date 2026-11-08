@@ -13,6 +13,7 @@ interface MenuItemsProps {
   items: MenuItem[];
   selectedKeys: string[];
   onMenuClick: (key: string) => void;
+  theme: NonNullable<MenuProps['theme']>;
 }
 
 type MenuItemRender = Required<MenuProps>['items'][number];
@@ -142,14 +143,19 @@ export function renderMenuItems(
 /**
  * 菜单项列表组件
  */
-export const MenuItems: React.FC<MenuItemsProps> = ({ items, selectedKeys, onMenuClick }) => {
+export const MenuItems: React.FC<MenuItemsProps> = ({
+  items,
+  selectedKeys,
+  onMenuClick,
+  theme,
+}) => {
   return (
     <Menu
       mode="inline"
       inlineIndent={16}
       selectedKeys={selectedKeys}
       items={renderMenuItems(items, onMenuClick)}
-      theme="light"
+      theme={theme}
       className={styles.customMenu}
       getPopupContainer={() => document.body}
     />

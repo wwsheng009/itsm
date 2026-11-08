@@ -85,12 +85,14 @@ func createActiveContract(t *testing.T, ctx context.Context, client *ent.Client,
 // addContractBinding 为合同添加一条定义绑定（ticketTypeID=0 为类型无关）。
 func addContractBinding(t *testing.T, ctx context.Context, client *ent.Client, contractID, defID, providerTenantID int, ticketTypeID int64) *ent.MSPContractSLABinding {
 	t.Helper()
-	return client.MSPContractSLABinding.Create().
+	binding := client.MSPContractSLABinding.Create().
 		SetContractID(contractID).
 		SetSLADefinitionID(defID).
 		SetTicketTypeID(ticketTypeID).
 		SetTenantID(providerTenantID).
 		SaveX(ctx)
+	require.NoError(t, SyncContractSnapshot(ctx, client, contractID))
+	return binding
 }
 
 // L1：显式类型绑定优先于类型无关授权。
@@ -129,6 +131,28 @@ func TestTicketSLAMatcher_L1TypeAgnostic(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, def.ID, result.SLADefinitionID)
 	assert.Equal(t, "L1", result.MatchedLayer)
+}
+
+// L1 只读快照：没有下发快照时，即使 provider 侧合同/绑定存在，也必须回落 L4。
+func TestTicketSLAMatcher_L1RequiresCustomerSnapshot(t *testing.T) {
+	client, svc, ctx, customer, provider := setupSLAMatcherTest(t)
+	defer client.Close()
+	now := time.Date(2026, 10, 14, 3, 0, 0, 0, time.UTC)
+	svc = svc.withNowFunc(func() time.Time { return now })
+
+	def := createProviderDefinition(t, ctx, client, provider.ID, "Provider Only SLA", "incident", "high", 90, 360)
+	contract := createActiveContract(t, ctx, client, provider.ID, customer.ID, now.Add(-time.Hour), nil)
+	// 直接写 provider 绑定，不调用 SyncContractSnapshot（模拟快照缺失）。
+	client.MSPContractSLABinding.Create().
+		SetContractID(contract.ID).
+		SetSLADefinitionID(def.ID).
+		SetTicketTypeID(0).
+		SetTenantID(provider.ID).
+		SaveX(ctx)
+
+	result, err := svc.CalculateSLADeadlineFromRequest(ctx, customer.ID, "incident", "high", 0, "")
+	require.NoError(t, err)
+	assert.Equal(t, "L4", result.MatchedLayer, "无快照不得回读 provider 定义")
 }
 
 // L1：过期合同不命中（effective_until 已过），回落 L4（无其他数据）。

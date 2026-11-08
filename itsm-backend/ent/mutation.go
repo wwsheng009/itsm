@@ -136,6 +136,7 @@ import (
 	"itsm-backend/ent/slaalertrule"
 	"itsm-backend/ent/sladefinition"
 	"itsm-backend/ent/sladefinitiongrant"
+	"itsm-backend/ent/sladefinitionsnapshot"
 	"itsm-backend/ent/slametric"
 	"itsm-backend/ent/slapolicy"
 	"itsm-backend/ent/slaviolation"
@@ -315,6 +316,7 @@ const (
 	TypeSLAAlertRule                = "SLAAlertRule"
 	TypeSLADefinition               = "SLADefinition"
 	TypeSLADefinitionGrant          = "SLADefinitionGrant"
+	TypeSLADefinitionSnapshot       = "SLADefinitionSnapshot"
 	TypeSLAMetric                   = "SLAMetric"
 	TypeSLAPolicy                   = "SLAPolicy"
 	TypeSLAViolation                = "SLAViolation"
@@ -164765,6 +164767,1911 @@ func (m *SLADefinitionGrantMutation) ResetEdge(name string) error {
 		return nil
 	}
 	return fmt.Errorf("unknown SLADefinitionGrant edge %s", name)
+}
+
+// SLADefinitionSnapshotMutation represents an operation that mutates the SLADefinitionSnapshot nodes in the graph.
+type SLADefinitionSnapshotMutation struct {
+	config
+	op                      Op
+	typ                     string
+	id                      *int
+	tenant_id               *int
+	addtenant_id            *int
+	source_kind             *string
+	source_contract_id      *int
+	addsource_contract_id   *int
+	source_contract_no      *string
+	source_binding_id       *int
+	addsource_binding_id    *int
+	source_grant_id         *int
+	addsource_grant_id      *int
+	source_definition_id    *int
+	addsource_definition_id *int
+	source_tenant_id        *int
+	addsource_tenant_id     *int
+	source_version          *int64
+	addsource_version       *int64
+	definition_name         *string
+	description             *string
+	service_type            *string
+	priority                *string
+	ticket_type_id          *int64
+	addticket_type_id       *int64
+	terms                   *map[string]interface{}
+	effective_from          *time.Time
+	effective_until         *time.Time
+	status                  *string
+	payload_hash            *string
+	synced_at               *time.Time
+	created_at              *time.Time
+	updated_at              *time.Time
+	clearedFields           map[string]struct{}
+	done                    bool
+	oldValue                func(context.Context) (*SLADefinitionSnapshot, error)
+	predicates              []predicate.SLADefinitionSnapshot
+}
+
+var _ ent.Mutation = (*SLADefinitionSnapshotMutation)(nil)
+
+// sladefinitionsnapshotOption allows management of the mutation configuration using functional options.
+type sladefinitionsnapshotOption func(*SLADefinitionSnapshotMutation)
+
+// newSLADefinitionSnapshotMutation creates new mutation for the SLADefinitionSnapshot entity.
+func newSLADefinitionSnapshotMutation(c config, op Op, opts ...sladefinitionsnapshotOption) *SLADefinitionSnapshotMutation {
+	m := &SLADefinitionSnapshotMutation{
+		config:        c,
+		op:            op,
+		typ:           TypeSLADefinitionSnapshot,
+		clearedFields: make(map[string]struct{}),
+	}
+	for _, opt := range opts {
+		opt(m)
+	}
+	return m
+}
+
+// withSLADefinitionSnapshotID sets the ID field of the mutation.
+func withSLADefinitionSnapshotID(id int) sladefinitionsnapshotOption {
+	return func(m *SLADefinitionSnapshotMutation) {
+		var (
+			err   error
+			once  sync.Once
+			value *SLADefinitionSnapshot
+		)
+		m.oldValue = func(ctx context.Context) (*SLADefinitionSnapshot, error) {
+			once.Do(func() {
+				if m.done {
+					err = errors.New("querying old values post mutation is not allowed")
+				} else {
+					value, err = m.Client().SLADefinitionSnapshot.Get(ctx, id)
+				}
+			})
+			return value, err
+		}
+		m.id = &id
+	}
+}
+
+// withSLADefinitionSnapshot sets the old SLADefinitionSnapshot of the mutation.
+func withSLADefinitionSnapshot(node *SLADefinitionSnapshot) sladefinitionsnapshotOption {
+	return func(m *SLADefinitionSnapshotMutation) {
+		m.oldValue = func(context.Context) (*SLADefinitionSnapshot, error) {
+			return node, nil
+		}
+		m.id = &node.ID
+	}
+}
+
+// Client returns a new `ent.Client` from the mutation. If the mutation was
+// executed in a transaction (ent.Tx), a transactional client is returned.
+func (m SLADefinitionSnapshotMutation) Client() *Client {
+	client := &Client{config: m.config}
+	client.init()
+	return client
+}
+
+// Tx returns an `ent.Tx` for mutations that were executed in transactions;
+// it returns an error otherwise.
+func (m SLADefinitionSnapshotMutation) Tx() (*Tx, error) {
+	if _, ok := m.driver.(*txDriver); !ok {
+		return nil, errors.New("ent: mutation is not running in a transaction")
+	}
+	tx := &Tx{config: m.config}
+	tx.init()
+	return tx, nil
+}
+
+// ID returns the ID value in the mutation. Note that the ID is only available
+// if it was provided to the builder or after it was returned from the database.
+func (m *SLADefinitionSnapshotMutation) ID() (id int, exists bool) {
+	if m.id == nil {
+		return
+	}
+	return *m.id, true
+}
+
+// IDs queries the database and returns the entity ids that match the mutation's predicate.
+// That means, if the mutation is applied within a transaction with an isolation level such
+// as sql.LevelSerializable, the returned ids match the ids of the rows that will be updated
+// or updated by the mutation.
+func (m *SLADefinitionSnapshotMutation) IDs(ctx context.Context) ([]int, error) {
+	switch {
+	case m.op.Is(OpUpdateOne | OpDeleteOne):
+		id, exists := m.ID()
+		if exists {
+			return []int{id}, nil
+		}
+		fallthrough
+	case m.op.Is(OpUpdate | OpDelete):
+		return m.Client().SLADefinitionSnapshot.Query().Where(m.predicates...).IDs(ctx)
+	default:
+		return nil, fmt.Errorf("IDs is not allowed on %s operations", m.op)
+	}
+}
+
+// SetTenantID sets the "tenant_id" field.
+func (m *SLADefinitionSnapshotMutation) SetTenantID(i int) {
+	m.tenant_id = &i
+	m.addtenant_id = nil
+}
+
+// TenantID returns the value of the "tenant_id" field in the mutation.
+func (m *SLADefinitionSnapshotMutation) TenantID() (r int, exists bool) {
+	v := m.tenant_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldTenantID returns the old "tenant_id" field's value of the SLADefinitionSnapshot entity.
+// If the SLADefinitionSnapshot object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *SLADefinitionSnapshotMutation) OldTenantID(ctx context.Context) (v int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldTenantID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldTenantID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldTenantID: %w", err)
+	}
+	return oldValue.TenantID, nil
+}
+
+// AddTenantID adds i to the "tenant_id" field.
+func (m *SLADefinitionSnapshotMutation) AddTenantID(i int) {
+	if m.addtenant_id != nil {
+		*m.addtenant_id += i
+	} else {
+		m.addtenant_id = &i
+	}
+}
+
+// AddedTenantID returns the value that was added to the "tenant_id" field in this mutation.
+func (m *SLADefinitionSnapshotMutation) AddedTenantID() (r int, exists bool) {
+	v := m.addtenant_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetTenantID resets all changes to the "tenant_id" field.
+func (m *SLADefinitionSnapshotMutation) ResetTenantID() {
+	m.tenant_id = nil
+	m.addtenant_id = nil
+}
+
+// SetSourceKind sets the "source_kind" field.
+func (m *SLADefinitionSnapshotMutation) SetSourceKind(s string) {
+	m.source_kind = &s
+}
+
+// SourceKind returns the value of the "source_kind" field in the mutation.
+func (m *SLADefinitionSnapshotMutation) SourceKind() (r string, exists bool) {
+	v := m.source_kind
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldSourceKind returns the old "source_kind" field's value of the SLADefinitionSnapshot entity.
+// If the SLADefinitionSnapshot object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *SLADefinitionSnapshotMutation) OldSourceKind(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldSourceKind is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldSourceKind requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldSourceKind: %w", err)
+	}
+	return oldValue.SourceKind, nil
+}
+
+// ResetSourceKind resets all changes to the "source_kind" field.
+func (m *SLADefinitionSnapshotMutation) ResetSourceKind() {
+	m.source_kind = nil
+}
+
+// SetSourceContractID sets the "source_contract_id" field.
+func (m *SLADefinitionSnapshotMutation) SetSourceContractID(i int) {
+	m.source_contract_id = &i
+	m.addsource_contract_id = nil
+}
+
+// SourceContractID returns the value of the "source_contract_id" field in the mutation.
+func (m *SLADefinitionSnapshotMutation) SourceContractID() (r int, exists bool) {
+	v := m.source_contract_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldSourceContractID returns the old "source_contract_id" field's value of the SLADefinitionSnapshot entity.
+// If the SLADefinitionSnapshot object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *SLADefinitionSnapshotMutation) OldSourceContractID(ctx context.Context) (v *int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldSourceContractID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldSourceContractID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldSourceContractID: %w", err)
+	}
+	return oldValue.SourceContractID, nil
+}
+
+// AddSourceContractID adds i to the "source_contract_id" field.
+func (m *SLADefinitionSnapshotMutation) AddSourceContractID(i int) {
+	if m.addsource_contract_id != nil {
+		*m.addsource_contract_id += i
+	} else {
+		m.addsource_contract_id = &i
+	}
+}
+
+// AddedSourceContractID returns the value that was added to the "source_contract_id" field in this mutation.
+func (m *SLADefinitionSnapshotMutation) AddedSourceContractID() (r int, exists bool) {
+	v := m.addsource_contract_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ClearSourceContractID clears the value of the "source_contract_id" field.
+func (m *SLADefinitionSnapshotMutation) ClearSourceContractID() {
+	m.source_contract_id = nil
+	m.addsource_contract_id = nil
+	m.clearedFields[sladefinitionsnapshot.FieldSourceContractID] = struct{}{}
+}
+
+// SourceContractIDCleared returns if the "source_contract_id" field was cleared in this mutation.
+func (m *SLADefinitionSnapshotMutation) SourceContractIDCleared() bool {
+	_, ok := m.clearedFields[sladefinitionsnapshot.FieldSourceContractID]
+	return ok
+}
+
+// ResetSourceContractID resets all changes to the "source_contract_id" field.
+func (m *SLADefinitionSnapshotMutation) ResetSourceContractID() {
+	m.source_contract_id = nil
+	m.addsource_contract_id = nil
+	delete(m.clearedFields, sladefinitionsnapshot.FieldSourceContractID)
+}
+
+// SetSourceContractNo sets the "source_contract_no" field.
+func (m *SLADefinitionSnapshotMutation) SetSourceContractNo(s string) {
+	m.source_contract_no = &s
+}
+
+// SourceContractNo returns the value of the "source_contract_no" field in the mutation.
+func (m *SLADefinitionSnapshotMutation) SourceContractNo() (r string, exists bool) {
+	v := m.source_contract_no
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldSourceContractNo returns the old "source_contract_no" field's value of the SLADefinitionSnapshot entity.
+// If the SLADefinitionSnapshot object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *SLADefinitionSnapshotMutation) OldSourceContractNo(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldSourceContractNo is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldSourceContractNo requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldSourceContractNo: %w", err)
+	}
+	return oldValue.SourceContractNo, nil
+}
+
+// ClearSourceContractNo clears the value of the "source_contract_no" field.
+func (m *SLADefinitionSnapshotMutation) ClearSourceContractNo() {
+	m.source_contract_no = nil
+	m.clearedFields[sladefinitionsnapshot.FieldSourceContractNo] = struct{}{}
+}
+
+// SourceContractNoCleared returns if the "source_contract_no" field was cleared in this mutation.
+func (m *SLADefinitionSnapshotMutation) SourceContractNoCleared() bool {
+	_, ok := m.clearedFields[sladefinitionsnapshot.FieldSourceContractNo]
+	return ok
+}
+
+// ResetSourceContractNo resets all changes to the "source_contract_no" field.
+func (m *SLADefinitionSnapshotMutation) ResetSourceContractNo() {
+	m.source_contract_no = nil
+	delete(m.clearedFields, sladefinitionsnapshot.FieldSourceContractNo)
+}
+
+// SetSourceBindingID sets the "source_binding_id" field.
+func (m *SLADefinitionSnapshotMutation) SetSourceBindingID(i int) {
+	m.source_binding_id = &i
+	m.addsource_binding_id = nil
+}
+
+// SourceBindingID returns the value of the "source_binding_id" field in the mutation.
+func (m *SLADefinitionSnapshotMutation) SourceBindingID() (r int, exists bool) {
+	v := m.source_binding_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldSourceBindingID returns the old "source_binding_id" field's value of the SLADefinitionSnapshot entity.
+// If the SLADefinitionSnapshot object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *SLADefinitionSnapshotMutation) OldSourceBindingID(ctx context.Context) (v *int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldSourceBindingID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldSourceBindingID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldSourceBindingID: %w", err)
+	}
+	return oldValue.SourceBindingID, nil
+}
+
+// AddSourceBindingID adds i to the "source_binding_id" field.
+func (m *SLADefinitionSnapshotMutation) AddSourceBindingID(i int) {
+	if m.addsource_binding_id != nil {
+		*m.addsource_binding_id += i
+	} else {
+		m.addsource_binding_id = &i
+	}
+}
+
+// AddedSourceBindingID returns the value that was added to the "source_binding_id" field in this mutation.
+func (m *SLADefinitionSnapshotMutation) AddedSourceBindingID() (r int, exists bool) {
+	v := m.addsource_binding_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ClearSourceBindingID clears the value of the "source_binding_id" field.
+func (m *SLADefinitionSnapshotMutation) ClearSourceBindingID() {
+	m.source_binding_id = nil
+	m.addsource_binding_id = nil
+	m.clearedFields[sladefinitionsnapshot.FieldSourceBindingID] = struct{}{}
+}
+
+// SourceBindingIDCleared returns if the "source_binding_id" field was cleared in this mutation.
+func (m *SLADefinitionSnapshotMutation) SourceBindingIDCleared() bool {
+	_, ok := m.clearedFields[sladefinitionsnapshot.FieldSourceBindingID]
+	return ok
+}
+
+// ResetSourceBindingID resets all changes to the "source_binding_id" field.
+func (m *SLADefinitionSnapshotMutation) ResetSourceBindingID() {
+	m.source_binding_id = nil
+	m.addsource_binding_id = nil
+	delete(m.clearedFields, sladefinitionsnapshot.FieldSourceBindingID)
+}
+
+// SetSourceGrantID sets the "source_grant_id" field.
+func (m *SLADefinitionSnapshotMutation) SetSourceGrantID(i int) {
+	m.source_grant_id = &i
+	m.addsource_grant_id = nil
+}
+
+// SourceGrantID returns the value of the "source_grant_id" field in the mutation.
+func (m *SLADefinitionSnapshotMutation) SourceGrantID() (r int, exists bool) {
+	v := m.source_grant_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldSourceGrantID returns the old "source_grant_id" field's value of the SLADefinitionSnapshot entity.
+// If the SLADefinitionSnapshot object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *SLADefinitionSnapshotMutation) OldSourceGrantID(ctx context.Context) (v *int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldSourceGrantID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldSourceGrantID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldSourceGrantID: %w", err)
+	}
+	return oldValue.SourceGrantID, nil
+}
+
+// AddSourceGrantID adds i to the "source_grant_id" field.
+func (m *SLADefinitionSnapshotMutation) AddSourceGrantID(i int) {
+	if m.addsource_grant_id != nil {
+		*m.addsource_grant_id += i
+	} else {
+		m.addsource_grant_id = &i
+	}
+}
+
+// AddedSourceGrantID returns the value that was added to the "source_grant_id" field in this mutation.
+func (m *SLADefinitionSnapshotMutation) AddedSourceGrantID() (r int, exists bool) {
+	v := m.addsource_grant_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ClearSourceGrantID clears the value of the "source_grant_id" field.
+func (m *SLADefinitionSnapshotMutation) ClearSourceGrantID() {
+	m.source_grant_id = nil
+	m.addsource_grant_id = nil
+	m.clearedFields[sladefinitionsnapshot.FieldSourceGrantID] = struct{}{}
+}
+
+// SourceGrantIDCleared returns if the "source_grant_id" field was cleared in this mutation.
+func (m *SLADefinitionSnapshotMutation) SourceGrantIDCleared() bool {
+	_, ok := m.clearedFields[sladefinitionsnapshot.FieldSourceGrantID]
+	return ok
+}
+
+// ResetSourceGrantID resets all changes to the "source_grant_id" field.
+func (m *SLADefinitionSnapshotMutation) ResetSourceGrantID() {
+	m.source_grant_id = nil
+	m.addsource_grant_id = nil
+	delete(m.clearedFields, sladefinitionsnapshot.FieldSourceGrantID)
+}
+
+// SetSourceDefinitionID sets the "source_definition_id" field.
+func (m *SLADefinitionSnapshotMutation) SetSourceDefinitionID(i int) {
+	m.source_definition_id = &i
+	m.addsource_definition_id = nil
+}
+
+// SourceDefinitionID returns the value of the "source_definition_id" field in the mutation.
+func (m *SLADefinitionSnapshotMutation) SourceDefinitionID() (r int, exists bool) {
+	v := m.source_definition_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldSourceDefinitionID returns the old "source_definition_id" field's value of the SLADefinitionSnapshot entity.
+// If the SLADefinitionSnapshot object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *SLADefinitionSnapshotMutation) OldSourceDefinitionID(ctx context.Context) (v int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldSourceDefinitionID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldSourceDefinitionID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldSourceDefinitionID: %w", err)
+	}
+	return oldValue.SourceDefinitionID, nil
+}
+
+// AddSourceDefinitionID adds i to the "source_definition_id" field.
+func (m *SLADefinitionSnapshotMutation) AddSourceDefinitionID(i int) {
+	if m.addsource_definition_id != nil {
+		*m.addsource_definition_id += i
+	} else {
+		m.addsource_definition_id = &i
+	}
+}
+
+// AddedSourceDefinitionID returns the value that was added to the "source_definition_id" field in this mutation.
+func (m *SLADefinitionSnapshotMutation) AddedSourceDefinitionID() (r int, exists bool) {
+	v := m.addsource_definition_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetSourceDefinitionID resets all changes to the "source_definition_id" field.
+func (m *SLADefinitionSnapshotMutation) ResetSourceDefinitionID() {
+	m.source_definition_id = nil
+	m.addsource_definition_id = nil
+}
+
+// SetSourceTenantID sets the "source_tenant_id" field.
+func (m *SLADefinitionSnapshotMutation) SetSourceTenantID(i int) {
+	m.source_tenant_id = &i
+	m.addsource_tenant_id = nil
+}
+
+// SourceTenantID returns the value of the "source_tenant_id" field in the mutation.
+func (m *SLADefinitionSnapshotMutation) SourceTenantID() (r int, exists bool) {
+	v := m.source_tenant_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldSourceTenantID returns the old "source_tenant_id" field's value of the SLADefinitionSnapshot entity.
+// If the SLADefinitionSnapshot object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *SLADefinitionSnapshotMutation) OldSourceTenantID(ctx context.Context) (v int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldSourceTenantID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldSourceTenantID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldSourceTenantID: %w", err)
+	}
+	return oldValue.SourceTenantID, nil
+}
+
+// AddSourceTenantID adds i to the "source_tenant_id" field.
+func (m *SLADefinitionSnapshotMutation) AddSourceTenantID(i int) {
+	if m.addsource_tenant_id != nil {
+		*m.addsource_tenant_id += i
+	} else {
+		m.addsource_tenant_id = &i
+	}
+}
+
+// AddedSourceTenantID returns the value that was added to the "source_tenant_id" field in this mutation.
+func (m *SLADefinitionSnapshotMutation) AddedSourceTenantID() (r int, exists bool) {
+	v := m.addsource_tenant_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetSourceTenantID resets all changes to the "source_tenant_id" field.
+func (m *SLADefinitionSnapshotMutation) ResetSourceTenantID() {
+	m.source_tenant_id = nil
+	m.addsource_tenant_id = nil
+}
+
+// SetSourceVersion sets the "source_version" field.
+func (m *SLADefinitionSnapshotMutation) SetSourceVersion(i int64) {
+	m.source_version = &i
+	m.addsource_version = nil
+}
+
+// SourceVersion returns the value of the "source_version" field in the mutation.
+func (m *SLADefinitionSnapshotMutation) SourceVersion() (r int64, exists bool) {
+	v := m.source_version
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldSourceVersion returns the old "source_version" field's value of the SLADefinitionSnapshot entity.
+// If the SLADefinitionSnapshot object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *SLADefinitionSnapshotMutation) OldSourceVersion(ctx context.Context) (v int64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldSourceVersion is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldSourceVersion requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldSourceVersion: %w", err)
+	}
+	return oldValue.SourceVersion, nil
+}
+
+// AddSourceVersion adds i to the "source_version" field.
+func (m *SLADefinitionSnapshotMutation) AddSourceVersion(i int64) {
+	if m.addsource_version != nil {
+		*m.addsource_version += i
+	} else {
+		m.addsource_version = &i
+	}
+}
+
+// AddedSourceVersion returns the value that was added to the "source_version" field in this mutation.
+func (m *SLADefinitionSnapshotMutation) AddedSourceVersion() (r int64, exists bool) {
+	v := m.addsource_version
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetSourceVersion resets all changes to the "source_version" field.
+func (m *SLADefinitionSnapshotMutation) ResetSourceVersion() {
+	m.source_version = nil
+	m.addsource_version = nil
+}
+
+// SetDefinitionName sets the "definition_name" field.
+func (m *SLADefinitionSnapshotMutation) SetDefinitionName(s string) {
+	m.definition_name = &s
+}
+
+// DefinitionName returns the value of the "definition_name" field in the mutation.
+func (m *SLADefinitionSnapshotMutation) DefinitionName() (r string, exists bool) {
+	v := m.definition_name
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldDefinitionName returns the old "definition_name" field's value of the SLADefinitionSnapshot entity.
+// If the SLADefinitionSnapshot object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *SLADefinitionSnapshotMutation) OldDefinitionName(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldDefinitionName is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldDefinitionName requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldDefinitionName: %w", err)
+	}
+	return oldValue.DefinitionName, nil
+}
+
+// ResetDefinitionName resets all changes to the "definition_name" field.
+func (m *SLADefinitionSnapshotMutation) ResetDefinitionName() {
+	m.definition_name = nil
+}
+
+// SetDescription sets the "description" field.
+func (m *SLADefinitionSnapshotMutation) SetDescription(s string) {
+	m.description = &s
+}
+
+// Description returns the value of the "description" field in the mutation.
+func (m *SLADefinitionSnapshotMutation) Description() (r string, exists bool) {
+	v := m.description
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldDescription returns the old "description" field's value of the SLADefinitionSnapshot entity.
+// If the SLADefinitionSnapshot object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *SLADefinitionSnapshotMutation) OldDescription(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldDescription is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldDescription requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldDescription: %w", err)
+	}
+	return oldValue.Description, nil
+}
+
+// ClearDescription clears the value of the "description" field.
+func (m *SLADefinitionSnapshotMutation) ClearDescription() {
+	m.description = nil
+	m.clearedFields[sladefinitionsnapshot.FieldDescription] = struct{}{}
+}
+
+// DescriptionCleared returns if the "description" field was cleared in this mutation.
+func (m *SLADefinitionSnapshotMutation) DescriptionCleared() bool {
+	_, ok := m.clearedFields[sladefinitionsnapshot.FieldDescription]
+	return ok
+}
+
+// ResetDescription resets all changes to the "description" field.
+func (m *SLADefinitionSnapshotMutation) ResetDescription() {
+	m.description = nil
+	delete(m.clearedFields, sladefinitionsnapshot.FieldDescription)
+}
+
+// SetServiceType sets the "service_type" field.
+func (m *SLADefinitionSnapshotMutation) SetServiceType(s string) {
+	m.service_type = &s
+}
+
+// ServiceType returns the value of the "service_type" field in the mutation.
+func (m *SLADefinitionSnapshotMutation) ServiceType() (r string, exists bool) {
+	v := m.service_type
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldServiceType returns the old "service_type" field's value of the SLADefinitionSnapshot entity.
+// If the SLADefinitionSnapshot object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *SLADefinitionSnapshotMutation) OldServiceType(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldServiceType is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldServiceType requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldServiceType: %w", err)
+	}
+	return oldValue.ServiceType, nil
+}
+
+// ClearServiceType clears the value of the "service_type" field.
+func (m *SLADefinitionSnapshotMutation) ClearServiceType() {
+	m.service_type = nil
+	m.clearedFields[sladefinitionsnapshot.FieldServiceType] = struct{}{}
+}
+
+// ServiceTypeCleared returns if the "service_type" field was cleared in this mutation.
+func (m *SLADefinitionSnapshotMutation) ServiceTypeCleared() bool {
+	_, ok := m.clearedFields[sladefinitionsnapshot.FieldServiceType]
+	return ok
+}
+
+// ResetServiceType resets all changes to the "service_type" field.
+func (m *SLADefinitionSnapshotMutation) ResetServiceType() {
+	m.service_type = nil
+	delete(m.clearedFields, sladefinitionsnapshot.FieldServiceType)
+}
+
+// SetPriority sets the "priority" field.
+func (m *SLADefinitionSnapshotMutation) SetPriority(s string) {
+	m.priority = &s
+}
+
+// Priority returns the value of the "priority" field in the mutation.
+func (m *SLADefinitionSnapshotMutation) Priority() (r string, exists bool) {
+	v := m.priority
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldPriority returns the old "priority" field's value of the SLADefinitionSnapshot entity.
+// If the SLADefinitionSnapshot object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *SLADefinitionSnapshotMutation) OldPriority(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldPriority is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldPriority requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldPriority: %w", err)
+	}
+	return oldValue.Priority, nil
+}
+
+// ClearPriority clears the value of the "priority" field.
+func (m *SLADefinitionSnapshotMutation) ClearPriority() {
+	m.priority = nil
+	m.clearedFields[sladefinitionsnapshot.FieldPriority] = struct{}{}
+}
+
+// PriorityCleared returns if the "priority" field was cleared in this mutation.
+func (m *SLADefinitionSnapshotMutation) PriorityCleared() bool {
+	_, ok := m.clearedFields[sladefinitionsnapshot.FieldPriority]
+	return ok
+}
+
+// ResetPriority resets all changes to the "priority" field.
+func (m *SLADefinitionSnapshotMutation) ResetPriority() {
+	m.priority = nil
+	delete(m.clearedFields, sladefinitionsnapshot.FieldPriority)
+}
+
+// SetTicketTypeID sets the "ticket_type_id" field.
+func (m *SLADefinitionSnapshotMutation) SetTicketTypeID(i int64) {
+	m.ticket_type_id = &i
+	m.addticket_type_id = nil
+}
+
+// TicketTypeID returns the value of the "ticket_type_id" field in the mutation.
+func (m *SLADefinitionSnapshotMutation) TicketTypeID() (r int64, exists bool) {
+	v := m.ticket_type_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldTicketTypeID returns the old "ticket_type_id" field's value of the SLADefinitionSnapshot entity.
+// If the SLADefinitionSnapshot object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *SLADefinitionSnapshotMutation) OldTicketTypeID(ctx context.Context) (v *int64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldTicketTypeID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldTicketTypeID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldTicketTypeID: %w", err)
+	}
+	return oldValue.TicketTypeID, nil
+}
+
+// AddTicketTypeID adds i to the "ticket_type_id" field.
+func (m *SLADefinitionSnapshotMutation) AddTicketTypeID(i int64) {
+	if m.addticket_type_id != nil {
+		*m.addticket_type_id += i
+	} else {
+		m.addticket_type_id = &i
+	}
+}
+
+// AddedTicketTypeID returns the value that was added to the "ticket_type_id" field in this mutation.
+func (m *SLADefinitionSnapshotMutation) AddedTicketTypeID() (r int64, exists bool) {
+	v := m.addticket_type_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ClearTicketTypeID clears the value of the "ticket_type_id" field.
+func (m *SLADefinitionSnapshotMutation) ClearTicketTypeID() {
+	m.ticket_type_id = nil
+	m.addticket_type_id = nil
+	m.clearedFields[sladefinitionsnapshot.FieldTicketTypeID] = struct{}{}
+}
+
+// TicketTypeIDCleared returns if the "ticket_type_id" field was cleared in this mutation.
+func (m *SLADefinitionSnapshotMutation) TicketTypeIDCleared() bool {
+	_, ok := m.clearedFields[sladefinitionsnapshot.FieldTicketTypeID]
+	return ok
+}
+
+// ResetTicketTypeID resets all changes to the "ticket_type_id" field.
+func (m *SLADefinitionSnapshotMutation) ResetTicketTypeID() {
+	m.ticket_type_id = nil
+	m.addticket_type_id = nil
+	delete(m.clearedFields, sladefinitionsnapshot.FieldTicketTypeID)
+}
+
+// SetTerms sets the "terms" field.
+func (m *SLADefinitionSnapshotMutation) SetTerms(value map[string]interface{}) {
+	m.terms = &value
+}
+
+// Terms returns the value of the "terms" field in the mutation.
+func (m *SLADefinitionSnapshotMutation) Terms() (r map[string]interface{}, exists bool) {
+	v := m.terms
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldTerms returns the old "terms" field's value of the SLADefinitionSnapshot entity.
+// If the SLADefinitionSnapshot object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *SLADefinitionSnapshotMutation) OldTerms(ctx context.Context) (v map[string]interface{}, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldTerms is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldTerms requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldTerms: %w", err)
+	}
+	return oldValue.Terms, nil
+}
+
+// ResetTerms resets all changes to the "terms" field.
+func (m *SLADefinitionSnapshotMutation) ResetTerms() {
+	m.terms = nil
+}
+
+// SetEffectiveFrom sets the "effective_from" field.
+func (m *SLADefinitionSnapshotMutation) SetEffectiveFrom(t time.Time) {
+	m.effective_from = &t
+}
+
+// EffectiveFrom returns the value of the "effective_from" field in the mutation.
+func (m *SLADefinitionSnapshotMutation) EffectiveFrom() (r time.Time, exists bool) {
+	v := m.effective_from
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldEffectiveFrom returns the old "effective_from" field's value of the SLADefinitionSnapshot entity.
+// If the SLADefinitionSnapshot object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *SLADefinitionSnapshotMutation) OldEffectiveFrom(ctx context.Context) (v time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldEffectiveFrom is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldEffectiveFrom requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldEffectiveFrom: %w", err)
+	}
+	return oldValue.EffectiveFrom, nil
+}
+
+// ResetEffectiveFrom resets all changes to the "effective_from" field.
+func (m *SLADefinitionSnapshotMutation) ResetEffectiveFrom() {
+	m.effective_from = nil
+}
+
+// SetEffectiveUntil sets the "effective_until" field.
+func (m *SLADefinitionSnapshotMutation) SetEffectiveUntil(t time.Time) {
+	m.effective_until = &t
+}
+
+// EffectiveUntil returns the value of the "effective_until" field in the mutation.
+func (m *SLADefinitionSnapshotMutation) EffectiveUntil() (r time.Time, exists bool) {
+	v := m.effective_until
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldEffectiveUntil returns the old "effective_until" field's value of the SLADefinitionSnapshot entity.
+// If the SLADefinitionSnapshot object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *SLADefinitionSnapshotMutation) OldEffectiveUntil(ctx context.Context) (v *time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldEffectiveUntil is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldEffectiveUntil requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldEffectiveUntil: %w", err)
+	}
+	return oldValue.EffectiveUntil, nil
+}
+
+// ClearEffectiveUntil clears the value of the "effective_until" field.
+func (m *SLADefinitionSnapshotMutation) ClearEffectiveUntil() {
+	m.effective_until = nil
+	m.clearedFields[sladefinitionsnapshot.FieldEffectiveUntil] = struct{}{}
+}
+
+// EffectiveUntilCleared returns if the "effective_until" field was cleared in this mutation.
+func (m *SLADefinitionSnapshotMutation) EffectiveUntilCleared() bool {
+	_, ok := m.clearedFields[sladefinitionsnapshot.FieldEffectiveUntil]
+	return ok
+}
+
+// ResetEffectiveUntil resets all changes to the "effective_until" field.
+func (m *SLADefinitionSnapshotMutation) ResetEffectiveUntil() {
+	m.effective_until = nil
+	delete(m.clearedFields, sladefinitionsnapshot.FieldEffectiveUntil)
+}
+
+// SetStatus sets the "status" field.
+func (m *SLADefinitionSnapshotMutation) SetStatus(s string) {
+	m.status = &s
+}
+
+// Status returns the value of the "status" field in the mutation.
+func (m *SLADefinitionSnapshotMutation) Status() (r string, exists bool) {
+	v := m.status
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldStatus returns the old "status" field's value of the SLADefinitionSnapshot entity.
+// If the SLADefinitionSnapshot object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *SLADefinitionSnapshotMutation) OldStatus(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldStatus is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldStatus requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldStatus: %w", err)
+	}
+	return oldValue.Status, nil
+}
+
+// ResetStatus resets all changes to the "status" field.
+func (m *SLADefinitionSnapshotMutation) ResetStatus() {
+	m.status = nil
+}
+
+// SetPayloadHash sets the "payload_hash" field.
+func (m *SLADefinitionSnapshotMutation) SetPayloadHash(s string) {
+	m.payload_hash = &s
+}
+
+// PayloadHash returns the value of the "payload_hash" field in the mutation.
+func (m *SLADefinitionSnapshotMutation) PayloadHash() (r string, exists bool) {
+	v := m.payload_hash
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldPayloadHash returns the old "payload_hash" field's value of the SLADefinitionSnapshot entity.
+// If the SLADefinitionSnapshot object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *SLADefinitionSnapshotMutation) OldPayloadHash(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldPayloadHash is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldPayloadHash requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldPayloadHash: %w", err)
+	}
+	return oldValue.PayloadHash, nil
+}
+
+// ResetPayloadHash resets all changes to the "payload_hash" field.
+func (m *SLADefinitionSnapshotMutation) ResetPayloadHash() {
+	m.payload_hash = nil
+}
+
+// SetSyncedAt sets the "synced_at" field.
+func (m *SLADefinitionSnapshotMutation) SetSyncedAt(t time.Time) {
+	m.synced_at = &t
+}
+
+// SyncedAt returns the value of the "synced_at" field in the mutation.
+func (m *SLADefinitionSnapshotMutation) SyncedAt() (r time.Time, exists bool) {
+	v := m.synced_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldSyncedAt returns the old "synced_at" field's value of the SLADefinitionSnapshot entity.
+// If the SLADefinitionSnapshot object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *SLADefinitionSnapshotMutation) OldSyncedAt(ctx context.Context) (v time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldSyncedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldSyncedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldSyncedAt: %w", err)
+	}
+	return oldValue.SyncedAt, nil
+}
+
+// ResetSyncedAt resets all changes to the "synced_at" field.
+func (m *SLADefinitionSnapshotMutation) ResetSyncedAt() {
+	m.synced_at = nil
+}
+
+// SetCreatedAt sets the "created_at" field.
+func (m *SLADefinitionSnapshotMutation) SetCreatedAt(t time.Time) {
+	m.created_at = &t
+}
+
+// CreatedAt returns the value of the "created_at" field in the mutation.
+func (m *SLADefinitionSnapshotMutation) CreatedAt() (r time.Time, exists bool) {
+	v := m.created_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldCreatedAt returns the old "created_at" field's value of the SLADefinitionSnapshot entity.
+// If the SLADefinitionSnapshot object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *SLADefinitionSnapshotMutation) OldCreatedAt(ctx context.Context) (v time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldCreatedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldCreatedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldCreatedAt: %w", err)
+	}
+	return oldValue.CreatedAt, nil
+}
+
+// ResetCreatedAt resets all changes to the "created_at" field.
+func (m *SLADefinitionSnapshotMutation) ResetCreatedAt() {
+	m.created_at = nil
+}
+
+// SetUpdatedAt sets the "updated_at" field.
+func (m *SLADefinitionSnapshotMutation) SetUpdatedAt(t time.Time) {
+	m.updated_at = &t
+}
+
+// UpdatedAt returns the value of the "updated_at" field in the mutation.
+func (m *SLADefinitionSnapshotMutation) UpdatedAt() (r time.Time, exists bool) {
+	v := m.updated_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldUpdatedAt returns the old "updated_at" field's value of the SLADefinitionSnapshot entity.
+// If the SLADefinitionSnapshot object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *SLADefinitionSnapshotMutation) OldUpdatedAt(ctx context.Context) (v time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldUpdatedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldUpdatedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldUpdatedAt: %w", err)
+	}
+	return oldValue.UpdatedAt, nil
+}
+
+// ResetUpdatedAt resets all changes to the "updated_at" field.
+func (m *SLADefinitionSnapshotMutation) ResetUpdatedAt() {
+	m.updated_at = nil
+}
+
+// Where appends a list predicates to the SLADefinitionSnapshotMutation builder.
+func (m *SLADefinitionSnapshotMutation) Where(ps ...predicate.SLADefinitionSnapshot) {
+	m.predicates = append(m.predicates, ps...)
+}
+
+// WhereP appends storage-level predicates to the SLADefinitionSnapshotMutation builder. Using this method,
+// users can use type-assertion to append predicates that do not depend on any generated package.
+func (m *SLADefinitionSnapshotMutation) WhereP(ps ...func(*sql.Selector)) {
+	p := make([]predicate.SLADefinitionSnapshot, len(ps))
+	for i := range ps {
+		p[i] = ps[i]
+	}
+	m.Where(p...)
+}
+
+// Op returns the operation name.
+func (m *SLADefinitionSnapshotMutation) Op() Op {
+	return m.op
+}
+
+// SetOp allows setting the mutation operation.
+func (m *SLADefinitionSnapshotMutation) SetOp(op Op) {
+	m.op = op
+}
+
+// Type returns the node type of this mutation (SLADefinitionSnapshot).
+func (m *SLADefinitionSnapshotMutation) Type() string {
+	return m.typ
+}
+
+// Fields returns all fields that were changed during this mutation. Note that in
+// order to get all numeric fields that were incremented/decremented, call
+// AddedFields().
+func (m *SLADefinitionSnapshotMutation) Fields() []string {
+	fields := make([]string, 0, 22)
+	if m.tenant_id != nil {
+		fields = append(fields, sladefinitionsnapshot.FieldTenantID)
+	}
+	if m.source_kind != nil {
+		fields = append(fields, sladefinitionsnapshot.FieldSourceKind)
+	}
+	if m.source_contract_id != nil {
+		fields = append(fields, sladefinitionsnapshot.FieldSourceContractID)
+	}
+	if m.source_contract_no != nil {
+		fields = append(fields, sladefinitionsnapshot.FieldSourceContractNo)
+	}
+	if m.source_binding_id != nil {
+		fields = append(fields, sladefinitionsnapshot.FieldSourceBindingID)
+	}
+	if m.source_grant_id != nil {
+		fields = append(fields, sladefinitionsnapshot.FieldSourceGrantID)
+	}
+	if m.source_definition_id != nil {
+		fields = append(fields, sladefinitionsnapshot.FieldSourceDefinitionID)
+	}
+	if m.source_tenant_id != nil {
+		fields = append(fields, sladefinitionsnapshot.FieldSourceTenantID)
+	}
+	if m.source_version != nil {
+		fields = append(fields, sladefinitionsnapshot.FieldSourceVersion)
+	}
+	if m.definition_name != nil {
+		fields = append(fields, sladefinitionsnapshot.FieldDefinitionName)
+	}
+	if m.description != nil {
+		fields = append(fields, sladefinitionsnapshot.FieldDescription)
+	}
+	if m.service_type != nil {
+		fields = append(fields, sladefinitionsnapshot.FieldServiceType)
+	}
+	if m.priority != nil {
+		fields = append(fields, sladefinitionsnapshot.FieldPriority)
+	}
+	if m.ticket_type_id != nil {
+		fields = append(fields, sladefinitionsnapshot.FieldTicketTypeID)
+	}
+	if m.terms != nil {
+		fields = append(fields, sladefinitionsnapshot.FieldTerms)
+	}
+	if m.effective_from != nil {
+		fields = append(fields, sladefinitionsnapshot.FieldEffectiveFrom)
+	}
+	if m.effective_until != nil {
+		fields = append(fields, sladefinitionsnapshot.FieldEffectiveUntil)
+	}
+	if m.status != nil {
+		fields = append(fields, sladefinitionsnapshot.FieldStatus)
+	}
+	if m.payload_hash != nil {
+		fields = append(fields, sladefinitionsnapshot.FieldPayloadHash)
+	}
+	if m.synced_at != nil {
+		fields = append(fields, sladefinitionsnapshot.FieldSyncedAt)
+	}
+	if m.created_at != nil {
+		fields = append(fields, sladefinitionsnapshot.FieldCreatedAt)
+	}
+	if m.updated_at != nil {
+		fields = append(fields, sladefinitionsnapshot.FieldUpdatedAt)
+	}
+	return fields
+}
+
+// Field returns the value of a field with the given name. The second boolean
+// return value indicates that this field was not set, or was not defined in the
+// schema.
+func (m *SLADefinitionSnapshotMutation) Field(name string) (ent.Value, bool) {
+	switch name {
+	case sladefinitionsnapshot.FieldTenantID:
+		return m.TenantID()
+	case sladefinitionsnapshot.FieldSourceKind:
+		return m.SourceKind()
+	case sladefinitionsnapshot.FieldSourceContractID:
+		return m.SourceContractID()
+	case sladefinitionsnapshot.FieldSourceContractNo:
+		return m.SourceContractNo()
+	case sladefinitionsnapshot.FieldSourceBindingID:
+		return m.SourceBindingID()
+	case sladefinitionsnapshot.FieldSourceGrantID:
+		return m.SourceGrantID()
+	case sladefinitionsnapshot.FieldSourceDefinitionID:
+		return m.SourceDefinitionID()
+	case sladefinitionsnapshot.FieldSourceTenantID:
+		return m.SourceTenantID()
+	case sladefinitionsnapshot.FieldSourceVersion:
+		return m.SourceVersion()
+	case sladefinitionsnapshot.FieldDefinitionName:
+		return m.DefinitionName()
+	case sladefinitionsnapshot.FieldDescription:
+		return m.Description()
+	case sladefinitionsnapshot.FieldServiceType:
+		return m.ServiceType()
+	case sladefinitionsnapshot.FieldPriority:
+		return m.Priority()
+	case sladefinitionsnapshot.FieldTicketTypeID:
+		return m.TicketTypeID()
+	case sladefinitionsnapshot.FieldTerms:
+		return m.Terms()
+	case sladefinitionsnapshot.FieldEffectiveFrom:
+		return m.EffectiveFrom()
+	case sladefinitionsnapshot.FieldEffectiveUntil:
+		return m.EffectiveUntil()
+	case sladefinitionsnapshot.FieldStatus:
+		return m.Status()
+	case sladefinitionsnapshot.FieldPayloadHash:
+		return m.PayloadHash()
+	case sladefinitionsnapshot.FieldSyncedAt:
+		return m.SyncedAt()
+	case sladefinitionsnapshot.FieldCreatedAt:
+		return m.CreatedAt()
+	case sladefinitionsnapshot.FieldUpdatedAt:
+		return m.UpdatedAt()
+	}
+	return nil, false
+}
+
+// OldField returns the old value of the field from the database. An error is
+// returned if the mutation operation is not UpdateOne, or the query to the
+// database failed.
+func (m *SLADefinitionSnapshotMutation) OldField(ctx context.Context, name string) (ent.Value, error) {
+	switch name {
+	case sladefinitionsnapshot.FieldTenantID:
+		return m.OldTenantID(ctx)
+	case sladefinitionsnapshot.FieldSourceKind:
+		return m.OldSourceKind(ctx)
+	case sladefinitionsnapshot.FieldSourceContractID:
+		return m.OldSourceContractID(ctx)
+	case sladefinitionsnapshot.FieldSourceContractNo:
+		return m.OldSourceContractNo(ctx)
+	case sladefinitionsnapshot.FieldSourceBindingID:
+		return m.OldSourceBindingID(ctx)
+	case sladefinitionsnapshot.FieldSourceGrantID:
+		return m.OldSourceGrantID(ctx)
+	case sladefinitionsnapshot.FieldSourceDefinitionID:
+		return m.OldSourceDefinitionID(ctx)
+	case sladefinitionsnapshot.FieldSourceTenantID:
+		return m.OldSourceTenantID(ctx)
+	case sladefinitionsnapshot.FieldSourceVersion:
+		return m.OldSourceVersion(ctx)
+	case sladefinitionsnapshot.FieldDefinitionName:
+		return m.OldDefinitionName(ctx)
+	case sladefinitionsnapshot.FieldDescription:
+		return m.OldDescription(ctx)
+	case sladefinitionsnapshot.FieldServiceType:
+		return m.OldServiceType(ctx)
+	case sladefinitionsnapshot.FieldPriority:
+		return m.OldPriority(ctx)
+	case sladefinitionsnapshot.FieldTicketTypeID:
+		return m.OldTicketTypeID(ctx)
+	case sladefinitionsnapshot.FieldTerms:
+		return m.OldTerms(ctx)
+	case sladefinitionsnapshot.FieldEffectiveFrom:
+		return m.OldEffectiveFrom(ctx)
+	case sladefinitionsnapshot.FieldEffectiveUntil:
+		return m.OldEffectiveUntil(ctx)
+	case sladefinitionsnapshot.FieldStatus:
+		return m.OldStatus(ctx)
+	case sladefinitionsnapshot.FieldPayloadHash:
+		return m.OldPayloadHash(ctx)
+	case sladefinitionsnapshot.FieldSyncedAt:
+		return m.OldSyncedAt(ctx)
+	case sladefinitionsnapshot.FieldCreatedAt:
+		return m.OldCreatedAt(ctx)
+	case sladefinitionsnapshot.FieldUpdatedAt:
+		return m.OldUpdatedAt(ctx)
+	}
+	return nil, fmt.Errorf("unknown SLADefinitionSnapshot field %s", name)
+}
+
+// SetField sets the value of a field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *SLADefinitionSnapshotMutation) SetField(name string, value ent.Value) error {
+	switch name {
+	case sladefinitionsnapshot.FieldTenantID:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetTenantID(v)
+		return nil
+	case sladefinitionsnapshot.FieldSourceKind:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetSourceKind(v)
+		return nil
+	case sladefinitionsnapshot.FieldSourceContractID:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetSourceContractID(v)
+		return nil
+	case sladefinitionsnapshot.FieldSourceContractNo:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetSourceContractNo(v)
+		return nil
+	case sladefinitionsnapshot.FieldSourceBindingID:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetSourceBindingID(v)
+		return nil
+	case sladefinitionsnapshot.FieldSourceGrantID:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetSourceGrantID(v)
+		return nil
+	case sladefinitionsnapshot.FieldSourceDefinitionID:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetSourceDefinitionID(v)
+		return nil
+	case sladefinitionsnapshot.FieldSourceTenantID:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetSourceTenantID(v)
+		return nil
+	case sladefinitionsnapshot.FieldSourceVersion:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetSourceVersion(v)
+		return nil
+	case sladefinitionsnapshot.FieldDefinitionName:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetDefinitionName(v)
+		return nil
+	case sladefinitionsnapshot.FieldDescription:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetDescription(v)
+		return nil
+	case sladefinitionsnapshot.FieldServiceType:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetServiceType(v)
+		return nil
+	case sladefinitionsnapshot.FieldPriority:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetPriority(v)
+		return nil
+	case sladefinitionsnapshot.FieldTicketTypeID:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetTicketTypeID(v)
+		return nil
+	case sladefinitionsnapshot.FieldTerms:
+		v, ok := value.(map[string]interface{})
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetTerms(v)
+		return nil
+	case sladefinitionsnapshot.FieldEffectiveFrom:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetEffectiveFrom(v)
+		return nil
+	case sladefinitionsnapshot.FieldEffectiveUntil:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetEffectiveUntil(v)
+		return nil
+	case sladefinitionsnapshot.FieldStatus:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetStatus(v)
+		return nil
+	case sladefinitionsnapshot.FieldPayloadHash:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetPayloadHash(v)
+		return nil
+	case sladefinitionsnapshot.FieldSyncedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetSyncedAt(v)
+		return nil
+	case sladefinitionsnapshot.FieldCreatedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetCreatedAt(v)
+		return nil
+	case sladefinitionsnapshot.FieldUpdatedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetUpdatedAt(v)
+		return nil
+	}
+	return fmt.Errorf("unknown SLADefinitionSnapshot field %s", name)
+}
+
+// AddedFields returns all numeric fields that were incremented/decremented during
+// this mutation.
+func (m *SLADefinitionSnapshotMutation) AddedFields() []string {
+	var fields []string
+	if m.addtenant_id != nil {
+		fields = append(fields, sladefinitionsnapshot.FieldTenantID)
+	}
+	if m.addsource_contract_id != nil {
+		fields = append(fields, sladefinitionsnapshot.FieldSourceContractID)
+	}
+	if m.addsource_binding_id != nil {
+		fields = append(fields, sladefinitionsnapshot.FieldSourceBindingID)
+	}
+	if m.addsource_grant_id != nil {
+		fields = append(fields, sladefinitionsnapshot.FieldSourceGrantID)
+	}
+	if m.addsource_definition_id != nil {
+		fields = append(fields, sladefinitionsnapshot.FieldSourceDefinitionID)
+	}
+	if m.addsource_tenant_id != nil {
+		fields = append(fields, sladefinitionsnapshot.FieldSourceTenantID)
+	}
+	if m.addsource_version != nil {
+		fields = append(fields, sladefinitionsnapshot.FieldSourceVersion)
+	}
+	if m.addticket_type_id != nil {
+		fields = append(fields, sladefinitionsnapshot.FieldTicketTypeID)
+	}
+	return fields
+}
+
+// AddedField returns the numeric value that was incremented/decremented on a field
+// with the given name. The second boolean return value indicates that this field
+// was not set, or was not defined in the schema.
+func (m *SLADefinitionSnapshotMutation) AddedField(name string) (ent.Value, bool) {
+	switch name {
+	case sladefinitionsnapshot.FieldTenantID:
+		return m.AddedTenantID()
+	case sladefinitionsnapshot.FieldSourceContractID:
+		return m.AddedSourceContractID()
+	case sladefinitionsnapshot.FieldSourceBindingID:
+		return m.AddedSourceBindingID()
+	case sladefinitionsnapshot.FieldSourceGrantID:
+		return m.AddedSourceGrantID()
+	case sladefinitionsnapshot.FieldSourceDefinitionID:
+		return m.AddedSourceDefinitionID()
+	case sladefinitionsnapshot.FieldSourceTenantID:
+		return m.AddedSourceTenantID()
+	case sladefinitionsnapshot.FieldSourceVersion:
+		return m.AddedSourceVersion()
+	case sladefinitionsnapshot.FieldTicketTypeID:
+		return m.AddedTicketTypeID()
+	}
+	return nil, false
+}
+
+// AddField adds the value to the field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *SLADefinitionSnapshotMutation) AddField(name string, value ent.Value) error {
+	switch name {
+	case sladefinitionsnapshot.FieldTenantID:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddTenantID(v)
+		return nil
+	case sladefinitionsnapshot.FieldSourceContractID:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddSourceContractID(v)
+		return nil
+	case sladefinitionsnapshot.FieldSourceBindingID:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddSourceBindingID(v)
+		return nil
+	case sladefinitionsnapshot.FieldSourceGrantID:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddSourceGrantID(v)
+		return nil
+	case sladefinitionsnapshot.FieldSourceDefinitionID:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddSourceDefinitionID(v)
+		return nil
+	case sladefinitionsnapshot.FieldSourceTenantID:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddSourceTenantID(v)
+		return nil
+	case sladefinitionsnapshot.FieldSourceVersion:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddSourceVersion(v)
+		return nil
+	case sladefinitionsnapshot.FieldTicketTypeID:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddTicketTypeID(v)
+		return nil
+	}
+	return fmt.Errorf("unknown SLADefinitionSnapshot numeric field %s", name)
+}
+
+// ClearedFields returns all nullable fields that were cleared during this
+// mutation.
+func (m *SLADefinitionSnapshotMutation) ClearedFields() []string {
+	var fields []string
+	if m.FieldCleared(sladefinitionsnapshot.FieldSourceContractID) {
+		fields = append(fields, sladefinitionsnapshot.FieldSourceContractID)
+	}
+	if m.FieldCleared(sladefinitionsnapshot.FieldSourceContractNo) {
+		fields = append(fields, sladefinitionsnapshot.FieldSourceContractNo)
+	}
+	if m.FieldCleared(sladefinitionsnapshot.FieldSourceBindingID) {
+		fields = append(fields, sladefinitionsnapshot.FieldSourceBindingID)
+	}
+	if m.FieldCleared(sladefinitionsnapshot.FieldSourceGrantID) {
+		fields = append(fields, sladefinitionsnapshot.FieldSourceGrantID)
+	}
+	if m.FieldCleared(sladefinitionsnapshot.FieldDescription) {
+		fields = append(fields, sladefinitionsnapshot.FieldDescription)
+	}
+	if m.FieldCleared(sladefinitionsnapshot.FieldServiceType) {
+		fields = append(fields, sladefinitionsnapshot.FieldServiceType)
+	}
+	if m.FieldCleared(sladefinitionsnapshot.FieldPriority) {
+		fields = append(fields, sladefinitionsnapshot.FieldPriority)
+	}
+	if m.FieldCleared(sladefinitionsnapshot.FieldTicketTypeID) {
+		fields = append(fields, sladefinitionsnapshot.FieldTicketTypeID)
+	}
+	if m.FieldCleared(sladefinitionsnapshot.FieldEffectiveUntil) {
+		fields = append(fields, sladefinitionsnapshot.FieldEffectiveUntil)
+	}
+	return fields
+}
+
+// FieldCleared returns a boolean indicating if a field with the given name was
+// cleared in this mutation.
+func (m *SLADefinitionSnapshotMutation) FieldCleared(name string) bool {
+	_, ok := m.clearedFields[name]
+	return ok
+}
+
+// ClearField clears the value of the field with the given name. It returns an
+// error if the field is not defined in the schema.
+func (m *SLADefinitionSnapshotMutation) ClearField(name string) error {
+	switch name {
+	case sladefinitionsnapshot.FieldSourceContractID:
+		m.ClearSourceContractID()
+		return nil
+	case sladefinitionsnapshot.FieldSourceContractNo:
+		m.ClearSourceContractNo()
+		return nil
+	case sladefinitionsnapshot.FieldSourceBindingID:
+		m.ClearSourceBindingID()
+		return nil
+	case sladefinitionsnapshot.FieldSourceGrantID:
+		m.ClearSourceGrantID()
+		return nil
+	case sladefinitionsnapshot.FieldDescription:
+		m.ClearDescription()
+		return nil
+	case sladefinitionsnapshot.FieldServiceType:
+		m.ClearServiceType()
+		return nil
+	case sladefinitionsnapshot.FieldPriority:
+		m.ClearPriority()
+		return nil
+	case sladefinitionsnapshot.FieldTicketTypeID:
+		m.ClearTicketTypeID()
+		return nil
+	case sladefinitionsnapshot.FieldEffectiveUntil:
+		m.ClearEffectiveUntil()
+		return nil
+	}
+	return fmt.Errorf("unknown SLADefinitionSnapshot nullable field %s", name)
+}
+
+// ResetField resets all changes in the mutation for the field with the given name.
+// It returns an error if the field is not defined in the schema.
+func (m *SLADefinitionSnapshotMutation) ResetField(name string) error {
+	switch name {
+	case sladefinitionsnapshot.FieldTenantID:
+		m.ResetTenantID()
+		return nil
+	case sladefinitionsnapshot.FieldSourceKind:
+		m.ResetSourceKind()
+		return nil
+	case sladefinitionsnapshot.FieldSourceContractID:
+		m.ResetSourceContractID()
+		return nil
+	case sladefinitionsnapshot.FieldSourceContractNo:
+		m.ResetSourceContractNo()
+		return nil
+	case sladefinitionsnapshot.FieldSourceBindingID:
+		m.ResetSourceBindingID()
+		return nil
+	case sladefinitionsnapshot.FieldSourceGrantID:
+		m.ResetSourceGrantID()
+		return nil
+	case sladefinitionsnapshot.FieldSourceDefinitionID:
+		m.ResetSourceDefinitionID()
+		return nil
+	case sladefinitionsnapshot.FieldSourceTenantID:
+		m.ResetSourceTenantID()
+		return nil
+	case sladefinitionsnapshot.FieldSourceVersion:
+		m.ResetSourceVersion()
+		return nil
+	case sladefinitionsnapshot.FieldDefinitionName:
+		m.ResetDefinitionName()
+		return nil
+	case sladefinitionsnapshot.FieldDescription:
+		m.ResetDescription()
+		return nil
+	case sladefinitionsnapshot.FieldServiceType:
+		m.ResetServiceType()
+		return nil
+	case sladefinitionsnapshot.FieldPriority:
+		m.ResetPriority()
+		return nil
+	case sladefinitionsnapshot.FieldTicketTypeID:
+		m.ResetTicketTypeID()
+		return nil
+	case sladefinitionsnapshot.FieldTerms:
+		m.ResetTerms()
+		return nil
+	case sladefinitionsnapshot.FieldEffectiveFrom:
+		m.ResetEffectiveFrom()
+		return nil
+	case sladefinitionsnapshot.FieldEffectiveUntil:
+		m.ResetEffectiveUntil()
+		return nil
+	case sladefinitionsnapshot.FieldStatus:
+		m.ResetStatus()
+		return nil
+	case sladefinitionsnapshot.FieldPayloadHash:
+		m.ResetPayloadHash()
+		return nil
+	case sladefinitionsnapshot.FieldSyncedAt:
+		m.ResetSyncedAt()
+		return nil
+	case sladefinitionsnapshot.FieldCreatedAt:
+		m.ResetCreatedAt()
+		return nil
+	case sladefinitionsnapshot.FieldUpdatedAt:
+		m.ResetUpdatedAt()
+		return nil
+	}
+	return fmt.Errorf("unknown SLADefinitionSnapshot field %s", name)
+}
+
+// AddedEdges returns all edge names that were set/added in this mutation.
+func (m *SLADefinitionSnapshotMutation) AddedEdges() []string {
+	edges := make([]string, 0, 0)
+	return edges
+}
+
+// AddedIDs returns all IDs (to other nodes) that were added for the given edge
+// name in this mutation.
+func (m *SLADefinitionSnapshotMutation) AddedIDs(name string) []ent.Value {
+	return nil
+}
+
+// RemovedEdges returns all edge names that were removed in this mutation.
+func (m *SLADefinitionSnapshotMutation) RemovedEdges() []string {
+	edges := make([]string, 0, 0)
+	return edges
+}
+
+// RemovedIDs returns all IDs (to other nodes) that were removed for the edge with
+// the given name in this mutation.
+func (m *SLADefinitionSnapshotMutation) RemovedIDs(name string) []ent.Value {
+	return nil
+}
+
+// ClearedEdges returns all edge names that were cleared in this mutation.
+func (m *SLADefinitionSnapshotMutation) ClearedEdges() []string {
+	edges := make([]string, 0, 0)
+	return edges
+}
+
+// EdgeCleared returns a boolean which indicates if the edge with the given name
+// was cleared in this mutation.
+func (m *SLADefinitionSnapshotMutation) EdgeCleared(name string) bool {
+	return false
+}
+
+// ClearEdge clears the value of the edge with the given name. It returns an error
+// if that edge is not defined in the schema.
+func (m *SLADefinitionSnapshotMutation) ClearEdge(name string) error {
+	return fmt.Errorf("unknown SLADefinitionSnapshot unique edge %s", name)
+}
+
+// ResetEdge resets all changes to the edge with the given name in this mutation.
+// It returns an error if the edge is not defined in the schema.
+func (m *SLADefinitionSnapshotMutation) ResetEdge(name string) error {
+	return fmt.Errorf("unknown SLADefinitionSnapshot edge %s", name)
 }
 
 // SLAMetricMutation represents an operation that mutates the SLAMetric nodes in the graph.

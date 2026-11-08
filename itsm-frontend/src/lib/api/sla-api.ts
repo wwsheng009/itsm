@@ -84,7 +84,7 @@ export interface UpdateMSPContractPayload {
   bindings?: { slaDefinitionId: number; ticketTypeId?: number }[];
 }
 
-/** GET /api/v1/sla/definitions/provided（customer 只读视图；P1-2 起数据源为合同链） */
+/** GET /api/v1/sla/definitions/provided（customer 只读视图；数据源为客户租户 SLA 定义快照） */
 export interface ProvidedDefinitionItem {
   contractId: number;
   contractNo?: string;

@@ -111,8 +111,8 @@ export const LazyImage: React.FC<LazyImageProps> = ({
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
-        background: '#f0f0f0',
-        color: '#999',
+        background: 'var(--color-bg-tertiary, #f0f0f0)',
+        color: 'var(--color-text-tertiary, #999)',
         borderRadius: 4,
         ...style,
       }}
