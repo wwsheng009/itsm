@@ -58,7 +58,8 @@ class DepartmentService {
 
   async getDepartmentTree(): Promise<Department[]> {
     const data = await httpClient.get<RawDepartment[]>(`${this.baseUrl}/tree`);
-    return data.map(department => this.normalizeDepartment(department));
+    // 后端在租户尚无部门时返回 data:null；空树是合法状态，不应渲染“加载失败”。
+    return (data ?? []).map(department => this.normalizeDepartment(department));
   }
 
   async createDepartment(data: CreateDepartmentRequest): Promise<Department> {

@@ -59,6 +59,14 @@ describe('DepartmentService', () => {
       expect(result).toEqual([]);
     });
 
+    it('should treat null data as an empty tree', async () => {
+      mockGet.mockResolvedValue(null);
+
+      const result = await departmentService.getDepartmentTree();
+
+      expect(result).toEqual([]);
+    });
+
     it('should normalize missing fields with defaults', async () => {
       mockGet.mockResolvedValue([{ }]);
 

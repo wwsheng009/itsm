@@ -59,6 +59,7 @@ const lifecycleMeta: Record<string, { label: string; color: string }> = {
 export default function CustomersPage() {
   const { message } = App.useApp();
   const canWrite = useCan(['customer_master:write']);
+  const canReadTenants = useCan(['tenant:read']);
 
   const [customers, setCustomers] = useState<ServiceCustomer[]>([]);
   const [total, setTotal] = useState(0);
@@ -143,9 +144,11 @@ export default function CustomersPage() {
       UserApi.getUsers({ page: 1, pageSize: 200 }).then(result => {
         if (alive) setUsers(result.users ?? []);
       }),
-      TenantAPI.getTenants({ page: 1, size: 100 }).then(result => {
-        if (alive) setTenants(result.tenants ?? []);
-      }),
+      canReadTenants
+        ? TenantAPI.getTenants({ page: 1, size: 100 }).then(result => {
+            if (alive) setTenants(result.tenants ?? []);
+          })
+        : Promise.resolve(),
       SLAApi.getSLADefinitions({ page: 1, pageSize: 100, isActive: true }).then(result => {
         if (alive) setSlaDefinitions(result.items ?? []);
       }),
@@ -153,7 +156,7 @@ export default function CustomersPage() {
     return () => {
       alive = false;
     };
-  }, []);
+  }, [canReadTenants]);
 
   const openCreate = () => {
     setEditingCustomer(null);
