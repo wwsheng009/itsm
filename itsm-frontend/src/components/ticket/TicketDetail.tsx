@@ -11,6 +11,7 @@ import { TicketApi, type TicketConfigurationItem } from '@/lib/api/ticket-api';
 import type { HttpClientError } from '@/lib/api/http-client';
 import { TicketApprovalApi } from '@/lib/api/ticket-approval-api';
 import { AttachmentApi, ticketAttachmentPreviewUrl } from '@/lib/api/attachment-api';
+import { TicketTypeApi } from '@/lib/api/ticketTypeApi';
 import type { Ticket } from '@/lib/api/api-config';
 import type { User } from '@/lib/api/user-api';
 import { useUserListQuery } from '@/lib/hooks/useUserListQuery';
@@ -52,6 +53,7 @@ import { canWriteRow } from '@/lib/utils/row-scope';
 import { useErrorHandler } from '@/lib/hooks/useErrorHandler';
 import { formatDateTime } from '@/lib/formatters';
 import { SafeTextBlock } from '@/components/common/SafeContent';
+import RichTextContent from '@/components/common/rich-text/RichTextContent';
 import {
   extractAttachmentImageIds,
   htmlToPlainText,
@@ -177,7 +179,8 @@ const renderFormFieldValue = (value: unknown): React.ReactNode => {
     return <Text type="secondary">-</Text>;
   }
   if (typeof value === 'string') {
-    return value;
+    // 动态字段 textarea 现在落 HTML；历史数据可能是纯文本，由 RichTextContent 双读。
+    return <RichTextContent content={value} emptyText="-" enableImageViewer={false} />;
   }
   if (typeof value === 'number' || typeof value === 'boolean') {
     return String(value);
@@ -206,6 +209,7 @@ const TicketDetail: React.FC<{ id?: string }> = ({ id: propId }) => {
   // 分配 → POST /tickets/:id/assign（ticket:assign）；编辑 → PUT /tickets/:id（ticket:update）；
   // 抄送 → POST /tickets/workflow/cc（workflow:write）；删除 → DELETE /tickets/:id（ticket:delete）。
   const canApproveTicket = hasPermission('approval:write');
+  const canReadApprovalRecords = hasPermission('approval:read');
   const canAssignTicket = hasPermission('ticket:assign');
   const canUpdateTicket = hasPermission('ticket:update');
   const canCcTicket = hasPermission('workflow:write');
@@ -235,6 +239,7 @@ const TicketDetail: React.FC<{ id?: string }> = ({ id: propId }) => {
   const [resolveModalVisible, setResolveModalVisible] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [resolving, setResolving] = useState(false);
+  const [closing, setClosing] = useState(false);
   const [assigning, setAssigning] = useState(false);
   const [ccing, setCCing] = useState(false);
   const [approving, setApproving] = useState(false);
@@ -247,6 +252,8 @@ const TicketDetail: React.FC<{ id?: string }> = ({ id: propId }) => {
 
   // P2-5：是否存在待办审批任务（用于「申请人不可审批」提示的精确判定，避免无审批环节时误导）。
   const [hasPendingApproval, setHasPendingApproval] = useState<boolean | null>(null);
+  // 动态字段 label 来自运行期绑定的工单类型；旧数据/权限不足时回退为字段名。
+  const [formFieldLabels, setFormFieldLabels] = useState<Record<string, string>>({});
 
   // AI-Native：受影响配置项（工单→CI 反向查询）
   const [cis, setCis] = useState<TicketConfigurationItem[]>([]);
@@ -425,7 +432,7 @@ const TicketDetail: React.FC<{ id?: string }> = ({ id: propId }) => {
   // P2-5：拉取待办审批任务，精确判定是否向申请人展示「不可审批」提示
   // （无待办审批任务时不应渲染误导性的「无法进行审批操作」）。
   useEffect(() => {
-    if (!resolvedTicketId) {
+    if (!resolvedTicketId || !canReadApprovalRecords) {
       setHasPendingApproval(null);
       return;
     }
@@ -445,7 +452,32 @@ const TicketDetail: React.FC<{ id?: string }> = ({ id: propId }) => {
     return () => {
       cancelled = true;
     };
-  }, [resolvedTicketId]);
+  }, [resolvedTicketId, canReadApprovalRecords]);
+
+  // 动态字段 label：优先取运行期工单类型的 customFields；失败/旧数据回退字段名。
+  useEffect(() => {
+    const typeId = ticket?.ticketTypeId;
+    if (!typeId) {
+      setFormFieldLabels({});
+      return;
+    }
+    let cancelled = false;
+    TicketTypeApi.get(typeId)
+      .then((definition) => {
+        if (cancelled) return;
+        const labels: Record<string, string> = {};
+        for (const field of definition.customFields ?? []) {
+          if (field.name) labels[field.name] = field.label || field.name;
+        }
+        setFormFieldLabels(labels);
+      })
+      .catch(() => {
+        if (!cancelled) setFormFieldLabels({});
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [ticket?.ticketTypeId]);
 
   // 用户列表由 useUserListQuery 内部处理挂载与缓存。
 
@@ -752,6 +784,30 @@ const TicketDetail: React.FC<{ id?: string }> = ({ id: propId }) => {
       setResolving(false);
     }
   };
+
+  // 已解决/已批准后可在详情页直接关闭，不必回到列表行操作。
+  const handleCloseTicket = useCallback(() => {
+    if (!resolvedTicketId) return;
+    antModal.confirm({
+      title: '关闭工单？',
+      content: '关闭后工单将进入终态，请确认处理结果已经记录。',
+      okText: '确认关闭',
+      cancelText: '取消',
+      okButtonProps: { danger: true },
+      onOk: async () => {
+        setClosing(true);
+        try {
+          await TicketApi.closeTicket(resolvedTicketId);
+          antMessage.success('工单已关闭');
+          await fetchTicket();
+        } catch (error) {
+          handleError(error, 'closeTicket', '关闭工单失败');
+        } finally {
+          setClosing(false);
+        }
+      },
+    });
+  }, [antMessage, antModal, fetchTicket, handleError, resolvedTicketId]);
 
   // Handle delete click
   const handleDeleteClick = () => {
@@ -1119,7 +1175,7 @@ const TicketDetail: React.FC<{ id?: string }> = ({ id: propId }) => {
             <Card size="small" title={t('ticketDetail.formFields', undefined, '动态表单字段')} className="mt-2">
               <Descriptions column={2} bordered size="small">
                 {Object.entries(ticket.formFields).map(([key, value]) => (
-                  <Descriptions.Item key={key} label={key}>
+                  <Descriptions.Item key={key} label={formFieldLabels[key] ?? key}>
                     {renderFormFieldValue(value)}
                   </Descriptions.Item>
                 ))}
@@ -1295,6 +1351,14 @@ const TicketDetail: React.FC<{ id?: string }> = ({ id: propId }) => {
                 {t('ticketDetail.resolve')}
               </Button>
             )}
+            {canUpdateTicket &&
+              canWriteThisTicket &&
+              !isTicketFinal &&
+              (ticket.status === 'resolved' || ticket.status === 'approved') && (
+                <Button type="primary" onClick={handleCloseTicket} loading={closing}>
+                  关闭工单
+                </Button>
+              )}
             {canCcTicket && (
               <Button
                 icon={<Users size={16} />}

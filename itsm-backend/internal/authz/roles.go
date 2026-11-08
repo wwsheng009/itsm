@@ -231,7 +231,7 @@ func BuiltinRolePermissionCodes() map[string][]string {
 		"guest": {
 			"knowledge:read",
 		},
-		// 租户管理员（users.role=admin 对齐；与 middleware.RolePermissions["admin"] 91 对全等，
+		// 租户管理员（users.role=admin 对齐；与 middleware.RolePermissions["admin"] 96 对全等，
 		// 2026-09-17 P0：此前缺条目导致 roles 表 admin 行权限空集=DB 显式撤销，admin 用户全 403）
 		"admin": {
 			"ticket:read", "ticket:write", "ticket:delete", "ticket:admin",
@@ -257,6 +257,12 @@ func BuiltinRolePermissionCodes() map[string][]string {
 			"alerts:read", "alerts:write",
 			"audit:read",
 			"ai:read", "ai:write",
+			// 2026-11-08 E2E：租户管理员是主数据/合同的一线维护者；缺这 4 个码
+			// 会让侧边栏可见但页面 403。审批记录读取同样补齐，避免详情页
+			// /tickets/approval/records 恒 403 并把状态误降级为“无审批环节”。
+			"customer_master:read", "customer_master:write",
+			"support_contract:read", "support_contract:write",
+			"approval:read",
 			// 2026-10-10 治理域收口（设计 §8 D7）：MCP 为平台资产——mcp 家族仅平台角色持有
 			// （sysadmin 全量），租户管理员不再持有 read/admin。
 			"role:read", "role:write", "role:delete",

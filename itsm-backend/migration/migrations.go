@@ -129,6 +129,11 @@ var RegisteredMigrations = []Migration{
 		Description: "Add ticket_types.msp_route_enabled and tickets.msp_routed_at for type-level MSP routing (P0-d)",
 		RollbackSQL: `ALTER TABLE ticket_types DROP COLUMN IF EXISTS msp_route_enabled; ALTER TABLE tickets DROP COLUMN IF EXISTS msp_routed_at;`,
 	},
+	{
+		Version:     "025_grant_master_data_and_approval_to_admin",
+		Description: "Grant customer/contract master-data and approval-read permissions to the tenant admin role (E2E 2026-11-08: menu visible but pages/approval records 403)",
+		RollbackSQL: "",
+	},
 }
 
 // PostSchemaMigrations returns a defensive copy of the canonical active stream.
@@ -928,6 +933,43 @@ ALTER TABLE tickets ADD COLUMN IF NOT EXISTS msp_routed_at TIMESTAMPTZ;
 CREATE INDEX IF NOT EXISTS idx_tickets_msp_routed_at
     ON tickets (msp_routed_at)
     WHERE msp_routed_at IS NOT NULL;
+`
+	case "025_grant_master_data_and_approval_to_admin":
+		return `
+-- 2026-11-08 浏览器 E2E 发现：租户管理员（role.code=admin）菜单可见主数据，
+-- 但 /master-data/* 与 /tickets/approval/records 均 403。补齐权限点与角色授权；
+-- 权限行/授权行均用 NOT EXISTS 去重，可重复执行。
+INSERT INTO permissions (code, name, description, resource, action, tenant_id, created_at, updated_at)
+SELECT p.code, p.name, p.description, p.resource, p.action, tenant.id, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
+FROM tenants tenant
+CROSS JOIN (VALUES
+  ('customer_master:read', '查看服务客户', '查看服务客户和分部主数据', 'customer_master', 'read'),
+  ('customer_master:write', '管理服务客户', '维护服务客户、分部和来源组织', 'customer_master', 'write'),
+  ('support_contract:read', '查看支持合同', '查看支持合同和外部合同映射', 'support_contract', 'read'),
+  ('support_contract:write', '管理支持合同', '维护支持合同和外部合同映射', 'support_contract', 'write'),
+  ('approval:read', '查看审批记录', '查看工单审批记录与待办审批', 'approval', 'read')
+) AS p(code, name, description, resource, action)
+WHERE NOT EXISTS (
+  SELECT 1 FROM permissions existing
+  WHERE existing.tenant_id = tenant.id AND existing.code = p.code
+);
+
+INSERT INTO role_permissions (role_id, permission_id, tenant_id)
+SELECT role.id, permission.id, role.tenant_id
+FROM roles role
+JOIN permissions permission ON permission.tenant_id = role.tenant_id
+WHERE role.code = 'admin'
+  AND permission.code IN (
+    'customer_master:read', 'customer_master:write',
+    'support_contract:read', 'support_contract:write',
+    'approval:read'
+  )
+  AND NOT EXISTS (
+    SELECT 1 FROM role_permissions existing
+    WHERE existing.role_id = role.id
+      AND existing.permission_id = permission.id
+      AND existing.tenant_id = role.tenant_id
+  );
 `
 	default:
 		return ""

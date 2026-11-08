@@ -756,6 +756,7 @@ export default function CreateTicketPage() {
                               field={{
                                 id: field.id,
                                 name: field.name,
+                                label: field.label,
                                 type: field.type,
                                 required: field.required,
                                 placeholder: field.placeholder,

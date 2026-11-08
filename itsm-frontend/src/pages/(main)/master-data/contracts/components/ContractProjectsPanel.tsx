@@ -22,6 +22,7 @@ import {
   type ContractProjectLinkWritePayload,
   type ContractServiceItem,
 } from '@/lib/services/masterDataService';
+import projectService, { type Project } from '@/lib/services/project-service';
 
 const { Text } = Typography;
 
@@ -39,10 +40,13 @@ export default function ContractProjectsPanel({
   const { message } = App.useApp();
   const [items, setItems] = useState<ContractProjectLink[]>([]);
   const [serviceItems, setServiceItems] = useState<ContractServiceItem[]>([]);
+  const [projectOptions, setProjectOptions] = useState<{ value: number; label: string }[]>([]);
+  const [projectsLoading, setProjectsLoading] = useState(false);
   const [loading, setLoading] = useState(false);
   const [modalOpen, setModalOpen] = useState(false);
   const [form] = Form.useForm<ContractProjectLinkWritePayload>();
   const relationType = Form.useWatch('relationType', form);
+  const serviceItemId = Form.useWatch('serviceItemId', form);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -64,6 +68,44 @@ export default function ContractProjectsPanel({
     void load();
   }, [load]);
 
+  // 项目选择：只列非内部、非终态项目。客户一致性/额度上限仍由后端强校验。
+  useEffect(() => {
+    let cancelled = false;
+    setProjectsLoading(true);
+    projectService
+      .listProjects({ page: 1, pageSize: 100 })
+      .then((result) => {
+        if (cancelled) return;
+        const projects: Project[] = result.items ?? result.projects ?? [];
+        setProjectOptions(
+          projects
+            .filter((project) => project.type !== 'internal')
+            .filter((project) => project.status !== 'completed' && project.status !== 'cancelled')
+            .map((project) => ({
+              value: project.id,
+              label: project.code ? `${project.name}（${project.code}）` : project.name,
+            })),
+        );
+      })
+      .catch(() => {
+        if (!cancelled) setProjectOptions([]);
+      })
+      .finally(() => {
+        if (!cancelled) setProjectsLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const selectedServiceItem = serviceItems.find((item) => item.id === serviceItemId);
+  const periodBasedUnit = ['month', 'quarter', 'year'].includes(selectedServiceItem?.billingUnit ?? '');
+  useEffect(() => {
+    if (periodBasedUnit) {
+      form.setFieldValue('allocatedHours', undefined);
+    }
+  }, [form, periodBasedUnit]);
+
   const openCreate = () => {
     form.resetFields();
     form.setFieldsValue({ relationType: 'basis', isPrimary: false });
@@ -78,8 +120,8 @@ export default function ContractProjectsPanel({
       setModalOpen(false);
       await load();
       onChanged();
-    } catch {
-      message.error('创建合同项目关联失败');
+    } catch (error) {
+      message.error((error as Error).message || '创建合同项目关联失败');
     }
   };
 
@@ -191,8 +233,20 @@ export default function ContractProjectsPanel({
         destroyOnHidden
       >
         <Form form={form} layout="vertical">
-          <Form.Item name="projectId" label="项目 ID" rules={[{ required: true }]}>
-            <InputNumber min={1} className="w-full" placeholder="输入项目 ID" />
+          <Form.Item
+            name="projectId"
+            label="项目"
+            rules={[{ required: true, message: '请选择项目' }]}
+            extra="仅列出非内部、非终态项目；项目客户必须与合同客户一致（后端校验）"
+          >
+            <Select
+              showSearch
+              optionFilterProp="label"
+              loading={projectsLoading}
+              placeholder={projectsLoading ? '加载项目中…' : '选择项目'}
+              options={projectOptions}
+              notFoundContent={projectsLoading ? undefined : '暂无可关联项目'}
+            />
           </Form.Item>
           <Form.Item name="relationType" label="关系类型">
             <Select
@@ -222,13 +276,20 @@ export default function ContractProjectsPanel({
                 <Form.Item name="allocatedAmount" label="分配金额">
                   <InputNumber min={0} precision={2} />
                 </Form.Item>
-                <Form.Item name="allocatedHours" label="分配数量">
-                  <InputNumber min={0} precision={2} />
-                </Form.Item>
+                {!periodBasedUnit && (
+                  <Form.Item name="allocatedHours" label="分配数量" preserve={false}>
+                    <InputNumber min={0} precision={2} />
+                  </Form.Item>
+                )}
                 <Form.Item name="allocationPct" label="分配比例 %">
                   <InputNumber min={0} max={100} />
                 </Form.Item>
               </Space>
+              {periodBasedUnit && (
+                <Text type="secondary" style={{ display: 'block', marginTop: 4 }}>
+                  该服务项按 {selectedServiceItem?.billingUnit} 计量，只能分配金额/比例，不能分配数量。
+                </Text>
+              )}
             </>
           )}
           {relationType === 'basis' && (

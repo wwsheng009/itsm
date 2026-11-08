@@ -171,6 +171,13 @@ var RolePermissions = map[string][]Permission{
 		{Resource: "audit", Action: "read"},
 		{Resource: "ai", Action: "read"},
 		{Resource: "ai", Action: "write"},
+		// 2026-11-08 E2E：租户管理员主数据/合同入口与审批记录读取权限补齐。
+		// 与 internal/authz/roles.go 的 admin 基线保持全等。
+		{Resource: "customer_master", Action: "read"},
+		{Resource: "customer_master", Action: "write"},
+		{Resource: "support_contract", Action: "read"},
+		{Resource: "support_contract", Action: "write"},
+		{Resource: "approval", Action: "read"},
 		// 2026-10-10 治理域收口（设计 §8 D7）：MCP 为平台资产——租户管理员不再持有 mcp 码
 		// （sysadmin 兜底为通配；本兜底表与 internal/authz/roles.go 保持全等）。
 		{Resource: "role", Action: "read"},

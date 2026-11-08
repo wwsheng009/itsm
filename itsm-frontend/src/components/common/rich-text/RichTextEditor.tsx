@@ -78,6 +78,8 @@ export interface RichTextEditorProps {
   hideToolbar?: boolean;
   /** 编辑区 data-testid（透传到 contenteditable，便于 E2E 直接 fill/type） */
   dataTestId?: string;
+  /** 编辑区无障碍名称（透传到 contenteditable；表单内建议使用字段 label） */
+  ariaLabel?: string;
 }
 
 const buildImageHtml = (img: UploadedImage): string => {
@@ -99,6 +101,7 @@ export const RichTextEditor: React.FC<RichTextEditorProps> = ({
   maxImageCount = 9,
   hideToolbar = false,
   dataTestId,
+  ariaLabel,
 }) => {
   const { message } = App.useApp();
   const [pending, setPending] = useState(0);
@@ -185,6 +188,7 @@ export const RichTextEditor: React.FC<RichTextEditorProps> = ({
         class: 'rte-content',
         style: `min-height:${minHeight}px;outline:none;`,
         ...(dataTestId ? { 'data-testid': dataTestId } : {}),
+        ...(ariaLabel ? { 'aria-label': ariaLabel } : {}),
       },
       handlePaste(view, event) {
         const items = Array.from(event.clipboardData?.items || []);
@@ -347,7 +351,13 @@ export const RichTextEditor: React.FC<RichTextEditorProps> = ({
         </div>
       )}
 
-      {!hideToolbar && editor && !disabled && <RichTextEditorImageMenu editor={editor} />}
+      {/*
+        注意：disabled 时不能卸载 BubbleMenu。TipTap 的 BubbleMenu 会把 Tippy
+        DOM 挂到编辑器容器之外；提交瞬间从“可编辑→disabled”触发的卸载会让 React
+        在 removeChild 时找不到原节点，直接打崩页面（E2E 2026-11-08 评论提交复现）。
+        正确做法是保持挂载，由 shouldShow 的 !disabled 条件自动隐藏浮层。
+      */}
+      {!hideToolbar && editor && <RichTextEditorImageMenu editor={editor} disabled={disabled} />}
 
       <div
         className={`ticket-rich-editor${disabled ? ' ticket-rich-editor--disabled' : ''}`}

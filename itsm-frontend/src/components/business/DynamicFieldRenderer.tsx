@@ -42,6 +42,8 @@ export interface DynamicFieldDef {
   id: number | string;
   /** schema 存储 key（snake_case），提交时透传，不做驼峰转换。 */
   key?: string;
+  /** 面向用户的字段标签；缺失时回退到 name。 */
+  label?: string;
   name: string;
   type: string;
   required?: boolean;
@@ -195,7 +197,8 @@ const DynamicFieldRenderer: React.FC<DynamicFieldRendererProps> = ({
   const onChange = onChangeProp ?? (() => {});
   const type = (field.type || 'text').toLowerCase();
   const readOnly = disabled || Boolean(field.readonly);
-  const placeholder = field.placeholder || `请输入${field.name}`;
+  const fieldLabel = field.label || field.name;
+  const placeholder = field.placeholder || `请输入${fieldLabel}`;
   const options = React.useMemo(() => normalizeOptions(field.options), [field.options]);
   const referenceKey = resolveReferenceKey(type);
   const referenceList = referenceKey ? referenceOptions?.[referenceKey] : undefined;
@@ -216,6 +219,8 @@ const DynamicFieldRenderer: React.FC<DynamicFieldRendererProps> = ({
           onUploadImage={onUploadImage}
           onUploadingChange={onUploadingChange}
           minHeight={editorMinHeight ?? 160}
+          dataTestId={`dynamic-field-${field.name}`}
+          ariaLabel={fieldLabel}
         />
       );
 

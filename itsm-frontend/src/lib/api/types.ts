@@ -80,6 +80,10 @@ export interface Ticket {
   resolution?: string;
   slaId?: number;
   slaInfo?: SLAInfo;
+  /** 运行期绑定的工单类型（后端 ticket DTO 已下发；旧数据可能为空） */
+  ticketTypeId?: number;
+  ticketTypeCode?: string;
+  ticketTypeName?: string;
   /** 动态表单字段（与后端 DTO FormFields 对齐，键为 snake_case schema field.name） */
   formFields?: Record<string, unknown>;
   createdAt: string;
