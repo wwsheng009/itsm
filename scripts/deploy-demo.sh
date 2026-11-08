@@ -518,6 +518,14 @@ wait_for_init() {
         read -r status exit_code <<< "$state"
         if [[ "$status" == "exited" ]]; then
             if [[ "$exit_code" == "0" ]]; then
+                # Bootstrap currently logs filesystem migration failures without
+                # always propagating a non-zero exit code. Treat that log marker
+                # as a hard release failure so a partial schema never goes live.
+                if run_docker logs "$name" 2>&1 | grep -q "filesystem migrations apply failed"; then
+                    log_error "$name logged a filesystem migration failure"
+                    run_docker logs --tail 120 "$name" >&2 || true
+                    return 1
+                fi
                 log_success "$name completed with exit=0"
                 return 0
             fi

@@ -5,12 +5,18 @@ import (
 
 	"entgo.io/ent"
 	"entgo.io/ent/dialect"
+	"entgo.io/ent/dialect/entsql"
+	entschema "entgo.io/ent/schema"
 	"entgo.io/ent/schema/field"
 	"entgo.io/ent/schema/index"
 )
 
 // ContractUsageLedger is the idempotent source of truth for quota consumption.
 type ContractUsageLedger struct{ ent.Schema }
+
+func (ContractUsageLedger) Annotations() []entschema.Annotation {
+	return []entschema.Annotation{entsql.Annotation{Table: "contract_usage_ledger"}}
+}
 
 func (ContractUsageLedger) Fields() []ent.Field {
 	return []ent.Field{

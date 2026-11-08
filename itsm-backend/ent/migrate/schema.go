@@ -1773,8 +1773,8 @@ var (
 			},
 		},
 	}
-	// ContractUsageLedgersColumns holds the columns for the "contract_usage_ledgers" table.
-	ContractUsageLedgersColumns = []*schema.Column{
+	// ContractUsageLedgerColumns holds the columns for the "contract_usage_ledger" table.
+	ContractUsageLedgerColumns = []*schema.Column{
 		{Name: "id", Type: field.TypeInt, Increment: true},
 		{Name: "tenant_id", Type: field.TypeInt},
 		{Name: "contract_id", Type: field.TypeInt},
@@ -1788,31 +1788,31 @@ var (
 		{Name: "created_by", Type: field.TypeInt, Nullable: true},
 		{Name: "created_at", Type: field.TypeTime},
 	}
-	// ContractUsageLedgersTable holds the schema information for the "contract_usage_ledgers" table.
-	ContractUsageLedgersTable = &schema.Table{
-		Name:       "contract_usage_ledgers",
-		Columns:    ContractUsageLedgersColumns,
-		PrimaryKey: []*schema.Column{ContractUsageLedgersColumns[0]},
+	// ContractUsageLedgerTable holds the schema information for the "contract_usage_ledger" table.
+	ContractUsageLedgerTable = &schema.Table{
+		Name:       "contract_usage_ledger",
+		Columns:    ContractUsageLedgerColumns,
+		PrimaryKey: []*schema.Column{ContractUsageLedgerColumns[0]},
 		Indexes: []*schema.Index{
 			{
 				Name:    "uq_usage_source",
 				Unique:  true,
-				Columns: []*schema.Column{ContractUsageLedgersColumns[1], ContractUsageLedgersColumns[3], ContractUsageLedgersColumns[4], ContractUsageLedgersColumns[5]},
+				Columns: []*schema.Column{ContractUsageLedgerColumns[1], ContractUsageLedgerColumns[3], ContractUsageLedgerColumns[4], ContractUsageLedgerColumns[5]},
 			},
 			{
 				Name:    "idx_usage_tenant_contract",
 				Unique:  false,
-				Columns: []*schema.Column{ContractUsageLedgersColumns[1], ContractUsageLedgersColumns[2], ContractUsageLedgersColumns[8]},
+				Columns: []*schema.Column{ContractUsageLedgerColumns[1], ContractUsageLedgerColumns[2], ContractUsageLedgerColumns[8]},
 			},
 			{
 				Name:    "idx_usage_tenant_item",
 				Unique:  false,
-				Columns: []*schema.Column{ContractUsageLedgersColumns[1], ContractUsageLedgersColumns[3], ContractUsageLedgersColumns[8]},
+				Columns: []*schema.Column{ContractUsageLedgerColumns[1], ContractUsageLedgerColumns[3], ContractUsageLedgerColumns[8]},
 			},
 			{
 				Name:    "uq_usage_tenant_id",
 				Unique:  true,
-				Columns: []*schema.Column{ContractUsageLedgersColumns[1], ContractUsageLedgersColumns[0]},
+				Columns: []*schema.Column{ContractUsageLedgerColumns[1], ContractUsageLedgerColumns[0]},
 			},
 		},
 	}
@@ -8256,7 +8256,7 @@ var (
 		ContractAmendmentsTable,
 		ContractProjectLinksTable,
 		ContractServiceItemsTable,
-		ContractUsageLedgersTable,
+		ContractUsageLedgerTable,
 		ConversationsTable,
 		CustomerBranchesTable,
 		CustomerContactsTable,
@@ -8437,6 +8437,9 @@ func init() {
 	ConfigurationItemsTable.ForeignKeys[2].RefTable = CloudResourcesTable
 	ConfigurationItemHistoriesTable.ForeignKeys[0].RefTable = ConfigurationItemsTable
 	ContractsTable.ForeignKeys[0].RefTable = VendorsTable
+	ContractUsageLedgerTable.Annotation = &entsql.Annotation{
+		Table: "contract_usage_ledger",
+	}
 	CustomerBranchesTable.ForeignKeys[0].RefTable = ServiceCustomersTable
 	DepartmentsTable.ForeignKeys[0].RefTable = DepartmentsTable
 	DiscoveryJobsTable.ForeignKeys[0].RefTable = DiscoverySourcesTable

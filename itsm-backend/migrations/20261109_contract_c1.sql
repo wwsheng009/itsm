@@ -102,6 +102,26 @@ CREATE UNIQUE INDEX IF NOT EXISTS uq_csi_contract_code
 CREATE INDEX IF NOT EXISTS idx_csi_tenant_contract
   ON contract_service_items (tenant_id, contract_id, status);
 
+ALTER TABLE contract_service_items
+  ALTER COLUMN created_at SET DEFAULT NOW(),
+  ALTER COLUMN updated_at SET DEFAULT NOW();
+
+DO $$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'ck_csi_qty') THEN
+    ALTER TABLE contract_service_items ADD CONSTRAINT ck_csi_qty CHECK (quantity >= 0);
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'ck_csi_period') THEN
+    ALTER TABLE contract_service_items ADD CONSTRAINT ck_csi_period CHECK (period_count > 0);
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'ck_csi_price') THEN
+    ALTER TABLE contract_service_items ADD CONSTRAINT ck_csi_price CHECK (unit_price >= 0);
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'ck_csi_used') THEN
+    ALTER TABLE contract_service_items ADD CONSTRAINT ck_csi_used CHECK (quota_used >= 0);
+  END IF;
+END $$;
+
 -- ── 3. contract_amendments ──────────────────────────────────────────────────
 CREATE TABLE IF NOT EXISTS contract_amendments (
   id               BIGSERIAL PRIMARY KEY,
@@ -129,7 +149,20 @@ CREATE UNIQUE INDEX IF NOT EXISTS uq_amend_tenant_id
 CREATE INDEX IF NOT EXISTS idx_amend_tenant_contract
   ON contract_amendments (tenant_id, contract_id, status);
 
+ALTER TABLE contract_amendments
+  ALTER COLUMN created_at SET DEFAULT NOW(),
+  ALTER COLUMN updated_at SET DEFAULT NOW();
+
 -- ── 4. contract_usage_ledger ────────────────────────────────────────────────
+-- 兼容早期 ent 自动建表产生的复数表名，随后统一到设计文档的单数表名。
+DO $$
+BEGIN
+  IF to_regclass('public.contract_usage_ledger') IS NULL
+     AND to_regclass('public.contract_usage_ledgers') IS NOT NULL THEN
+    ALTER TABLE contract_usage_ledgers RENAME TO contract_usage_ledger;
+  END IF;
+END $$;
+
 CREATE TABLE IF NOT EXISTS contract_usage_ledger (
   id               BIGSERIAL PRIMARY KEY,
   tenant_id        BIGINT NOT NULL,
@@ -154,6 +187,17 @@ CREATE INDEX IF NOT EXISTS idx_usage_tenant_item
   ON contract_usage_ledger (tenant_id, service_item_id, occurred_at);
 CREATE UNIQUE INDEX IF NOT EXISTS uq_usage_tenant_id
   ON contract_usage_ledger (tenant_id, id);
+
+ALTER TABLE contract_usage_ledger
+  ALTER COLUMN created_at SET DEFAULT NOW();
+
+DO $$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'ck_usage_delta') THEN
+    ALTER TABLE contract_usage_ledger
+      ADD CONSTRAINT ck_usage_delta CHECK (quantity_delta <> 0 OR amount_delta <> 0);
+  END IF;
+END $$;
 
 -- ── 5. contract_project_links ───────────────────────────────────────────────
 CREATE TABLE IF NOT EXISTS contract_project_links (
@@ -211,6 +255,49 @@ CREATE INDEX IF NOT EXISTS idx_cpl_tenant_project
 CREATE UNIQUE INDEX IF NOT EXISTS uq_cpl_tenant_id
   ON contract_project_links (tenant_id, id);
 
+ALTER TABLE contract_project_links
+  ALTER COLUMN created_at SET DEFAULT NOW(),
+  ALTER COLUMN updated_at SET DEFAULT NOW();
+
+DO $$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'ck_cpl_amount') THEN
+    ALTER TABLE contract_project_links ADD CONSTRAINT ck_cpl_amount
+      CHECK (allocated_amount IS NULL OR allocated_amount >= 0);
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'ck_cpl_hours') THEN
+    ALTER TABLE contract_project_links ADD CONSTRAINT ck_cpl_hours
+      CHECK (allocated_hours IS NULL OR allocated_hours >= 0);
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'ck_cpl_pct') THEN
+    ALTER TABLE contract_project_links ADD CONSTRAINT ck_cpl_pct
+      CHECK (allocation_pct IS NULL OR (allocation_pct >= 0 AND allocation_pct <= 100));
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'ck_cpl_billing_only') THEN
+    ALTER TABLE contract_project_links ADD CONSTRAINT ck_cpl_billing_only CHECK (
+      relation_type = 'billing'
+      OR (allocated_amount IS NULL AND allocated_hours IS NULL
+          AND allocation_pct IS NULL AND service_item_id IS NULL)
+    );
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'ck_cpl_billing_item') THEN
+    ALTER TABLE contract_project_links ADD CONSTRAINT ck_cpl_billing_item
+      CHECK (relation_type <> 'billing' OR service_item_id IS NOT NULL);
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'ck_cpl_billing_amount') THEN
+    ALTER TABLE contract_project_links ADD CONSTRAINT ck_cpl_billing_amount CHECK (
+      relation_type <> 'billing'
+      OR allocated_amount IS NOT NULL
+      OR allocated_hours IS NOT NULL
+      OR allocation_pct IS NOT NULL
+    );
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'ck_cpl_primary_basis') THEN
+    ALTER TABLE contract_project_links ADD CONSTRAINT ck_cpl_primary_basis
+      CHECK (NOT is_primary OR relation_type = 'basis');
+  END IF;
+END $$;
+
 -- ── 6. 同租户复合外键 ───────────────────────────────────────────────────────
 DO $$
 BEGIN
@@ -246,9 +333,9 @@ END $$;
 
 -- ── 7. 存量合同生成一条汇总服务项（M15，不自动建合同-项目链接） ─────────────
 INSERT INTO contract_service_items
-  (tenant_id, contract_id, item_code, item_name, billing_unit, quantity, period_count, unit_price, amount, status)
+  (tenant_id, contract_id, item_code, item_name, billing_unit, quantity, period_count, unit_price, amount, status, created_at, updated_at)
 SELECT sc.tenant_id, sc.id, 'LEGACY-SUMMARY', '历史合同（未拆分）', 'project', 1, 1,
-       COALESCE(sc.amount, 0), COALESCE(sc.amount, 0), 'active'
+       COALESCE(sc.amount, 0), COALESCE(sc.amount, 0), 'active', NOW(), NOW()
 FROM support_contracts sc
 WHERE sc.deleted_at IS NULL
   AND NOT EXISTS (

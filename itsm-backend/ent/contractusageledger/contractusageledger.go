@@ -36,7 +36,7 @@ const (
 	// FieldCreatedAt holds the string denoting the created_at field in the database.
 	FieldCreatedAt = "created_at"
 	// Table holds the table name of the contractusageledger in the database.
-	Table = "contract_usage_ledgers"
+	Table = "contract_usage_ledger"
 )
 
 // Columns holds all SQL columns for contractusageledger fields.
